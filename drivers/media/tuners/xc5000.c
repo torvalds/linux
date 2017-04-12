@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -1148,7 +1144,7 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 			pr_err("xc5000: Upload failed. rc %d\n", ret);
 			return ret;
 		}
-		dprintk(1, "firmware read %Zu bytes.\n", fw->size);
+		dprintk(1, "firmware read %zu bytes.\n", fw->size);
 
 		if (fw->size != desired_fw->size) {
 			pr_err("xc5000: Firmware file with incorrect size\n");
@@ -1326,7 +1322,7 @@ static int xc5000_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int xc5000_release(struct dvb_frontend *fe)
+static void xc5000_release(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 
@@ -1346,8 +1342,6 @@ static int xc5000_release(struct dvb_frontend *fe)
 	mutex_unlock(&xc5000_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int xc5000_set_config(struct dvb_frontend *fe, void *priv_cfg)

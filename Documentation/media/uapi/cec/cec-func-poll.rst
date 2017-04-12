@@ -20,24 +20,31 @@ Synopsis
     #include <sys/poll.h>
 
 
-.. cpp:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
+.. c:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
+   :name: cec-poll
 
 Arguments
 =========
 
+``ufds``
+   List of FD events to be watched
+
+``nfds``
+   Number of FD efents at the \*ufds array
+
+``timeout``
+   Timeout to wait for events
+
 
 Description
 ===========
-
-.. note:: This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
 
 With the :c:func:`poll()` function applications can wait for CEC
 events.
 
 On success :c:func:`poll()` returns the number of file descriptors
 that have been selected (that is, file descriptors for which the
-``revents`` field of the respective :c:type:`struct pollfd` structure
+``revents`` field of the respective struct :c:type:`pollfd`
 is non-zero). CEC devices set the ``POLLIN`` and ``POLLRDNORM`` flags in
 the ``revents`` field if there are messages in the receive queue. If the
 transmit queue has room for new messages, the ``POLLOUT`` and

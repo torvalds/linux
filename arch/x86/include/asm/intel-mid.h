@@ -17,6 +17,9 @@
 
 extern int intel_mid_pci_init(void);
 extern int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
+extern pci_power_t intel_mid_pci_get_power_state(struct pci_dev *pdev);
+
+extern void intel_mid_pwr_power_off(void);
 
 #define INTEL_MID_PWR_LSS_OFFSET	4
 #define INTEL_MID_PWR_LSS_TYPE		(1 << 7)
@@ -24,7 +27,6 @@ extern int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state
 extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
 
 extern int get_gpio_by_name(const char *name);
-extern void intel_scu_device_register(struct platform_device *pdev);
 extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
 extern int __init sfi_parse_mtmr(struct sfi_table_header *table);
 extern int sfi_mrtc_num;
@@ -39,10 +41,8 @@ struct devs_id {
 	char name[SFI_NAME_LEN + 1];
 	u8 type;
 	u8 delay;
+	u8 msic;
 	void *(*get_platform_data)(void *info);
-	/* Custom handler for devices */
-	void (*device_handler)(struct sfi_device_table_entry *pentry,
-			       struct devs_id *dev);
 };
 
 #define sfi_device(i)								\

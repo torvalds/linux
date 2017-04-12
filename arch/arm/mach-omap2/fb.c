@@ -90,7 +90,7 @@ int __init omap_init_vrfb(void)
 int __init omap_init_vrfb(void) { return 0; }
 #endif
 
-#if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
+#if IS_ENABLED(CONFIG_FB_OMAP2)
 
 static u64 omap_fb_dma_mask = ~(u32)0;
 static struct omapfb_platform_data omapfb_config;

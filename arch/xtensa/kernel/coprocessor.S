@@ -17,7 +17,7 @@
 #include <asm/processor.h>
 #include <asm/coprocessor.h>
 #include <asm/thread_info.h>
-#include <asm/uaccess.h>
+#include <asm/asm-uaccess.h>
 #include <asm/unistd.h>
 #include <asm/ptrace.h>
 #include <asm/current.h>

@@ -21,6 +21,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -389,10 +390,6 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 			dev->secondary_head += (amount - i);
 			bytes_read += (amount - i);
 			bytes_to_read -= (amount - i);
-			if (i) {
-				retval = bytes_read ? bytes_read : -EFAULT;
-				goto exit;
-			}
 		} else {
 			/* we check the primary buffer */
 			spin_lock_irqsave (&dev->buflock, flags);
@@ -567,20 +564,20 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			}
 
 			dev_dbg(&dev->udev->dev,
-				"%s : in progress, count = %Zd\n",
+				"%s : in progress, count = %zd\n",
 				__func__, count);
 		} else {
 			spin_unlock_irqrestore(&dev->buflock, flags);
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&dev->write_wait, &waita);
-			dev_dbg(&dev->udev->dev, "%s : sending, count = %Zd\n",
+			dev_dbg(&dev->udev->dev, "%s : sending, count = %zd\n",
 				__func__, count);
 
 			/* write the data into interrupt_out_buffer from userspace */
 			buffer_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 			bytes_to_write = count > buffer_size ? buffer_size : count;
 			dev_dbg(&dev->udev->dev,
-				"%s : buffer_size = %Zd, count = %Zd, bytes_to_write = %Zd\n",
+				"%s : buffer_size = %zd, count = %zd, bytes_to_write = %zd\n",
 				__func__, buffer_size, count, bytes_to_write);
 
 			if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write) != 0) {
@@ -672,8 +669,7 @@ static int adu_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!dev) {
 		retval = -ENOMEM;
 		goto exit;
 	}
@@ -710,7 +706,6 @@ static int adu_probe(struct usb_interface *interface,
 
 	dev->read_buffer_primary = kmalloc((4 * in_end_size), GFP_KERNEL);
 	if (!dev->read_buffer_primary) {
-		dev_err(&interface->dev, "Couldn't allocate read_buffer_primary\n");
 		retval = -ENOMEM;
 		goto error;
 	}
@@ -723,7 +718,6 @@ static int adu_probe(struct usb_interface *interface,
 
 	dev->read_buffer_secondary = kmalloc((4 * in_end_size), GFP_KERNEL);
 	if (!dev->read_buffer_secondary) {
-		dev_err(&interface->dev, "Couldn't allocate read_buffer_secondary\n");
 		retval = -ENOMEM;
 		goto error;
 	}
@@ -735,29 +729,21 @@ static int adu_probe(struct usb_interface *interface,
 	memset(dev->read_buffer_secondary + (3 * in_end_size), 'h', in_end_size);
 
 	dev->interrupt_in_buffer = kmalloc(in_end_size, GFP_KERNEL);
-	if (!dev->interrupt_in_buffer) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_in_buffer\n");
+	if (!dev->interrupt_in_buffer)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->interrupt_in_buffer, 'i', in_end_size);
 
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_in_urb) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_in_urb\n");
+	if (!dev->interrupt_in_urb)
 		goto error;
-	}
 	dev->interrupt_out_buffer = kmalloc(out_end_size, GFP_KERNEL);
-	if (!dev->interrupt_out_buffer) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_out_buffer\n");
+	if (!dev->interrupt_out_buffer)
 		goto error;
-	}
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->interrupt_out_urb) {
-		dev_err(&interface->dev, "Couldn't allocate interrupt_out_urb\n");
+	if (!dev->interrupt_out_urb)
 		goto error;
-	}
 
 	if (!usb_string(udev, udev->descriptor.iSerialNumber, dev->serial_number,
 			sizeof(dev->serial_number))) {

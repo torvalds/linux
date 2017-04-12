@@ -24,6 +24,12 @@
 #ifndef PP_DEBUG_H
 #define PP_DEBUG_H
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) "amdgpu: [powerplay] " fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -31,7 +37,7 @@
 #define PP_ASSERT_WITH_CODE(cond, msg, code)	\
 	do {					\
 		if (!(cond)) {			\
-			printk("%s\n", msg);	\
+			pr_warning("%s\n", msg);	\
 			code;			\
 		}				\
 	} while (0)
@@ -39,9 +45,12 @@
 
 #define PP_DBG_LOG(fmt, ...) \
 	do { \
-		if(0)printk(KERN_INFO "[ pp_dbg ] " fmt, ##__VA_ARGS__); \
+		pr_debug(fmt, ##__VA_ARGS__); \
 	} while (0)
 
+
+#define GET_FLEXIBLE_ARRAY_MEMBER_ADDR(type, member, ptr, n)	\
+	(type *)((char *)&(ptr)->member + (sizeof(type) * (n)))
 
 #endif /* PP_DEBUG_H */
 

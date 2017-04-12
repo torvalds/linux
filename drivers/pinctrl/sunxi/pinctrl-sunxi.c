@@ -28,8 +28,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
 #include "../core.h"
-#include "../../gpio/gpiolib.h"
 #include "pinctrl-sunxi.h"
 
 static struct irq_chip sunxi_pinctrl_edge_irq_chip;
@@ -146,6 +147,171 @@ static int sunxi_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static bool sunxi_pctrl_has_bias_prop(struct device_node *node)
+{
+	return of_find_property(node, "bias-pull-up", NULL) ||
+		of_find_property(node, "bias-pull-down", NULL) ||
+		of_find_property(node, "bias-disable", NULL) ||
+		of_find_property(node, "allwinner,pull", NULL);
+}
+
+static bool sunxi_pctrl_has_drive_prop(struct device_node *node)
+{
+	return of_find_property(node, "drive-strength", NULL) ||
+		of_find_property(node, "allwinner,drive", NULL);
+}
+
+static int sunxi_pctrl_parse_bias_prop(struct device_node *node)
+{
+	u32 val;
+
+	/* Try the new style binding */
+	if (of_find_property(node, "bias-pull-up", NULL))
+		return PIN_CONFIG_BIAS_PULL_UP;
+
+	if (of_find_property(node, "bias-pull-down", NULL))
+		return PIN_CONFIG_BIAS_PULL_DOWN;
+
+	if (of_find_property(node, "bias-disable", NULL))
+		return PIN_CONFIG_BIAS_DISABLE;
+
+	/* And fall back to the old binding */
+	if (of_property_read_u32(node, "allwinner,pull", &val))
+		return -EINVAL;
+
+	switch (val) {
+	case SUN4I_PINCTRL_NO_PULL:
+		return PIN_CONFIG_BIAS_DISABLE;
+	case SUN4I_PINCTRL_PULL_UP:
+		return PIN_CONFIG_BIAS_PULL_UP;
+	case SUN4I_PINCTRL_PULL_DOWN:
+		return PIN_CONFIG_BIAS_PULL_DOWN;
+	}
+
+	return -EINVAL;
+}
+
+static int sunxi_pctrl_parse_drive_prop(struct device_node *node)
+{
+	u32 val;
+
+	/* Try the new style binding */
+	if (!of_property_read_u32(node, "drive-strength", &val)) {
+		/* We can't go below 10mA ... */
+		if (val < 10)
+			return -EINVAL;
+
+		/* ... and only up to 40 mA ... */
+		if (val > 40)
+			val = 40;
+
+		/* by steps of 10 mA */
+		return rounddown(val, 10);
+	}
+
+	/* And then fall back to the old binding */
+	if (of_property_read_u32(node, "allwinner,drive", &val))
+		return -EINVAL;
+
+	return (val + 1) * 10;
+}
+
+static const char *sunxi_pctrl_parse_function_prop(struct device_node *node)
+{
+	const char *function;
+	int ret;
+
+	/* Try the generic binding */
+	ret = of_property_read_string(node, "function", &function);
+	if (!ret)
+		return function;
+
+	/* And fall back to our legacy one */
+	ret = of_property_read_string(node, "allwinner,function", &function);
+	if (!ret)
+		return function;
+
+	return NULL;
+}
+
+static const char *sunxi_pctrl_find_pins_prop(struct device_node *node,
+					      int *npins)
+{
+	int count;
+
+	/* Try the generic binding */
+	count = of_property_count_strings(node, "pins");
+	if (count > 0) {
+		*npins = count;
+		return "pins";
+	}
+
+	/* And fall back to our legacy one */
+	count = of_property_count_strings(node, "allwinner,pins");
+	if (count > 0) {
+		*npins = count;
+		return "allwinner,pins";
+	}
+
+	return NULL;
+}
+
+static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
+						   unsigned int *len)
+{
+	unsigned long *pinconfig;
+	unsigned int configlen = 0, idx = 0;
+	int ret;
+
+	if (sunxi_pctrl_has_drive_prop(node))
+		configlen++;
+	if (sunxi_pctrl_has_bias_prop(node))
+		configlen++;
+
+	/*
+	 * If we don't have any configuration, bail out
+	 */
+	if (!configlen)
+		return NULL;
+
+	pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
+	if (!pinconfig)
+		return ERR_PTR(-ENOMEM);
+
+	if (sunxi_pctrl_has_drive_prop(node)) {
+		int drive = sunxi_pctrl_parse_drive_prop(node);
+		if (drive < 0) {
+			ret = drive;
+			goto err_free;
+		}
+
+		pinconfig[idx++] = pinconf_to_config_packed(PIN_CONFIG_DRIVE_STRENGTH,
+							  drive);
+	}
+
+	if (sunxi_pctrl_has_bias_prop(node)) {
+		int pull = sunxi_pctrl_parse_bias_prop(node);
+		int arg = 0;
+		if (pull < 0) {
+			ret = pull;
+			goto err_free;
+		}
+
+		if (pull != PIN_CONFIG_BIAS_DISABLE)
+			arg = 1; /* hardware uses weak pull resistors */
+
+		pinconfig[idx++] = pinconf_to_config_packed(pull, arg);
+	}
+
+
+	*len = configlen;
+	return pinconfig;
+
+err_free:
+	kfree(pinconfig);
+	return ERR_PTR(ret);
+}
+
 static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				      struct device_node *node,
 				      struct pinctrl_map **map,
@@ -154,38 +320,48 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned long *pinconfig;
 	struct property *prop;
-	const char *function;
+	const char *function, *pin_prop;
 	const char *group;
-	int ret, nmaps, i = 0;
-	u32 val;
+	int ret, npins, nmaps, configlen = 0, i = 0;
 
 	*map = NULL;
 	*num_maps = 0;
 
-	ret = of_property_read_string(node, "allwinner,function", &function);
-	if (ret) {
-		dev_err(pctl->dev,
-			"missing allwinner,function property in node %s\n",
+	function = sunxi_pctrl_parse_function_prop(node);
+	if (!function) {
+		dev_err(pctl->dev, "missing function property in node %s\n",
 			node->name);
 		return -EINVAL;
 	}
 
-	nmaps = of_property_count_strings(node, "allwinner,pins") * 2;
-	if (nmaps < 0) {
-		dev_err(pctl->dev,
-			"missing allwinner,pins property in node %s\n",
+	pin_prop = sunxi_pctrl_find_pins_prop(node, &npins);
+	if (!pin_prop) {
+		dev_err(pctl->dev, "missing pins property in node %s\n",
 			node->name);
 		return -EINVAL;
 	}
 
+	/*
+	 * We have two maps for each pin: one for the function, one
+	 * for the configuration (bias, strength, etc).
+	 *
+	 * We might be slightly overshooting, since we might not have
+	 * any configuration.
+	 */
+	nmaps = npins * 2;
 	*map = kmalloc(nmaps * sizeof(struct pinctrl_map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 
-	of_property_for_each_string(node, "allwinner,pins", prop, group) {
+	pinconfig = sunxi_pctrl_build_pin_config(node, &configlen);
+	if (IS_ERR(pinconfig)) {
+		ret = PTR_ERR(pinconfig);
+		goto err_free_map;
+	}
+
+	of_property_for_each_string(node, pin_prop, prop, group) {
 		struct sunxi_pinctrl_group *grp =
 			sunxi_pinctrl_find_group_by_name(pctl, group);
-		int j = 0, configlen = 0;
 
 		if (!grp) {
 			dev_err(pctl->dev, "unknown pin %s", group);
@@ -206,45 +382,31 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		i++;
 
-		(*map)[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		(*map)[i].data.configs.group_or_pin = group;
-
-		if (of_find_property(node, "allwinner,drive", NULL))
-			configlen++;
-		if (of_find_property(node, "allwinner,pull", NULL))
-			configlen++;
-
-		pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
-		if (!pinconfig) {
-			kfree(*map);
-			return -ENOMEM;
+		if (pinconfig) {
+			(*map)[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
+			(*map)[i].data.configs.group_or_pin = group;
+			(*map)[i].data.configs.configs = pinconfig;
+			(*map)[i].data.configs.num_configs = configlen;
+			i++;
 		}
-
-		if (!of_property_read_u32(node, "allwinner,drive", &val)) {
-			u16 strength = (val + 1) * 10;
-			pinconfig[j++] =
-				pinconf_to_config_packed(PIN_CONFIG_DRIVE_STRENGTH,
-							 strength);
-		}
-
-		if (!of_property_read_u32(node, "allwinner,pull", &val)) {
-			enum pin_config_param pull = PIN_CONFIG_END;
-			if (val == 1)
-				pull = PIN_CONFIG_BIAS_PULL_UP;
-			else if (val == 2)
-				pull = PIN_CONFIG_BIAS_PULL_DOWN;
-			pinconfig[j++] = pinconf_to_config_packed(pull, 0);
-		}
-
-		(*map)[i].data.configs.configs = pinconfig;
-		(*map)[i].data.configs.num_configs = configlen;
-
-		i++;
 	}
 
-	*num_maps = nmaps;
+	*num_maps = i;
+
+	/*
+	 * We know have the number of maps we need, we can resize our
+	 * map array
+	 */
+	*map = krealloc(*map, i * sizeof(struct pinctrl_map), GFP_KERNEL);
+	if (!*map)
+		return -ENOMEM;
 
 	return 0;
+
+err_free_map:
+	kfree(*map);
+	*map = NULL;
+	return ret;
 }
 
 static void sunxi_pctrl_dt_free_map(struct pinctrl_dev *pctldev,
@@ -253,9 +415,17 @@ static void sunxi_pctrl_dt_free_map(struct pinctrl_dev *pctldev,
 {
 	int i;
 
-	for (i = 0; i < num_maps; i++) {
-		if (map[i].type == PIN_MAP_TYPE_CONFIGS_GROUP)
-			kfree(map[i].data.configs.configs);
+	/* pin config is never in the first map */
+	for (i = 1; i < num_maps; i++) {
+		if (map[i].type != PIN_MAP_TYPE_CONFIGS_GROUP)
+			continue;
+
+		/*
+		 * All the maps share the same pin config,
+		 * free only the first one we find.
+		 */
+		kfree(map[i].data.configs.configs);
+		break;
 	}
 
 	kfree(map);
@@ -269,15 +439,91 @@ static const struct pinctrl_ops sunxi_pctrl_ops = {
 	.get_group_pins		= sunxi_pctrl_get_group_pins,
 };
 
+static int sunxi_pconf_reg(unsigned pin, enum pin_config_param param,
+			   u32 *offset, u32 *shift, u32 *mask)
+{
+	switch (param) {
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		*offset = sunxi_dlevel_reg(pin);
+		*shift = sunxi_dlevel_offset(pin);
+		*mask = DLEVEL_PINS_MASK;
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_DISABLE:
+		*offset = sunxi_pull_reg(pin);
+		*shift = sunxi_pull_offset(pin);
+		*mask = PULL_PINS_MASK;
+		break;
+
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int sunxi_pconf_get(struct pinctrl_dev *pctldev, unsigned pin,
+			   unsigned long *config)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	enum pin_config_param param = pinconf_to_config_param(*config);
+	u32 offset, shift, mask, val;
+	u16 arg;
+	int ret;
+
+	pin -= pctl->desc->pin_base;
+
+	ret = sunxi_pconf_reg(pin, param, &offset, &shift, &mask);
+	if (ret < 0)
+		return ret;
+
+	val = (readl(pctl->membase + offset) >> shift) & mask;
+
+	switch (pinconf_to_config_param(*config)) {
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		arg = (val + 1) * 10;
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_UP:
+		if (val != SUN4I_PINCTRL_PULL_UP)
+			return -EINVAL;
+		arg = 1; /* hardware is weak pull-up */
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		if (val != SUN4I_PINCTRL_PULL_DOWN)
+			return -EINVAL;
+		arg = 1; /* hardware is weak pull-down */
+		break;
+
+	case PIN_CONFIG_BIAS_DISABLE:
+		if (val != SUN4I_PINCTRL_NO_PULL)
+			return -EINVAL;
+		arg = 0;
+		break;
+
+	default:
+		/* sunxi_pconf_reg should catch anything unsupported */
+		WARN_ON(1);
+		return -ENOTSUPP;
+	}
+
+	*config = pinconf_to_config_packed(param, arg);
+
+	return 0;
+}
+
 static int sunxi_pconf_group_get(struct pinctrl_dev *pctldev,
 				 unsigned group,
 				 unsigned long *config)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	struct sunxi_pinctrl_group *g = &pctl->groups[group];
 
-	*config = pctl->groups[group].config;
-
-	return 0;
+	/* We only support 1 pin per group. Chain it to the pin callback */
+	return sunxi_pconf_get(pctldev, g->pin, config);
 }
 
 static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
@@ -287,23 +533,27 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sunxi_pinctrl_group *g = &pctl->groups[group];
-	unsigned long flags;
 	unsigned pin = g->pin - pctl->desc->pin_base;
-	u32 val, mask;
-	u16 strength;
-	u8 dlevel;
 	int i;
 
-	spin_lock_irqsave(&pctl->lock, flags);
-
 	for (i = 0; i < num_configs; i++) {
-		switch (pinconf_to_config_param(configs[i])) {
+		enum pin_config_param param;
+		unsigned long flags;
+		u32 offset, shift, mask, reg;
+		u32 arg, val;
+		int ret;
+
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
+
+		ret = sunxi_pconf_reg(pin, param, &offset, &shift, &mask);
+		if (ret < 0)
+			return ret;
+
+		switch (param) {
 		case PIN_CONFIG_DRIVE_STRENGTH:
-			strength = pinconf_to_config_argument(configs[i]);
-			if (strength > 40) {
-				spin_unlock_irqrestore(&pctl->lock, flags);
+			if (arg < 10 || arg > 40)
 				return -EINVAL;
-			}
 			/*
 			 * We convert from mA to what the register expects:
 			 *   0: 10mA
@@ -311,38 +561,39 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 			 *   2: 30mA
 			 *   3: 40mA
 			 */
-			dlevel = strength / 10 - 1;
-			val = readl(pctl->membase + sunxi_dlevel_reg(pin));
-			mask = DLEVEL_PINS_MASK << sunxi_dlevel_offset(pin);
-			writel((val & ~mask)
-				| dlevel << sunxi_dlevel_offset(pin),
-				pctl->membase + sunxi_dlevel_reg(pin));
+			val = arg / 10 - 1;
 			break;
+		case PIN_CONFIG_BIAS_DISABLE:
+			continue;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			val = readl(pctl->membase + sunxi_pull_reg(pin));
-			mask = PULL_PINS_MASK << sunxi_pull_offset(pin);
-			writel((val & ~mask) | 1 << sunxi_pull_offset(pin),
-				pctl->membase + sunxi_pull_reg(pin));
+			if (arg == 0)
+				return -EINVAL;
+			val = 1;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			val = readl(pctl->membase + sunxi_pull_reg(pin));
-			mask = PULL_PINS_MASK << sunxi_pull_offset(pin);
-			writel((val & ~mask) | 2 << sunxi_pull_offset(pin),
-				pctl->membase + sunxi_pull_reg(pin));
+			if (arg == 0)
+				return -EINVAL;
+			val = 2;
 			break;
 		default:
-			break;
+			/* sunxi_pconf_reg should catch anything unsupported */
+			WARN_ON(1);
+			return -ENOTSUPP;
 		}
-		/* cache the config value */
-		g->config = configs[i];
-	} /* for each config */
 
-	spin_unlock_irqrestore(&pctl->lock, flags);
+		spin_lock_irqsave(&pctl->lock, flags);
+		reg = readl(pctl->membase + offset);
+		reg &= ~(mask << shift);
+		writel(reg | val << shift, pctl->membase + offset);
+		spin_unlock_irqrestore(&pctl->lock, flags);
+	} /* for each config */
 
 	return 0;
 }
 
 static const struct pinconf_ops sunxi_pconf_ops = {
+	.is_generic		= true,
+	.pin_config_get		= sunxi_pconf_get,
 	.pin_config_group_get	= sunxi_pconf_group_get,
 	.pin_config_group_set	= sunxi_pconf_group_set,
 };
@@ -789,21 +1040,35 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	struct sunxi_pinctrl *pctl = platform_get_drvdata(pdev);
 	int i;
 
-	pctl->ngroups = pctl->desc->npins;
+	/*
+	 * Allocate groups
+	 *
+	 * We assume that the number of groups is the number of pins
+	 * given in the data array.
 
-	/* Allocate groups */
+	 * This will not always be true, since some pins might not be
+	 * available in the current variant, but fortunately for us,
+	 * this means that the number of pins is the maximum group
+	 * number we will ever see.
+	 */
 	pctl->groups = devm_kzalloc(&pdev->dev,
-				    pctl->ngroups * sizeof(*pctl->groups),
+				    pctl->desc->npins * sizeof(*pctl->groups),
 				    GFP_KERNEL);
 	if (!pctl->groups)
 		return -ENOMEM;
 
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
-		struct sunxi_pinctrl_group *group = pctl->groups + i;
+		struct sunxi_pinctrl_group *group = pctl->groups + pctl->ngroups;
+
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
 
 		group->name = pin->pin.name;
 		group->pin = pin->pin.number;
+
+		/* And now we count the actual number of pins / groups */
+		pctl->ngroups++;
 	}
 
 	/*
@@ -811,17 +1076,23 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * we'll reallocate that later anyway
 	 */
 	pctl->functions = devm_kzalloc(&pdev->dev,
-				pctl->desc->npins * sizeof(*pctl->functions),
-				GFP_KERNEL);
+				       pctl->ngroups * sizeof(*pctl->functions),
+				       GFP_KERNEL);
 	if (!pctl->functions)
 		return -ENOMEM;
 
 	/* Count functions and their associated groups */
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
-		struct sunxi_desc_function *func = pin->functions;
+		struct sunxi_desc_function *func;
 
-		while (func->name) {
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
+
+		for (func = pin->functions; func->name; func++) {
+			if (func->variant && !(pctl->variant & func->variant))
+				continue;
+
 			/* Create interrupt mapping while we're at it */
 			if (!strcmp(func->name, "irq")) {
 				int irqnum = func->irqnum + func->irqbank * IRQ_PER_BANK;
@@ -829,21 +1100,31 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 			}
 
 			sunxi_pinctrl_add_function(pctl, func->name);
-			func++;
 		}
 	}
 
+	/* And now allocated and fill the array for real */
 	pctl->functions = krealloc(pctl->functions,
-				pctl->nfunctions * sizeof(*pctl->functions),
-				GFP_KERNEL);
+				   pctl->nfunctions * sizeof(*pctl->functions),
+				   GFP_KERNEL);
+	if (!pctl->functions) {
+		kfree(pctl->functions);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < pctl->desc->npins; i++) {
 		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
-		struct sunxi_desc_function *func = pin->functions;
+		struct sunxi_desc_function *func;
 
-		while (func->name) {
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
+
+		for (func = pin->functions; func->name; func++) {
 			struct sunxi_pinctrl_function *func_item;
 			const char **func_grp;
+
+			if (func->variant && !(pctl->variant & func->variant))
+				continue;
 
 			func_item = sunxi_pinctrl_find_function_by_name(pctl,
 									func->name);
@@ -864,22 +1145,107 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 				func_grp++;
 
 			*func_grp = pin->pin.name;
-			func++;
 		}
 	}
 
 	return 0;
 }
 
-int sunxi_pinctrl_init(struct platform_device *pdev,
-		       const struct sunxi_pinctrl_desc *desc)
+static int sunxi_pinctrl_get_debounce_div(struct clk *clk, int freq, int *diff)
+{
+	unsigned long clock = clk_get_rate(clk);
+	unsigned int best_diff, best_div;
+	int i;
+
+	best_diff = abs(freq - clock);
+	best_div = 0;
+
+	for (i = 1; i < 8; i++) {
+		int cur_diff = abs(freq - (clock >> i));
+
+		if (cur_diff < best_diff) {
+			best_diff = cur_diff;
+			best_div = i;
+		}
+	}
+
+	*diff = best_diff;
+	return best_div;
+}
+
+static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
+					struct device_node *node)
+{
+	unsigned int hosc_diff, losc_diff;
+	unsigned int hosc_div, losc_div;
+	struct clk *hosc, *losc;
+	u8 div, src;
+	int i, ret;
+
+	/* Deal with old DTs that didn't have the oscillators */
+	if (of_count_phandle_with_args(node, "clocks", "#clock-cells") != 3)
+		return 0;
+
+	/* If we don't have any setup, bail out */
+	if (!of_find_property(node, "input-debounce", NULL))
+		return 0;
+
+	losc = devm_clk_get(pctl->dev, "losc");
+	if (IS_ERR(losc))
+		return PTR_ERR(losc);
+
+	hosc = devm_clk_get(pctl->dev, "hosc");
+	if (IS_ERR(hosc))
+		return PTR_ERR(hosc);
+
+	for (i = 0; i < pctl->desc->irq_banks; i++) {
+		unsigned long debounce_freq;
+		u32 debounce;
+
+		ret = of_property_read_u32_index(node, "input-debounce",
+						 i, &debounce);
+		if (ret)
+			return ret;
+
+		if (!debounce)
+			continue;
+
+		debounce_freq = DIV_ROUND_CLOSEST(USEC_PER_SEC, debounce);
+		losc_div = sunxi_pinctrl_get_debounce_div(losc,
+							  debounce_freq,
+							  &losc_diff);
+
+		hosc_div = sunxi_pinctrl_get_debounce_div(hosc,
+							  debounce_freq,
+							  &hosc_diff);
+
+		if (hosc_diff < losc_diff) {
+			div = hosc_div;
+			src = 1;
+		} else {
+			div = losc_div;
+			src = 0;
+		}
+
+		writel(src | div << 4,
+		       pctl->membase +
+		       sunxi_irq_debounce_reg_from_bank(i,
+							pctl->desc->irq_bank_base));
+	}
+
+	return 0;
+}
+
+int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
+				    const struct sunxi_pinctrl_desc *desc,
+				    unsigned long variant)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct pinctrl_desc *pctrl_desc;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
 	struct resource *res;
-	int i, ret, last_pin;
+	int i, ret, last_pin, pin_idx;
 	struct clk *clk;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
@@ -896,6 +1262,7 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 
 	pctl->dev = &pdev->dev;
 	pctl->desc = desc;
+	pctl->variant = variant;
 
 	pctl->irq_array = devm_kcalloc(&pdev->dev,
 				       IRQ_PER_BANK * pctl->desc->irq_banks,
@@ -916,8 +1283,14 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	if (!pins)
 		return -ENOMEM;
 
-	for (i = 0; i < pctl->desc->npins; i++)
-		pins[i] = pctl->desc->pins[i].pin;
+	for (i = 0, pin_idx = 0; i < pctl->desc->npins; i++) {
+		const struct sunxi_desc_pin *pin = pctl->desc->pins + i;
+
+		if (pin->variant && !(pctl->variant & pin->variant))
+			continue;
+
+		pins[pin_idx++] = pin->pin;
+	}
 
 	pctrl_desc = devm_kzalloc(&pdev->dev,
 				  sizeof(*pctrl_desc),
@@ -928,7 +1301,7 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	pctrl_desc->name = dev_name(&pdev->dev);
 	pctrl_desc->owner = THIS_MODULE;
 	pctrl_desc->pins = pins;
-	pctrl_desc->npins = pctl->desc->npins;
+	pctrl_desc->npins = pctl->ngroups;
 	pctrl_desc->confops = &sunxi_pconf_ops;
 	pctrl_desc->pctlops = &sunxi_pctrl_ops;
 	pctrl_desc->pmxops =  &sunxi_pmx_ops;
@@ -1032,6 +1405,8 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 						 sunxi_pinctrl_irq_handler,
 						 pctl);
 	}
+
+	sunxi_pinctrl_setup_debounce(pctl, node);
 
 	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");
 

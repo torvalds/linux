@@ -30,7 +30,7 @@ static ssize_t ieee80211_if_read(
 	size_t count, loff_t *ppos,
 	ssize_t (*format)(const struct ieee80211_sub_if_data *, char *, int))
 {
-	char buf[70];
+	char buf[200];
 	ssize_t ret = -EINVAL;
 
 	read_lock(&dev_base_lock);
@@ -477,6 +477,7 @@ IEEE80211_IF_FILE_RW(tdls_wider_bw);
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.ps.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.ps.dtim_count, DEC);
+IEEE80211_IF_FILE(num_mcast_sta_vlan, u.vlan.num_mcast_sta, ATOMIC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -485,6 +486,40 @@ static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 			 skb_queue_len(&sdata->u.ap.ps.bc_buf));
 }
 IEEE80211_IF_FILE_R(num_buffered_multicast);
+
+static ssize_t ieee80211_if_fmt_aqm(
+	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct txq_info *txqi = to_txq_info(sdata->vif.txq);
+	int len;
+
+	spin_lock_bh(&local->fq.lock);
+	rcu_read_lock();
+
+	len = scnprintf(buf,
+			buflen,
+			"ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets\n"
+			"%u %u %u %u %u %u %u %u %u %u\n",
+			txqi->txq.ac,
+			txqi->tin.backlog_bytes,
+			txqi->tin.backlog_packets,
+			txqi->tin.flows,
+			txqi->cstats.drop_count,
+			txqi->cstats.ecn_mark,
+			txqi->tin.overlimit,
+			txqi->tin.collisions,
+			txqi->tin.tx_bytes,
+			txqi->tin.tx_packets);
+
+	rcu_read_unlock();
+	spin_unlock_bh(&local->fq.lock);
+
+	return len;
+}
+IEEE80211_IF_FILE_R(aqm);
+
+IEEE80211_IF_FILE(multicast_to_unicast, u.ap.multicast_to_unicast, HEX);
 
 /* IBSS attributes */
 static ssize_t ieee80211_if_fmt_tsf(
@@ -524,9 +559,15 @@ static ssize_t ieee80211_if_parse_tsf(
 		ret = kstrtoull(buf, 10, &tsf);
 		if (ret < 0)
 			return ret;
-		if (tsf_is_delta)
-			tsf = drv_get_tsf(local, sdata) + tsf_is_delta * tsf;
-		if (local->ops->set_tsf) {
+		if (tsf_is_delta && local->ops->offset_tsf) {
+			drv_offset_tsf(local, sdata, tsf_is_delta * tsf);
+			wiphy_info(local->hw.wiphy,
+				   "debugfs offset TSF by %018lld\n",
+				   tsf_is_delta * tsf);
+		} else if (local->ops->set_tsf) {
+			if (tsf_is_delta)
+				tsf = drv_get_tsf(local, sdata) +
+				      tsf_is_delta * tsf;
 			drv_set_tsf(local, sdata, tsf);
 			wiphy_info(local->hw.wiphy,
 				   "debugfs set TSF to %#018llx\n", tsf);
@@ -618,6 +659,9 @@ static void add_common_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(rc_rateidx_vht_mcs_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_vht_mcs_mask_5ghz);
 	DEBUGFS_ADD(hw_queues);
+
+	if (sdata->local->ops->wake_tx_queue)
+		DEBUGFS_ADD(aqm);
 }
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
@@ -641,6 +685,14 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
+	DEBUGFS_ADD_MODE(multicast_to_unicast, 0600);
+}
+
+static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
+{
+	/* add num_mcast_sta_vlan using name num_mcast_sta */
+	debugfs_create_file("num_mcast_sta", 0400, sdata->vif.debugfs_dir,
+			    sdata, &num_mcast_sta_vlan_ops);
 }
 
 static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
@@ -745,6 +797,9 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		break;
 	case NL80211_IFTYPE_AP:
 		add_ap_files(sdata);
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+		add_vlan_files(sdata);
 		break;
 	case NL80211_IFTYPE_WDS:
 		add_wds_files(sdata);

@@ -213,6 +213,22 @@
 /* BCMA GMAC core specific IO Control (BCMA_IOCTL) flags */
 #define BGMAC_BCMA_IOCTL_SW_CLKEN		0x00000004	/* PHY Clock Enable */
 #define BGMAC_BCMA_IOCTL_SW_RESET		0x00000008	/* PHY Reset */
+/* The IOCTL values appear to be different in NS, NSP, and NS2, and do not match
+ * the values directly above
+ */
+#define BGMAC_CLK_EN				BIT(0)
+#define BGMAC_RESERVED_0			BIT(1)
+#define BGMAC_SOURCE_SYNC_MODE_EN		BIT(2)
+#define BGMAC_DEST_SYNC_MODE_EN			BIT(3)
+#define BGMAC_TX_CLK_OUT_INVERT_EN		BIT(4)
+#define BGMAC_DIRECT_GMII_MODE			BIT(5)
+#define BGMAC_CLK_250_SEL			BIT(6)
+#define BGMAC_AWCACHE				(0xf << 7)
+#define BGMAC_RESERVED_1			(0x1f << 11)
+#define BGMAC_ARCACHE				(0xf << 16)
+#define BGMAC_AWUSER				(0x3f << 20)
+#define BGMAC_ARUSER				(0x3f << 26)
+#define BGMAC_RESERVED				BIT(31)
 
 /* BCMA GMAC core specific IO status (BCMA_IOST) flags */
 #define BGMAC_BCMA_IOST_ATTACHED		0x00000800
@@ -369,6 +385,21 @@
 #define BGMAC_CHIPCTL_1_SW_TYPE_RGMII		0x000000C0
 #define BGMAC_CHIPCTL_1_RXC_DLL_BYPASS		0x00010000
 
+#define BGMAC_CHIPCTL_4_IF_TYPE_MASK		0x00003000
+#define BGMAC_CHIPCTL_4_IF_TYPE_RMII		0x00000000
+#define BGMAC_CHIPCTL_4_IF_TYPE_MII		0x00001000
+#define BGMAC_CHIPCTL_4_IF_TYPE_RGMII		0x00002000
+#define BGMAC_CHIPCTL_4_SW_TYPE_MASK		0x0000C000
+#define BGMAC_CHIPCTL_4_SW_TYPE_EPHY		0x00000000
+#define BGMAC_CHIPCTL_4_SW_TYPE_EPHYMII		0x00004000
+#define BGMAC_CHIPCTL_4_SW_TYPE_EPHYRMII	0x00008000
+#define BGMAC_CHIPCTL_4_SW_TYPE_RGMII		0x0000C000
+
+#define BGMAC_CHIPCTL_7_IF_TYPE_MASK		0x000000C0
+#define BGMAC_CHIPCTL_7_IF_TYPE_RMII		0x00000000
+#define BGMAC_CHIPCTL_7_IF_TYPE_MII		0x00000040
+#define BGMAC_CHIPCTL_7_IF_TYPE_RGMII		0x00000080
+
 #define BGMAC_WEIGHT	64
 
 #define ETHER_MAX_LEN   1518
@@ -390,6 +421,10 @@
 #define BGMAC_FEAT_NO_CLR_MIB		BIT(13)
 #define BGMAC_FEAT_FORCE_SPEED_2500	BIT(14)
 #define BGMAC_FEAT_CMDCFG_SR_REV4	BIT(15)
+#define BGMAC_FEAT_IRQ_ID_OOB_6		BIT(16)
+#define BGMAC_FEAT_CC4_IF_SW_TYPE	BIT(17)
+#define BGMAC_FEAT_CC4_IF_SW_TYPE_RGMII	BIT(18)
+#define BGMAC_FEAT_CC7_IF_TYPE_RGMII	BIT(19)
 
 struct bgmac_slot_info {
 	union {
@@ -444,6 +479,7 @@ struct bgmac {
 		struct {
 			void *base;
 			void *idm_base;
+			void *nicpm_base;
 		} plat;
 		struct {
 			struct bcma_device *core;
@@ -454,7 +490,6 @@ struct bgmac {
 
 	struct device *dev;
 	struct device *dma_dev;
-	unsigned char mac_addr[ETH_ALEN];
 	u32 feature_flags;
 
 	struct net_device *net_dev;
@@ -494,12 +529,16 @@ struct bgmac {
 	u32 (*get_bus_clock)(struct bgmac *bgmac);
 	void (*cmn_maskset32)(struct bgmac *bgmac, u16 offset, u32 mask,
 			      u32 set);
+	int (*phy_connect)(struct bgmac *bgmac);
 };
 
-int bgmac_enet_probe(struct bgmac *info);
+struct bgmac *bgmac_alloc(struct device *dev);
+int bgmac_enet_probe(struct bgmac *bgmac);
 void bgmac_enet_remove(struct bgmac *bgmac);
+void bgmac_adjust_link(struct net_device *net_dev);
+int bgmac_phy_connect_direct(struct bgmac *bgmac);
 
-struct mii_bus *bcma_mdio_mii_register(struct bcma_device *core, u8 phyaddr);
+struct mii_bus *bcma_mdio_mii_register(struct bgmac *bgmac);
 void bcma_mdio_mii_unregister(struct mii_bus *mii_bus);
 
 static inline u32 bgmac_read(struct bgmac *bgmac, u16 offset)
@@ -563,5 +602,10 @@ static inline void bgmac_mask(struct bgmac *bgmac, u16 offset, u32 mask)
 static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 {
 	bgmac_maskset(bgmac, offset, ~0, set);
+}
+
+static inline int bgmac_phy_connect(struct bgmac *bgmac)
+{
+	return bgmac->phy_connect(bgmac);
 }
 #endif /* _BGMAC_H */

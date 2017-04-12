@@ -73,6 +73,12 @@ def setup(app):
     roles.register_local_role('cspan', c_span)
     roles.register_local_role('rspan', r_span)
 
+    return dict(
+        version = __version__,
+        parallel_read_safe = True,
+        parallel_write_safe = True
+    )
+
 # ==============================================================================
 def c_span(name, rawtext, text, lineno, inliner, options=None, content=None):
 # ==============================================================================
@@ -151,6 +157,11 @@ class ListTableBuilder(object):
     def buildTableNode(self):
 
         colwidths    = self.directive.get_column_widths(self.max_cols)
+        if isinstance(colwidths, tuple):
+            # Since docutils 0.13, get_column_widths returns a (widths,
+            # colwidths) tuple, where widths is a string (i.e. 'auto').
+            # See https://sourceforge.net/p/docutils/patches/120/.
+            colwidths = colwidths[1]
         stub_columns = self.directive.options.get('stub-columns', 0)
         header_rows  = self.directive.options.get('header-rows', 0)
 

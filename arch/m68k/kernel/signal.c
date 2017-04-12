@@ -42,11 +42,11 @@
 #include <linux/personality.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/tracehook.h>
 
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/traps.h>
 #include <asm/ucontext.h>
@@ -598,9 +598,7 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		/*
 		 * user process trying to return with weird frame format
 		 */
-#ifdef DEBUG
-		printk("user process returning with weird frame format\n");
-#endif
+		pr_debug("user process returning with weird frame format\n");
 		return 1;
 	}
 	if (!fsize) {
@@ -846,10 +844,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-#ifdef DEBUG
-		printk ("setup_frame: Unknown frame format %#x\n",
-			regs->format);
-#endif
+		pr_debug("setup_frame: Unknown frame format %#x\n",
+			 regs->format);
 		return -EFAULT;
 	}
 
@@ -905,9 +901,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#ifdef DEBUG
-		printk("Performing stackadjust=%04x\n", regs->stkadj);
-#endif
+		pr_debug("Performing stackadjust=%04lx\n", regs->stkadj);
 		/* This must be copied with decreasing addresses to
                    handle overlaps.  */
 		tregs->vector = 0;
@@ -926,10 +920,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-#ifdef DEBUG
-		printk ("setup_frame: Unknown frame format %#x\n",
-			regs->format);
-#endif
+		pr_debug("setup_frame: Unknown frame format %#x\n",
+			 regs->format);
 		return -EFAULT;
 	}
 
@@ -993,9 +985,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-#ifdef DEBUG
-		printk("Performing stackadjust=%04x\n", regs->stkadj);
-#endif
+		pr_debug("Performing stackadjust=%04lx\n", regs->stkadj);
 		/* This must be copied with decreasing addresses to
                    handle overlaps.  */
 		tregs->vector = 0;

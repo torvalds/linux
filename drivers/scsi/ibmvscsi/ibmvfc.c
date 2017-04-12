@@ -32,6 +32,7 @@
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/stringify.h>
+#include <linux/bsg-lib.h>
 #include <asm/firmware.h>
 #include <asm/irq.h>
 #include <asm/vio.h>
@@ -52,6 +53,7 @@ static unsigned int max_requests = IBMVFC_MAX_REQUESTS_DEFAULT;
 static unsigned int disc_threads = IBMVFC_MAX_DISC_THREADS;
 static unsigned int ibmvfc_debug = IBMVFC_DEBUG;
 static unsigned int log_level = IBMVFC_DEFAULT_LOG_LEVEL;
+static unsigned int cls3_error = IBMVFC_CLS3_ERROR;
 static LIST_HEAD(ibmvfc_head);
 static DEFINE_SPINLOCK(ibmvfc_driver_lock);
 static struct scsi_transport_template *ibmvfc_transport_template;
@@ -86,6 +88,9 @@ MODULE_PARM_DESC(debug, "Enable driver debug information. "
 module_param_named(log_level, log_level, uint, 0);
 MODULE_PARM_DESC(log_level, "Set to 0 - 4 for increasing verbosity of device driver. "
 		 "[Default=" __stringify(IBMVFC_DEFAULT_LOG_LEVEL) "]");
+module_param_named(cls3_error, cls3_error, uint, 0);
+MODULE_PARM_DESC(cls3_error, "Enable FC Class 3 Error Recovery. "
+		 "[Default=" __stringify(IBMVFC_CLS3_ERROR) "]");
 
 static const struct {
 	u16 status;
@@ -717,7 +722,6 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	vhost->state = IBMVFC_NO_CRQ;
 	vhost->logged_in = 0;
-	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
 
 	/* Clean out the queue */
 	memset(crq->msgs, 0, PAGE_SIZE);
@@ -1335,6 +1339,9 @@ static int ibmvfc_map_sg_data(struct scsi_cmnd *scmd,
 	struct srp_direct_buf *data = &vfc_cmd->ioba;
 	struct ibmvfc_host *vhost = dev_get_drvdata(dev);
 
+	if (cls3_error)
+		vfc_cmd->flags |= cpu_to_be16(IBMVFC_CLASS_3_ERR);
+
 	sg_mapped = scsi_dma_map(scmd);
 	if (!sg_mapped) {
 		vfc_cmd->flags |= cpu_to_be16(IBMVFC_NO_MEM_DESC);
@@ -1695,14 +1702,14 @@ static void ibmvfc_bsg_timeout_done(struct ibmvfc_event *evt)
 
 /**
  * ibmvfc_bsg_timeout - Handle a BSG timeout
- * @job:	struct fc_bsg_job that timed out
+ * @job:	struct bsg_job that timed out
  *
  * Returns:
  *	0 on success / other on failure
  **/
-static int ibmvfc_bsg_timeout(struct fc_bsg_job *job)
+static int ibmvfc_bsg_timeout(struct bsg_job *job)
 {
-	struct ibmvfc_host *vhost = shost_priv(job->shost);
+	struct ibmvfc_host *vhost = shost_priv(fc_bsg_to_shost(job));
 	unsigned long port_id = (unsigned long)job->dd_data;
 	struct ibmvfc_event *evt;
 	struct ibmvfc_tmf *tmf;
@@ -1808,41 +1815,43 @@ unlock_out:
 
 /**
  * ibmvfc_bsg_request - Handle a BSG request
- * @job:	struct fc_bsg_job to be executed
+ * @job:	struct bsg_job to be executed
  *
  * Returns:
  *	0 on success / other on failure
  **/
-static int ibmvfc_bsg_request(struct fc_bsg_job *job)
+static int ibmvfc_bsg_request(struct bsg_job *job)
 {
-	struct ibmvfc_host *vhost = shost_priv(job->shost);
-	struct fc_rport *rport = job->rport;
+	struct ibmvfc_host *vhost = shost_priv(fc_bsg_to_shost(job));
+	struct fc_rport *rport = fc_bsg_to_rport(job);
 	struct ibmvfc_passthru_mad *mad;
 	struct ibmvfc_event *evt;
 	union ibmvfc_iu rsp_iu;
 	unsigned long flags, port_id = -1;
-	unsigned int code = job->request->msgcode;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	unsigned int code = bsg_request->msgcode;
 	int rc = 0, req_seg, rsp_seg, issue_login = 0;
 	u32 fc_flags, rsp_len;
 
 	ENTER;
-	job->reply->reply_payload_rcv_len = 0;
+	bsg_reply->reply_payload_rcv_len = 0;
 	if (rport)
 		port_id = rport->port_id;
 
 	switch (code) {
 	case FC_BSG_HST_ELS_NOLOGIN:
-		port_id = (job->request->rqst_data.h_els.port_id[0] << 16) |
-			(job->request->rqst_data.h_els.port_id[1] << 8) |
-			job->request->rqst_data.h_els.port_id[2];
+		port_id = (bsg_request->rqst_data.h_els.port_id[0] << 16) |
+			(bsg_request->rqst_data.h_els.port_id[1] << 8) |
+			bsg_request->rqst_data.h_els.port_id[2];
 	case FC_BSG_RPT_ELS:
 		fc_flags = IBMVFC_FC_ELS;
 		break;
 	case FC_BSG_HST_CT:
 		issue_login = 1;
-		port_id = (job->request->rqst_data.h_ct.port_id[0] << 16) |
-			(job->request->rqst_data.h_ct.port_id[1] << 8) |
-			job->request->rqst_data.h_ct.port_id[2];
+		port_id = (bsg_request->rqst_data.h_ct.port_id[0] << 16) |
+			(bsg_request->rqst_data.h_ct.port_id[1] << 8) |
+			bsg_request->rqst_data.h_ct.port_id[2];
 	case FC_BSG_RPT_CT:
 		fc_flags = IBMVFC_FC_CT_IU;
 		break;
@@ -1931,13 +1940,14 @@ static int ibmvfc_bsg_request(struct fc_bsg_job *job)
 	if (rsp_iu.passthru.common.status)
 		rc = -EIO;
 	else
-		job->reply->reply_payload_rcv_len = rsp_len;
+		bsg_reply->reply_payload_rcv_len = rsp_len;
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	ibmvfc_free_event(evt);
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
-	job->reply->result = rc;
-	job->job_done(job);
+	bsg_reply->result = rc;
+	bsg_job_done(job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	rc = 0;
 out:
 	dma_unmap_sg(vhost->dev, job->request_payload.sg_list,
@@ -3080,6 +3090,7 @@ static struct scsi_host_template driver_template = {
 	.name = "IBM POWER Virtual FC Adapter",
 	.proc_name = IBMVFC_NAME,
 	.queuecommand = ibmvfc_queuecommand,
+	.eh_timed_out = fc_eh_timed_out,
 	.eh_abort_handler = ibmvfc_eh_abort_handler,
 	.eh_device_reset_handler = ibmvfc_eh_device_reset_handler,
 	.eh_target_reset_handler = ibmvfc_eh_target_reset_handler,
@@ -3381,6 +3392,10 @@ static void ibmvfc_tgt_send_prli(struct ibmvfc_target *tgt)
 	prli->parms.type = IBMVFC_SCSI_FCP_TYPE;
 	prli->parms.flags = cpu_to_be16(IBMVFC_PRLI_EST_IMG_PAIR);
 	prli->parms.service_parms = cpu_to_be32(IBMVFC_PRLI_INITIATOR_FUNC);
+	prli->parms.service_parms |= cpu_to_be32(IBMVFC_PRLI_READ_FCP_XFER_RDY_DISABLED);
+
+	if (cls3_error)
+		prli->parms.service_parms |= cpu_to_be32(IBMVFC_PRLI_RETRY);
 
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_INIT_WAIT);
 	if (ibmvfc_send_event(evt, vhost, default_timeout)) {

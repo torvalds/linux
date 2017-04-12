@@ -26,6 +26,14 @@ static int nvdimm_probe(struct device *dev)
 	struct nvdimm_drvdata *ndd;
 	int rc;
 
+	rc = nvdimm_check_config_data(dev);
+	if (rc) {
+		/* not required for non-aliased nvdimm, ex. NVDIMM-N */
+		if (rc == -ENOTTY)
+			rc = 0;
+		return rc;
+	}
+
 	ndd = kzalloc(sizeof(*ndd), GFP_KERNEL);
 	if (!ndd)
 		return -ENOMEM;
@@ -56,6 +64,8 @@ static int nvdimm_probe(struct device *dev)
 	nd_label_copy(ndd, to_next_namespace_index(ndd),
 			to_current_namespace_index(ndd));
 	rc = nd_label_reserve_dpa(ndd);
+	if (ndd->ns_current >= 0)
+		nvdimm_set_aliasing(dev);
 	nvdimm_bus_unlock(dev);
 
 	if (rc)
@@ -71,6 +81,9 @@ static int nvdimm_probe(struct device *dev)
 static int nvdimm_remove(struct device *dev)
 {
 	struct nvdimm_drvdata *ndd = dev_get_drvdata(dev);
+
+	if (!ndd)
+		return 0;
 
 	nvdimm_bus_lock(dev);
 	dev_set_drvdata(dev, NULL);

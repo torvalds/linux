@@ -40,14 +40,39 @@
 
 static __maybe_unused void sock_setfilter(int fd, int lvl, int optnum)
 {
+	/* the filter below checks for all of the following conditions that
+	 * are based on the contents of create_payload()
+	 *  ether type 0x800 and
+	 *  ip proto udp     and
+	 *  skb->len == DATA_LEN and
+	 *  udp[38] == 'a' or udp[38] == 'b'
+	 * It can be generated from the following bpf_asm input:
+	 *	ldh [12]
+	 *	jne #0x800, drop	; ETH_P_IP
+	 *	ldb [23]
+	 *	jneq #17, drop		; IPPROTO_UDP
+	 *	ld len			; ld skb->len
+	 *	jlt #100, drop		; DATA_LEN
+	 *	ldb [80]
+	 *	jeq #97, pass		; DATA_CHAR
+	 *	jne #98, drop		; DATA_CHAR_1
+	 *	pass:
+	 *	  ret #-1
+	 *	drop:
+	 *	  ret #0
+	 */
 	struct sock_filter bpf_filter[] = {
-		{ 0x80, 0, 0, 0x00000000 },  /* LD  pktlen		      */
-		{ 0x35, 0, 4, DATA_LEN   },  /* JGE DATA_LEN  [f goto nomatch]*/
-		{ 0x30, 0, 0, 0x00000050 },  /* LD  ip[80]		      */
-		{ 0x15, 1, 0, DATA_CHAR  },  /* JEQ DATA_CHAR   [t goto match]*/
-		{ 0x15, 0, 1, DATA_CHAR_1},  /* JEQ DATA_CHAR_1 [t goto match]*/
-		{ 0x06, 0, 0, 0x00000060 },  /* RET match	              */
-		{ 0x06, 0, 0, 0x00000000 },  /* RET no match		      */
+		{ 0x28,  0,  0, 0x0000000c },
+		{ 0x15,  0,  8, 0x00000800 },
+		{ 0x30,  0,  0, 0x00000017 },
+		{ 0x15,  0,  6, 0x00000011 },
+		{ 0x80,  0,  0, 0000000000 },
+		{ 0x35,  0,  4, 0x00000064 },
+		{ 0x30,  0,  0, 0x00000050 },
+		{ 0x15,  1,  0, 0x00000061 },
+		{ 0x15,  0,  1, 0x00000062 },
+		{ 0x06,  0,  0, 0xffffffff },
+		{ 0x06,  0,  0, 0000000000 },
 	};
 	struct sock_fprog bpf_prog;
 

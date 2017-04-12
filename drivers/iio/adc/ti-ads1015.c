@@ -472,14 +472,14 @@ static const struct attribute_group ads1115_attribute_group = {
 	.attrs = ads1115_attributes,
 };
 
-static struct iio_info ads1015_info = {
+static const struct iio_info ads1015_info = {
 	.driver_module	= THIS_MODULE,
 	.read_raw	= ads1015_read_raw,
 	.write_raw	= ads1015_write_raw,
 	.attrs          = &ads1015_attribute_group,
 };
 
-static struct iio_info ads1115_info = {
+static const struct iio_info ads1115_info = {
 	.driver_module	= THIS_MODULE,
 	.read_raw	= ads1015_read_raw,
 	.write_raw	= ads1015_write_raw,
@@ -522,6 +522,7 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 			if (pga > 6) {
 				dev_err(&client->dev, "invalid gain on %s\n",
 					node->full_name);
+				of_node_put(node);
 				return -EINVAL;
 			}
 		}
@@ -532,6 +533,7 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 				dev_err(&client->dev,
 					"invalid data_rate on %s\n",
 					node->full_name);
+				of_node_put(node);
 				return -EINVAL;
 			}
 		}

@@ -13,12 +13,14 @@
 
 /dts-v1/;
 #include "exynos4412-odroid-common.dtsi"
+#include "exynos4412-prime.dtsi"
 
 / {
 	model = "Hardkernel ODROID-U3 board based on Exynos4412";
 	compatible = "hardkernel,odroid-u3", "samsung,exynos4412", "samsung,exynos4";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x7FF00000>;
 	};
 
@@ -46,11 +48,11 @@
 			cooling-maps {
 				map0 {
 				     trip = <&cpu_alert1>;
-				     cooling-device = <&cpu0 7 7>;
+				     cooling-device = <&cpu0 9 9>;
 				};
 				map1 {
 				     trip = <&cpu_alert2>;
-				     cooling-device = <&cpu0 13 13>;
+				     cooling-device = <&cpu0 15 15>;
 				};
 				map2 {
 				     trip = <&cpu_alert0>;

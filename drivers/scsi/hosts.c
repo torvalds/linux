@@ -213,6 +213,10 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		goto fail;
 	}
 
+	error = scsi_init_sense_cache(shost);
+	if (error)
+		goto fail;
+
 	if (shost_use_blk_mq(shost)) {
 		error = scsi_mq_setup_tags(shost);
 		if (error)
@@ -226,29 +230,12 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		}
 	}
 
-	/*
-	 * Note that we allocate the freelist even for the MQ case for now,
-	 * as we need a command set aside for scsi_reset_provider.  Having
-	 * the full host freelist and one command available for that is a
-	 * little heavy-handed, but avoids introducing a special allocator
-	 * just for this.  Eventually the structure of scsi_reset_provider
-	 * will need a major overhaul.
-	 */
-	error = scsi_setup_command_freelist(shost);
-	if (error)
-		goto out_destroy_tags;
-
-
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
 	if (!dma_dev)
 		dma_dev = shost->shost_gendev.parent;
 
 	shost->dma_dev = dma_dev;
-
-	error = device_add(&shost->shost_gendev);
-	if (error)
-		goto out_destroy_freelist;
 
 	/*
 	 * Increase usage count temporarily here so that calling
@@ -259,6 +246,10 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	pm_runtime_set_active(&shost->shost_gendev);
 	pm_runtime_enable(&shost->shost_gendev);
 	device_enable_async_suspend(&shost->shost_gendev);
+
+	error = device_add(&shost->shost_gendev);
+	if (error)
+		goto out_disable_runtime_pm;
 
 	scsi_host_set_state(shost, SHOST_RUNNING);
 	get_device(shost->shost_gendev.parent);
@@ -308,9 +299,11 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	device_del(&shost->shost_dev);
  out_del_gendev:
 	device_del(&shost->shost_gendev);
- out_destroy_freelist:
-	scsi_destroy_command_freelist(shost);
- out_destroy_tags:
+ out_disable_runtime_pm:
+	device_disable_async_suspend(&shost->shost_gendev);
+	pm_runtime_disable(&shost->shost_gendev);
+	pm_runtime_set_suspended(&shost->shost_gendev);
+	pm_runtime_put_noidle(&shost->shost_gendev);
 	if (shost_use_blk_mq(shost))
 		scsi_mq_destroy_tags(shost);
  fail:
@@ -351,7 +344,6 @@ static void scsi_host_dev_release(struct device *dev)
 		kfree(dev_name(&shost->shost_dev));
 	}
 
-	scsi_destroy_command_freelist(shost);
 	if (shost_use_blk_mq(shost)) {
 		if (shost->tag_set.tags)
 			scsi_mq_destroy_tags(shost);
@@ -485,6 +477,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		shost->dma_boundary = sht->dma_boundary;
 	else
 		shost->dma_boundary = 0xffffffff;
+
+	shost->use_blk_mq = scsi_use_blk_mq;
 
 	device_initialize(&shost->shost_gendev);
 	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);

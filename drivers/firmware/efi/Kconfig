@@ -112,7 +112,42 @@ config EFI_CAPSULE_LOADER
 
 	  Most users should say N.
 
+config EFI_TEST
+	tristate "EFI Runtime Service Tests Support"
+	depends on EFI
+	default n
+	help
+	  This driver uses the efi.<service> function pointers directly instead
+	  of going through the efivar API, because it is not trying to test the
+	  kernel subsystem, just for testing the UEFI runtime service
+	  interfaces which are provided by the firmware. This driver is used
+	  by the Firmware Test Suite (FWTS) for testing the UEFI runtime
+	  interfaces readiness of the firmware.
+	  Details for FWTS are available from:
+	  <https://wiki.ubuntu.com/FirmwareTestSuite>
+
+	  Say Y here to enable the runtime services support via /dev/efi_test.
+	  If unsure, say N.
+
+config APPLE_PROPERTIES
+	bool "Apple Device Properties"
+	depends on EFI_STUB && X86
+	select EFI_DEV_PATH_PARSER
+	select UCS2_STRING
+	help
+	  Retrieve properties from EFI on Apple Macs and assign them to
+	  devices, allowing for improved support of Apple hardware.
+	  Properties that would otherwise be missing include the
+	  Thunderbolt Device ROM and GPU configuration data.
+
+	  If unsure, say Y if you have a Mac.  Otherwise N.
+
 endmenu
 
 config UEFI_CPER
 	bool
+
+config EFI_DEV_PATH_PARSER
+	bool
+	depends on ACPI
+	default n

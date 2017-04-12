@@ -1,13 +1,10 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _fe-bandwidth-t:
-
 ******************
 Frontend bandwidth
 ******************
 
-
-.. _fe-bandwidth:
+.. c:type:: fe_bandwidth
 
 .. flat-table:: enum fe_bandwidth
     :header-rows:  1

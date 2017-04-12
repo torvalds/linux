@@ -94,6 +94,7 @@ static struct _balloon_info_ bl_info;
 
 /**
  * intel_vgt_deballoon - deballoon reserved graphics address trunks
+ * @dev_priv: i915 device private data
  *
  * This function is called to deallocate the ballooned-out graphic memory, when
  * driver is unloaded or when ballooning fails.
@@ -115,27 +116,25 @@ void intel_vgt_deballoon(struct drm_i915_private *dev_priv)
 	memset(&bl_info, 0, sizeof(bl_info));
 }
 
-static int vgt_balloon_space(struct drm_mm *mm,
+static int vgt_balloon_space(struct i915_ggtt *ggtt,
 			     struct drm_mm_node *node,
 			     unsigned long start, unsigned long end)
 {
 	unsigned long size = end - start;
 
-	if (start == end)
+	if (start >= end)
 		return -EINVAL;
 
 	DRM_INFO("balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
 		 start, end, size / 1024);
-
-	node->start = start;
-	node->size = size;
-
-	return drm_mm_reserve_node(mm, node);
+	return i915_gem_gtt_reserve(&ggtt->base, node,
+				    size, start, I915_COLOR_UNEVICTABLE,
+				    0);
 }
 
 /**
  * intel_vgt_balloon - balloon out reserved graphics address trunks
- * @dev: drm device
+ * @dev_priv: i915 device private data
  *
  * This function is called at the initialization stage, to balloon out the
  * graphic address space allocated to other vGPUs, by marking these spaces as
@@ -152,27 +151,27 @@ static int vgt_balloon_space(struct drm_mm *mm,
  * host point of view, the graphic address space is partitioned by multiple
  * vGPUs in different VMs. ::
  *
- *                        vGPU1 view         Host view
- *             0 ------> +-----------+     +-----------+
- *               ^       |###########|     |   vGPU3   |
- *               |       |###########|     +-----------+
- *               |       |###########|     |   vGPU2   |
- *               |       +-----------+     +-----------+
- *        mappable GM    | available | ==> |   vGPU1   |
- *               |       +-----------+     +-----------+
- *               |       |###########|     |           |
- *               v       |###########|     |   Host    |
- *               +=======+===========+     +===========+
- *               ^       |###########|     |   vGPU3   |
- *               |       |###########|     +-----------+
- *               |       |###########|     |   vGPU2   |
- *               |       +-----------+     +-----------+
- *      unmappable GM    | available | ==> |   vGPU1   |
- *               |       +-----------+     +-----------+
- *               |       |###########|     |           |
- *               |       |###########|     |   Host    |
- *               v       |###########|     |           |
- * total GM size ------> +-----------+     +-----------+
+ *                         vGPU1 view         Host view
+ *              0 ------> +-----------+     +-----------+
+ *                ^       |###########|     |   vGPU3   |
+ *                |       |###########|     +-----------+
+ *                |       |###########|     |   vGPU2   |
+ *                |       +-----------+     +-----------+
+ *         mappable GM    | available | ==> |   vGPU1   |
+ *                |       +-----------+     +-----------+
+ *                |       |###########|     |           |
+ *                v       |###########|     |   Host    |
+ *                +=======+===========+     +===========+
+ *                ^       |###########|     |   vGPU3   |
+ *                |       |###########|     +-----------+
+ *                |       |###########|     |   vGPU2   |
+ *                |       +-----------+     +-----------+
+ *       unmappable GM    | available | ==> |   vGPU1   |
+ *                |       +-----------+     +-----------+
+ *                |       |###########|     |           |
+ *                |       |###########|     |   Host    |
+ *                v       |###########|     |           |
+ *  total GM size ------> +-----------+     +-----------+
  *
  * Returns:
  * zero on success, non-zero if configuration invalid or ballooning failed
@@ -213,10 +212,8 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 
 	/* Unmappable graphic memory ballooning */
 	if (unmappable_base > ggtt->mappable_end) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[2],
-					ggtt->mappable_end,
-					unmappable_base);
+		ret = vgt_balloon_space(ggtt, &bl_info.space[2],
+					ggtt->mappable_end, unmappable_base);
 
 		if (ret)
 			goto err;
@@ -227,18 +224,15 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 	 * because it is reserved to the guard page.
 	 */
 	if (unmappable_end < ggtt_end - PAGE_SIZE) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[3],
-					unmappable_end,
-					ggtt_end - PAGE_SIZE);
+		ret = vgt_balloon_space(ggtt, &bl_info.space[3],
+					unmappable_end, ggtt_end - PAGE_SIZE);
 		if (ret)
 			goto err;
 	}
 
 	/* Mappable graphic memory ballooning */
 	if (mappable_base > ggtt->base.start) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[0],
+		ret = vgt_balloon_space(ggtt, &bl_info.space[0],
 					ggtt->base.start, mappable_base);
 
 		if (ret)
@@ -246,10 +240,8 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 	}
 
 	if (mappable_end < ggtt->mappable_end) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[1],
-					mappable_end,
-					ggtt->mappable_end);
+		ret = vgt_balloon_space(ggtt, &bl_info.space[1],
+					mappable_end, ggtt->mappable_end);
 
 		if (ret)
 			goto err;

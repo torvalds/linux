@@ -48,12 +48,14 @@ struct dm_rq_clone_bio_info {
 bool dm_use_blk_mq_default(void);
 bool dm_use_blk_mq(struct mapped_device *md);
 
-int dm_old_init_request_queue(struct mapped_device *md);
+int dm_old_init_request_queue(struct mapped_device *md, struct dm_table *t);
 int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t);
 void dm_mq_cleanup_mapped_device(struct mapped_device *md);
 
 void dm_start_queue(struct request_queue *q);
 void dm_stop_queue(struct request_queue *q);
+
+void dm_mq_kick_requeue_list(struct mapped_device *md);
 
 unsigned dm_get_reserved_rq_based_ios(void);
 

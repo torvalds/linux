@@ -920,7 +920,7 @@ static void chan_close_cb(struct l2cap_chan *chan)
 			BT_DBG("dev %p removing %speer %p", dev,
 			       last ? "last " : "1 ", peer);
 			BT_DBG("chan %p orig refcnt %d", chan,
-			       atomic_read(&chan->kref.refcount));
+			       kref_read(&chan->kref));
 
 			l2cap_chan_put(chan);
 			break;
@@ -1090,7 +1090,6 @@ static int get_l2cap_conn(char *buf, bdaddr_t *addr, u8 *addr_type,
 {
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
-	bdaddr_t *src = BDADDR_ANY;
 	int n;
 
 	n = sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx %hhu",
@@ -1101,7 +1100,8 @@ static int get_l2cap_conn(char *buf, bdaddr_t *addr, u8 *addr_type,
 	if (n < 7)
 		return -EINVAL;
 
-	hdev = hci_get_route(addr, src);
+	/* The LE_PUBLIC address type is ignored because of BDADDR_ANY */
+	hdev = hci_get_route(addr, BDADDR_ANY, BDADDR_LE_PUBLIC);
 	if (!hdev)
 		return -ENOENT;
 

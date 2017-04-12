@@ -36,6 +36,20 @@
 #define   NIC_PF_MAILBOX_ENA_W1C		(0x0450)
 #define   NIC_PF_MAILBOX_ENA_W1S		(0x0470)
 #define   NIC_PF_RX_ETYPE_0_7			(0x0500)
+#define   NIC_PF_RX_GENEVE_DEF			(0x0580)
+#define    UDP_GENEVE_PORT_NUM				0x17C1ULL
+#define   NIC_PF_RX_GENEVE_PROT_DEF		(0x0588)
+#define    IPV6_PROT					0x86DDULL
+#define    IPV4_PROT					0x800ULL
+#define    ET_PROT					0x6558ULL
+#define   NIC_PF_RX_NVGRE_PROT_DEF		(0x0598)
+#define   NIC_PF_RX_VXLAN_DEF_0_1		(0x05A0)
+#define    UDP_VXLAN_PORT_NUM				0x12B5
+#define   NIC_PF_RX_VXLAN_PROT_DEF		(0x05B0)
+#define    IPV6_PROT_DEF				0x2ULL
+#define    IPV4_PROT_DEF				0x1ULL
+#define    ET_PROT_DEF					0x3ULL
+#define   NIC_PF_RX_CFG				(0x05D0)
 #define   NIC_PF_PKIND_0_15_CFG			(0x0600)
 #define   NIC_PF_ECC0_FLIP0			(0x1000)
 #define   NIC_PF_ECC1_FLIP0			(0x1008)
@@ -92,6 +106,7 @@
 #define   NIC_PF_MPI_0_2047_CFG			(0x210000)
 #define   NIC_PF_RSSI_0_4097_RQ			(0x220000)
 #define   NIC_PF_LMAC_0_7_CFG			(0x240000)
+#define   NIC_PF_LMAC_0_7_CFG2			(0x240100)
 #define   NIC_PF_LMAC_0_7_SW_XOFF		(0x242000)
 #define   NIC_PF_LMAC_0_7_CREDIT		(0x244000)
 #define   NIC_PF_CHAN_0_255_TX_CFG		(0x400000)
@@ -103,6 +118,7 @@
 #define   NIC_PF_SW_SYNC_RX_DONE		(0x490008)
 #define   NIC_PF_TL2_0_63_CFG			(0x500000)
 #define   NIC_PF_TL2_0_63_PRI			(0x520000)
+#define   NIC_PF_TL2_LMAC			(0x540000)
 #define   NIC_PF_TL2_0_63_SH_STATUS		(0x580000)
 #define   NIC_PF_TL3A_0_63_CFG			(0x5F0000)
 #define   NIC_PF_TL3_0_255_CFG			(0x600000)

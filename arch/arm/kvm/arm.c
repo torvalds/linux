@@ -33,7 +33,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
 #include <asm/tlbflush.h>
@@ -114,10 +114,17 @@ void kvm_arch_check_processor_compat(void *rtn)
  */
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
-	int ret = 0;
+	int ret, cpu;
 
 	if (type)
 		return -EINVAL;
+
+	kvm->arch.last_vcpu_ran = alloc_percpu(typeof(*kvm->arch.last_vcpu_ran));
+	if (!kvm->arch.last_vcpu_ran)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu)
+		*per_cpu_ptr(kvm->arch.last_vcpu_ran, cpu) = -1;
 
 	ret = kvm_alloc_stage2_pgd(kvm);
 	if (ret)
@@ -128,7 +135,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		goto out_free_stage2_pgd;
 
 	kvm_vgic_early_init(kvm);
-	kvm_timer_init(kvm);
 
 	/* Mark the initial VMID generation invalid */
 	kvm->arch.vmid_gen = 0;
@@ -141,7 +147,19 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 out_free_stage2_pgd:
 	kvm_free_stage2_pgd(kvm);
 out_fail_alloc:
+	free_percpu(kvm->arch.last_vcpu_ran);
+	kvm->arch.last_vcpu_ran = NULL;
 	return ret;
+}
+
+bool kvm_arch_has_vcpu_debugfs(void)
+{
+	return false;
+}
+
+int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+{
+	return 0;
 }
 
 int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
@@ -157,6 +175,9 @@ int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	int i;
+
+	free_percpu(kvm->arch.last_vcpu_ran);
+	kvm->arch.last_vcpu_ran = NULL;
 
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		if (kvm->vcpus[i]) {
@@ -185,6 +206,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ARM_PSCI_0_2:
 	case KVM_CAP_READONLY_MEM:
 	case KVM_CAP_MP_STATE:
+	case KVM_CAP_IMMEDIATE_EXIT:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -198,6 +220,15 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
+		break;
+	case KVM_CAP_NR_MEMSLOTS:
+		r = KVM_USER_MEM_SLOTS;
+		break;
+	case KVM_CAP_MSI_DEVID:
+		if (!kvm)
+			r = -EINVAL;
+		else
+			r = kvm->arch.vgic.msis_require_devid;
 		break;
 	default:
 		r = kvm_arch_dev_ioctl_check_extension(kvm, ext);
@@ -273,7 +304,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return kvm_timer_should_fire(vcpu);
+	return kvm_timer_should_fire(vcpu_vtimer(vcpu)) ||
+	       kvm_timer_should_fire(vcpu_ptimer(vcpu));
 }
 
 void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
@@ -302,6 +334,19 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	int *last_ran;
+
+	last_ran = this_cpu_ptr(vcpu->kvm->arch.last_vcpu_ran);
+
+	/*
+	 * We might get preempted before the vCPU actually runs, but
+	 * over-invalidation doesn't affect correctness.
+	 */
+	if (*last_ran != vcpu->vcpu_id) {
+		kvm_call_hyp(__kvm_tlb_flush_local_vmid, vcpu);
+		*last_ran = vcpu->vcpu_id;
+	}
+
 	vcpu->cpu = cpu;
 	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
 
@@ -562,6 +607,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		if (ret)
 			return ret;
 	}
+
+	if (run->immediate_exit)
+		return -EINTR;
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
@@ -1058,6 +1106,9 @@ static void cpu_init_hyp_mode(void *dummy)
 	__cpu_init_hyp_mode(pgd_ptr, hyp_stack_ptr, vector_ptr);
 	__cpu_init_stage2();
 
+	if (is_kernel_in_hyp_mode())
+		kvm_timer_init_vhe();
+
 	kvm_arm_init_debug();
 }
 
@@ -1073,6 +1124,9 @@ static void cpu_hyp_reinit(void)
 		if (__hyp_get_vectors() == hyp_default_vectors)
 			cpu_init_hyp_mode(NULL);
 	}
+
+	if (vgic_present)
+		kvm_vgic_init_cpu_hardware();
 }
 
 static void cpu_hyp_reset(void)
@@ -1176,6 +1230,10 @@ static int init_common_resources(void)
 		return -ENOMEM;
 	}
 
+	/* set size of VMID supported by CPU */
+	kvm_vmid_bits = kvm_get_vmid_bits();
+	kvm_info("%d-bit VMID\n", kvm_vmid_bits);
+
 	return 0;
 }
 
@@ -1241,10 +1299,6 @@ static void teardown_hyp_mode(void)
 
 static int init_vhe_mode(void)
 {
-	/* set size of VMID supported by CPU */
-	kvm_vmid_bits = kvm_get_vmid_bits();
-	kvm_info("%d-bit VMID\n", kvm_vmid_bits);
-
 	kvm_info("VHE mode initialized successfully\n");
 	return 0;
 }
@@ -1302,6 +1356,13 @@ static int init_hyp_mode(void)
 		goto out_err;
 	}
 
+	err = create_hyp_mappings(kvm_ksym_ref(__bss_start),
+				  kvm_ksym_ref(__bss_stop), PAGE_HYP_RO);
+	if (err) {
+		kvm_err("Cannot map bss section\n");
+		goto out_err;
+	}
+
 	/*
 	 * Map the Hyp stack pages
 	 */
@@ -1327,10 +1388,6 @@ static int init_hyp_mode(void)
 			goto out_err;
 		}
 	}
-
-	/* set size of VMID supported by CPU */
-	kvm_vmid_bits = kvm_get_vmid_bits();
-	kvm_info("%d-bit VMID\n", kvm_vmid_bits);
 
 	kvm_info("Hyp mode initialized successfully\n");
 

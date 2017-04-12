@@ -58,6 +58,18 @@ config AD7476
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7476.
 
+config AD7766
+	tristate "Analog Devices AD7766/AD7767 ADC driver"
+	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices AD7766, AD7766-1,
+	  AD7766-2, AD7767, AD7767-1, AD7767-2 SPI analog to digital converters.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7766.
+
 config AD7791
 	tristate "Analog Devices AD7791 ADC driver"
 	depends on SPI
@@ -195,6 +207,16 @@ config DA9150_GPADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called berlin2-adc.
 
+config ENVELOPE_DETECTOR
+	tristate "Envelope detector using a DAC and a comparator"
+	depends on OF
+	help
+	  Say yes here to build support for an envelope detector using a DAC
+	  and a comparator.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called envelope-detector.
+
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
@@ -224,6 +246,25 @@ config HI8435
 
 	  This driver can also be built as a module. If so, the module will be
 	  called hi8435.
+
+config HX711
+	tristate "AVIA HX711 ADC for weight cells"
+	depends on GPIOLIB
+	help
+	  If you say yes here you get support for AVIA HX711 ADC which is used
+	  for weigh cells
+
+	  This driver uses two GPIOs, one acts as the clock and controls the
+	  channel selection and gain, the other one is used for the measurement
+          data
+
+	  Currently the raw value is read from the chip and delivered.
+	  To get an actual weight one needs to subtract the
+	  zero offset and multiply by a scale factor.
+	  This should be done in userspace.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called hx711.
 
 config INA2XX_ADC
 	tristate "Texas Instruments INA2xx Power Monitors IIO driver"
@@ -264,6 +305,15 @@ config LPC18XX_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called lpc18xx_adc.
 
+config LTC2485
+	tristate "Linear Technology LTC2485 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2485 ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2485.
+
 config MAX1027
 	tristate "Maxim max1027 ADC driver"
 	depends on SPI
@@ -275,6 +325,15 @@ config MAX1027
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called max1027.
+
+config MAX11100
+	tristate "Maxim max11100 ADC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Maxim max11100 SPI ADC
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max11100.
 
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
@@ -317,6 +376,19 @@ config MCP3422
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3422.
 
+config MEDIATEK_MT6577_AUXADC
+        tristate "MediaTek AUXADC driver"
+        depends on ARCH_MEDIATEK || COMPILE_TEST
+        depends on HAS_IOMEM
+        help
+          Say yes here to enable support for MediaTek mt65xx AUXADC.
+
+          The driver supports immediate mode operation to read from one of sixteen
+          channels (external or internal).
+
+          This driver can also be built as a module. If so, the module will be
+          called mt6577_auxadc.
+
 config MEN_Z188_ADC
 	tristate "MEN 16z188 ADC IP Core support"
 	depends on MCB
@@ -326,6 +398,18 @@ config MEN_Z188_ADC
 
 	  This driver can also be built as a module. If so, the module will be
 	  called men_z188_adc.
+
+config MESON_SARADC
+	tristate "Amlogic Meson SAR ADC driver"
+	default ARCH_MESON
+	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
+	select REGMAP_MMIO
+	help
+	  Say yes here to build support for the SAR ADC found in Amlogic Meson
+	  SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called meson_saradc.
 
 config MXS_LRADC
         tristate "Freescale i.MX23/i.MX28 LRADC"
@@ -386,6 +470,19 @@ config QCOM_SPMI_VADC
 	  To compile this driver as a module, choose M here: the module will
 	  be called qcom-spmi-vadc.
 
+config RCAR_GYRO_ADC
+	tristate "Renesas R-Car GyroADC driver"
+	depends on ARCH_RCAR_GEN2 || (ARM && COMPILE_TEST)
+	help
+	  Say yes here to build support for the GyroADC found in Renesas
+	  R-Car Gen2 SoCs. This block is a simple SPI offload engine for
+	  reading data out of attached compatible ADCs in a round-robin
+	  fashion. Up to 4 or 8 ADC channels are supported by this block,
+	  depending on which ADCs are attached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rcar-gyroadc.
+
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
@@ -397,9 +494,53 @@ config ROCKCHIP_SARADC
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
 
+config STM32_ADC_CORE
+	tristate "STMicroelectronics STM32 adc core"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on HAS_DMA
+	depends on OF
+	depends on REGULATOR
+	select IIO_BUFFER
+	select MFD_STM32_TIMERS
+	select IIO_STM32_TIMER_TRIGGER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Select this option to enable the core driver for STMicroelectronics
+	  STM32 analog-to-digital converter (ADC).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-adc-core.
+
+config STM32_ADC
+	tristate "STMicroelectronics STM32 adc"
+	depends on STM32_ADC_CORE
+	help
+	  Say yes here to build support for STMicroelectronics stm32 Analog
+	  to Digital Converter (ADC).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-adc.
+
+config STX104
+	tristate "Apex Embedded Systems STX104 driver"
+	depends on X86 && ISA_BUS_API
+	select GPIOLIB
+	help
+	  Say yes here to build support for the Apex Embedded Systems STX104
+	  integrated analog PC/104 card.
+
+	  This driver supports the 16 channels of single-ended (8 channels of
+	  differential) analog inputs, 2 channels of analog output, 4 digital
+	  inputs, and 4 digital outputs provided by the STX104.
+
+	  The base port addresses for the devices may be configured via the base
+	  array module parameter.
+
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C/ADC101C/ADC121C family"
 	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  If you say yes here you get support for Texas Instruments ADC081C,
 	  ADC101C and ADC121C ADC chips.
@@ -410,12 +551,26 @@ config TI_ADC081C
 config TI_ADC0832
 	tristate "Texas Instruments ADC0831/ADC0832/ADC0834/ADC0838"
 	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  If you say yes here you get support for Texas Instruments ADC0831,
 	  ADC0832, ADC0834, ADC0838 ADC chips.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc0832.
+
+config TI_ADC12138
+	tristate "Texas Instruments ADC12130/ADC12132/ADC12138"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADC12130,
+	  ADC12132 and ADC12138 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc12138.
 
 config TI_ADC128S052
 	tristate "Texas Instruments ADC128S052/ADC122S021/ADC124S021"
@@ -426,6 +581,18 @@ config TI_ADC128S052
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.
+
+config TI_ADC161S626
+	tristate "Texas Instruments ADC161S626 1-channel differential ADC"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADC141S626,
+	  and ADC161S626 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc161s626.
 
 config TI_ADS1015
 	tristate "Texas Instruments ADS1015 ADC"
@@ -440,6 +607,19 @@ config TI_ADS1015
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-ads1015.
 
+config TI_ADS7950
+	tristate "Texas Instruments ADS7950 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Texas Instruments ADS7950, ADS7951,
+	  ADS7952, ADS7953, ADS7954, ADS7955, ADS7956, ADS7957, ADS7958, ADS7959.
+	  ADS7960, ADS7961.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti-ads7950.
+
 config TI_ADS8688
 	tristate "Texas Instruments ADS8688"
 	depends on SPI && OF
@@ -452,7 +632,7 @@ config TI_ADS8688
 
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"
-	depends on MFD_TI_AM335X_TSCADC
+	depends on MFD_TI_AM335X_TSCADC && HAS_DMA
 	select IIO_BUFFER
 	select IIO_KFIFO_BUF
 	help
@@ -461,6 +641,18 @@ config TI_AM335X_ADC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ti_am335x_adc.
+
+config TI_TLC4541
+	tristate "Texas Instruments TLC4541 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Texas Instruments TLC4541 / TLC3541
+	  ADC chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-tlc4541.
 
 config TWL4030_MADC
 	tristate "TWL4030 MADC (Monitoring A/D Converter)"

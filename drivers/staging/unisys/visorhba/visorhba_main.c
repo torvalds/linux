@@ -29,27 +29,8 @@
 /* The Send and Receive Buffers of the IO Queue may both be full */
 
 #define IOS_ERROR_THRESHOLD	1000
-/* MAX_BUF = 6 lines x 10 MAXVHBA x 80 characters
- *         = 4800 bytes ~ 2^13 = 8192 bytes
- */
-#define MAX_BUF			8192
 #define MAX_PENDING_REQUESTS	(MIN_NUMSIGNALS * 2)
 #define VISORHBA_ERROR_COUNT	30
-
-static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
-				      void (*visorhba_cmnd_done)
-					    (struct scsi_cmnd *));
-#ifdef DEF_SCSI_QCMD
-static DEF_SCSI_QCMD(visorhba_queue_command)
-#else
-#define visorhba_queue_command visorhba_queue_command_lck
-#endif
-static int visorhba_probe(struct visor_device *dev);
-static void visorhba_remove(struct visor_device *dev);
-static int visorhba_pause(struct visor_device *dev,
-			  visorbus_state_complete_func complete_func);
-static int visorhba_resume(struct visor_device *dev,
-			   visorbus_state_complete_func complete_func);
 
 static struct dentry *visorhba_debugfs_dir;
 
@@ -62,20 +43,6 @@ static struct visor_channeltype_descriptor visorhba_channel_types[] = {
 	{ NULL_UUID_LE, NULL }
 };
 
-/* This is used to tell the visor bus driver which types of visor devices
- * we support, and what functions to call when a visor device that we support
- * is attached or removed.
- */
-static struct visor_driver visorhba_driver = {
-	.name = "visorhba",
-	.owner = THIS_MODULE,
-	.channel_types = visorhba_channel_types,
-	.probe = visorhba_probe,
-	.remove = visorhba_remove,
-	.pause = visorhba_pause,
-	.resume = visorhba_resume,
-	.channel_interrupt = NULL,
-};
 MODULE_DEVICE_TABLE(visorbus, visorhba_channel_types);
 MODULE_ALIAS("visorbus:" SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR);
 
@@ -364,9 +331,9 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 
 	dev_dbg(&scsidev->sdev_gendev,
 		"visorhba: initiating type=%d taskmgmt command\n", tasktype);
-	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
-				       IOCHAN_TO_IOPART,
-				       cmdrsp))
+	if (visorchannel_signalinsert(devdata->dev->visorchannel,
+				      IOCHAN_TO_IOPART,
+				      cmdrsp))
 		goto err_del_scsipending_ent;
 
 	/* It can take the Service Partition up to 35 seconds to complete
@@ -567,9 +534,9 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	}
 	cmdrsp->scsi.guest_phys_entries = scsi_sg_count(scsicmd);
 
-	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
-				       IOCHAN_TO_IOPART,
-				       cmdrsp))
+	if (visorchannel_signalinsert(devdata->dev->visorchannel,
+				      IOCHAN_TO_IOPART,
+				      cmdrsp))
 		/* queue must be full and we aren't going to wait */
 		goto err_del_scsipending_ent;
 
@@ -579,6 +546,12 @@ err_del_scsipending_ent:
 	del_scsipending_ent(devdata, insert_location);
 	return SCSI_MLQUEUE_DEVICE_BUSY;
 }
+
+#ifdef DEF_SCSI_QCMD
+static DEF_SCSI_QCMD(visorhba_queue_command)
+#else
+#define visorhba_queue_command visorhba_queue_command_lck
+#endif
 
 /**
  *	visorhba_slave_alloc - called when new disk is discovered
@@ -950,9 +923,9 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 	struct scsi_cmnd *scsicmd;
 
 	while (1) {
-		if (!visorchannel_signalremove(devdata->dev->visorchannel,
-					       IOCHAN_FROM_IOPART,
-					       cmdrsp))
+		if (visorchannel_signalremove(devdata->dev->visorchannel,
+					      IOCHAN_FROM_IOPART,
+					      cmdrsp))
 			break; /* queue empty */
 
 		if (cmdrsp->cmdtype == CMD_SCSI_TYPE) {
@@ -1186,6 +1159,21 @@ static void visorhba_remove(struct visor_device *dev)
 	debugfs_remove_recursive(devdata->debugfs_dir);
 }
 
+/* This is used to tell the visor bus driver which types of visor devices
+ * we support, and what functions to call when a visor device that we support
+ * is attached or removed.
+ */
+static struct visor_driver visorhba_driver = {
+	.name = "visorhba",
+	.owner = THIS_MODULE,
+	.channel_types = visorhba_channel_types,
+	.probe = visorhba_probe,
+	.remove = visorhba_remove,
+	.pause = visorhba_pause,
+	.resume = visorhba_resume,
+	.channel_interrupt = NULL,
+};
+
 /**
  *	visorhba_init		- driver init routine
  *
@@ -1228,4 +1216,4 @@ module_exit(visorhba_exit);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("s-Par hba driver");
+MODULE_DESCRIPTION("s-Par HBA driver for virtual SCSI host busses");

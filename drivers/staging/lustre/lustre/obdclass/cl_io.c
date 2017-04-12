@@ -73,7 +73,6 @@ int cl_io_is_going(const struct lu_env *env)
 {
 	return cl_env_info(env)->clt_current_io != NULL;
 }
-EXPORT_SYMBOL(cl_io_is_going);
 
 /**
  * cl_io invariant that holds at all times when exported cl_io_*() functions
@@ -127,6 +126,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 	switch (io->ci_type) {
 	case CIT_READ:
 	case CIT_WRITE:
+	case CIT_DATA_VERSION:
 		break;
 	case CIT_FAULT:
 		break;
@@ -412,7 +412,6 @@ void cl_io_unlock(const struct lu_env *env, struct cl_io *io)
 			scan->cis_iop->op[io->ci_type].cio_unlock(env, scan);
 	}
 	io->ci_state = CIS_UNLOCKED;
-	LASSERT(!cl_env_info(env)->clt_counters[CNL_TOP].ctc_nr_locks_acquired);
 }
 EXPORT_SYMBOL(cl_io_unlock);
 
@@ -587,67 +586,32 @@ void cl_io_end(const struct lu_env *env, struct cl_io *io)
 }
 EXPORT_SYMBOL(cl_io_end);
 
-static const struct cl_page_slice *
-cl_io_slice_page(const struct cl_io_slice *ios, struct cl_page *page)
-{
-	const struct cl_page_slice *slice;
-
-	slice = cl_page_at(page, ios->cis_obj->co_lu.lo_dev->ld_type);
-	LINVRNT(slice);
-	return slice;
-}
-
 /**
- * Called by read io, when page has to be read from the server.
+ * Called by read io, to decide the readahead extent
  *
- * \see cl_io_operations::cio_read_page()
+ * \see cl_io_operations::cio_read_ahead()
  */
-int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
-		    struct cl_page *page)
+int cl_io_read_ahead(const struct lu_env *env, struct cl_io *io,
+		     pgoff_t start, struct cl_read_ahead *ra)
 {
 	const struct cl_io_slice *scan;
-	struct cl_2queue	 *queue;
 	int		       result = 0;
 
 	LINVRNT(io->ci_type == CIT_READ || io->ci_type == CIT_FAULT);
-	LINVRNT(cl_page_is_owned(page, io));
 	LINVRNT(io->ci_state == CIS_IO_GOING || io->ci_state == CIS_LOCKED);
 	LINVRNT(cl_io_invariant(io));
 
-	queue = &io->ci_queue;
-
-	cl_2queue_init(queue);
-	/*
-	 * ->cio_read_page() methods called in the loop below are supposed to
-	 * never block waiting for network (the only subtle point is the
-	 * creation of new pages for read-ahead that might result in cache
-	 * shrinking, but currently only clean pages are shrunk and this
-	 * requires no network io).
-	 *
-	 * Should this ever starts blocking, retry loop would be needed for
-	 * "parallel io" (see CLO_REPEAT loops in cl_lock.c).
-	 */
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->cio_read_page) {
-			const struct cl_page_slice *slice;
+		if (!scan->cis_iop->cio_read_ahead)
+			continue;
 
-			slice = cl_io_slice_page(scan, page);
-			LINVRNT(slice);
-			result = scan->cis_iop->cio_read_page(env, scan, slice);
-			if (result != 0)
-				break;
-		}
+		result = scan->cis_iop->cio_read_ahead(env, scan, start, ra);
+		if (result)
+			break;
 	}
-	if (result == 0 && queue->c2_qin.pl_nr > 0)
-		result = cl_io_submit_rw(env, io, CRT_READ, queue);
-	/*
-	 * Unlock unsent pages in case of error.
-	 */
-	cl_page_list_disown(env, io, &queue->c2_qin);
-	cl_2queue_fini(env, queue);
-	return result;
+	return result > 0 ? 0 : result;
 }
-EXPORT_SYMBOL(cl_io_read_page);
+EXPORT_SYMBOL(cl_io_read_ahead);
 
 /**
  * Commit a list of contiguous pages into writeback cache.
@@ -859,9 +823,6 @@ void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page)
 	LASSERT(page->cp_owner);
 	LINVRNT(plist->pl_owner == current);
 
-	lockdep_off();
-	mutex_lock(&page->cp_mutex);
-	lockdep_on();
 	LASSERT(list_empty(&page->cp_batch));
 	list_add_tail(&page->cp_batch, &plist->pl_pages);
 	++plist->pl_nr;
@@ -877,12 +838,10 @@ void cl_page_list_del(const struct lu_env *env, struct cl_page_list *plist,
 		      struct cl_page *page)
 {
 	LASSERT(plist->pl_nr > 0);
+	LASSERT(cl_page_is_vmlocked(env, page));
 	LINVRNT(plist->pl_owner == current);
 
 	list_del_init(&page->cp_batch);
-	lockdep_off();
-	mutex_unlock(&page->cp_mutex);
-	lockdep_on();
 	--plist->pl_nr;
 	lu_ref_del_at(&page->cp_reference, &page->cp_queue_ref, "queue", plist);
 	cl_page_put(env, page);
@@ -941,8 +900,6 @@ void cl_page_list_splice(struct cl_page_list *list, struct cl_page_list *head)
 }
 EXPORT_SYMBOL(cl_page_list_splice);
 
-void cl_page_disown0(const struct lu_env *env,
-		     struct cl_io *io, struct cl_page *pg);
 
 /**
  * Disowns pages in a queue.
@@ -959,9 +916,6 @@ void cl_page_list_disown(const struct lu_env *env,
 		LASSERT(plist->pl_nr > 0);
 
 		list_del_init(&page->cp_batch);
-		lockdep_off();
-		mutex_unlock(&page->cp_mutex);
-		lockdep_on();
 		--plist->pl_nr;
 		/*
 		 * cl_page_disown0 rather than usual cl_page_disown() is used,
@@ -1091,235 +1045,18 @@ struct cl_io *cl_io_top(struct cl_io *io)
 EXPORT_SYMBOL(cl_io_top);
 
 /**
- * Adds request slice to the compound request.
- *
- * This is called by cl_device_operations::cdo_req_init() methods to add a
- * per-layer state to the request. New state is added at the end of
- * cl_req::crq_layers list, that is, it is at the bottom of the stack.
- *
- * \see cl_lock_slice_add(), cl_page_slice_add(), cl_io_slice_add()
- */
-void cl_req_slice_add(struct cl_req *req, struct cl_req_slice *slice,
-		      struct cl_device *dev,
-		      const struct cl_req_operations *ops)
-{
-	list_add_tail(&slice->crs_linkage, &req->crq_layers);
-	slice->crs_dev = dev;
-	slice->crs_ops = ops;
-	slice->crs_req = req;
-}
-EXPORT_SYMBOL(cl_req_slice_add);
-
-static void cl_req_free(const struct lu_env *env, struct cl_req *req)
-{
-	unsigned i;
-
-	LASSERT(list_empty(&req->crq_pages));
-	LASSERT(req->crq_nrpages == 0);
-	LINVRNT(list_empty(&req->crq_layers));
-	LINVRNT(equi(req->crq_nrobjs > 0, req->crq_o));
-
-	if (req->crq_o) {
-		for (i = 0; i < req->crq_nrobjs; ++i) {
-			struct cl_object *obj = req->crq_o[i].ro_obj;
-
-			if (obj) {
-				lu_object_ref_del_at(&obj->co_lu,
-						     &req->crq_o[i].ro_obj_ref,
-						     "cl_req", req);
-				cl_object_put(env, obj);
-			}
-		}
-		kfree(req->crq_o);
-	}
-	kfree(req);
-}
-
-static int cl_req_init(const struct lu_env *env, struct cl_req *req,
-		       struct cl_page *page)
-{
-	struct cl_device     *dev;
-	struct cl_page_slice *slice;
-	int result;
-
-	result = 0;
-	list_for_each_entry(slice, &page->cp_layers, cpl_linkage) {
-		dev = lu2cl_dev(slice->cpl_obj->co_lu.lo_dev);
-		if (dev->cd_ops->cdo_req_init) {
-			result = dev->cd_ops->cdo_req_init(env, dev, req);
-			if (result != 0)
-				break;
-		}
-	}
-	return result;
-}
-
-/**
- * Invokes per-request transfer completion call-backs
- * (cl_req_operations::cro_completion()) bottom-to-top.
- */
-void cl_req_completion(const struct lu_env *env, struct cl_req *req, int rc)
-{
-	struct cl_req_slice *slice;
-
-	/*
-	 * for the lack of list_for_each_entry_reverse_safe()...
-	 */
-	while (!list_empty(&req->crq_layers)) {
-		slice = list_entry(req->crq_layers.prev,
-				   struct cl_req_slice, crs_linkage);
-		list_del_init(&slice->crs_linkage);
-		if (slice->crs_ops->cro_completion)
-			slice->crs_ops->cro_completion(env, slice, rc);
-	}
-	cl_req_free(env, req);
-}
-EXPORT_SYMBOL(cl_req_completion);
-
-/**
- * Allocates new transfer request.
- */
-struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
-			    enum cl_req_type crt, int nr_objects)
-{
-	struct cl_req *req;
-
-	LINVRNT(nr_objects > 0);
-
-	req = kzalloc(sizeof(*req), GFP_NOFS);
-	if (req) {
-		int result;
-
-		req->crq_type = crt;
-		INIT_LIST_HEAD(&req->crq_pages);
-		INIT_LIST_HEAD(&req->crq_layers);
-
-		req->crq_o = kcalloc(nr_objects, sizeof(req->crq_o[0]),
-				     GFP_NOFS);
-		if (req->crq_o) {
-			req->crq_nrobjs = nr_objects;
-			result = cl_req_init(env, req, page);
-		} else {
-			result = -ENOMEM;
-		}
-		if (result != 0) {
-			cl_req_completion(env, req, result);
-			req = ERR_PTR(result);
-		}
-	} else {
-		req = ERR_PTR(-ENOMEM);
-	}
-	return req;
-}
-EXPORT_SYMBOL(cl_req_alloc);
-
-/**
- * Adds a page to a request.
- */
-void cl_req_page_add(const struct lu_env *env,
-		     struct cl_req *req, struct cl_page *page)
-{
-	struct cl_object  *obj;
-	struct cl_req_obj *rqo;
-	int i;
-
-	LASSERT(list_empty(&page->cp_flight));
-	LASSERT(!page->cp_req);
-
-	CL_PAGE_DEBUG(D_PAGE, env, page, "req %p, %d, %u\n",
-		      req, req->crq_type, req->crq_nrpages);
-
-	list_add_tail(&page->cp_flight, &req->crq_pages);
-	++req->crq_nrpages;
-	page->cp_req = req;
-	obj = cl_object_top(page->cp_obj);
-	for (i = 0, rqo = req->crq_o; obj != rqo->ro_obj; ++i, ++rqo) {
-		if (!rqo->ro_obj) {
-			rqo->ro_obj = obj;
-			cl_object_get(obj);
-			lu_object_ref_add_at(&obj->co_lu, &rqo->ro_obj_ref,
-					     "cl_req", req);
-			break;
-		}
-	}
-	LASSERT(i < req->crq_nrobjs);
-}
-EXPORT_SYMBOL(cl_req_page_add);
-
-/**
- * Removes a page from a request.
- */
-void cl_req_page_done(const struct lu_env *env, struct cl_page *page)
-{
-	struct cl_req *req = page->cp_req;
-
-	LASSERT(!list_empty(&page->cp_flight));
-	LASSERT(req->crq_nrpages > 0);
-
-	list_del_init(&page->cp_flight);
-	--req->crq_nrpages;
-	page->cp_req = NULL;
-}
-EXPORT_SYMBOL(cl_req_page_done);
-
-/**
- * Notifies layers that request is about to depart by calling
- * cl_req_operations::cro_prep() top-to-bottom.
- */
-int cl_req_prep(const struct lu_env *env, struct cl_req *req)
-{
-	int i;
-	int result;
-	const struct cl_req_slice *slice;
-
-	/*
-	 * Check that the caller of cl_req_alloc() didn't lie about the number
-	 * of objects.
-	 */
-	for (i = 0; i < req->crq_nrobjs; ++i)
-		LASSERT(req->crq_o[i].ro_obj);
-
-	result = 0;
-	list_for_each_entry(slice, &req->crq_layers, crs_linkage) {
-		if (slice->crs_ops->cro_prep) {
-			result = slice->crs_ops->cro_prep(env, slice);
-			if (result != 0)
-				break;
-		}
-	}
-	return result;
-}
-EXPORT_SYMBOL(cl_req_prep);
-
-/**
  * Fills in attributes that are passed to server together with transfer. Only
  * attributes from \a flags may be touched. This can be called multiple times
  * for the same request.
  */
-void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
-		     struct cl_req_attr *attr, u64 flags)
+void cl_req_attr_set(const struct lu_env *env, struct cl_object *obj,
+		     struct cl_req_attr *attr)
 {
-	const struct cl_req_slice *slice;
-	struct cl_page	    *page;
-	int i;
+	struct cl_object *scan;
 
-	LASSERT(!list_empty(&req->crq_pages));
-
-	/* Take any page to use as a model. */
-	page = list_entry(req->crq_pages.next, struct cl_page, cp_flight);
-
-	for (i = 0; i < req->crq_nrobjs; ++i) {
-		list_for_each_entry(slice, &req->crq_layers, crs_linkage) {
-			const struct cl_page_slice *scan;
-			const struct cl_object     *obj;
-
-			scan = cl_page_at(page,
-					  slice->crs_dev->cd_lu_dev.ld_type);
-			obj = scan->cpl_obj;
-			if (slice->crs_ops->cro_attr_set)
-				slice->crs_ops->cro_attr_set(env, slice, obj,
-							     attr + i, flags);
-		}
+	cl_object_for_each(scan, obj) {
+		if (scan->co_ops->coo_req_attr_set)
+			scan->co_ops->coo_req_attr_set(env, scan, attr);
 	}
 }
 EXPORT_SYMBOL(cl_req_attr_set);
@@ -1382,9 +1119,9 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_sync_io *anchor,
 	LASSERT(atomic_read(&anchor->csi_sync_nr) == 0);
 
 	/* wait until cl_sync_io_note() has done wakeup */
-	while (unlikely(atomic_read(&anchor->csi_barrier) != 0)) {
+	while (unlikely(atomic_read(&anchor->csi_barrier) != 0))
 		cpu_relax();
-	}
+
 
 	return rc;
 }

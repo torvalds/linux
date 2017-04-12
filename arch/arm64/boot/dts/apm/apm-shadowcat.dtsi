@@ -26,6 +26,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_0>;
+			#clock-cells = <1>;
+			clocks = <&pmd0clk 0>;
 		};
 		cpu@001 {
 			device_type = "cpu";
@@ -34,6 +36,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_0>;
+			#clock-cells = <1>;
+			clocks = <&pmd0clk 0>;
 		};
 		cpu@100 {
 			device_type = "cpu";
@@ -42,6 +46,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_1>;
+			#clock-cells = <1>;
+			clocks = <&pmd1clk 0>;
 		};
 		cpu@101 {
 			device_type = "cpu";
@@ -50,6 +56,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_1>;
+			#clock-cells = <1>;
+			clocks = <&pmd1clk 0>;
 		};
 		cpu@200 {
 			device_type = "cpu";
@@ -58,6 +66,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_2>;
+			#clock-cells = <1>;
+			clocks = <&pmd2clk 0>;
 		};
 		cpu@201 {
 			device_type = "cpu";
@@ -66,6 +76,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_2>;
+			#clock-cells = <1>;
+			clocks = <&pmd2clk 0>;
 		};
 		cpu@300 {
 			device_type = "cpu";
@@ -74,6 +86,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_3>;
+			#clock-cells = <1>;
+			clocks = <&pmd3clk 0>;
 		};
 		cpu@301 {
 			device_type = "cpu";
@@ -82,6 +96,8 @@
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
 			next-level-cache = <&xgene_L2_3>;
+			#clock-cells = <1>;
+			clocks = <&pmd3clk 0>;
 		};
 		xgene_L2_0: l2-cache-0 {
 			compatible = "cache";
@@ -221,6 +237,46 @@
 				#clock-cells = <1>;
 				clock-frequency = <100000000>;
 				clock-output-names = "refclk";
+			};
+
+			pmdpll: pmdpll@170000f0 {
+				compatible = "apm,xgene-pcppll-v2-clock";
+				#clock-cells = <1>;
+				clocks = <&refclk 0>;
+				reg = <0x0 0x170000f0 0x0 0x10>;
+				clock-output-names = "pmdpll";
+			};
+
+			pmd0clk: pmd0clk@7e200200 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200200 0x0 0x10>;
+				clock-output-names = "pmd0clk";
+			};
+
+			pmd1clk: pmd1clk@7e200210 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200210 0x0 0x10>;
+				clock-output-names = "pmd1clk";
+			};
+
+			pmd2clk: pmd2clk@7e200220 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200220 0x0 0x10>;
+				clock-output-names = "pmd2clk";
+			};
+
+			pmd3clk: pmd3clk@7e200230 {
+				compatible = "apm,xgene-pmd-clock";
+				#clock-cells = <1>;
+				clocks = <&pmdpll 0>;
+				reg = <0x0 0x7e200230 0x0 0x10>;
+				clock-output-names = "pmd3clk";
 			};
 
 			socpll: socpll@17000120 {
@@ -453,6 +509,64 @@
 			};
 		};
 
+		pmu: pmu@78810000 {
+			compatible = "apm,xgene-pmu-v2";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			regmap-csw = <&csw>;
+			regmap-mcba = <&mcba>;
+			regmap-mcbb = <&mcbb>;
+			reg = <0x0 0x78810000 0x0 0x1000>;
+			interrupts = <0x0 0x22 0x4>;
+
+			pmul3c@7e610000 {
+				compatible = "apm,xgene-pmu-l3c";
+				reg = <0x0 0x7e610000 0x0 0x1000>;
+			};
+
+			pmuiob@7e940000 {
+				compatible = "apm,xgene-pmu-iob";
+				reg = <0x0 0x7e940000 0x0 0x1000>;
+			};
+
+			pmucmcb@7e710000 {
+				compatible = "apm,xgene-pmu-mcb";
+				reg = <0x0 0x7e710000 0x0 0x1000>;
+				enable-bit-index = <0>;
+			};
+
+			pmucmcb@7e730000 {
+				compatible = "apm,xgene-pmu-mcb";
+				reg = <0x0 0x7e730000 0x0 0x1000>;
+				enable-bit-index = <1>;
+			};
+
+			pmucmc@7e810000 {
+				compatible = "apm,xgene-pmu-mc";
+				reg = <0x0 0x7e810000 0x0 0x1000>;
+				enable-bit-index = <0>;
+			};
+
+			pmucmc@7e850000 {
+				compatible = "apm,xgene-pmu-mc";
+				reg = <0x0 0x7e850000 0x0 0x1000>;
+				enable-bit-index = <1>;
+			};
+
+			pmucmc@7e890000 {
+				compatible = "apm,xgene-pmu-mc";
+				reg = <0x0 0x7e890000 0x0 0x1000>;
+				enable-bit-index = <2>;
+			};
+
+			pmucmc@7e8d0000 {
+				compatible = "apm,xgene-pmu-mc";
+				reg = <0x0 0x7e8d0000 0x0 0x1000>;
+				enable-bit-index = <3>;
+			};
+		};
+
 		mailbox: mailbox@10540000 {
 			compatible = "apm,xgene-slimpro-mbox";
 			reg = <0x0 0x10540000 0x0 0x8000>;
@@ -470,6 +584,11 @@
 		i2cslimpro {
 			compatible = "apm,xgene-slimpro-i2c";
 			mboxes = <&mailbox 0>;
+		};
+
+		hwmonslimpro {
+			compatible = "apm,xgene-slimpro-hwmon";
+			mboxes = <&mailbox 7>;
 		};
 
 		serial0: serial@10600000 {
@@ -508,10 +627,10 @@
 			dma-ranges = <0x42000000 0x80 0x00000000 0x80 0x00000000 0x00 0x80000000
 				      0x42000000 0x00 0x00000000 0x00 0x00000000 0x80 0x00000000>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 0x10 0x1
-					 0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 0x11 0x1
-					 0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 0x12 0x1
-					 0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 0x13 0x1>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 0x10 0x4
+					 0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 0x11 0x4
+					 0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 0x12 0x4
+					 0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 0x13 0x4>;
 			dma-coherent;
 			clocks = <&pcie0clk 0>;
 			msi-parent = <&v2m0>;
@@ -533,10 +652,10 @@
 			dma-ranges = <0x42000000 0x80 0x00000000 0x80 0x00000000 0x00 0x80000000
 				      0x42000000 0x00 0x00000000 0x00 0x00000000 0x80 0x00000000>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 0x16 0x1
-					 0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 0x17 0x1
-					 0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 0x18 0x1
-					 0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 0x19 0x1>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 0x16 0x4
+					 0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 0x17 0x4
+					 0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 0x18 0x4
+					 0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 0x19 0x4>;
 			dma-coherent;
 			clocks = <&pcie1clk 0>;
 			msi-parent = <&v2m0>;

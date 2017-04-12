@@ -20,6 +20,9 @@
 
 #ifndef __ASSEMBLY__
 
+#define __nops(n)	".rept	" #n "\nnop\n.endr\n"
+#define nops(n)		asm volatile(__nops(n))
+
 #define sev()		asm volatile("sev" : : : "memory")
 #define wfe()		asm volatile("wfe" : : : "memory")
 #define wfi()		asm volatile("wfi" : : : "memory")

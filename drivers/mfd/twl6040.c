@@ -609,6 +609,7 @@ static const struct regmap_config twl6040_regmap_config = {
 	.writeable_reg = twl6040_writeable_reg,
 
 	.cache_type = REGCACHE_RBTREE,
+	.use_single_rw = true,
 };
 
 static const struct regmap_irq twl6040_irqs[] = {
@@ -780,6 +781,11 @@ static int twl6040_probe(struct i2c_client *client,
 	/* GPO support */
 	cell = &twl6040->cells[children];
 	cell->name = "twl6040-gpo";
+	children++;
+
+	/* PDM clock support  */
+	cell = &twl6040->cells[children];
+	cell->name = "twl6040-pdmclk";
 	children++;
 
 	/* The chip is powered down so mark regmap to cache only and dirty */

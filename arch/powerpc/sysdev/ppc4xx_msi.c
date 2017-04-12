@@ -102,7 +102,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 					__func__);
 		}
 		virq = irq_of_parse_and_map(msi_data->msi_dev, int_no);
-		if (virq == NO_IRQ) {
+		if (!virq) {
 			dev_err(&dev->dev, "%s: fail mapping irq\n", __func__);
 			msi_bitmap_free_hwirqs(&msi_data->bitmap, int_no, 1);
 			return -ENOSPC;
@@ -129,7 +129,7 @@ void ppc4xx_teardown_msi_irqs(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "PCIE-MSI: tearing down msi irqs\n");
 
 	for_each_pci_msi_entry(entry, dev) {
-		if (entry->irq == NO_IRQ)
+		if (!entry->irq)
 			continue;
 		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
@@ -201,7 +201,7 @@ static int ppc4xx_of_msi_remove(struct platform_device *dev)
 
 	for (i = 0; i < msi_irqs; i++) {
 		virq = msi->msi_virqs[i];
-		if (virq != NO_IRQ)
+		if (virq)
 			irq_dispose_mapping(virq);
 	}
 

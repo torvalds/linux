@@ -14,6 +14,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8916.h>
 #include <dt-bindings/reset/qcom,gcc-msm8916.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM8916";
@@ -77,14 +78,19 @@
 			no-map;
 		};
 
-		mpss@86800000 {
+		mpss_mem: mpss@86800000 {
 			reg = <0x0 0x86800000 0x0 0x2b00000>;
 			no-map;
 		};
 
-		wcnss@89300000 {
+		wcnss_mem: wcnss@89300000 {
 			reg = <0x0 0x89300000 0x0 0x600000>;
 			no-map;
+		};
+
+		mba_mem: mba@8ea00000 {
+			no-map;
+			reg = <0 0x8ea00000 0 0x100000>;
 		};
 	};
 
@@ -155,6 +161,49 @@
 		interrupts = <GIC_PPI 7 GIC_CPU_MASK_SIMPLE(4)>;
 	};
 
+	thermal-zones {
+		cpu-thermal0 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 4>;
+
+			trips {
+				cpu_alert0: trip0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu_crit0: trip1 {
+					temperature = <110000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cpu-thermal1 {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 3>;
+
+			trips {
+				cpu_alert1: trip0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu_crit1: trip1 {
+					temperature = <110000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
@@ -187,10 +236,11 @@
 	};
 
 	firmware {
-		scm {
+		scm: scm {
 			compatible = "qcom,scm";
 			clocks = <&gcc GCC_CRYPTO_CLK>, <&gcc GCC_CRYPTO_AXI_CLK>, <&gcc GCC_CRYPTO_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
+			#reset-cells = <1>;
 		};
 	};
 
@@ -226,6 +276,11 @@
 		tcsr_mutex_regs: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x20000>;
+		};
+
+		tcsr: syscon@1937000 {
+			compatible = "qcom,tcsr-msm8916", "syscon";
+			reg = <0x1937000 0x30000>;
 		};
 
 		tcsr_mutex: hwlock {
@@ -450,6 +505,15 @@
 			reg-names = "lpass-lpaif";
 		};
 
+                lpass_codec: codec{
+			compatible = "qcom,msm8916-wcd-digital-codec";
+			reg = <0x0771c000 0x400>;
+			clocks = <&gcc GCC_ULTAUDIO_AHBFABRIC_IXFABRIC_CLK>,
+				 <&gcc GCC_CODEC_DIGCODEC_CLK>;
+			clock-names = "ahbix-clk", "mclk";
+			#sound-dai-cells = <1>;
+                };
+
 		sdhc_1: sdhci@07824000 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x07824900 0x11c>, <0x07824000 0x800>;
@@ -458,8 +522,10 @@
 			interrupts = <0 123 0>, <0 138 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
-				 <&gcc GCC_SDCC1_AHB_CLK>;
-			clock-names = "core", "iface";
+				 <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "core", "iface", "xo";
+			mmc-ddr-1_8v;
 			bus-width = <8>;
 			non-removable;
 			status = "disabled";
@@ -473,8 +539,9 @@
 			interrupts = <0 125 0>, <0 221 0>;
 			interrupt-names = "hc_irq", "pwr_irq";
 			clocks = <&gcc GCC_SDCC2_APPS_CLK>,
-				 <&gcc GCC_SDCC2_AHB_CLK>;
-			clock-names = "core", "iface";
+				 <&gcc GCC_SDCC2_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "core", "iface", "xo";
 			bus-width = <4>;
 			status = "disabled";
 		};
@@ -483,7 +550,7 @@
 			compatible = "qcom,ci-hdrc";
 			reg = <0x78d9000 0x400>;
 			dr_mode = "peripheral";
-			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			usb-phy = <&usb_otg>;
 			status = "disabled";
 		};
@@ -491,7 +558,7 @@
 		usb_host: ehci@78d9000 {
 			compatible = "qcom,ehci-host";
 			reg = <0x78d9000 0x400>;
-			interrupts = <GIC_SPI 134 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			usb-phy = <&usb_otg>;
 			status = "disabled";
 		};
@@ -499,8 +566,8 @@
 		usb_otg: phy@78d9000 {
 			compatible = "qcom,usb-otg-snps";
 			reg = <0x78d9000 0x400>;
-			interrupts = <GIC_SPI 134 IRQ_TYPE_EDGE_BOTH>,
-				     <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 
 			qcom,vdd-levels = <500000 1000000 1320000>;
 			qcom,phy-init-sequence = <0x44 0x6B 0x24 0x13>;
@@ -594,7 +661,7 @@
 			      <0x200a000 0x002100>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
-			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
 			#address-cells = <2>;
@@ -608,6 +675,497 @@
 			reg = <0x00022000 0x200>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
+		};
+
+		qfprom: qfprom@5c000 {
+			compatible = "qcom,qfprom";
+			reg = <0x5c000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			tsens_caldata: caldata@d0 {
+				reg = <0xd0 0x8>;
+			};
+			tsens_calsel: calsel@ec {
+				reg = <0xec 0x4>;
+			};
+		};
+
+		tsens: thermal-sensor@4a8000 {
+			compatible = "qcom,msm8916-tsens";
+			reg = <0x4a8000 0x2000>;
+			nvmem-cells = <&tsens_caldata>, <&tsens_calsel>;
+			nvmem-cell-names = "calib", "calib_sel";
+			#thermal-sensor-cells = <1>;
+		};
+
+		mdss: mdss@1a00000 {
+			compatible = "qcom,mdss";
+			reg = <0x1a00000 0x1000>,
+			      <0x1ac8000 0x3000>;
+			reg-names = "mdss_phys", "vbif_phys";
+
+			power-domains = <&gcc MDSS_GDSC>;
+
+			clocks = <&gcc GCC_MDSS_AHB_CLK>,
+				 <&gcc GCC_MDSS_AXI_CLK>,
+				 <&gcc GCC_MDSS_VSYNC_CLK>;
+			clock-names = "iface_clk",
+				      "bus_clk",
+				      "vsync_clk";
+
+			interrupts = <0 72 0>;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			mdp: mdp@1a01000 {
+				compatible = "qcom,mdp5";
+				reg = <0x1a01000 0x90000>;
+				reg-names = "mdp_phys";
+
+				interrupt-parent = <&mdss>;
+				interrupts = <0 0>;
+
+				clocks = <&gcc GCC_MDSS_AHB_CLK>,
+					 <&gcc GCC_MDSS_AXI_CLK>,
+					 <&gcc GCC_MDSS_MDP_CLK>,
+					 <&gcc GCC_MDSS_VSYNC_CLK>;
+				clock-names = "iface_clk",
+					      "bus_clk",
+					      "core_clk",
+					      "vsync_clk";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						mdp5_intf1_out: endpoint {
+							remote-endpoint = <&dsi0_in>;
+						};
+					};
+				};
+			};
+
+			dsi0: dsi@1a98000 {
+				compatible = "qcom,mdss-dsi-ctrl";
+				reg = <0x1a98000 0x25c>;
+				reg-names = "dsi_ctrl";
+
+				interrupt-parent = <&mdss>;
+				interrupts = <4 0>;
+
+				assigned-clocks = <&gcc BYTE0_CLK_SRC>,
+						  <&gcc PCLK0_CLK_SRC>;
+				assigned-clock-parents = <&dsi_phy0 0>,
+							 <&dsi_phy0 1>;
+
+				clocks = <&gcc GCC_MDSS_MDP_CLK>,
+					 <&gcc GCC_MDSS_AHB_CLK>,
+					 <&gcc GCC_MDSS_AXI_CLK>,
+					 <&gcc GCC_MDSS_BYTE0_CLK>,
+					 <&gcc GCC_MDSS_PCLK0_CLK>,
+					 <&gcc GCC_MDSS_ESC0_CLK>;
+				clock-names = "mdp_core_clk",
+					      "iface_clk",
+					      "bus_clk",
+					      "byte_clk",
+					      "pixel_clk",
+					      "core_clk";
+				phys = <&dsi_phy0>;
+				phy-names = "dsi-phy";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						dsi0_in: endpoint {
+							remote-endpoint = <&mdp5_intf1_out>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						dsi0_out: endpoint {
+						};
+					};
+				};
+			};
+
+			dsi_phy0: dsi-phy@1a98300 {
+				compatible = "qcom,dsi-phy-28nm-lp";
+				reg = <0x1a98300 0xd4>,
+				      <0x1a98500 0x280>,
+				      <0x1a98780 0x30>;
+				reg-names = "dsi_pll",
+					    "dsi_phy",
+					    "dsi_phy_regulator";
+
+				#clock-cells = <1>;
+
+				clocks = <&gcc GCC_MDSS_AHB_CLK>;
+				clock-names = "iface_clk";
+			};
+		};
+
+
+		hexagon@4080000 {
+			compatible = "qcom,q6v5-pil";
+			reg = <0x04080000 0x100>,
+			      <0x04020000 0x040>;
+
+			reg-names = "qdsp6", "rmb";
+
+			interrupts-extended = <&intc 0 24 1>,
+					      <&hexagon_smp2p_in 0 0>,
+					      <&hexagon_smp2p_in 1 0>,
+					      <&hexagon_smp2p_in 2 0>,
+					      <&hexagon_smp2p_in 3 0>;
+			interrupt-names = "wdog", "fatal", "ready",
+					  "handover", "stop-ack";
+
+			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
+				 <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
+				 <&gcc GCC_BOOT_ROM_AHB_CLK>;
+			clock-names = "iface", "bus", "mem";
+
+			qcom,smem-states = <&hexagon_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			resets = <&scm 0>;
+			reset-names = "mss_restart";
+
+			mx-supply = <&pm8916_l3>;
+			pll-supply = <&pm8916_l7>;
+
+			qcom,halt-regs = <&tcsr 0x18000 0x19000 0x1a000>;
+
+			status = "disabled";
+
+			mba {
+				memory-region = <&mba_mem>;
+			};
+
+			mpss {
+				memory-region = <&mpss_mem>;
+			};
+		};
+
+		pronto: wcnss@a21b000 {
+			compatible = "qcom,pronto-v2-pil", "qcom,pronto";
+			reg = <0x0a204000 0x2000>, <0x0a202000 0x1000>, <0x0a21b000 0x3000>;
+			reg-names = "ccu", "dxe", "pmu";
+
+			memory-region = <&wcnss_mem>;
+
+			interrupts-extended = <&intc 0 149 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					      <&wcnss_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
+
+			vddmx-supply = <&pm8916_l3>;
+			vddpx-supply = <&pm8916_l7>;
+
+			qcom,state = <&wcnss_smp2p_out 0>;
+			qcom,state-names = "stop";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&wcnss_pin_a>;
+
+			status = "disabled";
+
+			iris {
+				compatible = "qcom,wcn3620";
+
+				clocks = <&rpmcc RPM_SMD_RF_CLK2>;
+				clock-names = "xo";
+
+				vddxo-supply = <&pm8916_l7>;
+				vddrfa-supply = <&pm8916_s3>;
+				vddpa-supply = <&pm8916_l9>;
+				vdddig-supply = <&pm8916_l5>;
+			};
+
+			smd-edge {
+				interrupts = <0 142 1>;
+
+				qcom,ipc = <&apcs 8 17>;
+				qcom,smd-edge = <6>;
+				qcom,remote-pid = <4>;
+
+				label = "pronto";
+
+				wcnss {
+					compatible = "qcom,wcnss";
+					qcom,smd-channels = "WCNSS_CTRL";
+
+					qcom,mmio = <&pronto>;
+
+					bt {
+						compatible = "qcom,wcnss-bt";
+					};
+
+					wifi {
+						compatible = "qcom,wcnss-wlan";
+
+						interrupts = <0 145 IRQ_TYPE_LEVEL_HIGH>,
+							     <0 146 IRQ_TYPE_LEVEL_HIGH>;
+						interrupt-names = "tx", "rx";
+
+						qcom,smem-states = <&apps_smsm 10>, <&apps_smsm 9>;
+						qcom,smem-state-names = "tx-enable", "tx-rings-empty";
+					};
+				};
+			};
+		};
+
+		tpiu@820000 {
+			compatible = "arm,coresight-tpiu", "arm,primecell";
+			reg = <0x820000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			port {
+				tpiu_in: endpoint {
+					slave-mode;
+					remote-endpoint = <&replicator_out1>;
+				};
+			};
+		};
+
+		funnel@821000 {
+			compatible = "arm,coresight-funnel", "arm,primecell";
+			reg = <0x821000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/*
+				 * Not described input ports:
+				 * 0 - connected to Resource and Power Manger CPU ETM
+				 * 1 - not-connected
+				 * 2 - connected to Modem CPU ETM
+				 * 3 - not-connected
+				 * 5 - not-connected
+				 * 6 - connected trought funnel to Wireless CPU ETM
+				 * 7 - connected to STM component
+				 */
+
+				port@4 {
+					reg = <4>;
+					funnel0_in4: endpoint {
+						slave-mode;
+						remote-endpoint = <&funnel1_out>;
+					};
+				};
+				port@8 {
+					reg = <0>;
+					funnel0_out: endpoint {
+						remote-endpoint = <&etf_in>;
+					};
+				};
+			};
+		};
+
+		replicator@824000 {
+			compatible = "qcom,coresight-replicator1x", "arm,primecell";
+			reg = <0x824000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					replicator_out0: endpoint {
+						remote-endpoint = <&etr_in>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					replicator_out1: endpoint {
+						remote-endpoint = <&tpiu_in>;
+					};
+				};
+				port@2 {
+					reg = <0>;
+					replicator_in: endpoint {
+						slave-mode;
+						remote-endpoint = <&etf_out>;
+					};
+				};
+			};
+		};
+
+		etf@825000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0x825000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					etf_out: endpoint {
+						slave-mode;
+						remote-endpoint = <&funnel0_out>;
+					};
+				};
+				port@1 {
+					reg = <0>;
+					etf_in: endpoint {
+						remote-endpoint = <&replicator_in>;
+					};
+				};
+			};
+		};
+
+		etr@826000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0x826000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			port {
+				etr_in: endpoint {
+					slave-mode;
+					remote-endpoint = <&replicator_out0>;
+				};
+			};
+		};
+
+		funnel@841000 {	/* APSS funnel only 4 inputs are used */
+			compatible = "arm,coresight-funnel", "arm,primecell";
+			reg = <0x841000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					funnel1_in0: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm0_out>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					funnel1_in1: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm1_out>;
+					};
+				};
+				port@2 {
+					reg = <2>;
+					funnel1_in2: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm2_out>;
+					};
+				};
+				port@3 {
+					reg = <3>;
+					funnel1_in3: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm3_out>;
+					};
+				};
+				port@4 {
+					reg = <0>;
+					funnel1_out: endpoint {
+						remote-endpoint = <&funnel0_in4>;
+					};
+				};
+			};
+		};
+
+		etm@85c000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0x85c000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU0>;
+
+			port {
+				etm0_out: endpoint {
+				remote-endpoint = <&funnel1_in0>;
+				};
+			};
+		};
+
+		etm@85d000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0x85d000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU1>;
+
+			port {
+				etm1_out: endpoint {
+					remote-endpoint = <&funnel1_in1>;
+				};
+			};
+		};
+
+		etm@85e000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0x85e000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU2>;
+
+			port {
+				etm2_out: endpoint {
+					remote-endpoint = <&funnel1_in2>;
+				};
+			};
+		};
+
+		etm@85f000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0x85f000 0x1000>;
+
+			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU3>;
+
+			port {
+				etm3_out: endpoint {
+					remote-endpoint = <&funnel1_in3>;
+				};
+			};
 		};
 	};
 
@@ -624,7 +1182,7 @@
 				qcom,smd-channels = "rpm_requests";
 
 				rpmcc: qcom,rpmcc {
-					compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+					compatible = "qcom,rpmcc-msm8916";
 					#clock-cells = <1>;
 				};
 
@@ -655,6 +1213,96 @@
 					pm8916_l18: l18 {};
 				};
 			};
+		};
+
+		hexagon {
+			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,smd-edge = <0>;
+			qcom,ipc = <&apcs 8 12>;
+			qcom,remote-pid = <1>;
+		};
+	};
+
+	hexagon-smp2p {
+		compatible = "qcom,smp2p";
+		qcom,smem = <435>, <428>;
+
+		interrupts = <0 27 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,ipc = <&apcs 8 14>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <1>;
+
+		hexagon_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+
+			#qcom,smem-state-cells = <1>;
+		};
+
+		hexagon_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	wcnss-smp2p {
+		compatible = "qcom,smp2p";
+		qcom,smem = <451>, <431>;
+
+		interrupts = <0 143 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,ipc = <&apcs 8 18>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <4>;
+
+		wcnss_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+
+			#qcom,smem-state-cells = <1>;
+		};
+
+		wcnss_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	smsm {
+		compatible = "qcom,smsm";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,ipc-1 = <&apcs 0 13>;
+		qcom,ipc-6 = <&apcs 0 19>;
+
+		apps_smsm: apps@0 {
+			reg = <0>;
+
+			#qcom,smem-state-cells = <1>;
+		};
+
+		hexagon_smsm: hexagon@1 {
+			reg = <1>;
+			interrupts = <0 26 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		wcnss_smsm: wcnss@6 {
+			reg = <6>;
+			interrupts = <0 144 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 	};
 };

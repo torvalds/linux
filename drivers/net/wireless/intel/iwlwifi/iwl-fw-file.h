@@ -199,8 +199,6 @@ struct iwl_ucode_capa {
  * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behavior on hidden SSID,
  *	treats good CRC threshold as a boolean
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
- * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
- * @IWL_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
  * @IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT: This uCode image supports uAPSD
  * @IWL_UCODE_TLV_FLAGS_SHORT_BL: 16 entries of black list instead of 64 in scan
  *	offload profile config command.
@@ -210,63 +208,48 @@ struct iwl_ucode_capa {
  *	from the probe request template.
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL: new NS offload (small version)
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
- * @IWL_UCODE_TLV_FLAGS_P2P_PM: P2P client supports PM as a stand alone MAC
- * @IWL_UCODE_TLV_FLAGS_P2P_BSS_PS_DCM: support power save on BSS station and
- *	P2P client interfaces simultaneously if they are in different bindings.
- * @IWL_UCODE_TLV_FLAGS_P2P_BSS_PS_SCM: support power save on BSS station and
- *	P2P client interfaces simultaneously if they are in same bindings.
  * @IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT: General support for uAPSD
  * @IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD: P2P client supports uAPSD power save
  * @IWL_UCODE_TLV_FLAGS_BCAST_FILTERING: uCode supports broadcast filtering.
- * @IWL_UCODE_TLV_FLAGS_GO_UAPSD: AP/GO interfaces support uAPSD clients
  * @IWL_UCODE_TLV_FLAGS_EBS_SUPPORT: this uCode image supports EBS.
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN			= BIT(0),
 	IWL_UCODE_TLV_FLAGS_NEWSCAN		= BIT(1),
 	IWL_UCODE_TLV_FLAGS_MFP			= BIT(2),
-	IWL_UCODE_TLV_FLAGS_P2P			= BIT(3),
-	IWL_UCODE_TLV_FLAGS_DW_BC_TABLE		= BIT(4),
 	IWL_UCODE_TLV_FLAGS_SHORT_BL		= BIT(7),
 	IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= BIT(10),
 	IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID	= BIT(12),
 	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL	= BIT(15),
 	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE	= BIT(16),
-	IWL_UCODE_TLV_FLAGS_P2P_PM		= BIT(21),
-	IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_DCM	= BIT(22),
-	IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_SCM	= BIT(23),
 	IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT	= BIT(24),
 	IWL_UCODE_TLV_FLAGS_EBS_SUPPORT		= BIT(25),
 	IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD	= BIT(26),
 	IWL_UCODE_TLV_FLAGS_BCAST_FILTERING	= BIT(29),
-	IWL_UCODE_TLV_FLAGS_GO_UAPSD		= BIT(30),
 };
 
-typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
+typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
 
 /**
  * enum iwl_ucode_tlv_api - ucode api
  * @IWL_UCODE_TLV_API_FRAGMENTED_SCAN: This ucode supports active dwell time
  *	longer than the passive one, which is essential for fragmented scan.
  * @IWL_UCODE_TLV_API_WIFI_MCC_UPDATE: ucode supports MCC updates with source.
- * @IWL_UCODE_TLV_API_WIDE_CMD_HDR: ucode supports wide command header
  * @IWL_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
  * @IWL_UCODE_TLV_API_NEW_VERSION: new versioning format
- * @IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY: scan APIs use 8-level priority
- *	instead of 3.
- * @IWL_UCODE_TLV_API_TX_POWER_CHAIN: TX power API has larger command size
- *	(command version 3) that supports per-chain limits
+ * @IWL_UCODE_TLV_API_SCAN_TSF_REPORT: Scan start time reported in scan
+ *	iteration complete notification, and the timestamp reported for RX
+ *	received during scan, are reported in TSF of the mac specified in the
+ *	scan request.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
 enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= (__force iwl_ucode_tlv_api_t)8,
 	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= (__force iwl_ucode_tlv_api_t)9,
-	IWL_UCODE_TLV_API_WIDE_CMD_HDR		= (__force iwl_ucode_tlv_api_t)14,
 	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= (__force iwl_ucode_tlv_api_t)18,
-	IWL_UCODE_TLV_API_NEW_VERSION           = (__force iwl_ucode_tlv_api_t)20,
-	IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY	= (__force iwl_ucode_tlv_api_t)24,
-	IWL_UCODE_TLV_API_TX_POWER_CHAIN	= (__force iwl_ucode_tlv_api_t)27,
+	IWL_UCODE_TLV_API_NEW_VERSION		= (__force iwl_ucode_tlv_api_t)20,
+	IWL_UCODE_TLV_API_SCAN_TSF_REPORT	= (__force iwl_ucode_tlv_api_t)28,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
@@ -275,7 +258,7 @@ enum iwl_ucode_tlv_api {
 #endif
 };
 
-typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
+typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
 
 /**
  * enum iwl_ucode_tlv_capa - ucode capabilities
@@ -310,6 +293,7 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan
+ * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM notification
  * @IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE: extended DTS measurement
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
@@ -359,6 +343,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= (__force iwl_ucode_tlv_capa_t)29,
 	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
 	IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)31,
+	IWL_UCODE_TLV_CAPA_STA_PM_NOTIF			= (__force iwl_ucode_tlv_capa_t)38,
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,
 	IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS		= (__force iwl_ucode_tlv_capa_t)65,
 	IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)67,
@@ -394,7 +379,6 @@ enum iwl_ucode_tlv_capa {
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
-#define IWL_UCODE_SECTION_MAX 16
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 #define PAGING_SEPARATOR_SECTION	0xAAAABBBB
 
@@ -504,25 +488,22 @@ enum iwl_fw_dbg_monitor_mode {
 };
 
 /**
- * enum iwl_fw_mem_seg_type - data types for dumping on error
- *
- * @FW_DBG_MEM_SMEM: the data type is SMEM
- * @FW_DBG_MEM_DCCM_LMAC: the data type is DCCM_LMAC
- * @FW_DBG_MEM_DCCM_UMAC: the data type is DCCM_UMAC
+ * enum iwl_fw_mem_seg_type - memory segment type
+ * @FW_DBG_MEM_TYPE_MASK: mask for the type indication
+ * @FW_DBG_MEM_TYPE_REGULAR: regular memory
+ * @FW_DBG_MEM_TYPE_PRPH: periphery memory (requires special reading)
  */
-enum iwl_fw_dbg_mem_seg_type {
-	FW_DBG_MEM_DCCM_LMAC = 0,
-	FW_DBG_MEM_DCCM_UMAC,
-	FW_DBG_MEM_SMEM,
-
-	/* Must be last */
-	FW_DBG_MEM_MAX,
+enum iwl_fw_mem_seg_type {
+	FW_DBG_MEM_TYPE_MASK	= 0xff000000,
+	FW_DBG_MEM_TYPE_REGULAR	= 0x00000000,
+	FW_DBG_MEM_TYPE_PRPH	= 0x01000000,
 };
 
 /**
  * struct iwl_fw_dbg_mem_seg_tlv - configures the debug data memory segments
  *
- * @data_type: enum %iwl_fw_mem_seg_type
+ * @data_type: the memory segment type to record, see &enum iwl_fw_mem_seg_type
+ *	for what we care about
  * @ofs: the memory segment offset
  * @len: the memory segment length, in bytes
  *

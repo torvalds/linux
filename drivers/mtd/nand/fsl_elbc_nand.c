@@ -879,8 +879,7 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 		}
 		elbc_fcm_ctrl->counter++;
 
-		spin_lock_init(&elbc_fcm_ctrl->controller.lock);
-		init_waitqueue_head(&elbc_fcm_ctrl->controller.wq);
+		nand_hw_control_init(&elbc_fcm_ctrl->controller);
 		fsl_lbc_ctrl_dev->nand = elbc_fcm_ctrl;
 	} else {
 		elbc_fcm_ctrl = fsl_lbc_ctrl_dev->nand;

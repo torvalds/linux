@@ -210,11 +210,11 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_P2P_DEVICE))
 		return;
 
-	if (!wdev->p2p_started)
+	if (!wdev_running(wdev))
 		return;
 
 	rdev_stop_p2p_device(rdev, wdev);
-	wdev->p2p_started = false;
+	wdev->is_running = false;
 
 	rdev->opencount--;
 
@@ -223,6 +223,23 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 			rdev->scan_req->info.aborted = true;
 		___cfg80211_scan_done(rdev, false);
 	}
+}
+
+void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
+		       struct wireless_dev *wdev)
+{
+	ASSERT_RTNL();
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_NAN))
+		return;
+
+	if (!wdev_running(wdev))
+		return;
+
+	rdev_stop_nan(rdev, wdev);
+	wdev->is_running = false;
+
+	rdev->opencount--;
 }
 
 void cfg80211_shutdown_all_interfaces(struct wiphy *wiphy)
@@ -241,6 +258,9 @@ void cfg80211_shutdown_all_interfaces(struct wiphy *wiphy)
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_P2P_DEVICE:
 			cfg80211_stop_p2p_device(rdev, wdev);
+			break;
+		case NL80211_IFTYPE_NAN:
+			cfg80211_stop_nan(rdev, wdev);
 			break;
 		default:
 			break;
@@ -537,6 +557,26 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 				    c->limits[j].max > 1))
 				return -EINVAL;
 
+			/* Only a single NAN can be allowed */
+			if (WARN_ON(types & BIT(NL80211_IFTYPE_NAN) &&
+				    c->limits[j].max > 1))
+				return -EINVAL;
+
+			/*
+			 * This isn't well-defined right now. If you have an
+			 * IBSS interface, then its beacon interval may change
+			 * by joining other networks, and nothing prevents it
+			 * from doing that.
+			 * So technically we probably shouldn't even allow AP
+			 * and IBSS in the same interface, but it seems that
+			 * some drivers support that, possibly only with fixed
+			 * beacon intervals for IBSS.
+			 */
+			if (WARN_ON(types & BIT(NL80211_IFTYPE_ADHOC) &&
+				    c->beacon_int_min_gcd)) {
+				return -EINVAL;
+			}
+
 			cnt += c->limits[j].max;
 			/*
 			 * Don't advertise an unsupported type
@@ -545,6 +585,11 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 			if (WARN_ON((wiphy->interface_modes & types) != types))
 				return -EINVAL;
 		}
+
+#ifndef CONFIG_WIRELESS_WDS
+		if (WARN_ON(all_iftypes & BIT(NL80211_IFTYPE_WDS)))
+			return -EINVAL;
+#endif
 
 		/* You can't even choose that many! */
 		if (WARN_ON(cnt < c->max_interfaces))
@@ -579,6 +624,17 @@ int wiphy_register(struct wiphy *wiphy)
 		     !rdev->ops->tdls_cancel_channel_switch)))
 		return -EINVAL;
 
+	if (WARN_ON((wiphy->interface_modes & BIT(NL80211_IFTYPE_NAN)) &&
+		    (!rdev->ops->start_nan || !rdev->ops->stop_nan ||
+		     !rdev->ops->add_nan_func || !rdev->ops->del_nan_func ||
+		     !(wiphy->nan_supported_bands & BIT(NL80211_BAND_2GHZ)))))
+		return -EINVAL;
+
+#ifndef CONFIG_WIRELESS_WDS
+	if (WARN_ON(wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS)))
+		return -EINVAL;
+#endif
+
 	/*
 	 * if a wiphy has unsupported modes for regulatory channel enforcement,
 	 * opt-out of enforcement checking
@@ -589,6 +645,7 @@ int wiphy_register(struct wiphy *wiphy)
 				       BIT(NL80211_IFTYPE_P2P_GO) |
 				       BIT(NL80211_IFTYPE_ADHOC) |
 				       BIT(NL80211_IFTYPE_P2P_DEVICE) |
+				       BIT(NL80211_IFTYPE_NAN) |
 				       BIT(NL80211_IFTYPE_AP_VLAN) |
 				       BIT(NL80211_IFTYPE_MONITOR)))
 		wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
@@ -906,6 +963,8 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 	if (WARN_ON(wdev->netdev))
 		return;
 
+	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
+
 	list_del_rcu(&wdev->list);
 	rdev->devlist_generation++;
 
@@ -913,6 +972,9 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 	case NL80211_IFTYPE_P2P_DEVICE:
 		cfg80211_mlme_purge_registrations(wdev);
 		cfg80211_stop_p2p_device(rdev, wdev);
+		break;
+	case NL80211_IFTYPE_NAN:
+		cfg80211_stop_nan(rdev, wdev);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -977,6 +1039,7 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 		/* must be handled by mac80211/driver, has no APIs */
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_NAN:
 		/* cannot happen, has no netdev */
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
@@ -1079,6 +1142,10 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT ||
 		     wdev->iftype == NL80211_IFTYPE_ADHOC) && !wdev->use_4addr)
 			dev->priv_flags |= IFF_DONT_BRIDGE;
+
+		INIT_WORK(&wdev->disconnect_wk, cfg80211_autodisconnect_wk);
+
+		nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
 		break;
 	case NETDEV_GOING_DOWN:
 		cfg80211_leave(rdev, wdev);
@@ -1157,6 +1224,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * remove and clean it up.
 		 */
 		if (!list_empty(&wdev->list)) {
+			nl80211_notify_iface(rdev, wdev,
+					     NL80211_CMD_DEL_INTERFACE);
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_rcu(&wdev->list);
 			rdev->devlist_generation++;
@@ -1164,6 +1233,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 #ifdef CONFIG_CFG80211_WEXT
 			kzfree(wdev->wext.keys);
 #endif
+			flush_work(&wdev->disconnect_wk);
 		}
 		/*
 		 * synchronise (so that we won't find this netdev
@@ -1246,7 +1316,7 @@ static int __init cfg80211_init(void)
 	if (err)
 		goto out_fail_reg;
 
-	cfg80211_wq = create_singlethread_workqueue("cfg80211");
+	cfg80211_wq = alloc_ordered_workqueue("cfg80211", WQ_MEM_RECLAIM);
 	if (!cfg80211_wq) {
 		err = -ENOMEM;
 		goto out_fail_wq;

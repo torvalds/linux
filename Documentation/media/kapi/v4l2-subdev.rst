@@ -27,7 +27,7 @@ methods.
 Bridges might also need to store per-subdev private data, such as a pointer to
 bridge-specific per-subdev private data. The :c:type:`v4l2_subdev` structure
 provides host private data for that purpose that can be accessed with
-:c:func:`v4l2_get_subdev_hostdata` and :cpp:func:`v4l2_set_subdev_hostdata`.
+:c:func:`v4l2_get_subdev_hostdata` and :c:func:`v4l2_set_subdev_hostdata`.
 
 From the bridge driver perspective, you load the sub-device module and somehow
 obtain the :c:type:`v4l2_subdev` pointer. For i2c devices this is easy: you call
@@ -412,19 +412,7 @@ later date. It differs between i2c drivers and as such can be confusing.
 To see which chip variants are supported you can look in the i2c driver code
 for the i2c_device_id table. This lists all the possibilities.
 
-There are two more helper functions:
-
-:c:func:`v4l2_i2c_new_subdev_cfg`: this function adds new irq and
-platform_data arguments and has both 'addr' and 'probed_addrs' arguments:
-if addr is not 0 then that will be used (non-probing variant), otherwise the
-probed_addrs are probed.
-
-For example: this will probe for address 0x10:
-
-.. code-block:: c
-
-	struct v4l2_subdev *sd = v4l2_i2c_new_subdev_cfg(v4l2_dev, adapter,
-			  "module_foo", "chipid", 0, NULL, 0, I2C_ADDRS(0x10));
+There are one more helper function:
 
 :c:func:`v4l2_i2c_new_subdev_board` uses an :c:type:`i2c_board_info` struct
 which is passed to the i2c driver and replaces the irq, platform_data and addr
@@ -433,9 +421,10 @@ arguments.
 If the subdev supports the s_config core ops, then that op is called with
 the irq and platform_data arguments after the subdev was setup.
 
-The older :c:func:`v4l2_i2c_new_subdev` and
-:c:func:`v4l2_i2c_new_probed_subdev` functions will call ``s_config`` as
-well, but with irq set to 0 and platform_data set to ``NULL``.
+The :c:func:`v4l2_i2c_new_subdev` function will call
+:c:func:`v4l2_i2c_new_subdev_board`, internally filling a
+:c:type:`i2c_board_info` structure using the ``client_type`` and the
+``addr`` to fill it.
 
 V4L2 sub-device functions and data structures
 ---------------------------------------------

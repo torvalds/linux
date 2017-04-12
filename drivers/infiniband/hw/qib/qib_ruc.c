@@ -38,44 +38,6 @@
 #include "qib_mad.h"
 
 /*
- * Convert the AETH RNR timeout code into the number of microseconds.
- */
-const u32 ib_qib_rnr_table[32] = {
-	655360,	/* 00: 655.36 */
-	10,	/* 01:    .01 */
-	20,	/* 02     .02 */
-	30,	/* 03:    .03 */
-	40,	/* 04:    .04 */
-	60,	/* 05:    .06 */
-	80,	/* 06:    .08 */
-	120,	/* 07:    .12 */
-	160,	/* 08:    .16 */
-	240,	/* 09:    .24 */
-	320,	/* 0A:    .32 */
-	480,	/* 0B:    .48 */
-	640,	/* 0C:    .64 */
-	960,	/* 0D:    .96 */
-	1280,	/* 0E:   1.28 */
-	1920,	/* 0F:   1.92 */
-	2560,	/* 10:   2.56 */
-	3840,	/* 11:   3.84 */
-	5120,	/* 12:   5.12 */
-	7680,	/* 13:   7.68 */
-	10240,	/* 14:  10.24 */
-	15360,	/* 15:  15.36 */
-	20480,	/* 16:  20.48 */
-	30720,	/* 17:  30.72 */
-	40960,	/* 18:  40.96 */
-	61440,	/* 19:  61.44 */
-	81920,	/* 1A:  81.92 */
-	122880,	/* 1B: 122.88 */
-	163840,	/* 1C: 163.84 */
-	245760,	/* 1D: 245.76 */
-	327680,	/* 1E: 327.68 */
-	491520	/* 1F: 491.52 */
-};
-
-/*
  * Validate a RWQE and fill in the SGE state.
  * Return 1 if OK.
  */
@@ -265,7 +227,7 @@ static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
  *
  * The s_lock will be acquired around the qib_migrate_qp() call.
  */
-int qib_ruc_check_hdr(struct qib_ibport *ibp, struct qib_ib_header *hdr,
+int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 		      int has_grh, struct rvt_qp *qp, u32 bth0)
 {
 	__be64 guid;
@@ -599,11 +561,8 @@ rnr_nak:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
-	sqp->s_flags |= RVT_S_WAIT_RNR;
-	sqp->s_timer.function = qib_rc_rnr_retry;
-	sqp->s_timer.expires = jiffies +
-		usecs_to_jiffies(ib_qib_rnr_table[qp->r_min_rnr_timer]);
-	add_timer(&sqp->s_timer);
+	rvt_add_rnr_timer(sqp, qp->r_min_rnr_timer <<
+				IB_AETH_CREDIT_SHIFT);
 	goto clr_busy;
 
 op_err:
@@ -621,7 +580,7 @@ acc_err:
 	wc.status = IB_WC_LOC_PROT_ERR;
 err:
 	/* responder goes to error state */
-	qib_rc_error(qp, wc.status);
+	rvt_rc_error(qp, wc.status);
 
 serr:
 	spin_lock_irqsave(&sqp->s_lock, flags);
@@ -680,7 +639,7 @@ u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
 	return sizeof(struct ib_grh) / sizeof(u32);
 }
 
-void qib_make_ruc_header(struct rvt_qp *qp, struct qib_other_headers *ohdr,
+void qib_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			 u32 bth0, u32 bth2)
 {
 	struct qib_qp_priv *priv = qp->priv;
@@ -793,7 +752,6 @@ void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		       enum ib_wc_status status)
 {
 	u32 old_last, last;
-	unsigned i;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
@@ -805,32 +763,13 @@ void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	qp->s_last = last;
 	/* See post_send() */
 	barrier();
-	for (i = 0; i < wqe->wr.num_sge; i++) {
-		struct rvt_sge *sge = &wqe->sg_list[i];
-
-		rvt_put_mr(sge->mr);
-	}
+	rvt_put_swqe(wqe);
 	if (qp->ibqp.qp_type == IB_QPT_UD ||
 	    qp->ibqp.qp_type == IB_QPT_SMI ||
 	    qp->ibqp.qp_type == IB_QPT_GSI)
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 
-	/* See ch. 11.2.4.1 and 10.7.3.1 */
-	if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
-	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
-	    status != IB_WC_SUCCESS) {
-		struct ib_wc wc;
-
-		memset(&wc, 0, sizeof(wc));
-		wc.wr_id = wqe->wr.wr_id;
-		wc.status = status;
-		wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];
-		wc.qp = &qp->ibqp;
-		if (status == IB_WC_SUCCESS)
-			wc.byte_len = wqe->length;
-		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
-			     status != IB_WC_SUCCESS);
-	}
+	rvt_qp_swqe_complete(qp, wqe, status);
 
 	if (qp->s_acked == old_last)
 		qp->s_acked = last;

@@ -69,7 +69,7 @@ static int replicator_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct coresight_platform_data *pdata = NULL;
 	struct replicator_drvdata *drvdata;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = pdev->dev.of_node;
 
 	if (np) {
@@ -95,18 +95,12 @@ static int replicator_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	platform_set_drvdata(pdev, drvdata);
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc) {
-		ret = -ENOMEM;
-		goto out_disable_pm;
-	}
-
-	desc->type = CORESIGHT_DEV_TYPE_LINK;
-	desc->subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_SPLIT;
-	desc->ops = &replicator_cs_ops;
-	desc->pdata = pdev->dev.platform_data;
-	desc->dev = &pdev->dev;
-	drvdata->csdev = coresight_register(desc);
+	desc.type = CORESIGHT_DEV_TYPE_LINK;
+	desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_SPLIT;
+	desc.ops = &replicator_cs_ops;
+	desc.pdata = pdev->dev.platform_data;
+	desc.dev = &pdev->dev;
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev)) {
 		ret = PTR_ERR(drvdata->csdev);
 		goto out_disable_pm;

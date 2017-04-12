@@ -106,7 +106,7 @@ static void skl_set_pcm_constrains(struct hdac_ext_bus *ebus,
 
 static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_ext_bus *ebus)
 {
-	if (ebus->ppcap)
+	if ((ebus_to_hbus(ebus))->ppcap)
 		return HDAC_EXT_STREAM_TYPE_HOST;
 	else
 		return HDAC_EXT_STREAM_TYPE_COUPLED;
@@ -137,6 +137,80 @@ static void skl_set_suspend_active(struct snd_pcm_substream *substream,
 		skl->supend_active--;
 }
 
+int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	unsigned int format_val;
+	struct hdac_stream *hstream;
+	struct hdac_ext_stream *stream;
+	int err;
+
+	hstream = snd_hdac_get_stream(bus, params->stream,
+					params->host_dma_id + 1);
+	if (!hstream)
+		return -EINVAL;
+
+	stream = stream_to_hdac_ext_stream(hstream);
+	snd_hdac_ext_stream_decouple(ebus, stream, true);
+
+	format_val = snd_hdac_calc_stream_format(params->s_freq,
+				params->ch, params->format, 32, 0);
+
+	dev_dbg(dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
+		format_val, params->s_freq, params->ch, params->format);
+
+	snd_hdac_stream_reset(hdac_stream(stream));
+	err = snd_hdac_stream_set_params(hdac_stream(stream), format_val);
+	if (err < 0)
+		return err;
+
+	err = snd_hdac_stream_setup(hdac_stream(stream));
+	if (err < 0)
+		return err;
+
+	hdac_stream(stream)->prepared = 1;
+
+	return 0;
+}
+
+int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	unsigned int format_val;
+	struct hdac_stream *hstream;
+	struct hdac_ext_stream *stream;
+	struct hdac_ext_link *link;
+
+	hstream = snd_hdac_get_stream(bus, params->stream,
+					params->link_dma_id + 1);
+	if (!hstream)
+		return -EINVAL;
+
+	stream = stream_to_hdac_ext_stream(hstream);
+	snd_hdac_ext_stream_decouple(ebus, stream, true);
+	format_val = snd_hdac_calc_stream_format(params->s_freq,
+				params->ch, params->format, 24, 0);
+
+	dev_dbg(dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
+		format_val, params->s_freq, params->ch, params->format);
+
+	snd_hdac_ext_link_stream_reset(stream);
+
+	snd_hdac_ext_link_stream_setup(stream, format_val);
+
+	list_for_each_entry(link, &ebus->hlink_list, list) {
+		if (link->index == params->link_index)
+			snd_hdac_ext_link_set_stream_id(link,
+					hstream->stream_tag);
+	}
+
+	stream->link_prepared = 1;
+
+	return 0;
+}
+
 static int skl_pcm_open(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -144,6 +218,8 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_dma_params *dma_params;
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -177,33 +253,13 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	skl_set_suspend_active(substream, dai, true);
 	snd_pcm_set_sync(substream);
 
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+	if (!mconfig)
+		return -EINVAL;
+
+	skl_tplg_d0i3_get(skl, mconfig->d0i3_caps);
+
 	return 0;
-}
-
-static int skl_get_format(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct skl_dma_params *dma_params;
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
-	int format_val = 0;
-
-	if (ebus->ppcap) {
-		struct snd_pcm_runtime *runtime = substream->runtime;
-
-		format_val = snd_hdac_calc_stream_format(runtime->rate,
-						runtime->channels,
-						runtime->format,
-						32, 0);
-	} else {
-		struct snd_soc_dai *codec_dai = rtd->codec_dai;
-
-		dma_params = snd_soc_dai_get_dma_data(codec_dai, substream);
-		if (dma_params)
-			format_val = dma_params->format;
-	}
-
-	return format_val;
 }
 
 static int skl_be_prepare(struct snd_pcm_substream *substream,
@@ -226,37 +282,19 @@ static int skl_be_prepare(struct snd_pcm_substream *substream,
 static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct skl *skl = get_skl_ctx(dai->dev);
-	unsigned int format_val;
-	int err;
 	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 
-	format_val = skl_get_format(substream, dai);
-	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d\n",
-				hdac_stream(stream)->stream_tag, format_val);
-	snd_hdac_stream_reset(hdac_stream(stream));
-
 	/* In case of XRUN recovery, reset the FW pipe to clean state */
 	if (mconfig && (substream->runtime->status->state ==
 					SNDRV_PCM_STATE_XRUN))
 		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
 
-	err = snd_hdac_stream_set_params(hdac_stream(stream), format_val);
-	if (err < 0)
-		return err;
-
-	err = snd_hdac_stream_setup(hdac_stream(stream));
-	if (err < 0)
-		return err;
-
-	hdac_stream(stream)->prepared = 1;
-
-	return err;
+	return 0;
 }
 
 static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -287,6 +325,7 @@ static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 	p_params.s_freq = params_rate(params);
 	p_params.host_dma_id = dma_id;
 	p_params.stream = substream->stream;
+	p_params.format = params_format(params);
 
 	m_cfg = skl_tplg_fe_get_cpr_module(dai, p_params.stream);
 	if (m_cfg)
@@ -302,6 +341,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
 	struct skl *skl = ebus_to_skl(ebus);
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -324,6 +364,9 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 		skl->skl_sst->enable_miscbdcge(dai->dev, true);
 		skl->skl_sst->miscbdcg_disabled = false;
 	}
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+	skl_tplg_d0i3_put(skl, mconfig->d0i3_caps);
 
 	kfree(dma_params);
 }
@@ -426,7 +469,6 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 		if (!w->ignore_suspend) {
-			skl_pcm_prepare(substream, dai);
 			/*
 			 * enable DMA Resume enable bit for the stream, set the
 			 * dpib & lpib position to resume before starting the
@@ -435,7 +477,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			snd_hdac_ext_stream_drsm_enable(ebus, true,
 						hdac_stream(stream)->index);
 			snd_hdac_ext_stream_set_dpibr(ebus, stream,
-							stream->dpib);
+							stream->lpib);
 			snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
 		}
 
@@ -447,7 +489,6 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		 * pipeline is started but there is a delay in starting the
 		 * DMA channel on the host.
 		 */
-		snd_hdac_ext_stream_decouple(ebus, stream, true);
 		ret = skl_decoupled_trigger(substream, cmd);
 		if (ret < 0)
 			return ret;
@@ -494,9 +535,10 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *link_dev;
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct hdac_ext_dma_params *dma_params;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct skl_pipe_params p_params = {0};
+	struct hdac_ext_link *link;
+	int stream_tag;
 
 	link_dev = snd_hdac_ext_stream_assign(ebus, substream,
 					HDAC_EXT_STREAM_TYPE_LINK);
@@ -505,16 +547,22 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
 
+	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
+	if (!link)
+		return -EINVAL;
+
+	stream_tag = hdac_stream(link_dev)->stream_tag;
+
 	/* set the stream tag in the codec dai dma params  */
-	dma_params = snd_soc_dai_get_dma_data(codec_dai, substream);
-	if (dma_params)
-		dma_params->stream_tag =  hdac_stream(link_dev)->stream_tag;
+	snd_soc_dai_set_tdm_slot(codec_dai, stream_tag, 0, 0, 0);
 
 	p_params.s_fmt = snd_pcm_format_width(params_format(params));
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
-	p_params.link_dma_id = hdac_stream(link_dev)->stream_tag - 1;
+	p_params.link_dma_id = stream_tag - 1;
+	p_params.link_index = link->index;
+	p_params.format = params_format(params);
 
 	return skl_tplg_be_update_params(dai, &p_params);
 }
@@ -522,40 +570,14 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
-	struct hdac_ext_stream *link_dev =
-			snd_soc_dai_get_dma_data(dai, substream);
-	unsigned int format_val = 0;
-	struct skl_dma_params *dma_params;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct hdac_ext_link *link;
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig = NULL;
 
-	dma_params  = (struct skl_dma_params *)
-			snd_soc_dai_get_dma_data(codec_dai, substream);
-	if (dma_params)
-		format_val = dma_params->format;
-	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d codec_dai_name=%s\n",
-			hdac_stream(link_dev)->stream_tag, format_val, codec_dai->name);
-
-	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
-	if (!link)
-		return -EINVAL;
-
-	snd_hdac_ext_link_stream_reset(link_dev);
-
 	/* In case of XRUN recovery, reset the FW pipe to clean state */
 	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
-	if (mconfig && (substream->runtime->status->state ==
-					SNDRV_PCM_STATE_XRUN))
+	if (mconfig && !mconfig->pipe->passthru &&
+		(substream->runtime->status->state == SNDRV_PCM_STATE_XRUN))
 		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
-
-	snd_hdac_ext_link_stream_setup(link_dev, format_val);
-
-	snd_hdac_ext_link_set_stream_id(link, hdac_stream(link_dev)->stream_tag);
-	link_dev->link_prepared = 1;
 
 	return 0;
 }
@@ -571,10 +593,8 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		skl_link_pcm_prepare(substream, dai);
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_stream_decouple(ebus, stream, true);
 		snd_hdac_ext_link_stream_start(link_dev);
 		break;
 
@@ -648,7 +668,8 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.channels_min = HDA_MONO,
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE |
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	},
 	.capture = {
 		.stream_name = "System Capture",
@@ -1020,7 +1041,7 @@ static int skl_platform_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 
-	if (!ebus->ppcap)
+	if (!(ebus_to_hbus(ebus))->ppcap)
 		return skl_coupled_trigger(substream, cmd);
 
 	return 0;
@@ -1030,10 +1051,24 @@ static snd_pcm_uframes_t skl_platform_pcm_pointer
 			(struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hstream = get_hdac_ext_stream(substream);
+	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 	unsigned int pos;
 
-	/* use the position buffer as default */
-	pos = snd_hdac_stream_get_pos_posbuf(hdac_stream(hstream));
+	/*
+	 * Use DPIB for Playback stream as the periodic DMA Position-in-
+	 * Buffer Writes may be scheduled at the same time or later than
+	 * the MSI and does not guarantee to reflect the Position of the
+	 * last buffer that was transferred. Whereas DPIB register in
+	 * HAD space reflects the actual data that is transferred.
+	 * Use the position buffer for capture, as DPIB write gets
+	 * completed earlier than the actual data written to the DDR.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		pos = readl(ebus->bus.remap_addr + AZX_REG_VS_SDXDPIB_XBASE +
+				(AZX_REG_VS_SDXDPIB_XINTERVAL *
+				hdac_stream(hstream)->index));
+	else
+		pos = snd_hdac_stream_get_pos_posbuf(hdac_stream(hstream));
 
 	if (pos >= hdac_stream(hstream)->bufsize)
 		pos = 0;
@@ -1093,7 +1128,7 @@ static int skl_get_time_info(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops skl_platform_ops = {
+static const struct snd_pcm_ops skl_platform_ops = {
 	.open = skl_platform_open,
 	.ioctl = snd_pcm_lib_ioctl,
 	.trigger = skl_platform_pcm_trigger,
@@ -1138,20 +1173,68 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return retval;
 }
 
+static int skl_populate_modules(struct skl *skl)
+{
+	struct skl_pipeline *p;
+	struct skl_pipe_module *m;
+	struct snd_soc_dapm_widget *w;
+	struct skl_module_cfg *mconfig;
+	int ret;
+
+	list_for_each_entry(p, &skl->ppl_list, node) {
+		list_for_each_entry(m, &p->pipe->w_list, node) {
+
+			w = m->w;
+			mconfig = w->priv;
+
+			ret = snd_skl_get_module_info(skl->skl_sst, mconfig);
+			if (ret < 0) {
+				dev_err(skl->skl_sst->dev,
+					"query module info failed:%d\n", ret);
+				goto err;
+			}
+		}
+	}
+err:
+	return ret;
+}
+
 static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(platform->dev);
 	struct skl *skl = ebus_to_skl(ebus);
+	const struct skl_dsp_ops *ops;
 	int ret;
 
-	if (ebus->ppcap) {
+	pm_runtime_get_sync(platform->dev);
+	if ((ebus_to_hbus(ebus))->ppcap) {
 		ret = skl_tplg_init(platform, ebus);
 		if (ret < 0) {
 			dev_err(platform->dev, "Failed to init topology!\n");
 			return ret;
 		}
 		skl->platform = platform;
+
+		/* load the firmwares, since all is set */
+		ops = skl_get_dsp_ops(skl->pci->device);
+		if (!ops)
+			return -EIO;
+
+		if (skl->skl_sst->is_first_boot == false) {
+			dev_err(platform->dev, "DSP reports first boot done!!!\n");
+			return -EIO;
+		}
+
+		ret = ops->init_fw(platform->dev, skl->skl_sst);
+		if (ret < 0) {
+			dev_err(platform->dev, "Failed to boot first fw: %d\n", ret);
+			return ret;
+		}
+		skl_populate_modules(skl);
+		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 	}
+	pm_runtime_mark_last_busy(platform->dev);
+	pm_runtime_put_autosuspend(platform->dev);
 
 	return 0;
 }

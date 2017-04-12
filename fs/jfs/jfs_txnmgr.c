@@ -2893,8 +2893,7 @@ restart:
 	 * on anon_list2.  Let's check.
 	 */
 	if (!list_empty(&TxAnchor.anon_list2)) {
-		list_splice(&TxAnchor.anon_list2, &TxAnchor.anon_list);
-		INIT_LIST_HEAD(&TxAnchor.anon_list2);
+		list_splice_init(&TxAnchor.anon_list2, &TxAnchor.anon_list);
 		goto restart;
 	}
 	TXN_UNLOCK();

@@ -19,12 +19,6 @@
 
 #include "internal.h"
 
-enum {
-	NORMAL_GET,
-	EXCLUSIVE_GET,
-	OPTIONAL_GET,
-};
-
 static void devm_regulator_release(struct device *dev, void *res)
 {
 	regulator_put(*(struct regulator **)res);
@@ -39,20 +33,7 @@ static struct regulator *_devm_regulator_get(struct device *dev, const char *id,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	switch (get_type) {
-	case NORMAL_GET:
-		regulator = regulator_get(dev, id);
-		break;
-	case EXCLUSIVE_GET:
-		regulator = regulator_get_exclusive(dev, id);
-		break;
-	case OPTIONAL_GET:
-		regulator = regulator_get_optional(dev, id);
-		break;
-	default:
-		regulator = ERR_PTR(-EINVAL);
-	}
-
+	regulator = _regulator_get(dev, id, get_type);
 	if (!IS_ERR(regulator)) {
 		*ptr = regulator;
 		devres_add(dev, ptr);
@@ -139,6 +120,18 @@ void devm_regulator_put(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(devm_regulator_put);
 
+struct regulator_bulk_devres {
+	struct regulator_bulk_data *consumers;
+	int num_consumers;
+};
+
+static void devm_regulator_bulk_release(struct device *dev, void *res)
+{
+	struct regulator_bulk_devres *devres = res;
+
+	regulator_bulk_free(devres->num_consumers, devres->consumers);
+}
+
 /**
  * devm_regulator_bulk_get - managed get multiple regulator consumers
  *
@@ -157,32 +150,22 @@ EXPORT_SYMBOL_GPL(devm_regulator_put);
 int devm_regulator_bulk_get(struct device *dev, int num_consumers,
 			    struct regulator_bulk_data *consumers)
 {
-	int i;
+	struct regulator_bulk_devres *devres;
 	int ret;
 
-	for (i = 0; i < num_consumers; i++)
-		consumers[i].consumer = NULL;
+	devres = devres_alloc(devm_regulator_bulk_release,
+			      sizeof(*devres), GFP_KERNEL);
+	if (!devres)
+		return -ENOMEM;
 
-	for (i = 0; i < num_consumers; i++) {
-		consumers[i].consumer = _devm_regulator_get(dev,
-							    consumers[i].supply,
-							    consumers[i].optional ?
-								OPTIONAL_GET :
-								NORMAL_GET);
-		if (IS_ERR(consumers[i].consumer)) {
-			ret = PTR_ERR(consumers[i].consumer);
-			dev_err(dev, "Failed to get supply '%s': %d\n",
-				consumers[i].supply, ret);
-			consumers[i].consumer = NULL;
-			goto err;
-		}
+	ret = regulator_bulk_get(dev, num_consumers, consumers);
+	if (!ret) {
+		devres->consumers = consumers;
+		devres->num_consumers = num_consumers;
+		devres_add(dev, devres);
+	} else {
+		devres_free(devres);
 	}
-
-	return 0;
-
-err:
-	for (i = 0; i < num_consumers && consumers[i].consumer; i++)
-		devm_regulator_put(consumers[i].consumer);
 
 	return ret;
 }

@@ -88,11 +88,11 @@ config MTD_NAND_AMS_DELTA
 	  Support for NAND flash on Amstrad E3 (Delta).
 
 config MTD_NAND_OMAP2
-	tristate "NAND Flash device on OMAP2, OMAP3 and OMAP4"
-	depends on ARCH_OMAP2PLUS
+	tristate "NAND Flash device on OMAP2, OMAP3, OMAP4 and Keystone"
+	depends on (ARCH_OMAP2PLUS || ARCH_KEYSTONE)
 	help
-          Support for NAND flash on Texas Instruments OMAP2, OMAP3 and OMAP4
-	  platforms.
+          Support for NAND flash on Texas Instruments OMAP2, OMAP3, OMAP4
+	  and Keystone platforms.
 
 config MTD_NAND_OMAP_BCH
 	depends on MTD_NAND_OMAP2
@@ -179,15 +179,6 @@ config MTD_NAND_S3C2410_DEBUG
 	help
 	  Enable debugging of the S3C NAND driver
 
-config MTD_NAND_S3C2410_HWECC
-	bool "Samsung S3C NAND Hardware ECC"
-	depends on MTD_NAND_S3C2410
-	help
-	  Enable the use of the controller's internal ECC generator when
-	  using NAND. Early versions of the chips have had problems with
-	  incorrect ECC generation, and if using these, the default of
-	  software ECC is preferable.
-
 config MTD_NAND_NDFC
 	tristate "NDFC NanD Flash Controller"
 	depends on 4xx
@@ -204,6 +195,13 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  selected to save power. This will mean there is a small delay
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
+
+config MTD_NAND_TANGO
+	tristate "NAND Flash support for Tango chips"
+	depends on ARCH_TANGO || COMPILE_TEST
+	depends on HAS_DMA
+	help
+	  Enables the NAND Flash controller on Tango chips.
 
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation)"
@@ -426,9 +424,16 @@ config MTD_NAND_ORION
 	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
+config MTD_NAND_OXNAS
+	tristate "NAND Flash support for Oxford Semiconductor SoC"
+	depends on ARCH_OXNAS || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables the NAND flash controller on Oxford Semiconductor SoCs.
+
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
-	depends on PPC
+	depends on FSL_SOC
 	select FSL_LBC
 	help
 	  Various Freescale chips, including the 8313, include a NAND Flash
@@ -438,7 +443,7 @@ config MTD_NAND_FSL_ELBC
 
 config MTD_NAND_FSL_IFC
 	tristate "NAND support for Freescale IFC controller"
-	depends on MTD_NAND && (FSL_SOC || ARCH_LAYERSCAPE)
+	depends on FSL_SOC || ARCH_LAYERSCAPE
 	select FSL_IFC
 	select MEMORY
 	help
@@ -531,13 +536,14 @@ config MTD_NAND_JZ4780
 
 config MTD_NAND_FSMC
 	tristate "Support for NAND on ST Micros FSMC"
+	depends on OF
 	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || MACH_U300
 	help
 	  Enables support for NAND Flash chips on the ST Microelectronics
 	  Flexible Static Memory Controller (FSMC)
 
 config MTD_NAND_XWAY
-	tristate "Support for NAND on Lantiq XWAY SoC"
+	bool "Support for NAND on Lantiq XWAY SoC"
 	depends on LANTIQ && SOC_TYPE_XWAY
 	help
 	  Enables support for NAND Flash chips on Lantiq XWAY SoCs. NAND is attached

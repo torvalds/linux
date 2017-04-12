@@ -25,6 +25,7 @@
 #include <linux/kmemcheck.h>
 #include <linux/rcupdate.h>
 #include <linux/once.h>
+#include <linux/fs.h>
 
 #include <uapi/linux/net.h>
 
@@ -128,6 +129,9 @@ struct page;
 struct sockaddr;
 struct msghdr;
 struct module;
+struct sk_buff;
+typedef int (*sk_read_actor_t)(read_descriptor_t *, struct sk_buff *,
+			       unsigned int, size_t);
 
 struct proto_ops {
 	int		family;
@@ -142,7 +146,7 @@ struct proto_ops {
 	int		(*socketpair)(struct socket *sock1,
 				      struct socket *sock2);
 	int		(*accept)    (struct socket *sock,
-				      struct socket *newsock, int flags);
+				      struct socket *newsock, int flags, bool kern);
 	int		(*getname)   (struct socket *sock,
 				      struct sockaddr *addr,
 				      int *sockaddr_len, int peer);
@@ -186,6 +190,8 @@ struct proto_ops {
 				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
 	int		(*set_peek_off)(struct sock *sk, int val);
 	int		(*peek_len)(struct socket *sock);
+	int		(*read_sock)(struct sock *sk, read_descriptor_t *desc,
+				     sk_read_actor_t recv_actor);
 };
 
 #define DECLARE_SOCKADDR(type, dst, src)	\

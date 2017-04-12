@@ -45,17 +45,19 @@
 #include <linux/slab.h>
 #include <linux/hardirq.h>
 #include <linux/preempt.h>
-#include <linux/module.h>
+#include <linux/sched/debug.h>
+#include <linux/extable.h>
 #include <linux/kdebug.h>
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/frame.h>
+#include <linux/kasan.h>
 
 #include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/alternative.h>
 #include <asm/insn.h>
 #include <asm/debugreg.h>
@@ -165,12 +167,12 @@ NOKPROBE_SYMBOL(skip_prefixes);
  * Returns non-zero if opcode is boostable.
  * RIP relative instructions are adjusted at copying time in 64 bits mode
  */
-int can_boost(kprobe_opcode_t *opcodes)
+int can_boost(kprobe_opcode_t *opcodes, void *addr)
 {
 	kprobe_opcode_t opcode;
 	kprobe_opcode_t *orig_opcodes = opcodes;
 
-	if (search_exception_tables((unsigned long)opcodes))
+	if (search_exception_tables((unsigned long)addr))
 		return 0;	/* Page fault may occur on this address. */
 
 retry:
@@ -415,7 +417,7 @@ static int arch_copy_kprobe(struct kprobe *p)
 	 * __copy_instruction can modify the displacement of the instruction,
 	 * but it doesn't affect boostable check.
 	 */
-	if (can_boost(p->ainsn.insn))
+	if (can_boost(p->ainsn.insn, p->addr))
 		p->ainsn.boostable = 0;
 	else
 		p->ainsn.boostable = -1;
@@ -744,7 +746,7 @@ __visible __used void *trampoline_handler(struct pt_regs *regs)
 	 *	 will be the real return address, and all the rest will
 	 *	 point to kretprobe_trampoline.
 	 */
-	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
+	hlist_for_each_entry(ri, head, hlist) {
 		if (ri->task != current)
 			/* another task is sharing our hash bucket */
 			continue;
@@ -1057,9 +1059,10 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	 * tailcall optimization. So, to be absolutely safe
 	 * we also save and restore enough stack bytes to cover
 	 * the argument area.
+	 * Use __memcpy() to avoid KASAN stack out-of-bounds reports as we copy
+	 * raw stack chunk with redzones:
 	 */
-	memcpy(kcb->jprobes_stack, (kprobe_opcode_t *)addr,
-	       MIN_STACK_SIZE(addr));
+	__memcpy(kcb->jprobes_stack, (kprobe_opcode_t *)addr, MIN_STACK_SIZE(addr));
 	regs->flags &= ~X86_EFLAGS_IF;
 	trace_hardirqs_off();
 	regs->ip = (unsigned long)(jp->entry);
@@ -1079,6 +1082,9 @@ NOKPROBE_SYMBOL(setjmp_pre_handler);
 void jprobe_return(void)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
+	/* Unpoison stack redzones in the frames we are going to jump over. */
+	kasan_unpoison_stack_above_sp_to(kcb->jprobe_saved_sp);
 
 	asm volatile (
 #ifdef CONFIG_X86_64
@@ -1118,7 +1124,7 @@ int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 		/* It's OK to start function graph tracing again */
 		unpause_graph_tracing();
 		*regs = kcb->jprobe_saved_regs;
-		memcpy(saved_sp, kcb->jprobes_stack, MIN_STACK_SIZE(saved_sp));
+		__memcpy(saved_sp, kcb->jprobes_stack, MIN_STACK_SIZE(saved_sp));
 		preempt_enable_no_resched();
 		return 1;
 	}

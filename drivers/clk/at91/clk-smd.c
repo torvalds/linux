@@ -111,13 +111,14 @@ static const struct clk_ops at91sam9x5_smd_ops = {
 	.set_rate = at91sam9x5_clk_smd_set_rate,
 };
 
-static struct clk * __init
+static struct clk_hw * __init
 at91sam9x5_clk_register_smd(struct regmap *regmap, const char *name,
 			    const char **parent_names, u8 num_parents)
 {
 	struct at91sam9x5_clk_smd *smd;
-	struct clk *clk = NULL;
+	struct clk_hw *hw;
 	struct clk_init_data init;
+	int ret;
 
 	smd = kzalloc(sizeof(*smd), GFP_KERNEL);
 	if (!smd)
@@ -132,16 +133,19 @@ at91sam9x5_clk_register_smd(struct regmap *regmap, const char *name,
 	smd->hw.init = &init;
 	smd->regmap = regmap;
 
-	clk = clk_register(NULL, &smd->hw);
-	if (IS_ERR(clk))
+	hw = &smd->hw;
+	ret = clk_hw_register(NULL, &smd->hw);
+	if (ret) {
 		kfree(smd);
+		hw = ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }
 
 static void __init of_at91sam9x5_clk_smd_setup(struct device_node *np)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	unsigned int num_parents;
 	const char *parent_names[SMD_SOURCE_MAX];
 	const char *name = np->name;
@@ -159,12 +163,12 @@ static void __init of_at91sam9x5_clk_smd_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	clk = at91sam9x5_clk_register_smd(regmap, name, parent_names,
+	hw = at91sam9x5_clk_register_smd(regmap, name, parent_names,
 					  num_parents);
-	if (IS_ERR(clk))
+	if (IS_ERR(hw))
 		return;
 
-	of_clk_add_provider(np, of_clk_src_simple_get, clk);
+	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
 CLK_OF_DECLARE(at91sam9x5_clk_smd, "atmel,at91sam9x5-clk-smd",
 	       of_at91sam9x5_clk_smd_setup);

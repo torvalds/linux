@@ -22,12 +22,13 @@
 #ifndef _LINUX_PSTORE_H
 #define _LINUX_PSTORE_H
 
-#include <linux/time.h>
+#include <linux/compiler.h>
+#include <linux/errno.h>
 #include <linux/kmsg_dump.h>
 #include <linux/mutex.h>
-#include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/time.h>
+#include <linux/types.h>
 
 /* types */
 enum pstore_type_id {
@@ -68,16 +69,100 @@ struct pstore_info {
 			enum kmsg_dump_reason reason, u64 *id,
 			unsigned int part, const char *buf, bool compressed,
 			size_t size, struct pstore_info *psi);
+	int		(*write_buf_user)(enum pstore_type_id type,
+			enum kmsg_dump_reason reason, u64 *id,
+			unsigned int part, const char __user *buf,
+			bool compressed, size_t size, struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,
 			int count, struct timespec time,
 			struct pstore_info *psi);
 	void		*data;
 };
 
-#define	PSTORE_FLAGS_FRAGILE	1
+#define PSTORE_FLAGS_DMESG	(1 << 0)
+#define PSTORE_FLAGS_FRAGILE	PSTORE_FLAGS_DMESG
+#define PSTORE_FLAGS_CONSOLE	(1 << 1)
+#define PSTORE_FLAGS_FTRACE	(1 << 2)
+#define PSTORE_FLAGS_PMSG	(1 << 3)
 
 extern int pstore_register(struct pstore_info *);
 extern void pstore_unregister(struct pstore_info *);
 extern bool pstore_cannot_block_path(enum kmsg_dump_reason reason);
+
+struct pstore_ftrace_record {
+	unsigned long ip;
+	unsigned long parent_ip;
+	u64 ts;
+};
+
+/*
+ * ftrace related stuff: Both backends and frontends need these so expose
+ * them here.
+ */
+
+#if NR_CPUS <= 2 && defined(CONFIG_ARM_THUMB)
+#define PSTORE_CPU_IN_IP 0x1
+#elif NR_CPUS <= 4 && defined(CONFIG_ARM)
+#define PSTORE_CPU_IN_IP 0x3
+#endif
+
+#define TS_CPU_SHIFT 8
+#define TS_CPU_MASK (BIT(TS_CPU_SHIFT) - 1)
+
+/*
+ * If CPU number can be stored in IP, store it there, otherwise store it in
+ * the time stamp. This means more timestamp resolution is available when
+ * the CPU can be stored in the IP.
+ */
+#ifdef PSTORE_CPU_IN_IP
+static inline void
+pstore_ftrace_encode_cpu(struct pstore_ftrace_record *rec, unsigned int cpu)
+{
+	rec->ip |= cpu;
+}
+
+static inline unsigned int
+pstore_ftrace_decode_cpu(struct pstore_ftrace_record *rec)
+{
+	return rec->ip & PSTORE_CPU_IN_IP;
+}
+
+static inline u64
+pstore_ftrace_read_timestamp(struct pstore_ftrace_record *rec)
+{
+	return rec->ts;
+}
+
+static inline void
+pstore_ftrace_write_timestamp(struct pstore_ftrace_record *rec, u64 val)
+{
+	rec->ts = val;
+}
+#else
+static inline void
+pstore_ftrace_encode_cpu(struct pstore_ftrace_record *rec, unsigned int cpu)
+{
+	rec->ts &= ~(TS_CPU_MASK);
+	rec->ts |= cpu;
+}
+
+static inline unsigned int
+pstore_ftrace_decode_cpu(struct pstore_ftrace_record *rec)
+{
+	return rec->ts & TS_CPU_MASK;
+}
+
+static inline u64
+pstore_ftrace_read_timestamp(struct pstore_ftrace_record *rec)
+{
+	return rec->ts >> TS_CPU_SHIFT;
+}
+
+static inline void
+pstore_ftrace_write_timestamp(struct pstore_ftrace_record *rec, u64 val)
+{
+	rec->ts = (rec->ts & TS_CPU_MASK) | (val << TS_CPU_SHIFT);
+}
+#endif
 
 #endif /*_LINUX_PSTORE_H*/

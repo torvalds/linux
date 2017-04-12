@@ -11,10 +11,11 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/module.h>
-#include <linux/vmalloc.h>
-
 #include <linux/kvm_host.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+#include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 
 #include "interrupt.h"
 
@@ -22,9 +23,12 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 {
 	gpa_t gpa;
 	gva_t kseg = KSEGX(gva);
+	gva_t gkseg = KVM_GUEST_KSEGX(gva);
 
 	if ((kseg == CKSEG0) || (kseg == CKSEG1))
 		gpa = CPHYSADDR(gva);
+	else if (gkseg == KVM_GUEST_KSEG0)
+		gpa = KVM_GUEST_CPHYSADDR(gva);
 	else {
 		kvm_err("%s: cannot find GPA for GVA: %#lx\n", __func__, gva);
 		kvm_mips_dump_host_tlbs();
@@ -84,48 +88,134 @@ static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static int kvm_mips_bad_load(u32 cause, u32 *opc, struct kvm_run *run,
+			     struct kvm_vcpu *vcpu)
+{
+	enum emulation_result er;
+	union mips_instruction inst;
+	int err;
+
+	/* A code fetch fault doesn't count as an MMIO */
+	if (kvm_is_ifetch_fault(&vcpu->arch)) {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return RESUME_HOST;
+	}
+
+	/* Fetch the instruction. */
+	if (cause & CAUSEF_BD)
+		opc += 1;
+	err = kvm_get_badinstr(opc, vcpu, &inst.word);
+	if (err) {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return RESUME_HOST;
+	}
+
+	/* Emulate the load */
+	er = kvm_mips_emulate_load(inst, cause, run, vcpu);
+	if (er == EMULATE_FAIL) {
+		kvm_err("Emulate load from MMIO space failed\n");
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	} else {
+		run->exit_reason = KVM_EXIT_MMIO;
+	}
+	return RESUME_HOST;
+}
+
+static int kvm_mips_bad_store(u32 cause, u32 *opc, struct kvm_run *run,
+			      struct kvm_vcpu *vcpu)
+{
+	enum emulation_result er;
+	union mips_instruction inst;
+	int err;
+
+	/* Fetch the instruction. */
+	if (cause & CAUSEF_BD)
+		opc += 1;
+	err = kvm_get_badinstr(opc, vcpu, &inst.word);
+	if (err) {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return RESUME_HOST;
+	}
+
+	/* Emulate the store */
+	er = kvm_mips_emulate_store(inst, cause, run, vcpu);
+	if (er == EMULATE_FAIL) {
+		kvm_err("Emulate store to MMIO space failed\n");
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	} else {
+		run->exit_reason = KVM_EXIT_MMIO;
+	}
+	return RESUME_HOST;
+}
+
+static int kvm_mips_bad_access(u32 cause, u32 *opc, struct kvm_run *run,
+			       struct kvm_vcpu *vcpu, bool store)
+{
+	if (store)
+		return kvm_mips_bad_store(cause, opc, run, vcpu);
+	else
+		return kvm_mips_bad_load(cause, opc, run, vcpu);
+}
+
 static int kvm_trap_emul_handle_tlb_mod(struct kvm_vcpu *vcpu)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_run *run = vcpu->run;
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	u32 cause = vcpu->arch.host_cp0_cause;
-	enum emulation_result er = EMULATE_DONE;
-	int ret = RESUME_GUEST;
+	struct kvm_mips_tlb *tlb;
+	unsigned long entryhi;
+	int index;
 
 	if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 	    || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-		kvm_debug("USER/KSEG23 ADDR TLB MOD fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
-			  cause, opc, badvaddr);
-		er = kvm_mips_handle_tlbmod(cause, opc, run, vcpu);
-
-		if (er == EMULATE_DONE)
-			ret = RESUME_GUEST;
-		else {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		}
-	} else if (KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG0) {
 		/*
-		 * XXXKYMA: The guest kernel does not expect to get this fault
-		 * when we are not using HIGHMEM. Need to address this in a
-		 * HIGHMEM kernel
+		 * First find the mapping in the guest TLB. If the failure to
+		 * write was due to the guest TLB, it should be up to the guest
+		 * to handle it.
 		 */
-		kvm_err("TLB MOD fault not handled, cause %#x, PC: %p, BadVaddr: %#lx\n",
-			cause, opc, badvaddr);
-		kvm_mips_dump_host_tlbs();
-		kvm_arch_vcpu_dump_regs(vcpu);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		ret = RESUME_HOST;
+		entryhi = (badvaddr & VPN2_MASK) |
+			  (kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
+		index = kvm_mips_guest_tlb_lookup(vcpu, entryhi);
+
+		/*
+		 * These should never happen.
+		 * They would indicate stale host TLB entries.
+		 */
+		if (unlikely(index < 0)) {
+			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			return RESUME_HOST;
+		}
+		tlb = vcpu->arch.guest_tlb + index;
+		if (unlikely(!TLB_IS_VALID(*tlb, badvaddr))) {
+			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			return RESUME_HOST;
+		}
+
+		/*
+		 * Guest entry not dirty? That would explain the TLB modified
+		 * exception. Relay that on to the guest so it can handle it.
+		 */
+		if (!TLB_IS_DIRTY(*tlb, badvaddr)) {
+			kvm_mips_emulate_tlbmod(cause, opc, run, vcpu);
+			return RESUME_GUEST;
+		}
+
+		if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, badvaddr,
+							 true))
+			/* Not writable, needs handling as MMIO */
+			return kvm_mips_bad_store(cause, opc, run, vcpu);
+		return RESUME_GUEST;
+	} else if (KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG0) {
+		if (kvm_mips_handle_kseg0_tlb_fault(badvaddr, vcpu, true) < 0)
+			/* Not writable, needs handling as MMIO */
+			return kvm_mips_bad_store(cause, opc, run, vcpu);
+		return RESUME_GUEST;
 	} else {
-		kvm_err("Illegal TLB Mod fault address , cause %#x, PC: %p, BadVaddr: %#lx\n",
-			cause, opc, badvaddr);
-		kvm_mips_dump_host_tlbs();
-		kvm_arch_vcpu_dump_regs(vcpu);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		ret = RESUME_HOST;
+		/* host kernel addresses are all handled as MMIO */
+		return kvm_mips_bad_store(cause, opc, run, vcpu);
 	}
-	return ret;
 }
 
 static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
@@ -158,7 +248,7 @@ static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
 		 *     into the shadow host TLB
 		 */
 
-		er = kvm_mips_handle_tlbmiss(cause, opc, run, vcpu);
+		er = kvm_mips_handle_tlbmiss(cause, opc, run, vcpu, store);
 		if (er == EMULATE_DONE)
 			ret = RESUME_GUEST;
 		else {
@@ -170,11 +260,15 @@ static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
 		 * All KSEG0 faults are handled by KVM, as the guest kernel does
 		 * not expect to ever get them
 		 */
-		if (kvm_mips_handle_kseg0_tlb_fault
-		    (vcpu->arch.host_cp0_badvaddr, vcpu) < 0) {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		}
+		if (kvm_mips_handle_kseg0_tlb_fault(badvaddr, vcpu, store) < 0)
+			ret = kvm_mips_bad_access(cause, opc, run, vcpu, store);
+	} else if (KVM_GUEST_KERNEL_MODE(vcpu)
+		   && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
+		/*
+		 * With EVA we may get a TLB exception instead of an address
+		 * error when the guest performs MMIO to KSeg1 addresses.
+		 */
+		ret = kvm_mips_bad_access(cause, opc, run, vcpu, store);
 	} else {
 		kvm_err("Illegal TLB %s fault address , cause %#x, PC: %p, BadVaddr: %#lx\n",
 			store ? "ST" : "LD", cause, opc, badvaddr);
@@ -202,21 +296,11 @@ static int kvm_trap_emul_handle_addr_err_st(struct kvm_vcpu *vcpu)
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	u32 cause = vcpu->arch.host_cp0_cause;
-	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
 	if (KVM_GUEST_KERNEL_MODE(vcpu)
 	    && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
-		kvm_debug("Emulate Store to MMIO space\n");
-		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
-		if (er == EMULATE_FAIL) {
-			kvm_err("Emulate Store to MMIO space failed\n");
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		} else {
-			run->exit_reason = KVM_EXIT_MMIO;
-			ret = RESUME_HOST;
-		}
+		ret = kvm_mips_bad_store(cause, opc, run, vcpu);
 	} else {
 		kvm_err("Address Error (STORE): cause %#x, PC: %p, BadVaddr: %#lx\n",
 			cause, opc, badvaddr);
@@ -232,26 +316,15 @@ static int kvm_trap_emul_handle_addr_err_ld(struct kvm_vcpu *vcpu)
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	u32 cause = vcpu->arch.host_cp0_cause;
-	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
 	if (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1) {
-		kvm_debug("Emulate Load from MMIO space @ %#lx\n", badvaddr);
-		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
-		if (er == EMULATE_FAIL) {
-			kvm_err("Emulate Load from MMIO space failed\n");
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		} else {
-			run->exit_reason = KVM_EXIT_MMIO;
-			ret = RESUME_HOST;
-		}
+		ret = kvm_mips_bad_load(cause, opc, run, vcpu);
 	} else {
 		kvm_err("Address Error (LOAD): cause %#x, PC: %p, BadVaddr: %#lx\n",
 			cause, opc, badvaddr);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
-		er = EMULATE_FAIL;
 	}
 	return ret;
 }
@@ -411,16 +484,75 @@ static int kvm_trap_emul_handle_msa_disabled(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static int kvm_trap_emul_vm_init(struct kvm *kvm)
+static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+
+	/*
+	 * Allocate GVA -> HPA page tables.
+	 * MIPS doesn't use the mm_struct pointer argument.
+	 */
+	kern_mm->pgd = pgd_alloc(kern_mm);
+	if (!kern_mm->pgd)
+		return -ENOMEM;
+
+	user_mm->pgd = pgd_alloc(user_mm);
+	if (!user_mm->pgd) {
+		pgd_free(kern_mm, kern_mm->pgd);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
-static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
+static void kvm_mips_emul_free_gva_pt(pgd_t *pgd)
 {
-	vcpu->arch.kscratch_enabled = 0xfc;
+	/* Don't free host kernel page tables copied from init_mm.pgd */
+	const unsigned long end = 0x80000000;
+	unsigned long pgd_va, pud_va, pmd_va;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	int i, j, k;
 
-	return 0;
+	for (i = 0; i < USER_PTRS_PER_PGD; i++) {
+		if (pgd_none(pgd[i]))
+			continue;
+
+		pgd_va = (unsigned long)i << PGDIR_SHIFT;
+		if (pgd_va >= end)
+			break;
+		pud = pud_offset(pgd + i, 0);
+		for (j = 0; j < PTRS_PER_PUD; j++) {
+			if (pud_none(pud[j]))
+				continue;
+
+			pud_va = pgd_va | ((unsigned long)j << PUD_SHIFT);
+			if (pud_va >= end)
+				break;
+			pmd = pmd_offset(pud + j, 0);
+			for (k = 0; k < PTRS_PER_PMD; k++) {
+				if (pmd_none(pmd[k]))
+					continue;
+
+				pmd_va = pud_va | (k << PMD_SHIFT);
+				if (pmd_va >= end)
+					break;
+				pte = pte_offset(pmd + k, 0);
+				pte_free_kernel(NULL, pte);
+			}
+			pmd_free(NULL, pmd);
+		}
+		pud_free(NULL, pud);
+	}
+	pgd_free(NULL, pgd);
+}
+
+static void kvm_trap_emul_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	kvm_mips_emul_free_gva_pt(vcpu->arch.guest_kernel_mm.pgd);
+	kvm_mips_emul_free_gva_pt(vcpu->arch.guest_user_mm.pgd);
 }
 
 static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
@@ -482,6 +614,9 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	/* Set Wait IE/IXMT Ignore in Config7, IAR, AR */
 	kvm_write_c0_guest_config7(cop0, (MIPS_CONF7_WII) | (1 << 10));
 
+	/* Status */
+	kvm_write_c0_guest_status(cop0, ST0_BEV | ST0_ERL);
+
 	/*
 	 * Setup IntCtl defaults, compatibility mode for timer interrupts (HW5)
 	 */
@@ -491,17 +626,76 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_write_c0_guest_ebase(cop0, KVM_GUEST_KSEG0 |
 				       (vcpu_id & MIPS_EBASE_CPUNUM));
 
+	/* Put PC at guest reset vector */
+	vcpu->arch.pc = KVM_GUEST_CKSEG1ADDR(0x1fc00000);
+
 	return 0;
 }
 
+static void kvm_trap_emul_flush_shadow_all(struct kvm *kvm)
+{
+	/* Flush GVA page tables and invalidate GVA ASIDs on all VCPUs */
+	kvm_flush_remote_tlbs(kvm);
+}
+
+static void kvm_trap_emul_flush_shadow_memslot(struct kvm *kvm,
+					const struct kvm_memory_slot *slot)
+{
+	kvm_trap_emul_flush_shadow_all(kvm);
+}
+
+static u64 kvm_trap_emul_get_one_regs[] = {
+	KVM_REG_MIPS_CP0_INDEX,
+	KVM_REG_MIPS_CP0_ENTRYLO0,
+	KVM_REG_MIPS_CP0_ENTRYLO1,
+	KVM_REG_MIPS_CP0_CONTEXT,
+	KVM_REG_MIPS_CP0_USERLOCAL,
+	KVM_REG_MIPS_CP0_PAGEMASK,
+	KVM_REG_MIPS_CP0_WIRED,
+	KVM_REG_MIPS_CP0_HWRENA,
+	KVM_REG_MIPS_CP0_BADVADDR,
+	KVM_REG_MIPS_CP0_COUNT,
+	KVM_REG_MIPS_CP0_ENTRYHI,
+	KVM_REG_MIPS_CP0_COMPARE,
+	KVM_REG_MIPS_CP0_STATUS,
+	KVM_REG_MIPS_CP0_INTCTL,
+	KVM_REG_MIPS_CP0_CAUSE,
+	KVM_REG_MIPS_CP0_EPC,
+	KVM_REG_MIPS_CP0_PRID,
+	KVM_REG_MIPS_CP0_EBASE,
+	KVM_REG_MIPS_CP0_CONFIG,
+	KVM_REG_MIPS_CP0_CONFIG1,
+	KVM_REG_MIPS_CP0_CONFIG2,
+	KVM_REG_MIPS_CP0_CONFIG3,
+	KVM_REG_MIPS_CP0_CONFIG4,
+	KVM_REG_MIPS_CP0_CONFIG5,
+	KVM_REG_MIPS_CP0_CONFIG7,
+	KVM_REG_MIPS_CP0_ERROREPC,
+	KVM_REG_MIPS_CP0_KSCRATCH1,
+	KVM_REG_MIPS_CP0_KSCRATCH2,
+	KVM_REG_MIPS_CP0_KSCRATCH3,
+	KVM_REG_MIPS_CP0_KSCRATCH4,
+	KVM_REG_MIPS_CP0_KSCRATCH5,
+	KVM_REG_MIPS_CP0_KSCRATCH6,
+
+	KVM_REG_MIPS_COUNT_CTL,
+	KVM_REG_MIPS_COUNT_RESUME,
+	KVM_REG_MIPS_COUNT_HZ,
+};
+
 static unsigned long kvm_trap_emul_num_regs(struct kvm_vcpu *vcpu)
 {
-	return 0;
+	return ARRAY_SIZE(kvm_trap_emul_get_one_regs);
 }
 
 static int kvm_trap_emul_copy_reg_indices(struct kvm_vcpu *vcpu,
 					  u64 __user *indices)
 {
+	if (copy_to_user(indices, kvm_trap_emul_get_one_regs,
+			 sizeof(kvm_trap_emul_get_one_regs)))
+		return -EFAULT;
+	indices += ARRAY_SIZE(kvm_trap_emul_get_one_regs);
+
 	return 0;
 }
 
@@ -509,7 +703,81 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 				     const struct kvm_one_reg *reg,
 				     s64 *v)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+
 	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_INDEX:
+		*v = (long)kvm_read_c0_guest_index(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO0:
+		*v = kvm_read_c0_guest_entrylo0(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO1:
+		*v = kvm_read_c0_guest_entrylo1(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONTEXT:
+		*v = (long)kvm_read_c0_guest_context(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		*v = (long)kvm_read_c0_guest_userlocal(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_PAGEMASK:
+		*v = (long)kvm_read_c0_guest_pagemask(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_WIRED:
+		*v = (long)kvm_read_c0_guest_wired(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		*v = (long)kvm_read_c0_guest_hwrena(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_BADVADDR:
+		*v = (long)kvm_read_c0_guest_badvaddr(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYHI:
+		*v = (long)kvm_read_c0_guest_entryhi(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_COMPARE:
+		*v = (long)kvm_read_c0_guest_compare(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_STATUS:
+		*v = (long)kvm_read_c0_guest_status(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_INTCTL:
+		*v = (long)kvm_read_c0_guest_intctl(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CAUSE:
+		*v = (long)kvm_read_c0_guest_cause(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_EPC:
+		*v = (long)kvm_read_c0_guest_epc(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_PRID:
+		*v = (long)kvm_read_c0_guest_prid(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_EBASE:
+		*v = (long)kvm_read_c0_guest_ebase(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG:
+		*v = (long)kvm_read_c0_guest_config(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG1:
+		*v = (long)kvm_read_c0_guest_config1(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG2:
+		*v = (long)kvm_read_c0_guest_config2(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG3:
+		*v = (long)kvm_read_c0_guest_config3(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG4:
+		*v = (long)kvm_read_c0_guest_config4(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG5:
+		*v = (long)kvm_read_c0_guest_config5(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG7:
+		*v = (long)kvm_read_c0_guest_config7(cop0);
+		break;
 	case KVM_REG_MIPS_CP0_COUNT:
 		*v = kvm_mips_read_count(vcpu);
 		break;
@@ -521,6 +789,27 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_COUNT_HZ:
 		*v = vcpu->arch.count_hz;
+		break;
+	case KVM_REG_MIPS_CP0_ERROREPC:
+		*v = (long)kvm_read_c0_guest_errorepc(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH1:
+		*v = (long)kvm_read_c0_guest_kscratch1(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH2:
+		*v = (long)kvm_read_c0_guest_kscratch2(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH3:
+		*v = (long)kvm_read_c0_guest_kscratch3(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH4:
+		*v = (long)kvm_read_c0_guest_kscratch4(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH5:
+		*v = (long)kvm_read_c0_guest_kscratch5(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH6:
+		*v = (long)kvm_read_c0_guest_kscratch6(cop0);
 		break;
 	default:
 		return -EINVAL;
@@ -537,6 +826,56 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 	unsigned int cur, change;
 
 	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_INDEX:
+		kvm_write_c0_guest_index(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO0:
+		kvm_write_c0_guest_entrylo0(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO1:
+		kvm_write_c0_guest_entrylo1(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_CONTEXT:
+		kvm_write_c0_guest_context(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		kvm_write_c0_guest_userlocal(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_PAGEMASK:
+		kvm_write_c0_guest_pagemask(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_WIRED:
+		kvm_write_c0_guest_wired(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		kvm_write_c0_guest_hwrena(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_BADVADDR:
+		kvm_write_c0_guest_badvaddr(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYHI:
+		kvm_write_c0_guest_entryhi(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_STATUS:
+		kvm_write_c0_guest_status(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_INTCTL:
+		/* No VInt, so no VS, read-only for now */
+		break;
+	case KVM_REG_MIPS_CP0_EPC:
+		kvm_write_c0_guest_epc(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_PRID:
+		kvm_write_c0_guest_prid(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_EBASE:
+		/*
+		 * Allow core number to be written, but the exception base must
+		 * remain in guest KSeg0.
+		 */
+		kvm_change_c0_guest_ebase(cop0, 0x1ffff000 | MIPS_EBASE_CPUNUM,
+					  v);
+		break;
 	case KVM_REG_MIPS_CP0_COUNT:
 		kvm_mips_write_count(vcpu, v);
 		break;
@@ -601,6 +940,9 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 			kvm_write_c0_guest_config5(cop0, v);
 		}
 		break;
+	case KVM_REG_MIPS_CP0_CONFIG7:
+		/* writes ignored */
+		break;
 	case KVM_REG_MIPS_COUNT_CTL:
 		ret = kvm_mips_set_count_ctl(vcpu, v);
 		break;
@@ -610,22 +952,267 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_COUNT_HZ:
 		ret = kvm_mips_set_count_hz(vcpu, v);
 		break;
+	case KVM_REG_MIPS_CP0_ERROREPC:
+		kvm_write_c0_guest_errorepc(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH1:
+		kvm_write_c0_guest_kscratch1(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH2:
+		kvm_write_c0_guest_kscratch2(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH3:
+		kvm_write_c0_guest_kscratch3(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH4:
+		kvm_write_c0_guest_kscratch4(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH5:
+		kvm_write_c0_guest_kscratch5(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH6:
+		kvm_write_c0_guest_kscratch6(cop0, v);
+		break;
 	default:
 		return -EINVAL;
 	}
 	return ret;
 }
 
-static int kvm_trap_emul_vcpu_get_regs(struct kvm_vcpu *vcpu)
+static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	kvm_lose_fpu(vcpu);
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+	struct mm_struct *mm;
+
+	/*
+	 * Were we in guest context? If so, restore the appropriate ASID based
+	 * on the mode of the Guest (Kernel/User).
+	 */
+	if (current->flags & PF_VCPU) {
+		mm = KVM_GUEST_KERNEL_MODE(vcpu) ? kern_mm : user_mm;
+		if ((cpu_context(cpu, mm) ^ asid_cache(cpu)) &
+		    asid_version_mask(cpu))
+			get_new_mmu_context(mm, cpu);
+		write_c0_entryhi(cpu_asid(cpu, mm));
+		TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
+		kvm_mips_suspend_mm(cpu);
+		ehb();
+	}
 
 	return 0;
 }
 
-static int kvm_trap_emul_vcpu_set_regs(struct kvm_vcpu *vcpu)
+static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvm_lose_fpu(vcpu);
+
+	if (current->flags & PF_VCPU) {
+		/* Restore normal Linux process memory map */
+		if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
+		     asid_version_mask(cpu)))
+			get_new_mmu_context(current->mm, cpu);
+		write_c0_entryhi(cpu_asid(cpu, current->mm));
+		TLBMISS_HANDLER_SETUP_PGD(current->mm->pgd);
+		kvm_mips_resume_mm(cpu);
+		ehb();
+	}
+
 	return 0;
+}
+
+static void kvm_trap_emul_check_requests(struct kvm_vcpu *vcpu, int cpu,
+					 bool reload_asid)
+{
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+	struct mm_struct *mm;
+	int i;
+
+	if (likely(!vcpu->requests))
+		return;
+
+	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu)) {
+		/*
+		 * Both kernel & user GVA mappings must be invalidated. The
+		 * caller is just about to check whether the ASID is stale
+		 * anyway so no need to reload it here.
+		 */
+		kvm_mips_flush_gva_pt(kern_mm->pgd, KMF_GPA | KMF_KERN);
+		kvm_mips_flush_gva_pt(user_mm->pgd, KMF_GPA | KMF_USER);
+		for_each_possible_cpu(i) {
+			cpu_context(i, kern_mm) = 0;
+			cpu_context(i, user_mm) = 0;
+		}
+
+		/* Generate new ASID for current mode */
+		if (reload_asid) {
+			mm = KVM_GUEST_KERNEL_MODE(vcpu) ? kern_mm : user_mm;
+			get_new_mmu_context(mm, cpu);
+			htw_stop();
+			write_c0_entryhi(cpu_asid(cpu, mm));
+			TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
+			htw_start();
+		}
+	}
+}
+
+/**
+ * kvm_trap_emul_gva_lockless_begin() - Begin lockless access to GVA space.
+ * @vcpu:	VCPU pointer.
+ *
+ * Call before a GVA space access outside of guest mode, to ensure that
+ * asynchronous TLB flush requests are handled or delayed until completion of
+ * the GVA access (as indicated by a matching kvm_trap_emul_gva_lockless_end()).
+ *
+ * Should be called with IRQs already enabled.
+ */
+void kvm_trap_emul_gva_lockless_begin(struct kvm_vcpu *vcpu)
+{
+	/* We re-enable IRQs in kvm_trap_emul_gva_lockless_end() */
+	WARN_ON_ONCE(irqs_disabled());
+
+	/*
+	 * The caller is about to access the GVA space, so we set the mode to
+	 * force TLB flush requests to send an IPI, and also disable IRQs to
+	 * delay IPI handling until kvm_trap_emul_gva_lockless_end().
+	 */
+	local_irq_disable();
+
+	/*
+	 * Make sure the read of VCPU requests is not reordered ahead of the
+	 * write to vcpu->mode, or we could miss a TLB flush request while
+	 * the requester sees the VCPU as outside of guest mode and not needing
+	 * an IPI.
+	 */
+	smp_store_mb(vcpu->mode, READING_SHADOW_PAGE_TABLES);
+
+	/*
+	 * If a TLB flush has been requested (potentially while
+	 * OUTSIDE_GUEST_MODE and assumed immediately effective), perform it
+	 * before accessing the GVA space, and be sure to reload the ASID if
+	 * necessary as it'll be immediately used.
+	 *
+	 * TLB flush requests after this check will trigger an IPI due to the
+	 * mode change above, which will be delayed due to IRQs disabled.
+	 */
+	kvm_trap_emul_check_requests(vcpu, smp_processor_id(), true);
+}
+
+/**
+ * kvm_trap_emul_gva_lockless_end() - End lockless access to GVA space.
+ * @vcpu:	VCPU pointer.
+ *
+ * Called after a GVA space access outside of guest mode. Should have a matching
+ * call to kvm_trap_emul_gva_lockless_begin().
+ */
+void kvm_trap_emul_gva_lockless_end(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Make sure the write to vcpu->mode is not reordered in front of GVA
+	 * accesses, or a TLB flush requester may not think it necessary to send
+	 * an IPI.
+	 */
+	smp_store_release(&vcpu->mode, OUTSIDE_GUEST_MODE);
+
+	/*
+	 * Now that the access to GVA space is complete, its safe for pending
+	 * TLB flush request IPIs to be handled (which indicates completion).
+	 */
+	local_irq_enable();
+}
+
+static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
+				       struct kvm_vcpu *vcpu)
+{
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+	struct mm_struct *mm;
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int i, cpu = smp_processor_id();
+	unsigned int gasid;
+
+	/*
+	 * No need to reload ASID, IRQs are disabled already so there's no rush,
+	 * and we'll check if we need to regenerate below anyway before
+	 * re-entering the guest.
+	 */
+	kvm_trap_emul_check_requests(vcpu, cpu, false);
+
+	if (KVM_GUEST_KERNEL_MODE(vcpu)) {
+		mm = kern_mm;
+	} else {
+		mm = user_mm;
+
+		/*
+		 * Lazy host ASID regeneration / PT flush for guest user mode.
+		 * If the guest ASID has changed since the last guest usermode
+		 * execution, invalidate the stale TLB entries and flush GVA PT
+		 * entries too.
+		 */
+		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
+		if (gasid != vcpu->arch.last_user_gasid) {
+			kvm_mips_flush_gva_pt(user_mm->pgd, KMF_USER);
+			for_each_possible_cpu(i)
+				cpu_context(i, user_mm) = 0;
+			vcpu->arch.last_user_gasid = gasid;
+		}
+	}
+
+	/*
+	 * Check if ASID is stale. This may happen due to a TLB flush request or
+	 * a lazy user MM invalidation.
+	 */
+	if ((cpu_context(cpu, mm) ^ asid_cache(cpu)) &
+	    asid_version_mask(cpu))
+		get_new_mmu_context(mm, cpu);
+}
+
+static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
+{
+	int cpu = smp_processor_id();
+	int r;
+
+	/* Check if we have any exceptions/interrupts pending */
+	kvm_mips_deliver_interrupts(vcpu,
+				    kvm_read_c0_guest_cause(vcpu->arch.cop0));
+
+	kvm_trap_emul_vcpu_reenter(run, vcpu);
+
+	/*
+	 * We use user accessors to access guest memory, but we don't want to
+	 * invoke Linux page faulting.
+	 */
+	pagefault_disable();
+
+	/* Disable hardware page table walking while in guest */
+	htw_stop();
+
+	/*
+	 * While in guest context we're in the guest's address space, not the
+	 * host process address space, so we need to be careful not to confuse
+	 * e.g. cache management IPIs.
+	 */
+	kvm_mips_suspend_mm(cpu);
+
+	r = vcpu->arch.vcpu_run(run, vcpu);
+
+	/* We may have migrated while handling guest exits */
+	cpu = smp_processor_id();
+
+	/* Restore normal Linux process memory map */
+	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
+	     asid_version_mask(cpu)))
+		get_new_mmu_context(current->mm, cpu);
+	write_c0_entryhi(cpu_asid(cpu, current->mm));
+	TLBMISS_HANDLER_SETUP_PGD(current->mm->pgd);
+	kvm_mips_resume_mm(cpu);
+
+	htw_start();
+
+	pagefault_enable();
+
+	return r;
 }
 
 static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
@@ -644,9 +1231,11 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.handle_fpe = kvm_trap_emul_handle_fpe,
 	.handle_msa_disabled = kvm_trap_emul_handle_msa_disabled,
 
-	.vm_init = kvm_trap_emul_vm_init,
 	.vcpu_init = kvm_trap_emul_vcpu_init,
+	.vcpu_uninit = kvm_trap_emul_vcpu_uninit,
 	.vcpu_setup = kvm_trap_emul_vcpu_setup,
+	.flush_shadow_all = kvm_trap_emul_flush_shadow_all,
+	.flush_shadow_memslot = kvm_trap_emul_flush_shadow_memslot,
 	.gva_to_gpa = kvm_trap_emul_gva_to_gpa_cb,
 	.queue_timer_int = kvm_mips_queue_timer_int_cb,
 	.dequeue_timer_int = kvm_mips_dequeue_timer_int_cb,
@@ -658,8 +1247,10 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.copy_reg_indices = kvm_trap_emul_copy_reg_indices,
 	.get_one_reg = kvm_trap_emul_get_one_reg,
 	.set_one_reg = kvm_trap_emul_set_one_reg,
-	.vcpu_get_regs = kvm_trap_emul_vcpu_get_regs,
-	.vcpu_set_regs = kvm_trap_emul_vcpu_set_regs,
+	.vcpu_load = kvm_trap_emul_vcpu_load,
+	.vcpu_put = kvm_trap_emul_vcpu_put,
+	.vcpu_run = kvm_trap_emul_vcpu_run,
+	.vcpu_reenter = kvm_trap_emul_vcpu_reenter,
 };
 
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks)

@@ -2070,7 +2070,7 @@ static int snd_trident_foldback_close(struct snd_pcm_substream *substream)
    PCM operations
   ---------------------------------------------------------------------------*/
 
-static struct snd_pcm_ops snd_trident_playback_ops = {
+static const struct snd_pcm_ops snd_trident_playback_ops = {
 	.open =		snd_trident_playback_open,
 	.close =	snd_trident_playback_close,
 	.ioctl =	snd_trident_ioctl,
@@ -2081,7 +2081,7 @@ static struct snd_pcm_ops snd_trident_playback_ops = {
 	.pointer =	snd_trident_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_trident_nx_playback_ops = {
+static const struct snd_pcm_ops snd_trident_nx_playback_ops = {
 	.open =		snd_trident_playback_open,
 	.close =	snd_trident_playback_close,
 	.ioctl =	snd_trident_ioctl,
@@ -2115,7 +2115,7 @@ static struct snd_pcm_ops snd_trident_si7018_capture_ops = {
 	.pointer =	snd_trident_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_trident_foldback_ops = {
+static const struct snd_pcm_ops snd_trident_foldback_ops = {
 	.open =		snd_trident_foldback_open,
 	.close =	snd_trident_foldback_close,
 	.ioctl =	snd_trident_ioctl,
@@ -2126,7 +2126,7 @@ static struct snd_pcm_ops snd_trident_foldback_ops = {
 	.pointer =	snd_trident_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_trident_nx_foldback_ops = {
+static const struct snd_pcm_ops snd_trident_nx_foldback_ops = {
 	.open =		snd_trident_foldback_open,
 	.close =	snd_trident_foldback_close,
 	.ioctl =	snd_trident_ioctl,
@@ -2138,7 +2138,7 @@ static struct snd_pcm_ops snd_trident_nx_foldback_ops = {
 	.page =		snd_pcm_sgbuf_ops_page,
 };
 
-static struct snd_pcm_ops snd_trident_spdif_ops = {
+static const struct snd_pcm_ops snd_trident_spdif_ops = {
 	.open =		snd_trident_spdif_open,
 	.close =	snd_trident_spdif_close,
 	.ioctl =	snd_trident_ioctl,
@@ -2149,7 +2149,7 @@ static struct snd_pcm_ops snd_trident_spdif_ops = {
 	.pointer =	snd_trident_spdif_pointer,
 };
 
-static struct snd_pcm_ops snd_trident_spdif_7018_ops = {
+static const struct snd_pcm_ops snd_trident_spdif_7018_ops = {
 	.open =		snd_trident_spdif_open,
 	.close =	snd_trident_spdif_close,
 	.ioctl =	snd_trident_ioctl,
@@ -3120,7 +3120,7 @@ static int snd_trident_mixer(struct snd_trident *trident, int pcm_spdif_device)
  * gameport interface
  */
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 
 static unsigned char snd_trident_gameport_read(struct gameport *gameport)
 {

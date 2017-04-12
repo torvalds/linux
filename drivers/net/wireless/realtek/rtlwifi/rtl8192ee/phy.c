@@ -170,7 +170,7 @@ static u32 _rtl92ee_phy_rf_serial_read(struct ieee80211_hw *hw,
 	offset &= 0xff;
 	newoffset = offset;
 	if (RT_CANNOT_IO(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "return all one\n");
+		pr_err("return all one\n");
 		return 0xFFFFFFFF;
 	}
 	tmplong = rtl_get_bbreg(hw, RFPGA0_XA_HSSIPARAMETER2, MASKDWORD);
@@ -214,7 +214,7 @@ static void _rtl92ee_phy_rf_serial_write(struct ieee80211_hw *hw,
 	struct bb_reg_def *pphyreg = &rtlphy->phyreg_def[rfpath];
 
 	if (RT_CANNOT_IO(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "stop\n");
+		pr_err("stop\n");
 		return;
 	}
 	offset &= 0xff;
@@ -650,7 +650,7 @@ static bool _rtl92ee_phy_bb8192ee_config_parafile(struct ieee80211_hw *hw)
 
 	rtstatus = phy_config_bb_with_hdr_file(hw, BASEBAND_CONFIG_PHY_REG);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!\n");
+		pr_err("Write BB Reg Fail!!\n");
 		return false;
 	}
 
@@ -662,12 +662,12 @@ static bool _rtl92ee_phy_bb8192ee_config_parafile(struct ieee80211_hw *hw)
 	}
 	_rtl92ee_phy_txpower_by_rate_configuration(hw);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!\n");
+		pr_err("BB_PG Reg Fail!!\n");
 		return false;
 	}
 	rtstatus = phy_config_bb_with_hdr_file(hw, BASEBAND_CONFIG_AGC_TAB);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "AGC Table Fail\n");
+		pr_err("AGC Table Fail\n");
 		return false;
 	}
 	rtlphy->cck_high_power = (bool)(rtl_get_bbreg(hw,
@@ -1176,7 +1176,7 @@ static u8 _rtl92ee_phy_get_ratesection_intxpower_byrate(enum radio_path path,
 		rate_section = 7;
 		break;
 	default:
-		RT_ASSERT(true, "Rate_Section is Illegal\n");
+		WARN_ONCE(true, "rtl8192ee: Rate_Section is Illegal\n");
 		break;
 	}
 	return rate_section;
@@ -1239,7 +1239,7 @@ static u8 _rtl92ee_get_txpower_by_rate(struct ieee80211_hw *hw,
 		shift = 24;
 		break;
 	default:
-		RT_ASSERT(true, "Rate_Section is Illegal\n");
+		WARN_ONCE(true, "rtl8192ee: Rate_Section is Illegal\n");
 		break;
 	}
 
@@ -1675,8 +1675,7 @@ void rtl92ee_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Unknown Scan Backup operation.\n");
+			pr_err("Unknown Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -1717,8 +1716,8 @@ void rtl92ee_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "unknown bandwidth: %#X\n", rtlphy->current_chan_bw);
+		pr_err("unknown bandwidth: %#X\n",
+		       rtlphy->current_chan_bw);
 		break;
 	}
 
@@ -1742,8 +1741,8 @@ void rtl92ee_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			       HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "unknown bandwidth: %#X\n", rtlphy->current_chan_bw);
+		pr_err("unknown bandwidth: %#X\n",
+		       rtlphy->current_chan_bw);
 		break;
 	}
 	rtl92ee_phy_rf6052_set_bandwidth(hw, rtlphy->current_chan_bw);
@@ -1811,8 +1810,8 @@ u8 rtl92ee_phy_sw_chnl(struct ieee80211_hw *hw)
 		return 0;
 	if (rtlphy->set_bwmode_inprogress)
 		return 0;
-	RT_ASSERT((rtlphy->current_channel <= 14),
-		  "WIRELESS_MODE_G but channel>14");
+	WARN_ONCE((rtlphy->current_channel > 14),
+		  "rtl8192ee: WIRELESS_MODE_G but channel>14");
 	rtlphy->sw_chnl_inprogress = true;
 	rtlphy->sw_chnl_stage = 0;
 	rtlphy->sw_chnl_step = 0;
@@ -1860,8 +1859,8 @@ static bool _rtl92ee_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 
 	rfdependcmdcnt = 0;
 
-	RT_ASSERT((channel >= 1 && channel <= 14),
-		  "illegal channel for Zebra: %d\n", channel);
+	WARN_ONCE((channel < 1 || channel > 14),
+		  "rtl8192ee: illegal channel for Zebra: %d\n", channel);
 
 	_rtl92ee_phy_set_sw_chnl_cmdarray(rfdependcmd, rfdependcmdcnt++,
 					  MAX_RFDEPENDCMD_CNT,
@@ -1884,8 +1883,8 @@ static bool _rtl92ee_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			currentcmd = &postcommoncmd[*step];
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Invalid 'stage' = %d, Check it!\n" , *stage);
+			pr_err("Invalid 'stage' = %d, Check it!\n",
+			       *stage);
 			return true;
 		}
 
@@ -1927,7 +1926,8 @@ static bool _rtl92ee_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case not process\n");
+				 "switch case %#x not processed\n",
+				 currentcmd->cmdid);
 			break;
 		}
 
@@ -1947,7 +1947,7 @@ static bool _rtl92ee_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		RT_ASSERT(false, "cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8192ee: cmdtable cannot be NULL.\n");
 		return false;
 	}
 
@@ -3001,7 +3001,7 @@ bool rtl92ee_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case not process\n");
+				 "switch case %#x not processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -3041,7 +3041,8 @@ static void rtl92ee_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case not process\n");
+			 "switch case %#x not processed\n",
+			 rtlphy->current_io_type);
 		break;
 	}
 	rtlphy->set_io_inprogress = false;
@@ -3187,7 +3188,7 @@ static bool _rtl92ee_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case not process\n");
+			 "switch case %#x not processed\n", rfpwr_state);
 		bresult = false;
 		break;
 	}

@@ -57,7 +57,11 @@ struct imx_ldb_channel {
 	struct imx_ldb *ldb;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
+
+	/* Defines what is connected to the ldb, only one at a time */
 	struct drm_panel *panel;
+	struct drm_bridge *bridge;
+
 	struct device_node *child;
 	struct i2c_adapter *ddc;
 	int chno;
@@ -66,6 +70,7 @@ struct imx_ldb_channel {
 	struct drm_display_mode mode;
 	int mode_valid;
 	u32 bus_format;
+	u32 bus_flags;
 };
 
 static inline struct imx_ldb_channel *con_to_imx_ldb_ch(struct drm_connector *c)
@@ -95,12 +100,6 @@ struct imx_ldb {
 	u32 ldb_ctrl;
 	const struct bus_mux *lvds_mux;
 };
-
-static enum drm_connector_status imx_ldb_connector_detect(
-		struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
 
 static void imx_ldb_ch_set_bus_format(struct imx_ldb_channel *imx_ldb_ch,
 				      u32 bus_format)
@@ -251,11 +250,13 @@ static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
 	drm_panel_enable(imx_ldb_ch->panel);
 }
 
-static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
-			 struct drm_display_mode *orig_mode,
-			 struct drm_display_mode *mode)
+static void
+imx_ldb_encoder_atomic_mode_set(struct drm_encoder *encoder,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *connector_state)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
+	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	unsigned long serial_clk;
@@ -297,17 +298,11 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (!bus_format) {
-		struct drm_connector *connector;
+		struct drm_connector *connector = connector_state->connector;
+		struct drm_display_info *di = &connector->display_info;
 
-		drm_for_each_connector(connector, encoder->dev) {
-			struct drm_display_info *di = &connector->display_info;
-
-			if (connector->encoder == encoder &&
-			    di->num_bus_formats) {
-				bus_format = di->bus_formats[0];
-				break;
-			}
-		}
+		if (di->num_bus_formats)
+			bus_format = di->bus_formats[0];
 	}
 	imx_ldb_ch_set_bus_format(imx_ldb_ch, bus_format);
 }
@@ -317,18 +312,6 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int mux, ret;
-
-	/*
-	 * imx_ldb_encoder_disable is called by
-	 * drm_helper_disable_unused_functions without
-	 * the encoder being enabled before.
-	 */
-	if (imx_ldb_ch == &ldb->channel[0] &&
-	    (ldb->ldb_ctrl & LDB_CH0_MODE_EN_MASK) == 0)
-		return;
-	else if (imx_ldb_ch == &ldb->channel[1] &&
-		 (ldb->ldb_ctrl & LDB_CH1_MODE_EN_MASK) == 0)
-		return;
 
 	drm_panel_disable(imx_ldb_ch->panel);
 
@@ -379,8 +362,13 @@ static int imx_ldb_encoder_atomic_check(struct drm_encoder *encoder,
 	u32 bus_format = imx_ldb_ch->bus_format;
 
 	/* Bus format description in DT overrides connector display info. */
-	if (!bus_format && di->num_bus_formats)
+	if (!bus_format && di->num_bus_formats) {
 		bus_format = di->bus_formats[0];
+		imx_crtc_state->bus_flags = di->bus_flags;
+	} else {
+		bus_format = imx_ldb_ch->bus_format;
+		imx_crtc_state->bus_flags = imx_ldb_ch->bus_flags;
+	}
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
 		imx_crtc_state->bus_format = MEDIA_BUS_FMT_RGB666_1X18;
@@ -403,7 +391,6 @@ static int imx_ldb_encoder_atomic_check(struct drm_encoder *encoder,
 static const struct drm_connector_funcs imx_ldb_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = imx_ldb_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -420,7 +407,7 @@ static const struct drm_encoder_funcs imx_ldb_encoder_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
-	.mode_set = imx_ldb_encoder_mode_set,
+	.atomic_mode_set = imx_ldb_encoder_atomic_mode_set,
 	.enable = imx_ldb_encoder_enable,
 	.disable = imx_ldb_encoder_disable,
 	.atomic_check = imx_ldb_encoder_atomic_check,
@@ -466,10 +453,28 @@ static int imx_ldb_register(struct drm_device *drm,
 	drm_encoder_init(drm, encoder, &imx_ldb_encoder_funcs,
 			 DRM_MODE_ENCODER_LVDS, NULL);
 
-	drm_connector_helper_add(&imx_ldb_ch->connector,
-			&imx_ldb_connector_helper_funcs);
-	drm_connector_init(drm, &imx_ldb_ch->connector,
-			   &imx_ldb_connector_funcs, DRM_MODE_CONNECTOR_LVDS);
+	if (imx_ldb_ch->bridge) {
+		ret = drm_bridge_attach(&imx_ldb_ch->encoder,
+					imx_ldb_ch->bridge, NULL);
+		if (ret) {
+			DRM_ERROR("Failed to initialize bridge with drm\n");
+			return ret;
+		}
+	} else {
+		/*
+		 * We want to add the connector whenever there is no bridge
+		 * that brings its own, not only when there is a panel. For
+		 * historical reasons, the ldb driver can also work without
+		 * a panel.
+		 */
+		drm_connector_helper_add(&imx_ldb_ch->connector,
+				&imx_ldb_connector_helper_funcs);
+		drm_connector_init(drm, &imx_ldb_ch->connector,
+				&imx_ldb_connector_funcs,
+				DRM_MODE_CONNECTOR_LVDS);
+		drm_mode_connector_attach_encoder(&imx_ldb_ch->connector,
+				encoder);
+	}
 
 	if (imx_ldb_ch->panel) {
 		ret = drm_panel_attach(imx_ldb_ch->panel,
@@ -477,8 +482,6 @@ static int imx_ldb_register(struct drm_device *drm,
 		if (ret)
 			return ret;
 	}
-
-	drm_mode_connector_attach_encoder(&imx_ldb_ch->connector, encoder);
 
 	return 0;
 }
@@ -548,6 +551,46 @@ static const struct of_device_id imx_ldb_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_ldb_dt_ids);
 
+static int imx_ldb_panel_ddc(struct device *dev,
+		struct imx_ldb_channel *channel, struct device_node *child)
+{
+	struct device_node *ddc_node;
+	const u8 *edidp;
+	int ret;
+
+	ddc_node = of_parse_phandle(child, "ddc-i2c-bus", 0);
+	if (ddc_node) {
+		channel->ddc = of_find_i2c_adapter_by_node(ddc_node);
+		of_node_put(ddc_node);
+		if (!channel->ddc) {
+			dev_warn(dev, "failed to get ddc i2c adapter\n");
+			return -EPROBE_DEFER;
+		}
+	}
+
+	if (!channel->ddc) {
+		/* if no DDC available, fallback to hardcoded EDID */
+		dev_dbg(dev, "no ddc available\n");
+
+		edidp = of_get_property(child, "edid",
+					&channel->edid_len);
+		if (edidp) {
+			channel->edid = kmemdup(edidp,
+						channel->edid_len,
+						GFP_KERNEL);
+		} else if (!channel->panel) {
+			/* fallback to display-timings node */
+			ret = of_get_drm_display_mode(child,
+						      &channel->mode,
+						      &channel->bus_flags,
+						      OF_USE_NATIVE_MODE);
+			if (!ret)
+				channel->mode_valid = 1;
+		}
+	}
+	return 0;
+}
+
 static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
@@ -555,7 +598,6 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 	const struct of_device_id *of_id =
 			of_match_device(imx_ldb_dt_ids, dev);
 	struct device_node *child;
-	const u8 *edidp;
 	struct imx_ldb *imx_ldb;
 	int dual;
 	int ret;
@@ -605,7 +647,6 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 
 	for_each_child_of_node(np, child) {
 		struct imx_ldb_channel *channel;
-		struct device_node *ddc_node;
 		struct device_node *ep;
 		int bus_format;
 
@@ -638,46 +679,25 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 
 			remote = of_graph_get_remote_port_parent(ep);
 			of_node_put(ep);
-			if (remote)
+			if (remote) {
 				channel->panel = of_drm_find_panel(remote);
-			else
+				channel->bridge = of_drm_find_bridge(remote);
+			} else
 				return -EPROBE_DEFER;
 			of_node_put(remote);
-			if (!channel->panel) {
-				dev_err(dev, "panel not found: %s\n",
+
+			if (!channel->panel && !channel->bridge) {
+				dev_err(dev, "panel/bridge not found: %s\n",
 					remote->full_name);
 				return -EPROBE_DEFER;
 			}
 		}
 
-		ddc_node = of_parse_phandle(child, "ddc-i2c-bus", 0);
-		if (ddc_node) {
-			channel->ddc = of_find_i2c_adapter_by_node(ddc_node);
-			of_node_put(ddc_node);
-			if (!channel->ddc) {
-				dev_warn(dev, "failed to get ddc i2c adapter\n");
-				return -EPROBE_DEFER;
-			}
-		}
-
-		if (!channel->ddc) {
-			/* if no DDC available, fallback to hardcoded EDID */
-			dev_dbg(dev, "no ddc available\n");
-
-			edidp = of_get_property(child, "edid",
-						&channel->edid_len);
-			if (edidp) {
-				channel->edid = kmemdup(edidp,
-							channel->edid_len,
-							GFP_KERNEL);
-			} else if (!channel->panel) {
-				/* fallback to display-timings node */
-				ret = of_get_drm_display_mode(child,
-							      &channel->mode,
-							      OF_USE_NATIVE_MODE);
-				if (!ret)
-					channel->mode_valid = 1;
-			}
+		/* panel ddc only if there is no bridge */
+		if (!channel->bridge) {
+			ret = imx_ldb_panel_ddc(dev, channel, child);
+			if (ret)
+				return ret;
 		}
 
 		bus_format = of_get_bus_format(dev, child);
@@ -716,11 +736,8 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
 
-		if (!channel->connector.funcs)
-			continue;
-
-		channel->connector.funcs->destroy(&channel->connector);
-		channel->encoder.funcs->destroy(&channel->encoder);
+		if (channel->panel)
+			drm_panel_detach(channel->panel);
 
 		kfree(channel->edid);
 		i2c_put_adapter(channel->ddc);

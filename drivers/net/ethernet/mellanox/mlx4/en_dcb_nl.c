@@ -319,7 +319,7 @@ static int mlx4_en_ets_validate(struct mlx4_en_priv *priv, struct ieee_ets *ets)
 		default:
 			en_err(priv, "TC[%d]: Not supported TSA: %d\n",
 					i, ets->tc_tsa[i]);
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 		}
 	}
 

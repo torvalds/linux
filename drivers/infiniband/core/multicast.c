@@ -518,8 +518,11 @@ static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
 		process_join_error(group, status);
 	else {
 		int mgids_changed, is_mgid0;
-		ib_find_pkey(group->port->dev->device, group->port->port_num,
-			     be16_to_cpu(rec->pkey), &pkey_index);
+
+		if (ib_find_pkey(group->port->dev->device,
+				 group->port->port_num, be16_to_cpu(rec->pkey),
+				 &pkey_index))
+			pkey_index = MCAST_INVALID_PKEY_INDEX;
 
 		spin_lock_irq(&group->port->lock);
 		if (group->state == MCAST_BUSY &&
@@ -873,7 +876,7 @@ int mcast_init(void)
 {
 	int ret;
 
-	mcast_wq = create_singlethread_workqueue("ib_mcast");
+	mcast_wq = alloc_ordered_workqueue("ib_mcast", WQ_MEM_RECLAIM);
 	if (!mcast_wq)
 		return -ENOMEM;
 

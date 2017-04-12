@@ -21,7 +21,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/module.h>
 
@@ -182,9 +181,6 @@ static uint16_t denali_nand_reset(struct denali_nand_info *denali)
 {
 	int i;
 
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-		__FILE__, __LINE__, __func__);
-
 	for (i = 0; i < denali->max_banks; i++)
 		iowrite32(INTR_STATUS__RST_COMP | INTR_STATUS__TIME_OUT,
 		denali->flash_reg + INTR_STATUS(i));
@@ -233,9 +229,6 @@ static void nand_onfi_timing_set(struct denali_nand_info *denali,
 	uint16_t en_lo, en_hi;
 	uint16_t acc_clks;
 	uint16_t addr_2_data, re_2_we, re_2_re, we_2_re, cs_cnt;
-
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-		__FILE__, __LINE__, __func__);
 
 	en_lo = CEIL_DIV(Trp[mode], CLK_X);
 	en_hi = CEIL_DIV(Treh[mode], CLK_X);
@@ -403,7 +396,7 @@ static void get_hynix_nand_para(struct denali_nand_info *denali,
 		break;
 	default:
 		dev_warn(denali->dev,
-			 "Spectra: Unknown Hynix NAND (Device ID: 0x%x).\n"
+			 "Unknown Hynix NAND (Device ID: 0x%x).\n"
 			 "Will use default parameter values instead.\n",
 			 device_id);
 	}
@@ -474,42 +467,12 @@ static void detect_max_banks(struct denali_nand_info *denali)
 		denali->max_banks = 1 << (features & FEATURES__N_BANKS);
 }
 
-static void detect_partition_feature(struct denali_nand_info *denali)
-{
-	/*
-	 * For MRST platform, denali->fwblks represent the
-	 * number of blocks firmware is taken,
-	 * FW is in protect partition and MTD driver has no
-	 * permission to access it. So let driver know how many
-	 * blocks it can't touch.
-	 */
-	if (ioread32(denali->flash_reg + FEATURES) & FEATURES__PARTITION) {
-		if ((ioread32(denali->flash_reg + PERM_SRC_ID(1)) &
-			PERM_SRC_ID__SRCID) == SPECTRA_PARTITION_ID) {
-			denali->fwblks =
-			    ((ioread32(denali->flash_reg + MIN_MAX_BANK(1)) &
-			      MIN_MAX_BANK__MIN_VALUE) *
-			     denali->blksperchip)
-			    +
-			    (ioread32(denali->flash_reg + MIN_BLK_ADDR(1)) &
-			    MIN_BLK_ADDR__VALUE);
-		} else {
-			denali->fwblks = SPECTRA_START_BLOCK;
-		}
-	} else {
-		denali->fwblks = SPECTRA_START_BLOCK;
-	}
-}
-
 static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 {
 	uint16_t status = PASS;
 	uint32_t id_bytes[8], addr;
 	uint8_t maf_id, device_id;
 	int i;
-
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-			__FILE__, __LINE__, __func__);
 
 	/*
 	 * Use read id method to get device ID and other params.
@@ -552,8 +515,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 
 	find_valid_banks(denali);
 
-	detect_partition_feature(denali);
-
 	/*
 	 * If the user specified to override the default timings
 	 * with a specific ONFI mode, we apply those changes here.
@@ -567,9 +528,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 static void denali_set_intr_modes(struct denali_nand_info *denali,
 					uint16_t INT_ENABLE)
 {
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-		__FILE__, __LINE__, __func__);
-
 	if (INT_ENABLE)
 		iowrite32(1, denali->flash_reg + GLOBAL_INT_ENABLE);
 	else
@@ -605,7 +563,6 @@ static void denali_irq_init(struct denali_nand_info *denali)
 static void denali_irq_cleanup(int irqnum, struct denali_nand_info *denali)
 {
 	denali_set_intr_modes(denali, false);
-	free_irq(irqnum, denali);
 }
 
 static void denali_irq_enable(struct denali_nand_info *denali,
@@ -1437,9 +1394,6 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 /* initialize driver data structures */
 static void denali_drv_init(struct denali_nand_info *denali)
 {
-	denali->idx = 0;
-
-	/* setup interrupt handler */
 	/*
 	 * the completion object will be used to notify
 	 * the callee that the interrupt is done
@@ -1485,14 +1439,12 @@ int denali_init(struct denali_nand_info *denali)
 	denali_hw_init(denali);
 	denali_drv_init(denali);
 
-	/*
-	 * denali_isr register is done after all the hardware
-	 * initilization is finished
-	 */
-	if (request_irq(denali->irq, denali_isr, IRQF_SHARED,
-			DENALI_NAND_NAME, denali)) {
-		pr_err("Spectra: Unable to allocate IRQ\n");
-		return -ENODEV;
+	/* Request IRQ after all the hardware initialization is finished */
+	ret = devm_request_irq(denali->dev, denali->irq, denali_isr,
+			       IRQF_SHARED, DENALI_NAND_NAME, denali);
+	if (ret) {
+		dev_err(denali->dev, "Unable to request IRQ\n");
+		return ret;
 	}
 
 	/* now that our ISR is registered, we can enable interrupts */
@@ -1510,10 +1462,9 @@ int denali_init(struct denali_nand_info *denali)
 	 * this is the first stage in a two step process to register
 	 * with the nand subsystem
 	 */
-	if (nand_scan_ident(mtd, denali->max_banks, NULL)) {
-		ret = -ENXIO;
+	ret = nand_scan_ident(mtd, denali->max_banks, NULL);
+	if (ret)
 		goto failed_req_irq;
-	}
 
 	/* allocate the right size buffer now */
 	devm_kfree(denali->dev, denali->buf.buf);
@@ -1528,7 +1479,7 @@ int denali_init(struct denali_nand_info *denali)
 	/* Is 32-bit DMA supported? */
 	ret = dma_set_mask(denali->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		pr_err("Spectra: no usable DMA configuration\n");
+		dev_err(denali->dev, "No usable DMA configuration\n");
 		goto failed_req_irq;
 	}
 
@@ -1536,7 +1487,7 @@ int denali_init(struct denali_nand_info *denali)
 			     mtd->writesize + mtd->oobsize,
 			     DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(denali->dev, denali->buf.dma_buf)) {
-		dev_err(denali->dev, "Spectra: failed to map DMA buffer\n");
+		dev_err(denali->dev, "Failed to map DMA buffer\n");
 		ret = -EIO;
 		goto failed_req_irq;
 	}
@@ -1547,16 +1498,16 @@ int denali_init(struct denali_nand_info *denali)
 	 * the real pagesize and anything necessery
 	 */
 	denali->devnum = ioread32(denali->flash_reg + DEVICES_CONNECTED);
-	denali->nand.chipsize <<= (denali->devnum - 1);
-	denali->nand.page_shift += (denali->devnum - 1);
+	denali->nand.chipsize <<= denali->devnum - 1;
+	denali->nand.page_shift += denali->devnum - 1;
 	denali->nand.pagemask = (denali->nand.chipsize >>
 						denali->nand.page_shift) - 1;
-	denali->nand.bbt_erase_shift += (denali->devnum - 1);
+	denali->nand.bbt_erase_shift += denali->devnum - 1;
 	denali->nand.phys_erase_shift = denali->nand.bbt_erase_shift;
-	denali->nand.chip_shift += (denali->devnum - 1);
-	mtd->writesize <<= (denali->devnum - 1);
-	mtd->oobsize <<= (denali->devnum - 1);
-	mtd->erasesize <<= (denali->devnum - 1);
+	denali->nand.chip_shift += denali->devnum - 1;
+	mtd->writesize <<= denali->devnum - 1;
+	mtd->oobsize <<= denali->devnum - 1;
+	mtd->erasesize <<= denali->devnum - 1;
 	mtd->size = denali->nand.numchips * denali->nand.chipsize;
 	denali->bbtskipbytes *= denali->devnum;
 
@@ -1606,14 +1557,6 @@ int denali_init(struct denali_nand_info *denali)
 	denali->nand.ecc.bytes *= denali->devnum;
 	denali->nand.ecc.strength *= denali->devnum;
 
-	/*
-	 * Let driver know the total blocks number and how many blocks
-	 * contained by each nand chip. blksperchip will help driver to
-	 * know how many blocks is taken by FW.
-	 */
-	denali->totalblks = mtd->size >> denali->nand.phys_erase_shift;
-	denali->blksperchip = denali->totalblks / denali->nand.numchips;
-
 	/* override the default read operations */
 	denali->nand.ecc.size = ECC_SECTOR_SIZE * denali->devnum;
 	denali->nand.ecc.read_page = denali_read_page;
@@ -1624,15 +1567,13 @@ int denali_init(struct denali_nand_info *denali)
 	denali->nand.ecc.write_oob = denali_write_oob;
 	denali->nand.erase = denali_erase;
 
-	if (nand_scan_tail(mtd)) {
-		ret = -ENXIO;
+	ret = nand_scan_tail(mtd);
+	if (ret)
 		goto failed_req_irq;
-	}
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
-		dev_err(denali->dev, "Spectra: Failed to register MTD: %d\n",
-				ret);
+		dev_err(denali->dev, "Failed to register MTD: %d\n", ret);
 		goto failed_req_irq;
 	}
 	return 0;

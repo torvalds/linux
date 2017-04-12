@@ -1,6 +1,6 @@
 config MCE_AMD_INJ
 	tristate "Simple MCE injection interface for AMD processors"
-	depends on RAS && EDAC_DECODE_MCE && DEBUG_FS && AMD_NB
+	depends on RAS && X86_MCE && DEBUG_FS && AMD_NB
 	default n
 	help
 	  This is a simple debugfs interface to inject MCEs and test different

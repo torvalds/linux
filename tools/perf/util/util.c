@@ -15,6 +15,7 @@
 #include <byteswap.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/time64.h>
 #include <unistd.h>
 #include "callchain.h"
 #include "strlist.h"
@@ -84,7 +85,7 @@ int mkdir_p(char *path, mode_t mode)
 	return (stat(path, &st) && mkdir(path, mode)) ? -1 : 0;
 }
 
-int rm_rf(char *path)
+int rm_rf(const char *path)
 {
 	DIR *dir;
 	int ret = 0;
@@ -399,37 +400,12 @@ void sighandler_dump_stack(int sig)
 	raise(sig);
 }
 
-int parse_nsec_time(const char *str, u64 *ptime)
+int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz)
 {
-	u64 time_sec, time_nsec;
-	char *end;
+	u64  sec = timestamp / NSEC_PER_SEC;
+	u64 usec = (timestamp % NSEC_PER_SEC) / NSEC_PER_USEC;
 
-	time_sec = strtoul(str, &end, 10);
-	if (*end != '.' && *end != '\0')
-		return -1;
-
-	if (*end == '.') {
-		int i;
-		char nsec_buf[10];
-
-		if (strlen(++end) > 9)
-			return -1;
-
-		strncpy(nsec_buf, end, 9);
-		nsec_buf[9] = '\0';
-
-		/* make it nsec precision */
-		for (i = strlen(nsec_buf); i < 9; i++)
-			nsec_buf[i] = '0';
-
-		time_nsec = strtoul(nsec_buf, &end, 10);
-		if (*end != '\0')
-			return -1;
-	} else
-		time_nsec = 0;
-
-	*ptime = time_sec * NSEC_PER_SEC + time_nsec;
-	return 0;
+	return scnprintf(buf, sz, "%"PRIu64".%06"PRIu64, sec, usec);
 }
 
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
@@ -628,12 +604,63 @@ bool find_process(const char *name)
 	return ret ? false : true;
 }
 
+static int
+fetch_ubuntu_kernel_version(unsigned int *puint)
+{
+	ssize_t len;
+	size_t line_len = 0;
+	char *ptr, *line = NULL;
+	int version, patchlevel, sublevel, err;
+	FILE *vsig = fopen("/proc/version_signature", "r");
+
+	if (!vsig) {
+		pr_debug("Open /proc/version_signature failed: %s\n",
+			 strerror(errno));
+		return -1;
+	}
+
+	len = getline(&line, &line_len, vsig);
+	fclose(vsig);
+	err = -1;
+	if (len <= 0) {
+		pr_debug("Reading from /proc/version_signature failed: %s\n",
+			 strerror(errno));
+		goto errout;
+	}
+
+	ptr = strrchr(line, ' ');
+	if (!ptr) {
+		pr_debug("Parsing /proc/version_signature failed: %s\n", line);
+		goto errout;
+	}
+
+	err = sscanf(ptr + 1, "%d.%d.%d",
+		     &version, &patchlevel, &sublevel);
+	if (err != 3) {
+		pr_debug("Unable to get kernel version from /proc/version_signature '%s'\n",
+			 line);
+		goto errout;
+	}
+
+	if (puint)
+		*puint = (version << 16) + (patchlevel << 8) + sublevel;
+	err = 0;
+errout:
+	free(line);
+	return err;
+}
+
 int
 fetch_kernel_version(unsigned int *puint, char *str,
 		     size_t str_size)
 {
 	struct utsname utsname;
 	int version, patchlevel, sublevel, err;
+	bool int_ver_ready = false;
+
+	if (access("/proc/version_signature", R_OK) == 0)
+		if (!fetch_ubuntu_kernel_version(puint))
+			int_ver_ready = true;
 
 	if (uname(&utsname))
 		return -1;
@@ -647,12 +674,12 @@ fetch_kernel_version(unsigned int *puint, char *str,
 		     &version, &patchlevel, &sublevel);
 
 	if (err != 3) {
-		pr_debug("Unablt to get kernel version from uname '%s'\n",
+		pr_debug("Unable to get kernel version from uname '%s'\n",
 			 utsname.release);
 		return -1;
 	}
 
-	if (puint)
+	if (puint && !int_ver_ready)
 		*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	return 0;
 }
@@ -761,4 +788,17 @@ int is_printable_array(char *p, unsigned int len)
 			return 0;
 	}
 	return 1;
+}
+
+int unit_number__scnprintf(char *buf, size_t size, u64 n)
+{
+	char unit[4] = "BKMG";
+	int i = 0;
+
+	while (((n / 1024) > 1) && (i < 3)) {
+		n /= 1024;
+		i++;
+	}
+
+	return scnprintf(buf, size, "%" PRIu64 "%c", n, unit[i]);
 }

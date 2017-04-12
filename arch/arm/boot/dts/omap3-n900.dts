@@ -47,14 +47,14 @@
 		compatible = "gpio-leds";
 		heartbeat {
 			label = "debug::sleep";
-			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* gpio162 */
+			gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>;  /* 162 */
 			linux,default-trigger = "default-on";
 			pinctrl-names = "default";
 			pinctrl-0 = <&debug_leds>;
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -625,6 +625,7 @@
 		reg = <0x55>;
 	};
 
+	/* Stereo headphone amplifier */
 	tpa6130a2: tpa6130a2@60 {
 		compatible = "ti,tpa6130a2";
 		reg = <0x60>;
@@ -734,6 +735,8 @@
 	vmmc_aux-supply = <&vsim>;
 	bus-width = <8>;
 	non-removable;
+	no-sdio;
+	no-sd;
 };
 
 &mmc3 {

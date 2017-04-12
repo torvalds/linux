@@ -650,6 +650,18 @@ config NET_ACT_MIRRED
 	  To compile this code as a module, choose M here: the
 	  module will be called act_mirred.
 
+config NET_ACT_SAMPLE
+        tristate "Traffic Sampling"
+        depends on NET_CLS_ACT
+        select PSAMPLE
+        ---help---
+	  Say Y here to allow packet sampling tc action. The packet sample
+	  action consists of statistically choosing packets and sampling
+	  them using the psample module.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_sample.
+
 config NET_ACT_IPT
         tristate "IPtables targets"
         depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
@@ -707,6 +719,7 @@ config NET_ACT_SKBEDIT
 config NET_ACT_CSUM
         tristate "Checksum Updating"
         depends on NET_CLS_ACT && INET
+        select LIBCRC32C
         ---help---
 	  Say Y here to update some common checksum after some direct
 	  packet alterations.
@@ -749,9 +762,21 @@ config NET_ACT_CONNMARK
 	  To compile this code as a module, choose M here: the
 	  module will be called act_connmark.
 
+config NET_ACT_SKBMOD
+        tristate "skb data modification action"
+        depends on NET_CLS_ACT
+        ---help---
+         Say Y here to allow modification of skb data
+
+         If unsure, say N.
+
+         To compile this code as a module, choose M here: the
+         module will be called act_skbmod.
+
 config NET_ACT_IFE
         tristate "Inter-FE action based on IETF ForCES InterFE LFB"
         depends on NET_CLS_ACT
+        select NET_IFE
         ---help---
 	  Say Y here to allow for sourcing and terminating metadata
 	  For details refer to netdev01 paper:
@@ -761,6 +786,17 @@ config NET_ACT_IFE
 	  To compile this code as a module, choose M here: the
 	  module will be called act_ife.
 
+config NET_ACT_TUNNEL_KEY
+        tristate "IP tunnel metadata manipulation"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to set/release ip tunnel metadata.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_tunnel_key.
+
 config NET_IFE_SKBMARK
         tristate "Support to encoding decoding skb mark on IFE action"
         depends on NET_ACT_IFE
@@ -768,6 +804,11 @@ config NET_IFE_SKBMARK
 
 config NET_IFE_SKBPRIO
         tristate "Support to encoding decoding skb prio on IFE action"
+        depends on NET_ACT_IFE
+        ---help---
+
+config NET_IFE_SKBTCINDEX
+        tristate "Support to encoding decoding skb tcindex on IFE action"
         depends on NET_ACT_IFE
         ---help---
 

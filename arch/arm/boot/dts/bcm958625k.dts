@@ -46,37 +46,22 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x60000000 0x80000000>;
+	};
 };
 
-&uart0 {
+&amac0 {
 	status = "okay";
 };
 
-&uart1 {
+&amac1 {
 	status = "okay";
 };
 
-&pcie0 {
-	status = "okay";
-};
-
-&pcie1 {
-	status = "okay";
-};
-
-&pcie2 {
-	status = "okay";
-};
-
-&sata_phy0 {
-	status = "okay";
-};
-
-&sata_phy1 {
-	status = "okay";
-};
-
-&sata {
+&amac2 {
 	status = "okay";
 };
 
@@ -99,30 +84,175 @@
 			reg = <0x00000000 0x00200000>;
 			read-only;
 		};
-		partition@1 {
+		partition@200000 {
 			label = "nenv";
 			reg = <0x00200000 0x00400000>;
 		};
-		partition@2 {
+		partition@600000 {
 			label = "nsystem";
 			reg = <0x00600000 0x00a00000>;
 		};
-		partition@3 {
+		partition@1000000 {
 			label = "nrootfs";
 			reg = <0x01000000 0x03000000>;
 		};
-		partition@4 {
+		partition@4000000 {
 			label = "ncustfs";
 			reg = <0x04000000 0x3c000000>;
 		};
 	};
 };
 
+&pcie0 {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&pcie2 {
+	status = "okay";
+};
+
 &pinctrl {
 	pinctrl-names = "default";
-	pinctrl-0 = <&nand_sel>;
+	pinctrl-0 = <&nand_sel>, <&gpiobs>, <&pwmc>;
+
 	nand_sel: nand_sel {
 		function = "nand";
 		groups = "nand_grp";
 	};
+
+	gpiobs: gpiobs {
+		function = "gpio_b";
+		groups = "gpio_b_0_grp", "gpio_b_1_grp", "gpio_b_2_grp",
+			 "gpio_b_3_grp";
+	};
+
+	pwmc: pwmc {
+		function = "pwm";
+		groups = "pwm0_grp", "pwm1_grp", "pwm2_grp", "pwm3_grp";
+	};
+
+	emmc_sel: emmc_sel {
+		function = "emmc";
+		groups = "emmc_grp";
+	};
+};
+
+&pwm {
+	status = "okay";
+};
+
+&qspi {
+	bspi-sel = <0>;
+	flash: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "m25p80";
+		reg = <0x0>;
+		spi-max-frequency = <12500000>;
+		m25p,fast-read;
+		spi-cpol;
+		spi-cpha;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x00000000 0x000a0000>;
+		};
+
+		partition@a0000 {
+			label = "env";
+			reg = <0x000a0000 0x00060000>;
+		};
+
+		partition@100000 {
+			label = "system";
+			reg = <0x00100000 0x00600000>;
+		};
+
+		partition@700000 {
+			label = "rootfs";
+			reg = <0x00700000 0x01900000>;
+		};
+	};
+};
+
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata_phy1 {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+/*
+ * By default the sd slot is functional. For emmc to work add "<&emmc_sel>"
+ * and delete "<&nand_sel>" in "pinctrl-0" property of pinctrl node. Remove the
+ * bus-width property here and disable the nand node with status = "disabled";.
+ *
+ * Ex: pinctrl-0 = <&emmc_sel>, <&gpiobs>, <&pwmc>;
+ */
+&sdio {
+	bus-width = <4>;
+	no-1-8-v;
+	status = "ok";
+};
+
+&srab {
+	compatible = "brcm,bcm58625-srab", "brcm,nsp-srab";
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			label = "port0";
+			reg = <0>;
+		};
+
+		port@1 {
+			label = "port1";
+			reg = <1>;
+		};
+
+		port@2 {
+			label = "port2";
+			reg = <2>;
+		};
+
+		port@3 {
+			label = "port3";
+			reg = <3>;
+		};
+
+		port@4 {
+			label = "port4";
+			reg = <4>;
+		};
+
+		port@5 {
+			ethernet = <&amac0>;
+			label = "cpu";
+			reg = <5>;
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
 };

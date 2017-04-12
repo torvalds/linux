@@ -254,11 +254,8 @@ static int add_client_context(struct ib_device *device, struct ib_client *client
 	unsigned long flags;
 
 	context = kmalloc(sizeof *context, GFP_KERNEL);
-	if (!context) {
-		pr_warn("Couldn't allocate client context for %s/%s\n",
-			device->name, client->name);
+	if (!context)
 		return -ENOMEM;
-	}
 
 	context->client = client;
 	context->data   = NULL;
@@ -336,6 +333,29 @@ int ib_register_device(struct ib_device *device,
 	int ret;
 	struct ib_client *client;
 	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
+	struct device *parent = device->dev.parent;
+
+	WARN_ON_ONCE(!parent);
+	WARN_ON_ONCE(device->dma_device);
+	if (device->dev.dma_ops) {
+		/*
+		 * The caller provided custom DMA operations. Copy the
+		 * DMA-related fields that are used by e.g. dma_alloc_coherent()
+		 * into device->dev.
+		 */
+		device->dma_device = &device->dev;
+		if (!device->dev.dma_mask)
+			device->dev.dma_mask = parent->dma_mask;
+		if (!device->dev.coherent_dma_mask)
+			device->dev.coherent_dma_mask =
+				parent->coherent_dma_mask;
+	} else {
+		/*
+		 * The caller did not provide custom DMA operations. Use the
+		 * DMA mapping operations of the parent device.
+		 */
+		device->dma_device = parent;
+	}
 
 	mutex_lock(&device_mutex);
 
@@ -363,10 +383,18 @@ int ib_register_device(struct ib_device *device,
 		goto out;
 	}
 
+	ret = ib_device_register_rdmacg(device);
+	if (ret) {
+		pr_warn("Couldn't register device with rdma cgroup\n");
+		ib_cache_cleanup_one(device);
+		goto out;
+	}
+
 	memset(&device->attrs, 0, sizeof(device->attrs));
 	ret = device->query_device(device, &device->attrs, &uhw);
 	if (ret) {
 		pr_warn("Couldn't query the device attributes\n");
+		ib_device_unregister_rdmacg(device);
 		ib_cache_cleanup_one(device);
 		goto out;
 	}
@@ -375,6 +403,7 @@ int ib_register_device(struct ib_device *device,
 	if (ret) {
 		pr_warn("Couldn't register device %s with driver model\n",
 			device->name);
+		ib_device_unregister_rdmacg(device);
 		ib_cache_cleanup_one(device);
 		goto out;
 	}
@@ -424,6 +453,7 @@ void ib_unregister_device(struct ib_device *device)
 
 	mutex_unlock(&device_mutex);
 
+	ib_device_unregister_rdmacg(device);
 	ib_device_unregister_sysfs(device);
 	ib_cache_cleanup_one(device);
 
@@ -662,7 +692,7 @@ int ib_query_port(struct ib_device *device,
 	union ib_gid gid;
 	int err;
 
-	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	memset(port_attr, 0, sizeof(*port_attr));
@@ -828,7 +858,7 @@ int ib_modify_port(struct ib_device *device,
 	if (!device->modify_port)
 		return -ENOSYS;
 
-	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	return device->modify_port(device, port_num, port_modify_mask,
@@ -999,8 +1029,7 @@ static int __init ib_core_init(void)
 		return -ENOMEM;
 
 	ib_comp_wq = alloc_workqueue("ib-comp-wq",
-			WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
-			WQ_UNBOUND_MAX_ACTIVE);
+			WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
 	if (!ib_comp_wq) {
 		ret = -ENOMEM;
 		goto err;

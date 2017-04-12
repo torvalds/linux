@@ -251,11 +251,11 @@ static const struct of_device_id scpi_of_match[] = {
 	{.compatible = "arm,scpi-sensors"},
 	{},
 };
+MODULE_DEVICE_TABLE(of, scpi_of_match);
 
 static struct platform_driver scpi_hwmon_platdrv = {
 	.driver = {
 		.name	= "scpi-hwmon",
-		.owner	= THIS_MODULE,
 		.of_match_table = scpi_of_match,
 	},
 	.probe		= scpi_hwmon_probe,

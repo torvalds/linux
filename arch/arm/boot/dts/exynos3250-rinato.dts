@@ -27,7 +27,8 @@
 		i2c7 = &i2c_max77836;
 	};
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg =  <0x40000000 0x1ff00000>;
 	};
 
@@ -648,7 +649,7 @@
 	card-detect-delay = <200>;
 	vmmc-supply = <&ldo12_reg>;
 	clock-frequency = <100000000>;
-	clock-freq-min-max = <400000 100000000>;
+	max-frequency = <100000000>;
 	samsung,dw-mshc-ciu-div = <1>;
 	samsung,dw-mshc-sdr-timing = <0 1>;
 	samsung,dw-mshc-ddr-timing = <1 2>;

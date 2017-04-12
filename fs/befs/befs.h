@@ -43,7 +43,10 @@ struct befs_sb_info {
 	u32 ag_shift;
 	u32 num_ags;
 
-	/* jornal log entry */
+	/* State of the superblock */
+	u32 flags;
+
+	/* Journal log entry */
 	befs_block_run log_blocks;
 	befs_off_t log_start;
 	befs_off_t log_end;
@@ -79,7 +82,7 @@ enum befs_err {
 	BEFS_BT_END,
 	BEFS_BT_EMPTY,
 	BEFS_BT_MATCH,
-	BEFS_BT_PARMATCH,
+	BEFS_BT_OVERFLOW,
 	BEFS_BT_NOT_FOUND
 };
 
@@ -126,6 +129,7 @@ static inline befs_inode_addr
 blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 {
 	befs_inode_addr iaddr;
+
 	iaddr.allocation_group = blockno >> BEFS_SB(sb)->ag_shift;
 	iaddr.start =
 	    blockno - (iaddr.allocation_group << BEFS_SB(sb)->ag_shift);
@@ -137,19 +141,7 @@ blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 static inline unsigned int
 befs_iaddrs_per_block(struct super_block *sb)
 {
-	return BEFS_SB(sb)->block_size / sizeof (befs_disk_inode_addr);
-}
-
-static inline int
-befs_iaddr_is_empty(const befs_inode_addr *iaddr)
-{
-	return (!iaddr->allocation_group) && (!iaddr->start) && (!iaddr->len);
-}
-
-static inline size_t
-befs_brun_size(struct super_block *sb, befs_block_run run)
-{
-	return BEFS_SB(sb)->block_size * run.len;
+	return BEFS_SB(sb)->block_size / sizeof(befs_disk_inode_addr);
 }
 
 #include "endian.h"

@@ -82,10 +82,6 @@ struct exception_table_entry {
 	unsigned long insn, fixup;
 };
 
-/* Returns 0 if exception not found and fixup otherwise.  */
-extern unsigned long search_exception_table(unsigned long);
-extern void sort_exception_table(void);
-
 /*
  * These are the main single-value transfer routines.  They automatically
  * use the right size if we just have the right pointer type.
@@ -215,7 +211,7 @@ do {									\
 	case 1: __get_user_asm(x, ptr, retval, "l.lbz"); break;		\
 	case 2: __get_user_asm(x, ptr, retval, "l.lhz"); break;		\
 	case 4: __get_user_asm(x, ptr, retval, "l.lwz"); break;		\
-	case 8: __get_user_asm2(x, ptr, retval);			\
+	case 8: __get_user_asm2(x, ptr, retval); break;			\
 	default: (x) = __get_user_bad();				\
 	}								\
 } while (0)

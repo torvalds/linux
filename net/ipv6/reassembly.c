@@ -211,7 +211,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 {
 	struct sk_buff *prev, *next;
 	struct net_device *dev;
-	int offset, end;
+	int offset, end, fragsize;
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	u8 ecn;
 
@@ -336,6 +336,10 @@ found:
 	fq->ecn |= ecn;
 	add_frag_mem_limit(fq->q.net, skb->truesize);
 
+	fragsize = -skb_network_offset(skb) + skb->len;
+	if (fragsize > fq->q.max_size)
+		fq->q.max_size = fragsize;
+
 	/* The first fragment.
 	 * nhoffset is obtained from the first fragment, of course.
 	 */
@@ -456,7 +460,8 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	skb_network_header(head)[nhoff] = skb_transport_header(head)[0];
 	memmove(head->head + sizeof(struct frag_hdr), head->head,
 		(head->data - head->head) - sizeof(struct frag_hdr));
-	head->mac_header += sizeof(struct frag_hdr);
+	if (skb_mac_header_was_set(head))
+		head->mac_header += sizeof(struct frag_hdr);
 	head->network_header += sizeof(struct frag_hdr);
 
 	skb_reset_transport_header(head);
@@ -494,6 +499,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	ipv6_change_dsfield(ipv6_hdr(head), 0xff, ecn);
 	IP6CB(head)->nhoff = nhoff;
 	IP6CB(head)->flags |= IP6SKB_FRAGMENTED;
+	IP6CB(head)->frag_max_size = fq->q.max_size;
 
 	/* Yes, and fold redundant checksum back. 8) */
 	skb_postpush_rcsum(head, skb_network_header(head),

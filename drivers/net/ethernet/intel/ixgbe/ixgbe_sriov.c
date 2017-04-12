@@ -329,13 +329,15 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	for (i = 0; i < adapter->num_vfs; i++)
 		ixgbe_vf_configuration(dev, (i | 0x10000000));
 
+	/* reset before enabling SRIOV to avoid mailbox issues */
+	ixgbe_sriov_reinit(adapter);
+
 	err = pci_enable_sriov(dev, num_vfs);
 	if (err) {
 		e_dev_warn("Failed to enable PCI sriov: %d\n", err);
 		return err;
 	}
 	ixgbe_get_vfs(adapter);
-	ixgbe_sriov_reinit(adapter);
 
 	return num_vfs;
 #else
@@ -510,6 +512,7 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		switch (adapter->vfinfo[vf].vf_api) {
 		case ixgbe_mbox_api_11:
 		case ixgbe_mbox_api_12:
+		case ixgbe_mbox_api_13:
 			/*
 			 * Version 1.1 supports jumbo frames on VFs if PF has
 			 * jumbo frames enabled which means legacy VFs are
@@ -932,7 +935,8 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 		    IXGBE_VT_MSGINFO_SHIFT;
 	int err;
 
-	if (adapter->vfinfo[vf].pf_set_mac && index > 0) {
+	if (adapter->vfinfo[vf].pf_set_mac && !adapter->vfinfo[vf].trusted &&
+	    index > 0) {
 		e_warn(drv,
 		       "VF %d requested MACVLAN filter but is administratively denied\n",
 		       vf);
@@ -976,6 +980,7 @@ static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
 	case ixgbe_mbox_api_10:
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
+	case ixgbe_mbox_api_13:
 		adapter->vfinfo[vf].vf_api = api;
 		return 0;
 	default:
@@ -1000,6 +1005,7 @@ static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
 	case ixgbe_mbox_api_20:
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
+	case ixgbe_mbox_api_13:
 		break;
 	default:
 		return -1;
@@ -1039,8 +1045,13 @@ static int ixgbe_get_vf_reta(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		return -EPERM;
 
 	/* verify the PF is supporting the correct API */
-	if (adapter->vfinfo[vf].vf_api != ixgbe_mbox_api_12)
+	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_12:
+		break;
+	default:
 		return -EOPNOTSUPP;
+	}
 
 	/* This mailbox command is supported (required) only for 82599 and x540
 	 * VFs which support up to 4 RSS queues. Therefore we will compress the
@@ -1066,8 +1077,13 @@ static int ixgbe_get_vf_rss_key(struct ixgbe_adapter *adapter,
 		return -EPERM;
 
 	/* verify the PF is supporting the correct API */
-	if (adapter->vfinfo[vf].vf_api != ixgbe_mbox_api_12)
+	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_12:
+		break;
+	default:
 		return -EOPNOTSUPP;
+	}
 
 	memcpy(rss_key, adapter->rss_key, sizeof(adapter->rss_key));
 
@@ -1079,11 +1095,16 @@ static int ixgbe_update_vf_xcast_mode(struct ixgbe_adapter *adapter,
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int xcast_mode = msgbuf[1];
-	u32 vmolr, disable, enable;
+	u32 vmolr, fctrl, disable, enable;
 
 	/* verify the PF is supporting the correct APIs */
 	switch (adapter->vfinfo[vf].vf_api) {
 	case ixgbe_mbox_api_12:
+		/* promisc introduced in 1.3 version */
+		if (xcast_mode == IXGBEVF_XCAST_MODE_PROMISC)
+			return -EOPNOTSUPP;
+		/* Fall threw */
+	case ixgbe_mbox_api_13:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1099,16 +1120,33 @@ static int ixgbe_update_vf_xcast_mode(struct ixgbe_adapter *adapter,
 
 	switch (xcast_mode) {
 	case IXGBEVF_XCAST_MODE_NONE:
-		disable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE | IXGBE_VMOLR_MPE;
+		disable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE |
+			  IXGBE_VMOLR_MPE | IXGBE_VMOLR_UPE | IXGBE_VMOLR_VPE;
 		enable = 0;
 		break;
 	case IXGBEVF_XCAST_MODE_MULTI:
-		disable = IXGBE_VMOLR_MPE;
+		disable = IXGBE_VMOLR_MPE | IXGBE_VMOLR_UPE | IXGBE_VMOLR_VPE;
 		enable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE;
 		break;
 	case IXGBEVF_XCAST_MODE_ALLMULTI:
-		disable = 0;
+		disable = IXGBE_VMOLR_UPE | IXGBE_VMOLR_VPE;
 		enable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE | IXGBE_VMOLR_MPE;
+		break;
+	case IXGBEVF_XCAST_MODE_PROMISC:
+		if (hw->mac.type <= ixgbe_mac_82599EB)
+			return -EOPNOTSUPP;
+
+		fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+		if (!(fctrl & IXGBE_FCTRL_UPE)) {
+			/* VF promisc requires PF in promisc */
+			e_warn(drv,
+			       "Enabling VF promisc requires PF in promisc\n");
+			return -EPERM;
+		}
+
+		disable = 0;
+		enable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE |
+			 IXGBE_VMOLR_MPE | IXGBE_VMOLR_UPE | IXGBE_VMOLR_VPE;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1354,13 +1392,16 @@ static int ixgbe_disable_port_vlan(struct ixgbe_adapter *adapter, int vf)
 	return err;
 }
 
-int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
+int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
+			  u8 qos, __be16 vlan_proto)
 {
 	int err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 	if ((vf >= adapter->num_vfs) || (vlan > 4095) || (qos > 7))
 		return -EINVAL;
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 	if (vlan || qos) {
 		/* Check if there is already a port VLAN set, if so
 		 * we have to delete the old one first before we

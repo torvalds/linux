@@ -767,7 +767,7 @@ static void xdr_set_next_page(struct xdr_stream *xdr)
 	newbase -= xdr->buf->page_base;
 
 	if (xdr_set_page_base(xdr, newbase, PAGE_SIZE) < 0)
-		xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
+		xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
 }
 
 static bool xdr_set_next_buffer(struct xdr_stream *xdr)
@@ -776,7 +776,7 @@ static bool xdr_set_next_buffer(struct xdr_stream *xdr)
 		xdr_set_next_page(xdr);
 	else if (xdr->iov == xdr->buf->head) {
 		if (xdr_set_page_base(xdr, 0, PAGE_SIZE) < 0)
-			xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
+			xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
 	}
 	return xdr->p != xdr->end;
 }
@@ -859,12 +859,15 @@ EXPORT_SYMBOL_GPL(xdr_set_scratch_buffer);
 static __be32 *xdr_copy_to_scratch(struct xdr_stream *xdr, size_t nbytes)
 {
 	__be32 *p;
-	void *cpdest = xdr->scratch.iov_base;
+	char *cpdest = xdr->scratch.iov_base;
 	size_t cplen = (char *)xdr->end - (char *)xdr->p;
 
 	if (nbytes > xdr->scratch.iov_len)
 		return NULL;
-	memcpy(cpdest, xdr->p, cplen);
+	p = __xdr_inline_decode(xdr, cplen);
+	if (p == NULL)
+		return NULL;
+	memcpy(cpdest, p, cplen);
 	cpdest += cplen;
 	nbytes -= cplen;
 	if (!xdr_set_next_buffer(xdr))
@@ -1515,3 +1518,37 @@ out:
 }
 EXPORT_SYMBOL_GPL(xdr_process_buf);
 
+/**
+ * xdr_stream_decode_string_dup - Decode and duplicate variable length string
+ * @xdr: pointer to xdr_stream
+ * @str: location to store pointer to string
+ * @maxlen: maximum acceptable string length
+ * @gfp_flags: GFP mask to use
+ *
+ * Return values:
+ *   On success, returns length of NUL-terminated string stored in *@ptr
+ *   %-EBADMSG on XDR buffer overflow
+ *   %-EMSGSIZE if the size of the string would exceed @maxlen
+ *   %-ENOMEM on memory allocation failure
+ */
+ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
+		size_t maxlen, gfp_t gfp_flags)
+{
+	void *p;
+	ssize_t ret;
+
+	ret = xdr_stream_decode_opaque_inline(xdr, &p, maxlen);
+	if (ret > 0) {
+		char *s = kmalloc(ret + 1, gfp_flags);
+		if (s != NULL) {
+			memcpy(s, p, ret);
+			s[ret] = '\0';
+			*str = s;
+			return strlen(s);
+		}
+		ret = -ENOMEM;
+	}
+	*str = NULL;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xdr_stream_decode_string_dup);

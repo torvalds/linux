@@ -32,6 +32,7 @@ struct route_info {
 #define RT6_LOOKUP_F_SRCPREF_TMP	0x00000008
 #define RT6_LOOKUP_F_SRCPREF_PUBLIC	0x00000010
 #define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
+#define RT6_LOOKUP_F_IGNORE_LINKSTATE	0x00000040
 
 /* We do not (yet ?) support IPv6 jumbograms (RFC 2675)
  * Unlike IPv4, hdr->seg_len doesn't include the IPv6 header
@@ -64,6 +65,9 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 }
 
 void ip6_route_input(struct sk_buff *skb);
+struct dst_entry *ip6_route_input_lookup(struct net *net,
+					 struct net_device *dev,
+					 struct flowi6 *fl6, int flags);
 
 struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 					 struct flowi6 *fl6, int flags);
@@ -136,9 +140,10 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 		  const struct in6_addr *gwaddr);
 
 void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu, int oif,
-		     u32 mark);
+		     u32 mark, kuid_t uid);
 void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu);
-void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
+void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
+		  kuid_t uid);
 void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
 			    u32 mark);
 void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);

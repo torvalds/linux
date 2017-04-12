@@ -273,6 +273,8 @@ static inline pgdval_t pgd_flags(pgd_t pgd)
 }
 
 #if CONFIG_PGTABLE_LEVELS > 3
+#include <asm-generic/5level-fixup.h>
+
 typedef struct { pudval_t pud; } pud_t;
 
 static inline pud_t native_make_pud(pmdval_t val)
@@ -285,6 +287,7 @@ static inline pudval_t native_pud_val(pud_t pud)
 	return pud.pud;
 }
 #else
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
 
 static inline pudval_t native_pud_val(pud_t pud)
@@ -306,6 +309,7 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 	return pmd.pmd;
 }
 #else
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 static inline pmdval_t native_pmd_val(pmd_t pmd)
@@ -439,8 +443,6 @@ extern pgprot_t pgprot_writethrough(pgprot_t prot);
 struct file;
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
                               unsigned long size, pgprot_t vma_prot);
-int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
-                              unsigned long size, pgprot_t *vma_prot);
 
 /* Install a pte for a particular vaddr in kernel space. */
 void set_pte_vaddr(unsigned long vaddr, pte_t pte);

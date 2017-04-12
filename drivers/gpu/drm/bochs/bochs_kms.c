@@ -178,7 +178,7 @@ static void bochs_encoder_init(struct drm_device *dev)
 }
 
 
-int bochs_connector_get_modes(struct drm_connector *connector)
+static int bochs_connector_get_modes(struct drm_connector *connector)
 {
 	int count;
 
@@ -216,12 +216,6 @@ bochs_connector_best_encoder(struct drm_connector *connector)
 	return NULL;
 }
 
-static enum drm_connector_status bochs_connector_detect(struct drm_connector
-							*connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static const struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
 	.get_modes = bochs_connector_get_modes,
 	.mode_valid = bochs_connector_mode_valid,
@@ -230,7 +224,6 @@ static const struct drm_connector_helper_funcs bochs_connector_connector_helper_
 
 static const struct drm_connector_funcs bochs_connector_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = bochs_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 };

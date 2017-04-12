@@ -23,12 +23,15 @@
 #include <linux/kvm_host.h>
 #include <linux/vmalloc.h>
 #include <linux/hrtimer.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/module.h>
+#include <linux/irqbypass.h>
+#include <linux/kvm_irqfd.h>
 #include <asm/cputable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/tlbflush.h>
 #include <asm/cputhreads.h>
@@ -436,6 +439,16 @@ err_out:
 	return -EINVAL;
 }
 
+bool kvm_arch_has_vcpu_debugfs(void)
+{
+	return false;
+}
+
+int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	unsigned int i;
@@ -499,6 +512,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
+	case KVM_CAP_IMMEDIATE_EXIT:
 		r = 1;
 		break;
 	case KVM_CAP_PPC_PAIRED_SINGLES:
@@ -524,7 +538,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CAP_SPAPR_TCE:
 	case KVM_CAP_SPAPR_TCE_64:
-	case KVM_CAP_PPC_ALLOC_HTAB:
 	case KVM_CAP_PPC_RTAS:
 	case KVM_CAP_PPC_FIXUP_HCALL:
 	case KVM_CAP_PPC_ENABLE_HCALL:
@@ -533,19 +546,33 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #endif
 		r = 1;
 		break;
+
+	case KVM_CAP_PPC_ALLOC_HTAB:
+		r = hv_enabled;
+		break;
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
-		if (hv_enabled)
-			r = threads_per_subcore;
-		else
-			r = 0;
+		r = 0;
+		if (hv_enabled) {
+			if (cpu_has_feature(CPU_FTR_ARCH_300))
+				r = 1;
+			else
+				r = threads_per_subcore;
+		}
 		break;
 	case KVM_CAP_PPC_RMA:
 		r = 0;
 		break;
 	case KVM_CAP_PPC_HWRNG:
 		r = kvmppc_hwrng_present();
+		break;
+	case KVM_CAP_PPC_MMU_RADIX:
+		r = !!(hv_enabled && radix_enabled());
+		break;
+	case KVM_CAP_PPC_MMU_HASH_V3:
+		r = !!(hv_enabled && !radix_enabled() &&
+		       cpu_has_feature(CPU_FTR_ARCH_300));
 		break;
 #endif
 	case KVM_CAP_SYNC_MMU:
@@ -586,6 +613,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_SPAPR_MULTITCE:
 		r = 1;
+		break;
+	case KVM_CAP_SPAPR_RESIZE_HPT:
+		/* Disable this on POWER9 until code handles new HPTE format */
+		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
 		break;
 #endif
 	case KVM_CAP_PPC_HTM:
@@ -737,6 +768,42 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_BOOKE
 	vcpu->arch.vrsave = mfspr(SPRN_VRSAVE);
 #endif
+}
+
+/*
+ * irq_bypass_add_producer and irq_bypass_del_producer are only
+ * useful if the architecture supports PCI passthrough.
+ * irq_bypass_stop and irq_bypass_start are not needed and so
+ * kvm_ops are not defined for them.
+ */
+bool kvm_arch_has_irq_bypass(void)
+{
+	return ((kvmppc_hv_ops && kvmppc_hv_ops->irq_bypass_add_producer) ||
+		(kvmppc_pr_ops && kvmppc_pr_ops->irq_bypass_add_producer));
+}
+
+int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
+				     struct irq_bypass_producer *prod)
+{
+	struct kvm_kernel_irqfd *irqfd =
+		container_of(cons, struct kvm_kernel_irqfd, consumer);
+	struct kvm *kvm = irqfd->kvm;
+
+	if (kvm->arch.kvm_ops->irq_bypass_add_producer)
+		return kvm->arch.kvm_ops->irq_bypass_add_producer(cons, prod);
+
+	return 0;
+}
+
+void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
+				      struct irq_bypass_producer *prod)
+{
+	struct kvm_kernel_irqfd *irqfd =
+		container_of(cons, struct kvm_kernel_irqfd, consumer);
+	struct kvm *kvm = irqfd->kvm;
+
+	if (kvm->arch.kvm_ops->irq_bypass_del_producer)
+		kvm->arch.kvm_ops->irq_bypass_del_producer(cons, prod);
 }
 
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
@@ -1053,7 +1120,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 #endif
 	}
 
-	r = kvmppc_vcpu_run(run, vcpu);
+	if (run->immediate_exit)
+		r = -EINTR;
+	else
+		r = kvmppc_vcpu_run(run, vcpu);
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
@@ -1165,6 +1235,19 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = kvmppc_sanity_check(vcpu);
 
 	return r;
+}
+
+bool kvm_arch_intc_initialized(struct kvm *kvm)
+{
+#ifdef CONFIG_KVM_MPIC
+	if (kvm->arch.mpic)
+		return true;
+#endif
+#ifdef CONFIG_KVM_XICS
+	if (kvm->arch.xics)
+		return true;
+#endif
+	return false;
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
@@ -1399,6 +1482,31 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		struct kvm *kvm = filp->private_data;
 
 		r = kvm_vm_ioctl_rtas_define_token(kvm, argp);
+		break;
+	}
+	case KVM_PPC_CONFIGURE_V3_MMU: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_ppc_mmuv3_cfg cfg;
+
+		r = -EINVAL;
+		if (!kvm->arch.kvm_ops->configure_mmu)
+			goto out;
+		r = -EFAULT;
+		if (copy_from_user(&cfg, argp, sizeof(cfg)))
+			goto out;
+		r = kvm->arch.kvm_ops->configure_mmu(kvm, &cfg);
+		break;
+	}
+	case KVM_PPC_GET_RMMU_INFO: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_ppc_rmmu_info info;
+
+		r = -EINVAL;
+		if (!kvm->arch.kvm_ops->get_rmmu_info)
+			goto out;
+		r = kvm->arch.kvm_ops->get_rmmu_info(kvm, &info);
+		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
+			r = -EFAULT;
 		break;
 	}
 	default: {

@@ -207,6 +207,7 @@ enum cxgbi_skcb_flags {
 	SKCBF_RX_HDR,		/* received pdu header */
 	SKCBF_RX_DATA,		/* received pdu payload */
 	SKCBF_RX_STATUS,	/* received ddp status */
+	SKCBF_RX_ISCSI_COMPL,   /* received iscsi completion */
 	SKCBF_RX_DATA_DDPD,	/* pdu payload ddp'd */
 	SKCBF_RX_HCRC_ERR,	/* header digest error */
 	SKCBF_RX_DCRC_ERR,	/* data digest error */
@@ -300,7 +301,7 @@ static inline void __cxgbi_sock_put(const char *fn, struct cxgbi_sock *csk)
 {
 	log_debug(1 << CXGBI_DBG_SOCK,
 		"%s, put csk 0x%p, ref %u-1.\n",
-		fn, csk, atomic_read(&csk->refcnt.refcount));
+		fn, csk, kref_read(&csk->refcnt));
 	kref_put(&csk->refcnt, cxgbi_sock_free);
 }
 #define cxgbi_sock_put(csk)	__cxgbi_sock_put(__func__, csk)
@@ -309,7 +310,7 @@ static inline void __cxgbi_sock_get(const char *fn, struct cxgbi_sock *csk)
 {
 	log_debug(1 << CXGBI_DBG_SOCK,
 		"%s, get csk 0x%p, ref %u+1.\n",
-		fn, csk, atomic_read(&csk->refcnt.refcount));
+		fn, csk, kref_read(&csk->refcnt));
 	kref_get(&csk->refcnt);
 }
 #define cxgbi_sock_get(csk)	__cxgbi_sock_get(__func__, csk)
@@ -467,6 +468,7 @@ struct cxgbi_device {
 	struct pci_dev *pdev;
 	struct dentry *debugfs_root;
 	struct iscsi_transport *itp;
+	struct module *owner;
 
 	unsigned int pfvf;
 	unsigned int rx_credit_thres;

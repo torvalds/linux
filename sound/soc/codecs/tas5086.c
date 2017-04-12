@@ -387,7 +387,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 	val = index_in_array(tas5086_ratios, ARRAY_SIZE(tas5086_ratios),
 			     priv->mclk / priv->rate);
 	if (val < 0) {
-		dev_err(codec->dev, "Inavlid MCLK / Fs ratio\n");
+		dev_err(codec->dev, "Invalid MCLK / Fs ratio\n");
 		return -EINVAL;
 	}
 
@@ -890,12 +890,14 @@ static struct snd_soc_codec_driver soc_codec_dev_tas5086 = {
 	.remove			= tas5086_remove,
 	.suspend		= tas5086_soc_suspend,
 	.resume			= tas5086_soc_resume,
-	.controls		= tas5086_controls,
-	.num_controls		= ARRAY_SIZE(tas5086_controls),
-	.dapm_widgets		= tas5086_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(tas5086_dapm_widgets),
-	.dapm_routes		= tas5086_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(tas5086_dapm_routes),
+	.component_driver = {
+		.controls		= tas5086_controls,
+		.num_controls		= ARRAY_SIZE(tas5086_controls),
+		.dapm_widgets		= tas5086_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tas5086_dapm_widgets),
+		.dapm_routes		= tas5086_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(tas5086_dapm_routes),
+	},
 };
 
 static const struct i2c_device_id tas5086_i2c_id[] = {

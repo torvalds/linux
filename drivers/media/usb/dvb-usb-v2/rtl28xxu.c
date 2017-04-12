@@ -1631,22 +1631,27 @@ static int rtl2831u_rc_query(struct dvb_usb_device *d)
 		goto err;
 
 	if (buf[4] & 0x01) {
+		enum rc_type proto;
+
 		if (buf[2] == (u8) ~buf[3]) {
 			if (buf[0] == (u8) ~buf[1]) {
 				/* NEC standard (16 bit) */
 				rc_code = RC_SCANCODE_NEC(buf[0], buf[2]);
+				proto = RC_TYPE_NEC;
 			} else {
 				/* NEC extended (24 bit) */
 				rc_code = RC_SCANCODE_NECX(buf[0] << 8 | buf[1],
 							   buf[2]);
+				proto = RC_TYPE_NECX;
 			}
 		} else {
 			/* NEC full (32 bit) */
 			rc_code = RC_SCANCODE_NEC32(buf[0] << 24 | buf[1] << 16 |
 						    buf[2] << 8  | buf[3]);
+			proto = RC_TYPE_NEC32;
 		}
 
-		rc_keydown(d->rc_dev, RC_TYPE_NEC, rc_code, 0);
+		rc_keydown(d->rc_dev, proto, rc_code, 0);
 
 		ret = rtl28xxu_wr_reg(d, SYS_IRRC_SR, 1);
 		if (ret)
@@ -1668,7 +1673,7 @@ static int rtl2831u_get_rc_config(struct dvb_usb_device *d,
 		struct dvb_usb_rc *rc)
 {
 	rc->map_name = RC_MAP_EMPTY;
-	rc->allowed_protos = RC_BIT_NEC;
+	rc->allowed_protos = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32;
 	rc->query = rtl2831u_rc_query;
 	rc->interval = 400;
 
@@ -1773,7 +1778,7 @@ static int rtl2832u_get_rc_config(struct dvb_usb_device *d,
 	/* load empty to enable rc */
 	if (!rc->map_name)
 		rc->map_name = RC_MAP_EMPTY;
-	rc->allowed_protos = RC_BIT_ALL;
+	rc->allowed_protos = RC_BIT_ALL_IR_DECODER;
 	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->query = rtl2832u_rc_query;
 	rc->interval = 200;

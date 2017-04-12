@@ -93,7 +93,7 @@
 
 &ir0_rx_pins_a {
 	/* The ir receiver is not always populated */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &mmc0 {

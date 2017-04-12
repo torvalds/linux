@@ -9,35 +9,25 @@
  * or implied.
  *
  */
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/smp.h>
-#include <linux/init.h>
-#include <linux/sysctl.h>
-#include <linux/highmem.h>
-#include <linux/timer.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/ctype.h>
-#include <linux/workqueue.h>
-#include <asm/uaccess.h>
 #include <asm/page.h>
+#include <linux/uaccess.h>
+#include <linux/ctype.h>
+#include <linux/highmem.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/spinlock.h>
+#include <linux/sysctl.h>
+#include <linux/timer.h>
 
-#include "edac_core.h"
+#include "edac_pci.h"
 #include "edac_module.h"
 
 static DEFINE_MUTEX(edac_pci_ctls_mutex);
 static LIST_HEAD(edac_pci_list);
 static atomic_t pci_indexes = ATOMIC_INIT(0);
 
-/*
- * edac_pci_alloc_ctl_info
- *
- *	The alloc() function for the 'edac_pci' control info
- *	structure. The chip driver will allocate one of these for each
- *	edac_pci it is going to control/register with the EDAC CORE.
- */
 struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 						const char *edac_pci_name)
 {
@@ -68,16 +58,6 @@ struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 }
 EXPORT_SYMBOL_GPL(edac_pci_alloc_ctl_info);
 
-/*
- * edac_pci_free_ctl_info()
- *
- *	Last action on the pci control structure.
- *
- *	call the remove sysfs information, which will unregister
- *	this control struct's kobj. When that kobj's ref count
- *	goes to zero, its release function will be call and then
- *	kfree() the memory.
- */
 void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci)
 {
 	edac_dbg(1, "\n");
@@ -215,31 +195,12 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 	mutex_unlock(&edac_pci_ctls_mutex);
 }
 
-/*
- * edac_pci_alloc_index: Allocate a unique PCI index number
- *
- * Return:
- *      allocated index number
- *
- */
 int edac_pci_alloc_index(void)
 {
 	return atomic_inc_return(&pci_indexes) - 1;
 }
 EXPORT_SYMBOL_GPL(edac_pci_alloc_index);
 
-/*
- * edac_pci_add_device: Insert the 'edac_dev' structure into the
- * edac_pci global list and create sysfs entries associated with
- * edac_pci structure.
- * @pci: pointer to the edac_device structure to be added to the list
- * @edac_idx: A unique numeric identifier to be assigned to the
- * 'edac_pci' structure.
- *
- * Return:
- *      0       Success
- *      !0      Failure
- */
 int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 {
 	edac_dbg(0, "\n");
@@ -285,19 +246,6 @@ fail0:
 }
 EXPORT_SYMBOL_GPL(edac_pci_add_device);
 
-/*
- * edac_pci_del_device()
- * 	Remove sysfs entries for specified edac_pci structure and
- * 	then remove edac_pci structure from global list
- *
- * @dev:
- * 	Pointer to 'struct device' representing edac_pci structure
- * 	to remove
- *
- * Return:
- * 	Pointer to removed edac_pci structure,
- * 	or NULL if device not found
- */
 struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 {
 	struct edac_pci_ctl_info *pci;
@@ -351,17 +299,6 @@ struct edac_pci_gen_data {
 	int edac_idx;
 };
 
-/*
- * edac_pci_create_generic_ctl
- *
- *	A generic constructor for a PCI parity polling device
- *	Some systems have more than one domain of PCI busses.
- *	For systems with one domain, then this API will
- *	provide for a generic poller.
- *
- *	This routine calls the edac_pci_alloc_ctl_info() for
- *	the generic device, with default values
- */
 struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
 						const char *mod_name)
 {
@@ -394,11 +331,6 @@ struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(edac_pci_create_generic_ctl);
 
-/*
- * edac_pci_release_generic_ctl
- *
- *	The release function of a generic EDAC PCI polling device
- */
 void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci)
 {
 	edac_dbg(0, "pci mod=%s\n", pci->mod_name);

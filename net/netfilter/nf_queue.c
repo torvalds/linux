@@ -96,25 +96,19 @@ void nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 }
 EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);
 
-void nf_queue_nf_hook_drop(struct net *net, struct nf_hook_ops *ops)
+void nf_queue_nf_hook_drop(struct net *net, const struct nf_hook_entry *entry)
 {
 	const struct nf_queue_handler *qh;
 
 	rcu_read_lock();
 	qh = rcu_dereference(net->nf.queue_handler);
 	if (qh)
-		qh->nf_hook_drop(net, ops);
+		qh->nf_hook_drop(net, entry);
 	rcu_read_unlock();
 }
 
-/*
- * Any packet that leaves via this function must come back
- * through nf_reinject().
- */
-int nf_queue(struct sk_buff *skb,
-	     struct nf_hook_ops *elem,
-	     struct nf_hook_state *state,
-	     unsigned int queuenum)
+static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
+		      struct nf_hook_entry *hook_entry, unsigned int queuenum)
 {
 	int status = -ENOENT;
 	struct nf_queue_entry *entry = NULL;
@@ -141,8 +135,8 @@ int nf_queue(struct sk_buff *skb,
 
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
-		.elem	= elem,
 		.state	= *state,
+		.hook	= hook_entry,
 		.size	= sizeof(*entry) + afinfo->route_key_size,
 	};
 
@@ -163,10 +157,50 @@ err:
 	return status;
 }
 
+/* Packets leaving via this function must come back through nf_reinject(). */
+int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
+	     struct nf_hook_entry **entryp, unsigned int verdict)
+{
+	struct nf_hook_entry *entry = *entryp;
+	int ret;
+
+	ret = __nf_queue(skb, state, entry, verdict >> NF_VERDICT_QBITS);
+	if (ret < 0) {
+		if (ret == -ESRCH &&
+		    (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS)) {
+			*entryp = rcu_dereference(entry->next);
+			return 1;
+		}
+		kfree_skb(skb);
+	}
+
+	return 0;
+}
+
+static unsigned int nf_iterate(struct sk_buff *skb,
+			       struct nf_hook_state *state,
+			       struct nf_hook_entry **entryp)
+{
+	unsigned int verdict;
+
+	do {
+repeat:
+		verdict = nf_hook_entry_hookfn((*entryp), skb, state);
+		if (verdict != NF_ACCEPT) {
+			if (verdict != NF_REPEAT)
+				return verdict;
+			goto repeat;
+		}
+		*entryp = rcu_dereference((*entryp)->next);
+	} while (*entryp);
+
+	return NF_ACCEPT;
+}
+
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
+	struct nf_hook_entry *hook_entry = entry->hook;
 	struct sk_buff *skb = entry->skb;
-	struct nf_hook_ops *elem = entry->elem;
 	const struct nf_afinfo *afinfo;
 	int err;
 
@@ -174,7 +208,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 
 	/* Continue traversal iff userspace said ok... */
 	if (verdict == NF_REPEAT)
-		verdict = elem->hook(elem->priv, skb, &entry->state);
+		verdict = nf_hook_entry_hookfn(hook_entry, skb, &entry->state);
 
 	if (verdict == NF_ACCEPT) {
 		afinfo = nf_get_afinfo(entry->state.pf);
@@ -182,29 +216,27 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 			verdict = NF_DROP;
 	}
 
-	entry->state.thresh = INT_MIN;
-
 	if (verdict == NF_ACCEPT) {
-	next_hook:
-		verdict = nf_iterate(entry->state.hook_list,
-				     skb, &entry->state, &elem);
+		hook_entry = rcu_dereference(hook_entry->next);
+		if (hook_entry)
+next_hook:
+			verdict = nf_iterate(skb, &entry->state, &hook_entry);
 	}
 
 	switch (verdict & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
 	case NF_STOP:
+okfn:
 		local_bh_disable();
 		entry->state.okfn(entry->state.net, entry->state.sk, skb);
 		local_bh_enable();
 		break;
 	case NF_QUEUE:
-		err = nf_queue(skb, elem, &entry->state,
-			       verdict >> NF_VERDICT_QBITS);
-		if (err < 0) {
-			if (err == -ESRCH &&
-			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
+		err = nf_queue(skb, &entry->state, &hook_entry, verdict);
+		if (err == 1) {
+			if (hook_entry)
 				goto next_hook;
-			kfree_skb(skb);
+			goto okfn;
 		}
 		break;
 	case NF_STOLEN:

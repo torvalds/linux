@@ -15,7 +15,8 @@ NET_ADD_IF - Creates a new network interface for a given Packet ID.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_net_if *net_if )
+.. c:function:: int ioctl( int fd, NET_ADD_IF, struct dvb_net_if *net_if )
+    :name: NET_ADD_IF
 
 
 Arguments
@@ -24,11 +25,8 @@ Arguments
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
-``request``
-    FE_SET_TONE
-
 ``net_if``
-    pointer to struct :ref:`dvb_net_if <dvb-net-if>`
+    pointer to struct :c:type:`dvb_net_if`
 
 
 Description
@@ -40,16 +38,10 @@ ULE) and the interface number for the new interface to be created. When
 the system call successfully returns, a new virtual network interface is
 created.
 
-The struct :ref:`dvb_net_if <dvb-net-if>`::ifnum field will be
+The struct :c:type:`dvb_net_if`::ifnum field will be
 filled with the number of the created interface.
 
-
-.. _dvb-net-if-t:
-
-struct dvb_net_if description
-=============================
-
-.. _dvb-net-if:
+.. c:type:: dvb_net_if
 
 .. flat-table:: struct dvb_net_if
     :header-rows:  1

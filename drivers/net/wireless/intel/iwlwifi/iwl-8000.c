@@ -70,11 +70,11 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL8000_UCODE_API_MAX	24
-#define IWL8265_UCODE_API_MAX	24
+#define IWL8000_UCODE_API_MAX	28
+#define IWL8265_UCODE_API_MAX	28
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	16
+#define IWL8000_UCODE_API_MIN	17
 #define IWL8265_UCODE_API_MIN	20
 
 /* NVM versions */
@@ -91,7 +91,7 @@
 
 #define IWL8000_FW_PRE "iwlwifi-8000C-"
 #define IWL8000_MODULE_FIRMWARE(api) \
-	IWL8000_FW_PRE "-" __stringify(api) ".ucode"
+	IWL8000_FW_PRE __stringify(api) ".ucode"
 
 #define IWL8265_FW_PRE "iwlwifi-8265-"
 #define IWL8265_MODULE_FIRMWARE(api) \
@@ -203,6 +203,17 @@ const struct iwl_cfg iwl8260_2ac_cfg = {
 
 const struct iwl_cfg iwl8265_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 8265",
+	.fw_name_pre = IWL8265_FW_PRE,
+	IWL_DEVICE_8265,
+	.ht_params = &iwl8000_ht_params,
+	.nvm_ver = IWL8000_NVM_VERSION,
+	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+	.vht_mu_mimo_supported = true,
+};
+
+const struct iwl_cfg iwl8275_2ac_cfg = {
+	.name = "Intel(R) Dual Band Wireless AC 8275",
 	.fw_name_pre = IWL8265_FW_PRE,
 	IWL_DEVICE_8265,
 	.ht_params = &iwl8000_ht_params,

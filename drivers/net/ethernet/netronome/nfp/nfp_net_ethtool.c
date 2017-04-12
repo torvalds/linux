@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -47,8 +47,13 @@
 #include <linux/pci.h>
 #include <linux/ethtool.h>
 
+#include "nfpcore/nfp.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
+
+enum nfp_dump_diag {
+	NFP_DUMP_NSP_DIAG = 0,
+};
 
 /* Support for stats. Returns netdev, driver, and device stats */
 enum { NETDEV_ET_STATS, NFP_NET_DRV_ET_STATS, NFP_NET_DEV_ET_STATS };
@@ -106,6 +111,18 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 	{"dev_tx_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_FRAMES)},
 	{"dev_tx_mc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_MC_FRAMES)},
 	{"dev_tx_bc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_BC_FRAMES)},
+
+	{"bpf_pass_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_FRAMES)},
+	{"bpf_pass_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_BYTES)},
+	/* see comments in outro functions in nfp_bpf_jit.c to find out
+	 * how different BPF modes use app-specific counters
+	 */
+	{"bpf_app1_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_FRAMES)},
+	{"bpf_app1_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_BYTES)},
+	{"bpf_app2_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_FRAMES)},
+	{"bpf_app2_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_BYTES)},
+	{"bpf_app3_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_FRAMES)},
+	{"bpf_app3_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_BYTES)},
 };
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
@@ -115,19 +132,39 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 #define NN_ET_STATS_LEN (NN_ET_GLOBAL_STATS_LEN + NN_ET_RVEC_GATHER_STATS + \
 			 NN_ET_RVEC_STATS_LEN + NN_ET_QUEUE_STATS_LEN)
 
+static void nfp_net_get_nspinfo(struct nfp_net *nn, char *version)
+{
+	struct nfp_nsp *nsp;
+
+	if (!nn->cpp)
+		return;
+
+	nsp = nfp_nsp_open(nn->cpp);
+	if (IS_ERR(nsp))
+		return;
+
+	snprintf(version, ETHTOOL_FWVERS_LEN, "sp:%hu.%hu",
+		 nfp_nsp_get_abi_ver_major(nsp),
+		 nfp_nsp_get_abi_ver_minor(nsp));
+
+	nfp_nsp_close(nsp);
+}
+
 static void nfp_net_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)
 {
+	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, nfp_net_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, nfp_net_driver_version,
-		sizeof(drvinfo->version));
+	strlcpy(drvinfo->driver, nn->pdev->driver->name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
 
+	nfp_net_get_nspinfo(nn, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%d.%d",
+		 "%d.%d.%d.%d %s",
 		 nn->fw_ver.resv, nn->fw_ver.class,
-		 nn->fw_ver.major, nn->fw_ver.minor);
+		 nn->fw_ver.major, nn->fw_ver.minor, nsp_version);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
@@ -144,6 +181,28 @@ static void nfp_net_get_ringparam(struct net_device *netdev,
 	ring->tx_max_pending = NFP_NET_MAX_TX_DESCS;
 	ring->rx_pending = nn->rxd_cnt;
 	ring->tx_pending = nn->txd_cnt;
+}
+
+static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
+{
+	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
+	struct nfp_net_ring_set rx = {
+		.n_rings = nn->num_rx_rings,
+		.mtu = nn->netdev->mtu,
+		.dcnt = rxd_cnt,
+	};
+	struct nfp_net_ring_set tx = {
+		.n_rings = nn->num_tx_rings,
+		.dcnt = txd_cnt,
+	};
+
+	if (nn->rxd_cnt != rxd_cnt)
+		reconfig_rx = &rx;
+	if (nn->txd_cnt != txd_cnt)
+		reconfig_tx = &tx;
+
+	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
+				     reconfig_rx, reconfig_tx);
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
@@ -524,6 +583,75 @@ static int nfp_net_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+/* Other debug dumps
+ */
+static int
+nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
+{
+	struct nfp_resource *res;
+	int ret;
+
+	if (!nn->cpp)
+		return -EOPNOTSUPP;
+
+	dump->version = 1;
+	dump->flag = NFP_DUMP_NSP_DIAG;
+
+	res = nfp_resource_acquire(nn->cpp, NFP_RESOURCE_NSP_DIAG);
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+
+	if (buffer) {
+		if (dump->len != nfp_resource_size(res)) {
+			ret = -EINVAL;
+			goto exit_release;
+		}
+
+		ret = nfp_cpp_read(nn->cpp, nfp_resource_cpp_id(res),
+				   nfp_resource_address(res),
+				   buffer, dump->len);
+		if (ret != dump->len)
+			ret = ret < 0 ? ret : -EIO;
+		else
+			ret = 0;
+	} else {
+		dump->len = nfp_resource_size(res);
+		ret = 0;
+	}
+exit_release:
+	nfp_resource_release(res);
+
+	return ret;
+}
+
+static int nfp_net_set_dump(struct net_device *netdev, struct ethtool_dump *val)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (!nn->cpp)
+		return -EOPNOTSUPP;
+
+	if (val->flag != NFP_DUMP_NSP_DIAG)
+		return -EINVAL;
+
+	nn->ethtool_dump_flag = val->flag;
+
+	return 0;
+}
+
+static int
+nfp_net_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, NULL);
+}
+
+static int
+nfp_net_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
+		      void *buffer)
+{
+	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, buffer);
+}
+
 static int nfp_net_set_coalesce(struct net_device *netdev,
 				struct ethtool_coalesce *ec)
 {
@@ -602,6 +730,76 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	return nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_IRQMOD);
 }
 
+static void nfp_net_get_channels(struct net_device *netdev,
+				 struct ethtool_channels *channel)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	unsigned int num_tx_rings;
+
+	num_tx_rings = nn->num_tx_rings;
+	if (nn->xdp_prog)
+		num_tx_rings -= nn->num_rx_rings;
+
+	channel->max_rx = min(nn->max_rx_rings, nn->max_r_vecs);
+	channel->max_tx = min(nn->max_tx_rings, nn->max_r_vecs);
+	channel->max_combined = min(channel->max_rx, channel->max_tx);
+	channel->max_other = NFP_NET_NON_Q_VECTORS;
+	channel->combined_count = min(nn->num_rx_rings, num_tx_rings);
+	channel->rx_count = nn->num_rx_rings - channel->combined_count;
+	channel->tx_count = num_tx_rings - channel->combined_count;
+	channel->other_count = NFP_NET_NON_Q_VECTORS;
+}
+
+static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
+				 unsigned int total_tx)
+{
+	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
+	struct nfp_net_ring_set rx = {
+		.n_rings = total_rx,
+		.mtu = nn->netdev->mtu,
+		.dcnt = nn->rxd_cnt,
+	};
+	struct nfp_net_ring_set tx = {
+		.n_rings = total_tx,
+		.dcnt = nn->txd_cnt,
+	};
+
+	if (nn->num_rx_rings != total_rx)
+		reconfig_rx = &rx;
+	if (nn->num_stack_tx_rings != total_tx ||
+	    (nn->xdp_prog && reconfig_rx))
+		reconfig_tx = &tx;
+
+	/* nfp_net_check_config() will catch tx.n_rings > nn->max_tx_rings */
+	if (nn->xdp_prog)
+		tx.n_rings += total_rx;
+
+	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
+				     reconfig_rx, reconfig_tx);
+}
+
+static int nfp_net_set_channels(struct net_device *netdev,
+				struct ethtool_channels *channel)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	unsigned int total_rx, total_tx;
+
+	/* Reject unsupported */
+	if (!channel->combined_count ||
+	    channel->other_count != NFP_NET_NON_Q_VECTORS ||
+	    (channel->rx_count && channel->tx_count))
+		return -EINVAL;
+
+	total_rx = channel->combined_count + channel->rx_count;
+	total_tx = channel->combined_count + channel->tx_count;
+
+	if (total_rx > min(nn->max_rx_rings, nn->max_r_vecs) ||
+	    total_tx > min(nn->max_tx_rings, nn->max_r_vecs))
+		return -EINVAL;
+
+	return nfp_net_set_num_rings(nn, total_rx, total_tx);
+}
+
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_drvinfo		= nfp_net_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -618,8 +816,13 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_rxfh		= nfp_net_set_rxfh,
 	.get_regs_len		= nfp_net_get_regs_len,
 	.get_regs		= nfp_net_get_regs,
+	.set_dump		= nfp_net_set_dump,
+	.get_dump_flag		= nfp_net_get_dump_flag,
+	.get_dump_data		= nfp_net_get_dump_data,
 	.get_coalesce           = nfp_net_get_coalesce,
 	.set_coalesce           = nfp_net_set_coalesce,
+	.get_channels		= nfp_net_get_channels,
+	.set_channels		= nfp_net_set_channels,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)

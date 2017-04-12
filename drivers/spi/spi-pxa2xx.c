@@ -28,6 +28,7 @@
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
@@ -60,6 +61,13 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 				| QUARK_X1000_SSCR1_EFWR	\
 				| QUARK_X1000_SSCR1_RFT		\
 				| QUARK_X1000_SSCR1_TFT		\
+				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
+
+#define CE4100_SSCR1_CHANGE_MASK (SSCR1_TTELP | SSCR1_TTE | SSCR1_SCFR \
+				| SSCR1_ECRA | SSCR1_ECRB | SSCR1_SCLKDIR \
+				| SSCR1_SFRMDIR | SSCR1_RWOT | SSCR1_TRAIL \
+				| SSCR1_IFS | SSCR1_STRF | SSCR1_EFWR \
+				| CE4100_SSCR1_RFT | CE4100_SSCR1_TFT | SSCR1_MWDS \
 				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
 
 #define LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE	BIT(24)
@@ -175,6 +183,8 @@ static u32 pxa2xx_spi_get_ssrc1_change_mask(const struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		return QUARK_X1000_SSCR1_CHANGE_MASK;
+	case CE4100_SSP:
+		return CE4100_SSCR1_CHANGE_MASK;
 	default:
 		return SSCR1_CHANGE_MASK;
 	}
@@ -186,6 +196,8 @@ pxa2xx_spi_get_rx_default_thre(const struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		return RX_THRESH_QUARK_X1000_DFLT;
+	case CE4100_SSP:
+		return RX_THRESH_CE4100_DFLT;
 	default:
 		return RX_THRESH_DFLT;
 	}
@@ -198,6 +210,9 @@ static bool pxa2xx_spi_txfifo_full(const struct driver_data *drv_data)
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		mask = QUARK_X1000_SSSR_TFL_MASK;
+		break;
+	case CE4100_SSP:
+		mask = CE4100_SSSR_TFL_MASK;
 		break;
 	default:
 		mask = SSSR_TFL_MASK;
@@ -216,6 +231,9 @@ static void pxa2xx_spi_clear_rx_thre(const struct driver_data *drv_data,
 	case QUARK_X1000_SSP:
 		mask = QUARK_X1000_SSCR1_RFT;
 		break;
+	case CE4100_SSP:
+		mask = CE4100_SSCR1_RFT;
+		break;
 	default:
 		mask = SSCR1_RFT;
 		break;
@@ -229,6 +247,9 @@ static void pxa2xx_spi_set_rx_thre(const struct driver_data *drv_data,
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		*sccr1_reg |= QUARK_X1000_SSCR1_RxTresh(threshold);
+		break;
+	case CE4100_SSP:
+		*sccr1_reg |= CE4100_SSCR1_RxTresh(threshold);
 		break;
 	default:
 		*sccr1_reg |= SSCR1_RxTresh(threshold);
@@ -316,7 +337,7 @@ static void lpss_ssp_select_cs(struct driver_data *drv_data,
 
 	value = __lpss_ssp_read_priv(drv_data, config->reg_cs_ctrl);
 
-	cs = drv_data->cur_msg->spi->chip_select;
+	cs = drv_data->master->cur_msg->spi->chip_select;
 	cs <<= config->cs_sel_shift;
 	if (cs != (value & config->cs_sel_mask)) {
 		/*
@@ -355,10 +376,11 @@ static void lpss_ssp_cs_control(struct driver_data *drv_data, bool enable)
 
 static void cs_assert(struct driver_data *drv_data)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 
 	if (drv_data->ssp_type == CE4100_SSP) {
-		pxa2xx_spi_write(drv_data, SSSR, drv_data->cur_chip->frm);
+		pxa2xx_spi_write(drv_data, SSSR, chip->frm);
 		return;
 	}
 
@@ -378,7 +400,8 @@ static void cs_assert(struct driver_data *drv_data)
 
 static void cs_deassert(struct driver_data *drv_data)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 
 	if (drv_data->ssp_type == CE4100_SSP)
 		return;
@@ -508,7 +531,7 @@ static int u32_reader(struct driver_data *drv_data)
 
 void *pxa2xx_spi_next_transfer(struct driver_data *drv_data)
 {
-	struct spi_message *msg = drv_data->cur_msg;
+	struct spi_message *msg = drv_data->master->cur_msg;
 	struct spi_transfer *trans = drv_data->cur_transfer;
 
 	/* Move to next transfer */
@@ -529,8 +552,7 @@ static void giveback(struct driver_data *drv_data)
 	struct spi_message *msg;
 	unsigned long timeout;
 
-	msg = drv_data->cur_msg;
-	drv_data->cur_msg = NULL;
+	msg = drv_data->master->cur_msg;
 	drv_data->cur_transfer = NULL;
 
 	last_transfer = list_last_entry(&msg->transfers, struct spi_transfer,
@@ -575,19 +597,22 @@ static void giveback(struct driver_data *drv_data)
 			cs_deassert(drv_data);
 	}
 
-	drv_data->cur_chip = NULL;
 	spi_finalize_current_message(drv_data->master);
 }
 
 static void reset_sccr1(struct driver_data *drv_data)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 	u32 sccr1_reg;
 
 	sccr1_reg = pxa2xx_spi_read(drv_data, SSCR1) & ~drv_data->int_cr1;
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		sccr1_reg &= ~QUARK_X1000_SSCR1_RFT;
+		break;
+	case CE4100_SSP:
+		sccr1_reg &= ~CE4100_SSCR1_RFT;
 		break;
 	default:
 		sccr1_reg &= ~SSCR1_RFT;
@@ -610,7 +635,7 @@ static void int_error_stop(struct driver_data *drv_data, const char* msg)
 
 	dev_err(&drv_data->pdev->dev, "%s\n", msg);
 
-	drv_data->cur_msg->state = ERROR_STATE;
+	drv_data->master->cur_msg->state = ERROR_STATE;
 	tasklet_schedule(&drv_data->pump_transfers);
 }
 
@@ -623,7 +648,7 @@ static void int_transfer_complete(struct driver_data *drv_data)
 		pxa2xx_spi_write(drv_data, SSTO, 0);
 
 	/* Update total byte transferred return count actual bytes read */
-	drv_data->cur_msg->actual_length += drv_data->len -
+	drv_data->master->cur_msg->actual_length += drv_data->len -
 				(drv_data->rx_end - drv_data->rx);
 
 	/* Transfer delays and chip select release are
@@ -631,7 +656,7 @@ static void int_transfer_complete(struct driver_data *drv_data)
 	 */
 
 	/* Move to next transfer */
-	drv_data->cur_msg->state = pxa2xx_spi_next_transfer(drv_data);
+	drv_data->master->cur_msg->state = pxa2xx_spi_next_transfer(drv_data);
 
 	/* Schedule transfer tasklet */
 	tasklet_schedule(&drv_data->pump_transfers);
@@ -707,6 +732,20 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 	return IRQ_HANDLED;
 }
 
+static void handle_bad_msg(struct driver_data *drv_data)
+{
+	pxa2xx_spi_write(drv_data, SSCR0,
+			 pxa2xx_spi_read(drv_data, SSCR0) & ~SSCR0_SSE);
+	pxa2xx_spi_write(drv_data, SSCR1,
+			 pxa2xx_spi_read(drv_data, SSCR1) & ~drv_data->int_cr1);
+	if (!pxa25x_ssp_comp(drv_data))
+		pxa2xx_spi_write(drv_data, SSTO, 0);
+	write_SSSR_CS(drv_data, drv_data->clear_sr);
+
+	dev_err(&drv_data->pdev->dev,
+		"bad message state in interrupt handler\n");
+}
+
 static irqreturn_t ssp_int(int irq, void *dev_id)
 {
 	struct driver_data *drv_data = dev_id;
@@ -746,21 +785,11 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 	if (!(status & mask))
 		return IRQ_NONE;
 
-	if (!drv_data->cur_msg) {
+	pxa2xx_spi_write(drv_data, SSCR1, sccr1_reg & ~drv_data->int_cr1);
+	pxa2xx_spi_write(drv_data, SSCR1, sccr1_reg);
 
-		pxa2xx_spi_write(drv_data, SSCR0,
-				 pxa2xx_spi_read(drv_data, SSCR0)
-				 & ~SSCR0_SSE);
-		pxa2xx_spi_write(drv_data, SSCR1,
-				 pxa2xx_spi_read(drv_data, SSCR1)
-				 & ~drv_data->int_cr1);
-		if (!pxa25x_ssp_comp(drv_data))
-			pxa2xx_spi_write(drv_data, SSTO, 0);
-		write_SSSR_CS(drv_data, drv_data->clear_sr);
-
-		dev_err(&drv_data->pdev->dev,
-			"bad message state in interrupt handler\n");
-
+	if (!drv_data->master->cur_msg) {
+		handle_bad_msg(drv_data);
 		/* Never fail */
 		return IRQ_HANDLED;
 	}
@@ -905,7 +934,8 @@ static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 static unsigned int pxa2xx_ssp_get_clk_div(struct driver_data *drv_data,
 					   int rate)
 {
-	struct chip_data *chip = drv_data->cur_chip;
+	struct chip_data *chip =
+		spi_get_ctldata(drv_data->master->cur_msg->spi);
 	unsigned int clk_div;
 
 	switch (drv_data->ssp_type) {
@@ -934,25 +964,23 @@ static void pump_transfers(unsigned long data)
 {
 	struct driver_data *drv_data = (struct driver_data *)data;
 	struct spi_master *master = drv_data->master;
-	struct spi_message *message = NULL;
-	struct spi_transfer *transfer = NULL;
-	struct spi_transfer *previous = NULL;
-	struct chip_data *chip = NULL;
-	u32 clk_div = 0;
-	u8 bits = 0;
-	u32 speed = 0;
+	struct spi_message *message = master->cur_msg;
+	struct chip_data *chip = spi_get_ctldata(message->spi);
+	u32 dma_thresh = chip->dma_threshold;
+	u32 dma_burst = chip->dma_burst_size;
+	u32 change_mask = pxa2xx_spi_get_ssrc1_change_mask(drv_data);
+	struct spi_transfer *transfer;
+	struct spi_transfer *previous;
+	u32 clk_div;
+	u8 bits;
+	u32 speed;
 	u32 cr0;
 	u32 cr1;
-	u32 dma_thresh = drv_data->cur_chip->dma_threshold;
-	u32 dma_burst = drv_data->cur_chip->dma_burst_size;
-	u32 change_mask = pxa2xx_spi_get_ssrc1_change_mask(drv_data);
 	int err;
 	int dma_mapped;
 
 	/* Get current state information */
-	message = drv_data->cur_msg;
 	transfer = drv_data->cur_transfer;
-	chip = drv_data->cur_chip;
 
 	/* Handle for abort */
 	if (message->state == ERROR_STATE) {
@@ -1146,16 +1174,11 @@ static int pxa2xx_spi_transfer_one_message(struct spi_master *master,
 {
 	struct driver_data *drv_data = spi_master_get_devdata(master);
 
-	drv_data->cur_msg = msg;
 	/* Initial message state*/
-	drv_data->cur_msg->state = START_STATE;
-	drv_data->cur_transfer = list_entry(drv_data->cur_msg->transfers.next,
+	msg->state = START_STATE;
+	drv_data->cur_transfer = list_entry(msg->transfers.next,
 						struct spi_transfer,
 						transfer_list);
-
-	/* prepare to setup the SSP, in pump_transfers, using the per
-	 * chip configuration */
-	drv_data->cur_chip = spi_get_ctldata(drv_data->cur_msg->spi);
 
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&drv_data->pump_transfers);
@@ -1176,9 +1199,26 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_master *master)
 static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 		    struct pxa2xx_spi_chip *chip_info)
 {
+	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
 	int err = 0;
 
-	if (chip == NULL || chip_info == NULL)
+	if (chip == NULL)
+		return 0;
+
+	if (drv_data->cs_gpiods) {
+		struct gpio_desc *gpiod;
+
+		gpiod = drv_data->cs_gpiods[spi->chip_select];
+		if (gpiod) {
+			chip->gpio_cs = desc_to_gpio(gpiod);
+			chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
+			gpiod_set_value(gpiod, chip->gpio_cs_inverted);
+		}
+
+		return 0;
+	}
+
+	if (chip_info == NULL)
 		return 0;
 
 	/* NOTE: setup() can be called multiple times, possibly with
@@ -1213,7 +1253,7 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 
 static int setup(struct spi_device *spi)
 {
-	struct pxa2xx_spi_chip *chip_info = NULL;
+	struct pxa2xx_spi_chip *chip_info;
 	struct chip_data *chip;
 	const struct lpss_config *config;
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
@@ -1224,6 +1264,11 @@ static int setup(struct spi_device *spi)
 		tx_thres = TX_THRESH_QUARK_X1000_DFLT;
 		tx_hi_thres = 0;
 		rx_thres = RX_THRESH_QUARK_X1000_DFLT;
+		break;
+	case CE4100_SSP:
+		tx_thres = TX_THRESH_CE4100_DFLT;
+		tx_hi_thres = 0;
+		rx_thres = RX_THRESH_CE4100_DFLT;
 		break;
 	case LPSS_LPT_SSP:
 	case LPSS_BYT_SSP:
@@ -1309,6 +1354,10 @@ static int setup(struct spi_device *spi)
 				   | (QUARK_X1000_SSCR1_TxTresh(tx_thres)
 				   & QUARK_X1000_SSCR1_TFT);
 		break;
+	case CE4100_SSP:
+		chip->threshold = (CE4100_SSCR1_RxTresh(rx_thres) & CE4100_SSCR1_RFT) |
+			(CE4100_SSCR1_TxTresh(tx_thres) & CE4100_SSCR1_TFT);
+		break;
 	default:
 		chip->threshold = (SSCR1_RxTresh(rx_thres) & SSCR1_RFT) |
 			(SSCR1_TxTresh(tx_thres) & SSCR1_TFT);
@@ -1352,7 +1401,8 @@ static void cleanup(struct spi_device *spi)
 	if (!chip)
 		return;
 
-	if (drv_data->ssp_type != CE4100_SSP && gpio_is_valid(chip->gpio_cs))
+	if (drv_data->ssp_type != CE4100_SSP && !drv_data->cs_gpiods &&
+	    gpio_is_valid(chip->gpio_cs))
 		gpio_free(chip->gpio_cs);
 
 	kfree(chip);
@@ -1412,6 +1462,10 @@ static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
 	{ PCI_VDEVICE(INTEL, 0x1ac2), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x1ac4), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x1ac6), LPSS_BXT_SSP },
+	/* GLK */
+	{ PCI_VDEVICE(INTEL, 0x31c2), LPSS_BXT_SSP },
+	{ PCI_VDEVICE(INTEL, 0x31c4), LPSS_BXT_SSP },
+	{ PCI_VDEVICE(INTEL, 0x31c6), LPSS_BXT_SSP },
 	/* APL */
 	{ PCI_VDEVICE(INTEL, 0x5ac2), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac4), LPSS_BXT_SSP },
@@ -1530,7 +1584,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	struct driver_data *drv_data;
 	struct ssp_device *ssp;
 	const struct lpss_config *config;
-	int status;
+	int status, count;
 	u32 tmp;
 
 	platform_info = dev_get_platdata(dev);
@@ -1630,14 +1684,20 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	pxa2xx_spi_write(drv_data, SSCR0, 0);
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
-		tmp = QUARK_X1000_SSCR1_RxTresh(RX_THRESH_QUARK_X1000_DFLT)
-		      | QUARK_X1000_SSCR1_TxTresh(TX_THRESH_QUARK_X1000_DFLT);
+		tmp = QUARK_X1000_SSCR1_RxTresh(RX_THRESH_QUARK_X1000_DFLT) |
+		      QUARK_X1000_SSCR1_TxTresh(TX_THRESH_QUARK_X1000_DFLT);
 		pxa2xx_spi_write(drv_data, SSCR1, tmp);
 
 		/* using the Motorola SPI protocol and use 8 bit frame */
-		pxa2xx_spi_write(drv_data, SSCR0,
-				 QUARK_X1000_SSCR0_Motorola
-				 | QUARK_X1000_SSCR0_DataSize(8));
+		tmp = QUARK_X1000_SSCR0_Motorola | QUARK_X1000_SSCR0_DataSize(8);
+		pxa2xx_spi_write(drv_data, SSCR0, tmp);
+		break;
+	case CE4100_SSP:
+		tmp = CE4100_SSCR1_RxTresh(RX_THRESH_CE4100_DFLT) |
+		      CE4100_SSCR1_TxTresh(TX_THRESH_CE4100_DFLT);
+		pxa2xx_spi_write(drv_data, SSCR1, tmp);
+		tmp = SSCR0_SCR(2) | SSCR0_Motorola | SSCR0_DataSize(8);
+		pxa2xx_spi_write(drv_data, SSCR0, tmp);
 		break;
 	default:
 		tmp = SSCR1_RxTresh(RX_THRESH_DFLT) |
@@ -1668,6 +1728,39 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		}
 	}
 	master->num_chipselect = platform_info->num_chipselect;
+
+	count = gpiod_count(&pdev->dev, "cs");
+	if (count > 0) {
+		int i;
+
+		master->num_chipselect = max_t(int, count,
+			master->num_chipselect);
+
+		drv_data->cs_gpiods = devm_kcalloc(&pdev->dev,
+			master->num_chipselect, sizeof(struct gpio_desc *),
+			GFP_KERNEL);
+		if (!drv_data->cs_gpiods) {
+			status = -ENOMEM;
+			goto out_error_clock_enabled;
+		}
+
+		for (i = 0; i < master->num_chipselect; i++) {
+			struct gpio_desc *gpiod;
+
+			gpiod = devm_gpiod_get_index(dev, "cs", i,
+						     GPIOD_OUT_HIGH);
+			if (IS_ERR(gpiod)) {
+				/* Means use native chip select */
+				if (PTR_ERR(gpiod) == -ENOENT)
+					continue;
+
+				status = (int)PTR_ERR(gpiod);
+				goto out_error_clock_enabled;
+			} else {
+				drv_data->cs_gpiods[i] = gpiod;
+			}
+		}
+	}
 
 	tasklet_init(&drv_data->pump_transfers, pump_transfers,
 		     (unsigned long)drv_data);
@@ -1742,7 +1835,7 @@ static int pxa2xx_spi_suspend(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
 	struct ssp_device *ssp = drv_data->ssp;
-	int status = 0;
+	int status;
 
 	status = spi_master_suspend(drv_data->master);
 	if (status != 0)
@@ -1759,7 +1852,7 @@ static int pxa2xx_spi_resume(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
 	struct ssp_device *ssp = drv_data->ssp;
-	int status = 0;
+	int status;
 
 	/* Enable the SSP clock */
 	if (!pm_runtime_suspended(dev))

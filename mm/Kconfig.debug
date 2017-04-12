@@ -76,8 +76,6 @@ config PAGE_POISONING_ZERO
 	   no longer necessary to write zeros when GFP_ZERO is used on
 	   allocation.
 
-	   Enabling page poisoning with this option will disable hibernation
-
 	   If unsure, say N
 	bool
 
@@ -92,3 +90,9 @@ config DEBUG_PAGE_REF
 	  careful when enabling this feature because it adds about 30 KB to the
 	  kernel code.  However the runtime performance overhead is virtually
 	  nil until the tracepoints are actually enabled.
+
+config DEBUG_RODATA_TEST
+    bool "Testcase for the marking rodata read-only"
+    depends on STRICT_KERNEL_RWX
+    ---help---
+      This option enables a testcase for the setting rodata read-only.

@@ -208,6 +208,7 @@
 #define TCR_T1SZ(x)		((UL(64) - (x)) << TCR_T1SZ_OFFSET)
 #define TCR_TxSZ(x)		(TCR_T0SZ(x) | TCR_T1SZ(x))
 #define TCR_TxSZ_WIDTH		6
+#define TCR_T0SZ_MASK		(((UL(1) << TCR_TxSZ_WIDTH) - 1) << TCR_T0SZ_OFFSET)
 
 #define TCR_IRGN0_SHIFT		8
 #define TCR_IRGN0_MASK		(UL(3) << TCR_IRGN0_SHIFT)

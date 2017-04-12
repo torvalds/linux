@@ -97,8 +97,7 @@ static void _rtl8723be_fill_h2c_command(struct ieee80211_hw *hw, u8 element_id,
 	while (!bwrite_sucess) {
 		wait_writeh2c_limmit--;
 		if (wait_writeh2c_limmit == 0) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Write H2C fail because no trigger for FW INT!\n");
+			pr_err("Write H2C fail because no trigger for FW INT!\n");
 			break;
 		}
 
@@ -121,8 +120,8 @@ static void _rtl8723be_fill_h2c_command(struct ieee80211_hw *hw, u8 element_id,
 			box_extreg = REG_HMEBOX_EXT_3;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case not process\n");
+			pr_err("switch case %#x not processed\n",
+			       boxnum);
 			break;
 		}
 
@@ -194,8 +193,8 @@ static void _rtl8723be_fill_h2c_command(struct ieee80211_hw *hw, u8 element_id,
 			}
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case not process\n");
+			pr_err("switch case %#x not processed\n",
+			       cmd_len);
 			break;
 		}
 
@@ -224,8 +223,8 @@ void rtl8723be_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
 	u32 tmp_cmdbuf[2];
 
 	if (!rtlhal->fw_ready) {
-		RT_ASSERT(false,
-			  "return H2C cmd because of Fw download fail!!!\n");
+		WARN_ONCE(true,
+			  "rtl8723be: error H2C cmd because of Fw download fail!!!\n");
 		return;
 	}
 
@@ -586,9 +585,9 @@ void rtl8723be_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw,
 			       (u8 *)p2p_ps_offload);
 }
 
-static void _rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw,
-					   u8 c2h_cmd_id,
-					   u8 c2h_cmd_len, u8 *tmp_buf)
+void rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw,
+				   u8 c2h_cmd_id,
+				   u8 c2h_cmd_len, u8 *tmp_buf)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -636,5 +635,15 @@ void rtl8723be_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len)
 	RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_TRACE,
 		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
 
-	_rtl8723be_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+	switch (c2h_cmd_id) {
+	case C2H_8723B_BT_INFO:
+	case C2H_8723B_BT_MP:
+		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+		break;
+
+	default:
+		rtl8723be_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len,
+					      tmp_buf);
+		break;
+	}
 }

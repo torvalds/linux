@@ -283,15 +283,10 @@ be sent to the port netdev for processing by the bridge driver.  The
 bridge should not reflood the packet to the same ports the device flooded,
 otherwise there will be duplicate packets on the wire.
 
-To avoid duplicate packets, the device/driver should mark a packet as already
-forwarded using skb->offload_fwd_mark.  The same mark is set on the device
-ports in the domain using dev->offload_fwd_mark.  If the skb->offload_fwd_mark
-is non-zero and matches the forwarding egress port's dev->skb_mark, the kernel
-will drop the skb right before transmit on the egress port, with the
-understanding that the device already forwarded the packet on same egress port.
-The driver can use switchdev_port_fwd_mark_set() to set a globally unique mark
-for port's dev->offload_fwd_mark, based on the port's parent ID (switch ID) and
-a group ifindex.
+To avoid duplicate packets, the switch driver should mark a packet as already
+forwarded by setting the skb->offload_fwd_mark bit. The bridge driver will mark
+the skb using the ingress bridge port's mark and prevent it from being forwarded
+through any bridge port with the same mark.
 
 It is possible for the switch device to not handle flooding and push the
 packets up to the bridge driver for flooding.  This is not ideal as the number
@@ -319,30 +314,29 @@ the kernel, with the device doing the FIB lookup and forwarding.  The device
 does a longest prefix match (LPM) on FIB entries matching route prefix and
 forwards the packet to the matching FIB entry's nexthop(s) egress ports.
 
-To program the device, the driver implements support for
-SWITCHDEV_OBJ_IPV[4|6]_FIB object using switchdev_port_obj_xxx ops.
-switchdev_port_obj_add is used for both adding a new FIB entry to the device,
-or modifying an existing entry on the device.
+To program the device, the driver has to register a FIB notifier handler
+using register_fib_notifier. The following events are available:
+FIB_EVENT_ENTRY_ADD: used for both adding a new FIB entry to the device,
+                     or modifying an existing entry on the device.
+FIB_EVENT_ENTRY_DEL: used for removing a FIB entry
+FIB_EVENT_RULE_ADD, FIB_EVENT_RULE_DEL: used to propagate FIB rule changes
 
-XXX: Currently, only SWITCHDEV_OBJ_ID_IPV4_FIB objects are supported.
+FIB_EVENT_ENTRY_ADD and FIB_EVENT_ENTRY_DEL events pass:
 
-SWITCHDEV_OBJ_ID_IPV4_FIB object passes:
-
-	struct switchdev_obj_ipv4_fib {         /* IPV4_FIB */
+	struct fib_entry_notifier_info {
+		struct fib_notifier_info info; /* must be first */
 		u32 dst;
 		int dst_len;
 		struct fib_info *fi;
 		u8 tos;
 		u8 type;
-		u32 nlflags;
 		u32 tb_id;
-	} ipv4_fib;
+		u32 nlflags;
+	};
 
 to add/modify/delete IPv4 dst/dest_len prefix on table tb_id.  The *fi
 structure holds details on the route and route's nexthops.  *dev is one of the
-port netdevs mentioned in the routes next hop list.  If the output port netdevs
-referenced in the route's nexthop list don't all have the same switch ID, the
-driver is not called to add/modify/delete the FIB entry.
+port netdevs mentioned in the route's next hop list.
 
 Routes offloaded to the device are labeled with "offload" in the ip route
 listing:
@@ -359,6 +353,8 @@ listing:
 	12.0.0.3 via 11.0.0.1 dev sw1p1  proto zebra  metric 20 offload
 	12.0.0.4 via 11.0.0.9 dev sw1p2  proto zebra  metric 20 offload
 	192.168.0.0/24 dev eth0  proto kernel  scope link  src 192.168.0.15
+
+The "offload" flag is set in case at least one device offloads the FIB entry.
 
 XXX: add/mod/del IPv6 FIB API
 

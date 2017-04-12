@@ -54,44 +54,6 @@
 #include "trace.h"
 
 /*
- * Convert the AETH RNR timeout code into the number of microseconds.
- */
-const u32 ib_hfi1_rnr_table[32] = {
-	655360,	/* 00: 655.36 */
-	10,	/* 01:    .01 */
-	20,	/* 02     .02 */
-	30,	/* 03:    .03 */
-	40,	/* 04:    .04 */
-	60,	/* 05:    .06 */
-	80,	/* 06:    .08 */
-	120,	/* 07:    .12 */
-	160,	/* 08:    .16 */
-	240,	/* 09:    .24 */
-	320,	/* 0A:    .32 */
-	480,	/* 0B:    .48 */
-	640,	/* 0C:    .64 */
-	960,	/* 0D:    .96 */
-	1280,	/* 0E:   1.28 */
-	1920,	/* 0F:   1.92 */
-	2560,	/* 10:   2.56 */
-	3840,	/* 11:   3.84 */
-	5120,	/* 12:   5.12 */
-	7680,	/* 13:   7.68 */
-	10240,	/* 14:  10.24 */
-	15360,	/* 15:  15.36 */
-	20480,	/* 16:  20.48 */
-	30720,	/* 17:  30.72 */
-	40960,	/* 18:  40.96 */
-	61440,	/* 19:  61.44 */
-	81920,	/* 1A:  81.92 */
-	122880,	/* 1B: 122.88 */
-	163840,	/* 1C: 163.84 */
-	245760,	/* 1D: 245.76 */
-	327680,	/* 1E: 327.68 */
-	491520	/* 1F: 491.52 */
-};
-
-/*
  * Validate a RWQE and fill in the SGE state.
  * Return 1 if OK.
  */
@@ -239,16 +201,6 @@ bail:
 	return ret;
 }
 
-static __be64 get_sguid(struct hfi1_ibport *ibp, unsigned index)
-{
-	if (!index) {
-		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-
-		return cpu_to_be64(ppd->guid);
-	}
-	return ibp->guids[index - 1];
-}
-
 static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
 {
 	return (gid->global.interface_id == id &&
@@ -262,7 +214,7 @@ static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
  *
  * The s_lock will be acquired around the hfi1_migrate_qp() call.
  */
-int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
+int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 		       int has_grh, struct rvt_qp *qp, u32 bth0)
 {
 	__be64 guid;
@@ -352,7 +304,7 @@ err:
  *
  * This is called from hfi1_do_send() to
  * forward a WQE addressed to the same HFI.
- * Note that although we are single threaded due to the tasklet, we still
+ * Note that although we are single threaded due to the send engine, we still
  * have to protect against post_send().  We don't have to worry about
  * receive interrupts since this is a connected protocol and all packets
  * will pass through here.
@@ -368,10 +320,9 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	u64 sdata;
 	atomic64_t *maddr;
 	enum ib_wc_status send_status;
-	int release;
+	bool release;
 	int ret;
-	int copy_last = 0;
-	u32 to;
+	bool copy_last = false;
 	int local_ops = 0;
 
 	rcu_read_lock();
@@ -435,7 +386,7 @@ again:
 	memset(&wc, 0, sizeof(wc));
 	send_status = IB_WC_SUCCESS;
 
-	release = 1;
+	release = true;
 	sqp->s_sge.sge = wqe->sg_list[0];
 	sqp->s_sge.sg_list = wqe->sg_list + 1;
 	sqp->s_sge.num_sge = wqe->wr.num_sge;
@@ -486,7 +437,7 @@ send:
 		/* skip copy_last set and qp_access_flags recheck */
 		goto do_write;
 	case IB_WR_RDMA_WRITE:
-		copy_last = ibpd_to_rvtpd(qp->ibqp.pd)->user;
+		copy_last = rvt_is_user_qp(qp);
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_WRITE)))
 			goto inv_err;
 do_write:
@@ -510,7 +461,7 @@ do_write:
 					  wqe->rdma_wr.rkey,
 					  IB_ACCESS_REMOTE_READ)))
 			goto acc_err;
-		release = 0;
+		release = false;
 		sqp->s_sge.sg_list = NULL;
 		sqp->s_sge.num_sge = 1;
 		qp->r_sge.sge = wqe->sg_list[0];
@@ -628,8 +579,8 @@ rnr_nak:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
-	to = ib_hfi1_rnr_table[qp->r_min_rnr_timer];
-	hfi1_add_rnr_timer(sqp, to);
+	rvt_add_rnr_timer(sqp, qp->r_min_rnr_timer <<
+				IB_AETH_CREDIT_SHIFT);
 	goto clr_busy;
 
 op_err:
@@ -647,7 +598,7 @@ acc_err:
 	wc.status = IB_WC_LOC_PROT_ERR;
 err:
 	/* responder goes to error state */
-	hfi1_rc_error(qp, wc.status);
+	rvt_rc_error(qp, wc.status);
 
 serr:
 	spin_lock_irqsave(&sqp->s_lock, flags);
@@ -699,9 +650,9 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 	/* The SGID is 32-bit aligned. */
 	hdr->sgid.global.subnet_prefix = ibp->rvp.gid_prefix;
 	hdr->sgid.global.interface_id =
-		grh->sgid_index && grh->sgid_index < ARRAY_SIZE(ibp->guids) ?
-		ibp->guids[grh->sgid_index - 1] :
-			cpu_to_be64(ppd_from_ibp(ibp)->guid);
+		grh->sgid_index < HFI1_GUIDS_PER_PORT ?
+		get_sguid(ibp, grh->sgid_index) :
+		get_sguid(ibp, HFI1_PORT_GUID_INDEX);
 	hdr->dgid = grh->dgid;
 
 	/* GRH header size in 32-bit words. */
@@ -765,7 +716,7 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 	}
 }
 
-void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
+void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps)
 {
@@ -777,8 +728,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 	u32 bth1;
 
 	/* Construct the header. */
-	extra_bytes = -qp->s_cur_size & 3;
-	nwords = (qp->s_cur_size + extra_bytes) >> 2;
+	extra_bytes = -ps->s_txreq->s_cur_size & 3;
+	nwords = (ps->s_txreq->s_cur_size + extra_bytes) >> 2;
 	lrh0 = HFI1_LRH_BTH;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
 		qp->s_hdrwords += hfi1_make_grh(ibp,
@@ -846,7 +797,7 @@ void _hfi1_do_send(struct work_struct *work)
  * @work: contains a pointer to the QP
  *
  * Process entries in the send work queue until credit or queue is
- * exhausted.  Only allow one CPU to send a packet per QP (tasklet).
+ * exhausted.  Only allow one CPU to send a packet per QP.
  * Otherwise, two threads could send packets out of order.
  */
 void hfi1_do_send(struct rvt_qp *qp)
@@ -909,7 +860,7 @@ void hfi1_do_send(struct rvt_qp *qp)
 			spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 			/*
 			 * If the packet cannot be sent now, return and
-			 * the send tasklet will be woken up later.
+			 * the send engine will be woken up later.
 			 */
 			if (hfi1_verbs_send(qp, &ps))
 				return;
@@ -952,7 +903,6 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status)
 {
 	u32 old_last, last;
-	unsigned i;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
@@ -964,32 +914,13 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	qp->s_last = last;
 	/* See post_send() */
 	barrier();
-	for (i = 0; i < wqe->wr.num_sge; i++) {
-		struct rvt_sge *sge = &wqe->sg_list[i];
-
-		rvt_put_mr(sge->mr);
-	}
+	rvt_put_swqe(wqe);
 	if (qp->ibqp.qp_type == IB_QPT_UD ||
 	    qp->ibqp.qp_type == IB_QPT_SMI ||
 	    qp->ibqp.qp_type == IB_QPT_GSI)
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 
-	/* See ch. 11.2.4.1 and 10.7.3.1 */
-	if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
-	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
-	    status != IB_WC_SUCCESS) {
-		struct ib_wc wc;
-
-		memset(&wc, 0, sizeof(wc));
-		wc.wr_id = wqe->wr.wr_id;
-		wc.status = status;
-		wc.opcode = ib_hfi1_wc_opcode[wqe->wr.opcode];
-		wc.qp = &qp->ibqp;
-		if (status == IB_WC_SUCCESS)
-			wc.byte_len = wqe->length;
-		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
-			     status != IB_WC_SUCCESS);
-	}
+	rvt_qp_swqe_complete(qp, wqe, status);
 
 	if (qp->s_acked == old_last)
 		qp->s_acked = last;

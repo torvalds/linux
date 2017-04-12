@@ -75,14 +75,24 @@ config MTD_PHYSMAP_OF
 	  taken from OF device tree.
 
 config MTD_PHYSMAP_OF_VERSATILE
-	bool "Support ARM Versatile physmap OF"
+	bool "ARM Versatile OF-based physical memory map handling"
 	depends on MTD_PHYSMAP_OF
 	depends on MFD_SYSCON
-	default y if (ARCH_INTEGRATOR || ARCH_VERSATILE || REALVIEW_DT)
+	default y if (ARCH_INTEGRATOR || ARCH_VERSATILE || ARCH_REALVIEW)
 	help
 	  This provides some extra DT physmap parsing for the ARM Versatile
 	  platforms, basically to add a VPP (write protection) callback so
 	  the flash can be taken out of write protection.
+
+config MTD_PHYSMAP_OF_GEMINI
+	bool "Cortina Gemini OF-based physical memory map handling"
+	depends on MTD_PHYSMAP_OF
+	depends on MFD_SYSCON
+	default ARCH_GEMINI
+	help
+	  This provides some extra DT physmap parsing for the Gemini
+	  platforms, some detection and setting up parallel mode on the
+	  external interface.
 
 config MTD_PMC_MSP_EVM
 	tristate "CFI Flash device mapped on PMC-Sierra MSP"

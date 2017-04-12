@@ -15,10 +15,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include "af9015.h"
@@ -1222,6 +1218,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 
 	/* Only process key if canary killed */
 	if (buf[16] != 0xff && buf[0] != 0x01) {
+		enum rc_type proto;
 		dev_dbg(&d->udev->dev, "%s: key pressed %*ph\n",
 				__func__, 4, buf + 12);
 
@@ -1237,11 +1234,13 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 				/* NEC */
 				state->rc_keycode = RC_SCANCODE_NEC(buf[12],
 								    buf[14]);
+				proto = RC_TYPE_NEC;
 			} else {
 				/* NEC extended*/
 				state->rc_keycode = RC_SCANCODE_NECX(buf[12] << 8 |
 								     buf[13],
 								     buf[14]);
+				proto = RC_TYPE_NECX;
 			}
 		} else {
 			/* 32 bit NEC */
@@ -1249,8 +1248,9 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 							      buf[13] << 16 |
 							      buf[14] << 8  |
 							      buf[15]);
+			proto = RC_TYPE_NEC32;
 		}
-		rc_keydown(d->rc_dev, RC_TYPE_NEC, state->rc_keycode, 0);
+		rc_keydown(d->rc_dev, proto, state->rc_keycode, 0);
 	} else {
 		dev_dbg(&d->udev->dev, "%s: no key press\n", __func__);
 		/* Invalidate last keypress */
@@ -1317,7 +1317,7 @@ static int af9015_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 	if (!rc->map_name)
 		rc->map_name = RC_MAP_EMPTY;
 
-	rc->allowed_protos = RC_BIT_NEC;
+	rc->allowed_protos = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32;
 	rc->query = af9015_rc_query;
 	rc->interval = 500;
 
@@ -1451,7 +1451,7 @@ static const struct usb_device_id af9015_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_CONCEPTRONIC_CTVDIGRCU,
 		&af9015_props, "Conceptronic USB2.0 DVB-T CTVDIGRCU V3.0", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_MC810,
-		&af9015_props, "KWorld Digial MC-810", NULL) },
+		&af9015_props, "KWorld Digital MC-810", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KYE, USB_PID_GENIUS_TVGO_DVB_T03,
 		&af9015_props, "Genius TVGo DVB-T03", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_399U_2,

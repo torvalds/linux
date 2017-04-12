@@ -135,8 +135,10 @@ enum sm5502_muic_acc_type {
 	SM5502_MUIC_ADC_AUDIO_TYPE1,
 	SM5502_MUIC_ADC_OPEN = 0x1f,
 
-	/* The below accessories have same ADC value (0x1f or 0x1e).
-	   So, Device type1 is used to separate specific accessory. */
+	/*
+	 * The below accessories have same ADC value (0x1f or 0x1e).
+	 * So, Device type1 is used to separate specific accessory.
+	 */
 							/* |---------|--ADC| */
 							/* |    [7:5]|[4:0]| */
 	SM5502_MUIC_ADC_AUDIO_TYPE1_FULL_REMOTE = 0x3e,	/* |      001|11110| */
@@ -411,9 +413,9 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		return ret;
 
 	/* Change the state of external accessory */
-	extcon_set_cable_state_(info->edev, id, attached);
+	extcon_set_state_sync(info->edev, id, attached);
 	if (id == EXTCON_USB)
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_SDP,
 					attached);
 
 	return 0;

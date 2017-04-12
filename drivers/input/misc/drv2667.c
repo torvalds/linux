@@ -256,7 +256,7 @@ static void drv2667_close(struct input_dev *input)
 	cancel_work_sync(&haptics->work);
 
 	error = regmap_update_bits(haptics->regmap, DRV2667_CTRL_2,
-				DRV2667_STANDBY, 1);
+				   DRV2667_STANDBY, DRV2667_STANDBY);
 	if (error)
 		dev_err(&haptics->client->dev,
 			"Failed to enter standby mode: %d\n", error);
@@ -415,7 +415,7 @@ static int __maybe_unused drv2667_suspend(struct device *dev)
 
 	if (haptics->input_dev->users) {
 		ret = regmap_update_bits(haptics->regmap, DRV2667_CTRL_2,
-				DRV2667_STANDBY, 1);
+					 DRV2667_STANDBY, DRV2667_STANDBY);
 		if (ret) {
 			dev_err(dev, "Failed to set standby mode\n");
 			regulator_disable(haptics->regulator);

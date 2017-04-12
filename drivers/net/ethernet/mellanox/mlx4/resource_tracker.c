@@ -77,6 +77,7 @@ struct res_common {
 	int			from_state;
 	int			to_state;
 	int			removing;
+	const char		*func_name;
 };
 
 enum {
@@ -236,8 +237,8 @@ static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
 	struct rb_node *node = root->rb_node;
 
 	while (node) {
-		struct res_common *res = container_of(node, struct res_common,
-						      node);
+		struct res_common *res = rb_entry(node, struct res_common,
+						  node);
 
 		if (res_id < res->res_id)
 			node = node->rb_left;
@@ -255,8 +256,8 @@ static int res_tracker_insert(struct rb_root *root, struct res_common *res)
 
 	/* Figure out where to put new node */
 	while (*new) {
-		struct res_common *this = container_of(*new, struct res_common,
-						       node);
+		struct res_common *this = rb_entry(*new, struct res_common,
+						   node);
 
 		parent = *new;
 		if (res->res_id < this->res_id)
@@ -790,10 +791,22 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED |
 				MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
 		} else if (0 != vp_oper->state.default_vlan) {
-			qpc->pri_path.vlan_control |=
-				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
-				MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
-				MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
+			if (vp_oper->state.vlan_proto == htons(ETH_P_8021AD)) {
+				/* vst QinQ should block untagged on TX,
+				 * but cvlan is in payload and phv is set so
+				 * hw see it as untagged. Block tagged instead.
+				 */
+				qpc->pri_path.vlan_control |=
+					MLX4_VLAN_CTRL_ETH_TX_BLOCK_PRIO_TAGGED |
+					MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+					MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
+					MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
+			} else { /* vst 802.1Q */
+				qpc->pri_path.vlan_control |=
+					MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+					MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
+					MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
+			}
 		} else { /* priority tagged */
 			qpc->pri_path.vlan_control |=
 				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
@@ -802,7 +815,11 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 
 		qpc->pri_path.fvl_rx |= MLX4_FVL_RX_FORCE_ETH_VLAN;
 		qpc->pri_path.vlan_index = vp_oper->vlan_idx;
-		qpc->pri_path.fl |= MLX4_FL_CV | MLX4_FL_ETH_HIDE_CQE_VLAN;
+		qpc->pri_path.fl |= MLX4_FL_ETH_HIDE_CQE_VLAN;
+		if (vp_oper->state.vlan_proto == htons(ETH_P_8021AD))
+			qpc->pri_path.fl |= MLX4_FL_SV;
+		else
+			qpc->pri_path.fl |= MLX4_FL_CV;
 		qpc->pri_path.feup |= MLX4_FEUP_FORCE_ETH_UP | MLX4_FVL_FORCE_ETH_VLAN;
 		qpc->pri_path.sched_queue &= 0xC7;
 		qpc->pri_path.sched_queue |= (vp_oper->state.default_qos) << 3;
@@ -821,6 +838,36 @@ static int mpt_mask(struct mlx4_dev *dev)
 	return dev->caps.num_mpts - 1;
 }
 
+static const char *mlx4_resource_type_to_str(enum mlx4_resource t)
+{
+	switch (t) {
+	case RES_QP:
+		return "QP";
+	case RES_CQ:
+		return "CQ";
+	case RES_SRQ:
+		return "SRQ";
+	case RES_XRCD:
+		return "XRCD";
+	case RES_MPT:
+		return "MPT";
+	case RES_MTT:
+		return "MTT";
+	case RES_MAC:
+		return "MAC";
+	case RES_VLAN:
+		return "VLAN";
+	case RES_COUNTER:
+		return "COUNTER";
+	case RES_FS_RULE:
+		return "FS_RULE";
+	case RES_EQ:
+		return "EQ";
+	default:
+		return "INVALID RESOURCE";
+	}
+}
+
 static void *find_res(struct mlx4_dev *dev, u64 res_id,
 		      enum mlx4_resource type)
 {
@@ -830,9 +877,9 @@ static void *find_res(struct mlx4_dev *dev, u64 res_id,
 				  res_id);
 }
 
-static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
-		   enum mlx4_resource type,
-		   void *res)
+static int _get_res(struct mlx4_dev *dev, int slave, u64 res_id,
+		    enum mlx4_resource type,
+		    void *res, const char *func_name)
 {
 	struct res_common *r;
 	int err = 0;
@@ -845,6 +892,10 @@ static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 	}
 
 	if (r->state == RES_ANY_BUSY) {
+		mlx4_warn(dev,
+			  "%s(%d) trying to get resource %llx of type %s, but it's already taken by %s\n",
+			  func_name, slave, res_id, mlx4_resource_type_to_str(type),
+			  r->func_name);
 		err = -EBUSY;
 		goto exit;
 	}
@@ -856,6 +907,7 @@ static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 
 	r->from_state = r->state;
 	r->state = RES_ANY_BUSY;
+	r->func_name = func_name;
 
 	if (res)
 		*((struct res_common **)res) = r;
@@ -864,6 +916,9 @@ exit:
 	spin_unlock_irq(mlx4_tlock(dev));
 	return err;
 }
+
+#define get_res(dev, slave, res_id, type, res) \
+	_get_res((dev), (slave), (res_id), (type), (res), __func__)
 
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource type,
@@ -895,8 +950,10 @@ static void put_res(struct mlx4_dev *dev, int slave, u64 res_id,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	r = find_res(dev, res_id, type);
-	if (r)
+	if (r) {
 		r->state = r->from_state;
+		r->func_name = "";
+	}
 	spin_unlock_irq(mlx4_tlock(dev));
 }
 
@@ -1380,7 +1437,7 @@ static int remove_ok(struct res_common *res, enum mlx4_resource type, int extra)
 	case RES_MTT:
 		return remove_mtt_ok((struct res_mtt *)res, extra);
 	case RES_MAC:
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	case RES_EQ:
 		return remove_eq_ok((struct res_eq *)res);
 	case RES_COUNTER:
@@ -1589,12 +1646,13 @@ static int eq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 			r->com.from_state = r->com.state;
 			r->com.to_state = state;
 			r->com.state = RES_EQ_BUSY;
-			if (eq)
-				*eq = r;
 		}
 	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
+
+	if (!err && eq)
+		*eq = r;
 
 	return err;
 }
@@ -2963,6 +3021,9 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 		put_res(dev, slave, srqn, RES_SRQ);
 		qp->srq = srq;
 	}
+
+	/* Save param3 for dynamic changes from VST back to VGT */
+	qp->param3 = qpc->param3;
 	put_res(dev, slave, rcqn, RES_CQ);
 	put_res(dev, slave, mtt_base, RES_MTT);
 	res_end_move(dev, slave, RES_QP, qpn);
@@ -3755,7 +3816,6 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	int qpn = vhcr->in_modifier & 0x7fffff;
 	struct res_qp *qp;
 	u8 orig_sched_queue;
-	__be32	orig_param3 = qpc->param3;
 	u8 orig_vlan_control = qpc->pri_path.vlan_control;
 	u8 orig_fvl_rx = qpc->pri_path.fvl_rx;
 	u8 orig_pri_path_fl = qpc->pri_path.fl;
@@ -3797,7 +3857,6 @@ out:
 	 */
 	if (!err) {
 		qp->sched_queue = orig_sched_queue;
-		qp->param3	= orig_param3;
 		qp->vlan_control = orig_vlan_control;
 		qp->fvl_rx	=  orig_fvl_rx;
 		qp->pri_path_fl = orig_pri_path_fl;
@@ -4147,22 +4206,6 @@ static int validate_eth_header_mac(int slave, struct _rule_hw *eth_header,
 	return 0;
 }
 
-static void handle_eth_header_mcast_prio(struct mlx4_net_trans_rule_hw_ctrl *ctrl,
-					 struct _rule_hw *eth_header)
-{
-	if (is_multicast_ether_addr(eth_header->eth.dst_mac) ||
-	    is_broadcast_ether_addr(eth_header->eth.dst_mac)) {
-		struct mlx4_net_trans_rule_hw_eth *eth =
-			(struct mlx4_net_trans_rule_hw_eth *)eth_header;
-		struct _rule_hw *next_rule = (struct _rule_hw *)(eth + 1);
-		bool last_rule = next_rule->size == 0 && next_rule->id == 0 &&
-			next_rule->rsvd == 0;
-
-		if (last_rule)
-			ctrl->prio = cpu_to_be16(MLX4_DOMAIN_NIC);
-	}
-}
-
 /*
  * In case of missing eth header, append eth header with a MAC address
  * assigned to the VF.
@@ -4254,7 +4297,7 @@ int mlx4_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 		  MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
 		mlx4_warn(dev, "Src check LB for slave %d isn't supported\n",
 			  slave);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	/* Just change the smac for the QP */
@@ -4346,10 +4389,7 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	header_id = map_hw_to_sw_id(be16_to_cpu(rule_header->id));
 
 	if (header_id == MLX4_NET_TRANS_RULE_ID_ETH)
-		handle_eth_header_mcast_prio(ctrl, rule_header);
-
-	if (slave == dev->caps.function)
-		goto execute;
+		mlx4_handle_eth_header_mcast_prio(ctrl, rule_header);
 
 	switch (header_id) {
 	case MLX4_NET_TRANS_RULE_ID_ETH:
@@ -4377,7 +4417,6 @@ int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		goto err_put_qp;
 	}
 
-execute:
 	err = mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
 			   vhcr->in_modifier, 0,
 			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
@@ -4456,6 +4495,7 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 	struct res_qp *rqp;
 	struct res_fs_rule *rrule;
 	u64 mirr_reg_id;
+	int qpn;
 
 	if (dev->caps.steering_mode !=
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
@@ -4472,10 +4512,11 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 	}
 	mirr_reg_id = rrule->mirr_rule_id;
 	kfree(rrule->mirr_mbox);
+	qpn = rrule->qpn;
 
 	/* Release the rule form busy state before removal */
 	put_res(dev, slave, vhcr->in_param, RES_FS_RULE);
-	err = get_res(dev, slave, rrule->qpn, RES_QP, &rqp);
+	err = get_res(dev, slave, qpn, RES_QP, &rqp);
 	if (err)
 		return err;
 
@@ -4500,7 +4541,7 @@ int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
 	if (!err)
 		atomic_dec(&rqp->ref_count);
 out:
-	put_res(dev, slave, rrule->qpn, RES_QP);
+	put_res(dev, slave, qpn, RES_QP);
 	return err;
 }
 
@@ -5238,6 +5279,7 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 	u64 qp_path_mask = ((1ULL << MLX4_UPD_QP_PATH_MASK_VLAN_INDEX) |
 		       (1ULL << MLX4_UPD_QP_PATH_MASK_FVL) |
 		       (1ULL << MLX4_UPD_QP_PATH_MASK_CV) |
+		       (1ULL << MLX4_UPD_QP_PATH_MASK_SV) |
 		       (1ULL << MLX4_UPD_QP_PATH_MASK_ETH_HIDE_CQE_VLAN) |
 		       (1ULL << MLX4_UPD_QP_PATH_MASK_FEUP) |
 		       (1ULL << MLX4_UPD_QP_PATH_MASK_FVL_RX) |
@@ -5266,7 +5308,12 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 	else if (!work->vlan_id)
 		vlan_control = MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
 			MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
-	else
+	else if (work->vlan_proto == htons(ETH_P_8021AD))
+		vlan_control = MLX4_VLAN_CTRL_ETH_TX_BLOCK_PRIO_TAGGED |
+			MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
+			MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
+	else  /* vst 802.1Q */
 		vlan_control = MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
 			MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
 			MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
@@ -5311,7 +5358,11 @@ void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work)
 				upd_context->qp_context.pri_path.fvl_rx =
 					qp->fvl_rx | MLX4_FVL_RX_FORCE_ETH_VLAN;
 				upd_context->qp_context.pri_path.fl =
-					qp->pri_path_fl | MLX4_FL_CV | MLX4_FL_ETH_HIDE_CQE_VLAN;
+					qp->pri_path_fl | MLX4_FL_ETH_HIDE_CQE_VLAN;
+				if (work->vlan_proto == htons(ETH_P_8021AD))
+					upd_context->qp_context.pri_path.fl |= MLX4_FL_SV;
+				else
+					upd_context->qp_context.pri_path.fl |= MLX4_FL_CV;
 				upd_context->qp_context.pri_path.feup =
 					qp->feup | MLX4_FEUP_FORCE_ETH_UP | MLX4_FVL_FORCE_ETH_VLAN;
 				upd_context->qp_context.pri_path.sched_queue =

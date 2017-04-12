@@ -28,7 +28,7 @@
 #define ORANGEFS_VFS_OP_RENAME         0xFF00000A
 #define ORANGEFS_VFS_OP_STATFS         0xFF00000B
 #define ORANGEFS_VFS_OP_TRUNCATE       0xFF00000C
-#define ORANGEFS_VFS_OP_MMAP_RA_FLUSH  0xFF00000D
+#define ORANGEFS_VFS_OP_RA_FLUSH       0xFF00000D
 #define ORANGEFS_VFS_OP_FS_MOUNT       0xFF00000E
 #define ORANGEFS_VFS_OP_FS_UMOUNT      0xFF00000F
 #define ORANGEFS_VFS_OP_GETXATTR       0xFF000010
@@ -41,13 +41,16 @@
 #define ORANGEFS_VFS_OP_FSYNC          0xFF00EE01
 #define ORANGEFS_VFS_OP_FSKEY             0xFF00EE02
 #define ORANGEFS_VFS_OP_READDIRPLUS       0xFF00EE03
+#define ORANGEFS_VFS_OP_FEATURES	0xFF00EE05 /* 2.9.6 */
+
+/* features is a 64-bit unsigned bitmask */
+#define ORANGEFS_FEATURE_READAHEAD 1
 
 /*
  * Misc constants. Please retain them as multiples of 8!
  * Otherwise 32-64 bit interactions will be messed up :)
  */
-#define ORANGEFS_MAX_DEBUG_STRING_LEN	0x00000400
-#define ORANGEFS_MAX_DEBUG_ARRAY_LEN	0x00000800
+#define ORANGEFS_MAX_DEBUG_STRING_LEN	0x00000800
 
 /*
  * The maximum number of directory entries in a single request is 96.

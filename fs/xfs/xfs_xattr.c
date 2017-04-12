@@ -130,7 +130,7 @@ const struct xattr_handler *xfs_xattr_handlers[] = {
 	NULL
 };
 
-static int
+static void
 __xfs_xattr_put_listent(
 	struct xfs_attr_list_context *context,
 	char *prefix,
@@ -147,7 +147,8 @@ __xfs_xattr_put_listent(
 	arraytop = context->count + prefix_len + namelen + 1;
 	if (arraytop > context->firstu) {
 		context->count = -1;	/* insufficient space */
-		return 0;
+		context->seen_enough = 1;
+		return;
 	}
 	offset = (char *)context->alist + context->count;
 	strncpy(offset, prefix, prefix_len);
@@ -158,10 +159,10 @@ __xfs_xattr_put_listent(
 
 compute_size:
 	context->count += prefix_len + namelen + 1;
-	return 0;
+	return;
 }
 
-static int
+static void
 xfs_xattr_put_listent(
 	struct xfs_attr_list_context *context,
 	int		flags,
@@ -179,23 +180,19 @@ xfs_xattr_put_listent(
 		if (namelen == SGI_ACL_FILE_SIZE &&
 		    strncmp(name, SGI_ACL_FILE,
 			    SGI_ACL_FILE_SIZE) == 0) {
-			int ret = __xfs_xattr_put_listent(
+			__xfs_xattr_put_listent(
 					context, XATTR_SYSTEM_PREFIX,
 					XATTR_SYSTEM_PREFIX_LEN,
 					XATTR_POSIX_ACL_ACCESS,
 					strlen(XATTR_POSIX_ACL_ACCESS));
-			if (ret)
-				return ret;
 		} else if (namelen == SGI_ACL_DEFAULT_SIZE &&
 			 strncmp(name, SGI_ACL_DEFAULT,
 				 SGI_ACL_DEFAULT_SIZE) == 0) {
-			int ret = __xfs_xattr_put_listent(
+			__xfs_xattr_put_listent(
 					context, XATTR_SYSTEM_PREFIX,
 					XATTR_SYSTEM_PREFIX_LEN,
 					XATTR_POSIX_ACL_DEFAULT,
 					strlen(XATTR_POSIX_ACL_DEFAULT));
-			if (ret)
-				return ret;
 		}
 #endif
 
@@ -204,7 +201,7 @@ xfs_xattr_put_listent(
 		 * see them.
 		 */
 		if (!capable(CAP_SYS_ADMIN))
-			return 0;
+			return;
 
 		prefix = XATTR_TRUSTED_PREFIX;
 		prefix_len = XATTR_TRUSTED_PREFIX_LEN;
@@ -216,8 +213,9 @@ xfs_xattr_put_listent(
 		prefix_len = XATTR_USER_PREFIX_LEN;
 	}
 
-	return __xfs_xattr_put_listent(context, prefix, prefix_len, name,
-				       namelen);
+	__xfs_xattr_put_listent(context, prefix, prefix_len, name,
+				namelen);
+	return;
 }
 
 ssize_t

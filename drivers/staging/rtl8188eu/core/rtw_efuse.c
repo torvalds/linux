@@ -253,6 +253,7 @@ static void efuse_read_phymap_from_txpktbuf(
 			u8 lenc[2];
 			u16 lenbak, aaabak;
 			u16 aaa;
+
 			lenc[0] = usb_read8(adapter, REG_PKTBUF_DBG_DATA_L);
 			lenc[1] = usb_read8(adapter, REG_PKTBUF_DBG_DATA_L+1);
 
@@ -314,69 +315,6 @@ void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _si
 		iol_mode_enable(Adapter, 1);
 		iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
 		iol_mode_enable(Adapter, 0);
-	}
-}
-
-/* Do not support BT */
-void EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 efuseType, u8 type, void *pOut)
-{
-	switch (type) {
-	case TYPE_EFUSE_MAX_SECTION:
-		{
-			u8 *pMax_section;
-			pMax_section = pOut;
-			*pMax_section = EFUSE_MAX_SECTION_88E;
-		}
-		break;
-	case TYPE_EFUSE_REAL_CONTENT_LEN:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = pOut;
-			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_88E;
-		}
-		break;
-	case TYPE_EFUSE_CONTENT_LEN_BANK:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = pOut;
-			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_88E;
-		}
-		break;
-	case TYPE_AVAILABLE_EFUSE_BYTES_BANK:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = pOut;
-			*pu2Tmp = (u16)(EFUSE_REAL_CONTENT_LEN_88E-EFUSE_OOB_PROTECT_BYTES_88E);
-		}
-		break;
-	case TYPE_AVAILABLE_EFUSE_BYTES_TOTAL:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = pOut;
-			*pu2Tmp = (u16)(EFUSE_REAL_CONTENT_LEN_88E-EFUSE_OOB_PROTECT_BYTES_88E);
-		}
-		break;
-	case TYPE_EFUSE_MAP_LEN:
-		{
-			u16 *pu2Tmp;
-			pu2Tmp = pOut;
-			*pu2Tmp = (u16)EFUSE_MAP_LEN_88E;
-		}
-		break;
-	case TYPE_EFUSE_PROTECT_BYTES_BANK:
-		{
-			u8 *pu1Tmp;
-			pu1Tmp = pOut;
-			*pu1Tmp = (u8)(EFUSE_OOB_PROTECT_BYTES_88E);
-		}
-		break;
-	default:
-		{
-			u8 *pu1Tmp;
-			pu1Tmp = pOut;
-			*pu1Tmp = 0;
-		}
-		break;
 	}
 }
 
@@ -483,14 +421,11 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 	u8 hoffset = 0, hworden = 0;
 	u8 tmpidx = 0;
 	u8 tmpdata[8];
-	u8 max_section = 0;
 	u8 tmp_header = 0;
-
-	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, (void *)&max_section);
 
 	if (!data)
 		return false;
-	if (offset > max_section)
+	if (offset > EFUSE_MAX_SECTION_88E)
 		return false;
 
 	memset(data, 0xff, sizeof(u8) * PGPKT_DATA_SIZE);
@@ -591,11 +526,11 @@ static bool hal_EfuseFixHeaderProcess(struct adapter *pAdapter, u8 efuseType, st
 static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt)
 {
 	bool bRet = false;
-	u16	efuse_addr = *pAddr, efuse_max_available_len = 0;
+	u16 efuse_addr = *pAddr;
+	u16 efuse_max_available_len =
+		EFUSE_REAL_CONTENT_LEN_88E - EFUSE_OOB_PROTECT_BYTES_88E;
 	u8 pg_header = 0, tmp_header = 0, pg_header_temp = 0;
 	u8 repeatcnt = 0;
-
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_BANK, (void *)&efuse_max_available_len);
 
 	while (efuse_addr < efuse_max_available_len) {
 		pg_header = ((pTargetPkt->offset & 0x07) << 5) | 0x0F;
@@ -628,13 +563,14 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 			}
 
 			if ((tmp_header & 0x0F) == 0x0F) {	/* word_en PG fail */
-				if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_) {
+				if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 					return false;
-				}
+
 				efuse_addr++;
 				continue;
 			} else if (pg_header != tmp_header) {	/* offset PG fail */
 				struct pgpkt	fixPkt;
+
 				fixPkt.offset = ((pg_header_temp & 0xE0) >> 5) | ((tmp_header & 0xF0) >> 1);
 				fixPkt.word_en = tmp_header & 0x0F;
 				fixPkt.word_cnts = Efuse_CalculateWordCnts(fixPkt.word_en);
@@ -677,6 +613,7 @@ static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuse
 		bRet = true;
 	} else {
 		struct pgpkt	fixPkt;
+
 		fixPkt.offset = (tmp_header>>4) & 0x0F;
 		fixPkt.word_en = tmp_header & 0x0F;
 		fixPkt.word_cnts = Efuse_CalculateWordCnts(fixPkt.word_en);
@@ -769,11 +706,10 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 	bool bRet = false;
 	u8 i, efuse_data = 0, cur_header = 0;
 	u8 matched_wden = 0, badworden = 0;
-	u16	startAddr = 0, efuse_max_available_len = 0, efuse_max = 0;
+	u16 startAddr = 0;
+	u16 efuse_max_available_len =
+		EFUSE_REAL_CONTENT_LEN_88E - EFUSE_OOB_PROTECT_BYTES_88E;
 	struct pgpkt curPkt;
-
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_BANK, (void *)&efuse_max_available_len);
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_REAL_CONTENT_LEN, (void *)&efuse_max);
 
 	rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&startAddr);
 	startAddr %= EFUSE_REAL_CONTENT_LEN;
@@ -846,12 +782,7 @@ hal_EfusePgCheckAvailableAddr(
 		u8 efuseType
 	)
 {
-	u16	efuse_max_available_len = 0;
-
-	/* Change to check TYPE_EFUSE_MAP_LEN , because 8188E raw 256, logic map over 256. */
-	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&efuse_max_available_len);
-
-	if (Efuse_GetCurrentSize(pAdapter) >= efuse_max_available_len)
+	if (Efuse_GetCurrentSize(pAdapter) >= EFUSE_MAP_LEN_88E)
 		return false;
 	return true;
 }
@@ -891,6 +822,7 @@ bool Efuse_PgPacketWrite(struct adapter *pAdapter, u8 offset, u8 word_en, u8 *pD
 u8 Efuse_CalculateWordCnts(u8 word_en)
 {
 	u8 word_cnts = 0;
+
 	if (!(word_en & BIT(0)))
 		word_cnts++; /*  0 : write enable */
 	if (!(word_en & BIT(1)))
@@ -977,13 +909,9 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
  */
 static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse)
 {
-	u16 mapLen = 0;
-
 	Efuse_PowerSwitch(pAdapter, false, true);
 
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
-
-	efuse_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse);
+	efuse_ReadEFuse(pAdapter, efuseType, 0, EFUSE_MAP_LEN_88E, Efuse);
 
 	Efuse_PowerSwitch(pAdapter, false, false);
 }
@@ -996,12 +924,9 @@ void EFUSE_ShadowMapUpdate(
 	u8 efuseType)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
-	u16 mapLen = 0;
-
-	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
 	if (pEEPROM->bautoload_fail_flag)
-		memset(pEEPROM->efuse_eeprom_data, 0xFF, mapLen);
+		memset(pEEPROM->efuse_eeprom_data, 0xFF, EFUSE_MAP_LEN_88E);
 	else
 		Efuse_ReadAllMap(pAdapter, efuseType, pEEPROM->efuse_eeprom_data);
 }

@@ -14,10 +14,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #ifndef IT913X_H
@@ -25,26 +21,16 @@
 
 #include "dvb_frontend.h"
 
-/*
- * I2C address
- * 0x38, 0x3a, 0x3c, 0x3e
+/**
+ * struct it913x_platform_data - Platform data for the it913x driver
+ * @regmap: af9033 demod driver regmap.
+ * @dvb_frontend: af9033 demod driver DVB frontend.
+ * @role: Chip role, single or dual configuration.
  */
-struct it913x_config {
-	/*
-	 * pointer to DVB frontend
-	 */
+
+struct it913x_platform_data {
+	struct regmap *regmap;
 	struct dvb_frontend *fe;
-
-	/*
-	 * chip version
-	 * 1 = IT9135 AX
-	 * 2 = IT9135 BX
-	 */
-	unsigned int chip_ver:2;
-
-	/*
-	 * tuner role
-	 */
 #define IT913X_ROLE_SINGLE         0
 #define IT913X_ROLE_DUAL_MASTER    1
 #define IT913X_ROLE_DUAL_SLAVE     2

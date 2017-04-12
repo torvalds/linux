@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -30,7 +26,7 @@
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include <linux/module.h>
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define STMMAC_VLAN_TAG_USED
 #include <linux/if_vlan.h>
 #endif
@@ -44,6 +40,7 @@
 #define	DWMAC_CORE_4_00	0x40
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
+/* These need to be power of two, and >= 4 */
 #define DMA_TX_SIZE 512
 #define DMA_RX_SIZE 512
 #define STMMAC_GET_ENTRY(x, size)	((x + 1) & (size - 1))
@@ -70,7 +67,7 @@ struct stmmac_extra_stats {
 	unsigned long overflow_error;
 	unsigned long ipc_csum_error;
 	unsigned long rx_collision;
-	unsigned long rx_crc;
+	unsigned long rx_crc_errors;
 	unsigned long dribbling_bit;
 	unsigned long rx_length;
 	unsigned long rx_mii;
@@ -120,14 +117,17 @@ struct stmmac_extra_stats {
 	unsigned long ip_csum_bypassed;
 	unsigned long ipv4_pkt_rcvd;
 	unsigned long ipv6_pkt_rcvd;
-	unsigned long rx_msg_type_ext_no_ptp;
-	unsigned long rx_msg_type_sync;
-	unsigned long rx_msg_type_follow_up;
-	unsigned long rx_msg_type_delay_req;
-	unsigned long rx_msg_type_delay_resp;
-	unsigned long rx_msg_type_pdelay_req;
-	unsigned long rx_msg_type_pdelay_resp;
-	unsigned long rx_msg_type_pdelay_follow_up;
+	unsigned long no_ptp_rx_msg_type_ext;
+	unsigned long ptp_rx_msg_type_sync;
+	unsigned long ptp_rx_msg_type_follow_up;
+	unsigned long ptp_rx_msg_type_delay_req;
+	unsigned long ptp_rx_msg_type_delay_resp;
+	unsigned long ptp_rx_msg_type_pdelay_req;
+	unsigned long ptp_rx_msg_type_pdelay_resp;
+	unsigned long ptp_rx_msg_type_pdelay_follow_up;
+	unsigned long ptp_rx_msg_type_announce;
+	unsigned long ptp_rx_msg_type_management;
+	unsigned long ptp_rx_msg_pkt_reserved_type;
 	unsigned long ptp_frame_type;
 	unsigned long ptp_ver;
 	unsigned long timestamp_dropped;
@@ -319,6 +319,9 @@ struct dma_features {
 	/* TX and RX number of channels */
 	unsigned int number_rx_channel;
 	unsigned int number_tx_channel;
+	/* TX and RX number of queues */
+	unsigned int number_rx_queues;
+	unsigned int number_tx_queues;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
 };
@@ -336,7 +339,7 @@ struct dma_features {
 /* Common MAC defines */
 #define MAC_CTRL_REG		0x00000000	/* MAC Control */
 #define MAC_ENABLE_TX		0x00000008	/* Transmitter Enable */
-#define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
+#define MAC_ENABLE_RX		0x00000004	/* Receiver Enable */
 
 /* Default LPI timers */
 #define STMMAC_DEFAULT_LIT_LS	0x3E8
@@ -408,12 +411,12 @@ extern const struct stmmac_desc_ops ndesc_ops;
 struct stmmac_dma_ops {
 	/* DMA core initialization */
 	int (*reset)(void __iomem *ioaddr);
-	void (*init)(void __iomem *ioaddr, int pbl, int fb, int mb,
-		     int aal, u32 dma_tx, u32 dma_rx, int atds);
+	void (*init)(void __iomem *ioaddr, struct stmmac_dma_cfg *dma_cfg,
+		     u32 dma_tx, u32 dma_rx, int atds);
 	/* Configure the AXI Bus Mode Register */
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
-	void (*dump_regs) (void __iomem *ioaddr);
+	void (*dump_regs)(void __iomem *ioaddr, u32 *reg_space);
 	/* Set tx/rx threshold in the csr6 register
 	 * An invalid value enables the store-and-forward mode */
 	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
@@ -450,8 +453,10 @@ struct stmmac_ops {
 	void (*core_init)(struct mac_device_info *hw, int mtu);
 	/* Enable and verify that the IPC module is supported */
 	int (*rx_ipc)(struct mac_device_info *hw);
+	/* Enable RX Queues */
+	void (*rx_queue_enable)(struct mac_device_info *hw, u32 queue);
 	/* Dump MAC registers */
-	void (*dump_regs)(struct mac_device_info *hw);
+	void (*dump_regs)(struct mac_device_info *hw, u32 *reg_space);
 	/* Handle extra events on specific interrupts hw dependent */
 	int (*host_irq_status)(struct mac_device_info *hw,
 			       struct stmmac_extra_stats *x);
@@ -467,7 +472,8 @@ struct stmmac_ops {
 			      unsigned int reg_n);
 	void (*get_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
 			      unsigned int reg_n);
-	void (*set_eee_mode)(struct mac_device_info *hw);
+	void (*set_eee_mode)(struct mac_device_info *hw,
+			     bool en_tx_lpi_clockgating);
 	void (*reset_eee_mode)(struct mac_device_info *hw);
 	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
 	void (*set_eee_pls)(struct mac_device_info *hw, int link);
@@ -482,11 +488,12 @@ struct stmmac_ops {
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
 	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
-	u32 (*config_sub_second_increment) (void __iomem *ioaddr, u32 clk_rate);
+	u32 (*config_sub_second_increment)(void __iomem *ioaddr, u32 ptp_clock,
+					   int gmac4);
 	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
 	int (*config_addend) (void __iomem *ioaddr, u32 addend);
 	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
-			       int add_sub);
+			       int add_sub, int gmac4);
 	 u64(*get_systime) (void __iomem *ioaddr);
 };
 
@@ -502,6 +509,12 @@ struct mac_link {
 struct mii_regs {
 	unsigned int addr;	/* MII Address */
 	unsigned int data;	/* MII Data */
+	unsigned int addr_shift;	/* MII address shift */
+	unsigned int reg_shift;		/* MII reg shift */
+	unsigned int addr_mask;		/* MII address mask */
+	unsigned int reg_mask;		/* MII reg mask */
+	unsigned int clk_csr_shift;
+	unsigned int clk_csr_mask;
 };
 
 /* Helpers to manage the descriptors for chain and ring modes */

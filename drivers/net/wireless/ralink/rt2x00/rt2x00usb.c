@@ -319,10 +319,8 @@ static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void *data)
 			  entry->skb->data, length,
 			  rt2x00usb_interrupt_txdone, entry);
 
-	usb_anchor_urb(entry_priv->urb, rt2x00dev->anchor);
 	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 	if (status) {
-		usb_unanchor_urb(entry_priv->urb);
 		if (status == -ENODEV)
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
@@ -410,10 +408,8 @@ static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry, void *data)
 			  entry->skb->data, entry->skb->len,
 			  rt2x00usb_interrupt_rxdone, entry);
 
-	usb_anchor_urb(entry_priv->urb, rt2x00dev->anchor);
 	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 	if (status) {
-		usb_unanchor_urb(entry_priv->urb);
 		if (status == -ENODEV)
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
@@ -517,7 +513,7 @@ void rt2x00usb_flush_queue(struct data_queue *queue, bool drop)
 		 * Wait for a little while to give the driver
 		 * the oppurtunity to recover itself.
 		 */
-		msleep(10);
+		msleep(50);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_flush_queue);
@@ -744,6 +740,11 @@ void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 
+	usb_kill_anchored_urbs(rt2x00dev->anchor);
+	hrtimer_cancel(&rt2x00dev->txstatus_timer);
+	cancel_work_sync(&rt2x00dev->rxdone_work);
+	cancel_work_sync(&rt2x00dev->txdone_work);
+
 	queue_for_each(rt2x00dev, queue)
 		rt2x00usb_free_entries(queue);
 }
@@ -824,18 +825,23 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	if (retval)
 		goto exit_free_device;
 
-	retval = rt2x00lib_probe_dev(rt2x00dev);
-	if (retval)
-		goto exit_free_reg;
-
 	rt2x00dev->anchor = devm_kmalloc(&usb_dev->dev,
 					sizeof(struct usb_anchor),
 					GFP_KERNEL);
-	if (!rt2x00dev->anchor)
+	if (!rt2x00dev->anchor) {
+		retval = -ENOMEM;
 		goto exit_free_reg;
-
+	}
 	init_usb_anchor(rt2x00dev->anchor);
+
+	retval = rt2x00lib_probe_dev(rt2x00dev);
+	if (retval)
+		goto exit_free_anchor;
+
 	return 0;
+
+exit_free_anchor:
+	usb_kill_anchored_urbs(rt2x00dev->anchor);
 
 exit_free_reg:
 	rt2x00usb_free_reg(rt2x00dev);

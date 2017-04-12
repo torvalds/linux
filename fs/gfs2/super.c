@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bio.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -359,7 +359,7 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	u64 size = i_size_read(jd->jd_inode);
 
-	if (gfs2_check_internal_file_size(jd->jd_inode, 8 << 20, 1 << 30))
+	if (gfs2_check_internal_file_size(jd->jd_inode, 8 << 20, BIT(30)))
 		return -EIO;
 
 	jd->jd_blocks = size >> sdp->sd_sb.sb_bsize_shift;

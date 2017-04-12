@@ -11,6 +11,11 @@ Optional properties:
 			"peripheral" and "otg". In case this attribute isn't
 			passed via DT, USB DRD controllers should default to
 			OTG.
+ - phy_type: tells USB controllers that we want to configure the core to support
+			a UTMI+ PHY with an 8- or 16-bit interface if UTMI+ is
+			selected. Valid arguments are "utmi" and "utmi_wide".
+			In case this isn't passed via DT, USB controllers should
+			default to HW capability.
  - otg-rev: tells usb driver the release number of the OTG and EH supplement
 			with which the device and its descriptors are compliant,
 			in binary-coded decimal (i.e. 2.0 is 0200H). This
@@ -34,6 +39,7 @@ dwc3@4a030000 {
 	usb-phy = <&usb2_phy>, <&usb3,phy>;
 	maximum-speed = "super-speed";
 	dr_mode = "otg";
+	phy_type = "utmi_wide";
 	otg-rev = <0x0200>;
 	adp-disable;
 };

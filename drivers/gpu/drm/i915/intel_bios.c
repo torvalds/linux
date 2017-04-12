@@ -114,16 +114,18 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	panel_fixed_mode->hsync_start = panel_fixed_mode->hdisplay +
 		((dvo_timing->hsync_off_hi << 8) | dvo_timing->hsync_off_lo);
 	panel_fixed_mode->hsync_end = panel_fixed_mode->hsync_start +
-		dvo_timing->hsync_pulse_width;
+		((dvo_timing->hsync_pulse_width_hi << 8) |
+			dvo_timing->hsync_pulse_width_lo);
 	panel_fixed_mode->htotal = panel_fixed_mode->hdisplay +
 		((dvo_timing->hblank_hi << 8) | dvo_timing->hblank_lo);
 
 	panel_fixed_mode->vdisplay = (dvo_timing->vactive_hi << 8) |
 		dvo_timing->vactive_lo;
 	panel_fixed_mode->vsync_start = panel_fixed_mode->vdisplay +
-		dvo_timing->vsync_off;
+		((dvo_timing->vsync_off_hi << 4) | dvo_timing->vsync_off_lo);
 	panel_fixed_mode->vsync_end = panel_fixed_mode->vsync_start +
-		dvo_timing->vsync_pulse_width;
+		((dvo_timing->vsync_pulse_width_hi << 4) |
+			dvo_timing->vsync_pulse_width_lo);
 	panel_fixed_mode->vtotal = panel_fixed_mode->vdisplay +
 		((dvo_timing->vblank_hi << 8) | dvo_timing->vblank_lo);
 	panel_fixed_mode->clock = dvo_timing->clock * 10;
@@ -330,17 +332,19 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 
 		method = &backlight_data->backlight_control[panel_type];
 		dev_priv->vbt.backlight.type = method->type;
+		dev_priv->vbt.backlight.controller = method->controller;
 	}
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
 	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
 	DRM_DEBUG_KMS("VBT backlight PWM modulation frequency %u Hz, "
-		      "active %s, min brightness %u, level %u\n",
+		      "active %s, min brightness %u, level %u, controller %u\n",
 		      dev_priv->vbt.backlight.pwm_freq_hz,
 		      dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
 		      dev_priv->vbt.backlight.min_brightness,
-		      backlight_data->level[panel_type]);
+		      backlight_data->level[panel_type],
+		      dev_priv->vbt.backlight.controller);
 }
 
 /* Try to find sdvo panel data */
@@ -996,6 +1000,10 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 			goto err;
 		}
 
+		/* Log about presence of sequences we won't run. */
+		if (seq_id == MIPI_SEQ_TEAR_ON || seq_id == MIPI_SEQ_TEAR_OFF)
+			DRM_DEBUG_KMS("Unsupported sequence %u\n", seq_id);
+
 		dev_priv->vbt.dsi.sequence[seq_id] = data + index;
 
 		if (sequence->version >= 3)
@@ -1029,6 +1037,77 @@ static u8 translate_iboost(u8 val)
 		return 0;
 	}
 	return mapping[val];
+}
+
+static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
+			     enum port port)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[port];
+	enum port p;
+
+	if (!info->alternate_ddc_pin)
+		return;
+
+	for_each_port_masked(p, (1 << port) - 1) {
+		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
+
+		if (info->alternate_ddc_pin != i->alternate_ddc_pin)
+			continue;
+
+		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
+			      "disabling port %c DVI/HDMI support\n",
+			      port_name(p), i->alternate_ddc_pin,
+			      port_name(port), port_name(p));
+
+		/*
+		 * If we have multiple ports supposedly sharing the
+		 * pin, then dvi/hdmi couldn't exist on the shared
+		 * port. Otherwise they share the same ddc bin and
+		 * system couldn't communicate with them separately.
+		 *
+		 * Due to parsing the ports in alphabetical order,
+		 * a higher port will always clobber a lower one.
+		 */
+		i->supports_dvi = false;
+		i->supports_hdmi = false;
+		i->alternate_ddc_pin = 0;
+	}
+}
+
+static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
+			    enum port port)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[port];
+	enum port p;
+
+	if (!info->alternate_aux_channel)
+		return;
+
+	for_each_port_masked(p, (1 << port) - 1) {
+		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
+
+		if (info->alternate_aux_channel != i->alternate_aux_channel)
+			continue;
+
+		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
+			      "disabling port %c DP support\n",
+			      port_name(p), i->alternate_aux_channel,
+			      port_name(port), port_name(p));
+
+		/*
+		 * If we have multiple ports supposedlt sharing the
+		 * aux channel, then DP couldn't exist on the shared
+		 * port. Otherwise they share the same aux channel
+		 * and system couldn't communicate with them separately.
+		 *
+		 * Due to parsing the ports in alphabetical order,
+		 * a higher port will always clobber a lower one.
+		 */
+		i->supports_dp = false;
+		i->alternate_aux_channel = 0;
+	}
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
@@ -1072,7 +1151,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	if (!child)
 		return;
 
-	aux_channel = child->raw[25];
+	aux_channel = child->common.aux_channel;
 	ddc_pin = child->common.ddc_pin;
 
 	is_dvi = child->common.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
@@ -1084,6 +1163,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	info->supports_dvi = is_dvi;
 	info->supports_hdmi = is_hdmi;
 	info->supports_dp = is_dp;
+	info->supports_edp = is_edp;
 
 	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d\n",
 		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt);
@@ -1105,54 +1185,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
-		if (port == PORT_E) {
-			info->alternate_ddc_pin = ddc_pin;
-			/* if DDIE share ddc pin with other port, then
-			 * dvi/hdmi couldn't exist on the shared port.
-			 * Otherwise they share the same ddc bin and system
-			 * couldn't communicate with them seperately. */
-			if (ddc_pin == DDC_PIN_B) {
-				dev_priv->vbt.ddi_port_info[PORT_B].supports_dvi = 0;
-				dev_priv->vbt.ddi_port_info[PORT_B].supports_hdmi = 0;
-			} else if (ddc_pin == DDC_PIN_C) {
-				dev_priv->vbt.ddi_port_info[PORT_C].supports_dvi = 0;
-				dev_priv->vbt.ddi_port_info[PORT_C].supports_hdmi = 0;
-			} else if (ddc_pin == DDC_PIN_D) {
-				dev_priv->vbt.ddi_port_info[PORT_D].supports_dvi = 0;
-				dev_priv->vbt.ddi_port_info[PORT_D].supports_hdmi = 0;
-			}
-		} else if (ddc_pin == DDC_PIN_B && port != PORT_B)
-			DRM_DEBUG_KMS("Unexpected DDC pin for port B\n");
-		else if (ddc_pin == DDC_PIN_C && port != PORT_C)
-			DRM_DEBUG_KMS("Unexpected DDC pin for port C\n");
-		else if (ddc_pin == DDC_PIN_D && port != PORT_D)
-			DRM_DEBUG_KMS("Unexpected DDC pin for port D\n");
+		info->alternate_ddc_pin = ddc_pin;
+
+		sanitize_ddc_pin(dev_priv, port);
 	}
 
 	if (is_dp) {
-		if (port == PORT_E) {
-			info->alternate_aux_channel = aux_channel;
-			/* if DDIE share aux channel with other port, then
-			 * DP couldn't exist on the shared port. Otherwise
-			 * they share the same aux channel and system
-			 * couldn't communicate with them seperately. */
-			if (aux_channel == DP_AUX_A)
-				dev_priv->vbt.ddi_port_info[PORT_A].supports_dp = 0;
-			else if (aux_channel == DP_AUX_B)
-				dev_priv->vbt.ddi_port_info[PORT_B].supports_dp = 0;
-			else if (aux_channel == DP_AUX_C)
-				dev_priv->vbt.ddi_port_info[PORT_C].supports_dp = 0;
-			else if (aux_channel == DP_AUX_D)
-				dev_priv->vbt.ddi_port_info[PORT_D].supports_dp = 0;
-		}
-		else if (aux_channel == DP_AUX_A && port != PORT_A)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port A\n");
-		else if (aux_channel == DP_AUX_B && port != PORT_B)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port B\n");
-		else if (aux_channel == DP_AUX_C && port != PORT_C)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port C\n");
-		else if (aux_channel == DP_AUX_D && port != PORT_D)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port D\n");
+		info->alternate_aux_channel = aux_channel;
+
+		sanitize_aux_ch(dev_priv, port);
 	}
 
 	if (bdb->version >= 158) {
@@ -1375,13 +1416,16 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 		return false;
 	}
 
-	if (vbt->bdb_offset + sizeof(struct bdb_header) > size) {
+	if (range_overflows_t(size_t,
+			      vbt->bdb_offset,
+			      sizeof(struct bdb_header),
+			      size)) {
 		DRM_DEBUG_DRIVER("BDB header incomplete\n");
 		return false;
 	}
 
 	bdb = get_bdb_header(vbt);
-	if (vbt->bdb_offset + bdb->bdb_size > size) {
+	if (range_overflows_t(size_t, vbt->bdb_offset, bdb->bdb_size, size)) {
 		DRM_DEBUG_DRIVER("BDB incomplete\n");
 		return false;
 	}
@@ -1626,6 +1670,9 @@ bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 	};
 	int i;
 
+	if (HAS_DDI(dev_priv))
+		return dev_priv->vbt.ddi_port_info[port].supports_edp;
+
 	if (!dev_priv->vbt.child_dev_num)
 		return false;
 
@@ -1641,7 +1688,8 @@ bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 	return false;
 }
 
-bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port)
+static bool child_dev_is_dp_dual_mode(const union child_device_config *p_child,
+				      enum port port)
 {
 	static const struct {
 		u16 dp, hdmi;
@@ -1655,22 +1703,35 @@ bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum por
 		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
 		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
 	};
-	int i;
 
 	if (port == PORT_A || port >= ARRAY_SIZE(port_mapping))
 		return false;
 
-	if (!dev_priv->vbt.child_dev_num)
+	if ((p_child->common.device_type & DEVICE_TYPE_DP_DUAL_MODE_BITS) !=
+	    (DEVICE_TYPE_DP_DUAL_MODE & DEVICE_TYPE_DP_DUAL_MODE_BITS))
 		return false;
+
+	if (p_child->common.dvo_port == port_mapping[port].dp)
+		return true;
+
+	/* Only accept a HDMI dvo_port as DP++ if it has an AUX channel */
+	if (p_child->common.dvo_port == port_mapping[port].hdmi &&
+	    p_child->common.aux_channel != 0)
+		return true;
+
+	return false;
+}
+
+bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv,
+				     enum port port)
+{
+	int i;
 
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		const union child_device_config *p_child =
 			&dev_priv->vbt.child_dev[i];
 
-		if ((p_child->common.dvo_port == port_mapping[port].dp ||
-		     p_child->common.dvo_port == port_mapping[port].hdmi) &&
-		    (p_child->common.device_type & DEVICE_TYPE_DP_DUAL_MODE_BITS) ==
-		    (DEVICE_TYPE_DP_DUAL_MODE & DEVICE_TYPE_DP_DUAL_MODE_BITS))
+		if (child_dev_is_dp_dual_mode(p_child, port))
 			return true;
 	}
 
@@ -1729,7 +1790,7 @@ intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 {
 	int i;
 
-	if (WARN_ON_ONCE(!IS_BROXTON(dev_priv)))
+	if (WARN_ON_ONCE(!IS_GEN9_LP(dev_priv)))
 		return false;
 
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
@@ -1750,6 +1811,55 @@ intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 		case DVO_PORT_DPC:
 		case DVO_PORT_HDMIC:
 			if (port == PORT_C)
+				return true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * intel_bios_is_lspcon_present - if LSPCON is attached on %port
+ * @dev_priv:	i915 device instance
+ * @port:	port to check
+ *
+ * Return true if LSPCON is present on this port
+ */
+bool
+intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	int i;
+
+	if (!HAS_LSPCON(dev_priv))
+		return false;
+
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		if (!dev_priv->vbt.child_dev[i].common.lspcon)
+			continue;
+
+		switch (dev_priv->vbt.child_dev[i].common.dvo_port) {
+		case DVO_PORT_DPA:
+		case DVO_PORT_HDMIA:
+			if (port == PORT_A)
+				return true;
+			break;
+		case DVO_PORT_DPB:
+		case DVO_PORT_HDMIB:
+			if (port == PORT_B)
+				return true;
+			break;
+		case DVO_PORT_DPC:
+		case DVO_PORT_HDMIC:
+			if (port == PORT_C)
+				return true;
+			break;
+		case DVO_PORT_DPD:
+		case DVO_PORT_HDMID:
+			if (port == PORT_D)
 				return true;
 			break;
 		default:

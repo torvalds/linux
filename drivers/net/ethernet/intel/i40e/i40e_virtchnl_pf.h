@@ -129,8 +129,8 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf);
 
 /* VF configuration related iplink handlers */
 int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
-int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
-			      int vf_id, u16 vlan_id, u8 qos);
+int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
+			      u16 vlan_id, u8 qos, __be16 vlan_proto);
 int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 		       int max_tx_rate);
 int i40e_ndo_set_vf_trust(struct net_device *netdev, int vf_id, bool setting);

@@ -34,16 +34,6 @@
 #define	EFUSE_WIFI				0
 #define	EFUSE_BT				1
 
-enum _EFUSE_DEF_TYPE {
-	TYPE_EFUSE_MAX_SECTION				= 0,
-	TYPE_EFUSE_REAL_CONTENT_LEN			= 1,
-	TYPE_AVAILABLE_EFUSE_BYTES_BANK		= 2,
-	TYPE_AVAILABLE_EFUSE_BYTES_TOTAL	= 3,
-	TYPE_EFUSE_MAP_LEN					= 4,
-	TYPE_EFUSE_PROTECT_BYTES_BANK		= 5,
-	TYPE_EFUSE_CONTENT_LEN_BANK			= 6,
-};
-
 /* E-Fuse */
 #define EFUSE_MAP_SIZE      512
 #define EFUSE_MAX_SIZE      256
@@ -95,8 +85,6 @@ struct efuse_hal {
 };
 
 u8 Efuse_CalculateWordCnts(u8 word_en);
-void EFUSE_GetEfuseDefinition(struct adapter *adapt, u8 type, u8 type1,
-			      void *out);
 u8 efuse_OneByteRead(struct adapter *adapter, u16 addr, u8 *data);
 u8 efuse_OneByteWrite(struct adapter *adapter, u16 addr, u8 data);
 

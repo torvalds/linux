@@ -46,13 +46,14 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/net.h>
 #include <linux/irda.h>
 #include <linux/poll.h>
 
 #include <asm/ioctls.h>		/* TIOCOUTQ, TIOCINQ */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/sock.h>
 #include <net/tcp_states.h>
@@ -827,7 +828,8 @@ out:
  *    Wait for incoming connection
  *
  */
-static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
+static int irda_accept(struct socket *sock, struct socket *newsock, int flags,
+		       bool kern)
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *new, *self = irda_sk(sk);
@@ -835,7 +837,7 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	struct sk_buff *skb = NULL;
 	int err;
 
-	err = irda_create(sock_net(sk), newsock, sk->sk_protocol, 0);
+	err = irda_create(sock_net(sk), newsock, sk->sk_protocol, kern);
 	if (err)
 		return err;
 
@@ -843,9 +845,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	lock_sock(sk);
 	if (sock->state != SS_UNCONNECTED)
-		goto out;
-
-	if ((sk = sock->sk) == NULL)
 		goto out;
 
 	err = -EOPNOTSUPP;

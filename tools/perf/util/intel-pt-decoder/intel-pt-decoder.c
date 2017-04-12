@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <linux/compiler.h>
 
 #include "../cache.h"
 #include "../util.h"
@@ -80,6 +81,7 @@ struct intel_pt_decoder {
 	int (*walk_insn)(struct intel_pt_insn *intel_pt_insn,
 			 uint64_t *insn_cnt_ptr, uint64_t *ip, uint64_t to_ip,
 			 uint64_t max_insn_cnt, void *data);
+	bool (*pgd_ip)(uint64_t ip, void *data);
 	void *data;
 	struct intel_pt_state state;
 	const unsigned char *buf;
@@ -89,6 +91,7 @@ struct intel_pt_decoder {
 	bool pge;
 	bool have_tma;
 	bool have_cyc;
+	bool fixup_last_mtc;
 	uint64_t pos;
 	uint64_t last_ip;
 	uint64_t ip;
@@ -186,6 +189,7 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 
 	decoder->get_trace          = params->get_trace;
 	decoder->walk_insn          = params->walk_insn;
+	decoder->pgd_ip             = params->pgd_ip;
 	decoder->data               = params->data;
 	decoder->return_compression = params->return_compression;
 
@@ -584,9 +588,30 @@ struct intel_pt_calc_cyc_to_tsc_info {
 	uint64_t        tsc_timestamp;
 	uint64_t        timestamp;
 	bool            have_tma;
+	bool            fixup_last_mtc;
 	bool            from_mtc;
 	double          cbr_cyc_to_tsc;
 };
+
+/*
+ * MTC provides a 8-bit slice of CTC but the TMA packet only provides the lower
+ * 16 bits of CTC. If mtc_shift > 8 then some of the MTC bits are not in the CTC
+ * provided by the TMA packet. Fix-up the last_mtc calculated from the TMA
+ * packet by copying the missing bits from the current MTC assuming the least
+ * difference between the two, and that the current MTC comes after last_mtc.
+ */
+static void intel_pt_fixup_last_mtc(uint32_t mtc, int mtc_shift,
+				    uint32_t *last_mtc)
+{
+	uint32_t first_missing_bit = 1U << (16 - mtc_shift);
+	uint32_t mask = ~(first_missing_bit - 1);
+
+	*last_mtc |= mtc & mask;
+	if (*last_mtc >= mtc) {
+		*last_mtc -= first_missing_bit;
+		*last_mtc &= 0xff;
+	}
+}
 
 static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 {
@@ -617,6 +642,11 @@ static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 			return 0;
 
 		mtc = pkt_info->packet.payload;
+		if (decoder->mtc_shift > 8 && data->fixup_last_mtc) {
+			data->fixup_last_mtc = false;
+			intel_pt_fixup_last_mtc(mtc, decoder->mtc_shift,
+						&data->last_mtc);
+		}
 		if (mtc > data->last_mtc)
 			mtc_delta = mtc - data->last_mtc;
 		else
@@ -685,6 +715,7 @@ static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 
 		data->ctc_delta = 0;
 		data->have_tma = true;
+		data->fixup_last_mtc = true;
 
 		return 0;
 
@@ -751,6 +782,7 @@ static void intel_pt_calc_cyc_to_tsc(struct intel_pt_decoder *decoder,
 		.tsc_timestamp  = decoder->tsc_timestamp,
 		.timestamp      = decoder->timestamp,
 		.have_tma       = decoder->have_tma,
+		.fixup_last_mtc = decoder->fixup_last_mtc,
 		.from_mtc       = from_mtc,
 		.cbr_cyc_to_tsc = 0,
 	};
@@ -949,6 +981,8 @@ out:
 out_no_progress:
 	decoder->state.insn_op = intel_pt_insn->op;
 	decoder->state.insn_len = intel_pt_insn->length;
+	memcpy(decoder->state.insn, intel_pt_insn->buf,
+	       INTEL_PT_INSN_BUF_SZ);
 
 	if (decoder->tx_flags & INTEL_PT_IN_TX)
 		decoder->state.flags |= INTEL_PT_IN_TX;
@@ -1008,6 +1042,19 @@ static int intel_pt_walk_tip(struct intel_pt_decoder *decoder)
 	int err;
 
 	err = intel_pt_walk_insn(decoder, &intel_pt_insn, 0);
+	if (err == INTEL_PT_RETURN &&
+	    decoder->pgd_ip &&
+	    decoder->pkt_state == INTEL_PT_STATE_TIP_PGD &&
+	    (decoder->state.type & INTEL_PT_BRANCH) &&
+	    decoder->pgd_ip(decoder->state.to_ip, decoder->data)) {
+		/* Unconditional branch leaving filter region */
+		decoder->no_progress = 0;
+		decoder->pge = false;
+		decoder->continuous_period = false;
+		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+		decoder->state.to_ip = 0;
+		return 0;
+	}
 	if (err == INTEL_PT_RETURN)
 		return 0;
 	if (err)
@@ -1036,6 +1083,21 @@ static int intel_pt_walk_tip(struct intel_pt_decoder *decoder)
 	}
 
 	if (intel_pt_insn.branch == INTEL_PT_BR_CONDITIONAL) {
+		uint64_t to_ip = decoder->ip + intel_pt_insn.length +
+				 intel_pt_insn.rel;
+
+		if (decoder->pgd_ip &&
+		    decoder->pkt_state == INTEL_PT_STATE_TIP_PGD &&
+		    decoder->pgd_ip(to_ip, decoder->data)) {
+			/* Conditional branch leaving filter region */
+			decoder->pge = false;
+			decoder->continuous_period = false;
+			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+			decoder->ip = to_ip;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			return 0;
+		}
 		intel_pt_log_at("ERROR: Conditional branch when expecting indirect branch",
 				decoder->ip);
 		decoder->pkt_state = INTEL_PT_STATE_ERR_RESYNC;
@@ -1241,6 +1303,7 @@ static void intel_pt_calc_tma(struct intel_pt_decoder *decoder)
 	}
 	decoder->ctc_delta = 0;
 	decoder->have_tma = true;
+	decoder->fixup_last_mtc = true;
 	intel_pt_log("CTC timestamp " x64_fmt " last MTC %#x  CTC rem %#x\n",
 		     decoder->ctc_timestamp, decoder->last_mtc, ctc_rem);
 }
@@ -1254,6 +1317,12 @@ static void intel_pt_calc_mtc_timestamp(struct intel_pt_decoder *decoder)
 		return;
 
 	mtc = decoder->packet.payload;
+
+	if (decoder->mtc_shift > 8 && decoder->fixup_last_mtc) {
+		decoder->fixup_last_mtc = false;
+		intel_pt_fixup_last_mtc(mtc, decoder->mtc_shift,
+					&decoder->last_mtc);
+	}
 
 	if (mtc > decoder->last_mtc)
 		mtc_delta = mtc - decoder->last_mtc;
@@ -1323,6 +1392,8 @@ static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
 			     timestamp, decoder->timestamp);
 	else
 		decoder->timestamp = timestamp;
+
+	decoder->timestamp_insn_cnt = 0;
 }
 
 /* Walk PSB+ packets when already in sync. */
@@ -1676,6 +1747,7 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 		switch (decoder->packet.type) {
 		case INTEL_PT_TIP_PGD:
 			decoder->continuous_period = false;
+			__fallthrough;
 		case INTEL_PT_TIP_PGE:
 		case INTEL_PT_TIP:
 			intel_pt_log("ERROR: Unexpected packet\n");
@@ -1729,6 +1801,8 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			decoder->pge = false;
 			decoder->continuous_period = false;
 			intel_pt_clear_tx_flags(decoder);
+			__fallthrough;
+
 		case INTEL_PT_TNT:
 			decoder->have_tma = false;
 			intel_pt_log("ERROR: Unexpected packet\n");
@@ -1769,6 +1843,7 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 		switch (decoder->packet.type) {
 		case INTEL_PT_TIP_PGD:
 			decoder->continuous_period = false;
+			__fallthrough;
 		case INTEL_PT_TIP_PGE:
 		case INTEL_PT_TIP:
 			decoder->pge = decoder->packet.type != INTEL_PT_TIP_PGD;

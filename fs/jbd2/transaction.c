@@ -159,6 +159,7 @@ static void wait_transaction_locked(journal_t *journal)
 	read_unlock(&journal->j_state_lock);
 	if (need_to_start)
 		jbd2_log_start_commit(journal, tid);
+	jbd2_might_wait_for_commit(journal);
 	schedule();
 	finish_wait(&journal->j_wait_transaction_locked, &wait);
 }
@@ -181,8 +182,6 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 	transaction_t *t = journal->j_running_transaction;
 	int needed;
 	int total = blocks + rsv_blocks;
-
-	jbd2_might_wait_for_commit(journal);
 
 	/*
 	 * If the current transaction is locked down for commit, wait
@@ -214,6 +213,7 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 		if (atomic_read(&journal->j_reserved_credits) + total >
 		    journal->j_max_transaction_buffers) {
 			read_unlock(&journal->j_state_lock);
+			jbd2_might_wait_for_commit(journal);
 			wait_event(journal->j_wait_reserved,
 				   atomic_read(&journal->j_reserved_credits) + total <=
 				   journal->j_max_transaction_buffers);
@@ -238,6 +238,7 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 	if (jbd2_log_space_left(journal) < jbd2_space_needed(journal)) {
 		atomic_sub(total, &t->t_outstanding_credits);
 		read_unlock(&journal->j_state_lock);
+		jbd2_might_wait_for_commit(journal);
 		write_lock(&journal->j_state_lock);
 		if (jbd2_log_space_left(journal) < jbd2_space_needed(journal))
 			__jbd2_log_wait_for_space(journal);
@@ -255,6 +256,7 @@ static int add_transaction_credits(journal_t *journal, int blocks,
 		sub_reserved_credits(journal, rsv_blocks);
 		atomic_sub(total, &t->t_outstanding_credits);
 		read_unlock(&journal->j_state_lock);
+		jbd2_might_wait_for_commit(journal);
 		wait_event(journal->j_wait_reserved,
 			 atomic_read(&journal->j_reserved_credits) + rsv_blocks
 			 <= journal->j_max_transaction_buffers / 2);
@@ -1147,6 +1149,7 @@ int jbd2_journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 		JBUFFER_TRACE(jh, "file as BJ_Reserved");
 		spin_lock(&journal->j_list_lock);
 		__jbd2_journal_file_buffer(jh, transaction, BJ_Reserved);
+		spin_unlock(&journal->j_list_lock);
 	} else if (jh->b_transaction == journal->j_committing_transaction) {
 		/* first access by this transaction */
 		jh->b_modified = 0;
@@ -1154,8 +1157,8 @@ int jbd2_journal_get_create_access(handle_t *handle, struct buffer_head *bh)
 		JBUFFER_TRACE(jh, "set next transaction");
 		spin_lock(&journal->j_list_lock);
 		jh->b_next_transaction = transaction;
+		spin_unlock(&journal->j_list_lock);
 	}
-	spin_unlock(&journal->j_list_lock);
 	jbd_unlock_bh_state(bh);
 
 	/*
@@ -1860,7 +1863,9 @@ static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh)
 
 	__blist_del_buffer(list, jh);
 	jh->b_jlist = BJ_None;
-	if (test_clear_buffer_jbddirty(bh))
+	if (transaction && is_journal_aborted(transaction->t_journal))
+		clear_buffer_jbddirty(bh);
+	else if (test_clear_buffer_jbddirty(bh))
 		mark_buffer_dirty(bh);	/* Expose it to the VM */
 }
 

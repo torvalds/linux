@@ -90,6 +90,47 @@ Required Properties:
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
+NAND FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-nand-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent NAND node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
+DMA FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-dma-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent DMA node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
+USB FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-usb-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent USB node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
+QSPI FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-qspi-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent QSPI node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
+SDMMC FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-sdmmc-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent SD/MMC node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order for port A, and then single bit error interrupt,
+	then double bit error interrupt in this order for port B.
+
 Example:
 
 	eccmgr: eccmgr@ffd06000 {
@@ -131,5 +172,62 @@ Example:
 			altr,ecc-parent = <&gmac0>;
 			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>,
 				     <37 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		nand-buf-ecc@ff8c2000 {
+			compatible = "altr,socfpga-nand-ecc";
+			reg = <0xff8c2000 0x400>;
+			altr,ecc-parent = <&nand>;
+			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>,
+				     <43 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		nand-rd-ecc@ff8c2400 {
+			compatible = "altr,socfpga-nand-ecc";
+			reg = <0xff8c2400 0x400>;
+			altr,ecc-parent = <&nand>;
+			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>,
+				     <45 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		nand-wr-ecc@ff8c2800 {
+			compatible = "altr,socfpga-nand-ecc";
+			reg = <0xff8c2800 0x400>;
+			altr,ecc-parent = <&nand>;
+			interrupts = <12 IRQ_TYPE_LEVEL_HIGH>,
+				     <44 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		dma-ecc@ff8c8000 {
+			compatible = "altr,socfpga-dma-ecc";
+			reg = <0xff8c8000 0x400>;
+			altr,ecc-parent = <&pdma>;
+			interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
+				     <42 IRQ_TYPE_LEVEL_HIGH>;
+
+		usb0-ecc@ff8c8800 {
+			compatible = "altr,socfpga-usb-ecc";
+			reg = <0xff8c8800 0x400>;
+			altr,ecc-parent = <&usb0>;
+			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+				     <34 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		qspi-ecc@ff8c8400 {
+			compatible = "altr,socfpga-qspi-ecc";
+			reg = <0xff8c8400 0x400>;
+			altr,ecc-parent = <&qspi>;
+			interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,
+				     <46 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		sdmmc-ecc@ff8c2c00 {
+			compatible = "altr,socfpga-sdmmc-ecc";
+			reg = <0xff8c2c00 0x400>;
+			altr,ecc-parent = <&mmc>;
+			interrupts = <15 IRQ_TYPE_LEVEL_HIGH>,
+				     <47 IRQ_TYPE_LEVEL_HIGH>,
+				     <16 IRQ_TYPE_LEVEL_HIGH>,
+				     <48 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};

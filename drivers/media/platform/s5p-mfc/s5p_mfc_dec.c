@@ -642,7 +642,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	int ret;
 
 	if (ctx->state == MFCINST_ERROR) {
-		mfc_err("Call on DQBUF after unrecoverable error\n");
+		mfc_err_limited("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
 
@@ -776,11 +776,12 @@ static int vidioc_g_crop(struct file *file, void *priv,
 	u32 left, right, top, bottom;
 
 	if (ctx->state != MFCINST_HEAD_PARSED &&
-	ctx->state != MFCINST_RUNNING && ctx->state != MFCINST_FINISHING
-					&& ctx->state != MFCINST_FINISHED) {
-			mfc_err("Cannont set crop\n");
-			return -EINVAL;
-		}
+	    ctx->state != MFCINST_RUNNING &&
+	    ctx->state != MFCINST_FINISHING &&
+	    ctx->state != MFCINST_FINISHED) {
+		mfc_err("Can not get crop information\n");
+		return -EINVAL;
+	}
 	if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_H264) {
 		left = s5p_mfc_hw_call(dev->mfc_ops, get_crop_info_h, ctx);
 		right = left >> S5P_FIMV_SHARED_CROP_RIGHT_SHIFT;
@@ -792,18 +793,17 @@ static int vidioc_g_crop(struct file *file, void *priv,
 		cr->c.top = top;
 		cr->c.width = ctx->img_width - left - right;
 		cr->c.height = ctx->img_height - top - bottom;
-		mfc_debug(2, "Cropping info [h264]: l=%d t=%d "
-			"w=%d h=%d (r=%d b=%d fw=%d fh=%d\n", left, top,
-			cr->c.width, cr->c.height, right, bottom,
-			ctx->buf_width, ctx->buf_height);
+		mfc_debug(2, "Cropping info [h264]: l=%d t=%d w=%d h=%d (r=%d b=%d fw=%d fh=%d\n",
+			  left, top, cr->c.width, cr->c.height, right, bottom,
+			  ctx->buf_width, ctx->buf_height);
 	} else {
 		cr->c.left = 0;
 		cr->c.top = 0;
 		cr->c.width = ctx->img_width;
 		cr->c.height = ctx->img_height;
-		mfc_debug(2, "Cropping info: w=%d h=%d fw=%d "
-			"fh=%d\n", cr->c.width,	cr->c.height, ctx->buf_width,
-							ctx->buf_height);
+		mfc_debug(2, "Cropping info: w=%d h=%d fw=%d fh=%d\n",
+			  cr->c.width,	cr->c.height, ctx->buf_width,
+			  ctx->buf_height);
 	}
 	return 0;
 }

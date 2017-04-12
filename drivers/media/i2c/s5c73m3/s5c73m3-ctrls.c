@@ -211,7 +211,7 @@ static int s5c73m3_3a_lock(struct s5c73m3 *state, struct v4l2_ctrl *ctrl)
 	}
 
 	if ((ctrl->val ^ ctrl->cur.val) & V4L2_LOCK_FOCUS)
-		ret = s5c73m3_af_run(state, ~af_lock);
+		ret = s5c73m3_af_run(state, !af_lock);
 
 	return ret;
 }

@@ -20,6 +20,7 @@
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
@@ -29,7 +30,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 void user_enable_single_step(struct task_struct *child)

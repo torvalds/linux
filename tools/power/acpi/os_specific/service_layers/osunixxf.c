@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,10 +63,7 @@
 #define _COMPONENT          ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osunixxf")
 
-u8 acpi_gbl_debug_timeout = FALSE;
-
 /* Upcalls to acpi_exec */
-
 void
 ae_table_override(struct acpi_table_header *existing_table,
 		  struct acpi_table_header **new_table);
@@ -317,6 +314,28 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 {
 
 	return (AE_SUPPORT);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_os_enter_sleep
+ *
+ * PARAMETERS:  sleep_state         - Which sleep state to enter
+ *              rega_value          - Register A value
+ *              regb_value          - Register B value
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: A hook before writing sleep registers to enter the sleep
+ *              state. Return AE_CTRL_TERMINATE to skip further sleep register
+ *              writes.
+ *
+ *****************************************************************************/
+
+acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value)
+{
+
+	return (AE_OK);
 }
 
 /******************************************************************************
@@ -649,8 +668,12 @@ acpi_os_create_semaphore(u32 max_units,
 	}
 #ifdef __APPLE__
 	{
-		char *semaphore_name = tmpnam(NULL);
+		static int semaphore_count = 0;
+		char semaphore_name[32];
 
+		snprintf(semaphore_name, sizeof(semaphore_name), "acpi_sem_%d",
+			 semaphore_count++);
+		printf("%s\n", semaphore_name);
 		sem =
 		    sem_open(semaphore_name, O_EXCL | O_CREAT, 0755,
 			     initial_units);
@@ -695,10 +718,15 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 	if (!sem) {
 		return (AE_BAD_PARAMETER);
 	}
-
+#ifdef __APPLE__
+	if (sem_close(sem) == -1) {
+		return (AE_BAD_PARAMETER);
+	}
+#else
 	if (sem_destroy(sem) == -1) {
 		return (AE_BAD_PARAMETER);
 	}
+#endif
 
 	return (AE_OK);
 }

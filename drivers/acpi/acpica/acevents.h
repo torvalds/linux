@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,6 +84,9 @@ acpi_status
 acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info);
+
+acpi_status
+acpi_ev_mask_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 is_masked);
 
 acpi_status
 acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
@@ -240,9 +243,7 @@ acpi_ev_default_region_setup(acpi_handle handle,
 			     u32 function,
 			     void *handler_context, void **region_context);
 
-acpi_status
-acpi_ev_initialize_region(union acpi_operand_object *region_obj,
-			  u8 acpi_ns_locked);
+acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj);
 
 /*
  * evsci - SCI (System Control Interrupt) handling/dispatch

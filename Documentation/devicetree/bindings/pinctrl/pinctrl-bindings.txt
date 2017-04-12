@@ -97,6 +97,11 @@ For example:
 	};
 
 == Pin controller devices ==
+Required properties: See the pin controller driver specific documentation
+
+Optional properties:
+#pinctrl-cells:	Number of pin control cells in addition to the index within the
+		pin controller device instance
 
 Pin controller devices should contain the pin configuration nodes that client
 devices reference.
@@ -119,7 +124,8 @@ For example:
 
 The contents of each of those pin configuration child nodes is defined
 entirely by the binding for the individual pin controller device. There
-exists no common standard for this content.
+exists no common standard for this content. The pinctrl framework only
+provides generic helper bindings that the pin controller driver can use.
 
 The pin configuration nodes need not be direct children of the pin controller
 device; they may be grandchildren, for example. Whether this is legal, and
@@ -155,6 +161,42 @@ state_2_node_a {
 	function = "i2c0";
 	pins = "mfio29", "mfio30";
 };
+
+Optionally an altenative binding can be used if more suitable depending on the
+pin controller hardware. For hardaware where there is a large number of identical
+pin controller instances, naming each pin and function can easily become
+unmaintainable. This is especially the case if the same controller is used for
+different pins and functions depending on the SoC revision and packaging.
+
+For cases like this, the pin controller driver may use pinctrl-pin-array helper
+binding with a hardware based index and a number of pin configuration values:
+
+pincontroller {
+	... /* Standard DT properties for the device itself elided */
+	#pinctrl-cells = <2>;
+
+	state_0_node_a {
+		pinctrl-pin-array = <
+			0 A_DELAY_PS(0) G_DELAY_PS(120)
+			4 A_DELAY_PS(0) G_DELAY_PS(360)
+			...
+		>;
+	};
+	...
+};
+
+Above #pinctrl-cells specifies the number of value cells in addition to the
+index of the registers. This is similar to the interrupts-extended binding with
+one exception. There is no need to specify the phandle for each entry as that
+is already known as the defined pins are always children of the pin controller
+node. Further having the phandle pointing to another pin controller would not
+currently work as the pinctrl framework uses named modes to group pins for each
+pin control device.
+
+The index for pinctrl-pin-array must relate to the hardware for the pinctrl
+registers, and must not be a virtual index of pin instances. The reason for
+this is to avoid mapping of the index in the dts files and the pin controller
+driver as it can change.
 
 == Generic pin configuration node content ==
 

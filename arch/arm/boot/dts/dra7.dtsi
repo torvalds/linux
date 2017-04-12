@@ -10,8 +10,6 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/dra.h>
 
-#include "skeleton.dtsi"
-
 #define MAX_SOURCES 400
 
 / {
@@ -20,6 +18,7 @@
 
 	compatible = "ti,dra7xx";
 	interrupt-parent = <&crossbar_mpu>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -58,7 +57,7 @@
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		reg = <0x0 0x48211000 0x0 0x1000>,
-		      <0x0 0x48212000 0x0 0x1000>,
+		      <0x0 0x48212000 0x0 0x2000>,
 		      <0x0 0x48214000 0x0 0x2000>,
 		      <0x0 0x48216000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -82,9 +81,11 @@
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 
-			operating-points-v2 = <&cpu0_opp_table>;
-			ti,syscon-efuse = <&scm_wkup 0x20c 0xf80000 19>;
-			ti,syscon-rev = <&scm_wkup 0x204>;
+			operating-points = <
+				/* kHz    uV */
+				1000000	1060000
+				1176000	1160000
+				>;
 
 			clocks = <&dpll_mpu_ck>;
 			clock-names = "cpu";
@@ -95,24 +96,6 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
-		};
-	};
-
-	cpu0_opp_table: opp_table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp_nom@1000000000 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <1060000 850000 1150000>;
-			opp-supported-hw = <0xFF 0x01>;
-			opp-suspend;
-		};
-
-		opp_od@1176000000 {
-			opp-hz = /bits/ 64 <1176000000>;
-			opp-microvolt = <1160000 885000 1160000>;
-			opp-supported-hw = <0xFF 0x02>;
 		};
 	};
 
@@ -189,6 +172,7 @@
 					reg = <0x1400 0x0468>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <32>;
@@ -301,6 +285,7 @@
 					  0x82000000 0 0x20013000 0x13000 0 0xffed000>;
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
+				linux,pci-domain = <0>;
 				ti,hwmods = "pcie1";
 				phys = <&pcie1_phy>;
 				phy-names = "pcie-phy0";
@@ -336,6 +321,7 @@
 					  0x82000000 0 0x30013000 0x13000 0 0xffed000>;
 				#interrupt-cells = <1>;
 				num-lanes = <1>;
+				linux,pci-domain = <1>;
 				ti,hwmods = "pcie2";
 				phys = <&pcie2_phy>;
 				phy-names = "pcie-phy0";
@@ -1392,6 +1378,7 @@
 			phy-names = "sata-phy";
 			clocks = <&sata_ref_clk>;
 			ti,hwmods = "sata";
+			ports-implemented = <0x1>;
 		};
 
 		rtc: rtc@48838000 {
@@ -1413,7 +1400,7 @@
 			ti,hwmods = "ocp2scp1";
 
 			usb2_phy1: phy@4a084000 {
-				compatible = "ti,omap-usb2";
+				compatible = "ti,dra7x-usb2", "ti,omap-usb2";
 				reg = <0x4a084000 0x400>;
 				syscon-phy-power = <&scm_conf 0x300>;
 				clocks = <&usb_phy1_always_on_clk32k>,
@@ -1717,16 +1704,15 @@
 		mac: ethernet@48484000 {
 			compatible = "ti,dra7-cpsw","ti,cpsw";
 			ti,hwmods = "gmac";
-			clocks = <&dpll_gmac_ck>, <&gmac_gmii_ref_clk_div>;
+			clocks = <&gmac_main_clk>, <&gmac_rft_clk_mux>;
 			clock-names = "fck", "cpts";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
-			no_bd_ram = <0>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
-			cpts_clock_mult = <0x80000000>;
+			cpts_clock_mult = <0x784CFE14>;
 			cpts_clock_shift = <29>;
 			reg = <0x48484000 0x1000
 			       0x48485200 0x2E00>;

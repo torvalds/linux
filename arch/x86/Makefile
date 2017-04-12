@@ -120,10 +120,6 @@ else
         # -funit-at-a-time shrinks the kernel .text considerably
         # unfortunately it makes reading oopses harder.
         KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)
-
-        # this works around some issues with generating unwind tables in older gccs
-        # newer gccs do it by default
-        KBUILD_CFLAGS += $(call cc-option,-maccumulate-outgoing-args)
 endif
 
 ifdef CONFIG_X86_X32
@@ -147,6 +143,37 @@ ifeq ($(CONFIG_KMEMCHECK),y)
 	KBUILD_CFLAGS += $(call cc-option,-fno-builtin-memcpy)
 endif
 
+#
+# If the function graph tracer is used with mcount instead of fentry,
+# '-maccumulate-outgoing-args' is needed to prevent a GCC bug
+# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=42109)
+#
+ifdef CONFIG_FUNCTION_GRAPH_TRACER
+  ifndef CONFIG_HAVE_FENTRY
+	ACCUMULATE_OUTGOING_ARGS := 1
+  else
+    ifeq ($(call cc-option-yn, -mfentry), n)
+	ACCUMULATE_OUTGOING_ARGS := 1
+    endif
+  endif
+endif
+
+#
+# Jump labels need '-maccumulate-outgoing-args' for gcc < 4.5.2 to prevent a
+# GCC bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=46226).  There's no way
+# to test for this bug at compile-time because the test case needs to execute,
+# which is a no-go for cross compilers.  So check the GCC version instead.
+#
+ifdef CONFIG_JUMP_LABEL
+  ifneq ($(ACCUMULATE_OUTGOING_ARGS), 1)
+	ACCUMULATE_OUTGOING_ARGS = $(call cc-if-fullversion, -lt, 040502, 1)
+  endif
+endif
+
+ifeq ($(ACCUMULATE_OUTGOING_ARGS), 1)
+	KBUILD_CFLAGS += -maccumulate-outgoing-args
+endif
+
 # Stackpointer is addressed different for 32 bit and 64 bit x86
 sp-$(CONFIG_X86_32) := esp
 sp-$(CONFIG_X86_64) := rsp
@@ -163,11 +190,12 @@ asinstr += $(call as-instr,pshufb %xmm0$(comma)%xmm0,-DCONFIG_AS_SSSE3=1)
 asinstr += $(call as-instr,crc32l %eax$(comma)%eax,-DCONFIG_AS_CRC32=1)
 avx_instr := $(call as-instr,vxorps %ymm0$(comma)%ymm1$(comma)%ymm2,-DCONFIG_AS_AVX=1)
 avx2_instr :=$(call as-instr,vpbroadcastb %xmm0$(comma)%ymm1,-DCONFIG_AS_AVX2=1)
+avx512_instr :=$(call as-instr,vpmovm2b %k1$(comma)%zmm5,-DCONFIG_AS_AVX512=1)
 sha1_ni_instr :=$(call as-instr,sha1msg1 %xmm0$(comma)%xmm1,-DCONFIG_AS_SHA1_NI=1)
 sha256_ni_instr :=$(call as-instr,sha256msg1 %xmm0$(comma)%xmm1,-DCONFIG_AS_SHA256_NI=1)
 
-KBUILD_AFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(sha1_ni_instr) $(sha256_ni_instr)
-KBUILD_CFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(sha1_ni_instr) $(sha256_ni_instr)
+KBUILD_AFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(avx512_instr) $(sha1_ni_instr) $(sha256_ni_instr)
+KBUILD_CFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(avx512_instr) $(sha1_ni_instr) $(sha256_ni_instr)
 
 LDFLAGS := -m elf_$(UTS_MACHINE)
 

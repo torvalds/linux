@@ -12,6 +12,7 @@
 struct super_block;
 struct file_system_type;
 struct iomap;
+struct iomap_ops;
 struct linux_binprm;
 struct path;
 struct mount;
@@ -61,7 +62,7 @@ extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 extern void *copy_mount_options(const void __user *);
 extern char *copy_mount_string(const void __user *);
 
-extern struct vfsmount *lookup_mnt(struct path *);
+extern struct vfsmount *lookup_mnt(const struct path *);
 extern int finish_automount(struct vfsmount *, struct path *);
 
 extern int sb_prepare_remount_readonly(struct super_block *);
@@ -120,6 +121,15 @@ extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
 extern void inode_add_lru(struct inode *inode);
 extern int dentry_needs_remove_privs(struct dentry *dentry);
 
+extern bool __atime_needs_update(const struct path *, struct inode *, bool);
+static inline bool atime_needs_update_rcu(const struct path *path,
+					  struct inode *inode)
+{
+	return __atime_needs_update(path, inode, true);
+}
+
+extern bool atime_needs_update_rcu(const struct path *, struct inode *);
+
 /*
  * fs-writeback.c
  */
@@ -156,7 +166,7 @@ extern void mnt_pin_kill(struct mount *m);
 /*
  * fs/nsfs.c
  */
-extern struct dentry_operations ns_dentry_operations;
+extern const struct dentry_operations ns_dentry_operations;
 
 /*
  * fs/ioctl.c
@@ -164,3 +174,16 @@ extern struct dentry_operations ns_dentry_operations;
 extern int do_vfs_ioctl(struct file *file, unsigned int fd, unsigned int cmd,
 		    unsigned long arg);
 extern long vfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+
+/*
+ * iomap support:
+ */
+typedef loff_t (*iomap_actor_t)(struct inode *inode, loff_t pos, loff_t len,
+		void *data, struct iomap *iomap);
+
+loff_t iomap_apply(struct inode *inode, loff_t pos, loff_t length,
+		unsigned flags, const struct iomap_ops *ops, void *data,
+		iomap_actor_t actor);
+
+/* direct-io.c: */
+int sb_init_dio_done_wq(struct super_block *sb);

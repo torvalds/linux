@@ -9,7 +9,7 @@
 			Linus
 ----------
 
-M: Matt Mackal
+N: Matt Mackal
 E: mpm@selenic.com
 D: SLOB slab allocator
 
@@ -1090,6 +1090,10 @@ S: 6350 Stoneridge Mall Road
 S: Pleasanton, CA 94588
 S: USA
 
+N: Dmitry Eremin-Solenikov
+E: dbaryshkov@gmail.com
+D: Power Supply Maintainer from v3.14 - v3.15
+
 N: Doug Evans
 E: dje@cygnus.com
 D: Wrote Xenix FS (part of standard kernel since 0.99.15)
@@ -1860,10 +1864,11 @@ S: The Netherlands
 
 N: Martin Kepplinger
 E: martink@posteo.de
-E: martin.kepplinger@theobroma-systems.com
+E: martin.kepplinger@ginzinger.com
 W: http://www.martinkepplinger.com
 D: mma8452 accelerators iio driver
-D: Kernel cleanups
+D: pegasus_notetaker input driver
+D: Kernel fixes and cleanups
 S: Garnisonstraße 26
 S: 4020 Linz
 S: Austria
@@ -1905,7 +1910,7 @@ S: Ra'annana, Israel
 
 N: Andi Kleen
 E: andi@firstfloor.org
-U: http://www.halobates.de
+W: http://www.halobates.de
 D: network, x86, NUMA, various hacks
 S: Schwalbenstr. 96
 S: 85551 Ottobrunn
@@ -1943,6 +1948,11 @@ W: http://bytesex.org
 E: kraxel@bytesex.org
 E: kraxel@suse.de
 D: video4linux, bttv, vesafb, some scsi, misc fixes
+
+N: Hans J. Koch
+D: USERSPACE I/O, MAX6650
+D: Hans passed away in June 2016, and will be greatly missed.
+W: https://lwn.net/Articles/691000/
 
 N: Harald Koenig
 E: koenig@tat.physik.uni-tuebingen.de
@@ -2079,8 +2089,8 @@ D: ST Microelectronics SPEAr13xx PCI host bridge driver
 D: Synopsys Designware PCI host bridge driver
 
 N: Gabor Kuti
-M: seasons@falcon.sch.bme.hu
-M: seasons@makosteszta.sote.hu
+E: seasons@falcon.sch.bme.hu
+E: seasons@makosteszta.sote.hu
 D: Original author of software suspend
 
 N: Jaroslav Kysela
@@ -2287,11 +2297,11 @@ D: Initial implementation of VC's, pty's and select()
 
 N: Pavel Machek
 E: pavel@ucw.cz
-D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd
+P: 4096R/92DFCE96 4FA7 9EEF FCD4 C44F C585  B8C7 C060 2241 92DF CE96
+D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd,
 D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
-D: work on suspend-to-ram/disk, killing duplicates from ioctl32
-S: Volkova 1131
-S: 198 00 Praha 9
+D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
+D: Altera SoCFPGA and Nokia N900 support.
 S: Czech Republic
 
 N: Paul Mackerras
@@ -2468,12 +2478,11 @@ S: D-90453 Nuernberg
 S: Germany
 
 N: Arnaldo Carvalho de Melo
-E: acme@ghostprotocols.net
+E: acme@kernel.org
 E: arnaldo.melo@gmail.com
 E: acme@redhat.com
-W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
-D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
+D: tools/, IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
 S: Brazil
 
 N: Karsten Merker
@@ -2764,6 +2773,10 @@ D: Maintainer of the auxiliary display drivers tree (drivers/auxdisplay/*)
 S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
+
+N: Peter Oruba
+D: AMD Microcode loader driver
+S: Germany
 
 N: Jens Osterkamp
 E: jens@de.ibm.com
@@ -3518,6 +3531,10 @@ S: 145 Howard St.
 S: Northborough, MA 01532
 S: USA
 
+N: Doug Thompson
+E: dougthompson@xmission.com
+D: EDAC
+
 N: Tommy Thorn
 E: Tommy.Thorn@irisa.fr
 W: http://www.irisa.fr/prive/thorn/index.html
@@ -3654,6 +3671,10 @@ S: Obere Heerbergstrasse 17
 S: 97078 Wuerzburg
 S: Germany
 
+N: Jason Uhlenkott
+E: juhlenko@akamai.com
+D: I3000 EDAC driver
+
 N: Greg Ungerer
 E: gerg@snapgear.com
 D: uClinux kernel hacker
@@ -3691,7 +3712,7 @@ S: Germany
 N: Geert Uytterhoeven
 E: geert@linux-m68k.org
 W: http://users.telenet.be/geertu/
-P: 1024/862678A6 C51D 361C 0BD1 4C90 B275  C553 6EEA 11BA 8626 78A6
+P: 4096R/4804B4BC3F55EEFB 750D 82B0 A781 5431 5E25  925B 4804 B4BC 3F55 EEFB
 D: m68k/Amiga and PPC/CHRP Longtrail coordinator
 D: Frame buffer device and XF68_FBDev maintainer
 D: m68k IDE maintainer
@@ -3927,8 +3948,6 @@ E: gwingerde@gmail.com
 D: Ralink rt2x00 WLAN driver
 D: Minix V2 file-system
 D: Misc fixes
-S: Geessinkweg 177
-S: 7544 TX Enschede
 S: The Netherlands
 
 N: Lars Wirzenius

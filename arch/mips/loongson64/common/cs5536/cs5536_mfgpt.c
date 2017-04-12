@@ -17,7 +17,7 @@
 
 #include <linux/io.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -144,7 +144,7 @@ void __init setup_mfgpt0_timer(void)
  * to just read by itself. So use jiffies to emulate a free
  * running counter:
  */
-static cycle_t mfgpt_read(struct clocksource *cs)
+static u64 mfgpt_read(struct clocksource *cs)
 {
 	unsigned long flags;
 	int count;
@@ -188,7 +188,7 @@ static cycle_t mfgpt_read(struct clocksource *cs)
 
 	raw_spin_unlock_irqrestore(&mfgpt_lock, flags);
 
-	return (cycle_t) (jifs * COMPARE) + count;
+	return (u64) (jifs * COMPARE) + count;
 }
 
 static struct clocksource clocksource_mfgpt = {

@@ -19,6 +19,8 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+#define pr_fmt(fmt) "ACPI : button: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -55,7 +57,6 @@
 
 #define ACPI_BUTTON_LID_INIT_IGNORE	0x00
 #define ACPI_BUTTON_LID_INIT_OPEN	0x01
-#define ACPI_BUTTON_LID_INIT_METHOD	0x02
 
 #define _COMPONENT		ACPI_BUTTON_COMPONENT
 ACPI_MODULE_NAME("button");
@@ -104,12 +105,18 @@ struct acpi_button {
 	struct input_dev *input;
 	char phys[32];			/* for input device */
 	unsigned long pushed;
+	int last_state;
+	ktime_t last_time;
 	bool suspended;
 };
 
 static BLOCKING_NOTIFIER_HEAD(acpi_lid_notifier);
 static struct acpi_device *lid_device;
-static u8 lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
+static u8 lid_init_state = ACPI_BUTTON_LID_INIT_OPEN;
+
+static unsigned long lid_report_interval __read_mostly = 500;
+module_param(lid_report_interval, ulong, 0644);
+MODULE_PARM_DESC(lid_report_interval, "Interval (ms) between lid key events");
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
@@ -134,10 +141,79 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 	int ret;
+	ktime_t next_report;
+	bool do_update;
 
-	/* input layer checks if event is redundant */
-	input_report_switch(button->input, SW_LID, !state);
-	input_sync(button->input);
+	/*
+	 * In lid_init_state=ignore mode, if user opens/closes lid
+	 * frequently with "open" missing, and "last_time" is also updated
+	 * frequently, "close" cannot be delivered to the userspace.
+	 * So "last_time" is only updated after a timeout or an actual
+	 * switch.
+	 */
+	if (lid_init_state != ACPI_BUTTON_LID_INIT_IGNORE ||
+	    button->last_state != !!state)
+		do_update = true;
+	else
+		do_update = false;
+
+	next_report = ktime_add(button->last_time,
+				ms_to_ktime(lid_report_interval));
+	if (button->last_state == !!state &&
+	    ktime_after(ktime_get(), next_report)) {
+		/* Complain the buggy firmware */
+		pr_warn_once("The lid device is not compliant to SW_LID.\n");
+
+		/*
+		 * Send the unreliable complement switch event:
+		 *
+		 * On most platforms, the lid device is reliable. However
+		 * there are exceptions:
+		 * 1. Platforms returning initial lid state as "close" by
+		 *    default after booting/resuming:
+		 *     https://bugzilla.kernel.org/show_bug.cgi?id=89211
+		 *     https://bugzilla.kernel.org/show_bug.cgi?id=106151
+		 * 2. Platforms never reporting "open" events:
+		 *     https://bugzilla.kernel.org/show_bug.cgi?id=106941
+		 * On these buggy platforms, the usage model of the ACPI
+		 * lid device actually is:
+		 * 1. The initial returning value of _LID may not be
+		 *    reliable.
+		 * 2. The open event may not be reliable.
+		 * 3. The close event is reliable.
+		 *
+		 * But SW_LID is typed as input switch event, the input
+		 * layer checks if the event is redundant. Hence if the
+		 * state is not switched, the userspace cannot see this
+		 * platform triggered reliable event. By inserting a
+		 * complement switch event, it then is guaranteed that the
+		 * platform triggered reliable one can always be seen by
+		 * the userspace.
+		 */
+		if (lid_init_state == ACPI_BUTTON_LID_INIT_IGNORE) {
+			do_update = true;
+			/*
+			 * Do generate complement switch event for "close"
+			 * as "close" is reliable and wrong "open" won't
+			 * trigger unexpected behaviors.
+			 * Do not generate complement switch event for
+			 * "open" as "open" is not reliable and wrong
+			 * "close" will trigger unexpected behaviors.
+			 */
+			if (!state) {
+				input_report_switch(button->input,
+						    SW_LID, state);
+				input_sync(button->input);
+			}
+		}
+	}
+	/* Send the platform triggered reliable event */
+	if (do_update) {
+		input_report_switch(button->input, SW_LID, !state);
+		input_sync(button->input);
+		button->last_state = !!state;
+		button->last_time = ktime_get();
+	}
 
 	if (state)
 		pm_wakeup_event(&device->dev, 0);
@@ -300,9 +376,6 @@ static void acpi_lid_initialize_state(struct acpi_device *device)
 	case ACPI_BUTTON_LID_INIT_OPEN:
 		(void)acpi_lid_notify_state(device, 1);
 		break;
-	case ACPI_BUTTON_LID_INIT_METHOD:
-		(void)acpi_lid_update_state(device);
-		break;
 	case ACPI_BUTTON_LID_INIT_IGNORE:
 	default:
 		break;
@@ -411,6 +484,8 @@ static int acpi_button_add(struct acpi_device *device)
 		strcpy(name, ACPI_BUTTON_DEVICE_NAME_LID);
 		sprintf(class, "%s/%s",
 			ACPI_BUTTON_CLASS, ACPI_BUTTON_SUBCLASS_LID);
+		button->last_state = !!acpi_lid_evaluate_state(device);
+		button->last_time = ktime_get();
 	} else {
 		printk(KERN_ERR PREFIX "Unsupported hid [%s]\n", hid);
 		error = -ENODEV;
@@ -484,9 +559,6 @@ static int param_set_lid_init_state(const char *val, struct kernel_param *kp)
 	if (!strncmp(val, "open", sizeof("open") - 1)) {
 		lid_init_state = ACPI_BUTTON_LID_INIT_OPEN;
 		pr_info("Notify initial lid state as open\n");
-	} else if (!strncmp(val, "method", sizeof("method") - 1)) {
-		lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
-		pr_info("Notify initial lid state with _LID return value\n");
 	} else if (!strncmp(val, "ignore", sizeof("ignore") - 1)) {
 		lid_init_state = ACPI_BUTTON_LID_INIT_IGNORE;
 		pr_info("Do not notify initial lid state\n");
@@ -500,8 +572,6 @@ static int param_get_lid_init_state(char *buffer, struct kernel_param *kp)
 	switch (lid_init_state) {
 	case ACPI_BUTTON_LID_INIT_OPEN:
 		return sprintf(buffer, "open");
-	case ACPI_BUTTON_LID_INIT_METHOD:
-		return sprintf(buffer, "method");
 	case ACPI_BUTTON_LID_INIT_IGNORE:
 		return sprintf(buffer, "ignore");
 	default:

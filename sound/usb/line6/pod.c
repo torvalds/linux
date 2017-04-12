@@ -83,7 +83,6 @@ struct usb_line6_pod {
 };
 
 #define POD_SYSEX_CODE 3
-#define POD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
 
 /* *INDENT-OFF* */
 
@@ -167,7 +166,7 @@ static struct line6_pcm_properties pod_pcm_properties = {
 	.rates = {
 			    .nrats = 1,
 			    .rats = &pod_ratden},
-	.bytes_per_frame = POD_BYTES_PER_FRAME
+	.bytes_per_channel = 3 /* SNDRV_PCM_FMTBIT_S24_3LE */
 };
 
 static const char pod_version_header[] = {
@@ -476,6 +475,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "BassPODxt",
 		.name = "BassPODxt",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,
@@ -488,6 +488,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "BassPODxtLive",
 		.name = "BassPODxt Live",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 1,
@@ -500,6 +501,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "BassPODxtPro",
 		.name = "BassPODxt Pro",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,
@@ -511,7 +513,8 @@ static const struct line6_properties pod_properties_table[] = {
 	[LINE6_POCKETPOD] = {
 		.id = "PocketPOD",
 		.name = "Pocket POD",
-		.capabilities	= LINE6_CAP_CONTROL,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI,
 		.altsetting = 0,
 		.ep_ctrl_r = 0x82,
 		.ep_ctrl_w = 0x02,
@@ -521,6 +524,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "PODxt",
 		.name = "PODxt",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,
@@ -533,6 +537,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "PODxtLive",
 		.name = "PODxt Live",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 1,
@@ -545,6 +550,7 @@ static const struct line6_properties pod_properties_table[] = {
 		.id = "PODxtPro",
 		.name = "PODxt Pro",
 		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_CONTROL_MIDI
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 		.altsetting = 5,

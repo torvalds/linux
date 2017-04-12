@@ -56,6 +56,27 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 	acpi_fwnode_handle(adev) : NULL)
 #define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
 
+static inline struct fwnode_handle *acpi_alloc_fwnode_static(void)
+{
+	struct fwnode_handle *fwnode;
+
+	fwnode = kzalloc(sizeof(struct fwnode_handle), GFP_KERNEL);
+	if (!fwnode)
+		return NULL;
+
+	fwnode->type = FWNODE_ACPI_STATIC;
+
+	return fwnode;
+}
+
+static inline void acpi_free_fwnode_static(struct fwnode_handle *fwnode)
+{
+	if (WARN_ON(!fwnode || fwnode->type != FWNODE_ACPI_STATIC))
+		return;
+
+	kfree(fwnode);
+}
+
 /**
  * ACPI_DEVICE_CLASS - macro used to describe an ACPI device with
  * the PCI-defined class-code information
@@ -84,6 +105,8 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 {
 	return dev_name(&adev->dev);
 }
+
+struct device *acpi_get_first_physical_node(struct acpi_device *adev);
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -218,10 +241,6 @@ int __init acpi_table_parse_entries(char *id, unsigned long table_size,
 			      int entry_id,
 			      acpi_tbl_entry_handler handler,
 			      unsigned int max_entries);
-int __init acpi_table_parse_entries(char *id, unsigned long table_size,
-			      int entry_id,
-			      acpi_tbl_entry_handler handler,
-			      unsigned int max_entries);
 int __init acpi_table_parse_entries_array(char *id, unsigned long table_size,
 			      struct acpi_subtable_proc *proc, int proc_num,
 			      unsigned int max_entries);
@@ -267,9 +286,13 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
 	return phys_id == PHYS_CPUID_INVALID;
 }
 
+/* Validate the processor object's proc_id */
+bool acpi_duplicate_processor_id(int proc_id);
+
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
-int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
+int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
+		 int *pcpu);
 int acpi_unmap_cpu(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
@@ -318,6 +341,7 @@ struct pci_dev;
 int acpi_pci_irq_enable (struct pci_dev *dev);
 void acpi_penalize_isa_irq(int irq, int active);
 bool acpi_isa_irq_available(int irq);
+void acpi_penalize_sci_irq(int irq, int trigger, int polarity);
 void acpi_pci_irq_disable (struct pci_dev *dev);
 
 extern int ec_read(u8 addr, u8 *val);
@@ -411,6 +435,8 @@ static inline int acpi_dev_filter_resource_type_cb(struct acpi_resource *ares,
 	return acpi_dev_filter_resource_type(ares, (unsigned long)arg);
 }
 
+struct acpi_device *acpi_resource_consumer(struct resource *res);
+
 int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
@@ -460,6 +486,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_CPCV2_SUPPORT			0x00000040
 #define OSC_SB_PCLPI_SUPPORT			0x00000080
 #define OSC_SB_OSLPI_SUPPORT			0x00000100
+#define OSC_SB_CPC_DIVERSE_HIGH_SUPPORT		0x00001000
 
 extern bool osc_sb_apei_support_acked;
 extern bool osc_pc_lpi_support_confirmed;
@@ -546,7 +573,8 @@ int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
 void acpi_walk_dep_device_list(acpi_handle handle);
 
-struct platform_device *acpi_create_platform_device(struct acpi_device *);
+struct platform_device *acpi_create_platform_device(struct acpi_device *,
+						    struct property_entry *);
 #define ACPI_PTR(_ptr)	(_ptr)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)
@@ -630,6 +658,11 @@ static inline void acpi_preset_companion(struct device *dev,
 }
 
 static inline const char *acpi_dev_name(struct acpi_device *adev)
+{
+	return NULL;
+}
+
+static inline struct device *acpi_get_first_physical_node(struct acpi_device *adev)
 {
 	return NULL;
 }
@@ -729,6 +762,11 @@ static inline enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 	return DEV_DMA_NOT_SUPPORTED;
 }
 
+static inline void acpi_dma_configure(struct device *dev,
+				      enum dev_dma_attr attr) { }
+
+static inline void acpi_dma_deconfigure(struct device *dev) { }
+
 #define ACPI_PTR(_ptr)	(NULL)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)
@@ -749,7 +787,18 @@ static inline int acpi_reconfig_notifier_unregister(struct notifier_block *nb)
 	return -EINVAL;
 }
 
+static inline struct acpi_device *acpi_resource_consumer(struct resource *res)
+{
+	return NULL;
+}
+
 #endif	/* !CONFIG_ACPI */
+
+#ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
+int acpi_ioapic_add(acpi_handle root);
+#else
+static inline int acpi_ioapic_add(acpi_handle root) { return 0; }
+#endif
 
 #ifdef CONFIG_ACPI
 void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
@@ -927,9 +976,17 @@ struct acpi_reference_args {
 #ifdef CONFIG_ACPI
 int acpi_dev_get_property(struct acpi_device *adev, const char *name,
 			  acpi_object_type type, const union acpi_object **obj);
-int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
-				     const char *name, size_t index,
-				     struct acpi_reference_args *args);
+int __acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index, size_t num_args,
+				struct acpi_reference_args *args);
+
+static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index,
+				struct acpi_reference_args *args)
+{
+	return __acpi_node_get_property_reference(fwnode, name, index,
+		MAX_ACPI_REFERENCE_ARGS, args);
+}
 
 int acpi_node_prop_get(struct fwnode_handle *fwnode, const char *propname,
 		       void **valptr);
@@ -1005,6 +1062,14 @@ static inline int acpi_dev_get_property(struct acpi_device *adev,
 	return -ENXIO;
 }
 
+static inline int
+__acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index, size_t num_args,
+				struct acpi_reference_args *args)
+{
+	return -ENXIO;
+}
+
 static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
 				const char *name, size_t index,
 				struct acpi_reference_args *args)
@@ -1072,6 +1137,28 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 void acpi_table_upgrade(void);
 #else
 static inline void acpi_table_upgrade(void) { }
+#endif
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_ACPI_WATCHDOG)
+extern bool acpi_has_watchdog(void);
+#else
+static inline bool acpi_has_watchdog(void) { return false; }
+#endif
+
+#ifdef CONFIG_ACPI_SPCR_TABLE
+int parse_spcr(bool earlycon);
+#else
+static inline int parse_spcr(bool earlycon) { return 0; }
+#endif
+
+#if IS_ENABLED(CONFIG_ACPI_GENERIC_GSI)
+int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res);
+#else
+static inline
+int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
+{
+	return -EINVAL;
+}
 #endif
 
 #endif	/*_LINUX_ACPI_H*/

@@ -63,7 +63,7 @@ void print_queue(struct queue *q)
 	pr_debug("Queue Device Address: 0x%p\n", q->device);
 }
 
-int init_queue(struct queue **q, struct queue_properties properties)
+int init_queue(struct queue **q, const struct queue_properties *properties)
 {
 	struct queue *tmp;
 
@@ -73,7 +73,7 @@ int init_queue(struct queue **q, struct queue_properties properties)
 	if (!tmp)
 		return -ENOMEM;
 
-	memcpy(&tmp->properties, &properties, sizeof(struct queue_properties));
+	memcpy(&tmp->properties, properties, sizeof(struct queue_properties));
 
 	*q = tmp;
 	return 0;

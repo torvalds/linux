@@ -132,7 +132,8 @@ static inline int iwl_mvm_check_pn(struct iwl_mvm *mvm, struct sk_buff *skb,
 		   IEEE80211_CCMP_PN_LEN) <= 0)
 		return -1;
 
-	memcpy(ptk_pn->q[queue].pn[tid], pn, IEEE80211_CCMP_PN_LEN);
+	if (!(stats->flag & RX_FLAG_AMSDU_MORE))
+		memcpy(ptk_pn->q[queue].pn[tid], pn, IEEE80211_CCMP_PN_LEN);
 	stats->flag |= RX_FLAG_PN_VALIDATED;
 
 	return 0;
@@ -148,8 +149,17 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	unsigned int headlen, fraglen, pad_len = 0;
 	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
-	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD)
+	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
 		pad_len = 2;
+
+		/*
+		 * If the device inserted padding it means that (it thought)
+		 * the 802.11 header wasn't a multiple of 4 bytes long. In
+		 * this case, reserve two bytes at the start of the SKB to
+		 * align the payload properly in case we end up copying it.
+		 */
+		skb_reserve(skb, pad_len);
+	}
 	len -= pad_len;
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
@@ -408,7 +418,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 
 	/* ignore nssn smaller than head sn - this can happen due to timeout */
 	if (iwl_mvm_is_sn_less(nssn, ssn, reorder_buf->buf_size))
-		return;
+		goto set_timer;
 
 	while (iwl_mvm_is_sn_less(ssn, nssn, reorder_buf->buf_size)) {
 		int index = ssn % reorder_buf->buf_size;
@@ -417,10 +427,11 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 
 		ssn = ieee80211_sn_inc(ssn);
 
-		/* holes are valid since nssn indicates frames were received. */
-		if (skb_queue_empty(skb_list) || !skb_peek_tail(skb_list))
-			continue;
-		/* Empty the list. Will have more than one frame for A-MSDU */
+		/*
+		 * Empty the list. Will have more than one frame for A-MSDU.
+		 * Empty list is valid as well since nssn indicates frames were
+		 * received.
+		 */
 		while ((skb = __skb_dequeue(skb_list))) {
 			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
 							reorder_buf->queue,
@@ -430,10 +441,11 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	}
 	reorder_buf->head_sn = nssn;
 
+set_timer:
 	if (reorder_buf->num_stored && !reorder_buf->removed) {
 		u16 index = reorder_buf->head_sn % reorder_buf->buf_size;
 
-		while (!skb_peek_tail(&reorder_buf->entries[index]))
+		while (skb_queue_empty(&reorder_buf->entries[index]))
 			index = (index + 1) % reorder_buf->buf_size;
 		/* modify timer to match next frame's expiration time */
 		mod_timer(&reorder_buf->reorder_timer,
@@ -451,17 +463,17 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	u16 sn = 0, index = 0;
 	bool expired = false;
 
-	spin_lock_bh(&buf->lock);
+	spin_lock(&buf->lock);
 
 	if (!buf->num_stored || buf->removed) {
-		spin_unlock_bh(&buf->lock);
+		spin_unlock(&buf->lock);
 		return;
 	}
 
 	for (i = 0; i < buf->buf_size ; i++) {
 		index = (buf->head_sn + i) % buf->buf_size;
 
-		if (!skb_peek_tail(&buf->entries[index]))
+		if (skb_queue_empty(&buf->entries[index]))
 			continue;
 		if (!time_after(jiffies, buf->reorder_time[index] +
 				RX_REORDER_BUF_TIMEOUT_MQ))
@@ -491,7 +503,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 			  buf->reorder_time[index] +
 			  1 + RX_REORDER_BUF_TIMEOUT_MQ);
 	}
-	spin_unlock_bh(&buf->lock);
+	spin_unlock(&buf->lock);
 }
 
 static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
@@ -502,7 +514,7 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	struct iwl_mvm_reorder_buffer *reorder_buf;
 	u8 baid = data->baid;
 
-	if (WARN_ON_ONCE(baid >= IWL_RX_REORDER_DATA_INVALID_BAID))
+	if (WARN_ONCE(baid >= IWL_MAX_BAID, "invalid BAID: %x\n", baid))
 		return;
 
 	rcu_read_lock();
@@ -545,7 +557,8 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 				  "Received expired RX queue sync message\n");
 			return;
 		}
-		atomic_dec(&mvm->queue_sync_counter);
+		if (!atomic_dec_return(&mvm->queue_sync_counter))
+			wake_up(&mvm->rx_sync_waitq);
 	}
 
 	switch (internal_notif->type) {
@@ -589,6 +602,11 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	baid = (reorder & IWL_RX_MPDU_REORDER_BAID_MASK) >>
 		IWL_RX_MPDU_REORDER_BAID_SHIFT;
 
+	/*
+	 * This also covers the case of receiving a Block Ack Request
+	 * outside a BA session; we'll pass it to mac80211 and that
+	 * then sends a delBA action frame.
+	 */
 	if (baid == IWL_RX_REORDER_DATA_INVALID_BAID)
 		return false;
 
@@ -598,9 +616,10 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
-	/* not a data packet */
-	if (!ieee80211_is_data_qos(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	/* not a data packet or a bar */
+	if (!ieee80211_is_back_req(hdr->frame_control) &&
+	    (!ieee80211_is_data_qos(hdr->frame_control) ||
+	     is_multicast_ether_addr(hdr->addr1)))
 		return false;
 
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
@@ -623,6 +642,11 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	buffer = &baid_data->reorder_buf[queue];
 
 	spin_lock_bh(&buffer->lock);
+
+	if (ieee80211_is_back_req(hdr->frame_control)) {
+		iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+		goto drop;
+	}
 
 	/*
 	 * If there was a significant jump in the nssn - adjust.
@@ -883,6 +907,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			u8 *qc = ieee80211_get_qos_ctl(hdr);
 
 			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+			if (!(desc->amsdu_info &
+			      IWL_RX_MPDU_AMSDU_LAST_SUBFRAME))
+				rx_status->flag |= RX_FLAG_AMSDU_MORE;
 		}
 		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID)
 			iwl_mvm_agg_rx_received(mvm, baid);

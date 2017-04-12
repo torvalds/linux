@@ -106,8 +106,8 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
-						      struct rtnl_link_stats64 *stats)
+static void l2tp_eth_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 
@@ -117,11 +117,9 @@ static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
 	stats->rx_bytes   = atomic_long_read(&priv->rx_bytes);
 	stats->rx_packets = atomic_long_read(&priv->rx_packets);
 	stats->rx_errors  = atomic_long_read(&priv->rx_errors);
-	return stats;
 }
 
-
-static struct net_device_ops l2tp_eth_netdev_ops = {
+static const struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_init		= l2tp_eth_dev_init,
 	.ndo_uninit		= l2tp_eth_dev_uninit,
 	.ndo_start_xmit		= l2tp_eth_dev_xmit,
@@ -195,7 +193,7 @@ static void l2tp_eth_delete(struct l2tp_session *session)
 	}
 }
 
-#if defined(CONFIG_L2TP_DEBUGFS) || defined(CONFIG_L2TP_DEBUGFS_MODULE)
+#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
 static void l2tp_eth_show(struct seq_file *m, void *arg)
 {
 	struct l2tp_session *session = arg;
@@ -223,12 +221,6 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 		goto out;
 	}
 
-	session = l2tp_session_find(net, tunnel, session_id);
-	if (session) {
-		rc = -EEXIST;
-		goto out;
-	}
-
 	if (cfg->ifname) {
 		dev = dev_get_by_name(net, cfg->ifname);
 		if (dev) {
@@ -242,8 +234,8 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 
 	session = l2tp_session_create(sizeof(*spriv), tunnel, session_id,
 				      peer_session_id, cfg);
-	if (!session) {
-		rc = -ENOMEM;
+	if (IS_ERR(session)) {
+		rc = PTR_ERR(session);
 		goto out;
 	}
 
@@ -259,6 +251,8 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 		session->mtu = dev->mtu - session->hdr_len;
 	dev->mtu = session->mtu;
 	dev->needed_headroom += session->hdr_len;
+	dev->min_mtu = 0;
+	dev->max_mtu = ETH_MAX_MTU;
 
 	priv = netdev_priv(dev);
 	priv->dev = dev;
@@ -268,7 +262,7 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 	priv->tunnel_sock = tunnel->sock;
 	session->recv_skb = l2tp_eth_dev_recv;
 	session->session_close = l2tp_eth_delete;
-#if defined(CONFIG_L2TP_DEBUGFS) || defined(CONFIG_L2TP_DEBUGFS_MODULE)
+#if IS_ENABLED(CONFIG_L2TP_DEBUGFS)
 	session->show = l2tp_eth_show;
 #endif
 

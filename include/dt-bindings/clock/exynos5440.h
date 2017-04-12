@@ -14,6 +14,8 @@
 
 #define CLK_XTAL		1
 #define CLK_ARM_CLK		2
+#define CLK_CPLLA		3
+#define CLK_CPLLB		4
 #define CLK_SPI_BAUD		16
 #define CLK_PB0_250		17
 #define CLK_PR0_250		18

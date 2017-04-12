@@ -42,7 +42,7 @@
 #include <linux/usb.h>
 #include <linux/module.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "pegasus.h"
 
 /*
@@ -126,40 +126,61 @@ static void async_ctrl_callback(struct urb *urb)
 
 static int get_registers(pegasus_t *pegasus, __u16 indx, __u16 size, void *data)
 {
+	u8 *buf;
 	int ret;
+
+	buf = kmalloc(size, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(pegasus->usb, usb_rcvctrlpipe(pegasus->usb, 0),
 			      PEGASUS_REQ_GET_REGS, PEGASUS_REQT_READ, 0,
-			      indx, data, size, 1000);
+			      indx, buf, size, 1000);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
+	else if (ret <= size)
+		memcpy(data, buf, ret);
+	kfree(buf);
 	return ret;
 }
 
-static int set_registers(pegasus_t *pegasus, __u16 indx, __u16 size, void *data)
+static int set_registers(pegasus_t *pegasus, __u16 indx, __u16 size,
+			 const void *data)
 {
+	u8 *buf;
 	int ret;
+
+	buf = kmemdup(data, size, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(pegasus->usb, usb_sndctrlpipe(pegasus->usb, 0),
 			      PEGASUS_REQ_SET_REGS, PEGASUS_REQT_WRITE, 0,
-			      indx, data, size, 100);
+			      indx, buf, size, 100);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
+	kfree(buf);
 	return ret;
 }
 
 static int set_register(pegasus_t *pegasus, __u16 indx, __u8 data)
 {
+	u8 *buf;
 	int ret;
+
+	buf = kmemdup(&data, 1, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
 
 	ret = usb_control_msg(pegasus->usb, usb_sndctrlpipe(pegasus->usb, 0),
 			      PEGASUS_REQ_SET_REG, PEGASUS_REQT_WRITE, data,
-			      indx, &data, 1, 1000);
+			      indx, buf, 1, 1000);
 	if (ret < 0)
 		netif_dbg(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
+	kfree(buf);
 	return ret;
 }
 
@@ -1129,7 +1150,8 @@ static int pegasus_probe(struct usb_interface *intf,
 		return -ENODEV;
 
 	if (pegasus_count == 0) {
-		pegasus_workqueue = create_singlethread_workqueue("pegasus");
+		pegasus_workqueue = alloc_workqueue("pegasus", WQ_MEM_RECLAIM,
+						    0);
 		if (!pegasus_workqueue)
 			return -ENOMEM;
 	}
@@ -1272,7 +1294,6 @@ static const struct net_device_ops pegasus_netdev_ops = {
 	.ndo_set_rx_mode =		pegasus_set_multicast,
 	.ndo_get_stats =		pegasus_netdev_stats,
 	.ndo_tx_timeout =		pegasus_tx_timeout,
-	.ndo_change_mtu =		eth_change_mtu,
 	.ndo_set_mac_address =		eth_mac_addr,
 	.ndo_validate_addr =		eth_validate_addr,
 };

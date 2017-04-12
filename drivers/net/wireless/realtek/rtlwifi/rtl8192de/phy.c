@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -588,7 +584,7 @@ static bool _rtl92d_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 				 * setting. */
 				udelay(1);
 				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					 "The Rtl819XAGCTAB_Array_Table[0] is %ul Rtl819XPHY_REGArray[1] is %ul\n",
+					 "The Rtl819XAGCTAB_Array_Table[0] is %u Rtl819XPHY_REGArray[1] is %u\n",
 					 agctab_array_table[i],
 					 agctab_array_table[i + 1]);
 			}
@@ -604,7 +600,7 @@ static bool _rtl92d_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 					 * setting. */
 					udelay(1);
 					RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-						 "The Rtl819XAGCTAB_Array_Table[0] is %ul Rtl819XPHY_REGArray[1] is %ul\n",
+						 "The Rtl819XAGCTAB_Array_Table[0] is %u Rtl819XPHY_REGArray[1] is %u\n",
 						 agctab_array_table[i],
 						 agctab_array_table[i + 1]);
 				}
@@ -620,7 +616,7 @@ static bool _rtl92d_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 					 * setting. */
 					udelay(1);
 					RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-						 "The Rtl819XAGCTAB_5GArray_Table[0] is %ul Rtl819XPHY_REGArray[1] is %ul\n",
+						 "The Rtl819XAGCTAB_5GArray_Table[0] is %u Rtl819XPHY_REGArray[1] is %u\n",
 						 agctab_5garray_table[i],
 						 agctab_5garray_table[i + 1]);
 				}
@@ -720,7 +716,7 @@ static bool _rtl92d_phy_bb_config(struct ieee80211_hw *hw)
 	rtstatus = _rtl92d_phy_config_bb_with_headerfile(hw,
 		BASEBAND_CONFIG_PHY_REG);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!\n");
+		pr_err("Write BB Reg Fail!!\n");
 		return false;
 	}
 
@@ -735,13 +731,13 @@ static bool _rtl92d_phy_bb_config(struct ieee80211_hw *hw)
 			BASEBAND_CONFIG_PHY_REG);
 	}
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!\n");
+		pr_err("BB_PG Reg Fail!!\n");
 		return false;
 	}
 	rtstatus = _rtl92d_phy_config_bb_with_headerfile(hw,
 		BASEBAND_CONFIG_AGC_TAB);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "AGC Table Fail\n");
+		pr_err("AGC Table Fail\n");
 		return false;
 	}
 	rtlphy->cck_high_power = (bool) (rtl_get_bbreg(hw,
@@ -836,12 +832,8 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		}
 		break;
 	case RF90_PATH_C:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
-		break;
 	case RF90_PATH_D:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+		pr_err("switch case %#x not processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -994,8 +986,8 @@ void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "unknown bandwidth: %#X\n", rtlphy->current_chan_bw);
+		pr_err("unknown bandwidth: %#X\n",
+		       rtlphy->current_chan_bw);
 		break;
 	}
 	switch (rtlphy->current_chan_bw) {
@@ -1026,8 +1018,8 @@ void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 			HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "unknown bandwidth: %#X\n", rtlphy->current_chan_bw);
+		pr_err("unknown bandwidth: %#X\n",
+		       rtlphy->current_chan_bw);
 		break;
 
 	}
@@ -2707,7 +2699,7 @@ static bool _rtl92d_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		RT_ASSERT(false, "cmdtable cannot be NULL\n");
+		WARN_ONCE(true, "rtl8192de: cmdtable cannot be NULL\n");
 		return false;
 	}
 	if (cmdtableidx >= cmdtablesz)
@@ -2849,8 +2841,8 @@ static bool _rtl92d_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			rtl92d_phy_reload_iqk_setting(hw, channel);
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case not processed\n");
+			pr_err("switch case %#x not processed\n",
+			       currentcmd->cmdid);
 			break;
 		}
 		break;
@@ -2899,17 +2891,17 @@ u8 rtl92d_phy_sw_chnl(struct ieee80211_hw *hw)
 		 * 5G and 2.4G band. */
 		if (channel <= 14)
 			return 0;
-		RT_ASSERT((channel > 14), "5G but channel<=14\n");
+		WARN_ONCE((channel <= 14), "rtl8192de: 5G but channel<=14\n");
 		break;
 	case BAND_ON_2_4G:
 		/* Get first channel error when change between
 		 * 5G and 2.4G band. */
 		if (channel > 14)
 			return 0;
-		RT_ASSERT((channel <= 14), "2G but channel>14\n");
+		WARN_ONCE((channel > 14), "rtl8192de: 2G but channel>14\n");
 		break;
 	default:
-		RT_ASSERT(false, "Invalid WirelessMode(%#x)!!\n",
+		WARN_ONCE(true, "rtl8192de: Invalid WirelessMode(%#x)!!\n",
 			  rtlpriv->mac80211.mode);
 		break;
 	}
@@ -2962,8 +2954,8 @@ static void rtl92d_phy_set_io(struct ieee80211_hw *hw)
 		rtl92d_dm_write_dig(hw);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+		pr_err("switch case %#x not processed\n",
+		       rtlphy->current_io_type);
 		break;
 	}
 	rtlphy->set_io_inprogress = false;
@@ -2993,8 +2985,8 @@ bool rtl92d_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			postprocessing = true;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case not processed\n");
+			pr_err("switch case %#x not processed\n",
+			       iotype);
 			break;
 		}
 	} while (false);
@@ -3181,8 +3173,8 @@ bool rtl92d_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		_rtl92d_phy_set_rfsleep(hw);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+		pr_err("switch case %#x not processed\n",
+		       rfpwr_state);
 		bresult = false;
 		break;
 	}
@@ -3341,7 +3333,7 @@ void rtl92d_phy_set_poweron(struct ieee80211_hw *hw)
 			}
 		}
 		if (i == 200)
-			RT_ASSERT(false, "Another mac power off over time\n");
+			WARN_ONCE(true, "rtl8192de: Another mac power off over time\n");
 	}
 }
 

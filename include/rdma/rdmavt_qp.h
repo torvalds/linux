@@ -51,6 +51,7 @@
 #include <rdma/rdma_vt.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/rdmavt_cq.h>
 /*
  * Atomic bit definitions for r_aflags.
  */
@@ -143,6 +144,8 @@
 #define RVT_FLUSH_RECV			0x40
 #define RVT_PROCESS_OR_FLUSH_SEND \
 	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND)
+#define RVT_SEND_OR_FLUSH_OR_RECV_OK \
+	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND | RVT_PROCESS_RECV_OK)
 
 /*
  * Internal send flags
@@ -369,6 +372,7 @@ struct rvt_qp {
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
+	struct hrtimer s_rnr_timer;
 
 	atomic_t local_ops_pending; /* number of fast_reg/local_inv reqs */
 
@@ -466,6 +470,51 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 }
 
 /**
+ * rvt_is_user_qp - return if this is user mode QP
+ * @qp - the target QP
+ */
+static inline bool rvt_is_user_qp(struct rvt_qp *qp)
+{
+	return !!qp->pid;
+}
+
+/**
+ * rvt_get_qp - get a QP reference
+ * @qp - the QP to hold
+ */
+static inline void rvt_get_qp(struct rvt_qp *qp)
+{
+	atomic_inc(&qp->refcount);
+}
+
+/**
+ * rvt_put_qp - release a QP reference
+ * @qp - the QP to release
+ */
+static inline void rvt_put_qp(struct rvt_qp *qp)
+{
+	if (qp && atomic_dec_and_test(&qp->refcount))
+		wake_up(&qp->wait);
+}
+
+/**
+ * rvt_put_swqe - drop mr refs held by swqe
+ * @wqe - the send wqe
+ *
+ * This drops any mr references held by the swqe
+ */
+static inline void rvt_put_swqe(struct rvt_swqe *wqe)
+{
+	int i;
+
+	for (i = 0; i < wqe->wr.num_sge; i++) {
+		struct rvt_sge *sge = &wqe->sg_list[i];
+
+		rvt_put_mr(sge->mr);
+	}
+}
+
+/**
  * rvt_qp_wqe_reserve - reserve operation
  * @qp - the rvt qp
  * @wqe - the send wqe
@@ -508,9 +557,102 @@ static inline void rvt_qp_wqe_unreserve(
 	}
 }
 
+extern const enum ib_wc_opcode ib_rvt_wc_opcode[];
+
+/**
+ * rvt_qp_swqe_complete() - insert send completion
+ * @qp - the qp
+ * @wqe - the send wqe
+ * @status - completion status
+ *
+ * Insert a send completion into the completion
+ * queue if the qp indicates it should be done.
+ *
+ * See IBTA 10.7.3.1 for info on completion
+ * control.
+ */
+static inline void rvt_qp_swqe_complete(
+	struct rvt_qp *qp,
+	struct rvt_swqe *wqe,
+	enum ib_wc_status status)
+{
+	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED))
+		return;
+	if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
+	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
+	     status != IB_WC_SUCCESS) {
+		struct ib_wc wc;
+
+		memset(&wc, 0, sizeof(wc));
+		wc.wr_id = wqe->wr.wr_id;
+		wc.status = status;
+		wc.opcode = ib_rvt_wc_opcode[wqe->wr.opcode];
+		wc.qp = &qp->ibqp;
+		wc.byte_len = wqe->length;
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
+			     status != IB_WC_SUCCESS);
+	}
+}
+
+/*
+ * Compare the lower 24 bits of the msn values.
+ * Returns an integer <, ==, or > than zero.
+ */
+static inline int rvt_cmp_msn(u32 a, u32 b)
+{
+	return (((int)a) - ((int)b)) << 8;
+}
+
+/**
+ * rvt_compute_aeth - compute the AETH (syndrome + MSN)
+ * @qp: the queue pair to compute the AETH for
+ *
+ * Returns the AETH.
+ */
+__be32 rvt_compute_aeth(struct rvt_qp *qp);
+
+/**
+ * rvt_get_credit - flush the send work queue of a QP
+ * @qp: the qp who's send work queue to flush
+ * @aeth: the Acknowledge Extended Transport Header
+ *
+ * The QP s_lock should be held.
+ */
+void rvt_get_credit(struct rvt_qp *qp, u32 aeth);
+
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu round up divide
+ */
+static inline u32 rvt_div_round_up_mtu(struct rvt_qp *qp, u32 len)
+{
+	return (len + qp->pmtu - 1) >> qp->log_pmtu;
+}
+
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu divide
+ */
+static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
+{
+	return len >> qp->log_pmtu;
+}
+
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
+void rvt_comm_est(struct rvt_qp *qp);
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
+void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
+unsigned long rvt_rnr_tbl_to_usec(u32 index);
+enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t);
+void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth);
+void rvt_del_timers_sync(struct rvt_qp *qp);
+void rvt_stop_rc_timers(struct rvt_qp *qp);
+void rvt_add_retry_timer(struct rvt_qp *qp);
 
 #endif          /* DEF_RDMAVT_INCQP_H */

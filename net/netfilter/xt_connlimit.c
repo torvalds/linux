@@ -218,7 +218,7 @@ count_tree(struct net *net, struct rb_root *root,
 		int diff;
 		bool addit;
 
-		rbconn = container_of(*rbnode, struct xt_connlimit_rb, node);
+		rbconn = rb_entry(*rbnode, struct xt_connlimit_rb, node);
 
 		parent = *rbnode;
 		diff = same_source_net(addr, mask, &rbconn->addr, family);
@@ -317,7 +317,7 @@ static int count_them(struct net *net,
 static bool
 connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 	const struct xt_connlimit_info *info = par->matchinfo;
 	union nf_inet_addr addr;
 	struct nf_conntrack_tuple tuple;
@@ -332,11 +332,11 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		tuple_ptr = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
 		zone = nf_ct_zone(ct);
 	} else if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb),
-				      par->family, net, &tuple)) {
+				      xt_family(par), net, &tuple)) {
 		goto hotdrop;
 	}
 
-	if (par->family == NFPROTO_IPV6) {
+	if (xt_family(par) == NFPROTO_IPV6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		memcpy(&addr.ip6, (info->flags & XT_CONNLIMIT_DADDR) ?
 		       &iph->daddr : &iph->saddr, sizeof(addr.ip6));
@@ -347,7 +347,7 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	}
 
 	connections = count_them(net, info->data, tuple_ptr, &addr,
-	                         &info->mask, par->family, zone);
+	                         &info->mask, xt_family(par), zone);
 	if (connections == 0)
 		/* kmalloc failed, drop it entirely */
 		goto hotdrop;
@@ -366,15 +366,9 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 	unsigned int i;
 	int ret;
 
-	if (unlikely(!connlimit_rnd)) {
-		u_int32_t rand;
+	net_get_random_once(&connlimit_rnd, sizeof(connlimit_rnd));
 
-		do {
-			get_random_bytes(&rand, sizeof(rand));
-		} while (!rand);
-		cmpxchg(&connlimit_rnd, 0, rand);
-	}
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0) {
 		pr_info("cannot load conntrack support for "
 			"address family %u\n", par->family);
@@ -384,7 +378,7 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 	/* init private data */
 	info->data = kmalloc(sizeof(struct xt_connlimit_data), GFP_KERNEL);
 	if (info->data == NULL) {
-		nf_ct_l3proto_module_put(par->family);
+		nf_ct_netns_put(par->net, par->family);
 		return -ENOMEM;
 	}
 
@@ -404,7 +398,7 @@ static void destroy_tree(struct rb_root *r)
 	struct rb_node *node;
 
 	while ((node = rb_first(r)) != NULL) {
-		rbconn = container_of(node, struct xt_connlimit_rb, node);
+		rbconn = rb_entry(node, struct xt_connlimit_rb, node);
 
 		rb_erase(node, r);
 
@@ -420,7 +414,7 @@ static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 	const struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
 
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 
 	for (i = 0; i < ARRAY_SIZE(info->data->climit_root4); ++i)
 		destroy_tree(&info->data->climit_root4[i]);
@@ -437,6 +431,7 @@ static struct xt_match connlimit_mt_reg __read_mostly = {
 	.checkentry = connlimit_mt_check,
 	.match      = connlimit_mt,
 	.matchsize  = sizeof(struct xt_connlimit_info),
+	.usersize   = offsetof(struct xt_connlimit_info, data),
 	.destroy    = connlimit_mt_destroy,
 	.me         = THIS_MODULE,
 };

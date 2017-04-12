@@ -61,8 +61,9 @@
 #include <net/ip6_tunnel.h>
 #endif
 #include <net/calipso.h>
+#include <net/seg6.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/mroute6.h>
 
 #include "ip6_offload.h"
@@ -257,6 +258,14 @@ lookup_protocol:
 			goto out;
 		}
 	}
+
+	if (!kern) {
+		err = BPF_CGROUP_RUN_PROG_INET_SOCK(sk);
+		if (err) {
+			sk_common_release(sk);
+			goto out;
+		}
+	}
 out:
 	return err;
 out_rcu_unlock:
@@ -293,7 +302,8 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EINVAL;
 
 	snum = ntohs(addr->sin6_port);
-	if (snum && snum < PROT_SOCK && !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE))
+	if (snum && snum < inet_prot_sock(net) &&
+	    !ns_capable(net->user_ns, CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
 	lock_sock(sk);
@@ -545,6 +555,8 @@ const struct proto_ops inet6_stream_ops = {
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = inet_sendpage,
 	.splice_read	   = tcp_splice_read,
+	.read_sock	   = tcp_read_sock,
+	.peek_len	   = tcp_peek_len,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
@@ -676,6 +688,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		fl6.flowi6_mark = sk->sk_mark;
 		fl6.fl6_dport = inet->inet_dport;
 		fl6.fl6_sport = inet->inet_sport;
+		fl6.flowi6_uid = sk->sk_uid;
 		security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
 		rcu_read_lock();
@@ -907,12 +920,12 @@ static int __init inet6_init(void)
 	err = register_pernet_subsys(&inet6_net_ops);
 	if (err)
 		goto register_pernet_fail;
-	err = icmpv6_init();
-	if (err)
-		goto icmp_fail;
 	err = ip6_mr_init();
 	if (err)
 		goto ipmr_fail;
+	err = icmpv6_init();
+	if (err)
+		goto icmp_fail;
 	err = ndisc_init();
 	if (err)
 		goto ndisc_fail;
@@ -988,6 +1001,10 @@ static int __init inet6_init(void)
 	if (err)
 		goto calipso_fail;
 
+	err = seg6_init();
+	if (err)
+		goto seg6_fail;
+
 #ifdef CONFIG_SYSCTL
 	err = ipv6_sysctl_register();
 	if (err)
@@ -998,8 +1015,10 @@ out:
 
 #ifdef CONFIG_SYSCTL
 sysctl_fail:
-	calipso_exit();
+	seg6_exit();
 #endif
+seg6_fail:
+	calipso_exit();
 calipso_fail:
 	pingv6_exit();
 pingv6_fail:
@@ -1042,10 +1061,10 @@ igmp_fail:
 	ndisc_cleanup();
 ndisc_fail:
 	ip6_mr_cleanup();
-ipmr_fail:
-	icmpv6_cleanup();
 icmp_fail:
 	unregister_pernet_subsys(&inet6_net_ops);
+ipmr_fail:
+	icmpv6_cleanup();
 register_pernet_fail:
 	sock_unregister(PF_INET6);
 	rtnl_unregister_all(PF_INET6);

@@ -149,6 +149,7 @@ struct hdmi_audio_param {
 
 struct mtk_hdmi {
 	struct drm_bridge bridge;
+	struct drm_bridge *next_bridge;
 	struct drm_connector conn;
 	struct device *dev;
 	struct phy *phy;
@@ -1086,20 +1087,20 @@ static int mtk_hdmi_output_init(struct mtk_hdmi *hdmi)
 	return 0;
 }
 
-void mtk_hdmi_audio_enable(struct mtk_hdmi *hdmi)
+static void mtk_hdmi_audio_enable(struct mtk_hdmi *hdmi)
 {
 	mtk_hdmi_aud_enable_packet(hdmi, true);
 	hdmi->audio_enable = true;
 }
 
-void mtk_hdmi_audio_disable(struct mtk_hdmi *hdmi)
+static void mtk_hdmi_audio_disable(struct mtk_hdmi *hdmi)
 {
 	mtk_hdmi_aud_enable_packet(hdmi, false);
 	hdmi->audio_enable = false;
 }
 
-int mtk_hdmi_audio_set_param(struct mtk_hdmi *hdmi,
-			     struct hdmi_audio_param *param)
+static int mtk_hdmi_audio_set_param(struct mtk_hdmi *hdmi,
+				    struct hdmi_audio_param *param)
 {
 	if (!hdmi->audio_enable) {
 		dev_err(hdmi->dev, "hdmi audio is in disable state!\n");
@@ -1132,12 +1133,6 @@ static int mtk_hdmi_output_set_display_mode(struct mtk_hdmi *hdmi,
 
 	phy_power_on(hdmi->phy);
 	mtk_hdmi_aud_output_config(hdmi, mode);
-
-	mtk_hdmi_setup_audio_infoframe(hdmi);
-	mtk_hdmi_setup_avi_infoframe(hdmi, mode);
-	mtk_hdmi_setup_spd_infoframe(hdmi, "mediatek", "On-chip HDMI");
-	if (mode->flags & DRM_MODE_FLAG_3D_MASK)
-		mtk_hdmi_setup_vendor_specific_infoframe(hdmi, mode);
 
 	mtk_hdmi_hw_vid_black(hdmi, false);
 	mtk_hdmi_hw_aud_unmute(hdmi);
@@ -1320,9 +1315,9 @@ static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	if (bridge->next) {
-		bridge->next->encoder = bridge->encoder;
-		ret = drm_bridge_attach(bridge->encoder->dev, bridge->next);
+	if (hdmi->next_bridge) {
+		ret = drm_bridge_attach(bridge->encoder, hdmi->next_bridge,
+					bridge);
 		if (ret) {
 			dev_err(hdmi->dev,
 				"Failed to attach external bridge: %d\n", ret);
@@ -1401,6 +1396,16 @@ static void mtk_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 	hdmi->powered = true;
 }
 
+static void mtk_hdmi_send_infoframe(struct mtk_hdmi *hdmi,
+				    struct drm_display_mode *mode)
+{
+	mtk_hdmi_setup_audio_infoframe(hdmi);
+	mtk_hdmi_setup_avi_infoframe(hdmi, mode);
+	mtk_hdmi_setup_spd_infoframe(hdmi, "mediatek", "On-chip HDMI");
+	if (mode->flags & DRM_MODE_FLAG_3D_MASK)
+		mtk_hdmi_setup_vendor_specific_infoframe(hdmi, mode);
+}
+
 static void mtk_hdmi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
@@ -1409,6 +1414,7 @@ static void mtk_hdmi_bridge_enable(struct drm_bridge *bridge)
 	clk_prepare_enable(hdmi->clk[MTK_HDMI_CLK_HDMI_PLL]);
 	clk_prepare_enable(hdmi->clk[MTK_HDMI_CLK_HDMI_PIXEL]);
 	phy_power_on(hdmi->phy);
+	mtk_hdmi_send_infoframe(hdmi, &hdmi->mode);
 
 	hdmi->enabled = true;
 }
@@ -1505,8 +1511,8 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi,
 	of_node_put(ep);
 
 	if (!of_device_is_compatible(remote, "hdmi-connector")) {
-		hdmi->bridge.next = of_drm_find_bridge(remote);
-		if (!hdmi->bridge.next) {
+		hdmi->next_bridge = of_drm_find_bridge(remote);
+		if (!hdmi->next_bridge) {
 			dev_err(dev, "Waiting for external bridge\n");
 			of_node_put(remote);
 			return -EPROBE_DEFER;
@@ -1624,7 +1630,8 @@ static void mtk_hdmi_audio_shutdown(struct device *dev, void *data)
 	mtk_hdmi_audio_disable(hdmi);
 }
 
-int mtk_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
+static int
+mtk_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 

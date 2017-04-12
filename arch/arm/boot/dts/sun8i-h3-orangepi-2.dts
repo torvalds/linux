@@ -54,6 +54,8 @@
 
 	aliases {
 		serial0 = &uart0;
+		/* ethernet0 is the H3 emac, defined in sun8i-h3.dtsi */
+		ethernet1 = &rtl8189;
 	};
 
 	chosen {
@@ -131,37 +133,37 @@
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
+
+	/*
+	 * Explicitly define the sdio device, so that we can add an ethernet
+	 * alias for it (which e.g. makes u-boot set a mac-address).
+	 */
+	rtl8189: sdio_wifi@1 {
+		reg = <1>;
+	};
 };
 
 &pio {
 	leds_opc: led_pins@0 {
-		allwinner,pins = "PA15";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PA15";
+		function = "gpio_out";
 	};
 };
 
 &r_pio {
 	leds_r_opc: led_pins@0 {
-		allwinner,pins = "PL10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL10";
+		function = "gpio_out";
 	};
 
 	sw_r_opc: key_pins@0 {
-		allwinner,pins = "PL3", "PL4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL3", "PL4";
+		function = "gpio_in";
 	};
 
 	wifi_pwrseq_pin_orangepi: wifi_pwrseq_pin@0 {
-		allwinner,pins = "PL7";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL7";
+		function = "gpio_out";
 	};
 };
 
@@ -176,8 +178,26 @@
 	status = "okay";
 };
 
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+	status = "disabled";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	status = "disabled";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+	status = "disabled";
+};
+
 &usb1_vbus_pin_a {
-	allwinner,pins = "PG13";
+	pins = "PG13";
 };
 
 &usbphy {

@@ -107,7 +107,10 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 	/* Turn off auto Xon flow control */
 	efr &= ~UART_17158_EFR_IXON;
 
-	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
+	/*
+	 * Why? Because Exar's spec says we have to zero it
+	 * out before setting it
+	 */
 	writeb(0, &ch->ch_neo_uart->efr);
 
 	/* Turn on UART enhanced bits */
@@ -143,7 +146,10 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 	ier &= ~UART_17158_IER_XOFF;
 	efr &= ~UART_17158_EFR_IXOFF;
 
-	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
+	/*
+	 * Why? Because Exar's spec says we have to zero it
+	 * out before setting it
+	 */
 	writeb(0, &ch->ch_neo_uart->efr);
 
 	/* Turn on UART enhanced bits */
@@ -181,7 +187,10 @@ static inline void neo_set_ixon_flow_control(struct channel_t *ch)
 	/* Turn on auto Xon flow control */
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_IXON);
 
-	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
+	/*
+	 * Why? Because Exar's spec says we have to zero it
+	 * out before setting it
+	 */
 	writeb(0, &ch->ch_neo_uart->efr);
 
 	/* Turn on UART enhanced bits */
@@ -219,7 +228,10 @@ static inline void neo_set_ixoff_flow_control(struct channel_t *ch)
 	ier |= UART_17158_IER_XOFF;
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_IXOFF);
 
-	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
+	/*
+	 * Why? Because Exar's spec says we have to zero it
+	 * out before setting it
+	 */
 	writeb(0, &ch->ch_neo_uart->efr);
 
 	/* Turn on UART enhanced bits */
@@ -260,7 +272,10 @@ static inline void neo_set_no_input_flow_control(struct channel_t *ch)
 	else
 		efr &= ~(UART_17158_EFR_ECB | UART_17158_EFR_IXOFF);
 
-	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
+	/*
+	 * Why? Because Exar's spec says we have to zero
+	 * it out before setting it
+	 */
 	writeb(0, &ch->ch_neo_uart->efr);
 
 	/* Turn on UART enhanced bits */
@@ -298,7 +313,10 @@ static inline void neo_set_no_output_flow_control(struct channel_t *ch)
 	else
 		efr &= ~(UART_17158_EFR_ECB | UART_17158_EFR_IXON);
 
-	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
+	/*
+	 * Why? Because Exar's spec says we have to zero it
+	 * out before setting it
+	 */
 	writeb(0, &ch->ch_neo_uart->efr);
 
 	/* Turn on UART enhanced bits */
@@ -339,9 +357,8 @@ static inline void neo_set_new_start_stop_chars(struct channel_t *ch)
 	neo_pci_posting_flush(ch->ch_bd);
 }
 
-/*
- * No locks are assumed to be held when calling this function.
- */
+/* No locks are assumed to be held when calling this function. */
+
 static inline void neo_clear_break(struct channel_t *ch, int force)
 {
 	unsigned long flags;
@@ -369,9 +386,8 @@ static inline void neo_clear_break(struct channel_t *ch, int force)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-/*
- * Parse the ISR register.
- */
+/* Parse the ISR register. */
+
 static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 {
 	struct channel_t *ch;
@@ -399,19 +415,17 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 
 		if (isr & (UART_17158_IIR_RDI_TIMEOUT | UART_IIR_RDI)) {
 			/* Read data from uart -> queue */
-			brd->intr_rx++;
-			ch->ch_intr_rx++;
 			neo_copy_data_from_uart_to_queue(ch);
-
-			/* Call our tty layer to enforce queue flow control if needed. */
+			/*
+			 * Call our tty layer to enforce queue
+			 * flow control if needed.
+			 */
 			spin_lock_irqsave(&ch->ch_lock, flags);
 			dgnc_check_queue_flow_control(ch);
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
 		}
 
 		if (isr & UART_IIR_THRI) {
-			brd->intr_tx++;
-			ch->ch_intr_tx++;
 			/* Transfer data (if any) from Write Queue -> UART. */
 			spin_lock_irqsave(&ch->ch_lock, flags);
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
@@ -428,7 +442,10 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 			 * one it was, so we can suspend or resume data flow.
 			 */
 			if (cause == UART_17158_XON_DETECT) {
-				/* Is output stopped right now, if so, resume it */
+				/*
+				 * Is output stopped right now, if so,
+				 * resume it
+				 */
 				if (brd->channels[port]->ch_flags & CH_STOP) {
 					spin_lock_irqsave(&ch->ch_lock,
 							  flags);
@@ -437,7 +454,8 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 							       flags);
 				}
 			} else if (cause == UART_17158_XOFF_DETECT) {
-				if (!(brd->channels[port]->ch_flags & CH_STOP)) {
+				if (!(brd->channels[port]->ch_flags &
+				      CH_STOP)) {
 					spin_lock_irqsave(&ch->ch_lock,
 							  flags);
 					ch->ch_flags |= CH_STOP;
@@ -449,11 +467,10 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 
 		if (isr & UART_17158_IIR_HWFLOW_STATE_CHANGE) {
 			/*
-			 * If we get here, this means the hardware is doing auto flow control.
-			 * Check to see whether RTS/DTR or CTS/DSR caused this interrupt.
+			 * If we get here, this means the hardware is
+			 * doing auto flow control. Check to see whether
+			 * RTS/DTR or CTS/DSR caused this interrupt.
 			 */
-			brd->intr_modem++;
-			ch->ch_intr_modem++;
 			cause = readb(&ch->ch_neo_uart->mcr);
 			/* Which pin is doing auto flow? RTS or DTR? */
 			if ((cause & 0x4) == 0) {
@@ -517,8 +534,6 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 	ch->ch_cached_lsr |= linestatus;
 
 	if (ch->ch_cached_lsr & UART_LSR_DR) {
-		brd->intr_rx++;
-		ch->ch_intr_rx++;
 		/* Read data from uart -> queue */
 		neo_copy_data_from_uart_to_queue(ch);
 		spin_lock_irqsave(&ch->ch_lock, flags);
@@ -545,14 +560,13 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 		 * Rx Oruns. Exar says that an orun will NOT corrupt
 		 * the FIFO. It will just replace the holding register
 		 * with this new data byte. So basically just ignore this.
-		 * Probably we should eventually have an orun stat in our driver...
+		 * Probably we should eventually have an orun stat in our
+		 * driver...
 		 */
 		ch->ch_err_overrun++;
 	}
 
 	if (linestatus & UART_LSR_THRE) {
-		brd->intr_tx++;
-		ch->ch_intr_tx++;
 		spin_lock_irqsave(&ch->ch_lock, flags);
 		ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
@@ -560,8 +574,6 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 		/* Transfer data (if any) from Write Queue -> UART. */
 		neo_copy_data_from_queue_to_uart(ch);
 	} else if (linestatus & UART_17158_TX_AND_FIFO_CLR) {
-		brd->intr_tx++;
-		ch->ch_intr_tx++;
 		spin_lock_irqsave(&ch->ch_lock, flags);
 		ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
@@ -602,9 +614,8 @@ static void neo_param(struct tty_struct *tty)
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	/*
-	 * If baud rate is zero, flush queues, and set mval to drop DTR.
-	 */
+	/* If baud rate is zero, flush queues, and set mval to drop DTR. */
+
 	if ((ch->ch_c_cflag & (CBAUD)) == 0) {
 		ch->ch_r_head = 0;
 		ch->ch_r_tail = 0;
@@ -665,7 +676,10 @@ static void neo_param(struct tty_struct *tty)
 				4800,   9600,   19200,  38400 }
 		};
 
-		/* Only use the TXPrint baud rate if the terminal unit is NOT open */
+		/*
+		 * Only use the TXPrint baud rate if the terminal unit
+		 * is NOT open
+		 */
 		if (!(ch->ch_tun.un_flags & UN_ISOPEN) &&
 		    (un->un_type == DGNC_PRINT))
 			baud = C_BAUD(ch->ch_pun.un_tty) & 0xff;
@@ -788,7 +802,10 @@ static void neo_param(struct tty_struct *tty)
 	if (ch->ch_digi.digi_flags & CTSPACE || ch->ch_c_cflag & CRTSCTS) {
 		neo_set_cts_flow_control(ch);
 	} else if (ch->ch_c_iflag & IXON) {
-		/* If start/stop is set to disable, then we should disable flow control */
+		/*
+		 * If start/stop is set to disable, then we should
+		 * disable flow control
+		 */
 		if ((ch->ch_startc == _POSIX_VDISABLE) ||
 		    (ch->ch_stopc == _POSIX_VDISABLE))
 			neo_set_no_output_flow_control(ch);
@@ -801,7 +818,10 @@ static void neo_param(struct tty_struct *tty)
 	if (ch->ch_digi.digi_flags & RTSPACE || ch->ch_c_cflag & CRTSCTS) {
 		neo_set_rts_flow_control(ch);
 	} else if (ch->ch_c_iflag & IXOFF) {
-		/* If start/stop is set to disable, then we should disable flow control */
+		/*
+		 * If start/stop is set to disable, then we should
+		 * disable flow control
+		 */
 		if ((ch->ch_startc == _POSIX_VDISABLE) ||
 		    (ch->ch_stopc == _POSIX_VDISABLE))
 			neo_set_no_input_flow_control(ch);
@@ -827,9 +847,8 @@ static void neo_param(struct tty_struct *tty)
 	neo_parse_modem(ch, readb(&ch->ch_neo_uart->msr));
 }
 
-/*
- * Our board poller function.
- */
+/* Our board poller function. */
+
 static void neo_tasklet(unsigned long data)
 {
 	struct dgnc_board *bd = (struct dgnc_board *)data;
@@ -854,9 +873,8 @@ static void neo_tasklet(unsigned long data)
 	 */
 	spin_lock_irqsave(&bd->bd_intr_lock, flags);
 
-	/*
-	 * If board is ready, parse deeper to see if there is anything to do.
-	 */
+	/* If board is ready, parse deeper to see if there is anything to do. */
+
 	if ((state == BOARD_READY) && (ports > 0)) {
 		/* Loop on each port */
 		for (i = 0; i < ports; i++) {
@@ -926,8 +944,6 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return IRQ_NONE;
 
-	brd->intr_count++;
-
 	/* Lock out the slow poller from running on this board. */
 	spin_lock_irqsave(&brd->bd_intr_lock, flags);
 
@@ -940,14 +956,18 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 
 	/*
 	 * If 0, no interrupts pending.
-	 * This can happen if the IRQ is shared among a couple Neo/Classic boards.
+	 * This can happen if the IRQ is shared among a couple Neo/Classic
+	 * boards.
 	 */
 	if (!uart_poll) {
 		spin_unlock_irqrestore(&brd->bd_intr_lock, flags);
 		return IRQ_NONE;
 	}
 
-	/* At this point, we have at least SOMETHING to service, dig further... */
+	/*
+	 * At this point, we have at least SOMETHING to service, dig
+	 * further...
+	 */
 
 	/* Loop on each port */
 	while ((uart_poll & 0xff) != 0) {
@@ -971,7 +991,10 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			ch = brd->channels[port];
 			neo_copy_data_from_uart_to_queue(ch);
 
-			/* Call our tty layer to enforce queue flow control if needed. */
+			/*
+			 * Call our tty layer to enforce queue flow control if
+			 * needed.
+			 */
 			spin_lock_irqsave(&ch->ch_lock, flags2);
 			dgnc_check_queue_flow_control(ch);
 			spin_unlock_irqrestore(&ch->ch_lock, flags2);
@@ -979,40 +1002,42 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			break;
 
 		case UART_17158_RX_LINE_STATUS:
-			/*
-			 * RXRDY and RX LINE Status (logic OR of LSR[4:1])
-			 */
+
+			/* RXRDY and RX LINE Status (logic OR of LSR[4:1]) */
+
 			neo_parse_lsr(brd, port);
 			break;
 
 		case UART_17158_TXRDY:
 			/*
-			 * TXRDY interrupt clears after reading ISR register for the UART channel.
+			 * TXRDY interrupt clears after reading ISR register
+			 * for the UART channel.
 			 */
 
 			/*
 			 * Yes, this is odd...
 			 * Why would I check EVERY possibility of type of
 			 * interrupt, when we know its TXRDY???
-			 * Becuz for some reason, even tho we got triggered for TXRDY,
-			 * it seems to be occasionally wrong. Instead of TX, which
-			 * it should be, I was getting things like RXDY too. Weird.
+			 * Becuz for some reason, even tho we got triggered for
+			 * TXRDY, it seems to be occasionally wrong. Instead of
+			 * TX, which it should be, I was getting things like
+			 * RXDY too. Weird.
 			 */
 			neo_parse_isr(brd, port);
 			break;
 
 		case UART_17158_MSR:
-			/*
-			 * MSR or flow control was seen.
-			 */
+
+			/* MSR or flow control was seen. */
+
 			neo_parse_isr(brd, port);
 			break;
 
 		default:
 			/*
 			 * The UART triggered us with a bogus interrupt type.
-			 * It appears the Exar chip, when REALLY bogged down, will throw
-			 * these once and awhile.
+			 * It appears the Exar chip, when REALLY bogged down,
+			 * will throw these once and awhile.
 			 * Its harmless, just ignore it and move on.
 			 */
 			break;
@@ -1021,9 +1046,8 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 		port++;
 	}
 
-	/*
-	 * Schedule tasklet to more in-depth servicing at a better time.
-	 */
+	/* Schedule tasklet to more in-depth servicing at a better time. */
+
 	tasklet_schedule(&brd->helper_tasklet);
 
 	spin_unlock_irqrestore(&brd->bd_intr_lock, flags);
@@ -1218,9 +1242,8 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 		}
 
-		/*
-		 * Discard character if we are ignoring the error mask.
-		 */
+		/* Discard character if we are ignoring the error mask. */
+
 		if (linestatus & error_mask)  {
 			unsigned char discard;
 
@@ -1230,7 +1253,8 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		}
 
 		/*
-		 * If our queue is full, we have no choice but to drop some data.
+		 * If our queue is full, we have no choice but to drop some
+		 * data.
 		 * The assumption is that HWFLOW or SWFLOW should have stopped
 		 * things way way before we got to this point.
 		 *
@@ -1258,9 +1282,8 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		ch->ch_rxcount++;
 	}
 
-	/*
-	 * Write new final heads to channel structure.
-	 */
+	/* Write new final heads to channel structure. */
+
 	ch->ch_r_head = head & RQUEUEMASK;
 	ch->ch_e_head = head & EQUEUEMASK;
 
@@ -1323,7 +1346,10 @@ static void neo_flush_uart_write(struct channel_t *ch)
 	neo_pci_posting_flush(ch->ch_bd);
 
 	for (i = 0; i < 10; i++) {
-		/* Check to see if the UART feels it completely flushed the FIFO. */
+		/*
+		 * Check to see if the UART feels it completely flushed the
+		 * FIFO.
+		 */
 		tmp = readb(&ch->ch_neo_uart->isr_fcr);
 		if (tmp & 4)
 			udelay(10);
@@ -1352,7 +1378,10 @@ static void neo_flush_uart_read(struct channel_t *ch)
 	neo_pci_posting_flush(ch->ch_bd);
 
 	for (i = 0; i < 10; i++) {
-		/* Check to see if the UART feels it completely flushed the FIFO. */
+		/*
+		 * Check to see if the UART feels it completely flushed the
+		 * FIFO.
+		 */
 		tmp = readb(&ch->ch_neo_uart->isr_fcr);
 		if (tmp & 2)
 			udelay(10);
@@ -1385,9 +1414,8 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 	    (ch->ch_flags & CH_BREAK_SENDING))
 		goto exit_unlock;
 
-	/*
-	 * If FIFOs are disabled. Send data directly to txrx register
-	 */
+	/* If FIFOs are disabled. Send data directly to txrx register */
+
 	if (!(ch->ch_flags & CH_FIFO_ENABLED)) {
 		unsigned char lsrbits = readb(&ch->ch_neo_uart->lsr);
 
@@ -1397,8 +1425,9 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 			ch->ch_cached_lsr &= ~(UART_LSR_THRE);
 
 			/*
-			 * If RTS Toggle mode is on, turn on RTS now if not already set,
-			 * and make sure we get an event when the data transfer has completed.
+			 * If RTS Toggle mode is on, turn on RTS now if not
+			 * already set, and make sure we get an event when the
+			 * data transfer has completed.
 			 */
 			if (ch->ch_digi.digi_flags & DIGI_RTS_TOGGLE) {
 				if (!(ch->ch_mostat & UART_MCR_RTS)) {
@@ -1408,8 +1437,9 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 				ch->ch_tun.un_flags |= (UN_EMPTY);
 			}
 			/*
-			 * If DTR Toggle mode is on, turn on DTR now if not already set,
-			 * and make sure we get an event when the data transfer has completed.
+			 * If DTR Toggle mode is on, turn on DTR now if not
+			 * already set, and make sure we get an event when the
+			 * data transfer has completed.
 			 */
 			if (ch->ch_digi.digi_flags & DIGI_DTR_TOGGLE) {
 				if (!(ch->ch_mostat & UART_MCR_DTR)) {
@@ -1429,9 +1459,8 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 		goto exit_unlock;
 	}
 
-	/*
-	 * We have to do it this way, because of the EXAR TXFIFO count bug.
-	 */
+	/* We have to do it this way, because of the EXAR TXFIFO count bug. */
+
 	if ((ch->ch_bd->dvid & 0xf0) < UART_XR17E158_DVID) {
 		if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
 			goto exit_unlock;
@@ -1465,7 +1494,8 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 		/*
 		 * If RTS Toggle mode is on, turn on RTS now if not already set,
-		 * and make sure we get an event when the data transfer has completed.
+		 * and make sure we get an event when the data transfer has
+		 * completed.
 		 */
 		if (ch->ch_digi.digi_flags & DIGI_RTS_TOGGLE) {
 			if (!(ch->ch_mostat & UART_MCR_RTS)) {
@@ -1477,7 +1507,8 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 		/*
 		 * If DTR Toggle mode is on, turn on DTR now if not already set,
-		 * and make sure we get an event when the data transfer has completed.
+		 * and make sure we get an event when the data transfer has
+		 * completed.
 		 */
 		if (ch->ch_digi.digi_flags & DIGI_DTR_TOGGLE) {
 			if (!(ch->ch_mostat & UART_MCR_DTR)) {
@@ -1541,7 +1572,10 @@ static void neo_parse_modem(struct channel_t *ch, unsigned char signals)
 		}
 	}
 
-	/* Scrub off lower bits. They signify delta's, which I don't care about */
+	/*
+	 * Scrub off lower bits. They signify delta's, which I don't care
+	 * about
+	 */
 	msignals &= 0xf0;
 
 	if (msignals & UART_MSR_DCD)
@@ -1611,9 +1645,8 @@ static void neo_send_stop_character(struct channel_t *ch)
 	}
 }
 
-/*
- * neo_uart_init
- */
+/* neo_uart_init */
+
 static void neo_uart_init(struct channel_t *ch)
 {
 	writeb(0, &ch->ch_neo_uart->ier);
@@ -1634,9 +1667,8 @@ static void neo_uart_init(struct channel_t *ch)
 	neo_pci_posting_flush(ch->ch_bd);
 }
 
-/*
- * Make the UART completely turn off.
- */
+/* Make the UART completely turn off. */
+
 static void neo_uart_off(struct channel_t *ch)
 {
 	/* Turn off UART enhanced bits */
@@ -1671,9 +1703,8 @@ static uint neo_get_uart_bytes_left(struct channel_t *ch)
 /* Channel lock MUST be held by the calling function! */
 static void neo_send_break(struct channel_t *ch, int msecs)
 {
-	/*
-	 * If we receive a time of 0, this means turn off the break.
-	 */
+	/* If we receive a time of 0, this means turn off the break. */
+
 	if (msecs == 0) {
 		if (ch->ch_flags & CH_BREAK_SENDING) {
 			unsigned char temp = readb(&ch->ch_neo_uart->lcr);

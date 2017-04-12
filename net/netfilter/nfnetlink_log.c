@@ -80,7 +80,7 @@ struct nfulnl_instance {
 
 #define INSTANCE_BUCKETS	16
 
-static int nfnl_log_net_id __read_mostly;
+static unsigned int nfnl_log_net_id __read_mostly;
 
 struct nfnl_log_net {
 	spinlock_t instances_lock;
@@ -330,7 +330,7 @@ nfulnl_alloc_skb(struct net *net, u32 peer_portid, unsigned int inst_size,
 	 * message.  WARNING: has to be <= 128k due to slab restrictions */
 
 	n = max(inst_size, pkt_size);
-	skb = alloc_skb(n, GFP_ATOMIC);
+	skb = alloc_skb(n, GFP_ATOMIC | __GFP_NOWARN);
 	if (!skb) {
 		if (n > pkt_size) {
 			/* try to allocate only as much as we need for current
@@ -442,7 +442,9 @@ __build_packet_message(struct nfnl_log_net *log,
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSINDEV,
 					 htonl(indev->ifindex)) ||
 			/* this is the bridge group "brX" */
-			/* rcu_read_lock()ed by nf_hook_slow or nf_log_packet */
+			/* rcu_read_lock()ed by nf_hook_thresh or
+			 * nf_log_packet.
+			 */
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_INDEV,
 					 htonl(br_port_get_rcu(indev)->br->dev->ifindex)))
 				goto nla_put_failure;
@@ -477,7 +479,9 @@ __build_packet_message(struct nfnl_log_net *log,
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
 					 htonl(outdev->ifindex)) ||
 			/* this is the bridge group "brX" */
-			/* rcu_read_lock()ed by nf_hook_slow or nf_log_packet */
+			/* rcu_read_lock()ed by nf_hook_thresh or
+			 * nf_log_packet.
+			 */
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_OUTDEV,
 					 htonl(br_port_get_rcu(outdev)->br->dev->ifindex)))
 				goto nla_put_failure;
@@ -534,7 +538,7 @@ __build_packet_message(struct nfnl_log_net *log,
 			goto nla_put_failure;
 	}
 
-	if (skb->tstamp.tv64) {
+	if (skb->tstamp) {
 		struct nfulnl_msg_packet_timestamp ts;
 		struct timespec64 kts = ktime_to_timespec64(skb->tstamp);
 		ts.sec = cpu_to_be64(kts.tv_sec);
@@ -1148,6 +1152,7 @@ MODULE_ALIAS_NF_LOGGER(AF_INET, 1);
 MODULE_ALIAS_NF_LOGGER(AF_INET6, 1);
 MODULE_ALIAS_NF_LOGGER(AF_BRIDGE, 1);
 MODULE_ALIAS_NF_LOGGER(3, 1); /* NFPROTO_ARP */
+MODULE_ALIAS_NF_LOGGER(5, 1); /* NFPROTO_NETDEV */
 
 module_init(nfnetlink_log_init);
 module_exit(nfnetlink_log_fini);

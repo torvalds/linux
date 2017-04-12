@@ -34,7 +34,7 @@ static struct nf_loginfo trace_loginfo = {
 	.u = {
 		.log = {
 			.level = LOGLEVEL_WARNING,
-			.logflags = NF_LOG_MASK,
+			.logflags = NF_LOG_DEFAULT_MASK,
 	        },
 	},
 };
@@ -53,10 +53,10 @@ static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 
 	nft_trace_notify(info);
 
-	nf_log_trace(pkt->net, pkt->pf, pkt->hook, pkt->skb, pkt->in,
-		     pkt->out, &trace_loginfo, "TRACE: %s:%s:%s:%u ",
-		     chain->table->name, chain->name, comments[type],
-		     rulenum);
+	nf_log_trace(nft_net(pkt), nft_pf(pkt), nft_hook(pkt), pkt->skb,
+		     nft_in(pkt), nft_out(pkt), &trace_loginfo,
+		     "TRACE: %s:%s:%s:%u ",
+		     chain->table->name, chain->name, comments[type], rulenum);
 }
 
 static inline void nft_trace_packet(struct nft_traceinfo *info,
@@ -93,12 +93,15 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 
 	if (priv->base == NFT_PAYLOAD_NETWORK_HEADER)
 		ptr = skb_network_header(skb);
-	else
+	else {
+		if (!pkt->tprot_set)
+			return false;
 		ptr = skb_network_header(skb) + pkt->xt.thoff;
+	}
 
 	ptr += priv->offset;
 
-	if (unlikely(ptr + priv->len >= skb_tail_pointer(skb)))
+	if (unlikely(ptr + priv->len > skb_tail_pointer(skb)))
 		return false;
 
 	*dest = 0;
@@ -121,7 +124,7 @@ unsigned int
 nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 {
 	const struct nft_chain *chain = priv, *basechain = chain;
-	const struct net *net = pkt->net;
+	const struct net *net = nft_net(pkt);
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
 	struct nft_regs regs;
@@ -175,6 +178,7 @@ next_rule:
 	case NF_ACCEPT:
 	case NF_DROP:
 	case NF_QUEUE:
+	case NF_STOLEN:
 		nft_trace_packet(&info, chain, rule,
 				 rulenum, NFT_TRACETYPE_RULE);
 		return regs.verdict.code;
@@ -228,63 +232,40 @@ next_rule:
 }
 EXPORT_SYMBOL_GPL(nft_do_chain);
 
+static struct nft_expr_type *nft_basic_types[] = {
+	&nft_imm_type,
+	&nft_cmp_type,
+	&nft_lookup_type,
+	&nft_bitwise_type,
+	&nft_byteorder_type,
+	&nft_payload_type,
+	&nft_dynset_type,
+	&nft_range_type,
+};
+
 int __init nf_tables_core_module_init(void)
 {
-	int err;
+	int err, i;
 
-	err = nft_immediate_module_init();
-	if (err < 0)
-		goto err1;
-
-	err = nft_cmp_module_init();
-	if (err < 0)
-		goto err2;
-
-	err = nft_lookup_module_init();
-	if (err < 0)
-		goto err3;
-
-	err = nft_bitwise_module_init();
-	if (err < 0)
-		goto err4;
-
-	err = nft_byteorder_module_init();
-	if (err < 0)
-		goto err5;
-
-	err = nft_payload_module_init();
-	if (err < 0)
-		goto err6;
-
-	err = nft_dynset_module_init();
-	if (err < 0)
-		goto err7;
+	for (i = 0; i < ARRAY_SIZE(nft_basic_types); i++) {
+		err = nft_register_expr(nft_basic_types[i]);
+		if (err)
+			goto err;
+	}
 
 	return 0;
 
-err7:
-	nft_payload_module_exit();
-err6:
-	nft_byteorder_module_exit();
-err5:
-	nft_bitwise_module_exit();
-err4:
-	nft_lookup_module_exit();
-err3:
-	nft_cmp_module_exit();
-err2:
-	nft_immediate_module_exit();
-err1:
+err:
+	while (i-- > 0)
+		nft_unregister_expr(nft_basic_types[i]);
 	return err;
 }
 
 void nf_tables_core_module_exit(void)
 {
-	nft_dynset_module_exit();
-	nft_payload_module_exit();
-	nft_byteorder_module_exit();
-	nft_bitwise_module_exit();
-	nft_lookup_module_exit();
-	nft_cmp_module_exit();
-	nft_immediate_module_exit();
+	int i;
+
+	i = ARRAY_SIZE(nft_basic_types);
+	while (i-- > 0)
+		nft_unregister_expr(nft_basic_types[i]);
 }

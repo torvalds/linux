@@ -15,7 +15,11 @@ VIDIOC_SUBDEV_G_FRAME_INTERVAL - VIDIOC_SUBDEV_S_FRAME_INTERVAL - Get or set the
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_frame_interval *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp )
+    :name: VIDIOC_SUBDEV_G_FRAME_INTERVAL
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp )
+    :name: VIDIOC_SUBDEV_S_FRAME_INTERVAL
 
 
 Arguments
@@ -23,10 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBDEV_G_FRAME_INTERVAL,
-    VIDIOC_SUBDEV_S_FRAME_INTERVAL
 
 ``argp``
 
@@ -42,7 +42,7 @@ don't support frame intervals must not implement these ioctls.
 
 To retrieve the current frame interval applications set the ``pad``
 field of a struct
-:ref:`v4l2_subdev_frame_interval <v4l2-subdev-frame-interval>` to
+:c:type:`v4l2_subdev_frame_interval` to
 the desired pad number as reported by the media controller API. When
 they call the ``VIDIOC_SUBDEV_G_FRAME_INTERVAL`` ioctl with a pointer to
 this structure the driver fills the members of the ``interval`` field.
@@ -53,7 +53,7 @@ field and all members of the ``interval`` field. When they call the
 structure the driver verifies the requested interval, adjusts it based
 on the hardware capabilities and configures the device. Upon return the
 struct
-:ref:`v4l2_subdev_frame_interval <v4l2-subdev-frame-interval>`
+:c:type:`v4l2_subdev_frame_interval`
 contains the current frame interval as would be returned by a
 ``VIDIOC_SUBDEV_G_FRAME_INTERVAL`` call.
 
@@ -67,38 +67,25 @@ on a single pad only. Their behaviour when supported on multiple pads of
 the same sub-device is not defined.
 
 
-.. _v4l2-subdev-frame-interval:
+.. c:type:: v4l2_subdev_frame_interval
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_subdev_frame_interval
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media controller API.
-
-    -  .. row 2
-
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
-
-       -  ``interval``
-
-       -  Period, in seconds, between consecutive video frames.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``reserved``\ [9]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media controller API.
+    * - struct :c:type:`v4l2_fract`
+      - ``interval``
+      - Period, in seconds, between consecutive video frames.
+    * - __u32
+      - ``reserved``\ [9]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
 
 
 Return Value
@@ -117,6 +104,6 @@ EBUSY
 
 EINVAL
     The struct
-    :ref:`v4l2_subdev_frame_interval <v4l2-subdev-frame-interval>`
+    :c:type:`v4l2_subdev_frame_interval`
     ``pad`` references a non-existing pad, or the pad doesn't support
     frame intervals.

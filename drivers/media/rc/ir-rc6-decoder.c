@@ -248,7 +248,7 @@ again:
 				toggle = 0;
 				break;
 			case 24:
-				protocol = RC_BIT_RC6_6A_24;
+				protocol = RC_TYPE_RC6_6A_24;
 				toggle = 0;
 				break;
 			case 32:
@@ -257,7 +257,7 @@ again:
 					toggle = !!(scancode & RC6_6A_MCE_TOGGLE_MASK);
 					scancode &= ~RC6_6A_MCE_TOGGLE_MASK;
 				} else {
-					protocol = RC_BIT_RC6_6A_32;
+					protocol = RC_TYPE_RC6_6A_32;
 					toggle = 0;
 				}
 				break;
@@ -286,11 +286,128 @@ out:
 	return -EINVAL;
 }
 
+static const struct ir_raw_timings_manchester ir_rc6_timings[4] = {
+	{
+		.leader			= RC6_PREFIX_PULSE,
+		.pulse_space_start	= 0,
+		.clock			= RC6_UNIT,
+		.invert			= 1,
+		.trailer_space		= RC6_PREFIX_SPACE,
+	},
+	{
+		.clock			= RC6_UNIT,
+		.invert			= 1,
+	},
+	{
+		.clock			= RC6_UNIT * 2,
+		.invert			= 1,
+	},
+	{
+		.clock			= RC6_UNIT,
+		.invert			= 1,
+		.trailer_space		= RC6_SUFFIX_SPACE,
+	},
+};
+
+/**
+ * ir_rc6_encode() - Encode a scancode as a stream of raw events
+ *
+ * @protocol:	protocol to encode
+ * @scancode:	scancode to encode
+ * @events:	array of raw ir events to write into
+ * @max:	maximum size of @events
+ *
+ * Returns:	The number of events written.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		encoding. In this case all @max events will have been written.
+ *		-EINVAL if the scancode is ambiguous or invalid.
+ */
+static int ir_rc6_encode(enum rc_type protocol, u32 scancode,
+			 struct ir_raw_event *events, unsigned int max)
+{
+	int ret;
+	struct ir_raw_event *e = events;
+
+	if (protocol == RC_TYPE_RC6_0) {
+		/* Modulate the preamble */
+		ret = ir_raw_gen_manchester(&e, max, &ir_rc6_timings[0], 0, 0);
+		if (ret < 0)
+			return ret;
+
+		/* Modulate the header (Start Bit & Mode-0) */
+		ret = ir_raw_gen_manchester(&e, max - (e - events),
+					    &ir_rc6_timings[1],
+					    RC6_HEADER_NBITS, (1 << 3));
+		if (ret < 0)
+			return ret;
+
+		/* Modulate Trailer Bit */
+		ret = ir_raw_gen_manchester(&e, max - (e - events),
+					    &ir_rc6_timings[2], 1, 0);
+		if (ret < 0)
+			return ret;
+
+		/* Modulate rest of the data */
+		ret = ir_raw_gen_manchester(&e, max - (e - events),
+					    &ir_rc6_timings[3], RC6_0_NBITS,
+					    scancode);
+		if (ret < 0)
+			return ret;
+
+	} else {
+		int bits;
+
+		switch (protocol) {
+		case RC_TYPE_RC6_MCE:
+		case RC_TYPE_RC6_6A_32:
+			bits = 32;
+			break;
+		case RC_TYPE_RC6_6A_24:
+			bits = 24;
+			break;
+		case RC_TYPE_RC6_6A_20:
+			bits = 20;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		/* Modulate the preamble */
+		ret = ir_raw_gen_manchester(&e, max, &ir_rc6_timings[0], 0, 0);
+		if (ret < 0)
+			return ret;
+
+		/* Modulate the header (Start Bit & Header-version 6 */
+		ret = ir_raw_gen_manchester(&e, max - (e - events),
+					    &ir_rc6_timings[1],
+					    RC6_HEADER_NBITS, (1 << 3 | 6));
+		if (ret < 0)
+			return ret;
+
+		/* Modulate Trailer Bit */
+		ret = ir_raw_gen_manchester(&e, max - (e - events),
+					    &ir_rc6_timings[2], 1, 0);
+		if (ret < 0)
+			return ret;
+
+		/* Modulate rest of the data */
+		ret = ir_raw_gen_manchester(&e, max - (e - events),
+					    &ir_rc6_timings[3],
+					    bits,
+					    scancode);
+		if (ret < 0)
+			return ret;
+	}
+
+	return e - events;
+}
+
 static struct ir_raw_handler rc6_handler = {
 	.protocols	= RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 |
 			  RC_BIT_RC6_6A_24 | RC_BIT_RC6_6A_32 |
 			  RC_BIT_RC6_MCE,
 	.decode		= ir_rc6_decode,
+	.encode		= ir_rc6_encode,
 };
 
 static int __init ir_rc6_decode_init(void)

@@ -6,6 +6,10 @@ ifeq ($(CONFIG_MEDIA_CEC_EDID),y)
   obj-$(CONFIG_MEDIA_SUPPORT) += cec-edid.o
 endif
 
+ifeq ($(CONFIG_MEDIA_CEC_SUPPORT),y)
+  obj-$(CONFIG_MEDIA_SUPPORT) += cec/
+endif
+
 media-objs	:= media-device.o media-devnode.o media-entity.o
 
 #
@@ -32,6 +36,6 @@ obj-y += rc/
 # Finally, merge the drivers that require the core
 #
 
-obj-y += common/ platform/ pci/ usb/ mmc/ firewire/
+obj-y += common/ platform/ pci/ usb/ mmc/ firewire/ spi/
 obj-$(CONFIG_VIDEO_DEV) += radio/
 

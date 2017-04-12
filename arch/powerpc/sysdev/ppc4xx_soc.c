@@ -109,7 +109,7 @@ static int __init ppc4xx_l2c_probe(void)
 
 	/* Get and map irq number from device tree */
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		printk(KERN_ERR "irq_of_parse_and_map failed\n");
 		of_node_put(np);
 		return -ENODEV;

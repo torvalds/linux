@@ -33,6 +33,9 @@ static const struct of_device_id ath10k_ahb_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, ath10k_ahb_of_match);
 
+#define QCA4019_SRAM_ADDR      0x000C0000
+#define QCA4019_SRAM_LEN       0x00040000 /* 256 kb */
+
 static inline struct ath10k_ahb *ath10k_ahb_priv(struct ath10k *ar)
 {
 	return &((struct ath10k_pci *)ar->drv_priv)->ahb[0];
@@ -91,58 +94,36 @@ static int ath10k_ahb_clock_init(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 	struct device *dev;
-	int ret;
 
 	dev = &ar_ahb->pdev->dev;
 
-	ar_ahb->cmd_clk = clk_get(dev, "wifi_wcss_cmd");
+	ar_ahb->cmd_clk = devm_clk_get(dev, "wifi_wcss_cmd");
 	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk)) {
 		ath10k_err(ar, "failed to get cmd clk: %ld\n",
 			   PTR_ERR(ar_ahb->cmd_clk));
-		ret = ar_ahb->cmd_clk ? PTR_ERR(ar_ahb->cmd_clk) : -ENODEV;
-		goto out;
+		return ar_ahb->cmd_clk ? PTR_ERR(ar_ahb->cmd_clk) : -ENODEV;
 	}
 
-	ar_ahb->ref_clk = clk_get(dev, "wifi_wcss_ref");
+	ar_ahb->ref_clk = devm_clk_get(dev, "wifi_wcss_ref");
 	if (IS_ERR_OR_NULL(ar_ahb->ref_clk)) {
 		ath10k_err(ar, "failed to get ref clk: %ld\n",
 			   PTR_ERR(ar_ahb->ref_clk));
-		ret = ar_ahb->ref_clk ? PTR_ERR(ar_ahb->ref_clk) : -ENODEV;
-		goto err_cmd_clk_put;
+		return ar_ahb->ref_clk ? PTR_ERR(ar_ahb->ref_clk) : -ENODEV;
 	}
 
-	ar_ahb->rtc_clk = clk_get(dev, "wifi_wcss_rtc");
+	ar_ahb->rtc_clk = devm_clk_get(dev, "wifi_wcss_rtc");
 	if (IS_ERR_OR_NULL(ar_ahb->rtc_clk)) {
 		ath10k_err(ar, "failed to get rtc clk: %ld\n",
 			   PTR_ERR(ar_ahb->rtc_clk));
-		ret = ar_ahb->rtc_clk ? PTR_ERR(ar_ahb->rtc_clk) : -ENODEV;
-		goto err_ref_clk_put;
+		return ar_ahb->rtc_clk ? PTR_ERR(ar_ahb->rtc_clk) : -ENODEV;
 	}
 
 	return 0;
-
-err_ref_clk_put:
-	clk_put(ar_ahb->ref_clk);
-
-err_cmd_clk_put:
-	clk_put(ar_ahb->cmd_clk);
-
-out:
-	return ret;
 }
 
 static void ath10k_ahb_clock_deinit(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->cmd_clk))
-		clk_put(ar_ahb->cmd_clk);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->ref_clk))
-		clk_put(ar_ahb->ref_clk);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->rtc_clk))
-		clk_put(ar_ahb->rtc_clk);
 
 	ar_ahb->cmd_clk = NULL;
 	ar_ahb->ref_clk = NULL;
@@ -213,91 +194,50 @@ static int ath10k_ahb_rst_ctrl_init(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 	struct device *dev;
-	int ret;
 
 	dev = &ar_ahb->pdev->dev;
 
-	ar_ahb->core_cold_rst = reset_control_get(dev, "wifi_core_cold");
-	if (IS_ERR_OR_NULL(ar_ahb->core_cold_rst)) {
+	ar_ahb->core_cold_rst = devm_reset_control_get(dev, "wifi_core_cold");
+	if (IS_ERR(ar_ahb->core_cold_rst)) {
 		ath10k_err(ar, "failed to get core cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->core_cold_rst));
-		ret = ar_ahb->core_cold_rst ?
-			PTR_ERR(ar_ahb->core_cold_rst) : -ENODEV;
-		goto out;
+		return PTR_ERR(ar_ahb->core_cold_rst);
 	}
 
-	ar_ahb->radio_cold_rst = reset_control_get(dev, "wifi_radio_cold");
-	if (IS_ERR_OR_NULL(ar_ahb->radio_cold_rst)) {
+	ar_ahb->radio_cold_rst = devm_reset_control_get(dev, "wifi_radio_cold");
+	if (IS_ERR(ar_ahb->radio_cold_rst)) {
 		ath10k_err(ar, "failed to get radio cold rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_cold_rst));
-		ret = ar_ahb->radio_cold_rst ?
-			PTR_ERR(ar_ahb->radio_cold_rst) : -ENODEV;
-		goto err_core_cold_rst_put;
+		return PTR_ERR(ar_ahb->radio_cold_rst);
 	}
 
-	ar_ahb->radio_warm_rst = reset_control_get(dev, "wifi_radio_warm");
-	if (IS_ERR_OR_NULL(ar_ahb->radio_warm_rst)) {
+	ar_ahb->radio_warm_rst = devm_reset_control_get(dev, "wifi_radio_warm");
+	if (IS_ERR(ar_ahb->radio_warm_rst)) {
 		ath10k_err(ar, "failed to get radio warm rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_warm_rst));
-		ret = ar_ahb->radio_warm_rst ?
-			PTR_ERR(ar_ahb->radio_warm_rst) : -ENODEV;
-		goto err_radio_cold_rst_put;
+		return PTR_ERR(ar_ahb->radio_warm_rst);
 	}
 
-	ar_ahb->radio_srif_rst = reset_control_get(dev, "wifi_radio_srif");
-	if (IS_ERR_OR_NULL(ar_ahb->radio_srif_rst)) {
+	ar_ahb->radio_srif_rst = devm_reset_control_get(dev, "wifi_radio_srif");
+	if (IS_ERR(ar_ahb->radio_srif_rst)) {
 		ath10k_err(ar, "failed to get radio srif rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->radio_srif_rst));
-		ret = ar_ahb->radio_srif_rst ?
-			PTR_ERR(ar_ahb->radio_srif_rst) : -ENODEV;
-		goto err_radio_warm_rst_put;
+		return PTR_ERR(ar_ahb->radio_srif_rst);
 	}
 
-	ar_ahb->cpu_init_rst = reset_control_get(dev, "wifi_cpu_init");
-	if (IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
+	ar_ahb->cpu_init_rst = devm_reset_control_get(dev, "wifi_cpu_init");
+	if (IS_ERR(ar_ahb->cpu_init_rst)) {
 		ath10k_err(ar, "failed to get cpu init rst ctrl: %ld\n",
 			   PTR_ERR(ar_ahb->cpu_init_rst));
-		ret = ar_ahb->cpu_init_rst ?
-			PTR_ERR(ar_ahb->cpu_init_rst) : -ENODEV;
-		goto err_radio_srif_rst_put;
+		return PTR_ERR(ar_ahb->cpu_init_rst);
 	}
 
 	return 0;
-
-err_radio_srif_rst_put:
-	reset_control_put(ar_ahb->radio_srif_rst);
-
-err_radio_warm_rst_put:
-	reset_control_put(ar_ahb->radio_warm_rst);
-
-err_radio_cold_rst_put:
-	reset_control_put(ar_ahb->radio_cold_rst);
-
-err_core_cold_rst_put:
-	reset_control_put(ar_ahb->core_cold_rst);
-
-out:
-	return ret;
 }
 
 static void ath10k_ahb_rst_ctrl_deinit(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->core_cold_rst))
-		reset_control_put(ar_ahb->core_cold_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->radio_cold_rst))
-		reset_control_put(ar_ahb->radio_cold_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->radio_warm_rst))
-		reset_control_put(ar_ahb->radio_warm_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->radio_srif_rst))
-		reset_control_put(ar_ahb->radio_srif_rst);
-
-	if (!IS_ERR_OR_NULL(ar_ahb->cpu_init_rst))
-		reset_control_put(ar_ahb->cpu_init_rst);
 
 	ar_ahb->core_cold_rst = NULL;
 	ar_ahb->radio_cold_rst = NULL;
@@ -462,13 +402,13 @@ static void ath10k_ahb_halt_chip(struct ath10k *ar)
 static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
 {
 	struct ath10k *ar = arg;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (!ath10k_pci_irq_pending(ar))
 		return IRQ_NONE;
 
 	ath10k_pci_disable_and_clear_legacy_irq(ar);
-	tasklet_schedule(&ar_pci->intr_tq);
+	ath10k_pci_irq_msi_fw_mask(ar);
+	napi_schedule(&ar->napi);
 
 	return IRQ_HANDLED;
 }
@@ -572,12 +512,13 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 	ar_ahb->irq = platform_get_irq_byname(pdev, "legacy");
 	if (ar_ahb->irq < 0) {
 		ath10k_err(ar, "failed to get irq number: %d\n", ar_ahb->irq);
+		ret = ar_ahb->irq;
 		goto err_clock_deinit;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "irq: %d\n", ar_ahb->irq);
 
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "mem: 0x%p mem_len: %lu gcc mem: 0x%p tcsr_mem: 0x%p\n",
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "mem: 0x%pK mem_len: %lu gcc mem: 0x%pK tcsr_mem: 0x%pK\n",
 		   ar_ahb->mem, ar_ahb->mem_len,
 		   ar_ahb->gcc_mem, ar_ahb->tcsr_mem);
 	return 0;
@@ -717,6 +658,9 @@ static void ath10k_ahb_hif_stop(struct ath10k *ar)
 	synchronize_irq(ar_ahb->irq);
 
 	ath10k_pci_flush(ar);
+
+	napi_synchronize(&ar->napi);
+	napi_disable(&ar->napi);
 }
 
 static int ath10k_ahb_hif_power_up(struct ath10k *ar)
@@ -748,6 +692,7 @@ static int ath10k_ahb_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
 		goto err_ce_deinit;
 	}
+	napi_enable(&ar->napi);
 
 	return 0;
 
@@ -755,6 +700,25 @@ err_ce_deinit:
 	ath10k_pci_ce_deinit(ar);
 out:
 	return ret;
+}
+
+static u32 ath10k_ahb_qca4019_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
+{
+	u32 val = 0, region = addr & 0xfffff;
+
+	val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
+
+	if (region >= QCA4019_SRAM_ADDR && region <=
+	    (QCA4019_SRAM_ADDR + QCA4019_SRAM_LEN)) {
+		/* SRAM contents for QCA4019 can be directly accessed and
+		 * no conversions are required
+		 */
+		val |= region;
+	} else {
+		val |= 0x100000 | region;
+	}
+
+	return val;
 }
 
 static const struct ath10k_hif_ops ath10k_ahb_hif_ops = {
@@ -824,6 +788,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	ar_pci->mem_len = ar_ahb->mem_len;
 	ar_pci->ar = ar;
 	ar_pci->bus_ops = &ath10k_ahb_bus_ops;
+	ar_pci->targ_cpu_to_ce_addr = ath10k_ahb_qca4019_targ_cpu_to_ce_addr;
 
 	ret = ath10k_pci_setup_resource(ar);
 	if (ret) {
@@ -831,7 +796,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 		goto err_resource_deinit;
 	}
 
-	ath10k_pci_init_irq_tasklets(ar);
+	ath10k_pci_init_napi(ar);
 
 	ret = ath10k_ahb_request_irq_legacy(ar);
 	if (ret)
@@ -846,6 +811,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	chip_id = ath10k_ahb_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
 	if (chip_id == 0xffffffff) {
 		ath10k_err(ar, "failed to get chip id\n");
+		ret = -ENODEV;
 		goto err_halt_device;
 	}
 

@@ -126,7 +126,7 @@ found_it:
 
 	ret = remap_vmalloc_range(vma, ip->obj, 0);
 	if (ret) {
-		pr_err("rxe: err %d from remap_vmalloc_range\n", ret);
+		pr_err("err %d from remap_vmalloc_range\n", ret);
 		goto done;
 	}
 
@@ -156,10 +156,10 @@ struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe,
 	spin_lock_bh(&rxe->mmap_offset_lock);
 
 	if (rxe->mmap_offset == 0)
-		rxe->mmap_offset = PAGE_SIZE;
+		rxe->mmap_offset = ALIGN(PAGE_SIZE, SHMLBA);
 
 	ip->info.offset = rxe->mmap_offset;
-	rxe->mmap_offset += size;
+	rxe->mmap_offset += ALIGN(size, SHMLBA);
 
 	spin_unlock_bh(&rxe->mmap_offset_lock);
 

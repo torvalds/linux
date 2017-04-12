@@ -302,7 +302,7 @@
  * Always write the address first before setting the ownership
  * bits to avoid races with the hardware scanning the ring.
  */
-typedef u32 __bitwise__ hme32;
+typedef u32 __bitwise hme32;
 
 struct happy_meal_rxd {
 	hme32 rx_flags;

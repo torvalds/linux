@@ -36,6 +36,12 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
 
+enum {
+	MLX5_CAP_INLINE_MODE_L2,
+	MLX5_CAP_INLINE_MODE_VPORT_CONTEXT,
+	MLX5_CAP_INLINE_MODE_NOT_REQUIRED,
+};
+
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
 u8 mlx5_query_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				u16 vport);
@@ -43,8 +49,11 @@ int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				  u16 vport, u8 state);
 int mlx5_query_nic_vport_mac_address(struct mlx5_core_dev *mdev,
 				     u16 vport, u8 *addr);
-void mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
-				     u8 *min_inline);
+int mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
+				    u16 vport, u8 *min_inline);
+void mlx5_query_min_inline(struct mlx5_core_dev *mdev, u8 *min_inline);
+int mlx5_modify_nic_vport_min_inline(struct mlx5_core_dev *mdev,
+				     u16 vport, u8 min_inline);
 int mlx5_modify_nic_vport_mac_address(struct mlx5_core_dev *dev,
 				      u16 vport, u8 *addr);
 int mlx5_query_nic_vport_mtu(struct mlx5_core_dev *mdev, u16 *mtu);

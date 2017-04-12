@@ -12,6 +12,19 @@
 static int has_line_numbers;
 void *jvmti_agent;
 
+static void print_error(jvmtiEnv *jvmti, const char *msg, jvmtiError ret)
+{
+	char *err_msg = NULL;
+	jvmtiError err;
+	err = (*jvmti)->GetErrorName(jvmti, ret, &err_msg);
+	if (err == JVMTI_ERROR_NONE) {
+		warnx("%s failed with %s", msg, err_msg);
+		(*jvmti)->Deallocate(jvmti, (unsigned char *)err_msg);
+	} else {
+		warnx("%s failed with an unknown error %d", msg, ret);
+	}
+}
+
 static jvmtiError
 do_get_line_numbers(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
 		    jvmti_line_info_t *tab, jint *nr)
@@ -22,8 +35,10 @@ do_get_line_numbers(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
 	jvmtiError ret;
 
 	ret = (*jvmti)->GetLineNumberTable(jvmti, m, &nr_lines, &loc_tab);
-	if (ret != JVMTI_ERROR_NONE)
+	if (ret != JVMTI_ERROR_NONE) {
+		print_error(jvmti, "GetLineNumberTable", ret);
 		return ret;
+	}
 
 	for (i = 0; i < nr_lines; i++) {
 		if (loc_tab[i].start_location < bci) {
@@ -71,6 +86,8 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 					/* free what was allocated for nothing */
 					(*jvmti)->Deallocate(jvmti, (unsigned char *)lne);
 					nr_total += (int)nr;
+				} else {
+					print_error(jvmti, "GetLineNumberTable", ret);
 				}
 			}
 		}
@@ -130,7 +147,7 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	ret = (*jvmti)->GetMethodDeclaringClass(jvmti, method,
 						&decl_class);
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: cannot get declaring class");
+		print_error(jvmti, "GetMethodDeclaringClass", ret);
 		return;
 	}
 
@@ -144,21 +161,21 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 
 	ret = (*jvmti)->GetSourceFileName(jvmti, decl_class, &file_name);
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: cannot get source filename ret=%d", ret);
+		print_error(jvmti, "GetSourceFileName", ret);
 		goto error;
 	}
 
 	ret = (*jvmti)->GetClassSignature(jvmti, decl_class,
 					  &class_sign, NULL);
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: getclassignature failed");
+		print_error(jvmti, "GetClassSignature", ret);
 		goto error;
 	}
 
 	ret = (*jvmti)->GetMethodName(jvmti, method, &func_name,
 				      &func_sign, NULL);
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: failed getmethodname");
+		print_error(jvmti, "GetMethodName", ret);
 		goto error;
 	}
 
@@ -253,7 +270,7 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved __unused)
 
 	ret = (*jvmti)->AddCapabilities(jvmti, &caps1);
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: acquire compiled_method capability failed");
+		print_error(jvmti, "AddCapabilities", ret);
 		return -1;
 	}
 	ret = (*jvmti)->GetJLocationFormat(jvmti, &format);
@@ -264,7 +281,9 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved __unused)
 		ret = (*jvmti)->AddCapabilities(jvmti, &caps1);
                 if (ret == JVMTI_ERROR_NONE)
                         has_line_numbers = 1;
-        }
+        } else if (ret != JVMTI_ERROR_NONE)
+		print_error(jvmti, "GetJLocationFormat", ret);
+
 
 	memset(&cb, 0, sizeof(cb));
 
@@ -273,21 +292,21 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved __unused)
 
 	ret = (*jvmti)->SetEventCallbacks(jvmti, &cb, sizeof(cb));
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: cannot set event callbacks");
+		print_error(jvmti, "SetEventCallbacks", ret);
 		return -1;
 	}
 
 	ret = (*jvmti)->SetEventNotificationMode(jvmti, JVMTI_ENABLE,
 			JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: setnotification failed for method_load");
+		print_error(jvmti, "SetEventNotificationMode(METHOD_LOAD)", ret);
 		return -1;
 	}
 
 	ret = (*jvmti)->SetEventNotificationMode(jvmti, JVMTI_ENABLE,
 			JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 	if (ret != JVMTI_ERROR_NONE) {
-		warnx("jvmti: setnotification failed on code_generated");
+		print_error(jvmti, "SetEventNotificationMode(CODE_GENERATED)", ret);
 		return -1;
 	}
 	return 0;

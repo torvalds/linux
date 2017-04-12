@@ -438,7 +438,7 @@ static int ads8688_probe(struct spi_device *spi)
 	return 0;
 
 error_out:
-	if (!IS_ERR_OR_NULL(st->reg))
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 
 	return ret;
@@ -451,7 +451,7 @@ static int ads8688_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 
-	if (!IS_ERR_OR_NULL(st->reg))
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 
 	return 0;

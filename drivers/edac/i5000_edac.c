@@ -22,7 +22,7 @@
 #include <linux/edac.h>
 #include <asm/mmzone.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /*
  * Alter this version for the I5000 module when modifications are made
@@ -1293,7 +1293,7 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 			dimm->mtype = MEM_FB_DDR2;
 
 			/* ask what device type on this row */
-			if (MTR_DRAM_WIDTH(mtr))
+			if (MTR_DRAM_WIDTH(mtr) == 8)
 				dimm->dtype = DEV_X8;
 			else
 				dimm->dtype = DEV_X4;

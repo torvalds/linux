@@ -28,6 +28,7 @@
 #include <linux/if_bridge.h>
 #include <linux/bitops.h>
 #include <linux/ctype.h>
+#include <linux/workqueue.h>
 #include <net/switchdev.h>
 #include <net/rtnetlink.h>
 #include <net/netevent.h>
@@ -1471,7 +1472,7 @@ static int rocker_world_check_init(struct rocker_port *rocker_port)
 	if (rocker->wops) {
 		if (rocker->wops->mode != mode) {
 			dev_err(&rocker->pdev->dev, "hardware has ports in different worlds, which is not supported\n");
-			return err;
+			return -EINVAL;
 		}
 		return 0;
 	}
@@ -1625,29 +1626,6 @@ rocker_world_port_obj_vlan_dump(const struct rocker_port *rocker_port,
 }
 
 static int
-rocker_world_port_obj_fib4_add(struct rocker_port *rocker_port,
-			       const struct switchdev_obj_ipv4_fib *fib4,
-			       struct switchdev_trans *trans)
-{
-	struct rocker_world_ops *wops = rocker_port->rocker->wops;
-
-	if (!wops->port_obj_fib4_add)
-		return -EOPNOTSUPP;
-	return wops->port_obj_fib4_add(rocker_port, fib4, trans);
-}
-
-static int
-rocker_world_port_obj_fib4_del(struct rocker_port *rocker_port,
-			       const struct switchdev_obj_ipv4_fib *fib4)
-{
-	struct rocker_world_ops *wops = rocker_port->rocker->wops;
-
-	if (!wops->port_obj_fib4_del)
-		return -EOPNOTSUPP;
-	return wops->port_obj_fib4_del(rocker_port, fib4);
-}
-
-static int
 rocker_world_port_obj_fdb_add(struct rocker_port *rocker_port,
 			      const struct switchdev_obj_port_fdb *fdb,
 			      struct switchdev_trans *trans)
@@ -1731,6 +1709,34 @@ static int rocker_world_port_ev_mac_vlan_seen(struct rocker_port *rocker_port,
 	if (!wops->port_ev_mac_vlan_seen)
 		return -EOPNOTSUPP;
 	return wops->port_ev_mac_vlan_seen(rocker_port, addr, vlan_id);
+}
+
+static int rocker_world_fib4_add(struct rocker *rocker,
+				 const struct fib_entry_notifier_info *fen_info)
+{
+	struct rocker_world_ops *wops = rocker->wops;
+
+	if (!wops->fib4_add)
+		return 0;
+	return wops->fib4_add(rocker, fen_info);
+}
+
+static int rocker_world_fib4_del(struct rocker *rocker,
+				 const struct fib_entry_notifier_info *fen_info)
+{
+	struct rocker_world_ops *wops = rocker->wops;
+
+	if (!wops->fib4_del)
+		return 0;
+	return wops->fib4_del(rocker, fen_info);
+}
+
+static void rocker_world_fib4_abort(struct rocker *rocker)
+{
+	struct rocker_world_ops *wops = rocker->wops;
+
+	if (wops->fib4_abort)
+		wops->fib4_abort(rocker);
 }
 
 /*****************
@@ -1948,12 +1954,6 @@ static int rocker_port_change_mtu(struct net_device *dev, int new_mtu)
 	int running = netif_running(dev);
 	int err;
 
-#define ROCKER_PORT_MIN_MTU	68
-#define ROCKER_PORT_MAX_MTU	9000
-
-	if (new_mtu < ROCKER_PORT_MIN_MTU || new_mtu > ROCKER_PORT_MAX_MTU)
-		return -EINVAL;
-
 	if (running)
 		rocker_port_stop(dev);
 
@@ -2096,11 +2096,6 @@ static int rocker_port_obj_add(struct net_device *dev,
 						     SWITCHDEV_OBJ_PORT_VLAN(obj),
 						     trans);
 		break;
-	case SWITCHDEV_OBJ_ID_IPV4_FIB:
-		err = rocker_world_port_obj_fib4_add(rocker_port,
-						     SWITCHDEV_OBJ_IPV4_FIB(obj),
-						     trans);
-		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = rocker_world_port_obj_fdb_add(rocker_port,
 						    SWITCHDEV_OBJ_PORT_FDB(obj),
@@ -2124,10 +2119,6 @@ static int rocker_port_obj_del(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = rocker_world_port_obj_vlan_del(rocker_port,
 						     SWITCHDEV_OBJ_PORT_VLAN(obj));
-		break;
-	case SWITCHDEV_OBJ_ID_IPV4_FIB:
-		err = rocker_world_port_obj_fib4_del(rocker_port,
-						     SWITCHDEV_OBJ_IPV4_FIB(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = rocker_world_port_obj_fdb_del(rocker_port,
@@ -2174,6 +2165,73 @@ static const struct switchdev_ops rocker_port_switchdev_ops = {
 	.switchdev_port_obj_del		= rocker_port_obj_del,
 	.switchdev_port_obj_dump	= rocker_port_obj_dump,
 };
+
+struct rocker_fib_event_work {
+	struct work_struct work;
+	struct fib_entry_notifier_info fen_info;
+	struct rocker *rocker;
+	unsigned long event;
+};
+
+static void rocker_router_fib_event_work(struct work_struct *work)
+{
+	struct rocker_fib_event_work *fib_work =
+		container_of(work, struct rocker_fib_event_work, work);
+	struct rocker *rocker = fib_work->rocker;
+	int err;
+
+	/* Protect internal structures from changes */
+	rtnl_lock();
+	switch (fib_work->event) {
+	case FIB_EVENT_ENTRY_ADD:
+		err = rocker_world_fib4_add(rocker, &fib_work->fen_info);
+		if (err)
+			rocker_world_fib4_abort(rocker);
+		fib_info_put(fib_work->fen_info.fi);
+		break;
+	case FIB_EVENT_ENTRY_DEL:
+		rocker_world_fib4_del(rocker, &fib_work->fen_info);
+		fib_info_put(fib_work->fen_info.fi);
+		break;
+	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_DEL:
+		rocker_world_fib4_abort(rocker);
+		break;
+	}
+	rtnl_unlock();
+	kfree(fib_work);
+}
+
+/* Called with rcu_read_lock() */
+static int rocker_router_fib_event(struct notifier_block *nb,
+				   unsigned long event, void *ptr)
+{
+	struct rocker *rocker = container_of(nb, struct rocker, fib_nb);
+	struct rocker_fib_event_work *fib_work;
+
+	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
+	if (WARN_ON(!fib_work))
+		return NOTIFY_BAD;
+
+	INIT_WORK(&fib_work->work, rocker_router_fib_event_work);
+	fib_work->rocker = rocker;
+	fib_work->event = event;
+
+	switch (event) {
+	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_DEL:
+		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
+		/* Take referece on fib_info to prevent it from being
+		 * freed while work is queued. Release it afterwards.
+		 */
+		fib_info_hold(fib_work->fen_info.fi);
+		break;
+	}
+
+	queue_work(rocker->rocker_owq, &fib_work->work);
+
+	return NOTIFY_DONE;
+}
 
 /********************
  * ethtool interface
@@ -2412,7 +2470,7 @@ static int rocker_port_rx_proc(const struct rocker *rocker,
 	skb->protocol = eth_type_trans(skb, rocker_port->dev);
 
 	if (rx_flags & ROCKER_RX_FLAGS_FWD_OFFLOAD)
-		skb->offload_fwd_mark = rocker_port->dev->offload_fwd_mark;
+		skb->offload_fwd_mark = 1;
 
 	rocker_port->dev->stats.rx_packets++;
 	rocker_port->dev->stats.rx_bytes += skb->len;
@@ -2459,7 +2517,7 @@ static int rocker_port_poll_rx(struct napi_struct *napi, int budget)
 	}
 
 	if (credits < budget)
-		napi_complete(napi);
+		napi_complete_done(napi, credits);
 
 	rocker_dma_ring_credits_set(rocker, &rocker_port->rx_ring, credits);
 
@@ -2515,9 +2573,11 @@ static void rocker_port_dev_addr_init(struct rocker_port *rocker_port)
 	}
 }
 
+#define ROCKER_PORT_MIN_MTU	ETH_MIN_MTU
+#define ROCKER_PORT_MAX_MTU	9000
 static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 {
-	const struct pci_dev *pdev = rocker->pdev;
+	struct pci_dev *pdev = rocker->pdev;
 	struct rocker_port *rocker_port;
 	struct net_device *dev;
 	int err;
@@ -2525,6 +2585,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	dev = alloc_etherdev(sizeof(struct rocker_port));
 	if (!dev)
 		return -ENOMEM;
+	SET_NETDEV_DEV(dev, &pdev->dev);
 	rocker_port = netdev_priv(dev);
 	rocker_port->dev = dev;
 	rocker_port->rocker = rocker;
@@ -2548,6 +2609,10 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_carrier_init(rocker_port);
 
 	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_SG;
+
+	/* MTU range: 68 - 9000 */
+	dev->min_mtu = ROCKER_PORT_MIN_MTU;
+	dev->max_mtu = ROCKER_PORT_MAX_MTU;
 
 	err = rocker_world_port_pre_init(rocker_port);
 	if (err) {
@@ -2732,6 +2797,21 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_request_event_irq;
 	}
 
+	rocker->rocker_owq = alloc_ordered_workqueue(rocker_driver_name,
+						     WQ_MEM_RECLAIM);
+	if (!rocker->rocker_owq) {
+		err = -ENOMEM;
+		goto err_alloc_ordered_workqueue;
+	}
+
+	/* Only FIBs pointing to our own netdevs are programmed into
+	 * the device, so no need to pass a callback.
+	 */
+	rocker->fib_nb.notifier_call = rocker_router_fib_event;
+	err = register_fib_notifier(&rocker->fib_nb, NULL);
+	if (err)
+		goto err_register_fib_notifier;
+
 	rocker->hw.id = rocker_read64(rocker, SWITCH_ID);
 
 	err = rocker_probe_ports(rocker);
@@ -2746,6 +2826,10 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_probe_ports:
+	unregister_fib_notifier(&rocker->fib_nb);
+err_register_fib_notifier:
+	destroy_workqueue(rocker->rocker_owq);
+err_alloc_ordered_workqueue:
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_EVENT), rocker);
 err_request_event_irq:
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_CMD), rocker);
@@ -2771,8 +2855,10 @@ static void rocker_remove(struct pci_dev *pdev)
 {
 	struct rocker *rocker = pci_get_drvdata(pdev);
 
-	rocker_write32(rocker, CONTROL, ROCKER_CONTROL_RESET);
 	rocker_remove_ports(rocker);
+	unregister_fib_notifier(&rocker->fib_nb);
+	rocker_write32(rocker, CONTROL, ROCKER_CONTROL_RESET);
+	destroy_workqueue(rocker->rocker_owq);
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_EVENT), rocker);
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_CMD), rocker);
 	rocker_dma_rings_fini(rocker);
@@ -2797,6 +2883,54 @@ static struct pci_driver rocker_pci_driver = {
 static bool rocker_port_dev_check(const struct net_device *dev)
 {
 	return dev->netdev_ops == &rocker_port_netdev_ops;
+}
+
+static bool rocker_port_dev_check_under(const struct net_device *dev,
+					struct rocker *rocker)
+{
+	struct rocker_port *rocker_port;
+
+	if (!rocker_port_dev_check(dev))
+		return false;
+
+	rocker_port = netdev_priv(dev);
+	if (rocker_port->rocker != rocker)
+		return false;
+
+	return true;
+}
+
+struct rocker_walk_data {
+	struct rocker *rocker;
+	struct rocker_port *port;
+};
+
+static int rocker_lower_dev_walk(struct net_device *lower_dev, void *_data)
+{
+	struct rocker_walk_data *data = _data;
+	int ret = 0;
+
+	if (rocker_port_dev_check_under(lower_dev, data->rocker)) {
+		data->port = netdev_priv(lower_dev);
+		ret = 1;
+	}
+
+	return ret;
+}
+
+struct rocker_port *rocker_port_dev_lower_find(struct net_device *dev,
+					       struct rocker *rocker)
+{
+	struct rocker_walk_data data;
+
+	if (rocker_port_dev_check_under(dev, rocker))
+		return netdev_priv(dev);
+
+	data.rocker = rocker;
+	data.port = NULL;
+	netdev_walk_all_lower_dev(dev, rocker_lower_dev_walk, &data);
+
+	return data.port;
 }
 
 static int rocker_netdevice_event(struct notifier_block *unused,

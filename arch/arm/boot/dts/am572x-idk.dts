@@ -18,14 +18,9 @@
 	compatible = "ti,am5728-idk", "ti,am5728", "ti,dra742", "ti,dra74",
 		     "ti,dra7";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
-	};
-
-	extcon_usb2: extcon_usb2 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 	};
 
 	status-leds {
@@ -76,10 +71,23 @@
 	extcon = <&extcon_usb2>;
 };
 
+&extcon_usb2 {
+	id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
+	vbus-gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+};
+
 &mmc1 {
 	status = "okay";
 	vmmc-supply = <&v3_3d>;
 	vmmc_aux-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 0>; /* gpio 219 */
+};
+
+&sn65hvs882 {
+	load-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
+};
+
+&pcie1 {
+	gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
 };

@@ -23,7 +23,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "hfs.h"
 
@@ -212,11 +212,7 @@ extern void hfs_evict_inode(struct inode *);
 extern void hfs_delete_inode(struct inode *);
 
 /* attr.c */
-extern int hfs_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
-			const void *value, size_t size, int flags);
-extern ssize_t hfs_getxattr(struct dentry *dentry, struct inode *inode,
-			    const char *name, void *value, size_t size);
-extern ssize_t hfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
+extern const struct xattr_handler *hfs_xattr_handlers[];
 
 /* mdb.c */
 extern int hfs_mdb_get(struct super_block *);

@@ -83,9 +83,10 @@ static int digits_len(const struct nf_conn *ct, const char *dptr,
 static int iswordc(const char c)
 {
 	if (isalnum(c) || c == '!' || c == '"' || c == '%' ||
-	    (c >= '(' && c <= '/') || c == ':' || c == '<' || c == '>' ||
+	    (c >= '(' && c <= '+') || c == ':' || c == '<' || c == '>' ||
 	    c == '?' || (c >= '[' && c <= ']') || c == '_' || c == '`' ||
-	    c == '{' || c == '}' || c == '~')
+	    c == '{' || c == '}' || c == '~' || (c >= '-' && c <= '/') ||
+	    c == '\'')
 		return 1;
 	return 0;
 }
@@ -329,13 +330,12 @@ static const char *sip_follow_continuation(const char *dptr, const char *limit)
 static const char *sip_skip_whitespace(const char *dptr, const char *limit)
 {
 	for (; dptr < limit; dptr++) {
-		if (*dptr == ' ')
+		if (*dptr == ' ' || *dptr == '\t')
 			continue;
 		if (*dptr != '\r' && *dptr != '\n')
 			break;
 		dptr = sip_follow_continuation(dptr, limit);
-		if (dptr == NULL)
-			return NULL;
+		break;
 	}
 	return dptr;
 }
@@ -809,13 +809,11 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 		    exp->tuple.dst.protonum != proto ||
 		    exp->tuple.dst.u.udp.port != port)
 			continue;
-		if (!del_timer(&exp->timeout))
-			continue;
-		exp->flags &= ~NF_CT_EXPECT_INACTIVE;
-		exp->timeout.expires = jiffies + expires * HZ;
-		add_timer(&exp->timeout);
-		found = 1;
-		break;
+		if (mod_timer_pending(&exp->timeout, jiffies + expires * HZ)) {
+			exp->flags &= ~NF_CT_EXPECT_INACTIVE;
+			found = 1;
+			break;
+		}
 	}
 	spin_unlock_bh(&nf_conntrack_expect_lock);
 	return found;
@@ -1436,8 +1434,11 @@ static int process_sip_request(struct sk_buff *skb, unsigned int protoff,
 		handler = &sip_handlers[i];
 		if (handler->request == NULL)
 			continue;
-		if (*datalen < handler->len ||
+		if (*datalen < handler->len + 2 ||
 		    strncasecmp(*dptr, handler->method, handler->len))
+			continue;
+		if ((*dptr)[handler->len] != ' ' ||
+		    !isalpha((*dptr)[handler->len+1]))
 			continue;
 
 		if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
@@ -1627,8 +1628,6 @@ static int __init nf_conntrack_sip_init(void)
 		ports[ports_c++] = SIP_PORT;
 
 	for (i = 0; i < ports_c; i++) {
-		memset(&sip[i], 0, sizeof(sip[i]));
-
 		nf_ct_helper_init(&sip[4 * i], AF_INET, IPPROTO_UDP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
 				  SIP_EXPECT_MAX,

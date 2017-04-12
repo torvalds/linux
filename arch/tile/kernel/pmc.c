@@ -16,7 +16,6 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
-#include <linux/interrupt.h>
 
 #include <asm/processor.h>
 #include <asm/pmc.h>
@@ -29,9 +28,7 @@ int handle_perf_interrupt(struct pt_regs *regs, int fault)
 	if (!perf_irq)
 		panic("Unexpected PERF_COUNT interrupt %d\n", fault);
 
-	nmi_enter();
 	retval = perf_irq(regs, fault);
-	nmi_exit();
 	return retval;
 }
 

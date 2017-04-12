@@ -16,6 +16,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -250,6 +251,11 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 	struct sensor_hub_data *data = hid_get_drvdata(hsdev->hdev);
 	int report_size;
 	int ret = 0;
+	u8 *val_ptr;
+	int buffer_index = 0;
+	int i;
+
+	memset(buffer, 0, buffer_size);
 
 	mutex_lock(&data->mutex);
 	report = sensor_hub_report(report_id, hsdev->hdev, HID_FEATURE_REPORT);
@@ -270,7 +276,17 @@ int sensor_hub_get_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 		goto done_proc;
 	}
 	ret = min(report_size, buffer_size);
-	memcpy(buffer, report->field[field_index]->value, ret);
+
+	val_ptr = (u8 *)report->field[field_index]->value;
+	for (i = 0; i < report->field[field_index]->report_count; ++i) {
+		if (buffer_index >= ret)
+			break;
+
+		memcpy(&((u8 *)buffer)[buffer_index], val_ptr,
+		       report->field[field_index]->report_size / 8);
+		val_ptr += sizeof(__s32);
+		buffer_index += (report->field[field_index]->report_size / 8);
+	}
 
 done_proc:
 	mutex_unlock(&data->mutex);
@@ -780,6 +796,12 @@ static const struct hid_device_id sensor_hub_devices[] = {
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
 			USB_DEVICE_ID_MS_TYPE_COVER_2),
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROSOFT,
+			0x07bd), /* Microsoft Surface 3 */
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_MICROCHIP,
+			0x0f01), /* MM7150 */
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_STM_0,
 			USB_DEVICE_ID_STM_HID_SENSOR),
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
@@ -797,6 +819,9 @@ static const struct hid_device_id sensor_hub_devices[] = {
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_ITE,
 			USB_DEVICE_ID_ITE_LENOVO_YOGA900),
+			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, USB_VENDOR_ID_INTEL_0,
+			0x22D8),
 			.driver_data = HID_SENSOR_HUB_ENUM_QUIRK},
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, HID_ANY_ID,
 		     HID_ANY_ID) },

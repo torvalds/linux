@@ -83,11 +83,32 @@ void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 }
 EXPORT_SYMBOL(sun4i_backend_layer_enable);
 
-static int sun4i_backend_drm_format_to_layer(u32 format, u32 *mode)
+static int sun4i_backend_drm_format_to_layer(struct drm_plane *plane,
+					     u32 format, u32 *mode)
 {
+	if ((plane->type == DRM_PLANE_TYPE_PRIMARY) &&
+	    (format == DRM_FORMAT_ARGB8888))
+		format = DRM_FORMAT_XRGB8888;
+
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB8888;
+		break;
+
+	case DRM_FORMAT_ARGB4444:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB4444;
+		break;
+
+	case DRM_FORMAT_ARGB1555:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB1555;
+		break;
+
+	case DRM_FORMAT_RGBA5551:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGBA5551;
+		break;
+
+	case DRM_FORMAT_RGBA4444:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGBA4444;
 		break;
 
 	case DRM_FORMAT_XRGB8888:
@@ -96,6 +117,10 @@ static int sun4i_backend_drm_format_to_layer(u32 format, u32 *mode)
 
 	case DRM_FORMAT_RGB888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_RGB888;
+		break;
+
+	case DRM_FORMAT_RGB565:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGB565;
 		break;
 
 	default:
@@ -164,10 +189,11 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
 
-	ret = sun4i_backend_drm_format_to_layer(fb->pixel_format, &val);
+	ret = sun4i_backend_drm_format_to_layer(plane, fb->format->format,
+						&val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
-		return val;
+		return ret;
 	}
 
 	regmap_update_bits(backend->regs, SUN4I_BACKEND_ATTCTL_REG1(layer),
@@ -193,7 +219,7 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
 
 	/* Compute the start of the displayed memory */
-	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	bpp = fb->format->cpp[0];
 	paddr = gem->paddr + fb->offsets[0];
 	paddr += (state->src_x >> 16) * bpp;
 	paddr += (state->src_y >> 16) * fb->pitches[0];
@@ -216,6 +242,51 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	return 0;
 }
 EXPORT_SYMBOL(sun4i_backend_update_layer_buffer);
+
+static int sun4i_backend_init_sat(struct device *dev) {
+	struct sun4i_backend *backend = dev_get_drvdata(dev);
+	int ret;
+
+	backend->sat_reset = devm_reset_control_get(dev, "sat");
+	if (IS_ERR(backend->sat_reset)) {
+		dev_err(dev, "Couldn't get the SAT reset line\n");
+		return PTR_ERR(backend->sat_reset);
+	}
+
+	ret = reset_control_deassert(backend->sat_reset);
+	if (ret) {
+		dev_err(dev, "Couldn't deassert the SAT reset line\n");
+		return ret;
+	}
+
+	backend->sat_clk = devm_clk_get(dev, "sat");
+	if (IS_ERR(backend->sat_clk)) {
+		dev_err(dev, "Couldn't get our SAT clock\n");
+		ret = PTR_ERR(backend->sat_clk);
+		goto err_assert_reset;
+	}
+
+	ret = clk_prepare_enable(backend->sat_clk);
+	if (ret) {
+		dev_err(dev, "Couldn't enable the SAT clock\n");
+		return ret;
+	}
+
+	return 0;
+
+err_assert_reset:
+	reset_control_assert(backend->sat_reset);
+	return ret;
+}
+
+static int sun4i_backend_free_sat(struct device *dev) {
+	struct sun4i_backend *backend = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(backend->sat_clk);
+	reset_control_assert(backend->sat_reset);
+
+	return 0;
+}
 
 static struct regmap_config sun4i_backend_regmap_config = {
 	.reg_bits	= 32,
@@ -243,10 +314,8 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(dev, "Couldn't map the backend registers\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	backend->regs = devm_regmap_init_mmio(dev, regs,
 					      &sun4i_backend_regmap_config);
@@ -291,6 +360,15 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	}
 	clk_prepare_enable(backend->ram_clk);
 
+	if (of_device_is_compatible(dev->of_node,
+				    "allwinner,sun8i-a33-display-backend")) {
+		ret = sun4i_backend_init_sat(dev);
+		if (ret) {
+			dev_err(dev, "Couldn't init SAT resources\n");
+			goto err_disable_ram_clk;
+		}
+	}
+
 	/* Reset the registers */
 	for (i = 0x800; i < 0x1000; i += 4)
 		regmap_write(backend->regs, i, 0);
@@ -306,6 +384,8 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 
 	return 0;
 
+err_disable_ram_clk:
+	clk_disable_unprepare(backend->ram_clk);
 err_disable_mod_clk:
 	clk_disable_unprepare(backend->mod_clk);
 err_disable_bus_clk:
@@ -320,13 +400,17 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 {
 	struct sun4i_backend *backend = dev_get_drvdata(dev);
 
+	if (of_device_is_compatible(dev->of_node,
+				    "allwinner,sun8i-a33-display-backend"))
+		sun4i_backend_free_sat(dev);
+
 	clk_disable_unprepare(backend->ram_clk);
 	clk_disable_unprepare(backend->mod_clk);
 	clk_disable_unprepare(backend->bus_clk);
 	reset_control_assert(backend->reset);
 }
 
-static struct component_ops sun4i_backend_ops = {
+static const struct component_ops sun4i_backend_ops = {
 	.bind	= sun4i_backend_bind,
 	.unbind	= sun4i_backend_unbind,
 };
@@ -345,6 +429,8 @@ static int sun4i_backend_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_backend_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-display-backend" },
+	{ .compatible = "allwinner,sun6i-a31-display-backend" },
+	{ .compatible = "allwinner,sun8i-a33-display-backend" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_backend_of_table);

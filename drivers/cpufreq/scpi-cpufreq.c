@@ -105,7 +105,6 @@ static int scpi_cpufreq_remove(struct platform_device *pdev)
 static struct platform_driver scpi_cpufreq_platdrv = {
 	.driver = {
 		.name	= "scpi-cpufreq",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= scpi_cpufreq_probe,
 	.remove		= scpi_cpufreq_remove,

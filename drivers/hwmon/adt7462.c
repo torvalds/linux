@@ -810,8 +810,8 @@ static ssize_t set_temp_min(struct device *dev,
 	if (kstrtol(buf, 10, &temp) || !temp_enabled(data, attr->index))
 		return -EINVAL;
 
+	temp = clamp_val(temp, -64000, 191000);
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->temp_min[attr->index] = temp;
@@ -848,8 +848,8 @@ static ssize_t set_temp_max(struct device *dev,
 	if (kstrtol(buf, 10, &temp) || !temp_enabled(data, attr->index))
 		return -EINVAL;
 
+	temp = clamp_val(temp, -64000, 191000);
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->temp_max[attr->index] = temp;
@@ -912,9 +912,9 @@ static ssize_t set_volt_max(struct device *dev,
 	if (kstrtol(buf, 10, &temp) || !x)
 		return -EINVAL;
 
+	temp = clamp_val(temp, 0, 255 * x / 1000);
 	temp *= 1000; /* convert mV to uV */
 	temp = DIV_ROUND_CLOSEST(temp, x);
-	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->volt_max[attr->index] = temp;
@@ -954,9 +954,9 @@ static ssize_t set_volt_min(struct device *dev,
 	if (kstrtol(buf, 10, &temp) || !x)
 		return -EINVAL;
 
+	temp = clamp_val(temp, 0, 255 * x / 1000);
 	temp *= 1000; /* convert mV to uV */
 	temp = DIV_ROUND_CLOSEST(temp, x);
-	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->volt_min[attr->index] = temp;
@@ -1220,8 +1220,8 @@ static ssize_t set_pwm_hyst(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
+	temp = clamp_val(temp, 0, 15000);
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
-	temp = clamp_val(temp, 0, 15);
 
 	/* package things up */
 	temp &= ADT7462_PWM_HYST_MASK;
@@ -1306,8 +1306,8 @@ static ssize_t set_pwm_tmin(struct device *dev,
 	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
+	temp = clamp_val(temp, -64000, 191000);
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
-	temp = clamp_val(temp, 0, 255);
 
 	mutex_lock(&data->lock);
 	data->pwm_tmin[attr->index] = temp;

@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0191       | 0x0146         |
+ * | Module Init and Probe        |       0x0193       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
  * | Mailbox commands             |       0x1199       | 0x1193		|
@@ -58,7 +58,7 @@
  * |                              |                    | 0xb13a,0xb142  |
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
- * | MultiQ                       |       0xc00c       |		|
+ * | MultiQ                       |       0xc010       |		|
  * | Misc                         |       0xd301       | 0xd031-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
  * |                              |                    | 0xd214-0xd2fe	|
@@ -2707,13 +2707,9 @@ ql_dump_buffer(uint32_t level, scsi_qla_host_t *vha, int32_t id,
 	    "%-+5d  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n", size);
 	ql_dbg(level, vha, id,
 	    "----- -----------------------------------------------\n");
-	for (cnt = 0; cnt < size; cnt++, buf++) {
-		if (cnt % 16 == 0)
-			ql_dbg(level, vha, id, "%04x:", cnt & ~0xFU);
-		printk(" %02x", *buf);
-		if (cnt % 16 == 15)
-			printk("\n");
+	for (cnt = 0; cnt < size; cnt += 16) {
+		ql_dbg(level, vha, id, "%04x: ", cnt);
+		print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 1,
+			       buf + cnt, min(16U, size - cnt), false);
 	}
-	if (cnt % 16 != 0)
-		printk("\n");
 }

@@ -860,7 +860,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 {
 	struct palmas_pctrl_chip_info *pci = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 param_val;
+	u32 param_val;
 	const struct palmas_pingroup *g;
 	const struct palmas_pin_info *opt;
 	int ret;
@@ -1004,9 +1004,7 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	bool enable_dvfs2 = false;
 
 	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_device(palmas_pinctrl_of_match, &pdev->dev);
-		pinctrl_data = match->data;
+		pinctrl_data = of_device_get_match_data(&pdev->dev);
 		enable_dvfs1 = of_property_read_bool(pdev->dev.of_node,
 					"ti,palmas-enable-dvfs1");
 		enable_dvfs2 = of_property_read_bool(pdev->dev.of_node,

@@ -66,6 +66,32 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 		}
 		break;
 
+#ifdef CONFIG_AF_RXRPC_IPV6
+	case AF_INET6:
+		srx.transport.sin6.sin6_port = serr->port;
+		srx.transport_len = sizeof(struct sockaddr_in6);
+		switch (serr->ee.ee_origin) {
+		case SO_EE_ORIGIN_ICMP6:
+			_net("Rx ICMP6");
+			memcpy(&srx.transport.sin6.sin6_addr,
+			       skb_network_header(skb) + serr->addr_offset,
+			       sizeof(struct in6_addr));
+			break;
+		case SO_EE_ORIGIN_ICMP:
+			_net("Rx ICMP on v6 sock");
+			memcpy(srx.transport.sin6.sin6_addr.s6_addr + 12,
+			       skb_network_header(skb) + serr->addr_offset,
+			       sizeof(struct in_addr));
+			break;
+		default:
+			memcpy(&srx.transport.sin6.sin6_addr,
+			       &ipv6_hdr(skb)->saddr,
+			       sizeof(struct in6_addr));
+			break;
+		}
+		break;
+#endif
+
 	default:
 		BUG();
 	}
@@ -129,14 +155,13 @@ void rxrpc_error_report(struct sock *sk)
 		_leave("UDP socket errqueue empty");
 		return;
 	}
+	rxrpc_new_skb(skb, rxrpc_skb_rx_received);
 	serr = SKB_EXT_ERR(skb);
 	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
 		_leave("UDP empty message");
-		kfree_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 		return;
 	}
-
-	rxrpc_new_skb(skb);
 
 	rcu_read_lock();
 	peer = rxrpc_lookup_peer_icmp_rcu(local, skb);
@@ -144,7 +169,7 @@ void rxrpc_error_report(struct sock *sk)
 		peer = NULL;
 	if (!peer) {
 		rcu_read_unlock();
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 		_leave(" [no peer]");
 		return;
 	}
@@ -154,7 +179,7 @@ void rxrpc_error_report(struct sock *sk)
 	     serr->ee.ee_code == ICMP_FRAG_NEEDED)) {
 		rxrpc_adjust_mtu(peer, serr);
 		rcu_read_unlock();
-		rxrpc_free_skb(skb);
+		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 		rxrpc_put_peer(peer);
 		_leave(" [MTU update]");
 		return;
@@ -162,7 +187,7 @@ void rxrpc_error_report(struct sock *sk)
 
 	rxrpc_store_error(peer, serr);
 	rcu_read_unlock();
-	rxrpc_free_skb(skb);
+	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 
 	/* The ref we obtained is passed off to the work item */
 	rxrpc_queue_work(&peer->error_distributor);
@@ -248,13 +273,20 @@ void rxrpc_peer_error_distributor(struct work_struct *work)
 	struct rxrpc_peer *peer =
 		container_of(work, struct rxrpc_peer, error_distributor);
 	struct rxrpc_call *call;
-	int error_report;
+	enum rxrpc_call_completion compl;
+	int error;
 
 	_enter("");
 
-	error_report = READ_ONCE(peer->error_report);
+	error = READ_ONCE(peer->error_report);
+	if (error < RXRPC_LOCAL_ERROR_OFFSET) {
+		compl = RXRPC_CALL_NETWORK_ERROR;
+	} else {
+		compl = RXRPC_CALL_LOCAL_ERROR;
+		error -= RXRPC_LOCAL_ERROR_OFFSET;
+	}
 
-	_debug("ISSUE ERROR %d", error_report);
+	_debug("ISSUE ERROR %s %d", rxrpc_call_completions[compl], error);
 
 	spin_lock_bh(&peer->lock);
 
@@ -262,20 +294,55 @@ void rxrpc_peer_error_distributor(struct work_struct *work)
 		call = hlist_entry(peer->error_targets.first,
 				   struct rxrpc_call, error_link);
 		hlist_del_init(&call->error_link);
+		rxrpc_see_call(call);
 
-		write_lock(&call->state_lock);
-		if (call->state != RXRPC_CALL_COMPLETE &&
-		    call->state < RXRPC_CALL_NETWORK_ERROR) {
-			call->error_report = error_report;
-			call->state = RXRPC_CALL_NETWORK_ERROR;
-			set_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
-			rxrpc_queue_call(call);
-		}
-		write_unlock(&call->state_lock);
+		if (rxrpc_set_call_completion(call, compl, 0, error))
+			rxrpc_notify_socket(call);
 	}
 
 	spin_unlock_bh(&peer->lock);
 
 	rxrpc_put_peer(peer);
 	_leave("");
+}
+
+/*
+ * Add RTT information to cache.  This is called in softirq mode and has
+ * exclusive access to the peer RTT data.
+ */
+void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
+			rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
+			ktime_t send_time, ktime_t resp_time)
+{
+	struct rxrpc_peer *peer = call->peer;
+	s64 rtt;
+	u64 sum = peer->rtt_sum, avg;
+	u8 cursor = peer->rtt_cursor, usage = peer->rtt_usage;
+
+	rtt = ktime_to_ns(ktime_sub(resp_time, send_time));
+	if (rtt < 0)
+		return;
+
+	/* Replace the oldest datum in the RTT buffer */
+	sum -= peer->rtt_cache[cursor];
+	sum += rtt;
+	peer->rtt_cache[cursor] = rtt;
+	peer->rtt_cursor = (cursor + 1) & (RXRPC_RTT_CACHE_SIZE - 1);
+	peer->rtt_sum = sum;
+	if (usage < RXRPC_RTT_CACHE_SIZE) {
+		usage++;
+		peer->rtt_usage = usage;
+	}
+
+	/* Now recalculate the average */
+	if (usage == RXRPC_RTT_CACHE_SIZE) {
+		avg = sum / RXRPC_RTT_CACHE_SIZE;
+	} else {
+		avg = sum;
+		do_div(avg, usage);
+	}
+
+	peer->rtt = avg;
+	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
+			   usage, avg);
 }

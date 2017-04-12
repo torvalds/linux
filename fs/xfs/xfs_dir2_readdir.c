@@ -71,20 +71,10 @@ xfs_dir2_sf_getdents(
 	struct xfs_da_geometry	*geo = args->geo;
 
 	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
-	/*
-	 * Give up if the directory is way too short.
-	 */
-	if (dp->i_d.di_size < offsetof(xfs_dir2_sf_hdr_t, parent)) {
-		ASSERT(XFS_FORCED_SHUTDOWN(dp->i_mount));
-		return -EIO;
-	}
-
 	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-
-	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
 
 	/*
 	 * If the block number in the offset is out of range, we're done.
@@ -676,7 +666,6 @@ xfs_readdir(
 	args.dp = dp;
 	args.geo = dp->i_mount->m_dir_geo;
 
-	xfs_ilock(dp, XFS_IOLOCK_SHARED);
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_getdents(&args, ctx);
 	else if ((rval = xfs_dir2_isblock(&args, &v)))
@@ -685,7 +674,6 @@ xfs_readdir(
 		rval = xfs_dir2_block_getdents(&args, ctx);
 	else
 		rval = xfs_dir2_leaf_getdents(&args, ctx, bufsize);
-	xfs_iunlock(dp, XFS_IOLOCK_SHARED);
 
 	return rval;
 }

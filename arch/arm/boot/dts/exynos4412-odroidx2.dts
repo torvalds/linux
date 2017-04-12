@@ -12,36 +12,14 @@
 */
 
 #include "exynos4412-odroidx.dts"
+#include "exynos4412-prime.dtsi"
 
 / {
 	model = "Hardkernel ODROID-X2 board based on Exynos4412";
 	compatible = "hardkernel,odroid-x2", "samsung,exynos4412", "samsung,exynos4";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x7FF00000>;
 	};
-};
-
-/* VDDQ for MSHC (eMMC card) */
-&buck8_reg {
-	regulator-name = "BUCK8_VDDQ_MMC4_2.8V";
-	regulator-min-microvolt = <2800000>;
-	regulator-max-microvolt = <2800000>;
-};
-
-&mshc_0 {
-	vqmmc-supply = <&buck8_reg>;
-};
-
-&sound {
-	simple-audio-card,name = "Odroid-X2";
-	simple-audio-card,widgets =
-		"Headphone", "Headphone Jack",
-		"Microphone", "Mic Jack",
-		"Microphone", "DMIC";
-	simple-audio-card,routing =
-		"Headphone Jack", "HPL",
-		"Headphone Jack", "HPR",
-		"IN1", "Mic Jack",
-		"Mic Jack", "MICBIAS";
 };

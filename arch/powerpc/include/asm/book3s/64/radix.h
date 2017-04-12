@@ -11,6 +11,11 @@
 #include <asm/book3s/64/radix-4k.h>
 #endif
 
+#ifndef __ASSEMBLY__
+#include <asm/book3s/64/tlbflush-radix.h>
+#include <asm/cpu_has_feature.h>
+#endif
+
 /* An empty PTE can still have a R or C writeback */
 #define RADIX_PTE_NONE_MASK		(_PAGE_DIRTY | _PAGE_ACCESSED)
 
@@ -105,11 +110,8 @@
 #define RADIX_PUD_TABLE_SIZE	(sizeof(pud_t) << RADIX_PUD_INDEX_SIZE)
 #define RADIX_PGD_TABLE_SIZE	(sizeof(pgd_t) << RADIX_PGD_INDEX_SIZE)
 
-static inline unsigned long radix__pte_update(struct mm_struct *mm,
-					unsigned long addr,
-					pte_t *ptep, unsigned long clr,
-					unsigned long set,
-					int huge)
+static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,
+					       unsigned long set)
 {
 	pte_t pte;
 	unsigned long old_pte, new_pte;
@@ -121,33 +123,84 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
 
 	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 
-	/* We already do a sync in cmpxchg, is ptesync needed ?*/
-	asm volatile("ptesync" : : : "memory");
-	/* huge pages use the old page table lock */
+	return old_pte;
+}
+
+
+static inline unsigned long radix__pte_update(struct mm_struct *mm,
+					unsigned long addr,
+					pte_t *ptep, unsigned long clr,
+					unsigned long set,
+					int huge)
+{
+	unsigned long old_pte;
+
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+
+		unsigned long new_pte;
+
+		old_pte = __radix_pte_update(ptep, ~0ul, 0);
+		/*
+		 * new value of pte
+		 */
+		new_pte = (old_pte | set) & ~clr;
+		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
+		if (new_pte)
+			__radix_pte_update(ptep, 0, new_pte);
+	} else
+		old_pte = __radix_pte_update(ptep, clr, set);
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
 	return old_pte;
 }
 
+static inline pte_t radix__ptep_get_and_clear_full(struct mm_struct *mm,
+						   unsigned long addr,
+						   pte_t *ptep, int full)
+{
+	unsigned long old_pte;
+
+	if (full) {
+		/*
+		 * If we are trying to clear the pte, we can skip
+		 * the DD1 pte update sequence and batch the tlb flush. The
+		 * tlb flush batching is done by mmu gather code. We
+		 * still keep the cmp_xchg update to make sure we get
+		 * correct R/C bit which might be updated via Nest MMU.
+		 */
+		old_pte = __radix_pte_update(ptep, ~0ul, 0);
+	} else
+		old_pte = radix__pte_update(mm, addr, ptep, ~0ul, 0, 0);
+
+	return __pte(old_pte);
+}
+
 /*
  * Set the dirty and/or accessed bits atomically in a linux PTE, this
  * function doesn't need to invalidate tlb.
  */
-static inline void radix__ptep_set_access_flags(pte_t *ptep, pte_t entry)
+static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
+						pte_t *ptep, pte_t entry,
+						unsigned long address)
 {
-	pte_t pte;
-	unsigned long old_pte, new_pte;
+
 	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
 					      _PAGE_RW | _PAGE_EXEC);
-	do {
-		pte = READ_ONCE(*ptep);
-		old_pte = pte_val(pte);
+
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+
+		unsigned long old_pte, new_pte;
+
+		old_pte = __radix_pte_update(ptep, ~0, 0);
+		/*
+		 * new value of pte
+		 */
 		new_pte = old_pte | set;
-
-	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
-
-	/* We already do a sync in cmpxchg, is ptesync needed ?*/
+		radix__flush_tlb_pte_p9_dd1(old_pte, mm, address);
+		__radix_pte_update(ptep, 0, new_pte);
+	} else
+		__radix_pte_update(ptep, 0, set);
 	asm volatile("ptesync" : : : "memory");
 }
 
@@ -198,6 +251,8 @@ static inline int radix__pmd_trans_huge(pmd_t pmd)
 
 static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
 {
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		return __pmd(pmd_val(pmd) | _PAGE_PTE | _PAGE_LARGE);
 	return __pmd(pmd_val(pmd) | _PAGE_PTE);
 }
 static inline void radix__pmdp_huge_split_prepare(struct vm_area_struct *vma,
@@ -233,15 +288,25 @@ static inline unsigned long radix__get_tree_size(void)
 {
 	unsigned long rts_field;
 	/*
-	 * we support 52 bits, hence 52-31 = 21, 0b10101
+	 * We support 52 bits, hence:
+	 *  DD1    52-28 = 24, 0b11000
+	 *  Others 52-31 = 21, 0b10101
 	 * RTS encoding details
 	 * bits 0 - 3 of rts -> bits 6 - 8 unsigned long
 	 * bits 4 - 5 of rts -> bits 62 - 63 of unsigned long
 	 */
-	rts_field = (0x5UL << 5); /* 6 - 8 bits */
-	rts_field |= (0x2UL << 61);
-
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		rts_field = (0x3UL << 61);
+	else {
+		rts_field = (0x5UL << 5); /* 6 - 8 bits */
+		rts_field |= (0x2UL << 61);
+	}
 	return rts_field;
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int radix__create_section_mapping(unsigned long start, unsigned long end);
+int radix__remove_section_mapping(unsigned long start, unsigned long end);
+#endif /* CONFIG_MEMORY_HOTPLUG */
 #endif /* __ASSEMBLY__ */
 #endif

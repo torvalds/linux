@@ -7,16 +7,16 @@ subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 ccflags-y := -Ivirt/kvm -Iarch/powerpc/kvm
 KVM := ../../../virt/kvm
 
-common-objs-y = $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \
-		$(KVM)/eventfd.o
+common-objs-y = $(KVM)/kvm_main.o $(KVM)/eventfd.o
 common-objs-$(CONFIG_KVM_VFIO) += $(KVM)/vfio.o
+common-objs-$(CONFIG_KVM_MMIO) += $(KVM)/coalesced_mmio.o
 
 CFLAGS_e500_mmu.o := -I.
 CFLAGS_e500_mmu_host.o := -I.
 CFLAGS_emulate.o  := -I.
 CFLAGS_emulate_loadstore.o  := -I.
 
-common-objs-y += powerpc.o emulate.o emulate_loadstore.o
+common-objs-y += powerpc.o emulate_loadstore.o
 obj-$(CONFIG_KVM_EXIT_TIMING) += timing.o
 obj-$(CONFIG_KVM_BOOK3S_HANDLER) += book3s_exports.o
 
@@ -24,6 +24,7 @@ AFLAGS_booke_interrupts.o := -I$(objtree)/$(obj)
 
 kvm-e500-objs := \
 	$(common-objs-y) \
+	emulate.o \
 	booke.o \
 	booke_emulate.o \
 	booke_interrupts.o \
@@ -35,6 +36,7 @@ kvm-objs-$(CONFIG_KVM_E500V2) := $(kvm-e500-objs)
 
 kvm-e500mc-objs := \
 	$(common-objs-y) \
+	emulate.o \
 	booke.o \
 	booke_emulate.o \
 	bookehv_interrupts.o \
@@ -61,9 +63,6 @@ kvm-pr-y := \
 	book3s_32_mmu.o
 
 ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
-kvm-book3s_64-module-objs := \
-	$(KVM)/coalesced_mmio.o
-
 kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HANDLER) += \
 	book3s_rmhandlers.o
 endif
@@ -71,7 +70,8 @@ endif
 kvm-hv-y += \
 	book3s_hv.o \
 	book3s_hv_interrupts.o \
-	book3s_64_mmu_hv.o
+	book3s_64_mmu_hv.o \
+	book3s_64_mmu_radix.o
 
 kvm-book3s_64-builtin-xics-objs-$(CONFIG_KVM_XICS) := \
 	book3s_hv_rm_xics.o
@@ -89,11 +89,8 @@ endif
 kvm-book3s_64-objs-$(CONFIG_KVM_XICS) += \
 	book3s_xics.o
 
-kvm-book3s_64-module-objs += \
-	$(KVM)/kvm_main.o \
-	$(KVM)/eventfd.o \
-	powerpc.o \
-	emulate_loadstore.o \
+kvm-book3s_64-module-objs := \
+	$(common-objs-y) \
 	book3s.o \
 	book3s_64_vio.o \
 	book3s_rtas.o \
@@ -103,6 +100,7 @@ kvm-objs-$(CONFIG_KVM_BOOK3S_64) := $(kvm-book3s_64-module-objs)
 
 kvm-book3s_32-objs := \
 	$(common-objs-y) \
+	emulate.o \
 	fpu.o \
 	book3s_paired_singles.o \
 	book3s.o \

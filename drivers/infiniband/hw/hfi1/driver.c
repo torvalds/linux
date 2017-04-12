@@ -100,6 +100,11 @@ MODULE_VERSION(HFI1_DRIVER_VERSION);
  * MAX_PKT_RCV is the max # if packets processed per receive interrupt.
  */
 #define MAX_PKT_RECV 64
+/*
+ * MAX_PKT_THREAD_RCV is the max # of packets processed before
+ * the qp_wait_list queue is flushed.
+ */
+#define MAX_PKT_RECV_THREAD (MAX_PKT_RECV * 4)
 #define EGR_HEAD_UPDATE_THRESHOLD 16
 
 struct hfi1_ib_stats hfi1_stats;
@@ -259,7 +264,7 @@ static inline void *get_egrbuf(const struct hfi1_ctxtdata *rcd, u64 rhf,
  * allowed size ranges for the respective type and, optionally,
  * return the proper encoding.
  */
-inline int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
+int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
 {
 	if (unlikely(!PAGE_ALIGNED(size)))
 		return 0;
@@ -276,10 +281,10 @@ inline int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
 static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		       struct hfi1_packet *packet)
 {
-	struct hfi1_message_header *rhdr = packet->hdr;
+	struct ib_header *rhdr = packet->hdr;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
 	int lnh = be16_to_cpu(rhdr->lrh[0]) & 3;
-	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 
@@ -288,10 +293,9 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 
 	if (packet->rhf & RHF_TID_ERR) {
 		/* For TIDERR and RC QPs preemptively schedule a NAK */
-		struct hfi1_ib_header *hdr = (struct hfi1_ib_header *)rhdr;
-		struct hfi1_other_headers *ohdr = NULL;
+		struct ib_other_headers *ohdr = NULL;
 		u32 tlen = rhf_pkt_len(packet->rhf); /* in bytes */
-		u16 lid  = be16_to_cpu(hdr->lrh[1]);
+		u16 lid  = be16_to_cpu(rhdr->lrh[1]);
 		u32 qp_num;
 		u32 rcv_flags = 0;
 
@@ -301,14 +305,14 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 
 		/* Check for GRH */
 		if (lnh == HFI1_LRH_BTH) {
-			ohdr = &hdr->u.oth;
+			ohdr = &rhdr->u.oth;
 		} else if (lnh == HFI1_LRH_GRH) {
 			u32 vtf;
 
-			ohdr = &hdr->u.l.oth;
-			if (hdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
+			ohdr = &rhdr->u.l.oth;
+			if (rhdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
 				goto drop;
-			vtf = be32_to_cpu(hdr->u.l.grh.version_tclass_flow);
+			vtf = be32_to_cpu(rhdr->u.l.grh.version_tclass_flow);
 			if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
 				goto drop;
 			rcv_flags |= HFI1_HAS_GRH;
@@ -344,7 +348,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			case IB_QPT_RC:
 				hfi1_rc_hdrerr(
 					rcd,
-					hdr,
+					rhdr,
 					rcv_flags,
 					qp);
 				break;
@@ -452,8 +456,8 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_ib_header *hdr = pkt->hdr;
-	struct hfi1_other_headers *ohdr = pkt->ohdr;
+	struct ib_header *hdr = pkt->hdr;
+	struct ib_other_headers *ohdr = pkt->ohdr;
 	struct ib_grh *grh = NULL;
 	u32 rqpn = 0, bth1;
 	u16 rlid, dlid = be16_to_cpu(hdr->lrh[1]);
@@ -487,7 +491,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		return;
 	}
 
-	sc = hdr2sc((struct hfi1_message_header *)hdr, pkt->rhf);
+	sc = hdr2sc(hdr, pkt->rhf);
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);
 	if (do_cnp && (bth1 & HFI1_FECN_SMASK)) {
@@ -595,12 +599,11 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 
 	while (1) {
 		struct hfi1_devdata *dd = rcd->dd;
-		struct hfi1_ibport *ibp = &rcd->ppd->ibport_data;
+		struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 dd->rhf_offset;
 		struct rvt_qp *qp;
-		struct hfi1_ib_header *hdr;
-		struct hfi1_other_headers *ohdr;
+		struct ib_header *hdr;
 		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 		u64 rhf = rhf_to_cpu(rhf_addr);
 		u32 etype = rhf_rcv_type(rhf), qpn, bth1;
@@ -616,18 +619,21 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		if (etype != RHF_RCV_TYPE_IB)
 			goto next;
 
-		hdr = (struct hfi1_ib_header *)
-			hfi1_get_msgheader(dd, rhf_addr);
+		packet->hdr = hfi1_get_msgheader(dd, rhf_addr);
+		hdr = packet->hdr;
+
 		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
 
-		if (lnh == HFI1_LRH_BTH)
-			ohdr = &hdr->u.oth;
-		else if (lnh == HFI1_LRH_GRH)
-			ohdr = &hdr->u.l.oth;
-		else
+		if (lnh == HFI1_LRH_BTH) {
+			packet->ohdr = &hdr->u.oth;
+		} else if (lnh == HFI1_LRH_GRH) {
+			packet->ohdr = &hdr->u.l.oth;
+			packet->rcv_flags |= HFI1_HAS_GRH;
+		} else {
 			goto next; /* just in case */
+		}
 
-		bth1 = be32_to_cpu(ohdr->bth[1]);
+		bth1 = be32_to_cpu(packet->ohdr->bth[1]);
 		is_ecn = !!(bth1 & (HFI1_FECN_SMASK | HFI1_BECN_SMASK));
 
 		if (!is_ecn)
@@ -647,15 +653,66 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 
 		/* turn off BECN, FECN */
 		bth1 &= ~(HFI1_FECN_SMASK | HFI1_BECN_SMASK);
-		ohdr->bth[1] = cpu_to_be32(bth1);
+		packet->ohdr->bth[1] = cpu_to_be32(bth1);
 next:
 		update_ps_mdata(&mdata, rcd);
 	}
 }
 
-static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
+static void process_rcv_qp_work(struct hfi1_ctxtdata *rcd)
+{
+	struct rvt_qp *qp, *nqp;
+
+	/*
+	 * Iterate over all QPs waiting to respond.
+	 * The list won't change since the IRQ is only run on one CPU.
+	 */
+	list_for_each_entry_safe(qp, nqp, &rcd->qp_wait_list, rspwait) {
+		list_del_init(&qp->rspwait);
+		if (qp->r_flags & RVT_R_RSP_NAK) {
+			qp->r_flags &= ~RVT_R_RSP_NAK;
+			hfi1_send_rc_ack(rcd, qp, 0);
+		}
+		if (qp->r_flags & RVT_R_RSP_SEND) {
+			unsigned long flags;
+
+			qp->r_flags &= ~RVT_R_RSP_SEND;
+			spin_lock_irqsave(&qp->s_lock, flags);
+			if (ib_rvt_state_ops[qp->state] &
+					RVT_PROCESS_OR_FLUSH_SEND)
+				hfi1_schedule_send(qp);
+			spin_unlock_irqrestore(&qp->s_lock, flags);
+		}
+		rvt_put_qp(qp);
+	}
+}
+
+static noinline int max_packet_exceeded(struct hfi1_packet *packet, int thread)
+{
+	if (thread) {
+		if ((packet->numpkt & (MAX_PKT_RECV_THREAD - 1)) == 0)
+			/* allow defered processing */
+			process_rcv_qp_work(packet->rcd);
+		cond_resched();
+		return RCV_PKT_OK;
+	} else {
+		this_cpu_inc(*packet->rcd->dd->rcv_limit);
+		return RCV_PKT_LIMIT;
+	}
+}
+
+static inline int check_max_packet(struct hfi1_packet *packet, int thread)
 {
 	int ret = RCV_PKT_OK;
+
+	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0))
+		ret = max_packet_exceeded(packet, thread);
+	return ret;
+}
+
+static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
+{
+	int ret;
 
 	/* Set up for the next packet */
 	packet->rhqoff += packet->rsize;
@@ -663,14 +720,7 @@ static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 		packet->rhqoff = 0;
 
 	packet->numpkt++;
-	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0)) {
-		if (thread) {
-			cond_resched();
-		} else {
-			ret = RCV_PKT_LIMIT;
-			this_cpu_inc(*packet->rcd->dd->rcv_limit);
-		}
-	}
+	ret = check_max_packet(packet, thread);
 
 	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
 				     packet->rcd->dd->rhf_offset;
@@ -681,7 +731,7 @@ static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 
 static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 {
-	int ret = RCV_PKT_OK;
+	int ret;
 
 	packet->hdr = hfi1_get_msgheader(packet->rcd->dd,
 					 packet->rhf_addr);
@@ -722,14 +772,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 	if (packet->rhqoff >= packet->maxcnt)
 		packet->rhqoff = 0;
 
-	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0)) {
-		if (thread) {
-			cond_resched();
-		} else {
-			ret = RCV_PKT_LIMIT;
-			this_cpu_inc(*packet->rcd->dd->rcv_limit);
-		}
-	}
+	ret = check_max_packet(packet, thread);
 
 	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
 				      packet->rcd->dd->rhf_offset;
@@ -766,39 +809,6 @@ static inline void finish_packet(struct hfi1_packet *packet)
 		       packet->etail, rcv_intr_dynamic, packet->numpkt);
 }
 
-static inline void process_rcv_qp_work(struct hfi1_packet *packet)
-{
-	struct hfi1_ctxtdata *rcd;
-	struct rvt_qp *qp, *nqp;
-
-	rcd = packet->rcd;
-	rcd->head = packet->rhqoff;
-
-	/*
-	 * Iterate over all QPs waiting to respond.
-	 * The list won't change since the IRQ is only run on one CPU.
-	 */
-	list_for_each_entry_safe(qp, nqp, &rcd->qp_wait_list, rspwait) {
-		list_del_init(&qp->rspwait);
-		if (qp->r_flags & RVT_R_RSP_NAK) {
-			qp->r_flags &= ~RVT_R_RSP_NAK;
-			hfi1_send_rc_ack(rcd, qp, 0);
-		}
-		if (qp->r_flags & RVT_R_RSP_SEND) {
-			unsigned long flags;
-
-			qp->r_flags &= ~RVT_R_RSP_SEND;
-			spin_lock_irqsave(&qp->s_lock, flags);
-			if (ib_rvt_state_ops[qp->state] &
-					RVT_PROCESS_OR_FLUSH_SEND)
-				hfi1_schedule_send(qp);
-			spin_unlock_irqrestore(&qp->s_lock, flags);
-		}
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
-	}
-}
-
 /*
  * Handle receive interrupts when using the no dma rtail option.
  */
@@ -826,7 +836,8 @@ int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
 	}
-	process_rcv_qp_work(&packet);
+	process_rcv_qp_work(rcd);
+	rcd->head = packet.rhqoff;
 bail:
 	finish_packet(&packet);
 	return last;
@@ -854,7 +865,8 @@ int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
 	}
-	process_rcv_qp_work(&packet);
+	process_rcv_qp_work(rcd);
+	rcd->head = packet.rhqoff;
 bail:
 	finish_packet(&packet);
 	return last;
@@ -892,8 +904,8 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 				      struct hfi1_devdata *dd)
 {
 	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
-	struct hfi1_message_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
-							     packet->rhf_addr);
+	struct ib_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
+						   packet->rhf_addr);
 	u8 etype = rhf_rcv_type(packet->rhf);
 
 	if (etype == RHF_RCV_TYPE_IB && hdr2sc(hdr, packet->rhf) != 0xf) {
@@ -1024,7 +1036,8 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 		process_rcv_update(last, &packet);
 	}
 
-	process_rcv_qp_work(&packet);
+	process_rcv_qp_work(rcd);
+	rcd->head = packet.rhqoff;
 
 bail:
 	/*
@@ -1361,12 +1374,25 @@ int process_receive_ib(struct hfi1_packet *packet)
 
 int process_receive_bypass(struct hfi1_packet *packet)
 {
+	struct hfi1_devdata *dd = packet->rcd->dd;
+
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		handle_eflags(packet);
 
-	dd_dev_err(packet->rcd->dd,
+	dd_dev_err(dd,
 		   "Bypass packets are not supported in normal operation. Dropping\n");
-	incr_cntr64(&packet->rcd->dd->sw_rcv_bypass_packet_errors);
+	incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
+	if (!(dd->err_info_rcvport.status_and_code & OPA_EI_STATUS_SMASK)) {
+		u64 *flits = packet->ebuf;
+
+		if (flits && !(packet->rhf & RHF_LEN_ERR)) {
+			dd->err_info_rcvport.packet_flit1 = flits[0];
+			dd->err_info_rcvport.packet_flit2 =
+				packet->tlen > sizeof(flits[0]) ? flits[1] : 0;
+		}
+		dd->err_info_rcvport.status_and_code |=
+			(OPA_EI_STATUS_SMASK | BAD_L2_ERR);
+	}
 	return RHF_RCV_CONTINUE;
 }
 

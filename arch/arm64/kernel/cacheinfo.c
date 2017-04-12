@@ -39,7 +39,7 @@ static inline enum cache_type get_cache_type(int level)
 
 	if (level > MAX_CACHE_LEVEL)
 		return CACHE_TYPE_NOCACHE;
-	asm volatile ("mrs     %x0, clidr_el1" : "=r" (clidr));
+	clidr = read_sysreg(clidr_el1);
 	return CLIDR_CTYPE(clidr, level);
 }
 
@@ -55,11 +55,9 @@ u64 __attribute_const__ cache_get_ccsidr(u64 csselr)
 
 	WARN_ON(preemptible());
 
-	/* Put value into CSSELR */
-	asm volatile("msr csselr_el1, %x0" : : "r" (csselr));
+	write_sysreg(csselr, csselr_el1);
 	isb();
-	/* Read result out of CCSIDR */
-	asm volatile("mrs %x0, ccsidr_el1" : "=r" (ccsidr));
+	ccsidr = read_sysreg(ccsidr_el1);
 
 	return ccsidr;
 }
@@ -86,7 +84,7 @@ static void ci_leaf_init(struct cacheinfo *this_leaf,
 
 static int __init_cache_level(unsigned int cpu)
 {
-	unsigned int ctype, level, leaves;
+	unsigned int ctype, level, leaves, of_level;
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 
 	for (level = 1, leaves = 0; level <= MAX_CACHE_LEVEL; level++) {
@@ -97,6 +95,17 @@ static int __init_cache_level(unsigned int cpu)
 		}
 		/* Separate instruction and data caches */
 		leaves += (ctype == CACHE_TYPE_SEPARATE) ? 2 : 1;
+	}
+
+	of_level = of_find_last_cache_level(cpu);
+	if (level < of_level) {
+		/*
+		 * some external caches not specified in CLIDR_EL1
+		 * the information may be available in the device tree
+		 * only unified external caches are considered here
+		 */
+		leaves += (of_level - level);
+		level = of_level;
 	}
 
 	this_cpu_ci->num_levels = level;

@@ -1,7 +1,7 @@
                           OSS Kernel Parameters
                           ~~~~~~~~~~~~~~~~~~~~~
 
-See Documentation/kernel-parameters.txt for general information on
+See Documentation/admin-guide/kernel-parameters.rst for general information on
 specifying module parameters.
 
 This document may not be entirely up to date and comprehensive. The command

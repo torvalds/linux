@@ -35,7 +35,8 @@ static void int3402_notify(acpi_handle handle, u32 event, void *data)
 	case INT3402_PERF_CHANGED_EVENT:
 		break;
 	case INT3402_THERMAL_EVENT:
-		int340x_thermal_zone_device_update(priv->int340x_zone);
+		int340x_thermal_zone_device_update(priv->int340x_zone,
+						   THERMAL_TRIP_VIOLATED);
 		break;
 	default:
 		break;

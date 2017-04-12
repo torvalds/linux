@@ -58,7 +58,6 @@ static int ghash_update(struct shash_desc *desc,
 	struct ghash_desc_ctx *dctx = shash_desc_ctx(desc);
 	unsigned int n;
 	u8 *buf = dctx->buffer;
-	int ret;
 
 	if (dctx->bytes) {
 		u8 *pos = buf + (GHASH_BLOCK_SIZE - dctx->bytes);
@@ -71,18 +70,14 @@ static int ghash_update(struct shash_desc *desc,
 		src += n;
 
 		if (!dctx->bytes) {
-			ret = cpacf_kimd(CPACF_KIMD_GHASH, dctx, buf,
-					 GHASH_BLOCK_SIZE);
-			if (ret != GHASH_BLOCK_SIZE)
-				return -EIO;
+			cpacf_kimd(CPACF_KIMD_GHASH, dctx, buf,
+				   GHASH_BLOCK_SIZE);
 		}
 	}
 
 	n = srclen & ~(GHASH_BLOCK_SIZE - 1);
 	if (n) {
-		ret = cpacf_kimd(CPACF_KIMD_GHASH, dctx, src, n);
-		if (ret != n)
-			return -EIO;
+		cpacf_kimd(CPACF_KIMD_GHASH, dctx, src, n);
 		src += n;
 		srclen -= n;
 	}
@@ -98,17 +93,12 @@ static int ghash_update(struct shash_desc *desc,
 static int ghash_flush(struct ghash_desc_ctx *dctx)
 {
 	u8 *buf = dctx->buffer;
-	int ret;
 
 	if (dctx->bytes) {
 		u8 *pos = buf + (GHASH_BLOCK_SIZE - dctx->bytes);
 
 		memset(pos, 0, dctx->bytes);
-
-		ret = cpacf_kimd(CPACF_KIMD_GHASH, dctx, buf, GHASH_BLOCK_SIZE);
-		if (ret != GHASH_BLOCK_SIZE)
-			return -EIO;
-
+		cpacf_kimd(CPACF_KIMD_GHASH, dctx, buf, GHASH_BLOCK_SIZE);
 		dctx->bytes = 0;
 	}
 
@@ -146,7 +136,7 @@ static struct shash_alg ghash_alg = {
 
 static int __init ghash_mod_init(void)
 {
-	if (!cpacf_query(CPACF_KIMD, CPACF_KIMD_GHASH))
+	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_GHASH))
 		return -EOPNOTSUPP;
 
 	return crypto_register_shash(&ghash_alg);

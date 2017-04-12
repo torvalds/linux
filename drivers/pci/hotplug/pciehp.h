@@ -33,7 +33,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/delay.h>
-#include <linux/sched.h>		/* signal_pending() */
+#include <linux/sched/signal.h>		/* signal_pending() */
 #include <linux/pcieport_if.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
@@ -151,6 +151,9 @@ int pciehp_check_link_status(struct controller *ctrl);
 bool pciehp_check_link_active(struct controller *ctrl);
 void pciehp_release_ctrl(struct controller *ctrl);
 int pciehp_reset_slot(struct slot *slot, int probe);
+
+int pciehp_set_raw_indicator_status(struct hotplug_slot *h_slot, u8 status);
+int pciehp_get_raw_indicator_status(struct hotplug_slot *h_slot, u8 *status);
 
 static inline const char *slot_name(struct slot *slot)
 {

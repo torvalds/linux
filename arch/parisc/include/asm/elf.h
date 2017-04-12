@@ -348,9 +348,10 @@ struct pt_regs;	/* forward declaration... */
 
 #define ELF_HWCAP	0
 
-#define STACK_RND_MASK	(is_32bit_task() ? \
-				0x7ff >> (PAGE_SHIFT - 12) : \
-				0x3ffff >> (PAGE_SHIFT - 12))
+/* Masks for stack and mmap randomization */
+#define BRK_RND_MASK	(is_32bit_task() ? 0x07ffUL : 0x3ffffUL)
+#define MMAP_RND_MASK	(is_32bit_task() ? 0x1fffUL : 0x3ffffUL)
+#define STACK_RND_MASK	MMAP_RND_MASK
 
 struct mm_struct;
 extern unsigned long arch_randomize_brk(struct mm_struct *);

@@ -40,6 +40,23 @@ config MFD_ACT8945A
 	  linear regulators, along with a complete ActivePath battery
 	  charger.
 
+config MFD_SUN4I_GPADC
+	tristate "Allwinner sunxi platforms' GPADC MFD driver"
+	select MFD_CORE
+	select REGMAP_MMIO
+	select REGMAP_IRQ
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on !TOUCHSCREEN_SUN4I
+	help
+	  Select this to get support for Allwinner SoCs (A10, A13 and A31) ADC.
+	  This driver will only map the hardware interrupt and registers, you
+	  have to select individual drivers based on this MFD to be able to use
+	  the ADC or the thermal sensor. This will try to probe the ADC driver
+	  sun4i-gpadc-iio and the hwmon driver iio_hwmon.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called sun4i-gpadc.
+
 config MFD_AS3711
 	bool "AMS AS3711"
 	select MFD_CORE
@@ -50,7 +67,7 @@ config MFD_AS3711
 	  Support for the AS3711 PMIC from AMS
 
 config MFD_AS3722
-	bool "ams AS3722 Power Management IC"
+	tristate "ams AS3722 Power Management IC"
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -111,6 +128,16 @@ config MFD_BCM590XX
 	depends on I2C
 	help
 	  Support for the BCM590xx PMUs from Broadcom
+
+config MFD_AC100
+	tristate "X-Powers AC100"
+	select MFD_CORE
+	depends on SUNXI_RSB
+	help
+	  If you say Y here you get support for the X-Powers AC100 audio codec
+	  IC.
+	  This driver include only the core APIs. You have to select individual
+	  components like codecs or RTC under the corresponding menus.
 
 config MFD_AXP20X
 	tristate
@@ -281,6 +308,15 @@ config MFD_DLN2
 	  etc. must be enabled in order to use the functionality of
 	  the device.
 
+config MFD_EXYNOS_LPASS
+	tristate "Samsung Exynos SoC Low Power Audio Subsystem"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_MMIO
+	help
+	  Select this option to enable support for Samsung Exynos Low Power
+	  Audio Subsystem.
+
 config MFD_MC13XXX
 	tristate
 	depends on (SPI_MASTER || I2C)
@@ -339,14 +375,6 @@ config MFD_HI655X_PMIC
 	select REGMAP_IRQ
 	help
 	  Select this option to enable Hisilicon hi655x series pmic driver.
-
-config HTC_EGPIO
-	bool "HTC EGPIO support"
-	depends on GPIOLIB && ARM
-	help
-	    This driver supports the CPLD egpio chip present on
-	    several HTC phones.  It provides basic support for input
-	    pins, output pins, and irqs.
 
 config HTC_PASIC3
 	tristate "HTC PASIC3 LED/DS1WM chip support"
@@ -479,17 +507,22 @@ config MFD_KEMPLD
 	  device may provide functions like watchdog, GPIO, UART and I2C bus.
 
 	  The following modules are supported:
+		* COMe-bBD#
 		* COMe-bBL6
 		* COMe-bHL6
+		* COMe-bSL6
 		* COMe-bIP#
+		* COMe-bKL6
 		* COMe-bPC2 (ETXexpress-PC)
 		* COMe-bSC# (ETXexpress-SC T#)
+		* COMe-cAL6
 		* COMe-cBL6
 		* COMe-cBT6
 		* COMe-cBW6
 		* COMe-cCT6
 		* COMe-cDC2 (microETXexpress-DC)
 		* COMe-cHL6
+		* COMe-cKL6
 		* COMe-cPC2 (microETXexpress-PC)
 		* COMe-cSL6
 		* COMe-mAL10
@@ -553,7 +586,7 @@ config MFD_MAX14577
 config MFD_MAX77620
 	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
 	depends on I2C=y
-	depends on OF
+	depends on OF || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -568,7 +601,7 @@ config MFD_MAX77620
 config MFD_MAX77686
 	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C
-	depends on OF
+	depends on OF || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -687,6 +720,17 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
+config MFD_CPCAP
+	tristate "Support for Motorola CPCAP"
+	depends on SPI
+	depends on OF || COMPILE_TEST
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	help
+	  Say yes here if you want to include driver for CPCAP.
+	  It is used on many Motorola phones and tablets as a PMIC.
+	  At least Motorola Droid 4 is known to use CPCAP.
+
 config MFD_VIPERBOARD
         tristate "Nano River Technologies Viperboard"
 	select MFD_CORE
@@ -746,24 +790,20 @@ config UCB1400_CORE
 	  module will be called ucb1400_core.
 
 config MFD_PM8XXX
-	tristate
-
-config MFD_PM8921_CORE
-	tristate "Qualcomm PM8921 PMIC chip"
+	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on (ARM || HEXAGON)
 	select IRQ_DOMAIN
 	select MFD_CORE
-	select MFD_PM8XXX
 	select REGMAP
 	help
 	  If you say yes to this option, support will be included for the
-	  built-in PM8921 PMIC chip.
+	  built-in PM8xxx PMIC chips.
 
-	  This is required if your board has a PM8921 and uses its features,
+	  This is required if your board has a PM8xxx and uses its features,
 	  such as: MPPs, GPIOs, regulators, interrupts, and PWM.
 
-	  Say M here if you want to include support for PM8921 chip as a module.
-	  This will build a module called "pm8921-core".
+	  Say M here if you want to include support for PM8xxx chips as a
+	  module. This will build a module called "pm8xxx-core".
 
 config MFD_QCOM_RPM
 	tristate "Qualcomm Resource Power Manager (RPM)"
@@ -852,13 +892,13 @@ config MFD_RC5T583
 	  different functionality of the device.
 
 config MFD_RK808
-	tristate "Rockchip RK808 Power Management chip"
+	tristate "Rockchip RK808/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	  If you say yes here you get support for the RK808
+	  If you say yes here you get support for the RK808 and RK818
 	  Power Management chips.
 	  This driver provides common support for accessing the device
 	  through I2C interface. The device supports multiple sub-devices
@@ -871,7 +911,8 @@ config MFD_RN5T618
 	select MFD_CORE
 	select REGMAP_I2C
 	help
-	  Say yes here to add support for the Ricoh RN5T567 or R5T618 PMIC.
+	  Say yes here to add support for the Ricoh RN5T567,
+          RN5T618, RC5T619 PMIC.
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
@@ -945,7 +986,7 @@ config MFD_SMSC
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U300 || ARCH_U8500
+	default y if ARCH_U300 || ARCH_U8500 || COMPILE_TEST
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.
@@ -1214,6 +1255,7 @@ config MFD_TPS65217
 	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
+	select IRQ_DOMAIN
 	help
 	  If you say yes here you get support for the TPS65217 series of
 	  Power Management / White LED chips.
@@ -1223,6 +1265,20 @@ config MFD_TPS65217
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65217.
+
+config MFD_TI_LP873X
+	tristate "TI LP873X Power Management IC"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  If you say yes here then you get support for the LP873X series of
+	  Power Management Integrated Circuits (PMIC).
+	  These include voltage regulators, thermal protection, configurable
+	  General Purpose Outputs (GPO) that are used in portable devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lp873x.
 
 config MFD_TPS65218
 	tristate "TI TPS65218 Power Management chips"
@@ -1549,6 +1605,7 @@ config MFD_WM8350
 config MFD_WM8350_I2C
 	bool "Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
+	select REGMAP_I2C
 	depends on I2C=y
 	help
 	  The WM8350 is an integrated audio and power management
@@ -1580,6 +1637,17 @@ config MFD_STW481X
 	  Select this option to enable the STw481x chip driver used
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
+
+config MFD_STM32_TIMERS
+	tristate "Support for STM32 Timers"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  Select this option to enable STM32 timers driver used
+	  for PWM and IIO Timer. This driver allow to share the
+	  registers between the others drivers.
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100

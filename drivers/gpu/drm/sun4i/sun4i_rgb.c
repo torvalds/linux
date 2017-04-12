@@ -19,6 +19,7 @@
 
 #include "sun4i_drv.h"
 #include "sun4i_tcon.h"
+#include "sun4i_rgb.h"
 
 struct sun4i_rgb {
 	struct drm_connector	connector;
@@ -109,12 +110,6 @@ static struct drm_connector_helper_funcs sun4i_rgb_con_helper_funcs = {
 	.mode_valid	= sun4i_rgb_mode_valid,
 };
 
-static enum drm_connector_status
-sun4i_rgb_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void
 sun4i_rgb_connector_destroy(struct drm_connector *connector)
 {
@@ -128,7 +123,6 @@ sun4i_rgb_connector_destroy(struct drm_connector *connector)
 
 static struct drm_connector_funcs sun4i_rgb_con_funcs = {
 	.dpms			= drm_atomic_helper_connector_dpms,
-	.detect			= sun4i_rgb_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= sun4i_rgb_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,
@@ -151,8 +145,13 @@ static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Enabling RGB output\n");
 
-	drm_panel_enable(tcon->panel);
+	if (!IS_ERR(tcon->panel))
+		drm_panel_prepare(tcon->panel);
+
 	sun4i_tcon_channel_enable(tcon, 0);
+
+	if (!IS_ERR(tcon->panel))
+		drm_panel_enable(tcon->panel);
 }
 
 static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
@@ -163,8 +162,13 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Disabling RGB output\n");
 
+	if (!IS_ERR(tcon->panel))
+		drm_panel_disable(tcon->panel);
+
 	sun4i_tcon_channel_disable(tcon, 0);
-	drm_panel_disable(tcon->panel);
+
+	if (!IS_ERR(tcon->panel))
+		drm_panel_unprepare(tcon->panel);
 }
 
 static void sun4i_rgb_encoder_mode_set(struct drm_encoder *encoder,
@@ -203,17 +207,23 @@ int sun4i_rgb_init(struct drm_device *drm)
 {
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_tcon *tcon = drv->tcon;
+	struct drm_encoder *encoder;
+	struct drm_bridge *bridge;
 	struct sun4i_rgb *rgb;
 	int ret;
-
-	/* If we don't have a panel, there's no point in going on */
-	if (IS_ERR(tcon->panel))
-		return -ENODEV;
 
 	rgb = devm_kzalloc(drm->dev, sizeof(*rgb), GFP_KERNEL);
 	if (!rgb)
 		return -ENOMEM;
 	rgb->drv = drv;
+	encoder = &rgb->encoder;
+
+	tcon->panel = sun4i_tcon_find_panel(tcon->dev->of_node);
+	bridge = sun4i_tcon_find_bridge(tcon->dev->of_node);
+	if (IS_ERR(tcon->panel) && IS_ERR(bridge)) {
+		dev_info(drm->dev, "No panel or bridge found... RGB output disabled\n");
+		return 0;
+	}
 
 	drm_encoder_helper_add(&rgb->encoder,
 			       &sun4i_rgb_enc_helper_funcs);
@@ -230,19 +240,34 @@ int sun4i_rgb_init(struct drm_device *drm)
 	/* The RGB encoder can only work with the TCON channel 0 */
 	rgb->encoder.possible_crtcs = BIT(0);
 
-	drm_connector_helper_add(&rgb->connector,
-				 &sun4i_rgb_con_helper_funcs);
-	ret = drm_connector_init(drm, &rgb->connector,
-				 &sun4i_rgb_con_funcs,
-				 DRM_MODE_CONNECTOR_Unknown);
-	if (ret) {
-		dev_err(drm->dev, "Couldn't initialise the rgb connector\n");
-		goto err_cleanup_connector;
+	if (!IS_ERR(tcon->panel)) {
+		drm_connector_helper_add(&rgb->connector,
+					 &sun4i_rgb_con_helper_funcs);
+		ret = drm_connector_init(drm, &rgb->connector,
+					 &sun4i_rgb_con_funcs,
+					 DRM_MODE_CONNECTOR_Unknown);
+		if (ret) {
+			dev_err(drm->dev, "Couldn't initialise the rgb connector\n");
+			goto err_cleanup_connector;
+		}
+
+		drm_mode_connector_attach_encoder(&rgb->connector,
+						  &rgb->encoder);
+
+		ret = drm_panel_attach(tcon->panel, &rgb->connector);
+		if (ret) {
+			dev_err(drm->dev, "Couldn't attach our panel\n");
+			goto err_cleanup_connector;
+		}
 	}
 
-	drm_mode_connector_attach_encoder(&rgb->connector, &rgb->encoder);
-
-	drm_panel_attach(tcon->panel, &rgb->connector);
+	if (!IS_ERR(bridge)) {
+		ret = drm_bridge_attach(encoder, bridge, NULL);
+		if (ret) {
+			dev_err(drm->dev, "Couldn't attach our bridge\n");
+			goto err_cleanup_connector;
+		}
+	}
 
 	return 0;
 

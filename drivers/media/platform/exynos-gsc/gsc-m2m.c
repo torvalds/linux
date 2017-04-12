@@ -66,11 +66,28 @@ static int gsc_m2m_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret > 0 ? 0 : ret;
 }
 
+static void __gsc_m2m_cleanup_queue(struct gsc_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
+
+	while (v4l2_m2m_num_src_bufs_ready(ctx->m2m_ctx) > 0) {
+		src_vb = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_ERROR);
+	}
+
+	while (v4l2_m2m_num_dst_bufs_ready(ctx->m2m_ctx) > 0) {
+		dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_ERROR);
+	}
+}
+
 static void gsc_m2m_stop_streaming(struct vb2_queue *q)
 {
 	struct gsc_ctx *ctx = q->drv_priv;
 
 	__gsc_m2m_job_abort(ctx);
+
+	__gsc_m2m_cleanup_queue(ctx);
 
 	pm_runtime_put(&ctx->gsc_dev->pdev->dev);
 }
@@ -261,7 +278,7 @@ static void gsc_m2m_buf_queue(struct vb2_buffer *vb)
 		v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
 }
 
-static struct vb2_ops gsc_m2m_qops = {
+static const struct vb2_ops gsc_m2m_qops = {
 	.queue_setup	 = gsc_m2m_queue_setup,
 	.buf_prepare	 = gsc_m2m_buf_prepare,
 	.buf_queue	 = gsc_m2m_buf_queue,
@@ -277,9 +294,10 @@ static int gsc_m2m_querycap(struct file *file, void *fh,
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 
-	strlcpy(cap->driver, gsc->pdev->name, sizeof(cap->driver));
-	strlcpy(cap->card, gsc->pdev->name, sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform", sizeof(cap->bus_info));
+	strlcpy(cap->driver, GSC_MODULE_NAME, sizeof(cap->driver));
+	strlcpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
+		 dev_name(&gsc->pdev->dev));
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE |
 		V4L2_CAP_VIDEO_CAPTURE_MPLANE |	V4L2_CAP_VIDEO_OUTPUT_MPLANE;
 
@@ -364,14 +382,8 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 
 	max_cnt = (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
 		gsc->variant->in_buf_cnt : gsc->variant->out_buf_cnt;
-	if (reqbufs->count > max_cnt) {
+	if (reqbufs->count > max_cnt)
 		return -EINVAL;
-	} else if (reqbufs->count == 0) {
-		if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-			gsc_ctx_state_lock_clear(GSC_SRC_FMT, ctx);
-		else
-			gsc_ctx_state_lock_clear(GSC_DST_FMT, ctx);
-	}
 
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
@@ -663,8 +675,8 @@ static int gsc_m2m_open(struct file *file)
 
 error_ctrls:
 	gsc_ctrls_delete(ctx);
-error_fh:
 	v4l2_fh_del(&ctx->fh);
+error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 unlock:
@@ -765,30 +777,29 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	gsc->m2m.m2m_dev = v4l2_m2m_init(&gsc_m2m_ops);
 	if (IS_ERR(gsc->m2m.m2m_dev)) {
 		dev_err(&pdev->dev, "failed to initialize v4l2-m2m device\n");
-		ret = PTR_ERR(gsc->m2m.m2m_dev);
-		goto err_m2m_r1;
+		return PTR_ERR(gsc->m2m.m2m_dev);
 	}
 
 	ret = video_register_device(&gsc->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret) {
 		dev_err(&pdev->dev,
 			 "%s(): failed to register video device\n", __func__);
-		goto err_m2m_r2;
+		goto err_m2m_release;
 	}
 
 	pr_debug("gsc m2m driver registered as /dev/video%d", gsc->vdev.num);
 	return 0;
 
-err_m2m_r2:
+err_m2m_release:
 	v4l2_m2m_release(gsc->m2m.m2m_dev);
-err_m2m_r1:
-	video_device_release(gsc->m2m.vfd);
 
 	return ret;
 }
 
 void gsc_unregister_m2m_device(struct gsc_dev *gsc)
 {
-	if (gsc)
+	if (gsc) {
 		v4l2_m2m_release(gsc->m2m.m2m_dev);
+		video_unregister_device(&gsc->vdev);
+	}
 }

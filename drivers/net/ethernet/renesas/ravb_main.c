@@ -31,6 +31,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/sys_soc.h>
 
 #include <asm/div64.h>
 
@@ -179,6 +180,49 @@ static struct mdiobb_ops bb_ops = {
 	.get_mdio_data = ravb_get_mdio_data,
 };
 
+/* Free TX skb function for AVB-IP */
+static int ravb_tx_free(struct net_device *ndev, int q, bool free_txed_only)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+	struct net_device_stats *stats = &priv->stats[q];
+	struct ravb_tx_desc *desc;
+	int free_num = 0;
+	int entry;
+	u32 size;
+
+	for (; priv->cur_tx[q] - priv->dirty_tx[q] > 0; priv->dirty_tx[q]++) {
+		bool txed;
+
+		entry = priv->dirty_tx[q] % (priv->num_tx_ring[q] *
+					     NUM_TX_DESC);
+		desc = &priv->tx_ring[q][entry];
+		txed = desc->die_dt == DT_FEMPTY;
+		if (free_txed_only && !txed)
+			break;
+		/* Descriptor type must be checked before all other reads */
+		dma_rmb();
+		size = le16_to_cpu(desc->ds_tagl) & TX_DS;
+		/* Free the original skb. */
+		if (priv->tx_skb[q][entry / NUM_TX_DESC]) {
+			dma_unmap_single(ndev->dev.parent, le32_to_cpu(desc->dptr),
+					 size, DMA_TO_DEVICE);
+			/* Last packet descriptor? */
+			if (entry % NUM_TX_DESC == NUM_TX_DESC - 1) {
+				entry /= NUM_TX_DESC;
+				dev_kfree_skb_any(priv->tx_skb[q][entry]);
+				priv->tx_skb[q][entry] = NULL;
+				if (txed)
+					stats->tx_packets++;
+			}
+			free_num++;
+		}
+		if (txed)
+			stats->tx_bytes += size;
+		desc->die_dt = DT_EEMPTY;
+	}
+	return free_num;
+}
+
 /* Free skb's and DMA buffers for Ethernet AVB */
 static void ravb_ring_free(struct net_device *ndev, int q)
 {
@@ -194,19 +238,21 @@ static void ravb_ring_free(struct net_device *ndev, int q)
 	kfree(priv->rx_skb[q]);
 	priv->rx_skb[q] = NULL;
 
-	/* Free TX skb ringbuffer */
-	if (priv->tx_skb[q]) {
-		for (i = 0; i < priv->num_tx_ring[q]; i++)
-			dev_kfree_skb(priv->tx_skb[q][i]);
-	}
-	kfree(priv->tx_skb[q]);
-	priv->tx_skb[q] = NULL;
-
 	/* Free aligned TX buffers */
 	kfree(priv->tx_align[q]);
 	priv->tx_align[q] = NULL;
 
 	if (priv->rx_ring[q]) {
+		for (i = 0; i < priv->num_rx_ring[q]; i++) {
+			struct ravb_ex_rx_desc *desc = &priv->rx_ring[q][i];
+
+			if (!dma_mapping_error(ndev->dev.parent,
+					       le32_to_cpu(desc->dptr)))
+				dma_unmap_single(ndev->dev.parent,
+						 le32_to_cpu(desc->dptr),
+						 PKT_BUF_SZ,
+						 DMA_FROM_DEVICE);
+		}
 		ring_size = sizeof(struct ravb_ex_rx_desc) *
 			    (priv->num_rx_ring[q] + 1);
 		dma_free_coherent(ndev->dev.parent, ring_size, priv->rx_ring[q],
@@ -215,12 +261,20 @@ static void ravb_ring_free(struct net_device *ndev, int q)
 	}
 
 	if (priv->tx_ring[q]) {
+		ravb_tx_free(ndev, q, false);
+
 		ring_size = sizeof(struct ravb_tx_desc) *
 			    (priv->num_tx_ring[q] * NUM_TX_DESC + 1);
 		dma_free_coherent(ndev->dev.parent, ring_size, priv->tx_ring[q],
 				  priv->tx_desc_dma[q]);
 		priv->tx_ring[q] = NULL;
 	}
+
+	/* Free TX skb ringbuffer.
+	 * SKBs are freed by ravb_tx_free() call above.
+	 */
+	kfree(priv->tx_skb[q]);
+	priv->tx_skb[q] = NULL;
 }
 
 /* Format skb and descriptor buffer for Ethernet AVB */
@@ -429,44 +483,6 @@ static int ravb_dmac_init(struct net_device *ndev)
 	ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_OPERATION);
 
 	return 0;
-}
-
-/* Free TX skb function for AVB-IP */
-static int ravb_tx_free(struct net_device *ndev, int q)
-{
-	struct ravb_private *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &priv->stats[q];
-	struct ravb_tx_desc *desc;
-	int free_num = 0;
-	int entry;
-	u32 size;
-
-	for (; priv->cur_tx[q] - priv->dirty_tx[q] > 0; priv->dirty_tx[q]++) {
-		entry = priv->dirty_tx[q] % (priv->num_tx_ring[q] *
-					     NUM_TX_DESC);
-		desc = &priv->tx_ring[q][entry];
-		if (desc->die_dt != DT_FEMPTY)
-			break;
-		/* Descriptor type must be checked before all other reads */
-		dma_rmb();
-		size = le16_to_cpu(desc->ds_tagl) & TX_DS;
-		/* Free the original skb. */
-		if (priv->tx_skb[q][entry / NUM_TX_DESC]) {
-			dma_unmap_single(ndev->dev.parent, le32_to_cpu(desc->dptr),
-					 size, DMA_TO_DEVICE);
-			/* Last packet descriptor? */
-			if (entry % NUM_TX_DESC == NUM_TX_DESC - 1) {
-				entry /= NUM_TX_DESC;
-				dev_kfree_skb_any(priv->tx_skb[q][entry]);
-				priv->tx_skb[q][entry] = NULL;
-				stats->tx_packets++;
-			}
-			free_num++;
-		}
-		stats->tx_bytes += size;
-		desc->die_dt = DT_EEMPTY;
-	}
-	return free_num;
 }
 
 static void ravb_get_tx_tstamp(struct net_device *ndev)
@@ -902,7 +918,7 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 			spin_lock_irqsave(&priv->lock, flags);
 			/* Clear TX interrupt */
 			ravb_write(ndev, ~mask, TIS);
-			ravb_tx_free(ndev, q);
+			ravb_tx_free(ndev, q, true);
 			netif_wake_subqueue(ndev, q);
 			mmiowb();
 			spin_unlock_irqrestore(&priv->lock, flags);
@@ -926,14 +942,10 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 	/* Receive error message handling */
 	priv->rx_over_errors =  priv->stats[RAVB_BE].rx_over_errors;
 	priv->rx_over_errors += priv->stats[RAVB_NC].rx_over_errors;
-	if (priv->rx_over_errors != ndev->stats.rx_over_errors) {
+	if (priv->rx_over_errors != ndev->stats.rx_over_errors)
 		ndev->stats.rx_over_errors = priv->rx_over_errors;
-		netif_err(priv, rx_err, ndev, "Receive Descriptor Empty\n");
-	}
-	if (priv->rx_fifo_errors != ndev->stats.rx_fifo_errors) {
+	if (priv->rx_fifo_errors != ndev->stats.rx_fifo_errors)
 		ndev->stats.rx_fifo_errors = priv->rx_fifo_errors;
-		netif_err(priv, rx_err, ndev, "Receive FIFO Overflow\n");
-	}
 out:
 	return budget - quota;
 }
@@ -942,7 +954,7 @@ out:
 static void ravb_adjust_link(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = ndev->phydev;
 	bool new_state = false;
 
 	if (phydev->link) {
@@ -977,6 +989,11 @@ static void ravb_adjust_link(struct net_device *ndev)
 		phy_print_status(phydev);
 }
 
+static const struct soc_device_attribute r8a7795es10[] = {
+	{ .soc_id = "r8a7795", .revision = "ES1.0", },
+	{ /* sentinel */ }
+};
+
 /* PHY init function */
 static int ravb_phy_init(struct net_device *ndev)
 {
@@ -1008,20 +1025,18 @@ static int ravb_phy_init(struct net_device *ndev)
 	of_node_put(pn);
 	if (!phydev) {
 		netdev_err(ndev, "failed to connect PHY\n");
-		return -ENOENT;
+		err = -ENOENT;
+		goto err_deregister_fixed_link;
 	}
 
-	/* This driver only support 10/100Mbit speeds on Gen3
+	/* This driver only support 10/100Mbit speeds on R-Car H3 ES1.0
 	 * at this time.
 	 */
-	if (priv->chip_id == RCAR_GEN3) {
-		int err;
-
+	if (soc_device_match(r8a7795es10)) {
 		err = phy_set_max_speed(phydev, SPEED_100);
 		if (err) {
 			netdev_err(ndev, "failed to limit PHY to 100Mbit/s\n");
-			phy_disconnect(phydev);
-			return err;
+			goto err_phy_disconnect;
 		}
 
 		netdev_info(ndev, "limited PHY to 100Mbit/s\n");
@@ -1032,48 +1047,55 @@ static int ravb_phy_init(struct net_device *ndev)
 
 	phy_attached_info(phydev);
 
-	priv->phydev = phydev;
-
 	return 0;
+
+err_phy_disconnect:
+	phy_disconnect(phydev);
+err_deregister_fixed_link:
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
+
+	return err;
 }
 
 /* PHY control start function */
 static int ravb_phy_start(struct net_device *ndev)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
 	int error;
 
 	error = ravb_phy_init(ndev);
 	if (error)
 		return error;
 
-	phy_start(priv->phydev);
+	phy_start(ndev->phydev);
 
 	return 0;
 }
 
-static int ravb_get_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int ravb_get_link_ksettings(struct net_device *ndev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	int error = -ENODEV;
 	unsigned long flags;
 
-	if (priv->phydev) {
+	if (ndev->phydev) {
 		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_ethtool_gset(priv->phydev, ecmd);
+		error = phy_ethtool_ksettings_get(ndev->phydev, cmd);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	return error;
 }
 
-static int ravb_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int ravb_set_link_ksettings(struct net_device *ndev,
+				   const struct ethtool_link_ksettings *cmd)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	unsigned long flags;
 	int error;
 
-	if (!priv->phydev)
+	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1081,11 +1103,11 @@ static int ravb_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 	/* Disable TX and RX */
 	ravb_rcv_snd_disable(ndev);
 
-	error = phy_ethtool_sset(priv->phydev, ecmd);
+	error = phy_ethtool_ksettings_set(ndev->phydev, cmd);
 	if (error)
 		goto error_exit;
 
-	if (ecmd->duplex == DUPLEX_FULL)
+	if (cmd->base.duplex == DUPLEX_FULL)
 		priv->duplex = 1;
 	else
 		priv->duplex = 0;
@@ -1110,9 +1132,9 @@ static int ravb_nway_reset(struct net_device *ndev)
 	int error = -ENODEV;
 	unsigned long flags;
 
-	if (priv->phydev) {
+	if (ndev->phydev) {
 		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_start_aneg(priv->phydev);
+		error = phy_start_aneg(ndev->phydev);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -1309,8 +1331,6 @@ static int ravb_get_ts_info(struct net_device *ndev,
 }
 
 static const struct ethtool_ops ravb_ethtool_ops = {
-	.get_settings		= ravb_get_settings,
-	.set_settings		= ravb_set_settings,
 	.nway_reset		= ravb_nway_reset,
 	.get_msglevel		= ravb_get_msglevel,
 	.set_msglevel		= ravb_set_msglevel,
@@ -1321,6 +1341,8 @@ static const struct ethtool_ops ravb_ethtool_ops = {
 	.get_ringparam		= ravb_get_ringparam,
 	.set_ringparam		= ravb_set_ringparam,
 	.get_ts_info		= ravb_get_ts_info,
+	.get_link_ksettings	= ravb_get_link_ksettings,
+	.set_link_ksettings	= ravb_set_link_ksettings,
 };
 
 static inline int ravb_hook_irq(unsigned int irq, irq_handler_t handler,
@@ -1503,6 +1525,19 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	buffer = PTR_ALIGN(priv->tx_align[q], DPTR_ALIGN) +
 		 entry / NUM_TX_DESC * DPTR_ALIGN;
 	len = PTR_ALIGN(skb->data, DPTR_ALIGN) - skb->data;
+	/* Zero length DMA descriptors are problematic as they seem to
+	 * terminate DMA transfers. Avoid them by simply using a length of
+	 * DPTR_ALIGN (4) when skb data is aligned to DPTR_ALIGN.
+	 *
+	 * As skb is guaranteed to have at least ETH_ZLEN (60) bytes of
+	 * data by the call to skb_put_padto() above this is safe with
+	 * respect to both the length of the first DMA descriptor (len)
+	 * overflowing the available data and the length of the second DMA
+	 * descriptor (skb->len - len) being negative.
+	 */
+	if (len == 0)
+		len = DPTR_ALIGN;
+
 	memcpy(buffer, skb->data, len);
 	dma_addr = dma_map_single(ndev->dev.parent, buffer, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(ndev->dev.parent, dma_addr))
@@ -1553,7 +1588,8 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	priv->cur_tx[q] += NUM_TX_DESC;
 	if (priv->cur_tx[q] - priv->dirty_tx[q] >
-	    (priv->num_tx_ring[q] - 1) * NUM_TX_DESC && !ravb_tx_free(ndev, q))
+	    (priv->num_tx_ring[q] - 1) * NUM_TX_DESC &&
+	    !ravb_tx_free(ndev, q, true))
 		netif_stop_subqueue(ndev, q);
 
 exit:
@@ -1635,6 +1671,7 @@ static void ravb_set_rx_mode(struct net_device *ndev)
 /* Device close function for Ethernet AVB */
 static int ravb_close(struct net_device *ndev)
 {
+	struct device_node *np = ndev->dev.parent->of_node;
 	struct ravb_private *priv = netdev_priv(ndev);
 	struct ravb_tstamp_skb *ts_skb, *ts_skb2;
 
@@ -1661,10 +1698,11 @@ static int ravb_close(struct net_device *ndev)
 	}
 
 	/* PHY disconnect */
-	if (priv->phydev) {
-		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
+	if (ndev->phydev) {
+		phy_stop(ndev->phydev);
+		phy_disconnect(ndev->phydev);
+		if (of_phy_is_fixed_link(np))
+			of_phy_deregister_fixed_link(np);
 	}
 
 	if (priv->chip_id != RCAR_GEN2) {
@@ -1753,8 +1791,7 @@ static int ravb_hwtstamp_set(struct net_device *ndev, struct ifreq *req)
 /* ioctl to device function */
 static int ravb_do_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
 		return -EINVAL;
@@ -1783,7 +1820,6 @@ static const struct net_device_ops ravb_netdev_ops = {
 	.ndo_do_ioctl		= ravb_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 /* MDIO bus init function */
@@ -1874,6 +1910,37 @@ static int ravb_set_gti(struct net_device *ndev)
 	ravb_write(ndev, inc, GTI);
 
 	return 0;
+}
+
+static void ravb_set_config_mode(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+
+	if (priv->chip_id == RCAR_GEN2) {
+		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG);
+		/* Set CSEL value */
+		ravb_modify(ndev, CCC, CCC_CSEL, CCC_CSEL_HPB);
+	} else {
+		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG |
+			    CCC_GAC | CCC_CSEL_HPB);
+	}
+}
+
+/* Set tx and rx clock internal delay modes */
+static void ravb_set_delay_mode(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+	int set = 0;
+
+	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID)
+		set |= APSR_DM_RDM;
+
+	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
+	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID)
+		set |= APSR_DM_TDM;
+
+	ravb_modify(ndev, APSR, APSR_DM, set);
 }
 
 static int ravb_probe(struct platform_device *pdev)
@@ -1978,14 +2045,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->ethtool_ops = &ravb_ethtool_ops;
 
 	/* Set AVB config mode */
-	if (chip_id == RCAR_GEN2) {
-		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG);
-		/* Set CSEL value */
-		ravb_modify(ndev, CCC, CCC_CSEL, CCC_CSEL_HPB);
-	} else {
-		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG |
-			    CCC_GAC | CCC_CSEL_HPB);
-	}
+	ravb_set_config_mode(ndev);
 
 	/* Set GTI value */
 	error = ravb_set_gti(ndev);
@@ -1994,6 +2054,9 @@ static int ravb_probe(struct platform_device *pdev)
 
 	/* Request GTI loading */
 	ravb_modify(ndev, GCCR, GCCR_LTI, GCCR_LTI);
+
+	if (priv->chip_id != RCAR_GEN2)
+		ravb_set_delay_mode(ndev);
 
 	/* Allocate descriptor base address table */
 	priv->desc_bat_size = sizeof(struct ravb_desc) * DBAT_ENTRY_NUM;
@@ -2096,8 +2159,58 @@ static int ravb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ravb_runtime_nop(struct device *dev)
+static int __maybe_unused ravb_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (netif_running(ndev)) {
+		netif_device_detach(ndev);
+		ret = ravb_close(ndev);
+	}
+
+	return ret;
+}
+
+static int __maybe_unused ravb_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct ravb_private *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	/* All register have been reset to default values.
+	 * Restore all registers which where setup at probe time and
+	 * reopen device if it was running before system suspended.
+	 */
+
+	/* Set AVB config mode */
+	ravb_set_config_mode(ndev);
+
+	/* Set GTI value */
+	ret = ravb_set_gti(ndev);
+	if (ret)
+		return ret;
+
+	/* Request GTI loading */
+	ravb_modify(ndev, GCCR, GCCR_LTI, GCCR_LTI);
+
+	if (priv->chip_id != RCAR_GEN2)
+		ravb_set_delay_mode(ndev);
+
+	/* Restore descriptor base address table */
+	ravb_write(ndev, priv->desc_bat_dma, DBAT);
+
+	if (netif_running(ndev)) {
+		ret = ravb_open(ndev);
+		if (ret < 0)
+			return ret;
+		netif_device_attach(ndev);
+	}
+
+	return ret;
+}
+
+static int __maybe_unused ravb_runtime_nop(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
@@ -2110,20 +2223,16 @@ static int ravb_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops ravb_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ravb_suspend, ravb_resume)
 	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
 };
-
-#define RAVB_PM_OPS (&ravb_dev_pm_ops)
-#else
-#define RAVB_PM_OPS NULL
-#endif
 
 static struct platform_driver ravb_driver = {
 	.probe		= ravb_probe,
 	.remove		= ravb_remove,
 	.driver = {
 		.name	= "ravb",
-		.pm	= RAVB_PM_OPS,
+		.pm	= &ravb_dev_pm_ops,
 		.of_match_table = ravb_match_table,
 	},
 };

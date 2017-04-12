@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2016 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,6 +15,7 @@
 
 #define pr_fmt(fmt)		"uniphier: " fmt
 
+#include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/log2.h>
@@ -43,27 +45,15 @@
 #define    UNIPHIER_SSCOPE_CM_SYNC		0x8	/* sync (drain bufs) */
 #define    UNIPHIER_SSCOPE_CM_FLUSH_PREFETCH	0x9	/* flush p-fetch buf */
 #define UNIPHIER_SSCOQM		0x248	/* Cache Operation Queue Mode */
-#define    UNIPHIER_SSCOQM_TID_MASK		(0x3 << 21)
-#define    UNIPHIER_SSCOQM_TID_LRU_DATA		(0x0 << 21)
-#define    UNIPHIER_SSCOQM_TID_LRU_INST		(0x1 << 21)
-#define    UNIPHIER_SSCOQM_TID_WAY		(0x2 << 21)
 #define    UNIPHIER_SSCOQM_S_MASK		(0x3 << 17)
 #define    UNIPHIER_SSCOQM_S_RANGE		(0x0 << 17)
 #define    UNIPHIER_SSCOQM_S_ALL		(0x1 << 17)
-#define    UNIPHIER_SSCOQM_S_WAY		(0x2 << 17)
 #define    UNIPHIER_SSCOQM_CE			BIT(15)	/* notify completion */
 #define    UNIPHIER_SSCOQM_CM_INV		0x0	/* invalidate */
 #define    UNIPHIER_SSCOQM_CM_CLEAN		0x1	/* clean */
 #define    UNIPHIER_SSCOQM_CM_FLUSH		0x2	/* flush */
-#define    UNIPHIER_SSCOQM_CM_PREFETCH		0x3	/* prefetch to cache */
-#define    UNIPHIER_SSCOQM_CM_PREFETCH_BUF	0x4	/* prefetch to pf-buf */
-#define    UNIPHIER_SSCOQM_CM_TOUCH		0x5	/* touch */
-#define    UNIPHIER_SSCOQM_CM_TOUCH_ZERO	0x6	/* touch to zero */
-#define    UNIPHIER_SSCOQM_CM_TOUCH_DIRTY	0x7	/* touch with dirty */
 #define UNIPHIER_SSCOQAD	0x24c	/* Cache Operation Queue Address */
 #define UNIPHIER_SSCOQSZ	0x250	/* Cache Operation Queue Size */
-#define UNIPHIER_SSCOQMASK	0x254	/* Cache Operation Queue Address Mask */
-#define UNIPHIER_SSCOQWN	0x258	/* Cache Operation Queue Way Number */
 #define UNIPHIER_SSCOPPQSEF	0x25c	/* Cache Operation Queue Set Complete*/
 #define    UNIPHIER_SSCOPPQSEF_FE		BIT(1)
 #define    UNIPHIER_SSCOPPQSEF_OE		BIT(0)
@@ -72,9 +62,6 @@
 #define    UNIPHIER_SSCOLPQS_EST		BIT(1)
 #define    UNIPHIER_SSCOLPQS_QST		BIT(0)
 
-/* Is the touch/pre-fetch destination specified by ways? */
-#define UNIPHIER_SSCOQM_TID_IS_WAY(op) \
-		((op & UNIPHIER_SSCOQM_TID_MASK) == UNIPHIER_SSCOQM_TID_WAY)
 /* Is the operation region specified by address range? */
 #define UNIPHIER_SSCOQM_S_IS_RANGE(op) \
 		((op & UNIPHIER_SSCOQM_S_MASK) == UNIPHIER_SSCOQM_S_RANGE)
@@ -85,8 +72,7 @@
  * @ctrl_base: virtual base address of control registers
  * @rev_base: virtual base address of revision registers
  * @op_base: virtual base address of operation registers
- * @way_present_mask: each bit specifies if the way is present
- * @way_locked_mask: each bit specifies if the way is locked
+ * @way_mask: each bit specifies if the way is present
  * @nsets: number of associativity sets
  * @line_size: line size in bytes
  * @range_op_max_size: max size that can be handled by a single range operation
@@ -97,8 +83,7 @@ struct uniphier_cache_data {
 	void __iomem *rev_base;
 	void __iomem *op_base;
 	void __iomem *way_ctrl_base;
-	u32 way_present_mask;
-	u32 way_locked_mask;
+	u32 way_mask;
 	u32 nsets;
 	u32 line_size;
 	u32 range_op_max_size;
@@ -178,11 +163,6 @@ static void __uniphier_cache_maint_common(struct uniphier_cache_data *data,
 			writel_relaxed(start, data->op_base + UNIPHIER_SSCOQAD);
 			writel_relaxed(size, data->op_base + UNIPHIER_SSCOQSZ);
 		}
-
-		/* set target ways if needed */
-		if (unlikely(UNIPHIER_SSCOQM_TID_IS_WAY(operation)))
-			writel_relaxed(data->way_locked_mask,
-				       data->op_base + UNIPHIER_SSCOQWN);
 	} while (unlikely(readl_relaxed(data->op_base + UNIPHIER_SSCOPPQSEF) &
 			  (UNIPHIER_SSCOPPQSEF_FE | UNIPHIER_SSCOPPQSEF_OE)));
 
@@ -253,17 +233,13 @@ static void __uniphier_cache_enable(struct uniphier_cache_data *data, bool on)
 	writel_relaxed(val, data->ctrl_base + UNIPHIER_SSCC);
 }
 
-static void __init __uniphier_cache_set_locked_ways(
-					struct uniphier_cache_data *data,
-					u32 way_mask)
+static void __init __uniphier_cache_set_active_ways(
+					struct uniphier_cache_data *data)
 {
 	unsigned int cpu;
 
-	data->way_locked_mask = way_mask & data->way_present_mask;
-
 	for_each_possible_cpu(cpu)
-		writel_relaxed(~data->way_locked_mask & data->way_present_mask,
-			       data->way_ctrl_base + 4 * cpu);
+		writel_relaxed(data->way_mask, data->way_ctrl_base + 4 * cpu);
 }
 
 static void uniphier_cache_maint_range(unsigned long start, unsigned long end,
@@ -326,7 +302,7 @@ static void __init uniphier_cache_enable(void)
 
 	list_for_each_entry(data, &uniphier_cache_list, list) {
 		__uniphier_cache_enable(data, true);
-		__uniphier_cache_set_locked_ways(data, 0);
+		__uniphier_cache_set_active_ways(data);
 	}
 }
 
@@ -338,46 +314,8 @@ static void uniphier_cache_sync(void)
 		__uniphier_cache_sync(data);
 }
 
-int __init uniphier_cache_l2_is_enabled(void)
-{
-	struct uniphier_cache_data *data;
-
-	data = list_first_entry_or_null(&uniphier_cache_list,
-					struct uniphier_cache_data, list);
-	if (!data)
-		return 0;
-
-	return !!(readl_relaxed(data->ctrl_base + UNIPHIER_SSCC) &
-		  UNIPHIER_SSCC_ON);
-}
-
-void __init uniphier_cache_l2_touch_range(unsigned long start,
-					  unsigned long end)
-{
-	struct uniphier_cache_data *data;
-
-	data = list_first_entry_or_null(&uniphier_cache_list,
-					struct uniphier_cache_data, list);
-	if (data)
-		__uniphier_cache_maint_range(data, start, end,
-					     UNIPHIER_SSCOQM_TID_WAY |
-					     UNIPHIER_SSCOQM_CM_TOUCH);
-}
-
-void __init uniphier_cache_l2_set_locked_ways(u32 way_mask)
-{
-	struct uniphier_cache_data *data;
-
-	data = list_first_entry_or_null(&uniphier_cache_list,
-					struct uniphier_cache_data, list);
-	if (data)
-		__uniphier_cache_set_locked_ways(data, way_mask);
-}
-
 static const struct of_device_id uniphier_cache_match[] __initconst = {
-	{
-		.compatible = "socionext,uniphier-system-cache",
-	},
+	{ .compatible = "socionext,uniphier-system-cache" },
 	{ /* sentinel */ }
 };
 
@@ -439,8 +377,8 @@ static int __init __uniphier_cache_init(struct device_node *np,
 		goto err;
 	}
 
-	data->way_present_mask =
-		((u32)1 << cache_size / data->nsets / data->line_size) - 1;
+	data->way_mask = GENMASK(cache_size / data->nsets / data->line_size - 1,
+				 0);
 
 	data->ctrl_base = of_iomap(np, 0);
 	if (!data->ctrl_base) {

@@ -47,32 +47,15 @@ static void acpi_sleep_tts_switch(u32 acpi_state)
 	}
 }
 
-static void acpi_sleep_pts_switch(u32 acpi_state)
-{
-	acpi_status status;
-
-	status = acpi_execute_simple_method(NULL, "\\_PTS", acpi_state);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		/*
-		 * OS can't evaluate the _PTS object correctly. Some warning
-		 * message will be printed. But it won't break anything.
-		 */
-		printk(KERN_NOTICE "Failure in evaluating _PTS object\n");
-	}
-}
-
-static int sleep_notify_reboot(struct notifier_block *this,
+static int tts_notify_reboot(struct notifier_block *this,
 			unsigned long code, void *x)
 {
 	acpi_sleep_tts_switch(ACPI_STATE_S5);
-
-	acpi_sleep_pts_switch(ACPI_STATE_S5);
-
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sleep_notifier = {
-	.notifier_call	= sleep_notify_reboot,
+static struct notifier_block tts_notifier = {
+	.notifier_call	= tts_notify_reboot,
 	.next		= NULL,
 	.priority	= 0,
 };
@@ -145,6 +128,12 @@ static bool nvs_nosave_s3;
 void __init acpi_nvs_nosave_s3(void)
 {
 	nvs_nosave_s3 = true;
+}
+
+static int __init init_nvs_save_s3(const struct dmi_system_id *d)
+{
+	nvs_nosave_s3 = false;
+	return 0;
 }
 
 /*
@@ -339,6 +328,19 @@ static struct dmi_system_id acpisleep_dmi_table[] __initdata = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "K54HR"),
+		},
+	},
+	/*
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=189431
+	 * Lenovo G50-45 is a platform later than 2012, but needs nvs memory
+	 * saving during S3.
+	 */
+	{
+	.callback = init_nvs_save_s3,
+	.ident = "Lenovo G50-45",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "80E3"),
 		},
 	},
 	{},
@@ -572,7 +574,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 		acpi_get_event_status(ACPI_EVENT_POWER_BUTTON, &pwr_btn_status);
 
-		if (pwr_btn_status & ACPI_EVENT_FLAG_SET) {
+		if (pwr_btn_status & ACPI_EVENT_FLAG_STATUS_SET) {
 			acpi_clear_event(ACPI_EVENT_POWER_BUTTON);
 			/* Flag for later */
 			pwr_btn_event_pending = true;
@@ -586,7 +588,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	 */
 	acpi_disable_all_gpes();
 	/* Allow EC transactions to happen. */
-	acpi_ec_unblock_transactions_early();
+	acpi_ec_unblock_transactions();
 
 	suspend_nvs_restore();
 
@@ -784,7 +786,7 @@ static void acpi_hibernation_leave(void)
 	/* Restore the NVS memory area */
 	suspend_nvs_restore();
 	/* Allow EC transactions to happen. */
-	acpi_ec_unblock_transactions_early();
+	acpi_ec_unblock_transactions();
 }
 
 static void acpi_pm_thaw(void)
@@ -916,9 +918,9 @@ int __init acpi_sleep_init(void)
 	pr_info(PREFIX "(supports%s)\n", supported);
 
 	/*
-	 * Register the sleep_notifier to reboot notifier list so that the _TTS
-	 * and _PTS object can also be evaluated when the system enters S5.
+	 * Register the tts_notifier to reboot notifier list so that the _TTS
+	 * object can also be evaluated when the system enters S5.
 	 */
-	register_reboot_notifier(&sleep_notifier);
+	register_reboot_notifier(&tts_notifier);
 	return 0;
 }

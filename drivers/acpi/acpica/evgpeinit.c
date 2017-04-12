@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -323,7 +323,9 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	struct acpi_gpe_walk_info *walk_info =
 	    ACPI_CAST_PTR(struct acpi_gpe_walk_info, context);
 	struct acpi_gpe_event_info *gpe_event_info;
+	acpi_status status;
 	u32 gpe_number;
+	u8 temp_gpe_number;
 	char name[ACPI_NAME_SIZE + 1];
 	u8 type;
 
@@ -377,8 +379,8 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 
 	/* 4) The last two characters of the name are the hex GPE Number */
 
-	gpe_number = strtoul(&name[2], NULL, 16);
-	if (gpe_number == ACPI_UINT32_MAX) {
+	status = acpi_ut_ascii_to_hex_byte(&name[2], &temp_gpe_number);
+	if (ACPI_FAILURE(status)) {
 
 		/* Conversion failed; invalid method, just ignore it */
 
@@ -390,6 +392,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 
 	/* Ensure that we have a valid GPE number for this GPE block */
 
+	gpe_number = (u32)temp_gpe_number;
 	gpe_event_info =
 	    acpi_ev_low_get_gpe_info(gpe_number, walk_info->gpe_block);
 	if (!gpe_event_info) {

@@ -15,6 +15,7 @@
 #include "armada_hw.h"
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
+#include "armada_trace.h"
 
 struct armada_ovl_plane_properties {
 	uint32_t colorkey_yr;
@@ -32,10 +33,6 @@ struct armada_ovl_plane_properties {
 struct armada_ovl_plane {
 	struct armada_plane base;
 	struct drm_framebuffer *old_fb;
-	uint32_t src_hw;
-	uint32_t dst_hw;
-	uint32_t dst_yx;
-	uint32_t ctrl0;
 	struct {
 		struct armada_plane_work work;
 		struct armada_regs regs[13];
@@ -87,6 +84,8 @@ static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
 {
 	struct armada_ovl_plane *dplane = container_of(plane, struct armada_ovl_plane, base);
 
+	trace_armada_ovl_plane_work(&dcrtc->crtc, &plane->base);
+
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
 	armada_ovl_retire_fb(dplane, NULL);
 }
@@ -120,8 +119,12 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	bool visible;
 	int ret;
 
+	trace_armada_ovl_plane_update(plane, crtc, fb,
+				 crtc_x, crtc_y, crtc_w, crtc_h,
+				 src_x, src_y, src_w, src_h);
+
 	ret = drm_plane_helper_check_update(plane, crtc, fb, &src, &dest, &clip,
-					    BIT(DRM_ROTATE_0),
+					    DRM_ROTATE_0,
 					    0, INT_MAX, true, false, &visible);
 	if (ret)
 		return ret;
@@ -141,22 +144,22 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	/* FIXME: overlay on an interlaced display */
 	/* Just updating the position/size? */
-	if (plane->fb == fb && dplane->ctrl0 == ctrl0) {
+	if (plane->fb == fb && dplane->base.state.ctrl0 == ctrl0) {
 		val = (drm_rect_height(&src) & 0xffff0000) |
 		      drm_rect_width(&src) >> 16;
-		dplane->src_hw = val;
+		dplane->base.state.src_hw = val;
 		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_HPXL_VLN);
 
 		val = drm_rect_height(&dest) << 16 | drm_rect_width(&dest);
-		dplane->dst_hw = val;
+		dplane->base.state.dst_hw = val;
 		writel_relaxed(val, dcrtc->base + LCD_SPU_DZM_HPXL_VLN);
 
 		val = dest.y1 << 16 | dest.x1;
-		dplane->dst_yx = val;
+		dplane->base.state.dst_yx = val;
 		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_OVSA_HPXL_VLN);
 
 		return 0;
-	} else if (~dplane->ctrl0 & ctrl0 & CFG_DMA_ENA) {
+	} else if (~dplane->base.state.ctrl0 & ctrl0 & CFG_DMA_ENA) {
 		/* Power up the Y/U/V FIFOs on ENA 0->1 transitions */
 		armada_updatel(0, CFG_PDWN16x66 | CFG_PDWN32x66,
 			       dcrtc->base + LCD_SPU_SRAM_PARA1);
@@ -166,9 +169,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
 
 	if (plane->fb != fb) {
-		struct armada_gem_object *obj = drm_fb_obj(fb);
-		uint32_t addr[3], pixel_format;
-		int i, num_planes, hsub;
+		u32 addrs[3], pixel_format;
+		int num_planes, hsub;
 
 		/*
 		 * Take a reference on the new framebuffer - we want to
@@ -182,9 +184,11 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		src_y = src.y1 >> 16;
 		src_x = src.x1 >> 16;
 
-		pixel_format = fb->pixel_format;
+		armada_drm_plane_calc_addrs(addrs, fb, src_x, src_y);
+
+		pixel_format = fb->format->format;
 		hsub = drm_format_horz_chroma_subsampling(pixel_format);
-		num_planes = drm_format_num_planes(pixel_format);
+		num_planes = fb->format->num_planes;
 
 		/*
 		 * Annoyingly, shifting a YUYV-format image by one pixel
@@ -194,24 +198,17 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		if (src_x & (hsub - 1) && num_planes == 1)
 			ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
 
-		for (i = 0; i < num_planes; i++)
-			addr[i] = obj->dev_addr + fb->offsets[i] +
-				  src_y * fb->pitches[i] +
-				  src_x * drm_format_plane_cpp(pixel_format, i);
-		for (; i < ARRAY_SIZE(addr); i++)
-			addr[i] = 0;
-
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[0],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[0],
 				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[1],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[1],
 				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[2],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[2],
 				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[0],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[0],
 				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[1],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[1],
 				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addr[2],
+		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[2],
 				     LCD_SPU_DMA_START_ADDR_V1);
 
 		val = fb->pitches[0] << 16 | fb->pitches[0];
@@ -223,28 +220,28 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	val = (drm_rect_height(&src) & 0xffff0000) | drm_rect_width(&src) >> 16;
-	if (dplane->src_hw != val) {
-		dplane->src_hw = val;
+	if (dplane->base.state.src_hw != val) {
+		dplane->base.state.src_hw = val;
 		armada_reg_queue_set(dplane->vbl.regs, idx, val,
 				     LCD_SPU_DMA_HPXL_VLN);
 	}
 
 	val = drm_rect_height(&dest) << 16 | drm_rect_width(&dest);
-	if (dplane->dst_hw != val) {
-		dplane->dst_hw = val;
+	if (dplane->base.state.dst_hw != val) {
+		dplane->base.state.dst_hw = val;
 		armada_reg_queue_set(dplane->vbl.regs, idx, val,
 				     LCD_SPU_DZM_HPXL_VLN);
 	}
 
 	val = dest.y1 << 16 | dest.x1;
-	if (dplane->dst_yx != val) {
-		dplane->dst_yx = val;
+	if (dplane->base.state.dst_yx != val) {
+		dplane->base.state.dst_yx = val;
 		armada_reg_queue_set(dplane->vbl.regs, idx, val,
 				     LCD_SPU_DMA_OVSA_HPXL_VLN);
 	}
 
-	if (dplane->ctrl0 != ctrl0) {
-		dplane->ctrl0 = ctrl0;
+	if (dplane->base.state.ctrl0 != ctrl0) {
+		dplane->base.state.ctrl0 = ctrl0;
 		armada_reg_queue_mod(dplane->vbl.regs, idx, ctrl0,
 			CFG_CBSH_ENA | CFG_DMAFORMAT | CFG_DMA_FTOGGLE |
 			CFG_DMA_HSMOOTH | CFG_DMA_TSTMODE |
@@ -275,7 +272,7 @@ static int armada_ovl_plane_disable(struct drm_plane *plane)
 	armada_drm_crtc_plane_disable(dcrtc, plane);
 
 	dcrtc->plane = NULL;
-	dplane->ctrl0 = 0;
+	dplane->base.state.ctrl0 = 0;
 
 	fb = xchg(&dplane->old_fb, NULL);
 	if (fb)

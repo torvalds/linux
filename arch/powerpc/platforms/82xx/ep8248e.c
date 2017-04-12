@@ -298,7 +298,9 @@ static const struct of_device_id of_bus_ids[] __initconst = {
 static int __init declare_of_platform_devices(void)
 {
 	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-	platform_driver_register(&ep8248e_mdio_driver);
+
+	if (IS_ENABLED(CONFIG_MDIO_BITBANG))
+		platform_driver_register(&ep8248e_mdio_driver);
 
 	return 0;
 }

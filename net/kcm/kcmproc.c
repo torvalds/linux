@@ -155,8 +155,8 @@ static void kcm_format_psock(struct kcm_psock *psock, struct seq_file *seq,
 	seq_printf(seq,
 		   "   psock-%-5u %-10llu %-16llu %-10llu %-16llu %-8d %-8d %-8d %-8d ",
 		   psock->index,
-		   psock->stats.rx_msgs,
-		   psock->stats.rx_bytes,
+		   psock->strp.stats.rx_msgs,
+		   psock->strp.stats.rx_bytes,
 		   psock->stats.tx_msgs,
 		   psock->stats.tx_bytes,
 		   psock->sk->sk_receive_queue.qlen,
@@ -170,14 +170,27 @@ static void kcm_format_psock(struct kcm_psock *psock, struct seq_file *seq,
 	if (psock->tx_stopped)
 		seq_puts(seq, "TxStop ");
 
-	if (psock->rx_stopped)
+	if (psock->strp.rx_stopped)
 		seq_puts(seq, "RxStop ");
 
 	if (psock->tx_kcm)
 		seq_printf(seq, "Rsvd-%d ", psock->tx_kcm->index);
 
-	if (psock->ready_rx_msg)
-		seq_puts(seq, "RdyRx ");
+	if (!psock->strp.rx_paused && !psock->ready_rx_msg) {
+		if (psock->sk->sk_receive_queue.qlen) {
+			if (psock->strp.rx_need_bytes)
+				seq_printf(seq, "RxWait=%u ",
+					   psock->strp.rx_need_bytes);
+			else
+				seq_printf(seq, "RxWait ");
+		}
+	} else  {
+		if (psock->strp.rx_paused)
+			seq_puts(seq, "RxPause ");
+
+		if (psock->ready_rx_msg)
+			seq_puts(seq, "RdyRx ");
+	}
 
 	seq_puts(seq, "\n");
 }
@@ -275,6 +288,7 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 {
 	struct kcm_psock_stats psock_stats;
 	struct kcm_mux_stats mux_stats;
+	struct strp_aggr_stats strp_stats;
 	struct kcm_mux *mux;
 	struct kcm_psock *psock;
 	struct net *net = seq->private;
@@ -282,20 +296,28 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 
 	memset(&mux_stats, 0, sizeof(mux_stats));
 	memset(&psock_stats, 0, sizeof(psock_stats));
+	memset(&strp_stats, 0, sizeof(strp_stats));
 
 	mutex_lock(&knet->mutex);
 
 	aggregate_mux_stats(&knet->aggregate_mux_stats, &mux_stats);
 	aggregate_psock_stats(&knet->aggregate_psock_stats,
 			      &psock_stats);
+	aggregate_strp_stats(&knet->aggregate_strp_stats,
+			     &strp_stats);
 
 	list_for_each_entry_rcu(mux, &knet->mux_list, kcm_mux_list) {
 		spin_lock_bh(&mux->lock);
 		aggregate_mux_stats(&mux->stats, &mux_stats);
 		aggregate_psock_stats(&mux->aggregate_psock_stats,
 				      &psock_stats);
-		list_for_each_entry(psock, &mux->psocks, psock_list)
+		aggregate_strp_stats(&mux->aggregate_strp_stats,
+				     &strp_stats);
+		list_for_each_entry(psock, &mux->psocks, psock_list) {
 			aggregate_psock_stats(&psock->stats, &psock_stats);
+			save_strp_stats(&psock->strp, &strp_stats);
+		}
+
 		spin_unlock_bh(&mux->lock);
 	}
 
@@ -328,7 +350,7 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 		   mux_stats.rx_ready_drops);
 
 	seq_printf(seq,
-		   "%-8s %-10s %-16s %-10s %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
+		   "%-8s %-10s %-16s %-10s %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
 		   "Psock",
 		   "RX-Msgs",
 		   "RX-Bytes",
@@ -337,6 +359,8 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 		   "Reserved",
 		   "Unreserved",
 		   "RX-Aborts",
+		   "RX-Intr",
+		   "RX-Unrecov",
 		   "RX-MemFail",
 		   "RX-NeedMor",
 		   "RX-BadLen",
@@ -345,20 +369,22 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 		   "TX-Aborts");
 
 	seq_printf(seq,
-		   "%-8s %-10llu %-16llu %-10llu %-16llu %-10llu %-10llu %-10u %-10u %-10u %-10u %-10u %-10u %-10u\n",
+		   "%-8s %-10llu %-16llu %-10llu %-16llu %-10llu %-10llu %-10u %-10u %-10u %-10u %-10u %-10u %-10u %-10u %-10u\n",
 		   "",
-		   psock_stats.rx_msgs,
-		   psock_stats.rx_bytes,
+		   strp_stats.rx_msgs,
+		   strp_stats.rx_bytes,
 		   psock_stats.tx_msgs,
 		   psock_stats.tx_bytes,
 		   psock_stats.reserved,
 		   psock_stats.unreserved,
-		   psock_stats.rx_aborts,
-		   psock_stats.rx_mem_fail,
-		   psock_stats.rx_need_more_hdr,
-		   psock_stats.rx_bad_hdr_len,
-		   psock_stats.rx_msg_too_big,
-		   psock_stats.rx_msg_timeouts,
+		   strp_stats.rx_aborts,
+		   strp_stats.rx_interrupted,
+		   strp_stats.rx_unrecov_intr,
+		   strp_stats.rx_mem_fail,
+		   strp_stats.rx_need_more_hdr,
+		   strp_stats.rx_bad_hdr_len,
+		   strp_stats.rx_msg_too_big,
+		   strp_stats.rx_msg_timeouts,
 		   psock_stats.tx_aborts);
 
 	return 0;

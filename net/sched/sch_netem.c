@@ -152,7 +152,7 @@ struct netem_skb_cb {
 
 static struct sk_buff *netem_rb_to_skb(struct rb_node *rb)
 {
-	return container_of(rb, struct sk_buff, rbnode);
+	return rb_entry(rb, struct sk_buff, rbnode);
 }
 
 static inline struct netem_skb_cb *netem_skb_cb(struct sk_buff *skb)
@@ -413,6 +413,16 @@ static struct sk_buff *netem_segment(struct sk_buff *skb, struct Qdisc *sch,
 	return segs;
 }
 
+static void netem_enqueue_skb_head(struct qdisc_skb_head *qh, struct sk_buff *skb)
+{
+	skb->next = qh->head;
+
+	if (!qh->head)
+		qh->tail = skb;
+	qh->head = skb;
+	qh->qlen++;
+}
+
 /*
  * Insert one skb into qdisc.
  * Note: parent depends on return value to account for queue length.
@@ -502,7 +512,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			1<<(prandom_u32() % 8);
 	}
 
-	if (unlikely(skb_queue_len(&sch->q) >= sch->limit))
+	if (unlikely(sch->q.qlen >= sch->limit))
 		return qdisc_drop(skb, sch, to_free);
 
 	qdisc_qstats_backlog_inc(sch, skb);
@@ -522,8 +532,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		if (q->rate) {
 			struct sk_buff *last;
 
-			if (!skb_queue_empty(&sch->q))
-				last = skb_peek_tail(&sch->q);
+			if (sch->q.qlen)
+				last = sch->q.tail;
 			else
 				last = netem_rb_to_skb(rb_last(&q->t_root));
 			if (last) {
@@ -552,7 +562,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		cb->time_to_send = psched_get_time();
 		q->counter = 0;
 
-		__skb_queue_head(&sch->q, skb);
+		netem_enqueue_skb_head(&sch->q, skb);
 		sch->qstats.requeues++;
 	}
 
@@ -587,7 +597,7 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 	struct rb_node *p;
 
 tfifo_dequeue:
-	skb = __skb_dequeue(&sch->q);
+	skb = __qdisc_dequeue_head(&sch->q);
 	if (skb) {
 		qdisc_qstats_backlog_dec(sch, skb);
 deliver:
@@ -616,8 +626,8 @@ deliver:
 			 * If it's at ingress let's pretend the delay is
 			 * from the network (tstamp will be updated).
 			 */
-			if (G_TC_FROM(skb->tc_verd) & AT_INGRESS)
-				skb->tstamp.tv64 = 0;
+			if (skb->tc_redirected && skb->tc_from_ingress)
+				skb->tstamp = 0;
 #endif
 
 			if (q->qdisc) {

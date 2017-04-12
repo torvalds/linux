@@ -36,6 +36,9 @@ Optional Properties:
   - #clock-cells: If specified this should be the value <0>.  With this property
     in place we will export a clock representing the Card Clock.  This clock
     is expected to be consumed by our PHY.  You must also specify
+  - xlnx,fails-without-test-cd: when present, the controller doesn't work when
+    the CD line is not connected properly, and the line is not connected
+    properly. Test mode can be used to force the controller to function.
 
 Example:
 	sdhci@e0100000 {

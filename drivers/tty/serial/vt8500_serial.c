@@ -118,7 +118,7 @@ struct vt8500_port {
  * have been allocated as we can't use pdev->id in
  * devicetree
  */
-static unsigned long vt8500_ports_in_use;
+static DECLARE_BITMAP(vt8500_ports_in_use, VT8500_MAX_PORTS);
 
 static inline void vt8500_write(struct uart_port *port, unsigned int val,
 			     unsigned int off)
@@ -592,7 +592,7 @@ static void vt8500_put_poll_char(struct uart_port *port, unsigned char c)
 }
 #endif
 
-static struct uart_ops vt8500_uart_pops = {
+static const struct uart_ops vt8500_uart_pops = {
 	.tx_empty	= vt8500_tx_empty,
 	.set_mctrl	= vt8500_set_mctrl,
 	.get_mctrl	= vt8500_get_mctrl,
@@ -663,15 +663,15 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 
 	if (port < 0) {
 		/* calculate the port id */
-		port = find_first_zero_bit(&vt8500_ports_in_use,
-					sizeof(vt8500_ports_in_use));
+		port = find_first_zero_bit(vt8500_ports_in_use,
+					   VT8500_MAX_PORTS);
 	}
 
 	if (port >= VT8500_MAX_PORTS)
 		return -ENODEV;
 
 	/* reserve the port id */
-	if (test_and_set_bit(port, &vt8500_ports_in_use)) {
+	if (test_and_set_bit(port, vt8500_ports_in_use)) {
 		/* port already in use - shouldn't really happen */
 		return -EBUSY;
 	}

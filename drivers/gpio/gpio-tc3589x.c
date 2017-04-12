@@ -34,7 +34,7 @@ struct tc3589x_gpio {
 	u8 oldregs[CACHE_NR_REGS][CACHE_NR_BANKS];
 };
 
-static int tc3589x_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int tc3589x_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
@@ -49,24 +49,24 @@ static int tc3589x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(ret & mask);
 }
 
-static void tc3589x_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+static void tc3589x_gpio_set(struct gpio_chip *chip, unsigned int offset, int val)
 {
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	u8 reg = TC3589x_GPIODATA0 + (offset / 8) * 2;
-	unsigned pos = offset % 8;
+	unsigned int pos = offset % 8;
 	u8 data[] = {val ? BIT(pos) : 0, BIT(pos)};
 
 	tc3589x_block_write(tc3589x, reg, ARRAY_SIZE(data), data);
 }
 
 static int tc3589x_gpio_direction_output(struct gpio_chip *chip,
-					 unsigned offset, int val)
+					 unsigned int offset, int val)
 {
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	u8 reg = TC3589x_GPIODIR0 + offset / 8;
-	unsigned pos = offset % 8;
+	unsigned int pos = offset % 8;
 
 	tc3589x_gpio_set(chip, offset, val);
 
@@ -74,19 +74,34 @@ static int tc3589x_gpio_direction_output(struct gpio_chip *chip,
 }
 
 static int tc3589x_gpio_direction_input(struct gpio_chip *chip,
-					unsigned offset)
+					unsigned int offset)
 {
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	u8 reg = TC3589x_GPIODIR0 + offset / 8;
-	unsigned pos = offset % 8;
+	unsigned int pos = offset % 8;
 
 	return tc3589x_set_bits(tc3589x, reg, BIT(pos), 0);
 }
 
-static int tc3589x_gpio_single_ended(struct gpio_chip *chip,
-				     unsigned offset,
-				     enum single_ended_mode mode)
+static int tc3589x_gpio_get_direction(struct gpio_chip *chip,
+				      unsigned int offset)
+{
+	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
+	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
+	u8 reg = TC3589x_GPIODIR0 + offset / 8;
+	unsigned int pos = offset % 8;
+	int ret;
+
+	ret = tc3589x_reg_read(tc3589x, reg);
+	if (ret < 0)
+		return ret;
+
+	return !(ret & BIT(pos));
+}
+
+static int tc3589x_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
+				   unsigned long config)
 {
 	struct tc3589x_gpio *tc3589x_gpio = gpiochip_get_data(chip);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
@@ -97,25 +112,25 @@ static int tc3589x_gpio_single_ended(struct gpio_chip *chip,
 	 */
 	u8 odmreg = TC3589x_GPIOODM0 + (offset / 8) * 2;
 	u8 odereg = TC3589x_GPIOODE0 + (offset / 8) * 2;
-	unsigned pos = offset % 8;
+	unsigned int pos = offset % 8;
 	int ret;
 
-	switch(mode) {
-	case LINE_MODE_OPEN_DRAIN:
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		/* Set open drain mode */
 		ret = tc3589x_set_bits(tc3589x, odmreg, BIT(pos), 0);
 		if (ret)
 			return ret;
 		/* Enable open drain/source mode */
 		return tc3589x_set_bits(tc3589x, odereg, BIT(pos), BIT(pos));
-	case LINE_MODE_OPEN_SOURCE:
+	case PIN_CONFIG_DRIVE_OPEN_SOURCE:
 		/* Set open source mode */
 		ret = tc3589x_set_bits(tc3589x, odmreg, BIT(pos), BIT(pos));
 		if (ret)
 			return ret;
 		/* Enable open drain/source mode */
 		return tc3589x_set_bits(tc3589x, odereg, BIT(pos), BIT(pos));
-	case LINE_MODE_PUSH_PULL:
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		/* Disable open drain/source mode */
 		return tc3589x_set_bits(tc3589x, odereg, BIT(pos), 0);
 	default:
@@ -124,14 +139,15 @@ static int tc3589x_gpio_single_ended(struct gpio_chip *chip,
 	return -ENOTSUPP;
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "tc3589x",
 	.owner			= THIS_MODULE,
-	.direction_input	= tc3589x_gpio_direction_input,
 	.get			= tc3589x_gpio_get,
-	.direction_output	= tc3589x_gpio_direction_output,
 	.set			= tc3589x_gpio_set,
-	.set_single_ended	= tc3589x_gpio_single_ended,
+	.direction_output	= tc3589x_gpio_direction_output,
+	.direction_input	= tc3589x_gpio_direction_input,
+	.get_direction		= tc3589x_gpio_get_direction,
+	.set_config		= tc3589x_gpio_set_config,
 	.can_sleep		= true,
 };
 
@@ -320,21 +336,20 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret =  gpiochip_irqchip_add(&tc3589x_gpio->chip,
-				    &tc3589x_gpio_irq_chip,
-				    0,
-				    handle_simple_irq,
-				    IRQ_TYPE_NONE);
+	ret =  gpiochip_irqchip_add_nested(&tc3589x_gpio->chip,
+					   &tc3589x_gpio_irq_chip,
+					   0,
+					   handle_simple_irq,
+					   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"could not connect irqchip to gpiochip\n");
 		return ret;
 	}
 
-	gpiochip_set_chained_irqchip(&tc3589x_gpio->chip,
-				     &tc3589x_gpio_irq_chip,
-				     irq,
-				     NULL);
+	gpiochip_set_nested_irqchip(&tc3589x_gpio->chip,
+				    &tc3589x_gpio_irq_chip,
+				    irq);
 
 	platform_set_drvdata(pdev, tc3589x_gpio);
 

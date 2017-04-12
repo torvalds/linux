@@ -745,7 +745,6 @@ static const struct net_device_ops ether3_netdev_ops = {
 	.ndo_set_rx_mode	= ether3_setmulticastlist,
 	.ndo_tx_timeout		= ether3_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 

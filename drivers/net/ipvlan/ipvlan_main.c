@@ -9,24 +9,87 @@
 
 #include "ipvlan.h"
 
+static u32 ipvl_nf_hook_refcnt = 0;
+
+static struct nf_hook_ops ipvl_nfops[] __read_mostly = {
+	{
+		.hook     = ipvlan_nf_input,
+		.pf       = NFPROTO_IPV4,
+		.hooknum  = NF_INET_LOCAL_IN,
+		.priority = INT_MAX,
+	},
+	{
+		.hook     = ipvlan_nf_input,
+		.pf       = NFPROTO_IPV6,
+		.hooknum  = NF_INET_LOCAL_IN,
+		.priority = INT_MAX,
+	},
+};
+
+static const struct l3mdev_ops ipvl_l3mdev_ops = {
+	.l3mdev_l3_rcv = ipvlan_l3_rcv,
+};
+
 static void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
 {
-	ipvlan->dev->mtu = dev->mtu - ipvlan->mtu_adj;
+	ipvlan->dev->mtu = dev->mtu;
 }
 
-static void ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
+static int ipvlan_register_nf_hook(void)
+{
+	int err = 0;
+
+	if (!ipvl_nf_hook_refcnt) {
+		err = _nf_register_hooks(ipvl_nfops, ARRAY_SIZE(ipvl_nfops));
+		if (!err)
+			ipvl_nf_hook_refcnt = 1;
+	} else {
+		ipvl_nf_hook_refcnt++;
+	}
+
+	return err;
+}
+
+static void ipvlan_unregister_nf_hook(void)
+{
+	WARN_ON(!ipvl_nf_hook_refcnt);
+
+	ipvl_nf_hook_refcnt--;
+	if (!ipvl_nf_hook_refcnt)
+		_nf_unregister_hooks(ipvl_nfops, ARRAY_SIZE(ipvl_nfops));
+}
+
+static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
 {
 	struct ipvl_dev *ipvlan;
+	struct net_device *mdev = port->dev;
+	int err = 0;
 
+	ASSERT_RTNL();
 	if (port->mode != nval) {
+		if (nval == IPVLAN_MODE_L3S) {
+			/* New mode is L3S */
+			err = ipvlan_register_nf_hook();
+			if (!err) {
+				mdev->l3mdev_ops = &ipvl_l3mdev_ops;
+				mdev->priv_flags |= IFF_L3MDEV_MASTER;
+			} else
+				return err;
+		} else if (port->mode == IPVLAN_MODE_L3S) {
+			/* Old mode was L3S */
+			mdev->priv_flags &= ~IFF_L3MDEV_MASTER;
+			ipvlan_unregister_nf_hook();
+			mdev->l3mdev_ops = NULL;
+		}
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
-			if (nval == IPVLAN_MODE_L3)
+			if (nval == IPVLAN_MODE_L3 || nval == IPVLAN_MODE_L3S)
 				ipvlan->dev->flags |= IFF_NOARP;
 			else
 				ipvlan->dev->flags &= ~IFF_NOARP;
 		}
 		port->mode = nval;
 	}
+	return err;
 }
 
 static int ipvlan_port_create(struct net_device *dev)
@@ -39,8 +102,8 @@ static int ipvlan_port_create(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	if (netif_is_macvlan_port(dev)) {
-		netdev_err(dev, "Master is a macvlan port.\n");
+	if (netdev_is_rx_handler_busy(dev)) {
+		netdev_err(dev, "Device is already in use.\n");
 		return -EBUSY;
 	}
 
@@ -56,6 +119,8 @@ static int ipvlan_port_create(struct net_device *dev)
 
 	skb_queue_head_init(&port->backlog);
 	INIT_WORK(&port->wq, ipvlan_process_multicast);
+	ida_init(&port->ida);
+	port->dev_id_start = 1;
 
 	err = netdev_rx_handler_register(dev, ipvlan_handle_frame, port);
 	if (err)
@@ -65,19 +130,30 @@ static int ipvlan_port_create(struct net_device *dev)
 	return 0;
 
 err:
-	kfree_rcu(port, rcu);
+	kfree(port);
 	return err;
 }
 
 static void ipvlan_port_destroy(struct net_device *dev)
 {
 	struct ipvl_port *port = ipvlan_port_get_rtnl(dev);
+	struct sk_buff *skb;
 
 	dev->priv_flags &= ~IFF_IPVLAN_MASTER;
+	if (port->mode == IPVLAN_MODE_L3S) {
+		dev->priv_flags &= ~IFF_L3MDEV_MASTER;
+		ipvlan_unregister_nf_hook();
+		dev->l3mdev_ops = NULL;
+	}
 	netdev_rx_handler_unregister(dev);
 	cancel_work_sync(&port->wq);
-	__skb_queue_purge(&port->backlog);
-	kfree_rcu(port, rcu);
+	while ((skb = __skb_dequeue(&port->backlog)) != NULL) {
+		if (skb->dev)
+			dev_put(skb->dev);
+		kfree_skb(skb);
+	}
+	ida_destroy(&port->ida);
+	kfree(port);
 }
 
 #define IPVLAN_FEATURES \
@@ -132,7 +208,8 @@ static int ipvlan_open(struct net_device *dev)
 	struct net_device *phy_dev = ipvlan->phy_dev;
 	struct ipvl_addr *addr;
 
-	if (ipvlan->port->mode == IPVLAN_MODE_L3)
+	if (ipvlan->port->mode == IPVLAN_MODE_L3 ||
+	    ipvlan->port->mode == IPVLAN_MODE_L3S)
 		dev->flags |= IFF_NOARP;
 	else
 		dev->flags &= ~IFF_NOARP;
@@ -227,8 +304,8 @@ static void ipvlan_set_multicast_mac_filter(struct net_device *dev)
 	dev_mc_sync(ipvlan->phy_dev, dev);
 }
 
-static struct rtnl_link_stats64 *ipvlan_get_stats64(struct net_device *dev,
-						    struct rtnl_link_stats64 *s)
+static void ipvlan_get_stats64(struct net_device *dev,
+			       struct rtnl_link_stats64 *s)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 
@@ -265,7 +342,6 @@ static struct rtnl_link_stats64 *ipvlan_get_stats64(struct net_device *dev,
 		s->rx_dropped = rx_errs;
 		s->tx_dropped = tx_drps;
 	}
-	return s;
 }
 
 static int ipvlan_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
@@ -372,13 +448,14 @@ static int ipvlan_nl_changelink(struct net_device *dev,
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port = ipvlan_port_get_rtnl(ipvlan->phy_dev);
+	int err = 0;
 
 	if (data && data[IFLA_IPVLAN_MODE]) {
 		u16 nmode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
-		ipvlan_set_port_mode(port, nmode);
+		err = ipvlan_set_port_mode(port, nmode);
 	}
-	return 0;
+	return err;
 }
 
 static size_t ipvlan_nl_getsize(const struct net_device *dev)
@@ -419,14 +496,15 @@ err:
 	return ret;
 }
 
-static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[])
+int ipvlan_link_new(struct net *src_net, struct net_device *dev,
+		    struct nlattr *tb[], struct nlattr *data[])
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port;
 	struct net_device *phy_dev;
 	int err;
 	u16 mode = IPVLAN_MODE_L3;
+	bool create = false;
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
@@ -443,6 +521,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		err = ipvlan_port_create(phy_dev);
 		if (err < 0)
 			return err;
+		create = true;
 	}
 
 	if (data && data[IFLA_IPVLAN_MODE])
@@ -456,6 +535,29 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	ipvlan_adjust_mtu(ipvlan, phy_dev);
 	INIT_LIST_HEAD(&ipvlan->addrs);
 
+	/* If the port-id base is at the MAX value, then wrap it around and
+	 * begin from 0x1 again. This may be due to a busy system where lots
+	 * of slaves are getting created and deleted.
+	 */
+	if (port->dev_id_start == 0xFFFE)
+		port->dev_id_start = 0x1;
+
+	/* Since L2 address is shared among all IPvlan slaves including
+	 * master, use unique 16 bit dev-ids to diffentiate among them.
+	 * Assign IDs between 0x1 and 0xFFFE (used by the master) to each
+	 * slave link [see addrconf_ifid_eui48()].
+	 */
+	err = ida_simple_get(&port->ida, port->dev_id_start, 0xFFFE,
+			     GFP_KERNEL);
+	if (err < 0)
+		err = ida_simple_get(&port->ida, 0x1, port->dev_id_start,
+				     GFP_KERNEL);
+	if (err < 0)
+		goto destroy_ipvlan_port;
+	dev->dev_id = err;
+	/* Increment id-base to the next slot for the future assignment */
+	port->dev_id_start = err + 1;
+
 	/* TODO Probably put random address here to be presented to the
 	 * world but keep using the physical-dev address for the outgoing
 	 * packets.
@@ -466,22 +568,35 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		return err;
+		goto remove_ida;
 
 	err = netdev_upper_dev_link(phy_dev, dev);
 	if (err) {
-		unregister_netdevice(dev);
-		return err;
+		goto unregister_netdev;
+	}
+	err = ipvlan_set_port_mode(port, mode);
+	if (err) {
+		goto unlink_netdev;
 	}
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
-	ipvlan_set_port_mode(port, mode);
-
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
-}
 
-static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
+unlink_netdev:
+	netdev_upper_dev_unlink(phy_dev, dev);
+unregister_netdev:
+	unregister_netdevice(dev);
+remove_ida:
+	ida_simple_remove(&port->ida, dev->dev_id);
+destroy_ipvlan_port:
+	if (create)
+		ipvlan_port_destroy(phy_dev);
+	return err;
+}
+EXPORT_SYMBOL_GPL(ipvlan_link_new);
+
+void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_addr *addr, *next;
@@ -492,12 +607,14 @@ static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 		kfree_rcu(addr, rcu);
 	}
 
+	ida_simple_remove(&ipvlan->port->ida, dev->dev_id);
 	list_del_rcu(&ipvlan->pnode);
 	unregister_netdevice_queue(dev, head);
 	netdev_upper_dev_unlink(ipvlan->phy_dev, dev);
 }
+EXPORT_SYMBOL_GPL(ipvlan_link_delete);
 
-static void ipvlan_link_setup(struct net_device *dev)
+void ipvlan_link_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
@@ -508,6 +625,7 @@ static void ipvlan_link_setup(struct net_device *dev)
 	dev->header_ops = &ipvlan_header_ops;
 	dev->ethtool_ops = &ipvlan_ethtool_ops;
 }
+EXPORT_SYMBOL_GPL(ipvlan_link_setup);
 
 static const struct nla_policy ipvlan_nl_policy[IFLA_IPVLAN_MAX + 1] =
 {
@@ -518,22 +636,22 @@ static struct rtnl_link_ops ipvlan_link_ops = {
 	.kind		= "ipvlan",
 	.priv_size	= sizeof(struct ipvl_dev),
 
-	.get_size	= ipvlan_nl_getsize,
-	.policy		= ipvlan_nl_policy,
-	.validate	= ipvlan_nl_validate,
-	.fill_info	= ipvlan_nl_fillinfo,
-	.changelink	= ipvlan_nl_changelink,
-	.maxtype	= IFLA_IPVLAN_MAX,
-
 	.setup		= ipvlan_link_setup,
 	.newlink	= ipvlan_link_new,
 	.dellink	= ipvlan_link_delete,
 };
 
-static int ipvlan_link_register(struct rtnl_link_ops *ops)
+int ipvlan_link_register(struct rtnl_link_ops *ops)
 {
+	ops->get_size	= ipvlan_nl_getsize;
+	ops->policy	= ipvlan_nl_policy;
+	ops->validate	= ipvlan_nl_validate;
+	ops->fill_info	= ipvlan_nl_fillinfo;
+	ops->changelink = ipvlan_nl_changelink;
+	ops->maxtype	= IFLA_IPVLAN_MAX;
 	return rtnl_link_register(ops);
 }
+EXPORT_SYMBOL_GPL(ipvlan_link_register);
 
 static int ipvlan_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
@@ -587,23 +705,22 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+static int ipvlan_add_addr(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 {
 	struct ipvl_addr *addr;
 
-	if (ipvlan_addr_busy(ipvlan->port, ip6_addr, true)) {
-		netif_err(ipvlan, ifup, ipvlan->dev,
-			  "Failed to add IPv6=%pI6c addr for %s intf\n",
-			  ip6_addr, ipvlan->dev->name);
-		return -EINVAL;
-	}
 	addr = kzalloc(sizeof(struct ipvl_addr), GFP_ATOMIC);
 	if (!addr)
 		return -ENOMEM;
 
 	addr->master = ipvlan;
-	memcpy(&addr->ip6addr, ip6_addr, sizeof(struct in6_addr));
-	addr->atype = IPVL_IPV6;
+	if (is_v6) {
+		memcpy(&addr->ip6addr, iaddr, sizeof(struct in6_addr));
+		addr->atype = IPVL_IPV6;
+	} else {
+		memcpy(&addr->ip4addr, iaddr, sizeof(struct in_addr));
+		addr->atype = IPVL_IPV4;
+	}
 	list_add_tail(&addr->anode, &ipvlan->addrs);
 
 	/* If the interface is not up, the address will be added to the hash
@@ -615,11 +732,11 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	return 0;
 }
 
-static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+static void ipvlan_del_addr(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 {
 	struct ipvl_addr *addr;
 
-	addr = ipvlan_find_addr(ipvlan, ip6_addr, true);
+	addr = ipvlan_find_addr(ipvlan, iaddr, is_v6);
 	if (!addr)
 		return;
 
@@ -628,6 +745,23 @@ static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	kfree_rcu(addr, rcu);
 
 	return;
+}
+
+static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+{
+	if (ipvlan_addr_busy(ipvlan->port, ip6_addr, true)) {
+		netif_err(ipvlan, ifup, ipvlan->dev,
+			  "Failed to add IPv6=%pI6c addr for %s intf\n",
+			  ip6_addr, ipvlan->dev->name);
+		return -EINVAL;
+	}
+
+	return ipvlan_add_addr(ipvlan, ip6_addr, true);
+}
+
+static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+{
+	return ipvlan_del_addr(ipvlan, ip6_addr, true);
 }
 
 static int ipvlan_addr6_event(struct notifier_block *unused,
@@ -663,45 +797,19 @@ static int ipvlan_addr6_event(struct notifier_block *unused,
 
 static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
-	struct ipvl_addr *addr;
-
 	if (ipvlan_addr_busy(ipvlan->port, ip4_addr, false)) {
 		netif_err(ipvlan, ifup, ipvlan->dev,
 			  "Failed to add IPv4=%pI4 on %s intf.\n",
 			  ip4_addr, ipvlan->dev->name);
 		return -EINVAL;
 	}
-	addr = kzalloc(sizeof(struct ipvl_addr), GFP_KERNEL);
-	if (!addr)
-		return -ENOMEM;
 
-	addr->master = ipvlan;
-	memcpy(&addr->ip4addr, ip4_addr, sizeof(struct in_addr));
-	addr->atype = IPVL_IPV4;
-	list_add_tail(&addr->anode, &ipvlan->addrs);
-
-	/* If the interface is not up, the address will be added to the hash
-	 * list by ipvlan_open.
-	 */
-	if (netif_running(ipvlan->dev))
-		ipvlan_ht_addr_add(ipvlan, addr);
-
-	return 0;
+	return ipvlan_add_addr(ipvlan, ip4_addr, false);
 }
 
 static void ipvlan_del_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
-	struct ipvl_addr *addr;
-
-	addr = ipvlan_find_addr(ipvlan, ip4_addr, false);
-	if (!addr)
-		return;
-
-	ipvlan_ht_addr_del(addr);
-	list_del(&addr->anode);
-	kfree_rcu(addr, rcu);
-
-	return;
+	return ipvlan_del_addr(ipvlan, ip4_addr, false);
 }
 
 static int ipvlan_addr4_event(struct notifier_block *unused,

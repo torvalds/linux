@@ -487,6 +487,7 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x24FD, 0x1130, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x0130, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x1010, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x10D0, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x0050, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x0150, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x9010, iwl8265_2ac_cfg)},
@@ -500,25 +501,39 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x24FD, 0x0930, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x0950, iwl8265_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x24FD, 0x0850, iwl8265_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0012, iwl8275_2ac_cfg)},
 
 /* 9000 Series */
+	{IWL_PCI_DEVICE(0x271B, 0x0010, iwl9160_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x0000, iwl9260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x2526, 0x0010, iwl9260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0A10, iwl9260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0010, iwl9260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0210, iwl9260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0410, iwl9260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0610, iwl9260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0310, iwl5165_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0000, iwl5165_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0510, iwl5165_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x2010, iwl5165_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x2526, 0x1420, iwl5165_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x0710, iwl5165_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, 0x2A10, iwl5165_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x1410, iwl9270_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0A10, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0010, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0210, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0410, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0610, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0310, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0000, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0510, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x2010, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x1420, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0710, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x2A10, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x30DC, 0x0060, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0060, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0060, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0xA370, 0x0060, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x31DC, 0x0060, iwl9460_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x0030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, 0x0030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0xA370, 0x0030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x31DC, 0x0030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2526, 0x1030, iwl9560_2ac_cfg)},
+	{IWL_PCI_DEVICE(0xA370, 0x1030, iwl9560_2ac_cfg)},
 
 /* a000 Series */
-	{IWL_PCI_DEVICE(0x2720, 0x0A10, iwla000_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x2720, 0x0A10, iwla000_2ac_cfg_hr)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
@@ -526,48 +541,64 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
 #ifdef CONFIG_ACPI
-#define SPL_METHOD		"SPLC"
-#define SPL_DOMAINTYPE_MODULE	BIT(0)
-#define SPL_DOMAINTYPE_WIFI	BIT(1)
-#define SPL_DOMAINTYPE_WIGIG	BIT(2)
-#define SPL_DOMAINTYPE_RFEM	BIT(3)
+#define ACPI_SPLC_METHOD	"SPLC"
+#define ACPI_SPLC_DOMAIN_WIFI	(0x07)
 
-static u64 splx_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splx)
+static u64 splc_get_pwr_limit(struct iwl_trans *trans, union acpi_object *splc)
 {
-	union acpi_object *limits, *domain_type, *power_limit;
+	union acpi_object *data_pkg, *dflt_pwr_limit;
+	int i;
 
-	if (splx->type != ACPI_TYPE_PACKAGE ||
-	    splx->package.count != 2 ||
-	    splx->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    splx->package.elements[0].integer.value != 0) {
-		IWL_ERR(trans, "Unsupported splx structure\n");
+	/* We need at least two elements, one for the revision and one
+	 * for the data itself.  Also check that the revision is
+	 * supported (currently only revision 0).
+	*/
+	if (splc->type != ACPI_TYPE_PACKAGE ||
+	    splc->package.count < 2 ||
+	    splc->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    splc->package.elements[0].integer.value != 0) {
+		IWL_DEBUG_INFO(trans,
+			       "Unsupported structure returned by the SPLC method.  Ignoring.\n");
 		return 0;
 	}
 
-	limits = &splx->package.elements[1];
-	if (limits->type != ACPI_TYPE_PACKAGE ||
-	    limits->package.count < 2 ||
-	    limits->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    limits->package.elements[1].type != ACPI_TYPE_INTEGER) {
-		IWL_ERR(trans, "Invalid limits element\n");
+	/* loop through all the packages to find the one for WiFi */
+	for (i = 1; i < splc->package.count; i++) {
+		union acpi_object *domain;
+
+		data_pkg = &splc->package.elements[i];
+
+		/* Skip anything that is not a package with the right
+		 * amount of elements (i.e. at least 2 integers).
+		 */
+		if (data_pkg->type != ACPI_TYPE_PACKAGE ||
+		    data_pkg->package.count < 2 ||
+		    data_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
+		    data_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
+			continue;
+
+		domain = &data_pkg->package.elements[0];
+		if (domain->integer.value == ACPI_SPLC_DOMAIN_WIFI)
+			break;
+
+		data_pkg = NULL;
+	}
+
+	if (!data_pkg) {
+		IWL_DEBUG_INFO(trans,
+			       "No element for the WiFi domain returned by the SPLC method.\n");
 		return 0;
 	}
 
-	domain_type = &limits->package.elements[0];
-	power_limit = &limits->package.elements[1];
-	if (!(domain_type->integer.value & SPL_DOMAINTYPE_WIFI)) {
-		IWL_DEBUG_INFO(trans, "WiFi power is not limited\n");
-		return 0;
-	}
-
-	return power_limit->integer.value;
+	dflt_pwr_limit = &data_pkg->package.elements[1];
+	return dflt_pwr_limit->integer.value;
 }
 
 static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 {
 	acpi_handle pxsx_handle;
 	acpi_handle handle;
-	struct acpi_buffer splx = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct acpi_buffer splc = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 
 	pxsx_handle = ACPI_HANDLE(&pdev->dev);
@@ -578,23 +609,24 @@ static void set_dflt_pwr_limit(struct iwl_trans *trans, struct pci_dev *pdev)
 	}
 
 	/* Get the method's handle */
-	status = acpi_get_handle(pxsx_handle, (acpi_string)SPL_METHOD, &handle);
+	status = acpi_get_handle(pxsx_handle, (acpi_string)ACPI_SPLC_METHOD,
+				 &handle);
 	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_INFO(trans, "SPL method not found\n");
+		IWL_DEBUG_INFO(trans, "SPLC method not found\n");
 		return;
 	}
 
 	/* Call SPLC with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &splx);
+	status = acpi_evaluate_object(handle, NULL, NULL, &splc);
 	if (ACPI_FAILURE(status)) {
 		IWL_ERR(trans, "SPLC invocation failed (0x%x)\n", status);
 		return;
 	}
 
-	trans->dflt_pwr_limit = splx_get_pwr_limit(trans, splx.pointer);
+	trans->dflt_pwr_limit = splc_get_pwr_limit(trans, splc.pointer);
 	IWL_DEBUG_INFO(trans, "Default power limit set to %lld\n",
 		       trans->dflt_pwr_limit);
-	kfree(splx.pointer);
+	kfree(splc.pointer);
 }
 
 #else /* CONFIG_ACPI */
@@ -608,7 +640,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	const struct iwl_cfg *cfg_7265d __maybe_unused = NULL;
-	const struct iwl_cfg *cfg_9260lc __maybe_unused = NULL;
 	struct iwl_trans *iwl_trans;
 	int ret;
 
@@ -637,17 +668,22 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	if (iwl_trans->cfg->rf_id) {
-		if (cfg == &iwl9260_2ac_cfg)
-			cfg_9260lc = &iwl9260lc_2ac_cfg;
-		if (cfg_9260lc && iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_LC) {
-			cfg = cfg_9260lc;
-			iwl_trans->cfg = cfg_9260lc;
+		if (cfg == &iwl9460_2ac_cfg &&
+		    iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_LC) {
+			cfg = &iwl9000lc_2ac_cfg;
+			iwl_trans->cfg = cfg;
+		}
+
+		if (cfg == &iwla000_2ac_cfg_hr &&
+		    iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_JF) {
+			cfg = &iwla000_2ac_cfg_jf;
+			iwl_trans->cfg = cfg;
 		}
 	}
 #endif
 
 	pci_set_drvdata(pdev, iwl_trans);
-	iwl_trans->drv = iwl_drv_start(iwl_trans, cfg);
+	iwl_trans->drv = iwl_drv_start(iwl_trans);
 
 	if (IS_ERR(iwl_trans->drv)) {
 		ret = PTR_ERR(iwl_trans->drv);
@@ -748,13 +784,14 @@ static int iwl_pci_resume(struct device *device)
 
 	/*
 	 * Enable rfkill interrupt (in order to keep track of
-	 * the rfkill status)
+	 * the rfkill status). Must be locked to avoid processing
+	 * a possible rfkill interrupt between reading the state
+	 * and calling iwl_trans_pcie_rf_kill() with it.
 	 */
+	mutex_lock(&trans_pcie->mutex);
 	iwl_enable_rfkill_int(trans);
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
-
-	mutex_lock(&trans_pcie->mutex);
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 	mutex_unlock(&trans_pcie->mutex);
 

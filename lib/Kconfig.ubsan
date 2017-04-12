@@ -1,13 +1,17 @@
 config ARCH_HAS_UBSAN_SANITIZE_ALL
 	bool
 
+config ARCH_WANTS_UBSAN_NO_NULL
+	def_bool n
+
 config UBSAN
 	bool "Undefined behaviour sanity checker"
 	help
 	  This option enables undefined behaviour sanity checker
 	  Compile-time instrumentation is used to detect various undefined
 	  behaviours in runtime. Various types of checks may be enabled
-	  via boot parameter ubsan_handle (see: Documentation/ubsan.txt).
+	  via boot parameter ubsan_handle
+	  (see: Documentation/dev-tools/ubsan.rst).
 
 config UBSAN_SANITIZE_ALL
 	bool "Enable instrumentation for the entire kernel"
@@ -34,3 +38,11 @@ config UBSAN_ALIGNMENT
 	  This option enables detection of unaligned memory accesses.
 	  Enabling this option on architectures that support unaligned
 	  accesses may produce a lot of false positives.
+
+config UBSAN_NULL
+	bool "Enable checking of null pointers"
+	depends on UBSAN
+	default y if !ARCH_WANTS_UBSAN_NO_NULL
+	help
+	  This option enables detection of memory accesses via a
+	  null pointer.

@@ -41,6 +41,7 @@
 #include "../include/cl_object.h"
 #include "../include/lustre_fid.h"
 #include "../include/lustre_acl.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_net.h"
 
 #include "echo_internal.h"
@@ -54,7 +55,7 @@ struct echo_device {
 	struct echo_client_obd *ed_ec;
 
 	struct cl_site	  ed_site_myself;
-	struct cl_site	 *ed_site;
+	struct lu_site		*ed_site;
 	struct lu_device       *ed_next;
 };
 
@@ -64,14 +65,14 @@ struct echo_object {
 
 	struct echo_device     *eo_dev;
 	struct list_head	      eo_obj_chain;
-	struct lov_stripe_md   *eo_lsm;
+	struct lov_oinfo       *eo_oinfo;
 	atomic_t	    eo_npages;
 	int		     eo_deleted;
 };
 
 struct echo_object_conf {
 	struct cl_object_conf  eoc_cl;
-	struct lov_stripe_md **eoc_md;
+	struct lov_oinfo      **eoc_oinfo;
 };
 
 struct echo_page {
@@ -152,9 +153,6 @@ struct echo_object_conf *cl2echo_conf(const struct cl_object_conf *c)
 }
 
 /** @} echo_helpers */
-
-static struct echo_object *cl_echo_object_find(struct echo_device *d,
-					       struct lov_stripe_md **lsm);
 static int cl_echo_object_put(struct echo_object *eco);
 static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			      struct page **pages, int npages, int async);
@@ -413,10 +411,13 @@ static int echo_object_init(const struct lu_env *env, struct lu_object *obj,
 	cconf = lu2cl_conf(conf);
 	econf = cl2echo_conf(cconf);
 
-	LASSERT(econf->eoc_md);
-	eco->eo_lsm = *econf->eoc_md;
-	/* clear the lsm pointer so that it won't get freed. */
-	*econf->eoc_md = NULL;
+	LASSERT(econf->eoc_oinfo);
+	/*
+	 * Transfer the oinfo pointer to eco that it won't be
+	 * freed.
+	 */
+	eco->eo_oinfo = *econf->eoc_oinfo;
+	*econf->eoc_oinfo = NULL;
 
 	eco->eo_dev = ed;
 	atomic_set(&eco->eo_npages, 0);
@@ -426,52 +427,6 @@ static int echo_object_init(const struct lu_env *env, struct lu_object *obj,
 	list_add_tail(&eco->eo_obj_chain, &ec->ec_objects);
 	spin_unlock(&ec->ec_lock);
 
-	return 0;
-}
-
-/* taken from osc_unpackmd() */
-static int echo_alloc_memmd(struct echo_device *ed,
-			    struct lov_stripe_md **lsmp)
-{
-	int lsm_size;
-
-	/* If export is lov/osc then use their obd method */
-	if (ed->ed_next)
-		return obd_alloc_memmd(ed->ed_ec->ec_exp, lsmp);
-	/* OFD has no unpackmd method, do everything here */
-	lsm_size = lov_stripe_md_size(1);
-
-	LASSERT(!*lsmp);
-	*lsmp = kzalloc(lsm_size, GFP_NOFS);
-	if (!*lsmp)
-		return -ENOMEM;
-
-	(*lsmp)->lsm_oinfo[0] = kzalloc(sizeof(struct lov_oinfo), GFP_NOFS);
-	if (!(*lsmp)->lsm_oinfo[0]) {
-		kfree(*lsmp);
-		return -ENOMEM;
-	}
-
-	loi_init((*lsmp)->lsm_oinfo[0]);
-	(*lsmp)->lsm_maxbytes = LUSTRE_STRIPE_MAXBYTES;
-	ostid_set_seq_echo(&(*lsmp)->lsm_oi);
-
-	return lsm_size;
-}
-
-static int echo_free_memmd(struct echo_device *ed, struct lov_stripe_md **lsmp)
-{
-	int lsm_size;
-
-	/* If export is lov/osc then use their obd method */
-	if (ed->ed_next)
-		return obd_free_memmd(ed->ed_ec->ec_exp, lsmp);
-	/* OFD has no unpackmd method, do everything here */
-	lsm_size = lov_stripe_md_size(1);
-
-	kfree((*lsmp)->lsm_oinfo[0]);
-	kfree(*lsmp);
-	*lsmp = NULL;
 	return 0;
 }
 
@@ -489,8 +444,7 @@ static void echo_object_free(const struct lu_env *env, struct lu_object *obj)
 	lu_object_fini(obj);
 	lu_object_header_fini(obj->lo_header);
 
-	if (eco->eo_lsm)
-		echo_free_memmd(eco->eo_dev, &eco->eo_lsm);
+	kfree(eco->eo_oinfo);
 	kmem_cache_free(echo_object_kmem, eco);
 }
 
@@ -551,9 +505,6 @@ static const struct lu_device_operations echo_device_lu_ops = {
 
 /** @} echo_lu_dev_ops */
 
-static const struct cl_device_operations echo_device_cl_ops = {
-};
-
 /** \defgroup echo_init Setup and teardown
  *
  * Init and fini functions for echo client.
@@ -573,17 +524,19 @@ static int echo_site_init(const struct lu_env *env, struct echo_device *ed)
 	}
 
 	rc = lu_site_init_finish(&site->cs_lu);
-	if (rc)
+	if (rc) {
+		cl_site_fini(site);
 		return rc;
+	}
 
-	ed->ed_site = site;
+	ed->ed_site = &site->cs_lu;
 	return 0;
 }
 
 static void echo_site_fini(const struct lu_env *env, struct echo_device *ed)
 {
 	if (ed->ed_site) {
-		cl_site_fini(ed->ed_site);
+		lu_site_fini(ed->ed_site);
 		ed->ed_site = NULL;
 	}
 }
@@ -607,16 +560,10 @@ static void echo_thread_key_fini(const struct lu_context *ctx,
 	kmem_cache_free(echo_thread_kmem, info);
 }
 
-static void echo_thread_key_exit(const struct lu_context *ctx,
-				 struct lu_context_key *key, void *data)
-{
-}
-
 static struct lu_context_key echo_thread_key = {
 	.lct_tags = LCT_CL_THREAD,
 	.lct_init = echo_thread_key_init,
 	.lct_fini = echo_thread_key_fini,
-	.lct_exit = echo_thread_key_exit
 };
 
 static void *echo_session_key_init(const struct lu_context *ctx,
@@ -638,16 +585,10 @@ static void echo_session_key_fini(const struct lu_context *ctx,
 	kmem_cache_free(echo_session_kmem, session);
 }
 
-static void echo_session_key_exit(const struct lu_context *ctx,
-				  struct lu_context_key *key, void *data)
-{
-}
-
 static struct lu_context_key echo_session_key = {
 	.lct_tags = LCT_SESSION,
 	.lct_init = echo_session_key_init,
 	.lct_fini = echo_session_key_fini,
-	.lct_exit = echo_session_key_exit
 };
 
 LU_TYPE_INIT_FINI(echo, &echo_thread_key, &echo_session_key);
@@ -676,7 +617,6 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 		goto out_free;
 
 	cd->cd_lu_dev.ld_ops = &echo_device_lu_ops;
-	cd->cd_ops = &echo_device_cl_ops;
 
 	obd = class_name2obd(lustre_cfg_string(cfg, 0));
 	LASSERT(obd);
@@ -720,7 +660,7 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 			goto out_cleanup;
 		}
 
-		next->ld_site = &ed->ed_site->cs_lu;
+		next->ld_site = ed->ed_site;
 		rc = next->ld_type->ldt_ops->ldto_device_init(env, next,
 						next->ld_type->ldt_name,
 							      NULL);
@@ -787,7 +727,7 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 	CDEBUG(D_INFO, "echo device:%p is going to be freed, next = %p\n",
 	       ed, next);
 
-	lu_site_purge(env, &ed->ed_site->cs_lu, -1);
+	lu_site_purge(env, ed->ed_site, -1);
 
 	/* check if there are objects still alive.
 	 * It shouldn't have any object because lu_site_purge would cleanup
@@ -800,7 +740,7 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 	spin_unlock(&ec->ec_lock);
 
 	/* purge again */
-	lu_site_purge(env, &ed->ed_site->cs_lu, -1);
+	lu_site_purge(env, ed->ed_site, -1);
 
 	CDEBUG(D_INFO,
 	       "Waiting for the reference of echo object to be dropped\n");
@@ -812,7 +752,7 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 		CERROR("echo_client still has objects at cleanup time, wait for 1 second\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(1));
-		lu_site_purge(env, &ed->ed_site->cs_lu, -1);
+		lu_site_purge(env, ed->ed_site, -1);
 		spin_lock(&ec->ec_lock);
 	}
 	spin_unlock(&ec->ec_lock);
@@ -826,10 +766,12 @@ static struct lu_device *echo_device_free(const struct lu_env *env,
 	while (next)
 		next = next->ld_type->ldt_ops->ldto_device_free(env, next);
 
-	LASSERT(ed->ed_site == lu2cl_site(d->ld_site));
+	LASSERT(ed->ed_site == d->ld_site);
 	echo_site_fini(env, ed);
 	cl_device_fini(&ed->ed_cl);
 	kfree(ed);
+
+	cl_env_cache_purge(~0);
 
 	return NULL;
 }
@@ -864,25 +806,21 @@ static struct lu_device_type echo_device_type = {
  */
 
 /* Interfaces to echo client obd device */
-static struct echo_object *cl_echo_object_find(struct echo_device *d,
-					       struct lov_stripe_md **lsmp)
+static struct echo_object *
+cl_echo_object_find(struct echo_device *d, const struct ost_id *oi)
 {
 	struct lu_env *env;
 	struct echo_thread_info *info;
 	struct echo_object_conf *conf;
-	struct lov_stripe_md    *lsm;
+	struct lov_oinfo *oinfo = NULL;
 	struct echo_object *eco;
 	struct cl_object   *obj;
 	struct lu_fid *fid;
 	int refcheck;
 	int rc;
 
-	LASSERT(lsmp);
-	lsm = *lsmp;
-	LASSERT(lsm);
-	LASSERTF(ostid_id(&lsm->lsm_oi) != 0, DOSTID"\n", POSTID(&lsm->lsm_oi));
-	LASSERTF(ostid_seq(&lsm->lsm_oi) == FID_SEQ_ECHO, DOSTID"\n",
-		 POSTID(&lsm->lsm_oi));
+	LASSERTF(ostid_id(oi), DOSTID "\n", POSTID(oi));
+	LASSERTF(ostid_seq(oi) == FID_SEQ_ECHO, DOSTID "\n", POSTID(oi));
 
 	/* Never return an object if the obd is to be freed. */
 	if (echo_dev2cl(d)->cd_lu_dev.ld_obd->obd_stopping)
@@ -895,16 +833,24 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 	info = echo_env_info(env);
 	conf = &info->eti_conf;
 	if (d->ed_next) {
-		struct lov_oinfo *oinfo = lsm->lsm_oinfo[0];
+		oinfo = kzalloc(sizeof(*oinfo), GFP_NOFS);
+		if (!oinfo) {
+			eco = ERR_PTR(-ENOMEM);
+			goto out;
+		}
 
-		LASSERT(oinfo);
-		oinfo->loi_oi = lsm->lsm_oi;
+		oinfo->loi_oi = *oi;
 		conf->eoc_cl.u.coc_oinfo = oinfo;
 	}
-	conf->eoc_md = lsmp;
+
+	/*
+	 * If echo_object_init() is successful then ownership of oinfo
+	 * is transferred to the object.
+	 */
+	conf->eoc_oinfo = &oinfo;
 
 	fid  = &info->eti_fid;
-	rc = ostid_to_fid(fid, &lsm->lsm_oi, 0);
+	rc = ostid_to_fid(fid, (struct ost_id *)oi, 0);
 	if (rc != 0) {
 		eco = ERR_PTR(rc);
 		goto out;
@@ -927,6 +873,7 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 	}
 
 out:
+	kfree(oinfo);
 	cl_env_put(env, &refcheck);
 	return eco;
 }
@@ -1051,7 +998,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 	struct cl_io	    *io;
 	struct cl_page	  *clp;
 	struct lustre_handle    lh = { 0 };
-	int page_size = cl_page_size(obj);
+	size_t page_size = cl_page_size(obj);
 	int refcheck;
 	int rc;
 	int i;
@@ -1141,11 +1088,10 @@ out:
 static u64 last_object_id;
 
 static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
-			      struct obdo *oa, struct obd_trans_info *oti)
+			      struct obdo *oa)
 {
 	struct echo_object     *eco;
 	struct echo_client_obd *ec = ed->ed_ec;
-	struct lov_stripe_md   *lsm = NULL;
 	int		     rc;
 	int		     created = 0;
 
@@ -1156,30 +1102,19 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 		return -EINVAL;
 	}
 
-	rc = echo_alloc_memmd(ed, &lsm);
-	if (rc < 0) {
-		CERROR("Cannot allocate md: rc = %d\n", rc);
-		goto failed;
-	}
+	if (!ostid_id(&oa->o_oi))
+		ostid_set_id(&oa->o_oi, ++last_object_id);
 
-	/* setup object ID here */
-	lsm->lsm_oi = oa->o_oi;
-
-	if (ostid_id(&lsm->lsm_oi) == 0)
-		ostid_set_id(&lsm->lsm_oi, ++last_object_id);
-
-	rc = obd_create(env, ec->ec_exp, oa, &lsm, oti);
+	rc = obd_create(env, ec->ec_exp, oa);
 	if (rc != 0) {
 		CERROR("Cannot create objects: rc = %d\n", rc);
 		goto failed;
 	}
 	created = 1;
 
-	/* See what object ID we were given */
-	oa->o_oi = lsm->lsm_oi;
 	oa->o_valid |= OBD_MD_FLID;
 
-	eco = cl_echo_object_find(ed, &lsm);
+	eco = cl_echo_object_find(ed, &oa->o_oi);
 	if (IS_ERR(eco)) {
 		rc = PTR_ERR(eco);
 		goto failed;
@@ -1190,9 +1125,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 
  failed:
 	if (created && rc)
-		obd_destroy(env, ec->ec_exp, oa, lsm, oti, NULL);
-	if (lsm)
-		echo_free_memmd(ed, &lsm);
+		obd_destroy(env, ec->ec_exp, oa);
 	if (rc)
 		CERROR("create object failed with: rc = %d\n", rc);
 	return rc;
@@ -1201,32 +1134,21 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 static int echo_get_object(struct echo_object **ecop, struct echo_device *ed,
 			   struct obdo *oa)
 {
-	struct lov_stripe_md   *lsm = NULL;
 	struct echo_object     *eco;
 	int		     rc;
 
-	if ((oa->o_valid & OBD_MD_FLID) == 0 || ostid_id(&oa->o_oi) == 0) {
-		/* disallow use of object id 0 */
-		CERROR("No valid oid\n");
+	if (!(oa->o_valid & OBD_MD_FLID) || !(oa->o_valid & OBD_MD_FLGROUP) ||
+	    !ostid_id(&oa->o_oi)) {
+		CERROR("invalid oid " DOSTID "\n", POSTID(&oa->o_oi));
 		return -EINVAL;
 	}
 
-	rc = echo_alloc_memmd(ed, &lsm);
-	if (rc < 0)
-		return rc;
-
-	lsm->lsm_oi = oa->o_oi;
-	if (!(oa->o_valid & OBD_MD_FLGROUP))
-		ostid_set_seq_echo(&lsm->lsm_oi);
-
 	rc = 0;
-	eco = cl_echo_object_find(ed, &lsm);
+	eco = cl_echo_object_find(ed, &oa->o_oi);
 	if (!IS_ERR(eco))
 		*ecop = eco;
 	else
 		rc = PTR_ERR(eco);
-	if (lsm)
-		echo_free_memmd(ed, &lsm);
 	return rc;
 }
 
@@ -1303,8 +1225,7 @@ static int echo_client_page_debug_check(struct page *page, u64 id,
 
 static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 			    struct echo_object *eco, u64 offset,
-			    u64 count, int async,
-			    struct obd_trans_info *oti)
+			    u64 count, int async)
 {
 	u32	       npages;
 	struct brw_page	*pga;
@@ -1398,12 +1319,11 @@ static int echo_client_prep_commit(const struct lu_env *env,
 				   struct obd_export *exp, int rw,
 				   struct obdo *oa, struct echo_object *eco,
 				   u64 offset, u64 count,
-				   u64 batch, struct obd_trans_info *oti,
-				   int async)
+				   u64 batch, int async)
 {
 	struct obd_ioobj ioo;
 	struct niobuf_local *lnb;
-	struct niobuf_remote *rnb;
+	struct niobuf_remote rnb;
 	u64 off;
 	u64 npages, tot_pages;
 	int i, ret = 0, brw_flags = 0;
@@ -1415,9 +1335,7 @@ static int echo_client_prep_commit(const struct lu_env *env,
 	tot_pages = count >> PAGE_SHIFT;
 
 	lnb = kcalloc(npages, sizeof(struct niobuf_local), GFP_NOFS);
-	rnb = kcalloc(npages, sizeof(struct niobuf_remote), GFP_NOFS);
-
-	if (!lnb || !rnb) {
+	if (!lnb) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1429,37 +1347,32 @@ static int echo_client_prep_commit(const struct lu_env *env,
 
 	off = offset;
 
-	for (; tot_pages; tot_pages -= npages) {
+	for (; tot_pages > 0; tot_pages -= npages) {
 		int lpages;
 
 		if (tot_pages < npages)
 			npages = tot_pages;
 
-		for (i = 0; i < npages; i++, off += PAGE_SIZE) {
-			rnb[i].offset = off;
-			rnb[i].len = PAGE_SIZE;
-			rnb[i].flags = brw_flags;
-		}
-
-		ioo.ioo_bufcnt = npages;
-		oti->oti_transno = 0;
+		rnb.rnb_offset = off;
+		rnb.rnb_len = npages * PAGE_SIZE;
+		rnb.rnb_flags = brw_flags;
+		ioo.ioo_bufcnt = 1;
+		off += npages * PAGE_SIZE;
 
 		lpages = npages;
-		ret = obd_preprw(env, rw, exp, oa, 1, &ioo, rnb, &lpages,
-				 lnb, oti);
+		ret = obd_preprw(env, rw, exp, oa, 1, &ioo, &rnb, &lpages, lnb);
 		if (ret != 0)
 			goto out;
-		LASSERT(lpages == npages);
 
 		for (i = 0; i < lpages; i++) {
-			struct page *page = lnb[i].page;
+			struct page *page = lnb[i].lnb_page;
 
 			/* read past eof? */
-			if (!page  && lnb[i].rc == 0)
+			if (!page  && lnb[i].lnb_rc == 0)
 				continue;
 
 			if (async)
-				lnb[i].flags |= OBD_BRW_ASYNC;
+				lnb[i].lnb_flags |= OBD_BRW_ASYNC;
 
 			if (ostid_id(&oa->o_oi) == ECHO_PERSISTENT_OBJID ||
 			    (oa->o_valid & OBD_MD_FLFLAGS) == 0 ||
@@ -1468,23 +1381,20 @@ static int echo_client_prep_commit(const struct lu_env *env,
 
 			if (rw == OBD_BRW_WRITE)
 				echo_client_page_debug_setup(page, rw,
-							    ostid_id(&oa->o_oi),
-							     rnb[i].offset,
-							     rnb[i].len);
+							     ostid_id(&oa->o_oi),
+							     lnb[i].lnb_file_offset,
+							     lnb[i].lnb_len);
 			else
 				echo_client_page_debug_check(page,
-							    ostid_id(&oa->o_oi),
-							     rnb[i].offset,
-							     rnb[i].len);
+							     ostid_id(&oa->o_oi),
+							     lnb[i].lnb_file_offset,
+							     lnb[i].lnb_len);
 		}
 
-		ret = obd_commitrw(env, rw, exp, oa, 1, &ioo,
-				   rnb, npages, lnb, oti, ret);
+		ret = obd_commitrw(env, rw, exp, oa, 1, &ioo, &rnb, npages, lnb,
+				   ret);
 		if (ret != 0)
 			goto out;
-
-		/* Reset oti otherwise it would confuse ldiskfs. */
-		memset(oti, 0, sizeof(*oti));
 
 		/* Reuse env context. */
 		lu_context_exit((struct lu_context *)&env->le_ctx);
@@ -1493,14 +1403,12 @@ static int echo_client_prep_commit(const struct lu_env *env,
 
 out:
 	kfree(lnb);
-	kfree(rnb);
 	return ret;
 }
 
 static int echo_client_brw_ioctl(const struct lu_env *env, int rw,
 				 struct obd_export *exp,
-				 struct obd_ioctl_data *data,
-				 struct obd_trans_info *dummy_oti)
+				 struct obd_ioctl_data *data)
 {
 	struct obd_device *obd = class_exp2obd(exp);
 	struct echo_device *ed = obd2echo_dev(obd);
@@ -1537,15 +1445,13 @@ static int echo_client_brw_ioctl(const struct lu_env *env, int rw,
 	case 1:
 		/* fall through */
 	case 2:
-		rc = echo_client_kbrw(ed, rw, oa,
-				      eco, data->ioc_offset,
-				      data->ioc_count, async, dummy_oti);
+		rc = echo_client_kbrw(ed, rw, oa, eco, data->ioc_offset,
+				      data->ioc_count, async);
 		break;
 	case 3:
-		rc = echo_client_prep_commit(env, ec->ec_exp, rw, oa,
-					     eco, data->ioc_offset,
-					     data->ioc_count, data->ioc_plen1,
-					     dummy_oti, async);
+		rc = echo_client_prep_commit(env, ec->ec_exp, rw, oa, eco,
+					     data->ioc_offset, data->ioc_count,
+					     data->ioc_plen1, async);
 		break;
 	default:
 		rc = -EINVAL;
@@ -1563,16 +1469,11 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 	struct echo_client_obd *ec = ed->ed_ec;
 	struct echo_object     *eco;
 	struct obd_ioctl_data  *data = karg;
-	struct obd_trans_info   dummy_oti;
 	struct lu_env	  *env;
-	struct oti_req_ack_lock *ack_lock;
 	struct obdo	    *oa;
 	struct lu_fid	   fid;
 	int		     rw = OBD_BRW_READ;
 	int		     rc = 0;
-	int		     i;
-
-	memset(&dummy_oti, 0, sizeof(dummy_oti));
 
 	oa = &data->ioc_obdo1;
 	if (!(oa->o_valid & OBD_MD_FLGROUP)) {
@@ -1602,7 +1503,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			goto out;
 		}
 
-		rc = echo_create_object(env, ed, oa, &dummy_oti);
+		rc = echo_create_object(env, ed, oa);
 		goto out;
 
 	case OBD_IOC_DESTROY:
@@ -1613,8 +1514,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		rc = echo_get_object(&eco, ed, oa);
 		if (rc == 0) {
-			rc = obd_destroy(env, ec->ec_exp, oa, NULL,
-					 &dummy_oti, NULL);
+			rc = obd_destroy(env, ec->ec_exp, oa);
 			if (rc == 0)
 				eco->eo_deleted = 1;
 			echo_put_object(eco);
@@ -1624,11 +1524,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 	case OBD_IOC_GETATTR:
 		rc = echo_get_object(&eco, ed, oa);
 		if (rc == 0) {
-			struct obd_info oinfo = {
-				.oi_oa = oa,
-			};
-
-			rc = obd_getattr(env, ec->ec_exp, &oinfo);
+			rc = obd_getattr(env, ec->ec_exp, oa);
 			echo_put_object(eco);
 		}
 		goto out;
@@ -1641,11 +1537,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		rc = echo_get_object(&eco, ed, oa);
 		if (rc == 0) {
-			struct obd_info oinfo = {
-				.oi_oa = oa,
-			};
-
-			rc = obd_setattr(env, ec->ec_exp, &oinfo, NULL);
+			rc = obd_setattr(env, ec->ec_exp, oa);
 			echo_put_object(eco);
 		}
 		goto out;
@@ -1659,7 +1551,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		rw = OBD_BRW_WRITE;
 		/* fall through */
 	case OBD_IOC_BRW_READ:
-		rc = echo_client_brw_ioctl(env, rw, exp, data, &dummy_oti);
+		rc = echo_client_brw_ioctl(env, rw, exp, data);
 		goto out;
 
 	default:
@@ -1671,14 +1563,6 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 out:
 	lu_env_fini(env);
 	kfree(env);
-
-	/* XXX this should be in a helper also called by target_send_reply */
-	for (ack_lock = dummy_oti.oti_ack_locks, i = 0; i < 4;
-	     i++, ack_lock++) {
-		if (!ack_lock->mode)
-			break;
-		ldlm_lock_decref(&ack_lock->lock, ack_lock->mode);
-	}
 
 	return rc;
 }

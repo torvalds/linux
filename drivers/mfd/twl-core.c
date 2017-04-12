@@ -30,7 +30,6 @@
 
 #include <linux/init.h>
 #include <linux/mutex.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
@@ -1258,7 +1257,6 @@ static const struct i2c_device_id twl_ids[] = {
 	{ "twl6032", TWL6030_CLASS | TWL6032_SUBCLASS }, /* "Phoenix lite" */
 	{ /* end of list */ },
 };
-MODULE_DEVICE_TABLE(i2c, twl_ids);
 
 /* One Client Driver , 4 Clients */
 static struct i2c_driver twl_driver = {
@@ -1267,9 +1265,4 @@ static struct i2c_driver twl_driver = {
 	.probe		= twl_probe,
 	.remove		= twl_remove,
 };
-
-module_i2c_driver(twl_driver);
-
-MODULE_AUTHOR("Texas Instruments, Inc.");
-MODULE_DESCRIPTION("I2C Core interface for TWL");
-MODULE_LICENSE("GPL");
+builtin_i2c_driver(twl_driver);

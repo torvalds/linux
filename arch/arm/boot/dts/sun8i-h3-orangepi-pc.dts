@@ -90,6 +90,14 @@
 	};
 };
 
+&codec {
+	allwinner,audio-routing =
+		"Line Out", "LINEOUT",
+		"MIC1", "Mic",
+		"Mic",  "MBIAS";
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -132,26 +140,20 @@
 
 &pio {
 	leds_opc: led_pins@0 {
-		allwinner,pins = "PA15";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PA15";
+		function = "gpio_out";
 	};
 };
 
 &r_pio {
 	leds_r_opc: led_pins@0 {
-		allwinner,pins = "PL10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL10";
+		function = "gpio_out";
 	};
 
 	sw_r_opc: key_pins@0 {
-		allwinner,pins = "PL3";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL3";
+		function = "gpio_in";
 	};
 };
 
@@ -159,6 +161,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+	status = "disabled";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	status = "disabled";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+	status = "disabled";
 };
 
 &usbphy {

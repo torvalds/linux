@@ -152,11 +152,12 @@
 #define PPC_INST_LWSYNC			0x7c2004ac
 #define PPC_INST_SYNC			0x7c0004ac
 #define PPC_INST_SYNC_MASK		0xfc0007fe
+#define PPC_INST_ISYNC			0x4c00012c
 #define PPC_INST_LXVD2X			0x7c000698
 #define PPC_INST_MCRXR			0x7c000400
 #define PPC_INST_MCRXR_MASK		0xfc0007fe
 #define PPC_INST_MFSPR_PVR		0x7c1f42a6
-#define PPC_INST_MFSPR_PVR_MASK		0xfc1fffff
+#define PPC_INST_MFSPR_PVR_MASK		0xfc1ffffe
 #define PPC_INST_MFTMR			0x7c0002dc
 #define PPC_INST_MSGSND			0x7c00019c
 #define PPC_INST_MSGCLR			0x7c0001dc
@@ -173,13 +174,13 @@
 #define PPC_INST_RFDI			0x4c00004e
 #define PPC_INST_RFMCI			0x4c00004c
 #define PPC_INST_MFSPR_DSCR		0x7c1102a6
-#define PPC_INST_MFSPR_DSCR_MASK	0xfc1fffff
+#define PPC_INST_MFSPR_DSCR_MASK	0xfc1ffffe
 #define PPC_INST_MTSPR_DSCR		0x7c1103a6
-#define PPC_INST_MTSPR_DSCR_MASK	0xfc1fffff
+#define PPC_INST_MTSPR_DSCR_MASK	0xfc1ffffe
 #define PPC_INST_MFSPR_DSCR_USER	0x7c0302a6
-#define PPC_INST_MFSPR_DSCR_USER_MASK	0xfc1fffff
+#define PPC_INST_MFSPR_DSCR_USER_MASK	0xfc1ffffe
 #define PPC_INST_MTSPR_DSCR_USER	0x7c0303a6
-#define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1fffff
+#define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1ffffe
 #define PPC_INST_MFVSRD			0x7c000066
 #define PPC_INST_MTVSRD			0x7c000166
 #define PPC_INST_SLBFEE			0x7c0007a7
@@ -236,6 +237,7 @@
 #define PPC_INST_STWU			0x94000000
 #define PPC_INST_MFLR			0x7c0802a6
 #define PPC_INST_MTLR			0x7c0803a6
+#define PPC_INST_MTCTR			0x7c0903a6
 #define PPC_INST_CMPWI			0x2c000000
 #define PPC_INST_CMPDI			0x2c200000
 #define PPC_INST_CMPW			0x7c000000
@@ -250,6 +252,7 @@
 #define PPC_INST_SUB			0x7c000050
 #define PPC_INST_BLR			0x4e800020
 #define PPC_INST_BLRL			0x4e800021
+#define PPC_INST_BCTR			0x4e800420
 #define PPC_INST_MULLD			0x7c0001d2
 #define PPC_INST_MULLW			0x7c0001d6
 #define PPC_INST_MULHWU			0x7c000016
@@ -281,6 +284,13 @@
 #define PPC_INST_BRANCH_COND		0x40800000
 #define PPC_INST_LBZCIX			0x7c0006aa
 #define PPC_INST_STBCIX			0x7c0007aa
+#define PPC_INST_LWZX			0x7c00002e
+#define PPC_INST_LFSX			0x7c00042e
+#define PPC_INST_STFSX			0x7c00052e
+#define PPC_INST_LFDX			0x7c0004ae
+#define PPC_INST_STFDX			0x7c0005ae
+#define PPC_INST_LVX			0x7c0000ce
+#define PPC_INST_STVX			0x7c0001ce
 
 /* macros to insert fields into opcodes */
 #define ___PPC_RA(a)	(((a) & 0x1f) << 16)
@@ -303,6 +313,7 @@
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
 #define __PPC_WS(w)	(((w) & 0x1f) << 11)
 #define __PPC_SH(s)	__PPC_WS(s)
+#define __PPC_SH64(s)	(__PPC_SH(s) | (((s) & 0x20) >> 4))
 #define __PPC_MB(s)	(((s) & 0x1f) << 6)
 #define __PPC_ME(s)	(((s) & 0x1f) << 1)
 #define __PPC_MB64(s)	(__PPC_MB(s) | ((s) & 0x20))
@@ -457,5 +468,6 @@
 
 #define PPC_SLBIA(IH)	stringify_in_c(.long PPC_INST_SLBIA | \
 				       ((IH & 0x7) << 21))
+#define PPC_INVALIDATE_ERAT	PPC_SLBIA(7)
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

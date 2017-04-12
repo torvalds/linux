@@ -574,7 +574,7 @@ void ubi_free_internal_volumes(struct ubi_device *ubi)
 
 	for (i = ubi->vtbl_slots;
 	     i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
-		kfree(ubi->volumes[i]->eba_tbl);
+		ubi_eba_replace_table(ubi->volumes[i], NULL);
 		kfree(ubi->volumes[i]);
 	}
 }
@@ -1159,7 +1159,7 @@ static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 	if (err)
 		return ERR_PTR(err);
 
-	err = vfs_getattr(&path, &stat);
+	err = vfs_getattr(&path, &stat, STATX_TYPE, AT_STATX_SYNC_AS_STAT);
 	path_put(&path);
 	if (err)
 		return ERR_PTR(err);

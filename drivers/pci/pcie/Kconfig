@@ -71,6 +71,14 @@ config PCIEASPM_POWERSAVE
 	  Enable PCI Express ASPM L0s and L1 where possible, even if the
 	  BIOS did not.
 
+config PCIEASPM_POWER_SUPERSAVE
+	bool "Power Supersave"
+	depends on PCIEASPM
+	help
+	  Same as PCIEASPM_POWERSAVE, except it also enables L1 substates where
+	  possible. This would result in higher power savings while staying in L1
+	  where the components support it.
+
 config PCIEASPM_PERFORMANCE
 	bool "Performance"
 	depends on PCIEASPM
@@ -92,3 +100,14 @@ config PCIE_DPC
 	  will be handled by the DPC driver.  If your system doesn't
 	  have this capability or you do not want to use this feature,
 	  it is safe to answer N.
+
+config PCIE_PTM
+	bool "PCIe Precision Time Measurement support"
+	default n
+	depends on PCIEPORTBUS
+	help
+	  This enables PCI Express Precision Time Measurement (PTM)
+	  support.
+
+	  This is only useful if you have devices that support PTM, but it
+	  is safe to enable even if you don't.

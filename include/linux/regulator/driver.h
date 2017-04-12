@@ -100,6 +100,7 @@ struct regulator_linear_range {
  *
  * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
+ * @get_error_flags: Get the current error(s) for the regulator.
  * @get_status: Return actual (not as-configured) status of regulator, as a
  *	REGULATOR_STATUS value (or negative errno)
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
@@ -113,10 +114,14 @@ struct regulator_linear_range {
  *               stabilise after being enabled, in microseconds.
  * @set_ramp_delay: Set the ramp delay for the regulator. The driver should
  *		select ramp delay equal to or less than(closest) ramp_delay.
+ * @set_voltage_time: Time taken for the regulator voltage output voltage
+ *               to stabilise after being set to a new value, in microseconds.
+ *               The function receives the from and to voltage as input, it
+ *               should return the worst case.
  * @set_voltage_time_sel: Time taken for the regulator voltage output voltage
  *               to stabilise after being set to a new value, in microseconds.
- *               The function provides the from and to voltage selector, the
- *               function should return the worst case.
+ *               The function receives the from and to voltage selector as
+ *               input, it should return the worst case.
  * @set_soft_start: Enable soft start for the regulator.
  *
  * @set_suspend_voltage: Set the voltage for the regulator when the system
@@ -165,9 +170,14 @@ struct regulator_ops {
 	int (*set_mode) (struct regulator_dev *, unsigned int mode);
 	unsigned int (*get_mode) (struct regulator_dev *);
 
+	/* retrieve current error flags on the regulator */
+	int (*get_error_flags)(struct regulator_dev *, unsigned int *flags);
+
 	/* Time taken to enable or set voltage on the regulator */
 	int (*enable_time) (struct regulator_dev *);
 	int (*set_ramp_delay) (struct regulator_dev *, int ramp_delay);
+	int (*set_voltage_time) (struct regulator_dev *, int old_uV,
+				 int new_uV);
 	int (*set_voltage_time_sel) (struct regulator_dev *,
 				     unsigned int old_selector,
 				     unsigned int new_selector);

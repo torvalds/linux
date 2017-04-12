@@ -62,7 +62,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	baud = uart_get_baud_rate(port, termios, old,
 				  port->uartclk / 16 / 0xffff,
-				  port->uartclk / 16);
+				  port->uartclk);
 
 	if (baud <= 115200) {
 		serial_port_out(port, UART_MTK_HIGHS, 0x0);
@@ -76,10 +76,6 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		quot = DIV_ROUND_UP(port->uartclk, 4 * baud);
 	} else {
 		serial_port_out(port, UART_MTK_HIGHS, 0x3);
-
-		/* Set to highest baudrate supported */
-		if (baud >= 1152000)
-			baud = 921600;
 		quot = DIV_ROUND_UP(port->uartclk, 256 * baud);
 	}
 

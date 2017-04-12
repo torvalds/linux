@@ -329,33 +329,31 @@ static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 	return amdtp_stream_pcm_pointer(&dg00x->rx_stream);
 }
 
-static struct snd_pcm_ops pcm_capture_ops = {
-	.open		= pcm_open,
-	.close		= pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= pcm_capture_hw_params,
-	.hw_free	= pcm_capture_hw_free,
-	.prepare	= pcm_capture_prepare,
-	.trigger	= pcm_capture_trigger,
-	.pointer	= pcm_capture_pointer,
-	.page		= snd_pcm_lib_get_vmalloc_page,
-};
-
-static struct snd_pcm_ops pcm_playback_ops = {
-	.open		= pcm_open,
-	.close		= pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= pcm_playback_hw_params,
-	.hw_free	= pcm_playback_hw_free,
-	.prepare	= pcm_playback_prepare,
-	.trigger	= pcm_playback_trigger,
-	.pointer	= pcm_playback_pointer,
-	.page		= snd_pcm_lib_get_vmalloc_page,
-	.mmap		= snd_pcm_lib_mmap_vmalloc,
-};
-
 int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x)
 {
+	static const struct snd_pcm_ops capture_ops = {
+		.open		= pcm_open,
+		.close		= pcm_close,
+		.ioctl		= snd_pcm_lib_ioctl,
+		.hw_params	= pcm_capture_hw_params,
+		.hw_free	= pcm_capture_hw_free,
+		.prepare	= pcm_capture_prepare,
+		.trigger	= pcm_capture_trigger,
+		.pointer	= pcm_capture_pointer,
+		.page		= snd_pcm_lib_get_vmalloc_page,
+	};
+	static const struct snd_pcm_ops playback_ops = {
+		.open		= pcm_open,
+		.close		= pcm_close,
+		.ioctl		= snd_pcm_lib_ioctl,
+		.hw_params	= pcm_playback_hw_params,
+		.hw_free	= pcm_playback_hw_free,
+		.prepare	= pcm_playback_prepare,
+		.trigger	= pcm_playback_trigger,
+		.pointer	= pcm_playback_pointer,
+		.page		= snd_pcm_lib_get_vmalloc_page,
+		.mmap		= snd_pcm_lib_mmap_vmalloc,
+	};
 	struct snd_pcm *pcm;
 	int err;
 
@@ -366,8 +364,8 @@ int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x)
 	pcm->private_data = dg00x;
 	snprintf(pcm->name, sizeof(pcm->name),
 		 "%s PCM", dg00x->card->shortname);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &pcm_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pcm_capture_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_ops);
 
 	return 0;
 }

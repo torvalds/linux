@@ -22,9 +22,8 @@ void __nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns)
 {
 	struct nd_namespace_common *ndns = *_ndns;
 
-	dev_WARN_ONCE(dev, !mutex_is_locked(&ndns->dev.mutex)
-			|| ndns->claim != dev,
-			"%s: invalid claim\n", __func__);
+	lockdep_assert_held(&ndns->dev.mutex);
+	dev_WARN_ONCE(dev, ndns->claim != dev, "%s: invalid claim\n", __func__);
 	ndns->claim = NULL;
 	*_ndns = NULL;
 	put_device(&ndns->dev);
@@ -49,9 +48,8 @@ bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 {
 	if (attach->claim)
 		return false;
-	dev_WARN_ONCE(dev, !mutex_is_locked(&attach->dev.mutex)
-			|| *_ndns,
-			"%s: invalid claim\n", __func__);
+	lockdep_assert_held(&attach->dev.mutex);
+	dev_WARN_ONCE(dev, *_ndns, "%s: invalid claim\n", __func__);
 	attach->claim = dev;
 	*_ndns = attach;
 	get_device(&attach->dev);
@@ -226,6 +224,12 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 		resource_size_t offset, void *buf, size_t size, int rw)
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
+	sector_t sector = offset >> 9;
+	int rc = 0;
+
+	if (unlikely(!size))
+		return 0;
 
 	if (unlikely(offset + size > nsio->size)) {
 		dev_WARN_ONCE(&ndns->dev, 1, "request out of range\n");
@@ -233,17 +237,31 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 	}
 
 	if (rw == READ) {
-		unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
-
-		if (unlikely(is_bad_pmem(&nsio->bb, offset / 512, sz_align)))
+		if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align)))
 			return -EIO;
 		return memcpy_from_pmem(buf, nsio->addr + offset, size);
-	} else {
-		memcpy_to_pmem(nsio->addr + offset, buf, size);
-		nvdimm_flush(to_nd_region(ndns->dev.parent));
 	}
 
-	return 0;
+	if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align))) {
+		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)) {
+			long cleared;
+
+			cleared = nvdimm_clear_poison(&ndns->dev, offset, size);
+			if (cleared < size)
+				rc = -EIO;
+			if (cleared > 0 && cleared / 512) {
+				cleared /= 512;
+				badblocks_clear(&nsio->bb, sector, cleared);
+			}
+			invalidate_pmem(nsio->addr + offset, size);
+		} else
+			rc = -EIO;
+	}
+
+	memcpy_to_pmem(nsio->addr + offset, buf, size);
+	nvdimm_flush(to_nd_region(ndns->dev.parent));
+
+	return rc;
 }
 
 int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
@@ -253,7 +271,7 @@ int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
 
 	nsio->size = resource_size(res);
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
-				dev_name(dev))) {
+				dev_name(&ndns->dev))) {
 		dev_warn(dev, "could not reserve region %pR\n", res);
 		return -EBUSY;
 	}

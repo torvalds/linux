@@ -19,7 +19,7 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int iterate_dir(struct file *file, struct dir_context *ctx)
 {

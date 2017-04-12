@@ -1,5 +1,8 @@
 /*
  * message.c - synchronous message handling
+ *
+ * Released under the GPLv2 only.
+ * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/pci.h>	/* for scatterlist macros */
@@ -119,12 +122,11 @@ static int usb_internal_control_msg(struct usb_device *usb_dev,
  * This function sends a simple control message to a specified endpoint and
  * waits for the message to complete, or timeout.
  *
- * Don't use this function from within an interrupt context, like a bottom half
- * handler.  If you need an asynchronous message, or need to send a message
- * from within interrupt context, use usb_submit_urb().
- * If a thread in your driver uses this call, make sure your disconnect()
- * method can wait for it to complete.  Since you don't have a handle on the
- * URB used, you can't cancel the request.
+ * Don't use this function from within an interrupt context. If you need
+ * an asynchronous message, or need to send a message from within interrupt
+ * context, use usb_submit_urb(). If a thread in your driver uses this call,
+ * make sure your disconnect() method can wait for it to complete. Since you
+ * don't have a handle on the URB used, you can't cancel the request.
  *
  * Return: If successful, the number of bytes transferred. Otherwise, a negative
  * error number.
@@ -170,12 +172,11 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  * This function sends a simple interrupt message to a specified endpoint and
  * waits for the message to complete, or timeout.
  *
- * Don't use this function from within an interrupt context, like a bottom half
- * handler.  If you need an asynchronous message, or need to send a message
- * from within interrupt context, use usb_submit_urb() If a thread in your
- * driver uses this call, make sure your disconnect() method can wait for it to
- * complete.  Since you don't have a handle on the URB used, you can't cancel
- * the request.
+ * Don't use this function from within an interrupt context. If you need
+ * an asynchronous message, or need to send a message from within interrupt
+ * context, use usb_submit_urb() If a thread in your driver uses this call,
+ * make sure your disconnect() method can wait for it to complete. Since you
+ * don't have a handle on the URB used, you can't cancel the request.
  *
  * Return:
  * If successful, 0. Otherwise a negative error number. The number of actual
@@ -204,12 +205,11 @@ EXPORT_SYMBOL_GPL(usb_interrupt_msg);
  * This function sends a simple bulk message to a specified endpoint
  * and waits for the message to complete, or timeout.
  *
- * Don't use this function from within an interrupt context, like a bottom half
- * handler.  If you need an asynchronous message, or need to send a message
- * from within interrupt context, use usb_submit_urb() If a thread in your
- * driver uses this call, make sure your disconnect() method can wait for it to
- * complete.  Since you don't have a handle on the URB used, you can't cancel
- * the request.
+ * Don't use this function from within an interrupt context. If you need
+ * an asynchronous message, or need to send a message from within interrupt
+ * context, use usb_submit_urb() If a thread in your driver uses this call,
+ * make sure your disconnect() method can wait for it to complete. Since you
+ * don't have a handle on the URB used, you can't cancel the request.
  *
  * Because there is no usb_interrupt_msg() and no USBDEVFS_INTERRUPT ioctl,
  * users are forced to abuse this routine by using it to submit URBs for
@@ -1760,17 +1760,14 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 		nintf = cp->desc.bNumInterfaces;
 		new_interfaces = kmalloc(nintf * sizeof(*new_interfaces),
 				GFP_NOIO);
-		if (!new_interfaces) {
-			dev_err(&dev->dev, "Out of memory\n");
+		if (!new_interfaces)
 			return -ENOMEM;
-		}
 
 		for (; n < nintf; ++n) {
 			new_interfaces[n] = kzalloc(
 					sizeof(struct usb_interface),
 					GFP_NOIO);
 			if (!new_interfaces[n]) {
-				dev_err(&dev->dev, "Out of memory\n");
 				ret = -ENOMEM;
 free_interfaces:
 				while (--n >= 0)
@@ -1862,7 +1859,12 @@ free_interfaces:
 		intf->dev.bus = &usb_bus_type;
 		intf->dev.type = &usb_if_device_type;
 		intf->dev.groups = usb_interface_groups;
+		/*
+		 * Please refer to usb_alloc_dev() to see why we set
+		 * dma_mask and dma_pfn_offset.
+		 */
 		intf->dev.dma_mask = dev->dev.dma_mask;
+		intf->dev.dma_pfn_offset = dev->dev.dma_pfn_offset;
 		INIT_WORK(&intf->reset_ws, __usb_queue_reset_device);
 		intf->minor = -1;
 		device_initialize(&intf->dev);

@@ -181,7 +181,7 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 	if (!skb)
 		return -ENOMEM;
 
-	if (copy_from_iter(skb_put(skb, len), len, from) != len) {
+	if (!copy_from_iter_full(skb_put(skb, len), len, from)) {
 		kfree_skb(skb);
 		return -EFAULT;
 	}
@@ -377,21 +377,7 @@ static struct miscdevice vhci_miscdev = {
 	.fops	= &vhci_fops,
 	.minor	= VHCI_MINOR,
 };
-
-static int __init vhci_init(void)
-{
-	BT_INFO("Virtual HCI driver ver %s", VERSION);
-
-	return misc_register(&vhci_miscdev);
-}
-
-static void __exit vhci_exit(void)
-{
-	misc_deregister(&vhci_miscdev);
-}
-
-module_init(vhci_init);
-module_exit(vhci_exit);
+module_misc_device(vhci_miscdev);
 
 module_param(amp, bool, 0644);
 MODULE_PARM_DESC(amp, "Create AMP controller device");

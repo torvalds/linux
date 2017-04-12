@@ -43,13 +43,11 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lustre_lite.h"
 #include "llite_internal.h"
-#include "../include/linux/lustre_compat25.h"
 
 static const struct vm_operations_struct ll_file_vm_ops;
 
-void policy_from_vma(ldlm_policy_data_t *policy,
+void policy_from_vma(union ldlm_policy_data *policy,
 		     struct vm_area_struct *vma, unsigned long addr,
 		     size_t count)
 {
@@ -82,42 +80,23 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
  * API independent part for page fault initialization.
  * \param vma - virtual memory area addressed to page fault
  * \param env - corespondent lu_env to processing
- * \param nest - nested level
  * \param index - page index corespondent to fault.
  * \parm ra_flags - vma readahead flags.
  *
- * \return allocated and initialized env for fault operation.
- * \retval EINVAL if env can't allocated
- * \return other error codes from cl_io_init.
+ * \return error codes from cl_io_init.
  */
 static struct cl_io *
-ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
-		 struct cl_env_nest *nest, pgoff_t index,
-		 unsigned long *ra_flags)
+ll_fault_io_init(struct lu_env *env, struct vm_area_struct *vma,
+		 pgoff_t index, unsigned long *ra_flags)
 {
 	struct file	       *file = vma->vm_file;
 	struct inode	       *inode = file_inode(file);
 	struct cl_io	       *io;
 	struct cl_fault_io     *fio;
-	struct lu_env	       *env;
 	int			rc;
 
-	*env_ret = NULL;
 	if (ll_file_nolock(file))
 		return ERR_PTR(-EOPNOTSUPP);
-
-	/*
-	 * page fault can be called when lustre IO is
-	 * already active for the current thread, e.g., when doing read/write
-	 * against user level buffer mapped from Lustre buffer. To avoid
-	 * stomping on existing context, optionally force an allocation of a new
-	 * one.
-	 */
-	env = cl_env_nested_get(nest);
-	if (IS_ERR(env))
-		return ERR_PTR(-EINVAL);
-
-	*env_ret = env;
 
 restart:
 	io = vvp_env_thread_io(env);
@@ -126,7 +105,7 @@ restart:
 
 	fio = &io->u.ci_fault;
 	fio->ft_index      = index;
-	fio->ft_executable = vma->vm_flags&VM_EXEC;
+	fio->ft_executable = vma->vm_flags & VM_EXEC;
 
 	/*
 	 * disable VM_SEQ_READ and use VM_RAND_READ to make sure that
@@ -134,7 +113,7 @@ restart:
 	 * filemap_nopage. we do our readahead in ll_readpage.
 	 */
 	if (ra_flags)
-		*ra_flags = vma->vm_flags & (VM_RAND_READ|VM_SEQ_READ);
+		*ra_flags = vma->vm_flags & (VM_RAND_READ | VM_SEQ_READ);
 	vma->vm_flags &= ~VM_SEQ_READ;
 	vma->vm_flags |= VM_RAND_READ;
 
@@ -157,7 +136,6 @@ restart:
 		if (io->ci_need_restart)
 			goto restart;
 
-		cl_env_nested_put(nest, env);
 		io = ERR_PTR(rc);
 	}
 
@@ -171,13 +149,17 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	struct lu_env	   *env;
 	struct cl_io	    *io;
 	struct vvp_io	   *vio;
-	struct cl_env_nest       nest;
 	int		      result;
+	int refcheck;
 	sigset_t	     set;
 	struct inode	     *inode;
 	struct ll_inode_info     *lli;
 
-	io = ll_fault_io_init(vma, &env,  &nest, vmpage->index, NULL);
+	env = cl_env_get(&refcheck);
+	if (IS_ERR(env))
+		return PTR_ERR(env);
+
+	io = ll_fault_io_init(env, vma, vmpage->index, NULL);
 	if (IS_ERR(io)) {
 		result = PTR_ERR(io);
 		goto out;
@@ -233,17 +215,14 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 			result = -EAGAIN;
 		}
 
-		if (result == 0) {
-			spin_lock(&lli->lli_lock);
-			lli->lli_flags |= LLIF_DATA_MODIFIED;
-			spin_unlock(&lli->lli_lock);
-		}
+		if (!result)
+			set_bit(LLIF_DATA_MODIFIED, &lli->lli_flags);
 	}
 
 out_io:
 	cl_io_fini(env, io);
-	cl_env_nested_put(&nest, env);
 out:
+	cl_env_put(env, &refcheck);
 	CDEBUG(D_MMAP, "%s mkwrite with %d\n", current->comm, result);
 	LASSERT(ergo(result == 0, PageLocked(vmpage)));
 
@@ -287,13 +266,19 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct vvp_io	   *vio = NULL;
 	struct page	     *vmpage;
 	unsigned long	    ra_flags;
-	struct cl_env_nest       nest;
-	int		      result;
+	int		      result = 0;
 	int		      fault_ret = 0;
+	int refcheck;
 
-	io = ll_fault_io_init(vma, &env,  &nest, vmf->pgoff, &ra_flags);
-	if (IS_ERR(io))
-		return to_fault_error(PTR_ERR(io));
+	env = cl_env_get(&refcheck);
+	if (IS_ERR(env))
+		return PTR_ERR(env);
+
+	io = ll_fault_io_init(env, vma, vmf->pgoff, &ra_flags);
+	if (IS_ERR(io)) {
+		result = to_fault_error(PTR_ERR(io));
+		goto out;
+	}
 
 	result = io->ci_result;
 	if (result == 0) {
@@ -324,18 +309,19 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 		}
 	}
 	cl_io_fini(env, io);
-	cl_env_nested_put(&nest, env);
 
 	vma->vm_flags |= ra_flags;
+
+out:
+	cl_env_put(env, &refcheck);
 	if (result != 0 && !(fault_ret & VM_FAULT_RETRY))
 		fault_ret |= to_fault_error(result);
 
-	CDEBUG(D_MMAP, "%s fault %d/%d\n",
-	       current->comm, fault_ret, result);
+	CDEBUG(D_MMAP, "%s fault %d/%d\n", current->comm, fault_ret, result);
 	return fault_ret;
 }
 
-static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ll_fault(struct vm_fault *vmf)
 {
 	int count = 0;
 	bool printed = false;
@@ -349,7 +335,7 @@ static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	set = cfs_block_sigsinv(sigmask(SIGKILL) | sigmask(SIGTERM));
 
 restart:
-	result = ll_fault0(vma, vmf);
+	result = ll_fault0(vmf->vma, vmf);
 	LASSERT(!(result & VM_FAULT_LOCKED));
 	if (result == 0) {
 		struct page *vmpage = vmf->page;
@@ -376,13 +362,15 @@ restart:
 	return result;
 }
 
-static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ll_page_mkwrite(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	int count = 0;
 	bool printed = false;
 	bool retry;
 	int result;
 
+	file_update_time(vma->vm_file);
 	do {
 		retry = false;
 		result = ll_page_mkwrite0(vma, vmf->page, &retry);
@@ -403,14 +391,12 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		result = VM_FAULT_LOCKED;
 		break;
 	case -ENODATA:
+	case -EAGAIN:
 	case -EFAULT:
 		result = VM_FAULT_NOPAGE;
 		break;
 	case -ENOMEM:
 		result = VM_FAULT_OOM;
-		break;
-	case -EAGAIN:
-		result = VM_FAULT_RETRY;
 		break;
 	default:
 		result = VM_FAULT_SIGBUS;
@@ -429,7 +415,6 @@ static void ll_vm_open(struct vm_area_struct *vma)
 	struct inode *inode    = file_inode(vma->vm_file);
 	struct vvp_object *vob = cl_inode2vvp(inode);
 
-	LASSERT(vma->vm_file);
 	LASSERT(atomic_read(&vob->vob_mmap_cnt) >= 0);
 	atomic_inc(&vob->vob_mmap_cnt);
 }
@@ -442,7 +427,6 @@ static void ll_vm_close(struct vm_area_struct *vma)
 	struct inode      *inode = file_inode(vma->vm_file);
 	struct vvp_object *vob   = cl_inode2vvp(inode);
 
-	LASSERT(vma->vm_file);
 	atomic_dec(&vob->vob_mmap_cnt);
 	LASSERT(atomic_read(&vob->vob_mmap_cnt) >= 0);
 }

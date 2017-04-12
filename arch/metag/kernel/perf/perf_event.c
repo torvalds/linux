@@ -868,7 +868,7 @@ static int __init init_hw_perf_events(void)
 	metag_out32(0, PERF_COUNT(1));
 
 	cpuhp_setup_state(CPUHP_AP_PERF_METAG_STARTING,
-			  "AP_PERF_METAG_STARTING", metag_pmu_starting_cpu,
+			  "perf/metag:starting", metag_pmu_starting_cpu,
 			  NULL);
 
 	ret = perf_pmu_register(&pmu, metag_pmu->name, PERF_TYPE_RAW);

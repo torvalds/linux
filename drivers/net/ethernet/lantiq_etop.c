@@ -156,24 +156,21 @@ ltq_etop_poll_rx(struct napi_struct *napi, int budget)
 {
 	struct ltq_etop_chan *ch = container_of(napi,
 				struct ltq_etop_chan, napi);
-	int rx = 0;
-	int complete = 0;
+	int work_done = 0;
 
-	while ((rx < budget) && !complete) {
+	while (work_done < budget) {
 		struct ltq_dma_desc *desc = &ch->dma.desc_base[ch->dma.desc];
 
-		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) == LTQ_DMA_C) {
-			ltq_etop_hw_receive(ch);
-			rx++;
-		} else {
-			complete = 1;
-		}
+		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) != LTQ_DMA_C)
+			break;
+		ltq_etop_hw_receive(ch);
+		work_done++;
 	}
-	if (complete || !rx) {
-		napi_complete(&ch->napi);
+	if (work_done < budget) {
+		napi_complete_done(&ch->napi, work_done);
 		ltq_dma_ack_irq(&ch->dma);
 	}
-	return rx;
+	return work_done;
 }
 
 static int
@@ -303,15 +300,9 @@ ltq_etop_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
-static int
-ltq_etop_nway_reset(struct net_device *dev)
-{
-	return phy_start_aneg(dev->phydev);
-}
-
 static const struct ethtool_ops ltq_etop_ethtool_ops = {
 	.get_drvinfo = ltq_etop_get_drvinfo,
-	.nway_reset = ltq_etop_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
@@ -519,18 +510,16 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 static int
 ltq_etop_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int ret = eth_change_mtu(dev, new_mtu);
+	struct ltq_etop_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
-	if (!ret) {
-		struct ltq_etop_priv *priv = netdev_priv(dev);
-		unsigned long flags;
+	dev->mtu = new_mtu;
 
-		spin_lock_irqsave(&priv->lock, flags);
-		ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu,
-			LTQ_ETOP_IGPLEN);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
-	return ret;
+	spin_lock_irqsave(&priv->lock, flags);
+	ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu, LTQ_ETOP_IGPLEN);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int
@@ -704,6 +693,7 @@ ltq_etop_probe(struct platform_device *pdev)
 	priv->pldata = dev_get_platdata(&pdev->dev);
 	priv->netdev = dev;
 	spin_lock_init(&priv->lock);
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		if (IS_TX(i))

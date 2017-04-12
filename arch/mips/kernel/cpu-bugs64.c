@@ -148,11 +148,11 @@ static inline void check_mult_sh(void)
 			bug = 1;
 
 	if (bug == 0) {
-		printk("no.\n");
+		pr_cont("no.\n");
 		return;
 	}
 
-	printk("yes, workaround... ");
+	pr_cont("yes, workaround... ");
 
 	fix = 1;
 	for (i = 0; i < 8; i++)
@@ -160,11 +160,11 @@ static inline void check_mult_sh(void)
 			fix = 0;
 
 	if (fix == 1) {
-		printk("yes.\n");
+		pr_cont("yes.\n");
 		return;
 	}
 
-	printk("no.\n");
+	pr_cont("no.\n");
 	panic(bug64hit, !R4000_WAR ? r4kwar : nowar);
 }
 
@@ -218,11 +218,11 @@ static inline void check_daddi(void)
 	local_irq_restore(flags);
 
 	if (daddi_ov) {
-		printk("no.\n");
+		pr_cont("no.\n");
 		return;
 	}
 
-	printk("yes, workaround... ");
+	pr_cont("yes, workaround... ");
 
 	local_irq_save(flags);
 	handler = set_except_vector(EXCCODE_OV, handle_daddi_ov);
@@ -236,11 +236,11 @@ static inline void check_daddi(void)
 	local_irq_restore(flags);
 
 	if (daddi_ov) {
-		printk("yes.\n");
+		pr_cont("yes.\n");
 		return;
 	}
 
-	printk("no.\n");
+	pr_cont("no.\n");
 	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 
@@ -288,11 +288,11 @@ static inline void check_daddiu(void)
 	daddiu_bug = v != w;
 
 	if (!daddiu_bug) {
-		printk("no.\n");
+		pr_cont("no.\n");
 		return;
 	}
 
-	printk("yes, workaround... ");
+	pr_cont("yes, workaround... ");
 
 	asm volatile(
 		"addiu	%2, $0, %3\n\t"
@@ -304,11 +304,11 @@ static inline void check_daddiu(void)
 		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 
 	if (v == w) {
-		printk("yes.\n");
+		pr_cont("yes.\n");
 		return;
 	}
 
-	printk("no.\n");
+	pr_cont("no.\n");
 	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 

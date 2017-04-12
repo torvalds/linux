@@ -430,4 +430,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_copy_file_range
 	PTR	compat_sys_preadv2		/* 6325 */
 	PTR	compat_sys_pwritev2
+	PTR	sys_pkey_mprotect
+	PTR	sys_pkey_alloc
+	PTR	sys_pkey_free
+	PTR	sys_statx			/* 6330 */
 	.size	sysn32_call_table,.-sysn32_call_table

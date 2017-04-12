@@ -34,7 +34,6 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include "../include/lustre_lite.h"
 #include "../include/lustre_ha.h"
 #include "../include/lustre_dlm.h"
 #include <linux/init.h>
@@ -83,15 +82,13 @@ struct super_operations lustre_super_operations = {
 };
 MODULE_ALIAS_FS("lustre");
 
-void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
-
 static int __init lustre_init(void)
 {
 	lnet_process_id_t lnet_id;
 	struct timespec64 ts;
 	int i, rc, seed[2];
 
-	CLASSERT(sizeof(LUSTRE_VOLATILE_HDR) == LUSTRE_VOLATILE_HDR_LEN + 1);
+	BUILD_BUG_ON(sizeof(LUSTRE_VOLATILE_HDR) != LUSTRE_VOLATILE_HDR_LEN + 1);
 
 	/* print an address of _any_ initialized kernel symbol from this
 	 * module, to allow debugging with gdb that doesn't support data
@@ -102,8 +99,8 @@ static int __init lustre_init(void)
 
 	rc = -ENOMEM;
 	ll_inode_cachep = kmem_cache_create("lustre_inode_cache",
-					    sizeof(struct ll_inode_info),
-					    0, SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
+					    sizeof(struct ll_inode_info), 0,
+					    SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT,
 					    NULL);
 	if (!ll_inode_cachep)
 		goto out_cache;

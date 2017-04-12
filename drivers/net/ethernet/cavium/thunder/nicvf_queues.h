@@ -57,13 +57,11 @@
 #define CMP_QUEUE_SIZE6		6ULL /* 64K entries */
 
 /* Default queue count per QS, its lengths and threshold values */
-#define RBDR_CNT		1
-#define RCV_QUEUE_CNT		8
-#define SND_QUEUE_CNT		8
-#define CMP_QUEUE_CNT		8 /* Max of RCV and SND qcount */
+#define DEFAULT_RBDR_CNT	1
 
-#define SND_QSIZE		SND_QUEUE_SIZE2
+#define SND_QSIZE		SND_QUEUE_SIZE0
 #define SND_QUEUE_LEN		(1ULL << (SND_QSIZE + 10))
+#define MIN_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE0 + 10))
 #define MAX_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE6 + 10))
 #define SND_QUEUE_THRESH	2ULL
 #define MIN_SQ_DESC_PER_PKT_XMIT	2
@@ -73,27 +71,48 @@
 /* Keep CQ and SQ sizes same, if timestamping
  * is enabled this equation will change.
  */
-#define CMP_QSIZE		CMP_QUEUE_SIZE2
+#define CMP_QSIZE		CMP_QUEUE_SIZE0
 #define CMP_QUEUE_LEN		(1ULL << (CMP_QSIZE + 10))
+#define MIN_CMP_QUEUE_LEN	(1ULL << (CMP_QUEUE_SIZE0 + 10))
+#define MAX_CMP_QUEUE_LEN	(1ULL << (CMP_QUEUE_SIZE6 + 10))
 #define CMP_QUEUE_CQE_THRESH	(NAPI_POLL_WEIGHT / 2)
 #define CMP_QUEUE_TIMER_THRESH	80 /* ~2usec */
+
+/* No of CQEs that might anyway gets used by HW due to pipelining
+ * effects irrespective of PASS/DROP/LEVELS being configured
+ */
+#define CMP_QUEUE_PIPELINE_RSVD 544
 
 #define RBDR_SIZE		RBDR_SIZE0
 #define RCV_BUF_COUNT		(1ULL << (RBDR_SIZE + 13))
 #define MAX_RCV_BUF_COUNT	(1ULL << (RBDR_SIZE6 + 13))
 #define RBDR_THRESH		(RCV_BUF_COUNT / 2)
-#define DMA_BUFFER_LEN		2048 /* In multiples of 128bytes */
+#define DMA_BUFFER_LEN		1536 /* In multiples of 128bytes */
 #define RCV_FRAG_LEN	 (SKB_DATA_ALIGN(DMA_BUFFER_LEN + NET_SKB_PAD) + \
 			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define MAX_CQES_FOR_TX		((SND_QUEUE_LEN / MIN_SQ_DESC_PER_PKT_XMIT) * \
 				 MAX_CQE_PER_PKT_XMIT)
-/* Calculate number of CQEs to reserve for all SQEs.
- * Its 1/256th level of CQ size.
- * '+ 1' to account for pipelining
+
+/* RED and Backpressure levels of CQ for pkt reception
+ * For CQ, level is a measure of emptiness i.e 0x0 means full
+ * eg: For CQ of size 4K, and for pass/drop levels of 160/144
+ * HW accepts pkt if unused CQE >= 2560
+ * RED accepts pkt if unused CQE < 2304 & >= 2560
+ * DROPs pkts if unused CQE < 2304
  */
-#define RQ_CQ_DROP		((256 / (CMP_QUEUE_LEN / \
-				 (CMP_QUEUE_LEN - MAX_CQES_FOR_TX))) + 1)
+#define RQ_PASS_CQ_LVL         192ULL
+#define RQ_DROP_CQ_LVL         184ULL
+
+/* RED and Backpressure levels of RBDR for pkt reception
+ * For RBDR, level is a measure of fullness i.e 0x0 means empty
+ * eg: For RBDR of size 8K, and for pass/drop levels of 4/0
+ * HW accepts pkt if unused RBs >= 256
+ * RED accepts pkt if unused RBs < 256 & >= 0
+ * DROPs pkts if unused RBs < 0
+ */
+#define RQ_PASS_RBDR_LVL	8ULL
+#define RQ_DROP_RBDR_LVL	0ULL
 
 /* Descriptor size in bytes */
 #define SND_QUEUE_DESC_SIZE	16
@@ -161,6 +180,7 @@ enum CQ_TX_ERROP_E {
 	CQ_TX_ERROP_DESC_FAULT = 0x10,
 	CQ_TX_ERROP_HDR_CONS_ERR = 0x11,
 	CQ_TX_ERROP_SUBDC_ERR = 0x12,
+	CQ_TX_ERROP_MAX_SIZE_VIOL = 0x13,
 	CQ_TX_ERROP_IMM_SIZE_OFLOW = 0x80,
 	CQ_TX_ERROP_DATA_SEQUENCE_ERR = 0x81,
 	CQ_TX_ERROP_MEM_SEQUENCE_ERR = 0x82,
@@ -173,25 +193,6 @@ enum CQ_TX_ERROP_E {
 	CQ_TX_ERROP_CK_OFLOW = 0x89,
 	CQ_TX_ERROP_ENUM_LAST = 0x8a,
 };
-
-struct cmp_queue_stats {
-	struct tx_stats {
-		u64 good;
-		u64 desc_fault;
-		u64 hdr_cons_err;
-		u64 subdesc_err;
-		u64 imm_size_oflow;
-		u64 data_seq_err;
-		u64 mem_seq_err;
-		u64 lock_viol;
-		u64 data_fault;
-		u64 tstmp_conflict;
-		u64 tstmp_timeout;
-		u64 mem_fault;
-		u64 csum_overlap;
-		u64 csum_overflow;
-	} tx;
-} ____cacheline_aligned_in_smp;
 
 enum RQ_SQ_STATS {
 	RQ_SQ_STATS_OCTS,
@@ -244,7 +245,6 @@ struct cmp_queue {
 	spinlock_t	lock;  /* lock to serialize processing CQEs */
 	void		*desc;
 	struct q_desc_mem   dmem;
-	struct cmp_queue_stats	stats;
 	int		irq;
 } ____cacheline_aligned_in_smp;
 
@@ -301,6 +301,8 @@ struct queue_set {
 
 #define	CQ_ERR_MASK	(CQ_WR_FULL | CQ_WR_DISABLE | CQ_WR_FAULT)
 
+void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
+			      int hdr_sqe, u8 subdesc_cnt);
 void nicvf_config_vlan_stripping(struct nicvf *nic,
 				 netdev_features_t features);
 int nicvf_set_qset_resources(struct nicvf *nic);
@@ -314,7 +316,8 @@ void nicvf_sq_disable(struct nicvf *nic, int qidx);
 void nicvf_put_sq_desc(struct snd_queue *sq, int desc_cnt);
 void nicvf_sq_free_used_descs(struct net_device *netdev,
 			      struct snd_queue *sq, int qidx);
-int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb);
+int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
+			struct sk_buff *skb, u8 sq_num);
 
 struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
 void nicvf_rbdr_task(unsigned long data);
@@ -339,6 +342,5 @@ u64  nicvf_queue_reg_read(struct nicvf *nic,
 void nicvf_update_rq_stats(struct nicvf *nic, int rq_idx);
 void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx);
 int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
-int nicvf_check_cqe_tx_errs(struct nicvf *nic,
-			    struct cmp_queue *cq, struct cqe_send_t *cqe_tx);
+int nicvf_check_cqe_tx_errs(struct nicvf *nic, struct cqe_send_t *cqe_tx);
 #endif /* NICVF_QUEUES_H */

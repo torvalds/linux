@@ -1074,8 +1074,10 @@ static void __init mtk_apmixedsys_init(struct device_node *node)
 	}
 
 	mt8173_pll_clk_data = clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
-	if (!clk_data)
+	if (!clk_data) {
+		iounmap(base);
 		return;
+	}
 
 	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
 

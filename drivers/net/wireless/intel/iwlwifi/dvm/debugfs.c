@@ -2310,7 +2310,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 {
 	struct iwl_priv *priv = file->private_data;
 	bool restart_fw = iwlwifi_mod_params.restart_fw;
-	int ret;
+	int __maybe_unused ret;
 
 	iwlwifi_mod_params.restart_fw = true;
 
@@ -2422,14 +2422,12 @@ int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 	 */
 	if (priv->mac80211_registered) {
 		char buf[100];
-		struct dentry *mac80211_dir, *dev_dir, *root_dir;
+		struct dentry *mac80211_dir, *dev_dir;
 
 		dev_dir = dbgfs_dir->d_parent;
-		root_dir = dev_dir->d_parent;
 		mac80211_dir = priv->hw->wiphy->debugfsdir;
 
-		snprintf(buf, 100, "../../%s/%s", root_dir->d_name.name,
-			 dev_dir->d_name.name);
+		snprintf(buf, 100, "../../%pd2", dev_dir);
 
 		if (!debugfs_create_symlink("iwlwifi", mac80211_dir, buf))
 			goto err;

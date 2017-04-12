@@ -9,8 +9,6 @@
  * kind, whether express or implied.
  */
 
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/clock/r8a7779-clock.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -19,6 +17,8 @@
 / {
 	compatible = "renesas,r8a7779";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	cpus {
 		#address-cells = <1>;
@@ -173,7 +173,7 @@
 	i2c0: i2c@ffc70000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7779";
+		compatible = "renesas,i2c-r8a7779", "renesas,rcar-gen1-i2c";
 		reg = <0xffc70000 0x1000>;
 		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7779_CLK_I2C0>;
@@ -184,7 +184,7 @@
 	i2c1: i2c@ffc71000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7779";
+		compatible = "renesas,i2c-r8a7779", "renesas,rcar-gen1-i2c";
 		reg = <0xffc71000 0x1000>;
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7779_CLK_I2C1>;
@@ -195,7 +195,7 @@
 	i2c2: i2c@ffc72000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7779";
+		compatible = "renesas,i2c-r8a7779", "renesas,rcar-gen1-i2c";
 		reg = <0xffc72000 0x1000>;
 		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7779_CLK_I2C2>;
@@ -206,7 +206,7 @@
 	i2c3: i2c@ffc73000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "renesas,i2c-r8a7779";
+		compatible = "renesas,i2c-r8a7779", "renesas,rcar-gen1-i2c";
 		reg = <0xffc73000 0x1000>;
 		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp0_clks R8A7779_CLK_I2C3>;
@@ -347,6 +347,7 @@
 		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp1_clks R8A7779_CLK_SATA>;
 		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
+		status = "disabled";
 	};
 
 	sdhi0: sd@ffe4c000 {
@@ -420,7 +421,7 @@
 
 	du: display@fff80000 {
 		compatible = "renesas,du-r8a7779";
-		reg = <0 0xfff80000 0 0x40000>;
+		reg = <0xfff80000 0x40000>;
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp1_clks R8A7779_CLK_DU>;
 		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
@@ -588,6 +589,16 @@
 				"sdhi3", "sdhi2", "sdhi1", "sdhi0",
 				"mmc1", "mmc0";
 		};
+	};
+
+	prr: chipid@ff000044 {
+		compatible = "renesas,prr";
+		reg = <0xff000044 4>;
+	};
+
+	rst: reset-controller@ffcc0000 {
+		compatible = "renesas,r8a7779-reset-wdt";
+		reg = <0xffcc0000 0x48>;
 	};
 
 	sysc: system-controller@ffd85000 {

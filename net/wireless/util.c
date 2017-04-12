@@ -13,6 +13,7 @@
 #include <net/dsfield.h>
 #include <linux/if_vlan.h>
 #include <linux/mpls.h>
+#include <linux/gcd.h>
 #include "core.h"
 #include "rdev-ops.h"
 
@@ -113,8 +114,7 @@ int ieee80211_frequency_to_channel(int freq)
 }
 EXPORT_SYMBOL(ieee80211_frequency_to_channel);
 
-struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
-						  int freq)
+struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy, int freq)
 {
 	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
@@ -134,14 +134,13 @@ struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
 
 	return NULL;
 }
-EXPORT_SYMBOL(__ieee80211_get_channel);
+EXPORT_SYMBOL(ieee80211_get_channel);
 
-static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
-				     enum nl80211_band band)
+static void set_mandatory_flags_band(struct ieee80211_supported_band *sband)
 {
 	int i, want;
 
-	switch (band) {
+	switch (sband->band) {
 	case NL80211_BAND_5GHZ:
 		want = 3;
 		for (i = 0; i < sband->n_bitrates; i++) {
@@ -191,6 +190,7 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 		WARN_ON((sband->ht_cap.mcs.rx_mask[0] & 0x1e) != 0x1e);
 		break;
 	case NUM_NL80211_BANDS:
+	default:
 		WARN_ON(1);
 		break;
 	}
@@ -202,7 +202,7 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy)
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++)
 		if (wiphy->bands[band])
-			set_mandatory_flags_band(wiphy->bands[band], band);
+			set_mandatory_flags_band(wiphy->bands[band]);
 }
 
 bool cfg80211_supported_cipher_suite(struct wiphy *wiphy, u32 cipher)
@@ -218,7 +218,7 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr)
 {
-	if (key_idx > 5)
+	if (key_idx < 0 || key_idx > 5)
 		return -EINVAL;
 
 	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
@@ -249,7 +249,13 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 		/* Disallow BIP (group-only) cipher as pairwise cipher */
 		if (pairwise)
 			return -EINVAL;
+		if (key_idx < 4)
+			return -EINVAL;
 		break;
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		if (key_idx > 3)
+			return -EINVAL;
 	default:
 		break;
 	}
@@ -414,8 +420,8 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 }
 EXPORT_SYMBOL(ieee80211_get_mesh_hdrlen);
 
-static int __ieee80211_data_to_8023(struct sk_buff *skb, struct ethhdr *ehdr,
-				    const u8 *addr, enum nl80211_iftype iftype)
+int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
+				  const u8 *addr, enum nl80211_iftype iftype)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct {
@@ -519,13 +525,7 @@ static int __ieee80211_data_to_8023(struct sk_buff *skb, struct ethhdr *ehdr,
 
 	return 0;
 }
-
-int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
-			   enum nl80211_iftype iftype)
-{
-	return __ieee80211_data_to_8023(skb, NULL, addr, iftype);
-}
-EXPORT_SYMBOL(ieee80211_data_to_8023);
+EXPORT_SYMBOL(ieee80211_data_to_8023_exthdr);
 
 int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 			     enum nl80211_iftype iftype,
@@ -618,8 +618,6 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 
 		if (pskb_expand_head(skb, head_need, 0, GFP_ATOMIC))
 			return -ENOMEM;
-
-		skb->truesize += head_need;
 	}
 
 	if (encaps_data) {
@@ -740,23 +738,17 @@ __ieee80211_amsdu_copy(struct sk_buff *skb, unsigned int hlen,
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
 			      const unsigned int extra_headroom,
-			      bool has_80211_header)
+			      const u8 *check_da, const u8 *check_sa)
 {
 	unsigned int hlen = ALIGN(extra_headroom, 4);
 	struct sk_buff *frame = NULL;
 	u16 ethertype;
 	u8 *payload;
-	int offset = 0, remaining, err;
+	int offset = 0, remaining;
 	struct ethhdr eth;
 	bool reuse_frag = skb->head_frag && !skb_has_frag_list(skb);
 	bool reuse_skb = false;
 	bool last = false;
-
-	if (has_80211_header) {
-		err = __ieee80211_data_to_8023(skb, &eth, addr, iftype);
-		if (err)
-			goto out;
-	}
 
 	while (!last) {
 		unsigned int subframe_len;
@@ -774,8 +766,17 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			goto purge;
 
 		offset += sizeof(struct ethhdr);
-		/* reuse skb for the last subframe */
 		last = remaining <= subframe_len + padding;
+
+		/* FIXME: should we really accept multicast DA? */
+		if ((check_da && !is_multicast_ether_addr(eth.h_dest) &&
+		     !ether_addr_equal(check_da, eth.h_dest)) ||
+		    (check_sa && !ether_addr_equal(check_sa, eth.h_source))) {
+			offset += len + padding;
+			continue;
+		}
+
+		/* reuse skb for the last subframe */
 		if (!skb_is_nonlinear(skb) && !reuse_frag && last) {
 			skb_pull(skb, offset);
 			frame = skb;
@@ -813,7 +814,6 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 
  purge:
 	__skb_queue_purge(list);
- out:
 	dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee80211_amsdu_to_8023s);
@@ -906,7 +906,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	if (!wdev->connect_keys)
 		return;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < CFG80211_MAX_WEP_KEYS; i++) {
 		if (!wdev->connect_keys->params[i].cipher)
 			continue;
 		if (rdev_add_key(rdev, dev, i, false, NULL,
@@ -919,9 +919,6 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 				netdev_err(dev, "failed to set defkey %d\n", i);
 				continue;
 			}
-		if (wdev->connect_keys->defmgmt == i)
-			if (rdev_set_default_mgmt_key(rdev, dev, i))
-				netdev_err(dev, "failed to set mgtdef %d\n", i);
 	}
 
 	kzfree(wdev->connect_keys);
@@ -952,7 +949,7 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 				ev->cr.resp_ie, ev->cr.resp_ie_len,
 				ev->cr.status,
 				ev->cr.status == WLAN_STATUS_SUCCESS,
-				ev->cr.bss);
+				ev->cr.bss, ev->cr.timeout_reason);
 			break;
 		case EVENT_ROAMED:
 			__cfg80211_roamed(wdev, ev->rm.bss, ev->rm.req_ie,
@@ -1005,8 +1002,9 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	if (otype == NL80211_IFTYPE_AP_VLAN)
 		return -EOPNOTSUPP;
 
-	/* cannot change into P2P device type */
-	if (ntype == NL80211_IFTYPE_P2P_DEVICE)
+	/* cannot change into P2P device or NAN */
+	if (ntype == NL80211_IFTYPE_P2P_DEVICE ||
+	    ntype == NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
 
 	if (!rdev->ops->change_virtual_intf ||
@@ -1085,6 +1083,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			/* not happening */
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
+		case NL80211_IFTYPE_NAN:
 			WARN_ON(1);
 			break;
 		}
@@ -1157,7 +1156,8 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 		   58500000,
 		   65000000,
 		   78000000,
-		   0,
+		/* not in the spec, but some devices use this: */
+		   86500000,
 		},
 		{  13500000,
 		   27000000,
@@ -1376,6 +1376,25 @@ static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
 	return false;
 }
 
+static size_t skip_ie(const u8 *ies, size_t ielen, size_t pos)
+{
+	/* we assume a validly formed IEs buffer */
+	u8 len = ies[pos + 1];
+
+	pos += 2 + len;
+
+	/* the IE itself must have 255 bytes for fragments to follow */
+	if (len < 255)
+		return pos;
+
+	while (pos < ielen && ies[pos] == WLAN_EID_FRAGMENT) {
+		len = ies[pos + 1];
+		pos += 2 + len;
+	}
+
+	return pos;
+}
+
 size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 			      const u8 *ids, int n_ids,
 			      const u8 *after_ric, int n_after_ric,
@@ -1385,14 +1404,14 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 
 	while (pos < ielen && ieee80211_id_in_list(ids, n_ids, ies[pos])) {
 		if (ies[pos] == WLAN_EID_RIC_DATA && n_after_ric) {
-			pos += 2 + ies[pos + 1];
+			pos = skip_ie(ies, ielen, pos);
 
 			while (pos < ielen &&
 			       !ieee80211_id_in_list(after_ric, n_after_ric,
 						     ies[pos]))
-				pos += 2 + ies[pos + 1];
+				pos = skip_ie(ies, ielen, pos);
 		} else {
-			pos += 2 + ies[pos + 1];
+			pos = skip_ie(ies, ielen, pos);
 		}
 	}
 
@@ -1553,31 +1572,57 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 }
 EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
 
-int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
-				 u32 beacon_int)
+static void cfg80211_calculate_bi_data(struct wiphy *wiphy, u32 new_beacon_int,
+				       u32 *beacon_int_gcd,
+				       bool *beacon_int_different)
 {
 	struct wireless_dev *wdev;
-	int res = 0;
 
-	if (!beacon_int)
-		return -EINVAL;
+	*beacon_int_gcd = 0;
+	*beacon_int_different = false;
 
-	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
 		if (!wdev->beacon_interval)
 			continue;
-		if (wdev->beacon_interval != beacon_int) {
-			res = -EINVAL;
-			break;
+
+		if (!*beacon_int_gcd) {
+			*beacon_int_gcd = wdev->beacon_interval;
+			continue;
 		}
+
+		if (wdev->beacon_interval == *beacon_int_gcd)
+			continue;
+
+		*beacon_int_different = true;
+		*beacon_int_gcd = gcd(*beacon_int_gcd, wdev->beacon_interval);
 	}
 
-	return res;
+	if (new_beacon_int && *beacon_int_gcd != new_beacon_int) {
+		if (*beacon_int_gcd)
+			*beacon_int_different = true;
+		*beacon_int_gcd = gcd(*beacon_int_gcd, new_beacon_int);
+	}
+}
+
+int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
+				 enum nl80211_iftype iftype, u32 beacon_int)
+{
+	/*
+	 * This is just a basic pre-condition check; if interface combinations
+	 * are possible the driver must already be checking those with a call
+	 * to cfg80211_check_combinations(), in which case we'll validate more
+	 * through the cfg80211_calculate_bi_data() call and code in
+	 * cfg80211_iter_combinations().
+	 */
+
+	if (beacon_int < 10 || beacon_int > 10000)
+		return -EINVAL;
+
+	return 0;
 }
 
 int cfg80211_iter_combinations(struct wiphy *wiphy,
-			       const int num_different_channels,
-			       const u8 radar_detect,
-			       const int iftype_num[NUM_NL80211_IFTYPES],
+			       struct iface_combination_params *params,
 			       void (*iter)(const struct ieee80211_iface_combination *c,
 					    void *data),
 			       void *data)
@@ -1587,8 +1632,23 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 	int i, j, iftype;
 	int num_interfaces = 0;
 	u32 used_iftypes = 0;
+	u32 beacon_int_gcd;
+	bool beacon_int_different;
 
-	if (radar_detect) {
+	/*
+	 * This is a bit strange, since the iteration used to rely only on
+	 * the data given by the driver, but here it now relies on context,
+	 * in form of the currently operating interfaces.
+	 * This is OK for all current users, and saves us from having to
+	 * push the GCD calculations into all the drivers.
+	 * In the future, this should probably rely more on data that's in
+	 * cfg80211 already - the only thing not would appear to be any new
+	 * interfaces (while being brought up) and channel/radar data.
+	 */
+	cfg80211_calculate_bi_data(wiphy, params->new_beacon_int,
+				   &beacon_int_gcd, &beacon_int_different);
+
+	if (params->radar_detect) {
 		rcu_read_lock();
 		regdom = rcu_dereference(cfg80211_regdomain);
 		if (regdom)
@@ -1597,8 +1657,8 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 	}
 
 	for (iftype = 0; iftype < NUM_NL80211_IFTYPES; iftype++) {
-		num_interfaces += iftype_num[iftype];
-		if (iftype_num[iftype] > 0 &&
+		num_interfaces += params->iftype_num[iftype];
+		if (params->iftype_num[iftype] > 0 &&
 		    !(wiphy->software_iftypes & BIT(iftype)))
 			used_iftypes |= BIT(iftype);
 	}
@@ -1612,7 +1672,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 
 		if (num_interfaces > c->max_interfaces)
 			continue;
-		if (num_different_channels > c->num_different_channels)
+		if (params->num_different_channels > c->num_different_channels)
 			continue;
 
 		limits = kmemdup(c->limits, sizeof(limits[0]) * c->n_limits,
@@ -1627,16 +1687,17 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 				all_iftypes |= limits[j].types;
 				if (!(limits[j].types & BIT(iftype)))
 					continue;
-				if (limits[j].max < iftype_num[iftype])
+				if (limits[j].max < params->iftype_num[iftype])
 					goto cont;
-				limits[j].max -= iftype_num[iftype];
+				limits[j].max -= params->iftype_num[iftype];
 			}
 		}
 
-		if (radar_detect != (c->radar_detect_widths & radar_detect))
+		if (params->radar_detect !=
+			(c->radar_detect_widths & params->radar_detect))
 			goto cont;
 
-		if (radar_detect && c->radar_detect_regions &&
+		if (params->radar_detect && c->radar_detect_regions &&
 		    !(c->radar_detect_regions & BIT(region)))
 			goto cont;
 
@@ -1647,6 +1708,14 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 		 */
 		if ((all_iftypes & used_iftypes) != used_iftypes)
 			goto cont;
+
+		if (beacon_int_gcd) {
+			if (c->beacon_int_min_gcd &&
+			    beacon_int_gcd < c->beacon_int_min_gcd)
+				goto cont;
+			if (!c->beacon_int_min_gcd && beacon_int_different)
+				goto cont;
+		}
 
 		/* This combination covered all interface types and
 		 * supported the requested numbers, so we're good.
@@ -1670,14 +1739,11 @@ cfg80211_iter_sum_ifcombs(const struct ieee80211_iface_combination *c,
 }
 
 int cfg80211_check_combinations(struct wiphy *wiphy,
-				const int num_different_channels,
-				const u8 radar_detect,
-				const int iftype_num[NUM_NL80211_IFTYPES])
+				struct iface_combination_params *params)
 {
 	int err, num = 0;
 
-	err = cfg80211_iter_combinations(wiphy, num_different_channels,
-					 radar_detect, iftype_num,
+	err = cfg80211_iter_combinations(wiphy, params,
 					 cfg80211_iter_sum_ifcombs, &num);
 	if (err)
 		return err;
@@ -1756,6 +1822,43 @@ int cfg80211_get_station(struct net_device *dev, const u8 *mac_addr,
 	return rdev_get_station(rdev, dev, mac_addr, sinfo);
 }
 EXPORT_SYMBOL(cfg80211_get_station);
+
+void cfg80211_free_nan_func(struct cfg80211_nan_func *f)
+{
+	int i;
+
+	if (!f)
+		return;
+
+	kfree(f->serv_spec_info);
+	kfree(f->srf_bf);
+	kfree(f->srf_macs);
+	for (i = 0; i < f->num_rx_filters; i++)
+		kfree(f->rx_filters[i].filter);
+
+	for (i = 0; i < f->num_tx_filters; i++)
+		kfree(f->tx_filters[i].filter);
+
+	kfree(f->rx_filters);
+	kfree(f->tx_filters);
+	kfree(f);
+}
+EXPORT_SYMBOL(cfg80211_free_nan_func);
+
+bool cfg80211_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
+				u32 center_freq_khz, u32 bw_khz)
+{
+	u32 start_freq_khz, end_freq_khz;
+
+	start_freq_khz = center_freq_khz - (bw_khz / 2);
+	end_freq_khz = center_freq_khz + (bw_khz / 2);
+
+	if (start_freq_khz >= freq_range->start_freq_khz &&
+	    end_freq_khz <= freq_range->end_freq_khz)
+		return true;
+
+	return false;
+}
 
 /* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
 /* Ethernet-II snap header (RFC1042 for most EtherTypes) */

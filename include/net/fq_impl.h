@@ -29,6 +29,7 @@ static struct sk_buff *fq_flow_dequeue(struct fq *fq,
 	tin->backlog_packets--;
 	flow->backlog -= skb->len;
 	fq->backlog--;
+	fq->memory_usage -= skb->truesize;
 
 	if (flow->backlog == 0) {
 		list_del_init(&flow->backlogchain);
@@ -154,6 +155,7 @@ static void fq_tin_enqueue(struct fq *fq,
 	flow->backlog += skb->len;
 	tin->backlog_bytes += skb->len;
 	tin->backlog_packets++;
+	fq->memory_usage += skb->truesize;
 	fq->backlog++;
 
 	fq_recalc_backlog(fq, tin, flow);
@@ -166,7 +168,7 @@ static void fq_tin_enqueue(struct fq *fq,
 
 	__skb_queue_tail(&flow->queue, skb);
 
-	if (fq->backlog > fq->limit) {
+	if (fq->backlog > fq->limit || fq->memory_usage > fq->memory_limit) {
 		flow = list_first_entry_or_null(&fq->backlogs,
 						struct fq_flow,
 						backlogchain);
@@ -181,6 +183,8 @@ static void fq_tin_enqueue(struct fq *fq,
 
 		flow->tin->overlimit++;
 		fq->overlimit++;
+		if (fq->memory_usage > fq->memory_limit)
+			fq->overmemory++;
 	}
 }
 
@@ -251,6 +255,7 @@ static int fq_init(struct fq *fq, int flows_cnt)
 	fq->perturbation = prandom_u32();
 	fq->quantum = 300;
 	fq->limit = 8192;
+	fq->memory_limit = 16 << 20; /* 16 MBytes */
 
 	fq->flows = kcalloc(fq->flows_cnt, sizeof(fq->flows[0]), GFP_KERNEL);
 	if (!fq->flows)

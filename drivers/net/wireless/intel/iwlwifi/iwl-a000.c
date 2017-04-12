@@ -55,7 +55,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL_A000_UCODE_API_MAX	24
+#define IWL_A000_UCODE_API_MAX	28
 
 /* Lowest firmware API version supported */
 #define IWL_A000_UCODE_API_MIN	24
@@ -72,9 +72,13 @@
 #define IWL_A000_SMEM_OFFSET		0x400000
 #define IWL_A000_SMEM_LEN		0x68000
 
-#define IWL_A000_FW_PRE "iwlwifi-Qu-a0-jf-b0-"
-#define IWL_A000_MODULE_FIRMWARE(api) \
-	IWL_A000_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_A000_JF_FW_PRE "iwlwifi-Qu-a0-jf-b0-"
+#define IWL_A000_HR_FW_PRE "iwlwifi-Qu-a0-hr-a0-"
+
+#define IWL_A000_HR_MODULE_FIRMWARE(api) \
+	IWL_A000_HR_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_A000_JF_MODULE_FIRMWARE(api) \
+	IWL_A000_JF_FW_PRE "-" __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_A000		10
 
@@ -116,11 +120,12 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 	.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = true,					\
-	.use_tfh = true
+	.use_tfh = true,						\
+	.rf_id = true
 
-const struct iwl_cfg iwla000_2ac_cfg = {
+const struct iwl_cfg iwla000_2ac_cfg_hr = {
 		.name = "Intel(R) Dual Band Wireless AC a000",
-		.fw_name_pre = IWL_A000_FW_PRE,
+		.fw_name_pre = IWL_A000_HR_FW_PRE,
 		IWL_DEVICE_A000,
 		.ht_params = &iwl_a000_ht_params,
 		.nvm_ver = IWL_A000_NVM_VERSION,
@@ -128,4 +133,15 @@ const struct iwl_cfg iwla000_2ac_cfg = {
 		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
-MODULE_FIRMWARE(IWL_A000_MODULE_FIRMWARE(IWL_A000_UCODE_API_MAX));
+const struct iwl_cfg iwla000_2ac_cfg_jf = {
+		.name = "Intel(R) Dual Band Wireless AC a000",
+		.fw_name_pre = IWL_A000_JF_FW_PRE,
+		IWL_DEVICE_A000,
+		.ht_params = &iwl_a000_ht_params,
+		.nvm_ver = IWL_A000_NVM_VERSION,
+		.nvm_calib_ver = IWL_A000_TX_POWER_VERSION,
+		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+};
+
+MODULE_FIRMWARE(IWL_A000_HR_MODULE_FIRMWARE(IWL_A000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_A000_JF_MODULE_FIRMWARE(IWL_A000_UCODE_API_MAX));

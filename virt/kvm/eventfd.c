@@ -624,12 +624,12 @@ void kvm_irq_routing_update(struct kvm *kvm)
 
 /*
  * create a host-wide workqueue for issuing deferred shutdown requests
- * aggregated from all vm* instances. We need our own isolated single-thread
- * queue to prevent deadlock against flushing the normal work-queue.
+ * aggregated from all vm* instances. We need our own isolated
+ * queue to ease flushing work items when a VM exits.
  */
 int kvm_irqfd_init(void)
 {
-	irqfd_cleanup_wq = create_singlethread_workqueue("kvm-irqfd-cleanup");
+	irqfd_cleanup_wq = alloc_workqueue("kvm-irqfd-cleanup", 0, 0);
 	if (!irqfd_cleanup_wq)
 		return -ENOMEM;
 
@@ -870,7 +870,8 @@ kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
 			continue;
 
 		kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
-		kvm->buses[bus_idx]->ioeventfd_count--;
+		if (kvm->buses[bus_idx])
+			kvm->buses[bus_idx]->ioeventfd_count--;
 		ioeventfd_release(p);
 		ret = 0;
 		break;

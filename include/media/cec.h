@@ -35,7 +35,6 @@
  * struct cec_devnode - cec device node
  * @dev:	cec device
  * @cdev:	cec character device
- * @parent:	parent device
  * @minor:	device node minor number
  * @registered:	the device was correctly registered
  * @unregistered: the device was unregistered
@@ -51,7 +50,6 @@ struct cec_devnode {
 	/* sysfs */
 	struct device dev;
 	struct cdev cdev;
-	struct device *parent;
 
 	/* device info */
 	int minor;
@@ -196,11 +194,10 @@ static inline bool cec_is_sink(const struct cec_adapter *adap)
 	return adap->phys_addr == 0;
 }
 
-#if IS_ENABLED(CONFIG_MEDIA_CEC)
+#if IS_ENABLED(CONFIG_MEDIA_CEC_SUPPORT)
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
-		void *priv, const char *name, u32 caps, u8 available_las,
-		struct device *parent);
-int cec_register_adapter(struct cec_adapter *adap);
+		void *priv, const char *name, u32 caps, u8 available_las);
+int cec_register_adapter(struct cec_adapter *adap, struct device *parent);
 void cec_unregister_adapter(struct cec_adapter *adap);
 void cec_delete_adapter(struct cec_adapter *adap);
 
@@ -218,7 +215,8 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg);
 
 #else
 
-static inline int cec_register_adapter(struct cec_adapter *adap)
+static inline int cec_register_adapter(struct cec_adapter *adap,
+				       struct device *parent)
 {
 	return 0;
 }

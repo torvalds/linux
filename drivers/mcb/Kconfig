@@ -28,4 +28,13 @@ config MCB_PCI
 
 	   If build as a module, the module is called mcb-pci.ko
 
+config MCB_LPC
+	   tristate "LPC (non PCI) based MCB carrier"
+	   default n
+	   help
+
+	   This is a MCB carrier on a LPC or non PCI device.
+
+	   If build as a module, the module is called mcb-lpc.ko
+
 endif # MCB

@@ -24,6 +24,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include <linux/rbtree.h>
+#include <linux/time64.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
 #include "util/strlist.h"
@@ -1288,9 +1289,9 @@ static void draw_process_bars(struct timechart *tchart)
 			if (c->comm) {
 				char comm[256];
 				if (c->total_time > 5000000000) /* 5 seconds */
-					sprintf(comm, "%s:%i (%2.2fs)", c->comm, p->pid, c->total_time / 1000000000.0);
+					sprintf(comm, "%s:%i (%2.2fs)", c->comm, p->pid, c->total_time / (double)NSEC_PER_SEC);
 				else
-					sprintf(comm, "%s:%i (%3.1fms)", c->comm, p->pid, c->total_time / 1000000.0);
+					sprintf(comm, "%s:%i (%3.1fms)", c->comm, p->pid, c->total_time / (double)NSEC_PER_MSEC);
 
 				svg_text(Y, c->start_time, comm);
 			}
@@ -1637,7 +1638,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	write_svg_file(tchart, output_name);
 
 	pr_info("Written %2.1f seconds of trace to %s.\n",
-		(tchart->last_time - tchart->first_time) / 1000000000.0, output_name);
+		(tchart->last_time - tchart->first_time) / (double)NSEC_PER_SEC, output_name);
 out_delete:
 	perf_session__delete(session);
 	return ret;
@@ -1901,10 +1902,10 @@ parse_time(const struct option *opt, const char *arg, int __maybe_unused unset)
 	if (sscanf(arg, "%" PRIu64 "%cs", value, &unit) > 0) {
 		switch (unit) {
 		case 'm':
-			*value *= 1000000;
+			*value *= NSEC_PER_MSEC;
 			break;
 		case 'u':
-			*value *= 1000;
+			*value *= NSEC_PER_USEC;
 			break;
 		case 'n':
 			break;
@@ -1928,7 +1929,7 @@ int cmd_timechart(int argc, const char **argv,
 			.ordered_events	 = true,
 		},
 		.proc_num = 15,
-		.min_time = 1000000,
+		.min_time = NSEC_PER_MSEC,
 		.merge_dist = 1000,
 	};
 	const char *output_name = "output.svg";

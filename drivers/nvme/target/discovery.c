@@ -54,7 +54,7 @@ static void nvmet_format_discovery_entry(struct nvmf_disc_rsp_page_hdr *hdr,
 	/* we support only dynamic controllers */
 	e->cntlid = cpu_to_le16(NVME_CNTLID_DYNAMIC);
 	e->asqsz = cpu_to_le16(NVMF_AQ_DEPTH);
-	e->nqntype = type;
+	e->subtype = type;
 	memcpy(e->trsvcid, port->disc_addr.trsvcid, NVMF_TRSVCID_SIZE);
 	memcpy(e->traddr, port->disc_addr.traddr, NVMF_TRADDR_SIZE);
 	memcpy(e->tsas.common, port->disc_addr.tsas.common, NVMF_TSAS_SIZE);
@@ -186,14 +186,14 @@ int nvmet_parse_discovery_cmd(struct nvmet_req *req)
 		}
 	case nvme_admin_identify:
 		req->data_len = 4096;
-		switch (le32_to_cpu(cmd->identify.cns)) {
-		case 0x01:
+		switch (cmd->identify.cns) {
+		case NVME_ID_CNS_CTRL:
 			req->execute =
 				nvmet_execute_identify_disc_ctrl;
 			return 0;
 		default:
 			pr_err("nvmet: unsupported identify cns %d\n",
-				le32_to_cpu(cmd->identify.cns));
+				cmd->identify.cns);
 			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	default:

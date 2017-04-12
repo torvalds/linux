@@ -35,16 +35,15 @@
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
 #include <linux/io.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/sem.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/delay.h>
-#include <linux/proc_fs.h>	/*  Necessary because we use the proc fs */
 #include <linux/interrupt.h>	/*  for struct tasklet_struct */
 #include <linux/ip.h>
 #include <linux/kthread.h>
@@ -70,33 +69,22 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3));
 }
 
-int RTW_STATUS_CODE(int error_code);
-
-#define rtw_update_mem_stat(flag, sz) do {} while (0)
 u8 *_rtw_malloc(u32 sz);
 #define rtw_malloc(sz)			_rtw_malloc((sz))
 
 void *rtw_malloc2d(int h, int w, int size);
 
-u32  _rtw_down_sema(struct semaphore *sema);
-
 void _rtw_init_queue(struct __queue *pqueue);
 
 struct rtw_netdev_priv_indicator {
 	void *priv;
-	u32 sizeof_priv;
 };
-struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
-						    void *old_priv);
+struct net_device *rtw_alloc_etherdev_with_old_priv(void *old_priv);
 
 #define rtw_netdev_priv(netdev)					\
 	(((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv)
 void rtw_free_netdev(struct net_device *netdev);
 
-#define NDEV_FMT "%s"
-#define NDEV_ARG(ndev) ndev->name
-#define ADPT_FMT "%s"
-#define ADPT_ARG(adapter) adapter->pnetdev->name
 #define FUNC_NDEV_FMT "%s(%s)"
 #define FUNC_NDEV_ARG(ndev) __func__, ndev->name
 #define FUNC_ADPT_FMT "%s(%s)"

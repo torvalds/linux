@@ -28,7 +28,7 @@
 #include "soc.h"
 #include "display.h"
 
-#if defined(CONFIG_DRM_OMAP) || defined(CONFIG_DRM_OMAP_MODULE)
+#if IS_ENABLED(CONFIG_DRM_OMAP)
 
 static struct omap_drm_platform_data platform_data;
 

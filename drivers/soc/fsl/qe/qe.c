@@ -69,8 +69,8 @@ static phys_addr_t qebase = -1;
 phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
-	int size;
-	const u32 *prop;
+	int ret;
+	struct resource res;
 
 	if (qebase != -1)
 		return qebase;
@@ -82,9 +82,9 @@ phys_addr_t get_qe_base(void)
 			return qebase;
 	}
 
-	prop = of_get_property(qe, "reg", &size);
-	if (prop && size >= sizeof(*prop))
-		qebase = of_translate_address(qe, prop);
+	ret = of_address_to_resource(qe, 0, &res);
+	if (!ret)
+		qebase = res.start;
 	of_node_put(qe);
 
 	return qebase;
@@ -717,9 +717,5 @@ static struct platform_driver qe_driver = {
 	.resume = qe_resume,
 };
 
-static int __init qe_drv_init(void)
-{
-	return platform_driver_register(&qe_driver);
-}
-device_initcall(qe_drv_init);
+builtin_platform_driver(qe_driver);
 #endif /* defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx) */

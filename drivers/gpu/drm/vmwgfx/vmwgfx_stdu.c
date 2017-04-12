@@ -424,7 +424,7 @@ static int vmw_stdu_bind_fb(struct vmw_private *dev_priv,
 		 */
 		if (new_content_type == SEPARATE_DMA) {
 
-			switch (new_fb->bits_per_pixel) {
+			switch (new_fb->format->cpp[0] * 8) {
 			case 32:
 				content_srf.format = SVGA3D_X8R8G8B8;
 				break;
@@ -1131,9 +1131,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	drm_object_attach_property(&connector->base,
-				   dev->mode_config.dirty_info_property,
-				   1);
-	drm_object_attach_property(&connector->base,
 				   dev_priv->hotplug_mode_update_property, 1);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_x_property, 0);
@@ -1201,10 +1198,6 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 	ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
 	if (unlikely(ret != 0))
 		return ret;
-
-	ret = drm_mode_create_dirty_info_property(dev);
-	if (unlikely(ret != 0))
-		goto err_vblank_cleanup;
 
 	dev_priv->active_display_unit = vmw_du_screen_target;
 

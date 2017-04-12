@@ -147,11 +147,11 @@ static void da8xx_rproc_kick(struct rproc *rproc, int vqid)
 {
 	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
 
-	/* Interupt remote proc */
+	/* Interrupt remote proc */
 	writel(SYSCFG_CHIPSIG2, drproc->chipsig);
 }
 
-static struct rproc_ops da8xx_rproc_ops = {
+static const struct rproc_ops da8xx_rproc_ops = {
 	.start = da8xx_rproc_start,
 	.stop = da8xx_rproc_stop,
 	.kick = da8xx_rproc_kick,
@@ -261,7 +261,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	return 0;
 
 free_rproc:
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	return ret;
 }
@@ -290,7 +290,7 @@ static int da8xx_rproc_remove(struct platform_device *pdev)
 	disable_irq(drproc->irq);
 
 	rproc_del(rproc);
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	return 0;
 }

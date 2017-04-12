@@ -311,5 +311,8 @@ extern int atomctrl_get_smc_sclk_range_table(struct pp_hwmgr *hwmgr, struct pp_a
 
 extern int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr, struct pp_atom_ctrl__avfs_parameters *param);
 
+extern int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+				uint8_t *svd_gpio_id, uint8_t *svc_gpio_id,
+				uint16_t *load_line);
 #endif
 

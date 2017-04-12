@@ -13,7 +13,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -28,28 +28,28 @@
 
 		compatible = "gpio-leds";
 
-		led@2 {
+		led2 {
 			label = "beaglebone:green:heartbeat";
 			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "beaglebone:green:mmc0";
 			gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
-		led@4 {
+		led4 {
 			label = "beaglebone:green:usr2";
 			gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "cpu0";
 			default-state = "off";
 		};
 
-		led@5 {
+		led5 {
 			label = "beaglebone:green:usr3";
 			gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc1";
@@ -57,7 +57,7 @@
 		};
 	};
 
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
@@ -207,6 +207,8 @@
 &usb0 {
 	status = "okay";
 	dr_mode = "peripheral";
+	interrupts-extended = <&intc 18 &tps 0>;
+	interrupt-names = "mc", "vbus";
 };
 
 &usb1 {
@@ -310,7 +312,22 @@
 	 * by the hardware problems. (Tip: double-check by performing a current
 	 * measurement after shutdown: it should be less than 1 mA.)
 	 */
+
+	interrupts = <7>; /* NMI */
+	interrupt-parent = <&intc>;
+
 	ti,pmic-shutdown-controller;
+
+	charger {
+		interrupts = <0>, <1>;
+		interrupt-names = "USB", "AC";
+		status = "okay";
+	};
+
+	pwrbutton {
+		interrupts = <2>;
+		status = "okay";
+	};
 
 	regulators {
 		dcdc1_reg: regulator@0 {
@@ -392,4 +409,9 @@
 
 &sham {
 	status = "okay";
+};
+
+&rtc {
+	clocks = <&clk_32768_ck>, <&clkdiv32k_ick>;
+	clock-names = "ext-clk", "int-clk";
 };

@@ -29,7 +29,7 @@
 
 #define SKBEDIT_TAB_MASK     15
 
-static int skbedit_net_id;
+static unsigned int skbedit_net_id;
 static struct tc_action_ops act_skbedit_ops;
 
 static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
@@ -46,8 +46,10 @@ static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,
 	if (d->flags & SKBEDIT_F_QUEUE_MAPPING &&
 	    skb->dev->real_num_tx_queues > d->queue_mapping)
 		skb_set_queue_mapping(skb, d->queue_mapping);
-	if (d->flags & SKBEDIT_F_MARK)
-		skb->mark = d->mark;
+	if (d->flags & SKBEDIT_F_MARK) {
+		skb->mark &= ~d->mask;
+		skb->mark |= d->mark & d->mask;
+	}
 	if (d->flags & SKBEDIT_F_PTYPE)
 		skb->pkt_type = d->ptype;
 
@@ -61,6 +63,7 @@ static const struct nla_policy skbedit_policy[TCA_SKBEDIT_MAX + 1] = {
 	[TCA_SKBEDIT_QUEUE_MAPPING]	= { .len = sizeof(u16) },
 	[TCA_SKBEDIT_MARK]		= { .len = sizeof(u32) },
 	[TCA_SKBEDIT_PTYPE]		= { .len = sizeof(u16) },
+	[TCA_SKBEDIT_MASK]		= { .len = sizeof(u32) },
 };
 
 static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
@@ -71,7 +74,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_SKBEDIT_MAX + 1];
 	struct tc_skbedit *parm;
 	struct tcf_skbedit *d;
-	u32 flags = 0, *priority = NULL, *mark = NULL;
+	u32 flags = 0, *priority = NULL, *mark = NULL, *mask = NULL;
 	u16 *queue_mapping = NULL, *ptype = NULL;
 	bool exists = false;
 	int ret = 0, err;
@@ -106,6 +109,11 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	if (tb[TCA_SKBEDIT_MARK] != NULL) {
 		flags |= SKBEDIT_F_MARK;
 		mark = nla_data(tb[TCA_SKBEDIT_MARK]);
+	}
+
+	if (tb[TCA_SKBEDIT_MASK] != NULL) {
+		flags |= SKBEDIT_F_MASK;
+		mask = nla_data(tb[TCA_SKBEDIT_MASK]);
 	}
 
 	parm = nla_data(tb[TCA_SKBEDIT_PARMS]);
@@ -145,6 +153,10 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		d->mark = *mark;
 	if (flags & SKBEDIT_F_PTYPE)
 		d->ptype = *ptype;
+	/* default behaviour is to use all the bits */
+	d->mask = 0xffffffff;
+	if (flags & SKBEDIT_F_MASK)
+		d->mask = *mask;
 
 	d->tcf_action = parm->action;
 
@@ -181,6 +193,9 @@ static int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
 		goto nla_put_failure;
 	if ((d->flags & SKBEDIT_F_PTYPE) &&
 	    nla_put_u16(skb, TCA_SKBEDIT_PTYPE, d->ptype))
+		goto nla_put_failure;
+	if ((d->flags & SKBEDIT_F_MASK) &&
+	    nla_put_u32(skb, TCA_SKBEDIT_MASK, d->mask))
 		goto nla_put_failure;
 
 	tcf_tm_dump(&t, &d->tcf_tm);

@@ -306,7 +306,7 @@ static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth)
  * Return Value
  *	 None
  */
-void pmcraid_init_cmdblk(struct pmcraid_cmd *cmd, int index)
+static void pmcraid_init_cmdblk(struct pmcraid_cmd *cmd, int index)
 {
 	struct pmcraid_ioarcb *ioarcb = &(cmd->ioa_cb->ioarcb);
 	dma_addr_t dma_addr = cmd->ioa_cb_bus_addr;
@@ -401,7 +401,7 @@ static struct pmcraid_cmd *pmcraid_get_free_cmd(
  * Return Value:
  *	nothing
  */
-void pmcraid_return_cmd(struct pmcraid_cmd *cmd)
+static void pmcraid_return_cmd(struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_instance *pinstance = cmd->drv_inst;
 	unsigned long lock_flags;
@@ -1368,13 +1368,8 @@ static struct genl_multicast_group pmcraid_mcgrps[] = {
 	{ .name = "events", /* not really used - see ID discussion below */ },
 };
 
-static struct genl_family pmcraid_event_family = {
-	/*
-	 * Due to prior multicast group abuse (the code having assumed that
-	 * the family ID can be used as a multicast group ID) we need to
-	 * statically allocate a family (and thus group) ID.
-	 */
-	.id = GENL_ID_PMCRAID,
+static struct genl_family pmcraid_event_family __ro_after_init = {
+	.module = THIS_MODULE,
 	.name = "pmcraid",
 	.version = 1,
 	.maxattr = PMCRAID_AEN_ATTR_MAX,
@@ -1389,7 +1384,7 @@ static struct genl_family pmcraid_event_family = {
  *	0 if the pmcraid_event_family is successfully registered
  *	with netlink generic, non-zero otherwise
  */
-static int pmcraid_netlink_init(void)
+static int __init pmcraid_netlink_init(void)
 {
 	int result;
 
@@ -1710,7 +1705,7 @@ static struct pmcraid_ioasc_error *pmcraid_get_error_info(u32 ioasc)
  * @ioasc: ioasc code
  * @cmd: pointer to command that resulted in 'ioasc'
  */
-void pmcraid_ioasc_logger(u32 ioasc, struct pmcraid_cmd *cmd)
+static void pmcraid_ioasc_logger(u32 ioasc, struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_ioasc_error *error_info = pmcraid_get_error_info(ioasc);
 
@@ -3137,7 +3132,7 @@ static int pmcraid_eh_host_reset_handler(struct scsi_cmnd *scmd)
  *   returns pointer pmcraid_ioadl_desc, initialized to point to internal
  *   or external IOADLs
  */
-struct pmcraid_ioadl_desc *
+static struct pmcraid_ioadl_desc *
 pmcraid_init_ioadls(struct pmcraid_cmd *cmd, int sgcount)
 {
 	struct pmcraid_ioadl_desc *ioadl;
@@ -3792,11 +3787,11 @@ static long pmcraid_ioctl_passthrough(
 						      direction);
 		if (rc) {
 			pmcraid_err("couldn't build passthrough ioadls\n");
-			goto out_free_buffer;
+			goto out_free_cmd;
 		}
 	} else if (request_size < 0) {
 		rc = -EINVAL;
-		goto out_free_buffer;
+		goto out_free_cmd;
 	}
 
 	/* If data is being written into the device, copy the data from user
@@ -3913,6 +3908,8 @@ out_handle_response:
 
 out_free_sglist:
 	pmcraid_release_passthrough_ioadls(cmd, request_size, direction);
+
+out_free_cmd:
 	pmcraid_return_cmd(cmd);
 
 out_free_buffer:
@@ -4590,16 +4587,14 @@ static void pmcraid_tasklet_function(unsigned long instance)
 static
 void pmcraid_unregister_interrupt_handler(struct pmcraid_instance *pinstance)
 {
+	struct pci_dev *pdev = pinstance->pdev;
 	int i;
 
 	for (i = 0; i < pinstance->num_hrrq; i++)
-		free_irq(pinstance->hrrq_vector[i].vector,
-			 &(pinstance->hrrq_vector[i]));
+		free_irq(pci_irq_vector(pdev, i), &pinstance->hrrq_vector[i]);
 
-	if (pinstance->interrupt_mode) {
-		pci_disable_msix(pinstance->pdev);
-		pinstance->interrupt_mode = 0;
-	}
+	pinstance->interrupt_mode = 0;
+	pci_free_irq_vectors(pdev);
 }
 
 /**
@@ -4612,60 +4607,52 @@ void pmcraid_unregister_interrupt_handler(struct pmcraid_instance *pinstance)
 static int
 pmcraid_register_interrupt_handler(struct pmcraid_instance *pinstance)
 {
-	int rc;
 	struct pci_dev *pdev = pinstance->pdev;
+	unsigned int irq_flag = PCI_IRQ_LEGACY, flag;
+	int num_hrrq, rc, i;
+	irq_handler_t isr;
 
-	if ((pmcraid_enable_msix) &&
-		(pci_find_capability(pdev, PCI_CAP_ID_MSIX))) {
-		int num_hrrq = PMCRAID_NUM_MSIX_VECTORS;
-		struct msix_entry entries[PMCRAID_NUM_MSIX_VECTORS];
-		int i;
-		for (i = 0; i < PMCRAID_NUM_MSIX_VECTORS; i++)
-			entries[i].entry = i;
+	if (pmcraid_enable_msix)
+		irq_flag |= PCI_IRQ_MSIX;
 
-		num_hrrq = pci_enable_msix_range(pdev, entries, 1, num_hrrq);
-		if (num_hrrq < 0)
-			goto pmcraid_isr_legacy;
+	num_hrrq = pci_alloc_irq_vectors(pdev, 1, PMCRAID_NUM_MSIX_VECTORS,
+			irq_flag);
+	if (num_hrrq < 0)
+		return num_hrrq;
 
-		for (i = 0; i < num_hrrq; i++) {
-			pinstance->hrrq_vector[i].hrrq_id = i;
-			pinstance->hrrq_vector[i].drv_inst = pinstance;
-			pinstance->hrrq_vector[i].vector = entries[i].vector;
-			rc = request_irq(pinstance->hrrq_vector[i].vector,
-					pmcraid_isr_msix, 0,
-					PMCRAID_DRIVER_NAME,
-					&(pinstance->hrrq_vector[i]));
+	if (pdev->msix_enabled) {
+		flag = 0;
+		isr = pmcraid_isr_msix;
+	} else {
+		flag = IRQF_SHARED;
+		isr = pmcraid_isr;
+	}
 
-			if (rc) {
-				int j;
-				for (j = 0; j < i; j++)
-					free_irq(entries[j].vector,
-						 &(pinstance->hrrq_vector[j]));
-				pci_disable_msix(pdev);
-				goto pmcraid_isr_legacy;
-			}
-		}
+	for (i = 0; i < num_hrrq; i++) {
+		struct pmcraid_isr_param *vec = &pinstance->hrrq_vector[i];
 
-		pinstance->num_hrrq = num_hrrq;
+		vec->hrrq_id = i;
+		vec->drv_inst = pinstance;
+		rc = request_irq(pci_irq_vector(pdev, i), isr, flag,
+				PMCRAID_DRIVER_NAME, vec);
+		if (rc)
+			goto out_unwind;
+	}
+
+	pinstance->num_hrrq = num_hrrq;
+	if (pdev->msix_enabled) {
 		pinstance->interrupt_mode = 1;
 		iowrite32(DOORBELL_INTR_MODE_MSIX,
 			  pinstance->int_regs.host_ioa_interrupt_reg);
 		ioread32(pinstance->int_regs.host_ioa_interrupt_reg);
-		goto pmcraid_isr_out;
 	}
 
-pmcraid_isr_legacy:
-	/* If MSI-X registration failed fallback to legacy mode, where
-	 * only one hrrq entry will be used
-	 */
-	pinstance->hrrq_vector[0].hrrq_id = 0;
-	pinstance->hrrq_vector[0].drv_inst = pinstance;
-	pinstance->hrrq_vector[0].vector = pdev->irq;
-	pinstance->num_hrrq = 1;
+	return 0;
 
-	rc = request_irq(pdev->irq, pmcraid_isr, IRQF_SHARED,
-			 PMCRAID_DRIVER_NAME, &pinstance->hrrq_vector[0]);
-pmcraid_isr_out:
+out_unwind:
+	while (--i > 0)
+		free_irq(pci_irq_vector(pdev, i), &pinstance->hrrq_vector[i]);
+	pci_free_irq_vectors(pdev);
 	return rc;
 }
 
@@ -6023,8 +6010,10 @@ static int __init pmcraid_init(void)
 
 	error = pmcraid_netlink_init();
 
-	if (error)
+	if (error) {
+		class_destroy(pmcraid_class);
 		goto out_unreg_chrdev;
+	}
 
 	error = pci_register_driver(&pmcraid_driver);
 

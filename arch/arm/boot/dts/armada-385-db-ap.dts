@@ -65,20 +65,6 @@
 			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
 
 		internal-regs {
-			spi1: spi@10680 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&spi1_pins>;
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "st,m25p128", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <54000000>;
-				};
-			};
-
 			i2c0: i2c@11000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins>;
@@ -155,6 +141,10 @@
 				bm,pool-short = <3>;
 			};
 
+			usb@58000 {
+				status = "okay";
+			};
+
 			/* CON4 */
 			ethernet@70000 {
 				pinctrl-names = "default";
@@ -178,15 +168,35 @@
 
 			nfc: flash@d0000 {
 				status = "okay";
-				#address-cells = <1>;
-				#size-cells = <1>;
-
 				num-cs = <1>;
 				nand-ecc-strength = <4>;
 				nand-ecc-step-size = <512>;
 				marvell,nand-keep-config;
 				marvell,nand-enable-arbiter;
 				nand-on-flash-bbt;
+
+				partitions {
+					compatible = "fixed-partitions";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					partition@0 {
+						label = "U-Boot";
+						reg = <0x00000000 0x00800000>;
+						read-only;
+					};
+
+					partition@800000 {
+						label = "uImage";
+						reg = <0x00800000 0x00400000>;
+						read-only;
+					};
+
+					partition@c00000 {
+						label = "Root";
+						reg = <0x00c00000 0x3f400000>;
+					};
+				};
 			};
 
 			usb3@f0000 {
@@ -237,5 +247,19 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "st,m25p128", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <54000000>;
 	};
 };

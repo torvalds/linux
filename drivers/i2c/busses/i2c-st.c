@@ -776,7 +776,7 @@ static u32 st_i2c_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm st_i2c_algo = {
+static const struct i2c_algorithm st_i2c_algo = {
 	.master_xfer = st_i2c_xfer,
 	.functionality = st_i2c_func,
 };
@@ -874,10 +874,8 @@ static int st_i2c_probe(struct platform_device *pdev)
 	init_completion(&i2c_dev->complete);
 
 	ret = i2c_add_adapter(adap);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to add adapter\n");
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, i2c_dev);
 

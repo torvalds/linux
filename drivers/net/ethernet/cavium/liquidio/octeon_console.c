@@ -1,36 +1,33 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /**
  * @file octeon_console.c
  */
+#include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/crc32.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_main.h"
+#include "liquidio_image.h"
 #include "octeon_mem_ops.h"
 
 static void octeon_remote_lock(void);
@@ -40,6 +37,10 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 					     u32 flags);
 static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 			       char *buffer, u32 buf_size);
+static u32 console_bitmask;
+module_param(console_bitmask, int, 0644);
+MODULE_PARM_DESC(console_bitmask,
+		 "Bitmask indicating which consoles have debug output redirected to syslog.");
 
 #define MIN(a, b) min((a), (b))
 #define CAST_ULL(v) ((u64)(v))
@@ -71,9 +72,9 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 #define OCTEON_CONSOLE_POLL_INTERVAL_MS  100    /* 10 times per second */
 
 /* First three members of cvmx_bootmem_desc are left in original
-** positions for backwards compatibility.
-** Assumes big endian target
-*/
+ * positions for backwards compatibility.
+ * Assumes big endian target
+ */
 struct cvmx_bootmem_desc {
 	/** spinlock to control access to list */
 	u32 lock;
@@ -138,45 +139,14 @@ struct octeon_pci_console_desc {
 };
 
 /**
- * This macro returns the size of a member of a structure.
- * Logically it is the same as "sizeof(s::field)" in C++, but
- * C lacks the "::" operator.
+ * \brief determines if a given console has debug enabled.
+ * @param console console to check
+ * @returns  1 = enabled. 0 otherwise
  */
-#define SIZEOF_FIELD(s, field) sizeof(((s *)NULL)->field)
-
-/**
- * This macro returns a member of the cvmx_bootmem_desc
- * structure. These members can't be directly addressed as
- * they might be in memory not directly reachable. In the case
- * where bootmem is compiled with LINUX_HOST, the structure
- * itself might be located on a remote Octeon. The argument
- * "field" is the member name of the cvmx_bootmem_desc to read.
- * Regardless of the type of the field, the return type is always
- * a u64.
- */
-#define CVMX_BOOTMEM_DESC_GET_FIELD(oct, field)                              \
-	__cvmx_bootmem_desc_get(oct, oct->bootmem_desc_addr,                 \
-				offsetof(struct cvmx_bootmem_desc, field),   \
-				SIZEOF_FIELD(struct cvmx_bootmem_desc, field))
-
-#define __cvmx_bootmem_lock(flags)	(flags = flags)
-#define __cvmx_bootmem_unlock(flags)	(flags = flags)
-
-/**
- * This macro returns a member of the
- * cvmx_bootmem_named_block_desc structure. These members can't
- * be directly addressed as they might be in memory not directly
- * reachable. In the case where bootmem is compiled with
- * LINUX_HOST, the structure itself might be located on a remote
- * Octeon. The argument "field" is the member name of the
- * cvmx_bootmem_named_block_desc to read. Regardless of the type
- * of the field, the return type is always a u64. The "addr"
- * parameter is the physical address of the structure.
- */
-#define CVMX_BOOTMEM_NAMED_GET_FIELD(oct, addr, field)                   \
-	__cvmx_bootmem_desc_get(oct, addr,                               \
-		offsetof(struct cvmx_bootmem_named_block_desc, field),   \
-		SIZEOF_FIELD(struct cvmx_bootmem_named_block_desc, field))
+static int octeon_console_debug_enabled(u32 console)
+{
+	return (console_bitmask >> (console)) & 0x1;
+}
 
 /**
  * This function is the implementation of the get macros defined
@@ -249,10 +219,15 @@ static int __cvmx_bootmem_check_version(struct octeon_device *oct,
 		oct->bootmem_desc_addr =
 			octeon_read_device_mem64(oct,
 						 BOOTLOADER_PCI_READ_DESC_ADDR);
-	major_version =
-		(u32)CVMX_BOOTMEM_DESC_GET_FIELD(oct, major_version);
-	minor_version =
-		(u32)CVMX_BOOTMEM_DESC_GET_FIELD(oct, minor_version);
+	major_version = (u32)__cvmx_bootmem_desc_get(
+			oct, oct->bootmem_desc_addr,
+			offsetof(struct cvmx_bootmem_desc, major_version),
+			FIELD_SIZEOF(struct cvmx_bootmem_desc, major_version));
+	minor_version = (u32)__cvmx_bootmem_desc_get(
+			oct, oct->bootmem_desc_addr,
+			offsetof(struct cvmx_bootmem_desc, minor_version),
+			FIELD_SIZEOF(struct cvmx_bootmem_desc, minor_version));
+
 	dev_dbg(&oct->pci_dev->dev, "%s: major_version=%d\n", __func__,
 		major_version);
 	if ((major_version > 3) ||
@@ -275,10 +250,20 @@ static const struct cvmx_bootmem_named_block_desc
 	u64 named_addr = cvmx_bootmem_phy_named_block_find(oct, name, flags);
 
 	if (named_addr) {
-		desc->base_addr = CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr,
-							       base_addr);
-		desc->size =
-			CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr, size);
+		desc->base_addr = __cvmx_bootmem_desc_get(
+				oct, named_addr,
+				offsetof(struct cvmx_bootmem_named_block_desc,
+					 base_addr),
+				FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					base_addr));
+		desc->size = __cvmx_bootmem_desc_get(oct, named_addr,
+				offsetof(struct cvmx_bootmem_named_block_desc,
+					 size),
+				FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					size));
+
 		strncpy(desc->name, name, sizeof(desc->name));
 		desc->name[sizeof(desc->name) - 1] = 0;
 		return &oct->bootmem_named_block_desc;
@@ -293,22 +278,41 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 {
 	u64 result = 0;
 
-	__cvmx_bootmem_lock(flags);
 	if (!__cvmx_bootmem_check_version(oct, 3)) {
 		u32 i;
-		u64 named_block_array_addr =
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct,
-						    named_block_array_addr);
-		u32 num_blocks = (u32)
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct, nb_num_blocks);
-		u32 name_length = (u32)
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct, named_block_name_len);
+
+		u64 named_block_array_addr = __cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 named_block_array_addr),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     named_block_array_addr));
+		u32 num_blocks = (u32)__cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 nb_num_blocks),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     nb_num_blocks));
+
+		u32 name_length = (u32)__cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 named_block_name_len),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     named_block_name_len));
+
 		u64 named_addr = named_block_array_addr;
 
 		for (i = 0; i < num_blocks; i++) {
-			u64 named_size =
-				CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr,
-							     size);
+			u64 named_size = __cvmx_bootmem_desc_get(
+					oct, named_addr,
+					 offsetof(
+					struct cvmx_bootmem_named_block_desc,
+					size),
+					 FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					size));
+
 			if (name && named_size) {
 				char *name_tmp =
 					kmalloc(name_length + 1, GFP_KERNEL);
@@ -333,7 +337,6 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 				sizeof(struct cvmx_bootmem_named_block_desc);
 		}
 	}
-	__cvmx_bootmem_unlock(flags);
 	return result;
 }
 
@@ -547,6 +550,16 @@ int octeon_init_consoles(struct octeon_device *oct)
 		return ret;
 	}
 
+	/* Dedicate one of Octeon's BAR1 index registers to create a static
+	 * mapping to a region of Octeon DRAM that contains the PCI console
+	 * named block.
+	 */
+	oct->console_nb_info.bar1_index = BAR1_INDEX_STATIC_MAP;
+	oct->fn_list.bar1_idx_setup(oct, addr, oct->console_nb_info.bar1_index,
+				    true);
+	oct->console_nb_info.dram_region_base = addr
+		& ~(OCTEON_BAR1_ENTRY_SIZE - 1ULL);
+
 	/* num_consoles > 0, is an indication that the consoles
 	 * are accessible
 	 */
@@ -708,4 +721,105 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 				  console->buffer_size);
 
 	return bytes_to_read;
+}
+
+#define FBUF_SIZE	(4 * 1024 * 1024)
+u8 fbuf[FBUF_SIZE];
+
+int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
+			     size_t size)
+{
+	int ret = 0;
+	u8 *p = fbuf;
+	u32 crc32_result;
+	u64 load_addr;
+	u32 image_len;
+	struct octeon_firmware_file_header *h;
+	u32 i, rem;
+
+	if (size < sizeof(struct octeon_firmware_file_header)) {
+		dev_err(&oct->pci_dev->dev, "Firmware file too small (%d < %d).\n",
+			(u32)size,
+			(u32)sizeof(struct octeon_firmware_file_header));
+		return -EINVAL;
+	}
+
+	h = (struct octeon_firmware_file_header *)data;
+
+	if (be32_to_cpu(h->magic) != LIO_NIC_MAGIC) {
+		dev_err(&oct->pci_dev->dev, "Unrecognized firmware file.\n");
+		return -EINVAL;
+	}
+
+	crc32_result = crc32((unsigned int)~0, data,
+			     sizeof(struct octeon_firmware_file_header) -
+			     sizeof(u32)) ^ ~0U;
+	if (crc32_result != be32_to_cpu(h->crc32)) {
+		dev_err(&oct->pci_dev->dev, "Firmware CRC mismatch (0x%08x != 0x%08x).\n",
+			crc32_result, be32_to_cpu(h->crc32));
+		return -EINVAL;
+	}
+
+	if (strncmp(LIQUIDIO_PACKAGE, h->version, strlen(LIQUIDIO_PACKAGE))) {
+		dev_err(&oct->pci_dev->dev, "Unmatched firmware package type. Expected %s, got %s.\n",
+			LIQUIDIO_PACKAGE, h->version);
+		return -EINVAL;
+	}
+
+	if (memcmp(LIQUIDIO_BASE_VERSION, h->version + strlen(LIQUIDIO_PACKAGE),
+		   strlen(LIQUIDIO_BASE_VERSION))) {
+		dev_err(&oct->pci_dev->dev, "Unmatched firmware version. Expected %s.x, got %s.\n",
+			LIQUIDIO_BASE_VERSION,
+			h->version + strlen(LIQUIDIO_PACKAGE));
+		return -EINVAL;
+	}
+
+	if (be32_to_cpu(h->num_images) > LIO_MAX_IMAGES) {
+		dev_err(&oct->pci_dev->dev, "Too many images in firmware file (%d).\n",
+			be32_to_cpu(h->num_images));
+		return -EINVAL;
+	}
+
+	dev_info(&oct->pci_dev->dev, "Firmware version: %s\n", h->version);
+	snprintf(oct->fw_info.liquidio_firmware_version, 32, "LIQUIDIO: %s",
+		 h->version);
+
+	data += sizeof(struct octeon_firmware_file_header);
+
+	dev_info(&oct->pci_dev->dev, "%s: Loading %d images\n", __func__,
+		 be32_to_cpu(h->num_images));
+	/* load all images */
+	for (i = 0; i < be32_to_cpu(h->num_images); i++) {
+		load_addr = be64_to_cpu(h->desc[i].addr);
+		image_len = be32_to_cpu(h->desc[i].len);
+
+		dev_info(&oct->pci_dev->dev, "Loading firmware %d at %llx\n",
+			 image_len, load_addr);
+
+		/* Write in 4MB chunks*/
+		rem = image_len;
+
+		while (rem) {
+			if (rem < FBUF_SIZE)
+				size = rem;
+			else
+				size = FBUF_SIZE;
+
+			memcpy(p, data, size);
+
+			/* download the image */
+			octeon_pci_write_core_mem(oct, load_addr, p, (u32)size);
+
+			data += size;
+			rem -= (u32)size;
+			load_addr += size;
+		}
+	}
+	dev_info(&oct->pci_dev->dev, "Writing boot command: %s\n",
+		 h->bootcmd);
+
+	/* Invoke the bootcmd */
+	ret = octeon_console_send_cmd(oct, h->bootcmd, 50);
+
+	return 0;
 }

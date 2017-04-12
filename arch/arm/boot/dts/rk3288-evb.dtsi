@@ -43,12 +43,12 @@
 #include "rk3288.dtsi"
 
 / {
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000>;
 	};
 
-	backlight {
+	backlight: backlight {
 		compatible = "pwm-backlight";
 		brightness-levels = <
 			  0   1   2   3   4   5   6   7
@@ -84,7 +84,7 @@
 			240 241 242 243 244 245 246 247
 			248 249 250 251 252 253 254 255>;
 		default-brightness-level = <128>;
-		enable-gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_en>;
 		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
@@ -97,6 +97,21 @@
 		#clock-cells = <0>;
 	};
 
+	panel: panel {
+		compatible ="lg,lp079qx1-sp0v", "simple-panel";
+		backlight = <&backlight>;
+		enable-gpios = <&gpio7 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&lcd_cs>;
+
+		ports {
+			panel_in: port {
+				panel_in_edp: endpoint {
+					remote-endpoint = <&edp_out_panel>;
+				};
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		autorepeat;
@@ -105,7 +120,7 @@
 		pinctrl-0 = <&pwrbtn>;
 
 		power {
-			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
@@ -118,7 +133,7 @@
 	vcc_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc_host";
@@ -129,7 +144,7 @@
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&eth_phy_pwr>;
 		regulator-name = "vcc_phy";
@@ -155,7 +170,7 @@
 	 */
 	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio7 11 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_pwr>;
 		regulator-name = "vcc_sd";
@@ -168,6 +183,28 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
+};
+
+&edp {
+	force-hpd;
+	status = "okay";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp_phy {
+	status = "okay";
 };
 
 &emmc {
@@ -199,7 +236,7 @@
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rgmii";
 	clock_in_out = "input";
-	snps,reset-gpio = <&gpio4 7 0>;
+	snps,reset-gpio = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
 	assigned-clocks = <&cru SCLK_MAC>;
@@ -277,6 +314,12 @@
 	buttons {
 		pwrbtn: pwrbtn {
 			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	lcd {
+		lcd_cs: lcd-cs {
+			rockchip,pins = <7 4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

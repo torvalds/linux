@@ -284,7 +284,8 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	if (addr)
 		ether_addr_copy(msg_addr, addr);
 
-	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 3);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
+					     sizeof(msgbuf) / sizeof(u32));
 	if (!ret_val) {
 		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -329,9 +330,14 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 	 * Thus return an error if API doesn't support RETA querying or querying
 	 * is not supported for this device type.
 	 */
-	if (hw->api_version != ixgbe_mbox_api_12 ||
-	    hw->mac.type >= ixgbe_mac_X550_vf)
+	switch (hw->api_version) {
+	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_12:
+		if (hw->mac.type >= ixgbe_mac_X550_vf)
+			break;
+	default:
 		return -EOPNOTSUPP;
+	}
 
 	msgbuf[0] = IXGBE_VF_GET_RETA;
 
@@ -390,9 +396,14 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	 * Thus return an error if API doesn't support RSS Random Key retrieval
 	 * or if the operation is not supported for this device type.
 	 */
-	if (hw->api_version != ixgbe_mbox_api_12 ||
-	    hw->mac.type >= ixgbe_mac_X550_vf)
+	switch (hw->api_version) {
+	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_12:
+		if (hw->mac.type >= ixgbe_mac_X550_vf)
+			break;
+	default:
 		return -EOPNOTSUPP;
+	}
 
 	msgbuf[0] = IXGBE_VF_GET_RSS_KEY;
 	err = hw->mbx.ops.write_posted(hw, msgbuf, 1);
@@ -441,7 +452,8 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
 	ether_addr_copy(msg_addr, addr);
 
-	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
+					     sizeof(msgbuf) / sizeof(u32));
 
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -543,6 +555,11 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_12:
+		/* promisc introduced in 1.3 version */
+		if (xcast_mode == IXGBEVF_XCAST_MODE_PROMISC)
+			return -EOPNOTSUPP;
+		/* Fall threw */
+	case ixgbe_mbox_api_13:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -551,7 +568,8 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 	msgbuf[0] = IXGBE_VF_UPDATE_XCAST_MODE;
 	msgbuf[1] = xcast_mode;
 
-	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
+					 sizeof(msgbuf) / sizeof(u32));
 	if (err)
 		return err;
 
@@ -588,7 +606,8 @@ static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
+					 sizeof(msgbuf) / sizeof(u32));
 	if (err)
 		goto mbx_err;
 
@@ -791,7 +810,8 @@ static s32 ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 	msgbuf[0] = IXGBE_VF_SET_LPE;
 	msgbuf[1] = max_size;
 
-	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf,
+					     sizeof(msgbuf) / sizeof(u32));
 	if (ret_val)
 		return ret_val;
 	if ((msgbuf[0] & IXGBE_VF_SET_LPE) &&
@@ -837,7 +857,8 @@ static int ixgbevf_negotiate_api_version_vf(struct ixgbe_hw *hw, int api)
 	msg[1] = api;
 	msg[2] = 0;
 
-	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 3);
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg,
+					 sizeof(msg) / sizeof(u32));
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -878,6 +899,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
+	case ixgbe_mbox_api_13:
 		break;
 	default:
 		return 0;
@@ -887,7 +909,8 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	msg[0] = IXGBE_VF_GET_QUEUE;
 	msg[1] = msg[2] = msg[3] = msg[4] = 0;
 
-	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 5);
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg,
+					 sizeof(msg) / sizeof(u32));
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 

@@ -30,6 +30,7 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/ip6_checksum.h>
+#include <net/sctp/checksum.h>
 
 #include <net/act_api.h>
 
@@ -42,7 +43,7 @@ static const struct nla_policy csum_policy[TCA_CSUM_MAX + 1] = {
 	[TCA_CSUM_PARMS] = { .len = sizeof(struct tc_csum), },
 };
 
-static int csum_net_id;
+static unsigned int csum_net_id;
 static struct tc_action_ops act_csum_ops;
 
 static int tcf_csum_init(struct net *net, struct nlattr *nla,
@@ -116,8 +117,8 @@ static void *tcf_csum_skb_nextlayer(struct sk_buff *skb,
 		return (void *)(skb_network_header(skb) + ihl);
 }
 
-static int tcf_csum_ipv4_icmp(struct sk_buff *skb,
-			      unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv4_icmp(struct sk_buff *skb, unsigned int ihl,
+			      unsigned int ipl)
 {
 	struct icmphdr *icmph;
 
@@ -152,8 +153,8 @@ static int tcf_csum_ipv4_igmp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv6_icmp(struct sk_buff *skb,
-			      unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv6_icmp(struct sk_buff *skb, unsigned int ihl,
+			      unsigned int ipl)
 {
 	struct icmp6hdr *icmp6h;
 	const struct ipv6hdr *ip6h;
@@ -174,8 +175,8 @@ static int tcf_csum_ipv6_icmp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv4_tcp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv4_tcp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl)
 {
 	struct tcphdr *tcph;
 	const struct iphdr *iph;
@@ -195,8 +196,8 @@ static int tcf_csum_ipv4_tcp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv6_tcp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv6_tcp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl)
 {
 	struct tcphdr *tcph;
 	const struct ipv6hdr *ip6h;
@@ -217,8 +218,8 @@ static int tcf_csum_ipv6_tcp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv4_udp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl, int udplite)
+static int tcf_csum_ipv4_udp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl, int udplite)
 {
 	struct udphdr *udph;
 	const struct iphdr *iph;
@@ -270,8 +271,8 @@ ignore_obscure_skb:
 	return 1;
 }
 
-static int tcf_csum_ipv6_udp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl, int udplite)
+static int tcf_csum_ipv6_udp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl, int udplite)
 {
 	struct udphdr *udph;
 	const struct ipv6hdr *ip6h;
@@ -322,6 +323,25 @@ ignore_obscure_skb:
 	return 1;
 }
 
+static int tcf_csum_sctp(struct sk_buff *skb, unsigned int ihl,
+			 unsigned int ipl)
+{
+	struct sctphdr *sctph;
+
+	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_SCTP)
+		return 1;
+
+	sctph = tcf_csum_skb_nextlayer(skb, ihl, ipl, sizeof(*sctph));
+	if (!sctph)
+		return 0;
+
+	sctph->checksum = sctp_compute_cksum(skb,
+					     skb_network_offset(skb) + ihl);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	return 1;
+}
+
 static int tcf_csum_ipv4(struct sk_buff *skb, u32 update_flags)
 {
 	const struct iphdr *iph;
@@ -365,6 +385,11 @@ static int tcf_csum_ipv4(struct sk_buff *skb, u32 update_flags)
 					       ntohs(iph->tot_len), 1))
 				goto fail;
 		break;
+	case IPPROTO_SCTP:
+		if ((update_flags & TCA_CSUM_UPDATE_FLAG_SCTP) &&
+		    !tcf_csum_sctp(skb, iph->ihl * 4, ntohs(iph->tot_len)))
+			goto fail;
+		break;
 	}
 
 	if (update_flags & TCA_CSUM_UPDATE_FLAG_IPV4HDR) {
@@ -380,8 +405,8 @@ fail:
 	return 0;
 }
 
-static int tcf_csum_ipv6_hopopts(struct ipv6_opt_hdr *ip6xh,
-				 unsigned int ixhl, unsigned int *pl)
+static int tcf_csum_ipv6_hopopts(struct ipv6_opt_hdr *ip6xh, unsigned int ixhl,
+				 unsigned int *pl)
 {
 	int off, len, optlen;
 	unsigned char *xh = (void *)ip6xh;
@@ -481,6 +506,11 @@ static int tcf_csum_ipv6(struct sk_buff *skb, u32 update_flags)
 						       pl + sizeof(*ip6h), 1))
 					goto fail;
 			goto done;
+		case IPPROTO_SCTP:
+			if ((update_flags & TCA_CSUM_UPDATE_FLAG_SCTP) &&
+			    !tcf_csum_sctp(skb, hl, pl + sizeof(*ip6h)))
+				goto fail;
+			goto done;
 		default:
 			goto ignore_skb;
 		}
@@ -494,8 +524,8 @@ fail:
 	return 0;
 }
 
-static int tcf_csum(struct sk_buff *skb,
-		    const struct tc_action *a, struct tcf_result *res)
+static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
+		    struct tcf_result *res)
 {
 	struct tcf_csum *p = to_tcf_csum(a);
 	int action;
@@ -531,8 +561,8 @@ drop:
 	return TC_ACT_SHOT;
 }
 
-static int tcf_csum_dump(struct sk_buff *skb,
-			 struct tc_action *a, int bind, int ref)
+static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
+			 int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_csum *p = to_tcf_csum(a);

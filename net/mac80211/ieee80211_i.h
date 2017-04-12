@@ -3,7 +3,7 @@
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2013-2015  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -84,7 +84,11 @@ struct ieee80211_local;
 #define IEEE80211_DEFAULT_MAX_SP_LEN		\
 	IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL
 
+extern const u8 ieee80211_ac_to_qos_mask[IEEE80211_NUM_ACS];
+
 #define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
+
+#define IEEE80211_MAX_NAN_INSTANCE_ID 255
 
 struct ieee80211_fragment_entry {
 	struct sk_buff_head skb_list;
@@ -155,7 +159,7 @@ enum ieee80211_bss_valid_data_flags {
 	IEEE80211_BSS_VALID_ERP			= BIT(3)
 };
 
-typedef unsigned __bitwise__ ieee80211_tx_result;
+typedef unsigned __bitwise ieee80211_tx_result;
 #define TX_CONTINUE	((__force ieee80211_tx_result) 0u)
 #define TX_DROP		((__force ieee80211_tx_result) 1u)
 #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
@@ -176,7 +180,7 @@ struct ieee80211_tx_data {
 };
 
 
-typedef unsigned __bitwise__ ieee80211_rx_result;
+typedef unsigned __bitwise ieee80211_rx_result;
 #define RX_CONTINUE		((__force ieee80211_rx_result) 0u)
 #define RX_DROP_UNUSABLE	((__force ieee80211_rx_result) 1u)
 #define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
@@ -293,6 +297,7 @@ struct ieee80211_if_ap {
 			 driver_smps_mode; /* smps mode request */
 
 	struct work_struct request_smps_work;
+	bool multicast_to_unicast;
 };
 
 struct ieee80211_if_wds {
@@ -305,6 +310,7 @@ struct ieee80211_if_vlan {
 
 	/* used for all tx if the VLAN is configured to 4-addr mode */
 	struct sta_info __rcu *sta;
+	atomic_t num_mcast_sta; /* number of stations receiving multicast */
 };
 
 struct mesh_stats {
@@ -396,6 +402,10 @@ struct ieee80211_mgd_assoc_data {
 
 	struct ieee80211_vht_cap ap_vht_cap;
 
+	u8 fils_nonces[2 * FILS_NONCE_LEN];
+	u8 fils_kek[FILS_MAX_KEK_LEN];
+	size_t fils_kek_len;
+
 	size_t ie_len;
 	u8 ie[];
 };
@@ -418,7 +428,7 @@ struct ieee80211_sta_tx_tspec {
 	bool downgraded;
 };
 
-DECLARE_EWMA(beacon_signal, 16, 4)
+DECLARE_EWMA(beacon_signal, 4, 4)
 
 struct ieee80211_if_managed {
 	struct timer_list timer;
@@ -440,7 +450,7 @@ struct ieee80211_if_managed {
 	struct ieee80211_mgd_auth_data *auth_data;
 	struct ieee80211_mgd_assoc_data *assoc_data;
 
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN] __aligned(2);
 
 	u16 aid;
 
@@ -615,8 +625,8 @@ struct ieee80211_mesh_sync_ops {
 			     struct ieee80211_rx_status *rx_status);
 
 	/* should be called with beacon_data under RCU read lock */
-	void (*adjust_tbtt)(struct ieee80211_sub_if_data *sdata,
-			    struct beacon_data *beacon);
+	void (*adjust_tsf)(struct ieee80211_sub_if_data *sdata,
+			   struct beacon_data *beacon);
 	/* add other framework functions here */
 };
 
@@ -679,7 +689,6 @@ struct ieee80211_if_mesh {
 	const struct ieee80211_mesh_sync_ops *sync_ops;
 	s64 sync_offset_clockdrift_max;
 	spinlock_t sync_offset_lock;
-	bool adjusting_tbtt;
 	/* mesh power save */
 	enum nl80211_mesh_power_mode nonpeer_pm;
 	int ps_peers_light_sleep;
@@ -813,15 +822,37 @@ enum txq_info_flags {
  * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
  *	a fq_flow which is already owned by a different tin
  * @def_cvars: codel vars for @def_flow
+ * @frags: used to keep fragments created after dequeue
  */
 struct txq_info {
 	struct fq_tin tin;
 	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
+	struct codel_stats cstats;
+	struct sk_buff_head frags;
 	unsigned long flags;
 
 	/* keep last! */
 	struct ieee80211_txq txq;
+};
+
+struct ieee80211_if_mntr {
+	u32 flags;
+	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
+};
+
+/**
+ * struct ieee80211_if_nan - NAN state
+ *
+ * @conf: current NAN configuration
+ * @func_ids: a bitmap of available instance_id's
+ */
+struct ieee80211_if_nan {
+	struct cfg80211_nan_conf conf;
+
+	/* protects function_inst_ids */
+	spinlock_t func_lock;
+	struct idr function_inst_ids;
 };
 
 struct ieee80211_sub_if_data {
@@ -922,7 +953,8 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_ibss ibss;
 		struct ieee80211_if_mesh mesh;
 		struct ieee80211_if_ocb ocb;
-		u32 mntr_flags;
+		struct ieee80211_if_mntr mntr;
+		struct ieee80211_if_nan nan;
 	} u;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -1112,7 +1144,6 @@ struct ieee80211_local {
 	struct fq fq;
 	struct codel_vars *cvars;
 	struct codel_params cparams;
-	struct codel_stats cstats;
 
 	const struct ieee80211_ops *ops;
 
@@ -1208,7 +1239,7 @@ struct ieee80211_local {
 	spinlock_t tim_lock;
 	unsigned long num_sta;
 	struct list_head sta_list;
-	struct rhashtable sta_hash;
+	struct rhltable sta_hash;
 	struct timer_list sta_cleanup;
 	int sta_generation;
 
@@ -1476,6 +1507,13 @@ static inline struct txq_info *to_txq_info(struct ieee80211_txq *txq)
 	return container_of(txq, struct txq_info, txq);
 }
 
+static inline bool txq_has_queue(struct ieee80211_txq *txq)
+{
+	struct txq_info *txqi = to_txq_info(txq);
+
+	return !(skb_queue_empty(&txqi->frags) && !txqi->tin.backlog_packets);
+}
+
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {
 	return ether_addr_equal(raddr, addr) ||
@@ -1494,6 +1532,23 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 	    !(status->flag & (RX_FLAG_HT | RX_FLAG_VHT)))
 		return true;
 	return false;
+}
+
+void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata);
+void ieee80211_vif_dec_num_mcast(struct ieee80211_sub_if_data *sdata);
+
+/* This function returns the number of multicast stations connected to this
+ * interface. It returns -1 if that number is not tracked, that is for netdevs
+ * not in AP or AP_VLAN mode or when using 4addr.
+ */
+static inline int
+ieee80211_vif_get_num_mcast_if(struct ieee80211_sub_if_data *sdata)
+{
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		return atomic_read(&sdata->u.ap.num_mcast_sta);
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN && !sdata->u.vlan.sta)
+		return atomic_read(&sdata->u.vlan.num_mcast_sta);
+	return -1;
 }
 
 u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,

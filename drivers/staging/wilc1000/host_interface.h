@@ -367,7 +367,6 @@ extern u8 wilc_connected_ssid[6];
 extern u8 wilc_multicast_mac_addr_list[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 
 extern int wilc_connecting;
-extern u8 wilc_initialized;
 extern struct timer_list wilc_during_ip_timer;
 
 #endif

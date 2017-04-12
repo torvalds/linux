@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -29,12 +29,12 @@
 #include "trace.h"
 
 static bool rtap_include_phy_info;
-module_param(rtap_include_phy_info, bool, S_IRUGO);
+module_param(rtap_include_phy_info, bool, 0444);
 MODULE_PARM_DESC(rtap_include_phy_info,
 		 " Include PHY info in the radiotap header, default - no");
 
 bool rx_align_2;
-module_param(rx_align_2, bool, S_IRUGO);
+module_param(rx_align_2, bool, 0444);
 MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
 
 static inline uint wil_rx_snaplen(void)
@@ -88,6 +88,18 @@ static inline int wil_vring_wmark_high(struct vring *vring)
 	return vring->size/4;
 }
 
+/* returns true if num avail descriptors is lower than wmark_low */
+static inline int wil_vring_avail_low(struct vring *vring)
+{
+	return wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring);
+}
+
+/* returns true if num avail descriptors is higher than wmark_high */
+static inline int wil_vring_avail_high(struct vring *vring)
+{
+	return wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring);
+}
+
 /* wil_val_in_range - check if value in [min,max) */
 static inline bool wil_val_in_range(int val, int min, int max)
 {
@@ -100,7 +112,7 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	size_t sz = vring->size * sizeof(vring->va[0]);
 	uint i;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "vring_alloc:\n");
 
 	BUILD_BUG_ON(sizeof(vring->va[0]) != 32);
 
@@ -326,7 +338,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 
 	if (skb_headroom(skb) < rtap_len &&
 	    pskb_expand_head(skb, rtap_len, 0, GFP_ATOMIC)) {
-		wil_err(wil, "Unable to expand headrom to %d\n", rtap_len);
+		wil_err(wil, "Unable to expand headroom to %d\n", rtap_len);
 		return;
 	}
 
@@ -733,7 +745,7 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 		wil_err(wil, "Rx IRQ while Rx not yet initialized\n");
 		return;
 	}
-	wil_dbg_txrx(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "rx_handle\n");
 	while ((*quota > 0) && (NULL != (skb = wil_vring_reap_rx(wil, v)))) {
 		(*quota)--;
 
@@ -756,7 +768,7 @@ int wil_rx_init(struct wil6210_priv *wil, u16 size)
 	struct vring *vring = &wil->vring_rx;
 	int rc;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "rx_init\n");
 
 	if (vring->va) {
 		wil_err(wil, "Rx ring already allocated\n");
@@ -787,7 +799,7 @@ void wil_rx_fini(struct wil6210_priv *wil)
 {
 	struct vring *vring = &wil->vring_rx;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "rx_fini\n");
 
 	if (vring->va)
 		wil_vring_free(wil, vring, 0);
@@ -839,7 +851,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	struct vring *vring = &wil->vring_tx[id];
 	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
 
-	wil_dbg_misc(wil, "%s() max_mpdu_size %d\n", __func__,
+	wil_dbg_misc(wil, "vring_init_tx: max_mpdu_size %d\n",
 		     cmd.vring_cfg.tx_sw_ring.max_mpdu_size);
 	lockdep_assert_held(&wil->mutex);
 
@@ -873,9 +885,12 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		rc = -EINVAL;
 		goto out_free;
 	}
-	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
+	spin_lock_bh(&txdata->lock);
+	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
+
 	if (txdata->dot1x_open && (agg_wsize >= 0))
 		wil_addba_tx_request(wil, id, agg_wsize);
 
@@ -916,7 +931,7 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 	struct vring *vring = &wil->vring_tx[id];
 	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
 
-	wil_dbg_misc(wil, "%s() max_mpdu_size %d\n", __func__,
+	wil_dbg_misc(wil, "vring_init_bcast: max_mpdu_size %d\n",
 		     cmd.vring_cfg.tx_sw_ring.max_mpdu_size);
 	lockdep_assert_held(&wil->mutex);
 
@@ -950,9 +965,11 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 		rc = -EINVAL;
 		goto out_free;
 	}
-	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
+	spin_lock_bh(&txdata->lock);
+	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
 
 	return 0;
  out_free:
@@ -976,7 +993,7 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 	if (!vring->va)
 		return;
 
-	wil_dbg_misc(wil, "%s() id=%d\n", __func__, id);
+	wil_dbg_misc(wil, "vring_fini_tx: id=%d\n", id);
 
 	spin_lock_bh(&txdata->lock);
 	txdata->dot1x_open = false;
@@ -1015,12 +1032,14 @@ static struct vring *wil_find_tx_ucast(struct wil6210_priv *wil,
 			struct vring *v = &wil->vring_tx[i];
 			struct vring_tx_data *txdata = &wil->vring_tx_data[i];
 
-			wil_dbg_txrx(wil, "%s(%pM) -> [%d]\n",
-				     __func__, eth->h_dest, i);
+			wil_dbg_txrx(wil, "find_tx_ucast: (%pM) -> [%d]\n",
+				     eth->h_dest, i);
 			if (v->va && txdata->enabled) {
 				return v;
 			} else {
-				wil_dbg_txrx(wil, "vring[%d] not valid\n", i);
+				wil_dbg_txrx(wil,
+					     "find_tx_ucast: vring[%d] not valid\n",
+					     i);
 				return NULL;
 			}
 		}
@@ -1174,17 +1193,6 @@ found:
 	}
 
 	return v;
-}
-
-static struct vring *wil_find_tx_bcast(struct wil6210_priv *wil,
-				       struct sk_buff *skb)
-{
-	struct wireless_dev *wdev = wil->wdev;
-
-	if (wdev->iftype != NL80211_IFTYPE_AP)
-		return wil_find_tx_bcast_2(wil, skb);
-
-	return wil_find_tx_bcast_1(wil, skb);
 }
 
 static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len,
@@ -1356,8 +1364,8 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 	int gso_type;
 	int rc = -EINVAL;
 
-	wil_dbg_txrx(wil, "%s() %d bytes to vring %d\n",
-		     __func__, skb->len, vring_index);
+	wil_dbg_txrx(wil, "tx_vring_tso: %d bytes to vring %d\n", skb->len,
+		     vring_index);
 
 	if (unlikely(!txdata->enabled))
 		return -EINVAL;
@@ -1626,8 +1634,8 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	bool mcast = (vring_index == wil->bcast_vring);
 	uint len = skb_headlen(skb);
 
-	wil_dbg_txrx(wil, "%s() %d bytes to vring %d\n",
-		     __func__, skb->len, vring_index);
+	wil_dbg_txrx(wil, "tx_vring: %d bytes to vring %d\n", skb->len,
+		     vring_index);
 
 	if (unlikely(!txdata->enabled))
 		return -EINVAL;
@@ -1775,6 +1783,89 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	return rc;
 }
 
+/**
+ * Check status of tx vrings and stop/wake net queues if needed
+ *
+ * This function does one of two checks:
+ * In case check_stop is true, will check if net queues need to be stopped. If
+ * the conditions for stopping are met, netif_tx_stop_all_queues() is called.
+ * In case check_stop is false, will check if net queues need to be waked. If
+ * the conditions for waking are met, netif_tx_wake_all_queues() is called.
+ * vring is the vring which is currently being modified by either adding
+ * descriptors (tx) into it or removing descriptors (tx complete) from it. Can
+ * be null when irrelevant (e.g. connect/disconnect events).
+ *
+ * The implementation is to stop net queues if modified vring has low
+ * descriptor availability. Wake if all vrings are not in low descriptor
+ * availability and modified vring has high descriptor availability.
+ */
+static inline void __wil_update_net_queues(struct wil6210_priv *wil,
+					   struct vring *vring,
+					   bool check_stop)
+{
+	int i;
+
+	if (vring)
+		wil_dbg_txrx(wil, "vring %d, check_stop=%d, stopped=%d",
+			     (int)(vring - wil->vring_tx), check_stop,
+			     wil->net_queue_stopped);
+	else
+		wil_dbg_txrx(wil, "check_stop=%d, stopped=%d",
+			     check_stop, wil->net_queue_stopped);
+
+	if (check_stop == wil->net_queue_stopped)
+		/* net queues already in desired state */
+		return;
+
+	if (check_stop) {
+		if (!vring || unlikely(wil_vring_avail_low(vring))) {
+			/* not enough room in the vring */
+			netif_tx_stop_all_queues(wil_to_ndev(wil));
+			wil->net_queue_stopped = true;
+			wil_dbg_txrx(wil, "netif_tx_stop called\n");
+		}
+		return;
+	}
+
+	/* check wake */
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		struct vring *cur_vring = &wil->vring_tx[i];
+		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+
+		if (!cur_vring->va || !txdata->enabled || cur_vring == vring)
+			continue;
+
+		if (wil_vring_avail_low(cur_vring)) {
+			wil_dbg_txrx(wil, "vring %d full, can't wake\n",
+				     (int)(cur_vring - wil->vring_tx));
+			return;
+		}
+	}
+
+	if (!vring || wil_vring_avail_high(vring)) {
+		/* enough room in the vring */
+		wil_dbg_txrx(wil, "calling netif_tx_wake\n");
+		netif_tx_wake_all_queues(wil_to_ndev(wil));
+		wil->net_queue_stopped = false;
+	}
+}
+
+void wil_update_net_queues(struct wil6210_priv *wil, struct vring *vring,
+			   bool check_stop)
+{
+	spin_lock(&wil->net_queue_lock);
+	__wil_update_net_queues(wil, vring, check_stop);
+	spin_unlock(&wil->net_queue_lock);
+}
+
+void wil_update_net_queues_bh(struct wil6210_priv *wil, struct vring *vring,
+			      bool check_stop)
+{
+	spin_lock_bh(&wil->net_queue_lock);
+	__wil_update_net_queues(wil, vring, check_stop);
+	spin_unlock_bh(&wil->net_queue_lock);
+}
+
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
@@ -1784,7 +1875,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	static bool pr_once_fw;
 	int rc;
 
-	wil_dbg_txrx(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "start_xmit\n");
 	if (unlikely(!test_bit(wil_status_fwready, wil->status))) {
 		if (!pr_once_fw) {
 			wil_err(wil, "FW not ready\n");
@@ -1803,12 +1894,26 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	pr_once_fw = false;
 
 	/* find vring */
-	if (wil->wdev->iftype == NL80211_IFTYPE_STATION) {
-		/* in STA mode (ESS), all to same VRING */
+	if (wil->wdev->iftype == NL80211_IFTYPE_STATION && !wil->pbss) {
+		/* in STA mode (ESS), all to same VRING (to AP) */
 		vring = wil_find_tx_vring_sta(wil, skb);
-	} else { /* direct communication, find matching VRING */
-		vring = bcast ? wil_find_tx_bcast(wil, skb) :
-				wil_find_tx_ucast(wil, skb);
+	} else if (bcast) {
+		if (wil->pbss)
+			/* in pbss, no bcast VRING - duplicate skb in
+			 * all stations VRINGs
+			 */
+			vring = wil_find_tx_bcast_2(wil, skb);
+		else if (wil->wdev->iftype == NL80211_IFTYPE_AP)
+			/* AP has a dedicated bcast VRING */
+			vring = wil_find_tx_bcast_1(wil, skb);
+		else
+			/* unexpected combination, fallback to duplicating
+			 * the skb in all stations VRINGs
+			 */
+			vring = wil_find_tx_bcast_2(wil, skb);
+	} else {
+		/* unicast, find specific VRING by dest. address */
+		vring = wil_find_tx_ucast(wil, skb);
 	}
 	if (unlikely(!vring)) {
 		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
@@ -1817,14 +1922,10 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* set up vring entry */
 	rc = wil_tx_vring(wil, vring, skb);
 
-	/* do we still have enough room in the vring? */
-	if (unlikely(wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring))) {
-		netif_tx_stop_all_queues(wil_to_ndev(wil));
-		wil_dbg_txrx(wil, "netif_tx_stop : ring full\n");
-	}
-
 	switch (rc) {
 	case 0:
+		/* shall we stop net queues? */
+		wil_update_net_queues_bh(wil, vring, true);
 		/* statistics will be updated on the tx_complete */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -1886,7 +1987,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		return 0;
 	}
 
-	wil_dbg_txrx(wil, "%s(%d)\n", __func__, ringid);
+	wil_dbg_txrx(wil, "tx_complete: (%d)\n", ringid);
 
 	used_before_complete = wil_vring_used_tx(vring);
 
@@ -1973,10 +2074,9 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		txdata->last_idle = get_cycles();
 	}
 
-	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring)) {
-		wil_dbg_txrx(wil, "netif_tx_wake : ring not full\n");
-		netif_tx_wake_all_queues(wil_to_ndev(wil));
-	}
+	/* shall we wake net queues? */
+	if (done)
+		wil_update_net_queues(wil, vring, false);
 
 	return done;
 }

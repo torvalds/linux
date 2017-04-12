@@ -62,11 +62,6 @@
 			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
 
 		internal-regs {
-
-			spi@10600 {
-				status = "disabled";
-			};
-
 			i2c@11000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins>;
@@ -108,8 +103,56 @@
 				};
 			};
 
-			mdio {
+			mdio@72004 {
 				status = "okay";
+
+				switch@0 {
+					compatible = "marvell,mv88e6085";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+							label = "lan4";
+						};
+
+						port@1 {
+							reg = <1>;
+							label = "lan3";
+						};
+
+						port@2 {
+							reg = <2>;
+							label = "lan2";
+						};
+
+						port@3 {
+							reg = <3>;
+							label = "lan1";
+						};
+
+						port@4 {
+							reg = <4>;
+							label = "wan";
+						};
+
+						port@5 {
+							reg = <5>;
+							label = "cpu";
+							ethernet = <&eth2>;
+
+							fixed-link {
+								speed = <1000>;
+								full-duplex;
+							};
+						};
+					};
+				};
 			};
 
 			sata@a8000 {
@@ -266,6 +309,8 @@
 	};
 
 	dsa@0 {
+		status = "disabled";
+
 		compatible = "marvell,dsa";
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -331,4 +376,8 @@
 		marvell,pins = "mpp50";
 		marvell,function = "gpio";
 	};
+};
+
+&spi0 {
+	status = "disabled";
 };

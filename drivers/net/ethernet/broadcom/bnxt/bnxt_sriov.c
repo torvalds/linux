@@ -15,10 +15,49 @@
 #include <linux/etherdevice.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_ulp.h"
 #include "bnxt_sriov.h"
 #include "bnxt_ethtool.h"
 
 #ifdef CONFIG_BNXT_SRIOV
+static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
+					  struct bnxt_vf_info *vf, u16 event_id)
+{
+	struct hwrm_fwd_async_event_cmpl_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_fwd_async_event_cmpl_input req = {0};
+	struct hwrm_async_event_cmpl *async_cmpl;
+	int rc = 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FWD_ASYNC_EVENT_CMPL, -1, -1);
+	if (vf)
+		req.encap_async_event_target_id = cpu_to_le16(vf->fw_fid);
+	else
+		/* broadcast this async event to all VFs */
+		req.encap_async_event_target_id = cpu_to_le16(0xffff);
+	async_cmpl = (struct hwrm_async_event_cmpl *)req.encap_async_event_cmpl;
+	async_cmpl->type = cpu_to_le16(ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT);
+	async_cmpl->event_id = cpu_to_le16(event_id);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+
+	if (rc) {
+		netdev_err(bp->dev, "hwrm_fwd_async_event_cmpl failed. rc:%d\n",
+			   rc);
+		goto fwd_async_event_cmpl_exit;
+	}
+
+	if (resp->error_code) {
+		netdev_err(bp->dev, "hwrm_fwd_async_event_cmpl error %d\n",
+			   resp->error_code);
+		rc = -1;
+	}
+
+fwd_async_event_cmpl_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static int bnxt_vf_ndo_prep(struct bnxt *bp, int vf_id)
 {
 	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
@@ -135,7 +174,8 @@ int bnxt_set_vf_mac(struct net_device *dev, int vf_id, u8 *mac)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
-int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos)
+int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos,
+		     __be16 vlan_proto)
 {
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt *bp = netdev_priv(dev);
@@ -145,6 +185,9 @@ int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos)
 
 	if (bp->hwrm_spec_code < 0x10201)
 		return -ENOTSUPP;
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	rc = bnxt_vf_ndo_prep(bp, vf_id);
 	if (rc)
@@ -243,8 +286,9 @@ int bnxt_set_vf_link_state(struct net_device *dev, int vf_id, int link)
 		rc = -EINVAL;
 		break;
 	}
-	/* CHIMP TODO: send msg to VF to update new link state */
-
+	if (vf->flags & (BNXT_VF_LINK_UP | BNXT_VF_LINK_FORCED))
+		rc = bnxt_hwrm_fwd_async_event_cmpl(bp, vf,
+			ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
 	return rc;
 }
 
@@ -373,19 +417,12 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	u16 vf_ring_grps;
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
+	int total_vf_tx_rings = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 
 	/* Remaining rings are distributed equally amongs VF's for now */
-	/* TODO: the following workaroud is needed to restrict total number
-	 * of vf_cp_rings not exceed number of HW ring groups. This WA should
-	 * be removed once new HWRM provides HW ring groups capability in
-	 * hwrm_func_qcap.
-	 */
-	vf_cp_rings = min_t(u16, pf->max_cp_rings, pf->max_stat_ctxs);
-	vf_cp_rings = (vf_cp_rings - bp->cp_nr_rings) / num_vfs;
-	/* TODO: restore this logic below once the WA above is removed */
-	/* vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs; */
+	vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs;
 	vf_stat_ctx = (pf->max_stat_ctxs - bp->num_stat_ctxs) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings * 2) /
@@ -394,6 +431,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
 	vf_ring_grps = (bp->pf.max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
 	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
+	vf_vnics = (pf->max_vnics - bp->nr_vnics) / num_vfs;
+	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
 				  FUNC_CFG_REQ_ENABLES_MRU |
@@ -416,7 +455,6 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	req.num_rx_rings = cpu_to_le16(vf_rx_rings);
 	req.num_hw_ring_grps = cpu_to_le16(vf_ring_grps);
 	req.num_l2_ctxs = cpu_to_le16(4);
-	vf_vnics = 1;
 
 	req.num_vnics = cpu_to_le16(vf_vnics);
 	/* FIXME spec currently uses 1 bit for stats ctx */
@@ -424,6 +462,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < num_vfs; i++) {
+		int vf_tx_rsvd = vf_tx_rings;
+
 		req.fid = cpu_to_le16(pf->first_vf_id + i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
@@ -431,10 +471,15 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 			break;
 		pf->active_vfs = i + 1;
 		pf->vf[i].fw_fid = le16_to_cpu(req.fid);
+		rc = __bnxt_hwrm_get_tx_rings(bp, pf->vf[i].fw_fid,
+					      &vf_tx_rsvd);
+		if (rc)
+			break;
+		total_vf_tx_rings += vf_tx_rsvd;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (!rc) {
-		pf->max_tx_rings -= vf_tx_rings * num_vfs;
+		pf->max_tx_rings -= total_vf_tx_rings;
 		pf->max_rx_rings -= vf_rx_rings * num_vfs;
 		pf->max_hw_ring_grps -= vf_ring_grps * num_vfs;
 		pf->max_cp_rings -= vf_cp_rings * num_vfs;
@@ -471,6 +516,8 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 			    min_rx_rings)
 				rx_ok = 1;
 		}
+		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings)
+			rx_ok = 0;
 
 		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings)
 			tx_ok = 1;
@@ -509,6 +556,8 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	if (rc)
 		goto err_out2;
 
+	bnxt_ulp_sriov_cfg(bp, *num_vfs);
+
 	rc = pci_enable_sriov(bp->pdev, *num_vfs);
 	if (rc)
 		goto err_out2;
@@ -525,46 +574,6 @@ err_out1:
 	return rc;
 }
 
-static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
-					  struct bnxt_vf_info *vf,
-					  u16 event_id)
-{
-	int rc = 0;
-	struct hwrm_fwd_async_event_cmpl_input req = {0};
-	struct hwrm_fwd_async_event_cmpl_output *resp = bp->hwrm_cmd_resp_addr;
-	struct hwrm_async_event_cmpl *async_cmpl;
-
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FWD_ASYNC_EVENT_CMPL, -1, -1);
-	if (vf)
-		req.encap_async_event_target_id = cpu_to_le16(vf->fw_fid);
-	else
-		/* broadcast this async event to all VFs */
-		req.encap_async_event_target_id = cpu_to_le16(0xffff);
-	async_cmpl = (struct hwrm_async_event_cmpl *)req.encap_async_event_cmpl;
-	async_cmpl->type =
-		cpu_to_le16(HWRM_ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT);
-	async_cmpl->event_id = cpu_to_le16(event_id);
-
-	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
-
-	if (rc) {
-		netdev_err(bp->dev, "hwrm_fwd_async_event_cmpl failed. rc:%d\n",
-			   rc);
-		goto fwd_async_event_cmpl_exit;
-	}
-
-	if (resp->error_code) {
-		netdev_err(bp->dev, "hwrm_fwd_async_event_cmpl error %d\n",
-			   resp->error_code);
-		rc = -1;
-	}
-
-fwd_async_event_cmpl_exit:
-	mutex_unlock(&bp->hwrm_cmd_lock);
-	return rc;
-}
-
 void bnxt_sriov_disable(struct bnxt *bp)
 {
 	u16 num_vfs = pci_num_vf(bp->pdev);
@@ -574,8 +583,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 	if (pci_vfs_assigned(bp->pdev)) {
 		bnxt_hwrm_fwd_async_event_cmpl(
-			bp, NULL,
-			HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
+			bp, NULL, ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
 		netdev_warn(bp->dev, "Unable to free %d VFs because some are assigned to VMs.\n",
 			    num_vfs);
 	} else {
@@ -588,7 +596,11 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 	bp->pf.active_vfs = 0;
 	/* Reclaim all resources for the PF. */
-	bnxt_hwrm_func_qcaps(bp);
+	rtnl_lock();
+	bnxt_restore_pf_fw_resources(bp);
+	rtnl_unlock();
+
+	bnxt_ulp_sriov_cfg(bp, 0);
 }
 
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
@@ -770,8 +782,8 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 
 		if (vf->flags & BNXT_VF_LINK_UP) {
 			/* if physical link is down, force link up on VF */
-			if (phy_qcfg_resp.link ==
-			    PORT_PHY_QCFG_RESP_LINK_NO_LINK) {
+			if (phy_qcfg_resp.link !=
+			    PORT_PHY_QCFG_RESP_LINK_LINK) {
 				phy_qcfg_resp.link =
 					PORT_PHY_QCFG_RESP_LINK_LINK;
 				phy_qcfg_resp.link_speed = cpu_to_le16(

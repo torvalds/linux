@@ -79,7 +79,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 		for (i = 0; i < 32; i++) {
 			debugstr = bit2str(i);
 			if (debugstr && strlen(debugstr) == len &&
-			    strncasecmp(str, debugstr, len) == 0) {
+			    !strncasecmp(str, debugstr, len)) {
 				if (op == '-')
 					newmask &= ~(1 << i);
 				else
@@ -89,7 +89,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 			}
 		}
 		if (!found && len == 3 &&
-		    (strncasecmp(str, "ALL", len) == 0)) {
+		    !strncasecmp(str, "ALL", len)) {
 			if (op == '-')
 				newmask = minmask;
 			else
@@ -112,7 +112,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 char *cfs_firststr(char *str, size_t size)
 {
 	size_t i = 0;
-	char  *end;
+	char *end;
 
 	/* trim leading spaces */
 	while (i < size && *str && isspace(*str)) {
@@ -182,7 +182,7 @@ cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res)
 		next->ls_len--;
 	}
 
-	if (next->ls_len == 0) /* whitespaces only */
+	if (!next->ls_len) /* whitespaces only */
 		return 0;
 
 	if (*next->ls_str == delim) {
@@ -222,14 +222,12 @@ EXPORT_SYMBOL(cfs_gettok);
  * \retval 0 otherwise
  */
 int
-cfs_str2num_check(char *str, int nob, unsigned *num,
-		  unsigned min, unsigned max)
+cfs_str2num_check(char *str, int nob, unsigned int *num,
+		  unsigned int min, unsigned int max)
 {
 	bool all_numbers = true;
 	char *endp, cache;
 	int rc;
-
-	str = cfs_trimwhite(str);
 
 	/**
 	 * kstrouint can only handle strings composed
@@ -275,11 +273,11 @@ EXPORT_SYMBOL(cfs_str2num_check);
  * -ENOMEM will be returned.
  */
 static int
-cfs_range_expr_parse(struct cfs_lstr *src, unsigned min, unsigned max,
+cfs_range_expr_parse(struct cfs_lstr *src, unsigned int min, unsigned int max,
 		     int bracketed, struct cfs_range_expr **expr)
 {
-	struct cfs_range_expr	*re;
-	struct cfs_lstr		tok;
+	struct cfs_range_expr *re;
+	struct cfs_lstr tok;
 
 	LIBCFS_ALLOC(re, sizeof(*re));
 	if (!re)
@@ -393,7 +391,7 @@ cfs_expr_list_print(char *buffer, int count, struct cfs_expr_list *expr_list)
 		i += scnprintf(buffer + i, count - i, "[");
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
-		if (j++ != 0)
+		if (j++)
 			i += scnprintf(buffer + i, count - i, ",");
 		i += cfs_range_expr_print(buffer + i, count - i, expr,
 					  numexprs > 1);
@@ -413,13 +411,13 @@ EXPORT_SYMBOL(cfs_expr_list_print);
  * \retval 0 otherwise
  */
 int
-cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list)
+cfs_expr_list_match(u32 value, struct cfs_expr_list *expr_list)
 {
-	struct cfs_range_expr	*expr;
+	struct cfs_range_expr *expr;
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		if (value >= expr->re_lo && value <= expr->re_hi &&
-		    ((value - expr->re_lo) % expr->re_stride) == 0)
+		    !((value - expr->re_lo) % expr->re_stride))
 			return 1;
 	}
 
@@ -435,21 +433,21 @@ EXPORT_SYMBOL(cfs_expr_list_match);
  * \retval < 0 for failure
  */
 int
-cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, __u32 **valpp)
+cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, u32 **valpp)
 {
-	struct cfs_range_expr	*expr;
-	__u32			*val;
-	int			count = 0;
-	int			i;
+	struct cfs_range_expr *expr;
+	u32 *val;
+	int count = 0;
+	int i;
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		for (i = expr->re_lo; i <= expr->re_hi; i++) {
-			if (((i - expr->re_lo) % expr->re_stride) == 0)
+			if (!((i - expr->re_lo) % expr->re_stride))
 				count++;
 		}
 	}
 
-	if (count == 0) /* empty expression list */
+	if (!count) /* empty expression list */
 		return 0;
 
 	if (count > max) {
@@ -465,7 +463,7 @@ cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, __u32 **valpp)
 	count = 0;
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		for (i = expr->re_lo; i <= expr->re_hi; i++) {
-			if (((i - expr->re_lo) % expr->re_stride) == 0)
+			if (!((i - expr->re_lo) % expr->re_stride))
 				val[count++] = i;
 		}
 	}
@@ -503,13 +501,13 @@ EXPORT_SYMBOL(cfs_expr_list_free);
  * \retval -errno otherwise
  */
 int
-cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
+cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 		    struct cfs_expr_list **elpp)
 {
-	struct cfs_expr_list	*expr_list;
-	struct cfs_range_expr	*expr;
-	struct cfs_lstr		src;
-	int			rc;
+	struct cfs_expr_list *expr_list;
+	struct cfs_range_expr *expr;
+	struct cfs_lstr	src;
+	int rc;
 
 	LIBCFS_ALLOC(expr_list, sizeof(*expr_list));
 	if (!expr_list)
@@ -535,18 +533,18 @@ cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
 			}
 
 			rc = cfs_range_expr_parse(&tok, min, max, 1, &expr);
-			if (rc != 0)
+			if (rc)
 				break;
 
 			list_add_tail(&expr->re_link, &expr_list->el_exprs);
 		}
 	} else {
 		rc = cfs_range_expr_parse(&src, min, max, 0, &expr);
-		if (rc == 0)
+		if (!rc)
 			list_add_tail(&expr->re_link, &expr_list->el_exprs);
 	}
 
-	if (rc != 0)
+	if (rc)
 		cfs_expr_list_free(expr_list);
 	else
 		*elpp = expr_list;

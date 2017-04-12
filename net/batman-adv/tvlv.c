@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -257,8 +257,13 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 	spin_lock_bh(&bat_priv->tvlv.container_list_lock);
 	tvlv_old = batadv_tvlv_container_get(bat_priv, type, version);
 	batadv_tvlv_container_remove(bat_priv, tvlv_old);
+
+	kref_get(&tvlv_new->refcount);
 	hlist_add_head(&tvlv_new->list, &bat_priv->tvlv.container_list);
 	spin_unlock_bh(&bat_priv->tvlv.container_list_lock);
+
+	/* don't return reference to new tvlv_container */
+	batadv_tvlv_container_put(tvlv_new);
 }
 
 /**
@@ -542,8 +547,12 @@ void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 	INIT_HLIST_NODE(&tvlv_handler->list);
 
 	spin_lock_bh(&bat_priv->tvlv.handler_list_lock);
+	kref_get(&tvlv_handler->refcount);
 	hlist_add_head_rcu(&tvlv_handler->list, &bat_priv->tvlv.handler_list);
 	spin_unlock_bh(&bat_priv->tvlv.handler_list_lock);
+
+	/* don't return reference to new tvlv_handler */
+	batadv_tvlv_handler_put(tvlv_handler);
 }
 
 /**
@@ -591,7 +600,6 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, u8 *src,
 	unsigned char *tvlv_buff;
 	unsigned int tvlv_len;
 	ssize_t hdr_len = sizeof(*unicast_tvlv_packet);
-	int res;
 
 	orig_node = batadv_orig_hash_find(bat_priv, dst);
 	if (!orig_node)
@@ -624,9 +632,7 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, u8 *src,
 	tvlv_buff += sizeof(*tvlv_hdr);
 	memcpy(tvlv_buff, tvlv_value, tvlv_value_len);
 
-	res = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (res == -1)
-		kfree_skb(skb);
+	batadv_send_skb_to_orig(skb, orig_node, NULL);
 out:
 	batadv_orig_node_put(orig_node);
 }

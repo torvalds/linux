@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/sysfs.h>
 #include "coresight-etm.h"
+#include "coresight-priv.h"
 
 static ssize_t nr_addr_cmp_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -145,7 +146,7 @@ static ssize_t mode_store(struct device *dev,
 			goto err_unlock;
 		}
 		config->ctrl |= ETMCR_STALL_MODE;
-	 } else
+	} else
 		config->ctrl &= ~ETMCR_STALL_MODE;
 
 	if (config->mode & ETM_MODE_TIMESTAMP) {
@@ -162,6 +163,16 @@ static ssize_t mode_store(struct device *dev,
 		config->ctrl |= ETMCR_CTXID_SIZE;
 	else
 		config->ctrl &= ~ETMCR_CTXID_SIZE;
+
+	if (config->mode & ETM_MODE_BBROAD)
+		config->ctrl |= ETMCR_BRANCH_BROADCAST;
+	else
+		config->ctrl &= ~ETMCR_BRANCH_BROADCAST;
+
+	if (config->mode & ETM_MODE_RET_STACK)
+		config->ctrl |= ETMCR_RETURN_STACK;
+	else
+		config->ctrl &= ~ETMCR_RETURN_STACK;
 
 	if (config->mode & (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
 		etm_config_trace_mode(config);
@@ -1222,7 +1233,7 @@ static struct attribute *coresight_etm_attrs[] = {
 };
 
 #define coresight_etm3x_simple_func(name, offset)			\
-	coresight_simple_func(struct etm_drvdata, name, offset)
+	coresight_simple_func(struct etm_drvdata, NULL, name, offset)
 
 coresight_etm3x_simple_func(etmccr, ETMCCR);
 coresight_etm3x_simple_func(etmccer, ETMCCER);

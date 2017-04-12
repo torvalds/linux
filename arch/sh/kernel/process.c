@@ -1,10 +1,12 @@
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/export.h>
 #include <linux/stackprotector.h>
 #include <asm/fpu.h>
+#include <asm/ptrace.h>
 
 struct kmem_cache *task_xstate_cachep = NULL;
 unsigned int xstate_size;

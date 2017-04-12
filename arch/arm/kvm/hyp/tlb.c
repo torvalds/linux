@@ -34,7 +34,7 @@
  * As v7 does not support flushing per IPA, just nuke the whole TLB
  * instead, ignoring the ipa value.
  */
-static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
+void __hyp_text __kvm_tlb_flush_vmid(struct kvm *kvm)
 {
 	dsb(ishst);
 
@@ -50,21 +50,29 @@ static void __hyp_text __tlb_flush_vmid(struct kvm *kvm)
 	write_sysreg(0, VTTBR);
 }
 
-__alias(__tlb_flush_vmid) void __kvm_tlb_flush_vmid(struct kvm *kvm);
-
-static void __hyp_text __tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
+void __hyp_text __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
-	__tlb_flush_vmid(kvm);
+	__kvm_tlb_flush_vmid(kvm);
 }
 
-__alias(__tlb_flush_vmid_ipa) void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm,
-							    phys_addr_t ipa);
+void __hyp_text __kvm_tlb_flush_local_vmid(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = kern_hyp_va(kern_hyp_va(vcpu)->kvm);
 
-static void __hyp_text __tlb_flush_vm_context(void)
+	/* Switch to requested VMID */
+	write_sysreg(kvm->arch.vttbr, VTTBR);
+	isb();
+
+	write_sysreg(0, TLBIALL);
+	dsb(nsh);
+	isb();
+
+	write_sysreg(0, VTTBR);
+}
+
+void __hyp_text __kvm_flush_vm_context(void)
 {
 	write_sysreg(0, TLBIALLNSNHIS);
 	write_sysreg(0, ICIALLUIS);
 	dsb(ish);
 }
-
-__alias(__tlb_flush_vm_context) void __kvm_flush_vm_context(void);

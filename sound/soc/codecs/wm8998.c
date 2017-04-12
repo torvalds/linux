@@ -541,9 +541,11 @@ static const struct snd_kcontrol_new wm8998_aec_loopback_mux[] = {
 
 static const struct snd_soc_dapm_widget wm8998_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1,
-		    ARIZONA_SYSCLK_ENA_SHIFT, 0, NULL, 0),
+		    ARIZONA_SYSCLK_ENA_SHIFT, 0, arizona_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
-		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
+		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, arizona_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
 		    ARIZONA_OPCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", ARIZONA_OUTPUT_ASYNC_CLOCK,
@@ -966,6 +968,16 @@ static const struct snd_soc_dapm_route wm8998_dapm_routes[] = {
 	{ "IN2A", NULL, "SYSCLK" },
 	{ "IN2B", NULL, "SYSCLK" },
 
+	{ "ASRC1L", NULL, "SYSCLK" },
+	{ "ASRC1R", NULL, "SYSCLK" },
+	{ "ASRC2L", NULL, "SYSCLK" },
+	{ "ASRC2R", NULL, "SYSCLK" },
+
+	{ "ASRC1L", NULL, "ASYNCCLK" },
+	{ "ASRC1R", NULL, "ASYNCCLK" },
+	{ "ASRC2L", NULL, "ASYNCCLK" },
+	{ "ASRC2R", NULL, "ASYNCCLK" },
+
 	{ "SPD1", NULL, "SYSCLK" },
 	{ "SPD1", NULL, "SPD1TX1" },
 	{ "SPD1", NULL, "SPD1TX2" },
@@ -1308,13 +1320,19 @@ static int wm8998_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8998_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	int ret;
 
 	priv->core.arizona->dapm = dapm;
 
-	arizona_init_spk(codec);
-	arizona_init_gpio(codec);
+	ret = arizona_init_spk(codec);
+	if (ret < 0)
+		return ret;
 
-	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
+	arizona_init_gpio(codec);
+	arizona_init_notifiers(codec);
+
+	snd_soc_component_disable_pin(component, "HAPTICS");
 
 	return 0;
 }
@@ -1324,8 +1342,6 @@ static int wm8998_codec_remove(struct snd_soc_codec *codec)
 	struct wm8998_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	priv->core.arizona->dapm = NULL;
-
-	arizona_free_spk(codec);
 
 	return 0;
 }
@@ -1351,7 +1367,7 @@ static struct regmap *wm8998_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8998 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8998 = {
 	.probe = wm8998_codec_probe,
 	.remove = wm8998_codec_remove,
 	.get_regmap = wm8998_get_regmap,
@@ -1361,19 +1377,21 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8998 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = wm8998_set_fll,
 
-	.controls = wm8998_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8998_snd_controls),
-	.dapm_widgets = wm8998_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8998_dapm_widgets),
-	.dapm_routes = wm8998_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8998_dapm_routes),
+	.component_driver = {
+		.controls		= wm8998_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8998_snd_controls),
+		.dapm_widgets		= wm8998_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8998_dapm_widgets),
+		.dapm_routes		= wm8998_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8998_dapm_routes),
+	},
 };
 
 static int wm8998_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct wm8998_priv *wm8998;
-	int i;
+	int i, ret;
 
 	wm8998 = devm_kzalloc(&pdev->dev, sizeof(struct wm8998_priv),
 			      GFP_KERNEL);
@@ -1405,14 +1423,34 @@ static int wm8998_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8998,
-				      wm8998_dai, ARRAY_SIZE(wm8998_dai));
+	ret = arizona_init_spk_irqs(arizona);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8998,
+				     wm8998_dai, ARRAY_SIZE(wm8998_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		goto err_spk_irqs;
+	}
+
+	return ret;
+
+err_spk_irqs:
+	arizona_free_spk_irqs(arizona);
+
+	return ret;
 }
 
 static int wm8998_remove(struct platform_device *pdev)
 {
+	struct wm8998_priv *wm8998 = platform_get_drvdata(pdev);
+	struct arizona *arizona = wm8998->core.arizona;
+
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	arizona_free_spk_irqs(arizona);
 
 	return 0;
 }

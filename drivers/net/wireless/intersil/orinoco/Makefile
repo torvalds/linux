@@ -12,6 +12,3 @@ obj-$(CONFIG_TMD_HERMES)	+= orinoco_tmd.o
 obj-$(CONFIG_NORTEL_HERMES)	+= orinoco_nortel.o
 obj-$(CONFIG_PCMCIA_SPECTRUM)	+= spectrum_cs.o
 obj-$(CONFIG_ORINOCO_USB)	+= orinoco_usb.o
-
-# Orinoco should be endian clean.
-ccflags-y += -D__CHECK_ENDIAN__

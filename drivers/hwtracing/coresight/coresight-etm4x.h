@@ -146,6 +146,7 @@
 #define ETM_ARCH_V4			0x40
 #define ETMv4_SYNC_MASK			0x1F
 #define ETM_CYC_THRESHOLD_MASK		0xFFF
+#define ETM_CYC_THRESHOLD_DEFAULT       0x100
 #define ETMv4_EVENT_MASK		0xFF
 #define ETM_CNTR_MAX_VAL		0xFFFF
 #define ETM_TRACEID_MASK		0x3f
@@ -182,6 +183,9 @@
 
 #define TRCSTATR_IDLE_BIT		0
 #define ETM_DEFAULT_ADDR_COMP		0
+
+/* PowerDown Control Register bits */
+#define TRCPDCR_PU			BIT(3)
 
 /* secure state access levels */
 #define ETM_EXLEVEL_S_APP		BIT(8)
@@ -405,14 +409,6 @@ enum etm_addr_ctxtype {
 	ETM_CTX_CTXID,
 	ETM_CTX_VMID,
 	ETM_CTX_CTXID_VMID,
-};
-
-enum etm_addr_type {
-	ETM_ADDR_TYPE_NONE,
-	ETM_ADDR_TYPE_SINGLE,
-	ETM_ADDR_TYPE_RANGE,
-	ETM_ADDR_TYPE_START,
-	ETM_ADDR_TYPE_STOP,
 };
 
 extern const struct attribute_group *coresight_etmv4_groups[];

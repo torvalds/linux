@@ -149,10 +149,7 @@ nla_put_failure:
 
 static int ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	long timeout = ((long)ct->timeout.expires - (long)jiffies) / HZ;
-
-	if (timeout < 0)
-		timeout = 0;
+	long timeout = nf_ct_expires(ct) / HZ;
 
 	if (nla_put_be32(skb, CTA_TIMEOUT, htonl(timeout)))
 		goto nla_put_failure;
@@ -818,14 +815,23 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_nulls_node *n;
 	struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
-	int res;
+	struct nf_conn *nf_ct_evict[8];
+	int res, i;
 	spinlock_t *lockp;
 
 	last = (struct nf_conn *)cb->args[1];
+	i = 0;
 
 	local_bh_disable();
 	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++) {
 restart:
+		while (i) {
+			i--;
+			if (nf_ct_should_gc(nf_ct_evict[i]))
+				nf_ct_kill(nf_ct_evict[i]);
+			nf_ct_put(nf_ct_evict[i]);
+		}
+
 		lockp = &nf_conntrack_locks[cb->args[0] % CONNTRACK_LOCKS];
 		nf_conntrack_lock(lockp);
 		if (cb->args[0] >= nf_conntrack_htable_size) {
@@ -837,6 +843,13 @@ restart:
 			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
+			if (nf_ct_is_expired(ct)) {
+				if (i < ARRAY_SIZE(nf_ct_evict) &&
+				    atomic_inc_not_zero(&ct->ct_general.use))
+					nf_ct_evict[i++] = ct;
+				continue;
+			}
+
 			if (!net_eq(net, nf_ct_net(ct)))
 				continue;
 
@@ -877,6 +890,13 @@ out:
 	local_bh_enable();
 	if (last)
 		nf_ct_put(last);
+
+	while (i) {
+		i--;
+		if (nf_ct_should_gc(nf_ct_evict[i]))
+			nf_ct_kill(nf_ct_evict[i]);
+		nf_ct_put(nf_ct_evict[i]);
+	}
 
 	return skb->len;
 }
@@ -1147,9 +1167,7 @@ static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 		}
 	}
 
-	if (del_timer(&ct->timeout))
-		nf_ct_delete(ct, NETLINK_CB(skb).portid, nlmsg_report(nlh));
-
+	nf_ct_delete(ct, NETLINK_CB(skb).portid, nlmsg_report(nlh));
 	nf_ct_put(ct);
 
 	return 0;
@@ -1460,13 +1478,22 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 	struct nlattr *helpinfo = NULL;
 	int err;
 
-	/* don't change helper of sibling connections */
-	if (ct->master)
-		return -EBUSY;
-
 	err = ctnetlink_parse_help(cda[CTA_HELP], &helpname, &helpinfo);
 	if (err < 0)
 		return err;
+
+	/* don't change helper of sibling connections */
+	if (ct->master) {
+		/* If we try to change the helper to the same thing twice,
+		 * treat the second attempt as a no-op instead of returning
+		 * an error.
+		 */
+		if (help && help->helper &&
+		    !strcmp(help->helper->name, helpname))
+			return 0;
+		else
+			return -EBUSY;
+	}
 
 	if (!strcmp(helpname, "")) {
 		if (help && help->helper) {
@@ -1517,11 +1544,10 @@ static int ctnetlink_change_timeout(struct nf_conn *ct,
 {
 	u_int32_t timeout = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
-	if (!del_timer(&ct->timeout))
-		return -ETIME;
+	ct->timeout = nfct_time_stamp + timeout * HZ;
 
-	ct->timeout.expires = jiffies + timeout * HZ;
-	add_timer(&ct->timeout);
+	if (test_bit(IPS_DYING_BIT, &ct->status))
+		return -ETIME;
 
 	return 0;
 }
@@ -1719,9 +1745,8 @@ ctnetlink_create_conntrack(struct net *net,
 
 	if (!cda[CTA_TIMEOUT])
 		goto err1;
-	ct->timeout.expires = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
-	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
+	ct->timeout = nfct_time_stamp + ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
 
 	rcu_read_lock();
  	if (cda[CTA_HELP]) {
@@ -1968,13 +1993,9 @@ ctnetlink_ct_stat_cpu_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 	nfmsg->version      = NFNETLINK_V0;
 	nfmsg->res_id	    = htons(cpu);
 
-	if (nla_put_be32(skb, CTA_STATS_SEARCHED, htonl(st->searched)) ||
-	    nla_put_be32(skb, CTA_STATS_FOUND, htonl(st->found)) ||
-	    nla_put_be32(skb, CTA_STATS_NEW, htonl(st->new)) ||
+	if (nla_put_be32(skb, CTA_STATS_FOUND, htonl(st->found)) ||
 	    nla_put_be32(skb, CTA_STATS_INVALID, htonl(st->invalid)) ||
 	    nla_put_be32(skb, CTA_STATS_IGNORE, htonl(st->ignore)) ||
-	    nla_put_be32(skb, CTA_STATS_DELETE, htonl(st->delete)) ||
-	    nla_put_be32(skb, CTA_STATS_DELETE_LIST, htonl(st->delete_list)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT, htonl(st->insert)) ||
 	    nla_put_be32(skb, CTA_STATS_INSERT_FAILED,
 				htonl(st->insert_failed)) ||
@@ -2258,6 +2279,30 @@ nla_put_failure:
 }
 
 static int
+ctnetlink_update_status(struct nf_conn *ct, const struct nlattr * const cda[])
+{
+	unsigned int status = ntohl(nla_get_be32(cda[CTA_STATUS]));
+	unsigned long d = ct->status ^ status;
+
+	if (d & IPS_SEEN_REPLY && !(status & IPS_SEEN_REPLY))
+		/* SEEN_REPLY bit can only be set */
+		return -EBUSY;
+
+	if (d & IPS_ASSURED && !(status & IPS_ASSURED))
+		/* ASSURED bit can only be set */
+		return -EBUSY;
+
+	/* This check is less strict than ctnetlink_change_status()
+	 * because callers often flip IPS_EXPECTED bits when sending
+	 * an NFQA_CT attribute to the kernel.  So ignore the
+	 * unchangeable bits but do not error out.
+	 */
+	ct->status = (status & ~IPS_UNCHANGEABLE_MASK) |
+		     (ct->status & IPS_UNCHANGEABLE_MASK);
+	return 0;
+}
+
+static int
 ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 {
 	int err;
@@ -2268,7 +2313,7 @@ ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 			return err;
 	}
 	if (cda[CTA_STATUS]) {
-		err = ctnetlink_change_status(ct, cda);
+		err = ctnetlink_update_status(ct, cda);
 		if (err < 0)
 			return err;
 	}
@@ -3397,6 +3442,7 @@ static void __exit ctnetlink_exit(void)
 #ifdef CONFIG_NETFILTER_NETLINK_GLUE_CT
 	RCU_INIT_POINTER(nfnl_ct_hook, NULL);
 #endif
+	synchronize_rcu();
 }
 
 module_init(ctnetlink_init);

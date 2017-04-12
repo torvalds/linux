@@ -20,9 +20,11 @@
 #include <linux/kvm.h>
 #include <linux/irqreturn.h>
 #include <linux/spinlock.h>
+#include <linux/static_key.h>
 #include <linux/types.h>
 #include <kvm/iodev.h>
 #include <linux/list.h>
+#include <linux/jump_label.h>
 
 #define VGIC_V3_MAX_CPUS	255
 #define VGIC_V2_MAX_CPUS	8
@@ -49,6 +51,9 @@ struct vgic_global {
 	/* Physical address of vgic virtual cpu interface */
 	phys_addr_t		vcpu_base;
 
+	/* GICV mapping */
+	void __iomem		*vcpu_base_va;
+
 	/* virtual control interface mapping */
 	void __iomem		*vctrl_base;
 
@@ -63,6 +68,11 @@ struct vgic_global {
 
 	/* Only needed for the legacy KVM_CREATE_IRQCHIP */
 	bool			can_emulate_gicv2;
+
+	/* GIC system register CPU interface */
+	struct static_key_false gicv3_cpuif;
+
+	u32			ich_vtr_el2;
 };
 
 extern struct vgic_global kvm_vgic_global_state;
@@ -93,9 +103,10 @@ struct vgic_irq {
 					 */
 
 	u32 intid;			/* Guest visible INTID */
-	bool pending;
 	bool line_level;		/* Level only */
-	bool soft_pending;		/* Level only */
+	bool pending_latch;		/* The pending latch state used to calculate
+					 * the pending state for both level
+					 * and edge triggered IRQs. */
 	bool active;			/* not used for LPIs */
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
@@ -157,6 +168,8 @@ struct vgic_its {
 	struct list_head	collection_list;
 };
 
+struct vgic_state_iter;
+
 struct vgic_dist {
 	bool			in_kernel;
 	bool			ready;
@@ -204,6 +217,9 @@ struct vgic_dist {
 	spinlock_t		lpi_list_lock;
 	struct list_head	lpi_list_head;
 	int			lpi_list_count;
+
+	/* used by vgic-debug */
+	struct vgic_state_iter *iter;
 };
 
 struct vgic_v2_cpu_if {
@@ -217,7 +233,6 @@ struct vgic_v2_cpu_if {
 };
 
 struct vgic_v3_cpu_if {
-#ifdef CONFIG_KVM_ARM_VGIC_V3
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
 	u32		vgic_sre;	/* Restored only, change ignored */
@@ -227,7 +242,6 @@ struct vgic_v3_cpu_if {
 	u32		vgic_ap0r[4];
 	u32		vgic_ap1r[4];
 	u64		vgic_lr[VGIC_V3_MAX_LRS];
-#endif
 };
 
 struct vgic_cpu {
@@ -263,7 +277,15 @@ struct vgic_cpu {
 	u64 pendbaser;
 
 	bool lpis_enabled;
+
+	/* Cache guest priority bits */
+	u32 num_pri_bits;
+
+	/* Cache guest interrupt ID bits */
+	u32 num_id_bits;
 };
+
+extern struct static_key_false vgic_v2_cpuif_trap;
 
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 void kvm_vgic_early_init(struct kvm *kvm);
@@ -273,6 +295,7 @@ void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
 int kvm_vgic_map_resources(struct kvm *kvm);
 int kvm_vgic_hyp_init(void);
+void kvm_vgic_init_cpu_hardware(void);
 
 int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
 			bool level);
@@ -294,13 +317,7 @@ bool kvm_vcpu_has_pending_irqs(struct kvm_vcpu *vcpu);
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
 
-#ifdef CONFIG_KVM_ARM_VGIC_V3
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
-#else
-static inline void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
-{
-}
-#endif
 
 /**
  * kvm_vgic_get_max_vcpus - Get the maximum number of VCPUs allowed by HW

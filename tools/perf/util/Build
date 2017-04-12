@@ -1,5 +1,6 @@
 libperf-y += alias.o
 libperf-y += annotate.o
+libperf-y += block-range.o
 libperf-y += build-id.o
 libperf-y += config.o
 libperf-y += ctype.o
@@ -85,6 +86,8 @@ libperf-y += term.o
 libperf-y += help-unknown-cmd.o
 libperf-y += mem-events.o
 libperf-y += vsprintf.o
+libperf-y += drv_configs.o
+libperf-y += time-utils.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
@@ -98,6 +101,7 @@ endif
 
 libperf-$(CONFIG_DWARF) += probe-finder.o
 libperf-$(CONFIG_DWARF) += dwarf-aux.o
+libperf-$(CONFIG_DWARF) += dwarf-regs.o
 
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 libperf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
@@ -117,8 +121,12 @@ libperf-y += demangle-rust.o
 ifdef CONFIG_JITDUMP
 libperf-$(CONFIG_LIBELF) += jitdump.o
 libperf-$(CONFIG_LIBELF) += genelf.o
-libperf-$(CONFIG_LIBELF) += genelf_debug.o
+libperf-$(CONFIG_DWARF) += genelf_debug.o
 endif
+
+libperf-y += perf-hooks.o
+
+libperf-$(CONFIG_CXX) += c++/
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 # avoid compiler warnings in 32-bit mode
@@ -154,6 +162,7 @@ CFLAGS_rbtree.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ET
 CFLAGS_libstring.o     += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_parse-events.o  += -Wno-redundant-decls
+CFLAGS_header.o        += -include $(OUTPUT)PERF-VERSION-FILE
 
 $(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c FORCE
 	$(call rule_mkdir)

@@ -574,7 +574,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 
 	adapter->hs_activate_wait_q_woken = false;
 
-	memset(&hscfg, 0, sizeof(struct mwifiex_ds_hs_cfg));
+	memset(&hscfg, 0, sizeof(hscfg));
 	hscfg.is_invoke_hostcmd = true;
 
 	adapter->hs_enabling = true;
@@ -1138,7 +1138,7 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
 {
 	struct mwifiex_ds_encrypt_key encrypt_key;
 
-	memset(&encrypt_key, 0, sizeof(struct mwifiex_ds_encrypt_key));
+	memset(&encrypt_key, 0, sizeof(encrypt_key));
 	encrypt_key.key_len = key_len;
 	encrypt_key.key_index = key_index;
 
@@ -1159,8 +1159,6 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
 			encrypt_key.is_rx_seq_valid = true;
 		}
 	} else {
-		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP)
-			return 0;
 		encrypt_key.key_disable = true;
 		if (mac_addr)
 			memcpy(encrypt_key.mac_addr, mac_addr, ETH_ALEN);
@@ -1180,7 +1178,7 @@ mwifiex_get_ver_ext(struct mwifiex_private *priv, u32 version_str_sel)
 {
 	struct mwifiex_ver_ext ver_ext;
 
-	memset(&ver_ext, 0, sizeof(struct host_cmd_ds_version_ext));
+	memset(&ver_ext, 0, sizeof(ver_ext));
 	ver_ext.version_str_sel = version_str_sel;
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_VERSION_EXT,
 			     HostCmd_ACT_GEN_GET, 0, &ver_ext, true))

@@ -24,6 +24,7 @@
 /include/ "abilis_tb100.dtsi"
 
 / {
+	model = "abilis,tb100";
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff100000,9600n8 console=ttyS0,9600n8";
 	};

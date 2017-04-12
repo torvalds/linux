@@ -30,10 +30,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -717,7 +713,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int start_streaming(struct vb2_queue *vq, unsigned int count);
 static void stop_streaming(struct vb2_queue *vq);
 
-static struct vb2_ops s2255_video_qops = {
+static const struct vb2_ops s2255_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_prepare = buffer_prepare,
 	.buf_queue = buffer_queue,
@@ -1901,19 +1897,30 @@ static long s2255_vendor_req(struct s2255_dev *dev, unsigned char Request,
 			     s32 TransferBufferLength, int bOut)
 {
 	int r;
+	unsigned char *buf;
+
+	buf = kmalloc(TransferBufferLength, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
 	if (!bOut) {
 		r = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 				    Request,
 				    USB_TYPE_VENDOR | USB_RECIP_DEVICE |
 				    USB_DIR_IN,
-				    Value, Index, TransferBuffer,
+				    Value, Index, buf,
 				    TransferBufferLength, HZ * 5);
+
+		if (r >= 0)
+			memcpy(TransferBuffer, buf, TransferBufferLength);
 	} else {
+		memcpy(buf, TransferBuffer, TransferBufferLength);
 		r = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
 				    Request, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				    Value, Index, TransferBuffer,
+				    Value, Index, buf,
 				    TransferBufferLength, HZ * 5);
 	}
+	kfree(buf);
 	return r;
 }
 
@@ -2113,11 +2120,8 @@ static int s2255_start_readpipe(struct s2255_dev *dev)
 	pipe_info->state = 1;
 	pipe_info->err_count = 0;
 	pipe_info->stream_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!pipe_info->stream_urb) {
-		dev_err(&dev->udev->dev,
-			"ReadStream: Unable to alloc URB\n");
+	if (!pipe_info->stream_urb)
 		return -ENOMEM;
-	}
 	/* transfer buffer allocated in board_init */
 	usb_fill_bulk_urb(pipe_info->stream_urb, dev->udev,
 			  pipe,
@@ -2290,10 +2294,8 @@ static int s2255_probe(struct usb_interface *interface,
 	}
 
 	dev->fw_data->fw_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->fw_data->fw_urb) {
-		dev_err(&interface->dev, "out of memory!\n");
+	if (!dev->fw_data->fw_urb)
 		goto errorFWURB;
-	}
 
 	dev->fw_data->pfw_data = kzalloc(CHUNK_SIZE, GFP_KERNEL);
 	if (!dev->fw_data->pfw_data) {

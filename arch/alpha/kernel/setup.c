@@ -53,7 +53,7 @@ static struct notifier_block alpha_panic_block = {
         INT_MAX /* try to do it first */
 };
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/hwrpb.h>
 #include <asm/dma.h>
@@ -115,6 +115,7 @@ unsigned long alpha_agpgart_size = DEFAULT_AGP_APER_SIZE;
 
 #ifdef CONFIG_ALPHA_GENERIC
 struct alpha_machine_vector alpha_mv;
+EXPORT_SYMBOL(alpha_mv);
 #endif
 
 #ifndef alpha_using_srm

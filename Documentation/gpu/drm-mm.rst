@@ -26,33 +26,34 @@ TTM, but has no video RAM management capabilities and is thus limited to
 UMA devices.
 
 The Translation Table Manager (TTM)
------------------------------------
+===================================
 
 TTM design background and information belongs here.
 
 TTM initialization
-~~~~~~~~~~~~~~~~~~
+------------------
 
     **Warning**
-
     This section is outdated.
 
-Drivers wishing to support TTM must fill out a drm_bo_driver
-structure. The structure contains several fields with function pointers
-for initializing the TTM, allocating and freeing memory, waiting for
-command completion and fence synchronization, and memory migration. See
-the radeon_ttm.c file for an example of usage.
+Drivers wishing to support TTM must pass a filled :c:type:`ttm_bo_driver
+<ttm_bo_driver>` structure to ttm_bo_device_init, together with an
+initialized global reference to the memory manager.  The ttm_bo_driver
+structure contains several fields with function pointers for
+initializing the TTM, allocating and freeing memory, waiting for command
+completion and fence synchronization, and memory migration.
 
-The ttm_global_reference structure is made up of several fields:
+The :c:type:`struct drm_global_reference <drm_global_reference>` is made
+up of several fields:
 
-::
+.. code-block:: c
 
-              struct ttm_global_reference {
+              struct drm_global_reference {
                       enum ttm_global_types global_type;
                       size_t size;
                       void *object;
-                      int (*init) (struct ttm_global_reference *);
-                      void (*release) (struct ttm_global_reference *);
+                      int (*init) (struct drm_global_reference *);
+                      void (*release) (struct drm_global_reference *);
               };
 
 
@@ -76,8 +77,14 @@ ttm_bo_global_release(), respectively. Also, like the previous
 object, ttm_global_item_ref() is used to create an initial reference
 count for the TTM, which will call your initialization function.
 
+See the radeon_ttm.c file for an example of usage.
+
+.. kernel-doc:: drivers/gpu/drm/drm_global.c
+   :export:
+
+
 The Graphics Execution Manager (GEM)
-------------------------------------
+====================================
 
 The GEM design approach has resulted in a memory manager that doesn't
 provide full coverage of all (or even all common) use cases in its
@@ -114,7 +121,7 @@ read & write, mapping, and domain ownership transfers are left to
 driver-specific ioctls.
 
 GEM Initialization
-~~~~~~~~~~~~~~~~~~
+------------------
 
 Drivers that use GEM must set the DRIVER_GEM bit in the struct
 :c:type:`struct drm_driver <drm_driver>` driver_features
@@ -132,7 +139,7 @@ typically not managed by GEM, and must be initialized separately into
 its own DRM MM object.
 
 GEM Objects Creation
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 GEM splits creation of GEM objects and allocation of the memory that
 backs them in two distinct operations.
@@ -173,7 +180,7 @@ a call to :c:func:`drm_gem_private_object_init()` instead of
 must be managed by drivers.
 
 GEM Objects Lifetime
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 All GEM objects are reference-counted by the GEM core. References can be
 acquired and release by :c:func:`calling
@@ -196,7 +203,7 @@ resources created by the GEM core, which need to be released with
 :c:func:`drm_gem_object_release()`.
 
 GEM Objects Naming
-~~~~~~~~~~~~~~~~~~
+------------------
 
 Communication between userspace and the kernel refers to GEM objects
 using local handles, global names or, more recently, file descriptors.
@@ -245,7 +252,7 @@ Furthermore PRIME also allows cross-device buffer sharing since it is
 based on dma-bufs.
 
 GEM Objects Mapping
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 Because mapping operations are fairly heavyweight GEM favours
 read/write-like access to buffers, implemented through driver-specific
@@ -284,10 +291,17 @@ To use :c:func:`drm_gem_mmap()`, drivers must fill the struct
 :c:type:`struct drm_driver <drm_driver>` gem_vm_ops field
 with a pointer to VM operations.
 
-struct vm_operations_struct \*gem_vm_ops struct
-vm_operations_struct { void (\*open)(struct vm_area_struct \* area);
-void (\*close)(struct vm_area_struct \* area); int (\*fault)(struct
-vm_area_struct \*vma, struct vm_fault \*vmf); };
+The VM operations is a :c:type:`struct vm_operations_struct <vm_operations_struct>`
+made up of several fields, the more interesting ones being:
+
+.. code-block:: c
+
+	struct vm_operations_struct {
+		void (*open)(struct vm_area_struct * area);
+		void (*close)(struct vm_area_struct * area);
+		int (*fault)(struct vm_fault *vmf);
+	};
+
 
 The open and close operations must update the GEM object reference
 count. Drivers can use the :c:func:`drm_gem_vm_open()` and
@@ -303,8 +317,19 @@ created.
 Drivers that want to map the GEM object upfront instead of handling page
 faults can implement their own mmap file operation handler.
 
+For platforms without MMU the GEM core provides a helper method
+:c:func:`drm_gem_cma_get_unmapped_area`. The mmap() routines will call
+this to get a proposed address for the mapping.
+
+To use :c:func:`drm_gem_cma_get_unmapped_area`, drivers must fill the
+struct :c:type:`struct file_operations <file_operations>` get_unmapped_area
+field with a pointer on :c:func:`drm_gem_cma_get_unmapped_area`.
+
+More detailed information about get_unmapped_area can be found in
+Documentation/nommu-mmap.txt
+
 Memory Coherency
-~~~~~~~~~~~~~~~~
+----------------
 
 When mapped to the device or used in a command buffer, backing pages for
 an object are flushed to memory and marked write combined so as to be
@@ -320,7 +345,7 @@ blocks the client and waits for rendering to complete before performing
 any necessary flushing operations).
 
 Command Execution
-~~~~~~~~~~~~~~~~~
+-----------------
 
 Perhaps the most important GEM function for GPU devices is providing a
 command execution interface to clients. Client programs construct
@@ -348,8 +373,20 @@ GEM Function Reference
 .. kernel-doc:: include/drm/drm_gem.h
    :internal:
 
+GEM CMA Helper Functions Reference
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+   :doc: cma helpers
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_gem_cma_helper.h
+   :internal:
+
 VMA Offset Manager
-------------------
+==================
 
 .. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
    :doc: vma offset manager
@@ -361,14 +398,14 @@ VMA Offset Manager
    :internal:
 
 PRIME Buffer Sharing
---------------------
+====================
 
 PRIME is the cross device buffer sharing framework in drm, originally
 created for the OPTIMUS range of multi-gpu platforms. To userspace PRIME
 buffers are dma-buf based file descriptors.
 
 Overview and Driver Interface
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 Similar to GEM global names, PRIME file descriptors are also used to
 share buffer objects across processes. They offer additional security:
@@ -406,7 +443,7 @@ struct drm_gem_object \*obj, int flags); struct drm_gem_object \*
 support PRIME.
 
 PRIME Helper Functions
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_prime.c
    :doc: PRIME Helpers
@@ -418,19 +455,19 @@ PRIME Function References
    :export:
 
 DRM MM Range Allocator
-----------------------
+======================
 
 Overview
-~~~~~~~~
+--------
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :doc: Overview
 
 LRU Scan/Eviction Support
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
-   :doc: lru scan roaster
+   :doc: lru scan roster
 
 DRM MM Range Allocator Function References
 ------------------------------------------
@@ -441,14 +478,8 @@ DRM MM Range Allocator Function References
 .. kernel-doc:: include/drm/drm_mm.h
    :internal:
 
-CMA Helper Functions Reference
-------------------------------
+DRM Cache Handling
+==================
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
-   :doc: cma helpers
-
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_cache.c
    :export:
-
-.. kernel-doc:: include/drm/drm_gem_cma_helper.h
-   :internal:

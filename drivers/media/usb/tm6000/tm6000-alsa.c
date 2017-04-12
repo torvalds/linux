@@ -58,9 +58,7 @@ MODULE_PARM_DESC(index, "Index value for tm6000x capture interface(s).");
 MODULE_DESCRIPTION("ALSA driver module for tm5600/tm6000/tm6010 based TV cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},"
-			"{{Trident,tm6000},"
-			"{{Trident,tm6010}");
+MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},{{Trident,tm6000},{{Trident,tm6010}");
 static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
@@ -388,7 +386,7 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 /*
  * operators
  */
-static struct snd_pcm_ops snd_tm6000_pcm_ops = {
+static const struct snd_pcm_ops snd_tm6000_pcm_ops = {
 	.open = snd_tm6000_pcm_open,
 	.close = snd_tm6000_close,
 	.ioctl = snd_pcm_lib_ioctl,

@@ -22,6 +22,7 @@
 #ifndef	_MWIFIEX_PCIE_H
 #define	_MWIFIEX_PCIE_H
 
+#include    <linux/completion.h>
 #include    <linux/pci.h>
 #include    <linux/interrupt.h>
 
@@ -32,11 +33,9 @@
 #define PCIE8897_DEFAULT_FW_NAME "mrvl/pcie8897_uapsta.bin"
 #define PCIE8897_A0_FW_NAME "mrvl/pcie8897_uapsta_a0.bin"
 #define PCIE8897_B0_FW_NAME "mrvl/pcie8897_uapsta.bin"
-#define PCIE8997_DEFAULT_FW_NAME "mrvl/pcieusb8997_combo_v2.bin"
-#define PCIEUART8997_FW_NAME_Z "mrvl/pcieuart8997_combo.bin"
-#define PCIEUART8997_FW_NAME_V2 "mrvl/pcieuart8997_combo_v2.bin"
-#define PCIEUSB8997_FW_NAME_Z "mrvl/pcieusb8997_combo.bin"
-#define PCIEUSB8997_FW_NAME_V2 "mrvl/pcieusb8997_combo_v2.bin"
+#define PCIEUART8997_FW_NAME_V4 "mrvl/pcieuart8997_combo_v4.bin"
+#define PCIEUSB8997_FW_NAME_V4 "mrvl/pcieusb8997_combo_v4.bin"
+#define PCIE8997_DEFAULT_WIFIFW_NAME "mrvl/pcie8997_wlan_v4.bin"
 
 #define PCIE_VENDOR_ID_MARVELL              (0x11ab)
 #define PCIE_VENDOR_ID_V2_MARVELL           (0x1b4b)
@@ -46,9 +45,10 @@
 
 #define PCIE8897_A0	0x1100
 #define PCIE8897_B0	0x1200
-#define PCIE8997_Z	0x0
-#define PCIE8997_V2	0x471
+#define PCIE8997_A0	0x10
+#define PCIE8997_A1	0x11
 #define CHIP_VER_PCIEUART	0x3
+#define CHIP_MAGIC_VALUE	0x24
 
 /* Constants for Buffer Descriptor (BD) rings */
 #define MWIFIEX_MAX_TXRX_BD			0x20
@@ -116,6 +116,7 @@
 /* FW awake cookie after FW ready */
 #define FW_AWAKE_COOKIE						(0xAA55AA55)
 #define MWIFIEX_DEF_SLEEP_COOKIE			0xBEEFBEEF
+#define MWIFIEX_SLEEP_COOKIE_SIZE			4
 #define MWIFIEX_MAX_DELAY_COUNT				100
 
 struct mwifiex_pcie_card_reg {
@@ -346,6 +347,7 @@ struct pcie_service_card {
 	struct pci_dev *dev;
 	struct mwifiex_adapter *adapter;
 	struct mwifiex_pcie_device pcie;
+	struct completion fw_done;
 
 	u8 txbd_flush;
 	u32 txbd_wrptr;
@@ -385,6 +387,8 @@ struct pcie_service_card {
 #endif
 	struct mwifiex_msix_context msix_ctx[MWIFIEX_NUM_MSIX_VECTORS];
 	struct mwifiex_msix_context share_irq_ctx;
+	struct work_struct work;
+	unsigned long work_flags;
 };
 
 static inline int

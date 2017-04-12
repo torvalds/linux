@@ -1,0 +1,4 @@
+Common display properties
+-------------------------
+
+- rotation:	Display rotation in degrees counter clockwise (0,90,180,270)

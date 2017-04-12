@@ -6,6 +6,7 @@
 #include <sys/prctl.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include <sys/resource.h>
 
 /* install fake seccomp program to enable seccomp code path inside the kernel,
  * so that our kprobe attached to seccomp_phase1() can be triggered
@@ -27,8 +28,10 @@ int main(int ac, char **argv)
 {
 	FILE *f;
 	char filename[256];
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);

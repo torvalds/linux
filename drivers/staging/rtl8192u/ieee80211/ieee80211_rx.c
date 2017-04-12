@@ -129,7 +129,7 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 				    8 /* WEP */ +
 				    ETH_ALEN /* WDS */ +
 				    (IEEE80211_QOS_HAS_SEQ(fc)?2:0) /* QOS Control */);
-		if (skb == NULL)
+		if (!skb)
 			return NULL;
 
 		entry = &ieee->frag_cache[tid][ieee->frag_next_idx[tid]];
@@ -345,7 +345,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 		return 0;
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 	}
 	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
@@ -392,7 +392,7 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *s
 		return 0;
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 	}
 
@@ -1027,7 +1027,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				ieee,
 				(PTS_COMMON_INFO *) &pRxTS,
 				hdr->addr2,
-				(u8)Frame_QoSTID((u8 *)(skb->data)),
+				Frame_QoSTID((u8 *)(skb->data)),
 				RX_DIR,
 				true))
 		{
@@ -1079,7 +1079,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		memcpy(src, hdr->addr4, ETH_ALEN);
 		memcpy(bssid, ieee->current_network.bssid, ETH_ALEN);
 		break;
-	case 0:
+	default:
 		memcpy(dst, hdr->addr1, ETH_ALEN);
 		memcpy(src, hdr->addr2, ETH_ALEN);
 		memcpy(bssid, hdr->addr3, ETH_ALEN);
@@ -1103,11 +1103,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		stats = hostap_get_stats(dev);
 		from_assoc_ap = 1;
 	}
-#endif
 
-	dev->last_rx = jiffies;
-
-#ifdef NOT_YET
 	if ((ieee->iw_mode == IW_MODE_MASTER ||
 	     ieee->iw_mode == IW_MODE_REPEAT) &&
 	    !from_assoc_ap) {

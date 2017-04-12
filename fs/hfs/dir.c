@@ -169,7 +169,7 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 	 * Can be done after the list insertion; exclusion with
 	 * hfs_delete_cat() is provided by directory lock.
 	 */
-	memcpy(&rd->key, &fd.key, sizeof(struct hfs_cat_key));
+	memcpy(&rd->key, &fd.key->cat, sizeof(struct hfs_cat_key));
 out:
 	hfs_find_exit(&fd);
 	return err;
@@ -268,7 +268,7 @@ static int hfs_remove(struct inode *dir, struct dentry *dentry)
 	if (res)
 		return res;
 	clear_nlink(inode);
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	hfs_delete_inode(inode);
 	mark_inode_dirty(inode);
 	return 0;
@@ -286,9 +286,13 @@ static int hfs_remove(struct inode *dir, struct dentry *dentry)
  * XXX: how do you handle must_be dir?
  */
 static int hfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	int res;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	/* Unlink destination if it already exists */
 	if (d_really_is_positive(new_dentry)) {

@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -13,13 +13,8 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
- **********************************************************************/
-
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*!  \file  octeon_iq.h
  *   \brief Host Driver: Implementation of Octeon input queues. "Input" is
  *   with respect to the Octeon device on the NIC. From this driver's
@@ -69,7 +64,6 @@ struct oct_iq_stats {
 	u64 tx_vxlan; /* tunnel */
 	u64 tx_dmamap_fail;
 	u64 tx_restart;
-	/*u64 tx_timeout_count;*/
 };
 
 #define OCT_IQ_STATS_SIZE   (sizeof(struct oct_iq_stats))
@@ -78,7 +72,7 @@ struct oct_iq_stats {
  *  The input queue is used to post raw (instruction) mode data or packet
  *  data to Octeon device from the host. Each input queue (upto 4) for
  *  a Octeon device has one such structure to represent it.
-*/
+ */
 struct octeon_instr_queue {
 	struct octeon_device *oct_dev;
 
@@ -87,6 +81,8 @@ struct octeon_instr_queue {
 
 	/** A spinlock to protect while posting on the ring.  */
 	spinlock_t post_lock;
+
+	u32 pkt_in_done;
 
 	/** A spinlock to protect access to the input ring.*/
 	spinlock_t iq_flush_running_lock;
@@ -116,8 +112,8 @@ struct octeon_instr_queue {
 	u32 octeon_read_index;
 
 	/** This index aids in finding the window in the queue where Octeon
-	  * has read the commands.
-	  */
+	 *  has read the commands.
+	 */
 	u32 flush_index;
 
 	/** This field keeps track of the instructions pending in this queue. */
@@ -148,8 +144,8 @@ struct octeon_instr_queue {
 	u64 last_db_time;
 
 	/** The doorbell timeout. If the doorbell was not rung for this time and
-	  * fill_cnt is non-zero, ring the doorbell again.
-	  */
+	 * fill_cnt is non-zero, ring the doorbell again.
+	 */
 	u32 db_timeout;
 
 	/** Statistics for this input queue. */
@@ -307,6 +303,9 @@ struct octeon_sc_buffer_pool {
 	atomic_t alloc_buf_count;
 };
 
+#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
+		(((octeon_dev_ptr)->instr_queue[iq_no]->stats.field) += count)
+
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct);
 int octeon_free_sc_buffer_pool(struct octeon_device *oct);
 struct octeon_soft_command *
@@ -370,5 +369,5 @@ int octeon_setup_iq(struct octeon_device *oct, int ifidx,
 		    void *app_ctx);
 int
 octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
-		u32 pending_thresh, u32 napi_budget);
+		u32 napi_budget);
 #endif				/* __OCTEON_IQ_H__ */

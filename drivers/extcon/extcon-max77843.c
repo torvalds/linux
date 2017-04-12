@@ -97,8 +97,10 @@ enum max77843_muic_accessory_type {
 	MAX77843_MUIC_ADC_AUDIO_DEVICE_TYPE1,
 	MAX77843_MUIC_ADC_OPEN,
 
-	/* The blow accessories should check
-	   not only ADC value but also ADC1K and VBVolt value. */
+	/*
+	 * The below accessories should check
+	 * not only ADC value but also ADC1K and VBVolt value.
+	 */
 						/* Offset|ADC1K|VBVolt| */
 	MAX77843_MUIC_GND_USB_HOST = 0x100,	/*    0x1|    0|     0| */
 	MAX77843_MUIC_GND_USB_HOST_VB = 0x101,	/*    0x1|    0|     1| */
@@ -265,16 +267,20 @@ static int max77843_muic_get_cable_type(struct max77843_muic_info *info,
 		/* Check GROUND accessory with charger cable */
 		if (adc == MAX77843_MUIC_ADC_GROUND) {
 			if (chg_type == MAX77843_MUIC_CHG_NONE) {
-				/* The following state when charger cable is
+				/*
+				 * The following state when charger cable is
 				 * disconnected but the GROUND accessory still
-				 * connected */
+				 * connected.
+				 */
 				*attached = false;
 				cable_type = info->prev_chg_type;
 				info->prev_chg_type = MAX77843_MUIC_CHG_NONE;
 			} else {
 
-				/* The following state when charger cable is
-				 * connected on the GROUND accessory */
+				/*
+				 * The following state when charger cable is
+				 * connected on the GROUND accessory.
+				 */
 				*attached = true;
 				cable_type = MAX77843_MUIC_CHG_GND;
 				info->prev_chg_type = MAX77843_MUIC_CHG_GND;
@@ -299,11 +305,13 @@ static int max77843_muic_get_cable_type(struct max77843_muic_info *info,
 		} else {
 			*attached = true;
 
-			/* Offset|ADC1K|VBVolt|
+			/*
+			 * Offset|ADC1K|VBVolt|
 			 *    0x1|    0|     0| USB-HOST
 			 *    0x1|    0|     1| USB-HOST with VB
 			 *    0x1|    1|     0| MHL
-			 *    0x1|    1|     1| MHL with VB */
+			 *    0x1|    1|     1| MHL with VB
+			 */
 			/* Get ADC1K register bit */
 			gnd_type = (info->status[MAX77843_MUIC_STATUS1] &
 					MAX77843_MUIC_STATUS1_ADC1K_MASK);
@@ -346,7 +354,7 @@ static int max77843_muic_adc_gnd_handler(struct max77843_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, attached);
+		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, attached);
 		break;
 	case MAX77843_MUIC_GND_MHL_VB:
 	case MAX77843_MUIC_GND_MHL:
@@ -356,7 +364,7 @@ static int max77843_muic_adc_gnd_handler(struct max77843_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_DISP_MHL, attached);
+		extcon_set_state_sync(info->edev, EXTCON_DISP_MHL, attached);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s accessory(gnd:0x%x)\n",
@@ -392,7 +400,7 @@ static int max77843_muic_jig_handler(struct max77843_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state_(info->edev, EXTCON_JIG, attached);
+	extcon_set_state_sync(info->edev, EXTCON_JIG, attached);
 
 	return 0;
 }
@@ -486,8 +494,8 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+		extcon_set_state_sync(info->edev, EXTCON_USB, attached);
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_SDP,
 					attached);
 		break;
 	case MAX77843_MUIC_CHG_DOWNSTREAM:
@@ -497,7 +505,7 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_CDP,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_CDP,
 					attached);
 		break;
 	case MAX77843_MUIC_CHG_DEDICATED:
@@ -507,7 +515,7 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_DCP,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_DCP,
 					attached);
 		break;
 	case MAX77843_MUIC_CHG_SPECIAL_500MA:
@@ -517,7 +525,7 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SLOW,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_SLOW,
 					attached);
 		break;
 	case MAX77843_MUIC_CHG_SPECIAL_1A:
@@ -527,7 +535,7 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_FAST,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_FAST,
 					attached);
 		break;
 	case MAX77843_MUIC_CHG_GND:
@@ -536,10 +544,10 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 
 		/* Charger cable on MHL accessory is attach or detach */
 		if (gnd_type == MAX77843_MUIC_GND_MHL_VB)
-			extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_DCP,
+			extcon_set_state_sync(info->edev, EXTCON_CHG_USB_DCP,
 						true);
 		else if (gnd_type == MAX77843_MUIC_GND_MHL)
-			extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_DCP,
+			extcon_set_state_sync(info->edev, EXTCON_CHG_USB_DCP,
 						false);
 		break;
 	case MAX77843_MUIC_CHG_NONE:

@@ -195,7 +195,7 @@ static int fsl_pq_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-#if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
+#if IS_ENABLED(CONFIG_GIANFAR)
 /*
  * Return the TBIPA address, starting from the address
  * of the mapped GFAR MDIO registers (struct gfar)
@@ -228,7 +228,7 @@ static uint32_t __iomem *get_etsec_tbipa(void __iomem *p)
 }
 #endif
 
-#if defined(CONFIG_UCC_GETH) || defined(CONFIG_UCC_GETH_MODULE)
+#if IS_ENABLED(CONFIG_UCC_GETH)
 /*
  * Return the TBIPAR address for a QE MDIO node, starting from the address
  * of the mapped MII registers (struct fsl_pq_mii)
@@ -306,7 +306,7 @@ static void ucc_configure(phys_addr_t start, phys_addr_t end)
 #endif
 
 static const struct of_device_id fsl_pq_mdio_match[] = {
-#if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
+#if IS_ENABLED(CONFIG_GIANFAR)
 	{
 		.compatible = "fsl,gianfar-tbi",
 		.data = &(struct fsl_pq_mdio_data) {
@@ -344,7 +344,7 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 		},
 	},
 #endif
-#if defined(CONFIG_UCC_GETH) || defined(CONFIG_UCC_GETH_MODULE)
+#if IS_ENABLED(CONFIG_UCC_GETH)
 	{
 		.compatible = "fsl,ucc-mdio",
 		.data = &(struct fsl_pq_mdio_data) {

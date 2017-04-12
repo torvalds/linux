@@ -47,7 +47,6 @@ static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned 
 {
 	int err = -EFAULT;
 	struct snd_seq_port_info *data;
-	mm_segment_t fs;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -59,9 +58,7 @@ static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned 
 		goto error;
 	data->kernel = NULL;
 
-	fs = snd_enter_user();
-	err = snd_seq_do_ioctl(client, cmd, data);
-	snd_leave_user(fs);
+	err = snd_seq_kernel_client_ctl(client->number, cmd, data);
 	if (err < 0)
 		goto error;
 
@@ -123,7 +120,7 @@ static long snd_seq_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_SEQ_IOCTL_GET_SUBSCRIPTION:
 	case SNDRV_SEQ_IOCTL_QUERY_NEXT_CLIENT:
 	case SNDRV_SEQ_IOCTL_RUNNING_MODE:
-		return snd_seq_do_ioctl(client, cmd, argp);
+		return snd_seq_ioctl(file, cmd, arg);
 	case SNDRV_SEQ_IOCTL_CREATE_PORT32:
 		return snd_seq_call_port_info_ioctl(client, SNDRV_SEQ_IOCTL_CREATE_PORT, argp);
 	case SNDRV_SEQ_IOCTL_DELETE_PORT32:

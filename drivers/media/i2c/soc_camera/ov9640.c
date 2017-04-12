@@ -233,7 +233,7 @@ static int ov9640_reg_rmw(struct i2c_client *client, u8 reg, u8 set, u8 unset)
 	if (ret) {
 		dev_err(&client->dev,
 			"[Read]-Modify-Write of register %02x failed!\n", reg);
-		return val;
+		return ret;
 	}
 
 	val |= set;
@@ -561,29 +561,25 @@ static int ov9640_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov9640_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int ov9640_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
-	a->c.left	= 0;
-	a->c.top	= 0;
-	a->c.width	= W_SXGA;
-	a->c.height	= H_SXGA;
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
-}
-
-static int ov9640_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= W_SXGA;
-	a->bounds.height		= H_SXGA;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	sel->r.left = 0;
+	sel->r.top = 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP:
+		sel->r.width = W_SXGA;
+		sel->r.height = H_SXGA;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int ov9640_video_probe(struct i2c_client *client)
@@ -667,13 +663,12 @@ static int ov9640_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops ov9640_video_ops = {
 	.s_stream	= ov9640_s_stream,
-	.cropcap	= ov9640_cropcap,
-	.g_crop		= ov9640_g_crop,
 	.g_mbus_config	= ov9640_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov9640_pad_ops = {
 	.enum_mbus_code = ov9640_enum_mbus_code,
+	.get_selection	= ov9640_get_selection,
 	.set_fmt	= ov9640_set_fmt,
 };
 

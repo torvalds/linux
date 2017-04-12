@@ -71,6 +71,7 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_MAX_STACK,
 	PARSE_EVENTS__TERM_TYPE_NOOVERWRITE,
 	PARSE_EVENTS__TERM_TYPE_OVERWRITE,
+	PARSE_EVENTS__TERM_TYPE_DRV_CFG,
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
@@ -93,6 +94,7 @@ struct parse_events_term {
 	int type_term;
 	struct list_head list;
 	bool used;
+	bool no_value;
 
 	/* error string indexes for within parsed string */
 	int err_term;
@@ -121,6 +123,7 @@ void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
 			   int type_term, char *config, u64 num,
+			   bool novalue,
 			   void *loc_term, void *loc_val);
 int parse_events_term__str(struct parse_events_term **term,
 			   int type_term, char *config, char *str,
@@ -171,7 +174,8 @@ void parse_events_update_lists(struct list_head *list_event,
 void parse_events_evlist_error(struct parse_events_evlist *data,
 			       int idx, const char *str);
 
-void print_events(const char *event_glob, bool name_only);
+void print_events(const char *event_glob, bool name_only, bool quiet,
+		  bool long_desc);
 
 struct event_symbol {
 	const char	*symbol;

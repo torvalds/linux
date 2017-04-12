@@ -982,8 +982,10 @@ static int spi_qup_suspend(struct device *device)
 	if (ret)
 		return ret;
 
-	clk_disable_unprepare(controller->cclk);
-	clk_disable_unprepare(controller->iclk);
+	if (!pm_runtime_suspended(device)) {
+		clk_disable_unprepare(controller->cclk);
+		clk_disable_unprepare(controller->iclk);
+	}
 	return 0;
 }
 

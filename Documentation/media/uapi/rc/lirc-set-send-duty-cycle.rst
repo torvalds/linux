@@ -15,16 +15,14 @@ IR transmit.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *duty_cycle)
+.. c:function:: int ioctl( int fd, LIRC_SET_SEND_DUTY_CYCLE, __u32 *duty_cycle)
+    :name: LIRC_SET_SEND_DUTY_CYCLE
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_SET_SEND_DUTY_CYCLE
 
 ``duty_cycle``
     Duty cicle, describing the pulse width in percent (from 1 to 99) of

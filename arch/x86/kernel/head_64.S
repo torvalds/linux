@@ -21,6 +21,7 @@
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include "../entry/calling.h"
+#include <asm/export.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
@@ -65,13 +66,8 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
-	/*
-	 * Setup stack for verify_cpu(). "-8" because stack_start is defined
-	 * this way, see below. Our best guess is a NULL ptr for stack
-	 * termination heuristics and we don't want to break anything which
-	 * might depend on it (kgdb, ...).
-	 */
-	leaq	(__end_init_task - 8)(%rip), %rsp
+	/* Set up the stack for verify_cpu(), similar to initial_stack below */
+	leaq	(__end_init_task - SIZEOF_PTREGS)(%rip), %rsp
 
 	/* Sanitize CPU configuration */
 	call verify_cpu
@@ -116,20 +112,20 @@ startup_64:
 	movq	%rdi, %rax
 	shrq	$PGDIR_SHIFT, %rax
 
-	leaq	(4096 + _KERNPG_TABLE)(%rbx), %rdx
+	leaq	(PAGE_SIZE + _KERNPG_TABLE)(%rbx), %rdx
 	movq	%rdx, 0(%rbx,%rax,8)
 	movq	%rdx, 8(%rbx,%rax,8)
 
-	addq	$4096, %rdx
+	addq	$PAGE_SIZE, %rdx
 	movq	%rdi, %rax
 	shrq	$PUD_SHIFT, %rax
 	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
+	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
 	incl	%eax
 	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
+	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
 
-	addq	$8192, %rbx
+	addq	$PAGE_SIZE * 2, %rbx
 	movq	%rdi, %rax
 	shrq	$PMD_SHIFT, %rdi
 	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
@@ -146,6 +142,9 @@ startup_64:
 	decl	%ecx
 	jnz	1b
 
+	test %rbp, %rbp
+	jz .Lskip_fixup
+
 	/*
 	 * Fixup the kernel text+data virtual addresses. Note that
 	 * we might write invalid pmds, when the kernel is relocated
@@ -153,9 +152,9 @@ startup_64:
 	 * beyond _end.
 	 */
 	leaq	level2_kernel_pgt(%rip), %rdi
-	leaq	4096(%rdi), %r8
+	leaq	PAGE_SIZE(%rdi), %r8
 	/* See if it is a valid page table entry */
-1:	testb	$1, 0(%rdi)
+1:	testb	$_PAGE_PRESENT, 0(%rdi)
 	jz	2f
 	addq	%rbp, 0(%rdi)
 	/* Go to the next page */
@@ -166,6 +165,7 @@ startup_64:
 	/* Fixup phys_base */
 	addq	%rbp, phys_base(%rip)
 
+.Lskip_fixup:
 	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
 	jmp 1f
 ENTRY(secondary_startup_64)
@@ -226,7 +226,7 @@ ENTRY(secondary_startup_64)
 	movq	%rax, %cr0
 
 	/* Setup a boot time stack */
-	movq stack_start(%rip), %rsp
+	movq initial_stack(%rip), %rsp
 
 	/* zero EFLAGS after setting rsp */
 	pushq $0
@@ -264,13 +264,17 @@ ENTRY(secondary_startup_64)
 	movl	$MSR_GS_BASE,%ecx
 	movl	initial_gs(%rip),%eax
 	movl	initial_gs+4(%rip),%edx
-	wrmsr	
+	wrmsr
 
 	/* rsi is pointer to real mode structure with interesting info.
 	   pass it to C */
 	movq	%rsi, %rdi
-	
-	/* Finally jump to run C code and to be on real kernel address
+	jmp	start_cpu
+ENDPROC(secondary_startup_64)
+
+ENTRY(start_cpu)
+	/*
+	 * Jump to run C code and to be on a real kernel address.
 	 * Since we are running on identity-mapped space we have to jump
 	 * to the full 64bit address, this is only possible as indirect
 	 * jump.  In addition we need to ensure %cs is set so we make this
@@ -294,12 +298,14 @@ ENTRY(secondary_startup_64)
 	 *	REX.W + FF /5 JMP m16:64 Jump far, absolute indirect,
 	 *		address given in m16:64.
 	 */
-	movq	initial_code(%rip),%rax
-	pushq	$0		# fake return address to stop unwinder
+	pushq	$.Lafter_lret	# put return address on stack for unwinder
+	xorq	%rbp, %rbp	# clear frame pointer
+	movq	initial_code(%rip), %rax
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
-ENDPROC(secondary_startup_64)
+.Lafter_lret:
+ENDPROC(start_cpu)
 
 #include "verify_cpu.S"
 
@@ -307,29 +313,27 @@ ENDPROC(secondary_startup_64)
 /*
  * Boot CPU0 entry point. It's called from play_dead(). Everything has been set
  * up already except stack. We just set up stack here. Then call
- * start_secondary().
+ * start_secondary() via start_cpu().
  */
 ENTRY(start_cpu0)
-	movq stack_start(%rip),%rsp
-	movq	initial_code(%rip),%rax
-	pushq	$0		# fake return address to stop unwinder
-	pushq	$__KERNEL_CS	# set correct cs
-	pushq	%rax		# target address in negative space
-	lretq
+	movq	initial_stack(%rip), %rsp
+	jmp	start_cpu
 ENDPROC(start_cpu0)
 #endif
 
-	/* SMP bootup changes these two */
+	/* Both SMP bootup and ACPI suspend change these variables */
 	__REFDATA
 	.balign	8
 	GLOBAL(initial_code)
 	.quad	x86_64_start_kernel
 	GLOBAL(initial_gs)
 	.quad	INIT_PER_CPU_VAR(irq_stack_union)
-
-	GLOBAL(stack_start)
-	.quad  init_thread_union+THREAD_SIZE-8
-	.word  0
+	GLOBAL(initial_stack)
+	/*
+	 * The SIZEOF_PTREGS gap is a convention which helps the in-kernel
+	 * unwinder reliably detect the end of the stack.
+	 */
+	.quad  init_thread_union + THREAD_SIZE - SIZEOF_PTREGS
 	__FINITDATA
 
 bad_address:
@@ -488,10 +492,12 @@ early_gdt_descr_base:
 ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */
 	.quad   0x0000000000000000
+EXPORT_SYMBOL(phys_base)
 
 #include "../../x86/xen/xen-head.S"
 	
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)
 

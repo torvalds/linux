@@ -67,9 +67,9 @@ TRACE_EVENT(hfi1_uctxtdata,
 			     __field(u64, hw_free)
 			     __field(void __iomem *, piobase)
 			     __field(u16, rcvhdrq_cnt)
-			     __field(u64, rcvhdrq_phys)
+			     __field(u64, rcvhdrq_dma)
 			     __field(u32, eager_cnt)
-			     __field(u64, rcvegr_phys)
+			     __field(u64, rcvegr_dma)
 			     ),
 	    TP_fast_assign(DD_DEV_ASSIGN(dd);
 			   __entry->ctxt = uctxt->ctxt;
@@ -77,10 +77,9 @@ TRACE_EVENT(hfi1_uctxtdata,
 			   __entry->hw_free = le64_to_cpu(*uctxt->sc->hw_free);
 			   __entry->piobase = uctxt->sc->base_addr;
 			   __entry->rcvhdrq_cnt = uctxt->rcvhdrq_cnt;
-			   __entry->rcvhdrq_phys = uctxt->rcvhdrq_phys;
+			   __entry->rcvhdrq_dma = uctxt->rcvhdrq_dma;
 			   __entry->eager_cnt = uctxt->egrbufs.alloced;
-			   __entry->rcvegr_phys =
-			   uctxt->egrbufs.rcvtids[0].phys;
+			   __entry->rcvegr_dma = uctxt->egrbufs.rcvtids[0].dma;
 			   ),
 	    TP_printk("[%s] ctxt %u " UCTXT_FMT,
 		      __get_str(dev),
@@ -89,9 +88,9 @@ TRACE_EVENT(hfi1_uctxtdata,
 		      __entry->hw_free,
 		      __entry->piobase,
 		      __entry->rcvhdrq_cnt,
-		      __entry->rcvhdrq_phys,
+		      __entry->rcvhdrq_dma,
 		      __entry->eager_cnt,
-		      __entry->rcvegr_phys
+		      __entry->rcvegr_dma
 		      )
 );
 

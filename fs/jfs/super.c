@@ -31,7 +31,7 @@
 #include <linux/exportfs.h>
 #include <linux/crc32.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/blkdev.h>
 
@@ -758,7 +758,7 @@ static ssize_t jfs_quota_read(struct super_block *sb, int type, char *data,
 				sb->s_blocksize - offset : toread;
 
 		tmp_bh.b_state = 0;
-		tmp_bh.b_size = 1 << inode->i_blkbits;
+		tmp_bh.b_size = i_blocksize(inode);
 		err = jfs_get_block(inode, blk, &tmp_bh, 0);
 		if (err)
 			return err;
@@ -798,7 +798,7 @@ static ssize_t jfs_quota_write(struct super_block *sb, int type,
 				sb->s_blocksize - offset : towrite;
 
 		tmp_bh.b_state = 0;
-		tmp_bh.b_size = 1 << inode->i_blkbits;
+		tmp_bh.b_size = i_blocksize(inode);
 		err = jfs_get_block(inode, blk, &tmp_bh, 1);
 		if (err)
 			goto out;
@@ -830,7 +830,7 @@ out:
 	if (inode->i_size < off+len-towrite)
 		i_size_write(inode, off+len-towrite);
 	inode->i_version++;
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 	inode_unlock(inode);
 	return len - towrite;

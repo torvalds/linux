@@ -34,6 +34,23 @@
 
 	chosen { };
 
+	connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+		type = "d";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi0_out>;
+			};
+		};
+	};
+
+	extcon_usb: extcon_iddig {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pio 16 GPIO_ACTIVE_HIGH>;
+	};
+
 	usb_p1_vbus: regulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_vbus";
@@ -41,6 +58,41 @@
 		regulator-max-microvolt = <5000000>;
 		gpio = <&pio 130 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	usb_p0_vbus: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&cec {
+	status = "okay";
+};
+
+&dpi0 {
+	status = "okay";
+};
+
+&hdmi_phy {
+	status = "okay";
+};
+
+&hdmi0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			hdmi0_out: endpoint {
+				remote-endpoint = <&hdmi_connector_in>;
+			};
+		};
 	};
 };
 
@@ -203,6 +255,20 @@
 			pinmux = <MT8173_PIN_77_MSDC1_CLK__FUNC_MSDC1_CLK>;
 			drive-strength = <MTK_DRIVE_4mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+	};
+
+	usb_id_pins_float: usb_iddig_pull_up {
+		pins_iddig {
+			pinmux = <MT8173_PIN_16_IDDIG__FUNC_IDDIG>;
+			bias-pull-up;
+		};
+	};
+
+	usb_id_pins_ground: usb_iddig_pull_down {
+		pins_iddig {
+			pinmux = <MT8173_PIN_16_IDDIG__FUNC_IDDIG>;
+			bias-pull-down;
 		};
 	};
 };
@@ -431,12 +497,25 @@
 	status = "okay";
 };
 
+&ssusb {
+	vusb33-supply = <&mt6397_vusb_reg>;
+	vbus-supply = <&usb_p0_vbus>;
+	extcon = <&extcon_usb>;
+	dr_mode = "otg";
+	mediatek,enable-wakeup;
+	pinctrl-names = "default", "id_float", "id_ground";
+	pinctrl-0 = <&usb_id_pins_float>;
+	pinctrl-1 = <&usb_id_pins_float>;
+	pinctrl-2 = <&usb_id_pins_ground>;
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };
 
-&usb30 {
+&usb_host {
 	vusb33-supply = <&mt6397_vusb_reg>;
 	vbus-supply = <&usb_p1_vbus>;
-	mediatek,wakeup-src = <1>;
+	status = "okay";
 };

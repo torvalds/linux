@@ -51,8 +51,18 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
-		ranges = <0x20000000 0x20000000 0x30000000>,
+		ranges = <0x00000000 0x00000000 0x10000000>,
+			 <0x20000000 0x20000000 0x30000000>,
 			 <0xe0000000 0xe0000000 0x04000000>;
+
+		iram: sram@08000000 {
+			compatible = "mmio-sram";
+			reg = <0x08000000 0x20000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x08000000 0x20000>;
+		};
 
 		/*
 		 * Enable either SLC or MLC
@@ -469,6 +479,8 @@
 				compatible = "nxp,lpc3220-pwm";
 				reg = <0x4005C000 0x4>;
 				clocks = <&clk LPC32XX_CLK_PWM1>;
+				assigned-clocks = <&clk LPC32XX_CLK_PWM1>;
+				assigned-clock-parents = <&clk LPC32XX_CLK_PERIPH>;
 				status = "disabled";
 			};
 
@@ -476,6 +488,8 @@
 				compatible = "nxp,lpc3220-pwm";
 				reg = <0x4005C004 0x4>;
 				clocks = <&clk LPC32XX_CLK_PWM2>;
+				assigned-clocks = <&clk LPC32XX_CLK_PWM2>;
+				assigned-clock-parents = <&clk LPC32XX_CLK_PERIPH>;
 				status = "disabled";
 			};
 

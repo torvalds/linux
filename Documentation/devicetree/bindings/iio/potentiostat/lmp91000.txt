@@ -1,0 +1,30 @@
+* Texas Instruments LMP91000 potentiostat
+
+http://www.ti.com/lit/ds/symlink/lmp91000.pdf
+
+Required properties:
+
+  - compatible: should be "ti,lmp91000"
+  - reg: the I2C address of the device
+  - io-channels: the phandle of the iio provider
+
+  - ti,external-tia-resistor: if the property ti,tia-gain-ohm is not defined this
+    needs to be set to signal that an external resistor value is being used.
+
+Optional properties:
+
+  - ti,tia-gain-ohm: ohm value of the internal resistor for the transimpedance
+    amplifier. Must be 2750, 3500, 7000, 14000, 35000, 120000, or 350000 ohms.
+
+  - ti,rload-ohm: ohm value of the internal resistor load applied to the gas
+    sensor. Must be 10, 33, 50, or 100 (default) ohms.
+
+Example:
+
+lmp91000@48 {
+	compatible = "ti,lmp91000";
+	reg = <0x48>;
+	ti,tia-gain-ohm = <7500>;
+	ti,rload = <100>;
+	io-channels = <&adc>;
+};

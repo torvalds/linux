@@ -63,6 +63,8 @@ enum ipoib_flush_level {
 
 enum {
 	IPOIB_ENCAP_LEN		  = 4,
+	IPOIB_PSEUDO_LEN	  = 20,
+	IPOIB_HARD_LEN		  = IPOIB_ENCAP_LEN + IPOIB_PSEUDO_LEN,
 
 	IPOIB_UD_HEAD_SIZE	  = IB_GRH_BYTES + IPOIB_ENCAP_LEN,
 	IPOIB_UD_RX_SG		  = 2, /* max buffer needed for 4K mtu */
@@ -134,15 +136,21 @@ struct ipoib_header {
 	u16	reserved;
 };
 
-struct ipoib_cb {
-	struct qdisc_skb_cb	qdisc_cb;
-	u8			hwaddr[INFINIBAND_ALEN];
+struct ipoib_pseudo_header {
+	u8	hwaddr[INFINIBAND_ALEN];
 };
 
-static inline struct ipoib_cb *ipoib_skb_cb(const struct sk_buff *skb)
+static inline void skb_add_pseudo_hdr(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct ipoib_cb));
-	return (struct ipoib_cb *)skb->cb;
+	char *data = skb_push(skb, IPOIB_PSEUDO_LEN);
+
+	/*
+	 * only the ipoib header is present now, make room for a dummy
+	 * pseudo header and set skb field accordingly
+	 */
+	memset(data, 0, IPOIB_PSEUDO_LEN);
+	skb_reset_mac_header(skb);
+	skb_pull(skb, IPOIB_HARD_LEN);
 }
 
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
@@ -492,9 +500,9 @@ void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 
 int ipoib_ib_dev_open(struct net_device *dev);
-int ipoib_ib_dev_up(struct net_device *dev);
-int ipoib_ib_dev_down(struct net_device *dev);
-int ipoib_ib_dev_stop(struct net_device *dev);
+void ipoib_ib_dev_up(struct net_device *dev);
+void ipoib_ib_dev_down(struct net_device *dev);
+void ipoib_ib_dev_stop(struct net_device *dev);
 void ipoib_pkey_dev_check_presence(struct net_device *dev);
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
@@ -505,7 +513,7 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work);
 void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
-int ipoib_mcast_start_thread(struct net_device *dev);
+void ipoib_mcast_start_thread(struct net_device *dev);
 int ipoib_mcast_stop_thread(struct net_device *dev);
 
 void ipoib_mcast_dev_down(struct net_device *dev);
@@ -585,7 +593,7 @@ void ipoib_pkey_open(struct ipoib_dev_priv *priv);
 void ipoib_drain_cq(struct net_device *dev);
 
 void ipoib_set_ethtool_ops(struct net_device *dev);
-int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
+void ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
 #define IPOIB_FLAGS_RC		0x80
 #define IPOIB_FLAGS_UC		0x40
@@ -772,7 +780,13 @@ static inline void ipoib_unregister_debugfs(void) { }
 #define ipoib_printk(level, priv, format, arg...)	\
 	printk(level "%s: " format, ((struct ipoib_dev_priv *) priv)->dev->name , ## arg)
 #define ipoib_warn(priv, format, arg...)		\
-	ipoib_printk(KERN_WARNING, priv, format , ## arg)
+do {							\
+	static DEFINE_RATELIMIT_STATE(_rs,		\
+		10 * HZ /*10 seconds */,		\
+		100);		\
+	if (__ratelimit(&_rs))				\
+		ipoib_printk(KERN_WARNING, priv, format , ## arg);\
+} while (0)
 
 extern int ipoib_sendq_size;
 extern int ipoib_recvq_size;

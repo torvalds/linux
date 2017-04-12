@@ -33,7 +33,7 @@ static unsigned long _find_next_bit(const unsigned long *addr,
 {
 	unsigned long tmp;
 
-	if (!nbits || start >= nbits)
+	if (unlikely(start >= nbits))
 		return nbits;
 
 	tmp = addr[start / BITS_PER_LONG] ^ invert;
@@ -151,7 +151,7 @@ static unsigned long _find_next_bit_le(const unsigned long *addr,
 {
 	unsigned long tmp;
 
-	if (!nbits || start >= nbits)
+	if (unlikely(start >= nbits))
 		return nbits;
 
 	tmp = addr[start / BITS_PER_LONG] ^ invert;

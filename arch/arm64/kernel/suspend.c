@@ -1,8 +1,11 @@
 #include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
+#include <asm/alternative.h>
 #include <asm/cacheflush.h>
+#include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
+#include <asm/exec.h>
 #include <asm/pgtable.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
@@ -23,8 +26,8 @@ unsigned long *sleep_save_stash;
  * time the notifier runs debug exceptions might have been enabled already,
  * with HW breakpoints registers content still in an unknown state.
  */
-static void (*hw_breakpoint_restore)(void *);
-void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
+static int (*hw_breakpoint_restore)(unsigned int);
+void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
 {
 	/* Prevent multiple restore hook initializations */
 	if (WARN_ON(hw_breakpoint_restore))
@@ -34,6 +37,8 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 
 void notrace __cpu_suspend_exit(void)
 {
+	unsigned int cpu = smp_processor_id();
+
 	/*
 	 * We are resuming from reset with the idmap active in TTBR0_EL1.
 	 * We must uninstall the idmap and restore the expected MMU
@@ -42,10 +47,12 @@ void notrace __cpu_suspend_exit(void)
 	cpu_uninstall_idmap();
 
 	/*
-	 * Restore per-cpu offset before any kernel
-	 * subsystem relying on it has a chance to run.
+	 * PSTATE was not saved over suspend/resume, re-enable any detected
+	 * features that might not have been set correctly.
 	 */
-	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
+			CONFIG_ARM64_PAN));
+	uao_thread_switch(current);
 
 	/*
 	 * Restore HW breakpoint registers to sane values
@@ -53,7 +60,7 @@ void notrace __cpu_suspend_exit(void)
 	 * through local_dbg_restore.
 	 */
 	if (hw_breakpoint_restore)
-		hw_breakpoint_restore(NULL);
+		hw_breakpoint_restore(cpu);
 }
 
 /*

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,16 +69,17 @@ u8 ap_is_valid_header(struct acpi_table_header *table)
 		/* Make sure signature is all ASCII and a valid ACPI name */
 
 		if (!acpi_ut_valid_nameseg(table->signature)) {
-			acpi_log_error("Table signature (0x%8.8X) is invalid\n",
-				       *(u32 *)table->signature);
+			fprintf(stderr,
+				"Table signature (0x%8.8X) is invalid\n",
+				*(u32 *)table->signature);
 			return (FALSE);
 		}
 
 		/* Check for minimum table length */
 
 		if (table->length < sizeof(struct acpi_table_header)) {
-			acpi_log_error("Table length (0x%8.8X) is invalid\n",
-				       table->length);
+			fprintf(stderr, "Table length (0x%8.8X) is invalid\n",
+				table->length);
 			return (FALSE);
 		}
 	}
@@ -115,8 +116,8 @@ u8 ap_is_valid_checksum(struct acpi_table_header *table)
 	}
 
 	if (ACPI_FAILURE(status)) {
-		acpi_log_error("%4.4s: Warning: wrong checksum in table\n",
-			       table->signature);
+		fprintf(stderr, "%4.4s: Warning: wrong checksum in table\n",
+			table->signature);
 	}
 
 	return (AE_OK);
@@ -195,13 +196,13 @@ ap_dump_table_buffer(struct acpi_table_header *table,
 	 * Note: simplest to just always emit a 64-bit address. acpi_xtract
 	 * utility can handle this.
 	 */
-	acpi_ut_file_printf(gbl_output_file, "%4.4s @ 0x%8.8X%8.8X\n",
-			    table->signature, ACPI_FORMAT_UINT64(address));
+	fprintf(gbl_output_file, "%4.4s @ 0x%8.8X%8.8X\n",
+		table->signature, ACPI_FORMAT_UINT64(address));
 
 	acpi_ut_dump_buffer_to_file(gbl_output_file,
 				    ACPI_CAST_PTR(u8, table), table_length,
 				    DB_BYTE_DISPLAY, 0);
-	acpi_ut_file_printf(gbl_output_file, "\n");
+	fprintf(gbl_output_file, "\n");
 	return (0);
 }
 
@@ -239,14 +240,14 @@ int ap_dump_all_tables(void)
 			if (status == AE_LIMIT) {
 				return (0);
 			} else if (i == 0) {
-				acpi_log_error
-				    ("Could not get ACPI tables, %s\n",
-				     acpi_format_exception(status));
+				fprintf(stderr,
+					"Could not get ACPI tables, %s\n",
+					acpi_format_exception(status));
 				return (-1);
 			} else {
-				acpi_log_error
-				    ("Could not get ACPI table at index %u, %s\n",
-				     i, acpi_format_exception(status));
+				fprintf(stderr,
+					"Could not get ACPI table at index %u, %s\n",
+					i, acpi_format_exception(status));
 				continue;
 			}
 		}
@@ -286,20 +287,20 @@ int ap_dump_table_by_address(char *ascii_address)
 
 	/* Convert argument to an integer physical address */
 
-	status = acpi_ut_strtoul64(ascii_address, ACPI_ANY_BASE,
-				   ACPI_MAX64_BYTE_WIDTH, &long_address);
+	status = acpi_ut_strtoul64(ascii_address, ACPI_STRTOUL_64BIT,
+				   &long_address);
 	if (ACPI_FAILURE(status)) {
-		acpi_log_error("%s: Could not convert to a physical address\n",
-			       ascii_address);
+		fprintf(stderr, "%s: Could not convert to a physical address\n",
+			ascii_address);
 		return (-1);
 	}
 
 	address = (acpi_physical_address)long_address;
 	status = acpi_os_get_table_by_address(address, &table);
 	if (ACPI_FAILURE(status)) {
-		acpi_log_error("Could not get table at 0x%8.8X%8.8X, %s\n",
-			       ACPI_FORMAT_UINT64(address),
-			       acpi_format_exception(status));
+		fprintf(stderr, "Could not get table at 0x%8.8X%8.8X, %s\n",
+			ACPI_FORMAT_UINT64(address),
+			acpi_format_exception(status));
 		return (-1);
 	}
 
@@ -331,9 +332,9 @@ int ap_dump_table_by_name(char *signature)
 	int table_status;
 
 	if (strlen(signature) != ACPI_NAME_SIZE) {
-		acpi_log_error
-		    ("Invalid table signature [%s]: must be exactly 4 characters\n",
-		     signature);
+		fprintf(stderr,
+			"Invalid table signature [%s]: must be exactly 4 characters\n",
+			signature);
 		return (-1);
 	}
 
@@ -363,9 +364,9 @@ int ap_dump_table_by_name(char *signature)
 				return (0);
 			}
 
-			acpi_log_error
-			    ("Could not get ACPI table with signature [%s], %s\n",
-			     local_signature, acpi_format_exception(status));
+			fprintf(stderr,
+				"Could not get ACPI table with signature [%s], %s\n",
+				local_signature, acpi_format_exception(status));
 			return (-1);
 		}
 
@@ -408,24 +409,24 @@ int ap_dump_table_from_file(char *pathname)
 	}
 
 	if (!acpi_ut_valid_nameseg(table->signature)) {
-		acpi_log_error
-		    ("No valid ACPI signature was found in input file %s\n",
-		     pathname);
+		fprintf(stderr,
+			"No valid ACPI signature was found in input file %s\n",
+			pathname);
 	}
 
 	/* File must be at least as long as the table length */
 
 	if (table->length > file_size) {
-		acpi_log_error
-		    ("Table length (0x%X) is too large for input file (0x%X) %s\n",
-		     table->length, file_size, pathname);
+		fprintf(stderr,
+			"Table length (0x%X) is too large for input file (0x%X) %s\n",
+			table->length, file_size, pathname);
 		goto exit;
 	}
 
 	if (gbl_verbose_mode) {
-		acpi_log_error
-		    ("Input file:  %s contains table [%4.4s], 0x%X (%u) bytes\n",
-		     pathname, table->signature, file_size, file_size);
+		fprintf(stderr,
+			"Input file:  %s contains table [%4.4s], 0x%X (%u) bytes\n",
+			pathname, table->signature, file_size, file_size);
 	}
 
 	table_status = ap_dump_table_buffer(table, 0, 0);

@@ -177,15 +177,6 @@ static struct mtd_partition axis_partitions[MAX_PARTITIONS] = {
 	},
 };
 
-#ifdef CONFIG_ETRAX_AXISFLASHMAP_MTD0WHOLE
-/* Main flash device */
-static struct mtd_partition main_partition = {
-	.name = "main",
-	.size = 0,
-	.offset = 0
-};
-#endif
-
 /*
  * Probe a chip select for AMD-compatible (JEDEC) or CFI-compatible flash
  * chips in that order (because the amd_flash-driver is faster).
@@ -368,16 +359,6 @@ static int __init init_axis_flash(void)
 		       axis_partitions[pidx].size);
 		pidx++;
 	}
-
-#ifdef CONFIG_ETRAX_AXISFLASHMAP_MTD0WHOLE
-	if (mymtd) {
-		main_partition.size = mymtd->size;
-		err = mtd_device_register(mymtd, &main_partition, 1);
-		if (err)
-			panic("axisflashmap: Could not initialize "
-			      "partition for whole main mtd device!\n");
-	}
-#endif
 
         if (mymtd) {
 		if (use_default_ptable) {

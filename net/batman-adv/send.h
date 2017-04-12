@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -21,13 +21,25 @@
 #include "main.h"
 
 #include <linux/compiler.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #include "packet.h"
 
 struct sk_buff;
 
-void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet);
+void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
+			     bool dropped);
+struct batadv_forw_packet *
+batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
+			 struct batadv_hard_iface *if_outgoing,
+			 atomic_t *queue_left,
+			 struct batadv_priv *bat_priv);
+bool batadv_forw_packet_steal(struct batadv_forw_packet *packet, spinlock_t *l);
+void batadv_forw_packet_ogmv1_queue(struct batadv_priv *bat_priv,
+				    struct batadv_forw_packet *forw_packet,
+				    unsigned long send_time);
+
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
 			    struct batadv_hard_iface *recv_if);
@@ -40,7 +52,8 @@ int batadv_send_unicast_skb(struct sk_buff *skb,
 			    struct batadv_neigh_node *neigh_node);
 int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 				    const struct sk_buff *skb,
-				    unsigned long delay);
+				    unsigned long delay,
+				    bool own_packet);
 void
 batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 				 const struct batadv_hard_iface *hard_iface);

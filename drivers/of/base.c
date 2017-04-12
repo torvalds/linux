@@ -25,6 +25,7 @@
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -842,8 +843,11 @@ struct device_node *of_find_node_opts_by_path(const char *path, const char **opt
 	if (!np)
 		np = of_node_get(of_root);
 	while (np && *path == '/') {
+		struct device_node *tmp = np;
+
 		path++; /* Increment past '/' delimiter */
 		np = __of_find_node_by_path(np, path);
+		of_node_put(tmp);
 		path = strchrnul(path, '/');
 		if (separator && separator < path)
 			break;
@@ -1146,16 +1150,18 @@ EXPORT_SYMBOL_GPL(of_property_count_elems_of_size);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @len:	requested length of property value
+ * @min:	minimum allowed length of property value
+ * @max:	maximum allowed length of property value (0 means unlimited)
+ * @len:	if !=NULL, actual length is written to here
  *
  * Search for a property in a device node and valid the requested size.
  * Returns the property value on success, -EINVAL if the property does not
  *  exist, -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
+ * property data is too small or too large.
  *
  */
 static void *of_find_property_value_of_size(const struct device_node *np,
-			const char *propname, u32 len)
+			const char *propname, u32 min, u32 max, size_t *len)
 {
 	struct property *prop = of_find_property(np, propname, NULL);
 
@@ -1163,8 +1169,13 @@ static void *of_find_property_value_of_size(const struct device_node *np,
 		return ERR_PTR(-EINVAL);
 	if (!prop->value)
 		return ERR_PTR(-ENODATA);
-	if (len > prop->length)
+	if (prop->length < min)
 		return ERR_PTR(-EOVERFLOW);
+	if (max && prop->length > max)
+		return ERR_PTR(-EOVERFLOW);
+
+	if (len)
+		*len = prop->length;
 
 	return prop->value;
 }
@@ -1189,7 +1200,9 @@ int of_property_read_u32_index(const struct device_node *np,
 				       u32 index, u32 *out_value)
 {
 	const u32 *val = of_find_property_value_of_size(np, propname,
-					((index + 1) * sizeof(*out_value)));
+					((index + 1) * sizeof(*out_value)),
+					0,
+					NULL);
 
 	if (IS_ERR(val))
 		return PTR_ERR(val);
@@ -1200,102 +1213,145 @@ int of_property_read_u32_index(const struct device_node *np,
 EXPORT_SYMBOL_GPL(of_property_read_u32_index);
 
 /**
- * of_property_read_u8_array - Find and read an array of u8 from a property.
+ * of_property_read_variable_u8_array - Find and read an array of u8 from a
+ * property, with bounds on the minimum and maximum array size.
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
  * @out_values:	pointer to return value, modified only if return value is 0.
- * @sz:		number of array elements to read
+ * @sz_min:	minimum number of array elements to read
+ * @sz_max:	maximum number of array elements to read, if zero there is no
+ *		upper limit on the number of elements in the dts entry but only
+ *		sz_min will be read.
  *
  * Search for a property in a device node and read 8-bit value(s) from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
- * -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
+ * it. Returns number of elements read on success, -EINVAL if the property
+ * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
+ * if the property data is smaller than sz_min or longer than sz_max.
  *
  * dts entry of array should be like:
  *	property = /bits/ 8 <0x50 0x60 0x70>;
  *
  * The out_values is modified only if a valid u8 value can be decoded.
  */
-int of_property_read_u8_array(const struct device_node *np,
-			const char *propname, u8 *out_values, size_t sz)
+int of_property_read_variable_u8_array(const struct device_node *np,
+					const char *propname, u8 *out_values,
+					size_t sz_min, size_t sz_max)
 {
+	size_t sz, count;
 	const u8 *val = of_find_property_value_of_size(np, propname,
-						(sz * sizeof(*out_values)));
+						(sz_min * sizeof(*out_values)),
+						(sz_max * sizeof(*out_values)),
+						&sz);
 
 	if (IS_ERR(val))
 		return PTR_ERR(val);
 
-	while (sz--)
+	if (!sz_max)
+		sz = sz_min;
+	else
+		sz /= sizeof(*out_values);
+
+	count = sz;
+	while (count--)
 		*out_values++ = *val++;
-	return 0;
+
+	return sz;
 }
-EXPORT_SYMBOL_GPL(of_property_read_u8_array);
+EXPORT_SYMBOL_GPL(of_property_read_variable_u8_array);
 
 /**
- * of_property_read_u16_array - Find and read an array of u16 from a property.
+ * of_property_read_variable_u16_array - Find and read an array of u16 from a
+ * property, with bounds on the minimum and maximum array size.
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
  * @out_values:	pointer to return value, modified only if return value is 0.
- * @sz:		number of array elements to read
+ * @sz_min:	minimum number of array elements to read
+ * @sz_max:	maximum number of array elements to read, if zero there is no
+ *		upper limit on the number of elements in the dts entry but only
+ *		sz_min will be read.
  *
  * Search for a property in a device node and read 16-bit value(s) from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
- * -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
+ * it. Returns number of elements read on success, -EINVAL if the property
+ * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
+ * if the property data is smaller than sz_min or longer than sz_max.
  *
  * dts entry of array should be like:
  *	property = /bits/ 16 <0x5000 0x6000 0x7000>;
  *
  * The out_values is modified only if a valid u16 value can be decoded.
  */
-int of_property_read_u16_array(const struct device_node *np,
-			const char *propname, u16 *out_values, size_t sz)
+int of_property_read_variable_u16_array(const struct device_node *np,
+					const char *propname, u16 *out_values,
+					size_t sz_min, size_t sz_max)
 {
+	size_t sz, count;
 	const __be16 *val = of_find_property_value_of_size(np, propname,
-						(sz * sizeof(*out_values)));
+						(sz_min * sizeof(*out_values)),
+						(sz_max * sizeof(*out_values)),
+						&sz);
 
 	if (IS_ERR(val))
 		return PTR_ERR(val);
 
-	while (sz--)
+	if (!sz_max)
+		sz = sz_min;
+	else
+		sz /= sizeof(*out_values);
+
+	count = sz;
+	while (count--)
 		*out_values++ = be16_to_cpup(val++);
-	return 0;
+
+	return sz;
 }
-EXPORT_SYMBOL_GPL(of_property_read_u16_array);
+EXPORT_SYMBOL_GPL(of_property_read_variable_u16_array);
 
 /**
- * of_property_read_u32_array - Find and read an array of 32 bit integers
- * from a property.
+ * of_property_read_variable_u32_array - Find and read an array of 32 bit
+ * integers from a property, with bounds on the minimum and maximum array size.
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
  * @out_values:	pointer to return value, modified only if return value is 0.
- * @sz:		number of array elements to read
+ * @sz_min:	minimum number of array elements to read
+ * @sz_max:	maximum number of array elements to read, if zero there is no
+ *		upper limit on the number of elements in the dts entry but only
+ *		sz_min will be read.
  *
  * Search for a property in a device node and read 32-bit value(s) from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
- * -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
+ * it. Returns number of elements read on success, -EINVAL if the property
+ * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
+ * if the property data is smaller than sz_min or longer than sz_max.
  *
  * The out_values is modified only if a valid u32 value can be decoded.
  */
-int of_property_read_u32_array(const struct device_node *np,
+int of_property_read_variable_u32_array(const struct device_node *np,
 			       const char *propname, u32 *out_values,
-			       size_t sz)
+			       size_t sz_min, size_t sz_max)
 {
+	size_t sz, count;
 	const __be32 *val = of_find_property_value_of_size(np, propname,
-						(sz * sizeof(*out_values)));
+						(sz_min * sizeof(*out_values)),
+						(sz_max * sizeof(*out_values)),
+						&sz);
 
 	if (IS_ERR(val))
 		return PTR_ERR(val);
 
-	while (sz--)
+	if (!sz_max)
+		sz = sz_min;
+	else
+		sz /= sizeof(*out_values);
+
+	count = sz;
+	while (count--)
 		*out_values++ = be32_to_cpup(val++);
-	return 0;
+
+	return sz;
 }
-EXPORT_SYMBOL_GPL(of_property_read_u32_array);
+EXPORT_SYMBOL_GPL(of_property_read_variable_u32_array);
 
 /**
  * of_property_read_u64 - Find and read a 64 bit integer from a property
@@ -1314,7 +1370,9 @@ int of_property_read_u64(const struct device_node *np, const char *propname,
 			 u64 *out_value)
 {
 	const __be32 *val = of_find_property_value_of_size(np, propname,
-						sizeof(*out_value));
+						sizeof(*out_value),
+						0,
+						NULL);
 
 	if (IS_ERR(val))
 		return PTR_ERR(val);
@@ -1325,38 +1383,51 @@ int of_property_read_u64(const struct device_node *np, const char *propname,
 EXPORT_SYMBOL_GPL(of_property_read_u64);
 
 /**
- * of_property_read_u64_array - Find and read an array of 64 bit integers
- * from a property.
+ * of_property_read_variable_u64_array - Find and read an array of 64 bit
+ * integers from a property, with bounds on the minimum and maximum array size.
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
  * @out_values:	pointer to return value, modified only if return value is 0.
- * @sz:		number of array elements to read
+ * @sz_min:	minimum number of array elements to read
+ * @sz_max:	maximum number of array elements to read, if zero there is no
+ *		upper limit on the number of elements in the dts entry but only
+ *		sz_min will be read.
  *
  * Search for a property in a device node and read 64-bit value(s) from
- * it. Returns 0 on success, -EINVAL if the property does not exist,
- * -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
+ * it. Returns number of elements read on success, -EINVAL if the property
+ * does not exist, -ENODATA if property does not have a value, and -EOVERFLOW
+ * if the property data is smaller than sz_min or longer than sz_max.
  *
  * The out_values is modified only if a valid u64 value can be decoded.
  */
-int of_property_read_u64_array(const struct device_node *np,
+int of_property_read_variable_u64_array(const struct device_node *np,
 			       const char *propname, u64 *out_values,
-			       size_t sz)
+			       size_t sz_min, size_t sz_max)
 {
+	size_t sz, count;
 	const __be32 *val = of_find_property_value_of_size(np, propname,
-						(sz * sizeof(*out_values)));
+						(sz_min * sizeof(*out_values)),
+						(sz_max * sizeof(*out_values)),
+						&sz);
 
 	if (IS_ERR(val))
 		return PTR_ERR(val);
 
-	while (sz--) {
+	if (!sz_max)
+		sz = sz_min;
+	else
+		sz /= sizeof(*out_values);
+
+	count = sz;
+	while (count--) {
 		*out_values++ = of_read_number(val, 2);
 		val += 2;
 	}
-	return 0;
+
+	return sz;
 }
-EXPORT_SYMBOL_GPL(of_property_read_u64_array);
+EXPORT_SYMBOL_GPL(of_property_read_variable_u64_array);
 
 /**
  * of_property_read_string - Find and read a string from a property
@@ -1467,9 +1538,12 @@ void of_print_phandle_args(const char *msg, const struct of_phandle_args *args)
 {
 	int i;
 	printk("%s %s", msg, of_node_full_name(args->np));
-	for (i = 0; i < args->args_count; i++)
-		printk(i ? ",%08x" : ":%08x", args->args[i]);
-	printk("\n");
+	for (i = 0; i < args->args_count; i++) {
+		const char delim = i ? ',' : ':';
+
+		pr_cont("%c%08x", delim, args->args[i]);
+	}
+	pr_cont("\n");
 }
 
 int of_phandle_iterator_init(struct of_phandle_iterator *it,
@@ -2042,7 +2116,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			continue;
 
 		/* Allocate an alias_prop with enough space for the stem */
-		ap = dt_alloc(sizeof(*ap) + len + 1, 4);
+		ap = dt_alloc(sizeof(*ap) + len + 1, __alignof__(*ap));
 		if (!ap)
 			continue;
 		memset(ap, 0, sizeof(*ap) + len + 1);
@@ -2195,6 +2269,31 @@ struct device_node *of_find_next_cache_node(const struct device_node *np)
 				return child;
 
 	return NULL;
+}
+
+/**
+ * of_find_last_cache_level - Find the level at which the last cache is
+ * 		present for the given logical cpu
+ *
+ * @cpu: cpu number(logical index) for which the last cache level is needed
+ *
+ * Returns the the level at which the last cache is present. It is exactly
+ * same as  the total number of cache levels for the given logical cpu.
+ */
+int of_find_last_cache_level(unsigned int cpu)
+{
+	u32 cache_level = 0;
+	struct device_node *prev = NULL, *np = of_cpu_device_node_get(cpu);
+
+	while (np) {
+		prev = np;
+		of_node_put(np);
+		np = of_find_next_cache_node(np);
+	}
+
+	of_property_read_u32(prev, "cache-level", &cache_level);
+
+	return cache_level;
 }
 
 /**
@@ -2399,3 +2498,40 @@ struct device_node *of_graph_get_remote_port(const struct device_node *node)
 	return of_get_next_parent(np);
 }
 EXPORT_SYMBOL(of_graph_get_remote_port);
+
+/**
+ * of_graph_get_remote_node() - get remote parent device_node for given port/endpoint
+ * @node: pointer to parent device_node containing graph port/endpoint
+ * @port: identifier (value of reg property) of the parent port node
+ * @endpoint: identifier (value of reg property) of the endpoint node
+ *
+ * Return: Remote device node associated with remote endpoint node linked
+ *	   to @node. Use of_node_put() on it when done.
+ */
+struct device_node *of_graph_get_remote_node(const struct device_node *node,
+					     u32 port, u32 endpoint)
+{
+	struct device_node *endpoint_node, *remote;
+
+	endpoint_node = of_graph_get_endpoint_by_regs(node, port, endpoint);
+	if (!endpoint_node) {
+		pr_debug("no valid endpoint (%d, %d) for node %s\n",
+			 port, endpoint, node->full_name);
+		return NULL;
+	}
+
+	remote = of_graph_get_remote_port_parent(endpoint_node);
+	of_node_put(endpoint_node);
+	if (!remote) {
+		pr_debug("no valid remote node\n");
+		return NULL;
+	}
+
+	if (!of_device_is_available(remote)) {
+		pr_debug("not available for remote node\n");
+		return NULL;
+	}
+
+	return remote;
+}
+EXPORT_SYMBOL(of_graph_get_remote_node);

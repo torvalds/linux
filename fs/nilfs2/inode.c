@@ -51,7 +51,7 @@ void nilfs_inode_add_blocks(struct inode *inode, int n)
 {
 	struct nilfs_root *root = NILFS_I(inode)->i_root;
 
-	inode_add_bytes(inode, (1 << inode->i_blkbits) * n);
+	inode_add_bytes(inode, i_blocksize(inode) * n);
 	if (root)
 		atomic64_add(n, &root->blocks_count);
 }
@@ -60,7 +60,7 @@ void nilfs_inode_sub_blocks(struct inode *inode, int n)
 {
 	struct nilfs_root *root = NILFS_I(inode)->i_root;
 
-	inode_sub_bytes(inode, (1 << inode->i_blkbits) * n);
+	inode_sub_bytes(inode, i_blocksize(inode) * n);
 	if (root)
 		atomic64_sub(n, &root->blocks_count);
 }
@@ -367,7 +367,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	atomic64_inc(&root->inodes_count);
 	inode_init_owner(inode, dir, mode);
 	inode->i_ino = ino;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)) {
 		err = nilfs_bmap_read(ii->i_bmap, NULL);
@@ -749,7 +749,7 @@ void nilfs_truncate(struct inode *inode)
 
 	nilfs_truncate_bmap(ii, blkoff);
 
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_ctime = current_time(inode);
 	if (IS_SYNC(inode))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
@@ -829,7 +829,7 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct super_block *sb = inode->i_sb;
 	int err;
 
-	err = inode_change_ok(inode, iattr);
+	err = setattr_prepare(dentry, iattr);
 	if (err)
 		return err;
 

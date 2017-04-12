@@ -1584,8 +1584,11 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	struct rdma_ucm_cmd_hdr hdr;
 	ssize_t ret;
 
-	if (WARN_ON_ONCE(!ib_safe_file_access(filp)))
+	if (!ib_safe_file_access(filp)) {
+		pr_err_once("ucma_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+			    task_tgid_vnr(current), current->comm);
 		return -EACCES;
+	}
 
 	if (len < sizeof(hdr))
 		return -EINVAL;
@@ -1638,7 +1641,8 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	if (!file)
 		return -ENOMEM;
 
-	file->close_wq = create_singlethread_workqueue("ucma_close_id");
+	file->close_wq = alloc_ordered_workqueue("ucma_close_id",
+						 WQ_MEM_RECLAIM);
 	if (!file->close_wq) {
 		kfree(file);
 		return -ENOMEM;

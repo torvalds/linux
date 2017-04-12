@@ -33,6 +33,26 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	u32 mask1, val1;
 	u32 mask2, val2;
 
+	/* clear status */
+	switch (id) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		rsnd_mod_write(mod, SSI_SYS_STATUS0, 0xf << (id * 4));
+		rsnd_mod_write(mod, SSI_SYS_STATUS2, 0xf << (id * 4));
+		rsnd_mod_write(mod, SSI_SYS_STATUS4, 0xf << (id * 4));
+		rsnd_mod_write(mod, SSI_SYS_STATUS6, 0xf << (id * 4));
+		break;
+	case 9:
+		rsnd_mod_write(mod, SSI_SYS_STATUS1, 0xf << 4);
+		rsnd_mod_write(mod, SSI_SYS_STATUS3, 0xf << 4);
+		rsnd_mod_write(mod, SSI_SYS_STATUS5, 0xf << 4);
+		rsnd_mod_write(mod, SSI_SYS_STATUS7, 0xf << 4);
+		break;
+	}
+
 	/*
 	 * SSI_MODE0
 	 */
@@ -44,7 +64,11 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	mask1 = (1 << 4) | (1 << 20);	/* mask sync bit */
 	mask2 = (1 << 4);		/* mask sync bit */
 	val1  = val2  = 0;
-	if (rsnd_ssi_is_pin_sharing(io)) {
+	if (id == 8) {
+		/*
+		 * SSI8 pin is sharing with SSI7, nothing to do.
+		 */
+	} else if (rsnd_ssi_is_pin_sharing(io)) {
 		int shift = -1;
 
 		switch (id) {

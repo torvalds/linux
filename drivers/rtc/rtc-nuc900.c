@@ -214,7 +214,7 @@ static int nuc900_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
-static struct rtc_class_ops nuc900_rtc_ops = {
+static const struct rtc_class_ops nuc900_rtc_ops = {
 	.read_time = nuc900_rtc_read_time,
 	.set_time = nuc900_rtc_set_time,
 	.read_alarm = nuc900_rtc_read_alarm,

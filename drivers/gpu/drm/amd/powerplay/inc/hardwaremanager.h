@@ -89,7 +89,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_EnableSideportControl,                 /* indicates Sideport can be controlled */
 	PHM_PlatformCaps_VideoPlaybackEEUNotification,          /* indicates EEU notification of video start/stop is required */
 	PHM_PlatformCaps_TurnOffPll_ASPML1,                     /* PCIE Turn Off PLL in ASPM L1 */
-	PHM_PlatformCaps_EnableHTLinkControl,                   /* indicates HT Link can be controlled by ACPI or CLMC overrided/automated mode. */
+	PHM_PlatformCaps_EnableHTLinkControl,                   /* indicates HT Link can be controlled by ACPI or CLMC overridden/automated mode. */
 	PHM_PlatformCaps_PerformanceStateOnly,                  /* indicates only performance power state to be used on current system. */
 	PHM_PlatformCaps_ExclusiveModeAlwaysHigh,               /* In Exclusive (3D) mode always stay in High state. */
 	PHM_PlatformCaps_DisableMGClockGating,                  /* to disable Medium Grain Clock Gating or not */
@@ -334,6 +334,7 @@ struct phm_clocks {
 	uint32_t clock[MAX_NUM_CLOCKS];
 };
 
+extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
 extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);
@@ -341,7 +342,6 @@ extern int phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 extern int phm_setup_asic(struct pp_hwmgr *hwmgr);
 extern int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr);
 extern int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr);
-extern void phm_init_dynamic_caps(struct pp_hwmgr *hwmgr);
 extern bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr);
 extern int phm_block_hw_access(struct pp_hwmgr *hwmgr, bool block);
 extern int phm_set_power_state(struct pp_hwmgr *hwmgr,

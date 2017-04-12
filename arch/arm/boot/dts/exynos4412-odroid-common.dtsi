@@ -43,16 +43,6 @@
 
 	sound: sound {
 		compatible = "simple-audio-card";
-		assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
-				<&clock_audss EXYNOS_MOUT_I2S>,
-				<&clock_audss EXYNOS_DOUT_SRP>,
-				<&clock_audss EXYNOS_DOUT_AUD_BUS>;
-		assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
-				<&clock_audss EXYNOS_MOUT_AUDSS>;
-		assigned-clock-rates = <0>,
-				<0>,
-				<192000000>,
-				<19200000>;
 
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&link0_codec>;
@@ -97,11 +87,11 @@
 	thermal-zones {
 		cpu_thermal: cpu-thermal {
 			cooling-maps {
-				map0 {
+				cooling_map0: map0 {
 				     /* Corresponds to 800MHz at freq_table */
 				     cooling-device = <&cpu0 7 7>;
 				};
-				map1 {
+				cooling_map1: map1 {
 				     /* Corresponds to 200MHz at freq_table */
 				     cooling-device = <&cpu0 13 13>;
 			       };
@@ -157,32 +147,42 @@
 	status = "okay";
 };
 
+&clock_audss {
+	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
+			<&clock_audss EXYNOS_MOUT_I2S>,
+			<&clock_audss EXYNOS_DOUT_SRP>,
+			<&clock_audss EXYNOS_DOUT_AUD_BUS>;
+	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
+			<&clock_audss EXYNOS_MOUT_AUDSS>;
+	assigned-clock-rates = <0>, <0>, <192000000>, <19200000>;
+};
+
 &cpu0 {
 	cpu0-supply = <&buck2_reg>;
 };
 
 /* RSTN signal for eMMC */
 &sd1_cd {
-	samsung,pin-pud = <0>;
-	samsung,pin-drv = <0>;
+	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 };
 
 &pinctrl_1 {
 	gpio_power_key: power_key {
 		samsung,pins = "gpx1-3";
-		samsung,pin-pud = <0>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
 	max77686_irq: max77686-irq {
 		samsung,pins = "gpx3-2";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";
-		samsung,pin-pud = <1>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 	};
 };
 
@@ -227,7 +227,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd>;
 	vdd-supply = <&ldo8_reg>;
@@ -503,10 +503,6 @@
 	pinctrl-0 = <&i2s0_bus>;
 	pinctrl-names = "default";
 	status = "okay";
-	clocks = <&clock_audss EXYNOS_I2S_BUS>,
-		 <&clock_audss EXYNOS_DOUT_AUD_BUS>,
-		 <&clock_audss EXYNOS_SCLK_I2S>;
-	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 };
 
 &mixer {

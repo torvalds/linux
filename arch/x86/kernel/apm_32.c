@@ -218,7 +218,8 @@
 #include <linux/apm_bios.h>
 #include <linux/init.h>
 #include <linux/time.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/cputime.h>
 #include <linux/pm.h>
 #include <linux/capability.h>
 #include <linux/device.h>
@@ -234,7 +235,7 @@
 #include <linux/i8253.h>
 #include <linux/cpuidle.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/desc.h>
 #include <asm/olpc.h>
 #include <asm/paravirt.h>
@@ -905,21 +906,21 @@ static int apm_cpu_idle(struct cpuidle_device *dev,
 {
 	static int use_apm_idle; /* = 0 */
 	static unsigned int last_jiffies; /* = 0 */
-	static unsigned int last_stime; /* = 0 */
-	cputime_t stime;
+	static u64 last_stime; /* = 0 */
+	u64 stime, utime;
 
 	int apm_idle_done = 0;
 	unsigned int jiffies_since_last_check = jiffies - last_jiffies;
 	unsigned int bucket;
 
 recalc:
-	task_cputime(current, NULL, &stime);
+	task_cputime(current, &utime, &stime);
 	if (jiffies_since_last_check > IDLE_CALC_LIMIT) {
 		use_apm_idle = 0;
 	} else if (jiffies_since_last_check > idle_period) {
 		unsigned int idle_percentage;
 
-		idle_percentage = cputime_to_jiffies(stime - last_stime);
+		idle_percentage = nsecs_to_jiffies(stime - last_stime);
 		idle_percentage *= 100;
 		idle_percentage /= jiffies_since_last_check;
 		use_apm_idle = (idle_percentage > idle_threshold);
@@ -1042,8 +1043,11 @@ static int apm_get_power_status(u_short *status, u_short *bat, u_short *life)
 
 	if (apm_info.get_power_status_broken)
 		return APM_32_UNSUPPORTED;
-	if (apm_bios_call(&call))
+	if (apm_bios_call(&call)) {
+		if (!call.err)
+			return APM_NO_ERROR;
 		return call.err;
+	}
 	*status = call.ebx;
 	*bat = call.ecx;
 	if (apm_info.get_power_status_swabinminutes) {

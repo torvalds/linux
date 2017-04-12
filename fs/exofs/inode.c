@@ -778,7 +778,7 @@ try_again:
 fail:
 	EXOFS_DBGMSG("Error: writepage_strip(0x%lx, 0x%lx)=>%d\n",
 		     inode->i_ino, page->index, ret);
-	set_bit(AS_EIO, &page->mapping->flags);
+	mapping_set_error(page->mapping, -EIO);
 	unlock_page(page);
 	return ret;
 }
@@ -870,46 +870,31 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 
 	page = *pagep;
 	if (page == NULL) {
-		ret = simple_write_begin(file, mapping, pos, len, flags, pagep,
-					 fsdata);
-		if (ret) {
-			EXOFS_DBGMSG("simple_write_begin failed\n");
-			goto out;
+		page = grab_cache_page_write_begin(mapping, pos >> PAGE_SHIFT,
+						   flags);
+		if (!page) {
+			EXOFS_DBGMSG("grab_cache_page_write_begin failed\n");
+			return -ENOMEM;
 		}
-
-		page = *pagep;
+		*pagep = page;
 	}
 
 	 /* read modify write */
 	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
 		loff_t i_size = i_size_read(mapping->host);
 		pgoff_t end_index = i_size >> PAGE_SHIFT;
-		size_t rlen;
 
-		if (page->index < end_index)
-			rlen = PAGE_SIZE;
-		else if (page->index == end_index)
-			rlen = i_size & ~PAGE_MASK;
-		else
-			rlen = 0;
-
-		if (!rlen) {
+		if (page->index > end_index) {
 			clear_highpage(page);
 			SetPageUptodate(page);
-			goto out;
-		}
-
-		ret = _readpage(page, true);
-		if (ret) {
-			/*SetPageError was done by _readpage. Is it ok?*/
-			unlock_page(page);
-			EXOFS_DBGMSG("__readpage failed\n");
+		} else {
+			ret = _readpage(page, true);
+			if (ret) {
+				unlock_page(page);
+				EXOFS_DBGMSG("__readpage failed\n");
+			}
 		}
 	}
-out:
-	if (unlikely(ret))
-		_write_failed(mapping->host, pos + len);
-
 	return ret;
 }
 
@@ -929,18 +914,25 @@ static int exofs_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata)
 {
 	struct inode *inode = mapping->host;
-	/* According to comment in simple_write_end i_mutex is held */
-	loff_t i_size = inode->i_size;
-	int ret;
+	loff_t last_pos = pos + copied;
 
-	ret = simple_write_end(file, mapping,pos, len, copied, page, fsdata);
-	if (unlikely(ret))
-		_write_failed(inode, pos + len);
-
-	/* TODO: once simple_write_end marks inode dirty remove */
-	if (i_size != inode->i_size)
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			_write_failed(inode, pos + len);
+			copied = 0;
+			goto out;
+		}
+		SetPageUptodate(page);
+	}
+	if (last_pos > inode->i_size) {
+		i_size_write(inode, last_pos);
 		mark_inode_dirty(inode);
-	return ret;
+	}
+	set_page_dirty(page);
+out:
+	unlock_page(page);
+	put_page(page);
+	return copied;
 }
 
 static int exofs_releasepage(struct page *page, gfp_t gfp)
@@ -1007,7 +999,7 @@ static int _do_truncate(struct inode *inode, loff_t newsize)
 	struct exofs_sb_info *sbi = inode->i_sb->s_fs_info;
 	int ret;
 
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_ctime = current_time(inode);
 
 	ret = ore_truncate(&sbi->layout, &oi->oc, (u64)newsize);
 	if (likely(!ret))
@@ -1034,7 +1026,7 @@ int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (unlikely(error))
 		return error;
 
-	error = inode_change_ok(inode, iattr);
+	error = setattr_prepare(dentry, iattr);
 	if (unlikely(error))
 		return error;
 
@@ -1313,7 +1305,7 @@ struct inode *exofs_new_inode(struct inode *dir, umode_t mode)
 	inode_init_owner(inode, dir, mode);
 	inode->i_ino = sbi->s_nextid++;
 	inode->i_blkbits = EXOFS_BLKSHIFT;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	oi->i_commit_size = inode->i_size = 0;
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;

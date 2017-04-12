@@ -25,10 +25,10 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/time.h>
 #include <linux/timex.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
 #include <linux/err.h>
@@ -48,8 +48,6 @@
 #include <asm/setup.h>
 #include <asm/maar.h>
 
-cpumask_t cpu_callin_map;		/* Bitmask of started secondaries */
-
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 EXPORT_SYMBOL(__cpu_number_map);
 
@@ -67,6 +65,8 @@ EXPORT_SYMBOL(cpu_sibling_map);
 /* representing the core map of multi-core chips of each logical CPU */
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
+
+static DECLARE_COMPLETION(cpu_running);
 
 /*
  * A logcal cpu mask containing only one VPE per core to
@@ -192,9 +192,11 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 				continue;
 
 			while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
+				mips_cm_lock_other(core, 0);
 				mips_cpc_lock_other(core);
 				write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
 				mips_cpc_unlock_other();
+				mips_cm_unlock_other();
 			}
 		}
 	}
@@ -229,7 +231,7 @@ static struct irqaction irq_call = {
 	.name		= "IPI call"
 };
 
-static __init void smp_ipi_init_one(unsigned int virq,
+static void smp_ipi_init_one(unsigned int virq,
 				    struct irqaction *action)
 {
 	int ret;
@@ -239,9 +241,11 @@ static __init void smp_ipi_init_one(unsigned int virq,
 	BUG_ON(ret);
 }
 
-static int __init mips_smp_ipi_init(void)
+static unsigned int call_virq, sched_virq;
+
+int mips_smp_ipi_allocate(const struct cpumask *mask)
 {
-	unsigned int call_virq, sched_virq;
+	int virq;
 	struct irq_domain *ipidomain;
 	struct device_node *node;
 
@@ -268,16 +272,20 @@ static int __init mips_smp_ipi_init(void)
 	if (!ipidomain)
 		return 0;
 
-	call_virq = irq_reserve_ipi(ipidomain, cpu_possible_mask);
-	BUG_ON(!call_virq);
+	virq = irq_reserve_ipi(ipidomain, mask);
+	BUG_ON(!virq);
+	if (!call_virq)
+		call_virq = virq;
 
-	sched_virq = irq_reserve_ipi(ipidomain, cpu_possible_mask);
-	BUG_ON(!sched_virq);
+	virq = irq_reserve_ipi(ipidomain, mask);
+	BUG_ON(!virq);
+	if (!sched_virq)
+		sched_virq = virq;
 
 	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
 		int cpu;
 
-		for_each_cpu(cpu, cpu_possible_mask) {
+		for_each_cpu(cpu, mask) {
 			smp_ipi_init_one(call_virq + cpu, &irq_call);
 			smp_ipi_init_one(sched_virq + cpu, &irq_resched);
 		}
@@ -285,6 +293,45 @@ static int __init mips_smp_ipi_init(void)
 		smp_ipi_init_one(call_virq, &irq_call);
 		smp_ipi_init_one(sched_virq, &irq_resched);
 	}
+
+	return 0;
+}
+
+int mips_smp_ipi_free(const struct cpumask *mask)
+{
+	struct irq_domain *ipidomain;
+	struct device_node *node;
+
+	node = of_irq_find_parent(of_root);
+	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
+
+	/*
+	 * Some platforms have half DT setup. So if we found irq node but
+	 * didn't find an ipidomain, try to search for one that is not in the
+	 * DT.
+	 */
+	if (node && !ipidomain)
+		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
+
+	BUG_ON(!ipidomain);
+
+	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
+		int cpu;
+
+		for_each_cpu(cpu, mask) {
+			remove_irq(call_virq + cpu, &irq_call);
+			remove_irq(sched_virq + cpu, &irq_resched);
+		}
+	}
+	irq_destroy_ipi(call_virq, mask);
+	irq_destroy_ipi(sched_virq, mask);
+	return 0;
+}
+
+
+static int __init mips_smp_ipi_init(void)
+{
+	mips_smp_ipi_allocate(cpu_possible_mask);
 
 	call_desc = irq_to_desc(call_virq);
 	sched_desc = irq_to_desc(sched_virq);
@@ -322,7 +369,7 @@ asmlinkage void start_secondary(void)
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 	notify_cpu_starting(cpu);
 
-	cpumask_set_cpu(cpu, &cpu_callin_map);
+	complete(&cpu_running);
 	synchronise_count_slave(cpu);
 
 	set_cpu_online(cpu, true);
@@ -383,7 +430,6 @@ void smp_prepare_boot_cpu(void)
 {
 	set_cpu_possible(0, true);
 	set_cpu_online(0, true);
-	cpumask_set_cpu(0, &cpu_callin_map);
 }
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
@@ -391,11 +437,13 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	mp_ops->boot_secondary(cpu, tidle);
 
 	/*
-	 * Trust is futile.  We should really have timeouts ...
+	 * We must check for timeout here, as the CPU will not be marked
+	 * online until the counters are synchronised.
 	 */
-	while (!cpumask_test_cpu(cpu, &cpu_callin_map)) {
-		udelay(100);
-		schedule();
+	if (!wait_for_completion_timeout(&cpu_running,
+					 msecs_to_jiffies(1000))) {
+		pr_crit("CPU%u: failed to start\n", cpu);
+		return -EIO;
 	}
 
 	synchronise_count_master(cpu);
@@ -589,23 +637,6 @@ void flush_tlb_one(unsigned long vaddr)
 
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(flush_tlb_one);
-
-#if defined(CONFIG_KEXEC)
-void (*dump_ipi_function_ptr)(void *) = NULL;
-void dump_send_ipi(void (*dump_ipi_callback)(void *))
-{
-	int i;
-	int cpu = smp_processor_id();
-
-	dump_ipi_function_ptr = dump_ipi_callback;
-	smp_mb();
-	for_each_online_cpu(i)
-		if (i != cpu)
-			mp_ops->send_ipi_single(i, SMP_DUMP);
-
-}
-EXPORT_SYMBOL(dump_send_ipi);
-#endif
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 

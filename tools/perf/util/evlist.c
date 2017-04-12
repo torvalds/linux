@@ -384,15 +384,14 @@ void perf_evlist__toggle_enable(struct perf_evlist *evlist)
 static int perf_evlist__enable_event_cpu(struct perf_evlist *evlist,
 					 struct perf_evsel *evsel, int cpu)
 {
-	int thread, err;
+	int thread;
 	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (thread = 0; thread < nr_threads; thread++) {
-		err = ioctl(FD(evsel, cpu, thread),
-			    PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -403,14 +402,14 @@ static int perf_evlist__enable_event_thread(struct perf_evlist *evlist,
 					    struct perf_evsel *evsel,
 					    int thread)
 {
-	int cpu, err;
+	int cpu;
 	int nr_cpus = cpu_map__nr(evlist->cpus);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -1032,16 +1031,18 @@ perf_evlist__should_poll(struct perf_evlist *evlist __maybe_unused,
 }
 
 static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
-				       struct mmap_params *mp, int cpu,
+				       struct mmap_params *mp, int cpu_idx,
 				       int thread, int *_output, int *_output_backward)
 {
 	struct perf_evsel *evsel;
 	int revent;
+	int evlist_cpu = cpu_map__cpu(evlist->cpus, cpu_idx);
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct perf_mmap *maps = evlist->mmap;
 		int *output = _output;
 		int fd;
+		int cpu;
 
 		if (evsel->attr.write_backward) {
 			output = _output_backward;
@@ -1058,6 +1059,10 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 		}
 
 		if (evsel->system_wide && thread)
+			continue;
+
+		cpu = cpu_map__idx(evsel->cpus, evlist_cpu);
+		if (cpu == -1)
 			continue;
 
 		fd = FD(evsel, cpu, thread);
@@ -1179,7 +1184,7 @@ unsigned long perf_event_mlock_kb_in_pages(void)
 	return pages;
 }
 
-static size_t perf_evlist__mmap_size(unsigned long pages)
+size_t perf_evlist__mmap_size(unsigned long pages)
 {
 	if (pages == UINT_MAX)
 		pages = perf_event_mlock_kb_in_pages();
@@ -1219,12 +1224,16 @@ static long parse_pages_arg(const char *str, unsigned long min,
 	if (pages == 0 && min == 0) {
 		/* leave number of pages at 0 */
 	} else if (!is_power_of_2(pages)) {
+		char buf[100];
+
 		/* round pages up to next power of 2 */
 		pages = roundup_pow_of_two(pages);
 		if (!pages)
 			return -EINVAL;
-		pr_info("rounding mmap pages size to %lu bytes (%lu pages)\n",
-			pages * page_size, pages);
+
+		unit_number__scnprintf(buf, sizeof(buf), pages * page_size);
+		pr_info("rounding mmap pages size to %s (%lu pages)\n",
+			buf, pages);
 	}
 
 	if (pages > max)
@@ -1600,10 +1609,9 @@ void perf_evlist__close(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 	int ncpus = cpu_map__nr(evlist->cpus);
 	int nthreads = thread_map__nr(evlist->threads);
-	int n;
 
 	evlist__for_each_entry_reverse(evlist, evsel) {
-		n = evsel->cpus ? evsel->cpus->nr : ncpus;
+		int n = evsel->cpus ? evsel->cpus->nr : ncpus;
 		perf_evsel__close(evsel, n, nthreads);
 	}
 }
@@ -1793,7 +1801,7 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 		 */
 		ret = write(evlist->workload.cork_fd, &bf, 1);
 		if (ret < 0)
-			perror("enable to write to pipe");
+			perror("unable to write to pipe");
 
 		close(evlist->workload.cork_fd);
 		return ret;

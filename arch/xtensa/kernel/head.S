@@ -113,7 +113,7 @@ ENTRY(_startup)
 	movi	a0, 0
 
 #if XCHAL_HAVE_VECBASE
-	movi    a2, VECBASE_RESET_VADDR
+	movi    a2, VECBASE_VADDR
 	wsr	a2, vecbase
 #endif
 

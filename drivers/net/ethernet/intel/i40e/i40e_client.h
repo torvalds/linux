@@ -36,9 +36,9 @@
 #define I40E_CLIENT_VERSION_MINOR 01
 #define I40E_CLIENT_VERSION_BUILD 00
 #define I40E_CLIENT_VERSION_STR     \
-	XSTRINGIFY(I40E_CLIENT_VERSION_MAJOR) "." \
-	XSTRINGIFY(I40E_CLIENT_VERSION_MINOR) "." \
-	XSTRINGIFY(I40E_CLIENT_VERSION_BUILD)
+	__stringify(I40E_CLIENT_VERSION_MAJOR) "." \
+	__stringify(I40E_CLIENT_VERSION_MINOR) "." \
+	__stringify(I40E_CLIENT_VERSION_BUILD)
 
 struct i40e_client_version {
 	u8 major;
@@ -203,8 +203,6 @@ struct i40e_client_instance {
 	struct i40e_info lan_info;
 	struct i40e_client *client;
 	unsigned long  state;
-	/* A count of all the in-progress calls to the client */
-	atomic_t ref_cnt;
 };
 
 struct i40e_client {

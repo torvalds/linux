@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <dt-bindings/reset/ti-syscon.h>
+
 / {
 	compatible = "ti,k2l", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Lamarr SoC";
@@ -35,7 +37,7 @@
 		/include/ "keystone-k2l-clocks.dtsi"
 
 		uart2: serial@02348400 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -45,7 +47,7 @@
 		};
 
 		uart3:	serial@02348800 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -59,6 +61,7 @@
 			reg = <0x02620690 0xc>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <2>;
 			pinctrl-single,bit-per-mux;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <0x1>;
@@ -199,6 +202,32 @@
 				 * GPIO_EMIFA_SEL[0]: 0-EMIFA0, 1-GPIO32
 				 */
 					0x8 0x0 0xFFFF
+				>;
+			};
+		};
+
+		msm_ram: msmram@0c000000 {
+			compatible = "mmio-sram";
+			reg = <0x0c000000 0x200000>;
+			ranges = <0x0 0x0c000000 0x200000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			sram-bm@1f8000 {
+				reg = <0x001f8000 0x8000>;
+			};
+		};
+
+		psc: power-sleep-controller@02350000 {
+			pscrst: reset-controller {
+				compatible = "ti,k2l-pscrst", "ti,syscon-reset";
+				#reset-cells = <1>;
+
+				ti,reset-bits = <
+					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 0: dsp0 */
+					0xa40 8 0xa40 8 0x840 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 1: dsp1 */
+					0xa44 8 0xa44 8 0x844 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 2: dsp2 */
+					0xa48 8 0xa48 8 0x848 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 3: dsp3 */
 				>;
 			};
 		};

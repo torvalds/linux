@@ -12,14 +12,14 @@
 	model = "DM8168 EVM";
 	compatible = "ti,dm8168-evm", "ti,dm8168";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000	/* 1 GB */
 		       0xc0000000 0x40000000>;	/* 1 GB */
 	};
 
 	/* FDC6331L controlled by SD_POW pin */
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;

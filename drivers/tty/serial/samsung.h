@@ -44,10 +44,6 @@ struct s3c24xx_serial_drv_data {
 };
 
 struct s3c24xx_uart_dma {
-	dma_filter_fn			fn;
-	void				*rx_param;
-	void				*tx_param;
-
 	unsigned int			rx_chan_id;
 	unsigned int			tx_chan_id;
 
@@ -102,7 +98,7 @@ struct s3c24xx_uart_port {
 
 	struct s3c24xx_uart_dma		*dma;
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 	struct notifier_block		freq_transition;
 #endif
 };

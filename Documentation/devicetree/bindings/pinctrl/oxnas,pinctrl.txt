@@ -9,7 +9,7 @@ used for a specific device or function. This node represents configurations of
 pins, optional function, and optional mux related configuration.
 
 Required properties for pin controller node:
- - compatible: "oxsemi,ox810se-pinctrl"
+ - compatible: "oxsemi,ox810se-pinctrl" or "oxsemi,ox820-pinctrl"
  - oxsemi,sys-ctrl: a phandle to the system controller syscon node
 
 Required properties for pin configuration sub-nodes:

@@ -12,8 +12,8 @@
 #include "sama5d4.dtsi"
 
 / {
-	model = "DENX MA5D4";
-	compatible = "denx,ma5d4", "atmel,sama5d4", "atmel,sama5";
+	model = "Aries/DENX MA5D4";
+	compatible = "aries,ma5d4", "denx,ma5d4", "atmel,sama5d4", "atmel,sama5";
 
 	memory {
 		reg = <0x20000000 0x10000000>;

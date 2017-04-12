@@ -1,7 +1,7 @@
 /*
    3w-sas.h -- LSI 3ware SAS/SATA-RAID Controller device driver for Linux.
 
-   Written By: Adam Radford <linuxraid@lsi.com>
+   Written By: Adam Radford <aradford@gmail.com>
 
    Copyright (C) 2009 LSI Corporation.
 
@@ -39,10 +39,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Bugs/Comments/Suggestions should be mailed to:
-   linuxraid@lsi.com
-
-   For more information, goto:
-   http://www.lsi.com
+   aradford@gmail.com
 */
 
 #ifndef _3W_SAS_H

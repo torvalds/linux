@@ -45,9 +45,9 @@ config USB_XHCI_PLATFORM
 	  If unsure, say N.
 
 config USB_XHCI_MTK
-	tristate "xHCI support for Mediatek MT65xx"
+	tristate "xHCI support for Mediatek MT65xx/MT7621"
 	select MFD_SYSCON
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on (MIPS && SOC_MT7621) || ARCH_MEDIATEK || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Mediatek MT65xx SoCs.
@@ -472,16 +472,17 @@ config USB_OHCI_HCD_AT91
 
 config USB_OHCI_HCD_OMAP3
 	tristate "OHCI support for OMAP3 and later chips"
-	depends on (ARCH_OMAP3 || ARCH_OMAP4)
+	depends on (ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5)
 	default y
 	---help---
 	  Enables support for the on-chip OHCI controller on
 	  OMAP3 and later chips.
 
 config USB_OHCI_HCD_DAVINCI
-	bool "OHCI support for TI DaVinci DA8xx"
+	tristate "OHCI support for TI DaVinci DA8xx"
 	depends on ARCH_DAVINCI_DA8XX
-	depends on USB_OHCI_HCD=y
+	depends on USB_OHCI_HCD
+	select PHY_DA8XX_USB
 	default y
 	help
 	  Enables support for the DaVinci DA8xx integrated OHCI

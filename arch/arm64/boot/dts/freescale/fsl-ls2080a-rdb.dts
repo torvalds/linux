@@ -46,7 +46,7 @@
 
 /dts-v1/;
 
-/include/ "fsl-ls2080a.dtsi"
+#include "fsl-ls2080a.dtsi"
 
 / {
 	model = "Freescale Layerscape 2080a RDB Board";
@@ -55,6 +55,10 @@
 	aliases {
 		serial0 = &serial0;
 		serial1 = &serial1;
+	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
 	};
 };
 
@@ -98,7 +102,6 @@
 		reg = <0x75>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
 		i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;

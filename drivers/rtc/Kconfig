@@ -187,6 +187,16 @@ config RTC_DRV_ABX80X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-abx80x.
 
+config RTC_DRV_AC100
+	tristate "X-Powers AC100"
+	depends on MFD_AC100
+	help
+	  If you say yes here you get support for the real-time clock found
+	  in X-Powers AC100 family peripheral ICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ac100.
+
 config RTC_DRV_AS3722
 	tristate "ams AS3722 RTC driver"
 	depends on MFD_AS3722
@@ -198,14 +208,14 @@ config RTC_DRV_AS3722
 	  will be called rtc-as3722.
 
 config RTC_DRV_DS1307
-	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025"
+	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025, ISL12057"
 	help
 	  If you say yes here you get support for various compatible RTC
 	  chips (often with battery backup) connected with I2C. This driver
 	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, ST M41T00,
-	  EPSON RX-8025 and probably other chips. In some cases the RTC
-	  must already have been initialized (by manufacturing or a
-	  bootloader).
+	  EPSON RX-8025, Intersil ISL12057 and probably other chips. In some
+	  cases the RTC must already have been initialized (by manufacturing or
+	  a bootloader).
 
 	  The first seven registers on these chips hold an RTC, and other
 	  registers may add features such as NVRAM, a trickle charger for
@@ -223,6 +233,20 @@ config RTC_DRV_DS1307_HWMON
 	help
 	  Say Y here if you want to expose temperature sensor data on
 	  rtc-ds1307 (only DS3231)
+
+config RTC_DRV_DS1307_CENTURY
+	bool "Century bit support for rtc-ds1307"
+	depends on RTC_DRV_DS1307
+	default n
+	help
+	  The DS1307 driver suffered from a bug where it was enabling the
+	  century bit inconditionnally but never used it when reading the time.
+	  It made the driver unable to support dates beyond 2099.
+	  Setting this option will add proper support for the century bit but if
+	  the time was previously set using a kernel predating this option,
+	  reading the date will return a date in the next century.
+	  To solve that, you could boot a kernel without this option set, set
+	  the RTC date and then boot a kernel with this option set.
 
 config RTC_DRV_DS1374
 	tristate "Dallas/Maxim DS1374"
@@ -279,7 +303,7 @@ config RTC_DRV_MAX6900
 
 config RTC_DRV_MAX8907
 	tristate "Maxim MAX8907"
-	depends on MFD_MAX8907
+	depends on MFD_MAX8907 || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the
 	  RTC of Maxim MAX8907 PMIC.
@@ -319,7 +343,7 @@ config RTC_DRV_MAX8997
 
 config RTC_DRV_MAX77686
 	tristate "Maxim MAX77686"
-	depends on MFD_MAX77686 || MFD_MAX77620
+	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the
 	  RTC of Maxim MAX77686/MAX77620/MAX77802 PMIC.
@@ -328,11 +352,11 @@ config RTC_DRV_MAX77686
 	  will be called rtc-max77686.
 
 config RTC_DRV_RK808
-	tristate "Rockchip RK808 RTC"
+	tristate "Rockchip RK808/RK818 RTC"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the
-	  RTC of RK808 PMIC.
+	  RTC of RK808 and RK818 PMIC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
@@ -363,16 +387,6 @@ config RTC_DRV_ISL12022
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-isl12022.
-
-config RTC_DRV_ISL12057
-	select REGMAP_I2C
-	tristate "Intersil ISL12057"
-	help
-	  If you say yes here you get support for the Intersil ISL12057
-	  I2C RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-isl12057.
 
 config RTC_DRV_X1205
 	tristate "Xicor/Intersil X1205"
@@ -467,6 +481,7 @@ config RTC_DRV_TWL92330
 config RTC_DRV_TWL4030
 	tristate "TI TWL4030/TWL5030/TWL6030/TPS659x0"
 	depends on TWL4030_CORE
+	depends on OF
 	help
 	  If you say yes here you get support for the RTC on the
 	  TWL4030/TWL5030/TWL6030 family chips, used mostly with OMAP3 platforms.
@@ -588,7 +603,8 @@ config RTC_DRV_RV8803
 
 config RTC_DRV_S5M
 	tristate "Samsung S2M/S5M series"
-	depends on MFD_SEC_CORE
+	depends on MFD_SEC_CORE || COMPILE_TEST
+	select REGMAP_IRQ
 	help
 	  If you say yes here you will get support for the
 	  RTC of Samsung S2MPS14 and S5M PMIC series.
@@ -651,6 +667,7 @@ config RTC_DRV_DS1343
 	  will be called rtc-ds1343.
 
 config RTC_DRV_DS1347
+	select REGMAP_SPI
 	tristate "Dallas/Maxim DS1347"
 	help
 	  If you say yes here you get support for the
@@ -805,8 +822,8 @@ config RTC_DRV_RV3029_HWMON
 
 comment "Platform RTC drivers"
 
-# this 'CMOS' RTC driver is arch dependent because <asm-generic/rtc.h>
-# requires <asm/mc146818rtc.h> defining CMOS_READ/CMOS_WRITE, and a
+# this 'CMOS' RTC driver is arch dependent because it requires
+# <asm/mc146818rtc.h> defining CMOS_READ/CMOS_WRITE, and a
 # global rtc_lock ... it's not yet just another platform_device.
 
 config RTC_DRV_CMOS
@@ -1191,7 +1208,7 @@ comment "on-CPU RTC drivers"
 
 config RTC_DRV_ASM9260
 	tristate "Alphascale asm9260 RTC"
-	depends on MACH_ASM9260
+	depends on MACH_ASM9260 || COMPILE_TEST
 	help
 	  If you say yes here you get support for the RTC on the
 	  Alphascale asm9260 SoC.
@@ -1231,6 +1248,9 @@ config RTC_DRV_IMXDI
 config RTC_DRV_OMAP
 	tristate "TI OMAP Real Time Clock"
 	depends on ARCH_OMAP || ARCH_DAVINCI || COMPILE_TEST
+	depends on OF
+	depends on PINCTRL
+	select GENERIC_PINCONF
 	help
 	  Say "yes" here to support the on chip real time clock
 	  present on TI OMAP1, AM33xx, DA8xx/OMAP-L13x, AM43xx and DRA7xx.
@@ -1414,9 +1434,10 @@ config RTC_DRV_SUN4V
 	  based RTC on SUN4V systems.
 
 config RTC_DRV_SUN6I
-	tristate "Allwinner A31 RTC"
-	default MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
-	depends on ARCH_SUNXI
+	bool "Allwinner A31 RTC"
+	default MACH_SUN6I || MACH_SUN8I
+	depends on COMMON_CLK
+	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  If you say Y here you will get support for the RTC found in
 	  some Allwinner SoCs like the A31 or the A64.
@@ -1532,10 +1553,10 @@ config RTC_DRV_MPC5121
 
 config RTC_DRV_JZ4740
 	tristate "Ingenic JZ4740 SoC"
-	depends on MACH_JZ4740 || COMPILE_TEST
+	depends on MACH_INGENIC || COMPILE_TEST
 	help
-	  If you say yes here you get support for the Ingenic JZ4740 SoC RTC
-	  controller.
+	  If you say yes here you get support for the Ingenic JZ47xx SoCs RTC
+	  controllers.
 
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-jz4740.
@@ -1549,7 +1570,7 @@ config RTC_DRV_LPC24XX
 	  NXP LPC178x/18xx/408x/43xx devices.
 
 	  If you have one of the devices above enable this driver to use
-	  the hardware RTC. This driver can also be buillt as a module. If
+	  the hardware RTC. This driver can also be built as a module. If
 	  so, the module will be called rtc-lpc24xx.
 
 config RTC_DRV_LPC32XX
@@ -1558,7 +1579,7 @@ config RTC_DRV_LPC32XX
 	help
 	  This enables support for the NXP RTC in the LPC32XX
 
-	  This driver can also be buillt as a module. If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called rtc-lpc32xx.
 
 config RTC_DRV_PM8XXX
@@ -1687,6 +1708,28 @@ config RTC_DRV_PIC32
 
 	   This driver can also be built as a module. If so, the module
 	   will be called rtc-pic32
+
+config RTC_DRV_R7301
+	tristate "EPSON TOYOCOM RTC-7301SF/DG"
+	select REGMAP_MMIO
+	depends on OF && HAS_IOMEM
+	help
+	   If you say yes here you get support for the EPSON TOYOCOM
+	   RTC-7301SF/DG chips.
+
+	   This driver can also be built as a module. If so, the module
+	   will be called rtc-r7301.
+
+config RTC_DRV_STM32
+	tristate "STM32 RTC"
+	select REGMAP_MMIO
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	   If you say yes here you get support for the STM32 On-Chip
+	   Real Time Clock.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-stm32".
 
 comment "HID Sensor RTC drivers"
 

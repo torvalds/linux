@@ -10,6 +10,7 @@
 /include/ "skeleton_hs_idu.dtsi"
 
 / {
+	model = "snps,nsimosci_hs-smp";
 	compatible = "snps,nsimosci_hs";
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -42,33 +43,20 @@
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-/*			interrupts = <16 17 18 19 20 21 22 23 24 25>; */
 		};
 
 		idu_intc: idu-interrupt-controller {
 			compatible = "snps,archs-idu-intc";
 			interrupt-controller;
 			interrupt-parent = <&core_intc>;
-
-			/*
-			 * <hwirq  distribution>
-			 * distribution: 0=RR; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
-			 */
-			#interrupt-cells = <2>;
-
-			/*
-			 * upstream irqs to core intc - downstream these are
-			 * "COMMON" irq 0,1..
-			 */
-			interrupts = <24 25 26 27 28 29 30 31>;
+			#interrupt-cells = <1>;
 		};
 
 		uart0: serial@f0000000 {
 			compatible = "ns8250";
 			reg = <0xf0000000 0x2000>;
 			interrupt-parent = <&idu_intc>;
-			interrupts = <0 0>; /* cmn irq 0 -> cpu irq 24
-						RR distribute to all cpus */
+			interrupts = <0>;
 			clock-frequency = <3686400>;
 			baud = <115200>;
 			reg-shift = <2>;
@@ -92,7 +80,7 @@
 		ps2: ps2@f9001000 {
 			compatible = "snps,arc_ps2";
 			reg = <0xf9000400 0x14>;
-			interrupts = <3 0>;
+			interrupts = <3>;
 			interrupt-parent = <&idu_intc>;
 			interrupt-names = "arc_ps2_irq";
 		};
@@ -101,7 +89,7 @@
 			compatible = "ezchip,nps-mgt-enet";
 			reg = <0xf0003000 0x44>;
 			interrupt-parent = <&idu_intc>;
-			interrupts = <1 2>;
+			interrupts = <1>;
 		};
 
 		arcpct0: pct {

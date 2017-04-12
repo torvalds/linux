@@ -63,25 +63,14 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 	int pkt_len = skb->len - skb_inner_network_offset(skb);
 	struct net *net = dev_net(rt->dst.dev);
 	struct net_device *dev = skb->dev;
-	int skb_iif = skb->skb_iif;
 	struct iphdr *iph;
 	int err;
 
 	skb_scrub_packet(skb, xnet);
 
-	skb_clear_hash(skb);
+	skb_clear_hash_if_not_l4(skb);
 	skb_dst_set(skb, &rt->dst);
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
-
-	if (skb_iif && !(df & htons(IP_DF))) {
-		/* Arrived from an ingress interface, got encapsulated, with
-		 * fragmentation of encapulating frames allowed.
-		 * If skb is gso, the resulting encapsulated network segments
-		 * may exceed dst mtu.
-		 * Allow IP Fragmentation of segments.
-		 */
-		IPCB(skb)->flags |= IPSKB_FRAG_SEGS;
-	}
 
 	/* Push down and install the IP header. */
 	skb_push(skb, sizeof(struct iphdr));
@@ -199,8 +188,8 @@ int iptunnel_handle_offloads(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
 
 /* Often modified stats are per cpu, other are shared (netdev->stats) */
-struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *tot)
+void ip_tunnel_get_stats64(struct net_device *dev,
+			   struct rtnl_link_stats64 *tot)
 {
 	int i;
 
@@ -225,8 +214,6 @@ struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
 		tot->rx_bytes   += rx_bytes;
 		tot->tx_bytes   += tx_bytes;
 	}
-
-	return tot;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);
 
@@ -239,7 +226,7 @@ static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 	[LWTUNNEL_IP_FLAGS]	= { .type = NLA_U16 },
 };
 
-static int ip_tun_build_state(struct net_device *dev, struct nlattr *attr,
+static int ip_tun_build_state(struct nlattr *attr,
 			      unsigned int family, const void *cfg,
 			      struct lwtunnel_state **ts)
 {
@@ -324,6 +311,7 @@ static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
 	.fill_encap = ip_tun_fill_encap_info,
 	.get_encap_size = ip_tun_encap_nlsize,
 	.cmp_encap = ip_tun_cmp_encap,
+	.owner = THIS_MODULE,
 };
 
 static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
@@ -335,7 +323,7 @@ static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
 	[LWTUNNEL_IP6_FLAGS]		= { .type = NLA_U16 },
 };
 
-static int ip6_tun_build_state(struct net_device *dev, struct nlattr *attr,
+static int ip6_tun_build_state(struct nlattr *attr,
 			       unsigned int family, const void *cfg,
 			       struct lwtunnel_state **ts)
 {
@@ -414,6 +402,7 @@ static const struct lwtunnel_encap_ops ip6_tun_lwt_ops = {
 	.fill_encap = ip6_tun_fill_encap_info,
 	.get_encap_size = ip6_tun_encap_nlsize,
 	.cmp_encap = ip_tun_cmp_encap,
+	.owner = THIS_MODULE,
 };
 
 void __init ip_tunnel_core_init(void)

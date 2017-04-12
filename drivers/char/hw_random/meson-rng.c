@@ -76,9 +76,6 @@ static int meson_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	struct meson_rng_data *data =
 			container_of(rng, struct meson_rng_data, rng);
 
-	if (max < sizeof(u32))
-		return 0;
-
 	*(u32 *)buf = readl_relaxed(data->base + RNG_DATA);
 
 	return sizeof(u32);
@@ -113,6 +110,7 @@ static const struct of_device_id meson_rng_of_match[] = {
 	{ .compatible = "amlogic,meson-rng", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, meson_rng_of_match);
 
 static struct platform_driver meson_rng_driver = {
 	.probe	= meson_rng_probe,
@@ -124,7 +122,6 @@ static struct platform_driver meson_rng_driver = {
 
 module_platform_driver(meson_rng_driver);
 
-MODULE_ALIAS("platform:meson-rng");
 MODULE_DESCRIPTION("Meson H/W Random Number Generator driver");
 MODULE_AUTHOR("Lawrence Mok <lawrence.mok@amlogic.com>");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");

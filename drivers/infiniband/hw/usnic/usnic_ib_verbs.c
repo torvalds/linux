@@ -87,12 +87,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 	resp.bar_len = bar->len;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_RQ);
@@ -101,12 +101,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.rq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_WQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_WQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_WQ);
@@ -115,12 +115,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.wq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_CQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_CQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_CQ);
@@ -291,11 +291,11 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	qp_per_vf = max(us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_WQ],
 			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_RQ]);
 	props->max_qp = qp_per_vf *
-		atomic_read(&us_ibdev->vf_cnt.refcount);
+		kref_read(&us_ibdev->vf_cnt);
 	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
 		IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 	props->max_cq = us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ] *
-		atomic_read(&us_ibdev->vf_cnt.refcount);
+		kref_read(&us_ibdev->vf_cnt);
 	props->max_pd = USNIC_UIOM_MAX_PD_CNT;
 	props->max_mr = USNIC_UIOM_MAX_MR_CNT;
 	props->local_ca_ack_delay = 0;
@@ -330,7 +330,7 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	__ethtool_get_link_ksettings(us_ibdev->netdev, &cmd);
-	memset(props, 0, sizeof(*props));
+	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
 	props->lmc = 1;
@@ -738,7 +738,9 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 
 /* In ib callbacks section -  Start of stub funcs */
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
-					struct ib_ah_attr *ah_attr)
+				 struct ib_ah_attr *ah_attr,
+				 struct ib_udata *udata)
+
 {
 	usnic_dbg("\n");
 	return ERR_PTR(-EPERM);

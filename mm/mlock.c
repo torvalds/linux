@@ -8,6 +8,7 @@
 #include <linux/capability.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/sched/user.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/pagemap.h>
@@ -190,10 +191,13 @@ unsigned int munlock_vma_page(struct page *page)
 	 */
 	spin_lock_irq(zone_lru_lock(zone));
 
-	nr_pages = hpage_nr_pages(page);
-	if (!TestClearPageMlocked(page))
+	if (!TestClearPageMlocked(page)) {
+		/* Potentially, PTE-mapped THP: do not skip the rest PTEs */
+		nr_pages = 1;
 		goto unlock_out;
+	}
 
+	nr_pages = hpage_nr_pages(page);
 	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
 
 	if (__munlock_isolate_lru_page(page, true)) {
@@ -376,6 +380,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
 	/* Make sure we do not cross the page table boundary */
 	end = pgd_addr_end(start, end);
+	end = p4d_addr_end(start, end);
 	end = pud_addr_end(start, end);
 	end = pmd_addr_end(start, end);
 
@@ -438,7 +443,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 
 	while (start < end) {
 		struct page *page;
-		unsigned int page_mask;
+		unsigned int page_mask = 0;
 		unsigned long page_increm;
 		struct pagevec pvec;
 		struct zone *zone;
@@ -452,8 +457,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		 * suits munlock very well (and if somehow an abnormal page
 		 * has sneaked into the range, we won't oops here: great).
 		 */
-		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
-				&page_mask);
+		page = follow_page(vma, start, FOLL_GET | FOLL_DUMP);
 
 		if (page && !IS_ERR(page)) {
 			if (PageTransTail(page)) {
@@ -464,8 +468,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 				/*
 				 * Any THP page found by follow_page_mask() may
 				 * have gotten split before reaching
-				 * munlock_vma_page(), so we need to recompute
-				 * the page_mask here.
+				 * munlock_vma_page(), so we need to compute
+				 * the page_mask here instead.
 				 */
 				page_mask = munlock_vma_page(page);
 				unlock_page(page);
@@ -516,6 +520,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
 	int nr_pages;
 	int ret = 0;
 	int lock = !!(newflags & VM_LOCKED);
+	vm_flags_t old_flags = vma->vm_flags;
 
 	if (newflags == vma->vm_flags || (vma->vm_flags & VM_SPECIAL) ||
 	    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current->mm))
@@ -550,6 +555,8 @@ success:
 	nr_pages = (end - start) >> PAGE_SHIFT;
 	if (!lock)
 		nr_pages = -nr_pages;
+	else if (old_flags & VM_LOCKED)
+		nr_pages = 0;
 	mm->locked_vm += nr_pages;
 
 	/*
@@ -617,6 +624,45 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 	return error;
 }
 
+/*
+ * Go through vma areas and sum size of mlocked
+ * vma pages, as return value.
+ * Note deferred memory locking case(mlock2(,,MLOCK_ONFAULT)
+ * is also counted.
+ * Return value: previously mlocked page counts
+ */
+static int count_mm_mlocked_page_nr(struct mm_struct *mm,
+		unsigned long start, size_t len)
+{
+	struct vm_area_struct *vma;
+	int count = 0;
+
+	if (mm == NULL)
+		mm = current->mm;
+
+	vma = find_vma(mm, start);
+	if (vma == NULL)
+		vma = mm->mmap;
+
+	for (; vma ; vma = vma->vm_next) {
+		if (start >= vma->vm_end)
+			continue;
+		if (start + len <=  vma->vm_start)
+			break;
+		if (vma->vm_flags & VM_LOCKED) {
+			if (start > vma->vm_start)
+				count -= (start - vma->vm_start);
+			if (start + len < vma->vm_end) {
+				count += start + len - vma->vm_start;
+				break;
+			}
+			count += vma->vm_end - vma->vm_start;
+		}
+	}
+
+	return count >> PAGE_SHIFT;
+}
+
 static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t flags)
 {
 	unsigned long locked;
@@ -639,6 +685,16 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
 		return -EINTR;
 
 	locked += current->mm->locked_vm;
+	if ((locked > lock_limit) && (!capable(CAP_IPC_LOCK))) {
+		/*
+		 * It is possible that the regions requested intersect with
+		 * previously mlocked areas, that part area in "mm->locked_vm"
+		 * should not be counted to new mlock increment count. So check
+		 * and adjust locked count if necessary.
+		 */
+		locked -= count_mm_mlocked_page_nr(current->mm,
+				start, len);
+	}
 
 	/* check against resource limits */
 	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))

@@ -1,0 +1,133 @@
+menu "DesignWare PCI Core Support"
+
+config PCIE_DW
+	bool
+
+config PCIE_DW_HOST
+        bool
+	depends on PCI
+	depends on PCI_MSI_IRQ_DOMAIN
+        select PCIE_DW
+
+config PCI_DRA7XX
+	bool "TI DRA7xx PCIe controller"
+	depends on PCI
+	depends on OF && HAS_IOMEM && TI_PIPE3
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	 Enables support for the PCIe controller in the DRA7xx SoC.  There
+	 are two instances of PCIe controller in DRA7xx.  This controller can
+	 act both as EP and RC.  This reuses the Designware core.
+
+config PCIE_DW_PLAT
+	bool "Platform bus based DesignWare PCIe Controller"
+	depends on PCI
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	---help---
+	 This selects the DesignWare PCIe controller support. Select this if
+	 you have a PCIe controller on Platform bus.
+
+	 If you have a controller with this interface, say Y or M here.
+
+	 If unsure, say N.
+
+config PCI_EXYNOS
+	bool "Samsung Exynos PCIe controller"
+	depends on PCI
+	depends on SOC_EXYNOS5440
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+
+config PCI_IMX6
+	bool "Freescale i.MX6 PCIe controller"
+	depends on PCI
+	depends on SOC_IMX6Q
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+
+config PCIE_SPEAR13XX
+	bool "STMicroelectronics SPEAr PCIe controller"
+	depends on PCI
+	depends on ARCH_SPEAR13XX
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe support on SPEAr13XX SoCs.
+
+config PCI_KEYSTONE
+	bool "TI Keystone PCIe controller"
+	depends on PCI
+	depends on ARCH_KEYSTONE
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want to enable PCI controller support on Keystone
+	  SoCs. The PCI controller on Keystone is based on Designware hardware
+	  and therefore the driver re-uses the Designware core functions to
+	  implement the driver.
+
+config PCI_LAYERSCAPE
+	bool "Freescale Layerscape PCIe controller"
+	depends on PCI
+	depends on OF && (ARM || ARCH_LAYERSCAPE)
+	depends on PCI_MSI_IRQ_DOMAIN
+	select MFD_SYSCON
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support on Layerscape SoCs.
+
+config PCI_HISI
+	depends on OF && ARM64
+	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controllers"
+	depends on PCI
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want PCIe controller support on HiSilicon
+	  Hip05 and Hip06 SoCs
+
+config PCIE_QCOM
+	bool "Qualcomm PCIe controller"
+	depends on PCI
+	depends on ARCH_QCOM && OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
+	  PCIe controller uses the Designware core plus Qualcomm-specific
+	  hardware wrappers.
+
+config PCIE_ARMADA_8K
+	bool "Marvell Armada-8K PCIe controller"
+	depends on PCI
+	depends on ARCH_MVEBU
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  Armada-8K SoCs. The PCIe controller on Armada-8K is based on
+	  Designware hardware and therefore the driver re-uses the
+	  Designware core functions to implement the driver.
+
+config PCIE_ARTPEC6
+	bool "Axis ARTPEC-6 PCIe controller"
+	depends on PCI
+	depends on MACH_ARTPEC6
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
+	  SoCs.  This PCIe controller uses the DesignWare core.
+
+endmenu

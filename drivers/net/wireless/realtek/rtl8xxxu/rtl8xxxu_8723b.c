@@ -1,7 +1,7 @@
 /*
  * RTL8XXXU mac80211 USB driver - 8723b specific subdriver
  *
- * Copyright (c) 2014 - 2016 Jes Sorensen <Jes.Sorensen@redhat.com>
+ * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
  * Portions, notably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
@@ -1498,6 +1498,10 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	u32 val32;
 	u8 val8;
 
+	val32 = rtl8xxxu_read32(priv, REG_RX_WAIT_CCA);
+	val32 |= (BIT(22) | BIT(23));
+	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
+
 	/*
 	 * No indication anywhere as to what 0x0790 does. The 2 antenna
 	 * vendor code preserves bits 6-7 here.
@@ -1662,10 +1666,13 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.set_tx_power = rtl8723b_set_tx_power,
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
+	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
 	.writeN_block_size = 1024,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc40),
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),
 	.has_s0s1 = 1,
+	.has_tx_report = 1,
+	.gen2_thermal_meter = 1,
 	.adda_1t_init = 0x01c00014,
 	.adda_1t_path_on = 0x01c00014,
 	.adda_2t_path_on_a = 0x01c00014,
@@ -1674,4 +1681,8 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.pbp_rx = PBP_PAGE_SIZE_256,
 	.pbp_tx = PBP_PAGE_SIZE_256,
 	.mactable = rtl8723b_mac_init_table,
+	.total_page_num = TX_TOTAL_PAGE_NUM_8723B,
+	.page_num_hi = TX_PAGE_NUM_HI_PQ_8723B,
+	.page_num_lo = TX_PAGE_NUM_LO_PQ_8723B,
+	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8723B,
 };

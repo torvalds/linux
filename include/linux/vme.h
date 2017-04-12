@@ -108,12 +108,10 @@ struct vme_dev {
 };
 
 struct vme_driver {
-	struct list_head node;
 	const char *name;
 	int (*match)(struct vme_dev *);
 	int (*probe)(struct vme_dev *);
 	int (*remove)(struct vme_dev *);
-	void (*shutdown)(void);
 	struct device_driver driver;
 	struct list_head devices;
 };
@@ -166,7 +164,7 @@ struct vme_resource *vme_lm_request(struct vme_dev *);
 int vme_lm_count(struct vme_resource *);
 int vme_lm_set(struct vme_resource *, unsigned long long, u32, u32);
 int vme_lm_get(struct vme_resource *, unsigned long long *, u32 *, u32 *);
-int vme_lm_attach(struct vme_resource *, int, void (*callback)(int));
+int vme_lm_attach(struct vme_resource *, int, void (*callback)(void *), void *);
 int vme_lm_detach(struct vme_resource *, int);
 void vme_lm_free(struct vme_resource *);
 

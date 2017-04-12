@@ -347,7 +347,7 @@ static int max98926_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		max98926_set_sense_data(max98926);
 		break;
 	default:
-		dev_err(codec->dev, "DAI clock mode unsupported");
+		dev_err(codec->dev, "DAI clock mode unsupported\n");
 		return -EINVAL;
 	}
 
@@ -364,7 +364,7 @@ static int max98926_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		invert = MAX98926_DAI_BCI_MASK | MAX98926_DAI_WCI_MASK;
 		break;
 	default:
-		dev_err(codec->dev, "DAI invert mode unsupported");
+		dev_err(codec->dev, "DAI invert mode unsupported\n");
 		return -EINVAL;
 	}
 
@@ -408,7 +408,7 @@ static int max98926_dai_hw_params(struct snd_pcm_substream *substream,
 		max98926->ch_size = 32;
 		break;
 	default:
-		dev_dbg(codec->dev, "format unsupported %d",
+		dev_dbg(codec->dev, "format unsupported %d\n",
 			params_format(params));
 		return -EINVAL;
 	}
@@ -498,12 +498,14 @@ static int max98926_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_max98926 = {
 	.probe	= max98926_probe,
-	.controls = max98926_snd_controls,
-	.num_controls = ARRAY_SIZE(max98926_snd_controls),
-	.dapm_routes = max98926_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(max98926_audio_map),
-	.dapm_widgets = max98926_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max98926_dapm_widgets),
+	.component_driver = {
+		.controls		= max98926_snd_controls,
+		.num_controls		= ARRAY_SIZE(max98926_snd_controls),
+		.dapm_routes		= max98926_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(max98926_audio_map),
+		.dapm_widgets		= max98926_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(max98926_dapm_widgets),
+	},
 };
 
 static const struct regmap_config max98926_regmap = {

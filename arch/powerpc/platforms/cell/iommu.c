@@ -411,7 +411,7 @@ static void cell_iommu_enable_hardware(struct cbe_iommu *iommu)
 
 	virq = irq_create_mapping(NULL,
 			IIC_IRQ_IOEX_ATI | (iommu->nid << IIC_IRQ_NODE_SHIFT));
-	BUG_ON(virq == NO_IRQ);
+	BUG_ON(!virq);
 
 	ret = request_irq(virq, ioc_interrupt, 0, iommu->name, iommu);
 	BUG_ON(ret);
@@ -651,7 +651,7 @@ static int dma_fixed_dma_supported(struct device *dev, u64 mask)
 
 static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);
 
-struct dma_map_ops dma_iommu_fixed_ops = {
+static const struct dma_map_ops dma_iommu_fixed_ops = {
 	.alloc          = dma_fixed_alloc_coherent,
 	.free           = dma_fixed_free_coherent,
 	.map_sg         = dma_fixed_map_sg,
@@ -692,7 +692,7 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	/* We use the PCI DMA ops */
-	dev->archdata.dma_ops = get_pci_dma_ops();
+	dev->dma_ops = get_pci_dma_ops();
 
 	cell_dma_dev_setup(dev);
 
@@ -1172,7 +1172,7 @@ __setup("iommu_fixed=", setup_iommu_fixed);
 
 static u64 cell_dma_get_required_mask(struct device *dev)
 {
-	struct dma_map_ops *dma_ops;
+	const struct dma_map_ops *dma_ops;
 
 	if (!dev->dma_mask)
 		return 0;

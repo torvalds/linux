@@ -1,6 +1,7 @@
 #ifndef ISCSI_PARAMETERS_H
 #define ISCSI_PARAMETERS_H
 
+#include <linux/types.h>
 #include <scsi/iscsi_proto.h>
 
 struct iscsi_extra_response {
@@ -22,6 +23,11 @@ struct iscsi_param {
 	u32 state;
 	struct list_head p_list;
 } ____cacheline_aligned;
+
+struct iscsi_conn;
+struct iscsi_conn_ops;
+struct iscsi_param_list;
+struct iscsi_sess_ops;
 
 extern int iscsi_login_rx_data(struct iscsi_conn *, char *, int);
 extern int iscsi_login_tx_data(struct iscsi_conn *, char *, char *, int);

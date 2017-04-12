@@ -18,7 +18,8 @@
 	model = "Hardkernel ODROID-X board based on Exynos4412";
 	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x3FF00000>;
 	};
 
@@ -63,6 +64,11 @@
 	};
 };
 
+&adc {
+	vdd-supply = <&ldo10_reg>;
+	status = "okay";
+};
+
 /* VDDQ for MSHC (eMMC card) */
 &buck8_reg {
 	regulator-name = "BUCK8_VDDQ_MMC4_2.8V";
@@ -83,7 +89,7 @@
 &pinctrl_1 {
 	gpio_home_key: home_key {
 		samsung,pins = "gpx2-2";
-		samsung,pin-pud = <0>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 
@@ -93,4 +99,17 @@
 
 &serial_3 {
 	status = "okay";
+};
+
+&sound {
+	simple-audio-card,name = "Odroid-X";
+	simple-audio-card,widgets =
+		"Headphone", "Headphone Jack",
+		"Microphone", "Mic Jack",
+		"Microphone", "DMIC";
+	simple-audio-card,routing =
+		"Headphone Jack", "HPL",
+		"Headphone Jack", "HPR",
+		"IN1", "Mic Jack",
+		"Mic Jack", "MICBIAS";
 };

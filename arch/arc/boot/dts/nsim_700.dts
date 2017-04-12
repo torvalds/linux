@@ -10,6 +10,7 @@
 /include/ "skeleton.dtsi"
 
 / {
+	model = "snps,nsim";
 	compatible = "snps,nsim";
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -68,7 +69,7 @@
 			};
 		};
 
-		arcpmu0: pmu {
+		arcpct0: pct {
 			compatible = "snps,arc700-pct";
 		};
 	};

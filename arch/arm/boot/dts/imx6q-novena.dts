@@ -210,7 +210,6 @@
 &ecspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3_novena>;
-	fsl,spi-num-chipselects = <3>;
 	status = "okay";
 };
 
@@ -451,6 +450,10 @@
 	status = "okay";
 };
 
+&pwm1 {
+	status = "okay";
+};
+
 &sata {
 	target-supply = <&reg_sata>;
 	fsl,transmit-level-mV = <1025>;
@@ -549,12 +552,12 @@
 			MX6QDL_PAD_RGMII_TD3__RGMII_TD3		0x1b028
 			MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL	0x1b028
 			MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK	0x1b0b0
-			MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b0b0
-			MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x1b0b0
-			MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x1b0b0
-			MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b0b0
-			MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b0b0
-			MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b0b0
+			MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b030
+			MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x1b030
+			MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x1b030
+			MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b030
+			MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b030
+			MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b030
 			MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0a8
 			/* Ethernet reset */
 			MX6QDL_PAD_EIM_D23__GPIO3_IO23		0x1b0b1

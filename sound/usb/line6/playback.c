@@ -146,18 +146,20 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	int index;
 	int i, urb_size, urb_frames;
 	int ret;
-	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
+	const int bytes_per_frame =
+		line6pcm->properties->bytes_per_channel *
+		line6pcm->properties->playback_hw.channels_max;
 	const int frame_increment =
 		line6pcm->properties->rates.rats[0].num_min;
 	const int frame_factor =
 		line6pcm->properties->rates.rats[0].den *
-		(USB_INTERVALS_PER_SECOND / LINE6_ISO_INTERVAL);
+		(line6pcm->line6->intervals_per_second / LINE6_ISO_INTERVAL);
 	struct urb *urb_out;
 
-	index =
-	    find_first_zero_bit(&line6pcm->out.active_urbs, LINE6_ISO_BUFFERS);
+	index = find_first_zero_bit(&line6pcm->out.active_urbs,
+				    line6pcm->line6->iso_buffers);
 
-	if (index < 0 || index >= LINE6_ISO_BUFFERS) {
+	if (index < 0 || index >= line6pcm->line6->iso_buffers) {
 		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
 		return -EINVAL;
 	}
@@ -165,6 +167,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	urb_out = line6pcm->out.urbs[index];
 	urb_size = 0;
 
+	/* TODO: this may not work for LINE6_ISO_PACKETS != 1 */
 	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
 		/* compute frame size for given sampling rate */
 		int fsize = 0;
@@ -178,8 +181,10 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 			line6pcm->out.count += frame_increment;
 			n = line6pcm->out.count / frame_factor;
 			line6pcm->out.count -= n * frame_factor;
-			fsize = n * bytes_per_frame;
+			fsize = n;
 		}
+
+		fsize *= bytes_per_frame;
 
 		fout->offset = urb_size;
 		fout->length = fsize;
@@ -195,7 +200,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	urb_frames = urb_size / bytes_per_frame;
 	urb_out->transfer_buffer =
 	    line6pcm->out.buffer +
-	    index * LINE6_ISO_PACKETS * line6pcm->max_packet_size;
+	    index * LINE6_ISO_PACKETS * line6pcm->max_packet_size_out;
 	urb_out->transfer_buffer_length = urb_size;
 	urb_out->context = line6pcm;
 
@@ -286,7 +291,7 @@ int line6_submit_audio_out_all_urbs(struct snd_line6_pcm *line6pcm)
 {
 	int ret = 0, i;
 
-	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+	for (i = 0; i < line6pcm->line6->iso_buffers; ++i) {
 		ret = submit_audio_out_urb(line6pcm);
 		if (ret < 0)
 			break;
@@ -305,6 +310,9 @@ static void audio_out_callback(struct urb *urb)
 	struct snd_line6_pcm *line6pcm = (struct snd_line6_pcm *)urb->context;
 	struct snd_pcm_substream *substream =
 	    get_substream(line6pcm, SNDRV_PCM_STREAM_PLAYBACK);
+	const int bytes_per_frame =
+		line6pcm->properties->bytes_per_channel *
+		line6pcm->properties->playback_hw.channels_max;
 
 #if USE_CLEAR_BUFFER_WORKAROUND
 	memset(urb->transfer_buffer, 0, urb->transfer_buffer_length);
@@ -313,11 +321,11 @@ static void audio_out_callback(struct urb *urb)
 	line6pcm->out.last_frame = urb->start_frame;
 
 	/* find index of URB */
-	for (index = 0; index < LINE6_ISO_BUFFERS; index++)
+	for (index = 0; index < line6pcm->line6->iso_buffers; index++)
 		if (urb == line6pcm->out.urbs[index])
 			break;
 
-	if (index >= LINE6_ISO_BUFFERS)
+	if (index >= line6pcm->line6->iso_buffers)
 		return;		/* URB has been unlinked asynchronously */
 
 	for (i = 0; i < LINE6_ISO_PACKETS; i++)
@@ -329,7 +337,7 @@ static void audio_out_callback(struct urb *urb)
 		struct snd_pcm_runtime *runtime = substream->runtime;
 
 		line6pcm->out.pos_done +=
-		    length / line6pcm->properties->bytes_per_frame;
+		    length / bytes_per_frame;
 
 		if (line6pcm->out.pos_done >= runtime->buffer_size)
 			line6pcm->out.pos_done -= runtime->buffer_size;
@@ -401,8 +409,13 @@ int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 	struct usb_line6 *line6 = line6pcm->line6;
 	int i;
 
+	line6pcm->out.urbs = kzalloc(
+		sizeof(struct urb *) * line6->iso_buffers, GFP_KERNEL);
+	if (line6pcm->out.urbs == NULL)
+		return -ENOMEM;
+
 	/* create audio URBs and fill in constant values: */
-	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+	for (i = 0; i < line6->iso_buffers; ++i) {
 		struct urb *urb;
 
 		/* URB for audio out: */

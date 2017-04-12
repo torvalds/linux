@@ -47,7 +47,7 @@
  * If the page is in the bottom half, we have to use the top half. If
  * the page is in the top half, we have to use the bottom half:
  *
- * T = __virt_to_phys(__hyp_idmap_text_start)
+ * T = __pa_symbol(__hyp_idmap_text_start)
  * if (T & BIT(VA_BITS - 1))
  *	HYP_VA_MIN = 0  //idmap in upper half
  * else
@@ -99,14 +99,10 @@
 .macro kern_hyp_va	reg
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	and     \reg, \reg, #HYP_PAGE_OFFSET_HIGH_MASK
-alternative_else
-	nop
-alternative_endif
-alternative_if_not ARM64_HYP_OFFSET_LOW
-	nop
-alternative_else
+alternative_else_nop_endif
+alternative_if ARM64_HYP_OFFSET_LOW
 	and     \reg, \reg, #HYP_PAGE_OFFSET_LOW_MASK
-alternative_endif
+alternative_else_nop_endif
 .endm
 
 #else
@@ -132,7 +128,7 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 	return v;
 }
 
-#define kern_hyp_va(v) 	(typeof(v))(__kern_hyp_va((unsigned long)(v)))
+#define kern_hyp_va(v) 	((typeof(v))(__kern_hyp_va((unsigned long)(v))))
 
 /*
  * We currently only support a 40bit IPA.
@@ -165,12 +161,6 @@ void kvm_clear_hyp_idmap(void);
 
 #define	kvm_set_pte(ptep, pte)		set_pte(ptep, pte)
 #define	kvm_set_pmd(pmdp, pmd)		set_pmd(pmdp, pmd)
-
-static inline void kvm_clean_pgd(pgd_t *pgd) {}
-static inline void kvm_clean_pmd(pmd_t *pmd) {}
-static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
-static inline void kvm_clean_pte(pte_t *pte) {}
-static inline void kvm_clean_pte_entry(pte_t *pte) {}
 
 static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {
@@ -246,13 +236,11 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 
 static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
 					       kvm_pfn_t pfn,
-					       unsigned long size,
-					       bool ipa_uncached)
+					       unsigned long size)
 {
 	void *va = page_address(pfn_to_page(pfn));
 
-	if (!vcpu_has_cache_enabled(vcpu) || ipa_uncached)
-		kvm_flush_dcache_to_poc(va, size);
+	kvm_flush_dcache_to_poc(va, size);
 
 	if (!icache_is_aliasing()) {		/* PIPT */
 		flush_icache_range((unsigned long)va,
@@ -281,7 +269,7 @@ static inline void __kvm_flush_dcache_pud(pud_t pud)
 	kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
 }
 
-#define kvm_virt_to_phys(x)		__virt_to_phys((unsigned long)(x))
+#define kvm_virt_to_phys(x)		__pa_symbol(x)
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);

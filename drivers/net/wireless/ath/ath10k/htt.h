@@ -419,6 +419,7 @@ enum htt_10_4_t2h_msg_type {
 	HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD         = 0x18,
 	/* 0x19 to 0x2f are reserved */
 	HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND     = 0x30,
+	HTT_10_4_T2H_MSG_TYPE_PEER_STATS	     = 0x31,
 	/* keep this last */
 	HTT_10_4_T2H_NUM_MSGS
 };
@@ -453,6 +454,7 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_TX_FETCH_IND,
 	HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM,
 	HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
+	HTT_T2H_MSG_TYPE_PEER_STATS,
 	/* keep this last */
 	HTT_T2H_NUM_MSGS
 };
@@ -595,7 +597,7 @@ enum htt_rx_mpdu_status {
 	/* only accept EAPOL frames */
 	HTT_RX_IND_MPDU_STATUS_UNAUTH_PEER,
 	HTT_RX_IND_MPDU_STATUS_OUT_OF_SYNC,
-	/* Non-data in promiscous mode */
+	/* Non-data in promiscuous mode */
 	HTT_RX_IND_MPDU_STATUS_MGMT_CTRL,
 	HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR,
 	HTT_RX_IND_MPDU_STATUS_DECRYPT_ERR,
@@ -900,7 +902,7 @@ struct htt_rx_in_ord_ind {
  *     Purpose: indicate how many 32-bit integers follow the message header
  *   - NUM_CHARS
  *     Bits 31:16
- *     Purpose: indicate how many 8-bit charaters follow the series of integers
+ *     Purpose: indicate how many 8-bit characters follow the series of integers
  */
 struct htt_rx_test {
 	u8 num_ints;
@@ -1042,10 +1044,10 @@ struct htt_dbg_stats_wal_tx_stats {
 	/* illegal rate phy errors  */
 	__le32 illgl_rate_phy_err;
 
-	/* wal pdev continous xretry */
+	/* wal pdev continuous xretry */
 	__le32 pdev_cont_xretry;
 
-	/* wal pdev continous xretry */
+	/* wal pdev continuous xretry */
 	__le32 pdev_tx_timeout;
 
 	/* wal pdev resets  */
@@ -1470,6 +1472,28 @@ struct htt_channel_change {
 	__le32 phymode;
 } __packed;
 
+struct htt_per_peer_tx_stats_ind {
+	__le32	succ_bytes;
+	__le32  retry_bytes;
+	__le32  failed_bytes;
+	u8	ratecode;
+	u8	flags;
+	__le16	peer_id;
+	__le16  succ_pkts;
+	__le16	retry_pkts;
+	__le16	failed_pkts;
+	__le16	tx_duration;
+	__le32	reserved1;
+	__le32	reserved2;
+} __packed;
+
+struct htt_peer_tx_stats {
+	u8 num_ppdu;
+	u8 ppdu_len;
+	u8 version;
+	u8 payload[0];
+} __packed;
+
 union htt_rx_pn_t {
 	/* WEP: 24-bit PN */
 	u32 pn24;
@@ -1521,6 +1545,7 @@ struct htt_resp {
 		struct htt_tx_fetch_confirm tx_fetch_confirm;
 		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
 		struct htt_channel_change chan_change;
+		struct htt_peer_tx_stats peer_tx_stats;
 	};
 } __packed;
 
@@ -1611,7 +1636,7 @@ struct ath10k_htt {
 		int size;
 
 		/* size - 1 */
-		unsigned size_mask;
+		unsigned int size_mask;
 
 		/* how many rx buffers to keep in the ring */
 		int fill_level;
@@ -1632,7 +1657,7 @@ struct ath10k_htt {
 
 		/* where HTT SW has processed bufs filled by rx MAC DMA */
 		struct {
-			unsigned msdu_payld;
+			unsigned int msdu_payld;
 		} sw_rd_idx;
 
 		/*
@@ -1665,7 +1690,6 @@ struct ath10k_htt {
 
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls */
-	struct tasklet_struct txrx_compl_task;
 	struct sk_buff_head rx_compl_q;
 	struct sk_buff_head rx_in_ord_compl_q;
 	struct sk_buff_head tx_fetch_ind_q;
@@ -1693,6 +1717,8 @@ struct ath10k_htt {
 		enum htt_tx_mode_switch_mode mode;
 		enum htt_q_depth_type type;
 	} tx_q_state;
+
+	bool tx_mem_allocated;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1755,7 +1781,9 @@ int ath10k_htt_connect(struct ath10k_htt *htt);
 int ath10k_htt_init(struct ath10k *ar);
 int ath10k_htt_setup(struct ath10k_htt *htt);
 
-int ath10k_htt_tx_alloc(struct ath10k_htt *htt);
+int ath10k_htt_tx_start(struct ath10k_htt *htt);
+void ath10k_htt_tx_stop(struct ath10k_htt *htt);
+void ath10k_htt_tx_destroy(struct ath10k_htt *htt);
 void ath10k_htt_tx_free(struct ath10k_htt *htt);
 
 int ath10k_htt_rx_alloc(struct ath10k_htt *htt);
@@ -1792,11 +1820,12 @@ int ath10k_htt_tx_mgmt_inc_pending(struct ath10k_htt *htt, bool is_mgmt,
 
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
-int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);
+int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu);
 int ath10k_htt_tx(struct ath10k_htt *htt,
 		  enum ath10k_hw_txrx_mode txmode,
 		  struct sk_buff *msdu);
 void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb);
+int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget);
 
 #endif

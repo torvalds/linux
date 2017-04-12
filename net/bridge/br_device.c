@@ -19,7 +19,7 @@
 #include <linux/list.h>
 #include <linux/netfilter_bridge.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 
 #define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
@@ -62,10 +62,10 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 
 	if (is_broadcast_ether_addr(dest)) {
-		br_flood(br, skb, false, false, true);
+		br_flood(br, skb, BR_PKT_BROADCAST, false, true);
 	} else if (is_multicast_ether_addr(dest)) {
 		if (unlikely(netpoll_tx_running(dev))) {
-			br_flood(br, skb, false, false, true);
+			br_flood(br, skb, BR_PKT_MULTICAST, false, true);
 			goto out;
 		}
 		if (br_multicast_rcv(br, NULL, skb, vid)) {
@@ -78,11 +78,11 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		    br_multicast_querier_exists(br, eth_hdr(skb)))
 			br_multicast_flood(mdst, skb, false, true);
 		else
-			br_flood(br, skb, false, false, true);
-	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL) {
+			br_flood(br, skb, BR_PKT_MULTICAST, false, true);
+	} else if ((dst = br_fdb_find_rcu(br, dest, vid)) != NULL) {
 		br_forward(dst->dst, skb, false, true);
 	} else {
-		br_flood(br, skb, true, false, true);
+		br_flood(br, skb, BR_PKT_UNICAST, false, true);
 	}
 out:
 	rcu_read_unlock();
@@ -153,8 +153,8 @@ static int br_dev_stop(struct net_device *dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *stats)
+static void br_get_stats64(struct net_device *dev,
+			   struct rtnl_link_stats64 *stats)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct pcpu_sw_netstats tmp, sum = { 0 };
@@ -178,14 +178,12 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 	stats->tx_packets = sum.tx_packets;
 	stats->rx_bytes   = sum.rx_bytes;
 	stats->rx_packets = sum.rx_packets;
-
-	return stats;
 }
 
 static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	if (new_mtu < 68 || new_mtu > br_min_mtu(br))
+	if (new_mtu > br_min_mtu(br))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
@@ -349,8 +347,6 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_add_slave		 = br_add_slave,
 	.ndo_del_slave		 = br_del_slave,
 	.ndo_fix_features        = br_fix_features,
-	.ndo_neigh_construct	 = netdev_default_l2upper_neigh_construct,
-	.ndo_neigh_destroy	 = netdev_default_l2upper_neigh_destroy,
 	.ndo_fdb_add		 = br_fdb_add,
 	.ndo_fdb_del		 = br_fdb_delete,
 	.ndo_fdb_dump		 = br_fdb_dump,
@@ -409,9 +405,11 @@ void br_dev_setup(struct net_device *dev)
 	br->bridge_max_age = br->max_age = 20 * HZ;
 	br->bridge_hello_time = br->hello_time = 2 * HZ;
 	br->bridge_forward_delay = br->forward_delay = 15 * HZ;
-	br->ageing_time = BR_DEFAULT_AGEING_TIME;
+	br->bridge_ageing_time = br->ageing_time = BR_DEFAULT_AGEING_TIME;
+	dev->max_mtu = ETH_MAX_MTU;
 
 	br_netfilter_rtable_init(br);
 	br_stp_timer_init(br);
 	br_multicast_init(br);
+	INIT_DELAYED_WORK(&br->gc_work, br_fdb_cleanup);
 }

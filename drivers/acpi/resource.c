@@ -43,6 +43,19 @@ static inline bool
 acpi_iospace_resource_valid(struct resource *res) { return true; }
 #endif
 
+#if IS_ENABLED(CONFIG_ACPI_GENERIC_GSI)
+static inline bool is_gsi(struct acpi_resource_extended_irq *ext_irq)
+{
+	return ext_irq->resource_source.string_length == 0 &&
+	       ext_irq->producer_consumer == ACPI_CONSUMER;
+}
+#else
+static inline bool is_gsi(struct acpi_resource_extended_irq *ext_irq)
+{
+	return true;
+}
+#endif
+
 static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
 {
 	u64 reslen = end - start + 1;
@@ -393,7 +406,7 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
 	}
 
 	/*
-	 * In IO-APIC mode, use overrided attribute. Two reasons:
+	 * In IO-APIC mode, use overridden attribute. Two reasons:
 	 * 1. BIOS bug in DSDT
 	 * 2. BIOS uses IO-APIC mode Interrupt Source Override
 	 *
@@ -470,9 +483,12 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 			acpi_dev_irqresource_disabled(res, 0);
 			return false;
 		}
-		acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
+		if (is_gsi(ext_irq))
+			acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
 					 ext_irq->triggering, ext_irq->polarity,
 					 ext_irq->sharable, false);
+		else
+			acpi_dev_irqresource_disabled(res, 0);
 		break;
 	default:
 		res->flags = 0;
@@ -664,3 +680,60 @@ int acpi_dev_filter_resource_type(struct acpi_resource *ares,
 	return (type & types) ? 0 : 1;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_filter_resource_type);
+
+static int acpi_dev_consumes_res(struct acpi_device *adev, struct resource *res)
+{
+	struct list_head resource_list;
+	struct resource_entry *rentry;
+	int ret, found = 0;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (ret < 0)
+		return 0;
+
+	list_for_each_entry(rentry, &resource_list, node) {
+		if (resource_contains(rentry->res, res)) {
+			found = 1;
+			break;
+		}
+
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
+	return found;
+}
+
+static acpi_status acpi_res_consumer_cb(acpi_handle handle, u32 depth,
+					 void *context, void **ret)
+{
+	struct resource *res = context;
+	struct acpi_device **consumer = (struct acpi_device **) ret;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+
+	if (acpi_dev_consumes_res(adev, res)) {
+		*consumer = adev;
+		return AE_CTRL_TERMINATE;
+	}
+
+	return AE_OK;
+}
+
+/**
+ * acpi_resource_consumer - Find the ACPI device that consumes @res.
+ * @res: Resource to search for.
+ *
+ * Search the current resource settings (_CRS) of every ACPI device node
+ * for @res.  If we find an ACPI device whose _CRS includes @res, return
+ * it.  Otherwise, return NULL.
+ */
+struct acpi_device *acpi_resource_consumer(struct resource *res)
+{
+	struct acpi_device *consumer = NULL;
+
+	acpi_get_devices(NULL, acpi_res_consumer_cb, res, (void **) &consumer);
+	return consumer;
+}

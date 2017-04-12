@@ -583,7 +583,7 @@ static int pwrap_wait_for_state(struct pmic_wrapper *wrp,
 {
 	unsigned long timeout;
 
-	timeout = jiffies + usecs_to_jiffies(255);
+	timeout = jiffies + usecs_to_jiffies(10000);
 
 	do {
 		if (time_after(jiffies, timeout))

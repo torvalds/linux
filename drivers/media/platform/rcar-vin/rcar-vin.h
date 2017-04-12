@@ -30,9 +30,9 @@
 #define HW_BUFFER_MASK 0x7f
 
 enum chip_id {
-	RCAR_GEN2,
 	RCAR_H1,
 	RCAR_M1,
+	RCAR_GEN2,
 };
 
 /**
@@ -50,12 +50,10 @@ enum rvin_dma_state {
 
 /**
  * struct rvin_source_fmt - Source information
- * @code:	Media bus format from source
  * @width:	Width from source
  * @height:	Height from source
  */
 struct rvin_source_fmt {
-	u32 code;
 	u32 width;
 	u32 height;
 };
@@ -70,12 +68,19 @@ struct rvin_video_format {
 	u8 bpp;
 };
 
+/**
+ * struct rvin_graph_entity - Video endpoint from async framework
+ * @asd:	sub-device descriptor for async framework
+ * @subdev:	subdevice matched using async framework
+ * @code:	Media bus format from source
+ * @mbus_cfg:	Media bus format from DT
+ */
 struct rvin_graph_entity {
-	struct device_node *node;
-	struct media_entity *entity;
-
 	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *subdev;
+
+	u32 code;
+	struct v4l2_mbus_config mbus_cfg;
 };
 
 /**
@@ -83,14 +88,14 @@ struct rvin_graph_entity {
  * @dev:		(OF) device
  * @base:		device I/O register space remapped to virtual memory
  * @chip:		type of VIN chip
- * @mbus_cfg		media bus configuration
  *
  * @vdev:		V4L2 video device associated with VIN
  * @v4l2_dev:		V4L2 device
  * @src_pad_idx:	source pad index for media controller drivers
+ * @sink_pad_idx:	sink pad index for media controller drivers
  * @ctrl_handler:	V4L2 control handler
  * @notifier:		V4L2 asynchronous subdevs notifier
- * @entity:		entity in the DT for subdevice
+ * @digital:		entity in the DT for local digital subdevice
  *
  * @lock:		protects @queue
  * @queue:		vb2 buffers queue
@@ -113,14 +118,14 @@ struct rvin_dev {
 	struct device *dev;
 	void __iomem *base;
 	enum chip_id chip;
-	struct v4l2_mbus_config mbus_cfg;
 
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	int src_pad_idx;
+	int sink_pad_idx;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_async_notifier notifier;
-	struct rvin_graph_entity entity;
+	struct rvin_graph_entity digital;
 
 	struct mutex lock;
 	struct vb2_queue queue;
@@ -139,7 +144,7 @@ struct rvin_dev {
 	struct v4l2_rect compose;
 };
 
-#define vin_to_source(vin)		vin->entity.subdev
+#define vin_to_source(vin)		vin->digital.subdev
 
 /* Debug */
 #define vin_dbg(d, fmt, arg...)		dev_dbg(d->dev, fmt, ##arg)

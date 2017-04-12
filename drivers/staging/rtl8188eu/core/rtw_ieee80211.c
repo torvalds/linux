@@ -71,8 +71,8 @@ int rtw_get_bit_value_from_ieee_value(u8 val)
 	unsigned char dot11_rate_table[] = {
 		2, 4, 11, 22, 12, 18, 24, 36, 48,
 		72, 96, 108, 0}; /*  last element must be zero!! */
-
 	int i = 0;
+
 	while (dot11_rate_table[i] != 0) {
 		if (dot11_rate_table[i] == val)
 			return BIT(i);
@@ -155,59 +155,6 @@ u8 *rtw_set_ie
 	return pbuf + len + 2;
 }
 
-inline u8 *rtw_set_ie_ch_switch(u8 *buf, u32 *buf_len, u8 ch_switch_mode,
-	u8 new_ch, u8 ch_switch_cnt)
-{
-	u8 ie_data[3];
-
-	ie_data[0] = ch_switch_mode;
-	ie_data[1] = new_ch;
-	ie_data[2] = ch_switch_cnt;
-	return rtw_set_ie(buf, WLAN_EID_CHANNEL_SWITCH,  3, ie_data, buf_len);
-}
-
-inline u8 secondary_ch_offset_to_hal_ch_offset(u8 ch_offset)
-{
-	if (ch_offset == SCN)
-		return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-	else if (ch_offset == SCA)
-		return HAL_PRIME_CHNL_OFFSET_UPPER;
-	else if (ch_offset == SCB)
-		return HAL_PRIME_CHNL_OFFSET_LOWER;
-
-	return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-}
-
-inline u8 hal_ch_offset_to_secondary_ch_offset(u8 ch_offset)
-{
-	if (ch_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE)
-		return SCN;
-	else if (ch_offset == HAL_PRIME_CHNL_OFFSET_LOWER)
-		return SCB;
-	else if (ch_offset == HAL_PRIME_CHNL_OFFSET_UPPER)
-		return SCA;
-
-	return SCN;
-}
-
-inline u8 *rtw_set_ie_secondary_ch_offset(u8 *buf, u32 *buf_len, u8 secondary_ch_offset)
-{
-	return rtw_set_ie(buf, WLAN_EID_SECONDARY_CHANNEL_OFFSET,  1, &secondary_ch_offset, buf_len);
-}
-
-inline u8 *rtw_set_ie_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
-	u8 flags, u16 reason, u16 precedence)
-{
-	u8 ie_data[6];
-
-	ie_data[0] = ttl;
-	ie_data[1] = flags;
-	*(u16 *)(ie_data + 2) = cpu_to_le16(reason);
-	*(u16 *)(ie_data + 4) = cpu_to_le16(precedence);
-
-	return rtw_set_ie(buf, 0x118,  6, ie_data, buf_len);
-}
-
 /*----------------------------------------------------------------------------
 index: the information element id index, limit is the limit for search
 -----------------------------------------------------------------------------*/
@@ -215,6 +162,7 @@ u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit)
 {
 	int tmp, i;
 	u8 *p;
+
 	if (limit < 1)
 		return NULL;
 
@@ -234,97 +182,6 @@ u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit)
 			break;
 	}
 	return NULL;
-}
-
-/**
- * rtw_get_ie_ex - Search specific IE from a series of IEs
- * @in_ie: Address of IEs to search
- * @in_len: Length limit from in_ie
- * @eid: Element ID to match
- * @oui: OUI to match
- * @oui_len: OUI length
- * @ie: If not NULL and the specific IE is found, the IE will be copied to the buf starting from the specific IE
- * @ielen: If not NULL and the specific IE is found, will set to the length of the entire IE
- *
- * Returns: The address of the specific IE found, or NULL
- */
-u8 *rtw_get_ie_ex(u8 *in_ie, uint in_len, u8 eid, u8 *oui, u8 oui_len, u8 *ie, uint *ielen)
-{
-	uint cnt;
-	u8 *target_ie = NULL;
-
-
-	if (ielen)
-		*ielen = 0;
-
-	if (!in_ie || in_len <= 0)
-		return target_ie;
-
-	cnt = 0;
-
-	while (cnt < in_len) {
-		if (eid == in_ie[cnt] && (!oui || !memcmp(&in_ie[cnt + 2], oui, oui_len))) {
-			target_ie = &in_ie[cnt];
-
-			if (ie)
-				memcpy(ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
-
-			if (ielen)
-				*ielen = in_ie[cnt + 1] + 2;
-
-			break;
-		} else {
-			cnt += in_ie[cnt + 1] + 2; /* goto next */
-		}
-	}
-	return target_ie;
-}
-
-/**
- * rtw_ies_remove_ie - Find matching IEs and remove
- * @ies: Address of IEs to search
- * @ies_len: Pointer of length of ies, will update to new length
- * @offset: The offset to start scarch
- * @eid: Element ID to match
- * @oui: OUI to match
- * @oui_len: OUI length
- *
- * Returns: _SUCCESS: ies is updated, _FAIL: not updated
- */
-int rtw_ies_remove_ie(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u8 oui_len)
-{
-	int ret = _FAIL;
-	u8 *target_ie;
-	u32 target_ielen;
-	u8 *start;
-	uint search_len;
-
-	if (!ies || !ies_len || *ies_len <= offset)
-		goto exit;
-
-	start = ies + offset;
-	search_len = *ies_len - offset;
-
-	while (1) {
-		target_ie = rtw_get_ie_ex(start, search_len, eid, oui, oui_len, NULL, &target_ielen);
-		if (target_ie && target_ielen) {
-			u8 buf[MAX_IE_SZ] = {0};
-			u8 *remain_ies = target_ie + target_ielen;
-			uint remain_len = search_len - (remain_ies - start);
-
-			memcpy(buf, remain_ies, remain_len);
-			memcpy(target_ie, buf, remain_len);
-			*ies_len = *ies_len - target_ielen;
-			ret = _SUCCESS;
-
-			start = target_ie;
-			search_len = remain_len;
-		} else {
-			break;
-		}
-	}
-exit:
-	return ret;
 }
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
@@ -355,6 +212,7 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 uint	rtw_get_rateset_len(u8	*rateset)
 {
 	uint i = 0;
+
 	while (1) {
 		if ((rateset[i]) == 0)
 			break;
@@ -1096,43 +954,6 @@ void rtw_macaddr_cfg(u8 *mac_addr)
 	DBG_88E("rtw_macaddr_cfg MAC Address  = %pM\n", (mac_addr));
 }
 
-void dump_ies(u8 *buf, u32 buf_len)
-{
-	u8 *pos = buf;
-	u8 id, len;
-
-	while (pos - buf <= buf_len) {
-		id = *pos;
-		len = *(pos + 1);
-
-		DBG_88E("%s ID:%u, LEN:%u\n", __func__, id, len);
-		dump_wps_ie(pos, len);
-
-		pos += (2 + len);
-	}
-}
-
-void dump_wps_ie(u8 *ie, u32 ie_len)
-{
-	u8 *pos = ie;
-	u16 id;
-	u16 len;
-	u8 *wps_ie;
-	uint wps_ielen;
-
-	wps_ie = rtw_get_wps_ie(ie, ie_len, NULL, &wps_ielen);
-	if (wps_ie != ie || wps_ielen == 0)
-		return;
-
-	pos += 6;
-	while (pos - ie < ie_len) {
-		id = get_unaligned_be16(pos);
-		len = get_unaligned_be16(pos + 2);
-		DBG_88E("%s ID:0x%04x, LEN:%u\n", __func__, id, len);
-		pos += (4 + len);
-	}
-}
-
 /* Baron adds to avoid FreeBSD warning */
 int ieee80211_is_empty_essid(const char *essid, int essid_len)
 {
@@ -1179,10 +1000,11 @@ int ieee80211_get_hdrlen(u16 fc)
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
-	u32 wpa_ielen;
+	int wpa_ielen;
 	unsigned char *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
+
 	pbuf = rtw_get_wpa_ie(&pnetwork->network.IEs[12], &wpa_ielen, pnetwork->network.IELength - 12);
 
 	if (pbuf && (wpa_ielen > 0)) {
@@ -1223,8 +1045,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	__le16 le_tmp;
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
-	struct rtw_ieee80211_ht_cap *pht_cap = NULL;
-	unsigned int		len;
+	int len;
 	unsigned char		*p;
 
 	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
@@ -1259,10 +1080,12 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	/* parsing HT_CAP_IE */
 	p = rtw_get_ie(pnetwork->network.IEs + _FIXED_IE_LENGTH_, _HT_CAPABILITY_IE_, &len, pnetwork->network.IELength - _FIXED_IE_LENGTH_);
 	if (p && len > 0) {
-			pht_cap = (struct rtw_ieee80211_ht_cap *)(p + 2);
-			pnetwork->BcnInfo.ht_cap_info = pht_cap->cap_info;
+		struct ieee80211_ht_cap *ht_cap =
+			(struct ieee80211_ht_cap *)(p + 2);
+
+		pnetwork->BcnInfo.ht_cap_info = le16_to_cpu(ht_cap->cap_info);
 	} else {
-			pnetwork->BcnInfo.ht_cap_info = 0;
+		pnetwork->BcnInfo.ht_cap_info = 0;
 	}
 	/* parsing HT_INFO_IE */
 	p = rtw_get_ie(pnetwork->network.IEs + _FIXED_IE_LENGTH_, _HT_ADD_INFO_IE_, &len, pnetwork->network.IELength - _FIXED_IE_LENGTH_);
@@ -1334,59 +1157,4 @@ u16 rtw_mcs_rate(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40, unsign
 		}
 	}
 	return max_rate;
-}
-
-int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8 *category, u8 *action)
-{
-	const u8 *frame_body = frame + sizeof(struct rtw_ieee80211_hdr_3addr);
-	u16 fc;
-	u8 c, a = 0;
-
-	fc = le16_to_cpu(((struct rtw_ieee80211_hdr_3addr *)frame)->frame_ctl);
-
-	if ((fc & (RTW_IEEE80211_FCTL_FTYPE | RTW_IEEE80211_FCTL_STYPE)) !=
-	    (RTW_IEEE80211_FTYPE_MGMT | RTW_IEEE80211_STYPE_ACTION))
-		return false;
-
-	c = frame_body[0];
-
-	switch (c) {
-	case RTW_WLAN_CATEGORY_P2P: /* vendor-specific */
-		break;
-	default:
-		a = frame_body[1];
-	}
-
-	if (category)
-		*category = c;
-	if (action)
-		*action = a;
-
-	return true;
-}
-
-static const char *_action_public_str[] = {
-	"ACT_PUB_BSSCOEXIST",
-	"ACT_PUB_DSE_ENABLE",
-	"ACT_PUB_DSE_DEENABLE",
-	"ACT_PUB_DSE_REG_LOCATION",
-	"ACT_PUB_EXT_CHL_SWITCH",
-	"ACT_PUB_DSE_MSR_REQ",
-	"ACT_PUB_DSE_MSR_RPRT",
-	"ACT_PUB_MP",
-	"ACT_PUB_DSE_PWR_CONSTRAINT",
-	"ACT_PUB_VENDOR",
-	"ACT_PUB_GAS_INITIAL_REQ",
-	"ACT_PUB_GAS_INITIAL_RSP",
-	"ACT_PUB_GAS_COMEBACK_REQ",
-	"ACT_PUB_GAS_COMEBACK_RSP",
-	"ACT_PUB_TDLS_DISCOVERY_RSP",
-	"ACT_PUB_LOCATION_TRACK",
-	"ACT_PUB_RSVD",
-};
-
-const char *action_public_str(u8 action)
-{
-	action = min_t(u8, action, ACT_PUBLIC_MAX);
-	return _action_public_str[action];
 }

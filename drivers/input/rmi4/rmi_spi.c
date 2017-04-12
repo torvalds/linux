@@ -12,7 +12,6 @@
 #include <linux/rmi.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/irq.h>
 #include <linux/of.h>
 #include "rmi_driver.h"
 
@@ -43,8 +42,6 @@ struct rmi_spi_xport {
 
 	struct mutex page_mutex;
 	int page;
-
-	int irq;
 
 	u8 *rx_buf;
 	u8 *tx_buf;
@@ -326,41 +323,6 @@ static const struct rmi_transport_ops rmi_spi_ops = {
 	.read_block	= rmi_spi_read_block,
 };
 
-static irqreturn_t rmi_spi_irq(int irq, void *dev_id)
-{
-	struct rmi_spi_xport *rmi_spi = dev_id;
-	struct rmi_device *rmi_dev = rmi_spi->xport.rmi_dev;
-	int ret;
-
-	ret = rmi_process_interrupt_requests(rmi_dev);
-	if (ret)
-		rmi_dbg(RMI_DEBUG_XPORT, &rmi_dev->dev,
-			"Failed to process interrupt request: %d\n", ret);
-
-	return IRQ_HANDLED;
-}
-
-static int rmi_spi_init_irq(struct spi_device *spi)
-{
-	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
-	int irq_flags = irqd_get_trigger_type(irq_get_irq_data(rmi_spi->irq));
-	int ret;
-
-	if (!irq_flags)
-		irq_flags = IRQF_TRIGGER_LOW;
-
-	ret = devm_request_threaded_irq(&spi->dev, rmi_spi->irq, NULL,
-			rmi_spi_irq, irq_flags | IRQF_ONESHOT,
-			dev_name(&spi->dev), rmi_spi);
-	if (ret < 0) {
-		dev_warn(&spi->dev, "Failed to register interrupt %d\n",
-			rmi_spi->irq);
-		return ret;
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static int rmi_spi_of_probe(struct spi_device *spi,
 			struct rmi_device_platform_data *pdata)
@@ -395,6 +357,13 @@ static inline int rmi_spi_of_probe(struct spi_device *spi,
 	return -ENODEV;
 }
 #endif
+
+static void rmi_spi_unregister_transport(void *data)
+{
+	struct rmi_spi_xport *rmi_spi = data;
+
+	rmi_unregister_transport_device(&rmi_spi->xport);
+}
 
 static int rmi_spi_probe(struct spi_device *spi)
 {
@@ -433,8 +402,7 @@ static int rmi_spi_probe(struct spi_device *spi)
 		return retval;
 	}
 
-	if (spi->irq > 0)
-		rmi_spi->irq = spi->irq;
+	pdata->irq = spi->irq;
 
 	rmi_spi->spi = spi;
 	mutex_init(&rmi_spi->page_mutex);
@@ -464,21 +432,13 @@ static int rmi_spi_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "failed to register transport.\n");
 		return retval;
 	}
-
-	retval = rmi_spi_init_irq(spi);
-	if (retval < 0)
+	retval = devm_add_action_or_reset(&spi->dev,
+					  rmi_spi_unregister_transport,
+					  rmi_spi);
+	if (retval)
 		return retval;
 
 	dev_info(&spi->dev, "registered RMI SPI driver\n");
-	return 0;
-}
-
-static int rmi_spi_remove(struct spi_device *spi)
-{
-	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
-
-	rmi_unregister_transport_device(&rmi_spi->xport);
-
 	return 0;
 }
 
@@ -489,17 +449,10 @@ static int rmi_spi_suspend(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev, true);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
-	disable_irq(rmi_spi->irq);
-	if (device_may_wakeup(&spi->dev)) {
-		ret = enable_irq_wake(rmi_spi->irq);
-		if (!ret)
-			dev_warn(dev, "Failed to enable irq for wake: %d\n",
-				ret);
-	}
 	return ret;
 }
 
@@ -509,15 +462,7 @@ static int rmi_spi_resume(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	enable_irq(rmi_spi->irq);
-	if (device_may_wakeup(&spi->dev)) {
-		ret = disable_irq_wake(rmi_spi->irq);
-		if (!ret)
-			dev_warn(dev, "Failed to disable irq for wake: %d\n",
-				ret);
-	}
-
-	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev, true);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
@@ -532,11 +477,9 @@ static int rmi_spi_runtime_suspend(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev, false);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
-
-	disable_irq(rmi_spi->irq);
 
 	return 0;
 }
@@ -547,9 +490,7 @@ static int rmi_spi_runtime_resume(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	enable_irq(rmi_spi->irq);
-
-	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev, false);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
@@ -577,7 +518,6 @@ static struct spi_driver rmi_spi_driver = {
 	},
 	.id_table	= rmi_id,
 	.probe		= rmi_spi_probe,
-	.remove		= rmi_spi_remove,
 };
 
 module_spi_driver(rmi_spi_driver);

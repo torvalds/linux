@@ -49,106 +49,6 @@ void armada_drm_queue_unref_work(struct drm_device *dev,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-static int armada_drm_load(struct drm_device *dev, unsigned long flags)
-{
-	struct armada_private *priv;
-	struct resource *mem = NULL;
-	int ret, n;
-
-	for (n = 0; ; n++) {
-		struct resource *r = platform_get_resource(dev->platformdev,
-							   IORESOURCE_MEM, n);
-		if (!r)
-			break;
-
-		/* Resources above 64K are graphics memory */
-		if (resource_size(r) > SZ_64K)
-			mem = r;
-		else
-			return -EINVAL;
-	}
-
-	if (!mem)
-		return -ENXIO;
-
-	if (!devm_request_mem_region(dev->dev, mem->start,
-			resource_size(mem), "armada-drm"))
-		return -EBUSY;
-
-	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		DRM_ERROR("failed to allocate private\n");
-		return -ENOMEM;
-	}
-
-	platform_set_drvdata(dev->platformdev, dev);
-	dev->dev_private = priv;
-
-	INIT_WORK(&priv->fb_unref_work, armada_drm_unref_work);
-	INIT_KFIFO(priv->fb_unref);
-
-	/* Mode setting support */
-	drm_mode_config_init(dev);
-	dev->mode_config.min_width = 320;
-	dev->mode_config.min_height = 200;
-
-	/*
-	 * With vscale enabled, the maximum width is 1920 due to the
-	 * 1920 by 3 lines RAM
-	 */
-	dev->mode_config.max_width = 1920;
-	dev->mode_config.max_height = 2048;
-
-	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.funcs = &armada_drm_mode_config_funcs;
-	drm_mm_init(&priv->linear, mem->start, resource_size(mem));
-	mutex_init(&priv->linear_lock);
-
-	ret = component_bind_all(dev->dev, dev);
-	if (ret)
-		goto err_kms;
-
-	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
-	if (ret)
-		goto err_comp;
-
-	dev->irq_enabled = true;
-
-	ret = armada_fbdev_init(dev);
-	if (ret)
-		goto err_comp;
-
-	drm_kms_helper_poll_init(dev);
-
-	return 0;
-
- err_comp:
-	component_unbind_all(dev->dev, dev);
- err_kms:
-	drm_mode_config_cleanup(dev);
-	drm_mm_takedown(&priv->linear);
-	flush_work(&priv->fb_unref_work);
-
-	return ret;
-}
-
-static int armada_drm_unload(struct drm_device *dev)
-{
-	struct armada_private *priv = dev->dev_private;
-
-	drm_kms_helper_poll_fini(dev);
-	armada_fbdev_fini(dev);
-
-	component_unbind_all(dev->dev, dev);
-
-	drm_mode_config_cleanup(dev);
-	drm_mm_takedown(&priv->linear);
-	flush_work(&priv->fb_unref_work);
-	dev->dev_private = NULL;
-
-	return 0;
-}
-
 /* These are called under the vbl_lock. */
 static int armada_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
@@ -186,16 +86,10 @@ static const struct file_operations armada_drm_fops = {
 };
 
 static struct drm_driver armada_drm_driver = {
-	.load			= armada_drm_load,
 	.lastclose		= armada_drm_lastclose,
-	.unload			= armada_drm_unload,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= armada_drm_enable_vblank,
 	.disable_vblank		= armada_drm_disable_vblank,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init		= armada_drm_debugfs_init,
-	.debugfs_cleanup	= armada_drm_debugfs_cleanup,
-#endif
 	.gem_free_object_unlocked = armada_gem_free_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
@@ -211,19 +105,139 @@ static struct drm_driver armada_drm_driver = {
 	.desc			= "Armada SoC DRM",
 	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
-				  DRIVER_HAVE_IRQ | DRIVER_PRIME,
+				  DRIVER_PRIME,
 	.ioctls			= armada_ioctls,
 	.fops			= &armada_drm_fops,
 };
 
 static int armada_drm_bind(struct device *dev)
 {
-	return drm_platform_init(&armada_drm_driver, to_platform_device(dev));
+	struct armada_private *priv;
+	struct resource *mem = NULL;
+	int ret, n;
+
+	for (n = 0; ; n++) {
+		struct resource *r = platform_get_resource(to_platform_device(dev),
+							   IORESOURCE_MEM, n);
+		if (!r)
+			break;
+
+		/* Resources above 64K are graphics memory */
+		if (resource_size(r) > SZ_64K)
+			mem = r;
+		else
+			return -EINVAL;
+	}
+
+	if (!mem)
+		return -ENXIO;
+
+	if (!devm_request_mem_region(dev, mem->start, resource_size(mem),
+				     "armada-drm"))
+		return -EBUSY;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	/*
+	 * The drm_device structure must be at the start of
+	 * armada_private for drm_dev_unref() to work correctly.
+	 */
+	BUILD_BUG_ON(offsetof(struct armada_private, drm) != 0);
+
+	ret = drm_dev_init(&priv->drm, &armada_drm_driver, dev);
+	if (ret) {
+		dev_err(dev, "[" DRM_NAME ":%s] drm_dev_init failed: %d\n",
+			__func__, ret);
+		kfree(priv);
+		return ret;
+	}
+
+	priv->drm.platformdev = to_platform_device(dev);
+	priv->drm.dev_private = priv;
+
+	platform_set_drvdata(priv->drm.platformdev, &priv->drm);
+
+	INIT_WORK(&priv->fb_unref_work, armada_drm_unref_work);
+	INIT_KFIFO(priv->fb_unref);
+
+	/* Mode setting support */
+	drm_mode_config_init(&priv->drm);
+	priv->drm.mode_config.min_width = 320;
+	priv->drm.mode_config.min_height = 200;
+
+	/*
+	 * With vscale enabled, the maximum width is 1920 due to the
+	 * 1920 by 3 lines RAM
+	 */
+	priv->drm.mode_config.max_width = 1920;
+	priv->drm.mode_config.max_height = 2048;
+
+	priv->drm.mode_config.preferred_depth = 24;
+	priv->drm.mode_config.funcs = &armada_drm_mode_config_funcs;
+	drm_mm_init(&priv->linear, mem->start, resource_size(mem));
+	mutex_init(&priv->linear_lock);
+
+	ret = component_bind_all(dev, &priv->drm);
+	if (ret)
+		goto err_kms;
+
+	ret = drm_vblank_init(&priv->drm, priv->drm.mode_config.num_crtc);
+	if (ret)
+		goto err_comp;
+
+	priv->drm.irq_enabled = true;
+
+	ret = armada_fbdev_init(&priv->drm);
+	if (ret)
+		goto err_comp;
+
+	drm_kms_helper_poll_init(&priv->drm);
+
+	ret = drm_dev_register(&priv->drm, 0);
+	if (ret)
+		goto err_poll;
+
+#ifdef CONFIG_DEBUG_FS
+	armada_drm_debugfs_init(priv->drm.primary);
+#endif
+
+	return 0;
+
+ err_poll:
+	drm_kms_helper_poll_fini(&priv->drm);
+	armada_fbdev_fini(&priv->drm);
+ err_comp:
+	component_unbind_all(dev, &priv->drm);
+ err_kms:
+	drm_mode_config_cleanup(&priv->drm);
+	drm_mm_takedown(&priv->linear);
+	flush_work(&priv->fb_unref_work);
+	drm_dev_unref(&priv->drm);
+	return ret;
 }
 
 static void armada_drm_unbind(struct device *dev)
 {
-	drm_put_dev(dev_get_drvdata(dev));
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct armada_private *priv = drm->dev_private;
+
+	drm_kms_helper_poll_fini(&priv->drm);
+	armada_fbdev_fini(&priv->drm);
+
+#ifdef CONFIG_DEBUG_FS
+	armada_drm_debugfs_cleanup(priv->drm.primary);
+#endif
+	drm_dev_unregister(&priv->drm);
+
+	component_unbind_all(dev, &priv->drm);
+
+	drm_mode_config_cleanup(&priv->drm);
+	drm_mm_takedown(&priv->linear);
+	flush_work(&priv->fb_unref_work);
+
+	drm_dev_unref(&priv->drm);
 }
 
 static int compare_of(struct device *dev, void *data)
@@ -254,7 +268,7 @@ static void armada_add_endpoints(struct device *dev,
 			continue;
 		}
 
-		component_match_add(dev, match, compare_of, remote);
+		drm_of_component_match_add(dev, match, compare_of, remote);
 		of_node_put(remote);
 	}
 }

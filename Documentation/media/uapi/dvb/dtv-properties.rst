@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _dtv-properties:
+.. c:type:: dtv_properties
 
 *********************
 struct dtv_properties

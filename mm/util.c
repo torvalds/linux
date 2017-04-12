@@ -5,15 +5,18 @@
 #include <linux/export.h>
 #include <linux/err.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task_stack.h>
 #include <linux/security.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/mman.h>
 #include <linux/hugetlb.h>
 #include <linux/vmalloc.h>
+#include <linux/userfaultfd_k.h>
 
 #include <asm/sections.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
@@ -230,8 +233,10 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 }
 
 /* Check if the vma is being used as a stack by this task */
-int vma_is_stack_for_task(struct vm_area_struct *vma, struct task_struct *t)
+int vma_is_stack_for_current(struct vm_area_struct *vma)
 {
+	struct task_struct * __maybe_unused t = current;
+
 	return (vma->vm_start <= KSTK_ESP(t) && vma->vm_end >= KSTK_ESP(t));
 }
 
@@ -283,7 +288,8 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
 int __weak get_user_pages_fast(unsigned long start,
 				int nr_pages, int write, struct page **pages)
 {
-	return get_user_pages_unlocked(start, nr_pages, write, 0, pages);
+	return get_user_pages_unlocked(start, nr_pages, pages,
+				       write ? FOLL_WRITE : 0);
 }
 EXPORT_SYMBOL_GPL(get_user_pages_fast);
 
@@ -294,14 +300,16 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 	unsigned long ret;
 	struct mm_struct *mm = current->mm;
 	unsigned long populate;
+	LIST_HEAD(uf);
 
 	ret = security_mmap_file(file, prot, flag);
 	if (!ret) {
 		if (down_write_killable(&mm->mmap_sem))
 			return -EINTR;
 		ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
-				    &populate);
+				    &populate, &uf);
 		up_write(&mm->mmap_sem);
+		userfaultfd_unmap_complete(mm, &uf);
 		if (populate)
 			mm_populate(ret, populate);
 	}
@@ -623,7 +631,7 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 	if (len > buflen)
 		len = buflen;
 
-	res = access_process_vm(task, arg_start, buffer, len, 0);
+	res = access_process_vm(task, arg_start, buffer, len, FOLL_FORCE);
 
 	/*
 	 * If the nul at the end of args has been overwritten, then
@@ -638,7 +646,8 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 			if (len > buflen - res)
 				len = buflen - res;
 			res += access_process_vm(task, env_start,
-						 buffer+res, len, 0);
+						 buffer+res, len,
+						 FOLL_FORCE);
 			res = strnlen(buffer, res);
 		}
 	}

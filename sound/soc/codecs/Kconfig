@@ -45,9 +45,11 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_BT_SCO
-	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
+	select SND_SOC_CQ0093VC
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
+	select SND_SOC_CS35L34 if I2C
+	select SND_SOC_CS42L42 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
 	select SND_SOC_CS42L56 if I2C && INPUT
@@ -83,6 +85,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX98357A if GPIOLIB
 	select SND_SOC_MAX98371 if I2C
+	select SND_SOC_MAX98504 if I2C
 	select SND_SOC_MAX9867 if I2C
 	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX98926 if I2C
@@ -92,6 +95,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
+	select SND_SOC_NAU8540 if I2C
+	select SND_SOC_NAU8810 if I2C
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
@@ -112,6 +117,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5645 if I2C
 	select SND_SOC_RT5651 if I2C
 	select SND_SOC_RT5659 if I2C
+	select SND_SOC_RT5660 if I2C
+	select SND_SOC_RT5663 if I2C
+	select SND_SOC_RT5665 if I2C
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C && SPI_MASTER
 	select SND_SOC_SGTL5000 if I2C
@@ -396,6 +404,14 @@ config SND_SOC_CS35L33
 	tristate "Cirrus Logic CS35L33 CODEC"
 	depends on I2C
 
+config SND_SOC_CS35L34
+	tristate "Cirrus Logic CS35L34 CODEC"
+	depends on I2C
+
+config SND_SOC_CS42L42
+	tristate "Cirrus Logic CS42L42 CODEC"
+	depends on I2C
+
 config SND_SOC_CS42L51
 	tristate
 
@@ -510,14 +526,16 @@ config SND_SOC_HDMI_CODEC
 	select HDMI
 
 config SND_SOC_ES8328
-	tristate "Everest Semi ES8328 CODEC"
+	tristate
 
 config SND_SOC_ES8328_I2C
-	tristate
+	tristate "Everest Semi ES8328 CODEC (I2C)"
+	depends on I2C
 	select SND_SOC_ES8328
 
 config SND_SOC_ES8328_SPI
-	tristate
+	tristate "Everest Semi ES8328 CODEC (SPI)"
+	depends on SPI_MASTER
 	select SND_SOC_ES8328
 
 config SND_SOC_GTM601
@@ -577,6 +595,13 @@ config SND_SOC_MAX9860
 	tristate "Maxim MAX9860 Mono Audio Voice Codec"
 	depends on I2C
 	select REGMAP_I2C
+
+config SND_SOC_MSM8916_WCD_ANALOG
+	tristate "Qualcomm MSM8916 WCD Analog Codec"
+	depends on SPMI || COMPILE_TEST
+
+config SND_SOC_MSM8916_WCD_DIGITAL
+	tristate "Qualcomm MSM8916 WCD DIGITAL Codec"
 
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
@@ -645,6 +670,9 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5645=y
 	default y if SND_SOC_RT5651=y
 	default y if SND_SOC_RT5659=y
+	default y if SND_SOC_RT5660=y
+	default y if SND_SOC_RT5663=y
+	default y if SND_SOC_RT5665=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
 	default m if SND_SOC_RT5514=m
@@ -653,6 +681,9 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5645=m
 	default m if SND_SOC_RT5651=m
 	default m if SND_SOC_RT5659=m
+	default m if SND_SOC_RT5660=m
+	default m if SND_SOC_RT5663=m
+	default m if SND_SOC_RT5665=m
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
 
@@ -695,6 +726,15 @@ config SND_SOC_RT5651
 	tristate
 
 config SND_SOC_RT5659
+	tristate
+
+config SND_SOC_RT5660
+	tristate
+
+config SND_SOC_RT5663
+	tristate
+
+config SND_SOC_RT5665
 	tristate
 
 config SND_SOC_RT5670
@@ -860,6 +900,7 @@ config SND_SOC_UDA134X
 
 config SND_SOC_UDA1380
         tristate
+	depends on I2C
 
 config SND_SOC_WL1273
 	tristate
@@ -900,7 +941,7 @@ config SND_SOC_WM8523
 	depends on I2C
 
 config SND_SOC_WM8580
-	tristate "Wolfson Microelectronics WM8523 CODEC"
+	tristate "Wolfson Microelectronics WM8580 and WM8581 CODECs"
 	depends on I2C
 
 config SND_SOC_WM8711
@@ -1034,15 +1075,18 @@ config SND_SOC_WM8998
 
 config SND_SOC_WM9081
 	tristate
+	depends on I2C
 
 config SND_SOC_WM9090
 	tristate
 
 config SND_SOC_WM9705
 	tristate
+	select REGMAP_AC97
 
 config SND_SOC_WM9712
 	tristate
+	select REGMAP_AC97
 
 config SND_SOC_WM9713
 	tristate
@@ -1063,6 +1107,14 @@ config SND_SOC_MC13783
 
 config SND_SOC_ML26124
 	tristate
+
+config SND_SOC_NAU8540
+       tristate "Nuvoton Technology Corporation NAU85L40 CODEC"
+       depends on I2C
+
+config SND_SOC_NAU8810
+	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	depends on I2C
 
 config SND_SOC_NAU8825
 	tristate

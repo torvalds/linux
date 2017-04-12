@@ -44,11 +44,8 @@ static void write_moving_finish(struct closure *cl)
 {
 	struct moving_io *io = container_of(cl, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
-	struct bio_vec *bv;
-	int i;
 
-	bio_for_each_segment_all(bv, bio, i)
-		__free_page(bv->bv_page);
+	bio_free_pages(bio);
 
 	if (io->op.replace_collision)
 		trace_bcache_gc_copy_collision(&io->w->key);
@@ -80,15 +77,13 @@ static void moving_init(struct moving_io *io)
 {
 	struct bio *bio = &io->bio.bio;
 
-	bio_init(bio);
+	bio_init(bio, bio->bi_inline_vecs,
+		 DIV_ROUND_UP(KEY_SIZE(&io->w->key), PAGE_SECTORS));
 	bio_get(bio);
 	bio_set_prio(bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
 
 	bio->bi_iter.bi_size	= KEY_SIZE(&io->w->key) << 9;
-	bio->bi_max_vecs	= DIV_ROUND_UP(KEY_SIZE(&io->w->key),
-					       PAGE_SECTORS);
 	bio->bi_private		= &io->cl;
-	bio->bi_io_vec		= bio->bi_inline_vecs;
 	bch_bio_map(bio, NULL);
 }
 

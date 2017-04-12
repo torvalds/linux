@@ -902,7 +902,7 @@ snd_nm256_capture_close(struct snd_pcm_substream *substream)
 /*
  * create a pcm instance
  */
-static struct snd_pcm_ops snd_nm256_playback_ops = {
+static const struct snd_pcm_ops snd_nm256_playback_ops = {
 	.open =		snd_nm256_playback_open,
 	.close =	snd_nm256_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -917,7 +917,7 @@ static struct snd_pcm_ops snd_nm256_playback_ops = {
 	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
-static struct snd_pcm_ops snd_nm256_capture_ops = {
+static const struct snd_pcm_ops snd_nm256_capture_ops = {
 	.open =		snd_nm256_capture_open,
 	.close =	snd_nm256_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

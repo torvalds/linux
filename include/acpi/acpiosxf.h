@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -333,6 +333,10 @@ u64 acpi_os_get_timer(void);
 acpi_status acpi_os_signal(u32 function, void *info);
 #endif
 
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_enter_sleep
+acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value);
+#endif
+
 /*
  * Debug print routines
  */
@@ -355,12 +359,12 @@ void acpi_os_redirect_output(void *destination);
 acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read);
 #endif
 
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_command_signals
-acpi_status acpi_os_initialize_command_signals(void);
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_debugger
+acpi_status acpi_os_initialize_debugger(void);
 #endif
 
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_command_signals
-void acpi_os_terminate_command_signals(void);
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_debugger
+void acpi_os_terminate_debugger(void);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_wait_command_ready
@@ -369,6 +373,12 @@ acpi_status acpi_os_wait_command_ready(void);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_notify_command_complete
 acpi_status acpi_os_notify_command_complete(void);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
+void
+acpi_os_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname);
 #endif
 
 /*
@@ -414,43 +424,6 @@ char *acpi_os_get_next_filename(void *dir_handle);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
 void acpi_os_close_directory(void *dir_handle);
-#endif
-
-/*
- * File I/O and related support
- */
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_open_file
-ACPI_FILE acpi_os_open_file(const char *path, u8 modes);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_file
-void acpi_os_close_file(ACPI_FILE file);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_read_file
-int
-acpi_os_read_file(ACPI_FILE file,
-		  void *buffer, acpi_size size, acpi_size count);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_write_file
-int
-acpi_os_write_file(ACPI_FILE file,
-		   void *buffer, acpi_size size, acpi_size count);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_file_offset
-long acpi_os_get_file_offset(ACPI_FILE file);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_set_file_offset
-acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
-void
-acpi_os_trace_point(acpi_trace_event_type type,
-		    u8 begin, u8 *aml, char *pathname);
 #endif
 
 #endif				/* __ACPIOSXF_H__ */

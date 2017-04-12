@@ -837,13 +837,14 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
 	.set_bias_level = cs35l33_set_bias_level,
 	.set_sysclk = cs35l33_codec_set_sysclk,
 
-	.dapm_widgets = cs35l33_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs35l33_dapm_widgets),
-	.dapm_routes = cs35l33_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs35l33_audio_map),
-	.controls = cs35l33_snd_controls,
-	.num_controls = ARRAY_SIZE(cs35l33_snd_controls),
-
+	.component_driver = {
+		.controls		= cs35l33_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs35l33_snd_controls),
+		.dapm_widgets		= cs35l33_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs35l33_dapm_widgets),
+		.dapm_routes		= cs35l33_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(cs35l33_audio_map),
+	},
 	.idle_bias_off = true,
 };
 

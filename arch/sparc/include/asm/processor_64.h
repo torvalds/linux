@@ -18,10 +18,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 
-/* The sparc has no problems with write protection */
-#define wp_works_ok 1
-#define wp_works_ok__is_a_macro /* for versions in ksyms.c */
-
 /*
  * User lives in his very own context, and cannot reference us. Note
  * that TASK_SIZE is a misnomer, it really gives maximum user virtual
@@ -216,7 +212,6 @@ unsigned long get_wchan(struct task_struct *task);
 				     "nop\n\t"				\
 				     ".previous"			\
 				     ::: "memory")
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Prefetch support.  This is tuned for UltraSPARC-III and later.
  * UltraSPARC-I will treat these as nops, and UltraSPARC-II has

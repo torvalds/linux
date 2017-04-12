@@ -19,7 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/rculist.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include "tpm.h"
 
 #define ACPI_SIG_TPM2 "TPM2"
@@ -34,14 +34,14 @@ enum crb_defaults {
 	CRB_ACPI_START_INDEX = 1,
 };
 
-enum crb_ca_request {
-	CRB_CA_REQ_GO_IDLE	= BIT(0),
-	CRB_CA_REQ_CMD_READY	= BIT(1),
+enum crb_ctrl_req {
+	CRB_CTRL_REQ_CMD_READY	= BIT(0),
+	CRB_CTRL_REQ_GO_IDLE	= BIT(1),
 };
 
-enum crb_ca_status {
-	CRB_CA_STS_ERROR	= BIT(0),
-	CRB_CA_STS_TPM_IDLE	= BIT(1),
+enum crb_ctrl_sts {
+	CRB_CTRL_STS_ERROR	= BIT(0),
+	CRB_CTRL_STS_TPM_IDLE	= BIT(1),
 };
 
 enum crb_start {
@@ -67,7 +67,7 @@ struct crb_control_area {
 } __packed;
 
 enum crb_status {
-	CRB_STS_COMPLETE	= BIT(0),
+	CRB_DRV_STS_COMPLETE	= BIT(0),
 };
 
 enum crb_flags {
@@ -81,9 +81,74 @@ struct crb_priv {
 	struct crb_control_area __iomem *cca;
 	u8 __iomem *cmd;
 	u8 __iomem *rsp;
+	u32 cmd_size;
 };
 
-static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, tpm_pm_resume);
+/**
+ * crb_go_idle - request tpm crb device to go the idle state
+ *
+ * @dev:  crb device
+ * @priv: crb private data
+ *
+ * Write CRB_CTRL_REQ_GO_IDLE to TPM_CRB_CTRL_REQ
+ * The device should respond within TIMEOUT_C by clearing the bit.
+ * Anyhow, we do not wait here as a consequent CMD_READY request
+ * will be handled correctly even if idle was not completed.
+ *
+ * The function does nothing for devices with ACPI-start method.
+ *
+ * Return: 0 always
+ */
+static int __maybe_unused crb_go_idle(struct device *dev, struct crb_priv *priv)
+{
+	if (priv->flags & CRB_FL_ACPI_START)
+		return 0;
+
+	iowrite32(CRB_CTRL_REQ_GO_IDLE, &priv->cca->req);
+	/* we don't really care when this settles */
+
+	return 0;
+}
+
+/**
+ * crb_cmd_ready - request tpm crb device to enter ready state
+ *
+ * @dev:  crb device
+ * @priv: crb private data
+ *
+ * Write CRB_CTRL_REQ_CMD_READY to TPM_CRB_CTRL_REQ
+ * and poll till the device acknowledge it by clearing the bit.
+ * The device should respond within TIMEOUT_C.
+ *
+ * The function does nothing for devices with ACPI-start method
+ *
+ * Return: 0 on success -ETIME on timeout;
+ */
+static int __maybe_unused crb_cmd_ready(struct device *dev,
+					struct crb_priv *priv)
+{
+	ktime_t stop, start;
+
+	if (priv->flags & CRB_FL_ACPI_START)
+		return 0;
+
+	iowrite32(CRB_CTRL_REQ_CMD_READY, &priv->cca->req);
+
+	start = ktime_get();
+	stop = ktime_add(start, ms_to_ktime(TPM2_TIMEOUT_C));
+	do {
+		if (!(ioread32(&priv->cca->req) & CRB_CTRL_REQ_CMD_READY))
+			return 0;
+		usleep_range(50, 100);
+	} while (ktime_before(ktime_get(), stop));
+
+	if (ioread32(&priv->cca->req) & CRB_CTRL_REQ_CMD_READY) {
+		dev_warn(dev, "cmdReady timed out\n");
+		return -ETIME;
+	}
+
+	return 0;
+}
 
 static u8 crb_status(struct tpm_chip *chip)
 {
@@ -92,7 +157,7 @@ static u8 crb_status(struct tpm_chip *chip)
 
 	if ((ioread32(&priv->cca->start) & CRB_START_INVOKE) !=
 	    CRB_START_INVOKE)
-		sts |= CRB_STS_COMPLETE;
+		sts |= CRB_DRV_STS_COMPLETE;
 
 	return sts;
 }
@@ -106,7 +171,7 @@ static int crb_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	if (count < 6)
 		return -EIO;
 
-	if (ioread32(&priv->cca->sts) & CRB_CA_STS_ERROR)
+	if (ioread32(&priv->cca->sts) & CRB_CTRL_STS_ERROR)
 		return -EIO;
 
 	memcpy_fromio(buf, priv->rsp, 6);
@@ -142,11 +207,14 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	int rc = 0;
 
-	if (len > ioread32(&priv->cca->cmd_size)) {
-		dev_err(&chip->dev,
-			"invalid command count value %x %zx\n",
-			(unsigned int) len,
-			(size_t) ioread32(&priv->cca->cmd_size));
+	/* Zero the cancel register so that the next command will not get
+	 * canceled.
+	 */
+	iowrite32(0, &priv->cca->cancel);
+
+	if (len > priv->cmd_size) {
+		dev_err(&chip->dev, "invalid command count value %zd %d\n",
+			len, priv->cmd_size);
 		return -E2BIG;
 	}
 
@@ -156,7 +224,7 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	wmb();
 
 	if (priv->flags & CRB_FL_CRB_START)
-		iowrite32(cpu_to_le32(CRB_START_INVOKE), &priv->cca->start);
+		iowrite32(CRB_START_INVOKE, &priv->cca->start);
 
 	if (priv->flags & CRB_FL_ACPI_START)
 		rc = crb_do_acpi_start(chip);
@@ -168,15 +236,10 @@ static void crb_cancel(struct tpm_chip *chip)
 {
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 
-	iowrite32(cpu_to_le32(CRB_CANCEL_INVOKE), &priv->cca->cancel);
-
-	/* Make sure that cmd is populated before issuing cancel. */
-	wmb();
+	iowrite32(CRB_CANCEL_INVOKE, &priv->cca->cancel);
 
 	if ((priv->flags & CRB_FL_ACPI_START) && crb_do_acpi_start(chip))
 		dev_err(&chip->dev, "ACPI Start failed\n");
-
-	iowrite32(0, &priv->cca->cancel);
 }
 
 static bool crb_req_canceled(struct tpm_chip *chip, u8 status)
@@ -194,32 +257,19 @@ static const struct tpm_class_ops tpm_crb = {
 	.send = crb_send,
 	.cancel = crb_cancel,
 	.req_canceled = crb_req_canceled,
-	.req_complete_mask = CRB_STS_COMPLETE,
-	.req_complete_val = CRB_STS_COMPLETE,
+	.req_complete_mask = CRB_DRV_STS_COMPLETE,
+	.req_complete_val = CRB_DRV_STS_COMPLETE,
 };
-
-static int crb_init(struct acpi_device *device, struct crb_priv *priv)
-{
-	struct tpm_chip *chip;
-
-	chip = tpmm_chip_alloc(&device->dev, &tpm_crb);
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
-
-	dev_set_drvdata(&chip->dev, priv);
-	chip->acpi_dev_handle = device->handle;
-	chip->flags = TPM_CHIP_FLAG_TPM2;
-
-	return tpm_chip_register(chip);
-}
 
 static int crb_check_resource(struct acpi_resource *ares, void *data)
 {
 	struct resource *io_res = data;
-	struct resource res;
+	struct resource_win win;
+	struct resource *res = &(win.res);
 
-	if (acpi_dev_resource_memory(ares, &res)) {
-		*io_res = res;
+	if (acpi_dev_resource_memory(ares, res) ||
+	    acpi_dev_resource_address_space(ares, &win)) {
+		*io_res = *res;
 		io_res->name = NULL;
 	}
 
@@ -251,6 +301,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	struct list_head resources;
 	struct resource io_res;
 	struct device *dev = &device->dev;
+	u32 pa_high, pa_low;
 	u64 cmd_pa;
 	u32 cmd_size;
 	u64 rsp_pa;
@@ -265,8 +316,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	acpi_dev_free_resource_list(&resources);
 
 	if (resource_type(&io_res) != IORESOURCE_MEM) {
-		dev_err(dev,
-			FW_BUG "TPM2 ACPI table does not define a memory resource\n");
+		dev_err(dev, FW_BUG "TPM2 ACPI table does not define a memory resource\n");
 		return -EINVAL;
 	}
 
@@ -279,12 +329,27 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	if (IS_ERR(priv->cca))
 		return PTR_ERR(priv->cca);
 
-	cmd_pa = ((u64) ioread32(&priv->cca->cmd_pa_high) << 32) |
-		  (u64) ioread32(&priv->cca->cmd_pa_low);
+	/*
+	 * PTT HW bug w/a: wake up the device to access
+	 * possibly not retained registers.
+	 */
+	ret = crb_cmd_ready(dev, priv);
+	if (ret)
+		return ret;
+
+	pa_high = ioread32(&priv->cca->cmd_pa_high);
+	pa_low  = ioread32(&priv->cca->cmd_pa_low);
+	cmd_pa = ((u64)pa_high << 32) | pa_low;
 	cmd_size = ioread32(&priv->cca->cmd_size);
+
+	dev_dbg(dev, "cmd_hi = %X cmd_low = %X cmd_size %X\n",
+		pa_high, pa_low, cmd_size);
+
 	priv->cmd = crb_map_res(dev, priv, &io_res, cmd_pa, cmd_size);
-	if (IS_ERR(priv->cmd))
-		return PTR_ERR(priv->cmd);
+	if (IS_ERR(priv->cmd)) {
+		ret = PTR_ERR(priv->cmd);
+		goto out;
+	}
 
 	memcpy_fromio(&rsp_pa, &priv->cca->rsp_pa, 8);
 	rsp_pa = le64_to_cpu(rsp_pa);
@@ -292,7 +357,8 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 
 	if (cmd_pa != rsp_pa) {
 		priv->rsp = crb_map_res(dev, priv, &io_res, rsp_pa, rsp_size);
-		return PTR_ERR_OR_ZERO(priv->rsp);
+		ret = PTR_ERR_OR_ZERO(priv->rsp);
+		goto out;
 	}
 
 	/* According to the PTP specification, overlapping command and response
@@ -300,17 +366,25 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 */
 	if (cmd_size != rsp_size) {
 		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are not identical");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
+	priv->cmd_size = cmd_size;
+
 	priv->rsp = priv->cmd;
-	return 0;
+
+out:
+	crb_go_idle(dev, priv);
+
+	return ret;
 }
 
 static int crb_acpi_add(struct acpi_device *device)
 {
 	struct acpi_table_tpm2 *buf;
 	struct crb_priv *priv;
+	struct tpm_chip *chip;
 	struct device *dev = &device->dev;
 	acpi_status status;
 	u32 sm;
@@ -348,7 +422,33 @@ static int crb_acpi_add(struct acpi_device *device)
 	if (rc)
 		return rc;
 
-	return crb_init(device, priv);
+	chip = tpmm_chip_alloc(dev, &tpm_crb);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+
+	dev_set_drvdata(&chip->dev, priv);
+	chip->acpi_dev_handle = device->handle;
+	chip->flags = TPM_CHIP_FLAG_TPM2;
+
+	rc  = crb_cmd_ready(dev, priv);
+	if (rc)
+		return rc;
+
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	rc = tpm_chip_register(chip);
+	if (rc) {
+		crb_go_idle(dev, priv);
+		pm_runtime_put_noidle(dev);
+		pm_runtime_disable(dev);
+		return rc;
+	}
+
+	pm_runtime_put(dev);
+
+	return 0;
 }
 
 static int crb_acpi_remove(struct acpi_device *device)
@@ -358,8 +458,33 @@ static int crb_acpi_remove(struct acpi_device *device)
 
 	tpm_chip_unregister(chip);
 
+	pm_runtime_disable(dev);
+
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int crb_pm_runtime_suspend(struct device *dev)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
+
+	return crb_go_idle(dev, priv);
+}
+
+static int crb_pm_runtime_resume(struct device *dev)
+{
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
+
+	return crb_cmd_ready(dev, priv);
+}
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops crb_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(tpm_pm_suspend, tpm_pm_resume)
+	SET_RUNTIME_PM_OPS(crb_pm_runtime_suspend, crb_pm_runtime_resume, NULL)
+};
 
 static struct acpi_device_id crb_device_ids[] = {
 	{"MSFT0101", 0},

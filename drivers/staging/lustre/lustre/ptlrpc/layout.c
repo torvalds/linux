@@ -42,23 +42,19 @@
  * of the format that the request conforms to.
  */
 
-#if !defined(__REQ_LAYOUT_USER__)
-
 #define DEBUG_SUBSYSTEM S_RPC
 
 #include <linux/module.h>
 
-/* LUSTRE_VERSION_CODE */
-#include "../include/lustre_ver.h"
-
-#include "../include/obd_support.h"
-/* lustre_swab_mdt_body */
 #include "../include/lustre/lustre_idl.h"
-/* obd2cli_tgt() (required by DEBUG_REQ()) */
-#include "../include/obd.h"
 
-/* __REQ_LAYOUT_USER__ */
-#endif
+#include "../include/llog_swab.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre_swab.h"
+#include "../include/lustre_ver.h"
+#include "../include/obd.h"
+#include "../include/obd_support.h"
+
 /* struct ptlrpc_request, lustre_msg* */
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_acl.h"
@@ -121,7 +117,7 @@ static const struct req_msg_field *mdt_close_client[] = {
 	&RMF_CAPA1
 };
 
-static const struct req_msg_field *mdt_release_close_client[] = {
+static const struct req_msg_field *mdt_intent_close_client[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_MDT_EPOCH,
 	&RMF_REC_REINT,
@@ -255,6 +251,18 @@ static const struct req_msg_field *mds_reint_rename_client[] = {
 	&RMF_NAME,
 	&RMF_SYMTGT,
 	&RMF_DLM_REQ
+};
+
+static const struct req_msg_field *mds_reint_migrate_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_REC_REINT,
+	&RMF_CAPA1,
+	&RMF_CAPA2,
+	&RMF_NAME,
+	&RMF_SYMTGT,
+	&RMF_DLM_REQ,
+	&RMF_MDT_EPOCH,
+	&RMF_CLOSE_DATA
 };
 
 static const struct req_msg_field *mds_last_unlink_server[] = {
@@ -666,13 +674,9 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_GETXATTR,
 	&RQF_MDS_SYNC,
 	&RQF_MDS_CLOSE,
-	&RQF_MDS_RELEASE_CLOSE,
-	&RQF_MDS_PIN,
-	&RQF_MDS_UNPIN,
+	&RQF_MDS_INTENT_CLOSE,
 	&RQF_MDS_READPAGE,
 	&RQF_MDS_WRITEPAGE,
-	&RQF_MDS_IS_SUBDIR,
-	&RQF_MDS_DONE_WRITING,
 	&RQF_MDS_REINT,
 	&RQF_MDS_REINT_CREATE,
 	&RQF_MDS_REINT_CREATE_ACL,
@@ -682,9 +686,9 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_REINT_UNLINK,
 	&RQF_MDS_REINT_LINK,
 	&RQF_MDS_REINT_RENAME,
+	&RQF_MDS_REINT_MIGRATE,
 	&RQF_MDS_REINT_SETATTR,
 	&RQF_MDS_REINT_SETXATTR,
-	&RQF_MDS_QUOTACHECK,
 	&RQF_MDS_QUOTACTL,
 	&RQF_MDS_HSM_PROGRESS,
 	&RQF_MDS_HSM_CT_REGISTER,
@@ -694,10 +698,8 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_HSM_ACTION,
 	&RQF_MDS_HSM_REQUEST,
 	&RQF_MDS_SWAP_LAYOUTS,
-	&RQF_QC_CALLBACK,
 	&RQF_OST_CONNECT,
 	&RQF_OST_DISCONNECT,
-	&RQF_OST_QUOTACHECK,
 	&RQF_OST_QUOTACTL,
 	&RQF_OST_GETATTR,
 	&RQF_OST_SETATTR,
@@ -1116,9 +1118,9 @@ EXPORT_SYMBOL(RMF_SWAP_LAYOUTS);
 
 struct req_format {
 	const char *rf_name;
-	int rf_idx;
+	size_t rf_idx;
 	struct {
-		int nr;
+		size_t nr;
 		const struct req_msg_field **d;
 	} rf_fields[RCL_NR];
 };
@@ -1175,6 +1177,23 @@ struct req_format RQF_FLD_QUERY =
 	DEFINE_REQ_FMT0("FLD_QUERY", fld_query_client, fld_query_server);
 EXPORT_SYMBOL(RQF_FLD_QUERY);
 
+/*
+ * The 'fld_read_server' uses 'RMF_GENERIC_DATA' to hold the 'FLD_QUERY'
+ * RPC reply that is composed of 'struct lu_seq_range_array'. But there
+ * is not registered swabber function for 'RMF_GENERIC_DATA'. So the RPC
+ * peers need to handle the RPC reply with fixed little-endian format.
+ *
+ * In theory, we can define new structure with some swabber registered to
+ * handle the 'FLD_QUERY' RPC reply result automatically. But from the
+ * implementation view, it is not easy to be done within current "struct
+ * req_msg_field" framework. Because the sequence range array in the RPC
+ * reply is not fixed length, instead, its length depends on 'lu_seq_range'
+ * count, that is unknown when prepare the RPC buffer. Generally, for such
+ * flexible length RPC usage, there will be a field in the RPC layout to
+ * indicate the data length. But for the 'FLD_READ' RPC, we have no way to
+ * do that unless we add new length filed that will broken the on-wire RPC
+ * protocol and cause interoperability trouble with old peer.
+ */
 struct req_format RQF_FLD_READ =
 	DEFINE_REQ_FMT0("FLD_READ", fld_read_client, fld_read_server);
 EXPORT_SYMBOL(RQF_FLD_READ);
@@ -1183,14 +1202,6 @@ struct req_format RQF_LOG_CANCEL =
 	DEFINE_REQ_FMT0("OBD_LOG_CANCEL", log_cancel_client, empty);
 EXPORT_SYMBOL(RQF_LOG_CANCEL);
 
-struct req_format RQF_MDS_QUOTACHECK =
-	DEFINE_REQ_FMT0("MDS_QUOTACHECK", quotactl_only, empty);
-EXPORT_SYMBOL(RQF_MDS_QUOTACHECK);
-
-struct req_format RQF_OST_QUOTACHECK =
-	DEFINE_REQ_FMT0("OST_QUOTACHECK", quotactl_only, empty);
-EXPORT_SYMBOL(RQF_OST_QUOTACHECK);
-
 struct req_format RQF_MDS_QUOTACTL =
 	DEFINE_REQ_FMT0("MDS_QUOTACTL", quotactl_only, quotactl_only);
 EXPORT_SYMBOL(RQF_MDS_QUOTACTL);
@@ -1198,10 +1209,6 @@ EXPORT_SYMBOL(RQF_MDS_QUOTACTL);
 struct req_format RQF_OST_QUOTACTL =
 	DEFINE_REQ_FMT0("OST_QUOTACTL", quotactl_only, quotactl_only);
 EXPORT_SYMBOL(RQF_OST_QUOTACTL);
-
-struct req_format RQF_QC_CALLBACK =
-	DEFINE_REQ_FMT0("QC_CALLBACK", quotactl_only, empty);
-EXPORT_SYMBOL(RQF_QC_CALLBACK);
 
 struct req_format RQF_MDS_GETSTATUS =
 	DEFINE_REQ_FMT0("MDS_GETSTATUS", mdt_body_only, mdt_body_capa);
@@ -1272,6 +1279,11 @@ struct req_format RQF_MDS_REINT_RENAME =
 	DEFINE_REQ_FMT0("MDS_REINT_RENAME", mds_reint_rename_client,
 			mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_REINT_RENAME);
+
+struct req_format RQF_MDS_REINT_MIGRATE =
+	DEFINE_REQ_FMT0("MDS_REINT_MIGRATE", mds_reint_migrate_client,
+			mds_last_unlink_server);
+EXPORT_SYMBOL(RQF_MDS_REINT_MIGRATE);
 
 struct req_format RQF_MDS_REINT_SETATTR =
 	DEFINE_REQ_FMT0("MDS_REINT_SETATTR",
@@ -1384,24 +1396,10 @@ struct req_format RQF_MDS_CLOSE =
 			mdt_close_client, mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_CLOSE);
 
-struct req_format RQF_MDS_RELEASE_CLOSE =
+struct req_format RQF_MDS_INTENT_CLOSE =
 	DEFINE_REQ_FMT0("MDS_CLOSE",
-			mdt_release_close_client, mds_last_unlink_server);
-EXPORT_SYMBOL(RQF_MDS_RELEASE_CLOSE);
-
-struct req_format RQF_MDS_PIN =
-	DEFINE_REQ_FMT0("MDS_PIN",
-			mdt_body_capa, mdt_body_only);
-EXPORT_SYMBOL(RQF_MDS_PIN);
-
-struct req_format RQF_MDS_UNPIN =
-	DEFINE_REQ_FMT0("MDS_UNPIN", mdt_body_only, empty);
-EXPORT_SYMBOL(RQF_MDS_UNPIN);
-
-struct req_format RQF_MDS_DONE_WRITING =
-	DEFINE_REQ_FMT0("MDS_DONE_WRITING",
-			mdt_close_client, mdt_body_only);
-EXPORT_SYMBOL(RQF_MDS_DONE_WRITING);
+			mdt_intent_close_client, mds_last_unlink_server);
+EXPORT_SYMBOL(RQF_MDS_INTENT_CLOSE);
 
 struct req_format RQF_MDS_READPAGE =
 	DEFINE_REQ_FMT0("MDS_READPAGE",
@@ -1447,11 +1445,6 @@ struct req_format RQF_MDS_WRITEPAGE =
 	DEFINE_REQ_FMT0("MDS_WRITEPAGE",
 			mdt_body_capa, mdt_body_only);
 EXPORT_SYMBOL(RQF_MDS_WRITEPAGE);
-
-struct req_format RQF_MDS_IS_SUBDIR =
-	DEFINE_REQ_FMT0("MDS_IS_SUBDIR",
-			mdt_body_only, mdt_body_only);
-EXPORT_SYMBOL(RQF_MDS_IS_SUBDIR);
 
 struct req_format RQF_LLOG_ORIGIN_HANDLE_CREATE =
 	DEFINE_REQ_FMT0("LLOG_ORIGIN_HANDLE_CREATE",
@@ -1561,8 +1554,6 @@ struct req_format RQF_OST_GET_INFO_FIEMAP =
 			ost_get_fiemap_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_FIEMAP);
 
-#if !defined(__REQ_LAYOUT_USER__)
-
 /* Convenience macro */
 #define FMT_FIELD(fmt, i, j) (fmt)->rf_fields[(i)].d[(j)]
 
@@ -1572,9 +1563,9 @@ EXPORT_SYMBOL(RQF_OST_GET_INFO_FIEMAP);
  */
 int req_layout_init(void)
 {
-	int i;
-	int j;
-	int k;
+	size_t i;
+	size_t j;
+	size_t k;
 	struct req_format *rf = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(req_formats); ++i) {
@@ -1616,7 +1607,7 @@ EXPORT_SYMBOL(req_layout_fini);
  */
 static void req_capsule_init_area(struct req_capsule *pill)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(pill->rc_area[RCL_CLIENT]); i++) {
 		pill->rc_area[RCL_CLIENT][i] = -1;
@@ -1667,8 +1658,7 @@ EXPORT_SYMBOL(req_capsule_fini);
 
 static int __req_format_is_sane(const struct req_format *fmt)
 {
-	return
-		0 <= fmt->rf_idx && fmt->rf_idx < ARRAY_SIZE(req_formats) &&
+	return fmt->rf_idx < ARRAY_SIZE(req_formats) &&
 		req_formats[fmt->rf_idx] == fmt;
 }
 
@@ -1702,11 +1692,11 @@ EXPORT_SYMBOL(req_capsule_set);
  * variable-sized fields.  The field sizes come from the declared \a rmf_size
  * field of a \a pill's \a rc_fmt's RMF's.
  */
-int req_capsule_filled_sizes(struct req_capsule *pill,
-			     enum req_location loc)
+size_t req_capsule_filled_sizes(struct req_capsule *pill,
+				enum req_location loc)
 {
 	const struct req_format *fmt = pill->rc_fmt;
-	int i;
+	size_t i;
 
 	for (i = 0; i < fmt->rf_fields[loc].nr; ++i) {
 		if (pill->rc_area[loc][i] == -1) {
@@ -1761,11 +1751,11 @@ EXPORT_SYMBOL(req_capsule_server_pack);
  * Returns the PTLRPC request or reply (\a loc) buffer offset of a \a pill
  * corresponding to the given RMF (\a field).
  */
-static int __req_capsule_offset(const struct req_capsule *pill,
+static u32 __req_capsule_offset(const struct req_capsule *pill,
 				const struct req_msg_field *field,
 				enum req_location loc)
 {
-	int offset;
+	u32 offset;
 
 	offset = field->rmf_offset[pill->rc_fmt->rf_idx][loc];
 	LASSERTF(offset > 0, "%s:%s, off=%d, loc=%d\n", pill->rc_fmt->rf_name,
@@ -1869,10 +1859,10 @@ static void *__req_capsule_get(struct req_capsule *pill,
 	const struct req_format *fmt;
 	struct lustre_msg *msg;
 	void *value;
-	int len;
-	int offset;
+	u32 len;
+	u32 offset;
 
-	void *(*getter)(struct lustre_msg *m, int n, int minlen);
+	void *(*getter)(struct lustre_msg *m, u32 n, u32 minlen);
 
 	static const char *rcl_names[RCL_NR] = {
 		[RCL_CLIENT] = "client",
@@ -1892,27 +1882,28 @@ static void *__req_capsule_get(struct req_capsule *pill,
 	getter = (field->rmf_flags & RMF_F_STRING) ?
 		(typeof(getter))lustre_msg_string : lustre_msg_buf;
 
-	if (field->rmf_flags & RMF_F_STRUCT_ARRAY) {
+	if (field->rmf_flags & (RMF_F_STRUCT_ARRAY | RMF_F_NO_SIZE_CHECK)) {
 		/*
 		 * We've already asserted that field->rmf_size > 0 in
 		 * req_layout_init().
 		 */
 		len = lustre_msg_buflen(msg, offset);
-		if ((len % field->rmf_size) != 0) {
-			CERROR("%s: array field size mismatch %d modulo %d != 0 (%d)\n",
+		if (!(field->rmf_flags & RMF_F_NO_SIZE_CHECK) &&
+		    (len % field->rmf_size)) {
+			CERROR("%s: array field size mismatch %d modulo %u != 0 (%d)\n",
 			       field->rmf_name, len, field->rmf_size, loc);
 			return NULL;
 		}
 	} else if (pill->rc_area[loc][offset] != -1) {
 		len = pill->rc_area[loc][offset];
 	} else {
-		len = max(field->rmf_size, 0);
+		len = max_t(typeof(field->rmf_size), field->rmf_size, 0);
 	}
 	value = getter(msg, offset, len);
 
 	if (!value) {
 		DEBUG_REQ(D_ERROR, pill->rc_req,
-			  "Wrong buffer for field `%s' (%d of %d) in format `%s': %d vs. %d (%s)\n",
+			  "Wrong buffer for field `%s' (%u of %u) in format `%s': %u vs. %u (%s)\n",
 			  field->rmf_name, offset, lustre_msg_bufcount(msg),
 			  fmt->rf_name, lustre_msg_buflen(msg, offset), len,
 			  rcl_names[loc]);
@@ -1958,7 +1949,7 @@ EXPORT_SYMBOL(req_capsule_client_swab_get);
  */
 void *req_capsule_client_sized_get(struct req_capsule *pill,
 				   const struct req_msg_field *field,
-				   int len)
+				   u32 len)
 {
 	req_capsule_set_size(pill, field, RCL_CLIENT, len);
 	return __req_capsule_get(pill, field, RCL_CLIENT, NULL, 0);
@@ -1999,7 +1990,7 @@ EXPORT_SYMBOL(req_capsule_server_swab_get);
  */
 void *req_capsule_server_sized_get(struct req_capsule *pill,
 				   const struct req_msg_field *field,
-				   int len)
+				   u32 len)
 {
 	req_capsule_set_size(pill, field, RCL_SERVER, len);
 	return __req_capsule_get(pill, field, RCL_SERVER, NULL, 0);
@@ -2008,7 +1999,7 @@ EXPORT_SYMBOL(req_capsule_server_sized_get);
 
 void *req_capsule_server_sized_swab_get(struct req_capsule *pill,
 					const struct req_msg_field *field,
-					int len, void *swabber)
+					u32 len, void *swabber)
 {
 	req_capsule_set_size(pill, field, RCL_SERVER, len);
 	return __req_capsule_get(pill, field, RCL_SERVER, swabber, 0);
@@ -2024,23 +2015,25 @@ EXPORT_SYMBOL(req_capsule_server_sized_swab_get);
  */
 void req_capsule_set_size(struct req_capsule *pill,
 			  const struct req_msg_field *field,
-			  enum req_location loc, int size)
+			  enum req_location loc, u32 size)
 {
 	LASSERT(loc == RCL_SERVER || loc == RCL_CLIENT);
 
-	if ((size != field->rmf_size) &&
+	if ((size != (u32)field->rmf_size) &&
 	    (field->rmf_size != -1) &&
 	    !(field->rmf_flags & RMF_F_NO_SIZE_CHECK) &&
 	    (size > 0)) {
+		u32 rmf_size = (u32)field->rmf_size;
+
 		if ((field->rmf_flags & RMF_F_STRUCT_ARRAY) &&
-		    (size % field->rmf_size != 0)) {
-			CERROR("%s: array field size mismatch %d %% %d != 0 (%d)\n",
-			       field->rmf_name, size, field->rmf_size, loc);
+		    (size % rmf_size != 0)) {
+			CERROR("%s: array field size mismatch %u %% %u != 0 (%d)\n",
+			       field->rmf_name, size, rmf_size, loc);
 			LBUG();
 		} else if (!(field->rmf_flags & RMF_F_STRUCT_ARRAY) &&
-		    size < field->rmf_size) {
-			CERROR("%s: field size mismatch %d != %d (%d)\n",
-			       field->rmf_name, size, field->rmf_size, loc);
+			   size < rmf_size) {
+			CERROR("%s: field size mismatch %u != %u (%d)\n",
+			       field->rmf_name, size, rmf_size, loc);
 			LBUG();
 		}
 	}
@@ -2057,7 +2050,7 @@ EXPORT_SYMBOL(req_capsule_set_size);
  * actually sets the size in pill.rc_area[loc][offset], but this function
  * returns the message buflen[offset], maybe we should use another name.
  */
-int req_capsule_get_size(const struct req_capsule *pill,
+u32 req_capsule_get_size(const struct req_capsule *pill,
 			 const struct req_msg_field *field,
 			 enum req_location loc)
 {
@@ -2075,7 +2068,7 @@ EXPORT_SYMBOL(req_capsule_get_size);
  *
  * See also req_capsule_set_size().
  */
-int req_capsule_msg_size(struct req_capsule *pill, enum req_location loc)
+u32 req_capsule_msg_size(struct req_capsule *pill, enum req_location loc)
 {
 	return lustre_msg_size(pill->rc_req->rq_import->imp_msg_magic,
 			       pill->rc_fmt->rf_fields[loc].nr,
@@ -2090,10 +2083,11 @@ int req_capsule_msg_size(struct req_capsule *pill, enum req_location loc)
  * This function should not be used for formats which contain variable size
  * fields.
  */
-int req_capsule_fmt_size(__u32 magic, const struct req_format *fmt,
+u32 req_capsule_fmt_size(__u32 magic, const struct req_format *fmt,
 			 enum req_location loc)
 {
-	int size, i = 0;
+	size_t i = 0;
+	u32 size;
 
 	/*
 	 * This function should probably LASSERT() that fmt has no fields with
@@ -2103,7 +2097,7 @@ int req_capsule_fmt_size(__u32 magic, const struct req_format *fmt,
 	 * we do.
 	 */
 	size = lustre_msg_hdr_size(magic, fmt->rf_fields[loc].nr);
-	if (size < 0)
+	if (!size)
 		return size;
 
 	for (; i < fmt->rf_fields[loc].nr; ++i)
@@ -2135,7 +2129,7 @@ int req_capsule_fmt_size(__u32 magic, const struct req_format *fmt,
 void req_capsule_extend(struct req_capsule *pill, const struct req_format *fmt)
 {
 	int i;
-	int j;
+	size_t j;
 
 	const struct req_format *old;
 
@@ -2193,7 +2187,7 @@ static int req_capsule_field_present(const struct req_capsule *pill,
 				     const struct req_msg_field *field,
 				     enum req_location loc)
 {
-	int offset;
+	u32 offset;
 
 	LASSERT(loc == RCL_SERVER || loc == RCL_CLIENT);
 	LASSERT(req_capsule_has_field(pill, field, loc));
@@ -2210,12 +2204,11 @@ static int req_capsule_field_present(const struct req_capsule *pill,
  */
 void req_capsule_shrink(struct req_capsule *pill,
 			const struct req_msg_field *field,
-			unsigned int newlen,
-			enum req_location loc)
+			u32 newlen, enum req_location loc)
 {
 	const struct req_format *fmt;
 	struct lustre_msg *msg;
-	int len;
+	u32 len;
 	int offset;
 
 	fmt = pill->rc_fmt;
@@ -2228,7 +2221,7 @@ void req_capsule_shrink(struct req_capsule *pill,
 
 	msg = __req_msg(pill, loc);
 	len = lustre_msg_buflen(msg, offset);
-	LASSERTF(newlen <= len, "%s:%s, oldlen=%d, newlen=%d\n",
+	LASSERTF(newlen <= len, "%s:%s, oldlen=%u, newlen=%u\n",
 		 fmt->rf_name, field->rmf_name, len, newlen);
 
 	if (loc == RCL_CLIENT)
@@ -2239,6 +2232,3 @@ void req_capsule_shrink(struct req_capsule *pill,
 							    1);
 }
 EXPORT_SYMBOL(req_capsule_shrink);
-
-/* __REQ_LAYOUT_USER__ */
-#endif

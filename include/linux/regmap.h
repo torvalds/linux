@@ -15,6 +15,7 @@
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/lockdep.h>
@@ -39,12 +40,13 @@ enum regcache_type {
 };
 
 /**
- * Default value for a register.  We use an array of structs rather
- * than a simple array as many modern devices have very sparse
- * register maps.
+ * struct reg_default - Default value for a register.
  *
  * @reg: Register address.
  * @def: Register default value.
+ *
+ * We use an array of structs rather than a simple array as many modern devices
+ * have very sparse register maps.
  */
 struct reg_default {
 	unsigned int reg;
@@ -52,12 +54,14 @@ struct reg_default {
 };
 
 /**
- * Register/value pairs for sequences of writes with an optional delay in
- * microseconds to be applied after each write.
+ * struct reg_sequence - An individual write from a sequence of writes.
  *
  * @reg: Register address.
  * @def: Register value.
  * @delay_us: Delay to be applied after the register write in microseconds
+ *
+ * Register/value pairs for sequences of writes with an optional delay in
+ * microseconds to be applied after each write.
  */
 struct reg_sequence {
 	unsigned int reg;
@@ -97,6 +101,7 @@ struct reg_sequence {
 
 /**
  * regmap_read_poll_timeout - Poll until a condition is met or a timeout occurs
+ *
  * @map: Regmap to read from
  * @addr: Address to poll
  * @val: Unsigned integer variable to read the value into
@@ -116,22 +121,22 @@ struct reg_sequence {
 #define regmap_read_poll_timeout(map, addr, val, cond, sleep_us, timeout_us) \
 ({ \
 	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us); \
-	int ret; \
+	int pollret; \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
-		ret = regmap_read((map), (addr), &(val)); \
-		if (ret) \
+		pollret = regmap_read((map), (addr), &(val)); \
+		if (pollret) \
 			break; \
 		if (cond) \
 			break; \
 		if (timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
-			ret = regmap_read((map), (addr), &(val)); \
+			pollret = regmap_read((map), (addr), &(val)); \
 			break; \
 		} \
 		if (sleep_us) \
 			usleep_range((sleep_us >> 2) + 1, sleep_us); \
 	} \
-	ret ?: ((cond) ? 0 : -ETIMEDOUT); \
+	pollret ?: ((cond) ? 0 : -ETIMEDOUT); \
 })
 
 #ifdef CONFIG_REGMAP
@@ -145,8 +150,8 @@ enum regmap_endian {
 };
 
 /**
- * A register range, used for access related checks
- * (readable/writeable/volatile/precious checks)
+ * struct regmap_range - A register range, used for access related checks
+ *                       (readable/writeable/volatile/precious checks)
  *
  * @range_min: address of first register
  * @range_max: address of last register
@@ -158,16 +163,18 @@ struct regmap_range {
 
 #define regmap_reg_range(low, high) { .range_min = low, .range_max = high, }
 
-/*
- * A table of ranges including some yes ranges and some no ranges.
- * If a register belongs to a no_range, the corresponding check function
- * will return false. If a register belongs to a yes range, the corresponding
- * check function will return true. "no_ranges" are searched first.
+/**
+ * struct regmap_access_table - A table of register ranges for access checks
  *
  * @yes_ranges : pointer to an array of regmap ranges used as "yes ranges"
  * @n_yes_ranges: size of the above array
  * @no_ranges: pointer to an array of regmap ranges used as "no ranges"
  * @n_no_ranges: size of the above array
+ *
+ * A table of ranges including some yes ranges and some no ranges.
+ * If a register belongs to a no_range, the corresponding check function
+ * will return false. If a register belongs to a yes range, the corresponding
+ * check function will return true. "no_ranges" are searched first.
  */
 struct regmap_access_table {
 	const struct regmap_range *yes_ranges;
@@ -180,7 +187,7 @@ typedef void (*regmap_lock)(void *);
 typedef void (*regmap_unlock)(void *);
 
 /**
- * Configuration for the register map of a device.
+ * struct regmap_config - Configuration for the register map of a device.
  *
  * @name: Optional name of the regmap. Useful when a device has multiple
  *        register regions.
@@ -241,9 +248,9 @@ typedef void (*regmap_unlock)(void *);
  *                register cache support).
  * @num_reg_defaults: Number of elements in reg_defaults.
  *
- * @read_flag_mask: Mask to be set in the top byte of the register when doing
+ * @read_flag_mask: Mask to be set in the top bytes of the register when doing
  *                  a read.
- * @write_flag_mask: Mask to be set in the top byte of the register when doing
+ * @write_flag_mask: Mask to be set in the top bytes of the register when doing
  *                   a write. If both read_flag_mask and write_flag_mask are
  *                   empty the regmap_bus default masks are used.
  * @use_single_rw: If set, converts the bulk read and write operations into
@@ -299,8 +306,8 @@ struct regmap_config {
 	const void *reg_defaults_raw;
 	unsigned int num_reg_defaults_raw;
 
-	u8 read_flag_mask;
-	u8 write_flag_mask;
+	unsigned long read_flag_mask;
+	unsigned long write_flag_mask;
 
 	bool use_single_rw;
 	bool can_multi_write;
@@ -313,22 +320,24 @@ struct regmap_config {
 };
 
 /**
- * Configuration for indirectly accessed or paged registers.
- * Registers, mapped to this virtual range, are accessed in two steps:
- *     1. page selector register update;
- *     2. access through data window registers.
+ * struct regmap_range_cfg - Configuration for indirectly accessed or paged
+ *                           registers.
  *
  * @name: Descriptive name for diagnostics
  *
  * @range_min: Address of the lowest register address in virtual range.
  * @range_max: Address of the highest register in virtual range.
  *
- * @page_sel_reg: Register with selector field.
- * @page_sel_mask: Bit shift for selector value.
- * @page_sel_shift: Bit mask for selector value.
+ * @selector_reg: Register with selector field.
+ * @selector_mask: Bit shift for selector value.
+ * @selector_shift: Bit mask for selector value.
  *
  * @window_start: Address of first (lowest) register in data window.
  * @window_len: Number of registers in data window.
+ *
+ * Registers, mapped to this virtual range, are accessed in two steps:
+ *     1. page selector register update;
+ *     2. access through data window registers.
  */
 struct regmap_range_cfg {
 	const char *name;
@@ -371,7 +380,8 @@ typedef struct regmap_async *(*regmap_hw_async_alloc)(void);
 typedef void (*regmap_hw_free_context)(void *context);
 
 /**
- * Description of a hardware bus for the register map infrastructure.
+ * struct regmap_bus - Description of a hardware bus for the register map
+ *                     infrastructure.
  *
  * @fast_io: Register IO is fast. Use a spinlock instead of a mutex
  *	     to perform locking. This field is ignored if custom lock/unlock
@@ -384,6 +394,10 @@ typedef void (*regmap_hw_free_context)(void *context);
  *               must serialise with respect to non-async I/O.
  * @reg_write: Write a single register value to the given register address. This
  *             write operation has to complete when returning from the function.
+ * @reg_update_bits: Update bits operation to be used against volatile
+ *                   registers, intended for devices supporting some mechanism
+ *                   for setting clearing bits without having to
+ *                   read/modify/write.
  * @read: Read operation.  Data is returned in the buffer used to transmit
  *         data.
  * @reg_read: Read a single register value from a given register address.
@@ -513,7 +527,7 @@ struct regmap *__devm_regmap_init_ac97(struct snd_ac97 *ac97,
 #endif
 
 /**
- * regmap_init(): Initialise register map
+ * regmap_init() - Initialise register map
  *
  * @dev: Device that will be interacted with
  * @bus: Bus-specific callbacks to use with device
@@ -531,7 +545,7 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 		      const struct regmap_config *config);
 
 /**
- * regmap_init_i2c(): Initialise register map
+ * regmap_init_i2c() - Initialise register map
  *
  * @i2c: Device that will be interacted with
  * @config: Configuration for register map
@@ -544,9 +558,9 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 				i2c, config)
 
 /**
- * regmap_init_spi(): Initialise register map
+ * regmap_init_spi() - Initialise register map
  *
- * @spi: Device that will be interacted with
+ * @dev: Device that will be interacted with
  * @config: Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer to
@@ -557,8 +571,9 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 				dev, config)
 
 /**
- * regmap_init_spmi_base(): Create regmap for the Base register space
- * @sdev:	SPMI device that will be interacted with
+ * regmap_init_spmi_base() - Create regmap for the Base register space
+ *
+ * @dev:	SPMI device that will be interacted with
  * @config:	Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer to
@@ -569,8 +584,9 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 				dev, config)
 
 /**
- * regmap_init_spmi_ext(): Create regmap for Ext register space
- * @sdev:	Device that will be interacted with
+ * regmap_init_spmi_ext() - Create regmap for Ext register space
+ *
+ * @dev:	Device that will be interacted with
  * @config:	Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer to
@@ -581,7 +597,7 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 				dev, config)
 
 /**
- * regmap_init_mmio_clk(): Initialise register map with register clock
+ * regmap_init_mmio_clk() - Initialise register map with register clock
  *
  * @dev: Device that will be interacted with
  * @clk_id: register clock consumer ID
@@ -596,7 +612,7 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 				dev, clk_id, regs, config)
 
 /**
- * regmap_init_mmio(): Initialise register map
+ * regmap_init_mmio() - Initialise register map
  *
  * @dev: Device that will be interacted with
  * @regs: Pointer to memory-mapped IO region
@@ -609,7 +625,7 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 	regmap_init_mmio_clk(dev, NULL, regs, config)
 
 /**
- * regmap_init_ac97(): Initialise AC'97 register map
+ * regmap_init_ac97() - Initialise AC'97 register map
  *
  * @ac97: Device that will be interacted with
  * @config: Configuration for register map
@@ -623,7 +639,7 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 
 /**
- * devm_regmap_init(): Initialise managed register map
+ * devm_regmap_init() - Initialise managed register map
  *
  * @dev: Device that will be interacted with
  * @bus: Bus-specific callbacks to use with device
@@ -640,7 +656,7 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 				dev, bus, bus_context, config)
 
 /**
- * devm_regmap_init_i2c(): Initialise managed register map
+ * devm_regmap_init_i2c() - Initialise managed register map
  *
  * @i2c: Device that will be interacted with
  * @config: Configuration for register map
@@ -654,9 +670,9 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 				i2c, config)
 
 /**
- * devm_regmap_init_spi(): Initialise register map
+ * devm_regmap_init_spi() - Initialise register map
  *
- * @spi: Device that will be interacted with
+ * @dev: Device that will be interacted with
  * @config: Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer
@@ -668,8 +684,9 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 				dev, config)
 
 /**
- * devm_regmap_init_spmi_base(): Create managed regmap for Base register space
- * @sdev:	SPMI device that will be interacted with
+ * devm_regmap_init_spmi_base() - Create managed regmap for Base register space
+ *
+ * @dev:	SPMI device that will be interacted with
  * @config:	Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer
@@ -681,8 +698,9 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 				dev, config)
 
 /**
- * devm_regmap_init_spmi_ext(): Create managed regmap for Ext register space
- * @sdev:	SPMI device that will be interacted with
+ * devm_regmap_init_spmi_ext() - Create managed regmap for Ext register space
+ *
+ * @dev:	SPMI device that will be interacted with
  * @config:	Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer
@@ -694,7 +712,7 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 				dev, config)
 
 /**
- * devm_regmap_init_mmio_clk(): Initialise managed register map with clock
+ * devm_regmap_init_mmio_clk() - Initialise managed register map with clock
  *
  * @dev: Device that will be interacted with
  * @clk_id: register clock consumer ID
@@ -710,7 +728,7 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 				dev, clk_id, regs, config)
 
 /**
- * devm_regmap_init_mmio(): Initialise managed register map
+ * devm_regmap_init_mmio() - Initialise managed register map
  *
  * @dev: Device that will be interacted with
  * @regs: Pointer to memory-mapped IO region
@@ -724,7 +742,7 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 	devm_regmap_init_mmio_clk(dev, NULL, regs, config)
 
 /**
- * devm_regmap_init_ac97(): Initialise AC'97 register map
+ * devm_regmap_init_ac97() - Initialise AC'97 register map
  *
  * @ac97: Device that will be interacted with
  * @config: Configuration for register map
@@ -799,7 +817,7 @@ bool regmap_reg_in_ranges(unsigned int reg,
 			  unsigned int nranges);
 
 /**
- * Description of an register field
+ * struct reg_field - Description of an register field
  *
  * @reg: Offset of the register within the regmap bank
  * @lsb: lsb of the register field.
@@ -840,7 +858,7 @@ int regmap_fields_update_bits_base(struct regmap_field *field,  unsigned int id,
 				   bool *change, bool async, bool force);
 
 /**
- * Description of an IRQ for the generic regmap irq_chip.
+ * struct regmap_irq - Description of an IRQ for the generic regmap irq_chip.
  *
  * @reg_offset: Offset of the status/mask register within the bank
  * @mask:       Mask used to flag/control the register.
@@ -860,9 +878,7 @@ struct regmap_irq {
 	[_irq] = { .reg_offset = (_off), .mask = (_mask) }
 
 /**
- * Description of a generic regmap irq_chip.  This is not intended to
- * handle every possible interrupt controller, but it should handle a
- * substantial proportion of those that are found in the wild.
+ * struct regmap_irq_chip - Description of a generic regmap irq_chip.
  *
  * @name:        Descriptive name for IRQ controller.
  *
@@ -896,6 +912,10 @@ struct regmap_irq {
  *		     after handling the interrupts in regmap_irq_handler().
  * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
  *		     driver specific pre/post interrupt handler is called.
+ *
+ * This is not intended to handle every possible interrupt controller, but
+ * it should handle a substantial proportion of those that are found in the
+ * wild.
  */
 struct regmap_irq_chip {
 	const char *name;

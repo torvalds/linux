@@ -52,21 +52,6 @@ static __init int find_northbridge(void)
 	return -ENOENT;
 }
 
-static __init void early_get_boot_cpu_id(void)
-{
-	/*
-	 * need to get the APIC ID of the BSP so can use that to
-	 * create apicid_to_node in amd_scan_nodes()
-	 */
-#ifdef CONFIG_X86_MPPARSE
-	/*
-	 * get boot-time SMP configuration:
-	 */
-	if (smp_found_config)
-		early_get_smp_config();
-#endif
-}
-
 int __init amd_numa_init(void)
 {
 	u64 start = PFN_PHYS(0);
@@ -180,8 +165,11 @@ int __init amd_numa_init(void)
 	cores = 1 << bits;
 	apicid_base = 0;
 
-	/* get the APIC ID of the BSP early for systems with apicid lifting */
-	early_get_boot_cpu_id();
+	/*
+	 * get boot-time SMP configuration:
+	 */
+	early_get_smp_config();
+
 	if (boot_cpu_physical_apicid > 0) {
 		pr_info("BSP APIC ID: %02x\n", boot_cpu_physical_apicid);
 		apicid_base = boot_cpu_physical_apicid;

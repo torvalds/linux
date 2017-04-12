@@ -122,7 +122,7 @@ static int check_itimer(int which)
 	else if (which == ITIMER_REAL)
 		idle_loop();
 
-	gettimeofday(&end, NULL);
+	err = gettimeofday(&end, NULL);
 	if (err < 0) {
 		perror("Can't call gettimeofday()\n");
 		return -1;
@@ -175,7 +175,7 @@ static int check_timer_create(int which)
 
 	user_loop();
 
-	gettimeofday(&end, NULL);
+	err = gettimeofday(&end, NULL);
 	if (err < 0) {
 		perror("Can't call gettimeofday()\n");
 		return -1;

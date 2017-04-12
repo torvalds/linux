@@ -139,6 +139,7 @@ struct msm_dsi_host {
 
 	u32 err_work_state;
 	struct work_struct err_work;
+	struct work_struct hpd_work;
 	struct workqueue_struct *workqueue;
 
 	/* DSI 6G TX buffer*/
@@ -690,17 +691,6 @@ static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 	return 0;
 }
 
-static void dsi_phy_sw_reset(struct msm_dsi_host *msm_host)
-{
-	DBG("");
-	dsi_write(msm_host, REG_DSI_PHY_RESET, DSI_PHY_RESET_RESET);
-	/* Make sure fully reset */
-	wmb();
-	udelay(1000);
-	dsi_write(msm_host, REG_DSI_PHY_RESET, 0);
-	udelay(100);
-}
-
 static void dsi_intr_ctrl(struct msm_dsi_host *msm_host, u32 mask, int enable)
 {
 	u32 intr;
@@ -755,7 +745,7 @@ static inline enum dsi_cmd_dst_format dsi_get_cmd_fmt(
 }
 
 static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
-				u32 clk_pre, u32 clk_post)
+			struct msm_dsi_phy_shared_timings *phy_shared_timings)
 {
 	u32 flags = msm_host->mode_flags;
 	enum mipi_dsi_pixel_format mipi_fmt = msm_host->format;
@@ -818,9 +808,15 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		data |= DSI_TRIG_CTRL_BLOCK_DMA_WITHIN_FRAME;
 	dsi_write(msm_host, REG_DSI_TRIG_CTRL, data);
 
-	data = DSI_CLKOUT_TIMING_CTRL_T_CLK_POST(clk_post) |
-		DSI_CLKOUT_TIMING_CTRL_T_CLK_PRE(clk_pre);
+	data = DSI_CLKOUT_TIMING_CTRL_T_CLK_POST(phy_shared_timings->clk_post) |
+		DSI_CLKOUT_TIMING_CTRL_T_CLK_PRE(phy_shared_timings->clk_pre);
 	dsi_write(msm_host, REG_DSI_CLKOUT_TIMING_CTRL, data);
+
+	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
+	    (cfg_hnd->minor > MSM_DSI_6G_VER_MINOR_V1_0) &&
+	    phy_shared_timings->clk_pre_inc_by_2)
+		dsi_write(msm_host, REG_DSI_T_CLK_PRE_EXTEND,
+			  DSI_T_CLK_PRE_EXTEND_INC_BY_2_BYTECLK);
 
 	data = 0;
 	if (!(flags & MIPI_DSI_MODE_EOT_PACKET))
@@ -981,7 +977,7 @@ static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 	struct drm_device *dev = msm_host->dev;
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
-	u32 iova;
+	uint64_t iova;
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
 		mutex_lock(&dev->struct_mutex);
@@ -1146,7 +1142,7 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
-	u32 dma_base;
+	uint64_t dma_base;
 	bool triggered;
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
@@ -1292,6 +1288,14 @@ static void dsi_sw_reset_restore(struct msm_dsi_host *msm_host)
 	wmb();	/* controller out of reset */
 	dsi_write(msm_host, REG_DSI_CTRL, data0);
 	wmb();	/* make sure dsi controller enabled again */
+}
+
+static void dsi_hpd_worker(struct work_struct *work)
+{
+	struct msm_dsi_host *msm_host =
+		container_of(work, struct msm_dsi_host, hpd_work);
+
+	drm_helper_hpd_irq_event(msm_host->dev);
 }
 
 static void dsi_err_worker(struct work_struct *work)
@@ -1473,6 +1477,8 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 	msm_host->format = dsi->format;
 	msm_host->mode_flags = dsi->mode_flags;
 
+	msm_dsi_manager_attach_dsi_device(msm_host->id, dsi->mode_flags);
+
 	/* Some gpios defined in panel DT need to be controlled by host */
 	ret = dsi_host_init_panel_gpios(msm_host, &dsi->dev);
 	if (ret)
@@ -1480,7 +1486,7 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 
 	DBG("id=%d", msm_host->id);
 	if (msm_host->dev)
-		drm_helper_hpd_irq_event(msm_host->dev);
+		queue_work(msm_host->workqueue, &msm_host->hpd_work);
 
 	return 0;
 }
@@ -1494,7 +1500,7 @@ static int dsi_host_detach(struct mipi_dsi_host *host,
 
 	DBG("id=%d", msm_host->id);
 	if (msm_host->dev)
-		drm_helper_hpd_irq_event(msm_host->dev);
+		queue_work(msm_host->workqueue, &msm_host->hpd_work);
 
 	return 0;
 }
@@ -1548,8 +1554,9 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 
 	prop = of_find_property(ep, "data-lanes", &len);
 	if (!prop) {
-		dev_dbg(dev, "failed to find data lane mapping\n");
-		return -EINVAL;
+		dev_dbg(dev,
+			"failed to find data lane mapping, using default\n");
+		return 0;
 	}
 
 	num_lanes = len / sizeof(u32);
@@ -1606,7 +1613,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	struct device *dev = &msm_host->pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *endpoint, *device_node;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Get the endpoint of the output port of the DSI host. In our case,
@@ -1630,8 +1637,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	/* Get panel node from the output port's endpoint data */
 	device_node = of_graph_get_remote_port_parent(endpoint);
 	if (!device_node) {
-		dev_err(dev, "%s: no valid device\n", __func__);
-		ret = -ENODEV;
+		dev_dbg(dev, "%s: no valid device\n", __func__);
 		goto err;
 	}
 
@@ -1748,6 +1754,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	/* setup workqueue */
 	msm_host->workqueue = alloc_ordered_workqueue("dsi_drm_work", 0);
 	INIT_WORK(&msm_host->err_work, dsi_err_worker);
+	INIT_WORK(&msm_host->hpd_work, dsi_hpd_worker);
 
 	msm_dsi->host = &msm_host->base;
 	msm_dsi->id = msm_host->id;
@@ -2108,6 +2115,28 @@ exit:
 	return ret;
 }
 
+void msm_dsi_host_reset_phy(struct mipi_dsi_host *host)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+
+	DBG("");
+	dsi_write(msm_host, REG_DSI_PHY_RESET, DSI_PHY_RESET_RESET);
+	/* Make sure fully reset */
+	wmb();
+	udelay(1000);
+	dsi_write(msm_host, REG_DSI_PHY_RESET, 0);
+	udelay(100);
+}
+
+void msm_dsi_host_get_phy_clk_req(struct mipi_dsi_host *host,
+	struct msm_dsi_phy_clk_request *clk_req)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+
+	clk_req->bitclk_rate = msm_host->byte_clk_rate * 8;
+	clk_req->escclk_rate = msm_host->esc_clk_rate;
+}
+
 int msm_dsi_host_enable(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
@@ -2155,10 +2184,10 @@ static void msm_dsi_sfpb_config(struct msm_dsi_host *msm_host, bool enable)
 			SFPB_GPREG_MASTER_PORT_EN(en));
 }
 
-int msm_dsi_host_power_on(struct mipi_dsi_host *host)
+int msm_dsi_host_power_on(struct mipi_dsi_host *host,
+			struct msm_dsi_phy_shared_timings *phy_shared_timings)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
-	u32 clk_pre = 0, clk_post = 0;
 	int ret = 0;
 
 	mutex_lock(&msm_host->dev_mutex);
@@ -2169,34 +2198,11 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 
 	msm_dsi_sfpb_config(msm_host, true);
 
-	ret = dsi_calc_clk_rate(msm_host);
-	if (ret) {
-		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
-		goto unlock_ret;
-	}
-
 	ret = dsi_host_regulator_enable(msm_host);
 	if (ret) {
 		pr_err("%s:Failed to enable vregs.ret=%d\n",
 			__func__, ret);
 		goto unlock_ret;
-	}
-
-	ret = dsi_bus_clk_enable(msm_host);
-	if (ret) {
-		pr_err("%s: failed to enable bus clocks, %d\n", __func__, ret);
-		goto fail_disable_reg;
-	}
-
-	dsi_phy_sw_reset(msm_host);
-	ret = msm_dsi_manager_phy_enable(msm_host->id,
-					msm_host->byte_clk_rate * 8,
-					msm_host->esc_clk_rate,
-					&clk_pre, &clk_post);
-	dsi_bus_clk_disable(msm_host);
-	if (ret) {
-		pr_err("%s: failed to enable phy, %d\n", __func__, ret);
-		goto fail_disable_reg;
 	}
 
 	ret = dsi_clk_ctrl(msm_host, 1);
@@ -2214,7 +2220,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 
 	dsi_timing_setup(msm_host);
 	dsi_sw_reset(msm_host);
-	dsi_ctrl_config(msm_host, true, clk_pre, clk_post);
+	dsi_ctrl_config(msm_host, true, phy_shared_timings);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 1);
@@ -2243,14 +2249,12 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 		goto unlock_ret;
 	}
 
-	dsi_ctrl_config(msm_host, false, 0, 0);
+	dsi_ctrl_config(msm_host, false, NULL);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 0);
 
 	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
-
-	msm_dsi_manager_phy_disable(msm_host->id);
 
 	dsi_clk_ctrl(msm_host, 0);
 
@@ -2271,6 +2275,7 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 					struct drm_display_mode *mode)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	int ret;
 
 	if (msm_host->mode) {
 		drm_mode_destroy(msm_host->dev, msm_host->mode);
@@ -2281,6 +2286,12 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 	if (!msm_host->mode) {
 		pr_err("%s: cannot duplicate mode\n", __func__);
 		return -ENOMEM;
+	}
+
+	ret = dsi_calc_clk_rate(msm_host);
+	if (ret) {
+		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
+		return ret;
 	}
 
 	return 0;

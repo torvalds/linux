@@ -43,7 +43,7 @@ struct exynos_dp_device {
 	struct analogix_dp_plat_data plat_data;
 };
 
-int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
+static int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
 				bool enable)
 {
 	struct exynos_dp_device *dp = to_dp(plat_data);
@@ -99,7 +99,6 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 				   struct drm_connector *connector)
 {
 	struct exynos_dp_device *dp = to_dp(plat_data);
-	struct drm_encoder *encoder = &dp->encoder;
 	int ret;
 
 	drm_connector_register(connector);
@@ -107,9 +106,7 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 
 	/* Pre-empt DP connector creation if there's a bridge */
 	if (dp->ptn_bridge) {
-		bridge->next = dp->ptn_bridge;
-		dp->ptn_bridge->encoder = encoder;
-		ret = drm_bridge_attach(encoder->dev, dp->ptn_bridge);
+		ret = drm_bridge_attach(&dp->encoder, dp->ptn_bridge, bridge);
 		if (ret) {
 			DRM_ERROR("Failed to attach bridge to drm\n");
 			bridge->next = NULL;

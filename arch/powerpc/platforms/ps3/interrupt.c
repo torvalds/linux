@@ -192,7 +192,7 @@ static int ps3_virq_setup(enum ps3_cpu_binding cpu, unsigned long outlet,
 
 	*virq = irq_create_mapping(NULL, outlet);
 
-	if (*virq == NO_IRQ) {
+	if (!*virq) {
 		FAIL("%s:%d: irq_create_mapping failed: outlet %lu\n",
 			__func__, __LINE__, outlet);
 		result = -ENOMEM;
@@ -339,7 +339,7 @@ int ps3_event_receive_port_setup(enum ps3_cpu_binding cpu, unsigned int *virq)
 	if (result) {
 		FAIL("%s:%d: lv1_construct_event_receive_port failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
-		*virq = NO_IRQ;
+		*virq = 0;
 		return result;
 	}
 
@@ -418,7 +418,7 @@ int ps3_sb_event_receive_port_setup(struct ps3_system_bus_device *dev,
 			" failed: %s\n", __func__, __LINE__,
 			ps3_result(result));
 		ps3_event_receive_port_destroy(*virq);
-		*virq = NO_IRQ;
+		*virq = 0;
 		return result;
 	}
 
@@ -724,12 +724,12 @@ static unsigned int ps3_get_irq(void)
 	asm volatile("cntlzd %0,%1" : "=r" (plug) : "r" (x));
 	plug &= 0x3f;
 
-	if (unlikely(plug == NO_IRQ)) {
+	if (unlikely(!plug)) {
 		DBG("%s:%d: no plug found: thread_id %llu\n", __func__,
 			__LINE__, pd->thread_id);
 		dump_bmp(&per_cpu(ps3_private, 0));
 		dump_bmp(&per_cpu(ps3_private, 1));
-		return NO_IRQ;
+		return 0;
 	}
 
 #if defined(DEBUG)

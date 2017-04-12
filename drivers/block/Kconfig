@@ -69,6 +69,7 @@ config AMIGA_Z2RAM
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
 	depends on SH_DREAMCAST
+	select BLK_SCSI_REQUEST # only for the generic cdrom code
 	help
 	  A standard SEGA Dreamcast comes with a modified CD ROM drive called a
 	  "GD-ROM" by SEGA to signify it is capable of reading special disks
@@ -114,6 +115,7 @@ config BLK_CPQ_CISS_DA
 	tristate "Compaq Smart Array 5xxx support"
 	depends on PCI
 	select CHECK_SIGNATURE
+	select BLK_SCSI_REQUEST
 	help
 	  This is the driver for Compaq Smart Array 5xxx controllers.
 	  Everyone using these boards should say Y here.
@@ -384,9 +386,13 @@ config BLK_DEV_RAM_DAX
 	  allocated from highmem (only a problem for highmem systems).
 
 config CDROM_PKTCDVD
-	tristate "Packet writing on CD/DVD media"
+	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
+	select BLK_SCSI_REQUEST
 	help
+	  Note: This driver is deprecated and will be removed from the
+	  kernel in the near future!
+
 	  If you have a CDROM/DVD drive that supports packet writing, say
 	  Y to include support. It should work with any MMC/Mt Fuji
 	  compliant ATAPI or SCSI drive, which is just about any newer
@@ -497,6 +503,16 @@ config VIRTIO_BLK
 	---help---
 	  This is the virtual block driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+config VIRTIO_BLK_SCSI
+	bool "SCSI passthrough request for the Virtio block driver"
+	depends on VIRTIO_BLK
+	select BLK_SCSI_REQUEST
+	---help---
+	  Enable support for SCSI passthrough (e.g. the SG_IO ioctl) on
+	  virtio-blk devices.  This is only supported for the legacy
+	  virtio protocol and not enabled by default by any hypervisor.
+	  Your probably want to virtio-scsi instead.
 
 config BLK_DEV_HD
 	bool "Very old hard disk (MFM/RLL/IDE) driver"

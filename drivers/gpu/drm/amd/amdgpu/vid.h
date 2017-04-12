@@ -360,6 +360,8 @@
 #define	PACKET3_WAIT_ON_CE_COUNTER			0x86
 #define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
 #define	PACKET3_SWITCH_BUFFER				0x8B
+#define	PACKET3_SET_RESOURCES				0xA0
+#define	PACKET3_MAP_QUEUES				0xA2
 
 #define VCE_CMD_NO_OP		0x00000000
 #define VCE_CMD_END		0x00000001
@@ -368,5 +370,46 @@
 #define VCE_CMD_TRAP		0x00000004
 #define VCE_CMD_IB_AUTO	0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
+
+#define VCE_CMD_IB_VM           0x00000102
+#define VCE_CMD_WAIT_GE         0x00000106
+#define VCE_CMD_UPDATE_PTB      0x00000107
+#define VCE_CMD_FLUSH_TLB       0x00000108
+
+/* mmPA_SC_RASTER_CONFIG mask */
+#define RB_MAP_PKR0(x)				((x) << 0)
+#define RB_MAP_PKR0_MASK			(0x3 << 0)
+#define RB_MAP_PKR1(x)				((x) << 2)
+#define RB_MAP_PKR1_MASK			(0x3 << 2)
+#define RB_XSEL2(x)				((x) << 4)
+#define RB_XSEL2_MASK				(0x3 << 4)
+#define RB_XSEL					(1 << 6)
+#define RB_YSEL					(1 << 7)
+#define PKR_MAP(x)				((x) << 8)
+#define PKR_MAP_MASK				(0x3 << 8)
+#define PKR_XSEL(x)				((x) << 10)
+#define PKR_XSEL_MASK				(0x3 << 10)
+#define PKR_YSEL(x)				((x) << 12)
+#define PKR_YSEL_MASK				(0x3 << 12)
+#define SC_MAP(x)				((x) << 16)
+#define SC_MAP_MASK				(0x3 << 16)
+#define SC_XSEL(x)				((x) << 18)
+#define SC_XSEL_MASK				(0x3 << 18)
+#define SC_YSEL(x)				((x) << 20)
+#define SC_YSEL_MASK				(0x3 << 20)
+#define SE_MAP(x)				((x) << 24)
+#define SE_MAP_MASK				(0x3 << 24)
+#define SE_XSEL(x)				((x) << 26)
+#define SE_XSEL_MASK				(0x3 << 26)
+#define SE_YSEL(x)				((x) << 28)
+#define SE_YSEL_MASK				(0x3 << 28)
+
+/* mmPA_SC_RASTER_CONFIG_1 mask */
+#define SE_PAIR_MAP(x)				((x) << 0)
+#define SE_PAIR_MAP_MASK			(0x3 << 0)
+#define SE_PAIR_XSEL(x)				((x) << 2)
+#define SE_PAIR_XSEL_MASK			(0x3 << 2)
+#define SE_PAIR_YSEL(x)				((x) << 4)
+#define SE_PAIR_YSEL_MASK			(0x3 << 4)
 
 #endif

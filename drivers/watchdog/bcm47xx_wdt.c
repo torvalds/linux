@@ -226,9 +226,6 @@ static int bcm47xx_wdt_remove(struct platform_device *pdev)
 {
 	struct bcm47xx_wdt *wdt = dev_get_platdata(&pdev->dev);
 
-	if (!wdt)
-		return -ENXIO;
-
 	watchdog_unregister_device(&wdt->wdd);
 
 	return 0;

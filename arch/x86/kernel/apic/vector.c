@@ -559,7 +559,7 @@ void send_cleanup_vector(struct irq_cfg *cfg)
 		__send_cleanup_vector(data);
 }
 
-asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
+asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
 {
 	unsigned vector, me;
 
@@ -661,10 +661,27 @@ void irq_complete_move(struct irq_cfg *cfg)
  */
 void irq_force_complete_move(struct irq_desc *desc)
 {
-	struct irq_data *irqdata = irq_desc_get_irq_data(desc);
-	struct apic_chip_data *data = apic_chip_data(irqdata);
-	struct irq_cfg *cfg = data ? &data->cfg : NULL;
+	struct irq_data *irqdata;
+	struct apic_chip_data *data;
+	struct irq_cfg *cfg;
 	unsigned int cpu;
+
+	/*
+	 * The function is called for all descriptors regardless of which
+	 * irqdomain they belong to. For example if an IRQ is provided by
+	 * an irq_chip as part of a GPIO driver, the chip data for that
+	 * descriptor is specific to the irq_chip in question.
+	 *
+	 * Check first that the chip_data is what we expect
+	 * (apic_chip_data) before touching it any further.
+	 */
+	irqdata = irq_domain_get_irq_data(x86_vector_domain,
+					  irq_desc_get_irq(desc));
+	if (!irqdata)
+		return;
+
+	data = apic_chip_data(irqdata);
+	cfg = data ? &data->cfg : NULL;
 
 	if (!cfg)
 		return;

@@ -22,7 +22,7 @@
 #include <linux/vt_kern.h>              /* For unblank_screen() */
 
 #include <asm/m32r.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/hardirq.h>

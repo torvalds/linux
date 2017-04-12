@@ -13,6 +13,7 @@
 #ifndef _WM_ARIZONA_CORE_H
 #define _WM_ARIZONA_CORE_H
 
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/regmap.h>
@@ -20,6 +21,12 @@
 #include <linux/mfd/arizona/pdata.h>
 
 #define ARIZONA_MAX_CORE_SUPPLIES 2
+
+enum {
+	ARIZONA_MCLK1,
+	ARIZONA_MCLK2,
+	ARIZONA_NUM_MCLK
+};
 
 enum arizona_type {
 	WM5102 = 1,
@@ -139,6 +146,8 @@ struct arizona {
 	struct mutex clk_lock;
 	int clk32k_ref;
 
+	struct clk *mclk[ARIZONA_NUM_MCLK];
+
 	bool ctrlif_error;
 
 	struct snd_soc_dapm_context *dapm;
@@ -181,8 +190,5 @@ int wm5110_patch(struct arizona *arizona);
 int cs47l24_patch(struct arizona *arizona);
 int wm8997_patch(struct arizona *arizona);
 int wm8998_patch(struct arizona *arizona);
-
-extern int arizona_of_get_named_gpio(struct arizona *arizona, const char *prop,
-				     bool mandatory);
 
 #endif

@@ -167,7 +167,7 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
  * making all of the arch DMA ops work on the vring device itself
  * is a mess.  For now, we use the parent device for DMA ops.
  */
-static struct device *vring_dma_dev(const struct vring_virtqueue *vq)
+static inline struct device *vring_dma_dev(const struct vring_virtqueue *vq)
 {
 	return vq->vq.vdev->dev.parent;
 }
@@ -420,7 +420,7 @@ unmap_release:
 		if (i == err_idx)
 			break;
 		vring_unmap_one(vq, &desc[i]);
-		i = vq->vring.desc[i].next;
+		i = virtio16_to_cpu(_vq->vdev, vq->vring.desc[i].next);
 	}
 
 	vq->vq.num_free += total_sg;
@@ -601,7 +601,7 @@ EXPORT_SYMBOL_GPL(virtqueue_kick);
 static void detach_buf(struct vring_virtqueue *vq, unsigned int head)
 {
 	unsigned int i, j;
-	u16 nextflag = cpu_to_virtio16(vq->vq.vdev, VRING_DESC_F_NEXT);
+	__virtio16 nextflag = cpu_to_virtio16(vq->vq.vdev, VRING_DESC_F_NEXT);
 
 	/* Clear data ptr. */
 	vq->desc_state[head].data = NULL;
@@ -649,7 +649,7 @@ static inline bool more_used(const struct vring_virtqueue *vq)
  * @vq: the struct virtqueue we're talking about.
  * @len: the length written into the buffer
  *
- * If the driver wrote data into the buffer, @len will be set to the
+ * If the device wrote data into the buffer, @len will be set to the
  * amount written.  This means you don't need to clear the buffer
  * beforehand to ensure there's no data leakage in the case of short
  * writes.
@@ -732,7 +732,8 @@ void virtqueue_disable_cb(struct virtqueue *_vq)
 
 	if (!(vq->avail_flags_shadow & VRING_AVAIL_F_NO_INTERRUPT)) {
 		vq->avail_flags_shadow |= VRING_AVAIL_F_NO_INTERRUPT;
-		vq->vring.avail->flags = cpu_to_virtio16(_vq->vdev, vq->avail_flags_shadow);
+		if (!vq->event)
+			vq->vring.avail->flags = cpu_to_virtio16(_vq->vdev, vq->avail_flags_shadow);
 	}
 
 }
@@ -764,7 +765,8 @@ unsigned virtqueue_enable_cb_prepare(struct virtqueue *_vq)
 	 * entry. Always do both to keep code simple. */
 	if (vq->avail_flags_shadow & VRING_AVAIL_F_NO_INTERRUPT) {
 		vq->avail_flags_shadow &= ~VRING_AVAIL_F_NO_INTERRUPT;
-		vq->vring.avail->flags = cpu_to_virtio16(_vq->vdev, vq->avail_flags_shadow);
+		if (!vq->event)
+			vq->vring.avail->flags = cpu_to_virtio16(_vq->vdev, vq->avail_flags_shadow);
 	}
 	vring_used_event(&vq->vring) = cpu_to_virtio16(_vq->vdev, last_used_idx = vq->last_used_idx);
 	END_USE(vq);
@@ -832,10 +834,11 @@ bool virtqueue_enable_cb_delayed(struct virtqueue *_vq)
 	 * more to do. */
 	/* Depending on the VIRTIO_RING_F_USED_EVENT_IDX feature, we need to
 	 * either clear the flags bit or point the event index at the next
-	 * entry. Always do both to keep code simple. */
+	 * entry. Always update the event index to keep code simple. */
 	if (vq->avail_flags_shadow & VRING_AVAIL_F_NO_INTERRUPT) {
 		vq->avail_flags_shadow &= ~VRING_AVAIL_F_NO_INTERRUPT;
-		vq->vring.avail->flags = cpu_to_virtio16(_vq->vdev, vq->avail_flags_shadow);
+		if (!vq->event)
+			vq->vring.avail->flags = cpu_to_virtio16(_vq->vdev, vq->avail_flags_shadow);
 	}
 	/* TODO: tune this threshold */
 	bufs = (u16)(vq->avail_idx_shadow - vq->last_used_idx) * 3 / 4;
@@ -953,7 +956,8 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	/* No callback?  Tell other side not to bother us. */
 	if (!callback) {
 		vq->avail_flags_shadow |= VRING_AVAIL_F_NO_INTERRUPT;
-		vq->vring.avail->flags = cpu_to_virtio16(vdev, vq->avail_flags_shadow);
+		if (!vq->event)
+			vq->vring.avail->flags = cpu_to_virtio16(vdev, vq->avail_flags_shadow);
 	}
 
 	/* Put everything in free lists. */

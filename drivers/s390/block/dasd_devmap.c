@@ -20,12 +20,13 @@
 #include <linux/slab.h>
 
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ipl.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_devmap:"
 #define DASD_BUS_ID_SIZE 20
+#define DASD_MAX_PARAMS 256
 
 #include "dasd_int.h"
 
@@ -76,7 +77,7 @@ EXPORT_SYMBOL_GPL(dasd_nofcx);
  * it is named 'dasd' to directly be filled by insmod with the comma separated
  * strings when running as a module.
  */
-static char *dasd[256];
+static char *dasd[DASD_MAX_PARAMS];
 module_param_array(dasd, charp, NULL, S_IRUGO);
 
 /*
@@ -104,18 +105,19 @@ dasd_hash_busid(const char *bus_id)
 }
 
 #ifndef MODULE
-/*
- * The parameter parsing functions for builtin-drivers are called
- * before kmalloc works. Store the pointers to the parameters strings
- * into dasd[] for later processing.
- */
-static int __init
-dasd_call_setup(char *str)
+static int __init dasd_call_setup(char *opt)
 {
-	static int count = 0;
+	static int i __initdata;
+	char *tmp;
 
-	if (count < 256)
-		dasd[count++] = str;
+	while (i < DASD_MAX_PARAMS) {
+		tmp = strsep(&opt, ",");
+		if (!tmp)
+			break;
+
+		dasd[i++] = tmp;
+	}
+
 	return 1;
 }
 
@@ -127,14 +129,13 @@ __setup ("dasd=", dasd_call_setup);
 /*
  * Read a device busid/devno from a string.
  */
-static int
-
-dasd_busid(char **str, int *id0, int *id1, int *devno)
+static int __init dasd_busid(char *str, int *id0, int *id1, int *devno)
 {
-	int val, old_style;
+	unsigned int val;
+	char *tok;
 
 	/* Interpret ipldev busid */
-	if (strncmp(DASD_IPLDEV, *str, strlen(DASD_IPLDEV)) == 0) {
+	if (strncmp(DASD_IPLDEV, str, strlen(DASD_IPLDEV)) == 0) {
 		if (ipl_info.type != IPL_TYPE_CCW) {
 			pr_err("The IPL device is not a CCW device\n");
 			return -EINVAL;
@@ -142,63 +143,50 @@ dasd_busid(char **str, int *id0, int *id1, int *devno)
 		*id0 = 0;
 		*id1 = ipl_info.data.ccw.dev_id.ssid;
 		*devno = ipl_info.data.ccw.dev_id.devno;
-		*str += strlen(DASD_IPLDEV);
 
 		return 0;
 	}
-	/* check for leading '0x' */
-	old_style = 0;
-	if ((*str)[0] == '0' && (*str)[1] == 'x') {
-		*str += 2;
-		old_style = 1;
-	}
-	if (!isxdigit((*str)[0]))	/* We require at least one hex digit */
-		return -EINVAL;
-	val = simple_strtoul(*str, str, 16);
-	if (old_style || (*str)[0] != '.') {
+
+	/* Old style 0xXXXX or XXXX */
+	if (!kstrtouint(str, 16, &val)) {
 		*id0 = *id1 = 0;
 		if (val < 0 || val > 0xffff)
 			return -EINVAL;
 		*devno = val;
 		return 0;
 	}
+
 	/* New style x.y.z busid */
-	if (val < 0 || val > 0xff)
+	tok = strsep(&str, ".");
+	if (kstrtouint(tok, 16, &val) || val > 0xff)
 		return -EINVAL;
 	*id0 = val;
-	(*str)++;
-	if (!isxdigit((*str)[0]))	/* We require at least one hex digit */
-		return -EINVAL;
-	val = simple_strtoul(*str, str, 16);
-	if (val < 0 || val > 0xff || (*str)++[0] != '.')
+
+	tok = strsep(&str, ".");
+	if (kstrtouint(tok, 16, &val) || val > 0xff)
 		return -EINVAL;
 	*id1 = val;
-	if (!isxdigit((*str)[0]))	/* We require at least one hex digit */
-		return -EINVAL;
-	val = simple_strtoul(*str, str, 16);
-	if (val < 0 || val > 0xffff)
+
+	tok = strsep(&str, ".");
+	if (kstrtouint(tok, 16, &val) || val > 0xffff)
 		return -EINVAL;
 	*devno = val;
+
 	return 0;
 }
 
 /*
- * Read colon separated list of dasd features. Currently there is
- * only one: "ro" for read-only devices. The default feature set
- * is empty (value 0).
+ * Read colon separated list of dasd features.
  */
-static int
-dasd_feature_list(char *str, char **endp)
+static int __init dasd_feature_list(char *str)
 {
 	int features, len, rc;
 
-	rc = 0;
-	if (*str != '(') {
-		*endp = str;
-		return DASD_FEATURE_DEFAULT;
-	}
-	str++;
 	features = 0;
+	rc = 0;
+
+	if (!str)
+		return DASD_FEATURE_DEFAULT;
 
 	while (1) {
 		for (len = 0;
@@ -223,15 +211,8 @@ dasd_feature_list(char *str, char **endp)
 			break;
 		str++;
 	}
-	if (*str != ')') {
-		pr_warn("A closing parenthesis ')' is missing in the dasd= parameter\n");
-		rc = -EINVAL;
-	} else
-		str++;
-	*endp = str;
-	if (rc != 0)
-		return rc;
-	return features;
+
+	return rc ? : features;
 }
 
 /*
@@ -240,48 +221,38 @@ dasd_feature_list(char *str, char **endp)
  * action and return a pointer to the residual string. If the first element
  * could not be matched to any keyword then return an error code.
  */
-static char *
-dasd_parse_keyword( char *parsestring ) {
+static int __init dasd_parse_keyword(char *keyword)
+{
+	int length = strlen(keyword);
 
-	char *nextcomma, *residual_str;
-	int length;
-
-	nextcomma = strchr(parsestring,',');
-	if (nextcomma) {
-		length = nextcomma - parsestring;
-		residual_str = nextcomma + 1;
-	} else {
-		length = strlen(parsestring);
-		residual_str = parsestring + length;
-        }
-	if (strncmp("autodetect", parsestring, length) == 0) {
+	if (strncmp("autodetect", keyword, length) == 0) {
 		dasd_autodetect = 1;
 		pr_info("The autodetection mode has been activated\n");
-                return residual_str;
+		return 0;
         }
-	if (strncmp("probeonly", parsestring, length) == 0) {
+	if (strncmp("probeonly", keyword, length) == 0) {
 		dasd_probeonly = 1;
 		pr_info("The probeonly mode has been activated\n");
-                return residual_str;
+		return 0;
         }
-	if (strncmp("nopav", parsestring, length) == 0) {
+	if (strncmp("nopav", keyword, length) == 0) {
 		if (MACHINE_IS_VM)
 			pr_info("'nopav' is not supported on z/VM\n");
 		else {
 			dasd_nopav = 1;
 			pr_info("PAV support has be deactivated\n");
 		}
-		return residual_str;
+		return 0;
 	}
-	if (strncmp("nofcx", parsestring, length) == 0) {
+	if (strncmp("nofcx", keyword, length) == 0) {
 		dasd_nofcx = 1;
 		pr_info("High Performance FICON support has been "
 			"deactivated\n");
-		return residual_str;
+		return 0;
 	}
-	if (strncmp("fixedbuffers", parsestring, length) == 0) {
+	if (strncmp("fixedbuffers", keyword, length) == 0) {
 		if (dasd_page_cache)
-			return residual_str;
+			return 0;
 		dasd_page_cache =
 			kmem_cache_create("dasd_page_cache", PAGE_SIZE,
 					  PAGE_SIZE, SLAB_CACHE_DMA,
@@ -292,107 +263,126 @@ dasd_parse_keyword( char *parsestring ) {
 		else
 			DBF_EVENT(DBF_INFO, "%s",
 				 "turning on fixed buffer mode");
-                return residual_str;
-        }
-	return ERR_PTR(-EINVAL);
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 /*
- * Try to interprete the first element on the comma separated parse string
- * as a device number or a range of devices. If the interpretation is
- * successful, create the matching dasd_devmap entries and return a pointer
- * to the residual string.
+ * Split a string of a device range into its pieces and return the from, to, and
+ * feature parts separately.
+ * e.g.:
+ * 0.0.1234-0.0.5678(ro:erplog) -> from: 0.0.1234 to: 0.0.5678 features: ro:erplog
+ * 0.0.8765(raw) -> from: 0.0.8765 to: null features: raw
+ * 0x4321 -> from: 0x4321 to: null features: null
+ */
+static int __init dasd_evaluate_range_param(char *range, char **from_str,
+					    char **to_str, char **features_str)
+{
+	int rc = 0;
+
+	/* Do we have a range or a single device? */
+	if (strchr(range, '-')) {
+		*from_str = strsep(&range, "-");
+		*to_str = strsep(&range, "(");
+		*features_str = strsep(&range, ")");
+	} else {
+		*from_str = strsep(&range, "(");
+		*features_str = strsep(&range, ")");
+	}
+
+	if (*features_str && !range) {
+		pr_warn("A closing parenthesis ')' is missing in the dasd= parameter\n");
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+/*
+ * Try to interprete the range string as a device number or a range of devices.
+ * If the interpretation is successful, create the matching dasd_devmap entries.
  * If interpretation fails or in case of an error, return an error code.
  */
-static char *
-dasd_parse_range( char *parsestring ) {
-
+static int __init dasd_parse_range(const char *range)
+{
 	struct dasd_devmap *devmap;
 	int from, from_id0, from_id1;
 	int to, to_id0, to_id1;
-	int features, rc;
-	char bus_id[DASD_BUS_ID_SIZE+1], *str;
+	int features;
+	char bus_id[DASD_BUS_ID_SIZE + 1];
+	char *features_str = NULL;
+	char *from_str = NULL;
+	char *to_str = NULL;
+	size_t len = strlen(range) + 1;
+	char tmp[len];
 
-	str = parsestring;
-	rc = dasd_busid(&str, &from_id0, &from_id1, &from);
-	if (rc == 0) {
-		to = from;
-		to_id0 = from_id0;
-		to_id1 = from_id1;
-		if (*str == '-') {
-			str++;
-			rc = dasd_busid(&str, &to_id0, &to_id1, &to);
+	strlcpy(tmp, range, len);
+
+	if (dasd_evaluate_range_param(tmp, &from_str, &to_str, &features_str))
+		goto out_err;
+
+	if (dasd_busid(from_str, &from_id0, &from_id1, &from))
+		goto out_err;
+
+	to = from;
+	to_id0 = from_id0;
+	to_id1 = from_id1;
+	if (to_str) {
+		if (dasd_busid(to_str, &to_id0, &to_id1, &to))
+			goto out_err;
+		if (from_id0 != to_id0 || from_id1 != to_id1 || from > to) {
+			pr_err("%s is not a valid device range\n", range);
+			goto out_err;
 		}
 	}
-	if (rc == 0 &&
-	    (from_id0 != to_id0 || from_id1 != to_id1 || from > to))
-		rc = -EINVAL;
-	if (rc) {
-		pr_err("%s is not a valid device range\n", parsestring);
-		return ERR_PTR(rc);
-	}
-	features = dasd_feature_list(str, &str);
+
+	features = dasd_feature_list(features_str);
 	if (features < 0)
-		return ERR_PTR(-EINVAL);
+		goto out_err;
 	/* each device in dasd= parameter should be set initially online */
 	features |= DASD_FEATURE_INITIAL_ONLINE;
 	while (from <= to) {
-		sprintf(bus_id, "%01x.%01x.%04x",
-			from_id0, from_id1, from++);
+		sprintf(bus_id, "%01x.%01x.%04x", from_id0, from_id1, from++);
 		devmap = dasd_add_busid(bus_id, features);
 		if (IS_ERR(devmap))
-			return (char *)devmap;
+			return PTR_ERR(devmap);
 	}
-	if (*str == ',')
-		return str + 1;
-	if (*str == '\0')
-		return str;
-	pr_warn("The dasd= parameter value %s has an invalid ending\n", str);
-	return ERR_PTR(-EINVAL);
-}
 
-static char *
-dasd_parse_next_element( char *parsestring ) {
-	char * residual_str;
-	residual_str = dasd_parse_keyword(parsestring);
-	if (!IS_ERR(residual_str))
-		return residual_str;
-	residual_str = dasd_parse_range(parsestring);
-	return residual_str;
+	return 0;
+
+out_err:
+	return -EINVAL;
 }
 
 /*
  * Parse parameters stored in dasd[]
  * The 'dasd=...' parameter allows to specify a comma separated list of
- * keywords and device ranges. When the dasd driver is build into the kernel,
- * the complete list will be stored as one element of the dasd[] array.
- * When the dasd driver is build as a module, then the list is broken into
- * it's elements and each dasd[] entry contains one element.
+ * keywords and device ranges. The parameters in that list will be stored as
+ * separate elementes in dasd[].
  */
-int
-dasd_parse(void)
+int __init dasd_parse(void)
 {
 	int rc, i;
-	char *parsestring;
+	char *cur;
 
 	rc = 0;
-	for (i = 0; i < 256; i++) {
-		if (dasd[i] == NULL)
+	for (i = 0; i < DASD_MAX_PARAMS; i++) {
+		cur = dasd[i];
+		if (!cur)
 			break;
-		parsestring = dasd[i];
-		/* loop over the comma separated list in the parsestring */
-		while (*parsestring) {
-			parsestring = dasd_parse_next_element(parsestring);
-			if(IS_ERR(parsestring)) {
-				rc = PTR_ERR(parsestring);
-				break;
-			}
-		}
-		if (rc) {
-			DBF_EVENT(DBF_ALERT, "%s", "invalid range found");
+		if (*cur == '\0')
+			continue;
+
+		rc = dasd_parse_keyword(cur);
+		if (rc)
+			rc = dasd_parse_range(cur);
+
+		if (rc)
 			break;
-		}
 	}
+
 	return rc;
 }
 
@@ -617,6 +607,7 @@ dasd_delete_device(struct dasd_device *device)
 	/* Wait for reference counter to drop to zero. */
 	wait_event(dasd_delete_wq, atomic_read(&device->ref_count) == 0);
 
+	dasd_generic_free_discipline(device);
 	/* Disconnect dasd_device structure from ccw_device structure. */
 	cdev = device->cdev;
 	device->cdev = NULL;
@@ -724,27 +715,15 @@ static ssize_t dasd_ff_show(struct device *dev, struct device_attribute *attr,
 static ssize_t dasd_ff_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
-	struct dasd_devmap *devmap;
-	int val;
-	char *endp;
+	unsigned int val;
+	int rc;
 
-	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
-	if (IS_ERR(devmap))
-		return PTR_ERR(devmap);
-
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
-	spin_lock(&dasd_devmap_lock);
-	if (val)
-		devmap->features |= DASD_FEATURE_FAILFAST;
-	else
-		devmap->features &= ~DASD_FEATURE_FAILFAST;
-	if (devmap->device)
-		devmap->device->features = devmap->features;
-	spin_unlock(&dasd_devmap_lock);
-	return count;
+	rc = dasd_set_feature(to_ccwdev(dev), DASD_FEATURE_FAILFAST, val);
+
+	return rc ? : count;
 }
 
 static DEVICE_ATTR(failfast, 0644, dasd_ff_show, dasd_ff_store);
@@ -770,32 +749,41 @@ static ssize_t
 dasd_ro_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
-	struct dasd_devmap *devmap;
+	struct ccw_device *cdev = to_ccwdev(dev);
 	struct dasd_device *device;
-	int val;
-	char *endp;
+	unsigned long flags;
+	unsigned int val;
+	int rc;
 
-	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
-	if (IS_ERR(devmap))
-		return PTR_ERR(devmap);
-
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
-	spin_lock(&dasd_devmap_lock);
-	if (val)
-		devmap->features |= DASD_FEATURE_READONLY;
-	else
-		devmap->features &= ~DASD_FEATURE_READONLY;
-	device = devmap->device;
-	if (device) {
-		device->features = devmap->features;
-		val = val || test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+	rc = dasd_set_feature(cdev, DASD_FEATURE_READONLY, val);
+	if (rc)
+		return rc;
+
+	device = dasd_device_from_cdev(cdev);
+	if (IS_ERR(device))
+		return PTR_ERR(device);
+
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	val = val || test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+
+	if (!device->block || !device->block->gdp ||
+	    test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+		goto out;
 	}
-	spin_unlock(&dasd_devmap_lock);
-	if (device && device->block && device->block->gdp)
-		set_disk_ro(device->block->gdp, val);
+	/* Increase open_count to avoid losing the block device */
+	atomic_inc(&device->block->open_count);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+
+	set_disk_ro(device->block->gdp, val);
+	atomic_dec(&device->block->open_count);
+
+out:
+	dasd_put_device(device);
+
 	return count;
 }
 
@@ -822,27 +810,15 @@ static ssize_t
 dasd_erplog_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
-	struct dasd_devmap *devmap;
-	int val;
-	char *endp;
+	unsigned int val;
+	int rc;
 
-	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
-	if (IS_ERR(devmap))
-		return PTR_ERR(devmap);
-
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
-	spin_lock(&dasd_devmap_lock);
-	if (val)
-		devmap->features |= DASD_FEATURE_ERPLOG;
-	else
-		devmap->features &= ~DASD_FEATURE_ERPLOG;
-	if (devmap->device)
-		devmap->device->features = devmap->features;
-	spin_unlock(&dasd_devmap_lock);
-	return count;
+	rc = dasd_set_feature(to_ccwdev(dev), DASD_FEATURE_ERPLOG, val);
+
+	return rc ? : count;
 }
 
 static DEVICE_ATTR(erplog, 0644, dasd_erplog_show, dasd_erplog_store);
@@ -870,16 +846,14 @@ dasd_use_diag_store(struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
+	unsigned int val;
 	ssize_t rc;
-	int val;
-	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
 	spin_lock(&dasd_devmap_lock);
@@ -993,10 +967,12 @@ dasd_access_show(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
-	if (device->discipline->host_access_count)
-		count = device->discipline->host_access_count(device);
-	else
+	if (!device->discipline)
+		count = -ENODEV;
+	else if (!device->discipline->host_access_count)
 		count = -EOPNOTSUPP;
+	else
+		count = device->discipline->host_access_count(device);
 
 	dasd_put_device(device);
 	if (count < 0)
@@ -1196,27 +1172,25 @@ static ssize_t
 dasd_eer_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
-	struct dasd_devmap *devmap;
-	int val, rc;
-	char *endp;
+	struct dasd_device *device;
+	unsigned int val;
+	int rc = 0;
 
-	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
-	if (IS_ERR(devmap))
-		return PTR_ERR(devmap);
-	if (!devmap->device)
-		return -ENODEV;
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return PTR_ERR(device);
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
-	if (val) {
-		rc = dasd_eer_enable(devmap->device);
-		if (rc)
-			return rc;
-	} else
-		dasd_eer_disable(devmap->device);
-	return count;
+	if (val)
+		rc = dasd_eer_enable(device);
+	else
+		dasd_eer_disable(device);
+
+	dasd_put_device(device);
+
+	return rc ? : count;
 }
 
 static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
@@ -1359,6 +1333,50 @@ dasd_timeout_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(timeout, 0644,
 		   dasd_timeout_show, dasd_timeout_store);
 
+
+static ssize_t
+dasd_path_reset_store(struct device *dev, struct device_attribute *attr,
+		      const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	unsigned int val;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	if ((kstrtouint(buf, 16, &val) != 0) || val > 0xff)
+		val = 0;
+
+	if (device->discipline && device->discipline->reset_path)
+		device->discipline->reset_path(device, (__u8) val);
+
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR(path_reset, 0200, NULL, dasd_path_reset_store);
+
+static ssize_t dasd_hpf_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct dasd_device *device;
+	int hpf;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	if (!device->discipline || !device->discipline->hpf_enabled) {
+		dasd_put_device(device);
+		return snprintf(buf, PAGE_SIZE, "%d\n", dasd_nofcx);
+	}
+	hpf = device->discipline->hpf_enabled(device);
+	dasd_put_device(device);
+	return snprintf(buf, PAGE_SIZE, "%d\n", hpf);
+}
+
+static DEVICE_ATTR(hpf, 0444, dasd_hpf_show, NULL);
+
 static ssize_t dasd_reservation_policy_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
@@ -1384,27 +1402,17 @@ static ssize_t dasd_reservation_policy_store(struct device *dev,
 					     struct device_attribute *attr,
 					     const char *buf, size_t count)
 {
-	struct dasd_devmap *devmap;
+	struct ccw_device *cdev = to_ccwdev(dev);
 	int rc;
 
-	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
-	if (IS_ERR(devmap))
-		return PTR_ERR(devmap);
-	rc = 0;
-	spin_lock(&dasd_devmap_lock);
 	if (sysfs_streq("ignore", buf))
-		devmap->features &= ~DASD_FEATURE_FAILONSLCK;
+		rc = dasd_set_feature(cdev, DASD_FEATURE_FAILONSLCK, 0);
 	else if (sysfs_streq("fail", buf))
-		devmap->features |= DASD_FEATURE_FAILONSLCK;
+		rc = dasd_set_feature(cdev, DASD_FEATURE_FAILONSLCK, 1);
 	else
 		rc = -EINVAL;
-	if (devmap->device)
-		devmap->device->features = devmap->features;
-	spin_unlock(&dasd_devmap_lock);
-	if (rc)
-		return rc;
-	else
-		return count;
+
+	return rc ? : count;
 }
 
 static DEVICE_ATTR(reservation_policy, 0644,
@@ -1460,24 +1468,117 @@ static ssize_t dasd_pm_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct dasd_device *device;
-	u8 opm, nppm, cablepm, cuirpm, hpfpm;
+	u8 opm, nppm, cablepm, cuirpm, hpfpm, ifccpm;
 
 	device = dasd_device_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(device))
 		return sprintf(buf, "0\n");
 
-	opm = device->path_data.opm;
-	nppm = device->path_data.npm;
-	cablepm = device->path_data.cablepm;
-	cuirpm = device->path_data.cuirpm;
-	hpfpm = device->path_data.hpfpm;
+	opm = dasd_path_get_opm(device);
+	nppm = dasd_path_get_nppm(device);
+	cablepm = dasd_path_get_cablepm(device);
+	cuirpm = dasd_path_get_cuirpm(device);
+	hpfpm = dasd_path_get_hpfpm(device);
+	ifccpm = dasd_path_get_ifccpm(device);
 	dasd_put_device(device);
 
-	return sprintf(buf, "%02x %02x %02x %02x %02x\n", opm, nppm,
-		       cablepm, cuirpm, hpfpm);
+	return sprintf(buf, "%02x %02x %02x %02x %02x %02x\n", opm, nppm,
+		       cablepm, cuirpm, hpfpm, ifccpm);
 }
 
 static DEVICE_ATTR(path_masks, 0444, dasd_pm_show, NULL);
+
+/*
+ * threshold value for IFCC/CCC errors
+ */
+static ssize_t
+dasd_path_threshold_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct dasd_device *device;
+	int len;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	len = snprintf(buf, PAGE_SIZE, "%lu\n", device->path_thrhld);
+	dasd_put_device(device);
+	return len;
+}
+
+static ssize_t
+dasd_path_threshold_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	unsigned long flags;
+	unsigned long val;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	if (kstrtoul(buf, 10, &val) != 0 || val > DASD_THRHLD_MAX) {
+		dasd_put_device(device);
+		return -EINVAL;
+	}
+	spin_lock_irqsave(get_ccwdev_lock(to_ccwdev(dev)), flags);
+	device->path_thrhld = val;
+	spin_unlock_irqrestore(get_ccwdev_lock(to_ccwdev(dev)), flags);
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR(path_threshold, 0644, dasd_path_threshold_show,
+		   dasd_path_threshold_store);
+/*
+ * interval for IFCC/CCC checks
+ * meaning time with no IFCC/CCC error before the error counter
+ * gets reset
+ */
+static ssize_t
+dasd_path_interval_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct dasd_device *device;
+	int len;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	len = snprintf(buf, PAGE_SIZE, "%lu\n", device->path_interval);
+	dasd_put_device(device);
+	return len;
+}
+
+static ssize_t
+dasd_path_interval_store(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	unsigned long flags;
+	unsigned long val;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	if ((kstrtoul(buf, 10, &val) != 0) ||
+	    (val > DASD_INTERVAL_MAX) || val == 0) {
+		dasd_put_device(device);
+		return -EINVAL;
+	}
+	spin_lock_irqsave(get_ccwdev_lock(to_ccwdev(dev)), flags);
+	if (val)
+		device->path_interval = val;
+	spin_unlock_irqrestore(get_ccwdev_lock(to_ccwdev(dev)), flags);
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR(path_interval, 0644, dasd_path_interval_show,
+		   dasd_path_interval_store);
+
 
 static struct attribute * dasd_attrs[] = {
 	&dev_attr_readonly.attr,
@@ -1499,6 +1600,10 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_safe_offline.attr,
 	&dev_attr_host_access_count.attr,
 	&dev_attr_path_masks.attr,
+	&dev_attr_path_threshold.attr,
+	&dev_attr_path_interval.attr,
+	&dev_attr_path_reset.attr,
+	&dev_attr_hpf.attr,
 	NULL,
 };
 
@@ -1530,7 +1635,7 @@ dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
 {
 	struct dasd_devmap *devmap;
 
-	devmap = dasd_find_busid(dev_name(&cdev->dev));
+	devmap = dasd_devmap_from_cdev(cdev);
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 

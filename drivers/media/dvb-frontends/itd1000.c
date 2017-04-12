@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include <linux/module.h>
@@ -348,11 +344,10 @@ static int itd1000_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int itd1000_release(struct dvb_frontend *fe)
+static void itd1000_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops itd1000_tuner_ops = {

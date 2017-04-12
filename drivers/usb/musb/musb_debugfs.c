@@ -37,7 +37,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "musb_core.h"
 #include "musb_debug.h"
@@ -114,6 +114,7 @@ static int musb_regdump_show(struct seq_file *s, void *unused)
 	unsigned		i;
 
 	seq_printf(s, "MUSB (M)HDRC Register Dump\n");
+	pm_runtime_get_sync(musb->controller);
 
 	for (i = 0; i < ARRAY_SIZE(musb_regmap); i++) {
 		switch (musb_regmap[i].size) {
@@ -132,6 +133,8 @@ static int musb_regdump_show(struct seq_file *s, void *unused)
 		}
 	}
 
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 	return 0;
 }
 
@@ -145,30 +148,39 @@ static int musb_test_mode_show(struct seq_file *s, void *unused)
 	struct musb		*musb = s->private;
 	unsigned		test;
 
+	pm_runtime_get_sync(musb->controller);
 	test = musb_readb(musb->mregs, MUSB_TESTMODE);
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 
-	if (test & MUSB_TEST_FORCE_HOST)
+	if (test == (MUSB_TEST_FORCE_HOST | MUSB_TEST_FORCE_FS))
+		seq_printf(s, "force host full-speed\n");
+
+	else if (test == (MUSB_TEST_FORCE_HOST | MUSB_TEST_FORCE_HS))
+		seq_printf(s, "force host high-speed\n");
+
+	else if (test == MUSB_TEST_FORCE_HOST)
 		seq_printf(s, "force host\n");
 
-	if (test & MUSB_TEST_FIFO_ACCESS)
+	else if (test == MUSB_TEST_FIFO_ACCESS)
 		seq_printf(s, "fifo access\n");
 
-	if (test & MUSB_TEST_FORCE_FS)
+	else if (test == MUSB_TEST_FORCE_FS)
 		seq_printf(s, "force full-speed\n");
 
-	if (test & MUSB_TEST_FORCE_HS)
+	else if (test == MUSB_TEST_FORCE_HS)
 		seq_printf(s, "force high-speed\n");
 
-	if (test & MUSB_TEST_PACKET)
+	else if (test == MUSB_TEST_PACKET)
 		seq_printf(s, "test packet\n");
 
-	if (test & MUSB_TEST_K)
+	else if (test == MUSB_TEST_K)
 		seq_printf(s, "test K\n");
 
-	if (test & MUSB_TEST_J)
+	else if (test == MUSB_TEST_J)
 		seq_printf(s, "test J\n");
 
-	if (test & MUSB_TEST_SE0_NAK)
+	else if (test == MUSB_TEST_SE0_NAK)
 		seq_printf(s, "test SE0 NAK\n");
 
 	return 0;
@@ -192,13 +204,14 @@ static ssize_t musb_test_mode_write(struct file *file,
 	struct seq_file		*s = file->private_data;
 	struct musb		*musb = s->private;
 	u8			test;
-	char			buf[18];
+	char			buf[24];
 
+	pm_runtime_get_sync(musb->controller);
 	test = musb_readb(musb->mregs, MUSB_TESTMODE);
 	if (test) {
 		dev_err(musb->controller, "Error: test mode is already set. "
 			"Please do USB Bus Reset to start a new test.\n");
-		return count;
+		goto ret;
 	}
 
 	memset(buf, 0x00, sizeof(buf));
@@ -206,34 +219,43 @@ static ssize_t musb_test_mode_write(struct file *file,
 	if (copy_from_user(buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
-	if (strstarts(buf, "force host"))
+	if (strstarts(buf, "force host full-speed"))
+		test = MUSB_TEST_FORCE_HOST | MUSB_TEST_FORCE_FS;
+
+	else if (strstarts(buf, "force host high-speed"))
+		test = MUSB_TEST_FORCE_HOST | MUSB_TEST_FORCE_HS;
+
+	else if (strstarts(buf, "force host"))
 		test = MUSB_TEST_FORCE_HOST;
 
-	if (strstarts(buf, "fifo access"))
+	else if (strstarts(buf, "fifo access"))
 		test = MUSB_TEST_FIFO_ACCESS;
 
-	if (strstarts(buf, "force full-speed"))
+	else if (strstarts(buf, "force full-speed"))
 		test = MUSB_TEST_FORCE_FS;
 
-	if (strstarts(buf, "force high-speed"))
+	else if (strstarts(buf, "force high-speed"))
 		test = MUSB_TEST_FORCE_HS;
 
-	if (strstarts(buf, "test packet")) {
+	else if (strstarts(buf, "test packet")) {
 		test = MUSB_TEST_PACKET;
 		musb_load_testpacket(musb);
 	}
 
-	if (strstarts(buf, "test K"))
+	else if (strstarts(buf, "test K"))
 		test = MUSB_TEST_K;
 
-	if (strstarts(buf, "test J"))
+	else if (strstarts(buf, "test J"))
 		test = MUSB_TEST_J;
 
-	if (strstarts(buf, "test SE0 NAK"))
+	else if (strstarts(buf, "test SE0 NAK"))
 		test = MUSB_TEST_SE0_NAK;
 
 	musb_writeb(musb->mregs, MUSB_TESTMODE, test);
 
+ret:
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 	return count;
 }
 
@@ -254,8 +276,13 @@ static int musb_softconnect_show(struct seq_file *s, void *unused)
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_HOST:
 	case OTG_STATE_A_WAIT_BCON:
+		pm_runtime_get_sync(musb->controller);
+
 		reg = musb_readb(musb->mregs, MUSB_DEVCTL);
 		connect = reg & MUSB_DEVCTL_SESSION ? 1 : 0;
+
+		pm_runtime_mark_last_busy(musb->controller);
+		pm_runtime_put_autosuspend(musb->controller);
 		break;
 	default:
 		connect = -1;
@@ -284,6 +311,7 @@ static ssize_t musb_softconnect_write(struct file *file,
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
+	pm_runtime_get_sync(musb->controller);
 	if (!strncmp(buf, "0", 1)) {
 		switch (musb->xceiv->otg->state) {
 		case OTG_STATE_A_HOST:
@@ -314,6 +342,8 @@ static ssize_t musb_softconnect_write(struct file *file,
 		}
 	}
 
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 	return count;
 }
 

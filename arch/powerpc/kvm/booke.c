@@ -30,7 +30,7 @@
 #include <linux/fs.h>
 
 #include <asm/cputable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/cacheflush.h>
 #include <asm/dbell.h>
@@ -2038,7 +2038,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		if (type == KVMPPC_DEBUG_NONE)
 			continue;
 
-		if (type & !(KVMPPC_DEBUG_WATCH_READ |
+		if (type & ~(KVMPPC_DEBUG_WATCH_READ |
 			     KVMPPC_DEBUG_WATCH_WRITE |
 			     KVMPPC_DEBUG_BREAKPOINT))
 			return -EINVAL;

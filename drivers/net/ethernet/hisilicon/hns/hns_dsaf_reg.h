@@ -41,6 +41,9 @@
 #define DSAF_SW_PORT_NUM	8
 #define DSAF_TOTAL_QUEUE_NUM	129
 
+/* reserved a tcam entry for each port to support promisc by fuzzy match */
+#define DSAFV2_MAC_FUZZY_TCAM_NUM    DSAF_MAX_PORT_NUM
+
 #define DSAF_TCAM_SUM		512
 #define DSAF_LINE_SUM		(2048 * 14)
 
@@ -77,6 +80,12 @@
 #define DSAF_SUB_SC_PPE_RESET_DREQ_REG			0xA4C
 #define DSAF_SUB_SC_RCB_PPE_COM_RESET_REQ_REG		0xA88
 #define DSAF_SUB_SC_RCB_PPE_COM_RESET_DREQ_REG		0xA8C
+#define DSAF_SUB_SC_DSAF_RESET_REQ_REG			0xAA8
+#define DSAF_SUB_SC_DSAF_RESET_DREQ_REG			0xAAC
+#define DSAF_SUB_SC_ROCEE_RESET_REQ_REG			0xA50
+#define DSAF_SUB_SC_ROCEE_RESET_DREQ_REG		0xA54
+#define DSAF_SUB_SC_ROCEE_CLK_DIS_REG			0x32C
+#define DSAF_SUB_SC_ROCEE_CLK_EN_REG			0x328
 #define DSAF_SUB_SC_LIGHT_MODULE_DETECT_EN_REG		0x2060
 #define DSAF_SUB_SC_TCAM_MBIST_EN_REG			0x2300
 #define DSAF_SUB_SC_DSAF_CLK_ST_REG			0x5300
@@ -133,6 +142,8 @@
 #define DSAF_ROCEE_INT_STS_0_REG	0x200
 #define DSAFV2_SERDES_LBK_0_REG         0x220
 #define DSAF_PAUSE_CFG_REG		0x240
+#define DSAF_ROCE_PORT_MAP_REG		0x2A0
+#define DSAF_ROCE_SL_MAP_REG		0x2A4
 #define DSAF_PPE_QID_CFG_0_REG		0x300
 #define DSAF_SW_PORT_TYPE_0_REG		0x320
 #define DSAF_STP_PORT_TYPE_0_REG	0x340
@@ -178,6 +189,7 @@
 #define DSAF_SBM_BP_CFG_2_XGE_REG_0_REG		0x200C
 #define DSAF_SBM_BP_CFG_2_PPE_REG_0_REG		0x230C
 #define DSAF_SBM_BP_CFG_2_ROCEE_REG_0_REG	0x260C
+#define DSAF_SBM_ROCEE_CFG_REG_REG		0x2380
 #define DSAFV2_SBM_BP_CFG_2_ROCEE_REG_0_REG	0x238C
 #define DSAF_SBM_FREE_CNT_0_0_REG		0x2010
 #define DSAF_SBM_FREE_CNT_1_0_REG		0x2014
@@ -288,6 +300,8 @@
 #define DSAF_TBL_LKUP_NUM_I_0_REG		0x50C0
 #define DSAF_TBL_LKUP_NUM_O_0_REG		0x50E0
 #define DSAF_TBL_UCAST_BCAST_MIS_INFO_0_0_REG	0x510C
+#define DSAF_TBL_TCAM_MATCH_CFG_H_REG		0x5130
+#define DSAF_TBL_TCAM_MATCH_CFG_L_REG		0x5134
 
 #define DSAF_INODE_FIFO_WL_0_REG		0x6000
 #define DSAF_ONODE_FIFO_WL_0_REG		0x6020
@@ -300,7 +314,6 @@
 #define PPE_COM_INTEN_REG			0x110
 #define PPE_COM_RINT_REG			0x114
 #define PPE_COM_INTSTS_REG			0x118
-#define PPE_COM_COMMON_CNT_CLR_CE_REG		0x1120
 #define PPE_COM_HIS_RX_PKT_QID_DROP_CNT_REG	0x300
 #define PPE_COM_HIS_RX_PKT_QID_OK_CNT_REG	0x600
 #define PPE_COM_HIS_TX_PKT_QID_ERR_CNT_REG	0x900
@@ -408,6 +421,7 @@
 #define RCB_CFG_OVERTIME_REG			0x9300
 #define RCB_CFG_PKTLINE_INT_NUM_REG		0x9304
 #define RCB_CFG_OVERTIME_INT_NUM_REG		0x9308
+#define RCB_INT_GAP_TIME_REG			0x9400
 #define RCB_PORT_CFG_OVERTIME_REG		0x9430
 
 #define RCB_RING_RX_RING_BASEADDR_L_REG		0x00000
@@ -688,8 +702,6 @@
 #define XGMAC_RX_SYMBOLERRPKTS			0x0210
 #define XGMAC_RX_FCSERRPKTS			0x0218
 
-#define XGMAC_TRX_CORE_SRST_M			0x2080
-
 #define DSAF_SRAM_INIT_OVER_M 0xff
 #define DSAFV2_SRAM_INIT_OVER_M 0x3ff
 #define DSAF_SRAM_INIT_OVER_S 0
@@ -796,6 +808,9 @@
 #define DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_S 9
 #define DSAFV2_SBM_CFG4_RESET_BUF_NUM_NO_PFC_M (((1ULL << 9) - 1) << 9)
 
+#define DSAF_CHNS_MASK			0x3f000
+#define DSAF_SBM_ROCEE_CFG_CRD_EN_B	2
+#define SRST_TIME_INTERVAL		20
 #define DSAFV2_SBM_CFG2_ROCEE_SET_BUF_NUM_S 0
 #define DSAFV2_SBM_CFG2_ROCEE_SET_BUF_NUM_M (((1ULL << 8) - 1) << 0)
 #define DSAFV2_SBM_CFG2_ROCEE_RESET_BUF_NUM_S 8
@@ -886,6 +901,9 @@
 #define PPE_CNT_CLR_CE_B	0
 #define PPE_CNT_CLR_SNAP_EN_B	1
 
+#define PPE_INT_GAPTIME_B	0
+#define PPE_INT_GAPTIME_M	0x3ff
+
 #define PPE_COMMON_CNT_CLR_CE_B	0
 #define PPE_COMMON_CNT_CLR_SNAP_EN_B	1
 #define RCB_COM_TSO_MODE_B	0
@@ -962,6 +980,11 @@
 #define XGMAC_ENABLE_TX_B		0
 #define XGMAC_ENABLE_RX_B		1
 
+#define XGMAC_UNIDIR_EN_B		0
+#define XGMAC_RF_TX_EN_B		1
+#define XGMAC_LF_RF_INSERT_S		2
+#define XGMAC_LF_RF_INSERT_M		(0x3 << XGMAC_LF_RF_INSERT_S)
+
 #define XGMAC_CTL_TX_FCS_B		0
 #define XGMAC_CTL_TX_PAD_B		1
 #define XGMAC_CTL_TX_PREAMBLE_TRANS_B	3
@@ -991,9 +1014,7 @@
 
 static inline void dsaf_write_reg(void __iomem *base, u32 reg, u32 value)
 {
-	u8 __iomem *reg_addr = ACCESS_ONCE(base);
-
-	writel(value, reg_addr + reg);
+	writel(value, base + reg);
 }
 
 #define dsaf_write_dev(a, reg, value) \
@@ -1001,9 +1022,7 @@ static inline void dsaf_write_reg(void __iomem *base, u32 reg, u32 value)
 
 static inline u32 dsaf_read_reg(u8 __iomem *base, u32 reg)
 {
-	u8 __iomem *reg_addr = ACCESS_ONCE(base);
-
-	return readl(reg_addr + reg);
+	return readl(base + reg);
 }
 
 static inline void dsaf_write_syscon(struct regmap *base, u32 reg, u32 value)

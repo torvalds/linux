@@ -21,8 +21,6 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 
-#include <asm/mach-jz4740/dma.h>
-
 #include "virt-dma.h"
 
 #define JZ_DMA_NR_CHANS 6

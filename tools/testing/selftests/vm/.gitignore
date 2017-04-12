@@ -7,3 +7,4 @@ mlock2-tests
 on-fault-limit
 transhuge-stress
 userfaultfd
+mlock-intersect-test

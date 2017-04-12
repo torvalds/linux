@@ -50,8 +50,8 @@ struct cmd_obj {
 };
 
 struct cmd_priv {
-	struct semaphore cmd_queue_sema;
-	struct semaphore terminate_cmdthread_sema;
+	struct completion cmd_queue_comp;
+	struct completion terminate_cmdthread_comp;
 	struct  __queue	cmd_queue;
 	u8 cmd_seq;
 	u8 *cmd_buf;	/*shall be non-paged, and 4 bytes aligned*/
@@ -156,9 +156,9 @@ struct	setopmode_parm {
  * Command-Event Mode
  */
 struct sitesurvey_parm {
-	sint passive_mode;	/*active: 1, passive: 0 */
-	sint bsslimit;	/* 1 ~ 48 */
-	sint	ss_ssidlen;
+	__le32	passive_mode;	/*active: 1, passive: 0 */
+	__le32	bsslimit;	/* 1 ~ 48 */
+	__le32	ss_ssidlen;
 	u8	ss_ssid[IW_ESSID_MAX_SIZE + 1];
 };
 
@@ -185,10 +185,12 @@ struct setauth_parm {
  */
 struct setkey_parm {
 	u8	algorithm;	/* encryption algorithm, could be none, wep40,
-				 * TKIP, CCMP, wep104 */
+				 * TKIP, CCMP, wep104
+				 */
 	u8	keyid;
 	u8	grpkey;		/* 1: this is the grpkey for 802.1x.
-				 * 0: this is the unicast key for 802.1x */
+				 * 0: this is the unicast key for 802.1x
+				 */
 	u8	key[16];	/* this could be 40 or 104 */
 };
 
@@ -215,15 +217,15 @@ struct SetMacAddr_param {
 };
 
 /*
-Caller Ad-Hoc/AP
-
-Command -Rsp(AID == CAMID) mode
-
-This is to force fw to add an sta_data entry per driver's request.
-
-FW will write an cam entry associated with it.
-
-*/
+ *	Caller Ad-Hoc/AP
+ *
+ *	Command -Rsp(AID == CAMID) mode
+ *
+ *	This is to force fw to add an sta_data entry per driver's request.
+ *
+ *	FW will write an cam entry associated with it.
+ *
+ */
 struct set_assocsta_parm {
 	u8	addr[ETH_ALEN];
 };
@@ -234,27 +236,27 @@ struct set_assocsta_rsp {
 };
 
 /*
-	Caller Ad-Hoc/AP
-
-	Command mode
-
-	This is to force fw to del an sta_data entry per driver's request
-
-	FW will invalidate the cam entry associated with it.
-
-*/
+ *	Caller Ad-Hoc/AP
+ *
+ *	Command mode
+ *
+ *	This is to force fw to del an sta_data entry per driver's request
+ *
+ *	FW will invalidate the cam entry associated with it.
+ *
+ */
 struct del_assocsta_parm {
 	u8	addr[ETH_ALEN];
 };
 
 /*
-Caller Mode: AP/Ad-HoC(M)
-
-Notes: To notify fw that given staid has changed its power state
-
-Command Mode
-
-*/
+ *	Caller Mode: AP/Ad-HoC(M)
+ *
+ *	Notes: To notify fw that given staid has changed its power state
+ *
+ *	Command Mode
+ *
+ */
 struct setstapwrstate_parm {
 	u8	staid;
 	u8	status;
@@ -262,25 +264,25 @@ struct setstapwrstate_parm {
 };
 
 /*
-Caller Mode: Any
-
-Notes: To setup the basic rate of RTL8711
-
-Command Mode
-
-*/
+ *	Caller Mode: Any
+ *
+ *	Notes: To setup the basic rate of RTL8711
+ *
+ *	Command Mode
+ *
+ */
 struct	setbasicrate_parm {
 	u8	basicrates[NumRates];
 };
 
 /*
-Caller Mode: Any
-
-Notes: To read the current basic rate
-
-Command-Rsp Mode
-
-*/
+ *	Caller Mode: Any
+ *
+ *	Notes: To read the current basic rate
+ *
+ *	Command-Rsp Mode
+ *
+ */
 struct getbasicrate_parm {
 	u32 rsvd;
 };
@@ -290,13 +292,13 @@ struct getbasicrate_rsp {
 };
 
 /*
-Caller Mode: Any
-
-Notes: To setup the data rate of RTL8711
-
-Command Mode
-
-*/
+ *	Caller Mode: Any
+ *
+ *	Notes: To setup the data rate of RTL8711
+ *
+ *	Command Mode
+ *
+ */
 struct setdatarate_parm {
 	u8	mac_id;
 	u8	datarates[NumRates];
@@ -332,13 +334,13 @@ struct SetChannelPlan_param {
 };
 
 /*
-Caller Mode: Any
-
-Notes: To read the current data rate
-
-Command-Rsp Mode
-
-*/
+ *	Caller Mode: Any
+ *
+ *	Notes: To read the current data rate
+ *
+ *	Command-Rsp Mode
+ *
+ */
 struct getdatarate_parm {
 	u32 rsvd;
 
@@ -349,36 +351,36 @@ struct getdatarate_rsp {
 
 
 /*
-Caller Mode: Any
-AP: AP can use the info for the contents of beacon frame
-Infra: STA can use the info when sitesurveying
-Ad-HoC(M): Like AP
-Ad-HoC(C): Like STA
-
-
-Notes: To set the phy capability of the NIC
-
-Command Mode
-
-*/
+ *	Caller Mode: Any
+ *	AP: AP can use the info for the contents of beacon frame
+ *	Infra: STA can use the info when sitesurveying
+ *	Ad-HoC(M): Like AP
+ *	Ad-HoC(C): Like STA
+ *
+ *
+ *	Notes: To set the phy capability of the NIC
+ *
+ *	Command Mode
+ *
+ */
 
 /*
-Caller Mode: Any
-
-Notes: To set the channel/modem/band
-This command will be used when channel/modem/band is changed.
-
-Command Mode
-
-*/
+ *	Caller Mode: Any
+ *
+ *	Notes: To set the channel/modem/band
+ *	This command will be used when channel/modem/band is changed.
+ *
+ *	Command Mode
+ *
+ */
 /*
-Caller Mode: Any
-
-Notes: To get the current setting of channel/modem/band
-
-Command-Rsp Mode
-
-*/
+ *	Caller Mode: Any
+ *
+ *	Notes: To get the current setting of channel/modem/band
+ *
+ *	Command-Rsp Mode
+ *
+ */
 struct	getphy_rsp {
 	u8	rfchannel;
 	u8	modem;
@@ -428,58 +430,58 @@ struct getrfintfs_parm {
 };
 
 /*
-	Notes: This command is used for H2C/C2H loopback testing
-
-	mac[0] == 0
-	==> CMD mode, return H2C_SUCCESS.
-	The following condition must be ture under CMD mode
-		mac[1] == mac[4], mac[2] == mac[3], mac[0]=mac[5]= 0;
-		s0 == 0x1234, s1 == 0xabcd, w0 == 0x78563412, w1 == 0x5aa5def7;
-		s2 == (b1 << 8 | b0);
-
-	mac[0] == 1
-	==> CMD_RSP mode, return H2C_SUCCESS_RSP
-
-	The rsp layout shall be:
-	rsp:			parm:
-		mac[0]  =   mac[5];
-		mac[1]  =   mac[4];
-		mac[2]  =   mac[3];
-		mac[3]  =   mac[2];
-		mac[4]  =   mac[1];
-		mac[5]  =   mac[0];
-		s0		=   s1;
-		s1		=   swap16(s0);
-		w0		=	swap32(w1);
-		b0		=	b1
-		s2		=	s0 + s1
-		b1		=	b0
-		w1		=	w0
-
-	mac[0] ==	2
-	==> CMD_EVENT mode, return	H2C_SUCCESS
-	The event layout shall be:
-	event:	     parm:
-	mac[0]  =   mac[5];
-	mac[1]  =   mac[4];
-	mac[2]  =   event's sequence number, starting from 1 to parm's marc[3]
-	mac[3]  =   mac[2];
-	mac[4]  =   mac[1];
-	mac[5]  =   mac[0];
-	s0		=   swap16(s0) - event.mac[2];
-	s1		=   s1 + event.mac[2];
-	w0		=	swap32(w0);
-	b0		=	b1
-	s2		=	s0 + event.mac[2]
-	b1		=	b0
-	w1		=	swap32(w1) - event.mac[2];
-
-	parm->mac[3] is the total event counts that host requested.
-
-
-	event will be the same with the cmd's param.
-
-*/
+ *	Notes: This command is used for H2C/C2H loopback testing
+ *
+ *	mac[0] == 0
+ *	==> CMD mode, return H2C_SUCCESS.
+ *	The following condition must be ture under CMD mode
+ *		mac[1] == mac[4], mac[2] == mac[3], mac[0]=mac[5]= 0;
+ *		s0 == 0x1234, s1 == 0xabcd, w0 == 0x78563412, w1 == 0x5aa5def7;
+ *		s2 == (b1 << 8 | b0);
+ *
+ *	mac[0] == 1
+ *	==> CMD_RSP mode, return H2C_SUCCESS_RSP
+ *
+ *	The rsp layout shall be:
+ *	rsp:			parm:
+ *		mac[0]  =   mac[5];
+ *		mac[1]  =   mac[4];
+ *		mac[2]  =   mac[3];
+ *		mac[3]  =   mac[2];
+ *		mac[4]  =   mac[1];
+ *		mac[5]  =   mac[0];
+ *		s0		=   s1;
+ *		s1		=   swap16(s0);
+ *		w0		=	swap32(w1);
+ *		b0		=	b1
+ *		s2		=	s0 + s1
+ *		b1		=	b0
+ *		w1		=	w0
+ *
+ *	mac[0] ==	2
+ *	==> CMD_EVENT mode, return	H2C_SUCCESS
+ *	The event layout shall be:
+ *	event:	     parm:
+ *	mac[0]  =   mac[5];
+ *	mac[1]  =   mac[4];
+ *	mac[2]  =   event's sequence number, starting from 1 to parm's marc[3]
+ *	mac[3]  =   mac[2];
+ *	mac[4]  =   mac[1];
+ *	mac[5]  =   mac[0];
+ *	s0		=   swap16(s0) - event.mac[2];
+ *	s1		=   s1 + event.mac[2];
+ *	w0		=	swap32(w0);
+ *	b0		=	b1
+ *	s2		=	s0 + event.mac[2]
+ *	b1		=	b0
+ *	w1		=	swap32(w1) - event.mac[2];
+ *
+ *	parm->mac[3] is the total event counts that host requested.
+ *
+ *
+ *	event will be the same with the cmd's param.
+ *
+ */
 
 /* CMD param Formart for DRV INTERNAL CMD HDL*/
 struct drvint_cmd_parm {
@@ -570,7 +572,8 @@ struct setpwrmode_parm  {
 	u8	bcn_rx_en;
 	u8	bcn_pass_cnt;	  /* fw report one beacon information to
 				   * driver  when it receives bcn_pass_cnt
-				   *  beacons. */
+				   * beacons.
+				   */
 	u8	bcn_to;		  /* beacon TO (ms). ¡§=0¡¨ no limit.*/
 	u16	bcn_itv;
 	u8	app_itv; /* only for VOIP mode. */

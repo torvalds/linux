@@ -34,6 +34,7 @@
 #define __LUSTRE_LU_OBJECT_H
 
 #include <stdarg.h>
+#include <linux/percpu_counter.h>
 #include "../../include/linux/libcfs/libcfs.h"
 #include "lustre/lustre_idl.h"
 #include "lu_ref.h"
@@ -327,7 +328,7 @@ struct lu_device_type {
 	/**
 	 * Number of existing device type instances.
 	 */
-	unsigned				ldt_device_nr;
+	atomic_t				ldt_device_nr;
 	/**
 	 * Linkage into a global list of all device types.
 	 *
@@ -580,7 +581,6 @@ enum {
 	LU_SS_CACHE_RACE,
 	LU_SS_CACHE_DEATH_RACE,
 	LU_SS_LRU_PURGED,
-	LU_SS_LRU_LEN,	/* # of objects in lsb_lru lists */
 	LU_SS_LAST_STAT
 };
 
@@ -602,7 +602,7 @@ struct lu_site {
 	/**
 	 * index of bucket on hash table while purging
 	 */
-	int		       ls_purge_start;
+	unsigned int		ls_purge_start;
 	/**
 	 * Top-level device for this stack.
 	 */
@@ -623,6 +623,11 @@ struct lu_site {
 	spinlock_t		ls_ld_lock;
 
 	/**
+	 * Lock to serialize site purge.
+	 */
+	struct mutex		ls_purge_mutex;
+
+	/**
 	 * lu_site stats
 	 */
 	struct lprocfs_stats	*ls_stats;
@@ -630,6 +635,10 @@ struct lu_site {
 	 * XXX: a hack! fld has to find md_site via site, remove when possible
 	 */
 	struct seq_server_site	*ld_seq_site;
+	/**
+	 * Number of objects in lsb_lru_lists - used for shrinking
+	 */
+	struct percpu_counter	 ls_lru_len_counter;
 };
 
 static inline struct lu_site_bkt_data *
@@ -673,7 +682,6 @@ void lu_object_add(struct lu_object *before, struct lu_object *o);
 
 int  lu_device_type_init(struct lu_device_type *ldt);
 void lu_device_type_fini(struct lu_device_type *ldt);
-void lu_types_stop(void);
 
 /** @} ctors */
 
@@ -704,8 +712,14 @@ static inline int lu_object_is_dying(const struct lu_object_header *h)
 
 void lu_object_put(const struct lu_env *env, struct lu_object *o);
 void lu_object_unhash(const struct lu_env *env, struct lu_object *o);
+int lu_site_purge_objects(const struct lu_env *env, struct lu_site *s, int nr,
+			  bool canblock);
 
-int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr);
+static inline int lu_site_purge(const struct lu_env *env, struct lu_site *s,
+				int nr)
+{
+	return lu_site_purge_objects(env, s, nr, true);
+}
 
 void lu_site_print(const struct lu_env *env, struct lu_site *s, void *cookie,
 		   lu_printer_t printer);
@@ -1025,7 +1039,8 @@ enum lu_context_tag {
 	/**
 	 * Contexts usable in cache shrinker thread.
 	 */
-	LCT_SHRINKER  = LCT_MD_THREAD|LCT_DT_THREAD|LCT_CL_THREAD|LCT_NOREF
+	LCT_SHRINKER  = LCT_MD_THREAD | LCT_DT_THREAD | LCT_CL_THREAD |
+			LCT_NOREF
 };
 
 /**
@@ -1115,7 +1130,7 @@ struct lu_context_key {
 	{							 \
 		type *value;				      \
 								  \
-		CLASSERT(PAGE_SIZE >= sizeof(*value));        \
+		BUILD_BUG_ON(PAGE_SIZE < sizeof(*value));        \
 								  \
 		value = kzalloc(sizeof(*value), GFP_NOFS);	\
 		if (!value)				\
@@ -1264,12 +1279,28 @@ struct lu_name {
 };
 
 /**
+ * Validate names (path components)
+ *
+ * To be valid \a name must be non-empty, '\0' terminated of length \a
+ * name_len, and not contain '/'. The maximum length of a name (before
+ * say -ENAMETOOLONG will be returned) is really controlled by llite
+ * and the server. We only check for something insane coming from bad
+ * integer handling here.
+ */
+static inline bool lu_name_is_valid_2(const char *name, size_t name_len)
+{
+	return name && name_len > 0 && name_len < INT_MAX &&
+	       name[name_len] == '\0' && strlen(name) == name_len &&
+	       !memchr(name, '/', name_len);
+}
+
+/**
  * Common buffer structure to be passed around for various xattr_{s,g}et()
  * methods.
  */
 struct lu_buf {
 	void   *lb_buf;
-	ssize_t lb_len;
+	size_t	lb_len;
 };
 
 #define DLUBUF "(%p %zu)"
@@ -1297,6 +1328,16 @@ struct lu_kmem_descr {
 
 int  lu_kmem_init(struct lu_kmem_descr *caches);
 void lu_kmem_fini(struct lu_kmem_descr *caches);
+
+void lu_buf_free(struct lu_buf *buf);
+void lu_buf_alloc(struct lu_buf *buf, size_t size);
+void lu_buf_realloc(struct lu_buf *buf, size_t size);
+
+int lu_buf_check_and_grow(struct lu_buf *buf, size_t len);
+struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, size_t len);
+
+extern __u32 lu_context_tags_default;
+extern __u32 lu_session_tags_default;
 
 /** @} lu */
 #endif /* __LUSTRE_LU_OBJECT_H */

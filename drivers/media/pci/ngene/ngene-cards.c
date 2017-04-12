@@ -19,12 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -613,7 +609,7 @@ static struct stv6110x_config tuner_cineS2_1 = {
 	.clk_div = 1,
 };
 
-static struct ngene_info ngene_info_cineS2 = {
+static const struct ngene_info ngene_info_cineS2 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Linux4Media cineS2 DVB-S2 Twin Tuner",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
@@ -627,7 +623,7 @@ static struct ngene_info ngene_info_cineS2 = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_satixS2 = {
+static const struct ngene_info ngene_info_satixS2 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Mystique SaTiX-S2 Dual",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
@@ -641,7 +637,7 @@ static struct ngene_info ngene_info_satixS2 = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_satixS2v2 = {
+static const struct ngene_info ngene_info_satixS2v2 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Mystique SaTiX-S2 Dual (v2)",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
@@ -656,7 +652,7 @@ static struct ngene_info ngene_info_satixS2v2 = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_cineS2v5 = {
+static const struct ngene_info ngene_info_cineS2v5 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Linux4Media cineS2 DVB-S2 Twin Tuner (v5)",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
@@ -672,7 +668,7 @@ static struct ngene_info ngene_info_cineS2v5 = {
 };
 
 
-static struct ngene_info ngene_info_duoFlex = {
+static const struct ngene_info ngene_info_duoFlex = {
 	.type           = NGENE_SIDEWINDER,
 	.name           = "Digital Devices DuoFlex PCIe or miniPCIe",
 	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
@@ -687,7 +683,7 @@ static struct ngene_info ngene_info_duoFlex = {
 	.msi_supported	= true,
 };
 
-static struct ngene_info ngene_info_m780 = {
+static const struct ngene_info ngene_info_m780 = {
 	.type           = NGENE_APP,
 	.name           = "Aver M780 ATSC/QAM-B",
 
@@ -727,7 +723,7 @@ static struct drxd_config fe_terratec_dvbt_1 = {
 	.osc_deviation  = osc_deviation,
 };
 
-static struct ngene_info ngene_info_terratec = {
+static const struct ngene_info ngene_info_terratec = {
 	.type           = NGENE_TERRATEC,
 	.name           = "Terratec Integra/Cinergy2400i Dual DVB-T",
 	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN},
@@ -781,12 +777,6 @@ static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
-static pci_ers_result_t ngene_link_reset(struct pci_dev *dev)
-{
-	printk(KERN_INFO DEVICE_NAME ": link reset\n");
-	return 0;
-}
-
 static pci_ers_result_t ngene_slot_reset(struct pci_dev *dev)
 {
 	printk(KERN_INFO DEVICE_NAME ": slot reset\n");
@@ -800,7 +790,6 @@ static void ngene_resume(struct pci_dev *dev)
 
 static const struct pci_error_handlers ngene_errors = {
 	.error_detected = ngene_error_detected,
-	.link_reset = ngene_link_reset,
 	.slot_reset = ngene_slot_reset,
 	.resume = ngene_resume,
 };

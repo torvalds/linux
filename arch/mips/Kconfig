@@ -9,10 +9,13 @@ config MIPS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_MMAP_RND_BITS if MMU
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_CBPF_JIT if !CPU_MICROMIPS
@@ -30,7 +33,6 @@ config MIPS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
 	select RTC_LIB if !MACH_LOONGSON64
 	select GENERIC_ATOMIC64 if !64BIT
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DMA_API_DEBUG
 	select GENERIC_IRQ_PROBE
@@ -66,12 +68,65 @@ config MIPS
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_EXIT_THREAD
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_ARCH_HARDENED_USERCOPY
 
 menu "Machine selection"
 
 choice
 	prompt "System type"
 	default SGI_IP22
+
+config MIPS_GENERIC
+	bool "Generic board-agnostic MIPS kernel"
+	select BOOT_RAW
+	select BUILTIN_DTB
+	select CEVT_R4K
+	select CLKSRC_MIPS_GIC
+	select COMMON_CLK
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_IRQ_EI
+	select CSRC_R4K
+	select DMA_PERDEV_COHERENT
+	select HW_HAS_PCI
+	select IRQ_MIPS_CPU
+	select LIBFDT
+	select MIPS_CPU_SCACHE
+	select MIPS_GIC
+	select MIPS_L1_CACHE_SHIFT_7
+	select NO_EXCEPT_FILL
+	select PCI_DRIVERS_GENERIC
+	select PINCTRL
+	select SMP_UP if SMP
+	select SWAP_IO_SPACE
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_CPU_MIPS32_R6
+	select SYS_HAS_CPU_MIPS64_R1
+	select SYS_HAS_CPU_MIPS64_R2
+	select SYS_HAS_CPU_MIPS64_R6
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MICROMIPS
+	select SYS_SUPPORTS_MIPS_CPS
+	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_RELOCATABLE
+	select SYS_SUPPORTS_SMARTMIPS
+	select USB_EHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
+	select USB_EHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
+	select USB_UHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
+	select USB_UHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
+	select USE_OF
+	help
+	  Select this to build a kernel which aims to support multiple boards,
+	  generally using a flattened device tree passed from the bootloader
+	  using the boot protocol defined in the UHI (Unified Hosting
+	  Interface) specification.
 
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
@@ -427,6 +482,7 @@ config MACH_XILFPGA
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select USE_OF
 	select USE_GENERIC_EARLY_PRINTK_8250
+	select XILINX_INTC
 	help
 	  This enables support for the IMG University Program MIPSfpga platform.
 
@@ -479,6 +535,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_SUPPORTS_RELOCATABLE
 	select USE_OF
+	select LIBFDT
 	select ZONE_DMA32 if 64BIT
 	select BUILTIN_DTB
 	select LIBFDT
@@ -493,42 +550,6 @@ config MACH_PIC32
 
 	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
 	  microcontrollers.
-
-config MIPS_SEAD3
-	bool "MIPS SEAD3 board"
-	select BOOT_ELF32
-	select BOOT_RAW
-	select BUILTIN_DTB
-	select CEVT_R4K
-	select CSRC_R4K
-	select CLKSRC_MIPS_GIC
-	select COMMON_CLK
-	select CPU_MIPSR2_IRQ_VI
-	select CPU_MIPSR2_IRQ_EI
-	select DMA_NONCOHERENT
-	select IRQ_MIPS_CPU
-	select MIPS_GIC
-	select LIBFDT
-	select MIPS_MSC
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_HAS_CPU_MIPS32_R6
-	select SYS_HAS_CPU_MIPS64_R1
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_SMARTMIPS
-	select SYS_SUPPORTS_MICROMIPS
-	select SYS_SUPPORTS_MIPS16
-	select SYS_SUPPORTS_RELOCATABLE
-	select USB_EHCI_BIG_ENDIAN_DESC
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	select USE_OF
-	help
-	  This enables support for the MIPS Technologies SEAD3 evaluation
-	  board.
 
 config NEC_MARKEINS
 	bool "NEC EMMA2RH Mark-eins board"
@@ -893,6 +914,7 @@ config CAVIUM_OCTEON_SOC
 	select NR_CPUS_DEFAULT_16
 	select BUILTIN_DTB
 	select MTD_COMPLEX_MAPPINGS
+	select SYS_SUPPORTS_RELOCATABLE
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -989,6 +1011,7 @@ source "arch/mips/ath79/Kconfig"
 source "arch/mips/bcm47xx/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/bmips/Kconfig"
+source "arch/mips/generic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
@@ -1098,6 +1121,10 @@ config ARCH_SUPPORTS_UPROBES
 config DMA_MAYBE_COHERENT
 	select DMA_NONCOHERENT
 	bool
+
+config DMA_PERDEV_COHERENT
+	bool
+	select DMA_MAYBE_COHERENT
 
 config DMA_COHERENT
 	bool
@@ -1402,6 +1429,15 @@ config CPU_LOONGSON1B
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
 	  release 2 instruction set.
 
+config CPU_LOONGSON1C
+	bool "Loongson 1C"
+	depends on SYS_HAS_CPU_LOONGSON1C
+	select CPU_LOONGSON1
+	select LEDS_GPIO_REGISTER
+	help
+	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
+	  release 2 instruction set.
+
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
 	depends on SYS_HAS_CPU_MIPS32_R1
@@ -1495,7 +1531,7 @@ config CPU_MIPS64_R6
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
 	select GENERIC_CSUM
-	select MIPS_O32_FP64_SUPPORT if MIPS32_O32
+	select MIPS_O32_FP64_SUPPORT if 32BIT || MIPS32_O32
 	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 6 or later of the
@@ -1672,6 +1708,8 @@ config CPU_BMIPS
 	select WEAK_ORDERING
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_CPUFREQ
+	select MIPS_EXTERNAL_TIMER
 	help
 	  Support for BMIPS32/3300/4350/4380 and BMIPS5000 processors.
 
@@ -1849,6 +1887,9 @@ config SYS_HAS_CPU_LOONGSON2F
 	select CPU_SUPPORTS_UNCACHED_ACCELERATED
 
 config SYS_HAS_CPU_LOONGSON1B
+	bool
+
+config SYS_HAS_CPU_LOONGSON1C
 	bool
 
 config SYS_HAS_CPU_MIPS32_R1
@@ -2252,7 +2293,7 @@ config MIPS_MT_FPAFF
 
 config MIPSR2_TO_R6_EMULATOR
 	bool "MIPS R2-to-R6 emulator"
-	depends on CPU_MIPSR6 && !SMP
+	depends on CPU_MIPSR6
 	default y
 	help
 	  Choose this option if you want to run non-R6 MIPS userland code.
@@ -2260,8 +2301,6 @@ config MIPSR2_TO_R6_EMULATOR
 	  default. You can enable it using the 'mipsr2emu' kernel option.
 	  The only reason this is a build-time option is to save ~14K from the
 	  final kernel image.
-comment "MIPS R2-to-R6 emulator is only available for UP kernels"
-	depends on SMP && CPU_MIPSR6
 
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
@@ -2536,7 +2575,7 @@ config SYS_SUPPORTS_NUMA
 
 config RELOCATABLE
 	bool "Relocatable kernel"
-	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6)
+	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6 || CAVIUM_OCTEON_SOC)
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
@@ -2792,8 +2831,8 @@ config KEXEC
 	  made.
 
 config CRASH_DUMP
-	  bool "Kernel crash dumps"
-	  help
+	bool "Kernel crash dumps"
+	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
 	  which are loaded in the main kernel with kexec-tools into
@@ -2803,11 +2842,11 @@ config CRASH_DUMP
 	  PHYSICAL_START.
 
 config PHYSICAL_START
-	  hex "Physical address where the kernel is loaded"
-	  default "0xffffffff84000000" if 64BIT
-	  default "0x84000000" if 32BIT
-	  depends on CRASH_DUMP
-	  help
+	hex "Physical address where the kernel is loaded"
+	default "0xffffffff84000000" if 64BIT
+	default "0x84000000" if 32BIT
+	depends on CRASH_DUMP
+	help
 	  This gives the CKSEG0 or KSEG0 address where the kernel is loaded.
 	  If you plan to use kernel for capturing the crash dump change
 	  this value to start of the reserved region (the "X" value as
@@ -2907,7 +2946,7 @@ endchoice
 choice
 	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
 	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
-					 !MIPS_MALTA && !MIPS_SEAD3 && \
+					 !MIPS_MALTA && \
 					 !CAVIUM_OCTEON_SOC
 	default MIPS_CMDLINE_FROM_BOOTLOADER
 
@@ -2961,7 +3000,6 @@ config PCI
 	bool "Support for PCI controller"
 	depends on HW_HAS_PCI
 	select PCI_DOMAINS
-	select NO_GENERIC_PCI_IOPORT_MAP
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -2981,6 +3019,17 @@ config HT_PCI
 
 config PCI_DOMAINS
 	bool
+
+config PCI_DOMAINS_GENERIC
+	bool
+
+config PCI_DRIVERS_GENERIC
+	select PCI_DOMAINS_GENERIC if PCI_DOMAINS
+	bool
+
+config PCI_DRIVERS_LEGACY
+	def_bool !PCI_DRIVERS_GENERIC
+	select NO_GENERIC_PCI_IOPORT_MAP
 
 source "drivers/pci/Kconfig"
 
@@ -3028,6 +3077,20 @@ config TC
 config MMU
 	bool
 	default y
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 12 if 64BIT
+	default 8
+
+config ARCH_MMAP_RND_BITS_MAX
+	default 18 if 64BIT
+	default 15
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+       default 8
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+       default 15
 
 config I8253
 	bool

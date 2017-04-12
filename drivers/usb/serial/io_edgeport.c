@@ -57,6 +57,88 @@
 
 #define OPEN_TIMEOUT		(5*HZ)		/* 5 seconds */
 
+static const struct usb_device_id edgeport_2port_id_table[] = {
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_2) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_2I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_421) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_21) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_2_DIN) },
+	{ }
+};
+
+static const struct usb_device_id edgeport_4port_id_table[] = {
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_4) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_RAPIDPORT_4) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_4T) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_MT4X56USB) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_4I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_8_DUAL_CPU) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_4_DIN) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_22I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_412_4) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_COMPATIBLE) },
+	{ }
+};
+
+static const struct usb_device_id edgeport_8port_id_table[] = {
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_8) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_16_DUAL_CPU) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_8I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_8R) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_8RR) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_412_8) },
+	{ }
+};
+
+static const struct usb_device_id Epic_port_id_table[] = {
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0202) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0203) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0310) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0311) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0312) },
+	{ USB_DEVICE(USB_VENDOR_ID_AXIOHM, AXIOHM_DEVICE_ID_EPIC_A758) },
+	{ USB_DEVICE(USB_VENDOR_ID_AXIOHM, AXIOHM_DEVICE_ID_EPIC_A794) },
+	{ USB_DEVICE(USB_VENDOR_ID_AXIOHM, AXIOHM_DEVICE_ID_EPIC_A225) },
+	{ }
+};
+
+/* Devices that this driver supports */
+static const struct usb_device_id id_table_combined[] = {
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_4) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_RAPIDPORT_4) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_4T) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_MT4X56USB) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_2) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_4I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_2I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_421) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_21) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_8_DUAL_CPU) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_8) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_2_DIN) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_4_DIN) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_16_DUAL_CPU) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_22I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_412_4) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_COMPATIBLE) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION,	ION_DEVICE_ID_EDGEPORT_8I) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_8R) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_8RR) },
+	{ USB_DEVICE(USB_VENDOR_ID_ION, ION_DEVICE_ID_EDGEPORT_412_8) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0202) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0203) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0310) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0311) },
+	{ USB_DEVICE(USB_VENDOR_ID_NCR, NCR_DEVICE_ID_EPIC_0312) },
+	{ USB_DEVICE(USB_VENDOR_ID_AXIOHM, AXIOHM_DEVICE_ID_EPIC_A758) },
+	{ USB_DEVICE(USB_VENDOR_ID_AXIOHM, AXIOHM_DEVICE_ID_EPIC_A794) },
+	{ USB_DEVICE(USB_VENDOR_ID_AXIOHM, AXIOHM_DEVICE_ID_EPIC_A225) },
+	{ } /* Terminating entry */
+};
+
+MODULE_DEVICE_TABLE(usb, id_table_combined);
+
+
 /* receive port state */
 enum RXSTATE {
 	EXPECT_HDR1 = 0,    /* Expect header byte 1 */
@@ -216,8 +298,6 @@ static void edge_disconnect(struct usb_serial *serial);
 static void edge_release(struct usb_serial *serial);
 static int edge_port_probe(struct usb_serial_port *port);
 static int edge_port_remove(struct usb_serial_port *port);
-
-#include "io_tables.h"	/* all of the devices that this driver supports */
 
 /* function prototypes for all of our local functions */
 
@@ -492,20 +572,24 @@ static int get_epic_descriptor(struct edgeport_serial *ep)
 	int result;
 	struct usb_serial *serial = ep->serial;
 	struct edgeport_product_info *product_info = &ep->product_info;
-	struct edge_compatibility_descriptor *epic = &ep->epic_descriptor;
+	struct edge_compatibility_descriptor *epic;
 	struct edge_compatibility_bits *bits;
 	struct device *dev = &serial->dev->dev;
 
 	ep->is_epic = 0;
+
+	epic = kmalloc(sizeof(*epic), GFP_KERNEL);
+	if (!epic)
+		return -ENOMEM;
+
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 				 USB_REQUEST_ION_GET_EPIC_DESC,
 				 0xC0, 0x00, 0x00,
-				 &ep->epic_descriptor,
-				 sizeof(struct edge_compatibility_descriptor),
+				 epic, sizeof(*epic),
 				 300);
-
-	if (result > 0) {
+	if (result == sizeof(*epic)) {
 		ep->is_epic = 1;
+		memcpy(&ep->epic_descriptor, epic, sizeof(*epic));
 		memset(product_info, 0, sizeof(struct edgeport_product_info));
 
 		product_info->NumPorts = epic->NumPorts;
@@ -534,7 +618,15 @@ static int get_epic_descriptor(struct edgeport_serial *ep)
 		dev_dbg(dev, "  IOSPWriteLCR     : %s\n", bits->IOSPWriteLCR	? "TRUE": "FALSE");
 		dev_dbg(dev, "  IOSPSetBaudRate  : %s\n", bits->IOSPSetBaudRate	? "TRUE": "FALSE");
 		dev_dbg(dev, "  TrueEdgeport     : %s\n", bits->TrueEdgeport	? "TRUE": "FALSE");
+
+		result = 0;
+	} else if (result >= 0) {
+		dev_warn(&serial->interface->dev, "short epic descriptor received: %d\n",
+			 result);
+		result = -EIO;
 	}
+
+	kfree(epic);
 
 	return result;
 }
@@ -1554,16 +1646,12 @@ static int get_serial_info(struct edgeport_port *edge_port,
 {
 	struct serial_struct tmp;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.type		= PORT_16550A;
 	tmp.line		= edge_port->port->minor;
 	tmp.port		= edge_port->port->port_number;
 	tmp.irq			= 0;
-	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 	tmp.xmit_fifo_size	= edge_port->maxTxCredits;
 	tmp.baud_base		= 9600;
 	tmp.close_delay		= 5*HZ;
@@ -2093,8 +2181,7 @@ static int rom_write(struct usb_serial *serial, __u16 extAddr, __u16 addr,
  * rom_read
  *	reads a number of bytes from the Edgeport device starting at the given
  *	address.
- *	If successful returns the number of bytes read, otherwise it returns
- *	a negative error number of the problem.
+ *	Returns zero on success or a negative error number.
  ****************************************************************************/
 static int rom_read(struct usb_serial *serial, __u16 extAddr,
 					__u16 addr, __u16 length, __u8 *data)
@@ -2119,12 +2206,17 @@ static int rom_read(struct usb_serial *serial, __u16 extAddr,
 					USB_REQUEST_ION_READ_ROM,
 					0xC0, addr, extAddr, transfer_buffer,
 					current_length, 300);
-		if (result < 0)
+		if (result < current_length) {
+			if (result >= 0)
+				result = -EIO;
 			break;
+		}
 		memcpy(data, transfer_buffer, current_length);
 		length -= current_length;
 		addr += current_length;
 		data += current_length;
+
+		result = 0;
 	}
 
 	kfree(transfer_buffer);
@@ -2578,9 +2670,10 @@ static void get_manufacturing_desc(struct edgeport_serial *edge_serial)
 				EDGE_MANUF_DESC_LEN,
 				(__u8 *)(&edge_serial->manuf_descriptor));
 
-	if (response < 1)
-		dev_err(dev, "error in getting manufacturer descriptor\n");
-	else {
+	if (response < 0) {
+		dev_err(dev, "error in getting manufacturer descriptor: %d\n",
+				response);
+	} else {
 		char string[30];
 		dev_dbg(dev, "**Manufacturer Descriptor\n");
 		dev_dbg(dev, "  RomSize:        %dK\n",
@@ -2637,9 +2730,10 @@ static void get_boot_desc(struct edgeport_serial *edge_serial)
 				EDGE_BOOT_DESC_LEN,
 				(__u8 *)(&edge_serial->boot_descriptor));
 
-	if (response < 1)
-		dev_err(dev, "error in getting boot descriptor\n");
-	else {
+	if (response < 0) {
+		dev_err(dev, "error in getting boot descriptor: %d\n",
+				response);
+	} else {
 		dev_dbg(dev, "**Boot Descriptor:\n");
 		dev_dbg(dev, "  BootCodeLength: %d\n",
 			le16_to_cpu(edge_serial->boot_descriptor.BootCodeLength));
@@ -2754,6 +2848,11 @@ static int edge_startup(struct usb_serial *serial)
 					EDGE_COMPATIBILITY_MASK1,
 					EDGE_COMPATIBILITY_MASK2 };
 
+	if (serial->num_bulk_in < 1 || serial->num_interrupt_in < 1) {
+		dev_err(&serial->interface->dev, "missing endpoints\n");
+		return -ENODEV;
+	}
+
 	dev = serial->dev;
 
 	/* create our private serial structure */
@@ -2777,7 +2876,7 @@ static int edge_startup(struct usb_serial *serial)
 	dev_info(&serial->dev->dev, "%s detected\n", edge_serial->name);
 
 	/* Read the epic descriptor */
-	if (get_epic_descriptor(edge_serial) <= 0) {
+	if (get_epic_descriptor(edge_serial) < 0) {
 		/* memcpy descriptor to Supports structures */
 		memcpy(&edge_serial->epic_descriptor.Supports, descriptor,
 		       sizeof(struct edge_compatibility_bits));
@@ -3012,6 +3111,139 @@ static int edge_port_remove(struct usb_serial_port *port)
 
 	return 0;
 }
+
+static struct usb_serial_driver edgeport_2port_device = {
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "edgeport_2",
+	},
+	.description		= "Edgeport 2 port adapter",
+	.id_table		= edgeport_2port_id_table,
+	.num_ports		= 2,
+	.open			= edge_open,
+	.close			= edge_close,
+	.throttle		= edge_throttle,
+	.unthrottle		= edge_unthrottle,
+	.attach			= edge_startup,
+	.disconnect		= edge_disconnect,
+	.release		= edge_release,
+	.port_probe		= edge_port_probe,
+	.port_remove		= edge_port_remove,
+	.ioctl			= edge_ioctl,
+	.set_termios		= edge_set_termios,
+	.tiocmget		= edge_tiocmget,
+	.tiocmset		= edge_tiocmset,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
+	.get_icount		= usb_serial_generic_get_icount,
+	.write			= edge_write,
+	.write_room		= edge_write_room,
+	.chars_in_buffer	= edge_chars_in_buffer,
+	.break_ctl		= edge_break,
+	.read_int_callback	= edge_interrupt_callback,
+	.read_bulk_callback	= edge_bulk_in_callback,
+	.write_bulk_callback	= edge_bulk_out_data_callback,
+};
+
+static struct usb_serial_driver edgeport_4port_device = {
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "edgeport_4",
+	},
+	.description		= "Edgeport 4 port adapter",
+	.id_table		= edgeport_4port_id_table,
+	.num_ports		= 4,
+	.open			= edge_open,
+	.close			= edge_close,
+	.throttle		= edge_throttle,
+	.unthrottle		= edge_unthrottle,
+	.attach			= edge_startup,
+	.disconnect		= edge_disconnect,
+	.release		= edge_release,
+	.port_probe		= edge_port_probe,
+	.port_remove		= edge_port_remove,
+	.ioctl			= edge_ioctl,
+	.set_termios		= edge_set_termios,
+	.tiocmget		= edge_tiocmget,
+	.tiocmset		= edge_tiocmset,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
+	.get_icount		= usb_serial_generic_get_icount,
+	.write			= edge_write,
+	.write_room		= edge_write_room,
+	.chars_in_buffer	= edge_chars_in_buffer,
+	.break_ctl		= edge_break,
+	.read_int_callback	= edge_interrupt_callback,
+	.read_bulk_callback	= edge_bulk_in_callback,
+	.write_bulk_callback	= edge_bulk_out_data_callback,
+};
+
+static struct usb_serial_driver edgeport_8port_device = {
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "edgeport_8",
+	},
+	.description		= "Edgeport 8 port adapter",
+	.id_table		= edgeport_8port_id_table,
+	.num_ports		= 8,
+	.open			= edge_open,
+	.close			= edge_close,
+	.throttle		= edge_throttle,
+	.unthrottle		= edge_unthrottle,
+	.attach			= edge_startup,
+	.disconnect		= edge_disconnect,
+	.release		= edge_release,
+	.port_probe		= edge_port_probe,
+	.port_remove		= edge_port_remove,
+	.ioctl			= edge_ioctl,
+	.set_termios		= edge_set_termios,
+	.tiocmget		= edge_tiocmget,
+	.tiocmset		= edge_tiocmset,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
+	.get_icount		= usb_serial_generic_get_icount,
+	.write			= edge_write,
+	.write_room		= edge_write_room,
+	.chars_in_buffer	= edge_chars_in_buffer,
+	.break_ctl		= edge_break,
+	.read_int_callback	= edge_interrupt_callback,
+	.read_bulk_callback	= edge_bulk_in_callback,
+	.write_bulk_callback	= edge_bulk_out_data_callback,
+};
+
+static struct usb_serial_driver epic_device = {
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "epic",
+	},
+	.description		= "EPiC device",
+	.id_table		= Epic_port_id_table,
+	.num_ports		= 1,
+	.open			= edge_open,
+	.close			= edge_close,
+	.throttle		= edge_throttle,
+	.unthrottle		= edge_unthrottle,
+	.attach			= edge_startup,
+	.disconnect		= edge_disconnect,
+	.release		= edge_release,
+	.port_probe		= edge_port_probe,
+	.port_remove		= edge_port_remove,
+	.ioctl			= edge_ioctl,
+	.set_termios		= edge_set_termios,
+	.tiocmget		= edge_tiocmget,
+	.tiocmset		= edge_tiocmset,
+	.tiocmiwait		= usb_serial_generic_tiocmiwait,
+	.get_icount		= usb_serial_generic_get_icount,
+	.write			= edge_write,
+	.write_room		= edge_write_room,
+	.chars_in_buffer	= edge_chars_in_buffer,
+	.break_ctl		= edge_break,
+	.read_int_callback	= edge_interrupt_callback,
+	.read_bulk_callback	= edge_bulk_in_callback,
+	.write_bulk_callback	= edge_bulk_out_data_callback,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&edgeport_2port_device, &edgeport_4port_device,
+	&edgeport_8port_device, &epic_device, NULL
+};
 
 module_usb_serial_driver(serial_drivers, id_table_combined);
 

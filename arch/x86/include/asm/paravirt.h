@@ -41,11 +41,6 @@ static inline void set_debugreg(unsigned long val, int reg)
 	PVOP_VCALL2(pv_cpu_ops.set_debugreg, reg, val);
 }
 
-static inline void clts(void)
-{
-	PVOP_VCALL0(pv_cpu_ops.clts);
-}
-
 static inline unsigned long read_cr0(void)
 {
 	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr0);
@@ -79,10 +74,6 @@ static inline void write_cr3(unsigned long x)
 static inline unsigned long __read_cr4(void)
 {
 	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr4);
-}
-static inline unsigned long __read_cr4_safe(void)
-{
-	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr4_safe);
 }
 
 static inline void __write_cr4(unsigned long x)
@@ -484,6 +475,17 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			    native_pmd_val(pmd));
 }
 
+static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
+			      pud_t *pudp, pud_t pud)
+{
+	if (sizeof(pudval_t) > sizeof(long))
+		/* 5 arg words */
+		pv_mmu_ops.set_pud_at(mm, addr, pudp, pud);
+	else
+		PVOP_VCALL4(pv_mmu_ops.set_pud_at, mm, addr, pudp,
+			    native_pud_val(pud));
+}
+
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	pmdval_t val = native_pmd_val(pmd);
@@ -661,8 +663,6 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PARAVIRT_SPINLOCKS)
 
-#ifdef CONFIG_QUEUED_SPINLOCKS
-
 static __always_inline void pv_queued_spin_lock_slowpath(struct qspinlock *lock,
 							u32 val)
 {
@@ -684,21 +684,10 @@ static __always_inline void pv_kick(int cpu)
 	PVOP_VCALL1(pv_lock_ops.kick, cpu);
 }
 
-#else /* !CONFIG_QUEUED_SPINLOCKS */
-
-static __always_inline void __ticket_lock_spinning(struct arch_spinlock *lock,
-							__ticket_t ticket)
+static __always_inline bool pv_vcpu_is_preempted(long cpu)
 {
-	PVOP_VCALLEE2(pv_lock_ops.lock_spinning, lock, ticket);
+	return PVOP_CALLEE1(bool, pv_lock_ops.vcpu_is_preempted, cpu);
 }
-
-static __always_inline void __ticket_unlock_kick(struct arch_spinlock *lock,
-							__ticket_t ticket)
-{
-	PVOP_VCALL2(pv_lock_ops.unlock_kick, lock, ticket);
-}
-
-#endif /* CONFIG_QUEUED_SPINLOCKS */
 
 #endif /* SMP && PARAVIRT_SPINLOCKS */
 

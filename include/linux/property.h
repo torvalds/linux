@@ -160,12 +160,12 @@ struct property_entry {
 	bool is_string;
 	union {
 		union {
-			void *raw_data;
-			u8 *u8_data;
-			u16 *u16_data;
-			u32 *u32_data;
-			u64 *u64_data;
-			const char **str;
+			const void *raw_data;
+			const u8 *u8_data;
+			const u16 *u16_data;
+			const u32 *u32_data;
+			const u64 *u64_data;
+			const char * const *str;
 		} pointer;
 		union {
 			unsigned long long raw_data;
@@ -190,7 +190,7 @@ struct property_entry {
 	.length = ARRAY_SIZE(_val_) * sizeof(_type_),		\
 	.is_array = true,					\
 	.is_string = false,					\
-	{ .pointer = { _type_##_data = _val_ } },		\
+	{ .pointer = { ._type_##_data = _val_ } },		\
 }
 
 #define PROPERTY_ENTRY_U8_ARRAY(_name_, _val_)			\
@@ -241,8 +241,13 @@ struct property_entry {
 	.name = _name_,				\
 }
 
+struct property_entry *
+property_entries_dup(const struct property_entry *properties);
+
+void property_entries_free(const struct property_entry *properties);
+
 int device_add_properties(struct device *dev,
-			  struct property_entry *properties);
+			  const struct property_entry *properties);
 void device_remove_properties(struct device *dev);
 
 bool device_dma_supported(struct device *dev);

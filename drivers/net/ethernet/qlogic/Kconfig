@@ -88,6 +88,9 @@ config QED
 	---help---
 	  This enables the support for ...
 
+config QED_LL2
+	bool
+
 config QED_SRIOV
 	bool "QLogic QED 25/40/100Gb SR-IOV support"
 	depends on QED && PCI_IOV
@@ -101,7 +104,17 @@ config QED_SRIOV
 config QEDE
 	tristate "QLogic QED 25/40/100Gb Ethernet NIC"
 	depends on QED
+	imply PTP_1588_CLOCK
 	---help---
 	  This enables the support for ...
+
+config QED_RDMA
+	bool
+
+config QED_ISCSI
+	bool
+
+config QED_FCOE
+	bool
 
 endif # NET_VENDOR_QLOGIC

@@ -429,7 +429,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 
 	/* clear the skb timestamp if not configured the other way */
 	if (!(gwj->flags & CGW_FLAGS_CAN_SRC_TSTAMP))
-		nskb->tstamp.tv64 = 0;
+		nskb->tstamp = 0;
 
 	/* send to netdevice */
 	if (can_send(nskb, gwj->flags & CGW_FLAGS_CAN_ECHO))
@@ -442,7 +442,7 @@ static inline int cgw_register_filter(struct cgw_job *gwj)
 {
 	return can_rx_register(gwj->src.dev, gwj->ccgw.filter.can_id,
 			       gwj->ccgw.filter.can_mask, can_can_gw_rcv,
-			       gwj, "gw");
+			       gwj, "gw", NULL);
 }
 
 static inline void cgw_unregister_filter(struct cgw_job *gwj)

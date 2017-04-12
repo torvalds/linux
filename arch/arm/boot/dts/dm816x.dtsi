@@ -7,11 +7,12 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/omap.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,dm816";
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -83,6 +84,7 @@
 			reg = <0x48140000 0x21000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			ranges = <0 0x48140000 0x21000>;
 
 			dm816x_pinmux: pinmux@800 {
@@ -90,6 +92,7 @@
 				reg = <0x800 0x50a>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				#pinctrl-cells = <1>;
 				pinctrl-single,register-width = <16>;
 				pinctrl-single,function-mask = <0xf>;
 			};
@@ -370,7 +373,7 @@
 		};
 
 		uart1: uart@48020000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart1";
 			reg = <0x48020000 0x2000>;
 			clock-frequency = <48000000>;
@@ -380,7 +383,7 @@
 		};
 
 		uart2: uart@48022000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart2";
 			reg = <0x48022000 0x2000>;
 			clock-frequency = <48000000>;
@@ -390,7 +393,7 @@
 		};
 
 		uart3: uart@48024000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart3";
 			reg = <0x48024000 0x2000>;
 			clock-frequency = <48000000>;

@@ -11,8 +11,6 @@
 /* 30 minutes for full statistics update */
 #define MAJOR_UPDATE_TICKS (1800 / STATS_TICK_SECS)
 
-#define MAX_MTU 9600
-
 /* The egress WM value 0x01a01fff should be used only when the
  * interface is down (MAC port disabled). This is a workaround
  * for disabling the T2/MAC flow-control. When the interface is
@@ -451,9 +449,6 @@ static int mac_set_rx_mode(struct cmac *mac, struct t1_rx_mode *rm)
 static int mac_set_mtu(struct cmac *mac, int mtu)
 {
 	int port = mac->instance->index;
-
-	if (mtu > MAX_MTU)
-		return -EINVAL;
 
 	/* max_len includes header and FCS */
 	vsc_write(mac->adapter, REG_MAX_LEN(port), mtu + 14 + 4);

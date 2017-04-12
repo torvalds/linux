@@ -56,6 +56,9 @@
 	(0xf			<< MIDR_ARCHITECTURE_SHIFT) | \
 	((partnum)		<< MIDR_PARTNUM_SHIFT))
 
+#define MIDR_CPU_VAR_REV(var, rev) \
+	(((var)	<< MIDR_VARIANT_SHIFT) | (rev))
+
 #define MIDR_CPU_MODEL_MASK (MIDR_IMPLEMENTOR_MASK | MIDR_PARTNUM_MASK | \
 			     MIDR_ARCHITECTURE_MASK)
 
@@ -71,6 +74,7 @@
 #define ARM_CPU_IMP_APM			0x50
 #define ARM_CPU_IMP_CAVIUM		0x43
 #define ARM_CPU_IMP_BRCM		0x42
+#define ARM_CPU_IMP_QCOM		0x51
 
 #define ARM_CPU_PART_AEM_V8		0xD0F
 #define ARM_CPU_PART_FOUNDATION		0xD00
@@ -84,20 +88,19 @@
 
 #define BRCM_CPU_PART_VULCAN		0x516
 
+#define QCOM_CPU_PART_FALKOR_V1		0x800
+
 #define MIDR_CORTEX_A53 MIDR_CPU_MODEL(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A53)
 #define MIDR_CORTEX_A57 MIDR_CPU_MODEL(ARM_CPU_IMP_ARM, ARM_CPU_PART_CORTEX_A57)
 #define MIDR_THUNDERX	MIDR_CPU_MODEL(ARM_CPU_IMP_CAVIUM, CAVIUM_CPU_PART_THUNDERX)
 #define MIDR_THUNDERX_81XX MIDR_CPU_MODEL(ARM_CPU_IMP_CAVIUM, CAVIUM_CPU_PART_THUNDERX_81XX)
+#define MIDR_QCOM_FALKOR_V1 MIDR_CPU_MODEL(ARM_CPU_IMP_QCOM, QCOM_CPU_PART_FALKOR_V1)
 
 #ifndef __ASSEMBLY__
 
 #include <asm/sysreg.h>
 
-#define read_cpuid(reg) ({						\
-	u64 __val;							\
-	asm("mrs_s	%0, " __stringify(SYS_ ## reg) : "=r" (__val));	\
-	__val;								\
-})
+#define read_cpuid(reg)			read_sysreg_s(SYS_ ## reg)
 
 /*
  * The CPU ID never changes at run time, so we might as well tell the

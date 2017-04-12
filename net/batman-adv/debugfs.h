@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -20,13 +20,11 @@
 
 #include "main.h"
 
-#include <linux/kconfig.h>
-
 struct net_device;
 
 #define BATADV_DEBUGFS_SUBDIR "batman_adv"
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_BATMAN_ADV_DEBUGFS)
 
 void batadv_debugfs_init(void);
 void batadv_debugfs_destroy(void);

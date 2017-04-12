@@ -94,7 +94,7 @@ static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 	    boot_cpu_data.x86_model <= 0x05 &&
 	    boot_cpu_data.x86_mask < 0x0A)
 		return 1;
-	else if (amd_e400_c1e_detected)
+	else if (boot_cpu_has(X86_BUG_AMD_APIC_C1E))
 		return 1;
 	else
 		return max_cstate;

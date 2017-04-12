@@ -25,10 +25,10 @@ struct cpuinfo {
 	/* Core CPU configuration */
 	char cpu_impl[12];
 	u32 cpu_clock_freq;
-	u32 mmu;
-	u32 has_div;
-	u32 has_mul;
-	u32 has_mulx;
+	bool mmu;
+	bool has_div;
+	bool has_mul;
+	bool has_mulx;
 
 	/* CPU caches */
 	u32 icache_line_size;

@@ -102,7 +102,7 @@ config AXI_DMAC
 config COH901318
 	bool "ST-Ericsson COH901318 DMA support"
 	select DMA_ENGINE
-	depends on ARCH_U300
+	depends on ARCH_U300 || COMPILE_TEST
 	help
 	  Enable support for ST-Ericsson COH 901 318 DMA.
 
@@ -114,13 +114,13 @@ config DMA_BCM2835
 
 config DMA_JZ4740
 	tristate "JZ4740 DMA support"
-	depends on MACH_JZ4740
+	depends on MACH_JZ4740 || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
 config DMA_JZ4780
 	tristate "JZ4780 DMA support"
-	depends on MACH_JZ4780
+	depends on MACH_JZ4780 || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -130,14 +130,14 @@ config DMA_JZ4780
 
 config DMA_OMAP
 	tristate "OMAP DMA support"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if SOC_DRA7XX
+	select TI_DMA_CROSSBAR if (SOC_DRA7XX || COMPILE_TEST)
 
 config DMA_SA11X0
 	tristate "SA-11x0 DMA support"
-	depends on ARCH_SA1100
+	depends on ARCH_SA1100 || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -150,7 +150,6 @@ config DMA_SUN4I
 	depends on MACH_SUN4I || MACH_SUN5I || MACH_SUN7I
 	default (MACH_SUN4I || MACH_SUN5I || MACH_SUN7I)
 	select DMA_ENGINE
-	select DMA_OF
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the DMA controller present in the sun4i,
@@ -158,7 +157,7 @@ config DMA_SUN4I
 
 config DMA_SUN6I
 	tristate "Allwinner A31 SoCs DMA support"
-	depends on MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
+	depends on MACH_SUN6I || MACH_SUN8I || (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 	depends on RESET_CONTROLLER
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
@@ -167,7 +166,7 @@ config DMA_SUN6I
 
 config EP93XX_DMA
 	bool "Cirrus Logic EP93xx DMA support"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Enable support for the Cirrus Logic EP93xx M2P/M2M DMA controller.
@@ -279,7 +278,7 @@ config INTEL_MIC_X100_DMA
 
 config K3_DMA
 	tristate "Hisilicon K3 DMA support"
-	depends on ARCH_HI3xxx
+	depends on ARCH_HI3xxx || ARCH_HISI || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -297,16 +296,17 @@ config LPC18XX_DMAMUX
 
 config MMP_PDMA
 	bool "MMP PDMA support"
-	depends on (ARCH_MMP || ARCH_PXA)
+	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Support the MMP PDMA engine for PXA and MMP platform.
 
 config MMP_TDMA
 	bool "MMP Two-Channel DMA support"
-	depends on ARCH_MMP
+	depends on ARCH_MMP || COMPILE_TEST
 	select DMA_ENGINE
-	select MMP_SRAM
+	select MMP_SRAM if ARCH_MMP
+	select GENERIC_ALLOCATOR
 	help
 	  Support the MMP Two-Channel DMA engine.
 	  This engine used for MMP Audio DMA and pxa910 SQU.
@@ -316,7 +316,6 @@ config MOXART_DMA
 	tristate "MOXART DMA support"
 	depends on ARCH_MOXART
 	select DMA_ENGINE
-	select DMA_OF
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the MOXA ART SoC DMA controller.
@@ -437,21 +436,34 @@ config STE_DMA40
 	help
 	  Support for ST-Ericsson DMA40 controller
 
+config ST_FDMA
+	tristate "ST FDMA dmaengine support"
+	depends on ARCH_STI
+	depends on REMOTEPROC
+	select ST_SLIM_REMOTEPROC
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for ST FDMA controller.
+	  It supports 16 independent DMA channels, accepts up to 32 DMA requests
+
+	  Say Y here if you have such a chipset.
+	  If unsure, say N.
+
 config STM32_DMA
 	bool "STMicroelectronics STM32 DMA support"
-	depends on ARCH_STM32
+	depends on ARCH_STM32 || COMPILE_TEST
 	select DMA_ENGINE
-	select DMA_OF
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Enable support for the on-chip DMA controller on STMicroelectronics
 	  STM32 MCUs.
-	  If you have a board based on such a MCU and wish to use DMA say Y or M
+	  If you have a board based on such a MCU and wish to use DMA say Y
 	  here.
 
 config S3C24XX_DMAC
 	bool "Samsung S3C24XX DMA support"
-	depends on ARCH_S3C24XX
+	depends on ARCH_S3C24XX || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -482,11 +494,10 @@ config TEGRA20_APB_DMA
 	  or vice versa. It does not support memory to memory data transfer.
 
 config TEGRA210_ADMA
-	bool "NVIDIA Tegra210 ADMA support"
-	depends on ARCH_TEGRA_210_SOC
+	tristate "NVIDIA Tegra210 ADMA support"
+	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST) && PM_CLK
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	select PM_CLK
 	help
 	  Support for the NVIDIA Tegra210 ADMA controller driver. The
 	  DMA controller has multiple DMA channels and is used to service
@@ -497,7 +508,7 @@ config TEGRA210_ADMA
 
 config TIMB_DMA
 	tristate "Timberdale FPGA DMA support"
-	depends on MFD_TIMBERDALE
+	depends on MFD_TIMBERDALE || COMPILE_TEST
 	select DMA_ENGINE
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
@@ -515,10 +526,10 @@ config TI_DMA_CROSSBAR
 
 config TI_EDMA
 	bool "TI EDMA support"
-	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE
+	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if ARCH_OMAP
+	select TI_DMA_CROSSBAR if (ARCH_OMAP || COMPILE_TEST)
 	default n
 	help
 	  Enable support for the TI EDMA controller. This DMA
@@ -560,12 +571,12 @@ config XILINX_ZYNQMP_DMA
 	  Enable support for Xilinx ZynqMP DMA controller.
 
 config ZX_DMA
-	tristate "ZTE ZX296702 DMA support"
-	depends on ARCH_ZX
+	tristate "ZTE ZX DMA support"
+	depends on ARCH_ZX || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Support the DMA engine for ZTE ZX296702 platform devices.
+	  Support the DMA engine for ZTE ZX family platform devices.
 
 
 # driver files

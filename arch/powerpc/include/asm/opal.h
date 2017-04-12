@@ -225,9 +225,7 @@ int64_t opal_int_set_mfrr(uint32_t cpu, uint8_t mfrr);
 int64_t opal_pci_tce_kill(uint64_t phb_id, uint32_t kill_type,
 			  uint32_t pe_num, uint32_t tce_size,
 			  uint64_t dma_addr, uint32_t npages);
-int64_t opal_rm_pci_tce_kill(uint64_t phb_id, uint32_t kill_type,
-			     uint32_t pe_num, uint32_t tce_size,
-			     uint64_t dma_addr, uint32_t npages);
+int64_t opal_nmmu_set_ptcr(uint64_t chip_id, uint64_t ptcr);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,

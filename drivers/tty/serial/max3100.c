@@ -712,7 +712,7 @@ static void max3100_break_ctl(struct uart_port *port, int break_state)
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 }
 
-static struct uart_ops max3100_ops = {
+static const struct uart_ops max3100_ops = {
 	.tx_empty	= max3100_tx_empty,
 	.set_mctrl	= max3100_set_mctrl,
 	.get_mctrl	= max3100_get_mctrl,

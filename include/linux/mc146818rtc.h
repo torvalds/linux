@@ -16,6 +16,7 @@
 #include <asm/mc146818rtc.h>		/* register access macros */
 #include <linux/bcd.h>
 #include <linux/delay.h>
+#include <linux/pm-trace.h>
 
 #ifdef __KERNEL__
 #include <linux/spinlock.h>		/* spinlock_t */

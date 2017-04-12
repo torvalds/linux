@@ -29,7 +29,7 @@
 #define DEFAULT_GAMMA	"07 07 6 0 0 0 5 5 4 0\n" \
 			"07 08 4 7 5 1 2 0 7 7"
 
-static unsigned read_devicecode(struct fbtft_par *par)
+static unsigned int read_devicecode(struct fbtft_par *par)
 {
 	int ret;
 	u8 rxbuf[8] = {0, };
@@ -41,7 +41,7 @@ static unsigned read_devicecode(struct fbtft_par *par)
 
 static int init_display(struct fbtft_par *par)
 {
-	unsigned devcode;
+	unsigned int devcode;
 
 	par->fbtftops.reset(par);
 
@@ -221,7 +221,7 @@ static int set_var(struct fbtft_par *par)
  *  VRN0 VRN1 RN0 RN1 KN0 KN1 KN2 KN3 KN4 KN5
  */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,

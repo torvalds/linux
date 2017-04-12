@@ -1,6 +1,4 @@
 /*
- * 2.5 block I/O model
- *
  * Copyright (C) 2001 Jens Axboe <axboe@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -65,6 +63,12 @@
 #define bio_end_sector(bio)	((bio)->bi_iter.bi_sector + bio_sectors((bio)))
 
 /*
+ * Return the data direction, READ or WRITE.
+ */
+#define bio_data_dir(bio) \
+	(op_is_write(bio_op(bio)) ? WRITE : READ)
+
+/*
  * Check whether this bio carries any data or not. A NULL bio is allowed.
  */
 static inline bool bio_has_data(struct bio *bio)
@@ -72,7 +76,8 @@ static inline bool bio_has_data(struct bio *bio)
 	if (bio &&
 	    bio->bi_iter.bi_size &&
 	    bio_op(bio) != REQ_OP_DISCARD &&
-	    bio_op(bio) != REQ_OP_SECURE_ERASE)
+	    bio_op(bio) != REQ_OP_SECURE_ERASE &&
+	    bio_op(bio) != REQ_OP_WRITE_ZEROES)
 		return true;
 
 	return false;
@@ -82,18 +87,8 @@ static inline bool bio_no_advance_iter(struct bio *bio)
 {
 	return bio_op(bio) == REQ_OP_DISCARD ||
 	       bio_op(bio) == REQ_OP_SECURE_ERASE ||
-	       bio_op(bio) == REQ_OP_WRITE_SAME;
-}
-
-static inline bool bio_is_rw(struct bio *bio)
-{
-	if (!bio_has_data(bio))
-		return false;
-
-	if (bio_no_advance_iter(bio))
-		return false;
-
-	return true;
+	       bio_op(bio) == REQ_OP_WRITE_SAME ||
+	       bio_op(bio) == REQ_OP_WRITE_ZEROES;
 }
 
 static inline bool bio_mergeable(struct bio *bio)
@@ -188,30 +183,37 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
 
 #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
 
-static inline unsigned bio_segments(struct bio *bio)
+static inline unsigned __bio_segments(struct bio *bio, struct bvec_iter *bvec)
 {
 	unsigned segs = 0;
 	struct bio_vec bv;
 	struct bvec_iter iter;
 
 	/*
-	 * We special case discard/write same, because they interpret bi_size
-	 * differently:
+	 * We special case discard/write same/write zeroes, because they
+	 * interpret bi_size differently:
 	 */
 
-	if (bio_op(bio) == REQ_OP_DISCARD)
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_ZEROES:
+		return 0;
+	case REQ_OP_WRITE_SAME:
 		return 1;
+	default:
+		break;
+	}
 
-	if (bio_op(bio) == REQ_OP_SECURE_ERASE)
-		return 1;
-
-	if (bio_op(bio) == REQ_OP_WRITE_SAME)
-		return 1;
-
-	bio_for_each_segment(bv, bio, iter)
+	__bio_for_each_segment(bv, bio, iter, *bvec)
 		segs++;
 
 	return segs;
+}
+
+static inline unsigned bio_segments(struct bio *bio)
+{
+	return __bio_segments(bio, &bio->bi_iter);
 }
 
 /*
@@ -387,6 +389,8 @@ extern void bio_put(struct bio *);
 extern void __bio_clone_fast(struct bio *, struct bio *);
 extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
 extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
+extern struct bio *bio_clone_bioset_partial(struct bio *, gfp_t,
+					    struct bio_set *, int, int);
 
 extern struct bio_set *fs_bio_set;
 
@@ -411,6 +415,8 @@ static inline struct bio *bio_clone_kmalloc(struct bio *bio, gfp_t gfp_mask)
 
 }
 
+extern blk_qc_t submit_bio(struct bio *);
+
 extern void bio_endio(struct bio *);
 
 static inline void bio_io_error(struct bio *bio)
@@ -425,13 +431,15 @@ extern int bio_phys_segments(struct request_queue *, struct bio *);
 extern int submit_bio_wait(struct bio *bio);
 extern void bio_advance(struct bio *, unsigned);
 
-extern void bio_init(struct bio *);
+extern void bio_init(struct bio *bio, struct bio_vec *table,
+		     unsigned short max_vecs);
 extern void bio_reset(struct bio *);
 void bio_chain(struct bio *, struct bio *);
 
 extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
 extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 			   unsigned int, unsigned int);
+int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
 				    const struct iov_iter *, gfp_t);
@@ -461,6 +469,7 @@ static inline void bio_flush_dcache_pages(struct bio *bi)
 
 extern void bio_copy_data(struct bio *dst, struct bio *src);
 extern int bio_alloc_pages(struct bio *bio, gfp_t gfp);
+extern void bio_free_pages(struct bio *bio);
 
 extern struct bio *bio_copy_user_iov(struct request_queue *,
 				     struct rq_map_data *,

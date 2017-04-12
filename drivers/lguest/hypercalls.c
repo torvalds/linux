@@ -109,10 +109,6 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 	case LHCALL_SET_CLOCKEVENT:
 		guest_set_clockevent(cpu, args->arg1);
 		break;
-	case LHCALL_TS:
-		/* This sets the TS flag, as we saw used in run_guest(). */
-		cpu->ts = args->arg1;
-		break;
 	case LHCALL_HALT:
 		/* Similarly, this sets the halted flag for run_guest(). */
 		cpu->halted = 1;

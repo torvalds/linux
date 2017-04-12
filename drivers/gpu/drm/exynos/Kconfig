@@ -19,7 +19,6 @@ comment "CRTCs"
 config DRM_EXYNOS_FIMD
 	bool "FIMD"
 	depends on !FB_S3C
-	select FB_MODE_HELPERS
 	select MFD_SYSCON
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
@@ -32,13 +31,11 @@ config DRM_EXYNOS5433_DECON
 config DRM_EXYNOS7_DECON
 	bool "DECON on Exynos7"
 	depends on !FB_S3C
-	select FB_MODE_HELPERS
 	help
 	  Choose this option if you want to use Exynos DECON for DRM.
 
 config DRM_EXYNOS_MIXER
 	bool "Mixer"
-	depends on !VIDEO_SAMSUNG_S5P_TV
 	help
 	  Choose this option if you want to use Exynos Mixer for DRM.
 
@@ -77,7 +74,7 @@ config DRM_EXYNOS_DP
 
 config DRM_EXYNOS_HDMI
 	bool "HDMI"
-	depends on !VIDEO_SAMSUNG_S5P_TV && (DRM_EXYNOS_MIXER || DRM_EXYNOS5433_DECON)
+	depends on DRM_EXYNOS_MIXER || DRM_EXYNOS5433_DECON
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
 
@@ -115,7 +112,7 @@ config DRM_EXYNOS_ROTATOR
 
 config DRM_EXYNOS_GSC
 	bool "GScaler"
-	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5 && !VIDEO_SAMSUNG_EXYNOS_GSC
+	depends on DRM_EXYNOS_IPP && ARCH_EXYNOS5 && VIDEO_SAMSUNG_EXYNOS_GSC=n
 	help
 	  Choose this option if you want to use Exynos GSC for DRM.
 

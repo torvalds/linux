@@ -121,9 +121,14 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 			irq_valid = true;
 		}
 
-		/* Data available. Record mode not supported in PIO mode */
-		if (isr[i] & ISR_RXDA)
+		/*
+		 * Data available. Retrieve samples from FIFO
+		 * NOTE: Only two channels supported
+		 */
+		if ((isr[i] & ISR_RXDA) && (i == 0) && dev->use_pio) {
+			dw_pcm_pop_rx(dev);
 			irq_valid = true;
+		}
 
 		/* Error Handling: TX */
 		if (isr[i] & ISR_TXFO) {
@@ -577,7 +582,6 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 		dev->capability |= DWC_I2S_PLAY;
 		dev->play_dma_data.dt.addr = res->start + I2S_TXDMA;
 		dev->play_dma_data.dt.addr_width = bus_widths[idx];
-		dev->play_dma_data.dt.chan_name = "TX";
 		dev->play_dma_data.dt.fifo_size = fifo_depth *
 			(fifo_width[idx2]) >> 8;
 		dev->play_dma_data.dt.maxburst = 16;
@@ -588,7 +592,6 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 		dev->capability |= DWC_I2S_RECORD;
 		dev->capture_dma_data.dt.addr = res->start + I2S_RXDMA;
 		dev->capture_dma_data.dt.addr_width = bus_widths[idx];
-		dev->capture_dma_data.dt.chan_name = "RX";
 		dev->capture_dma_data.dt.fifo_size = fifo_depth *
 			(fifo_width[idx2] >> 8);
 		dev->capture_dma_data.dt.maxburst = 16;
@@ -683,22 +686,19 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	}
 
 	if (!pdata) {
-		ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
-		if (ret == -EPROBE_DEFER) {
-			dev_err(&pdev->dev,
-				"failed to register PCM, deferring probe\n");
-			return ret;
-		} else if (ret) {
-			dev_err(&pdev->dev,
-				"Could not register DMA PCM: %d\n"
-				"falling back to PIO mode\n", ret);
+		if (irq >= 0) {
 			ret = dw_pcm_register(pdev);
-			if (ret) {
-				dev_err(&pdev->dev,
-					"Could not register PIO PCM: %d\n",
+			dev->use_pio = true;
+		} else {
+			ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
+					0);
+			dev->use_pio = false;
+		}
+
+		if (ret) {
+			dev_err(&pdev->dev, "could not register pcm: %d\n",
 					ret);
-				goto err_clk_disable;
-			}
+			goto err_clk_disable;
 		}
 	}
 

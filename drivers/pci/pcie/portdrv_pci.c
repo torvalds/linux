@@ -1,12 +1,13 @@
 /*
  * File:	portdrv_pci.c
  * Purpose:	PCI Express Port Bus Driver
+ * Author:	Tom Nguyen <tom.l.nguyen@intel.com>
+ * Version:	v1.0
  *
  * Copyright (C) 2004 Intel
  * Copyright (C) Tom Long Nguyen (tom.l.nguyen@intel.com)
  */
 
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -18,18 +19,9 @@
 #include <linux/dmi.h>
 #include <linux/pci-aspm.h>
 
+#include "../pci.h"
 #include "portdrv.h"
 #include "aer/aerdrv.h"
-
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.0"
-#define DRIVER_AUTHOR "tom.l.nguyen@intel.com"
-#define DRIVER_DESC "PCIe Port Bus Driver"
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
 
 /* If this switch is set, PCIe port native services should not be enabled. */
 bool pcie_ports_disabled;
@@ -158,15 +150,7 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 
 	pci_save_state(dev);
 
-	/*
-	 * Prevent runtime PM if the port is advertising support for PCIe
-	 * hotplug.  Otherwise the BIOS hotplug SMI code might not be able
-	 * to enumerate devices behind this port properly (the port is
-	 * powered down preventing all config space accesses to the
-	 * subordinate devices).  We can't be sure for native PCIe hotplug
-	 * either so prevent that as well.
-	 */
-	if (!dev->is_hotplug_bridge) {
+	if (pci_bridge_d3_possible(dev)) {
 		/*
 		 * Keep the port resumed 100ms to make sure things like
 		 * config space accesses from userspace (lspci) will not
@@ -184,7 +168,7 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 
 static void pcie_portdrv_remove(struct pci_dev *dev)
 {
-	if (!dev->is_hotplug_bridge) {
+	if (pci_bridge_d3_possible(dev)) {
 		pm_runtime_forbid(&dev->dev);
 		pm_runtime_get_noresume(&dev->dev);
 		pm_runtime_dont_use_autosuspend(&dev->dev);
@@ -341,7 +325,6 @@ static const struct pci_device_id port_pci_ids[] = { {
 	PCI_DEVICE_CLASS(((PCI_CLASS_BRIDGE_PCI << 8) | 0x00), ~0),
 	}, { /* end: all zeroes */ }
 };
-MODULE_DEVICE_TABLE(pci, port_pci_ids);
 
 static const struct pci_error_handlers pcie_portdrv_err_handler = {
 	.error_detected = pcie_portdrv_error_detected,
@@ -406,5 +389,4 @@ static int __init pcie_portdrv_init(void)
  out:
 	return retval;
 }
-
-module_init(pcie_portdrv_init);
+device_initcall(pcie_portdrv_init);

@@ -16,7 +16,7 @@
 static int __remove_xattr(struct ceph_inode_info *ci,
 			  struct ceph_inode_xattr *xattr);
 
-const struct xattr_handler ceph_other_xattr_handler;
+static const struct xattr_handler ceph_other_xattr_handler;
 
 /*
  * List of handlers for synthetic system.* attributes. Other
@@ -1034,7 +1034,7 @@ retry:
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL,
 					       &prealloc_cf);
 		ci->i_xattrs.dirty = true;
-		inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_time(inode);
 	}
 
 	spin_unlock(&ci->i_ceph_lock);
@@ -1086,7 +1086,7 @@ static int ceph_set_xattr_handler(const struct xattr_handler *handler,
 	return __ceph_setxattr(inode, name, value, size, flags);
 }
 
-const struct xattr_handler ceph_other_xattr_handler = {
+static const struct xattr_handler ceph_other_xattr_handler = {
 	.prefix = "",  /* match any name => handlers called with full name */
 	.get = ceph_get_xattr_handler,
 	.set = ceph_set_xattr_handler,

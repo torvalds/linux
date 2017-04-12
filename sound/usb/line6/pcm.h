@@ -20,9 +20,6 @@
 
 #include "driver.h"
 
-/* number of URBs */
-#define LINE6_ISO_BUFFERS	2
-
 /*
 	number of USB frames per URB
 	The Line 6 Windows driver always transmits two frames per packet, but
@@ -31,7 +28,9 @@
 */
 #define LINE6_ISO_PACKETS	1
 
-/* in a "full speed" device (such as the PODxt Pro) this means 1ms */
+/* in a "full speed" device (such as the PODxt Pro) this means 1ms,
+ *  for "high speed" it's 1/8ms
+ */
 #define LINE6_ISO_INTERVAL	1
 
 #define LINE6_IMPULSE_DEFAULT_PERIOD 100
@@ -74,6 +73,7 @@ enum {
 	LINE6_STREAM_PCM,
 	LINE6_STREAM_MONITOR,
 	LINE6_STREAM_IMPULSE,
+	LINE6_STREAM_CAPTURE_HELPER,
 };
 
 /* misc bit flags for PCM operation */
@@ -85,12 +85,12 @@ enum {
 struct line6_pcm_properties {
 	struct snd_pcm_hardware playback_hw, capture_hw;
 	struct snd_pcm_hw_constraint_ratdens rates;
-	int bytes_per_frame;
+	int bytes_per_channel;
 };
 
 struct line6_pcm_stream {
 	/* allocated URBs */
-	struct urb *urbs[LINE6_ISO_BUFFERS];
+	struct urb **urbs;
 
 	/* Temporary buffer;
 	 * Since the packet size is not known in advance, this buffer is
@@ -157,11 +157,12 @@ struct snd_line6_pcm {
 	/* Previously captured frame (for software monitoring) */
 	unsigned char *prev_fbuf;
 
-	/* Size of previously captured frame (for software monitoring) */
+	/* Size of previously captured frame (for software monitoring/sync) */
 	int prev_fsize;
 
 	/* Maximum size of USB packet */
-	int max_packet_size;
+	int max_packet_size_in;
+	int max_packet_size_out;
 
 	/* PCM playback volume (left and right) */
 	int volume_playback[2];
@@ -191,7 +192,8 @@ extern int snd_line6_hw_params(struct snd_pcm_substream *substream,
 extern int snd_line6_hw_free(struct snd_pcm_substream *substream);
 extern snd_pcm_uframes_t snd_line6_pointer(struct snd_pcm_substream *substream);
 extern void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm);
-extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type);
+extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type,
+			       bool start);
 extern void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type);
 
 #endif

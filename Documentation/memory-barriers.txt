@@ -609,7 +609,7 @@ A data-dependency barrier must also order against dependent writes:
 The data-dependency barrier must order the read into Q with the store
 into *Q.  This prohibits this outcome:
 
-	(Q == B) && (B == 4)
+	(Q == &B) && (B == 4)
 
 Please note that this pattern should be rare.  After all, the whole point
 of dependency ordering is to -prevent- writes to the data structure, along
@@ -640,6 +640,10 @@ See also the subsection on "Cache Coherency" for a more thorough example.
 CONTROL DEPENDENCIES
 --------------------
 
+Control dependencies can be a bit tricky because current compilers do
+not understand them.  The purpose of this section is to help you prevent
+the compiler's ignorance from breaking your code.
+
 A load-load control dependency requires a full read memory barrier, not
 simply a data dependency barrier to make it work correctly.  Consider the
 following bit of code:
@@ -667,14 +671,15 @@ for load-store control dependencies, as in the following example:
 
 	q = READ_ONCE(a);
 	if (q) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 	}
 
-Control dependencies pair normally with other types of barriers.  That
-said, please note that READ_ONCE() is not optional! Without the
-READ_ONCE(), the compiler might combine the load from 'a' with other
-loads from 'a', and the store to 'b' with other stores to 'b', with
-possible highly counterintuitive effects on ordering.
+Control dependencies pair normally with other types of barriers.
+That said, please note that neither READ_ONCE() nor WRITE_ONCE()
+are optional! Without the READ_ONCE(), the compiler might combine the
+load from 'a' with other loads from 'a'.  Without the WRITE_ONCE(),
+the compiler might combine the store to 'b' with other stores to 'b'.
+Either can result in highly counterintuitive effects on ordering.
 
 Worse yet, if the compiler is able to prove (say) that the value of
 variable 'a' is always non-zero, it would be well within its rights
@@ -682,7 +687,7 @@ to optimize the original example by eliminating the "if" statement
 as follows:
 
 	q = a;
-	b = p;  /* BUG: Compiler and CPU can both reorder!!! */
+	b = 1;  /* BUG: Compiler and CPU can both reorder!!! */
 
 So don't leave out the READ_ONCE().
 
@@ -692,11 +697,11 @@ branches of the "if" statement as follows:
 	q = READ_ONCE(a);
 	if (q) {
 		barrier();
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
 		barrier();
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something_else();
 	}
 
@@ -705,12 +710,12 @@ optimization levels:
 
 	q = READ_ONCE(a);
 	barrier();
-	WRITE_ONCE(b, p);  /* BUG: No ordering vs. load from a!!! */
+	WRITE_ONCE(b, 1);  /* BUG: No ordering vs. load from a!!! */
 	if (q) {
-		/* WRITE_ONCE(b, p); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
 		do_something();
 	} else {
-		/* WRITE_ONCE(b, p); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
 		do_something_else();
 	}
 
@@ -723,10 +728,10 @@ memory barriers, for example, smp_store_release():
 
 	q = READ_ONCE(a);
 	if (q) {
-		smp_store_release(&b, p);
+		smp_store_release(&b, 1);
 		do_something();
 	} else {
-		smp_store_release(&b, p);
+		smp_store_release(&b, 1);
 		do_something_else();
 	}
 
@@ -735,10 +740,10 @@ ordering is guaranteed only when the stores differ, for example:
 
 	q = READ_ONCE(a);
 	if (q) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 		do_something_else();
 	}
 
@@ -751,10 +756,10 @@ the needed conditional.  For example:
 
 	q = READ_ONCE(a);
 	if (q % MAX) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 		do_something_else();
 	}
 
@@ -763,7 +768,7 @@ equal to zero, in which case the compiler is within its rights to
 transform the above code into the following:
 
 	q = READ_ONCE(a);
-	WRITE_ONCE(b, p);
+	WRITE_ONCE(b, 1);
 	do_something_else();
 
 Given this transformation, the CPU is not required to respect the ordering
@@ -776,10 +781,10 @@ one, perhaps as follows:
 	q = READ_ONCE(a);
 	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
 	if (q % MAX) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 		do_something_else();
 	}
 
@@ -812,30 +817,28 @@ not necessarily apply to code following the if-statement:
 
 	q = READ_ONCE(a);
 	if (q) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 	}
-	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from "a". */
+	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from 'a'. */
 
 It is tempting to argue that there in fact is ordering because the
 compiler cannot reorder volatile accesses and also cannot reorder
-the writes to "b" with the condition.  Unfortunately for this line
-of reasoning, the compiler might compile the two writes to "b" as
+the writes to 'b' with the condition.  Unfortunately for this line
+of reasoning, the compiler might compile the two writes to 'b' as
 conditional-move instructions, as in this fanciful pseudo-assembly
 language:
 
 	ld r1,a
-	ld r2,p
-	ld r3,r
 	cmp r1,$0
-	cmov,ne r4,r2
-	cmov,eq r4,r3
+	cmov,ne r4,$1
+	cmov,eq r4,$2
 	st r4,b
 	st $1,c
 
 A weakly ordered CPU would have no dependency of any sort between the load
-from "a" and the store to "c".  The control dependencies would extend
+from 'a' and the store to 'c'.  The control dependencies would extend
 only to the pair of cmov instructions and the store depending on them.
 In short, control dependencies apply only to the stores in the then-clause
 and else-clause of the if-statement in question (including functions
@@ -843,7 +846,7 @@ invoked by those two clauses), not to code following that if-statement.
 
 Finally, control dependencies do -not- provide transitivity.  This is
 demonstrated by two related examples, with the initial values of
-x and y both being zero:
+'x' and 'y' both being zero:
 
 	CPU 0                     CPU 1
 	=======================   =======================
@@ -914,6 +917,9 @@ In summary:
 
   (*) Control dependencies do -not- provide transitivity.  If you
       need transitivity, use smp_mb().
+
+  (*) Compilers do not understand control dependencies.  It is therefore
+      your job to ensure that they do not break your code.
 
 
 SMP BARRIER PAIRING
@@ -1928,6 +1934,7 @@ There are some more advanced barrier functions:
 
      See Documentation/DMA-API.txt for more information on consistent memory.
 
+
 MMIO WRITE BARRIER
 ------------------
 
@@ -2075,7 +2082,7 @@ systems, and so cannot be counted on in such a situation to actually achieve
 anything at all - especially with respect to I/O accesses - unless combined
 with interrupt disabling operations.
 
-See also the section on "Inter-CPU locking barrier effects".
+See also the section on "Inter-CPU acquiring barrier effects".
 
 
 As an example, consider the following:

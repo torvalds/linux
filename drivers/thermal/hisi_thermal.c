@@ -237,7 +237,8 @@ static irqreturn_t hisi_thermal_alarm_irq_thread(int irq, void *dev)
 		if (!data->sensors[i].tzd)
 			continue;
 
-		thermal_zone_device_update(data->sensors[i].tzd);
+		thermal_zone_device_update(data->sensors[i].tzd,
+					   THERMAL_EVENT_UNSPECIFIED);
 	}
 
 	return IRQ_HANDLED;

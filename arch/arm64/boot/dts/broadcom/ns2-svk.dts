@@ -56,6 +56,10 @@
 	};
 };
 
+&enet {
+	status = "ok";
+};
+
 &pci_phy0 {
 	status = "ok";
 };
@@ -69,6 +73,10 @@
 };
 
 &pcie4 {
+	status = "ok";
+};
+
+&pcie8 {
 	status = "ok";
 };
 
@@ -157,6 +165,10 @@
 	status = "ok";
 };
 
+&sdio1 {
+	status = "ok";
+};
+
 &nand {
 	nandcs@0 {
 		compatible = "brcm,nandcs";
@@ -164,6 +176,8 @@
 		nand-ecc-mode = "hw";
 		nand-ecc-strength = <8>;
 		nand-ecc-step-size = <512>;
+		nand-bus-width = <16>;
+		brcm,nand-oob-sector-size = <16>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
@@ -172,6 +186,7 @@
 &mdio_mux_iproc {
 	mdio@10 {
 		gphy0: eth-phy@10 {
+			enet-phy-lane-swap;
 			reg = <0x10>;
 		};
 	};
@@ -183,5 +198,39 @@
 	nand_sel: nand_sel {
 		function = "nand";
 		groups = "nand_grp";
+	};
+};
+
+&qspi {
+	bspi-sel = <0>;
+	flash: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "m25p80";
+		reg = <0x0>;
+		spi-max-frequency = <12500000>;
+		m25p,fast-read;
+		spi-cpol;
+		spi-cpha;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x00000000 0x000a0000>;
+		};
+
+		partition@a0000 {
+			label = "env";
+			reg = <0x000a0000 0x00060000>;
+		};
+
+		partition@100000 {
+			label = "system";
+			reg = <0x00100000 0x00600000>;
+		};
+
+		partition@700000 {
+			label = "rootfs";
+			reg = <0x00700000 0x01900000>;
+		};
 	};
 };

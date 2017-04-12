@@ -6,7 +6,7 @@
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/freezer.h>
 #include <linux/module.h>
 #include <linux/fs_struct.h>
@@ -153,16 +153,31 @@ int nfsd_vers(int vers, enum vers_op change)
 	return 0;
 }
 
+static void
+nfsd_adjust_nfsd_versions4(void)
+{
+	unsigned i;
+
+	for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++) {
+		if (nfsd_supported_minorversions[i])
+			return;
+	}
+	nfsd_vers(4, NFSD_CLEAR);
+}
+
 int nfsd_minorversion(u32 minorversion, enum vers_op change)
 {
-	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION &&
+	    change != NFSD_AVAIL)
 		return -1;
 	switch(change) {
 	case NFSD_SET:
 		nfsd_supported_minorversions[minorversion] = true;
+		nfsd_vers(4, NFSD_SET);
 		break;
 	case NFSD_CLEAR:
 		nfsd_supported_minorversions[minorversion] = false;
+		nfsd_adjust_nfsd_versions4();
 		break;
 	case NFSD_TEST:
 		return nfsd_supported_minorversions[minorversion];
@@ -354,6 +369,8 @@ static int nfsd_inet6addr_event(struct notifier_block *this,
 		dprintk("nfsd_inet6addr_event: removed %pI6\n", &ifa->addr);
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_addr = ifa->addr;
+		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
+			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
 		svc_age_temp_xprts_now(nn->nfsd_serv, (struct sockaddr *)&sin6);
 	}
 
@@ -366,14 +383,21 @@ static struct notifier_block nfsd_inet6addr_notifier = {
 };
 #endif
 
+/* Only used under nfsd_mutex, so this atomic may be overkill: */
+static atomic_t nfsd_notifier_refcount = ATOMIC_INIT(0);
+
 static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	unregister_inetaddr_notifier(&nfsd_inetaddr_notifier);
+	/* check if the notifier still has clients */
+	if (atomic_dec_return(&nfsd_notifier_refcount) == 0) {
+		unregister_inetaddr_notifier(&nfsd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&nfsd_inet6addr_notifier);
+		unregister_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
+	}
+
 	/*
 	 * write_ports can create the server without actually starting
 	 * any threads--if we get shut down before any threads are
@@ -392,23 +416,20 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 
 void nfsd_reset_versions(void)
 {
-	int found_one = 0;
 	int i;
 
-	for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
-		if (nfsd_program.pg_vers[i])
-			found_one = 1;
-	}
+	for (i = 0; i < NFSD_NRVERS; i++)
+		if (nfsd_vers(i, NFSD_TEST))
+			return;
 
-	if (!found_one) {
-		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
-			nfsd_program.pg_vers[i] = nfsd_version[i];
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
-			nfsd_acl_program.pg_vers[i] =
-				nfsd_acl_version[i];
-#endif
-	}
+	for (i = 0; i < NFSD_NRVERS; i++)
+		if (i != 4)
+			nfsd_vers(i, NFSD_SET);
+		else {
+			int minor = 0;
+			while (nfsd_minorversion(minor, NFSD_SET) >= 0)
+				minor++;
+		}
 }
 
 /*
@@ -488,10 +509,13 @@ int nfsd_create_serv(struct net *net)
 	}
 
 	set_max_drc();
-	register_inetaddr_notifier(&nfsd_inetaddr_notifier);
+	/* check if the notifier is already set */
+	if (atomic_inc_return(&nfsd_notifier_refcount) == 1) {
+		register_inetaddr_notifier(&nfsd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
-	register_inet6addr_notifier(&nfsd_inet6addr_notifier);
+		register_inet6addr_notifier(&nfsd_inet6addr_notifier);
 #endif
+	}
 	do_gettimeofday(&nn->nfssvc_boot);		/* record boot time */
 	return 0;
 }
@@ -651,8 +675,8 @@ nfsd(void *vrqstp)
 	mutex_lock(&nfsd_mutex);
 
 	/* At this point, the thread shares current->fs
-	 * with the init process. We need to create files with a
-	 * umask of 0 instead of init's umask. */
+	 * with the init process. We need to create files with the
+	 * umask as defined by the client instead of init's umask. */
 	if (unshare_fs_struct() < 0) {
 		printk("Unable to start nfsd thread: out of memory\n");
 		goto out;

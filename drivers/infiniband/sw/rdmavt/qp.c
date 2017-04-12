@@ -51,9 +51,50 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_hdrs.h>
 #include "qp.h"
 #include "vt.h"
 #include "trace.h"
+
+static void rvt_rc_timeout(unsigned long arg);
+
+/*
+ * Convert the AETH RNR timeout code into the number of microseconds.
+ */
+static const u32 ib_rvt_rnr_table[32] = {
+	655360, /* 00: 655.36 */
+	10,     /* 01:    .01 */
+	20,     /* 02     .02 */
+	30,     /* 03:    .03 */
+	40,     /* 04:    .04 */
+	60,     /* 05:    .06 */
+	80,     /* 06:    .08 */
+	120,    /* 07:    .12 */
+	160,    /* 08:    .16 */
+	240,    /* 09:    .24 */
+	320,    /* 0A:    .32 */
+	480,    /* 0B:    .48 */
+	640,    /* 0C:    .64 */
+	960,    /* 0D:    .96 */
+	1280,   /* 0E:   1.28 */
+	1920,   /* 0F:   1.92 */
+	2560,   /* 10:   2.56 */
+	3840,   /* 11:   3.84 */
+	5120,   /* 12:   5.12 */
+	7680,   /* 13:   7.68 */
+	10240,  /* 14:  10.24 */
+	15360,  /* 15:  15.36 */
+	20480,  /* 16:  20.48 */
+	30720,  /* 17:  30.72 */
+	40960,  /* 18:  40.96 */
+	61440,  /* 19:  61.44 */
+	81920,  /* 1A:  81.92 */
+	122880, /* 1B: 122.88 */
+	163840, /* 1C: 163.84 */
+	245760, /* 1D: 245.76 */
+	327680, /* 1E: 327.68 */
+	491520  /* 1F: 491.52 */
+};
 
 /*
  * Note that it is OK to post send work requests in the SQE and ERR
@@ -75,6 +116,23 @@ const int ib_rvt_state_ops[IB_QPS_ERR + 1] = {
 	    RVT_POST_SEND_OK | RVT_FLUSH_SEND,
 };
 EXPORT_SYMBOL(ib_rvt_state_ops);
+
+/*
+ * Translate ib_wr_opcode into ib_wc_opcode.
+ */
+const enum ib_wc_opcode ib_rvt_wc_opcode[] = {
+	[IB_WR_RDMA_WRITE] = IB_WC_RDMA_WRITE,
+	[IB_WR_RDMA_WRITE_WITH_IMM] = IB_WC_RDMA_WRITE,
+	[IB_WR_SEND] = IB_WC_SEND,
+	[IB_WR_SEND_WITH_IMM] = IB_WC_SEND,
+	[IB_WR_RDMA_READ] = IB_WC_RDMA_READ,
+	[IB_WR_ATOMIC_CMP_AND_SWP] = IB_WC_COMP_SWAP,
+	[IB_WR_ATOMIC_FETCH_AND_ADD] = IB_WC_FETCH_ADD,
+	[IB_WR_SEND_WITH_INV] = IB_WC_SEND,
+	[IB_WR_LOCAL_INV] = IB_WC_LOCAL_INV,
+	[IB_WR_REG_MR] = IB_WC_REG_MR
+};
+EXPORT_SYMBOL(ib_rvt_wc_opcode);
 
 static void get_map_page(struct rvt_qpn_table *qpt,
 			 struct rvt_qpn_map *map,
@@ -183,7 +241,8 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	if (!rdi->driver_f.free_all_qps ||
 	    !rdi->driver_f.qp_priv_alloc ||
 	    !rdi->driver_f.qp_priv_free ||
-	    !rdi->driver_f.notify_qp_reset)
+	    !rdi->driver_f.notify_qp_reset ||
+	    !rdi->driver_f.notify_restart_rc)
 		return -EINVAL;
 
 	/* allocate parent object */
@@ -488,60 +547,23 @@ static void rvt_remove_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 	spin_unlock_irqrestore(&rdi->qp_dev->qpt_lock, flags);
 	if (removed) {
 		synchronize_rcu();
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 }
 
 /**
- * reset_qp - initialize the QP state to the reset state
- * @qp: the QP to reset
+ * rvt_init_qp - initialize the QP state to the reset state
+ * @qp: the QP to init or reinit
  * @type: the QP type
- * r and s lock are required to be held by the caller
+ *
+ * This function is called from both rvt_create_qp() and
+ * rvt_reset_qp().   The difference is that the reset
+ * patch the necessary locks to protect against concurent
+ * access.
  */
-static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		  enum ib_qp_type type)
-	__releases(&qp->s_lock)
-	__releases(&qp->s_hlock)
-	__releases(&qp->r_lock)
-	__acquires(&qp->r_lock)
-	__acquires(&qp->s_hlock)
-	__acquires(&qp->s_lock)
+static void rvt_init_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+			enum ib_qp_type type)
 {
-	if (qp->state != IB_QPS_RESET) {
-		qp->state = IB_QPS_RESET;
-
-		/* Let drivers flush their waitlist */
-		rdi->driver_f.flush_qp_waiters(qp);
-		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
-		spin_unlock(&qp->s_lock);
-		spin_unlock(&qp->s_hlock);
-		spin_unlock_irq(&qp->r_lock);
-
-		/* Stop the send queue and the retry timer */
-		rdi->driver_f.stop_send_queue(qp);
-
-		/* Wait for things to stop */
-		rdi->driver_f.quiesce_qp(qp);
-
-		/* take qp out the hash and wait for it to be unused */
-		rvt_remove_qp(rdi, qp);
-		wait_event(qp->wait, !atomic_read(&qp->refcount));
-
-		/* grab the lock b/c it was locked at call time */
-		spin_lock_irq(&qp->r_lock);
-		spin_lock(&qp->s_hlock);
-		spin_lock(&qp->s_lock);
-
-		rvt_clear_mr_refs(qp, 1);
-	}
-
-	/*
-	 * Let the driver do any tear down it needs to for a qp
-	 * that has been reset
-	 */
-	rdi->driver_f.notify_qp_reset(qp);
-
 	qp->remote_qpn = 0;
 	qp->qkey = 0;
 	qp->qp_access_flags = 0;
@@ -584,6 +606,61 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	}
 	qp->r_sge.num_sge = 0;
 	atomic_set(&qp->s_reserved_used, 0);
+}
+
+/**
+ * rvt_reset_qp - initialize the QP state to the reset state
+ * @qp: the QP to reset
+ * @type: the QP type
+ *
+ * r_lock, s_hlock, and s_lock are required to be held by the caller
+ */
+static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+			 enum ib_qp_type type)
+	__must_hold(&qp->s_lock)
+	__must_hold(&qp->s_hlock)
+	__must_hold(&qp->r_lock)
+{
+	lockdep_assert_held(&qp->r_lock);
+	lockdep_assert_held(&qp->s_hlock);
+	lockdep_assert_held(&qp->s_lock);
+	if (qp->state != IB_QPS_RESET) {
+		qp->state = IB_QPS_RESET;
+
+		/* Let drivers flush their waitlist */
+		rdi->driver_f.flush_qp_waiters(qp);
+		rvt_stop_rc_timers(qp);
+		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_ANY_WAIT);
+		spin_unlock(&qp->s_lock);
+		spin_unlock(&qp->s_hlock);
+		spin_unlock_irq(&qp->r_lock);
+
+		/* Stop the send queue and the retry timer */
+		rdi->driver_f.stop_send_queue(qp);
+		rvt_del_timers_sync(qp);
+		/* Wait for things to stop */
+		rdi->driver_f.quiesce_qp(qp);
+
+		/* take qp out the hash and wait for it to be unused */
+		rvt_remove_qp(rdi, qp);
+		wait_event(qp->wait, !atomic_read(&qp->refcount));
+
+		/* grab the lock b/c it was locked at call time */
+		spin_lock_irq(&qp->r_lock);
+		spin_lock(&qp->s_hlock);
+		spin_lock(&qp->s_lock);
+
+		rvt_clear_mr_refs(qp, 1);
+		/*
+		 * Let the driver do any tear down or re-init it needs to for
+		 * a qp that has been reset
+		 */
+		rdi->driver_f.notify_qp_reset(qp);
+	}
+	rvt_init_qp(rdi, qp, type);
+	lockdep_assert_held(&qp->r_lock);
+	lockdep_assert_held(&qp->s_hlock);
+	lockdep_assert_held(&qp->s_lock);
 }
 
 /**
@@ -696,6 +773,11 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			if (!qp->s_ack_queue)
 				goto bail_qp;
 		}
+		/* initialize timers needed for rc qp */
+		setup_timer(&qp->s_timer, rvt_rc_timeout, (unsigned long)qp);
+		hrtimer_init(&qp->s_rnr_timer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL);
+		qp->s_rnr_timer.function = rvt_rc_rnr_retry;
 
 		/*
 		 * Driver needs to set up it's private QP structure and do any
@@ -766,7 +848,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		}
 		qp->ibqp.qp_num = err;
 		qp->port_num = init_attr->port_num;
-		rvt_reset_qp(rdi, qp, init_attr->qp_type);
+		rvt_init_qp(rdi, qp, init_attr->qp_type);
 		break;
 
 	default:
@@ -867,7 +949,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	return ret;
 
 bail_ip:
-	kref_put(&qp->ip->ref, rvt_release_mmap_info);
+	if (qp->ip)
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 
 bail_qpn:
 	free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
@@ -906,6 +989,8 @@ int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 	int ret = 0;
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 
+	lockdep_assert_held(&qp->r_lock);
+	lockdep_assert_held(&qp->s_lock);
 	if (qp->state == IB_QPS_ERR || qp->state == IB_QPS_RESET)
 		goto bail;
 
@@ -980,7 +1065,7 @@ static void rvt_insert_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 	struct rvt_ibport *rvp = rdi->ports[qp->port_num - 1];
 	unsigned long flags;
 
-	atomic_inc(&qp->refcount);
+	rvt_get_qp(qp);
 	spin_lock_irqsave(&rdi->qp_dev->qpt_lock, flags);
 
 	if (qp->ibqp.qp_num <= 1) {
@@ -997,7 +1082,7 @@ static void rvt_insert_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 }
 
 /**
- * qib_modify_qp - modify the attributes of a queue pair
+ * rvt_modify_qp - modify the attributes of a queue pair
  * @ibqp: the queue pair who's attributes we're modifying
  * @attr: the new attributes
  * @attr_mask: the mask of attributes to modify
@@ -1831,3 +1916,184 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	}
 	return 0;
 }
+
+/**
+ * qp_comm_est - handle trap with QP established
+ * @qp: the QP
+ */
+void rvt_comm_est(struct rvt_qp *qp)
+{
+	qp->r_flags |= RVT_R_COMM_EST;
+	if (qp->ibqp.event_handler) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_COMM_EST;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+	}
+}
+EXPORT_SYMBOL(rvt_comm_est);
+
+void rvt_rc_error(struct rvt_qp *qp, enum ib_wc_status err)
+{
+	unsigned long flags;
+	int lastwqe;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+	lastwqe = rvt_error_qp(qp, err);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+
+	if (lastwqe) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+	}
+}
+EXPORT_SYMBOL(rvt_rc_error);
+
+/*
+ *  rvt_rnr_tbl_to_usec - return index into ib_rvt_rnr_table
+ *  @index - the index
+ *  return usec from an index into ib_rvt_rnr_table
+ */
+unsigned long rvt_rnr_tbl_to_usec(u32 index)
+{
+	return ib_rvt_rnr_table[(index & IB_AETH_CREDIT_MASK)];
+}
+EXPORT_SYMBOL(rvt_rnr_tbl_to_usec);
+
+static inline unsigned long rvt_aeth_to_usec(u32 aeth)
+{
+	return ib_rvt_rnr_table[(aeth >> IB_AETH_CREDIT_SHIFT) &
+				  IB_AETH_CREDIT_MASK];
+}
+
+/*
+ *  rvt_add_retry_timer - add/start a retry timer
+ *  @qp - the QP
+ *  add a retry timer on the QP
+ */
+void rvt_add_retry_timer(struct rvt_qp *qp)
+{
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
+	lockdep_assert_held(&qp->s_lock);
+	qp->s_flags |= RVT_S_TIMER;
+       /* 4.096 usec. * (1 << qp->timeout) */
+	qp->s_timer.expires = jiffies + qp->timeout_jiffies +
+			     rdi->busy_jiffies;
+	add_timer(&qp->s_timer);
+}
+EXPORT_SYMBOL(rvt_add_retry_timer);
+
+/**
+ * rvt_add_rnr_timer - add/start an rnr timer
+ * @qp - the QP
+ * @aeth - aeth of RNR timeout, simulated aeth for loopback
+ * add an rnr timer on the QP
+ */
+void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth)
+{
+	u32 to;
+
+	lockdep_assert_held(&qp->s_lock);
+	qp->s_flags |= RVT_S_WAIT_RNR;
+	to = rvt_aeth_to_usec(aeth);
+	hrtimer_start(&qp->s_rnr_timer,
+		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL);
+}
+EXPORT_SYMBOL(rvt_add_rnr_timer);
+
+/**
+ * rvt_stop_rc_timers - stop all timers
+ * @qp - the QP
+ * stop any pending timers
+ */
+void rvt_stop_rc_timers(struct rvt_qp *qp)
+{
+	lockdep_assert_held(&qp->s_lock);
+	/* Remove QP from all timers */
+	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
+		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
+		del_timer(&qp->s_timer);
+		hrtimer_try_to_cancel(&qp->s_rnr_timer);
+	}
+}
+EXPORT_SYMBOL(rvt_stop_rc_timers);
+
+/**
+ * rvt_stop_rnr_timer - stop an rnr timer
+ * @qp - the QP
+ *
+ * stop an rnr timer and return if the timer
+ * had been pending.
+ */
+static int rvt_stop_rnr_timer(struct rvt_qp *qp)
+{
+	int rval = 0;
+
+	lockdep_assert_held(&qp->s_lock);
+	/* Remove QP from rnr timer */
+	if (qp->s_flags & RVT_S_WAIT_RNR) {
+		qp->s_flags &= ~RVT_S_WAIT_RNR;
+		rval = hrtimer_try_to_cancel(&qp->s_rnr_timer);
+	}
+	return rval;
+}
+
+/**
+ * rvt_del_timers_sync - wait for any timeout routines to exit
+ * @qp - the QP
+ */
+void rvt_del_timers_sync(struct rvt_qp *qp)
+{
+	del_timer_sync(&qp->s_timer);
+	hrtimer_cancel(&qp->s_rnr_timer);
+}
+EXPORT_SYMBOL(rvt_del_timers_sync);
+
+/**
+ * This is called from s_timer for missing responses.
+ */
+static void rvt_rc_timeout(unsigned long arg)
+{
+	struct rvt_qp *qp = (struct rvt_qp *)arg;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->r_lock, flags);
+	spin_lock(&qp->s_lock);
+	if (qp->s_flags & RVT_S_TIMER) {
+		qp->s_flags &= ~RVT_S_TIMER;
+		del_timer(&qp->s_timer);
+		if (rdi->driver_f.notify_restart_rc)
+			rdi->driver_f.notify_restart_rc(qp,
+							qp->s_last_psn + 1,
+							1);
+		rdi->driver_f.schedule_send(qp);
+	}
+	spin_unlock(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->r_lock, flags);
+}
+
+/*
+ * This is called from s_timer for RNR timeouts.
+ */
+enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t)
+{
+	struct rvt_qp *qp = container_of(t, struct rvt_qp, s_rnr_timer);
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+	rvt_stop_rnr_timer(qp);
+	rdi->driver_f.schedule_send(qp);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+	return HRTIMER_NORESTART;
+}
+EXPORT_SYMBOL(rvt_rc_rnr_retry);

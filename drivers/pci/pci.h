@@ -1,9 +1,6 @@
 #ifndef DRIVERS_PCI_H
 #define DRIVERS_PCI_H
 
-#define PCI_CFG_SPACE_SIZE	256
-#define PCI_CFG_SPACE_EXP_SIZE	4096
-
 #define PCI_FIND_CAP_TTL	48
 
 extern const unsigned char pcie_link_speed[];
@@ -42,6 +39,8 @@ int pci_probe_reset_function(struct pci_dev *dev);
  *
  * @set_state: invokes the platform firmware to set the device's power state
  *
+ * @get_state: queries the platform firmware for a device's current power state
+ *
  * @choose_state: returns PCI power state of given device preferred by the
  *                platform; to be used during system-wide transitions from a
  *                sleeping state to the working state and vice versa
@@ -62,6 +61,7 @@ int pci_probe_reset_function(struct pci_dev *dev);
 struct pci_platform_pm_ops {
 	bool (*is_manageable)(struct pci_dev *dev);
 	int (*set_state)(struct pci_dev *dev, pci_power_t state);
+	pci_power_t (*get_state)(struct pci_dev *dev);
 	pci_power_t (*choose_state)(struct pci_dev *dev);
 	int (*sleep_wake)(struct pci_dev *dev, bool enable);
 	int (*run_wake)(struct pci_dev *dev, bool enable);
@@ -82,8 +82,8 @@ void pci_pm_init(struct pci_dev *dev);
 void pci_ea_init(struct pci_dev *dev);
 void pci_allocate_cap_save_buffers(struct pci_dev *dev);
 void pci_free_cap_save_buffers(struct pci_dev *dev);
-void pci_bridge_d3_device_changed(struct pci_dev *dev);
-void pci_bridge_d3_device_removed(struct pci_dev *dev);
+bool pci_bridge_d3_possible(struct pci_dev *dev);
+void pci_bridge_d3_update(struct pci_dev *dev);
 
 static inline void pci_wakeup_event(struct pci_dev *dev)
 {
@@ -242,7 +242,6 @@ bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
 int pci_setup_device(struct pci_dev *dev);
 int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		    struct resource *res, unsigned int reg);
-int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type);
 void pci_configure_ari(struct pci_dev *dev);
 void __pci_bus_size_bridges(struct pci_bus *bus,
 			struct list_head *realloc_head);
@@ -271,7 +270,7 @@ struct pci_sriov {
 	u16 driver_max_VFs;	/* max num VFs driver supports */
 	struct pci_dev *dev;	/* lowest numbered PF */
 	struct pci_dev *self;	/* this PF */
-	struct mutex lock;	/* lock for VF bus */
+	struct mutex lock;	/* lock for setting sriov_numvfs in sysfs */
 	resource_size_t barsz[PCI_SRIOV_NUM_BARS];	/* VF BAR size */
 };
 
@@ -286,7 +285,7 @@ static inline void pci_restore_ats_state(struct pci_dev *dev)
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
-int pci_iov_resource_bar(struct pci_dev *dev, int resno);
+void pci_iov_update_resource(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
 int pci_iov_bus_range(struct pci_bus *bus);
@@ -299,10 +298,6 @@ static inline int pci_iov_init(struct pci_dev *dev)
 static inline void pci_iov_release(struct pci_dev *dev)
 
 {
-}
-static inline int pci_iov_resource_bar(struct pci_dev *dev, int resno)
-{
-	return 0;
 }
 static inline void pci_restore_iov_state(struct pci_dev *dev)
 {
@@ -332,6 +327,12 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 
 void pci_enable_acs(struct pci_dev *dev);
 
+#ifdef CONFIG_PCIE_PTM
+void pci_ptm_init(struct pci_dev *dev);
+#else
+static inline void pci_ptm_init(struct pci_dev *dev) { }
+#endif
+
 struct pci_dev_reset_methods {
 	u16 vendor;
 	u16 device;
@@ -345,6 +346,11 @@ static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 {
 	return -ENOTTY;
 }
+#endif
+
+#if defined(CONFIG_PCI_QUIRKS) && defined(CONFIG_ARM64)
+int acpi_get_rc_resources(struct device *dev, const char *hid, u16 segment,
+			  struct resource *res);
 #endif
 
 #endif /* DRIVERS_PCI_H */

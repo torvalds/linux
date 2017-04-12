@@ -316,7 +316,9 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	/* Validate device and port */
 	port_priv = ib_get_mad_port(device, port_num);
 	if (!port_priv) {
-		dev_notice(&device->dev, "ib_register_mad_agent: Invalid port\n");
+		dev_notice(&device->dev,
+			   "ib_register_mad_agent: Invalid port %d\n",
+			   port_num);
 		ret = ERR_PTR(-ENODEV);
 		goto error1;
 	}
@@ -769,7 +771,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	 * If we are at the start of the LID routed part, don't update the
 	 * hop_ptr or hop_cnt.  See section 14.2.2, Vol 1 IB spec.
 	 */
-	if (opa && smp->class_version == OPA_SMP_CLASS_VERSION) {
+	if (opa && smp->class_version == OPA_SM_CLASS_VERSION) {
 		u32 opa_drslid;
 
 		if ((opa_get_smp_direction(opa_smp)
@@ -816,7 +818,6 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	local = kmalloc(sizeof *local, GFP_ATOMIC);
 	if (!local) {
 		ret = -ENOMEM;
-		dev_err(&device->dev, "No memory for ib_mad_local_private\n");
 		goto out;
 	}
 	local->mad_priv = NULL;
@@ -824,7 +825,6 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	mad_priv = alloc_mad_private(mad_size, GFP_ATOMIC);
 	if (!mad_priv) {
 		ret = -ENOMEM;
-		dev_err(&device->dev, "No memory for local response MAD\n");
 		kfree(local);
 		goto out;
 	}
@@ -947,9 +947,6 @@ static int alloc_send_rmpp_list(struct ib_mad_send_wr_private *send_wr,
 	for (left = send_buf->data_len + pad; left > 0; left -= seg_size) {
 		seg = kmalloc(sizeof (*seg) + seg_size, gfp_mask);
 		if (!seg) {
-			dev_err(&send_buf->mad_agent->device->dev,
-				"alloc_send_rmpp_segs: RMPP mem alloc failed for len %zd, gfp %#x\n",
-				sizeof (*seg) + seg_size, gfp_mask);
 			free_send_rmpp_list(send_wr);
 			return -ENOMEM;
 		}
@@ -1362,12 +1359,7 @@ static int allocate_method_table(struct ib_mad_mgmt_method_table **method)
 {
 	/* Allocate management method table */
 	*method = kzalloc(sizeof **method, GFP_ATOMIC);
-	if (!*method) {
-		pr_err("No memory for ib_mad_mgmt_method_table\n");
-		return -ENOMEM;
-	}
-
-	return 0;
+	return (*method) ? 0 : (-ENOMEM);
 }
 
 /*
@@ -1458,8 +1450,6 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 		/* Allocate management class table for "new" class version */
 		*class = kzalloc(sizeof **class, GFP_ATOMIC);
 		if (!*class) {
-			dev_err(&agent_priv->agent.device->dev,
-				"No memory for ib_mad_mgmt_class_table\n");
 			ret = -ENOMEM;
 			goto error1;
 		}
@@ -1524,22 +1514,16 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	if (!*vendor_table) {
 		/* Allocate mgmt vendor class table for "new" class version */
 		vendor = kzalloc(sizeof *vendor, GFP_ATOMIC);
-		if (!vendor) {
-			dev_err(&agent_priv->agent.device->dev,
-				"No memory for ib_mad_mgmt_vendor_class_table\n");
+		if (!vendor)
 			goto error1;
-		}
 
 		*vendor_table = vendor;
 	}
 	if (!(*vendor_table)->vendor_class[vclass]) {
 		/* Allocate table for this management vendor class */
 		vendor_class = kzalloc(sizeof *vendor_class, GFP_ATOMIC);
-		if (!vendor_class) {
-			dev_err(&agent_priv->agent.device->dev,
-				"No memory for ib_mad_mgmt_vendor_class\n");
+		if (!vendor_class)
 			goto error2;
-		}
 
 		(*vendor_table)->vendor_class[vclass] = vendor_class;
 	}
@@ -1746,7 +1730,7 @@ find_mad_agent(struct ib_mad_port_private *port_priv,
 			if (!class)
 				goto out;
 			if (convert_mgmt_class(mad_hdr->mgmt_class) >=
-			    IB_MGMT_MAX_METHODS)
+			    ARRAY_SIZE(class->method_table))
 				goto out;
 			method = class->method_table[convert_mgmt_class(
 							mad_hdr->mgmt_class)];
@@ -2167,7 +2151,7 @@ handle_smi(struct ib_mad_port_private *port_priv,
 	struct ib_mad_hdr *mad_hdr = (struct ib_mad_hdr *)recv->mad;
 
 	if (opa && mad_hdr->base_version == OPA_MGMT_BASE_VERSION &&
-	    mad_hdr->class_version == OPA_SMI_CLASS_VERSION)
+	    mad_hdr->class_version == OPA_SM_CLASS_VERSION)
 		return handle_opa_smi(port_priv, qp_info, wc, port_num, recv,
 				      response);
 
@@ -2238,11 +2222,8 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	mad_size = recv->mad_size;
 	response = alloc_mad_private(mad_size, GFP_KERNEL);
-	if (!response) {
-		dev_err(&port_priv->device->dev,
-			"%s: no memory for response buffer\n", __func__);
+	if (!response)
 		goto out;
-	}
 
 	if (rdma_cap_ib_switch(port_priv->device))
 		port_num = wc->port_num;
@@ -2869,8 +2850,6 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 			mad_priv = alloc_mad_private(port_mad_size(qp_info->port_priv),
 						     GFP_ATOMIC);
 			if (!mad_priv) {
-				dev_err(&qp_info->port_priv->device->dev,
-					"No memory for receive buffer\n");
 				ret = -ENOMEM;
 				break;
 			}
@@ -2961,11 +2940,8 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	u16 pkey_index;
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
-	if (!attr) {
-		dev_err(&port_priv->device->dev,
-			"Couldn't kmalloc ib_qp_attr\n");
+	if (!attr)
 		return -ENOMEM;
-	}
 
 	ret = ib_find_pkey(port_priv->device, port_priv->port_num,
 			   IB_DEFAULT_PKEY_FULL, &pkey_index);
@@ -3135,10 +3111,8 @@ static int ib_mad_port_open(struct ib_device *device,
 
 	/* Create new device info */
 	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
-	if (!port_priv) {
-		dev_err(&device->dev, "No memory for ib_mad_port_private\n");
+	if (!port_priv)
 		return -ENOMEM;
-	}
 
 	port_priv->device = device;
 	port_priv->port_num = port_num;
@@ -3160,7 +3134,7 @@ static int ib_mad_port_open(struct ib_device *device,
 		goto error3;
 	}
 
-	port_priv->pd = ib_alloc_pd(device);
+	port_priv->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(port_priv->pd)) {
 		dev_err(&device->dev, "Couldn't create ib_mad PD\n");
 		ret = PTR_ERR(port_priv->pd);
@@ -3177,7 +3151,7 @@ static int ib_mad_port_open(struct ib_device *device,
 		goto error7;
 
 	snprintf(name, sizeof name, "ib_mad%d", port_num);
-	port_priv->wq = create_singlethread_workqueue(name);
+	port_priv->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
 	if (!port_priv->wq) {
 		ret = -ENOMEM;
 		goto error8;

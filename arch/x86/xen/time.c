@@ -39,10 +39,10 @@ static unsigned long xen_tsc_khz(void)
 	return pvclock_tsc_khz(info);
 }
 
-cycle_t xen_clocksource_read(void)
+u64 xen_clocksource_read(void)
 {
         struct pvclock_vcpu_time_info *src;
-	cycle_t ret;
+	u64 ret;
 
 	preempt_disable_notrace();
 	src = &__this_cpu_read(xen_vcpu)->time;
@@ -51,7 +51,7 @@ cycle_t xen_clocksource_read(void)
 	return ret;
 }
 
-static cycle_t xen_clocksource_get_cycles(struct clocksource *cs)
+static u64 xen_clocksource_get_cycles(struct clocksource *cs)
 {
 	return xen_clocksource_read();
 }
@@ -432,11 +432,6 @@ static void xen_hvm_setup_cpu_clockevents(void)
 
 void __init xen_hvm_init_time_ops(void)
 {
-	/* vector callback is needed otherwise we cannot receive interrupts
-	 * on cpu > 0 and at this point we don't know how many cpus are
-	 * available */
-	if (!xen_have_vector_callback)
-		return;
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
 		printk(KERN_INFO "Xen doesn't support pvclock on HVM,"
 				"disable pv timer\n");

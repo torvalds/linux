@@ -40,7 +40,7 @@
 #define COLOR_RGB565		16
 
 static short mode = 565;
-module_param(mode, short, 0);
+module_param(mode, short, 0000);
 MODULE_PARM_DESC(mode, "RGB color transfer mode: 332, 565 (default)");
 
 static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
@@ -67,7 +67,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	unsigned start_line, end_line;
+	unsigned int start_line, end_line;
 	u16 *vmem16 = (u16 *)(par->info->screen_buffer + offset);
 	u16 *pos = par->txbuf.buf + 1;
 	u16 *buf16 = par->txbuf.buf + 10;
@@ -104,7 +104,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 static int write_vmem_8bit(struct fbtft_par *par, size_t offset, size_t len)
 {
-	unsigned start_line, end_line;
+	unsigned int start_line, end_line;
 	u16 *vmem16 = (u16 *)(par->info->screen_buffer + offset);
 	u16 *pos = par->txbuf.buf + 1;
 	u8 *buf8 = par->txbuf.buf + 10;
@@ -137,7 +137,7 @@ static int write_vmem_8bit(struct fbtft_par *par, size_t offset, size_t len)
 	return 0;
 }
 
-static unsigned firmware_version(struct fbtft_par *par)
+static unsigned int firmware_version(struct fbtft_par *par)
 {
 	u8 rxbuf[4] = {0, };
 
@@ -152,7 +152,7 @@ static unsigned firmware_version(struct fbtft_par *par)
 static int init_display(struct fbtft_par *par)
 {
 	int ret;
-	unsigned version;
+	unsigned int version;
 	u8 save_mode;
 
 	/* enable SPI interface by having CS and MOSI low during reset */

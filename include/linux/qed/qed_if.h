@@ -1,10 +1,33 @@
 /* QLogic qed NIC Driver
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * Copyright (c) 2015 QLogic Corporation
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_IF_H
@@ -34,7 +57,8 @@ enum dcbx_protocol_type {
 	DCBX_MAX_PROTOCOL_TYPE
 };
 
-#ifdef CONFIG_DCB
+#define QED_ROCE_PROTOCOL_INDEX (3)
+
 #define QED_LLDP_CHASSIS_ID_STAT_LEN 4
 #define QED_LLDP_PORT_ID_STAT_LEN 4
 #define QED_DCBX_MAX_APP_PROTOCOL 32
@@ -130,7 +154,6 @@ struct qed_dcbx_get {
 	struct qed_dcbx_remote_params remote;
 	struct qed_dcbx_admin_params local;
 };
-#endif
 
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
@@ -144,6 +167,7 @@ enum qed_led_mode {
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
 
 #define QED_COALESCE_MAX 0xFF
+#define QED_DEFAULT_RX_USECS 12
 
 /* forward */
 struct qed_dev;
@@ -156,6 +180,38 @@ struct qed_eth_pf_params {
 	u16 num_cons;
 };
 
+struct qed_fcoe_pf_params {
+	/* The following parameters are used during protocol-init */
+	u64 glbl_q_params_addr;
+	u64 bdq_pbl_base_addr[2];
+
+	/* The following parameters are used during HW-init
+	 * and these parameters need to be passed as arguments
+	 * to update_pf_params routine invoked before slowpath start
+	 */
+	u16 num_cons;
+	u16 num_tasks;
+
+	/* The following parameters are used during protocol-init */
+	u16 sq_num_pbl_pages;
+
+	u16 cq_num_entries;
+	u16 cmdq_num_entries;
+	u16 rq_buffer_log_size;
+	u16 mtu;
+	u16 dummy_icid;
+	u16 bdq_xoff_threshold[2];
+	u16 bdq_xon_threshold[2];
+	u16 rq_buffer_size;
+	u8 num_cqs;		/* num of global CQs */
+	u8 log_page_size;
+	u8 gl_rq_pi;
+	u8 gl_cmd_pi;
+	u8 debug_mode;
+	u8 is_target;
+	u8 bdq_pbl_num_entries[2];
+};
+
 /* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
 struct qed_iscsi_pf_params {
 	u64 glbl_q_params_addr;
@@ -163,6 +219,7 @@ struct qed_iscsi_pf_params {
 	u32 max_cwnd;
 	u16 cq_num_entries;
 	u16 cmdq_num_entries;
+	u32 two_msl_timer;
 	u16 dup_ack_threshold;
 	u16 tx_sws_timer;
 	u16 min_rto;
@@ -218,6 +275,7 @@ struct qed_rdma_pf_params {
 
 struct qed_pf_params {
 	struct qed_eth_pf_params eth_pf_params;
+	struct qed_fcoe_pf_params fcoe_pf_params;
 	struct qed_iscsi_pf_params iscsi_pf_params;
 	struct qed_rdma_pf_params rdma_pf_params;
 };
@@ -260,20 +318,40 @@ struct qed_dev_info {
 	/* MFW version */
 	u32		mfw_rev;
 
-	bool rdma_supported;
-
 	u32		flash_size;
 	u8		mf_mode;
 	bool		tx_switching;
+	bool		rdma_supported;
+	u16		mtu;
+
+	bool wol_support;
 };
 
 enum qed_sb_type {
 	QED_SB_TYPE_L2_QUEUE,
+	QED_SB_TYPE_CNQ,
+	QED_SB_TYPE_STORAGE,
 };
 
 enum qed_protocol {
 	QED_PROTOCOL_ETH,
 	QED_PROTOCOL_ISCSI,
+	QED_PROTOCOL_FCOE,
+};
+
+enum qed_link_mode_bits {
+	QED_LM_FIBRE_BIT = BIT(0),
+	QED_LM_Autoneg_BIT = BIT(1),
+	QED_LM_Asym_Pause_BIT = BIT(2),
+	QED_LM_Pause_BIT = BIT(3),
+	QED_LM_1000baseT_Half_BIT = BIT(4),
+	QED_LM_1000baseT_Full_BIT = BIT(5),
+	QED_LM_10000baseKR_Full_BIT = BIT(6),
+	QED_LM_25000baseKR_Full_BIT = BIT(7),
+	QED_LM_40000baseLR4_Full_BIT = BIT(8),
+	QED_LM_50000baseKR2_Full_BIT = BIT(9),
+	QED_LM_100000baseKR4_Full_BIT = BIT(10),
+	QED_LM_COUNT = 11
 };
 
 struct qed_link_params {
@@ -303,9 +381,11 @@ struct qed_link_params {
 struct qed_link_output {
 	bool	link_up;
 
-	u32	supported_caps;         /* In SUPPORTED defs */
-	u32	advertised_caps;        /* In ADVERTISED defs */
-	u32	lp_caps;                /* In ADVERTISED defs */
+	/* In QED_LM_* defs */
+	u32	supported_caps;
+	u32	advertised_caps;
+	u32	lp_caps;
+
 	u32	speed;                  /* In Mb/s */
 	u8	duplex;                 /* In DUPLEX defs */
 	u8	port;                   /* In PORT defs */
@@ -343,6 +423,7 @@ struct qed_int_info {
 struct qed_common_cb_ops {
 	void	(*link_update)(void			*dev,
 			       struct qed_link_output	*link);
+	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 };
 
 struct qed_selftest_ops {
@@ -381,6 +462,15 @@ struct qed_selftest_ops {
  * @return 0 on success, error otherwise.
  */
 	int (*selftest_clock)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_nvram - Perform nvram test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_nvram) (struct qed_dev *cdev);
 };
 
 struct qed_common_ops {
@@ -437,6 +527,14 @@ struct qed_common_ops {
 
 	void		(*simd_handler_clean)(struct qed_dev *cdev,
 					      int index);
+	int (*dbg_grc)(struct qed_dev *cdev,
+		       void *buffer, u32 *num_dumped_bytes);
+
+	int (*dbg_grc_size)(struct qed_dev *cdev);
+
+	int (*dbg_all_data) (struct qed_dev *cdev, void *buffer);
+
+	int (*dbg_all_data_size) (struct qed_dev *cdev);
 
 /**
  * @brief can_link_change - can the instance change the link or not
@@ -530,6 +628,41 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+
+/**
+ * @brief update_drv_state - API to inform the change in the driver state.
+ *
+ * @param cdev
+ * @param active
+ *
+ */
+	int (*update_drv_state)(struct qed_dev *cdev, bool active);
+
+/**
+ * @brief update_mac - API to inform the change in the mac address
+ *
+ * @param cdev
+ * @param mac
+ *
+ */
+	int (*update_mac)(struct qed_dev *cdev, u8 *mac);
+
+/**
+ * @brief update_mtu - API to inform the change in the mtu
+ *
+ * @param cdev
+ * @param mtu
+ *
+ */
+	int (*update_mtu)(struct qed_dev *cdev, u16 mtu);
+
+/**
+ * @brief update_wol - update of changes in the WoL configuration
+ *
+ * @param cdev
+ * @param enabled - true iff WoL should be enabled.
+ */
+	int (*update_wol) (struct qed_dev *cdev, bool enabled);
 };
 
 #define MASK_FIELD(_name, _value) \
@@ -606,8 +739,9 @@ enum DP_MODULE {
 	QED_MSG_SP	= 0x100000,
 	QED_MSG_STORAGE = 0x200000,
 	QED_MSG_CXT	= 0x800000,
+	QED_MSG_LL2	= 0x1000000,
 	QED_MSG_ILT	= 0x2000000,
-	QED_MSG_ROCE	= 0x4000000,
+	QED_MSG_RDMA	= 0x4000000,
 	QED_MSG_DEBUG	= 0x8000000,
 	/* to be added...up to 0x8000000 */
 };

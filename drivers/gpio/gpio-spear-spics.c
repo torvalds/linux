@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
@@ -183,7 +183,6 @@ static const struct of_device_id spics_gpio_of_match[] = {
 	{ .compatible = "st,spear-spics-gpio" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, spics_gpio_of_match);
 
 static struct platform_driver spics_gpio_driver = {
 	.probe = spics_gpio_probe,
@@ -198,7 +197,3 @@ static int __init spics_gpio_init(void)
 	return platform_driver_register(&spics_gpio_driver);
 }
 subsys_initcall(spics_gpio_init);
-
-MODULE_AUTHOR("Shiraz Hashim <shiraz.linux.kernel@gmail.com>");
-MODULE_DESCRIPTION("STMicroelectronics SPEAr SPI Chip Select Abstraction");
-MODULE_LICENSE("GPL");

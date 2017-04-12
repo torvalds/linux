@@ -14,6 +14,8 @@ extern void __split_page_owner(struct page *page, unsigned int order);
 extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
 extern void __set_page_owner_migrate_reason(struct page *page, int reason);
 extern void __dump_page_owner(struct page *page);
+extern void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+					pg_data_t *pgdat, struct zone *zone);
 
 static inline void reset_page_owner(struct page *page, unsigned int order)
 {

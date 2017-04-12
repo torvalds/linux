@@ -7,6 +7,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 #include <linux/syscalls.h>
 #include <linux/sched/sysctl.h>
 
@@ -51,7 +52,7 @@ static unsigned long mpx_mmap(unsigned long len)
 
 	down_write(&mm->mmap_sem);
 	addr = do_mmap(NULL, 0, len, PROT_READ | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate);
+		       MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate, NULL);
 	up_write(&mm->mmap_sem);
 	if (populate)
 		mm_populate(addr, populate);
@@ -293,7 +294,7 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 	 * We were not able to extract an address from the instruction,
 	 * probably because there was something invalid in it.
 	 */
-	if (info->si_addr == (void *)-1) {
+	if (info->si_addr == (void __user *)-1) {
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -350,12 +351,12 @@ int mpx_enable_management(void)
 	 * The copy_xregs_to_kernel() beneath get_xsave_field_ptr() is
 	 * expected to be relatively expensive. Storing the bounds
 	 * directory here means that we do not have to do xsave in the
-	 * unmap path; we can just use mm->bd_addr instead.
+	 * unmap path; we can just use mm->context.bd_addr instead.
 	 */
 	bd_base = mpx_get_bounds_dir();
 	down_write(&mm->mmap_sem);
-	mm->bd_addr = bd_base;
-	if (mm->bd_addr == MPX_INVALID_BOUNDS_DIR)
+	mm->context.bd_addr = bd_base;
+	if (mm->context.bd_addr == MPX_INVALID_BOUNDS_DIR)
 		ret = -ENXIO;
 
 	up_write(&mm->mmap_sem);
@@ -370,7 +371,7 @@ int mpx_disable_management(void)
 		return -ENXIO;
 
 	down_write(&mm->mmap_sem);
-	mm->bd_addr = MPX_INVALID_BOUNDS_DIR;
+	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
 	up_write(&mm->mmap_sem);
 	return 0;
 }
@@ -544,10 +545,9 @@ static int mpx_resolve_fault(long __user *addr, int write)
 {
 	long gup_ret;
 	int nr_pages = 1;
-	int force = 0;
 
-	gup_ret = get_user_pages((unsigned long)addr, nr_pages, write,
-			force, NULL, NULL);
+	gup_ret = get_user_pages((unsigned long)addr, nr_pages,
+			write ? FOLL_WRITE : 0,	NULL, NULL);
 	/*
 	 * get_user_pages() returns number of pages gotten.
 	 * 0 means we failed to fault in and get anything,
@@ -590,7 +590,7 @@ static unsigned long mpx_bd_entry_to_bt_addr(struct mm_struct *mm,
  * we might run off the end of the bounds table if we are on
  * a 64-bit kernel and try to get 8 bytes.
  */
-int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
+static int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
 		long __user *bd_entry_ptr)
 {
 	u32 bd_entry_32;
@@ -797,7 +797,7 @@ static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
 			return -EINVAL;
 
 		len = min(vma->vm_end, end) - addr;
-		zap_page_range(vma, addr, len, NULL);
+		zap_page_range(vma, addr, len);
 		trace_mpx_unmap_zap(addr, addr+len);
 
 		vma = vma->vm_next;
@@ -894,7 +894,7 @@ static int unmap_entire_bt(struct mm_struct *mm,
 	 * avoid recursion, do_munmap() will check whether it comes
 	 * from one bounds table through VM_MPX flag.
 	 */
-	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm));
+	return do_munmap(mm, bt_addr, mpx_bt_size_bytes(mm), NULL);
 }
 
 static int try_unmap_single_bt(struct mm_struct *mm,
@@ -948,7 +948,7 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 		end = bta_end_vaddr;
 	}
 
-	bde_vaddr = mm->bd_addr + mpx_get_bd_entry_offset(mm, start);
+	bde_vaddr = mm->context.bd_addr + mpx_get_bd_entry_offset(mm, start);
 	ret = get_bt_addr(mm, bde_vaddr, &bt_addr);
 	/*
 	 * No bounds table there, so nothing to unmap.

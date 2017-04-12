@@ -130,7 +130,7 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
 	ctxt->cr3 = read_cr3();
-	ctxt->cr4 = __read_cr4_safe();
+	ctxt->cr4 = __read_cr4();
 #ifdef CONFIG_X86_64
 	ctxt->cr8 = read_cr8();
 #endif
@@ -252,6 +252,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 
 	do_fpu_end();
+	tsc_verify_tsc_adjust(true);
 	x86_platform.restore_sched_clock_state();
 	mtrr_bp_restore();
 	perf_restore_debug_store();

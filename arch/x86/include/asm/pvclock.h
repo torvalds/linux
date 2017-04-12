@@ -14,7 +14,7 @@ static inline struct pvclock_vsyscall_time_info *pvclock_pvti_cpu0_va(void)
 #endif
 
 /* some helper functions for xen and kvm pv clock sources */
-cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
+u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
 u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
 void pvclock_set_flags(u8 flags);
 unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src);
@@ -87,10 +87,10 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 }
 
 static __always_inline
-cycle_t __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src)
+u64 __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src, u64 tsc)
 {
-	u64 delta = rdtsc_ordered() - src->tsc_timestamp;
-	cycle_t offset = pvclock_scale_delta(delta, src->tsc_to_system_mul,
+	u64 delta = tsc - src->tsc_timestamp;
+	u64 offset = pvclock_scale_delta(delta, src->tsc_to_system_mul,
 					     src->tsc_shift);
 	return src->system_time + offset;
 }

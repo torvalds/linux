@@ -12,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/i2c.h>
@@ -776,7 +772,7 @@ static int mxl5007t_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int mxl5007t_release(struct dvb_frontend *fe)
+static void mxl5007t_release(struct dvb_frontend *fe)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
 
@@ -788,13 +784,11 @@ static int mxl5007t_release(struct dvb_frontend *fe)
 	mutex_unlock(&mxl5007t_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 /* ------------------------------------------------------------------------- */
 
-static struct dvb_tuner_ops mxl5007t_tuner_ops = {
+static const struct dvb_tuner_ops mxl5007t_tuner_ops = {
 	.info = {
 		.name = "MaxLinear MxL5007T",
 	},

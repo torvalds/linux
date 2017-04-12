@@ -7,7 +7,6 @@
 #include <linux/bpf.h>
 #include <linux/jhash.h>
 #include <linux/filter.h>
-#include <linux/vmalloc.h>
 #include <linux/stacktrace.h>
 #include <linux/perf_event.h>
 #include "percpu_freelist.h"
@@ -32,7 +31,7 @@ static int prealloc_elems_and_freelist(struct bpf_stack_map *smap)
 	u32 elem_size = sizeof(struct stack_map_bucket) + smap->map.value_size;
 	int err;
 
-	smap->elems = vzalloc(elem_size * smap->map.max_entries);
+	smap->elems = bpf_map_area_alloc(elem_size * smap->map.max_entries);
 	if (!smap->elems)
 		return -ENOMEM;
 
@@ -45,7 +44,7 @@ static int prealloc_elems_and_freelist(struct bpf_stack_map *smap)
 	return 0;
 
 free_elems:
-	vfree(smap->elems);
+	bpf_map_area_free(smap->elems);
 	return err;
 }
 
@@ -76,12 +75,9 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	if (cost >= U32_MAX - PAGE_SIZE)
 		return ERR_PTR(-E2BIG);
 
-	smap = kzalloc(cost, GFP_USER | __GFP_NOWARN);
-	if (!smap) {
-		smap = vzalloc(cost);
-		if (!smap)
-			return ERR_PTR(-ENOMEM);
-	}
+	smap = bpf_map_area_alloc(cost);
+	if (!smap)
+		return ERR_PTR(-ENOMEM);
 
 	err = -E2BIG;
 	cost += n_buckets * (value_size + sizeof(struct stack_map_bucket));
@@ -112,14 +108,13 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 put_buffers:
 	put_callchain_buffers();
 free_smap:
-	kvfree(smap);
+	bpf_map_area_free(smap);
 	return ERR_PTR(err);
 }
 
-u64 bpf_get_stackid(u64 r1, u64 r2, u64 flags, u64 r4, u64 r5)
+BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
+	   u64, flags)
 {
-	struct pt_regs *regs = (struct pt_regs *) (long) r1;
-	struct bpf_map *map = (struct bpf_map *) (long) r2;
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
 	struct perf_callchain_entry *trace;
 	struct stack_map_bucket *bucket, *new_bucket, *old_bucket;
@@ -263,9 +258,9 @@ static void stack_map_free(struct bpf_map *map)
 	/* wait for bpf programs to complete before freeing stack map */
 	synchronize_rcu();
 
-	vfree(smap->elems);
+	bpf_map_area_free(smap->elems);
 	pcpu_freelist_destroy(&smap->freelist);
-	kvfree(smap);
+	bpf_map_area_free(smap);
 	put_callchain_buffers();
 }
 
@@ -278,7 +273,7 @@ static const struct bpf_map_ops stack_map_ops = {
 	.map_delete_elem = stack_map_delete_elem,
 };
 
-static struct bpf_map_type_list stack_map_type __read_mostly = {
+static struct bpf_map_type_list stack_map_type __ro_after_init = {
 	.ops = &stack_map_ops,
 	.type = BPF_MAP_TYPE_STACK_TRACE,
 };

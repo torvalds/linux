@@ -50,73 +50,6 @@ static ssize_t numobd_show(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RO_ATTR(numobd);
 
-static const char *placement_name[] = {
-	[PLACEMENT_CHAR_POLICY] = "CHAR",
-	[PLACEMENT_NID_POLICY]  = "NID",
-	[PLACEMENT_INVAL_POLICY]  = "INVAL"
-};
-
-static enum placement_policy placement_name2policy(char *name, int len)
-{
-	int		     i;
-
-	for (i = 0; i < PLACEMENT_MAX_POLICY; i++) {
-		if (!strncmp(placement_name[i], name, len))
-			return i;
-	}
-	return PLACEMENT_INVAL_POLICY;
-}
-
-static const char *placement_policy2name(enum placement_policy placement)
-{
-	LASSERT(placement < PLACEMENT_MAX_POLICY);
-	return placement_name[placement];
-}
-
-static ssize_t placement_show(struct kobject *kobj, struct attribute *attr,
-			      char *buf)
-{
-	struct obd_device *dev = container_of(kobj, struct obd_device,
-					      obd_kobj);
-	struct lmv_obd *lmv;
-
-	lmv = &dev->u.lmv;
-	return sprintf(buf, "%s\n", placement_policy2name(lmv->lmv_placement));
-}
-
-#define MAX_POLICY_STRING_SIZE 64
-
-static ssize_t placement_store(struct kobject *kobj, struct attribute *attr,
-			       const char *buffer,
-			       size_t count)
-{
-	struct obd_device *dev = container_of(kobj, struct obd_device,
-					      obd_kobj);
-	char dummy[MAX_POLICY_STRING_SIZE + 1];
-	enum placement_policy policy;
-	struct lmv_obd *lmv = &dev->u.lmv;
-
-	memcpy(dummy, buffer, MAX_POLICY_STRING_SIZE);
-
-	if (count > MAX_POLICY_STRING_SIZE)
-		count = MAX_POLICY_STRING_SIZE;
-
-	if (dummy[count - 1] == '\n')
-		count--;
-	dummy[count] = '\0';
-
-	policy = placement_name2policy(dummy, count);
-	if (policy != PLACEMENT_INVAL_POLICY) {
-		spin_lock(&lmv->lmv_lock);
-		lmv->lmv_placement = policy;
-		spin_unlock(&lmv->lmv_lock);
-	} else {
-		return -EINVAL;
-	}
-	return count;
-}
-LUSTRE_RW_ATTR(placement);
-
 static ssize_t activeobd_show(struct kobject *kobj, struct attribute *attr,
 			      char *buf)
 {
@@ -147,7 +80,13 @@ static void *lmv_tgt_seq_start(struct seq_file *p, loff_t *pos)
 	struct obd_device       *dev = p->private;
 	struct lmv_obd	  *lmv = &dev->u.lmv;
 
-	return (*pos >= lmv->desc.ld_tgt_count) ? NULL : lmv->tgts[*pos];
+	while (*pos < lmv->tgts_size) {
+		if (lmv->tgts[*pos])
+			return lmv->tgts[*pos];
+		++*pos;
+	}
+
+	return  NULL;
 }
 
 static void lmv_tgt_seq_stop(struct seq_file *p, void *v)
@@ -159,8 +98,15 @@ static void *lmv_tgt_seq_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	struct obd_device       *dev = p->private;
 	struct lmv_obd	  *lmv = &dev->u.lmv;
+
 	++*pos;
-	return (*pos >= lmv->desc.ld_tgt_count) ? NULL : lmv->tgts[*pos];
+	while (*pos < lmv->tgts_size) {
+		if (lmv->tgts[*pos])
+			return lmv->tgts[*pos];
+		++*pos;
+	}
+
+	return  NULL;
 }
 
 static int lmv_tgt_seq_show(struct seq_file *p, void *v)
@@ -169,7 +115,7 @@ static int lmv_tgt_seq_show(struct seq_file *p, void *v)
 
 	if (!tgt)
 		return 0;
-	seq_printf(p, "%d: %s %sACTIVE\n",
+	seq_printf(p, "%u: %s %sACTIVE\n",
 		   tgt->ltd_idx, tgt->ltd_uuid.uuid,
 		   tgt->ltd_active ? "" : "IN");
 	return 0;
@@ -202,7 +148,7 @@ static struct lprocfs_vars lprocfs_lmv_obd_vars[] = {
 	{ NULL }
 };
 
-struct file_operations lmv_proc_target_fops = {
+const struct file_operations lmv_proc_target_fops = {
 	.owner		= THIS_MODULE,
 	.open		 = lmv_target_seq_open,
 	.read		 = seq_read,
@@ -213,7 +159,6 @@ struct file_operations lmv_proc_target_fops = {
 static struct attribute *lmv_attrs[] = {
 	&lustre_attr_activeobd.attr,
 	&lustre_attr_numobd.attr,
-	&lustre_attr_placement.attr,
 	NULL,
 };
 

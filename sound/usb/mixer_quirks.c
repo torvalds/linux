@@ -43,6 +43,7 @@
 #include "mixer.h"
 #include "mixer_quirks.h"
 #include "mixer_scarlett.h"
+#include "mixer_us16x08.h"
 #include "helper.h"
 
 extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
@@ -1729,6 +1730,10 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		return err;
 
 	switch (mixer->chip->usb_id) {
+	/* Tascam US-16x08 */
+	case USB_ID(0x0644, 0x8047):
+		err = snd_us16x08_controls_create(mixer);
+		break;
 	case USB_ID(0x041e, 0x3020):
 	case USB_ID(0x041e, 0x3040):
 	case USB_ID(0x041e, 0x3042):
@@ -1831,6 +1836,7 @@ void snd_usb_mixer_rc_memory_change(struct usb_mixer_interface *mixer,
 }
 
 static void snd_dragonfly_quirk_db_scale(struct usb_mixer_interface *mixer,
+					 struct usb_mixer_elem_info *cval,
 					 struct snd_kcontrol *kctl)
 {
 	/* Approximation using 10 ranges based on output measurement on hw v1.2.
@@ -1848,10 +1854,19 @@ static void snd_dragonfly_quirk_db_scale(struct usb_mixer_interface *mixer,
 		41, 50, TLV_DB_MINMAX_ITEM(-441, 0),
 	);
 
-	usb_audio_info(mixer->chip, "applying DragonFly dB scale quirk\n");
-	kctl->tlv.p = scale;
-	kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-	kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+	if (cval->min == 0 && cval->max == 50) {
+		usb_audio_info(mixer->chip, "applying DragonFly dB scale quirk (0-50 variant)\n");
+		kctl->tlv.p = scale;
+		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+
+	} else if (cval->min == 0 && cval->max <= 1000) {
+		/* Some other clearly broken DragonFly variant.
+		 * At least a 0..53 variant (hw v1.0) exists.
+		 */
+		usb_audio_info(mixer->chip, "ignoring too narrow dB range on a DragonFly device");
+		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+	}
 }
 
 void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
@@ -1860,8 +1875,8 @@ void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
 {
 	switch (mixer->chip->usb_id) {
 	case USB_ID(0x21b4, 0x0081): /* AudioQuest DragonFly */
-		if (unitid == 7 && cval->min == 0 && cval->max == 50)
-			snd_dragonfly_quirk_db_scale(mixer, kctl);
+		if (unitid == 7 && cval->control == UAC_FU_VOLUME)
+			snd_dragonfly_quirk_db_scale(mixer, cval, kctl);
 		break;
 	}
 }

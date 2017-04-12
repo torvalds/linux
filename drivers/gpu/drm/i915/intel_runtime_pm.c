@@ -287,7 +287,7 @@ void intel_display_set_init_power(struct drm_i915_private *dev_priv,
  */
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -299,11 +299,11 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	 * sure vgacon can keep working normally without triggering interrupts
 	 * and error messages.
 	 */
-	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
 	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
-	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 
-	if (IS_BROADWELL(dev))
+	if (IS_BROADWELL(dev_priv))
 		gen8_irq_power_well_post_enable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 }
@@ -318,7 +318,7 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv)
 static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
-	struct drm_device *dev = &dev_priv->drm;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -330,10 +330,10 @@ static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 	 * sure vgacon can keep working normally without triggering interrupts
 	 * and error messages.
 	 */
-	if (power_well->data == SKL_DISP_PW_2) {
-		vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+	if (power_well->id == SKL_DISP_PW_2) {
+		vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
 		outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
-		vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+		vga_put(pdev, VGA_RSRC_LEGACY_IO);
 
 		gen8_irq_power_well_post_enable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
@@ -343,7 +343,7 @@ static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 static void skl_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
-	if (power_well->data == SKL_DISP_PW_2)
+	if (power_well->id == SKL_DISP_PW_2)
 		gen8_irq_power_well_pre_disable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 }
@@ -453,6 +453,57 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_AUX_C) |			\
 	BIT(POWER_DOMAIN_INIT))
 
+#define GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT(POWER_DOMAIN_PIPE_B) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT(POWER_DOMAIN_PIPE_C) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_B) |                       \
+	BIT(POWER_DOMAIN_AUX_C) |			\
+	BIT(POWER_DOMAIN_AUDIO) |			\
+	BIT(POWER_DOMAIN_VGA) |				\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DDI_A_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DDI_B_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DDI_C_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_A_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_B_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_B) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_C_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_C) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_A_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_AUX_A) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_B_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_AUX_B) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_C_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_AUX_C) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DC_OFF_POWER_DOMAINS (		\
+	GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT(POWER_DOMAIN_MODESET) |			\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_INIT))
+
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 {
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
@@ -530,7 +581,7 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
 	else
 		mask |= DC_STATE_EN_UPTO_DC6;
@@ -592,6 +643,8 @@ void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_KMS("Disabling DC9\n");
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	intel_pps_unlock_regs_wa(dev_priv);
 }
 
 static void assert_csr_loaded(struct drm_i915_private *dev_priv)
@@ -656,7 +709,7 @@ static void
 gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
 				  struct i915_power_well *power_well)
 {
-	enum skl_disp_power_wells power_well_id = power_well->data;
+	enum skl_disp_power_wells power_well_id = power_well->id;
 	u32 val;
 	u32 mask;
 
@@ -692,7 +745,7 @@ gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
 }
 
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
-			struct i915_power_well *power_well, bool enable)
+			       struct i915_power_well *power_well, bool enable)
 {
 	uint32_t tmp, fuse_status;
 	uint32_t req_mask, state_mask;
@@ -701,7 +754,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	fuse_status = I915_READ(SKL_FUSE_STATUS);
 
-	switch (power_well->data) {
+	switch (power_well->id) {
 	case SKL_DISP_PW_1:
 		if (intel_wait_for_register(dev_priv,
 					    SKL_FUSE_STATUS,
@@ -718,20 +771,23 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			return;
 		}
 		break;
-	case SKL_DISP_PW_DDI_A_E:
+	case SKL_DISP_PW_MISC_IO:
+	case SKL_DISP_PW_DDI_A_E: /* GLK_DISP_PW_DDI_A */
 	case SKL_DISP_PW_DDI_B:
 	case SKL_DISP_PW_DDI_C:
 	case SKL_DISP_PW_DDI_D:
-	case SKL_DISP_PW_MISC_IO:
+	case GLK_DISP_PW_AUX_A:
+	case GLK_DISP_PW_AUX_B:
+	case GLK_DISP_PW_AUX_C:
 		break;
 	default:
-		WARN(1, "Unknown power well %lu\n", power_well->data);
+		WARN(1, "Unknown power well %lu\n", power_well->id);
 		return;
 	}
 
-	req_mask = SKL_POWER_WELL_REQ(power_well->data);
+	req_mask = SKL_POWER_WELL_REQ(power_well->id);
 	enable_requested = tmp & req_mask;
-	state_mask = SKL_POWER_WELL_STATE(power_well->data);
+	state_mask = SKL_POWER_WELL_STATE(power_well->id);
 	is_enabled = tmp & state_mask;
 
 	if (!enable && enable_requested)
@@ -767,14 +823,14 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			  power_well->name, enable ? "enable" : "disable");
 
 	if (check_fuse_status) {
-		if (power_well->data == SKL_DISP_PW_1) {
+		if (power_well->id == SKL_DISP_PW_1) {
 			if (intel_wait_for_register(dev_priv,
 						    SKL_FUSE_STATUS,
 						    SKL_FUSE_PG1_DIST_STATUS,
 						    SKL_FUSE_PG1_DIST_STATUS,
 						    1))
 				DRM_ERROR("PG1 distributing status timeout\n");
-		} else if (power_well->data == SKL_DISP_PW_2) {
+		} else if (power_well->id == SKL_DISP_PW_2) {
 			if (intel_wait_for_register(dev_priv,
 						    SKL_FUSE_STATUS,
 						    SKL_FUSE_PG2_DIST_STATUS,
@@ -816,8 +872,8 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 static bool skl_power_well_enabled(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	uint32_t mask = SKL_POWER_WELL_REQ(power_well->data) |
-		SKL_POWER_WELL_STATE(power_well->data);
+	uint32_t mask = SKL_POWER_WELL_REQ(power_well->id) |
+		SKL_POWER_WELL_STATE(power_well->id);
 
 	return (I915_READ(HSW_PWR_WELL_DRIVER) & mask) == mask;
 }
@@ -843,45 +899,22 @@ static void skl_power_well_disable(struct drm_i915_private *dev_priv,
 	skl_set_power_well(dev_priv, power_well, false);
 }
 
-static enum dpio_phy bxt_power_well_to_phy(struct i915_power_well *power_well)
-{
-	enum skl_disp_power_wells power_well_id = power_well->data;
-
-	return power_well_id == BXT_DPIO_CMN_A ? DPIO_PHY1 : DPIO_PHY0;
-}
-
 static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	enum skl_disp_power_wells power_well_id = power_well->data;
-	struct i915_power_well *cmn_a_well;
-
-	if (power_well_id == BXT_DPIO_CMN_BC) {
-		/*
-		 * We need to copy the GRC calibration value from the eDP PHY,
-		 * so make sure it's powered up.
-		 */
-		cmn_a_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_A);
-		intel_power_well_get(dev_priv, cmn_a_well);
-	}
-
-	bxt_ddi_phy_init(dev_priv, bxt_power_well_to_phy(power_well));
-
-	if (power_well_id == BXT_DPIO_CMN_BC)
-		intel_power_well_put(dev_priv, cmn_a_well);
+	bxt_ddi_phy_init(dev_priv, power_well->data);
 }
 
 static void bxt_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_uninit(dev_priv, bxt_power_well_to_phy(power_well));
+	bxt_ddi_phy_uninit(dev_priv, power_well->data);
 }
 
 static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	return bxt_ddi_phy_is_enabled(dev_priv,
-				      bxt_power_well_to_phy(power_well));
+	return bxt_ddi_phy_is_enabled(dev_priv, power_well->data);
 }
 
 static void bxt_dpio_cmn_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -900,13 +933,17 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_A);
 	if (power_well->count > 0)
-		bxt_ddi_phy_verify_state(dev_priv,
-					 bxt_power_well_to_phy(power_well));
+		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
 
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_BC);
 	if (power_well->count > 0)
-		bxt_ddi_phy_verify_state(dev_priv,
-					 bxt_power_well_to_phy(power_well));
+		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+
+	if (IS_GEMINILAKE(dev_priv)) {
+		power_well = lookup_power_well(dev_priv, GLK_DPIO_CMN_C);
+		if (power_well->count > 0)
+			bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+	}
 }
 
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
@@ -930,11 +967,11 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	WARN_ON(dev_priv->cdclk_freq !=
-		dev_priv->display.get_display_clock_speed(&dev_priv->drm));
+		dev_priv->display.get_display_clock_speed(dev_priv));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		bxt_verify_ddi_phy_power_wells(dev_priv);
 }
 
@@ -973,7 +1010,7 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 			       struct i915_power_well *power_well, bool enable)
 {
-	enum punit_power_well power_well_id = power_well->data;
+	enum punit_power_well power_well_id = power_well->id;
 	u32 mask;
 	u32 state;
 	u32 ctrl;
@@ -1027,7 +1064,7 @@ static void vlv_power_well_disable(struct drm_i915_private *dev_priv,
 static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
-	int power_well_id = power_well->data;
+	int power_well_id = power_well->id;
 	bool enabled = false;
 	u32 mask;
 	u32 state;
@@ -1062,7 +1099,18 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 
 static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+	u32 val;
+
+	/*
+	 * On driver load, a pipe may be active and driving a DSI display.
+	 * Preserve DPOUNIT_CLOCK_GATE_DISABLE to avoid the pipe getting stuck
+	 * (and never recovering) in this case. intel_dsi_post_disable() will
+	 * clear it when we turn off the display.
+	 */
+	val = I915_READ(DSPCLK_GATE_D);
+	val &= DPOUNIT_CLOCK_GATE_DISABLE;
+	val |= VRHUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(DSPCLK_GATE_D, val);
 
 	/*
 	 * Disable trickle feed and enable pnd deadline calculation
@@ -1089,7 +1137,7 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 	 *
 	 * CHV DPLL B/C have some issues if VGA mode is enabled.
 	 */
-	for_each_pipe(&dev_priv->drm, pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		u32 val = I915_READ(DPLL(pipe));
 
 		val |= DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
@@ -1120,7 +1168,9 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 			intel_crt_reset(&encoder->base);
 	}
 
-	i915_redisable_vga_power_on(&dev_priv->drm);
+	i915_redisable_vga_power_on(dev_priv);
+
+	intel_pps_unlock_regs_wa(dev_priv);
 }
 
 static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
@@ -1134,13 +1184,15 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 
 	intel_power_sequencer_reset(dev_priv);
 
-	intel_hpd_poll_init(dev_priv);
+	/* Prevent us from re-enabling polling on accident in late suspend */
+	if (!dev_priv->drm.dev->power.is_suspended)
+		intel_hpd_poll_init(dev_priv);
 }
 
 static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DISP2D);
+	WARN_ON_ONCE(power_well->id != PUNIT_POWER_WELL_DISP2D);
 
 	vlv_set_power_well(dev_priv, power_well, true);
 
@@ -1150,7 +1202,7 @@ static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
 static void vlv_display_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DISP2D);
+	WARN_ON_ONCE(power_well->id != PUNIT_POWER_WELL_DISP2D);
 
 	vlv_display_power_well_deinit(dev_priv);
 
@@ -1160,7 +1212,7 @@ static void vlv_display_power_well_disable(struct drm_i915_private *dev_priv,
 static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC);
+	WARN_ON_ONCE(power_well->id != PUNIT_POWER_WELL_DPIO_CMN_BC);
 
 	/* since ref/cri clock was enabled */
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
@@ -1186,7 +1238,7 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 {
 	enum pipe pipe;
 
-	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC);
+	WARN_ON_ONCE(power_well->id != PUNIT_POWER_WELL_DPIO_CMN_BC);
 
 	for_each_pipe(dev_priv, pipe)
 		assert_pll_disabled(dev_priv, pipe);
@@ -1209,7 +1261,7 @@ static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_pr
 		struct i915_power_well *power_well;
 
 		power_well = &power_domains->power_wells[i];
-		if (power_well->data == power_well_id)
+		if (power_well->id == power_well_id)
 			return power_well;
 	}
 
@@ -1333,10 +1385,10 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 	uint32_t tmp;
 
-	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC &&
-		     power_well->data != PUNIT_POWER_WELL_DPIO_CMN_D);
+	WARN_ON_ONCE(power_well->id != PUNIT_POWER_WELL_DPIO_CMN_BC &&
+		     power_well->id != PUNIT_POWER_WELL_DPIO_CMN_D);
 
-	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+	if (power_well->id == PUNIT_POWER_WELL_DPIO_CMN_BC) {
 		pipe = PIPE_A;
 		phy = DPIO_PHY0;
 	} else {
@@ -1364,7 +1416,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 		DPIO_SUS_CLK_CONFIG_GATE_CLKREQ;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW28, tmp);
 
-	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+	if (power_well->id == PUNIT_POWER_WELL_DPIO_CMN_BC) {
 		tmp = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW6_CH1);
 		tmp |= DPIO_DYNPWRDOWNEN_CH1;
 		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW6_CH1, tmp);
@@ -1395,10 +1447,10 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 {
 	enum dpio_phy phy;
 
-	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC &&
-		     power_well->data != PUNIT_POWER_WELL_DPIO_CMN_D);
+	WARN_ON_ONCE(power_well->id != PUNIT_POWER_WELL_DPIO_CMN_BC &&
+		     power_well->id != PUNIT_POWER_WELL_DPIO_CMN_D);
 
-	if (power_well->data == PUNIT_POWER_WELL_DPIO_CMN_BC) {
+	if (power_well->id == PUNIT_POWER_WELL_DPIO_CMN_BC) {
 		phy = DPIO_PHY0;
 		assert_pll_disabled(dev_priv, PIPE_A);
 		assert_pll_disabled(dev_priv, PIPE_B);
@@ -1547,7 +1599,7 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	enum pipe pipe = power_well->data;
+	enum pipe pipe = power_well->id;
 	bool enabled;
 	u32 state, ctrl;
 
@@ -1577,7 +1629,7 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well,
 				    bool enable)
 {
-	enum pipe pipe = power_well->data;
+	enum pipe pipe = power_well->id;
 	u32 state;
 	u32 ctrl;
 
@@ -1610,7 +1662,7 @@ out:
 static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PIPE_A);
+	WARN_ON_ONCE(power_well->id != PIPE_A);
 
 	chv_set_pipe_power_well(dev_priv, power_well, power_well->count > 0);
 }
@@ -1618,7 +1670,7 @@ static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
 static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PIPE_A);
+	WARN_ON_ONCE(power_well->id != PIPE_A);
 
 	chv_set_pipe_power_well(dev_priv, power_well, true);
 
@@ -1628,7 +1680,7 @@ static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->data != PIPE_A);
+	WARN_ON_ONCE(power_well->id != PIPE_A);
 
 	vlv_display_power_well_deinit(dev_priv);
 
@@ -1972,12 +2024,12 @@ static struct i915_power_well vlv_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.data = PUNIT_POWER_WELL_ALWAYS_ON,
+		.id = PUNIT_POWER_WELL_ALWAYS_ON,
 	},
 	{
 		.name = "display",
 		.domains = VLV_DISPLAY_POWER_DOMAINS,
-		.data = PUNIT_POWER_WELL_DISP2D,
+		.id = PUNIT_POWER_WELL_DISP2D,
 		.ops = &vlv_display_power_well_ops,
 	},
 	{
@@ -1987,7 +2039,7 @@ static struct i915_power_well vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_B_LANES_01,
+		.id = PUNIT_POWER_WELL_DPIO_TX_B_LANES_01,
 	},
 	{
 		.name = "dpio-tx-b-23",
@@ -1996,7 +2048,7 @@ static struct i915_power_well vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_B_LANES_23,
+		.id = PUNIT_POWER_WELL_DPIO_TX_B_LANES_23,
 	},
 	{
 		.name = "dpio-tx-c-01",
@@ -2005,7 +2057,7 @@ static struct i915_power_well vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_01,
+		.id = PUNIT_POWER_WELL_DPIO_TX_C_LANES_01,
 	},
 	{
 		.name = "dpio-tx-c-23",
@@ -2014,12 +2066,12 @@ static struct i915_power_well vlv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
+		.id = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
 	},
 	{
 		.name = "dpio-common",
 		.domains = VLV_DPIO_CMN_BC_POWER_DOMAINS,
-		.data = PUNIT_POWER_WELL_DPIO_CMN_BC,
+		.id = PUNIT_POWER_WELL_DPIO_CMN_BC,
 		.ops = &vlv_dpio_cmn_power_well_ops,
 	},
 };
@@ -2039,19 +2091,19 @@ static struct i915_power_well chv_power_wells[] = {
 		 * required for any pipe to work.
 		 */
 		.domains = CHV_DISPLAY_POWER_DOMAINS,
-		.data = PIPE_A,
+		.id = PIPE_A,
 		.ops = &chv_pipe_power_well_ops,
 	},
 	{
 		.name = "dpio-common-bc",
 		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS,
-		.data = PUNIT_POWER_WELL_DPIO_CMN_BC,
+		.id = PUNIT_POWER_WELL_DPIO_CMN_BC,
 		.ops = &chv_dpio_cmn_power_well_ops,
 	},
 	{
 		.name = "dpio-common-d",
 		.domains = CHV_DPIO_CMN_D_POWER_DOMAINS,
-		.data = PUNIT_POWER_WELL_DPIO_CMN_D,
+		.id = PUNIT_POWER_WELL_DPIO_CMN_D,
 		.ops = &chv_dpio_cmn_power_well_ops,
 	},
 };
@@ -2074,57 +2126,57 @@ static struct i915_power_well skl_power_wells[] = {
 		.always_on = 1,
 		.domains = POWER_DOMAIN_MASK,
 		.ops = &i9xx_always_on_power_well_ops,
-		.data = SKL_DISP_PW_ALWAYS_ON,
+		.id = SKL_DISP_PW_ALWAYS_ON,
 	},
 	{
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
 		.domains = 0,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_1,
+		.id = SKL_DISP_PW_1,
 	},
 	{
 		.name = "MISC IO power well",
 		/* Handled by the DMC firmware */
 		.domains = 0,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_MISC_IO,
+		.id = SKL_DISP_PW_MISC_IO,
 	},
 	{
 		.name = "DC off",
 		.domains = SKL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.data = SKL_DISP_PW_DC_OFF,
+		.id = SKL_DISP_PW_DC_OFF,
 	},
 	{
 		.name = "power well 2",
 		.domains = SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_2,
+		.id = SKL_DISP_PW_2,
 	},
 	{
 		.name = "DDI A/E power well",
 		.domains = SKL_DISPLAY_DDI_A_E_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_DDI_A_E,
+		.id = SKL_DISP_PW_DDI_A_E,
 	},
 	{
 		.name = "DDI B power well",
 		.domains = SKL_DISPLAY_DDI_B_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_DDI_B,
+		.id = SKL_DISP_PW_DDI_B,
 	},
 	{
 		.name = "DDI C power well",
 		.domains = SKL_DISPLAY_DDI_C_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_DDI_C,
+		.id = SKL_DISP_PW_DDI_C,
 	},
 	{
 		.name = "DDI D power well",
 		.domains = SKL_DISPLAY_DDI_D_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_DDI_D,
+		.id = SKL_DISP_PW_DDI_D,
 	},
 };
 
@@ -2139,31 +2191,118 @@ static struct i915_power_well bxt_power_wells[] = {
 		.name = "power well 1",
 		.domains = 0,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_1,
+		.id = SKL_DISP_PW_1,
 	},
 	{
 		.name = "DC off",
 		.domains = BXT_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.data = SKL_DISP_PW_DC_OFF,
+		.id = SKL_DISP_PW_DC_OFF,
 	},
 	{
 		.name = "power well 2",
 		.domains = BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
-		.data = SKL_DISP_PW_2,
+		.id = SKL_DISP_PW_2,
 	},
 	{
 		.name = "dpio-common-a",
 		.domains = BXT_DPIO_CMN_A_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
-		.data = BXT_DPIO_CMN_A,
+		.id = BXT_DPIO_CMN_A,
+		.data = DPIO_PHY1,
 	},
 	{
 		.name = "dpio-common-bc",
 		.domains = BXT_DPIO_CMN_BC_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
-		.data = BXT_DPIO_CMN_BC,
+		.id = BXT_DPIO_CMN_BC,
+		.data = DPIO_PHY0,
+	},
+};
+
+static struct i915_power_well glk_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = POWER_DOMAIN_MASK,
+		.ops = &i9xx_always_on_power_well_ops,
+	},
+	{
+		.name = "power well 1",
+		/* Handled by the DMC firmware */
+		.domains = 0,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_1,
+	},
+	{
+		.name = "DC off",
+		.domains = GLK_DISPLAY_DC_OFF_POWER_DOMAINS,
+		.ops = &gen9_dc_off_power_well_ops,
+		.id = SKL_DISP_PW_DC_OFF,
+	},
+	{
+		.name = "power well 2",
+		.domains = GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_2,
+	},
+	{
+		.name = "dpio-common-a",
+		.domains = GLK_DPIO_CMN_A_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = BXT_DPIO_CMN_A,
+		.data = DPIO_PHY1,
+	},
+	{
+		.name = "dpio-common-b",
+		.domains = GLK_DPIO_CMN_B_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = BXT_DPIO_CMN_BC,
+		.data = DPIO_PHY0,
+	},
+	{
+		.name = "dpio-common-c",
+		.domains = GLK_DPIO_CMN_C_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = GLK_DPIO_CMN_C,
+		.data = DPIO_PHY2,
+	},
+	{
+		.name = "AUX A",
+		.domains = GLK_DISPLAY_AUX_A_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_A,
+	},
+	{
+		.name = "AUX B",
+		.domains = GLK_DISPLAY_AUX_B_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_B,
+	},
+	{
+		.name = "AUX C",
+		.domains = GLK_DISPLAY_AUX_C_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_C,
+	},
+	{
+		.name = "DDI A power well",
+		.domains = GLK_DISPLAY_DDI_A_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_DDI_A,
+	},
+	{
+		.name = "DDI B power well",
+		.domains = GLK_DISPLAY_DDI_B_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_DDI_B,
+	},
+	{
+		.name = "DDI C power well",
+		.domains = GLK_DISPLAY_DDI_C_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_DDI_C,
 	},
 };
 
@@ -2187,7 +2326,7 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		max_dc = 2;
 		mask = 0;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		max_dc = 1;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,
@@ -2263,6 +2402,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_BROXTON(dev_priv)) {
 		set_power_wells(power_domains, bxt_power_wells);
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		set_power_wells(power_domains, glk_power_wells);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		set_power_wells(power_domains, chv_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
@@ -2284,7 +2425,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 {
-	struct device *device = &dev_priv->drm.pdev->dev;
+	struct device *kdev = &dev_priv->drm.pdev->dev;
 
 	/*
 	 * The i915.ko module is still not prepared to be loaded when
@@ -2306,7 +2447,7 @@ void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 	 * the platform doesn't support runtime PM.
 	 */
 	if (!HAS_RUNTIME_PM(dev_priv))
-		pm_runtime_put(device);
+		pm_runtime_put(kdev);
 }
 
 static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
@@ -2585,20 +2726,19 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
 	power_domains->initializing = true;
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		skl_display_core_init(dev_priv, resume);
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		bxt_display_core_init(dev_priv, resume);
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
 		mutex_unlock(&power_domains->lock);
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv)) {
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
 		mutex_unlock(&power_domains->lock);
@@ -2631,7 +2771,7 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		skl_display_core_uninit(dev_priv);
-	else if (IS_BROXTON(dev_priv))
+	else if (IS_GEN9_LP(dev_priv))
 		bxt_display_core_uninit(dev_priv);
 }
 
@@ -2647,10 +2787,10 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *device = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
-	pm_runtime_get_sync(device);
+	pm_runtime_get_sync(kdev);
 
 	atomic_inc(&dev_priv->pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);
@@ -2668,11 +2808,11 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
  */
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *device = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
 	if (IS_ENABLED(CONFIG_PM)) {
-		int ret = pm_runtime_get_if_in_use(device);
+		int ret = pm_runtime_get_if_in_use(kdev);
 
 		/*
 		 * In cases runtime PM is disabled by the RPM core and we get
@@ -2710,11 +2850,11 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *device = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
 	assert_rpm_wakelock_held(dev_priv);
-	pm_runtime_get_noresume(device);
+	pm_runtime_get_noresume(kdev);
 
 	atomic_inc(&dev_priv->pm.wakeref_count);
 }
@@ -2729,15 +2869,14 @@ void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *device = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
 	assert_rpm_wakelock_held(dev_priv);
-	if (atomic_dec_and_test(&dev_priv->pm.wakeref_count))
-		atomic_inc(&dev_priv->pm.atomic_seq);
+	atomic_dec(&dev_priv->pm.wakeref_count);
 
-	pm_runtime_mark_last_busy(device);
-	pm_runtime_put_autosuspend(device);
+	pm_runtime_mark_last_busy(kdev);
+	pm_runtime_put_autosuspend(kdev);
 }
 
 /**
@@ -2752,11 +2891,11 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct device *device = &dev->pdev->dev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct device *kdev = &pdev->dev;
 
-	pm_runtime_set_autosuspend_delay(device, 10000); /* 10s */
-	pm_runtime_mark_last_busy(device);
+	pm_runtime_set_autosuspend_delay(kdev, 10000); /* 10s */
+	pm_runtime_mark_last_busy(kdev);
 
 	/*
 	 * Take a permanent reference to disable the RPM functionality and drop
@@ -2764,11 +2903,11 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	 * so the driver's own RPM reference tracking asserts also work on
 	 * platforms without RPM support.
 	 */
-	if (!HAS_RUNTIME_PM(dev)) {
-		pm_runtime_dont_use_autosuspend(device);
-		pm_runtime_get_sync(device);
+	if (!HAS_RUNTIME_PM(dev_priv)) {
+		pm_runtime_dont_use_autosuspend(kdev);
+		pm_runtime_get_sync(kdev);
 	} else {
-		pm_runtime_use_autosuspend(device);
+		pm_runtime_use_autosuspend(kdev);
 	}
 
 	/*
@@ -2776,6 +2915,5 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	 * We drop that here and will reacquire it during unloading in
 	 * intel_power_domains_fini().
 	 */
-	pm_runtime_put_autosuspend(device);
+	pm_runtime_put_autosuspend(kdev);
 }
-

@@ -67,7 +67,7 @@
 #define EDT_SWITCH_MODE_RETRIES		10
 #define EDT_SWITCH_MODE_DELAY		5 /* msec */
 #define EDT_RAW_DATA_RETRIES		100
-#define EDT_RAW_DATA_DELAY		1 /* msec */
+#define EDT_RAW_DATA_DELAY		1000 /* usec */
 
 enum edt_ver {
 	M06,
@@ -664,7 +664,7 @@ static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 	}
 
 	do {
-		msleep(EDT_RAW_DATA_DELAY);
+		usleep_range(EDT_RAW_DATA_DELAY, EDT_RAW_DATA_DELAY + 100);
 		val = edt_ft5x06_register_read(tsdata, 0x08);
 		if (val < 1)
 			break;
@@ -982,7 +982,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
 
 	irq_flags = irq_get_trigger_type(client->irq);
@@ -1063,9 +1062,15 @@ static const struct edt_i2c_chip_data edt_ft5506_data = {
 	.max_support_points = 10,
 };
 
+static const struct edt_i2c_chip_data edt_ft6236_data = {
+	.max_support_points = 2,
+};
+
 static const struct i2c_device_id edt_ft5x06_ts_id[] = {
 	{ .name = "edt-ft5x06", .driver_data = (long)&edt_ft5x06_data },
 	{ .name = "edt-ft5506", .driver_data = (long)&edt_ft5506_data },
+	/* Note no edt- prefix for compatibility with the ft6236.c driver */
+	{ .name = "ft6236", .driver_data = (long)&edt_ft6236_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, edt_ft5x06_ts_id);
@@ -1076,6 +1081,8 @@ static const struct of_device_id edt_ft5x06_of_match[] = {
 	{ .compatible = "edt,edt-ft5306", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5406", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5506", .data = &edt_ft5506_data },
+	/* Note focaltech vendor prefix for compatibility with ft6236.c */
+	{ .compatible = "focaltech,ft6236", .data = &edt_ft6236_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, edt_ft5x06_of_match);

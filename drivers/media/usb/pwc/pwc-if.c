@@ -238,8 +238,8 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 	} else {
 		/* Check for underflow first */
 		if (fbuf->filled < pdev->frame_total_size) {
-			PWC_DEBUG_FLOW("Frame buffer underflow (%d bytes);"
-				       " discarded.\n", fbuf->filled);
+			PWC_DEBUG_FLOW("Frame buffer underflow (%d bytes); discarded.\n",
+				       fbuf->filled);
 		} else {
 			fbuf->vb.field = V4L2_FIELD_NONE;
 			fbuf->vb.sequence = pdev->vframe_count;
@@ -410,7 +410,6 @@ retry:
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
-			PWC_ERROR("Failed to allocate urb %d\n", i);
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
@@ -708,7 +707,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&pdev->v4l2_lock);
 }
 
-static struct vb2_ops pwc_vb_queue_ops = {
+static const struct vb2_ops pwc_vb_queue_ops = {
 	.queue_setup		= queue_setup,
 	.buf_init		= buffer_init,
 	.buf_prepare		= buffer_prepare,

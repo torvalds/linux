@@ -395,7 +395,7 @@ static int caam_rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 				unsigned int keylen)
 {
 	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct rsa_key raw_key = {0};
+	struct rsa_key raw_key = {NULL};
 	struct caam_rsa_key *rsa_key = &ctx->key;
 	int ret;
 
@@ -441,7 +441,7 @@ static int caam_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 				 unsigned int keylen)
 {
 	struct caam_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct rsa_key raw_key = {0};
+	struct rsa_key raw_key = {NULL};
 	struct caam_rsa_key *rsa_key = &ctx->key;
 	int ret;
 
@@ -506,7 +506,7 @@ static int caam_rsa_init_tfm(struct crypto_akcipher *tfm)
 	ctx->dev = caam_jr_alloc();
 
 	if (IS_ERR(ctx->dev)) {
-		dev_err(ctx->dev, "Job Ring Device allocation for transform failed\n");
+		pr_err("Job Ring Device allocation for transform failed\n");
 		return PTR_ERR(ctx->dev);
 	}
 

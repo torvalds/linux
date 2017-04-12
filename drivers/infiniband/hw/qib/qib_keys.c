@@ -158,10 +158,7 @@ int qib_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 	unsigned n, m;
 	size_t off;
 
-	/*
-	 * We use RKEY == zero for kernel virtual addresses
-	 * (see qib_get_dma_mr and qib_dma.c).
-	 */
+	/* We use RKEY == zero for kernel virtual addresses */
 	rcu_read_lock();
 	if (rkey == 0) {
 		struct rvt_pd *pd = ibpd_to_rvtpd(qp->ibqp.pd);

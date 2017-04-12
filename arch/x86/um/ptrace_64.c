@@ -10,7 +10,7 @@
 #include <linux/errno.h>
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace-abi.h>
 
 /*
@@ -212,7 +212,8 @@ int is_syscall(unsigned long addr)
 		 * slow, but that doesn't matter, since it will be called only
 		 * in case of singlestepping, if copy_from_user failed.
 		 */
-		n = access_process_vm(current, addr, &instr, sizeof(instr), 0);
+		n = access_process_vm(current, addr, &instr, sizeof(instr),
+				FOLL_FORCE);
 		if (n != sizeof(instr)) {
 			printk("is_syscall : failed to read instruction from "
 			       "0x%lx\n", addr);

@@ -62,6 +62,7 @@
 #include <linux/acpi.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
+#include <linux/gpio/consumer.h>
 
 #include "smsc911x.h"
 
@@ -146,6 +147,9 @@ struct smsc911x_data {
 
 	/* regulators */
 	struct regulator_bulk_data supplies[SMSC911X_NUM_SUPPLIES];
+
+	/* Reset GPIO */
+	struct gpio_desc *reset_gpiod;
 
 	/* clock */
 	struct clk *clk;
@@ -434,9 +438,21 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	ret = regulator_bulk_get(&pdev->dev,
 			ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
-	if (ret)
+	if (ret) {
+		/*
+		 * Retry on deferrals, else just report the error
+		 * and try to continue.
+		 */
+		if (ret == -EPROBE_DEFER)
+			return ret;
 		netdev_err(ndev, "couldn't get regulators %d\n",
 				ret);
+	}
+
+	/* Request optional RESET GPIO */
+	pdata->reset_gpiod = devm_gpiod_get_optional(&pdev->dev,
+						     "reset",
+						     GPIOD_OUT_LOW);
 
 	/* Request clock */
 	pdata->clk = clk_get(&pdev->dev, NULL);
@@ -1947,11 +1963,6 @@ static void smsc911x_ethtool_getdrvinfo(struct net_device *dev,
 		sizeof(info->bus_info));
 }
 
-static int smsc911x_ethtool_nwayreset(struct net_device *dev)
-{
-	return phy_start_aneg(dev->phydev);
-}
-
 static u32 smsc911x_ethtool_getmsglevel(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
@@ -2123,7 +2134,7 @@ static int smsc911x_ethtool_set_eeprom(struct net_device *dev,
 static const struct ethtool_ops smsc911x_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_drvinfo = smsc911x_ethtool_getdrvinfo,
-	.nway_reset = smsc911x_ethtool_nwayreset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_msglevel = smsc911x_ethtool_getmsglevel,
 	.set_msglevel = smsc911x_ethtool_setmsglevel,
 	.get_regs_len = smsc911x_ethtool_getregslen,
@@ -2143,7 +2154,6 @@ static const struct net_device_ops smsc911x_netdev_ops = {
 	.ndo_get_stats		= smsc911x_get_stats,
 	.ndo_set_rx_mode	= smsc911x_set_multicast_list,
 	.ndo_do_ioctl		= smsc911x_do_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= smsc911x_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2575,6 +2585,9 @@ static int smsc911x_suspend(struct device *dev)
 		PMT_CTRL_PM_MODE_D1_ | PMT_CTRL_WOL_EN_ |
 		PMT_CTRL_ED_EN_ | PMT_CTRL_PME_EN_);
 
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+
 	return 0;
 }
 
@@ -2583,6 +2596,9 @@ static int smsc911x_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct smsc911x_data *pdata = netdev_priv(ndev);
 	unsigned int to = 100;
+
+	pm_runtime_enable(dev);
+	pm_runtime_resume(dev);
 
 	/* Note 3.11 from the datasheet:
 	 * 	"When the LAN9220 is in a power saving state, a write of any

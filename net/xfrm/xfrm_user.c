@@ -27,7 +27,7 @@
 #include <net/xfrm.h>
 #include <net/netlink.h>
 #include <net/ah.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <linux/in6.h>
 #endif
@@ -412,7 +412,14 @@ static inline int xfrm_replay_verify_len(struct xfrm_replay_state_esn *replay_es
 	up = nla_data(rp);
 	ulen = xfrm_replay_state_esn_len(up);
 
-	if (nla_len(rp) < ulen || xfrm_replay_state_esn_len(replay_esn) != ulen)
+	/* Check the overall length and the internal bitmap length to avoid
+	 * potential overflow. */
+	if (nla_len(rp) < ulen ||
+	    xfrm_replay_state_esn_len(replay_esn) != ulen ||
+	    replay_esn->bmp_len != up->bmp_len)
+		return -EINVAL;
+
+	if (up->replay_window > up->bmp_len * sizeof(__u32) * 8)
 		return -EINVAL;
 
 	return 0;
@@ -2450,7 +2457,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 #ifdef CONFIG_COMPAT
 	if (in_compat_syscall())
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 #endif
 
 	type = nlh->nlmsg_type;

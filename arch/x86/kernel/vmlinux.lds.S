@@ -91,12 +91,13 @@ SECTIONS
 	/* Text and read-only data */
 	.text :  AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = .;
+		_stext = .;
 		/* bootstrapping code */
 		HEAD_TEXT
 		. = ALIGN(8);
-		_stext = .;
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		ENTRY_TEXT
@@ -344,7 +345,6 @@ SECTIONS
 	DISCARDS
 	/DISCARD/ : {
 		*(.eh_frame)
-		*(__func_stack_frame_non_standard)
 	}
 }
 

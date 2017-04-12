@@ -30,6 +30,8 @@
 #include <linux/device.h>	/* for struct device */
 #include <linux/sched.h>	/* for completion */
 #include <linux/mutex.h>
+#include <linux/rtmutex.h>
+#include <linux/irqdomain.h>		/* for Host Notify IRQ */
 #include <linux/of.h>		/* for struct device_node */
 #include <linux/swab.h>		/* for swab16 */
 #include <uapi/linux/i2c.h>
@@ -50,6 +52,7 @@ enum i2c_slave_event;
 typedef int (*i2c_slave_cb_t)(struct i2c_client *, enum i2c_slave_event, u8 *);
 
 struct module;
+struct property_entry;
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
@@ -135,7 +138,8 @@ enum i2c_alert_protocol {
  * struct i2c_driver - represent an I2C device driver
  * @class: What kind of i2c device we instantiate (for detect)
  * @attach_adapter: Callback for bus addition (deprecated)
- * @probe: Callback for device binding
+ * @probe: Callback for device binding - soon to be deprecated
+ * @probe_new: New callback for device binding
  * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
  * @alert: Alert callback, for example for the SMBus alert protocol
@@ -177,6 +181,11 @@ struct i2c_driver {
 	/* Standard driver model interfaces */
 	int (*probe)(struct i2c_client *, const struct i2c_device_id *);
 	int (*remove)(struct i2c_client *);
+
+	/* New driver model interface to aid the seamless removal of the
+	 * current probe()'s, more commonly unused than used second parameter.
+	 */
+	int (*probe_new)(struct i2c_client *);
 
 	/* driver model interfaces that don't relate to enumeration  */
 	void (*shutdown)(struct i2c_client *);
@@ -243,6 +252,8 @@ struct i2c_client {
 
 extern struct i2c_client *i2c_verify_client(struct device *dev);
 extern struct i2c_adapter *i2c_verify_adapter(struct device *dev);
+extern const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
+					const struct i2c_client *client);
 
 static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 {
@@ -273,6 +284,7 @@ enum i2c_slave_event {
 
 extern int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb);
 extern int i2c_slave_unregister(struct i2c_client *client);
+extern bool i2c_detect_slave_mode(struct device *dev);
 
 static inline int i2c_slave_event(struct i2c_client *client,
 				  enum i2c_slave_event event, u8 *val)
@@ -290,6 +302,7 @@ static inline int i2c_slave_event(struct i2c_client *client,
  * @archdata: copied into i2c_client.dev.archdata
  * @of_node: pointer to OpenFirmware device node
  * @fwnode: device node supplied by the platform firmware
+ * @properties: additional device properties for the device
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -311,6 +324,7 @@ struct i2c_board_info {
 	struct dev_archdata	*archdata;
 	struct device_node *of_node;
 	struct fwnode_handle *fwnode;
+	const struct property_entry *properties;
 	int		irq;
 };
 
@@ -427,6 +441,20 @@ struct i2c_algorithm {
 };
 
 /**
+ * struct i2c_lock_operations - represent I2C locking operations
+ * @lock_bus: Get exclusive access to an I2C bus segment
+ * @trylock_bus: Try to get exclusive access to an I2C bus segment
+ * @unlock_bus: Release exclusive access to an I2C bus segment
+ *
+ * The main operations are wrapped by i2c_lock_bus and i2c_unlock_bus.
+ */
+struct i2c_lock_operations {
+	void (*lock_bus)(struct i2c_adapter *, unsigned int flags);
+	int (*trylock_bus)(struct i2c_adapter *, unsigned int flags);
+	void (*unlock_bus)(struct i2c_adapter *, unsigned int flags);
+};
+
+/**
  * struct i2c_timings - I2C timing information
  * @bus_freq_hz: the bus frequency in Hz
  * @scl_rise_ns: time SCL signal takes to rise in ns; t(r) in the I2C specification
@@ -536,6 +564,7 @@ struct i2c_adapter {
 	void *algo_data;
 
 	/* data fields that are valid for all devices	*/
+	const struct i2c_lock_operations *lock_ops;
 	struct rt_mutex bus_lock;
 	struct rt_mutex mux_lock;
 
@@ -553,9 +582,7 @@ struct i2c_adapter {
 	struct i2c_bus_recovery_info *bus_recovery_info;
 	const struct i2c_adapter_quirks *quirks;
 
-	void (*lock_bus)(struct i2c_adapter *, unsigned int flags);
-	int (*trylock_bus)(struct i2c_adapter *, unsigned int flags);
-	void (*unlock_bus)(struct i2c_adapter *, unsigned int flags);
+	struct irq_domain *host_notify_domain;
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
@@ -597,7 +624,21 @@ int i2c_for_each_dev(void *data, int (*fn)(struct device *, void *));
 static inline void
 i2c_lock_bus(struct i2c_adapter *adapter, unsigned int flags)
 {
-	adapter->lock_bus(adapter, flags);
+	adapter->lock_ops->lock_bus(adapter, flags);
+}
+
+/**
+ * i2c_trylock_bus - Try to get exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ * @flags: I2C_LOCK_ROOT_ADAPTER tries to locks the root i2c adapter,
+ *	I2C_LOCK_SEGMENT tries to lock only this branch in the adapter tree
+ *
+ * Return: true if the I2C bus segment is locked, false otherwise
+ */
+static inline int
+i2c_trylock_bus(struct i2c_adapter *adapter, unsigned int flags)
+{
+	return adapter->lock_ops->trylock_bus(adapter, flags);
 }
 
 /**
@@ -609,7 +650,7 @@ i2c_lock_bus(struct i2c_adapter *adapter, unsigned int flags)
 static inline void
 i2c_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
 {
-	adapter->unlock_bus(adapter, flags);
+	adapter->lock_ops->unlock_bus(adapter, flags);
 }
 
 static inline void
@@ -629,6 +670,7 @@ i2c_unlock_adapter(struct i2c_adapter *adapter)
 #define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
 					/* Must equal I2C_M_TEN below */
 #define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
+#define I2C_CLIENT_HOST_NOTIFY	0x40	/* We want to use I2C host notify */
 #define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */
 #define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */
 					/* Must match I2C_M_STOP|IGNORE_NAK */
@@ -673,6 +715,7 @@ extern void i2c_clients_command(struct i2c_adapter *adap,
 
 extern struct i2c_adapter *i2c_get_adapter(int nr);
 extern void i2c_put_adapter(struct i2c_adapter *adap);
+extern unsigned int i2c_adapter_depth(struct i2c_adapter *adapter);
 
 void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_defaults);
 
@@ -713,6 +756,7 @@ static inline u8 i2c_8bit_addr_from_msg(const struct i2c_msg *msg)
 	return (msg->addr << 1) | (msg->flags & I2C_M_RD ? 1 : 0);
 }
 
+int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr);
 /**
  * module_i2c_driver() - Helper macro for registering a modular I2C driver
  * @__i2c_driver: i2c_driver struct
@@ -748,6 +792,10 @@ extern struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 /* must call i2c_put_adapter() when done with returned i2c_adapter device */
 struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node);
 
+extern const struct of_device_id
+*i2c_of_match_device(const struct of_device_id *matches,
+		     struct i2c_client *client);
+
 #else
 
 static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
@@ -764,6 +812,23 @@ static inline struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node 
 {
 	return NULL;
 }
+
+static inline const struct of_device_id
+*i2c_of_match_device(const struct of_device_id *matches,
+		     struct i2c_client *client)
+{
+	return NULL;
+}
+
 #endif /* CONFIG_OF */
+
+#if IS_ENABLED(CONFIG_ACPI)
+u32 i2c_acpi_find_bus_speed(struct device *dev);
+#else
+static inline u32 i2c_acpi_find_bus_speed(struct device *dev)
+{
+	return 0;
+}
+#endif /* CONFIG_ACPI */
 
 #endif /* _LINUX_I2C_H */

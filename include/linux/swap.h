@@ -27,6 +27,7 @@ struct bio;
 #define SWAP_FLAGS_VALID	(SWAP_FLAG_PRIO_MASK | SWAP_FLAG_PREFER | \
 				 SWAP_FLAG_DISCARD | SWAP_FLAG_DISCARD_ONCE | \
 				 SWAP_FLAG_DISCARD_PAGES)
+#define SWAP_BATCH 64
 
 static inline int current_is_kswapd(void)
 {
@@ -150,8 +151,9 @@ enum {
 	SWP_FILE	= (1 << 7),	/* set after swap_activate success */
 	SWP_AREA_DISCARD = (1 << 8),	/* single-time swap area discards */
 	SWP_PAGE_DISCARD = (1 << 9),	/* freed swap page-cluster discards */
+	SWP_STABLE_WRITES = (1 << 10),	/* no overwrite PG_writeback pages */
 					/* add others here before... */
-	SWP_SCANNING	= (1 << 10),	/* refcount in scan_swap_map */
+	SWP_SCANNING	= (1 << 11),	/* refcount in scan_swap_map */
 };
 
 #define SWAP_CLUSTER_MAX 32UL
@@ -175,6 +177,12 @@ enum {
  * protected by swap_info_struct.lock.
  */
 struct swap_cluster_info {
+	spinlock_t lock;	/*
+				 * Protect swap_cluster_info fields
+				 * and swap_info_struct->swap_map
+				 * elements correspond to the swap
+				 * cluster
+				 */
 	unsigned int data:24;
 	unsigned int flags:8;
 };
@@ -191,6 +199,11 @@ struct percpu_cluster {
 	unsigned int next; /* Likely next allocation offset */
 };
 
+struct swap_cluster_list {
+	struct swap_cluster_info head;
+	struct swap_cluster_info tail;
+};
+
 /*
  * The in-memory structure used to track swap areas.
  */
@@ -203,8 +216,7 @@ struct swap_info_struct {
 	unsigned int	max;		/* extent of the swap_map */
 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
 	struct swap_cluster_info *cluster_info; /* cluster info. Only for SSD */
-	struct swap_cluster_info free_cluster_head; /* free cluster list head */
-	struct swap_cluster_info free_cluster_tail; /* free cluster list tail */
+	struct swap_cluster_list free_clusters; /* free clusters list */
 	unsigned int lowest_bit;	/* index of first free in swap_map */
 	unsigned int highest_bit;	/* index of last free in swap_map */
 	unsigned int pages;		/* total of usable pages of swap */
@@ -235,45 +247,14 @@ struct swap_info_struct {
 					 * first.
 					 */
 	struct work_struct discard_work; /* discard worker */
-	struct swap_cluster_info discard_cluster_head; /* list head of discard clusters */
-	struct swap_cluster_info discard_cluster_tail; /* list tail of discard clusters */
+	struct swap_cluster_list discard_clusters; /* discard clusters list */
 };
 
 /* linux/mm/workingset.c */
 void *workingset_eviction(struct address_space *mapping, struct page *page);
 bool workingset_refault(void *shadow);
 void workingset_activation(struct page *page);
-extern struct list_lru workingset_shadow_nodes;
-
-static inline unsigned int workingset_node_pages(struct radix_tree_node *node)
-{
-	return node->count & RADIX_TREE_COUNT_MASK;
-}
-
-static inline void workingset_node_pages_inc(struct radix_tree_node *node)
-{
-	node->count++;
-}
-
-static inline void workingset_node_pages_dec(struct radix_tree_node *node)
-{
-	node->count--;
-}
-
-static inline unsigned int workingset_node_shadows(struct radix_tree_node *node)
-{
-	return node->count >> RADIX_TREE_COUNT_SHIFT;
-}
-
-static inline void workingset_node_shadows_inc(struct radix_tree_node *node)
-{
-	node->count += 1U << RADIX_TREE_COUNT_SHIFT;
-}
-
-static inline void workingset_node_shadows_dec(struct radix_tree_node *node)
-{
-	node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
-}
+void workingset_update_node(struct radix_tree_node *node, void *private);
 
 /* linux/mm/page_alloc.c */
 extern unsigned long totalram_pages;
@@ -346,6 +327,9 @@ extern int kswapd_run(int nid);
 extern void kswapd_stop(int nid);
 
 #ifdef CONFIG_SWAP
+
+#include <linux/blk_types.h> /* for bio_end_io_t */
+
 /* linux/mm/page_io.c */
 extern int swap_readpage(struct page *);
 extern int swap_writepage(struct page *page, struct writeback_control *wbc);
@@ -360,8 +344,13 @@ int generic_swapfile_activate(struct swap_info_struct *, struct file *,
 		sector_t *);
 
 /* linux/mm/swap_state.c */
-extern struct address_space swapper_spaces[];
-#define swap_address_space(entry) (&swapper_spaces[swp_type(entry)])
+/* One swap address space for each 64M swap space */
+#define SWAP_ADDRESS_SPACE_SHIFT	14
+#define SWAP_ADDRESS_SPACE_PAGES	(1 << SWAP_ADDRESS_SPACE_SHIFT)
+extern struct address_space *swapper_spaces[];
+#define swap_address_space(entry)			    \
+	(&swapper_spaces[swp_type(entry)][swp_offset(entry) \
+		>> SWAP_ADDRESS_SPACE_SHIFT])
 extern unsigned long total_swapcache_pages(void);
 extern void show_swap_cache_info(void);
 extern int add_to_swap(struct page *, struct list_head *list);
@@ -383,6 +372,7 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
 /* linux/mm/swapfile.c */
 extern atomic_long_t nr_swap_pages;
 extern long total_swap_pages;
+extern bool has_usable_swap(void);
 
 /* Swap 50% full? Release swapcache more aggressively.. */
 static inline bool vm_swap_full(void)
@@ -398,23 +388,31 @@ static inline long get_nr_swap_pages(void)
 extern void si_swapinfo(struct sysinfo *);
 extern swp_entry_t get_swap_page(void);
 extern swp_entry_t get_swap_page_of_type(int);
+extern int get_swap_pages(int n, swp_entry_t swp_entries[]);
 extern int add_swap_count_continuation(swp_entry_t, gfp_t);
 extern void swap_shmem_alloc(swp_entry_t);
 extern int swap_duplicate(swp_entry_t);
 extern int swapcache_prepare(swp_entry_t);
 extern void swap_free(swp_entry_t);
 extern void swapcache_free(swp_entry_t);
+extern void swapcache_free_entries(swp_entry_t *entries, int n);
 extern int free_swap_and_cache(swp_entry_t);
 extern int swap_type_of(dev_t, sector_t, struct block_device **);
 extern unsigned int count_swap_pages(int, int);
 extern sector_t map_swap_page(struct page *, struct block_device **);
 extern sector_t swapdev_block(int, pgoff_t);
 extern int page_swapcount(struct page *);
+extern int __swp_swapcount(swp_entry_t entry);
 extern int swp_swapcount(swp_entry_t entry);
 extern struct swap_info_struct *page_swap_info(struct page *);
 extern bool reuse_swap_page(struct page *, int *);
 extern int try_to_free_swap(struct page *);
 struct backing_dev_info;
+extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
+extern void exit_swap_address_space(unsigned int type);
+
+extern int get_swap_slots(int n, swp_entry_t *slots);
+extern void swapcache_free_batch(swp_entry_t *entries, int n);
 
 #else /* CONFIG_SWAP */
 
@@ -498,6 +496,11 @@ static inline void delete_from_swap_cache(struct page *page)
 }
 
 static inline int page_swapcount(struct page *page)
+{
+	return 0;
+}
+
+static inline int __swp_swapcount(swp_entry_t entry)
 {
 	return 0;
 }

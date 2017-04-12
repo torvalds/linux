@@ -32,40 +32,19 @@ const struct dentry_operations ceph_dentry_ops;
 /*
  * Initialize ceph dentry state.
  */
-int ceph_init_dentry(struct dentry *dentry)
+static int ceph_d_init(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di;
-
-	if (dentry->d_fsdata)
-		return 0;
 
 	di = kmem_cache_zalloc(ceph_dentry_cachep, GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;          /* oh well */
 
-	spin_lock(&dentry->d_lock);
-	if (dentry->d_fsdata) {
-		/* lost a race */
-		kmem_cache_free(ceph_dentry_cachep, di);
-		goto out_unlock;
-	}
-
-	if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_NOSNAP)
-		d_set_d_op(dentry, &ceph_dentry_ops);
-	else if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_SNAPDIR)
-		d_set_d_op(dentry, &ceph_snapdir_dentry_ops);
-	else
-		d_set_d_op(dentry, &ceph_snap_dentry_ops);
-
 	di->dentry = dentry;
 	di->lease_session = NULL;
 	di->time = jiffies;
-	/* avoid reordering d_fsdata setup so that the check above is safe */
-	smp_mb();
 	dentry->d_fsdata = di;
 	ceph_dentry_lru_add(dentry);
-out_unlock:
-	spin_unlock(&dentry->d_lock);
 	return 0;
 }
 
@@ -392,7 +371,7 @@ more:
 		/* hints to request -> mds selection code */
 		req->r_direct_mode = USE_AUTH_MDS;
 		req->r_direct_hash = ceph_frag_value(frag);
-		req->r_direct_is_hash = true;
+		__set_bit(CEPH_MDS_R_DIRECT_IS_HASH, &req->r_req_flags);
 		if (fi->last_name) {
 			req->r_path2 = kstrdup(fi->last_name, GFP_KERNEL);
 			if (!req->r_path2) {
@@ -438,7 +417,7 @@ more:
 		fi->frag = frag;
 		fi->last_readdir = req;
 
-		if (req->r_did_prepopulate) {
+		if (test_bit(CEPH_MDS_R_DID_PREPOPULATE, &req->r_req_flags)) {
 			fi->readdir_cache_idx = req->r_readdir_cache_idx;
 			if (fi->readdir_cache_idx < 0) {
 				/* preclude from marking dir ordered */
@@ -737,10 +716,6 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	err = ceph_init_dentry(dentry);
-	if (err < 0)
-		return ERR_PTR(err);
-
 	/* can we conclude ENOENT locally? */
 	if (d_really_is_negative(dentry)) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
@@ -777,7 +752,8 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		mask |= CEPH_CAP_XATTR_SHARED;
 	req->r_args.getattr.mask = cpu_to_le32(mask);
 
-	req->r_locked_dir = dir;
+	req->r_parent = dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	err = ceph_handle_snapdir(req, dentry, err);
 	dentry = ceph_finish_lookup(req, dentry, err);
@@ -838,7 +814,8 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 	}
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
-	req->r_locked_dir = dir;
+	req->r_parent = dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_args.mknod.mode = cpu_to_le32(mode);
 	req->r_args.mknod.rdev = cpu_to_le32(rdev);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
@@ -889,7 +866,8 @@ static int ceph_symlink(struct inode *dir, struct dentry *dentry,
 		ceph_mdsc_put_request(req);
 		goto out;
 	}
-	req->r_locked_dir = dir;
+	req->r_parent = dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
@@ -938,7 +916,8 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
-	req->r_locked_dir = dir;
+	req->r_parent = dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_args.mkdir.mode = cpu_to_le32(mode);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
@@ -982,7 +961,8 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	req->r_old_dentry = dget(old_dentry);
-	req->r_locked_dir = dir;
+	req->r_parent = dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	/* release LINK_SHARED on source inode (mds will lock it) */
@@ -1048,7 +1028,8 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	}
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
-	req->r_locked_dir = dir;
+	req->r_parent = dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	req->r_inode_drop = drop_caps_for_unlink(inode);
@@ -1061,13 +1042,17 @@ out:
 }
 
 static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
-		       struct inode *new_dir, struct dentry *new_dentry)
+		       struct inode *new_dir, struct dentry *new_dentry,
+		       unsigned int flags)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(old_dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	int op = CEPH_MDS_OP_RENAME;
 	int err;
+
+	if (flags)
+		return -EINVAL;
 
 	if (ceph_snap(old_dir) != ceph_snap(new_dir))
 		return -EXDEV;
@@ -1087,7 +1072,8 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 	req->r_num_caps = 2;
 	req->r_old_dentry = dget(old_dentry);
 	req->r_old_dentry_dir = old_dir;
-	req->r_locked_dir = new_dir;
+	req->r_parent = new_dir;
+	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_old_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_old_dentry_unless = CEPH_CAP_FILE_EXCL;
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
@@ -1215,7 +1201,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	struct inode *dir;
 
 	if (flags & LOOKUP_RCU) {
-		parent = ACCESS_ONCE(dentry->d_parent);
+		parent = READ_ONCE(dentry->d_parent);
 		dir = d_inode_rcu(parent);
 		if (!dir)
 			return -ECHILD;
@@ -1251,7 +1237,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 		struct ceph_mds_client *mdsc =
 			ceph_sb_to_client(dir->i_sb)->mdsc;
 		struct ceph_mds_request *req;
-		int op, mask, err;
+		int op, err;
+		u32 mask;
 
 		if (flags & LOOKUP_RCU)
 			return -ECHILD;
@@ -1262,21 +1249,26 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 		if (!IS_ERR(req)) {
 			req->r_dentry = dget(dentry);
 			req->r_num_caps = 2;
+			req->r_parent = dir;
 
 			mask = CEPH_STAT_CAP_INODE | CEPH_CAP_AUTH_SHARED;
 			if (ceph_security_xattr_wanted(dir))
 				mask |= CEPH_CAP_XATTR_SHARED;
-			req->r_args.getattr.mask = mask;
+			req->r_args.getattr.mask = cpu_to_le32(mask);
 
-			req->r_locked_dir = dir;
 			err = ceph_mdsc_do_request(mdsc, NULL, req);
-			if (err == 0 || err == -ENOENT) {
-				if (dentry == req->r_dentry) {
-					valid = !d_unhashed(dentry);
-				} else {
-					d_invalidate(req->r_dentry);
-					err = -EAGAIN;
-				}
+			switch (err) {
+			case 0:
+				if (d_really_is_positive(dentry) &&
+				    d_inode(dentry) == req->r_target_inode)
+					valid = 1;
+				break;
+			case -ENOENT:
+				if (d_really_is_negative(dentry))
+					valid = 1;
+				/* Fallthrough */
+			default:
+				break;
 			}
 			ceph_mdsc_put_request(req);
 			dout("d_revalidate %p lookup result=%d\n",
@@ -1315,16 +1307,6 @@ static void ceph_d_release(struct dentry *dentry)
 	kmem_cache_free(ceph_dentry_cachep, di);
 }
 
-static int ceph_snapdir_d_revalidate(struct dentry *dentry,
-					  unsigned int flags)
-{
-	/*
-	 * Eventually, we'll want to revalidate snapped metadata
-	 * too... probably...
-	 */
-	return 1;
-}
-
 /*
  * When the VFS prunes a dentry from the cache, we need to clear the
  * complete flag on the parent directory.
@@ -1341,6 +1323,9 @@ static void ceph_d_prune(struct dentry *dentry)
 
 	/* if we are not hashed, we don't affect dir's completeness */
 	if (d_unhashed(dentry))
+		return;
+
+	if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_SNAPDIR)
 		return;
 
 	/*
@@ -1486,10 +1471,7 @@ const struct inode_operations ceph_dir_iops = {
 	.permission = ceph_permission,
 	.getattr = ceph_getattr,
 	.setattr = ceph_setattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = ceph_listxattr,
-	.removexattr = generic_removexattr,
 	.get_acl = ceph_get_acl,
 	.set_acl = ceph_set_acl,
 	.mknod = ceph_mknod,
@@ -1516,14 +1498,5 @@ const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
 	.d_release = ceph_d_release,
 	.d_prune = ceph_d_prune,
-};
-
-const struct dentry_operations ceph_snapdir_dentry_ops = {
-	.d_revalidate = ceph_snapdir_d_revalidate,
-	.d_release = ceph_d_release,
-};
-
-const struct dentry_operations ceph_snap_dentry_ops = {
-	.d_release = ceph_d_release,
-	.d_prune = ceph_d_prune,
+	.d_init = ceph_d_init,
 };

@@ -15,35 +15,20 @@ DVB demux read()
 Synopsis
 --------
 
-.. cpp:function:: size_t read(int fd, void *buf, size_t count)
-
+.. c:function:: size_t read(int fd, void *buf, size_t count)
+    :name: dvb-dmx-read
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
+ ``buf``
+   Buffer to be filled
 
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  void \*buf
-
-       -  Pointer to the buffer to be used for returned filtered data.
-
-    -  .. row 3
-
-       -  size_t count
-
-       -  Size of buf.
-
+``count``
+   Max number of bytes to read
 
 Description
 -----------
@@ -53,9 +38,10 @@ data. The filtered data is transferred from the driver’s internal
 circular buffer to buf. The maximum amount of data to be transferred is
 implied by count.
 
-
 Return Value
 ------------
+
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
 
 .. flat-table::
     :header-rows:  0

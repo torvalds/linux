@@ -38,7 +38,7 @@
 #include <net/route.h>
 #include <net/netfilter/br_netfilter.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
@@ -187,10 +187,9 @@ static int br_nf_pre_routing_finish_ipv6(struct net *net, struct sock *sk, struc
 			skb->dev = nf_bridge->physindev;
 			nf_bridge_update_protocol(skb);
 			nf_bridge_push_encap_header(skb);
-			NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
-				       net, sk, skb, skb->dev, NULL,
-				       br_nf_pre_routing_finish_bridge,
-				       1);
+			br_nf_hook_thresh(NF_BR_PRE_ROUTING,
+					  net, sk, skb, skb->dev, NULL,
+					  br_nf_pre_routing_finish_bridge);
 			return 0;
 		}
 		ether_addr_copy(eth_hdr(skb)->h_dest, dev->dev_addr);
@@ -207,9 +206,8 @@ static int br_nf_pre_routing_finish_ipv6(struct net *net, struct sock *sk, struc
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, net, sk, skb,
-		       skb->dev, NULL,
-		       br_handle_frame_finish, 1);
+	br_nf_hook_thresh(NF_BR_PRE_ROUTING, net, sk, skb,
+			  skb->dev, NULL, br_handle_frame_finish);
 
 	return 0;
 }

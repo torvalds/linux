@@ -189,7 +189,7 @@ static int ak4642_lout_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 	case SND_SOC_DAPM_POST_PMD:
 		/* Power save mode OFF */
-		mdelay(300);
+		msleep(300);
 		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
 		break;
 	}
@@ -555,12 +555,14 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
 	.suspend		= ak4642_suspend,
 	.resume			= ak4642_resume,
 	.set_bias_level		= ak4642_set_bias_level,
-	.controls		= ak4642_snd_controls,
-	.num_controls		= ARRAY_SIZE(ak4642_snd_controls),
-	.dapm_widgets		= ak4642_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(ak4642_dapm_widgets),
-	.dapm_routes		= ak4642_intercon,
-	.num_dapm_routes	= ARRAY_SIZE(ak4642_intercon),
+	.component_driver = {
+		.controls		= ak4642_snd_controls,
+		.num_controls		= ARRAY_SIZE(ak4642_snd_controls),
+		.dapm_widgets		= ak4642_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak4642_dapm_widgets),
+		.dapm_routes		= ak4642_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(ak4642_intercon),
+	},
 };
 
 static const struct regmap_config ak4642_regmap = {

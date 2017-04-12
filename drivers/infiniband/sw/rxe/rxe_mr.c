@@ -39,7 +39,7 @@
  */
 static u8 rxe_get_key(void)
 {
-	static unsigned key = 1;
+	static u32 key = 1;
 
 	key = key << 1;
 
@@ -59,9 +59,11 @@ int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length)
 
 	case RXE_MEM_TYPE_MR:
 	case RXE_MEM_TYPE_FMR:
-		return ((iova < mem->iova) ||
-			((iova + length) > (mem->iova + mem->length))) ?
-			-EFAULT : 0;
+		if (iova < mem->iova ||
+		    length > mem->length ||
+		    iova > mem->iova + mem->length - length)
+			return -EFAULT;
+		return 0;
 
 	default:
 		return -EFAULT;
@@ -89,9 +91,9 @@ static void rxe_mem_init(int access, struct rxe_mem *mem)
 	mem->map_shift		= ilog2(RXE_BUF_PER_MAP);
 }
 
-void rxe_mem_cleanup(void *arg)
+void rxe_mem_cleanup(struct rxe_pool_entry *arg)
 {
-	struct rxe_mem *mem = arg;
+	struct rxe_mem *mem = container_of(arg, typeof(*mem), pelem);
 	int i;
 
 	if (mem->umem)
@@ -123,7 +125,7 @@ static int rxe_mem_alloc(struct rxe_dev *rxe, struct rxe_mem *mem, int num_buf)
 			goto err2;
 	}
 
-	WARN_ON(!is_power_of_2(RXE_BUF_PER_MAP));
+	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
 
 	mem->map_shift	= ilog2(RXE_BUF_PER_MAP);
 	mem->map_mask	= RXE_BUF_PER_MAP - 1;
@@ -189,7 +191,7 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 		goto err1;
 	}
 
-	WARN_ON(!is_power_of_2(umem->page_size));
+	WARN_ON_ONCE(!is_power_of_2(umem->page_size));
 
 	mem->page_shift		= ilog2(umem->page_size);
 	mem->page_mask		= umem->page_size - 1;
@@ -355,6 +357,9 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 	size_t			offset;
 	u32			crc = crcp ? (*crcp) : 0;
 
+	if (length == 0)
+		return 0;
+
 	if (mem->type == RXE_MEM_TYPE_DMA) {
 		u8 *src, *dest;
 
@@ -372,7 +377,7 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		return 0;
 	}
 
-	WARN_ON(!mem->map);
+	WARN_ON_ONCE(!mem->map);
 
 	err = mem_check_range(mem, iova, length);
 	if (err) {

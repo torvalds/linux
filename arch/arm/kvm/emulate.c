@@ -161,105 +161,6 @@ unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
 	}
 }
 
-/*
- * A conditional instruction is allowed to trap, even though it
- * wouldn't be executed.  So let's re-implement the hardware, in
- * software!
- */
-bool kvm_condition_valid(struct kvm_vcpu *vcpu)
-{
-	unsigned long cpsr, cond, insn;
-
-	/*
-	 * Exception Code 0 can only happen if we set HCR.TGE to 1, to
-	 * catch undefined instructions, and then we won't get past
-	 * the arm_exit_handlers test anyway.
-	 */
-	BUG_ON(!kvm_vcpu_trap_get_class(vcpu));
-
-	/* Top two bits non-zero?  Unconditional. */
-	if (kvm_vcpu_get_hsr(vcpu) >> 30)
-		return true;
-
-	cpsr = *vcpu_cpsr(vcpu);
-
-	/* Is condition field valid? */
-	if ((kvm_vcpu_get_hsr(vcpu) & HSR_CV) >> HSR_CV_SHIFT)
-		cond = (kvm_vcpu_get_hsr(vcpu) & HSR_COND) >> HSR_COND_SHIFT;
-	else {
-		/* This can happen in Thumb mode: examine IT state. */
-		unsigned long it;
-
-		it = ((cpsr >> 8) & 0xFC) | ((cpsr >> 25) & 0x3);
-
-		/* it == 0 => unconditional. */
-		if (it == 0)
-			return true;
-
-		/* The cond for this insn works out as the top 4 bits. */
-		cond = (it >> 4);
-	}
-
-	/* Shift makes it look like an ARM-mode instruction */
-	insn = cond << 28;
-	return arm_check_condition(insn, cpsr) != ARM_OPCODE_CONDTEST_FAIL;
-}
-
-/**
- * adjust_itstate - adjust ITSTATE when emulating instructions in IT-block
- * @vcpu:	The VCPU pointer
- *
- * When exceptions occur while instructions are executed in Thumb IF-THEN
- * blocks, the ITSTATE field of the CPSR is not advanced (updated), so we have
- * to do this little bit of work manually. The fields map like this:
- *
- * IT[7:0] -> CPSR[26:25],CPSR[15:10]
- */
-static void kvm_adjust_itstate(struct kvm_vcpu *vcpu)
-{
-	unsigned long itbits, cond;
-	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	bool is_arm = !(cpsr & PSR_T_BIT);
-
-	BUG_ON(is_arm && (cpsr & PSR_IT_MASK));
-
-	if (!(cpsr & PSR_IT_MASK))
-		return;
-
-	cond = (cpsr & 0xe000) >> 13;
-	itbits = (cpsr & 0x1c00) >> (10 - 2);
-	itbits |= (cpsr & (0x3 << 25)) >> 25;
-
-	/* Perform ITAdvance (see page A-52 in ARM DDI 0406C) */
-	if ((itbits & 0x7) == 0)
-		itbits = cond = 0;
-	else
-		itbits = (itbits << 1) & 0x1f;
-
-	cpsr &= ~PSR_IT_MASK;
-	cpsr |= cond << 13;
-	cpsr |= (itbits & 0x1c) << (10 - 2);
-	cpsr |= (itbits & 0x3) << 25;
-	*vcpu_cpsr(vcpu) = cpsr;
-}
-
-/**
- * kvm_skip_instr - skip a trapped instruction and proceed to the next
- * @vcpu: The vcpu pointer
- */
-void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
-{
-	bool is_thumb;
-
-	is_thumb = !!(*vcpu_cpsr(vcpu) & PSR_T_BIT);
-	if (is_thumb && !is_wide_instr)
-		*vcpu_pc(vcpu) += 2;
-	else
-		*vcpu_pc(vcpu) += 4;
-	kvm_adjust_itstate(vcpu);
-}
-
-
 /******************************************************************************
  * Inject exceptions into the guest
  */
@@ -401,4 +302,16 @@ void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
 	inject_abt(vcpu, true, addr);
+}
+
+/**
+ * kvm_inject_vabt - inject an async abort / SError into the guest
+ * @vcpu: The VCPU to receive the exception
+ *
+ * It is assumed that this code is called from the VCPU thread and that the
+ * VCPU therefore is not currently executing guest code.
+ */
+void kvm_inject_vabt(struct kvm_vcpu *vcpu)
+{
+	vcpu_set_hcr(vcpu, vcpu_get_hcr(vcpu) | HCR_VA);
 }

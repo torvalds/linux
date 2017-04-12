@@ -19,10 +19,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -1086,7 +1082,6 @@ MODULE_DEVICE_TABLE(of, tvp7002_of_match);
 static struct i2c_driver tvp7002_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(tvp7002_of_match),
-		.owner = THIS_MODULE,
 		.name = TVP7002_MODULE_NAME,
 	},
 	.probe = tvp7002_probe,

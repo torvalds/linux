@@ -45,10 +45,15 @@
 
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
+/* @a is a power of 2 value */
 #define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
 #define __ALIGN_MASK(x, mask)	__ALIGN_KERNEL_MASK((x), (mask))
 #define PTR_ALIGN(p, a)		((typeof(p))ALIGN((unsigned long)(p), (a)))
 #define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a) - 1)) == 0)
+
+/* generic data direction definitions */
+#define READ			0
+#define WRITE			1
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 
@@ -95,16 +100,18 @@
 )
 
 /*
- * Divide positive or negative dividend by positive divisor and round
- * to closest integer. Result is undefined for negative divisors and
- * for negative dividends if the divisor variable type is unsigned.
+ * Divide positive or negative dividend by positive or negative divisor
+ * and round to closest integer. Result is undefined for negative
+ * divisors if he dividend variable type is unsigned and for negative
+ * dividends if the divisor variable type is unsigned.
  */
 #define DIV_ROUND_CLOSEST(x, divisor)(			\
 {							\
 	typeof(x) __x = x;				\
 	typeof(divisor) __d = divisor;			\
 	(((typeof(x))-1) > 0 ||				\
-	 ((typeof(divisor))-1) > 0 || (__x) > 0) ?	\
+	 ((typeof(divisor))-1) > 0 ||			\
+	 (((__x) > 0) == ((__d) > 0))) ?		\
 		(((__x) + ((__d) / 2)) / (__d)) :	\
 		(((__x) - ((__d) / 2)) / (__d));	\
 }							\
@@ -259,17 +266,14 @@ static inline void might_fault(void) { }
 extern struct atomic_notifier_head panic_notifier_list;
 extern long (*panic_blink)(int state);
 __printf(1, 2)
-void panic(const char *fmt, ...)
-	__noreturn __cold;
+void panic(const char *fmt, ...) __noreturn __cold;
 void nmi_panic(struct pt_regs *regs, const char *msg);
 extern void oops_enter(void);
 extern void oops_exit(void);
 void print_oops_end_marker(void);
 extern int oops_may_print(void);
-void do_exit(long error_code)
-	__noreturn;
-void complete_and_exit(struct completion *, long)
-	__noreturn;
+void do_exit(long error_code) __noreturn;
+void complete_and_exit(struct completion *, long) __noreturn;
 
 /* Internal, do not use. */
 int __must_check _kstrtoul(const char *s, unsigned int base, unsigned long *res);
@@ -509,6 +513,15 @@ extern enum system_states {
 #define TAINT_UNSIGNED_MODULE		13
 #define TAINT_SOFTLOCKUP		14
 #define TAINT_LIVEPATCH			15
+#define TAINT_FLAGS_COUNT		16
+
+struct taint_flag {
+	char c_true;	/* character printed when tainted */
+	char c_false;	/* character printed when not tainted */
+	bool module;	/* also show as a per-module taint flag */
+};
+
+extern const struct taint_flag taint_flags[TAINT_FLAGS_COUNT];
 
 extern const char hex_asc[];
 #define hex_asc_lo(x)	hex_asc[((x) & 0x0f)]
@@ -736,17 +749,25 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * strict type-checking.. See the
  * "unnecessary" pointer comparison.
  */
-#define min(x, y) ({				\
-	typeof(x) _min1 = (x);			\
-	typeof(y) _min2 = (y);			\
-	(void) (&_min1 == &_min2);		\
-	_min1 < _min2 ? _min1 : _min2; })
+#define __min(t1, t2, min1, min2, x, y) ({		\
+	t1 min1 = (x);					\
+	t2 min2 = (y);					\
+	(void) (&min1 == &min2);			\
+	min1 < min2 ? min1 : min2; })
+#define min(x, y)					\
+	__min(typeof(x), typeof(y),			\
+	      __UNIQUE_ID(min1_), __UNIQUE_ID(min2_),	\
+	      x, y)
 
-#define max(x, y) ({				\
-	typeof(x) _max1 = (x);			\
-	typeof(y) _max2 = (y);			\
-	(void) (&_max1 == &_max2);		\
-	_max1 > _max2 ? _max1 : _max2; })
+#define __max(t1, t2, max1, max2, x, y) ({		\
+	t1 max1 = (x);					\
+	t2 max2 = (y);					\
+	(void) (&max1 == &max2);			\
+	max1 > max2 ? max1 : max2; })
+#define max(x, y)					\
+	__max(typeof(x), typeof(y),			\
+	      __UNIQUE_ID(max1_), __UNIQUE_ID(max2_),	\
+	      x, y)
 
 #define min3(x, y, z) min((typeof(x))min(x, y), z)
 #define max3(x, y, z) max((typeof(x))max(x, y), z)
@@ -778,15 +799,15 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  *
  * Or not use min/max/clamp at all, of course.
  */
-#define min_t(type, x, y) ({			\
-	type __min1 = (x);			\
-	type __min2 = (y);			\
-	__min1 < __min2 ? __min1: __min2; })
+#define min_t(type, x, y)				\
+	__min(type, type,				\
+	      __UNIQUE_ID(min1_), __UNIQUE_ID(min2_),	\
+	      x, y)
 
-#define max_t(type, x, y) ({			\
-	type __max1 = (x);			\
-	type __max2 = (y);			\
-	__max1 > __max2 ? __max1: __max2; })
+#define max_t(type, x, y)				\
+	__max(type, type,				\
+	      __UNIQUE_ID(min1_), __UNIQUE_ID(min2_),	\
+	      x, y)
 
 /**
  * clamp_t - return a value clamped to a given range using a given type

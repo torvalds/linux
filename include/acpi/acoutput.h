@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -366,7 +366,7 @@
 	ACPI_TRACE_ENTRY (name, acpi_ut_trace_u32, u32, value)
 
 #define ACPI_FUNCTION_TRACE_STR(name, string) \
-	ACPI_TRACE_ENTRY (name, acpi_ut_trace_str, char *, string)
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_str, const char *, string)
 
 #define ACPI_FUNCTION_ENTRY() \
 	acpi_ut_track_stack_ptr()
@@ -425,6 +425,9 @@
 #define return_PTR(pointer) \
 	ACPI_TRACE_EXIT (acpi_ut_ptr_exit, void *, pointer)
 
+#define return_STR(string) \
+	ACPI_TRACE_EXIT (acpi_ut_str_exit, const char *, string)
+
 #define return_VALUE(value) \
 	ACPI_TRACE_EXIT (acpi_ut_value_exit, u64, value)
 
@@ -478,6 +481,7 @@
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)
 #define return_PTR(s)                   return(s)
+#define return_STR(s)                   return(s)
 #define return_VALUE(s)                 return(s)
 #define return_UINT8(s)                 return(s)
 #define return_UINT32(s)                return(s)

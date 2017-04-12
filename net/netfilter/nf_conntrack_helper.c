@@ -138,9 +138,14 @@ __nf_conntrack_helper_find(const char *name, u16 l3num, u8 protonum)
 
 	for (i = 0; i < nf_ct_helper_hsize; i++) {
 		hlist_for_each_entry_rcu(h, &nf_ct_helper_hash[i], hnode) {
-			if (!strcmp(h->name, name) &&
-			    h->tuple.src.l3num == l3num &&
-			    h->tuple.dst.protonum == protonum)
+			if (strcmp(h->name, name))
+				continue;
+
+			if (h->tuple.src.l3num != NFPROTO_UNSPEC &&
+			    h->tuple.src.l3num != l3num)
+				continue;
+
+			if (h->tuple.dst.protonum == protonum)
 				return h;
 		}
 	}
@@ -183,13 +188,32 @@ nf_ct_helper_ext_add(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_ext_add);
 
+static struct nf_conntrack_helper *
+nf_ct_lookup_helper(struct nf_conn *ct, struct net *net)
+{
+	if (!net->ct.sysctl_auto_assign_helper) {
+		if (net->ct.auto_assign_helper_warned)
+			return NULL;
+		if (!__nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple))
+			return NULL;
+		pr_info("nf_conntrack: default automatic helper assignment "
+			"has been turned off for security reasons and CT-based "
+			" firewall rule not found. Use the iptables CT target "
+			"to attach helpers instead.\n");
+		net->ct.auto_assign_helper_warned = 1;
+		return NULL;
+	}
+
+	return __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+}
+
+
 int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			      gfp_t flags)
 {
 	struct nf_conntrack_helper *helper = NULL;
 	struct nf_conn_help *help;
 	struct net *net = nf_ct_net(ct);
-	int ret = 0;
 
 	/* We already got a helper explicitly attached. The function
 	 * nf_conntrack_alter_reply - in case NAT is in use - asks for looking
@@ -209,29 +233,20 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	}
 
 	help = nfct_help(ct);
-	if (net->ct.sysctl_auto_assign_helper && helper == NULL) {
-		helper = __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-		if (unlikely(!net->ct.auto_assign_helper_warned && helper)) {
-			pr_info("nf_conntrack: automatic helper "
-				"assignment is deprecated and it will "
-				"be removed soon. Use the iptables CT target "
-				"to attach helpers instead.\n");
-			net->ct.auto_assign_helper_warned = true;
-		}
-	}
 
 	if (helper == NULL) {
-		if (help)
-			RCU_INIT_POINTER(help->helper, NULL);
-		goto out;
+		helper = nf_ct_lookup_helper(ct, net);
+		if (helper == NULL) {
+			if (help)
+				RCU_INIT_POINTER(help->helper, NULL);
+			return 0;
+		}
 	}
 
 	if (help == NULL) {
 		help = nf_ct_helper_ext_add(ct, helper, flags);
-		if (help == NULL) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (help == NULL)
+			return -ENOMEM;
 	} else {
 		/* We only allow helper re-assignment of the same sort since
 		 * we cannot reallocate the helper extension area.
@@ -240,13 +255,13 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 
 		if (tmp && tmp->help != helper->help) {
 			RCU_INIT_POINTER(help->helper, NULL);
-			goto out;
+			return 0;
 		}
 	}
 
 	rcu_assign_pointer(help->helper, helper);
-out:
-	return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__nf_ct_try_assign_helper);
 
@@ -349,7 +364,7 @@ void nf_ct_helper_log(struct sk_buff *skb, const struct nf_conn *ct,
 	/* Called from the helper function, this call never fails */
 	help = nfct_help(ct);
 
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	helper = rcu_dereference(help->helper);
 
 	nf_log_packet(nf_ct_net(ct), nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL,

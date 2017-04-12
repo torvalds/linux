@@ -82,7 +82,6 @@ out:
 	       libcfs_nid2str(conn->c_peer.nid));
 	return conn;
 }
-EXPORT_SYMBOL(ptlrpc_connection_get);
 
 int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 {
@@ -118,7 +117,6 @@ int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 
 	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_connection_put);
 
 struct ptlrpc_connection *
 ptlrpc_connection_addref(struct ptlrpc_connection *conn)
@@ -130,7 +128,6 @@ ptlrpc_connection_addref(struct ptlrpc_connection *conn)
 
 	return conn;
 }
-EXPORT_SYMBOL(ptlrpc_connection_addref);
 
 int ptlrpc_connection_init(void)
 {
@@ -146,19 +143,17 @@ int ptlrpc_connection_init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_connection_init);
 
 void ptlrpc_connection_fini(void)
 {
 	cfs_hash_putref(conn_hash);
 }
-EXPORT_SYMBOL(ptlrpc_connection_fini);
 
 /*
  * Hash operations for net_peer<->connection
  */
-static unsigned
-conn_hashfn(struct cfs_hash *hs, const void *key, unsigned mask)
+static unsigned int
+conn_hashfn(struct cfs_hash *hs, const void *key, unsigned int mask)
 {
 	return cfs_hash_djb2_hash(key, sizeof(lnet_process_id_t), mask);
 }

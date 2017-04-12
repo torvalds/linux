@@ -184,6 +184,7 @@ struct irq_data {
  *
  * IRQD_TRIGGER_MASK		- Mask for the trigger type bits
  * IRQD_SETAFFINITY_PENDING	- Affinity setting is pending
+ * IRQD_ACTIVATED		- Interrupt has already been activated
  * IRQD_NO_BALANCING		- Balancing disabled for this IRQ
  * IRQD_PER_CPU			- Interrupt is per cpu
  * IRQD_AFFINITY_SET		- Interrupt affinity was set
@@ -202,6 +203,7 @@ struct irq_data {
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
 	IRQD_SETAFFINITY_PENDING	= (1 <<  8),
+	IRQD_ACTIVATED			= (1 <<  9),
 	IRQD_NO_BALANCING		= (1 << 10),
 	IRQD_PER_CPU			= (1 << 11),
 	IRQD_AFFINITY_SET		= (1 << 12),
@@ -310,6 +312,21 @@ static inline void irqd_clr_forwarded_to_vcpu(struct irq_data *d)
 static inline bool irqd_affinity_is_managed(struct irq_data *d)
 {
 	return __irqd_to_state(d) & IRQD_AFFINITY_MANAGED;
+}
+
+static inline bool irqd_is_activated(struct irq_data *d)
+{
+	return __irqd_to_state(d) & IRQD_ACTIVATED;
+}
+
+static inline void irqd_set_activated(struct irq_data *d)
+{
+	__irqd_to_state(d) |= IRQD_ACTIVATED;
+}
+
+static inline void irqd_clr_activated(struct irq_data *d)
+{
+	__irqd_to_state(d) &= ~IRQD_ACTIVATED;
 }
 
 #undef __irqd_to_state
@@ -715,6 +732,10 @@ unsigned int arch_dynirq_lower_bound(unsigned int from);
 int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		      struct module *owner, const struct cpumask *affinity);
 
+int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
+			   unsigned int cnt, int node, struct module *owner,
+			   const struct cpumask *affinity);
+
 /* use macros to avoid needing export.h for THIS_MODULE */
 #define irq_alloc_descs(irq, from, cnt, node)	\
 	__irq_alloc_descs(irq, from, cnt, node, THIS_MODULE, NULL)
@@ -730,6 +751,21 @@ int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 
 #define irq_alloc_descs_from(from, cnt, node)	\
 	irq_alloc_descs(-1, from, cnt, node)
+
+#define devm_irq_alloc_descs(dev, irq, from, cnt, node)		\
+	__devm_irq_alloc_descs(dev, irq, from, cnt, node, THIS_MODULE, NULL)
+
+#define devm_irq_alloc_desc(dev, node)				\
+	devm_irq_alloc_descs(dev, -1, 0, 1, node)
+
+#define devm_irq_alloc_desc_at(dev, at, node)			\
+	devm_irq_alloc_descs(dev, at, at, 1, node)
+
+#define devm_irq_alloc_desc_from(dev, from, node)		\
+	devm_irq_alloc_descs(dev, -1, from, 1, node)
+
+#define devm_irq_alloc_descs_from(dev, from, cnt, node)		\
+	devm_irq_alloc_descs(dev, -1, from, cnt, node)
 
 void irq_free_descs(unsigned int irq, unsigned int cnt);
 static inline void irq_free_desc(unsigned int irq)
@@ -916,12 +952,20 @@ void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
 			     unsigned int clr, unsigned int set);
 
 struct irq_chip_generic *irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq);
-int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
-				   int num_ct, const char *name,
-				   irq_flow_handler_t handler,
-				   unsigned int clr, unsigned int set,
-				   enum irq_gc_flags flags);
 
+int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
+				     int num_ct, const char *name,
+				     irq_flow_handler_t handler,
+				     unsigned int clr, unsigned int set,
+				     enum irq_gc_flags flags);
+
+#define irq_alloc_domain_generic_chips(d, irqs_per_chip, num_ct, name,	\
+				       handler,	clr, set, flags)	\
+({									\
+	MAYBE_BUILD_BUG_ON(irqs_per_chip > 32);				\
+	__irq_alloc_domain_generic_chips(d, irqs_per_chip, num_ct, name,\
+					 handler, clr, set, flags);	\
+})
 
 static inline struct irq_chip_type *irq_data_get_chip_type(struct irq_data *d)
 {

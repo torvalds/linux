@@ -84,7 +84,7 @@ MODULE_DESCRIPTION("Avance Logic ALS4000");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Avance Logic,ALS4000}}");
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
 #endif
 
@@ -672,7 +672,7 @@ static int snd_als4000_capture_close(struct snd_pcm_substream *substream)
 
 /******************************************************************/
 
-static struct snd_pcm_ops snd_als4000_playback_ops = {
+static const struct snd_pcm_ops snd_als4000_playback_ops = {
 	.open =		snd_als4000_playback_open,
 	.close =	snd_als4000_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -683,7 +683,7 @@ static struct snd_pcm_ops snd_als4000_playback_ops = {
 	.pointer =	snd_als4000_playback_pointer
 };
 
-static struct snd_pcm_ops snd_als4000_capture_ops = {
+static const struct snd_pcm_ops snd_als4000_capture_ops = {
 	.open =		snd_als4000_capture_open,
 	.close =	snd_als4000_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

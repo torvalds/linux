@@ -15,8 +15,8 @@
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
 #include <linux/smp.h>
+#include <linux/sched/task_stack.h>
 #include <asm/io_apic.h>
-#include <asm/idle.h>
 #include <asm/apic.h>
 
 int sysctl_panic_on_stackoverflow;
@@ -40,8 +40,7 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	if (user_mode(regs))
 		return;
 
-	if (regs->sp >= curbase + sizeof(struct thread_info) +
-				  sizeof(struct pt_regs) + STACK_TOP_MARGIN &&
+	if (regs->sp >= curbase + sizeof(struct pt_regs) + STACK_TOP_MARGIN &&
 	    regs->sp <= curbase + THREAD_SIZE)
 		return;
 

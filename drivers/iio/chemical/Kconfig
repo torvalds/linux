@@ -16,6 +16,7 @@ config ATLAS_PH_SENSOR
 	 Atlas Scientific OEM SM sensors:
 	    * pH SM sensor
 	    * EC SM sensor
+	    * ORP SM sensor
 
 	 To compile this driver as module, choose M here: the
 	 module will be called atlas-ph-sensor.

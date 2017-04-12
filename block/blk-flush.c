@@ -56,7 +56,7 @@
  * Once while executing DATA and again after the whole sequence is
  * complete.  The first completion updates the contained bio but doesn't
  * finish it so that the bio submitter is notified only after the whole
- * sequence is complete.  This is implemented by testing REQ_FLUSH_SEQ in
+ * sequence is complete.  This is implemented by testing RQF_FLUSH_SEQ in
  * req_bio_endio().
  *
  * The above peculiarity requires that each FLUSH/FUA request has only one
@@ -74,6 +74,7 @@
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
+#include "blk-mq-sched.h"
 
 /* FLUSH/FUA sequences */
 enum {
@@ -127,17 +128,14 @@ static void blk_flush_restore_request(struct request *rq)
 	rq->bio = rq->biotail;
 
 	/* make @rq a normal request */
-	rq->cmd_flags &= ~REQ_FLUSH_SEQ;
+	rq->rq_flags &= ~RQF_FLUSH_SEQ;
 	rq->end_io = rq->flush.saved_end_io;
 }
 
 static bool blk_flush_queue_rq(struct request *rq, bool add_front)
 {
 	if (rq->q->mq_ops) {
-		struct request_queue *q = rq->q;
-
-		blk_mq_add_to_requeue_list(rq, add_front);
-		blk_mq_kick_requeue_list(q);
+		blk_mq_add_to_requeue_list(rq, add_front, true);
 		return false;
 	} else {
 		if (add_front)
@@ -232,7 +230,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 
 		/* release the tag's ownership to the req cloned from */
 		spin_lock_irqsave(&fq->mq_flush_lock, flags);
-		hctx = q->mq_ops->map_queue(q, flush_rq->mq_ctx->cpu);
+		hctx = blk_mq_map_queue(q, flush_rq->mq_ctx->cpu);
 		blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
 		flush_rq->tag = -1;
 	}
@@ -299,8 +297,14 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	if (fq->flush_pending_idx != fq->flush_running_idx || list_empty(pending))
 		return false;
 
-	/* C2 and C3 */
+	/* C2 and C3
+	 *
+	 * For blk-mq + scheduling, we can risk having all driver tags
+	 * assigned to empty flushes, and we deadlock if we are expecting
+	 * other requests to make progress. Don't defer for that case.
+	 */
 	if (!list_empty(&fq->flush_data_in_flight) &&
+	    !(q->mq_ops && q->elevator) &&
 	    time_before(jiffies,
 			fq->flush_pending_since + FLUSH_PENDING_TIMEOUT))
 		return false;
@@ -325,12 +329,12 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 		flush_rq->tag = first_rq->tag;
 		fq->orig_rq = first_rq;
 
-		hctx = q->mq_ops->map_queue(q, first_rq->mq_ctx->cpu);
+		hctx = blk_mq_map_queue(q, first_rq->mq_ctx->cpu);
 		blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
 	}
 
-	flush_rq->cmd_type = REQ_TYPE_FS;
-	req_set_op_attrs(flush_rq, REQ_OP_FLUSH, WRITE_FLUSH | REQ_FLUSH_SEQ);
+	flush_rq->cmd_flags = REQ_OP_FLUSH | REQ_PREFLUSH;
+	flush_rq->rq_flags |= RQF_FLUSH_SEQ;
 	flush_rq->rq_disk = first_rq->rq_disk;
 	flush_rq->end_io = flush_end_io;
 
@@ -341,6 +345,34 @@ static void flush_data_end_io(struct request *rq, int error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
+
+	/*
+	 * Updating q->in_flight[] here for making this tag usable
+	 * early. Because in blk_queue_start_tag(),
+	 * q->in_flight[BLK_RW_ASYNC] is used to limit async I/O and
+	 * reserve tags for sync I/O.
+	 *
+	 * More importantly this way can avoid the following I/O
+	 * deadlock:
+	 *
+	 * - suppose there are 40 fua requests comming to flush queue
+	 *   and queue depth is 31
+	 * - 30 rqs are scheduled then blk_queue_start_tag() can't alloc
+	 *   tag for async I/O any more
+	 * - all the 30 rqs are completed before FLUSH_PENDING_TIMEOUT
+	 *   and flush_data_end_io() is called
+	 * - the other rqs still can't go ahead if not updating
+	 *   q->in_flight[BLK_RW_ASYNC] here, meantime these rqs
+	 *   are held in flush data queue and make no progress of
+	 *   handling post flush rq
+	 * - only after the post flush rq is handled, all these rqs
+	 *   can be completed
+	 */
+
+	elv_completed_request(q, rq);
+
+	/* for avoiding double accounting */
+	rq->rq_flags &= ~RQF_STARTED;
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read
@@ -358,16 +390,17 @@ static void mq_flush_data_end_io(struct request *rq, int error)
 	unsigned long flags;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, ctx);
 
-	hctx = q->mq_ops->map_queue(q, ctx->cpu);
+	hctx = blk_mq_map_queue(q, ctx->cpu);
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read
 	 * the comment in flush_end_io().
 	 */
 	spin_lock_irqsave(&fq->mq_flush_lock, flags);
-	if (blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error))
-		blk_mq_run_hw_queue(hctx, true);
+	blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error);
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
+
+	blk_mq_run_hw_queue(hctx, true);
 }
 
 /**
@@ -398,6 +431,13 @@ void blk_insert_flush(struct request *rq)
 		rq->cmd_flags &= ~REQ_FUA;
 
 	/*
+	 * REQ_PREFLUSH|REQ_FUA implies REQ_SYNC, so if we clear any
+	 * of those flags, we have to set REQ_SYNC to avoid skewing
+	 * the request accounting.
+	 */
+	rq->cmd_flags |= REQ_SYNC;
+
+	/*
 	 * An empty flush handed down from a stacking driver may
 	 * translate into nothing if the underlying device does not
 	 * advertise a write-back cache.  In this case, simply
@@ -420,9 +460,9 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		if (q->mq_ops) {
-			blk_mq_insert_request(rq, false, false, true);
-		} else
+		if (q->mq_ops)
+			blk_mq_sched_insert_request(rq, false, true, false, false);
+		else
 			list_add_tail(&rq->queuelist, &q->queue_head);
 		return;
 	}
@@ -433,7 +473,7 @@ void blk_insert_flush(struct request *rq)
 	 */
 	memset(&rq->flush, 0, sizeof(rq->flush));
 	INIT_LIST_HEAD(&rq->flush.list);
-	rq->cmd_flags |= REQ_FLUSH_SEQ;
+	rq->rq_flags |= RQF_FLUSH_SEQ;
 	rq->flush.saved_end_io = rq->end_io; /* Usually NULL */
 	if (q->mq_ops) {
 		rq->end_io = mq_flush_data_end_io;
@@ -485,7 +525,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 
 	bio = bio_alloc(gfp_mask, 0);
 	bio->bi_bdev = bdev;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
+	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 	ret = submit_bio_wait(bio);
 
@@ -512,11 +552,10 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 	if (!fq)
 		goto fail;
 
-	if (q->mq_ops) {
+	if (q->mq_ops)
 		spin_lock_init(&fq->mq_flush_lock);
-		rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
-	}
 
+	rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
 	fq->flush_rq = kzalloc_node(rq_sz, GFP_KERNEL, node);
 	if (!fq->flush_rq)
 		goto fail_rq;

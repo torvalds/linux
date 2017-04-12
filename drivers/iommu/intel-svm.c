@@ -16,6 +16,7 @@
 #include <linux/intel-iommu.h>
 #include <linux/mmu_notifier.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/intel-svm.h>
 #include <linux/rculist.h>
@@ -39,10 +40,18 @@ int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 	struct page *pages;
 	int order;
 
-	order = ecap_pss(iommu->ecap) + 7 - PAGE_SHIFT;
-	if (order < 0)
-		order = 0;
+	/* Start at 2 because it's defined as 2^(1+PSS) */
+	iommu->pasid_max = 2 << ecap_pss(iommu->ecap);
 
+	/* Eventually I'm promised we will get a multi-level PASID table
+	 * and it won't have to be physically contiguous. Until then,
+	 * limit the size because 8MiB contiguous allocations can be hard
+	 * to come by. The limit of 0x20000, which is 1MiB for each of
+	 * the PASID and PASID-state tables, is somewhat arbitrary. */
+	if (iommu->pasid_max > 0x20000)
+		iommu->pasid_max = 0x20000;
+
+	order = get_order(sizeof(struct pasid_entry) * iommu->pasid_max);
 	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 	if (!pages) {
 		pr_warn("IOMMU: %s: Failed to allocate PASID table\n",
@@ -53,6 +62,8 @@ int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 	pr_info("%s: Allocated order %d PASID table.\n", iommu->name, order);
 
 	if (ecap_dis(iommu->ecap)) {
+		/* Just making it explicit... */
+		BUILD_BUG_ON(sizeof(struct pasid_entry) != sizeof(struct pasid_state_entry));
 		pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 		if (pages)
 			iommu->pasid_state_table = page_address(pages);
@@ -68,11 +79,7 @@ int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 
 int intel_svm_free_pasid_tables(struct intel_iommu *iommu)
 {
-	int order;
-
-	order = ecap_pss(iommu->ecap) + 7 - PAGE_SHIFT;
-	if (order < 0)
-		order = 0;
+	int order = get_order(sizeof(struct pasid_entry) * iommu->pasid_max);
 
 	if (iommu->pasid_table) {
 		free_pages((unsigned long)iommu->pasid_table, order);
@@ -371,8 +378,8 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		}
 		svm->iommu = iommu;
 
-		if (pasid_max > 2 << ecap_pss(iommu->ecap))
-			pasid_max = 2 << ecap_pss(iommu->ecap);
+		if (pasid_max > iommu->pasid_max)
+			pasid_max = iommu->pasid_max;
 
 		/* Do not use PASID 0 in caching mode (virtualised IOMMU) */
 		ret = idr_alloc(&iommu->pasid_idr, svm,
@@ -573,7 +580,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		if (!svm->mm)
 			goto bad_req;
 		/* If the mm is already defunct, don't handle faults. */
-		if (!atomic_inc_not_zero(&svm->mm->mm_users))
+		if (!mmget_not_zero(svm->mm))
 			goto bad_req;
 		down_read(&svm->mm->mmap_sem);
 		vma = find_extend_vma(svm->mm, address);

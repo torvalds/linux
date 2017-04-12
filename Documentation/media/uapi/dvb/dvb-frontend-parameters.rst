@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _dvb-frontend-parameters:
+.. c:type:: dvb_frontend_parameters
 
 *******************
 frontend parameters
@@ -9,7 +9,7 @@ frontend parameters
 The kind of parameters passed to the frontend device for tuning depend
 on the kind of hardware you are using.
 
-The struct ``dvb_frontend_parameters`` uses an union with specific
+The struct ``dvb_frontend_parameters`` uses a union with specific
 per-system parameters. However, as newer delivery systems required more
 data, the structure size weren't enough to fit, and just extending its
 size would break the existing applications. So, those parameters were
@@ -23,7 +23,7 @@ So, newer applications should use
 instead, in order to be able to support the newer System Delivery like
 DVB-S2, DVB-T2, DVB-C2, ISDB, etc.
 
-All kinds of parameters are combined as an union in the
+All kinds of parameters are combined as a union in the
 FrontendParameters structure:
 
 
@@ -49,7 +49,7 @@ frontends the ``frequency`` specifies the absolute frequency and is
 given in Hz.
 
 
-.. _dvb-qpsk-parameters:
+.. c:type:: dvb_qpsk_parameters
 
 QPSK parameters
 ===============
@@ -66,7 +66,7 @@ structure:
      };
 
 
-.. _dvb-qam-parameters:
+.. c:type:: dvb_qam_parameters
 
 QAM parameters
 ==============
@@ -83,7 +83,7 @@ for cable QAM frontend you use the ``dvb_qam_parameters`` structure:
      };
 
 
-.. _dvb-vsb-parameters:
+.. c:type:: dvb_vsb_parameters
 
 VSB parameters
 ==============
@@ -98,7 +98,7 @@ ATSC frontends are supported by the ``dvb_vsb_parameters`` structure:
     };
 
 
-.. _dvb-ofdm-parameters:
+.. c:type:: dvb_ofdm_parameters
 
 OFDM parameters
 ===============

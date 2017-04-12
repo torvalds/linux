@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,8 @@ extern const u8 acpi_gbl_long_op_index[];
  * psxface - Parser external interfaces
  */
 acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info);
+
+acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info);
 
 /*
  * psargs - Parse AML opcode arguments

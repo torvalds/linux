@@ -40,6 +40,7 @@ Optional properties:
 - cap-mmc-hw-reset: eMMC hardware reset is supported
 - cap-sdio-irq: enable SDIO IRQ signalling on this interface
 - full-pwr-cycle: full power cycle of the card is supported
+- mmc-ddr-3_3v: eMMC high-speed DDR mode(3.3V I/O) is supported
 - mmc-ddr-1_8v: eMMC high-speed DDR mode(1.8V I/O) is supported
 - mmc-ddr-1_2v: eMMC high-speed DDR mode(1.2V I/O) is supported
 - mmc-hs200-1_8v: eMMC HS200 mode(1.8V I/O) is supported
@@ -75,6 +76,17 @@ Optional SDIO properties:
 - wakeup-source: Enables wake up of host system on SDIO IRQ assertion
 		 (Legacy property supported: "enable-sdio-wakeup")
 
+MMC power
+---------
+
+Controllers may implement power control from both the connected cards and
+the IO signaling (for example to change to high-speed 1.8V signalling). If
+the system supports this, then the following two properties should point
+to valid regulator nodes:
+
+- vqmmc-supply: supply node for IO line power
+- vmmc-supply: supply node for card's power
+
 
 MMC power sequences:
 --------------------
@@ -102,10 +114,12 @@ Required host node properties when using function subnodes:
 - #size-cells: should be zero.
 
 Required function subnode properties:
-- compatible: name of SDIO function following generic names recommended practice
 - reg: Must contain the SDIO function number of the function this subnode
        describes. A value of 0 denotes the memory SD function, values from
        1 to 7 denote the SDIO functions.
+
+Optional function subnode properties:
+- compatible: name of SDIO function following generic names recommended practice
 
 
 Examples

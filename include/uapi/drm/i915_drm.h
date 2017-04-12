@@ -62,6 +62,30 @@ extern "C" {
 #define I915_ERROR_UEVENT		"ERROR"
 #define I915_RESET_UEVENT		"RESET"
 
+/*
+ * MOCS indexes used for GPU surfaces, defining the cacheability of the
+ * surface data and the coherency for this data wrt. CPU vs. GPU accesses.
+ */
+enum i915_mocs_table_index {
+	/*
+	 * Not cached anywhere, coherency between CPU and GPU accesses is
+	 * guaranteed.
+	 */
+	I915_MOCS_UNCACHED,
+	/*
+	 * Cacheability and coherency controlled by the kernel automatically
+	 * based on the DRM_I915_GEM_SET_CACHING IOCTL setting and the current
+	 * usage of the surface (used for display scanout or not).
+	 */
+	I915_MOCS_PTE,
+	/*
+	 * Cached in all GPU caches available on the platform.
+	 * Coherency between CPU and GPU accesses to the surface is not
+	 * guaranteed without extra synchronization.
+	 */
+	I915_MOCS_CACHED,
+};
+
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
 #define I915_NR_TEX_REGIONS 255	/* table size 2k - maximum due to use
@@ -234,6 +258,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_USERPTR		0x33
 #define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
 #define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
+#define DRM_I915_PERF_OPEN		0x36
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -287,6 +312,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_USERPTR			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_USERPTR, struct drm_i915_gem_userptr)
 #define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
+#define DRM_IOCTL_I915_PERF_OPEN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_OPEN, struct drm_i915_perf_open_param)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -363,6 +389,13 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_EXEC_SOFTPIN	 37
 #define I915_PARAM_HAS_POOLED_EU	 38
 #define I915_PARAM_MIN_EU_IN_POOL	 39
+#define I915_PARAM_MMAP_GTT_VERSION	 40
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports user defined execution
+ * priorities and the driver will attempt to execute batches in priority order.
+ */
+#define I915_PARAM_HAS_SCHEDULER	 41
+#define I915_PARAM_HUC_STATUS		 42
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -698,15 +731,20 @@ struct drm_i915_gem_exec_object2 {
 	 */
 	__u64 offset;
 
-#define EXEC_OBJECT_NEEDS_FENCE (1<<0)
-#define EXEC_OBJECT_NEEDS_GTT	(1<<1)
-#define EXEC_OBJECT_WRITE	(1<<2)
+#define EXEC_OBJECT_NEEDS_FENCE		 (1<<0)
+#define EXEC_OBJECT_NEEDS_GTT		 (1<<1)
+#define EXEC_OBJECT_WRITE		 (1<<2)
 #define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
-#define EXEC_OBJECT_PINNED	(1<<4)
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PINNED<<1)
+#define EXEC_OBJECT_PINNED		 (1<<4)
+#define EXEC_OBJECT_PAD_TO_SIZE		 (1<<5)
+/* All remaining bits are MBZ and RESERVED FOR FUTURE USE */
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PAD_TO_SIZE<<1)
 	__u64 flags;
 
-	__u64 rsvd1;
+	union {
+		__u64 rsvd1;
+		__u64 pad_to_size;
+	};
 	__u64 rsvd2;
 };
 
@@ -826,7 +864,16 @@ struct drm_i915_gem_busy {
 	 * having flushed any pending activity), and a non-zero return that
 	 * the object is still in-flight on the GPU. (The GPU has not yet
 	 * signaled completion for all pending requests that reference the
-	 * object.)
+	 * object.) An object is guaranteed to become idle eventually (so
+	 * long as no new GPU commands are executed upon it). Due to the
+	 * asynchronous nature of the hardware, an object reported
+	 * as busy may become idle before the ioctl is completed.
+	 *
+	 * Furthermore, if the object is busy, which engine is busy is only
+	 * provided as a guide. There are race conditions which prevent the
+	 * report of which engines are busy from being always accurate.
+	 * However, the converse is not true. If the object is idle, the
+	 * result of the ioctl, that all engines are idle, is accurate.
 	 *
 	 * The returned dword is split into two fields to indicate both
 	 * the engines on which the object is being read, and the
@@ -849,6 +896,11 @@ struct drm_i915_gem_busy {
 	 * execution engines, e.g. multiple media engines, which are
 	 * mapped to the same identifier in the EXECBUFFER2 ioctl and
 	 * so are not separately reported for busyness.
+	 *
+	 * Caveat emptor:
+	 * Only the boolean result of this query is reliable; that is whether
+	 * the object is idle or busy. The report of which engines are busy
+	 * should be only used as a heuristic.
 	 */
 	__u32 busy;
 };
@@ -897,6 +949,7 @@ struct drm_i915_gem_caching {
 #define I915_TILING_NONE	0
 #define I915_TILING_X		1
 #define I915_TILING_Y		2
+#define I915_TILING_LAST	I915_TILING_Y
 
 #define I915_BIT_6_SWIZZLE_NONE		0
 #define I915_BIT_6_SWIZZLE_9		1
@@ -1174,7 +1227,140 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_NO_ZEROMAP	0x2
 #define I915_CONTEXT_PARAM_GTT_SIZE	0x3
 #define I915_CONTEXT_PARAM_NO_ERROR_CAPTURE	0x4
+#define I915_CONTEXT_PARAM_BANNABLE	0x5
 	__u64 value;
+};
+
+enum drm_i915_oa_format {
+	I915_OA_FORMAT_A13 = 1,
+	I915_OA_FORMAT_A29,
+	I915_OA_FORMAT_A13_B8_C8,
+	I915_OA_FORMAT_B4_C8,
+	I915_OA_FORMAT_A45_B8_C8,
+	I915_OA_FORMAT_B4_C8_A16,
+	I915_OA_FORMAT_C4_B8,
+
+	I915_OA_FORMAT_MAX	    /* non-ABI */
+};
+
+enum drm_i915_perf_property_id {
+	/**
+	 * Open the stream for a specific context handle (as used with
+	 * execbuffer2). A stream opened for a specific context this way
+	 * won't typically require root privileges.
+	 */
+	DRM_I915_PERF_PROP_CTX_HANDLE = 1,
+
+	/**
+	 * A value of 1 requests the inclusion of raw OA unit reports as
+	 * part of stream samples.
+	 */
+	DRM_I915_PERF_PROP_SAMPLE_OA,
+
+	/**
+	 * The value specifies which set of OA unit metrics should be
+	 * be configured, defining the contents of any OA unit reports.
+	 */
+	DRM_I915_PERF_PROP_OA_METRICS_SET,
+
+	/**
+	 * The value specifies the size and layout of OA unit reports.
+	 */
+	DRM_I915_PERF_PROP_OA_FORMAT,
+
+	/**
+	 * Specifying this property implicitly requests periodic OA unit
+	 * sampling and (at least on Haswell) the sampling frequency is derived
+	 * from this exponent as follows:
+	 *
+	 *   80ns * 2^(period_exponent + 1)
+	 */
+	DRM_I915_PERF_PROP_OA_EXPONENT,
+
+	DRM_I915_PERF_PROP_MAX /* non-ABI */
+};
+
+struct drm_i915_perf_open_param {
+	__u32 flags;
+#define I915_PERF_FLAG_FD_CLOEXEC	(1<<0)
+#define I915_PERF_FLAG_FD_NONBLOCK	(1<<1)
+#define I915_PERF_FLAG_DISABLED		(1<<2)
+
+	/** The number of u64 (id, value) pairs */
+	__u32 num_properties;
+
+	/**
+	 * Pointer to array of u64 (id, value) pairs configuring the stream
+	 * to open.
+	 */
+	__u64 properties_ptr;
+};
+
+/**
+ * Enable data capture for a stream that was either opened in a disabled state
+ * via I915_PERF_FLAG_DISABLED or was later disabled via
+ * I915_PERF_IOCTL_DISABLE.
+ *
+ * It is intended to be cheaper to disable and enable a stream than it may be
+ * to close and re-open a stream with the same configuration.
+ *
+ * It's undefined whether any pending data for the stream will be lost.
+ */
+#define I915_PERF_IOCTL_ENABLE	_IO('i', 0x0)
+
+/**
+ * Disable data capture for a stream.
+ *
+ * It is an error to try and read a stream that is disabled.
+ */
+#define I915_PERF_IOCTL_DISABLE	_IO('i', 0x1)
+
+/**
+ * Common to all i915 perf records
+ */
+struct drm_i915_perf_record_header {
+	__u32 type;
+	__u16 pad;
+	__u16 size;
+};
+
+enum drm_i915_perf_record_type {
+
+	/**
+	 * Samples are the work horse record type whose contents are extensible
+	 * and defined when opening an i915 perf stream based on the given
+	 * properties.
+	 *
+	 * Boolean properties following the naming convention
+	 * DRM_I915_PERF_SAMPLE_xyz_PROP request the inclusion of 'xyz' data in
+	 * every sample.
+	 *
+	 * The order of these sample properties given by userspace has no
+	 * affect on the ordering of data within a sample. The order is
+	 * documented here.
+	 *
+	 * struct {
+	 *     struct drm_i915_perf_record_header header;
+	 *
+	 *     { u32 oa_report[]; } && DRM_I915_PERF_PROP_SAMPLE_OA
+	 * };
+	 */
+	DRM_I915_PERF_RECORD_SAMPLE = 1,
+
+	/*
+	 * Indicates that one or more OA reports were not written by the
+	 * hardware. This can happen for example if an MI_REPORT_PERF_COUNT
+	 * command collides with periodic sampling - which would be more likely
+	 * at higher sampling frequencies.
+	 */
+	DRM_I915_PERF_RECORD_OA_REPORT_LOST = 2,
+
+	/**
+	 * An error occurred that resulted in all pending OA reports being lost.
+	 */
+	DRM_I915_PERF_RECORD_OA_BUFFER_LOST = 3,
+
+	DRM_I915_PERF_RECORD_MAX /* non-ABI */
 };
 
 #if defined(__cplusplus)

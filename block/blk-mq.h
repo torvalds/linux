@@ -1,6 +1,8 @@
 #ifndef INT_BLK_MQ_H
 #define INT_BLK_MQ_H
 
+#include "blk-stat.h"
+
 struct blk_mq_tag_set;
 
 struct blk_mq_ctx {
@@ -12,14 +14,13 @@ struct blk_mq_ctx {
 	unsigned int		cpu;
 	unsigned int		index_hw;
 
-	unsigned int		last_tag ____cacheline_aligned_in_smp;
-
 	/* incremented at dispatch time */
 	unsigned long		rq_dispatched[2];
 	unsigned long		rq_merged;
 
 	/* incremented at completion time */
 	unsigned long		____cacheline_aligned_in_smp rq_completed[2];
+	struct blk_rq_stat	stat[2];
 
 	struct request_queue	*queue;
 	struct kobject		kobj;
@@ -30,47 +31,90 @@ void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_free_queue(struct request_queue *q);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
 void blk_mq_wake_waiters(struct request_queue *q);
+bool blk_mq_dispatch_rq_list(struct request_queue *, struct list_head *);
+void blk_mq_flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list);
+bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx);
+bool blk_mq_get_driver_tag(struct request *rq, struct blk_mq_hw_ctx **hctx,
+				bool wait);
 
+/*
+ * Internal helpers for allocating/freeing the request map
+ */
+void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx);
+void blk_mq_free_rq_map(struct blk_mq_tags *tags);
+struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
+					unsigned int hctx_idx,
+					unsigned int nr_tags,
+					unsigned int reserved_tags);
+int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx, unsigned int depth);
+
+/*
+ * Internal helpers for request insertion into sw queues
+ */
+void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
+				bool at_head);
+void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
+				struct list_head *list);
 /*
  * CPU hotplug helpers
  */
-struct blk_mq_cpu_notifier;
-void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
-			      int (*fn)(void *, unsigned long, unsigned int),
-			      void *data);
-void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
-void blk_mq_unregister_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
-void blk_mq_cpu_init(void);
 void blk_mq_enable_hotplug(void);
 void blk_mq_disable_hotplug(void);
 
 /*
  * CPU -> queue mappings
  */
-extern unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set);
-extern int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues,
-				   const struct cpumask *online_mask);
 extern int blk_mq_hw_queue_to_node(unsigned int *map, unsigned int);
+
+static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
+		int cpu)
+{
+	return q->queue_hw_ctx[q->mq_map[cpu]];
+}
 
 /*
  * sysfs helpers
  */
+extern void blk_mq_sysfs_init(struct request_queue *q);
+extern void blk_mq_sysfs_deinit(struct request_queue *q);
 extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 
+/*
+ * debugfs helpers
+ */
+#ifdef CONFIG_BLK_DEBUG_FS
+int blk_mq_debugfs_register(struct request_queue *q, const char *name);
+void blk_mq_debugfs_unregister(struct request_queue *q);
+int blk_mq_debugfs_register_hctxs(struct request_queue *q);
+void blk_mq_debugfs_unregister_hctxs(struct request_queue *q);
+#else
+static inline int blk_mq_debugfs_register(struct request_queue *q,
+					  const char *name)
+{
+	return 0;
+}
+
+static inline void blk_mq_debugfs_unregister(struct request_queue *q)
+{
+}
+
+static inline int blk_mq_debugfs_register_hctxs(struct request_queue *q)
+{
+	return 0;
+}
+
+static inline void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
+{
+}
+#endif
+
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 
 void blk_mq_release(struct request_queue *q);
-
-/*
- * Basic implementation of sparser bitmap, allowing the user to spread
- * the bits over more cachelines.
- */
-struct blk_align_bitmap {
-	unsigned long word;
-	unsigned long depth;
-} ____cacheline_aligned_in_smp;
 
 static inline struct blk_mq_ctx *__blk_mq_get_ctx(struct request_queue *q,
 					   unsigned int cpu)
@@ -104,14 +148,28 @@ struct blk_mq_alloc_data {
 	struct blk_mq_hw_ctx *hctx;
 };
 
-static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
-		struct request_queue *q, unsigned int flags,
-		struct blk_mq_ctx *ctx, struct blk_mq_hw_ctx *hctx)
+static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
-	data->q = q;
-	data->flags = flags;
-	data->ctx = ctx;
-	data->hctx = hctx;
+	if (data->flags & BLK_MQ_REQ_INTERNAL)
+		return data->hctx->sched_tags;
+
+	return data->hctx->tags;
+}
+
+/*
+ * Internal helpers for request allocation/init/free
+ */
+void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
+			struct request *rq, unsigned int op);
+void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
+				struct request *rq);
+void blk_mq_finish_request(struct request *rq);
+struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
+					unsigned int op);
+
+static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
+{
+	return test_bit(BLK_MQ_S_STOPPED, &hctx->state);
 }
 
 static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)

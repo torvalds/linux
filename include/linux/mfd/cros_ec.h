@@ -35,10 +35,11 @@
  * Max bus-specific overhead incurred by request/responses.
  * I2C requires 1 additional byte for requests.
  * I2C requires 2 additional bytes for responses.
+ * SPI requires up to 32 additional bytes for responses.
  * */
 #define EC_PROTO_VERSION_UNKNOWN	0
 #define EC_MAX_REQUEST_OVERHEAD		1
-#define EC_MAX_RESPONSE_OVERHEAD	2
+#define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
@@ -103,12 +104,17 @@ struct cros_ec_command {
  * @din_size: size of din buffer to allocate (zero to use static din)
  * @dout_size: size of dout buffer to allocate (zero to use static dout)
  * @wake_enabled: true if this device can wake the system from sleep
+ * @suspended: true if this device had been suspended
  * @cmd_xfer: send command to EC and get response
  *     Returns the number of bytes received if the communication succeeded, but
  *     that doesn't mean the EC was happy with the command. The caller
  *     should check msg.result for the EC's result code.
  * @pkt_xfer: send packet to EC and get response
  * @lock: one transaction at a time
+ * @mkbp_event_supported: true if this EC supports the MKBP event protocol.
+ * @event_notifier: interrupt event notifier for transport devices.
+ * @event_data: raw payload transferred with the MKBP event.
+ * @event_size: size in bytes of the event data.
  */
 struct cros_ec_device {
 
@@ -132,11 +138,26 @@ struct cros_ec_device {
 	int din_size;
 	int dout_size;
 	bool wake_enabled;
+	bool suspended;
 	int (*cmd_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	int (*pkt_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	struct mutex lock;
+	bool mkbp_event_supported;
+	struct blocking_notifier_head event_notifier;
+
+	struct ec_response_get_next_event event_data;
+	int event_size;
+};
+
+/**
+ * struct cros_ec_sensor_platform - ChromeOS EC sensor platform information
+ *
+ * @sensor_num: Id of the sensor, as reported by the EC.
+ */
+struct cros_ec_sensor_platform {
+	u8 sensor_num;
 };
 
 /* struct cros_ec_platform - ChromeOS EC platform information
@@ -166,6 +187,7 @@ struct cros_ec_dev {
 	struct cros_ec_device *ec_dev;
 	struct device *dev;
 	u16 cmd_offset;
+	u32 features[2];
 };
 
 /**
@@ -268,6 +290,15 @@ int cros_ec_register(struct cros_ec_device *ec_dev);
  * @return 0 if ok, -ve on error
  */
 int cros_ec_query_all(struct cros_ec_device *ec_dev);
+
+/**
+ * cros_ec_get_next_event -  Fetch next event from the ChromeOS EC
+ *
+ * @ec_dev: Device to fetch event from
+ *
+ * Returns: 0 on success, Linux error number on failure
+ */
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev);
 
 /* sysfs stuff */
 extern struct attribute_group cros_ec_attr_group;

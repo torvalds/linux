@@ -24,6 +24,7 @@
  *   http://www.silabs.com/Support%20Documents/TechnicalDocs/AN495.pdf
  */
 
+#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/hid.h>
 #include <linux/i2c.h>
@@ -31,6 +32,11 @@
 #include <linux/nls.h>
 #include <linux/usb/ch9.h>
 #include "hid-ids.h"
+
+#define CP2112_REPORT_MAX_LENGTH		64
+#define CP2112_GPIO_CONFIG_LENGTH		5
+#define CP2112_GPIO_GET_LENGTH			2
+#define CP2112_GPIO_SET_LENGTH			3
 
 enum {
 	CP2112_GPIO_CONFIG		= 0x02,
@@ -161,6 +167,14 @@ struct cp2112_device {
 	atomic_t read_avail;
 	atomic_t xfer_avail;
 	struct gpio_chip gc;
+	u8 *in_out_buffer;
+	struct mutex lock;
+
+	struct gpio_desc *desc[8];
+	bool gpio_poll;
+	struct delayed_work gpio_poll_worker;
+	unsigned long irq_mask;
+	u8 gpio_prev_state;
 };
 
 static int gpio_push_pull = 0xFF;
@@ -171,62 +185,94 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
-	u8 buf[5];
+	u8 *buf = dev->in_out_buffer;
 	int ret;
 
+	mutex_lock(&dev->lock);
+
 	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
-				       sizeof(buf), HID_FEATURE_REPORT,
-				       HID_REQ_GET_REPORT);
-	if (ret != sizeof(buf)) {
+				 CP2112_GPIO_CONFIG_LENGTH, HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
+	if (ret != CP2112_GPIO_CONFIG_LENGTH) {
 		hid_err(hdev, "error requesting GPIO config: %d\n", ret);
-		return ret;
+		goto exit;
 	}
 
 	buf[1] &= ~(1 << offset);
 	buf[2] = gpio_push_pull;
 
-	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf, sizeof(buf),
-				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
+				 CP2112_GPIO_CONFIG_LENGTH, HID_FEATURE_REPORT,
+				 HID_REQ_SET_REPORT);
 	if (ret < 0) {
 		hid_err(hdev, "error setting GPIO config: %d\n", ret);
-		return ret;
+		goto exit;
 	}
 
-	return 0;
+	ret = 0;
+
+exit:
+	mutex_unlock(&dev->lock);
+	return ret < 0 ? ret : -EIO;
 }
 
 static void cp2112_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
-	u8 buf[3];
+	u8 *buf = dev->in_out_buffer;
 	int ret;
+
+	mutex_lock(&dev->lock);
 
 	buf[0] = CP2112_GPIO_SET;
 	buf[1] = value ? 0xff : 0;
 	buf[2] = 1 << offset;
 
-	ret = hid_hw_raw_request(hdev, CP2112_GPIO_SET, buf, sizeof(buf),
-				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_SET, buf,
+				 CP2112_GPIO_SET_LENGTH, HID_FEATURE_REPORT,
+				 HID_REQ_SET_REPORT);
 	if (ret < 0)
 		hid_err(hdev, "error setting GPIO values: %d\n", ret);
+
+	mutex_unlock(&dev->lock);
 }
 
-static int cp2112_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int cp2112_gpio_get_all(struct gpio_chip *chip)
 {
 	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
-	u8 buf[2];
+	u8 *buf = dev->in_out_buffer;
 	int ret;
 
-	ret = hid_hw_raw_request(hdev, CP2112_GPIO_GET, buf, sizeof(buf),
-				       HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
-	if (ret != sizeof(buf)) {
+	mutex_lock(&dev->lock);
+
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_GET, buf,
+				 CP2112_GPIO_GET_LENGTH, HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
+	if (ret != CP2112_GPIO_GET_LENGTH) {
 		hid_err(hdev, "error requesting GPIO values: %d\n", ret);
-		return ret;
+		ret = ret < 0 ? ret : -EIO;
+		goto exit;
 	}
 
-	return (buf[1] >> offset) & 1;
+	ret = buf[1];
+
+exit:
+	mutex_unlock(&dev->lock);
+
+	return ret;
+}
+
+static int cp2112_gpio_get(struct gpio_chip *chip, unsigned int offset)
+{
+	int ret;
+
+	ret = cp2112_gpio_get_all(chip);
+	if (ret < 0)
+		return ret;
+
+	return (ret >> offset) & 1;
 }
 
 static int cp2112_gpio_direction_output(struct gpio_chip *chip,
@@ -234,26 +280,31 @@ static int cp2112_gpio_direction_output(struct gpio_chip *chip,
 {
 	struct cp2112_device *dev = gpiochip_get_data(chip);
 	struct hid_device *hdev = dev->hdev;
-	u8 buf[5];
+	u8 *buf = dev->in_out_buffer;
 	int ret;
 
+	mutex_lock(&dev->lock);
+
 	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
-				       sizeof(buf), HID_FEATURE_REPORT,
-				       HID_REQ_GET_REPORT);
-	if (ret != sizeof(buf)) {
+				 CP2112_GPIO_CONFIG_LENGTH, HID_FEATURE_REPORT,
+				 HID_REQ_GET_REPORT);
+	if (ret != CP2112_GPIO_CONFIG_LENGTH) {
 		hid_err(hdev, "error requesting GPIO config: %d\n", ret);
-		return ret;
+		goto fail;
 	}
 
 	buf[1] |= 1 << offset;
 	buf[2] = gpio_push_pull;
 
-	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf, sizeof(buf),
-				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
+				 CP2112_GPIO_CONFIG_LENGTH, HID_FEATURE_REPORT,
+				 HID_REQ_SET_REPORT);
 	if (ret < 0) {
 		hid_err(hdev, "error setting GPIO config: %d\n", ret);
-		return ret;
+		goto fail;
 	}
+
+	mutex_unlock(&dev->lock);
 
 	/*
 	 * Set gpio value when output direction is already set,
@@ -262,6 +313,10 @@ static int cp2112_gpio_direction_output(struct gpio_chip *chip,
 	cp2112_gpio_set(chip, offset, value);
 
 	return 0;
+
+fail:
+	mutex_unlock(&dev->lock);
+	return ret < 0 ? ret : -EIO;
 }
 
 static int cp2112_hid_get(struct hid_device *hdev, unsigned char report_number,
@@ -1000,12 +1055,183 @@ static void chmod_sysfs_attrs(struct hid_device *hdev)
 	}
 }
 
+static void cp2112_gpio_irq_ack(struct irq_data *d)
+{
+}
+
+static void cp2112_gpio_irq_mask(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct cp2112_device *dev = gpiochip_get_data(gc);
+
+	__clear_bit(d->hwirq, &dev->irq_mask);
+}
+
+static void cp2112_gpio_irq_unmask(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct cp2112_device *dev = gpiochip_get_data(gc);
+
+	__set_bit(d->hwirq, &dev->irq_mask);
+}
+
+static void cp2112_gpio_poll_callback(struct work_struct *work)
+{
+	struct cp2112_device *dev = container_of(work, struct cp2112_device,
+						 gpio_poll_worker.work);
+	struct irq_data *d;
+	u8 gpio_mask;
+	u8 virqs = (u8)dev->irq_mask;
+	u32 irq_type;
+	int irq, virq, ret;
+
+	ret = cp2112_gpio_get_all(&dev->gc);
+	if (ret == -ENODEV) /* the hardware has been disconnected */
+		return;
+	if (ret < 0)
+		goto exit;
+
+	gpio_mask = ret;
+
+	while (virqs) {
+		virq = ffs(virqs) - 1;
+		virqs &= ~BIT(virq);
+
+		if (!dev->gc.to_irq)
+			break;
+
+		irq = dev->gc.to_irq(&dev->gc, virq);
+
+		d = irq_get_irq_data(irq);
+		if (!d)
+			continue;
+
+		irq_type = irqd_get_trigger_type(d);
+
+		if (gpio_mask & BIT(virq)) {
+			/* Level High */
+
+			if (irq_type & IRQ_TYPE_LEVEL_HIGH)
+				handle_nested_irq(irq);
+
+			if ((irq_type & IRQ_TYPE_EDGE_RISING) &&
+			    !(dev->gpio_prev_state & BIT(virq)))
+				handle_nested_irq(irq);
+		} else {
+			/* Level Low */
+
+			if (irq_type & IRQ_TYPE_LEVEL_LOW)
+				handle_nested_irq(irq);
+
+			if ((irq_type & IRQ_TYPE_EDGE_FALLING) &&
+			    (dev->gpio_prev_state & BIT(virq)))
+				handle_nested_irq(irq);
+		}
+	}
+
+	dev->gpio_prev_state = gpio_mask;
+
+exit:
+	if (dev->gpio_poll)
+		schedule_delayed_work(&dev->gpio_poll_worker, 10);
+}
+
+
+static unsigned int cp2112_gpio_irq_startup(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct cp2112_device *dev = gpiochip_get_data(gc);
+
+	INIT_DELAYED_WORK(&dev->gpio_poll_worker, cp2112_gpio_poll_callback);
+
+	cp2112_gpio_direction_input(gc, d->hwirq);
+
+	if (!dev->gpio_poll) {
+		dev->gpio_poll = true;
+		schedule_delayed_work(&dev->gpio_poll_worker, 0);
+	}
+
+	cp2112_gpio_irq_unmask(d);
+	return 0;
+}
+
+static void cp2112_gpio_irq_shutdown(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct cp2112_device *dev = gpiochip_get_data(gc);
+
+	cancel_delayed_work_sync(&dev->gpio_poll_worker);
+}
+
+static int cp2112_gpio_irq_type(struct irq_data *d, unsigned int type)
+{
+	return 0;
+}
+
+static struct irq_chip cp2112_gpio_irqchip = {
+	.name = "cp2112-gpio",
+	.irq_startup = cp2112_gpio_irq_startup,
+	.irq_shutdown = cp2112_gpio_irq_shutdown,
+	.irq_ack = cp2112_gpio_irq_ack,
+	.irq_mask = cp2112_gpio_irq_mask,
+	.irq_unmask = cp2112_gpio_irq_unmask,
+	.irq_set_type = cp2112_gpio_irq_type,
+};
+
+static int __maybe_unused cp2112_allocate_irq(struct cp2112_device *dev,
+					      int pin)
+{
+	int ret;
+
+	if (dev->desc[pin])
+		return -EINVAL;
+
+	dev->desc[pin] = gpiochip_request_own_desc(&dev->gc, pin,
+						   "HID/I2C:Event");
+	if (IS_ERR(dev->desc[pin])) {
+		dev_err(dev->gc.parent, "Failed to request GPIO\n");
+		return PTR_ERR(dev->desc[pin]);
+	}
+
+	ret = gpiochip_lock_as_irq(&dev->gc, pin);
+	if (ret) {
+		dev_err(dev->gc.parent, "Failed to lock GPIO as interrupt\n");
+		goto err_desc;
+	}
+
+	ret = gpiod_to_irq(dev->desc[pin]);
+	if (ret < 0) {
+		dev_err(dev->gc.parent, "Failed to translate GPIO to IRQ\n");
+		goto err_lock;
+	}
+
+	return ret;
+
+err_lock:
+	gpiochip_unlock_as_irq(&dev->gc, pin);
+err_desc:
+	gpiochip_free_own_desc(dev->desc[pin]);
+	dev->desc[pin] = NULL;
+	return ret;
+}
+
 static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct cp2112_device *dev;
 	u8 buf[3];
 	struct cp2112_smbus_config_report config;
 	int ret;
+
+	dev = devm_kzalloc(&hdev->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->in_out_buffer = devm_kzalloc(&hdev->dev, CP2112_REPORT_MAX_LENGTH,
+					  GFP_KERNEL);
+	if (!dev->in_out_buffer)
+		return -ENOMEM;
+
+	mutex_init(&dev->lock);
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -1063,12 +1289,6 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_power_normal;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		ret = -ENOMEM;
-		goto err_power_normal;
-	}
-
 	hid_set_drvdata(hdev, (void *)dev);
 	dev->hdev		= hdev;
 	dev->adap.owner		= THIS_MODULE;
@@ -1087,7 +1307,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (ret) {
 		hid_err(hdev, "error registering i2c adapter\n");
-		goto err_free_dev;
+		goto err_power_normal;
 	}
 
 	hid_dbg(hdev, "adapter registered\n");
@@ -1117,14 +1337,21 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	chmod_sysfs_attrs(hdev);
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 
+	ret = gpiochip_irqchip_add(&dev->gc, &cp2112_gpio_irqchip, 0,
+				   handle_simple_irq, IRQ_TYPE_NONE);
+	if (ret) {
+		dev_err(dev->gc.parent, "failed to add IRQ chip\n");
+		goto err_sysfs_remove;
+	}
+
 	return ret;
 
+err_sysfs_remove:
+	sysfs_remove_group(&hdev->dev.kobj, &cp2112_attr_group);
 err_gpiochip_remove:
 	gpiochip_remove(&dev->gc);
 err_free_i2c:
 	i2c_del_adapter(&dev->adap);
-err_free_dev:
-	kfree(dev);
 err_power_normal:
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 err_hid_close:
@@ -1137,10 +1364,22 @@ err_hid_stop:
 static void cp2112_remove(struct hid_device *hdev)
 {
 	struct cp2112_device *dev = hid_get_drvdata(hdev);
+	int i;
 
 	sysfs_remove_group(&hdev->dev.kobj, &cp2112_attr_group);
-	gpiochip_remove(&dev->gc);
 	i2c_del_adapter(&dev->adap);
+
+	if (dev->gpio_poll) {
+		dev->gpio_poll = false;
+		cancel_delayed_work_sync(&dev->gpio_poll_worker);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(dev->desc); i++) {
+		gpiochip_unlock_as_irq(&dev->gc, i);
+		gpiochip_free_own_desc(dev->desc[i]);
+	}
+
+	gpiochip_remove(&dev->gc);
 	/* i2c_del_adapter has finished removing all i2c devices from our
 	 * adapter. Well behaved devices should no longer call our cp2112_xfer
 	 * and should have waited for any pending calls to finish. It has also
@@ -1149,7 +1388,6 @@ static void cp2112_remove(struct hid_device *hdev)
 	 */
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
-	kfree(dev);
 }
 
 static int cp2112_raw_event(struct hid_device *hdev, struct hid_report *report,

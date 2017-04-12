@@ -6,8 +6,6 @@
 V4L2_PIX_FMT_NV12MT ('TM12')
 ****************************
 
-*man V4L2_PIX_FMT_NV12MT(2)*
-
 Formats with ½ horizontal and vertical chroma resolution. This format
 has two planes - one for luminance and one for chrominance. Chroma
 samples are interleaved. The difference to ``V4L2_PIX_FMT_NV12`` is the
@@ -35,8 +33,8 @@ Layout of macroblocks in memory is presented in the following figure.
 
 .. _nv12mt:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt.*
-    :alt:    nv12mt.gif
+.. figure::  nv12mt.*
+    :alt:    nv12mt.pdf / nv12mt.svg
     :align:  center
 
     V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
@@ -52,8 +50,8 @@ interleaved. Height of the buffer is aligned to 32.
 
 .. _nv12mt_ex:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt_example.*
-    :alt:    nv12mt_example.gif
+.. figure::  nv12mt_example.*
+    :alt:    nv12mt_example.pdf / nv12mt_example.svg
     :align:  center
 
     Example V4L2_PIX_FMT_NV12MT memory layout of macroblocks

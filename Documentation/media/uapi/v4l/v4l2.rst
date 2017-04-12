@@ -68,6 +68,10 @@ Authors, in alphabetical order:
 
   - SDR API.
 
+- Ribalda, Ricardo
+
+  - Introduce HSV formats and other minor changes.
+
 - Rubli, Martin
 
   - Designed and documented the VIDIOC_ENUM_FRAMESIZES and VIDIOC_ENUM_FRAMEINTERVALS ioctls.
@@ -88,6 +92,11 @@ part can be used and distributed without restrictions.
 ****************
 Revision History
 ****************
+
+:revision: 4.10 / 2016-07-15 (*rr*)
+
+Introduce HSV formats.
+
 
 :revision: 4.5 / 2015-10-29 (*rr*)
 
@@ -112,16 +121,16 @@ DVB device nodes. Add support for Tuner sub-device.
 :revision: 3.19 / 2014-12-05 (*hv*)
 
 Rewrote Colorspace chapter, added new enum
-:ref:`v4l2_ycbcr_encoding <v4l2-ycbcr-encoding>` and enum
-:ref:`v4l2_quantization <v4l2-quantization>` fields to struct
-:ref:`v4l2_pix_format <v4l2-pix-format>`, struct
-:ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` and struct
-:ref:`v4l2_mbus_framefmt <v4l2-mbus-framefmt>`.
+:c:type:`v4l2_ycbcr_encoding` and enum
+:c:type:`v4l2_quantization` fields to struct
+:c:type:`v4l2_pix_format`, struct
+:c:type:`v4l2_pix_format_mplane` and struct
+:c:type:`v4l2_mbus_framefmt`.
 
 
 :revision: 3.17 / 2014-08-04 (*lp, hv*)
 
-Extended struct :ref:`v4l2_pix_format <v4l2-pix-format>`. Added
+Extended struct :c:type:`v4l2_pix_format`. Added
 format flags. Added compound control types and VIDIOC_QUERY_EXT_CTRL.
 
 

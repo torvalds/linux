@@ -29,85 +29,85 @@ static struct spi_device *spi_device;
 static struct platform_device *p_device;
 
 static char *name;
-module_param(name, charp, 0);
+module_param(name, charp, 0000);
 MODULE_PARM_DESC(name, "Devicename (required). name=list => list all supported devices.");
 
-static unsigned rotate;
-module_param(rotate, uint, 0);
+static unsigned int rotate;
+module_param(rotate, uint, 0000);
 MODULE_PARM_DESC(rotate,
 "Angle to rotate display counter clockwise: 0, 90, 180, 270");
 
-static unsigned busnum;
-module_param(busnum, uint, 0);
+static unsigned int busnum;
+module_param(busnum, uint, 0000);
 MODULE_PARM_DESC(busnum, "SPI bus number (default=0)");
 
-static unsigned cs;
-module_param(cs, uint, 0);
+static unsigned int cs;
+module_param(cs, uint, 0000);
 MODULE_PARM_DESC(cs, "SPI chip select (default=0)");
 
-static unsigned speed;
-module_param(speed, uint, 0);
+static unsigned int speed;
+module_param(speed, uint, 0000);
 MODULE_PARM_DESC(speed, "SPI speed (override device default)");
 
 static int mode = -1;
-module_param(mode, int, 0);
+module_param(mode, int, 0000);
 MODULE_PARM_DESC(mode, "SPI mode (override device default)");
 
 static char *gpios;
-module_param(gpios, charp, 0);
+module_param(gpios, charp, 0000);
 MODULE_PARM_DESC(gpios,
 "List of gpios. Comma separated with the form: reset:23,dc:24 (when overriding the default, all gpios must be specified)");
 
-static unsigned fps;
-module_param(fps, uint, 0);
+static unsigned int fps;
+module_param(fps, uint, 0000);
 MODULE_PARM_DESC(fps, "Frames per second (override driver default)");
 
 static char *gamma;
-module_param(gamma, charp, 0);
+module_param(gamma, charp, 0000);
 MODULE_PARM_DESC(gamma,
 "String representation of Gamma Curve(s). Driver specific.");
 
 static int txbuflen;
-module_param(txbuflen, int, 0);
+module_param(txbuflen, int, 0000);
 MODULE_PARM_DESC(txbuflen, "txbuflen (override driver default)");
 
 static int bgr = -1;
-module_param(bgr, int, 0);
+module_param(bgr, int, 0000);
 MODULE_PARM_DESC(bgr,
 "BGR bit (supported by some drivers).");
 
-static unsigned startbyte;
-module_param(startbyte, uint, 0);
+static unsigned int startbyte;
+module_param(startbyte, uint, 0000);
 MODULE_PARM_DESC(startbyte, "Sets the Start byte used by some SPI displays.");
 
 static bool custom;
-module_param(custom, bool, 0);
+module_param(custom, bool, 0000);
 MODULE_PARM_DESC(custom, "Add a custom display device. Use speed= argument to make it a SPI device, else platform_device");
 
-static unsigned width;
-module_param(width, uint, 0);
+static unsigned int width;
+module_param(width, uint, 0000);
 MODULE_PARM_DESC(width, "Display width, used with the custom argument");
 
-static unsigned height;
-module_param(height, uint, 0);
+static unsigned int height;
+module_param(height, uint, 0000);
 MODULE_PARM_DESC(height, "Display height, used with the custom argument");
 
-static unsigned buswidth = 8;
-module_param(buswidth, uint, 0);
+static unsigned int buswidth = 8;
+module_param(buswidth, uint, 0000);
 MODULE_PARM_DESC(buswidth, "Display bus width, used with the custom argument");
 
-static int init[FBTFT_MAX_INIT_SEQUENCE];
+static s16 init[FBTFT_MAX_INIT_SEQUENCE];
 static int init_num;
-module_param_array(init, int, &init_num, 0);
+module_param_array(init, short, &init_num, 0000);
 MODULE_PARM_DESC(init, "Init sequence, used with the custom argument");
 
 static unsigned long debug;
-module_param(debug, ulong, 0);
+module_param(debug, ulong, 0000);
 MODULE_PARM_DESC(debug,
 "level: 0-7 (the remaining 29 bits is for advanced usage)");
 
-static unsigned verbose = 3;
-module_param(verbose, uint, 0);
+static unsigned int verbose = 3;
+module_param(verbose, uint, 0000);
 MODULE_PARM_DESC(verbose,
 "0 silent, >0 show gpios, >1 show devices, >2 show devices before (default=3)");
 
@@ -131,7 +131,7 @@ static void adafruit18_green_tab_set_addr_win(struct fbtft_par *par,
 		"D0 00 14 15 13 2C 42 43 4E 09 16 14 18 21\n" \
 		"D0 00 14 15 13 0B 43 55 53 0C 17 14 23 20"
 
-static int cberry28_init_sequence[] = {
+static s16 cberry28_init_sequence[] = {
 	/* turn off sleep mode */
 	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 120,
@@ -180,7 +180,7 @@ static int cberry28_init_sequence[] = {
 	-3,
 };
 
-static int hy28b_init_sequence[] = {
+static s16 hy28b_init_sequence[] = {
 	-1, 0x00e7, 0x0010, -1, 0x0000, 0x0001,
 	-1, 0x0001, 0x0100, -1, 0x0002, 0x0700,
 	-1, 0x0003, 0x1030, -1, 0x0004, 0x0000,
@@ -211,7 +211,7 @@ static int hy28b_init_sequence[] = {
 	"04 1F 4 7 7 0 7 7 6 0\n" \
 	"0F 00 1 7 4 0 0 0 6 7"
 
-static int pitft_init_sequence[] = {
+static s16 pitft_init_sequence[] = {
 	-1, MIPI_DCS_SOFT_RESET,
 	-2, 5,
 	-1, MIPI_DCS_SET_DISPLAY_OFF,
@@ -242,7 +242,7 @@ static int pitft_init_sequence[] = {
 	-3
 };
 
-static int waveshare32b_init_sequence[] = {
+static s16 waveshare32b_init_sequence[] = {
 	-1, 0xCB, 0x39, 0x2C, 0x00, 0x34, 0x02,
 	-1, 0xCF, 0x00, 0xC1, 0x30,
 	-1, 0xE8, 0x85, 0x00, 0x78,
@@ -1215,7 +1215,8 @@ static struct fbtft_device_display displays[] = {
 		}
 	}, {
 		/* This should be the last item.
-		   Used with the custom argument */
+		 * Used with the custom argument
+		 */
 		.name = "",
 		.spi = &(struct spi_board_info) {
 			.modalias = "",
@@ -1306,8 +1307,9 @@ static struct fbtft_gpio fbtft_device_param_gpios[MAX_GPIOS + 1] = { };
 static void fbtft_device_pdev_release(struct device *dev)
 {
 /* Needed to silence this message:
-Device 'xxx' does not have a release() function, it is broken and must be fixed
-*/
+ * Device 'xxx' does not have a release() function,
+ * it is broken and must be fixed
+ */
 }
 
 static int spi_device_found(struct device *dev, void *data)
@@ -1346,7 +1348,7 @@ static void pr_p_devices(void)
 }
 
 #ifdef MODULE
-static void fbtft_device_spi_delete(struct spi_master *master, unsigned cs)
+static void fbtft_device_spi_delete(struct spi_master *master, unsigned int cs)
 {
 	struct device *dev;
 	char str[32];
@@ -1399,7 +1401,7 @@ static int __init fbtft_device_init(void)
 	long val;
 	int ret = 0;
 
-	if (name == NULL) {
+	if (!name) {
 #ifdef MODULE
 		pr_err("missing module parameter: 'name'\n");
 		return -EINVAL;
@@ -1416,14 +1418,14 @@ static int __init fbtft_device_init(void)
 
 	/* parse module parameter: gpios */
 	while ((p_gpio = strsep(&gpios, ","))) {
-		if (strchr(p_gpio, ':') == NULL) {
+		if (!strchr(p_gpio, ':')) {
 			pr_err("error: missing ':' in gpios parameter: %s\n",
 			       p_gpio);
 			return -EINVAL;
 		}
 		p_num = p_gpio;
 		p_name = strsep(&p_num, ":");
-		if (p_name == NULL || p_num == NULL) {
+		if (!p_name || !p_num) {
 			pr_err("something bad happened parsing gpios parameter: %s\n",
 			       p_gpio);
 			return -EINVAL;

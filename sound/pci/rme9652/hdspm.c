@@ -1666,7 +1666,7 @@ static int hdspm_set_rate(struct hdspm * hdspm, int rate, int called_internally)
 			    HDSPM_AUTOSYNC_FROM_NONE) {
 
 				dev_warn(hdspm->card->dev,
-					 "Detected no Externel Sync\n");
+					 "Detected no External Sync\n");
 				not_set = 1;
 
 			} else if (rate != external_freq) {
@@ -2043,14 +2043,14 @@ static int snd_hdspm_midi_output_close(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-static struct snd_rawmidi_ops snd_hdspm_midi_output =
+static const struct snd_rawmidi_ops snd_hdspm_midi_output =
 {
 	.open =		snd_hdspm_midi_output_open,
 	.close =	snd_hdspm_midi_output_close,
 	.trigger =	snd_hdspm_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_hdspm_midi_input =
+static const struct snd_rawmidi_ops snd_hdspm_midi_input =
 {
 	.open =		snd_hdspm_midi_input_open,
 	.close =	snd_hdspm_midi_input_close,
@@ -6361,7 +6361,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	return 0;
 }
 
-static struct snd_pcm_ops snd_hdspm_ops = {
+static const struct snd_pcm_ops snd_hdspm_ops = {
 	.open = snd_hdspm_open,
 	.close = snd_hdspm_release,
 	.ioctl = snd_hdspm_ioctl,

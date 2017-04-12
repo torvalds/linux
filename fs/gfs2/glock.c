@@ -21,7 +21,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/kthread.h>
@@ -69,7 +69,7 @@ static atomic_t lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(lru_lock);
 
 #define GFS2_GL_HASH_SHIFT      15
-#define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
+#define GFS2_GL_HASH_SIZE       BIT(GFS2_GL_HASH_SHIFT)
 
 static struct rhashtable_params ht_parms = {
 	.nelem_hint = GFS2_GL_HASH_SIZE * 3 / 4,
@@ -658,9 +658,11 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	struct kmem_cache *cachep;
 	int ret, tries = 0;
 
+	rcu_read_lock();
 	gl = rhashtable_lookup_fast(&gl_hash_table, &name, ht_parms);
 	if (gl && !lockref_get_not_dead(&gl->gl_lockref))
 		gl = NULL;
+	rcu_read_unlock();
 
 	*glp = gl;
 	if (gl)
@@ -695,7 +697,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_target = LM_ST_UNLOCKED;
 	gl->gl_demote_state = LM_ST_EXCLUSIVE;
 	gl->gl_ops = glops;
-	gl->gl_dstamp = ktime_set(0, 0);
+	gl->gl_dstamp = 0;
 	preempt_disable();
 	/* We use the global stats to estimate the initial per-glock stats */
 	gl->gl_stats = this_cpu_ptr(sdp->sd_lkstats)->lkstats[glops->go_type];
@@ -728,15 +730,18 @@ again:
 
 	if (ret == -EEXIST) {
 		ret = 0;
+		rcu_read_lock();
 		tmp = rhashtable_lookup_fast(&gl_hash_table, &name, ht_parms);
 		if (tmp == NULL || !lockref_get_not_dead(&tmp->gl_lockref)) {
 			if (++tries < 100) {
+				rcu_read_unlock();
 				cond_resched();
 				goto again;
 			}
 			tmp = NULL;
 			ret = -ENOMEM;
 		}
+		rcu_read_unlock();
 	} else {
 		WARN_ON_ONCE(ret);
 	}
@@ -1420,26 +1425,32 @@ static struct shrinker glock_shrinker = {
  * @sdp: the filesystem
  * @bucket: the bucket
  *
+ * Note that the function can be called multiple times on the same
+ * object.  So the user must ensure that the function can cope with
+ * that.
  */
 
 static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 {
 	struct gfs2_glock *gl;
-	struct rhash_head *pos;
-	const struct bucket_table *tbl;
-	int i;
+	struct rhashtable_iter iter;
 
-	rcu_read_lock();
-	tbl = rht_dereference_rcu(gl_hash_table.tbl, &gl_hash_table);
-	for (i = 0; i < tbl->size; i++) {
-		rht_for_each_entry_rcu(gl, pos, tbl, i, gl_node) {
+	rhashtable_walk_enter(&gl_hash_table, &iter);
+
+	do {
+		gl = ERR_PTR(rhashtable_walk_start(&iter));
+		if (gl)
+			continue;
+
+		while ((gl = rhashtable_walk_next(&iter)) && !IS_ERR(gl))
 			if ((gl->gl_name.ln_sbd == sdp) &&
 			    lockref_get_not_dead(&gl->gl_lockref))
 				examiner(gl);
-		}
-	}
-	rcu_read_unlock();
-	cond_resched();
+
+		rhashtable_walk_stop(&iter);
+	} while (cond_resched(), gl == ERR_PTR(-EAGAIN));
+
+	rhashtable_walk_exit(&iter);
 }
 
 /**
@@ -1781,7 +1792,13 @@ int __init gfs2_glock_init(void)
 		return -ENOMEM;
 	}
 
-	register_shrinker(&glock_shrinker);
+	ret = register_shrinker(&glock_shrinker);
+	if (ret) {
+		destroy_workqueue(gfs2_delete_workqueue);
+		destroy_workqueue(glock_workqueue);
+		rhashtable_destroy(&gl_hash_table);
+		return ret;
+	}
 
 	return 0;
 }
@@ -1796,16 +1813,18 @@ void gfs2_glock_exit(void)
 
 static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 {
-	do {
-		gi->gl = rhashtable_walk_next(&gi->hti);
+	while ((gi->gl = rhashtable_walk_next(&gi->hti))) {
 		if (IS_ERR(gi->gl)) {
 			if (PTR_ERR(gi->gl) == -EAGAIN)
 				continue;
 			gi->gl = NULL;
+			return;
 		}
-	/* Skip entries for other sb and dead entries */
-	} while ((gi->gl) && ((gi->sdp != gi->gl->gl_name.ln_sbd) ||
-			      __lockref_is_dead(&gi->gl->gl_lockref)));
+		/* Skip entries for other sb and dead entries */
+		if (gi->sdp == gi->gl->gl_name.ln_sbd &&
+		    !__lockref_is_dead(&gi->gl->gl_lockref))
+			return;
+	}
 }
 
 static void *gfs2_glock_seq_start(struct seq_file *seq, loff_t *pos)

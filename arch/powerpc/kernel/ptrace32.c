@@ -29,7 +29,7 @@
 #include <linux/signal.h>
 #include <linux/compat.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/switch_to.h>
@@ -73,8 +73,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		if (get_user(addrOthers, (u32 __user * __user *)addr) != 0)
 			break;
 
-		copied = access_process_vm(child, (u64)addrOthers, &tmp,
-				sizeof(tmp), 0);
+		copied = ptrace_access_vm(child, (u64)addrOthers, &tmp,
+				sizeof(tmp), FOLL_FORCE);
 		if (copied != sizeof(tmp))
 			break;
 		ret = put_user(tmp, (u32 __user *)data);
@@ -178,8 +178,9 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		if (get_user(addrOthers, (u32 __user * __user *)addr) != 0)
 			break;
 		ret = 0;
-		if (access_process_vm(child, (u64)addrOthers, &tmp,
-					sizeof(tmp), 1) == sizeof(tmp))
+		if (ptrace_access_vm(child, (u64)addrOthers, &tmp,
+					sizeof(tmp),
+					FOLL_FORCE | FOLL_WRITE) == sizeof(tmp))
 			break;
 		ret = -EIO;
 		break;

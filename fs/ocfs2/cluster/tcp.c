@@ -54,6 +54,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched/mm.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
@@ -62,7 +63,7 @@
 #include <linux/export.h>
 #include <net/tcp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "heartbeat.h"
 #include "tcp.h"
@@ -97,7 +98,7 @@
 	typeof(sc) __sc = (sc);						\
 	mlog(ML_SOCKET, "[sc %p refs %d sock %p node %u page %p "	\
 	     "pg_off %zu] " fmt, __sc,					\
-	     atomic_read(&__sc->sc_kref.refcount), __sc->sc_sock,	\
+	     kref_read(&__sc->sc_kref), __sc->sc_sock,	\
 	    __sc->sc_node->nd_num, __sc->sc_page, __sc->sc_page_off ,	\
 	    ##args);							\
 } while (0)
@@ -1862,7 +1863,7 @@ static int o2net_accept_one(struct socket *sock, int *more)
 
 	new_sock->type = sock->type;
 	new_sock->ops = sock->ops;
-	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK);
+	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK, false);
 	if (ret < 0)
 		goto out;
 
@@ -2104,7 +2105,7 @@ int o2net_start_listening(struct o2nm_node *node)
 	BUG_ON(o2net_listen_sock != NULL);
 
 	mlog(ML_KTHREAD, "starting o2net thread...\n");
-	o2net_wq = create_singlethread_workqueue("o2net");
+	o2net_wq = alloc_ordered_workqueue("o2net", WQ_MEM_RECLAIM);
 	if (o2net_wq == NULL) {
 		mlog(ML_ERROR, "unable to launch o2net thread\n");
 		return -ENOMEM; /* ? */

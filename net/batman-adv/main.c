@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -23,6 +23,7 @@
 #include <linux/crc32c.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/genetlink.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/init.h>
@@ -44,6 +45,7 @@
 #include <linux/workqueue.h>
 #include <net/dsfield.h>
 #include <net/rtnetlink.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "bat_algo.h"
 #include "bat_iv_ogm.h"
@@ -82,6 +84,12 @@ static void batadv_recv_handler_init(void);
 
 static int __init batadv_init(void)
 {
+	int ret;
+
+	ret = batadv_tt_cache_init();
+	if (ret < 0)
+		return ret;
+
 	INIT_LIST_HEAD(&batadv_hardif_list);
 	batadv_algo_init();
 
@@ -93,9 +101,8 @@ static int __init batadv_init(void)
 	batadv_tp_meter_init();
 
 	batadv_event_workqueue = create_singlethread_workqueue("bat_events");
-
 	if (!batadv_event_workqueue)
-		return -ENOMEM;
+		goto err_create_wq;
 
 	batadv_socket_init();
 	batadv_debugfs_init();
@@ -108,6 +115,11 @@ static int __init batadv_init(void)
 		BATADV_SOURCE_VERSION, BATADV_COMPAT_VERSION);
 
 	return 0;
+
+err_create_wq:
+	batadv_tt_cache_destroy();
+
+	return -ENOMEM;
 }
 
 static void __exit batadv_exit(void)
@@ -123,6 +135,8 @@ static void __exit batadv_exit(void)
 	batadv_event_workqueue = NULL;
 
 	rcu_barrier();
+
+	batadv_tt_cache_destroy();
 }
 
 int batadv_mesh_init(struct net_device *soft_iface)
@@ -148,7 +162,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
-	INIT_HLIST_HEAD(&bat_priv->gw.list);
+	INIT_HLIST_HEAD(&bat_priv->gw.gateway_list);
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_unsnoopables_list);
 	INIT_HLIST_HEAD(&bat_priv->mcast.want_all_ipv4_list);
@@ -270,6 +284,7 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
 	return is_my_mac;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_seq_print_text_primary_if_get - called from debugfs table printing
  *  function that requires the primary interface
@@ -305,6 +320,7 @@ batadv_seq_print_text_primary_if_get(struct seq_file *seq)
 out:
 	return primary_if;
 }
+#endif
 
 /**
  * batadv_max_header_len - calculate maximum encapsulation overhead for a
@@ -388,6 +404,8 @@ void batadv_skb_set_priority(struct sk_buff *skb, int offset)
 static int batadv_recv_unhandled_packet(struct sk_buff *skb,
 					struct batadv_hard_iface *recv_if)
 {
+	kfree_skb(skb);
+
 	return NET_RX_DROP;
 }
 
@@ -402,7 +420,6 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct batadv_hard_iface *hard_iface;
 	u8 idx;
-	int ret;
 
 	hard_iface = container_of(ptype, struct batadv_hard_iface,
 				  batman_adv_ptype);
@@ -452,14 +469,8 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/* reset control block to avoid left overs from previous users */
 	memset(skb->cb, 0, sizeof(struct batadv_skb_cb));
 
-	/* all receive handlers return whether they received or reused
-	 * the supplied skb. if not, we have to free the skb.
-	 */
 	idx = batadv_ogm_packet->packet_type;
-	ret = (*batadv_rx_handler[idx])(skb, hard_iface);
-
-	if (ret == NET_RX_DROP)
-		kfree_skb(skb);
+	(*batadv_rx_handler[idx])(skb, hard_iface);
 
 	batadv_hardif_put(hard_iface);
 
@@ -638,3 +649,5 @@ MODULE_AUTHOR(BATADV_DRIVER_AUTHOR);
 MODULE_DESCRIPTION(BATADV_DRIVER_DESC);
 MODULE_SUPPORTED_DEVICE(BATADV_DRIVER_DEVICE);
 MODULE_VERSION(BATADV_SOURCE_VERSION);
+MODULE_ALIAS_RTNL_LINK("batadv");
+MODULE_ALIAS_GENL_FAMILY(BATADV_NL_NAME);

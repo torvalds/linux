@@ -42,6 +42,8 @@
 #include <linux/spinlock.h>
 #include <linux/reservation.h>
 
+#define TTM_MAX_BO_PRIORITY	16U
+
 struct ttm_backend_func {
 	/**
 	 * struct ttm_backend_func member bind
@@ -133,7 +135,6 @@ struct ttm_tt {
  * struct ttm_dma_tt
  *
  * @ttm: Base ttm_tt struct.
- * @cpu_address: The CPU address of the pages
  * @dma_address: The DMA (bus) addresses of the pages
  * @pages_list: used by some page allocation backend
  *
@@ -143,7 +144,6 @@ struct ttm_tt {
  */
 struct ttm_dma_tt {
 	struct ttm_tt ttm;
-	void **cpu_address;
 	dma_addr_t *dma_address;
 	struct list_head pages_list;
 };
@@ -300,12 +300,12 @@ struct ttm_mem_type_manager {
 	 * Protected by the global->lru_lock.
 	 */
 
-	struct list_head lru;
+	struct list_head lru[TTM_MAX_BO_PRIORITY];
 
 	/*
 	 * Protected by @move_lock.
 	 */
-	struct fence *move;
+	struct dma_fence *move;
 };
 
 /**
@@ -373,9 +373,21 @@ struct ttm_bo_driver {
 	 * submission as a consequence.
 	 */
 
-	int (*invalidate_caches) (struct ttm_bo_device *bdev, uint32_t flags);
-	int (*init_mem_type) (struct ttm_bo_device *bdev, uint32_t type,
-			      struct ttm_mem_type_manager *man);
+	int (*invalidate_caches)(struct ttm_bo_device *bdev, uint32_t flags);
+	int (*init_mem_type)(struct ttm_bo_device *bdev, uint32_t type,
+			     struct ttm_mem_type_manager *man);
+
+	/**
+	 * struct ttm_bo_driver member eviction_valuable
+	 *
+	 * @bo: the buffer object to be evicted
+	 * @place: placement we need room for
+	 *
+	 * Check with the driver if it is valuable to evict a BO to make room
+	 * for a certain placement.
+	 */
+	bool (*eviction_valuable)(struct ttm_buffer_object *bo,
+				  const struct ttm_place *place);
 	/**
 	 * struct ttm_bo_driver member evict_flags:
 	 *
@@ -386,8 +398,9 @@ struct ttm_bo_driver {
 	 * finished, they'll end up in bo->mem.flags
 	 */
 
-	 void(*evict_flags) (struct ttm_buffer_object *bo,
-				struct ttm_placement *placement);
+	void (*evict_flags)(struct ttm_buffer_object *bo,
+			    struct ttm_placement *placement);
+
 	/**
 	 * struct ttm_bo_driver member move:
 	 *
@@ -401,10 +414,9 @@ struct ttm_bo_driver {
 	 *
 	 * Move a buffer between two memory regions.
 	 */
-	int (*move) (struct ttm_buffer_object *bo,
-		     bool evict, bool interruptible,
-		     bool no_wait_gpu,
-		     struct ttm_mem_reg *new_mem);
+	int (*move)(struct ttm_buffer_object *bo, bool evict,
+		    bool interruptible, bool no_wait_gpu,
+		    struct ttm_mem_reg *new_mem);
 
 	/**
 	 * struct ttm_bo_driver_member verify_access
@@ -418,12 +430,18 @@ struct ttm_bo_driver {
 	 * access for all buffer objects.
 	 * This function should return 0 if access is granted, -EPERM otherwise.
 	 */
-	int (*verify_access) (struct ttm_buffer_object *bo,
-			      struct file *filp);
+	int (*verify_access)(struct ttm_buffer_object *bo,
+			     struct file *filp);
 
-	/* hook to notify driver about a driver move so it
-	 * can do tiling things */
+	/**
+	 * Hook to notify driver about a driver move so it
+	 * can do tiling things and book-keeping.
+	 *
+	 * @evict: whether this move is evicting the buffer from the graphics
+	 * address space
+	 */
 	void (*move_notify)(struct ttm_buffer_object *bo,
+			    bool evict,
 			    struct ttm_mem_reg *new_mem);
 	/* notify the driver we are taking a fault on this BO
 	 * and have reserved it */
@@ -432,7 +450,7 @@ struct ttm_bo_driver {
 	/**
 	 * notify the driver that we're about to swap out this bo
 	 */
-	void (*swap_notify) (struct ttm_buffer_object *bo);
+	void (*swap_notify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * Driver callback on when mapping io memory (for bo_move_memcpy
@@ -440,20 +458,10 @@ struct ttm_bo_driver {
 	 * the mapping is not use anymore. io_mem_reserve & io_mem_free
 	 * are balanced.
 	 */
-	int (*io_mem_reserve)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
-	void (*io_mem_free)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
-
-	/**
-	 * Optional driver callback for when BO is removed from the LRU.
-	 * Called with LRU lock held immediately before the removal.
-	 */
-	void (*lru_removal)(struct ttm_buffer_object *bo);
-
-	/**
-	 * Return the list_head after which a BO should be inserted in the LRU.
-	 */
-	struct list_head *(*lru_tail)(struct ttm_buffer_object *bo);
-	struct list_head *(*swap_lru_tail)(struct ttm_buffer_object *bo);
+	int (*io_mem_reserve)(struct ttm_bo_device *bdev,
+			      struct ttm_mem_reg *mem);
+	void (*io_mem_free)(struct ttm_bo_device *bdev,
+			    struct ttm_mem_reg *mem);
 };
 
 /**
@@ -500,7 +508,7 @@ struct ttm_bo_global {
 	/**
 	 * Protected by the lru_lock.
 	 */
-	struct list_head swap_lru;
+	struct list_head swap_lru[TTM_MAX_BO_PRIORITY];
 
 	/**
 	 * Internal protection.
@@ -768,9 +776,6 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
 extern void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
 extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
 
-struct list_head *ttm_bo_default_lru_tail(struct ttm_buffer_object *bo);
-struct list_head *ttm_bo_default_swap_lru_tail(struct ttm_buffer_object *bo);
-
 /**
  * __ttm_bo_reserve:
  *
@@ -866,7 +871,7 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
 {
 	int ret;
 
-	WARN_ON(!atomic_read(&bo->kref.refcount));
+	WARN_ON(!kref_read(&bo->kref));
 
 	ret = __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
 	if (likely(ret == 0))
@@ -891,7 +896,7 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 {
 	int ret = 0;
 
-	WARN_ON(!atomic_read(&bo->kref.refcount));
+	WARN_ON(!kref_read(&bo->kref));
 
 	if (interruptible)
 		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
@@ -961,7 +966,6 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
  * ttm_bo_move_ttm
  *
  * @bo: A pointer to a struct ttm_buffer_object.
- * @evict: 1: This is an eviction. Don't try to pipeline.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
@@ -977,14 +981,13 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
  */
 
 extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-			   bool evict, bool interruptible, bool no_wait_gpu,
+			   bool interruptible, bool no_wait_gpu,
 			   struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_move_memcpy
  *
  * @bo: A pointer to a struct ttm_buffer_object.
- * @evict: 1: This is an eviction. Don't try to pipeline.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
@@ -1000,8 +1003,7 @@ extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-			      bool evict, bool interruptible,
-			      bool no_wait_gpu,
+			      bool interruptible, bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem);
 
 /**
@@ -1030,7 +1032,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  */
 
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
-				     struct fence *fence, bool evict,
+				     struct dma_fence *fence, bool evict,
 				     struct ttm_mem_reg *new_mem);
 
 /**
@@ -1045,7 +1047,7 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * immediately or hang it on a temporary buffer object.
  */
 int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
-			 struct fence *fence, bool evict,
+			 struct dma_fence *fence, bool evict,
 			 struct ttm_mem_reg *new_mem);
 
 /**

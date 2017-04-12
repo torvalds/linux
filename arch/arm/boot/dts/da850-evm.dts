@@ -29,6 +29,20 @@
 					0x04 0x00011000 0x000ff000
 				>;
 			};
+			nand_pins: nand_pins {
+				pinctrl-single,bits = <
+					/* EMA_WAIT[0], EMA_OE, EMA_WE, EMA_CS[4], EMA_CS[3] */
+					0x1c 0x10110110  0xf0ff0ff0
+					/*
+					 * EMA_D[0], EMA_D[1], EMA_D[2],
+					 * EMA_D[3], EMA_D[4], EMA_D[5],
+					 * EMA_D[6], EMA_D[7]
+					 */
+					0x24 0x11111111  0xffffffff
+					/* EMA_A[1], EMA_A[2] */
+					0x30 0x01100000  0x0ff00000
+				>;
+			};
 		};
 		serial0: serial@42000 {
 			status = "okay";
@@ -85,6 +99,7 @@
 				#size-cells = <1>;
 				compatible = "m25p64";
 				spi-max-frequency = <30000000>;
+				m25p,fast-read;
 				reg = <0>;
 				partition@0 {
 					label = "U-Boot-SPL";
@@ -131,12 +146,7 @@
 			status = "okay";
 		};
 	};
-	nand_cs3@62000000 {
-		status = "okay";
-		pinctrl-names = "default";
-		pinctrl-0 = <&nand_cs3_pins>;
-	};
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -249,4 +259,54 @@
 
 &edma1 {
 	ti,edma-reserved-slot-ranges = <32 90>;
+};
+
+&aemif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_pins>;
+	status = "ok";
+	cs3 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		clock-ranges;
+		ranges;
+
+		ti,cs-chipselect = <3>;
+
+		nand@2000000,0 {
+			compatible = "ti,davinci-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0 0x02000000 0x02000000
+			       1 0x00000000 0x00008000>;
+
+			ti,davinci-chipselect = <1>;
+			ti,davinci-mask-ale = <0>;
+			ti,davinci-mask-cle = <0>;
+			ti,davinci-mask-chipsel = <0>;
+			ti,davinci-ecc-mode = "hw";
+			ti,davinci-ecc-bits = <4>;
+			ti,davinci-nand-use-bbt;
+		};
+	};
+};
+
+&vpif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&vpif_capture_pins>;
+	status = "okay";
+
+	/* VPIF capture port */
+	port {
+		vpif_ch0: endpoint@0 {
+			  reg = <0>;
+			  bus-width = <8>;
+		};
+
+		vpif_ch1: endpoint@1 {
+			  reg = <1>;
+			  bus-width = <8>;
+			  data-shift = <8>;
+		};
+	};
 };

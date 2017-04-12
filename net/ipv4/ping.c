@@ -156,17 +156,18 @@ int ping_hash(struct sock *sk)
 void ping_unhash(struct sock *sk)
 {
 	struct inet_sock *isk = inet_sk(sk);
+
 	pr_debug("ping_unhash(isk=%p,isk->num=%u)\n", isk, isk->inet_num);
+	write_lock_bh(&ping_table.lock);
 	if (sk_hashed(sk)) {
-		write_lock_bh(&ping_table.lock);
 		hlist_nulls_del(&sk->sk_nulls_node);
 		sk_nulls_node_init(&sk->sk_nulls_node);
 		sock_put(sk);
 		isk->inet_num = 0;
 		isk->inet_sport = 0;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-		write_unlock_bh(&ping_table.lock);
 	}
+	write_unlock_bh(&ping_table.lock);
 }
 EXPORT_SYMBOL_GPL(ping_unhash);
 
@@ -258,7 +259,7 @@ int ping_init_sock(struct sock *sk)
 	struct net *net = sock_net(sk);
 	kgid_t group = current_egid();
 	struct group_info *group_info;
-	int i, j, count;
+	int i;
 	kgid_t low, high;
 	int ret = 0;
 
@@ -270,16 +271,11 @@ int ping_init_sock(struct sock *sk)
 		return 0;
 
 	group_info = get_current_groups();
-	count = group_info->ngroups;
-	for (i = 0; i < group_info->nblocks; i++) {
-		int cp_count = min_t(int, NGROUPS_PER_BLOCK, count);
-		for (j = 0; j < cp_count; j++) {
-			kgid_t gid = group_info->blocks[i][j];
-			if (gid_lte(low, gid) && gid_lte(gid, high))
-				goto out_release_group;
-		}
+	for (i = 0; i < group_info->ngroups; i++) {
+		kgid_t gid = group_info->gid[i];
 
-		count -= cp_count;
+		if (gid_lte(low, gid) && gid_lte(gid, high))
+			goto out_release_group;
 	}
 
 	ret = -EACCES;
@@ -438,9 +434,9 @@ int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
-	pr_debug("after bind(): num = %d, dif = %d\n",
-		 (int)isk->inet_num,
-		 (int)sk->sk_bound_dev_if);
+	pr_debug("after bind(): num = %hu, dif = %d\n",
+		 isk->inet_num,
+		 sk->sk_bound_dev_if);
 
 	err = 0;
 	if (sk->sk_family == AF_INET && isk->inet_rcv_saddr)
@@ -614,15 +610,15 @@ int ping_getfrag(void *from, char *to,
 		fraglen -= sizeof(struct icmphdr);
 		if (fraglen < 0)
 			BUG();
-		if (csum_and_copy_from_iter(to + sizeof(struct icmphdr),
+		if (!csum_and_copy_from_iter_full(to + sizeof(struct icmphdr),
 			    fraglen, &pfh->wcheck,
-			    &pfh->msg->msg_iter) != fraglen)
+			    &pfh->msg->msg_iter))
 			return -EFAULT;
 	} else if (offset < sizeof(struct icmphdr)) {
 			BUG();
 	} else {
-		if (csum_and_copy_from_iter(to, fraglen, &pfh->wcheck,
-					    &pfh->msg->msg_iter) != fraglen)
+		if (!csum_and_copy_from_iter_full(to, fraglen, &pfh->wcheck,
+					    &pfh->msg->msg_iter))
 			return -EFAULT;
 	}
 
@@ -647,6 +643,8 @@ static int ping_v4_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh,
 {
 	struct sk_buff *skb = skb_peek(&sk->sk_write_queue);
 
+	if (!skb)
+		return 0;
 	pfh->wcheck = csum_partial((char *)&pfh->icmph,
 		sizeof(struct icmphdr), pfh->wcheck);
 	pfh->icmph.checksum = csum_fold(pfh->wcheck);
@@ -661,6 +659,10 @@ int ping_common_sendmsg(int family, struct msghdr *msg, size_t len,
 
 	if (len > 0xFFFF)
 		return -EMSGSIZE;
+
+	/* Must have at least a full ICMP header. */
+	if (len < icmph_len)
+		return -EINVAL;
 
 	/*
 	 *	Check the flags.
@@ -794,7 +796,8 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
 			   RT_SCOPE_UNIVERSE, sk->sk_protocol,
-			   inet_sk_flowi_flags(sk), faddr, saddr, 0, 0);
+			   inet_sk_flowi_flags(sk), faddr, saddr, 0, 0,
+			   sk->sk_uid);
 
 	security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_flow(net, &fl4, sk);
@@ -848,7 +851,8 @@ out:
 	return err;
 
 do_confirm:
-	dst_confirm(&rt->dst);
+	if (msg->msg_flags & MSG_PROBE)
+		dst_confirm_neigh(&rt->dst, &fl4.daddr);
 	if (!(msg->msg_flags & MSG_PROBE) || len)
 		goto back_from_confirm;
 	err = 0;
@@ -999,7 +1003,7 @@ struct proto ping_prot = {
 	.init =		ping_init_sock,
 	.close =	ping_close,
 	.connect =	ip4_datagram_connect,
-	.disconnect =	udp_disconnect,
+	.disconnect =	__udp_disconnect,
 	.setsockopt =	ip_setsockopt,
 	.getsockopt =	ip_getsockopt,
 	.sendmsg =	ping_v4_sendmsg,

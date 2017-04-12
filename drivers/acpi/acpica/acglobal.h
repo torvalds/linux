@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -240,10 +240,6 @@ ACPI_INIT_GLOBAL(u32, acpi_gbl_nesting_level, 0);
 
 ACPI_GLOBAL(struct acpi_thread_state *, acpi_gbl_current_walk_list);
 
-/* Maximum number of While() loop iterations before forced abort */
-
-ACPI_GLOBAL(u16, acpi_gbl_max_loop_iterations);
-
 /* Control method single step flag */
 
 ACPI_GLOBAL(u8, acpi_gbl_cm_single_step);
@@ -317,6 +313,8 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_noop_operator, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_cstyle_disassembly, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_force_aml_disassembly, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_opt_verbose, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_dm_emit_external_opcodes, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_do_disassembler_optimizations, TRUE);
 
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_disasm);
 ACPI_GLOBAL(u8, acpi_gbl_dm_opt_listing);
@@ -382,6 +380,7 @@ ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
 
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
 
 /* Print buffer */
 

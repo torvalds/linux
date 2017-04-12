@@ -24,93 +24,126 @@
 
 #include "i915_drv.h"
 
+#define PLATFORM_NAME(x) [INTEL_##x] = #x
+static const char * const platform_names[] = {
+	PLATFORM_NAME(I830),
+	PLATFORM_NAME(I845G),
+	PLATFORM_NAME(I85X),
+	PLATFORM_NAME(I865G),
+	PLATFORM_NAME(I915G),
+	PLATFORM_NAME(I915GM),
+	PLATFORM_NAME(I945G),
+	PLATFORM_NAME(I945GM),
+	PLATFORM_NAME(G33),
+	PLATFORM_NAME(PINEVIEW),
+	PLATFORM_NAME(I965G),
+	PLATFORM_NAME(I965GM),
+	PLATFORM_NAME(G45),
+	PLATFORM_NAME(GM45),
+	PLATFORM_NAME(IRONLAKE),
+	PLATFORM_NAME(SANDYBRIDGE),
+	PLATFORM_NAME(IVYBRIDGE),
+	PLATFORM_NAME(VALLEYVIEW),
+	PLATFORM_NAME(HASWELL),
+	PLATFORM_NAME(BROADWELL),
+	PLATFORM_NAME(CHERRYVIEW),
+	PLATFORM_NAME(SKYLAKE),
+	PLATFORM_NAME(BROXTON),
+	PLATFORM_NAME(KABYLAKE),
+	PLATFORM_NAME(GEMINILAKE),
+};
+#undef PLATFORM_NAME
+
+const char *intel_platform_name(enum intel_platform platform)
+{
+	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
+			 platform_names[platform] == NULL))
+		return "<unknown>";
+
+	return platform_names[platform];
+}
+
 void intel_device_info_dump(struct drm_i915_private *dev_priv)
 {
 	const struct intel_device_info *info = &dev_priv->info;
 
-#define PRINT_S(name) "%s"
-#define SEP_EMPTY
-#define PRINT_FLAG(name) info->name ? #name "," : ""
-#define SEP_COMMA ,
-	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x rev=0x%02x flags="
-			 DEV_INFO_FOR_EACH_FLAG(PRINT_S, SEP_EMPTY),
+	DRM_DEBUG_DRIVER("i915 device info: platform=%s gen=%i pciid=0x%04x rev=0x%02x",
+			 intel_platform_name(info->platform),
 			 info->gen,
 			 dev_priv->drm.pdev->device,
-			 dev_priv->drm.pdev->revision,
-			 DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_COMMA));
-#undef PRINT_S
-#undef SEP_EMPTY
+			 dev_priv->drm.pdev->revision);
+#define PRINT_FLAG(name) \
+	DRM_DEBUG_DRIVER("i915 device info: " #name ": %s", yesno(info->name))
+	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
 #undef PRINT_FLAG
-#undef SEP_COMMA
 }
 
 static void cherryview_sseu_info_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_device_info *info = mkwrite_device_info(dev_priv);
+	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
 	u32 fuse, eu_dis;
 
 	fuse = I915_READ(CHV_FUSE_GT);
 
-	info->slice_total = 1;
+	sseu->slice_mask = BIT(0);
 
 	if (!(fuse & CHV_FGT_DISABLE_SS0)) {
-		info->subslice_per_slice++;
+		sseu->subslice_mask |= BIT(0);
 		eu_dis = fuse & (CHV_FGT_EU_DIS_SS0_R0_MASK |
 				 CHV_FGT_EU_DIS_SS0_R1_MASK);
-		info->eu_total += 8 - hweight32(eu_dis);
+		sseu->eu_total += 8 - hweight32(eu_dis);
 	}
 
 	if (!(fuse & CHV_FGT_DISABLE_SS1)) {
-		info->subslice_per_slice++;
+		sseu->subslice_mask |= BIT(1);
 		eu_dis = fuse & (CHV_FGT_EU_DIS_SS1_R0_MASK |
 				 CHV_FGT_EU_DIS_SS1_R1_MASK);
-		info->eu_total += 8 - hweight32(eu_dis);
+		sseu->eu_total += 8 - hweight32(eu_dis);
 	}
 
-	info->subslice_total = info->subslice_per_slice;
 	/*
 	 * CHV expected to always have a uniform distribution of EU
 	 * across subslices.
 	*/
-	info->eu_per_subslice = info->subslice_total ?
-				info->eu_total / info->subslice_total :
+	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
+				sseu->eu_total / sseu_subslice_total(sseu) :
 				0;
 	/*
 	 * CHV supports subslice power gating on devices with more than
 	 * one subslice, and supports EU power gating on devices with
 	 * more than one EU pair per subslice.
 	*/
-	info->has_slice_pg = 0;
-	info->has_subslice_pg = (info->subslice_total > 1);
-	info->has_eu_pg = (info->eu_per_subslice > 2);
+	sseu->has_slice_pg = 0;
+	sseu->has_subslice_pg = sseu_subslice_total(sseu) > 1;
+	sseu->has_eu_pg = (sseu->eu_per_subslice > 2);
 }
 
 static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
+	struct sseu_dev_info *sseu = &info->sseu;
 	int s_max = 3, ss_max = 4, eu_max = 8;
 	int s, ss;
-	u32 fuse2, s_enable, ss_disable, eu_disable;
+	u32 fuse2, eu_disable;
 	u8 eu_mask = 0xff;
 
 	fuse2 = I915_READ(GEN8_FUSE2);
-	s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
-	ss_disable = (fuse2 & GEN9_F2_SS_DIS_MASK) >> GEN9_F2_SS_DIS_SHIFT;
+	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
 
-	info->slice_total = hweight32(s_enable);
 	/*
 	 * The subslice disable field is global, i.e. it applies
 	 * to each of the enabled slices.
 	*/
-	info->subslice_per_slice = ss_max - hweight32(ss_disable);
-	info->subslice_total = info->slice_total * info->subslice_per_slice;
+	sseu->subslice_mask = (1 << ss_max) - 1;
+	sseu->subslice_mask &= ~((fuse2 & GEN9_F2_SS_DIS_MASK) >>
+				 GEN9_F2_SS_DIS_SHIFT);
 
 	/*
 	 * Iterate through enabled slices and subslices to
 	 * count the total enabled EU.
 	*/
 	for (s = 0; s < s_max; s++) {
-		if (!(s_enable & BIT(s)))
+		if (!(sseu->slice_mask & BIT(s)))
 			/* skip disabled slice */
 			continue;
 
@@ -118,7 +151,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 		for (ss = 0; ss < ss_max; ss++) {
 			int eu_per_ss;
 
-			if (ss_disable & BIT(ss))
+			if (!(sseu->subslice_mask & BIT(ss)))
 				/* skip disabled subslice */
 				continue;
 
@@ -131,9 +164,9 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 			 * subslices if they are unbalanced.
 			 */
 			if (eu_per_ss == 7)
-				info->subslice_7eu[s] |= BIT(ss);
+				sseu->subslice_7eu[s] |= BIT(ss);
 
-			info->eu_total += eu_per_ss;
+			sseu->eu_total += eu_per_ss;
 		}
 	}
 
@@ -144,9 +177,9 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * recovery. BXT is expected to be perfectly uniform in EU
 	 * distribution.
 	*/
-	info->eu_per_subslice = info->subslice_total ?
-				DIV_ROUND_UP(info->eu_total,
-					     info->subslice_total) : 0;
+	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
+				DIV_ROUND_UP(sseu->eu_total,
+					     sseu_subslice_total(sseu)) : 0;
 	/*
 	 * SKL supports slice power gating on devices with more than
 	 * one slice, and supports EU power gating on devices with
@@ -155,15 +188,15 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * supports EU power gating on devices with more than one EU
 	 * pair per subslice.
 	*/
-	info->has_slice_pg =
+	sseu->has_slice_pg =
 		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
-		info->slice_total > 1;
-	info->has_subslice_pg =
-		IS_BROXTON(dev_priv) && info->subslice_total > 1;
-	info->has_eu_pg = info->eu_per_subslice > 2;
+		hweight8(sseu->slice_mask) > 1;
+	sseu->has_subslice_pg =
+		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
+	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
 
 	if (IS_BROXTON(dev_priv)) {
-#define IS_SS_DISABLED(_ss_disable, ss)    (_ss_disable & BIT(ss))
+#define IS_SS_DISABLED(ss)	(!(sseu->subslice_mask & BIT(ss)))
 		/*
 		 * There is a HW issue in 2x6 fused down parts that requires
 		 * Pooled EU to be enabled as a WA. The pool configuration
@@ -171,19 +204,18 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 		 * doesn't affect if the device has all 3 subslices enabled.
 		 */
 		/* WaEnablePooledEuFor2x6:bxt */
-		info->has_pooled_eu = ((info->subslice_per_slice == 3) ||
-				       (info->subslice_per_slice == 2 &&
+		info->has_pooled_eu = ((hweight8(sseu->subslice_mask) == 3) ||
+				       (hweight8(sseu->subslice_mask) == 2 &&
 					INTEL_REVID(dev_priv) < BXT_REVID_C0));
 
-		info->min_eu_in_pool = 0;
+		sseu->min_eu_in_pool = 0;
 		if (info->has_pooled_eu) {
-			if (IS_SS_DISABLED(ss_disable, 0) ||
-			    IS_SS_DISABLED(ss_disable, 2))
-				info->min_eu_in_pool = 3;
-			else if (IS_SS_DISABLED(ss_disable, 1))
-				info->min_eu_in_pool = 6;
+			if (IS_SS_DISABLED(2) || IS_SS_DISABLED(0))
+				sseu->min_eu_in_pool = 3;
+			else if (IS_SS_DISABLED(1))
+				sseu->min_eu_in_pool = 6;
 			else
-				info->min_eu_in_pool = 9;
+				sseu->min_eu_in_pool = 9;
 		}
 #undef IS_SS_DISABLED
 	}
@@ -191,14 +223,20 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 
 static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_device_info *info = mkwrite_device_info(dev_priv);
+	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
 	const int s_max = 3, ss_max = 3, eu_max = 8;
 	int s, ss;
-	u32 fuse2, eu_disable[s_max], s_enable, ss_disable;
+	u32 fuse2, eu_disable[3]; /* s_max */
 
 	fuse2 = I915_READ(GEN8_FUSE2);
-	s_enable = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
-	ss_disable = (fuse2 & GEN8_F2_SS_DIS_MASK) >> GEN8_F2_SS_DIS_SHIFT;
+	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;
+	/*
+	 * The subslice disable field is global, i.e. it applies
+	 * to each of the enabled slices.
+	 */
+	sseu->subslice_mask = BIT(ss_max) - 1;
+	sseu->subslice_mask &= ~((fuse2 & GEN8_F2_SS_DIS_MASK) >>
+				 GEN8_F2_SS_DIS_SHIFT);
 
 	eu_disable[0] = I915_READ(GEN8_EU_DISABLE0) & GEN8_EU_DIS0_S0_MASK;
 	eu_disable[1] = (I915_READ(GEN8_EU_DISABLE0) >> GEN8_EU_DIS0_S1_SHIFT) |
@@ -208,28 +246,19 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 			((I915_READ(GEN8_EU_DISABLE2) & GEN8_EU_DIS2_S2_MASK) <<
 			 (32 - GEN8_EU_DIS1_S2_SHIFT));
 
-	info->slice_total = hweight32(s_enable);
-
-	/*
-	 * The subslice disable field is global, i.e. it applies
-	 * to each of the enabled slices.
-	 */
-	info->subslice_per_slice = ss_max - hweight32(ss_disable);
-	info->subslice_total = info->slice_total * info->subslice_per_slice;
-
 	/*
 	 * Iterate through enabled slices and subslices to
 	 * count the total enabled EU.
 	 */
 	for (s = 0; s < s_max; s++) {
-		if (!(s_enable & (0x1 << s)))
+		if (!(sseu->slice_mask & BIT(s)))
 			/* skip disabled slice */
 			continue;
 
 		for (ss = 0; ss < ss_max; ss++) {
 			u32 n_disabled;
 
-			if (ss_disable & (0x1 << ss))
+			if (!(sseu->subslice_mask & BIT(ss)))
 				/* skip disabled subslice */
 				continue;
 
@@ -239,9 +268,9 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 			 * Record which subslices have 7 EUs.
 			 */
 			if (eu_max - n_disabled == 7)
-				info->subslice_7eu[s] |= 1 << ss;
+				sseu->subslice_7eu[s] |= 1 << ss;
 
-			info->eu_total += eu_max - n_disabled;
+			sseu->eu_total += eu_max - n_disabled;
 		}
 	}
 
@@ -250,16 +279,17 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	 * subslices with the exception that any one EU in any one subslice may
 	 * be fused off for die recovery.
 	 */
-	info->eu_per_subslice = info->subslice_total ?
-		DIV_ROUND_UP(info->eu_total, info->subslice_total) : 0;
+	sseu->eu_per_subslice = sseu_subslice_total(sseu) ?
+				DIV_ROUND_UP(sseu->eu_total,
+					     sseu_subslice_total(sseu)) : 0;
 
 	/*
 	 * BDW supports slice power gating on devices with more than
 	 * one slice.
 	 */
-	info->has_slice_pg = (info->slice_total > 1);
-	info->has_subslice_pg = 0;
-	info->has_eu_pg = 0;
+	sseu->has_slice_pg = hweight8(sseu->slice_mask) > 1;
+	sseu->has_subslice_pg = 0;
+	sseu->has_eu_pg = 0;
 }
 
 /*
@@ -280,6 +310,12 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	enum pipe pipe;
 
+	if (INTEL_GEN(dev_priv) >= 9) {
+		info->num_scalers[PIPE_A] = 2;
+		info->num_scalers[PIPE_B] = 2;
+		info->num_scalers[PIPE_C] = 1;
+	}
+
 	/*
 	 * Skylake and Broxton currently don't expose the topmost plane as its
 	 * use is exclusive with the legacy cursor and we only want to expose
@@ -288,16 +324,20 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	 * we don't expose the topmost plane at all to prevent ABI breakage
 	 * down the line.
 	 */
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv))
+		for_each_pipe(dev_priv, pipe)
+			info->num_sprites[pipe] = 3;
+	else if (IS_BROXTON(dev_priv)) {
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
-	else
+	} else if (INTEL_GEN(dev_priv) >= 5) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
+	}
 
 	if (i915.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");
@@ -374,15 +414,19 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
 		info->has_snoop = false;
 
-	DRM_DEBUG_DRIVER("slice total: %u\n", info->slice_total);
-	DRM_DEBUG_DRIVER("subslice total: %u\n", info->subslice_total);
-	DRM_DEBUG_DRIVER("subslice per slice: %u\n", info->subslice_per_slice);
-	DRM_DEBUG_DRIVER("EU total: %u\n", info->eu_total);
-	DRM_DEBUG_DRIVER("EU per subslice: %u\n", info->eu_per_subslice);
+	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
+	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
+	DRM_DEBUG_DRIVER("subslice total: %u\n",
+			 sseu_subslice_total(&info->sseu));
+	DRM_DEBUG_DRIVER("subslice mask %04x\n", info->sseu.subslice_mask);
+	DRM_DEBUG_DRIVER("subslice per slice: %u\n",
+			 hweight8(info->sseu.subslice_mask));
+	DRM_DEBUG_DRIVER("EU total: %u\n", info->sseu.eu_total);
+	DRM_DEBUG_DRIVER("EU per subslice: %u\n", info->sseu.eu_per_subslice);
 	DRM_DEBUG_DRIVER("has slice power gating: %s\n",
-			 info->has_slice_pg ? "y" : "n");
+			 info->sseu.has_slice_pg ? "y" : "n");
 	DRM_DEBUG_DRIVER("has subslice power gating: %s\n",
-			 info->has_subslice_pg ? "y" : "n");
+			 info->sseu.has_subslice_pg ? "y" : "n");
 	DRM_DEBUG_DRIVER("has EU power gating: %s\n",
-			 info->has_eu_pg ? "y" : "n");
+			 info->sseu.has_eu_pg ? "y" : "n");
 }

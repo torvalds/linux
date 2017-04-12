@@ -62,7 +62,7 @@ u16 fm10k_read_pci_cfg_word(struct fm10k_hw *hw, u32 reg)
 
 u32 fm10k_read_reg(struct fm10k_hw *hw, int reg)
 {
-	u32 __iomem *hw_addr = ACCESS_ONCE(hw->hw_addr);
+	u32 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
 	u32 value = 0;
 
 	if (FM10K_REMOVED(hw_addr))
@@ -133,7 +133,7 @@ static void fm10k_detach_subtask(struct fm10k_intfc *interface)
 	/* check the real address space to see if we've recovered */
 	hw_addr = READ_ONCE(interface->uc_addr);
 	value = readl(hw_addr);
-	if ((~value)) {
+	if (~value) {
 		interface->hw.hw_addr = interface->uc_addr;
 		netif_device_attach(netdev);
 		interface->flags |= FM10K_FLAG_RESET_REQUESTED;
@@ -734,15 +734,15 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	u64 rdba = ring->dma;
 	struct fm10k_hw *hw = &interface->hw;
 	u32 size = ring->count * sizeof(union fm10k_rx_desc);
-	u32 rxqctl = FM10K_RXQCTL_ENABLE | FM10K_RXQCTL_PF;
-	u32 rxdctl = FM10K_RXDCTL_WRITE_BACK_MIN_DELAY;
+	u32 rxqctl, rxdctl = FM10K_RXDCTL_WRITE_BACK_MIN_DELAY;
 	u32 srrctl = FM10K_SRRCTL_BUFFER_CHAINING_EN;
 	u32 rxint = FM10K_INT_MAP_DISABLE;
 	u8 rx_pause = interface->rx_pause;
 	u8 reg_idx = ring->reg_idx;
 
 	/* disable queue to avoid issues while updating state */
-	fm10k_write_reg(hw, FM10K_RXQCTL(reg_idx), 0);
+	rxqctl = fm10k_read_reg(hw, FM10K_RXQCTL(reg_idx));
+	rxqctl &= ~FM10K_RXQCTL_ENABLE;
 	fm10k_write_flush(hw);
 
 	/* possible poll here to verify ring resources have been cleaned */
@@ -797,6 +797,8 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	fm10k_write_reg(hw, FM10K_RXINT(reg_idx), rxint);
 
 	/* enable queue */
+	rxqctl = fm10k_read_reg(hw, FM10K_RXQCTL(reg_idx));
+	rxqctl |= FM10K_RXQCTL_ENABLE;
 	fm10k_write_reg(hw, FM10K_RXQCTL(reg_idx), rxqctl);
 
 	/* place buffers on ring for receive data */
@@ -1142,6 +1144,7 @@ static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 	struct fm10k_hw *hw = &interface->hw;
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 eicr;
+	s32 err = 0;
 
 	/* unmask any set bits related to this interrupt */
 	eicr = fm10k_read_reg(hw, FM10K_EICR);
@@ -1157,11 +1160,14 @@ static irqreturn_t fm10k_msix_mbx_pf(int __always_unused irq, void *data)
 
 	/* service mailboxes */
 	if (fm10k_mbx_trylock(interface)) {
-		mbx->ops.process(hw, mbx);
+		err = mbx->ops.process(hw, mbx);
 		/* handle VFLRE events */
 		fm10k_iov_event(interface);
 		fm10k_mbx_unlock(interface);
 	}
+
+	if (err == FM10K_ERR_RESET_REQUESTED)
+		interface->flags |= FM10K_FLAG_RESET_REQUESTED;
 
 	/* if switch toggled state we should reset GLORTs */
 	if (eicr & FM10K_EICR_SWITCHNOTREADY) {
@@ -1699,7 +1705,7 @@ void fm10k_down(struct fm10k_intfc *interface)
 
 		/* start checking at the last ring to have pending Tx */
 		for (; i < interface->num_tx_queues; i++)
-			if (fm10k_get_tx_pending(interface->tx_ring[i]))
+			if (fm10k_get_tx_pending(interface->tx_ring[i], false))
 				break;
 
 		/* if all the queues are drained, we can break now */
@@ -1835,8 +1841,9 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	interface->tx_itr = FM10K_TX_ITR_DEFAULT;
 	interface->rx_itr = FM10K_ITR_ADAPTIVE | FM10K_RX_ITR_DEFAULT;
 
-	/* initialize vxlan_port list */
+	/* initialize udp port lists */
 	INIT_LIST_HEAD(&interface->vxlan_port);
+	INIT_LIST_HEAD(&interface->geneve_port);
 
 	netdev_rss_key_fill(rss_key, sizeof(rss_key));
 	memcpy(interface->rssrk, rss_key, sizeof(rss_key));
@@ -1950,9 +1957,18 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct fm10k_intfc *interface;
 	int err;
 
+	if (pdev->error_state != pci_channel_io_normal) {
+		dev_err(&pdev->dev,
+			"PCI device still in an error state. Unable to load...\n");
+		return -EIO;
+	}
+
 	err = pci_enable_device_mem(pdev);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev,
+			"PCI enable device failed: %d\n", err);
 		return err;
+	}
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err)
@@ -2275,7 +2291,7 @@ static pci_ers_result_t fm10k_io_slot_reset(struct pci_dev *pdev)
 {
 	pci_ers_result_t result;
 
-	if (pci_enable_device_mem(pdev)) {
+	if (pci_reenable_device(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset.\n");
 		result = PCI_ERS_RESULT_DISCONNECT;

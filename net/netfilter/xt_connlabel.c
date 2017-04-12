@@ -61,7 +61,7 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 		return -EINVAL;
 	}
 
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 							par->family);
@@ -70,14 +70,14 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 
 	ret = nf_connlabels_get(par->net, info->bit);
 	if (ret < 0)
-		nf_ct_l3proto_module_put(par->family);
+		nf_ct_netns_put(par->net, par->family);
 	return ret;
 }
 
 static void connlabel_mt_destroy(const struct xt_mtdtor_param *par)
 {
 	nf_connlabels_put(par->net);
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_match connlabels_mt_reg __read_mostly = {

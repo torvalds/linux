@@ -53,7 +53,7 @@ static int ebt_broute(struct sk_buff *skb)
 	struct nf_hook_state state;
 	int ret;
 
-	nf_hook_state_init(&state, NULL, NF_BR_BROUTING, INT_MIN,
+	nf_hook_state_init(&state, NF_BR_BROUTING,
 			   NFPROTO_BRIDGE, skb->dev, NULL, NULL,
 			   dev_net(skb->dev), NULL);
 

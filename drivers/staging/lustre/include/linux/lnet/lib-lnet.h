@@ -78,7 +78,7 @@ static inline int lnet_is_route_alive(lnet_route_t *route)
 	return route->lr_downis == 0;
 }
 
-static inline int lnet_is_wire_handle_none(lnet_handle_wire_t *wh)
+static inline int lnet_is_wire_handle_none(struct lnet_handle_wire *wh)
 {
 	return (wh->wh_interface_cookie == LNET_WIRE_HANDLE_COOKIE_NONE &&
 		wh->wh_object_cookie == LNET_WIRE_HANDLE_COOKIE_NONE);
@@ -323,7 +323,7 @@ lnet_handle2md(lnet_handle_md_t *handle)
 }
 
 static inline lnet_libmd_t *
-lnet_wire_handle2md(lnet_handle_wire_t *wh)
+lnet_wire_handle2md(struct lnet_handle_wire *wh)
 {
 	/* ALWAYS called with resource lock held */
 	lnet_libhandle_t *lh;
@@ -552,7 +552,7 @@ int lnet_portals_create(void);
 void lnet_portals_destroy(void);
 
 /* message functions */
-int lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr,
+int lnet_parse(lnet_ni_t *ni, struct lnet_hdr *hdr,
 	       lnet_nid_t fromnid, void *private, int rdma_req);
 int lnet_parse_local(lnet_ni_t *ni, lnet_msg_t *msg);
 int lnet_parse_forward_locked(lnet_ni_t *ni, lnet_msg_t *msg);
@@ -579,7 +579,7 @@ void lnet_msg_containers_destroy(void);
 int lnet_msg_containers_create(void);
 
 char *lnet_msgtyp2str(int type);
-void lnet_print_hdr(lnet_hdr_t *hdr);
+void lnet_print_hdr(struct lnet_hdr *hdr);
 int lnet_fail_nid(lnet_nid_t nid, unsigned int threshold);
 
 /** \addtogroup lnet_fault_simulation @{ */
@@ -588,7 +588,7 @@ int lnet_fault_ctl(int cmd, struct libcfs_ioctl_data *data);
 int lnet_fault_init(void);
 void lnet_fault_fini(void);
 
-bool lnet_drop_rule_match(lnet_hdr_t *hdr);
+bool lnet_drop_rule_match(struct lnet_hdr *hdr);
 
 int lnet_delay_rule_add(struct lnet_fault_attr *attr);
 int lnet_delay_rule_del(lnet_nid_t src, lnet_nid_t dst, bool shutdown);
@@ -596,7 +596,7 @@ int lnet_delay_rule_list(int pos, struct lnet_fault_attr *attr,
 			 struct lnet_fault_stat *stat);
 void lnet_delay_rule_reset(void);
 void lnet_delay_rule_check(void);
-bool lnet_delay_rule_match_locked(lnet_hdr_t *hdr, struct lnet_msg *msg);
+bool lnet_delay_rule_match_locked(struct lnet_hdr *hdr, struct lnet_msg *msg);
 
 /** @} lnet_fault_simulation */
 
@@ -605,73 +605,20 @@ void lnet_counters_reset(void);
 
 unsigned int lnet_iov_nob(unsigned int niov, struct kvec *iov);
 int lnet_extract_iov(int dst_niov, struct kvec *dst,
-		     int src_niov, struct kvec *src,
+		     int src_niov, const struct kvec *src,
 		      unsigned int offset, unsigned int len);
 
 unsigned int lnet_kiov_nob(unsigned int niov, lnet_kiov_t *iov);
 int lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
-		      int src_niov, lnet_kiov_t *src,
+		      int src_niov, const lnet_kiov_t *src,
 		      unsigned int offset, unsigned int len);
 
-void lnet_copy_iov2iov(unsigned int ndiov, struct kvec *diov,
-		       unsigned int doffset,
-			unsigned int nsiov, struct kvec *siov,
+void lnet_copy_iov2iter(struct iov_iter *to,
+			unsigned int nsiov, const struct kvec *siov,
 			unsigned int soffset, unsigned int nob);
-void lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov,
-			unsigned int iovoffset,
-			 unsigned int nkiov, lnet_kiov_t *kiov,
+void lnet_copy_kiov2iter(struct iov_iter *to,
+			 unsigned int nkiov, const lnet_kiov_t *kiov,
 			 unsigned int kiovoffset, unsigned int nob);
-void lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
-			unsigned int kiovoffset,
-			 unsigned int niov, struct kvec *iov,
-			 unsigned int iovoffset, unsigned int nob);
-void lnet_copy_kiov2kiov(unsigned int ndkiov, lnet_kiov_t *dkiov,
-			 unsigned int doffset,
-			  unsigned int nskiov, lnet_kiov_t *skiov,
-			  unsigned int soffset, unsigned int nob);
-
-static inline void
-lnet_copy_iov2flat(int dlen, void *dest, unsigned int doffset,
-		   unsigned int nsiov, struct kvec *siov, unsigned int soffset,
-		   unsigned int nob)
-{
-	struct kvec diov = {/*.iov_base = */ dest, /*.iov_len = */ dlen};
-
-	lnet_copy_iov2iov(1, &diov, doffset,
-			  nsiov, siov, soffset, nob);
-}
-
-static inline void
-lnet_copy_kiov2flat(int dlen, void *dest, unsigned int doffset,
-		    unsigned int nsiov, lnet_kiov_t *skiov,
-		    unsigned int soffset, unsigned int nob)
-{
-	struct kvec diov = {/* .iov_base = */ dest, /* .iov_len = */ dlen};
-
-	lnet_copy_kiov2iov(1, &diov, doffset,
-			   nsiov, skiov, soffset, nob);
-}
-
-static inline void
-lnet_copy_flat2iov(unsigned int ndiov, struct kvec *diov, unsigned int doffset,
-		   int slen, void *src, unsigned int soffset, unsigned int nob)
-{
-	struct kvec siov = {/*.iov_base = */ src, /*.iov_len = */slen};
-
-	lnet_copy_iov2iov(ndiov, diov, doffset,
-			  1, &siov, soffset, nob);
-}
-
-static inline void
-lnet_copy_flat2kiov(unsigned int ndiov, lnet_kiov_t *dkiov,
-		    unsigned int doffset, int slen, void *src,
-		    unsigned int soffset, unsigned int nob)
-{
-	struct kvec siov = {/* .iov_base = */ src, /* .iov_len = */ slen};
-
-	lnet_copy_iov2kiov(ndiov, dkiov, doffset,
-			   1, &siov, soffset, nob);
-}
 
 void lnet_me_unlink(lnet_me_t *me);
 
@@ -717,7 +664,7 @@ int lnet_peer_buffer_credits(lnet_ni_t *ni);
 int lnet_router_checker_start(void);
 void lnet_router_checker_stop(void);
 void lnet_router_ni_update_locked(lnet_peer_t *gw, __u32 net);
-void lnet_swap_pinginfo(lnet_ping_info_t *info);
+void lnet_swap_pinginfo(struct lnet_ping_info *info);
 
 int lnet_parse_ip2nets(char **networksp, char *ip2nets);
 int lnet_parse_routes(char *route_str, int *im_a_router);

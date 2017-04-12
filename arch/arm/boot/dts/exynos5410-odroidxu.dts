@@ -15,18 +15,20 @@
 #include <dt-bindings/clock/maxim,max77802.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/sound/samsung-i2s.h>
 #include "exynos54xx-odroidxu-leds.dtsi"
 
 / {
 	model = "Hardkernel Odroid XU";
 	compatible = "hardkernel,odroid-xu", "samsung,exynos5410", "samsung,exynos5";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x7ea00000>;
 	};
 
 	chosen {
-		linux,stdout-path = &serial_2;
+		stdout-path = "serial2:115200n8";
 	};
 
 	emmc_pwrseq: pwrseq {
@@ -56,6 +58,61 @@
 		compatible = "samsung,secure-firmware";
 		reg = <0x02073000 0x1000>;
 	};
+
+	sound: sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,name = "Odroid-XU";
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack",
+			"Speakers", "Speakers";
+		simple-audio-card,routing =
+			"Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Headphone Jack", "MICBIAS",
+			"IN1", "Headphone Jack",
+			"Speakers", "SPKL",
+			"Speakers", "SPKR";
+
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&link0_codec>;
+		simple-audio-card,frame-master = <&link0_codec>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&audi2s0 0>;
+			system-clock-frequency = <19200000>;
+		};
+
+		link0_codec: simple-audio-card,codec {
+			sound-dai = <&max98090>;
+			clocks = <&audi2s0 CLK_I2S_CDCLK>;
+		};
+	};
+};
+
+&audi2s0 {
+	status = "okay";
+};
+
+&clock {
+	clocks = <&fin_pll>;
+	assigned-clocks = <&clock CLK_FOUT_EPLL>;
+	assigned-clock-rates = <192000000>;
+};
+
+&clock_audss {
+	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
+			<&clock_audss EXYNOS_MOUT_I2S>,
+			<&clock_audss EXYNOS_DOUT_SRP>,
+			<&clock_audss EXYNOS_DOUT_AUD_BUS>;
+
+	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
+			<&clock_audss EXYNOS_MOUT_AUDSS>;
+
+	assigned-clock-rates =  <0>,
+				<0>,
+				<96000000>,
+				<19200000>;
 };
 
 &cpu0_thermal {
@@ -439,6 +496,19 @@
 	};
 };
 
+&i2c_1 {
+	status = "okay";
+	max98090: max98090@10 {
+		compatible = "maxim,max98090";
+		reg = <0x10>;
+		interrupt-parent = <&gpj3>;
+		interrupts = <0 IRQ_TYPE_NONE>;
+		clocks = <&audi2s0 CLK_I2S_CDCLK>;
+		clock-names = "mclk";
+		#sound-dai-cells = <0>;
+	};
+};
+
 &mmc_0 {
 	status = "okay";
 	mmc-pwrseq = <&emmc_pwrseq>;
@@ -473,38 +543,38 @@
 &pinctrl_0 {
 	emmc_nrst_pin: emmc-nrst {
 		samsung,pins = "gpd1-0";
-		samsung,pin-function = <2>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
 	pmic_dvs_3: pmic-dvs-3 {
 		samsung,pins = "gpx0-0";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
 	pmic_dvs_2: pmic-dvs-2 {
 		samsung,pins = "gpx0-1";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
 	pmic_dvs_1: pmic-dvs-1 {
 		samsung,pins = "gpx0-2";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 		samsung,pin-val = <1>;
 	};
 
 	max77802_irq: max77802-irq {
 		samsung,pins = "gpx0-4";
-		samsung,pin-function = <0xf>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 };
 

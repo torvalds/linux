@@ -326,6 +326,7 @@ enum cfg_version {
 static const struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8129), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8136), 0, 0, RTL_CFG_2 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8161), 0, 0, RTL_CFG_1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8167), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8168), 0, 0, RTL_CFG_1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8169), 0, 0, RTL_CFG_0 },
@@ -695,7 +696,7 @@ enum rtl_tx_desc_bit_1 {
 enum rtl_rx_desc_bit {
 	/* Rx private */
 	PID1		= (1 << 18), /* Protocol ID bit 1/2 */
-	PID0		= (1 << 17), /* Protocol ID bit 2/2 */
+	PID0		= (1 << 17), /* Protocol ID bit 0/2 */
 
 #define RxProtoUDP	(PID1)
 #define RxProtoTCP	(PID0)
@@ -2344,6 +2345,13 @@ static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	}
 }
 
+static int rtl8169_nway_reset(struct net_device *dev)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	return mii_nway_restart(&tp->mii);
+}
+
 static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
@@ -2359,6 +2367,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_sset_count		= rtl8169_get_sset_count,
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.nway_reset		= rtl8169_nway_reset,
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
@@ -6673,10 +6682,6 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	if (new_mtu < ETH_ZLEN ||
-	    new_mtu > rtl_chip_infos[tp->mac_version].jumbo_max)
-		return -EINVAL;
-
 	if (new_mtu > ETH_DATA_LEN)
 		rtl_hw_jumbo_enable(tp);
 	else
@@ -7578,7 +7583,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		rtl_irq_enable(tp, enable_mask);
 		mmiowb();
@@ -7750,7 +7755,7 @@ err_pm_runtime_put:
 	goto out;
 }
 
-static struct rtnl_link_stats64 *
+static void
 rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
@@ -7804,8 +7809,6 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		le16_to_cpu(tp->tc_offset.tx_aborted);
 
 	pm_runtime_put_noidle(&pdev->dev);
-
-	return stats;
 }
 
 static void rtl8169_net_suspend(struct net_device *dev)
@@ -8273,7 +8276,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((sizeof(dma_addr_t) > 4) &&
 	    (use_dac == 1 || (use_dac == -1 && pci_is_pcie(pdev) &&
 			      tp->mac_version >= RTL_GIGA_MAC_VER_18)) &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) &&
+	    !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
 
 		/* CPlusCmd Dual Access Cycle is only needed for non-PCIe */
 		if (!pci_is_pcie(pdev))
@@ -8429,6 +8433,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
+
+	/* MTU range: 60 - hw-specific max */
+	dev->min_mtu = ETH_ZLEN;
+	dev->max_mtu = rtl_chip_infos[chipset].jumbo_max;
 
 	tp->hw_start = cfg->hw_start;
 	tp->event_slow = cfg->event_slow;

@@ -103,6 +103,9 @@ struct intel_pt {
 	unsigned max_non_turbo_ratio;
 
 	unsigned long num_events;
+
+	char *filter;
+	struct addr_filters filts;
 };
 
 enum switch_state {
@@ -140,6 +143,7 @@ struct intel_pt_queue {
 	u32 flags;
 	u16 insn_len;
 	u64 last_insn_cnt;
+	char insn[INTEL_PT_INSN_BUF_SZ];
 };
 
 static void intel_pt_dump(struct intel_pt *pt __maybe_unused,
@@ -241,7 +245,7 @@ static int intel_pt_get_trace(struct intel_pt_buffer *b, void *data)
 	}
 
 	queue = &ptq->pt->queues.queue_array[ptq->queue_nr];
-
+next:
 	buffer = auxtrace_buffer__next(queue, buffer);
 	if (!buffer) {
 		if (old_buffer)
@@ -264,9 +268,6 @@ static int intel_pt_get_trace(struct intel_pt_buffer *b, void *data)
 	    intel_pt_do_fix_overlap(ptq->pt, old_buffer, buffer))
 		return -ENOMEM;
 
-	if (old_buffer)
-		auxtrace_buffer__drop_data(old_buffer);
-
 	if (buffer->use_data) {
 		b->len = buffer->use_size;
 		b->buf = buffer->use_data;
@@ -275,6 +276,16 @@ static int intel_pt_get_trace(struct intel_pt_buffer *b, void *data)
 		b->buf = buffer->data;
 	}
 	b->ref_timestamp = buffer->reference;
+
+	/*
+	 * If in snapshot mode and the buffer has no usable data, get next
+	 * buffer and again check overlap against old_buffer.
+	 */
+	if (ptq->pt->snapshot_mode && !b->len)
+		goto next;
+
+	if (old_buffer)
+		auxtrace_buffer__drop_data(old_buffer);
 
 	if (!old_buffer || ptq->pt->sampling_mode || (ptq->pt->snapshot_mode &&
 						      !buffer->consecutive)) {
@@ -305,6 +316,7 @@ struct intel_pt_cache_entry {
 	enum intel_pt_insn_branch	branch;
 	int				length;
 	int32_t				rel;
+	char				insn[INTEL_PT_INSN_BUF_SZ];
 };
 
 static int intel_pt_config_div(const char *var, const char *value, void *data)
@@ -390,6 +402,7 @@ static int intel_pt_cache_add(struct dso *dso, struct machine *machine,
 	e->branch = intel_pt_insn->branch;
 	e->length = intel_pt_insn->length;
 	e->rel = intel_pt_insn->rel;
+	memcpy(e->insn, intel_pt_insn->buf, INTEL_PT_INSN_BUF_SZ);
 
 	err = auxtrace_cache__add(c, offset, &e->entry);
 	if (err)
@@ -418,8 +431,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	struct machine *machine = ptq->pt->machine;
 	struct thread *thread;
 	struct addr_location al;
-	unsigned char buf[1024];
-	size_t bufsz;
+	unsigned char buf[INTEL_PT_INSN_BUF_SZ];
 	ssize_t len;
 	int x86_64;
 	u8 cpumode;
@@ -427,10 +439,10 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	u64 insn_cnt = 0;
 	bool one_map = true;
 
+	intel_pt_insn->length = 0;
+
 	if (to_ip && *ip == to_ip)
 		goto out_no_cache;
-
-	bufsz = intel_pt_insn_max_size();
 
 	if (*ip >= ptq->pt->kernel_start)
 		cpumode = PERF_RECORD_MISC_KERNEL;
@@ -468,6 +480,8 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				intel_pt_insn->branch = e->branch;
 				intel_pt_insn->length = e->length;
 				intel_pt_insn->rel = e->rel;
+				memcpy(intel_pt_insn->buf, e->insn,
+				       INTEL_PT_INSN_BUF_SZ);
 				intel_pt_log_insn_no_data(intel_pt_insn, *ip);
 				return 0;
 			}
@@ -477,13 +491,14 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 		start_ip = *ip;
 
 		/* Load maps to ensure dso->is_64_bit has been updated */
-		map__load(al.map, machine->symbol_filter);
+		map__load(al.map);
 
 		x86_64 = al.map->dso->is_64_bit;
 
 		while (1) {
 			len = dso__data_read_offset(al.map->dso, machine,
-						    offset, buf, bufsz);
+						    offset, buf,
+						    INTEL_PT_INSN_BUF_SZ);
 			if (len <= 0)
 				return -EINVAL;
 
@@ -539,6 +554,76 @@ out:
 out_no_cache:
 	*insn_cnt_ptr = insn_cnt;
 	return 0;
+}
+
+static bool intel_pt_match_pgd_ip(struct intel_pt *pt, uint64_t ip,
+				  uint64_t offset, const char *filename)
+{
+	struct addr_filter *filt;
+	bool have_filter   = false;
+	bool hit_tracestop = false;
+	bool hit_filter    = false;
+
+	list_for_each_entry(filt, &pt->filts.head, list) {
+		if (filt->start)
+			have_filter = true;
+
+		if ((filename && !filt->filename) ||
+		    (!filename && filt->filename) ||
+		    (filename && strcmp(filename, filt->filename)))
+			continue;
+
+		if (!(offset >= filt->addr && offset < filt->addr + filt->size))
+			continue;
+
+		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s hit filter: %s offset %#"PRIx64" size %#"PRIx64"\n",
+			     ip, offset, filename ? filename : "[kernel]",
+			     filt->start ? "filter" : "stop",
+			     filt->addr, filt->size);
+
+		if (filt->start)
+			hit_filter = true;
+		else
+			hit_tracestop = true;
+	}
+
+	if (!hit_tracestop && !hit_filter)
+		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s is not in a filter region\n",
+			     ip, offset, filename ? filename : "[kernel]");
+
+	return hit_tracestop || (have_filter && !hit_filter);
+}
+
+static int __intel_pt_pgd_ip(uint64_t ip, void *data)
+{
+	struct intel_pt_queue *ptq = data;
+	struct thread *thread;
+	struct addr_location al;
+	u8 cpumode;
+	u64 offset;
+
+	if (ip >= ptq->pt->kernel_start)
+		return intel_pt_match_pgd_ip(ptq->pt, ip, ip, NULL);
+
+	cpumode = PERF_RECORD_MISC_USER;
+
+	thread = ptq->thread;
+	if (!thread)
+		return -EINVAL;
+
+	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, ip, &al);
+	if (!al.map || !al.map->dso)
+		return -EINVAL;
+
+	offset = al.map->map_ip(al.map, ip);
+
+	return intel_pt_match_pgd_ip(ptq->pt, ip, offset,
+				     al.map->dso->long_name);
+}
+
+static bool intel_pt_pgd_ip(uint64_t ip, void *data)
+{
+	return __intel_pt_pgd_ip(ip, data) > 0;
 }
 
 static bool intel_pt_get_config(struct intel_pt *pt,
@@ -717,6 +802,9 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
 	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
 
+	if (pt->filts.cnt > 0)
+		params.pgd_ip = intel_pt_pgd_ip;
+
 	if (pt->synth_opts.instructions) {
 		if (pt->synth_opts.period) {
 			switch (pt->synth_opts.period_type) {
@@ -817,6 +905,7 @@ static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 		if (ptq->state->flags & INTEL_PT_IN_TX)
 			ptq->flags |= PERF_IP_FLAG_IN_TX;
 		ptq->insn_len = ptq->state->insn_len;
+		memcpy(ptq->insn, ptq->state->insn, INTEL_PT_INSN_BUF_SZ);
 	}
 }
 
@@ -997,6 +1086,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	sample.cpu = ptq->cpu;
 	sample.flags = ptq->flags;
 	sample.insn_len = ptq->insn_len;
+	memcpy(sample.insn, ptq->insn, INTEL_PT_INSN_BUF_SZ);
 
 	/*
 	 * perf report cannot handle events without a branch stack when using
@@ -1058,6 +1148,7 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 	sample.cpu = ptq->cpu;
 	sample.flags = ptq->flags;
 	sample.insn_len = ptq->insn_len;
+	memcpy(sample.insn, ptq->insn, INTEL_PT_INSN_BUF_SZ);
 
 	ptq->last_insn_cnt = ptq->state->tot_insn_cnt;
 
@@ -1120,6 +1211,7 @@ static int intel_pt_synth_transaction_sample(struct intel_pt_queue *ptq)
 	sample.cpu = ptq->cpu;
 	sample.flags = ptq->flags;
 	sample.insn_len = ptq->insn_len;
+	memcpy(sample.insn, ptq->insn, INTEL_PT_INSN_BUF_SZ);
 
 	if (pt->synth_opts.callchain) {
 		thread_stack__sample(ptq->thread, ptq->chain,
@@ -1294,7 +1386,7 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 	if (!map)
 		return 0;
 
-	if (map__load(map, machine->symbol_filter))
+	if (map__load(map))
 		return 0;
 
 	start = dso__first_symbol(map->dso, MAP__FUNCTION);
@@ -1767,6 +1859,8 @@ static void intel_pt_free(struct perf_session *session)
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
 	thread__put(pt->unknown_thread);
+	addr_filters__exit(&pt->filts);
+	zfree(&pt->filter);
 	free(pt);
 }
 
@@ -2016,6 +2110,8 @@ static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_TSC_CTC_N]		= "  TSC:CTC numerator   %"PRIu64"\n",
 	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC denominator %"PRIu64"\n",
 	[INTEL_PT_CYC_BIT]		= "  CYC bit             %#"PRIx64"\n",
+	[INTEL_PT_MAX_NONTURBO_RATIO]	= "  Max non-turbo ratio %"PRIu64"\n",
+	[INTEL_PT_FILTER_STR_LEN]	= "  Filter string len.  %"PRIu64"\n",
 };
 
 static void intel_pt_print_info(u64 *arr, int start, int finish)
@@ -2029,12 +2125,28 @@ static void intel_pt_print_info(u64 *arr, int start, int finish)
 		fprintf(stdout, intel_pt_info_fmts[i], arr[i]);
 }
 
+static void intel_pt_print_info_str(const char *name, const char *str)
+{
+	if (!dump_trace)
+		return;
+
+	fprintf(stdout, "  %-20s%s\n", name, str ? str : "");
+}
+
+static bool intel_pt_has(struct auxtrace_info_event *auxtrace_info, int pos)
+{
+	return auxtrace_info->header.size >=
+		sizeof(struct auxtrace_info_event) + (sizeof(u64) * (pos + 1));
+}
+
 int intel_pt_process_auxtrace_info(union perf_event *event,
 				   struct perf_session *session)
 {
 	struct auxtrace_info_event *auxtrace_info = &event->auxtrace_info;
 	size_t min_sz = sizeof(u64) * INTEL_PT_PER_CPU_MMAPS;
 	struct intel_pt *pt;
+	void *info_end;
+	u64 *info;
 	int err;
 
 	if (auxtrace_info->header.size < sizeof(struct auxtrace_info_event) +
@@ -2045,7 +2157,11 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (!pt)
 		return -ENOMEM;
 
-	perf_config(intel_pt_perf_config, pt);
+	addr_filters__init(&pt->filts);
+
+	err = perf_config(intel_pt_perf_config, pt);
+	if (err)
+		goto err_free;
 
 	err = auxtrace_queues__init(&pt->queues);
 	if (err)
@@ -2069,8 +2185,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	intel_pt_print_info(&auxtrace_info->priv[0], INTEL_PT_PMU_TYPE,
 			    INTEL_PT_PER_CPU_MMAPS);
 
-	if (auxtrace_info->header.size >= sizeof(struct auxtrace_info_event) +
-					(sizeof(u64) * INTEL_PT_CYC_BIT)) {
+	if (intel_pt_has(auxtrace_info, INTEL_PT_CYC_BIT)) {
 		pt->mtc_bit = auxtrace_info->priv[INTEL_PT_MTC_BIT];
 		pt->mtc_freq_bits = auxtrace_info->priv[INTEL_PT_MTC_FREQ_BITS];
 		pt->tsc_ctc_ratio_n = auxtrace_info->priv[INTEL_PT_TSC_CTC_N];
@@ -2078,6 +2193,54 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pt->cyc_bit = auxtrace_info->priv[INTEL_PT_CYC_BIT];
 		intel_pt_print_info(&auxtrace_info->priv[0], INTEL_PT_MTC_BIT,
 				    INTEL_PT_CYC_BIT);
+	}
+
+	if (intel_pt_has(auxtrace_info, INTEL_PT_MAX_NONTURBO_RATIO)) {
+		pt->max_non_turbo_ratio =
+			auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO];
+		intel_pt_print_info(&auxtrace_info->priv[0],
+				    INTEL_PT_MAX_NONTURBO_RATIO,
+				    INTEL_PT_MAX_NONTURBO_RATIO);
+	}
+
+	info = &auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] + 1;
+	info_end = (void *)info + auxtrace_info->header.size;
+
+	if (intel_pt_has(auxtrace_info, INTEL_PT_FILTER_STR_LEN)) {
+		size_t len;
+
+		len = auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN];
+		intel_pt_print_info(&auxtrace_info->priv[0],
+				    INTEL_PT_FILTER_STR_LEN,
+				    INTEL_PT_FILTER_STR_LEN);
+		if (len) {
+			const char *filter = (const char *)info;
+
+			len = roundup(len + 1, 8);
+			info += len >> 3;
+			if ((void *)info > info_end) {
+				pr_err("%s: bad filter string length\n", __func__);
+				err = -EINVAL;
+				goto err_free_queues;
+			}
+			pt->filter = memdup(filter, len);
+			if (!pt->filter) {
+				err = -ENOMEM;
+				goto err_free_queues;
+			}
+			if (session->header.needs_swap)
+				mem_bswap_64(pt->filter, len);
+			if (pt->filter[len - 1]) {
+				pr_err("%s: filter string not null terminated\n", __func__);
+				err = -EINVAL;
+				goto err_free_queues;
+			}
+			err = addr_filters__parse_bare_filter(&pt->filts,
+							      filter);
+			if (err)
+				goto err_free_queues;
+		}
+		intel_pt_print_info_str("Filter string", pt->filter);
 	}
 
 	pt->timeless_decoding = intel_pt_timeless_decoding(pt);
@@ -2121,11 +2284,13 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pt->switch_evsel = intel_pt_find_sched_switch(session->evlist);
 		if (!pt->switch_evsel) {
 			pr_err("%s: missing sched_switch event\n", __func__);
+			err = -EINVAL;
 			goto err_delete_thread;
 		}
 	} else if (pt->have_sched_switch == 2 &&
 		   !intel_pt_find_switch(session->evlist)) {
 		pr_err("%s: missing context_switch attribute flag\n", __func__);
+		err = -EINVAL;
 		goto err_delete_thread;
 	}
 
@@ -2149,7 +2314,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (pt->tc.time_mult) {
 		u64 tsc_freq = intel_pt_ns_to_ticks(pt, 1000000000);
 
-		pt->max_non_turbo_ratio = (tsc_freq + 50000000) / 100000000;
+		if (!pt->max_non_turbo_ratio)
+			pt->max_non_turbo_ratio =
+					(tsc_freq + 50000000) / 100000000;
 		intel_pt_log("TSC frequency %"PRIu64"\n", tsc_freq);
 		intel_pt_log("Maximum non-turbo ratio %u\n",
 			     pt->max_non_turbo_ratio);
@@ -2193,6 +2360,8 @@ err_free_queues:
 	auxtrace_queues__free(&pt->queues);
 	session->auxtrace = NULL;
 err_free:
+	addr_filters__exit(&pt->filts);
+	zfree(&pt->filter);
 	free(pt);
 	return err;
 }

@@ -53,6 +53,8 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_10G_BASE_T4:
 		case I40E_DEV_ID_20G_KR2:
 		case I40E_DEV_ID_20G_KR2_A:
+		case I40E_DEV_ID_25G_B:
+		case I40E_DEV_ID_25G_SFP28:
 			hw->mac.type = I40E_MAC_XL710;
 			break;
 		case I40E_DEV_ID_SFP_X722:
@@ -62,7 +64,6 @@ i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 			hw->mac.type = I40E_MAC_X722;
 			break;
 		case I40E_DEV_ID_X722_VF:
-		case I40E_DEV_ID_X722_VF_HV:
 			hw->mac.type = I40E_MAC_X722_VF;
 			break;
 		case I40E_DEV_ID_VF:
@@ -302,9 +303,7 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
-	u16 len = le16_to_cpu(aq_desc->datalen);
 	u8 *buf = (u8 *)buffer;
-	u16 i = 0;
 
 	if ((!(mask & hw->debug_mask)) || (desc == NULL))
 		return;
@@ -326,16 +325,24 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if ((buffer != NULL) && (aq_desc->datalen != 0)) {
+		u16 len = le16_to_cpu(aq_desc->datalen);
+
 		i40e_debug(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
 		/* write the full 16-byte chunks */
-		for (i = 0; i < (len - 16); i += 16)
-			i40e_debug(hw, mask, "\t0x%04X  %16ph\n", i, buf + i);
-		/* write whatever's left over without overrunning the buffer */
-		if (i < len)
-			i40e_debug(hw, mask, "\t0x%04X  %*ph\n",
-					     i, len - i, buf + i);
+		if (hw->debug_mask & mask) {
+			char prefix[20];
+
+			snprintf(prefix, 20,
+				 "i40evf %02x:%02x.%x: \t0x",
+				 hw->bus.bus_id,
+				 hw->bus.device,
+				 hw->bus.func);
+
+			print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_OFFSET,
+				       16, 1, buf, len, false);
+		}
 	}
 }
 

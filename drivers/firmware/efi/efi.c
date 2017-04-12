@@ -23,10 +23,14 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/io.h>
+#include <linux/kexec.h>
 #include <linux/platform_device.h>
+#include <linux/random.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/ucs2_string.h>
+#include <linux/memblock.h>
 
 #include <asm/early_ioremap.h>
 
@@ -47,6 +51,7 @@ struct efi __read_mostly efi = {
 	.esrt			= EFI_INVALID_TABLE_ADDR,
 	.properties_table	= EFI_INVALID_TABLE_ADDR,
 	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
+	.rng_seed		= EFI_INVALID_TABLE_ADDR,
 };
 EXPORT_SYMBOL(efi);
 
@@ -258,8 +263,10 @@ static __init int efivar_ssdt_load(void)
 		}
 
 		data = kmalloc(size, GFP_KERNEL);
-		if (!data)
+		if (!data) {
+			ret = -ENOMEM;
 			goto free_entry;
+		}
 
 		ret = efivar_entry_get(entry, NULL, &size, data);
 		if (ret) {
@@ -347,56 +354,31 @@ subsys_initcall(efisubsys_init);
 
 /*
  * Find the efi memory descriptor for a given physical address.  Given a
- * physicall address, determine if it exists within an EFI Memory Map entry,
+ * physical address, determine if it exists within an EFI Memory Map entry,
  * and if so, populate the supplied memory descriptor with the appropriate
  * data.
  */
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
-	struct efi_memory_map *map = &efi.memmap;
-	phys_addr_t p, e;
+	efi_memory_desc_t *md;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
 		pr_err_once("EFI_MEMMAP is not enabled.\n");
 		return -EINVAL;
 	}
 
-	if (!map) {
-		pr_err_once("efi.memmap is not set.\n");
-		return -EINVAL;
-	}
 	if (!out_md) {
 		pr_err_once("out_md is null.\n");
 		return -EINVAL;
         }
-	if (WARN_ON_ONCE(!map->phys_map))
-		return -EINVAL;
-	if (WARN_ON_ONCE(map->nr_map == 0) || WARN_ON_ONCE(map->desc_size == 0))
-		return -EINVAL;
 
-	e = map->phys_map + map->nr_map * map->desc_size;
-	for (p = map->phys_map; p < e; p += map->desc_size) {
-		efi_memory_desc_t *md;
+	for_each_efi_memory_desc(md) {
 		u64 size;
 		u64 end;
-
-		/*
-		 * If a driver calls this after efi_free_boot_services,
-		 * ->map will be NULL, and the target may also not be mapped.
-		 * So just always get our own virtual map on the CPU.
-		 *
-		 */
-		md = early_memremap(p, sizeof (*md));
-		if (!md) {
-			pr_err_once("early_memremap(%pa, %zu) failed.\n",
-				    &p, sizeof (*md));
-			return -ENOMEM;
-		}
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
 		    md->type != EFI_BOOT_SERVICES_DATA &&
 		    md->type != EFI_RUNTIME_SERVICES_DATA) {
-			early_memunmap(md, sizeof (*md));
 			continue;
 		}
 
@@ -404,13 +386,9 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		end = md->phys_addr + size;
 		if (phys_addr >= md->phys_addr && phys_addr < end) {
 			memcpy(out_md, md, sizeof(*out_md));
-			early_memunmap(md, sizeof (*md));
 			return 0;
 		}
-
-		early_memunmap(md, sizeof (*md));
 	}
-	pr_err_once("requested map not found.\n");
 	return -ENOENT;
 }
 
@@ -422,6 +400,35 @@ u64 __init efi_mem_desc_end(efi_memory_desc_t *md)
 	u64 size = md->num_pages << EFI_PAGE_SHIFT;
 	u64 end = md->phys_addr + size;
 	return end;
+}
+
+void __init __weak efi_arch_mem_reserve(phys_addr_t addr, u64 size) {}
+
+/**
+ * efi_mem_reserve - Reserve an EFI memory region
+ * @addr: Physical address to reserve
+ * @size: Size of reservation
+ *
+ * Mark a region as reserved from general kernel allocation and
+ * prevent it being released by efi_free_boot_services().
+ *
+ * This function should be called drivers once they've parsed EFI
+ * configuration tables to figure out where their data lives, e.g.
+ * efi_esrt_init().
+ */
+void __init efi_mem_reserve(phys_addr_t addr, u64 size)
+{
+	if (!memblock_is_region_reserved(addr, size))
+		memblock_reserve(addr, size);
+
+	/*
+	 * Some architectures (x86) reserve all boot services ranges
+	 * until efi_free_boot_services() because of buggy firmware
+	 * implementations. This means the above memblock_reserve() is
+	 * superfluous on x86 and instead what it needs to do is
+	 * ensure the @start, @size is not freed.
+	 */
+	efi_arch_mem_reserve(addr, size);
 }
 
 static __initdata efi_config_table_type_t common_tables[] = {
@@ -436,6 +443,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
 	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
+	{LINUX_EFI_RANDOM_SEED_TABLE_GUID, "RNG", &efi.rng_seed},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -496,6 +504,31 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 	}
 	pr_cont("\n");
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
+
+	if (efi.rng_seed != EFI_INVALID_TABLE_ADDR) {
+		struct linux_efi_random_seed *seed;
+		u32 size = 0;
+
+		seed = early_memremap(efi.rng_seed, sizeof(*seed));
+		if (seed != NULL) {
+			size = seed->size;
+			early_memunmap(seed, sizeof(*seed));
+		} else {
+			pr_err("Could not map UEFI random seed!\n");
+		}
+		if (size > 0) {
+			seed = early_memremap(efi.rng_seed,
+					      sizeof(*seed) + size);
+			if (seed != NULL) {
+				add_device_randomness(seed->bits, seed->size);
+				early_memunmap(seed, sizeof(*seed) + size);
+			} else {
+				pr_err("Could not map UEFI random seed!\n");
+			}
+		}
+	}
+
+	efi_memattr_init();
 
 	/* Parse the EFI Properties table if it exists */
 	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
@@ -811,9 +844,56 @@ int efi_status_to_err(efi_status_t status)
 	case EFI_NOT_FOUND:
 		err = -ENOENT;
 		break;
+	case EFI_ABORTED:
+		err = -EINTR;
+		break;
 	default:
 		err = -EINVAL;
 	}
 
 	return err;
 }
+
+#ifdef CONFIG_KEXEC
+static int update_efi_random_seed(struct notifier_block *nb,
+				  unsigned long code, void *unused)
+{
+	struct linux_efi_random_seed *seed;
+	u32 size = 0;
+
+	if (!kexec_in_progress)
+		return NOTIFY_DONE;
+
+	seed = memremap(efi.rng_seed, sizeof(*seed), MEMREMAP_WB);
+	if (seed != NULL) {
+		size = min(seed->size, 32U);
+		memunmap(seed);
+	} else {
+		pr_err("Could not map UEFI random seed!\n");
+	}
+	if (size > 0) {
+		seed = memremap(efi.rng_seed, sizeof(*seed) + size,
+				MEMREMAP_WB);
+		if (seed != NULL) {
+			seed->size = size;
+			get_random_bytes(seed->bits, seed->size);
+			memunmap(seed);
+		} else {
+			pr_err("Could not map UEFI random seed!\n");
+		}
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block efi_random_seed_nb = {
+	.notifier_call = update_efi_random_seed,
+};
+
+static int register_update_efi_random_seed(void)
+{
+	if (efi.rng_seed == EFI_INVALID_TABLE_ADDR)
+		return 0;
+	return register_reboot_notifier(&efi_random_seed_nb);
+}
+late_initcall(register_update_efi_random_seed);
+#endif

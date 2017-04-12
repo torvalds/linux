@@ -12,6 +12,8 @@
 #include <linux/bcma/bcma.h>
 #include <linux/etherdevice.h>
 #include <linux/bcm47xx_nvram.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include "bgmac.h"
 
 static bool bgmac_wait_value(struct bgmac *bgmac, u16 reg, u32 mask,
@@ -307,6 +309,10 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_CTL);
+
+	/* preserve ONLY bits 16-17 from current hardware value */
+	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
+
 	if (bgmac->feature_flags & BGMAC_FEAT_RX_MASK_SETUP) {
 		ctl &= ~BGMAC_DMA_RX_BL_MASK;
 		ctl |= BGMAC_DMA_RX_BL_128 << BGMAC_DMA_RX_BL_SHIFT;
@@ -317,7 +323,6 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 		ctl &= ~BGMAC_DMA_RX_PT_MASK;
 		ctl |= BGMAC_DMA_RX_PT_1 << BGMAC_DMA_RX_PT_SHIFT;
 	}
-	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
 	ctl |= BGMAC_DMA_RX_ENABLE;
 	ctl |= BGMAC_DMA_RX_PARITY_DISABLE;
 	ctl |= BGMAC_DMA_RX_OVERFLOW_CONT;
@@ -932,7 +937,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			et_swtype <<= 4;
 			sw_type = et_swtype;
 		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_EPHYRMII) {
-			sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
+			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RMII |
+				  BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
 		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_RGMII) {
 			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RGMII |
 				  BGMAC_CHIPCTL_1_SW_TYPE_RGMII;
@@ -940,6 +946,27 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~(BGMAC_CHIPCTL_1_IF_TYPE_MASK |
 						  BGMAC_CHIPCTL_1_SW_TYPE_MASK),
 				      sw_type);
+	} else if (bgmac->feature_flags & BGMAC_FEAT_CC4_IF_SW_TYPE) {
+		u32 sw_type = BGMAC_CHIPCTL_4_IF_TYPE_MII |
+			      BGMAC_CHIPCTL_4_SW_TYPE_EPHY;
+		u8 et_swtype = 0;
+		char buf[4];
+
+		if (bcm47xx_nvram_getenv("et_swtype", buf, sizeof(buf)) > 0) {
+			if (kstrtou8(buf, 0, &et_swtype))
+				dev_err(bgmac->dev, "Failed to parse et_swtype (%s)\n",
+					buf);
+			sw_type = (et_swtype & 0x0f) << 12;
+		} else if (bgmac->feature_flags & BGMAC_FEAT_CC4_IF_SW_TYPE_RGMII) {
+			sw_type = BGMAC_CHIPCTL_4_IF_TYPE_RGMII |
+				  BGMAC_CHIPCTL_4_SW_TYPE_RGMII;
+		}
+		bgmac_cco_ctl_maskset(bgmac, 4, ~(BGMAC_CHIPCTL_4_IF_TYPE_MASK |
+						  BGMAC_CHIPCTL_4_SW_TYPE_MASK),
+				      sw_type);
+	} else if (bgmac->feature_flags & BGMAC_FEAT_CC7_IF_TYPE_RGMII) {
+		bgmac_cco_ctl_maskset(bgmac, 7, ~BGMAC_CHIPCTL_7_IF_TYPE_MASK,
+				      BGMAC_CHIPCTL_7_IF_TYPE_RGMII);
 	}
 
 	if (iost & BGMAC_BCMA_IOST_ATTACHED && !bgmac->has_robosw)
@@ -1026,7 +1053,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 		BGMAC_DS_MM_SHIFT;
 	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST || mode != 0)
 		bgmac_set(bgmac, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT);
-	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST && mode == 2)
+	if (!(bgmac->feature_flags & BGMAC_FEAT_CLKCTLST) && mode == 2)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~0,
 				      BGMAC_CHIPCTL_1_RXC_DLL_BYPASS);
 
@@ -1060,6 +1087,9 @@ static void bgmac_enable(struct bgmac *bgmac)
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipinit */
 static void bgmac_chip_init(struct bgmac *bgmac)
 {
+	/* Clear any erroneously pending interrupts */
+	bgmac_write(bgmac, BGMAC_INT_STATUS, ~0);
+
 	/* 1 interrupt per received frame */
 	bgmac_write(bgmac, BGMAC_INT_RECV_LAZY, 1 << BGMAC_IRL_FC_SHIFT);
 
@@ -1120,7 +1150,7 @@ static int bgmac_poll(struct napi_struct *napi, int weight)
 		return weight;
 
 	if (handled < weight) {
-		napi_complete(napi);
+		napi_complete_done(napi, handled);
 		bgmac_chip_intrs_on(bgmac);
 	}
 
@@ -1193,12 +1223,16 @@ static netdev_tx_t bgmac_start_xmit(struct sk_buff *skb,
 static int bgmac_set_mac_address(struct net_device *net_dev, void *addr)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
+	struct sockaddr *sa = addr;
 	int ret;
 
 	ret = eth_prepare_mac_addr_change(net_dev, addr);
 	if (ret < 0)
 		return ret;
-	bgmac_write_mac_address(bgmac, (u8 *)addr);
+
+	ether_addr_copy(net_dev->dev_addr, sa->sa_data);
+	bgmac_write_mac_address(bgmac, net_dev->dev_addr);
+
 	eth_commit_mac_addr_change(net_dev, addr);
 	return 0;
 }
@@ -1366,7 +1400,7 @@ static const struct ethtool_ops bgmac_ethtool_ops = {
  * MII
  **************************************************/
 
-static void bgmac_adjust_link(struct net_device *net_dev)
+void bgmac_adjust_link(struct net_device *net_dev)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
 	struct phy_device *phy_dev = net_dev->phydev;
@@ -1389,8 +1423,9 @@ static void bgmac_adjust_link(struct net_device *net_dev)
 		phy_print_status(phy_dev);
 	}
 }
+EXPORT_SYMBOL_GPL(bgmac_adjust_link);
 
-static int bgmac_phy_connect_direct(struct bgmac *bgmac)
+int bgmac_phy_connect_direct(struct bgmac *bgmac)
 {
 	struct fixed_phy_status fphy_status = {
 		.link = 1,
@@ -1415,64 +1450,60 @@ static int bgmac_phy_connect_direct(struct bgmac *bgmac)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(bgmac_phy_connect_direct);
 
-static int bgmac_phy_connect(struct bgmac *bgmac)
-{
-	struct phy_device *phy_dev;
-	char bus_id[MII_BUS_ID_SIZE + 3];
-
-	/* Connect to the PHY */
-	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
-		 bgmac->phyaddr);
-	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
-			      PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(phy_dev)) {
-		dev_err(bgmac->dev, "PHY connecton failed\n");
-		return PTR_ERR(phy_dev);
-	}
-
-	return 0;
-}
-
-int bgmac_enet_probe(struct bgmac *info)
+struct bgmac *bgmac_alloc(struct device *dev)
 {
 	struct net_device *net_dev;
 	struct bgmac *bgmac;
-	int err;
 
 	/* Allocation and references */
-	net_dev = alloc_etherdev(sizeof(*bgmac));
+	net_dev = devm_alloc_etherdev(dev, sizeof(*bgmac));
 	if (!net_dev)
-		return -ENOMEM;
+		return NULL;
 
 	net_dev->netdev_ops = &bgmac_netdev_ops;
 	net_dev->ethtool_ops = &bgmac_ethtool_ops;
+
 	bgmac = netdev_priv(net_dev);
-	memcpy(bgmac, info, sizeof(*bgmac));
+	bgmac->dev = dev;
 	bgmac->net_dev = net_dev;
+
+	return bgmac;
+}
+EXPORT_SYMBOL_GPL(bgmac_alloc);
+
+int bgmac_enet_probe(struct bgmac *bgmac)
+{
+	struct net_device *net_dev = bgmac->net_dev;
+	int err;
+
 	net_dev->irq = bgmac->irq;
 	SET_NETDEV_DEV(net_dev, bgmac->dev);
 
-	if (!is_valid_ether_addr(bgmac->mac_addr)) {
+	if (!is_valid_ether_addr(net_dev->dev_addr)) {
 		dev_err(bgmac->dev, "Invalid MAC addr: %pM\n",
-			bgmac->mac_addr);
-		eth_random_addr(bgmac->mac_addr);
+			net_dev->dev_addr);
+		eth_hw_addr_random(net_dev);
 		dev_warn(bgmac->dev, "Using random MAC: %pM\n",
-			 bgmac->mac_addr);
+			 net_dev->dev_addr);
 	}
-	ether_addr_copy(net_dev->dev_addr, bgmac->mac_addr);
 
 	/* This (reset &) enable is not preset in specs or reference driver but
 	 * Broadcom does it in arch PCI code when enabling fake PCI device.
 	 */
 	bgmac_clk_enable(bgmac, 0);
 
+	/* This seems to be fixing IRQ by assigning OOB #6 to the core */
+	if (bgmac->feature_flags & BGMAC_FEAT_IRQ_ID_OOB_6)
+		bgmac_idm_write(bgmac, BCMA_OOB_SEL_OUT_A30, 0x86);
+
 	bgmac_chip_reset(bgmac);
 
 	err = bgmac_dma_alloc(bgmac);
 	if (err) {
 		dev_err(bgmac->dev, "Unable to alloc memory for DMA\n");
-		goto err_netdev_free;
+		goto err_out;
 	}
 
 	bgmac->int_mask = BGMAC_IS_ERRMASK | BGMAC_IS_RX | BGMAC_IS_TX_MASK;
@@ -1481,10 +1512,7 @@ int bgmac_enet_probe(struct bgmac *info)
 
 	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
-	if (!bgmac->mii_bus)
-		err = bgmac_phy_connect_direct(bgmac);
-	else
-		err = bgmac_phy_connect(bgmac);
+	err = bgmac_phy_connect(bgmac);
 	if (err) {
 		dev_err(bgmac->dev, "Cannot connect to phy\n");
 		goto err_dma_free;
@@ -1508,8 +1536,7 @@ err_phy_disconnect:
 	phy_disconnect(net_dev->phydev);
 err_dma_free:
 	bgmac_dma_free(bgmac);
-err_netdev_free:
-	free_netdev(net_dev);
+err_out:
 
 	return err;
 }

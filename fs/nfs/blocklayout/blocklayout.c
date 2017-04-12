@@ -344,9 +344,10 @@ static void bl_write_cleanup(struct work_struct *work)
 		u64 start = hdr->args.offset & (loff_t)PAGE_MASK;
 		u64 end = (hdr->args.offset + hdr->args.count +
 			PAGE_SIZE - 1) & (loff_t)PAGE_MASK;
+		u64 lwb = hdr->args.offset + hdr->args.count;
 
 		ext_tree_mark_written(bl, start >> SECTOR_SHIFT,
-					(end - start) >> SECTOR_SHIFT, end);
+					(end - start) >> SECTOR_SHIFT, lwb);
 	}
 
 	pnfs_ld_write_done(hdr);
@@ -380,7 +381,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	struct blk_plug plug;
 	int i;
 
-	dprintk("%s enter, %Zu@%lld\n", __func__, count, offset);
+	dprintk("%s enter, %zu@%lld\n", __func__, count, offset);
 
 	/* At this point, header->page_aray is a (sequential) list of nfs_pages.
 	 * We want to write each, and if there is an error set pnfs_error

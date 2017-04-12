@@ -39,7 +39,7 @@
  * chooses what to send (buffer address, length). The destination
  * side keeps a supply of "anonymous receive buffers" available and
  * it handles incoming data as it arrives (when the destination
- * recieves an interrupt).
+ * receives an interrupt).
  *
  * The sender may send a simple buffer (address/length) or it may
  * send a small list of buffers.  When a small list is sent, hardware
@@ -433,6 +433,13 @@ void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries)
 	unsigned int nentries_mask = dest_ring->nentries_mask;
 	unsigned int write_index = dest_ring->write_index;
 	u32 ctrl_addr = pipe->ctrl_addr;
+	u32 cur_write_idx = ath10k_ce_dest_ring_write_index_get(ar, ctrl_addr);
+
+	/* Prevent CE ring stuck issue that will occur when ring is full.
+	 * Make sure that write index is 1 less than read index.
+	 */
+	if ((cur_write_idx + nentries)  == dest_ring->sw_index)
+		nentries -= 1;
 
 	write_index = CE_RING_IDX_ADD(nentries_mask, write_index, nentries);
 	ath10k_ce_dest_ring_write_index_set(ar, ctrl_addr, write_index);
@@ -840,7 +847,7 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	ath10k_ce_src_ring_highmark_set(ar, ctrl_addr, nentries);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot init ce src ring id %d entries %d base_addr %p\n",
+		   "boot init ce src ring id %d entries %d base_addr %pK\n",
 		   ce_id, nentries, src_ring->base_addr_owner_space);
 
 	return 0;
@@ -874,7 +881,7 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 	ath10k_ce_dest_ring_highmark_set(ar, ctrl_addr, nentries);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot ce dest ring id %d entries %d base_addr %p\n",
+		   "boot ce dest ring id %d entries %d base_addr %pK\n",
 		   ce_id, nentries, dest_ring->base_addr_owner_space);
 
 	return 0;
@@ -951,23 +958,16 @@ ath10k_ce_alloc_dest_ring(struct ath10k *ar, unsigned int ce_id,
 	 * coherent DMA are unsupported
 	 */
 	dest_ring->base_addr_owner_space_unaligned =
-		dma_alloc_coherent(ar->dev,
-				   (nentries * sizeof(struct ce_desc) +
-				    CE_DESC_RING_ALIGN),
-				   &base_addr, GFP_KERNEL);
+		dma_zalloc_coherent(ar->dev,
+				    (nentries * sizeof(struct ce_desc) +
+				     CE_DESC_RING_ALIGN),
+				    &base_addr, GFP_KERNEL);
 	if (!dest_ring->base_addr_owner_space_unaligned) {
 		kfree(dest_ring);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	dest_ring->base_addr_ce_space_unaligned = base_addr;
-
-	/*
-	 * Correctly initialize memory to 0 to prevent garbage
-	 * data crashing system when download firmware
-	 */
-	memset(dest_ring->base_addr_owner_space_unaligned, 0,
-	       nentries * sizeof(struct ce_desc) + CE_DESC_RING_ALIGN);
 
 	dest_ring->base_addr_owner_space = PTR_ALIGN(
 			dest_ring->base_addr_owner_space_unaligned,
@@ -1122,4 +1122,43 @@ void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id)
 
 	ce_state->src_ring = NULL;
 	ce_state->dest_ring = NULL;
+}
+
+void ath10k_ce_dump_registers(struct ath10k *ar,
+			      struct ath10k_fw_crash_data *crash_data)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_ce_crash_data ce;
+	u32 addr, id;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	ath10k_err(ar, "Copy Engine register dump:\n");
+
+	spin_lock_bh(&ar_pci->ce_lock);
+	for (id = 0; id < CE_COUNT; id++) {
+		addr = ath10k_ce_base_address(ar, id);
+		ce.base_addr = cpu_to_le32(addr);
+
+		ce.src_wr_idx =
+			cpu_to_le32(ath10k_ce_src_ring_write_index_get(ar, addr));
+		ce.src_r_idx =
+			cpu_to_le32(ath10k_ce_src_ring_read_index_get(ar, addr));
+		ce.dst_wr_idx =
+			cpu_to_le32(ath10k_ce_dest_ring_write_index_get(ar, addr));
+		ce.dst_r_idx =
+			cpu_to_le32(ath10k_ce_dest_ring_read_index_get(ar, addr));
+
+		if (crash_data)
+			crash_data->ce_crash_data[id] = ce;
+
+		ath10k_err(ar, "[%02d]: 0x%08x %3u %3u %3u %3u", id,
+			   le32_to_cpu(ce.base_addr),
+			   le32_to_cpu(ce.src_wr_idx),
+			   le32_to_cpu(ce.src_r_idx),
+			   le32_to_cpu(ce.dst_wr_idx),
+			   le32_to_cpu(ce.dst_r_idx));
+	}
+
+	spin_unlock_bh(&ar_pci->ce_lock);
 }

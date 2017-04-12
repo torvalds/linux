@@ -14,8 +14,10 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -317,7 +319,7 @@ static struct sysrq_key_op sysrq_ftrace_dump_op = {
 
 static void sysrq_handle_showmem(int key)
 {
-	show_mem(0);
+	show_mem(0, NULL);
 }
 static struct sysrq_key_op sysrq_showmem_op = {
 	.handler	= sysrq_handle_showmem,
@@ -946,8 +948,8 @@ static const struct input_device_id sysrq_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 				INPUT_DEVICE_ID_MATCH_KEYBIT,
-		.evbit = { BIT_MASK(EV_KEY) },
-		.keybit = { BIT_MASK(KEY_LEFTALT) },
+		.evbit = { [BIT_WORD(EV_KEY)] = BIT_MASK(EV_KEY) },
+		.keybit = { [BIT_WORD(KEY_LEFTALT)] = BIT_MASK(KEY_LEFTALT) },
 	},
 	{ },
 };

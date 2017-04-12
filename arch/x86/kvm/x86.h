@@ -148,11 +148,6 @@ static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
 	return kvm_register_write(vcpu, reg, val);
 }
 
-static inline u64 get_kernel_ns(void)
-{
-	return ktime_get_boot_ns();
-}
-
 static inline bool kvm_check_has_quirk(struct kvm *kvm, u64 quirk)
 {
 	return !(kvm->arch.disabled_quirks & quirk);
@@ -164,6 +159,7 @@ void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
 int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
 
 void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr);
+u64 get_kvmclock_ns(struct kvm *kvm);
 
 int kvm_read_guest_virt(struct x86_emulate_ctxt *ctxt,
 	gva_t addr, void *val, unsigned int bytes,

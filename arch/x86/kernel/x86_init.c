@@ -89,9 +89,8 @@ struct x86_cpuinit_ops x86_cpuinit = {
 };
 
 static void default_nmi_init(void) { };
-static int default_i8042_detect(void) { return 1; };
 
-struct x86_platform_ops x86_platform = {
+struct x86_platform_ops x86_platform __ro_after_init = {
 	.calibrate_cpu			= native_calibrate_cpu,
 	.calibrate_tsc			= native_calibrate_tsc,
 	.get_wallclock			= mach_get_cmos_time,
@@ -100,7 +99,6 @@ struct x86_platform_ops x86_platform = {
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
 	.get_nmi_reason			= default_get_nmi_reason,
-	.i8042_detect			= default_i8042_detect,
 	.save_sched_clock_state 	= tsc_save_sched_clock_state,
 	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
 };
@@ -108,7 +106,7 @@ struct x86_platform_ops x86_platform = {
 EXPORT_SYMBOL_GPL(x86_platform);
 
 #if defined(CONFIG_PCI_MSI)
-struct x86_msi_ops x86_msi = {
+struct x86_msi_ops x86_msi __ro_after_init = {
 	.setup_msi_irqs		= native_setup_msi_irqs,
 	.teardown_msi_irq	= native_teardown_msi_irq,
 	.teardown_msi_irqs	= default_teardown_msi_irqs,
@@ -137,7 +135,7 @@ void arch_restore_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-struct x86_io_apic_ops x86_io_apic_ops = {
+struct x86_io_apic_ops x86_io_apic_ops __ro_after_init = {
 	.read			= native_io_apic_read,
 	.disable		= native_disable_io_apic,
 };

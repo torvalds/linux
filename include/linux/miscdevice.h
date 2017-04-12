@@ -3,6 +3,7 @@
 #include <linux/major.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/device.h>
 
 /*
  *	These allocations are managed by device@lanana.org. If you use an
@@ -21,6 +22,7 @@
 /*#define ADB_MOUSE_MINOR	10	FIXME OBSOLETE */
 #define WATCHDOG_MINOR		130	/* Watchdog timer     */
 #define TEMP_MINOR		131	/* Temperature Sensor */
+#define APM_MINOR_DEV		134
 #define RTC_MINOR		135
 #define EFI_RTC_MINOR		136	/* EFI Time services */
 #define VHCI_MINOR		137
@@ -30,7 +32,9 @@
 #define SGI_MMTIMER		153
 #define STORE_QUEUE_MINOR	155	/* unused */
 #define I2O_MINOR		166
+#define HWRNG_MINOR		183
 #define MICROCODE_MINOR		184
+#define IRNET_MINOR		187
 #define VFIO_MINOR		196
 #define TUN_MINOR		200
 #define CUSE_MINOR		203
@@ -69,6 +73,20 @@ struct miscdevice  {
 
 extern int misc_register(struct miscdevice *misc);
 extern void misc_deregister(struct miscdevice *misc);
+
+/*
+ * Helper macro for drivers that don't do anything special in the initcall.
+ * This helps in eleminating of boilerplate code.
+ */
+#define builtin_misc_device(__misc_device) \
+	builtin_driver(__misc_device, misc_register)
+
+/*
+ * Helper macro for drivers that don't do anything special in module init / exit
+ * call. This helps in eleminating of boilerplate code.
+ */
+#define module_misc_device(__misc_device) \
+	module_driver(__misc_device, misc_register, misc_deregister)
 
 #define MODULE_ALIAS_MISCDEV(minor)				\
 	MODULE_ALIAS("char-major-" __stringify(MISC_MAJOR)	\

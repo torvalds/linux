@@ -110,6 +110,7 @@ MADV_HUGEPAGE region.
 
 echo always >/sys/kernel/mm/transparent_hugepage/defrag
 echo defer >/sys/kernel/mm/transparent_hugepage/defrag
+echo defer+madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
 
@@ -120,9 +121,14 @@ that benefit heavily from THP use and are willing to delay the VM start
 to utilise them.
 
 "defer" means that an application will wake kswapd in the background
-to reclaim pages and wake kcompact to compact memory so that THP is
+to reclaim pages and wake kcompactd to compact memory so that THP is
 available in the near future. It's the responsibility of khugepaged
 to then install the THP pages later.
+
+"defer+madvise" will enter direct reclaim and compaction like "always", but
+only for regions that have used madvise(MADV_HUGEPAGE); all other regions
+will wake kswapd in the background to reclaim pages and wake kcompactd to
+compact memory so that THP is available in the near future.
 
 "madvise" will enter direct reclaim like "always" but only for regions
 that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
@@ -135,6 +141,11 @@ or enable it back by writing 1:
 
 echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
 echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+
+Some userspace (such as a test program, or an optimized memory allocation
+library) may want to know the size (in bytes) of a transparent hugepage:
+
+cat /sys/kernel/mm/transparent_hugepage/hpage_pmd_size
 
 khugepaged will be automatically started when
 transparent_hugepage/enabled is set to "always" or "madvise, and it'll
@@ -291,7 +302,7 @@ thp_split_page is incremented every time a huge page is split into base
 	reason is that a huge page is old and is being reclaimed.
 	This action implies splitting all PMD the page mapped with.
 
-thp_split_page_failed is is incremented if kernel fails to split huge
+thp_split_page_failed is incremented if kernel fails to split huge
 	page. This can happen if the page was pinned by somebody.
 
 thp_deferred_split_page is incremented when a huge page is put onto split

@@ -280,6 +280,7 @@ static const DECLARE_TLV_DB_SCALE(voice_mix_tlv, -1200, 300, 0);
 static const DECLARE_TLV_DB_SCALE(pga_tlv, -1725, 75, 0);
 
 static const struct snd_kcontrol_new wm8753_snd_controls[] = {
+SOC_SINGLE("Hi-Fi DAC Left/Right channel Swap", WM8753_HIFI, 5, 1, 0),
 SOC_DOUBLE_R_TLV("PCM Volume", WM8753_LDAC, WM8753_RDAC, 0, 255, 0, dac_tlv),
 
 SOC_DOUBLE_R_TLV("ADC Capture Volume", WM8753_LADC, WM8753_RADC, 0, 255, 0,
@@ -1087,7 +1088,7 @@ static int wm8753_i2s_set_dai_fmt(struct snd_soc_codec *codec,
 {
 	u16 ioctl, hifi;
 
-	hifi = snd_soc_read(codec, WM8753_HIFI) & 0x011f;
+	hifi = snd_soc_read(codec, WM8753_HIFI) & 0x013f;
 	ioctl = snd_soc_read(codec, WM8753_IOCTL) & 0x00ae;
 
 	/* set master/slave audio interface */
@@ -1478,18 +1479,20 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
 	.probe =	wm8753_probe,
 	.resume =	wm8753_resume,
 	.set_bias_level = wm8753_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8753_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8753_snd_controls),
-	.dapm_widgets = wm8753_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8753_dapm_widgets),
-	.dapm_routes = wm8753_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8753_dapm_routes),
+	.component_driver = {
+		.controls		= wm8753_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8753_snd_controls),
+		.dapm_widgets		= wm8753_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8753_dapm_widgets),
+		.dapm_routes		= wm8753_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8753_dapm_routes),
+	},
 };
 
 static const struct of_device_id wm8753_of_match[] = {

@@ -8,7 +8,8 @@
 #define __S390_MMU_CONTEXT_H
 
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/mm_types.h>
 #include <asm/tlbflush.h>
 #include <asm/ctl_reg.h>
 
@@ -21,6 +22,7 @@ static inline int init_new_context(struct task_struct *tsk,
 	INIT_LIST_HEAD(&mm->context.gmap_list);
 	cpumask_clear(&mm->context.cpu_attach_mask);
 	atomic_set(&mm->context.flush_count, 0);
+	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
 #ifdef CONFIG_PGSTE
 	mm->context.alloc_pgste = page_table_allocate_pgste;
@@ -62,7 +64,7 @@ static inline void set_user_asce(struct mm_struct *mm)
 	S390_lowcore.user_asce = mm->context.asce;
 	if (current->thread.mm_segment.ar4)
 		__ctl_load(S390_lowcore.user_asce, 7, 7);
-	set_cpu_flag(CIF_ASCE);
+	set_cpu_flag(CIF_ASCE_PRIMARY);
 }
 
 static inline void clear_user_asce(void)
@@ -80,7 +82,7 @@ static inline void load_kernel_asce(void)
 	__ctl_store(asce, 1, 1);
 	if (asce != S390_lowcore.kernel_asce)
 		__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	set_cpu_flag(CIF_ASCE);
+	set_cpu_flag(CIF_ASCE_PRIMARY);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,

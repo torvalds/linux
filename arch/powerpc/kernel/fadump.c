@@ -333,6 +333,11 @@ int __init fadump_reserve_mem(void)
 	return 1;
 }
 
+unsigned long __init arch_reserved_kernel_pages(void)
+{
+	return memblock_reserved_size() / PAGE_SIZE;
+}
+
 /* Look for fadump= cmdline option. */
 static int __init early_fadump_param(char *p)
 {
@@ -401,12 +406,35 @@ static void register_fw_dump(struct fadump_mem_struct *fdm)
 void crash_fadump(struct pt_regs *regs, const char *str)
 {
 	struct fadump_crash_info_header *fdh = NULL;
+	int old_cpu, this_cpu;
 
 	if (!fw_dump.dump_registered || !fw_dump.fadumphdr_addr)
 		return;
 
+	/*
+	 * old_cpu == -1 means this is the first CPU which has come here,
+	 * go ahead and trigger fadump.
+	 *
+	 * old_cpu != -1 means some other CPU has already on it's way
+	 * to trigger fadump, just keep looping here.
+	 */
+	this_cpu = smp_processor_id();
+	old_cpu = cmpxchg(&crashing_cpu, -1, this_cpu);
+
+	if (old_cpu != -1) {
+		/*
+		 * We can't loop here indefinitely. Wait as long as fadump
+		 * is in force. If we race with fadump un-registration this
+		 * loop will break and then we go down to normal panic path
+		 * and reboot. If fadump is in force the first crashing
+		 * cpu will definitely trigger fadump.
+		 */
+		while (fw_dump.dump_registered)
+			cpu_relax();
+		return;
+	}
+
 	fdh = __va(fw_dump.fadumphdr_addr);
-	crashing_cpu = smp_processor_id();
 	fdh->crashing_cpu = crashing_cpu;
 	crash_save_vmcoreinfo();
 
@@ -778,7 +806,11 @@ static int fadump_init_elfcore_header(char *bufp)
 	elf->e_entry = 0;
 	elf->e_phoff = sizeof(struct elfhdr);
 	elf->e_shoff = 0;
-	elf->e_flags = ELF_CORE_EFLAGS;
+#if defined(_CALL_ELF)
+	elf->e_flags = _CALL_ELF;
+#else
+	elf->e_flags = 0;
+#endif
 	elf->e_ehsize = sizeof(struct elfhdr);
 	elf->e_phentsize = sizeof(struct elf_phdr);
 	elf->e_phnum = 0;
@@ -1104,7 +1136,9 @@ static ssize_t fadump_release_memory_store(struct kobject *kobj,
 		 * Take away the '/proc/vmcore'. We are releasing the dump
 		 * memory, hence it will not be valid anymore.
 		 */
+#ifdef CONFIG_PROC_VMCORE
 		vmcore_cleanup();
+#endif
 		fadump_invalidate_release_mem();
 
 	} else

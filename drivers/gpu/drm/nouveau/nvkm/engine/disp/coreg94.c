@@ -26,7 +26,7 @@
 
 #include <nvif/class.h>
 
-const struct nv50_disp_mthd_list
+static const struct nv50_disp_mthd_list
 g94_disp_core_mthd_sor = {
 	.mthd = 0x0040,
 	.addr = 0x000008,
@@ -43,8 +43,8 @@ g94_disp_core_chan_mthd = {
 	.prev = 0x000004,
 	.data = {
 		{ "Global", 1, &nv50_disp_core_mthd_base },
-		{    "DAC", 3, &g84_disp_core_mthd_dac  },
-		{    "SOR", 4, &g94_disp_core_mthd_sor  },
+		{    "DAC", 3, &g84_disp_core_mthd_dac },
+		{    "SOR", 4, &g94_disp_core_mthd_sor },
 		{   "PIOR", 3, &nv50_disp_core_mthd_pior },
 		{   "HEAD", 2, &g84_disp_core_mthd_head },
 		{}

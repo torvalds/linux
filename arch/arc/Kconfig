@@ -8,12 +8,13 @@
 
 config ARC
 	def_bool y
+	select ARC_TIMERS
+	select ARCH_HAS_SG_CHAIN
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
-	select CLKSRC_OF
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select GENERIC_ATOMIC64
+	select GENERIC_ATOMIC64 if !ISA_ARCV2 || !(ARC_HAS_LL64 && ARC_HAS_LLSC)
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_FIND_FIRST_BIT
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
@@ -28,7 +29,7 @@ config ARC
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_MEMBLOCK
-	select HAVE_MOD_ARCH_SPECIFIC if ARC_DW2_UNWIND
+	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HANDLE_DOMAIN_IRQ
@@ -41,6 +42,8 @@ config ARC
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZMA
 
 config MIGHT_HAVE_PCI
 	bool
@@ -113,6 +116,7 @@ config ISA_ARCOMPACT
 
 config ISA_ARCV2
 	bool "ARC ISA v2"
+	select ARC_TIMERS_64BIT
 	help
 	  ISA for the Next Generation ARC-HS cores
 
@@ -176,23 +180,11 @@ config CPU_BIG_ENDIAN
 config SMP
 	bool "Symmetric Multi-Processing"
 	default n
-	select ARC_HAS_COH_CACHES if ISA_ARCV2
 	select ARC_MCIP if ISA_ARCV2
 	help
 	  This enables support for systems with more than one CPU.
 
 if SMP
-
-config ARC_HAS_COH_CACHES
-	def_bool n
-
-config ARC_MCIP
-	bool "ARConnect Multicore IP (MCIP) Support "
-	depends on ISA_ARCV2
-	help
-	  This IP block enables SMP in ARC-HS38 cores.
-	  It provides for cross-core interrupts, multi-core debug
-	  hardware semaphores, shared memory,....
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
@@ -211,11 +203,18 @@ config ARC_SMP_HALT_ON_RESET
 
 endif	#SMP
 
+config ARC_MCIP
+	bool "ARConnect Multicore IP (MCIP) Support "
+	depends on ISA_ARCV2
+	default y if SMP
+	help
+	  This IP block enables SMP in ARC-HS38 cores.
+	  It provides for cross-core interrupts, multi-core debug
+	  hardware semaphores, shared memory,....
+
 menuconfig ARC_CACHE
 	bool "Enable Cache Support"
 	default y
-	# if SMP, cache enabled ONLY if ARC implementation has cache coherency
-	depends on !SMP || ARC_HAS_COH_CACHES
 
 if ARC_CACHE
 
@@ -353,8 +352,8 @@ endchoice
 
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)"
-	default "1" if !DISCONTIGMEM
-	default "2" if DISCONTIGMEM
+	default "0" if !DISCONTIGMEM
+	default "1" if DISCONTIGMEM
 	depends on NEED_MULTIPLE_NODES
 	---help---
 	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory
@@ -406,27 +405,6 @@ config ARC_HAS_LL64
 config ARC_HAS_DIV_REM
 	bool "Insn: div, divu, rem, remu"
 	default y
-
-config ARC_HAS_RTC
-	bool "Local 64-bit r/o cycle counter"
-	default n
-	depends on !SMP
-
-config ARC_HAS_GFRC
-	bool "SMP synchronized 64-bit cycle counter"
-	default y
-	depends on SMP
-
-config ARC_NUMBER_OF_INTERRUPTS
-	int "Number of interrupts"
-	range 8 240
-	default 32
-	help
-	  This defines the number of interrupts on the ARCv2HS core.
-	  It affects the size of vector table.
-	  The initial 8 IRQs are fixed (Timer, ICI etc) and although configurable
-	  in hardware, it keep things simple for Linux to assume they are always
-	  present.
 
 endif	# ISA_ARCV2
 
@@ -536,14 +514,6 @@ config ARC_DW2_UNWIND
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 	default n
-
-config ARC_DBG_TLB_MISS_COUNT
-	bool "Profile TLB Misses"
-	default n
-	select DEBUG_FS
-	help
-	  Counts number of I and D TLB Misses and exports them via Debugfs
-	  The counters can be cleared via Debugfs as well
 
 endif
 

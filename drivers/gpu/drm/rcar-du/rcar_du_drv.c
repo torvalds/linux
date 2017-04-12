@@ -110,6 +110,27 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 	.num_lvds = 1,
 };
 
+static const struct rcar_du_device_info rcar_du_r8a7792_info = {
+	.gen = 2,
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
+	.num_crtcs = 2,
+	.routes = {
+		/* R8A7792 has two RGB outputs. */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_DPAD1] = {
+			.possible_crtcs = BIT(1),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 1,
+		},
+	},
+	.num_lvds = 0,
+};
+
 static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 	.gen = 2,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
@@ -157,13 +178,39 @@ static const struct rcar_du_device_info rcar_du_r8a7795_info = {
 	.num_lvds = 1,
 };
 
+static const struct rcar_du_device_info rcar_du_r8a7796_info = {
+	.gen = 3,
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
+		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
+		  | RCAR_DU_FEATURE_VSP1_SOURCE,
+	.num_crtcs = 3,
+	.routes = {
+		/* R8A7796 has one RGB output, one LVDS output and one
+		 * (currently unsupported) HDMI output.
+		 */
+		[RCAR_DU_OUTPUT_DPAD0] = {
+			.possible_crtcs = BIT(2),
+			.encoder_type = DRM_MODE_ENCODER_NONE,
+			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_LVDS0] = {
+			.possible_crtcs = BIT(0),
+			.encoder_type = DRM_MODE_ENCODER_LVDS,
+			.port = 2,
+		},
+	},
+	.num_lvds = 1,
+};
+
 static const struct of_device_id rcar_du_of_table[] = {
 	{ .compatible = "renesas,du-r8a7779", .data = &rcar_du_r8a7779_info },
 	{ .compatible = "renesas,du-r8a7790", .data = &rcar_du_r8a7790_info },
 	{ .compatible = "renesas,du-r8a7791", .data = &rcar_du_r8a7791_info },
+	{ .compatible = "renesas,du-r8a7792", .data = &rcar_du_r8a7792_info },
 	{ .compatible = "renesas,du-r8a7793", .data = &rcar_du_r8a7791_info },
 	{ .compatible = "renesas,du-r8a7794", .data = &rcar_du_r8a7794_info },
 	{ .compatible = "renesas,du-r8a7795", .data = &rcar_du_r8a7795_info },
+	{ .compatible = "renesas,du-r8a7796", .data = &rcar_du_r8a7796_info },
 	{ }
 };
 
@@ -201,9 +248,7 @@ static const struct file_operations rcar_du_fops = {
 	.open		= drm_open,
 	.release	= drm_release,
 	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl	= drm_compat_ioctl,
-#endif
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.llseek		= no_llseek,
@@ -285,7 +330,6 @@ static int rcar_du_remove(struct platform_device *pdev)
 
 	drm_kms_helper_poll_fini(ddev);
 	drm_mode_config_cleanup(ddev);
-	drm_vblank_cleanup(ddev);
 
 	drm_dev_unref(ddev);
 
@@ -294,18 +338,12 @@ static int rcar_du_remove(struct platform_device *pdev)
 
 static int rcar_du_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct rcar_du_device *rcdu;
 	struct drm_device *ddev;
 	struct resource *mem;
 	int ret;
 
-	if (np == NULL) {
-		dev_err(&pdev->dev, "no device tree node\n");
-		return -ENODEV;
-	}
-
-	/* Allocate and initialize the DRM and R-Car device structures. */
+	/* Allocate and initialize the R-Car device structure. */
 	rcdu = devm_kzalloc(&pdev->dev, sizeof(*rcdu), GFP_KERNEL);
 	if (rcdu == NULL)
 		return -ENOMEM;
@@ -315,31 +353,22 @@ static int rcar_du_probe(struct platform_device *pdev)
 	rcdu->dev = &pdev->dev;
 	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
 
-	ddev = drm_dev_alloc(&rcar_du_driver, &pdev->dev);
-	if (!ddev)
-		return -ENOMEM;
-
-	rcdu->ddev = ddev;
-	ddev->dev_private = rcdu;
-
 	platform_set_drvdata(pdev, rcdu);
 
 	/* I/O resources */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rcdu->mmio = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(rcdu->mmio)) {
-		ret = PTR_ERR(rcdu->mmio);
-		goto error;
-	}
-
-	/* Initialize vertical blanking interrupts handling. Start with vblank
-	 * disabled for all CRTCs.
-	 */
-	ret = drm_vblank_init(ddev, (1 << rcdu->info->num_crtcs) - 1);
-	if (ret < 0)
-		goto error;
+	if (IS_ERR(rcdu->mmio))
+		return PTR_ERR(rcdu->mmio);
 
 	/* DRM/KMS objects */
+	ddev = drm_dev_alloc(&rcar_du_driver, &pdev->dev);
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
+
+	rcdu->ddev = ddev;
+	ddev->dev_private = rcdu;
+
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)

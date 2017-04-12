@@ -60,7 +60,7 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		}
 
 		hwirq = ppc4xx_hsta_msi.irq_map[irq];
-		if (hwirq == NO_IRQ) {
+		if (!hwirq) {
 			pr_err("%s: Failed mapping irq %d\n", __func__, irq);
 			return -EINVAL;
 		}
@@ -110,7 +110,7 @@ static void hsta_teardown_msi_irqs(struct pci_dev *dev)
 	int irq;
 
 	for_each_pci_msi_entry(entry, dev) {
-		if (entry->irq == NO_IRQ)
+		if (!entry->irq)
 			continue;
 
 		irq = hsta_find_hwirq_offset(entry->irq);
@@ -166,7 +166,7 @@ static int hsta_msi_probe(struct platform_device *pdev)
 	for (irq = 0; irq < irq_count; irq++) {
 		ppc4xx_hsta_msi.irq_map[irq] =
 			irq_of_parse_and_map(dev->of_node, irq);
-		if (ppc4xx_hsta_msi.irq_map[irq] == NO_IRQ) {
+		if (!ppc4xx_hsta_msi.irq_map[irq]) {
 			dev_err(dev, "Unable to map IRQ\n");
 			ret = -EINVAL;
 			goto out2;

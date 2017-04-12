@@ -8,6 +8,8 @@
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
 #include <linux/atomic.h>
+#include <linux/rculist.h>
+
 #include <asm/debug.h>
 #include <asm/qdio.h>
 #include <asm/airq.h>
@@ -147,11 +149,11 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 	struct qdio_q *q;
 	int i;
 
-	for_each_input_queue(irq, q, i) {
-		if (!references_shared_dsci(irq) &&
-		    has_multiple_inq_on_dsci(irq))
-			xchg(q->irq_ptr->dsci, 0);
+	if (!references_shared_dsci(irq) &&
+	    has_multiple_inq_on_dsci(irq))
+		xchg(irq->dsci, 0);
 
+	for_each_input_queue(irq, q, i) {
 		if (q->u.in.queue_start_poll) {
 			/* skip if polling is enabled or already in work */
 			if (test_and_set_bit(QDIO_QUEUE_IRQS_DISABLED,
@@ -161,11 +163,11 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 			}
 
 			/* avoid dsci clear here, done after processing */
-			q->u.in.queue_start_poll(q->irq_ptr->cdev, q->nr,
-						 q->irq_ptr->int_parm);
+			q->u.in.queue_start_poll(irq->cdev, q->nr,
+						 irq->int_parm);
 		} else {
-			if (!shared_ind(q->irq_ptr))
-				xchg(q->irq_ptr->dsci, 0);
+			if (!shared_ind(irq))
+				xchg(irq->dsci, 0);
 
 			/*
 			 * Call inbound processing but not directly
@@ -178,8 +180,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 
 /**
  * tiqdio_thinint_handler - thin interrupt handler for qdio
- * @alsi: pointer to adapter local summary indicator
- * @data: NULL
+ * @airq: pointer to adapter interrupt descriptor
  */
 static void tiqdio_thinint_handler(struct airq_struct *airq)
 {

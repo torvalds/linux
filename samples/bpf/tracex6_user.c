@@ -10,6 +10,7 @@
 #include <linux/bpf.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define SAMPLE_PERIOD  0x7fffffffffffffffULL
 
@@ -30,13 +31,13 @@ static void test_bpf_perf_event(void)
 	};
 
 	for (i = 0; i < nr_cpus; i++) {
-		pmu_fd[i] = perf_event_open(&attr_insn_pmu, -1/*pid*/, i/*cpu*/, -1/*group_fd*/, 0);
+		pmu_fd[i] = sys_perf_event_open(&attr_insn_pmu, -1/*pid*/, i/*cpu*/, -1/*group_fd*/, 0);
 		if (pmu_fd[i] < 0) {
 			printf("event syscall failed\n");
 			goto exit;
 		}
 
-		bpf_update_elem(map_fd[0], &i, &pmu_fd[i], BPF_ANY);
+		bpf_map_update_elem(map_fd[0], &i, &pmu_fd[i], BPF_ANY);
 		ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE, 0);
 	}
 

@@ -124,6 +124,8 @@ struct drbg_state {
 	struct skcipher_request *ctr_req;	/* CTR mode request handle */
 	__u8 *ctr_null_value_buf;		/* CTR mode unaligned buffer */
 	__u8 *ctr_null_value;			/* CTR mode aligned zero buf */
+	__u8 *outscratchpadbuf;			/* CTR mode output scratchpad */
+        __u8 *outscratchpad;			/* CTR mode aligned outbuf */
 	struct completion ctr_completion;	/* CTR mode async handler */
 	int ctr_async_err;			/* CTR mode async error */
 

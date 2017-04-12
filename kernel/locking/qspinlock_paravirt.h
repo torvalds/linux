@@ -70,11 +70,14 @@ struct pv_node {
 static inline bool pv_queued_spin_steal_lock(struct qspinlock *lock)
 {
 	struct __qspinlock *l = (void *)lock;
-	int ret = !(atomic_read(&lock->val) & _Q_LOCKED_PENDING_MASK) &&
-		   (cmpxchg(&l->locked, 0, _Q_LOCKED_VAL) == 0);
 
-	qstat_inc(qstat_pv_lock_stealing, ret);
-	return ret;
+	if (!(atomic_read(&lock->val) & _Q_LOCKED_PENDING_MASK) &&
+	    (cmpxchg(&l->locked, 0, _Q_LOCKED_VAL) == 0)) {
+		qstat_inc(qstat_pv_lock_stealing, true);
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -257,11 +260,10 @@ static struct pv_node *pv_unhash(struct qspinlock *lock)
 static inline bool
 pv_wait_early(struct pv_node *prev, int loop)
 {
-
 	if ((loop & PV_PREV_CHECK_MASK) != 0)
 		return false;
 
-	return READ_ONCE(prev->state) != vcpu_running;
+	return READ_ONCE(prev->state) != vcpu_running || vcpu_is_preempted(prev->cpu);
 }
 
 /*
@@ -286,12 +288,10 @@ static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
 {
 	struct pv_node *pn = (struct pv_node *)node;
 	struct pv_node *pp = (struct pv_node *)prev;
-	int waitcnt = 0;
 	int loop;
 	bool wait_early;
 
-	/* waitcnt processing will be compiled out if !QUEUED_LOCK_STAT */
-	for (;; waitcnt++) {
+	for (;;) {
 		for (wait_early = false, loop = SPIN_THRESHOLD; loop; loop--) {
 			if (READ_ONCE(node->locked))
 				return;
@@ -315,7 +315,6 @@ static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
 
 		if (!READ_ONCE(node->locked)) {
 			qstat_inc(qstat_pv_wait_node, true);
-			qstat_inc(qstat_pv_wait_again, waitcnt);
 			qstat_inc(qstat_pv_wait_early, wait_early);
 			pv_wait(&pn->state, vcpu_halted);
 		}
@@ -456,12 +455,9 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 		pv_wait(&l->locked, _Q_SLOW_VAL);
 
 		/*
-		 * The unlocker should have freed the lock before kicking the
-		 * CPU. So if the lock is still not free, it is a spurious
-		 * wakeup or another vCPU has stolen the lock. The current
-		 * vCPU should spin again.
+		 * Because of lock stealing, the queue head vCPU may not be
+		 * able to acquire the lock before it has to wait again.
 		 */
-		qstat_inc(qstat_pv_spurious_wakeup, READ_ONCE(l->locked));
 	}
 
 	/*
@@ -544,7 +540,7 @@ __visible void __pv_queued_spin_unlock(struct qspinlock *lock)
 	 * unhash. Otherwise it would be possible to have multiple @lock
 	 * entries, which would be BAD.
 	 */
-	locked = cmpxchg(&l->locked, _Q_LOCKED_VAL, 0);
+	locked = cmpxchg_release(&l->locked, _Q_LOCKED_VAL, 0);
 	if (likely(locked == _Q_LOCKED_VAL))
 		return;
 

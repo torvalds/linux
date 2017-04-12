@@ -35,7 +35,6 @@
  */
 #include <linux/sched.h>
 #include <linux/debugfs.h>
-#include <linux/kconfig.h>
 #include <linux/percpu-defs.h>
 #include <linux/perf_event.h>
 
@@ -43,7 +42,7 @@
 #include <asm/inst.h>
 #include <asm/ptrace.h>
 #include <asm/signal.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/cpu-info.h>
 #include <asm/processor.h>

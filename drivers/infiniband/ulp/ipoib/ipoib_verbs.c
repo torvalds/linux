@@ -147,7 +147,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	int ret, size;
 	int i;
 
-	priv->pd = ib_alloc_pd(priv->ca);
+	priv->pd = ib_alloc_pd(priv->ca, 0);
 	if (IS_ERR(priv->pd)) {
 		printk(KERN_WARNING "%s: failed to allocate PD\n", ca->name);
 		return -ENODEV;
@@ -157,7 +157,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	 * the various IPoIB tasks assume they will never race against
 	 * themselves, so always use a single thread workqueue
 	 */
-	priv->wq = create_singlethread_workqueue("ipoib_wq");
+	priv->wq = alloc_ordered_workqueue("ipoib_wq", WQ_MEM_RECLAIM);
 	if (!priv->wq) {
 		printk(KERN_WARNING "ipoib: failed to allocate device WQ\n");
 		goto out_free_pd;

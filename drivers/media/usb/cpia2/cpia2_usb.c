@@ -20,10 +20,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  Stripped of 2.4 stuff ready for main kernel submit by
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  ****************************************************************************/
@@ -545,18 +541,28 @@ static void free_sbufs(struct camera_data *cam)
 static int write_packet(struct usb_device *udev,
 			u8 request, u8 * registers, u16 start, size_t size)
 {
+	unsigned char *buf;
+	int ret;
+
 	if (!registers || size <= 0)
 		return -EINVAL;
 
-	return usb_control_msg(udev,
+	buf = kmemdup(registers, size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(udev,
 			       usb_sndctrlpipe(udev, 0),
 			       request,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			       start,	/* value */
 			       0,	/* index */
-			       registers,	/* buffer */
+			       buf,	/* buffer */
 			       size,
 			       HZ);
+
+	kfree(buf);
+	return ret;
 }
 
 /****************************************************************************
@@ -567,18 +573,32 @@ static int write_packet(struct usb_device *udev,
 static int read_packet(struct usb_device *udev,
 		       u8 request, u8 * registers, u16 start, size_t size)
 {
+	unsigned char *buf;
+	int ret;
+
 	if (!registers || size <= 0)
 		return -EINVAL;
 
-	return usb_control_msg(udev,
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(udev,
 			       usb_rcvctrlpipe(udev, 0),
 			       request,
 			       USB_DIR_IN|USB_TYPE_VENDOR|USB_RECIP_DEVICE,
 			       start,	/* value */
 			       0,	/* index */
-			       registers,	/* buffer */
+			       buf,	/* buffer */
 			       size,
 			       HZ);
+
+	if (ret >= 0)
+		memcpy(registers, buf, size);
+
+	kfree(buf);
+
+	return ret;
 }
 
 /******************************************************************************
@@ -662,7 +682,6 @@ static int submit_urbs(struct camera_data *cam)
 		}
 		urb = usb_alloc_urb(FRAMES_PER_DESC, GFP_KERNEL);
 		if (!urb) {
-			ERR("%s: usb_alloc_urb error!\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(cam->sbuf[j].urb);
 			return -ENOMEM;
@@ -734,9 +753,7 @@ int cpia2_usb_stream_start(struct camera_data *cam, unsigned int alternate)
 		cam->params.camera_state.stream_mode = old_alt;
 		ret2 = set_alternate(cam, USBIF_CMDONLY);
 		if (ret2 < 0) {
-			ERR("cpia2_usb_change_streaming_alternate(%d) =%d has already "
-			    "failed. Then tried to call "
-			    "set_alternate(USBIF_CMDONLY) = %d.\n",
+			ERR("cpia2_usb_change_streaming_alternate(%d) =%d has already failed. Then tried to call set_alternate(USBIF_CMDONLY) = %d.\n",
 			    alternate, ret, ret2);
 		}
 	} else {

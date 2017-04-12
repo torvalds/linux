@@ -69,26 +69,23 @@
 	.endm
 
 
-#if XCHAL_DCACHE_LINE_LOCKABLE
-
 	.macro	___unlock_dcache_all ar at
 
-#if XCHAL_DCACHE_SIZE
+#if XCHAL_DCACHE_LINE_LOCKABLE && XCHAL_DCACHE_SIZE
 	__loop_cache_all \ar \at diu XCHAL_DCACHE_SIZE XCHAL_DCACHE_LINEWIDTH
 #endif
 
 	.endm
 
-#endif
-
-#if XCHAL_ICACHE_LINE_LOCKABLE
 
 	.macro	___unlock_icache_all ar at
 
+#if XCHAL_ICACHE_LINE_LOCKABLE && XCHAL_ICACHE_SIZE
 	__loop_cache_all \ar \at iiu XCHAL_ICACHE_SIZE XCHAL_ICACHE_LINEWIDTH
+#endif
 
 	.endm
-#endif
+
 
 	.macro	___flush_invalidate_dcache_all ar at
 

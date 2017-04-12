@@ -27,7 +27,7 @@
 /**************************************************************************/
 
 #define IBMVNIC_NAME		"ibmvnic"
-#define IBMVNIC_DRIVER_VERSION	"1.0"
+#define IBMVNIC_DRIVER_VERSION	"1.0.1"
 #define IBMVNIC_INVALID_MAP	-1
 #define IBMVNIC_STATS_TIMEOUT	1
 /* basic structures plus 100 2k buffers */
@@ -830,6 +830,7 @@ enum ibmvfc_crq_format {
 	IBMVNIC_CRQ_INIT                 = 0x01,
 	IBMVNIC_CRQ_INIT_COMPLETE        = 0x02,
 	IBMVNIC_PARTITION_MIGRATED       = 0x06,
+	IBMVNIC_DEVICE_FAILOVER          = 0x08,
 };
 
 struct ibmvnic_crq_queue {
@@ -862,6 +863,7 @@ struct ibmvnic_sub_crq_queue {
 	spinlock_t lock;
 	struct sk_buff *rx_skb_top;
 	struct ibmvnic_adapter *adapter;
+	atomic_t used;
 };
 
 struct ibmvnic_long_term_buff {
@@ -975,11 +977,11 @@ struct ibmvnic_adapter {
 	dma_addr_t login_rsp_buf_token;
 	int login_rsp_buf_sz;
 
-	atomic_t running_cap_queries;
+	atomic_t running_cap_crqs;
+	bool wait_capability;
 
 	struct ibmvnic_sub_crq_queue **tx_scrq;
 	struct ibmvnic_sub_crq_queue **rx_scrq;
-	int requested_caps;
 	bool renegotiate;
 
 	/* rx structs */
@@ -1047,4 +1049,7 @@ struct ibmvnic_adapter {
 	u8 map_id;
 
 	struct work_struct vnic_crq_init;
+	struct work_struct ibmvnic_xport;
+	struct tasklet_struct tasklet;
+	bool failover;
 };

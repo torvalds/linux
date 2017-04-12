@@ -436,6 +436,8 @@ struct iwl_mvm_sta {
 
 	bool disable_tx;
 	bool tlc_amsdu;
+	bool sleeping;
+	bool associated;
 	u8 agg_tids;
 	u8 sleep_tx_count;
 	u8 avg_energy;
@@ -473,9 +475,14 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta);
-int iwl_mvm_update_sta(struct iwl_mvm *mvm,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
+
+static inline int iwl_mvm_update_sta(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_sta *sta)
+{
+	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
+}
+
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
@@ -540,7 +547,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 				       struct ieee80211_sta *sta,
 				       enum ieee80211_frame_release_type reason,
 				       u16 cnt, u16 tids, bool more_data,
-				       bool agg);
+				       bool single_sta_queue);
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain);
 void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
@@ -553,5 +560,9 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 				       bool disable);
 void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk);
+
+int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
+			       int ac, int ssn, unsigned int wdg_timeout,
+			       bool force);
 
 #endif /* __sta_h__ */

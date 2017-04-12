@@ -402,10 +402,8 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	u32 val, mask, shift, reg;
 	unsigned int rate, fmt, ratio, max_ratio;
 	int i, min_frame_size;
-	snd_pcm_format_t format;
 
 	rate = params_rate(params);
-	format = params_format(params);
 
 	ratio = pcm3168a->sysclk / rate;
 
@@ -599,12 +597,14 @@ EXPORT_SYMBOL_GPL(pcm3168a_regmap);
 
 static const struct snd_soc_codec_driver pcm3168a_driver = {
 	.idle_bias_off = true,
-	.controls = pcm3168a_snd_controls,
-	.num_controls = ARRAY_SIZE(pcm3168a_snd_controls),
-	.dapm_widgets = pcm3168a_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(pcm3168a_dapm_widgets),
-	.dapm_routes = pcm3168a_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(pcm3168a_dapm_routes)
+	.component_driver = {
+		.controls		= pcm3168a_snd_controls,
+		.num_controls		= ARRAY_SIZE(pcm3168a_snd_controls),
+		.dapm_widgets		= pcm3168a_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(pcm3168a_dapm_widgets),
+		.dapm_routes		= pcm3168a_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(pcm3168a_dapm_routes)
+	},
 };
 
 int pcm3168a_probe(struct device *dev, struct regmap *regmap)

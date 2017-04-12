@@ -79,7 +79,7 @@ MODULE_SUPPORTED_DEVICE("{{Ensoniq,AudioPCI ES1371/73},"
 		"{Ectiva,EV1938}}");
 #endif
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK
 #endif
 
@@ -1227,7 +1227,7 @@ static int snd_ensoniq_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ensoniq_playback1_ops = {
+static const struct snd_pcm_ops snd_ensoniq_playback1_ops = {
 	.open =		snd_ensoniq_playback1_open,
 	.close =	snd_ensoniq_playback1_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1238,7 +1238,7 @@ static struct snd_pcm_ops snd_ensoniq_playback1_ops = {
 	.pointer =	snd_ensoniq_playback1_pointer,
 };
 
-static struct snd_pcm_ops snd_ensoniq_playback2_ops = {
+static const struct snd_pcm_ops snd_ensoniq_playback2_ops = {
 	.open =		snd_ensoniq_playback2_open,
 	.close =	snd_ensoniq_playback2_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1249,7 +1249,7 @@ static struct snd_pcm_ops snd_ensoniq_playback2_ops = {
 	.pointer =	snd_ensoniq_playback2_pointer,
 };
 
-static struct snd_pcm_ops snd_ensoniq_capture_ops = {
+static const struct snd_pcm_ops snd_ensoniq_capture_ops = {
 	.open =		snd_ensoniq_capture_open,
 	.close =	snd_ensoniq_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -2317,14 +2317,14 @@ static void snd_ensoniq_midi_output_trigger(struct snd_rawmidi_substream *substr
 	spin_unlock_irqrestore(&ensoniq->reg_lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_ensoniq_midi_output =
+static const struct snd_rawmidi_ops snd_ensoniq_midi_output =
 {
 	.open =		snd_ensoniq_midi_output_open,
 	.close =	snd_ensoniq_midi_output_close,
 	.trigger =	snd_ensoniq_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_ensoniq_midi_input =
+static const struct snd_rawmidi_ops snd_ensoniq_midi_input =
 {
 	.open =		snd_ensoniq_midi_input_open,
 	.close =	snd_ensoniq_midi_input_close,

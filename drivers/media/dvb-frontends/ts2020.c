@@ -56,7 +56,7 @@ struct ts2020_reg_val {
 
 static void ts2020_stat_work(struct work_struct *work);
 
-static int ts2020_release(struct dvb_frontend *fe)
+static void ts2020_release(struct dvb_frontend *fe)
 {
 	struct ts2020_priv *priv = fe->tuner_priv;
 	struct i2c_client *client = priv->client;
@@ -64,7 +64,6 @@ static int ts2020_release(struct dvb_frontend *fe)
 	dev_dbg(&client->dev, "\n");
 
 	i2c_unregister_device(client);
-	return 0;
 }
 
 static int ts2020_sleep(struct dvb_frontend *fe)
@@ -496,7 +495,7 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct dvb_tuner_ops ts2020_tuner_ops = {
+static const struct dvb_tuner_ops ts2020_tuner_ops = {
 	.info = {
 		.name = "TS2020",
 		.frequency_min = 950000,

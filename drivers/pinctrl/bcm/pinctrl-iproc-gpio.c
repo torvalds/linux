@@ -619,7 +619,7 @@ static int iproc_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct iproc_gpio *chip = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 	unsigned i, gpio = iproc_pin_to_gpio(pin);
 	int ret = -ENOTSUPP;
 
@@ -844,6 +844,6 @@ static struct platform_driver iproc_gpio_driver = {
 
 static int __init iproc_gpio_init(void)
 {
-	return platform_driver_probe(&iproc_gpio_driver, iproc_gpio_probe);
+	return platform_driver_register(&iproc_gpio_driver);
 }
 arch_initcall_sync(iproc_gpio_init);

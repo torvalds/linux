@@ -23,12 +23,12 @@ ebt_redirect_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	if (!skb_make_writable(skb, 0))
 		return EBT_DROP;
 
-	if (par->hooknum != NF_BR_BROUTING)
-		/* rcu_read_lock()ed by nf_hook_slow */
+	if (xt_hooknum(par) != NF_BR_BROUTING)
+		/* rcu_read_lock()ed by nf_hook_thresh */
 		ether_addr_copy(eth_hdr(skb)->h_dest,
-				br_port_get_rcu(par->in)->br->dev->dev_addr);
+				br_port_get_rcu(xt_in(par))->br->dev->dev_addr);
 	else
-		ether_addr_copy(eth_hdr(skb)->h_dest, par->in->dev_addr);
+		ether_addr_copy(eth_hdr(skb)->h_dest, xt_in(par)->dev_addr);
 	skb->pkt_type = PACKET_HOST;
 	return info->target;
 }

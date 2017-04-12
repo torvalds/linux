@@ -1,7 +1,7 @@
 /*
  * net/tipc/node.h: Include file for TIPC node management routines
  *
- * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2016, Ericsson AB
  * Copyright (c) 2005, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -45,11 +45,16 @@
 /* Optional capabilities supported by this code version
  */
 enum {
-	TIPC_BCAST_SYNCH   = (1 << 1),
-	TIPC_BLOCK_FLOWCTL = (2 << 1)
+	TIPC_BCAST_SYNCH      = (1 << 1),
+	TIPC_BCAST_STATE_NACK = (1 << 2),
+	TIPC_BLOCK_FLOWCTL    = (1 << 3),
+	TIPC_BCAST_RCAST      = (1 << 4)
 };
 
-#define TIPC_NODE_CAPABILITIES (TIPC_BCAST_SYNCH | TIPC_BLOCK_FLOWCTL)
+#define TIPC_NODE_CAPABILITIES (TIPC_BCAST_SYNCH | \
+				TIPC_BCAST_STATE_NACK | \
+				TIPC_BCAST_RCAST | \
+				TIPC_BLOCK_FLOWCTL)
 #define INVALID_BEARER_ID -1
 
 void tipc_node_stop(struct net *net);
@@ -77,6 +82,7 @@ int tipc_nl_node_dump_link(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_node_get_link(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_nl_node_set_monitor(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info);

@@ -13,7 +13,7 @@
  */
 
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/hardirq.h>
 #include <linux/perf_event.h>
 #include <linux/uaccess.h>

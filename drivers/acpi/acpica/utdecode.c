@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utdecode")
@@ -237,7 +238,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 
 	if (!obj_desc) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
-		return_PTR("[NULL Object Descriptor]");
+		return_STR("[NULL Object Descriptor]");
 	}
 
 	/* These descriptor types share a common area */
@@ -250,10 +251,10 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 				  acpi_ut_get_descriptor_name(obj_desc),
 				  obj_desc));
 
-		return_PTR("Invalid object");
+		return_STR("Invalid object");
 	}
 
-	return_PTR(acpi_ut_get_type_name(obj_desc->common.type));
+	return_STR(acpi_ut_get_type_name(obj_desc->common.type));
 }
 
 /*******************************************************************************
@@ -532,6 +533,54 @@ const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
 
 	return ("Hardware-Specific");
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_argument_type_name
+ *
+ * PARAMETERS:  arg_type            - an ARGP_* parser argument type
+ *
+ * RETURN:      Decoded ARGP_* type
+ *
+ * DESCRIPTION: Decode an ARGP_* parser type, as defined in the amlcode.h file,
+ *              and used in the acopcode.h file. For example, ARGP_TERMARG.
+ *              Used for debug only.
+ *
+ ******************************************************************************/
+
+static const char *acpi_gbl_argument_type[20] = {
+	/* 00 */ "Unknown ARGP",
+	/* 01 */ "ByteData",
+	/* 02 */ "ByteList",
+	/* 03 */ "CharList",
+	/* 04 */ "DataObject",
+	/* 05 */ "DataObjectList",
+	/* 06 */ "DWordData",
+	/* 07 */ "FieldList",
+	/* 08 */ "Name",
+	/* 09 */ "NameString",
+	/* 0A */ "ObjectList",
+	/* 0B */ "PackageLength",
+	/* 0C */ "SuperName",
+	/* 0D */ "Target",
+	/* 0E */ "TermArg",
+	/* 0F */ "TermList",
+	/* 10 */ "WordData",
+	/* 11 */ "QWordData",
+	/* 12 */ "SimpleName",
+	/* 13 */ "NameOrRef"
+};
+
+const char *acpi_ut_get_argument_type_name(u32 arg_type)
+{
+
+	if (arg_type > ARGP_MAX) {
+		return ("Unknown ARGP");
+	}
+
+	return (acpi_gbl_argument_type[arg_type]);
+}
+
 #endif
 
 /*******************************************************************************

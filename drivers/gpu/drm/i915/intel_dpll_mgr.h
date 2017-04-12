@@ -40,31 +40,71 @@ struct intel_encoder;
 struct intel_shared_dpll;
 struct intel_dpll_mgr;
 
+/**
+ * enum intel_dpll_id - possible DPLL ids
+ *
+ * Enumeration of possible IDs for a DPLL. Real shared dpll ids must be >= 0.
+ */
 enum intel_dpll_id {
-	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
-	/* real shared dpll ids must be >= 0 */
+	/**
+	 * @DPLL_ID_PRIVATE: non-shared dpll in use
+	 */
+	DPLL_ID_PRIVATE = -1,
+
+	/**
+	 * @DPLL_ID_PCH_PLL_A: DPLL A in ILK, SNB and IVB
+	 */
 	DPLL_ID_PCH_PLL_A = 0,
+	/**
+	 * @DPLL_ID_PCH_PLL_B: DPLL B in ILK, SNB and IVB
+	 */
 	DPLL_ID_PCH_PLL_B = 1,
-	/* hsw/bdw */
+
+
+	/**
+	 * @DPLL_ID_WRPLL1: HSW and BDW WRPLL1
+	 */
 	DPLL_ID_WRPLL1 = 0,
+	/**
+	 * @DPLL_ID_WRPLL2: HSW and BDW WRPLL2
+	 */
 	DPLL_ID_WRPLL2 = 1,
+	/**
+	 * @DPLL_ID_SPLL: HSW and BDW SPLL
+	 */
 	DPLL_ID_SPLL = 2,
+	/**
+	 * @DPLL_ID_LCPLL_810: HSW and BDW 0.81 GHz LCPLL
+	 */
 	DPLL_ID_LCPLL_810 = 3,
+	/**
+	 * @DPLL_ID_LCPLL_1350: HSW and BDW 1.35 GHz LCPLL
+	 */
 	DPLL_ID_LCPLL_1350 = 4,
+	/**
+	 * @DPLL_ID_LCPLL_2700: HSW and BDW 2.7 GHz LCPLL
+	 */
 	DPLL_ID_LCPLL_2700 = 5,
 
-	/* skl */
+
+	/**
+	 * @DPLL_ID_SKL_DPLL0: SKL and later DPLL0
+	 */
 	DPLL_ID_SKL_DPLL0 = 0,
+	/**
+	 * @DPLL_ID_SKL_DPLL1: SKL and later DPLL1
+	 */
 	DPLL_ID_SKL_DPLL1 = 1,
+	/**
+	 * @DPLL_ID_SKL_DPLL2: SKL and later DPLL2
+	 */
 	DPLL_ID_SKL_DPLL2 = 2,
+	/**
+	 * @DPLL_ID_SKL_DPLL3: SKL and later DPLL3
+	 */
 	DPLL_ID_SKL_DPLL3 = 3,
 };
 #define I915_NUM_PLLS 6
-
-/** Inform the state checker that the DPLL is kept enabled even if not
- * in use by any crtc.
- */
-#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
 
 struct intel_dpll_hw_state {
 	/* i9xx, pch plls */
@@ -93,36 +133,120 @@ struct intel_dpll_hw_state {
 		 pcsdw12;
 };
 
-struct intel_shared_dpll_config {
-	unsigned crtc_mask; /* mask of CRTCs sharing this PLL */
+/**
+ * struct intel_shared_dpll_state - hold the DPLL atomic state
+ *
+ * This structure holds an atomic state for the DPLL, that can represent
+ * either its current state (in struct &intel_shared_dpll) or a desired
+ * future state which would be applied by an atomic mode set (stored in
+ * a struct &intel_atomic_state).
+ *
+ * See also intel_get_shared_dpll() and intel_release_shared_dpll().
+ */
+struct intel_shared_dpll_state {
+	/**
+	 * @crtc_mask: mask of CRTC using this DPLL, active or not
+	 */
+	unsigned crtc_mask;
+
+	/**
+	 * @hw_state: hardware configuration for the DPLL stored in
+	 * struct &intel_dpll_hw_state.
+	 */
 	struct intel_dpll_hw_state hw_state;
 };
 
+/**
+ * struct intel_shared_dpll_funcs - platform specific hooks for managing DPLLs
+ */
 struct intel_shared_dpll_funcs {
-	/* The mode_set hook is optional and should be used together with the
-	 * intel_prepare_shared_dpll function. */
-	void (*mode_set)(struct drm_i915_private *dev_priv,
-			 struct intel_shared_dpll *pll);
+	/**
+	 * @prepare:
+	 *
+	 * Optional hook to perform operations prior to enabling the PLL.
+	 * Called from intel_prepare_shared_dpll() function unless the PLL
+	 * is already enabled.
+	 */
+	void (*prepare)(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll);
+
+	/**
+	 * @enable:
+	 *
+	 * Hook for enabling the pll, called from intel_enable_shared_dpll()
+	 * if the pll is not already enabled.
+	 */
 	void (*enable)(struct drm_i915_private *dev_priv,
 		       struct intel_shared_dpll *pll);
+
+	/**
+	 * @disable:
+	 *
+	 * Hook for disabling the pll, called from intel_disable_shared_dpll()
+	 * only when it is safe to disable the pll, i.e., there are no more
+	 * tracked users for it.
+	 */
 	void (*disable)(struct drm_i915_private *dev_priv,
 			struct intel_shared_dpll *pll);
+
+	/**
+	 * @get_hw_state:
+	 *
+	 * Hook for reading the values currently programmed to the DPLL
+	 * registers. This is used for initial hw state readout and state
+	 * verification after a mode set.
+	 */
 	bool (*get_hw_state)(struct drm_i915_private *dev_priv,
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *hw_state);
 };
 
+/**
+ * struct intel_shared_dpll - display PLL with tracked state and users
+ */
 struct intel_shared_dpll {
-	struct intel_shared_dpll_config config;
+	/**
+	 * @state:
+	 *
+	 * Store the state for the pll, including the its hw state
+	 * and CRTCs using it.
+	 */
+	struct intel_shared_dpll_state state;
 
-	unsigned active_mask; /* mask of active CRTCs (i.e. DPMS on) */
-	bool on; /* is the PLL actually active? Disabled during modeset */
+	/**
+	 * @active_mask: mask of active CRTCs (i.e. DPMS on) using this DPLL
+	 */
+	unsigned active_mask;
+
+	/**
+	 * @on: is the PLL actually active? Disabled during modeset
+	 */
+	bool on;
+
+	/**
+	 * @name: DPLL name; used for logging
+	 */
 	const char *name;
-	/* should match the index in the dev_priv->shared_dplls array */
+
+	/**
+	 * @id: unique indentifier for this DPLL; should match the index in the
+	 * dev_priv->shared_dplls array
+	 */
 	enum intel_dpll_id id;
 
+	/**
+	 * @funcs: platform specific hooks
+	 */
 	struct intel_shared_dpll_funcs funcs;
 
+#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
+	/**
+	 * @flags:
+	 *
+	 * INTEL_DPLL_ALWAYS_ON
+	 *     Inform the state checker that the DPLL is kept enabled even if
+	 *     not in use by any CRTC.
+	 */
 	uint32_t flags;
 };
 
@@ -138,14 +262,6 @@ intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
 enum intel_dpll_id
 intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
 			 struct intel_shared_dpll *pll);
-void
-intel_shared_dpll_config_get(struct intel_shared_dpll_config *config,
-			     struct intel_shared_dpll *pll,
-			     struct intel_crtc *crtc);
-void
-intel_shared_dpll_config_put(struct intel_shared_dpll_config *config,
-			     struct intel_shared_dpll *pll,
-			     struct intel_crtc *crtc);
 void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			struct intel_shared_dpll *pll,
 			bool state);
@@ -154,11 +270,32 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 						struct intel_crtc_state *state,
 						struct intel_encoder *encoder);
+void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
+			       struct intel_crtc *crtc,
+			       struct drm_atomic_state *state);
 void intel_prepare_shared_dpll(struct intel_crtc *crtc);
 void intel_enable_shared_dpll(struct intel_crtc *crtc);
 void intel_disable_shared_dpll(struct intel_crtc *crtc);
-void intel_shared_dpll_commit(struct drm_atomic_state *state);
+void intel_shared_dpll_swap_state(struct drm_atomic_state *state);
 void intel_shared_dpll_init(struct drm_device *dev);
 
+void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
+			      struct intel_dpll_hw_state *hw_state);
+
+/* BXT dpll related functions */
+bool bxt_ddi_dp_set_dpll_hw_state(int clock,
+			  struct intel_dpll_hw_state *dpll_hw_state);
+
+
+/* SKL dpll related functions */
+bool skl_ddi_dp_set_dpll_hw_state(int clock,
+				  struct intel_dpll_hw_state *dpll_hw_state);
+struct intel_shared_dpll *skl_find_link_pll(struct drm_i915_private *dev_priv,
+					    int clock);
+
+
+/* HSW dpll related functions */
+struct intel_shared_dpll *hsw_ddi_dp_get_dpll(struct intel_encoder *encoder,
+					      int clock);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

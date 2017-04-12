@@ -176,7 +176,7 @@ static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_platform_data *pdata = NULL;
 	struct funnel_drvdata *drvdata;
 	struct resource *res = &adev->res;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = adev->dev.of_node;
 
 	if (np) {
@@ -207,17 +207,13 @@ static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->base = base;
 	pm_runtime_put(&adev->dev);
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return -ENOMEM;
-
-	desc->type = CORESIGHT_DEV_TYPE_LINK;
-	desc->subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_MERG;
-	desc->ops = &funnel_cs_ops;
-	desc->pdata = pdata;
-	desc->dev = dev;
-	desc->groups = coresight_funnel_groups;
-	drvdata->csdev = coresight_register(desc);
+	desc.type = CORESIGHT_DEV_TYPE_LINK;
+	desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_MERG;
+	desc.ops = &funnel_cs_ops;
+	desc.pdata = pdata;
+	desc.dev = dev;
+	desc.groups = coresight_funnel_groups;
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
 

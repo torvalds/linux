@@ -27,8 +27,7 @@
 
 #include <xen/platform_pci.h>
 
-#include "xenbus_comms.h"
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 
 
@@ -87,9 +86,9 @@ static int xenbus_uevent_frontend(struct device *_dev,
 
 
 static void backend_changed(struct xenbus_watch *watch,
-			    const char **vec, unsigned int len)
+			    const char *path, const char *token)
 {
-	xenbus_otherend_changed(watch, vec, len, 1);
+	xenbus_otherend_changed(watch, path, token, 1);
 }
 
 static void xenbus_frontend_delayed_resume(struct work_struct *w)
@@ -154,11 +153,11 @@ static struct xen_bus_type xenbus_frontend = {
 };
 
 static void frontend_changed(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len)
+			     const char *path, const char *token)
 {
 	DPRINTK("");
 
-	xenbus_dev_changed(vec[XS_WATCH_PATH], &xenbus_frontend);
+	xenbus_dev_changed(path, &xenbus_frontend);
 }
 
 
@@ -333,11 +332,13 @@ static DECLARE_WAIT_QUEUE_HEAD(backend_state_wq);
 static int backend_state;
 
 static void xenbus_reset_backend_state_changed(struct xenbus_watch *w,
-					const char **v, unsigned int l)
+					const char *path, const char *token)
 {
-	xenbus_scanf(XBT_NIL, v[XS_WATCH_PATH], "", "%i", &backend_state);
+	if (xenbus_scanf(XBT_NIL, path, "", "%i",
+			 &backend_state) != 1)
+		backend_state = XenbusStateUnknown;
 	printk(KERN_DEBUG "XENBUS: backend %s %s\n",
-			v[XS_WATCH_PATH], xenbus_strstate(backend_state));
+	       path, xenbus_strstate(backend_state));
 	wake_up(&backend_state_wq);
 }
 

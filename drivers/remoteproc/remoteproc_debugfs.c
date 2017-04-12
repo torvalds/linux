@@ -45,7 +45,7 @@ static struct dentry *rproc_dbg;
  * as it provides very early tracing with little to no dependencies at all.
  */
 static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
+				size_t count, loff_t *ppos)
 {
 	struct rproc_mem_entry *trace = filp->private_data;
 	int len = strnlen(trace->va, trace->len);
@@ -59,78 +59,9 @@ static const struct file_operations trace_rproc_ops = {
 	.llseek	= generic_file_llseek,
 };
 
-/*
- * A state-to-string lookup table, for exposing a human readable state
- * via debugfs. Always keep in sync with enum rproc_state
- */
-static const char * const rproc_state_string[] = {
-	"offline",
-	"suspended",
-	"running",
-	"crashed",
-	"invalid",
-};
-
-/* expose the state of the remote processor via debugfs */
-static ssize_t rproc_state_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
-{
-	struct rproc *rproc = filp->private_data;
-	unsigned int state;
-	char buf[30];
-	int i;
-
-	state = rproc->state > RPROC_LAST ? RPROC_LAST : rproc->state;
-
-	i = scnprintf(buf, 30, "%.28s (%d)\n", rproc_state_string[state],
-							rproc->state);
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
-}
-
-static ssize_t rproc_state_write(struct file *filp, const char __user *userbuf,
-				 size_t count, loff_t *ppos)
-{
-	struct rproc *rproc = filp->private_data;
-	char buf[10];
-	int ret;
-
-	if (count > sizeof(buf) || count <= 0)
-		return -EINVAL;
-
-	ret = copy_from_user(buf, userbuf, count);
-	if (ret)
-		return -EFAULT;
-
-	if (buf[count - 1] == '\n')
-		buf[count - 1] = '\0';
-
-	if (!strncmp(buf, "start", count)) {
-		ret = rproc_boot(rproc);
-		if (ret) {
-			dev_err(&rproc->dev, "Boot failed: %d\n", ret);
-			return ret;
-		}
-	} else if (!strncmp(buf, "stop", count)) {
-		rproc_shutdown(rproc);
-	} else {
-		dev_err(&rproc->dev, "Unrecognised option: %s\n", buf);
-		return -EINVAL;
-	}
-
-	return count;
-}
-
-static const struct file_operations rproc_state_ops = {
-	.read = rproc_state_read,
-	.write = rproc_state_write,
-	.open = simple_open,
-	.llseek	= generic_file_llseek,
-};
-
 /* expose the name of the remote processor via debugfs */
 static ssize_t rproc_name_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
+			       size_t count, loff_t *ppos)
 {
 	struct rproc *rproc = filp->private_data;
 	/* need room for the name, a newline and a terminating null */
@@ -230,12 +161,12 @@ void rproc_remove_trace_file(struct dentry *tfile)
 }
 
 struct dentry *rproc_create_trace_file(const char *name, struct rproc *rproc,
-					struct rproc_mem_entry *trace)
+				       struct rproc_mem_entry *trace)
 {
 	struct dentry *tfile;
 
-	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir,
-						trace, &trace_rproc_ops);
+	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir, trace,
+				    &trace_rproc_ops);
 	if (!tfile) {
 		dev_err(&rproc->dev, "failed to create debugfs trace entry\n");
 		return NULL;
@@ -264,11 +195,9 @@ void rproc_create_debug_dir(struct rproc *rproc)
 		return;
 
 	debugfs_create_file("name", 0400, rproc->dbg_dir,
-					rproc, &rproc_name_ops);
-	debugfs_create_file("state", 0400, rproc->dbg_dir,
-					rproc, &rproc_state_ops);
+			    rproc, &rproc_name_ops);
 	debugfs_create_file("recovery", 0400, rproc->dbg_dir,
-					rproc, &rproc_recovery_ops);
+			    rproc, &rproc_recovery_ops);
 }
 
 void __init rproc_init_debugfs(void)

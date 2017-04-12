@@ -29,11 +29,12 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 	if (rq)
 		rq->rq_sched_info.run_delay += delta;
 }
-# define schedstat_enabled()		static_branch_unlikely(&sched_schedstats)
-# define schedstat_inc(rq, field)	do { if (schedstat_enabled()) { (rq)->field++; } } while (0)
-# define schedstat_add(rq, field, amt)	do { if (schedstat_enabled()) { (rq)->field += (amt); } } while (0)
-# define schedstat_set(var, val)	do { if (schedstat_enabled()) { var = (val); } } while (0)
-# define schedstat_val(rq, field)	((schedstat_enabled()) ? (rq)->field : 0)
+#define schedstat_enabled()		static_branch_unlikely(&sched_schedstats)
+#define schedstat_inc(var)		do { if (schedstat_enabled()) { var++; } } while (0)
+#define schedstat_add(var, amt)		do { if (schedstat_enabled()) { var += (amt); } } while (0)
+#define schedstat_set(var, val)		do { if (schedstat_enabled()) { var = (val); } } while (0)
+#define schedstat_val(var)		(var)
+#define schedstat_val_or_zero(var)	((schedstat_enabled()) ? (var) : 0)
 
 #else /* !CONFIG_SCHEDSTATS */
 static inline void
@@ -45,12 +46,13 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 static inline void
 rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 {}
-# define schedstat_enabled()		0
-# define schedstat_inc(rq, field)	do { } while (0)
-# define schedstat_add(rq, field, amt)	do { } while (0)
-# define schedstat_set(var, val)	do { } while (0)
-# define schedstat_val(rq, field)	0
-#endif
+#define schedstat_enabled()		0
+#define schedstat_inc(var)		do { } while (0)
+#define schedstat_add(var, amt)		do { } while (0)
+#define schedstat_set(var, val)		do { } while (0)
+#define schedstat_val(var)		0
+#define schedstat_val_or_zero(var)	0
+#endif /* CONFIG_SCHEDSTATS */
 
 #ifdef CONFIG_SCHED_INFO
 static inline void sched_info_reset_dequeued(struct task_struct *t)
@@ -162,106 +164,3 @@ sched_info_switch(struct rq *rq,
 #define sched_info_arrive(rq, next)		do { } while (0)
 #define sched_info_switch(rq, t, next)		do { } while (0)
 #endif /* CONFIG_SCHED_INFO */
-
-/*
- * The following are functions that support scheduler-internal time accounting.
- * These functions are generally called at the timer tick.  None of this depends
- * on CONFIG_SCHEDSTATS.
- */
-
-/**
- * cputimer_running - return true if cputimer is running
- *
- * @tsk:	Pointer to target task.
- */
-static inline bool cputimer_running(struct task_struct *tsk)
-
-{
-	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
-
-	/* Check if cputimer isn't running. This is accessed without locking. */
-	if (!READ_ONCE(cputimer->running))
-		return false;
-
-	/*
-	 * After we flush the task's sum_exec_runtime to sig->sum_sched_runtime
-	 * in __exit_signal(), we won't account to the signal struct further
-	 * cputime consumed by that task, even though the task can still be
-	 * ticking after __exit_signal().
-	 *
-	 * In order to keep a consistent behaviour between thread group cputime
-	 * and thread group cputimer accounting, lets also ignore the cputime
-	 * elapsing after __exit_signal() in any thread group timer running.
-	 *
-	 * This makes sure that POSIX CPU clocks and timers are synchronized, so
-	 * that a POSIX CPU timer won't expire while the corresponding POSIX CPU
-	 * clock delta is behind the expiring timer value.
-	 */
-	if (unlikely(!tsk->sighand))
-		return false;
-
-	return true;
-}
-
-/**
- * account_group_user_time - Maintain utime for a thread group.
- *
- * @tsk:	Pointer to task structure.
- * @cputime:	Time value by which to increment the utime field of the
- *		thread_group_cputime structure.
- *
- * If thread group time is being maintained, get the structure for the
- * running CPU and update the utime field there.
- */
-static inline void account_group_user_time(struct task_struct *tsk,
-					   cputime_t cputime)
-{
-	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
-
-	if (!cputimer_running(tsk))
-		return;
-
-	atomic64_add(cputime, &cputimer->cputime_atomic.utime);
-}
-
-/**
- * account_group_system_time - Maintain stime for a thread group.
- *
- * @tsk:	Pointer to task structure.
- * @cputime:	Time value by which to increment the stime field of the
- *		thread_group_cputime structure.
- *
- * If thread group time is being maintained, get the structure for the
- * running CPU and update the stime field there.
- */
-static inline void account_group_system_time(struct task_struct *tsk,
-					     cputime_t cputime)
-{
-	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
-
-	if (!cputimer_running(tsk))
-		return;
-
-	atomic64_add(cputime, &cputimer->cputime_atomic.stime);
-}
-
-/**
- * account_group_exec_runtime - Maintain exec runtime for a thread group.
- *
- * @tsk:	Pointer to task structure.
- * @ns:		Time value by which to increment the sum_exec_runtime field
- *		of the thread_group_cputime structure.
- *
- * If thread group time is being maintained, get the structure for the
- * running CPU and update the sum_exec_runtime field there.
- */
-static inline void account_group_exec_runtime(struct task_struct *tsk,
-					      unsigned long long ns)
-{
-	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
-
-	if (!cputimer_running(tsk))
-		return;
-
-	atomic64_add(ns, &cputimer->cputime_atomic.sum_exec_runtime);
-}

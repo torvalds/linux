@@ -9,7 +9,7 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#define pr_fmt(fmt)	"OF: fdt:" fmt
+#define pr_fmt(fmt)	"OF: fdt: " fmt
 
 #include <linux/crc32.h>
 #include <linux/kernel.h>
@@ -738,9 +738,12 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 	const char *pathp;
 	int offset, rc = 0, depth = -1;
 
-        for (offset = fdt_next_node(blob, -1, &depth);
-             offset >= 0 && depth >= 0 && !rc;
-             offset = fdt_next_node(blob, offset, &depth)) {
+	if (!blob)
+		return 0;
+
+	for (offset = fdt_next_node(blob, -1, &depth);
+	     offset >= 0 && depth >= 0 && !rc;
+	     offset = fdt_next_node(blob, offset, &depth)) {
 
 		pathp = fdt_get_name(blob, offset, NULL);
 		if (*pathp == '/')
@@ -924,7 +927,7 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 
 #ifdef CONFIG_SERIAL_EARLYCON
 
-static int __init early_init_dt_scan_chosen_serial(void)
+int __init early_init_dt_scan_chosen_stdout(void)
 {
 	int offset;
 	const char *p, *q, *options = NULL;
@@ -968,15 +971,6 @@ static int __init early_init_dt_scan_chosen_serial(void)
 	}
 	return -ENODEV;
 }
-
-static int __init setup_of_earlycon(char *buf)
-{
-	if (buf)
-		return 0;
-
-	return early_init_dt_scan_chosen_serial();
-}
-early_param("earlycon", setup_of_earlycon);
 #endif
 
 /**
@@ -1024,6 +1018,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	const __be32 *reg, *endp;
 	int l;
+	bool hotpluggable;
 
 	/* We are scanning "memory" nodes only */
 	if (type == NULL) {
@@ -1043,6 +1038,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 		return 0;
 
 	endp = reg + (l / sizeof(__be32));
+	hotpluggable = of_get_flat_dt_prop(node, "hotpluggable", NULL);
 
 	pr_debug("memory scan node %s, reg size %d,\n", uname, l);
 
@@ -1058,6 +1054,13 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 		    (unsigned long long)size);
 
 		early_init_dt_add_memory_arch(base, size);
+
+		if (!hotpluggable)
+			continue;
+
+		if (early_init_dt_mark_hotplug_memory_arch(base, size))
+			pr_warn("failed to mark hotplug range 0x%llx - 0x%llx\n",
+				base, base + size);
 	}
 
 	return 0;
@@ -1155,6 +1158,11 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 	memblock_add(base, size);
 }
 
+int __init __weak early_init_dt_mark_hotplug_memory_arch(u64 base, u64 size)
+{
+	return memblock_mark_hotplug(base, size);
+}
+
 int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {
@@ -1175,6 +1183,11 @@ void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
 void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	WARN_ON(1);
+}
+
+int __init __weak early_init_dt_mark_hotplug_memory_arch(u64 base, u64 size)
+{
+	return -ENOSYS;
 }
 
 int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,

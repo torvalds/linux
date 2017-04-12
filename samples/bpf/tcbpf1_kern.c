@@ -1,3 +1,4 @@
+#define KBUILD_MODNAME "foo"
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/if_packet.h>

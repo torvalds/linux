@@ -146,7 +146,7 @@ static void free_rd_atomic_resources(struct rxe_qp *qp)
 	if (qp->resp.resources) {
 		int i;
 
-		for (i = 0; i < qp->attr.max_rd_atomic; i++) {
+		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			struct resp_res *res = &qp->resp.resources[i];
 
 			free_rd_atomic_resource(qp, res);
@@ -174,7 +174,7 @@ static void cleanup_rd_atomic_resources(struct rxe_qp *qp)
 	struct resp_res *res;
 
 	if (qp->resp.resources) {
-		for (i = 0; i < qp->attr.max_rd_atomic; i++) {
+		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			res = &qp->resp.resources[i];
 			free_rd_atomic_resource(qp, res);
 		}
@@ -273,13 +273,8 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	rxe_init_task(rxe, &qp->comp.task, qp,
 		      rxe_completer, "comp");
 
-	init_timer(&qp->rnr_nak_timer);
-	qp->rnr_nak_timer.function = rnr_nak_timer;
-	qp->rnr_nak_timer.data = (unsigned long)qp;
-
-	init_timer(&qp->retrans_timer);
-	qp->retrans_timer.function = retransmit_timer;
-	qp->retrans_timer.data = (unsigned long)qp;
+	setup_timer(&qp->rnr_nak_timer, rnr_nak_timer, (unsigned long)qp);
+	setup_timer(&qp->retrans_timer, retransmit_timer, (unsigned long)qp);
 	qp->qp_timeout_jiffies = 0; /* Can't be set for UD/UC in modify_qp */
 
 	return 0;
@@ -298,8 +293,8 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 		wqe_size = rcv_wqe_size(qp->rq.max_sge);
 
-		pr_debug("max_wr = %d, max_sge = %d, wqe_size = %d\n",
-			 qp->rq.max_wr, qp->rq.max_sge, wqe_size);
+		pr_debug("qp#%d max_wr = %d, max_sge = %d, wqe_size = %d\n",
+			 qp_num(qp), qp->rq.max_wr, qp->rq.max_sge, wqe_size);
 
 		qp->rq.queue = rxe_queue_init(rxe,
 					      &qp->rq.max_wr,
@@ -522,6 +517,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	if (qp->sq.queue) {
 		__rxe_do_task(&qp->comp.task);
 		__rxe_do_task(&qp->req.task);
+		rxe_queue_reset(qp->sq.queue);
 	}
 
 	/* cleanup attributes */
@@ -573,6 +569,7 @@ void rxe_qp_error(struct rxe_qp *qp)
 {
 	qp->req.state = QP_STATE_ERROR;
 	qp->resp.state = QP_STATE_ERROR;
+	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
 	rxe_run_task(&qp->resp.task, 1);
@@ -596,14 +593,21 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	if (mask & IB_QP_MAX_QP_RD_ATOMIC) {
 		int max_rd_atomic = __roundup_pow_of_two(attr->max_rd_atomic);
 
-		free_rd_atomic_resources(qp);
-
-		err = alloc_rd_atomic_resources(qp, max_rd_atomic);
-		if (err)
-			return err;
-
 		qp->attr.max_rd_atomic = max_rd_atomic;
 		atomic_set(&qp->req.rd_atomic, max_rd_atomic);
+	}
+
+	if (mask & IB_QP_MAX_DEST_RD_ATOMIC) {
+		int max_dest_rd_atomic =
+			__roundup_pow_of_two(attr->max_dest_rd_atomic);
+
+		qp->attr.max_dest_rd_atomic = max_dest_rd_atomic;
+
+		free_rd_atomic_resources(qp);
+
+		err = alloc_rd_atomic_resources(qp, max_dest_rd_atomic);
+		if (err)
+			return err;
 	}
 
 	if (mask & IB_QP_CUR_STATE)
@@ -673,24 +677,27 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 	if (mask & IB_QP_RETRY_CNT) {
 		qp->attr.retry_cnt = attr->retry_cnt;
 		qp->comp.retry_cnt = attr->retry_cnt;
-		pr_debug("set retry count = %d\n", attr->retry_cnt);
+		pr_debug("qp#%d set retry count = %d\n", qp_num(qp),
+			 attr->retry_cnt);
 	}
 
 	if (mask & IB_QP_RNR_RETRY) {
 		qp->attr.rnr_retry = attr->rnr_retry;
 		qp->comp.rnr_retry = attr->rnr_retry;
-		pr_debug("set rnr retry count = %d\n", attr->rnr_retry);
+		pr_debug("qp#%d set rnr retry count = %d\n", qp_num(qp),
+			 attr->rnr_retry);
 	}
 
 	if (mask & IB_QP_RQ_PSN) {
 		qp->attr.rq_psn = (attr->rq_psn & BTH_PSN_MASK);
 		qp->resp.psn = qp->attr.rq_psn;
-		pr_debug("set resp psn = 0x%x\n", qp->resp.psn);
+		pr_debug("qp#%d set resp psn = 0x%x\n", qp_num(qp),
+			 qp->resp.psn);
 	}
 
 	if (mask & IB_QP_MIN_RNR_TIMER) {
 		qp->attr.min_rnr_timer = attr->min_rnr_timer;
-		pr_debug("set min rnr timer = 0x%x\n",
+		pr_debug("qp#%d set min rnr timer = 0x%x\n", qp_num(qp),
 			 attr->min_rnr_timer);
 	}
 
@@ -698,12 +705,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.sq_psn = (attr->sq_psn & BTH_PSN_MASK);
 		qp->req.psn = qp->attr.sq_psn;
 		qp->comp.psn = qp->attr.sq_psn;
-		pr_debug("set req psn = 0x%x\n", qp->req.psn);
-	}
-
-	if (mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		qp->attr.max_dest_rd_atomic =
-			__roundup_pow_of_two(attr->max_dest_rd_atomic);
+		pr_debug("qp#%d set req psn = 0x%x\n", qp_num(qp), qp->req.psn);
 	}
 
 	if (mask & IB_QP_PATH_MIG_STATE)
@@ -717,38 +719,38 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 
 		switch (attr->qp_state) {
 		case IB_QPS_RESET:
-			pr_debug("qp state -> RESET\n");
+			pr_debug("qp#%d state -> RESET\n", qp_num(qp));
 			rxe_qp_reset(qp);
 			break;
 
 		case IB_QPS_INIT:
-			pr_debug("qp state -> INIT\n");
+			pr_debug("qp#%d state -> INIT\n", qp_num(qp));
 			qp->req.state = QP_STATE_INIT;
 			qp->resp.state = QP_STATE_INIT;
 			break;
 
 		case IB_QPS_RTR:
-			pr_debug("qp state -> RTR\n");
+			pr_debug("qp#%d state -> RTR\n", qp_num(qp));
 			qp->resp.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_RTS:
-			pr_debug("qp state -> RTS\n");
+			pr_debug("qp#%d state -> RTS\n", qp_num(qp));
 			qp->req.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_SQD:
-			pr_debug("qp state -> SQD\n");
+			pr_debug("qp#%d state -> SQD\n", qp_num(qp));
 			rxe_qp_drain(qp);
 			break;
 
 		case IB_QPS_SQE:
-			pr_warn("qp state -> SQE !!?\n");
+			pr_warn("qp#%d state -> SQE !!?\n", qp_num(qp));
 			/* Not possible from modify_qp. */
 			break;
 
 		case IB_QPS_ERR:
-			pr_debug("qp state -> ERR\n");
+			pr_debug("qp#%d state -> ERR\n", qp_num(qp));
 			rxe_qp_error(qp);
 			break;
 		}
@@ -806,8 +808,7 @@ void rxe_qp_destroy(struct rxe_qp *qp)
 	del_timer_sync(&qp->rnr_nak_timer);
 
 	rxe_cleanup_task(&qp->req.task);
-	if (qp_type(qp) == IB_QPT_RC)
-		rxe_cleanup_task(&qp->comp.task);
+	rxe_cleanup_task(&qp->comp.task);
 
 	/* flush out any receive wr's or pending requests */
 	__rxe_do_task(&qp->req.task);
@@ -818,9 +819,9 @@ void rxe_qp_destroy(struct rxe_qp *qp)
 }
 
 /* called when the last reference to the qp is dropped */
-void rxe_qp_cleanup(void *arg)
+void rxe_qp_cleanup(struct rxe_pool_entry *arg)
 {
-	struct rxe_qp *qp = arg;
+	struct rxe_qp *qp = container_of(arg, typeof(*qp), pelem);
 
 	rxe_drop_all_mcast_groups(qp);
 
@@ -848,4 +849,5 @@ void rxe_qp_cleanup(void *arg)
 	free_rd_atomic_resources(qp);
 
 	kernel_sock_shutdown(qp->sk, SHUT_RDWR);
+	sock_release(qp->sk);
 }

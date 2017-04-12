@@ -971,7 +971,9 @@ static struct flag_table dc8051_info_err_flags[] = {
 	FLAG_ENTRY0("Failed LNI(VerifyCap_1)", FAILED_LNI_VERIFY_CAP1),
 	FLAG_ENTRY0("Failed LNI(VerifyCap_2)", FAILED_LNI_VERIFY_CAP2),
 	FLAG_ENTRY0("Failed LNI(ConfigLT)",    FAILED_LNI_CONFIGLT),
-	FLAG_ENTRY0("Host Handshake Timeout",  HOST_HANDSHAKE_TIMEOUT)
+	FLAG_ENTRY0("Host Handshake Timeout",  HOST_HANDSHAKE_TIMEOUT),
+	FLAG_ENTRY0("External Device Request Timeout",
+		    EXTERNAL_DEVICE_REQ_TIMEOUT),
 };
 
 /*
@@ -6299,19 +6301,8 @@ void set_up_vl15(struct hfi1_devdata *dd, u8 vau, u16 vl15buf)
 	/* leave shared count at zero for both global and VL15 */
 	write_global_credit(dd, vau, vl15buf, 0);
 
-	/* We may need some credits for another VL when sending packets
-	 * with the snoop interface. Dividing it down the middle for VL15
-	 * and VL0 should suffice.
-	 */
-	if (unlikely(dd->hfi1_snoop.mode_flag == HFI1_PORT_SNOOP_MODE)) {
-		write_csr(dd, SEND_CM_CREDIT_VL15, (u64)(vl15buf >> 1)
-		    << SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
-		write_csr(dd, SEND_CM_CREDIT_VL, (u64)(vl15buf >> 1)
-		    << SEND_CM_CREDIT_VL_DEDICATED_LIMIT_VL_SHIFT);
-	} else {
-		write_csr(dd, SEND_CM_CREDIT_VL15, (u64)vl15buf
-			<< SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
-	}
+	write_csr(dd, SEND_CM_CREDIT_VL15, (u64)vl15buf
+		  << SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
 }
 
 /*
@@ -6825,7 +6816,6 @@ void handle_link_up(struct work_struct *work)
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SPEED_POLICY, 0,
 				     OPA_LINKDOWN_REASON_SPEED_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -6998,12 +6988,10 @@ void handle_link_down(struct work_struct *work)
 	 * If there is no cable attached, turn the DC off. Otherwise,
 	 * start the link bring up.
 	 */
-	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd)) {
+	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd))
 		dc_shutdown(ppd->dd);
-	} else {
-		tune_serdes(ppd);
+	else
 		start_link(ppd);
-	}
 }
 
 void handle_link_bounce(struct work_struct *work)
@@ -7016,7 +7004,6 @@ void handle_link_bounce(struct work_struct *work)
 	 */
 	if (ppd->host_link_state & HLS_UP) {
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	} else {
 		dd_dev_info(ppd->dd, "%s: link not up (%s), nothing to do\n",
@@ -7531,7 +7518,6 @@ done:
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_WIDTH_POLICY, 0,
 				     OPA_LINKDOWN_REASON_WIDTH_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -7841,7 +7827,8 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		}
 
 		/* just report this */
-		dd_dev_info(dd, "DCC Error: fmconfig error: %s\n", extra);
+		dd_dev_info_ratelimited(dd, "DCC Error: fmconfig error: %s\n",
+					extra);
 		reg &= ~DCC_ERR_FLG_FMCONFIG_ERR_SMASK;
 	}
 
@@ -7892,34 +7879,35 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		}
 
 		/* just report this */
-		dd_dev_info(dd, "DCC Error: PortRcv error: %s\n", extra);
-		dd_dev_info(dd, "           hdr0 0x%llx, hdr1 0x%llx\n",
-			    hdr0, hdr1);
+		dd_dev_info_ratelimited(dd, "DCC Error: PortRcv error: %s\n"
+					"               hdr0 0x%llx, hdr1 0x%llx\n",
+					extra, hdr0, hdr1);
 
 		reg &= ~DCC_ERR_FLG_RCVPORT_ERR_SMASK;
 	}
 
 	if (reg & DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_UC_SMASK) {
 		/* informative only */
-		dd_dev_info(dd, "8051 access to LCB blocked\n");
+		dd_dev_info_ratelimited(dd, "8051 access to LCB blocked\n");
 		reg &= ~DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_UC_SMASK;
 	}
 	if (reg & DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_HOST_SMASK) {
 		/* informative only */
-		dd_dev_info(dd, "host access to LCB blocked\n");
+		dd_dev_info_ratelimited(dd, "host access to LCB blocked\n");
 		reg &= ~DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_HOST_SMASK;
 	}
 
 	/* report any remaining errors */
 	if (reg)
-		dd_dev_info(dd, "DCC Error: %s\n",
-			    dcc_err_string(buf, sizeof(buf), reg));
+		dd_dev_info_ratelimited(dd, "DCC Error: %s\n",
+					dcc_err_string(buf, sizeof(buf), reg));
 
 	if (lcl_reason == 0)
 		lcl_reason = OPA_LINKDOWN_REASON_UNKNOWN;
 
 	if (do_bounce) {
-		dd_dev_info(dd, "%s: PortErrorAction bounce\n", __func__);
+		dd_dev_info_ratelimited(dd, "%s: PortErrorAction bounce\n",
+					__func__);
 		set_link_down_reason(ppd, lcl_reason, 0, lcl_reason);
 		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
 	}
@@ -8491,7 +8479,10 @@ static int do_8051_command(
 	 */
 	if (type == HCMD_WRITE_LCB_CSR) {
 		in_data |= ((*out_data) & 0xffffffffffull) << 8;
-		reg = ((((*out_data) >> 40) & 0xff) <<
+		/* must preserve COMPLETED - it is tied to hardware */
+		reg = read_csr(dd, DC_DC8051_CFG_EXT_DEV_0);
+		reg &= DC_DC8051_CFG_EXT_DEV_0_COMPLETED_SMASK;
+		reg |= ((((*out_data) >> 40) & 0xff) <<
 				DC_DC8051_CFG_EXT_DEV_0_RETURN_CODE_SHIFT)
 		      | ((((*out_data) >> 48) & 0xffff) <<
 				DC_DC8051_CFG_EXT_DEV_0_RSP_DATA_SHIFT);
@@ -9161,6 +9152,12 @@ set_local_link_attributes_fail:
  */
 int start_link(struct hfi1_pportdata *ppd)
 {
+	/*
+	 * Tune the SerDes to a ballpark setting for optimal signal and bit
+	 * error rate.  Needs to be done before starting the link.
+	 */
+	tune_serdes(ppd);
+
 	if (!ppd->link_enabled) {
 		dd_dev_info(ppd->dd,
 			    "%s: stopping link start because link is disabled\n",
@@ -9401,8 +9398,6 @@ void qsfp_event(struct work_struct *work)
 		 */
 		set_qsfp_int_n(ppd, 1);
 
-		tune_serdes(ppd);
-
 		start_link(ppd);
 	}
 
@@ -9544,11 +9539,6 @@ static void try_start_link(struct hfi1_pportdata *ppd)
 	}
 	ppd->qsfp_retry_count = 0;
 
-	/*
-	 * Tune the SerDes to a ballpark setting for optimal signal and bit
-	 * error rate.  Needs to be done before starting the link.
-	 */
-	tune_serdes(ppd);
 	start_link(ppd);
 }
 
@@ -9571,11 +9561,11 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 	if (HFI1_CAP_IS_KSET(EXTENDED_PSN))
 		add_rcvctrl(dd, RCV_CTRL_RCV_EXTENDED_PSN_ENABLE_SMASK);
 
-	guid = ppd->guid;
+	guid = ppd->guids[HFI1_PORT_GUID_INDEX];
 	if (!guid) {
 		if (dd->base_guid)
 			guid = dd->base_guid + ppd->port - 1;
-		ppd->guid = guid;
+		ppd->guids[HFI1_PORT_GUID_INDEX] = guid;
 	}
 
 	/* Set linkinit_reason on power up per OPA spec */
@@ -9718,12 +9708,12 @@ void hfi1_clear_tids(struct hfi1_ctxtdata *rcd)
 		hfi1_put_tid(dd, i, PT_INVALID, 0, 0);
 }
 
-struct hfi1_message_header *hfi1_get_msgheader(
-				struct hfi1_devdata *dd, __le32 *rhf_addr)
+struct ib_header *hfi1_get_msgheader(
+	struct hfi1_devdata *dd, __le32 *rhf_addr)
 {
 	u32 offset = rhf_hdrq_offset(rhf_to_cpu(rhf_addr));
 
-	return (struct hfi1_message_header *)
+	return (struct ib_header *)
 		(rhf_addr - dd->rhf_offset + offset);
 }
 
@@ -9918,9 +9908,6 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 mask = ~((1U << ppd->lmc) - 1);
 	u64 c1 = read_csr(ppd->dd, DCC_CFG_PORT_CONFIG1);
-
-	if (dd->hfi1_snoop.mode_flag)
-		dd_dev_info(dd, "Set lid/lmc while snooping");
 
 	c1 &= ~(DCC_CFG_PORT_CONFIG1_TARGET_DLID_SMASK
 		| DCC_CFG_PORT_CONFIG1_DLID_MASK_SMASK);
@@ -10523,16 +10510,18 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			ppd->remote_link_down_reason = 0;
 		}
 
-		ret1 = set_physical_link_state(dd, PLS_DISABLED);
-		if (ret1 != HCMD_SUCCESS) {
-			dd_dev_err(dd,
-				   "Failed to transition to Disabled link state, return 0x%x\n",
-				   ret1);
-			ret = -EINVAL;
-			break;
+		if (!dd->dc_shutdown) {
+			ret1 = set_physical_link_state(dd, PLS_DISABLED);
+			if (ret1 != HCMD_SUCCESS) {
+				dd_dev_err(dd,
+					   "Failed to transition to Disabled link state, return 0x%x\n",
+					   ret1);
+				ret = -EINVAL;
+				break;
+			}
+			dc_shutdown(dd);
 		}
 		ppd->host_link_state = HLS_DN_DISABLE;
-		dc_shutdown(dd);
 		break;
 	case HLS_DN_OFFLINE:
 		if (ppd->host_link_state == HLS_DN_DISABLE)
@@ -11559,10 +11548,10 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 	    !(rcvctrl & RCV_CTXT_CTRL_ENABLE_SMASK)) {
 		/* reset the tail and hdr addresses, and sequence count */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_ADDR,
-				rcd->rcvhdrq_phys);
+				rcd->rcvhdrq_dma);
 		if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL))
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-					rcd->rcvhdrqtailaddr_phys);
+					rcd->rcvhdrqtailaddr_dma);
 		rcd->seq_cnt = 1;
 
 		/* reset the cached receive header queue head value */
@@ -11627,9 +11616,9 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		 * update with a dummy tail address and then disable
 		 * receive context.
 		 */
-		if (dd->rcvhdrtail_dummy_physaddr) {
+		if (dd->rcvhdrtail_dummy_dma) {
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-					dd->rcvhdrtail_dummy_physaddr);
+					dd->rcvhdrtail_dummy_dma);
 			/* Enabling RcvCtxtCtrl.TailUpd is intentional. */
 			rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 		}
@@ -11640,7 +11629,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		rcvctrl |= RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
 	if (op & HFI1_RCVCTRL_INTRAVAIL_DIS)
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
-	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_phys)
+	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_dma)
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
 		/* See comment on RcvCtxtCtrl.TailUpd above */
@@ -11712,7 +11701,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		 * so it doesn't contain an address that is invalid.
 		 */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-				dd->rcvhdrtail_dummy_physaddr);
+				dd->rcvhdrtail_dummy_dma);
 }
 
 u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp)
@@ -12116,7 +12105,7 @@ static void update_synth_timer(unsigned long opaque)
 	mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
 }
 
-#define C_MAX_NAME 13 /* 12 chars + one for /0 */
+#define C_MAX_NAME 16 /* 15 chars + one for /0 */
 static int init_cntrs(struct hfi1_devdata *dd)
 {
 	int i, rcv_ctxts, j;
@@ -13389,9 +13378,9 @@ static void init_rbufs(struct hfi1_devdata *dd)
 		/*
 		 * Give up after 1ms - maximum wait time.
 		 *
-		 * RBuf size is 148KiB.  Slowest possible is PCIe Gen1 x1 at
+		 * RBuf size is 136KiB.  Slowest possible is PCIe Gen1 x1 at
 		 * 250MB/s bandwidth.  Lower rate to 66% for overhead to get:
-		 *	148 KB / (66% * 250MB/s) = 920us
+		 *	136 KB / (66% * 250MB/s) = 844us
 		 */
 		if (count++ > 500) {
 			dd_dev_err(dd,
@@ -14467,7 +14456,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	 * Any error printing is already done by the init code.
 	 * On return, we have the chip mapped.
 	 */
-	ret = hfi1_pcie_ddinit(dd, pdev, ent);
+	ret = hfi1_pcie_ddinit(dd, pdev);
 	if (ret < 0)
 		goto bail_free;
 
@@ -14569,6 +14558,11 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = pcie_speeds(dd);
 	if (ret)
 		goto bail_cleanup;
+
+	/* call before get_platform_config(), after init_chip_resources() */
+	ret = eprom_init(dd);
+	if (ret)
+		goto bail_free_rcverr;
 
 	/* Needs to be called before hfi1_firmware_init */
 	get_platform_config(dd);
@@ -14690,9 +14684,10 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_free_cntrs;
 
-	ret = eprom_init(dd);
-	if (ret)
-		goto bail_free_rcverr;
+	init_completion(&dd->user_comp);
+
+	/* The user refcount starts with one to inidicate an active device */
+	atomic_set(&dd->user_refcount, 1);
 
 	goto bail;
 

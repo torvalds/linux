@@ -1044,7 +1044,7 @@ static void smsdvb_release(struct dvb_frontend *fe)
 	/* do nothing */
 }
 
-static struct dvb_frontend_ops smsdvb_fe_ops = {
+static const struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
 		.name			= "Siano Mobile Digital MDTV Receiver",
 		.frequency_min		= 44250000,

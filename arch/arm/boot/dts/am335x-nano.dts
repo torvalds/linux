@@ -19,7 +19,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -27,7 +27,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led@0 {
+		led0 {
 			label = "nanobone:green:usr1";
 			gpios = <&gpio1 5 0>;
 			default-state = "off";
@@ -249,7 +249,8 @@
 
 	#address-cells = <2>;
 	#size-cells = <1>;
-	ranges = <0 0 0x08000000 0x08000000>;	/* CS0: NOR 128M */
+	ranges = <0 0 0x08000000 0x08000000>,	/* CS0: NOR 128M */
+		 <1 0 0x1c000000 0x01000000>;	/* CS1: FRAM 16M */
 
 	nor@0,0 {
 		reg = <0 0x00000000 0x08000000>;
@@ -341,6 +342,34 @@
 			label = "data";
 			reg = <0x04000000 0x04000000>; /* 64MB */
 		};
+	};
+
+	fram@1,0 {
+		reg = <1 0x00000000 0x01000000>;
+		bank-width = <2>;
+
+		gpmc,mux-add-data = <2>;
+
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <160>;
+		gpmc,cs-wr-off-ns = <160>;
+		gpmc,adv-on-ns = <10>;
+		gpmc,adv-rd-off-ns = <20>;
+		gpmc,adv-wr-off-ns = <20>;
+		gpmc,oe-on-ns = <30>;
+		gpmc,oe-off-ns = <150>;
+		gpmc,we-on-ns = <30>;
+		gpmc,we-off-ns = <150>;
+		gpmc,rd-cycle-ns = <160>;
+		gpmc,wr-cycle-ns = <160>;
+		gpmc,access-ns = <130>;
+		gpmc,page-burst-access-ns = <10>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
+		gpmc,cycle2cycle-delay-ns = <10>;
+		gpmc,wr-data-mux-bus-ns = <30>;
+		gpmc,wr-access-ns = <0>;
 	};
 };
 

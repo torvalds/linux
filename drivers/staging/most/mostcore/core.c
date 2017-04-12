@@ -33,7 +33,7 @@
 #define STRING_SIZE	80
 
 static struct class *most_class;
-static struct device *class_glue_dir;
+static struct device *core_dev;
 static struct ida mdev_id;
 static int dummy_num_buffers;
 
@@ -51,6 +51,7 @@ struct most_c_obj {
 	u16 channel_id;
 	bool is_poisoned;
 	struct mutex start_mutex;
+	struct mutex nq_mutex; /* nq thread synchronization */
 	int is_starving;
 	struct most_interface *iface;
 	struct most_inst_obj *inst;
@@ -82,10 +83,13 @@ struct most_inst_obj {
 static const struct {
 	int most_ch_data_type;
 	char *name;
-} ch_data_type[] = { { MOST_CH_CONTROL, "control\n" },
+} ch_data_type[] = {
+	{ MOST_CH_CONTROL, "control\n" },
 	{ MOST_CH_ASYNC, "async\n" },
 	{ MOST_CH_SYNC, "sync\n" },
-	{ MOST_CH_ISOC_AVP, "isoc_avp\n"} };
+	{ MOST_CH_ISOC, "isoc\n"},
+	{ MOST_CH_ISOC, "isoc_avp\n"},
+};
 
 #define to_inst_obj(d) container_of(d, struct most_inst_obj, kobj)
 
@@ -260,11 +264,11 @@ static ssize_t show_available_directions(struct most_c_obj *c,
 
 	strcpy(buf, "");
 	if (c->iface->channel_vector[i].direction & MOST_CH_RX)
-		strcat(buf, "dir_rx ");
+		strcat(buf, "rx ");
 	if (c->iface->channel_vector[i].direction & MOST_CH_TX)
-		strcat(buf, "dir_tx ");
+		strcat(buf, "tx ");
 	strcat(buf, "\n");
-	return strlen(buf) + 1;
+	return strlen(buf);
 }
 
 static ssize_t show_available_datatypes(struct most_c_obj *c,
@@ -280,10 +284,10 @@ static ssize_t show_available_datatypes(struct most_c_obj *c,
 		strcat(buf, "async ");
 	if (c->iface->channel_vector[i].data_type & MOST_CH_SYNC)
 		strcat(buf, "sync ");
-	if (c->iface->channel_vector[i].data_type & MOST_CH_ISOC_AVP)
-		strcat(buf, "isoc_avp ");
+	if (c->iface->channel_vector[i].data_type & MOST_CH_ISOC)
+		strcat(buf, "isoc ");
 	strcat(buf, "\n");
-	return strlen(buf) + 1;
+	return strlen(buf);
 }
 
 static
@@ -338,7 +342,7 @@ static ssize_t show_channel_starving(struct most_c_obj *c,
 }
 
 #define create_show_channel_attribute(val) \
-	static MOST_CHNL_ATTR(val, S_IRUGO, show_##val, NULL)
+	static MOST_CHNL_ATTR(val, 0444, show_##val, NULL)
 
 create_show_channel_attribute(available_directions);
 create_show_channel_attribute(available_datatypes);
@@ -391,9 +395,9 @@ static ssize_t show_set_direction(struct most_c_obj *c,
 				  char *buf)
 {
 	if (c->cfg.direction & MOST_CH_TX)
-		return snprintf(buf, PAGE_SIZE, "dir_tx\n");
+		return snprintf(buf, PAGE_SIZE, "tx\n");
 	else if (c->cfg.direction & MOST_CH_RX)
-		return snprintf(buf, PAGE_SIZE, "dir_rx\n");
+		return snprintf(buf, PAGE_SIZE, "rx\n");
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
@@ -404,7 +408,11 @@ static ssize_t store_set_direction(struct most_c_obj *c,
 {
 	if (!strcmp(buf, "dir_rx\n")) {
 		c->cfg.direction = MOST_CH_RX;
+	} else if (!strcmp(buf, "rx\n")) {
+		c->cfg.direction = MOST_CH_RX;
 	} else if (!strcmp(buf, "dir_tx\n")) {
+		c->cfg.direction = MOST_CH_TX;
+	} else if (!strcmp(buf, "tx\n")) {
 		c->cfg.direction = MOST_CH_TX;
 	} else {
 		pr_info("WARN: invalid attribute settings\n");
@@ -486,9 +494,7 @@ static ssize_t store_set_packets_per_xact(struct most_c_obj *c,
 }
 
 #define create_channel_attribute(value) \
-	static MOST_CHNL_ATTR(value, S_IRUGO | S_IWUSR, \
-			      show_##value, \
-			      store_##value)
+	static MOST_CHNL_ATTR(value, 0644, show_##value, store_##value)
 
 create_channel_attribute(set_buffer_size);
 create_channel_attribute(set_number_of_buffers);
@@ -682,7 +688,7 @@ static ssize_t show_interface(struct most_inst_obj *instance_obj,
 }
 
 #define create_inst_attribute(value) \
-	static MOST_INST_ATTR(value, S_IRUGO, show_##value, NULL)
+	static MOST_INST_ATTR(value, 0444, show_##value, NULL)
 
 create_inst_attribute(description);
 create_inst_attribute(interface);
@@ -755,8 +761,6 @@ struct most_aim_obj {
 	struct kobject kobj;
 	struct list_head list;
 	struct most_aim *driver;
-	char add_link[STRING_SIZE];
-	char remove_link[STRING_SIZE];
 };
 
 #define to_aim_obj(d) container_of(d, struct most_aim_obj, kobj)
@@ -843,11 +847,27 @@ static void most_aim_release(struct kobject *kobj)
 	kfree(aim_obj);
 }
 
-static ssize_t show_add_link(struct most_aim_obj *aim_obj,
+static ssize_t add_link_show(struct most_aim_obj *aim_obj,
 			     struct most_aim_attribute *attr,
 			     char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", aim_obj->add_link);
+	struct most_c_obj *c;
+	struct most_inst_obj *i;
+	int offs = 0;
+
+	list_for_each_entry(i, &instance_list, list) {
+		list_for_each_entry(c, &i->channel_list, list) {
+			if (c->aim0.ptr == aim_obj->driver ||
+			    c->aim1.ptr == aim_obj->driver) {
+				offs += snprintf(buf + offs, PAGE_SIZE - offs,
+						 "%s:%s\n",
+						 kobject_name(&i->kobj),
+						 kobject_name(&c->kobj));
+			}
+		}
+	}
+
+	return offs;
 }
 
 /**
@@ -861,16 +881,16 @@ static ssize_t show_add_link(struct most_aim_obj *aim_obj,
  *
  * Examples:
  *
- * Input: "mdev0:ch0@ep_81:my_channel\n" or
- *        "mdev0:ch0@ep_81:my_channel"
+ * Input: "mdev0:ch6:my_channel\n" or
+ *        "mdev0:ch6:my_channel"
  *
- * Output: *a -> "mdev0", *b -> "ch0@ep_81", *c -> "my_channel"
+ * Output: *a -> "mdev0", *b -> "ch6", *c -> "my_channel"
  *
- * Input: "mdev0:ch0@ep_81\n"
- * Output: *a -> "mdev0", *b -> "ch0@ep_81", *c -> ""
+ * Input: "mdev1:ep81\n"
+ * Output: *a -> "mdev1", *b -> "ep81", *c -> ""
  *
- * Input: "mdev0:ch0@ep_81"
- * Output: *a -> "mdev0", *b -> "ch0@ep_81", *c == NULL
+ * Input: "mdev1:ep81"
+ * Output: *a -> "mdev1", *b -> "ep81", *c == NULL
  */
 static int split_string(char *buf, char **a, char **b, char **c)
 {
@@ -938,13 +958,13 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
  * Searches for a pair of device and channel and probes the AIM
  *
  * Example:
- * (1) echo -n -e "mdev0:ch0@ep_81:my_rxchannel\n" >add_link
- * (2) echo -n -e "mdev0:ch0@ep_81\n" >add_link
+ * (1) echo "mdev0:ch6:my_rxchannel" >add_link
+ * (2) echo "mdev1:ep81" >add_link
  *
  * (1) would create the device node /dev/my_rxchannel
- * (2) would create the device node /dev/mdev0-ch0@ep_81
+ * (2) would create the device node /dev/mdev1-ep81
  */
-static ssize_t store_add_link(struct most_aim_obj *aim_obj,
+static ssize_t add_link_store(struct most_aim_obj *aim_obj,
 			      struct most_aim_attribute *attr,
 			      const char *buf,
 			      size_t len)
@@ -960,7 +980,6 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
-	strlcpy(aim_obj->add_link, buf, max_len);
 
 	ret = split_string(buffer, &mdev, &mdev_ch, &mdev_devnod);
 	if (ret)
@@ -995,14 +1014,7 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 }
 
 static struct most_aim_attribute most_aim_attr_add_link =
-	__ATTR(add_link, S_IRUGO | S_IWUSR, show_add_link, store_add_link);
-
-static ssize_t show_remove_link(struct most_aim_obj *aim_obj,
-				struct most_aim_attribute *attr,
-				char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", aim_obj->remove_link);
-}
+	__ATTR_RW(add_link);
 
 /**
  * store_remove_link - store function for remove_link attribute
@@ -1012,9 +1024,9 @@ static ssize_t show_remove_link(struct most_aim_obj *aim_obj,
  * @len: buffer length
  *
  * Example:
- * echo -n -e "mdev0:ch0@ep_81\n" >remove_link
+ * echo "mdev0:ep81" >remove_link
  */
-static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
+static ssize_t remove_link_store(struct most_aim_obj *aim_obj,
 				 struct most_aim_attribute *attr,
 				 const char *buf,
 				 size_t len)
@@ -1027,7 +1039,6 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 	size_t max_len = min_t(size_t, len + 1, STRING_SIZE);
 
 	strlcpy(buffer, buf, max_len);
-	strlcpy(aim_obj->remove_link, buf, max_len);
 	ret = split_string(buffer, &mdev, &mdev_ch, NULL);
 	if (ret)
 		return ret;
@@ -1046,8 +1057,7 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 }
 
 static struct most_aim_attribute most_aim_attr_remove_link =
-	__ATTR(remove_link, S_IRUGO | S_IWUSR, show_remove_link,
-	       store_remove_link);
+	__ATTR_WO(remove_link);
 
 static struct attribute *most_aim_def_attrs[] = {
 	&most_aim_attr_add_link.attr,
@@ -1131,18 +1141,18 @@ static inline void trash_mbo(struct mbo *mbo)
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 }
 
-static struct mbo *get_hdm_mbo(struct most_c_obj *c)
+static bool hdm_mbo_ready(struct most_c_obj *c)
 {
-	unsigned long flags;
-	struct mbo *mbo;
+	bool empty;
 
-	spin_lock_irqsave(&c->fifo_lock, flags);
-	if (c->enqueue_halt || list_empty(&c->halt_fifo))
-		mbo = NULL;
-	else
-		mbo = list_pop_mbo(&c->halt_fifo);
-	spin_unlock_irqrestore(&c->fifo_lock, flags);
-	return mbo;
+	if (c->enqueue_halt)
+		return false;
+
+	spin_lock_irq(&c->fifo_lock);
+	empty = list_empty(&c->halt_fifo);
+	spin_unlock_irq(&c->fifo_lock);
+
+	return !empty;
 }
 
 static void nq_hdm_mbo(struct mbo *mbo)
@@ -1160,20 +1170,32 @@ static int hdm_enqueue_thread(void *data)
 {
 	struct most_c_obj *c = data;
 	struct mbo *mbo;
+	int ret;
 	typeof(c->iface->enqueue) enqueue = c->iface->enqueue;
 
 	while (likely(!kthread_should_stop())) {
 		wait_event_interruptible(c->hdm_fifo_wq,
-					 (mbo = get_hdm_mbo(c)) ||
+					 hdm_mbo_ready(c) ||
 					 kthread_should_stop());
 
-		if (unlikely(!mbo))
+		mutex_lock(&c->nq_mutex);
+		spin_lock_irq(&c->fifo_lock);
+		if (unlikely(c->enqueue_halt || list_empty(&c->halt_fifo))) {
+			spin_unlock_irq(&c->fifo_lock);
+			mutex_unlock(&c->nq_mutex);
 			continue;
+		}
+
+		mbo = list_pop_mbo(&c->halt_fifo);
+		spin_unlock_irq(&c->fifo_lock);
 
 		if (c->cfg.direction == MOST_CH_RX)
 			mbo->buffer_length = c->cfg.buffer_size;
 
-		if (unlikely(enqueue(mbo->ifp, mbo->hdm_channel_id, mbo))) {
+		ret = enqueue(mbo->ifp, mbo->hdm_channel_id, mbo);
+		mutex_unlock(&c->nq_mutex);
+
+		if (unlikely(ret)) {
 			pr_err("hdm enqueue failed\n");
 			nq_hdm_mbo(mbo);
 			c->hdm_enqueue_task = NULL;
@@ -1294,17 +1316,14 @@ _exit:
 /**
  * most_submit_mbo - submits an MBO to fifo
  * @mbo: pointer to the MBO
- *
  */
-int most_submit_mbo(struct mbo *mbo)
+void most_submit_mbo(struct mbo *mbo)
 {
-	if (unlikely((!mbo) || (!mbo->context))) {
-		pr_err("Bad MBO or missing channel reference\n");
-		return -EINVAL;
-	}
+	if (WARN_ONCE(!mbo || !mbo->context,
+		      "bad mbo or missing channel reference\n"))
+		return;
 
 	nq_hdm_mbo(mbo);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(most_submit_mbo);
 
@@ -1468,10 +1487,8 @@ static void most_read_completion(struct mbo *mbo)
 		return;
 	}
 
-	if (atomic_sub_and_test(1, &c->mbo_nq_level)) {
-		pr_info("WARN: rx device out of buffers\n");
+	if (atomic_sub_and_test(1, &c->mbo_nq_level))
 		c->is_starving = 1;
-	}
 
 	if (c->aim0.refs && c->aim0.ptr->rx_completion &&
 	    c->aim0.ptr->rx_completion(mbo) == 0)
@@ -1730,9 +1747,6 @@ struct kobject *most_register_interface(struct most_interface *iface)
 
 		if (!name_suffix)
 			snprintf(channel_name, STRING_SIZE, "ch%d", i);
-		else if (name_suffix[0] == '@')
-			snprintf(channel_name, STRING_SIZE, "ch%d%s", i,
-				 name_suffix);
 		else
 			snprintf(channel_name, STRING_SIZE, "%s", name_suffix);
 
@@ -1761,6 +1775,7 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		init_completion(&c->cleanup);
 		atomic_set(&c->mbo_ref, 0);
 		mutex_init(&c->start_mutex);
+		mutex_init(&c->nq_mutex);
 		list_add_tail(&c->list, &inst->channel_list);
 	}
 	pr_info("registered new MOST device mdev%d (%s)\n",
@@ -1826,8 +1841,12 @@ void most_stop_enqueue(struct most_interface *iface, int id)
 {
 	struct most_c_obj *c = get_channel_by_iface(iface, id);
 
-	if (likely(c))
-		c->enqueue_halt = true;
+	if (!c)
+		return;
+
+	mutex_lock(&c->nq_mutex);
+	c->enqueue_halt = true;
+	mutex_unlock(&c->nq_mutex);
 }
 EXPORT_SYMBOL_GPL(most_stop_enqueue);
 
@@ -1843,9 +1862,12 @@ void most_resume_enqueue(struct most_interface *iface, int id)
 {
 	struct most_c_obj *c = get_channel_by_iface(iface, id);
 
-	if (unlikely(!c))
+	if (!c)
 		return;
+
+	mutex_lock(&c->nq_mutex);
 	c->enqueue_halt = false;
+	mutex_unlock(&c->nq_mutex);
 
 	wake_up_interruptible(&c->hdm_fifo_wq);
 }
@@ -1879,22 +1901,19 @@ static int __init most_init(void)
 		goto exit_class;
 	}
 
-	class_glue_dir =
-		device_create(most_class, NULL, 0, NULL, "mostcore");
-	if (IS_ERR(class_glue_dir)) {
-		err = PTR_ERR(class_glue_dir);
+	core_dev = device_create(most_class, NULL, 0, NULL, "mostcore");
+	if (IS_ERR(core_dev)) {
+		err = PTR_ERR(core_dev);
 		goto exit_driver;
 	}
 
-	most_aim_kset =
-		kset_create_and_add("aims", NULL, &class_glue_dir->kobj);
+	most_aim_kset = kset_create_and_add("aims", NULL, &core_dev->kobj);
 	if (!most_aim_kset) {
 		err = -ENOMEM;
 		goto exit_class_container;
 	}
 
-	most_inst_kset =
-		kset_create_and_add("devices", NULL, &class_glue_dir->kobj);
+	most_inst_kset = kset_create_and_add("devices", NULL, &core_dev->kobj);
 	if (!most_inst_kset) {
 		err = -ENOMEM;
 		goto exit_driver_kset;

@@ -184,7 +184,7 @@
 struct sdma_mode_count {
 	u32 count   : 16; /* size of the buffer pointed by this BD */
 	u32 status  :  8; /* E,R,I,C,W,D status bits stored here */
-	u32 command :  8; /* command mostlky used for channel 0 */
+	u32 command :  8; /* command mostly used for channel 0 */
 };
 
 /*
@@ -298,6 +298,7 @@ struct sdma_engine;
  * @event_id1		for channels that use 2 events
  * @word_size		peripheral access size
  * @buf_tail		ID of the buffer that was processed
+ * @buf_ptail		ID of the previous buffer that was processed
  * @num_bd		max NUM_BD. number of descriptors currently handling
  */
 struct sdma_channel {
@@ -309,6 +310,7 @@ struct sdma_channel {
 	unsigned int			event_id1;
 	enum dma_slave_buswidth		word_size;
 	unsigned int			buf_tail;
+	unsigned int			buf_ptail;
 	unsigned int			num_bd;
 	unsigned int			period_len;
 	struct sdma_buffer_descriptor	*bd;
@@ -479,6 +481,24 @@ static struct sdma_driver_data sdma_imx6q = {
 	.script_addrs = &sdma_script_imx6q,
 };
 
+static struct sdma_script_start_addrs sdma_script_imx7d = {
+	.ap_2_ap_addr = 644,
+	.uart_2_mcu_addr = 819,
+	.mcu_2_app_addr = 749,
+	.uartsh_2_mcu_addr = 1034,
+	.mcu_2_shp_addr = 962,
+	.app_2_mcu_addr = 685,
+	.shp_2_mcu_addr = 893,
+	.spdif_2_mcu_addr = 1102,
+	.mcu_2_spdif_addr = 1136,
+};
+
+static struct sdma_driver_data sdma_imx7d = {
+	.chnenbl0 = SDMA_CHNENBL0_IMX35,
+	.num_events = 48,
+	.script_addrs = &sdma_script_imx7d,
+};
+
 static const struct platform_device_id sdma_devtypes[] = {
 	{
 		.name = "imx25-sdma",
@@ -499,6 +519,9 @@ static const struct platform_device_id sdma_devtypes[] = {
 		.name = "imx6q-sdma",
 		.driver_data = (unsigned long)&sdma_imx6q,
 	}, {
+		.name = "imx7d-sdma",
+		.driver_data = (unsigned long)&sdma_imx7d,
+	}, {
 		/* sentinel */
 	}
 };
@@ -511,6 +534,7 @@ static const struct of_device_id sdma_dt_ids[] = {
 	{ .compatible = "fsl,imx35-sdma", .data = &sdma_imx35, },
 	{ .compatible = "fsl,imx31-sdma", .data = &sdma_imx31, },
 	{ .compatible = "fsl,imx25-sdma", .data = &sdma_imx25, },
+	{ .compatible = "fsl,imx7d-sdma", .data = &sdma_imx7d, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sdma_dt_ids);
@@ -648,15 +672,11 @@ static void sdma_event_disable(struct sdma_channel *sdmac, unsigned int event)
 	writel_relaxed(val, sdma->regs + chnenbl);
 }
 
-static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
-{
-	if (sdmac->desc.callback)
-		sdmac->desc.callback(sdmac->desc.callback_param);
-}
-
 static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 {
 	struct sdma_buffer_descriptor *bd;
+	int error = 0;
+	enum dma_status	old_status = sdmac->status;
 
 	/*
 	 * loop mode. Iterate over descriptors, re-setup them and
@@ -668,17 +688,40 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 		if (bd->mode.status & BD_DONE)
 			break;
 
-		if (bd->mode.status & BD_RROR)
+		if (bd->mode.status & BD_RROR) {
+			bd->mode.status &= ~BD_RROR;
 			sdmac->status = DMA_ERROR;
+			error = -EIO;
+		}
 
+	       /*
+		* We use bd->mode.count to calculate the residue, since contains
+		* the number of bytes present in the current buffer descriptor.
+		*/
+
+		sdmac->chn_real_count = bd->mode.count;
 		bd->mode.status |= BD_DONE;
-		sdmac->buf_tail++;
-		sdmac->buf_tail %= sdmac->num_bd;
+		bd->mode.count = sdmac->period_len;
+		sdmac->buf_ptail = sdmac->buf_tail;
+		sdmac->buf_tail = (sdmac->buf_tail + 1) % sdmac->num_bd;
+
+		/*
+		 * The callback is called from the interrupt context in order
+		 * to reduce latency and to avoid the risk of altering the
+		 * SDMA transaction status by the time the client tasklet is
+		 * executed.
+		 */
+
+		dmaengine_desc_get_callback_invoke(&sdmac->desc, NULL);
+
+		if (error)
+			sdmac->status = old_status;
 	}
 }
 
-static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
+static void mxc_sdma_handle_channel_normal(unsigned long data)
 {
+	struct sdma_channel *sdmac = (struct sdma_channel *) data;
 	struct sdma_buffer_descriptor *bd;
 	int i, error = 0;
 
@@ -701,18 +744,8 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 		sdmac->status = DMA_COMPLETE;
 
 	dma_cookie_complete(&sdmac->desc);
-	if (sdmac->desc.callback)
-		sdmac->desc.callback(sdmac->desc.callback_param);
-}
 
-static void sdma_tasklet(unsigned long data)
-{
-	struct sdma_channel *sdmac = (struct sdma_channel *) data;
-
-	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		sdma_handle_channel_loop(sdmac);
-	else
-		mxc_sdma_handle_channel_normal(sdmac);
+	dmaengine_desc_get_callback_invoke(&sdmac->desc, NULL);
 }
 
 static irqreturn_t sdma_int_handler(int irq, void *dev_id)
@@ -731,8 +764,8 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 
 		if (sdmac->flags & IMX_DMA_SG_LOOP)
 			sdma_update_channel_loop(sdmac);
-
-		tasklet_schedule(&sdmac->tasklet);
+		else
+			tasklet_schedule(&sdmac->tasklet);
 
 		__clear_bit(channel, &stat);
 	}
@@ -1154,6 +1187,8 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 	sdmac->flags = 0;
 
 	sdmac->buf_tail = 0;
+	sdmac->buf_ptail = 0;
+	sdmac->chn_real_count = 0;
 
 	dev_dbg(sdma->dev, "setting up %d entries for channel %d.\n",
 			sg_len, channel);
@@ -1256,6 +1291,8 @@ static struct dma_async_tx_descriptor *sdma_prep_dma_cyclic(
 	sdmac->status = DMA_IN_PROGRESS;
 
 	sdmac->buf_tail = 0;
+	sdmac->buf_ptail = 0;
+	sdmac->chn_real_count = 0;
 	sdmac->period_len = period_len;
 
 	sdmac->flags |= IMX_DMA_SG_LOOP;
@@ -1353,7 +1390,8 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 	u32 residue;
 
 	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		residue = (sdmac->num_bd - sdmac->buf_tail) * sdmac->period_len;
+		residue = (sdmac->num_bd - sdmac->buf_ptail) *
+			   sdmac->period_len - sdmac->chn_real_count;
 	else
 		residue = sdmac->chn_count - sdmac->chn_real_count;
 
@@ -1375,6 +1413,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3	41
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4	42
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 		const struct sdma_script_start_addrs *addr)
@@ -1423,6 +1462,9 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 		break;
 	case 3:
 		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3;
+		break;
+	case 4:
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4;
 		break;
 	default:
 		dev_err(sdma->dev, "unknown firmware version\n");
@@ -1732,7 +1774,7 @@ static int sdma_probe(struct platform_device *pdev)
 		dma_cookie_init(&sdmac->chan);
 		sdmac->channel = i;
 
-		tasklet_init(&sdmac->tasklet, sdma_tasklet,
+		tasklet_init(&sdmac->tasklet, mxc_sdma_handle_channel_normal,
 			     (unsigned long) sdmac);
 		/*
 		 * Add the channel to the DMAC list. Do not add channel 0 though

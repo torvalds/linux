@@ -501,6 +501,9 @@ struct wl1271 {
 
 	/* dynamic fw traces */
 	u32 dynamic_fw_traces;
+
+	/* time sync zone master */
+	u8 zone_master_mac_addr[ETH_ALEN];
 };
 
 int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

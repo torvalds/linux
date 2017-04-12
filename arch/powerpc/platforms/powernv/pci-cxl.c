@@ -344,7 +344,7 @@ int pnv_cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			return (hwirq ? hwirq : -ENOMEM);
 
 		virq = irq_create_mapping(NULL, hwirq);
-		if (virq == NO_IRQ) {
+		if (!virq) {
 			pr_warn("%s: Failed to map cxl mode MSI to linux irq\n",
 				pci_name(pdev));
 			return -ENOMEM;
@@ -374,7 +374,7 @@ void pnv_cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev)
 		return;
 
 	for_each_pci_msi_entry(entry, pdev) {
-		if (entry->irq == NO_IRQ)
+		if (!entry->irq)
 			continue;
 		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);

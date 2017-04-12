@@ -614,7 +614,17 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	if (hotadd) {
 		pcibios_resource_survey_bus(root->bus);
 		pci_assign_unassigned_root_bus_resources(root->bus);
-		acpi_ioapic_add(root);
+		/*
+		 * This is only called for the hotadd case. For the boot-time
+		 * case, we need to wait until after PCI initialization in
+		 * order to deal with IOAPICs mapped in on a PCI BAR.
+		 *
+		 * This is currently x86-specific, because acpi_ioapic_add()
+		 * is an empty function without CONFIG_ACPI_HOTPLUG_IOAPIC.
+		 * And CONFIG_ACPI_HOTPLUG_IOAPIC depends on CONFIG_X86_IO_APIC
+		 * (see drivers/acpi/Kconfig).
+		 */
+		acpi_ioapic_add(root->device->handle);
 	}
 
 	pci_lock_rescan_remove();
@@ -638,12 +648,12 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	pci_stop_root_bus(root->bus);
 
-	WARN_ON(acpi_ioapic_remove(root));
-
+	pci_ioapic_remove(root);
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
 	pci_remove_root_bus(root->bus);
+	WARN_ON(acpi_ioapic_remove(root));
 
 	dmar_device_remove(device->handle);
 

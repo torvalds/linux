@@ -37,7 +37,6 @@
 #include <asm/ptrace.h>
 #include <asm/types.h>
 
-#ifdef __KERNEL__
 #define STACK_TOP_MAX		TASK_SIZE_64
 #ifdef CONFIG_COMPAT
 #define AARCH32_VECTORS_BASE	0xffff0000
@@ -49,7 +48,6 @@
 
 extern phys_addr_t arm64_dma_phys_limit;
 #define ARCH_LOW_ADDRESS_LIMIT	(arm64_dma_phys_limit - 1)
-#endif /* __KERNEL__ */
 
 struct debug_info {
 	/* Have we suspended stepping by a debugger? */
@@ -151,8 +149,6 @@ static inline void cpu_relax(void)
 	asm volatile("yield" ::: "memory");
 }
 
-#define cpu_relax_lowlatency()                cpu_relax()
-
 /* Thread switching */
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 					 struct task_struct *next);
@@ -190,8 +186,7 @@ static inline void spin_lock_prefetch(const void *ptr)
 
 #endif
 
-void cpu_enable_pan(void *__unused);
-void cpu_enable_uao(void *__unused);
-void cpu_enable_cache_maint_trap(void *__unused);
+int cpu_enable_pan(void *__unused);
+int cpu_enable_cache_maint_trap(void *__unused);
 
 #endif /* __ASM_PROCESSOR_H */

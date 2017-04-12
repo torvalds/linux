@@ -23,6 +23,8 @@
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include <asm/bootparam.h>
+#include <asm/export.h>
+#include <asm/pgtable_32.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -40,40 +42,8 @@
 #define X86_CAPABILITY	new_cpu_data+CPUINFO_x86_capability
 #define X86_VENDOR_ID	new_cpu_data+CPUINFO_x86_vendor_id
 
-/*
- * This is how much memory in addition to the memory covered up to
- * and including _end we need mapped initially.
- * We need:
- *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, non PAE)
- *     (KERNEL_IMAGE_SIZE/4096) / 512 + 4 pages (worst case for PAE)
- *
- * Modulo rounding, each megabyte assigned here requires a kilobyte of
- * memory, which is currently unreclaimed.
- *
- * This should be a multiple of a page.
- *
- * KERNEL_IMAGE_SIZE should be greater than pa(_end)
- * and small than max_low_pfn, otherwise will waste some page table entries
- */
 
-#if PTRS_PER_PMD > 1
-#define PAGE_TABLE_SIZE(pages) (((pages) / PTRS_PER_PMD) + PTRS_PER_PGD)
-#else
-#define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
-#endif
-
-/*
- * Number of possible pages in the lowmem region.
- *
- * We shift 2 by 31 instead of 1 by 32 to the left in order to avoid a
- * gas warning about overflowing shift count when gas has been compiled
- * with only a host target support using a 32-bit type for internal
- * representation.
- */
-LOWMEM_PAGES = (((2<<31) - __PAGE_OFFSET) >> PAGE_SHIFT)
-
-/* Enough space to fit pagetables for the low memory linear map */
-MAPPING_BEYOND_END = PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT
+#define SIZEOF_PTREGS 17*4
 
 /*
  * Worst-case size of the kernel mapping we need to make:
@@ -94,7 +64,7 @@ RESERVE_BRK(pagetables, INIT_MAP_SIZE)
  */
 __HEAD
 ENTRY(startup_32)
-	movl pa(stack_start),%ecx
+	movl pa(initial_stack),%ecx
 	
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
@@ -157,109 +127,34 @@ ENTRY(startup_32)
 	call load_ucode_bsp
 #endif
 
-/*
- * Initialize page tables.  This creates a PDE and a set of page
- * tables, which are located immediately beyond __brk_base.  The variable
- * _brk_end is set up to point to the first "safe" location.
- * Mappings are created both at virtual address 0 (identity mapping)
- * and PAGE_OFFSET for up to _end.
- */
-#ifdef CONFIG_X86_PAE
+	/* Create early pagetables. */
+	call  mk_early_pgtbl_32
 
-	/*
-	 * In PAE mode initial_page_table is statically defined to contain
-	 * enough entries to cover the VMSPLIT option (that is the top 1, 2 or 3
-	 * entries). The identity mapping is handled by pointing two PGD entries
-	 * to the first kernel PMD.
-	 *
-	 * Note the upper half of each PMD or PTE are always zero at this stage.
-	 */
-
+	/* Do early initialization of the fixmap area */
+	movl $pa(initial_pg_fixmap)+PDE_IDENT_ATTR,%eax
+#ifdef  CONFIG_X86_PAE
 #define KPMDS (((-__PAGE_OFFSET) >> 30) & 3) /* Number of kernel PMDs */
-
-	xorl %ebx,%ebx				/* %ebx is kept at zero */
-
-	movl $pa(__brk_base), %edi
-	movl $pa(initial_pg_pmd), %edx
-	movl $PTE_IDENT_ATTR, %eax
-10:
-	leal PDE_IDENT_ATTR(%edi),%ecx		/* Create PMD entry */
-	movl %ecx,(%edx)			/* Store PMD entry */
-						/* Upper half already zero */
-	addl $8,%edx
-	movl $512,%ecx
-11:
-	stosl
-	xchgl %eax,%ebx
-	stosl
-	xchgl %eax,%ebx
-	addl $0x1000,%eax
-	loop 11b
-
-	/*
-	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
-	 */
-	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
-	cmpl %ebp,%eax
-	jb 10b
-1:
-	addl $__PAGE_OFFSET, %edi
-	movl %edi, pa(_brk_end)
-	shrl $12, %eax
-	movl %eax, pa(max_pfn_mapped)
-
-	/* Do early initialization of the fixmap area */
-	movl $pa(initial_pg_fixmap)+PDE_IDENT_ATTR,%eax
 	movl %eax,pa(initial_pg_pmd+0x1000*KPMDS-8)
-#else	/* Not PAE */
-
-page_pde_offset = (__PAGE_OFFSET >> 20);
-
-	movl $pa(__brk_base), %edi
-	movl $pa(initial_page_table), %edx
-	movl $PTE_IDENT_ATTR, %eax
-10:
-	leal PDE_IDENT_ATTR(%edi),%ecx		/* Create PDE entry */
-	movl %ecx,(%edx)			/* Store identity PDE entry */
-	movl %ecx,page_pde_offset(%edx)		/* Store kernel PDE entry */
-	addl $4,%edx
-	movl $1024, %ecx
-11:
-	stosl
-	addl $0x1000,%eax
-	loop 11b
-	/*
-	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
-	 */
-	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
-	cmpl %ebp,%eax
-	jb 10b
-	addl $__PAGE_OFFSET, %edi
-	movl %edi, pa(_brk_end)
-	shrl $12, %eax
-	movl %eax, pa(max_pfn_mapped)
-
-	/* Do early initialization of the fixmap area */
-	movl $pa(initial_pg_fixmap)+PDE_IDENT_ATTR,%eax
+#else
 	movl %eax,pa(initial_page_table+0xffc)
 #endif
 
 #ifdef CONFIG_PARAVIRT
 	/* This is can only trip for a broken bootloader... */
 	cmpw $0x207, pa(boot_params + BP_version)
-	jb default_entry
+	jb .Ldefault_entry
 
 	/* Paravirt-compatible boot parameters.  Look to see what architecture
 		we're booting under. */
 	movl pa(boot_params + BP_hardware_subarch), %eax
 	cmpl $num_subarch_entries, %eax
-	jae bad_subarch
+	jae .Lbad_subarch
 
 	movl pa(subarch_entries)(,%eax,4), %eax
 	subl $__PAGE_OFFSET, %eax
 	jmp *%eax
 
-bad_subarch:
+.Lbad_subarch:
 WEAK(lguest_entry)
 WEAK(xen_entry)
 	/* Unknown implementation; there's really
@@ -269,14 +164,14 @@ WEAK(xen_entry)
 	__INITDATA
 
 subarch_entries:
-	.long default_entry		/* normal x86/PC */
+	.long .Ldefault_entry		/* normal x86/PC */
 	.long lguest_entry		/* lguest hypervisor */
 	.long xen_entry			/* Xen hypervisor */
-	.long default_entry		/* Moorestown MID */
+	.long .Ldefault_entry		/* Moorestown MID */
 num_subarch_entries = (. - subarch_entries) / 4
 .previous
 #else
-	jmp default_entry
+	jmp .Ldefault_entry
 #endif /* CONFIG_PARAVIRT */
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -286,9 +181,10 @@ num_subarch_entries = (. - subarch_entries) / 4
  * start_secondary().
  */
 ENTRY(start_cpu0)
-	movl stack_start, %ecx
+	movl initial_stack, %ecx
 	movl %ecx, %esp
-	jmp  *(initial_code)
+	call *(initial_code)
+1:	jmp 1b
 ENDPROC(start_cpu0)
 #endif
 
@@ -307,7 +203,7 @@ ENTRY(startup_32_smp)
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
-	movl pa(stack_start),%ecx
+	movl pa(initial_stack),%ecx
 	movl %eax,%ss
 	leal -__PAGE_OFFSET(%ecx),%esp
 
@@ -316,7 +212,7 @@ ENTRY(startup_32_smp)
 	call load_ucode_ap
 #endif
 
-default_entry:
+.Ldefault_entry:
 #define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
 			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
 			 X86_CR0_PG)
@@ -346,7 +242,7 @@ default_entry:
 	pushfl
 	popl %eax			# get EFLAGS
 	testl $X86_EFLAGS_ID,%eax	# did EFLAGS.ID remained set?
-	jz enable_paging		# hw disallowed setting of ID bit
+	jz .Lenable_paging		# hw disallowed setting of ID bit
 					# which means no CPUID and no CR4
 
 	xorl %eax,%eax
@@ -356,13 +252,13 @@ default_entry:
 	movl $1,%eax
 	cpuid
 	andl $~1,%edx			# Ignore CPUID.FPU
-	jz enable_paging		# No flags or only CPUID.FPU = no CR4
+	jz .Lenable_paging		# No flags or only CPUID.FPU = no CR4
 
 	movl pa(mmu_cr4_features),%eax
 	movl %eax,%cr4
 
 	testb $X86_CR4_PAE, %al		# check if PAE is enabled
-	jz enable_paging
+	jz .Lenable_paging
 
 	/* Check if extended functions are implemented */
 	movl $0x80000000, %eax
@@ -370,7 +266,7 @@ default_entry:
 	/* Value must be in the range 0x80000001 to 0x8000ffff */
 	subl $0x80000001, %eax
 	cmpl $(0x8000ffff-0x80000001), %eax
-	ja enable_paging
+	ja .Lenable_paging
 
 	/* Clear bogus XD_DISABLE bits */
 	call verify_cpu
@@ -379,7 +275,7 @@ default_entry:
 	cpuid
 	/* Execute Disable bit supported? */
 	btl $(X86_FEATURE_NX & 31), %edx
-	jnc enable_paging
+	jnc .Lenable_paging
 
 	/* Setup EFER (Extended Feature Enable Register) */
 	movl $MSR_EFER, %ecx
@@ -389,7 +285,7 @@ default_entry:
 	/* Make changes effective */
 	wrmsr
 
-enable_paging:
+.Lenable_paging:
 
 /*
  * Enable paging
@@ -418,7 +314,7 @@ enable_paging:
  */
 	movb $4,X86			# at least 486
 	cmpl $-1,X86_CPUID
-	je is486
+	je .Lis486
 
 	/* get vendor info */
 	xorl %eax,%eax			# call CPUID with 0 -> return vendor ID
@@ -429,7 +325,7 @@ enable_paging:
 	movl %ecx,X86_VENDOR_ID+8	# last 4 chars
 
 	orl %eax,%eax			# do we have processor info as well?
-	je is486
+	je .Lis486
 
 	movl $1,%eax		# Use the CPUID instruction to get CPU type
 	cpuid
@@ -443,7 +339,7 @@ enable_paging:
 	movb %cl,X86_MASK
 	movl %edx,X86_CAPABILITY
 
-is486:
+.Lis486:
 	movl $0x50022,%ecx	# set AM, WP, NE and MP
 	movl %cr0,%eax
 	andl $0x80000011,%eax	# Save PG,PE,ET
@@ -469,8 +365,9 @@ is486:
 	xorl %eax,%eax			# Clear LDT
 	lldt %ax
 
-	pushl $0		# fake return address for unwinder
-	jmp *(initial_code)
+	call *(initial_code)
+1:	jmp 1b
+ENDPROC(startup_32_smp)
 
 #include "verify_cpu.S"
 
@@ -661,18 +558,23 @@ ENTRY(setup_once_ref)
 __PAGE_ALIGNED_BSS
 	.align PAGE_SIZE
 #ifdef CONFIG_X86_PAE
+.globl initial_pg_pmd
 initial_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else
-ENTRY(initial_page_table)
+.globl initial_page_table
+initial_page_table:
 	.fill 1024,4,0
 #endif
 initial_pg_fixmap:
 	.fill 1024,4,0
-ENTRY(empty_zero_page)
+.globl empty_zero_page
+empty_zero_page:
 	.fill 4096,1,0
-ENTRY(swapper_pg_dir)
+.globl swapper_pg_dir
+swapper_pg_dir:
 	.fill 1024,4,0
+EXPORT_SYMBOL(empty_zero_page)
 
 /*
  * This starts the data section.
@@ -703,8 +605,13 @@ ENTRY(initial_page_table)
 
 .data
 .balign 4
-ENTRY(stack_start)
-	.long init_thread_union+THREAD_SIZE
+ENTRY(initial_stack)
+	/*
+	 * The SIZEOF_PTREGS gap is a convention which helps the in-kernel
+	 * unwinder reliably detect the end of the stack.
+	 */
+	.long init_thread_union + THREAD_SIZE - SIZEOF_PTREGS - \
+	      TOP_OF_KERNEL_STACK_PADDING;
 
 __INITRODATA
 int_msg:

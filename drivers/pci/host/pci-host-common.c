@@ -1,4 +1,6 @@
 /*
+ * Generic PCI host driver common code
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -17,7 +19,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci-ecam.h>
@@ -29,7 +30,7 @@ static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
 	int err, res_valid = 0;
 	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
-	struct resource_entry *win;
+	struct resource_entry *win, *tmp;
 
 	err = of_pci_get_host_bridge_resources(np, 0, 0xff, resources, &iobase);
 	if (err)
@@ -39,15 +40,17 @@ static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
 	if (err)
 		return err;
 
-	resource_list_for_each_entry(win, resources) {
+	resource_list_for_each_entry_safe(win, tmp, resources) {
 		struct resource *res = win->res;
 
 		switch (resource_type(res)) {
 		case IORESOURCE_IO:
 			err = pci_remap_iospace(res, iobase);
-			if (err)
+			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
+				resource_list_destroy_entry(win);
+			}
 			break;
 		case IORESOURCE_MEM:
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
@@ -142,7 +145,9 @@ int pci_host_common_probe(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
+#ifdef CONFIG_ARM
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+#endif
 
 	/*
 	 * We insert PCI resources into the iomem_resource and
@@ -162,7 +167,3 @@ int pci_host_common_probe(struct platform_device *pdev,
 	pci_bus_add_devices(bus);
 	return 0;
 }
-
-MODULE_DESCRIPTION("Generic PCI host driver common code");
-MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
-MODULE_LICENSE("GPL v2");

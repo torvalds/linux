@@ -81,5 +81,6 @@ struct mwifiex_rx_reorder_tbl *
 mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta);
 void mwifiex_11n_del_rx_reorder_tbl_by_ta(struct mwifiex_private *priv, u8 *ta);
 void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags);
-
+void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
+				 u8 *event_buf, u16 len);
 #endif /* _MWIFIEX_11N_RXREORDER_H_ */

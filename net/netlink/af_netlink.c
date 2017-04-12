@@ -40,7 +40,7 @@
 #include <linux/net.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
@@ -96,6 +96,44 @@ EXPORT_SYMBOL_GPL(nl_table);
 
 static DECLARE_WAIT_QUEUE_HEAD(nl_table_wait);
 
+static struct lock_class_key nlk_cb_mutex_keys[MAX_LINKS];
+
+static const char *const nlk_cb_mutex_key_strings[MAX_LINKS + 1] = {
+	"nlk_cb_mutex-ROUTE",
+	"nlk_cb_mutex-1",
+	"nlk_cb_mutex-USERSOCK",
+	"nlk_cb_mutex-FIREWALL",
+	"nlk_cb_mutex-SOCK_DIAG",
+	"nlk_cb_mutex-NFLOG",
+	"nlk_cb_mutex-XFRM",
+	"nlk_cb_mutex-SELINUX",
+	"nlk_cb_mutex-ISCSI",
+	"nlk_cb_mutex-AUDIT",
+	"nlk_cb_mutex-FIB_LOOKUP",
+	"nlk_cb_mutex-CONNECTOR",
+	"nlk_cb_mutex-NETFILTER",
+	"nlk_cb_mutex-IP6_FW",
+	"nlk_cb_mutex-DNRTMSG",
+	"nlk_cb_mutex-KOBJECT_UEVENT",
+	"nlk_cb_mutex-GENERIC",
+	"nlk_cb_mutex-17",
+	"nlk_cb_mutex-SCSITRANSPORT",
+	"nlk_cb_mutex-ECRYPTFS",
+	"nlk_cb_mutex-RDMA",
+	"nlk_cb_mutex-CRYPTO",
+	"nlk_cb_mutex-SMC",
+	"nlk_cb_mutex-23",
+	"nlk_cb_mutex-24",
+	"nlk_cb_mutex-25",
+	"nlk_cb_mutex-26",
+	"nlk_cb_mutex-27",
+	"nlk_cb_mutex-28",
+	"nlk_cb_mutex-29",
+	"nlk_cb_mutex-30",
+	"nlk_cb_mutex-31",
+	"nlk_cb_mutex-MAX_LINKS"
+};
+
 static int netlink_dump(struct sock *sk);
 static void netlink_skb_destructor(struct sk_buff *skb);
 
@@ -113,7 +151,7 @@ static atomic_t nl_table_users = ATOMIC_INIT(0);
 
 #define nl_deref_protected(X) rcu_dereference_protected(X, lockdep_is_held(&nl_table_lock));
 
-static ATOMIC_NOTIFIER_HEAD(netlink_chain);
+static BLOCKING_NOTIFIER_HEAD(netlink_chain);
 
 static DEFINE_SPINLOCK(netlink_tap_lock);
 static struct list_head netlink_tap_all __read_mostly;
@@ -329,7 +367,6 @@ static void netlink_sock_destruct(struct sock *sk)
 	if (nlk->cb_running) {
 		if (nlk->cb.done)
 			nlk->cb.done(&nlk->cb);
-
 		module_put(nlk->cb.module);
 		kfree_skb(nlk->cb.skb);
 	}
@@ -344,6 +381,14 @@ static void netlink_sock_destruct(struct sock *sk)
 	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
 	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
 	WARN_ON(nlk_sk(sk)->groups);
+}
+
+static void netlink_sock_destruct_work(struct work_struct *work)
+{
+	struct netlink_sock *nlk = container_of(work, struct netlink_sock,
+						work);
+
+	sk_free(&nlk->sk);
 }
 
 /* This lock without WQ_FLAG_EXCLUSIVE is good on UP and it is _very_ bad on
@@ -578,6 +623,9 @@ static int __netlink_create(struct net *net, struct socket *sock,
 	} else {
 		nlk->cb_mutex = &nlk->cb_def_mutex;
 		mutex_init(nlk->cb_mutex);
+		lockdep_set_class_and_name(nlk->cb_mutex,
+					   nlk_cb_mutex_keys + protocol,
+					   nlk_cb_mutex_key_strings[protocol]);
 	}
 	init_waitqueue_head(&nlk->wait);
 
@@ -648,8 +696,18 @@ out_module:
 static void deferred_put_nlk_sk(struct rcu_head *head)
 {
 	struct netlink_sock *nlk = container_of(head, struct netlink_sock, rcu);
+	struct sock *sk = &nlk->sk;
 
-	sock_put(&nlk->sk);
+	if (!atomic_dec_and_test(&sk->sk_refcnt))
+		return;
+
+	if (nlk->cb_running && nlk->cb.done) {
+		INIT_WORK(&nlk->work, netlink_sock_destruct_work);
+		schedule_work(&nlk->work);
+		return;
+	}
+
+	sk_free(sk);
 }
 
 static int netlink_release(struct socket *sock)
@@ -694,7 +752,7 @@ static int netlink_release(struct socket *sock)
 						.protocol = sk->sk_protocol,
 						.portid = nlk->portid,
 					  };
-		atomic_notifier_call_chain(&netlink_chain,
+		blocking_notifier_call_chain(&netlink_chain,
 				NETLINK_URELEASE, &n);
 	}
 
@@ -1193,9 +1251,9 @@ static struct sk_buff *netlink_trim(struct sk_buff *skb, gfp_t allocation)
 		skb = nskb;
 	}
 
-	if (!pskb_expand_head(skb, 0, -delta, allocation))
-		skb->truesize -= delta;
-
+	pskb_expand_head(skb, 0, -delta,
+			 (allocation & ~__GFP_DIRECT_RECLAIM) |
+			 __GFP_NOWARN | __GFP_NORETRY);
 	return skb;
 }
 
@@ -1832,7 +1890,7 @@ static int netlink_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	/* Record the max length of recvmsg() calls for future allocations */
 	nlk->max_recvmsg_len = max(nlk->max_recvmsg_len, len);
 	nlk->max_recvmsg_len = min_t(size_t, nlk->max_recvmsg_len,
-				     16384);
+				     SKB_WITH_OVERHEAD(32768));
 
 	copied = data_skb->len;
 	if (len < copied) {
@@ -2083,8 +2141,9 @@ static int netlink_dump(struct sock *sk)
 
 	if (alloc_min_size < nlk->max_recvmsg_len) {
 		alloc_size = nlk->max_recvmsg_len;
-		skb = alloc_skb(alloc_size, GFP_KERNEL |
-					    __GFP_NOWARN | __GFP_NORETRY);
+		skb = alloc_skb(alloc_size,
+				(GFP_KERNEL & ~__GFP_DIRECT_RECLAIM) |
+				__GFP_NOWARN | __GFP_NORETRY);
 	}
 	if (!skb) {
 		alloc_size = alloc_min_size;
@@ -2486,13 +2545,13 @@ static const struct file_operations netlink_seq_fops = {
 
 int netlink_register_notifier(struct notifier_block *nb)
 {
-	return atomic_notifier_chain_register(&netlink_chain, nb);
+	return blocking_notifier_chain_register(&netlink_chain, nb);
 }
 EXPORT_SYMBOL(netlink_register_notifier);
 
 int netlink_unregister_notifier(struct notifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&netlink_chain, nb);
+	return blocking_notifier_chain_unregister(&netlink_chain, nb);
 }
 EXPORT_SYMBOL(netlink_unregister_notifier);
 

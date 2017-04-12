@@ -5,11 +5,19 @@
 
 menu "Pressure sensors"
 
+config ABP060MG
+	tristate "Honeywell ABP pressure sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Honeywell ABP pressure
+	  sensors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called abp060mg.
+
 config BMP280
 	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
 	depends on (I2C || SPI_MASTER)
-	depends on !(BMP085_I2C=y || BMP085_I2C=m)
-	depends on !(BMP085_SPI=y || BMP085_SPI=m)
 	select REGMAP
 	select BMP280_I2C if (I2C)
 	select BMP280_SPI if (SPI_MASTER)
@@ -33,6 +41,16 @@ config BMP280_SPI
 	depends on BMP280
 	depends on SPI_MASTER
 	select REGMAP
+
+config IIO_CROS_EC_BARO
+	tristate "ChromeOS EC Barometer Sensor"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Say yes here to build support for the Barometer sensor when
+	  presented by the ChromeOS EC Sensor hub.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cros_ec_baro.
 
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
@@ -186,5 +204,27 @@ config HP206C
 
 	  This driver can also be built as a module. If so, the module will
 	  be called hp206c.
+
+config ZPA2326
+	tristate "Murata ZPA2326 pressure sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+	select ZPA2326_I2C if I2C
+	select ZPA2326_SPI if SPI_MASTER
+	help
+	  Say Y here to build support for the Murata ZPA2326 pressure and
+	  temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called zpa2326.
+
+config ZPA2326_I2C
+	tristate
+	select REGMAP_I2C
+
+config ZPA2326_SPI
+	tristate
+	select REGMAP_SPI
 
 endmenu

@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,11 +15,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
-#include <linux/pci.h>
 #include <linux/netdevice.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
@@ -27,7 +23,7 @@
 #include "response_manager.h"
 #include "octeon_device.h"
 
-#define MEMOPS_IDX   MAX_BAR1_MAP_INDEX
+#define MEMOPS_IDX   BAR1_INDEX_DYNAMIC_MAP
 
 #ifdef __BIG_ENDIAN_BITFIELD
 static inline void
@@ -40,7 +36,7 @@ octeon_toggle_bar1_swapmode(struct octeon_device *oct, u32 idx)
 	oct->fn_list.bar1_idx_write(oct, idx, mask);
 }
 #else
-#define octeon_toggle_bar1_swapmode(oct, idx) (oct = oct)
+#define octeon_toggle_bar1_swapmode(oct, idx)
 #endif
 
 static void
@@ -100,6 +96,25 @@ __octeon_pci_rw_core_mem(struct octeon_device *oct, u64 addr,
 	u32 copy_len = 0, index_reg_val = 0;
 	unsigned long flags;
 	u8 __iomem *mapped_addr;
+	u64 static_mapping_base;
+
+	static_mapping_base = oct->console_nb_info.dram_region_base;
+
+	if (static_mapping_base &&
+	    static_mapping_base == (addr & ~(OCTEON_BAR1_ENTRY_SIZE - 1ULL))) {
+		int bar1_index = oct->console_nb_info.bar1_index;
+
+		mapped_addr = oct->mmio[1].hw_addr
+			+ (bar1_index << ilog2(OCTEON_BAR1_ENTRY_SIZE))
+			+ (addr & (OCTEON_BAR1_ENTRY_SIZE - 1ULL));
+
+		if (op)
+			octeon_pci_fastread(oct, mapped_addr, hostbuf, len);
+		else
+			octeon_pci_fastwrite(oct, mapped_addr, hostbuf, len);
+
+		return;
+	}
 
 	spin_lock_irqsave(&oct->mem_access_lock, flags);
 

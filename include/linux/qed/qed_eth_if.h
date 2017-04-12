@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_ETH_IF_H
@@ -15,6 +39,29 @@
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_iov_if.h>
 
+struct qed_queue_start_common_params {
+	/* Should always be relative to entity sending this. */
+	u8 vport_id;
+	u16 queue_id;
+
+	/* Relative, but relevant only for PFs */
+	u8 stats_id;
+
+	/* These are always absolute */
+	u16 sb;
+	u8 sb_idx;
+};
+
+struct qed_rxq_start_ret_params {
+	void __iomem *p_prod;
+	void *p_handle;
+};
+
+struct qed_txq_start_ret_params {
+	void __iomem *p_doorbell;
+	void *p_handle;
+};
+
 struct qed_dev_eth_info {
 	struct qed_dev_info common;
 
@@ -22,11 +69,15 @@ struct qed_dev_eth_info {
 	u8	num_tc;
 
 	u8	port_mac[ETH_ALEN];
-	u8	num_vlan_filters;
+	u16	num_vlan_filters;
+	u16	num_mac_filters;
+
+	/* Legacy VF - this affects the datapath, so qede has to know */
+	bool is_legacy;
 };
 
 struct qed_update_vport_rss_params {
-	u16	rss_ind_table[128];
+	void	*rss_ind_table[128];
 	u32	rss_key[10];
 	u8	rss_caps;
 };
@@ -45,23 +96,12 @@ struct qed_update_vport_params {
 
 struct qed_start_vport_params {
 	bool remove_inner_vlan;
+	bool handle_ptp_pkts;
 	bool gro_enable;
 	bool drop_ttl0;
 	u8 vport_id;
 	u16 mtu;
 	bool clear_stats;
-};
-
-struct qed_stop_rxq_params {
-	u8 rss_id;
-	u8 rx_queue_id;
-	u8 vport_id;
-	bool eq_completion_only;
-};
-
-struct qed_stop_txq_params {
-	u8 rss_id;
-	u8 tx_queue_id;
 };
 
 enum qed_filter_rx_mode_type {
@@ -108,15 +148,6 @@ struct qed_filter_params {
 	union qed_filter_type_params filter;
 };
 
-struct qed_queue_start_common_params {
-	u8 rss_id;
-	u8 queue_id;
-	u8 vport_id;
-	u16 sb;
-	u16 sb_idx;
-	u16 vf_qid;
-};
-
 struct qed_tunn_params {
 	u16 vxlan_port;
 	u8 update_vxlan_port;
@@ -126,7 +157,16 @@ struct qed_tunn_params {
 
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
-	void (*force_mac) (void *dev, u8 *mac);
+	void (*force_mac) (void *dev, u8 *mac, bool forced);
+};
+
+#define QED_MAX_PHC_DRIFT_PPB   291666666
+
+enum qed_ptp_filter_type {
+	QED_PTP_FILTER_L2,
+	QED_PTP_FILTER_IPV4,
+	QED_PTP_FILTER_IPV4_IPV6,
+	QED_PTP_FILTER_L2_IPV4_IPV6
 };
 
 #ifdef CONFIG_DCB
@@ -188,6 +228,17 @@ struct qed_eth_dcbnl_ops {
 };
 #endif
 
+struct qed_eth_ptp_ops {
+	int (*hwtstamp_tx_on)(struct qed_dev *);
+	int (*cfg_rx_filters)(struct qed_dev *, enum qed_ptp_filter_type);
+	int (*read_rx_ts)(struct qed_dev *, u64 *);
+	int (*read_tx_ts)(struct qed_dev *, u64 *);
+	int (*read_cc)(struct qed_dev *, u64 *);
+	int (*disable)(struct qed_dev *);
+	int (*adjfreq)(struct qed_dev *, s32);
+	int (*enable)(struct qed_dev *);
+};
+
 struct qed_eth_ops {
 	const struct qed_common_ops *common;
 #ifdef CONFIG_QED_SRIOV
@@ -196,6 +247,7 @@ struct qed_eth_ops {
 #ifdef CONFIG_DCB
 	const struct qed_eth_dcbnl_ops *dcb;
 #endif
+	const struct qed_eth_ptp_ops *ptp;
 
 	int (*fill_dev_info)(struct qed_dev *cdev,
 			     struct qed_dev_eth_info *info);
@@ -216,24 +268,24 @@ struct qed_eth_ops {
 			    struct qed_update_vport_params *params);
 
 	int (*q_rx_start)(struct qed_dev *cdev,
+			  u8 rss_num,
 			  struct qed_queue_start_common_params *params,
 			  u16 bd_max_bytes,
 			  dma_addr_t bd_chain_phys_addr,
 			  dma_addr_t cqe_pbl_addr,
 			  u16 cqe_pbl_size,
-			  void __iomem **pp_prod);
+			  struct qed_rxq_start_ret_params *ret_params);
 
-	int (*q_rx_stop)(struct qed_dev *cdev,
-			 struct qed_stop_rxq_params *params);
+	int (*q_rx_stop)(struct qed_dev *cdev, u8 rss_id, void *handle);
 
 	int (*q_tx_start)(struct qed_dev *cdev,
+			  u8 rss_num,
 			  struct qed_queue_start_common_params *params,
 			  dma_addr_t pbl_addr,
 			  u16 pbl_size,
-			  void __iomem **pp_doorbell);
+			  struct qed_txq_start_ret_params *ret_params);
 
-	int (*q_tx_stop)(struct qed_dev *cdev,
-			 struct qed_stop_txq_params *params);
+	int (*q_tx_stop)(struct qed_dev *cdev, u8 rss_id, void *handle);
 
 	int (*filter_config)(struct qed_dev *cdev,
 			     struct qed_filter_params *params);

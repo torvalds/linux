@@ -80,6 +80,7 @@ static void mtk_ovl_enable_vblank(struct mtk_ddp_comp *comp,
 						 ddp_comp);
 
 	priv->crtc = crtc;
+	writel(0x0, comp->regs + DISP_REG_OVL_INTSTA);
 	writel_relaxed(OVL_FME_CPL_INT, comp->regs + DISP_REG_OVL_INTEN);
 }
 
@@ -103,7 +104,8 @@ static void mtk_ovl_stop(struct mtk_ddp_comp *comp)
 }
 
 static void mtk_ovl_config(struct mtk_ddp_comp *comp, unsigned int w,
-			   unsigned int h, unsigned int vrefresh)
+			   unsigned int h, unsigned int vrefresh,
+			   unsigned int bpc)
 {
 	if (w != 0 && h != 0)
 		writel_relaxed(h << 16 | w, comp->regs + DISP_REG_OVL_ROI_SIZE);
@@ -249,13 +251,6 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = devm_request_irq(dev, irq, mtk_disp_ovl_irq_handler,
-			       IRQF_TRIGGER_NONE, dev_name(dev), priv);
-	if (ret < 0) {
-		dev_err(dev, "Failed to request irq %d: %d\n", irq, ret);
-		return ret;
-	}
-
 	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_OVL);
 	if (comp_id < 0) {
 		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
@@ -270,6 +265,13 @@ static int mtk_disp_ovl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, priv);
+
+	ret = devm_request_irq(dev, irq, mtk_disp_ovl_irq_handler,
+			       IRQF_TRIGGER_NONE, dev_name(dev), priv);
+	if (ret < 0) {
+		dev_err(dev, "Failed to request irq %d: %d\n", irq, ret);
+		return ret;
+	}
 
 	ret = component_add(dev, &mtk_disp_ovl_component_ops);
 	if (ret)

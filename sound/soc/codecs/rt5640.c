@@ -423,6 +423,8 @@ static const struct snd_kcontrol_new rt5640_snd_controls[] = {
 	SOC_DOUBLE_TLV("ADC Capture Volume", RT5640_ADC_DIG_VOL,
 			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
+	SOC_DOUBLE("Mono ADC Capture Switch", RT5640_DUMMY1,
+		RT5640_M_MONO_ADC_L_SFT, RT5640_M_MONO_ADC_R_SFT, 1, 1),
 	SOC_DOUBLE_TLV("Mono ADC Capture Volume", RT5640_ADC_DATA,
 			RT5640_L_VOL_SFT, RT5640_R_VOL_SFT,
 			127, 0, adc_vol_tlv),
@@ -993,7 +995,7 @@ static int rt5640_hp_event(struct snd_soc_dapm_widget *w,
 
 	case SND_SOC_DAPM_PRE_PMD:
 		rt5640->hp_mute = 1;
-		usleep_range(70000, 75000);
+		msleep(70);
 		break;
 
 	default:
@@ -1057,7 +1059,7 @@ static int rt5640_hp_post_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		if (!rt5640->hp_mute)
-			usleep_range(80000, 85000);
+			msleep(80);
 
 		break;
 
@@ -1225,6 +1227,10 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 		RT5640_PWR_DAC_L1_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DAC R1 Power", RT5640_PWR_DIG1,
 		RT5640_PWR_DAC_R1_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC L2 Power", RT5640_PWR_DIG1,
+		RT5640_PWR_DAC_L2_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC R2 Power", RT5640_PWR_DIG1,
+		RT5640_PWR_DAC_R2_BIT, 0, NULL, 0),
 	/* SPK/OUT Mixer */
 	SND_SOC_DAPM_MIXER("SPK MIXL", RT5640_PWR_MIXER, RT5640_PWR_SM_L_BIT,
 		0, rt5640_spk_l_mix, ARRAY_SIZE(rt5640_spk_l_mix)),
@@ -1320,10 +1326,6 @@ static const struct snd_soc_dapm_widget rt5640_specific_dapm_widgets[] = {
 		rt5640_mono_mix, ARRAY_SIZE(rt5640_mono_mix)),
 	SND_SOC_DAPM_SUPPLY("Improve MONO Amp Drv", RT5640_PWR_ANLG1,
 		RT5640_PWR_MA_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC L2 Power", RT5640_PWR_DIG1,
-		RT5640_PWR_DAC_L2_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("DAC R2 Power", RT5640_PWR_DIG1,
-		RT5640_PWR_DAC_R2_BIT, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("MONOP"),
 	SND_SOC_DAPM_OUTPUT("MONON"),
@@ -1870,6 +1872,9 @@ static int rt5640_set_dai_sysclk(struct snd_soc_dai *dai,
 	case RT5640_SCLK_S_PLL1:
 		reg_val |= RT5640_SCLK_SRC_PLL1;
 		break;
+	case RT5640_SCLK_S_RCCLK:
+		reg_val |= RT5640_SCLK_SRC_RCCLK;
+		break;
 	default:
 		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
@@ -2261,12 +2266,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5640 = {
 	.resume = rt5640_resume,
 	.set_bias_level = rt5640_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5640_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5640_snd_controls),
-	.dapm_widgets = rt5640_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5640_dapm_widgets),
-	.dapm_routes = rt5640_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5640_dapm_routes),
+	.component_driver = {
+		.controls		= rt5640_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5640_snd_controls),
+		.dapm_widgets		= rt5640_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5640_dapm_widgets),
+		.dapm_routes		= rt5640_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5640_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5640_regmap = {
@@ -2306,6 +2313,7 @@ MODULE_DEVICE_TABLE(of, rt5640_of_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5640_acpi_match[] = {
 	{ "INT33CA", 0 },
+	{ "10EC3276", 0 },
 	{ "10EC5640", 0 },
 	{ "10EC5642", 0 },
 	{ "INTCCFFD", 0 },
@@ -2401,6 +2409,9 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 				    ARRAY_SIZE(init_list));
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
+
+	regmap_update_bits(rt5640->regmap, RT5640_DUMMY1,
+				RT5640_MCLK_DET, RT5640_MCLK_DET);
 
 	if (rt5640->pdata.in1_diff)
 		regmap_update_bits(rt5640->regmap, RT5640_IN1_IN2,

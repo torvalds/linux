@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -364,13 +364,13 @@ static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
 }
 
 static const struct dbg_off isr_off[] = {
-	{"ICC", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, ICC), doff_io32},
-	{"ICR", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, ICR), doff_io32},
-	{"ICM", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, ICM), doff_io32},
-	{"ICS",		  S_IWUSR, offsetof(struct RGF_ICR, ICS), doff_io32},
-	{"IMV", S_IRUGO | S_IWUSR, offsetof(struct RGF_ICR, IMV), doff_io32},
-	{"IMS",		  S_IWUSR, offsetof(struct RGF_ICR, IMS), doff_io32},
-	{"IMC",		  S_IWUSR, offsetof(struct RGF_ICR, IMC), doff_io32},
+	{"ICC", 0644, offsetof(struct RGF_ICR, ICC), doff_io32},
+	{"ICR", 0644, offsetof(struct RGF_ICR, ICR), doff_io32},
+	{"ICM", 0644, offsetof(struct RGF_ICR, ICM), doff_io32},
+	{"ICS",	0244, offsetof(struct RGF_ICR, ICS), doff_io32},
+	{"IMV", 0644, offsetof(struct RGF_ICR, IMV), doff_io32},
+	{"IMS",	0244, offsetof(struct RGF_ICR, IMS), doff_io32},
+	{"IMC",	0244, offsetof(struct RGF_ICR, IMC), doff_io32},
 	{},
 };
 
@@ -390,9 +390,9 @@ static int wil6210_debugfs_create_ISR(struct wil6210_priv *wil,
 }
 
 static const struct dbg_off pseudo_isr_off[] = {
-	{"CAUSE",   S_IRUGO, HOSTADDR(RGF_DMA_PSEUDO_CAUSE), doff_io32},
-	{"MASK_SW", S_IRUGO, HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW), doff_io32},
-	{"MASK_FW", S_IRUGO, HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_FW), doff_io32},
+	{"CAUSE",   0444, HOSTADDR(RGF_DMA_PSEUDO_CAUSE), doff_io32},
+	{"MASK_SW", 0444, HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_SW), doff_io32},
+	{"MASK_FW", 0444, HOSTADDR(RGF_DMA_PSEUDO_CAUSE_MASK_FW), doff_io32},
 	{},
 };
 
@@ -411,40 +411,40 @@ static int wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
 }
 
 static const struct dbg_off lgc_itr_cnt_off[] = {
-	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_TRSH), doff_io32},
-	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_DATA), doff_io32},
-	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_CNT_CRL), doff_io32},
+	{"TRSH", 0644, HOSTADDR(RGF_DMA_ITR_CNT_TRSH), doff_io32},
+	{"DATA", 0644, HOSTADDR(RGF_DMA_ITR_CNT_DATA), doff_io32},
+	{"CTL",  0644, HOSTADDR(RGF_DMA_ITR_CNT_CRL), doff_io32},
 	{},
 };
 
 static const struct dbg_off tx_itr_cnt_off[] = {
-	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_TRSH),
+	{"TRSH", 0644, HOSTADDR(RGF_DMA_ITR_TX_CNT_TRSH),
 	 doff_io32},
-	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_DATA),
+	{"DATA", 0644, HOSTADDR(RGF_DMA_ITR_TX_CNT_DATA),
 	 doff_io32},
-	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_CNT_CTL),
+	{"CTL",  0644, HOSTADDR(RGF_DMA_ITR_TX_CNT_CTL),
 	 doff_io32},
-	{"IDL_TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_TRSH),
+	{"IDL_TRSH", 0644, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_TRSH),
 	 doff_io32},
-	{"IDL_DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_DATA),
+	{"IDL_DATA", 0644, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_DATA),
 	 doff_io32},
-	{"IDL_CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_CTL),
+	{"IDL_CTL",  0644, HOSTADDR(RGF_DMA_ITR_TX_IDL_CNT_CTL),
 	 doff_io32},
 	{},
 };
 
 static const struct dbg_off rx_itr_cnt_off[] = {
-	{"TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_TRSH),
+	{"TRSH", 0644, HOSTADDR(RGF_DMA_ITR_RX_CNT_TRSH),
 	 doff_io32},
-	{"DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_DATA),
+	{"DATA", 0644, HOSTADDR(RGF_DMA_ITR_RX_CNT_DATA),
 	 doff_io32},
-	{"CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_CNT_CTL),
+	{"CTL",  0644, HOSTADDR(RGF_DMA_ITR_RX_CNT_CTL),
 	 doff_io32},
-	{"IDL_TRSH", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_TRSH),
+	{"IDL_TRSH", 0644, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_TRSH),
 	 doff_io32},
-	{"IDL_DATA", S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_DATA),
+	{"IDL_DATA", 0644, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_DATA),
 	 doff_io32},
-	{"IDL_CTL",  S_IRUGO | S_IWUSR, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_CTL),
+	{"IDL_CTL",  0644, HOSTADDR(RGF_DMA_ITR_RX_IDL_CNT_CTL),
 	 doff_io32},
 	{},
 };
@@ -813,7 +813,7 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	rc = wil_cfg80211_mgmt_tx(wiphy, wdev, &params, NULL);
 
 	kfree(frame);
-	wil_info(wil, "%s() -> %d\n", __func__, rc);
+	wil_info(wil, "-> %d\n", rc);
 
 	return len;
 }
@@ -855,7 +855,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 	rc1 = wmi_send(wil, cmdid, cmd, cmdlen);
 	kfree(wmi);
 
-	wil_info(wil, "%s(0x%04x[%d]) -> %d\n", __func__, cmdid, cmdlen, rc1);
+	wil_info(wil, "0x%04x[%d] -> %d\n", cmdid, cmdlen, rc1);
 
 	return rc;
 }
@@ -1379,6 +1379,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
 		char *status = "unknown";
+		u8 aid = 0;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1389,9 +1390,10 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			break;
 		case wil_sta_connected:
 			status = "connected";
+			aid = p->aid;
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
+		seq_printf(s, "[%d] %pM %s AID %d\n", i, p->addr, status, aid);
 
 		if (p->status == wil_sta_connected) {
 			spin_lock_bh(&p->tid_rx_lock);
@@ -1553,6 +1555,56 @@ static const struct file_operations fops_led_blink_time = {
 	.open  = simple_open,
 };
 
+/*---------FW capabilities------------*/
+static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+
+	seq_printf(s, "fw_capabilities : %*pb\n", WMI_FW_CAPABILITY_MAX,
+		   wil->fw_capabilities);
+
+	return 0;
+}
+
+static int wil_fw_capabilities_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_fw_capabilities_debugfs_show,
+			   inode->i_private);
+}
+
+static const struct file_operations fops_fw_capabilities = {
+	.open		= wil_fw_capabilities_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
+/*---------FW version------------*/
+static int wil_fw_version_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+
+	if (wil->fw_version[0])
+		seq_printf(s, "%s\n", wil->fw_version);
+	else
+		seq_puts(s, "N/A\n");
+
+	return 0;
+}
+
+static int wil_fw_version_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_fw_version_debugfs_show,
+			   inode->i_private);
+}
+
+static const struct file_operations fops_fw_version = {
+	.open		= wil_fw_version_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 /*----------------*/
 static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 				       struct dentry *dbg)
@@ -1572,7 +1624,7 @@ static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 		blob->data = (void * __force)wil->csr + HOSTADDR(map->host);
 		blob->size = map->to - map->from;
 		snprintf(name, sizeof(name), "blob_%s", map->name);
-		wil_debugfs_create_ioblob(name, S_IRUGO, dbg, wil_blob);
+		wil_debugfs_create_ioblob(name, 0444, dbg, wil_blob);
 	}
 }
 
@@ -1582,27 +1634,29 @@ static const struct {
 	umode_t mode;
 	const struct file_operations *fops;
 } dbg_files[] = {
-	{"mbox",	S_IRUGO,		&fops_mbox},
-	{"vrings",	S_IRUGO,		&fops_vring},
-	{"stations",	S_IRUGO,		&fops_sta},
-	{"desc",	S_IRUGO,		&fops_txdesc},
-	{"bf",		S_IRUGO,		&fops_bf},
-	{"ssid",	S_IRUGO | S_IWUSR,	&fops_ssid},
-	{"mem_val",	S_IRUGO,		&fops_memread},
-	{"reset",		  S_IWUSR,	&fops_reset},
-	{"rxon",		  S_IWUSR,	&fops_rxon},
-	{"tx_mgmt",		  S_IWUSR,	&fops_txmgmt},
-	{"wmi_send",		  S_IWUSR,	&fops_wmi},
-	{"back",	S_IRUGO | S_IWUSR,	&fops_back},
-	{"pmccfg",	S_IRUGO | S_IWUSR,	&fops_pmccfg},
-	{"pmcdata",	S_IRUGO,		&fops_pmcdata},
-	{"temp",	S_IRUGO,		&fops_temp},
-	{"freq",	S_IRUGO,		&fops_freq},
-	{"link",	S_IRUGO,		&fops_link},
-	{"info",	S_IRUGO,		&fops_info},
-	{"recovery",	S_IRUGO | S_IWUSR,	&fops_recovery},
-	{"led_cfg",	S_IRUGO | S_IWUSR,	&fops_led_cfg},
-	{"led_blink_time",	S_IRUGO | S_IWUSR,	&fops_led_blink_time},
+	{"mbox",	0444,		&fops_mbox},
+	{"vrings",	0444,		&fops_vring},
+	{"stations", 0444,		&fops_sta},
+	{"desc",	0444,		&fops_txdesc},
+	{"bf",		0444,		&fops_bf},
+	{"ssid",	0644,		&fops_ssid},
+	{"mem_val",	0644,		&fops_memread},
+	{"reset",	0244,		&fops_reset},
+	{"rxon",	0244,		&fops_rxon},
+	{"tx_mgmt",	0244,		&fops_txmgmt},
+	{"wmi_send", 0244,		&fops_wmi},
+	{"back",	0644,		&fops_back},
+	{"pmccfg",	0644,		&fops_pmccfg},
+	{"pmcdata",	0444,		&fops_pmcdata},
+	{"temp",	0444,		&fops_temp},
+	{"freq",	0444,		&fops_freq},
+	{"link",	0444,		&fops_link},
+	{"info",	0444,		&fops_info},
+	{"recovery", 0644,		&fops_recovery},
+	{"led_cfg",	0644,		&fops_led_cfg},
+	{"led_blink_time",	0644,	&fops_led_blink_time},
+	{"fw_capabilities",	0444,	&fops_fw_capabilities},
+	{"fw_version",	0444,		&fops_fw_version},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
@@ -1641,31 +1695,32 @@ static void wil6210_debugfs_init_isr(struct wil6210_priv *wil,
 
 /* fields in struct wil6210_priv */
 static const struct dbg_off dbg_wil_off[] = {
-	WIL_FIELD(privacy,	S_IRUGO,		doff_u32),
-	WIL_FIELD(status[0],	S_IRUGO | S_IWUSR,	doff_ulong),
-	WIL_FIELD(fw_version,	S_IRUGO,		doff_u32),
-	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
-	WIL_FIELD(recovery_count, S_IRUGO,		doff_u32),
-	WIL_FIELD(ap_isolate,	S_IRUGO,		doff_u32),
-	WIL_FIELD(discovery_mode, S_IRUGO | S_IWUSR,	doff_u8),
+	WIL_FIELD(privacy,	0444,		doff_u32),
+	WIL_FIELD(status[0],	0644,	doff_ulong),
+	WIL_FIELD(hw_version,	0444,	doff_x32),
+	WIL_FIELD(recovery_count, 0444,	doff_u32),
+	WIL_FIELD(ap_isolate,	0444,	doff_u32),
+	WIL_FIELD(discovery_mode, 0644,	doff_u8),
+	WIL_FIELD(chip_revision, 0444,	doff_u8),
+	WIL_FIELD(abft_len, 0644,		doff_u8),
 	{},
 };
 
 static const struct dbg_off dbg_wil_regs[] = {
-	{"RGF_MAC_MTRL_COUNTER_0", S_IRUGO, HOSTADDR(RGF_MAC_MTRL_COUNTER_0),
+	{"RGF_MAC_MTRL_COUNTER_0", 0444, HOSTADDR(RGF_MAC_MTRL_COUNTER_0),
 		doff_io32},
-	{"RGF_USER_USAGE_1", S_IRUGO, HOSTADDR(RGF_USER_USAGE_1), doff_io32},
+	{"RGF_USER_USAGE_1", 0444, HOSTADDR(RGF_USER_USAGE_1), doff_io32},
 	{},
 };
 
 /* static parameters */
 static const struct dbg_off dbg_statics[] = {
-	{"desc_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_txdesc_index, doff_u32},
-	{"vring_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_vring_index, doff_u32},
-	{"mem_addr",	S_IRUGO | S_IWUSR, (ulong)&mem_addr, doff_u32},
-	{"vring_idle_trsh", S_IRUGO | S_IWUSR, (ulong)&vring_idle_trsh,
+	{"desc_index",	0644, (ulong)&dbg_txdesc_index, doff_u32},
+	{"vring_index",	0644, (ulong)&dbg_vring_index, doff_u32},
+	{"mem_addr",	0644, (ulong)&mem_addr, doff_u32},
+	{"vring_idle_trsh", 0644, (ulong)&vring_idle_trsh,
 	 doff_u32},
-	{"led_polarity", S_IRUGO | S_IWUSR, (ulong)&led_polarity, doff_u8},
+	{"led_polarity", 0644, (ulong)&led_polarity, doff_u8},
 	{},
 };
 

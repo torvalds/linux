@@ -77,7 +77,7 @@ int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 	item = snd_soc_enum_val_to_item(e, val);
 	ucontrol->value.enumerated.item[0] = item;
 	if (e->shift_l != e->shift_r) {
-		val = (reg_val >> e->shift_l) & e->mask;
+		val = (reg_val >> e->shift_r) & e->mask;
 		item = snd_soc_enum_val_to_item(e, val);
 		ucontrol->value.enumerated.item[1] = item;
 	}
@@ -120,7 +120,7 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_put_enum_double);
 
 /**
- * snd_soc_read_signed - Read a codec register and interprete as signed value
+ * snd_soc_read_signed - Read a codec register and interpret as signed value
  * @component: component
  * @reg: Register to read
  * @mask: Mask to use after shifting the register value

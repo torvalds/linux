@@ -174,6 +174,14 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 	enum ieee80211_ac_numbers ac;
 	bool tid_found = false;
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	/* set advanced pm flag with no uapsd ACs to enable ps-poll */
+	if (mvmvif->dbgfs_pm.use_ps_poll) {
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+		return;
+	}
+#endif
+
 	for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_BK; ac++) {
 		if (!mvmvif->queue_params[ac].uapsd)
 			continue;
@@ -202,16 +210,6 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 				break;
 			}
 		}
-	}
-
-	if (!(cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK))) {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		/* set advanced pm flag with no uapsd ACs to enable ps-poll */
-		if (mvmvif->dbgfs_pm.use_ps_poll)
-			cmd->flags |=
-				cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
-#endif
-		return;
 	}
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK);
@@ -601,9 +599,8 @@ static void iwl_mvm_power_ps_disabled_iterator(void *_data, u8* mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool *disable_ps = _data;
 
-	if (mvmvif->phy_ctxt)
-		if (mvmvif->phy_ctxt->id < MAX_PHYS)
-			*disable_ps |= mvmvif->ps_disabled;
+	if (mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX)
+		*disable_ps |= mvmvif->ps_disabled;
 }
 
 static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
@@ -611,6 +608,7 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_power_vifs *power_iterator = _data;
+	bool active = mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX;
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_DEVICE:
@@ -621,34 +619,30 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->ap_vif);
 		power_iterator->ap_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->ap_active = true;
+		if (active)
+			power_iterator->ap_active = true;
 		break;
 
 	case NL80211_IFTYPE_MONITOR:
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->monitor_vif);
 		power_iterator->monitor_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->monitor_active = true;
+		if (active)
+			power_iterator->monitor_active = true;
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->p2p_vif);
 		power_iterator->p2p_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->p2p_active = true;
+		if (active)
+			power_iterator->p2p_active = true;
 		break;
 
 	case NL80211_IFTYPE_STATION:
 		power_iterator->bss_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->bss_active = true;
+		if (active)
+			power_iterator->bss_active = true;
 		break;
 
 	default:
@@ -694,8 +688,7 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 
 	/* enable PM on p2p if p2p stand alone */
 	if (vifs->p2p_active && !vifs->bss_active && !vifs->ap_active) {
-		if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM)
-			p2p_mvmvif->pm_enabled = true;
+		p2p_mvmvif->pm_enabled = true;
 		return;
 	}
 
@@ -707,12 +700,10 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 				   ap_mvmvif->phy_ctxt->id);
 
 	/* clients are not stand alone: enable PM if DCM */
-	if (!(client_same_channel || ap_same_channel) &&
-	    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_DCM)) {
+	if (!(client_same_channel || ap_same_channel)) {
 		if (vifs->bss_active)
 			bss_mvmvif->pm_enabled = true;
-		if (vifs->p2p_active &&
-		    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM))
+		if (vifs->p2p_active)
 			p2p_mvmvif->pm_enabled = true;
 		return;
 	}
@@ -721,12 +712,10 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 	 * There is only one channel in the system and there are only
 	 * bss and p2p clients that share it
 	 */
-	if (client_same_channel && !vifs->ap_active &&
-	    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_SCM)) {
+	if (client_same_channel && !vifs->ap_active) {
 		/* share same channel*/
 		bss_mvmvif->pm_enabled = true;
-		if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM)
-			p2p_mvmvif->pm_enabled = true;
+		p2p_mvmvif->pm_enabled = true;
 	}
 }
 

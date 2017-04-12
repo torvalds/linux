@@ -70,10 +70,10 @@ static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq,
 		goto out;
 
 	if (txq->mac80211_qnum >= 0) {
-		struct list_head *list;
+		struct ath_acq *acq;
 
-		list = &sc->cur_chan->acq[txq->mac80211_qnum];
-		if (!list_empty(list))
+		acq = &sc->cur_chan->acq[txq->mac80211_qnum];
+		if (!list_empty(&acq->acq_new) || !list_empty(&acq->acq_old))
 			pending = true;
 	}
 out:
@@ -181,7 +181,7 @@ void ath9k_ps_restore(struct ath_softc *sc)
 static void __ath_cancel_work(struct ath_softc *sc)
 {
 	cancel_work_sync(&sc->paprd_work);
-	cancel_delayed_work_sync(&sc->tx_complete_work);
+	cancel_delayed_work_sync(&sc->hw_check_work);
 	cancel_delayed_work_sync(&sc->hw_pll_work);
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
@@ -198,7 +198,8 @@ void ath_cancel_work(struct ath_softc *sc)
 
 void ath_restart_work(struct ath_softc *sc)
 {
-	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
+	ieee80211_queue_delayed_work(sc->hw, &sc->hw_check_work,
+				     ATH_HW_CHECK_POLL_INT);
 
 	if (AR_SREV_9340(sc->sc_ah) || AR_SREV_9330(sc->sc_ah))
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work,
@@ -373,8 +374,13 @@ void ath9k_tasklet(unsigned long data)
 	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath_reset_type type;
 	unsigned long flags;
-	u32 status = sc->intrstatus;
+	u32 status;
 	u32 rxmask;
+
+	spin_lock_irqsave(&sc->intr_lock, flags);
+	status = sc->intrstatus;
+	sc->intrstatus = 0;
+	spin_unlock_irqrestore(&sc->intr_lock, flags);
 
 	ath9k_ps_wakeup(sc);
 	spin_lock(&sc->sc_pcu_lock);
@@ -382,12 +388,6 @@ void ath9k_tasklet(unsigned long data)
 	if (status & ATH9K_INT_FATAL) {
 		type = RESET_TYPE_FATAL_INT;
 		ath9k_queue_reset(sc, type);
-
-		/*
-		 * Increment the ref. counter here so that
-		 * interrupts are enabled in the reset routine.
-		 */
-		atomic_inc(&ah->intr_ref_cnt);
 		ath_dbg(common, RESET, "FATAL: Skipping interrupts\n");
 		goto out;
 	}
@@ -403,11 +403,6 @@ void ath9k_tasklet(unsigned long data)
 			type = RESET_TYPE_BB_WATCHDOG;
 			ath9k_queue_reset(sc, type);
 
-			/*
-			 * Increment the ref. counter here so that
-			 * interrupts are enabled in the reset routine.
-			 */
-			atomic_inc(&ah->intr_ref_cnt);
 			ath_dbg(common, RESET,
 				"BB_WATCHDOG: Skipping interrupts\n");
 			goto out;
@@ -420,7 +415,6 @@ void ath9k_tasklet(unsigned long data)
 		if ((sc->gtt_cnt >= MAX_GTT_CNT) && !ath9k_hw_check_alive(ah)) {
 			type = RESET_TYPE_TX_GTT;
 			ath9k_queue_reset(sc, type);
-			atomic_inc(&ah->intr_ref_cnt);
 			ath_dbg(common, RESET,
 				"GTT: Skipping interrupts\n");
 			goto out;
@@ -477,7 +471,7 @@ void ath9k_tasklet(unsigned long data)
 	ath9k_btcoex_handle_interrupt(sc, status);
 
 	/* re-enable hardware interrupt */
-	ath9k_hw_enable_interrupts(ah);
+	ath9k_hw_resume_interrupts(ah);
 out:
 	spin_unlock(&sc->sc_pcu_lock);
 	ath9k_ps_restore(sc);
@@ -541,7 +535,9 @@ irqreturn_t ath_isr(int irq, void *dev)
 		return IRQ_NONE;
 
 	/* Cache the status */
-	sc->intrstatus = status;
+	spin_lock(&sc->intr_lock);
+	sc->intrstatus |= status;
+	spin_unlock(&sc->intr_lock);
 
 	if (status & SCHED_INTR)
 		sched = true;
@@ -587,7 +583,7 @@ chip_reset:
 
 	if (sched) {
 		/* turn off every interrupt */
-		ath9k_hw_disable_interrupts(ah);
+		ath9k_hw_kill_interrupts(ah);
 		tasklet_schedule(&sc->intr_tq);
 	}
 
@@ -924,7 +920,7 @@ static void ath9k_vif_iter_set_beacon(struct ath9k_vif_iter_data *iter_data,
 	} else {
 		if (iter_data->primary_beacon_vif->type != NL80211_IFTYPE_AP &&
 		    vif->type == NL80211_IFTYPE_AP)
-		iter_data->primary_beacon_vif = vif;
+			iter_data->primary_beacon_vif = vif;
 	}
 
 	iter_data->beacons = true;
@@ -1902,9 +1898,11 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	bool flush = false;
 	int ret = 0;
 	struct ieee80211_sta *sta = params->sta;
+	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	u16 tid = params->tid;
 	u16 *ssn = &params->ssn;
+	struct ath_atx_tid *atid;
 
 	mutex_lock(&sc->mutex);
 
@@ -1937,9 +1935,9 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		ath9k_ps_restore(sc);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		ath9k_ps_wakeup(sc);
-		ath_tx_aggr_resume(sc, sta, tid);
-		ath9k_ps_restore(sc);
+		atid = ath_node_to_tid(an, tid);
+		atid->baw_size = IEEE80211_MIN_AMPDU_BUF <<
+			        sta->ht_cap.ampdu_factor;
 		break;
 	default:
 		ath_err(ath9k_hw_common(sc->sc_ah), "Unknown AMPDU action\n");
@@ -2089,7 +2087,7 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
 	int timeout;
 	bool drain_txq;
 
-	cancel_delayed_work_sync(&sc->tx_complete_work);
+	cancel_delayed_work_sync(&sc->hw_check_work);
 
 	if (ah->ah_flags & AH_UNPLUGGED) {
 		ath_dbg(common, ANY, "Device has been unplugged!\n");
@@ -2127,7 +2125,8 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
 		ath9k_ps_restore(sc);
 	}
 
-	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
+	ieee80211_queue_delayed_work(hw, &sc->hw_check_work,
+				     ATH_HW_CHECK_POLL_INT);
 }
 
 static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)
@@ -2701,4 +2700,5 @@ struct ieee80211_ops ath9k_ops = {
 	.sw_scan_start	    = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
 	.get_txpower        = ath9k_get_txpower,
+	.wake_tx_queue      = ath9k_wake_tx_queue,
 };

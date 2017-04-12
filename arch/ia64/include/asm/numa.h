@@ -65,6 +65,8 @@ extern int paddr_to_nid(unsigned long paddr);
 
 #define local_nodeid (cpu_to_node_map[smp_processor_id()])
 
+#define numa_off     0
+
 extern void map_cpu_to_node(int cpu, int nid);
 extern void unmap_cpu_from_node(int cpu, int nid);
 extern void numa_clear_node(int cpu);

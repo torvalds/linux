@@ -20,10 +20,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  This driver supports the following I/O Controller hubs:
  *	(See the intel documentation on http://developer.intel.com.)
  *	document number 290655-003, 290677-014: 82801AA (ICH), 82801AB (ICHO)
@@ -45,17 +41,6 @@
  *	document number 322169-001, 322170-003: 5 Series, 3400 Series (PCH)
  *	document number 320066-003, 320257-008: EP80597 (IICH)
  *	document number 324645-001, 324646-001: Cougar Point (CPT)
- *	document number TBD : Patsburg (PBG)
- *	document number TBD : DH89xxCC
- *	document number TBD : Panther Point
- *	document number TBD : Lynx Point
- *	document number TBD : Lynx Point-LP
- *	document number TBD : Wellsburg
- *	document number TBD : Avoton SoC
- *	document number TBD : Coleto Creek
- *	document number TBD : Wildcat Point-LP
- *	document number TBD : 9 Series
- *	document number TBD : Lewisburg
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -82,6 +67,17 @@
 
 #define ACPIBASE_GCS_OFF	0x3410
 #define ACPIBASE_GCS_END	0x3414
+
+#define SPIBASE_BYT		0x54
+#define SPIBASE_BYT_SZ		512
+#define SPIBASE_BYT_EN		BIT(1)
+
+#define SPIBASE_LPT		0x3800
+#define SPIBASE_LPT_SZ		512
+#define BCR			0xdc
+#define BCR_WPD			BIT(0)
+
+#define SPIBASE_APL_SZ		4096
 
 #define GPIOBASE_ICH0		0x58
 #define GPIOCTRL_ICH0		0x5C
@@ -133,6 +129,12 @@ static struct resource gpio_ich_res[] = {
 	},
 };
 
+static struct resource intel_spi_res[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	}
+};
+
 static struct mfd_cell lpc_ich_wdt_cell = {
 	.name = "iTCO_wdt",
 	.num_resources = ARRAY_SIZE(wdt_ich_res),
@@ -144,6 +146,14 @@ static struct mfd_cell lpc_ich_gpio_cell = {
 	.name = "gpio_ich",
 	.num_resources = ARRAY_SIZE(gpio_ich_res),
 	.resources = gpio_ich_res,
+	.ignore_resource_conflicts = true,
+};
+
+
+static struct mfd_cell lpc_ich_spi_cell = {
+	.name = "intel-spi",
+	.num_resources = ARRAY_SIZE(intel_spi_res),
+	.resources = intel_spi_res,
 	.ignore_resource_conflicts = true,
 };
 
@@ -216,6 +226,7 @@ enum lpc_chipsets {
 	LPC_BRASWELL,	/* Braswell SoC */
 	LPC_LEWISBURG,	/* Lewisburg */
 	LPC_9S,		/* 9 Series */
+	LPC_APL,	/* Apollo Lake SoC */
 };
 
 static struct lpc_ich_info lpc_chipset_info[] = {
@@ -493,10 +504,13 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_LPT] = {
 		.name = "Lynx Point",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
+		.spi_type = INTEL_SPI_LPT,
 	},
 	[LPC_LPT_LP] = {
 		.name = "Lynx Point_LP",
 		.iTCO_version = 2,
+		.spi_type = INTEL_SPI_LPT,
 	},
 	[LPC_WBG] = {
 		.name = "Wellsburg",
@@ -510,6 +524,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_BAYTRAIL] = {
 		.name = "Bay Trail SoC",
 		.iTCO_version = 3,
+		.spi_type = INTEL_SPI_BYT,
 	},
 	[LPC_COLETO] = {
 		.name = "Coleto Creek",
@@ -518,10 +533,12 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_WPT_LP] = {
 		.name = "Wildcat Point_LP",
 		.iTCO_version = 2,
+		.spi_type = INTEL_SPI_LPT,
 	},
 	[LPC_BRASWELL] = {
 		.name = "Braswell SoC",
 		.iTCO_version = 3,
+		.spi_type = INTEL_SPI_BYT,
 	},
 	[LPC_LEWISBURG] = {
 		.name = "Lewisburg",
@@ -530,6 +547,12 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_9S] = {
 		.name = "9 Series",
 		.iTCO_version = 2,
+		.gpio_version = ICH_V5_GPIO,
+	},
+	[LPC_APL] = {
+		.name = "Apollo Lake SoC",
+		.iTCO_version = 5,
+		.spi_type = INTEL_SPI_BXT,
 	},
 };
 
@@ -679,6 +702,7 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x3b14), LPC_3420},
 	{ PCI_VDEVICE(INTEL, 0x3b16), LPC_3450},
 	{ PCI_VDEVICE(INTEL, 0x5031), LPC_EP80579},
+	{ PCI_VDEVICE(INTEL, 0x5ae8), LPC_APL},
 	{ PCI_VDEVICE(INTEL, 0x8c40), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c41), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c42), LPC_LPT},
@@ -984,6 +1008,10 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	int ret;
 	struct resource *res;
 
+	/* If we have ACPI based watchdog use that instead */
+	if (acpi_has_watchdog())
+		return -ENODEV;
+
 	/* Setup power management base register */
 	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
@@ -1050,6 +1078,94 @@ wdt_done:
 	return ret;
 }
 
+static int lpc_ich_init_spi(struct pci_dev *dev)
+{
+	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
+	struct resource *res = &intel_spi_res[0];
+	struct intel_spi_boardinfo *info;
+	u32 spi_base, rcba, bcr;
+
+	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->type = lpc_chipset_info[priv->chipset].spi_type;
+
+	switch (info->type) {
+	case INTEL_SPI_BYT:
+		pci_read_config_dword(dev, SPIBASE_BYT, &spi_base);
+		if (spi_base & SPIBASE_BYT_EN) {
+			res->start = spi_base & ~(SPIBASE_BYT_SZ - 1);
+			res->end = res->start + SPIBASE_BYT_SZ - 1;
+		}
+		break;
+
+	case INTEL_SPI_LPT:
+		pci_read_config_dword(dev, RCBABASE, &rcba);
+		if (rcba & 1) {
+			spi_base = round_down(rcba, SPIBASE_LPT_SZ);
+			res->start = spi_base + SPIBASE_LPT;
+			res->end = res->start + SPIBASE_LPT_SZ - 1;
+
+			/*
+			 * Try to make the flash chip writeable now by
+			 * setting BCR_WPD. It it fails we tell the driver
+			 * that it can only read the chip.
+			 */
+			pci_read_config_dword(dev, BCR, &bcr);
+			if (!(bcr & BCR_WPD)) {
+				bcr |= BCR_WPD;
+				pci_write_config_dword(dev, BCR, bcr);
+				pci_read_config_dword(dev, BCR, &bcr);
+			}
+			info->writeable = !!(bcr & BCR_WPD);
+		}
+		break;
+
+	case INTEL_SPI_BXT: {
+		unsigned int p2sb = PCI_DEVFN(13, 0);
+		unsigned int spi = PCI_DEVFN(13, 2);
+		struct pci_bus *bus = dev->bus;
+
+		/*
+		 * The P2SB is hidden by BIOS and we need to unhide it in
+		 * order to read BAR of the SPI flash device. Once that is
+		 * done we hide it again.
+		 */
+		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x0);
+		pci_bus_read_config_dword(bus, spi, PCI_BASE_ADDRESS_0,
+					  &spi_base);
+		if (spi_base != ~0) {
+			res->start = spi_base & 0xfffffff0;
+			res->end = res->start + SPIBASE_APL_SZ - 1;
+
+			pci_bus_read_config_dword(bus, spi, BCR, &bcr);
+			if (!(bcr & BCR_WPD)) {
+				bcr |= BCR_WPD;
+				pci_bus_write_config_dword(bus, spi, BCR, bcr);
+				pci_bus_read_config_dword(bus, spi, BCR, &bcr);
+			}
+			info->writeable = !!(bcr & BCR_WPD);
+		}
+
+		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x1);
+		break;
+	}
+
+	default:
+		return -EINVAL;
+	}
+
+	if (!res->start)
+		return -ENODEV;
+
+	lpc_ich_spi_cell.platform_data = info;
+	lpc_ich_spi_cell.pdata_size = sizeof(*info);
+
+	return mfd_add_devices(&dev->dev, PLATFORM_DEVID_NONE,
+			       &lpc_ich_spi_cell, 1, NULL, 0, NULL);
+}
+
 static int lpc_ich_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
@@ -1089,6 +1205,12 @@ static int lpc_ich_probe(struct pci_dev *dev,
 
 	if (lpc_chipset_info[priv->chipset].gpio_version) {
 		ret = lpc_ich_init_gpio(dev);
+		if (!ret)
+			cell_added = true;
+	}
+
+	if (lpc_chipset_info[priv->chipset].spi_type) {
+		ret = lpc_ich_init_spi(dev);
 		if (!ret)
 			cell_added = true;
 	}

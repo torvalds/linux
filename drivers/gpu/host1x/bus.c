@@ -399,6 +399,7 @@ static int host1x_device_add(struct host1x *host1x,
 	dev_set_name(&device->dev, "%s", driver->driver.name);
 	of_dma_configure(&device->dev, host1x->dev->of_node);
 	device->dev.release = host1x_device_release;
+	device->dev.of_node = host1x->dev->of_node;
 	device->dev.bus = &host1x_bus_type;
 	device->dev.parent = host1x->dev;
 

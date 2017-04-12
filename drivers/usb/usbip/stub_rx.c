@@ -461,7 +461,6 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		priv->urb = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (!priv->urb) {
-		dev_err(&udev->dev, "malloc urb\n");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return;
 	}

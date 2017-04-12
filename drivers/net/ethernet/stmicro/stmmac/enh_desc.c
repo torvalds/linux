@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -30,7 +26,7 @@ static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 				  struct dma_desc *p, void __iomem *ioaddr)
 {
 	struct net_device_stats *stats = (struct net_device_stats *)data;
-	unsigned int tdes0 = p->des0;
+	unsigned int tdes0 = le32_to_cpu(p->des0);
 	int ret = tx_done;
 
 	/* Get tx owner first */
@@ -95,7 +91,7 @@ static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 
 static int enh_desc_get_tx_len(struct dma_desc *p)
 {
-	return (p->des1 & ETDES1_BUFFER1_SIZE_MASK);
+	return (le32_to_cpu(p->des1) & ETDES1_BUFFER1_SIZE_MASK);
 }
 
 static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
@@ -134,8 +130,8 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
 				    struct dma_extended_desc *p)
 {
-	unsigned int rdes0 = p->basic.des0;
-	unsigned int rdes4 = p->des4;
+	unsigned int rdes0 = le32_to_cpu(p->basic.des0);
+	unsigned int rdes4 = le32_to_cpu(p->des4);
 
 	if (unlikely(rdes0 & ERDES0_RX_MAC_ADDR)) {
 		int message_type = (rdes4 & ERDES4_MSG_TYPE_MASK) >> 8;
@@ -150,22 +146,30 @@ static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
 			x->ipv4_pkt_rcvd++;
 		if (rdes4 & ERDES4_IPV6_PKT_RCVD)
 			x->ipv6_pkt_rcvd++;
-		if (message_type == RDES_EXT_SYNC)
-			x->rx_msg_type_sync++;
+
+		if (message_type == RDES_EXT_NO_PTP)
+			x->no_ptp_rx_msg_type_ext++;
+		else if (message_type == RDES_EXT_SYNC)
+			x->ptp_rx_msg_type_sync++;
 		else if (message_type == RDES_EXT_FOLLOW_UP)
-			x->rx_msg_type_follow_up++;
+			x->ptp_rx_msg_type_follow_up++;
 		else if (message_type == RDES_EXT_DELAY_REQ)
-			x->rx_msg_type_delay_req++;
+			x->ptp_rx_msg_type_delay_req++;
 		else if (message_type == RDES_EXT_DELAY_RESP)
-			x->rx_msg_type_delay_resp++;
+			x->ptp_rx_msg_type_delay_resp++;
 		else if (message_type == RDES_EXT_PDELAY_REQ)
-			x->rx_msg_type_pdelay_req++;
+			x->ptp_rx_msg_type_pdelay_req++;
 		else if (message_type == RDES_EXT_PDELAY_RESP)
-			x->rx_msg_type_pdelay_resp++;
+			x->ptp_rx_msg_type_pdelay_resp++;
 		else if (message_type == RDES_EXT_PDELAY_FOLLOW_UP)
-			x->rx_msg_type_pdelay_follow_up++;
-		else
-			x->rx_msg_type_ext_no_ptp++;
+			x->ptp_rx_msg_type_pdelay_follow_up++;
+		else if (message_type == RDES_PTP_ANNOUNCE)
+			x->ptp_rx_msg_type_announce++;
+		else if (message_type == RDES_PTP_MANAGEMENT)
+			x->ptp_rx_msg_type_management++;
+		else if (message_type == RDES_PTP_PKT_RESERVED_TYPE)
+			x->ptp_rx_msg_pkt_reserved_type++;
+
 		if (rdes4 & ERDES4_PTP_FRAME_TYPE)
 			x->ptp_frame_type++;
 		if (rdes4 & ERDES4_PTP_VER)
@@ -191,7 +195,7 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 				  struct dma_desc *p)
 {
 	struct net_device_stats *stats = (struct net_device_stats *)data;
-	unsigned int rdes0 = p->des0;
+	unsigned int rdes0 = le32_to_cpu(p->des0);
 	int ret = good_frame;
 
 	if (unlikely(rdes0 & RDES0_OWN))
@@ -217,7 +221,7 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 			x->rx_mii++;
 
 		if (unlikely(rdes0 & RDES0_CRC_ERROR)) {
-			x->rx_crc++;
+			x->rx_crc_errors++;
 			stats->rx_crc_errors++;
 		}
 		ret = discard_frame;
@@ -257,8 +261,8 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 static void enh_desc_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 				  int mode, int end)
 {
-	p->des0 |= RDES0_OWN;
-	p->des1 |= ((BUF_SIZE_8KiB - 1) & ERDES1_BUFFER1_SIZE_MASK);
+	p->des0 |= cpu_to_le32(RDES0_OWN);
+	p->des1 |= cpu_to_le32((BUF_SIZE_8KiB - 1) & ERDES1_BUFFER1_SIZE_MASK);
 
 	if (mode == STMMAC_CHAIN_MODE)
 		ehn_desc_rx_set_on_chain(p);
@@ -266,12 +270,12 @@ static void enh_desc_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 		ehn_desc_rx_set_on_ring(p, end);
 
 	if (disable_rx_ic)
-		p->des1 |= ERDES1_DISABLE_IC;
+		p->des1 |= cpu_to_le32(ERDES1_DISABLE_IC);
 }
 
 static void enh_desc_init_tx_desc(struct dma_desc *p, int mode, int end)
 {
-	p->des0 &= ~ETDES0_OWN;
+	p->des0 &= cpu_to_le32(~ETDES0_OWN);
 	if (mode == STMMAC_CHAIN_MODE)
 		enh_desc_end_tx_desc_on_chain(p);
 	else
@@ -280,27 +284,27 @@ static void enh_desc_init_tx_desc(struct dma_desc *p, int mode, int end)
 
 static int enh_desc_get_tx_owner(struct dma_desc *p)
 {
-	return (p->des0 & ETDES0_OWN) >> 31;
+	return (le32_to_cpu(p->des0) & ETDES0_OWN) >> 31;
 }
 
 static void enh_desc_set_tx_owner(struct dma_desc *p)
 {
-	p->des0 |= ETDES0_OWN;
+	p->des0 |= cpu_to_le32(ETDES0_OWN);
 }
 
 static void enh_desc_set_rx_owner(struct dma_desc *p)
 {
-	p->des0 |= RDES0_OWN;
+	p->des0 |= cpu_to_le32(RDES0_OWN);
 }
 
 static int enh_desc_get_tx_ls(struct dma_desc *p)
 {
-	return (p->des0 & ETDES0_LAST_SEGMENT) >> 29;
+	return (le32_to_cpu(p->des0) & ETDES0_LAST_SEGMENT) >> 29;
 }
 
 static void enh_desc_release_tx_desc(struct dma_desc *p, int mode)
 {
-	int ter = (p->des0 & ETDES0_END_RING) >> 21;
+	int ter = (le32_to_cpu(p->des0) & ETDES0_END_RING) >> 21;
 
 	memset(p, 0, offsetof(struct dma_desc, des2));
 	if (mode == STMMAC_CHAIN_MODE)
@@ -313,7 +317,7 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				     bool csum_flag, int mode, bool tx_own,
 				     bool ls)
 {
-	unsigned int tdes0 = p->des0;
+	unsigned int tdes0 = le32_to_cpu(p->des0);
 
 	if (mode == STMMAC_CHAIN_MODE)
 		enh_set_tx_desc_len_on_chain(p, len);
@@ -342,14 +346,14 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 		 * descriptors for the same frame has to be set before, to
 		 * avoid race condition.
 		 */
-		wmb();
+		dma_wmb();
 
-	p->des0 = tdes0;
+	p->des0 = cpu_to_le32(tdes0);
 }
 
 static void enh_desc_set_tx_ic(struct dma_desc *p)
 {
-	p->des0 |= ETDES0_INTERRUPT;
+	p->des0 |= cpu_to_le32(ETDES0_INTERRUPT);
 }
 
 static int enh_desc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
@@ -364,18 +368,18 @@ static int enh_desc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
 	if (rx_coe_type == STMMAC_RX_COE_TYPE1)
 		csum = 2;
 
-	return (((p->des0 & RDES0_FRAME_LEN_MASK) >> RDES0_FRAME_LEN_SHIFT) -
-		csum);
+	return (((le32_to_cpu(p->des0) & RDES0_FRAME_LEN_MASK)
+				>> RDES0_FRAME_LEN_SHIFT) - csum);
 }
 
 static void enh_desc_enable_tx_timestamp(struct dma_desc *p)
 {
-	p->des0 |= ETDES0_TIME_STAMP_ENABLE;
+	p->des0 |= cpu_to_le32(ETDES0_TIME_STAMP_ENABLE);
 }
 
 static int enh_desc_get_tx_timestamp_status(struct dma_desc *p)
 {
-	return (p->des0 & ETDES0_TIME_STAMP_STATUS) >> 17;
+	return (le32_to_cpu(p->des0) & ETDES0_TIME_STAMP_STATUS) >> 17;
 }
 
 static u64 enh_desc_get_timestamp(void *desc, u32 ats)
@@ -384,13 +388,13 @@ static u64 enh_desc_get_timestamp(void *desc, u32 ats)
 
 	if (ats) {
 		struct dma_extended_desc *p = (struct dma_extended_desc *)desc;
-		ns = p->des6;
+		ns = le32_to_cpu(p->des6);
 		/* convert high/sec time stamp value to nanosecond */
-		ns += p->des7 * 1000000000ULL;
+		ns += le32_to_cpu(p->des7) * 1000000000ULL;
 	} else {
 		struct dma_desc *p = (struct dma_desc *)desc;
-		ns = p->des2;
-		ns += p->des3 * 1000000000ULL;
+		ns = le32_to_cpu(p->des2);
+		ns += le32_to_cpu(p->des3) * 1000000000ULL;
 	}
 
 	return ns;
@@ -400,10 +404,11 @@ static int enh_desc_get_rx_timestamp_status(void *desc, u32 ats)
 {
 	if (ats) {
 		struct dma_extended_desc *p = (struct dma_extended_desc *)desc;
-		return (p->basic.des0 & RDES0_IPC_CSUM_ERROR) >> 7;
+		return (le32_to_cpu(p->basic.des0) & RDES0_IPC_CSUM_ERROR) >> 7;
 	} else {
 		struct dma_desc *p = (struct dma_desc *)desc;
-		if ((p->des2 == 0xffffffff) && (p->des3 == 0xffffffff))
+		if ((le32_to_cpu(p->des2) == 0xffffffff) &&
+		    (le32_to_cpu(p->des3) == 0xffffffff))
 			/* timestamp is corrupted, hence don't store it */
 			return 0;
 		else

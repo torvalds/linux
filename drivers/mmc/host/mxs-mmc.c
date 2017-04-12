@@ -153,7 +153,11 @@ static void mxs_mmc_request_done(struct mxs_mmc_host *host)
 		}
 	}
 
-	if (data) {
+	if (cmd == mrq->sbc) {
+		/* Finished CMD23, now send actual command. */
+		mxs_mmc_start_cmd(host, mrq->cmd);
+		return;
+	} else if (data) {
 		dma_unmap_sg(mmc_dev(host->mmc), data->sg,
 			     data->sg_len, ssp->dma_dir);
 		/*
@@ -166,7 +170,7 @@ static void mxs_mmc_request_done(struct mxs_mmc_host *host)
 			data->bytes_xfered = 0;
 
 		host->data = NULL;
-		if (mrq->stop) {
+		if (data->stop && (data->error || !mrq->sbc)) {
 			mxs_mmc_start_cmd(host, mrq->stop);
 			return;
 		}
@@ -309,6 +313,9 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 	cmd0 = BF_SSP(cmd->opcode, CMD0_CMD);
 	cmd1 = cmd->arg;
 
+	if (cmd->opcode == MMC_STOP_TRANSMISSION)
+		cmd0 |= BM_SSP_CMD0_APPEND_8CYC;
+
 	if (host->sdio_irq_en) {
 		ctrl0 |= BM_SSP_CTRL0_SDIO_IRQ_CHECK;
 		cmd0 |= BM_SSP_CMD0_CONT_CLKING_EN | BM_SSP_CMD0_SLOW_CLKING_EN;
@@ -417,8 +424,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 		       ssp->base + HW_SSP_BLOCK_SIZE);
 	}
 
-	if ((cmd->opcode == MMC_STOP_TRANSMISSION) ||
-	    (cmd->opcode == SD_IO_RW_EXTENDED))
+	if (cmd->opcode == SD_IO_RW_EXTENDED)
 		cmd0 |= BM_SSP_CMD0_APPEND_8CYC;
 
 	cmd1 = cmd->arg;
@@ -493,7 +499,11 @@ static void mxs_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq != NULL);
 	host->mrq = mrq;
-	mxs_mmc_start_cmd(host, mrq->cmd);
+
+	if (mrq->sbc)
+		mxs_mmc_start_cmd(host, mrq->sbc);
+	else
+		mxs_mmc_start_cmd(host, mrq->cmd);
 }
 
 static void mxs_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
@@ -640,7 +650,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	/* set mmc core parameters */
 	mmc->ops = &mxs_mmc_ops;
 	mmc->caps = MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED |
-		    MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL;
+		    MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL | MMC_CAP_CMD23;
 
 	host->broken_cd = of_property_read_bool(np, "broken-cd");
 
@@ -661,12 +671,12 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mmc);
 
+	spin_lock_init(&host->lock);
+
 	ret = devm_request_irq(&pdev->dev, irq_err, mxs_mmc_irq_handler, 0,
 			       dev_name(&pdev->dev), host);
 	if (ret)
 		goto out_free_dma;
-
-	spin_lock_init(&host->lock);
 
 	ret = mmc_add_host(mmc);
 	if (ret)

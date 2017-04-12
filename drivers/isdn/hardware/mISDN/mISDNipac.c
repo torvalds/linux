@@ -113,7 +113,7 @@ isac_ph_state_bh(struct dchannel *dch)
 	pr_debug("%s: TE newstate %x\n", isac->name, dch->state);
 }
 
-void
+static void
 isac_empty_fifo(struct isac_hw *isac, int count)
 {
 	u8 *ptr;
@@ -1625,7 +1625,7 @@ mISDNipac_init(struct ipac_hw *ipac, void *hw)
 		ipac->hscx[i].bch.hw = hw;
 		ipac->hscx[i].ip = ipac;
 		/* default values for IOM time slots
-		 * can be overwriten by card */
+		 * can be overwritten by card */
 		ipac->hscx[i].slot = (i == 0) ? 0x2f : 0x03;
 	}
 

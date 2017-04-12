@@ -19,6 +19,12 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 # define ia32_setup_rt_frame	__setup_rt_frame
 #endif
 
+#ifdef CONFIG_COMPAT
+int __copy_siginfo_to_user32(compat_siginfo_t __user *to,
+		const siginfo_t *from, bool x32_ABI);
+#endif
+
+
 extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
 			      struct task_struct *tsk);
 extern void convert_to_fxsr(struct task_struct *tsk,

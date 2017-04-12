@@ -510,10 +510,8 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 	}
 
 	ret = i2c_add_numbered_adapter(&id->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "reg adap failed: %d\n", ret);
+	if (ret < 0)
 		goto out4;
-	}
 
 	platform_set_drvdata(pdev, id);
 

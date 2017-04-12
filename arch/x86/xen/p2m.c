@@ -71,7 +71,7 @@
 
 #include <asm/cache.h>
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <asm/xen/page.h>
 #include <asm/xen/hypercall.h>

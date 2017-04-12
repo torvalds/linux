@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_DEV_API_H
@@ -308,6 +332,68 @@ int qed_fw_vport(struct qed_hwfn *p_hwfn,
 int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 		   u8 src_id,
 		   u8 *dst_id);
+
+/**
+ * @brief qed_llh_add_mac_filter - configures a MAC filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_filter - MAC to add
+ */
+int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 *p_filter);
+
+/**
+ * @brief qed_llh_remove_mac_filter - removes a MAC filter from llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_filter - MAC to remove
+ */
+void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt, u8 *p_filter);
+
+enum qed_llh_port_filter_type_t {
+	QED_LLH_FILTER_ETHERTYPE,
+	QED_LLH_FILTER_TCP_SRC_PORT,
+	QED_LLH_FILTER_TCP_DEST_PORT,
+	QED_LLH_FILTER_TCP_SRC_AND_DEST_PORT,
+	QED_LLH_FILTER_UDP_SRC_PORT,
+	QED_LLH_FILTER_UDP_DEST_PORT,
+	QED_LLH_FILTER_UDP_SRC_AND_DEST_PORT
+};
+
+/**
+ * @brief qed_llh_add_protocol_filter - configures a protocol filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_port_or_eth_type - source port or ethertype to add
+ * @param dest_port - destination port to add
+ * @param type - type of filters and comparing
+ */
+int
+qed_llh_add_protocol_filter(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    u16 source_port_or_eth_type,
+			    u16 dest_port,
+			    enum qed_llh_port_filter_type_t type);
+
+/**
+ * @brief qed_llh_remove_protocol_filter - remove a protocol filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_port_or_eth_type - source port or ethertype to add
+ * @param dest_port - destination port to add
+ * @param type - type of filters and comparing
+ */
+void
+qed_llh_remove_protocol_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt,
+			       u16 source_port_or_eth_type,
+			       u16 dest_port,
+			       enum qed_llh_port_filter_type_t type);
 
 /**
  * *@brief Cleanup of previous driver remains prior to load

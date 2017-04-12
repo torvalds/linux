@@ -108,20 +108,16 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 		return -1;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
-		struct net *net = par->net;
+		struct net *net = xt_net(par);
 		unsigned int in_mtu = tcpmss_reverse_mtu(net, skb, family);
+		unsigned int min_mtu = min(dst_mtu(skb_dst(skb)), in_mtu);
 
-		if (dst_mtu(skb_dst(skb)) <= minlen) {
+		if (min_mtu <= minlen) {
 			net_err_ratelimited("unknown or invalid path-MTU (%u)\n",
-					    dst_mtu(skb_dst(skb)));
+					    min_mtu);
 			return -1;
 		}
-		if (in_mtu <= minlen) {
-			net_err_ratelimited("unknown or invalid path-MTU (%u)\n",
-					    in_mtu);
-			return -1;
-		}
-		newmss = min(dst_mtu(skb_dst(skb)), in_mtu) - minlen;
+		newmss = min_mtu - minlen;
 	} else
 		newmss = info->mss;
 
@@ -176,7 +172,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	 * length IPv6 header of 60, ergo the default MSS value is 1220
 	 * Since no MSS was provided, we must use the default values
 	 */
-	if (par->family == NFPROTO_IPV4)
+	if (xt_family(par) == NFPROTO_IPV4)
 		newmss = min(newmss, (u16)536);
 	else
 		newmss = min(newmss, (u16)1220);

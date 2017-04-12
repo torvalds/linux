@@ -472,7 +472,7 @@
 #include <asm/dma.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC_PMAC */
@@ -1085,7 +1085,6 @@ static const struct net_device_ops de4x5_netdev_ops = {
     .ndo_get_stats	= de4x5_get_stats,
     .ndo_set_rx_mode	= set_multicast_list,
     .ndo_do_ioctl	= de4x5_ioctl,
-    .ndo_change_mtu	= eth_change_mtu,
     .ndo_set_mac_address= eth_mac_addr,
     .ndo_validate_addr	= eth_validate_addr,
 };
@@ -1966,7 +1965,7 @@ SetMulticastFilter(struct net_device *dev)
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
 	netdev_for_each_mc_addr(ha, dev) {
 		crc = ether_crc_le(ETH_ALEN, ha->addr);
-		hashcode = crc & HASH_BITS;  /* hashcode is 9 LSb of CRC */
+		hashcode = crc & DE4X5_HASH_BITS;  /* hashcode is 9 LSb of CRC */
 
 		byte = hashcode >> 3;        /* bit[3-8] -> byte in filter */
 		bit = 1 << (hashcode & 0x07);/* bit[0-2] -> bit in byte */
@@ -5043,7 +5042,7 @@ build_setup_frame(struct net_device *dev, int mode)
 	    *(pa + i) = dev->dev_addr[i];                 /* Host address */
 	    if (i & 0x01) pa += 2;
 	}
-	*(lp->setup_frame + (HASH_TABLE_LEN >> 3) - 3) = 0x80;
+	*(lp->setup_frame + (DE4X5_HASH_TABLE_LEN >> 3) - 3) = 0x80;
     } else {
 	for (i=0; i<ETH_ALEN; i++) { /* Host address */
 	    *(pa + (i&1)) = dev->dev_addr[i];

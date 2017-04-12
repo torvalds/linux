@@ -135,7 +135,7 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 				     &headset_jack);
 }
 
-static struct snd_soc_ops rk_aif1_ops = {
+static const struct snd_soc_ops rk_aif1_ops = {
 	.hw_params = rk_aif1_hw_params,
 };
 

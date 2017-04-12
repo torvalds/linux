@@ -187,6 +187,7 @@ config NET_IPGRE_DEMUX
 config NET_IP_TUNNEL
 	tristate
 	select DST_CACHE
+	select GRO_CELLS
 	default n
 
 config NET_IPGRE
@@ -360,6 +361,19 @@ config INET_ESP
 
 	  If unsure, say Y.
 
+config INET_ESP_OFFLOAD
+	tristate "IP: ESP transformation offload"
+	depends on INET_ESP
+	select XFRM_OFFLOAD
+	default n
+	---help---
+	  Support for ESP transformation offload. This makes sense
+	  only if this system really does IPsec and want to do it
+	  with high throughput. A typical desktop system does not
+	  need it, even if it does IPsec.
+
+	  If unsure, say N.
+
 config INET_IPCOMP
 	tristate "IP: IPComp transformation"
 	select INET_XFRM_TUNNEL
@@ -428,6 +442,14 @@ config INET_UDP_DIAG
 	default n
 	---help---
 	  Support for UDP socket monitoring interface used by the ss tool.
+	  If unsure, say Y.
+
+config INET_RAW_DIAG
+	tristate "RAW: socket monitoring interface"
+	depends on INET_DIAG && (IPV6 || IPV6=n)
+	default n
+	---help---
+	  Support for RAW socket monitoring interface used by the ss tool.
 	  If unsure, say Y.
 
 config INET_DIAG_DESTROY
@@ -640,6 +662,21 @@ config TCP_CONG_CDG
 	  D.A. Hayes and G. Armitage. "Revisiting TCP congestion control using
 	  delay gradients." In Networking 2011. Preprint: http://goo.gl/No3vdg
 
+config TCP_CONG_BBR
+	tristate "BBR TCP"
+	default n
+	---help---
+
+	BBR (Bottleneck Bandwidth and RTT) TCP congestion control aims to
+	maximize network utilization and minimize queues. It builds an explicit
+	model of the the bottleneck delivery rate and path round-trip
+	propagation delay. It tolerates packet loss and delay unrelated to
+	congestion. It can operate over LAN, WAN, cellular, wifi, or cable
+	modem links. It can coexist with flows that use loss-based congestion
+	control, and can operate with shallow buffers, deep buffers,
+	bufferbloat, policers, or AQM schemes that do not provide a delay
+	signal. It requires the fq ("Fair Queue") pacing packet scheduler.
+
 choice
 	prompt "Default TCP congestion control"
 	default DEFAULT_CUBIC
@@ -674,6 +711,9 @@ choice
 	config DEFAULT_CDG
 		bool "CDG" if TCP_CONG_CDG=y
 
+	config DEFAULT_BBR
+		bool "BBR" if TCP_CONG_BBR=y
+
 	config DEFAULT_RENO
 		bool "Reno"
 endchoice
@@ -697,6 +737,7 @@ config DEFAULT_TCP_CONG
 	default "reno" if DEFAULT_RENO
 	default "dctcp" if DEFAULT_DCTCP
 	default "cdg" if DEFAULT_CDG
+	default "bbr" if DEFAULT_BBR
 	default "cubic"
 
 config TCP_MD5SIG

@@ -44,7 +44,7 @@
 #include "sun8i-h3-orangepi-2.dts"
 
 / {
-	model = "Xunlong Orange Pi Plus";
+	model = "Xunlong Orange Pi Plus / Plus 2";
 	compatible = "xunlong,orangepi-plus", "allwinner,sun8i-h3";
 
 	reg_usb3_vbus: usb3-vbus {
@@ -76,17 +76,15 @@
 
 &mmc2_8bit_pins {
 	/* Increase drive strength for DDR modes */
-	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+	drive-strength = <40>;
 	/* eMMC is missing pull-ups */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &pio {
 	usb3_vbus_pin_a: usb3_vbus_pin@0 {
-		allwinner,pins = "PG11";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PG11";
+		function = "gpio_out";
 	};
 };
 

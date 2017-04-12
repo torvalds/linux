@@ -83,7 +83,7 @@ static inline bool libcfs_ioctl_is_invalid(struct libcfs_ioctl_data *data)
 		CERROR("LIBCFS ioctl: plen2 nonzero but no pbuf2 pointer\n");
 		return true;
 	}
-	if ((__u32)libcfs_ioctl_packlen(data) != data->ioc_hdr.ioc_len) {
+	if ((u32)libcfs_ioctl_packlen(data) != data->ioc_hdr.ioc_len) {
 		CERROR("LIBCFS ioctl: packlen != ioc_len\n");
 		return true;
 	}
@@ -122,7 +122,7 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 			 const struct libcfs_ioctl_hdr __user *uhdr)
 {
 	struct libcfs_ioctl_hdr hdr;
-	int err = 0;
+	int err;
 
 	if (copy_from_user(&hdr, uhdr, sizeof(hdr)))
 		return -EFAULT;
@@ -150,9 +150,20 @@ int libcfs_ioctl_getdata(struct libcfs_ioctl_hdr **hdr_pp,
 		return -ENOMEM;
 
 	if (copy_from_user(*hdr_pp, uhdr, hdr.ioc_len)) {
-		LIBCFS_FREE(*hdr_pp, hdr.ioc_len);
 		err = -EFAULT;
+		goto free;
 	}
+
+	if ((*hdr_pp)->ioc_version != hdr.ioc_version ||
+	    (*hdr_pp)->ioc_len != hdr.ioc_len) {
+		err = -EINVAL;
+		goto free;
+	}
+
+	return 0;
+
+free:
+	LIBCFS_FREE(*hdr_pp, hdr.ioc_len);
 	return err;
 }
 

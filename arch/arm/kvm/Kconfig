@@ -34,6 +34,7 @@ config KVM
 	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQ_ROUTING
+	select HAVE_KVM_MSI
 	depends on ARM_VIRT_EXT && ARM_LPAE && ARM_ARCH_TIMER
 	---help---
 	  Support hosting virtualized guest machines.

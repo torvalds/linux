@@ -87,6 +87,15 @@ EXPORT_SYMBOL(machine_id);
 int boot_cpuid = -1;
 EXPORT_SYMBOL_GPL(boot_cpuid);
 
+/*
+ * These are used in binfmt_elf.c to put aux entries on the stack
+ * for each elf executable being started.
+ */
+int dcache_bsize;
+int icache_bsize;
+int ucache_bsize;
+
+
 unsigned long klimit = (unsigned long) _end;
 
 /*
@@ -131,15 +140,26 @@ void machine_shutdown(void)
 		ppc_md.machine_shutdown();
 }
 
+static void machine_hang(void)
+{
+	pr_emerg("System Halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1)
+		;
+}
+
 void machine_restart(char *cmd)
 {
 	machine_shutdown();
 	if (ppc_md.restart)
 		ppc_md.restart(cmd);
+
 	smp_send_stop();
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
-	local_irq_disable();
-	while (1) ;
+
+	do_kernel_restart(cmd);
+	mdelay(1000);
+
+	machine_hang();
 }
 
 void machine_power_off(void)
@@ -147,10 +167,9 @@ void machine_power_off(void)
 	machine_shutdown();
 	if (pm_power_off)
 		pm_power_off();
+
 	smp_send_stop();
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
-	local_irq_disable();
-	while (1) ;
+	machine_hang();
 }
 /* Used by the G5 thermal driver */
 EXPORT_SYMBOL_GPL(machine_power_off);
@@ -163,10 +182,9 @@ void machine_halt(void)
 	machine_shutdown();
 	if (ppc_md.halt)
 		ppc_md.halt();
+
 	smp_send_stop();
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
-	local_irq_disable();
-	while (1) ;
+	machine_hang();
 }
 
 
@@ -906,7 +924,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.context.pte_frag = NULL;
 #endif
 #ifdef CONFIG_SPAPR_TCE_IOMMU
-	mm_iommu_init(&init_mm.context);
+	mm_iommu_init(&init_mm);
 #endif
 	irqstack_early_init();
 	exc_lvl_early_init();

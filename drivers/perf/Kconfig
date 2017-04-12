@@ -12,4 +12,20 @@ config ARM_PMU
 	  Say y if you want to use CPU performance monitors on ARM-based
 	  systems.
 
+config QCOM_L2_PMU
+	bool "Qualcomm Technologies L2-cache PMU"
+	depends on ARCH_QCOM && ARM64 && PERF_EVENTS && ACPI
+	  help
+	  Provides support for the L2 cache performance monitor unit (PMU)
+	  in Qualcomm Technologies processors.
+	  Adds the L2 cache PMU into the perf events subsystem for
+	  monitoring L2 cache events.
+
+config XGENE_PMU
+        depends on PERF_EVENTS && ARCH_XGENE
+        bool "APM X-Gene SoC PMU"
+        default n
+        help
+          Say y if you want to use APM X-Gene SoC performance monitors.
+
 endmenu

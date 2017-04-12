@@ -1,4 +1,5 @@
-/* Copyright 2013-2014 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Interface of the I/O services to send MC commands to the MC hardware
  *
@@ -37,8 +38,6 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/io.h>
-#include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
@@ -94,19 +93,6 @@ struct fsl_mc_io {
 		spinlock_t spinlock;	/* serializes mc_send_command() */
 	};
 };
-
-int __must_check fsl_create_mc_io(struct device *dev,
-				  phys_addr_t mc_portal_phys_addr,
-				  u32 mc_portal_size,
-				  struct fsl_mc_device *dpmcp_dev,
-				  u32 flags, struct fsl_mc_io **new_mc_io);
-
-void fsl_destroy_mc_io(struct fsl_mc_io *mc_io);
-
-int fsl_mc_io_set_dpmcp(struct fsl_mc_io *mc_io,
-			struct fsl_mc_device *dpmcp_dev);
-
-void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io);
 
 int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd);
 

@@ -78,7 +78,7 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 	unsigned int bitmask;
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net))
+	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
 		return;
 
 	spin_lock_bh(&ebt_log_lock);
@@ -91,7 +91,7 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (loginfo->type == NF_LOG_TYPE_LOG)
 		bitmask = loginfo->u.log.logflags;
 	else
-		bitmask = NF_LOG_MASK;
+		bitmask = NF_LOG_DEFAULT_MASK;
 
 	if ((bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IP)) {
@@ -179,7 +179,7 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = info->loglevel;
@@ -190,11 +190,12 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	 * nf_log_packet() with NFT_LOG_TYPE_LOG here. --Pablo
 	 */
 	if (info->bitmask & EBT_LOG_NFLOG)
-		nf_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb,
-			      par->in, par->out, &li, "%s", info->prefix);
+		nf_log_packet(net, NFPROTO_BRIDGE, xt_hooknum(par), skb,
+			      xt_in(par), xt_out(par), &li, "%s",
+			      info->prefix);
 	else
-		ebt_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb, par->in,
-			       par->out, &li, info->prefix);
+		ebt_log_packet(net, NFPROTO_BRIDGE, xt_hooknum(par), skb,
+			       xt_in(par), xt_out(par), &li, info->prefix);
 	return EBT_CONTINUE;
 }
 

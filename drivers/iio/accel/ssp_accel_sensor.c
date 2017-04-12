@@ -15,6 +15,7 @@
 
 #include <linux/iio/common/ssp_sensors.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -74,7 +75,7 @@ static int ssp_accel_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static struct iio_info ssp_accel_iio_info = {
+static const struct iio_info ssp_accel_iio_info = {
 	.read_raw = &ssp_accel_read_raw,
 	.write_raw = &ssp_accel_write_raw,
 };
@@ -135,7 +136,7 @@ static int ssp_accel_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, indio_dev);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
 	if (ret < 0)
 		return ret;
 
@@ -145,21 +146,11 @@ static int ssp_accel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ssp_accel_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
-}
-
 static struct platform_driver ssp_accel_driver = {
 	.driver = {
 		.name = SSP_ACCEL_NAME,
 	},
 	.probe = ssp_accel_probe,
-	.remove =  ssp_accel_remove,
 };
 
 module_platform_driver(ssp_accel_driver);

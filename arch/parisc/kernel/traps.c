@@ -11,6 +11,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -458,8 +459,8 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	}
 
 	printk("\n");
-	printk(KERN_CRIT "%s: Code=%d regs=%p (Addr=" RFMT ")\n",
-			msg, code, regs, offset);
+	pr_crit("%s: Code=%d (%s) regs=%p (Addr=" RFMT ")\n",
+		msg, code, trap_name(code), regs, offset);
 	show_regs(regs);
 
 	spin_unlock(&terminate_lock);

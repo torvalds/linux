@@ -174,7 +174,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	if (scrtc->started)
 		return;
 
-	format = shmob_drm_format_info(crtc->primary->fb->pixel_format);
+	format = shmob_drm_format_info(crtc->primary->fb->format->format);
 	if (WARN_ON(format == NULL))
 		return;
 
@@ -376,10 +376,10 @@ static int shmob_drm_crtc_mode_set(struct drm_crtc *crtc,
 	const struct shmob_drm_format_info *format;
 	void *cache;
 
-	format = shmob_drm_format_info(crtc->primary->fb->pixel_format);
+	format = shmob_drm_format_info(crtc->primary->fb->format->format);
 	if (format == NULL) {
 		dev_dbg(sdev->dev, "mode_set: unsupported format %08x\n",
-			crtc->primary->fb->pixel_format);
+			crtc->primary->fb->format->format);
 		return -EINVAL;
 	}
 
@@ -669,15 +669,8 @@ static void shmob_drm_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static enum drm_connector_status
-shmob_drm_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static const struct drm_connector_funcs connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = shmob_drm_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = shmob_drm_connector_destroy,
 };

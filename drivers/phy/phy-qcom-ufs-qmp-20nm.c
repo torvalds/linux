@@ -63,28 +63,12 @@ void ufs_qcom_phy_qmp_20nm_advertise_quirks(struct ufs_qcom_phy *phy_common)
 
 static int ufs_qcom_phy_qmp_20nm_init(struct phy *generic_phy)
 {
-	struct ufs_qcom_phy_qmp_20nm *phy = phy_get_drvdata(generic_phy);
-	struct ufs_qcom_phy *phy_common = &phy->common_cfg;
-	int err = 0;
+	return 0;
+}
 
-	err = ufs_qcom_phy_init_clks(generic_phy, phy_common);
-	if (err) {
-		dev_err(phy_common->dev, "%s: ufs_qcom_phy_init_clks() failed %d\n",
-			__func__, err);
-		goto out;
-	}
-
-	err = ufs_qcom_phy_init_vregulators(generic_phy, phy_common);
-	if (err) {
-		dev_err(phy_common->dev, "%s: ufs_qcom_phy_init_vregulators() failed %d\n",
-			__func__, err);
-		goto out;
-	}
-
-	ufs_qcom_phy_qmp_20nm_advertise_quirks(phy_common);
-
-out:
-	return err;
+static int ufs_qcom_phy_qmp_20nm_exit(struct phy *generic_phy)
+{
+	return 0;
 }
 
 static
@@ -173,7 +157,7 @@ static int ufs_qcom_phy_qmp_20nm_is_pcs_ready(struct ufs_qcom_phy *phy_common)
 
 static const struct phy_ops ufs_qcom_phy_qmp_20nm_phy_ops = {
 	.init		= ufs_qcom_phy_qmp_20nm_init,
-	.exit		= ufs_qcom_phy_exit,
+	.exit		= ufs_qcom_phy_qmp_20nm_exit,
 	.power_on	= ufs_qcom_phy_power_on,
 	.power_off	= ufs_qcom_phy_power_off,
 	.owner		= THIS_MODULE,
@@ -192,6 +176,7 @@ static int ufs_qcom_phy_qmp_20nm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct phy *generic_phy;
 	struct ufs_qcom_phy_qmp_20nm *phy;
+	struct ufs_qcom_phy *phy_common;
 	int err = 0;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
@@ -199,38 +184,31 @@ static int ufs_qcom_phy_qmp_20nm_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto out;
 	}
+	phy_common = &phy->common_cfg;
 
-	generic_phy = ufs_qcom_phy_generic_probe(pdev, &phy->common_cfg,
+	generic_phy = ufs_qcom_phy_generic_probe(pdev, phy_common,
 				&ufs_qcom_phy_qmp_20nm_phy_ops, &phy_20nm_ops);
 
 	if (!generic_phy) {
-		dev_err(dev, "%s: ufs_qcom_phy_generic_probe() failed\n",
-			__func__);
 		err = -EIO;
 		goto out;
 	}
 
+	err = ufs_qcom_phy_init_clks(phy_common);
+	if (err)
+		goto out;
+
+	err = ufs_qcom_phy_init_vregulators(phy_common);
+	if (err)
+		goto out;
+
+	ufs_qcom_phy_qmp_20nm_advertise_quirks(phy_common);
+
 	phy_set_drvdata(generic_phy, phy);
 
-	strlcpy(phy->common_cfg.name, UFS_PHY_NAME,
-			sizeof(phy->common_cfg.name));
+	strlcpy(phy_common->name, UFS_PHY_NAME, sizeof(phy_common->name));
 
 out:
-	return err;
-}
-
-static int ufs_qcom_phy_qmp_20nm_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct phy *generic_phy = to_phy(dev);
-	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
-	int err = 0;
-
-	err = ufs_qcom_phy_remove(generic_phy, ufs_qcom_phy);
-	if (err)
-		dev_err(dev, "%s: ufs_qcom_phy_remove failed = %d\n",
-			__func__, err);
-
 	return err;
 }
 
@@ -242,7 +220,6 @@ MODULE_DEVICE_TABLE(of, ufs_qcom_phy_qmp_20nm_of_match);
 
 static struct platform_driver ufs_qcom_phy_qmp_20nm_driver = {
 	.probe = ufs_qcom_phy_qmp_20nm_probe,
-	.remove = ufs_qcom_phy_qmp_20nm_remove,
 	.driver = {
 		.of_match_table = ufs_qcom_phy_qmp_20nm_of_match,
 		.name = "ufs_qcom_phy_qmp_20nm",

@@ -88,8 +88,8 @@ gre_manip_pkt(struct sk_buff *skb,
 	      const struct nf_conntrack_tuple *tuple,
 	      enum nf_nat_manip_type maniptype)
 {
-	const struct gre_hdr *greh;
-	struct gre_hdr_pptp *pgreh;
+	const struct gre_base_hdr *greh;
+	struct pptp_gre_header *pgreh;
 
 	/* pgreh includes two optional 32bit fields which are not required
 	 * to be there.  That's where the magic '8' comes from */
@@ -97,18 +97,19 @@ gre_manip_pkt(struct sk_buff *skb,
 		return false;
 
 	greh = (void *)skb->data + hdroff;
-	pgreh = (struct gre_hdr_pptp *)greh;
+	pgreh = (struct pptp_gre_header *)greh;
 
 	/* we only have destination manip of a packet, since 'source key'
 	 * is not present in the packet itself */
 	if (maniptype != NF_NAT_MANIP_DST)
 		return true;
-	switch (greh->version) {
-	case GRE_VERSION_1701:
+
+	switch (greh->flags & GRE_VERSION) {
+	case GRE_VERSION_0:
 		/* We do not currently NAT any GREv0 packets.
 		 * Try to behave like "nf_nat_proto_unknown" */
 		break;
-	case GRE_VERSION_PPTP:
+	case GRE_VERSION_1:
 		pr_debug("call_id -> 0x%04x\n", ntohs(tuple->dst.u.gre.key));
 		pgreh->call_id = tuple->dst.u.gre.key;
 		break;

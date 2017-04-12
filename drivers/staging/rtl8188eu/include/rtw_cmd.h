@@ -39,8 +39,8 @@ struct cmd_obj {
 };
 
 struct cmd_priv {
-	struct semaphore cmd_queue_sema;
-	struct semaphore terminate_cmdthread_sema;
+	struct completion cmd_queue_comp;
+	struct completion terminate_cmdthread_comp;
 	struct __queue cmd_queue;
 	u8 cmdthd_running;
 	struct adapter *padapter;
@@ -210,34 +210,6 @@ struct set_assocsta_rsp {
 };
 
 /*
-	Caller Ad-Hoc/AP
-
-	Command mode
-
-	This is to force fw to del an sta_data entry per driver's request
-
-	FW will invalidate the cam entry associated with it.
-
-*/
-struct del_assocsta_parm {
-	u8	addr[ETH_ALEN];
-};
-
-/*
-Caller Mode: AP/Ad-HoC(M)
-
-Notes: To notify fw that given staid has changed its power state
-
-Command Mode
-
-*/
-struct setstapwrstate_parm {
-	u8	staid;
-	u8	status;
-	u8	hwaddr[6];
-};
-
-/*
 	Notes: This command is used for H2C/C2H loopback testing
 
 	mac[0] == 0
@@ -312,8 +284,6 @@ struct SetChannelPlan_param {
 	u8 channel_plan;
 };
 
-#define GEN_CMD_CODE(cmd)	cmd ## _CMD_
-
 /*
 
 Result:
@@ -376,42 +346,42 @@ struct _cmd_callback {
 };
 
 enum rtw_h2c_cmd {
-	GEN_CMD_CODE(_JoinBss),
-	GEN_CMD_CODE(_DisConnect),
-	GEN_CMD_CODE(_CreateBss),
-	GEN_CMD_CODE(_SetOpMode),
-	GEN_CMD_CODE(_SiteSurvey),
-	GEN_CMD_CODE(_SetAuth),
-	GEN_CMD_CODE(_SetKey),
-	GEN_CMD_CODE(_SetStaKey),
-	GEN_CMD_CODE(_SetAssocSta),
-	GEN_CMD_CODE(_AddBAReq),
-	GEN_CMD_CODE(_SetChannel),
-	GEN_CMD_CODE(_TX_Beacon),
-	GEN_CMD_CODE(_Set_MLME_EVT),
-	GEN_CMD_CODE(_Set_Drv_Extra),
-	GEN_CMD_CODE(_SetChannelPlan),
+	_JoinBss_CMD_,
+	_DisConnect_CMD_,
+	_CreateBss_CMD_,
+	_SetOpMode_CMD_,
+	_SiteSurvey_CMD_,
+	_SetAuth_CMD_,
+	_SetKey_CMD_,
+	_SetStaKey_CMD_,
+	_SetAssocSta_CMD_,
+	_AddBAReq_CMD_,
+	_SetChannel_CMD_,
+	_TX_Beacon_CMD_,
+	_Set_MLME_EVT_CMD_,
+	_Set_Drv_Extra_CMD_,
+	_SetChannelPlan_CMD_,
 
 	MAX_H2CCMD
 };
 
 #ifdef _RTW_CMD_C_
 static struct _cmd_callback	rtw_cmd_callback[] = {
-	{GEN_CMD_CODE(_JoinBss), &rtw_joinbss_cmd_callback},
-	{GEN_CMD_CODE(_DisConnect), &rtw_disassoc_cmd_callback},
-	{GEN_CMD_CODE(_CreateBss), &rtw_createbss_cmd_callback},
-	{GEN_CMD_CODE(_SetOpMode), NULL},
-	{GEN_CMD_CODE(_SiteSurvey), &rtw_survey_cmd_callback},
-	{GEN_CMD_CODE(_SetAuth), NULL},
-	{GEN_CMD_CODE(_SetKey), NULL},
-	{GEN_CMD_CODE(_SetStaKey), &rtw_setstaKey_cmdrsp_callback},
-	{GEN_CMD_CODE(_SetAssocSta), &rtw_setassocsta_cmdrsp_callback},
-	{GEN_CMD_CODE(_AddBAReq), NULL},
-	{GEN_CMD_CODE(_SetChannel), NULL},
-	{GEN_CMD_CODE(_TX_Beacon), NULL},
-	{GEN_CMD_CODE(_Set_MLME_EVT), NULL},
-	{GEN_CMD_CODE(_Set_Drv_Extra), NULL},
-	{GEN_CMD_CODE(_SetChannelPlan), NULL},
+	{_JoinBss_CMD_, &rtw_joinbss_cmd_callback},
+	{_DisConnect_CMD_, &rtw_disassoc_cmd_callback},
+	{_CreateBss_CMD_, &rtw_createbss_cmd_callback},
+	{_SetOpMode_CMD_, NULL},
+	{_SiteSurvey_CMD_, &rtw_survey_cmd_callback},
+	{_SetAuth_CMD_, NULL},
+	{_SetKey_CMD_, NULL},
+	{_SetStaKey_CMD_, &rtw_setstaKey_cmdrsp_callback},
+	{_SetAssocSta_CMD_, &rtw_setassocsta_cmdrsp_callback},
+	{_AddBAReq_CMD_, NULL},
+	{_SetChannel_CMD_, NULL},
+	{_TX_Beacon_CMD_, NULL},
+	{_Set_MLME_EVT_CMD_, NULL},
+	{_Set_Drv_Extra_CMD_, NULL},
+	{_SetChannelPlan_CMD_, NULL},
 };
 #endif
 

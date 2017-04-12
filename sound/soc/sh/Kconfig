@@ -1,5 +1,5 @@
 menu "SoC Audio support for SuperH"
-	depends on SUPERH || ARCH_SHMOBILE
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 
 config SND_SOC_PCM_SH7760
 	tristate "SoC Audio support for Renesas SH7760"
@@ -37,16 +37,11 @@ config SND_SOC_SH4_SIU
 config SND_SOC_RCAR
 	tristate "R-Car series SRU/SCU/SSIU/SSI support"
 	depends on COMMON_CLK
+	depends on OF || COMPILE_TEST
 	select SND_SIMPLE_CARD
 	select REGMAP_MMIO
 	help
 	  This option enables R-Car SRU/SCU/SSIU/SSI sound support
-
-config SND_SOC_RSRC_CARD
-	tristate "Renesas Sampling Rate Convert Sound Card"
-	select SND_SIMPLE_CARD_UTILS
-	help
-	  This option enables simple sound if you need sampling rate convert
 
 ##
 ## Boards

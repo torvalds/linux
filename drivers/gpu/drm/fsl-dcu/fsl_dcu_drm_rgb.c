@@ -20,38 +20,6 @@
 #include "fsl_dcu_drm_drv.h"
 #include "fsl_tcon.h"
 
-static int
-fsl_dcu_drm_encoder_atomic_check(struct drm_encoder *encoder,
-				 struct drm_crtc_state *crtc_state,
-				 struct drm_connector_state *conn_state)
-{
-	return 0;
-}
-
-static void fsl_dcu_drm_encoder_disable(struct drm_encoder *encoder)
-{
-	struct drm_device *dev = encoder->dev;
-	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-
-	if (fsl_dev->tcon)
-		fsl_tcon_bypass_disable(fsl_dev->tcon);
-}
-
-static void fsl_dcu_drm_encoder_enable(struct drm_encoder *encoder)
-{
-	struct drm_device *dev = encoder->dev;
-	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-
-	if (fsl_dev->tcon)
-		fsl_tcon_bypass_enable(fsl_dev->tcon);
-}
-
-static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.atomic_check = fsl_dcu_drm_encoder_atomic_check,
-	.disable = fsl_dcu_drm_encoder_disable,
-	.enable = fsl_dcu_drm_encoder_enable,
-};
-
 static void fsl_dcu_drm_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
@@ -68,12 +36,15 @@ int fsl_dcu_drm_encoder_create(struct fsl_dcu_drm_device *fsl_dev,
 	int ret;
 
 	encoder->possible_crtcs = 1;
+
+	/* Use bypass mode for parallel RGB/LVDS encoder */
+	if (fsl_dev->tcon)
+		fsl_tcon_bypass_enable(fsl_dev->tcon);
+
 	ret = drm_encoder_init(fsl_dev->drm, encoder, &encoder_funcs,
 			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0)
 		return ret;
-
-	drm_encoder_helper_add(encoder, &encoder_helper_funcs);
 
 	return 0;
 }
@@ -87,17 +58,10 @@ static void fsl_dcu_drm_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static enum drm_connector_status
-fsl_dcu_drm_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static const struct drm_connector_funcs fsl_dcu_drm_connector_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.destroy = fsl_dcu_drm_connector_destroy,
-	.detect = fsl_dcu_drm_connector_detect,
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.reset = drm_atomic_helper_connector_reset,
@@ -196,10 +160,7 @@ static int fsl_dcu_attach_endpoint(struct fsl_dcu_drm_device *fsl_dev,
 	if (!bridge)
 		return -ENODEV;
 
-	fsl_dev->encoder.bridge = bridge;
-	bridge->encoder = &fsl_dev->encoder;
-
-	return drm_bridge_attach(fsl_dev->drm, bridge);
+	return drm_bridge_attach(&fsl_dev->encoder, bridge, NULL);
 }
 
 int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)

@@ -35,7 +35,6 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 
 	if (wdev->wext.keys) {
 		wdev->wext.keys->def = wdev->wext.default_key;
-		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
 		if (wdev->wext.default_key != -1)
 			wdev->wext.connect.privacy = true;
 	}
@@ -43,11 +42,11 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 	if (!wdev->wext.connect.ssid_len)
 		return 0;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys && wdev->wext.keys->def != -1) {
 		ck = kmemdup(wdev->wext.keys, sizeof(*ck), GFP_KERNEL);
 		if (!ck)
 			return -ENOMEM;
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < CFG80211_MAX_WEP_KEYS; i++)
 			ck->params[i].key = ck->data[i];
 	}
 
@@ -106,30 +105,7 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 			goto out;
 	}
 
-
 	wdev->wext.connect.channel = chan;
-
-	/*
-	 * SSID is not set, we just want to switch monitor channel,
-	 * this is really just backward compatibility, if the SSID
-	 * is set then we use the channel to select the BSS to use
-	 * to connect to instead. If we were connected on another
-	 * channel we disconnected above and reconnect below.
-	 */
-	if (chan && !wdev->wext.connect.ssid_len) {
-		struct cfg80211_chan_def chandef = {
-			.width = NL80211_CHAN_WIDTH_20_NOHT,
-			.center_freq1 = freq,
-		};
-
-		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
-		if (chandef.chan)
-			err = cfg80211_set_monitor_channel(rdev, &chandef);
-		else
-			err = -EINVAL;
-		goto out;
-	}
-
 	err = cfg80211_mgd_wext_connect(rdev, wdev);
  out:
 	wdev_unlock(wdev);

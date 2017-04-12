@@ -27,12 +27,16 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	chosen {
+		stdout-path = &uart0;
+	};
+
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -40,13 +44,13 @@
 		regulator-boot-on;
 	};
 
-	lis3_reg: fixedregulator@1 {
+	lis3_reg: fixedregulator1 {
 		compatible = "regulator-fixed";
 		regulator-name = "lis3_reg";
 		regulator-boot-on;
 	};
 
-	wl12xx_vmmc: fixedregulator@2 {
+	wl12xx_vmmc: fixedregulator2 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&wl12xx_gpio>;
 		compatible = "regulator-fixed";
@@ -58,7 +62,7 @@
 		enable-active-high;
 	};
 
-	vtt_fixed: fixedregulator@3 {
+	vtt_fixed: fixedregulator3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vtt";
 		regulator-min-microvolt = <1500000>;
@@ -75,26 +79,26 @@
 
 		compatible = "gpio-leds";
 
-		led@1 {
+		led1 {
 			label = "evmsk:green:usr0";
 			gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "evmsk:green:usr1";
 			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "evmsk:green:mmc0";
 			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
-		led@4 {
+		led4 {
 			label = "evmsk:green:heartbeat";
 			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
@@ -102,31 +106,31 @@
 		};
 	};
 
-	gpio_buttons: gpio_buttons@0 {
+	gpio_buttons: gpio_buttons0 {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		switch@1 {
+		switch1 {
 			label = "button0";
 			linux,code = <0x100>;
 			gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
 		};
 
-		switch@2 {
+		switch2 {
 			label = "button1";
 			linux,code = <0x101>;
 			gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
 		};
 
-		switch@3 {
+		switch3 {
 			label = "button2";
 			linux,code = <0x102>;
 			gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;
 			wakeup-source;
 		};
 
-		switch@4 {
+		switch4 {
 			label = "button3";
 			linux,code = <0x103>;
 			gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
@@ -170,29 +174,29 @@
 		pinctrl-1 = <&lcd_pins_sleep>;
 		status = "okay";
 		panel-info {
-			ac-bias           = <255>;
-			ac-bias-intrpt    = <0>;
-			dma-burst-sz      = <16>;
-			bpp               = <32>;
-			fdd               = <0x80>;
-			sync-edge         = <0>;
-			sync-ctrl         = <1>;
-			raster-order      = <0>;
-			fifo-th           = <0>;
+			ac-bias		= <255>;
+			ac-bias-intrpt	= <0>;
+			dma-burst-sz	= <16>;
+			bpp		= <32>;
+			fdd		= <0x80>;
+			sync-edge	= <0>;
+			sync-ctrl	= <1>;
+			raster-order	= <0>;
+			fifo-th		= <0>;
 		};
 		display-timings {
 			480x272 {
-				hactive         = <480>;
-				vactive         = <272>;
-				hback-porch     = <43>;
-				hfront-porch    = <8>;
-				hsync-len       = <4>;
-				vback-porch     = <12>;
-				vfront-porch    = <4>;
-				vsync-len       = <10>;
+				hactive		= <480>;
+				vactive		= <272>;
+				hback-porch	= <43>;
+				hfront-porch	= <8>;
+				hsync-len	= <4>;
+				vback-porch	= <12>;
+				vfront-porch	= <4>;
+				vsync-len	= <10>;
 				clock-frequency = <9000000>;
-				hsync-active    = <0>;
-				vsync-active    = <0>;
+				hsync-active	= <0>;
+				vsync-active	= <0>;
 			};
 		};
 	};
@@ -711,5 +715,12 @@
 };
 
 &lcdc {
-      status = "okay";
+	status = "okay";
+
+	blue-and-red-wiring = "crossed";
+};
+
+&rtc {
+	clocks = <&clk_32768_ck>, <&clkdiv32k_ick>;
+	clock-names = "ext-clk", "int-clk";
 };

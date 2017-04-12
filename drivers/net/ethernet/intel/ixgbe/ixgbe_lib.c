@@ -308,6 +308,7 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
 	ixgbe_cache_ring_rss(adapter);
 }
 
+#define IXGBE_RSS_64Q_MASK	0x3F
 #define IXGBE_RSS_16Q_MASK	0xF
 #define IXGBE_RSS_8Q_MASK	0x7
 #define IXGBE_RSS_4Q_MASK	0x3
@@ -515,15 +516,16 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	vmdq_i = min_t(u16, IXGBE_MAX_VMDQ_INDICES, vmdq_i);
 
 	/* 64 pool mode with 2 queues per pool */
-	if ((vmdq_i > 32) || (rss_i < 4) || (vmdq_i > 16 && pools)) {
+	if ((vmdq_i > 32) || (vmdq_i > 16 && pools)) {
 		vmdq_m = IXGBE_82599_VMDQ_2Q_MASK;
 		rss_m = IXGBE_RSS_2Q_MASK;
 		rss_i = min_t(u16, rss_i, 2);
-	/* 32 pool mode with 4 queues per pool */
+	/* 32 pool mode with up to 4 queues per pool */
 	} else {
 		vmdq_m = IXGBE_82599_VMDQ_4Q_MASK;
 		rss_m = IXGBE_RSS_4Q_MASK;
-		rss_i = 4;
+		/* We can support 4, 2, or 1 queues */
+		rss_i = (rss_i > 3) ? 4 : (rss_i > 1) ? 2 : 1;
 	}
 
 #ifdef IXGBE_FCOE
@@ -603,6 +605,7 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
  **/
 static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_ring_feature *f;
 	u16 rss_i;
 
@@ -611,7 +614,11 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 	rss_i = f->limit;
 
 	f->indices = rss_i;
-	f->mask = IXGBE_RSS_16Q_MASK;
+
+	if (hw->mac.type < ixgbe_mac_X550)
+		f->mask = IXGBE_RSS_16Q_MASK;
+	else
+		f->mask = IXGBE_RSS_64Q_MASK;
 
 	/* disable ATR by default, it will be configured below */
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
@@ -846,11 +853,6 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	netif_napi_add(adapter->netdev, &q_vector->napi,
 		       ixgbe_poll, 64);
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	/* initialize busy poll */
-	atomic_set(&q_vector->state, IXGBE_QV_STATE_DISABLE);
-
-#endif
 	/* tie q_vector and adapter together */
 	adapter->q_vector[v_idx] = q_vector;
 	q_vector->adapter = adapter;

@@ -71,7 +71,7 @@
 #include <net/inet_ecn.h>
 #include <net/sctp/sctp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
 					 union sctp_addr *s2);
@@ -198,7 +198,7 @@ static void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 out_unlock:
-	sctp_err_finish(sk, asoc);
+	sctp_err_finish(sk, transport);
 out:
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
@@ -222,7 +222,8 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
 
 	rcu_read_lock();
-	res = ip6_xmit(sk, skb, fl6, rcu_dereference(np->opt), np->tclass);
+	res = ip6_xmit(sk, skb, fl6, sk->sk_mark, rcu_dereference(np->opt),
+		       np->tclass);
 	rcu_read_unlock();
 	return res;
 }
@@ -412,22 +413,20 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 static void sctp_v6_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 			     int is_saddr)
 {
-	__be16 *port;
-	struct sctphdr *sh;
+	/* Always called on head skb, so this is safe */
+	struct sctphdr *sh = sctp_hdr(skb);
+	struct sockaddr_in6 *sa = &addr->v6;
 
-	port = &addr->v6.sin6_port;
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_flowinfo = 0; /* FIXME */
 	addr->v6.sin6_scope_id = ((struct inet6_skb_parm *)skb->cb)->iif;
 
-	/* Always called on head skb, so this is safe */
-	sh = sctp_hdr(skb);
 	if (is_saddr) {
-		*port  = sh->source;
-		addr->v6.sin6_addr = ipv6_hdr(skb)->saddr;
+		sa->sin6_port = sh->source;
+		sa->sin6_addr = ipv6_hdr(skb)->saddr;
 	} else {
-		*port = sh->dest;
-		addr->v6.sin6_addr = ipv6_hdr(skb)->daddr;
+		sa->sin6_port = sh->dest;
+		sa->sin6_addr = ipv6_hdr(skb)->daddr;
 	}
 }
 
@@ -641,14 +640,15 @@ static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
 
 /* Create and initialize a new sk for the socket to be returned by accept(). */
 static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
-					     struct sctp_association *asoc)
+					     struct sctp_association *asoc,
+					     bool kern)
 {
 	struct sock *newsk;
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
 	struct ipv6_txoptions *opt;
 
-	newsk = sk_alloc(sock_net(sk), PF_INET6, GFP_KERNEL, sk->sk_prot, 0);
+	newsk = sk_alloc(sock_net(sk), PF_INET6, GFP_KERNEL, sk->sk_prot, kern);
 	if (!newsk)
 		goto out;
 

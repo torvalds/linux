@@ -393,7 +393,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	/* Create PE */
 	ret = eeh_add_to_parent_pe(edev);
 	if (ret) {
-		pr_warn("%s: Can't add PCI dev %04x:%02x:%02x.%01x to parent PE (%d)\n",
+		pr_warn("%s: Can't add PCI dev %04x:%02x:%02x.%01x to parent PE (%x)\n",
 			__func__, hose->global_number, pdn->busno,
 			PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn), ret);
 		return NULL;
@@ -763,7 +763,8 @@ int pnv_eeh_phb_reset(struct pci_controller *hose, int option)
 	 * reset followed by hot reset on root bus. So we also
 	 * need the PCI bus settlement delay.
 	 */
-	rc = pnv_eeh_poll(phb->opal_id);
+	if (rc > 0)
+		rc = pnv_eeh_poll(phb->opal_id);
 	if (option == EEH_RESET_DEACTIVATE) {
 		if (system_state < SYSTEM_RUNNING)
 			udelay(1000 * EEH_PE_RST_SETTLE_TIME);
@@ -806,7 +807,8 @@ static int pnv_eeh_root_reset(struct pci_controller *hose, int option)
 		goto out;
 
 	/* Poll state of the PHB until the request is done */
-	rc = pnv_eeh_poll(phb->opal_id);
+	if (rc > 0)
+		rc = pnv_eeh_poll(phb->opal_id);
 	if (option == EEH_RESET_DEACTIVATE)
 		msleep(EEH_PE_RST_SETTLE_TIME);
 out:
@@ -1090,9 +1092,15 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 		}
 	}
 
-	bus = eeh_pe_bus_get(pe);
 	if (pe->type & EEH_PE_VF)
 		return pnv_eeh_reset_vf_pe(pe, option);
+
+	bus = eeh_pe_bus_get(pe);
+	if (!bus) {
+		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
+			__func__, pe->phb->global_number, pe->addr);
+		return -EIO;
+	}
 
 	if (pci_is_root_bus(bus) ||
 	    pci_is_root_bus(bus->parent))
@@ -1306,7 +1314,7 @@ static void pnv_eeh_get_and_dump_hub_diag(struct pci_controller *hose)
 		return;
 	}
 
-	switch (data->type) {
+	switch (be16_to_cpu(data->type)) {
 	case OPAL_P7IOC_DIAG_TYPE_RGC:
 		pr_info("P7IOC diag-data for RGC\n\n");
 		pnv_eeh_dump_hub_diag_common(data);
@@ -1538,7 +1546,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
-					frozen_pe_no,
+					be64_to_cpu(frozen_pe_no),
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 				ret = EEH_NEXT_ERR_NONE;
 			} else if ((*pe)->state & EEH_PE_ISOLATED ||

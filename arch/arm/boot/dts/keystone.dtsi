@@ -30,12 +30,12 @@
 	};
 
 	gic: interrupt-controller {
-		compatible = "arm,cortex-a15-gic";
+		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x0 0x02561000 0x0 0x1000>,
 		      <0x0 0x02562000 0x0 0x2000>,
-		      <0x0 0x02564000 0x0 0x1000>,
+		      <0x0 0x02564000 0x0 0x2000>,
 		      <0x0 0x02566000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
 				IRQ_TYPE_LEVEL_HIGH)>;
@@ -83,6 +83,11 @@
 			reg = <0x02310000 0x200>;
 		};
 
+		psc: power-sleep-controller@02350000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x02350000 0x1000>;
+		};
+
 		devctrl: device-state-control@02620000 {
 			compatible = "ti,keystone-devctrl", "syscon";
 			reg = <0x02620000 0x1000>;
@@ -98,7 +103,7 @@
 		/include/ "keystone-clocks.dtsi"
 
 		uart0: serial@02530c00 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -108,7 +113,7 @@
 		};
 
 		uart1:	serial@02531000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -188,7 +193,7 @@
 			status = "disabled";
 		};
 
-		usb: usb@2680000 {
+		keystone_usb0: usb@2680000 {
 			compatible = "ti,keystone-dwc3";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -201,7 +206,7 @@
 			dma-ranges;
 			status = "disabled";
 
-			dwc3@2690000 {
+			usb0: dwc3@2690000 {
 				compatible = "synopsys,dwc3";
 				reg = <0x2690000 0x70000>;
 				interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;

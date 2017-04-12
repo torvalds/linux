@@ -20,6 +20,8 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+#include <asm/unaligned.h>
+
 #define hci_req_sync_lock(hdev)   mutex_lock(&hdev->req_lock)
 #define hci_req_sync_unlock(hdev) mutex_unlock(&hdev->req_lock)
 
@@ -73,8 +75,9 @@ void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance);
 
 int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 				    bool force);
-void hci_req_clear_adv_instance(struct hci_dev *hdev, struct hci_request *req,
-				u8 instance, bool force);
+void hci_req_clear_adv_instance(struct hci_dev *hdev, struct sock *sk,
+				struct hci_request *req, u8 instance,
+				bool force);
 
 void __hci_req_update_class(struct hci_request *req);
 
@@ -102,3 +105,26 @@ static inline void hci_update_background_scan(struct hci_dev *hdev)
 
 void hci_request_setup(struct hci_dev *hdev);
 void hci_request_cancel_all(struct hci_dev *hdev);
+
+u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len);
+
+static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type,
+				  u8 *data, u8 data_len)
+{
+	eir[eir_len++] = sizeof(type) + data_len;
+	eir[eir_len++] = type;
+	memcpy(&eir[eir_len], data, data_len);
+	eir_len += data_len;
+
+	return eir_len;
+}
+
+static inline u16 eir_append_le16(u8 *eir, u16 eir_len, u8 type, u16 data)
+{
+	eir[eir_len++] = sizeof(type) + sizeof(data);
+	eir[eir_len++] = type;
+	put_unaligned_le16(data, &eir[eir_len]);
+	eir_len += sizeof(data);
+
+	return eir_len;
+}

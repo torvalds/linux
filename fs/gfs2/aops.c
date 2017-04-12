@@ -143,8 +143,8 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 /* This is the same as calling block_write_full_page, but it also
  * writes pages outside of i_size
  */
-int gfs2_write_full_page(struct page *page, get_block_t *get_block,
-			 struct writeback_control *wbc)
+static int gfs2_write_full_page(struct page *page, get_block_t *get_block,
+				struct writeback_control *wbc)
 {
 	struct inode * const inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
@@ -187,7 +187,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 		ClearPageChecked(page);
 		if (!page_has_buffers(page)) {
 			create_empty_buffers(page, inode->i_sb->s_blocksize,
-					     (1 << BH_Dirty)|(1 << BH_Uptodate));
+					     BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
 		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
 	}
@@ -839,12 +839,10 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	BUG_ON((pos + len) > (dibh->b_size - sizeof(struct gfs2_dinode)));
 	kaddr = kmap_atomic(page);
 	memcpy(buf + pos, kaddr + pos, copied);
-	memset(kaddr + pos + copied, 0, len - copied);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
+	WARN_ON(!PageUptodate(page));
 	unlock_page(page);
 	put_page(page);
 
@@ -1147,6 +1145,16 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	if (!page_has_buffers(page))
 		return 0;
 
+	/*
+	 * From xfs_vm_releasepage: mm accommodates an old ext3 case where
+	 * clean pages might not have had the dirty bit cleared.  Thus, it can
+	 * send actual dirty pages to ->releasepage() via shrink_active_list().
+	 *
+	 * As a workaround, we skip pages that contain dirty buffers below.
+	 * Once ->releasepage isn't called on dirty pages anymore, we can warn
+	 * on dirty buffers like we used to here again.
+	 */
+
 	gfs2_log_lock(sdp);
 	spin_lock(&sdp->sd_ail_lock);
 	head = bh = page_buffers(page);
@@ -1156,8 +1164,8 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bd = bh->b_private;
 		if (bd && bd->bd_tr)
 			goto cannot_release;
-		if (buffer_pinned(bh) || buffer_dirty(bh))
-			goto not_possible;
+		if (buffer_dirty(bh) || WARN_ON(buffer_pinned(bh)))
+			goto cannot_release;
 		bh = bh->b_this_page;
 	} while(bh != head);
 	spin_unlock(&sdp->sd_ail_lock);
@@ -1180,9 +1188,6 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 
 	return try_to_free_buffers(page);
 
-not_possible: /* Should never happen */
-	WARN_ON(buffer_dirty(bh));
-	WARN_ON(buffer_pinned(bh));
 cannot_release:
 	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);

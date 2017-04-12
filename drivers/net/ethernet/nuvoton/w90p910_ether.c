@@ -751,7 +751,7 @@ static void netdev_rx(struct net_device *dev)
 				dev_err(&pdev->dev, "rx crc err\n");
 				ether->stats.rx_crc_errors++;
 			} else if (status & RXDS_ALIE) {
-				dev_err(&pdev->dev, "rx aligment err\n");
+				dev_err(&pdev->dev, "rx alignment err\n");
 				ether->stats.rx_frame_errors++;
 			} else if (status & RXDS_PTLE) {
 				dev_err(&pdev->dev, "rx longer err\n");
@@ -874,16 +874,18 @@ static void w90p910_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
-static int w90p910_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int w90p910_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
-	return mii_ethtool_gset(&ether->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&ether->mii, cmd);
 }
 
-static int w90p910_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int w90p910_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
-	return mii_ethtool_sset(&ether->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&ether->mii, cmd);
 }
 
 static int w90p910_nway_reset(struct net_device *dev)
@@ -899,11 +901,11 @@ static u32 w90p910_get_link(struct net_device *dev)
 }
 
 static const struct ethtool_ops w90p910_ether_ethtool_ops = {
-	.get_settings	= w90p910_get_settings,
-	.set_settings	= w90p910_set_settings,
 	.get_drvinfo	= w90p910_get_drvinfo,
 	.nway_reset	= w90p910_nway_reset,
 	.get_link	= w90p910_get_link,
+	.get_link_ksettings = w90p910_get_link_ksettings,
+	.set_link_ksettings = w90p910_set_link_ksettings,
 };
 
 static const struct net_device_ops w90p910_ether_netdev_ops = {
@@ -915,7 +917,6 @@ static const struct net_device_ops w90p910_ether_netdev_ops = {
 	.ndo_set_mac_address	= w90p910_set_mac_address,
 	.ndo_do_ioctl		= w90p910_ether_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static void __init get_mac_address(struct net_device *dev)

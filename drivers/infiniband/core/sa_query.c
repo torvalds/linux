@@ -2015,7 +2015,7 @@ int ib_sa_init(void)
 		goto err2;
 	}
 
-	ib_nl_wq = create_singlethread_workqueue("ib_nl_sa_wq");
+	ib_nl_wq = alloc_ordered_workqueue("ib_nl_sa_wq", WQ_MEM_RECLAIM);
 	if (!ib_nl_wq) {
 		ret = -ENOMEM;
 		goto err3;

@@ -123,15 +123,15 @@ static int __init rbtx4938_ethaddr_init(void)
 
 	/* 0-3: "MAC\0", 4-9:eth0, 10-15:eth1, 16:sum */
 	if (spi_eeprom_read(SPI_BUSNO, SEEPROM1_CS, 0, dat, sizeof(dat))) {
-		printk(KERN_ERR "seeprom: read error.\n");
+		pr_err("seeprom: read error.\n");
 		return -ENODEV;
 	} else {
 		if (strcmp(dat, "MAC") != 0)
-			printk(KERN_WARNING "seeprom: bad signature.\n");
+			pr_warn("seeprom: bad signature.\n");
 		for (i = 0, sum = 0; i < sizeof(dat); i++)
 			sum += dat[i];
 		if (sum)
-			printk(KERN_WARNING "seeprom: bad checksum.\n");
+			pr_warn("seeprom: bad checksum.\n");
 	}
 	tx4938_ethaddr_init(&dat[4], &dat[4 + 6]);
 #endif /* CONFIG_PCI */
@@ -214,14 +214,14 @@ static void __init rbtx4938_mem_setup(void)
 	rbtx4938_fpga_resource.end = CPHYSADDR(RBTX4938_FPGA_REG_ADDR) + 0xffff;
 	rbtx4938_fpga_resource.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	if (request_resource(&txx9_ce_res[2], &rbtx4938_fpga_resource))
-		printk(KERN_ERR "request resource for fpga failed\n");
+		pr_err("request resource for fpga failed\n");
 
 	_machine_restart = rbtx4938_machine_restart;
 
 	writeb(0xff, rbtx4938_led_addr);
-	printk(KERN_INFO "RBTX4938 --- FPGA(Rev %02x) DIPSW:%02x,%02x\n",
-	       readb(rbtx4938_fpga_rev_addr),
-	       readb(rbtx4938_dipsw_addr), readb(rbtx4938_bdipsw_addr));
+	pr_info("RBTX4938 --- FPGA(Rev %02x) DIPSW:%02x,%02x\n",
+		readb(rbtx4938_fpga_rev_addr),
+		readb(rbtx4938_dipsw_addr), readb(rbtx4938_bdipsw_addr));
 }
 
 static void __init rbtx4938_ne_init(void)
@@ -336,6 +336,7 @@ static void __init rbtx4938_mtd_init(void)
 
 static void __init rbtx4938_arch_init(void)
 {
+	txx9_gpio_init(TX4938_PIO_REG & 0xfffffffffULL, 0, TX4938_NUM_PIO);
 	gpiochip_add_data(&rbtx4938_spi_gpio_chip, NULL);
 	rbtx4938_pci_setup();
 	rbtx4938_spi_init();

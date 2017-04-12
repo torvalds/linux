@@ -485,15 +485,8 @@ int stb0899_read_regs(struct stb0899_state *state, unsigned int reg, u8 *buf, u3
 	    (((reg & 0xff00) == 0xf200) || ((reg & 0xff00) == 0xf600)))
 		_stb0899_read_reg(state, (reg | 0x00ff));
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++) {
-			printk(" %02x", buf[i]);
-		}
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, buf);
 
 	return 0;
 err:
@@ -522,14 +515,8 @@ int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, 
 	buf[1] = reg & 0xff;
 	memcpy(&buf[2], data, count);
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++)
-			printk(" %02x", data[i]);
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, data);
 	ret = i2c_transfer(state->i2c, &i2c_msg, 1);
 
 	/*
@@ -614,13 +601,19 @@ static int stb0899_postproc(struct stb0899_state *state, u8 ctl, int enable)
 	return 0;
 }
 
+static void stb0899_detach(struct dvb_frontend *fe)
+{
+	struct stb0899_state *state = fe->demodulator_priv;
+
+	/* post process event */
+	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
+}
+
 static void stb0899_release(struct dvb_frontend *fe)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 
 	dprintk(state->verbose, FE_DEBUG, 1, "Release Frontend");
-	/* post process event */
-	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
 	kfree(state);
 }
 
@@ -1586,7 +1579,7 @@ static enum dvbfe_algo stb0899_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
-static struct dvb_frontend_ops stb0899_ops = {
+static const struct dvb_frontend_ops stb0899_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name 			= "STB0899 Multistandard",
@@ -1603,6 +1596,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 					  FE_CAN_QPSK
 	},
 
+	.detach				= stb0899_detach,
 	.release			= stb0899_release,
 	.init				= stb0899_init,
 	.sleep				= stb0899_sleep,

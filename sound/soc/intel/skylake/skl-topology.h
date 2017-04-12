@@ -113,27 +113,10 @@ struct skl_cpr_gtw_cfg {
 	u32 config_data[1];
 } __packed;
 
-struct skl_i2s_config_blob {
-	u32 gateway_attrib;
-	u32 tdm_ts_group[8];
-	u32 ssc0;
-	u32 ssc1;
-	u32 sscto;
-	u32 sspsp;
-	u32 sstsa;
-	u32 ssrsa;
-	u32 ssc2;
-	u32 sspsp2;
-	u32 ssc3;
-	u32 ssioc;
-	u32 mdivc;
-	u32 mdivr;
-} __packed;
-
 struct skl_dma_control {
 	u32 node_id;
 	u32 config_length;
-	u32 config_data[1];
+	u32 config_data[0];
 } __packed;
 
 struct skl_cpr_cfg {
@@ -215,9 +198,20 @@ struct skl_module_fmt {
 
 struct skl_module_cfg;
 
+struct skl_mod_inst_map {
+	u16 mod_id;
+	u16 inst_id;
+};
+
+struct skl_kpb_params {
+	u32 num_modules;
+	struct skl_mod_inst_map map[0];
+};
+
 struct skl_module_inst_id {
-	u32 module_id;
+	int module_id;
 	u32 instance_id;
+	int pvt_id;
 };
 
 enum skl_module_pin_state {
@@ -260,6 +254,8 @@ struct skl_pipe_params {
 	u32 s_freq;
 	u32 s_fmt;
 	u8 linktype;
+	snd_pcm_format_t format;
+	int link_index;
 	int stream;
 };
 
@@ -268,6 +264,7 @@ struct skl_pipe {
 	u8 pipe_priority;
 	u16 conn_type;
 	u32 memory_pages;
+	u8 lp_mode;
 	struct skl_pipe_params *p_params;
 	enum skl_pipe_state state;
 	struct list_head w_list;
@@ -280,6 +277,12 @@ enum skl_module_state {
 	SKL_MODULE_INIT_DONE = 2,
 	SKL_MODULE_BIND_DONE = 3,
 	SKL_MODULE_UNLOADED = 4,
+};
+
+enum d0i3_capability {
+	SKL_D0I3_NONE = 0,
+	SKL_D0I3_STREAMING = 1,
+	SKL_D0I3_NON_STREAMING = 2,
 };
 
 struct skl_module_cfg {
@@ -308,6 +311,7 @@ struct skl_module_cfg {
 	u32 converter;
 	u32 vbus_id;
 	u32 mem_pages;
+	enum d0i3_capability d0i3_caps;
 	struct skl_module_pin *m_in_pin;
 	struct skl_module_pin *m_out_pin;
 	enum skl_module_type m_type;
@@ -330,6 +334,19 @@ struct skl_pipeline {
 	struct list_head node;
 };
 
+#define SKL_LIB_NAME_LENGTH 128
+#define SKL_MAX_LIB 16
+
+struct skl_lib_info {
+	char name[SKL_LIB_NAME_LENGTH];
+	const struct firmware *fw;
+};
+
+struct skl_manifest {
+	u32 lib_count;
+	struct skl_lib_info lib[SKL_MAX_LIB];
+};
+
 static inline struct skl *get_skl_ctx(struct device *dev)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
@@ -349,6 +366,9 @@ struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
 		struct snd_soc_dai *dai, int stream);
 int skl_tplg_update_pipe_params(struct device *dev,
 		struct skl_module_cfg *mconfig, struct skl_pipe_params *params);
+
+void skl_tplg_d0i3_get(struct skl *skl, enum d0i3_capability caps);
+void skl_tplg_d0i3_put(struct skl *skl, enum d0i3_capability caps);
 
 int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe);
 
@@ -378,4 +398,8 @@ int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
 struct skl_module_cfg *skl_tplg_be_get_cpr_module(struct snd_soc_dai *dai,
 								int stream);
 enum skl_bitdepth skl_get_bit_depth(int params);
+int skl_pcm_host_dma_prepare(struct device *dev,
+			struct skl_pipe_params *params);
+int skl_pcm_link_dma_prepare(struct device *dev,
+			struct skl_pipe_params *params);
 #endif

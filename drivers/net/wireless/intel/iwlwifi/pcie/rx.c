@@ -487,14 +487,12 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 
 	while (pending) {
 		int i;
-		struct list_head local_allocated;
+		LIST_HEAD(local_allocated);
 		gfp_t gfp_mask = GFP_KERNEL;
 
 		/* Do not post a warning if there are only a few requests */
 		if (pending < RX_PENDING_WATERMARK)
 			gfp_mask |= __GFP_NOWARN;
-
-		INIT_LIST_HEAD(&local_allocated);
 
 		for (i = 0; i < RX_CLAIM_REQ_ALLOC;) {
 			struct iwl_rx_mem_buffer *rxb;
@@ -1108,13 +1106,14 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			FH_RSCSR_RXQ_POS != rxq->id);
 
 		IWL_DEBUG_RX(trans,
-			     "cmd at offset %d: %s (0x%.2x, seq 0x%x)\n",
+			     "cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
 			     rxcb._offset,
 			     iwl_get_cmd_string(trans,
 						iwl_cmd_id(pkt->hdr.cmd,
 							   pkt->hdr.group_id,
 							   0)),
-			     pkt->hdr.cmd, le16_to_cpu(pkt->hdr.sequence));
+			     pkt->hdr.group_id, pkt->hdr.cmd,
+			     le16_to_cpu(pkt->hdr.sequence));
 
 		len = iwl_rx_packet_len(pkt);
 		len += sizeof(u32); /* account for status word */
@@ -1142,7 +1141,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		sequence = le16_to_cpu(pkt->hdr.sequence);
 		index = SEQ_TO_INDEX(sequence);
-		cmd_index = get_cmd_index(&txq->q, index);
+		cmd_index = get_cmd_index(txq, index);
 
 		if (rxq->id == 0)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
@@ -1608,17 +1607,19 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		bool hw_rfkill;
 
+		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
+		if (hw_rfkill)
+			set_bit(STATUS_RFKILL, &trans->status);
+
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
-		mutex_lock(&trans_pcie->mutex);
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
-			set_bit(STATUS_RFKILL, &trans->status);
 			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
 					       &trans->status))
 				IWL_DEBUG_RF_KILL(trans,
@@ -1885,6 +1886,20 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 			      inta_fh,
 			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
 
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q0) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 0);
+		local_bh_enable();
+	}
+
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q1) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 1);
+		local_bh_enable();
+	}
+
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
 		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
@@ -1939,17 +1954,19 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL) {
 		bool hw_rfkill;
 
+		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
+		if (hw_rfkill)
+			set_bit(STATUS_RFKILL, &trans->status);
+
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
-		mutex_lock(&trans_pcie->mutex);
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
-			set_bit(STATUS_RFKILL, &trans->status);
 			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
 					       &trans->status))
 				IWL_DEBUG_RF_KILL(trans,

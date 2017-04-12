@@ -9,11 +9,6 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-extern void do_load_up_transact_fpu(struct thread_struct *thread);
-extern void do_load_up_transact_altivec(struct thread_struct *thread);
-#endif
-
 extern void tm_enable(void);
 extern void tm_reclaim(struct thread_struct *thread,
 		       unsigned long orig_msr, uint8_t cause);

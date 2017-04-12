@@ -221,7 +221,8 @@ static ssize_t b43legacy_debugfs_read(struct file *file, char __user *userbuf,
 		goto out_unlock;
 	}
 
-	dfops = container_of(file->f_op, struct b43legacy_debugfs_fops, fops);
+	dfops = container_of(debugfs_real_fops(file),
+			     struct b43legacy_debugfs_fops, fops);
 	if (!dfops->read) {
 		err = -ENOSYS;
 		goto out_unlock;
@@ -287,7 +288,8 @@ static ssize_t b43legacy_debugfs_write(struct file *file,
 		goto out_unlock;
 	}
 
-	dfops = container_of(file->f_op, struct b43legacy_debugfs_fops, fops);
+	dfops = container_of(debugfs_real_fops(file),
+			     struct b43legacy_debugfs_fops, fops);
 	if (!dfops->write) {
 		err = -ENOSYS;
 		goto out_unlock;

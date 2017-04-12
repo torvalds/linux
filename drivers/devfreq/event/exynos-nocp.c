@@ -176,9 +176,6 @@ static int exynos_nocp_get_event(struct devfreq_event_dev *edev,
 	return 0;
 
 out:
-	edata->load_count = 0;
-	edata->total_count = 0;
-
 	dev_err(nocp->dev, "Failed to read the counter of NoC probe device\n");
 
 	return ret;
@@ -193,6 +190,7 @@ static const struct of_device_id exynos_nocp_id_match[] = {
 	{ .compatible = "samsung,exynos5420-nocp", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, exynos_nocp_id_match);
 
 static struct regmap_config exynos_nocp_regmap_config = {
 	.reg_bits = 32,

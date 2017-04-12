@@ -87,7 +87,7 @@ The theory about how to apply functions a safe way is rather complex.
 The aim is to define a so-called consistency model. It attempts to define
 conditions when the new implementation could be used so that the system
 stays consistent. The theory is not yet finished. See the discussion at
-http://thread.gmane.org/gmane.linux.kernel/1823033/focus=1828189
+https://lkml.kernel.org/r/20141107140458.GA21774@suse.cz
 
 The current consistency model is very simple. It guarantees that either
 the old or the new function is called. But various functions get redirected
@@ -329,25 +329,6 @@ The current Livepatch implementation has several limitations:
     by "notrace".
 
 
-  + Anything inlined into __schedule() can not be patched.
-
-    The switch_to macro is inlined into __schedule(). It switches the
-    context between two processes in the middle of the macro. It does
-    not save RIP in x86_64 version (contrary to 32-bit version). Instead,
-    the currently used __schedule()/switch_to() handles both processes.
-
-    Now, let's have two different tasks. One calls the original
-    __schedule(), its registers are stored in a defined order and it
-    goes to sleep in the switch_to macro and some other task is restored
-    using the original __schedule(). Then there is the second task which
-    calls patched__schedule(), it goes to sleep there and the first task
-    is picked by the patched__schedule(). Its RSP is restored and now
-    the registers should be restored as well. But the order is different
-    in the new patched__schedule(), so...
-
-    There is work in progress to remove this limitation.
-
-
   + Livepatch modules can not be removed.
 
     The current implementation just redirects the functions at the very
@@ -377,7 +358,7 @@ The current Livepatch implementation has several limitations:
     Each function has to handle TOC and save LR before it could call
     the ftrace handler. This operation has to be reverted on return.
     Fortunately, the generic ftrace code has the same problem and all
-    this is is handled on the ftrace level.
+    this is handled on the ftrace level.
 
 
   + Kretprobes using the ftrace framework conflict with the patched

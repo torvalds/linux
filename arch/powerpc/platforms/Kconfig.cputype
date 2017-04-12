@@ -34,6 +34,7 @@ config PPC_8xx
 	select FSL_SOC
 	select 8xx
 	select PPC_LIB_RHEAP
+	select SYS_SUPPORTS_HUGETLBFS
 
 config 40x
 	bool "AMCC 40x"
@@ -74,6 +75,7 @@ config PPC_BOOK3S_64
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select IRQ_WORK
+	select HAVE_KERNEL_XZ
 
 config PPC_BOOK3E_64
 	bool "Embedded processors"
@@ -86,6 +88,7 @@ endchoice
 choice
 	prompt "CPU selection"
 	depends on PPC64
+	default POWER8_CPU if CPU_LITTLE_ENDIAN
 	default GENERIC_CPU
 	help
 	  This will create a kernel which is optimised for a particular CPU.
@@ -168,6 +171,13 @@ config PPC_E500MC
 config PPC_FPU
 	bool
 	default y if PPC64
+
+config PPC_8xx_PERF_EVENT
+	bool "PPC 8xx perf events"
+	depends on PPC_8xx && PERF_EVENTS
+	help
+	  This is Performance Events support for PPC 8xx. The 8xx doesn't
+	  have a PMU but some events are emulated using 8xx features.
 
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"

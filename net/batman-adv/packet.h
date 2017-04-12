@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -21,7 +21,7 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 
-#define batadv_tp_is_error(n) ((u8)n > 127 ? 1 : 0)
+#define batadv_tp_is_error(n) ((u8)(n) > 127 ? 1 : 0)
 
 /**
  * enum batadv_packettype - types for batman-adv encapsulated packets
@@ -126,42 +126,6 @@ enum batadv_tt_data_flags {
 	BATADV_TT_REQUEST    = BIT(1),
 	BATADV_TT_RESPONSE   = BIT(2),
 	BATADV_TT_FULL_TABLE = BIT(4),
-};
-
-/**
- * enum batadv_tt_client_flags - TT client specific flags
- * @BATADV_TT_CLIENT_DEL: the client has to be deleted from the table
- * @BATADV_TT_CLIENT_ROAM: the client roamed to/from another node and the new
- *  update telling its new real location has not been received/sent yet
- * @BATADV_TT_CLIENT_WIFI: this client is connected through a wifi interface.
- *  This information is used by the "AP Isolation" feature
- * @BATADV_TT_CLIENT_ISOLA: this client is considered "isolated". This
- *  information is used by the Extended Isolation feature
- * @BATADV_TT_CLIENT_NOPURGE: this client should never be removed from the table
- * @BATADV_TT_CLIENT_NEW: this client has been added to the local table but has
- *  not been announced yet
- * @BATADV_TT_CLIENT_PENDING: this client is marked for removal but it is kept
- *  in the table for one more originator interval for consistency purposes
- * @BATADV_TT_CLIENT_TEMP: this global client has been detected to be part of
- *  the network but no nnode has already announced it
- *
- * Bits from 0 to 7 are called _remote flags_ because they are sent on the wire.
- * Bits from 8 to 15 are called _local flags_ because they are used for local
- * computations only.
- *
- * Bits from 4 to 7 - a subset of remote flags - are ensured to be in sync with
- * the other nodes in the network. To achieve this goal these flags are included
- * in the TT CRC computation.
- */
-enum batadv_tt_client_flags {
-	BATADV_TT_CLIENT_DEL     = BIT(0),
-	BATADV_TT_CLIENT_ROAM    = BIT(1),
-	BATADV_TT_CLIENT_WIFI    = BIT(4),
-	BATADV_TT_CLIENT_ISOLA	 = BIT(5),
-	BATADV_TT_CLIENT_NOPURGE = BIT(8),
-	BATADV_TT_CLIENT_NEW     = BIT(9),
-	BATADV_TT_CLIENT_PENDING = BIT(10),
-	BATADV_TT_CLIENT_TEMP	 = BIT(11),
 };
 
 /**
@@ -286,16 +250,6 @@ struct batadv_elp_packet {
 };
 
 #define BATADV_ELP_HLEN sizeof(struct batadv_elp_packet)
-
-/**
- * enum batadv_icmp_user_cmd_type - types for batman-adv icmp cmd modes
- * @BATADV_TP_START: start a throughput meter run
- * @BATADV_TP_STOP: stop a throughput meter run
- */
-enum batadv_icmp_user_cmd_type {
-	BATADV_TP_START		= 0,
-	BATADV_TP_STOP		= 2,
-};
 
 /**
  * struct batadv_icmp_header - common members among all the ICMP packets

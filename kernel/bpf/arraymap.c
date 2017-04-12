@@ -11,7 +11,6 @@
  */
 #include <linux/bpf.h>
 #include <linux/err.h>
-#include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/filter.h>
@@ -56,7 +55,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	    attr->value_size == 0 || attr->map_flags)
 		return ERR_PTR(-EINVAL);
 
-	if (attr->value_size >= 1 << (KMALLOC_SHIFT_MAX - 1))
+	if (attr->value_size > KMALLOC_MAX_SIZE)
 		/* if value_size is bigger, the user space won't be able to
 		 * access the elements.
 		 */
@@ -74,14 +73,10 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 	if (array_size >= U32_MAX - PAGE_SIZE)
 		return ERR_PTR(-ENOMEM);
 
-
 	/* allocate all map elements and zero-initialize them */
-	array = kzalloc(array_size, GFP_USER | __GFP_NOWARN);
-	if (!array) {
-		array = vzalloc(array_size);
-		if (!array)
-			return ERR_PTR(-ENOMEM);
-	}
+	array = bpf_map_area_alloc(array_size);
+	if (!array)
+		return ERR_PTR(-ENOMEM);
 
 	/* copy mandatory map attributes */
 	array->map.map_type = attr->map_type;
@@ -97,7 +92,7 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 
 	if (array_size >= U32_MAX - PAGE_SIZE ||
 	    elem_size > PCPU_MIN_UNIT_SIZE || bpf_array_alloc_percpu(array)) {
-		kvfree(array);
+		bpf_map_area_free(array);
 		return ERR_PTR(-ENOMEM);
 	}
 out:
@@ -262,7 +257,7 @@ static void array_map_free(struct bpf_map *map)
 	if (array->map.map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
 		bpf_array_free_percpu(array);
 
-	kvfree(array);
+	bpf_map_area_free(array);
 }
 
 static const struct bpf_map_ops array_ops = {
@@ -274,7 +269,7 @@ static const struct bpf_map_ops array_ops = {
 	.map_delete_elem = array_map_delete_elem,
 };
 
-static struct bpf_map_type_list array_type __read_mostly = {
+static struct bpf_map_type_list array_type __ro_after_init = {
 	.ops = &array_ops,
 	.type = BPF_MAP_TYPE_ARRAY,
 };
@@ -288,7 +283,7 @@ static const struct bpf_map_ops percpu_array_ops = {
 	.map_delete_elem = array_map_delete_elem,
 };
 
-static struct bpf_map_type_list percpu_array_type __read_mostly = {
+static struct bpf_map_type_list percpu_array_type __ro_after_init = {
 	.ops = &percpu_array_ops,
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
 };
@@ -319,7 +314,8 @@ static void fd_array_map_free(struct bpf_map *map)
 	/* make sure it's empty */
 	for (i = 0; i < array->map.max_entries; i++)
 		BUG_ON(array->ptrs[i] != NULL);
-	kvfree(array);
+
+	bpf_map_area_free(array);
 }
 
 static void *fd_array_map_lookup_elem(struct bpf_map *map, void *key)
@@ -413,7 +409,7 @@ static const struct bpf_map_ops prog_array_ops = {
 	.map_fd_put_ptr = prog_fd_array_put_ptr,
 };
 
-static struct bpf_map_type_list prog_array_type __read_mostly = {
+static struct bpf_map_type_list prog_array_type __ro_after_init = {
 	.ops = &prog_array_ops,
 	.type = BPF_MAP_TYPE_PROG_ARRAY,
 };
@@ -526,7 +522,7 @@ static const struct bpf_map_ops perf_event_array_ops = {
 	.map_release = perf_event_fd_array_release,
 };
 
-static struct bpf_map_type_list perf_event_array_type __read_mostly = {
+static struct bpf_map_type_list perf_event_array_type __ro_after_init = {
 	.ops = &perf_event_array_ops,
 	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
 };
@@ -538,7 +534,7 @@ static int __init register_perf_event_array_map(void)
 }
 late_initcall(register_perf_event_array_map);
 
-#ifdef CONFIG_SOCK_CGROUP_DATA
+#ifdef CONFIG_CGROUPS
 static void *cgroup_fd_array_get_ptr(struct bpf_map *map,
 				     struct file *map_file /* not used */,
 				     int fd)
@@ -568,7 +564,7 @@ static const struct bpf_map_ops cgroup_array_ops = {
 	.map_fd_put_ptr = cgroup_fd_array_put_ptr,
 };
 
-static struct bpf_map_type_list cgroup_array_type __read_mostly = {
+static struct bpf_map_type_list cgroup_array_type __ro_after_init = {
 	.ops = &cgroup_array_ops,
 	.type = BPF_MAP_TYPE_CGROUP_ARRAY,
 };

@@ -8,8 +8,15 @@ config PINCTRL
 menu "Pin controllers"
 	depends on PINCTRL
 
+config GENERIC_PINCTRL_GROUPS
+	bool
+
 config PINMUX
 	bool "Support pin multiplexing controllers" if COMPILE_TEST
+
+config GENERIC_PINMUX_FUNCTIONS
+	bool
+	select PINMUX
 
 config PINCONF
 	bool "Support pin configuration controllers" if COMPILE_TEST
@@ -93,6 +100,15 @@ config PINCTRL_AMD
 	  Requires ACPI/FDT device enumeration code to set up a platform
 	  device.
 
+config PINCTRL_DA850_PUPD
+	tristate "TI DA850/OMAP-L138/AM18XX pullup/pulldown groups"
+	depends on OF && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Driver for TI DA850/OMAP-L138/AM18XX pinconf. Used to control
+	  pullup/pulldown pin groups.
+
 config PINCTRL_DIGICOLOR
 	bool
 	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
@@ -150,8 +166,8 @@ config PINCTRL_ROCKCHIP
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
-	select PINMUX
-	select PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
 	help
 	  This selects the device tree based generic pinctrl driver.
@@ -163,6 +179,21 @@ config PINCTRL_SIRF
 	select PINCONF
 	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
+
+config PINCTRL_SX150X
+	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
+	depends on GPIOLIB && I2C=y
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select REGMAP
+	help
+	  Say yes here to provide support for Semtech SX150x-series I2C
+	  GPIO expanders as pinctrl module.
+	  Compatible models include:
+	  - 8 bits:  sx1508q, sx1502q
+	  - 16 bits: sx1509q, sx1506q
 
 config PINCTRL_PISTACHIO
 	def_bool y if MACH_PISTACHIO
@@ -209,7 +240,7 @@ config PINCTRL_COH901
 
 config PINCTRL_MAX77620
 	tristate "MAX77620/MAX20024 Pincontrol support"
-	depends on MFD_MAX77620
+	depends on MFD_MAX77620 && OF
 	select PINMUX
 	select GENERIC_PINCONF
 	help
@@ -254,6 +285,7 @@ config PINCTRL_ZYNQ
 	help
 	  This selects the pinctrl driver for Xilinx Zynq.
 
+source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"
 source "drivers/pinctrl/freescale/Kconfig"
@@ -268,6 +300,7 @@ source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"
 source "drivers/pinctrl/tegra/Kconfig"
+source "drivers/pinctrl/ti/Kconfig"
 source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"

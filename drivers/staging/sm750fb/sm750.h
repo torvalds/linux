@@ -146,18 +146,20 @@ struct lynxfb_crtc {
 struct lynxfb_output {
 	int dpms;
 	int paths;
-	/* which paths(s) this output stands for,for sm750:
-	   paths=1:means output for panel paths
-	   paths=2:means output for crt paths
-	   paths=3:means output for both panel and crt paths
-	*/
+	/*
+	 * which paths(s) this output stands for,for sm750:
+	 * paths=1:means output for panel paths
+	 * paths=2:means output for crt paths
+	 * paths=3:means output for both panel and crt paths
+	 */
 
 	int *channel;
-	/* which channel these outputs linked with,for sm750:
-	   *channel=0 means primary channel
-	   *channel=1 means secondary channel
-	   output->channel ==> &crtc->channel
-	*/
+	/*
+	 * which channel these outputs linked with,for sm750:
+	 * *channel=0 means primary channel
+	 * *channel=1 means secondary channel
+	 * output->channel ==> &crtc->channel
+	 */
 	void *priv;
 
 	int (*proc_setBLANK)(struct lynxfb_output*, int);

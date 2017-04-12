@@ -2888,6 +2888,14 @@ static struct clk_hw *mmcc_msm8996_hws[] = {
 	&gpll0_div.hw,
 };
 
+static struct gdsc mmagic_bimc_gdsc = {
+	.gdscr = 0x529c,
+	.pd = {
+		.name = "mmagic_bimc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
 static struct gdsc mmagic_video_gdsc = {
 	.gdscr = 0x119c,
 	.gds_hw_ctrl = 0x120c,
@@ -2937,6 +2945,7 @@ static struct gdsc venus_core0_gdsc = {
 		.name = "venus_core0",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = HW_CTRL,
 };
 
 static struct gdsc venus_core1_gdsc = {
@@ -2947,6 +2956,7 @@ static struct gdsc venus_core1_gdsc = {
 		.name = "venus_core1",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = HW_CTRL,
 };
 
 static struct gdsc camss_gdsc = {
@@ -3024,6 +3034,28 @@ static struct gdsc mdss_gdsc = {
 	},
 	.parent = &mmagic_mdss_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc gpu_gdsc = {
+	.gdscr = 0x4034,
+	.gds_hw_ctrl = 0x4038,
+	.pd = {
+		.name = "gpu",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc gpu_gx_gdsc = {
+	.gdscr = 0x4024,
+	.clamp_io_ctrl = 0x4300,
+	.cxcs = (unsigned int []){ 0x4028 },
+	.cxc_count = 1,
+	.pd = {
+		.name = "gpu_gx",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = CLAMP_IO,
 };
 
 static struct clk_regmap *mmcc_msm8996_clocks[] = {
@@ -3201,6 +3233,7 @@ static struct clk_regmap *mmcc_msm8996_clocks[] = {
 };
 
 static struct gdsc *mmcc_msm8996_gdscs[] = {
+	[MMAGIC_BIMC_GDSC] = &mmagic_bimc_gdsc,
 	[MMAGIC_VIDEO_GDSC] = &mmagic_video_gdsc,
 	[MMAGIC_MDSS_GDSC] = &mmagic_mdss_gdsc,
 	[MMAGIC_CAMSS_GDSC] = &mmagic_camss_gdsc,
@@ -3214,6 +3247,8 @@ static struct gdsc *mmcc_msm8996_gdscs[] = {
 	[CPP_GDSC] = &cpp_gdsc,
 	[FD_GDSC] = &fd_gdsc,
 	[MDSS_GDSC] = &mdss_gdsc,
+	[GPU_GDSC] = &gpu_gdsc,
+	[GPU_GX_GDSC] = &gpu_gx_gdsc,
 };
 
 static const struct qcom_reset_map mmcc_msm8996_resets[] = {
@@ -3305,9 +3340,8 @@ MODULE_DEVICE_TABLE(of, mmcc_msm8996_match_table);
 
 static int mmcc_msm8996_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
 	struct device *dev = &pdev->dev;
-	int i;
+	int i, ret;
 	struct regmap *regmap;
 
 	regmap = qcom_cc_map(pdev, &mmcc_msm8996_desc);
@@ -3320,9 +3354,9 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x5054, BIT(15), 0);
 
 	for (i = 0; i < ARRAY_SIZE(mmcc_msm8996_hws); i++) {
-		clk = devm_clk_register(dev, mmcc_msm8996_hws[i]);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+		ret = devm_clk_hw_register(dev, mmcc_msm8996_hws[i]);
+		if (ret)
+			return ret;
 	}
 
 	return qcom_cc_really_probe(pdev, &mmcc_msm8996_desc, regmap);

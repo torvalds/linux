@@ -6,11 +6,6 @@
 
 #include <asm/nops.h>
 
-static inline void native_clts(void)
-{
-	asm volatile("clts");
-}
-
 /*
  * Volatile isn't enough to prevent the compiler from reordering the
  * read/write functions for the control registers and messing everything up.
@@ -59,22 +54,19 @@ static inline void native_write_cr3(unsigned long val)
 static inline unsigned long native_read_cr4(void)
 {
 	unsigned long val;
-	asm volatile("mov %%cr4,%0\n\t" : "=r" (val), "=m" (__force_order));
-	return val;
-}
-
-static inline unsigned long native_read_cr4_safe(void)
-{
-	unsigned long val;
-	/* This could fault if %cr4 does not exist. In x86_64, a cr4 always
-	 * exists, so it will never fail. */
 #ifdef CONFIG_X86_32
+	/*
+	 * This could fault if CR4 does not exist.  Non-existent CR4
+	 * is functionally equivalent to CR4 == 0.  Keep it simple and pretend
+	 * that CR4 == 0 on CPUs that don't have CR4.
+	 */
 	asm volatile("1: mov %%cr4, %0\n"
 		     "2:\n"
 		     _ASM_EXTABLE(1b, 2b)
 		     : "=r" (val), "=m" (__force_order) : "0" (0));
 #else
-	val = native_read_cr4();
+	/* CR4 always exists on x86_64. */
+	asm volatile("mov %%cr4,%0\n\t" : "=r" (val), "=m" (__force_order));
 #endif
 	return val;
 }
@@ -182,11 +174,6 @@ static inline unsigned long __read_cr4(void)
 	return native_read_cr4();
 }
 
-static inline unsigned long __read_cr4_safe(void)
-{
-	return native_read_cr4_safe();
-}
-
 static inline void __write_cr4(unsigned long x)
 {
 	native_write_cr4(x);
@@ -216,15 +203,7 @@ static inline void load_gs_index(unsigned selector)
 
 #endif
 
-/* Clear the 'TS' bit */
-static inline void clts(void)
-{
-	native_clts();
-}
-
 #endif/* CONFIG_PARAVIRT */
-
-#define stts() write_cr0(read_cr0() | X86_CR0_TS)
 
 static inline void clflush(volatile void *__p)
 {

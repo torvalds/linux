@@ -266,8 +266,12 @@ IIO
   devm_iio_device_unregister()
   devm_iio_kfifo_allocate()
   devm_iio_kfifo_free()
+  devm_iio_triggered_buffer_setup()
+  devm_iio_triggered_buffer_cleanup()
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
+  devm_iio_trigger_register()
+  devm_iio_trigger_unregister()
   devm_iio_channel_get()
   devm_iio_channel_release()
   devm_iio_channel_get_all()
@@ -302,6 +306,11 @@ IRQ
   devm_request_any_context_irq()
   devm_request_irq()
   devm_request_threaded_irq()
+  devm_irq_alloc_descs()
+  devm_irq_alloc_desc()
+  devm_irq_alloc_desc_at()
+  devm_irq_alloc_desc_from()
+  devm_irq_alloc_descs_from()
 
 LED
   devm_led_classdev_register()
@@ -328,6 +337,10 @@ MEM
 MFD
  devm_mfd_add_devices()
 
+PER-CPU MEM
+  devm_alloc_percpu()
+  devm_free_percpu()
+
 PCI
   pcim_enable_device()	: after success, all PCI ops become managed
   pcim_pin_device()	: keep PCI device enabled after release
@@ -341,6 +354,10 @@ PINCTRL
   devm_pinctrl_put()
   devm_pinctrl_register()
   devm_pinctrl_unregister()
+
+POWER
+  devm_reboot_mode_register()
+  devm_reboot_mode_unregister()
 
 PWM
   devm_pwm_get()

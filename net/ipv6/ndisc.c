@@ -67,7 +67,6 @@
 #include <net/flow.h>
 #include <net/ip6_checksum.h>
 #include <net/inet_common.h>
-#include <net/l3mdev.h>
 #include <linux/proc_fs.h>
 
 #include <linux/netfilter.h>
@@ -234,6 +233,7 @@ struct ndisc_options *ndisc_parse_options(const struct net_device *dev,
 		case ND_OPT_SOURCE_LL_ADDR:
 		case ND_OPT_TARGET_LL_ADDR:
 		case ND_OPT_MTU:
+		case ND_OPT_NONCE:
 		case ND_OPT_REDIRECT_HDR:
 			if (ndopts->nd_opt_array[nd_opt->nd_opt_type]) {
 				ND_PRINTK(2, warn,
@@ -457,11 +457,9 @@ static void ndisc_send_skb(struct sk_buff *skb,
 
 	if (!dst) {
 		struct flowi6 fl6;
-		int oif = l3mdev_fib_oif(skb->dev);
+		int oif = skb->dev->ifindex;
 
 		icmpv6_flow_init(sk, &fl6, type, saddr, daddr, oif);
-		if (oif != skb->dev->ifindex)
-			fl6.flowi6_flags |= FLOWI_FLAG_L3MDEV_SRC;
 		dst = icmp6_dst_alloc(skb->dev, &fl6);
 		if (IS_ERR(dst)) {
 			kfree_skb(skb);
@@ -571,7 +569,8 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 }
 
 void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
-		   const struct in6_addr *daddr, const struct in6_addr *saddr)
+		   const struct in6_addr *daddr, const struct in6_addr *saddr,
+		   u64 nonce)
 {
 	struct sk_buff *skb;
 	struct in6_addr addr_buf;
@@ -591,6 +590,8 @@ void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 	if (inc_opt)
 		optlen += ndisc_opt_addr_space(dev,
 					       NDISC_NEIGHBOUR_SOLICITATION);
+	if (nonce != 0)
+		optlen += 8;
 
 	skb = ndisc_alloc_skb(dev, sizeof(*msg) + optlen);
 	if (!skb)
@@ -608,6 +609,13 @@ void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 		ndisc_fill_addr_option(skb, ND_OPT_SOURCE_LL_ADDR,
 				       dev->dev_addr,
 				       NDISC_NEIGHBOUR_SOLICITATION);
+	if (nonce != 0) {
+		u8 *opt = skb_put(skb, 8);
+
+		opt[0] = ND_OPT_NONCE;
+		opt[1] = 8 >> 3;
+		memcpy(opt + 2, &nonce, 6);
+	}
 
 	ndisc_send_skb(skb, daddr, saddr);
 }
@@ -696,12 +704,12 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 				  "%s: trying to ucast probe in NUD_INVALID: %pI6\n",
 				  __func__, target);
 		}
-		ndisc_send_ns(dev, target, target, saddr);
+		ndisc_send_ns(dev, target, target, saddr, 0);
 	} else if ((probes -= NEIGH_VAR(neigh->parms, APP_PROBES)) < 0) {
 		neigh_app_ns(neigh);
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
-		ndisc_send_ns(dev, target, &mcaddr, saddr);
+		ndisc_send_ns(dev, target, &mcaddr, saddr, 0);
 	}
 }
 
@@ -745,6 +753,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	int dad = ipv6_addr_any(saddr);
 	bool inc;
 	int is_router = -1;
+	u64 nonce = 0;
 
 	if (skb->len < sizeof(struct nd_msg)) {
 		ND_PRINTK(2, warn, "NS: packet too short\n");
@@ -789,6 +798,8 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			return;
 		}
 	}
+	if (ndopts.nd_opts_nonce)
+		memcpy(&nonce, (u8 *)(ndopts.nd_opts_nonce + 1), 6);
 
 	inc = ipv6_addr_is_multicast(daddr);
 
@@ -797,6 +808,15 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 have_ifp:
 		if (ifp->flags & (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)) {
 			if (dad) {
+				if (nonce != 0 && ifp->dad_nonce == nonce) {
+					u8 *np = (u8 *)&nonce;
+					/* Matching nonce if looped back */
+					ND_PRINTK(2, notice,
+						  "%s: IPv6 DAD loopback for address %pI6c nonce %pM ignored\n",
+						  ifp->idev->dev->name,
+						  &ifp->addr, np);
+					goto out;
+				}
 				/*
 				 * We are colliding with another node
 				 * who is doing DAD
@@ -1538,7 +1558,6 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	int rd_len;
 	u8 ha_buf[MAX_ADDR_LEN], *ha = NULL,
 	   ops_data_buf[NDISC_OPS_REDIRECT_DATA_SPACE], *ops_data = NULL;
-	int oif = l3mdev_fib_oif(dev);
 	bool ret;
 
 	if (ipv6_get_lladdr(dev, &saddr_buf, IFA_F_TENTATIVE)) {
@@ -1555,10 +1574,7 @@ void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 	}
 
 	icmpv6_flow_init(sk, &fl6, NDISC_REDIRECT,
-			 &saddr_buf, &ipv6_hdr(skb)->saddr, oif);
-
-	if (oif != skb->dev->ifindex)
-		fl6.flowi6_flags |= FLOWI_FLAG_L3MDEV_SRC;
+			 &saddr_buf, &ipv6_hdr(skb)->saddr, dev->ifindex);
 
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {

@@ -1,7 +1,7 @@
 /*
  * Freescale data path resource container (DPRC) driver
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -9,13 +9,21 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include "../include/mc-private.h"
-#include "../include/mc-sys.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/msi.h>
+#include "../include/mc-bus.h"
+#include "../include/mc-sys.h"
+
 #include "dprc-cmd.h"
+#include "fsl-mc-private.h"
+
+#define FSL_MC_DPRC_DRIVER_NAME    "fsl_mc_dprc"
+
+#define FSL_MC_DEVICE_MATCH(_mc_dev, _obj_desc) \
+	(strcmp((_mc_dev)->obj_desc.type, (_obj_desc)->type) == 0 && \
+	 (_mc_dev)->obj_desc.id == (_obj_desc)->id)
 
 struct dprc_child_objs {
 	int child_count;
@@ -180,6 +188,7 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 		child_dev = fsl_mc_device_lookup(obj_desc, mc_bus_dev);
 		if (child_dev) {
 			check_plugged_state_change(child_dev, obj_desc);
+			put_device(&child_dev->dev);
 			continue;
 		}
 
@@ -188,55 +197,6 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 		if (error < 0)
 			continue;
 	}
-}
-
-static void dprc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
-{
-	int pool_type;
-	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
-
-	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++) {
-		struct fsl_mc_resource_pool *res_pool =
-		    &mc_bus->resource_pools[pool_type];
-
-		res_pool->type = pool_type;
-		res_pool->max_count = 0;
-		res_pool->free_count = 0;
-		res_pool->mc_bus = mc_bus;
-		INIT_LIST_HEAD(&res_pool->free_list);
-		mutex_init(&res_pool->mutex);
-	}
-}
-
-static void dprc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
-				       enum fsl_mc_pool_type pool_type)
-{
-	struct fsl_mc_resource *resource;
-	struct fsl_mc_resource *next;
-	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
-	struct fsl_mc_resource_pool *res_pool =
-					&mc_bus->resource_pools[pool_type];
-	int free_count = 0;
-
-	WARN_ON(res_pool->type != pool_type);
-	WARN_ON(res_pool->free_count != res_pool->max_count);
-
-	list_for_each_entry_safe(resource, next, &res_pool->free_list, node) {
-		free_count++;
-		WARN_ON(resource->type != res_pool->type);
-		WARN_ON(resource->parent_pool != res_pool);
-		devm_kfree(&mc_bus_dev->dev, resource);
-	}
-
-	WARN_ON(free_count != res_pool->free_count);
-}
-
-static void dprc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
-{
-	int pool_type;
-
-	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++)
-		dprc_cleanup_resource_pool(mc_bus_dev, pool_type);
 }
 
 /**
@@ -363,7 +323,7 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 	unsigned int irq_count;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 
-	dprc_init_all_resource_pools(mc_bus_dev);
+	fsl_mc_init_all_resource_pools(mc_bus_dev);
 
 	/*
 	 * Discover objects in the DPRC:
@@ -390,7 +350,7 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 
 	return 0;
 error:
-	dprc_cleanup_all_resource_pools(mc_bus_dev);
+	fsl_mc_cleanup_all_resource_pools(mc_bus_dev);
 	return error;
 }
 EXPORT_SYMBOL_GPL(dprc_scan_container);
@@ -546,7 +506,7 @@ static int register_dprc_irq_handler(struct fsl_mc_device *mc_dev)
 					  dprc_irq0_handler,
 					  dprc_irq0_handler_thread,
 					  IRQF_NO_SUSPEND | IRQF_ONESHOT,
-					  "FSL MC DPRC irq0",
+					  dev_name(&mc_dev->dev),
 					  &mc_dev->dev);
 	if (error < 0) {
 		dev_err(&mc_dev->dev,
@@ -638,6 +598,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 	bool mc_io_created = false;
 	bool msi_domain_set = false;
+	u16 major_ver, minor_ver;
 
 	if (WARN_ON(strcmp(mc_dev->obj_desc.type, "dprc") != 0))
 		return -EINVAL;
@@ -649,7 +610,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		/*
 		 * This is a child DPRC:
 		 */
-		if (WARN_ON(parent_dev->bus != &fsl_mc_bus_type))
+		if (WARN_ON(!dev_is_fsl_mc(parent_dev)))
 			return -EINVAL;
 
 		if (WARN_ON(mc_dev->obj_desc.region_count == 0))
@@ -681,7 +642,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		 */
 		struct irq_domain *mc_msi_domain;
 
-		if (WARN_ON(parent_dev->bus == &fsl_mc_bus_type))
+		if (WARN_ON(dev_is_fsl_mc(parent_dev)))
 			return -EINVAL;
 
 		error = fsl_mc_find_msi_domain(parent_dev,
@@ -710,13 +671,21 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		goto error_cleanup_open;
 	}
 
-	if (mc_bus->dprc_attr.version.major < DPRC_MIN_VER_MAJOR ||
-	   (mc_bus->dprc_attr.version.major == DPRC_MIN_VER_MAJOR &&
-	    mc_bus->dprc_attr.version.minor < DPRC_MIN_VER_MINOR)) {
+	error = dprc_get_api_version(mc_dev->mc_io, 0,
+				     &major_ver,
+				     &minor_ver);
+	if (error < 0) {
+		dev_err(&mc_dev->dev, "dprc_get_api_version() failed: %d\n",
+			error);
+		goto error_cleanup_open;
+	}
+
+	if (major_ver < DPRC_MIN_VER_MAJOR ||
+	   (major_ver == DPRC_MIN_VER_MAJOR &&
+	    minor_ver < DPRC_MIN_VER_MINOR)) {
 		dev_err(&mc_dev->dev,
 			"ERROR: DPRC version %d.%d not supported\n",
-			mc_bus->dprc_attr.version.major,
-			mc_bus->dprc_attr.version.minor);
+			major_ver, minor_ver);
 		error = -ENOTSUPP;
 		goto error_cleanup_open;
 	}
@@ -802,7 +771,7 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 		dev_set_msi_domain(&mc_dev->dev, NULL);
 	}
 
-	dprc_cleanup_all_resource_pools(mc_dev);
+	fsl_mc_cleanup_all_resource_pools(mc_dev);
 
 	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	if (error < 0)

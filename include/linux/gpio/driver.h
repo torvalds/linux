@@ -3,33 +3,21 @@
 
 #include <linux/device.h>
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/lockdep.h>
 #include <linux/pinctrl/pinctrl.h>
-#include <linux/kconfig.h>
+#include <linux/pinctrl/pinconf-generic.h>
 
 struct gpio_desc;
 struct of_phandle_args;
 struct device_node;
 struct seq_file;
 struct gpio_device;
+struct module;
 
 #ifdef CONFIG_GPIOLIB
-
-/**
- * enum single_ended_mode - mode for single ended operation
- * @LINE_MODE_PUSH_PULL: normal mode for a GPIO line, drive actively high/low
- * @LINE_MODE_OPEN_DRAIN: set line to be open drain
- * @LINE_MODE_OPEN_SOURCE: set line to be open source
- */
-enum single_ended_mode {
-	LINE_MODE_PUSH_PULL,
-	LINE_MODE_OPEN_DRAIN,
-	LINE_MODE_OPEN_SOURCE,
-};
 
 /**
  * struct gpio_chip - abstract a GPIO controller
@@ -49,16 +37,8 @@ enum single_ended_mode {
  * @get: returns value for signal "offset", 0=low, 1=high, or negative error
  * @set: assigns output value for signal "offset"
  * @set_multiple: assigns output values for multiple signals defined by "mask"
- * @set_debounce: optional hook for setting debounce time for specified gpio in
- *	interrupt triggered gpio chips
- * @set_single_ended: optional hook for setting a line as open drain, open
- *	source, or non-single ended (restore from open drain/source to normal
- *	push-pull mode) this should be implemented if the hardware supports
- *	open drain or open source settings. The GPIOlib will otherwise try
- *	to emulate open drain/source by not actively driving lines high/low
- *	if a consumer request this. The driver may return -ENOTSUPP if e.g.
- *	it supports just open drain but not open source and is called
- *	with LINE_MODE_OPEN_SOURCE as mode argument.
+ * @set_config: optional hook for all kinds of settings. Uses the same
+ *	packed config format as generic pinconf.
  * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
  *	implementation may not sleep
  * @dbg_show: optional routine to show contents in debugfs; default code
@@ -83,8 +63,6 @@ enum single_ended_mode {
  *	implies that if the chip supports IRQs, these IRQs need to be threaded
  *	as the chip access may sleep when e.g. reading out the IRQ status
  *	registers.
- * @irq_not_threaded: flag must be set if @can_sleep is set but the
- *	IRQs don't need to be threaded
  * @read_reg: reader function for generic GPIO
  * @write_reg: writer function for generic GPIO
  * @pin2mask: some generic GPIO controllers work with the big-endian bits
@@ -92,7 +70,7 @@ enum single_ended_mode {
  *	bit. This callback assigns the right bit mask.
  * @reg_dat: data (in) register for generic GPIO
  * @reg_set: output set register (out=high) for generic GPIO
- * @reg_clk: output clear register (out=low) for generic GPIO
+ * @reg_clr: output clear register (out=low) for generic GPIO
  * @reg_dir: direction setting register for generic GPIO
  * @bgpio_bits: number of register bits used for a generic GPIO i.e.
  *	<register width> * 8
@@ -110,8 +88,14 @@ enum single_ended_mode {
  *	for GPIO IRQs, provided by GPIO driver
  * @irq_default_type: default IRQ triggering type applied during GPIO driver
  *	initialization, provided by GPIO driver
- * @irq_parent: GPIO IRQ chip parent/bank linux irq number,
- *	provided by GPIO driver
+ * @irq_chained_parent: GPIO IRQ chip parent/bank linux irq number,
+ *	provided by GPIO driver for chained interrupt (not for nested
+ *	interrupts).
+ * @irq_nested: True if set the interrupt handling is nested.
+ * @irq_need_valid_mask: If set core allocates @irq_valid_mask with all
+ *	bits set to one
+ * @irq_valid_mask: If not %NULL holds bitmask of GPIOs which are valid to
+ *	be included in IRQ domain of the chip
  * @lock_key: per GPIO IRQ chip lockdep class
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
@@ -147,13 +131,9 @@ struct gpio_chip {
 	void			(*set_multiple)(struct gpio_chip *chip,
 						unsigned long *mask,
 						unsigned long *bits);
-	int			(*set_debounce)(struct gpio_chip *chip,
-						unsigned offset,
-						unsigned debounce);
-	int			(*set_single_ended)(struct gpio_chip *chip,
-						unsigned offset,
-						enum single_ended_mode mode);
-
+	int			(*set_config)(struct gpio_chip *chip,
+					      unsigned offset,
+					      unsigned long config);
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);
 
@@ -163,7 +143,6 @@ struct gpio_chip {
 	u16			ngpio;
 	const char		*const *names;
 	bool			can_sleep;
-	bool			irq_not_threaded;
 
 #if IS_ENABLED(CONFIG_GPIO_GENERIC)
 	unsigned long (*read_reg)(void __iomem *reg);
@@ -189,7 +168,10 @@ struct gpio_chip {
 	unsigned int		irq_base;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
-	int			irq_parent;
+	int			irq_chained_parent;
+	bool			irq_nested;
+	bool			irq_need_valid_mask;
+	unsigned long		*irq_valid_mask;
 	struct lock_class_key	*lock_key;
 #endif
 
@@ -265,30 +247,78 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 		int parent_irq,
 		irq_flow_handler_t parent_handler);
 
-int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
+		struct irq_chip *irqchip,
+		int parent_irq);
+
+int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
+			     struct irq_chip *irqchip,
+			     unsigned int first_irq,
+			     irq_flow_handler_t handler,
+			     unsigned int type,
+			     bool nested,
+			     struct lock_class_key *lock_key);
+
+#ifdef CONFIG_LOCKDEP
+
+/*
+ * Lockdep requires that each irqchip instance be created with a
+ * unique key so as to avoid unnecessary warnings. This upfront
+ * boilerplate static inlines provides such a key for each
+ * unique instance.
+ */
+static inline int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+				       struct irq_chip *irqchip,
+				       unsigned int first_irq,
+				       irq_flow_handler_t handler,
+				       unsigned int type)
+{
+	static struct lock_class_key key;
+
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, false, &key);
+}
+
+static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gpiochip,
 			  struct irq_chip *irqchip,
 			  unsigned int first_irq,
 			  irq_flow_handler_t handler,
-			  unsigned int type,
-			  struct lock_class_key *lock_key);
+			  unsigned int type)
+{
 
-#ifdef CONFIG_LOCKDEP
-#define gpiochip_irqchip_add(...)				\
-(								\
-	({							\
-		static struct lock_class_key _key;		\
-		_gpiochip_irqchip_add(__VA_ARGS__, &_key);	\
-	})							\
-)
+	static struct lock_class_key key;
+
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, true, &key);
+}
 #else
-#define gpiochip_irqchip_add(...)				\
-	_gpiochip_irqchip_add(__VA_ARGS__, NULL)
-#endif
+static inline int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
+				       struct irq_chip *irqchip,
+				       unsigned int first_irq,
+				       irq_flow_handler_t handler,
+				       unsigned int type)
+{
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, false, NULL);
+}
+
+static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gpiochip,
+			  struct irq_chip *irqchip,
+			  unsigned int first_irq,
+			  irq_flow_handler_t handler,
+			  unsigned int type)
+{
+	return gpiochip_irqchip_add_key(gpiochip, irqchip, first_irq,
+					handler, type, true, NULL);
+}
+#endif /* CONFIG_LOCKDEP */
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
 int gpiochip_generic_request(struct gpio_chip *chip, unsigned offset);
 void gpiochip_generic_free(struct gpio_chip *chip, unsigned offset);
+int gpiochip_generic_config(struct gpio_chip *chip, unsigned offset,
+			    unsigned long config);
 
 #ifdef CONFIG_PINCTRL
 

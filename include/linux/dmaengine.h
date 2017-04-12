@@ -336,6 +336,12 @@ enum dma_slave_buswidth {
  * may or may not be applicable on memory sources.
  * @dst_maxburst: same as src_maxburst but for destination target
  * mutatis mutandis.
+ * @src_port_window_size: The length of the register area in words the data need
+ * to be accessed on the device side. It is only used for devices which is using
+ * an area instead of a single register to receive the data. Typically the DMA
+ * loops in this area in order to transfer the data.
+ * @dst_port_window_size: same as src_port_window_size but for the destination
+ * port.
  * @device_fc: Flow Controller Settings. Only valid for slave channels. Fill
  * with 'true' if peripheral should be flow controller. Direction will be
  * selected at Runtime.
@@ -363,6 +369,8 @@ struct dma_slave_config {
 	enum dma_slave_buswidth dst_addr_width;
 	u32 src_maxburst;
 	u32 dst_maxburst;
+	u32 src_port_window_size;
+	u32 dst_port_window_size;
 	bool device_fc;
 	unsigned int slave_id;
 };
@@ -441,6 +449,21 @@ typedef bool (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
 
 typedef void (*dma_async_tx_callback)(void *dma_async_param);
 
+enum dmaengine_tx_result {
+	DMA_TRANS_NOERROR = 0,		/* SUCCESS */
+	DMA_TRANS_READ_FAILED,		/* Source DMA read failed */
+	DMA_TRANS_WRITE_FAILED,		/* Destination DMA write failed */
+	DMA_TRANS_ABORTED,		/* Op never submitted / aborted */
+};
+
+struct dmaengine_result {
+	enum dmaengine_tx_result result;
+	u32 residue;
+};
+
+typedef void (*dma_async_tx_callback_result)(void *dma_async_param,
+				const struct dmaengine_result *result);
+
 struct dmaengine_unmap_data {
 	u8 map_cnt;
 	u8 to_cnt;
@@ -478,6 +501,7 @@ struct dma_async_tx_descriptor {
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
 	int (*desc_free)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;
+	dma_async_tx_callback_result callback_result;
 	void *callback_param;
 	struct dmaengine_unmap_data *unmap;
 #ifdef CONFIG_ASYNC_TX_ENABLE_CHANNEL_SWITCH
@@ -867,6 +891,17 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memset(
 		return NULL;
 
 	return chan->device->device_prep_dma_memset(chan, dest, value,
+						    len, flags);
+}
+
+static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memcpy(
+		struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
+		size_t len, unsigned long flags)
+{
+	if (!chan || !chan->device || !chan->device->device_prep_dma_memcpy)
+		return NULL;
+
+	return chan->device->device_prep_dma_memcpy(chan, dest, src,
 						    len, flags);
 }
 

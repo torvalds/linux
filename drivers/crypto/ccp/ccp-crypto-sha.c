@@ -4,6 +4,7 @@
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -134,7 +135,22 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	rctx->cmd.engine = CCP_ENGINE_SHA;
 	rctx->cmd.u.sha.type = rctx->type;
 	rctx->cmd.u.sha.ctx = &rctx->ctx_sg;
-	rctx->cmd.u.sha.ctx_len = sizeof(rctx->ctx);
+
+	switch (rctx->type) {
+	case CCP_SHA_TYPE_1:
+		rctx->cmd.u.sha.ctx_len = SHA1_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_224:
+		rctx->cmd.u.sha.ctx_len = SHA224_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_256:
+		rctx->cmd.u.sha.ctx_len = SHA256_DIGEST_SIZE;
+		break;
+	default:
+		/* Should never get here */
+		break;
+	}
+
 	rctx->cmd.u.sha.src = sg;
 	rctx->cmd.u.sha.src_len = rctx->hash_cnt;
 	rctx->cmd.u.sha.opad = ctx->u.sha.key_len ?

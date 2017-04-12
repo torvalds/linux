@@ -179,12 +179,6 @@ static inline void *zalloc(size_t size)
 #undef tolower
 #undef toupper
 
-#ifndef NSEC_PER_MSEC
-#define NSEC_PER_MSEC	1000000L
-#endif
-
-int parse_nsec_time(const char *str, u64 *ptime);
-
 extern unsigned char sane_ctype[256];
 #define GIT_SPACE		0x01
 #define GIT_DIGIT		0x02
@@ -215,7 +209,7 @@ static inline int sane_case(int x, int high)
 }
 
 int mkdir_p(char *path, mode_t mode);
-int rm_rf(char *path);
+int rm_rf(const char *path);
 struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 int copyfile(const char *from, const char *to);
@@ -226,6 +220,7 @@ s64 perf_atoll(const char *str);
 char **argv_split(const char *str, int *argcp);
 void argv_free(char **argv);
 bool strglobmatch(const char *str, const char *pat);
+bool strglobmatch_nocase(const char *str, const char *pat);
 bool strlazymatch(const char *str, const char *pat);
 static inline bool strisglob(const char *str)
 {
@@ -365,4 +360,8 @@ extern int sched_getcpu(void);
 #endif
 
 int is_printable_array(char *p, unsigned int len);
+
+int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
+
+int unit_number__scnprintf(char *buf, size_t size, u64 n);
 #endif /* GIT_COMPAT_UTIL_H */

@@ -18,7 +18,7 @@
 
 / {
 	model = "Terasic DE-0(Atlas)";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	compatible = "terasic,de0-atlas", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
 		bootargs = "earlyprintk";

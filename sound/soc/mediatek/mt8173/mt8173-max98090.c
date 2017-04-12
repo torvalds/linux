@@ -79,17 +79,11 @@ static int mt8173_max98090_init(struct snd_soc_pcm_runtime *runtime)
 
 	/* enable jack detection */
 	ret = snd_soc_card_jack_new(card, "Headphone", SND_JACK_HEADPHONE,
-				    &mt8173_max98090_jack, NULL, 0);
+				    &mt8173_max98090_jack,
+				    mt8173_max98090_jack_pins,
+				    ARRAY_SIZE(mt8173_max98090_jack_pins));
 	if (ret) {
-		dev_err(card->dev, "Can't snd_soc_jack_new %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_jack_add_pins(&mt8173_max98090_jack,
-				    ARRAY_SIZE(mt8173_max98090_jack_pins),
-				    mt8173_max98090_jack_pins);
-	if (ret) {
-		dev_err(card->dev, "Can't snd_soc_jack_add_pins %d\n", ret);
+		dev_err(card->dev, "Can't create a new Jack %d\n", ret);
 		return ret;
 	}
 

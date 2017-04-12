@@ -73,13 +73,13 @@
 /* Highest firmware API version supported */
 #define IWL7260_UCODE_API_MAX	17
 #define IWL7265_UCODE_API_MAX	17
-#define IWL7265D_UCODE_API_MAX	24
-#define IWL3168_UCODE_API_MAX	24
+#define IWL7265D_UCODE_API_MAX	28
+#define IWL3168_UCODE_API_MAX	28
 
 /* Lowest firmware API version supported */
-#define IWL7260_UCODE_API_MIN	16
-#define IWL7265_UCODE_API_MIN	16
-#define IWL7265D_UCODE_API_MIN	16
+#define IWL7260_UCODE_API_MIN	17
+#define IWL7265_UCODE_API_MIN	17
+#define IWL7265D_UCODE_API_MIN	17
 #define IWL3168_UCODE_API_MIN	20
 
 /* NVM versions */

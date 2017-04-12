@@ -907,6 +907,17 @@ config SENSORS_MCP3021
 	  This driver can also be built as a module.  If so, the module
 	  will be called mcp3021.
 
+config SENSORS_TC654
+	tristate "Microchip TC654/TC655 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for TC654 and TC655.
+	  The TC654 and TC655 are PWM mode fan speed controllers with
+	  FanSense technology for use with brushless DC fans.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tc654.
+
 config SENSORS_MENF21BMC_HWMON
 	tristate "MEN 14F021P00 BMC Hardware Monitoring"
 	depends on MFD_MENF21BMC
@@ -969,7 +980,6 @@ config SENSORS_LM73
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C
-	depends on THERMAL || !THERMAL_OF
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for one common type of
@@ -1069,8 +1079,8 @@ config SENSORS_LM90
 	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
 	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
 	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, ON Semiconductor NCT1008,
-	  Winbond/Nuvoton W83L771W/G/AWG/ASG, Philips SA56004, and GMT G781
-	  sensor chips.
+	  Winbond/Nuvoton W83L771W/G/AWG/ASG, Philips SA56004, GMT G781, and
+	  Texas Instruments TMP451 sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
@@ -1119,6 +1129,7 @@ config SENSORS_LM95241
 config SENSORS_LM95245
 	tristate "National Semiconductor LM95245 and compatibles"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for LM95235 and LM95245
 	  temperature sensor chips.
@@ -1448,6 +1459,16 @@ config SENSORS_SCH5636
 	  This driver can also be built as a module.  If so, the module
 	  will be called sch5636.
 
+config SENSORS_STTS751
+	tristate "ST Microelectronics STTS751"
+	depends on I2C
+	help
+	  If you say yes here you get support for STTS751
+	  temperature sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stts751.
+
 config SENSORS_SMM665
 	tristate "Summit Microelectronics SMM665"
 	depends on I2C
@@ -1572,7 +1593,6 @@ config SENSORS_THMC50
 config SENSORS_TMP102
 	tristate "Texas Instruments TMP102"
 	depends on I2C
-	depends on THERMAL || !THERMAL_OF
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for Texas Instruments TMP102
@@ -1591,6 +1611,17 @@ config SENSORS_TMP103
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp103.
+
+config SENSORS_TMP108
+	tristate "Texas Instruments TMP108"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP108
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tmp108.
 
 config SENSORS_TMP401
 	tristate "Texas Instruments TMP401 and compatibles"
@@ -1822,6 +1853,13 @@ config SENSORS_ULTRA45
 	help
 	  This driver provides support for the Ultra45 workstation environmental
 	  sensors.
+
+config SENSORS_XGENE
+	tristate "APM X-Gene SoC hardware monitoring driver"
+	depends on XGENE_SLIMPRO_MBOX || PCC
+	help
+	  If you say yes here you get support for the temperature
+	  and power sensors for APM X-Gene SoC.
 
 if ACPI
 

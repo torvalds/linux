@@ -730,6 +730,20 @@ void io_free_memtype(resource_size_t start, resource_size_t end)
 	free_memtype(start, end);
 }
 
+int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	enum page_cache_mode type = _PAGE_CACHE_MODE_WC;
+
+	return io_reserve_memtype(start, start + size, &type);
+}
+EXPORT_SYMBOL(arch_io_reserve_memtype_wc);
+
+void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	io_free_memtype(start, start + size);
+}
+EXPORT_SYMBOL(arch_io_free_memtype_wc);
+
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t vma_prot)
 {
@@ -972,20 +986,17 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 	return 0;
 }
 
-int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
-		     pfn_t pfn)
+void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot, pfn_t pfn)
 {
 	enum page_cache_mode pcm;
 
 	if (!pat_enabled())
-		return 0;
+		return;
 
 	/* Set prot based on lookup */
 	pcm = lookup_memtype(pfn_t_to_phys(pfn));
 	*prot = __pgprot((pgprot_val(*prot) & (~_PAGE_CACHE_MASK)) |
 			 cachemode2protval(pcm));
-
-	return 0;
 }
 
 /*

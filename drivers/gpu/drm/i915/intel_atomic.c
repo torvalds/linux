@@ -265,37 +265,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 	return 0;
 }
 
-static void
-intel_atomic_duplicate_dpll_state(struct drm_i915_private *dev_priv,
-				  struct intel_shared_dpll_config *shared_dpll)
-{
-	enum intel_dpll_id i;
-
-	/* Copy shared dpll state */
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
-
-		shared_dpll[i] = pll->config;
-	}
-}
-
-struct intel_shared_dpll_config *
-intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s)
-{
-	struct intel_atomic_state *state = to_intel_atomic_state(s);
-
-	WARN_ON(!drm_modeset_is_locked(&s->dev->mode_config.connection_mutex));
-
-	if (!state->dpll_set) {
-		state->dpll_set = true;
-
-		intel_atomic_duplicate_dpll_state(to_i915(s->dev),
-						  state->shared_dpll);
-	}
-
-	return state->shared_dpll;
-}
-
 struct drm_atomic_state *
 intel_atomic_state_alloc(struct drm_device *dev)
 {

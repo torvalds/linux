@@ -1722,10 +1722,8 @@ _WPAPtk_end_case_:
 
 	case PMKSA:
 		pu8keybuf = kmalloc((pstrHostIFkeyAttr->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1, GFP_KERNEL);
-		if (!pu8keybuf) {
-			netdev_err(vif->ndev, "No buffer to send PMKSA Key\n");
+		if (!pu8keybuf)
 			return -ENOMEM;
-		}
 
 		pu8keybuf[0] = pstrHostIFkeyAttr->attr.pmkid.numpmkid;
 
@@ -1932,7 +1930,7 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 
 	stamac = wid.val;
-	memcpy(stamac, strHostIfStaInactiveT->mac, ETH_ALEN);
+	ether_addr_copy(stamac, strHostIfStaInactiveT->mac);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2168,7 +2166,7 @@ static void Handle_DelStation(struct wilc_vif *vif,
 
 	pu8CurrByte = wid.val;
 
-	memcpy(pu8CurrByte, pstrDelStaParam->mac_addr, ETH_ALEN);
+	ether_addr_copy(pu8CurrByte, pstrDelStaParam->mac_addr);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2322,10 +2320,8 @@ static u32 Handle_ListenStateExpired(struct wilc_vif *vif,
 		wid.size = 2;
 		wid.val = kmalloc(wid.size, GFP_KERNEL);
 
-		if (!wid.val) {
-			netdev_err(vif->ndev, "Failed to allocate memory\n");
+		if (!wid.val)
 			return -ENOMEM;
-		}
 
 		wid.val[0] = u8remain_on_chan_flag;
 		wid.val[1] = FALSE_FRMWR_CHANNEL;
@@ -3279,7 +3275,6 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_attr *cfg_param)
 {
-	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -3293,9 +3288,7 @@ int wilc_hif_set_cfg(struct wilc_vif *vif,
 	msg.body.cfg_info = *cfg_param;
 	msg.vif = vif;
 
-	result = wilc_enqueue_cmd(&msg);
-
-	return result;
+	return wilc_enqueue_cmd(&msg);
 }
 
 static void GetPeriodicRSSI(unsigned long arg)
@@ -3329,7 +3322,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	init_completion(&hif_wait_response);
 
-	hif_drv  = kzalloc(sizeof(struct host_if_drv), GFP_KERNEL);
+	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
 	if (!hif_drv) {
 		result = -ENOMEM;
 		goto _fail_;
@@ -3391,7 +3384,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	clients_count++;
 
-	destroy_workqueue(hif_workqueue);
 _fail_:
 	return result;
 }
@@ -3878,7 +3870,7 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 	pu8IEs = ptstrNetworkInfo->ies;
 	u16IEsLen = ptstrNetworkInfo->ies_len;
 
-	pNewJoinBssParam = kzalloc(sizeof(struct join_bss_param), GFP_KERNEL);
+	pNewJoinBssParam = kzalloc(sizeof(*pNewJoinBssParam), GFP_KERNEL);
 	if (pNewJoinBssParam) {
 		pNewJoinBssParam->dtim_period = ptstrNetworkInfo->dtim_period;
 		pNewJoinBssParam->beacon_period = ptstrNetworkInfo->beacon_period;
@@ -4006,8 +3998,9 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				pNewJoinBssParam->rsn_found = true;
 				index += pu8IEs[index + 1] + 2;
 				continue;
-			} else
+			} else {
 				index += pu8IEs[index + 1] + 2;
+			}
 		}
 	}
 

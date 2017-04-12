@@ -57,8 +57,14 @@ enum devlink_command {
 	DEVLINK_CMD_SB_OCC_SNAPSHOT,
 	DEVLINK_CMD_SB_OCC_MAX_CLEAR,
 
-	DEVLINK_CMD_ESWITCH_MODE_GET,
-	DEVLINK_CMD_ESWITCH_MODE_SET,
+	DEVLINK_CMD_ESWITCH_GET,
+#define DEVLINK_CMD_ESWITCH_MODE_GET /* obsolete, never use this! */ \
+	DEVLINK_CMD_ESWITCH_GET
+
+	DEVLINK_CMD_ESWITCH_SET,
+#define DEVLINK_CMD_ESWITCH_MODE_SET /* obsolete, never use this! */ \
+	DEVLINK_CMD_ESWITCH_SET
+
 	/* add new commands above here */
 
 	__DEVLINK_CMD_MAX,
@@ -102,6 +108,13 @@ enum devlink_eswitch_mode {
 	DEVLINK_ESWITCH_MODE_SWITCHDEV,
 };
 
+enum devlink_eswitch_inline_mode {
+	DEVLINK_ESWITCH_INLINE_MODE_NONE,
+	DEVLINK_ESWITCH_INLINE_MODE_LINK,
+	DEVLINK_ESWITCH_INLINE_MODE_NETWORK,
+	DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT,
+};
+
 enum devlink_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	DEVLINK_ATTR_UNSPEC,
@@ -133,6 +146,7 @@ enum devlink_attr {
 	DEVLINK_ATTR_SB_OCC_CUR,		/* u32 */
 	DEVLINK_ATTR_SB_OCC_MAX,		/* u32 */
 	DEVLINK_ATTR_ESWITCH_MODE,		/* u16 */
+	DEVLINK_ATTR_ESWITCH_INLINE_MODE,	/* u8 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

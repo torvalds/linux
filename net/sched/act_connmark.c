@@ -30,7 +30,7 @@
 
 #define CONNMARK_TAB_MASK     3
 
-static int connmark_net_id;
+static unsigned int connmark_net_id;
 static struct tc_action_ops act_connmark_ops;
 
 static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
@@ -112,6 +112,9 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	ret = nla_parse_nested(tb, TCA_CONNMARK_MAX, nla, connmark_policy);
 	if (ret < 0)
 		return ret;
+
+	if (!tb[TCA_CONNMARK_PARMS])
+		return -EINVAL;
 
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
 

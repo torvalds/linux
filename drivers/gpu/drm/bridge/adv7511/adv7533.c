@@ -29,6 +29,7 @@ static const struct reg_sequence adv7533_cec_fixed_registers[] = {
 	{ 0x17, 0xd0 },
 	{ 0x24, 0x20 },
 	{ 0x57, 0x11 },
+	{ 0x05, 0xc8 },
 };
 
 static const struct regmap_config adv7533_cec_regmap_config = {
@@ -149,13 +150,12 @@ void adv7533_uninit_cec(struct adv7511 *adv)
 	i2c_unregister_device(adv->i2c_cec);
 }
 
-static const int cec_i2c_addr = 0x78;
-
 int adv7533_init_cec(struct adv7511 *adv)
 {
 	int ret;
 
-	adv->i2c_cec = i2c_new_dummy(adv->i2c_main->adapter, cec_i2c_addr >> 1);
+	adv->i2c_cec = i2c_new_dummy(adv->i2c_main->adapter,
+				     adv->i2c_main->addr - 1);
 	if (!adv->i2c_cec)
 		return -ENOMEM;
 

@@ -76,6 +76,14 @@
 			gpios = <&pio 7 6 GPIO_ACTIVE_HIGH>; /* PH6 */
 		};
 	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&ac100_rtc 1>;
+		clock-names = "ext_clock";
+		/* enables internal regulator and de-asserts reset */
+		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 WL-PMU-EN */
+	};
 };
 
 &mmc0 {
@@ -86,6 +94,21 @@
 	cd-gpios = <&pio 7 18 GPIO_ACTIVE_HIGH>; /* PH18 */
 	cd-inverted;
 	status = "okay";
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>, <&wifi_en_pin_cubieboard4>;
+	vmmc-supply = <&reg_dldo1>;
+	vqmmc-supply = <&reg_cldo3>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+};
+
+&mmc1_pins {
+	bias-pull-up;
 };
 
 &mmc2 {
@@ -100,27 +123,36 @@
 
 &mmc2_8bit_pins {
 	/* Increase drive strength for DDR modes */
-	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+	drive-strength = <40>;
+};
+
+&osc32k {
+	/* osc32k input is from AC100 */
+	clocks = <&ac100_rtc 0>;
 };
 
 &pio {
 	led_pins_cubieboard4: led-pins@0 {
-		allwinner,pins = "PH6", "PH17";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH6", "PH17";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_cubieboard4: mmc0_cd_pin@0 {
-		allwinner,pins = "PH18";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH18";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 
 &r_ir {
 	status = "okay";
+};
+
+&r_pio {
+	wifi_en_pin_cubieboard4: wifi_en_pin@0 {
+		pins = "PL2";
+		function = "gpio_out";
+	};
 };
 
 &r_rsb {
@@ -248,6 +280,146 @@
 			reg_rtc_ldo: rtc_ldo {
 				regulator-name = "vcc-rtc-vdd1v8-io";
 			};
+
+			sw {
+				/* unused */
+			};
+		};
+	};
+
+	axp806: pmic@745 {
+		compatible = "x-powers,axp806";
+		reg = <0x745>;
+		interrupt-parent = <&nmi_intc>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		bldoin-supply = <&reg_dcdce>;
+
+		regulators {
+			reg_s_aldo1: aldo1 {
+				regulator-always-on;
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-name = "avcc";
+			};
+
+			aldo2 {
+				/*
+				 * unused, but use a different name to
+				 * avoid name clash with axp809's aldo's
+				 */
+				regulator-name = "s_aldo2";
+			};
+
+			aldo3 {
+				/*
+				 * unused, but use a different name to
+				 * avoid name clash with axp809's aldo's
+				 */
+				regulator-name = "s_aldo3";
+			};
+
+			reg_bldo1: bldo1 {
+				regulator-always-on;
+				regulator-min-microvolt = <1700000>;
+				regulator-max-microvolt = <1900000>;
+				regulator-name = "vcc18-efuse-adc-display-csi";
+			};
+
+			reg_bldo2: bldo2 {
+				regulator-always-on;
+				regulator-min-microvolt = <1700000>;
+				regulator-max-microvolt = <1900000>;
+				regulator-name =
+					"vdd18-drampll-vcc18-pll-cpvdd";
+			};
+
+			bldo3 {
+				/* unused */
+			};
+
+			reg_bldo4: bldo4 {
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-name = "vcc12-hsic";
+			};
+
+			reg_cldo1: cldo1 {
+				/*
+				 * This was 3V in the original design, but
+				 * 3.3V is the recommended supply voltage
+				 * for the Ethernet PHY.
+				 */
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc-gmac-phy";
+			};
+
+			reg_cldo2: cldo2 {
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-name = "afvcc-cam";
+			};
+
+			reg_cldo3: cldo3 {
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-name = "vcc-io-wifi-codec-io2";
+			};
+
+			reg_dcdca: dcdca {
+				regulator-always-on;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-name = "vdd-cpub";
+			};
+
+			reg_dcdcd: dcdcd {
+				regulator-always-on;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-name = "vdd-vpu";
+			};
+
+			reg_dcdce: dcdce {
+				regulator-always-on;
+				regulator-min-microvolt = <2100000>;
+				regulator-max-microvolt = <2100000>;
+				regulator-name = "vcc-bldo-codec-ldoin";
+			};
+
+			sw {
+				/*
+				 * unused, but use a different name to
+				 * avoid name clash with axp809's sw
+				 */
+				regulator-name = "s_sw";
+			};
+		};
+	};
+
+	ac100: codec@e89 {
+		compatible = "x-powers,ac100";
+		reg = <0xe89>;
+
+		ac100_codec: codec {
+			compatible = "x-powers,ac100-codec";
+			interrupt-parent = <&r_pio>;
+			interrupts = <0 9 IRQ_TYPE_LEVEL_LOW>; /* PL9 */
+			#clock-cells = <0>;
+			clock-output-names = "4M_adda";
+		};
+
+		ac100_rtc: rtc {
+			compatible = "x-powers,ac100-rtc";
+			interrupt-parent = <&nmi_intc>;
+			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&ac100_codec>;
+			#clock-cells = <1>;
+			clock-output-names = "cko1_rtc",
+					     "cko2_rtc",
+					     "cko3_rtc";
 		};
 	};
 };

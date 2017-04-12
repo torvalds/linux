@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/atmdev.h>
 #include <linux/atm.h>

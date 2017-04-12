@@ -151,6 +151,16 @@
  *	@name name of the last path component used to create file
  *	@ctx pointer to place the pointer to the resulting context in.
  *	@ctxlen point to place the length of the resulting context.
+ * @dentry_create_files_as:
+ *	Compute a context for a dentry as the inode is not yet available
+ *	and set that context in passed in creds so that new files are
+ *	created using that context. Context is calculated using the
+ *	passed in creds and not the creds of the caller.
+ *	@dentry dentry to use in calculating the context.
+ *	@mode mode used to determine resource type.
+ *	@name name of the last path component used to create file
+ *	@old creds which should be used for context calculation
+ *	@new creds to modify
  *
  *
  * Security hooks for inode operations.
@@ -342,8 +352,7 @@
  *	Return 0 if permission is granted.
  * @inode_getattr:
  *	Check permission before obtaining file attributes.
- *	@mnt is the vfsmount where the dentry was looked up
- *	@dentry contains the dentry structure for the file.
+ *	@path contains the path structure for the file.
  *	Return 0 if permission is granted.
  * @inode_setxattr:
  *	Check permission before setting the extended attributes
@@ -401,6 +410,23 @@
  *	@inode contains a pointer to the inode.
  *	@secid contains a pointer to the location where result will be saved.
  *	In case of failure, @secid will be set to zero.
+ * @inode_copy_up:
+ *	A file is about to be copied up from lower layer to upper layer of
+ *	overlay filesystem. Security module can prepare a set of new creds
+ *	and modify as need be and return new creds. Caller will switch to
+ *	new creds temporarily to create new file and release newly allocated
+ *	creds.
+ *	@src indicates the union dentry of file that is being copied up.
+ *	@new pointer to pointer to return newly allocated creds.
+ *	Returns 0 on success or a negative error code on error.
+ * @inode_copy_up_xattr:
+ *	Filter the xattrs being copied up when a unioned file is copied
+ *	up from a lower layer to the union/overlay layer.
+ *	@name indicates the name of the xattr.
+ *	Returns 0 to accept the xattr, 1 to discard the xattr, -EOPNOTSUPP if
+ *	security module does not know about attribute or a negative error code
+ *	to abort the copy up. Note that the caller is responsible for reading
+ *	and writing the xattrs as this hook is merely a filter.
  *
  * Security hooks for file operations
  *
@@ -638,11 +664,6 @@
  *	@info contains the signal information.
  *	@sig contains the signal value.
  *	@secid contains the sid of the process where the signal originated
- *	Return 0 if permission is granted.
- * @task_wait:
- *	Check permission before allowing a process to reap a child process @p
- *	and collect its status information.
- *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
  * @task_prctl:
  *	Check permission before performing a process control operation on the
@@ -1358,6 +1379,10 @@ union security_list_options {
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
+	int (*dentry_create_files_as)(struct dentry *dentry, int mode,
+					struct qstr *name,
+					const struct cred *old,
+					struct cred *new);
 
 
 #ifdef CONFIG_SECURITY_PATH
@@ -1425,6 +1450,8 @@ union security_list_options {
 	int (*inode_listsecurity)(struct inode *inode, char *buffer,
 					size_t buffer_size);
 	void (*inode_getsecid)(struct inode *inode, u32 *secid);
+	int (*inode_copy_up)(struct dentry *src, struct cred **new);
+	int (*inode_copy_up_xattr)(const char *name);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
@@ -1455,7 +1482,6 @@ union security_list_options {
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
 	int (*kernel_module_request)(char *kmod_name);
-	int (*kernel_module_from_file)(struct file *file);
 	int (*kernel_read_file)(struct file *file, enum kernel_read_file_id id);
 	int (*kernel_post_read_file)(struct file *file, char *buf, loff_t size,
 				     enum kernel_read_file_id id);
@@ -1475,7 +1501,6 @@ union security_list_options {
 	int (*task_movememory)(struct task_struct *p);
 	int (*task_kill)(struct task_struct *p, struct siginfo *info,
 				int sig, u32 secid);
-	int (*task_wait)(struct task_struct *p);
 	int (*task_prctl)(int option, unsigned long arg2, unsigned long arg3,
 				unsigned long arg4, unsigned long arg5);
 	void (*task_to_inode)(struct task_struct *p, struct inode *inode);
@@ -1515,8 +1540,7 @@ union security_list_options {
 	void (*d_instantiate)(struct dentry *dentry, struct inode *inode);
 
 	int (*getprocattr)(struct task_struct *p, char *name, char **value);
-	int (*setprocattr)(struct task_struct *p, char *name, void *value,
-				size_t size);
+	int (*setprocattr)(const char *name, void *value, size_t size);
 	int (*ismaclabel)(const char *name);
 	int (*secid_to_secctx)(u32 secid, char **secdata, u32 *seclen);
 	int (*secctx_to_secid)(const char *secdata, u32 seclen, u32 *secid);
@@ -1656,6 +1680,7 @@ struct security_hook_heads {
 	struct list_head sb_clone_mnt_opts;
 	struct list_head sb_parse_opts_str;
 	struct list_head dentry_init_security;
+	struct list_head dentry_create_files_as;
 #ifdef CONFIG_SECURITY_PATH
 	struct list_head path_unlink;
 	struct list_head path_mkdir;
@@ -1696,6 +1721,8 @@ struct security_hook_heads {
 	struct list_head inode_setsecurity;
 	struct list_head inode_listsecurity;
 	struct list_head inode_getsecid;
+	struct list_head inode_copy_up;
+	struct list_head inode_copy_up_xattr;
 	struct list_head file_permission;
 	struct list_head file_alloc_security;
 	struct list_head file_free_security;
@@ -1733,7 +1760,6 @@ struct security_hook_heads {
 	struct list_head task_getscheduler;
 	struct list_head task_movememory;
 	struct list_head task_kill;
-	struct list_head task_wait;
 	struct list_head task_prctl;
 	struct list_head task_to_inode;
 	struct list_head ipc_permission;
@@ -1841,6 +1867,7 @@ struct security_hook_list {
 	struct list_head		list;
 	struct list_head		*head;
 	union security_list_options	hook;
+	char				*lsm;
 };
 
 /*
@@ -1853,15 +1880,10 @@ struct security_hook_list {
 	{ .head = &security_hook_heads.HEAD, .hook = { .HEAD = HOOK } }
 
 extern struct security_hook_heads security_hook_heads;
+extern char *lsm_names;
 
-static inline void security_add_hooks(struct security_hook_list *hooks,
-				      int count)
-{
-	int i;
-
-	for (i = 0; i < count; i++)
-		list_add_tail_rcu(&hooks[i].list, hooks[i].head);
-}
+extern void security_add_hooks(struct security_hook_list *hooks, int count,
+				char *lsm);
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 /*

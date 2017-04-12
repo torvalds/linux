@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -247,6 +247,90 @@ cleanup:
 		status = AE_CTRL_RETURN_VALUE;
 	}
 
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ps_execute_table
+ *
+ * PARAMETERS:  info            - Method info block, contains:
+ *              node            - Node to where the is entered into the
+ *                                namespace
+ *              obj_desc        - Pseudo method object describing the AML
+ *                                code of the entire table
+ *              pass_number     - Parse or execute pass
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Execute a table
+ *
+ ******************************************************************************/
+
+acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info)
+{
+	acpi_status status;
+	union acpi_parse_object *op = NULL;
+	struct acpi_walk_state *walk_state = NULL;
+
+	ACPI_FUNCTION_TRACE(ps_execute_table);
+
+	/* Create and init a Root Node */
+
+	op = acpi_ps_create_scope_op(info->obj_desc->method.aml_start);
+	if (!op) {
+		status = AE_NO_MEMORY;
+		goto cleanup;
+	}
+
+	/* Create and initialize a new walk state */
+
+	walk_state =
+	    acpi_ds_create_walk_state(info->obj_desc->method.owner_id, NULL,
+				      NULL, NULL);
+	if (!walk_state) {
+		status = AE_NO_MEMORY;
+		goto cleanup;
+	}
+
+	status = acpi_ds_init_aml_walk(walk_state, op, info->node,
+				       info->obj_desc->method.aml_start,
+				       info->obj_desc->method.aml_length, info,
+				       info->pass_number);
+	if (ACPI_FAILURE(status)) {
+		goto cleanup;
+	}
+
+	if (info->obj_desc->method.info_flags & ACPI_METHOD_MODULE_LEVEL) {
+		walk_state->parse_flags |= ACPI_PARSE_MODULE_LEVEL;
+	}
+
+	/* Info->Node is the default location to load the table  */
+
+	if (info->node && info->node != acpi_gbl_root_node) {
+		status =
+		    acpi_ds_scope_stack_push(info->node, ACPI_TYPE_METHOD,
+					     walk_state);
+		if (ACPI_FAILURE(status)) {
+			goto cleanup;
+		}
+	}
+
+	/*
+	 * Parse the AML, walk_state will be deleted by parse_aml
+	 */
+	acpi_ex_enter_interpreter();
+	status = acpi_ps_parse_aml(walk_state);
+	acpi_ex_exit_interpreter();
+	walk_state = NULL;
+
+cleanup:
+	if (walk_state) {
+		acpi_ds_delete_walk_state(walk_state);
+	}
+	if (op) {
+		acpi_ps_delete_parse_tree(op);
+	}
 	return_ACPI_STATUS(status);
 }
 

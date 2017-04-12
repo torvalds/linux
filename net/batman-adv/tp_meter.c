@@ -1,4 +1,4 @@
-/* Copyright (C) 2012-2016 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2017  B.A.T.M.A.N. contributors:
  *
  * Edo Monticelli, Antonio Quartulli
  *
@@ -23,7 +23,7 @@
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/compiler.h>
-#include <linux/device.h>
+#include <linux/err.h>
 #include <linux/etherdevice.h>
 #include <linux/fs.h>
 #include <linux/if_ether.h>
@@ -615,9 +615,6 @@ static int batadv_tp_send_msg(struct batadv_tp_vars *tp_vars, const u8 *src,
 	batadv_tp_fill_prerandom(tp_vars, data, data_len);
 
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (r == -1)
-		kfree_skb(skb);
-
 	if (r == NET_XMIT_SUCCESS)
 		return 0;
 
@@ -837,6 +834,7 @@ static int batadv_tp_send(void *arg)
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (unlikely(!primary_if)) {
 		err = BATADV_TP_REASON_DST_UNREACHABLE;
+		tp_vars->reason = err;
 		goto out;
 	}
 
@@ -1206,9 +1204,6 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 
 	/* send the ack */
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (r == -1)
-		kfree_skb(skb);
-
 	if (unlikely(r < 0) || (r == NET_XMIT_DROP)) {
 		ret = BATADV_TP_REASON_DST_UNREACHABLE;
 		goto out;

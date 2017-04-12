@@ -23,8 +23,8 @@
 #include "ade7854.h"
 
 static ssize_t ade7854_read_8bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	int ret;
 	u8 val = 0;
@@ -40,8 +40,8 @@ static ssize_t ade7854_read_8bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_16bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u16 val = 0;
@@ -57,8 +57,8 @@ static ssize_t ade7854_read_16bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_24bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u32 val;
@@ -74,8 +74,8 @@ static ssize_t ade7854_read_24bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_32bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u32 val = 0;
@@ -91,9 +91,9 @@ static ssize_t ade7854_read_32bit(struct device *dev,
 }
 
 static ssize_t ade7854_write_8bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				  struct device_attribute *attr,
+				  const char *buf,
+				  size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -112,9 +112,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_16bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -133,9 +133,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_24bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -154,9 +154,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_32bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -444,7 +444,7 @@ static int ade7854_initial_setup(struct iio_dev *indio_dev)
 	}
 
 	ade7854_reset(dev);
-	msleep(ADE7854_STARTUP_DELAY);
+	usleep_range(ADE7854_STARTUP_DELAY, ADE7854_STARTUP_DELAY + 100);
 
 err_ret:
 	return ret;

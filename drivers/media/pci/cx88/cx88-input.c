@@ -16,11 +16,9 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+
+#include "cx88.h"
 
 #include <linux/init.h>
 #include <linux/hrtimer.h>
@@ -28,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-#include "cx88.h"
 #include <media/rc-core.h>
 
 #define MODULE_NAME "cx88xx"
@@ -57,7 +54,7 @@ struct cx88_IR {
 	u32 mask_keyup;
 };
 
-static unsigned ir_samplerate = 4;
+static unsigned int ir_samplerate = 4;
 module_param(ir_samplerate, uint, 0444);
 MODULE_PARM_DESC(ir_samplerate, "IR samplerate in kHz, 1 - 20, default 4");
 
@@ -65,11 +62,15 @@ static int ir_debug;
 module_param(ir_debug, int, 0644);	/* debug level [IR] */
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
-#define ir_dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "%s IR: " fmt , ir->core->name , ##arg)
+#define ir_dprintk(fmt, arg...)	do {					\
+	if (ir_debug)							\
+		printk(KERN_DEBUG "%s IR: " fmt, ir->core->name, ##arg);\
+} while (0)
 
-#define dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "cx88 IR: " fmt , ##arg)
+#define dprintk(fmt, arg...) do {					\
+	if (ir_debug)							\
+		printk(KERN_DEBUG "cx88 IR: " fmt, ##arg);		\
+} while (0)
 
 /* ---------------------------------------------------------------------- */
 
@@ -82,21 +83,22 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	gpio = cx_read(ir->gpio_addr);
 	switch (core->boardnr) {
 	case CX88_BOARD_NPGTECH_REALTV_TOP10FM:
-		/* This board apparently uses a combination of 2 GPIO
-		   to represent the keys. Additionally, the second GPIO
-		   can be used for parity.
-
-		   Example:
-
-		   for key "5"
-			gpio = 0x758, auxgpio = 0xe5 or 0xf5
-		   for key "Power"
-			gpio = 0x758, auxgpio = 0xed or 0xfd
+		/*
+		 * This board apparently uses a combination of 2 GPIO
+		 * to represent the keys. Additionally, the second GPIO
+		 * can be used for parity.
+		 *
+		 * Example:
+		 *
+		 * for key "5"
+		 *	gpio = 0x758, auxgpio = 0xe5 or 0xf5
+		 * for key "Power"
+		 *	gpio = 0x758, auxgpio = 0xed or 0xfd
 		 */
 
 		auxgpio = cx_read(MO_GP1_IO);
 		/* Take out the parity part */
-		gpio=(gpio & 0x7fd) + (auxgpio & 0xef);
+		gpio = (gpio & 0x7fd) + (auxgpio & 0xef);
 		break;
 	case CX88_BOARD_WINFAST_DTV1000:
 	case CX88_BOARD_WINFAST_DTV1800H:
@@ -144,7 +146,8 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 		scancode = RC_SCANCODE_NECX(addr, cmd);
 
 		if (0 == (gpio & ir->mask_keyup))
-			rc_keydown_notimeout(ir->dev, RC_TYPE_NEC, scancode, 0);
+			rc_keydown_notimeout(ir->dev, RC_TYPE_NECX, scancode,
+					     0);
 		else
 			rc_keyup(ir->dev);
 
@@ -175,8 +178,7 @@ static enum hrtimer_restart cx88_ir_work(struct hrtimer *timer)
 	struct cx88_IR *ir = container_of(timer, struct cx88_IR, timer);
 
 	cx88_ir_handle_key(ir);
-	missed = hrtimer_forward_now(&ir->timer,
-				     ktime_set(0, ir->polling * 1000000));
+	missed = hrtimer_forward_now(&ir->timer, ir->polling * 1000000);
 	if (missed > 1)
 		ir_dprintk("Missed ticks %ld\n", missed - 1);
 
@@ -196,8 +198,7 @@ static int __cx88_ir_start(void *priv)
 	if (ir->polling) {
 		hrtimer_init(&ir->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		ir->timer.function = cx88_ir_work;
-		hrtimer_start(&ir->timer,
-			      ktime_set(0, ir->polling * 1000000),
+		hrtimer_start(&ir->timer, ir->polling * 1000000,
 			      HRTIMER_MODE_REL);
 	}
 	if (ir->sampling) {
@@ -233,12 +234,14 @@ int cx88_ir_start(struct cx88_core *core)
 
 	return 0;
 }
+EXPORT_SYMBOL(cx88_ir_start);
 
 void cx88_ir_stop(struct cx88_core *core)
 {
 	if (core->ir->users)
 		__cx88_ir_stop(core);
 }
+EXPORT_SYMBOL(cx88_ir_stop);
 
 static int cx88_ir_open(struct rc_dev *rc)
 {
@@ -271,7 +274,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 				 */
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir || !dev)
 		goto err_out_free;
 
@@ -345,7 +348,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		 * 002-T mini RC, provided with newer PV hardware
 		 */
 		ir_codes = RC_MAP_PIXELVIEW_MK12;
-		rc_type = RC_BIT_NEC;
+		rc_type = RC_BIT_NECX;
 		ir->gpio_addr = MO_GP1_IO;
 		ir->mask_keyup = 0x80;
 		ir->polling = 10; /* ms */
@@ -481,7 +484,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	dev->scancode_mask = hardware_mask;
 
 	if (ir->sampling) {
-		dev->driver_type = RC_DRIVER_IR_RAW;
 		dev->timeout = 10 * 1000 * 1000; /* 10 ms */
 	} else {
 		dev->driver_type = RC_DRIVER_SCANCODE;
@@ -510,7 +512,7 @@ int cx88_ir_fini(struct cx88_core *core)
 	struct cx88_IR *ir = core->ir;
 
 	/* skip detach on non attached boards */
-	if (NULL == ir)
+	if (!ir)
 		return 0;
 
 	cx88_ir_stop(core);
@@ -528,7 +530,7 @@ void cx88_ir_irq(struct cx88_core *core)
 {
 	struct cx88_IR *ir = core->ir;
 	u32 samples;
-	unsigned todo, bits;
+	unsigned int todo, bits;
 	struct ir_raw_event ev;
 
 	if (!ir || !ir->sampling)
@@ -578,7 +580,7 @@ static int get_key_pvr2000(struct IR_i2c *ir, enum rc_type *protocol,
 	}
 
 	dprintk("IR Key/Flags: (0x%02x/0x%02x)\n",
-		   code & 0xff, flags & 0xff);
+		code & 0xff, flags & 0xff);
 
 	*protocol = RC_TYPE_UNKNOWN;
 	*scancode = code & 0xff;
@@ -600,7 +602,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 	const unsigned short *addr_list = default_addr_list;
 	const unsigned short *addrp;
 	/* Instantiate the IR receiver device, if present */
-	if (0 != core->i2c_rc)
+	if (core->i2c_rc != 0)
 		return;
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
@@ -631,14 +633,15 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 			/* Hauppauge XVR */
 			core->init_data.name = "cx88 Hauppauge XVR remote";
 			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
-			core->init_data.type = RC_BIT_RC5;
+			core->init_data.type = RC_BIT_RC5 | RC_BIT_RC6_MCE |
+							RC_BIT_RC6_6A_32;
 			core->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 
 			info.platform_data = &core->init_data;
 		}
 		if (i2c_smbus_xfer(&core->i2c_adap, *addrp, 0,
-					I2C_SMBUS_READ, 0,
-					I2C_SMBUS_QUICK, NULL) >= 0) {
+				   I2C_SMBUS_READ, 0,
+				   I2C_SMBUS_QUICK, NULL) >= 0) {
 			info.addr = *addrp;
 			i2c_new_device(&core->i2c_adap, &info);
 			break;

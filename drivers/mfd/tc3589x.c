@@ -53,7 +53,7 @@ int tc3589x_reg_read(struct tc3589x *tc3589x, u8 reg)
 EXPORT_SYMBOL_GPL(tc3589x_reg_read);
 
 /**
- * tc3589x_reg_read() - write a single TC3589x register
+ * tc3589x_reg_write() - write a single TC3589x register
  * @tc3589x:	Device to write to
  * @reg:	Register to read
  * @data:	Value to write
@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(tc3589x_block_write);
  * @tc3589x:	Device to write to
  * @reg:	Register to write
  * @mask:	Mask of bits to set
- * @values:	Value to set
+ * @val:	Value to set
  */
 int tc3589x_set_bits(struct tc3589x *tc3589x, u8 reg, u8 mask, u8 val)
 {

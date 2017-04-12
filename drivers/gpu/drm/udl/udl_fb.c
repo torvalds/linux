@@ -89,7 +89,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	int bytes_identical = 0;
 	struct urb *urb;
 	int aligned_x;
-	int bpp = (fb->base.bits_per_pixel / 8);
+	int bpp = fb->base.format->cpp[0];
 
 	if (!fb->active_16)
 		return 0;
@@ -122,7 +122,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 		return 0;
 	cmd = urb->transfer_buffer;
 
-	for (i = y; i < height ; i++) {
+	for (i = y; i < y + height ; i++) {
 		const int line_offset = fb->base.pitches[0] * i;
 		const int byte_offset = line_offset + (x * bpp);
 		const int dev_byte_offset = (fb->base.width * bpp * i) + (x * bpp);
@@ -254,16 +254,10 @@ static int udl_fb_release(struct fb_info *info, int user)
 
 static struct fb_ops udlfb_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 	.fb_mmap = udl_fb_mmap,
 	.fb_open = udl_fb_open,
 	.fb_release = udl_fb_release,
@@ -336,7 +330,7 @@ udl_framebuffer_init(struct drm_device *dev,
 	int ret;
 
 	ufb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&ufb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &ufb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
 	return ret;
 }
@@ -401,7 +395,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &udlfb_ops;
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &ufbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
@@ -447,8 +441,7 @@ int udl_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &ufbdev->helper, &udl_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &ufbdev->helper,
-				 1, 1);
+	ret = drm_fb_helper_init(dev, &ufbdev->helper, 1);
 	if (ret)
 		goto free;
 

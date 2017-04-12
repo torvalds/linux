@@ -6,6 +6,7 @@
 #include <linux/kernel.h> /* UINT_MAX */
 #include <linux/mount.h>
 #include <linux/sched.h>
+#include <linux/sched/user.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
@@ -31,7 +32,6 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
 	struct fsnotify_event *test_event;
-	bool do_merge = false;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
 
@@ -47,16 +47,12 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 
 	list_for_each_entry_reverse(test_event, list, list) {
 		if (should_merge(test_event, event)) {
-			do_merge = true;
-			break;
+			test_event->mask |= event->mask;
+			return 1;
 		}
 	}
 
-	if (!do_merge)
-		return 0;
-
-	test_event->mask |= event->mask;
-	return 1;
+	return 0;
 }
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
@@ -90,10 +86,10 @@ static int fanotify_get_response(struct fsnotify_group *group,
 static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 				       struct fsnotify_mark *vfsmnt_mark,
 				       u32 event_mask,
-				       void *data, int data_type)
+				       const void *data, int data_type)
 {
 	__u32 marks_mask, marks_ignored_mask;
-	struct path *path = data;
+	const struct path *path = data;
 
 	pr_debug("%s: inode_mark=%p vfsmnt_mark=%p mask=%x data=%p"
 		 " data_type=%d\n", __func__, inode_mark, vfsmnt_mark,
@@ -140,7 +136,7 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 }
 
 struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
-						 struct path *path)
+						 const struct path *path)
 {
 	struct fanotify_event_info *event;
 
@@ -177,7 +173,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct inode *inode,
 				 struct fsnotify_mark *inode_mark,
 				 struct fsnotify_mark *fanotify_mark,
-				 u32 mask, void *data, int data_type,
+				 u32 mask, const void *data, int data_type,
 				 const unsigned char *file_name, u32 cookie)
 {
 	int ret = 0;

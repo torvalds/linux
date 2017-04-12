@@ -353,7 +353,7 @@ static void netup_unidvb_stop_streaming(struct vb2_queue *q)
 	netup_unidvb_queue_cleanup(dma);
 }
 
-static struct vb2_ops dvb_qops = {
+static const struct vb2_ops dvb_qops = {
 	.queue_setup		= netup_unidvb_queue_setup,
 	.buf_prepare		= netup_unidvb_buf_prepare,
 	.buf_queue		= netup_unidvb_buf_queue,
@@ -1030,15 +1030,4 @@ static struct pci_driver netup_unidvb_pci_driver = {
 	.resume   = NULL,
 };
 
-static int __init netup_unidvb_init(void)
-{
-	return pci_register_driver(&netup_unidvb_pci_driver);
-}
-
-static void __exit netup_unidvb_fini(void)
-{
-	pci_unregister_driver(&netup_unidvb_pci_driver);
-}
-
-module_init(netup_unidvb_init);
-module_exit(netup_unidvb_fini);
+module_pci_driver(netup_unidvb_pci_driver);

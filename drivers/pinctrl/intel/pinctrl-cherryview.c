@@ -134,6 +134,7 @@ struct chv_gpio_pinrange {
  * @gpio_ranges: An array of GPIO ranges in this community
  * @ngpio_ranges: Number of GPIO ranges
  * @ngpios: Total number of GPIOs in this community
+ * @nirqs: Total number of IRQs this community can generate
  */
 struct chv_community {
 	const char *uid;
@@ -146,6 +147,7 @@ struct chv_community {
 	const struct chv_gpio_pinrange *gpio_ranges;
 	size_t ngpio_ranges;
 	size_t ngpios;
+	size_t nirqs;
 };
 
 struct chv_pin_context {
@@ -396,6 +398,12 @@ static const struct chv_community southwest_community = {
 	.gpio_ranges = southwest_gpio_ranges,
 	.ngpio_ranges = ARRAY_SIZE(southwest_gpio_ranges),
 	.ngpios = ARRAY_SIZE(southwest_pins),
+	/*
+	 * Southwest community can benerate GPIO interrupts only for the
+	 * first 8 interrupts. The upper half (8-15) can only be used to
+	 * trigger GPEs.
+	 */
+	.nirqs = 8,
 };
 
 static const struct pinctrl_pin_desc north_pins[] = {
@@ -479,6 +487,12 @@ static const struct chv_community north_community = {
 	.gpio_ranges = north_gpio_ranges,
 	.ngpio_ranges = ARRAY_SIZE(north_gpio_ranges),
 	.ngpios = ARRAY_SIZE(north_pins),
+	/*
+	 * North community can benerate GPIO interrupts only for the first
+	 * 8 interrupts. The upper half (8-15) can only be used to trigger
+	 * GPEs.
+	 */
+	.nirqs = 8,
 };
 
 static const struct pinctrl_pin_desc east_pins[] = {
@@ -521,6 +535,7 @@ static const struct chv_community east_community = {
 	.gpio_ranges = east_gpio_ranges,
 	.ngpio_ranges = ARRAY_SIZE(east_gpio_ranges),
 	.ngpios = ARRAY_SIZE(east_pins),
+	.nirqs = 16,
 };
 
 static const struct pinctrl_pin_desc southeast_pins[] = {
@@ -646,6 +661,7 @@ static const struct chv_community southeast_community = {
 	.gpio_ranges = southeast_gpio_ranges,
 	.ngpio_ranges = ARRAY_SIZE(southeast_gpio_ranges),
 	.ngpios = ARRAY_SIZE(southeast_pins),
+	.nirqs = 16,
 };
 
 static const struct chv_community *chv_communities[] = {
@@ -746,7 +762,7 @@ static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 		seq_printf(s, "mode %d ", mode);
 	}
 
-	seq_printf(s, "ctrl0 0x%08x ctrl1 0x%08x", ctrl0, ctrl1);
+	seq_printf(s, "0x%08x 0x%08x", ctrl0, ctrl1);
 
 	if (locked)
 		seq_puts(s, " [LOCKED]");
@@ -1043,7 +1059,7 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 }
 
 static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
-			       enum pin_config_param param, u16 arg)
+			       enum pin_config_param param, u32 arg)
 {
 	void __iomem *reg = chv_padreg(pctrl, pin, CHV_PADCTRL0);
 	unsigned long flags;
@@ -1135,7 +1151,7 @@ static int chv_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
 	int i, ret;
-	u16 arg;
+	u32 arg;
 
 	if (chv_pad_locked(pctrl, pin))
 		return -EBUSY;
@@ -1497,7 +1513,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_enter(chip, desc);
 
 	pending = readl(pctrl->regs + CHV_INTSTAT);
-	for_each_set_bit(intr_line, &pending, 16) {
+	for_each_set_bit(intr_line, &pending, pctrl->community->nirqs) {
 		unsigned irq, offset;
 
 		offset = pctrl->intr_lines[intr_line];
@@ -1520,8 +1536,9 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->base = -1;
+	chip->irq_need_valid_mask = true;
 
-	ret = gpiochip_add_data(chip, pctrl);
+	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "Failed to register gpiochip\n");
 		return ret;
@@ -1533,10 +1550,25 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 					     range->base, range->npins);
 		if (ret) {
 			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
-			goto fail;
+			return ret;
 		}
 
 		offset += range->npins;
+	}
+
+	/* Do not add GPIOs that can only generate GPEs to the IRQ domain */
+	for (i = 0; i < pctrl->community->npins; i++) {
+		const struct pinctrl_pin_desc *desc;
+		u32 intsel;
+
+		desc = &pctrl->community->pins[i];
+
+		intsel = readl(chv_padreg(pctrl, desc->number, CHV_PADCTRL0));
+		intsel &= CHV_PADCTRL0_INTSEL_MASK;
+		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
+
+		if (intsel >= pctrl->community->nirqs)
+			clear_bit(i, chip->irq_valid_mask);
 	}
 
 	/* Clear all interrupts */
@@ -1546,17 +1578,12 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 				   handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add IRQ chip\n");
-		goto fail;
+		return ret;
 	}
 
 	gpiochip_set_chained_irqchip(chip, &chv_gpio_irqchip, irq,
 				     chv_gpio_irq_handler);
 	return 0;
-
-fail:
-	gpiochip_remove(chip);
-
-	return ret;
 }
 
 static int chv_pinctrl_probe(struct platform_device *pdev)
@@ -1624,21 +1651,15 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int chv_pinctrl_remove(struct platform_device *pdev)
-{
-	struct chv_pinctrl *pctrl = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&pctrl->chip);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
-static int chv_pinctrl_suspend(struct device *dev)
+static int chv_pinctrl_suspend_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct chv_pinctrl *pctrl = platform_get_drvdata(pdev);
+	unsigned long flags;
 	int i;
+
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	pctrl->saved_intmask = readl(pctrl->regs + CHV_INTMASK);
 
@@ -1660,14 +1681,19 @@ static int chv_pinctrl_suspend(struct device *dev)
 		ctx->padctrl1 = readl(reg);
 	}
 
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
+
 	return 0;
 }
 
-static int chv_pinctrl_resume(struct device *dev)
+static int chv_pinctrl_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct chv_pinctrl *pctrl = platform_get_drvdata(pdev);
+	unsigned long flags;
 	int i;
+
+	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	/*
 	 * Mask all interrupts before restoring per-pin configuration
@@ -1713,12 +1739,15 @@ static int chv_pinctrl_resume(struct device *dev)
 	chv_writel(0xffff, pctrl->regs + CHV_INTSTAT);
 	chv_writel(pctrl->saved_intmask, pctrl->regs + CHV_INTMASK);
 
+	raw_spin_unlock_irqrestore(&chv_lock, flags);
+
 	return 0;
 }
 #endif
 
 static const struct dev_pm_ops chv_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(chv_pinctrl_suspend, chv_pinctrl_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(chv_pinctrl_suspend_noirq,
+				      chv_pinctrl_resume_noirq)
 };
 
 static const struct acpi_device_id chv_pinctrl_acpi_match[] = {
@@ -1729,7 +1758,6 @@ MODULE_DEVICE_TABLE(acpi, chv_pinctrl_acpi_match);
 
 static struct platform_driver chv_pinctrl_driver = {
 	.probe = chv_pinctrl_probe,
-	.remove = chv_pinctrl_remove,
 	.driver = {
 		.name = "cherryview-pinctrl",
 		.pm = &chv_pinctrl_pm_ops,

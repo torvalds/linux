@@ -13,8 +13,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <linux/fb.h>
-
 #include "cirrus_drv.h"
 
 static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
@@ -24,7 +22,7 @@ static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
 	struct drm_gem_object *obj;
 	struct cirrus_bo *bo;
 	int src_offset, dst_offset;
-	int bpp = (afbdev->gfb.base.bits_per_pixel + 7)/8;
+	int bpp = afbdev->gfb.base.format->cpp[0];
 	int ret = -EBUSY;
 	bool unmap = false;
 	bool store_for_later = false;
@@ -140,12 +138,12 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 {
 	struct drm_device *dev = afbdev->helper.dev;
 	struct cirrus_device *cdev = dev->dev_private;
-	u32 bpp, depth;
+	u32 bpp;
 	u32 size;
 	struct drm_gem_object *gobj;
-
 	int ret = 0;
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+
+	bpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0) * 8;
 
 	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
 				      bpp, mode_cmd->pitches[0]))
@@ -220,7 +218,7 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &cirrusfb_ops;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &gfbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
@@ -240,7 +238,7 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	DRM_INFO("fb mappable at 0x%lX\n", info->fix.smem_start);
 	DRM_INFO("vram aper at 0x%lX\n", (unsigned long)info->fix.smem_start);
 	DRM_INFO("size %lu\n", (unsigned long)info->fix.smem_len);
-	DRM_INFO("fb depth is %d\n", fb->depth);
+	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
 	return 0;
@@ -291,7 +289,7 @@ int cirrus_fbdev_init(struct cirrus_device *cdev)
 			      &cirrus_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(cdev->dev, &gfbdev->helper,
-				 cdev->num_crtc, CIRRUSFB_CONN_LIMIT);
+				 CIRRUSFB_CONN_LIMIT);
 	if (ret)
 		return ret;
 

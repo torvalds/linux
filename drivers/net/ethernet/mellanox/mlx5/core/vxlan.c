@@ -46,41 +46,24 @@ void mlx5e_vxlan_init(struct mlx5e_priv *priv)
 
 static int mlx5e_vxlan_core_add_port_cmd(struct mlx5_core_dev *mdev, u16 port)
 {
-	struct mlx5_outbox_hdr *hdr;
-	int err;
-
-	u32 in[MLX5_ST_SZ_DW(add_vxlan_udp_dport_in)];
-	u32 out[MLX5_ST_SZ_DW(add_vxlan_udp_dport_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(add_vxlan_udp_dport_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(add_vxlan_udp_dport_out)] = {0};
 
 	MLX5_SET(add_vxlan_udp_dport_in, in, opcode,
 		 MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT);
 	MLX5_SET(add_vxlan_udp_dport_in, in, vxlan_udp_port, port);
-
-	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
-	if (err)
-		return err;
-
-	hdr = (struct mlx5_outbox_hdr *)out;
-	return hdr->status ? -ENOMEM : 0;
+	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 }
 
 static int mlx5e_vxlan_core_del_port_cmd(struct mlx5_core_dev *mdev, u16 port)
 {
-	u32 in[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_in)];
-	u32 out[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_out)] = {0};
 
 	MLX5_SET(delete_vxlan_udp_dport_in, in, opcode,
 		 MLX5_CMD_OP_DELETE_VXLAN_UDP_DPORT);
 	MLX5_SET(delete_vxlan_udp_dport_in, in, vxlan_udp_port, port);
-
-	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out,
-					  sizeof(out));
+	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 }
 
 struct mlx5e_vxlan *mlx5e_vxlan_lookup_port(struct mlx5e_priv *priv, u16 port)

@@ -21,6 +21,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <linux/time64.h>
 
 #define K 1024
 
@@ -89,7 +90,7 @@ static u64 get_cycles(void)
 
 static double timeval2double(struct timeval *ts)
 {
-	return (double)ts->tv_sec + (double)ts->tv_usec / (double)1000000;
+	return (double)ts->tv_sec + (double)ts->tv_usec / (double)USEC_PER_SEC;
 }
 
 #define print_bps(x) do {						\
@@ -105,9 +106,10 @@ static double timeval2double(struct timeval *ts)
 
 struct bench_mem_info {
 	const struct function *functions;
-	u64 (*do_cycles)(const struct function *r, size_t size);
-	double (*do_gettimeofday)(const struct function *r, size_t size);
+	u64 (*do_cycles)(const struct function *r, size_t size, void *src, void *dst);
+	double (*do_gettimeofday)(const struct function *r, size_t size, void *src, void *dst);
 	const char *const *usage;
+	bool alloc_src;
 };
 
 static void __bench_mem_function(struct bench_mem_info *info, int r_idx, size_t size, double size_total)
@@ -115,16 +117,26 @@ static void __bench_mem_function(struct bench_mem_info *info, int r_idx, size_t 
 	const struct function *r = &info->functions[r_idx];
 	double result_bps = 0.0;
 	u64 result_cycles = 0;
+	void *src = NULL, *dst = zalloc(size);
 
 	printf("# function '%s' (%s)\n", r->name, r->desc);
+
+	if (dst == NULL)
+		goto out_alloc_failed;
+
+	if (info->alloc_src) {
+		src = zalloc(size);
+		if (src == NULL)
+			goto out_alloc_failed;
+	}
 
 	if (bench_format == BENCH_FORMAT_DEFAULT)
 		printf("# Copying %s bytes ...\n\n", size_str);
 
 	if (use_cycles) {
-		result_cycles = info->do_cycles(r, size);
+		result_cycles = info->do_cycles(r, size, src, dst);
 	} else {
-		result_bps = info->do_gettimeofday(r, size);
+		result_bps = info->do_gettimeofday(r, size, src, dst);
 	}
 
 	switch (bench_format) {
@@ -148,6 +160,14 @@ static void __bench_mem_function(struct bench_mem_info *info, int r_idx, size_t 
 		BUG_ON(1);
 		break;
 	}
+
+out_free:
+	free(src);
+	free(dst);
+	return;
+out_alloc_failed:
+	printf("# Memory allocation failed - maybe size (%s) is too large?\n", size_str);
+	goto out_free;
 }
 
 static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *info)
@@ -200,28 +220,14 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 	return 0;
 }
 
-static void memcpy_alloc_mem(void **dst, void **src, size_t size)
-{
-	*dst = zalloc(size);
-	if (!*dst)
-		die("memory allocation failed - maybe size is too large?\n");
-
-	*src = zalloc(size);
-	if (!*src)
-		die("memory allocation failed - maybe size is too large?\n");
-
-	/* Make sure to always prefault zero pages even if MMAP_THRESH is crossed: */
-	memset(*src, 0, size);
-}
-
-static u64 do_memcpy_cycles(const struct function *r, size_t size)
+static u64 do_memcpy_cycles(const struct function *r, size_t size, void *src, void *dst)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
-	void *src = NULL, *dst = NULL;
 	memcpy_t fn = r->fn.memcpy;
 	int i;
 
-	memcpy_alloc_mem(&dst, &src, size);
+	/* Make sure to always prefault zero pages even if MMAP_THRESH is crossed: */
+	memset(src, 0, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
@@ -234,19 +240,14 @@ static u64 do_memcpy_cycles(const struct function *r, size_t size)
 		fn(dst, src, size);
 	cycle_end = get_cycles();
 
-	free(src);
-	free(dst);
 	return cycle_end - cycle_start;
 }
 
-static double do_memcpy_gettimeofday(const struct function *r, size_t size)
+static double do_memcpy_gettimeofday(const struct function *r, size_t size, void *src, void *dst)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memcpy_t fn = r->fn.memcpy;
-	void *src = NULL, *dst = NULL;
 	int i;
-
-	memcpy_alloc_mem(&dst, &src, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
@@ -260,9 +261,6 @@ static double do_memcpy_gettimeofday(const struct function *r, size_t size)
 	BUG_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
-
-	free(src);
-	free(dst);
 
 	return (double)(((double)size * nr_loops) / timeval2double(&tv_diff));
 }
@@ -293,26 +291,17 @@ int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unu
 		.do_cycles		= do_memcpy_cycles,
 		.do_gettimeofday	= do_memcpy_gettimeofday,
 		.usage			= bench_mem_memcpy_usage,
+		.alloc_src              = true,
 	};
 
 	return bench_mem_common(argc, argv, &info);
 }
 
-static void memset_alloc_mem(void **dst, size_t size)
-{
-	*dst = zalloc(size);
-	if (!*dst)
-		die("memory allocation failed - maybe size is too large?\n");
-}
-
-static u64 do_memset_cycles(const struct function *r, size_t size)
+static u64 do_memset_cycles(const struct function *r, size_t size, void *src __maybe_unused, void *dst)
 {
 	u64 cycle_start = 0ULL, cycle_end = 0ULL;
 	memset_t fn = r->fn.memset;
-	void *dst = NULL;
 	int i;
-
-	memset_alloc_mem(&dst, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
@@ -325,18 +314,14 @@ static u64 do_memset_cycles(const struct function *r, size_t size)
 		fn(dst, i, size);
 	cycle_end = get_cycles();
 
-	free(dst);
 	return cycle_end - cycle_start;
 }
 
-static double do_memset_gettimeofday(const struct function *r, size_t size)
+static double do_memset_gettimeofday(const struct function *r, size_t size, void *src __maybe_unused, void *dst)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	memset_t fn = r->fn.memset;
-	void *dst = NULL;
 	int i;
-
-	memset_alloc_mem(&dst, size);
 
 	/*
 	 * We prefault the freshly allocated memory range here,
@@ -351,7 +336,6 @@ static double do_memset_gettimeofday(const struct function *r, size_t size)
 
 	timersub(&tv_end, &tv_start, &tv_diff);
 
-	free(dst);
 	return (double)(((double)size * nr_loops) / timeval2double(&tv_diff));
 }
 

@@ -222,7 +222,7 @@ static int __init service_level_perf_register(void)
 }
 arch_initcall(service_level_perf_register);
 
-static int __perf_callchain_kernel(void *data, unsigned long address)
+static int __perf_callchain_kernel(void *data, unsigned long address, int reliable)
 {
 	struct perf_callchain_entry_ctx *entry = data;
 

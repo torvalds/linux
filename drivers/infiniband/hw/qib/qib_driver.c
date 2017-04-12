@@ -319,8 +319,8 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 		ret = 1;
 	else if (eflags == QLOGIC_IB_RHF_H_TIDERR) {
 		/* For TIDERR and RC QPs premptively schedule a NAK */
-		struct qib_ib_header *hdr = (struct qib_ib_header *) rhdr;
-		struct qib_other_headers *ohdr = NULL;
+		struct ib_header *hdr = (struct ib_header *)rhdr;
+		struct ib_other_headers *ohdr = NULL;
 		struct qib_ibport *ibp = &ppd->ibport_data;
 		struct qib_devdata *dd = ppd->dd;
 		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
@@ -420,8 +420,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 						if (list_empty(&qp->rspwait)) {
 							qp->r_flags |=
 								RVT_R_RSP_NAK;
-							atomic_inc(
-								&qp->refcount);
+							rvt_get_qp(qp);
 							list_add_tail(
 							 &qp->rspwait,
 							 &rcd->qp_wait_list);
@@ -588,8 +587,7 @@ move_along:
 				qib_schedule_send(qp);
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 		}
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 
 bail:

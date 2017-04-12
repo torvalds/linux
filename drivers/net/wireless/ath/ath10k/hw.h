@@ -128,6 +128,10 @@ enum qca9377_chip_id_rev {
 #define QCA4019_HW_1_0_BOARD_DATA_FILE "board.bin"
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
+#define ATH10K_FW_FILE_BASE		"firmware"
+#define ATH10K_FW_API_MAX		5
+#define ATH10K_FW_API_MIN		2
+
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
@@ -230,6 +234,7 @@ struct ath10k_hw_regs {
 	u32 rtc_soc_base_address;
 	u32 rtc_wmac_base_address;
 	u32 soc_core_base_address;
+	u32 wlan_mac_base_address;
 	u32 ce_wrapper_base_address;
 	u32 ce0_base_address;
 	u32 ce1_base_address;
@@ -284,7 +289,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
 
-/* Known pecularities:
+/* Known peculiarities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
@@ -338,11 +343,6 @@ enum ath10k_hw_rate_rev2_cck {
 	ATH10K_HW_RATE_REV2_CCK_SP_11M,
 };
 
-enum ath10k_hw_4addr_pad {
-	ATH10K_HW_4ADDR_PAD_AFTER,
-	ATH10K_HW_4ADDR_PAD_BEFORE,
-};
-
 enum ath10k_hw_cc_wraparound_type {
 	ATH10K_HW_CC_WRAP_DISABLED = 0,
 
@@ -362,6 +362,81 @@ enum ath10k_hw_cc_wraparound_type {
 	 */
 	ATH10K_HW_CC_WRAP_SHIFTED_EACH = 2,
 };
+
+struct ath10k_hw_params {
+	u32 id;
+	u16 dev_id;
+	const char *name;
+	u32 patch_load_addr;
+	int uart_pin;
+	u32 otp_exe_param;
+
+	/* Type of hw cycle counter wraparound logic, for more info
+	 * refer enum ath10k_hw_cc_wraparound_type.
+	 */
+	enum ath10k_hw_cc_wraparound_type cc_wraparound_type;
+
+	/* Some of chip expects fragment descriptor to be continuous
+	 * memory for any TX operation. Set continuous_frag_desc flag
+	 * for the hardware which have such requirement.
+	 */
+	bool continuous_frag_desc;
+
+	/* CCK hardware rate table mapping for the newer chipsets
+	 * like QCA99X0, QCA4019 got revised. The CCK h/w rate values
+	 * are in a proper order with respect to the rate/preamble
+	 */
+	bool cck_rate_map_rev2;
+
+	u32 channel_counters_freq_hz;
+
+	/* Mgmt tx descriptors threshold for limiting probe response
+	 * frames.
+	 */
+	u32 max_probe_resp_desc_thres;
+
+	u32 tx_chain_mask;
+	u32 rx_chain_mask;
+	u32 max_spatial_stream;
+	u32 cal_data_len;
+
+	struct ath10k_hw_params_fw {
+		const char *dir;
+		const char *board;
+		size_t board_size;
+		size_t board_ext_size;
+	} fw;
+
+	/* qca99x0 family chips deliver broadcast/multicast management
+	 * frames encrypted and expect software do decryption.
+	 */
+	bool sw_decrypt_mcast_mgmt;
+
+	const struct ath10k_hw_ops *hw_ops;
+
+	/* Number of bytes used for alignment in rx_hdr_status of rx desc. */
+	int decap_align_bytes;
+};
+
+struct htt_rx_desc;
+
+/* Defines needed for Rx descriptor abstraction */
+struct ath10k_hw_ops {
+	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
+	void (*set_coverage_class)(struct ath10k *ar, s16 value);
+};
+
+extern const struct ath10k_hw_ops qca988x_ops;
+extern const struct ath10k_hw_ops qca99x0_ops;
+
+static inline int
+ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
+				struct htt_rx_desc *rxd)
+{
+	if (hw->hw_ops->rx_desc_get_l3_pad_bytes)
+		return hw->hw_ops->rx_desc_get_l3_pad_bytes(rxd);
+	return 0;
+}
 
 /* Target specific defines for MAIN firmware */
 #define TARGET_NUM_VDEVS			8
@@ -441,7 +516,7 @@ enum ath10k_hw_cc_wraparound_type {
 /* Target specific defines for WMI-TLV firmware */
 #define TARGET_TLV_NUM_VDEVS			4
 #define TARGET_TLV_NUM_STATIONS			32
-#define TARGET_TLV_NUM_PEERS			35
+#define TARGET_TLV_NUM_PEERS			33
 #define TARGET_TLV_NUM_TDLS_VDEVS		1
 #define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
@@ -507,6 +582,9 @@ enum ath10k_hw_cc_wraparound_type {
 #define TARGET_10_4_IPHDR_PAD_CONFIG		1
 #define TARGET_10_4_QWRAP_CONFIG		0
 
+/* Maximum number of Copy Engine's supported */
+#define CE_COUNT_MAX 12
+
 /* Number of Copy Engines supported */
 #define CE_COUNT ar->hw_values->ce_count
 
@@ -545,7 +623,7 @@ enum ath10k_hw_cc_wraparound_type {
 #define WLAN_SI_BASE_ADDRESS			0x00010000
 #define WLAN_GPIO_BASE_ADDRESS			0x00014000
 #define WLAN_ANALOG_INTF_BASE_ADDRESS		0x0001c000
-#define WLAN_MAC_BASE_ADDRESS			0x00020000
+#define WLAN_MAC_BASE_ADDRESS			ar->regs->wlan_mac_base_address
 #define EFUSE_BASE_ADDRESS			0x00030000
 #define FPGA_REG_BASE_ADDRESS			0x00039000
 #define WLAN_UART2_BASE_ADDRESS			0x00054c00
@@ -744,5 +822,29 @@ enum ath10k_hw_cc_wraparound_type {
 #define QCA9887_EEPROM_ADDR_LO_LSB		16
 
 #define RTC_STATE_V_GET(x) (((x) & RTC_STATE_V_MASK) >> RTC_STATE_V_LSB)
+
+/* Register definitions for first generation ath10k cards. These cards include
+ * a mac thich has a register allocation similar to ath9k and at least some
+ * registers including the ones relevant for modifying the coverage class are
+ * identical to the ath9k definitions.
+ * These registers are usually managed by the ath10k firmware. However by
+ * overriding them it is possible to support coverage class modifications.
+ */
+#define WAVE1_PCU_ACK_CTS_TIMEOUT		0x8014
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_MAX		0x00003FFF
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_ACK_MASK	0x00003FFF
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_ACK_LSB	0
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_CTS_MASK	0x3FFF0000
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_CTS_LSB	16
+
+#define WAVE1_PCU_GBL_IFS_SLOT			0x1070
+#define WAVE1_PCU_GBL_IFS_SLOT_MASK		0x0000FFFF
+#define WAVE1_PCU_GBL_IFS_SLOT_MAX		0x0000FFFF
+#define WAVE1_PCU_GBL_IFS_SLOT_LSB		0
+#define WAVE1_PCU_GBL_IFS_SLOT_RESV0		0xFFFF0000
+
+#define WAVE1_PHYCLK				0x801C
+#define WAVE1_PHYCLK_USEC_MASK			0x0000007F
+#define WAVE1_PHYCLK_USEC_LSB			0
 
 #endif /* _HW_H_ */

@@ -37,18 +37,6 @@
 #ifndef __long_aligned
 #define __long_aligned __attribute__((aligned((sizeof(long)))))
 #endif
-/*
- * Less bad way to call ioctl from within the kernel; this needs to be
- * done some other way to get the call out of interrupt context.
- * Needs "ioctl" variable to be supplied by calling context.
- */
-#define IOCTL(dev, arg, cmd) ({		\
-	int res = 0;			\
-	mm_segment_t fs = get_fs();	\
-	set_fs(get_ds());		\
-	res = ioctl(dev, arg, cmd);	\
-	set_fs(fs);			\
-	res; })
 
 #define BOND_MODE(bond) ((bond)->params.mode)
 
@@ -693,7 +681,7 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 }
 
 /* exported from bond_main.c */
-extern int bond_net_id;
+extern unsigned int bond_net_id;
 extern const struct bond_parm_tbl bond_lacp_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];

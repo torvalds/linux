@@ -32,6 +32,7 @@
 /* Maximum number of letters for an LSM name string */
 #define SECURITY_NAME_MAX	10
 
+char *lsm_names;
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
 	CONFIG_DEFAULT_SECURITY;
@@ -78,6 +79,22 @@ static int __init choose_lsm(char *str)
 }
 __setup("security=", choose_lsm);
 
+static int lsm_append(char *new, char **result)
+{
+	char *cp;
+
+	if (*result == NULL) {
+		*result = kstrdup(new, GFP_KERNEL);
+	} else {
+		cp = kasprintf(GFP_KERNEL, "%s,%s", *result, new);
+		if (cp == NULL)
+			return -ENOMEM;
+		kfree(*result);
+		*result = cp;
+	}
+	return 0;
+}
+
 /**
  * security_module_enable - Load given security module on boot ?
  * @module: the name of the module
@@ -95,6 +112,27 @@ __setup("security=", choose_lsm);
 int __init security_module_enable(const char *module)
 {
 	return !strcmp(module, chosen_lsm);
+}
+
+/**
+ * security_add_hooks - Add a modules hooks to the hook lists.
+ * @hooks: the hooks to add
+ * @count: the number of hooks to add
+ * @lsm: the name of the security module
+ *
+ * Each LSM has to register its hooks with the infrastructure.
+ */
+void __init security_add_hooks(struct security_hook_list *hooks, int count,
+				char *lsm)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		hooks[i].lsm = lsm;
+		list_add_tail_rcu(&hooks[i].list, hooks[i].head);
+	}
+	if (lsm_append(lsm, &lsm_names) < 0)
+		panic("%s - Cannot get early memory.\n", __func__);
 }
 
 /*
@@ -363,6 +401,15 @@ int security_dentry_init_security(struct dentry *dentry, int mode,
 				name, ctx, ctxlen);
 }
 EXPORT_SYMBOL(security_dentry_init_security);
+
+int security_dentry_create_files_as(struct dentry *dentry, int mode,
+				    struct qstr *name,
+				    const struct cred *old, struct cred *new)
+{
+	return call_int_hook(dentry_create_files_as, 0, dentry, mode,
+				name, old, new);
+}
+EXPORT_SYMBOL(security_dentry_create_files_as);
 
 int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
@@ -748,6 +795,18 @@ void security_inode_getsecid(struct inode *inode, u32 *secid)
 	call_void_hook(inode_getsecid, inode, secid);
 }
 
+int security_inode_copy_up(struct dentry *src, struct cred **new)
+{
+	return call_int_hook(inode_copy_up, 0, src, new);
+}
+EXPORT_SYMBOL(security_inode_copy_up);
+
+int security_inode_copy_up_xattr(const char *name)
+{
+	return call_int_hook(inode_copy_up_xattr, -EOPNOTSUPP, name);
+}
+EXPORT_SYMBOL(security_inode_copy_up_xattr);
+
 int security_file_permission(struct file *file, int mask)
 {
 	int ret;
@@ -1004,11 +1063,6 @@ int security_task_kill(struct task_struct *p, struct siginfo *info,
 	return call_int_hook(task_kill, 0, p, info, sig, secid);
 }
 
-int security_task_wait(struct task_struct *p)
-{
-	return call_int_hook(task_wait, 0, p);
-}
-
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 unsigned long arg4, unsigned long arg5)
 {
@@ -1149,9 +1203,9 @@ int security_getprocattr(struct task_struct *p, char *name, char **value)
 	return call_int_hook(getprocattr, -EINVAL, p, name, value);
 }
 
-int security_setprocattr(struct task_struct *p, char *name, void *value, size_t size)
+int security_setprocattr(const char *name, void *value, size_t size)
 {
-	return call_int_hook(setprocattr, -EINVAL, p, name, value, size);
+	return call_int_hook(setprocattr, -EINVAL, name, value, size);
 }
 
 int security_netlink_send(struct sock *sk, struct sk_buff *skb)
@@ -1623,6 +1677,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.sb_parse_opts_str),
 	.dentry_init_security =
 		LIST_HEAD_INIT(security_hook_heads.dentry_init_security),
+	.dentry_create_files_as =
+		LIST_HEAD_INIT(security_hook_heads.dentry_create_files_as),
 #ifdef CONFIG_SECURITY_PATH
 	.path_unlink =	LIST_HEAD_INIT(security_hook_heads.path_unlink),
 	.path_mkdir =	LIST_HEAD_INIT(security_hook_heads.path_mkdir),
@@ -1684,6 +1740,10 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.inode_listsecurity),
 	.inode_getsecid =
 		LIST_HEAD_INIT(security_hook_heads.inode_getsecid),
+	.inode_copy_up =
+		LIST_HEAD_INIT(security_hook_heads.inode_copy_up),
+	.inode_copy_up_xattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_copy_up_xattr),
 	.file_permission =
 		LIST_HEAD_INIT(security_hook_heads.file_permission),
 	.file_alloc_security =
@@ -1742,7 +1802,6 @@ struct security_hook_heads security_hook_heads = {
 	.task_movememory =
 		LIST_HEAD_INIT(security_hook_heads.task_movememory),
 	.task_kill =	LIST_HEAD_INIT(security_hook_heads.task_kill),
-	.task_wait =	LIST_HEAD_INIT(security_hook_heads.task_wait),
 	.task_prctl =	LIST_HEAD_INIT(security_hook_heads.task_prctl),
 	.task_to_inode =
 		LIST_HEAD_INIT(security_hook_heads.task_to_inode),

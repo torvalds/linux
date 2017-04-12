@@ -105,7 +105,7 @@ typedef struct lnet_msg {
 	lnet_kiov_t		*msg_kiov;
 
 	lnet_event_t		 msg_ev;
-	lnet_hdr_t		 msg_hdr;
+	struct lnet_hdr		 msg_hdr;
 } lnet_msg_t;
 
 typedef struct lnet_libhandle {
@@ -220,10 +220,7 @@ typedef struct lnet_lnd {
 	 * credit if the LND does flow control.
 	 */
 	int (*lnd_recv)(struct lnet_ni *ni, void *private, lnet_msg_t *msg,
-			int delayed, unsigned int niov,
-			struct kvec *iov, lnet_kiov_t *kiov,
-			unsigned int offset, unsigned int mlen,
-			unsigned int rlen);
+			int delayed, struct iov_iter *to, unsigned int rlen);
 
 	/*
 	 * lnet_parse() has had to delay processing of this message
@@ -273,11 +270,13 @@ typedef struct lnet_ni {
 	struct lnet_tx_queue	**ni_tx_queues;	/* percpt TX queues */
 	int			**ni_refs;	/* percpt reference count */
 	time64_t		  ni_last_alive;/* when I was last alive */
-	lnet_ni_status_t	 *ni_status;	/* my health status */
+	struct lnet_ni_status	 *ni_status;	/* my health status */
 	/* per NI LND tunables */
 	struct lnet_ioctl_config_lnd_tunables *ni_lnd_tunables;
 	/* equivalent interfaces to use */
 	char			 *ni_interfaces[LNET_MAX_INTERFACES];
+	/* original net namespace */
+	struct net		 *ni_net_ns;
 } lnet_ni_t;
 
 #define LNET_PROTO_PING_MATCHBITS	0x8000000000000000LL
@@ -296,13 +295,13 @@ typedef struct lnet_ni {
 
 /* router checker data, per router */
 #define LNET_MAX_RTR_NIS   16
-#define LNET_PINGINFO_SIZE offsetof(lnet_ping_info_t, pi_ni[LNET_MAX_RTR_NIS])
+#define LNET_PINGINFO_SIZE offsetof(struct lnet_ping_info, pi_ni[LNET_MAX_RTR_NIS])
 typedef struct {
 	/* chain on the_lnet.ln_zombie_rcd or ln_deathrow_rcd */
 	struct list_head	 rcd_list;
 	lnet_handle_md_t	 rcd_mdh;	/* ping buffer MD */
 	struct lnet_peer	*rcd_gateway;	/* reference to gateway */
-	lnet_ping_info_t	*rcd_pinginfo;	/* ping buffer */
+	struct lnet_ping_info	*rcd_pinginfo;	/* ping buffer */
 } lnet_rc_data_t;
 
 typedef struct lnet_peer {
@@ -600,7 +599,7 @@ typedef struct {
 
 	lnet_handle_md_t		  ln_ping_target_md;
 	lnet_handle_eq_t		  ln_ping_target_eq;
-	lnet_ping_info_t		 *ln_ping_info;
+	struct lnet_ping_info		 *ln_ping_info;
 
 	/* router checker startup/shutdown state */
 	int				  ln_rc_state;

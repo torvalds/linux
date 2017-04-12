@@ -9,6 +9,7 @@
 
 /* maximum number of slots to use */
 #define NFS4_DEF_SLOT_TABLE_SIZE (64U)
+#define NFS4_DEF_CB_SLOT_TABLE_SIZE (1U)
 #define NFS4_MAX_SLOT_TABLE (1024U)
 #define NFS4_NO_SLOT ((u32)-1)
 
@@ -22,6 +23,7 @@ struct nfs4_slot {
 	u32			slot_nr;
 	u32		 	seq_nr;
 	unsigned int		interrupted : 1,
+				privileged : 1,
 				seq_done : 1;
 };
 
@@ -101,6 +103,11 @@ static inline bool nfs4_test_locked_slot(const struct nfs4_slot_table *tbl,
 	return !!test_bit(slotid, tbl->used_slots);
 }
 
+static inline struct nfs4_session *nfs4_get_session(const struct nfs_client *clp)
+{
+	return clp->cl_session;
+}
+
 #if defined(CONFIG_NFS_V4_1)
 extern void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
 		u32 target_highest_slotid);
@@ -167,6 +174,8 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 {
 	return 0;
 }
+
+#define nfs_session_id_hash(session) (0)
 
 #endif /* defined(CONFIG_NFS_V4_1) */
 #endif /* IS_ENABLED(CONFIG_NFS_V4) */

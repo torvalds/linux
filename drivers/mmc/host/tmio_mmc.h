@@ -24,6 +24,7 @@
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 
 #define CTL_SD_CMD 0x00
 #define CTL_ARG_REG 0x04
@@ -79,6 +80,9 @@
 #define	CLK_CTL_DIV_MASK	0xff
 #define	CLK_CTL_SCLKEN		BIT(8)
 
+#define CARD_OPT_WIDTH8		BIT(13)
+#define CARD_OPT_WIDTH		BIT(15)
+
 #define TMIO_BBS		512		/* Boot block size */
 
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
@@ -86,6 +90,8 @@
 #define TMIO_SDIO_STAT_EXPUB52	0x4000
 #define TMIO_SDIO_STAT_EXWT	0x8000
 #define TMIO_SDIO_MASK_ALL	0xc007
+
+#define TMIO_SDIO_SETBITS_MASK	0x0006
 
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
@@ -150,16 +156,35 @@ struct tmio_mmc_host {
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
 	bool			sdio_irq_enabled;
+	u32			scc_tappos;
 
-	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
+	/* Mandatory callback */
 	int (*clk_enable)(struct tmio_mmc_host *host);
+
+	/* Optional callbacks */
 	unsigned int (*clk_update)(struct tmio_mmc_host *host,
 				   unsigned int new_clock);
 	void (*clk_disable)(struct tmio_mmc_host *host);
 	int (*multi_io_quirk)(struct mmc_card *card,
 			      unsigned int direction, int blk_size);
+	int (*card_busy)(struct mmc_host *mmc);
 	int (*start_signal_voltage_switch)(struct mmc_host *mmc,
 					   struct mmc_ios *ios);
+	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
+	void (*hw_reset)(struct tmio_mmc_host *host);
+	void (*prepare_tuning)(struct tmio_mmc_host *host, unsigned long tap);
+	bool (*check_scc_error)(struct tmio_mmc_host *host);
+
+	/*
+	 * Mandatory callback for tuning to occur which is optional for SDR50
+	 * and mandatory for SDR104.
+	 */
+	unsigned int (*init_tuning)(struct tmio_mmc_host *host);
+	int (*select_tuning)(struct tmio_mmc_host *host);
+
+	/* Tuning values: 1 for success, 0 for failure */
+	DECLARE_BITMAP(taps, BITS_PER_BYTE * sizeof(long));
+	unsigned int tap_num;
 };
 
 struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev);
@@ -241,6 +266,12 @@ static inline u32 sd_ctrl_read16_and_16_as_32(struct tmio_mmc_host *host, int ad
 	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
 }
 
+static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
+		u32 *buf, int count)
+{
+	readsl(host->ctl + (addr << host->bus_shift), buf, count);
+}
+
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
 {
 	/* If there is a hook and it returns non-zero then there
@@ -261,6 +292,12 @@ static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host, int 
 {
 	writew(val & 0xffff, host->ctl + (addr << host->bus_shift));
 	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
+}
+
+static inline void sd_ctrl_write32_rep(struct tmio_mmc_host *host, int addr,
+		const u32 *buf, int count)
+{
+	writesl(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
 #endif

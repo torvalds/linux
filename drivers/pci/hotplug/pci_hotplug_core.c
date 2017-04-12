@@ -23,9 +23,12 @@
  *
  * Send feedback to <kristen.c.accardi@intel.com>
  *
+ * Authors:
+ *   Greg Kroah-Hartman <greg@kroah.com>
+ *   Scott Murray <scottm@somanetworks.com>
  */
 
-#include <linux/module.h>
+#include <linux/module.h>	/* try_module_get & module_put */
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -39,7 +42,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "../pci.h"
 #include "cpci_hotplug.h"
 
@@ -50,14 +53,8 @@
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
 
-
 /* local variables */
 static bool debug;
-
-#define DRIVER_VERSION	"0.5"
-#define DRIVER_AUTHOR	"Greg Kroah-Hartman <greg@kroah.com>, Scott Murray <scottm@somanetworks.com>"
-#define DRIVER_DESC	"PCI Hot Plug PCI Core"
-
 
 static LIST_HEAD(pci_hotplug_slot_list);
 static DEFINE_MUTEX(pci_hp_mutex);
@@ -534,20 +531,13 @@ static int __init pci_hotplug_init(void)
 		return result;
 	}
 
-	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	return result;
 }
+device_initcall(pci_hotplug_init);
 
-static void __exit pci_hotplug_exit(void)
-{
-	cpci_hotplug_exit();
-}
-
-module_init(pci_hotplug_init);
-module_exit(pci_hotplug_exit);
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");

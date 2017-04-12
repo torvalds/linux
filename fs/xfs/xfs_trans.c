@@ -217,7 +217,7 @@ undo_log:
 
 undo_blocks:
 	if (blocks > 0) {
-		xfs_mod_fdblocks(tp->t_mountp, -((int64_t)blocks), rsvd);
+		xfs_mod_fdblocks(tp->t_mountp, (int64_t)blocks, rsvd);
 		tp->t_blk_res = 0;
 	}
 
@@ -318,7 +318,6 @@ xfs_trans_mod_sb(
 		 * in-core superblock's counter.  This should only
 		 * be applied to the on-disk superblock.
 		 */
-		ASSERT(delta < 0);
 		tp->t_res_fdblocks_delta += delta;
 		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
 			flags &= ~XFS_TRANS_SB_DIRTY;

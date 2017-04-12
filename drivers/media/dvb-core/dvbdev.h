@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #ifndef _DVBDEV_H_
@@ -34,7 +30,7 @@
 #if defined(CONFIG_DVB_MAX_ADAPTERS) && CONFIG_DVB_MAX_ADAPTERS > 0
   #define DVB_MAX_ADAPTERS CONFIG_DVB_MAX_ADAPTERS
 #else
-  #define DVB_MAX_ADAPTERS 8
+  #define DVB_MAX_ADAPTERS 16
 #endif
 
 #define DVB_UNSET (-1)
@@ -212,7 +208,30 @@ int dvb_register_device(struct dvb_adapter *adap,
 			int demux_sink_pads);
 
 /**
+ * dvb_remove_device - Remove a registered DVB device
+ *
+ * This does not free memory.  To do that, call dvb_free_device().
+ *
+ * @dvbdev:	pointer to struct dvb_device
+ */
+void dvb_remove_device(struct dvb_device *dvbdev);
+
+/**
+ * dvb_free_device - Free memory occupied by a DVB device.
+ *
+ * Call dvb_unregister_device() before calling this function.
+ *
+ * @dvbdev:	pointer to struct dvb_device
+ */
+void dvb_free_device(struct dvb_device *dvbdev);
+
+/**
  * dvb_unregister_device - Unregisters a DVB device
+ *
+ * This is a combination of dvb_remove_device() and dvb_free_device().
+ * Using this function is usually a mistake, and is often an indicator
+ * for a use-after-free bug (when a userspace process keeps a file
+ * handle to a detached device).
  *
  * @dvbdev:	pointer to struct dvb_device
  */

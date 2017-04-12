@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,11 +142,11 @@ void acpi_db_decode_internal_object(union acpi_operand_object *obj_desc)
 
 	case ACPI_TYPE_STRING:
 
-		acpi_os_printf("(%u) \"%.24s",
+		acpi_os_printf("(%u) \"%.60s",
 			       obj_desc->string.length,
 			       obj_desc->string.pointer);
 
-		if (obj_desc->string.length > 24) {
+		if (obj_desc->string.length > 60) {
 			acpi_os_printf("...");
 		} else {
 			acpi_os_printf("\"");

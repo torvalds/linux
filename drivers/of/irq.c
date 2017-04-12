@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_pci.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 
@@ -103,7 +104,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	const __be32 *match_array = initial_match_array;
 	const __be32 *tmp, *imap, *imask, dummy_imask[] = { [0 ... MAX_PHANDLE_ARGS] = ~0 };
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
-	int imaplen, match, i;
+	int imaplen, match, i, rc = -EINVAL;
 
 #ifdef DEBUG
 	of_print_phandle_args("of_irq_parse_raw: ", out_irq);
@@ -133,7 +134,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	pr_debug("of_irq_parse_raw: ipar=%s, size=%d\n", of_node_full_name(ipar), intsize);
 
 	if (out_irq->args_count != intsize)
-		return -EINVAL;
+		goto fail;
 
 	/* Look for this #address-cells. We have to implement the old linux
 	 * trick of looking for the parent here as some device-trees rely on it
@@ -152,8 +153,10 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	pr_debug(" -> addrsize=%d\n", addrsize);
 
 	/* Range check so that the temporary buffer doesn't overflow */
-	if (WARN_ON(addrsize + intsize > MAX_PHANDLE_ARGS))
+	if (WARN_ON(addrsize + intsize > MAX_PHANDLE_ARGS)) {
+		rc = -EFAULT;
 		goto fail;
+	}
 
 	/* Precalculate the match array - this simplifies match loop */
 	for (i = 0; i < addrsize; i++)
@@ -239,10 +242,11 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			    newintsize, newaddrsize);
 
 			/* Check for malformed properties */
-			if (WARN_ON(newaddrsize + newintsize > MAX_PHANDLE_ARGS))
+			if (WARN_ON(newaddrsize + newintsize > MAX_PHANDLE_ARGS)
+			    || (imaplen < (newaddrsize + newintsize))) {
+				rc = -EFAULT;
 				goto fail;
-			if (imaplen < (newaddrsize + newintsize))
-				goto fail;
+			}
 
 			imap += newaddrsize + newintsize;
 			imaplen -= newaddrsize + newintsize;
@@ -270,11 +274,13 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		ipar = newpar;
 		newpar = NULL;
 	}
+	rc = -ENOENT; /* No interrupt-map found */
+
  fail:
 	of_node_put(ipar);
 	of_node_put(newpar);
 
-	return -EINVAL;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(of_irq_parse_raw);
 
@@ -592,87 +598,16 @@ static u32 __of_msi_map_rid(struct device *dev, struct device_node **np,
 			    u32 rid_in)
 {
 	struct device *parent_dev;
-	struct device_node *msi_controller_node;
-	struct device_node *msi_np = *np;
-	u32 map_mask, masked_rid, rid_base, msi_base, rid_len, phandle;
-	int msi_map_len;
-	bool matched;
 	u32 rid_out = rid_in;
-	const __be32 *msi_map = NULL;
 
 	/*
 	 * Walk up the device parent links looking for one with a
 	 * "msi-map" property.
 	 */
-	for (parent_dev = dev; parent_dev; parent_dev = parent_dev->parent) {
-		if (!parent_dev->of_node)
-			continue;
-
-		msi_map = of_get_property(parent_dev->of_node,
-					  "msi-map", &msi_map_len);
-		if (!msi_map)
-			continue;
-
-		if (msi_map_len % (4 * sizeof(__be32))) {
-			dev_err(parent_dev, "Error: Bad msi-map length: %d\n",
-				msi_map_len);
-			return rid_out;
-		}
-		/* We have a good parent_dev and msi_map, let's use them. */
-		break;
-	}
-	if (!msi_map)
-		return rid_out;
-
-	/* The default is to select all bits. */
-	map_mask = 0xffffffff;
-
-	/*
-	 * Can be overridden by "msi-map-mask" property.  If
-	 * of_property_read_u32() fails, the default is used.
-	 */
-	of_property_read_u32(parent_dev->of_node, "msi-map-mask", &map_mask);
-
-	masked_rid = map_mask & rid_in;
-	matched = false;
-	while (!matched && msi_map_len >= 4 * sizeof(__be32)) {
-		rid_base = be32_to_cpup(msi_map + 0);
-		phandle = be32_to_cpup(msi_map + 1);
-		msi_base = be32_to_cpup(msi_map + 2);
-		rid_len = be32_to_cpup(msi_map + 3);
-
-		if (rid_base & ~map_mask) {
-			dev_err(parent_dev,
-				"Invalid msi-map translation - msi-map-mask (0x%x) ignores rid-base (0x%x)\n",
-				map_mask, rid_base);
-			return rid_out;
-		}
-
-		msi_controller_node = of_find_node_by_phandle(phandle);
-
-		matched = (masked_rid >= rid_base &&
-			   masked_rid < rid_base + rid_len);
-		if (msi_np)
-			matched &= msi_np == msi_controller_node;
-
-		if (matched && !msi_np) {
-			*np = msi_np = msi_controller_node;
+	for (parent_dev = dev; parent_dev; parent_dev = parent_dev->parent)
+		if (!of_pci_map_rid(parent_dev->of_node, rid_in, "msi-map",
+				    "msi-map-mask", np, &rid_out))
 			break;
-		}
-
-		of_node_put(msi_controller_node);
-		msi_map_len -= 4 * sizeof(__be32);
-		msi_map += 4;
-	}
-	if (!matched)
-		return rid_out;
-
-	rid_out = masked_rid - rid_base + msi_base;
-	dev_dbg(dev,
-		"msi-map at: %s, using mask %08x, rid-base: %08x, msi-base: %08x, length: %08x, rid: %08x -> %08x\n",
-		dev_name(parent_dev), map_mask, rid_base, msi_base,
-		rid_len, rid_in, rid_out);
-
 	return rid_out;
 }
 
@@ -767,3 +702,4 @@ void of_msi_configure(struct device *dev, struct device_node *np)
 	dev_set_msi_domain(dev,
 			   of_msi_get_domain(dev, np, DOMAIN_BUS_PLATFORM_MSI));
 }
+EXPORT_SYMBOL_GPL(of_msi_configure);

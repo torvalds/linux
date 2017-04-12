@@ -24,7 +24,9 @@
 #define CPPC_NUM_ENT	21
 #define CPPC_REV	2
 
-#define PCC_CMD_COMPLETE 1
+#define PCC_CMD_COMPLETE_MASK	(1 << 0)
+#define PCC_ERROR_MASK		(1 << 2)
+
 #define MAX_CPC_REG_ENT 19
 
 /* CPPC specific PCC commands. */
@@ -49,6 +51,7 @@ struct cpc_reg {
  */
 struct cpc_register_resource {
 	acpi_object_type type;
+	u64 __iomem *sys_mem_vaddr;
 	union {
 		struct cpc_reg reg;
 		u64 int_value;
@@ -60,8 +63,11 @@ struct cpc_desc {
 	int num_entries;
 	int version;
 	int cpu_id;
+	int write_cmd_status;
+	int write_cmd_id;
 	struct cpc_register_resource cpc_regs[MAX_CPC_REG_ENT];
 	struct acpi_psd_package domain_info;
+	struct kobject kobj;
 };
 
 /* These are indexes into the per-cpu cpc_regs[]. Order is important. */
@@ -96,7 +102,6 @@ enum cppc_regs {
 struct cppc_perf_caps {
 	u32 highest_perf;
 	u32 nominal_perf;
-	u32 reference_perf;
 	u32 lowest_perf;
 };
 
@@ -108,13 +113,13 @@ struct cppc_perf_ctrls {
 
 struct cppc_perf_fb_ctrs {
 	u64 reference;
-	u64 prev_reference;
 	u64 delivered;
-	u64 prev_delivered;
+	u64 reference_perf;
+	u64 ctr_wrap_time;
 };
 
 /* Per CPU container for runtime CPPC management. */
-struct cpudata {
+struct cppc_cpudata {
 	int cpu;
 	struct cppc_perf_caps perf_caps;
 	struct cppc_perf_ctrls perf_ctrls;
@@ -127,6 +132,7 @@ struct cpudata {
 extern int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs);
 extern int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
 extern int cppc_get_perf_caps(int cpu, struct cppc_perf_caps *caps);
-extern int acpi_get_psd_map(struct cpudata **);
+extern int acpi_get_psd_map(struct cppc_cpudata **);
+extern unsigned int cppc_get_transition_latency(int cpu);
 
 #endif /* _CPPC_ACPI_H*/

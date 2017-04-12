@@ -83,7 +83,7 @@ ldebugfs_fid_write_common(const char __user *buffer, size_t count,
 		    (unsigned long long *)&tmp.lsr_end);
 	if (rc != 2)
 		return -EINVAL;
-	if (!range_is_sane(&tmp) || range_is_zero(&tmp) ||
+	if (!lu_seq_range_is_sane(&tmp) || lu_seq_range_is_zero(&tmp) ||
 	    tmp.lsr_start < range->lsr_start || tmp.lsr_end > range->lsr_end)
 		return -EINVAL;
 	*range = tmp;
@@ -105,7 +105,7 @@ ldebugfs_fid_space_seq_write(struct file *file,
 	rc = ldebugfs_fid_write_common(buffer, count, &seq->lcs_space);
 
 	if (rc == 0) {
-		CDEBUG(D_INFO, "%s: Space: "DRANGE"\n",
+		CDEBUG(D_INFO, "%s: Space: " DRANGE "\n",
 		       seq->lcs_name, PRANGE(&seq->lcs_space));
 	}
 
@@ -203,9 +203,13 @@ LPROC_SEQ_FOPS_RO(ldebugfs_fid_server);
 LPROC_SEQ_FOPS_RO(ldebugfs_fid_fid);
 
 struct lprocfs_vars seq_client_debugfs_list[] = {
-	{ "space", &ldebugfs_fid_space_fops },
-	{ "width", &ldebugfs_fid_width_fops },
-	{ "server", &ldebugfs_fid_server_fops },
-	{ "fid", &ldebugfs_fid_fid_fops },
+	{ .name =	"space",
+	  .fops =	&ldebugfs_fid_space_fops },
+	{ .name	=	"width",
+	  .fops =	&ldebugfs_fid_width_fops },
+	{ .name =	"server",
+	  .fops =	&ldebugfs_fid_server_fops },
+	{ .name	=	"fid",
+	  .fops =	&ldebugfs_fid_fid_fops },
 	{ NULL }
 };

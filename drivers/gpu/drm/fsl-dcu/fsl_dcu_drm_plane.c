@@ -44,7 +44,7 @@ static int fsl_dcu_drm_plane_atomic_check(struct drm_plane *plane,
 	if (!state->fb || !state->crtc)
 		return 0;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_XRGB8888:
@@ -96,7 +96,7 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		bpp = FSL_DCU_RGB565;
 		break;
@@ -160,34 +160,14 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 			     DCU_LAYER_POST_SKIP(0) |
 			     DCU_LAYER_PRE_SKIP(0));
 	}
-	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
-			   DCU_MODE_DCU_MODE_MASK,
-			   DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
-	regmap_write(fsl_dev->regmap,
-		     DCU_UPDATE_MODE, DCU_UPDATE_MODE_READREG);
 
 	return;
-}
-
-static void
-fsl_dcu_drm_plane_cleanup_fb(struct drm_plane *plane,
-			     const struct drm_plane_state *new_state)
-{
-}
-
-static int
-fsl_dcu_drm_plane_prepare_fb(struct drm_plane *plane,
-			     const struct drm_plane_state *new_state)
-{
-	return 0;
 }
 
 static const struct drm_plane_helper_funcs fsl_dcu_drm_plane_helper_funcs = {
 	.atomic_check = fsl_dcu_drm_plane_atomic_check,
 	.atomic_disable = fsl_dcu_drm_plane_atomic_disable,
 	.atomic_update = fsl_dcu_drm_plane_atomic_update,
-	.cleanup_fb = fsl_dcu_drm_plane_cleanup_fb,
-	.prepare_fb = fsl_dcu_drm_plane_prepare_fb,
 };
 
 static void fsl_dcu_drm_plane_destroy(struct drm_plane *plane)
@@ -226,11 +206,6 @@ void fsl_dcu_drm_init_planes(struct drm_device *dev)
 		for (j = 1; j <= fsl_dev->soc->layer_regs; j++)
 			regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(i, j), 0);
 	}
-	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
-			   DCU_MODE_DCU_MODE_MASK,
-			   DCU_MODE_DCU_MODE(DCU_MODE_OFF));
-	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
-		     DCU_UPDATE_MODE_READREG);
 }
 
 struct drm_plane *fsl_dcu_drm_primary_create_plane(struct drm_device *dev)

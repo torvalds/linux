@@ -181,11 +181,11 @@ ENDPROC(memcpy_orig)
 
 #ifndef CONFIG_UML
 /*
- * memcpy_mcsafe - memory copy with machine check exception handling
+ * memcpy_mcsafe_unrolled - memory copy with machine check exception handling
  * Note that we only catch machine checks when reading the source addresses.
  * Writes to target are posted and don't generate machine checks.
  */
-ENTRY(memcpy_mcsafe)
+ENTRY(memcpy_mcsafe_unrolled)
 	cmpl $8, %edx
 	/* Less than 8 bytes? Go to byte copy loop */
 	jb .L_no_whole_words
@@ -273,7 +273,7 @@ ENTRY(memcpy_mcsafe)
 .L_done_memcpy_trap:
 	xorq %rax, %rax
 	ret
-ENDPROC(memcpy_mcsafe)
+ENDPROC(memcpy_mcsafe_unrolled)
 
 	.section .fixup, "ax"
 	/* Return -EFAULT for any failure */

@@ -231,9 +231,6 @@ ieee80211_get_max_required_bw(struct ieee80211_sub_if_data *sdata)
 		    !(sta->sdata->bss && sta->sdata->bss == sdata->bss))
 			continue;
 
-		if (!sta->uploaded || !test_sta_flag(sta, WLAN_STA_ASSOC))
-			continue;
-
 		max_bw = max(max_bw, ieee80211_get_sta_bw(&sta->sta));
 	}
 	rcu_read_unlock();
@@ -274,6 +271,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 				    ieee80211_get_max_required_bw(sdata));
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
+		case NL80211_IFTYPE_NAN:
 			continue;
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_WDS:
@@ -646,6 +644,9 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_chanctx *curr_ctx = NULL;
 	int ret = 0;
 
+	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_NAN))
+		return -ENOTSUPP;
+
 	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 
@@ -718,6 +719,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_P2P_DEVICE:
+		case NL80211_IFTYPE_NAN:
 			continue;
 		case NL80211_IFTYPE_STATION:
 			if (!sdata->u.mgd.associated)
@@ -980,6 +982,7 @@ ieee80211_vif_chanctx_reservation_complete(struct ieee80211_sub_if_data *sdata)
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_NAN:
 	case NUM_NL80211_IFTYPES:
 		WARN_ON(1);
 		break;
@@ -1264,7 +1267,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata, *sdata_tmp;
 	struct ieee80211_chanctx *ctx, *ctx_tmp, *old_ctx;
 	struct ieee80211_chanctx *new_ctx = NULL;
-	int i, err, n_assigned, n_reserved, n_ready;
+	int err, n_assigned, n_reserved, n_ready;
 	int n_ctx = 0, n_vifs_switch = 0, n_vifs_assign = 0, n_vifs_ctxless = 0;
 
 	lockdep_assert_held(&local->mtx);
@@ -1385,8 +1388,6 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 	 * Update all structures, values and pointers to point to new channel
 	 * context(s).
 	 */
-
-	i = 0;
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
 		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACES_OTHER)
 			continue;

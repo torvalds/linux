@@ -308,9 +308,11 @@ static struct regmap *atmel_classd_codec_get_remap(struct device *dev)
 
 static struct snd_soc_codec_driver soc_codec_dev_classd = {
 	.probe		= atmel_classd_codec_probe,
-	.controls	= atmel_classd_snd_controls,
-	.num_controls	= ARRAY_SIZE(atmel_classd_snd_controls),
 	.get_regmap	= atmel_classd_codec_get_remap,
+	.component_driver = {
+		.controls		= atmel_classd_snd_controls,
+		.num_controls		= ARRAY_SIZE(atmel_classd_snd_controls),
+	},
 };
 
 /* codec dai component */
@@ -347,7 +349,7 @@ static int atmel_classd_codec_dai_digital_mute(struct snd_soc_dai *codec_dai,
 }
 
 #define CLASSD_ACLK_RATE_11M2896_MPY_8 (112896 * 100 * 8)
-#define CLASSD_ACLK_RATE_12M288_MPY_8  (12228 * 1000 * 8)
+#define CLASSD_ACLK_RATE_12M288_MPY_8  (12288 * 1000 * 8)
 
 static struct {
 	int rate;

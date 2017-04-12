@@ -135,6 +135,7 @@ config MACVTAP
 	tristate "MAC-VLAN based tap driver"
 	depends on MACVLAN
 	depends on INET
+	select TAP
 	help
 	  This adds a specialized tap character device driver that is based
 	  on the MAC-VLAN network interface, called macvtap. A macvtap device
@@ -149,6 +150,8 @@ config IPVLAN
     tristate "IP-VLAN support"
     depends on INET
     depends on IPV6
+    depends on NETFILTER
+    depends on NET_L3_MASTER_DEV
     ---help---
       This allows one to create virtual devices off of a main interface
       and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
@@ -163,11 +166,25 @@ config IPVLAN
       To compile this driver as a module, choose M here: the module
       will be called ipvlan.
 
+config IPVTAP
+	tristate "IP-VLAN based tap driver"
+	depends on IPVLAN
+	depends on INET
+	select TAP
+	---help---
+	  This adds a specialized tap character device driver that is based
+	  on the IP-VLAN network interface, called ipvtap. An ipvtap device
+	  can be added in the same way as a ipvlan device, using 'type
+	  ipvtap', and then be accessed through the tap user space interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ipvtap.
 
 config VXLAN
        tristate "Virtual eXtensible Local Area Network (VXLAN)"
        depends on INET
        select NET_UDP_TUNNEL
+       select GRO_CELLS
        ---help---
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
@@ -182,6 +199,7 @@ config GENEVE
        tristate "Generic Network Virtualization Encapsulation"
        depends on INET && NET_UDP_TUNNEL
        select NET_IP_TUNNEL
+       select GRO_CELLS
        ---help---
 	  This allows one to create geneve virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
@@ -214,6 +232,7 @@ config MACSEC
 	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_GCM
+	select GRO_CELLS
 	---help---
 	   MACsec is an encryption standard for Ethernet.
 
@@ -281,6 +300,12 @@ config TUN
 	  will be called tun.
 
 	  If you don't know what to use this for, you don't need it.
+
+config TAP
+	tristate
+	---help---
+	  This option is selected by any driver implementing tap user space
+	  interface for a virtual interface to re-use core tap functionality.
 
 config TUN_VNET_CROSS_LE
 	bool "Support for cross-endian vnet headers on little-endian kernels"
@@ -435,6 +460,9 @@ config XEN_NETDEV_BACKEND
 config VMXNET3
 	tristate "VMware VMXNET3 ethernet driver"
 	depends on PCI && INET
+	depends on !(PAGE_SIZE_64KB || ARM64_64K_PAGES || \
+		     IA64_PAGE_SIZE_64KB || MICROBLAZE_64K_PAGES || \
+		     PARISC_PAGE_SIZE_64KB || PPC_64K_PAGES)
 	help
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the

@@ -12,11 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- *
  * File: baseband.h
  *
  * Purpose: Implement functions to access baseband
@@ -60,12 +55,6 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
-#define BBvClearFOE(dwIoBase)				\
-	BBbWriteEmbedded(dwIoBase, 0xB1, 0)
-
-#define BBvSetFOE(dwIoBase)				\
-	BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C)
-
 unsigned int
 BBuGetFrameTime(
 	unsigned char byPreambleType,
@@ -86,13 +75,13 @@ void BBvSetShortSlotTime(struct vnt_private *);
 void BBvSetVGAGainOffset(struct vnt_private *, unsigned char byData);
 
 /* VT3253 Baseband */
-bool BBbVT3253Init(struct vnt_private *);
-void BBvSoftwareReset(struct vnt_private *);
-void BBvPowerSaveModeON(struct vnt_private *);
-void BBvPowerSaveModeOFF(struct vnt_private *);
-void BBvSetTxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
-void BBvSetRxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
-void BBvSetDeepSleep(struct vnt_private *, unsigned char byLocalID);
-void BBvExitDeepSleep(struct vnt_private *, unsigned char byLocalID);
+bool BBbVT3253Init(struct vnt_private *priv);
+void BBvSoftwareReset(struct vnt_private *priv);
+void BBvPowerSaveModeON(struct vnt_private *priv);
+void BBvPowerSaveModeOFF(struct vnt_private *priv);
+void BBvSetTxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
+void BBvSetRxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
+void BBvSetDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
+void BBvExitDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
 
 #endif /* __BASEBAND_H__ */

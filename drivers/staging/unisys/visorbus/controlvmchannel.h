@@ -43,8 +43,6 @@
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE)
 
-#define MAX_SERIAL_NUM	32
-
 /* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST		0
 #define CONTROLVM_QUEUE_RESPONSE	1
@@ -436,26 +434,6 @@ struct spar_controlvm_channel_protocol {
 	 struct controlvm_message saved_crash_msg[CONTROLVM_CRASHMSG_MAX];
 };
 
-/* Offsets for VM channel attributes */
-#define VM_CH_REQ_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, request_queue)
-#define VM_CH_RESP_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, response_queue)
-#define VM_CH_EVENT_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_queue)
-#define VM_CH_ACK_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_ack_queue)
-#define VM_CH_REQ_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, request_msg)
-#define VM_CH_RESP_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, response_msg)
-#define VM_CH_EVENT_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_msg)
-#define VM_CH_ACK_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_ack_msg)
-#define VM_CH_CRASH_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, saved_crash_msg)
-
 /* The following header will be located at the beginning of PayloadVmOffset for
  * various ControlVm commands. The receiver of a ControlVm command with a
  * PayloadVmOffset will dereference this address and then use connection_offset,
@@ -481,5 +459,80 @@ struct spar_controlvm_parameters_header {
 	u32 revision;
 	u32 reserved;		/* Natural alignment */
 };
+
+/* General Errors------------------------------------------------------[0-99] */
+#define CONTROLVM_RESP_SUCCESS                                  0
+#define CONTROLVM_RESP_ALREADY_DONE                             1
+#define CONTROLVM_RESP_IOREMAP_FAILED                           2
+#define CONTROLVM_RESP_KMALLOC_FAILED                           3
+#define CONTROLVM_RESP_ID_UNKNOWN                               4
+#define CONTROLVM_RESP_ID_INVALID_FOR_CLIENT                    5
+
+/* CONTROLVM_INIT_CHIPSET-------------------------------------------[100-199] */
+#define CONTROLVM_RESP_CLIENT_SWITCHCOUNT_NONZERO               100
+#define CONTROLVM_RESP_EXPECTED_CHIPSET_INIT                    101
+
+/* Maximum Limit----------------------------------------------------[200-299] */
+#define CONTROLVM_RESP_ERROR_MAX_BUSES		201	/* BUS_CREATE */
+#define CONTROLVM_RESP_ERROR_MAX_DEVICES        202	/* DEVICE_CREATE */
+/* Payload and Parameter Related------------------------------------[400-499] */
+#define CONTROLVM_RESP_PAYLOAD_INVALID		400	/* SWITCH_ATTACHEXTPORT,
+							 * DEVICE_CONFIGURE
+							 */
+#define CONTROLVM_RESP_INITIATOR_PARAMETER_INVALID 401  /* Multiple */
+#define CONTROLVM_RESP_TARGET_PARAMETER_INVALID    402  /* DEVICE_CONFIGURE */
+#define CONTROLVM_RESP_CLIENT_PARAMETER_INVALID    403  /* DEVICE_CONFIGURE */
+/* Specified[Packet Structure] Value-------------------------------[500-599] */
+#define CONTROLVM_RESP_BUS_INVALID                 500	/* SWITCH_ATTACHINTPORT,
+							 * BUS_CONFIGURE,
+							 * DEVICE_CREATE,
+							 * DEVICE_CONFIG
+							 * DEVICE_DESTROY
+							 */
+#define CONTROLVM_RESP_DEVICE_INVALID           501 /* SWITCH_ATTACHINTPORT */
+						    /* DEVICE_CREATE,
+						     * DEVICE_CONFIGURE,
+						     * DEVICE_DESTROY
+						     */
+#define CONTROLVM_RESP_CHANNEL_INVALID          502 /* DEVICE_CREATE,
+						     * DEVICE_CONFIGURE
+						     */
+/* Partition Driver Callback Interface----------------------[600-699] */
+#define CONTROLVM_RESP_VIRTPCI_DRIVER_FAILURE   604       /* BUS_CREATE,
+							   * BUS_DESTROY,
+							   * DEVICE_CREATE,
+							   * DEVICE_DESTROY
+							   */
+/* Unable to invoke VIRTPCI callback */
+#define CONTROLVM_RESP_VIRTPCI_DRIVER_CALLBACK_ERROR 605  /* BUS_CREATE,
+							   * BUS_DESTROY,
+							   * DEVICE_CREATE,
+							   * DEVICE_DESTROY
+							   */
+/* VIRTPCI Callback returned error */
+#define CONTROLVM_RESP_GENERIC_DRIVER_CALLBACK_ERROR 606
+							/* SWITCH_ATTACHEXTPORT,
+							 * SWITCH_DETACHEXTPORT
+							 * DEVICE_CONFIGURE
+							 */
+
+/* generic device callback returned error */
+/* Bus Related------------------------------------------------------[700-799] */
+#define CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED 700	/* BUS_DESTROY */
+/* Channel Related--------------------------------------------------[800-899] */
+#define CONTROLVM_RESP_CHANNEL_TYPE_UNKNOWN 800	        /* GET_CHANNELINFO,
+							 * DEVICE_DESTROY
+							 */
+#define CONTROLVM_RESP_CHANNEL_SIZE_TOO_SMALL 801	/* DEVICE_CREATE */
+/* Chipset Shutdown Related---------------------------------------[1000-1099] */
+#define CONTROLVM_RESP_CHIPSET_SHUTDOWN_FAILED            1000
+#define CONTROLVM_RESP_CHIPSET_SHUTDOWN_ALREADY_ACTIVE    1001
+
+/* Chipset Stop Related-------------------------------------------[1100-1199] */
+#define CONTROLVM_RESP_CHIPSET_STOP_FAILED_BUS            1100
+#define CONTROLVM_RESP_CHIPSET_STOP_FAILED_SWITCH         1101
+
+/* Device Related-------------------------------------------------[1400-1499] */
+#define CONTROLVM_RESP_DEVICE_UDEV_TIMEOUT                1400
 
 #endif				/* __CONTROLVMCHANNEL_H__ */

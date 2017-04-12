@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,11 @@
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbmethod")
 
+/* Local prototypes */
+static acpi_status
+acpi_db_walk_for_execute(acpi_handle obj_handle,
+			 u32 nesting_level, void *context, void **return_value);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_db_set_method_breakpoint
@@ -66,6 +71,7 @@ ACPI_MODULE_NAME("dbmethod")
  *              AML offset
  *
  ******************************************************************************/
+
 void
 acpi_db_set_method_breakpoint(char *location,
 			      struct acpi_walk_state *walk_state,
@@ -366,4 +372,130 @@ acpi_status acpi_db_disassemble_method(char *name)
 	acpi_ns_delete_namespace_by_owner(obj_desc->method.owner_id);
 	acpi_ut_release_owner_id(&obj_desc->method.owner_id);
 	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_walk_for_execute
+ *
+ * PARAMETERS:  Callback from walk_namespace
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Batch execution module. Currently only executes predefined
+ *              ACPI names.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_db_walk_for_execute(acpi_handle obj_handle,
+			 u32 nesting_level, void *context, void **return_value)
+{
+	struct acpi_namespace_node *node =
+	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_db_execute_walk *info =
+	    (struct acpi_db_execute_walk *)context;
+	struct acpi_buffer return_obj;
+	acpi_status status;
+	char *pathname;
+	u32 i;
+	struct acpi_device_info *obj_info;
+	struct acpi_object_list param_objects;
+	union acpi_object params[ACPI_METHOD_NUM_ARGS];
+	const union acpi_predefined_info *predefined;
+
+	predefined = acpi_ut_match_predefined_method(node->name.ascii);
+	if (!predefined) {
+		return (AE_OK);
+	}
+
+	if (node->type == ACPI_TYPE_LOCAL_SCOPE) {
+		return (AE_OK);
+	}
+
+	pathname = acpi_ns_get_external_pathname(node);
+	if (!pathname) {
+		return (AE_OK);
+	}
+
+	/* Get the object info for number of method parameters */
+
+	status = acpi_get_object_info(obj_handle, &obj_info);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	param_objects.pointer = NULL;
+	param_objects.count = 0;
+
+	if (obj_info->type == ACPI_TYPE_METHOD) {
+
+		/* Setup default parameters */
+
+		for (i = 0; i < obj_info->param_count; i++) {
+			params[i].type = ACPI_TYPE_INTEGER;
+			params[i].integer.value = 1;
+		}
+
+		param_objects.pointer = params;
+		param_objects.count = obj_info->param_count;
+	}
+
+	ACPI_FREE(obj_info);
+	return_obj.pointer = NULL;
+	return_obj.length = ACPI_ALLOCATE_BUFFER;
+
+	/* Do the actual method execution */
+
+	acpi_gbl_method_executing = TRUE;
+
+	status = acpi_evaluate_object(node, NULL, &param_objects, &return_obj);
+
+	acpi_os_printf("%-32s returned %s\n", pathname,
+		       acpi_format_exception(status));
+	acpi_gbl_method_executing = FALSE;
+	ACPI_FREE(pathname);
+
+	/* Ignore status from method execution */
+
+	status = AE_OK;
+
+	/* Update count, check if we have executed enough methods */
+
+	info->count++;
+	if (info->count >= info->max_count) {
+		status = AE_CTRL_TERMINATE;
+	}
+
+	return (status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_evaluate_predefined_names
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Namespace batch execution. Execute predefined names in the
+ *              namespace, up to the max count, if specified.
+ *
+ ******************************************************************************/
+
+void acpi_db_evaluate_predefined_names(void)
+{
+	struct acpi_db_execute_walk info;
+
+	info.count = 0;
+	info.max_count = ACPI_UINT32_MAX;
+
+	/* Search all nodes in namespace */
+
+	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
+				  ACPI_UINT32_MAX, acpi_db_walk_for_execute,
+				  NULL, (void *)&info, NULL);
+
+	acpi_os_printf("Evaluated %u predefined names in the namespace\n",
+		       info.count);
 }

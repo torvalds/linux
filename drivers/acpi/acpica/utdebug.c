@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -562,6 +562,43 @@ acpi_ut_ptr_exit(u32 line_number,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_str_exit
+ *
+ * PARAMETERS:  line_number         - Caller's line number
+ *              function_name       - Caller's procedure name
+ *              module_name         - Caller's module name
+ *              component_id        - Caller's component ID
+ *              string              - String to display
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
+ *              set in debug_level. Prints exit value also.
+ *
+ ******************************************************************************/
+
+void
+acpi_ut_str_exit(u32 line_number,
+		 const char *function_name,
+		 const char *module_name, u32 component_id, const char *string)
+{
+
+	/* Check if enabled up-front for performance */
+
+	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_debug_print(ACPI_LV_FUNCTIONS,
+				 line_number, function_name, module_name,
+				 component_id, "%s %s\n",
+				 acpi_gbl_function_exit_prefix, string);
+	}
+
+	if (acpi_gbl_nesting_level) {
+		acpi_gbl_nesting_level--;
+	}
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_trace_point
  *
  * PARAMETERS:  type                - Trace event type
@@ -590,28 +627,4 @@ acpi_trace_point(acpi_trace_event_type type, u8 begin, u8 *aml, char *pathname)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_trace_point)
-#endif
-#ifdef ACPI_APPLICATION
-/*******************************************************************************
- *
- * FUNCTION:    acpi_log_error
- *
- * PARAMETERS:  format              - Printf format field
- *              ...                 - Optional printf arguments
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print error message to the console, used by applications.
- *
- ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE acpi_log_error(const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	(void)acpi_ut_file_vprintf(ACPI_FILE_ERR, format, args);
-	va_end(args);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_log_error)
 #endif

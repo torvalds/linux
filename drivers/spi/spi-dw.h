@@ -101,7 +101,6 @@ struct dw_spi_dma_ops {
 struct dw_spi {
 	struct spi_master	*master;
 	enum dw_ssi_type	type;
-	char			name[16];
 
 	void __iomem		*regs;
 	unsigned long		paddr;
@@ -123,6 +122,7 @@ struct dw_spi {
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	u32			dma_width;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
+	u32			current_freq;	/* frequency in hz */
 
 	/* DMA info */
 	int			dma_inited;

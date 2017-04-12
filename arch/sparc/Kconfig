@@ -22,7 +22,6 @@ config SPARC
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_EXIT_THREAD
 	select SYSCTL_EXCEPTION_TRACE
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select RTC_CLASS
 	select RTC_DRV_M48T59
 	select RTC_SYSTOHC
@@ -44,6 +43,8 @@ config SPARC
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
 	select HAVE_ARCH_HARDENED_USERCOPY
+	select PROVE_LOCKING_SMALL if PROVE_LOCKING
+	select ARCH_WANT_RELAX_ORDER
 
 config SPARC32
 	def_bool !64BIT
@@ -56,7 +57,6 @@ config SPARC64
 	def_bool 64BIT
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
-	select HAVE_FUNCTION_GRAPH_FP_TEST
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
 	select HAVE_RCU_TABLE_FREE if SMP
@@ -90,6 +90,14 @@ config ARCH_DEFCONFIG
 
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
+
+config ARCH_ATU
+	bool
+	default y if SPARC64
+
+config ARCH_DMA_ADDR_T_64BIT
+	bool
+	default y if ARCH_ATU
 
 config IOMMU_HELPER
 	bool
@@ -147,6 +155,9 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 config PGTABLE_LEVELS
 	default 4 if 64BIT
 	default 3
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y if SPARC64
 
 source "init/Kconfig"
 
@@ -305,6 +316,20 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y if SPARC64
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "13"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 13 means that the largest free memory block is 2^12 pages.
 
 source "mm/Kconfig"
 

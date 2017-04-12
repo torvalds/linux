@@ -12,11 +12,12 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/omap.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,omap3430", "ti,omap3";
 	interrupt-parent = <&intc>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -78,7 +79,7 @@
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
-	ocp {
+	ocp@68000000 {
 		compatible = "ti,omap3-l3-smx", "simple-bus";
 		reg = <0x68000000 0x10000>;
 		interrupts = <9 10>;
@@ -106,6 +107,7 @@
 					reg = <0x30 0x238>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <16>;
@@ -145,6 +147,7 @@
 					reg = <0xa00 0x5c>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <16>;

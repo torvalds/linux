@@ -13,6 +13,7 @@
 #define __LINUX_LEDS_H_INCLUDED
 
 #include <linux/device.h>
+#include <linux/kernfs.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
@@ -27,6 +28,7 @@ struct device;
 
 enum led_brightness {
 	LED_OFF		= 0,
+	LED_ON		= 1,
 	LED_HALF	= 127,
 	LED_FULL	= 255,
 };
@@ -42,16 +44,21 @@ struct led_classdev {
 #define LED_UNREGISTERING	(1 << 1)
 	/* Upper 16 bits reflect control information */
 #define LED_CORE_SUSPENDRESUME	(1 << 16)
-#define LED_BLINK_SW		(1 << 17)
-#define LED_BLINK_ONESHOT	(1 << 18)
-#define LED_BLINK_ONESHOT_STOP	(1 << 19)
-#define LED_BLINK_INVERT	(1 << 20)
-#define LED_BLINK_BRIGHTNESS_CHANGE (1 << 21)
-#define LED_BLINK_DISABLE	(1 << 22)
-#define LED_SYSFS_DISABLE	(1 << 23)
-#define LED_DEV_CAP_FLASH	(1 << 24)
-#define LED_HW_PLUGGABLE	(1 << 25)
-#define LED_PANIC_INDICATOR	(1 << 26)
+#define LED_SYSFS_DISABLE	(1 << 17)
+#define LED_DEV_CAP_FLASH	(1 << 18)
+#define LED_HW_PLUGGABLE	(1 << 19)
+#define LED_PANIC_INDICATOR	(1 << 20)
+#define LED_BRIGHT_HW_CHANGED	(1 << 21)
+
+	/* set_brightness_work / blink_timer flags, atomic, private. */
+	unsigned long		work_flags;
+
+#define LED_BLINK_SW			0
+#define LED_BLINK_ONESHOT		1
+#define LED_BLINK_ONESHOT_STOP		2
+#define LED_BLINK_INVERT		3
+#define LED_BLINK_BRIGHTNESS_CHANGE 	4
+#define LED_BLINK_DISABLE		5
 
 	/* Set LED brightness level
 	 * Must not sleep. Use brightness_set_blocking for drivers
@@ -89,6 +96,7 @@ struct led_classdev {
 	unsigned long		 blink_delay_on, blink_delay_off;
 	struct timer_list	 blink_timer;
 	int			 blink_brightness;
+	int			 new_blink_brightness;
 	void			(*flash_resume)(struct led_classdev *led_cdev);
 
 	struct work_struct	set_brightness_work;
@@ -103,6 +111,11 @@ struct led_classdev {
 	void			*trigger_data;
 	/* true if activated - deactivate routine uses it to do cleanup */
 	bool			activated;
+#endif
+
+#ifdef CONFIG_LEDS_BRIGHTNESS_HW_CHANGED
+	int			 brightness_hw_changed;
+	struct kernfs_node	*brightness_hw_changed_kn;
 #endif
 
 	/* Ensures consistent access to the LED Flash Class device */
@@ -359,6 +372,11 @@ struct led_platform_data {
 	struct led_info	*leds;
 };
 
+struct gpio_desc;
+typedef int (*gpio_blink_set_t)(struct gpio_desc *desc, int state,
+				unsigned long *delay_on,
+				unsigned long *delay_off);
+
 /* For the leds-gpio driver */
 struct gpio_led {
 	const char *name;
@@ -382,9 +400,7 @@ struct gpio_led_platform_data {
 #define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
 #define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
 #define GPIO_LED_BLINK		2	/* Please, blink */
-	int		(*gpio_blink_set)(struct gpio_desc *desc, int state,
-					unsigned long *delay_on,
-					unsigned long *delay_off);
+	gpio_blink_set_t	gpio_blink_set;
 };
 
 #ifdef CONFIG_NEW_LEDS
@@ -412,6 +428,14 @@ static inline void ledtrig_cpu(enum cpu_led_event evt)
 {
 	return;
 }
+#endif
+
+#ifdef CONFIG_LEDS_BRIGHTNESS_HW_CHANGED
+extern void led_classdev_notify_brightness_hw_changed(
+	struct led_classdev *led_cdev, enum led_brightness brightness);
+#else
+static inline void led_classdev_notify_brightness_hw_changed(
+	struct led_classdev *led_cdev, enum led_brightness brightness) { }
 #endif
 
 #endif		/* __LINUX_LEDS_H_INCLUDED */

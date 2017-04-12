@@ -1279,9 +1279,8 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 			} else {
 				arg = cmd->convert_arg * cmd->chanlist_len;
 			}
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    arg);
+			err |= comedi_check_trigger_arg_min(
+				&cmd->scan_begin_arg, arg);
 		}
 	}
 
@@ -1693,8 +1692,7 @@ static void pci9118_detach(struct comedi_device *dev)
 		pci9118_reset(dev);
 	comedi_pci_detach(dev);
 	pci9118_free_dma(dev);
-	if (pcidev)
-		pci_dev_put(pcidev);
+	pci_dev_put(pcidev);
 }
 
 static struct comedi_driver adl_pci9118_driver = {

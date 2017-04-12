@@ -205,7 +205,7 @@ enum {
 	/* Phy */
 	PHY_CONFIGURATION_CMD = 0x6a,
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
-	/* PHY_DB_CMD = 0x6c, */
+	PHY_DB_CMD = 0x6c,
 
 	/* ToF - 802.11mc FTM */
 	TOF_CMD = 0x10,
@@ -332,12 +332,22 @@ enum iwl_data_path_subcmd_ids {
 	DQA_ENABLE_CMD = 0x0,
 	UPDATE_MU_GROUPS_CMD = 0x1,
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+	STA_PM_NOTIF = 0xFD,
 	MU_GROUP_MGMT_NOTIF = 0xFE,
 	RX_QUEUES_NOTIFICATION = 0xFF,
 };
 
 enum iwl_prot_offload_subcmd_ids {
 	STORED_BEACON_NTF = 0xFF,
+};
+
+enum iwl_regulatory_and_nvm_subcmd_ids {
+	NVM_ACCESS_COMPLETE = 0x0,
+};
+
+enum iwl_fmac_debug_cmds {
+	LMAC_RD_WR = 0x0,
+	UMAC_RD_WR = 0x1,
 };
 
 /* command groups */
@@ -349,6 +359,8 @@ enum {
 	PHY_OPS_GROUP = 0x4,
 	DATA_PATH_GROUP = 0x5,
 	PROT_OFFLOAD_GROUP = 0xb,
+	REGULATORY_AND_NVM_GROUP = 0xc,
+	DEBUG_GROUP = 0xf,
 };
 
 /**
@@ -482,13 +494,17 @@ struct iwl_nvm_access_cmd {
  * @block_size: the block size in powers of 2
  * @block_num: number of blocks specified in the command.
  * @device_phy_addr: virtual addresses from device side
+ *	32 bit address for API version 1, 64 bit address for API version 2.
 */
 struct iwl_fw_paging_cmd {
 	__le32 flags;
 	__le32 block_size;
 	__le32 block_num;
-	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
-} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
+	union {
+		__le32 addr32[NUM_OF_FW_PAGING_BLOCKS];
+		__le64 addr64[NUM_OF_FW_PAGING_BLOCKS];
+	} device_phy_addr;
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_2 */
 
 /*
  * Fw items ID's
@@ -582,60 +598,7 @@ enum {
 
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
-struct mvm_alive_resp_ver1 {
-	__le16 status;
-	__le16 flags;
-	u8 ucode_minor;
-	u8 ucode_major;
-	__le16 id;
-	u8 api_minor;
-	u8 api_major;
-	u8 ver_subtype;
-	u8 ver_type;
-	u8 mac;
-	u8 opt;
-	__le16 reserved2;
-	__le32 timestamp;
-	__le32 error_event_table_ptr;	/* SRAM address for error log */
-	__le32 log_event_table_ptr;	/* SRAM address for event log */
-	__le32 cpu_register_ptr;
-	__le32 dbgm_config_ptr;
-	__le32 alive_counter_ptr;
-	__le32 scd_base_ptr;		/* SRAM address for SCD */
-} __packed; /* ALIVE_RES_API_S_VER_1 */
-
-struct mvm_alive_resp_ver2 {
-	__le16 status;
-	__le16 flags;
-	u8 ucode_minor;
-	u8 ucode_major;
-	__le16 id;
-	u8 api_minor;
-	u8 api_major;
-	u8 ver_subtype;
-	u8 ver_type;
-	u8 mac;
-	u8 opt;
-	__le16 reserved2;
-	__le32 timestamp;
-	__le32 error_event_table_ptr;	/* SRAM address for error log */
-	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
-	__le32 cpu_register_ptr;
-	__le32 dbgm_config_ptr;
-	__le32 alive_counter_ptr;
-	__le32 scd_base_ptr;		/* SRAM address for SCD */
-	__le32 st_fwrd_addr;		/* pointer to Store and forward */
-	__le32 st_fwrd_size;
-	u8 umac_minor;			/* UMAC version: minor */
-	u8 umac_major;			/* UMAC version: major */
-	__le16 umac_id;			/* UMAC version: id */
-	__le32 error_info_addr;		/* SRAM address for UMAC error log */
-	__le32 dbg_print_buff_addr;
-} __packed; /* ALIVE_RES_API_S_VER_2 */
-
-struct mvm_alive_resp {
-	__le16 status;
-	__le16 flags;
+struct iwl_lmac_alive {
 	__le32 ucode_minor;
 	__le32 ucode_major;
 	u8 ver_subtype;
@@ -651,11 +614,28 @@ struct mvm_alive_resp {
 	__le32 scd_base_ptr;		/* SRAM address for SCD */
 	__le32 st_fwrd_addr;		/* pointer to Store and forward */
 	__le32 st_fwrd_size;
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
+
+struct iwl_umac_alive {
 	__le32 umac_minor;		/* UMAC version: minor */
 	__le32 umac_major;		/* UMAC version: major */
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
+} __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
+
+struct mvm_alive_resp_v3 {
+	__le16 status;
+	__le16 flags;
+	struct iwl_lmac_alive lmac_data;
+	struct iwl_umac_alive umac_data;
 } __packed; /* ALIVE_RES_API_S_VER_3 */
+
+struct mvm_alive_resp {
+	__le16 status;
+	__le16 flags;
+	struct iwl_lmac_alive lmac_data[2];
+	struct iwl_umac_alive umac_data;
+} __packed; /* ALIVE_RES_API_S_VER_4 */
 
 /* Error response/notification */
 enum {
@@ -697,7 +677,6 @@ struct iwl_error_resp {
 #define MAX_MACS_IN_BINDING	(3)
 #define MAX_BINDINGS		(4)
 #define AUX_BINDING_INDEX	(3)
-#define MAX_PHYS		(4)
 
 /* Used to extract ID and color from the context dword */
 #define FW_CTXT_ID_POS	  (0)
@@ -1240,13 +1219,16 @@ struct iwl_missed_beacons_notif {
  * @external_ver: external image version
  * @status: MFUART loading status
  * @duration: MFUART loading time
+ * @image_size: MFUART image size in bytes
 */
 struct iwl_mfuart_load_notif {
 	__le32 installed_ver;
 	__le32 external_ver;
 	__le32 status;
 	__le32 duration;
-} __packed; /*MFU_LOADER_NTFY_API_S_VER_1*/
+	/* image size valid only in v2 of the command */
+	__le32 image_size;
+} __packed; /*MFU_LOADER_NTFY_API_S_VER_2*/
 
 /**
  * struct iwl_set_calib_default_cmd - set default value for calibration.
@@ -1973,8 +1955,9 @@ struct iwl_tdls_config_res {
 	struct iwl_tdls_config_sta_info_res sta_info[IWL_MVM_TDLS_STA_COUNT];
 } __packed; /* TDLS_CONFIG_RSP_API_S_VER_1 */
 
-#define TX_FIFO_MAX_NUM		8
-#define RX_FIFO_MAX_NUM		2
+#define TX_FIFO_MAX_NUM_9000		8
+#define TX_FIFO_MAX_NUM			15
+#define RX_FIFO_MAX_NUM			2
 #define TX_FIFO_INTERNAL_MAX_NUM	6
 
 /**
@@ -2000,6 +1983,21 @@ struct iwl_tdls_config_res {
  * NOTE: on firmware that don't have IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG
  *	 set, the last 3 members don't exist.
  */
+struct iwl_shared_mem_cfg_v1 {
+	__le32 shared_mem_addr;
+	__le32 shared_mem_size;
+	__le32 sample_buff_addr;
+	__le32 sample_buff_size;
+	__le32 txfifo_addr;
+	__le32 txfifo_size[TX_FIFO_MAX_NUM_9000];
+	__le32 rxfifo_size[RX_FIFO_MAX_NUM];
+	__le32 page_buff_addr;
+	__le32 page_buff_size;
+	__le32 rxfifo_addr;
+	__le32 internal_txfifo_addr;
+	__le32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
+} __packed; /* SHARED_MEM_ALLOC_API_S_VER_2 */
+
 struct iwl_shared_mem_cfg {
 	__le32 shared_mem_addr;
 	__le32 shared_mem_size;
@@ -2013,7 +2011,7 @@ struct iwl_shared_mem_cfg {
 	__le32 rxfifo_addr;
 	__le32 internal_txfifo_addr;
 	__le32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
-} __packed; /* SHARED_MEM_ALLOC_API_S_VER_2 */
+} __packed; /* SHARED_MEM_ALLOC_API_S_VER_3 */
 
 /**
  * VHT MU-MIMO group configuration
@@ -2048,7 +2046,7 @@ struct iwl_mu_group_mgmt_notif {
  * @system_time: system time on air rise
  * @tsf: TSF on air rise
  * @beacon_timestamp: beacon on air rise
- * @phy_flags: general phy flags: band, modulation, etc.
+ * @band: band, matches &RX_RES_PHY_FLAGS_BAND_24 definition
  * @channel: channel this beacon was received on
  * @rates: rate in ucode internal format
  * @byte_count: frame's byte count
@@ -2057,12 +2055,12 @@ struct iwl_stored_beacon_notif {
 	__le32 system_time;
 	__le64 tsf;
 	__le32 beacon_timestamp;
-	__le16 phy_flags;
+	__le16 band;
 	__le16 channel;
 	__le32 rates;
 	__le32 byte_count;
 	u8 data[MAX_STORED_BEACON_SIZE];
-} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_1 */
+} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_2 */
 
 #define LQM_NUMBER_OF_STATIONS_IN_REPORT 16
 
@@ -2128,5 +2126,56 @@ struct iwl_link_qual_msrmnt_notif {
 struct iwl_channel_switch_noa_notif {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+/* Operation types for the debug mem access */
+enum {
+	DEBUG_MEM_OP_READ = 0,
+	DEBUG_MEM_OP_WRITE = 1,
+	DEBUG_MEM_OP_WRITE_BYTES = 2,
+};
+
+#define DEBUG_MEM_MAX_SIZE_DWORDS 32
+
+/**
+ * struct iwl_dbg_mem_access_cmd - Request the device to read/write memory
+ * @op: DEBUG_MEM_OP_*
+ * @addr: address to read/write from/to
+ * @len: in dwords, to read/write
+ * @data: for write opeations, contains the source buffer
+ */
+struct iwl_dbg_mem_access_cmd {
+	__le32 op;
+	__le32 addr;
+	__le32 len;
+	__le32 data[];
+} __packed; /* DEBUG_(U|L)MAC_RD_WR_CMD_API_S_VER_1 */
+
+/* Status responses for the debug mem access */
+enum {
+	DEBUG_MEM_STATUS_SUCCESS = 0x0,
+	DEBUG_MEM_STATUS_FAILED = 0x1,
+	DEBUG_MEM_STATUS_LOCKED = 0x2,
+	DEBUG_MEM_STATUS_HIDDEN = 0x3,
+	DEBUG_MEM_STATUS_LENGTH = 0x4,
+};
+
+/**
+ * struct iwl_dbg_mem_access_rsp - Response to debug mem commands
+ * @status: DEBUG_MEM_STATUS_*
+ * @len: read dwords (0 for write operations)
+ * @data: contains the read DWs
+ */
+struct iwl_dbg_mem_access_rsp {
+	__le32 status;
+	__le32 len;
+	__le32 data[];
+} __packed; /* DEBUG_(U|L)MAC_RD_WR_RSP_API_S_VER_1 */
+
+/**
+ * struct iwl_nvm_access_complete_cmd - NVM_ACCESS commands are completed
+ */
+struct iwl_nvm_access_complete_cmd {
+	__le32 reserved;
+} __packed; /* NVM_ACCESS_COMPLETE_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */

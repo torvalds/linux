@@ -123,10 +123,8 @@ static int img_prl_out_hw_params(struct snd_pcm_substream *substream,
 	struct img_prl_out *prl = snd_soc_dai_get_drvdata(dai);
 	unsigned int rate, channels;
 	u32 reg, control_set = 0;
-	snd_pcm_format_t format;
 
 	rate = params_rate(params);
-	format = params_format(params);
 	channels = params_channels(params);
 
 	switch (params_format(params)) {

@@ -16,17 +16,17 @@
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This file is distributed in the hope that it will be useful
+ *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- * Or, alternatively
+ * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
  *     obtaining a copy of this software and associated documentation
  *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
+ *     restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or
  *     sell copies of the Software, and to permit persons to whom the
  *     Software is furnished to do so, subject to the following
@@ -35,11 +35,11 @@
  *     The above copyright notice and this permission notice shall be
  *     included in all copies or substantial portions of the Software.
  *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
@@ -67,7 +67,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x20000000>; /* 512 MB */
 	};
@@ -77,22 +77,6 @@
 			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* Internal mini-PCIe connector */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Internal mini-PCIe connector */
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			serial@12000 {
 				status = "okay";
@@ -100,14 +84,6 @@
 			sata@a0000 {
 				nr-ports = <2>;
 				status = "okay";
-			};
-
-			mdio {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
 			};
 
 			ethernet@70000 {
@@ -146,7 +122,7 @@
 				compatible = "gpio-keys";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				button@1 {
+				button {
 					label = "Software Button";
 					linux,code = <KEY_POWER>;
 					gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
@@ -196,7 +172,9 @@
 		};
 	};
 
-	dsa@0 {
+	dsa {
+		status = "disabled";
+
 		compatible = "marvell,dsa";
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -235,7 +213,74 @@
 			};
 		};
 	 };
- };
+};
+
+&pciec {
+	status = "okay";
+
+	/* Internal mini-PCIe connector */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Internal mini-PCIe connector */
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	switch: switch@10 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x10>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan0";
+			};
+
+			port@1 {
+			       reg = <1>;
+			       label = "lan1";
+			};
+
+			port@2 {
+			       reg = <2>;
+			       label = "lan2";
+			};
+
+			port@3 {
+			       reg = <3>;
+			       label = "lan3";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&eth1>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};
+
 
 &pinctrl {
 	fan_pins: fan-pins {

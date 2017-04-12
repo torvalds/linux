@@ -11,7 +11,7 @@
 
 #include <linux/irq.h>
 #include <linux/pci.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>

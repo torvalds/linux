@@ -40,7 +40,7 @@ A good example of these ``replace``/``merge`` callbacks is in v4l2-event.c:
 In order to queue events to video device, drivers should call:
 
 	:c:func:`v4l2_event_queue <v4l2_event_queue>`
-	(:c:type:`vdev <video_device>`, :ref:`ev <v4l2-event>`)
+	(:c:type:`vdev <video_device>`, :c:type:`ev <v4l2_event>`)
 
 The driver's only responsibility is to fill in the type and the data fields.
 The other fields will be filled in by V4L2.
@@ -51,7 +51,7 @@ Event subscription
 Subscribing to an event is via:
 
 	:c:func:`v4l2_event_subscribe <v4l2_event_subscribe>`
-	(:c:type:`fh <v4l2_fh>`, :ref:`sub <v4l2-event-subscription>` ,
+	(:c:type:`fh <v4l2_fh>`, :c:type:`sub <v4l2_event_subscription>` ,
 	elems, :c:type:`ops <v4l2_subscribed_event_ops>`)
 
 
@@ -86,7 +86,7 @@ Unsubscribing an event
 Unsubscribing to an event is via:
 
 	:c:func:`v4l2_event_unsubscribe <v4l2_event_unsubscribe>`
-	(:c:type:`fh <v4l2_fh>`, :ref:`sub <v4l2-event-subscription>`)
+	(:c:type:`fh <v4l2_fh>`, :c:type:`sub <v4l2_event_subscription>`)
 
 This function is used to implement :c:type:`video_device`->
 :c:type:`ioctl_ops <v4l2_ioctl_ops>`-> ``vidioc_unsubscribe_event``.

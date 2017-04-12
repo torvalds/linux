@@ -50,6 +50,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 #include "hfi.h"
 #include "debugfs.h"
@@ -503,18 +504,11 @@ static ssize_t asic_flags_write(struct file *file, const char __user *buf,
 	ppd = private2ppd(file);
 	dd = ppd->dd;
 
-	buff = kmalloc(count + 1, GFP_KERNEL);
-	if (!buff)
-		return -ENOMEM;
-
-	ret = copy_from_user(buff, buf, count);
-	if (ret > 0) {
-		ret = -EFAULT;
-		goto do_free;
-	}
-
 	/* zero terminate and read the expected integer */
-	buff[count] = 0;
+	buff = memdup_user_nul(buf, count);
+	if (IS_ERR(buff))
+		return PTR_ERR(buff);
+
 	ret = kstrtoull(buff, 0, &value);
 	if (ret)
 		goto do_free;
@@ -539,6 +533,114 @@ static ssize_t asic_flags_write(struct file *file, const char __user *buf,
  do_free:
 	kfree(buff);
 	return ret;
+}
+
+/* read the dc8051 memory */
+static ssize_t dc8051_memory_read(struct file *file, char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct hfi1_pportdata *ppd = private2ppd(file);
+	ssize_t rval;
+	void *tmp;
+	loff_t start, end;
+
+	/* the checks below expect the position to be positive */
+	if (*ppos < 0)
+		return -EINVAL;
+
+	tmp = kzalloc(DC8051_DATA_MEM_SIZE, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	/*
+	 * Fill in the requested portion of the temporary buffer from the
+	 * 8051 memory.  The 8051 memory read is done in terms of 8 bytes.
+	 * Adjust start and end to fit.  Skip reading anything if out of
+	 * range.
+	 */
+	start = *ppos & ~0x7;	/* round down */
+	if (start < DC8051_DATA_MEM_SIZE) {
+		end = (*ppos + count + 7) & ~0x7; /* round up */
+		if (end > DC8051_DATA_MEM_SIZE)
+			end = DC8051_DATA_MEM_SIZE;
+		rval = read_8051_data(ppd->dd, start, end - start,
+				      (u64 *)(tmp + start));
+		if (rval)
+			goto done;
+	}
+
+	rval = simple_read_from_buffer(buf, count, ppos, tmp,
+				       DC8051_DATA_MEM_SIZE);
+done:
+	kfree(tmp);
+	return rval;
+}
+
+static ssize_t debugfs_lcb_read(struct file *file, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	struct hfi1_pportdata *ppd = private2ppd(file);
+	struct hfi1_devdata *dd = ppd->dd;
+	unsigned long total, csr_off;
+	u64 data;
+
+	if (*ppos < 0)
+		return -EINVAL;
+	/* only read 8 byte quantities */
+	if ((count % 8) != 0)
+		return -EINVAL;
+	/* offset must be 8-byte aligned */
+	if ((*ppos % 8) != 0)
+		return -EINVAL;
+	/* do nothing if out of range or zero count */
+	if (*ppos >= (LCB_END - LCB_START) || !count)
+		return 0;
+	/* reduce count if needed */
+	if (*ppos + count > LCB_END - LCB_START)
+		count = (LCB_END - LCB_START) - *ppos;
+
+	csr_off = LCB_START + *ppos;
+	for (total = 0; total < count; total += 8, csr_off += 8) {
+		if (read_lcb_csr(dd, csr_off, (u64 *)&data))
+			break; /* failed */
+		if (put_user(data, (unsigned long __user *)(buf + total)))
+			break;
+	}
+	*ppos += total;
+	return total;
+}
+
+static ssize_t debugfs_lcb_write(struct file *file, const char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct hfi1_pportdata *ppd = private2ppd(file);
+	struct hfi1_devdata *dd = ppd->dd;
+	unsigned long total, csr_off, data;
+
+	if (*ppos < 0)
+		return -EINVAL;
+	/* only write 8 byte quantities */
+	if ((count % 8) != 0)
+		return -EINVAL;
+	/* offset must be 8-byte aligned */
+	if ((*ppos % 8) != 0)
+		return -EINVAL;
+	/* do nothing if out of range or zero count */
+	if (*ppos >= (LCB_END - LCB_START) || !count)
+		return 0;
+	/* reduce count if needed */
+	if (*ppos + count > LCB_END - LCB_START)
+		count = (LCB_END - LCB_START) - *ppos;
+
+	csr_off = LCB_START + *ppos;
+	for (total = 0; total < count; total += 8, csr_off += 8) {
+		if (get_user(data, (unsigned long __user *)(buf + total)))
+			break;
+		if (write_lcb_csr(dd, csr_off, data))
+			break; /* failed */
+	}
+	*ppos += total;
+	return total;
 }
 
 /*
@@ -584,15 +686,9 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 	if (i2c_addr == 0)
 		return -EINVAL;
 
-	buff = kmalloc(count, GFP_KERNEL);
-	if (!buff)
-		return -ENOMEM;
-
-	ret = copy_from_user(buff, buf, count);
-	if (ret > 0) {
-		ret = -EFAULT;
-		goto _free;
-	}
+	buff = memdup_user(buf, count);
+	if (IS_ERR(buff))
+		return PTR_ERR(buff);
 
 	total_written = i2c_write(ppd, target, i2c_addr, offset, buff, count);
 	if (total_written < 0) {
@@ -697,15 +793,10 @@ static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
 
 	ppd = private2ppd(file);
 
-	buff = kmalloc(count, GFP_KERNEL);
-	if (!buff)
-		return -ENOMEM;
+	buff = memdup_user(buf, count);
+	if (IS_ERR(buff))
+		return PTR_ERR(buff);
 
-	ret = copy_from_user(buff, buf, count);
-	if (ret > 0) {
-		ret = -EFAULT;
-		goto _free;
-	}
 	total_written = qsfp_write(ppd, target, *ppos, buff, count);
 	if (total_written < 0) {
 		ret = total_written;
@@ -931,7 +1022,46 @@ static const struct counter_info port_cntr_ops[] = {
 	DEBUGFS_XOPS("qsfp2", qsfp2_debugfs_read, qsfp2_debugfs_write,
 		     qsfp2_debugfs_open, qsfp2_debugfs_release),
 	DEBUGFS_OPS("asic_flags", asic_flags_read, asic_flags_write),
+	DEBUGFS_OPS("dc8051_memory", dc8051_memory_read, NULL),
+	DEBUGFS_OPS("lcb", debugfs_lcb_read, debugfs_lcb_write),
 };
+
+static void *_sdma_cpu_list_seq_start(struct seq_file *s, loff_t *pos)
+{
+	if (*pos >= num_online_cpus())
+		return NULL;
+
+	return pos;
+}
+
+static void *_sdma_cpu_list_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	++*pos;
+	if (*pos >= num_online_cpus())
+		return NULL;
+
+	return pos;
+}
+
+static void _sdma_cpu_list_seq_stop(struct seq_file *s, void *v)
+{
+	/* nothing allocated */
+}
+
+static int _sdma_cpu_list_seq_show(struct seq_file *s, void *v)
+{
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	loff_t *spos = v;
+	loff_t i = *spos;
+
+	sdma_seqfile_dump_cpu_list(s, dd, (unsigned long)i);
+	return 0;
+}
+
+DEBUGFS_SEQ_FILE_OPS(sdma_cpu_list);
+DEBUGFS_SEQ_FILE_OPEN(sdma_cpu_list)
+DEBUGFS_FILE_OPS(sdma_cpu_list);
 
 void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 {
@@ -961,6 +1091,7 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 	DEBUGFS_SEQ_FILE_CREATE(ctx_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(qp_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(sdes, ibd->hfi1_ibdev_dbg, ibd);
+	DEBUGFS_SEQ_FILE_CREATE(sdma_cpu_list, ibd->hfi1_ibdev_dbg, ibd);
 	/* dev counter files */
 	for (i = 0; i < ARRAY_SIZE(cntr_ops); i++)
 		DEBUGFS_FILE_CREATE(cntr_ops[i].name,

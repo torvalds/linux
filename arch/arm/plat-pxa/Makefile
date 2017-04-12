@@ -3,8 +3,6 @@
 #
 ccflags-$(CONFIG_ARCH_MMP) := -I$(srctree)/$(src)/include
 
-obj-$(CONFIG_ARCH_PXA)		:= dma.o
-
 obj-$(CONFIG_PXA3xx)		+= mfp.o
 obj-$(CONFIG_ARCH_MMP)		+= mfp.o
 

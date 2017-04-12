@@ -326,6 +326,11 @@ static int perf_add_probe_events(struct perf_probe_event *pevs, int npevs)
 	if (ret < 0)
 		goto out_cleanup;
 
+	if (params.command == 'D') {	/* it shows definition */
+		ret = show_probe_trace_events(pevs, npevs);
+		goto out_cleanup;
+	}
+
 	ret = apply_perf_probe_events(pevs, npevs);
 	if (ret < 0)
 		goto out_cleanup;
@@ -454,6 +459,14 @@ out:
 	return ret;
 }
 
+#ifdef HAVE_DWARF_SUPPORT
+#define PROBEDEF_STR	\
+	"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT [[NAME=]ARG ...]"
+#else
+#define PROBEDEF_STR	"[EVENT=]FUNC[+OFF|%return] [[NAME=]ARG ...]"
+#endif
+
+
 static int
 __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -479,13 +492,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			     opt_set_filter_with_command, DEFAULT_LIST_FILTER),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		     opt_set_filter_with_command),
-	OPT_CALLBACK('a', "add", NULL,
-#ifdef HAVE_DWARF_SUPPORT
-		"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT"
-		" [[NAME=]ARG ...]",
-#else
-		"[EVENT=]FUNC[+OFF|%return] [[NAME=]ARG ...]",
-#endif
+	OPT_CALLBACK('a', "add", NULL, PROBEDEF_STR,
 		"probe point definition, where\n"
 		"\t\tGROUP:\tGroup name (optional)\n"
 		"\t\tEVENT:\tEvent name\n"
@@ -502,6 +509,9 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 #else
 		"\t\tARG:\tProbe argument (kprobe-tracer argument format.)\n",
 #endif
+		opt_add_probe_event),
+	OPT_CALLBACK('D', "definition", NULL, PROBEDEF_STR,
+		"Show trace event definition of given traceevent for k/uprobe_events.",
 		opt_add_probe_event),
 	OPT_BOOLEAN('f', "force", &probe_conf.force_add, "forcibly add events"
 		    " with existing name"),
@@ -542,12 +552,15 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
 	OPT_BOOLEAN(0, "cache", &probe_conf.cache, "Manipulate probe cache"),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		   "Look for files with symbols relative to this directory"),
 	OPT_END()
 	};
 	int ret;
 
 	set_option_flag(options, 'a', "add", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 'd', "del", PARSE_OPT_EXCLUSIVE);
+	set_option_flag(options, 'D', "definition", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 'l', "list", PARSE_OPT_EXCLUSIVE);
 #ifdef HAVE_DWARF_SUPPORT
 	set_option_flag(options, 'L', "line", PARSE_OPT_EXCLUSIVE);
@@ -600,6 +613,14 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	 */
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 
+	/*
+	 * Except for --list, --del and --add, other command doesn't depend
+	 * nor change running kernel. So if user gives offline vmlinux,
+	 * ignore its buildid.
+	 */
+	if (!strchr("lda", params.command) && symbol_conf.vmlinux_name)
+		symbol_conf.ignore_vmlinux_buildid = true;
+
 	switch (params.command) {
 	case 'l':
 		if (params.uprobes) {
@@ -643,7 +664,9 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			return ret;
 		}
 		break;
+	case 'D':
 	case 'a':
+
 		/* Ensure the last given target is used */
 		if (params.target && !params.target_used) {
 			pr_err("  Error: -x/-m must follow the probe definitions.\n");

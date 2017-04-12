@@ -24,6 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/iommu.h>
 #include <asm/ppc-pci.h>
+#include <asm/isa-bridge.h>
 
 #include "maple.h"
 
@@ -552,7 +553,7 @@ void maple_pci_irq_fixup(struct pci_dev *dev)
 	    pci_bus_to_host(dev->bus) == u4_pcie) {
 		printk(KERN_DEBUG "Fixup U4 PCIe IRQ\n");
 		dev->irq = irq_create_mapping(NULL, 1);
-		if (dev->irq != NO_IRQ)
+		if (dev->irq)
 			irq_set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
 	}
 
@@ -562,7 +563,7 @@ void maple_pci_irq_fixup(struct pci_dev *dev)
 	if (dev->vendor == PCI_VENDOR_ID_AMD &&
 	    dev->device == PCI_DEVICE_ID_AMD_8111_IDE &&
 	    (dev->class & 5) != 5) {
-		dev->irq = NO_IRQ;
+		dev->irq = 0;
 	}
 
 	DBG(" <- maple_pci_irq_fixup\n");
@@ -648,7 +649,7 @@ int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
 		return defirq;
 	}
 	irq = irq_of_parse_and_map(np, channel & 0x1);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		printk("Failed to map onboard IDE interrupt for channel %d\n",
 		       channel);
 		return defirq;

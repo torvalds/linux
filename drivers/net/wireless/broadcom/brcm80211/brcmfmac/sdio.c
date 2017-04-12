@@ -22,7 +22,7 @@
 #include <linux/pci_ids.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
@@ -313,6 +313,7 @@ struct rte_console {
 
 #define KSO_WAIT_US 50
 #define MAX_KSO_ATTEMPTS (PMU_MAX_TRANSITION_DLY/KSO_WAIT_US)
+#define BRCMF_SDIO_MAX_ACCESS_ERRORS	5
 
 /*
  * Conversion of 802.1D priority to precedence level
@@ -620,6 +621,7 @@ static struct brcmf_firmware_mapping brcmf_sdio_fwnames[] = {
 	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4330_CHIP_ID, 0xFFFFFFFF, 4330),
 	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4334_CHIP_ID, 0xFFFFFFFF, 4334),
 	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43340_CHIP_ID, 0xFFFFFFFF, 43340),
+	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43341_CHIP_ID, 0xFFFFFFFF, 43340),
 	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4335_CHIP_ID, 0xFFFFFFFF, 4335),
 	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43362_CHIP_ID, 0xFFFFFFFE, 43362),
 	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4339_CHIP_ID, 0xFFFFFFFF, 4339),
@@ -677,6 +679,7 @@ brcmf_sdio_kso_control(struct brcmf_sdio *bus, bool on)
 {
 	u8 wr_val = 0, rd_val, cmp_val, bmask;
 	int err = 0;
+	int err_cnt = 0;
 	int try_cnt = 0;
 
 	brcmf_dbg(TRACE, "Enter: on=%d\n", on);
@@ -712,9 +715,14 @@ brcmf_sdio_kso_control(struct brcmf_sdio *bus, bool on)
 		 */
 		rd_val = brcmf_sdiod_regrb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR,
 					   &err);
-		if (((rd_val & bmask) == cmp_val) && !err)
+		if (!err) {
+			if ((rd_val & bmask) == cmp_val)
+				break;
+			err_cnt = 0;
+		}
+		/* bail out upon subsequent access errors */
+		if (err && (err_cnt++ > BRCMF_SDIO_MAX_ACCESS_ERRORS))
 			break;
-
 		udelay(KSO_WAIT_US);
 		brcmf_sdiod_regwb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR,
 				  wr_val, &err);
@@ -1653,7 +1661,7 @@ static u8 brcmf_sdio_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 					   pfirst->len, pfirst->next,
 					   pfirst->prev);
 			skb_unlink(pfirst, &bus->glom);
-			if (brcmf_sdio_fromevntchan(pfirst->data))
+			if (brcmf_sdio_fromevntchan(&dptr[SDPCM_HWHDR_LEN]))
 				brcmf_rx_event(bus->sdiodev->dev, pfirst);
 			else
 				brcmf_rx_frame(bus->sdiodev->dev, pfirst,
@@ -3757,7 +3765,8 @@ static u32 brcmf_sdio_buscore_read32(void *ctx, u32 addr)
 	u32 val, rev;
 
 	val = brcmf_sdiod_regrl(sdiodev, addr, NULL);
-	if (sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 &&
+	if ((sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4335_4339 ||
+	     sdiodev->func[0]->device == SDIO_DEVICE_ID_BROADCOM_4339) &&
 	    addr == CORE_CC_REG(SI_ENUM_BASE, chipid)) {
 		rev = (val & CID_REV_MASK) >> CID_REV_SHIFT;
 		if (rev >= 2) {
@@ -4056,7 +4065,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev,
 
 	sdio_release_host(sdiodev->func[1]);
 
-	err = brcmf_bus_start(dev);
+	err = brcmf_bus_started(dev);
 	if (err != 0) {
 		brcmf_err("dongle is not responding\n");
 		goto fail;

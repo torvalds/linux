@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2015-2016 Anton Ivanov (aivanov@brocade.com)
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -57,6 +58,17 @@ struct io_thread_req {
 	unsigned long bitmap_words[2];
 	int error;
 };
+
+
+static struct io_thread_req * (*irq_req_buffer)[];
+static struct io_thread_req *irq_remainder;
+static int irq_remainder_size;
+
+static struct io_thread_req * (*io_req_buffer)[];
+static struct io_thread_req *io_remainder;
+static int io_remainder_size;
+
+
 
 static inline int ubd_test_bit(__u64 bit, unsigned char *data)
 {
@@ -442,29 +454,91 @@ static void do_ubd_request(struct request_queue * q);
 static int thread_fd = -1;
 static LIST_HEAD(restart);
 
-/* XXX - move this inside ubd_intr. */
+/* Function to read several request pointers at a time
+* handling fractional reads if (and as) needed
+*/
+
+static int bulk_req_safe_read(
+	int fd,
+	struct io_thread_req * (*request_buffer)[],
+	struct io_thread_req **remainder,
+	int *remainder_size,
+	int max_recs
+	)
+{
+	int n = 0;
+	int res = 0;
+
+	if (*remainder_size > 0) {
+		memmove(
+			(char *) request_buffer,
+			(char *) remainder, *remainder_size
+		);
+		n = *remainder_size;
+	}
+
+	res = os_read_file(
+			fd,
+			((char *) request_buffer) + *remainder_size,
+			sizeof(struct io_thread_req *)*max_recs
+				- *remainder_size
+		);
+	if (res > 0) {
+		n += res;
+		if ((n % sizeof(struct io_thread_req *)) > 0) {
+			/*
+			* Read somehow returned not a multiple of dword
+			* theoretically possible, but never observed in the
+			* wild, so read routine must be able to handle it
+			*/
+			*remainder_size = n % sizeof(struct io_thread_req *);
+			WARN(*remainder_size > 0, "UBD IPC read returned a partial result");
+			memmove(
+				remainder,
+				((char *) request_buffer) +
+					(n/sizeof(struct io_thread_req *))*sizeof(struct io_thread_req *),
+				*remainder_size
+			);
+			n = n - *remainder_size;
+		}
+	} else {
+		n = res;
+	}
+	return n;
+}
+
 /* Called without dev->lock held, and only in interrupt context. */
 static void ubd_handler(void)
 {
-	struct io_thread_req *req;
 	struct ubd *ubd;
 	struct list_head *list, *next_ele;
 	unsigned long flags;
 	int n;
+	int count;
 
 	while(1){
-		n = os_read_file(thread_fd, &req,
-				 sizeof(struct io_thread_req *));
-		if(n != sizeof(req)){
+		n = bulk_req_safe_read(
+			thread_fd,
+			irq_req_buffer,
+			&irq_remainder,
+			&irq_remainder_size,
+			UBD_REQ_BUFFER_SIZE
+		);
+		if (n < 0) {
 			if(n == -EAGAIN)
 				break;
 			printk(KERN_ERR "spurious interrupt in ubd_handler, "
 			       "err = %d\n", -n);
 			return;
 		}
-
-		blk_end_request(req->req, 0, req->length);
-		kfree(req);
+		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
+			blk_end_request(
+				(*irq_req_buffer)[count]->req,
+				0,
+				(*irq_req_buffer)[count]->length
+			);
+			kfree((*irq_req_buffer)[count]);
+		}
 	}
 	reactivate_fd(thread_fd, UBD_IRQ);
 
@@ -1064,6 +1138,28 @@ static int __init ubd_init(void)
 		if (register_blkdev(fake_major, "ubd"))
 			return -1;
 	}
+
+	irq_req_buffer = kmalloc(
+			sizeof(struct io_thread_req *) * UBD_REQ_BUFFER_SIZE,
+			GFP_KERNEL
+		);
+	irq_remainder = 0;
+
+	if (irq_req_buffer == NULL) {
+		printk(KERN_ERR "Failed to initialize ubd buffering\n");
+		return -1;
+	}
+	io_req_buffer = kmalloc(
+			sizeof(struct io_thread_req *) * UBD_REQ_BUFFER_SIZE,
+			GFP_KERNEL
+		);
+
+	io_remainder = 0;
+
+	if (io_req_buffer == NULL) {
+		printk(KERN_ERR "Failed to initialize ubd buffering\n");
+		return -1;
+	}
 	platform_driver_register(&ubd_driver);
 	mutex_lock(&ubd_lock);
 	for (i = 0; i < MAX_DEV; i++){
@@ -1458,31 +1554,51 @@ static int io_count = 0;
 
 int io_thread(void *arg)
 {
-	struct io_thread_req *req;
-	int n;
+	int n, count, written, res;
 
 	os_fix_helper_signals();
 
 	while(1){
-		n = os_read_file(kernel_fd, &req,
-				 sizeof(struct io_thread_req *));
-		if(n != sizeof(struct io_thread_req *)){
-			if(n < 0)
+		n = bulk_req_safe_read(
+			kernel_fd,
+			io_req_buffer,
+			&io_remainder,
+			&io_remainder_size,
+			UBD_REQ_BUFFER_SIZE
+		);
+		if (n < 0) {
+			if (n == -EAGAIN) {
+				ubd_read_poll(-1);
+				continue;
+			} else {
 				printk("io_thread - read failed, fd = %d, "
-				       "err = %d\n", kernel_fd, -n);
-			else {
-				printk("io_thread - short read, fd = %d, "
-				       "length = %d\n", kernel_fd, n);
+				       "err = %d,"
+				       "reminder = %d\n",
+				       kernel_fd, -n, io_remainder_size);
 			}
-			continue;
 		}
-		io_count++;
-		do_io(req);
-		n = os_write_file(kernel_fd, &req,
-				  sizeof(struct io_thread_req *));
-		if(n != sizeof(struct io_thread_req *))
-			printk("io_thread - write failed, fd = %d, err = %d\n",
-			       kernel_fd, -n);
+
+		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
+			io_count++;
+			do_io((*io_req_buffer)[count]);
+		}
+
+		written = 0;
+
+		do {
+			res = os_write_file(kernel_fd, ((char *) io_req_buffer) + written, n);
+			if (res > 0) {
+				written += res;
+			} else {
+				if (res != -EAGAIN) {
+					printk("io_thread - read failed, fd = %d, "
+					       "err = %d\n", kernel_fd, -n);
+				}
+			}
+			if (written < n) {
+				ubd_write_poll(-1);
+			}
+		} while (written < n);
 	}
 
 	return 0;

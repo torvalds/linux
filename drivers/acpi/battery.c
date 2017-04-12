@@ -36,7 +36,7 @@
 #ifdef CONFIG_ACPI_PROCFS_POWER
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #endif
 
 #include <linux/acpi.h>
@@ -430,39 +430,24 @@ static int acpi_battery_get_status(struct acpi_battery *battery)
 	return 0;
 }
 
-static int acpi_battery_get_info(struct acpi_battery *battery)
+
+static int extract_battery_info(const int use_bix,
+			 struct acpi_battery *battery,
+			 const struct acpi_buffer *buffer)
 {
 	int result = -EFAULT;
-	acpi_status status = 0;
-	char *name = test_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags) ?
-			"_BIX" : "_BIF";
 
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
-	if (!acpi_battery_present(battery))
-		return 0;
-	mutex_lock(&battery->lock);
-	status = acpi_evaluate_object(battery->device->handle, name,
-						NULL, &buffer);
-	mutex_unlock(&battery->lock);
-
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating %s", name));
-		return -ENODEV;
-	}
-
-	if (battery_bix_broken_package)
-		result = extract_package(battery, buffer.pointer,
+	if (use_bix && battery_bix_broken_package)
+		result = extract_package(battery, buffer->pointer,
 				extended_info_offsets + 1,
 				ARRAY_SIZE(extended_info_offsets) - 1);
-	else if (test_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags))
-		result = extract_package(battery, buffer.pointer,
+	else if (use_bix)
+		result = extract_package(battery, buffer->pointer,
 				extended_info_offsets,
 				ARRAY_SIZE(extended_info_offsets));
 	else
-		result = extract_package(battery, buffer.pointer,
+		result = extract_package(battery, buffer->pointer,
 				info_offsets, ARRAY_SIZE(info_offsets));
-	kfree(buffer.pointer);
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags))
 		battery->full_charge_capacity = battery->design_capacity;
 	if (test_bit(ACPI_BATTERY_QUIRK_THINKPAD_MAH, &battery->flags) &&
@@ -480,6 +465,45 @@ static int acpi_battery_get_info(struct acpi_battery *battery)
 		   it's impossible to tell if they would need an adjustment
 		   or not if their values were higher.  */
 	}
+	return result;
+}
+
+static int acpi_battery_get_info(struct acpi_battery *battery)
+{
+	const int xinfo = test_bit(ACPI_BATTERY_XINFO_PRESENT, &battery->flags);
+	int use_bix;
+	int result = -ENODEV;
+
+	if (!acpi_battery_present(battery))
+		return 0;
+
+
+	for (use_bix = xinfo ? 1 : 0; use_bix >= 0; use_bix--) {
+		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+		acpi_status status = AE_ERROR;
+
+		mutex_lock(&battery->lock);
+		status = acpi_evaluate_object(battery->device->handle,
+					      use_bix ? "_BIX":"_BIF",
+					      NULL, &buffer);
+		mutex_unlock(&battery->lock);
+
+		if (ACPI_FAILURE(status)) {
+			ACPI_EXCEPTION((AE_INFO, status, "Evaluating %s",
+					use_bix ? "_BIX":"_BIF"));
+		} else {
+			result = extract_battery_info(use_bix,
+						      battery,
+						      &buffer);
+
+			kfree(buffer.pointer);
+			break;
+		}
+	}
+
+	if (!result && !use_bix && xinfo)
+		pr_warn(FW_BUG "The _BIX method is broken, using _BIF.\n");
+
 	return result;
 }
 
@@ -733,15 +757,17 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 			return result;
 		acpi_battery_init_alarm(battery);
 	}
+
+	result = acpi_battery_get_state(battery);
+	if (result)
+		return result;
+	acpi_battery_quirks(battery);
+
 	if (!battery->bat) {
 		result = sysfs_add_battery(battery);
 		if (result)
 			return result;
 	}
-	result = acpi_battery_get_state(battery);
-	if (result)
-		return result;
-	acpi_battery_quirks(battery);
 
 	/*
 	 * Wakeup the system if battery is critical low

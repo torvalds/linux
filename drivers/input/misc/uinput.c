@@ -263,13 +263,21 @@ static int uinput_create_device(struct uinput_device *udev)
 		return -EINVAL;
 	}
 
-	if (test_bit(ABS_MT_SLOT, dev->absbit)) {
-		nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
-		error = input_mt_init_slots(dev, nslot, 0);
-		if (error)
+	if (test_bit(EV_ABS, dev->evbit)) {
+		input_alloc_absinfo(dev);
+		if (!dev->absinfo) {
+			error = -EINVAL;
 			goto fail1;
-	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
-		input_set_events_per_packet(dev, 60);
+		}
+
+		if (test_bit(ABS_MT_SLOT, dev->absbit)) {
+			nslot = input_abs_get_max(dev, ABS_MT_SLOT) + 1;
+			error = input_mt_init_slots(dev, nslot, 0);
+			if (error)
+				goto fail1;
+		} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
+			input_set_events_per_packet(dev, 60);
+		}
 	}
 
 	if (test_bit(EV_FF, dev->evbit) && !udev->ff_effects_max) {
@@ -1013,23 +1021,12 @@ static struct miscdevice uinput_misc = {
 	.minor		= UINPUT_MINOR,
 	.name		= UINPUT_NAME,
 };
+module_misc_device(uinput_misc);
+
 MODULE_ALIAS_MISCDEV(UINPUT_MINOR);
 MODULE_ALIAS("devname:" UINPUT_NAME);
-
-static int __init uinput_init(void)
-{
-	return misc_register(&uinput_misc);
-}
-
-static void __exit uinput_exit(void)
-{
-	misc_deregister(&uinput_misc);
-}
 
 MODULE_AUTHOR("Aristeu Sergio Rozanski Filho");
 MODULE_DESCRIPTION("User level driver support for input subsystem");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.3");
-
-module_init(uinput_init);
-module_exit(uinput_exit);

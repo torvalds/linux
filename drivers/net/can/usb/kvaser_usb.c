@@ -459,7 +459,7 @@ struct kvaser_usb {
 	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
 	struct usb_anchor rx_submitted;
 
-	/* @max_tx_urbs: Firmware-reported maximum number of oustanding,
+	/* @max_tx_urbs: Firmware-reported maximum number of outstanding,
 	 * not yet ACKed, transmissions on this device. This value is
 	 * also used as a sentinel for marking free tx contexts.
 	 */
@@ -787,10 +787,8 @@ static int kvaser_usb_simple_msg_async(struct kvaser_usb_net_priv *priv,
 	int err;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netdev_err(netdev, "No memory left for URBs\n");
+	if (!urb)
 		return -ENOMEM;
-	}
 
 	buf = kmalloc(sizeof(struct kvaser_msg), GFP_ATOMIC);
 	if (!buf) {
@@ -1393,8 +1391,6 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			dev_warn(dev->udev->dev.parent,
-				 "No memory left for URBs\n");
 			err = -ENOMEM;
 			break;
 		}
@@ -1670,7 +1666,6 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		netdev_err(netdev, "No memory left for URBs\n");
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -2032,7 +2027,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		((dev->fw_version >> 16) & 0xff),
 		(dev->fw_version & 0xffff));
 
-	dev_dbg(&intf->dev, "Max oustanding tx = %d URBs\n", dev->max_tx_urbs);
+	dev_dbg(&intf->dev, "Max outstanding tx = %d URBs\n", dev->max_tx_urbs);
 
 	err = kvaser_usb_get_card_info(dev);
 	if (err) {

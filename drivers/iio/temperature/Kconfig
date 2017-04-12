@@ -3,6 +3,22 @@
 #
 menu "Temperature sensors"
 
+config MAXIM_THERMOCOUPLE
+	tristate "Maxim thermocouple sensors"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for the Maxim series of
+	  thermocouple sensors connected via SPI.
+
+	  Supported sensors:
+	   * MAX6675
+	   * MAX31855
+
+	  This driver can also be built as a module. If so, the module will
+	  be called maxim_thermocouple.
+
 config MLX90614
 	tristate "MLX90614 contact-less infrared sensor"
 	depends on I2C
@@ -22,6 +38,16 @@ config TMP006
 
 	  This driver can also be built as a module. If so, the module will
 	  be called tmp006.
+
+config TMP007
+        tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
+        depends on I2C
+        help
+          If you say yes here you get support for the Texas Instruments
+          TMP007 infrared thermopile sensor with Integrated Math Engine.
+
+          This driver can also be built as a module. If so, the module will
+          be called tmp007.
 
 config TSYS01
 	tristate "Measurement Specialties TSYS01 temperature sensor using I2C bus connection"

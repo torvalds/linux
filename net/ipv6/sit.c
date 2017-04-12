@@ -31,7 +31,7 @@
 #include <linux/if_arp.h>
 #include <linux/icmp.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/if_ether.h>
@@ -62,7 +62,7 @@
    For comments look at net/ipv4/ip_gre.c --ANK
  */
 
-#define HASH_SIZE  16
+#define IP6_SIT_HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
 static bool log_ecn_error = true;
@@ -76,11 +76,11 @@ static bool check_6rd(struct ip_tunnel *tunnel, const struct in6_addr *v6dst,
 		      __be32 *v4dst);
 static struct rtnl_link_ops sit_link_ops __read_mostly;
 
-static int sit_net_id __read_mostly;
+static unsigned int sit_net_id __read_mostly;
 struct sit_net {
-	struct ip_tunnel __rcu *tunnels_r_l[HASH_SIZE];
-	struct ip_tunnel __rcu *tunnels_r[HASH_SIZE];
-	struct ip_tunnel __rcu *tunnels_l[HASH_SIZE];
+	struct ip_tunnel __rcu *tunnels_r_l[IP6_SIT_HASH_SIZE];
+	struct ip_tunnel __rcu *tunnels_r[IP6_SIT_HASH_SIZE];
+	struct ip_tunnel __rcu *tunnels_l[IP6_SIT_HASH_SIZE];
 	struct ip_tunnel __rcu *tunnels_wc[1];
 	struct ip_tunnel __rcu **tunnels[4];
 
@@ -1126,7 +1126,7 @@ static int ipip6_tunnel_update_6rd(struct ip_tunnel *t,
 }
 #endif
 
-bool ipip6_valid_ip_proto(u8 ipproto)
+static bool ipip6_valid_ip_proto(u8 ipproto)
 {
 	return ipproto == IPPROTO_IPV6 ||
 		ipproto == IPPROTO_IPIP ||
@@ -1318,23 +1318,11 @@ done:
 	return err;
 }
 
-static int ipip6_tunnel_change_mtu(struct net_device *dev, int new_mtu)
-{
-	struct ip_tunnel *tunnel = netdev_priv(dev);
-	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
-
-	if (new_mtu < IPV6_MIN_MTU || new_mtu > 0xFFF8 - t_hlen)
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops ipip6_netdev_ops = {
 	.ndo_init	= ipip6_tunnel_init,
 	.ndo_uninit	= ipip6_tunnel_uninit,
 	.ndo_start_xmit	= sit_tunnel_xmit,
 	.ndo_do_ioctl	= ipip6_tunnel_ioctl,
-	.ndo_change_mtu	= ipip6_tunnel_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
 	.ndo_get_iflink = ip_tunnel_get_iflink,
 };
@@ -1365,6 +1353,8 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->type		= ARPHRD_SIT;
 	dev->hard_header_len	= LL_MAX_HEADER + t_hlen;
 	dev->mtu		= ETH_DATA_LEN - t_hlen;
+	dev->min_mtu		= IPV6_MIN_MTU;
+	dev->max_mtu		= 0xFFF8 - t_hlen;
 	dev->flags		= IFF_NOARP;
 	netif_keep_dst(dev);
 	dev->addr_len		= 4;
@@ -1390,6 +1380,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	err = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
 	if (err) {
 		free_percpu(dev->tstats);
+		dev->tstats = NULL;
 		return err;
 	}
 
@@ -1783,7 +1774,7 @@ static void __net_exit sit_destroy_tunnels(struct net *net,
 
 	for (prio = 1; prio < 4; prio++) {
 		int h;
-		for (h = 0; h < HASH_SIZE; h++) {
+		for (h = 0; h < IP6_SIT_HASH_SIZE; h++) {
 			struct ip_tunnel *t;
 
 			t = rtnl_dereference(sitn->tunnels[prio][h]);

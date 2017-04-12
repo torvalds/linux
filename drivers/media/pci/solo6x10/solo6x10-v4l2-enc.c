@@ -759,7 +759,7 @@ static void solo_enc_buf_finish(struct vb2_buffer *vb)
 	}
 }
 
-static struct vb2_ops solo_enc_video_qops = {
+static const struct vb2_ops solo_enc_video_qops = {
 	.queue_setup	= solo_enc_queue_setup,
 	.buf_queue	= solo_enc_buf_queue,
 	.buf_finish	= solo_enc_buf_finish,

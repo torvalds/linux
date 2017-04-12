@@ -133,6 +133,13 @@ static void bytewise_xor(void *_bo, const void *_bi1, const void *_bi2,
 		bo[itr] = bi1[itr] ^ bi2[itr];
 }
 
+/* Scratch space for MAC calculations. */
+struct wusb_mac_scratch {
+	struct aes_ccm_b0 b0;
+	struct aes_ccm_b1 b1;
+	struct aes_ccm_a ax;
+};
+
 /*
  * CC-MAC function WUSB1.0[6.5]
  *
@@ -197,20 +204,18 @@ static void bytewise_xor(void *_bo, const void *_bi1, const void *_bi2,
  *       what sg[4] is for. Maybe there is a smarter way to do this.
  */
 static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
-			struct crypto_cipher *tfm_aes, void *mic,
+			struct crypto_cipher *tfm_aes,
+			struct wusb_mac_scratch *scratch,
+			void *mic,
 			const struct aes_ccm_nonce *n,
 			const struct aes_ccm_label *a, const void *b,
 			size_t blen)
 {
 	int result = 0;
 	SKCIPHER_REQUEST_ON_STACK(req, tfm_cbc);
-	struct aes_ccm_b0 b0;
-	struct aes_ccm_b1 b1;
-	struct aes_ccm_a ax;
 	struct scatterlist sg[4], sg_dst;
 	void *dst_buf;
 	size_t dst_size;
-	const u8 bzero[16] = { 0 };
 	u8 iv[crypto_skcipher_ivsize(tfm_cbc)];
 	size_t zero_padding;
 
@@ -218,28 +223,27 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	 * These checks should be compile time optimized out
 	 * ensure @a fills b1's mac_header and following fields
 	 */
-	WARN_ON(sizeof(*a) != sizeof(b1) - sizeof(b1.la));
-	WARN_ON(sizeof(b0) != sizeof(struct aes_ccm_block));
-	WARN_ON(sizeof(b1) != sizeof(struct aes_ccm_block));
-	WARN_ON(sizeof(ax) != sizeof(struct aes_ccm_block));
+	WARN_ON(sizeof(*a) != sizeof(scratch->b1) - sizeof(scratch->b1.la));
+	WARN_ON(sizeof(scratch->b0) != sizeof(struct aes_ccm_block));
+	WARN_ON(sizeof(scratch->b1) != sizeof(struct aes_ccm_block));
+	WARN_ON(sizeof(scratch->ax) != sizeof(struct aes_ccm_block));
 
 	result = -ENOMEM;
 	zero_padding = blen % sizeof(struct aes_ccm_block);
 	if (zero_padding)
 		zero_padding = sizeof(struct aes_ccm_block) - zero_padding;
-	dst_size = blen + sizeof(b0) + sizeof(b1) + zero_padding;
+	dst_size = blen + sizeof(scratch->b0) + sizeof(scratch->b1) +
+		zero_padding;
 	dst_buf = kzalloc(dst_size, GFP_KERNEL);
-	if (dst_buf == NULL) {
-		printk(KERN_ERR "E: can't alloc destination buffer\n");
+	if (!dst_buf)
 		goto error_dst_buf;
-	}
 
 	memset(iv, 0, sizeof(iv));
 
 	/* Setup B0 */
-	b0.flags = 0x59;	/* Format B0 */
-	b0.ccm_nonce = *n;
-	b0.lm = cpu_to_be16(0);	/* WUSB1.0[6.5] sez l(m) is 0 */
+	scratch->b0.flags = 0x59;	/* Format B0 */
+	scratch->b0.ccm_nonce = *n;
+	scratch->b0.lm = cpu_to_be16(0);	/* WUSB1.0[6.5] sez l(m) is 0 */
 
 	/* Setup B1
 	 *
@@ -248,15 +252,15 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	 * 14'--after clarification, it means to use A's contents
 	 * for MAC Header, EO, sec reserved and padding.
 	 */
-	b1.la = cpu_to_be16(blen + 14);
-	memcpy(&b1.mac_header, a, sizeof(*a));
+	scratch->b1.la = cpu_to_be16(blen + 14);
+	memcpy(&scratch->b1.mac_header, a, sizeof(*a));
 
 	sg_init_table(sg, ARRAY_SIZE(sg));
-	sg_set_buf(&sg[0], &b0, sizeof(b0));
-	sg_set_buf(&sg[1], &b1, sizeof(b1));
+	sg_set_buf(&sg[0], &scratch->b0, sizeof(scratch->b0));
+	sg_set_buf(&sg[1], &scratch->b1, sizeof(scratch->b1));
 	sg_set_buf(&sg[2], b, blen);
 	/* 0 if well behaved :) */
-	sg_set_buf(&sg[3], bzero, zero_padding);
+	sg_set_page(&sg[3], ZERO_PAGE(0), zero_padding, 0);
 	sg_init_one(&sg_dst, dst_buf, dst_size);
 
 	skcipher_request_set_tfm(req, tfm_cbc);
@@ -278,11 +282,12 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 	 * POS Crypto API: size is assumed to be AES's block size.
 	 * Thanks for documenting it -- tip taken from airo.c
 	 */
-	ax.flags = 0x01;		/* as per WUSB 1.0 spec */
-	ax.ccm_nonce = *n;
-	ax.counter = 0;
-	crypto_cipher_encrypt_one(tfm_aes, (void *)&ax, (void *)&ax);
-	bytewise_xor(mic, &ax, iv, 8);
+	scratch->ax.flags = 0x01;		/* as per WUSB 1.0 spec */
+	scratch->ax.ccm_nonce = *n;
+	scratch->ax.counter = 0;
+	crypto_cipher_encrypt_one(tfm_aes, (void *)&scratch->ax,
+				  (void *)&scratch->ax);
+	bytewise_xor(mic, &scratch->ax, iv, 8);
 	result = 8;
 error_cbc_crypt:
 	kfree(dst_buf);
@@ -305,6 +310,7 @@ ssize_t wusb_prf(void *out, size_t out_size,
 	struct aes_ccm_nonce n = *_n;
 	struct crypto_skcipher *tfm_cbc;
 	struct crypto_cipher *tfm_aes;
+	struct wusb_mac_scratch *scratch;
 	u64 sfn = 0;
 	__le64 sfn_le;
 
@@ -331,17 +337,25 @@ ssize_t wusb_prf(void *out, size_t out_size,
 		printk(KERN_ERR "E: can't set AES key: %d\n", (int)result);
 		goto error_setkey_aes;
 	}
+	scratch = kmalloc(sizeof(*scratch), GFP_KERNEL);
+	if (!scratch) {
+		result = -ENOMEM;
+		goto error_alloc_scratch;
+	}
 
 	for (bitr = 0; bitr < (len + 63) / 64; bitr++) {
 		sfn_le = cpu_to_le64(sfn++);
 		memcpy(&n.sfn, &sfn_le, sizeof(n.sfn));	/* n.sfn++... */
-		result = wusb_ccm_mac(tfm_cbc, tfm_aes, out + bytes,
+		result = wusb_ccm_mac(tfm_cbc, tfm_aes, scratch, out + bytes,
 				      &n, a, b, blen);
 		if (result < 0)
 			goto error_ccm_mac;
 		bytes += result;
 	}
 	result = bytes;
+
+	kfree(scratch);
+error_alloc_scratch:
 error_ccm_mac:
 error_setkey_aes:
 	crypto_free_cipher(tfm_aes);

@@ -298,5 +298,6 @@
 #define FD_GDSC			12
 #define MDSS_GDSC		13
 #define GPU_GX_GDSC		14
+#define MMAGIC_BIMC_GDSC	15
 
 #endif

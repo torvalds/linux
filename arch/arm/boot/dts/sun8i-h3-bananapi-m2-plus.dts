@@ -156,24 +156,18 @@
 
 &r_pio {
 	pwr_led_bpi_m2p: led_pins@0 {
-		allwinner,pins = "PL10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL10";
+		function = "gpio_out";
 	};
 
 	sw_r_bpi_m2p: key_pins@0 {
-		allwinner,pins = "PL3";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL3";
+		function = "gpio_in";
 	};
 
 	wifi_en_bpi_m2p: wifi_en_pin {
-		allwinner,pins = "PL7";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL7";
+		function = "gpio_out";
 	};
 };
 
@@ -185,7 +179,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_a>;
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
 	status = "okay";
 };
 

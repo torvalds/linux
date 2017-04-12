@@ -81,7 +81,7 @@ struct lstcon_group {
 #define LST_BATCH_RUNNING 0xB1	    /* running batch */
 
 struct lstcon_tsb_hdr {
-	lst_bid_t	 tsb_id;	 /* batch ID */
+	struct lst_bid	 tsb_id;	 /* batch ID */
 	int		 tsb_index;	 /* test index */
 };
 
@@ -92,14 +92,16 @@ struct lstcon_batch {
 	int		 bat_ntest;	  /* # of test */
 	int		 bat_state;	  /* state of the batch */
 	int		 bat_arg;	  /* parameter for run|stop, timeout
-					   * for run, force for stop */
+					   * for run, force for stop
+					   */
 	char		 bat_name[LST_NAME_SIZE];/* name of batch */
 
 	struct list_head bat_test_list;   /* list head of tests (struct lstcon_test)
 					   */
 	struct list_head bat_trans_list;  /* list head of transaction */
 	struct list_head bat_cli_list;	  /* list head of client nodes
-					   * (struct lstcon_node) */
+					   * (struct lstcon_node)
+					   */
 	struct list_head *bat_cli_hash;   /* hash table of client nodes */
 	struct list_head bat_srv_list;	  /* list head of server nodes */
 	struct list_head *bat_srv_hash;   /* hash table of server nodes */
@@ -138,24 +140,25 @@ struct lstcon_test {
 
 struct lstcon_session {
 	struct mutex	    ses_mutex;	      /* only 1 thread in session */
-	lst_sid_t	    ses_id;	      /* global session id */
+	struct lst_sid	    ses_id;	      /* global session id */
 	int		    ses_key;	      /* local session key */
 	int		    ses_state;	      /* state of session */
 	int		    ses_timeout;      /* timeout in seconds */
 	time64_t	    ses_laststamp;    /* last operation stamp (seconds)
 					       */
-	unsigned	    ses_features;     /* tests features of the session
+	unsigned int	    ses_features;     /* tests features of the session
 					       */
-	unsigned	    ses_feats_updated:1; /* features are synced with
-						  * remote test nodes */
-	unsigned	    ses_force:1;      /* force creating */
-	unsigned	    ses_shutdown:1;   /* session is shutting down */
-	unsigned	    ses_expired:1;    /* console is timedout */
+	unsigned int	    ses_feats_updated:1; /* features are synced with
+						  * remote test nodes
+						  */
+	unsigned int	    ses_force:1;      /* force creating */
+	unsigned int	    ses_shutdown:1;   /* session is shutting down */
+	unsigned int	    ses_expired:1;    /* console is timedout */
 	__u64		    ses_id_cookie;    /* batch id cookie */
 	char		    ses_name[LST_NAME_SIZE];/* session name */
 	struct lstcon_rpc_trans	*ses_ping;		/* session pinger */
 	struct stt_timer	 ses_ping_timer;   /* timer for pinger */
-	lstcon_trans_stat_t ses_trans_stat;   /* transaction stats */
+	struct lstcon_trans_stat ses_trans_stat;   /* transaction stats */
 
 	struct list_head    ses_trans_list;   /* global list of transaction */
 	struct list_head    ses_grp_list;     /* global list of groups */
@@ -170,7 +173,7 @@ struct lstcon_session {
 
 extern struct lstcon_session	 console_session;
 
-static inline lstcon_trans_stat_t *
+static inline struct lstcon_trans_stat *
 lstcon_trans_stat(void)
 {
 	return &console_session.ses_trans_stat;
@@ -184,17 +187,18 @@ lstcon_id2hash(lnet_process_id_t id, struct list_head *hash)
 	return &hash[idx];
 }
 
+int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr);
 int lstcon_console_init(void);
 int lstcon_console_fini(void);
-int lstcon_session_match(lst_sid_t sid);
-int lstcon_session_new(char *name, int key, unsigned version,
-		       int timeout, int flags, lst_sid_t __user *sid_up);
-int lstcon_session_info(lst_sid_t __user *sid_up, int __user *key,
-			unsigned __user *verp, lstcon_ndlist_ent_t __user *entp,
+int lstcon_session_match(struct lst_sid sid);
+int lstcon_session_new(char *name, int key, unsigned int version,
+		       int timeout, int flags, struct lst_sid __user *sid_up);
+int lstcon_session_info(struct lst_sid __user *sid_up, int __user *key,
+			unsigned __user *verp, struct lstcon_ndlist_ent __user *entp,
 			char __user *name_up, int len);
 int lstcon_session_end(void);
 int lstcon_session_debug(int timeout, struct list_head __user *result_up);
-int lstcon_session_feats_check(unsigned feats);
+int lstcon_session_feats_check(unsigned int feats);
 int lstcon_batch_debug(int timeout, char *name,
 		       int client, struct list_head __user *result_up);
 int lstcon_group_debug(int timeout, char *name,
@@ -206,12 +210,12 @@ int lstcon_group_del(char *name);
 int lstcon_group_clean(char *name, int args);
 int lstcon_group_refresh(char *name, struct list_head __user *result_up);
 int lstcon_nodes_add(char *name, int nnd, lnet_process_id_t __user *nds_up,
-		     unsigned *featp, struct list_head __user *result_up);
+		     unsigned int *featp, struct list_head __user *result_up);
 int lstcon_nodes_remove(char *name, int nnd, lnet_process_id_t __user *nds_up,
 			struct list_head __user *result_up);
-int lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gent_up,
+int lstcon_group_info(char *name, struct lstcon_ndlist_ent __user *gent_up,
 		      int *index_p, int *ndent_p,
-		      lstcon_node_ent_t __user *ndents_up);
+		      struct lstcon_node_ent __user *ndents_up);
 int lstcon_group_list(int idx, int len, char __user *name_up);
 int lstcon_batch_add(char *name);
 int lstcon_batch_run(char *name, int timeout,
@@ -223,9 +227,9 @@ int lstcon_test_batch_query(char *name, int testidx,
 			    struct list_head __user *result_up);
 int lstcon_batch_del(char *name);
 int lstcon_batch_list(int idx, int namelen, char __user *name_up);
-int lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
+int lstcon_batch_info(char *name, struct lstcon_test_batch_ent __user *ent_up,
 		      int server, int testidx, int *index_p,
-		      int *ndent_p, lstcon_node_ent_t __user *dents_up);
+		      int *ndent_p, struct lstcon_node_ent __user *dents_up);
 int lstcon_group_stat(char *grp_name, int timeout,
 		      struct list_head __user *result_up);
 int lstcon_nodes_stat(int count, lnet_process_id_t __user *ids_up,

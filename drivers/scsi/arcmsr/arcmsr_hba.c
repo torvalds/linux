@@ -61,7 +61,7 @@
 #include <linux/circ_buf.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -720,51 +720,39 @@ static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 static int
 arcmsr_request_irq(struct pci_dev *pdev, struct AdapterControlBlock *acb)
 {
-	int	i, j, r;
-	struct msix_entry entries[ARCMST_NUM_MSIX_VECTORS];
+	unsigned long flags;
+	int nvec, i;
 
-	for (i = 0; i < ARCMST_NUM_MSIX_VECTORS; i++)
-		entries[i].entry = i;
-	r = pci_enable_msix_range(pdev, entries, 1, ARCMST_NUM_MSIX_VECTORS);
-	if (r < 0)
-		goto msi_int;
-	acb->msix_vector_count = r;
-	for (i = 0; i < r; i++) {
-		if (request_irq(entries[i].vector,
-			arcmsr_do_interrupt, 0, "arcmsr", acb)) {
+	nvec = pci_alloc_irq_vectors(pdev, 1, ARCMST_NUM_MSIX_VECTORS,
+			PCI_IRQ_MSIX);
+	if (nvec > 0) {
+		pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_no);
+		flags = 0;
+	} else {
+		nvec = pci_alloc_irq_vectors(pdev, 1, 1,
+				PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+		if (nvec < 1)
+			return FAILED;
+
+		flags = IRQF_SHARED;
+	}
+
+	acb->vector_count = nvec;
+	for (i = 0; i < nvec; i++) {
+		if (request_irq(pci_irq_vector(pdev, i), arcmsr_do_interrupt,
+				flags, "arcmsr", acb)) {
 			pr_warn("arcmsr%d: request_irq =%d failed!\n",
-				acb->host->host_no, entries[i].vector);
-			for (j = 0 ; j < i ; j++)
-				free_irq(entries[j].vector, acb);
-			pci_disable_msix(pdev);
-			goto msi_int;
+				acb->host->host_no, pci_irq_vector(pdev, i));
+			goto out_free_irq;
 		}
-		acb->entries[i] = entries[i];
 	}
-	acb->acb_flags |= ACB_F_MSIX_ENABLED;
-	pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_no);
+
 	return SUCCESS;
-msi_int:
-	if (pci_enable_msi_exact(pdev, 1) < 0)
-		goto legacy_int;
-	if (request_irq(pdev->irq, arcmsr_do_interrupt,
-		IRQF_SHARED, "arcmsr", acb)) {
-		pr_warn("arcmsr%d: request_irq =%d failed!\n",
-			acb->host->host_no, pdev->irq);
-		pci_disable_msi(pdev);
-		goto legacy_int;
-	}
-	acb->acb_flags |= ACB_F_MSI_ENABLED;
-	pr_info("arcmsr%d: msi enabled\n", acb->host->host_no);
-	return SUCCESS;
-legacy_int:
-	if (request_irq(pdev->irq, arcmsr_do_interrupt,
-		IRQF_SHARED, "arcmsr", acb)) {
-		pr_warn("arcmsr%d: request_irq = %d failed!\n",
-			acb->host->host_no, pdev->irq);
-		return FAILED;
-	}
-	return SUCCESS;
+out_free_irq:
+	while (--i >= 0)
+		free_irq(pci_irq_vector(pdev, i), acb);
+	pci_free_irq_vectors(pdev);
+	return FAILED;
 }
 
 static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -886,15 +874,9 @@ static void arcmsr_free_irq(struct pci_dev *pdev,
 {
 	int i;
 
-	if (acb->acb_flags & ACB_F_MSI_ENABLED) {
-		free_irq(pdev->irq, acb);
-		pci_disable_msi(pdev);
-	} else if (acb->acb_flags & ACB_F_MSIX_ENABLED) {
-		for (i = 0; i < acb->msix_vector_count; i++)
-			free_irq(acb->entries[i].vector, acb);
-		pci_disable_msix(pdev);
-	} else
-		free_irq(pdev->irq, acb);
+	for (i = 0; i < acb->vector_count; i++)
+		free_irq(pci_irq_vector(pdev, i), acb);
+	pci_free_irq_vectors(pdev);
 }
 
 static int arcmsr_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -2388,15 +2370,23 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb,
 	}
 	case ARCMSR_MESSAGE_WRITE_WQBUFFER: {
 		unsigned char *ver_addr;
-		int32_t user_len, cnt2end;
+		uint32_t user_len;
+		int32_t cnt2end;
 		uint8_t *pQbuffer, *ptmpuserbuffer;
+
+		user_len = pcmdmessagefld->cmdmessage.Length;
+		if (user_len > ARCMSR_API_DATA_BUFLEN) {
+			retvalue = ARCMSR_MESSAGE_FAIL;
+			goto message_out;
+		}
+
 		ver_addr = kmalloc(ARCMSR_API_DATA_BUFLEN, GFP_ATOMIC);
 		if (!ver_addr) {
 			retvalue = ARCMSR_MESSAGE_FAIL;
 			goto message_out;
 		}
 		ptmpuserbuffer = ver_addr;
-		user_len = pcmdmessagefld->cmdmessage.Length;
+
 		memcpy(ptmpuserbuffer,
 			pcmdmessagefld->messagedatabuffer, user_len);
 		spin_lock_irqsave(&acb->wqbuffer_lock, flags);
@@ -2628,18 +2618,9 @@ static int arcmsr_queue_command_lck(struct scsi_cmnd *cmd,
 	struct AdapterControlBlock *acb = (struct AdapterControlBlock *) host->hostdata;
 	struct CommandControlBlock *ccb;
 	int target = cmd->device->id;
-	int lun = cmd->device->lun;
-	uint8_t scsicmd = cmd->cmnd[0];
 	cmd->scsi_done = done;
 	cmd->host_scribble = NULL;
 	cmd->result = 0;
-	if ((scsicmd == SYNCHRONIZE_CACHE) ||(scsicmd == SEND_DIAGNOSTIC)){
-		if(acb->devstate[target][lun] == ARECA_RAID_GONE) {
-    			cmd->result = (DID_NO_CONNECT << 16);
-		}
-		cmd->scsi_done(cmd);
-		return 0;
-	}
 	if (target == 16) {
 		/* virtual device for iop message transfer */
 		arcmsr_handle_virtual_command(acb, cmd);

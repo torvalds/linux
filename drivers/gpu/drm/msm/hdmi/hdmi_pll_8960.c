@@ -424,6 +424,7 @@ static struct clk_init_data pll_init = {
 	.ops = &hdmi_pll_ops,
 	.parent_names = hdmi_pll_parents,
 	.num_parents = ARRAY_SIZE(hdmi_pll_parents),
+	.flags = CLK_IGNORE_UNUSED,
 };
 
 int msm_hdmi_pll_8960_init(struct platform_device *pdev)

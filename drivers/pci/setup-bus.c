@@ -25,6 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/cache.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 #include "pci.h"
 
 unsigned int pci_flags;
@@ -104,17 +105,8 @@ static struct pci_dev_resource *res_to_dev_res(struct list_head *head,
 	struct pci_dev_resource *dev_res;
 
 	list_for_each_entry(dev_res, head, list) {
-		if (dev_res->res == res) {
-			int idx = res - &dev_res->dev->resource[0];
-
-			dev_printk(KERN_DEBUG, &dev_res->dev->dev,
-				 "res[%d]=%pR res_to_dev_res add_size %llx min_align %llx\n",
-				 idx, dev_res->res,
-				 (unsigned long long)dev_res->add_size,
-				 (unsigned long long)dev_res->min_align);
-
+		if (dev_res->res == res)
 			return dev_res;
-		}
 	}
 
 	return NULL;
@@ -1852,8 +1844,13 @@ void __init pci_assign_unassigned_resources(void)
 {
 	struct pci_bus *root_bus;
 
-	list_for_each_entry(root_bus, &pci_root_buses, node)
+	list_for_each_entry(root_bus, &pci_root_buses, node) {
 		pci_assign_unassigned_root_bus_resources(root_bus);
+
+		/* Make sure the root bridge has a companion ACPI device: */
+		if (ACPI_HANDLE(root_bus->bridge))
+			acpi_ioapic_add(ACPI_HANDLE(root_bus->bridge));
+	}
 }
 
 void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)

@@ -47,7 +47,7 @@
 #include <linux/mlx4/qp.h>
 
 #include "mlx4_ib.h"
-#include "user.h"
+#include <rdma/mlx4-abi.h>
 
 static void mlx4_ib_lock_cqs(struct mlx4_ib_cq *send_cq,
 			     struct mlx4_ib_cq *recv_cq);
@@ -74,10 +74,6 @@ enum {
 	 */
 	MLX4_IB_UD_HEADER_SIZE		= 82,
 	MLX4_IB_LSO_HEADER_SPARE	= 128,
-};
-
-enum {
-	MLX4_IB_IBOE_ETHERTYPE		= 0x8915
 };
 
 struct mlx4_ib_sqp {
@@ -644,7 +640,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	int qpn;
 	int err;
 	struct ib_qp_cap backup_cap;
-	struct mlx4_ib_sqp *sqp;
+	struct mlx4_ib_sqp *sqp = NULL;
 	struct mlx4_ib_qp *qp;
 	enum mlx4_ib_qp_type qp_type = (enum mlx4_ib_qp_type) init_attr->qp_type;
 	struct mlx4_ib_cq *mcq;
@@ -933,7 +929,9 @@ err_db:
 		mlx4_db_free(dev->dev, &qp->db);
 
 err:
-	if (!*caller_qp)
+	if (sqp)
+		kfree(sqp);
+	else if (!*caller_qp)
 		kfree(qp);
 	return err;
 }
@@ -1280,7 +1278,8 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	if (is_qp0(dev, mqp))
 		mlx4_CLOSE_PORT(dev->dev, mqp->port);
 
-	if (dev->qp1_proxy[mqp->port - 1] == mqp) {
+	if (mqp->mlx4_ib_qp_type == MLX4_IB_QPT_PROXY_GSI &&
+	    dev->qp1_proxy[mqp->port - 1] == mqp) {
 		mutex_lock(&dev->qp1_proxy_lock[mqp->port - 1]);
 		dev->qp1_proxy[mqp->port - 1] = NULL;
 		mutex_unlock(&dev->qp1_proxy_lock[mqp->port - 1]);
@@ -1764,14 +1763,14 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		u8 port_num = mlx4_is_bonded(to_mdev(ibqp->device)->dev) ? 1 :
 			attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 		union ib_gid gid;
-		struct ib_gid_attr gid_attr;
+		struct ib_gid_attr gid_attr = {.gid_type = IB_GID_TYPE_IB};
 		u16 vlan = 0xffff;
 		u8 smac[ETH_ALEN];
 		int status = 0;
 		int is_eth = rdma_cap_eth_ah(&dev->ib_dev, port_num) &&
 			attr->ah_attr.ah_flags & IB_AH_GRH;
 
-		if (is_eth) {
+		if (is_eth && attr->ah_attr.ah_flags & IB_AH_GRH) {
 			int index = attr->ah_attr.grh.sgid_index;
 
 			status = ib_get_cached_gid(ibqp->device, port_num,
@@ -2405,11 +2404,47 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	return 0;
 }
 
+static u8 sl_to_vl(struct mlx4_ib_dev *dev, u8 sl, int port_num)
+{
+	union sl2vl_tbl_to_u64 tmp_vltab;
+	u8 vl;
+
+	if (sl > 15)
+		return 0xf;
+	tmp_vltab.sl64 = atomic64_read(&dev->sl2vl[port_num - 1]);
+	vl = tmp_vltab.sl8[sl >> 1];
+	if (sl & 1)
+		vl &= 0x0f;
+	else
+		vl >>= 4;
+	return vl;
+}
+
+static int fill_gid_by_hw_index(struct mlx4_ib_dev *ibdev, u8 port_num,
+				int index, union ib_gid *gid,
+				enum ib_gid_type *gid_type)
+{
+	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
+	struct mlx4_port_gid_table *port_gid_table;
+	unsigned long flags;
+
+	port_gid_table = &iboe->gids[port_num - 1];
+	spin_lock_irqsave(&iboe->lock, flags);
+	memcpy(gid, &port_gid_table->gids[index].gid, sizeof(*gid));
+	*gid_type = port_gid_table->gids[index].gid_type;
+	spin_unlock_irqrestore(&iboe->lock, flags);
+	if (!memcmp(gid, &zgid, sizeof(*gid)))
+		return -ENOENT;
+
+	return 0;
+}
+
 #define MLX4_ROCEV2_QP1_SPORT 0xC000
 static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			    void *wqe, unsigned *mlx_seg_len)
 {
 	struct ib_device *ib_dev = sqp->qp.ibqp.device;
+	struct mlx4_ib_dev *ibdev = to_mdev(ib_dev);
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
 	struct mlx4_wqe_ctrl_seg *ctrl = wqe;
 	struct mlx4_wqe_inline_seg *inl = wqe + sizeof *mlx;
@@ -2435,8 +2470,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 	is_eth = rdma_port_get_link_layer(sqp->qp.ibqp.device, sqp->qp.port) == IB_LINK_LAYER_ETHERNET;
 	is_grh = mlx4_ib_ah_grh_present(ah);
 	if (is_eth) {
-		struct ib_gid_attr gid_attr;
-
+		enum ib_gid_type gid_type;
 		if (mlx4_is_mfunc(to_mdev(ib_dev)->dev)) {
 			/* When multi-function is enabled, the ib_core gid
 			 * indexes don't necessarily match the hw ones, so
@@ -2447,18 +2481,11 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			if (err)
 				return err;
 		} else  {
-			err = ib_get_cached_gid(ib_dev,
-						be32_to_cpu(ah->av.ib.port_pd) >> 24,
-						ah->av.ib.gid_index, &sgid,
-						&gid_attr);
+			err = fill_gid_by_hw_index(ibdev, sqp->qp.port,
+					    ah->av.ib.gid_index,
+					    &sgid, &gid_type);
 			if (!err) {
-				if (gid_attr.ndev)
-					dev_put(gid_attr.ndev);
-				if (!memcmp(&sgid, &zgid, sizeof(sgid)))
-					err = -ENOENT;
-			}
-			if (!err) {
-				is_udp = gid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP;
+				is_udp = gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP;
 				if (is_udp) {
 					if (ipv6_addr_v4mapped((struct in6_addr *)&sgid))
 						ip_version = 4;
@@ -2569,7 +2596,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 		u16 ether_type;
 		u16 pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
 
-		ether_type = (!is_udp) ? MLX4_IB_IBOE_ETHERTYPE :
+		ether_type = (!is_udp) ? ETH_P_IBOE:
 			(ip_version == 4 ? ETH_P_IP : ETH_P_IPV6);
 
 		mlx->sched_prio = cpu_to_be16(pcp);
@@ -2590,7 +2617,12 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			sqp->ud_header.vlan.tag = cpu_to_be16(vlan | pcp);
 		}
 	} else {
-		sqp->ud_header.lrh.virtual_lane    = !sqp->qp.ibqp.qp_num ? 15 : 0;
+		sqp->ud_header.lrh.virtual_lane    = !sqp->qp.ibqp.qp_num ? 15 :
+							sl_to_vl(to_mdev(ib_dev),
+								 sqp->ud_header.lrh.service_level,
+								 sqp->qp.port);
+		if (sqp->qp.ibqp.qp_num && sqp->ud_header.lrh.virtual_lane == 15)
+			return -EINVAL;
 		if (sqp->ud_header.lrh.destination_lid == IB_LID_PERMISSIVE)
 			sqp->ud_header.lrh.source_lid = IB_LID_PERMISSIVE;
 	}
@@ -2931,21 +2963,17 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		if (sqp->roce_v2_gsi) {
 			struct mlx4_ib_ah *ah = to_mah(ud_wr(wr)->ah);
-			struct ib_gid_attr gid_attr;
+			enum ib_gid_type gid_type;
 			union ib_gid gid;
 
-			if (!ib_get_cached_gid(ibqp->device,
-					       be32_to_cpu(ah->av.ib.port_pd) >> 24,
-					       ah->av.ib.gid_index, &gid,
-					       &gid_attr)) {
-				if (gid_attr.ndev)
-					dev_put(gid_attr.ndev);
-				qp = (gid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) ?
-					to_mqp(sqp->roce_v2_gsi) : qp;
-			} else {
+			if (!fill_gid_by_hw_index(mdev, sqp->qp.port,
+					   ah->av.ib.gid_index,
+					   &gid, &gid_type))
+				qp = (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) ?
+						to_mqp(sqp->roce_v2_gsi) : qp;
+			else
 				pr_err("Failed to get gid at index %d. RoCEv2 will not work properly\n",
 				       ah->av.ib.gid_index);
-			}
 		}
 	}
 

@@ -137,6 +137,8 @@ enum {
 	Opt_nofscache,
 	Opt_poolperm,
 	Opt_nopoolperm,
+	Opt_require_active_mds,
+	Opt_norequire_active_mds,
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	Opt_acl,
 #endif
@@ -171,6 +173,8 @@ static match_table_t fsopt_tokens = {
 	{Opt_nofscache, "nofsc"},
 	{Opt_poolperm, "poolperm"},
 	{Opt_nopoolperm, "nopoolperm"},
+	{Opt_require_active_mds, "require_active_mds"},
+	{Opt_norequire_active_mds, "norequire_active_mds"},
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	{Opt_acl, "acl"},
 #endif
@@ -287,6 +291,12 @@ static int parse_fsopt_token(char *c, void *private)
 	case Opt_nopoolperm:
 		fsopt->flags |= CEPH_MOUNT_OPT_NOPOOLPERM;
 		break;
+	case Opt_require_active_mds:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_MOUNTWAIT;
+		break;
+	case Opt_norequire_active_mds:
+		fsopt->flags |= CEPH_MOUNT_OPT_MOUNTWAIT;
+		break;
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	case Opt_acl:
 		fsopt->sb_flags |= MS_POSIXACL;
@@ -396,10 +406,12 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	 */
 	dev_name_end = strchr(dev_name, '/');
 	if (dev_name_end) {
-		fsopt->server_path = kstrdup(dev_name_end, GFP_KERNEL);
-		if (!fsopt->server_path) {
-			err = -ENOMEM;
-			goto out;
+		if (strlen(dev_name_end) > 1) {
+			fsopt->server_path = kstrdup(dev_name_end, GFP_KERNEL);
+			if (!fsopt->server_path) {
+				err = -ENOMEM;
+				goto out;
+			}
 		}
 	} else {
 		dev_name_end = dev_name + strlen(dev_name);
@@ -745,7 +757,6 @@ static const struct super_operations ceph_super_ops = {
 	.destroy_inode	= ceph_destroy_inode,
 	.write_inode    = ceph_write_inode,
 	.drop_inode	= ceph_drop_inode,
-	.evict_inode	= ceph_evict_inode,
 	.sync_fs        = ceph_sync_fs,
 	.put_super	= ceph_put_super,
 	.show_options   = ceph_show_options,
@@ -788,17 +799,11 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 		struct inode *inode = req->r_target_inode;
 		req->r_target_inode = NULL;
 		dout("open_root_inode success\n");
-		if (ceph_ino(inode) == CEPH_INO_ROOT &&
-		    fsc->sb->s_root == NULL) {
-			root = d_make_root(inode);
-			if (!root) {
-				root = ERR_PTR(-ENOMEM);
-				goto out;
-			}
-		} else {
-			root = d_obtain_root(inode);
+		root = d_make_root(inode);
+		if (!root) {
+			root = ERR_PTR(-ENOMEM);
+			goto out;
 		}
-		ceph_init_dentry(root);
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {
 		root = ERR_PTR(err);
@@ -825,35 +830,31 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc)
 	mutex_lock(&fsc->client->mount_mutex);
 
 	if (!fsc->sb->s_root) {
+		const char *path;
 		err = __ceph_open_session(fsc->client, started);
 		if (err < 0)
 			goto out;
 
-		dout("mount opening root\n");
-		root = open_root_dentry(fsc, "", started);
+		if (!fsc->mount_options->server_path) {
+			path = "";
+			dout("mount opening path \\t\n");
+		} else {
+			path = fsc->mount_options->server_path + 1;
+			dout("mount opening path %s\n", path);
+		}
+		root = open_root_dentry(fsc, path, started);
 		if (IS_ERR(root)) {
 			err = PTR_ERR(root);
 			goto out;
 		}
-		fsc->sb->s_root = root;
+		fsc->sb->s_root = dget(root);
 		first = 1;
 
 		err = ceph_fs_debugfs_init(fsc);
 		if (err < 0)
 			goto fail;
-	}
-
-	if (!fsc->mount_options->server_path) {
-		root = fsc->sb->s_root;
-		dget(root);
 	} else {
-		const char *path = fsc->mount_options->server_path + 1;
-		dout("mount opening path %s\n", path);
-		root = open_root_dentry(fsc, path, started);
-		if (IS_ERR(root)) {
-			err = PTR_ERR(root);
-			goto fail;
-		}
+		root = dget(fsc->sb->s_root);
 	}
 
 	fsc->mount_state = CEPH_MOUNT_MOUNTED;
@@ -886,6 +887,7 @@ static int ceph_set_super(struct super_block *s, void *data)
 	fsc->sb = s;
 
 	s->s_op = &ceph_super_ops;
+	s->s_d_op = &ceph_dentry_ops;
 	s->s_export_op = &ceph_export_ops;
 
 	s->s_time_gran = 1000;  /* 1000 ns == 1 us */
@@ -948,6 +950,14 @@ static int ceph_register_bdi(struct super_block *sb,
 	else
 		fsc->backing_dev_info.ra_pages =
 			VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
+
+	if (fsc->mount_options->rsize > fsc->mount_options->rasize &&
+	    fsc->mount_options->rsize >= PAGE_SIZE)
+		fsc->backing_dev_info.io_pages =
+			(fsc->mount_options->rsize + PAGE_SIZE - 1)
+			>> PAGE_SHIFT;
+	else if (fsc->mount_options->rsize == 0)
+		fsc->backing_dev_info.io_pages = ULONG_MAX;
 
 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
 			   atomic_long_inc_return(&bdi_seq));

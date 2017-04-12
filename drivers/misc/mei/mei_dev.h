@@ -55,7 +55,8 @@ extern const uuid_le mei_amthif_guid;
 
 /* File state */
 enum file_state {
-	MEI_FILE_INITIALIZING = 0,
+	MEI_FILE_UNINITIALIZED = 0,
+	MEI_FILE_INITIALIZING,
 	MEI_FILE_CONNECTING,
 	MEI_FILE_CONNECTED,
 	MEI_FILE_DISCONNECTING,
@@ -80,18 +81,13 @@ const char *mei_dev_state_str(int state);
 enum iamthif_states {
 	MEI_IAMTHIF_IDLE,
 	MEI_IAMTHIF_WRITING,
-	MEI_IAMTHIF_FLOW_CONTROL,
 	MEI_IAMTHIF_READING,
-	MEI_IAMTHIF_READ_COMPLETE
 };
 
 enum mei_file_transaction_states {
 	MEI_IDLE,
 	MEI_WRITING,
 	MEI_WRITE_COMPLETE,
-	MEI_FLOW_CONTROL,
-	MEI_READING,
-	MEI_READ_COMPLETE
 };
 
 /**
@@ -112,6 +108,21 @@ enum mei_cb_file_ops {
 	MEI_FOP_DISCONNECT_RSP,
 	MEI_FOP_NOTIFY_START,
 	MEI_FOP_NOTIFY_STOP,
+};
+
+/**
+ * enum mei_cl_io_mode - io mode between driver and fw
+ *
+ * @MEI_CL_IO_TX_BLOCKING: send is blocking
+ * @MEI_CL_IO_TX_INTERNAL: internal communication between driver and FW
+ *
+ * @MEI_CL_IO_RX_NONBLOCK: recv is non-blocking
+ */
+enum mei_cl_io_mode {
+	MEI_CL_IO_TX_BLOCKING = BIT(0),
+	MEI_CL_IO_TX_INTERNAL = BIT(1),
+
+	MEI_CL_IO_RX_NONBLOCK = BIT(2),
 };
 
 /*
@@ -146,7 +157,7 @@ struct mei_fw_status {
  * @refcnt: struct reference count
  * @props: client properties
  * @client_id: me client id
- * @mei_flow_ctrl_creds: flow control credits
+ * @tx_flow_ctrl_creds: flow control credits
  * @connect_count: number connections to this client
  * @bus_added: added to bus
  */
@@ -155,7 +166,7 @@ struct mei_me_client {
 	struct kref refcnt;
 	struct mei_client_properties props;
 	u8 client_id;
-	u8 mei_flow_ctrl_creds;
+	u8 tx_flow_ctrl_creds;
 	u8 connect_count;
 	u8 bus_added;
 };
@@ -174,6 +185,7 @@ struct mei_cl;
  * @fp: pointer to file structure
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
+ * @blocking: transmission blocking mode
  * @completed: the transfer or reception has completed
  */
 struct mei_cl_cb {
@@ -185,6 +197,7 @@ struct mei_cl_cb {
 	const struct file *fp;
 	int status;
 	u32 internal:1;
+	u32 blocking:1;
 	u32 completed:1;
 };
 
@@ -202,10 +215,11 @@ struct mei_cl_cb {
  * @ev_async: event async notification
  * @status: connection status
  * @me_cl: fw client connected
+ * @fp: file associated with client
  * @host_client_id: host id
- * @mei_flow_ctrl_creds: transmit flow credentials
+ * @tx_flow_ctrl_creds: transmit flow credentials
+ * @rx_flow_ctrl_creds: receive flow credentials
  * @timer_count:  watchdog timer for operation completion
- * @reserved: reserved for alignment
  * @notify_en: notification - enabled/disabled
  * @notify_ev: pending notification event
  * @writing_state: state of the tx
@@ -225,10 +239,11 @@ struct mei_cl {
 	struct fasync_struct *ev_async;
 	int status;
 	struct mei_me_client *me_cl;
+	const struct file *fp;
 	u8 host_client_id;
-	u8 mei_flow_ctrl_creds;
+	u8 tx_flow_ctrl_creds;
+	u8 rx_flow_ctrl_creds;
 	u8 timer_count;
-	u8 reserved;
 	u8 notify_en;
 	u8 notify_ev;
 	enum mei_file_transaction_states writing_state;
@@ -256,6 +271,7 @@ struct mei_cl {
  * @intr_clear       : clear pending interrupts
  * @intr_enable      : enable interrupts
  * @intr_disable     : disable interrupts
+ * @synchronize_irq  : synchronize irqs
  *
  * @hbuf_free_slots  : query for write buffer empty slots
  * @hbuf_is_ready    : query if write buffer is empty
@@ -277,7 +293,6 @@ struct mei_hw_ops {
 	int (*hw_start)(struct mei_device *dev);
 	void (*hw_config)(struct mei_device *dev);
 
-
 	int (*fw_status)(struct mei_device *dev, struct mei_fw_status *fw_sts);
 	enum mei_pg_state (*pg_state)(struct mei_device *dev);
 	bool (*pg_in_transition)(struct mei_device *dev);
@@ -286,14 +301,14 @@ struct mei_hw_ops {
 	void (*intr_clear)(struct mei_device *dev);
 	void (*intr_enable)(struct mei_device *dev);
 	void (*intr_disable)(struct mei_device *dev);
+	void (*synchronize_irq)(struct mei_device *dev);
 
 	int (*hbuf_free_slots)(struct mei_device *dev);
 	bool (*hbuf_is_ready)(struct mei_device *dev);
 	size_t (*hbuf_max_len)(const struct mei_device *dev);
-
 	int (*write)(struct mei_device *dev,
 		     struct mei_msg_hdr *hdr,
-		     unsigned char *buf);
+		     const unsigned char *buf);
 
 	int (*rdbuf_full_slots)(struct mei_device *dev);
 
@@ -307,11 +322,14 @@ void mei_cl_bus_rescan(struct mei_device *bus);
 void mei_cl_bus_rescan_work(struct work_struct *work);
 void mei_cl_bus_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
-			bool blocking);
-ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
+		      unsigned int mode);
+ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
+		      unsigned int mode);
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
 bool mei_cl_bus_notify_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *bus);
+bool mei_cl_bus_module_get(struct mei_cl *cl);
+void mei_cl_bus_module_put(struct mei_cl *cl);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
 
@@ -390,6 +408,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @hbm_f_ev_supported  : hbm feature event notification
  * @hbm_f_fa_supported  : hbm feature fixed address client
  * @hbm_f_ie_supported  : hbm feature immediate reply to enum request
+ * @hbm_f_os_supported  : hbm feature support OS ver message
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -400,9 +419,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @override_fixed_address: force allow fixed address behavior
  *
  * @amthif_cmd_list : amthif list for cmd waiting
- * @iamthif_fp : file for current amthif operation
  * @iamthif_cl  : amthif host client
- * @iamthif_current_cb : amthif current operation callback
  * @iamthif_open_count : number of opened amthif connections
  * @iamthif_stall_timer : timer to detect amthif hang
  * @iamthif_state : amthif processor state
@@ -424,10 +441,10 @@ struct mei_device {
 	struct cdev cdev;
 	int minor;
 
-	struct mei_cl_cb write_list;
-	struct mei_cl_cb write_waiting_list;
-	struct mei_cl_cb ctrl_wr_list;
-	struct mei_cl_cb ctrl_rd_list;
+	struct list_head write_list;
+	struct list_head write_waiting_list;
+	struct list_head ctrl_wr_list;
+	struct list_head ctrl_rd_list;
 
 	struct list_head file_list;
 	long open_handle_count;
@@ -473,6 +490,7 @@ struct mei_device {
 	unsigned int hbm_f_ev_supported:1;
 	unsigned int hbm_f_fa_supported:1;
 	unsigned int hbm_f_ie_supported:1;
+	unsigned int hbm_f_os_supported:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
@@ -483,11 +501,8 @@ struct mei_device {
 	bool override_fixed_address;
 
 	/* amthif list for cmd waiting */
-	struct mei_cl_cb amthif_cmd_list;
-	/* driver managed amthif list for reading completed amthif cmd data */
-	const struct file *iamthif_fp;
+	struct list_head amthif_cmd_list;
 	struct mei_cl iamthif_cl;
-	struct mei_cl_cb *iamthif_current_cb;
 	long iamthif_open_count;
 	u32 iamthif_stall_timer;
 	enum iamthif_states iamthif_state;
@@ -556,11 +571,12 @@ void mei_cancel_work(struct mei_device *dev);
  */
 
 void mei_timer(struct work_struct *work);
+void mei_schedule_stall_timer(struct mei_device *dev);
 int mei_irq_read_handler(struct mei_device *dev,
-		struct mei_cl_cb *cmpl_list, s32 *slots);
+			 struct list_head *cmpl_list, s32 *slots);
 
-int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
-void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
+int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list);
+void mei_irq_compl_handler(struct mei_device *dev, struct list_head *cmpl_list);
 
 /*
  * AMTHIF - AMT Host Interface Functions
@@ -569,23 +585,19 @@ void mei_amthif_reset_params(struct mei_device *dev);
 
 int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
 
-int mei_amthif_read(struct mei_device *dev, struct file *file,
-		char __user *ubuf, size_t length, loff_t *offset);
-
-unsigned int mei_amthif_poll(struct mei_device *dev,
-		struct file *file, poll_table *wait);
+unsigned int mei_amthif_poll(struct file *file, poll_table *wait);
 
 int mei_amthif_release(struct mei_device *dev, struct file *file);
 
 int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_amthif_run_next_cmd(struct mei_device *dev);
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-			struct mei_cl_cb *cmpl_list);
+			 struct list_head *cmpl_list);
 
 void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
-			    struct mei_cl_cb *complete_list);
+			    struct list_head *cmpl_list);
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
 
 /*
@@ -638,6 +650,11 @@ static inline void mei_disable_interrupts(struct mei_device *dev)
 	dev->ops->intr_disable(dev);
 }
 
+static inline void mei_synchronize_irq(struct mei_device *dev)
+{
+	dev->ops->synchronize_irq(dev);
+}
+
 static inline bool mei_host_is_ready(struct mei_device *dev)
 {
 	return dev->ops->host_is_ready(dev);
@@ -663,7 +680,7 @@ static inline size_t mei_hbuf_max_len(const struct mei_device *dev)
 }
 
 static inline int mei_write_message(struct mei_device *dev,
-			struct mei_msg_hdr *hdr, void *buf)
+				    struct mei_msg_hdr *hdr, const void *buf)
 {
 	return dev->ops->write(dev, hdr, buf);
 }

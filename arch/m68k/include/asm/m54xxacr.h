@@ -94,7 +94,7 @@
  *	register region as non-cacheable. And then we map all our RAM as
  *	cacheable and supervisor access only.
  */
-#define ACR0_MODE	(ACR_BA(CONFIG_MBAR)+ACR_ADMSK(0x1000000)+ \
+#define ACR0_MODE	(ACR_BA(IOMEMBASE)+ACR_ADMSK(IOMEMSIZE)+ \
 			 ACR_ENABLE+ACR_SUPER+ACR_CM_OFF_PRE+ACR_SP)
 #if defined(CONFIG_CACHE_COPYBACK)
 #define ACR1_MODE	(ACR_BA(CONFIG_RAMBASE)+ACR_ADMSK(CONFIG_RAMSIZE)+ \

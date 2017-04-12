@@ -74,7 +74,7 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 				    &io_req->req_flags)) {
 			/* Handle internally generated ABTS timeout */
 			BNX2FC_IO_DBG(io_req, "ABTS timed out refcnt = %d\n",
-					io_req->refcount.refcount.counter);
+					kref_read(&io_req->refcount));
 			if (!(test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
 					       &io_req->req_flags))) {
 				/*
@@ -1079,7 +1079,7 @@ int bnx2fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 	return bnx2fc_initiate_tmf(sc_cmd, FCP_TMF_LUN_RESET);
 }
 
-int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
+static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 {
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	int rc = SUCCESS;
@@ -1141,7 +1141,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		return SUCCESS;
 	}
 	BNX2FC_IO_DBG(io_req, "eh_abort - refcnt = %d\n",
-		      io_req->refcount.refcount.counter);
+		      kref_read(&io_req->refcount));
 
 	/* Hold IO request across abort processing */
 	kref_get(&io_req->refcount);
@@ -1299,7 +1299,7 @@ void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,
 {
 	BNX2FC_IO_DBG(io_req, "Entered process_cleanup_compl "
 			      "refcnt = %d, cmd_type = %d\n",
-		   io_req->refcount.refcount.counter, io_req->cmd_type);
+		   kref_read(&io_req->refcount), io_req->cmd_type);
 	bnx2fc_scsi_done(io_req, DID_ERROR);
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 	if (io_req->wait_for_comp)
@@ -1318,7 +1318,7 @@ void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
 	BNX2FC_IO_DBG(io_req, "Entered process_abts_compl xid = 0x%x"
 			      "refcnt = %d, cmd_type = %d\n",
 		   io_req->xid,
-		   io_req->refcount.refcount.counter, io_req->cmd_type);
+		   kref_read(&io_req->refcount), io_req->cmd_type);
 
 	if (test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
 				       &io_req->req_flags)) {

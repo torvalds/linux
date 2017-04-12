@@ -1,16 +1,6 @@
 menu "PCI host controller drivers"
 	depends on PCI
 
-config PCI_DRA7XX
-	bool "TI DRA7xx PCIe controller"
-	depends on OF && HAS_IOMEM && TI_PIPE3
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_DW
-	help
-	 Enables support for the PCIe controller in the DRA7xx SoC.  There
-	 are two instances of PCIe controller in DRA7xx.  This controller can
-	 act both as EP and RC.  This reuses the Designware core.
-
 config PCI_MVEBU
 	bool "Marvell EBU PCIe controller"
 	depends on ARCH_MVEBU || ARCH_DOVE
@@ -37,39 +27,9 @@ config PCIE_XILINX_NWL
 	 or End Point. The current option selection will only
 	 support root port enabling.
 
-config PCIE_DW_PLAT
-	bool "Platform bus based DesignWare PCIe Controller"
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_DW
-	---help---
-	 This selects the DesignWare PCIe controller support. Select this if
-	 you have a PCIe controller on Platform bus.
-
-	 If you have a controller with this interface, say Y or M here.
-
-	 If unsure, say N.
-
-config PCIE_DW
-	bool
-	depends on PCI_MSI_IRQ_DOMAIN
-
-config PCI_EXYNOS
-	bool "Samsung Exynos PCIe controller"
-	depends on SOC_EXYNOS5440
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIEPORTBUS
-	select PCIE_DW
-
-config PCI_IMX6
-	bool "Freescale i.MX6 PCIe controller"
-	depends on SOC_IMX6Q
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIEPORTBUS
-	select PCIE_DW
-
 config PCI_TEGRA
 	bool "NVIDIA Tegra PCIe controller"
-	depends on ARCH_TEGRA && !ARM64
+	depends on ARCH_TEGRA
 	help
 	  Say Y here if you want support for the PCIe host controller found
 	  on NVIDIA Tegra SoCs.
@@ -103,27 +63,6 @@ config PCI_HOST_GENERIC
 	  Say Y here if you want to support a simple generic PCI host
 	  controller, such as the one emulated by kvmtool.
 
-config PCIE_SPEAR13XX
-	bool "STMicroelectronics SPEAr PCIe controller"
-	depends on ARCH_SPEAR13XX
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIEPORTBUS
-	select PCIE_DW
-	help
-	  Say Y here if you want PCIe support on SPEAr13XX SoCs.
-
-config PCI_KEYSTONE
-	bool "TI Keystone PCIe controller"
-	depends on ARCH_KEYSTONE
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_DW
-	select PCIEPORTBUS
-	help
-	  Say Y here if you want to enable PCI controller support on Keystone
-	  SoCs. The PCI controller on Keystone is based on Designware hardware
-	  and therefore the driver re-uses the Designware core functions to
-	  implement the driver.
-
 config PCIE_XILINX
 	bool "Xilinx AXI PCIe host bridge support"
 	depends on ARCH_ZYNQ || MICROBLAZE
@@ -133,8 +72,8 @@ config PCIE_XILINX
 
 config PCI_XGENE
 	bool "X-Gene PCIe controller"
-	depends on ARCH_XGENE
-	depends on OF
+	depends on ARM64
+	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCIEPORTBUS
 	help
 	  Say Y here if you want internal PCI support on APM X-Gene SoC.
@@ -149,15 +88,6 @@ config PCI_XGENE_MSI
 	help
 	  Say Y here if you want PCIe MSI support for the APM X-Gene v1 SoC.
 	  This MSI driver supports 5 PCIe ports on the APM X-Gene v1 SoC.
-
-config PCI_LAYERSCAPE
-	bool "Freescale Layerscape PCIe controller"
-	depends on OF && (ARM || ARCH_LAYERSCAPE)
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_DW
-	select MFD_SYSCON
-	help
-	  Say Y here if you want PCIe controller support on Layerscape SoCs.
 
 config PCI_VERSATILE
 	bool "ARM Versatile PB PCI controller"
@@ -217,61 +147,47 @@ config PCIE_ALTERA_MSI
 	  Say Y here if you want PCIe MSI support for the Altera FPGA.
 	  This MSI driver supports Altera MSI to GIC controller IP.
 
-config PCI_HISI
-	depends on OF && ARM64
-	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controllers"
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIEPORTBUS
-	select PCIE_DW
-	help
-	  Say Y here if you want PCIe controller support on HiSilicon
-	  Hip05 and Hip06 SoCs
-
-config PCIE_QCOM
-	bool "Qualcomm PCIe controller"
-	depends on ARCH_QCOM && OF
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_DW
-	select PCIEPORTBUS
-	help
-	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
-	  PCIe controller uses the Designware core plus Qualcomm-specific
-	  hardware wrappers.
-
 config PCI_HOST_THUNDER_PEM
 	bool "Cavium Thunder PCIe controller to off-chip devices"
-	depends on OF && ARM64
+	depends on ARM64
+	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want PCIe support for CN88XX Cavium Thunder SoCs.
 
 config PCI_HOST_THUNDER_ECAM
 	bool "Cavium Thunder ECAM controller to on-chip devices on pass-1.x silicon"
-	depends on OF && ARM64
+	depends on ARM64
+	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want ECAM support for CN88XX-Pass-1.x Cavium Thunder SoCs.
 
-config PCIE_ARMADA_8K
-	bool "Marvell Armada-8K PCIe controller"
-	depends on ARCH_MVEBU
+config PCIE_ROCKCHIP
+	bool "Rockchip PCIe controller"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on OF
 	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_DW
-	select PCIEPORTBUS
+	select MFD_SYSCON
 	help
-	  Say Y here if you want to enable PCIe controller support on
-	  Armada-8K SoCs. The PCIe controller on Armada-8K is based on
-	  Designware hardware and therefore the driver re-uses the
-	  Designware core functions to implement the driver.
+	  Say Y here if you want internal PCI support on Rockchip SoC.
+	  There is 1 internal PCIe port available to support GEN2 with
+	  4 slots.
 
-config PCIE_ARTPEC6
-	bool "Axis ARTPEC-6 PCIe controller"
-	depends on MACH_ARTPEC6
-	depends on PCI_MSI_IRQ_DOMAIN
-	select PCIE_DW
-	select PCIEPORTBUS
-	help
-	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
-	  SoCs.  This PCIe controller uses the DesignWare core.
+config VMD
+	depends on PCI_MSI && X86_64 && SRCU
+	tristate "Intel Volume Management Device Driver"
+	default N
+	---help---
+	  Adds support for the Intel Volume Management Device (VMD). VMD is a
+	  secondary PCI host bridge that allows PCI Express root ports,
+	  and devices attached to them, to be removed from the default
+	  PCI domain and placed within the VMD domain. This provides
+	  more bus resources than are otherwise possible with a
+	  single domain. If you know your system provides one of these and
+	  has devices attached to it, say Y; if you are not sure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmd.
 
 endmenu

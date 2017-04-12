@@ -232,10 +232,12 @@ struct hid_sensor_common {
 	atomic_t data_ready;
 	atomic_t user_requested_state;
 	struct iio_trigger *trigger;
+	int timestamp_ns_scale;
 	struct hid_sensor_hub_attribute_info poll;
 	struct hid_sensor_hub_attribute_info report_state;
 	struct hid_sensor_hub_attribute_info power_state;
 	struct hid_sensor_hub_attribute_info sensitivity;
+	struct work_struct work;
 };
 
 /* Convert from hid unit expo to regular exponent */
@@ -269,5 +271,8 @@ int hid_sensor_format_scale(u32 usage_id,
 			    int *val0, int *val1);
 
 s32 hid_sensor_read_poll_value(struct hid_sensor_common *st);
+
+int64_t hid_sensor_convert_timestamp(struct hid_sensor_common *st,
+				     int64_t raw_value);
 
 #endif

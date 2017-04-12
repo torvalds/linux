@@ -5,11 +5,18 @@ config CLKSRC_OF
 	bool
 	select CLKSRC_PROBE
 
+config CLKEVT_OF
+	bool
+	select CLKEVT_PROBE
+
 config CLKSRC_ACPI
 	bool
 	select CLKSRC_PROBE
 
 config CLKSRC_PROBE
+	bool
+
+config CLKEVT_PROBE
 	bool
 
 config CLKSRC_I8253
@@ -59,6 +66,16 @@ config DW_APB_TIMER_OF
 	bool
 	select DW_APB_TIMER
 	select CLKSRC_OF
+
+config GEMINI_TIMER
+	bool "Cortina Gemini timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select MFD_SYSCON
+	help
+	  Enables support for the Gemini timer
 
 config ROCKCHIP_TIMER
 	bool "Rockchip timer driver" if COMPILE_TEST
@@ -282,6 +299,26 @@ config CLKSRC_MPS2
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 
+config ARC_TIMERS
+	bool "Support for 32-bit TIMERn counters in ARC Cores" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_OF
+	help
+	  These are legacy 32-bit TIMER0 and TIMER1 counters found on all ARC cores
+	  (ARC700 as well as ARC HS38).
+	  TIMER0 serves as clockevent while TIMER1 provides clocksource
+
+config ARC_TIMERS_64BIT
+	bool "Support for 64-bit counters in ARC HS38 cores" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on ARC_TIMERS
+	select CLKSRC_OF
+	help
+	  This enables 2 different 64-bit timers: RTC (for UP) and GFRC (for SMP)
+	  RTC is implemented inside the core, while GFRC sits outside the core in
+	  ARConnect IP block. Driver automatically picks one of them for clocksource
+	  as appropriate.
+
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
@@ -304,6 +341,30 @@ config ARM_ARCH_TIMER_EVTSTREAM
 	  event is not generated.
 	  This must be disabled for hardware validation purposes to detect any
 	  hardware anomalies of missing events.
+
+config ARM_ARCH_TIMER_OOL_WORKAROUND
+	bool
+
+config FSL_ERRATUM_A008585
+	bool "Workaround for Freescale/NXP Erratum A-008585"
+	default y
+	depends on ARM_ARCH_TIMER && ARM64
+	select ARM_ARCH_TIMER_OOL_WORKAROUND
+	help
+	  This option enables a workaround for Freescale/NXP Erratum
+	  A-008585 ("ARM generic timer may contain an erroneous
+	  value").  The workaround will only be active if the
+	  fsl,erratum-a008585 property is found in the timer node.
+
+config HISILICON_ERRATUM_161010101
+	bool "Workaround for Hisilicon Erratum 161010101"
+	default y
+	select ARM_ARCH_TIMER_OOL_WORKAROUND
+	depends on ARM_ARCH_TIMER && ARM64
+	help
+	  This option enables a workaround for Hisilicon Erratum
+	  161010101. The workaround will be active if the hisilicon,erratum-161010101
+	  property is found in the timer node.
 
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST
@@ -351,7 +412,7 @@ config CLKSRC_METAG_GENERIC
 
 config CLKSRC_EXYNOS_MCT
 	bool "Exynos multi core timer driver" if COMPILE_TEST
-	depends on ARM
+	depends on ARM || ARM64
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
@@ -407,6 +468,16 @@ config SYS_SUPPORTS_SH_TMU
 config SYS_SUPPORTS_EM_STI
         bool
 
+config CLKSRC_JCORE_PIT
+	bool "J-Core PIT timer driver" if COMPILE_TEST
+	depends on OF
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
+	help
+	  This enables build of clocksource and clockevent driver for
+	  the integrated PIT in the J-Core synthesizable, open source SoC.
+
 config SH_TIMER_CMT
 	bool "Renesas CMT timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
@@ -426,6 +497,13 @@ config SH_TIMER_MTU2
 	  This enables build of a clockevent driver for the Multi-Function
 	  Timer Pulse Unit 2 (MTU2) hardware available on SoCs from Renesas.
 	  This hardware comes with 16 bit-timer registers.
+
+config RENESAS_OSTM
+	bool "Renesas OSTM timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables the support for the Renesas OSTM.
 
 config SH_TIMER_TMU
 	bool "Renesas TMU timer driver" if COMPILE_TEST

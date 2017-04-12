@@ -27,6 +27,7 @@
 #include <asm/kexec.h>
 #include <asm/ptrace.h>
 #include <asm/mmu.h>
+#include <asm/export.h>
 
 	.text
 
@@ -66,7 +67,7 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_KPROBE(flush_icache_range)
+_GLOBAL_TOC(flush_icache_range)
 BEGIN_FTR_SECTION
 	PURGE_PREFETCHED_INS
 	blr
@@ -79,12 +80,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
  * each other.
  */
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)/* Get cache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)/* Get cache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)	/* Get log-2 of cache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of cache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mtctr	r8
@@ -95,12 +96,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 
 /* Now invalidate the instruction cache */
 	
-	lwz	r7,ICACHEL1LINESIZE(r10)	/* Get Icache line size */
+	lwz	r7,ICACHEL1BLOCKSIZE(r10)	/* Get Icache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5
-	lwz	r9,ICACHEL1LOGLINESIZE(r10)	/* Get log-2 of Icache line size */
+	lwz	r9,ICACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of Icache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mtctr	r8
@@ -109,7 +110,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	bdnz	2b
 	isync
 	blr
-	.previous .text
+_ASM_NOKPROBE_SYMBOL(flush_icache_range)
+EXPORT_SYMBOL(flush_icache_range)
+
 /*
  * Like above, but only do the D-cache.
  *
@@ -117,7 +120,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
  *
  *    flush all bytes from start to stop-1 inclusive
  */
-_GLOBAL(flush_dcache_range)
+_GLOBAL_TOC(flush_dcache_range)
 
 /*
  * Flush the data cache to memory 
@@ -125,12 +128,12 @@ _GLOBAL(flush_dcache_range)
  * Different systems have different cache line sizes
  */
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)	/* Get dcache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)	/* Get log-2 of dcache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of dcache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mtctr	r8
@@ -139,6 +142,7 @@ _GLOBAL(flush_dcache_range)
 	bdnz	0b
 	sync
 	blr
+EXPORT_SYMBOL(flush_dcache_range)
 
 /*
  * Like above, but works on non-mapped physical addresses.
@@ -152,12 +156,12 @@ _GLOBAL(flush_dcache_range)
  */
 _GLOBAL(flush_dcache_phys_range)
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)	/* Get dcache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)	/* Get log-2 of dcache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of dcache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mfmsr	r5			/* Disable MMU Data Relocation */
@@ -180,12 +184,12 @@ _GLOBAL(flush_dcache_phys_range)
 
 _GLOBAL(flush_inval_dcache_range)
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)	/* Get dcache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)/* Get log-2 of dcache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)/* Get log-2 of dcache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	sync
@@ -221,8 +225,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /* Flush the dcache */
  	ld	r7,PPC64_CACHES@toc(r2)
 	clrrdi	r3,r3,PAGE_SHIFT           	    /* Page align */
-	lwz	r4,DCACHEL1LINESPERPAGE(r7)	/* Get # dcache lines per page */
-	lwz	r5,DCACHEL1LINESIZE(r7)		/* Get dcache line size */
+	lwz	r4,DCACHEL1BLOCKSPERPAGE(r7)	/* Get # dcache blocks per page */
+	lwz	r5,DCACHEL1BLOCKSIZE(r7)	/* Get dcache block size */
 	mr	r6,r3
 	mtctr	r4
 0:	dcbst	0,r6
@@ -232,8 +236,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 
 /* Now invalidate the icache */	
 
-	lwz	r4,ICACHEL1LINESPERPAGE(r7)	/* Get # icache lines per page */
-	lwz	r5,ICACHEL1LINESIZE(r7)		/* Get icache line size */
+	lwz	r4,ICACHEL1BLOCKSPERPAGE(r7)	/* Get # icache blocks per page */
+	lwz	r5,ICACHEL1BLOCKSIZE(r7)	/* Get icache block size */
 	mtctr	r4
 1:	icbi	0,r3
 	add	r3,r3,r5
@@ -242,6 +246,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	blr
 
 _GLOBAL(__bswapdi2)
+EXPORT_SYMBOL(__bswapdi2)
 	srdi	r8,r3,32
 	rlwinm	r7,r3,8,0xffffffff
 	rlwimi	r7,r3,24,0,7
@@ -473,7 +478,7 @@ _GLOBAL(kexec_wait)
 	addi	r5,r5,kexec_flag-1b
 
 99:	HMT_LOW
-#ifdef CONFIG_KEXEC		/* use no memory without kexec */
+#ifdef CONFIG_KEXEC_CORE	/* use no memory without kexec */
 	lwz	r4,0(r5)
 	cmpwi	0,r4,0
 	beq	99b
@@ -498,7 +503,7 @@ kexec_flag:
 	.long	0
 
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 #ifdef CONFIG_PPC_BOOK3E
 /*
  * BOOK3E has no real MMU mode, so we have to setup the initial TLB
@@ -591,7 +596,8 @@ real_mode:	/* assume normal blr return */
 #endif
 
 /*
- * kexec_sequence(newstack, start, image, control, clear_all())
+ * kexec_sequence(newstack, start, image, control, clear_all(),
+	          copy_with_mmu_off)
  *
  * does the grungy work with stack switching and real mode switches
  * also does simple calls to other code
@@ -627,7 +633,7 @@ _GLOBAL(kexec_sequence)
 	mr	r29,r5			/* image (virt) */
 	mr	r28,r6			/* control, unused */
 	mr	r27,r7			/* clear_all() fn desc */
-	mr	r26,r8			/* spare */
+	mr	r26,r8			/* copy_with_mmu_off */
 	lhz	r25,PACAHWCPUID(r13)	/* get our phys cpu from paca */
 
 	/* disable interrupts, we are overwriting kernel data next */
@@ -639,15 +645,24 @@ _GLOBAL(kexec_sequence)
 	mtmsrd	r3,1
 #endif
 
+	/* We need to turn the MMU off unless we are in hash mode
+	 * under a hypervisor
+	 */
+	cmpdi	r26,0
+	beq	1f
+	bl	real_mode
+1:
 	/* copy dest pages, flush whole dest image */
 	mr	r3,r29
 	bl	kexec_copy_flush	/* (image) */
 
-	/* turn off mmu */
+	/* turn off mmu now if not done earlier */
+	cmpdi	r26,0
+	bne	1f
 	bl	real_mode
 
 	/* copy  0x100 bytes starting at start to 0 */
-	li	r3,0
+1:	li	r3,0
 	mr	r4,r30		/* start, aka phys mem offset */
 	li	r5,0x100
 	li	r6,0
@@ -659,7 +674,9 @@ _GLOBAL(kexec_sequence)
 	li	r6,1
 	stw	r6,kexec_flag-1b(5)
 
-#ifndef CONFIG_PPC_BOOK3E
+	cmpdi	r27,0
+	beq	1f
+
 	/* clear out hardware hash page table and tlb */
 #ifdef PPC64_ELF_ABI_v1
 	ld	r12,0(r27)		/* deref function descriptor */
@@ -668,7 +685,6 @@ _GLOBAL(kexec_sequence)
 #endif
 	mtctr	r12
 	bctrl				/* mmu_hash_ops.hpte_clear_all(void); */
-#endif /* !CONFIG_PPC_BOOK3E */
 
 /*
  *   kexec image calling is:
@@ -695,9 +711,9 @@ _GLOBAL(kexec_sequence)
  *    are the boot cpu ?????
  *    other device tree differences (prop sizes, va vs pa, etc)...
  */
-	mr	r3,r25	# my phys cpu
+1:	mr	r3,r25	# my phys cpu
 	mr	r4,r30	# start, aka phys mem offset
 	mtlr	4
 	li	r5,0
 	blr	/* image->start(physid, image->start, 0); */
-#endif /* CONFIG_KEXEC */
+#endif /* CONFIG_KEXEC_CORE */

@@ -484,12 +484,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wl1273 = {
 	.probe = wl1273_probe,
 	.remove = wl1273_remove,
 
-	.controls = wl1273_controls,
-	.num_controls = ARRAY_SIZE(wl1273_controls),
-	.dapm_widgets = wl1273_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wl1273_dapm_widgets),
-	.dapm_routes = wl1273_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wl1273_dapm_routes),
+	.component_driver = {
+		.controls		= wl1273_controls,
+		.num_controls		= ARRAY_SIZE(wl1273_controls),
+		.dapm_widgets		= wl1273_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wl1273_dapm_widgets),
+		.dapm_routes		= wl1273_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wl1273_dapm_routes),
+	},
 };
 
 static int wl1273_platform_probe(struct platform_device *pdev)

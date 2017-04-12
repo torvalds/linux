@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/of_mdio.h>
 
 /* PCS registers */
@@ -506,6 +507,9 @@ static void setup_sgmii_internal_phy(struct fman_mac *memac,
 				     struct fixed_phy_status *fixed_link)
 {
 	u16 tmp_reg16;
+
+	if (WARN_ON(!memac->pcsphy))
+		return;
 
 	/* SGMII mode */
 	tmp_reg16 = IF_MODE_SGMII_EN;
@@ -1104,6 +1108,9 @@ int memac_free(struct fman_mac *memac)
 {
 	free_init_resources(memac);
 
+	if (memac->pcsphy)
+		put_device(&memac->pcsphy->mdio.dev);
+
 	kfree(memac->memac_drv_param);
 	kfree(memac);
 
@@ -1151,7 +1158,8 @@ struct fman_mac *memac_config(struct fman_mac_params *params)
 	/* Save FMan revision */
 	fman_get_revision(memac->fm, &memac->fm_rev_info);
 
-	if (memac->phy_if == PHY_INTERFACE_MODE_SGMII) {
+	if (memac->phy_if == PHY_INTERFACE_MODE_SGMII ||
+	    memac->phy_if == PHY_INTERFACE_MODE_QSGMII) {
 		if (!params->internal_phy_node) {
 			pr_err("PCS PHY node is not available\n");
 			memac_free(memac);

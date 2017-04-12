@@ -291,7 +291,7 @@ struct bigmac {
 	void __iomem	*bregs;	/* BigMAC Registers                   */
 	void __iomem	*tregs;	/* BigMAC Transceiver                 */
 	struct bmac_init_block	*bmac_block;	/* RX and TX descriptors */
-	__u32			 bblock_dvma;	/* RX and TX descriptors */
+	dma_addr_t		bblock_dvma;	/* RX and TX descriptors */
 
 	spinlock_t		lock;
 

@@ -34,6 +34,7 @@
 #define __LNET_TYPES_H__
 
 #include <linux/types.h>
+#include <linux/bvec.h>
 
 /** \addtogroup lnet
  * @{
@@ -114,11 +115,11 @@ static inline __u32 LNET_MKNET(__u32 type, __u32 num)
 #define WIRE_ATTR	__packed
 
 /* Packed version of lnet_process_id_t to transfer via network */
-typedef struct {
+struct lnet_process_id_packed {
 	/* node id / process id */
 	lnet_nid_t	nid;
 	lnet_pid_t	pid;
-} WIRE_ATTR lnet_process_id_packed_t;
+} WIRE_ATTR;
 
 /*
  * The wire handle's interface cookie only matches one network interface in
@@ -126,10 +127,10 @@ typedef struct {
  * reboots).  The object cookie only matches one object on that interface
  * during that object's lifetime (i.e. no cookie re-use).
  */
-typedef struct {
+struct lnet_handle_wire {
 	__u64	wh_interface_cookie;
 	__u64	wh_object_cookie;
-} WIRE_ATTR lnet_handle_wire_t;
+} WIRE_ATTR;
 
 typedef enum {
 	LNET_MSG_ACK = 0,
@@ -145,38 +146,38 @@ typedef enum {
  * wire structs MUST be fixed size and the smaller types are placed at the
  * end.
  */
-typedef struct lnet_ack {
-	lnet_handle_wire_t	dst_wmd;
+struct lnet_ack {
+	struct lnet_handle_wire	dst_wmd;
 	__u64			match_bits;
 	__u32			mlength;
-} WIRE_ATTR lnet_ack_t;
+} WIRE_ATTR;
 
-typedef struct lnet_put {
-	lnet_handle_wire_t	ack_wmd;
+struct lnet_put {
+	struct lnet_handle_wire	ack_wmd;
 	__u64			match_bits;
 	__u64			hdr_data;
 	__u32			ptl_index;
 	__u32			offset;
-} WIRE_ATTR lnet_put_t;
+} WIRE_ATTR;
 
-typedef struct lnet_get {
-	lnet_handle_wire_t	return_wmd;
+struct lnet_get {
+	struct lnet_handle_wire	return_wmd;
 	__u64			match_bits;
 	__u32			ptl_index;
 	__u32			src_offset;
 	__u32			sink_length;
-} WIRE_ATTR lnet_get_t;
+} WIRE_ATTR;
 
-typedef struct lnet_reply {
-	lnet_handle_wire_t	dst_wmd;
-} WIRE_ATTR lnet_reply_t;
+struct lnet_reply {
+	struct lnet_handle_wire	dst_wmd;
+} WIRE_ATTR;
 
-typedef struct lnet_hello {
+struct lnet_hello {
 	__u64			incarnation;
 	__u32			type;
-} WIRE_ATTR lnet_hello_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct lnet_hdr {
 	lnet_nid_t	dest_nid;
 	lnet_nid_t	src_nid;
 	lnet_pid_t	dest_pid;
@@ -185,13 +186,13 @@ typedef struct {
 	__u32		payload_length;	/* payload data to follow */
 	/*<------__u64 aligned------->*/
 	union {
-		lnet_ack_t	ack;
-		lnet_put_t	put;
-		lnet_get_t	get;
-		lnet_reply_t	reply;
-		lnet_hello_t	hello;
+		struct lnet_ack		ack;
+		struct lnet_put		put;
+		struct lnet_get		get;
+		struct lnet_reply	reply;
+		struct lnet_hello	hello;
 	} msg;
-} WIRE_ATTR lnet_hdr_t;
+} WIRE_ATTR;
 
 /*
  * A HELLO message contains a magic number and protocol version
@@ -201,13 +202,13 @@ typedef struct {
  * This is for use by byte-stream LNDs (e.g. TCP/IP) to check the peer is
  * running the same protocol and to find out its NID. These LNDs should
  * exchange HELLO messages when a connection is first established.  Individual
- * LNDs can put whatever else they fancy in lnet_hdr_t::msg.
+ * LNDs can put whatever else they fancy in struct lnet_hdr::msg.
  */
-typedef struct {
+struct lnet_magicversion {
 	__u32	magic;		/* LNET_PROTO_TCP_MAGIC */
 	__u16	version_major;	/* increment on incompatible change */
 	__u16	version_minor;	/* increment on compatible change */
-} WIRE_ATTR lnet_magicversion_t;
+} WIRE_ATTR;
 
 /* PROTO MAGIC for LNDs */
 #define LNET_PROTO_IB_MAGIC		0x0be91b91
@@ -227,27 +228,27 @@ typedef struct {
 #define LNET_PROTO_TCP_VERSION_MINOR	0
 
 /* Acceptor connection request */
-typedef struct {
+struct lnet_acceptor_connreq {
 	__u32	acr_magic;		/* PTL_ACCEPTOR_PROTO_MAGIC */
 	__u32	acr_version;		/* protocol version */
 	__u64	acr_nid;		/* target NID */
-} WIRE_ATTR lnet_acceptor_connreq_t;
+} WIRE_ATTR;
 
 #define LNET_PROTO_ACCEPTOR_VERSION	1
 
-typedef struct {
+struct lnet_ni_status {
 	lnet_nid_t	ns_nid;
 	__u32		ns_status;
 	__u32		ns_unused;
-} WIRE_ATTR lnet_ni_status_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct lnet_ping_info {
 	__u32			pi_magic;
 	__u32			pi_features;
 	lnet_pid_t		pi_pid;
 	__u32			pi_nnis;
-	lnet_ni_status_t	pi_ni[0];
-} WIRE_ATTR lnet_ping_info_t;
+	struct lnet_ni_status	pi_ni[0];
+} WIRE_ATTR;
 
 typedef struct lnet_counters {
 	__u32	msgs_alloc;
@@ -503,21 +504,7 @@ typedef struct {
 /* NB lustre portals uses struct iovec internally! */
 typedef struct iovec lnet_md_iovec_t;
 
-/**
- * A page-based fragment of a MD.
- */
-typedef struct {
-	/** Pointer to the page where the fragment resides */
-	struct page	*kiov_page;
-	/** Length in bytes of the fragment */
-	unsigned int	 kiov_len;
-	/**
-	 * Starting offset of the fragment within the page. Note that the
-	 * end of the fragment must not pass the end of the page; i.e.,
-	 * kiov_len + kiov_offset <= PAGE_SIZE.
-	 */
-	unsigned int	 kiov_offset;
-} lnet_kiov_t;
+typedef struct bio_vec lnet_kiov_t;
 /** @} lnet_md */
 
 /** \addtogroup lnet_eq

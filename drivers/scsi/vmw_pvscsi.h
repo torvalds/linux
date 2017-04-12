@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 
-#define PVSCSI_DRIVER_VERSION_STRING   "1.0.6.0-k"
+#define PVSCSI_DRIVER_VERSION_STRING   "1.0.7.0-k"
 
 #define PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT 128
 
@@ -421,11 +421,6 @@ struct PVSCSIConfigPageController {
  * Number of MSI-X vectors supported.
  */
 #define PVSCSI_MAX_INTRS        24
-
-/*
- * Enumeration of supported MSI-X vectors
- */
-#define PVSCSI_VECTOR_COMPLETION   0
 
 /*
  * Misc constants for the rings.

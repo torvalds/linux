@@ -108,6 +108,9 @@ static int wm8997_sysclk_ev(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		break;
+	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		return arizona_clk_ev(w, kcontrol, event);
 	default:
 		return 0;
 	}
@@ -408,9 +411,11 @@ static const struct snd_kcontrol_new wm8997_aec_loopback_mux =
 static const struct snd_soc_dapm_widget wm8997_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
 		    0, wm8997_sysclk_ev,
-		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD |
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
-		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
+		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, arizona_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
 		    ARIZONA_OPCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", ARIZONA_OUTPUT_ASYNC_CLOCK,
@@ -1055,11 +1060,17 @@ static struct snd_soc_dai_driver wm8997_dai[] = {
 static int wm8997_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
-	arizona_init_spk(codec);
+	ret = arizona_init_spk(codec);
+	if (ret < 0)
+		return ret;
 
-	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
+	arizona_init_notifiers(codec);
+
+	snd_soc_component_disable_pin(component, "HAPTICS");
 
 	priv->core.arizona->dapm = dapm;
 
@@ -1071,8 +1082,6 @@ static int wm8997_codec_remove(struct snd_soc_codec *codec)
 	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	priv->core.arizona->dapm = NULL;
-
-	arizona_free_spk(codec);
 
 	return 0;
 }
@@ -1095,7 +1104,7 @@ static struct regmap *wm8997_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
 	.probe = wm8997_codec_probe,
 	.remove = wm8997_codec_remove,
 	.get_regmap =   wm8997_get_regmap,
@@ -1105,19 +1114,21 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = wm8997_set_fll,
 
-	.controls = wm8997_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8997_snd_controls),
-	.dapm_widgets = wm8997_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8997_dapm_widgets),
-	.dapm_routes = wm8997_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8997_dapm_routes),
+	.component_driver = {
+		.controls		= wm8997_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8997_snd_controls),
+		.dapm_widgets		= wm8997_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8997_dapm_widgets),
+		.dapm_routes		= wm8997_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8997_dapm_routes),
+	},
 };
 
 static int wm8997_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct wm8997_priv *wm8997;
-	int i;
+	int i, ret;
 
 	wm8997 = devm_kzalloc(&pdev->dev, sizeof(struct wm8997_priv),
 			      GFP_KERNEL);
@@ -1157,14 +1168,32 @@ static int wm8997_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8997,
-				      wm8997_dai, ARRAY_SIZE(wm8997_dai));
+	ret = arizona_init_spk_irqs(arizona);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8997,
+				     wm8997_dai, ARRAY_SIZE(wm8997_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		goto err_spk_irqs;
+	}
+
+err_spk_irqs:
+	arizona_free_spk_irqs(arizona);
+
+	return ret;
 }
 
 static int wm8997_remove(struct platform_device *pdev)
 {
+	struct wm8997_priv *wm8997 = platform_get_drvdata(pdev);
+	struct arizona *arizona = wm8997->core.arizona;
+
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	arizona_free_spk_irqs(arizona);
 
 	return 0;
 }

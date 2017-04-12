@@ -45,6 +45,7 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/nmi.h>
 #include <xen/interface/xen-mca.h>
+#include <xen/interface/hvm/start_info.h>
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/hvm.h>
@@ -137,8 +138,10 @@ struct shared_info xen_dummy_shared_info;
 void *xen_initial_gdt;
 
 RESERVE_BRK(shared_info_page_brk, PAGE_SIZE);
-__read_mostly int xen_have_vector_callback;
-EXPORT_SYMBOL_GPL(xen_have_vector_callback);
+
+static int xen_cpu_up_prepare(unsigned int cpu);
+static int xen_cpu_up_online(unsigned int cpu);
+static int xen_cpu_dead(unsigned int cpu);
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
@@ -173,6 +176,20 @@ struct tls_descs {
  * compare against.
  */
 static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
+
+#ifdef CONFIG_XEN_PVH
+/*
+ * PVH variables.
+ *
+ * xen_pvh and pvh_bootparams need to live in data segment since they
+ * are used after startup_{32|64}, which clear .bss, are invoked.
+ */
+bool xen_pvh __attribute__((section(".data"))) = 0;
+struct boot_params pvh_bootparams __attribute__((section(".data")));
+
+struct hvm_start_info pvh_start_info;
+unsigned int pvh_start_info_sz = sizeof(pvh_start_info);
+#endif
 
 static void clamp_max_cpus(void)
 {
@@ -978,17 +995,6 @@ static void xen_io_delay(void)
 {
 }
 
-static void xen_clts(void)
-{
-	struct multicall_space mcs;
-
-	mcs = xen_mc_entry(0);
-
-	MULTI_fpu_taskswitch(mcs.mc, 0);
-
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
-}
-
 static DEFINE_PER_CPU(unsigned long, xen_cr0_value);
 
 static unsigned long xen_read_cr0(void)
@@ -1147,10 +1153,11 @@ void xen_setup_vcpu_info_placement(void)
 		xen_vcpu_setup(cpu);
 	}
 
-	/* xen_vcpu_setup managed to place the vcpu_info within the
-	 * percpu area for all cpus, so make use of it. Note that for
-	 * PVH we want to use native IRQ mechanism. */
-	if (have_vcpu_info_placement && !xen_pvh_domain()) {
+	/*
+	 * xen_vcpu_setup managed to place the vcpu_info within the
+	 * percpu area for all cpus, so make use of it.
+	 */
+	if (have_vcpu_info_placement) {
 		pv_irq_ops.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
 		pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
 		pv_irq_ops.irq_disable = __PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
@@ -1231,13 +1238,10 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.set_debugreg = xen_set_debugreg,
 	.get_debugreg = xen_get_debugreg,
 
-	.clts = xen_clts,
-
 	.read_cr0 = xen_read_cr0,
 	.write_cr0 = xen_write_cr0,
 
 	.read_cr4 = native_read_cr4,
-	.read_cr4_safe = native_read_cr4_safe,
 	.write_cr4 = xen_write_cr4,
 
 #ifdef CONFIG_X86_64
@@ -1425,49 +1429,9 @@ static void __init xen_boot_params_init_edd(void)
  * Set up the GDT and segment registers for -fstack-protector.  Until
  * we do this, we have to be careful not to call any stack-protected
  * function, which is most of the kernel.
- *
- * Note, that it is __ref because the only caller of this after init
- * is PVH which is not going to use xen_load_gdt_boot or other
- * __init functions.
  */
-static void __ref xen_setup_gdt(int cpu)
+static void xen_setup_gdt(int cpu)
 {
-	if (xen_feature(XENFEAT_auto_translated_physmap)) {
-#ifdef CONFIG_X86_64
-		unsigned long dummy;
-
-		load_percpu_segment(cpu); /* We need to access per-cpu area */
-		switch_to_new_gdt(cpu); /* GDT and GS set */
-
-		/* We are switching of the Xen provided GDT to our HVM mode
-		 * GDT. The new GDT has  __KERNEL_CS with CS.L = 1
-		 * and we are jumping to reload it.
-		 */
-		asm volatile ("pushq %0\n"
-			      "leaq 1f(%%rip),%0\n"
-			      "pushq %0\n"
-			      "lretq\n"
-			      "1:\n"
-			      : "=&r" (dummy) : "0" (__KERNEL_CS));
-
-		/*
-		 * While not needed, we also set the %es, %ds, and %fs
-		 * to zero. We don't care about %ss as it is NULL.
-		 * Strictly speaking this is not needed as Xen zeros those
-		 * out (and also MSR_FS_BASE, MSR_GS_BASE, MSR_KERNEL_GS_BASE)
-		 *
-		 * Linux zeros them in cpu_init() and in secondary_startup_64
-		 * (for BSP).
-		 */
-		loadsegment(es, 0);
-		loadsegment(ds, 0);
-		loadsegment(fs, 0);
-#else
-		/* PVH: TODO Implement. */
-		BUG();
-#endif
-		return; /* PVH does not need any PV GDT ops. */
-	}
 	pv_cpu_ops.write_gdt_entry = xen_write_gdt_entry_boot;
 	pv_cpu_ops.load_gdt = xen_load_gdt_boot;
 
@@ -1478,65 +1442,27 @@ static void __ref xen_setup_gdt(int cpu)
 	pv_cpu_ops.load_gdt = xen_load_gdt;
 }
 
-#ifdef CONFIG_XEN_PVH
-/*
- * A PV guest starts with default flags that are not set for PVH, set them
- * here asap.
- */
-static void xen_pvh_set_cr_flags(int cpu)
-{
-
-	/* Some of these are setup in 'secondary_startup_64'. The others:
-	 * X86_CR0_TS, X86_CR0_PE, X86_CR0_ET are set by Xen for HVM guests
-	 * (which PVH shared codepaths), while X86_CR0_PG is for PVH. */
-	write_cr0(read_cr0() | X86_CR0_MP | X86_CR0_NE | X86_CR0_WP | X86_CR0_AM);
-
-	if (!cpu)
-		return;
-	/*
-	 * For BSP, PSE PGE are set in probe_page_size_mask(), for APs
-	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu__init_cpu().
-	*/
-	if (boot_cpu_has(X86_FEATURE_PSE))
-		cr4_set_bits_and_update_boot(X86_CR4_PSE);
-
-	if (boot_cpu_has(X86_FEATURE_PGE))
-		cr4_set_bits_and_update_boot(X86_CR4_PGE);
-}
-
-/*
- * Note, that it is ref - because the only caller of this after init
- * is PVH which is not going to use xen_load_gdt_boot or other
- * __init functions.
- */
-void __ref xen_pvh_secondary_vcpu_init(int cpu)
-{
-	xen_setup_gdt(cpu);
-	xen_pvh_set_cr_flags(cpu);
-}
-
-static void __init xen_pvh_early_guest_init(void)
-{
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		return;
-
-	if (!xen_feature(XENFEAT_hvm_callback_vector))
-		return;
-
-	xen_have_vector_callback = 1;
-
-	xen_pvh_early_cpu_init(0, false);
-	xen_pvh_set_cr_flags(0);
-
-#ifdef CONFIG_X86_32
-	BUG(); /* PVH: Implement proper support. */
-#endif
-}
-#endif    /* CONFIG_XEN_PVH */
-
 static void __init xen_dom0_set_legacy_features(void)
 {
 	x86_platform.legacy.rtc = 1;
+}
+
+static int xen_cpuhp_setup(void)
+{
+	int rc;
+
+	rc = cpuhp_setup_state_nocalls(CPUHP_XEN_PREPARE,
+				       "x86/xen/hvm_guest:prepare",
+				       xen_cpu_up_prepare, xen_cpu_dead);
+	if (rc >= 0) {
+		rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					       "x86/xen/hvm_guest:online",
+					       xen_cpu_up_online, NULL);
+		if (rc < 0)
+			cpuhp_remove_state_nocalls(CPUHP_XEN_PREPARE);
+	}
+
+	return rc >= 0 ? 0 : rc;
 }
 
 /* First C function to be called on Xen boot */
@@ -1552,24 +1478,17 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_domain_type = XEN_PV_DOMAIN;
 
 	xen_setup_features();
-#ifdef CONFIG_XEN_PVH
-	xen_pvh_early_guest_init();
-#endif
+
 	xen_setup_machphys_mapping();
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
 	pv_init_ops = xen_init_ops;
-	if (!xen_pvh_domain()) {
-		pv_cpu_ops = xen_cpu_ops;
+	pv_cpu_ops = xen_cpu_ops;
 
-		x86_platform.get_nmi_reason = xen_get_nmi_reason;
-	}
+	x86_platform.get_nmi_reason = xen_get_nmi_reason;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		x86_init.resources.memory_setup = xen_auto_xlated_memory_setup;
-	else
-		x86_init.resources.memory_setup = xen_memory_setup;
+	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;
 
@@ -1640,6 +1559,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
 
+	WARN_ON(xen_cpuhp_setup());
+
 	local_irq_disable();
 	early_boot_irqs_disabled = true;
 
@@ -1660,18 +1581,15 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/* set the limit of our address space */
 	xen_reserve_top();
 
-	/* PVH: runs at default kernel iopl of 0 */
-	if (!xen_pvh_domain()) {
-		/*
-		 * We used to do this in xen_arch_setup, but that is too late
-		 * on AMD were early_cpu_init (run before ->arch_setup()) calls
-		 * early_amd_init which pokes 0xcf8 port.
-		 */
-		set_iopl.iopl = 1;
-		rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
-		if (rc != 0)
-			xen_raw_printk("physdev_op failed %d\n", rc);
-	}
+	/*
+	 * We used to do this in xen_arch_setup, but that is too late
+	 * on AMD were early_cpu_init (run before ->arch_setup()) calls
+	 * early_amd_init which pokes 0xcf8 port.
+	 */
+	set_iopl.iopl = 1;
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
+	if (rc != 0)
+		xen_raw_printk("physdev_op failed %d\n", rc);
 
 #ifdef CONFIG_X86_32
 	/* set up basic CPUID stuff */
@@ -1753,6 +1671,102 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 }
 
+#ifdef CONFIG_XEN_PVH
+
+static void xen_pvh_arch_setup(void)
+{
+#ifdef CONFIG_ACPI
+	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
+	if (nr_ioapics == 0)
+		acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
+#endif
+}
+
+static void __init init_pvh_bootparams(void)
+{
+	struct xen_memory_map memmap;
+	unsigned int i;
+	int rc;
+
+	memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
+
+	memmap.nr_entries = ARRAY_SIZE(pvh_bootparams.e820_map);
+	set_xen_guest_handle(memmap.buffer, pvh_bootparams.e820_map);
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc) {
+		xen_raw_printk("XENMEM_memory_map failed (%d)\n", rc);
+		BUG();
+	}
+
+	if (memmap.nr_entries < E820MAX - 1) {
+		pvh_bootparams.e820_map[memmap.nr_entries].addr =
+			ISA_START_ADDRESS;
+		pvh_bootparams.e820_map[memmap.nr_entries].size =
+			ISA_END_ADDRESS - ISA_START_ADDRESS;
+		pvh_bootparams.e820_map[memmap.nr_entries].type =
+			E820_RESERVED;
+		memmap.nr_entries++;
+	} else
+		xen_raw_printk("Warning: Can fit ISA range into e820\n");
+
+	sanitize_e820_map(pvh_bootparams.e820_map,
+			  ARRAY_SIZE(pvh_bootparams.e820_map),
+			  &memmap.nr_entries);
+
+	pvh_bootparams.e820_entries = memmap.nr_entries;
+	for (i = 0; i < pvh_bootparams.e820_entries; i++)
+		e820_add_region(pvh_bootparams.e820_map[i].addr,
+				pvh_bootparams.e820_map[i].size,
+				pvh_bootparams.e820_map[i].type);
+
+	pvh_bootparams.hdr.cmd_line_ptr =
+		pvh_start_info.cmdline_paddr;
+
+	/* The first module is always ramdisk. */
+	if (pvh_start_info.nr_modules) {
+		struct hvm_modlist_entry *modaddr =
+			__va(pvh_start_info.modlist_paddr);
+		pvh_bootparams.hdr.ramdisk_image = modaddr->paddr;
+		pvh_bootparams.hdr.ramdisk_size = modaddr->size;
+	}
+
+	/*
+	 * See Documentation/x86/boot.txt.
+	 *
+	 * Version 2.12 supports Xen entry point but we will use default x86/PC
+	 * environment (i.e. hardware_subarch 0).
+	 */
+	pvh_bootparams.hdr.version = 0x212;
+	pvh_bootparams.hdr.type_of_loader = (9 << 4) | 0; /* Xen loader */
+}
+
+/*
+ * This routine (and those that it might call) should not use
+ * anything that lives in .bss since that segment will be cleared later.
+ */
+void __init xen_prepare_pvh(void)
+{
+	u32 msr;
+	u64 pfn;
+
+	if (pvh_start_info.magic != XEN_HVM_START_MAGIC_VALUE) {
+		xen_raw_printk("Error: Unexpected magic value (0x%08x)\n",
+				pvh_start_info.magic);
+		BUG();
+	}
+
+	xen_pvh = 1;
+
+	msr = cpuid_ebx(xen_cpuid_base() + 2);
+	pfn = __pa(hypercall_page);
+	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+
+	init_pvh_bootparams();
+
+	x86_init.oem.arch_setup = xen_pvh_arch_setup;
+}
+#endif
+
 void __ref xen_hvm_init_shared_info(void)
 {
 	int cpu;
@@ -1792,20 +1806,29 @@ void __ref xen_hvm_init_shared_info(void)
 static void __init init_hvm_pv_info(void)
 {
 	int major, minor;
-	uint32_t eax, ebx, ecx, edx, pages, msr, base;
-	u64 pfn;
+	uint32_t eax, ebx, ecx, edx, base;
 
 	base = xen_cpuid_base();
-	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
+	eax = cpuid_eax(base + 1);
 
 	major = eax >> 16;
 	minor = eax & 0xffff;
 	printk(KERN_INFO "Xen version %d.%d.\n", major, minor);
 
-	cpuid(base + 2, &pages, &msr, &ecx, &edx);
+	xen_domain_type = XEN_HVM_DOMAIN;
 
-	pfn = __pa(hypercall_page);
-	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+	/* PVH set up hypercall page in xen_prepare_pvh(). */
+	if (xen_pvh_domain())
+		pv_info.name = "Xen PVH";
+	else {
+		u64 pfn;
+		uint32_t msr;
+
+		pv_info.name = "Xen HVM";
+		msr = cpuid_ebx(base + 2);
+		pfn = __pa(hypercall_page);
+		wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+	}
 
 	xen_setup_features();
 
@@ -1814,38 +1837,59 @@ static void __init init_hvm_pv_info(void)
 		this_cpu_write(xen_vcpu_id, ebx);
 	else
 		this_cpu_write(xen_vcpu_id, smp_processor_id());
-
-	pv_info.name = "Xen HVM";
-
-	xen_domain_type = XEN_HVM_DOMAIN;
 }
+#endif
 
-static int xen_hvm_cpu_notify(struct notifier_block *self, unsigned long action,
-			      void *hcpu)
+static int xen_cpu_up_prepare(unsigned int cpu)
 {
-	int cpu = (long)hcpu;
-	switch (action) {
-	case CPU_UP_PREPARE:
+	int rc;
+
+	if (xen_hvm_domain()) {
+		/*
+		 * This can happen if CPU was offlined earlier and
+		 * offlining timed out in common_cpu_die().
+		 */
+		if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
+			xen_smp_intr_free(cpu);
+			xen_uninit_lock_cpu(cpu);
+		}
+
 		if (cpu_acpi_id(cpu) != U32_MAX)
 			per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
 		else
 			per_cpu(xen_vcpu_id, cpu) = cpu;
 		xen_vcpu_setup(cpu);
-		if (xen_have_vector_callback) {
-			if (xen_feature(XENFEAT_hvm_safe_pvclock))
-				xen_setup_timer(cpu);
-		}
-		break;
-	default:
-		break;
 	}
-	return NOTIFY_OK;
+
+	if (xen_pv_domain() || xen_feature(XENFEAT_hvm_safe_pvclock))
+		xen_setup_timer(cpu);
+
+	rc = xen_smp_intr_init(cpu);
+	if (rc) {
+		WARN(1, "xen_smp_intr_init() for CPU %d failed: %d\n",
+		     cpu, rc);
+		return rc;
+	}
+	return 0;
 }
 
-static struct notifier_block xen_hvm_cpu_notifier = {
-	.notifier_call	= xen_hvm_cpu_notify,
-};
+static int xen_cpu_dead(unsigned int cpu)
+{
+	xen_smp_intr_free(cpu);
 
+	if (xen_pv_domain() || xen_feature(XENFEAT_hvm_safe_pvclock))
+		xen_teardown_timer(cpu);
+
+	return 0;
+}
+
+static int xen_cpu_up_online(unsigned int cpu)
+{
+	xen_init_lock_cpu(cpu);
+	return 0;
+}
+
+#ifdef CONFIG_XEN_PVHVM
 #ifdef CONFIG_KEXEC_CORE
 static void xen_hvm_shutdown(void)
 {
@@ -1872,14 +1916,17 @@ static void __init xen_hvm_guest_init(void)
 
 	xen_panic_handler_init();
 
-	if (xen_feature(XENFEAT_hvm_callback_vector))
-		xen_have_vector_callback = 1;
+	BUG_ON(!xen_feature(XENFEAT_hvm_callback_vector));
+
 	xen_hvm_smp_init();
-	register_cpu_notifier(&xen_hvm_cpu_notifier);
+	WARN_ON(xen_cpuhp_setup());
 	xen_unplug_emulated_devices();
 	x86_init.irqs.intr_init = xen_init_IRQ;
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
+
+	if (xen_pvh_domain())
+		machine_ops.emergency_restart = xen_emergency_restart;
 #ifdef CONFIG_KEXEC_CORE
 	machine_ops.shutdown = xen_hvm_shutdown;
 	machine_ops.crash_shutdown = xen_hvm_crash_shutdown;
@@ -1911,7 +1958,7 @@ bool xen_hvm_need_lapic(void)
 		return false;
 	if (!xen_hvm_domain())
 		return false;
-	if (xen_feature(XENFEAT_hvm_pirqs) && xen_have_vector_callback)
+	if (xen_feature(XENFEAT_hvm_pirqs))
 		return false;
 	return true;
 }
@@ -1925,6 +1972,45 @@ static void xen_set_cpu_features(struct cpuinfo_x86 *c)
 	}
 }
 
+static void xen_pin_vcpu(int cpu)
+{
+	static bool disable_pinning;
+	struct sched_pin_override pin_override;
+	int ret;
+
+	if (disable_pinning)
+		return;
+
+	pin_override.pcpu = cpu;
+	ret = HYPERVISOR_sched_op(SCHEDOP_pin_override, &pin_override);
+
+	/* Ignore errors when removing override. */
+	if (cpu < 0)
+		return;
+
+	switch (ret) {
+	case -ENOSYS:
+		pr_warn("Unable to pin on physical cpu %d. In case of problems consider vcpu pinning.\n",
+			cpu);
+		disable_pinning = true;
+		break;
+	case -EPERM:
+		WARN(1, "Trying to pin vcpu without having privilege to do so\n");
+		disable_pinning = true;
+		break;
+	case -EINVAL:
+	case -EBUSY:
+		pr_warn("Physical cpu %d not available for pinning. Check Xen cpu configuration.\n",
+			cpu);
+		break;
+	case 0:
+		break;
+	default:
+		WARN(1, "rc %d while trying to pin vcpu\n", ret);
+		disable_pinning = true;
+	}
+}
+
 const struct hypervisor_x86 x86_hyper_xen = {
 	.name			= "Xen",
 	.detect			= xen_platform,
@@ -1933,6 +2019,7 @@ const struct hypervisor_x86 x86_hyper_xen = {
 #endif
 	.x2apic_available	= xen_x2apic_para_available,
 	.set_cpu_features       = xen_set_cpu_features,
+	.pin_vcpu               = xen_pin_vcpu,
 };
 EXPORT_SYMBOL(x86_hyper_xen);
 

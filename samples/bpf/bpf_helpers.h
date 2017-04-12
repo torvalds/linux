@@ -37,12 +37,28 @@ static int (*bpf_clone_redirect)(void *ctx, int ifindex, int flags) =
 	(void *) BPF_FUNC_clone_redirect;
 static int (*bpf_redirect)(int ifindex, int flags) =
 	(void *) BPF_FUNC_redirect;
-static int (*bpf_perf_event_output)(void *ctx, void *map, int index, void *data, int size) =
+static int (*bpf_perf_event_output)(void *ctx, void *map,
+				    unsigned long long flags, void *data,
+				    int size) =
 	(void *) BPF_FUNC_perf_event_output;
 static int (*bpf_get_stackid)(void *ctx, void *map, int flags) =
 	(void *) BPF_FUNC_get_stackid;
 static int (*bpf_probe_write_user)(void *dst, void *src, int size) =
 	(void *) BPF_FUNC_probe_write_user;
+static int (*bpf_current_task_under_cgroup)(void *map, int index) =
+	(void *) BPF_FUNC_current_task_under_cgroup;
+static int (*bpf_skb_get_tunnel_key)(void *ctx, void *key, int size, int flags) =
+	(void *) BPF_FUNC_skb_get_tunnel_key;
+static int (*bpf_skb_set_tunnel_key)(void *ctx, void *key, int size, int flags) =
+	(void *) BPF_FUNC_skb_set_tunnel_key;
+static int (*bpf_skb_get_tunnel_opt)(void *ctx, void *md, int size) =
+	(void *) BPF_FUNC_skb_get_tunnel_opt;
+static int (*bpf_skb_set_tunnel_opt)(void *ctx, void *md, int size) =
+	(void *) BPF_FUNC_skb_set_tunnel_opt;
+static unsigned long long (*bpf_get_prandom_u32)(void) =
+	(void *) BPF_FUNC_get_prandom_u32;
+static int (*bpf_xdp_adjust_head)(void *ctx, int offset) =
+	(void *) BPF_FUNC_xdp_adjust_head;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
@@ -66,6 +82,8 @@ struct bpf_map_def {
 	unsigned int map_flags;
 };
 
+static int (*bpf_skb_load_bytes)(void *ctx, int off, void *to, int len) =
+	(void *) BPF_FUNC_skb_load_bytes;
 static int (*bpf_skb_store_bytes)(void *ctx, int off, void *from, int len, int flags) =
 	(void *) BPF_FUNC_skb_store_bytes;
 static int (*bpf_l3_csum_replace)(void *ctx, int off, int from, int to, int flags) =
@@ -74,6 +92,8 @@ static int (*bpf_l4_csum_replace)(void *ctx, int off, int from, int to, int flag
 	(void *) BPF_FUNC_l4_csum_replace;
 static int (*bpf_skb_under_cgroup)(void *ctx, void *map, int index) =
 	(void *) BPF_FUNC_skb_under_cgroup;
+static int (*bpf_skb_change_head)(void *, int len, int flags) =
+	(void *) BPF_FUNC_skb_change_head;
 
 #if defined(__x86_64__)
 
@@ -99,7 +119,7 @@ static int (*bpf_skb_under_cgroup)(void *ctx, void *map, int index) =
 #define PT_REGS_FP(x) ((x)->gprs[11]) /* Works only with CONFIG_FRAME_POINTER */
 #define PT_REGS_RC(x) ((x)->gprs[2])
 #define PT_REGS_SP(x) ((x)->gprs[15])
-#define PT_REGS_IP(x) ((x)->ip)
+#define PT_REGS_IP(x) ((x)->psw.addr)
 
 #elif defined(__aarch64__)
 

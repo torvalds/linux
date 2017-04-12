@@ -272,19 +272,17 @@ struct compat_shmid64_ds {
 /*
  * The type of struct elf_prstatus.pr_reg in compatible core dumps.
  */
-#ifdef CONFIG_X86_X32_ABI
 typedef struct user_regs_struct compat_elf_gregset_t;
 
-#define PR_REG_SIZE(S) (test_thread_flag(TIF_IA32) ? 68 : 216)
-#define PRSTATUS_SIZE(S) (test_thread_flag(TIF_IA32) ? 144 : 296)
-#define SET_PR_FPVALID(S,V) \
-  do { *(int *) (((void *) &((S)->pr_reg)) + PR_REG_SIZE(0)) = (V); } \
+/* Full regset -- prstatus on x32, otherwise on ia32 */
+#define PRSTATUS_SIZE(S, R) (R != sizeof(S.pr_reg) ? 144 : 296)
+#define SET_PR_FPVALID(S, V, R) \
+  do { *(int *) (((void *) &((S)->pr_reg)) + R) = (V); } \
   while (0)
 
+#ifdef CONFIG_X86_X32_ABI
 #define COMPAT_USE_64BIT_TIME \
 	(!!(task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT))
-#else
-typedef struct user_regs_struct32 compat_elf_gregset_t;
 #endif
 
 /*

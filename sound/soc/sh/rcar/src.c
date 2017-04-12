@@ -189,6 +189,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	int use_src = 0;
 	u32 fin, fout;
 	u32 ifscr, fsrate, adinr;
 	u32 cr, route;
@@ -214,6 +215,8 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 		return;
 	}
 
+	use_src = (fin != fout) | rsnd_src_sync_is_enabled(mod);
+
 	/*
 	 *	SRC_ADINR
 	 */
@@ -225,7 +228,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	 */
 	ifscr = 0;
 	fsrate = 0;
-	if (fin != fout) {
+	if (use_src) {
 		u64 n;
 
 		ifscr = 1;
@@ -239,7 +242,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	 */
 	cr	= 0x00011110;
 	route	= 0x0;
-	if (fin != fout) {
+	if (use_src) {
 		route	= 0x1;
 
 		if (rsnd_src_sync_is_enabled(mod)) {
@@ -327,8 +330,8 @@ static void rsnd_src_status_clear(struct rsnd_mod *mod)
 {
 	u32 val = OUF_SRC(rsnd_mod_id(mod));
 
-	rsnd_mod_bset(mod, SCU_SYS_STATUS0, val, val);
-	rsnd_mod_bset(mod, SCU_SYS_STATUS1, val, val);
+	rsnd_mod_write(mod, SCU_SYS_STATUS0, val);
+	rsnd_mod_write(mod, SCU_SYS_STATUS1, val);
 }
 
 static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
@@ -387,6 +390,9 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
+	/* reset sync convert_rate */
+	src->sync.val = 0;
+
 	rsnd_mod_power_on(mod);
 
 	rsnd_src_activation(mod);
@@ -394,9 +400,6 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 	rsnd_src_set_convert_rate(io, mod);
 
 	rsnd_src_status_clear(mod);
-
-	/* reset sync convert_rate */
-	src->sync.val = 0;
 
 	return 0;
 }
@@ -475,7 +478,7 @@ static int rsnd_src_probe_(struct rsnd_mod *mod,
 			return ret;
 	}
 
-	ret = rsnd_dma_attach(io, mod, &src->dma, 0);
+	ret = rsnd_dma_attach(io, mod, &src->dma);
 
 	return ret;
 }

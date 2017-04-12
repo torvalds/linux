@@ -13,17 +13,17 @@
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This file is distributed in the hope that it will be useful
+ *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- * Or, alternatively
+ * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
  *     obtaining a copy of this software and associated documentation
  *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
+ *     restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or
  *     sell copies of the Software, and to permit persons to whom the
  *     Software is furnished to do so, subject to the following
@@ -32,11 +32,11 @@
  *     The above copyright notice and this permission notice shall be
  *     included in all copies or substantial portions of the Software.
  *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
@@ -70,7 +70,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x20000000>; /* 512 MB */
 	};
@@ -85,62 +85,6 @@
 			/* RTC provided by Seiko S-35390A I2C RTC chip below */
 			rtc@10300 {
 				status = "disabled";
-			};
-
-			spi0: spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "micron,n25q064", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <20000000>;
-
-					/*
-					 * Warning!
-					 *
-					 * Synology u-boot uses its compiled-in environment
-					 * and it seems Synology did not care to change u-boot
-					 * default configuration in order to allow saving a
-					 * modified environment at a sensible location. So,
-					 * if you do a 'saveenv' under u-boot, your modified
-					 * environment will be saved at 1MB after the start
-					 * of the flash, i.e. in the middle of the uImage.
-					 * For that reason, it is strongly advised not to
-					 * change the default environment, unless you know
-					 * what you are doing.
-					 */
-					partition@00000000 { /* u-boot */
-						label = "RedBoot";
-						reg = <0x00000000 0x000c0000>; /* 768KB */
-					};
-
-					partition@000c0000 { /* uImage */
-						label = "zImage";
-						reg = <0x000c0000 0x002d0000>; /* 2880KB */
-					};
-
-					partition@00390000 { /* uInitramfs */
-						label = "rd.gz";
-						reg = <0x00390000 0x00440000>; /* 4250KB */
-					};
-
-					partition@007d0000 { /* MAC address and serial number */
-						label = "vendor";
-						reg = <0x007d0000 0x00010000>; /* 64KB */
-					};
-
-					partition@007e0000 {
-						label = "RedBoot config";
-						reg = <0x007e0000 0x00010000>; /* 64KB */
-					};
-
-					partition@007f0000 {
-						label = "FIS directory";
-						reg = <0x007f0000 0x00010000>; /* 64KB */
-					};
-				};
 			};
 
 			i2c@11000 {
@@ -181,12 +125,6 @@
 			/* rear USB port, near RJ45 port */
 			usb@51000 {
 				status = "okay";
-			};
-
-			mdio {
-				phy1: ethernet-phy@1 { /* Marvell 88E1512 */
-					reg = <1>;
-				};
 			};
 
 			ethernet@70000 {
@@ -248,7 +186,7 @@
 		pinctrl-0 = <&sata1_pwr_pin &sata2_pwr_pin>;
 		pinctrl-names = "default";
 
-		sata1_regulator: sata1-regulator {
+		sata1_regulator: sata1-regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
 			regulator-name = "SATA1 Power";
@@ -261,7 +199,7 @@
 			gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata2_regulator: sata2-regulator {
+		sata2_regulator: sata2-regulator@2 {
 			compatible = "regulator-fixed";
 			reg = <2>;
 			regulator-name = "SATA2 Power";
@@ -273,6 +211,12 @@
 			regulator-boot-on;
 			gpio = <&gpio1 30 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&mdio {
+	phy1: ethernet-phy@1 { /* Marvell 88E1512 */
+		reg = <1>;
 	};
 };
 
@@ -345,5 +289,61 @@
 	fan_alarm_pin: fan-alarm-pin {
 		marvell,pins = "mpp38";
 		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q064", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <20000000>;
+
+		/*
+		 * Warning!
+		 *
+		 * Synology u-boot uses its compiled-in environment
+		 * and it seems Synology did not care to change u-boot
+		 * default configuration in order to allow saving a
+		 * modified environment at a sensible location. So,
+		 * if you do a 'saveenv' under u-boot, your modified
+		 * environment will be saved at 1MB after the start
+		 * of the flash, i.e. in the middle of the uImage.
+		 * For that reason, it is strongly advised not to
+		 * change the default environment, unless you know
+		 * what you are doing.
+		 */
+		partition@00000000 { /* u-boot */
+			label = "RedBoot";
+			reg = <0x00000000 0x000c0000>; /* 768KB */
+		};
+
+		partition@000c0000 { /* uImage */
+			label = "zImage";
+			reg = <0x000c0000 0x002d0000>; /* 2880KB */
+		};
+
+		partition@00390000 { /* uInitramfs */
+			label = "rd.gz";
+			reg = <0x00390000 0x00440000>; /* 4250KB */
+		};
+
+		partition@007d0000 { /* MAC address and serial number */
+			label = "vendor";
+			reg = <0x007d0000 0x00010000>; /* 64KB */
+		};
+
+		partition@007e0000 {
+			label = "RedBoot config";
+			reg = <0x007e0000 0x00010000>; /* 64KB */
+		};
+
+		partition@007f0000 {
+			label = "FIS directory";
+			reg = <0x007f0000 0x00010000>; /* 64KB */
+		};
 	};
 };

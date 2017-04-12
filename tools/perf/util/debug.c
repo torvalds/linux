@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <api/debug.h>
+#include <linux/time64.h>
 
 #include "cache.h"
 #include "color.h"
@@ -13,9 +14,6 @@
 #include "debug.h"
 #include "util.h"
 #include "target.h"
-
-#define NSECS_PER_SEC  1000000000ULL
-#define NSECS_PER_USEC 1000ULL
 
 int verbose;
 bool dump_trace = false, quiet = false;
@@ -54,9 +52,9 @@ static int veprintf_time(u64 t, const char *fmt, va_list args)
 	int ret = 0;
 	u64 secs, usecs, nsecs = t;
 
-	secs   = nsecs / NSECS_PER_SEC;
-	nsecs -= secs  * NSECS_PER_SEC;
-	usecs  = nsecs / NSECS_PER_USEC;
+	secs   = nsecs / NSEC_PER_SEC;
+	nsecs -= secs  * NSEC_PER_SEC;
+	usecs  = nsecs / NSEC_PER_USEC;
 
 	ret = fprintf(stderr, "[%13" PRIu64 ".%06" PRIu64 "] ",
 		      secs, usecs);
@@ -205,8 +203,25 @@ int perf_debug_option(const char *str)
 		v = (v < 0) || (v > 10) ? 0 : v;
 	}
 
+	if (quiet)
+		v = -1;
+
 	*var->ptr = v;
 	free(s);
+	return 0;
+}
+
+int perf_quiet_option(void)
+{
+	struct debug_variable *var = &debug_variables[0];
+
+	/* disable all debug messages */
+	while (var->name) {
+		*var->ptr = -1;
+		var++;
+	}
+
+	quiet = true;
 	return 0;
 }
 

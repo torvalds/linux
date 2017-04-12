@@ -11,7 +11,10 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
-#include <linux/module.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
+#include <linux/init.h>
+#include <linux/export.h>
 
 #include <asm/mmu_context.h>
 #include <asm/time.h>
@@ -24,11 +27,16 @@
 volatile unsigned long octeon_processor_boot = 0xff;
 volatile unsigned long octeon_processor_sp;
 volatile unsigned long octeon_processor_gp;
+#ifdef CONFIG_RELOCATABLE
+volatile unsigned long octeon_processor_relocated_kernel_entry;
+#endif /* CONFIG_RELOCATABLE */
 
 #ifdef CONFIG_HOTPLUG_CPU
 uint64_t octeon_bootloader_entry_addr;
 EXPORT_SYMBOL(octeon_bootloader_entry_addr);
 #endif
+
+extern void kernel_entry(unsigned long arg1, ...);
 
 static void octeon_icache_flush(void)
 {
@@ -180,6 +188,19 @@ static void __init octeon_smp_setup(void)
 	octeon_smp_hotplug_setup();
 }
 
+
+#ifdef CONFIG_RELOCATABLE
+int plat_post_relocation(long offset)
+{
+	unsigned long entry = (unsigned long)kernel_entry;
+
+	/* Send secondaries into relocated kernel */
+	octeon_processor_relocated_kernel_entry = entry + offset;
+
+	return 0;
+}
+#endif /* CONFIG_RELOCATABLE */
+
 /**
  * Firmware CPU startup hook
  *
@@ -272,7 +293,6 @@ static int octeon_cpu_disable(void)
 
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
-	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	octeon_fixup_irqs();
 
 	__flush_cache_all();
@@ -333,8 +353,6 @@ void play_dead(void)
 		;
 }
 
-extern void kernel_entry(unsigned long arg1, ...);
-
 static void start_after_reset(void)
 {
 	kernel_entry(0, 0, 0);	/* set a2 = 0 for secondary core */
@@ -380,29 +398,11 @@ static int octeon_update_boot_vector(unsigned int cpu)
 	return 0;
 }
 
-static int octeon_cpu_callback(struct notifier_block *nfb,
-	unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_UP_PREPARE:
-		octeon_update_boot_vector(cpu);
-		break;
-	case CPU_ONLINE:
-		pr_info("Cpu %d online\n", cpu);
-		break;
-	case CPU_DEAD:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
 static int register_cavium_notifier(void)
 {
-	hotcpu_notifier(octeon_cpu_callback, 0);
-	return 0;
+	return cpuhp_setup_state_nocalls(CPUHP_MIPS_SOC_PREPARE,
+					 "mips/cavium:prepare",
+					 octeon_update_boot_vector, NULL);
 }
 late_initcall(register_cavium_notifier);
 

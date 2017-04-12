@@ -81,7 +81,7 @@ __setup("fpe=", fpe_setup);
 extern void init_default_cache_policy(unsigned long);
 extern void paging_init(const struct machine_desc *desc);
 extern void early_paging_init(const struct machine_desc *);
-extern void sanity_check_meminfo(void);
+extern void adjust_lowmem_bounds(void);
 extern enum reboot_mode reboot_mode;
 extern void setup_dma_zone(const struct machine_desc *desc);
 
@@ -114,19 +114,19 @@ EXPORT_SYMBOL(elf_hwcap2);
 
 
 #ifdef MULTI_CPU
-struct processor processor __read_mostly;
+struct processor processor __ro_after_init;
 #endif
 #ifdef MULTI_TLB
-struct cpu_tlb_fns cpu_tlb __read_mostly;
+struct cpu_tlb_fns cpu_tlb __ro_after_init;
 #endif
 #ifdef MULTI_USER
-struct cpu_user_fns cpu_user __read_mostly;
+struct cpu_user_fns cpu_user __ro_after_init;
 #endif
 #ifdef MULTI_CACHE
-struct cpu_cache_fns cpu_cache __read_mostly;
+struct cpu_cache_fns cpu_cache __ro_after_init;
 #endif
 #ifdef CONFIG_OUTER_CACHE
-struct outer_cache_fns outer_cache __read_mostly;
+struct outer_cache_fns outer_cache __ro_after_init;
 EXPORT_SYMBOL(outer_cache);
 #endif
 
@@ -290,12 +290,9 @@ static int cpu_has_aliasing_icache(unsigned int arch)
 	/* arch specifies the register format */
 	switch (arch) {
 	case CPU_ARCH_ARMv7:
-		asm("mcr	p15, 2, %0, c0, c0, 0 @ set CSSELR"
-		    : /* No output operands */
-		    : "r" (1));
+		set_csselr(CSSELR_ICACHE | CSSELR_L1);
 		isb();
-		asm("mrc	p15, 1, %0, c0, c0, 0 @ read CCSIDR"
-		    : "=r" (id_reg));
+		id_reg = read_ccsidr();
 		line_size = 4 << ((id_reg & 0x7) + 2);
 		num_sets = ((id_reg >> 13) & 0x7fff) + 1;
 		aliasing_icache = (line_size * num_sets) > PAGE_SIZE;
@@ -315,11 +312,12 @@ static void __init cacheid_init(void)
 {
 	unsigned int arch = cpu_architecture();
 
-	if (arch == CPU_ARCH_ARMv7M) {
-		cacheid = 0;
-	} else if (arch >= CPU_ARCH_ARMv6) {
+	if (arch >= CPU_ARCH_ARMv6) {
 		unsigned int cachetype = read_cpuid_cachetype();
-		if ((cachetype & (7 << 29)) == 4 << 29) {
+
+		if ((arch == CPU_ARCH_ARMv7M) && !cachetype) {
+			cacheid = 0;
+		} else if ((cachetype & (7 << 29)) == 4 << 29) {
 			/* ARMv7 register format */
 			arch = CPU_ARCH_ARMv7;
 			cacheid = CACHEID_VIPT_NONALIASING;
@@ -1095,8 +1093,14 @@ void __init setup_arch(char **cmdline_p)
 	setup_dma_zone(mdesc);
 	xen_early_init();
 	efi_init();
-	sanity_check_meminfo();
+	/*
+	 * Make sure the calculation for lowmem/highmem is set appropriately
+	 * before reserving/allocating any mmeory
+	 */
+	adjust_lowmem_bounds();
 	arm_memblock_init(mdesc);
+	/* Memory may have been removed so recalculate the bounds. */
+	adjust_lowmem_bounds();
 
 	early_ioremap_reset();
 

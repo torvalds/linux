@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 #ifndef _QED_L2_H
 #define _QED_L2_H
@@ -15,6 +39,20 @@
 #include "qed.h"
 #include "qed_hw.h"
 #include "qed_sp.h"
+struct qed_rss_params {
+	u8 update_rss_config;
+	u8 rss_enable;
+	u8 rss_eng_id;
+	u8 update_rss_capabilities;
+	u8 update_rss_ind_table;
+	u8 update_rss_key;
+	u8 rss_caps;
+	u8 rss_table_size_log;
+
+	/* Indirection table consist of rx queue handles */
+	void *rss_ind_table[QED_RSS_IND_TABLE_SIZE];
+	u32 rss_key[QED_RSS_KEY_SIZE];
+};
 
 struct qed_sge_tpa_params {
 	u8 max_buffers_per_cqe;
@@ -78,11 +116,34 @@ struct qed_filter_mcast {
 	unsigned char mac[QED_MAX_MC_ADDRS][ETH_ALEN];
 };
 
-int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
-			     u16 rx_queue_id,
-			     bool eq_completion_only, bool cqe_completion);
+/**
+ * @brief qed_eth_rx_queue_stop - This ramrod closes an Rx queue
+ *
+ * @param p_hwfn
+ * @param p_rxq			Handler of queue to close
+ * @param eq_completion_only	If True completion will be on
+ *				EQe, if False completion will be
+ *				on EQe if p_hwfn opaque
+ *				different from the RXQ opaque
+ *				otherwise on CQe.
+ * @param cqe_completion	If True completion will be
+ *				receive on CQe.
+ * @return int
+ */
+int
+qed_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
+		      void *p_rxq,
+		      bool eq_completion_only, bool cqe_completion);
 
-int qed_sp_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, u16 tx_queue_id);
+/**
+ * @brief qed_eth_tx_queue_stop - closes a Tx queue
+ *
+ * @param p_hwfn
+ * @param p_txq - handle to Tx queue needed to be closed
+ *
+ * @return int
+ */
+int qed_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, void *p_txq);
 
 enum qed_tpa_mode {
 	QED_TPA_MODE_NONE,
@@ -95,6 +156,7 @@ struct qed_sp_vport_start_params {
 	enum qed_tpa_mode tpa_mode;
 	bool remove_inner_vlan;
 	bool tx_switching;
+	bool handle_ptp_pkts;
 	bool only_untagged;
 	bool drop_ttl0;
 	u8 max_buffers_per_cqe;
@@ -102,23 +164,13 @@ struct qed_sp_vport_start_params {
 	u16 opaque_fid;
 	u8 vport_id;
 	u16 mtu;
+	bool check_mac;
+	bool check_ethtype;
 };
 
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params);
 
-struct qed_rss_params {
-	u8	update_rss_config;
-	u8	rss_enable;
-	u8	rss_eng_id;
-	u8	update_rss_capabilities;
-	u8	update_rss_ind_table;
-	u8	update_rss_key;
-	u8	rss_caps;
-	u8	rss_table_size_log;
-	u16	rss_ind_table[QED_RSS_IND_TABLE_SIZE];
-	u32	rss_key[QED_RSS_KEY_SIZE];
-};
 
 struct qed_filter_accept_flags {
 	u8	update_rx_mode_config;
@@ -194,45 +246,102 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
  * @note At the moment - only used by non-linux VFs.
  *
  * @param p_hwfn
- * @param rx_queue_id		RX Queue ID
- * @param num_rxqs		Allow to update multiple rx
- *				queues, from rx_queue_id to
- *				(rx_queue_id + num_rxqs)
+ * @param pp_rxq_handlers	An array of queue handlers to be updated.
+ * @param num_rxqs              number of queues to update.
  * @param complete_cqe_flg	Post completion to the CQE Ring if set
  * @param complete_event_flg	Post completion to the Event Ring if set
+ * @param comp_mode
+ * @param p_comp_data
  *
  * @return int
  */
 
 int
 qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
-			    u16 rx_queue_id,
+			    void **pp_rxq_handlers,
 			    u8 num_rxqs,
 			    u8 complete_cqe_flg,
 			    u8 complete_event_flg,
 			    enum spq_mode comp_mode,
 			    struct qed_spq_comp_cb *p_comp_data);
 
-int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
-			   struct qed_sp_vport_start_params *p_params);
+void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats);
 
-int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
-				u16 opaque_fid,
-				u32 cid,
-				struct qed_queue_start_common_params *params,
-				u8 stats_id,
-				u16 bd_max_bytes,
-				dma_addr_t bd_chain_phys_addr,
-				dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size);
+void qed_reset_vport_stats(struct qed_dev *cdev);
 
-int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
-				u16  opaque_fid,
-				u32  cid,
-				struct qed_queue_start_common_params *p_params,
-				u8  stats_id,
-				dma_addr_t pbl_addr,
-				u16 pbl_size,
-				union qed_qm_pq_params *p_pq_params);
+struct qed_queue_cid {
+	/* 'Relative' is a relative term ;-). Usually the indices [not counting
+	 * SBs] would be PF-relative, but there are some cases where that isn't
+	 * the case - specifically for a PF configuring its VF indices it's
+	 * possible some fields [E.g., stats-id] in 'rel' would already be abs.
+	 */
+	struct qed_queue_start_common_params rel;
+	struct qed_queue_start_common_params abs;
+	u32 cid;
+	u16 opaque_fid;
+
+	/* VFs queues are mapped differently, so we need to know the
+	 * relative queue associated with them [0-based].
+	 * Notice this is relevant on the *PF* queue-cid of its VF's queues,
+	 * and not on the VF itself.
+	 */
+	bool is_vf;
+	u8 vf_qid;
+
+	/* Legacy VFs might have Rx producer located elsewhere */
+	bool b_legacy_vf;
+
+	struct qed_hwfn *p_owner;
+};
+
+void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
+			       struct qed_queue_cid *p_cid);
+
+struct qed_queue_cid *_qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
+					    u16 opaque_fid,
+					    u32 cid,
+					    u8 vf_qid,
+					    struct qed_queue_start_common_params
+					    *p_params);
+
+int
+qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
+		       struct qed_sp_vport_start_params *p_params);
+
+/**
+ * @brief - Starts an Rx queue, when queue_cid is already prepared
+ *
+ * @param p_hwfn
+ * @param p_cid
+ * @param bd_max_bytes
+ * @param bd_chain_phys_addr
+ * @param cqe_pbl_addr
+ * @param cqe_pbl_size
+ *
+ * @return int
+ */
+int
+qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
+			 struct qed_queue_cid *p_cid,
+			 u16 bd_max_bytes,
+			 dma_addr_t bd_chain_phys_addr,
+			 dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size);
+
+/**
+ * @brief - Starts a Tx queue, where queue_cid is already prepared
+ *
+ * @param p_hwfn
+ * @param p_cid
+ * @param pbl_addr
+ * @param pbl_size
+ * @param p_pq_params - parameters for choosing the PQ for this Tx queue
+ *
+ * @return int
+ */
+int
+qed_eth_txq_start_ramrod(struct qed_hwfn *p_hwfn,
+			 struct qed_queue_cid *p_cid,
+			 dma_addr_t pbl_addr, u16 pbl_size, u16 pq_id);
 
 u8 qed_mcast_bin_from_mac(u8 *mac);
 

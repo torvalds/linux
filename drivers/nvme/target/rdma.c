@@ -438,6 +438,10 @@ static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
 {
 	struct ib_recv_wr *bad_wr;
 
+	ib_dma_sync_single_for_device(ndev->device,
+		cmd->sge[0].addr, cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+
 	if (ndev->srq)
 		return ib_post_srq_recv(ndev->srq, &cmd->wr, &bad_wr);
 	return ib_post_recv(cmd->queue->cm_id->qp, &cmd->wr, &bad_wr);
@@ -538,6 +542,11 @@ static void nvmet_rdma_queue_response(struct nvmet_req *req)
 		first_wr = &rsp->send_wr;
 
 	nvmet_rdma_post_recv(rsp->queue->dev, rsp->cmd);
+
+	ib_dma_sync_single_for_device(rsp->queue->dev->device,
+		rsp->send_sge.addr, rsp->send_sge.length,
+		DMA_TO_DEVICE);
+
 	if (ib_post_send(cm_id->qp, first_wr, &bad_wr)) {
 		pr_err("sending cmd response failed\n");
 		nvmet_rdma_release_rsp(rsp);
@@ -694,9 +703,12 @@ static void nvmet_rdma_handle_command(struct nvmet_rdma_queue *queue,
 {
 	u16 status;
 
-	cmd->queue = queue;
-	cmd->n_rdma = 0;
-	cmd->req.port = queue->port;
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->cmd->sge[0].addr, cmd->cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->send_sge.addr, cmd->send_sge.length,
+		DMA_TO_DEVICE);
 
 	if (!nvmet_req_init(&cmd->req, &queue->nvme_cq,
 			&queue->nvme_sq, &nvmet_rdma_ops))
@@ -743,9 +755,12 @@ static void nvmet_rdma_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	cmd->queue = queue;
 	rsp = nvmet_rdma_get_rsp(queue);
+	rsp->queue = queue;
 	rsp->cmd = cmd;
 	rsp->flags = 0;
 	rsp->req.cmd = cmd->nvme_cmd;
+	rsp->req.port = queue->port;
+	rsp->n_rdma = 0;
 
 	if (unlikely(queue->state != NVMET_RDMA_Q_LIVE)) {
 		unsigned long flags;
@@ -848,7 +863,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	ndev->device = cm_id->device;
 	kref_init(&ndev->ref);
 
-	ndev->pd = ib_alloc_pd(ndev->device);
+	ndev->pd = ib_alloc_pd(ndev->device, 0);
 	if (IS_ERR(ndev->pd))
 		goto out_free_dev;
 
@@ -951,6 +966,7 @@ err_destroy_cq:
 
 static void nvmet_rdma_destroy_queue_ib(struct nvmet_rdma_queue *queue)
 {
+	ib_drain_qp(queue->cm_id->qp);
 	rdma_destroy_qp(queue->cm_id);
 	ib_free_cq(queue->cq);
 }
@@ -1023,6 +1039,9 @@ static int nvmet_rdma_cm_reject(struct rdma_cm_id *cm_id,
 {
 	struct nvme_rdma_cm_rej rej;
 
+	pr_debug("rejecting connect request: status %d (%s)\n",
+		 status, nvme_rdma_cm_msg(status));
+
 	rej.recfmt = cpu_to_le16(NVME_RDMA_CM_FMT_1_0);
 	rej.sts = cpu_to_le16(status);
 
@@ -1044,8 +1063,10 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	}
 
 	ret = nvmet_sq_init(&queue->nvme_sq);
-	if (ret)
+	if (ret) {
+		ret = NVME_RDMA_CM_NO_RSC;
 		goto out_free_queue;
+	}
 
 	ret = nvmet_rdma_parse_cm_connect_req(&event->param.conn, queue);
 	if (ret)
@@ -1066,11 +1087,12 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	spin_lock_init(&queue->rsp_wr_wait_lock);
 	INIT_LIST_HEAD(&queue->free_rsps);
 	spin_lock_init(&queue->rsps_lock);
+	INIT_LIST_HEAD(&queue->queue_list);
 
 	queue->idx = ida_simple_get(&nvmet_rdma_queue_ida, 0, 0, GFP_KERNEL);
 	if (queue->idx < 0) {
 		ret = NVME_RDMA_CM_NO_RSC;
-		goto out_free_queue;
+		goto out_destroy_sq;
 	}
 
 	ret = nvmet_rdma_alloc_rsps(queue);
@@ -1127,7 +1149,8 @@ static void nvmet_rdma_qp_event(struct ib_event *event, void *priv)
 		rdma_notify(queue->cm_id, event->event);
 		break;
 	default:
-		pr_err("received unrecognized IB QP event %d\n", event->event);
+		pr_err("received IB QP event: %s (%d)\n",
+		       ib_event_msg(event->event), event->event);
 		break;
 	}
 }
@@ -1165,7 +1188,6 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	ndev = nvmet_rdma_find_get_device(cm_id);
 	if (!ndev) {
-		pr_err("no client data!\n");
 		nvmet_rdma_cm_reject(cm_id, NVME_RDMA_CM_NO_RSC);
 		return -ECONNREFUSED;
 	}
@@ -1244,7 +1266,6 @@ static void __nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue)
 
 	if (disconnect) {
 		rdma_disconnect(queue->cm_id);
-		ib_drain_qp(queue->cm_id->qp);
 		schedule_work(&queue->release_work);
 	}
 }
@@ -1269,7 +1290,12 @@ static void nvmet_rdma_queue_connect_fail(struct rdma_cm_id *cm_id,
 {
 	WARN_ON_ONCE(queue->state != NVMET_RDMA_Q_CONNECTING);
 
-	pr_err("failed to connect queue\n");
+	mutex_lock(&nvmet_rdma_queue_mutex);
+	if (!list_empty(&queue->queue_list))
+		list_del_init(&queue->queue_list);
+	mutex_unlock(&nvmet_rdma_queue_mutex);
+
+	pr_err("failed to connect queue %d\n", queue->idx);
 	schedule_work(&queue->release_work);
 }
 
@@ -1352,12 +1378,21 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
-		nvmet_rdma_queue_disconnect(queue);
+		/*
+		 * We might end up here when we already freed the qp
+		 * which means queue release sequence is in progress,
+		 * so don't get in the way...
+		 */
+		if (queue)
+			nvmet_rdma_queue_disconnect(queue);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		ret = nvmet_rdma_device_removal(cm_id, queue);
 		break;
 	case RDMA_CM_EVENT_REJECTED:
+		pr_debug("Connection rejected: %s\n",
+			 rdma_reject_msg(cm_id, event->status));
+		/* FALLTHROUGH */
 	case RDMA_CM_EVENT_UNREACHABLE:
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		nvmet_rdma_queue_connect_fail(cm_id, queue);

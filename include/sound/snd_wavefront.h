@@ -37,8 +37,8 @@ struct _snd_wavefront_midi {
 #define	MPU_ACK		0xFE
 #define	UART_MODE_ON	0x3F
 
-extern struct snd_rawmidi_ops snd_wavefront_midi_output;
-extern struct snd_rawmidi_ops snd_wavefront_midi_input;
+extern const struct snd_rawmidi_ops snd_wavefront_midi_output;
+extern const struct snd_rawmidi_ops snd_wavefront_midi_input;
 
 extern void   snd_wavefront_midi_enable_virtual (snd_wavefront_card_t *);
 extern void   snd_wavefront_midi_disable_virtual (snd_wavefront_card_t *);

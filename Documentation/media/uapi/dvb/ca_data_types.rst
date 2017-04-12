@@ -7,7 +7,7 @@ CA Data Types
 *************
 
 
-.. _ca-slot-info:
+.. c:type:: ca_slot_info
 
 ca_slot_info_t
 ==============
@@ -31,7 +31,7 @@ ca_slot_info_t
     } ca_slot_info_t;
 
 
-.. _ca-descr-info:
+.. c:type:: ca_descr_info
 
 ca_descr_info_t
 ===============
@@ -48,7 +48,7 @@ ca_descr_info_t
     } ca_descr_info_t;
 
 
-.. _ca-caps:
+.. c:type:: ca_caps
 
 ca_caps_t
 =========
@@ -64,7 +64,7 @@ ca_caps_t
      } ca_cap_t;
 
 
-.. _ca-msg:
+.. c:type:: ca_msg
 
 ca_msg_t
 ========
@@ -81,7 +81,7 @@ ca_msg_t
     } ca_msg_t;
 
 
-.. _ca-descr:
+.. c:type:: ca_descr
 
 ca_descr_t
 ==========
@@ -96,7 +96,7 @@ ca_descr_t
     } ca_descr_t;
 
 
-.. _ca-pid:
+.. c:type:: ca_pid
 
 ca-pid
 ======

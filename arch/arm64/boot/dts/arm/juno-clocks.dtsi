@@ -6,7 +6,7 @@
  * This file is licensed under a dual GPLv2 or BSD license.
  *
  */
-
+/ {
 	/* SoC fixed clocks */
 	soc_uartclk: refclk7273800hz {
 		compatible = "fixed-clock";
@@ -42,3 +42,4 @@
 		clock-frequency = <400000000>;
 		clock-output-names = "faxi_clk";
 	};
+};

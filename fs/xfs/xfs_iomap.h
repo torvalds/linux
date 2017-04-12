@@ -25,16 +25,35 @@ struct xfs_bmbt_irec;
 
 int xfs_iomap_write_direct(struct xfs_inode *, xfs_off_t, size_t,
 			struct xfs_bmbt_irec *, int);
-int xfs_iomap_write_delay(struct xfs_inode *, xfs_off_t, size_t,
-			struct xfs_bmbt_irec *);
-int xfs_iomap_write_allocate(struct xfs_inode *, xfs_off_t,
+int xfs_iomap_write_allocate(struct xfs_inode *, int, xfs_off_t,
 			struct xfs_bmbt_irec *);
 int xfs_iomap_write_unwritten(struct xfs_inode *, xfs_off_t, xfs_off_t);
 
 void xfs_bmbt_to_iomap(struct xfs_inode *, struct iomap *,
 		struct xfs_bmbt_irec *);
+xfs_extlen_t xfs_eof_alignment(struct xfs_inode *ip, xfs_extlen_t extsize);
 
-extern struct iomap_ops xfs_iomap_ops;
-extern struct iomap_ops xfs_xattr_iomap_ops;
+static inline xfs_filblks_t
+xfs_aligned_fsb_count(
+	xfs_fileoff_t		offset_fsb,
+	xfs_filblks_t		count_fsb,
+	xfs_extlen_t		extsz)
+{
+	if (extsz) {
+		xfs_extlen_t	align;
+
+		align = do_mod(offset_fsb, extsz);
+		if (align)
+			count_fsb += align;
+		align = do_mod(count_fsb, extsz);
+		if (align)
+			count_fsb += extsz - align;
+	}
+
+	return count_fsb;
+}
+
+extern const struct iomap_ops xfs_iomap_ops;
+extern const struct iomap_ops xfs_xattr_iomap_ops;
 
 #endif /* __XFS_IOMAP_H__*/

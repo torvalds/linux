@@ -62,6 +62,7 @@ struct intel_pt_recording {
 	size_t				snapshot_ref_buf_size;
 	int				snapshot_ref_cnt;
 	struct intel_pt_snapshot_ref	*snapshot_refs;
+	size_t				priv_size;
 };
 
 static int intel_pt_parse_terms_with_default(struct list_head *formats,
@@ -273,11 +274,37 @@ intel_pt_pmu_default_config(struct perf_pmu *intel_pt_pmu)
 	return attr;
 }
 
-static size_t
-intel_pt_info_priv_size(struct auxtrace_record *itr __maybe_unused,
-			struct perf_evlist *evlist __maybe_unused)
+static const char *intel_pt_find_filter(struct perf_evlist *evlist,
+					struct perf_pmu *intel_pt_pmu)
 {
-	return INTEL_PT_AUXTRACE_PRIV_SIZE;
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->attr.type == intel_pt_pmu->type)
+			return evsel->filter;
+	}
+
+	return NULL;
+}
+
+static size_t intel_pt_filter_bytes(const char *filter)
+{
+	size_t len = filter ? strlen(filter) : 0;
+
+	return len ? roundup(len + 1, 8) : 0;
+}
+
+static size_t
+intel_pt_info_priv_size(struct auxtrace_record *itr, struct perf_evlist *evlist)
+{
+	struct intel_pt_recording *ptr =
+			container_of(itr, struct intel_pt_recording, itr);
+	const char *filter = intel_pt_find_filter(evlist, ptr->intel_pt_pmu);
+
+	ptr->priv_size = (INTEL_PT_AUXTRACE_PRIV_MAX * sizeof(u64)) +
+			 intel_pt_filter_bytes(filter);
+
+	return ptr->priv_size;
 }
 
 static void intel_pt_tsc_ctc_ratio(u32 *n, u32 *d)
@@ -302,9 +329,13 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	bool cap_user_time_zero = false, per_cpu_mmaps;
 	u64 tsc_bit, mtc_bit, mtc_freq_bits, cyc_bit, noretcomp_bit;
 	u32 tsc_ctc_ratio_n, tsc_ctc_ratio_d;
+	unsigned long max_non_turbo_ratio;
+	size_t filter_str_len;
+	const char *filter;
+	u64 *info;
 	int err;
 
-	if (priv_size != INTEL_PT_AUXTRACE_PRIV_SIZE)
+	if (priv_size != ptr->priv_size)
 		return -EINVAL;
 
 	intel_pt_parse_terms(&intel_pt_pmu->format, "tsc", &tsc_bit);
@@ -316,6 +347,13 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	intel_pt_parse_terms(&intel_pt_pmu->format, "cyc", &cyc_bit);
 
 	intel_pt_tsc_ctc_ratio(&tsc_ctc_ratio_n, &tsc_ctc_ratio_d);
+
+	if (perf_pmu__scan_file(intel_pt_pmu, "max_nonturbo_ratio",
+				"%lu", &max_non_turbo_ratio) != 1)
+		max_non_turbo_ratio = 0;
+
+	filter = intel_pt_find_filter(session->evlist, ptr->intel_pt_pmu);
+	filter_str_len = filter ? strlen(filter) : 0;
 
 	if (!session->evlist->nr_mmaps)
 		return -EINVAL;
@@ -351,6 +389,17 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	auxtrace_info->priv[INTEL_PT_TSC_CTC_N] = tsc_ctc_ratio_n;
 	auxtrace_info->priv[INTEL_PT_TSC_CTC_D] = tsc_ctc_ratio_d;
 	auxtrace_info->priv[INTEL_PT_CYC_BIT] = cyc_bit;
+	auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO] = max_non_turbo_ratio;
+	auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] = filter_str_len;
+
+	info = &auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] + 1;
+
+	if (filter_str_len) {
+		size_t len = intel_pt_filter_bytes(filter);
+
+		strncpy((char *)info, filter, len);
+		info += len >> 3;
+	}
 
 	return 0;
 }

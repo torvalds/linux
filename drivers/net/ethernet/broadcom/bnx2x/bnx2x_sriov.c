@@ -434,7 +434,9 @@ static int bnx2x_vf_mac_vlan_config(struct bnx2x *bp,
 
 	/* Add/Remove the filter */
 	rc = bnx2x_config_vlan_mac(bp, &ramrod);
-	if (rc && rc != -EEXIST) {
+	if (rc == -EEXIST)
+		return 0;
+	if (rc) {
 		BNX2X_ERR("Failed to %s %s\n",
 			  filter->add ? "add" : "delete",
 			  (filter->type == BNX2X_VF_FILTER_VLAN_MAC) ?
@@ -443,6 +445,8 @@ static int bnx2x_vf_mac_vlan_config(struct bnx2x *bp,
 				"MAC" : "VLAN");
 		return rc;
 	}
+
+	filter->applied = true;
 
 	return 0;
 }
@@ -469,8 +473,10 @@ int bnx2x_vf_mac_vlan_config_list(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	/* Rollback if needed */
 	if (i != filters->count) {
 		BNX2X_ERR("Managed only %d/%d filters - rolling back\n",
-			  i, filters->count + 1);
+			  i, filters->count);
 		while (--i >= 0) {
+			if (!filters->filters[i].applied)
+				continue;
 			filters->filters[i].add = !filters->filters[i].add;
 			bnx2x_vf_mac_vlan_config(bp, vf, qid,
 						 &filters->filters[i],
@@ -573,17 +579,6 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		}
 	}
 
-	/* clear existing mcasts */
-	mcast.mcast_list_len = vf->mcast_list_len;
-	vf->mcast_list_len = mc_num;
-	rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_DEL);
-	if (rc) {
-		BNX2X_ERR("Failed to remove multicasts\n");
-		kfree(mc);
-		return rc;
-	}
-
-	/* update mcast list on the ramrod params */
 	if (mc_num) {
 		INIT_LIST_HEAD(&mcast.mcast_list);
 		for (i = 0; i < mc_num; i++) {
@@ -594,11 +589,17 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 		/* add new mcasts */
 		mcast.mcast_list_len = mc_num;
-		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_ADD);
+		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_SET);
 		if (rc)
-			BNX2X_ERR("Faled to add multicasts\n");
-		kfree(mc);
+			BNX2X_ERR("Failed to set multicasts\n");
+	} else {
+		/* clear existing mcasts */
+		rc = bnx2x_config_mcast(bp, &mcast, BNX2X_MCAST_CMD_DEL);
+		if (rc)
+			BNX2X_ERR("Failed to remove multicasts\n");
 	}
+
+	kfree(mc);
 
 	return rc;
 }
@@ -1583,7 +1584,6 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 		 *  It needs to be initialized here so that it can be safely
 		 *  handled by a subsequent FLR flow.
 		 */
-		vf->mcast_list_len = 0;
 		bnx2x_init_mcast_obj(bp, &vf->mcast_obj, 0xFF,
 				     0xFF, 0xFF, 0xFF,
 				     bnx2x_vf_sp(bp, vf, mcast_rdata),
@@ -1905,7 +1905,8 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 			continue;
 		}
 
-		DP(BNX2X_MSG_IOV, "add addresses for vf %d\n", vf->abs_vfid);
+		DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+		       "add addresses for vf %d\n", vf->abs_vfid);
 		for_each_vfq(vf, j) {
 			struct bnx2x_vf_queue *rxq = vfq_get(vf, j);
 
@@ -1926,11 +1927,12 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 				cpu_to_le32(U64_HI(q_stats_addr));
 			cur_query_entry->address.lo =
 				cpu_to_le32(U64_LO(q_stats_addr));
-			DP(BNX2X_MSG_IOV,
-			   "added address %x %x for vf %d queue %d client %d\n",
-			   cur_query_entry->address.hi,
-			   cur_query_entry->address.lo, cur_query_entry->funcID,
-			   j, cur_query_entry->index);
+			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+			       "added address %x %x for vf %d queue %d client %d\n",
+			       cur_query_entry->address.hi,
+			       cur_query_entry->address.lo,
+			       cur_query_entry->funcID,
+			       j, cur_query_entry->index);
 			cur_query_entry++;
 			cur_data_offset += sizeof(struct per_queue_stats);
 			stats_count++;
@@ -2527,7 +2529,8 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
 	for_each_vf(bp, vfidx) {
 		bulletin = BP_VF_BULLETIN(bp, vfidx);
 		if (bulletin->valid_bitmap & (1 << VLAN_VALID))
-			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0);
+			bnx2x_set_vf_vlan(bp->dev, vfidx, bulletin->vlan, 0,
+					  htons(ETH_P_8021Q));
 	}
 }
 
@@ -2787,7 +2790,8 @@ static int bnx2x_set_vf_vlan_filter(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	return 0;
 }
 
-int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
+int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos,
+		      __be16 vlan_proto)
 {
 	struct pf_vf_bulletin_content *bulletin = NULL;
 	struct bnx2x *bp = netdev_priv(dev);
@@ -2801,6 +2805,9 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 		BNX2X_ERR("illegal vlan value %d\n", vlan);
 		return -EINVAL;
 	}
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	DP(BNX2X_MSG_IOV, "configuring VF %d with VLAN %d qos %d\n",
 	   vfidx, vlan, 0);

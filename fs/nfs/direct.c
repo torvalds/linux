@@ -52,7 +52,7 @@
 #include <linux/nfs_page.h>
 #include <linux/sunrpc/clnt.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 
 #include "internal.h"
@@ -105,7 +105,7 @@ struct nfs_direct_req {
 
 static const struct nfs_pgio_completion_ops nfs_direct_write_completion_ops;
 static const struct nfs_commit_completion_ops nfs_direct_commit_completion_ops;
-static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode);
+static void nfs_direct_write_complete(struct nfs_direct_req *dreq);
 static void nfs_direct_write_schedule_work(struct work_struct *work);
 
 static inline void get_dreq(struct nfs_direct_req *dreq)
@@ -387,7 +387,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 		dreq->iocb->ki_complete(dreq->iocb, res, 0);
 	}
 
-	complete_all(&dreq->completion);
+	complete(&dreq->completion);
 
 	nfs_direct_req_release(dreq);
 }
@@ -684,7 +684,7 @@ out_failed:
 	}
 
 	if (put_dreq(dreq))
-		nfs_direct_write_complete(dreq, dreq->inode);
+		nfs_direct_write_complete(dreq);
 }
 
 static void nfs_direct_commit_complete(struct nfs_commit_data *data)
@@ -717,7 +717,7 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 	}
 
 	if (atomic_dec_and_test(&cinfo.mds->rpcs_out))
-		nfs_direct_write_complete(dreq, data->inode);
+		nfs_direct_write_complete(dreq);
 }
 
 static void nfs_direct_resched_write(struct nfs_commit_info *cinfo,
@@ -768,7 +768,7 @@ static void nfs_direct_write_schedule_work(struct work_struct *work)
 	}
 }
 
-static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
+static void nfs_direct_write_complete(struct nfs_direct_req *dreq)
 {
 	schedule_work(&dreq->work); /* Calls nfs_direct_write_schedule_work */
 }
@@ -824,7 +824,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 
 out_put:
 	if (put_dreq(dreq))
-		nfs_direct_write_complete(dreq, hdr->inode);
+		nfs_direct_write_complete(dreq);
 	hdr->release(hdr);
 }
 
@@ -953,7 +953,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 	}
 
 	if (put_dreq(dreq))
-		nfs_direct_write_complete(dreq, dreq->inode);
+		nfs_direct_write_complete(dreq);
 	return 0;
 }
 

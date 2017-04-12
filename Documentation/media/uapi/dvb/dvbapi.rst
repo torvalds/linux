@@ -8,7 +8,9 @@
 Part II - Digital TV API
 ########################
 
-.. note:: This API is also known as **DVB API**, although it is generic
+.. note::
+
+   This API is also known as **DVB API**, although it is generic
    enough to support all digital TV standards.
 
 **Version 5.10**

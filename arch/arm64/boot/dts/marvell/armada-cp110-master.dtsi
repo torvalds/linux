@@ -52,7 +52,7 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		config-space {
+		config-space@f2000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
@@ -74,13 +74,14 @@
 					"cpm-gop-dp", "none", "cpm-pcie_x10",
 					"cpm-pcie_x11", "cpm-pcie_x4", "cpm-pcie-xor",
 					"cpm-sata", "cpm-sata-usb", "cpm-main",
-					"cpm-sd-mmc", "none", "none",
+					"cpm-sd-mmc-gop", "none", "none",
 					"cpm-slow-io", "cpm-usb3h0", "cpm-usb3h1",
 					"cpm-usb3dev", "cpm-eip150", "cpm-eip197";
 			};
 
 			cpm_sata0: sata@540000 {
-				compatible = "marvell,armada-8k-ahci";
+				compatible = "marvell,armada-8k-ahci",
+					     "generic-ahci";
 				reg = <0x540000 0x30000>;
 				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cpm_syscon0 1 15>;
@@ -131,7 +132,7 @@
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
 				cell-index = <1>;
-				clocks = <&cpm_syscon0 0 3>;
+				clocks = <&cpm_syscon0 1 21>;
 				status = "disabled";
 			};
 
@@ -164,6 +165,14 @@
 				clocks = <&cpm_syscon0 1 21>;
 				status = "disabled";
 			};
+
+			cpm_trng: trng@760000 {
+				compatible = "marvell,armada-8k-rng", "inside-secure,safexcel-eip76";
+				reg = <0x760000 0x7d>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_syscon0 1 25>;
+				status = "okay";
+			};
 		};
 
 		cpm_pcie0: pcie@f2600000 {
@@ -176,6 +185,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -201,6 +211,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -227,6 +238,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =

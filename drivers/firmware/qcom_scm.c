@@ -1,4 +1,7 @@
-/* Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
+/*
+ * Qualcomm SCM driver
+ *
+ * Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -12,7 +15,7 @@
  *
  */
 #include <linux/platform_device.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/dma-mapping.h>
@@ -24,6 +27,10 @@
 #include <linux/reset-controller.h>
 
 #include "qcom_scm.h"
+
+#define SCM_HAS_CORE_CLK	BIT(0)
+#define SCM_HAS_IFACE_CLK	BIT(1)
+#define SCM_HAS_BUS_CLK		BIT(2)
 
 struct qcom_scm {
 	struct device *dev;
@@ -317,35 +324,49 @@ bool qcom_scm_is_available(void)
 }
 EXPORT_SYMBOL(qcom_scm_is_available);
 
+int qcom_scm_set_remote_state(u32 state, u32 id)
+{
+	return __qcom_scm_set_remote_state(__scm->dev, state, id);
+}
+EXPORT_SYMBOL(qcom_scm_set_remote_state);
+
 static int qcom_scm_probe(struct platform_device *pdev)
 {
 	struct qcom_scm *scm;
+	unsigned long clks;
 	int ret;
 
 	scm = devm_kzalloc(&pdev->dev, sizeof(*scm), GFP_KERNEL);
 	if (!scm)
 		return -ENOMEM;
 
-	scm->core_clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(scm->core_clk)) {
-		if (PTR_ERR(scm->core_clk) == -EPROBE_DEFER)
+	clks = (unsigned long)of_device_get_match_data(&pdev->dev);
+	if (clks & SCM_HAS_CORE_CLK) {
+		scm->core_clk = devm_clk_get(&pdev->dev, "core");
+		if (IS_ERR(scm->core_clk)) {
+			if (PTR_ERR(scm->core_clk) != -EPROBE_DEFER)
+				dev_err(&pdev->dev,
+					"failed to acquire core clk\n");
 			return PTR_ERR(scm->core_clk);
-
-		scm->core_clk = NULL;
+		}
 	}
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,scm")) {
+	if (clks & SCM_HAS_IFACE_CLK) {
 		scm->iface_clk = devm_clk_get(&pdev->dev, "iface");
 		if (IS_ERR(scm->iface_clk)) {
 			if (PTR_ERR(scm->iface_clk) != -EPROBE_DEFER)
-				dev_err(&pdev->dev, "failed to acquire iface clk\n");
+				dev_err(&pdev->dev,
+					"failed to acquire iface clk\n");
 			return PTR_ERR(scm->iface_clk);
 		}
+	}
 
+	if (clks & SCM_HAS_BUS_CLK) {
 		scm->bus_clk = devm_clk_get(&pdev->dev, "bus");
 		if (IS_ERR(scm->bus_clk)) {
 			if (PTR_ERR(scm->bus_clk) != -EPROBE_DEFER)
-				dev_err(&pdev->dev, "failed to acquire bus clk\n");
+				dev_err(&pdev->dev,
+					"failed to acquire bus clk\n");
 			return PTR_ERR(scm->bus_clk);
 		}
 	}
@@ -353,7 +374,9 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	scm->reset.ops = &qcom_scm_pas_reset_ops;
 	scm->reset.nr_resets = 1;
 	scm->reset.of_node = pdev->dev.of_node;
-	reset_controller_register(&scm->reset);
+	ret = devm_reset_controller_register(&pdev->dev, &scm->reset);
+	if (ret)
+		return ret;
 
 	/* vote for max clk rate for highest performance */
 	ret = clk_set_rate(scm->core_clk, INT_MAX);
@@ -369,14 +392,25 @@ static int qcom_scm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id qcom_scm_dt_match[] = {
-	{ .compatible = "qcom,scm-apq8064",},
-	{ .compatible = "qcom,scm-msm8660",},
-	{ .compatible = "qcom,scm-msm8960",},
-	{ .compatible = "qcom,scm",},
+	{ .compatible = "qcom,scm-apq8064",
+	  /* FIXME: This should have .data = (void *) SCM_HAS_CORE_CLK */
+	},
+	{ .compatible = "qcom,scm-msm8660",
+	  .data = (void *) SCM_HAS_CORE_CLK,
+	},
+	{ .compatible = "qcom,scm-msm8960",
+	  .data = (void *) SCM_HAS_CORE_CLK,
+	},
+	{ .compatible = "qcom,scm-msm8996",
+	  .data = NULL, /* no clocks */
+	},
+	{ .compatible = "qcom,scm",
+	  .data = (void *)(SCM_HAS_CORE_CLK
+			   | SCM_HAS_IFACE_CLK
+			   | SCM_HAS_BUS_CLK),
+	},
 	{}
 };
-
-MODULE_DEVICE_TABLE(of, qcom_scm_dt_match);
 
 static struct platform_driver qcom_scm_driver = {
 	.driver = {
@@ -414,14 +448,4 @@ static int __init qcom_scm_init(void)
 
 	return platform_driver_register(&qcom_scm_driver);
 }
-
 subsys_initcall(qcom_scm_init);
-
-static void __exit qcom_scm_exit(void)
-{
-	platform_driver_unregister(&qcom_scm_driver);
-}
-module_exit(qcom_scm_exit);
-
-MODULE_DESCRIPTION("Qualcomm SCM driver");
-MODULE_LICENSE("GPL v2");

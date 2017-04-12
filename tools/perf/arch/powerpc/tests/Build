@@ -1,0 +1,4 @@
+libperf-$(CONFIG_DWARF_UNWIND) += regs_load.o
+libperf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
+
+libperf-y += arch-tests.o

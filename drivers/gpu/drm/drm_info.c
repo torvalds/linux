@@ -54,9 +54,6 @@ int drm_name_info(struct seq_file *m, void *data)
 
 	mutex_lock(&dev->master_mutex);
 	master = dev->master;
-	if (!master)
-		goto out_unlock;
-
 	seq_printf(m, "%s", dev->driver->name);
 	if (dev->dev)
 		seq_printf(m, " dev=%s", dev_name(dev->dev));
@@ -65,7 +62,6 @@ int drm_name_info(struct seq_file *m, void *data)
 	if (dev->unique)
 		seq_printf(m, " unique=%s", dev->unique);
 	seq_printf(m, "\n");
-out_unlock:
 	mutex_unlock(&dev->master_mutex);
 
 	return 0;
@@ -80,6 +76,7 @@ int drm_clients_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_file *priv;
+	kuid_t uid;
 
 	seq_printf(m,
 		   "%20s %5s %3s master a %5s %10s\n",
@@ -98,13 +95,14 @@ int drm_clients_info(struct seq_file *m, void *data)
 
 		rcu_read_lock(); /* locks pid_task()->comm */
 		task = pid_task(priv->pid, PIDTYPE_PID);
+		uid = task ? __task_cred(task)->euid : GLOBAL_ROOT_UID;
 		seq_printf(m, "%20s %5d %3d   %c    %c %5d %10u\n",
 			   task ? task->comm : "<unknown>",
 			   pid_vnr(priv->pid),
 			   priv->minor->index,
 			   drm_is_current_master(priv) ? 'y' : 'n',
 			   priv->authenticated ? 'y' : 'n',
-			   from_kuid_munged(seq_user_ns(m), priv->uid),
+			   from_kuid_munged(seq_user_ns(m), uid),
 			   priv->magic);
 		rcu_read_unlock();
 	}
@@ -120,7 +118,7 @@ static int drm_gem_one_name_info(int id, void *ptr, void *data)
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
 		   obj->handle_count,
-		   atomic_read(&obj->refcount.refcount));
+		   kref_read(&obj->refcount));
 	return 0;
 }
 

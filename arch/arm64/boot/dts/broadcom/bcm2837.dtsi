@@ -1,7 +1,7 @@
 #include "bcm283x.dtsi"
 
 / {
-	compatible = "brcm,bcm2836";
+	compatible = "brcm,bcm2837";
 
 	soc {
 		ranges = <0x7e000000 0x3f000000 0x1000000>,
@@ -73,4 +73,10 @@
 	reg = <0x7e00b200 0x200>;
 	interrupt-parent = <&local_intc>;
 	interrupts = <8>;
+};
+
+/* enable thermal sensor with the correct compatible property set */
+&thermal {
+	compatible = "brcm,bcm2837-thermal";
+	status = "okay";
 };

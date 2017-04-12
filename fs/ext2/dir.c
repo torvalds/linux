@@ -471,7 +471,7 @@ void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
 	err = ext2_commit_chunk(page, pos, len);
 	ext2_put_page(page);
 	if (update_times)
-		dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+		dir->i_mtime = dir->i_ctime = current_time(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
 }
@@ -561,7 +561,7 @@ got_it:
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type (de, inode);
 	err = ext2_commit_chunk(page, pos, rec_len);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
 	/* OFFSET_CACHE */
@@ -610,7 +610,7 @@ int ext2_delete_entry (struct ext2_dir_entry_2 * dir, struct page * page )
 		pde->rec_len = ext2_rec_len_to_disk(to - from);
 	dir->inode = 0;
 	err = ext2_commit_chunk(page, pos, to - from);
-	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
+	inode->i_ctime = inode->i_mtime = current_time(inode);
 	EXT2_I(inode)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(inode);
 out:

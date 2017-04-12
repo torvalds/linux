@@ -48,7 +48,7 @@
 #include <net/sock.h>
 #include <net/genetlink.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/ip_vs.h>
 
@@ -426,10 +426,9 @@ ip_vs_service_find(struct netns_ipvs *ipvs, int af, __u32 fwmark, __u16 protocol
 	 */
 	svc = __ip_vs_service_find(ipvs, af, protocol, vaddr, vport);
 
-	if (svc == NULL
-	    && protocol == IPPROTO_TCP
-	    && atomic_read(&ipvs->ftpsvc_counter)
-	    && (vport == FTPDATA || ntohs(vport) >= PROT_SOCK)) {
+	if (!svc && protocol == IPPROTO_TCP &&
+	    atomic_read(&ipvs->ftpsvc_counter) &&
+	    (vport == FTPDATA || ntohs(vport) >= inet_prot_sock(ipvs->net))) {
 		/*
 		 * Check if ftp service entry exists, the packet
 		 * might belong to FTP data connections.
@@ -711,7 +710,6 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, int dest_af,
 		      dest->vport == svc->port))) {
 			/* HIT */
 			list_del(&dest->t_list);
-			ip_vs_dest_hold(dest);
 			goto out;
 		}
 	}
@@ -741,7 +739,7 @@ static void ip_vs_dest_free(struct ip_vs_dest *dest)
  *  When the ip_vs_control_clearup is activated by ipvs module exit,
  *  the service tables must have been flushed and all the connections
  *  are expired, and the refcnt of each destination in the trash must
- *  be 0, so we simply release them here.
+ *  be 1, so we simply release them here.
  */
 static void ip_vs_trash_cleanup(struct netns_ipvs *ipvs)
 {
@@ -1080,11 +1078,10 @@ static void __ip_vs_del_dest(struct netns_ipvs *ipvs, struct ip_vs_dest *dest,
 	if (list_empty(&ipvs->dest_trash) && !cleanup)
 		mod_timer(&ipvs->dest_trash_timer,
 			  jiffies + (IP_VS_DEST_TRASH_PERIOD >> 1));
-	/* dest lives in trash without reference */
+	/* dest lives in trash with reference */
 	list_add(&dest->t_list, &ipvs->dest_trash);
 	dest->idle_start = 0;
 	spin_unlock_bh(&ipvs->dest_trash_lock);
-	ip_vs_dest_put(dest);
 }
 
 
@@ -1160,7 +1157,7 @@ static void ip_vs_dest_trash_expire(unsigned long data)
 
 	spin_lock(&ipvs->dest_trash_lock);
 	list_for_each_entry_safe(dest, next, &ipvs->dest_trash, t_list) {
-		if (atomic_read(&dest->refcnt) > 0)
+		if (atomic_read(&dest->refcnt) > 1)
 			continue;
 		if (dest->idle_start) {
 			if (time_before(now, dest->idle_start +
@@ -2840,14 +2837,7 @@ static struct nf_sockopt_ops ip_vs_sockopts = {
  */
 
 /* IPVS genetlink family */
-static struct genl_family ip_vs_genl_family = {
-	.id		= GENL_ID_GENERATE,
-	.hdrsize	= 0,
-	.name		= IPVS_GENL_NAME,
-	.version	= IPVS_GENL_VERSION,
-	.maxattr	= IPVS_CMD_MAX,
-	.netnsok        = true,         /* Make ipvsadm to work on netns */
-};
+static struct genl_family ip_vs_genl_family;
 
 /* Policy used for first-level command attributes */
 static const struct nla_policy ip_vs_cmd_policy[IPVS_CMD_ATTR_MAX + 1] = {
@@ -3267,7 +3257,7 @@ static int ip_vs_genl_dump_dests(struct sk_buff *skb,
 
 
 	svc = ip_vs_genl_find_service(ipvs, attrs[IPVS_CMD_ATTR_SERVICE]);
-	if (IS_ERR(svc) || svc == NULL)
+	if (IS_ERR_OR_NULL(svc))
 		goto out_err;
 
 	/* Dump the destinations */
@@ -3872,10 +3862,20 @@ static const struct genl_ops ip_vs_genl_ops[] = {
 	},
 };
 
+static struct genl_family ip_vs_genl_family __ro_after_init = {
+	.hdrsize	= 0,
+	.name		= IPVS_GENL_NAME,
+	.version	= IPVS_GENL_VERSION,
+	.maxattr	= IPVS_CMD_ATTR_MAX,
+	.netnsok        = true,         /* Make ipvsadm to work on netns */
+	.module		= THIS_MODULE,
+	.ops		= ip_vs_genl_ops,
+	.n_ops		= ARRAY_SIZE(ip_vs_genl_ops),
+};
+
 static int __init ip_vs_genl_register(void)
 {
-	return genl_register_family_with_ops(&ip_vs_genl_family,
-					     ip_vs_genl_ops);
+	return genl_register_family(&ip_vs_genl_family);
 }
 
 static void ip_vs_genl_unregister(void)

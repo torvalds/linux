@@ -14,16 +14,14 @@ LIRC_SET_TRANSMITTER_MASK - Enables send codes on a given set of transmitters
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *mask )
+.. c:function:: int ioctl( int fd, LIRC_SET_TRANSMITTER_MASK, __u32 *mask )
+    :name: LIRC_SET_TRANSMITTER_MASK
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_SET_TRANSMITTER_MASK
 
 ``mask``
     Mask with channels to enable tx. Channel 0 is the least significant bit.

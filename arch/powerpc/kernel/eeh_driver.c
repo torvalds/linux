@@ -545,7 +545,7 @@ static void *eeh_pe_detach_dev(void *data, void *userdata)
 static void *__eeh_clear_pe_frozen_state(void *data, void *flag)
 {
 	struct eeh_pe *pe = (struct eeh_pe *)data;
-	bool *clear_sw_state = flag;
+	bool clear_sw_state = *(bool *)flag;
 	int i, rc = 1;
 
 	for (i = 0; rc && i < 3; i++)
@@ -588,7 +588,7 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 	eeh_pe_dev_traverse(pe, eeh_dev_save_state, NULL);
 
 	/* Issue reset */
-	ret = eeh_reset_pe(pe);
+	ret = eeh_pe_reset_full(pe);
 	if (ret) {
 		eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
 		return ret;
@@ -659,7 +659,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 * config accesses. So we prefer to block them. However, controlled
 	 * PCI config accesses initiated from EEH itself are allowed.
 	 */
-	rc = eeh_reset_pe(pe);
+	rc = eeh_pe_reset_full(pe);
 	if (rc)
 		return rc;
 
@@ -671,8 +671,10 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 
 	/* Clear frozen state */
 	rc = eeh_clear_pe_frozen_state(pe, false);
-	if (rc)
+	if (rc) {
+		pci_unlock_rescan_remove();
 		return rc;
+	}
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,
@@ -732,7 +734,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	frozen_bus = eeh_pe_bus_get(pe);
 	if (!frozen_bus) {
-		pr_err("%s: Cannot find PCI bus for PHB#%d-PE#%x\n",
+		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
 		return;
 	}
@@ -876,7 +878,7 @@ excess_failures:
 	 * are due to poorly seated PCI cards. Only 10% or so are
 	 * due to actual, failed cards.
 	 */
-	pr_err("EEH: PHB#%d-PE#%x has failed %d times in the\n"
+	pr_err("EEH: PHB#%x-PE#%x has failed %d times in the\n"
 	       "last hour and has been permanently disabled.\n"
 	       "Please try reseating or replacing it.\n",
 		pe->phb->global_number, pe->addr,
@@ -884,7 +886,7 @@ excess_failures:
 	goto perm_error;
 
 hard_fail:
-	pr_err("EEH: Unable to recover from failure from PHB#%d-PE#%x.\n"
+	pr_err("EEH: Unable to recover from failure from PHB#%x-PE#%x.\n"
 	       "Please try reseating or replacing it\n",
 		pe->phb->global_number, pe->addr);
 
@@ -993,9 +995,17 @@ static void eeh_handle_special_event(void)
 
 				/* Notify all devices to be down */
 				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
-				bus = eeh_pe_bus_get(phb_pe);
 				eeh_pe_dev_traverse(pe,
 					eeh_report_failure, NULL);
+				bus = eeh_pe_bus_get(phb_pe);
+				if (!bus) {
+					pr_err("%s: Cannot find PCI bus for "
+					       "PHB#%x-PE#%x\n",
+					       __func__,
+					       pe->phb->global_number,
+					       pe->addr);
+					break;
+				}
 				pci_hp_remove_devices(bus);
 			}
 			pci_unlock_rescan_remove();

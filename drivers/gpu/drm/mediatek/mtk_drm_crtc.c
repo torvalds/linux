@@ -31,7 +31,7 @@
  * struct mtk_drm_crtc - MediaTek specific crtc structure.
  * @base: crtc object.
  * @enabled: records whether crtc_enable succeeded
- * @planes: array of 4 mtk_drm_plane structures, one for each overlay plane
+ * @planes: array of 4 drm_plane structures, one for each overlay plane
  * @pending_planes: whether any plane has pending changes to be applied
  * @config_regs: memory mapped mmsys configuration register space
  * @mutex: handle to one of the ten disp_mutex streams
@@ -45,7 +45,7 @@ struct mtk_drm_crtc {
 	bool				pending_needs_vblank;
 	struct drm_pending_vblank_event	*event;
 
-	struct mtk_drm_plane		planes[OVL_LAYER_NR];
+	struct drm_plane		planes[OVL_LAYER_NR];
 	bool				pending_planes;
 
 	void __iomem			*config_regs;
@@ -112,8 +112,7 @@ static void mtk_drm_crtc_reset(struct drm_crtc *crtc)
 	struct mtk_crtc_state *state;
 
 	if (crtc->state) {
-		if (crtc->state->mode_blob)
-			drm_property_unreference_blob(crtc->state->mode_blob);
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
 
 		state = to_mtk_crtc_state(crtc->state);
 		memset(state, 0, sizeof(*state));
@@ -171,8 +170,8 @@ static void mtk_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
-	struct mtk_drm_private *priv = drm->dev_private;
-	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
+	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *ovl = mtk_crtc->ddp_comp[0];
 
 	mtk_ddp_comp_enable_vblank(ovl, &mtk_crtc->base);
@@ -182,8 +181,8 @@ int mtk_drm_crtc_enable_vblank(struct drm_device *drm, unsigned int pipe)
 
 void mtk_drm_crtc_disable_vblank(struct drm_device *drm, unsigned int pipe)
 {
-	struct mtk_drm_private *priv = drm->dev_private;
-	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
+	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *ovl = mtk_crtc->ddp_comp[0];
 
 	mtk_ddp_comp_disable_vblank(ovl);
@@ -222,7 +221,9 @@ static void mtk_crtc_ddp_clk_disable(struct mtk_drm_crtc *mtk_crtc)
 static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 {
 	struct drm_crtc *crtc = &mtk_crtc->base;
-	unsigned int width, height, vrefresh;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+	unsigned int width, height, vrefresh, bpc = MTK_MAX_BPC;
 	int ret;
 	int i;
 
@@ -233,6 +234,19 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	width = crtc->state->adjusted_mode.hdisplay;
 	height = crtc->state->adjusted_mode.vdisplay;
 	vrefresh = crtc->state->adjusted_mode.vrefresh;
+
+	drm_for_each_encoder(encoder, crtc->dev) {
+		if (encoder->crtc != crtc)
+			continue;
+
+		drm_for_each_connector(connector, crtc->dev) {
+			if (connector->encoder != encoder)
+				continue;
+			if (connector->display_info.bpc != 0 &&
+			    bpc > connector->display_info.bpc)
+				bpc = connector->display_info.bpc;
+		}
+	}
 
 	ret = pm_runtime_get_sync(crtc->dev->dev);
 	if (ret < 0) {
@@ -266,13 +280,13 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
 		struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[i];
 
-		mtk_ddp_comp_config(comp, width, height, vrefresh);
+		mtk_ddp_comp_config(comp, width, height, vrefresh, bpc);
 		mtk_ddp_comp_start(comp);
 	}
 
 	/* Initially configure all planes */
 	for (i = 0; i < OVL_LAYER_NR; i++) {
-		struct drm_plane *plane = &mtk_crtc->planes[i].base;
+		struct drm_plane *plane = &mtk_crtc->planes[i];
 		struct mtk_plane_state *plane_state;
 
 		plane_state = to_mtk_plane_state(plane->state);
@@ -351,7 +365,7 @@ static void mtk_drm_crtc_disable(struct drm_crtc *crtc)
 
 	/* Set all pending plane state to disabled */
 	for (i = 0; i < OVL_LAYER_NR; i++) {
-		struct drm_plane *plane = &mtk_crtc->planes[i].base;
+		struct drm_plane *plane = &mtk_crtc->planes[i];
 		struct mtk_plane_state *plane_state;
 
 		plane_state = to_mtk_plane_state(plane->state);
@@ -397,7 +411,7 @@ static void mtk_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	if (mtk_crtc->event)
 		mtk_crtc->pending_needs_vblank = true;
 	for (i = 0; i < OVL_LAYER_NR; i++) {
-		struct drm_plane *plane = &mtk_crtc->planes[i].base;
+		struct drm_plane *plane = &mtk_crtc->planes[i];
 		struct mtk_plane_state *plane_state;
 
 		plane_state = to_mtk_plane_state(plane->state);
@@ -409,6 +423,9 @@ static void mtk_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 	if (pending_planes)
 		mtk_crtc->pending_planes = true;
+	if (crtc->state->color_mgmt_changed)
+		for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
+			mtk_ddp_gamma_set(mtk_crtc->ddp_comp[i], crtc->state);
 }
 
 static const struct drm_crtc_funcs mtk_crtc_funcs = {
@@ -418,6 +435,7 @@ static const struct drm_crtc_funcs mtk_crtc_funcs = {
 	.reset			= mtk_drm_crtc_reset,
 	.atomic_duplicate_state	= mtk_drm_crtc_duplicate_state,
 	.atomic_destroy_state	= mtk_drm_crtc_destroy_state,
+	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
 };
 
 static const struct drm_crtc_helper_funcs mtk_crtc_helper_funcs = {
@@ -464,14 +482,14 @@ void mtk_crtc_ddp_irq(struct drm_crtc *crtc, struct mtk_ddp_comp *ovl)
 	if (state->pending_config) {
 		mtk_ddp_comp_config(ovl, state->pending_width,
 				    state->pending_height,
-				    state->pending_vrefresh);
+				    state->pending_vrefresh, 0);
 
 		state->pending_config = false;
 	}
 
 	if (mtk_crtc->pending_planes) {
 		for (i = 0; i < OVL_LAYER_NR; i++) {
-			struct drm_plane *plane = &mtk_crtc->planes[i].base;
+			struct drm_plane *plane = &mtk_crtc->planes[i];
 			struct mtk_plane_state *plane_state;
 
 			plane_state = to_mtk_plane_state(plane->state);
@@ -559,17 +577,17 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 				(zpos == 1) ? DRM_PLANE_TYPE_CURSOR :
 						DRM_PLANE_TYPE_OVERLAY;
 		ret = mtk_plane_init(drm_dev, &mtk_crtc->planes[zpos],
-				     BIT(pipe), type, zpos);
+				     BIT(pipe), type);
 		if (ret)
 			goto unprepare;
 	}
 
-	ret = mtk_drm_crtc_init(drm_dev, mtk_crtc, &mtk_crtc->planes[0].base,
-				&mtk_crtc->planes[1].base, pipe);
+	ret = mtk_drm_crtc_init(drm_dev, mtk_crtc, &mtk_crtc->planes[0],
+				&mtk_crtc->planes[1], pipe);
 	if (ret < 0)
 		goto unprepare;
-
-	priv->crtc[pipe] = &mtk_crtc->base;
+	drm_mode_crtc_set_gamma_size(&mtk_crtc->base, MTK_LUT_SIZE);
+	drm_crtc_enable_color_mgmt(&mtk_crtc->base, 0, false, MTK_LUT_SIZE);
 	priv->num_pipes++;
 
 	return 0;

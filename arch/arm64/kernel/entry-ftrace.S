@@ -10,6 +10,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 
@@ -98,8 +99,7 @@
 ENTRY(_mcount)
 	mcount_enter
 
-	adrp	x0, ftrace_trace_function
-	ldr	x2, [x0, #:lo12:ftrace_trace_function]
+	ldr_l	x2, ftrace_trace_function
 	adr	x0, ftrace_stub
 	cmp	x0, x2			// if (ftrace_trace_function
 	b.eq	skip_ftrace_call	//     != ftrace_stub) {
@@ -115,15 +115,12 @@ skip_ftrace_call:			//   return;
 	mcount_exit			//   return;
 					// }
 skip_ftrace_call:
-	adrp	x1, ftrace_graph_return
-	ldr	x2, [x1, #:lo12:ftrace_graph_return]
+	ldr_l	x2, ftrace_graph_return
 	cmp	x0, x2			//   if ((ftrace_graph_return
 	b.ne	ftrace_graph_caller	//        != ftrace_stub)
 
-	adrp	x1, ftrace_graph_entry	//     || (ftrace_graph_entry
-	adrp	x0, ftrace_graph_entry_stub //     != ftrace_graph_entry_stub))
-	ldr	x2, [x1, #:lo12:ftrace_graph_entry]
-	add	x0, x0, #:lo12:ftrace_graph_entry_stub
+	ldr_l	x2, ftrace_graph_entry	//     || (ftrace_graph_entry
+	adr_l	x0, ftrace_graph_entry_stub //     != ftrace_graph_entry_stub))
 	cmp	x0, x2
 	b.ne	ftrace_graph_caller	//     ftrace_graph_caller();
 
@@ -219,7 +216,7 @@ ENDPROC(ftrace_graph_caller)
  *
  * Run ftrace_return_to_handler() before going back to parent.
  * @fp is checked against the value passed by ftrace_graph_caller()
- * only when CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST is enabled.
+ * only when HAVE_FUNCTION_GRAPH_FP_TEST is enabled.
  */
 ENTRY(return_to_handler)
 	save_return_regs

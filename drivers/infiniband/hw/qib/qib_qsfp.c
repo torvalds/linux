@@ -485,16 +485,6 @@ void qib_qsfp_init(struct qib_qsfp_data *qd,
 	dd->f_gpio_mod(dd, mask, mask, mask);
 }
 
-void qib_qsfp_deinit(struct qib_qsfp_data *qd)
-{
-	/*
-	 * There is nothing to do here for now.  our work is scheduled
-	 * with queue_work(), and flush_workqueue() from remove_one
-	 * will block until all work setup with queue_work()
-	 * completes.
-	 */
-}
-
 int qib_qsfp_dump(struct qib_pportdata *ppd, char *buf, int len)
 {
 	struct qib_qsfp_cache cd;

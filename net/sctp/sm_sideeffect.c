@@ -436,6 +436,37 @@ out_unlock:
 	sctp_association_put(asoc);
 }
 
+ /* Handle the timeout of the RE-CONFIG timer. */
+void sctp_generate_reconf_event(unsigned long data)
+{
+	struct sctp_transport *transport = (struct sctp_transport *)data;
+	struct sctp_association *asoc = transport->asoc;
+	struct sock *sk = asoc->base.sk;
+	struct net *net = sock_net(sk);
+	int error = 0;
+
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk)) {
+		pr_debug("%s: sock is busy\n", __func__);
+
+		/* Try again later.  */
+		if (!mod_timer(&transport->reconf_timer, jiffies + (HZ / 20)))
+			sctp_transport_hold(transport);
+		goto out_unlock;
+	}
+
+	error = sctp_do_sm(net, SCTP_EVENT_T_TIMEOUT,
+			   SCTP_ST_TIMEOUT(SCTP_EVENT_TIMEOUT_RECONF),
+			   asoc->state, asoc->ep, asoc,
+			   transport, GFP_ATOMIC);
+
+	if (error)
+		sk->sk_err = -error;
+
+out_unlock:
+	bh_unlock_sock(sk);
+	sctp_transport_put(transport);
+}
 
 /* Inject a SACK Timeout event into the state machine.  */
 static void sctp_generate_sack_event(unsigned long data)
@@ -452,6 +483,7 @@ sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES] = {
 	NULL,
 	sctp_generate_t4_rto_event,
 	sctp_generate_t5_shutdown_guard_event,
+	NULL,
 	NULL,
 	sctp_generate_sack_event,
 	sctp_generate_autoclose_event,
@@ -723,7 +755,7 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	 * forward progress.
 	 */
 	if (t->dst)
-		dst_confirm(t->dst);
+		sctp_transport_dst_confirm(t);
 
 	/* The receiver of the HEARTBEAT ACK should also perform an
 	 * RTT measurement for that destination transport address
@@ -840,6 +872,10 @@ static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 		if (!sctp_style(sk, UDP))
 			sk->sk_state_change(sk);
 	}
+
+	if (sctp_state(asoc, SHUTDOWN_PENDING) &&
+	    !sctp_outq_is_empty(&asoc->outqueue))
+		sctp_outq_uncork(&asoc->outqueue, GFP_ATOMIC);
 }
 
 /* Helper function to delete an association. */
@@ -1020,19 +1056,13 @@ static void sctp_cmd_t1_timer_update(struct sctp_association *asoc,
  * This way the whole message is queued up and bundling if
  * encouraged for small fragments.
  */
-static int sctp_cmd_send_msg(struct sctp_association *asoc,
-				struct sctp_datamsg *msg, gfp_t gfp)
+static void sctp_cmd_send_msg(struct sctp_association *asoc,
+			      struct sctp_datamsg *msg, gfp_t gfp)
 {
 	struct sctp_chunk *chunk;
-	int error = 0;
 
-	list_for_each_entry(chunk, &msg->chunks, frag_list) {
-		error = sctp_outq_tail(&asoc->outqueue, chunk, gfp);
-		if (error)
-			break;
-	}
-
-	return error;
+	list_for_each_entry(chunk, &msg->chunks, frag_list)
+		sctp_outq_tail(&asoc->outqueue, chunk, gfp);
 }
 
 
@@ -1427,8 +1457,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				local_cork = 1;
 			}
 			/* Send a chunk to our peer.  */
-			error = sctp_outq_tail(&asoc->outqueue, cmd->obj.chunk,
-					       gfp);
+			sctp_outq_tail(&asoc->outqueue, cmd->obj.chunk, gfp);
 			break;
 
 		case SCTP_CMD_SEND_PKT:
@@ -1682,7 +1711,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_FORCE_PRIM_RETRAN:
 			t = asoc->peer.retran_path;
 			asoc->peer.retran_path = asoc->peer.primary_path;
-			error = sctp_outq_uncork(&asoc->outqueue, gfp);
+			sctp_outq_uncork(&asoc->outqueue, gfp);
 			local_cork = 0;
 			asoc->peer.retran_path = t;
 			break;
@@ -1709,7 +1738,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				sctp_outq_cork(&asoc->outqueue);
 				local_cork = 1;
 			}
-			error = sctp_cmd_send_msg(asoc, cmd->obj.msg, gfp);
+			sctp_cmd_send_msg(asoc, cmd->obj.msg, gfp);
 			break;
 		case SCTP_CMD_SEND_NEXT_ASCONF:
 			sctp_cmd_send_asconf(asoc);
@@ -1739,9 +1768,9 @@ out:
 	 */
 	if (asoc && SCTP_EVENT_T_CHUNK == event_type && chunk) {
 		if (chunk->end_of_packet || chunk->singleton)
-			error = sctp_outq_uncork(&asoc->outqueue, gfp);
+			sctp_outq_uncork(&asoc->outqueue, gfp);
 	} else if (local_cork)
-		error = sctp_outq_uncork(&asoc->outqueue, gfp);
+		sctp_outq_uncork(&asoc->outqueue, gfp);
 
 	if (sp->data_ready_signalled)
 		sp->data_ready_signalled = 0;

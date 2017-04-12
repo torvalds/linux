@@ -186,7 +186,7 @@ int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			return -ENOSPC;
 		}
 		virq = irq_create_mapping(NULL, phb->msi_base + hwirq);
-		if (virq == NO_IRQ) {
+		if (!virq) {
 			pr_warn("%s: Failed to map MSI to linux irq\n",
 				pci_name(pdev));
 			msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq, 1);
@@ -217,7 +217,7 @@ void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 		return;
 
 	for_each_pci_msi_entry(entry, pdev) {
-		if (entry->irq == NO_IRQ)
+		if (!entry->irq)
 			continue;
 		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
@@ -234,7 +234,7 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoP7IOCPhbErrorData *)common;
-	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n",
+	pr_info("P7IOC PHB#%x Diag-data (Version: %d)\n",
 		hose->global_number, be32_to_cpu(common->version));
 
 	if (data->brdgCtl)
@@ -309,8 +309,8 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 			be64_to_cpu(data->dma1ErrorLog1));
 
 	for (i = 0; i < OPAL_P7IOC_NUM_PEST_REGS; i++) {
-		if ((data->pestA[i] >> 63) == 0 &&
-		    (data->pestB[i] >> 63) == 0)
+		if ((be64_to_cpu(data->pestA[i]) >> 63) == 0 &&
+		    (be64_to_cpu(data->pestB[i]) >> 63) == 0)
 			continue;
 
 		pr_info("PE[%3d] A/B: %016llx %016llx\n",
@@ -326,7 +326,7 @@ static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoPhb3ErrorData*)common;
-	pr_info("PHB3 PHB#%d Diag-data (Version: %d)\n",
+	pr_info("PHB3 PHB#%x Diag-data (Version: %d)\n",
 		hose->global_number, be32_to_cpu(common->version));
 	if (data->brdgCtl)
 		pr_info("brdgCtl:     %08x\n",
@@ -516,7 +516,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 		}
 	}
 
-	pr_devel(" -> EEH check, bdfn=%04x PE#%d fstate=%x\n",
+	pr_devel(" -> EEH check, bdfn=%04x PE#%x fstate=%x\n",
 		 (pdn->busno << 8) | (pdn->devfn), pe_no, fstate);
 
 	/* Clear the frozen state if applicable */
@@ -938,6 +938,13 @@ void __init pnv_pci_init(void)
 
 	/* Look for NPU PHBs */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
+		pnv_pci_init_npu_phb(np);
+
+	/*
+	 * Look for NPU2 PHBs which we treat mostly as NPU PHBs with
+	 * the exception of TCE kill which requires an OPAL call.
+	 */
+	for_each_compatible_node(np, NULL, "ibm,ioda2-npu2-phb")
 		pnv_pci_init_npu_phb(np);
 
 	/* Configure IOMMU DMA hooks */

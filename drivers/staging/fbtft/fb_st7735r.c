@@ -25,7 +25,7 @@
 #define DEFAULT_GAMMA   "0F 1A 0F 18 2F 28 20 22 1F 1B 23 37 00 07 02 10\n" \
 			"0F 1B 0F 17 33 2C 29 2E 30 30 39 3F 00 07 03 10"
 
-static int default_init_sequence[] = {
+static s16 default_init_sequence[] = {
 	-1, MIPI_DCS_SOFT_RESET,
 	-2, 150,                               /* delay */
 
@@ -33,35 +33,43 @@ static int default_init_sequence[] = {
 	-2, 500,                               /* delay */
 
 	/* FRMCTR1 - frame rate control: normal mode
-	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
+	 * frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D)
+	 */
 	-1, 0xB1, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR2 - frame rate control: idle mode
-	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
+	 * frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D)
+	 */
 	-1, 0xB2, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR3 - frame rate control - partial mode
-	     dot inversion mode, line inversion mode */
+	 * dot inversion mode, line inversion mode
+	 */
 	-1, 0xB3, 0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D,
 
 	/* INVCTR - display inversion control
-	     no inversion */
+	 * no inversion
+	 */
 	-1, 0xB4, 0x07,
 
 	/* PWCTR1 - Power Control
-	     -4.6V, AUTO mode */
+	 * -4.6V, AUTO mode
+	 */
 	-1, 0xC0, 0xA2, 0x02, 0x84,
 
 	/* PWCTR2 - Power Control
-	     VGH25 = 2.4C VGSEL = -10 VGH = 3 * AVDD */
+	 * VGH25 = 2.4C VGSEL = -10 VGH = 3 * AVDD
+	 */
 	-1, 0xC1, 0xC5,
 
 	/* PWCTR3 - Power Control
-	     Opamp current small, Boost frequency */
+	 * Opamp current small, Boost frequency
+	 */
 	-1, 0xC2, 0x0A, 0x00,
 
 	/* PWCTR4 - Power Control
-	     BCLK/2, Opamp current small & Medium low */
+	 * BCLK/2, Opamp current small & Medium low
+	 */
 	-1, 0xC3, 0x8A, 0x2A,
 
 	/* PWCTR5 - Power Control */
@@ -101,11 +109,12 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 static int set_var(struct fbtft_par *par)
 {
 	/* MADCTL - Memory data access control
-	     RGB/BGR:
-	     1. Mode selection pin SRGB
-		RGB H/W pin for color filter setting: 0=RGB, 1=BGR
-	     2. MADCTL RGB bit
-		RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR */
+	 * RGB/BGR:
+	 * 1. Mode selection pin SRGB
+	 *    RGB H/W pin for color filter setting: 0=RGB, 1=BGR
+	 * 2. MADCTL RGB bit
+	 *    RGB-BGR ORDER color filter panel: 0=RGB, 1=BGR
+	 */
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
@@ -129,12 +138,12 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    VRF0P VOS0P PK0P PK1P PK2P PK3P PK4P PK5P PK6P PK7P PK8P PK9P SELV0P SELV1P SELV62P SELV63P
-    VRF0N VOS0N PK0N PK1N PK2N PK3N PK4N PK5N PK6N PK7N PK8N PK9N SELV0N SELV1N SELV62N SELV63N
-*/
+ * Gamma string format:
+ * VRF0P VOS0P PK0P PK1P PK2P PK3P PK4P PK5P PK6P PK7P PK8P PK9P SELV0P SELV1P SELV62P SELV63P
+ * VRF0N VOS0N PK0N PK1N PK2N PK3N PK4N PK5N PK6N PK7N PK8N PK9N SELV0N SELV1N SELV62N SELV63N
+ */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i, j;
 

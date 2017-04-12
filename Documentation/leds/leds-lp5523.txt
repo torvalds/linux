@@ -34,8 +34,8 @@ There are two ways to run LED patterns.
   Control interface for the engines:
   x is 1 .. 3
   enginex_mode : disabled, load, run
-  enginex_load : microcode load (visible only in load mode)
-  enginex_leds : led mux control (visible only in load mode)
+  enginex_load : microcode load
+  enginex_leds : led mux control
 
   cd /sys/class/leds/lp5523:channel2/device
   echo "load" > engine3_mode

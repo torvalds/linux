@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -81,7 +77,7 @@ EXPORT_SYMBOL(rtl92c_phy_set_bb_reg);
 u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
 				  enum radio_path rfpath, u32 offset)
 {
-	RT_ASSERT(false, "deprecated!\n");
+	WARN_ONCE(true, "rtl8192c-common: _rtl92c_phy_fw_rf_serial_read deprecated!\n");
 	return 0;
 }
 EXPORT_SYMBOL(_rtl92c_phy_fw_rf_serial_read);
@@ -90,7 +86,7 @@ void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
 				    enum radio_path rfpath, u32 offset,
 				    u32 data)
 {
-	RT_ASSERT(false, "deprecated!\n");
+	WARN_ONCE(true, "rtl8192c-common: _rtl92c_phy_fw_rf_serial_write deprecated!\n");
 }
 EXPORT_SYMBOL(_rtl92c_phy_fw_rf_serial_write);
 
@@ -108,7 +104,7 @@ u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
 	offset &= 0x3f;
 	newoffset = offset;
 	if (RT_CANNOT_IO(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "return all one\n");
+		pr_err("return all one\n");
 		return 0xFFFFFFFF;
 	}
 	tmplong = rtl_get_bbreg(hw, RFPGA0_XA_HSSIPARAMETER2, MASKDWORD);
@@ -156,7 +152,7 @@ void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
 	struct bb_reg_def *pphyreg = &rtlphy->phyreg_def[rfpath];
 
 	if (RT_CANNOT_IO(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "stop\n");
+		pr_err("stop\n");
 		return;
 	}
 	offset &= 0x3f;
@@ -213,7 +209,7 @@ bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw)
 	rtstatus = rtlpriv->cfg->ops->config_bb_with_headerfile(hw,
 						 BASEBAND_CONFIG_PHY_REG);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!\n");
+		pr_err("Write BB Reg Fail!!\n");
 		return false;
 	}
 	if (rtlphy->rf_type == RF_1T2R) {
@@ -226,13 +222,13 @@ bool _rtl92c_phy_bb8192c_config_parafile(struct ieee80211_hw *hw)
 						   BASEBAND_CONFIG_PHY_REG);
 	}
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!\n");
+		pr_err("BB_PG Reg Fail!!\n");
 		return false;
 	}
 	rtstatus = rtlpriv->cfg->ops->config_bb_with_headerfile(hw,
 						 BASEBAND_CONFIG_AGC_TAB);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "AGC Table Fail\n");
+		pr_err("AGC Table Fail\n");
 		return false;
 	}
 	rtlphy->cck_high_power =
@@ -749,8 +745,8 @@ u8 rtl92c_phy_sw_chnl(struct ieee80211_hw *hw)
 		return 0;
 	if (rtlphy->set_bwmode_inprogress)
 		return 0;
-	RT_ASSERT((rtlphy->current_channel <= 14),
-		  "WIRELESS_MODE_G but channel>14");
+	WARN_ONCE((rtlphy->current_channel > 14),
+		  "rtl8192c-common: WIRELESS_MODE_G but channel>14");
 	rtlphy->sw_chnl_inprogress = true;
 	rtlphy->sw_chnl_stage = 0;
 	rtlphy->sw_chnl_step = 0;
@@ -796,7 +792,7 @@ static bool _rtl92c_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		RT_ASSERT(false, "cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8192c-common: cmdtable cannot be NULL.\n");
 		return false;
 	}
 
@@ -841,8 +837,8 @@ bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 
 	rfdependcmdcnt = 0;
 
-	RT_ASSERT((channel >= 1 && channel <= 14),
-		  "illegal channel for Zebra: %d\n", channel);
+	WARN_ONCE((channel < 1 || channel > 14),
+		  "rtl8192c-common: illegal channel for Zebra: %d\n", channel);
 
 	_rtl92c_phy_set_sw_chnl_cmdarray(rfdependcmd, rfdependcmdcnt++,
 					 MAX_RFDEPENDCMD_CNT, CMDID_RF_WRITEREG,
@@ -864,8 +860,8 @@ bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			currentcmd = &postcommoncmd[*step];
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Invalid 'stage' = %d, Check it!\n", *stage);
+			pr_err("Invalid 'stage' = %d, Check it!\n",
+			       *stage);
 			return true;
 		}
 
@@ -910,7 +906,8 @@ bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case not process\n");
+				 "switch case %#x not processed\n",
+				 currentcmd->cmdid);
 			break;
 		}
 
@@ -1567,7 +1564,7 @@ bool rtl92c_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case not process\n");
+				 "switch case %#x not processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -1605,7 +1602,8 @@ void rtl92c_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case not process\n");
+			 "switch case %#x not processed\n",
+			 rtlphy->current_io_type);
 		break;
 	}
 	rtlphy->set_io_inprogress = false;

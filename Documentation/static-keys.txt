@@ -15,6 +15,8 @@ The updated API replacements are:
 
 DEFINE_STATIC_KEY_TRUE(key);
 DEFINE_STATIC_KEY_FALSE(key);
+DEFINE_STATIC_KEY_ARRAY_TRUE(keys, count);
+DEFINE_STATIC_KEY_ARRAY_FALSE(keys, count);
 static_branch_likely()
 static_branch_unlikely()
 
@@ -140,13 +142,22 @@ static_branch_inc(), will change the branch back to true. Likewise, if the
 key is initialized false, a 'static_branch_inc()', will change the branch to
 true. And then a 'static_branch_dec()', will again make the branch false.
 
+Where an array of keys is required, it can be defined as:
+
+	DEFINE_STATIC_KEY_ARRAY_TRUE(keys, count);
+
+or:
+
+	DEFINE_STATIC_KEY_ARRAY_FALSE(keys, count);
 
 4) Architecture level code patching interface, 'jump labels'
 
 
 There are a few functions and macros that architectures must implement in order
 to take advantage of this optimization. If there is no architecture support, we
-simply fall back to a traditional, load, test, and jump sequence.
+simply fall back to a traditional, load, test, and jump sequence. Also, the
+struct jump_entry table must be at least 4-byte aligned because the
+static_key->entry field makes use of the two least significant bits.
 
 * select HAVE_ARCH_JUMP_LABEL, see: arch/x86/Kconfig
 

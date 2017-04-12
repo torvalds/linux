@@ -19,7 +19,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
@@ -124,6 +124,14 @@
 
 &rtc {
 	system-power-controller;
+
+	pinctrl-0 = <&ext_wakeup>;
+	pinctrl-names = "default";
+
+	ext_wakeup: ext-wakeup {
+		pins = "ext_wakeup0";
+		input-enable;
+	};
 };
 
 /* NAND Flash */

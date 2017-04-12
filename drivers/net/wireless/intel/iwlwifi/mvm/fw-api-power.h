@@ -313,35 +313,26 @@ enum iwl_dev_tx_power_cmd_mode {
 	IWL_TX_POWER_MODE_SET_ACK = 3,
 }; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_4 */;
 
+#define IWL_NUM_CHAIN_LIMITS	2
+#define IWL_NUM_SUB_BANDS	5
+
 /**
- * struct iwl_dev_tx_power_cmd_v2 - TX power reduction command
+ * struct iwl_dev_tx_power_cmd - TX power reduction command
  * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
  * @mac_context_id: id of the mac ctx for which we are reducing TX power.
  * @pwr_restriction: TX power restriction in 1/8 dBms.
  * @dev_24: device TX power restriction in 1/8 dBms
  * @dev_52_low: device TX power restriction upper band - low
  * @dev_52_high: device TX power restriction upper band - high
+ * @per_chain_restriction: per chain restrictions
  */
-struct iwl_dev_tx_power_cmd_v2 {
+struct iwl_dev_tx_power_cmd_v3 {
 	__le32 set_mode;
 	__le32 mac_context_id;
 	__le16 pwr_restriction;
 	__le16 dev_24;
 	__le16 dev_52_low;
 	__le16 dev_52_high;
-} __packed; /* TX_REDUCED_POWER_API_S_VER_2 */
-
-#define IWL_NUM_CHAIN_LIMITS	2
-#define IWL_NUM_SUB_BANDS	5
-
-/**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
- * @v2: version 2 of the command, embedded here for easier software handling
- * @per_chain_restriction: per chain restrictions
- */
-struct iwl_dev_tx_power_cmd_v3 {
-	/* v3 is just an extension of v2 - keep this here */
-	struct iwl_dev_tx_power_cmd_v2 v2;
 	__le16 per_chain_restriction[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
 

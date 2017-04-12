@@ -46,7 +46,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>
@@ -83,7 +83,7 @@ static int sr_init_command(struct scsi_cmnd *SCpnt);
 static int sr_done(struct scsi_cmnd *);
 static int sr_runtime_suspend(struct device *dev);
 
-static struct dev_pm_ops sr_pm_ops = {
+static const struct dev_pm_ops sr_pm_ops = {
 	.runtime_suspend	= sr_runtime_suspend,
 };
 
@@ -117,7 +117,7 @@ static unsigned int sr_check_events(struct cdrom_device_info *cdi,
 				    unsigned int clearing, int slot);
 static int sr_packet(struct cdrom_device_info *, struct packet_command *);
 
-static struct cdrom_device_ops sr_dops = {
+static const struct cdrom_device_ops sr_dops = {
 	.open			= sr_open,
 	.release	 	= sr_release,
 	.drive_status	 	= sr_drive_status,
@@ -437,14 +437,17 @@ static int sr_init_command(struct scsi_cmnd *SCpnt)
 		goto out;
 	}
 
-	if (rq_data_dir(rq) == WRITE) {
+	switch (req_op(rq)) {
+	case REQ_OP_WRITE:
 		if (!cd->writeable)
 			goto out;
 		SCpnt->cmnd[0] = WRITE_10;
 		cd->cdi.media_written = 1;
-	} else if (rq_data_dir(rq) == READ) {
+		break;
+	case REQ_OP_READ:
 		SCpnt->cmnd[0] = READ_10;
-	} else {
+		break;
+	default:
 		blk_dump_rq_flags(rq, "Unknown sr command");
 		goto out;
 	}

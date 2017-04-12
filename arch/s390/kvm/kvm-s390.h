@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 #include <asm/facility.h>
 #include <asm/processor.h>
+#include <asm/sclp.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
@@ -85,9 +86,7 @@ static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 }
 
-typedef u8 __bitwise ar_t;
-
-static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu, ar_t *ar)
+static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu, u8 *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
@@ -100,7 +99,7 @@ static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu, ar_t *ar)
 
 static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
 					      u64 *address1, u64 *address2,
-					      ar_t *ar_b1, ar_t *ar_b2)
+					      u8 *ar_b1, u8 *ar_b2)
 {
 	u32 base1 = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
 	u32 disp1 = (vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16;
@@ -124,7 +123,7 @@ static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2
 		*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
 }
 
-static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu, ar_t *ar)
+static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu, u8 *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16) +
@@ -139,7 +138,7 @@ static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu, ar_t *ar)
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + (long)(int)disp2;
 }
 
-static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu, ar_t *ar)
+static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu, u8 *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
@@ -245,6 +244,7 @@ static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
+int kvm_s390_handle_aa(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
@@ -273,10 +273,7 @@ int handle_sthyi(struct kvm_vcpu *vcpu);
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
-int kvm_s390_store_adtl_status_unloaded(struct kvm_vcpu *vcpu,
-					unsigned long addr);
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
-int kvm_s390_vcpu_store_adtl_status(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu);
@@ -380,7 +377,7 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
 void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu);
-void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
 
 /* support for Basic/Extended SCA handling */
 static inline union ipte_control *kvm_s390_get_ipte_control(struct kvm *kvm)
@@ -388,5 +385,14 @@ static inline union ipte_control *kvm_s390_get_ipte_control(struct kvm *kvm)
 	struct bsca_block *sca = kvm->arch.sca; /* SCA version doesn't matter */
 
 	return &sca->ipte_control;
+}
+static inline int kvm_s390_use_sca_entries(void)
+{
+	/*
+	 * Without SIGP interpretation, only SRS interpretation (if available)
+	 * might use the entries. By not setting the entries and keeping them
+	 * invalid, hardware will not access them but intercept.
+	 */
+	return sclp.has_sigpif;
 }
 #endif

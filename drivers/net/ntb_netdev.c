@@ -433,6 +433,9 @@ static int ntb_netdev_probe(struct device *client_dev)
 	ndev->netdev_ops = &ntb_netdev_ops;
 	ndev->ethtool_ops = &ntb_ethtool_ops;
 
+	ndev->min_mtu = 0;
+	ndev->max_mtu = ETH_MAX_MTU;
+
 	dev->qp = ntb_transport_create_queue(ndev, client_dev,
 					     &ntb_netdev_handlers);
 	if (!dev->qp) {

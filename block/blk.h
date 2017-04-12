@@ -14,6 +14,10 @@
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *blk_debugfs_root;
+#endif
+
 struct blk_flush_queue {
 	unsigned int		flush_queue_delayed:1;
 	unsigned int		flush_pending_idx:1;
@@ -39,14 +43,9 @@ extern struct ida blk_queue_ida;
 static inline struct blk_flush_queue *blk_get_flush_queue(
 		struct request_queue *q, struct blk_mq_ctx *ctx)
 {
-	struct blk_mq_hw_ctx *hctx;
-
-	if (!q->mq_ops)
-		return q->fq;
-
-	hctx = q->mq_ops->map_queue(q, ctx->cpu);
-
-	return hctx->fq;
+	if (q->mq_ops)
+		return blk_mq_map_queue(q, ctx->cpu)->fq;
+	return q->fq;
 }
 
 static inline void __blk_get_queue(struct request_queue *q)
@@ -101,6 +100,8 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
 			     struct bio *bio);
 bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 			    struct bio *bio);
+bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
+		struct bio *bio);
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 			    unsigned int *request_count,
 			    struct request **same_queue_rq);
@@ -116,6 +117,7 @@ void blk_account_io_done(struct request *req);
 enum rq_atomic_flags {
 	REQ_ATOM_COMPLETE = 0,
 	REQ_ATOM_STARTED,
+	REQ_ATOM_POLL_SLEPT,
 };
 
 /*
@@ -135,7 +137,7 @@ static inline void blk_clear_rq_complete(struct request *rq)
 /*
  * Internal elevator interface
  */
-#define ELV_ON_HASH(rq) ((rq)->cmd_flags & REQ_HASHED)
+#define ELV_ON_HASH(rq) ((rq)->rq_flags & RQF_HASHED)
 
 void blk_insert_flush(struct request *rq);
 
@@ -171,7 +173,7 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 			return NULL;
 		}
 		if (unlikely(blk_queue_bypass(q)) ||
-		    !q->elevator->type->ops.elevator_dispatch_fn(q, 0))
+		    !q->elevator->type->ops.sq.elevator_dispatch_fn(q, 0))
 			return NULL;
 	}
 }
@@ -180,16 +182,16 @@ static inline void elv_activate_rq(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
-	if (e->type->ops.elevator_activate_req_fn)
-		e->type->ops.elevator_activate_req_fn(q, rq);
+	if (e->type->ops.sq.elevator_activate_req_fn)
+		e->type->ops.sq.elevator_activate_req_fn(q, rq);
 }
 
 static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
-	if (e->type->ops.elevator_deactivate_req_fn)
-		e->type->ops.elevator_deactivate_req_fn(q, rq);
+	if (e->type->ops.sq.elevator_deactivate_req_fn)
+		e->type->ops.sq.elevator_deactivate_req_fn(q, rq);
 }
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
@@ -208,14 +210,14 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 		     struct bio *bio);
 int ll_front_merge_fn(struct request_queue *q, struct request *req, 
 		      struct bio *bio);
-int attempt_back_merge(struct request_queue *q, struct request *rq);
-int attempt_front_merge(struct request_queue *q, struct request *rq);
+struct request *attempt_back_merge(struct request_queue *q, struct request *rq);
+struct request *attempt_front_merge(struct request_queue *q, struct request *rq);
 int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 				struct request *next);
 void blk_recalc_rq_segments(struct request *rq);
 void blk_rq_set_mixed_merge(struct request *rq);
 bool blk_rq_merge_ok(struct request *rq, struct bio *bio);
-int blk_try_merge(struct request *rq, struct bio *bio);
+enum elv_merge blk_try_merge(struct request *rq, struct bio *bio);
 
 void blk_queue_congestion_threshold(struct request_queue *q);
 
@@ -252,8 +254,15 @@ extern int blk_update_nr_requests(struct request_queue *, unsigned int);
 static inline int blk_do_io_stat(struct request *rq)
 {
 	return rq->rq_disk &&
-	       (rq->cmd_flags & REQ_IO_STAT) &&
-		(rq->cmd_type == REQ_TYPE_FS);
+	       (rq->rq_flags & RQF_IO_STAT) &&
+		!blk_rq_is_passthrough(rq);
+}
+
+static inline void req_set_nomerge(struct request_queue *q, struct request *req)
+{
+	req->cmd_flags |= REQ_NOMERGE;
+	if (req == q->last_merge)
+		q->last_merge = NULL;
 }
 
 /*
@@ -266,6 +275,22 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 void ioc_clear_queue(struct request_queue *q);
 
 int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
+
+/**
+ * rq_ioc - determine io_context for request allocation
+ * @bio: request being allocated is for this bio (can be %NULL)
+ *
+ * Determine io_context to use for request allocation for @bio.  May return
+ * %NULL if %current->io_context doesn't exist.
+ */
+static inline struct io_context *rq_ioc(struct bio *bio)
+{
+#ifdef CONFIG_BLK_CGROUP
+	if (bio && bio->bi_ioc)
+		return bio->bi_ioc;
+#endif
+	return current->io_context;
+}
 
 /**
  * create_io_context - try to create task->io_context

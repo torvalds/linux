@@ -398,6 +398,7 @@ int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
 void ftrace_set_global_filter(unsigned char *buf, int len, int reset);
 void ftrace_set_global_notrace(unsigned char *buf, int len, int reset);
 void ftrace_free_filter(struct ftrace_ops *ops);
+void ftrace_ops_set_global_filter(struct ftrace_ops *ops);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
 int unregister_ftrace_command(struct ftrace_func_command *cmd);
@@ -645,6 +646,7 @@ static inline unsigned long ftrace_location(unsigned long ip)
 #define ftrace_set_filter(ops, buf, len, reset) ({ -ENODEV; })
 #define ftrace_set_notrace(ops, buf, len, reset) ({ -ENODEV; })
 #define ftrace_free_filter(ops) do { } while (0)
+#define ftrace_ops_set_global_filter(ops) do { } while (0)
 
 static inline ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos) { return -ENODEV; }
@@ -794,8 +796,15 @@ struct ftrace_ret_stack {
 	unsigned long ret;
 	unsigned long func;
 	unsigned long long calltime;
+#ifdef CONFIG_FUNCTION_PROFILER
 	unsigned long long subtime;
+#endif
+#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	unsigned long fp;
+#endif
+#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+	unsigned long *retp;
+#endif
 };
 
 /*
@@ -807,7 +816,10 @@ extern void return_to_handler(void);
 
 extern int
 ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
-			 unsigned long frame_pointer);
+			 unsigned long frame_pointer, unsigned long *retp);
+
+unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
+				    unsigned long ret, unsigned long *retp);
 
 /*
  * Sometimes we don't want to trace a function with the function
@@ -870,6 +882,13 @@ static inline int task_curr_ret_stack(struct task_struct *tsk)
 	return -1;
 }
 
+static inline unsigned long
+ftrace_graph_ret_addr(struct task_struct *task, int *idx, unsigned long ret,
+		      unsigned long *retp)
+{
+	return ret;
+}
+
 static inline void pause_graph_tracing(void) { }
 static inline void unpause_graph_tracing(void) { }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
@@ -927,6 +946,10 @@ extern int __disable_trace_on_warning;
 #ifdef CONFIG_PREEMPT
 #define INIT_TRACE_RECURSION		.trace_recursion = 0,
 #endif
+
+int tracepoint_printk_sysctl(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp,
+			     loff_t *ppos);
 
 #else /* CONFIG_TRACING */
 static inline void  disable_trace_on_warning(void) { }

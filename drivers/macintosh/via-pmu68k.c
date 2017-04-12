@@ -38,7 +38,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Misc minor number allocated for /dev/pmu */
 #define PMU_MINOR	154

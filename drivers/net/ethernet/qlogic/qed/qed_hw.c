@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -44,8 +68,7 @@ struct qed_ptt_pool {
 
 int qed_ptt_pool_alloc(struct qed_hwfn *p_hwfn)
 {
-	struct qed_ptt_pool *p_pool = kmalloc(sizeof(*p_pool),
-					      GFP_KERNEL);
+	struct qed_ptt_pool *p_pool = kmalloc(sizeof(*p_pool), GFP_KERNEL);
 	int i;
 
 	if (!p_pool)
@@ -113,16 +136,14 @@ struct qed_ptt *qed_ptt_acquire(struct qed_hwfn *p_hwfn)
 	return NULL;
 }
 
-void qed_ptt_release(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt)
+void qed_ptt_release(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	spin_lock_bh(&p_hwfn->p_ptt_pool->lock);
 	list_add(&p_ptt->list_entry, &p_hwfn->p_ptt_pool->free_list);
 	spin_unlock_bh(&p_hwfn->p_ptt_pool->lock);
 }
 
-u32 qed_ptt_get_hw_addr(struct qed_hwfn *p_hwfn,
-			struct qed_ptt *p_ptt)
+u32 qed_ptt_get_hw_addr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	/* The HW is using DWORDS and we need to translate it to Bytes */
 	return le32_to_cpu(p_ptt->pxp.offset) << 2;
@@ -141,8 +162,7 @@ u32 qed_ptt_get_bar_addr(struct qed_ptt *p_ptt)
 }
 
 void qed_ptt_set_win(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     u32 new_hw_addr)
+		     struct qed_ptt *p_ptt, u32 new_hw_addr)
 {
 	u32 prev_hw_addr;
 
@@ -166,8 +186,7 @@ void qed_ptt_set_win(struct qed_hwfn *p_hwfn,
 }
 
 static u32 qed_set_ptt(struct qed_hwfn *p_hwfn,
-		       struct qed_ptt *p_ptt,
-		       u32 hw_addr)
+		       struct qed_ptt *p_ptt, u32 hw_addr)
 {
 	u32 win_hw_addr = qed_ptt_get_hw_addr(p_hwfn, p_ptt);
 	u32 offset;
@@ -224,10 +243,7 @@ u32 qed_rd(struct qed_hwfn *p_hwfn,
 
 static void qed_memcpy_hw(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt,
-			  void *addr,
-			  u32 hw_addr,
-			  size_t n,
-			  bool to_device)
+			  void *addr, u32 hw_addr, size_t n, bool to_device)
 {
 	u32 dw_count, *host_addr, hw_offset;
 	size_t quota, done = 0;
@@ -259,8 +275,7 @@ static void qed_memcpy_hw(struct qed_hwfn *p_hwfn,
 }
 
 void qed_memcpy_from(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     void *dest, u32 hw_addr, size_t n)
+		     struct qed_ptt *p_ptt, void *dest, u32 hw_addr, size_t n)
 {
 	DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
 		   "hw_addr 0x%x, dest %p hw_addr 0x%x, size %lu\n",
@@ -270,8 +285,7 @@ void qed_memcpy_from(struct qed_hwfn *p_hwfn,
 }
 
 void qed_memcpy_to(struct qed_hwfn *p_hwfn,
-		   struct qed_ptt *p_ptt,
-		   u32 hw_addr, void *src, size_t n)
+		   struct qed_ptt *p_ptt, u32 hw_addr, void *src, size_t n)
 {
 	DP_VERBOSE(p_hwfn, NETIF_MSG_HW,
 		   "hw_addr 0x%x, hw_addr 0x%x, src %p size %lu\n",
@@ -280,9 +294,7 @@ void qed_memcpy_to(struct qed_hwfn *p_hwfn,
 	qed_memcpy_hw(p_hwfn, p_ptt, src, hw_addr, n, true);
 }
 
-void qed_fid_pretend(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     u16 fid)
+void qed_fid_pretend(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u16 fid)
 {
 	u16 control = 0;
 
@@ -309,8 +321,7 @@ void qed_fid_pretend(struct qed_hwfn *p_hwfn,
 }
 
 void qed_port_pretend(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u8 port_id)
+		      struct qed_ptt *p_ptt, u8 port_id)
 {
 	u16 control = 0;
 
@@ -326,8 +337,7 @@ void qed_port_pretend(struct qed_hwfn *p_hwfn,
 	       *(u32 *)&p_ptt->pxp.pretend);
 }
 
-void qed_port_unpretend(struct qed_hwfn *p_hwfn,
-			struct qed_ptt *p_ptt)
+void qed_port_unpretend(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u16 control = 0;
 
@@ -429,28 +439,27 @@ u32 qed_dmae_idx_to_go_cmd(u8 idx)
 	return DMAE_REG_GO_C0 + (idx << 2);
 }
 
-static int
-qed_dmae_post_command(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt)
+static int qed_dmae_post_command(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt)
 {
-	struct dmae_cmd *command = p_hwfn->dmae_info.p_dmae_cmd;
+	struct dmae_cmd *p_command = p_hwfn->dmae_info.p_dmae_cmd;
 	u8 idx_cmd = p_hwfn->dmae_info.channel, i;
 	int qed_status = 0;
 
 	/* verify address is not NULL */
-	if ((((command->dst_addr_lo == 0) && (command->dst_addr_hi == 0)) ||
-	     ((command->src_addr_lo == 0) && (command->src_addr_hi == 0)))) {
+	if ((((!p_command->dst_addr_lo) && (!p_command->dst_addr_hi)) ||
+	     ((!p_command->src_addr_lo) && (!p_command->src_addr_hi)))) {
 		DP_NOTICE(p_hwfn,
 			  "source or destination address 0 idx_cmd=%d\n"
 			  "opcode = [0x%08x,0x%04x] len=0x%x src=0x%x:%x dst=0x%x:%x\n",
-			   idx_cmd,
-			   le32_to_cpu(command->opcode),
-			   le16_to_cpu(command->opcode_b),
-			   le16_to_cpu(command->length_dw),
-			   le32_to_cpu(command->src_addr_hi),
-			   le32_to_cpu(command->src_addr_lo),
-			   le32_to_cpu(command->dst_addr_hi),
-			   le32_to_cpu(command->dst_addr_lo));
+			  idx_cmd,
+			  le32_to_cpu(p_command->opcode),
+			  le16_to_cpu(p_command->opcode_b),
+			  le16_to_cpu(p_command->length_dw),
+			  le32_to_cpu(p_command->src_addr_hi),
+			  le32_to_cpu(p_command->src_addr_lo),
+			  le32_to_cpu(p_command->dst_addr_hi),
+			  le32_to_cpu(p_command->dst_addr_lo));
 
 		return -EINVAL;
 	}
@@ -459,13 +468,13 @@ qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 		   NETIF_MSG_HW,
 		   "Posting DMAE command [idx %d]: opcode = [0x%08x,0x%04x] len=0x%x src=0x%x:%x dst=0x%x:%x\n",
 		   idx_cmd,
-		   le32_to_cpu(command->opcode),
-		   le16_to_cpu(command->opcode_b),
-		   le16_to_cpu(command->length_dw),
-		   le32_to_cpu(command->src_addr_hi),
-		   le32_to_cpu(command->src_addr_lo),
-		   le32_to_cpu(command->dst_addr_hi),
-		   le32_to_cpu(command->dst_addr_lo));
+		   le32_to_cpu(p_command->opcode),
+		   le16_to_cpu(p_command->opcode_b),
+		   le16_to_cpu(p_command->length_dw),
+		   le32_to_cpu(p_command->src_addr_hi),
+		   le32_to_cpu(p_command->src_addr_lo),
+		   le32_to_cpu(p_command->dst_addr_hi),
+		   le32_to_cpu(p_command->dst_addr_lo));
 
 	/* Copy the command to DMAE - need to do it before every call
 	 * for source/dest address no reset.
@@ -475,7 +484,7 @@ qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 	 */
 	for (i = 0; i < DMAE_CMD_SIZE; i++) {
 		u32 data = (i < DMAE_CMD_SIZE_TO_FILL) ?
-			   *(((u32 *)command) + i) : 0;
+			   *(((u32 *)p_command) + i) : 0;
 
 		qed_wr(p_hwfn, p_ptt,
 		       DMAE_REG_CMD_MEM +
@@ -483,9 +492,7 @@ qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 		       (i * sizeof(u32)), data);
 	}
 
-	qed_wr(p_hwfn, p_ptt,
-	       qed_dmae_idx_to_go_cmd(idx_cmd),
-	       DMAE_GO_VALUE);
+	qed_wr(p_hwfn, p_ptt, qed_dmae_idx_to_go_cmd(idx_cmd), DMAE_GO_VALUE);
 
 	return qed_status;
 }
@@ -498,31 +505,23 @@ int qed_dmae_info_alloc(struct qed_hwfn *p_hwfn)
 	u32 **p_comp = &p_hwfn->dmae_info.p_completion_word;
 
 	*p_comp = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-				     sizeof(u32),
-				     p_addr,
-				     GFP_KERNEL);
-	if (!*p_comp) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `p_completion_word'\n");
+				     sizeof(u32), p_addr, GFP_KERNEL);
+	if (!*p_comp)
 		goto err;
-	}
 
 	p_addr = &p_hwfn->dmae_info.dmae_cmd_phys_addr;
 	*p_cmd = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				    sizeof(struct dmae_cmd),
 				    p_addr, GFP_KERNEL);
-	if (!*p_cmd) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `struct dmae_cmd'\n");
+	if (!*p_cmd)
 		goto err;
-	}
 
 	p_addr = &p_hwfn->dmae_info.intermediate_buffer_phys_addr;
 	*p_buff = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
 				     sizeof(u32) * DMAE_MAX_RW_SIZE,
 				     p_addr, GFP_KERNEL);
-	if (!*p_buff) {
-		DP_NOTICE(p_hwfn, "Failed to allocate `intermediate_buffer'\n");
+	if (!*p_buff)
 		goto err;
-	}
 
 	p_hwfn->dmae_info.channel = p_hwfn->rel_pf_id;
 
@@ -543,8 +542,7 @@ void qed_dmae_info_free(struct qed_hwfn *p_hwfn)
 		p_phys = p_hwfn->dmae_info.completion_word_phys_addr;
 		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 				  sizeof(u32),
-				  p_hwfn->dmae_info.p_completion_word,
-				  p_phys);
+				  p_hwfn->dmae_info.p_completion_word, p_phys);
 		p_hwfn->dmae_info.p_completion_word = NULL;
 	}
 
@@ -552,8 +550,7 @@ void qed_dmae_info_free(struct qed_hwfn *p_hwfn)
 		p_phys = p_hwfn->dmae_info.dmae_cmd_phys_addr;
 		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 				  sizeof(struct dmae_cmd),
-				  p_hwfn->dmae_info.p_dmae_cmd,
-				  p_phys);
+				  p_hwfn->dmae_info.p_dmae_cmd, p_phys);
 		p_hwfn->dmae_info.p_dmae_cmd = NULL;
 	}
 
@@ -571,9 +568,7 @@ void qed_dmae_info_free(struct qed_hwfn *p_hwfn)
 
 static int qed_dmae_operation_wait(struct qed_hwfn *p_hwfn)
 {
-	u32 wait_cnt = 0;
-	u32 wait_cnt_limit = 10000;
-
+	u32 wait_cnt_limit = 10000, wait_cnt = 0;
 	int qed_status = 0;
 
 	barrier();
@@ -606,7 +601,7 @@ static int qed_dmae_execute_sub_operation(struct qed_hwfn *p_hwfn,
 					  u64 dst_addr,
 					  u8 src_type,
 					  u8 dst_type,
-					  u32 length)
+					  u32 length_dw)
 {
 	dma_addr_t phys = p_hwfn->dmae_info.intermediate_buffer_phys_addr;
 	struct dmae_cmd *cmd = p_hwfn->dmae_info.p_dmae_cmd;
@@ -624,7 +619,7 @@ static int qed_dmae_execute_sub_operation(struct qed_hwfn *p_hwfn,
 		cmd->src_addr_lo = cpu_to_le32(lower_32_bits(phys));
 		memcpy(&p_hwfn->dmae_info.p_intermediate_buffer[0],
 		       (void *)(uintptr_t)src_addr,
-		       length * sizeof(u32));
+		       length_dw * sizeof(u32));
 		break;
 	default:
 		return -EINVAL;
@@ -645,7 +640,7 @@ static int qed_dmae_execute_sub_operation(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	cmd->length_dw = cpu_to_le16((u16)length);
+	cmd->length_dw = cpu_to_le16((u16)length_dw);
 
 	qed_dmae_post_command(p_hwfn, p_ptt);
 
@@ -654,16 +649,14 @@ static int qed_dmae_execute_sub_operation(struct qed_hwfn *p_hwfn,
 	if (qed_status) {
 		DP_NOTICE(p_hwfn,
 			  "qed_dmae_host2grc: Wait Failed. source_addr 0x%llx, grc_addr 0x%llx, size_in_dwords 0x%x\n",
-			  src_addr,
-			  dst_addr,
-			  length);
+			  src_addr, dst_addr, length_dw);
 		return qed_status;
 	}
 
 	if (dst_type == QED_DMAE_ADDRESS_HOST_VIRT)
 		memcpy((void *)(uintptr_t)(dst_addr),
 		       &p_hwfn->dmae_info.p_intermediate_buffer[0],
-		       length * sizeof(u32));
+		       length_dw * sizeof(u32));
 
 	return 0;
 }
@@ -730,10 +723,7 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 		if (qed_status) {
 			DP_NOTICE(p_hwfn,
 				  "qed_dmae_execute_sub_operation Failed with error 0x%x. source_addr 0x%llx, destination addr 0x%llx, size_in_dwords 0x%x\n",
-				  qed_status,
-				  src_addr,
-				  dst_addr,
-				  length_cur);
+				  qed_status, src_addr, dst_addr, length_cur);
 			break;
 		}
 	}
@@ -743,10 +733,7 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 
 int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt,
-		      u64 source_addr,
-		      u32 grc_addr,
-		      u32 size_in_dwords,
-		      u32 flags)
+		  u64 source_addr, u32 grc_addr, u32 size_in_dwords, u32 flags)
 {
 	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
 	struct qed_dmae_params params;
@@ -768,9 +755,10 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int
-qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u32 grc_addr,
-		  dma_addr_t dest_addr, u32 size_in_dwords, u32 flags)
+int qed_dmae_grc2host(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt,
+		      u32 grc_addr,
+		      dma_addr_t dest_addr, u32 size_in_dwords, u32 flags)
 {
 	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
 	struct qed_dmae_params params;
@@ -791,12 +779,11 @@ qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u32 grc_addr,
 	return rc;
 }
 
-int
-qed_dmae_host2host(struct qed_hwfn *p_hwfn,
-		   struct qed_ptt *p_ptt,
-		   dma_addr_t source_addr,
-		   dma_addr_t dest_addr,
-		   u32 size_in_dwords, struct qed_dmae_params *p_params)
+int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       dma_addr_t source_addr,
+		       dma_addr_t dest_addr,
+		       u32 size_in_dwords, struct qed_dmae_params *p_params)
 {
 	int rc;
 
@@ -853,6 +840,9 @@ u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
 			pq_id = p_hwfn->qm_info.offload_pq;
 		if (pq_id > p_hwfn->qm_info.num_pf_rls)
 			pq_id = p_hwfn->qm_info.offload_pq;
+		break;
+	case PROTOCOLID_FCOE:
+		pq_id = p_hwfn->qm_info.offload_pq;
 		break;
 	default:
 		pq_id = 0;

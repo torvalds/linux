@@ -1,0 +1,19 @@
+if MIPS_GENERIC
+
+config LEGACY_BOARDS
+	bool
+	help
+	  Select this from your board if the board must use a legacy, non-UHI,
+	  boot protocol. This will cause the kernel to scan through the list of
+	  supported machines calling their detect functions in turn if the
+	  kernel is booted without being provided with an FDT via the UHI
+	  boot protocol.
+
+config LEGACY_BOARD_SEAD3
+	bool "Support MIPS SEAD-3 boards"
+	select LEGACY_BOARDS
+	help
+	  Enable this to include support for booting on MIPS SEAD-3 FPGA-based
+	  development boards, which boot using a legacy boot protocol.
+
+endif

@@ -72,8 +72,8 @@ in this document, but drivers acting as clients to the GPIO interface must
 not care how it's implemented.)
 
 That said, if the convention is supported on their platform, drivers should
-use it when possible.  Platforms must select ARCH_REQUIRE_GPIOLIB or
-ARCH_WANT_OPTIONAL_GPIOLIB in their Kconfig.  Drivers that can't work without
+use it when possible.  Platforms must select GPIOLIB if GPIO functionality
+is strictly required.  Drivers that can't work without
 standard GPIO calls should have Kconfig entries which depend on GPIOLIB.  The
 GPIO calls are available, either as "real code" or as optimized-away stubs,
 when drivers use the include file:
@@ -553,21 +553,13 @@ either NULL or the label associated with that GPIO when it was requested.
 
 Platform Support
 ----------------
-To support this framework, a platform's Kconfig will "select" either
-ARCH_REQUIRE_GPIOLIB or ARCH_WANT_OPTIONAL_GPIOLIB
-and arrange that its <asm/gpio.h> includes <asm-generic/gpio.h> and defines
-three functions: gpio_get_value(), gpio_set_value(), and gpio_cansleep().
+To force-enable this framework, a platform's Kconfig will "select" GPIOLIB,
+else it is up to the user to configure support for GPIO.
 
 It may also provide a custom value for ARCH_NR_GPIOS, so that it better
 reflects the number of GPIOs in actual use on that platform, without
 wasting static table space.  (It should count both built-in/SoC GPIOs and
 also ones on GPIO expanders.
-
-ARCH_REQUIRE_GPIOLIB means that the gpiolib code will always get compiled
-into the kernel on that architecture.
-
-ARCH_WANT_OPTIONAL_GPIOLIB means the gpiolib code defaults to off and the user
-can enable it and build it into the kernel optionally.
 
 If neither of these options are selected, the platform does not support
 GPIOs through GPIO-lib and the code cannot be enabled by the user.

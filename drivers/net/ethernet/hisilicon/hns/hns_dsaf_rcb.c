@@ -543,6 +543,22 @@ int hns_rcb_set_coalesce_usecs(
 			"error: coalesce_usecs setting supports 0~1023us\n");
 		return -EINVAL;
 	}
+
+	if (!AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver)) {
+		if (timeout == 0)
+			/* set timeout to 0, Disable gap time */
+			dsaf_set_reg_field(rcb_common->io_base,
+					   RCB_INT_GAP_TIME_REG + port_idx * 4,
+					   PPE_INT_GAPTIME_M, PPE_INT_GAPTIME_B,
+					   0);
+		else
+			/* set timeout non 0, restore gap time to 1 */
+			dsaf_set_reg_field(rcb_common->io_base,
+					   RCB_INT_GAP_TIME_REG + port_idx * 4,
+					   PPE_INT_GAPTIME_M, PPE_INT_GAPTIME_B,
+					   1);
+	}
+
 	hns_rcb_set_port_timeout(rcb_common, port_idx, timeout);
 	return 0;
 }

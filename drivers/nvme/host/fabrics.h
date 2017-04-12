@@ -52,6 +52,7 @@ enum {
 	NVMF_OPT_KATO		= 1 << 7,
 	NVMF_OPT_HOSTNQN	= 1 << 8,
 	NVMF_OPT_RECONNECT_DELAY = 1 << 9,
+	NVMF_OPT_HOST_TRADDR	= 1 << 10,
 };
 
 /**
@@ -64,9 +65,12 @@ enum {
  *		being added.
  * @subsysnqn:	Hold the fully qualified NQN subystem name (format defined
  *		in the NVMe specification, "NVMe Qualified Names").
- * @traddr:	network address that will be used by the host to communicate
- *		to the added NVMe controller.
- * @trsvcid:	network port used for host-controller communication.
+ * @traddr:	The transport-specific TRADDR field for a port on the
+ *              subsystem which is adding a controller.
+ * @trsvcid:	The transport-specific TRSVCID field for a port on the
+ *              subsystem which is adding a controller.
+ * @host_traddr: A transport-specific field identifying the NVME host port
+ *              to use for the connection to the controller.
  * @queue_size: Number of IO queue elements.
  * @nr_io_queues: Number of controller IO queues that will be established.
  * @reconnect_delay: Time between two consecutive reconnect attempts.
@@ -80,6 +84,7 @@ struct nvmf_ctrl_options {
 	char			*subsysnqn;
 	char			*traddr;
 	char			*trsvcid;
+	char			*host_traddr;
 	size_t			queue_size;
 	unsigned int		nr_io_queues;
 	unsigned int		reconnect_delay;
@@ -123,7 +128,7 @@ int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val);
 int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl);
 int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid);
-void nvmf_register_transport(struct nvmf_transport_ops *ops);
+int nvmf_register_transport(struct nvmf_transport_ops *ops);
 void nvmf_unregister_transport(struct nvmf_transport_ops *ops);
 void nvmf_free_options(struct nvmf_ctrl_options *opts);
 const char *nvmf_get_subsysnqn(struct nvme_ctrl *ctrl);

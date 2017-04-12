@@ -41,6 +41,14 @@
 		dpi0 = &dpi0;
 		dsi0 = &dsi0;
 		dsi1 = &dsi1;
+		mdp_rdma0 = &mdp_rdma0;
+		mdp_rdma1 = &mdp_rdma1;
+		mdp_rsz0 = &mdp_rsz0;
+		mdp_rsz1 = &mdp_rsz1;
+		mdp_rsz2 = &mdp_rsz2;
+		mdp_wdma0 = &mdp_wdma0;
+		mdp_wrot0 = &mdp_wrot0;
+		mdp_wrot1 = &mdp_wrot1;
 	};
 
 	cpus {
@@ -174,12 +182,12 @@
 				map@0 {
 					trip = <&target>;
 					cooling-device = <&cpu0 0 0>;
-					contribution = <1024>;
+					contribution = <3072>;
 				};
 				map@1 {
 					trip = <&target>;
 					cooling-device = <&cpu2 0 0>;
-					contribution = <2048>;
+					contribution = <1024>;
 				};
 			};
 		};
@@ -253,6 +261,16 @@
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+
+			hdmi_pin: xxx {
+
+				/*hdmi htplg pin*/
+				pins1 {
+					pinmux = <MT8173_PIN_21_HTPLG__FUNC_HTPLG>;
+					input-enable;
+					bias-pull-down;
+				};
+			};
 
 			i2c0_pins_a: i2c0 {
 				pins1 {
@@ -341,6 +359,14 @@
 			clock-names = "spi", "wrap";
 		};
 
+		cec: cec@10013000 {
+			compatible = "mediatek,mt8173-cec";
+			reg = <0 0x10013000 0 0xbc>;
+			interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&infracfg CLK_INFRA_CEC>;
+			status = "disabled";
+		};
+
 		vpu: vpu@10020000 {
 			compatible = "mediatek,mt8173-vpu";
 			reg = <0 0x10020000 0 0x30000>,
@@ -375,12 +401,30 @@
 		efuse: efuse@10206000 {
 			compatible = "mediatek,mt8173-efuse";
 			reg = <0 0x10206000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			thermal_calibration: calib@528 {
+				reg = <0x528 0xc>;
+			};
 		};
 
 		apmixedsys: clock-controller@10209000 {
 			compatible = "mediatek,mt8173-apmixedsys";
 			reg = <0 0x10209000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		hdmi_phy: hdmi-phy@10209100 {
+			compatible = "mediatek,mt8173-hdmi-phy";
+			reg = <0 0x10209100 0 0x24>;
+			clocks = <&apmixedsys CLK_APMIXED_HDMI_REF>;
+			clock-names = "pll_ref";
+			clock-output-names = "hdmitx_dig_cts";
+			mediatek,ibias = <0xa>;
+			mediatek,ibias_up = <0x1c>;
+			#clock-cells = <0>;
+			#phy-cells = <0>;
+			status = "disabled";
 		};
 
 		mipi_tx0: mipi-dphy@10215000 {
@@ -419,6 +463,9 @@
 		auxadc: auxadc@11001000 {
 			compatible = "mediatek,mt8173-auxadc";
 			reg = <0 0x11001000 0 0x1000>;
+			clocks = <&pericfg CLK_PERI_AUXADC>;
+			clock-names = "main";
+			#io-channel-cells = <1>;
 		};
 
 		uart0: serial@11002000 {
@@ -532,6 +579,8 @@
 			resets = <&pericfg MT8173_PERI_THERM_SW_RST>;
 			mediatek,auxadc = <&auxadc>;
 			mediatek,apmixedsys = <&apmixedsys>;
+			nvmem-cells = <&thermal_calibration>;
+			nvmem-cell-names = "calibration-data";
 		};
 
 		nor_flash: spi@1100d000 {
@@ -575,6 +624,14 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+		};
+
+		hdmiddc0: i2c@11012000 {
+			compatible = "mediatek,mt8173-hdmi-ddc";
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_LOW>;
+			reg = <0 0x11012000 0 0x1C>;
+			clocks = <&pericfg CLK_PERI_I2C5>;
+			clock-names = "ddc-i2c";
 		};
 
 		i2c6: i2c@11013000 {
@@ -668,22 +725,39 @@
 			status = "disabled";
 		};
 
-		usb30: usb@11270000 {
-			compatible = "mediatek,mt8173-xhci";
-			reg = <0 0x11270000 0 0x1000>,
+		ssusb: usb@11271000 {
+			compatible = "mediatek,mt8173-mtu3";
+			reg = <0 0x11271000 0 0x3000>,
 			      <0 0x11280700 0 0x0100>;
-			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
+			reg-names = "mac", "ippc";
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_LOW>;
+			phys = <&phy_port0 PHY_TYPE_USB3>,
+			       <&phy_port1 PHY_TYPE_USB2>;
 			power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
 			clocks = <&topckgen CLK_TOP_USB30_SEL>,
+				 <&clk26m>,
 				 <&pericfg CLK_PERI_USB0>,
 				 <&pericfg CLK_PERI_USB1>;
 			clock-names = "sys_ck",
+				      "ref_ck",
 				      "wakeup_deb_p0",
 				      "wakeup_deb_p1";
-			phys = <&phy_port0 PHY_TYPE_USB3>,
-			       <&phy_port1 PHY_TYPE_USB2>;
 			mediatek,syscon-wakeup = <&pericfg>;
-			status = "okay";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			status = "disabled";
+
+			usb_host: xhci@11270000 {
+				compatible = "mediatek,mt8173-xhci";
+				reg = <0 0x11270000 0 0x1000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+				clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+				clock-names = "sys_ck", "ref_ck";
+				status = "disabled";
+			};
 		};
 
 		u3phy: usb-phy@11290000 {
@@ -713,7 +787,85 @@
 			compatible = "mediatek,mt8173-mmsys", "syscon";
 			reg = <0 0x14000000 0 0x1000>;
 			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			assigned-clocks = <&topckgen CLK_TOP_MM_SEL>;
+			assigned-clock-rates = <400000000>;
 			#clock-cells = <1>;
+		};
+
+		mdp {
+			compatible = "mediatek,mt8173-mdp";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			mediatek,vpu = <&vpu>;
+
+			mdp_rdma0: rdma@14001000 {
+				compatible = "mediatek,mt8173-mdp-rdma";
+				reg = <0 0x14001000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_RDMA0>,
+					 <&mmsys CLK_MM_MUTEX_32K>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+				iommus = <&iommu M4U_PORT_MDP_RDMA0>;
+				mediatek,larb = <&larb0>;
+			};
+
+			mdp_rdma1: rdma@14002000 {
+				compatible = "mediatek,mt8173-mdp-rdma";
+				reg = <0 0x14002000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_RDMA1>,
+					 <&mmsys CLK_MM_MUTEX_32K>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+				iommus = <&iommu M4U_PORT_MDP_RDMA1>;
+				mediatek,larb = <&larb4>;
+			};
+
+			mdp_rsz0: rsz@14003000 {
+				compatible = "mediatek,mt8173-mdp-rsz";
+				reg = <0 0x14003000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_RSZ0>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			};
+
+			mdp_rsz1: rsz@14004000 {
+				compatible = "mediatek,mt8173-mdp-rsz";
+				reg = <0 0x14004000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_RSZ1>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			};
+
+			mdp_rsz2: rsz@14005000 {
+				compatible = "mediatek,mt8173-mdp-rsz";
+				reg = <0 0x14005000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_RSZ2>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			};
+
+			mdp_wdma0: wdma@14006000 {
+				compatible = "mediatek,mt8173-mdp-wdma";
+				reg = <0 0x14006000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_WDMA>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+				iommus = <&iommu M4U_PORT_MDP_WDMA>;
+				mediatek,larb = <&larb0>;
+			};
+
+			mdp_wrot0: wrot@14007000 {
+				compatible = "mediatek,mt8173-mdp-wrot";
+				reg = <0 0x14007000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_WROT0>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+				iommus = <&iommu M4U_PORT_MDP_WROT0>;
+				mediatek,larb = <&larb0>;
+			};
+
+			mdp_wrot1: wrot@14008000 {
+				compatible = "mediatek,mt8173-mdp-wrot";
+				reg = <0 0x14008000 0 0x1000>;
+				clocks = <&mmsys CLK_MM_MDP_WROT1>;
+				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+				iommus = <&iommu M4U_PORT_MDP_WROT1>;
+				mediatek,larb = <&larb4>;
+			};
 		};
 
 		ovl0: ovl@1400c000 {
@@ -885,6 +1037,12 @@
 				 <&apmixedsys CLK_APMIXED_TVDPLL>;
 			clock-names = "pixel", "engine", "pll";
 			status = "disabled";
+
+			port {
+				dpi0_out: endpoint {
+					remote-endpoint = <&hdmi0_in>;
+				};
+			};
 		};
 
 		pwm0: pwm@1401e000 {
@@ -942,6 +1100,38 @@
 			clocks = <&mmsys CLK_MM_DISP_OD>;
 		};
 
+		hdmi0: hdmi@14025000 {
+			compatible = "mediatek,mt8173-hdmi";
+			reg = <0 0x14025000 0 0x400>;
+			interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&mmsys CLK_MM_HDMI_PIXEL>,
+				 <&mmsys CLK_MM_HDMI_PLLCK>,
+				 <&mmsys CLK_MM_HDMI_AUDIO>,
+				 <&mmsys CLK_MM_HDMI_SPDIF>;
+			clock-names = "pixel", "pll", "bclk", "spdif";
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_pin>;
+			phys = <&hdmi_phy>;
+			phy-names = "hdmi";
+			mediatek,syscon-hdmi = <&mmsys 0x900>;
+			assigned-clocks = <&topckgen CLK_TOP_HDMI_SEL>;
+			assigned-clock-parents = <&hdmi_phy>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					hdmi0_in: endpoint {
+						remote-endpoint = <&dpi0_out>;
+					};
+				};
+			};
+		};
+
 		larb4: larb@14027000 {
 			compatible = "mediatek,mt8173-smi-larb";
 			reg = <0 0x14027000 0 0x1000>;
@@ -972,6 +1162,50 @@
 			compatible = "mediatek,mt8173-vdecsys", "syscon";
 			reg = <0 0x16000000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		vcodec_dec: vcodec@16000000 {
+			compatible = "mediatek,mt8173-vcodec-dec";
+			reg = <0 0x16000000 0 0x100>,	/* VDEC_SYS */
+			      <0 0x16020000 0 0x1000>,	/* VDEC_MISC */
+			      <0 0x16021000 0 0x800>,	/* VDEC_LD */
+			      <0 0x16021800 0 0x800>,	/* VDEC_TOP */
+			      <0 0x16022000 0 0x1000>,	/* VDEC_CM */
+			      <0 0x16023000 0 0x1000>,	/* VDEC_AD */
+			      <0 0x16024000 0 0x1000>,	/* VDEC_AV */
+			      <0 0x16025000 0 0x1000>,	/* VDEC_PP */
+			      <0 0x16026800 0 0x800>,	/* VDEC_HWD */
+			      <0 0x16027000 0 0x800>,	/* VDEC_HWQ */
+			      <0 0x16027800 0 0x800>,	/* VDEC_HWB */
+			      <0 0x16028400 0 0x400>;	/* VDEC_HWG */
+			interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_LOW>;
+			mediatek,larb = <&larb1>;
+			iommus = <&iommu M4U_PORT_HW_VDEC_MC_EXT>,
+				 <&iommu M4U_PORT_HW_VDEC_PP_EXT>,
+				 <&iommu M4U_PORT_HW_VDEC_AVC_MV_EXT>,
+				 <&iommu M4U_PORT_HW_VDEC_PRED_RD_EXT>,
+				 <&iommu M4U_PORT_HW_VDEC_PRED_WR_EXT>,
+				 <&iommu M4U_PORT_HW_VDEC_UFO_EXT>,
+				 <&iommu M4U_PORT_HW_VDEC_VLD_EXT>,
+				 <&iommu M4U_PORT_HW_VDEC_VLD2_EXT>;
+			mediatek,vpu = <&vpu>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_VDEC>;
+			clocks = <&apmixedsys CLK_APMIXED_VCODECPLL>,
+				 <&topckgen CLK_TOP_UNIVPLL_D2>,
+				 <&topckgen CLK_TOP_CCI400_SEL>,
+				 <&topckgen CLK_TOP_VDEC_SEL>,
+				 <&topckgen CLK_TOP_VCODECPLL>,
+				 <&apmixedsys CLK_APMIXED_VENCPLL>,
+				 <&topckgen CLK_TOP_VENC_LT_SEL>,
+				 <&topckgen CLK_TOP_VCODECPLL_370P5>;
+			clock-names = "vcodecpll",
+				      "univpll_d2",
+				      "clk_cci400_sel",
+				      "vdec_sel",
+				      "vdecpll",
+				      "vencpll",
+				      "venc_lt_sel",
+				      "vdec_bus_clk_src";
 		};
 
 		larb1: larb@16010000 {

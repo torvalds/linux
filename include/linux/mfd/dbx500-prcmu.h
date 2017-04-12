@@ -269,10 +269,6 @@ unsigned long prcmu_clock_rate(u8 clock);
 long prcmu_round_clock_rate(u8 clock, unsigned long rate);
 int prcmu_set_clock_rate(u8 clock, unsigned long rate);
 
-static inline int prcmu_set_ddr_opp(u8 opp)
-{
-	return db8500_prcmu_set_ddr_opp(opp);
-}
 static inline int prcmu_get_ddr_opp(void)
 {
 	return db8500_prcmu_get_ddr_opp();
@@ -487,11 +483,6 @@ static inline int prcmu_set_arm_opp(u8 opp)
 static inline int prcmu_get_arm_opp(void)
 {
 	return ARM_100_OPP;
-}
-
-static inline int prcmu_set_ddr_opp(u8 opp)
-{
-	return 0;
 }
 
 static inline int prcmu_get_ddr_opp(void)

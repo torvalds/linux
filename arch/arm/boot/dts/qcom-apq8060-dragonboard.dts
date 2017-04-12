@@ -51,6 +51,29 @@
 			regulator-boot-on;
 		};
 
+		/* GPIO controlled ethernet power regulator */
+		dragon_veth: xc622a331mrg {
+			compatible = "regulator-fixed";
+			regulator-name = "XC6222A331MR-G";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			vin-supply = <&vph>;
+			gpio = <&pm8058_gpio 40 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			pinctrl-names = "default";
+			pinctrl-0 = <&dragon_veth_gpios>;
+			regulator-always-on;
+		};
+
+		/* VDDvario fixed regulator */
+		dragon_vario: nds332p {
+			compatible = "regulator-fixed";
+			regulator-name = "NDS332P";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			vin-supply = <&pm8058_s3>;
+		};
+
 		/* This is a levelshifter for SDCC5 */
 		dragon_vio_txb: txb0104rgyr {
 			compatible = "regulator-fixed";
@@ -167,6 +190,44 @@
 					bias-pull-up;
 				};
 			};
+
+			dragon_ebi2_pins: ebi2 {
+				/*
+				 * Pins used by EBI2 on the Dragonboard, actually only
+				 * CS2 is used by a real peripheral. CS0 is just
+				 * routed to a test point.
+				 */
+				mux0 {
+					pins =
+					    /* "gpio39", CS1A_N this is not good to mux */
+					    "gpio40", /* CS2A_N */
+					    "gpio134"; /* CS0_N testpoint TP29 */
+					function = "ebi2cs";
+				};
+				mux1 {
+					pins =
+					    /* EBI2_ADDR_7 downto EBI2_ADDR_0 address bus */
+					    "gpio123", "gpio124", "gpio125", "gpio126",
+					    "gpio127", "gpio128", "gpio129", "gpio130",
+					    /* EBI2_DATA_15 downto EBI2_DATA_0 data bus */
+					    "gpio135", "gpio136", "gpio137", "gpio138",
+					    "gpio139", "gpio140", "gpio141", "gpio142",
+					    "gpio143", "gpio144", "gpio145", "gpio146",
+					    "gpio147", "gpio148", "gpio149", "gpio150",
+					    "gpio151", /* EBI2_OE_N */
+					    "gpio153", /* EBI2_ADV */
+					    "gpio157"; /* EBI2_WE_N */
+					function = "ebi2";
+				};
+			};
+
+			/* Interrupt line for the KXSD9 accelerometer */
+			dragon_kxsd9_gpios: kxsd9 {
+				irq {
+					pins = "gpio57"; /* IRQ line */
+					bias-pull-up;
+				};
+			};
 		};
 
 		qcom,ssbi@500000 {
@@ -201,9 +262,27 @@
 				};
 
 				gpio@150 {
+					dragon_ethernet_gpios: ethernet-gpios {
+						pinconf {
+							pins = "gpio7";
+							function = "normal";
+							input-enable;
+							bias-disable;
+							power-source = <PM8058_GPIO_S3>;
+						};
+					};
 					dragon_bmp085_gpios: bmp085-gpios {
 						pinconf {
 							pins = "gpio16";
+							function = "normal";
+							input-enable;
+							bias-disable;
+							power-source = <PM8058_GPIO_S3>;
+						};
+					};
+					dragon_mpu3050_gpios: mpu3050-gpios {
+						pinconf {
+							pins = "gpio17";
 							function = "normal";
 							input-enable;
 							bias-disable;
@@ -238,6 +317,53 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
+					dragon_veth_gpios: veth-gpios {
+						pinconf {
+							pins = "gpio40";
+							function = "normal";
+							bias-disable;
+							drive-push-pull;
+						};
+					};
+				};
+
+				led@48 {
+					/*
+					 * The keypad LED @0x48 is routed to
+					 * the sensor board where it is
+					 * connected to an infrared LED
+					 * SFH4650 (60mW, @850nm) next to the
+					 * ambient light and proximity sensor
+					 * Capella Microsystems CM3605.
+					 */
+					compatible = "qcom,pm8058-keypad-led";
+					reg = <0x48>;
+					label = "pm8058:infrared:proximitysensor";
+					default-state = "off";
+				};
+				led@131 {
+					compatible = "qcom,pm8058-led";
+					reg = <0x131>;
+					label = "pm8058:red";
+					default-state = "off";
+				};
+				led@132 {
+					/*
+					 * This is actually green too on my
+					 * board, but documented as yellow.
+					 */
+					compatible = "qcom,pm8058-led";
+					reg = <0x132>;
+					label = "pm8058:yellow";
+					default-state = "off";
+					linux,default-trigger = "mmc0";
+				};
+				led@133 {
+					compatible = "qcom,pm8058-led";
+					reg = <0x133>;
+					label = "pm8058:green";
+					default-state = "on";
+					linux,default-trigger = "heartbeat";
 				};
 			};
 		};
@@ -260,8 +386,8 @@
 				ak8975@0c {
 					compatible = "asahi-kasei,ak8975";
 					reg = <0x0c>;
-					/* GPIO33 has interrupt 224 on the PM8058 */
-					interrupt-parent = <&pm8058_gpio>;
+					/* FIXME: GPIO33 has interrupt 224 on the PM8058 */
+					interrupt-parent = <&pm8058>;
 					interrupts = <224 IRQ_TYPE_EDGE_RISING>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&dragon_ak8975_gpios>;
@@ -271,8 +397,8 @@
 				bmp085@77 {
 					compatible = "bosch,bmp085";
 					reg = <0x77>;
-					/* GPIO16 has interrupt 207 on the PM8058 */
-					interrupt-parent = <&pm8058_gpio>;
+					/* FIXME: GPIO16 has interrupt 207 on the PM8058 */
+					interrupt-parent = <&pm8058>;
 					interrupts = <207 IRQ_TYPE_EDGE_RISING>;
 					reset-gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
@@ -280,6 +406,90 @@
 					vddd-supply = <&pm8058_lvs0>; // 1.8V
 					vdda-supply = <&pm8058_l14>; // 2.85V
 				};
+				mpu3050@68 {
+					compatible = "invensense,mpu3050";
+					reg = <0x68>;
+					/*
+					 * GPIO17 has interrupt 208 on the
+					 * PM8058, it is pulled high by a 10k
+					 * resistor to VLOGIC so needs to be
+					 * active low/falling edge.
+					 */
+					interrupts-extended = <&pm8058 208 IRQ_TYPE_EDGE_FALLING>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&dragon_mpu3050_gpios>;
+					vlogic-supply = <&pm8058_lvs0>; // 1.8V
+					vdd-supply = <&pm8058_l14>; // 2.85V
+
+					/*
+					 * The MPU-3050 acts as a hub for the
+					 * accelerometer.
+					 */
+					i2c-gate {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						kxsd9@18 {
+							compatible = "kionix,kxsd9";
+							reg = <0x18>;
+							interrupt-parent = <&tlmm>;
+							interrupts = <57 IRQ_TYPE_EDGE_FALLING>;
+							pinctrl-names = "default";
+							pinctrl-0 = <&dragon_kxsd9_gpios>;
+							iovdd-supply = <&pm8058_lvs0>; // 1.8V
+							vdd-supply = <&pm8058_l14>; // 2.85V
+						};
+					};
+				};
+			};
+		};
+
+		external-bus@1a100000 {
+			/* The EBI2 will instantiate first, then populate its children */
+			status = "ok";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dragon_ebi2_pins>;
+
+			/*
+			 * An on-board SMSC LAN9221 chip for "debug ethernet",
+			 * which is actually just an ordinary ethernet on the
+			 * EBI2. This has a 25MHz chrystal next to it, so no
+			 * clocking is needed.
+			 */
+			ethernet-ebi2@2,0 {
+				compatible = "smsc,lan9221", "smsc,lan9115";
+				reg = <2 0x0 0x100>;
+				/*
+				 * GPIO7 has interrupt 198 on the PM8058
+				 * The second interrupt is the PME interrupt
+				 * for network wakeup, connected to the TLMM.
+				 */
+				interrupts-extended = <&pm8058 198 IRQ_TYPE_EDGE_FALLING>,
+						    <&tlmm 29 IRQ_TYPE_EDGE_RISING>;
+				reset-gpios = <&tlmm 30 GPIO_ACTIVE_LOW>;
+				vdd33a-supply = <&dragon_veth>;
+				vddvario-supply = <&dragon_vario>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&dragon_ethernet_gpios>;
+				phy-mode = "mii";
+				reg-io-width = <2>;
+				smsc,force-external-phy;
+				/* IRQ on edge falling = active low */
+				smsc,irq-active-low;
+				smsc,irq-push-pull;
+
+				/*
+				 * SLOW chipselect config
+				 * Delay 9 cycles (140ns@64MHz) between SMSC
+				 * LAN9221 Ethernet controller reads and writes
+				 * on CS2.
+				 */
+				qcom,xmem-recovery-cycles = <0>;
+				qcom,xmem-write-hold-cycles = <3>;
+				qcom,xmem-write-delta-cycles = <31>;
+				qcom,xmem-read-delta-cycles = <28>;
+				qcom,xmem-write-wait-cycles = <9>;
+				qcom,xmem-read-wait-cycles = <9>;
 			};
 		};
 

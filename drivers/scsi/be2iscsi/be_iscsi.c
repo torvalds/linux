@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,10 +7,10 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@broadcom.com)
  *
  * Contact Information:
- * linux-drivers@avagotech.com
+ * linux-drivers@broadcom.com
  *
  * Emulex
  * 3333 Susan Street
@@ -52,22 +52,20 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 
 
 	if (!ep) {
-		printk(KERN_ERR
-		       "beiscsi_session_create: invalid ep\n");
+		pr_err("beiscsi_session_create: invalid ep\n");
 		return NULL;
 	}
 	beiscsi_ep = ep->dd_data;
 	phba = beiscsi_ep->phba;
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : PCI_ERROR Recovery\n");
-		return NULL;
-	} else {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_session_create\n");
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
+		return NULL;
 	}
 
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BS_%d : In beiscsi_session_create\n");
 	if (cmds_max > beiscsi_ep->phba->params.wrbs_per_cxn) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Cannot handle %d cmds."
@@ -120,6 +118,16 @@ void beiscsi_session_destroy(struct iscsi_cls_session *cls_session)
 }
 
 /**
+ * beiscsi_session_fail(): Closing session with appropriate error
+ * @cls_session: ptr to session
+ **/
+void beiscsi_session_fail(struct iscsi_cls_session *cls_session)
+{
+	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
+}
+
+
+/**
  * beiscsi_conn_create - create an instance of iscsi connection
  * @cls_session: ptr to iscsi_cls_session
  * @cid: iscsi cid
@@ -158,33 +166,6 @@ beiscsi_conn_create(struct iscsi_cls_session *cls_session, u32 cid)
 }
 
 /**
- * beiscsi_bindconn_cid - Bind the beiscsi_conn with phba connection table
- * @beiscsi_conn: The pointer to  beiscsi_conn structure
- * @phba: The phba instance
- * @cid: The cid to free
- */
-static int beiscsi_bindconn_cid(struct beiscsi_hba *phba,
-				struct beiscsi_conn *beiscsi_conn,
-				unsigned int cid)
-{
-	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
-
-	if (phba->conn_table[cri_index]) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Connection table already occupied. Detected clash\n");
-
-		return -EINVAL;
-	} else {
-		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : phba->conn_table[%d]=%p(beiscsi_conn)\n",
-			    cri_index, beiscsi_conn);
-
-		phba->conn_table[cri_index] = beiscsi_conn;
-	}
-	return 0;
-}
-
-/**
  * beiscsi_conn_bind - Binds iscsi session/connection with TCP connection
  * @cls_session: pointer to iscsi cls session
  * @cls_conn: pointer to iscsi cls conn
@@ -204,6 +185,7 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 	struct hwi_wrb_context *pwrb_context;
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct iscsi_endpoint *ep;
+	uint16_t cri_index;
 
 	ep = iscsi_lookup_endpoint(transport_fd);
 	if (!ep)
@@ -221,23 +203,37 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 
 		return -EEXIST;
 	}
-
-	pwrb_context = &phwi_ctrlr->wrb_context[BE_GET_CRI_FROM_CID(
-						beiscsi_ep->ep_cid)];
+	cri_index = BE_GET_CRI_FROM_CID(beiscsi_ep->ep_cid);
+	if (phba->conn_table[cri_index]) {
+		if (beiscsi_conn != phba->conn_table[cri_index] ||
+		    beiscsi_ep != phba->conn_table[cri_index]->ep) {
+			__beiscsi_log(phba, KERN_ERR,
+				      "BS_%d : conn_table not empty at %u: cid %u conn %p:%p\n",
+				      cri_index,
+				      beiscsi_ep->ep_cid,
+				      beiscsi_conn,
+				      phba->conn_table[cri_index]);
+			return -EINVAL;
+		}
+	}
 
 	beiscsi_conn->beiscsi_conn_cid = beiscsi_ep->ep_cid;
 	beiscsi_conn->ep = beiscsi_ep;
 	beiscsi_ep->conn = beiscsi_conn;
+	/**
+	 * Each connection is associated with a WRBQ kept in wrb_context.
+	 * Store doorbell offset for transmit path.
+	 */
+	pwrb_context = &phwi_ctrlr->wrb_context[cri_index];
 	beiscsi_conn->doorbell_offset = pwrb_context->doorbell_offset;
-
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-		    "BS_%d : beiscsi_conn=%p conn=%p ep_cid=%d\n",
-		    beiscsi_conn, conn, beiscsi_ep->ep_cid);
-
-	return beiscsi_bindconn_cid(phba, beiscsi_conn, beiscsi_ep->ep_cid);
+		    "BS_%d : cid %d phba->conn_table[%u]=%p\n",
+		    beiscsi_ep->ep_cid, cri_index, beiscsi_conn);
+	phba->conn_table[cri_index] = beiscsi_conn;
+	return 0;
 }
 
-static int beiscsi_create_ipv4_iface(struct beiscsi_hba *phba)
+static int beiscsi_iface_create_ipv4(struct beiscsi_hba *phba)
 {
 	if (phba->ipv4_iface)
 		return 0;
@@ -256,7 +252,7 @@ static int beiscsi_create_ipv4_iface(struct beiscsi_hba *phba)
 	return 0;
 }
 
-static int beiscsi_create_ipv6_iface(struct beiscsi_hba *phba)
+static int beiscsi_iface_create_ipv6(struct beiscsi_hba *phba)
 {
 	if (phba->ipv6_iface)
 		return 0;
@@ -275,79 +271,31 @@ static int beiscsi_create_ipv6_iface(struct beiscsi_hba *phba)
 	return 0;
 }
 
-void beiscsi_create_def_ifaces(struct beiscsi_hba *phba)
+void beiscsi_iface_create_default(struct beiscsi_hba *phba)
 {
 	struct be_cmd_get_if_info_resp *if_info;
 
-	if (!mgmt_get_if_info(phba, BE2_IPV4, &if_info)) {
-		beiscsi_create_ipv4_iface(phba);
+	if (!beiscsi_if_get_info(phba, BEISCSI_IP_TYPE_V4, &if_info)) {
+		beiscsi_iface_create_ipv4(phba);
 		kfree(if_info);
 	}
 
-	if (!mgmt_get_if_info(phba, BE2_IPV6, &if_info)) {
-		beiscsi_create_ipv6_iface(phba);
+	if (!beiscsi_if_get_info(phba, BEISCSI_IP_TYPE_V6, &if_info)) {
+		beiscsi_iface_create_ipv6(phba);
 		kfree(if_info);
 	}
 }
 
-void beiscsi_destroy_def_ifaces(struct beiscsi_hba *phba)
+void beiscsi_iface_destroy_default(struct beiscsi_hba *phba)
 {
-	if (phba->ipv6_iface)
+	if (phba->ipv6_iface) {
 		iscsi_destroy_iface(phba->ipv6_iface);
-	if (phba->ipv4_iface)
+		phba->ipv6_iface = NULL;
+	}
+	if (phba->ipv4_iface) {
 		iscsi_destroy_iface(phba->ipv4_iface);
-}
-
-static int
-beiscsi_set_static_ip(struct Scsi_Host *shost,
-		struct iscsi_iface_param_info *iface_param,
-		void *data, uint32_t dt_len)
-{
-	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	struct iscsi_iface_param_info *iface_ip = NULL;
-	struct iscsi_iface_param_info *iface_subnet = NULL;
-	struct nlattr *nla;
-	int ret;
-
-
-	switch (iface_param->param) {
-	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
-		if (nla)
-			iface_ip = nla_data(nla);
-
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
-		if (nla)
-			iface_subnet = nla_data(nla);
-		break;
-	case ISCSI_NET_PARAM_IPV4_ADDR:
-		iface_ip = iface_param;
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
-		if (nla)
-			iface_subnet = nla_data(nla);
-		break;
-	case ISCSI_NET_PARAM_IPV4_SUBNET:
-		iface_subnet = iface_param;
-		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
-		if (nla)
-			iface_ip = nla_data(nla);
-		break;
-	default:
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Unsupported param %d\n",
-			    iface_param->param);
+		phba->ipv4_iface = NULL;
 	}
-
-	if (!iface_ip || !iface_subnet) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : IP and Subnet Mask required\n");
-		return -EINVAL;
-	}
-
-	ret = mgmt_set_ip(phba, iface_ip, iface_subnet,
-			ISCSI_BOOTPROTO_STATIC);
-
-	return ret;
 }
 
 /**
@@ -363,135 +311,139 @@ beiscsi_set_static_ip(struct Scsi_Host *shost,
  *	Failure: Non-Zero Value
  **/
 static int
-beiscsi_set_vlan_tag(struct Scsi_Host *shost,
-		      struct iscsi_iface_param_info *iface_param)
+beiscsi_iface_config_vlan(struct Scsi_Host *shost,
+			  struct iscsi_iface_param_info *iface_param)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	int ret;
-
-	/* Get the Interface Handle */
-	ret = mgmt_get_all_if_id(phba);
-	if (ret) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Getting Interface Handle Failed\n");
-		return ret;
-	}
+	int ret = -EPERM;
 
 	switch (iface_param->param) {
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
+		ret = 0;
 		if (iface_param->value[0] != ISCSI_VLAN_ENABLE)
-			ret = mgmt_set_vlan(phba, BEISCSI_VLAN_DISABLE);
+			ret = beiscsi_if_set_vlan(phba, BEISCSI_VLAN_DISABLE);
 		break;
 	case ISCSI_NET_PARAM_VLAN_TAG:
-		ret = mgmt_set_vlan(phba,
-				    *((uint16_t *)iface_param->value));
+		ret = beiscsi_if_set_vlan(phba,
+					  *((uint16_t *)iface_param->value));
 		break;
-	default:
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Unknown Param Type : %d\n",
-			    iface_param->param);
-		return -ENOSYS;
 	}
 	return ret;
 }
 
 
 static int
-beiscsi_set_ipv4(struct Scsi_Host *shost,
-		struct iscsi_iface_param_info *iface_param,
-		void *data, uint32_t dt_len)
+beiscsi_iface_config_ipv4(struct Scsi_Host *shost,
+			  struct iscsi_iface_param_info *info,
+			  void *data, uint32_t dt_len)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	int ret = 0;
+	u8 *ip = NULL, *subnet = NULL, *gw;
+	struct nlattr *nla;
+	int ret = -EPERM;
 
 	/* Check the param */
-	switch (iface_param->param) {
+	switch (info->param) {
+	case ISCSI_NET_PARAM_IFACE_ENABLE:
+		if (info->value[0] == ISCSI_IFACE_ENABLE)
+			ret = beiscsi_iface_create_ipv4(phba);
+		else {
+			iscsi_destroy_iface(phba->ipv4_iface);
+			phba->ipv4_iface = NULL;
+		}
+		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
-		ret = mgmt_set_gateway(phba, iface_param);
+		gw = info->value;
+		ret = beiscsi_if_set_gw(phba, BEISCSI_IP_TYPE_V4, gw);
 		break;
 	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
-		if (iface_param->value[0] == ISCSI_BOOTPROTO_DHCP)
-			ret = mgmt_set_ip(phba, iface_param,
-					NULL, ISCSI_BOOTPROTO_DHCP);
-		else if (iface_param->value[0] == ISCSI_BOOTPROTO_STATIC)
-			ret = beiscsi_set_static_ip(shost, iface_param,
-						    data, dt_len);
+		if (info->value[0] == ISCSI_BOOTPROTO_DHCP)
+			ret = beiscsi_if_en_dhcp(phba, BEISCSI_IP_TYPE_V4);
+		else if (info->value[0] == ISCSI_BOOTPROTO_STATIC)
+			/* release DHCP IP address */
+			ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V4,
+						   NULL, NULL);
 		else
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 				    "BS_%d : Invalid BOOTPROTO: %d\n",
-				    iface_param->value[0]);
+				    info->value[0]);
 		break;
-	case ISCSI_NET_PARAM_IFACE_ENABLE:
-		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
-			ret = beiscsi_create_ipv4_iface(phba);
-		else
-			iscsi_destroy_iface(phba->ipv4_iface);
+	case ISCSI_NET_PARAM_IPV4_ADDR:
+		ip = info->value;
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
+		if (nla) {
+			info = nla_data(nla);
+			subnet = info->value;
+		}
+		ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V4,
+					   ip, subnet);
 		break;
 	case ISCSI_NET_PARAM_IPV4_SUBNET:
-	case ISCSI_NET_PARAM_IPV4_ADDR:
-		ret = beiscsi_set_static_ip(shost, iface_param,
-					    data, dt_len);
+		/*
+		 * OPCODE_COMMON_ISCSI_NTWK_MODIFY_IP_ADDR ioctl needs IP
+		 * and subnet both. Find IP to be applied for this subnet.
+		 */
+		subnet = info->value;
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
+		if (nla) {
+			info = nla_data(nla);
+			ip = info->value;
+		}
+		ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V4,
+					   ip, subnet);
 		break;
-	case ISCSI_NET_PARAM_VLAN_ENABLED:
-	case ISCSI_NET_PARAM_VLAN_TAG:
-		ret = beiscsi_set_vlan_tag(shost, iface_param);
-		break;
-	default:
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Param %d not supported\n",
-			    iface_param->param);
 	}
 
 	return ret;
 }
 
 static int
-beiscsi_set_ipv6(struct Scsi_Host *shost,
-		struct iscsi_iface_param_info *iface_param,
-		void *data, uint32_t dt_len)
+beiscsi_iface_config_ipv6(struct Scsi_Host *shost,
+			  struct iscsi_iface_param_info *iface_param,
+			  void *data, uint32_t dt_len)
 {
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
-	int ret = 0;
+	int ret = -EPERM;
 
 	switch (iface_param->param) {
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
 		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
-			ret = beiscsi_create_ipv6_iface(phba);
+			ret = beiscsi_iface_create_ipv6(phba);
 		else {
 			iscsi_destroy_iface(phba->ipv6_iface);
-			ret = 0;
+			phba->ipv6_iface = NULL;
 		}
 		break;
 	case ISCSI_NET_PARAM_IPV6_ADDR:
-		ret = mgmt_set_ip(phba, iface_param, NULL,
-				  ISCSI_BOOTPROTO_STATIC);
+		ret = beiscsi_if_en_static(phba, BEISCSI_IP_TYPE_V6,
+					   iface_param->value, NULL);
 		break;
-	case ISCSI_NET_PARAM_VLAN_ENABLED:
-	case ISCSI_NET_PARAM_VLAN_TAG:
-		ret = beiscsi_set_vlan_tag(shost, iface_param);
-		break;
-	default:
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Param %d not supported\n",
-			    iface_param->param);
 	}
 
 	return ret;
 }
 
-int be2iscsi_iface_set_param(struct Scsi_Host *shost,
-		void *data, uint32_t dt_len)
+int beiscsi_iface_set_param(struct Scsi_Host *shost,
+			    void *data, uint32_t dt_len)
 {
 	struct iscsi_iface_param_info *iface_param = NULL;
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct nlattr *attrib;
 	uint32_t rm_len = dt_len;
-	int ret = 0 ;
+	int ret;
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
+	if (!beiscsi_hba_is_online(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
+	}
+
+	/* update interface_handle */
+	ret = beiscsi_if_get_handle(phba);
+	if (ret) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+			    "BS_%d : Getting Interface Handle Failed\n");
+		return ret;
 	}
 
 	nla_for_each_attr(attrib, data, dt_len, rm_len) {
@@ -512,40 +464,58 @@ int be2iscsi_iface_set_param(struct Scsi_Host *shost,
 			return -EINVAL;
 		}
 
-		switch (iface_param->iface_type) {
-		case ISCSI_IFACE_TYPE_IPV4:
-			ret = beiscsi_set_ipv4(shost, iface_param,
-					       data, dt_len);
-			break;
-		case ISCSI_IFACE_TYPE_IPV6:
-			ret = beiscsi_set_ipv6(shost, iface_param,
-					       data, dt_len);
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : %s.0 set param %d",
+			    (iface_param->iface_type == ISCSI_IFACE_TYPE_IPV4) ?
+			    "ipv4" : "ipv6", iface_param->param);
+
+		ret = -EPERM;
+		switch (iface_param->param) {
+		case ISCSI_NET_PARAM_VLAN_ENABLED:
+		case ISCSI_NET_PARAM_VLAN_TAG:
+			ret = beiscsi_iface_config_vlan(shost, iface_param);
 			break;
 		default:
-			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-				    "BS_%d : Invalid iface type :%d passed\n",
-				    iface_param->iface_type);
-			break;
+			switch (iface_param->iface_type) {
+			case ISCSI_IFACE_TYPE_IPV4:
+				ret = beiscsi_iface_config_ipv4(shost,
+								iface_param,
+								data, dt_len);
+				break;
+			case ISCSI_IFACE_TYPE_IPV6:
+				ret = beiscsi_iface_config_ipv6(shost,
+								iface_param,
+								data, dt_len);
+				break;
+			}
 		}
 
+		if (ret == -EPERM) {
+			__beiscsi_log(phba, KERN_ERR,
+				      "BS_%d : %s.0 set param %d not permitted",
+				      (iface_param->iface_type ==
+				       ISCSI_IFACE_TYPE_IPV4) ? "ipv4" : "ipv6",
+				      iface_param->param);
+			ret = 0;
+		}
 		if (ret)
-			return ret;
+			break;
 	}
 
 	return ret;
 }
 
-static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
-		struct iscsi_iface *iface, int param,
-		char *buf)
+static int __beiscsi_iface_get_param(struct beiscsi_hba *phba,
+				     struct iscsi_iface *iface,
+				     int param, char *buf)
 {
 	struct be_cmd_get_if_info_resp *if_info;
-	int len, ip_type = BE2_IPV4;
+	int len, ip_type = BEISCSI_IP_TYPE_V4;
 
 	if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
-		ip_type = BE2_IPV6;
+		ip_type = BEISCSI_IP_TYPE_V6;
 
-	len = mgmt_get_if_info(phba, ip_type, &if_info);
+	len = beiscsi_if_get_info(phba, ip_type, &if_info);
 	if (len)
 		return len;
 
@@ -567,24 +537,24 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 		break;
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 		len = sprintf(buf, "%s\n",
-			     (if_info->vlan_priority == BEISCSI_VLAN_DISABLE)
-			     ? "Disabled\n" : "Enabled\n");
+			      (if_info->vlan_priority == BEISCSI_VLAN_DISABLE) ?
+			      "disable" : "enable");
 		break;
 	case ISCSI_NET_PARAM_VLAN_ID:
 		if (if_info->vlan_priority == BEISCSI_VLAN_DISABLE)
 			len = -EINVAL;
 		else
 			len = sprintf(buf, "%d\n",
-				     (if_info->vlan_priority &
-				     ISCSI_MAX_VLAN_ID));
+				      (if_info->vlan_priority &
+				       ISCSI_MAX_VLAN_ID));
 		break;
 	case ISCSI_NET_PARAM_VLAN_PRIORITY:
 		if (if_info->vlan_priority == BEISCSI_VLAN_DISABLE)
 			len = -EINVAL;
 		else
 			len = sprintf(buf, "%d\n",
-				     ((if_info->vlan_priority >> 13) &
-				     ISCSI_MAX_VLAN_PRIORITY));
+				      ((if_info->vlan_priority >> 13) &
+				       ISCSI_MAX_VLAN_PRIORITY));
 		break;
 	default:
 		WARN_ON(1);
@@ -594,18 +564,20 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 	return len;
 }
 
-int be2iscsi_iface_get_param(struct iscsi_iface *iface,
-		enum iscsi_param_type param_type,
-		int param, char *buf)
+int beiscsi_iface_get_param(struct iscsi_iface *iface,
+			    enum iscsi_param_type param_type,
+			    int param, char *buf)
 {
 	struct Scsi_Host *shost = iscsi_iface_to_shost(iface);
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct be_cmd_get_def_gateway_resp gateway;
-	int len = -ENOSYS;
+	int len = -EPERM;
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
+	if (param_type != ISCSI_NET_PARAM)
+		return 0;
+	if (!beiscsi_hba_is_online(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
 	}
 
@@ -617,19 +589,22 @@ int be2iscsi_iface_get_param(struct iscsi_iface *iface,
 	case ISCSI_NET_PARAM_VLAN_ENABLED:
 	case ISCSI_NET_PARAM_VLAN_ID:
 	case ISCSI_NET_PARAM_VLAN_PRIORITY:
-		len = be2iscsi_get_if_param(phba, iface, param, buf);
+		len = __beiscsi_iface_get_param(phba, iface, param, buf);
 		break;
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
-		len = sprintf(buf, "enabled\n");
+		if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4)
+			len = sprintf(buf, "%s\n",
+				      phba->ipv4_iface ? "enable" : "disable");
+		else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+			len = sprintf(buf, "%s\n",
+				      phba->ipv6_iface ? "enable" : "disable");
 		break;
 	case ISCSI_NET_PARAM_IPV4_GW:
 		memset(&gateway, 0, sizeof(gateway));
-		len = mgmt_get_gateway(phba, BE2_IPV4, &gateway);
+		len = beiscsi_if_get_gw(phba, BEISCSI_IP_TYPE_V4, &gateway);
 		if (!len)
 			len = sprintf(buf, "%pI4\n", &gateway.ip_addr.addr);
 		break;
-	default:
-		len = -ENOSYS;
 	}
 
 	return len;
@@ -647,7 +622,7 @@ int beiscsi_ep_get_param(struct iscsi_endpoint *ep,
 			   enum iscsi_param param, char *buf)
 {
 	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
-	int len = 0;
+	int len;
 
 	beiscsi_log(beiscsi_ep->phba, KERN_INFO,
 		    BEISCSI_LOG_CONFIG,
@@ -659,13 +634,13 @@ int beiscsi_ep_get_param(struct iscsi_endpoint *ep,
 		len = sprintf(buf, "%hu\n", beiscsi_ep->dst_tcpport);
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		if (beiscsi_ep->ip_type == BE2_IPV4)
+		if (beiscsi_ep->ip_type == BEISCSI_IP_TYPE_V4)
 			len = sprintf(buf, "%pI4\n", &beiscsi_ep->dst_addr);
 		else
 			len = sprintf(buf, "%pI6\n", &beiscsi_ep->dst6_addr);
 		break;
 	default:
-		return -ENOSYS;
+		len = -EPERM;
 	}
 	return len;
 }
@@ -758,7 +733,7 @@ static void beiscsi_get_port_state(struct Scsi_Host *shost)
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct iscsi_cls_host *ihost = shost->shost_data;
 
-	ihost->port_state = (phba->state & BE_ADAPTER_LINK_UP) ?
+	ihost->port_state = test_bit(BEISCSI_HBA_LINK_UP, &phba->state) ?
 		ISCSI_PORT_STATE_UP : ISCSI_PORT_STATE_DOWN;
 }
 
@@ -810,16 +785,13 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	int status = 0;
 
-
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
-		return -EBUSY;
-	} else {
+	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_get_host_param,"
-			    " param = %d\n", param);
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
+		return -EBUSY;
 	}
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BS_%d : In beiscsi_get_host_param, param = %d\n", param);
 
 	switch (param) {
 	case ISCSI_HOST_PARAM_HWADDRESS:
@@ -961,15 +933,13 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 
 	phba = ((struct beiscsi_conn *)conn->dd_data)->phba;
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
+	if (!beiscsi_hba_is_online(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return -EBUSY;
-	} else {
-		beiscsi_log(beiscsi_conn->phba, KERN_INFO,
-			    BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_conn_start\n");
 	}
+	beiscsi_log(beiscsi_conn->phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BS_%d : In beiscsi_conn_start\n");
 
 	memset(&params, 0, sizeof(struct beiscsi_offload_params));
 	beiscsi_ep = beiscsi_conn->ep;
@@ -991,9 +961,9 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
  */
 static int beiscsi_get_cid(struct beiscsi_hba *phba)
 {
-	unsigned short cid = 0xFFFF, cid_from_ulp;
-	struct ulp_cid_info *cid_info = NULL;
 	uint16_t cid_avlbl_ulp0, cid_avlbl_ulp1;
+	unsigned short cid, cid_from_ulp;
+	struct ulp_cid_info *cid_info;
 
 	/* Find the ULP which has more CID available */
 	cid_avlbl_ulp0 = (phba->cid_array_info[BEISCSI_ULP0]) ?
@@ -1002,20 +972,27 @@ static int beiscsi_get_cid(struct beiscsi_hba *phba)
 			  BEISCSI_ULP1_AVLBL_CID(phba) : 0;
 	cid_from_ulp = (cid_avlbl_ulp0 > cid_avlbl_ulp1) ?
 			BEISCSI_ULP0 : BEISCSI_ULP1;
+	/**
+	 * If iSCSI protocol is loaded only on ULP 0, and when cid_avlbl_ulp
+	 * is ZERO for both, ULP 1 is returned.
+	 * Check if ULP is loaded before getting new CID.
+	 */
+	if (!test_bit(cid_from_ulp, (void *)&phba->fw_config.ulp_supported))
+		return BE_INVALID_CID;
 
-	if (test_bit(cid_from_ulp, (void *)&phba->fw_config.ulp_supported)) {
-		cid_info = phba->cid_array_info[cid_from_ulp];
-		if (!cid_info->avlbl_cids)
-			return cid;
-
-		cid = cid_info->cid_array[cid_info->cid_alloc++];
-
-		if (cid_info->cid_alloc == BEISCSI_GET_CID_COUNT(
-					   phba, cid_from_ulp))
-			cid_info->cid_alloc = 0;
-
-		cid_info->avlbl_cids--;
+	cid_info = phba->cid_array_info[cid_from_ulp];
+	cid = cid_info->cid_array[cid_info->cid_alloc];
+	if (!cid_info->avlbl_cids || cid == BE_INVALID_CID) {
+		__beiscsi_log(phba, KERN_ERR,
+				"BS_%d : failed to get cid: available %u:%u\n",
+				cid_info->avlbl_cids, cid_info->cid_free);
+		return BE_INVALID_CID;
 	}
+	/* empty the slot */
+	cid_info->cid_array[cid_info->cid_alloc++] = BE_INVALID_CID;
+	if (cid_info->cid_alloc == BEISCSI_GET_CID_COUNT(phba, cid_from_ulp))
+		cid_info->cid_alloc = 0;
+	cid_info->avlbl_cids--;
 	return cid;
 }
 
@@ -1026,22 +1003,28 @@ static int beiscsi_get_cid(struct beiscsi_hba *phba)
  */
 static void beiscsi_put_cid(struct beiscsi_hba *phba, unsigned short cid)
 {
-	uint16_t cid_post_ulp;
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_wrb_context *pwrb_context;
-	struct ulp_cid_info *cid_info = NULL;
 	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
+	struct hwi_wrb_context *pwrb_context;
+	struct hwi_controller *phwi_ctrlr;
+	struct ulp_cid_info *cid_info;
+	uint16_t cid_post_ulp;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	pwrb_context = &phwi_ctrlr->wrb_context[cri_index];
 	cid_post_ulp = pwrb_context->ulp_num;
 
 	cid_info = phba->cid_array_info[cid_post_ulp];
-	cid_info->avlbl_cids++;
-
+	/* fill only in empty slot */
+	if (cid_info->cid_array[cid_info->cid_free] != BE_INVALID_CID) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BS_%d : failed to put cid %u: available %u:%u\n",
+			      cid, cid_info->avlbl_cids, cid_info->cid_free);
+		return;
+	}
 	cid_info->cid_array[cid_info->cid_free++] = cid;
 	if (cid_info->cid_free == BEISCSI_GET_CID_COUNT(phba, cid_post_ulp))
 		cid_info->cid_free = 0;
+	cid_info->avlbl_cids++;
 }
 
 /**
@@ -1055,8 +1038,8 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 
 	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 	beiscsi_ep->phba = NULL;
-	phba->ep_array[BE_GET_CRI_FROM_CID
-		       (beiscsi_ep->ep_cid)] = NULL;
+	/* clear this to track freeing in beiscsi_ep_disconnect */
+	phba->ep_array[BE_GET_CRI_FROM_CID(beiscsi_ep->ep_cid)] = NULL;
 
 	/**
 	 * Check if any connection resource allocated by driver
@@ -1067,6 +1050,11 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 		return;
 
 	beiscsi_conn = beiscsi_ep->conn;
+	/**
+	 * Break ep->conn link here so that completions after
+	 * this are ignored.
+	 */
+	beiscsi_ep->conn = NULL;
 	if (beiscsi_conn->login_in_progress) {
 		beiscsi_free_mgmt_task_handles(beiscsi_conn,
 					       beiscsi_conn->task);
@@ -1097,7 +1085,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		    "BS_%d : In beiscsi_open_conn\n");
 
 	beiscsi_ep->ep_cid = beiscsi_get_cid(phba);
-	if (beiscsi_ep->ep_cid == 0xFFFF) {
+	if (beiscsi_ep->ep_cid == BE_INVALID_CID) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : No free cid available\n");
 		return ret;
@@ -1132,7 +1120,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	nonemb_cmd.size = req_memsize;
 	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
 	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &nonemb_cmd);
-	if (tag <= 0) {
+	if (!tag) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : mgmt_open_connection Failed for cid=%d\n",
 			    beiscsi_ep->ep_cid);
@@ -1186,28 +1174,20 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	struct iscsi_endpoint *ep;
 	int ret;
 
-	if (shost)
-		phba = iscsi_host_priv(shost);
-	else {
+	if (!shost) {
 		ret = -ENXIO;
-		printk(KERN_ERR
-		       "beiscsi_ep_connect shost is NULL\n");
+		pr_err("beiscsi_ep_connect shost is NULL\n");
 		return ERR_PTR(ret);
 	}
 
-	if (beiscsi_error(phba)) {
+	phba = iscsi_host_priv(shost);
+	if (!beiscsi_hba_is_online(phba)) {
 		ret = -EIO;
-		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BS_%d : The FW state Not Stable!!!\n");
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		return ERR_PTR(ret);
 	}
-
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		ret = -EBUSY;
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In PCI_ERROR Recovery\n");
-		return ERR_PTR(ret);
-	} else if (phba->state & BE_ADAPTER_LINK_DOWN) {
+	if (!test_bit(BEISCSI_HBA_LINK_UP, &phba->state)) {
 		ret = -EBUSY;
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 			    "BS_%d : The Adapter Port state is Down!!!\n");
@@ -1311,26 +1291,6 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 }
 
 /**
- * beiscsi_unbind_conn_to_cid - Unbind the beiscsi_conn from phba conn table
- * @phba: The phba instance
- * @cid: The cid to free
- */
-static int beiscsi_unbind_conn_to_cid(struct beiscsi_hba *phba,
-				      unsigned int cid)
-{
-	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
-
-	if (phba->conn_table[cri_index])
-		phba->conn_table[cri_index] = NULL;
-	else {
-		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Connection table Not occupied.\n");
-		return -EINVAL;
-	}
-	return 0;
-}
-
-/**
  * beiscsi_ep_disconnect - Tears down the TCP connection
  * @ep:	endpoint to be used
  *
@@ -1344,12 +1304,22 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	unsigned int tag;
 	uint8_t mgmt_invalidate_flag, tcp_upload_flag;
 	unsigned short savecfg_flag = CMD_ISCSI_SESSION_SAVE_CFG_ON_FLASH;
+	uint16_t cri_index;
 
 	beiscsi_ep = ep->dd_data;
 	phba = beiscsi_ep->phba;
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-		    "BS_%d : In beiscsi_ep_disconnect for ep_cid = %d\n",
+		    "BS_%d : In beiscsi_ep_disconnect for ep_cid = %u\n",
 		    beiscsi_ep->ep_cid);
+
+	cri_index = BE_GET_CRI_FROM_CID(beiscsi_ep->ep_cid);
+	if (!phba->ep_array[cri_index]) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BS_%d : ep_array at %u cid %u empty\n",
+			      cri_index,
+			      beiscsi_ep->ep_cid);
+		return;
+	}
 
 	if (beiscsi_ep->conn) {
 		beiscsi_conn = beiscsi_ep->conn;
@@ -1361,9 +1331,9 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 		tcp_upload_flag = CONNECTION_UPLOAD_ABORT;
 	}
 
-	if (phba->state & BE_ADAPTER_PCI_ERR) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : PCI_ERROR Recovery\n");
+	if (!beiscsi_hba_is_online(phba)) {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+			    "BS_%d : HBA in error 0x%lx\n", phba->state);
 		goto free_ep;
 	}
 
@@ -1382,11 +1352,16 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 free_ep:
 	msleep(BEISCSI_LOGOUT_SYNC_DELAY);
 	beiscsi_free_ep(beiscsi_ep);
-	beiscsi_unbind_conn_to_cid(phba, beiscsi_ep->ep_cid);
+	if (!phba->conn_table[cri_index])
+		__beiscsi_log(phba, KERN_ERR,
+				"BS_%d : conn_table empty at %u: cid %u\n",
+				cri_index,
+				beiscsi_ep->ep_cid);
+	phba->conn_table[cri_index] = NULL;
 	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 }
 
-umode_t be2iscsi_attr_is_visible(int param_type, int param)
+umode_t beiscsi_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_NET_PARAM:

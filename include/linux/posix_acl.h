@@ -11,27 +11,7 @@
 #include <linux/bug.h>
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
-
-#define ACL_UNDEFINED_ID	(-1)
-
-/* a_type field in acl_user_posix_entry_t */
-#define ACL_TYPE_ACCESS		(0x8000)
-#define ACL_TYPE_DEFAULT	(0x4000)
-
-/* e_tag entry in struct posix_acl_entry */
-#define ACL_USER_OBJ		(0x01)
-#define ACL_USER		(0x02)
-#define ACL_GROUP_OBJ		(0x04)
-#define ACL_GROUP		(0x08)
-#define ACL_MASK		(0x10)
-#define ACL_OTHER		(0x20)
-
-/* permissions in the e_perm field */
-#define ACL_READ		(0x04)
-#define ACL_WRITE		(0x02)
-#define ACL_EXECUTE		(0x01)
-//#define ACL_ADD		(0x08)
-//#define ACL_DELETE		(0x10)
+#include <uapi/linux/posix_acl.h>
 
 struct posix_acl_entry {
 	short			e_tag;
@@ -93,6 +73,7 @@ extern int set_posix_acl(struct inode *, int, struct posix_acl *);
 extern int posix_acl_chmod(struct inode *, umode_t);
 extern int posix_acl_create(struct inode *, umode_t *, struct posix_acl **,
 		struct posix_acl **);
+extern int posix_acl_update_mode(struct inode *, umode_t *, struct posix_acl **);
 
 extern int simple_set_acl(struct inode *, struct posix_acl *, int);
 extern int simple_acl_create(struct inode *, struct inode *);

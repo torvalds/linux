@@ -25,8 +25,6 @@
 #include <net/mip6.h>
 #endif
 
-static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
-
 static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 					  const xfrm_address_t *saddr,
 					  const xfrm_address_t *daddr)
@@ -134,7 +132,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	nexthdr = nh[nhoff];
 
 	if (skb_dst(skb))
-		oif = l3mdev_fib_oif(skb_dst(skb)->dev);
+		oif = skb_dst(skb)->dev->ifindex;
 
 	memset(fl6, 0, sizeof(struct flowi6));
 	fl6->flowi6_mark = skb->mark;
@@ -220,7 +218,7 @@ static inline int xfrm6_garbage_collect(struct dst_ops *ops)
 {
 	struct net *net = container_of(ops, struct net, xfrm.xfrm6_dst_ops);
 
-	xfrm6_policy_afinfo.garbage_collect(net);
+	xfrm_garbage_collect_deferred(net);
 	return dst_entries_get_fast(ops) > ops->gc_thresh * 2;
 }
 
@@ -291,8 +289,7 @@ static struct dst_ops xfrm6_dst_ops_template = {
 	.gc_thresh =		INT_MAX,
 };
 
-static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
-	.family =		AF_INET6,
+static const struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.dst_ops =		&xfrm6_dst_ops_template,
 	.dst_lookup =		xfrm6_dst_lookup,
 	.get_saddr =		xfrm6_get_saddr,
@@ -305,7 +302,7 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 
 static int __init xfrm6_policy_init(void)
 {
-	return xfrm_policy_register_afinfo(&xfrm6_policy_afinfo);
+	return xfrm_policy_register_afinfo(&xfrm6_policy_afinfo, AF_INET6);
 }
 
 static void xfrm6_policy_fini(void)

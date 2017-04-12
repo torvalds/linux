@@ -46,6 +46,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/phy.h>
+#include <linux/usb/otg.h>
 
 #include "usb.h"
 
@@ -519,8 +520,10 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	 */
 	tbuf_size =  max_t(u16, sizeof(struct usb_hub_descriptor), wLength);
 	tbuf = kzalloc(tbuf_size, GFP_KERNEL);
-	if (!tbuf)
-		return -ENOMEM;
+	if (!tbuf) {
+		status = -ENOMEM;
+		goto err_alloc;
+	}
 
 	bufp = tbuf;
 
@@ -733,6 +736,7 @@ error:
 	}
 
 	kfree(tbuf);
+ err_alloc:
 
 	/* any errors get returned through the urb completion */
 	spin_lock_irq(&hcd_root_hub_lock);
@@ -2517,10 +2521,8 @@ struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 	struct usb_hcd *hcd;
 
 	hcd = kzalloc(sizeof(*hcd) + driver->hcd_priv_size, GFP_KERNEL);
-	if (!hcd) {
-		dev_dbg (dev, "hcd alloc failed\n");
+	if (!hcd)
 		return NULL;
-	}
 	if (primary_hcd == NULL) {
 		hcd->address0_mutex = kmalloc(sizeof(*hcd->address0_mutex),
 				GFP_KERNEL);
@@ -3018,6 +3020,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	}
 
 	usb_put_invalidate_rhdev(hcd);
+	hcd->flags = 0;
 }
 EXPORT_SYMBOL_GPL(usb_remove_hcd);
 
@@ -3033,7 +3036,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_platform_shutdown);
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
+#if IS_ENABLED(CONFIG_USB_MON)
 
 const struct usb_mon_operations *mon_ops;
 

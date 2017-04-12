@@ -41,7 +41,7 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 unsigned long xen_released_pages;
 
 /* E820 map used during setting up memory. */
-static struct e820entry xen_e820_map[E820MAX] __initdata;
+static struct e820entry xen_e820_map[E820_X_MAX] __initdata;
 static u32 xen_e820_map_entries __initdata;
 
 /*
@@ -713,10 +713,9 @@ static void __init xen_reserve_xen_mfnlist(void)
 		size = PFN_PHYS(xen_start_info->nr_p2m_frames);
 	}
 
-	if (!xen_is_e820_reserved(start, size)) {
-		memblock_reserve(start, size);
+	memblock_reserve(start, size);
+	if (!xen_is_e820_reserved(start, size))
 		return;
-	}
 
 #ifdef CONFIG_X86_32
 	/*
@@ -727,6 +726,7 @@ static void __init xen_reserve_xen_mfnlist(void)
 	BUG();
 #else
 	xen_relocate_p2m();
+	memblock_free(start, size);
 #endif
 }
 
@@ -750,7 +750,7 @@ char * __init xen_memory_setup(void)
 	max_pfn = min(max_pfn, xen_start_info->nr_pages);
 	mem_end = PFN_PHYS(max_pfn);
 
-	memmap.nr_entries = E820MAX;
+	memmap.nr_entries = ARRAY_SIZE(xen_e820_map);
 	set_xen_guest_handle(memmap.buffer, xen_e820_map);
 
 	op = xen_initial_domain() ?
@@ -861,7 +861,7 @@ char * __init xen_memory_setup(void)
 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
 			E820_RESERVED);
 
-	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+	sanitize_e820_map(e820->map, ARRAY_SIZE(e820->map), &e820->nr_map);
 
 	/*
 	 * Check whether the kernel itself conflicts with the target E820 map.
@@ -910,39 +910,6 @@ char * __init xen_memory_setup(void)
 	xen_foreach_remap_area(max_pfn, xen_set_identity_and_remap_chunk);
 
 	pr_info("Released %ld page(s)\n", xen_released_pages);
-
-	return "Xen";
-}
-
-/*
- * Machine specific memory setup for auto-translated guests.
- */
-char * __init xen_auto_xlated_memory_setup(void)
-{
-	struct xen_memory_map memmap;
-	int i;
-	int rc;
-
-	memmap.nr_entries = E820MAX;
-	set_xen_guest_handle(memmap.buffer, xen_e820_map);
-
-	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
-	if (rc < 0)
-		panic("No memory map (%d)\n", rc);
-
-	xen_e820_map_entries = memmap.nr_entries;
-
-	sanitize_e820_map(xen_e820_map, ARRAY_SIZE(xen_e820_map),
-			  &xen_e820_map_entries);
-
-	for (i = 0; i < xen_e820_map_entries; i++)
-		e820_add_region(xen_e820_map[i].addr, xen_e820_map[i].size,
-				xen_e820_map[i].type);
-
-	/* Remove p2m info, it is not needed. */
-	xen_start_info->mfn_list = 0;
-	xen_start_info->first_p2m_pfn = 0;
-	xen_start_info->nr_p2m_frames = 0;
 
 	return "Xen";
 }
@@ -1032,8 +999,8 @@ void __init xen_pvmmu_arch_setup(void)
 void __init xen_arch_setup(void)
 {
 	xen_panic_handler_init();
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		xen_pvmmu_arch_setup();
+
+	xen_pvmmu_arch_setup();
 
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {

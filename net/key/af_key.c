@@ -36,7 +36,7 @@
 #define _X2KEY(x) ((x) == XFRM_INF ? 0 : (x))
 #define _KEY2X(x) ((x) == 0 ? XFRM_INF : (x))
 
-static int pfkey_net_id __read_mostly;
+static unsigned int pfkey_net_id __read_mostly;
 struct netns_pfkey {
 	/* List of all pfkey sockets. */
 	struct hlist_head table;

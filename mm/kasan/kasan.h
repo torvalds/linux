@@ -21,6 +21,7 @@
 #define KASAN_STACK_MID         0xF2
 #define KASAN_STACK_RIGHT       0xF3
 #define KASAN_STACK_PARTIAL     0xF4
+#define KASAN_USE_AFTER_SCOPE   0xF8
 
 /* Don't break randconfig/all*config builds */
 #ifndef KASAN_ABI_VERSION
@@ -52,6 +53,9 @@ struct kasan_global {
 	unsigned long has_dynamic_init;	/* This needed for C++ */
 #if KASAN_ABI_VERSION >= 4
 	struct kasan_source_location *location;
+#endif
+#if KASAN_ABI_VERSION >= 5
+	char *odr_indicator;
 #endif
 };
 
@@ -90,11 +94,6 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 {
 	return (void *)(((unsigned long)shadow_addr - KASAN_SHADOW_OFFSET)
 		<< KASAN_SHADOW_SCALE_SHIFT);
-}
-
-static inline bool kasan_report_enabled(void)
-{
-	return !current->kasan_depth;
 }
 
 void kasan_report(unsigned long addr, size_t size,

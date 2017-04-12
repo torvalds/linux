@@ -165,7 +165,7 @@ static int acpi_processor_errata(void)
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 int __weak acpi_map_cpu(acpi_handle handle,
-		phys_cpuid_t physid, int *pcpu)
+		phys_cpuid_t physid, u32 acpi_id, int *pcpu)
 {
 	return -ENODEV;
 }
@@ -198,7 +198,7 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	cpu_maps_update_begin();
 	cpu_hotplug_begin();
 
-	ret = acpi_map_cpu(pr->handle, pr->phys_id, &pr->id);
+	ret = acpi_map_cpu(pr->handle, pr->phys_id, pr->acpi_id, &pr->id);
 	if (ret)
 		goto out;
 
@@ -280,6 +280,13 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		pr->acpi_id = value;
 	}
 
+	if (acpi_duplicate_processor_id(pr->acpi_id)) {
+		dev_err(&device->dev,
+			"Failed to get unique processor _UID (0x%x)\n",
+			pr->acpi_id);
+		return -ENODEV;
+	}
+
 	pr->phys_id = acpi_get_phys_id(pr->handle, device_declaration,
 					pr->acpi_id);
 	if (invalid_phys_cpuid(pr->phys_id))
@@ -300,8 +307,11 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 *  Extra Processor objects may be enumerated on MP systems with
 	 *  less than the max # of CPUs. They should be ignored _iff
 	 *  they are physically not present.
+	 *
+	 *  NOTE: Even if the processor has a cpuid, it may not be present
+	 *  because cpuid <-> apicid mapping is persistent now.
 	 */
-	if (invalid_logical_cpuid(pr->id)) {
+	if (invalid_logical_cpuid(pr->id) || !cpu_present(pr->id)) {
 		int ret = acpi_processor_hotadd_init(pr);
 		if (ret)
 			return ret;
@@ -573,8 +583,127 @@ static struct acpi_scan_handler processor_container_handler = {
 	.attach = acpi_processor_container_attach,
 };
 
+/* The number of the unique processor IDs */
+static int nr_unique_ids __initdata;
+
+/* The number of the duplicate processor IDs */
+static int nr_duplicate_ids;
+
+/* Used to store the unique processor IDs */
+static int unique_processor_ids[] __initdata = {
+	[0 ... NR_CPUS - 1] = -1,
+};
+
+/* Used to store the duplicate processor IDs */
+static int duplicate_processor_ids[] = {
+	[0 ... NR_CPUS - 1] = -1,
+};
+
+static void __init processor_validated_ids_update(int proc_id)
+{
+	int i;
+
+	if (nr_unique_ids == NR_CPUS||nr_duplicate_ids == NR_CPUS)
+		return;
+
+	/*
+	 * Firstly, compare the proc_id with duplicate IDs, if the proc_id is
+	 * already in the IDs, do nothing.
+	 */
+	for (i = 0; i < nr_duplicate_ids; i++) {
+		if (duplicate_processor_ids[i] == proc_id)
+			return;
+	}
+
+	/*
+	 * Secondly, compare the proc_id with unique IDs, if the proc_id is in
+	 * the IDs, put it in the duplicate IDs.
+	 */
+	for (i = 0; i < nr_unique_ids; i++) {
+		if (unique_processor_ids[i] == proc_id) {
+			duplicate_processor_ids[nr_duplicate_ids] = proc_id;
+			nr_duplicate_ids++;
+			return;
+		}
+	}
+
+	/*
+	 * Lastly, the proc_id is a unique ID, put it in the unique IDs.
+	 */
+	unique_processor_ids[nr_unique_ids] = proc_id;
+	nr_unique_ids++;
+}
+
+static acpi_status __init acpi_processor_ids_walk(acpi_handle handle,
+						  u32 lvl,
+						  void *context,
+						  void **rv)
+{
+	acpi_status status;
+	acpi_object_type acpi_type;
+	unsigned long long uid;
+	union acpi_object object = { 0 };
+	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
+
+	status = acpi_get_type(handle, &acpi_type);
+	if (ACPI_FAILURE(status))
+		return false;
+
+	switch (acpi_type) {
+	case ACPI_TYPE_PROCESSOR:
+		status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
+		if (ACPI_FAILURE(status))
+			goto err;
+		uid = object.processor.proc_id;
+		break;
+
+	case ACPI_TYPE_DEVICE:
+		status = acpi_evaluate_integer(handle, "_UID", NULL, &uid);
+		if (ACPI_FAILURE(status))
+			goto err;
+		break;
+	default:
+		goto err;
+	}
+
+	processor_validated_ids_update(uid);
+	return true;
+
+err:
+	acpi_handle_info(handle, "Invalid processor object\n");
+	return false;
+
+}
+
+void __init acpi_processor_check_duplicates(void)
+{
+	/* check the correctness for all processors in ACPI namespace */
+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+						ACPI_UINT32_MAX,
+						acpi_processor_ids_walk,
+						NULL, NULL, NULL);
+	acpi_get_devices(ACPI_PROCESSOR_DEVICE_HID, acpi_processor_ids_walk,
+						NULL, NULL);
+}
+
+bool acpi_duplicate_processor_id(int proc_id)
+{
+	int i;
+
+	/*
+	 * compare the proc_id with duplicate IDs, if the proc_id is already
+	 * in the duplicate IDs, return true, otherwise, return false.
+	 */
+	for (i = 0; i < nr_duplicate_ids; i++) {
+		if (duplicate_processor_ids[i] == proc_id)
+			return true;
+	}
+	return false;
+}
+
 void __init acpi_processor_init(void)
 {
+	acpi_processor_check_duplicates();
 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
 	acpi_scan_add_handler(&processor_container_handler);
 }

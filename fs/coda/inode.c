@@ -255,11 +255,12 @@ static void coda_evict_inode(struct inode *inode)
 	coda_cache_clear_inode(inode);
 }
 
-int coda_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int coda_getattr(const struct path *path, struct kstat *stat,
+		 u32 request_mask, unsigned int flags)
 {
-	int err = coda_revalidate_inode(d_inode(dentry));
+	int err = coda_revalidate_inode(d_inode(path->dentry));
 	if (!err)
-		generic_fillattr(d_inode(dentry), stat);
+		generic_fillattr(d_inode(path->dentry), stat);
 	return err;
 }
 
@@ -271,7 +272,7 @@ int coda_setattr(struct dentry *de, struct iattr *iattr)
 
 	memset(&vattr, 0, sizeof(vattr)); 
 
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	coda_iattr_to_vattr(iattr, &vattr);
 	vattr.va_type = C_VNON; /* cannot set type */
 

@@ -584,7 +584,7 @@ static ssize_t hardware_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data32);
 }
 
-static DEVICE_ATTR(console, 0644, console_show, console_store);
+static DEVICE_ATTR_RW(console);
 
 
 #define SOLOS_ATTR_RO(x) static DEVICE_ATTR(x, 0444, solos_param_show, NULL);

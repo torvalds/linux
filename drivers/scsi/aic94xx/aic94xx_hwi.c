@@ -228,8 +228,11 @@ static int asd_init_scbs(struct asd_ha_struct *asd_ha)
 	bitmap_bytes = (asd_ha->seq.tc_index_bitmap_bits+7)/8;
 	bitmap_bytes = BITS_TO_LONGS(bitmap_bytes*8)*sizeof(unsigned long);
 	asd_ha->seq.tc_index_bitmap = kzalloc(bitmap_bytes, GFP_KERNEL);
-	if (!asd_ha->seq.tc_index_bitmap)
+	if (!asd_ha->seq.tc_index_bitmap) {
+		kfree(asd_ha->seq.tc_index_array);
+		asd_ha->seq.tc_index_array = NULL;
 		return -ENOMEM;
+	}
 
 	spin_lock_init(&seq->tc_index_lock);
 
@@ -632,7 +635,7 @@ int asd_init_hw(struct asd_ha_struct *asd_ha)
 			   pci_name(asd_ha->pcidev));
 		return err;
 	}
-	pci_write_config_dword(asd_ha->pcidev, PCIC_HSTPCIX_CNTRL,
+	err = pci_write_config_dword(asd_ha->pcidev, PCIC_HSTPCIX_CNTRL,
 					v | SC_TMR_DIS);
 	if (err) {
 		asd_printk("couldn't disable split completion timer of %s\n",

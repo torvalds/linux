@@ -18,9 +18,12 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
+#include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/capability.h>
 #include <linux/rcupdate.h>
+#include <uapi/linux/major.h>
+#include <linux/fs.h>
 
 #include "include/apparmor.h"
 #include "include/apparmorfs.h"
@@ -28,7 +31,9 @@
 #include "include/context.h"
 #include "include/crypto.h"
 #include "include/policy.h"
+#include "include/policy_ns.h"
 #include "include/resource.h"
+#include "include/policy_unpack.h"
 
 /**
  * aa_mangle_name - mangle a profile name to std profile layout form
@@ -37,7 +42,7 @@
  *
  * Returns: length of mangled name
  */
-static int mangle_name(char *name, char *target)
+static int mangle_name(const char *name, char *target)
 {
 	char *t = target;
 
@@ -71,7 +76,6 @@ static int mangle_name(char *name, char *target)
 
 /**
  * aa_simple_write_to_buffer - common routine for getting policy from user
- * @op: operation doing the user buffer copy
  * @userbuf: user buffer to copy data from  (NOT NULL)
  * @alloc_size: size of user buffer (REQUIRES: @alloc_size >= @copy_size)
  * @copy_size: size of data to copy from user buffer
@@ -80,31 +84,29 @@ static int mangle_name(char *name, char *target)
  * Returns: kernel buffer containing copy of user buffer data or an
  *          ERR_PTR on failure.
  */
-static char *aa_simple_write_to_buffer(int op, const char __user *userbuf,
-				       size_t alloc_size, size_t copy_size,
-				       loff_t *pos)
+static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
+						     size_t alloc_size,
+						     size_t copy_size,
+						     loff_t *pos)
 {
-	char *data;
+	struct aa_loaddata *data;
 
-	BUG_ON(copy_size > alloc_size);
+	AA_BUG(copy_size > alloc_size);
 
 	if (*pos != 0)
 		/* only writes from pos 0, that is complete writes */
 		return ERR_PTR(-ESPIPE);
 
-	/*
-	 * Don't allow profile load/replace/remove from profiles that don't
-	 * have CAP_MAC_ADMIN
-	 */
-	if (!aa_may_manage_policy(op))
-		return ERR_PTR(-EACCES);
-
 	/* freed by caller to simple_write_to_buffer */
-	data = kvmalloc(alloc_size);
+	data = kvmalloc(sizeof(*data) + alloc_size);
 	if (data == NULL)
 		return ERR_PTR(-ENOMEM);
+	kref_init(&data->count);
+	data->size = copy_size;
+	data->hash = NULL;
+	data->abi = 0;
 
-	if (copy_from_user(data, userbuf, copy_size)) {
+	if (copy_from_user(data->data, userbuf, copy_size)) {
 		kvfree(data);
 		return ERR_PTR(-EFAULT);
 	}
@@ -112,21 +114,39 @@ static char *aa_simple_write_to_buffer(int op, const char __user *userbuf,
 	return data;
 }
 
+static ssize_t policy_update(int binop, const char __user *buf, size_t size,
+			     loff_t *pos, struct aa_ns *ns)
+{
+	ssize_t error;
+	struct aa_loaddata *data;
+	struct aa_profile *profile = aa_current_profile();
+	const char *op = binop == PROF_ADD ? OP_PROF_LOAD : OP_PROF_REPL;
+	/* high level check about policy management - fine grained in
+	 * below after unpack
+	 */
+	error = aa_may_manage_policy(profile, ns, op);
+	if (error)
+		return error;
+
+	data = aa_simple_write_to_buffer(buf, size, size, pos);
+	error = PTR_ERR(data);
+	if (!IS_ERR(data)) {
+		error = aa_replace_profiles(ns ? ns : profile->ns, profile,
+					    binop, data);
+		aa_put_loaddata(data);
+	}
+
+	return error;
+}
 
 /* .load file hook fn to load policy */
 static ssize_t profile_load(struct file *f, const char __user *buf, size_t size,
 			    loff_t *pos)
 {
-	char *data;
-	ssize_t error;
+	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+	int error = policy_update(PROF_ADD, buf, size, pos, ns);
 
-	data = aa_simple_write_to_buffer(OP_PROF_LOAD, buf, size, size, pos);
-
-	error = PTR_ERR(data);
-	if (!IS_ERR(data)) {
-		error = aa_replace_profiles(data, size, PROF_ADD);
-		kvfree(data);
-	}
+	aa_put_ns(ns);
 
 	return error;
 }
@@ -140,15 +160,10 @@ static const struct file_operations aa_fs_profile_load = {
 static ssize_t profile_replace(struct file *f, const char __user *buf,
 			       size_t size, loff_t *pos)
 {
-	char *data;
-	ssize_t error;
+	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+	int error = policy_update(PROF_REPLACE, buf, size, pos, ns);
 
-	data = aa_simple_write_to_buffer(OP_PROF_REPL, buf, size, size, pos);
-	error = PTR_ERR(data);
-	if (!IS_ERR(data)) {
-		error = aa_replace_profiles(data, size, PROF_REPLACE);
-		kvfree(data);
-	}
+	aa_put_ns(ns);
 
 	return error;
 }
@@ -162,28 +177,178 @@ static const struct file_operations aa_fs_profile_replace = {
 static ssize_t profile_remove(struct file *f, const char __user *buf,
 			      size_t size, loff_t *pos)
 {
-	char *data;
+	struct aa_loaddata *data;
+	struct aa_profile *profile;
 	ssize_t error;
+	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+
+	profile = aa_current_profile();
+	/* high level check about policy management - fine grained in
+	 * below after unpack
+	 */
+	error = aa_may_manage_policy(profile, ns, OP_PROF_RM);
+	if (error)
+		goto out;
 
 	/*
 	 * aa_remove_profile needs a null terminated string so 1 extra
 	 * byte is allocated and the copied data is null terminated.
 	 */
-	data = aa_simple_write_to_buffer(OP_PROF_RM, buf, size + 1, size, pos);
+	data = aa_simple_write_to_buffer(buf, size + 1, size, pos);
 
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
-		data[size] = 0;
-		error = aa_remove_profiles(data, size);
-		kvfree(data);
+		data->data[size] = 0;
+		error = aa_remove_profiles(ns ? ns : profile->ns, profile,
+					   data->data, size);
+		aa_put_loaddata(data);
 	}
-
+ out:
+	aa_put_ns(ns);
 	return error;
 }
 
 static const struct file_operations aa_fs_profile_remove = {
 	.write = profile_remove,
 	.llseek = default_llseek,
+};
+
+/**
+ * query_data - queries a policy and writes its data to buf
+ * @buf: the resulting data is stored here (NOT NULL)
+ * @buf_len: size of buf
+ * @query: query string used to retrieve data
+ * @query_len: size of query including second NUL byte
+ *
+ * The buffers pointed to by buf and query may overlap. The query buffer is
+ * parsed before buf is written to.
+ *
+ * The query should look like "<LABEL>\0<KEY>\0", where <LABEL> is the name of
+ * the security confinement context and <KEY> is the name of the data to
+ * retrieve. <LABEL> and <KEY> must not be NUL-terminated.
+ *
+ * Don't expect the contents of buf to be preserved on failure.
+ *
+ * Returns: number of characters written to buf or -errno on failure
+ */
+static ssize_t query_data(char *buf, size_t buf_len,
+			  char *query, size_t query_len)
+{
+	char *out;
+	const char *key;
+	struct aa_profile *profile;
+	struct aa_data *data;
+	u32 bytes, blocks;
+	__le32 outle32;
+
+	if (!query_len)
+		return -EINVAL; /* need a query */
+
+	key = query + strnlen(query, query_len) + 1;
+	if (key + 1 >= query + query_len)
+		return -EINVAL; /* not enough space for a non-empty key */
+	if (key + strnlen(key, query + query_len - key) >= query + query_len)
+		return -EINVAL; /* must end with NUL */
+
+	if (buf_len < sizeof(bytes) + sizeof(blocks))
+		return -EINVAL; /* not enough space */
+
+	profile = aa_current_profile();
+
+	/* We are going to leave space for two numbers. The first is the total
+	 * number of bytes we are writing after the first number. This is so
+	 * users can read the full output without reallocation.
+	 *
+	 * The second number is the number of data blocks we're writing. An
+	 * application might be confined by multiple policies having data in
+	 * the same key.
+	 */
+	memset(buf, 0, sizeof(bytes) + sizeof(blocks));
+	out = buf + sizeof(bytes) + sizeof(blocks);
+
+	blocks = 0;
+	if (profile->data) {
+		data = rhashtable_lookup_fast(profile->data, &key,
+					      profile->data->p);
+
+		if (data) {
+			if (out + sizeof(outle32) + data->size > buf + buf_len)
+				return -EINVAL; /* not enough space */
+			outle32 = __cpu_to_le32(data->size);
+			memcpy(out, &outle32, sizeof(outle32));
+			out += sizeof(outle32);
+			memcpy(out, data->data, data->size);
+			out += data->size;
+			blocks++;
+		}
+	}
+
+	outle32 = __cpu_to_le32(out - buf - sizeof(bytes));
+	memcpy(buf, &outle32, sizeof(outle32));
+	outle32 = __cpu_to_le32(blocks);
+	memcpy(buf + sizeof(bytes), &outle32, sizeof(outle32));
+
+	return out - buf;
+}
+
+#define QUERY_CMD_DATA		"data\0"
+#define QUERY_CMD_DATA_LEN	5
+
+/**
+ * aa_write_access - generic permissions and data query
+ * @file: pointer to open apparmorfs/access file
+ * @ubuf: user buffer containing the complete query string (NOT NULL)
+ * @count: size of ubuf
+ * @ppos: position in the file (MUST BE ZERO)
+ *
+ * Allows for one permissions or data query per open(), write(), and read()
+ * sequence. The only queries currently supported are label-based queries for
+ * permissions or data.
+ *
+ * For permissions queries, ubuf must begin with "label\0", followed by the
+ * profile query specific format described in the query_label() function
+ * documentation.
+ *
+ * For data queries, ubuf must have the form "data\0<LABEL>\0<KEY>\0", where
+ * <LABEL> is the name of the security confinement context and <KEY> is the
+ * name of the data to retrieve.
+ *
+ * Returns: number of bytes written or -errno on failure
+ */
+static ssize_t aa_write_access(struct file *file, const char __user *ubuf,
+			       size_t count, loff_t *ppos)
+{
+	char *buf;
+	ssize_t len;
+
+	if (*ppos)
+		return -ESPIPE;
+
+	buf = simple_transaction_get(file, ubuf, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	if (count > QUERY_CMD_DATA_LEN &&
+		   !memcmp(buf, QUERY_CMD_DATA, QUERY_CMD_DATA_LEN)) {
+		len = query_data(buf, SIMPLE_TRANSACTION_LIMIT,
+				 buf + QUERY_CMD_DATA_LEN,
+				 count - QUERY_CMD_DATA_LEN);
+	} else
+		len = -EINVAL;
+
+	if (len < 0)
+		return len;
+
+	simple_transaction_set(file, len);
+
+	return count;
+}
+
+static const struct file_operations aa_fs_access = {
+	.write		= aa_write_access,
+	.read		= simple_transaction_read,
+	.release	= simple_transaction_release,
+	.llseek		= generic_file_llseek,
 };
 
 static int aa_fs_seq_show(struct seq_file *seq, void *v)
@@ -227,12 +392,12 @@ const struct file_operations aa_fs_seq_file_ops = {
 static int aa_fs_seq_profile_open(struct inode *inode, struct file *file,
 				  int (*show)(struct seq_file *, void *))
 {
-	struct aa_replacedby *r = aa_get_replacedby(inode->i_private);
-	int error = single_open(file, show, r);
+	struct aa_proxy *proxy = aa_get_proxy(inode->i_private);
+	int error = single_open(file, show, proxy);
 
 	if (error) {
 		file->private_data = NULL;
-		aa_put_replacedby(r);
+		aa_put_proxy(proxy);
 	}
 
 	return error;
@@ -242,14 +407,14 @@ static int aa_fs_seq_profile_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq = (struct seq_file *) file->private_data;
 	if (seq)
-		aa_put_replacedby(seq->private);
+		aa_put_proxy(seq->private);
 	return single_release(inode, file);
 }
 
 static int aa_fs_seq_profname_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	seq_printf(seq, "%s\n", profile->base.name);
 	aa_put_profile(profile);
 
@@ -271,8 +436,8 @@ static const struct file_operations aa_fs_profname_fops = {
 
 static int aa_fs_seq_profmode_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	seq_printf(seq, "%s\n", aa_profile_mode_names[profile->mode]);
 	aa_put_profile(profile);
 
@@ -294,8 +459,8 @@ static const struct file_operations aa_fs_profmode_fops = {
 
 static int aa_fs_seq_profattach_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	if (profile->attach)
 		seq_printf(seq, "%s\n", profile->attach);
 	else if (profile->xmatch)
@@ -322,8 +487,8 @@ static const struct file_operations aa_fs_profattach_fops = {
 
 static int aa_fs_seq_hash_show(struct seq_file *seq, void *v)
 {
-	struct aa_replacedby *r = seq->private;
-	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
 	unsigned int i, size = aa_hash_size();
 
 	if (profile->hash) {
@@ -349,6 +514,145 @@ static const struct file_operations aa_fs_seq_hash_fops = {
 	.release	= single_release,
 };
 
+
+static int aa_fs_seq_show_ns_level(struct seq_file *seq, void *v)
+{
+	struct aa_ns *ns = aa_current_profile()->ns;
+
+	seq_printf(seq, "%d\n", ns->level);
+
+	return 0;
+}
+
+static int aa_fs_seq_open_ns_level(struct inode *inode, struct file *file)
+{
+	return single_open(file, aa_fs_seq_show_ns_level, inode->i_private);
+}
+
+static const struct file_operations aa_fs_ns_level = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_open_ns_level,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int aa_fs_seq_show_ns_name(struct seq_file *seq, void *v)
+{
+	struct aa_ns *ns = aa_current_profile()->ns;
+
+	seq_printf(seq, "%s\n", ns->base.name);
+
+	return 0;
+}
+
+static int aa_fs_seq_open_ns_name(struct inode *inode, struct file *file)
+{
+	return single_open(file, aa_fs_seq_show_ns_name, inode->i_private);
+}
+
+static const struct file_operations aa_fs_ns_name = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_open_ns_name,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int rawdata_release(struct inode *inode, struct file *file)
+{
+	/* TODO: switch to loaddata when profile switched to symlink */
+	aa_put_loaddata(file->private_data);
+
+	return 0;
+}
+
+static int aa_fs_seq_raw_abi_show(struct seq_file *seq, void *v)
+{
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
+
+	if (profile->rawdata->abi) {
+		seq_printf(seq, "v%d", profile->rawdata->abi);
+		seq_puts(seq, "\n");
+	}
+	aa_put_profile(profile);
+
+	return 0;
+}
+
+static int aa_fs_seq_raw_abi_open(struct inode *inode, struct file *file)
+{
+	return aa_fs_seq_profile_open(inode, file, aa_fs_seq_raw_abi_show);
+}
+
+static const struct file_operations aa_fs_seq_raw_abi_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_raw_abi_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= aa_fs_seq_profile_release,
+};
+
+static int aa_fs_seq_raw_hash_show(struct seq_file *seq, void *v)
+{
+	struct aa_proxy *proxy = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&proxy->profile);
+	unsigned int i, size = aa_hash_size();
+
+	if (profile->rawdata->hash) {
+		for (i = 0; i < size; i++)
+			seq_printf(seq, "%.2x", profile->rawdata->hash[i]);
+		seq_puts(seq, "\n");
+	}
+	aa_put_profile(profile);
+
+	return 0;
+}
+
+static int aa_fs_seq_raw_hash_open(struct inode *inode, struct file *file)
+{
+	return aa_fs_seq_profile_open(inode, file, aa_fs_seq_raw_hash_show);
+}
+
+static const struct file_operations aa_fs_seq_raw_hash_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_raw_hash_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= aa_fs_seq_profile_release,
+};
+
+static ssize_t rawdata_read(struct file *file, char __user *buf, size_t size,
+			    loff_t *ppos)
+{
+	struct aa_loaddata *rawdata = file->private_data;
+
+	return simple_read_from_buffer(buf, size, ppos, rawdata->data,
+				       rawdata->size);
+}
+
+static int rawdata_open(struct inode *inode, struct file *file)
+{
+	struct aa_proxy *proxy = inode->i_private;
+	struct aa_profile *profile;
+
+	if (!policy_view_capable(NULL))
+		return -EACCES;
+	profile = aa_get_profile_rcu(&proxy->profile);
+	file->private_data = aa_get_loaddata(profile->rawdata);
+	aa_put_profile(profile);
+
+	return 0;
+}
+
+static const struct file_operations aa_fs_rawdata_fops = {
+	.open = rawdata_open,
+	.read = rawdata_read,
+	.llseek = generic_file_llseek,
+	.release = rawdata_release,
+};
+
 /** fns to setup dynamic per profile/namespace files **/
 void __aa_fs_profile_rmdir(struct aa_profile *profile)
 {
@@ -362,13 +666,13 @@ void __aa_fs_profile_rmdir(struct aa_profile *profile)
 		__aa_fs_profile_rmdir(child);
 
 	for (i = AAFS_PROF_SIZEOF - 1; i >= 0; --i) {
-		struct aa_replacedby *r;
+		struct aa_proxy *proxy;
 		if (!profile->dents[i])
 			continue;
 
-		r = d_inode(profile->dents[i])->i_private;
+		proxy = d_inode(profile->dents[i])->i_private;
 		securityfs_remove(profile->dents[i]);
-		aa_put_replacedby(r);
+		aa_put_proxy(proxy);
 		profile->dents[i] = NULL;
 	}
 }
@@ -381,7 +685,7 @@ void __aa_fs_profile_migrate_dents(struct aa_profile *old,
 	for (i = 0; i < AAFS_PROF_SIZEOF; i++) {
 		new->dents[i] = old->dents[i];
 		if (new->dents[i])
-			new->dents[i]->d_inode->i_mtime = CURRENT_TIME;
+			new->dents[i]->d_inode->i_mtime = current_time(new->dents[i]->d_inode);
 		old->dents[i] = NULL;
 	}
 }
@@ -390,12 +694,12 @@ static struct dentry *create_profile_file(struct dentry *dir, const char *name,
 					  struct aa_profile *profile,
 					  const struct file_operations *fops)
 {
-	struct aa_replacedby *r = aa_get_replacedby(profile->replacedby);
+	struct aa_proxy *proxy = aa_get_proxy(profile->proxy);
 	struct dentry *dent;
 
-	dent = securityfs_create_file(name, S_IFREG | 0444, dir, r, fops);
+	dent = securityfs_create_file(name, S_IFREG | 0444, dir, proxy, fops);
 	if (IS_ERR(dent))
-		aa_put_replacedby(r);
+		aa_put_proxy(proxy);
 
 	return dent;
 }
@@ -460,6 +764,29 @@ int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 		profile->dents[AAFS_PROF_HASH] = dent;
 	}
 
+	if (profile->rawdata) {
+		dent = create_profile_file(dir, "raw_sha1", profile,
+					   &aa_fs_seq_raw_hash_fops);
+		if (IS_ERR(dent))
+			goto fail;
+		profile->dents[AAFS_PROF_RAW_HASH] = dent;
+
+		dent = create_profile_file(dir, "raw_abi", profile,
+					   &aa_fs_seq_raw_abi_fops);
+		if (IS_ERR(dent))
+			goto fail;
+		profile->dents[AAFS_PROF_RAW_ABI] = dent;
+
+		dent = securityfs_create_file("raw_data", S_IFREG | 0444, dir,
+					      profile->proxy,
+					      &aa_fs_rawdata_fops);
+		if (IS_ERR(dent))
+			goto fail;
+		profile->dents[AAFS_PROF_RAW_DATA] = dent;
+		d_inode(dent)->i_size = profile->rawdata->size;
+		aa_get_proxy(profile->proxy);
+	}
+
 	list_for_each_entry(child, &profile->base.profiles, base.list) {
 		error = __aa_fs_profile_mkdir(child, prof_child_dir(profile));
 		if (error)
@@ -477,9 +804,9 @@ fail2:
 	return error;
 }
 
-void __aa_fs_namespace_rmdir(struct aa_namespace *ns)
+void __aa_fs_ns_rmdir(struct aa_ns *ns)
 {
-	struct aa_namespace *sub;
+	struct aa_ns *sub;
 	struct aa_profile *child;
 	int i;
 
@@ -491,8 +818,25 @@ void __aa_fs_namespace_rmdir(struct aa_namespace *ns)
 
 	list_for_each_entry(sub, &ns->sub_ns, base.list) {
 		mutex_lock(&sub->lock);
-		__aa_fs_namespace_rmdir(sub);
+		__aa_fs_ns_rmdir(sub);
 		mutex_unlock(&sub->lock);
+	}
+
+	if (ns_subns_dir(ns)) {
+		sub = d_inode(ns_subns_dir(ns))->i_private;
+		aa_put_ns(sub);
+	}
+	if (ns_subload(ns)) {
+		sub = d_inode(ns_subload(ns))->i_private;
+		aa_put_ns(sub);
+	}
+	if (ns_subreplace(ns)) {
+		sub = d_inode(ns_subreplace(ns))->i_private;
+		aa_put_ns(sub);
+	}
+	if (ns_subremove(ns)) {
+		sub = d_inode(ns_subremove(ns))->i_private;
+		aa_put_ns(sub);
 	}
 
 	for (i = AAFS_NS_SIZEOF - 1; i >= 0; --i) {
@@ -501,41 +845,89 @@ void __aa_fs_namespace_rmdir(struct aa_namespace *ns)
 	}
 }
 
-int __aa_fs_namespace_mkdir(struct aa_namespace *ns, struct dentry *parent,
-			    const char *name)
+/* assumes cleanup in caller */
+static int __aa_fs_ns_mkdir_entries(struct aa_ns *ns, struct dentry *dir)
 {
-	struct aa_namespace *sub;
+	struct dentry *dent;
+
+	AA_BUG(!ns);
+	AA_BUG(!dir);
+
+	dent = securityfs_create_dir("profiles", dir);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	ns_subprofs_dir(ns) = dent;
+
+	dent = securityfs_create_dir("raw_data", dir);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	ns_subdata_dir(ns) = dent;
+
+	dent = securityfs_create_file(".load", 0640, dir, ns,
+				      &aa_fs_profile_load);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subload(ns) = dent;
+
+	dent = securityfs_create_file(".replace", 0640, dir, ns,
+				      &aa_fs_profile_replace);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subreplace(ns) = dent;
+
+	dent = securityfs_create_file(".remove", 0640, dir, ns,
+				      &aa_fs_profile_remove);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subremove(ns) = dent;
+
+	dent = securityfs_create_dir("namespaces", dir);
+	if (IS_ERR(dent))
+		return PTR_ERR(dent);
+	aa_get_ns(ns);
+	ns_subns_dir(ns) = dent;
+
+	return 0;
+}
+
+int __aa_fs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name)
+{
+	struct aa_ns *sub;
 	struct aa_profile *child;
 	struct dentry *dent, *dir;
 	int error;
 
+	AA_BUG(!ns);
+	AA_BUG(!parent);
+	AA_BUG(!mutex_is_locked(&ns->lock));
+
 	if (!name)
 		name = ns->base.name;
 
+	/* create ns dir if it doesn't already exist */
 	dent = securityfs_create_dir(name, parent);
 	if (IS_ERR(dent))
 		goto fail;
+
 	ns_dir(ns) = dir = dent;
+	error = __aa_fs_ns_mkdir_entries(ns, dir);
+	if (error)
+		goto fail2;
 
-	dent = securityfs_create_dir("profiles", dir);
-	if (IS_ERR(dent))
-		goto fail;
-	ns_subprofs_dir(ns) = dent;
-
-	dent = securityfs_create_dir("namespaces", dir);
-	if (IS_ERR(dent))
-		goto fail;
-	ns_subns_dir(ns) = dent;
-
+	/* profiles */
 	list_for_each_entry(child, &ns->base.profiles, base.list) {
 		error = __aa_fs_profile_mkdir(child, ns_subprofs_dir(ns));
 		if (error)
 			goto fail2;
 	}
 
+	/* subnamespaces */
 	list_for_each_entry(sub, &ns->sub_ns, base.list) {
 		mutex_lock(&sub->lock);
-		error = __aa_fs_namespace_mkdir(sub, ns_subns_dir(ns), NULL);
+		error = __aa_fs_ns_mkdir(sub, ns_subns_dir(ns), NULL);
 		mutex_unlock(&sub->lock);
 		if (error)
 			goto fail2;
@@ -547,7 +939,7 @@ fail:
 	error = PTR_ERR(dent);
 
 fail2:
-	__aa_fs_namespace_rmdir(ns);
+	__aa_fs_ns_rmdir(ns);
 
 	return error;
 }
@@ -556,7 +948,7 @@ fail2:
 #define list_entry_is_head(pos, head, member) (&pos->member == (head))
 
 /**
- * __next_namespace - find the next namespace to list
+ * __next_ns - find the next namespace to list
  * @root: root namespace to stop search at (NOT NULL)
  * @ns: current ns position (NOT NULL)
  *
@@ -567,10 +959,9 @@ fail2:
  * Requires: ns->parent->lock to be held
  * NOTE: will not unlock root->lock
  */
-static struct aa_namespace *__next_namespace(struct aa_namespace *root,
-					     struct aa_namespace *ns)
+static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
 {
-	struct aa_namespace *parent, *next;
+	struct aa_ns *parent, *next;
 
 	/* is next namespace a child */
 	if (!list_empty(&ns->sub_ns)) {
@@ -603,10 +994,10 @@ static struct aa_namespace *__next_namespace(struct aa_namespace *root,
  * Returns: unrefcounted profile or NULL if no profile
  * Requires: profile->ns.lock to be held
  */
-static struct aa_profile *__first_profile(struct aa_namespace *root,
-					  struct aa_namespace *ns)
+static struct aa_profile *__first_profile(struct aa_ns *root,
+					  struct aa_ns *ns)
 {
-	for (; ns; ns = __next_namespace(root, ns)) {
+	for (; ns; ns = __next_ns(root, ns)) {
 		if (!list_empty(&ns->base.profiles))
 			return list_first_entry(&ns->base.profiles,
 						struct aa_profile, base.list);
@@ -626,7 +1017,7 @@ static struct aa_profile *__first_profile(struct aa_namespace *root,
 static struct aa_profile *__next_profile(struct aa_profile *p)
 {
 	struct aa_profile *parent;
-	struct aa_namespace *ns = p->ns;
+	struct aa_ns *ns = p->ns;
 
 	/* is next profile a child */
 	if (!list_empty(&p->base.profiles))
@@ -660,7 +1051,7 @@ static struct aa_profile *__next_profile(struct aa_profile *p)
  *
  * Returns: next profile or NULL if there isn't one
  */
-static struct aa_profile *next_profile(struct aa_namespace *root,
+static struct aa_profile *next_profile(struct aa_ns *root,
 				       struct aa_profile *profile)
 {
 	struct aa_profile *next = __next_profile(profile);
@@ -668,7 +1059,7 @@ static struct aa_profile *next_profile(struct aa_namespace *root,
 		return next;
 
 	/* finished all profiles in namespace move to next namespace */
-	return __first_profile(root, __next_namespace(root, profile->ns));
+	return __first_profile(root, __next_ns(root, profile->ns));
 }
 
 /**
@@ -683,9 +1074,9 @@ static struct aa_profile *next_profile(struct aa_namespace *root,
 static void *p_start(struct seq_file *f, loff_t *pos)
 {
 	struct aa_profile *profile = NULL;
-	struct aa_namespace *root = aa_current_profile()->ns;
+	struct aa_ns *root = aa_current_profile()->ns;
 	loff_t l = *pos;
-	f->private = aa_get_namespace(root);
+	f->private = aa_get_ns(root);
 
 
 	/* find the first profile */
@@ -712,7 +1103,7 @@ static void *p_start(struct seq_file *f, loff_t *pos)
 static void *p_next(struct seq_file *f, void *p, loff_t *pos)
 {
 	struct aa_profile *profile = p;
-	struct aa_namespace *ns = f->private;
+	struct aa_ns *ns = f->private;
 	(*pos)++;
 
 	return next_profile(ns, profile);
@@ -728,14 +1119,14 @@ static void *p_next(struct seq_file *f, void *p, loff_t *pos)
 static void p_stop(struct seq_file *f, void *p)
 {
 	struct aa_profile *profile = p;
-	struct aa_namespace *root = f->private, *ns;
+	struct aa_ns *root = f->private, *ns;
 
 	if (profile) {
 		for (ns = profile->ns; ns && ns != root; ns = ns->parent)
 			mutex_unlock(&ns->lock);
 	}
 	mutex_unlock(&root->lock);
-	aa_put_namespace(root);
+	aa_put_ns(root);
 }
 
 /**
@@ -748,10 +1139,10 @@ static void p_stop(struct seq_file *f, void *p)
 static int seq_show_profile(struct seq_file *f, void *p)
 {
 	struct aa_profile *profile = (struct aa_profile *)p;
-	struct aa_namespace *root = f->private;
+	struct aa_ns *root = f->private;
 
 	if (profile->ns != root)
-		seq_printf(f, ":%s://", aa_ns_name(root, profile->ns));
+		seq_printf(f, ":%s://", aa_ns_name(root, profile->ns, true));
 	seq_printf(f, "%s (%s)\n", profile->base.hname,
 		   aa_profile_mode_names[profile->mode]);
 
@@ -767,6 +1158,9 @@ static const struct seq_operations aa_fs_profiles_op = {
 
 static int profiles_open(struct inode *inode, struct file *file)
 {
+	if (!policy_view_capable(NULL))
+		return -EACCES;
+
 	return seq_open(file, &aa_fs_profiles_op);
 }
 
@@ -795,12 +1189,20 @@ static struct aa_fs_entry aa_fs_entry_domain[] = {
 	AA_FS_FILE_BOOLEAN("change_hatv",	1),
 	AA_FS_FILE_BOOLEAN("change_onexec",	1),
 	AA_FS_FILE_BOOLEAN("change_profile",	1),
+	AA_FS_FILE_BOOLEAN("fix_binfmt_elf_mmap",	1),
+	AA_FS_FILE_STRING("version", "1.2"),
+	{ }
+};
+
+static struct aa_fs_entry aa_fs_entry_versions[] = {
+	AA_FS_FILE_BOOLEAN("v5",	1),
 	{ }
 };
 
 static struct aa_fs_entry aa_fs_entry_policy[] = {
-	AA_FS_FILE_BOOLEAN("set_load",          1),
-	{}
+	AA_FS_DIR("versions",                   aa_fs_entry_versions),
+	AA_FS_FILE_BOOLEAN("set_load",		1),
+	{ }
 };
 
 static struct aa_fs_entry aa_fs_entry_features[] = {
@@ -814,10 +1216,10 @@ static struct aa_fs_entry aa_fs_entry_features[] = {
 };
 
 static struct aa_fs_entry aa_fs_entry_apparmor[] = {
-	AA_FS_FILE_FOPS(".load", 0640, &aa_fs_profile_load),
-	AA_FS_FILE_FOPS(".replace", 0640, &aa_fs_profile_replace),
-	AA_FS_FILE_FOPS(".remove", 0640, &aa_fs_profile_remove),
-	AA_FS_FILE_FOPS("profiles", 0640, &aa_fs_profiles_fops),
+	AA_FS_FILE_FOPS(".access", 0640, &aa_fs_access),
+	AA_FS_FILE_FOPS(".ns_level", 0666, &aa_fs_ns_level),
+	AA_FS_FILE_FOPS(".ns_name", 0640, &aa_fs_ns_name),
+	AA_FS_FILE_FOPS("profiles", 0440, &aa_fs_profiles_fops),
 	AA_FS_DIR("features", aa_fs_entry_features),
 	{ }
 };
@@ -926,6 +1328,52 @@ void __init aa_destroy_aafs(void)
 	aafs_remove_dir(&aa_fs_entry);
 }
 
+
+#define NULL_FILE_NAME ".null"
+struct path aa_null;
+
+static int aa_mk_null_file(struct dentry *parent)
+{
+	struct vfsmount *mount = NULL;
+	struct dentry *dentry;
+	struct inode *inode;
+	int count = 0;
+	int error = simple_pin_fs(parent->d_sb->s_type, &mount, &count);
+
+	if (error)
+		return error;
+
+	inode_lock(d_inode(parent));
+	dentry = lookup_one_len(NULL_FILE_NAME, parent, strlen(NULL_FILE_NAME));
+	if (IS_ERR(dentry)) {
+		error = PTR_ERR(dentry);
+		goto out;
+	}
+	inode = new_inode(parent->d_inode->i_sb);
+	if (!inode) {
+		error = -ENOMEM;
+		goto out1;
+	}
+
+	inode->i_ino = get_next_ino();
+	inode->i_mode = S_IFCHR | S_IRUGO | S_IWUGO;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	init_special_inode(inode, S_IFCHR | S_IRUGO | S_IWUGO,
+			   MKDEV(MEM_MAJOR, 3));
+	d_instantiate(dentry, inode);
+	aa_null.dentry = dget(dentry);
+	aa_null.mnt = mntget(mount);
+
+	error = 0;
+
+out1:
+	dput(dentry);
+out:
+	inode_unlock(d_inode(parent));
+	simple_release_fs(&mount, &count);
+	return error;
+}
+
 /**
  * aa_create_aafs - create the apparmor security filesystem
  *
@@ -935,6 +1383,7 @@ void __init aa_destroy_aafs(void)
  */
 static int __init aa_create_aafs(void)
 {
+	struct dentry *dent;
 	int error;
 
 	if (!apparmor_initialized)
@@ -950,12 +1399,42 @@ static int __init aa_create_aafs(void)
 	if (error)
 		goto error;
 
-	error = __aa_fs_namespace_mkdir(root_ns, aa_fs_entry.dentry,
-					"policy");
+	dent = securityfs_create_file(".load", 0666, aa_fs_entry.dentry,
+				      NULL, &aa_fs_profile_load);
+	if (IS_ERR(dent)) {
+		error = PTR_ERR(dent);
+		goto error;
+	}
+	ns_subload(root_ns) = dent;
+
+	dent = securityfs_create_file(".replace", 0666, aa_fs_entry.dentry,
+				      NULL, &aa_fs_profile_replace);
+	if (IS_ERR(dent)) {
+		error = PTR_ERR(dent);
+		goto error;
+	}
+	ns_subreplace(root_ns) = dent;
+
+	dent = securityfs_create_file(".remove", 0666, aa_fs_entry.dentry,
+				      NULL, &aa_fs_profile_remove);
+	if (IS_ERR(dent)) {
+		error = PTR_ERR(dent);
+		goto error;
+	}
+	ns_subremove(root_ns) = dent;
+
+	mutex_lock(&root_ns->lock);
+	error = __aa_fs_ns_mkdir(root_ns, aa_fs_entry.dentry, "policy");
+	mutex_unlock(&root_ns->lock);
+
 	if (error)
 		goto error;
 
-	/* TODO: add support for apparmorfs_null and apparmorfs_mnt */
+	error = aa_mk_null_file(aa_fs_entry.dentry);
+	if (error)
+		goto error;
+
+	/* TODO: add default profile to apparmorfs */
 
 	/* Report that AppArmor fs is enabled */
 	aa_info_message("AppArmor Filesystem Enabled");

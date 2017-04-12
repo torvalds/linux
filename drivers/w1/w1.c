@@ -1,8 +1,5 @@
 /*
- *	w1.c
- *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/delay.h>
@@ -53,8 +46,8 @@ int w1_max_slave_ttl = 10;
 module_param_named(timeout, w1_timeout, int, 0);
 MODULE_PARM_DESC(timeout, "time in seconds between automatic slave searches");
 module_param_named(timeout_us, w1_timeout_us, int, 0);
-MODULE_PARM_DESC(timeout, "time in microseconds between automatic slave"
-		          " searches");
+MODULE_PARM_DESC(timeout_us,
+		 "time in microseconds between automatic slave searches");
 /* A search stops when w1_max_slave_count devices have been found in that
  * search.  The next search will start over and detect the same set of devices
  * on a static 1-wire bus.  Memory is not allocated based on this number, just
@@ -763,6 +756,7 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 		dev_err(&dev->dev, "%s: Attaching %s failed.\n", __func__,
 			 sl->name);
 		w1_family_put(sl->family);
+		atomic_dec(&sl->master->refcnt);
 		kfree(sl);
 		return err;
 	}

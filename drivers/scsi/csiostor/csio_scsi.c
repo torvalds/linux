@@ -1721,7 +1721,7 @@ out:
 
 	/* Wake up waiting threads */
 	csio_scsi_cmnd(req) = NULL;
-	complete_all(&req->cmplobj);
+	complete(&req->cmplobj);
 }
 
 /*
@@ -1945,6 +1945,7 @@ csio_eh_abort_handler(struct scsi_cmnd *cmnd)
 	ready = csio_is_lnode_ready(ln);
 	tmo = CSIO_SCSI_ABRT_TMO_MS;
 
+	reinit_completion(&ioreq->cmplobj);
 	spin_lock_irq(&hw->lock);
 	rv = csio_do_abrt_cls(hw, ioreq, (ready ? SCSI_ABORT : SCSI_CLOSE));
 	spin_unlock_irq(&hw->lock);
@@ -1964,8 +1965,6 @@ csio_eh_abort_handler(struct scsi_cmnd *cmnd)
 		goto inval_scmnd;
 	}
 
-	/* Wait for completion */
-	init_completion(&ioreq->cmplobj);
 	wait_for_completion_timeout(&ioreq->cmplobj, msecs_to_jiffies(tmo));
 
 	/* FW didnt respond to abort within our timeout */
@@ -2271,6 +2270,7 @@ struct scsi_host_template csio_fcoe_shost_template = {
 	.name			= CSIO_DRV_DESC,
 	.proc_name		= KBUILD_MODNAME,
 	.queuecommand		= csio_queuecommand,
+	.eh_timed_out		= fc_eh_timed_out,
 	.eh_abort_handler	= csio_eh_abort_handler,
 	.eh_device_reset_handler = csio_eh_lun_reset_handler,
 	.slave_alloc		= csio_slave_alloc,
@@ -2290,6 +2290,7 @@ struct scsi_host_template csio_fcoe_shost_vport_template = {
 	.name			= CSIO_DRV_DESC,
 	.proc_name		= KBUILD_MODNAME,
 	.queuecommand		= csio_queuecommand,
+	.eh_timed_out		= fc_eh_timed_out,
 	.eh_abort_handler	= csio_eh_abort_handler,
 	.eh_device_reset_handler = csio_eh_lun_reset_handler,
 	.slave_alloc		= csio_slave_alloc,

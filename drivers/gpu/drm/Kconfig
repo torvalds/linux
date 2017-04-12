@@ -6,12 +6,13 @@
 #
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU && HAS_DMA
+	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && HAS_DMA
 	select HDMI
 	select FB_CMDLINE
 	select I2C
 	select I2C_ALGOBIT
 	select DMA_SHARED_BUFFER
+	select SYNC_FILE
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select
@@ -32,6 +33,35 @@ config DRM_DP_AUX_CHARDEV
 	  Choose this option to enable a /dev/drm_dp_auxN node that allows to
 	  read and write values to arbitrary DPCD registers on the DP aux
 	  channel.
+
+config DRM_DEBUG_MM
+	bool "Insert extra checks and debug info into the DRM range managers"
+	default n
+	depends on DRM=y
+	depends on STACKTRACE_SUPPORT
+	select STACKDEPOT
+	help
+	  Enable allocation tracking of memory manager and leak detection on
+	  shutdown.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_DEBUG_MM_SELFTEST
+	tristate "kselftests for DRM range manager (struct drm_mm)"
+	depends on DRM
+	depends on DEBUG_KERNEL
+	select PRIME_NUMBERS
+	select DRM_LIB_RANDOM
+	default n
+	help
+	  This option provides a kernel module that can be used to test
+	  the DRM range manager (drm_mm) and its API. This option is not
+	  useful for distributions or general kernels, but only for kernel
+	  developers working on DRM and associated drivers.
+
+	  If in doubt, say "N".
 
 config DRM_KMS_HELPER
 	tristate
@@ -83,7 +113,7 @@ config DRM_LOAD_EDID_FIRMWARE
 
 config DRM_TTM
 	tristate
-	depends on DRM
+	depends on DRM && MMU
 	help
 	  GPU memory management subsystem for devices with multiple
 	  GPU memory types. Will be enabled automatically if a device driver
@@ -106,35 +136,19 @@ config DRM_KMS_CMA_HELPER
 	help
 	  Choose this if you need the KMS CMA helper functions
 
-source "drivers/gpu/drm/i2c/Kconfig"
+config DRM_VM
+	bool
+	depends on DRM && MMU
 
-config DRM_TDFX
-	tristate "3dfx Banshee/Voodoo3+"
-	depends on DRM && PCI
-	help
-	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
-	  graphics card.  If M is selected, the module will be called tdfx.
+source "drivers/gpu/drm/i2c/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"
 
-config DRM_R128
-	tristate "ATI Rage 128"
-	depends on DRM && PCI
-	select FW_LOADER
-	help
-	  Choose this option if you have an ATI Rage 128 graphics card.  If M
-	  is selected, the module will be called r128.  AGP support for
-	  this card is strongly suggested (unless you have a PCI version).
-
 config DRM_RADEON
 	tristate "ATI Radeon"
-	depends on DRM && PCI
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	depends on DRM && PCI && MMU
 	select FW_LOADER
         select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
@@ -152,13 +166,9 @@ source "drivers/gpu/drm/radeon/Kconfig"
 
 config DRM_AMDGPU
 	tristate "AMD GPU"
-	depends on DRM && PCI
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	depends on DRM && PCI && MMU
 	select FW_LOADER
         select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON
@@ -171,54 +181,10 @@ config DRM_AMDGPU
 	  If M is selected, the module will be called amdgpu.
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
-source "drivers/gpu/drm/amd/powerplay/Kconfig"
-
-source "drivers/gpu/drm/amd/acp/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 
-config DRM_I810
-	tristate "Intel I810"
-	# !PREEMPT because of missing ioctl locking
-	depends on DRM && AGP && AGP_INTEL && (!PREEMPT || BROKEN)
-	help
-	  Choose this option if you have an Intel I810 graphics card.  If M is
-	  selected, the module will be called i810.  AGP support is required
-	  for this driver to work.
-
 source "drivers/gpu/drm/i915/Kconfig"
-
-config DRM_MGA
-	tristate "Matrox g200/g400"
-	depends on DRM && PCI
-	select FW_LOADER
-	help
-	  Choose this option if you have a Matrox G200, G400 or G450 graphics
-	  card.  If M is selected, the module will be called mga.  AGP
-	  support is required for this driver to work.
-
-config DRM_SIS
-	tristate "SiS video cards"
-	depends on DRM && AGP
-	depends on FB_SIS || FB_SIS=n
-	help
-	  Choose this option if you have a SiS 630 or compatible video
-          chipset. If M is selected the module will be called sis. AGP
-          support is required for this driver to work.
-
-config DRM_VIA
-	tristate "Via unichrome video cards"
-	depends on DRM && PCI
-	help
-	  Choose this option if you have a Via unichrome or compatible video
-	  chipset. If M is selected the module will be called via.
-
-config DRM_SAVAGE
-	tristate "Savage video cards"
-	depends on DRM && PCI
-	help
-	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
-	  chipset. If M is selected the module will be called savage.
 
 config DRM_VGEM
 	tristate "Virtual GEM provider"
@@ -290,3 +256,94 @@ source "drivers/gpu/drm/arc/Kconfig"
 source "drivers/gpu/drm/hisilicon/Kconfig"
 
 source "drivers/gpu/drm/mediatek/Kconfig"
+
+source "drivers/gpu/drm/zte/Kconfig"
+
+source "drivers/gpu/drm/mxsfb/Kconfig"
+
+source "drivers/gpu/drm/meson/Kconfig"
+
+source "drivers/gpu/drm/tinydrm/Kconfig"
+
+# Keep legacy drivers last
+
+menuconfig DRM_LEGACY
+	bool "Enable legacy drivers (DANGEROUS)"
+	depends on DRM && MMU
+	select DRM_VM
+	help
+	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
+	  APIs to user-space, which can be used to circumvent access
+	  restrictions and other security measures. For backwards compatibility
+	  those drivers are still available, but their use is highly
+	  inadvisable and might harm your system.
+
+	  You are recommended to use the safe modeset-only drivers instead, and
+	  perform 3D emulation in user-space.
+
+	  Unless you have strong reasons to go rogue, say "N".
+
+if DRM_LEGACY
+
+config DRM_TDFX
+	tristate "3dfx Banshee/Voodoo3+"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
+	  graphics card.  If M is selected, the module will be called tdfx.
+
+config DRM_R128
+	tristate "ATI Rage 128"
+	depends on DRM && PCI
+	select FW_LOADER
+	help
+	  Choose this option if you have an ATI Rage 128 graphics card.  If M
+	  is selected, the module will be called r128.  AGP support for
+	  this card is strongly suggested (unless you have a PCI version).
+
+config DRM_I810
+	tristate "Intel I810"
+	# !PREEMPT because of missing ioctl locking
+	depends on DRM && AGP && AGP_INTEL && (!PREEMPT || BROKEN)
+	help
+	  Choose this option if you have an Intel I810 graphics card.  If M is
+	  selected, the module will be called i810.  AGP support is required
+	  for this driver to work.
+
+config DRM_MGA
+	tristate "Matrox g200/g400"
+	depends on DRM && PCI
+	select FW_LOADER
+	help
+	  Choose this option if you have a Matrox G200, G400 or G450 graphics
+	  card.  If M is selected, the module will be called mga.  AGP
+	  support is required for this driver to work.
+
+config DRM_SIS
+	tristate "SiS video cards"
+	depends on DRM && AGP
+	depends on FB_SIS || FB_SIS=n
+	help
+	  Choose this option if you have a SiS 630 or compatible video
+	  chipset. If M is selected the module will be called sis. AGP
+	  support is required for this driver to work.
+
+config DRM_VIA
+	tristate "Via unichrome video cards"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have a Via unichrome or compatible video
+	  chipset. If M is selected the module will be called via.
+
+config DRM_SAVAGE
+	tristate "Savage video cards"
+	depends on DRM && PCI
+	help
+	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
+	  chipset. If M is selected the module will be called savage.
+
+endif # DRM_LEGACY
+
+config DRM_LIB_RANDOM
+	bool
+	default n

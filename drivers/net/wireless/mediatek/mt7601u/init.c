@@ -108,8 +108,9 @@ static void mt7601u_init_usb_dma(struct mt7601u_dev *dev)
 {
 	u32 val;
 
-	val = MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, MT_USB_AGGR_TIMEOUT) |
-	      MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_LMT, MT_USB_AGGR_SIZE_LIMIT) |
+	val = FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, MT_USB_AGGR_TIMEOUT) |
+	      FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_LMT,
+			 MT_USB_AGGR_SIZE_LIMIT) |
 	      MT_USB_DMA_CFG_RX_BULK_EN |
 	      MT_USB_DMA_CFG_TX_BULK_EN;
 	if (dev->in_max_packet == 512)
@@ -292,13 +293,13 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 	ok = 0;
 	i = 200;
 	while (i--) {
-		if ((mt76_rr(dev, 0x0430) & 0x00ff0000) ||
-		    (mt76_rr(dev, 0x0a30) & 0xffffffff) ||
-		    (mt76_rr(dev, 0x0a34) & 0xffffffff))
-			ok++;
-		if (ok > 6)
-			break;
-
+		if (!(mt76_rr(dev, MT_RXQ_STA) & 0x00ff0000) &&
+		    !mt76_rr(dev, 0x0a30) &&
+		    !mt76_rr(dev, 0x0a34)) {
+			if (ok++ > 5)
+				break;
+			continue;
+		}
 		msleep(1);
 	}
 
@@ -396,8 +397,9 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	mt7601u_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 
-	mt7601u_wr(dev, MT_TXOP_CTRL_CFG, MT76_SET(MT_TXOP_TRUN_EN, 0x3f) |
-					  MT76_SET(MT_TXOP_EXT_CCA_DLY, 0x58));
+	mt7601u_wr(dev, MT_TXOP_CTRL_CFG,
+		   FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
+		   FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
 
 	ret = mt7601u_eeprom_init(dev);
 	if (ret)

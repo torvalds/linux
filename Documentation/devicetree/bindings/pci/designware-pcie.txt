@@ -17,6 +17,8 @@ Required properties:
 - num-lanes: number of lanes to use
 
 Optional properties:
+- num-viewport: number of view ports configured in hardware.  If a platform
+  does not specify it, the driver assumes 2.
 - num-lanes: number of lanes to use (this property should be specified unless
   the link is brought already up in BIOS)
 - reset-gpio: gpio pin number of power good signal
@@ -44,4 +46,5 @@ Example configuration:
 		interrupts = <25>, <24>;
 		#interrupt-cells = <1>;
 		num-lanes = <1>;
+		num-viewport = <3>;
 	};

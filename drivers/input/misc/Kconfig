@@ -234,16 +234,6 @@ config INPUT_MMA8450
 	  To compile this driver as a module, choose M here: the
 	  module will be called mma8450.
 
-config INPUT_MPU3050
-	tristate "MPU3050 Triaxial gyroscope sensor"
-	depends on I2C
-	help
-	  Say Y here if you want to support InvenSense MPU3050
-	  connected via an I2C bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mpu3050.
-
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS
@@ -291,6 +281,18 @@ config INPUT_GPIO_TILT_POLLED
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_tilt_polled.
+
+config INPUT_GPIO_DECODER
+	tristate "Polled GPIO Decoder Input driver"
+	depends on GPIOLIB || COMPILE_TEST
+	select INPUT_POLLDEV
+	help
+	 Say Y here if you want driver to read status of multiple GPIO
+	 lines and report the encoded value as an absolute integer to
+	 input subsystem.
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called gpio_decoder.
 
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
@@ -454,10 +456,10 @@ config INPUT_RETU_PWRBUTTON
 
 config INPUT_TPS65218_PWRBUTTON
 	tristate "TPS65218 Power button driver"
-	depends on MFD_TPS65218
+	depends on (MFD_TPS65217 || MFD_TPS65218)
 	help
 	  Say Y here if you want to enable power buttong reporting for
-	  the TPS65218 Power Management IC device.
+	  TPS65217 and TPS65218 Power Management IC devices.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called tps65218-pwrbutton.
@@ -613,11 +615,12 @@ config INPUT_DA9055_ONKEY
 	  will be called da9055_onkey.
 
 config INPUT_DA9063_ONKEY
-	tristate "Dialog DA9062/63 OnKey"
+	tristate "Dialog DA9063/62/61 OnKey"
 	depends on MFD_DA9063 || MFD_DA9062
 	help
-	  Support the ONKEY of Dialog DA9063 and DA9062 Power Management ICs
-	  as an input device capable of reporting the power button status.
+	  Support the ONKEY of Dialog DA9063, DA9062 and DA9061 Power
+	  Management ICs as an input device capable of reporting the
+	  power button status.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9063_onkey.

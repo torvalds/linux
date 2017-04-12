@@ -130,6 +130,7 @@ enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 				 int xattr_len)
 {
 	struct signature_v2_hdr *sig;
+	enum hash_algo ret;
 
 	if (!xattr_value || xattr_len < 2)
 		/* return default hash algo */
@@ -143,7 +144,9 @@ enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 		return sig->hash_algo;
 		break;
 	case IMA_XATTR_DIGEST_NG:
-		return xattr_value->digest[0];
+		ret = xattr_value->digest[0];
+		if (ret < HASH_ALGO__LAST)
+			return ret;
 		break;
 	case IMA_XATTR_DIGEST:
 		/* this is for backward compatibility */
@@ -165,13 +168,13 @@ enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 int ima_read_xattr(struct dentry *dentry,
 		   struct evm_ima_xattr_data **xattr_value)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	ssize_t ret;
 
-	if (!inode->i_op->getxattr)
-		return 0;
-
-	return vfs_getxattr_alloc(dentry, XATTR_NAME_IMA, (char **)xattr_value,
-				  0, GFP_NOFS);
+	ret = vfs_getxattr_alloc(dentry, XATTR_NAME_IMA, (char **)xattr_value,
+				 0, GFP_NOFS);
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
+	return ret;
 }
 
 /*
@@ -190,12 +193,12 @@ int ima_appraise_measurement(enum ima_hooks func,
 {
 	static const char op[] = "appraise_data";
 	char *cause = "unknown";
-	struct dentry *dentry = file->f_path.dentry;
+	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = d_backing_inode(dentry);
 	enum integrity_status status = INTEGRITY_UNKNOWN;
 	int rc = xattr_len, hash_start = 0;
 
-	if (!inode->i_op->getxattr)
+	if (!(inode->i_opflags & IOP_XATTR))
 		return INTEGRITY_UNKNOWN;
 
 	if (rc <= 0) {
@@ -295,7 +298,7 @@ out:
  */
 void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
+	struct dentry *dentry = file_dentry(file);
 	int rc = 0;
 
 	/* do not collect and update hash for digital signatures */
@@ -322,10 +325,10 @@ void ima_inode_post_setattr(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
 	struct integrity_iint_cache *iint;
-	int must_appraise, rc;
+	int must_appraise;
 
 	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode)
-	    || !inode->i_op->removexattr)
+	    || !(inode->i_opflags & IOP_XATTR))
 		return;
 
 	must_appraise = ima_must_appraise(inode, MAY_ACCESS, POST_SETATTR);
@@ -338,8 +341,7 @@ void ima_inode_post_setattr(struct dentry *dentry)
 			iint->flags |= IMA_APPRAISE;
 	}
 	if (!must_appraise)
-		rc = inode->i_op->removexattr(dentry, XATTR_NAME_IMA);
-	return;
+		__vfs_removexattr(dentry, XATTR_NAME_IMA);
 }
 
 /*
@@ -385,14 +387,10 @@ int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 	result = ima_protect_xattr(dentry, xattr_name, xattr_value,
 				   xattr_value_len);
 	if (result == 1) {
-		bool digsig;
-
 		if (!xattr_value_len || (xvalue->type >= IMA_XATTR_LAST))
 			return -EINVAL;
-		digsig = (xvalue->type == EVM_IMA_XATTR_DIGSIG);
-		if (!digsig && (ima_appraise & IMA_APPRAISE_ENFORCE))
-			return -EPERM;
-		ima_reset_appraise_flags(d_backing_inode(dentry), digsig);
+		ima_reset_appraise_flags(d_backing_inode(dentry),
+			 (xvalue->type == EVM_IMA_XATTR_DIGSIG) ? 1 : 0);
 		result = 0;
 	}
 	return result;

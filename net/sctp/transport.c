@@ -72,7 +72,7 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	 */
 	peer->rto = msecs_to_jiffies(net->sctp.rto_initial);
 
-	peer->last_time_heard = ktime_set(0, 0);
+	peer->last_time_heard = 0;
 	peer->last_time_ecne_reduced = jiffies;
 
 	peer->param_flags = SPP_HB_DISABLE |
@@ -88,9 +88,11 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	INIT_LIST_HEAD(&peer->transports);
 
 	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
-			(unsigned long)peer);
+		    (unsigned long)peer);
 	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
-			(unsigned long)peer);
+		    (unsigned long)peer);
+	setup_timer(&peer->reconf_timer, sctp_generate_reconf_event,
+		    (unsigned long)peer);
 	setup_timer(&peer->proto_unreach_timer,
 		    sctp_generate_proto_unreach_event, (unsigned long)peer);
 
@@ -142,6 +144,9 @@ void sctp_transport_free(struct sctp_transport *transport)
 	 * the tranport is going away.
 	 */
 	if (del_timer(&transport->T3_rtx_timer))
+		sctp_transport_put(transport);
+
+	if (del_timer(&transport->reconf_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
@@ -211,6 +216,14 @@ void sctp_transport_reset_hb_timer(struct sctp_transport *transport)
 		sctp_transport_hold(transport);
 }
 
+void sctp_transport_reset_reconf_timer(struct sctp_transport *transport)
+{
+	if (!timer_pending(&transport->reconf_timer))
+		if (!mod_timer(&transport->reconf_timer,
+			       jiffies + transport->rto))
+			sctp_transport_hold(transport);
+}
+
 /* This transport has been assigned to an association.
  * Initialize fields from the association or from the sock itself.
  * Register the reference count in the association.
@@ -227,25 +240,24 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 {
 	/* If we don't have a fresh route, look one up */
 	if (!transport->dst || transport->dst->obsolete) {
-		dst_release(transport->dst);
+		sctp_transport_dst_release(transport);
 		transport->af_specific->get_dst(transport, &transport->saddr,
 						&transport->fl, sk);
 	}
 
 	if (transport->dst) {
-		transport->pathmtu = WORD_TRUNC(dst_mtu(transport->dst));
+		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
-void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 pmtu)
+void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
-	struct dst_entry *dst;
+	struct dst_entry *dst = sctp_transport_dst_check(t);
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
 		pr_warn("%s: Reported pmtu %d too low, using default minimum of %d\n",
-			__func__, pmtu,
-			SCTP_DEFAULT_MINSEGMENT);
+			__func__, pmtu, SCTP_DEFAULT_MINSEGMENT);
 		/* Use default minimum segment size and disable
 		 * pmtu discovery on this transport.
 		 */
@@ -254,17 +266,13 @@ void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 p
 		t->pathmtu = pmtu;
 	}
 
-	dst = sctp_transport_dst_check(t);
-	if (!dst)
-		t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
-
 	if (dst) {
-		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
-
+		dst->ops->update_pmtu(dst, t->asoc->base.sk, NULL, pmtu);
 		dst = sctp_transport_dst_check(t);
-		if (!dst)
-			t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
 	}
+
+	if (!dst)
+		t->af_specific->get_dst(t, &t->saddr, &t->fl, t->asoc->base.sk);
 }
 
 /* Caches the dst entry and source address for a transport's destination
@@ -287,7 +295,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 		return;
 	}
 	if (transport->dst) {
-		transport->pathmtu = WORD_TRUNC(dst_mtu(transport->dst));
+		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
 
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().
@@ -630,9 +638,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->srtt = 0;
 	t->rttvar = 0;
 
-	/* Reset these additional varibles so that we have a clean
-	 * slate.
-	 */
+	/* Reset these additional variables so that we have a clean slate. */
 	t->partial_bytes_acked = 0;
 	t->flight_size = 0;
 	t->error_count = 0;
@@ -658,4 +664,18 @@ void sctp_transport_immediate_rtx(struct sctp_transport *t)
 		if (!mod_timer(&t->T3_rtx_timer, jiffies + t->rto))
 			sctp_transport_hold(t);
 	}
+}
+
+/* Drop dst */
+void sctp_transport_dst_release(struct sctp_transport *t)
+{
+	dst_release(t->dst);
+	t->dst = NULL;
+	t->dst_pending_confirm = 0;
+}
+
+/* Schedule neighbour confirm */
+void sctp_transport_dst_confirm(struct sctp_transport *t)
+{
+	t->dst_pending_confirm = 1;
 }

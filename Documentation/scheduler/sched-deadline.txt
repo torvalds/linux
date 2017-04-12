@@ -16,6 +16,7 @@ CONTENTS
    4.1 System-wide settings
    4.2 Task interface
    4.3 Default behavior
+   4.4 Behavior of sched_yield()
  5. Tasks CPU affinity
    5.1 SCHED_DEADLINE and cpusets HOWTO
  6. Future plans
@@ -407,6 +408,11 @@ CONTENTS
   * the new scheduling related syscalls that manipulate it, i.e.,
     sched_setattr() and sched_getattr() are implemented.
 
+ For debugging purposes, the leftover runtime and absolute deadline of a
+ SCHED_DEADLINE task can be retrieved through /proc/<pid>/sched (entries
+ dl.runtime and dl.deadline, both values in ns). A programmatic way to
+ retrieve these values from production code is under discussion.
+
 
 4.3 Default behavior
 ---------------------
@@ -425,6 +431,23 @@ CONTENTS
 
  Finally, notice that in order not to jeopardize the admission control a
  -deadline task cannot fork.
+
+
+4.4 Behavior of sched_yield()
+-----------------------------
+
+ When a SCHED_DEADLINE task calls sched_yield(), it gives up its
+ remaining runtime and is immediately throttled, until the next
+ period, when its runtime will be replenished (a special flag
+ dl_yielded is set and used to handle correctly throttling and runtime
+ replenishment after a call to sched_yield()).
+
+ This behavior of sched_yield() allows the task to wake-up exactly at
+ the beginning of the next period. Also, this may be useful in the
+ future with bandwidth reclaiming mechanisms, where sched_yield() will
+ make the leftoever runtime available for reclamation by other
+ SCHED_DEADLINE tasks.
+
 
 5. Tasks CPU affinity
 =====================
@@ -458,6 +481,7 @@ CONTENTS
 
  Still missing:
 
+  - programmatic way to retrieve current runtime and absolute deadline
   - refinements to deadline inheritance, especially regarding the possibility
     of retaining bandwidth isolation among non-interacting tasks. This is
     being studied from both theoretical and practical points of view, and

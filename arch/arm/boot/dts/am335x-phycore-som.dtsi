@@ -25,7 +25,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -33,7 +33,7 @@
 	regulators {
 		compatible = "simple-bus";
 
-		vcc5v: fixedregulator@0 {
+		vcc5v: fixedregulator0 {
 			compatible = "regulator-fixed";
 			regulator-name = "vcc5v";
 			regulator-min-microvolt = <5000000>;
@@ -78,7 +78,7 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&phy0>;
 	phy-mode = "rmii";
 	dual_emac_res_vlan = <1>;
 };
@@ -87,6 +87,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio_pins>;
 	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
 };
 
 &mac {
@@ -118,6 +122,12 @@
 
 	tps: pmic@2d {
 		reg = <0x2d>;
+	};
+
+	i2c_tmp102: temp@4b {
+		compatible = "ti,tmp102";
+		reg = <0x4b>;
+		status = "disabled";
 	};
 
 	i2c_eeprom: eeprom@52 {
@@ -201,43 +211,6 @@
 
 		#address-cells = <1>;
 		#size-cells = <1>;
-
-		partition@0 {
-			label = "xload";
-			reg = <0x0 0x20000>;
-		};
-		partition@1 {
-			label = "xload_backup1";
-			reg = <0x20000 0x20000>;
-		};
-		partition@2 {
-			label = "xload_backup2";
-			reg = <0x40000 0x20000>;
-		};
-		partition@3 {
-			label = "xload_backup3";
-			reg = <0x60000 0x20000>;
-		};
-		partition@4 {
-			label = "barebox";
-			reg = <0x80000 0x80000>;
-		};
-		partition@5 {
-			label = "bareboxenv";
-			reg = <0x100000 0x40000>;
-		};
-		partition@6 {
-			label = "oftree";
-			reg = <0x140000 0x40000>;
-		};
-		partition@7 {
-			label = "kernel";
-			reg = <0x180000 0x800000>;
-		};
-		partition@8 {
-			label = "root";
-			reg = <0x980000 0x0>;
-		};
 	};
 };
 
@@ -341,33 +314,12 @@
 	status = "okay";
 
 	serial_flash: m25p80@0 {
-		compatible = "m25p80";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <48000000>;
 		reg = <0x0>;
 		m25p,fast-read;
 		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <1>;
-
-		partition@0 {
-			label = "xload";
-			reg = <0x0 0x20000>;
-		};
-		partition@1 {
-			label = "barebox";
-			reg = <0x20000 0x80000>;
-		};
-		partition@2 {
-			label = "bareboxenv";
-			reg = <0xa0000 0x20000>;
-		};
-		partition@3 {
-			label = "oftree";
-			reg = <0xc0000 0x20000>;
-		};
-		partition@4 {
-			label = "kernel";
-			reg = <0xe0000 0x0>;
-		};
 	};
 };

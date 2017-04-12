@@ -53,12 +53,10 @@ static const struct of_device_id atmel_ramc_of_match[] = {
 
 static int atmel_ramc_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const struct at91_ramc_caps *caps;
 	struct clk *clk;
 
-	match = of_match_device(atmel_ramc_of_match, &pdev->dev);
-	caps = match->data;
+	caps = of_device_get_match_data(&pdev->dev);
 
 	if (caps->has_ddrck) {
 		clk = devm_clk_get(&pdev->dev, "ddrck");
@@ -87,8 +85,4 @@ static struct platform_driver atmel_ramc_driver = {
 	},
 };
 
-static int __init atmel_ramc_init(void)
-{
-	return platform_driver_register(&atmel_ramc_driver);
-}
-device_initcall(atmel_ramc_init);
+builtin_platform_driver(atmel_ramc_driver);

@@ -8,6 +8,7 @@
  */
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 #ifdef __BIG_ENDIAN__
 #define sLd sld		/* Shift towards low-numbered address. */
@@ -359,6 +360,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	addi	r3,r3,8
 171:
 177:
+179:
 	addi	r3,r3,8
 370:
 372:
@@ -373,7 +375,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 173:
 174:
 175:
-179:
 181:
 184:
 186:
@@ -393,70 +394,66 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 192:
 	blr			/* #bytes not copied in r3 */
 
-	.section __ex_table,"a"
-	.align	3
-	.llong	20b,120b
-	.llong	220b,320b
-	.llong	21b,121b
-	.llong	221b,321b
-	.llong	70b,170b
-	.llong	270b,370b
-	.llong	22b,122b
-	.llong	222b,322b
-	.llong	71b,171b
-	.llong	271b,371b
-	.llong	72b,172b
-	.llong	272b,372b
-	.llong	244b,344b
-	.llong	245b,345b
-	.llong	23b,123b
-	.llong	73b,173b
-	.llong	44b,144b
-	.llong	74b,174b
-	.llong	45b,145b
-	.llong	75b,175b
-	.llong	24b,124b
-	.llong	25b,125b
-	.llong	26b,126b
-	.llong	27b,127b
-	.llong	28b,128b
-	.llong	29b,129b
-	.llong	30b,130b
-	.llong	31b,131b
-	.llong	32b,132b
-	.llong	76b,176b
-	.llong	33b,133b
-	.llong	77b,177b
-	.llong	78b,178b
-	.llong	79b,179b
-	.llong	80b,180b
-	.llong	34b,134b
-	.llong	94b,194b
-	.llong	95b,195b
-	.llong	96b,196b
-	.llong	35b,135b
-	.llong	81b,181b
-	.llong	36b,136b
-	.llong	82b,182b
-	.llong	37b,137b
-	.llong	83b,183b
-	.llong	38b,138b
-	.llong	39b,139b
-	.llong	84b,184b
-	.llong	85b,185b
-	.llong	40b,140b
-	.llong	86b,186b
-	.llong	41b,141b
-	.llong	87b,187b
-	.llong	42b,142b
-	.llong	88b,188b
-	.llong	43b,143b
-	.llong	89b,189b
-	.llong	90b,190b
-	.llong	91b,191b
-	.llong	92b,192b
-	
-	.text
+	EX_TABLE(20b,120b)
+	EX_TABLE(220b,320b)
+	EX_TABLE(21b,121b)
+	EX_TABLE(221b,321b)
+	EX_TABLE(70b,170b)
+	EX_TABLE(270b,370b)
+	EX_TABLE(22b,122b)
+	EX_TABLE(222b,322b)
+	EX_TABLE(71b,171b)
+	EX_TABLE(271b,371b)
+	EX_TABLE(72b,172b)
+	EX_TABLE(272b,372b)
+	EX_TABLE(244b,344b)
+	EX_TABLE(245b,345b)
+	EX_TABLE(23b,123b)
+	EX_TABLE(73b,173b)
+	EX_TABLE(44b,144b)
+	EX_TABLE(74b,174b)
+	EX_TABLE(45b,145b)
+	EX_TABLE(75b,175b)
+	EX_TABLE(24b,124b)
+	EX_TABLE(25b,125b)
+	EX_TABLE(26b,126b)
+	EX_TABLE(27b,127b)
+	EX_TABLE(28b,128b)
+	EX_TABLE(29b,129b)
+	EX_TABLE(30b,130b)
+	EX_TABLE(31b,131b)
+	EX_TABLE(32b,132b)
+	EX_TABLE(76b,176b)
+	EX_TABLE(33b,133b)
+	EX_TABLE(77b,177b)
+	EX_TABLE(78b,178b)
+	EX_TABLE(79b,179b)
+	EX_TABLE(80b,180b)
+	EX_TABLE(34b,134b)
+	EX_TABLE(94b,194b)
+	EX_TABLE(95b,195b)
+	EX_TABLE(96b,196b)
+	EX_TABLE(35b,135b)
+	EX_TABLE(81b,181b)
+	EX_TABLE(36b,136b)
+	EX_TABLE(82b,182b)
+	EX_TABLE(37b,137b)
+	EX_TABLE(83b,183b)
+	EX_TABLE(38b,138b)
+	EX_TABLE(39b,139b)
+	EX_TABLE(84b,184b)
+	EX_TABLE(85b,185b)
+	EX_TABLE(40b,140b)
+	EX_TABLE(86b,186b)
+	EX_TABLE(41b,141b)
+	EX_TABLE(87b,187b)
+	EX_TABLE(42b,142b)
+	EX_TABLE(88b,188b)
+	EX_TABLE(43b,143b)
+	EX_TABLE(89b,189b)
+	EX_TABLE(90b,190b)
+	EX_TABLE(91b,191b)
+	EX_TABLE(92b,192b)
 
 /*
  * Routine to copy a whole page of data, optimized for POWER4.
@@ -597,77 +594,77 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	li	r5,4096
 	b	.Ldst_aligned
 
-	.section __ex_table,"a"
-	.align	3
-	.llong	20b,100b
-	.llong	21b,100b
-	.llong	22b,100b
-	.llong	23b,100b
-	.llong	24b,100b
-	.llong	25b,100b
-	.llong	26b,100b
-	.llong	27b,100b
-	.llong	28b,100b
-	.llong	29b,100b
-	.llong	30b,100b
-	.llong	31b,100b
-	.llong	32b,100b
-	.llong	33b,100b
-	.llong	34b,100b
-	.llong	35b,100b
-	.llong	36b,100b
-	.llong	37b,100b
-	.llong	38b,100b
-	.llong	39b,100b
-	.llong	40b,100b
-	.llong	41b,100b
-	.llong	42b,100b
-	.llong	43b,100b
-	.llong	44b,100b
-	.llong	45b,100b
-	.llong	46b,100b
-	.llong	47b,100b
-	.llong	48b,100b
-	.llong	49b,100b
-	.llong	50b,100b
-	.llong	51b,100b
-	.llong	52b,100b
-	.llong	53b,100b
-	.llong	54b,100b
-	.llong	55b,100b
-	.llong	56b,100b
-	.llong	57b,100b
-	.llong	58b,100b
-	.llong	59b,100b
-	.llong	60b,100b
-	.llong	61b,100b
-	.llong	62b,100b
-	.llong	63b,100b
-	.llong	64b,100b
-	.llong	65b,100b
-	.llong	66b,100b
-	.llong	67b,100b
-	.llong	68b,100b
-	.llong	69b,100b
-	.llong	70b,100b
-	.llong	71b,100b
-	.llong	72b,100b
-	.llong	73b,100b
-	.llong	74b,100b
-	.llong	75b,100b
-	.llong	76b,100b
-	.llong	77b,100b
-	.llong	78b,100b
-	.llong	79b,100b
-	.llong	80b,100b
-	.llong	81b,100b
-	.llong	82b,100b
-	.llong	83b,100b
-	.llong	84b,100b
-	.llong	85b,100b
-	.llong	86b,100b
-	.llong	87b,100b
-	.llong	88b,100b
-	.llong	89b,100b
-	.llong	90b,100b
-	.llong	91b,100b
+	EX_TABLE(20b,100b)
+	EX_TABLE(21b,100b)
+	EX_TABLE(22b,100b)
+	EX_TABLE(23b,100b)
+	EX_TABLE(24b,100b)
+	EX_TABLE(25b,100b)
+	EX_TABLE(26b,100b)
+	EX_TABLE(27b,100b)
+	EX_TABLE(28b,100b)
+	EX_TABLE(29b,100b)
+	EX_TABLE(30b,100b)
+	EX_TABLE(31b,100b)
+	EX_TABLE(32b,100b)
+	EX_TABLE(33b,100b)
+	EX_TABLE(34b,100b)
+	EX_TABLE(35b,100b)
+	EX_TABLE(36b,100b)
+	EX_TABLE(37b,100b)
+	EX_TABLE(38b,100b)
+	EX_TABLE(39b,100b)
+	EX_TABLE(40b,100b)
+	EX_TABLE(41b,100b)
+	EX_TABLE(42b,100b)
+	EX_TABLE(43b,100b)
+	EX_TABLE(44b,100b)
+	EX_TABLE(45b,100b)
+	EX_TABLE(46b,100b)
+	EX_TABLE(47b,100b)
+	EX_TABLE(48b,100b)
+	EX_TABLE(49b,100b)
+	EX_TABLE(50b,100b)
+	EX_TABLE(51b,100b)
+	EX_TABLE(52b,100b)
+	EX_TABLE(53b,100b)
+	EX_TABLE(54b,100b)
+	EX_TABLE(55b,100b)
+	EX_TABLE(56b,100b)
+	EX_TABLE(57b,100b)
+	EX_TABLE(58b,100b)
+	EX_TABLE(59b,100b)
+	EX_TABLE(60b,100b)
+	EX_TABLE(61b,100b)
+	EX_TABLE(62b,100b)
+	EX_TABLE(63b,100b)
+	EX_TABLE(64b,100b)
+	EX_TABLE(65b,100b)
+	EX_TABLE(66b,100b)
+	EX_TABLE(67b,100b)
+	EX_TABLE(68b,100b)
+	EX_TABLE(69b,100b)
+	EX_TABLE(70b,100b)
+	EX_TABLE(71b,100b)
+	EX_TABLE(72b,100b)
+	EX_TABLE(73b,100b)
+	EX_TABLE(74b,100b)
+	EX_TABLE(75b,100b)
+	EX_TABLE(76b,100b)
+	EX_TABLE(77b,100b)
+	EX_TABLE(78b,100b)
+	EX_TABLE(79b,100b)
+	EX_TABLE(80b,100b)
+	EX_TABLE(81b,100b)
+	EX_TABLE(82b,100b)
+	EX_TABLE(83b,100b)
+	EX_TABLE(84b,100b)
+	EX_TABLE(85b,100b)
+	EX_TABLE(86b,100b)
+	EX_TABLE(87b,100b)
+	EX_TABLE(88b,100b)
+	EX_TABLE(89b,100b)
+	EX_TABLE(90b,100b)
+	EX_TABLE(91b,100b)
+
+EXPORT_SYMBOL(__copy_tofrom_user)

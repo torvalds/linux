@@ -40,6 +40,7 @@
 
 #include "../include/obd_class.h"
 #include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_obdo.h"
 
 void obdo_set_parent_fid(struct obdo *dst, const struct lu_fid *parent)
 {
@@ -112,7 +113,7 @@ void obdo_from_inode(struct obdo *dst, struct inode *src, u32 valid)
 }
 EXPORT_SYMBOL(obdo_from_inode);
 
-void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj)
+void obdo_to_ioobj(const struct obdo *oa, struct obd_ioobj *ioobj)
 {
 	ioobj->ioo_oid = oa->o_oi;
 	if (unlikely(!(oa->o_valid & OBD_MD_FLGROUP)))
@@ -125,64 +126,55 @@ void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj)
 }
 EXPORT_SYMBOL(obdo_to_ioobj);
 
-static void iattr_from_obdo(struct iattr *attr, struct obdo *oa, u32 valid)
+/**
+ * Create an obdo to send over the wire
+ */
+void lustre_set_wire_obdo(const struct obd_connect_data *ocd,
+			  struct obdo *wobdo, const struct obdo *lobdo)
 {
-	valid &= oa->o_valid;
+	*wobdo = *lobdo;
+	wobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
+	if (!ocd)
+		return;
 
-	if (valid & (OBD_MD_FLCTIME | OBD_MD_FLMTIME))
-		CDEBUG(D_INODE, "valid %#llx, new time %llu/%llu\n",
-		       oa->o_valid, oa->o_mtime, oa->o_ctime);
-
-	attr->ia_valid = 0;
-	if (valid & OBD_MD_FLATIME) {
-		LTIME_S(attr->ia_atime) = oa->o_atime;
-		attr->ia_valid |= ATTR_ATIME;
-	}
-	if (valid & OBD_MD_FLMTIME) {
-		LTIME_S(attr->ia_mtime) = oa->o_mtime;
-		attr->ia_valid |= ATTR_MTIME;
-	}
-	if (valid & OBD_MD_FLCTIME) {
-		LTIME_S(attr->ia_ctime) = oa->o_ctime;
-		attr->ia_valid |= ATTR_CTIME;
-	}
-	if (valid & OBD_MD_FLSIZE) {
-		attr->ia_size = oa->o_size;
-		attr->ia_valid |= ATTR_SIZE;
-	}
-#if 0   /* you shouldn't be able to change a file's type with setattr */
-	if (valid & OBD_MD_FLTYPE) {
-		attr->ia_mode = (attr->ia_mode & ~S_IFMT)|(oa->o_mode & S_IFMT);
-		attr->ia_valid |= ATTR_MODE;
-	}
-#endif
-	if (valid & OBD_MD_FLMODE) {
-		attr->ia_mode = (attr->ia_mode & S_IFMT)|(oa->o_mode & ~S_IFMT);
-		attr->ia_valid |= ATTR_MODE;
-		if (!in_group_p(make_kgid(&init_user_ns, oa->o_gid)) &&
-		    !capable(CFS_CAP_FSETID))
-			attr->ia_mode &= ~S_ISGID;
-	}
-	if (valid & OBD_MD_FLUID) {
-		attr->ia_uid = make_kuid(&init_user_ns, oa->o_uid);
-		attr->ia_valid |= ATTR_UID;
-	}
-	if (valid & OBD_MD_FLGID) {
-		attr->ia_gid = make_kgid(&init_user_ns, oa->o_gid);
-		attr->ia_valid |= ATTR_GID;
+	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
+	    fid_seq_is_echo(ostid_seq(&lobdo->o_oi))) {
+		/*
+		 * Currently OBD_FL_OSTID will only be used when 2.4 echo
+		 * client communicate with pre-2.4 server
+		 */
+		wobdo->o_oi.oi.oi_id = fid_oid(&lobdo->o_oi.oi_fid);
+		wobdo->o_oi.oi.oi_seq = fid_seq(&lobdo->o_oi.oi_fid);
 	}
 }
+EXPORT_SYMBOL(lustre_set_wire_obdo);
 
-void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid)
+/**
+ * Create a local obdo from a wire based odbo
+ */
+void lustre_get_wire_obdo(const struct obd_connect_data *ocd,
+			  struct obdo *lobdo, const struct obdo *wobdo)
 {
-	iattr_from_obdo(&op_data->op_attr, oa, valid);
-	if (valid & OBD_MD_FLBLOCKS) {
-		op_data->op_attr_blocks = oa->o_blocks;
-		op_data->op_attr.ia_valid |= ATTR_BLOCKS;
+	u32 local_flags = 0;
+
+	if (lobdo->o_valid & OBD_MD_FLFLAGS)
+		local_flags = lobdo->o_flags & OBD_FL_LOCAL_MASK;
+
+	*lobdo = *wobdo;
+	if (local_flags) {
+		lobdo->o_valid |= OBD_MD_FLFLAGS;
+		lobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
+		lobdo->o_flags |= local_flags;
 	}
-	if (valid & OBD_MD_FLFLAGS) {
-		op_data->op_attr_flags = oa->o_flags;
-		op_data->op_attr.ia_valid |= ATTR_ATTR_FLAG;
+	if (!ocd)
+		return;
+
+	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
+	    fid_seq_is_echo(wobdo->o_oi.oi.oi_seq)) {
+		/* see above */
+		lobdo->o_oi.oi_fid.f_seq = wobdo->o_oi.oi.oi_seq;
+		lobdo->o_oi.oi_fid.f_oid = wobdo->o_oi.oi.oi_id;
+		lobdo->o_oi.oi_fid.f_ver = 0;
 	}
 }
-EXPORT_SYMBOL(md_from_obdo);
+EXPORT_SYMBOL(lustre_get_wire_obdo);

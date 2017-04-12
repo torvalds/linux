@@ -231,8 +231,16 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 	struct rcar_du_device *rcdu = dev->dev_private;
 	int ret;
 
-	ret = drm_atomic_helper_check(dev, state);
-	if (ret < 0)
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
 		return ret;
 
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE))
@@ -257,13 +265,14 @@ static void rcar_du_atomic_complete(struct rcar_du_commit *commit)
 	/* Apply the atomic update. */
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state, true);
+	drm_atomic_helper_commit_planes(dev, old_state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 
-	drm_atomic_state_free(old_state);
+	drm_atomic_state_put(old_state);
 
 	/* Complete the commit, wake up any waiter. */
 	spin_lock(&rcdu->commit.wait.lock);
@@ -329,6 +338,7 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 	/* Swap the state, this is the point of no return. */
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		schedule_work(&commit->work);
 	else
@@ -444,13 +454,13 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	}
 
 	ret = rcar_du_encoder_init(rcdu, enc_type, output, encoder, connector);
-	of_node_put(encoder);
-	of_node_put(connector);
-
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
-			 "failed to initialize encoder %s (%d), skipping\n",
-			 encoder->full_name, ret);
+			 "failed to initialize encoder %s on output %u (%d), skipping\n",
+			 of_node_full_name(encoder), output, ret);
+
+	of_node_put(encoder);
+	of_node_put(connector);
 
 	return ret;
 }
@@ -558,6 +568,13 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	if (ret < 0)
 		return ret;
 
+	/* Initialize vertical blanking interrupts handling. Start with vblank
+	 * disabled for all CRTCs.
+	 */
+	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
+	if (ret < 0)
+		return ret;
+
 	/* Initialize the groups. */
 	num_groups = DIV_ROUND_UP(rcdu->num_crtcs, 2);
 
@@ -645,7 +662,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	drm_kms_helper_poll_init(dev);
 
 	if (dev->mode_config.num_connector) {
-		fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
+		fbdev = drm_fbdev_cma_init(dev, 32,
 					   dev->mode_config.num_connector);
 		if (IS_ERR(fbdev))
 			return PTR_ERR(fbdev);

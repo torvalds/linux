@@ -193,6 +193,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		if (err)
 			break;
 
+		memset(&precise_offset, 0, sizeof(precise_offset));
 		ts = ktime_to_timespec64(xtstamp.device);
 		precise_offset.device.sec = ts.tv_sec;
 		precise_offset.device.nsec = ts.tv_nsec;

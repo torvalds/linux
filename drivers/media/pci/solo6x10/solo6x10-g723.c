@@ -252,7 +252,7 @@ static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
 	return 0;
 }
 
-static struct snd_pcm_ops snd_solo_pcm_ops = {
+static const struct snd_pcm_ops snd_solo_pcm_ops = {
 	.open = snd_solo_pcm_open,
 	.close = snd_solo_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -350,7 +350,7 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 
 int solo_g723_init(struct solo_dev *solo_dev)
 {
-	static struct snd_device_ops ops = { NULL };
+	static struct snd_device_ops ops = { };
 	struct snd_card *card;
 	struct snd_kcontrol_new kctl;
 	char name[32];

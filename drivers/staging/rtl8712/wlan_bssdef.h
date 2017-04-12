@@ -83,7 +83,7 @@ struct wlan_bssid_ex {
 	unsigned char  MacAddress[6];
 	u8  Reserved[2];
 	struct ndis_802_11_ssid  Ssid;
-	u32 Privacy;
+	__le32 Privacy;
 	s32 Rssi;
 	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
 	struct NDIS_802_11_CONFIGURATION  Configuration;
@@ -171,7 +171,8 @@ struct NDIS_802_11_REMOVE_KEY {
 struct NDIS_802_11_WEP {
 	u32 Length;		  /* Length of this structure */
 	u32 KeyIndex;		  /* 0 is the per-client key,
-				   * 1-N are the global keys */
+				   * 1-N are the global keys
+				   */
 	u32 KeyLength;		  /* length of key in bytes */
 	u8  KeyMaterial[16];      /* variable length depending on above field */
 };
@@ -194,7 +195,8 @@ struct	wlan_network {
 	struct list_head list;
 	int	network_type;	/*refer to ieee80211.h for WIRELESS_11A/B/G */
 	int	fixed;		/* set to fixed when not to be removed asi
-				 * site-surveying */
+				 * site-surveying
+				 */
 	unsigned int	last_scanned; /*timestamp for the network */
 	int	aid;		/*will only be valid when a BSS is joined. */
 	int	join_res;

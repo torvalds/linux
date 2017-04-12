@@ -89,10 +89,10 @@ static struct platform_device_id fec_devtype[] = {
 		.driver_data = 0,
 	}, {
 		.name = "imx25-fec",
-		.driver_data = FEC_QUIRK_USE_GASKET | FEC_QUIRK_HAS_RACC,
+		.driver_data = FEC_QUIRK_USE_GASKET,
 	}, {
 		.name = "imx27-fec",
-		.driver_data = FEC_QUIRK_HAS_RACC,
+		.driver_data = 0,
 	}, {
 		.name = "imx28-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_SWAP_FRAME |
@@ -180,6 +180,7 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 /* FEC receive acceleration */
 #define FEC_RACC_IPDIS		(1 << 1)
 #define FEC_RACC_PRODIS		(1 << 2)
+#define FEC_RACC_SHIFT16	BIT(7)
 #define FEC_RACC_OPTIONS	(FEC_RACC_IPDIS | FEC_RACC_PRODIS)
 
 /*
@@ -912,13 +913,11 @@ fec_restart(struct net_device *ndev)
 	 * enet-mac reset will reset mac address registers too,
 	 * so need to reconfigure it.
 	 */
-	if (fep->quirks & FEC_QUIRK_ENET_MAC) {
-		memcpy(&temp_mac, ndev->dev_addr, ETH_ALEN);
-		writel((__force u32)cpu_to_be32(temp_mac[0]),
-		       fep->hwp + FEC_ADDR_LOW);
-		writel((__force u32)cpu_to_be32(temp_mac[1]),
-		       fep->hwp + FEC_ADDR_HIGH);
-	}
+	memcpy(&temp_mac, ndev->dev_addr, ETH_ALEN);
+	writel((__force u32)cpu_to_be32(temp_mac[0]),
+	       fep->hwp + FEC_ADDR_LOW);
+	writel((__force u32)cpu_to_be32(temp_mac[1]),
+	       fep->hwp + FEC_ADDR_HIGH);
 
 	/* Clear any outstanding interrupt. */
 	writel(0xffffffff, fep->hwp + FEC_IEVENT);
@@ -945,9 +944,11 @@ fec_restart(struct net_device *ndev)
 
 #if !defined(CONFIG_M5272)
 	if (fep->quirks & FEC_QUIRK_HAS_RACC) {
-		/* set RX checksum */
 		val = readl(fep->hwp + FEC_RACC);
+		/* align IP header */
+		val |= FEC_RACC_SHIFT16;
 		if (fep->csum_flags & FLAG_RX_CSUM_ENABLED)
+			/* set RX checksum */
 			val |= FEC_RACC_OPTIONS;
 		else
 			val &= ~FEC_RACC_OPTIONS;
@@ -1428,8 +1429,14 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		prefetch(skb->data - NET_IP_ALIGN);
 		skb_put(skb, pkt_len - 4);
 		data = skb->data;
+
 		if (!is_copybreak && need_swap)
 			swap_buffer(data, pkt_len);
+
+#if !defined(CONFIG_M5272)
+		if (fep->quirks & FEC_QUIRK_HAS_RACC)
+			data = skb_pull_inline(skb, 2);
+#endif
 
 		/* Extract the enhanced buffer descriptor */
 		ebdp = NULL;
@@ -1608,7 +1615,7 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	fec_enet_tx(ndev);
 
 	if (pkts < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, pkts);
 		writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 	}
 	return pkts;
@@ -1834,11 +1841,11 @@ static int fec_enet_clk_enable(struct net_device *ndev, bool enable)
 		ret = clk_prepare_enable(fep->clk_ahb);
 		if (ret)
 			return ret;
-		if (fep->clk_enet_out) {
-			ret = clk_prepare_enable(fep->clk_enet_out);
-			if (ret)
-				goto failed_clk_enet_out;
-		}
+
+		ret = clk_prepare_enable(fep->clk_enet_out);
+		if (ret)
+			goto failed_clk_enet_out;
+
 		if (fep->clk_ptp) {
 			mutex_lock(&fep->ptp_clk_mutex);
 			ret = clk_prepare_enable(fep->clk_ptp);
@@ -1850,23 +1857,20 @@ static int fec_enet_clk_enable(struct net_device *ndev, bool enable)
 			}
 			mutex_unlock(&fep->ptp_clk_mutex);
 		}
-		if (fep->clk_ref) {
-			ret = clk_prepare_enable(fep->clk_ref);
-			if (ret)
-				goto failed_clk_ref;
-		}
+
+		ret = clk_prepare_enable(fep->clk_ref);
+		if (ret)
+			goto failed_clk_ref;
 	} else {
 		clk_disable_unprepare(fep->clk_ahb);
-		if (fep->clk_enet_out)
-			clk_disable_unprepare(fep->clk_enet_out);
+		clk_disable_unprepare(fep->clk_enet_out);
 		if (fep->clk_ptp) {
 			mutex_lock(&fep->ptp_clk_mutex);
 			clk_disable_unprepare(fep->clk_ptp);
 			fep->ptp_clk_on = false;
 			mutex_unlock(&fep->ptp_clk_mutex);
 		}
-		if (fep->clk_ref)
-			clk_disable_unprepare(fep->clk_ref);
+		clk_disable_unprepare(fep->clk_ref);
 	}
 
 	return 0;
@@ -2306,14 +2310,26 @@ static const struct fec_stat {
 	{ "IEEE_rx_octets_ok", IEEE_R_OCTETS_OK },
 };
 
-static void fec_enet_get_ethtool_stats(struct net_device *dev,
-	struct ethtool_stats *stats, u64 *data)
+#define FEC_STATS_SIZE		(ARRAY_SIZE(fec_stats) * sizeof(u64))
+
+static void fec_enet_update_ethtool_stats(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fec_stats); i++)
-		data[i] = readl(fep->hwp + fec_stats[i].offset);
+		fep->ethtool_stats[i] = readl(fep->hwp + fec_stats[i].offset);
+}
+
+static void fec_enet_get_ethtool_stats(struct net_device *dev,
+				       struct ethtool_stats *stats, u64 *data)
+{
+	struct fec_enet_private *fep = netdev_priv(dev);
+
+	if (netif_running(dev))
+		fec_enet_update_ethtool_stats(dev);
+
+	memcpy(data, fep->ethtool_stats, FEC_STATS_SIZE);
 }
 
 static void fec_enet_get_strings(struct net_device *netdev,
@@ -2338,17 +2354,13 @@ static int fec_enet_get_sset_count(struct net_device *dev, int sset)
 		return -EOPNOTSUPP;
 	}
 }
-#endif /* !defined(CONFIG_M5272) */
 
-static int fec_enet_nway_reset(struct net_device *dev)
+#else	/* !defined(CONFIG_M5272) */
+#define FEC_STATS_SIZE	0
+static inline void fec_enet_update_ethtool_stats(struct net_device *dev)
 {
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return genphy_restart_aneg(phydev);
 }
+#endif /* !defined(CONFIG_M5272) */
 
 /* ITR clock source is enet system clock (clk_ahb).
  * TCTT unit is cycle_ns * 64 cycle
@@ -2549,7 +2561,7 @@ static const struct ethtool_ops fec_enet_ethtool_ops = {
 	.get_drvinfo		= fec_enet_get_drvinfo,
 	.get_regs_len		= fec_enet_get_regs_len,
 	.get_regs		= fec_enet_get_regs,
-	.nway_reset		= fec_enet_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= fec_enet_get_coalesce,
 	.set_coalesce		= fec_enet_set_coalesce,
@@ -2867,6 +2879,8 @@ fec_enet_close(struct net_device *ndev)
 	if (fep->quirks & FEC_QUIRK_ERR006687)
 		imx6q_cpuidle_fec_irqs_unused();
 
+	fec_enet_update_ethtool_stats(ndev);
+
 	fec_enet_clk_enable(ndev, false);
 	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 	pm_runtime_mark_last_busy(&fep->pdev->dev);
@@ -2887,7 +2901,7 @@ fec_enet_close(struct net_device *ndev)
  * this kind of feature?).
  */
 
-#define HASH_BITS	6		/* #bits in hash */
+#define FEC_HASH_BITS	6		/* #bits in hash */
 #define CRC32_POLY	0xEDB88320
 
 static void set_multicast_list(struct net_device *ndev)
@@ -2896,6 +2910,7 @@ static void set_multicast_list(struct net_device *ndev)
 	struct netdev_hw_addr *ha;
 	unsigned int i, bit, data, crc, tmp;
 	unsigned char hash;
+	unsigned int hash_high = 0, hash_low = 0;
 
 	if (ndev->flags & IFF_PROMISC) {
 		tmp = readl(fep->hwp + FEC_R_CNTRL);
@@ -2918,11 +2933,7 @@ static void set_multicast_list(struct net_device *ndev)
 		return;
 	}
 
-	/* Clear filter and add the addresses in hash register
-	 */
-	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
-
+	/* Add the addresses in hash register */
 	netdev_for_each_mc_addr(ha, ndev) {
 		/* calculate crc32 value of mac address */
 		crc = 0xffffffff;
@@ -2935,21 +2946,19 @@ static void set_multicast_list(struct net_device *ndev)
 			}
 		}
 
-		/* only upper 6 bits (HASH_BITS) are used
+		/* only upper 6 bits (FEC_HASH_BITS) are used
 		 * which point to specific bit in he hash registers
 		 */
-		hash = (crc >> (32 - HASH_BITS)) & 0x3f;
+		hash = (crc >> (32 - FEC_HASH_BITS)) & 0x3f;
 
-		if (hash > 31) {
-			tmp = readl(fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-			tmp |= 1 << (hash - 32);
-			writel(tmp, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
-		} else {
-			tmp = readl(fep->hwp + FEC_GRP_HASH_TABLE_LOW);
-			tmp |= 1 << hash;
-			writel(tmp, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
-		}
+		if (hash > 31)
+			hash_high |= 1 << (hash - 32);
+		else
+			hash_low |= 1 << hash;
 	}
+
+	writel(hash_high, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
+	writel(hash_low, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 }
 
 /* Set a MAC change in hardware. */
@@ -3048,7 +3057,6 @@ static const struct net_device_ops fec_netdev_ops = {
 	.ndo_stop		= fec_enet_close,
 	.ndo_start_xmit		= fec_enet_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= fec_timeout,
 	.ndo_set_mac_address	= fec_set_mac_address,
@@ -3173,6 +3181,8 @@ static int fec_enet_init(struct net_device *ndev)
 
 	fec_restart(ndev);
 
+	fec_enet_update_ethtool_stats(ndev);
+
 	return 0;
 }
 
@@ -3271,8 +3281,8 @@ fec_probe(struct platform_device *pdev)
 	fec_enet_get_queue_num(pdev, &num_tx_qs, &num_rx_qs);
 
 	/* Init network device */
-	ndev = alloc_etherdev_mqs(sizeof(struct fec_enet_private),
-				  num_tx_qs, num_rx_qs);
+	ndev = alloc_etherdev_mqs(sizeof(struct fec_enet_private) +
+				  FEC_STATS_SIZE, num_tx_qs, num_rx_qs);
 	if (!ndev)
 		return -ENOMEM;
 
@@ -3468,6 +3478,8 @@ failed_regulator:
 failed_clk_ipg:
 	fec_enet_clk_enable(ndev, false);
 failed_clk:
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 failed_phy:
 	of_node_put(phy_node);
 failed_ioremap:
@@ -3481,6 +3493,7 @@ fec_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct device_node *np = pdev->dev.of_node;
 
 	cancel_work_sync(&fep->tx_timeout_work);
 	fec_ptp_stop(pdev);
@@ -3488,6 +3501,8 @@ fec_drv_remove(struct platform_device *pdev)
 	fec_enet_mii_remove(fep);
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 	of_node_put(fep->phy_node);
 	free_netdev(ndev);
 

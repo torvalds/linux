@@ -37,6 +37,8 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/sched/signal.h>
+
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -751,10 +753,8 @@ static int iic_probe(struct platform_device *ofdev)
 	adap->timeout = HZ;
 
 	ret = i2c_add_adapter(adap);
-	if (ret  < 0) {
-		dev_err(&ofdev->dev, "failed to register i2c adapter\n");
+	if (ret  < 0)
 		goto error_cleanup;
-	}
 
 	dev_info(&ofdev->dev, "using %s mode\n",
 		 dev->fast_mode ? "fast (400 kHz)" : "standard (100 kHz)");

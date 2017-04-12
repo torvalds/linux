@@ -39,6 +39,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_fb_helper.h>
 
 #include "drm_crtc_helper.h"
 #include "radeon_kfd.h"
@@ -94,12 +95,15 @@
  *   2.44.0 - SET_APPEND_CNT packet3 support
  *   2.45.0 - Allow setting shader registers using DMA/COPY packet3 on SI
  *   2.46.0 - Add PFP_SYNC_ME support on evergreen
+ *   2.47.0 - Add UVD_NO_OP register support
+ *   2.48.0 - TA_CS_BC_BASE_ADDR allowed on SI
+ *   2.49.0 - DRM_RADEON_GEM_INFO ioctl returns correct vram_size/visible values
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	46
+#define KMS_DRIVER_MINOR	49
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
-int radeon_driver_unload_kms(struct drm_device *dev);
+void radeon_driver_unload_kms(struct drm_device *dev);
 void radeon_driver_lastclose_kms(struct drm_device *dev);
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
 void radeon_driver_postclose_kms(struct drm_device *dev,
@@ -153,11 +157,6 @@ void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
 void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 extern long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd,
 				    unsigned long arg);
-
-#if defined(CONFIG_DEBUG_FS)
-int radeon_debugfs_init(struct drm_minor *minor);
-void radeon_debugfs_cleanup(struct drm_minor *minor);
-#endif
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
@@ -309,6 +308,8 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static struct drm_driver kms_driver;
 
+bool radeon_device_is_virtual(void);
+
 static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 {
 	struct apertures_struct *ap;
@@ -324,7 +325,7 @@ static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 #ifdef CONFIG_X86
 	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
-	remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
 	kfree(ap);
 
 	return 0;
@@ -362,6 +363,16 @@ radeon_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
+static void
+radeon_pci_shutdown(struct pci_dev *pdev)
+{
+	/* if we are running in a VM, make sure the device
+	 * torn down properly on reboot/shutdown
+	 */
+	if (radeon_device_is_virtual())
+		radeon_pci_remove(pdev);
+}
+
 static int radeon_pmops_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -373,6 +384,14 @@ static int radeon_pmops_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	/* GPU comes up enabled by the bios on resume */
+	if (radeon_is_px(drm_dev)) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+	}
+
 	return radeon_resume_kms(drm_dev, true, true);
 }
 
@@ -529,10 +548,6 @@ static struct drm_driver kms_driver = {
 	.disable_vblank = radeon_disable_vblank_kms,
 	.get_vblank_timestamp = radeon_get_vblank_timestamp_kms,
 	.get_scanout_position = radeon_get_crtc_scanoutpos,
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = radeon_debugfs_init,
-	.debugfs_cleanup = radeon_debugfs_cleanup,
-#endif
 	.irq_preinstall = radeon_driver_irq_preinstall_kms,
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,
@@ -574,6 +589,7 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.id_table = pciidlist,
 	.probe = radeon_pci_probe,
 	.remove = radeon_pci_remove,
+	.shutdown = radeon_pci_shutdown,
 	.driver.pm = &radeon_pm_ops,
 };
 

@@ -12,8 +12,6 @@
  * more details.
  *
  ******************************************************************************/
-
-
 #define _OSDEP_SERVICE_C_
 
 #include <osdep_service.h>
@@ -23,17 +21,6 @@
 #include <linux/vmalloc.h>
 #include <rtw_ioctl_set.h>
 
-/*
-* Translate the OS dependent @param error_code to OS independent RTW_STATUS_CODE
-* @return: one of RTW_STATUS_CODE
-*/
-inline int RTW_STATUS_CODE(int error_code)
-{
-	if (error_code >= 0)
-		return _SUCCESS;
-	return _FAIL;
-}
-
 u8 *_rtw_malloc(u32 sz)
 {
 	return kmalloc(sz, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
@@ -42,34 +29,24 @@ u8 *_rtw_malloc(u32 sz)
 void *rtw_malloc2d(int h, int w, int size)
 {
 	int j;
+	void **a = kzalloc(h * sizeof(void *) + h * w * size, GFP_KERNEL);
 
-	void **a = kzalloc(h*sizeof(void *) + h*w*size, GFP_KERNEL);
-	if (!a) {
-		pr_info("%s: alloc memory fail!\n", __func__);
-		return NULL;
-	}
+	if (!a)
+		goto out;
 
 	for (j = 0; j < h; j++)
-		a[j] = ((char *)(a+h)) + j*w*size;
-
+		a[j] = ((char *)(a + h)) + j * w * size;
+out:
 	return a;
 }
 
-u32 _rtw_down_sema(struct semaphore *sema)
+void _rtw_init_queue(struct __queue *pqueue)
 {
-	if (down_interruptible(sema))
-		return _FAIL;
-	return _SUCCESS;
+	INIT_LIST_HEAD(&pqueue->queue);
+	spin_lock_init(&pqueue->lock);
 }
 
-void	_rtw_init_queue(struct __queue *pqueue)
-{
-	INIT_LIST_HEAD(&(pqueue->queue));
-	spin_lock_init(&(pqueue->lock));
-}
-
-struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
-						    void *old_priv)
+struct net_device *rtw_alloc_etherdev_with_old_priv(void *old_priv)
 {
 	struct net_device *pnetdev;
 	struct rtw_netdev_priv_indicator *pnpi;
@@ -80,7 +57,6 @@ struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 
 	pnpi = netdev_priv(pnetdev);
 	pnpi->priv = old_priv;
-	pnpi->sizeof_priv = sizeof_priv;
 
 RETURN:
 	return pnetdev;

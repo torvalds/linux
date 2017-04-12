@@ -29,7 +29,7 @@
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -137,6 +137,9 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
+	__set_memory((unsigned long) _sinittext,
+		     (_einittext - _sinittext) >> PAGE_SHIFT,
+		     SET_MEMORY_RW | SET_MEMORY_NX);
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 
@@ -148,45 +151,6 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-{
-	unsigned long normal_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
-	unsigned long dma_end_pfn = PFN_DOWN(MAX_DMA_ADDRESS);
-	unsigned long start_pfn = PFN_DOWN(start);
-	unsigned long size_pages = PFN_DOWN(size);
-	unsigned long nr_pages;
-	int rc, zone_enum;
-
-	rc = vmem_add_mapping(start, size);
-	if (rc)
-		return rc;
-
-	while (size_pages > 0) {
-		if (start_pfn < dma_end_pfn) {
-			nr_pages = (start_pfn + size_pages > dma_end_pfn) ?
-				   dma_end_pfn - start_pfn : size_pages;
-			zone_enum = ZONE_DMA;
-		} else if (start_pfn < normal_end_pfn) {
-			nr_pages = (start_pfn + size_pages > normal_end_pfn) ?
-				   normal_end_pfn - start_pfn : size_pages;
-			zone_enum = ZONE_NORMAL;
-		} else {
-			nr_pages = size_pages;
-			zone_enum = ZONE_MOVABLE;
-		}
-		rc = __add_pages(nid, NODE_DATA(nid)->node_zones + zone_enum,
-				 start_pfn, size_pages);
-		if (rc)
-			break;
-		start_pfn += nr_pages;
-		size_pages -= nr_pages;
-	}
-	if (rc)
-		vmem_remove_mapping(start, size);
-	return rc;
-}
-
 unsigned long memory_block_size_bytes(void)
 {
 	/*
@@ -194,6 +158,49 @@ unsigned long memory_block_size_bytes(void)
 	 * or equal than the memory increment size.
 	 */
 	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
+{
+	unsigned long zone_start_pfn, zone_end_pfn, nr_pages;
+	unsigned long start_pfn = PFN_DOWN(start);
+	unsigned long size_pages = PFN_DOWN(size);
+	pg_data_t *pgdat = NODE_DATA(nid);
+	struct zone *zone;
+	int rc, i;
+
+	rc = vmem_add_mapping(start, size);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		zone = pgdat->node_zones + i;
+		if (zone_idx(zone) != ZONE_MOVABLE) {
+			/* Add range within existing zone limits, if possible */
+			zone_start_pfn = zone->zone_start_pfn;
+			zone_end_pfn = zone->zone_start_pfn +
+				       zone->spanned_pages;
+		} else {
+			/* Add remaining range to ZONE_MOVABLE */
+			zone_start_pfn = start_pfn;
+			zone_end_pfn = start_pfn + size_pages;
+		}
+		if (start_pfn < zone_start_pfn || start_pfn >= zone_end_pfn)
+			continue;
+		nr_pages = (start_pfn + size_pages > zone_end_pfn) ?
+			   zone_end_pfn - start_pfn : size_pages;
+		rc = __add_pages(nid, zone, start_pfn, nr_pages);
+		if (rc)
+			break;
+		start_pfn += nr_pages;
+		size_pages -= nr_pages;
+		if (!size_pages)
+			break;
+	}
+	if (rc)
+		vmem_remove_mapping(start, size);
+	return rc;
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE

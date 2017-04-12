@@ -21,6 +21,8 @@
 #include "bnxt_nvm_defs.h"	/* NVRAM content constant and structure defs */
 #include "bnxt_fw_hdr.h"	/* Firmware hdr constant and structure defs */
 #define FLASH_NVRAM_TIMEOUT	((HWRM_CMD_TIMEOUT) * 100)
+#define FLASH_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
+#define INSTALL_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
 
 static char *bnxt_get_pkgver(struct net_device *dev, char *buf, size_t buflen);
 
@@ -105,15 +107,8 @@ static int bnxt_set_coalesce(struct net_device *dev,
 
 #define BNXT_NUM_STATS	21
 
-#define BNXT_RX_STATS_OFFSET(counter)	\
-	(offsetof(struct rx_port_stats, counter) / 8)
-
 #define BNXT_RX_STATS_ENTRY(counter)	\
 	{ BNXT_RX_STATS_OFFSET(counter), __stringify(counter) }
-
-#define BNXT_TX_STATS_OFFSET(counter)			\
-	((offsetof(struct tx_port_stats, counter) +	\
-	  sizeof(struct rx_port_stats) + 512) / 8)
 
 #define BNXT_TX_STATS_ENTRY(counter)	\
 	{ BNXT_TX_STATS_OFFSET(counter), __stringify(counter) }
@@ -148,6 +143,14 @@ static const struct {
 	BNXT_RX_STATS_ENTRY(rx_tagged_frames),
 	BNXT_RX_STATS_ENTRY(rx_double_tagged_frames),
 	BNXT_RX_STATS_ENTRY(rx_good_frames),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri0),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri1),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri2),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri3),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri4),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri5),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri6),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri7),
 	BNXT_RX_STATS_ENTRY(rx_undrsz_frames),
 	BNXT_RX_STATS_ENTRY(rx_eee_lpi_events),
 	BNXT_RX_STATS_ENTRY(rx_eee_lpi_duration),
@@ -177,6 +180,14 @@ static const struct {
 	BNXT_TX_STATS_ENTRY(tx_fcs_err_frames),
 	BNXT_TX_STATS_ENTRY(tx_err),
 	BNXT_TX_STATS_ENTRY(tx_fifo_underruns),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri0),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri1),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri2),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri3),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri4),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri5),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri6),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri7),
 	BNXT_TX_STATS_ENTRY(tx_eee_lpi_events),
 	BNXT_TX_STATS_ENTRY(tx_eee_lpi_duration),
 	BNXT_TX_STATS_ENTRY(tx_total_collisions),
@@ -346,7 +357,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	int max_rx_rings, max_tx_rings, tcs;
 
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
-	channel->max_combined = max_rx_rings;
+	channel->max_combined = min_t(int, max_rx_rings, max_tx_rings);
 
 	if (bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false)) {
 		max_rx_rings = 0;
@@ -376,9 +387,10 @@ static int bnxt_set_channels(struct net_device *dev,
 			     struct ethtool_channels *channel)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	int max_rx_rings, max_tx_rings, tcs;
-	u32 rc = 0;
+	int req_tx_rings, req_rx_rings, tcs;
 	bool sh = false;
+	int tx_xdp = 0;
+	int rc = 0;
 
 	if (channel->other_count)
 		return -EINVAL;
@@ -398,19 +410,22 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (channel->combined_count)
 		sh = true;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
-
 	tcs = netdev_get_num_tc(dev);
-	if (tcs > 1)
-		max_tx_rings /= tcs;
 
-	if (sh && (channel->combined_count > max_rx_rings ||
-		   channel->combined_count > max_tx_rings))
-		return -ENOMEM;
-
-	if (!sh && (channel->rx_count > max_rx_rings ||
-		    channel->tx_count > max_tx_rings))
-		return -ENOMEM;
+	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
+	req_rx_rings = sh ? channel->combined_count : channel->rx_count;
+	if (bp->tx_nr_rings_xdp) {
+		if (!sh) {
+			netdev_err(dev, "Only combined mode supported when XDP is enabled.\n");
+			return -EINVAL;
+		}
+		tx_xdp = req_rx_rings;
+	}
+	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, tcs, tx_xdp);
+	if (rc) {
+		netdev_warn(dev, "Unable to allocate the requested rings\n");
+		return rc;
+	}
 
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
@@ -435,10 +450,10 @@ static int bnxt_set_channels(struct net_device *dev,
 		bp->rx_nr_rings = channel->rx_count;
 		bp->tx_nr_rings_per_tc = channel->tx_count;
 	}
-
-	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
+	bp->tx_nr_rings_xdp = tx_xdp;
+	bp->tx_nr_rings = bp->tx_nr_rings_per_tc + tx_xdp;
 	if (tcs > 1)
-		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs;
+		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs + tx_xdp;
 
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
@@ -511,24 +526,49 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 
 fltr_found:
 	fkeys = &fltr->fkeys;
-	if (fkeys->basic.ip_proto == IPPROTO_TCP)
-		fs->flow_type = TCP_V4_FLOW;
-	else if (fkeys->basic.ip_proto == IPPROTO_UDP)
-		fs->flow_type = UDP_V4_FLOW;
-	else
-		goto fltr_err;
+	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V4_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V4_FLOW;
+		else
+			goto fltr_err;
 
-	fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
-	fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
+		fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
-	fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
+		fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
-	fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
 
-	fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
-	fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+	} else {
+		int i;
+
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V6_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V6_FLOW;
+		else
+			goto fltr_err;
+
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
+			fkeys->addrs.v6addrs.src;
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
+			fkeys->addrs.v6addrs.dst;
+		for (i = 0; i < 4; i++) {
+			fs->m_u.tcp_ip6_spec.ip6src[i] = cpu_to_be32(~0);
+			fs->m_u.tcp_ip6_spec.ip6dst[i] = cpu_to_be32(~0);
+		}
+		fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(~0);
+
+		fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
+	}
 
 	fs->ring_cookie = fltr->rxq;
 	rc = 0;
@@ -536,6 +576,146 @@ fltr_found:
 fltr_err:
 	rcu_read_unlock();
 
+	return rc;
+}
+#endif
+
+static u64 get_ethtool_ipv4_rss(struct bnxt *bp)
+{
+	if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4)
+		return RXH_IP_SRC | RXH_IP_DST;
+	return 0;
+}
+
+static u64 get_ethtool_ipv6_rss(struct bnxt *bp)
+{
+	if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6)
+		return RXH_IP_SRC | RXH_IP_DST;
+	return 0;
+}
+
+static int bnxt_grxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
+{
+	cmd->data = 0;
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4)
+			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		cmd->data |= get_ethtool_ipv4_rss(bp);
+		break;
+	case UDP_V4_FLOW:
+		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4)
+			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* fall through */
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case IPV4_FLOW:
+		cmd->data |= get_ethtool_ipv4_rss(bp);
+		break;
+
+	case TCP_V6_FLOW:
+		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6)
+			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		cmd->data |= get_ethtool_ipv6_rss(bp);
+		break;
+	case UDP_V6_FLOW:
+		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6)
+			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* fall through */
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IPV6_FLOW:
+		cmd->data |= get_ethtool_ipv6_rss(bp);
+		break;
+	}
+	return 0;
+}
+
+#define RXH_4TUPLE (RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 | RXH_L4_B_2_3)
+#define RXH_2TUPLE (RXH_IP_SRC | RXH_IP_DST)
+
+static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
+{
+	u32 rss_hash_cfg = bp->rss_hash_cfg;
+	int tuple, rc = 0;
+
+	if (cmd->data == RXH_4TUPLE)
+		tuple = 4;
+	else if (cmd->data == RXH_2TUPLE)
+		tuple = 2;
+	else if (!cmd->data)
+		tuple = 0;
+	else
+		return -EINVAL;
+
+	if (cmd->flow_type == TCP_V4_FLOW) {
+		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4;
+		if (tuple == 4)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4;
+	} else if (cmd->flow_type == UDP_V4_FLOW) {
+		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+			return -EINVAL;
+		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4;
+		if (tuple == 4)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4;
+	} else if (cmd->flow_type == TCP_V6_FLOW) {
+		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
+		if (tuple == 4)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
+	} else if (cmd->flow_type == UDP_V6_FLOW) {
+		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+			return -EINVAL;
+		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
+		if (tuple == 4)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
+	} else if (tuple == 4) {
+		return -EINVAL;
+	}
+
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case IPV4_FLOW:
+		if (tuple == 2)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4;
+		else if (!tuple)
+			rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4;
+		break;
+
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IPV6_FLOW:
+		if (tuple == 2)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6;
+		else if (!tuple)
+			rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6;
+		break;
+	}
+
+	if (bp->rss_hash_cfg == rss_hash_cfg)
+		return 0;
+
+	bp->rss_hash_cfg = rss_hash_cfg;
+	if (netif_running(bp->dev)) {
+		bnxt_close_nic(bp, false, false);
+		rc = bnxt_open_nic(bp, false, false);
+	}
 	return rc;
 }
 
@@ -546,6 +726,7 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int rc = 0;
 
 	switch (cmd->cmd) {
+#ifdef CONFIG_RFS_ACCEL
 	case ETHTOOL_GRXRINGS:
 		cmd->data = bp->rx_nr_rings;
 		break;
@@ -562,6 +743,11 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	case ETHTOOL_GRXCLSRULE:
 		rc = bnxt_grxclsrule(bp, cmd);
 		break;
+#endif
+
+	case ETHTOOL_GRXFH:
+		rc = bnxt_grxfh(bp, cmd);
+		break;
 
 	default:
 		rc = -EOPNOTSUPP;
@@ -570,7 +756,23 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 
 	return rc;
 }
-#endif
+
+static int bnxt_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	int rc;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		rc = bnxt_srxfh(bp, cmd);
+		break;
+
+	default:
+		rc = -EOPNOTSUPP;
+		break;
+	}
+	return rc;
+}
 
 static u32 bnxt_get_rxfh_indir_size(struct net_device *dev)
 {
@@ -718,7 +920,7 @@ u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
-	u16 fw_speeds = link_info->auto_link_speeds;
+	u16 fw_speeds = link_info->advertising;
 	u8 fw_pause = 0;
 
 	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
@@ -915,8 +1117,9 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 	const struct ethtool_link_settings *base = &lk_ksettings->base;
-	u32 speed, fw_advertising = 0;
 	bool set_pause = false;
+	u16 fw_advertising = 0;
+	u32 speed;
 	int rc = 0;
 
 	if (!BNXT_SINGLE_PF(bp))
@@ -1027,6 +1230,10 @@ static u32 bnxt_get_link(struct net_device *dev)
 	/* TODO: handle MF, VF, driver close case */
 	return bp->link_info.link_up;
 }
+
+static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
+				u16 ext, u16 *index, u32 *item_length,
+				u32 *data_length);
 
 static int bnxt_flash_nvram(struct net_device *dev,
 			    u16 dir_type,
@@ -1179,11 +1386,61 @@ static int bnxt_flash_firmware(struct net_device *dev,
 			   (unsigned long)calculated_crc);
 		return -EINVAL;
 	}
-	/* TODO: Validate digital signature (RSA-encrypted SHA-256 hash) here */
 	rc = bnxt_flash_nvram(dev, dir_type, BNX_DIR_ORDINAL_FIRST,
 			      0, 0, fw_data, fw_size);
 	if (rc == 0)	/* Firmware update successful */
 		rc = bnxt_firmware_reset(dev, dir_type);
+
+	return rc;
+}
+
+static int bnxt_flash_microcode(struct net_device *dev,
+				u16 dir_type,
+				const u8 *fw_data,
+				size_t fw_size)
+{
+	struct bnxt_ucode_trailer *trailer;
+	u32 calculated_crc;
+	u32 stored_crc;
+	int rc = 0;
+
+	if (fw_size < sizeof(struct bnxt_ucode_trailer)) {
+		netdev_err(dev, "Invalid microcode file size: %u\n",
+			   (unsigned int)fw_size);
+		return -EINVAL;
+	}
+	trailer = (struct bnxt_ucode_trailer *)(fw_data + (fw_size -
+						sizeof(*trailer)));
+	if (trailer->sig != cpu_to_le32(BNXT_UCODE_TRAILER_SIGNATURE)) {
+		netdev_err(dev, "Invalid microcode trailer signature: %08X\n",
+			   le32_to_cpu(trailer->sig));
+		return -EINVAL;
+	}
+	if (le16_to_cpu(trailer->dir_type) != dir_type) {
+		netdev_err(dev, "Expected microcode type: %d, read: %d\n",
+			   dir_type, le16_to_cpu(trailer->dir_type));
+		return -EINVAL;
+	}
+	if (le16_to_cpu(trailer->trailer_length) <
+		sizeof(struct bnxt_ucode_trailer)) {
+		netdev_err(dev, "Invalid microcode trailer length: %d\n",
+			   le16_to_cpu(trailer->trailer_length));
+		return -EINVAL;
+	}
+
+	/* Confirm the CRC32 checksum of the file: */
+	stored_crc = le32_to_cpu(*(__le32 *)(fw_data + fw_size -
+					     sizeof(stored_crc)));
+	calculated_crc = ~crc32(~0, fw_data, fw_size - sizeof(stored_crc));
+	if (calculated_crc != stored_crc) {
+		netdev_err(dev,
+			   "CRC32 (%08lX) does not match calculated: %08lX\n",
+			   (unsigned long)stored_crc,
+			   (unsigned long)calculated_crc);
+		return -EINVAL;
+	}
+	rc = bnxt_flash_nvram(dev, dir_type, BNX_DIR_ORDINAL_FIRST,
+			      0, 0, fw_data, fw_size);
 
 	return rc;
 }
@@ -1206,7 +1463,7 @@ static bool bnxt_dir_type_is_ape_bin_format(u16 dir_type)
 	return false;
 }
 
-static bool bnxt_dir_type_is_unprotected_exec_format(u16 dir_type)
+static bool bnxt_dir_type_is_other_exec_format(u16 dir_type)
 {
 	switch (dir_type) {
 	case BNX_DIR_TYPE_AVS:
@@ -1227,7 +1484,7 @@ static bool bnxt_dir_type_is_unprotected_exec_format(u16 dir_type)
 static bool bnxt_dir_type_is_executable(u16 dir_type)
 {
 	return bnxt_dir_type_is_ape_bin_format(dir_type) ||
-		bnxt_dir_type_is_unprotected_exec_format(dir_type);
+		bnxt_dir_type_is_other_exec_format(dir_type);
 }
 
 static int bnxt_flash_firmware_from_file(struct net_device *dev,
@@ -1237,10 +1494,6 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	const struct firmware  *fw;
 	int			rc;
 
-	if (dir_type != BNX_DIR_TYPE_UPDATE &&
-	    bnxt_dir_type_is_executable(dir_type) == false)
-		return -EINVAL;
-
 	rc = request_firmware(&fw, filename, &dev->dev);
 	if (rc != 0) {
 		netdev_err(dev, "Error %d requesting firmware file: %s\n",
@@ -1249,6 +1502,8 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	}
 	if (bnxt_dir_type_is_ape_bin_format(dir_type) == true)
 		rc = bnxt_flash_firmware(dev, dir_type, fw->data, fw->size);
+	else if (bnxt_dir_type_is_other_exec_format(dir_type) == true)
+		rc = bnxt_flash_microcode(dev, dir_type, fw->data, fw->size);
 	else
 		rc = bnxt_flash_nvram(dev, dir_type, BNX_DIR_ORDINAL_FIRST,
 				      0, 0, fw->data, fw->size);
@@ -1257,10 +1512,103 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 }
 
 static int bnxt_flash_package_from_file(struct net_device *dev,
-					char *filename)
+					char *filename, u32 install_type)
 {
-	netdev_err(dev, "packages are not yet supported\n");
-	return -EINVAL;
+	struct bnxt *bp = netdev_priv(dev);
+	struct hwrm_nvm_install_update_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_nvm_install_update_input install = {0};
+	const struct firmware *fw;
+	u32 item_len;
+	u16 index;
+	int rc;
+
+	bnxt_hwrm_fw_set_time(bp);
+
+	if (bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
+				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
+				 &index, &item_len, NULL) != 0) {
+		netdev_err(dev, "PKG update area not created in nvram\n");
+		return -ENOBUFS;
+	}
+
+	rc = request_firmware(&fw, filename, &dev->dev);
+	if (rc != 0) {
+		netdev_err(dev, "PKG error %d requesting file: %s\n",
+			   rc, filename);
+		return rc;
+	}
+
+	if (fw->size > item_len) {
+		netdev_err(dev, "PKG insufficient update area in nvram: %lu",
+			   (unsigned long)fw->size);
+		rc = -EFBIG;
+	} else {
+		dma_addr_t dma_handle;
+		u8 *kmem;
+		struct hwrm_nvm_modify_input modify = {0};
+
+		bnxt_hwrm_cmd_hdr_init(bp, &modify, HWRM_NVM_MODIFY, -1, -1);
+
+		modify.dir_idx = cpu_to_le16(index);
+		modify.len = cpu_to_le32(fw->size);
+
+		kmem = dma_alloc_coherent(&bp->pdev->dev, fw->size,
+					  &dma_handle, GFP_KERNEL);
+		if (!kmem) {
+			netdev_err(dev,
+				   "dma_alloc_coherent failure, length = %u\n",
+				   (unsigned int)fw->size);
+			rc = -ENOMEM;
+		} else {
+			memcpy(kmem, fw->data, fw->size);
+			modify.host_src_addr = cpu_to_le64(dma_handle);
+
+			rc = hwrm_send_message(bp, &modify, sizeof(modify),
+					       FLASH_PACKAGE_TIMEOUT);
+			dma_free_coherent(&bp->pdev->dev, fw->size, kmem,
+					  dma_handle);
+		}
+	}
+	release_firmware(fw);
+	if (rc)
+		return rc;
+
+	if ((install_type & 0xffff) == 0)
+		install_type >>= 16;
+	bnxt_hwrm_cmd_hdr_init(bp, &install, HWRM_NVM_INSTALL_UPDATE, -1, -1);
+	install.install_type = cpu_to_le32(install_type);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &install, sizeof(install),
+				INSTALL_PACKAGE_TIMEOUT);
+	if (rc) {
+		rc = -EOPNOTSUPP;
+		goto flash_pkg_exit;
+	}
+
+	if (resp->error_code) {
+		u8 error_code = ((struct hwrm_err_output *)resp)->cmd_err;
+
+		if (error_code == NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
+			install.flags |= cpu_to_le16(
+			       NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
+			rc = _hwrm_send_message(bp, &install, sizeof(install),
+						INSTALL_PACKAGE_TIMEOUT);
+			if (rc) {
+				rc = -EOPNOTSUPP;
+				goto flash_pkg_exit;
+			}
+		}
+	}
+
+	if (resp->result) {
+		netdev_err(dev, "PKG install error = %d, problem_item = %d\n",
+			   (s8)resp->result, (int)resp->problem_item);
+		rc = -ENOPKG;
+	}
+flash_pkg_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static int bnxt_flash_device(struct net_device *dev,
@@ -1271,8 +1619,10 @@ static int bnxt_flash_device(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (flash->region == ETHTOOL_FLASH_ALL_REGIONS)
-		return bnxt_flash_package_from_file(dev, flash->data);
+	if (flash->region == ETHTOOL_FLASH_ALL_REGIONS ||
+	    flash->region > 0xffff)
+		return bnxt_flash_package_from_file(dev, flash->data,
+						    flash->region);
 
 	return bnxt_flash_firmware_from_file(dev, flash->region, flash->data);
 }
@@ -1516,7 +1866,7 @@ static int bnxt_set_eeprom(struct net_device *dev,
 
 	/* Create or re-write an NVM item: */
 	if (bnxt_dir_type_is_executable(type) == true)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	ext = eeprom->magic & 0xffff;
 	ordinal = eeprom->offset >> 16;
 	attr = eeprom->offset & 0xffff;
@@ -1718,6 +2068,66 @@ static int bnxt_get_module_eeprom(struct net_device *dev,
 	return rc;
 }
 
+static int bnxt_nway_reset(struct net_device *dev)
+{
+	int rc = 0;
+
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_link_info *link_info = &bp->link_info;
+
+	if (!BNXT_SINGLE_PF(bp))
+		return -EOPNOTSUPP;
+
+	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
+		return -EINVAL;
+
+	if (netif_running(dev))
+		rc = bnxt_hwrm_set_link_setting(bp, true, false);
+
+	return rc;
+}
+
+static int bnxt_set_phys_id(struct net_device *dev,
+			    enum ethtool_phys_id_state state)
+{
+	struct hwrm_port_led_cfg_input req = {0};
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_pf_info *pf = &bp->pf;
+	struct bnxt_led_cfg *led_cfg;
+	u8 led_state;
+	__le16 duration;
+	int i, rc;
+
+	if (!bp->num_leds || BNXT_VF(bp))
+		return -EOPNOTSUPP;
+
+	if (state == ETHTOOL_ID_ACTIVE) {
+		led_state = PORT_LED_CFG_REQ_LED0_STATE_BLINKALT;
+		duration = cpu_to_le16(500);
+	} else if (state == ETHTOOL_ID_INACTIVE) {
+		led_state = PORT_LED_CFG_REQ_LED1_STATE_DEFAULT;
+		duration = cpu_to_le16(0);
+	} else {
+		return -EINVAL;
+	}
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_LED_CFG, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	req.num_leds = bp->num_leds;
+	led_cfg = (struct bnxt_led_cfg *)&req.led0_id;
+	for (i = 0; i < bp->num_leds; i++, led_cfg++) {
+		req.enables |= BNXT_LED_DFLT_ENABLES(i);
+		led_cfg->led_id = bp->leds[i].led_id;
+		led_cfg->led_state = led_state;
+		led_cfg->led_blink_on = duration;
+		led_cfg->led_blink_off = duration;
+		led_cfg->led_group_id = bp->leds[i].led_group_id;
+	}
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		rc = -EIO;
+	return rc;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
@@ -1735,9 +2145,8 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_ringparam		= bnxt_get_ringparam,
 	.get_channels		= bnxt_get_channels,
 	.set_channels		= bnxt_set_channels,
-#ifdef CONFIG_RFS_ACCEL
 	.get_rxnfc		= bnxt_get_rxnfc,
-#endif
+	.set_rxnfc		= bnxt_set_rxnfc,
 	.get_rxfh_indir_size    = bnxt_get_rxfh_indir_size,
 	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
 	.get_rxfh               = bnxt_get_rxfh,
@@ -1750,4 +2159,6 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_eee		= bnxt_set_eee,
 	.get_module_info	= bnxt_get_module_info,
 	.get_module_eeprom	= bnxt_get_module_eeprom,
+	.nway_reset		= bnxt_nway_reset,
+	.set_phys_id		= bnxt_set_phys_id,
 };

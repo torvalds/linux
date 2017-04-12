@@ -43,6 +43,7 @@ config EDAC_LEGACY_SYSFS
 
 config EDAC_DEBUG
 	bool "Debugging"
+	select DEBUG_FS
 	help
 	  This turns on debugging information for the entire EDAC subsystem.
 	  You do so by inserting edac_module with "edac_debug_level=x." Valid
@@ -259,12 +260,28 @@ config EDAC_SKX
 	  Support for error detection and correction the Intel
 	  Skylake server Integrated Memory Controllers.
 
+config EDAC_PND2
+	tristate "Intel Pondicherry2"
+	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
+	help
+	  Support for error detection and correction on the Intel
+	  Pondicherry2 Integrated Memory Controller. This SoC IP is
+	  first used on the Apollo Lake platform and Denverton
+	  micro-server but may appear on others in the future.
+
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
 	depends on EDAC_MM_EDAC && FSL_SOC
 	help
 	  Support for error detection and correction on the Freescale
 	  MPC8349, MPC8560, MPC8540, MPC8548, T4240
+
+config EDAC_LAYERSCAPE
+	tristate "Freescale Layerscape DDR"
+	depends on EDAC_MM_EDAC && ARCH_LAYERSCAPE
+	help
+	  Support for error detection and correction on Freescale memory
+	  controllers on Layerscape SoCs.
 
 config EDAC_MV64X60
 	tristate "Marvell MV64x60"
@@ -405,6 +422,41 @@ config EDAC_ALTERA_ETHERNET
 	help
 	  Support for error detection and correction on the
 	  Altera Ethernet FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_NAND
+	bool "Altera NAND FIFO ECC"
+	depends on EDAC_ALTERA=y && MTD_NAND_DENALI
+	help
+	  Support for error detection and correction on the
+	  Altera NAND FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_DMA
+	bool "Altera DMA FIFO ECC"
+	depends on EDAC_ALTERA=y && PL330_DMA=y
+	help
+	  Support for error detection and correction on the
+	  Altera DMA FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_USB
+	bool "Altera USB FIFO ECC"
+	depends on EDAC_ALTERA=y && USB_DWC2
+	help
+	  Support for error detection and correction on the
+	  Altera USB FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_QSPI
+	bool "Altera QSPI FIFO ECC"
+	depends on EDAC_ALTERA=y && SPI_CADENCE_QUADSPI
+	help
+	  Support for error detection and correction on the
+	  Altera QSPI FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_SDMMC
+	bool "Altera SDMMC FIFO ECC"
+	depends on EDAC_ALTERA=y && MMC_DW
+	help
+	  Support for error detection and correction on the
+	  Altera SDMMC FIFO Memory for Altera SoCs.
 
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"

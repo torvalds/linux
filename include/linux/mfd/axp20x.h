@@ -13,13 +13,14 @@
 
 #include <linux/regmap.h>
 
-enum {
+enum axp20x_variants {
 	AXP152_ID = 0,
 	AXP202_ID,
 	AXP209_ID,
 	AXP221_ID,
 	AXP223_ID,
 	AXP288_ID,
+	AXP806_ID,
 	AXP809_ID,
 	NR_AXP20X_VARIANTS,
 };
@@ -90,6 +91,32 @@ enum {
 #define AXP22X_ALDO2_V_OUT		0x29
 #define AXP22X_ALDO3_V_OUT		0x2a
 #define AXP22X_CHRG_CTRL3		0x35
+
+#define AXP806_STARTUP_SRC		0x00
+#define AXP806_CHIP_ID			0x03
+#define AXP806_PWR_OUT_CTRL1		0x10
+#define AXP806_PWR_OUT_CTRL2		0x11
+#define AXP806_DCDCA_V_CTRL		0x12
+#define AXP806_DCDCB_V_CTRL		0x13
+#define AXP806_DCDCC_V_CTRL		0x14
+#define AXP806_DCDCD_V_CTRL		0x15
+#define AXP806_DCDCE_V_CTRL		0x16
+#define AXP806_ALDO1_V_CTRL		0x17
+#define AXP806_ALDO2_V_CTRL		0x18
+#define AXP806_ALDO3_V_CTRL		0x19
+#define AXP806_DCDC_MODE_CTRL1		0x1a
+#define AXP806_DCDC_MODE_CTRL2		0x1b
+#define AXP806_DCDC_FREQ_CTRL		0x1c
+#define AXP806_BLDO1_V_CTRL		0x20
+#define AXP806_BLDO2_V_CTRL		0x21
+#define AXP806_BLDO3_V_CTRL		0x22
+#define AXP806_BLDO4_V_CTRL		0x23
+#define AXP806_CLDO1_V_CTRL		0x24
+#define AXP806_CLDO2_V_CTRL		0x25
+#define AXP806_CLDO3_V_CTRL		0x26
+#define AXP806_VREF_TEMP_WARN_L		0xf3
+#define AXP806_BUS_ADDR_EXT		0xfe
+#define AXP806_REG_ADDR_EXT		0xff
 
 /* Interrupt */
 #define AXP152_IRQ1_EN			0x40
@@ -201,13 +228,27 @@ enum {
 #define AXP20X_OCV_MAX			0xf
 
 /* AXP22X specific registers */
+#define AXP22X_PMIC_ADC_H		0x56
+#define AXP22X_PMIC_ADC_L		0x57
+#define AXP22X_TS_ADC_H			0x58
+#define AXP22X_TS_ADC_L			0x59
 #define AXP22X_BATLOW_THRES1		0xe6
 
 /* AXP288 specific registers */
+#define AXP288_POWER_REASON		0x02
+#define AXP288_BC_GLOBAL		0x2c
+#define AXP288_BC_VBUS_CNTL		0x2d
+#define AXP288_BC_USB_STAT		0x2e
+#define AXP288_BC_DET_STAT		0x2f
 #define AXP288_PMIC_ADC_H               0x56
 #define AXP288_PMIC_ADC_L               0x57
+#define AXP288_TS_ADC_H			0x58
+#define AXP288_TS_ADC_L			0x59
+#define AXP288_GP_ADC_H			0x5a
+#define AXP288_GP_ADC_L			0x5b
 #define AXP288_ADC_TS_PIN_CTRL          0x84
-#define AXP288_PMIC_ADC_EN              0x84
+#define AXP288_RT_BATT_V_H		0xa0
+#define AXP288_RT_BATT_V_L		0xa1
 
 /* Fuel Gauge */
 #define AXP288_FG_RDC1_REG          0xba
@@ -263,6 +304,26 @@ enum {
 	AXP22X_LDO_IO0,
 	AXP22X_LDO_IO1,
 	AXP22X_REG_ID_MAX,
+};
+
+enum {
+	AXP806_DCDCA = 0,
+	AXP806_DCDCB,
+	AXP806_DCDCC,
+	AXP806_DCDCD,
+	AXP806_DCDCE,
+	AXP806_ALDO1,
+	AXP806_ALDO2,
+	AXP806_ALDO3,
+	AXP806_BLDO1,
+	AXP806_BLDO2,
+	AXP806_BLDO3,
+	AXP806_BLDO4,
+	AXP806_CLDO1,
+	AXP806_CLDO2,
+	AXP806_CLDO3,
+	AXP806_SW,
+	AXP806_REG_ID_MAX,
 };
 
 enum {
@@ -414,6 +475,21 @@ enum axp288_irqs {
 	AXP288_IRQ_BC_USB_CHNG,
 };
 
+enum axp806_irqs {
+	AXP806_IRQ_DIE_TEMP_HIGH_LV1,
+	AXP806_IRQ_DIE_TEMP_HIGH_LV2,
+	AXP806_IRQ_DCDCA_V_LOW,
+	AXP806_IRQ_DCDCB_V_LOW,
+	AXP806_IRQ_DCDCC_V_LOW,
+	AXP806_IRQ_DCDCD_V_LOW,
+	AXP806_IRQ_DCDCE_V_LOW,
+	AXP806_IRQ_PWROK_LONG,
+	AXP806_IRQ_PWROK_SHORT,
+	AXP806_IRQ_WAKEUP,
+	AXP806_IRQ_PWROK_FALL,
+	AXP806_IRQ_PWROK_RISE,
+};
+
 enum axp809_irqs {
 	AXP809_IRQ_ACIN_OVER_V = 1,
 	AXP809_IRQ_ACIN_PLUGIN,
@@ -449,14 +525,10 @@ enum axp809_irqs {
 	AXP809_IRQ_GPIO0_INPUT,
 };
 
-#define AXP288_TS_ADC_H		0x58
-#define AXP288_TS_ADC_L		0x59
-#define AXP288_GP_ADC_H		0x5a
-#define AXP288_GP_ADC_L		0x5b
-
 struct axp20x_dev {
 	struct device			*dev;
 	int				irq;
+	unsigned long			irq_flags;
 	struct regmap			*regmap;
 	struct regmap_irq_chip_data	*regmap_irqc;
 	long				variant;
@@ -464,35 +536,6 @@ struct axp20x_dev {
 	struct mfd_cell                 *cells;
 	const struct regmap_config	*regmap_cfg;
 	const struct regmap_irq_chip	*regmap_irq_chip;
-};
-
-#define BATTID_LEN				64
-#define OCV_CURVE_SIZE			32
-#define MAX_THERM_CURVE_SIZE	25
-#define PD_DEF_MIN_TEMP			0
-#define PD_DEF_MAX_TEMP			55
-
-struct axp20x_fg_pdata {
-	char battid[BATTID_LEN + 1];
-	int design_cap;
-	int min_volt;
-	int max_volt;
-	int max_temp;
-	int min_temp;
-	int cap1;
-	int cap0;
-	int rdc1;
-	int rdc0;
-	int ocv_curve[OCV_CURVE_SIZE];
-	int tcsz;
-	int thermistor_curve[MAX_THERM_CURVE_SIZE][2];
-};
-
-struct axp20x_chrg_pdata {
-	int max_cc;
-	int max_cv;
-	int def_cc;
-	int def_cv;
 };
 
 struct axp288_extcon_pdata {
@@ -545,7 +588,7 @@ int axp20x_match_device(struct axp20x_dev *axp20x);
 int axp20x_device_probe(struct axp20x_dev *axp20x);
 
 /**
- * axp20x_device_probe(): Remove a axp20x device
+ * axp20x_device_remove(): Remove a axp20x device
  *
  * @axp20x: axp20x device to remove
  *

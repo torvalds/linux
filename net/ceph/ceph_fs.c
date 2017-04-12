@@ -34,7 +34,8 @@ void ceph_file_layout_from_legacy(struct ceph_file_layout *fl,
 	fl->stripe_count = le32_to_cpu(legacy->fl_stripe_count);
 	fl->object_size = le32_to_cpu(legacy->fl_object_size);
 	fl->pool_id = le32_to_cpu(legacy->fl_pg_pool);
-	if (fl->pool_id == 0)
+	if (fl->pool_id == 0 && fl->stripe_unit == 0 &&
+	    fl->stripe_count == 0 && fl->object_size == 0)
 		fl->pool_id = -1;
 }
 EXPORT_SYMBOL(ceph_file_layout_from_legacy);

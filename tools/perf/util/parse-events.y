@@ -12,8 +12,12 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include "util.h"
+#include "pmu.h"
+#include "debug.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
+
+void parse_events_error(YYLTYPE *loc, void *data, void *scanner, char const *msg);
 
 #define ABORT_ON(val) \
 do { \
@@ -49,6 +53,7 @@ static void inc_group_count(struct list_head *list,
 %token PE_ERROR
 %token PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_KERNEL_PMU_EVENT
 %token PE_ARRAY_ALL PE_ARRAY_RANGE
+%token PE_DRV_CFG_TERM
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
 %type <num> PE_VALUE_SYM_SW
@@ -63,6 +68,7 @@ static void inc_group_count(struct list_head *list,
 %type <str> PE_MODIFIER_BP
 %type <str> PE_EVENT_NAME
 %type <str> PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_KERNEL_PMU_EVENT
+%type <str> PE_DRV_CFG_TERM
 %type <num> value_sym
 %type <head> event_config
 %type <head> opt_event_config
@@ -234,15 +240,34 @@ PE_KERNEL_PMU_EVENT sep_dc
 	struct list_head *head;
 	struct parse_events_term *term;
 	struct list_head *list;
+	struct perf_pmu *pmu = NULL;
+	int ok = 0;
 
-	ALLOC_LIST(head);
-	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					$1, 1, &@1, NULL));
-	list_add_tail(&term->list, head);
-
+	/* Add it for all PMUs that support the alias */
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(data, list, "cpu", head));
-	parse_events_terms__delete(head);
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		struct perf_pmu_alias *alias;
+
+		list_for_each_entry(alias, &pmu->aliases, list) {
+			if (!strcasecmp(alias->name, $1)) {
+				ALLOC_LIST(head);
+				ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
+					$1, 1, false, &@1, NULL));
+				list_add_tail(&term->list, head);
+
+				if (!parse_events_add_pmu(data, list,
+						  pmu->name, head)) {
+					pr_debug("%s -> %s/%s/\n", $1,
+						 pmu->name, alias->str);
+					ok++;
+				}
+
+				parse_events_terms__delete(head);
+			}
+		}
+	}
+	if (!ok)
+		YYABORT;
 	$$ = list;
 }
 |
@@ -257,7 +282,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 
 	ALLOC_LIST(head);
 	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					&pmu_name, 1, &@1, NULL));
+					&pmu_name, 1, false, &@1, NULL));
 	list_add_tail(&term->list, head);
 
 	ALLOC_LIST(list);
@@ -523,7 +548,7 @@ PE_NAME '=' PE_VALUE
 	struct parse_events_term *term;
 
 	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					$1, $3, &@1, &@3));
+					$1, $3, false, &@1, &@3));
 	$$ = term;
 }
 |
@@ -541,7 +566,7 @@ PE_NAME
 	struct parse_events_term *term;
 
 	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					$1, 1, &@1, NULL));
+					$1, 1, true, &@1, NULL));
 	$$ = term;
 }
 |
@@ -566,7 +591,7 @@ PE_TERM '=' PE_VALUE
 {
 	struct parse_events_term *term;
 
-	ABORT_ON(parse_events_term__num(&term, (int)$1, NULL, $3, &@1, &@3));
+	ABORT_ON(parse_events_term__num(&term, (int)$1, NULL, $3, false, &@1, &@3));
 	$$ = term;
 }
 |
@@ -574,7 +599,7 @@ PE_TERM
 {
 	struct parse_events_term *term;
 
-	ABORT_ON(parse_events_term__num(&term, (int)$1, NULL, 1, &@1, NULL));
+	ABORT_ON(parse_events_term__num(&term, (int)$1, NULL, 1, true, &@1, NULL));
 	$$ = term;
 }
 |
@@ -595,8 +620,17 @@ PE_NAME array '=' PE_VALUE
 	struct parse_events_term *term;
 
 	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					$1, $4, &@1, &@4));
+					$1, $4, false, &@1, &@4));
 	term->array = $2;
+	$$ = term;
+}
+|
+PE_DRV_CFG_TERM
+{
+	struct parse_events_term *term;
+
+	ABORT_ON(parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_DRV_CFG,
+					$1, $1, &@1, NULL));
 	$$ = term;
 }
 

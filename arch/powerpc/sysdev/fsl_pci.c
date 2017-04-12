@@ -111,8 +111,7 @@ static struct pci_ops fsl_indirect_pcie_ops =
 	.write = indirect_write_config,
 };
 
-#define MAX_PHYS_ADDR_BITS	40
-static u64 pci64_dma_offset = 1ull << MAX_PHYS_ADDR_BITS;
+static u64 pci64_dma_offset;
 
 #ifdef CONFIG_SWIOTLB
 static void setup_swiotlb_ops(struct pci_controller *hose)
@@ -132,12 +131,10 @@ static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 		return -EIO;
 
 	/*
-	 * Fixup PCI devices that are able to DMA to above the physical
-	 * address width of the SoC such that we can address any internal
-	 * SoC address from across PCI if needed
+	 * Fix up PCI devices that are able to DMA to the large inbound
+	 * mapping that allows addressing any RAM address from across PCI.
 	 */
-	if ((dev_is_pci(dev)) &&
-	    dma_mask >= DMA_BIT_MASK(MAX_PHYS_ADDR_BITS)) {
+	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
 		set_dma_ops(dev, &dma_direct_ops);
 		set_dma_offset(dev, pci64_dma_offset);
 	}
@@ -387,6 +384,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 				mem_log++;
 
 			piwar = (piwar & ~PIWAR_SZ_MASK) | (mem_log - 1);
+			pci64_dma_offset = 1ULL << mem_log;
 
 			if (setup_inbound) {
 				/* Setup inbound memory window */

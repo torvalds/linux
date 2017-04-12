@@ -8,6 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/module.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 
@@ -55,11 +56,6 @@ static int ls1x_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get I/O memory\n");
-		return -EINVAL;
-	}
-
 	gpio_reg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(gpio_reg_base))
 		return PTR_ERR(gpio_reg_base);

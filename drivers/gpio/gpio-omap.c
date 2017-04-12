@@ -974,6 +974,18 @@ static int omap_gpio_debounce(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
+static int omap_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+				unsigned long config)
+{
+	u32 debounce;
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
+
+	debounce = pinconf_to_config_argument(config);
+	return omap_gpio_debounce(chip, offset, debounce);
+}
+
 static void omap_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct gpio_bank *bank;
@@ -1045,7 +1057,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	bank->chip.direction_input = omap_gpio_input;
 	bank->chip.get = omap_gpio_get;
 	bank->chip.direction_output = omap_gpio_output;
-	bank->chip.set_debounce = omap_gpio_debounce;
+	bank->chip.set_config = omap_gpio_set_config;
 	bank->chip.set = omap_gpio_set;
 	if (bank->is_mpuio) {
 		bank->chip.label = "mpuio";

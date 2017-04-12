@@ -282,6 +282,9 @@ EXPORT_SYMBOL_GPL(wlcore_boot_upload_firmware);
 
 int wlcore_boot_upload_nvs(struct wl1271 *wl)
 {
+	struct platform_device *pdev = wl->pdev;
+	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&pdev->dev);
+	const char *nvs_name = "unknown";
 	size_t nvs_len, burst_len;
 	int i;
 	u32 dest_addr, val;
@@ -292,6 +295,9 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 		wl1271_error("NVS file is needed during boot");
 		return -ENODEV;
 	}
+
+	if (pdev_data && pdev_data->family)
+		nvs_name = pdev_data->family->nvs_name;
 
 	if (wl->quirks & WLCORE_QUIRK_LEGACY_NVS) {
 		struct wl1271_nvs_file *nvs =
@@ -310,8 +316,9 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 		if (wl->nvs_len != sizeof(struct wl1271_nvs_file) &&
 		    (wl->nvs_len != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
 		     wl->enable_11a)) {
-			wl1271_error("nvs size is not as expected: %zu != %zu",
-				wl->nvs_len, sizeof(struct wl1271_nvs_file));
+			wl1271_error("%s size is not as expected: %zu != %zu",
+				     nvs_name, wl->nvs_len,
+				     sizeof(struct wl1271_nvs_file));
 			kfree(wl->nvs);
 			wl->nvs = NULL;
 			wl->nvs_len = 0;
@@ -328,8 +335,8 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 			if (nvs->general_params.dual_mode_select)
 				wl->enable_11a = true;
 		} else {
-			wl1271_error("nvs size is not as expected: %zu != %zu",
-				     wl->nvs_len,
+			wl1271_error("%s size is not as expected: %zu != %zu",
+				     nvs_name, wl->nvs_len,
 				     sizeof(struct wl128x_nvs_file));
 			kfree(wl->nvs);
 			wl->nvs = NULL;

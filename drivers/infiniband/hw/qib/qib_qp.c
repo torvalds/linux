@@ -41,14 +41,6 @@
 
 #include "qib.h"
 
-/*
- * mask field which was present in now deleted qib_qpn_table
- * is not present in rvt_qpn_table. Defining the same field
- * as qpt_mask here instead of adding the mask field to
- * rvt_qpn_table.
- */
-u16 qpt_mask;
-
 static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 			      struct rvt_qpn_map *map, unsigned off)
 {
@@ -57,7 +49,7 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 
 static inline unsigned find_next_offset(struct rvt_qpn_table *qpt,
 					struct rvt_qpn_map *map, unsigned off,
-					unsigned n)
+					unsigned n, u16 qpt_mask)
 {
 	if (qpt_mask) {
 		off++;
@@ -68,43 +60,6 @@ static inline unsigned find_next_offset(struct rvt_qpn_table *qpt,
 	}
 	return off;
 }
-
-/*
- * Convert the AETH credit code into the number of credits.
- */
-static u32 credit_table[31] = {
-	0,                      /* 0 */
-	1,                      /* 1 */
-	2,                      /* 2 */
-	3,                      /* 3 */
-	4,                      /* 4 */
-	6,                      /* 5 */
-	8,                      /* 6 */
-	12,                     /* 7 */
-	16,                     /* 8 */
-	24,                     /* 9 */
-	32,                     /* A */
-	48,                     /* B */
-	64,                     /* C */
-	96,                     /* D */
-	128,                    /* E */
-	192,                    /* F */
-	256,                    /* 10 */
-	384,                    /* 11 */
-	512,                    /* 12 */
-	768,                    /* 13 */
-	1024,                   /* 14 */
-	1536,                   /* 15 */
-	2048,                   /* 16 */
-	3072,                   /* 17 */
-	4096,                   /* 18 */
-	6144,                   /* 19 */
-	8192,                   /* 1A */
-	12288,                  /* 1B */
-	16384,                  /* 1C */
-	24576,                  /* 1D */
-	32768                   /* 1E */
-};
 
 const struct rvt_operation_params qib_post_parms[RVT_OPERATION_MAX] = {
 [IB_WR_RDMA_WRITE] = {
@@ -179,6 +134,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	struct qib_ibdev *verbs_dev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = container_of(verbs_dev, struct qib_devdata,
 					      verbs_dev);
+	u16 qpt_mask = dd->qpn_mask;
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
 		unsigned n;
@@ -215,7 +171,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 				goto bail;
 			}
 			offset = find_next_offset(qpt, map, offset,
-				dd->n_krcv_queues);
+				dd->n_krcv_queues, qpt_mask);
 			qpn = mk_qpn(qpt, map, offset);
 			/*
 			 * This test differs from alloc_pidmap().
@@ -361,66 +317,6 @@ u32 qib_mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu)
 	return ib_mtu_enum_to_int(pmtu);
 }
 
-/**
- * qib_compute_aeth - compute the AETH (syndrome + MSN)
- * @qp: the queue pair to compute the AETH for
- *
- * Returns the AETH.
- */
-__be32 qib_compute_aeth(struct rvt_qp *qp)
-{
-	u32 aeth = qp->r_msn & QIB_MSN_MASK;
-
-	if (qp->ibqp.srq) {
-		/*
-		 * Shared receive queues don't generate credits.
-		 * Set the credit field to the invalid value.
-		 */
-		aeth |= QIB_AETH_CREDIT_INVAL << QIB_AETH_CREDIT_SHIFT;
-	} else {
-		u32 min, max, x;
-		u32 credits;
-		struct rvt_rwq *wq = qp->r_rq.wq;
-		u32 head;
-		u32 tail;
-
-		/* sanity check pointers before trusting them */
-		head = wq->head;
-		if (head >= qp->r_rq.size)
-			head = 0;
-		tail = wq->tail;
-		if (tail >= qp->r_rq.size)
-			tail = 0;
-		/*
-		 * Compute the number of credits available (RWQEs).
-		 * XXX Not holding the r_rq.lock here so there is a small
-		 * chance that the pair of reads are not atomic.
-		 */
-		credits = head - tail;
-		if ((int)credits < 0)
-			credits += qp->r_rq.size;
-		/*
-		 * Binary search the credit table to find the code to
-		 * use.
-		 */
-		min = 0;
-		max = 31;
-		for (;;) {
-			x = (min + max) / 2;
-			if (credit_table[x] == credits)
-				break;
-			if (credit_table[x] > credits)
-				max = x;
-			else if (min == x)
-				break;
-			else
-				min = x;
-		}
-		aeth |= x << QIB_AETH_CREDIT_SHIFT;
-	}
-	return cpu_to_be32(aeth);
-}
-
 void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp)
 {
 	struct qib_qp_priv *priv;
@@ -455,7 +351,6 @@ void qib_stop_send_queue(struct rvt_qp *qp)
 	struct qib_qp_priv *priv = qp->priv;
 
 	cancel_work_sync(&priv->s_work);
-	del_timer_sync(&qp->s_timer);
 }
 
 void qib_quiesce_qp(struct rvt_qp *qp)
@@ -478,43 +373,6 @@ void qib_flush_qp_waiters(struct rvt_qp *qp)
 	if (!list_empty(&priv->iowait))
 		list_del_init(&priv->iowait);
 	spin_unlock(&dev->rdi.pending_lock);
-}
-
-/**
- * qib_get_credit - flush the send work queue of a QP
- * @qp: the qp who's send work queue to flush
- * @aeth: the Acknowledge Extended Transport Header
- *
- * The QP s_lock should be held.
- */
-void qib_get_credit(struct rvt_qp *qp, u32 aeth)
-{
-	u32 credit = (aeth >> QIB_AETH_CREDIT_SHIFT) & QIB_AETH_CREDIT_MASK;
-
-	/*
-	 * If the credit is invalid, we can send
-	 * as many packets as we like.  Otherwise, we have to
-	 * honor the credit field.
-	 */
-	if (credit == QIB_AETH_CREDIT_INVAL) {
-		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-			qp->s_flags |= RVT_S_UNLIMITED_CREDIT;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				qib_schedule_send(qp);
-			}
-		}
-	} else if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-		/* Compute new LSN (i.e., MSN + credit) */
-		credit = (aeth + credit_table[credit]) & QIB_MSN_MASK;
-		if (qib_cmp24(credit, qp->s_lsn) > 0) {
-			qp->s_lsn = credit;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				qib_schedule_send(qp);
-			}
-		}
-	}
 }
 
 /**

@@ -119,9 +119,8 @@ enum {
 };
 
 /*
- * PCI vendor and device IDs.
+ * Maximum devices supported.
  */
-#define PCI_DEVICE_ID_VMWARE_VMXNET3    0x07B0
 #define MAX_ETHERNET_CARDS		10
 #define MAX_PCI_PASSTHRU_DEVICE		6
 
@@ -466,8 +465,8 @@ vmxnet3_create_queues(struct vmxnet3_adapter *adapter,
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev);
 
-struct rtnl_link_stats64 *
-vmxnet3_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats);
+void vmxnet3_get_stats64(struct net_device *dev,
+			 struct rtnl_link_stats64 *stats);
 
 extern char vmxnet3_driver_name[];
 #endif

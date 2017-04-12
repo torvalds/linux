@@ -11,7 +11,7 @@
 
 #include <linux/thread_info.h>
 #include <asm/current.h>
-#include <linux/sched.h>		/* remove ASAP */
+#include <linux/sched/signal.h>		/* remove ASAP */
 #include <linux/falloc.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -37,7 +37,7 @@
 #include <linux/migrate.h>
 #include <linux/uio.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const struct super_operations hugetlbfs_ops;
 static const struct address_space_operations hugetlbfs_aops;
@@ -416,7 +416,6 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 
 		for (i = 0; i < pagevec_count(&pvec); ++i) {
 			struct page *page = pvec.pages[i];
-			bool rsv_on_error;
 			u32 hash;
 
 			/*
@@ -458,18 +457,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			 * cache (remove_huge_page) BEFORE removing the
 			 * region/reserve map (hugetlb_unreserve_pages).  In
 			 * rare out of memory conditions, removal of the
-			 * region/reserve map could fail.  Before free'ing
-			 * the page, note PagePrivate which is used in case
-			 * of error.
+			 * region/reserve map could fail. Correspondingly,
+			 * the subpool and global reserve usage count can need
+			 * to be adjusted.
 			 */
-			rsv_on_error = !PagePrivate(page);
+			VM_BUG_ON(PagePrivate(page));
 			remove_huge_page(page);
 			freed++;
 			if (!truncate_op) {
 				if (unlikely(hugetlb_unreserve_pages(inode,
 							next, next + 1, 1)))
-					hugetlb_fix_reserve_counts(inode,
-								rsv_on_error);
+					hugetlb_fix_reserve_counts(inode);
 			}
 
 			unlock_page(page);
@@ -657,7 +655,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
 		i_size_write(inode, offset + len);
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_time(inode);
 out:
 	inode_unlock(inode);
 	return error;
@@ -672,7 +670,7 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	BUG_ON(!inode);
 
-	error = inode_change_ok(inode, attr);
+	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
 
@@ -697,14 +695,11 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 
 	inode = new_inode(sb);
 	if (inode) {
-		struct hugetlbfs_inode_info *info;
 		inode->i_ino = get_next_ino();
 		inode->i_mode = S_IFDIR | config->mode;
 		inode->i_uid = config->uid;
 		inode->i_gid = config->gid;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		info = HUGETLBFS_I(inode);
-		mpol_shared_policy_init(&info->policy, NULL);
+		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 		inode->i_op = &hugetlbfs_dir_inode_operations;
 		inode->i_fop = &simple_dir_operations;
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
@@ -735,23 +730,13 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 
 	inode = new_inode(sb);
 	if (inode) {
-		struct hugetlbfs_inode_info *info;
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
 				&hugetlbfs_i_mmap_rwsem_key);
 		inode->i_mapping->a_ops = &hugetlbfs_aops;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 		inode->i_mapping->private_data = resv_map;
-		info = HUGETLBFS_I(inode);
-		/*
-		 * The policy is initialized here even if we are creating a
-		 * private inode because initialization simply creates an
-		 * an empty rb tree and calls rwlock_init(), later when we
-		 * call mpol_free_shared_policy() it will just return because
-		 * the rb tree will still be empty.
-		 */
-		mpol_shared_policy_init(&info->policy, NULL);
 		switch (mode & S_IFMT) {
 		default:
 			init_special_inode(inode, mode, dev);
@@ -790,7 +775,7 @@ static int hugetlbfs_mknod(struct inode *dir,
 
 	inode = hugetlbfs_get_inode(dir->i_sb, dir, mode, dev);
 	if (inode) {
-		dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+		dir->i_ctime = dir->i_mtime = current_time(dir);
 		d_instantiate(dentry, inode);
 		dget(dentry);	/* Extra count - pin the dentry in core */
 		error = 0;
@@ -827,7 +812,7 @@ static int hugetlbfs_symlink(struct inode *dir,
 		} else
 			iput(inode);
 	}
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	dir->i_ctime = dir->i_mtime = current_time(dir);
 
 	return error;
 }
@@ -939,6 +924,18 @@ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 		hugetlbfs_inc_free_inodes(sbinfo);
 		return NULL;
 	}
+
+	/*
+	 * Any time after allocation, hugetlbfs_destroy_inode can be called
+	 * for the inode.  mpol_free_shared_policy is unconditionally called
+	 * as part of hugetlbfs_destroy_inode.  So, initialize policy here
+	 * in case of a quick call to destroy.
+	 *
+	 * Note that the policy is initialized even if we are creating a
+	 * private inode.  This simplifies hugetlbfs_destroy_inode.
+	 */
+	mpol_shared_policy_init(&p->policy, NULL);
+
 	return &p->vfs_inode;
 }
 

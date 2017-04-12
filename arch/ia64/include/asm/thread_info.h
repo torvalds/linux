@@ -27,6 +27,12 @@ struct thread_info {
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+	__u64 utime;
+	__u64 stime;
+	__u64 gtime;
+	__u64 hardirq_time;
+	__u64 softirq_time;
+	__u64 idle_time;
 	__u64 ac_stamp;
 	__u64 ac_leave;
 	__u64 ac_stime;
@@ -56,7 +62,7 @@ struct thread_info {
 #define alloc_thread_stack_node(tsk, node)	((unsigned long *) 0)
 #define task_thread_info(tsk)	((struct thread_info *) 0)
 #endif
-#define free_thread_stack(ti)	/* nothing */
+#define free_thread_stack(tsk)	/* nothing */
 #define task_stack_page(tsk)	((void *)(tsk))
 
 #define __HAVE_THREAD_FUNCTIONS

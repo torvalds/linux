@@ -128,16 +128,16 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
 static int
 icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
-		 enum ip_conntrack_info *ctinfo,
 		 unsigned int hooknum)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
 	const struct nf_conntrack_l4proto *innerproto;
 	const struct nf_conntrack_tuple_hash *h;
 	const struct nf_conntrack_zone *zone;
+	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_zone tmp;
 
-	NF_CT_ASSERT(skb->nfct == NULL);
+	NF_CT_ASSERT(!skb_nfct(skb));
 	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
 
 	/* Are they talking about one of our connections? */
@@ -149,7 +149,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	innerproto = __nf_ct_l4proto_find(PF_INET, origtuple.dst.protonum);
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
@@ -160,7 +160,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	*ctinfo = IP_CT_RELATED;
+	ctinfo = IP_CT_RELATED;
 
 	h = nf_conntrack_find_get(net, zone, &innertuple);
 	if (!h) {
@@ -169,11 +169,10 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	}
 
 	if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)
-		*ctinfo += IP_CT_IS_REPLY;
+		ctinfo += IP_CT_IS_REPLY;
 
 	/* Update skb to refer to this connection */
-	skb->nfct = &nf_ct_tuplehash_to_ctrack(h)->ct_general;
-	skb->nfctinfo = *ctinfo;
+	nf_ct_set(skb, nf_ct_tuplehash_to_ctrack(h), ctinfo);
 	return NF_ACCEPT;
 }
 
@@ -181,7 +180,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 static int
 icmp_error(struct net *net, struct nf_conn *tmpl,
 	   struct sk_buff *skb, unsigned int dataoff,
-	   enum ip_conntrack_info *ctinfo, u_int8_t pf, unsigned int hooknum)
+	   u8 pf, unsigned int hooknum)
 {
 	const struct icmphdr *icmph;
 	struct icmphdr _ih;
@@ -225,7 +224,7 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	    icmph->type != ICMP_REDIRECT)
 		return NF_ACCEPT;
 
-	return icmp_error_message(net, tmpl, skb, ctinfo, hooknum);
+	return icmp_error_message(net, tmpl, skb, hooknum);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -327,17 +326,6 @@ static struct ctl_table icmp_sysctl_table[] = {
 	},
 	{ }
 };
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-static struct ctl_table icmp_compat_sysctl_table[] = {
-	{
-		.procname	= "ip_conntrack_icmp_timeout",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
 static int icmp_kmemdup_sysctl_table(struct nf_proto_net *pn,
@@ -355,40 +343,14 @@ static int icmp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int icmp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
-					    struct nf_icmp_net *in)
-{
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	pn->ctl_compat_table = kmemdup(icmp_compat_sysctl_table,
-				       sizeof(icmp_compat_sysctl_table),
-				       GFP_KERNEL);
-	if (!pn->ctl_compat_table)
-		return -ENOMEM;
-
-	pn->ctl_compat_table[0].data = &in->timeout;
-#endif
-#endif
-	return 0;
-}
-
 static int icmp_init_net(struct net *net, u_int16_t proto)
 {
-	int ret;
 	struct nf_icmp_net *in = icmp_pernet(net);
 	struct nf_proto_net *pn = &in->pn;
 
 	in->timeout = nf_ct_icmp_timeout;
 
-	ret = icmp_kmemdup_compat_sysctl_table(pn, in);
-	if (ret < 0)
-		return ret;
-
-	ret = icmp_kmemdup_sysctl_table(pn, in);
-	if (ret < 0)
-		nf_ct_kfree_compat_sysctl_table(pn);
-
-	return ret;
+	return icmp_kmemdup_sysctl_table(pn, in);
 }
 
 static struct nf_proto_net *icmp_get_net_proto(struct net *net)

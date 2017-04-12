@@ -6,11 +6,11 @@ Note that it only applies to the new descriptor-based interface. For a
 description of the deprecated integer-based GPIO interface please refer to
 gpio-legacy.txt (actually, there is no real mapping possible with the old
 interface; you just fetch an integer from somewhere and request the
-corresponding GPIO.
+corresponding GPIO).
 
-Platforms that make use of GPIOs must select ARCH_REQUIRE_GPIOLIB (if GPIO usage
-is mandatory) or ARCH_WANT_OPTIONAL_GPIOLIB (if GPIO support can be omitted) in
-their Kconfig. Then, how GPIOs are mapped depends on what the platform uses to
+All platforms can enable the GPIO library, but if the platform strictly
+requires GPIO functionality to be present, it needs to select GPIOLIB from its
+Kconfig. Then, how GPIOs are mapped depends on what the platform uses to
 describe its hardware layout. Currently, mappings can be defined through device
 tree, ACPI, and platform data.
 
@@ -162,6 +162,9 @@ The driver controlling "foo.0" will then be able to obtain its GPIOs as follows:
 
 Since the "led" GPIOs are mapped as active-high, this example will switch their
 signals to 1, i.e. enabling the LEDs. And for the "power" GPIO, which is mapped
-as active-low, its actual signal will be 0 after this code. Contrary to the legacy
-integer GPIO interface, the active-low property is handled during mapping and is
-thus transparent to GPIO consumers.
+as active-low, its actual signal will be 0 after this code. Contrary to the
+legacy integer GPIO interface, the active-low property is handled during
+mapping and is thus transparent to GPIO consumers.
+
+A set of functions such as gpiod_set_value() is available to work with
+the new descriptor-oriented interface.

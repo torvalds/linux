@@ -14,7 +14,6 @@
  ******************************************************************************/
 #define _RTW_IOCTL_SET_C_
 
-
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <rtw_ioctl_set.h>
@@ -570,16 +569,9 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
 	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
-	struct rtw_ieee80211_ht_cap *pht_capie;
 	u8	rf_type = 0;
 	u8	bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
-	u16	mcs_rate = 0;
 	u32	ht_ielen = 0;
-
-	if (adapter->registrypriv.mp_mode == 1) {
-		if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
-			return 0;
-	}
 
 	if ((!check_fwstate(pmlmepriv, _FW_LINKED)) &&
 	    (!check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)))
@@ -588,15 +580,11 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N|WIRELESS_11_5N)) {
 		p = rtw_get_ie(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->IELength-12);
 		if (p && ht_ielen > 0) {
-			pht_capie = (struct rtw_ieee80211_ht_cap *)(p+2);
-
-			memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
-
 			/* cur_bwmod is updated by beacon, pmlmeinfo is updated by association response */
 			bw_40MHz = (pmlmeext->cur_bwmode && (HT_INFO_HT_PARAM_REC_TRANS_CHNL_WIDTH & pmlmeinfo->HT_info.infos[0])) ? 1 : 0;
 
-			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
-			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
+			short_GI_20 = (le16_to_cpu(pmlmeinfo->HT_caps.cap_info) & IEEE80211_HT_CAP_SGI_20) ? 1 : 0;
+			short_GI_40 = (le16_to_cpu(pmlmeinfo->HT_caps.cap_info) & IEEE80211_HT_CAP_SGI_40) ? 1 : 0;
 
 			rtw_hal_get_hwreg(adapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
 			max_rate = rtw_mcs_rate(
@@ -604,7 +592,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 				bw_40MHz & (pregistrypriv->cbw40_enable),
 				short_GI_20,
 				short_GI_40,
-				pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate
+				pmlmeinfo->HT_caps.mcs.rx_mask
 			);
 		}
 	} else {

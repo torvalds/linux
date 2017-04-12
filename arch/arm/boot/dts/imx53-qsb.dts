@@ -64,8 +64,8 @@
 			};
 
 			ldo3_reg: ldo3 {
-				regulator-min-microvolt = <600000>;
-				regulator-max-microvolt = <1800000>;
+				regulator-min-microvolt = <1725000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
 
@@ -76,8 +76,8 @@
 			};
 
 			ldo5_reg: ldo5 {
-				regulator-min-microvolt = <1725000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
 			};
 
@@ -90,7 +90,6 @@
 			ldo7_reg: ldo7 {
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <3600000>;
-				regulator-always-on;
 			};
 
 			ldo8_reg: ldo8 {
@@ -100,16 +99,20 @@
 			};
 
 			ldo9_reg: ldo9 {
-				regulator-min-microvolt = <1200000>;
+				regulator-min-microvolt = <1250000>;
 				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
 			};
 
 			ldo10_reg: ldo10 {
-				regulator-min-microvolt = <1250000>;
-				regulator-max-microvolt = <3650000>;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
 			};
 		};
 	};
+};
+
+&tve {
+	dac-supply = <&ldo7_reg>;
 };

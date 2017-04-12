@@ -51,6 +51,140 @@ Description:
 		uses.
 Users:
 
+What:		/sys/class/most/mostcore/devices/<mdev>/dci
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		If the network interface controller is attached via USB, a dci
+		directory is created that allows applications to use the
+		controller's direct communication interface (DCI) to exchange
+		information.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/arb_address
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to set an arbitrary DCI register address an
+		application wants to read from or write to.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/arb_value
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to read from or write to the arbitrary DCI register
+		whose address is stored in arb_address.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_eui48_hi
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MAC address.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_eui48_lo
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MAC address.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_eui48_mi
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MAC address.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_filter
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MEP filter address.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_hash0
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MEP hash table.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_hash1
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MEP hash table.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_hash2
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MEP hash table.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/mep_hash3
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		This is used to check and configure the MEP hash table.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/ni_state
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the current network interface state.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/node_address
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the current node address.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/node_position
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the current node position.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/packet_bandwidth
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Indicates the configured packet bandwidth.
+Users:
+
+What:		/sys/class/most/mostcore/devices/<mdev>/dci/sync_ep
+Date:		June 2016
+KernelVersion:	4.9
+Contact:	Christian Gromm <christian.gromm@microchip.com>
+Description:
+		Triggers the controller's synchronization process for a certain
+		endpoint.
+Users:
+
 What:		/sys/class/most/mostcore/devices/<mdev>/<channel>/
 Date:		June 2015
 KernelVersion:	4.3

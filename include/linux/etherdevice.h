@@ -54,6 +54,11 @@ struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
 #define alloc_etherdev_mq(sizeof_priv, count) alloc_etherdev_mqs(sizeof_priv, count, count)
 
+struct net_device *devm_alloc_etherdev_mqs(struct device *dev, int sizeof_priv,
+					   unsigned int txqs,
+					   unsigned int rxqs);
+#define devm_alloc_etherdev(dev, sizeof_priv) devm_alloc_etherdev_mqs(dev, sizeof_priv, 1, 1)
+
 struct sk_buff **eth_gro_receive(struct sk_buff **head,
 				 struct sk_buff *skb);
 int eth_gro_complete(struct sk_buff *skb, int nhoff);
@@ -394,6 +399,66 @@ static inline bool ether_addr_equal_masked(const u8 *addr1, const u8 *addr2,
 	}
 
 	return true;
+}
+
+/**
+ * ether_addr_to_u64 - Convert an Ethernet address into a u64 value.
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Return a u64 value of the address
+ */
+static inline u64 ether_addr_to_u64(const u8 *addr)
+{
+	u64 u = 0;
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		u = u << 8 | addr[i];
+
+	return u;
+}
+
+/**
+ * u64_to_ether_addr - Convert a u64 to an Ethernet address.
+ * @u: u64 to convert to an Ethernet MAC address
+ * @addr: Pointer to a six-byte array to contain the Ethernet address
+ */
+static inline void u64_to_ether_addr(u64 u, u8 *addr)
+{
+	int i;
+
+	for (i = ETH_ALEN - 1; i >= 0; i--) {
+		addr[i] = u & 0xff;
+		u = u >> 8;
+	}
+}
+
+/**
+ * eth_addr_dec - Decrement the given MAC address
+ *
+ * @addr: Pointer to a six-byte array containing Ethernet address to decrement
+ */
+static inline void eth_addr_dec(u8 *addr)
+{
+	u64 u = ether_addr_to_u64(addr);
+
+	u--;
+	u64_to_ether_addr(u, addr);
+}
+
+/**
+ * ether_addr_greater - Compare two Ethernet addresses
+ * @addr1: Pointer to a six-byte array containing the Ethernet address
+ * @addr2: Pointer other six-byte array containing the Ethernet address
+ *
+ * Compare two Ethernet addresses, returns true addr1 is greater than addr2
+ */
+static inline bool ether_addr_greater(const u8 *addr1, const u8 *addr2)
+{
+	u64 u1 = ether_addr_to_u64(addr1);
+	u64 u2 = ether_addr_to_u64(addr2);
+
+	return u1 > u2;
 }
 
 /**

@@ -33,7 +33,7 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_tee_tginfo *info = par->targinfo;
 	int oif = info->priv ? info->priv->oif : 0;
 
-	nf_dup_ipv4(par->net, skb, par->hooknum, &info->gw.in, oif);
+	nf_dup_ipv4(xt_net(par), skb, xt_hooknum(par), &info->gw.in, oif);
 
 	return XT_CONTINUE;
 }
@@ -45,7 +45,7 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_tee_tginfo *info = par->targinfo;
 	int oif = info->priv ? info->priv->oif : 0;
 
-	nf_dup_ipv6(par->net, skb, par->hooknum, &info->gw.in6, oif);
+	nf_dup_ipv6(xt_net(par), skb, xt_hooknum(par), &info->gw.in6, oif);
 
 	return XT_CONTINUE;
 }
@@ -89,6 +89,8 @@ static int tee_tg_check(const struct xt_tgchk_param *par)
 		return -EINVAL;
 
 	if (info->oif[0]) {
+		int ret;
+
 		if (info->oif[sizeof(info->oif)-1] != '\0')
 			return -EINVAL;
 
@@ -101,7 +103,11 @@ static int tee_tg_check(const struct xt_tgchk_param *par)
 		priv->notifier.notifier_call = tee_netdev_event;
 		info->priv    = priv;
 
-		register_netdevice_notifier(&priv->notifier);
+		ret = register_netdevice_notifier(&priv->notifier);
+		if (ret) {
+			kfree(priv);
+			return ret;
+		}
 	} else
 		info->priv = NULL;
 
@@ -127,6 +133,7 @@ static struct xt_target tee_tg_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV4,
 		.target     = tee_tg4,
 		.targetsize = sizeof(struct xt_tee_tginfo),
+		.usersize   = offsetof(struct xt_tee_tginfo, priv),
 		.checkentry = tee_tg_check,
 		.destroy    = tee_tg_destroy,
 		.me         = THIS_MODULE,
@@ -138,6 +145,7 @@ static struct xt_target tee_tg_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV6,
 		.target     = tee_tg6,
 		.targetsize = sizeof(struct xt_tee_tginfo),
+		.usersize   = offsetof(struct xt_tee_tginfo, priv),
 		.checkentry = tee_tg_check,
 		.destroy    = tee_tg_destroy,
 		.me         = THIS_MODULE,

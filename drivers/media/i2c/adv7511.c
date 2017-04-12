@@ -1732,9 +1732,10 @@ static bool adv7511_check_edid_status(struct v4l2_subdev *sd)
 static int adv7511_registered(struct v4l2_subdev *sd)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int err;
 
-	err = cec_register_adapter(state->cec_adap);
+	err = cec_register_adapter(state->cec_adap, &client->dev);
 	if (err)
 		cec_delete_adapter(state->cec_adap);
 	return err;
@@ -1898,6 +1899,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 					       state->i2c_cec_addr >> 1);
 		if (state->i2c_cec == NULL) {
 			v4l2_err(sd, "failed to register cec i2c client\n");
+			err = -ENOMEM;
 			goto err_unreg_edid;
 		}
 		adv7511_wr(sd, 0xe2, 0x00); /* power up cec section */
@@ -1927,7 +1929,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->cec_adap = cec_allocate_adapter(&adv7511_cec_adap_ops,
 		state, dev_name(&client->dev), CEC_CAP_TRANSMIT |
 		CEC_CAP_LOG_ADDRS | CEC_CAP_PASSTHROUGH | CEC_CAP_RC,
-		ADV7511_MAX_ADDRS, &client->dev);
+		ADV7511_MAX_ADDRS);
 	err = PTR_ERR_OR_ZERO(state->cec_adap);
 	if (err) {
 		destroy_workqueue(state->work_queue);

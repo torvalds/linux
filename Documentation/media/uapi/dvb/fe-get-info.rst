@@ -15,7 +15,8 @@ FE_GET_INFO - Query DVB frontend capabilities and returns information about the 
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_frontend_info *argp )
+.. c:function:: int ioctl( int fd, FE_GET_INFO, struct dvb_frontend_info *argp )
+    :name: FE_GET_INFO
 
 
 Arguments
@@ -24,12 +25,9 @@ Arguments
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
-``request``
-    FE_GET_INFO
-
 ``argp``
     pointer to struct struct
-    :ref:`dvb_frontend_info <dvb-frontend-info>`
+    :c:type:`dvb_frontend_info`
 
 
 Description
@@ -42,10 +40,9 @@ takes a pointer to dvb_frontend_info which is filled by the driver.
 When the driver is not compatible with this specification the ioctl
 returns an error.
 
-.. _dvb-frontend-info:
+.. c:type:: dvb_frontend_info
 
-struct dvb_frontend_info
-========================
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct dvb_frontend_info
     :header-rows:  0
@@ -137,18 +134,18 @@ struct dvb_frontend_info
 
     -  .. row 11
 
-       -  enum :ref:`fe_caps <fe-caps>`
+       -  enum :c:type:`fe_caps`
 
        -  caps
 
        -  Capabilities supported by the frontend
 
 
-.. note:: The frequencies are specified in Hz for Terrestrial and Cable
+.. note::
+
+   The frequencies are specified in Hz for Terrestrial and Cable
    systems. They're specified in kHz for Satellite systems
 
-
-.. _fe-caps-t:
 
 frontend capabilities
 =====================
@@ -156,8 +153,9 @@ frontend capabilities
 Capabilities describe what a frontend can do. Some capabilities are
 supported only on some specific frontend types.
 
+.. c:type:: fe_caps
 
-.. _fe-caps:
+.. tabularcolumns:: |p{6.5cm}|p{11.0cm}|
 
 .. flat-table:: enum fe_caps
     :header-rows:  1

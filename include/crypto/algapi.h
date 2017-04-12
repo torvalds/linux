@@ -15,7 +15,6 @@
 #include <linux/crypto.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
-#include <linux/kthread.h>
 #include <linux/skbuff.h>
 
 struct crypto_aead;
@@ -129,75 +128,6 @@ struct ablkcipher_walk {
 	unsigned int		blocksize;
 };
 
-#define ENGINE_NAME_LEN	30
-/*
- * struct crypto_engine - crypto hardware engine
- * @name: the engine name
- * @idling: the engine is entering idle state
- * @busy: request pump is busy
- * @running: the engine is on working
- * @cur_req_prepared: current request is prepared
- * @list: link with the global crypto engine list
- * @queue_lock: spinlock to syncronise access to request queue
- * @queue: the crypto queue of the engine
- * @rt: whether this queue is set to run as a realtime task
- * @prepare_crypt_hardware: a request will soon arrive from the queue
- * so the subsystem requests the driver to prepare the hardware
- * by issuing this call
- * @unprepare_crypt_hardware: there are currently no more requests on the
- * queue so the subsystem notifies the driver that it may relax the
- * hardware by issuing this call
- * @prepare_request: do some prepare if need before handle the current request
- * @unprepare_request: undo any work done by prepare_message()
- * @crypt_one_request: do encryption for current request
- * @kworker: thread struct for request pump
- * @kworker_task: pointer to task for request pump kworker thread
- * @pump_requests: work struct for scheduling work to the request pump
- * @priv_data: the engine private data
- * @cur_req: the current request which is on processing
- */
-struct crypto_engine {
-	char			name[ENGINE_NAME_LEN];
-	bool			idling;
-	bool			busy;
-	bool			running;
-	bool			cur_req_prepared;
-
-	struct list_head	list;
-	spinlock_t		queue_lock;
-	struct crypto_queue	queue;
-
-	bool			rt;
-
-	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
-	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
-
-	int (*prepare_request)(struct crypto_engine *engine,
-			       struct ablkcipher_request *req);
-	int (*unprepare_request)(struct crypto_engine *engine,
-				 struct ablkcipher_request *req);
-	int (*crypt_one_request)(struct crypto_engine *engine,
-				 struct ablkcipher_request *req);
-
-	struct kthread_worker           kworker;
-	struct task_struct              *kworker_task;
-	struct kthread_work             pump_requests;
-
-	void				*priv_data;
-	struct ablkcipher_request	*cur_req;
-};
-
-int crypto_transfer_request(struct crypto_engine *engine,
-			    struct ablkcipher_request *req, bool need_pump);
-int crypto_transfer_request_to_engine(struct crypto_engine *engine,
-				      struct ablkcipher_request *req);
-void crypto_finalize_request(struct crypto_engine *engine,
-			     struct ablkcipher_request *req, int err);
-int crypto_engine_start(struct crypto_engine *engine);
-int crypto_engine_stop(struct crypto_engine *engine);
-struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt);
-int crypto_engine_exit(struct crypto_engine *engine);
-
 extern const struct crypto_type crypto_ablkcipher_type;
 extern const struct crypto_type crypto_blkcipher_type;
 
@@ -261,9 +191,25 @@ static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
 	return queue->qlen;
 }
 
-/* These functions require the input/output to be aligned as u32. */
 void crypto_inc(u8 *a, unsigned int size);
-void crypto_xor(u8 *dst, const u8 *src, unsigned int size);
+void __crypto_xor(u8 *dst, const u8 *src, unsigned int size);
+
+static inline void crypto_xor(u8 *dst, const u8 *src, unsigned int size)
+{
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
+	    __builtin_constant_p(size) &&
+	    (size % sizeof(unsigned long)) == 0) {
+		unsigned long *d = (unsigned long *)dst;
+		unsigned long *s = (unsigned long *)src;
+
+		while (size > 0) {
+			*d++ ^= *s++;
+			size -= sizeof(unsigned long);
+		}
+	} else {
+		__crypto_xor(dst, src, size);
+	}
+}
 
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err);
@@ -414,13 +360,18 @@ static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
 	return crypto_attr_alg(tb[1], type, mask);
 }
 
+static inline int crypto_requires_off(u32 type, u32 mask, u32 off)
+{
+	return (type ^ off) & mask & off;
+}
+
 /*
  * Returns CRYPTO_ALG_ASYNC if type/mask requires the use of sync algorithms.
  * Otherwise returns zero.
  */
 static inline int crypto_requires_sync(u32 type, u32 mask)
 {
-	return (type ^ CRYPTO_ALG_ASYNC) & mask & CRYPTO_ALG_ASYNC;
+	return crypto_requires_off(type, mask, CRYPTO_ALG_ASYNC);
 }
 
 noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);

@@ -27,6 +27,12 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+
+#ifdef CONFIG_X86
+/* for art-tsc conversion */
+#include <asm/tsc.h>
+#endif
+
 #include <sound/core.h>
 #include <sound/initval.h>
 #include "hda_controller.h"
@@ -337,12 +343,173 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 			       azx_get_position(chip, azx_dev));
 }
 
+/*
+ * azx_scale64: Scale base by mult/div while not overflowing sanely
+ *
+ * Derived from scale64_check_overflow in kernel/time/timekeeping.c
+ *
+ * The tmestamps for a 48Khz stream can overflow after (2^64/10^9)/48K which
+ * is about 384307 ie ~4.5 days.
+ *
+ * This scales the calculation so that overflow will happen but after 2^64 /
+ * 48000 secs, which is pretty large!
+ *
+ * In caln below:
+ *	base may overflow, but since there isn’t any additional division
+ *	performed on base it’s OK
+ *	rem can’t overflow because both are 32-bit values
+ */
+
+#ifdef CONFIG_X86
+static u64 azx_scale64(u64 base, u32 num, u32 den)
+{
+	u64 rem;
+
+	rem = do_div(base, den);
+
+	base *= num;
+	rem *= num;
+
+	do_div(rem, den);
+
+	return base + rem;
+}
+
+static int azx_get_sync_time(ktime_t *device,
+		struct system_counterval_t *system, void *ctx)
+{
+	struct snd_pcm_substream *substream = ctx;
+	struct azx_dev *azx_dev = get_azx_dev(substream);
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+	struct azx *chip = apcm->chip;
+	struct snd_pcm_runtime *runtime;
+	u64 ll_counter, ll_counter_l, ll_counter_h;
+	u64 tsc_counter, tsc_counter_l, tsc_counter_h;
+	u32 wallclk_ctr, wallclk_cycles;
+	bool direction;
+	u32 dma_select;
+	u32 timeout = 200;
+	u32 retry_count = 0;
+
+	runtime = substream->runtime;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		direction = 1;
+	else
+		direction = 0;
+
+	/* 0th stream tag is not used, so DMA ch 0 is for 1st stream tag */
+	do {
+		timeout = 100;
+		dma_select = (direction << GTSCC_CDMAS_DMA_DIR_SHIFT) |
+					(azx_dev->core.stream_tag - 1);
+		snd_hdac_chip_writel(azx_bus(chip), GTSCC, dma_select);
+
+		/* Enable the capture */
+		snd_hdac_chip_updatel(azx_bus(chip), GTSCC, 0, GTSCC_TSCCI_MASK);
+
+		while (timeout) {
+			if (snd_hdac_chip_readl(azx_bus(chip), GTSCC) &
+						GTSCC_TSCCD_MASK)
+				break;
+
+			timeout--;
+		}
+
+		if (!timeout) {
+			dev_err(chip->card->dev, "GTSCC capture Timedout!\n");
+			return -EIO;
+		}
+
+		/* Read wall clock counter */
+		wallclk_ctr = snd_hdac_chip_readl(azx_bus(chip), WALFCC);
+
+		/* Read TSC counter */
+		tsc_counter_l = snd_hdac_chip_readl(azx_bus(chip), TSCCL);
+		tsc_counter_h = snd_hdac_chip_readl(azx_bus(chip), TSCCU);
+
+		/* Read Link counter */
+		ll_counter_l = snd_hdac_chip_readl(azx_bus(chip), LLPCL);
+		ll_counter_h = snd_hdac_chip_readl(azx_bus(chip), LLPCU);
+
+		/* Ack: registers read done */
+		snd_hdac_chip_writel(azx_bus(chip), GTSCC, GTSCC_TSCCD_SHIFT);
+
+		tsc_counter = (tsc_counter_h << TSCCU_CCU_SHIFT) |
+						tsc_counter_l;
+
+		ll_counter = (ll_counter_h << LLPC_CCU_SHIFT) |	ll_counter_l;
+		wallclk_cycles = wallclk_ctr & WALFCC_CIF_MASK;
+
+		/*
+		 * An error occurs near frame "rollover". The clocks in
+		 * frame value indicates whether this error may have
+		 * occurred. Here we use the value of 10 i.e.,
+		 * HDA_MAX_CYCLE_OFFSET
+		 */
+		if (wallclk_cycles < HDA_MAX_CYCLE_VALUE - HDA_MAX_CYCLE_OFFSET
+					&& wallclk_cycles > HDA_MAX_CYCLE_OFFSET)
+			break;
+
+		/*
+		 * Sleep before we read again, else we may again get
+		 * value near to MAX_CYCLE. Try to sleep for different
+		 * amount of time so we dont hit the same number again
+		 */
+		udelay(retry_count++);
+
+	} while (retry_count != HDA_MAX_CYCLE_READ_RETRY);
+
+	if (retry_count == HDA_MAX_CYCLE_READ_RETRY) {
+		dev_err_ratelimited(chip->card->dev,
+			"Error in WALFCC cycle count\n");
+		return -EIO;
+	}
+
+	*device = ns_to_ktime(azx_scale64(ll_counter,
+				NSEC_PER_SEC, runtime->rate));
+	*device = ktime_add_ns(*device, (wallclk_cycles * NSEC_PER_SEC) /
+			       ((HDA_MAX_CYCLE_VALUE + 1) * runtime->rate));
+
+	*system = convert_art_to_tsc(tsc_counter);
+
+	return 0;
+}
+
+#else
+static int azx_get_sync_time(ktime_t *device,
+		struct system_counterval_t *system, void *ctx)
+{
+	return -ENXIO;
+}
+#endif
+
+static int azx_get_crosststamp(struct snd_pcm_substream *substream,
+			      struct system_device_crosststamp *xtstamp)
+{
+	return get_device_system_crosststamp(azx_get_sync_time,
+					substream, NULL, xtstamp);
+}
+
+static inline bool is_link_time_supported(struct snd_pcm_runtime *runtime,
+				struct snd_pcm_audio_tstamp_config *ts)
+{
+	if (runtime->hw.info & SNDRV_PCM_INFO_HAS_LINK_SYNCHRONIZED_ATIME)
+		if (ts->type_requested == SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK_SYNCHRONIZED)
+			return true;
+
+	return false;
+}
+
 static int azx_get_time_info(struct snd_pcm_substream *substream,
 			struct timespec *system_ts, struct timespec *audio_ts,
 			struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
 			struct snd_pcm_audio_tstamp_report *audio_tstamp_report)
 {
 	struct azx_dev *azx_dev = get_azx_dev(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct system_device_crosststamp xtstamp;
+	int ret;
 	u64 nsec;
 
 	if ((substream->runtime->hw.info & SNDRV_PCM_INFO_HAS_LINK_ATIME) &&
@@ -361,8 +528,37 @@ static int azx_get_time_info(struct snd_pcm_substream *substream,
 		audio_tstamp_report->accuracy_report = 1; /* rest of structure is valid */
 		audio_tstamp_report->accuracy = 42; /* 24 MHz WallClock == 42ns resolution */
 
-	} else
+	} else if (is_link_time_supported(runtime, audio_tstamp_config)) {
+
+		ret = azx_get_crosststamp(substream, &xtstamp);
+		if (ret)
+			return ret;
+
+		switch (runtime->tstamp_type) {
+		case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC:
+			return -EINVAL;
+
+		case SNDRV_PCM_TSTAMP_TYPE_MONOTONIC_RAW:
+			*system_ts = ktime_to_timespec(xtstamp.sys_monoraw);
+			break;
+
+		default:
+			*system_ts = ktime_to_timespec(xtstamp.sys_realtime);
+			break;
+
+		}
+
+		*audio_ts = ktime_to_timespec(xtstamp.device);
+
+		audio_tstamp_report->actual_type =
+			SNDRV_PCM_AUDIO_TSTAMP_TYPE_LINK_SYNCHRONIZED;
+		audio_tstamp_report->accuracy_report = 1;
+		/* 24 MHz WallClock == 42ns resolution */
+		audio_tstamp_report->accuracy = 42;
+
+	} else {
 		audio_tstamp_report->actual_type = SNDRV_PCM_AUDIO_TSTAMP_TYPE_DEFAULT;
+	}
 
 	return 0;
 }
@@ -412,6 +608,11 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 		goto unlock;
 	}
 	runtime->private_data = azx_dev;
+
+	if (chip->gts_present)
+		azx_pcm_hw.info = azx_pcm_hw.info |
+			SNDRV_PCM_INFO_HAS_LINK_SYNCHRONIZED_ATIME;
+
 	runtime->hw = azx_pcm_hw;
 	runtime->hw.channels_min = hinfo->channels_min;
 	runtime->hw.channels_max = hinfo->channels_max;
@@ -495,7 +696,7 @@ static int azx_pcm_mmap(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_default_mmap(substream, area);
 }
 
-static struct snd_pcm_ops azx_pcm_ops = {
+static const struct snd_pcm_ops azx_pcm_ops = {
 	.open = azx_pcm_open,
 	.close = azx_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -659,6 +860,10 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
 		 */
 		return -EIO;
 	}
+
+	/* no fallback mechanism? */
+	if (!chip->fallback_to_single_cmd)
+		return -EIO;
 
 	/* a fatal communication error; need either to reset or to fallback
 	 * to the single_cmd mode

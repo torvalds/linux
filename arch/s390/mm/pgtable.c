@@ -35,9 +35,9 @@ static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__ptep_ipte_local(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_LOCAL);
 	else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -56,7 +56,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 		pte_val(*ptep) |= _PAGE_INVALID;
 		mm->context.flush_mm = 1;
 	} else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -202,7 +202,7 @@ static inline pgste_t ptep_xchg_start(struct mm_struct *mm,
 	return pgste;
 }
 
-static inline void ptep_xchg_commit(struct mm_struct *mm,
+static inline pte_t ptep_xchg_commit(struct mm_struct *mm,
 				    unsigned long addr, pte_t *ptep,
 				    pgste_t pgste, pte_t old, pte_t new)
 {
@@ -220,6 +220,7 @@ static inline void ptep_xchg_commit(struct mm_struct *mm,
 	} else {
 		*ptep = new;
 	}
+	return old;
 }
 
 pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
@@ -231,7 +232,7 @@ pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_direct(mm, addr, ptep);
-	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
 }
@@ -246,7 +247,7 @@ pte_t ptep_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_lazy(mm, addr, ptep);
-	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
 }
@@ -274,6 +275,8 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 {
 	pgste_t pgste;
 
+	if (!MACHINE_HAS_NX)
+		pte_val(pte) &= ~_PAGE_NOEXEC;
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get(ptep);
 		pgste_set_key(ptep, pgste, pte, mm);
@@ -301,9 +304,9 @@ static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pmdp_idte_local(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_LOCAL);
 	else
-		__pmdp_idte(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -322,7 +325,7 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
 		mm->context.flush_mm = 1;
 	} else if (MACHINE_HAS_IDTE)
-		__pmdp_idte(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
 	else
 		__pmdp_csp(pmdp);
 	atomic_dec(&mm->context.flush_count);
@@ -374,9 +377,9 @@ static inline pud_t pudp_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pudp_idte_local(addr, pudp);
+		__pudp_idte(addr, pudp, IDTE_LOCAL);
 	else
-		__pudp_idte(addr, pudp);
+		__pudp_idte(addr, pudp, IDTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -605,12 +608,29 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 {
 	spinlock_t *ptl;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
 	pgste_t pgste;
 	pte_t *ptep;
 	pte_t pte;
 	bool dirty;
 
-	ptep = get_locked_pte(mm, addr, &ptl);
+	pgd = pgd_offset(mm, addr);
+	pud = pud_alloc(mm, pgd, addr);
+	if (!pud)
+		return false;
+	pmd = pmd_alloc(mm, pud, addr);
+	if (!pmd)
+		return false;
+	/* We can't run guests backed by huge pages, but userspace can
+	 * still set them up and then try to migrate them without any
+	 * migration support.
+	 */
+	if (pmd_large(*pmd))
+		return true;
+
+	ptep = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (unlikely(!ptep))
 		return false;
 
@@ -620,7 +640,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
 		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;
 		else
@@ -741,7 +761,7 @@ int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
-	return 0;
+	return cc;
 }
 EXPORT_SYMBOL(reset_guest_reference_bit);
 

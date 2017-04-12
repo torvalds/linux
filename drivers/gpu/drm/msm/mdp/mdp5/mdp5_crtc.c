@@ -27,11 +27,8 @@
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
 
-#define SSPP_MAX	(SSPP_RGB3 + 1) /* TODO: Add SSPP_MAX in mdp5.xml.h */
-
 struct mdp5_crtc {
 	struct drm_crtc base;
-	char name[8];
 	int id;
 	bool enabled;
 
@@ -102,7 +99,7 @@ static u32 crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 
-	DBG("%s: flush=%08x", mdp5_crtc->name, flush_mask);
+	DBG("%s: flush=%08x", crtc->name, flush_mask);
 	return mdp5_ctl_commit(mdp5_crtc->ctl, flush_mask);
 }
 
@@ -136,7 +133,6 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_pending_vblank_event *event;
-	struct drm_plane *plane;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -148,15 +144,11 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		 */
 		if (!file || (event->base.file_priv == file)) {
 			mdp5_crtc->event = NULL;
-			DBG("%s: send event: %p", mdp5_crtc->name, event);
+			DBG("%s: send event: %p", crtc->name, event);
 			drm_crtc_send_vblank_event(crtc, event);
 		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		mdp5_plane_complete_flip(plane);
-	}
 
 	if (mdp5_crtc->ctl && !crtc->state->enable) {
 		/* set STAGE_UNUSED for all layers */
@@ -185,6 +177,21 @@ static void mdp5_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mdp5_crtc);
 }
 
+static inline u32 mdp5_lm_use_fg_alpha_mask(enum mdp_mixer_stage_id stage)
+{
+	switch (stage) {
+	case STAGE0: return MDP5_LM_BLEND_COLOR_OUT_STAGE0_FG_ALPHA;
+	case STAGE1: return MDP5_LM_BLEND_COLOR_OUT_STAGE1_FG_ALPHA;
+	case STAGE2: return MDP5_LM_BLEND_COLOR_OUT_STAGE2_FG_ALPHA;
+	case STAGE3: return MDP5_LM_BLEND_COLOR_OUT_STAGE3_FG_ALPHA;
+	case STAGE4: return MDP5_LM_BLEND_COLOR_OUT_STAGE4_FG_ALPHA;
+	case STAGE5: return MDP5_LM_BLEND_COLOR_OUT_STAGE5_FG_ALPHA;
+	case STAGE6: return MDP5_LM_BLEND_COLOR_OUT_STAGE6_FG_ALPHA;
+	default:
+		return 0;
+	}
+}
+
 /*
  * blend_setup() - blend all the planes of a CRTC
  *
@@ -203,8 +210,10 @@ static void blend_setup(struct drm_crtc *crtc)
 	uint32_t lm = mdp5_crtc->lm;
 	uint32_t blend_op, fg_alpha, bg_alpha, ctl_blend_flags = 0;
 	unsigned long flags;
-	uint8_t stage[STAGE_MAX + 1];
+	enum mdp5_pipe stage[STAGE_MAX + 1] = { SSPP_NONE };
 	int i, plane_cnt = 0;
+	bool bg_alpha_enabled = false;
+	u32 mixer_op_mode = 0;
 #define blender(stage)	((stage) - STAGE0)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
@@ -223,14 +232,14 @@ static void blend_setup(struct drm_crtc *crtc)
 		plane_cnt++;
 	}
 
-	/*
-	* If there is no base layer, enable border color.
-	* Although it's not possbile in current blend logic,
-	* put it here as a reminder.
-	*/
-	if (!pstates[STAGE_BASE] && plane_cnt) {
+	if (!pstates[STAGE_BASE]) {
 		ctl_blend_flags |= MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT;
 		DBG("Border Color is enabled");
+	} else if (plane_cnt) {
+		format = to_mdp_format(msm_framebuffer_format(pstates[STAGE_BASE]->base.fb));
+
+		if (format->alpha_enable)
+			bg_alpha_enabled = true;
 	}
 
 	/* The reset for blending */
@@ -245,6 +254,12 @@ static void blend_setup(struct drm_crtc *crtc)
 			MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);
 		fg_alpha = pstates[i]->alpha;
 		bg_alpha = 0xFF - pstates[i]->alpha;
+
+		if (!format->alpha_enable && bg_alpha_enabled)
+			mixer_op_mode = 0;
+		else
+			mixer_op_mode |= mdp5_lm_use_fg_alpha_mask(i);
+
 		DBG("Stage %d fg_alpha %x bg_alpha %x", i, fg_alpha, bg_alpha);
 
 		if (format->alpha_enable && pstates[i]->premultiplied) {
@@ -281,6 +296,8 @@ static void blend_setup(struct drm_crtc *crtc)
 				blender(i)), bg_alpha);
 	}
 
+	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm), mixer_op_mode);
+
 	mdp5_ctl_blend(mdp5_crtc->ctl, stage, plane_cnt, ctl_blend_flags);
 
 out:
@@ -300,7 +317,7 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	mode = &crtc->state->adjusted_mode;
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mdp5_crtc->name, mode->base.id, mode->name,
+			crtc->name, mode->base.id, mode->name,
 			mode->vrefresh, mode->clock,
 			mode->hdisplay, mode->hsync_start,
 			mode->hsync_end, mode->htotal,
@@ -320,7 +337,7 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 
-	DBG("%s", mdp5_crtc->name);
+	DBG("%s", crtc->name);
 
 	if (WARN_ON(!mdp5_crtc->enabled))
 		return;
@@ -339,7 +356,7 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 
-	DBG("%s", mdp5_crtc->name);
+	DBG("%s", crtc->name);
 
 	if (WARN_ON(mdp5_crtc->enabled))
 		return;
@@ -365,44 +382,69 @@ static int pstate_cmp(const void *a, const void *b)
 	return pa->state->zpos - pb->state->zpos;
 }
 
+/* is there a helper for this? */
+static bool is_fullscreen(struct drm_crtc_state *cstate,
+		struct drm_plane_state *pstate)
+{
+	return (pstate->crtc_x <= 0) && (pstate->crtc_y <= 0) &&
+		((pstate->crtc_x + pstate->crtc_w) >= cstate->mode.hdisplay) &&
+		((pstate->crtc_y + pstate->crtc_h) >= cstate->mode.vdisplay);
+}
+
 static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_plane *plane;
 	struct drm_device *dev = crtc->dev;
 	struct plane_state pstates[STAGE_MAX + 1];
 	const struct mdp5_cfg_hw *hw_cfg;
 	const struct drm_plane_state *pstate;
-	int cnt = 0, i;
+	bool cursor_plane = false;
+	int cnt = 0, base = 0, i;
 
-	DBG("%s: check", mdp5_crtc->name);
+	DBG("%s: check", crtc->name);
 
-	/* verify that there are not too many planes attached to crtc
-	 * and that we don't have conflicting mixer stages:
-	 */
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
-		if (cnt >= (hw_cfg->lm.nb_stages)) {
-			dev_err(dev->dev, "too many planes!\n");
-			return -EINVAL;
-		}
-
-
 		pstates[cnt].plane = plane;
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
 
 		cnt++;
+
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			cursor_plane = true;
 	}
 
 	/* assign a stage based on sorted zpos property */
 	sort(pstates, cnt, sizeof(pstates[0]), pstate_cmp, NULL);
 
+	/* if the bottom-most layer is not fullscreen, we need to use
+	 * it for solid-color:
+	 */
+	if ((cnt > 0) && !is_fullscreen(state, &pstates[0].state->base))
+		base++;
+
+	/* trigger a warning if cursor isn't the highest zorder */
+	WARN_ON(cursor_plane &&
+		(pstates[cnt - 1].plane->type != DRM_PLANE_TYPE_CURSOR));
+
+	/* verify that there are not too many planes attached to crtc
+	 * and that we don't have conflicting mixer stages:
+	 */
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+
+	if ((cnt + base) >= hw_cfg->lm.nb_stages) {
+		dev_err(dev->dev, "too many planes! cnt=%d, base=%d\n", cnt, base);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < cnt; i++) {
-		pstates[i].state->stage = STAGE_BASE + i;
-		DBG("%s: assign pipe %s on stage=%d", mdp5_crtc->name,
-				pipe2name(mdp5_plane_pipe(pstates[i].plane)),
+		if (cursor_plane && (i == (cnt - 1)))
+			pstates[i].state->stage = hw_cfg->lm.nb_stages;
+		else
+			pstates[i].state->stage = STAGE_BASE + i + base;
+		DBG("%s: assign pipe %s on stage=%d", crtc->name,
+				pstates[i].plane->name,
 				pstates[i].state->stage);
 	}
 
@@ -412,8 +454,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 static void mdp5_crtc_atomic_begin(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	DBG("%s: begin", mdp5_crtc->name);
+	DBG("%s: begin", crtc->name);
 }
 
 static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -423,7 +464,7 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	DBG("%s: event: %p", mdp5_crtc->name, crtc->state->event);
+	DBG("%s: event: %p", crtc->name, crtc->state->event);
 
 	WARN_ON(mdp5_crtc->event);
 
@@ -489,7 +530,8 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_gem_object *cursor_bo, *old_bo = NULL;
-	uint32_t blendcfg, cursor_addr, stride;
+	uint32_t blendcfg, stride;
+	uint64_t cursor_addr;
 	int ret, lm;
 	enum mdp5_cursor_alpha cur_alpha = CURSOR_ALPHA_PER_PIXEL;
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
@@ -611,6 +653,16 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.cursor_move = mdp5_crtc_cursor_move,
 };
 
+static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
+	.set_config = drm_atomic_helper_set_config,
+	.destroy = mdp5_crtc_destroy,
+	.page_flip = drm_atomic_helper_page_flip,
+	.set_property = drm_atomic_helper_crtc_set_property,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
 	.disable = mdp5_crtc_disable,
@@ -643,7 +695,7 @@ static void mdp5_crtc_err_irq(struct mdp_irq *irq, uint32_t irqstatus)
 {
 	struct mdp5_crtc *mdp5_crtc = container_of(irq, struct mdp5_crtc, err);
 
-	DBG("%s: error: %08x", mdp5_crtc->name, irqstatus);
+	DBG("%s: error: %08x", mdp5_crtc->base.name, irqstatus);
 }
 
 static void mdp5_crtc_pp_done_irq(struct mdp_irq *irq, uint32_t irqstatus)
@@ -726,6 +778,13 @@ void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 	mdp5_ctl_set_pipeline(ctl, intf, lm);
 }
 
+struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+
+	return mdp5_crtc->ctl;
+}
+
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
@@ -744,7 +803,8 @@ void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)
 
 /* initialize crtc */
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, int id)
+				struct drm_plane *plane,
+				struct drm_plane *cursor_plane, int id)
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp5_crtc *mdp5_crtc;
@@ -765,11 +825,12 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 	mdp5_crtc->vblank.irq = mdp5_crtc_vblank_irq;
 	mdp5_crtc->err.irq = mdp5_crtc_err_irq;
 
-	snprintf(mdp5_crtc->name, sizeof(mdp5_crtc->name), "%s:%d",
-			pipe2name(mdp5_plane_pipe(plane)), id);
-
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs,
-				  NULL);
+	if (cursor_plane)
+		drm_crtc_init_with_planes(dev, crtc, plane, cursor_plane,
+					  &mdp5_crtc_no_lm_cursor_funcs, NULL);
+	else
+		drm_crtc_init_with_planes(dev, crtc, plane, NULL,
+					  &mdp5_crtc_funcs, NULL);
 
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);

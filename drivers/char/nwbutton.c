@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/timer.h>
@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

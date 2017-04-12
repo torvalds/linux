@@ -64,8 +64,6 @@ struct  cs42l56_private {
 };
 
 static const struct reg_default cs42l56_reg_defaults[] = {
-	{ 1, 0x56 },	/* r01	- ID 1 */
-	{ 2, 0x04 },	/* r02	- ID 2 */
 	{ 3, 0x7f },	/* r03	- Power Ctl 1 */
 	{ 4, 0xff },	/* r04	- Power Ctl 2 */
 	{ 5, 0x00 },	/* ro5	- Clocking Ctl 1 */
@@ -1121,13 +1119,14 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs42l56 = {
 	.set_bias_level = cs42l56_set_bias_level,
 	.suspend_bias_off = true,
 
-	.dapm_widgets = cs42l56_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs42l56_dapm_widgets),
-	.dapm_routes = cs42l56_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs42l56_audio_map),
-
-	.controls = cs42l56_snd_controls,
-	.num_controls = ARRAY_SIZE(cs42l56_snd_controls),
+	.component_driver = {
+		.controls		= cs42l56_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs42l56_snd_controls),
+		.dapm_widgets		= cs42l56_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs42l56_dapm_widgets),
+		.dapm_routes		= cs42l56_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(cs42l56_audio_map),
+	},
 };
 
 static const struct regmap_config cs42l56_regmap = {
@@ -1261,8 +1260,6 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	regcache_cache_bypass(cs42l56->regmap, true);
-
 	ret = regmap_read(cs42l56->regmap, CS42L56_CHIP_ID_1, &reg);
 	devid = reg & CS42L56_CHIP_ID_MASK;
 	if (devid != CS42L56_DEVID) {
@@ -1278,23 +1275,25 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client,
 	dev_info(&i2c_client->dev, "Alpha Rev %X Metal Rev %X\n",
 		 alpha_rev, metal_rev);
 
-	regcache_cache_bypass(cs42l56->regmap, false);
-
 	if (cs42l56->pdata.ain1a_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN1A_REF_MASK, 1);
+				   CS42L56_AIN1A_REF_MASK,
+				   CS42L56_AIN1A_REF_MASK);
 
 	if (cs42l56->pdata.ain1b_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN1B_REF_MASK, 1);
+				   CS42L56_AIN1B_REF_MASK,
+				   CS42L56_AIN1B_REF_MASK);
 
 	if (cs42l56->pdata.ain2a_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN2A_REF_MASK, 1);
+				   CS42L56_AIN2A_REF_MASK,
+				   CS42L56_AIN2A_REF_MASK);
 
 	if (cs42l56->pdata.ain2b_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN2B_REF_MASK, 1);
+				   CS42L56_AIN2B_REF_MASK,
+				   CS42L56_AIN2B_REF_MASK);
 
 	if (cs42l56->pdata.micbias_lvl)
 		regmap_update_bits(cs42l56->regmap, CS42L56_GAIN_BIAS_CTL,

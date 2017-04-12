@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_SPU_PALETTE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_SPU_PALETTE, video_spu_palette_t *palette )
+.. c:function:: int ioctl(fd, VIDEO_SET_SPU_PALETTE, struct video_spu_palette *palette )
+    :name: VIDEO_SET_SPU_PALETTE
 
 
 Arguments
@@ -50,6 +52,14 @@ Description
 
 This ioctl sets the SPU color palette.
 
+.. c:type:: video_spu_palette
+
+.. code-block::c
+
+	typedef struct video_spu_palette {      /* SPU Palette information */
+		int length;
+		__u8 __user *palette;
+	} video_spu_palette_t;
 
 Return Value
 ------------

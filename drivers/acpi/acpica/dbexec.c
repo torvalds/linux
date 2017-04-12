@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -392,42 +392,48 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 					  acpi_db_execution_walk, NULL, NULL,
 					  NULL);
 		return;
-	} else {
-		name_string = ACPI_ALLOCATE(strlen(name) + 1);
-		if (!name_string) {
-			return;
-		}
-
-		memset(&acpi_gbl_db_method_info, 0,
-		       sizeof(struct acpi_db_method_info));
-
-		strcpy(name_string, name);
-		acpi_ut_strupr(name_string);
-		acpi_gbl_db_method_info.name = name_string;
-		acpi_gbl_db_method_info.args = args;
-		acpi_gbl_db_method_info.types = types;
-		acpi_gbl_db_method_info.flags = flags;
-
-		return_obj.pointer = NULL;
-		return_obj.length = ACPI_ALLOCATE_BUFFER;
-
-		status = acpi_db_execute_setup(&acpi_gbl_db_method_info);
-		if (ACPI_FAILURE(status)) {
-			ACPI_FREE(name_string);
-			return;
-		}
-
-		/* Get the NS node, determines existence also */
-
-		status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
-					 &acpi_gbl_db_method_info.method);
-		if (ACPI_SUCCESS(status)) {
-			status =
-			    acpi_db_execute_method(&acpi_gbl_db_method_info,
-						   &return_obj);
-		}
-		ACPI_FREE(name_string);
 	}
+
+	name_string = ACPI_ALLOCATE(strlen(name) + 1);
+	if (!name_string) {
+		return;
+	}
+
+	memset(&acpi_gbl_db_method_info, 0, sizeof(struct acpi_db_method_info));
+	strcpy(name_string, name);
+	acpi_ut_strupr(name_string);
+
+	/* Subcommand to Execute all predefined names in the namespace */
+
+	if (!strncmp(name_string, "PREDEF", 6)) {
+		acpi_db_evaluate_predefined_names();
+		ACPI_FREE(name_string);
+		return;
+	}
+
+	acpi_gbl_db_method_info.name = name_string;
+	acpi_gbl_db_method_info.args = args;
+	acpi_gbl_db_method_info.types = types;
+	acpi_gbl_db_method_info.flags = flags;
+
+	return_obj.pointer = NULL;
+	return_obj.length = ACPI_ALLOCATE_BUFFER;
+
+	status = acpi_db_execute_setup(&acpi_gbl_db_method_info);
+	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(name_string);
+		return;
+	}
+
+	/* Get the NS node, determines existence also */
+
+	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
+				 &acpi_gbl_db_method_info.method);
+	if (ACPI_SUCCESS(status)) {
+		status = acpi_db_execute_method(&acpi_gbl_db_method_info,
+						&return_obj);
+	}
+	ACPI_FREE(name_string);
 
 	/*
 	 * Allow any handlers in separate threads to complete.

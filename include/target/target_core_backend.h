@@ -1,7 +1,18 @@
 #ifndef TARGET_CORE_BACKEND_H
 #define TARGET_CORE_BACKEND_H
 
-#define TRANSPORT_FLAG_PASSTHROUGH		1
+#include <linux/types.h>
+#include <target/target_core_base.h>
+
+#define TRANSPORT_FLAG_PASSTHROUGH		0x1
+/*
+ * ALUA commands, state checks and setup operations are handled by the
+ * backend module.
+ */
+#define TRANSPORT_FLAG_PASSTHROUGH_ALUA		0x2
+
+struct request_queue;
+struct scatterlist;
 
 struct target_backend_ops {
 	char name[16];

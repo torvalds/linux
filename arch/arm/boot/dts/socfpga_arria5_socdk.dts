@@ -39,6 +39,29 @@
 		ethernet0 = &gmac1;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		hps0 {
+			label = "hps_led0";
+			gpios = <&porta 0 1>;
+		};
+
+		hps1 {
+			label = "hps_led1";
+			gpios = <&portb 11 1>;
+		};
+
+		hps2 {
+			label = "hps_led2";
+			gpios = <&porta 17 1>;
+		};
+
+		hps3 {
+			label = "hps_led3";
+			gpios = <&porta 18 1>;
+		};
+	};
+
 	regulator_3_3v: 3-3-v-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3.3V";
@@ -61,8 +84,28 @@
 	rxc-skew-ps = <2000>;
 };
 
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
+	clock-frequency = <100000>;
+
+	/*
+	 * adjust the falling times to decrease the i2c frequency to 50Khz
+	 * because the LCD module does not work at the standard 100Khz
+	 */
+	i2c-sda-falling-time-ns = <5000>;
+	i2c-scl-falling-time-ns = <5000>;
 
 	eeprom@51 {
 		compatible = "atmel,24c32";
@@ -80,6 +123,39 @@
 	vmmc-supply = <&regulator_3_3v>;
 	vqmmc-supply = <&regulator_3_3v>;
 	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+
+	flash: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q256a";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+
+		m25p,fast-read;
+		cdns,page-size = <256>;
+		cdns,block-size = <16>;
+		cdns,read-delay = <4>;
+		cdns,tshsl-ns = <50>;
+		cdns,tsd2d-ns = <50>;
+		cdns,tchsh-ns = <4>;
+		cdns,tslch-ns = <4>;
+
+		partition@qspi-boot {
+			/* 8MB for raw data. */
+			label = "Flash 0 Raw Data";
+			reg = <0x0 0x800000>;
+		};
+
+		partition@qspi-rootfs {
+			/* 120MB for jffs2 data. */
+			label = "Flash 0 jffs2 Filesystem";
+			reg = <0x800000 0x7800000>;
+		};
+	};
 };
 
 &usb1 {

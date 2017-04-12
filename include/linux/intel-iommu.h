@@ -29,6 +29,7 @@
 #include <linux/dma_remapping.h>
 #include <linux/mmu_notifier.h>
 #include <linux/list.h>
+#include <linux/iommu.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 
@@ -153,8 +154,8 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_GLOBAL_FLUSH (((u64)1) << 60)
 #define DMA_TLB_DSI_FLUSH (((u64)2) << 60)
 #define DMA_TLB_PSI_FLUSH (((u64)3) << 60)
-#define DMA_TLB_IIRG(type) ((type >> 60) & 7)
-#define DMA_TLB_IAIG(val) (((val) >> 57) & 7)
+#define DMA_TLB_IIRG(type) ((type >> 60) & 3)
+#define DMA_TLB_IAIG(val) (((val) >> 57) & 3)
 #define DMA_TLB_READ_DRAIN (((u64)1) << 49)
 #define DMA_TLB_WRITE_DRAIN (((u64)1) << 48)
 #define DMA_TLB_DID(id)	(((u64)((id) & 0xffff)) << 32)
@@ -164,9 +165,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 
 /* INVALID_DESC */
 #define DMA_CCMD_INVL_GRANU_OFFSET  61
-#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 3)
-#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 3)
-#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 3)
+#define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 4)
+#define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 4)
+#define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 4)
 #define DMA_ID_TLB_READ_DRAIN	(((u64)1) << 7)
 #define DMA_ID_TLB_WRITE_DRAIN	(((u64)1) << 6)
 #define DMA_ID_TLB_DID(id)	(((u64)((id & 0xffff) << 16)))
@@ -316,8 +317,8 @@ enum {
 #define QI_DEV_EIOTLB_SIZE	(((u64)1) << 11)
 #define QI_DEV_EIOTLB_GLOB(g)	((u64)g)
 #define QI_DEV_EIOTLB_PASID(p)	(((u64)p) << 32)
-#define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 32)
-#define QI_DEV_EIOTLB_QDEP(qd)	(((qd) & 0x1f) << 16)
+#define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 16)
+#define QI_DEV_EIOTLB_QDEP(qd)	((u64)((qd) & 0x1f) << 4)
 #define QI_DEV_EIOTLB_MAX_INVS	32
 
 #define QI_PGRP_IDX(idx)	(((u64)(idx)) << 55)
@@ -429,6 +430,7 @@ struct intel_iommu {
 	struct page_req_dsc *prq;
 	unsigned char prq_name[16];    /* Name for PRQ interrupt */
 	struct idr pasid_idr;
+	u32 pasid_max;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 *iommu_state; /* Store iommu states between suspend and resume.*/
@@ -438,7 +440,7 @@ struct intel_iommu {
 	struct irq_domain *ir_domain;
 	struct irq_domain *ir_msi_domain;
 #endif
-	struct device	*iommu_dev; /* IOMMU-sysfs device */
+	struct iommu_device iommu;  /* IOMMU core code handle */
 	int		node;
 	u32		flags;      /* Software defined flags */
 };

@@ -128,6 +128,8 @@ all_target_sources()
 
 all_kconfigs()
 {
+	find ${tree}arch/ -maxdepth 1 $ignore \
+	       -name "Kconfig*" -not -type l -print;
 	for arch in $ALLSOURCE_ARCHS; do
 		find_sources $arch 'Kconfig*'
 	done
@@ -263,7 +265,8 @@ exuberant()
 	-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL,ACPI_EXPORT_SYMBOL   \
 	-I DEFINE_TRACE,EXPORT_TRACEPOINT_SYMBOL,EXPORT_TRACEPOINT_SYMBOL_GPL \
 	-I static,const						\
-	--extra=+f --c-kinds=+px --langmap=c:+.h "${regex[@]}"
+	--extra=+fq --c-kinds=+px --fields=+iaS --langmap=c:+.h \
+	"${regex[@]}"
 
 	setup_regex exuberant kconfig
 	all_kconfigs | xargs $1 -a                              \
@@ -303,11 +306,26 @@ if [ "${ARCH}" = "um" ]; then
 elif [ "${SRCARCH}" = "arm" -a "${SUBARCH}" != "" ]; then
 	subarchdir=$(find ${tree}arch/$SRCARCH/ -name "mach-*" -type d -o \
 							-name "plat-*" -type d);
+	mach_suffix=$SUBARCH
+	plat_suffix=$SUBARCH
+
+	# Special cases when $plat_suffix != $mach_suffix
+	case $mach_suffix in
+		"omap1" | "omap2")
+			plat_suffix="omap"
+			;;
+	esac
+
+	if [ ! -d ${tree}arch/$SRCARCH/mach-$mach_suffix ]; then
+		echo "Warning: arch/arm/mach-$mach_suffix/ not found." >&2
+		echo "         Fix your \$SUBARCH appropriately" >&2
+	fi
+
 	for i in $subarchdir; do
 		case "$i" in
-			*"mach-"${SUBARCH})
+			*"mach-"${mach_suffix})
 				;;
-			*"plat-"${SUBARCH})
+			*"plat-"${plat_suffix})
 				;;
 			*)
 				subarchprune="$subarchprune \

@@ -66,7 +66,7 @@
 #include <linux/kref.h>
 #include <linux/interval_tree.h>
 #include <linux/hashtable.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
@@ -367,7 +367,7 @@ struct radeon_fence_driver {
 };
 
 struct radeon_fence {
-	struct fence		base;
+	struct dma_fence		base;
 
 	struct radeon_device	*rdev;
 	uint64_t		seq;
@@ -742,10 +742,11 @@ struct radeon_flip_work {
 	struct work_struct		unpin_work;
 	struct radeon_device		*rdev;
 	int				crtc_id;
+	u32				target_vblank;
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct fence			*fence;
+	struct dma_fence		*fence;
 	bool				async;
 };
 
@@ -2513,9 +2514,9 @@ void cik_mm_wdoorbell(struct radeon_device *rdev, u32 index, u32 v);
 /*
  * Cast helper
  */
-extern const struct fence_ops radeon_fence_ops;
+extern const struct dma_fence_ops radeon_fence_ops;
 
-static inline struct radeon_fence *to_radeon_fence(struct fence *f)
+static inline struct radeon_fence *to_radeon_fence(struct dma_fence *f)
 {
 	struct radeon_fence *__f = container_of(f, struct radeon_fence, base);
 

@@ -820,7 +820,7 @@ static u32 at91_twi_func(struct i2c_adapter *adapter)
 		| I2C_FUNC_SMBUS_READ_BLOCK_DATA;
 }
 
-static struct i2c_algorithm at91_twi_algorithm = {
+static const struct i2c_algorithm at91_twi_algorithm = {
 	.master_xfer	= at91_twi_xfer,
 	.functionality	= at91_twi_func,
 };
@@ -1122,8 +1122,6 @@ static int at91_twi_probe(struct platform_device *pdev)
 
 	rc = i2c_add_numbered_adapter(&dev->adapter);
 	if (rc) {
-		dev_err(dev->dev, "Adapter %s registration failed\n",
-			dev->adapter.name);
 		clk_disable_unprepare(dev->clk);
 
 		pm_runtime_disable(dev->dev);
@@ -1182,6 +1180,7 @@ static int at91_twi_suspend_noirq(struct device *dev)
 
 static int at91_twi_resume_noirq(struct device *dev)
 {
+	struct at91_twi_dev *twi_dev = dev_get_drvdata(dev);
 	int ret;
 
 	if (!pm_runtime_status_suspended(dev)) {
@@ -1192,6 +1191,8 @@ static int at91_twi_resume_noirq(struct device *dev)
 
 	pm_runtime_mark_last_busy(dev);
 	pm_request_autosuspend(dev);
+
+	at91_init_twi_bus(twi_dev);
 
 	return 0;
 }

@@ -17,6 +17,14 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
+#ifdef CONFIG_NET_CLS
+void tcf_destroy_chain(struct tcf_proto __rcu **fl);
+#else
+static inline void tcf_destroy_chain(struct tcf_proto __rcu **fl)
+{
+}
+#endif
+
 static inline unsigned long
 __cls_set_class(unsigned long *clp, unsigned long cl)
 {
@@ -69,17 +77,19 @@ struct tcf_exts {
 	int police;
 };
 
-static inline void tcf_exts_init(struct tcf_exts *exts, int action, int police)
+static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
-	WARN_ON(!exts->actions); /* TODO: propagate the error to callers */
+	if (!exts->actions)
+		return -ENOMEM;
 #endif
 	exts->action = action;
 	exts->police = police;
+	return 0;
 }
 
 /**
@@ -121,7 +131,7 @@ static inline void tcf_exts_to_list(const struct tcf_exts *exts,
 	for (i = 0; i < exts->nr_actions; i++) {
 		struct tc_action *a = exts->actions[i];
 
-		list_add(&a->list, actions);
+		list_add_tail(&a->list, actions);
 	}
 #endif
 }
@@ -169,6 +179,8 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
+int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
+		     struct net_device **hw_dev);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -423,15 +435,13 @@ struct tc_cls_u32_offload {
 	};
 };
 
-static inline bool tc_should_offload(const struct net_device *dev,
-				     const struct tcf_proto *tp, u32 flags)
+static inline bool tc_can_offload(const struct net_device *dev,
+				  const struct tcf_proto *tp)
 {
 	const struct Qdisc *sch = tp->q;
 	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
 
 	if (!(dev->features & NETIF_F_HW_TC))
-		return false;
-	if (flags & TCA_CLS_FLAGS_SKIP_HW)
 		return false;
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return false;
@@ -439,6 +449,19 @@ static inline bool tc_should_offload(const struct net_device *dev,
 		return cops->tcf_cl_offload(tp->classid);
 
 	return true;
+}
+
+static inline bool tc_skip_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
+}
+
+static inline bool tc_should_offload(const struct net_device *dev,
+				     const struct tcf_proto *tp, u32 flags)
+{
+	if (tc_skip_hw(flags))
+		return false;
+	return tc_can_offload(dev, tp);
 }
 
 static inline bool tc_skip_sw(u32 flags)
@@ -458,6 +481,11 @@ static inline bool tc_flags_valid(u32 flags)
 	return true;
 }
 
+static inline bool tc_in_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_IN_HW) ? true : false;
+}
+
 enum tc_fl_command {
 	TC_CLSFLOWER_REPLACE,
 	TC_CLSFLOWER_DESTROY,
@@ -466,6 +494,7 @@ enum tc_fl_command {
 
 struct tc_cls_flower_offload {
 	enum tc_fl_command command;
+	u32 prio;
 	unsigned long cookie;
 	struct flow_dissector *dissector;
 	struct fl_flow_key *mask;
@@ -484,4 +513,28 @@ struct tc_cls_matchall_offload {
 	unsigned long cookie;
 };
 
+enum tc_clsbpf_command {
+	TC_CLSBPF_ADD,
+	TC_CLSBPF_REPLACE,
+	TC_CLSBPF_DESTROY,
+	TC_CLSBPF_STATS,
+};
+
+struct tc_cls_bpf_offload {
+	enum tc_clsbpf_command command;
+	struct tcf_exts *exts;
+	struct bpf_prog *prog;
+	const char *name;
+	bool exts_integrated;
+	u32 gen_flags;
+};
+
+
+/* This structure holds cookie structure that is passed from user
+ * to the kernel for actions and classifiers
+ */
+struct tc_cookie {
+	u8  *data;
+	u32 len;
+};
 #endif

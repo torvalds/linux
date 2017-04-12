@@ -11,7 +11,7 @@
 #include "thread.h"
 #include "callchain.h"
 
-#if defined (__x86_64__) || defined (__i386__)
+#if defined (__x86_64__) || defined (__i386__) || defined (__powerpc__)
 #include "arch-tests.h"
 #endif
 

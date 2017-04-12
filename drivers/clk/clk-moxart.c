@@ -19,7 +19,8 @@
 static void __init moxart_of_pll_clk_init(struct device_node *node)
 {
 	static void __iomem *base;
-	struct clk *clk, *ref_clk;
+	struct clk_hw *hw;
+	struct clk *ref_clk;
 	unsigned int mul;
 	const char *name = node->name;
 	const char *parent_name;
@@ -42,14 +43,14 @@ static void __init moxart_of_pll_clk_init(struct device_node *node)
 		return;
 	}
 
-	clk = clk_register_fixed_factor(NULL, name, parent_name, 0, mul, 1);
-	if (IS_ERR(clk)) {
+	hw = clk_hw_register_fixed_factor(NULL, name, parent_name, 0, mul, 1);
+	if (IS_ERR(hw)) {
 		pr_err("%s: failed to register clock\n", node->full_name);
 		return;
 	}
 
-	clk_register_clkdev(clk, NULL, name);
-	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	clk_hw_register_clkdev(hw, NULL, name);
+	of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
 }
 CLK_OF_DECLARE(moxart_pll_clock, "moxa,moxart-pll-clock",
 	       moxart_of_pll_clk_init);
@@ -57,7 +58,8 @@ CLK_OF_DECLARE(moxart_pll_clock, "moxa,moxart-pll-clock",
 static void __init moxart_of_apb_clk_init(struct device_node *node)
 {
 	static void __iomem *base;
-	struct clk *clk, *pll_clk;
+	struct clk_hw *hw;
+	struct clk *pll_clk;
 	unsigned int div, val;
 	unsigned int div_idx[] = { 2, 3, 4, 6, 8};
 	const char *name = node->name;
@@ -85,14 +87,14 @@ static void __init moxart_of_apb_clk_init(struct device_node *node)
 		return;
 	}
 
-	clk = clk_register_fixed_factor(NULL, name, parent_name, 0, 1, div);
-	if (IS_ERR(clk)) {
+	hw = clk_hw_register_fixed_factor(NULL, name, parent_name, 0, 1, div);
+	if (IS_ERR(hw)) {
 		pr_err("%s: failed to register clock\n", node->full_name);
 		return;
 	}
 
-	clk_register_clkdev(clk, NULL, name);
-	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	clk_hw_register_clkdev(hw, NULL, name);
+	of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
 }
 CLK_OF_DECLARE(moxart_apb_clock, "moxa,moxart-apb-clock",
 	       moxart_of_apb_clk_init);

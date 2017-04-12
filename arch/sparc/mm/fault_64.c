@@ -10,11 +10,12 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/ptrace.h>
 #include <linux/mman.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/init.h>
 #include <linux/perf_event.h>
 #include <linux/interrupt.h>
@@ -484,6 +485,7 @@ good_area:
 		tsb_grow(mm, MM_TSB_BASE, mm_rss);
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	mm_rss = mm->context.hugetlb_pte_count + mm->context.thp_pte_count;
+	mm_rss *= REAL_HPAGE_PER_HPAGE;
 	if (unlikely(mm_rss >
 		     mm->context.tsb_block[MM_TSB_HUGE].tsb_rss_limit)) {
 		if (mm->context.tsb_block[MM_TSB_HUGE].tsb)

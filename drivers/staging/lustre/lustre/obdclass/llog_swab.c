@@ -38,6 +38,7 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
+#include "../include/llog_swab.h"
 #include "../include/lustre_log.h"
 
 static void print_llogd_body(struct llogd_body *d)
@@ -172,20 +173,23 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		__swab64s(&cr->cr.cr_time);
 		lustre_swab_lu_fid(&cr->cr.cr_tfid);
 		lustre_swab_lu_fid(&cr->cr.cr_pfid);
-		if (CHANGELOG_REC_EXTENDED(&cr->cr)) {
-			struct llog_changelog_ext_rec *ext =
-				(struct llog_changelog_ext_rec *)rec;
+		if (cr->cr.cr_flags & CLF_RENAME) {
+			struct changelog_ext_rename *rnm =
+				changelog_rec_rename(&cr->cr);
 
-			lustre_swab_lu_fid(&ext->cr.cr_sfid);
-			lustre_swab_lu_fid(&ext->cr.cr_spfid);
-			tail = &ext->cr_tail;
-		} else {
-			tail = &cr->cr_tail;
+			lustre_swab_lu_fid(&rnm->cr_sfid);
+			lustre_swab_lu_fid(&rnm->cr_spfid);
 		}
-		tail = (struct llog_rec_tail *)((char *)tail +
+		/*
+		 * Because the tail follows a variable-length structure we need
+		 * to compute its location at runtime
+		 */
+		tail = (struct llog_rec_tail *)((char *)&cr->cr +
+						changelog_rec_size(&cr->cr) +
 						cr->cr.cr_namelen);
 		break;
 	}
+
 	case CHANGELOG_USER_REC:
 	{
 		struct llog_changelog_user_rec *cur =
@@ -224,6 +228,7 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		__swab32s(&lsr->lsr_uid_h);
 		__swab32s(&lsr->lsr_gid);
 		__swab32s(&lsr->lsr_gid_h);
+		__swab64s(&lsr->lsr_valid);
 		tail = &lsr->lsr_tail;
 		break;
 	}
@@ -240,7 +245,7 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		__swab32s(&llh->llh_flags);
 		__swab32s(&llh->llh_size);
 		__swab32s(&llh->llh_cat_idx);
-		tail = &llh->llh_tail;
+		tail = LLOG_HDR_TAIL(llh);
 		break;
 	}
 	case LLOG_LOGID_MAGIC:
@@ -286,8 +291,10 @@ static void print_llog_hdr(struct llog_log_hdr *h)
 	CDEBUG(D_OTHER, "\tllh_flags: %#x\n", h->llh_flags);
 	CDEBUG(D_OTHER, "\tllh_size: %#x\n", h->llh_size);
 	CDEBUG(D_OTHER, "\tllh_cat_idx: %#x\n", h->llh_cat_idx);
-	CDEBUG(D_OTHER, "\tllh_tail.lrt_index: %#x\n", h->llh_tail.lrt_index);
-	CDEBUG(D_OTHER, "\tllh_tail.lrt_len: %#x\n", h->llh_tail.lrt_len);
+	CDEBUG(D_OTHER, "\tllh_tail.lrt_index: %#x\n",
+	       LLOG_HDR_TAIL(h)->lrt_index);
+	CDEBUG(D_OTHER, "\tllh_tail.lrt_len: %#x\n",
+	       LLOG_HDR_TAIL(h)->lrt_len);
 }
 
 void lustre_swab_llog_hdr(struct llog_log_hdr *h)
@@ -343,7 +350,6 @@ void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 
 	print_lustre_cfg(lcfg);
 }
-EXPORT_SYMBOL(lustre_swab_lustre_cfg);
 
 /* used only for compatibility with old on-disk cfg_marker data */
 struct cfg_marker32 {
@@ -403,4 +409,3 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		__swab64s(&marker->cm_canceltime);
 	}
 }
-EXPORT_SYMBOL(lustre_swab_cfg_marker);

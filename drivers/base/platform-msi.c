@@ -142,13 +142,12 @@ static int platform_msi_alloc_descs_with_irq(struct device *dev, int virq,
 	}
 
 	for (i = 0; i < nvec; i++) {
-		desc = alloc_msi_entry(dev);
+		desc = alloc_msi_entry(dev, 1, NULL);
 		if (!desc)
 			break;
 
 		desc->platform.msi_priv_data = data;
 		desc->platform.msi_index = base + i;
-		desc->nvec_used = 1;
 		desc->irq = virq ? virq + i : 0;
 
 		list_add_tail(&desc->list, dev_to_msi_list(dev));
@@ -207,7 +206,7 @@ platform_msi_alloc_priv_data(struct device *dev, unsigned int nvec,
 {
 	struct platform_msi_priv_data *datap;
 	/*
-	 * Limit the number of interrupts to 256 per device. Should we
+	 * Limit the number of interrupts to 2048 per device. Should we
 	 * need to bump this up, DEV_ID_SHIFT should be adjusted
 	 * accordingly (which would impact the max number of MSI
 	 * capable devices).

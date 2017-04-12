@@ -95,12 +95,13 @@ struct chsc_ssd_area {
 int chsc_get_ssd_info(struct subchannel_id schid, struct chsc_ssd_info *ssd)
 {
 	struct chsc_ssd_area *ssd_area;
+	unsigned long flags;
 	int ccode;
 	int ret;
 	int i;
 	int mask;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	memset(chsc_page, 0, PAGE_SIZE);
 	ssd_area = chsc_page;
 	ssd_area->request.length = 0x0010;
@@ -144,7 +145,7 @@ int chsc_get_ssd_info(struct subchannel_id schid, struct chsc_ssd_info *ssd)
 			ssd->fla[i] = ssd_area->fla[i];
 	}
 out:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 
@@ -832,9 +833,10 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 		u32 fmt : 4;
 		u32 : 16;
 	} __attribute__ ((packed)) *secm_area;
+	unsigned long flags;
 	int ret, ccode;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	memset(chsc_page, 0, PAGE_SIZE);
 	secm_area = chsc_page;
 	secm_area->request.length = 0x0050;
@@ -864,7 +866,7 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 		CIO_CRW_EVENT(2, "chsc: secm failed (rc=%04x)\n",
 			      secm_area->response.code);
 out:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 
@@ -992,6 +994,7 @@ chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
 
 int chsc_get_channel_measurement_chars(struct channel_path *chp)
 {
+	unsigned long flags;
 	int ccode, ret;
 
 	struct {
@@ -1021,7 +1024,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 	if (!css_chsc_characteristics.scmc || !css_chsc_characteristics.secm)
 		return -EINVAL;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	memset(chsc_page, 0, PAGE_SIZE);
 	scmc_area = chsc_page;
 	scmc_area->request.length = 0x0010;
@@ -1053,7 +1056,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 	chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
 				  (struct cmg_chars *) &scmc_area->data);
 out:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 
@@ -1128,12 +1131,59 @@ int chsc_enable_facility(int operation_code)
 	return ret;
 }
 
+int __init chsc_get_cssid(int idx)
+{
+	struct {
+		struct chsc_header request;
+		u8 atype;
+		u32 : 24;
+		u32 reserved1[6];
+		struct chsc_header response;
+		u32 reserved2[3];
+		struct {
+			u8 cssid;
+			u32 : 24;
+		} list[0];
+	} __packed *sdcal_area;
+	int ret;
+
+	spin_lock_irq(&chsc_page_lock);
+	memset(chsc_page, 0, PAGE_SIZE);
+	sdcal_area = chsc_page;
+	sdcal_area->request.length = 0x0020;
+	sdcal_area->request.code = 0x0034;
+	sdcal_area->atype = 4;
+
+	ret = chsc(sdcal_area);
+	if (ret) {
+		ret = (ret == 3) ? -ENODEV : -EBUSY;
+		goto exit;
+	}
+
+	ret = chsc_error_from_response(sdcal_area->response.code);
+	if (ret) {
+		CIO_CRW_EVENT(2, "chsc: sdcal failed (rc=%04x)\n",
+			      sdcal_area->response.code);
+		goto exit;
+	}
+
+	if ((addr_t) &sdcal_area->list[idx] <
+	    (addr_t) &sdcal_area->response + sdcal_area->response.length)
+		ret = sdcal_area->list[idx].cssid;
+	else
+		ret = -ENODEV;
+exit:
+	spin_unlock_irq(&chsc_page_lock);
+	return ret;
+}
+
 struct css_general_char css_general_characteristics;
 struct css_chsc_char css_chsc_characteristics;
 
 int __init
 chsc_determine_css_characteristics(void)
 {
+	unsigned long flags;
 	int result;
 	struct {
 		struct chsc_header request;
@@ -1146,7 +1196,7 @@ chsc_determine_css_characteristics(void)
 		u32 chsc_char[508];
 	} __attribute__ ((packed)) *scsc_area;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	memset(chsc_page, 0, PAGE_SIZE);
 	scsc_area = chsc_page;
 	scsc_area->request.length = 0x0010;
@@ -1168,7 +1218,7 @@ chsc_determine_css_characteristics(void)
 		CIO_CRW_EVENT(2, "chsc: scsc failed (rc=%04x)\n",
 			      scsc_area->response.code);
 exit:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return result;
 }
 
@@ -1212,7 +1262,7 @@ int chsc_sstpi(void *page, void *result, size_t size)
 		struct chsc_header request;
 		unsigned int rsvd0[3];
 		struct chsc_header response;
-		char data[size];
+		char data[];
 	} __attribute__ ((packed)) *rr;
 	int rc;
 

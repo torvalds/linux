@@ -94,7 +94,7 @@ static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 static void rtc_irq_eoi_tracking_reset(struct kvm_ioapic *ioapic)
 {
 	ioapic->rtc_status.pending_eoi = 0;
-	bitmap_zero(ioapic->rtc_status.dest_map.map, KVM_MAX_VCPUS);
+	bitmap_zero(ioapic->rtc_status.dest_map.map, KVM_MAX_VCPU_ID);
 }
 
 static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic);
@@ -594,7 +594,7 @@ static void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
 	ioapic->irr = 0;
 	ioapic->irr_delivered = 0;
 	ioapic->id = 0;
-	memset(ioapic->irq_eoi, 0x00, IOAPIC_NUM_PINS);
+	memset(ioapic->irq_eoi, 0x00, sizeof(ioapic->irq_eoi));
 	rtc_irq_eoi_tracking_reset(ioapic);
 }
 
@@ -634,6 +634,9 @@ int kvm_ioapic_init(struct kvm *kvm)
 void kvm_ioapic_destroy(struct kvm *kvm)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
+
+	if (!ioapic)
+		return;
 
 	cancel_delayed_work_sync(&ioapic->eoi_inject);
 	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &ioapic->dev);

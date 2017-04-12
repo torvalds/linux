@@ -494,10 +494,8 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 
 	/* add i2c adapter to i2c tree */
 	ret = i2c_add_adapter(&i2c->adap);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to add adapter\n");
+	if (ret)
 		goto err_clk;
-	}
 
 	/* add in known devices to the bus */
 	if (pdata) {

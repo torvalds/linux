@@ -1681,7 +1681,7 @@ static int snd_korg1212_capture_copy(struct snd_pcm_substream *substream,
 	return snd_korg1212_copy_to(korg1212, dst, pos, count, 0, korg1212->channels * 2);
 }
 
-static struct snd_pcm_ops snd_korg1212_playback_ops = {
+static const struct snd_pcm_ops snd_korg1212_playback_ops = {
         .open =		snd_korg1212_playback_open,
         .close =	snd_korg1212_playback_close,
         .ioctl =	snd_korg1212_ioctl,
@@ -1693,7 +1693,7 @@ static struct snd_pcm_ops snd_korg1212_playback_ops = {
         .silence =	snd_korg1212_playback_silence,
 };
 
-static struct snd_pcm_ops snd_korg1212_capture_ops = {
+static const struct snd_pcm_ops snd_korg1212_capture_ops = {
 	.open =		snd_korg1212_capture_open,
 	.close =	snd_korg1212_capture_close,
 	.ioctl =	snd_korg1212_ioctl,
@@ -2051,7 +2051,7 @@ static void snd_korg1212_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, korg1212->card->longname);
 	snd_iprintf(buffer, " (index #%d)\n", korg1212->card->number + 1);
 	snd_iprintf(buffer, "\nGeneral settings\n");
-	snd_iprintf(buffer, "    period size: %Zd bytes\n", K1212_PERIOD_BYTES);
+	snd_iprintf(buffer, "    period size: %zd bytes\n", K1212_PERIOD_BYTES);
 	snd_iprintf(buffer, "     clock mode: %s\n", clockSourceName[korg1212->clkSrcRate] );
 	snd_iprintf(buffer, "  left ADC Sens: %d\n", korg1212->leftADCInSens );
 	snd_iprintf(buffer, " right ADC Sens: %d\n", korg1212->rightADCInSens );
@@ -2276,7 +2276,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				sizeof(struct KorgSharedBuffer), &korg1212->dma_shared) < 0) {
-		snd_printk(KERN_ERR "korg1212: can not allocate shared buffer memory (%Zd bytes)\n", sizeof(struct KorgSharedBuffer));
+		snd_printk(KERN_ERR "korg1212: can not allocate shared buffer memory (%zd bytes)\n", sizeof(struct KorgSharedBuffer));
                 snd_korg1212_free(korg1212);
                 return -ENOMEM;
         }

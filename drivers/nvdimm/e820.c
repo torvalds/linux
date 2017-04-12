@@ -84,18 +84,8 @@ static struct platform_driver e820_pmem_driver = {
 	},
 };
 
-static __init int e820_pmem_init(void)
-{
-	return platform_driver_register(&e820_pmem_driver);
-}
-
-static __exit void e820_pmem_exit(void)
-{
-	platform_driver_unregister(&e820_pmem_driver);
-}
+module_platform_driver(e820_pmem_driver);
 
 MODULE_ALIAS("platform:e820_pmem*");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
-module_init(e820_pmem_init);
-module_exit(e820_pmem_exit);

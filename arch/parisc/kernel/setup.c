@@ -36,8 +36,11 @@
 #undef PCI_DEBUG
 #include <linux/proc_fs.h>
 #include <linux/export.h>
+#include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #include <asm/processor.h>
+#include <asm/sections.h>
 #include <asm/pdc.h>
 #include <asm/led.h>
 #include <asm/machdep.h>	/* for pa7300lc_init() proto */
@@ -140,6 +143,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	printk(KERN_CONT ".\n");
 
+	/*
+	 * Check if initial kernel page mappings are sufficient.
+	 * panic early if not, else we may access kernel functions
+	 * and variables which can't be reached.
+	 */
+	if (__pa((unsigned long) &_end) >= KERNEL_INITIAL_SIZE)
+		panic("KERNEL_INITIAL_ORDER too small!");
 
 	pdc_console_init();
 
@@ -168,6 +178,7 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
 #endif
 
+	clear_sched_clock_stable();
 }
 
 /*
@@ -326,6 +337,10 @@ static int __init parisc_init(void)
 	/* tell PDC we're Linux. Nevermind failure. */
 	pdc_stable_write(0x40, &osid, sizeof(osid));
 	
+	/* start with known state */
+	flush_cache_all_local();
+	flush_tlb_all_local(NULL);
+
 	processor_init();
 #ifdef CONFIG_SMP
 	pr_info("CPU(s): %d out of %d %s at %d.%06d MHz online\n",

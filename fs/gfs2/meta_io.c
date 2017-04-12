@@ -37,8 +37,7 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 {
 	struct buffer_head *bh, *head;
 	int nr_underway = 0;
-	int write_flags = REQ_META | REQ_PRIO |
-		(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : 0);
+	int write_flags = REQ_META | REQ_PRIO | wbc_to_write_flags(wbc);
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(!page_has_buffers(page));
@@ -216,23 +215,26 @@ static void gfs2_meta_read_endio(struct bio *bio)
 static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
 			    int num)
 {
-	struct buffer_head *bh = bhs[0];
-	struct bio *bio;
-	int i;
+	while (num > 0) {
+		struct buffer_head *bh = *bhs;
+		struct bio *bio;
 
-	if (!num)
-		return;
-
-	bio = bio_alloc(GFP_NOIO, num);
-	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
-	bio->bi_bdev = bh->b_bdev;
-	for (i = 0; i < num; i++) {
-		bh = bhs[i];
-		bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+		bio = bio_alloc(GFP_NOIO, num);
+		bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
+		bio->bi_bdev = bh->b_bdev;
+		while (num > 0) {
+			bh = *bhs;
+			if (!bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh))) {
+				BUG_ON(bio->bi_iter.bi_size == 0);
+				break;
+			}
+			bhs++;
+			num--;
+		}
+		bio->bi_end_io = gfs2_meta_read_endio;
+		bio_set_op_attrs(bio, op, op_flags);
+		submit_bio(bio);
 	}
-	bio->bi_end_io = gfs2_meta_read_endio;
-	bio_set_op_attrs(bio, op, op_flags);
-	submit_bio(bio);
 }
 
 /**
@@ -282,7 +284,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		}
 	}
 
-	gfs2_submit_bhs(REQ_OP_READ, READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
+	gfs2_submit_bhs(REQ_OP_READ, REQ_META | REQ_PRIO, bhs, num);
 	if (!(flags & DIO_WAIT))
 		return 0;
 
@@ -290,7 +292,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	wait_on_buffer(bh);
 	if (unlikely(!buffer_uptodate(bh))) {
 		struct gfs2_trans *tr = current->journal_info;
-		if (tr && tr->tr_touched)
+		if (tr && test_bit(TR_TOUCHED, &tr->tr_flags))
 			gfs2_io_error_bh(sdp, bh);
 		brelse(bh);
 		*bhp = NULL;
@@ -317,7 +319,7 @@ int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 
 	if (!buffer_uptodate(bh)) {
 		struct gfs2_trans *tr = current->journal_info;
-		if (tr && tr->tr_touched)
+		if (tr && test_bit(TR_TOUCHED, &tr->tr_flags))
 			gfs2_io_error_bh(sdp, bh);
 		return -EIO;
 	}
@@ -343,7 +345,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 			tr->tr_num_buf_rm++;
 		else
 			tr->tr_num_databuf_rm++;
-		tr->tr_touched = 1;
+		set_bit(TR_TOUCHED, &tr->tr_flags);
 		was_pinned = 1;
 		brelse(bh);
 	}
@@ -450,7 +452,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	if (buffer_uptodate(first_bh))
 		goto out;
 	if (!buffer_locked(first_bh))
-		ll_rw_block(REQ_OP_READ, READ_SYNC | REQ_META, 1, &first_bh);
+		ll_rw_block(REQ_OP_READ, REQ_META, 1, &first_bh);
 
 	dblock++;
 	extlen--;

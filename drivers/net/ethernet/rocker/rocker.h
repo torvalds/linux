@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/notifier.h>
 #include <net/neighbour.h>
 #include <net/switchdev.h>
 
@@ -52,6 +53,9 @@ struct rocker_port {
 	struct rocker_dma_ring_info rx_ring;
 };
 
+struct rocker_port *rocker_port_dev_lower_find(struct net_device *dev,
+					       struct rocker *rocker);
+
 struct rocker_world_ops;
 
 struct rocker {
@@ -66,7 +70,9 @@ struct rocker {
 	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
+	struct notifier_block fib_nb;
 	struct rocker_world_ops *wops;
+	struct workqueue_struct *rocker_owq;
 	void *wpriv;
 };
 
@@ -117,11 +123,6 @@ struct rocker_world_ops {
 	int (*port_obj_vlan_dump)(const struct rocker_port *rocker_port,
 				  struct switchdev_obj_port_vlan *vlan,
 				  switchdev_obj_dump_cb_t *cb);
-	int (*port_obj_fib4_add)(struct rocker_port *rocker_port,
-				 const struct switchdev_obj_ipv4_fib *fib4,
-				 struct switchdev_trans *trans);
-	int (*port_obj_fib4_del)(struct rocker_port *rocker_port,
-				 const struct switchdev_obj_ipv4_fib *fib4);
 	int (*port_obj_fdb_add)(struct rocker_port *rocker_port,
 				const struct switchdev_obj_port_fdb *fdb,
 				struct switchdev_trans *trans);
@@ -141,6 +142,11 @@ struct rocker_world_ops {
 	int (*port_ev_mac_vlan_seen)(struct rocker_port *rocker_port,
 				     const unsigned char *addr,
 				     __be16 vlan_id);
+	int (*fib4_add)(struct rocker *rocker,
+			const struct fib_entry_notifier_info *fen_info);
+	int (*fib4_del)(struct rocker *rocker,
+			const struct fib_entry_notifier_info *fen_info);
+	void (*fib4_abort)(struct rocker *rocker);
 };
 
 extern struct rocker_world_ops rocker_ofdpa_ops;

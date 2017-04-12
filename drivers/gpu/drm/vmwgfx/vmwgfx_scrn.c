@@ -538,9 +538,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	drm_object_attach_property(&connector->base,
-				   dev->mode_config.dirty_info_property,
-				   1);
-	drm_object_attach_property(&connector->base,
 				   dev_priv->hotplug_mode_update_property, 1);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_x_property, 0);
@@ -574,10 +571,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = drm_mode_create_dirty_info_property(dev);
-	if (unlikely(ret != 0))
-		goto err_vblank_cleanup;
-
 	vmw_kms_create_implicit_placement_property(dev_priv, false);
 
 	for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
@@ -588,10 +581,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	DRM_INFO("Screen Objects Display Unit initialized\n");
 
 	return 0;
-
-err_vblank_cleanup:
-	drm_vblank_cleanup(dev);
-	return ret;
 }
 
 int vmw_kms_sou_close_display(struct vmw_private *dev_priv)
@@ -609,7 +598,7 @@ static int do_dmabuf_define_gmrfb(struct vmw_private *dev_priv,
 	struct vmw_dma_buffer *buf =
 		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
 			     base)->buffer;
-	int depth = framebuffer->base.depth;
+	int depth = framebuffer->base.format->depth;
 	struct {
 		uint32_t header;
 		SVGAFifoCmdDefineGMRFB body;
@@ -629,7 +618,7 @@ static int do_dmabuf_define_gmrfb(struct vmw_private *dev_priv,
 	}
 
 	cmd->header = SVGA_CMD_DEFINE_GMRFB;
-	cmd->body.format.bitsPerPixel = framebuffer->base.bits_per_pixel;
+	cmd->body.format.bitsPerPixel = framebuffer->base.format->cpp[0] * 8;
 	cmd->body.format.colorDepth = depth;
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = framebuffer->base.pitches[0];

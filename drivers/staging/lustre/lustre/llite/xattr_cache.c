@@ -13,7 +13,6 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include "../include/obd_support.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_ver.h"
 #include "llite_internal.h"
@@ -27,8 +26,8 @@ struct ll_xattr_entry {
 					     */
 	char			*xe_name;   /* xattr name, \0-terminated */
 	char			*xe_value;  /* xattr value */
-	unsigned		xe_namelen; /* strlen(xe_name) + 1 */
-	unsigned		xe_vallen;  /* xattr value length */
+	unsigned int		xe_namelen; /* strlen(xe_name) + 1 */
+	unsigned int		xe_vallen;  /* xattr value length */
 };
 
 static struct kmem_cache *xattr_kmem;
@@ -61,7 +60,7 @@ void ll_xattr_fini(void)
 static void ll_xattr_cache_init(struct ll_inode_info *lli)
 {
 	INIT_LIST_HEAD(&lli->lli_xattrs);
-	lli->lli_flags |= LLIF_XATTR_CACHE;
+	set_bit(LLIF_XATTR_CACHE, &lli->lli_flags);
 }
 
 /**
@@ -105,7 +104,7 @@ static int ll_xattr_cache_find(struct list_head *cache,
 static int ll_xattr_cache_add(struct list_head *cache,
 			      const char *xattr_name,
 			      const char *xattr_val,
-			      unsigned xattr_val_len)
+			      unsigned int xattr_val_len)
 {
 	struct ll_xattr_entry *xattr;
 
@@ -217,7 +216,7 @@ static int ll_xattr_cache_list(struct list_head *cache,
  */
 static int ll_xattr_cache_valid(struct ll_inode_info *lli)
 {
-	return !!(lli->lli_flags & LLIF_XATTR_CACHE);
+	return test_bit(LLIF_XATTR_CACHE, &lli->lli_flags);
 }
 
 /**
@@ -234,7 +233,8 @@ static int ll_xattr_cache_destroy_locked(struct ll_inode_info *lli)
 
 	while (ll_xattr_cache_del(&lli->lli_xattrs, NULL) == 0)
 		; /* empty loop */
-	lli->lli_flags &= ~LLIF_XATTR_CACHE;
+
+	clear_bit(LLIF_XATTR_CACHE, &lli->lli_flags);
 
 	return 0;
 }
@@ -270,10 +270,12 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 	struct lustre_handle lockh = { 0 };
 	struct md_op_data *op_data;
 	struct ll_inode_info *lli = ll_i2info(inode);
-	struct ldlm_enqueue_info einfo = { .ei_type = LDLM_IBITS,
-					   .ei_mode = it_to_lock_mode(oit),
-					   .ei_cb_bl = ll_md_blocking_ast,
-					   .ei_cb_cp = ldlm_completion_ast };
+	struct ldlm_enqueue_info einfo = {
+		.ei_type = LDLM_IBITS,
+		.ei_mode = it_to_lock_mode(oit),
+		.ei_cb_bl = &ll_md_blocking_ast,
+		.ei_cb_cp = &ldlm_completion_ast,
+	};
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct obd_export *exp = sbi->ll_md_exp;
 	int rc;
@@ -304,7 +306,7 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 
 	op_data->op_valid = OBD_MD_FLXATTR | OBD_MD_FLXATTRLS;
 
-	rc = md_enqueue(exp, &einfo, oit, op_data, &lockh, NULL, 0, NULL, 0);
+	rc = md_enqueue(exp, &einfo, NULL, oit, op_data, &lockh, 0);
 	ll_finish_md_op_data(op_data);
 
 	if (rc < 0) {
@@ -380,25 +382,25 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 	/* do not need swab xattr data */
 	xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
-					     body->eadatasize);
+					     body->mbo_eadatasize);
 	xval = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS,
-					    body->aclsize);
+					    body->mbo_aclsize);
 	xsizes = req_capsule_server_sized_get(&req->rq_pill, &RMF_EAVALS_LENS,
-					      body->max_mdsize * sizeof(__u32));
+					      body->mbo_max_mdsize * sizeof(__u32));
 	if (!xdata || !xval || !xsizes) {
 		CERROR("wrong setxattr reply\n");
 		rc = -EPROTO;
 		goto out_destroy;
 	}
 
-	xtail = xdata + body->eadatasize;
-	xvtail = xval + body->aclsize;
+	xtail = xdata + body->mbo_eadatasize;
+	xvtail = xval + body->mbo_aclsize;
 
 	CDEBUG(D_CACHE, "caching: xdata=%p xtail=%p\n", xdata, xtail);
 
 	ll_xattr_cache_init(lli);
 
-	for (i = 0; i < body->max_mdsize; i++) {
+	for (i = 0; i < body->mbo_max_mdsize; i++) {
 		CDEBUG(D_CACHE, "caching [%s]=%.*s\n", xdata, *xsizes, xval);
 		/* Perform consistency checks: attr names and vals in pill */
 		if (!memchr(xdata, 0, xtail - xdata)) {
@@ -413,6 +415,10 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 			/* Filter out ACL ACCESS since it's cached separately */
 			CDEBUG(D_CACHE, "not caching %s\n",
 			       XATTR_NAME_ACL_ACCESS);
+			rc = 0;
+		} else if (!strcmp(xdata, "security.selinux")) {
+			/* Filter out security.selinux, it is cached in slab */
+			CDEBUG(D_CACHE, "not caching security.selinux\n");
 			rc = 0;
 		} else {
 			rc = ll_xattr_cache_add(&lli->lli_xattrs, xdata, xval,

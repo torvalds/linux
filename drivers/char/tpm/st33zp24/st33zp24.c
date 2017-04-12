@@ -18,7 +18,6 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
@@ -589,8 +588,6 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 		chip->flags |= TPM_CHIP_FLAG_IRQ;
 
 		disable_irq_nosync(tpm_dev->irq);
-
-		tpm_gen_interrupt(chip);
 	}
 
 	return tpm_chip_register(chip);

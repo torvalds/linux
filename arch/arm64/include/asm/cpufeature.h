@@ -9,6 +9,7 @@
 #ifndef __ASM_CPUFEATURE_H
 #define __ASM_CPUFEATURE_H
 
+#include <asm/cpucaps.h>
 #include <asm/hwcap.h>
 #include <asm/sysreg.h>
 
@@ -22,29 +23,26 @@
 #define MAX_CPU_FEATURES	(8 * sizeof(elf_hwcap))
 #define cpu_feature(x)		ilog2(HWCAP_ ## x)
 
-#define ARM64_WORKAROUND_CLEAN_CACHE		0
-#define ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE	1
-#define ARM64_WORKAROUND_845719			2
-#define ARM64_HAS_SYSREG_GIC_CPUIF		3
-#define ARM64_HAS_PAN				4
-#define ARM64_HAS_LSE_ATOMICS			5
-#define ARM64_WORKAROUND_CAVIUM_23154		6
-#define ARM64_WORKAROUND_834220			7
-#define ARM64_HAS_NO_HW_PREFETCH		8
-#define ARM64_HAS_UAO				9
-#define ARM64_ALT_PAN_NOT_UAO			10
-#define ARM64_HAS_VIRT_HOST_EXTN		11
-#define ARM64_WORKAROUND_CAVIUM_27456		12
-#define ARM64_HAS_32BIT_EL0			13
-#define ARM64_HYP_OFFSET_LOW			14
-
-#define ARM64_NCAPS				15
-
 #ifndef __ASSEMBLY__
 
+#include <linux/bug.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 
-/* CPU feature register tracking */
+/*
+ * CPU feature register tracking
+ *
+ * The safe value of a CPUID feature field is dependent on the implications
+ * of the values assigned to it by the architecture. Based on the relationship
+ * between the values, the features are classified into 3 types - LOWER_SAFE,
+ * HIGHER_SAFE and EXACT.
+ *
+ * The lowest value of all the CPUs is chosen for LOWER_SAFE and highest
+ * for HIGHER_SAFE. It is expected that all CPUs have the same value for
+ * a field when EXACT is specified, failing which, the safe value specified
+ * in the table is chosen.
+ */
+
 enum ftr_type {
 	FTR_EXACT,	/* Use a predefined safe value */
 	FTR_LOWER_SAFE,	/* Smaller value is safe */
@@ -57,13 +55,17 @@ enum ftr_type {
 #define FTR_SIGNED	true	/* Value should be treated as signed */
 #define FTR_UNSIGNED	false	/* Value should be treated as unsigned */
 
+#define FTR_VISIBLE	true	/* Feature visible to the user space */
+#define FTR_HIDDEN	false	/* Feature is hidden from the user */
+
 struct arm64_ftr_bits {
 	bool		sign;	/* Value is signed ? */
+	bool		visible;
 	bool		strict;	/* CPU Sanity check: strict matching required ? */
 	enum ftr_type	type;
 	u8		shift;
 	u8		width;
-	s64		safe_val; /* safe value for discrete features */
+	s64		safe_val; /* safe value for FTR_EXACT features */
 };
 
 /*
@@ -72,12 +74,15 @@ struct arm64_ftr_bits {
  * @sys_val		Safe value across the CPUs (system view)
  */
 struct arm64_ftr_reg {
-	u32			sys_id;
-	const char		*name;
-	u64			strict_mask;
-	u64			sys_val;
-	struct arm64_ftr_bits	*ftr_bits;
+	const char			*name;
+	u64				strict_mask;
+	u64				user_mask;
+	u64				sys_val;
+	u64				user_val;
+	const struct arm64_ftr_bits	*ftr_bits;
 };
+
+extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 
 /* scope of capability check */
 enum {
@@ -90,7 +95,7 @@ struct arm64_cpu_capabilities {
 	u16 capability;
 	int def_scope;			/* default scope */
 	bool (*matches)(const struct arm64_cpu_capabilities *caps, int scope);
-	void (*enable)(void *);		/* Called on all active CPUs */
+	int (*enable)(void *);		/* Called on all active CPUs */
 	union {
 		struct {	/* To be used for erratum handling only */
 			u32 midr_model;
@@ -109,12 +114,21 @@ struct arm64_cpu_capabilities {
 };
 
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
+extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
 
 bool this_cpu_has_cap(unsigned int cap);
 
 static inline bool cpu_have_feature(unsigned int num)
 {
 	return elf_hwcap & (1UL << num);
+}
+
+/* System capability check for constant caps */
+static inline bool cpus_have_const_cap(int num)
+{
+	if (num >= ARM64_NCAPS)
+		return false;
+	return static_branch_unlikely(&cpu_hwcap_keys[num]);
 }
 
 static inline bool cpus_have_cap(unsigned int num)
@@ -126,11 +140,13 @@ static inline bool cpus_have_cap(unsigned int num)
 
 static inline void cpus_set_cap(unsigned int num)
 {
-	if (num >= ARM64_NCAPS)
+	if (num >= ARM64_NCAPS) {
 		pr_warn("Attempt to set an illegal CPU capability (%d >= %d)\n",
 			num, ARM64_NCAPS);
-	else
+	} else {
 		__set_bit(num, cpu_hwcaps);
+		static_branch_enable(&cpu_hwcap_keys[num]);
+	}
 }
 
 static inline int __attribute_const__
@@ -157,22 +173,33 @@ cpuid_feature_extract_unsigned_field(u64 features, int field)
 	return cpuid_feature_extract_unsigned_field_width(features, field, 4);
 }
 
-static inline u64 arm64_ftr_mask(struct arm64_ftr_bits *ftrp)
+static inline u64 arm64_ftr_mask(const struct arm64_ftr_bits *ftrp)
 {
 	return (u64)GENMASK(ftrp->shift + ftrp->width - 1, ftrp->shift);
+}
+
+static inline u64 arm64_ftr_reg_user_value(const struct arm64_ftr_reg *reg)
+{
+	return (reg->user_val | (reg->sys_val & reg->user_mask));
+}
+
+static inline int __attribute_const__
+cpuid_feature_extract_field_width(u64 features, int field, int width, bool sign)
+{
+	return (sign) ?
+		cpuid_feature_extract_signed_field_width(features, field, width) :
+		cpuid_feature_extract_unsigned_field_width(features, field, width);
 }
 
 static inline int __attribute_const__
 cpuid_feature_extract_field(u64 features, int field, bool sign)
 {
-	return (sign) ?
-		cpuid_feature_extract_signed_field(features, field) :
-		cpuid_feature_extract_unsigned_field(features, field);
+	return cpuid_feature_extract_field_width(features, field, 4, sign);
 }
 
-static inline s64 arm64_ftr_value(struct arm64_ftr_bits *ftrp, u64 val)
+static inline s64 arm64_ftr_value(const struct arm64_ftr_bits *ftrp, u64 val)
 {
-	return (s64)cpuid_feature_extract_field(val, ftrp->shift, ftrp->sign);
+	return (s64)cpuid_feature_extract_field_width(val, ftrp->shift, ftrp->width, ftrp->sign);
 }
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
@@ -193,11 +220,11 @@ void __init setup_cpu_features(void);
 void update_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
 			    const char *info);
 void enable_cpu_capabilities(const struct arm64_cpu_capabilities *caps);
-void check_local_cpu_errata(void);
-void __init enable_errata_workarounds(void);
+void check_local_cpu_capabilities(void);
 
-void verify_local_cpu_errata(void);
-void verify_local_cpu_capabilities(void);
+void update_cpu_errata_workarounds(void);
+void __init enable_errata_workarounds(void);
+void verify_local_cpu_errata_workarounds(void);
 
 u64 read_system_reg(u32 id);
 
@@ -208,12 +235,23 @@ static inline bool cpu_supports_mixed_endian_el0(void)
 
 static inline bool system_supports_32bit_el0(void)
 {
-	return cpus_have_cap(ARM64_HAS_32BIT_EL0);
+	return cpus_have_const_cap(ARM64_HAS_32BIT_EL0);
 }
 
 static inline bool system_supports_mixed_endian_el0(void)
 {
 	return id_aa64mmfr0_mixed_endian_el0(read_system_reg(SYS_ID_AA64MMFR0_EL1));
+}
+
+static inline bool system_supports_fpsimd(void)
+{
+	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
+}
+
+static inline bool system_uses_ttbr0_pan(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
+		!cpus_have_const_cap(ARM64_HAS_PAN);
 }
 
 #endif /* __ASSEMBLY__ */

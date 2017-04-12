@@ -51,7 +51,7 @@ struct instruction {
 	unsigned int len, state;
 	unsigned char type;
 	unsigned long immediate;
-	bool alt_group, visited;
+	bool alt_group, visited, dead_end;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct list_head alts;
@@ -95,6 +95,19 @@ static struct instruction *next_insn_same_sec(struct objtool_file *file,
 		return NULL;
 
 	return next;
+}
+
+static bool gcov_enabled(struct objtool_file *file)
+{
+	struct section *sec;
+	struct symbol *sym;
+
+	list_for_each_entry(sec, &file->elf->sections, list)
+		list_for_each_entry(sym, &sec->symbol_list, list)
+			if (!strncmp(sym->name, "__gcov_.", 8))
+				return true;
+
+	return false;
 }
 
 #define for_each_insn(file, insn)					\
@@ -175,6 +188,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"__stack_chk_fail",
 		"panic",
 		"do_exit",
+		"do_task_dead",
 		"__module_put_and_exit",
 		"complete_and_exit",
 		"kvm_spurious_fault",
@@ -310,6 +324,54 @@ static int decode_instructions(struct objtool_file *file)
 				if (!insn->func)
 					insn->func = func;
 		}
+	}
+
+	return 0;
+}
+
+/*
+ * Find all uses of the unreachable() macro, which are code path dead ends.
+ */
+static int add_dead_ends(struct objtool_file *file)
+{
+	struct section *sec;
+	struct rela *rela;
+	struct instruction *insn;
+	bool found;
+
+	sec = find_section_by_name(file->elf, ".rela.discard.unreachable");
+	if (!sec)
+		return 0;
+
+	list_for_each_entry(rela, &sec->rela_list, list) {
+		if (rela->sym->type != STT_SECTION) {
+			WARN("unexpected relocation symbol type in %s", sec->name);
+			return -1;
+		}
+		insn = find_insn(file, rela->sym->sec, rela->addend);
+		if (insn)
+			insn = list_prev_entry(insn, list);
+		else if (rela->addend == rela->sym->sec->len) {
+			found = false;
+			list_for_each_entry_reverse(insn, &file->insn_list, list) {
+				if (insn->sec == rela->sym->sec) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				WARN("can't find unreachable insn at %s+0x%x",
+				     rela->sym->sec->name, rela->addend);
+				return -1;
+			}
+		} else {
+			WARN("can't find unreachable insn at %s+0x%x",
+			     rela->sym->sec->name, rela->addend);
+			return -1;
+		}
+
+		insn->dead_end = true;
 	}
 
 	return 0;
@@ -712,6 +774,7 @@ static struct rela *find_switch_table(struct objtool_file *file,
 				      struct instruction *insn)
 {
 	struct rela *text_rela, *rodata_rela;
+	struct instruction *orig_insn = insn;
 
 	text_rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
 	if (text_rela && text_rela->sym == file->rodata->sym) {
@@ -732,15 +795,30 @@ static struct rela *find_switch_table(struct objtool_file *file,
 
 	/* case 3 */
 	func_for_each_insn_continue_reverse(file, func, insn) {
-		if (insn->type == INSN_JUMP_UNCONDITIONAL ||
-		    insn->type == INSN_JUMP_DYNAMIC)
+		if (insn->type == INSN_JUMP_DYNAMIC)
 			break;
 
+		/* allow small jumps within the range */
+		if (insn->type == INSN_JUMP_UNCONDITIONAL &&
+		    insn->jump_dest &&
+		    (insn->jump_dest->offset <= insn->offset ||
+		     insn->jump_dest->offset > orig_insn->offset))
+		    break;
+
+		/* look for a relocation which references .rodata */
 		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
 						    insn->len);
-		if (text_rela && text_rela->sym == file->rodata->sym)
-			return find_rela_by_dest(file->rodata,
-						 text_rela->addend);
+		if (!text_rela || text_rela->sym != file->rodata->sym)
+			continue;
+
+		/*
+		 * Make sure the .rodata address isn't associated with a
+		 * symbol.  gcc jump tables are anonymous data.
+		 */
+		if (find_symbol_containing(file->rodata, text_rela->addend))
+			continue;
+
+		return find_rela_by_dest(file->rodata, text_rela->addend);
 	}
 
 	return NULL;
@@ -819,6 +897,10 @@ static int decode_sections(struct objtool_file *file)
 	int ret;
 
 	ret = decode_instructions(file);
+	if (ret)
+		return ret;
+
+	ret = add_dead_ends(file);
 	if (ret)
 		return ret;
 
@@ -1016,12 +1098,12 @@ static int validate_branch(struct objtool_file *file,
 
 			return 0;
 
-		case INSN_BUG:
-			return 0;
-
 		default:
 			break;
 		}
+
+		if (insn->dead_end)
+			return 0;
 
 		insn = next_insn_same_sec(file, insn);
 		if (!insn) {
@@ -1031,34 +1113,6 @@ static int validate_branch(struct objtool_file *file,
 	}
 
 	return 0;
-}
-
-static bool is_gcov_insn(struct instruction *insn)
-{
-	struct rela *rela;
-	struct section *sec;
-	struct symbol *sym;
-	unsigned long offset;
-
-	rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
-	if (!rela)
-		return false;
-
-	if (rela->sym->type != STT_SECTION)
-		return false;
-
-	sec = rela->sym->sec;
-	offset = rela->addend + insn->offset + insn->len - rela->offset;
-
-	list_for_each_entry(sym, &sec->symbol_list, list) {
-		if (sym->type != STT_OBJECT)
-			continue;
-
-		if (offset >= sym->offset && offset < sym->offset + sym->len)
-			return (!memcmp(sym->name, "__gcov0.", 8));
-	}
-
-	return false;
 }
 
 static bool is_kasan_insn(struct instruction *insn)
@@ -1080,9 +1134,6 @@ static bool ignore_unreachable_insn(struct symbol *func,
 	int i;
 
 	if (insn->type == INSN_NOP)
-		return true;
-
-	if (is_gcov_insn(insn))
 		return true;
 
 	/*
@@ -1144,6 +1195,19 @@ static int validate_functions(struct objtool_file *file)
 				if (file->ignore_unreachables || warnings ||
 				    ignore_unreachable_insn(func, insn))
 					continue;
+
+				/*
+				 * gcov produces a lot of unreachable
+				 * instructions.  If we get an unreachable
+				 * warning and the file has gcov enabled, just
+				 * ignore it, and all other such warnings for
+				 * the file.
+				 */
+				if (!file->ignore_unreachables &&
+				    gcov_enabled(file)) {
+					file->ignore_unreachables = true;
+					continue;
+				}
 
 				WARN_FUNC("function has unreachable instruction", insn->sec, insn->offset);
 				warnings++;
@@ -1217,7 +1281,7 @@ int cmd_check(int argc, const char **argv)
 
 	INIT_LIST_HEAD(&file.insn_list);
 	hash_init(file.insn_hash);
-	file.whitelist = find_section_by_name(file.elf, "__func_stack_frame_non_standard");
+	file.whitelist = find_section_by_name(file.elf, ".discard.func_stack_frame_non_standard");
 	file.rodata = find_section_by_name(file.elf, ".rodata");
 	file.ignore_unreachables = false;
 	file.c_file = find_section_by_name(file.elf, ".comment");

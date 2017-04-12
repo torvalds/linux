@@ -72,6 +72,10 @@ static ssize_t hvt_op_read(struct file *file, char __user *buf,
 	hvt->outmsg = NULL;
 	hvt->outmsg_len = 0;
 
+	if (hvt->on_read)
+		hvt->on_read();
+	hvt->on_read = NULL;
+
 out_unlock:
 	mutex_unlock(&hvt->lock);
 	return ret;
@@ -178,10 +182,11 @@ static int hvt_op_release(struct inode *inode, struct file *file)
 	 * connects back.
 	 */
 	hvt_reset(hvt);
-	mutex_unlock(&hvt->lock);
 
 	if (mode_old == HVUTIL_TRANSPORT_DESTROY)
-		hvt_transport_free(hvt);
+		complete(&hvt->release);
+
+	mutex_unlock(&hvt->lock);
 
 	return 0;
 }
@@ -219,7 +224,8 @@ static void hvt_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	mutex_unlock(&hvt->lock);
 }
 
-int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len)
+int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len,
+			  void (*on_read_cb)(void))
 {
 	struct cn_msg *cn_msg;
 	int ret = 0;
@@ -237,6 +243,13 @@ int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len)
 		memcpy(cn_msg->data, msg, len);
 		ret = cn_netlink_send(cn_msg, 0, 0, GFP_ATOMIC);
 		kfree(cn_msg);
+		/*
+		 * We don't know when netlink messages are delivered but unlike
+		 * in CHARDEV mode we're not blocked and we can send next
+		 * messages right away.
+		 */
+		if (on_read_cb)
+			on_read_cb();
 		return ret;
 	}
 	/* HVUTIL_TRANSPORT_CHARDEV */
@@ -255,6 +268,7 @@ int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len)
 	if (hvt->outmsg) {
 		memcpy(hvt->outmsg, msg, len);
 		hvt->outmsg_len = len;
+		hvt->on_read = on_read_cb;
 		wake_up_interruptible(&hvt->outmsg_q);
 	} else
 		ret = -ENOMEM;
@@ -291,6 +305,7 @@ struct hvutil_transport *hvutil_transport_init(const char *name,
 
 	init_waitqueue_head(&hvt->outmsg_q);
 	mutex_init(&hvt->lock);
+	init_completion(&hvt->release);
 
 	spin_lock(&hvt_list_lock);
 	list_add(&hvt->list, &hvt_list);
@@ -338,6 +353,8 @@ void hvutil_transport_destroy(struct hvutil_transport *hvt)
 	if (hvt->cn_id.idx > 0 && hvt->cn_id.val > 0)
 		cn_del_callback(&hvt->cn_id);
 
-	if (mode_old != HVUTIL_TRANSPORT_CHARDEV)
-		hvt_transport_free(hvt);
+	if (mode_old == HVUTIL_TRANSPORT_CHARDEV)
+		wait_for_completion(&hvt->release);
+
+	hvt_transport_free(hvt);
 }

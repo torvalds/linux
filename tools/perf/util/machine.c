@@ -41,7 +41,6 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 
 	machine->pid = pid;
 
-	machine->symbol_filter = NULL;
 	machine->id_hdr_size = 0;
 	machine->kptr_restrict_warned = false;
 	machine->comm_exec = false;
@@ -86,6 +85,25 @@ struct machine *machine__new_host(void)
 out_delete:
 	free(machine);
 	return NULL;
+}
+
+struct machine *machine__new_kallsyms(void)
+{
+	struct machine *machine = machine__new_host();
+	/*
+	 * FIXME:
+	 * 1) MAP__FUNCTION will go away when we stop loading separate maps for
+	 *    functions and data objects.
+	 * 2) We should switch to machine__load_kallsyms(), i.e. not explicitely
+	 *    ask for not using the kcore parsing code, once this one is fixed
+	 *    to create a map per module.
+	 */
+	if (machine && __machine__load_kallsyms(machine, "/proc/kallsyms", MAP__FUNCTION, true) <= 0) {
+		machine__delete(machine);
+		machine = NULL;
+	}
+
+	return machine;
 }
 
 static void dsos__purge(struct dsos *dsos)
@@ -148,7 +166,6 @@ void machines__init(struct machines *machines)
 {
 	machine__init(&machines->host, "", HOST_KERNEL_ID);
 	machines->guests = RB_ROOT;
-	machines->symbol_filter = NULL;
 }
 
 void machines__exit(struct machines *machines)
@@ -172,8 +189,6 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 		return NULL;
 	}
 
-	machine->symbol_filter = machines->symbol_filter;
-
 	while (*p != NULL) {
 		parent = *p;
 		pos = rb_entry(parent, struct machine, rb_node);
@@ -187,21 +202,6 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 	rb_insert_color(&machine->rb_node, &machines->guests);
 
 	return machine;
-}
-
-void machines__set_symbol_filter(struct machines *machines,
-				 symbol_filter_t symbol_filter)
-{
-	struct rb_node *nd;
-
-	machines->symbol_filter = symbol_filter;
-	machines->host.symbol_filter = symbol_filter;
-
-	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
-		struct machine *machine = rb_entry(nd, struct machine, rb_node);
-
-		machine->symbol_filter = symbol_filter;
-	}
 }
 
 void machines__set_comm_exec(struct machines *machines, bool comm_exec)
@@ -782,7 +782,7 @@ static u64 machine__get_running_kernel_start(struct machine *machine,
 
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 {
-	enum map_type type;
+	int type;
 	u64 start = machine__get_running_kernel_start(machine, NULL);
 
 	/* In case of renewal the kernel map, destroy previous one */
@@ -813,7 +813,7 @@ int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
 
 void machine__destroy_kernel_maps(struct machine *machine)
 {
-	enum map_type type;
+	int type;
 
 	for (type = 0; type < MAP__NR_TYPES; ++type) {
 		struct kmap *kmap;
@@ -916,10 +916,10 @@ int machines__create_kernel_maps(struct machines *machines, pid_t pid)
 }
 
 int __machine__load_kallsyms(struct machine *machine, const char *filename,
-			     enum map_type type, bool no_kcore, symbol_filter_t filter)
+			     enum map_type type, bool no_kcore)
 {
 	struct map *map = machine__kernel_map(machine);
-	int ret = __dso__load_kallsyms(map->dso, filename, map, no_kcore, filter);
+	int ret = __dso__load_kallsyms(map->dso, filename, map, no_kcore);
 
 	if (ret > 0) {
 		dso__set_loaded(map->dso, type);
@@ -935,16 +935,15 @@ int __machine__load_kallsyms(struct machine *machine, const char *filename,
 }
 
 int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type, symbol_filter_t filter)
+			   enum map_type type)
 {
-	return __machine__load_kallsyms(machine, filename, type, false, filter);
+	return __machine__load_kallsyms(machine, filename, type, false);
 }
 
-int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
-			       symbol_filter_t filter)
+int machine__load_vmlinux_path(struct machine *machine, enum map_type type)
 {
 	struct map *map = machine__kernel_map(machine);
-	int ret = dso__load_vmlinux_path(map->dso, map, filter);
+	int ret = dso__load_vmlinux_path(map->dso, map);
 
 	if (ret > 0)
 		dso__set_loaded(map->dso, type);
@@ -1313,7 +1312,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			/*
 			 * preload dso of guest kernel and modules
 			 */
-			dso__load(kernel, machine__kernel_map(machine), NULL);
+			dso__load(kernel, machine__kernel_map(machine));
 		}
 	}
 	return 0;
@@ -1566,7 +1565,7 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 
 static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
-	if (sym->name && !regexec(regex, sym->name, 0, NULL, 0))
+	if (!regexec(regex, sym->name, 0, NULL, 0))
 		return 1;
 	return 0;
 }
@@ -1636,7 +1635,11 @@ static int add_callchain_ip(struct thread *thread,
 			    struct symbol **parent,
 			    struct addr_location *root_al,
 			    u8 *cpumode,
-			    u64 ip)
+			    u64 ip,
+			    bool branch,
+			    struct branch_flags *flags,
+			    int nr_loop_iter,
+			    int samples)
 {
 	struct addr_location al;
 
@@ -1688,7 +1691,8 @@ static int add_callchain_ip(struct thread *thread,
 
 	if (symbol_conf.hide_unresolved && al.sym == NULL)
 		return 0;
-	return callchain_cursor_append(cursor, al.addr, al.map, al.sym);
+	return callchain_cursor_append(cursor, al.addr, al.map, al.sym,
+				       branch, flags, nr_loop_iter, samples);
 }
 
 struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
@@ -1765,9 +1769,8 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 					int max_stack)
 {
 	struct ip_callchain *chain = sample->callchain;
-	int chain_nr = min(max_stack, (int)chain->nr);
+	int chain_nr = min(max_stack, (int)chain->nr), i;
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	int i, j, err;
 	u64 ip;
 
 	for (i = 0; i < chain_nr; i++) {
@@ -1778,7 +1781,9 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	/* LBR only affects the user callchain */
 	if (i != chain_nr) {
 		struct branch_stack *lbr_stack = sample->branch_stack;
-		int lbr_nr = lbr_stack->nr;
+		int lbr_nr = lbr_stack->nr, j, k;
+		bool branch;
+		struct branch_flags *flags;
 		/*
 		 * LBR callstack can only get user call chain.
 		 * The mix_chain_nr is kernel call chain
@@ -1792,23 +1797,42 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 		int mix_chain_nr = i + 1 + lbr_nr + 1;
 
 		for (j = 0; j < mix_chain_nr; j++) {
+			int err;
+			branch = false;
+			flags = NULL;
+
 			if (callchain_param.order == ORDER_CALLEE) {
 				if (j < i + 1)
 					ip = chain->ips[j];
-				else if (j > i + 1)
-					ip = lbr_stack->entries[j - i - 2].from;
-				else
+				else if (j > i + 1) {
+					k = j - i - 2;
+					ip = lbr_stack->entries[k].from;
+					branch = true;
+					flags = &lbr_stack->entries[k].flags;
+				} else {
 					ip = lbr_stack->entries[0].to;
+					branch = true;
+					flags = &lbr_stack->entries[0].flags;
+				}
 			} else {
-				if (j < lbr_nr)
-					ip = lbr_stack->entries[lbr_nr - j - 1].from;
+				if (j < lbr_nr) {
+					k = lbr_nr - j - 1;
+					ip = lbr_stack->entries[k].from;
+					branch = true;
+					flags = &lbr_stack->entries[k].flags;
+				}
 				else if (j > lbr_nr)
 					ip = chain->ips[i + 1 - (j - lbr_nr)];
-				else
+				else {
 					ip = lbr_stack->entries[0].to;
+					branch = true;
+					flags = &lbr_stack->entries[0].flags;
+				}
 			}
 
-			err = add_callchain_ip(thread, cursor, parent, root_al, &cpumode, ip);
+			err = add_callchain_ip(thread, cursor, parent,
+					       root_al, &cpumode, ip,
+					       branch, flags, 0, 0);
 			if (err)
 				return (err < 0) ? err : 0;
 		}
@@ -1833,6 +1857,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	int i, j, err, nr_entries;
 	int skip_idx = -1;
 	int first_call = 0;
+	int nr_loop_iter;
 
 	if (perf_evsel__has_branch_callstack(evsel)) {
 		err = resolve_lbr_callchain_sample(thread, cursor, sample, parent,
@@ -1888,14 +1913,37 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 				be[i] = branch->entries[branch->nr - i - 1];
 		}
 
+		nr_loop_iter = nr;
 		nr = remove_loops(be, nr);
 
+		/*
+		 * Get the number of iterations.
+		 * It's only approximation, but good enough in practice.
+		 */
+		if (nr_loop_iter > nr)
+			nr_loop_iter = nr_loop_iter - nr + 1;
+		else
+			nr_loop_iter = 0;
+
 		for (i = 0; i < nr; i++) {
-			err = add_callchain_ip(thread, cursor, parent, root_al,
-					       NULL, be[i].to);
+			if (i == nr - 1)
+				err = add_callchain_ip(thread, cursor, parent,
+						       root_al,
+						       NULL, be[i].to,
+						       true, &be[i].flags,
+						       nr_loop_iter, 1);
+			else
+				err = add_callchain_ip(thread, cursor, parent,
+						       root_al,
+						       NULL, be[i].to,
+						       true, &be[i].flags,
+						       0, 0);
+
 			if (!err)
 				err = add_callchain_ip(thread, cursor, parent, root_al,
-						       NULL, be[i].from);
+						       NULL, be[i].from,
+						       true, &be[i].flags,
+						       0, 0);
 			if (err == -EINVAL)
 				break;
 			if (err)
@@ -1923,7 +1971,9 @@ check_calls:
 		if (ip < PERF_CONTEXT_MAX)
                        ++nr_entries;
 
-		err = add_callchain_ip(thread, cursor, parent, root_al, &cpumode, ip);
+		err = add_callchain_ip(thread, cursor, parent,
+				       root_al, &cpumode, ip,
+				       false, NULL, 0, 0);
 
 		if (err)
 			return (err < 0) ? err : 0;
@@ -1939,7 +1989,8 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	if (symbol_conf.hide_unresolved && entry->sym == NULL)
 		return 0;
 	return callchain_cursor_append(cursor, entry->ip,
-				       entry->map, entry->sym);
+				       entry->map, entry->sym,
+				       false, NULL, 0, 0);
 }
 
 static int thread__resolve_callchain_unwind(struct thread *thread,
@@ -2115,7 +2166,7 @@ int machine__get_kernel_start(struct machine *machine)
 	 */
 	machine->kernel_start = 1ULL << 63;
 	if (map) {
-		err = map__load(map, machine->symbol_filter);
+		err = map__load(map);
 		if (map->start)
 			machine->kernel_start = map->start;
 	}
@@ -2131,7 +2182,7 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 {
 	struct machine *machine = vmachine;
 	struct map *map;
-	struct symbol *sym = map_groups__find_symbol(&machine->kmaps, MAP__FUNCTION, *addrp, &map,  NULL);
+	struct symbol *sym = map_groups__find_symbol(&machine->kmaps, MAP__FUNCTION, *addrp, &map);
 
 	if (sym == NULL)
 		return NULL;

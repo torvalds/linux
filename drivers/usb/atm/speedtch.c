@@ -817,7 +817,6 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 
 	if (!instance) {
-		usb_err(usbatm, "%s: no memory for instance data!\n", __func__);
 		ret = -ENOMEM;
 		goto fail_release;
 	}

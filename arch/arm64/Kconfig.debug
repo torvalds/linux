@@ -2,9 +2,13 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
-config ARM64_PTDUMP
+config ARM64_PTDUMP_CORE
+	def_bool n
+
+config ARM64_PTDUMP_DEBUGFS
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
+	select ARM64_PTDUMP_CORE
 	select DEBUG_FS
         help
 	  Say Y here if you want to show the kernel pagetable layout in a
@@ -38,29 +42,37 @@ config ARM64_RANDOMIZE_TEXT_OFFSET
 	  of TEXT_OFFSET and platforms must not require a specific
 	  value.
 
-config DEBUG_SET_MODULE_RONX
-	bool "Set loadable kernel module data as NX and text as RO"
-	depends on MODULES
-	default y
-	help
-	  Is this is set, kernel module text and rodata will be made read-only.
-	  This is to help catch accidental or malicious attempts to change the
-	  kernel's executable code.
+config DEBUG_WX
+	bool "Warn on W+X mappings at boot"
+	select ARM64_PTDUMP_CORE
+	---help---
+	  Generate a warning if any W+X mappings are found at boot.
 
-	  If in doubt, say Y.
+	  This is useful for discovering cases where the kernel is leaving
+	  W+X mappings after applying NX, as such mappings are a security risk.
+	  This check also includes UXN, which should be set on all kernel
+	  mappings.
 
-config DEBUG_RODATA
-	bool "Make kernel text and rodata read-only"
-	default y
-	help
-	  If this is set, kernel text and rodata will be made read-only. This
-	  is to help catch accidental or malicious attempts to change the
-	  kernel's executable code.
+	  Look for a message in dmesg output like this:
 
-	  If in doubt, say Y.
+	    arm64/mm: Checked W+X mappings: passed, no W+X pages found.
+
+	  or like this, if the check failed:
+
+	    arm64/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
+
+	  Note that even if the check fails, your kernel is possibly
+	  still fine, as W+X mappings are not a security hole in
+	  themselves, what they do is that they make the exploitation
+	  of other unfixed kernel bugs easier.
+
+	  There is no runtime or memory usage effect of this option
+	  once the kernel has booted up - it's a one time check.
+
+	  If in doubt, say "Y".
 
 config DEBUG_ALIGN_RODATA
-	depends on DEBUG_RODATA
+	depends on STRICT_KERNEL_RWX
 	bool "Align linker sections up to SECTION_SIZE"
 	help
 	  If this option is enabled, sections that may potentially be marked as
@@ -71,6 +83,14 @@ config DEBUG_ALIGN_RODATA
 	  performance is more important than memory pressure.
 
 	  If in doubt, say N.
+
+config DEBUG_EFI
+	depends on EFI && DEBUG_INFO
+	bool "UEFI debugging"
+	help
+	  Enable this option to include EFI specific debugging features into
+	  the kernel that are only useful when using a debug build of the
+	  UEFI firmware
 
 source "drivers/hwtracing/coresight/Kconfig"
 

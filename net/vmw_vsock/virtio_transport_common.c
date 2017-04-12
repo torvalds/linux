@@ -9,6 +9,7 @@
  */
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/virtio.h>
@@ -32,7 +33,7 @@ static const struct virtio_transport *virtio_transport_get_ops(void)
 	return container_of(t, struct virtio_transport, transport);
 }
 
-struct virtio_vsock_pkt *
+static struct virtio_vsock_pkt *
 virtio_transport_alloc_pkt(struct virtio_vsock_pkt_info *info,
 			   size_t len,
 			   u32 src_cid,
@@ -57,6 +58,7 @@ virtio_transport_alloc_pkt(struct virtio_vsock_pkt_info *info,
 	pkt->len		= len;
 	pkt->hdr.len		= cpu_to_le32(len);
 	pkt->reply		= info->reply;
+	pkt->vsk		= info->vsk;
 
 	if (info->msg && len > 0) {
 		pkt->buf = kmalloc(len, GFP_KERNEL);
@@ -82,7 +84,6 @@ out_pkt:
 	kfree(pkt);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(virtio_transport_alloc_pkt);
 
 static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 					  struct virtio_vsock_pkt_info *info)
@@ -180,6 +181,7 @@ static int virtio_transport_send_credit_update(struct vsock_sock *vsk,
 	struct virtio_vsock_pkt_info info = {
 		.op = VIRTIO_VSOCK_OP_CREDIT_UPDATE,
 		.type = type,
+		.vsk = vsk,
 	};
 
 	return virtio_transport_send_pkt_info(vsk, &info);
@@ -519,6 +521,7 @@ int virtio_transport_connect(struct vsock_sock *vsk)
 	struct virtio_vsock_pkt_info info = {
 		.op = VIRTIO_VSOCK_OP_REQUEST,
 		.type = VIRTIO_VSOCK_TYPE_STREAM,
+		.vsk = vsk,
 	};
 
 	return virtio_transport_send_pkt_info(vsk, &info);
@@ -534,6 +537,7 @@ int virtio_transport_shutdown(struct vsock_sock *vsk, int mode)
 			  VIRTIO_VSOCK_SHUTDOWN_RCV : 0) |
 			 (mode & SEND_SHUTDOWN ?
 			  VIRTIO_VSOCK_SHUTDOWN_SEND : 0),
+		.vsk = vsk,
 	};
 
 	return virtio_transport_send_pkt_info(vsk, &info);
@@ -560,6 +564,7 @@ virtio_transport_stream_enqueue(struct vsock_sock *vsk,
 		.type = VIRTIO_VSOCK_TYPE_STREAM,
 		.msg = msg,
 		.pkt_len = len,
+		.vsk = vsk,
 	};
 
 	return virtio_transport_send_pkt_info(vsk, &info);
@@ -581,6 +586,7 @@ static int virtio_transport_reset(struct vsock_sock *vsk,
 		.op = VIRTIO_VSOCK_OP_RST,
 		.type = VIRTIO_VSOCK_TYPE_STREAM,
 		.reply = !!pkt,
+		.vsk = vsk,
 	};
 
 	/* Send RST only if the original pkt is not a RST pkt */
@@ -606,9 +612,9 @@ static int virtio_transport_reset_no_sock(struct virtio_vsock_pkt *pkt)
 		return 0;
 
 	pkt = virtio_transport_alloc_pkt(&info, 0,
-					 le32_to_cpu(pkt->hdr.dst_cid),
+					 le64_to_cpu(pkt->hdr.dst_cid),
 					 le32_to_cpu(pkt->hdr.dst_port),
-					 le32_to_cpu(pkt->hdr.src_cid),
+					 le64_to_cpu(pkt->hdr.src_cid),
 					 le32_to_cpu(pkt->hdr.src_port));
 	if (!pkt)
 		return -ENOMEM;
@@ -619,17 +625,17 @@ static int virtio_transport_reset_no_sock(struct virtio_vsock_pkt *pkt)
 static void virtio_transport_wait_close(struct sock *sk, long timeout)
 {
 	if (timeout) {
-		DEFINE_WAIT(wait);
+		DEFINE_WAIT_FUNC(wait, woken_wake_function);
+
+		add_wait_queue(sk_sleep(sk), &wait);
 
 		do {
-			prepare_to_wait(sk_sleep(sk), &wait,
-					TASK_INTERRUPTIBLE);
 			if (sk_wait_event(sk, &timeout,
-					  sock_flag(sk, SOCK_DONE)))
+					  sock_flag(sk, SOCK_DONE), &wait))
 				break;
 		} while (!signal_pending(current) && timeout);
 
-		finish_wait(sk_sleep(sk), &wait);
+		remove_wait_queue(sk_sleep(sk), &wait);
 	}
 }
 
@@ -823,9 +829,10 @@ virtio_transport_send_response(struct vsock_sock *vsk,
 	struct virtio_vsock_pkt_info info = {
 		.op = VIRTIO_VSOCK_OP_RESPONSE,
 		.type = VIRTIO_VSOCK_TYPE_STREAM,
-		.remote_cid = le32_to_cpu(pkt->hdr.src_cid),
+		.remote_cid = le64_to_cpu(pkt->hdr.src_cid),
 		.remote_port = le32_to_cpu(pkt->hdr.src_port),
 		.reply = true,
+		.vsk = vsk,
 	};
 
 	return virtio_transport_send_pkt_info(vsk, &info);
@@ -863,9 +870,9 @@ virtio_transport_recv_listen(struct sock *sk, struct virtio_vsock_pkt *pkt)
 	child->sk_state = SS_CONNECTED;
 
 	vchild = vsock_sk(child);
-	vsock_addr_init(&vchild->local_addr, le32_to_cpu(pkt->hdr.dst_cid),
+	vsock_addr_init(&vchild->local_addr, le64_to_cpu(pkt->hdr.dst_cid),
 			le32_to_cpu(pkt->hdr.dst_port));
-	vsock_addr_init(&vchild->remote_addr, le32_to_cpu(pkt->hdr.src_cid),
+	vsock_addr_init(&vchild->remote_addr, le64_to_cpu(pkt->hdr.src_cid),
 			le32_to_cpu(pkt->hdr.src_port));
 
 	vsock_insert_connected(vchild);
@@ -904,9 +911,9 @@ void virtio_transport_recv_pkt(struct virtio_vsock_pkt *pkt)
 	struct sock *sk;
 	bool space_available;
 
-	vsock_addr_init(&src, le32_to_cpu(pkt->hdr.src_cid),
+	vsock_addr_init(&src, le64_to_cpu(pkt->hdr.src_cid),
 			le32_to_cpu(pkt->hdr.src_port));
-	vsock_addr_init(&dst, le32_to_cpu(pkt->hdr.dst_cid),
+	vsock_addr_init(&dst, le64_to_cpu(pkt->hdr.dst_cid),
 			le32_to_cpu(pkt->hdr.dst_port));
 
 	trace_virtio_transport_recv_pkt(src.svm_cid, src.svm_port,

@@ -804,10 +804,8 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
 	}
 
 	info->pipe = kzalloc(sizeof(struct usbhs_pipe) * pipe_size, GFP_KERNEL);
-	if (!info->pipe) {
-		dev_err(dev, "Could not allocate pipe\n");
+	if (!info->pipe)
 		return -ENOMEM;
-	}
 
 	info->size = pipe_size;
 

@@ -1,3 +1,6 @@
+#include <linux/node.h>
+#include <linux/mmzone.h>
+#include <linux/compaction.h>
 /*
  * The order of these masks is important. Matching masks will be seen
  * first and the left over flags will end up showing by themselves.
@@ -47,8 +50,7 @@
 	{(unsigned long)__GFP_WRITE,		"__GFP_WRITE"},		\
 	{(unsigned long)__GFP_RECLAIM,		"__GFP_RECLAIM"},	\
 	{(unsigned long)__GFP_DIRECT_RECLAIM,	"__GFP_DIRECT_RECLAIM"},\
-	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"__GFP_KSWAPD_RECLAIM"},\
-	{(unsigned long)__GFP_OTHER_NODE,	"__GFP_OTHER_NODE"}	\
+	{(unsigned long)__GFP_KSWAPD_RECLAIM,	"__GFP_KSWAPD_RECLAIM"}\
 
 #define show_gfp_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
@@ -81,6 +83,7 @@
 
 #define __def_pageflag_names						\
 	{1UL << PG_locked,		"locked"	},		\
+	{1UL << PG_waiters,		"waiters"	},		\
 	{1UL << PG_error,		"error"		},		\
 	{1UL << PG_referenced,		"referenced"	},		\
 	{1UL << PG_uptodate,		"uptodate"	},		\
@@ -95,7 +98,6 @@
 	{1UL << PG_private_2,		"private_2"	},		\
 	{1UL << PG_writeback,		"writeback"	},		\
 	{1UL << PG_head,		"head"		},		\
-	{1UL << PG_swapcache,		"swapcache"	},		\
 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
 	{1UL << PG_reclaim,		"reclaim"	},		\
 	{1UL << PG_swapbacked,		"swapbacked"	},		\
@@ -172,3 +174,98 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_vmaflag_names						\
 	) : "none"
+
+#ifdef CONFIG_COMPACTION
+#define COMPACTION_STATUS					\
+	EM( COMPACT_SKIPPED,		"skipped")		\
+	EM( COMPACT_DEFERRED,		"deferred")		\
+	EM( COMPACT_CONTINUE,		"continue")		\
+	EM( COMPACT_SUCCESS,		"success")		\
+	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
+	EM( COMPACT_COMPLETE,		"complete")		\
+	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
+	EMe(COMPACT_CONTENDED,		"contended")
+
+/* High-level compaction status feedback */
+#define COMPACTION_FAILED	1
+#define COMPACTION_WITHDRAWN	2
+#define COMPACTION_PROGRESS	3
+
+#define compact_result_to_feedback(result)	\
+({						\
+	enum compact_result __result = result;	\
+	(compaction_failed(__result)) ? COMPACTION_FAILED : \
+		(compaction_withdrawn(__result)) ? COMPACTION_WITHDRAWN : COMPACTION_PROGRESS; \
+})
+
+#define COMPACTION_FEEDBACK		\
+	EM(COMPACTION_FAILED,		"failed")	\
+	EM(COMPACTION_WITHDRAWN,	"withdrawn")	\
+	EMe(COMPACTION_PROGRESS,	"progress")
+
+#define COMPACTION_PRIORITY						\
+	EM(COMPACT_PRIO_SYNC_FULL,	"COMPACT_PRIO_SYNC_FULL")	\
+	EM(COMPACT_PRIO_SYNC_LIGHT,	"COMPACT_PRIO_SYNC_LIGHT")	\
+	EMe(COMPACT_PRIO_ASYNC,		"COMPACT_PRIO_ASYNC")
+#else
+#define COMPACTION_STATUS
+#define COMPACTION_PRIORITY
+#define COMPACTION_FEEDBACK
+#endif
+
+#ifdef CONFIG_ZONE_DMA
+#define IFDEF_ZONE_DMA(X) X
+#else
+#define IFDEF_ZONE_DMA(X)
+#endif
+
+#ifdef CONFIG_ZONE_DMA32
+#define IFDEF_ZONE_DMA32(X) X
+#else
+#define IFDEF_ZONE_DMA32(X)
+#endif
+
+#ifdef CONFIG_HIGHMEM
+#define IFDEF_ZONE_HIGHMEM(X) X
+#else
+#define IFDEF_ZONE_HIGHMEM(X)
+#endif
+
+#define ZONE_TYPE						\
+	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
+	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
+				EM (ZONE_NORMAL, "Normal")	\
+	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
+				EMe(ZONE_MOVABLE,"Movable")
+
+#define LRU_NAMES		\
+		EM (LRU_INACTIVE_ANON, "inactive_anon") \
+		EM (LRU_ACTIVE_ANON, "active_anon") \
+		EM (LRU_INACTIVE_FILE, "inactive_file") \
+		EM (LRU_ACTIVE_FILE, "active_file") \
+		EMe(LRU_UNEVICTABLE, "unevictable")
+
+/*
+ * First define the enums in the above macros to be exported to userspace
+ * via TRACE_DEFINE_ENUM().
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+COMPACTION_STATUS
+COMPACTION_PRIORITY
+COMPACTION_FEEDBACK
+ZONE_TYPE
+LRU_NAMES
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	{a, b},
+#define EMe(a, b)	{a, b}

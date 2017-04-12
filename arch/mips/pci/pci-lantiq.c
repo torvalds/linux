@@ -13,7 +13,6 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
-#include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
@@ -234,7 +233,6 @@ static const struct of_device_id ltq_pci_match[] = {
 	{ .compatible = "lantiq,pci-xway" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, ltq_pci_match);
 
 static struct platform_driver ltq_pci_driver = {
 	.probe = ltq_pci_probe,

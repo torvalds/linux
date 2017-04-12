@@ -13,7 +13,7 @@ static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)
 	struct bpf_object *obj;
 
 	obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, NULL);
-	if (IS_ERR(obj))
+	if (libbpf_get_error(obj))
 		return TEST_FAIL;
 	bpf_object__close(obj);
 	return TEST_OK;
@@ -34,19 +34,19 @@ static struct {
 } bpf_source_table[__LLVM_TESTCASE_MAX] = {
 	[LLVM_TESTCASE_BASE] = {
 		.source = test_llvm__bpf_base_prog,
-		.desc = "Basic BPF llvm compiling test",
+		.desc = "Basic BPF llvm compile",
 	},
 	[LLVM_TESTCASE_KBUILD] = {
 		.source = test_llvm__bpf_test_kbuild_prog,
-		.desc = "Test kbuild searching",
+		.desc = "kbuild searching",
 	},
 	[LLVM_TESTCASE_BPF_PROLOGUE] = {
 		.source = test_llvm__bpf_test_prologue_prog,
-		.desc = "Compile source for BPF prologue generation test",
+		.desc = "Compile source for BPF prologue generation",
 	},
 	[LLVM_TESTCASE_BPF_RELOCATION] = {
 		.source = test_llvm__bpf_test_relocation,
-		.desc = "Compile source for BPF relocation test",
+		.desc = "Compile source for BPF relocation",
 		.should_load_fail = true,
 	},
 };
@@ -76,7 +76,7 @@ test_llvm__fetch_bpf_obj(void **p_obj_buf,
 	 * Skip this test if user's .perfconfig doesn't set [llvm] section
 	 * and clang is not found in $PATH, and this is not perf test -v
 	 */
-	if (!force && (verbose == 0 &&
+	if (!force && (verbose <= 0 &&
 		       !llvm_param.user_set_param &&
 		       llvm__search_clang())) {
 		pr_debug("No clang and no verbosive, skip this test\n");

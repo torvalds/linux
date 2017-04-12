@@ -28,9 +28,16 @@
 
 struct pp_smumgr;
 struct pp_instance;
+struct pp_hwmgr;
 
 #define smu_lower_32_bits(n) ((uint32_t)(n))
 #define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
+
+extern const struct pp_smumgr_func cz_smu_funcs;
+extern const struct pp_smumgr_func iceland_smu_funcs;
+extern const struct pp_smumgr_func tonga_smu_funcs;
+extern const struct pp_smumgr_func fiji_smu_funcs;
+extern const struct pp_smumgr_func polaris10_smu_funcs;
 
 enum AVFS_BTC_STATUS {
 	AVFS_BTC_BOOT = 0,
@@ -53,6 +60,45 @@ enum AVFS_BTC_STATUS {
 	AVFS_BTC_SMUMSG_ERROR
 };
 
+enum SMU_TABLE {
+	SMU_UVD_TABLE = 0,
+	SMU_VCE_TABLE,
+	SMU_SAMU_TABLE,
+	SMU_BIF_TABLE,
+};
+
+enum SMU_TYPE {
+	SMU_SoftRegisters = 0,
+	SMU_Discrete_DpmTable,
+};
+
+enum SMU_MEMBER {
+	HandshakeDisables = 0,
+	VoltageChangeTimeout,
+	AverageGraphicsActivity,
+	PreVBlankGap,
+	VBlankTimeout,
+	UcodeLoadStatus,
+	UvdBootLevel,
+	VceBootLevel,
+	SamuBootLevel,
+	LowSclkInterruptThreshold,
+};
+
+
+enum SMU_MAC_DEFINITION {
+	SMU_MAX_LEVELS_GRAPHICS = 0,
+	SMU_MAX_LEVELS_MEMORY,
+	SMU_MAX_LEVELS_LINK,
+	SMU_MAX_ENTRIES_SMIO,
+	SMU_MAX_LEVELS_VDDC,
+	SMU_MAX_LEVELS_VDDGFX,
+	SMU_MAX_LEVELS_VDDCI,
+	SMU_MAX_LEVELS_MVDD,
+	SMU_UVD_MCLK_HANDSHAKE_DISABLE,
+};
+
+
 struct pp_smumgr_func {
 	int (*smu_init)(struct pp_smumgr *smumgr);
 	int (*smu_fini)(struct pp_smumgr *smumgr);
@@ -69,24 +115,32 @@ struct pp_smumgr_func {
 	int (*download_pptable_settings)(struct pp_smumgr *smumgr,
 					 void **table);
 	int (*upload_pptable_settings)(struct pp_smumgr *smumgr);
+	int (*update_smc_table)(struct pp_hwmgr *hwmgr, uint32_t type);
+	int (*process_firmware_header)(struct pp_hwmgr *hwmgr);
+	int (*update_sclk_threshold)(struct pp_hwmgr *hwmgr);
+	int (*thermal_setup_fan_table)(struct pp_hwmgr *hwmgr);
+	int (*thermal_avfs_enable)(struct pp_hwmgr *hwmgr);
+	int (*init_smc_table)(struct pp_hwmgr *hwmgr);
+	int (*populate_all_graphic_levels)(struct pp_hwmgr *hwmgr);
+	int (*populate_all_memory_levels)(struct pp_hwmgr *hwmgr);
+	int (*initialize_mc_reg_table)(struct pp_hwmgr *hwmgr);
+	uint32_t (*get_offsetof)(uint32_t type, uint32_t member);
+	uint32_t (*get_mac_definition)(uint32_t value);
+	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_smumgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
-	uint32_t hw_revision;
 	void *device;
 	void *backend;
 	uint32_t usec_timeout;
 	bool reload_fw;
 	const struct pp_smumgr_func *smumgr_funcs;
+	bool is_kicker;
 };
 
-
-extern int smum_init(struct amd_pp_init *pp_init,
-		     struct pp_instance *handle);
-
-extern int smum_fini(struct pp_smumgr *smumgr);
+extern int smum_early_init(struct pp_instance *handle);
 
 extern int smum_get_argument(struct pp_smumgr *smumgr);
 
@@ -121,6 +175,23 @@ extern int smu_allocate_memory(void *device, uint32_t size,
 			 void **kptr, void *handle);
 
 extern int smu_free_memory(void *device, void *handle);
+extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
+
+extern int smum_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type);
+extern int smum_process_firmware_header(struct pp_hwmgr *hwmgr);
+extern int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
+		void *input, void *output, void *storage, int result);
+extern int smum_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
+		void *input, void *output, void *storage, int result);
+extern int smum_init_smc_table(struct pp_hwmgr *hwmgr);
+extern int smum_populate_all_graphic_levels(struct pp_hwmgr *hwmgr);
+extern int smum_populate_all_memory_levels(struct pp_hwmgr *hwmgr);
+extern int smum_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
+extern uint32_t smum_get_offsetof(struct pp_smumgr *smumgr,
+				uint32_t type, uint32_t member);
+extern uint32_t smum_get_mac_definition(struct pp_smumgr *smumgr, uint32_t value);
+
+extern bool smum_is_dpm_running(struct pp_hwmgr *hwmgr);
 
 #define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 

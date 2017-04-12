@@ -90,6 +90,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>
@@ -465,6 +466,8 @@ void vsock_pending_work(struct work_struct *work)
 
 	if (vsock_is_pending(sk)) {
 		vsock_remove_pending(listener, sk);
+
+		listener->sk_ack_backlog--;
 	} else if (!vsk->rejected) {
 		/* We are not on the pending list and accept() did not reject
 		 * us, so we must have been accepted by our user process.  We
@@ -474,8 +477,6 @@ void vsock_pending_work(struct work_struct *work)
 		cleanup = false;
 		goto out;
 	}
-
-	listener->sk_ack_backlog--;
 
 	/* We need to remove ourself from the global connected sockets list so
 	 * incoming packets can't find this socket, and to reduce the reference
@@ -1101,10 +1102,19 @@ static const struct proto_ops vsock_dgram_ops = {
 	.sendpage = sock_no_sendpage,
 };
 
+static int vsock_transport_cancel_pkt(struct vsock_sock *vsk)
+{
+	if (!transport->cancel_pkt)
+		return -EOPNOTSUPP;
+
+	return transport->cancel_pkt(vsk);
+}
+
 static void vsock_connect_timeout(struct work_struct *work)
 {
 	struct sock *sk;
 	struct vsock_sock *vsk;
+	int cancel = 0;
 
 	vsk = container_of(work, struct vsock_sock, dwork.work);
 	sk = sk_vsock(vsk);
@@ -1115,8 +1125,11 @@ static void vsock_connect_timeout(struct work_struct *work)
 		sk->sk_state = SS_UNCONNECTED;
 		sk->sk_err = ETIMEDOUT;
 		sk->sk_error_report(sk);
+		cancel = 1;
 	}
 	release_sock(sk);
+	if (cancel)
+		vsock_transport_cancel_pkt(vsk);
 
 	sock_put(sk);
 }
@@ -1223,11 +1236,13 @@ static int vsock_stream_connect(struct socket *sock, struct sockaddr *addr,
 			err = sock_intr_errno(timeout);
 			sk->sk_state = SS_UNCONNECTED;
 			sock->state = SS_UNCONNECTED;
+			vsock_transport_cancel_pkt(vsk);
 			goto out_wait;
 		} else if (timeout == 0) {
 			err = -ETIMEDOUT;
 			sk->sk_state = SS_UNCONNECTED;
 			sock->state = SS_UNCONNECTED;
+			vsock_transport_cancel_pkt(vsk);
 			goto out_wait;
 		}
 
@@ -1249,7 +1264,8 @@ out:
 	return err;
 }
 
-static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
+static int vsock_accept(struct socket *sock, struct socket *newsock, int flags,
+			bool kern)
 {
 	struct sock *listener;
 	int err;
@@ -2010,5 +2026,5 @@ EXPORT_SYMBOL_GPL(vsock_core_get_transport);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Virtual Socket Family");
-MODULE_VERSION("1.0.1.0-k");
+MODULE_VERSION("1.0.2.0-k");
 MODULE_LICENSE("GPL v2");

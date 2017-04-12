@@ -309,7 +309,7 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 	default:
 		model = NULL;
 		break;
-	};
+	}
 
 	if (!model)
 		goto out;

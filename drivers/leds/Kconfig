@@ -29,6 +29,15 @@ config LEDS_CLASS_FLASH
 	  for the flash related features of a LED device. It can be built
 	  as a module.
 
+config LEDS_BRIGHTNESS_HW_CHANGED
+	bool "LED Class brightness_hw_changed attribute support"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the brightness_hw_changed attribute
+	  for led sysfs class devices under /sys/class/leds.
+
+	  See Documentation/ABI/testing/sysfs-class-led for details.
+
 comment "LED drivers"
 
 config LEDS_88PM860X
@@ -584,6 +593,18 @@ config LEDS_SEAD3
 	  This driver can also be built as a module. If so the module
 	  will be called leds-sead3.
 
+config LEDS_IS31FL319X
+	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
+	depends on LEDS_CLASS && I2C && OF
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to ISSI IS31FL319x
+	  fancy LED driver chips accessed via the I2C bus.
+	  Driver supports individual PWM brightness control for each channel.
+
+	  This driver can also be built as a module. If so the module will be
+	  called leds-is31fl319x.
+
 config LEDS_IS31FL32XX
 	tristate "LED support for ISSI IS31FL32XX I2C LED controller family"
 	depends on LEDS_CLASS && I2C && OF
@@ -630,6 +651,41 @@ config LEDS_VERSATILE
 	help
 	  This option enabled support for the LEDs on the ARM Versatile
 	  and RealView boards. Say Y to enabled these.
+
+config LEDS_PM8058
+	tristate "LED Support for the Qualcomm PM8058 PMIC"
+	depends on MFD_PM8XXX
+	depends on LEDS_CLASS
+	help
+	  Choose this option if you want to use the LED drivers in
+	  the Qualcomm PM8058 PMIC.
+
+config LEDS_MLXCPLD
+	tristate "LED support for the Mellanox boards"
+	depends on X86_64 && DMI
+	depends on LEDS_CLASS
+	help
+	  This option enabled support for the LEDs on the Mellanox
+	  boards. Say Y to enabled these.
+
+config LEDS_USER
+	tristate "Userspace LED support"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for userspace LEDs. Say 'y' to enable this
+	  support in kernel. To compile this driver as a module, choose 'm' here:
+	  the module will be called uleds.
+
+config LEDS_NIC78BX
+	tristate "LED support for NI PXI NIC78bx devices"
+	depends on LEDS_CLASS
+	depends on X86 && ACPI
+	help
+	  This option enables support for the User1 and User2 LEDs on NI
+	  PXI NIC78bx devices.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-nic78bx.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

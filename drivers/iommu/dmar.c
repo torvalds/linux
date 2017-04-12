@@ -68,12 +68,13 @@ DECLARE_RWSEM(dmar_global_lock);
 LIST_HEAD(dmar_drhd_units);
 
 struct acpi_table_header * __initdata dmar_tbl;
-static acpi_size dmar_tbl_size;
 static int dmar_dev_scope_status = 1;
 static unsigned long dmar_seq_ids[BITS_TO_LONGS(DMAR_UNITS_SUPPORTED)];
 
 static int alloc_iommu(struct dmar_drhd_unit *drhd);
 static void free_iommu(struct intel_iommu *iommu);
+
+extern const struct iommu_ops intel_iommu_ops;
 
 static void dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 {
@@ -338,7 +339,9 @@ static int dmar_pci_bus_notifier(struct notifier_block *nb,
 	struct pci_dev *pdev = to_pci_dev(data);
 	struct dmar_pci_notify_info *info;
 
-	/* Only care about add/remove events for physical functions */
+	/* Only care about add/remove events for physical functions.
+	 * For VFs we actually do the lookup based on the corresponding
+	 * PF in device_to_iommu() anyway. */
 	if (pdev->is_virtfn)
 		return NOTIFY_DONE;
 	if (action != BUS_NOTIFY_ADD_DEVICE &&
@@ -541,9 +544,7 @@ static int __init dmar_table_detect(void)
 	acpi_status status = AE_OK;
 
 	/* if we could find DMAR table, then there are DMAR devices */
-	status = acpi_get_table_with_size(ACPI_SIG_DMAR, 0,
-				(struct acpi_table_header **)&dmar_tbl,
-				&dmar_tbl_size);
+	status = acpi_get_table(ACPI_SIG_DMAR, 0, &dmar_tbl);
 
 	if (ACPI_SUCCESS(status) && !dmar_tbl) {
 		pr_warn("Unable to map DMAR\n");
@@ -904,8 +905,10 @@ int __init detect_intel_iommu(void)
 		x86_init.iommu.iommu_init = intel_iommu_init;
 #endif
 
-	early_acpi_os_unmap_memory((void __iomem *)dmar_tbl, dmar_tbl_size);
-	dmar_tbl = NULL;
+	if (dmar_tbl) {
+		acpi_put_table(dmar_tbl);
+		dmar_tbl = NULL;
+	}
 	up_write(&dmar_global_lock);
 
 	return ret ? 1 : -ENODEV;
@@ -1077,14 +1080,17 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	raw_spin_lock_init(&iommu->register_lock);
 
 	if (intel_iommu_enabled) {
-		iommu->iommu_dev = iommu_device_create(NULL, iommu,
-						       intel_iommu_groups,
-						       "%s", iommu->name);
-
-		if (IS_ERR(iommu->iommu_dev)) {
-			err = PTR_ERR(iommu->iommu_dev);
+		err = iommu_device_sysfs_add(&iommu->iommu, NULL,
+					     intel_iommu_groups,
+					     "%s", iommu->name);
+		if (err)
 			goto err_unmap;
-		}
+
+		iommu_device_set_ops(&iommu->iommu, &intel_iommu_ops);
+
+		err = iommu_device_register(&iommu->iommu);
+		if (err)
+			goto err_unmap;
 	}
 
 	drhd->iommu = iommu;
@@ -1102,7 +1108,10 @@ error:
 
 static void free_iommu(struct intel_iommu *iommu)
 {
-	iommu_device_destroy(iommu->iommu_dev);
+	if (intel_iommu_enabled) {
+		iommu_device_unregister(&iommu->iommu);
+		iommu_device_sysfs_remove(&iommu->iommu);
+	}
 
 	if (iommu->irq) {
 		if (iommu->pr_irq) {

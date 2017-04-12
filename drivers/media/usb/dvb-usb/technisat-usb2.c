@@ -14,10 +14,6 @@
  * License, or (at your option) any later version.
  *
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * THIS PROGRAM IS PROVIDED "AS IS" AND BOTH THE COPYRIGHT HOLDER AND
  * TECHNISAT DIGITAL UK LTD DISCLAIM ALL WARRANTIES WITH REGARD TO
  * THIS PROGRAM INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY OR
@@ -50,8 +46,7 @@ MODULE_PARM_DESC(debug,
 static int disable_led_control;
 module_param(disable_led_control, int, 0444);
 MODULE_PARM_DESC(disable_led_control,
-		"disable LED control of the device "
-		"(default: 0 - LED control is active).");
+		"disable LED control of the device (default: 0 - LED control is active).");
 
 /* device private data */
 struct technisat_usb2_state {
@@ -89,8 +84,12 @@ struct technisat_usb2_state {
 static int technisat_usb2_i2c_access(struct usb_device *udev,
 		u8 device_addr, u8 *tx, u8 txlen, u8 *rx, u8 rxlen)
 {
-	u8 b[64];
+	u8 *b;
 	int ret, actual_length;
+
+	b = kmalloc(64, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
 
 	deb_i2c("i2c-access: %02x, tx: ", device_addr);
 	debug_dump(tx, txlen, deb_i2c);
@@ -123,7 +122,7 @@ static int technisat_usb2_i2c_access(struct usb_device *udev,
 
 	if (ret < 0) {
 		err("i2c-error: out failed %02x = %d", device_addr, ret);
-		return -ENODEV;
+		goto err;
 	}
 
 	ret = usb_bulk_msg(udev,
@@ -131,7 +130,7 @@ static int technisat_usb2_i2c_access(struct usb_device *udev,
 			b, 64, &actual_length, 1000);
 	if (ret < 0) {
 		err("i2c-error: in failed %02x = %d", device_addr, ret);
-		return -ENODEV;
+		goto err;
 	}
 
 	if (b[0] != I2C_STATUS_OK) {
@@ -140,7 +139,7 @@ static int technisat_usb2_i2c_access(struct usb_device *udev,
 		if (!(b[0] == I2C_STATUS_NAK &&
 				device_addr == 0x60
 				/* && device_is_technisat_usb2 */))
-			return -ENODEV;
+			goto err;
 	}
 
 	deb_i2c("status: %d, ", b[0]);
@@ -154,7 +153,9 @@ static int technisat_usb2_i2c_access(struct usb_device *udev,
 
 	deb_i2c("\n");
 
-	return 0;
+err:
+	kfree(b);
+	return ret;
 }
 
 static int technisat_usb2_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
@@ -748,7 +749,7 @@ static struct dvb_usb_device_properties technisat_usb2_devices = {
 		.rc_codes    = RC_MAP_TECHNISAT_USB2,
 		.module_name = "technisat-usb2",
 		.rc_query    = technisat_usb2_rc_query,
-		.allowed_protos = RC_BIT_ALL,
+		.allowed_protos = RC_BIT_ALL_IR_DECODER,
 		.driver_type    = RC_DRIVER_IR_RAW,
 	}
 };

@@ -13,10 +13,10 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/dw_mmc.h>
 #include <linux/mmc/mmc.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #include "dw_mmc.h"
@@ -161,20 +161,13 @@ static void dw_mci_exynos_set_clksel_timing(struct dw_mci *host, u32 timing)
 		set_bit(DW_MMC_CARD_NO_USE_HOLD, &host->cur_slot->flags);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int dw_mci_exynos_suspend(struct device *dev)
-{
-	struct dw_mci *host = dev_get_drvdata(dev);
-
-	return dw_mci_suspend(host);
-}
-
-static int dw_mci_exynos_resume(struct device *dev)
+#ifdef CONFIG_PM
+static int dw_mci_exynos_runtime_resume(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
 
 	dw_mci_exynos_config_smu(host);
-	return dw_mci_resume(host);
+	return dw_mci_runtime_resume(dev);
 }
 
 /**
@@ -211,10 +204,8 @@ static int dw_mci_exynos_resume_noirq(struct device *dev)
 	return 0;
 }
 #else
-#define dw_mci_exynos_suspend		NULL
-#define dw_mci_exynos_resume		NULL
 #define dw_mci_exynos_resume_noirq	NULL
-#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
 
 static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 {
@@ -225,8 +216,12 @@ static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 	 * Not supported to configure register
 	 * related to HS400
 	 */
-	if (priv->ctrl_type < DW_MCI_TYPE_EXYNOS5420)
+	if (priv->ctrl_type < DW_MCI_TYPE_EXYNOS5420) {
+		if (timing == MMC_TIMING_MMC_HS400)
+			dev_warn(host->dev,
+				 "cannot configure HS400, unsupported chipset\n");
 		return;
+	}
 
 	dqs = priv->saved_dqs_en;
 	strobe = priv->saved_strobe_ctrl;
@@ -520,14 +515,42 @@ static int dw_mci_exynos_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
+	int ret;
 
 	match = of_match_node(dw_mci_exynos_match, pdev->dev.of_node);
 	drv_data = match->data;
-	return dw_mci_pltfm_register(pdev, drv_data);
+
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
+	ret = dw_mci_pltfm_register(pdev, drv_data);
+	if (ret) {
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_set_suspended(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+
+		return ret;
+	}
+
+	return 0;
+}
+
+static int dw_mci_exynos_remove(struct platform_device *pdev)
+{
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+
+	return dw_mci_pltfm_remove(pdev);
 }
 
 static const struct dev_pm_ops dw_mci_exynos_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dw_mci_exynos_suspend, dw_mci_exynos_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
+			   dw_mci_exynos_runtime_resume,
+			   NULL)
 	.resume_noirq = dw_mci_exynos_resume_noirq,
 	.thaw_noirq = dw_mci_exynos_resume_noirq,
 	.restore_noirq = dw_mci_exynos_resume_noirq,
@@ -535,7 +558,7 @@ static const struct dev_pm_ops dw_mci_exynos_pmops = {
 
 static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.probe		= dw_mci_exynos_probe,
-	.remove		= dw_mci_pltfm_remove,
+	.remove		= dw_mci_exynos_remove,
 	.driver		= {
 		.name		= "dwmmc_exynos",
 		.of_match_table	= dw_mci_exynos_match,

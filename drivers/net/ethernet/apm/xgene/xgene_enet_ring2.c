@@ -30,7 +30,7 @@ static void xgene_enet_ring_init(struct xgene_enet_desc_ring *ring)
 		ring_cfg[0] |= SET_VAL(X2_INTLINE, ring->id & RING_BUFNUM_MASK);
 		ring_cfg[3] |= SET_BIT(X2_DEQINTEN);
 	}
-	ring_cfg[0] |= SET_VAL(X2_CFGCRID, 1);
+	ring_cfg[0] |= SET_VAL(X2_CFGCRID, 2);
 
 	addr >>= 8;
 	ring_cfg[2] |= QCOHERENT | SET_VAL(RINGADDRL, addr);
@@ -119,6 +119,7 @@ static void xgene_enet_set_ring_id(struct xgene_enet_desc_ring *ring)
 
 	ring_id_buf = (ring->num << 9) & GENMASK(18, 9);
 	ring_id_buf |= PREFETCH_BUF_EN;
+
 	if (is_bufpool)
 		ring_id_buf |= IS_BUFFER_POOL;
 
@@ -192,13 +193,15 @@ static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
 
 static void xgene_enet_setup_coalescing(struct xgene_enet_desc_ring *ring)
 {
-	u32 data = 0x7777;
+	u32 data = 0x77777777;
 
 	xgene_enet_ring_wr32(ring, CSR_PBM_COAL, 0x8e);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK0, data);
 	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK1, data);
-	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK2, data << 16);
-	xgene_enet_ring_wr32(ring, CSR_THRESHOLD0_SET1, 0x40);
-	xgene_enet_ring_wr32(ring, CSR_THRESHOLD1_SET1, 0x80);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK2, data);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK3, data);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD0_SET1, 0x08);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD1_SET1, 0x10);
 }
 
 struct xgene_ring_ops xgene_ring2_ops = {

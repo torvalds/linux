@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014,2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,8 +21,7 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 	int rc = 0;
 	struct wireless_dev *wdev = wil->wdev;
 
-	wil_dbg_pm(wil, "%s(%s)\n", __func__,
-		   is_runtime ? "runtime" : "system");
+	wil_dbg_pm(wil, "can_suspend: %s\n", is_runtime ? "runtime" : "system");
 
 	if (!netif_running(wil_to_ndev(wil))) {
 		/* can always sleep when down */
@@ -59,7 +58,7 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 	}
 
 out:
-	wil_dbg_pm(wil, "%s(%s) => %s (%d)\n", __func__,
+	wil_dbg_pm(wil, "can_suspend: %s => %s (%d)\n",
 		   is_runtime ? "runtime" : "system", rc ? "No" : "Yes", rc);
 
 	return rc;
@@ -70,8 +69,7 @@ int wil_suspend(struct wil6210_priv *wil, bool is_runtime)
 	int rc = 0;
 	struct net_device *ndev = wil_to_ndev(wil);
 
-	wil_dbg_pm(wil, "%s(%s)\n", __func__,
-		   is_runtime ? "runtime" : "system");
+	wil_dbg_pm(wil, "suspend: %s\n", is_runtime ? "runtime" : "system");
 
 	/* if netif up, hardware is alive, shut it down */
 	if (ndev->flags & IFF_UP) {
@@ -86,7 +84,7 @@ int wil_suspend(struct wil6210_priv *wil, bool is_runtime)
 		rc = wil->platform_ops.suspend(wil->platform_handle);
 
 out:
-	wil_dbg_pm(wil, "%s(%s) => %d\n", __func__,
+	wil_dbg_pm(wil, "suspend: %s => %d\n",
 		   is_runtime ? "runtime" : "system", rc);
 	return rc;
 }
@@ -96,8 +94,7 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime)
 	int rc = 0;
 	struct net_device *ndev = wil_to_ndev(wil);
 
-	wil_dbg_pm(wil, "%s(%s)\n", __func__,
-		   is_runtime ? "runtime" : "system");
+	wil_dbg_pm(wil, "resume: %s\n", is_runtime ? "runtime" : "system");
 
 	if (wil->platform_ops.resume) {
 		rc = wil->platform_ops.resume(wil->platform_handle);
@@ -115,7 +112,7 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime)
 		rc = wil_up(wil);
 
 out:
-	wil_dbg_pm(wil, "%s(%s) => %d\n", __func__,
+	wil_dbg_pm(wil, "resume: %s => %d\n",
 		   is_runtime ? "runtime" : "system", rc);
 	return rc;
 }

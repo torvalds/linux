@@ -321,7 +321,6 @@ static struct snd_soc_dai_driver cs42xx8_dai = {
 };
 
 static const struct reg_default cs42xx8_reg[] = {
-	{ 0x01, 0x01 },   /* Chip I.D. and Revision Register */
 	{ 0x02, 0x00 },   /* Power Control */
 	{ 0x03, 0xF0 },   /* Functional Mode */
 	{ 0x04, 0x46 },   /* Interface Formats */
@@ -411,12 +410,14 @@ static const struct snd_soc_codec_driver cs42xx8_driver = {
 	.probe = cs42xx8_codec_probe,
 	.idle_bias_off = true,
 
-	.controls = cs42xx8_snd_controls,
-	.num_controls = ARRAY_SIZE(cs42xx8_snd_controls),
-	.dapm_widgets = cs42xx8_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs42xx8_dapm_widgets),
-	.dapm_routes = cs42xx8_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs42xx8_dapm_routes),
+	.component_driver = {
+		.controls		= cs42xx8_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs42xx8_snd_controls),
+		.dapm_widgets		= cs42xx8_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs42xx8_dapm_widgets),
+		.dapm_routes		= cs42xx8_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(cs42xx8_dapm_routes),
+	},
 };
 
 const struct cs42xx8_driver_data cs42448_data = {
@@ -496,13 +497,6 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 	/* Make sure hardware reset done */
 	msleep(5);
 
-	/*
-	 * We haven't marked the chip revision as volatile due to
-	 * sharing a register with the right input volume; explicitly
-	 * bypass the cache to read it.
-	 */
-	regcache_cache_bypass(cs42xx8->regmap, true);
-
 	/* Validate the chip ID */
 	ret = regmap_read(cs42xx8->regmap, CS42XX8_CHIPID, &val);
 	if (ret < 0) {
@@ -520,8 +514,6 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 
 	dev_info(dev, "found device, revision %X\n",
 			val & CS42XX8_CHIPID_REV_ID_MASK);
-
-	regcache_cache_bypass(cs42xx8->regmap, false);
 
 	cs42xx8_dai.name = cs42xx8->drvdata->name;
 

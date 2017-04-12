@@ -63,10 +63,12 @@
 #include <linux/capability.h>
 #include <linux/binfmts.h>
 #include <linux/sched/sysctl.h>
+#include <linux/sched/coredump.h>
 #include <linux/kexec.h>
 #include <linux/bpf.h>
+#include <linux/mount.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>
 
 #ifdef CONFIG_X86
@@ -106,9 +108,8 @@ extern unsigned int core_pipe_limit;
 extern int pid_max;
 extern int pid_max_min, pid_max_max;
 extern int percpu_pagelist_fraction;
-extern int compat_log;
 extern int latencytop_enabled;
-extern int sysctl_nr_open_min, sysctl_nr_open_max;
+extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
 #ifndef CONFIG_MMU
 extern int sysctl_nr_trim_pages;
 #endif
@@ -347,13 +348,6 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{
-		.procname	= "sched_shares_window_ns",
-		.data		= &sysctl_sched_shares_window,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
 #ifdef CONFIG_SCHEDSTATS
 	{
 		.procname	= "sched_schedstats",
@@ -423,7 +417,7 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname	= "sched_rr_timeslice_ms",
-		.data		= &sched_rr_timeslice,
+		.data		= &sysctl_sched_rr_timeslice,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= sched_rr_handler,
@@ -634,7 +628,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &tracepoint_printk,
 		.maxlen		= sizeof(tracepoint_printk),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= tracepoint_printk_sysctl,
 	},
 #endif
 #ifdef CONFIG_KEXEC_CORE
@@ -990,13 +984,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "kstack_depth_to_print",
-		.data		= &kstack_depth_to_print,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
 		.procname	= "io_delay_type",
 		.data		= &io_delay_type,
 		.maxlen		= sizeof(int),
@@ -1082,15 +1069,6 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &neg_one,
-	},
-#endif
-#ifdef CONFIG_COMPAT
-	{
-		.procname	= "compat-log",
-		.data		= &compat_log,
-		.maxlen		= sizeof (int),
-	 	.mode		= 0644,
-		.proc_handler	= proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_RT_MUTEXES
@@ -1692,7 +1670,7 @@ static struct ctl_table fs_table[] = {
 	{
 		.procname	= "nr_open",
 		.data		= &sysctl_nr_open,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &sysctl_nr_open_min,
@@ -1837,6 +1815,14 @@ static struct ctl_table fs_table[] = {
 		.maxlen		= sizeof(pipe_user_pages_soft),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "mount-max",
+		.data		= &sysctl_mount_max,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one,
 	},
 	{ }
 };
@@ -2147,9 +2133,12 @@ static int do_proc_douintvec_conv(bool *negp, unsigned long *lvalp,
 	if (write) {
 		if (*negp)
 			return -EINVAL;
+		if (*lvalp > UINT_MAX)
+			return -EINVAL;
 		*valp = *lvalp;
 	} else {
 		unsigned int val = *valp;
+		*negp = false;
 		*lvalp = (unsigned long)val;
 	}
 	return 0;
@@ -2404,9 +2393,11 @@ static void validate_coredump_safety(void)
 #ifdef CONFIG_COREDUMP
 	if (suid_dumpable == SUID_DUMP_ROOT &&
 	    core_pattern[0] != '/' && core_pattern[0] != '|') {
-		printk(KERN_WARNING "Unsafe core_pattern used with "\
-			"suid_dumpable=2. Pipe handler or fully qualified "\
-			"core dump path required.\n");
+		printk(KERN_WARNING
+"Unsafe core_pattern used with fs.suid_dumpable=2.\n"
+"Pipe handler or fully qualified core dump path required.\n"
+"Set kernel.core_pattern before fs.suid_dumpable.\n"
+		);
 	}
 #endif
 }
@@ -2488,6 +2479,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 				break;
 			if (neg)
 				continue;
+			val = convmul * val / convdiv;
 			if ((min && val < *min) || (max && val > *max))
 				continue;
 			*i = val;

@@ -1,16 +1,22 @@
 #!/usr/bin/perl
 use strict;
 use Text::Tabs;
+use Getopt::Long;
+use Pod::Usage;
 
-# Uncomment if debug is needed
-#use Data::Dumper;
+my $debug;
+my $help;
+my $man;
 
-# change to 1 to generate some debug prints
-my $debug = 0;
+GetOptions(
+	"debug" => \$debug,
+	'usage|?' => \$help,
+	'help' => \$man
+) or pod2usage(2);
 
-if (scalar @ARGV < 2 || scalar @ARGV > 3) {
-	die "Usage:\n\t$0 <file in> <file out> [<exceptions file>]\n";
-}
+pod2usage(1) if $help;
+pod2usage(-exitstatus => 0, -verbose => 2) if $man;
+pod2usage(2) if (scalar @ARGV < 2 || scalar @ARGV > 3);
 
 my ($file_in, $file_out, $file_exceptions) = @ARGV;
 
@@ -21,6 +27,8 @@ my %typedefs;
 my %enums;
 my %enum_symbols;
 my %structs;
+
+require Data::Dumper if ($debug);
 
 #
 # read the file and get identifiers
@@ -51,7 +59,7 @@ while (<IN>) {
 		$n =~ tr/A-Z/a-z/;
 		$n =~ tr/_/-/;
 
-		$enum_symbols{$s} = $n;
+		$enum_symbols{$s} =  "\\ :ref:`$s <$n>`\\ ";
 
 		$is_enum = 0 if ($is_enum && m/\}/);
 		next;
@@ -63,7 +71,7 @@ while (<IN>) {
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
 
-		$ioctls{$s} = $n;
+		$ioctls{$s} = "\\ :ref:`$s <$n>`\\ ";
 		next;
 	}
 
@@ -73,17 +81,15 @@ while (<IN>) {
 		$n =~ tr/A-Z/a-z/;
 		$n =~ tr/_/-/;
 
-		$defines{$s} = $n;
+		$defines{$s} = "\\ :ref:`$s <$n>`\\ ";
 		next;
 	}
 
-	if ($ln =~ m/^\s*typedef\s+.*\s+([_\w][\w\d_]+);/) {
-		my $s = $1;
-		my $n = $1;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
+	if ($ln =~ m/^\s*typedef\s+([_\w][\w\d_]+)\s+(.*)\s+([_\w][\w\d_]+);/) {
+		my $s = $2;
+		my $n = $3;
 
-		$typedefs{$s} = $n;
+		$typedefs{$n} = "\\ :c:type:`$n <$s>`\\ ";
 		next;
 	}
 	if ($ln =~ m/^\s*enum\s+([_\w][\w\d_]+)\s+\{/
@@ -91,11 +97,8 @@ while (<IN>) {
 	    || $ln =~ m/^\s*typedef\s*enum\s+([_\w][\w\d_]+)\s+\{/
 	    || $ln =~ m/^\s*typedef\s*enum\s+([_\w][\w\d_]+)$/) {
 		my $s = $1;
-		my $n = $1;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
 
-		$enums{$s} = $n;
+		$enums{$s} =  "enum :c:type:`$s`\\ ";
 
 		$is_enum = $1;
 		next;
@@ -106,11 +109,8 @@ while (<IN>) {
 	    || $ln =~ m/^\s*typedef\s*struct\s+([[_\w][\w\d_]+)$/
 	    ) {
 		my $s = $1;
-		my $n = $1;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
 
-		$structs{$s} = $n;
+		$structs{$s} = "struct :c:type:`$s`\\ ";
 		next;
 	}
 }
@@ -123,18 +123,24 @@ close IN;
 my @matches = ($data =~ m/typedef\s+struct\s+\S+?\s*\{[^\}]+\}\s*(\S+)\s*\;/g,
 	       $data =~ m/typedef\s+enum\s+\S+?\s*\{[^\}]+\}\s*(\S+)\s*\;/g,);
 foreach my $m (@matches) {
-		my $s = $m;
-		my $n = $m;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
+	my $s = $m;
 
-		$typedefs{$s} = $n;
+	$typedefs{$s} = "\\ :c:type:`$s`\\ ";
 	next;
 }
 
 #
 # Handle exceptions, if any
 #
+
+my %def_reftype = (
+	"ioctl"   => ":ref",
+	"define"  => ":ref",
+	"symbol"  => ":ref",
+	"typedef" => ":c:type",
+	"enum"    => ":c:type",
+	"struct"  => ":c:type",
+);
 
 if ($file_exceptions) {
 	open IN, $file_exceptions or die "Can't read $file_exceptions";
@@ -169,29 +175,49 @@ if ($file_exceptions) {
 		}
 
 		# Parsers to replace a symbol
+		my ($type, $old, $new, $reftype);
 
-		if (m/^replace\s+ioctl\s+(\S+)\s+(\S+)/) {
-			$ioctls{$1} = $2 if (exists($ioctls{$1}));
+		if (m/^replace\s+(\S+)\s+(\S+)\s+(\S+)/) {
+			$type = $1;
+			$old = $2;
+			$new = $3;
+		} else {
+			die "Can't parse $file_exceptions: $_";
+		}
+
+		if ($new =~ m/^\:c\:(data|func|macro|type)\:\`(.+)\`/) {
+			$reftype = ":c:$1";
+			$new = $2;
+		} elsif ($new =~ m/\:ref\:\`(.+)\`/) {
+			$reftype = ":ref";
+			$new = $1;
+		} else {
+			$reftype = $def_reftype{$type};
+		}
+		$new = "$reftype:`$old <$new>`";
+
+		if ($type eq "ioctl") {
+			$ioctls{$old} = $new if (exists($ioctls{$old}));
 			next;
 		}
-		if (m/^replace\s+define\s+(\S+)\s+(\S+)/) {
-			$defines{$1} = $2 if (exists($defines{$1}));
+		if ($type eq "define") {
+			$defines{$old} = $new if (exists($defines{$old}));
 			next;
 		}
-		if (m/^replace\s+typedef\s+(\S+)\s+(\S+)/) {
-			$typedefs{$1} = $2 if (exists($typedefs{$1}));
+		if ($type eq "symbol") {
+			$enum_symbols{$old} = $new if (exists($enum_symbols{$old}));
 			next;
 		}
-		if (m/^replace\s+enum\s+(\S+)\s+(\S+)/) {
-			$enums{$1} = $2 if (exists($enums{$1}));
+		if ($type eq "typedef") {
+			$typedefs{$old} = $new if (exists($typedefs{$old}));
 			next;
 		}
-		if (m/^replace\s+symbol\s+(\S+)\s+(\S+)/) {
-			$enum_symbols{$1} = $2 if (exists($enum_symbols{$1}));
+		if ($type eq "enum") {
+			$enums{$old} = $new if (exists($enums{$old}));
 			next;
 		}
-		if (m/^replace\s+struct\s+(\S+)\s+(\S+)/) {
-			$structs{$1} = $2 if (exists($structs{$1}));
+		if ($type eq "struct") {
+			$structs{$old} = $new if (exists($structs{$old}));
 			next;
 		}
 
@@ -220,7 +246,7 @@ $data =~ s/\n\s+\n/\n\n/g;
 #
 # Add escape codes for special characters
 #
-$data =~ s,([\_\`\*\<\>\&\\\\:\/\|]),\\$1,g;
+$data =~ s,([\_\`\*\<\>\&\\\\:\/\|\%\$\#\{\}\~\^]),\\$1,g;
 
 $data =~ s,DEPRECATED,**DEPRECATED**,g;
 
@@ -232,9 +258,7 @@ my $start_delim = "[ \n\t\(\=\*\@]";
 my $end_delim = "(\\s|,|\\\\=|\\\\:|\\;|\\\)|\\}|\\{)";
 
 foreach my $r (keys %ioctls) {
-	my $n = $ioctls{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $ioctls{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -244,9 +268,7 @@ foreach my $r (keys %ioctls) {
 }
 
 foreach my $r (keys %defines) {
-	my $n = $defines{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $defines{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -256,9 +278,7 @@ foreach my $r (keys %defines) {
 }
 
 foreach my $r (keys %enum_symbols) {
-	my $n = $enum_symbols{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $enum_symbols{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -268,9 +288,7 @@ foreach my $r (keys %enum_symbols) {
 }
 
 foreach my $r (keys %enums) {
-	my $n = $enums{$r};
-
-	my $s = "\\ :ref:`enum $r <$n>`\\ ";
+	my $s = $enums{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -280,9 +298,7 @@ foreach my $r (keys %enums) {
 }
 
 foreach my $r (keys %structs) {
-	my $n = $structs{$r};
-
-	my $s = "\\ :ref:`struct $r <$n>`\\ ";
+	my $s = $structs{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -292,18 +308,15 @@ foreach my $r (keys %structs) {
 }
 
 foreach my $r (keys %typedefs) {
-	my $n = $typedefs{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $typedefs{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
-
 	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
-$data =~ s/\\ \n/\n/g;
+$data =~ s/\\ ([\n\s])/\1/g;
 
 #
 # Generate output file
@@ -319,3 +332,70 @@ print OUT "=" x length($title);
 print OUT "\n\n.. parsed-literal::\n\n";
 print OUT $data;
 close OUT;
+
+__END__
+
+=head1 NAME
+
+parse_headers.pl - parse a C file, in order to identify functions, structs,
+enums and defines and create cross-references to a Sphinx book.
+
+=head1 SYNOPSIS
+
+B<parse_headers.pl> [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
+
+Where <options> can be: --debug, --help or --man.
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--debug>
+
+Put the script in verbose mode, useful for debugging.
+
+=item B<--usage>
+
+Prints a brief help message and exits.
+
+=item B<--help>
+
+Prints a more detailed help message and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+Convert a C header or source file (C_FILE), into a ReStructured Text
+included via ..parsed-literal block with cross-references for the
+documentation files that describe the API. It accepts an optional
+EXCEPTIONS_FILE with describes what elements will be either ignored or
+be pointed to a non-default reference.
+
+The output is written at the (OUT_FILE).
+
+It is capable of identifying defines, functions, structs, typedefs,
+enums and enum symbols and create cross-references for all of them.
+It is also capable of distinguish #define used for specifying a Linux
+ioctl.
+
+The EXCEPTIONS_FILE contain two rules to allow ignoring a symbol or
+to replace the default references by a custom one.
+
+Please read Documentation/doc-guide/parse-headers.rst at the Kernel's
+tree for more details.
+
+=head1 BUGS
+
+Report bugs to Mauro Carvalho Chehab <mchehab@s-opensource.com>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
+
+License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
+
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+=cut

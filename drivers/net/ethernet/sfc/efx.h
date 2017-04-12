@@ -204,6 +204,8 @@ int efx_try_recovery(struct efx_nic *efx);
 
 /* Global */
 void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);
+unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs);
+unsigned int efx_ticks_to_usecs(struct efx_nic *efx, unsigned int ticks);
 int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    unsigned int rx_usecs, bool rx_adaptive,
 			    bool rx_may_override_tx);
@@ -272,6 +274,12 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 	netif_tx_lock_bh(dev);
 	netif_device_detach(dev);
 	netif_tx_unlock_bh(dev);
+}
+
+static inline void efx_device_attach_if_not_resetting(struct efx_nic *efx)
+{
+	if ((efx->state != STATE_DISABLED) && !efx->reset_pending)
+		netif_device_attach(efx->net_dev);
 }
 
 static inline bool efx_rwsem_assert_write_locked(struct rw_semaphore *sem)

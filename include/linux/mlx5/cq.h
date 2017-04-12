@@ -42,13 +42,13 @@ struct mlx5_core_cq {
 	int			cqe_sz;
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;
+	struct mlx5_uars_page  *uar;
 	atomic_t		refcount;
 	struct completion	free;
 	unsigned		vector;
 	unsigned int		irqn;
 	void (*comp)		(struct mlx5_core_cq *);
 	void (*event)		(struct mlx5_core_cq *, enum mlx5_event);
-	struct mlx5_uar	       *uar;
 	u32			cons_index;
 	unsigned		arm_sn;
 	struct mlx5_rsc_debug	*dbg;
@@ -144,7 +144,6 @@ enum {
 
 static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 			       void __iomem *uar_page,
-			       spinlock_t *doorbell_lock,
 			       u32 cons_index)
 {
 	__be32 doorbell[2];
@@ -164,18 +163,18 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 	doorbell[0] = cpu_to_be32(sn << 28 | cmd | ci);
 	doorbell[1] = cpu_to_be32(cq->cqn);
 
-	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, doorbell_lock);
+	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, NULL);
 }
 
 int mlx5_init_cq_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_cq_table(struct mlx5_core_dev *dev);
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			struct mlx5_create_cq_mbox_in *in, int inlen);
+			u32 *in, int inlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-		       struct mlx5_query_cq_mbox_out *out);
+		       u32 *out, int outlen);
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			struct mlx5_modify_cq_mbox_in *in, int in_sz);
+			u32 *in, int inlen);
 int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
 				   struct mlx5_core_cq *cq, u16 cq_period,
 				   u16 cq_max_count);

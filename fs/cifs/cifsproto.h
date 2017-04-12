@@ -61,9 +61,12 @@ extern void exit_cifs_idmap(void);
 extern int init_cifs_spnego(void);
 extern void exit_cifs_spnego(void);
 extern char *build_path_from_dentry(struct dentry *);
+extern char *build_path_from_dentry_optional_prefix(struct dentry *direntry,
+						    bool prefix);
 extern char *cifs_build_path_to_root(struct smb_vol *vol,
 				     struct cifs_sb_info *cifs_sb,
-				     struct cifs_tcon *tcon);
+				     struct cifs_tcon *tcon,
+				     int add_treename);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 extern char *cifs_compose_mount_options(const char *sb_mountdata,
 		const char *fullpath, const struct dfs_info3_param *ref,
@@ -74,10 +77,17 @@ extern struct mid_q_entry *AllocMidQEntry(const struct smb_hdr *smb_buffer,
 extern void DeleteMidQEntry(struct mid_q_entry *midEntry);
 extern void cifs_delete_mid(struct mid_q_entry *mid);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
+extern int cifs_handle_standard(struct TCP_Server_Info *server,
+				struct mid_q_entry *mid);
+extern int cifs_discard_remaining_data(struct TCP_Server_Info *server,
+				       char *buf);
 extern int cifs_call_async(struct TCP_Server_Info *server,
 			struct smb_rqst *rqst,
 			mid_receive_t *receive, mid_callback_t *callback,
-			void *cbdata, const int flags);
+			mid_handle_t *handle, void *cbdata, const int flags);
+extern int cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
+			  struct smb_rqst *rqst, int *resp_buf_type,
+			  const int flags, struct kvec *resp_iov);
 extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
@@ -95,7 +105,8 @@ extern int cifs_wait_mtu_credits(struct TCP_Server_Info *server,
 				 unsigned int *credits);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
 			struct kvec *, int /* nvec to send */,
-			int * /* type of buf returned */ , const int flags);
+			int * /* type of buf returned */, const int flags,
+			struct kvec * /* resp vec */);
 extern int SendReceiveBlockingLock(const unsigned int xid,
 			struct cifs_tcon *ptcon,
 			struct smb_hdr *in_buf ,
@@ -193,6 +204,8 @@ extern struct smb_vol *cifs_get_volume_info(char *mount_data,
 extern int cifs_mount(struct cifs_sb_info *, struct smb_vol *);
 extern void cifs_umount(struct cifs_sb_info *);
 extern void cifs_mark_open_files_invalid(struct cifs_tcon *tcon);
+extern void cifs_reopen_persistent_handles(struct cifs_tcon *tcon);
+
 extern bool cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset,
 				    __u64 length, __u8 type,
 				    struct cifsLockInfo **conf_lock,
@@ -204,6 +217,9 @@ extern void cifs_add_pending_open_locked(struct cifs_fid *fid,
 					 struct tcon_link *tlink,
 					 struct cifs_pending_open *open);
 extern void cifs_del_pending_open(struct cifs_pending_open *open);
+extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
+				 int from_reconnect);
+extern void cifs_put_tcon(struct cifs_tcon *tcon);
 
 #if IS_ENABLED(CONFIG_CIFS_DFS_UPCALL)
 extern void cifs_dfs_release_automount_timer(void);
@@ -271,6 +287,11 @@ extern int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 			const struct nls_table *nls_codepage,
 			unsigned int *num_referrals,
 			struct dfs_info3_param **referrals, int remap);
+extern int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
+			       unsigned int *num_of_nodes,
+			       struct dfs_info3_param **target_nodes,
+			       const struct nls_table *nls_codepage, int remap,
+			       const char *searchName, bool is_unicode);
 extern void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
 				 struct smb_vol *vol);
@@ -392,8 +413,7 @@ extern int CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, char **buf,
 			int *return_buf_type);
 extern int CIFSSMBWrite(const unsigned int xid, struct cifs_io_parms *io_parms,
-			unsigned int *nbytes, const char *buf,
-			const char __user *ubuf, const int long_op);
+			unsigned int *nbytes, const char *buf);
 extern int CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, struct kvec *iov, const int nvec);
 extern int CIFSGetSrvInodeNumber(const unsigned int xid, struct cifs_tcon *tcon,
@@ -436,7 +456,7 @@ extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *,
 			const struct nls_table *);
 extern int setup_ntlm_response(struct cifs_ses *, const struct nls_table *);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
-extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
+extern void cifs_crypto_secmech_release(struct TCP_Server_Info *server);
 extern int calc_seckey(struct cifs_ses *);
 extern int generate_smb30signingkey(struct cifs_ses *);
 extern int generate_smb311signingkey(struct cifs_ses *);
@@ -514,4 +534,6 @@ int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 int __cifs_calc_signature(struct smb_rqst *rqst,
 			struct TCP_Server_Info *server, char *signature,
 			struct shash_desc *shash);
+enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
+					enum securityEnum);
 #endif			/* _CIFSPROTO_H */

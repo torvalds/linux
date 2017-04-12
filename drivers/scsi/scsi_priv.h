@@ -29,8 +29,9 @@ extern int scsi_init_hosts(void);
 extern void scsi_exit_hosts(void);
 
 /* scsi.c */
-extern int scsi_setup_command_freelist(struct Scsi_Host *shost);
-extern void scsi_destroy_command_freelist(struct Scsi_Host *shost);
+extern bool scsi_use_blk_mq;
+int scsi_init_sense_cache(struct Scsi_Host *shost);
+void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd);
 #ifdef CONFIG_SCSI_LOGGING
 void scsi_log_send(struct scsi_cmnd *cmd);
 void scsi_log_completion(struct scsi_cmnd *cmd, int disposition);
@@ -85,15 +86,16 @@ extern void scsi_device_unbusy(struct scsi_device *sdev);
 extern void scsi_queue_insert(struct scsi_cmnd *cmd, int reason);
 extern void scsi_io_completion(struct scsi_cmnd *, unsigned int);
 extern void scsi_run_host_queues(struct Scsi_Host *shost);
+extern void scsi_requeue_run_queue(struct work_struct *work);
 extern struct request_queue *scsi_alloc_queue(struct scsi_device *sdev);
 extern struct request_queue *scsi_mq_alloc_queue(struct scsi_device *sdev);
 extern int scsi_mq_setup_tags(struct Scsi_Host *shost);
 extern void scsi_mq_destroy_tags(struct Scsi_Host *shost);
 extern int scsi_init_queue(void);
 extern void scsi_exit_queue(void);
+extern void scsi_evt_thread(struct work_struct *work);
 struct request_queue;
 struct request;
-extern struct kmem_cache *scsi_sdb_cache;
 
 /* scsi_proc.c */
 #ifdef CONFIG_SCSI_PROC_FS
@@ -186,8 +188,5 @@ static inline void scsi_dh_remove_device(struct scsi_device *sdev) { }
  */
 
 #define SCSI_DEVICE_BLOCK_MAX_TIMEOUT	600	/* units in seconds */
-extern int scsi_internal_device_block(struct scsi_device *sdev);
-extern int scsi_internal_device_unblock(struct scsi_device *sdev,
-					enum scsi_device_state new_state);
 
 #endif /* _SCSI_PRIV_H */

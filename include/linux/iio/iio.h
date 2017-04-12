@@ -225,12 +225,22 @@ struct iio_event_spec {
  *			endianness:	little or big endian
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
+ * @info_mask_separate_available: What availability information is to be
+ *			exported that is specific to this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
  *			by all channels of the same type.
+ * @info_mask_shared_by_type_available: What availability information is to be
+ *			exported that is shared by all channels of the same
+ *			type.
  * @info_mask_shared_by_dir: What information is to be exported that is shared
  *			by all channels of the same direction.
+ * @info_mask_shared_by_dir_available: What availability information is to be
+ *			exported that is shared by all channels of the same
+ *			direction.
  * @info_mask_shared_by_all: What information is to be exported that is shared
  *			by all channels.
+ * @info_mask_shared_by_all_available: What availability information is to be
+ *			exported that is shared by all channels.
  * @event_spec:		Array of events which should be registered for this
  *			channel.
  * @num_event_specs:	Size of the event_spec array.
@@ -269,9 +279,13 @@ struct iio_chan_spec {
 		enum iio_endian endianness;
 	} scan_type;
 	long			info_mask_separate;
+	long			info_mask_separate_available;
 	long			info_mask_shared_by_type;
+	long			info_mask_shared_by_type_available;
 	long			info_mask_shared_by_dir;
+	long			info_mask_shared_by_dir_available;
 	long			info_mask_shared_by_all;
+	long			info_mask_shared_by_all_available;
 	const struct iio_event_spec *event_spec;
 	unsigned int		num_event_specs;
 	const struct iio_chan_spec_ext_info *ext_info;
@@ -299,6 +313,23 @@ static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 		(chan->info_mask_shared_by_type & BIT(type)) |
 		(chan->info_mask_shared_by_dir & BIT(type)) |
 		(chan->info_mask_shared_by_all & BIT(type));
+}
+
+/**
+ * iio_channel_has_available() - Checks if a channel has an available attribute
+ * @chan: The channel to be queried
+ * @type: Type of the available attribute to be checked
+ *
+ * Returns true if the channel supports reporting available values for the
+ * given attribute type, false otherwise.
+ */
+static inline bool iio_channel_has_available(const struct iio_chan_spec *chan,
+					     enum iio_chan_info_enum type)
+{
+	return (chan->info_mask_separate_available & BIT(type)) |
+		(chan->info_mask_shared_by_type_available & BIT(type)) |
+		(chan->info_mask_shared_by_dir_available & BIT(type)) |
+		(chan->info_mask_shared_by_all_available & BIT(type));
 }
 
 #define IIO_CHAN_SOFT_TIMESTAMP(_si) {					\
@@ -349,6 +380,14 @@ struct iio_dev;
  *			max_len specifies maximum number of elements
  *			vals pointer can contain. val_len is used to return
  *			length of valid elements in vals.
+ * @read_avail:		function to return the available values from the device.
+ *			mask specifies which value. Note 0 means the available
+ *			values for the channel in question.  Return value
+ *			specifies if a IIO_AVAIL_LIST or a IIO_AVAIL_RANGE is
+ *			returned in vals. The type of the vals are returned in
+ *			type and the number of vals is returned in length. For
+ *			ranges, there are always three vals returned; min, step
+ *			and max. For lists, all possible values are enumerated.
  * @write_raw:		function to write a value to the device.
  *			Parameters are the same as for read_raw.
  * @write_raw_get_fmt:	callback function to query the expected
@@ -381,7 +420,7 @@ struct iio_dev;
  **/
 struct iio_info {
 	struct module			*driver_module;
-	struct attribute_group		*event_attrs;
+	const struct attribute_group	*event_attrs;
 	const struct attribute_group	*attrs;
 
 	int (*read_raw)(struct iio_dev *indio_dev,
@@ -396,6 +435,13 @@ struct iio_info {
 			int *vals,
 			int *val_len,
 			long mask);
+
+	int (*read_avail)(struct iio_dev *indio_dev,
+			  struct iio_chan_spec const *chan,
+			  const int **vals,
+			  int *type,
+			  int *length,
+			  long mask);
 
 	int (*write_raw)(struct iio_dev *indio_dev,
 			 struct iio_chan_spec const *chan,
@@ -483,6 +529,7 @@ struct iio_buffer_setup_ops {
  * @scan_timestamp:	[INTERN] set if any buffers have requested timestamp
  * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
+ * @trig_readonly	[INTERN] mark the current trigger immutable
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @pollfunc_event:	[DRIVER] function run on events trigger being received
  * @channels:		[DRIVER] channel specification structure table
@@ -523,6 +570,7 @@ struct iio_dev {
 	bool				scan_timestamp;
 	unsigned			scan_index_timestamp;
 	struct iio_trigger		*trig;
+	bool				trig_readonly;
 	struct iio_poll_func		*pollfunc;
 	struct iio_poll_func		*pollfunc_event;
 
@@ -642,6 +690,7 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
 }
 
 void iio_device_free(struct iio_dev *indio_dev);
+int devm_iio_device_match(struct device *dev, void *res, void *data);
 struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv);
 void devm_iio_device_free(struct device *dev, struct iio_dev *indio_dev);
 struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,

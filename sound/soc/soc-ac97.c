@@ -116,7 +116,7 @@ static int snd_soc_ac97_gpio_direction_out(struct gpio_chip *chip,
 	return snd_soc_update_bits(codec, AC97_GPIO_CFG, 1 << offset, 0);
 }
 
-static struct gpio_chip snd_soc_ac97_gpio_chip = {
+static const struct gpio_chip snd_soc_ac97_gpio_chip = {
 	.label			= "snd_soc_ac97",
 	.owner			= THIS_MODULE,
 	.request		= snd_soc_ac97_gpio_request,
@@ -251,7 +251,7 @@ EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 
 /**
  * snd_soc_free_ac97_codec - free AC97 codec device
- * @codec: audio codec
+ * @ac97: snd_ac97 device to be freed
  *
  * Frees AC97 codec device resources.
  */

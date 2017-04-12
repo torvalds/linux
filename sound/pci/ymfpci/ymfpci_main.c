@@ -1123,7 +1123,7 @@ static int snd_ymfpci_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ymfpci_playback_ops = {
+static const struct snd_pcm_ops snd_ymfpci_playback_ops = {
 	.open =			snd_ymfpci_playback_open,
 	.close =		snd_ymfpci_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1134,7 +1134,7 @@ static struct snd_pcm_ops snd_ymfpci_playback_ops = {
 	.pointer =		snd_ymfpci_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_ymfpci_capture_rec_ops = {
+static const struct snd_pcm_ops snd_ymfpci_capture_rec_ops = {
 	.open =			snd_ymfpci_capture_rec_open,
 	.close =		snd_ymfpci_capture_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1169,7 +1169,7 @@ int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device)
 				     snd_pcm_std_chmaps, 2, 0, NULL);
 }
 
-static struct snd_pcm_ops snd_ymfpci_capture_ac97_ops = {
+static const struct snd_pcm_ops snd_ymfpci_capture_ac97_ops = {
 	.open =			snd_ymfpci_capture_ac97_open,
 	.close =		snd_ymfpci_capture_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1203,7 +1203,7 @@ int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ymfpci_playback_spdif_ops = {
+static const struct snd_pcm_ops snd_ymfpci_playback_spdif_ops = {
 	.open =			snd_ymfpci_playback_spdif_open,
 	.close =		snd_ymfpci_playback_spdif_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -1236,7 +1236,7 @@ int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ymfpci_playback_4ch_ops = {
+static const struct snd_pcm_ops snd_ymfpci_playback_4ch_ops = {
 	.open =			snd_ymfpci_playback_4ch_open,
 	.close =		snd_ymfpci_playback_4ch_close,
 	.ioctl =		snd_pcm_lib_ioctl,
