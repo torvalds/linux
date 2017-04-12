@@ -47,7 +47,8 @@ struct pci_dev;
 #define PCI_DMA_BUS_IS_PHYS	(1)
 
 /* Tell drivers/pci/proc.c that we have pci_mmap_page_range() */
-#define HAVE_PCI_MMAP	1
+#define HAVE_PCI_MMAP		1
+#define arch_can_pci_mmap_io()	1
 
 #endif /* __KERNEL__ */
 

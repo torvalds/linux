@@ -1174,11 +1174,14 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 	} else {
 		pdev->res_attr[num] = res_attr;
 		sprintf(res_attr_name, "resource%d", num);
-		res_attr->mmap = pci_mmap_resource_uc;
-	}
-	if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
-		res_attr->read = pci_read_resource_io;
-		res_attr->write = pci_write_resource_io;
+		if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
+			res_attr->read = pci_read_resource_io;
+			res_attr->write = pci_write_resource_io;
+			if (arch_can_pci_mmap_io())
+				res_attr->mmap = pci_mmap_resource_uc;
+		} else {
+			res_attr->mmap = pci_mmap_resource_uc;
+		}
 	}
 	res_attr->attr.name = res_attr_name;
 	res_attr->attr.mode = S_IRUSR | S_IWUSR;

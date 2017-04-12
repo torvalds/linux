@@ -119,7 +119,8 @@ useful return codes should be provided.
 
 Platforms which support write-combining maps of PCI resources must define
 arch_can_pci_mmap_wc() which shall evaluate to non-zero at runtime when
-write-combining is permitted.
+write-combining is permitted. Platforms which support maps of I/O resources
+define arch_can_pci_mmap_io() similarly.
 
 Legacy resources are protected by the HAVE_PCI_LEGACY define.  Platforms
 wishing to support legacy functionality should define it and provide
