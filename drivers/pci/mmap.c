@@ -48,9 +48,7 @@ int pci_mmap_resource_range(struct pci_dev *pdev, int bar,
 			    enum pci_mmap_state mmap_state, int write_combine)
 {
 	unsigned long size;
-
-	if (mmap_state == pci_mmap_io)
-		return -EINVAL;
+	int ret;
 
 	size = ((pci_resource_len(pdev, bar) - 1) >> PAGE_SHIFT) + 1;
 	if (vma->vm_pgoff + vma_pages(vma) > size)
@@ -61,7 +59,13 @@ int pci_mmap_resource_range(struct pci_dev *pdev, int bar,
 	else
 		vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
 
-	vma->vm_pgoff += (pci_resource_start(pdev, bar) >> PAGE_SHIFT);
+	if (mmap_state == pci_mmap_io) {
+		ret = pci_iobar_pfn(pdev, bar, vma);
+		if (ret)
+			return ret;
+	} else
+		vma->vm_pgoff += (pci_resource_start(pdev, bar) >> PAGE_SHIFT);
+
 	vma->vm_ops = &pci_phys_vm_ops;
 
 	return io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,

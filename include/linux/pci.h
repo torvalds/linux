@@ -1648,8 +1648,12 @@ int pci_mmap_page_range(struct pci_dev *pdev, int bar,
 #ifndef arch_can_pci_mmap_wc
 #define arch_can_pci_mmap_wc()		0
 #endif
+
 #ifndef arch_can_pci_mmap_io
 #define arch_can_pci_mmap_io()		0
+#define pci_iobar_pfn(pdev, bar, vma) (-EINVAL)
+#else
+int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma);
 #endif
 
 #ifndef pci_root_bus_fwnode
