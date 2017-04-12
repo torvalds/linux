@@ -193,7 +193,8 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	sreg = devm_kzalloc(dev, sizeof(*sreg), GFP_KERNEL);
 	if (!sreg)
 		return -ENOMEM;
-	sreg->name = of_get_property(np, "regulator-name", NULL);
+
+	of_property_read_string(np, "regulator-name", &sreg->name);
 	rdesc = &sreg->rdesc;
 	rdesc->name = sreg->name;
 	rdesc->type = REGULATOR_VOLTAGE;
