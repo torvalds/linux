@@ -802,33 +802,14 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static int device_match_by_alias(struct device *dev, void *data)
-{
-	struct omap_iommu *obj = to_iommu(dev);
-	const char *name = data;
-
-	pr_debug("%s: %s %s\n", __func__, obj->name, name);
-
-	return strcmp(obj->name, name) == 0;
-}
-
 /**
  * omap_iommu_attach() - attach iommu device to an iommu domain
- * @name:	name of target omap iommu device
+ * @obj:	target omap iommu device
  * @iopgd:	page table
  **/
-static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
+static int omap_iommu_attach(struct omap_iommu *obj, u32 *iopgd)
 {
 	int err;
-	struct device *dev;
-	struct omap_iommu *obj;
-
-	dev = driver_find_device(&omap_iommu_driver.driver, NULL, (void *)name,
-				 device_match_by_alias);
-	if (!dev)
-		return ERR_PTR(-ENODEV);
-
-	obj = to_iommu(dev);
 
 	spin_lock(&obj->iommu_lock);
 
@@ -841,11 +822,13 @@ static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
 	spin_unlock(&obj->iommu_lock);
 
 	dev_dbg(obj->dev, "%s: %s\n", __func__, obj->name);
-	return obj;
+
+	return 0;
 
 err_enable:
 	spin_unlock(&obj->iommu_lock);
-	return ERR_PTR(err);
+
+	return err;
 }
 
 /**
@@ -1059,11 +1042,11 @@ static int
 omap_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
-	struct omap_iommu *oiommu;
 	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
+	struct omap_iommu *oiommu;
 	int ret = 0;
 
-	if (!arch_data || !arch_data->name) {
+	if (!arch_data || !arch_data->iommu_dev) {
 		dev_err(dev, "device doesn't have an associated iommu\n");
 		return -EINVAL;
 	}
@@ -1077,15 +1060,16 @@ omap_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		goto out;
 	}
 
+	oiommu = arch_data->iommu_dev;
+
 	/* get a handle to and enable the omap iommu */
-	oiommu = omap_iommu_attach(arch_data->name, omap_domain->pgtable);
-	if (IS_ERR(oiommu)) {
-		ret = PTR_ERR(oiommu);
+	ret = omap_iommu_attach(oiommu, omap_domain->pgtable);
+	if (ret) {
 		dev_err(dev, "can't get omap iommu: %d\n", ret);
 		goto out;
 	}
 
-	omap_domain->iommu_dev = arch_data->iommu_dev = oiommu;
+	omap_domain->iommu_dev = oiommu;
 	omap_domain->dev = dev;
 	oiommu->domain = domain;
 
@@ -1098,7 +1082,6 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 				   struct device *dev)
 {
 	struct omap_iommu *oiommu = dev_to_omap_iommu(dev);
-	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
 
 	/* only a single device is supported per domain for now */
 	if (omap_domain->iommu_dev != oiommu) {
@@ -1110,7 +1093,7 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 
 	omap_iommu_detach(oiommu);
 
-	omap_domain->iommu_dev = arch_data->iommu_dev = NULL;
+	omap_domain->iommu_dev = NULL;
 	omap_domain->dev = NULL;
 	oiommu->domain = NULL;
 }
@@ -1214,6 +1197,7 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 static int omap_iommu_add_device(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data;
+	struct omap_iommu *oiommu;
 	struct device_node *np;
 	struct platform_device *pdev;
 
@@ -1236,13 +1220,19 @@ static int omap_iommu_add_device(struct device *dev)
 		return -EINVAL;
 	}
 
+	oiommu = platform_get_drvdata(pdev);
+	if (!oiommu) {
+		of_node_put(np);
+		return -EINVAL;
+	}
+
 	arch_data = kzalloc(sizeof(*arch_data), GFP_KERNEL);
 	if (!arch_data) {
 		of_node_put(np);
 		return -ENOMEM;
 	}
 
-	arch_data->name = kstrdup(dev_name(&pdev->dev), GFP_KERNEL);
+	arch_data->iommu_dev = oiommu;
 	dev->archdata.iommu = arch_data;
 
 	of_node_put(np);
@@ -1257,7 +1247,7 @@ static void omap_iommu_remove_device(struct device *dev)
 	if (!dev->of_node || !arch_data)
 		return;
 
-	kfree(arch_data->name);
+	dev->archdata.iommu = NULL;
 	kfree(arch_data);
 }
 

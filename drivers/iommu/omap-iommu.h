@@ -72,7 +72,6 @@ struct omap_iommu {
 
 /**
  * struct omap_iommu_arch_data - omap iommu private data
- * @name: name of the iommu device
  * @iommu_dev: handle of the iommu device
  *
  * This is an omap iommu private data object, which binds an iommu user
@@ -81,7 +80,6 @@ struct omap_iommu {
  * utilize omap-specific plumbing anymore.
  */
 struct omap_iommu_arch_data {
-	const char *name;
 	struct omap_iommu *iommu_dev;
 };
 
