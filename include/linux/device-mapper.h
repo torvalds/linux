@@ -130,6 +130,7 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
  */
 typedef long (*dm_direct_access_fn) (struct dm_target *ti, sector_t sector,
 				     void **kaddr, pfn_t *pfn, long size);
+#define PAGE_SECTORS (PAGE_SIZE / 512)
 
 void dm_error(const char *message);
 
