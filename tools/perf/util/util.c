@@ -696,7 +696,8 @@ const char *perf_tip(const char *dirpath)
 
 	tips = strlist__new("tips.txt", &conf);
 	if (tips == NULL)
-		return errno == ENOENT ? NULL : "Tip: get more memory! ;-p";
+		return errno == ENOENT ? NULL :
+			"Tip: check path of tips.txt or get more memory! ;-p";
 
 	if (strlist__nr_entries(tips) == 0)
 		goto out;
