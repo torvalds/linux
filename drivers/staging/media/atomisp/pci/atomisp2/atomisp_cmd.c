@@ -533,9 +533,11 @@ __get_asd_from_port(struct atomisp_device *isp, mipi_port_ID_t port)
 	/* Check which isp subdev to send eof */
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd = &isp->asd[i];
-		struct camera_mipi_info *mipi_info =
-				atomisp_to_sensor_mipi_info(
-					isp->inputs[asd->input_curr].camera);
+		struct camera_mipi_info *mipi_info;
+
+		mipi_info = atomisp_to_sensor_mipi_info(
+				isp->inputs[asd->input_curr].camera);
+
 		if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED &&
 		    __get_mipi_port(isp, mipi_info->port) == port) {
 			return asd;
