@@ -70,6 +70,7 @@ struct omap_iommu {
 	u32 id;
 
 	struct iommu_device iommu;
+	struct iommu_group *group;
 };
 
 /**
