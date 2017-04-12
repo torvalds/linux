@@ -30,6 +30,7 @@
 #include "mock_gem_device.h"
 #include "mock_gem_object.h"
 #include "mock_gtt.h"
+#include "mock_uncore.h"
 
 void mock_device_flush(struct drm_i915_private *i915)
 {
@@ -143,6 +144,7 @@ struct drm_i915_private *mock_gem_device(void)
 	mkwrite_device_info(i915)->gen = -1;
 
 	spin_lock_init(&i915->mm.object_stat_lock);
+	mock_uncore_init(i915);
 
 	init_waitqueue_head(&i915->gpu_error.wait_queue);
 	init_waitqueue_head(&i915->gpu_error.reset_queue);

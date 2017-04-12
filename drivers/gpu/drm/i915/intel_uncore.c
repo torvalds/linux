@@ -1108,19 +1108,19 @@ __gen6_write(32)
 #undef GEN6_WRITE_FOOTER
 #undef GEN6_WRITE_HEADER
 
-#define ASSIGN_WRITE_MMIO_VFUNCS(x) \
+#define ASSIGN_WRITE_MMIO_VFUNCS(i915, x) \
 do { \
-	dev_priv->uncore.funcs.mmio_writeb = x##_write8; \
-	dev_priv->uncore.funcs.mmio_writew = x##_write16; \
-	dev_priv->uncore.funcs.mmio_writel = x##_write32; \
+	(i915)->uncore.funcs.mmio_writeb = x##_write8; \
+	(i915)->uncore.funcs.mmio_writew = x##_write16; \
+	(i915)->uncore.funcs.mmio_writel = x##_write32; \
 } while (0)
 
-#define ASSIGN_READ_MMIO_VFUNCS(x) \
+#define ASSIGN_READ_MMIO_VFUNCS(i915, x) \
 do { \
-	dev_priv->uncore.funcs.mmio_readb = x##_read8; \
-	dev_priv->uncore.funcs.mmio_readw = x##_read16; \
-	dev_priv->uncore.funcs.mmio_readl = x##_read32; \
-	dev_priv->uncore.funcs.mmio_readq = x##_read64; \
+	(i915)->uncore.funcs.mmio_readb = x##_read8; \
+	(i915)->uncore.funcs.mmio_readw = x##_read16; \
+	(i915)->uncore.funcs.mmio_readl = x##_read32; \
+	(i915)->uncore.funcs.mmio_readq = x##_read64; \
 } while (0)
 
 
@@ -1310,34 +1310,34 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		i915_pmic_bus_access_notifier;
 
 	if (IS_GEN(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
-		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
-		ASSIGN_READ_MMIO_VFUNCS(gen2);
+		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen2);
+		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen2);
 	} else if (IS_GEN5(dev_priv)) {
-		ASSIGN_WRITE_MMIO_VFUNCS(gen5);
-		ASSIGN_READ_MMIO_VFUNCS(gen5);
+		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen5);
+		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen5);
 	} else if (IS_GEN(dev_priv, 6, 7)) {
-		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
+		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen6);
 
 		if (IS_VALLEYVIEW(dev_priv)) {
 			ASSIGN_FW_DOMAINS_TABLE(__vlv_fw_ranges);
-			ASSIGN_READ_MMIO_VFUNCS(fwtable);
+			ASSIGN_READ_MMIO_VFUNCS(dev_priv, fwtable);
 		} else {
-			ASSIGN_READ_MMIO_VFUNCS(gen6);
+			ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen6);
 		}
 	} else if (IS_GEN8(dev_priv)) {
 		if (IS_CHERRYVIEW(dev_priv)) {
 			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
-			ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
-			ASSIGN_READ_MMIO_VFUNCS(fwtable);
+			ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, fwtable);
+			ASSIGN_READ_MMIO_VFUNCS(dev_priv, fwtable);
 
 		} else {
-			ASSIGN_WRITE_MMIO_VFUNCS(gen8);
-			ASSIGN_READ_MMIO_VFUNCS(gen6);
+			ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen8);
+			ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen6);
 		}
 	} else {
 		ASSIGN_FW_DOMAINS_TABLE(__gen9_fw_ranges);
-		ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
-		ASSIGN_READ_MMIO_VFUNCS(fwtable);
+		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, fwtable);
+		ASSIGN_READ_MMIO_VFUNCS(dev_priv, fwtable);
 		if (HAS_DECOUPLED_MMIO(dev_priv)) {
 			dev_priv->uncore.funcs.mmio_readl =
 						gen9_decoupled_read32;
@@ -1353,8 +1353,6 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 
 	i915_check_and_clear_faults(dev_priv);
 }
-#undef ASSIGN_WRITE_MMIO_VFUNCS
-#undef ASSIGN_READ_MMIO_VFUNCS
 
 void intel_uncore_fini(struct drm_i915_private *dev_priv)
 {
@@ -1900,5 +1898,6 @@ intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/mock_uncore.c"
 #include "selftests/intel_uncore.c"
 #endif
