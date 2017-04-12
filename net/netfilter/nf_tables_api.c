@@ -4433,8 +4433,6 @@ static int nf_tables_getobj(struct net *net, struct sock *nlsk,
 err:
 	kfree_skb(skb2);
 	return err;
-
-	return 0;
 }
 
 static void nft_obj_destroy(struct nft_object *obj)
