@@ -1427,8 +1427,8 @@ int class_manual_cleanup(struct obd_device *obd)
 	lustre_cfg_bufs_reset(&bufs, obd->obd_name);
 	lustre_cfg_bufs_set_string(&bufs, 1, flags);
 	lcfg = lustre_cfg_new(LCFG_CLEANUP, &bufs);
-	if (!lcfg)
-		return -ENOMEM;
+	if (IS_ERR(lcfg))
+		return PTR_ERR(lcfg);
 
 	rc = class_process_config(lcfg);
 	if (rc) {
