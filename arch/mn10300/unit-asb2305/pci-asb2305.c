@@ -211,7 +211,8 @@ void __init pcibios_resource_survey(void)
 	pcibios_allocate_resources(1);
 }
 
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
+int pci_mmap_page_range(struct pci_dev *dev, int bar,
+			struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
 	unsigned long prot;
