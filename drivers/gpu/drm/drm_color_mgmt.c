@@ -43,7 +43,8 @@
  *
  *	Setting this to NULL (blob property value set to 0) means a
  *	linear/pass-thru gamma table should be used. This is generally the
- *	driver boot-up state too.
+ *	driver boot-up state too. Drivers can access this blob through
+ *	&drm_crtc_state.degamma_lut.
  *
  * “DEGAMMA_LUT_SIZE”:
  *	Unsinged range property to give the size of the lookup table to be set
@@ -60,7 +61,8 @@
  *
  *	Setting this to NULL (blob property value set to 0) means a
  *	unit/pass-thru matrix should be used. This is generally the driver
- *	boot-up state too.
+ *	boot-up state too. Drivers can access the blob for the color conversion
+ *	matrix through &drm_crtc_state.ctm.
  *
  * “GAMMA_LUT”:
  *	Blob property to set the gamma lookup table (LUT) mapping pixel data
@@ -72,7 +74,8 @@
  *
  *	Setting this to NULL (blob property value set to 0) means a
  *	linear/pass-thru gamma table should be used. This is generally the
- *	driver boot-up state too.
+ *	driver boot-up state too. Drivers can access this blob through
+ *	&drm_crtc_state.gamma_lut.
  *
  * “GAMMA_LUT_SIZE”:
  *	Unsigned range property to give the size of the lookup table to be set
