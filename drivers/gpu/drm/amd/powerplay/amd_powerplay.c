@@ -239,7 +239,7 @@ static int pp_set_powergating_state(void *handle,
 
 	/* Enable/disable GFX per cu powergating through SMU */
 	return hwmgr->hwmgr_func->enable_per_cu_power_gating(hwmgr,
-			state == AMD_PG_STATE_GATE ? true : false);
+			state == AMD_PG_STATE_GATE);
 }
 
 static int pp_suspend(void *handle)
@@ -286,7 +286,7 @@ static int pp_resume(void *handle)
 	}
 
 	if (ret1 == PP_DPM_DISABLED)
-		return ret1;
+		return 0;
 
 	eventmgr = pp_handle->eventmgr;
 
@@ -341,8 +341,9 @@ static int pp_dpm_force_performance_level(void *handle,
 		return 0;
 	}
 
+	mutex_lock(&pp_handle->pp_lock);
 	hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
-
+	mutex_unlock(&pp_handle->pp_lock);
 	return 0;
 }
 
@@ -352,6 +353,7 @@ static enum amd_dpm_forced_level pp_dpm_get_performance_level(
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
+	enum amd_dpm_forced_level level;
 
 	ret = pp_check(pp_handle);
 
@@ -359,8 +361,10 @@ static enum amd_dpm_forced_level pp_dpm_get_performance_level(
 		return ret;
 
 	hwmgr = pp_handle->hwmgr;
-
-	return hwmgr->dpm_level;
+	mutex_lock(&pp_handle->pp_lock);
+	level = hwmgr->dpm_level;
+	mutex_unlock(&pp_handle->pp_lock);
+	return level;
 }
 
 static int pp_dpm_get_sclk(void *handle, bool low)
@@ -380,8 +384,10 @@ static int pp_dpm_get_sclk(void *handle, bool low)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->get_sclk(hwmgr, low);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_sclk(hwmgr, low);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_mclk(void *handle, bool low)
@@ -401,8 +407,10 @@ static int pp_dpm_get_mclk(void *handle, bool low)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->get_mclk(hwmgr, low);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_mclk(hwmgr, low);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_powergate_vce(void *handle, bool gate)
@@ -422,8 +430,10 @@ static int pp_dpm_powergate_vce(void *handle, bool gate)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_powergate_uvd(void *handle, bool gate)
@@ -443,8 +453,10 @@ static int pp_dpm_powergate_uvd(void *handle, bool gate)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
@@ -472,7 +484,7 @@ static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
 
 	if (ret != 0)
 		return ret;
-
+	mutex_lock(&pp_handle->pp_lock);
 	switch (event_id) {
 	case AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE:
 		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
@@ -481,8 +493,10 @@ static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
 	{
 		enum amd_pm_state_type  ps;
 
-		if (input == NULL)
-			return -EINVAL;
+		if (input == NULL) {
+			ret = -EINVAL;
+			break;
+		}
 		ps = *(unsigned long *)input;
 
 		data.requested_ui_label = power_state_convert(ps);
@@ -498,6 +512,7 @@ static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
 	default:
 		break;
 	}
+	mutex_unlock(&pp_handle->pp_lock);
 	return ret;
 }
 
@@ -507,6 +522,7 @@ static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	struct pp_power_state *state;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
+	enum amd_pm_state_type pm_type;
 
 	ret = pp_check(pp_handle);
 
@@ -518,21 +534,30 @@ static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	if (hwmgr->current_ps == NULL)
 		return -EINVAL;
 
+	mutex_lock(&pp_handle->pp_lock);
+
 	state = hwmgr->current_ps;
 
 	switch (state->classification.ui_label) {
 	case PP_StateUILabel_Battery:
-		return POWER_STATE_TYPE_BATTERY;
+		pm_type = POWER_STATE_TYPE_BATTERY;
+		break;
 	case PP_StateUILabel_Balanced:
-		return POWER_STATE_TYPE_BALANCED;
+		pm_type = POWER_STATE_TYPE_BALANCED;
+		break;
 	case PP_StateUILabel_Performance:
-		return POWER_STATE_TYPE_PERFORMANCE;
+		pm_type = POWER_STATE_TYPE_PERFORMANCE;
+		break;
 	default:
 		if (state->classification.flags & PP_StateClassificationFlag_Boot)
-			return  POWER_STATE_TYPE_INTERNAL_BOOT;
+			pm_type = POWER_STATE_TYPE_INTERNAL_BOOT;
 		else
-			return POWER_STATE_TYPE_DEFAULT;
+			pm_type = POWER_STATE_TYPE_DEFAULT;
+		break;
 	}
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return pm_type;
 }
 
 static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
@@ -552,8 +577,10 @@ static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->set_fan_control_mode(hwmgr, mode);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->set_fan_control_mode(hwmgr, mode);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_fan_control_mode(void *handle)
@@ -573,8 +600,10 @@ static int pp_dpm_get_fan_control_mode(void *handle)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
@@ -594,8 +623,10 @@ static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->set_fan_speed_percent(hwmgr, percent);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->set_fan_speed_percent(hwmgr, percent);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
@@ -616,7 +647,10 @@ static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
 		return 0;
 	}
 
-	return hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
@@ -635,7 +669,10 @@ static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
 	if (hwmgr->hwmgr_func->get_fan_speed_rpm == NULL)
 		return -EINVAL;
 
-	return hwmgr->hwmgr_func->get_fan_speed_rpm(hwmgr, rpm);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_fan_speed_rpm(hwmgr, rpm);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_temperature(void *handle)
@@ -655,8 +692,10 @@ static int pp_dpm_get_temperature(void *handle)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->get_temperature(hwmgr);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_temperature(hwmgr);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_pp_num_states(void *handle,
@@ -676,6 +715,8 @@ static int pp_dpm_get_pp_num_states(void *handle,
 
 	if (hwmgr->ps == NULL)
 		return -EINVAL;
+
+	mutex_lock(&pp_handle->pp_lock);
 
 	data->nums = hwmgr->num_ps;
 
@@ -699,7 +740,7 @@ static int pp_dpm_get_pp_num_states(void *handle,
 				data->states[i] = POWER_STATE_TYPE_DEFAULT;
 		}
 	}
-
+	mutex_unlock(&pp_handle->pp_lock);
 	return 0;
 }
 
@@ -708,6 +749,7 @@ static int pp_dpm_get_pp_table(void *handle, char **table)
 	struct pp_hwmgr *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
+	int size = 0;
 
 	ret = pp_check(pp_handle);
 
@@ -719,9 +761,11 @@ static int pp_dpm_get_pp_table(void *handle, char **table)
 	if (!hwmgr->soft_pp_table)
 		return -EINVAL;
 
+	mutex_lock(&pp_handle->pp_lock);
 	*table = (char *)hwmgr->soft_pp_table;
-
-	return hwmgr->soft_pp_table_size;
+	size = hwmgr->soft_pp_table_size;
+	mutex_unlock(&pp_handle->pp_lock);
+	return size;
 }
 
 static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
@@ -736,21 +780,33 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 		return ret;
 
 	hwmgr = pp_handle->hwmgr;
-
+	mutex_lock(&pp_handle->pp_lock);
 	if (!hwmgr->hardcode_pp_table) {
 		hwmgr->hardcode_pp_table = kmemdup(hwmgr->soft_pp_table,
 						   hwmgr->soft_pp_table_size,
 						   GFP_KERNEL);
-
-		if (!hwmgr->hardcode_pp_table)
+		if (!hwmgr->hardcode_pp_table) {
+			mutex_unlock(&pp_handle->pp_lock);
 			return -ENOMEM;
+		}
 	}
 
 	memcpy(hwmgr->hardcode_pp_table, buf, size);
 
 	hwmgr->soft_pp_table = hwmgr->hardcode_pp_table;
+	mutex_unlock(&pp_handle->pp_lock);
 
-	return amd_powerplay_reset(handle);
+	ret = amd_powerplay_reset(handle);
+	if (ret)
+		return ret;
+
+	if (hwmgr->hwmgr_func->avfs_control) {
+		ret = hwmgr->hwmgr_func->avfs_control(hwmgr, false);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int pp_dpm_force_clock_level(void *handle,
@@ -771,8 +827,10 @@ static int pp_dpm_force_clock_level(void *handle,
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->force_clock_level(hwmgr, type, mask);
+	mutex_lock(&pp_handle->pp_lock);
+	hwmgr->hwmgr_func->force_clock_level(hwmgr, type, mask);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_print_clock_levels(void *handle,
@@ -793,7 +851,10 @@ static int pp_dpm_print_clock_levels(void *handle,
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_sclk_od(void *handle)
@@ -813,8 +874,10 @@ static int pp_dpm_get_sclk_od(void *handle)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->get_sclk_od(hwmgr);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_sclk_od(hwmgr);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_set_sclk_od(void *handle, uint32_t value)
@@ -835,7 +898,10 @@ static int pp_dpm_set_sclk_od(void *handle, uint32_t value)
 		return 0;
 	}
 
-	return hwmgr->hwmgr_func->set_sclk_od(hwmgr, value);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->set_sclk_od(hwmgr, value);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_get_mclk_od(void *handle)
@@ -855,8 +921,10 @@ static int pp_dpm_get_mclk_od(void *handle)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->get_mclk_od(hwmgr);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->get_mclk_od(hwmgr);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 static int pp_dpm_set_mclk_od(void *handle, uint32_t value)
@@ -876,11 +944,14 @@ static int pp_dpm_set_mclk_od(void *handle, uint32_t value)
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
-
-	return hwmgr->hwmgr_func->set_mclk_od(hwmgr, value);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->set_mclk_od(hwmgr, value);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
-static int pp_dpm_read_sensor(void *handle, int idx, int32_t *value)
+static int pp_dpm_read_sensor(void *handle, int idx,
+			      void *value, int *size)
 {
 	struct pp_hwmgr *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
@@ -898,7 +969,11 @@ static int pp_dpm_read_sensor(void *handle, int idx, int32_t *value)
 		return 0;
 	}
 
-	return hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value, size);
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return ret;
 }
 
 static struct amd_vce_state*
@@ -917,8 +992,138 @@ pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
 
 	if (hwmgr && idx < hwmgr->num_vce_state_tables)
 		return &hwmgr->vce_states[idx];
-
 	return NULL;
+}
+
+static int pp_dpm_reset_power_profile_state(void *handle,
+		struct amd_pp_profile *request)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (!request || pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->set_power_profile_state == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	if (request->type == AMD_PP_GFX_PROFILE) {
+		hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
+		return hwmgr->hwmgr_func->set_power_profile_state(hwmgr,
+				&hwmgr->gfx_power_profile);
+	} else if (request->type == AMD_PP_COMPUTE_PROFILE) {
+		hwmgr->compute_power_profile =
+				hwmgr->default_compute_power_profile;
+		return hwmgr->hwmgr_func->set_power_profile_state(hwmgr,
+				&hwmgr->compute_power_profile);
+	} else
+		return -EINVAL;
+}
+
+static int pp_dpm_get_power_profile_state(void *handle,
+		struct amd_pp_profile *query)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (!query || pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (query->type == AMD_PP_GFX_PROFILE)
+		memcpy(query, &hwmgr->gfx_power_profile,
+				sizeof(struct amd_pp_profile));
+	else if (query->type == AMD_PP_COMPUTE_PROFILE)
+		memcpy(query, &hwmgr->compute_power_profile,
+				sizeof(struct amd_pp_profile));
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int pp_dpm_set_power_profile_state(void *handle,
+		struct amd_pp_profile *request)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = -1;
+
+	if (!request || pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->set_power_profile_state == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	if (request->min_sclk ||
+		request->min_mclk ||
+		request->activity_threshold ||
+		request->up_hyst ||
+		request->down_hyst) {
+		if (request->type == AMD_PP_GFX_PROFILE)
+			memcpy(&hwmgr->gfx_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else if (request->type == AMD_PP_COMPUTE_PROFILE)
+			memcpy(&hwmgr->compute_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else
+			return -EINVAL;
+
+		if (request->type == hwmgr->current_power_profile)
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					request);
+	} else {
+		/* set power profile if it exists */
+		switch (request->type) {
+		case AMD_PP_GFX_PROFILE:
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					&hwmgr->gfx_power_profile);
+			break;
+		case AMD_PP_COMPUTE_PROFILE:
+			ret = hwmgr->hwmgr_func->set_power_profile_state(
+					hwmgr,
+					&hwmgr->compute_power_profile);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (!ret)
+		hwmgr->current_power_profile = request->type;
+
+	return 0;
+}
+
+static int pp_dpm_switch_power_profile(void *handle,
+		enum amd_pp_profile_type type)
+{
+	struct pp_hwmgr *hwmgr;
+	struct amd_pp_profile request = {0};
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->current_power_profile != type) {
+		request.type = type;
+		pp_dpm_set_power_profile_state(handle, &request);
+	}
+
+	return 0;
 }
 
 const struct amd_powerplay_funcs pp_dpm_funcs = {
@@ -949,6 +1154,10 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.set_mclk_od = pp_dpm_set_mclk_od,
 	.read_sensor = pp_dpm_read_sensor,
 	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
+	.reset_power_profile_state = pp_dpm_reset_power_profile_state,
+	.get_power_profile_state = pp_dpm_get_power_profile_state,
+	.set_power_profile_state = pp_dpm_set_power_profile_state,
+	.switch_power_profile = pp_dpm_switch_power_profile,
 };
 
 int amd_powerplay_create(struct amd_pp_init *pp_init,
@@ -969,8 +1178,8 @@ int amd_powerplay_create(struct amd_pp_init *pp_init,
 	instance->pm_en = pp_init->pm_en;
 	instance->feature_mask = pp_init->feature_mask;
 	instance->device = pp_init->device;
+	mutex_init(&instance->pp_lock);
 	*handle = instance;
-
 	return 0;
 }
 
@@ -1041,9 +1250,9 @@ int amd_powerplay_display_configuration_change(void *handle,
 		return ret;
 
 	hwmgr = pp_handle->hwmgr;
-
+	mutex_lock(&pp_handle->pp_lock);
 	phm_store_dal_configuration_data(hwmgr, display_config);
-
+	mutex_unlock(&pp_handle->pp_lock);
 	return 0;
 }
 
@@ -1064,7 +1273,10 @@ int amd_powerplay_get_display_power_level(void *handle,
 	if (output == NULL)
 		return -EINVAL;
 
-	return phm_get_dal_power_level(hwmgr, output);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = phm_get_dal_power_level(hwmgr, output);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
 }
 
 int amd_powerplay_get_current_clocks(void *handle,
@@ -1083,14 +1295,22 @@ int amd_powerplay_get_current_clocks(void *handle,
 
 	hwmgr = pp_handle->hwmgr;
 
+	mutex_lock(&pp_handle->pp_lock);
+
 	phm_get_dal_power_level(hwmgr, &simple_clocks);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PowerContainment)) {
-		if (0 != phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks, PHM_PerformanceLevelDesignation_PowerContainment))
-			PP_ASSERT_WITH_CODE(0, "Error in PHM_GetPowerContainmentClockInfo", return -1);
-	} else {
-		if (0 != phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks, PHM_PerformanceLevelDesignation_Activity))
-			PP_ASSERT_WITH_CODE(0, "Error in PHM_GetClockInfo", return -1);
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_PowerContainment))
+		ret = phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware,
+					&hw_clocks, PHM_PerformanceLevelDesignation_PowerContainment);
+	else
+		ret = phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware,
+					&hw_clocks, PHM_PerformanceLevelDesignation_Activity);
+
+	if (ret != 0) {
+		pr_info("Error in phm_get_clock_info \n");
+		mutex_unlock(&pp_handle->pp_lock);
+		return -EINVAL;
 	}
 
 	clocks->min_engine_clock = hw_clocks.min_eng_clk;
@@ -1109,14 +1329,12 @@ int amd_powerplay_get_current_clocks(void *handle,
 		clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
 		clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
 	}
-
+	mutex_unlock(&pp_handle->pp_lock);
 	return 0;
-
 }
 
 int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks)
 {
-	int result = -1;
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
@@ -1131,9 +1349,104 @@ int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, s
 	if (clocks == NULL)
 		return -EINVAL;
 
-	result = phm_get_clock_by_type(hwmgr, type, clocks);
+	mutex_lock(&pp_handle->pp_lock);
+	ret = phm_get_clock_by_type(hwmgr, type, clocks);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
+}
 
-	return result;
+int amd_powerplay_get_clock_by_type_with_latency(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!clocks)
+		return -EINVAL;
+
+	mutex_lock(&pp_handle->pp_lock);
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+	ret = phm_get_clock_by_type_with_latency(hwmgr, type, clocks);
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
+}
+
+int amd_powerplay_get_clock_by_type_with_voltage(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!clocks)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	mutex_lock(&pp_handle->pp_lock);
+
+	ret = phm_get_clock_by_type_with_voltage(hwmgr, type, clocks);
+
+	mutex_unlock(&pp_handle->pp_lock);
+	return ret;
+}
+
+int amd_powerplay_set_watermarks_for_clocks_ranges(void *handle,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!wm_with_clock_ranges)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	mutex_lock(&pp_handle->pp_lock);
+	ret = phm_set_watermarks_for_clocks_ranges(hwmgr,
+			wm_with_clock_ranges);
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return ret;
+}
+
+int amd_powerplay_display_clock_voltage_request(void *handle,
+		struct pp_display_clock_request *clock)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+	if (ret != 0)
+		return ret;
+
+	if (!clock)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	mutex_lock(&pp_handle->pp_lock);
+	ret = phm_display_clock_voltage_request(hwmgr, clock);
+	mutex_unlock(&pp_handle->pp_lock);
+
+	return ret;
 }
 
 int amd_powerplay_get_display_mode_validation_clocks(void *handle,
@@ -1150,13 +1463,15 @@ int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 
 	hwmgr = pp_handle->hwmgr;
 
-
 	if (clocks == NULL)
 		return -EINVAL;
+
+	mutex_lock(&pp_handle->pp_lock);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DynamicPatchPowerState))
 		ret = phm_get_max_high_clocks(hwmgr, clocks);
 
+	mutex_unlock(&pp_handle->pp_lock);
 	return ret;
 }
 

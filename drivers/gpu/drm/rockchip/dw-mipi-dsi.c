@@ -34,7 +34,7 @@
 #define RK3288_DSI0_SEL_VOP_LIT		BIT(6)
 #define RK3288_DSI1_SEL_VOP_LIT		BIT(9)
 
-#define RK3399_GRF_SOC_CON19		0x6250
+#define RK3399_GRF_SOC_CON20		0x6250
 #define RK3399_DSI0_SEL_VOP_LIT		BIT(0)
 #define RK3399_DSI1_SEL_VOP_LIT		BIT(4)
 
@@ -251,6 +251,9 @@
 #define THS_PRE_PROGRAM_EN	BIT(7)
 #define THS_ZERO_PROGRAM_EN	BIT(6)
 
+#define DW_MIPI_NEEDS_PHY_CFG_CLK	BIT(0)
+#define DW_MIPI_NEEDS_GRF_CLK		BIT(1)
+
 enum {
 	BANDGAP_97_07,
 	BANDGAP_98_05,
@@ -279,6 +282,7 @@ struct dw_mipi_dsi_plat_data {
 	u32 grf_switch_reg;
 	u32 grf_dsi0_mode;
 	u32 grf_dsi0_mode_reg;
+	unsigned int flags;
 	unsigned int max_data_lanes;
 };
 
@@ -291,6 +295,7 @@ struct dw_mipi_dsi {
 	struct regmap *grf_regmap;
 	void __iomem *base;
 
+	struct clk *grf_clk;
 	struct clk *pllref_clk;
 	struct clk *pclk;
 	struct clk *phy_cfg_clk;
@@ -979,6 +984,17 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	dw_mipi_dsi_dphy_interface_config(dsi);
 	dw_mipi_dsi_clear_err(dsi);
 
+	/*
+	 * For the RK3399, the clk of grf must be enabled before writing grf
+	 * register. And for RK3288 or other soc, this grf_clk must be NULL,
+	 * the clk_prepare_enable return true directly.
+	 */
+	ret = clk_prepare_enable(dsi->grf_clk);
+	if (ret) {
+		dev_err(dsi->dev, "Failed to enable grf_clk: %d\n", ret);
+		return;
+	}
+
 	if (pdata->grf_dsi0_mode_reg)
 		regmap_write(dsi->grf_regmap, pdata->grf_dsi0_mode_reg,
 			     pdata->grf_dsi0_mode);
@@ -1003,6 +1019,8 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	regmap_write(dsi->grf_regmap, pdata->grf_switch_reg, val);
 	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
 	dsi->dpms_mode = DRM_MODE_DPMS_ON;
+
+	clk_disable_unprepare(dsi->grf_clk);
 }
 
 static int
@@ -1133,9 +1151,10 @@ static struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_drv_data = {
 static struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_drv_data = {
 	.dsi0_en_bit = RK3399_DSI0_SEL_VOP_LIT,
 	.dsi1_en_bit = RK3399_DSI1_SEL_VOP_LIT,
-	.grf_switch_reg = RK3399_GRF_SOC_CON19,
+	.grf_switch_reg = RK3399_GRF_SOC_CON20,
 	.grf_dsi0_mode = RK3399_GRF_DSI_MODE,
 	.grf_dsi0_mode_reg = RK3399_GRF_SOC_CON22,
+	.flags = DW_MIPI_NEEDS_PHY_CFG_CLK | DW_MIPI_NEEDS_GRF_CLK,
 	.max_data_lanes = 4,
 };
 
@@ -1227,15 +1246,22 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		clk_disable_unprepare(dsi->pclk);
 	}
 
-	dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
-	if (IS_ERR(dsi->phy_cfg_clk)) {
-		ret = PTR_ERR(dsi->phy_cfg_clk);
-		if (ret != -ENOENT) {
+	if (pdata->flags & DW_MIPI_NEEDS_PHY_CFG_CLK) {
+		dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
+		if (IS_ERR(dsi->phy_cfg_clk)) {
+			ret = PTR_ERR(dsi->phy_cfg_clk);
 			dev_err(dev, "Unable to get phy_cfg_clk: %d\n", ret);
 			return ret;
 		}
-		dsi->phy_cfg_clk = NULL;
-		dev_dbg(dev, "have not phy_cfg_clk\n");
+	}
+
+	if (pdata->flags & DW_MIPI_NEEDS_GRF_CLK) {
+		dsi->grf_clk = devm_clk_get(dev, "grf");
+		if (IS_ERR(dsi->grf_clk)) {
+			ret = PTR_ERR(dsi->grf_clk);
+			dev_err(dev, "Unable to get grf_clk: %d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
@@ -1304,7 +1330,7 @@ static int dw_mipi_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver dw_mipi_dsi_driver = {
+struct platform_driver dw_mipi_dsi_driver = {
 	.probe		= dw_mipi_dsi_probe,
 	.remove		= dw_mipi_dsi_remove,
 	.driver		= {
@@ -1312,9 +1338,3 @@ static struct platform_driver dw_mipi_dsi_driver = {
 		.name	= DRIVER_NAME,
 	},
 };
-module_platform_driver(dw_mipi_dsi_driver);
-
-MODULE_DESCRIPTION("ROCKCHIP MIPI DSI host controller driver");
-MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRIVER_NAME);

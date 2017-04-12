@@ -41,6 +41,7 @@ extern "C" {
 #define DRM_VMW_GET_PARAM            0
 #define DRM_VMW_ALLOC_DMABUF         1
 #define DRM_VMW_UNREF_DMABUF         2
+#define DRM_VMW_HANDLE_CLOSE         2
 #define DRM_VMW_CURSOR_BYPASS        3
 /* guarded by DRM_VMW_PARAM_NUM_STREAMS != 0*/
 #define DRM_VMW_CONTROL_STREAM       4
@@ -1091,6 +1092,29 @@ union drm_vmw_extended_context_arg {
 	enum drm_vmw_extended_context req;
 	struct drm_vmw_context_arg rep;
 };
+
+/*************************************************************************/
+/*
+ * DRM_VMW_HANDLE_CLOSE - Close a user-space handle and release its
+ * underlying resource.
+ *
+ * Note that this ioctl is overlaid on the DRM_VMW_UNREF_DMABUF Ioctl.
+ * The ioctl arguments therefore need to be identical in layout.
+ *
+ */
+
+/**
+ * struct drm_vmw_handle_close_arg
+ *
+ * @handle: Handle to close.
+ *
+ * Argument to the DRM_VMW_HANDLE_CLOSE Ioctl.
+ */
+struct drm_vmw_handle_close_arg {
+	__u32 handle;
+	__u32 pad64;
+};
+
 
 #if defined(__cplusplus)
 }

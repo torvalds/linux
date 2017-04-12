@@ -26,7 +26,7 @@
 
 #include <nvif/class.h>
 
-static void
+void
 gp102_gr_init_swdx_pes_mask(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -47,6 +47,7 @@ gp102_gr = {
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_swdx_pes_mask = gp102_gr_init_swdx_pes_mask,
+	.init_num_active_ltcs = gp100_gr_init_num_active_ltcs,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 3,
 	.grctx = &gp102_grctx,

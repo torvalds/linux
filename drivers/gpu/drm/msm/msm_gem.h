@@ -18,6 +18,7 @@
 #ifndef __MSM_GEM_H__
 #define __MSM_GEM_H__
 
+#include <linux/kref.h>
 #include <linux/reservation.h>
 #include "msm_drv.h"
 
@@ -31,6 +32,7 @@ struct msm_gem_address_space {
 	 */
 	struct drm_mm mm;
 	struct msm_mmu *mmu;
+	struct kref kref;
 };
 
 struct msm_gem_vma {

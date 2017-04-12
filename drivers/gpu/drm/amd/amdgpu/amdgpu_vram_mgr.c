@@ -93,7 +93,6 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 			       const struct ttm_place *place,
 			       struct ttm_mem_reg *mem)
 {
-	struct amdgpu_bo *bo = container_of(tbo, struct amdgpu_bo, tbo);
 	struct amdgpu_vram_mgr *mgr = man->priv;
 	struct drm_mm *mm = &mgr->mm;
 	struct drm_mm_node *nodes;
@@ -106,8 +105,8 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS ||
-	    place->lpfn || amdgpu_vram_page_split == -1) {
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS ||
+	    amdgpu_vram_page_split == -1) {
 		pages_per_node = ~0ul;
 		num_nodes = 1;
 	} else {
@@ -124,12 +123,14 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		mode = DRM_MM_INSERT_HIGH;
 
+	mem->start = 0;
 	pages_left = mem->num_pages;
 
 	spin_lock(&mgr->lock);
 	for (i = 0; i < num_nodes; ++i) {
 		unsigned long pages = min(pages_left, pages_per_node);
 		uint32_t alignment = mem->page_alignment;
+		unsigned long start;
 
 		if (pages == pages_per_node)
 			alignment = pages_per_node;
@@ -141,11 +142,19 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 		if (unlikely(r))
 			goto error;
 
+		/* Calculate a virtual BO start address to easily check if
+		 * everything is CPU accessible.
+		 */
+		start = nodes[i].start + nodes[i].size;
+		if (start > mem->num_pages)
+			start -= mem->num_pages;
+		else
+			start = 0;
+		mem->start = max(mem->start, start);
 		pages_left -= pages;
 	}
 	spin_unlock(&mgr->lock);
 
-	mem->start = num_nodes == 1 ? nodes[0].start : AMDGPU_BO_INVALID_OFFSET;
 	mem->mm_node = nodes;
 
 	return 0;

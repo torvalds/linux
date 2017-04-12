@@ -404,6 +404,24 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (MSM_PIPE_FLAGS(args->flags) & ~MSM_SUBMIT_FLAGS)
 		return -EINVAL;
 
+	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
+		in_fence = sync_file_get_fence(args->fence_fd);
+
+		if (!in_fence)
+			return -EINVAL;
+
+		/* TODO if we get an array-fence due to userspace merging multiple
+		 * fences, we need a way to determine if all the backing fences
+		 * are from our own context..
+		 */
+
+		if (in_fence->context != gpu->fctx->context) {
+			ret = dma_fence_wait(in_fence, true);
+			if (ret)
+				return ret;
+		}
+	}
+
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
@@ -430,27 +448,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	ret = submit_lock_objects(submit);
 	if (ret)
 		goto out;
-
-	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
-		in_fence = sync_file_get_fence(args->fence_fd);
-
-		if (!in_fence) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		/* TODO if we get an array-fence due to userspace merging multiple
-		 * fences, we need a way to determine if all the backing fences
-		 * are from our own context..
-		 */
-
-		if (in_fence->context != gpu->fctx->context) {
-			ret = dma_fence_wait(in_fence, true);
-			if (ret)
-				goto out;
-		}
-
-	}
 
 	if (!(args->fence & MSM_SUBMIT_NO_IMPLICIT)) {
 		ret = submit_fence_sync(submit);

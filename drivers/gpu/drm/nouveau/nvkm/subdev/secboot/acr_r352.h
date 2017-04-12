@@ -57,11 +57,11 @@ hsf_load_header_app_size(const struct hsf_load_header *hdr, u32 app)
  * @lhdr_flags: LS flags
  */
 struct acr_r352_ls_func {
-	int (*load)(const struct nvkm_subdev *, struct ls_ucode_img *);
+	int (*load)(const struct nvkm_secboot *, struct ls_ucode_img *);
 	void (*generate_bl_desc)(const struct nvkm_acr *,
 				 const struct ls_ucode_img *, u64, void *);
 	u32 bl_desc_size;
-	void (*post_run)(const struct nvkm_acr *, const struct nvkm_secboot *);
+	int (*post_run)(const struct nvkm_acr *, const struct nvkm_secboot *);
 	u32 lhdr_flags;
 };
 
@@ -82,6 +82,7 @@ struct acr_r352_func {
 	bool shadow_blob;
 
 	struct ls_ucode_img *(*ls_ucode_img_load)(const struct acr_r352 *,
+						  const struct nvkm_secboot *,
 						  enum nvkm_secboot_falcon);
 	int (*ls_fill_headers)(struct acr_r352 *, struct list_head *);
 	int (*ls_write_wpr)(struct acr_r352 *, struct list_head *,
@@ -145,6 +146,7 @@ struct nvkm_acr *acr_r352_new_(const struct acr_r352_func *,
 			       enum nvkm_secboot_falcon, unsigned long);
 
 struct ls_ucode_img *acr_r352_ls_ucode_img_load(const struct acr_r352 *,
+						const struct nvkm_secboot *,
 						enum nvkm_secboot_falcon);
 int acr_r352_ls_fill_headers(struct acr_r352 *, struct list_head *);
 int acr_r352_ls_write_wpr(struct acr_r352 *, struct list_head *,

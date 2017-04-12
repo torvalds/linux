@@ -16,7 +16,7 @@ De-midlayer drivers
 With the recent ``drm_bus`` cleanup patches for 3.17 it is no longer required
 to have a ``drm_bus`` structure set up. Drivers can directly set up the
 ``drm_device`` structure instead of relying on bus methods in ``drm_usb.c``
-and ``drm_platform.c``. The goal is to get rid of the driver's ``->load`` /
+and ``drm_pci.c``. The goal is to get rid of the driver's ``->load`` /
 ``->unload`` callbacks and open-code the load/unload sequence properly, using
 the new two-stage ``drm_device`` setup/teardown.
 
@@ -99,6 +99,30 @@ events for atomic commits correctly. But fixing these bugs is good anyway.
 
 Contact: Daniel Vetter, respective driver maintainers
 
+Better manual-upload support for atomic
+---------------------------------------
+
+This would be especially useful for tinydrm:
+
+- Add a struct drm_rect dirty_clip to drm_crtc_state. When duplicating the
+  crtc state, clear that to the max values, x/y = 0 and w/h = MAX_INT, in
+  __drm_atomic_helper_crtc_duplicate_state().
+
+- Move tinydrm_merge_clips into drm_framebuffer.c, dropping the tinydrm_
+  prefix ofc and using drm_fb_. drm_framebuffer.c makes sense since this
+  is a function useful to implement the fb->dirty function.
+
+- Create a new drm_fb_dirty function which does essentially what e.g.
+  mipi_dbi_fb_dirty does. You can use e.g. drm_atomic_helper_update_plane as the
+  template. But instead of doing a simple full-screen plane update, this new
+  helper also sets crtc_state->dirty_clip to the right coordinates. And of
+  course it needs to check whether the fb is actually active (and maybe where),
+  so there's some book-keeping involved. There's also some good fun involved in
+  scaling things appropriately. For that case we might simply give up and
+  declare the entire area covered by the plane as dirty.
+
+Contact: Noralf Trønnes, Daniel Vetter
+
 Fallout from atomic KMS
 -----------------------
 
@@ -151,7 +175,7 @@ fine-grained per-buffer object and per-context lockings scheme. Currently the
 following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
 ``udl``.
 
-Contact: Daniel Vetter
+Contact: Daniel Vetter, respective driver maintainers
 
 Switch to drm_connector_list_iter for any connector_list walking
 ----------------------------------------------------------------
@@ -193,6 +217,8 @@ plan is to switch to per-file driver API headers, which will also structure
 the kerneldoc better. This should also allow more fine-grained ``#include``
 directives.
 
+In the end no .c file should need to include ``drmP.h`` anymore.
+
 Contact: Daniel Vetter
 
 Add missing kerneldoc for exported functions
@@ -220,13 +246,8 @@ be hidden so that driver writers don't accidentally end up using it. And to
 prevent security issues in those legacy IOCTLs from being exploited on modern
 drivers. This has multiple possible subtasks:
 
-* Make sure legacy IOCTLs can't be used on modern drivers.
 * Extract support code for legacy features into a ``drm-legacy.ko`` kernel
   module and compile it only when one of the legacy drivers is enabled.
-* Extract legacy functions into their own headers and remove it that from the
-  monolithic ``drmP.h`` header.
-* Remove any lingering cruft from the OS abstraction layer from modern
-  drivers.
 
 This is mostly done, the only thing left is to split up ``drm_irq.c`` into
 legacy cruft and the parts needed by modern KMS drivers.
@@ -272,6 +293,32 @@ This is a really varied tasks with lots of little bits and pieces:
 
 Contact: Daniel Vetter
 
+Clean up the debugfs support
+----------------------------
+
+There's a bunch of issues with it:
+
+- The drm_info_list ->show() function doesn't even bother to cast to the drm
+  structure for you. This is lazy.
+
+- We probably want to have some support for debugfs files on crtc/connectors and
+  maybe other kms objects directly in core. There's even drm_print support in
+  the funcs for these objects to dump kms state, so it's all there. And then the
+  ->show() functions should obviously give you a pointer to the right object.
+
+- The drm_info_list stuff is centered on drm_minor instead of drm_device. For
+  anything we want to print drm_device (or maybe drm_file) is the right thing.
+
+- The drm_driver->debugfs_init hooks we have is just an artifact of the old
+  midlayered load sequence. DRM debugfs should work more like sysfs, where you
+  can create properties/files for an object anytime you want, and the core
+  takes care of publishing/unpuplishing all the files at register/unregister
+  time. Drivers shouldn't need to worry about these technicalities, and fixing
+  this (together with the drm_minor->drm_device move) would allow us to remove
+  debugfs_init.
+
+Contact: Daniel Vetter
+
 Better Testing
 ==============
 
@@ -310,25 +357,51 @@ Contact: Daniel Vetter
 Driver Specific
 ===============
 
+tinydrm
+-------
+
+Tinydrm is the helper driver for really simple fb drivers. The goal is to make
+those drivers as simple as possible, so lots of room for refactoring:
+
+- backlight helpers, probably best to put them into a new drm_backlight.c.
+  This is because drivers/video is de-facto unmaintained. We could also
+  move drivers/video/backlight to drivers/gpu/backlight and take it all
+  over within drm-misc, but that's more work.
+
+- spi helpers, probably best put into spi core/helper code. Thierry said
+  the spi maintainer is fast&reactive, so shouldn't be a big issue.
+
+- extract the mipi-dbi helper (well, the non-tinydrm specific parts at
+  least) into a separate helper, like we have for mipi-dsi already. Or follow
+  one of the ideas for having a shared dsi/dbi helper, abstracting away the
+  transport details more.
+
+- tinydrm_lastclose could be drm_fb_helper_lastclose. Only thing we need
+  for that is to store the drm_fb_helper pointer somewhere in
+  drm_device->mode_config. And then we could roll that out to all the
+  drivers.
+
+- tinydrm_gem_cma_prime_import_sg_table should probably go into the cma
+  helpers, as a _vmapped variant (since not every driver needs the vmap).
+  And tinydrm_gem_cma_free_object could the be merged into
+  drm_gem_cma_free_object().
+
+- tinydrm_fb_create we could move into drm_simple_pipe, only need to add
+  the fb_create hook to drm_simple_pipe_funcs, which would again simplify a
+  bunch of things (since it gives you a one-stop vfunc for simple drivers).
+
+- Quick aside: The unregister devm stuff is kinda getting the lifetimes of
+  a drm_device wrong. Doesn't matter, since everyone else gets it wrong
+  too :-)
+
+- With the fbdev pointer in dev->mode_config we could also make
+  suspend/resume helpers entirely generic, at least if we add a
+  dev->mode_config.suspend_state. We could even provide a generic pm_ops
+  structure with those.
+
+- also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
+
+Contact: Noralf Trønnes, Daniel Vetter
+
 Outside DRM
 ===========
-
-Better kerneldoc
-----------------
-
-This is pretty much done, but there's some advanced topics:
-
-Come up with a way to hyperlink to struct members. Currently you can hyperlink
-to the struct using ``#struct_name``, but not to a member within. Would need
-buy-in from kerneldoc maintainers, and the big question is how to make it work
-without totally unsightly
-``drm_foo_bar_really_long_structure->even_longer_memeber`` all over the text
-which breaks text flow.
-
-Figure out how to integrate the asciidoc support for ascii-diagrams. We have a
-few of those (e.g. to describe mode timings), and asciidoc supports converting
-some ascii-art dialect into pngs. Would be really pretty to make that work.
-
-Contact: Daniel Vetter, Jani Nikula
-
-Jani is working on this already, hopefully lands in 4.8.

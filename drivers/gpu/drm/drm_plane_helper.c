@@ -275,6 +275,7 @@ EXPORT_SYMBOL(drm_plane_helper_check_update);
  * @src_y: y offset of @fb for panning
  * @src_w: width of source rectangle in @fb
  * @src_h: height of source rectangle in @fb
+ * @ctx: lock acquire context, not used here
  *
  * Provides a default plane update handler for primary planes.  This is handler
  * is called in response to a userspace SetPlane operation on the plane with a
@@ -303,7 +304,8 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			      int crtc_x, int crtc_y,
 			      unsigned int crtc_w, unsigned int crtc_h,
 			      uint32_t src_x, uint32_t src_y,
-			      uint32_t src_w, uint32_t src_h)
+			      uint32_t src_w, uint32_t src_h,
+			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_mode_set set = {
 		.crtc = crtc,
@@ -347,7 +349,7 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * provides their own disable function, this will just
 		 * wind up returning -EINVAL to userspace.
 		 */
-		return plane->funcs->disable_plane(plane);
+		return plane->funcs->disable_plane(plane, ctx);
 
 	/* Find current connectors for CRTC */
 	num_connectors = get_connectors_for_crtc(crtc, NULL, 0);
@@ -369,7 +371,7 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * drm_mode_setplane() already handles the basic refcounting for the
 	 * framebuffers involved in this operation.
 	 */
-	ret = crtc->funcs->set_config(&set);
+	ret = crtc->funcs->set_config(&set, ctx);
 
 	kfree(connector_list);
 	return ret;
@@ -396,7 +398,8 @@ EXPORT_SYMBOL(drm_primary_helper_update);
  * RETURNS:
  * Unconditionally returns -EINVAL.
  */
-int drm_primary_helper_disable(struct drm_plane *plane)
+int drm_primary_helper_disable(struct drm_plane *plane,
+			       struct drm_modeset_acquire_ctx *ctx)
 {
 	return -EINVAL;
 }

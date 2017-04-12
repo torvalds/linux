@@ -59,6 +59,7 @@
 #define TX_NEXT(N)		(((N) + 1) & (TX_DESC_NUM_MASK))
 #define TX_BUF_SIZE		1600
 #define TX_BUF_SIZE_MAX		(TX_DESC1_BUF_SIZE_MASK+1)
+#define TX_WAKE_THRESHOLD	16
 
 #define RX_DESC_NUM		64
 #define RX_DESC_NUM_MASK	(RX_DESC_NUM-1)

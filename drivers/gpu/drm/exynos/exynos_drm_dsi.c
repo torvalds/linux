@@ -1659,17 +1659,10 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 
 	of_node_put(ep);
 
-	ep = of_graph_get_next_endpoint(node, NULL);
-	if (!ep) {
-		ret = -EINVAL;
-		goto end;
-	}
+	dsi->bridge_node = of_graph_get_remote_node(node, DSI_PORT_OUT, 0);
+	if (!dsi->bridge_node)
+		return -EINVAL;
 
-	dsi->bridge_node = of_graph_get_remote_port_parent(ep);
-	if (!dsi->bridge_node) {
-		ret = -EINVAL;
-		goto end;
-	}
 end:
 	of_node_put(ep);
 

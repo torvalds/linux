@@ -39,6 +39,7 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/component.h>
 
@@ -527,7 +528,7 @@ static inline int wait_for_bit_change(struct platform_device *dsidev,
 	return !value;
 }
 
-u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
+static u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 {
 	switch (fmt) {
 	case OMAP_DSS_DSI_FMT_RGB888:
@@ -5090,7 +5091,7 @@ static int dsi_probe_of(struct platform_device *pdev)
 	struct device_node *ep;
 	struct omap_dsi_pin_config pin_cfg;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
 	if (!ep)
 		return 0;
 

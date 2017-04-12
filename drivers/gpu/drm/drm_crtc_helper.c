@@ -476,6 +476,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 /**
  * drm_crtc_helper_set_config - set a new config from userspace
  * @set: mode set configuration
+ * @ctx: lock acquire context, not used here
  *
  * The drm_crtc_helper_set_config() helper function implements the of
  * &drm_crtc_funcs.set_config callback for drivers using the legacy CRTC
@@ -510,7 +511,8 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.
  */
-int drm_crtc_helper_set_config(struct drm_mode_set *set)
+int drm_crtc_helper_set_config(struct drm_mode_set *set,
+			       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev;
 	struct drm_crtc **save_encoder_crtcs, *new_crtc;

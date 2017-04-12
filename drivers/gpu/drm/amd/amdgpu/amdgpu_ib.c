@@ -161,9 +161,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
-	if (ring->funcs->init_cond_exec)
-		patch_offset = amdgpu_ring_init_cond_exec(ring);
-
 	if (vm) {
 		r = amdgpu_vm_flush(ring, job);
 		if (r) {
@@ -172,7 +169,14 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		}
 	}
 
-	if (ring->funcs->emit_hdp_flush)
+	if (ring->funcs->init_cond_exec)
+		patch_offset = amdgpu_ring_init_cond_exec(ring);
+
+	if (ring->funcs->emit_hdp_flush
+#ifdef CONFIG_X86_64
+	    && !(adev->flags & AMD_IS_APU)
+#endif
+	   )
 		amdgpu_ring_emit_hdp_flush(ring);
 
 	skip_preamble = ring->current_ctx == fence_ctx;
@@ -202,7 +206,11 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		need_ctx_switch = false;
 	}
 
-	if (ring->funcs->emit_hdp_invalidate)
+	if (ring->funcs->emit_hdp_invalidate
+#ifdef CONFIG_X86_64
+	    && !(adev->flags & AMD_IS_APU)
+#endif
+	   )
 		amdgpu_ring_emit_hdp_invalidate(ring);
 
 	r = amdgpu_fence_emit(ring, f);
@@ -213,6 +221,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		amdgpu_ring_undo(ring);
 		return r;
 	}
+
+	if (ring->funcs->insert_end)
+		ring->funcs->insert_end(ring);
 
 	/* wrap the last IB with fence */
 	if (job && job->uf_addr) {

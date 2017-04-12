@@ -75,6 +75,15 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		return -ENOMEM;
 	}
 
+	r = amdgpu_vm_alloc_pts(adev, bo_va->vm, AMDGPU_CSA_VADDR,
+				   AMDGPU_CSA_SIZE);
+	if (r) {
+		DRM_ERROR("failed to allocate pts for static CSA, err=%d\n", r);
+		amdgpu_vm_bo_rmv(adev, bo_va);
+		ttm_eu_backoff_reservation(&ticket, &list);
+		return r;
+	}
+
 	r = amdgpu_vm_bo_map(adev, bo_va, AMDGPU_CSA_VADDR, 0,AMDGPU_CSA_SIZE,
 						AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE |
 						AMDGPU_PTE_EXECUTABLE);
@@ -97,7 +106,8 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	adev->mode_info.num_crtc = 1;
 	adev->enable_virtual_display = true;
 
-	mutex_init(&adev->virt.lock);
+	mutex_init(&adev->virt.lock_kiq);
+	mutex_init(&adev->virt.lock_reset);
 }
 
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
@@ -110,14 +120,12 @@ uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 
 	BUG_ON(!ring->funcs->emit_rreg);
 
-	mutex_lock(&adev->virt.lock);
+	mutex_lock(&adev->virt.lock_kiq);
 	amdgpu_ring_alloc(ring, 32);
-	amdgpu_ring_emit_hdp_flush(ring);
 	amdgpu_ring_emit_rreg(ring, reg);
-	amdgpu_ring_emit_hdp_invalidate(ring);
 	amdgpu_fence_emit(ring, &f);
 	amdgpu_ring_commit(ring);
-	mutex_unlock(&adev->virt.lock);
+	mutex_unlock(&adev->virt.lock_kiq);
 
 	r = dma_fence_wait(f, false);
 	if (r)
@@ -138,14 +146,12 @@ void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 
 	BUG_ON(!ring->funcs->emit_wreg);
 
-	mutex_lock(&adev->virt.lock);
+	mutex_lock(&adev->virt.lock_kiq);
 	amdgpu_ring_alloc(ring, 32);
-	amdgpu_ring_emit_hdp_flush(ring);
 	amdgpu_ring_emit_wreg(ring, reg, v);
-	amdgpu_ring_emit_hdp_invalidate(ring);
 	amdgpu_fence_emit(ring, &f);
 	amdgpu_ring_commit(ring);
-	mutex_unlock(&adev->virt.lock);
+	mutex_unlock(&adev->virt.lock_kiq);
 
 	r = dma_fence_wait(f, false);
 	if (r)

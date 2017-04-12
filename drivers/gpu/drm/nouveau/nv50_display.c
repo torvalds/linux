@@ -1002,7 +1002,6 @@ nv50_wndw_atomic_destroy_state(struct drm_plane *plane,
 {
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
 	__drm_atomic_helper_plane_destroy_state(&asyw->state);
-	dma_fence_put(asyw->state.fence);
 	kfree(asyw);
 }
 
@@ -1014,7 +1013,6 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 	if (!(asyw = kmalloc(sizeof(*asyw), GFP_KERNEL)))
 		return NULL;
 	__drm_atomic_helper_plane_duplicate_state(plane, &asyw->state);
-	asyw->state.fence = NULL;
 	asyw->interval = 1;
 	asyw->sema = armw->sema;
 	asyw->ntfy = armw->ntfy;
@@ -2043,6 +2041,7 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	u32 vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
 	u32 hfrontp =  mode->hsync_start - mode->hdisplay;
 	u32 vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
+	u32 blankus;
 	struct nv50_head_mode *m = &asyh->mode;
 
 	m->h.active = mode->htotal;
@@ -2056,9 +2055,10 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	m->v.blanks = m->v.active - vfrontp - 1;
 
 	/*XXX: Safe underestimate, even "0" works */
-	m->v.blankus = (m->v.active - mode->vdisplay - 2) * m->h.active;
-	m->v.blankus *= 1000;
-	m->v.blankus /= mode->clock;
+	blankus = (m->v.active - mode->vdisplay - 2) * m->h.active;
+	blankus *= 1000;
+	blankus /= mode->clock;
+	m->v.blankus = blankus;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		m->v.blank2e =  m->v.active + m->v.synce + vbackp;
@@ -2210,25 +2210,16 @@ nv50_head_lut_load(struct drm_crtc *crtc)
 	}
 }
 
-static int
-nv50_head_mode_set_base_atomic(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb, int x, int y,
-			       enum mode_set_atomic state)
-{
-	WARN_ON(1);
-	return 0;
-}
-
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
-	.mode_set_base_atomic = nv50_head_mode_set_base_atomic,
 	.load_lut = nv50_head_lut_load,
 	.atomic_check = nv50_head_atomic_check,
 };
 
 static int
 nv50_head_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		    uint32_t size)
+		    uint32_t size,
+		    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	u32 i;
@@ -2895,7 +2886,8 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	if (WARN_ON(!mstc))
 		return;
 
-	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, &slots);
+	slots = drm_dp_find_vcpi_slots(&mstm->mgr, mstc->pbn);
+	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, slots);
 	WARN_ON(!r);
 
 	if (mstm->outp->dcb->sorconf.link & 1)

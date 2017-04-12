@@ -129,6 +129,8 @@ static inline int drm_scdc_writeb(struct i2c_adapter *adapter, u8 offset,
 	return drm_scdc_write(adapter, offset, &value, sizeof(value));
 }
 
+bool drm_scdc_get_scrambling_status(struct i2c_adapter *adapter);
+
 /**
  * drm_scdc_set_scrambling - enable scrambling
  * @adapter: I2C adapter for DDC channel

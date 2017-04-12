@@ -229,29 +229,6 @@ static void mic_set_reg_on(struct exynos_mic *mic, bool enable)
 	writel(reg, mic->reg + MIC_OP);
 }
 
-static struct device_node *get_remote_node(struct device_node *from, int reg)
-{
-	struct device_node *endpoint = NULL, *remote_node = NULL;
-
-	endpoint = of_graph_get_endpoint_by_regs(from, reg, -1);
-	if (!endpoint) {
-		DRM_ERROR("mic: Failed to find remote port from %s",
-				from->full_name);
-		goto exit;
-	}
-
-	remote_node = of_graph_get_remote_port_parent(endpoint);
-	if (!remote_node) {
-		DRM_ERROR("mic: Failed to find remote port parent from %s",
-							from->full_name);
-		goto exit;
-	}
-
-exit:
-	of_node_put(endpoint);
-	return remote_node;
-}
-
 static int parse_dt(struct exynos_mic *mic)
 {
 	int ret = 0, i, j;
@@ -263,7 +240,7 @@ static int parse_dt(struct exynos_mic *mic)
 	 * The first node must be for decon and the second one must be for dsi.
 	 */
 	for (i = 0, j = 0; i < NUM_ENDPOINTS; i++) {
-		remote_node = get_remote_node(mic->dev->of_node, i);
+		remote_node = of_graph_get_remote_node(mic->dev->of_node, i, 0);
 		if (!remote_node) {
 			ret = -EPIPE;
 			goto exit;

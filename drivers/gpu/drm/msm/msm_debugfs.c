@@ -28,7 +28,9 @@ static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
 
 	if (gpu) {
 		seq_printf(m, "%s Status:\n", gpu->name);
+		pm_runtime_get_sync(&gpu->pdev->dev);
 		gpu->funcs->show(gpu, m);
+		pm_runtime_put_sync(&gpu->pdev->dev);
 	}
 
 	return 0;

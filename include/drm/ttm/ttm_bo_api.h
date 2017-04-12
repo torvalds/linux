@@ -440,6 +440,60 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 			   unsigned struct_size);
 
 /**
+ * ttm_bo_init_reserved
+ *
+ * @bdev: Pointer to a ttm_bo_device struct.
+ * @bo: Pointer to a ttm_buffer_object to be initialized.
+ * @size: Requested size of buffer object.
+ * @type: Requested type of buffer object.
+ * @flags: Initial placement flags.
+ * @page_alignment: Data alignment in pages.
+ * @interruptible: If needing to sleep to wait for GPU resources,
+ * sleep interruptible.
+ * @persistent_swap_storage: Usually the swap storage is deleted for buffers
+ * pinned in physical memory. If this behaviour is not desired, this member
+ * holds a pointer to a persistent shmem object. Typically, this would
+ * point to the shmem object backing a GEM object if TTM is used to back a
+ * GEM user interface.
+ * @acc_size: Accounted size for this object.
+ * @resv: Pointer to a reservation_object, or NULL to let ttm allocate one.
+ * @destroy: Destroy function. Use NULL for kfree().
+ *
+ * This function initializes a pre-allocated struct ttm_buffer_object.
+ * As this object may be part of a larger structure, this function,
+ * together with the @destroy function,
+ * enables driver-specific objects derived from a ttm_buffer_object.
+ *
+ * On successful return, the caller owns an object kref to @bo. The kref and
+ * list_kref are usually set to 1, but note that in some situations, other
+ * tasks may already be holding references to @bo as well.
+ * Furthermore, if resv == NULL, the buffer's reservation lock will be held,
+ * and it is the caller's responsibility to call ttm_bo_unreserve.
+ *
+ * If a failure occurs, the function will call the @destroy function, or
+ * kfree() if @destroy is NULL. Thus, after a failure, dereferencing @bo is
+ * illegal and will likely cause memory corruption.
+ *
+ * Returns
+ * -ENOMEM: Out of memory.
+ * -EINVAL: Invalid placement flags.
+ * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
+ */
+
+extern int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
+				struct ttm_buffer_object *bo,
+				unsigned long size,
+				enum ttm_bo_type type,
+				struct ttm_placement *placement,
+				uint32_t page_alignment,
+				bool interrubtible,
+				struct file *persistent_swap_storage,
+				size_t acc_size,
+				struct sg_table *sg,
+				struct reservation_object *resv,
+				void (*destroy) (struct ttm_buffer_object *));
+
+/**
  * ttm_bo_init
  *
  * @bdev: Pointer to a ttm_bo_device struct.
@@ -463,7 +517,11 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * As this object may be part of a larger structure, this function,
  * together with the @destroy function,
  * enables driver-specific objects derived from a ttm_buffer_object.
- * On successful return, the object kref and list_kref are set to 1.
+ *
+ * On successful return, the caller owns an object kref to @bo. The kref and
+ * list_kref are usually set to 1, but note that in some situations, other
+ * tasks may already be holding references to @bo as well.
+ *
  * If a failure occurs, the function will call the @destroy function, or
  * kfree() if @destroy is NULL. Thus, after a failure, dereferencing @bo is
  * illegal and will likely cause memory corruption.
@@ -651,6 +709,17 @@ extern void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map);
 
 extern int ttm_fbdev_mmap(struct vm_area_struct *vma,
 			  struct ttm_buffer_object *bo);
+
+/**
+ * ttm_bo_default_iomem_pfn - get a pfn for a page offset
+ *
+ * @bo: the BO we need to look up the pfn for
+ * @page_offset: offset inside the BO to look up.
+ *
+ * Calculate the PFN for iomem based mappings during page fault
+ */
+unsigned long ttm_bo_default_io_mem_pfn(struct ttm_buffer_object *bo,
+				        unsigned long page_offset);
 
 /**
  * ttm_bo_mmap - mmap out of the ttm device address space.

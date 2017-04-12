@@ -14,7 +14,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/dma-fence-array.h>
 #include <linux/reservation.h>
+#include <linux/sync_file.h>
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 #include "etnaviv_gpu.h"
@@ -169,8 +171,10 @@ static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 		bool write = submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE;
+		bool explicit = !(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
 
-		ret = etnaviv_gpu_fence_sync_obj(etnaviv_obj, context, write);
+		ret = etnaviv_gpu_fence_sync_obj(etnaviv_obj, context, write,
+						 explicit);
 		if (ret)
 			break;
 	}
@@ -290,6 +294,7 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	}
 
 	ww_acquire_fini(&submit->ticket);
+	dma_fence_put(submit->fence);
 	kfree(submit);
 }
 
@@ -303,6 +308,9 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct etnaviv_gem_submit *submit;
 	struct etnaviv_cmdbuf *cmdbuf;
 	struct etnaviv_gpu *gpu;
+	struct dma_fence *in_fence = NULL;
+	struct sync_file *sync_file = NULL;
+	int out_fence_fd = -1;
 	void *stream;
 	int ret;
 
@@ -323,6 +331,11 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	    args->exec_state != ETNA_PIPE_2D &&
 	    args->exec_state != ETNA_PIPE_VG) {
 		DRM_ERROR("invalid exec_state: 0x%x\n", args->exec_state);
+		return -EINVAL;
+	}
+
+	if (args->flags & ~ETNA_SUBMIT_FLAGS) {
+		DRM_ERROR("invalid flags: 0x%x\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -365,11 +378,21 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto err_submit_cmds;
 	}
 
+	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0) {
+			ret = out_fence_fd;
+			goto err_submit_cmds;
+		}
+	}
+
 	submit = submit_create(dev, gpu, args->nr_bos);
 	if (!submit) {
 		ret = -ENOMEM;
 		goto err_submit_cmds;
 	}
+
+	submit->flags = args->flags;
 
 	ret = submit_lookup_objects(submit, file, bos, args->nr_bos);
 	if (ret)
@@ -383,6 +406,24 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 				      relocs, args->nr_relocs)) {
 		ret = -EINVAL;
 		goto err_submit_objects;
+	}
+
+	if (args->flags & ETNA_SUBMIT_FENCE_FD_IN) {
+		in_fence = sync_file_get_fence(args->fence_fd);
+		if (!in_fence) {
+			ret = -EINVAL;
+			goto err_submit_objects;
+		}
+
+		/*
+		 * Wait if the fence is from a foreign context, or if the fence
+		 * array contains any fence from a foreign context.
+		 */
+		if (!dma_fence_match_context(in_fence, gpu->fence_context)) {
+			ret = dma_fence_wait(in_fence, true);
+			if (ret)
+				goto err_submit_objects;
+		}
 	}
 
 	ret = submit_fence_sync(submit);
@@ -405,7 +446,23 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret == 0)
 		cmdbuf = NULL;
 
-	args->fence = submit->fence;
+	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
+		/*
+		 * This can be improved: ideally we want to allocate the sync
+		 * file before kicking off the GPU job and just attach the
+		 * fence to the sync file here, eliminating the ENOMEM
+		 * possibility at this stage.
+		 */
+		sync_file = sync_file_create(submit->fence);
+		if (!sync_file) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		fd_install(out_fence_fd, sync_file->file);
+	}
+
+	args->fence_fd = out_fence_fd;
+	args->fence = submit->fence->seqno;
 
 out:
 	submit_unpin_objects(submit);
@@ -419,9 +476,13 @@ out:
 		flush_workqueue(priv->wq);
 
 err_submit_objects:
+	if (in_fence)
+		dma_fence_put(in_fence);
 	submit_cleanup(submit);
 
 err_submit_cmds:
+	if (ret && (out_fence_fd >= 0))
+		put_unused_fd(out_fence_fd);
 	/* if we still own the cmdbuf */
 	if (cmdbuf)
 		etnaviv_cmdbuf_free(cmdbuf);

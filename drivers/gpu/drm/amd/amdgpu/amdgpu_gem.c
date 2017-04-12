@@ -152,6 +152,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct amdgpu_bo_va *bo_va;
+	struct dma_fence *fence = NULL;
 	int r;
 
 	INIT_LIST_HEAD(&list);
@@ -173,6 +174,17 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	if (bo_va) {
 		if (--bo_va->ref_count == 0) {
 			amdgpu_vm_bo_rmv(adev, bo_va);
+
+			r = amdgpu_vm_clear_freed(adev, vm, &fence);
+			if (unlikely(r)) {
+				dev_err(adev->dev, "failed to clear page "
+					"tables on GEM object close (%d)\n", r);
+			}
+
+			if (fence) {
+				amdgpu_bo_fence(bo, fence, true);
+				dma_fence_put(fence);
+			}
 		}
 	}
 	ttm_eu_backoff_reservation(&ticket, &list);
@@ -507,14 +519,16 @@ static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
  * amdgpu_gem_va_update_vm -update the bo_va in its VM
  *
  * @adev: amdgpu_device pointer
+ * @vm: vm to update
  * @bo_va: bo_va to update
  * @list: validation list
- * @operation: map or unmap
+ * @operation: map, unmap or clear
  *
  * Update the bo_va directly after setting its address. Errors are not
  * vital here, so they are not reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
+				    struct amdgpu_vm *vm,
 				    struct amdgpu_bo_va *bo_va,
 				    struct list_head *list,
 				    uint32_t operation)
@@ -529,20 +543,21 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 			goto error;
 	}
 
-	r = amdgpu_vm_validate_pt_bos(adev, bo_va->vm, amdgpu_gem_va_check,
+	r = amdgpu_vm_validate_pt_bos(adev, vm, amdgpu_gem_va_check,
 				      NULL);
 	if (r)
 		goto error;
 
-	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
+	r = amdgpu_vm_update_directories(adev, vm);
 	if (r)
 		goto error;
 
-	r = amdgpu_vm_clear_freed(adev, bo_va->vm);
+	r = amdgpu_vm_clear_freed(adev, vm, NULL);
 	if (r)
 		goto error;
 
-	if (operation == AMDGPU_VA_OP_MAP)
+	if (operation == AMDGPU_VA_OP_MAP ||
+	    operation == AMDGPU_VA_OP_REPLACE)
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 
 error:
@@ -553,6 +568,12 @@ error:
 int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
+	const uint32_t valid_flags = AMDGPU_VM_DELAY_UPDATE |
+		AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE |
+		AMDGPU_VM_PAGE_EXECUTABLE | AMDGPU_VM_MTYPE_MASK;
+	const uint32_t prt_flags = AMDGPU_VM_DELAY_UPDATE |
+		AMDGPU_VM_PAGE_PRT;
+
 	struct drm_amdgpu_gem_va *args = data;
 	struct drm_gem_object *gobj;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -563,7 +584,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head list;
-	uint32_t invalid_flags, va_flags = 0;
+	uint64_t va_flags;
 	int r = 0;
 
 	if (!adev->vm_manager.enabled)
@@ -577,17 +598,17 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	invalid_flags = ~(AMDGPU_VM_DELAY_UPDATE | AMDGPU_VM_PAGE_READABLE |
-			AMDGPU_VM_PAGE_WRITEABLE | AMDGPU_VM_PAGE_EXECUTABLE);
-	if ((args->flags & invalid_flags)) {
-		dev_err(&dev->pdev->dev, "invalid flags 0x%08X vs 0x%08X\n",
-			args->flags, invalid_flags);
+	if ((args->flags & ~valid_flags) && (args->flags & ~prt_flags)) {
+		dev_err(&dev->pdev->dev, "invalid flags combination 0x%08X\n",
+			args->flags);
 		return -EINVAL;
 	}
 
 	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
 	case AMDGPU_VA_OP_UNMAP:
+	case AMDGPU_VA_OP_CLEAR:
+	case AMDGPU_VA_OP_REPLACE:
 		break;
 	default:
 		dev_err(&dev->pdev->dev, "unsupported operation %d\n",
@@ -595,38 +616,47 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	gobj = drm_gem_object_lookup(filp, args->handle);
-	if (gobj == NULL)
-		return -ENOENT;
-	abo = gem_to_amdgpu_bo(gobj);
 	INIT_LIST_HEAD(&list);
-	tv.bo = &abo->tbo;
-	tv.shared = false;
-	list_add(&tv.head, &list);
+	if ((args->operation != AMDGPU_VA_OP_CLEAR) &&
+	    !(args->flags & AMDGPU_VM_PAGE_PRT)) {
+		gobj = drm_gem_object_lookup(filp, args->handle);
+		if (gobj == NULL)
+			return -ENOENT;
+		abo = gem_to_amdgpu_bo(gobj);
+		tv.bo = &abo->tbo;
+		tv.shared = false;
+		list_add(&tv.head, &list);
+	} else {
+		gobj = NULL;
+		abo = NULL;
+	}
 
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &list, &vm_pd);
 
 	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
-	if (r) {
-		drm_gem_object_unreference_unlocked(gobj);
-		return r;
-	}
+	if (r)
+		goto error_unref;
 
-	bo_va = amdgpu_vm_bo_find(&fpriv->vm, abo);
-	if (!bo_va) {
-		ttm_eu_backoff_reservation(&ticket, &list);
-		drm_gem_object_unreference_unlocked(gobj);
-		return -ENOENT;
+	if (abo) {
+		bo_va = amdgpu_vm_bo_find(&fpriv->vm, abo);
+		if (!bo_va) {
+			r = -ENOENT;
+			goto error_backoff;
+		}
+	} else if (args->operation != AMDGPU_VA_OP_CLEAR) {
+		bo_va = fpriv->prt_va;
+	} else {
+		bo_va = NULL;
 	}
 
 	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
-		if (args->flags & AMDGPU_VM_PAGE_READABLE)
-			va_flags |= AMDGPU_PTE_READABLE;
-		if (args->flags & AMDGPU_VM_PAGE_WRITEABLE)
-			va_flags |= AMDGPU_PTE_WRITEABLE;
-		if (args->flags & AMDGPU_VM_PAGE_EXECUTABLE)
-			va_flags |= AMDGPU_PTE_EXECUTABLE;
+		r = amdgpu_vm_alloc_pts(adev, bo_va->vm, args->va_address,
+					args->map_size);
+		if (r)
+			goto error_backoff;
+
+		va_flags = amdgpu_vm_get_pte_flags(adev, args->flags);
 		r = amdgpu_vm_bo_map(adev, bo_va, args->va_address,
 				     args->offset_in_bo, args->map_size,
 				     va_flags);
@@ -634,14 +664,34 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	case AMDGPU_VA_OP_UNMAP:
 		r = amdgpu_vm_bo_unmap(adev, bo_va, args->va_address);
 		break;
+
+	case AMDGPU_VA_OP_CLEAR:
+		r = amdgpu_vm_bo_clear_mappings(adev, &fpriv->vm,
+						args->va_address,
+						args->map_size);
+		break;
+	case AMDGPU_VA_OP_REPLACE:
+		r = amdgpu_vm_alloc_pts(adev, bo_va->vm, args->va_address,
+					args->map_size);
+		if (r)
+			goto error_backoff;
+
+		va_flags = amdgpu_vm_get_pte_flags(adev, args->flags);
+		r = amdgpu_vm_bo_replace_map(adev, bo_va, args->va_address,
+					     args->offset_in_bo, args->map_size,
+					     va_flags);
+		break;
 	default:
 		break;
 	}
-	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) &&
-	    !amdgpu_vm_debug)
-		amdgpu_gem_va_update_vm(adev, bo_va, &list, args->operation);
+	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !amdgpu_vm_debug)
+		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va, &list,
+					args->operation);
+
+error_backoff:
 	ttm_eu_backoff_reservation(&ticket, &list);
 
+error_unref:
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
 }
@@ -667,7 +717,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 	switch (args->op) {
 	case AMDGPU_GEM_OP_GET_GEM_CREATE_INFO: {
 		struct drm_amdgpu_gem_create_in info;
-		void __user *out = (void __user *)(long)args->value;
+		void __user *out = (void __user *)(uintptr_t)args->value;
 
 		info.bo_size = robj->gem_base.size;
 		info.alignment = robj->tbo.mem.page_alignment << PAGE_SHIFT;
@@ -679,6 +729,11 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	case AMDGPU_GEM_OP_SET_PLACEMENT:
+		if (robj->prime_shared_count && (args->value & AMDGPU_GEM_DOMAIN_VRAM)) {
+			r = -EINVAL;
+			amdgpu_bo_unreserve(robj);
+			break;
+		}
 		if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm)) {
 			r = -EPERM;
 			amdgpu_bo_unreserve(robj);

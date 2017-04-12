@@ -32,6 +32,7 @@
 
 #include "meson_venc_cvbs.h"
 #include "meson_venc.h"
+#include "meson_vclk.h"
 #include "meson_registers.h"
 
 /* HHI VDAC Registers */
@@ -194,14 +195,20 @@ static void meson_venc_cvbs_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct meson_venc_cvbs *meson_venc_cvbs =
 					encoder_to_meson_venc_cvbs(encoder);
+	struct meson_drm *priv = meson_venc_cvbs->priv;
 	int i;
 
 	for (i = 0; i < MESON_CVBS_MODES_COUNT; ++i) {
 		struct meson_cvbs_mode *meson_mode = &meson_cvbs_modes[i];
 
 		if (drm_mode_equal(mode, &meson_mode->mode)) {
-			meson_venci_cvbs_mode_set(meson_venc_cvbs->priv,
+			meson_venci_cvbs_mode_set(priv,
 						  meson_mode->enci);
+
+			/* Setup 27MHz vclk2 for ENCI and VDAC */
+			meson_vclk_setup(priv, MESON_VCLK_TARGET_CVBS,
+					 MESON_VCLK_CVBS, MESON_VCLK_CVBS,
+					 MESON_VCLK_CVBS, true);
 			break;
 		}
 	}
@@ -217,25 +224,14 @@ static const struct drm_encoder_helper_funcs
 
 static bool meson_venc_cvbs_connector_is_available(struct meson_drm *priv)
 {
-	struct device_node *ep, *remote;
+	struct device_node *remote;
 
-	/* CVBS VDAC output is on the first port, first endpoint */
-	ep = of_graph_get_endpoint_by_regs(priv->dev->of_node, 0, 0);
-	if (!ep)
+	remote = of_graph_get_remote_node(priv->dev->of_node, 0, 0);
+	if (!remote)
 		return false;
 
-
-	/* If the endpoint node exists, consider it enabled */
-	remote = of_graph_get_remote_port(ep);
-	if (remote) {
-		of_node_put(ep);
-		return true;
-	}
-
-	of_node_put(ep);
 	of_node_put(remote);
-
-	return false;
+	return true;
 }
 
 int meson_venc_cvbs_create(struct meson_drm *priv)
@@ -248,7 +244,7 @@ int meson_venc_cvbs_create(struct meson_drm *priv)
 
 	if (!meson_venc_cvbs_connector_is_available(priv)) {
 		dev_info(drm->dev, "CVBS Output connector not available\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	meson_venc_cvbs = devm_kzalloc(priv->dev, sizeof(*meson_venc_cvbs),

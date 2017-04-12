@@ -314,7 +314,8 @@ vc4_crtc_lut_load(struct drm_crtc *crtc)
 
 static int
 vc4_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		   uint32_t size)
+		   uint32_t size,
+		   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 i;
@@ -807,12 +808,13 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 static int vc4_page_flip(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
 			 struct drm_pending_vblank_event *event,
-			 uint32_t flags)
+			 uint32_t flags,
+			 struct drm_modeset_acquire_ctx *ctx)
 {
 	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		return vc4_async_page_flip(crtc, fb, event, flags);
 	else
-		return drm_atomic_helper_page_flip(crtc, fb, event, flags);
+		return drm_atomic_helper_page_flip(crtc, fb, event, flags, ctx);
 }
 
 static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
@@ -845,6 +847,17 @@ static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 	drm_atomic_helper_crtc_destroy_state(crtc, state);
 }
 
+static void
+vc4_crtc_reset(struct drm_crtc *crtc)
+{
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+
+	crtc->state = kzalloc(sizeof(struct vc4_crtc_state), GFP_KERNEL);
+	if (crtc->state)
+		crtc->state->crtc = crtc;
+}
+
 static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = vc4_crtc_destroy,
@@ -852,7 +865,7 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.set_property = NULL,
 	.cursor_set = NULL, /* handled by drm_mode_cursor_universal */
 	.cursor_move = NULL, /* handled by drm_mode_cursor_universal */
-	.reset = drm_atomic_helper_crtc_reset,
+	.reset = vc4_crtc_reset,
 	.atomic_duplicate_state = vc4_crtc_duplicate_state,
 	.atomic_destroy_state = vc4_crtc_destroy_state,
 	.gamma_set = vc4_crtc_gamma_set,

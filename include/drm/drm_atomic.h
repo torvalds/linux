@@ -160,7 +160,6 @@ struct __drm_connnectors_state {
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
- * @legacy_set_config: Disable conflicting encoders instead of failing with -EINVAL.
  * @planes: pointer to array of structures with per-plane data
  * @crtcs: pointer to array of CRTC pointers
  * @num_connector: size of the @connectors and @connector_states arrays
@@ -173,7 +172,6 @@ struct drm_atomic_state {
 	struct drm_device *dev;
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
-	bool legacy_set_config : 1;
 	struct __drm_planes_state *planes;
 	struct __drm_crtcs_state *crtcs;
 	int num_connector;
@@ -498,6 +496,23 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 
+/**
+ * for_each_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @connector_state: &struct drm_connector_state iteration cursor
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update. Note that before the
+ * software state is committed (by calling drm_atomic_helper_swap_state(), this
+ * points to the new state, while afterwards it points to the old state. Due to
+ * this tricky confusion this macro is deprecated.
+ *
+ * FIXME:
+ *
+ * Replace all usage of this with one of the explicit iterators below and then
+ * remove this macro.
+ */
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->num_connector &&				\
@@ -506,6 +521,20 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (connector)
 
+/**
+ * for_each_oldnew_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @old_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	old state
+ * @new_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update, tracking both old and
+ * new state. This is useful in places where the state delta needs to be
+ * considered, for example in atomic check functions.
+ */
 #define for_each_oldnew_connector_in_state(__state, connector, old_connector_state, new_connector_state, __i) \
 	for ((__i) = 0;								\
 	     (__i) < (__state)->num_connector &&				\
@@ -515,6 +544,18 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (connector)
 
+/**
+ * for_each_old_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @old_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	old state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update, tracking only the old
+ * state. This is useful in disable functions, where we need the old state the
+ * hardware is still in.
+ */
 #define for_each_old_connector_in_state(__state, connector, old_connector_state, __i) \
 	for ((__i) = 0;								\
 	     (__i) < (__state)->num_connector &&				\
@@ -523,6 +564,18 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (connector)
 
+/**
+ * for_each_new_connector_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @connector: &struct drm_connector iteration cursor
+ * @new_connector_state: &struct drm_connector_state iteration cursor for the
+ * 	new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all connectors in an atomic update, tracking only the new
+ * state. This is useful in enable functions, where we need the new state the
+ * hardware should be in when the atomic commit operation has completed.
+ */
 #define for_each_new_connector_in_state(__state, connector, new_connector_state, __i) \
 	for ((__i) = 0;								\
 	     (__i) < (__state)->num_connector &&				\
@@ -531,6 +584,23 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (connector)
 
+/**
+ * for_each_crtc_in_state - iterate over all connectors in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @crtc_state: &struct drm_crtc_state iteration cursor
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update. Note that before the
+ * software state is committed (by calling drm_atomic_helper_swap_state(), this
+ * points to the new state, while afterwards it points to the old state. Due to
+ * this tricky confusion this macro is deprecated.
+ *
+ * FIXME:
+ *
+ * Replace all usage of this with one of the explicit iterators below and then
+ * remove this macro.
+ */
 #define for_each_crtc_in_state(__state, crtc, crtc_state, __i)	\
 	for ((__i) = 0;						\
 	     (__i) < (__state)->dev->mode_config.num_crtc &&	\
@@ -539,6 +609,18 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)						\
 		for_each_if (crtc_state)
 
+/**
+ * for_each_oldnew_crtc_in_state - iterate over all CRTCs in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @old_crtc_state: &struct drm_crtc_state iteration cursor for the old state
+ * @new_crtc_state: &struct drm_crtc_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update, tracking both old and
+ * new state. This is useful in places where the state delta needs to be
+ * considered, for example in atomic check functions.
+ */
 #define for_each_oldnew_crtc_in_state(__state, crtc, old_crtc_state, new_crtc_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
@@ -548,6 +630,17 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (crtc)
 
+/**
+ * for_each_old_crtc_in_state - iterate over all CRTCs in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @old_crtc_state: &struct drm_crtc_state iteration cursor for the old state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update, tracking only the old
+ * state. This is useful in disable functions, where we need the old state the
+ * hardware is still in.
+ */
 #define for_each_old_crtc_in_state(__state, crtc, old_crtc_state, __i)	\
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
@@ -556,6 +649,17 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (crtc)
 
+/**
+ * for_each_new_crtc_in_state - iterate over all CRTCs in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @crtc: &struct drm_crtc iteration cursor
+ * @new_crtc_state: &struct drm_crtc_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all CRTCs in an atomic update, tracking only the new
+ * state. This is useful in enable functions, where we need the new state the
+ * hardware should be in when the atomic commit operation has completed.
+ */
 #define for_each_new_crtc_in_state(__state, crtc, new_crtc_state, __i)	\
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_crtc &&		\
@@ -564,6 +668,23 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (crtc)
 
+/**
+ * for_each_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @plane_state: &struct drm_plane_state iteration cursor
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update. Note that before the
+ * software state is committed (by calling drm_atomic_helper_swap_state(), this
+ * points to the new state, while afterwards it points to the old state. Due to
+ * this tricky confusion this macro is deprecated.
+ *
+ * FIXME:
+ *
+ * Replace all usage of this with one of the explicit iterators below and then
+ * remove this macro.
+ */
 #define for_each_plane_in_state(__state, plane, plane_state, __i)		\
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
@@ -572,6 +693,18 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (plane_state)
 
+/**
+ * for_each_oldnew_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @old_plane_state: &struct drm_plane_state iteration cursor for the old state
+ * @new_plane_state: &struct drm_plane_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update, tracking both old and
+ * new state. This is useful in places where the state delta needs to be
+ * considered, for example in atomic check functions.
+ */
 #define for_each_oldnew_plane_in_state(__state, plane, old_plane_state, new_plane_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
@@ -581,6 +714,17 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (plane)
 
+/**
+ * for_each_old_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @old_plane_state: &struct drm_plane_state iteration cursor for the old state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update, tracking only the old
+ * state. This is useful in disable functions, where we need the old state the
+ * hardware is still in.
+ */
 #define for_each_old_plane_in_state(__state, plane, old_plane_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
@@ -589,6 +733,17 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	     (__i)++)							\
 		for_each_if (plane)
 
+/**
+ * for_each_new_plane_in_state - iterate over all planes in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @plane: &struct drm_plane iteration cursor
+ * @new_plane_state: &struct drm_plane_state iteration cursor for the new state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all planes in an atomic update, tracking only the new
+ * state. This is useful in enable functions, where we need the new state the
+ * hardware should be in when the atomic commit operation has completed.
+ */
 #define for_each_new_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
@@ -603,7 +758,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  *
  * To give drivers flexibility &struct drm_crtc_state has 3 booleans to track
  * whether the state CRTC changed enough to need a full modeset cycle:
- * connectors_changed, mode_changed and active_changed. This helper simply
+ * planes_changed, mode_changed and active_changed. This helper simply
  * combines these three to compute the overall need for a modeset for @state.
  *
  * The atomic helper code sets these booleans, but drivers can and should

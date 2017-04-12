@@ -9,6 +9,7 @@ Optional properties:
 - enable-gpios: panel enable gpio
 - reset-gpios: GPIO to control the RESET pin
 - vcc-supply: phandle of regulator that will be used to enable power to the display
+- backlight: phandle of the backlight device
 
 Required nodes:
 - "panel-timing" containing video timings
@@ -21,6 +22,8 @@ Example
 lcd0: display@0 {
         compatible = "samsung,lte430wq-f0c", "panel-dpi";
         label = "lcd";
+
+        backlight = <&backlight>;
 
         port {
             lcd_in: endpoint {

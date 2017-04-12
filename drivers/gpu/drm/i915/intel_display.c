@@ -3412,17 +3412,6 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-/* Assume fb object is pinned & idle & fenced and just update base pointers */
-static int
-intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			   int x, int y, enum mode_set_atomic state)
-{
-	/* Support for kgdboc is disabled, this needs a major rework. */
-	DRM_ERROR("legacy panic handler not supported any more.\n");
-
-	return -ENODEV;
-}
-
 static void intel_complete_page_flips(struct drm_i915_private *dev_priv)
 {
 	struct intel_crtc *crtc;
@@ -9500,10 +9489,10 @@ static int intel_modeset_setup_plane_state(struct drm_atomic_state *state,
 	return 0;
 }
 
-bool intel_get_load_detect_pipe(struct drm_connector *connector,
-				struct drm_display_mode *mode,
-				struct intel_load_detect_pipe *old,
-				struct drm_modeset_acquire_ctx *ctx)
+int intel_get_load_detect_pipe(struct drm_connector *connector,
+			       struct drm_display_mode *mode,
+			       struct intel_load_detect_pipe *old,
+			       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_crtc *intel_crtc;
 	struct intel_encoder *intel_encoder =
@@ -9526,10 +9515,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 
 	old->restore_state = NULL;
 
-retry:
-	ret = drm_modeset_lock(&config->connection_mutex, ctx);
-	if (ret)
-		goto fail;
+	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
 	/*
 	 * Algorithm gets a little messy:
@@ -9679,10 +9665,8 @@ fail:
 		restore_state = NULL;
 	}
 
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(ctx);
-		goto retry;
-	}
+	if (ret == -EDEADLK)
+		return ret;
 
 	return false;
 }
@@ -10724,7 +10708,7 @@ out_hang:
 		state = drm_atomic_state_alloc(dev);
 		if (!state)
 			return -ENOMEM;
-		state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+		state->acquire_ctx = dev->mode_config.acquire_ctx;
 
 retry:
 		plane_state = drm_atomic_get_plane_state(state, primary);
@@ -11014,7 +10998,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
-	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.atomic_begin = intel_begin_crtc_commit,
 	.atomic_flush = intel_finish_crtc_commit,
 	.atomic_check = intel_crtc_atomic_check,
@@ -13096,7 +13079,7 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 		return;
 	}
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
 
 retry:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
@@ -13119,50 +13102,8 @@ out:
 	drm_atomic_state_put(state);
 }
 
-/*
- * FIXME: Remove this once i915 is fully DRIVER_ATOMIC by calling
- *        drm_atomic_helper_legacy_gamma_set() directly.
- */
-static int intel_atomic_legacy_gamma_set(struct drm_crtc *crtc,
-					 u16 *red, u16 *green, u16 *blue,
-					 uint32_t size)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_crtc_state *state;
-	int ret;
-
-	ret = drm_atomic_helper_legacy_gamma_set(crtc, red, green, blue, size);
-	if (ret)
-		return ret;
-
-	/*
-	 * Make sure we update the legacy properties so this works when
-	 * atomic is not enabled.
-	 */
-
-	state = crtc->state;
-
-	drm_object_property_set_value(&crtc->base,
-				      config->degamma_lut_property,
-				      (state->degamma_lut) ?
-				      state->degamma_lut->base.id : 0);
-
-	drm_object_property_set_value(&crtc->base,
-				      config->ctm_property,
-				      (state->ctm) ?
-				      state->ctm->base.id : 0);
-
-	drm_object_property_set_value(&crtc->base,
-				      config->gamma_lut_property,
-				      (state->gamma_lut) ?
-				      state->gamma_lut->base.id : 0);
-
-	return 0;
-}
-
 static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.gamma_set = intel_atomic_legacy_gamma_set,
+	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
 	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = intel_crtc_destroy,
@@ -13455,7 +13396,8 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 			   int crtc_x, int crtc_y,
 			   unsigned int crtc_w, unsigned int crtc_h,
 			   uint32_t src_x, uint32_t src_y,
-			   uint32_t src_w, uint32_t src_h)
+			   uint32_t src_w, uint32_t src_h,
+			   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	int ret;
@@ -13568,7 +13510,7 @@ out_free:
 slow:
 	return drm_atomic_helper_update_plane(plane, crtc, fb,
 					      crtc_x, crtc_y, crtc_w, crtc_h,
-					      src_x, src_y, src_w, src_h);
+					      src_x, src_y, src_w, src_h, ctx);
 }
 
 static const struct drm_plane_funcs intel_cursor_plane_funcs = {
@@ -15113,6 +15055,7 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 	struct drm_connector *crt = NULL;
 	struct intel_load_detect_pipe load_detect_temp;
 	struct drm_modeset_acquire_ctx *ctx = dev->mode_config.acquire_ctx;
+	int ret;
 
 	/* We can't just switch on the pipe A, we need to set things up with a
 	 * proper mode and output configuration. As a gross hack, enable pipe A
@@ -15129,7 +15072,10 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 	if (!crt)
 		return;
 
-	if (intel_get_load_detect_pipe(crt, NULL, &load_detect_temp, ctx))
+	ret = intel_get_load_detect_pipe(crt, NULL, &load_detect_temp, ctx);
+	WARN(ret < 0, "All modeset mutexes are locked, but intel_get_load_detect_pipe failed\n");
+
+	if (ret > 0)
 		intel_release_load_detect_pipe(crt, &load_detect_temp, ctx);
 }
 

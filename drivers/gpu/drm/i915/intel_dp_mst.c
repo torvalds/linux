@@ -149,7 +149,6 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 		to_intel_connector(conn_state->connector);
 	int ret;
 	uint32_t temp;
-	int slots;
 
 	/* MST encoders are bound to a crtc, not to a connector,
 	 * force the mapping here for get_hw_state.
@@ -165,7 +164,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 
 	ret = drm_dp_mst_allocate_vcpi(&intel_dp->mst_mgr,
 				       connector->port,
-				       pipe_config->pbn, &slots);
+				       pipe_config->pbn,
+				       pipe_config->dp_m_n.tu);
 	if (ret == false) {
 		DRM_ERROR("failed to allocate vcpi\n");
 		return;

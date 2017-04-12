@@ -311,7 +311,8 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_pending_vblank_event *event,
 				 uint32_t page_flip_flags,
-				 uint32_t target)
+				 uint32_t target,
+				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct amdgpu_bo *new_abo;
 	struct amdgpu_flip_work *work;
@@ -332,7 +333,8 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 	return 0;
 }
 
-int amdgpu_crtc_set_config(struct drm_mode_set *set)
+int amdgpu_crtc_set_config(struct drm_mode_set *set,
+			   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev;
 	struct amdgpu_device *adev;
@@ -349,7 +351,7 @@ int amdgpu_crtc_set_config(struct drm_mode_set *set)
 	if (ret < 0)
 		return ret;
 
-	ret = drm_crtc_helper_set_config(set);
+	ret = drm_crtc_helper_set_config(set, ctx);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		if (crtc->enabled)
@@ -610,6 +612,12 @@ amdgpu_user_framebuffer_create(struct drm_device *dev,
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
+	}
+
+	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
+	if (obj->import_attach) {
+		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		return ERR_PTR(-EINVAL);
 	}
 
 	amdgpu_fb = kzalloc(sizeof(*amdgpu_fb), GFP_KERNEL);

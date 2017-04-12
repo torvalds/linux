@@ -932,7 +932,7 @@ static int blocks_are_clean_separate_dirty(struct dm_cache_metadata *cmd,
 	*result = true;
 
 	r = dm_bitset_cursor_begin(&cmd->dirty_info, cmd->dirty_root,
-				   from_cblock(begin), &cmd->dirty_cursor);
+				   from_cblock(cmd->cache_blocks), &cmd->dirty_cursor);
 	if (r) {
 		DMERR("%s: dm_bitset_cursor_begin for dirty failed", __func__);
 		return r;
@@ -959,14 +959,16 @@ static int blocks_are_clean_separate_dirty(struct dm_cache_metadata *cmd,
 			return 0;
 		}
 
+		begin = to_cblock(from_cblock(begin) + 1);
+		if (begin == end)
+			break;
+
 		r = dm_bitset_cursor_next(&cmd->dirty_cursor);
 		if (r) {
 			DMERR("%s: dm_bitset_cursor_next for dirty failed", __func__);
 			dm_bitset_cursor_end(&cmd->dirty_cursor);
 			return r;
 		}
-
-		begin = to_cblock(from_cblock(begin) + 1);
 	}
 
 	dm_bitset_cursor_end(&cmd->dirty_cursor);

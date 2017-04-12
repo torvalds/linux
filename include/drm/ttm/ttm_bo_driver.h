@@ -42,7 +42,7 @@
 #include <linux/spinlock.h>
 #include <linux/reservation.h>
 
-#define TTM_MAX_BO_PRIORITY	16U
+#define TTM_MAX_BO_PRIORITY	4U
 
 struct ttm_backend_func {
 	/**
@@ -462,6 +462,15 @@ struct ttm_bo_driver {
 			      struct ttm_mem_reg *mem);
 	void (*io_mem_free)(struct ttm_bo_device *bdev,
 			    struct ttm_mem_reg *mem);
+
+	/**
+	 * Return the pfn for a given page_offset inside the BO.
+	 *
+	 * @bo: the BO to look up the pfn for
+	 * @page_offset: the offset to look up
+	 */
+	unsigned long (*io_mem_pfn)(struct ttm_buffer_object *bo,
+				    unsigned long page_offset);
 };
 
 /**

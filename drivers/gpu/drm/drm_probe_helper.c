@@ -44,7 +44,7 @@
  *
  * This library provides some helper code for output probing. It provides an
  * implementation of the core &drm_connector_funcs.fill_modes interface with
- * drm_helper_probe_single_connector_modes.
+ * drm_helper_probe_single_connector_modes().
  *
  * It also provides support for polling connectors with a work item and for
  * generic hotplug interrupt handling where the driver doesn't or cannot keep
@@ -169,12 +169,73 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
 static enum drm_connector_status
-drm_connector_detect(struct drm_connector *connector, bool force)
+drm_helper_probe_detect_ctx(struct drm_connector *connector, bool force)
 {
-	return connector->funcs->detect ?
-		connector->funcs->detect(connector, force) :
-		connector_status_connected;
+	const struct drm_connector_helper_funcs *funcs = connector->helper_private;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+retry:
+	ret = drm_modeset_lock(&connector->dev->mode_config.connection_mutex, &ctx);
+	if (!ret) {
+		if (funcs->detect_ctx)
+			ret = funcs->detect_ctx(connector, &ctx, force);
+		else if (connector->funcs->detect)
+			ret = connector->funcs->detect(connector, force);
+		else
+			ret = connector_status_connected;
+	}
+
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	if (WARN_ON(ret < 0))
+		ret = connector_status_unknown;
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	return ret;
 }
+
+/**
+ * drm_helper_probe_detect - probe connector status
+ * @connector: connector to probe
+ * @ctx: acquire_ctx, or NULL to let this function handle locking.
+ * @force: Whether destructive probe operations should be performed.
+ *
+ * This function calls the detect callbacks of the connector.
+ * This function returns &drm_connector_status, or
+ * if @ctx is set, it might also return -EDEADLK.
+ */
+int
+drm_helper_probe_detect(struct drm_connector *connector,
+			struct drm_modeset_acquire_ctx *ctx,
+			bool force)
+{
+	const struct drm_connector_helper_funcs *funcs = connector->helper_private;
+	struct drm_device *dev = connector->dev;
+	int ret;
+
+	if (!ctx)
+		return drm_helper_probe_detect_ctx(connector, force);
+
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, ctx);
+	if (ret)
+		return ret;
+
+	if (funcs->detect_ctx)
+		return funcs->detect_ctx(connector, ctx, force);
+	else if (connector->funcs->detect)
+		return connector->funcs->detect(connector, force);
+	else
+		return connector_status_connected;
+}
+EXPORT_SYMBOL(drm_helper_probe_detect);
 
 /**
  * drm_helper_probe_single_connector_modes - get complete set of display modes
@@ -239,15 +300,27 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	struct drm_display_mode *mode;
 	const struct drm_connector_helper_funcs *connector_funcs =
 		connector->helper_private;
-	int count = 0;
+	int count = 0, ret;
 	int mode_flags = 0;
 	bool verbose_prune = true;
 	enum drm_connector_status old_status;
+	struct drm_modeset_acquire_ctx ctx;
 
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
+	drm_modeset_acquire_init(&ctx, 0);
+
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			connector->name);
+
+retry:
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	} else
+		WARN_ON(ret < 0);
+
 	/* set all old modes to the stale state */
 	list_for_each_entry(mode, &connector->modes, head)
 		mode->status = MODE_STALE;
@@ -263,7 +336,15 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		if (connector->funcs->force)
 			connector->funcs->force(connector);
 	} else {
-		connector->status = drm_connector_detect(connector, true);
+		ret = drm_helper_probe_detect(connector, &ctx, true);
+
+		if (ret == -EDEADLK) {
+			drm_modeset_backoff(&ctx);
+			goto retry;
+		} else if (WARN(ret < 0, "Invalid return value %i for connector detection\n", ret))
+			ret = connector_status_unknown;
+
+		connector->status = ret;
 	}
 
 	/*
@@ -355,6 +436,9 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 prune:
 	drm_mode_prune_invalid(dev, &connector->modes, verbose_prune);
 
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	if (list_empty(&connector->modes))
 		return 0;
 
@@ -440,7 +524,7 @@ static void output_poll_execute(struct work_struct *work)
 
 		repoll = true;
 
-		connector->status = drm_connector_detect(connector, false);
+		connector->status = drm_helper_probe_detect(connector, NULL, false);
 		if (old_status != connector->status) {
 			const char *old, *new;
 
@@ -588,7 +672,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 
 		old_status = connector->status;
 
-		connector->status = drm_connector_detect(connector, false);
+		connector->status = drm_helper_probe_detect(connector, NULL, false);
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
 			      connector->name,
