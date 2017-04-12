@@ -60,7 +60,7 @@
 #define CXL_VSEC_PROTOCOL_MASK   0xe0
 #define CXL_VSEC_PROTOCOL_1024TB 0x80
 #define CXL_VSEC_PROTOCOL_512TB  0x40
-#define CXL_VSEC_PROTOCOL_256TB  0x20 /* Power 8 uses this */
+#define CXL_VSEC_PROTOCOL_256TB  0x20 /* Power 8/9 uses this */
 #define CXL_VSEC_PROTOCOL_ENABLE 0x01
 
 #define CXL_READ_VSEC_PSL_REVISION(dev, vsec, dest) \
@@ -326,14 +326,18 @@ static void dump_afu_descriptor(struct cxl_afu *afu)
 
 #define P8_CAPP_UNIT0_ID 0xBA
 #define P8_CAPP_UNIT1_ID 0XBE
+#define P9_CAPP_UNIT0_ID 0xC0
+#define P9_CAPP_UNIT1_ID 0xE0
 
-static u64 get_capp_unit_id(struct device_node *np)
+static int get_phb_index(struct device_node *np, u32 *phb_index)
 {
-	u32 phb_index;
+	if (of_property_read_u32(np, "ibm,phb-index", phb_index))
+		return -ENODEV;
+	return 0;
+}
 
-	if (of_property_read_u32(np, "ibm,phb-index", &phb_index))
-		return 0;
-
+static u64 get_capp_unit_id(struct device_node *np, u32 phb_index)
+{
 	/*
 	 * POWER 8:
 	 *  - For chips other than POWER8NVL, we only have CAPP 0,
@@ -352,11 +356,27 @@ static u64 get_capp_unit_id(struct device_node *np)
 			return P8_CAPP_UNIT1_ID;
 	}
 
+	/*
+	 * POWER 9:
+	 *   PEC0 (PHB0). Capp ID = CAPP0 (0b1100_0000)
+	 *   PEC1 (PHB1 - PHB2). No capi mode
+	 *   PEC2 (PHB3 - PHB4 - PHB5): Capi mode on PHB3 only. Capp ID = CAPP1 (0b1110_0000)
+	 */
+	if (cxl_is_power9()) {
+		if (phb_index == 0)
+			return P9_CAPP_UNIT0_ID;
+
+		if (phb_index == 3)
+			return P9_CAPP_UNIT1_ID;
+	}
+
 	return 0;
 }
 
-static int calc_capp_routing(struct pci_dev *dev, u64 *chipid, u64 *capp_unit_id)
+static int calc_capp_routing(struct pci_dev *dev, u64 *chipid,
+			     u32 *phb_index, u64 *capp_unit_id)
 {
+	int rc;
 	struct device_node *np;
 	const __be32 *prop;
 
@@ -367,8 +387,16 @@ static int calc_capp_routing(struct pci_dev *dev, u64 *chipid, u64 *capp_unit_id
 		np = of_get_next_parent(np);
 	if (!np)
 		return -ENODEV;
+
 	*chipid = be32_to_cpup(prop);
-	*capp_unit_id = get_capp_unit_id(np);
+
+	rc = get_phb_index(np, phb_index);
+	if (rc) {
+		pr_err("cxl: invalid phb index\n");
+		return rc;
+	}
+
+	*capp_unit_id = get_capp_unit_id(np, *phb_index);
 	of_node_put(np);
 	if (!*capp_unit_id) {
 		pr_err("cxl: invalid capp unit id\n");
@@ -378,14 +406,104 @@ static int calc_capp_routing(struct pci_dev *dev, u64 *chipid, u64 *capp_unit_id
 	return 0;
 }
 
+static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci_dev *dev)
+{
+	u64 xsl_dsnctl, psl_fircntl;
+	u64 chipid;
+	u32 phb_index;
+	u64 capp_unit_id;
+	int rc;
+
+	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
+	if (rc)
+		return rc;
+
+	/*
+	 * CAPI Identifier bits [0:7]
+	 * bit 61:60 MSI bits --> 0
+	 * bit 59 TVT selector --> 0
+	 */
+
+	/*
+	 * Tell XSL where to route data to.
+	 * The field chipid should match the PHB CAPI_CMPM register
+	 */
+	xsl_dsnctl = ((u64)0x2 << (63-7)); /* Bit 57 */
+	xsl_dsnctl |= (capp_unit_id << (63-15));
+
+	/* nMMU_ID Defaults to: b’000001001’*/
+	xsl_dsnctl |= ((u64)0x09 << (63-28));
+
+	if (cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		/*
+		 * Used to identify CAPI packets which should be sorted into
+		 * the Non-Blocking queues by the PHB. This field should match
+		 * the PHB PBL_NBW_CMPM register
+		 * nbwind=0x03, bits [57:58], must include capi indicator.
+		 * Not supported on P9 DD1.
+		 */
+		xsl_dsnctl |= ((u64)0x03 << (63-47));
+
+		/*
+		 * Upper 16b address bits of ASB_Notify messages sent to the
+		 * system. Need to match the PHB’s ASN Compare/Mask Register.
+		 * Not supported on P9 DD1.
+		 */
+		xsl_dsnctl |= ((u64)0x04 << (63-55));
+	}
+
+	cxl_p1_write(adapter, CXL_XSL9_DSNCTL, xsl_dsnctl);
+
+	/* Set fir_cntl to recommended value for production env */
+	psl_fircntl = (0x2ULL << (63-3)); /* ce_report */
+	psl_fircntl |= (0x1ULL << (63-6)); /* FIR_report */
+	psl_fircntl |= 0x1ULL; /* ce_thresh */
+	cxl_p1_write(adapter, CXL_PSL9_FIR_CNTL, psl_fircntl);
+
+	/* vccredits=0x1  pcklat=0x4 */
+	cxl_p1_write(adapter, CXL_PSL9_DSNDCTL, 0x0000000000001810ULL);
+
+	/*
+	 * For debugging with trace arrays.
+	 * Configure RX trace 0 segmented mode.
+	 * Configure CT trace 0 segmented mode.
+	 * Configure LA0 trace 0 segmented mode.
+	 * Configure LA1 trace 0 segmented mode.
+	 */
+	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000000ULL);
+	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000003ULL);
+	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000005ULL);
+	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000006ULL);
+
+	/*
+	 * A response to an ASB_Notify request is returned by the
+	 * system as an MMIO write to the address defined in
+	 * the PSL_TNR_ADDR register
+	 */
+	/* PSL_TNR_ADDR */
+
+	/* NORST */
+	cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x8000000000000000ULL);
+
+	/* allocate the apc machines */
+	cxl_p1_write(adapter, CXL_PSL9_APCDEDTYPE, 0x40000003FFFF0000ULL);
+
+	/* Disable vc dd1 fix */
+	if ((cxl_is_power9() && cpu_has_feature(CPU_FTR_POWER9_DD1)))
+		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0400000000000001ULL);
+
+	return 0;
+}
+
 static int init_implementation_adapter_regs_psl8(struct cxl *adapter, struct pci_dev *dev)
 {
 	u64 psl_dsnctl, psl_fircntl;
 	u64 chipid;
+	u32 phb_index;
 	u64 capp_unit_id;
 	int rc;
 
-	rc = calc_capp_routing(dev, &chipid, &capp_unit_id);
+	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
 	if (rc)
 		return rc;
 
@@ -414,10 +532,11 @@ static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_
 {
 	u64 xsl_dsnctl;
 	u64 chipid;
+	u32 phb_index;
 	u64 capp_unit_id;
 	int rc;
 
-	rc = calc_capp_routing(dev, &chipid, &capp_unit_id);
+	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
 	if (rc)
 		return rc;
 
@@ -434,6 +553,12 @@ static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_
 #define TBSYNC_CNT(n) (((u64)n & 0x7) << (63-6))
 /* For the PSL this is a multiple for 0 < n <= 7: */
 #define PSL_2048_250MHZ_CYCLES 1
+
+static void write_timebase_ctrl_psl9(struct cxl *adapter)
+{
+	cxl_p1_write(adapter, CXL_PSL9_TB_CTLSTAT,
+		     TBSYNC_CNT(2 * PSL_2048_250MHZ_CYCLES));
+}
 
 static void write_timebase_ctrl_psl8(struct cxl *adapter)
 {
@@ -454,6 +579,11 @@ static void write_timebase_ctrl_xsl(struct cxl *adapter)
 		     TBSYNC_ENA |
 		     TBSYNC_CAL(3) |
 		     TBSYNC_CNT(XSL_4000_CLOCKS));
+}
+
+static u64 timebase_read_psl9(struct cxl *adapter)
+{
+	return cxl_p1_read(adapter, CXL_PSL9_Timebase);
 }
 
 static u64 timebase_read_psl8(struct cxl *adapter)
@@ -512,6 +642,11 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 
 	adapter->psl_timebase_synced = true;
 	return;
+}
+
+static int init_implementation_afu_regs_psl9(struct cxl_afu *afu)
+{
+	return 0;
 }
 
 static int init_implementation_afu_regs_psl8(struct cxl_afu *afu)
@@ -612,7 +747,7 @@ static int setup_cxl_bars(struct pci_dev *dev)
 	/*
 	 * BAR 4/5 has a special meaning for CXL and must be programmed with a
 	 * special value corresponding to the CXL protocol address range.
-	 * For POWER 8 that means bits 48:49 must be set to 10
+	 * For POWER 8/9 that means bits 48:49 must be set to 10
 	 */
 	pci_write_config_dword(dev, PCI_BASE_ADDRESS_4, 0x00000000);
 	pci_write_config_dword(dev, PCI_BASE_ADDRESS_5, 0x00020000);
@@ -997,6 +1132,52 @@ static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 	return 0;
 }
 
+static int sanitise_afu_regs_psl9(struct cxl_afu *afu)
+{
+	u64 reg;
+
+	/*
+	 * Clear out any regs that contain either an IVTE or address or may be
+	 * waiting on an acknowledgment to try to be a bit safer as we bring
+	 * it online
+	 */
+	reg = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
+	if ((reg & CXL_AFU_Cntl_An_ES_MASK) != CXL_AFU_Cntl_An_ES_Disabled) {
+		dev_warn(&afu->dev, "WARNING: AFU was not disabled: %#016llx\n", reg);
+		if (cxl_ops->afu_reset(afu))
+			return -EIO;
+		if (cxl_afu_disable(afu))
+			return -EIO;
+		if (cxl_psl_purge(afu))
+			return -EIO;
+	}
+	cxl_p1n_write(afu, CXL_PSL_SPAP_An, 0x0000000000000000);
+	cxl_p1n_write(afu, CXL_PSL_AMBAR_An, 0x0000000000000000);
+	reg = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
+	if (reg) {
+		dev_warn(&afu->dev, "AFU had pending DSISR: %#016llx\n", reg);
+		if (reg & CXL_PSL9_DSISR_An_TF)
+			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
+		else
+			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
+	}
+	if (afu->adapter->native->sl_ops->register_serr_irq) {
+		reg = cxl_p1n_read(afu, CXL_PSL_SERR_An);
+		if (reg) {
+			if (reg & ~0x000000007fffffff)
+				dev_warn(&afu->dev, "AFU had pending SERR: %#016llx\n", reg);
+			cxl_p1n_write(afu, CXL_PSL_SERR_An, reg & ~0xffff);
+		}
+	}
+	reg = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
+	if (reg) {
+		dev_warn(&afu->dev, "AFU had pending error status: %#016llx\n", reg);
+		cxl_p2n_write(afu, CXL_PSL_ErrStat_An, reg);
+	}
+
+	return 0;
+}
+
 static int sanitise_afu_regs_psl8(struct cxl_afu *afu)
 {
 	u64 reg;
@@ -1254,10 +1435,10 @@ int cxl_pci_reset(struct cxl *adapter)
 
 	/*
 	 * The adapter is about to be reset, so ignore errors.
-	 * Not supported on P9 DD1 but don't forget to enable it
-	 * on P9 DD2
+	 * Not supported on P9 DD1
 	 */
-	if (cxl_is_power8())
+	if ((cxl_is_power8()) ||
+	    ((cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1))))
 		cxl_data_cache_flush(adapter);
 
 	/* pcie_warm_reset requests a fundamental pci reset which includes a
@@ -1393,6 +1574,9 @@ static bool cxl_compatible_caia_version(struct cxl *adapter)
 	if (cxl_is_power8() && (adapter->caia_major == 1))
 		return true;
 
+	if (cxl_is_power9() && (adapter->caia_major == 2))
+		return true;
+
 	return false;
 }
 
@@ -1460,8 +1644,12 @@ static int sanitise_adapter_regs(struct cxl *adapter)
 	/* Clear PSL tberror bit by writing 1 to it */
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, CXL_PSL_ErrIVTE_tberror);
 
-	if (adapter->native->sl_ops->invalidate_all)
+	if (adapter->native->sl_ops->invalidate_all) {
+		/* do not invalidate ERAT entries when not reloading on PERST */
+		if (cxl_is_power9() && (adapter->perst_loads_image))
+			return 0;
 		rc = adapter->native->sl_ops->invalidate_all(adapter);
+	}
 
 	return rc;
 }
@@ -1546,6 +1734,30 @@ static void cxl_deconfigure_adapter(struct cxl *adapter)
 	pci_disable_device(pdev);
 }
 
+static const struct cxl_service_layer_ops psl9_ops = {
+	.adapter_regs_init = init_implementation_adapter_regs_psl9,
+	.invalidate_all = cxl_invalidate_all_psl9,
+	.afu_regs_init = init_implementation_afu_regs_psl9,
+	.sanitise_afu_regs = sanitise_afu_regs_psl9,
+	.register_serr_irq = cxl_native_register_serr_irq,
+	.release_serr_irq = cxl_native_release_serr_irq,
+	.handle_interrupt = cxl_irq_psl9,
+	.fail_irq = cxl_fail_irq_psl,
+	.activate_dedicated_process = cxl_activate_dedicated_process_psl9,
+	.attach_afu_directed = cxl_attach_afu_directed_psl9,
+	.attach_dedicated_process = cxl_attach_dedicated_process_psl9,
+	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl9,
+	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl9,
+	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl9,
+	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl9,
+	.err_irq_dump_registers = cxl_native_err_irq_dump_regs,
+	.debugfs_stop_trace = cxl_stop_trace_psl9,
+	.write_timebase_ctrl = write_timebase_ctrl_psl9,
+	.timebase_read = timebase_read_psl9,
+	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
+	.needs_reset_before_disable = true,
+};
+
 static const struct cxl_service_layer_ops psl8_ops = {
 	.adapter_regs_init = init_implementation_adapter_regs_psl8,
 	.invalidate_all = cxl_invalidate_all_psl8,
@@ -1597,6 +1809,9 @@ static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
 		if (cxl_is_power8()) {
 			dev_info(&dev->dev, "Device uses a PSL8\n");
 			adapter->native->sl_ops = &psl8_ops;
+		} else {
+			dev_info(&dev->dev, "Device uses a PSL9\n");
+			adapter->native->sl_ops = &psl9_ops;
 		}
 	}
 }
@@ -1667,8 +1882,13 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 	cxl_sysfs_adapter_remove(adapter);
 	cxl_debugfs_adapter_remove(adapter);
 
-	/* Flush adapter datacache as its about to be removed */
-	cxl_data_cache_flush(adapter);
+	/*
+	 * Flush adapter datacache as its about to be removed.
+	 * Not supported on P9 DD1.
+	 */
+	if ((cxl_is_power8()) ||
+	    ((cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1))))
+		cxl_data_cache_flush(adapter);
 
 	cxl_deconfigure_adapter(adapter);
 
@@ -1749,6 +1969,11 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (cxl_slot_is_switched(dev)) {
 		dev_info(&dev->dev, "Ignoring card on incompatible PCI slot\n");
+		return -ENODEV;
+	}
+
+	if (cxl_is_power9() && !radix_enabled()) {
+		dev_info(&dev->dev, "Only Radix mode supported\n");
 		return -ENODEV;
 	}
 

@@ -120,12 +120,18 @@ int cxl_psl_purge(struct cxl_afu *afu)
 	u64 AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
 	u64 dsisr, dar;
 	u64 start, end;
+	u64 trans_fault = 0x0ULL;
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 	int rc = 0;
 
 	trace_cxl_psl_ctrl(afu, CXL_PSL_SCNTL_An_Pc);
 
 	pr_devel("PSL purge request\n");
+
+	if (cxl_is_psl8(afu))
+		trans_fault = CXL_PSL_DSISR_TRANS;
+	if (cxl_is_psl9(afu))
+		trans_fault = CXL_PSL9_DSISR_An_TF;
 
 	if (!cxl_ops->link_ok(afu->adapter, afu)) {
 		dev_warn(&afu->dev, "PSL Purge called with link down, ignoring\n");
@@ -158,7 +164,7 @@ int cxl_psl_purge(struct cxl_afu *afu)
 		pr_devel_ratelimited("PSL purging... PSL_CNTL: 0x%016llx  PSL_DSISR: 0x%016llx\n",
 				     PSL_CNTL, dsisr);
 
-		if (dsisr & CXL_PSL_DSISR_TRANS) {
+		if (dsisr & trans_fault) {
 			dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
 			dev_notice(&afu->dev, "PSL purge terminating pending translation, DSISR: 0x%016llx, DAR: 0x%016llx\n",
 				   dsisr, dar);
@@ -200,7 +206,7 @@ static int spa_max_procs(int spa_size)
 	return ((spa_size / 8) - 96) / 17;
 }
 
-int cxl_alloc_spa(struct cxl_afu *afu)
+static int cxl_alloc_spa(struct cxl_afu *afu, int mode)
 {
 	unsigned spa_size;
 
@@ -213,7 +219,8 @@ int cxl_alloc_spa(struct cxl_afu *afu)
 		if (spa_size > 0x100000) {
 			dev_warn(&afu->dev, "num_of_processes too large for the SPA, limiting to %i (0x%x)\n",
 					afu->native->spa_max_procs, afu->native->spa_size);
-			afu->num_procs = afu->native->spa_max_procs;
+			if (mode != CXL_MODE_DEDICATED)
+				afu->num_procs = afu->native->spa_max_procs;
 			break;
 		}
 
@@ -260,6 +267,36 @@ void cxl_release_spa(struct cxl_afu *afu)
 			afu->native->spa_order);
 		afu->native->spa = NULL;
 	}
+}
+
+/*
+ * Invalidation of all ERAT entries is no longer required by CAIA2. Use
+ * only for debug.
+ */
+int cxl_invalidate_all_psl9(struct cxl *adapter)
+{
+	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
+	u64 ierat;
+
+	pr_devel("CXL adapter - invalidation of all ERAT entries\n");
+
+	/* Invalidates all ERAT entries for Radix or HPT */
+	ierat = CXL_XSL9_IERAT_IALL;
+	if (radix_enabled())
+		ierat |= CXL_XSL9_IERAT_INVR;
+	cxl_p1_write(adapter, CXL_XSL9_IERAT, ierat);
+
+	while (cxl_p1_read(adapter, CXL_XSL9_IERAT) & CXL_XSL9_IERAT_IINPROG) {
+		if (time_after_eq(jiffies, timeout)) {
+			dev_warn(&adapter->dev,
+			"WARNING: CXL adapter invalidation of all ERAT entries timed out!\n");
+			return -EBUSY;
+		}
+		if (!cxl_ops->link_ok(adapter, NULL))
+			return -EIO;
+		cpu_relax();
+	}
+	return 0;
 }
 
 int cxl_invalidate_all_psl8(struct cxl *adapter)
@@ -498,7 +535,7 @@ static int activate_afu_directed(struct cxl_afu *afu)
 
 	afu->num_procs = afu->max_procs_virtualised;
 	if (afu->native->spa == NULL) {
-		if (cxl_alloc_spa(afu))
+		if (cxl_alloc_spa(afu, CXL_MODE_DIRECTED))
 			return -ENOMEM;
 	}
 	attach_spa(afu);
@@ -548,9 +585,18 @@ static u64 calculate_sr(struct cxl_context *ctx)
 		sr |= (mfmsr() & MSR_SF) | CXL_PSL_SR_An_HV;
 	} else {
 		sr |= CXL_PSL_SR_An_PR | CXL_PSL_SR_An_R;
-		sr &= ~(CXL_PSL_SR_An_HV);
+		if (radix_enabled())
+			sr |= CXL_PSL_SR_An_HV;
+		else
+			sr &= ~(CXL_PSL_SR_An_HV);
 		if (!test_tsk_thread_flag(current, TIF_32BIT))
 			sr |= CXL_PSL_SR_An_SF;
+	}
+	if (cxl_is_psl9(ctx->afu)) {
+		if (radix_enabled())
+			sr |= CXL_PSL_SR_An_XLAT_ror;
+		else
+			sr |= CXL_PSL_SR_An_XLAT_hpt;
 	}
 	return sr;
 }
@@ -584,6 +630,70 @@ static void update_ivtes_directed(struct cxl_context *ctx)
 		WARN_ON(add_process_element(ctx));
 }
 
+static int process_element_entry_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
+{
+	u32 pid;
+
+	cxl_assign_psn_space(ctx);
+
+	ctx->elem->ctxtime = 0; /* disable */
+	ctx->elem->lpid = cpu_to_be32(mfspr(SPRN_LPID));
+	ctx->elem->haurp = 0; /* disable */
+
+	if (ctx->kernel)
+		pid = 0;
+	else {
+		if (ctx->mm == NULL) {
+			pr_devel("%s: unable to get mm for pe=%d pid=%i\n",
+				__func__, ctx->pe, pid_nr(ctx->pid));
+			return -EINVAL;
+		}
+		pid = ctx->mm->context.id;
+	}
+
+	ctx->elem->common.tid = 0;
+	ctx->elem->common.pid = cpu_to_be32(pid);
+
+	ctx->elem->sr = cpu_to_be64(calculate_sr(ctx));
+
+	ctx->elem->common.csrp = 0; /* disable */
+
+	cxl_prefault(ctx, wed);
+
+	/*
+	 * Ensure we have the multiplexed PSL interrupt set up to take faults
+	 * for kernel contexts that may not have allocated any AFU IRQs at all:
+	 */
+	if (ctx->irqs.range[0] == 0) {
+		ctx->irqs.offset[0] = ctx->afu->native->psl_hwirq;
+		ctx->irqs.range[0] = 1;
+	}
+
+	ctx->elem->common.amr = cpu_to_be64(amr);
+	ctx->elem->common.wed = cpu_to_be64(wed);
+
+	return 0;
+}
+
+int cxl_attach_afu_directed_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
+{
+	int result;
+
+	/* fill the process element entry */
+	result = process_element_entry_psl9(ctx, wed, amr);
+	if (result)
+		return result;
+
+	update_ivtes_directed(ctx);
+
+	/* first guy needs to enable */
+	result = cxl_ops->afu_check_and_enable(ctx->afu);
+	if (result)
+		return result;
+
+	return add_process_element(ctx);
+}
+
 int cxl_attach_afu_directed_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	u32 pid;
@@ -594,7 +704,7 @@ int cxl_attach_afu_directed_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
 	ctx->elem->ctxtime = 0; /* disable */
 	ctx->elem->lpid = cpu_to_be32(mfspr(SPRN_LPID));
 	ctx->elem->haurp = 0; /* disable */
-	ctx->elem->sdr = cpu_to_be64(mfspr(SPRN_SDR1));
+	ctx->elem->u.sdr = cpu_to_be64(mfspr(SPRN_SDR1));
 
 	pid = current->pid;
 	if (ctx->kernel)
@@ -605,13 +715,13 @@ int cxl_attach_afu_directed_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
 	ctx->elem->sr = cpu_to_be64(calculate_sr(ctx));
 
 	ctx->elem->common.csrp = 0; /* disable */
-	ctx->elem->common.aurp0 = 0; /* disable */
-	ctx->elem->common.aurp1 = 0; /* disable */
+	ctx->elem->common.u.psl8.aurp0 = 0; /* disable */
+	ctx->elem->common.u.psl8.aurp1 = 0; /* disable */
 
 	cxl_prefault(ctx, wed);
 
-	ctx->elem->common.sstp0 = cpu_to_be64(ctx->sstp0);
-	ctx->elem->common.sstp1 = cpu_to_be64(ctx->sstp1);
+	ctx->elem->common.u.psl8.sstp0 = cpu_to_be64(ctx->sstp0);
+	ctx->elem->common.u.psl8.sstp1 = cpu_to_be64(ctx->sstp1);
 
 	/*
 	 * Ensure we have the multiplexed PSL interrupt set up to take faults
@@ -677,6 +787,32 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	return 0;
 }
 
+int cxl_activate_dedicated_process_psl9(struct cxl_afu *afu)
+{
+	dev_info(&afu->dev, "Activating dedicated process mode\n");
+
+	/*
+	 * If XSL is set to dedicated mode (Set in PSL_SCNTL reg), the
+	 * XSL and AFU are programmed to work with a single context.
+	 * The context information should be configured in the SPA area
+	 * index 0 (so PSL_SPAP must be configured before enabling the
+	 * AFU).
+	 */
+	afu->num_procs = 1;
+	if (afu->native->spa == NULL) {
+		if (cxl_alloc_spa(afu, CXL_MODE_DEDICATED))
+			return -ENOMEM;
+	}
+	attach_spa(afu);
+
+	cxl_p1n_write(afu, CXL_PSL_SCNTL_An, CXL_PSL_SCNTL_An_PM_Process);
+	cxl_p1n_write(afu, CXL_PSL_ID_An, CXL_PSL_ID_An_F | CXL_PSL_ID_An_L);
+
+	afu->current_mode = CXL_MODE_DEDICATED;
+
+	return cxl_chardev_d_afu_add(afu);
+}
+
 int cxl_activate_dedicated_process_psl8(struct cxl_afu *afu)
 {
 	dev_info(&afu->dev, "Activating dedicated process mode\n");
@@ -700,6 +836,16 @@ int cxl_activate_dedicated_process_psl8(struct cxl_afu *afu)
 	return cxl_chardev_d_afu_add(afu);
 }
 
+void cxl_update_dedicated_ivtes_psl9(struct cxl_context *ctx)
+{
+	int r;
+
+	for (r = 0; r < CXL_IRQ_RANGES; r++) {
+		ctx->elem->ivte_offsets[r] = cpu_to_be16(ctx->irqs.offset[r]);
+		ctx->elem->ivte_ranges[r] = cpu_to_be16(ctx->irqs.range[r]);
+	}
+}
+
 void cxl_update_dedicated_ivtes_psl8(struct cxl_context *ctx)
 {
 	struct cxl_afu *afu = ctx->afu;
@@ -714,6 +860,26 @@ void cxl_update_dedicated_ivtes_psl8(struct cxl_context *ctx)
 		       (((u64)ctx->irqs.range[1] & 0xffff) << 32) |
 		       (((u64)ctx->irqs.range[2] & 0xffff) << 16) |
 			((u64)ctx->irqs.range[3] & 0xffff));
+}
+
+int cxl_attach_dedicated_process_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
+{
+	struct cxl_afu *afu = ctx->afu;
+	int result;
+
+	/* fill the process element entry */
+	result = process_element_entry_psl9(ctx, wed, amr);
+	if (result)
+		return result;
+
+	if (ctx->afu->adapter->native->sl_ops->update_dedicated_ivtes)
+		afu->adapter->native->sl_ops->update_dedicated_ivtes(ctx);
+
+	result = cxl_ops->afu_reset(afu);
+	if (result)
+		return result;
+
+	return afu_enable(afu);
 }
 
 int cxl_attach_dedicated_process_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
@@ -887,6 +1053,21 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 	return 0;
 }
 
+void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx)
+{
+	u64 fir1, fir2, serr;
+
+	fir1 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR1);
+	fir2 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR2);
+
+	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
+	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
+	if (ctx->afu->adapter->native->sl_ops->register_serr_irq) {
+		serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
+		cxl_afu_decode_psl_serr(ctx->afu, serr);
+	}
+}
+
 void cxl_native_irq_dump_regs_psl8(struct cxl_context *ctx)
 {
 	u64 fir1, fir2, fir_slice, serr, afu_debug;
@@ -923,9 +1104,20 @@ static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
 	return cxl_ops->ack_irq(ctx, 0, errstat);
 }
 
+static bool cxl_is_translation_fault(struct cxl_afu *afu, u64 dsisr)
+{
+	if ((cxl_is_psl8(afu)) && (dsisr & CXL_PSL_DSISR_TRANS))
+		return true;
+
+	if ((cxl_is_psl9(afu)) && (dsisr & CXL_PSL9_DSISR_An_TF))
+		return true;
+
+	return false;
+}
+
 irqreturn_t cxl_fail_irq_psl(struct cxl_afu *afu, struct cxl_irq_info *irq_info)
 {
-	if (irq_info->dsisr & CXL_PSL_DSISR_TRANS)
+	if (cxl_is_translation_fault(afu, irq_info->dsisr))
 		cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
 	else
 		cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
@@ -993,6 +1185,9 @@ static void native_irq_wait(struct cxl_context *ctx)
 		dsisr = cxl_p2n_read(ctx->afu, CXL_PSL_DSISR_An);
 		if (cxl_is_psl8(ctx->afu) &&
 		   ((dsisr & CXL_PSL_DSISR_PENDING) == 0))
+			return;
+		if (cxl_is_psl9(ctx->afu) &&
+		   ((dsisr & CXL_PSL9_DSISR_PENDING) == 0))
 			return;
 		/*
 		 * We are waiting for the workqueue to process our
@@ -1122,6 +1317,13 @@ int cxl_native_register_serr_irq(struct cxl_afu *afu)
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
 	if (cxl_is_power8())
 		serr = (serr & 0x00ffffffffff0000ULL) | (afu->serr_hwirq & 0xffff);
+	if (cxl_is_power9()) {
+		/*
+		 * By default, all errors are masked. So don't set all masks.
+		 * Slice errors will be transfered.
+		 */
+		serr = (serr & ~0xff0000007fffffffULL) | (afu->serr_hwirq & 0xffff);
+	}
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
 
 	return 0;

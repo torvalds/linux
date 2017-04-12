@@ -146,25 +146,26 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 		return cxl_ack_ae(ctx);
 	}
 
-	/*
-	 * update_mmu_cache() will not have loaded the hash since current->trap
-	 * is not a 0x400 or 0x300, so just call hash_page_mm() here.
-	 */
-	access = _PAGE_PRESENT | _PAGE_READ;
-	if (dsisr & CXL_PSL_DSISR_An_S)
-		access |= _PAGE_WRITE;
+	if (!radix_enabled()) {
+		/*
+		 * update_mmu_cache() will not have loaded the hash since current->trap
+		 * is not a 0x400 or 0x300, so just call hash_page_mm() here.
+		 */
+		access = _PAGE_PRESENT | _PAGE_READ;
+		if (dsisr & CXL_PSL_DSISR_An_S)
+			access |= _PAGE_WRITE;
 
-	access |= _PAGE_PRIVILEGED;
-	if ((!ctx->kernel) || (REGION_ID(dar) == USER_REGION_ID))
-		access &= ~_PAGE_PRIVILEGED;
+		access |= _PAGE_PRIVILEGED;
+		if ((!ctx->kernel) || (REGION_ID(dar) == USER_REGION_ID))
+			access &= ~_PAGE_PRIVILEGED;
 
-	if (dsisr & DSISR_NOHPTE)
-		inv_flags |= HPTE_NOHPTE_UPDATE;
+		if (dsisr & DSISR_NOHPTE)
+			inv_flags |= HPTE_NOHPTE_UPDATE;
 
-	local_irq_save(flags);
-	hash_page_mm(mm, dar, access, 0x300, inv_flags);
-	local_irq_restore(flags);
-
+		local_irq_save(flags);
+		hash_page_mm(mm, dar, access, 0x300, inv_flags);
+		local_irq_restore(flags);
+	}
 	pr_devel("Page fault successfully handled for pe: %i!\n", ctx->pe);
 	cxl_ops->ack_irq(ctx, CXL_PSL_TFC_An_R, 0);
 }
@@ -184,7 +185,28 @@ static struct mm_struct *get_mem_context(struct cxl_context *ctx)
 	return ctx->mm;
 }
 
+static bool cxl_is_segment_miss(struct cxl_context *ctx, u64 dsisr)
+{
+	if ((cxl_is_psl8(ctx->afu)) && (dsisr & CXL_PSL_DSISR_An_DS))
+		return true;
 
+	return false;
+}
+
+static bool cxl_is_page_fault(struct cxl_context *ctx, u64 dsisr)
+{
+	if ((cxl_is_psl8(ctx->afu)) && (dsisr & CXL_PSL_DSISR_An_DM))
+		return true;
+
+	if ((cxl_is_psl9(ctx->afu)) &&
+	   ((dsisr & CXL_PSL9_DSISR_An_CO_MASK) &
+		(CXL_PSL9_DSISR_An_PF_SLR | CXL_PSL9_DSISR_An_PF_RGC |
+		 CXL_PSL9_DSISR_An_PF_RGP | CXL_PSL9_DSISR_An_PF_HRH |
+		 CXL_PSL9_DSISR_An_PF_STEG)))
+		return true;
+
+	return false;
+}
 
 void cxl_handle_fault(struct work_struct *fault_work)
 {
@@ -230,9 +252,9 @@ void cxl_handle_fault(struct work_struct *fault_work)
 		}
 	}
 
-	if (dsisr & CXL_PSL_DSISR_An_DS)
+	if (cxl_is_segment_miss(ctx, dsisr))
 		cxl_handle_segment_miss(ctx, mm, dar);
-	else if (dsisr & CXL_PSL_DSISR_An_DM)
+	else if (cxl_is_page_fault(ctx, dsisr))
 		cxl_handle_page_fault(ctx, mm, dsisr, dar);
 	else
 		WARN(1, "cxl_handle_fault has nothing to handle\n");

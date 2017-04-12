@@ -15,6 +15,12 @@
 
 static struct dentry *cxl_debugfs;
 
+void cxl_stop_trace_psl9(struct cxl *adapter)
+{
+	/* Stop the trace */
+	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x4480000000000000ULL);
+}
+
 void cxl_stop_trace_psl8(struct cxl *adapter)
 {
 	int slice;
@@ -51,6 +57,14 @@ static struct dentry *debugfs_create_io_x64(const char *name, umode_t mode,
 {
 	return debugfs_create_file_unsafe(name, mode, parent,
 					  (void __force *)value, &fops_io_x64);
+}
+
+void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir)
+{
+	debugfs_create_io_x64("fir1", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR1));
+	debugfs_create_io_x64("fir2", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR2));
+	debugfs_create_io_x64("fir_cntl", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_FIR_CNTL));
+	debugfs_create_io_x64("trace", S_IRUSR | S_IWUSR, dir, _cxl_p1_addr(adapter, CXL_PSL9_TRACECFG));
 }
 
 void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir)
@@ -90,6 +104,11 @@ int cxl_debugfs_adapter_add(struct cxl *adapter)
 void cxl_debugfs_adapter_remove(struct cxl *adapter)
 {
 	debugfs_remove_recursive(adapter->debugfs);
+}
+
+void cxl_debugfs_add_afu_regs_psl9(struct cxl_afu *afu, struct dentry *dir)
+{
+	debugfs_create_io_x64("serr", S_IRUSR, dir, _cxl_p1n_addr(afu, CXL_PSL_SERR_An));
 }
 
 void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir)

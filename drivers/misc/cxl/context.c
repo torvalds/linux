@@ -188,13 +188,26 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 	if (ctx->afu->current_mode == CXL_MODE_DEDICATED) {
 		if (start + len > ctx->afu->adapter->ps_size)
 			return -EINVAL;
+
+		if (cxl_is_psl9(ctx->afu)) {
+			/*
+			 * Make sure there is a valid problem state
+			 * area space for this AFU.
+			 */
+			if (ctx->master && !ctx->afu->psa) {
+				pr_devel("AFU doesn't support mmio space\n");
+				return -EINVAL;
+			}
+
+			/* Can't mmap until the AFU is enabled */
+			if (!ctx->afu->enabled)
+				return -EBUSY;
+		}
 	} else {
 		if (start + len > ctx->psn_size)
 			return -EINVAL;
-	}
 
-	if (ctx->afu->current_mode != CXL_MODE_DEDICATED) {
-		/* make sure there is a valid per process space for this AFU */
+		/* Make sure there is a valid per process space for this AFU */
 		if ((ctx->master && !ctx->afu->psa) || (!ctx->afu->pp_psa)) {
 			pr_devel("AFU doesn't support mmio space\n");
 			return -EINVAL;
