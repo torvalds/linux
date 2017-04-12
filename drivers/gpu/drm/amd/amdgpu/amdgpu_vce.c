@@ -558,6 +558,7 @@ static int amdgpu_vce_validate_bo(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 				  int lo, int hi, unsigned size, int32_t index)
 {
 	int64_t offset = ((uint64_t)size) * ((int64_t)index);
+	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_bo_va_mapping *mapping;
 	unsigned i, fpfn, lpfn;
 	struct amdgpu_bo *bo;
@@ -587,7 +588,7 @@ static int amdgpu_vce_validate_bo(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 		bo->placements[i].lpfn = bo->placements[i].fpfn ?
 			min(bo->placements[i].fpfn, lpfn) : lpfn;
 	}
-	return ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+	return ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 }
 
 

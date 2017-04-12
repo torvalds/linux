@@ -259,6 +259,20 @@ struct ttm_bo_kmap_obj {
 };
 
 /**
+ * struct ttm_operation_ctx
+ *
+ * @interruptible: Sleep interruptible if sleeping.
+ * @no_wait_gpu: Return immediately if the GPU is busy.
+ *
+ * Context for TTM operations like changing buffer placement or general memory
+ * allocation.
+ */
+struct ttm_operation_ctx {
+	bool interruptible;
+	bool no_wait_gpu;
+};
+
+/**
  * ttm_bo_reference - reference a struct ttm_buffer_object
  *
  * @bo: The buffer object.
@@ -306,8 +320,7 @@ bool ttm_bo_mem_compat(struct ttm_placement *placement, struct ttm_mem_reg *mem,
  *
  * @bo: The buffer object.
  * @placement: Proposed placement for the buffer object.
- * @interruptible: Sleep interruptible if sleeping.
- * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @ctx: validation parameters.
  *
  * Changes placement and caching policy of the buffer object
  * according proposed placement.
@@ -319,8 +332,7 @@ bool ttm_bo_mem_compat(struct ttm_placement *placement, struct ttm_mem_reg *mem,
  */
 int ttm_bo_validate(struct ttm_buffer_object *bo,
 		    struct ttm_placement *placement,
-		    bool interruptible,
-		    bool no_wait_gpu);
+		    struct ttm_operation_ctx *ctx);
 
 /**
  * ttm_bo_unref

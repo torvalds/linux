@@ -343,6 +343,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 				 struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct ttm_operation_ctx ctx = { true, false };
 	u64 initial_bytes_moved, bytes_moved;
 	uint32_t domain;
 	int r;
@@ -374,7 +375,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 retry:
 	amdgpu_ttm_placement_from_domain(bo, domain);
 	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	bytes_moved = atomic64_read(&adev->num_bytes_moved) -
 		      initial_bytes_moved;
 	p->bytes_moved += bytes_moved;
@@ -396,6 +397,7 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 				struct amdgpu_bo *validated)
 {
 	uint32_t domain = validated->allowed_domains;
+	struct ttm_operation_ctx ctx = { true, false };
 	int r;
 
 	if (!p->evictable)
@@ -437,7 +439,7 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 			bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 			bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT;
 		initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		bytes_moved = atomic64_read(&adev->num_bytes_moved) -
 			initial_bytes_moved;
 		p->bytes_moved += bytes_moved;
@@ -476,6 +478,7 @@ static int amdgpu_cs_validate(void *param, struct amdgpu_bo *bo)
 static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct amdgpu_bo_list_entry *lobj;
 	int r;
 
@@ -493,8 +496,7 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 		    lobj->user_pages) {
 			amdgpu_ttm_placement_from_domain(bo,
 							 AMDGPU_GEM_DOMAIN_CPU);
-			r = ttm_bo_validate(&bo->tbo, &bo->placement, true,
-					    false);
+			r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			if (r)
 				return r;
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
@@ -1575,6 +1577,7 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			   struct amdgpu_bo_va_mapping **map)
 {
 	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
+	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va_mapping *mapping;
 	int r;
@@ -1595,8 +1598,7 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	if (!((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)) {
 		(*bo)->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		amdgpu_ttm_placement_from_domain(*bo, (*bo)->allowed_domains);
-		r = ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, false,
-				    false);
+		r = ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, &ctx);
 		if (r)
 			return r;
 	}

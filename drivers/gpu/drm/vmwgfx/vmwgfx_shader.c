@@ -970,6 +970,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 			  size_t size,
 			  struct list_head *list)
 {
+	struct ttm_operation_ctx ctx = { false, true };
 	struct vmw_dma_buffer *buf;
 	struct ttm_bo_kmap_obj map;
 	bool is_iomem;
@@ -1005,7 +1006,7 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	WARN_ON(is_iomem);
 
 	ttm_bo_kunmap(&map);
-	ret = ttm_bo_validate(&buf->base, &vmw_sys_placement, false, true);
+	ret = ttm_bo_validate(&buf->base, &vmw_sys_placement, &ctx);
 	WARN_ON(ret != 0);
 	ttm_bo_unreserve(&buf->base);
 

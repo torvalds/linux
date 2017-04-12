@@ -408,6 +408,7 @@ static u64 amdgpu_uvd_get_addr_from_ctx(struct amdgpu_uvd_cs_ctx *ctx)
  */
 static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 {
+	struct ttm_operation_ctx tctx = { false, false };
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
 	uint32_t cmd;
@@ -430,7 +431,7 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 		}
 		amdgpu_uvd_force_into_uvd_segment(bo);
 
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &tctx);
 	}
 
 	return r;
@@ -949,6 +950,7 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			       bool direct, struct dma_fence **fence)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head head;
@@ -975,7 +977,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 		amdgpu_uvd_force_into_uvd_segment(bo);
 	}
 
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (r)
 		goto err;
 

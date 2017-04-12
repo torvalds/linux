@@ -548,10 +548,10 @@ int
 nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 		    bool no_wait_gpu)
 {
+	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	int ret;
 
-	ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
-			      interruptible, no_wait_gpu);
+	ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement, &ctx);
 	if (ret)
 		return ret;
 

@@ -552,6 +552,7 @@ err:
 
 int amdgpu_bo_validate(struct amdgpu_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	uint32_t domain;
 	int r;
 
@@ -562,7 +563,7 @@ int amdgpu_bo_validate(struct amdgpu_bo *bo)
 
 retry:
 	amdgpu_ttm_placement_from_domain(bo, domain);
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
 		domain = bo->allowed_domains;
 		goto retry;
@@ -673,6 +674,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 			     u64 *gpu_addr)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct ttm_operation_ctx ctx = { false, false };
 	int r, i;
 
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
@@ -723,7 +725,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 	}
 
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (unlikely(r)) {
 		dev_err(adev->dev, "%p pin failed\n", bo);
 		goto error;
@@ -760,6 +762,7 @@ int amdgpu_bo_pin(struct amdgpu_bo *bo, u32 domain, u64 *gpu_addr)
 int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct ttm_operation_ctx ctx = { false, false };
 	int r, i;
 
 	if (!bo->pin_count) {
@@ -773,7 +776,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 		bo->placements[i].lpfn = 0;
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
 	}
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (unlikely(r)) {
 		dev_err(adev->dev, "%p validate failed for unpin\n", bo);
 		goto error;
@@ -945,6 +948,7 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
+	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_bo *abo;
 	unsigned long offset, size;
 	int r;
@@ -978,7 +982,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	abo->placement.num_busy_placement = 1;
 	abo->placement.busy_placement = &abo->placements[1];
 
-	r = ttm_bo_validate(bo, &abo->placement, false, false);
+	r = ttm_bo_validate(bo, &abo->placement, &ctx);
 	if (unlikely(r != 0))
 		return r;
 

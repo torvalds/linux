@@ -358,6 +358,7 @@ static inline u64 cirrus_bo_gpu_offset(struct cirrus_bo *bo)
 
 int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (bo->pin_count) {
@@ -369,7 +370,7 @@ int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr)
 	cirrus_ttm_placement(bo, pl_flag);
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
 	if (ret)
 		return ret;
 
@@ -381,6 +382,7 @@ int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr)
 
 int cirrus_bo_push_sysram(struct cirrus_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 	if (!bo->pin_count) {
 		DRM_ERROR("unpin bad %p\n", bo);
@@ -397,7 +399,7 @@ int cirrus_bo_push_sysram(struct cirrus_bo *bo)
 	for (i = 0; i < bo->placement.num_placement ; i++)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
 	if (ret) {
 		DRM_ERROR("pushing to VRAM failed\n");
 		return ret;

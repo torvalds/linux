@@ -282,6 +282,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *filp)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_amdgpu_gem_userptr *args = data;
 	struct drm_gem_object *gobj;
@@ -335,7 +336,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 			goto free_pages;
 
 		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		amdgpu_bo_unreserve(bo);
 		if (r)
 			goto free_pages;

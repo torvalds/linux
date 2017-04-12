@@ -274,6 +274,7 @@ int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring)
 static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 			       bool direct, struct dma_fence **fence)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head head;
@@ -294,7 +295,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *b
 	if (r)
 		return r;
 
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (r)
 		goto err;
 

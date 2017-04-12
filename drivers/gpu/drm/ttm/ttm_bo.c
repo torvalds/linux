@@ -1091,9 +1091,8 @@ bool ttm_bo_mem_compat(struct ttm_placement *placement,
 EXPORT_SYMBOL(ttm_bo_mem_compat);
 
 int ttm_bo_validate(struct ttm_buffer_object *bo,
-			struct ttm_placement *placement,
-			bool interruptible,
-			bool no_wait_gpu)
+		    struct ttm_placement *placement,
+		    struct ttm_operation_ctx *ctx)
 {
 	int ret;
 	uint32_t new_flags;
@@ -1103,8 +1102,8 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	 * Check whether we need to move buffer.
 	 */
 	if (!ttm_bo_mem_compat(placement, &bo->mem, &new_flags)) {
-		ret = ttm_bo_move_buffer(bo, placement, interruptible,
-					 no_wait_gpu);
+		ret = ttm_bo_move_buffer(bo, placement, ctx->interruptible,
+					 ctx->no_wait_gpu);
 		if (ret)
 			return ret;
 	} else {
@@ -1219,8 +1218,11 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		WARN_ON(!locked);
 	}
 
-	if (likely(!ret))
-		ret = ttm_bo_validate(bo, placement, interruptible, false);
+	if (likely(!ret)) {
+		struct ttm_operation_ctx ctx = { interruptible, false };
+
+		ret = ttm_bo_validate(bo, placement, &ctx);
+	}
 
 	if (unlikely(ret)) {
 		if (!resv)
