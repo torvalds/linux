@@ -1028,25 +1028,29 @@ static void afu_link_reset(struct afu *afu, int port, __be64 __iomem *fc_regs)
 
 /*
  * Asynchronous interrupt information table
+ *
+ * NOTE: The checkpatch script considers the BUILD_SISL_ASTATUS_FC_PORT macro
+ * as complex and complains because it is not wrapped with parentheses/braces.
  */
+#define ASTATUS_FC(_a, _b, _c, _d)					 \
+	{ SISL_ASTATUS_FC##_a##_##_b, _c, _a, (_d) }
+
+#define BUILD_SISL_ASTATUS_FC_PORT(_a)					 \
+	ASTATUS_FC(_a, OTHER, "other error", CLR_FC_ERROR | LINK_RESET), \
+	ASTATUS_FC(_a, LOGO, "target initiated LOGO", 0),		 \
+	ASTATUS_FC(_a, CRC_T, "CRC threshold exceeded", LINK_RESET),	 \
+	ASTATUS_FC(_a, LOGI_R, "login timed out, retrying", LINK_RESET), \
+	ASTATUS_FC(_a, LOGI_F, "login failed", CLR_FC_ERROR),		 \
+	ASTATUS_FC(_a, LOGI_S, "login succeeded", SCAN_HOST),		 \
+	ASTATUS_FC(_a, LINK_DN, "link down", 0),			 \
+	ASTATUS_FC(_a, LINK_UP, "link up", 0)
+
 static const struct asyc_intr_info ainfo[] = {
-	{SISL_ASTATUS_FC0_OTHER, "other error", 0, CLR_FC_ERROR | LINK_RESET},
-	{SISL_ASTATUS_FC0_LOGO, "target initiated LOGO", 0, 0},
-	{SISL_ASTATUS_FC0_CRC_T, "CRC threshold exceeded", 0, LINK_RESET},
-	{SISL_ASTATUS_FC0_LOGI_R, "login timed out, retrying", 0, LINK_RESET},
-	{SISL_ASTATUS_FC0_LOGI_F, "login failed", 0, CLR_FC_ERROR},
-	{SISL_ASTATUS_FC0_LOGI_S, "login succeeded", 0, SCAN_HOST},
-	{SISL_ASTATUS_FC0_LINK_DN, "link down", 0, 0},
-	{SISL_ASTATUS_FC0_LINK_UP, "link up", 0, 0},
-	{SISL_ASTATUS_FC1_OTHER, "other error", 1, CLR_FC_ERROR | LINK_RESET},
-	{SISL_ASTATUS_FC1_LOGO, "target initiated LOGO", 1, 0},
-	{SISL_ASTATUS_FC1_CRC_T, "CRC threshold exceeded", 1, LINK_RESET},
-	{SISL_ASTATUS_FC1_LOGI_R, "login timed out, retrying", 1, LINK_RESET},
-	{SISL_ASTATUS_FC1_LOGI_F, "login failed", 1, CLR_FC_ERROR},
-	{SISL_ASTATUS_FC1_LOGI_S, "login succeeded", 1, SCAN_HOST},
-	{SISL_ASTATUS_FC1_LINK_DN, "link down", 1, 0},
-	{SISL_ASTATUS_FC1_LINK_UP, "link up", 1, 0},
-	{0x0, "", 0, 0}		/* terminator */
+	BUILD_SISL_ASTATUS_FC_PORT(2),
+	BUILD_SISL_ASTATUS_FC_PORT(3),
+	BUILD_SISL_ASTATUS_FC_PORT(0),
+	BUILD_SISL_ASTATUS_FC_PORT(1),
+	{ 0x0, "", 0, 0 }
 };
 
 /**
@@ -1058,6 +1062,8 @@ static const struct asyc_intr_info ainfo[] = {
 static const struct asyc_intr_info *find_ainfo(u64 status)
 {
 	const struct asyc_intr_info *info;
+
+	BUILD_BUG_ON(ainfo[ARRAY_SIZE(ainfo) - 1].status != 0);
 
 	for (info = &ainfo[0]; info->status; info++)
 		if (info->status == status)
@@ -1747,6 +1753,39 @@ out:
 }
 
 /**
+ * get_num_afu_ports() - determines and configures the number of AFU ports
+ * @cfg:	Internal structure associated with the host.
+ *
+ * This routine determines the number of AFU ports by converting the global
+ * port selection mask. The converted value is only valid following an AFU
+ * reset (explicit or power-on). This routine must be invoked shortly after
+ * mapping as other routines are dependent on the number of ports during the
+ * initialization sequence.
+ *
+ * To support legacy AFUs that might not have reflected an initial global
+ * port mask (value read is 0), default to the number of ports originally
+ * supported by the cxlflash driver (2) before hardware with other port
+ * offerings was introduced.
+ */
+static void get_num_afu_ports(struct cxlflash_cfg *cfg)
+{
+	struct afu *afu = cfg->afu;
+	struct device *dev = &cfg->dev->dev;
+	u64 port_mask;
+	int num_fc_ports = LEGACY_FC_PORTS;
+
+	port_mask = readq_be(&afu->afu_map->global.regs.afu_port_sel);
+	if (port_mask != 0ULL)
+		num_fc_ports = min(ilog2(port_mask) + 1, MAX_FC_PORTS);
+
+	dev_dbg(dev, "%s: port_mask=%016llx num_fc_ports=%d\n",
+		__func__, port_mask, num_fc_ports);
+
+	cfg->num_fc_ports = num_fc_ports;
+	cfg->host->max_channel = PORTNUM2CHAN(num_fc_ports);
+}
+
+/**
  * init_afu() - setup as master context and start AFU
  * @cfg:	Internal structure associated with the host.
  *
@@ -1802,6 +1841,8 @@ static int init_afu(struct cxlflash_cfg *cfg)
 
 	dev_dbg(dev, "%s: afu_ver=%s interface_ver=%016llx\n", __func__,
 		afu->version, afu->interface_version);
+
+	get_num_afu_ports(cfg);
 
 	rc = start_afu(cfg);
 	if (rc) {
@@ -2534,7 +2575,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	host->max_id = CXLFLASH_MAX_NUM_TARGETS_PER_BUS;
 	host->max_lun = CXLFLASH_MAX_NUM_LUNS_PER_TARGET;
-	host->max_channel = PORTNUM2CHAN(NUM_FC_PORTS);
 	host->unique_id = host->host_no;
 	host->max_cmd_len = CXLFLASH_MAX_CDB_LEN;
 
@@ -2550,7 +2590,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	cfg->init_state = INIT_STATE_NONE;
 	cfg->dev = pdev;
-	cfg->num_fc_ports = NUM_FC_PORTS;
 	cfg->cxl_fops = cxlflash_cxl_fops;
 
 	/*

@@ -26,8 +26,11 @@
 extern const struct file_operations cxlflash_cxl_fops;
 
 #define MAX_CONTEXT	CXLFLASH_MAX_CONTEXT	/* num contexts per afu */
-#define NUM_FC_PORTS	CXLFLASH_NUM_FC_PORTS	/* ports per AFU */
-#define MAX_FC_PORTS	CXLFLASH_MAX_FC_PORTS	/* ports per AFU */
+#define MAX_FC_PORTS	CXLFLASH_MAX_FC_PORTS	/* max ports per AFU */
+#define LEGACY_FC_PORTS	2			/* legacy ports per AFU */
+
+#define CHAN2PORTBANK(_x)	((_x) >> ilog2(CXLFLASH_NUM_FC_PORTS_PER_BANK))
+#define CHAN2BANKPORT(_x)	((_x) & (CXLFLASH_NUM_FC_PORTS_PER_BANK - 1))
 
 #define CHAN2PORTMASK(_x)	(1 << (_x))	/* channel to port mask */
 #define PORTMASK2CHAN(_x)	(ilog2((_x)))	/* port mask to channel */
@@ -67,7 +70,7 @@ extern const struct file_operations cxlflash_cxl_fops;
 
 static inline void check_sizes(void)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_NUM_CMDS);
+	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_NUM_FC_PORTS_PER_BANK);
 }
 
 /* AFU defines a fixed size of 4K for command buffers (borrow 4K page define) */
@@ -240,18 +243,26 @@ static inline u64 lun_to_lunid(u64 lun)
 	return be64_to_cpu(lun_id);
 }
 
-static inline __be64 __iomem *get_fc_port_regs(struct cxlflash_cfg *cfg, int i)
+static inline struct fc_port_bank __iomem *get_fc_port_bank(
+					    struct cxlflash_cfg *cfg, int i)
 {
 	struct afu *afu = cfg->afu;
 
-	return &afu->afu_map->global.fc_regs[i][0];
+	return &afu->afu_map->global.bank[CHAN2PORTBANK(i)];
+}
+
+static inline __be64 __iomem *get_fc_port_regs(struct cxlflash_cfg *cfg, int i)
+{
+	struct fc_port_bank __iomem *fcpb = get_fc_port_bank(cfg, i);
+
+	return &fcpb->fc_port_regs[CHAN2BANKPORT(i)][0];
 }
 
 static inline __be64 __iomem *get_fc_port_luns(struct cxlflash_cfg *cfg, int i)
 {
-	struct afu *afu = cfg->afu;
+	struct fc_port_bank __iomem *fcpb = get_fc_port_bank(cfg, i);
 
-	return &afu->afu_map->global.fc_port[i][0];
+	return &fcpb->fc_port_luns[CHAN2BANKPORT(i)][0];
 }
 
 int cxlflash_afu_sync(struct afu *, ctx_hndl_t, res_hndl_t, u8);
