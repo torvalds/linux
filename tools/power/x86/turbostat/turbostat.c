@@ -1142,7 +1142,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 		 * it is possible for mperf's non-halted cycles + idle states
 		 * to exceed TSC's all cycles: show c1 = 0% in that case.
 		 */
-		if ((old->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > old->tsc)
+		if ((old->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > (old->tsc * tsc_tweak))
 			old->c1 = 0;
 		else {
 			/* normal case, derive c1 */
