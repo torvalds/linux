@@ -1250,15 +1250,11 @@ static void set_class_tag(struct rtable *rt, u32 tag)
 
 static unsigned int ipv4_default_advmss(const struct dst_entry *dst)
 {
-	unsigned int advmss = dst_metric_raw(dst, RTAX_ADVMSS);
+	unsigned int header_size = sizeof(struct tcphdr) + sizeof(struct iphdr);
+	unsigned int advmss = max_t(unsigned int, dst->dev->mtu - header_size,
+				    ip_rt_min_advmss);
 
-	if (advmss == 0) {
-		advmss = max_t(unsigned int, dst->dev->mtu - 40,
-			       ip_rt_min_advmss);
-		if (advmss > 65535 - 40)
-			advmss = 65535 - 40;
-	}
-	return advmss;
+	return min(advmss, IPV4_MAX_PMTU - header_size);
 }
 
 static unsigned int ipv4_mtu(const struct dst_entry *dst)
