@@ -835,12 +835,14 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 				desc_data->skb_dma_len);
 
 	/* VLAN tag insertion check */
-	if (vlan)
+	if (vlan) {
 		dma_desc->desc2 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc2,
 					TX_NORMAL_DESC2_VTIR_POS,
 					TX_NORMAL_DESC2_VTIR_LEN,
 					TX_NORMAL_DESC2_VLAN_INSERT);
+		pdata->stats.tx_vlan_packets++;
+	}
 
 	/* Timestamp enablement check */
 	if (XLGMAC_GET_REG_BITS(pkt_info->attributes,

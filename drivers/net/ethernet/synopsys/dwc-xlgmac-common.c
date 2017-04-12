@@ -175,6 +175,7 @@ static int xlgmac_init(struct xlgmac_pdata *pdata)
 
 	/* Set device operations */
 	netdev->netdev_ops = xlgmac_get_netdev_ops();
+	netdev->ethtool_ops = xlgmac_get_ethtool_ops();
 
 	/* Set device features */
 	if (pdata->hw_feat.tso) {

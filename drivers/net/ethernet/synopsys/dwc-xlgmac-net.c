@@ -290,10 +290,23 @@ static irqreturn_t xlgmac_isr(int irq, void *data)
 				/* Disable Tx and Rx interrupts */
 				xlgmac_disable_rx_tx_ints(pdata);
 
+				pdata->stats.napi_poll_isr++;
 				/* Turn on polling */
 				__napi_schedule_irqoff(&pdata->napi);
 			}
 		}
+
+		if (XLGMAC_GET_REG_BITS(dma_ch_isr, DMA_CH_SR_TPS_POS,
+					DMA_CH_SR_TPS_LEN))
+			pdata->stats.tx_process_stopped++;
+
+		if (XLGMAC_GET_REG_BITS(dma_ch_isr, DMA_CH_SR_RPS_POS,
+					DMA_CH_SR_RPS_LEN))
+			pdata->stats.rx_process_stopped++;
+
+		if (XLGMAC_GET_REG_BITS(dma_ch_isr, DMA_CH_SR_TBU_POS,
+					DMA_CH_SR_TBU_LEN))
+			pdata->stats.tx_buffer_unavailable++;
 
 		if (XLGMAC_GET_REG_BITS(dma_ch_isr, DMA_CH_SR_RBU_POS,
 					DMA_CH_SR_RBU_LEN))
@@ -301,8 +314,10 @@ static irqreturn_t xlgmac_isr(int irq, void *data)
 
 		/* Restart the device on a Fatal Bus Error */
 		if (XLGMAC_GET_REG_BITS(dma_ch_isr, DMA_CH_SR_FBE_POS,
-					DMA_CH_SR_FBE_LEN))
+					DMA_CH_SR_FBE_LEN)) {
+			pdata->stats.fatal_bus_error++;
 			schedule_work(&pdata->restart_work);
+		}
 
 		/* Clear all interrupt signals */
 		writel(dma_ch_isr, XLGMAC_DMA_REG(channel, DMA_CH_SR));
@@ -357,6 +372,7 @@ static void xlgmac_tx_timer(unsigned long data)
 		else
 			xlgmac_disable_rx_tx_ints(pdata);
 
+		pdata->stats.napi_poll_txtimer++;
 		/* Turn on polling */
 		__napi_schedule(napi);
 	}
@@ -1225,9 +1241,11 @@ read_again:
 
 		if (XLGMAC_GET_REG_BITS(pkt_info->attributes,
 					RX_PACKET_ATTRIBUTES_VLAN_CTAG_POS,
-				    RX_PACKET_ATTRIBUTES_VLAN_CTAG_LEN))
+				    RX_PACKET_ATTRIBUTES_VLAN_CTAG_LEN)) {
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       pkt_info->vlan_ctag);
+			pdata->stats.rx_vlan_packets++;
+		}
 
 		if (XLGMAC_GET_REG_BITS(pkt_info->attributes,
 					RX_PACKET_ATTRIBUTES_RSS_HASH_POS,

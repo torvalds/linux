@@ -67,6 +67,8 @@
 #define XLGMAC_INIT_DMA_TX_FRAMES	25
 #define XLGMAC_INIT_DMA_RX_USECS	30
 #define XLGMAC_INIT_DMA_RX_FRAMES	25
+#define XLGMAC_MAX_DMA_RIWT		0xff
+#define XLGMAC_MIN_DMA_RIWT		0x01
 
 /* Flow control queue count */
 #define XLGMAC_MAX_FLOW_CONTROL_QUEUES	8
@@ -190,7 +192,15 @@ struct xlgmac_stats {
 	/* Extra counters */
 	u64 tx_tso_packets;
 	u64 rx_split_header_packets;
+	u64 tx_process_stopped;
+	u64 rx_process_stopped;
+	u64 tx_buffer_unavailable;
 	u64 rx_buffer_unavailable;
+	u64 fatal_bus_error;
+	u64 tx_vlan_packets;
+	u64 rx_vlan_packets;
+	u64 napi_poll_isr;
+	u64 napi_poll_txtimer;
 };
 
 struct xlgmac_ring_buf {
@@ -622,6 +632,7 @@ struct xlgmac_pdata {
 void xlgmac_init_desc_ops(struct xlgmac_desc_ops *desc_ops);
 void xlgmac_init_hw_ops(struct xlgmac_hw_ops *hw_ops);
 const struct net_device_ops *xlgmac_get_netdev_ops(void);
+const struct ethtool_ops *xlgmac_get_ethtool_ops(void);
 void xlgmac_dump_tx_desc(struct xlgmac_pdata *pdata,
 			 struct xlgmac_ring *ring,
 			 unsigned int idx,
