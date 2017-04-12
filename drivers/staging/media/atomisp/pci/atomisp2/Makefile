@@ -82,9 +82,7 @@ atomisp-objs += \
 	css2400/isp/kernels/cnr/cnr_1.0/ia_css_cnr.host.o \
 	css2400/isp/kernels/xnr/xnr_1.0/ia_css_xnr.host.o \
 	css2400/isp/kernels/xnr/xnr_1.0/ia_css_xnr_table.host.o \
-	css2400/isp/kernels/xnr/xnr3_0_5/ia_css_xnr3_0_5.host.o \
 	css2400/isp/kernels/xnr/xnr_3.0/ia_css_xnr3.host.o \
-	css2400/isp/kernels/xnr/xnr3_0_11/ia_css_xnr3_0_11.host.o \
 	css2400/isp/kernels/de/de_1.0/ia_css_de.host.o \
 	css2400/isp/kernels/de/de_2/ia_css_de2.host.o \
 	css2400/isp/kernels/gc/gc_2/ia_css_gc2.host.o \
@@ -328,8 +326,6 @@ INCLUDES += \
 	-I$(atomisp)/css2400/isp/kernels/xnr/ \
 	-I$(atomisp)/css2400/isp/kernels/xnr/xnr_1.0/ \
 	-I$(atomisp)/css2400/isp/kernels/xnr/xnr_3.0/ \
-	-I$(atomisp)/css2400/isp/kernels/xnr/xnr3_0_11 \
-	-I$(atomisp)/css2400/isp/kernels/xnr/xnr3_0_5/ \
 	-I$(atomisp)/css2400/isp/kernels/ynr/ \
 	-I$(atomisp)/css2400/isp/kernels/ynr/ynr_1.0/ \
 	-I$(atomisp)/css2400/isp/kernels/ynr/ynr_2/ \
