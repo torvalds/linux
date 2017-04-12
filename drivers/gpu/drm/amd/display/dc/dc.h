@@ -430,6 +430,7 @@ struct dc_stream {
 	enum signal_type output_signal;
 
 	enum dc_color_space output_color_space;
+	enum dc_dither_option dither_option;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -444,7 +445,6 @@ struct dc_stream {
 	struct colorspace_transform gamut_remap_matrix;
 	struct csc_transform csc_color_matrix;
 
-	/* TODO: dithering */
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
 	/* TODO: PSR info */
