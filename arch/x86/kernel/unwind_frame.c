@@ -135,26 +135,59 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 	return (struct pt_regs *)(regs & ~0x1);
 }
 
-static bool update_stack_state(struct unwind_state *state, void *addr,
-			       size_t len)
+static bool update_stack_state(struct unwind_state *state,
+			       unsigned long *next_bp)
 {
 	struct stack_info *info = &state->stack_info;
-	enum stack_type orig_type = info->type;
+	enum stack_type prev_type = info->type;
+	struct pt_regs *regs;
+	unsigned long *frame, *prev_frame_end;
+	size_t len;
+
+	if (state->regs)
+		prev_frame_end = (void *)state->regs + regs_size(state->regs);
+	else
+		prev_frame_end = (void *)state->bp + FRAME_HEADER_SIZE;
+
+	/* Is the next frame pointer an encoded pointer to pt_regs? */
+	regs = decode_frame_pointer(next_bp);
+	if (regs) {
+		frame = (unsigned long *)regs;
+		len = regs_size(regs);
+	} else {
+		frame = next_bp;
+		len = FRAME_HEADER_SIZE;
+	}
 
 	/*
-	 * If addr isn't on the current stack, switch to the next one.
+	 * If the next bp isn't on the current stack, switch to the next one.
 	 *
 	 * We may have to traverse multiple stacks to deal with the possibility
-	 * that 'info->next_sp' could point to an empty stack and 'addr' could
-	 * be on a subsequent stack.
+	 * that info->next_sp could point to an empty stack and the next bp
+	 * could be on a subsequent stack.
 	 */
-	while (!on_stack(info, addr, len))
+	while (!on_stack(info, frame, len))
 		if (get_stack_info(info->next_sp, state->task, info,
 				   &state->stack_mask))
 			return false;
 
-	if (!state->orig_sp || info->type != orig_type)
-		state->orig_sp = addr;
+	/* Make sure it only unwinds up and doesn't overlap the prev frame: */
+	if (state->orig_sp && state->stack_info.type == prev_type &&
+	    frame < prev_frame_end)
+		return false;
+
+	/* Move state to the next frame: */
+	if (regs) {
+		state->regs = regs;
+		state->bp = NULL;
+	} else {
+		state->bp = next_bp;
+		state->regs = NULL;
+	}
+
+	/* Save the original stack pointer for unwind_dump(): */
+	if (!state->orig_sp || info->type != prev_type)
+		state->orig_sp = frame;
 
 	return true;
 }
@@ -162,14 +195,12 @@ static bool update_stack_state(struct unwind_state *state, void *addr,
 bool unwind_next_frame(struct unwind_state *state)
 {
 	struct pt_regs *regs;
-	unsigned long *next_bp, *next_frame;
-	size_t next_len;
-	enum stack_type prev_type = state->stack_info.type;
+	unsigned long *next_bp;
 
 	if (unwind_done(state))
 		return false;
 
-	/* have we reached the end? */
+	/* Have we reached the end? */
 	if (state->regs && user_mode(state->regs))
 		goto the_end;
 
@@ -200,24 +231,14 @@ bool unwind_next_frame(struct unwind_state *state)
 		return true;
 	}
 
-	/* get the next frame pointer */
+	/* Get the next frame pointer: */
 	if (state->regs)
 		next_bp = (unsigned long *)state->regs->bp;
 	else
-		next_bp = (unsigned long *)READ_ONCE_TASK_STACK(state->task,*state->bp);
+		next_bp = (unsigned long *)READ_ONCE_TASK_STACK(state->task, *state->bp);
 
-	/* is the next frame pointer an encoded pointer to pt_regs? */
-	regs = decode_frame_pointer(next_bp);
-	if (regs) {
-		next_frame = (unsigned long *)regs;
-		next_len = sizeof(*regs);
-	} else {
-		next_frame = next_bp;
-		next_len = FRAME_HEADER_SIZE;
-	}
-
-	/* make sure the next frame's data is accessible */
-	if (!update_stack_state(state, next_frame, next_len)) {
+	/* Move to the next frame if it's safe: */
+	if (!update_stack_state(state, next_bp)) {
 		/*
 		 * Don't warn on bad regs->bp.  An interrupt in entry code
 		 * might cause a false positive warning.
@@ -226,24 +247,6 @@ bool unwind_next_frame(struct unwind_state *state)
 			goto the_end;
 
 		goto bad_address;
-	}
-
-	/* Make sure it only unwinds up and doesn't overlap the last frame: */
-	if (state->stack_info.type == prev_type) {
-		if (state->regs && (void *)next_frame < (void *)state->regs + regs_size(state->regs))
-			goto bad_address;
-
-		if (state->bp && (void *)next_frame < (void *)state->bp + FRAME_HEADER_SIZE)
-			goto bad_address;
-	}
-
-	/* move to the next frame */
-	if (regs) {
-		state->regs = regs;
-		state->bp = NULL;
-	} else {
-		state->bp = next_bp;
-		state->regs = NULL;
 	}
 
 	return true;
@@ -263,13 +266,13 @@ bad_address:
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
 			state->regs, state->task->comm,
-			state->task->pid, next_frame);
+			state->task->pid, next_bp);
 		unwind_dump(state, (unsigned long *)state->regs);
 	} else {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack frame pointer at %p in %s:%d has bad value %p\n",
 			state->bp, state->task->comm,
-			state->task->pid, next_frame);
+			state->task->pid, next_bp);
 		unwind_dump(state, state->bp);
 	}
 the_end:
@@ -281,35 +284,23 @@ EXPORT_SYMBOL_GPL(unwind_next_frame);
 void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		    struct pt_regs *regs, unsigned long *first_frame)
 {
-	unsigned long *bp, *frame;
-	size_t len;
+	unsigned long *bp;
 
 	memset(state, 0, sizeof(*state));
 	state->task = task;
 
-	/* don't even attempt to start from user mode regs */
+	/* Don't even attempt to start from user mode regs: */
 	if (regs && user_mode(regs)) {
 		state->stack_info.type = STACK_TYPE_UNKNOWN;
 		return;
 	}
 
-	/* set up the starting stack frame */
 	bp = get_frame_pointer(task, regs);
-	regs = decode_frame_pointer(bp);
-	if (regs) {
-		state->regs = regs;
-		frame = (unsigned long *)regs;
-		len = sizeof(*regs);
-	} else {
-		state->bp = bp;
-		frame = bp;
-		len = FRAME_HEADER_SIZE;
-	}
 
-	/* initialize stack info and make sure the frame data is accessible */
-	get_stack_info(frame, state->task, &state->stack_info,
+	/* Initialize stack info and make sure the frame data is accessible: */
+	get_stack_info(bp, state->task, &state->stack_info,
 		       &state->stack_mask);
-	update_stack_state(state, frame, len);
+	update_stack_state(state, bp);
 
 	/*
 	 * The caller can provide the address of the first frame directly
