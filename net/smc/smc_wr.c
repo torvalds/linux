@@ -447,7 +447,7 @@ static void smc_wr_init_sge(struct smc_link *lnk)
 		lnk->wr_tx_ibs[i].num_sge = 1;
 		lnk->wr_tx_ibs[i].opcode = IB_WR_SEND;
 		lnk->wr_tx_ibs[i].send_flags =
-			IB_SEND_SIGNALED | IB_SEND_SOLICITED | IB_SEND_INLINE;
+			IB_SEND_SIGNALED | IB_SEND_SOLICITED;
 	}
 	for (i = 0; i < lnk->wr_rx_cnt; i++) {
 		lnk->wr_rx_sges[i].addr =
