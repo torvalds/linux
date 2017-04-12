@@ -35,22 +35,28 @@ static struct us3_freq_percpu_info *us3_freq_table;
 #define SAFARI_CFG_DIV_32	0x0000000080000000UL
 #define SAFARI_CFG_DIV_MASK	0x00000000C0000000UL
 
-static unsigned long read_safari_cfg(void)
+static void read_safari_cfg(void *arg)
 {
-	unsigned long ret;
+	unsigned long ret, *val = arg;
 
 	__asm__ __volatile__("ldxa	[%%g0] %1, %0"
 			     : "=&r" (ret)
 			     : "i" (ASI_SAFARI_CONFIG));
-	return ret;
+	*val = ret;
 }
 
-static void write_safari_cfg(unsigned long val)
+static void update_safari_cfg(void *arg)
 {
+	unsigned long reg, *new_bits = arg;
+
+	read_safari_cfg(&reg);
+	reg &= ~SAFARI_CFG_DIV_MASK;
+	reg |= *new_bits;
+
 	__asm__ __volatile__("stxa	%0, [%%g0] %1\n\t"
 			     "membar	#Sync"
 			     : /* no outputs */
-			     : "r" (val), "i" (ASI_SAFARI_CONFIG)
+			     : "r" (reg), "i" (ASI_SAFARI_CONFIG)
 			     : "memory");
 }
 
@@ -78,29 +84,17 @@ static unsigned long get_current_freq(unsigned int cpu, unsigned long safari_cfg
 
 static unsigned int us3_freq_get(unsigned int cpu)
 {
-	cpumask_t cpus_allowed;
 	unsigned long reg;
-	unsigned int ret;
 
-	cpumask_copy(&cpus_allowed, &current->cpus_allowed);
-	set_cpus_allowed_ptr(current, cpumask_of(cpu));
-
-	reg = read_safari_cfg();
-	ret = get_current_freq(cpu, reg);
-
-	set_cpus_allowed_ptr(current, &cpus_allowed);
-
-	return ret;
+	if (smp_call_function_single(cpu, read_safari_cfg, &reg, 1))
+		return 0;
+	return get_current_freq(cpu, reg);
 }
 
 static int us3_freq_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned int cpu = policy->cpu;
-	unsigned long new_bits, new_freq, reg;
-	cpumask_t cpus_allowed;
-
-	cpumask_copy(&cpus_allowed, &current->cpus_allowed);
-	set_cpus_allowed_ptr(current, cpumask_of(cpu));
+	unsigned long new_bits, new_freq;
 
 	new_freq = sparc64_get_clock_tick(cpu) / 1000;
 	switch (index) {
@@ -121,15 +115,7 @@ static int us3_freq_target(struct cpufreq_policy *policy, unsigned int index)
 		BUG();
 	}
 
-	reg = read_safari_cfg();
-
-	reg &= ~SAFARI_CFG_DIV_MASK;
-	reg |= new_bits;
-	write_safari_cfg(reg);
-
-	set_cpus_allowed_ptr(current, &cpus_allowed);
-
-	return 0;
+	return smp_call_function_single(cpu, update_safari_cfg, &new_bits, 1);
 }
 
 static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
