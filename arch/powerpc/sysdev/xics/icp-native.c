@@ -143,19 +143,9 @@ static unsigned int icp_native_get_irq(void)
 
 #ifdef CONFIG_SMP
 
-static void icp_native_cause_ipi(int cpu, unsigned long data)
+static void icp_native_cause_ipi(int cpu)
 {
 	kvmppc_set_host_ipi(cpu, 1);
-#ifdef CONFIG_PPC_DOORBELL
-	if (cpu_has_feature(CPU_FTR_DBELL)) {
-		if (cpumask_test_cpu(cpu, cpu_sibling_mask(get_cpu()))) {
-			doorbell_cause_ipi(cpu, data);
-			put_cpu();
-			return;
-		}
-		put_cpu();
-	}
-#endif
 	icp_native_set_qirr(cpu, IPI_PRIORITY);
 }
 

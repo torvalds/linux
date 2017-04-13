@@ -461,16 +461,9 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 }
 #endif /* CONFIG_KEXEC_CORE */
 
-static void smp_85xx_basic_setup(int cpu_nr)
-{
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		doorbell_setup_this_cpu();
-}
-
 static void smp_85xx_setup_cpu(int cpu_nr)
 {
 	mpic_setup_this_cpu();
-	smp_85xx_basic_setup(cpu_nr);
 }
 
 void __init mpc85xx_smp_init(void)
@@ -484,7 +477,7 @@ void __init mpc85xx_smp_init(void)
 		smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
 		smp_85xx_ops.message_pass = smp_mpic_message_pass;
 	} else
-		smp_85xx_ops.setup_cpu = smp_85xx_basic_setup;
+		smp_85xx_ops.setup_cpu = NULL;
 
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
 		/*
@@ -492,7 +485,7 @@ void __init mpc85xx_smp_init(void)
 		 * smp_muxed_ipi_message_pass
 		 */
 		smp_85xx_ops.message_pass = NULL;
-		smp_85xx_ops.cause_ipi = doorbell_cause_ipi;
+		smp_85xx_ops.cause_ipi = doorbell_global_ipi;
 		smp_85xx_ops.probe = NULL;
 	}
 

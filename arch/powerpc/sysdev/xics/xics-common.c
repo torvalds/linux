@@ -143,9 +143,6 @@ static void xics_request_ipi(void)
 
 void __init xics_smp_probe(void)
 {
-	/* Setup cause_ipi callback  based on which ICP is used */
-	smp_ops->cause_ipi = icp_ops->cause_ipi;
-
 	/* Register all the IPIs */
 	xics_request_ipi();
 }

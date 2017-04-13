@@ -172,7 +172,7 @@ static irqreturn_t psurge_ipi_intr(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void smp_psurge_cause_ipi(int cpu, unsigned long data)
+static void smp_psurge_cause_ipi(int cpu)
 {
 	psurge_set_ipi(cpu);
 }

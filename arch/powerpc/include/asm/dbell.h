@@ -35,8 +35,6 @@ enum ppc_dbell {
 #ifdef CONFIG_PPC_BOOK3S
 
 #define PPC_DBELL_MSGTYPE		PPC_DBELL_SERVER
-#define SPRN_DOORBELL_CPUTAG		SPRN_TIR
-#define PPC_DBELL_TAG_MASK		0x7f
 
 static inline void _ppc_msgsnd(u32 msg)
 {
@@ -49,8 +47,6 @@ static inline void _ppc_msgsnd(u32 msg)
 #else /* CONFIG_PPC_BOOK3S */
 
 #define PPC_DBELL_MSGTYPE		PPC_DBELL
-#define SPRN_DOORBELL_CPUTAG		SPRN_PIR
-#define PPC_DBELL_TAG_MASK		0x3fff
 
 static inline void _ppc_msgsnd(u32 msg)
 {
@@ -59,9 +55,10 @@ static inline void _ppc_msgsnd(u32 msg)
 
 #endif /* CONFIG_PPC_BOOK3S */
 
-extern void doorbell_cause_ipi(int cpu, unsigned long data);
+extern void doorbell_global_ipi(int cpu);
+extern void doorbell_core_ipi(int cpu);
+extern int doorbell_try_core_ipi(int cpu);
 extern void doorbell_exception(struct pt_regs *regs);
-extern void doorbell_setup_this_cpu(void);
 
 static inline void ppc_msgsnd(enum ppc_dbell type, u32 flags, u32 tag)
 {

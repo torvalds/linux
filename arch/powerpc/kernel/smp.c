@@ -39,6 +39,7 @@
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/kvm_ppc.h>
+#include <asm/dbell.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
@@ -211,16 +212,8 @@ int smp_request_message_ipi(int virq, int msg)
 #ifdef CONFIG_PPC_SMP_MUXED_IPI
 struct cpu_messages {
 	long messages;			/* current messages */
-	unsigned long data;		/* data for cause ipi */
 };
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct cpu_messages, ipi_message);
-
-void smp_muxed_ipi_set_data(int cpu, unsigned long data)
-{
-	struct cpu_messages *info = &per_cpu(ipi_message, cpu);
-
-	info->data = data;
-}
 
 void smp_muxed_ipi_set_message(int cpu, int msg)
 {
@@ -236,14 +229,13 @@ void smp_muxed_ipi_set_message(int cpu, int msg)
 
 void smp_muxed_ipi_message_pass(int cpu, int msg)
 {
-	struct cpu_messages *info = &per_cpu(ipi_message, cpu);
-
 	smp_muxed_ipi_set_message(cpu, msg);
+
 	/*
 	 * cause_ipi functions are required to include a full barrier
 	 * before doing whatever causes the IPI.
 	 */
-	smp_ops->cause_ipi(cpu, info->data);
+	smp_ops->cause_ipi(cpu);
 }
 
 #ifdef __BIG_ENDIAN__
@@ -254,11 +246,12 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 
 irqreturn_t smp_ipi_demux(void)
 {
-	struct cpu_messages *info = this_cpu_ptr(&ipi_message);
+	struct cpu_messages *info;
 	unsigned long all;
 
 	mb();	/* order any irq clear */
 
+	info = this_cpu_ptr(&ipi_message);
 	do {
 		all = xchg(&info->messages, 0);
 #if defined(CONFIG_KVM_XICS) && defined(CONFIG_KVM_BOOK3S_HV_POSSIBLE)

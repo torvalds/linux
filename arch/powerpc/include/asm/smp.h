@@ -40,7 +40,7 @@ extern int cpu_to_chip_id(int cpu);
 struct smp_ops_t {
 	void  (*message_pass)(int cpu, int msg);
 #ifdef CONFIG_PPC_SMP_MUXED_IPI
-	void  (*cause_ipi)(int cpu, unsigned long data);
+	void  (*cause_ipi)(int cpu);
 #endif
 	void  (*probe)(void);
 	int   (*kick_cpu)(int nr);
@@ -125,7 +125,6 @@ extern int smp_request_message_ipi(int virq, int message);
 extern const char *smp_ipi_name[];
 
 /* for irq controllers with only a single ipi */
-extern void smp_muxed_ipi_set_data(int cpu, unsigned long data);
 extern void smp_muxed_ipi_message_pass(int cpu, int msg);
 extern void smp_muxed_ipi_set_message(int cpu, int msg);
 extern irqreturn_t smp_ipi_demux(void);
