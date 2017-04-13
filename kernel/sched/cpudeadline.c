@@ -246,7 +246,6 @@ int cpudl_init(struct cpudl *cp)
 {
 	int i;
 
-	memset(cp, 0, sizeof(*cp));
 	raw_spin_lock_init(&cp->lock);
 	cp->size = 0;
 
