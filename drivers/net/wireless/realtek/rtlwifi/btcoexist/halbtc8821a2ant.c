@@ -693,11 +693,11 @@ static void btc8821a2ant_set_sw_penalty_tx_rate_adaptive(
 		/* normal rate except MCS7/6/5, OFDM54/48/36 */
 		h2c_parameter[2] = 0x00;
 		/* MCS7 or OFDM54 */
-		h2c_parameter[3] = 0xf7;
+		h2c_parameter[3] = 0xf5;
 		/* MCS6 or OFDM48 */
-		h2c_parameter[4] = 0xf8;
+		h2c_parameter[4] = 0xa0;
 		/* MCS5 or OFDM36 */
-		h2c_parameter[5] = 0xf9;
+		h2c_parameter[5] = 0xa0;
 	}
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
