@@ -50,6 +50,8 @@ struct tegra_pwm_chip {
 	struct clk *clk;
 	struct reset_control*rst;
 
+	unsigned long clk_rate;
+
 	void __iomem *regs;
 
 	const struct tegra_pwm_soc *soc;
@@ -94,7 +96,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * Compute the prescaler value for which (1 << PWM_DUTY_WIDTH)
 	 * cycles at the PWM clock rate will take period_ns nanoseconds.
 	 */
-	rate = clk_get_rate(pc->clk) >> PWM_DUTY_WIDTH;
+	rate = pc->clk_rate >> PWM_DUTY_WIDTH;
 
 	/* Consider precision in PWM_SCALE_WIDTH rate calculation */
 	hz = DIV_ROUND_CLOSEST_ULL(100ULL * NSEC_PER_SEC, period_ns);
@@ -198,6 +200,9 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	pwm->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
+
+	/* Read PWM clock rate from source */
+	pwm->clk_rate = clk_get_rate(pwm->clk);
 
 	pwm->rst = devm_reset_control_get(&pdev->dev, "pwm");
 	if (IS_ERR(pwm->rst)) {
