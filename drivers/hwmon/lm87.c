@@ -985,10 +985,18 @@ static const struct i2c_device_id lm87_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm87_id);
 
+static const struct of_device_id lm87_of_match[] = {
+	{ .compatible = "ti,lm87" },
+	{ .compatible = "adi,adm1024" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, lm87_of_match);
+
 static struct i2c_driver lm87_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm87",
+		.of_match_table = lm87_of_match,
 	},
 	.probe		= lm87_probe,
 	.id_table	= lm87_id,
