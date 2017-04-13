@@ -37,6 +37,7 @@
 #include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/crash_dump.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/cq.h>
@@ -151,6 +152,14 @@ static inline int mlx5_max_log_rq_size(int wq_type)
 	default:
 		return MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE;
 	}
+}
+
+static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
+{
+	return is_kdump_kernel() ?
+		MLX5E_MIN_NUM_CHANNELS :
+		min_t(int, mdev->priv.eq_table.num_comp_vectors,
+		      MLX5E_MAX_NUM_CHANNELS);
 }
 
 struct mlx5e_tx_wqe {

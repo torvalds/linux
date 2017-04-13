@@ -31,7 +31,6 @@
  */
 
 #include <net/tc_act/tc_gact.h>
-#include <linux/crash_dump.h>
 #include <net/pkt_cls.h>
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
@@ -1708,14 +1707,6 @@ static int mlx5e_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	mutex_unlock(&priv->state_lock);
 
 	return err;
-}
-
-static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
-{
-	return is_kdump_kernel() ?
-		MLX5E_MIN_NUM_CHANNELS :
-		min_t(int, mdev->priv.eq_table.num_comp_vectors,
-		      MLX5E_MAX_NUM_CHANNELS);
 }
 
 static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,

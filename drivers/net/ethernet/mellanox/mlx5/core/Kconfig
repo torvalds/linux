@@ -31,3 +31,10 @@ config MLX5_CORE_EN_DCB
 	  This flag is depended on the kernel's DCB support.
 
 	  If unsure, set to Y
+
+config MLX5_CORE_IPOIB
+	bool "Mellanox Technologies ConnectX-4 IPoIB offloads support"
+	depends on MLX5_CORE_EN
+	default y
+	---help---
+	  MLX5 IPoIB offloads & acceleration support.
