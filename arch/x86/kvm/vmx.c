@@ -6221,7 +6221,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 		 * page table accesses are reads or writes.
 		 */
 		u64 eptp = nested_ept_get_cr3(vcpu);
-		if (eptp & VMX_EPT_AD_ENABLE_BIT)
+		if (!(eptp & VMX_EPT_AD_ENABLE_BIT))
 			exit_qualification &= ~EPT_VIOLATION_ACC_WRITE;
 	}
 
