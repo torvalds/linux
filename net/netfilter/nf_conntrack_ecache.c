@@ -195,7 +195,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 
 	events = xchg(&e->cache, 0);
 
-	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct) || !events)
+	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
 		goto out_unlock;
 
 	/* We make a copy of the missed event cache without taking
@@ -212,7 +212,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 
 	ret = notify->fcn(events | missed, &item);
 
-	if (likely(ret >= 0 && !missed))
+	if (likely(ret == 0 && !missed))
 		goto out_unlock;
 
 	spin_lock_bh(&ct->lock);
