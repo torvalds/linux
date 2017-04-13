@@ -304,6 +304,7 @@ struct mlx5e_cq {
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_tx_wqe_info {
+	struct sk_buff *skb;
 	u32 num_bytes;
 	u8  num_wqebbs;
 	u8  num_dma;
@@ -345,7 +346,6 @@ struct mlx5e_txqsq {
 
 	/* write@xmit, read@completion */
 	struct {
-		struct sk_buff           **skb;
 		struct mlx5e_sq_dma       *dma_fifo;
 		struct mlx5e_tx_wqe_info  *wqe_info;
 	} db;

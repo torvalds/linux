@@ -1042,7 +1042,6 @@ static void mlx5e_free_txqsq_db(struct mlx5e_txqsq *sq)
 {
 	kfree(sq->db.wqe_info);
 	kfree(sq->db.dma_fifo);
-	kfree(sq->db.skb);
 }
 
 static int mlx5e_alloc_txqsq_db(struct mlx5e_txqsq *sq, int numa)
@@ -1050,13 +1049,11 @@ static int mlx5e_alloc_txqsq_db(struct mlx5e_txqsq *sq, int numa)
 	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 	int df_sz = wq_sz * MLX5_SEND_WQEBB_NUM_DS;
 
-	sq->db.skb = kzalloc_node(wq_sz * sizeof(*sq->db.skb),
-				      GFP_KERNEL, numa);
 	sq->db.dma_fifo = kzalloc_node(df_sz * sizeof(*sq->db.dma_fifo),
 					   GFP_KERNEL, numa);
 	sq->db.wqe_info = kzalloc_node(wq_sz * sizeof(*sq->db.wqe_info),
 					   GFP_KERNEL, numa);
-	if (!sq->db.skb || !sq->db.dma_fifo || !sq->db.wqe_info) {
+	if (!sq->db.dma_fifo || !sq->db.wqe_info) {
 		mlx5e_free_txqsq_db(sq);
 		return -ENOMEM;
 	}
@@ -1295,7 +1292,7 @@ static void mlx5e_deactivate_txqsq(struct mlx5e_txqsq *sq)
 	if (mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, 1)) {
 		struct mlx5e_tx_wqe *nop;
 
-		sq->db.skb[(sq->pc & sq->wq.sz_m1)] = NULL;
+		sq->db.wqe_info[(sq->pc & sq->wq.sz_m1)].skb = NULL;
 		nop = mlx5e_post_nop(&sq->wq, sq->sqn, &sq->pc);
 		mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &nop->ctrl);
 	}
