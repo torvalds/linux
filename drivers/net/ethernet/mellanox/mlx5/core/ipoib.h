@@ -49,5 +49,6 @@ struct mlx5i_priv {
 
 netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey);
+void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 
 #endif /* __MLX5E_IPOB_H__ */
