@@ -134,6 +134,15 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 	return r;
 }
 
+void amdgpu_gtt_mgr_print(struct seq_file *m, struct ttm_mem_type_manager *man)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
+	struct amdgpu_gtt_mgr *mgr = man->priv;
+
+	seq_printf(m, "man size:%llu pages, gtt available:%llu pages, usage:%lluMB\n",
+		   man->size, mgr->available, (u64)atomic64_read(&adev->gtt_usage) >> 20);
+
+}
 /**
  * amdgpu_gtt_mgr_new - allocate a new node
  *
