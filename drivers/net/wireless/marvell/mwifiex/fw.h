@@ -43,6 +43,24 @@ struct tx_packet_hdr {
 	struct rfc_1042_hdr rfc1042_hdr;
 } __packed;
 
+struct mwifiex_fw_header {
+	__le32 dnld_cmd;
+	__le32 base_addr;
+	__le32 data_length;
+	__le32 crc;
+} __packed;
+
+struct mwifiex_fw_data {
+	struct mwifiex_fw_header header;
+	__le32 seq_num;
+	u8 data[1];
+} __packed;
+
+#define MWIFIEX_FW_DNLD_CMD_1 0x1
+#define MWIFIEX_FW_DNLD_CMD_5 0x5
+#define MWIFIEX_FW_DNLD_CMD_6 0x6
+#define MWIFIEX_FW_DNLD_CMD_7 0x7
+
 #define B_SUPPORTED_RATES               5
 #define G_SUPPORTED_RATES               9
 #define BG_SUPPORTED_RATES              13
