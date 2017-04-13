@@ -252,7 +252,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	m = get_mqd(mqd);
 
 	valid_wptr = copy_from_user(&shadow_wptr, wptr, sizeof(shadow_wptr));
-	if (valid_wptr > 0)
+	if (valid_wptr == 0)
 		m->cp_hqd_pq_wptr = shadow_wptr;
 
 	acquire_queue(kgd, pipe_id, queue_id);
