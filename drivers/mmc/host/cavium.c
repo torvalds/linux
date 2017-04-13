@@ -733,7 +733,7 @@ static void do_write_request(struct cvm_mmc_host *host, struct mmc_request *mrq)
 		}
 
 		while (smi->consumed < smi->length && shift >= 0) {
-			dat |= ((u8 *)smi->addr)[smi->consumed] << shift;
+			dat |= (u64)((u8 *)smi->addr)[smi->consumed] << shift;
 			bytes_xfered++;
 			smi->consumed++;
 			shift -= 8;
