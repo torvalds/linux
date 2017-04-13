@@ -1502,8 +1502,8 @@ static int bq24190_probe(struct i2c_client *client,
 	if (bdi->extcon) {
 		INIT_DELAYED_WORK(&bdi->extcon_work, bq24190_extcon_work);
 		bdi->extcon_nb.notifier_call = bq24190_extcon_event;
-		ret = devm_extcon_register_notifier(dev, bdi->extcon, -1,
-						    &bdi->extcon_nb);
+		ret = devm_extcon_register_notifier_all(dev, bdi->extcon,
+							&bdi->extcon_nb);
 		if (ret) {
 			dev_err(dev, "Can't register extcon\n");
 			goto out_sysfs;
