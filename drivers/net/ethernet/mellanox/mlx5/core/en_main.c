@@ -585,14 +585,16 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-		if (mlx5e_is_vf_vport_rep(c->priv)) {
-			err = -EINVAL;
-			goto err_rq_wq_destroy;
-		}
 
-		rq->handle_rx_cqe = mlx5e_handle_rx_cqe_mpwrq;
 		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
+
+		rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe_mpwqe;
+		if (!rq->handle_rx_cqe) {
+			err = -EINVAL;
+			netdev_err(c->netdev, "RX handler of MPWQE RQ is not set, err %d\n", err);
+			goto err_rq_wq_destroy;
+		}
 
 		rq->mpwqe_stride_sz = BIT(params->mpwqe_log_stride_sz);
 		rq->mpwqe_num_strides = BIT(params->mpwqe_log_num_strides);
@@ -616,14 +618,16 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			err = -ENOMEM;
 			goto err_rq_wq_destroy;
 		}
-
-		if (mlx5e_is_vf_vport_rep(c->priv))
-			rq->handle_rx_cqe = mlx5e_handle_rx_cqe_rep;
-		else
-			rq->handle_rx_cqe = mlx5e_handle_rx_cqe;
-
 		rq->alloc_wqe = mlx5e_alloc_rx_wqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
+
+		rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe;
+		if (!rq->handle_rx_cqe) {
+			kfree(rq->dma_info);
+			err = -EINVAL;
+			netdev_err(c->netdev, "RX handler of RQ is not set, err %d\n", err);
+			goto err_rq_wq_destroy;
+		}
 
 		rq->buff.wqe_sz = params->lro_en  ?
 				params->lro_wqe_sz :
@@ -4229,6 +4233,8 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.disable	   = mlx5e_nic_disable,
 	.update_stats	   = mlx5e_update_stats,
 	.max_nch	   = mlx5e_get_max_num_channels,
+	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe,
+	.rx_handlers.handle_rx_cqe_mpwqe = mlx5e_handle_rx_cqe_mpwrq,
 	.max_tc		   = MLX5E_MAX_NUM_TC,
 };
 

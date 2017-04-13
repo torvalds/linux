@@ -779,6 +779,10 @@ struct mlx5e_profile {
 	void	(*disable)(struct mlx5e_priv *priv);
 	void	(*update_stats)(struct mlx5e_priv *priv);
 	int	(*max_nch)(struct mlx5_core_dev *mdev);
+	struct {
+		mlx5e_fp_handle_rx_cqe handle_rx_cqe;
+		mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
+	} rx_handlers;
 	int	max_tc;
 };
 
@@ -1032,7 +1036,6 @@ int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
 bool mlx5e_has_offload_stats(const struct net_device *dev, int attr_id);
 
 bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);
-bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv);
 
 /* mlx5e generic netdev management API */
 struct net_device*
