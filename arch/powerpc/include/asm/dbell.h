@@ -44,6 +44,17 @@ static inline void _ppc_msgsnd(u32 msg)
 		__asm__ __volatile__ (PPC_MSGSNDP(%0) : : "r" (msg));
 }
 
+/* sync before sending message */
+static inline void ppc_msgsnd_sync(void)
+{
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
+
+/* sync after taking message interrupt */
+static inline void ppc_msgsync(void)
+{
+}
+
 #else /* CONFIG_PPC_BOOK3S */
 
 #define PPC_DBELL_MSGTYPE		PPC_DBELL
@@ -51,6 +62,17 @@ static inline void _ppc_msgsnd(u32 msg)
 static inline void _ppc_msgsnd(u32 msg)
 {
 	__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+}
+
+/* sync before sending message */
+static inline void ppc_msgsnd_sync(void)
+{
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
+
+/* sync after taking message interrupt */
+static inline void ppc_msgsync(void)
+{
 }
 
 #endif /* CONFIG_PPC_BOOK3S */

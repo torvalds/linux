@@ -246,10 +246,16 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 
 irqreturn_t smp_ipi_demux(void)
 {
+	mb();	/* order any irq clear */
+
+	return smp_ipi_demux_relaxed();
+}
+
+/* sync-free variant. Callers should ensure synchronization */
+irqreturn_t smp_ipi_demux_relaxed(void)
+{
 	struct cpu_messages *info;
 	unsigned long all;
-
-	mb();	/* order any irq clear */
 
 	info = this_cpu_ptr(&ipi_message);
 	do {
