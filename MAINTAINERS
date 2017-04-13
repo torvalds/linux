@@ -12187,12 +12187,17 @@ F:	Documentation/accounting/taskstats*
 F:	include/linux/taskstats*
 F:	kernel/taskstats.c
 
-TC CLASSIFIER
+TC subsystem
 M:	Jamal Hadi Salim <jhs@mojatatu.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/net/pkt_cls.h
+F:	include/net/pkt_sched.h
+F:	include/net/tc_act/
 F:	include/uapi/linux/pkt_cls.h
+F:	include/uapi/linux/pkt_sched.h
+F:	include/uapi/linux/tc_act/
+F:	include/uapi/linux/tc_ematch/
 F:	net/sched/
 
 TCP LOW PRIORITY MODULE
