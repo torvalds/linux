@@ -33,7 +33,7 @@
 #include "smsc95xx.h"
 
 #define SMSC_CHIPNAME			"smsc95xx"
-#define SMSC_DRIVER_VERSION		"1.0.5"
+#define SMSC_DRIVER_VERSION		"1.0.6"
 #define HS_USB_PKT_SIZE			(512)
 #define FS_USB_PKT_SIZE			(64)
 #define DEFAULT_HS_BURST_CAP_SIZE	(16 * 1024 + 5 * HS_USB_PKT_SIZE)
@@ -1499,7 +1499,7 @@ static int smsc95xx_enter_suspend3(struct usbnet *dev)
 	if (ret < 0)
 		return ret;
 
-	if (val & 0xFFFF) {
+	if (val & RX_FIFO_INF_USED_) {
 		netdev_info(dev->net, "rx fifo not empty in autosuspend\n");
 		return -EBUSY;
 	}
