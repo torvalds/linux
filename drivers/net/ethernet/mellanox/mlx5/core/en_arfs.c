@@ -321,10 +321,16 @@ static int arfs_create_table(struct mlx5e_priv *priv,
 {
 	struct mlx5e_arfs_tables *arfs = &priv->fs.arfs;
 	struct mlx5e_flow_table *ft = &arfs->arfs_tables[type].ft;
+	struct mlx5_flow_table_attr ft_attr = {};
 	int err;
 
-	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_ARFS_TABLE_SIZE, MLX5E_ARFS_FT_LEVEL, 0);
+	ft->num_groups = 0;
+
+	ft_attr.max_fte = MLX5E_ARFS_TABLE_SIZE;
+	ft_attr.level = MLX5E_ARFS_FT_LEVEL;
+	ft_attr.prio = MLX5E_NIC_PRIO;
+
+	ft->t = mlx5_create_flow_table(priv->fs.ns, &ft_attr);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
 		ft->t = NULL;
