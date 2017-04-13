@@ -25,8 +25,10 @@
 		};
 
 		syscon: syscon@40000000 {
-			compatible = "cortina,gemini-syscon", "syscon", "simple-mfd";
+			compatible = "cortina,gemini-syscon",
+				     "syscon", "simple-mfd";
 			reg = <0x40000000 0x1000>;
+			#reset-cells = <1>;
 
 			syscon-reboot {
 				compatible = "syscon-reboot";
@@ -42,11 +44,13 @@
 			compatible = "cortina,gemini-watchdog";
 			reg = <0x41000000 0x1000>;
 			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon 23>;
 		};
 
 		uart0: serial@42000000 {
 			compatible = "ns16550a";
 			reg = <0x42000000 0x100>;
+			resets = <&syscon 18>;
 			clock-frequency = <48000000>;
 			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -59,6 +63,7 @@
 			interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
 				     <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
 				     <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+			resets = <&syscon 17>;
 			syscon = <&syscon>;
 		};
 
@@ -66,11 +71,13 @@
 			compatible = "cortina,gemini-rtc";
 			reg = <0x45000000 0x100>;
 			interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon 16>;
 		};
 
 		intcon: interrupt-controller@48000000 {
 			compatible = "faraday,ftintc010";
 			reg = <0x48000000 0x1000>;
+			resets = <&syscon 14>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
@@ -85,6 +92,7 @@
 			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
 			reg = <0x4d000000 0x100>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon 20>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
@@ -95,6 +103,7 @@
 			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
 			reg = <0x4e000000 0x100>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon 21>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
@@ -105,6 +114,7 @@
 			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
 			reg = <0x4f000000 0x100>;
 			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon 22>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
@@ -118,6 +128,7 @@
 			 * to configure the host bridge.
 			 */
 			reg = <0x50000000 0x100>;
+			resets = <&syscon 7>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
