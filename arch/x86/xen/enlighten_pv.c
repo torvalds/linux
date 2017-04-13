@@ -327,6 +327,12 @@ static void __init xen_init_cpuid_mask(void)
 		cpuid_leaf1_ecx_set_mask = (1 << (X86_FEATURE_MWAIT % 32));
 }
 
+static void __init xen_init_capabilities(void)
+{
+	setup_clear_cpu_cap(X86_BUG_SYSRET_SS_ATTRS);
+	setup_force_cpu_cap(X86_FEATURE_XENPV);
+}
+
 static void xen_set_debugreg(int reg, unsigned long val)
 {
 	HYPERVISOR_set_debugreg(reg, val);
@@ -1318,6 +1324,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	xen_init_irq_ops();
 	xen_init_cpuid_mask();
+	xen_init_capabilities();
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/*
@@ -1506,16 +1513,9 @@ static uint32_t __init xen_platform_pv(void)
 	return 0;
 }
 
-static void xen_set_cpu_features(struct cpuinfo_x86 *c)
-{
-	clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
-	set_cpu_cap(c, X86_FEATURE_XENPV);
-}
-
 const struct hypervisor_x86 x86_hyper_xen_pv = {
 	.name                   = "Xen PV",
 	.detect                 = xen_platform_pv,
-	.set_cpu_features       = xen_set_cpu_features,
 	.pin_vcpu               = xen_pin_vcpu,
 };
 EXPORT_SYMBOL(x86_hyper_xen_pv);
