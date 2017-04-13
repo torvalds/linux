@@ -1514,11 +1514,9 @@ static irqreturn_t mwifiex_irq_wakeup_handler(int irq, void *priv)
 {
 	struct mwifiex_adapter *adapter = priv;
 
-	if (adapter->irq_wakeup >= 0) {
-		dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
-		adapter->wake_by_wifi = true;
-		disable_irq_nosync(irq);
-	}
+	dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
+	adapter->wake_by_wifi = true;
+	disable_irq_nosync(irq);
 
 	/* Notify PM core we are wakeup source */
 	pm_wakeup_event(adapter->dev, 0);
