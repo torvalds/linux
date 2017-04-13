@@ -161,14 +161,28 @@ struct __opa_veswport_trap {
 } __packed;
 
 /**
+ * struct opa_vnic_ctrl_port - OPA virtual NIC control port
+ * @ibdev: pointer to ib device
+ * @ops: opa vnic control operations
+ */
+struct opa_vnic_ctrl_port {
+	struct ib_device           *ibdev;
+	struct opa_vnic_ctrl_ops   *ops;
+};
+
+/**
  * struct opa_vnic_adapter - OPA VNIC netdev private data structure
  * @netdev: pointer to associated netdev
  * @ibdev: ib device
+ * @cport: pointer to opa vnic control port
  * @rn_ops: rdma netdev's net_device_ops
  * @port_num: OPA port number
  * @vport_num: vesw port number
  * @lock: adapter lock
  * @info: virtual ethernet switch port information
+ * @vema_mac_addr: mac address configured by vema
+ * @umac_hash: unicast maclist hash
+ * @mmac_hash: multicast maclist hash
  * @mactbl: hash table of MAC entries
  * @mactbl_lock: mac table lock
  * @stats_lock: statistics lock
@@ -177,6 +191,7 @@ struct __opa_veswport_trap {
 struct opa_vnic_adapter {
 	struct net_device             *netdev;
 	struct ib_device              *ibdev;
+	struct opa_vnic_ctrl_port     *cport;
 	const struct net_device_ops   *rn_ops;
 
 	u8 port_num;
@@ -186,6 +201,9 @@ struct opa_vnic_adapter {
 	struct mutex lock;
 
 	struct __opa_veswport_info  info;
+	u8                          vema_mac_addr[ETH_ALEN];
+	u32                         umac_hash;
+	u32                         mmac_hash;
 	struct hlist_head  __rcu   *mactbl;
 
 	/* Lock used to protect updates to mac table */
@@ -224,6 +242,11 @@ struct opa_vnic_mac_tbl_node {
 	netdev_info(adapter->netdev, format, ## arg)
 #define v_warn(format, arg...) \
 	netdev_warn(adapter->netdev, format, ## arg)
+
+#define c_err(format, arg...) \
+	dev_err(&cport->ibdev->dev, format, ## arg)
+#define c_info(format, arg...) \
+	dev_info(&cport->ibdev->dev, format, ## arg)
 
 /* The maximum allowed entries in the mac table */
 #define OPA_VNIC_MAC_TBL_MAX_ENTRIES  2048
@@ -264,11 +287,32 @@ void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter);
 void opa_vnic_encap_skb(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
 u8 opa_vnic_get_vl(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
 u8 opa_vnic_calc_entropy(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
+void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter);
 void opa_vnic_release_mac_tbl(struct opa_vnic_adapter *adapter);
 void opa_vnic_query_mac_tbl(struct opa_vnic_adapter *adapter,
 			    struct opa_veswport_mactable *tbl);
 int opa_vnic_update_mac_tbl(struct opa_vnic_adapter *adapter,
 			    struct opa_veswport_mactable *tbl);
+void opa_vnic_query_ucast_macs(struct opa_vnic_adapter *adapter,
+			       struct opa_veswport_iface_macs *macs);
+void opa_vnic_query_mcast_macs(struct opa_vnic_adapter *adapter,
+			       struct opa_veswport_iface_macs *macs);
+void opa_vnic_get_summary_counters(struct opa_vnic_adapter *adapter,
+				   struct opa_veswport_summary_counters *cntrs);
+void opa_vnic_get_error_counters(struct opa_vnic_adapter *adapter,
+				 struct opa_veswport_error_counters *cntrs);
+void opa_vnic_get_vesw_info(struct opa_vnic_adapter *adapter,
+			    struct opa_vesw_info *info);
+void opa_vnic_set_vesw_info(struct opa_vnic_adapter *adapter,
+			    struct opa_vesw_info *info);
+void opa_vnic_get_per_veswport_info(struct opa_vnic_adapter *adapter,
+				    struct opa_per_veswport_info *info);
+void opa_vnic_set_per_veswport_info(struct opa_vnic_adapter *adapter,
+				    struct opa_per_veswport_info *info);
+void opa_vnic_vema_report_event(struct opa_vnic_adapter *adapter, u8 event);
+struct opa_vnic_adapter *opa_vnic_add_vport(struct opa_vnic_ctrl_port *cport,
+					    u8 port_num, u8 vport_num);
+void opa_vnic_rem_vport(struct opa_vnic_adapter *adapter);
 void opa_vnic_set_ethtool_ops(struct net_device *netdev);
 
 #endif /* _OPA_VNIC_INTERNAL_H */

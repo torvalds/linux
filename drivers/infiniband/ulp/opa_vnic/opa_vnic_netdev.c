@@ -52,6 +52,7 @@
 
 #include <linux/module.h>
 #include <linux/if_vlan.h>
+#include <linux/crc32.h>
 
 #include "opa_vnic_internal.h"
 
@@ -111,6 +112,79 @@ static u16 opa_vnic_select_queue(struct net_device *netdev, struct sk_buff *skb,
 	return rc;
 }
 
+/* opa_vnic_process_vema_config - process vema configuration updates */
+void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter)
+{
+	struct __opa_veswport_info *info = &adapter->info;
+	struct rdma_netdev *rn = netdev_priv(adapter->netdev);
+	u8 port_num[OPA_VESW_MAX_NUM_DEF_PORT] = { 0 };
+	struct net_device *netdev = adapter->netdev;
+	u8 i, port_count = 0;
+	u16 port_mask;
+
+	/* If the base_mac_addr is changed, update the interface mac address */
+	if (memcmp(info->vport.base_mac_addr, adapter->vema_mac_addr,
+		   ARRAY_SIZE(info->vport.base_mac_addr))) {
+		struct sockaddr saddr;
+
+		memcpy(saddr.sa_data, info->vport.base_mac_addr,
+		       ARRAY_SIZE(info->vport.base_mac_addr));
+		mutex_lock(&adapter->lock);
+		eth_mac_addr(netdev, &saddr);
+		memcpy(adapter->vema_mac_addr,
+		       info->vport.base_mac_addr, ETH_ALEN);
+		mutex_unlock(&adapter->lock);
+	}
+
+	rn->set_id(netdev, info->vesw.vesw_id);
+
+	/* Handle MTU limit change */
+	rtnl_lock();
+	netdev->max_mtu = max_t(unsigned int, info->vesw.eth_mtu_non_vlan,
+				netdev->min_mtu);
+	if (netdev->mtu > netdev->max_mtu)
+		dev_set_mtu(netdev, netdev->max_mtu);
+	rtnl_unlock();
+
+	/* Update flow to default port redirection table */
+	port_mask = info->vesw.def_port_mask;
+	for (i = 0; i < OPA_VESW_MAX_NUM_DEF_PORT; i++) {
+		if (port_mask & 1)
+			port_num[port_count++] = i;
+		port_mask >>= 1;
+	}
+
+	/*
+	 * Build the flow table. Flow table is required when destination LID
+	 * is not available. Up to OPA_VNIC_FLOW_TBL_SIZE flows supported.
+	 * Each flow need a default port number to get its dlid from the
+	 * u_ucast_dlid array.
+	 */
+	for (i = 0; i < OPA_VNIC_FLOW_TBL_SIZE; i++)
+		adapter->flow_tbl[i] = port_count ? port_num[i % port_count] :
+						    OPA_VNIC_INVALID_PORT;
+
+	/* Operational state can only be DROP_ALL or FORWARDING */
+	if (info->vport.config_state == OPA_VNIC_STATE_FORWARDING) {
+		info->vport.oper_state = OPA_VNIC_STATE_FORWARDING;
+		netif_dormant_off(netdev);
+	} else {
+		info->vport.oper_state = OPA_VNIC_STATE_DROP_ALL;
+		netif_dormant_on(netdev);
+	}
+}
+
+/*
+ * Set the power on default values in adapter's vema interface structure.
+ */
+static inline void opa_vnic_set_pod_values(struct opa_vnic_adapter *adapter)
+{
+	adapter->info.vport.max_mac_tbl_ent = OPA_VNIC_MAC_TBL_MAX_ENTRIES;
+	adapter->info.vport.max_smac_ent = OPA_VNIC_MAX_SMAC_LIMIT;
+	adapter->info.vport.config_state = OPA_VNIC_STATE_DROP_ALL;
+	adapter->info.vport.eth_link_status = OPA_VNIC_ETH_LINK_DOWN;
+}
+
 /* opa_vnic_set_mac_addr - change mac address */
 static int opa_vnic_set_mac_addr(struct net_device *netdev, void *addr)
 {
@@ -124,8 +198,62 @@ static int opa_vnic_set_mac_addr(struct net_device *netdev, void *addr)
 	mutex_lock(&adapter->lock);
 	rc = eth_mac_addr(netdev, addr);
 	mutex_unlock(&adapter->lock);
+	if (rc)
+		return rc;
 
-	return rc;
+	adapter->info.vport.uc_macs_gen_count++;
+	opa_vnic_vema_report_event(adapter,
+				   OPA_VESWPORT_TRAP_IFACE_UCAST_MAC_CHANGE);
+	return 0;
+}
+
+/*
+ * opa_vnic_mac_send_event - post event on possible mac list exchange
+ *  Send trap when digest from uc/mc mac list differs from previous run.
+ *  Digest is evaluated similar to how cksum does.
+ */
+static void opa_vnic_mac_send_event(struct net_device *netdev, u8 event)
+{
+	struct opa_vnic_adapter *adapter = opa_vnic_priv(netdev);
+	struct netdev_hw_addr *ha;
+	struct netdev_hw_addr_list *hw_list;
+	u32 *ref_crc;
+	u32 l, crc = 0;
+
+	switch (event) {
+	case OPA_VESWPORT_TRAP_IFACE_UCAST_MAC_CHANGE:
+		hw_list = &netdev->uc;
+		adapter->info.vport.uc_macs_gen_count++;
+		ref_crc = &adapter->umac_hash;
+		break;
+	case OPA_VESWPORT_TRAP_IFACE_MCAST_MAC_CHANGE:
+		hw_list = &netdev->mc;
+		adapter->info.vport.mc_macs_gen_count++;
+		ref_crc = &adapter->mmac_hash;
+		break;
+	default:
+		return;
+	}
+	netdev_hw_addr_list_for_each(ha, hw_list) {
+		crc = crc32_le(crc, ha->addr, ETH_ALEN);
+	}
+	l = netdev_hw_addr_list_count(hw_list) * ETH_ALEN;
+	crc = ~crc32_le(crc, (void *)&l, sizeof(l));
+
+	if (crc != *ref_crc) {
+		*ref_crc = crc;
+		opa_vnic_vema_report_event(adapter, event);
+	}
+}
+
+/* opa_vnic_set_rx_mode - handle uc/mc mac list change */
+static void opa_vnic_set_rx_mode(struct net_device *netdev)
+{
+	opa_vnic_mac_send_event(netdev,
+				OPA_VESWPORT_TRAP_IFACE_UCAST_MAC_CHANGE);
+
+	opa_vnic_mac_send_event(netdev,
+				OPA_VESWPORT_TRAP_IFACE_MCAST_MAC_CHANGE);
 }
 
 /* opa_netdev_open - activate network interface */
@@ -140,6 +268,10 @@ static int opa_netdev_open(struct net_device *netdev)
 		return rc;
 	}
 
+	/* Update eth link status and send trap */
+	adapter->info.vport.eth_link_status = OPA_VNIC_ETH_LINK_UP;
+	opa_vnic_vema_report_event(adapter,
+				   OPA_VESWPORT_TRAP_ETH_LINK_STATUS_CHANGE);
 	return 0;
 }
 
@@ -155,6 +287,10 @@ static int opa_netdev_close(struct net_device *netdev)
 		return rc;
 	}
 
+	/* Update eth link status and send trap */
+	adapter->info.vport.eth_link_status = OPA_VNIC_ETH_LINK_DOWN;
+	opa_vnic_vema_report_event(adapter,
+				   OPA_VESWPORT_TRAP_ETH_LINK_STATUS_CHANGE);
 	return 0;
 }
 
@@ -164,6 +300,7 @@ static const struct net_device_ops opa_netdev_ops = {
 	.ndo_stop = opa_netdev_close,
 	.ndo_start_xmit = opa_netdev_start_xmit,
 	.ndo_get_stats64 = opa_vnic_get_stats64,
+	.ndo_set_rx_mode = opa_vnic_set_rx_mode,
 	.ndo_select_queue = opa_vnic_select_queue,
 	.ndo_set_mac_address = opa_vnic_set_mac_addr,
 };
@@ -212,6 +349,9 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	SET_NETDEV_DEV(netdev, ibdev->dev.parent);
 
 	opa_vnic_set_ethtool_ops(netdev);
+
+	opa_vnic_set_pod_values(adapter);
+
 	rc = register_netdev(netdev);
 	if (rc)
 		goto netdev_err;

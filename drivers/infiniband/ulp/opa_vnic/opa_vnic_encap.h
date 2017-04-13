@@ -99,6 +99,10 @@
 #define OPA_VNIC_DLID_SD_IS_SRC_MAC(dlid_sd)  (!!((dlid_sd) & 0x20))
 #define OPA_VNIC_DLID_SD_GET_DLID(dlid_sd)    ((dlid_sd) >> 8)
 
+/* VNIC Ethernet link status */
+#define OPA_VNIC_ETH_LINK_UP     1
+#define OPA_VNIC_ETH_LINK_DOWN   2
+
 /**
  * struct opa_vesw_info - OPA vnic switch information
  * @fabric_id: 10-bit fabric id
