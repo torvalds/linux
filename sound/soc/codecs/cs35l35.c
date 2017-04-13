@@ -918,6 +918,11 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 					CS35L35_MON_FRM_MASK,
 					monitor_config->imon_frm <<
 					CS35L35_MON_FRM_SHIFT);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_IMON_SCALE_CTL,
+					CS35L35_IMON_SCALE_MASK,
+					monitor_config->imon_scale <<
+					CS35L35_IMON_SCALE_SHIFT);
 		}
 		if (monitor_config->vpmon_specs) {
 			regmap_update_bits(cs35l35->regmap,
@@ -1161,7 +1166,9 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	struct classh_cfg *classh_config = &pdata->classh_algo;
 	struct monitor_cfg *monitor_config = &pdata->mon_cfg;
 	unsigned int val32 = 0;
-	u8 monitor_array[3];
+	u8 monitor_array[4];
+	const int imon_array_size = ARRAY_SIZE(monitor_array);
+	const int mon_array_size = imon_array_size - 1;
 	int ret = 0;
 
 	if (!np)
@@ -1302,15 +1309,16 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	monitor_config->is_present = signal_format ? true : false;
 	if (monitor_config->is_present) {
 		ret = of_property_read_u8_array(signal_format, "cirrus,imon",
-				   monitor_array, ARRAY_SIZE(monitor_array));
+						monitor_array, imon_array_size);
 		if (!ret) {
 			monitor_config->imon_specs = true;
 			monitor_config->imon_dpth = monitor_array[0];
 			monitor_config->imon_loc = monitor_array[1];
 			monitor_config->imon_frm = monitor_array[2];
+			monitor_config->imon_scale = monitor_array[3];
 		}
 		ret = of_property_read_u8_array(signal_format, "cirrus,vmon",
-				   monitor_array, ARRAY_SIZE(monitor_array));
+						monitor_array, mon_array_size);
 		if (!ret) {
 			monitor_config->vmon_specs = true;
 			monitor_config->vmon_dpth = monitor_array[0];
@@ -1318,7 +1326,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vmon_frm = monitor_array[2];
 		}
 		ret = of_property_read_u8_array(signal_format, "cirrus,vpmon",
-				   monitor_array, ARRAY_SIZE(monitor_array));
+						monitor_array, mon_array_size);
 		if (!ret) {
 			monitor_config->vpmon_specs = true;
 			monitor_config->vpmon_dpth = monitor_array[0];
@@ -1326,7 +1334,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vpmon_frm = monitor_array[2];
 		}
 		ret = of_property_read_u8_array(signal_format, "cirrus,vbstmon",
-				   monitor_array, ARRAY_SIZE(monitor_array));
+						monitor_array, mon_array_size);
 		if (!ret) {
 			monitor_config->vbstmon_specs = true;
 			monitor_config->vbstmon_dpth = monitor_array[0];
@@ -1334,7 +1342,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vbstmon_frm = monitor_array[2];
 		}
 		ret = of_property_read_u8_array(signal_format, "cirrus,vpbrstat",
-				   monitor_array, ARRAY_SIZE(monitor_array));
+						monitor_array, mon_array_size);
 		if (!ret) {
 			monitor_config->vpbrstat_specs = true;
 			monitor_config->vpbrstat_dpth = monitor_array[0];
@@ -1342,7 +1350,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->vpbrstat_frm = monitor_array[2];
 		}
 		ret = of_property_read_u8_array(signal_format, "cirrus,zerofill",
-				   monitor_array, ARRAY_SIZE(monitor_array));
+						monitor_array, mon_array_size);
 		if (!ret) {
 			monitor_config->zerofill_specs = true;
 			monitor_config->zerofill_dpth = monitor_array[0];

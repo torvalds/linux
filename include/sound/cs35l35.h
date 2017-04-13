@@ -57,6 +57,7 @@ struct monitor_cfg {
 	u8 imon_dpth;
 	u8 imon_loc;
 	u8 imon_frm;
+	u8 imon_scale;
 	u8 vmon_dpth;
 	u8 vmon_loc;
 	u8 vmon_frm;

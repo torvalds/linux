@@ -118,8 +118,8 @@ Optional Monitor Signal Format sub-node:
   Sections 7.44 - 7.53 lists values for the depth, location, and frame
   for each monitoring signal.
 
-  - cirrus,imon : 3 8 bit values to set the depth, location, and frame
-  of the IMON monitor signal.
+  - cirrus,imon : 4 8 bit values to set the depth, location, frame and ADC
+  scale of the IMON monitor signal.
 
   - cirrus,vmon : 3 8 bit values to set the depth, location, and frame
   of the VMON monitor signal.
