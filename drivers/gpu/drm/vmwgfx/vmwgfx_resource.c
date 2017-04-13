@@ -591,7 +591,7 @@ static int vmw_user_dmabuf_synccpu_grab(struct vmw_user_dma_buffer *user_bo,
 		return ret;
 
 	ret = ttm_ref_object_add(tfile, &user_bo->prime.base,
-				 TTM_REF_SYNCCPU_WRITE, &existed);
+				 TTM_REF_SYNCCPU_WRITE, &existed, false);
 	if (ret != 0 || existed)
 		ttm_bo_synccpu_write_release(&user_bo->dma.base);
 
@@ -775,7 +775,7 @@ int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
 
 	*handle = user_bo->prime.base.hash.key;
 	return ttm_ref_object_add(tfile, &user_bo->prime.base,
-				  TTM_REF_USAGE, NULL);
+				  TTM_REF_USAGE, NULL, false);
 }
 
 /*
