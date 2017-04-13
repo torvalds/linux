@@ -320,17 +320,11 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
 	unsigned int count = 0;
 	unsigned int idx = 0;
 
-	for (idx = 0; idx < ARRAY_SIZE(settings) && count < size; idx++) {
-		if (!(settings[idx].setting & phy->supported))
-			continue;
-
+	for (idx = 0; idx < ARRAY_SIZE(settings) && count < size; idx++)
 		/* Assumes settings are grouped by speed */
-		if ((count == 0) ||
-		    (speeds[count - 1] != settings[idx].speed)) {
-			speeds[count] = settings[idx].speed;
-			count++;
-		}
-	}
+		if ((settings[idx].setting & phy->supported) &&
+		    (count == 0 || speeds[count - 1] != settings[idx].speed))
+			speeds[count++] = settings[idx].speed;
 
 	return count;
 }
