@@ -5964,6 +5964,8 @@ static int rbd_dev_header_name(struct rbd_device *rbd_dev)
 static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 {
 	rbd_dev_unprobe(rbd_dev);
+	if (rbd_dev->opts)
+		rbd_unregister_watch(rbd_dev);
 	rbd_dev->image_format = 0;
 	kfree(rbd_dev->spec->image_id);
 	rbd_dev->spec->image_id = NULL;
@@ -6126,15 +6128,8 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	rbd_dev->mapping.read_only = read_only;
 
 	rc = rbd_dev_device_setup(rbd_dev);
-	if (rc) {
-		/*
-		 * rbd_unregister_watch() can't be moved into
-		 * rbd_dev_image_release() without refactoring, see
-		 * commit 1f3ef78861ac.
-		 */
-		rbd_unregister_watch(rbd_dev);
+	if (rc)
 		goto err_out_image_probe;
-	}
 
 	rc = count;
 out:
@@ -6275,14 +6270,7 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	if (__rbd_is_lock_owner(rbd_dev))
 		rbd_unlock(rbd_dev);
 	up_write(&rbd_dev->lock_rwsem);
-	rbd_unregister_watch(rbd_dev);
 
-	/*
-	 * Don't free anything from rbd_dev->disk until after all
-	 * notifies are completely processed. Otherwise
-	 * rbd_bus_del_dev() will race with rbd_watch_cb(), resulting
-	 * in a potential use after free of rbd_dev->disk or rbd_dev.
-	 */
 	rbd_dev_device_release(rbd_dev);
 	rbd_dev_image_release(rbd_dev);
 	rbd_dev_destroy(rbd_dev);
