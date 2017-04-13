@@ -25,8 +25,6 @@ extern struct pci_dev *isa_bridge_pcidev;
 #endif
 
 #include <linux/device.h>
-#include <linux/io.h>
-
 #include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/byteorder.h>
