@@ -75,11 +75,11 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 	struct gvt_firmware_header *h;
 	void *firmware;
 	void *p;
-	unsigned long size;
+	unsigned long size, crc32_start;
 	int i;
 	int ret;
 
-	size = sizeof(*h) + info->mmio_size + info->cfg_space_size - 1;
+	size = sizeof(*h) + info->mmio_size + info->cfg_space_size;
 	firmware = vzalloc(size);
 	if (!firmware)
 		return -ENOMEM;
@@ -111,6 +111,9 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 	}
 
 	memcpy(gvt->firmware.mmio, p, info->mmio_size);
+
+	crc32_start = offsetof(struct gvt_firmware_header, crc32) + 4;
+	h->crc32 = crc32_le(0, firmware + crc32_start, size - crc32_start);
 
 	firmware_attr.size = size;
 	firmware_attr.private = firmware;
@@ -234,7 +237,7 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt)
 
 	firmware->mmio = mem;
 
-	sprintf(path, "%s/vid_0x%04x_did_0x%04x_rid_0x%04x.golden_hw_state",
+	sprintf(path, "%s/vid_0x%04x_did_0x%04x_rid_0x%02x.golden_hw_state",
 		 GVT_FIRMWARE_PATH, pdev->vendor, pdev->device,
 		 pdev->revision);
 
