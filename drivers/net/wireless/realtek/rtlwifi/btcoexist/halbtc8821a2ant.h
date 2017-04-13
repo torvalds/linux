@@ -155,6 +155,8 @@ struct coex_sta_8821a_2ant {
 	u32	crc_err_11g;
 	u32	crc_err_11n;
 	u32	crc_err_11n_agg;
+
+	u8	coex_table_type;
 	bool	force_lps_on;
 };
 
