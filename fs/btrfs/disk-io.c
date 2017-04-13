@@ -121,7 +121,6 @@ struct async_submit_bio {
 	void *private_data;
 	struct btrfs_fs_info *fs_info;
 	struct bio *bio;
-	struct list_head list;
 	extent_submit_bio_hook_t *submit_bio_start;
 	extent_submit_bio_hook_t *submit_bio_done;
 	int mirror_num;
