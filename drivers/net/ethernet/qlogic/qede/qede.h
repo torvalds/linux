@@ -41,6 +41,9 @@
 #include <linux/mutex.h>
 #include <linux/bpf.h>
 #include <linux/io.h>
+#ifdef CONFIG_RFS_ACCEL
+#include <linux/cpu_rmap.h>
+#endif
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/eth_common.h>
 #include <linux/qed/qed_if.h>
@@ -237,7 +240,10 @@ struct qede_dev {
 	u16				vxlan_dst_port;
 	u16				geneve_dst_port;
 
-	bool wol_enabled;
+#ifdef CONFIG_RFS_ACCEL
+	struct qede_arfs		*arfs;
+#endif
+	bool				wol_enabled;
 
 	struct qede_rdma_dev		rdma_info;
 
@@ -438,6 +444,20 @@ struct qede_fastpath {
 #define QEDE_SP_RX_MODE			1
 #define QEDE_SP_VXLAN_PORT_CONFIG	2
 #define QEDE_SP_GENEVE_PORT_CONFIG	3
+
+#ifdef CONFIG_RFS_ACCEL
+int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
+		       u16 rxq_index, u32 flow_id);
+void qede_process_arfs_filters(struct qede_dev *edev, bool free_fltr);
+void qede_poll_for_freeing_arfs_filters(struct qede_dev *edev);
+void qede_arfs_filter_op(void *dev, void *filter, u8 fw_rc);
+void qede_free_arfs(struct qede_dev *edev);
+int qede_alloc_arfs(struct qede_dev *edev);
+
+#define QEDE_SP_ARFS_CONFIG	4
+#define QEDE_SP_TASK_POLL_DELAY	(5 * HZ)
+#define QEDE_RFS_MAX_FLTR	256
+#endif
 
 struct qede_reload_args {
 	void (*func)(struct qede_dev *edev, struct qede_reload_args *args);
