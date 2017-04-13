@@ -406,6 +406,7 @@ xfs_dir2_leaf_readbuf(
 
 	/*
 	 * Do we need more readahead?
+	 * Each loop tries to process 1 full dir blk; last may be partial.
 	 */
 	blk_start_plug(&plug);
 	for (mip->ra_index = mip->ra_offset = i = 0;
@@ -437,9 +438,14 @@ xfs_dir2_leaf_readbuf(
 		}
 
 		/*
-		 * Advance offset through the mapping table.
+		 * Advance offset through the mapping table, processing a full
+		 * dir block even if it is fragmented into several extents.
+		 * But stop if we have consumed all valid mappings, even if
+		 * it's not yet a full directory block.
 		 */
-		for (j = 0; j < geo->fsbcount; j += length ) {
+		for (j = 0;
+		     j < geo->fsbcount && mip->ra_index < mip->map_valid;
+		     j += length ) {
 			/*
 			 * The rest of this extent but not more than a dir
 			 * block.
