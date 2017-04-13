@@ -236,7 +236,7 @@ static int klp_resolve_symbols(Elf_Shdr *relasec, struct module *pmod)
 	for (i = 0; i < relasec->sh_size / sizeof(Elf_Rela); i++) {
 		sym = pmod->core_kallsyms.symtab + ELF_R_SYM(relas[i].r_info);
 		if (sym->st_shndx != SHN_LIVEPATCH) {
-			pr_err("symbol %s is not marked as a livepatch symbol",
+			pr_err("symbol %s is not marked as a livepatch symbol\n",
 			       strtab + sym->st_name);
 			return -EINVAL;
 		}
@@ -246,7 +246,7 @@ static int klp_resolve_symbols(Elf_Shdr *relasec, struct module *pmod)
 			     ".klp.sym.%55[^.].%127[^,],%lu",
 			     objname, symname, &sympos);
 		if (cnt != 3) {
-			pr_err("symbol %s has an incorrectly formatted name",
+			pr_err("symbol %s has an incorrectly formatted name\n",
 			       strtab + sym->st_name);
 			return -EINVAL;
 		}
@@ -291,7 +291,7 @@ static int klp_write_object_relocations(struct module *pmod,
 		 */
 		cnt = sscanf(secname, ".klp.rela.%55[^.]", sec_objname);
 		if (cnt != 1) {
-			pr_err("section %s has an incorrectly formatted name",
+			pr_err("section %s has an incorrectly formatted name\n",
 			       secname);
 			ret = -EINVAL;
 			break;
@@ -921,7 +921,7 @@ int klp_register_patch(struct klp_patch *patch)
 		return -EINVAL;
 
 	if (!is_livepatch_module(patch->mod)) {
-		pr_err("module %s is not marked as a livepatch module",
+		pr_err("module %s is not marked as a livepatch module\n",
 		       patch->mod->name);
 		return -EINVAL;
 	}
