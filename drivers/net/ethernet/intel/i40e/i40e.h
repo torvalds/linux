@@ -868,6 +868,8 @@ void i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
 
 int i40e_vsi_start_rings(struct i40e_vsi *vsi);
 void i40e_vsi_stop_rings(struct i40e_vsi *vsi);
+void i40e_vsi_stop_rings_no_wait(struct  i40e_vsi *vsi);
+int i40e_vsi_wait_queues_disabled(struct i40e_vsi *vsi);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc);
