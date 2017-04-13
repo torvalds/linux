@@ -1905,9 +1905,6 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
 
-	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
-		return;
-
 	cleanup_root_ns(steering->root_ns);
 	cleanup_root_ns(steering->esw_egress_root_ns);
 	cleanup_root_ns(steering->esw_ingress_root_ns);
@@ -2010,9 +2007,6 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 	struct mlx5_flow_steering *steering;
 	int err = 0;
 
-	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
-		return 0;
-
 	err = mlx5_init_fc_stats(dev);
 	if (err)
 		return err;
@@ -2023,7 +2017,10 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 	steering->dev = dev;
 	dev->priv.steering = steering;
 
-	if (MLX5_CAP_GEN(dev, nic_flow_table) &&
+	if ((((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
+	      (MLX5_CAP_GEN(dev, nic_flow_table))) ||
+	     ((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_IB) &&
+	      MLX5_CAP_GEN(dev, ipoib_enhanced_offloads))) &&
 	    MLX5_CAP_FLOWTABLE_NIC_RX(dev, ft_support)) {
 		err = init_root_ns(steering);
 		if (err)
