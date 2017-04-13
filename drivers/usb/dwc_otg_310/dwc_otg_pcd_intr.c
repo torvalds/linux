@@ -284,7 +284,7 @@ void start_next_request(dwc_otg_pcd_ep_t *ep)
 #endif
 		dwc_otg_ep_start_transfer(GET_CORE_IF(ep->pcd), &ep->dwc_ep);
 	} else if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC) {
-		DWC_PRINTF("There are no more ISOC requests \n");
+		DWC_DEBUGPL(DBG_PCD, "There are no more ISOC requests\n");
 		ep->dwc_ep.frame_num = 0xFFFFFFFF;
 	}
 }
