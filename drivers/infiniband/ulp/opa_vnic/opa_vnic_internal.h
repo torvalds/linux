@@ -169,6 +169,7 @@ struct __opa_veswport_trap {
  * @vport_num: vesw port number
  * @lock: adapter lock
  * @info: virtual ethernet switch port information
+ * @stats_lock: statistics lock
  * @flow_tbl: flow to default port redirection table
  */
 struct opa_vnic_adapter {
@@ -183,6 +184,9 @@ struct opa_vnic_adapter {
 	struct mutex lock;
 
 	struct __opa_veswport_info  info;
+
+	/* Lock used to protect access to vnic counters */
+	struct mutex stats_lock;
 
 	u8 flow_tbl[OPA_VNIC_FLOW_TBL_SIZE];
 };

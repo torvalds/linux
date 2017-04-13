@@ -53,9 +53,119 @@
 
 #include "opa_vnic_internal.h"
 
+enum {NETDEV_STATS, VNIC_STATS};
+
+struct vnic_stats {
+	char stat_string[ETH_GSTRING_LEN];
+	struct {
+		int sizeof_stat;
+		int stat_offset;
+	};
+};
+
+#define VNIC_STAT(m)            { FIELD_SIZEOF(struct opa_vnic_stats, m),   \
+				  offsetof(struct opa_vnic_stats, m) }
+
+static struct vnic_stats vnic_gstrings_stats[] = {
+	/* NETDEV stats */
+	{"rx_packets", VNIC_STAT(netstats.rx_packets)},
+	{"tx_packets", VNIC_STAT(netstats.tx_packets)},
+	{"rx_bytes", VNIC_STAT(netstats.rx_bytes)},
+	{"tx_bytes", VNIC_STAT(netstats.tx_bytes)},
+	{"rx_errors", VNIC_STAT(netstats.rx_errors)},
+	{"tx_errors", VNIC_STAT(netstats.tx_errors)},
+	{"rx_dropped", VNIC_STAT(netstats.rx_dropped)},
+	{"tx_dropped", VNIC_STAT(netstats.tx_dropped)},
+
+	/* SUMMARY counters */
+	{"tx_unicast", VNIC_STAT(tx_grp.unicast)},
+	{"tx_mcastbcast", VNIC_STAT(tx_grp.mcastbcast)},
+	{"tx_untagged", VNIC_STAT(tx_grp.untagged)},
+	{"tx_vlan", VNIC_STAT(tx_grp.vlan)},
+
+	{"tx_64_size", VNIC_STAT(tx_grp.s_64)},
+	{"tx_65_127", VNIC_STAT(tx_grp.s_65_127)},
+	{"tx_128_255", VNIC_STAT(tx_grp.s_128_255)},
+	{"tx_256_511", VNIC_STAT(tx_grp.s_256_511)},
+	{"tx_512_1023", VNIC_STAT(tx_grp.s_512_1023)},
+	{"tx_1024_1518", VNIC_STAT(tx_grp.s_1024_1518)},
+	{"tx_1519_max", VNIC_STAT(tx_grp.s_1519_max)},
+
+	{"rx_unicast", VNIC_STAT(rx_grp.unicast)},
+	{"rx_mcastbcast", VNIC_STAT(rx_grp.mcastbcast)},
+	{"rx_untagged", VNIC_STAT(rx_grp.untagged)},
+	{"rx_vlan", VNIC_STAT(rx_grp.vlan)},
+
+	{"rx_64_size", VNIC_STAT(rx_grp.s_64)},
+	{"rx_65_127", VNIC_STAT(rx_grp.s_65_127)},
+	{"rx_128_255", VNIC_STAT(rx_grp.s_128_255)},
+	{"rx_256_511", VNIC_STAT(rx_grp.s_256_511)},
+	{"rx_512_1023", VNIC_STAT(rx_grp.s_512_1023)},
+	{"rx_1024_1518", VNIC_STAT(rx_grp.s_1024_1518)},
+	{"rx_1519_max", VNIC_STAT(rx_grp.s_1519_max)},
+
+	/* ERROR counters */
+	{"rx_fifo_errors", VNIC_STAT(netstats.rx_fifo_errors)},
+	{"rx_length_errors", VNIC_STAT(netstats.rx_length_errors)},
+
+	{"tx_fifo_errors", VNIC_STAT(netstats.tx_fifo_errors)},
+	{"tx_carrier_errors", VNIC_STAT(netstats.tx_carrier_errors)},
+
+	{"tx_dlid_zero", VNIC_STAT(tx_dlid_zero)},
+	{"tx_drop_state", VNIC_STAT(tx_drop_state)},
+	{"rx_drop_state", VNIC_STAT(rx_drop_state)},
+	{"rx_oversize", VNIC_STAT(rx_oversize)},
+	{"rx_runt", VNIC_STAT(rx_runt)},
+};
+
+#define VNIC_STATS_LEN  ARRAY_SIZE(vnic_gstrings_stats)
+
+/* vnic_get_sset_count - get string set count */
+static int vnic_get_sset_count(struct net_device *netdev, int sset)
+{
+	return (sset == ETH_SS_STATS) ? VNIC_STATS_LEN : -EOPNOTSUPP;
+}
+
+/* vnic_get_ethtool_stats - get statistics */
+static void vnic_get_ethtool_stats(struct net_device *netdev,
+				   struct ethtool_stats *stats, u64 *data)
+{
+	struct opa_vnic_adapter *adapter = opa_vnic_priv(netdev);
+	struct opa_vnic_stats vstats;
+	int i;
+
+	memset(&vstats, 0, sizeof(vstats));
+	mutex_lock(&adapter->stats_lock);
+	adapter->rn_ops->ndo_get_stats64(netdev, &vstats.netstats);
+	for (i = 0; i < VNIC_STATS_LEN; i++) {
+		char *p = (char *)&vstats + vnic_gstrings_stats[i].stat_offset;
+
+		data[i] = (vnic_gstrings_stats[i].sizeof_stat ==
+			   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+	mutex_unlock(&adapter->stats_lock);
+}
+
+/* vnic_get_strings - get strings */
+static void vnic_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+{
+	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (i = 0; i < VNIC_STATS_LEN; i++)
+		memcpy(data + i * ETH_GSTRING_LEN,
+		       vnic_gstrings_stats[i].stat_string,
+		       ETH_GSTRING_LEN);
+}
+
 /* ethtool ops */
 static const struct ethtool_ops opa_vnic_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
+	.get_strings = vnic_get_strings,
+	.get_sset_count = vnic_get_sset_count,
+	.get_ethtool_stats = vnic_get_ethtool_stats,
 };
 
 /* opa_vnic_set_ethtool_ops - set ethtool ops */

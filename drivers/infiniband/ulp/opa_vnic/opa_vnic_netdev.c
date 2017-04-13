@@ -60,6 +60,20 @@
 #define OPA_VNIC_SKB_HEADROOM  \
 			ALIGN((OPA_VNIC_HDR_LEN + OPA_VNIC_SKB_MDATA_LEN), 8)
 
+/* This function is overloaded for opa_vnic specific implementation */
+static void opa_vnic_get_stats64(struct net_device *netdev,
+				 struct rtnl_link_stats64 *stats)
+{
+	struct opa_vnic_adapter *adapter = opa_vnic_priv(netdev);
+	struct opa_vnic_stats vstats;
+
+	memset(&vstats, 0, sizeof(vstats));
+	mutex_lock(&adapter->stats_lock);
+	adapter->rn_ops->ndo_get_stats64(netdev, &vstats.netstats);
+	mutex_unlock(&adapter->stats_lock);
+	memcpy(stats, &vstats.netstats, sizeof(*stats));
+}
+
 /* opa_netdev_start_xmit - transmit function */
 static netdev_tx_t opa_netdev_start_xmit(struct sk_buff *skb,
 					 struct net_device *netdev)
@@ -149,6 +163,7 @@ static const struct net_device_ops opa_netdev_ops = {
 	.ndo_open = opa_netdev_open,
 	.ndo_stop = opa_netdev_close,
 	.ndo_start_xmit = opa_netdev_start_xmit,
+	.ndo_get_stats64 = opa_vnic_get_stats64,
 	.ndo_select_queue = opa_vnic_select_queue,
 	.ndo_set_mac_address = opa_vnic_set_mac_addr,
 };
@@ -191,6 +206,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	netdev->hard_header_len += OPA_VNIC_SKB_HEADROOM;
 	mutex_init(&adapter->lock);
+	mutex_init(&adapter->stats_lock);
 
 	SET_NETDEV_DEV(netdev, ibdev->dev.parent);
 
@@ -206,6 +222,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	return adapter;
 netdev_err:
 	mutex_destroy(&adapter->lock);
+	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 adapter_err:
 	ibdev->free_rdma_netdev(netdev);
@@ -222,6 +239,7 @@ void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter)
 	v_info("removing\n");
 	unregister_netdev(netdev);
 	mutex_destroy(&adapter->lock);
+	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 	ibdev->free_rdma_netdev(netdev);
 }
