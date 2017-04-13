@@ -89,7 +89,6 @@ struct btrfs_end_io_wq {
 	struct btrfs_fs_info *info;
 	int error;
 	enum btrfs_wq_endio_type metadata;
-	struct list_head list;
 	struct btrfs_work work;
 };
 
