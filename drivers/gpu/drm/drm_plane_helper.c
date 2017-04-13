@@ -381,6 +381,7 @@ EXPORT_SYMBOL(drm_primary_helper_update);
 /**
  * drm_primary_helper_disable() - Helper for primary plane disable
  * @plane: plane to disable
+ * @ctx: lock acquire context, not used here
  *
  * Provides a default plane disable handler for primary planes.  This is handler
  * is called in response to a userspace SetPlane operation on the plane with a
