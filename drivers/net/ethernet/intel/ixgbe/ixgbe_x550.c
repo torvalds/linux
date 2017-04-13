@@ -49,6 +49,18 @@ static s32 ixgbe_get_invariants_X550_x(struct ixgbe_hw *hw)
 	return 0;
 }
 
+static s32 ixgbe_get_invariants_X550_x_fw(struct ixgbe_hw *hw)
+{
+	struct ixgbe_phy_info *phy = &hw->phy;
+
+	/* Start with X540 invariants, since so similar */
+	ixgbe_get_invariants_X540(hw);
+
+	phy->ops.set_phy_power = NULL;
+
+	return 0;
+}
+
 static s32 ixgbe_get_invariants_X550_a(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
@@ -334,9 +346,11 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		else
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY0_SM;
 		/* Fallthrough */
-	case IXGBE_DEV_ID_X550EM_X_1G_T:
 	case IXGBE_DEV_ID_X550EM_X_10G_T:
 		return ixgbe_identify_phy_generic(hw);
+	case IXGBE_DEV_ID_X550EM_X_1G_T:
+		hw->phy.type = ixgbe_phy_ext_1g_t;
+		break;
 	case IXGBE_DEV_ID_X550EM_A_1G_T:
 	case IXGBE_DEV_ID_X550EM_A_1G_T_L:
 		hw->phy.type = ixgbe_phy_fw;
@@ -2158,6 +2172,8 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 					ixgbe_set_soft_rate_select_speed;
 		break;
 	case ixgbe_media_type_copper:
+		if (hw->device_id == IXGBE_DEV_ID_X550EM_X_1G_T)
+			break;
 		mac->ops.setup_link = ixgbe_setup_mac_link_t_X550em;
 		mac->ops.setup_fc = ixgbe_setup_fc_generic;
 		mac->ops.check_link = ixgbe_check_link_t_X550em;
@@ -2238,6 +2254,7 @@ static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 			*speed = IXGBE_LINK_SPEED_1GB_FULL |
 				 IXGBE_LINK_SPEED_10GB_FULL;
 			break;
+		case ixgbe_phy_ext_1g_t:
 		case ixgbe_phy_sgmii:
 			*speed = IXGBE_LINK_SPEED_1GB_FULL;
 			break;
@@ -3185,6 +3202,11 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		phy->ops.setup_link = ixgbe_setup_fw_link;
 		phy->ops.reset = ixgbe_reset_phy_fw;
 		break;
+	case ixgbe_phy_ext_1g_t:
+		phy->ops.setup_link = NULL;
+		phy->ops.read_reg = NULL;
+		phy->ops.write_reg = NULL;
+		break;
 	default:
 		break;
 	}
@@ -3888,6 +3910,17 @@ static const struct ixgbe_phy_operations phy_ops_X550EM_x = {
 	.write_reg		= &ixgbe_write_phy_reg_generic,
 };
 
+static const struct ixgbe_phy_operations phy_ops_x550em_x_fw = {
+	X550_COMMON_PHY
+	.check_overtemp		= NULL,
+	.init			= ixgbe_init_phy_ops_X550em,
+	.identify		= ixgbe_identify_phy_x550em,
+	.read_reg		= NULL,
+	.write_reg		= NULL,
+	.read_reg_mdi		= NULL,
+	.write_reg_mdi		= NULL,
+};
+
 static const struct ixgbe_phy_operations phy_ops_x550em_a = {
 	X550_COMMON_PHY
 	.check_overtemp		= &ixgbe_tn_check_overtemp,
@@ -3948,6 +3981,16 @@ const struct ixgbe_info ixgbe_X550EM_x_info = {
 	.mbx_ops		= &mbx_ops_generic,
 	.mvals			= ixgbe_mvals_X550EM_x,
 	.link_ops		= &link_ops_x550em_x,
+};
+
+const struct ixgbe_info ixgbe_x550em_x_fw_info = {
+	.mac			= ixgbe_mac_X550EM_x,
+	.get_invariants		= ixgbe_get_invariants_X550_x_fw,
+	.mac_ops		= &mac_ops_X550EM_x,
+	.eeprom_ops		= &eeprom_ops_X550EM_x,
+	.phy_ops		= &phy_ops_x550em_x_fw,
+	.mbx_ops		= &mbx_ops_generic,
+	.mvals			= ixgbe_mvals_X550EM_x,
 };
 
 const struct ixgbe_info ixgbe_x550em_a_info = {
