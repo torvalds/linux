@@ -799,7 +799,7 @@ static void cvm_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		  FIELD_PREP(MIO_EMM_CMD_IDX, cmd->opcode) |
 		  FIELD_PREP(MIO_EMM_CMD_ARG, cmd->arg);
 	set_bus_id(&emm_cmd, slot->bus_id);
-	if (mmc_cmd_type(cmd) == MMC_CMD_ADTC)
+	if (cmd->data && mmc_cmd_type(cmd) == MMC_CMD_ADTC)
 		emm_cmd |= FIELD_PREP(MIO_EMM_CMD_OFFSET,
 				64 - ((cmd->data->blocks * cmd->data->blksz) / 8));
 
