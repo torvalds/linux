@@ -51,6 +51,9 @@ static inline void ppc_msgsnd_sync(void)
 /* sync after taking message interrupt */
 static inline void ppc_msgsync(void)
 {
+	/* sync is not required when taking messages from the same core */
+	__asm__ __volatile__ (ASM_FTR_IFSET(PPC_MSGSYNC " ; lwsync", "", %0)
+				: : "i" (CPU_FTR_HVMODE|CPU_FTR_ARCH_300));
 }
 
 #else /* CONFIG_PPC_BOOK3S */
