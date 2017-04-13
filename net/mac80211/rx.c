@@ -593,16 +593,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
 
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
-			continue;
-
-		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES)
-			continue;
-
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-
+	list_for_each_entry_rcu(sdata, &local->mon_list, u.mntr.list) {
 		if (prev_dev) {
 			skb2 = skb_clone(skb, GFP_ATOMIC);
 			if (skb2) {
