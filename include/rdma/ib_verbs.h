@@ -225,6 +225,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_VIRTUAL_FUNCTION		= (1ULL << 33),
 	/* Deprecated. Please use IB_RAW_PACKET_CAP_SCATTER_FCS. */
 	IB_DEVICE_RAW_SCATTER_FCS		= (1ULL << 34),
+	IB_DEVICE_RDMA_NETDEV_OPA_VNIC		= (1ULL << 35),
 };
 
 enum ib_signature_prot_cap {
