@@ -4961,9 +4961,6 @@ static int gfx_v8_0_kiq_init_register(struct amdgpu_ring *ring)
 	/* activate the queue */
 	WREG32(mmCP_HQD_ACTIVE, mqd->cp_hqd_active);
 
-	if (ring->use_doorbell)
-		WREG32_FIELD(CP_PQ_STATUS, DOORBELL_ENABLE, 1);
-
 	return 0;
 }
 
@@ -5040,6 +5037,8 @@ static void gfx_v8_0_set_mec_doorbell_range(struct amdgpu_device *adev)
 		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, AMDGPU_DOORBELL_KIQ << 2);
 		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER, AMDGPU_DOORBELL_MEC_RING7 << 2);
 	}
+	/* enable doorbells */
+	WREG32_FIELD(CP_PQ_STATUS, DOORBELL_ENABLE, 1);
 }
 
 static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
