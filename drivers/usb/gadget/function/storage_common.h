@@ -133,9 +133,10 @@ static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
 #define FSG_MAX_LUNS	16
 
 enum fsg_buffer_state {
+	BUF_STATE_SENDING = -2,
+	BUF_STATE_RECEIVING,
 	BUF_STATE_EMPTY = 0,
-	BUF_STATE_FULL,
-	BUF_STATE_BUSY
+	BUF_STATE_FULL
 };
 
 struct fsg_buffhd {
@@ -151,9 +152,7 @@ struct fsg_buffhd {
 	unsigned int			bulk_out_intended_length;
 
 	struct usb_request		*inreq;
-	int				inreq_busy;
 	struct usb_request		*outreq;
-	int				outreq_busy;
 };
 
 enum fsg_state {
