@@ -1168,12 +1168,12 @@ static void btc8821a2ant_ps_tdma(struct btc_coexist *btcoexist,
 		switch (type) {
 		case 1:
 		default:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1a,
-						    0x1a, 0xe1, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x3c,
+						    0x03, 0xf1, 0x90);
 			break;
 		case 2:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x12,
-						    0x12, 0xe1, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x2d,
+						    0x03, 0xf1, 0x90);
 			break;
 		case 3:
 			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1c,
@@ -1184,12 +1184,12 @@ static void btc8821a2ant_ps_tdma(struct btc_coexist *btcoexist,
 						    0x03, 0xf1, 0x90);
 			break;
 		case 5:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1a,
-						    0x1a, 0x60, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x3c,
+						    0x3, 0x70, 0x90);
 			break;
 		case 6:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x12,
-						    0x12, 0x60, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x2d,
+						    0x3, 0x70, 0x90);
 			break;
 		case 7:
 			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1c,
@@ -1200,44 +1200,44 @@ static void btc8821a2ant_ps_tdma(struct btc_coexist *btcoexist,
 						    0x3, 0x70, 0x90);
 			break;
 		case 9:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1a,
-						    0x1a, 0xe1, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x3c,
+						    0x03, 0xf1, 0x90);
 			break;
 		case 10:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x12,
-						    0x12, 0xe1, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x2d,
+						    0x03, 0xf1, 0x90);
 			break;
 		case 11:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0xa,
-						    0xa, 0xe1, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1c,
+						    0x3, 0xf1, 0x90);
 			break;
 		case 12:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x5,
-						    0x5, 0xe1, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x10,
+						    0x3, 0xf1, 0x90);
 			break;
 		case 13:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1a,
-						    0x1a, 0x60, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x3c,
+						    0x3, 0x70, 0x90);
 			break;
 		case 14:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3,
-						    0x12, 0x12, 0x60, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x2d,
+						    0x3, 0x70, 0x90);
 			break;
 		case 15:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0xa,
-						    0xa, 0x60, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1c,
+						    0x3, 0x70, 0x90);
 			break;
 		case 16:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x5,
-						    0x5, 0x60, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x10,
+						    0x3, 0x70, 0x90);
 			break;
 		case 17:
 			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xa3, 0x2f,
 						    0x2f, 0x60, 0x90);
 			break;
 		case 18:
-			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x5,
-						    0x5, 0xe1, 0x90);
+			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x5, 0x5,
+						    0xe1, 0x90);
 			break;
 		case 19:
 			btc8821a2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x25,
