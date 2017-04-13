@@ -49,9 +49,9 @@ fi
 mkdir $mnt
 mount -t hugetlbfs none $mnt
 
-echo "--------------------"
+echo "---------------------"
 echo "running hugepage-mmap"
-echo "--------------------"
+echo "---------------------"
 ./hugepage-mmap
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
@@ -77,9 +77,9 @@ fi
 echo $shmmax > /proc/sys/kernel/shmmax
 echo $shmall > /proc/sys/kernel/shmall
 
-echo "--------------------"
+echo "-------------------"
 echo "running map_hugetlb"
-echo "--------------------"
+echo "-------------------"
 ./map_hugetlb
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
@@ -92,9 +92,9 @@ echo "NOTE: The above hugetlb tests provide minimal coverage.  Use"
 echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
 echo "      hugetlb regression testing."
 
-echo "--------------------"
+echo "-------------------"
 echo "running userfaultfd"
-echo "--------------------"
+echo "-------------------"
 ./userfaultfd 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
@@ -103,9 +103,9 @@ else
 	echo "[PASS]"
 fi
 
-echo "----------------------------"
+echo "---------------------------"
 echo "running userfaultfd_hugetlb"
-echo "----------------------------"
+echo "---------------------------"
 # 258MB total huge pages == 128MB src and 128MB dst
 ./userfaultfd_hugetlb 128 32 $mnt/ufd_test_file
 if [ $? -ne 0 ]; then
@@ -116,9 +116,9 @@ else
 fi
 rm -f $mnt/ufd_test_file
 
-echo "----------------------------"
+echo "-------------------------"
 echo "running userfaultfd_shmem"
-echo "----------------------------"
+echo "-------------------------"
 ./userfaultfd_shmem 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
@@ -143,9 +143,9 @@ else
 	echo "[PASS]"
 fi
 
-echo "--------------------"
+echo "----------------------"
 echo "running on-fault-limit"
-echo "--------------------"
+echo "----------------------"
 sudo -u nobody ./on-fault-limit
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
