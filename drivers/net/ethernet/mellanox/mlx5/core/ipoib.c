@@ -72,6 +72,45 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 {
 }
 
+static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
+{
+	struct mlx5i_priv *ipriv = priv->ppriv;
+	int err;
+
+	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
+					       MLX5_FLOW_NAMESPACE_KERNEL);
+
+	if (!priv->fs.ns)
+		return -EINVAL;
+
+	err = mlx5e_arfs_create_tables(priv);
+	if (err) {
+		netdev_err(priv->netdev, "Failed to create arfs tables, err=%d\n",
+			   err);
+		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
+	}
+
+	err = mlx5e_create_ttc_table(priv, ipriv->qp.qpn);
+	if (err) {
+		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
+			   err);
+		goto err_destroy_arfs_tables;
+	}
+
+	return 0;
+
+err_destroy_arfs_tables:
+	mlx5e_arfs_destroy_tables(priv);
+
+	return err;
+}
+
+static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
+{
+	mlx5e_destroy_ttc_table(priv);
+	mlx5e_arfs_destroy_tables(priv);
+}
+
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
 	int err;
@@ -92,8 +131,14 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_indirect_tirs;
 
+	err = mlx5i_create_flow_steering(priv);
+	if (err)
+		goto err_destroy_direct_tirs;
+
 	return 0;
 
+err_destroy_direct_tirs:
+	mlx5e_destroy_direct_tirs(priv);
 err_destroy_indirect_tirs:
 	mlx5e_destroy_indirect_tirs(priv);
 err_destroy_direct_rqts:
@@ -105,6 +150,7 @@ err_destroy_indirect_rqts:
 
 static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 {
+	mlx5i_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);
 	mlx5e_destroy_direct_rqts(priv);

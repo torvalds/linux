@@ -999,6 +999,7 @@ int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr);
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5e_update_hw_rep_counters(struct mlx5e_priv *priv);
 
+/* common netdev helpers */
 int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv);
 
 int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv);
@@ -1009,6 +1010,9 @@ void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv);
 int mlx5e_create_direct_tirs(struct mlx5e_priv *priv);
 void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv);
 void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt);
+
+int mlx5e_create_ttc_table(struct mlx5e_priv *priv, u32 underlay_qpn);
+void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv);
 
 int mlx5e_create_tises(struct mlx5e_priv *priv);
 void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
