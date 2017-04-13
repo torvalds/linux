@@ -162,6 +162,9 @@ struct vgic_its {
 	u32			creadr;
 	u32			cwriter;
 
+	/* migration ABI revision in use */
+	u32			abi_rev;
+
 	/* Protects the device and collection lists */
 	struct mutex		its_lock;
 	struct list_head	device_list;

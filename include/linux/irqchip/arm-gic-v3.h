@@ -132,6 +132,9 @@
 #define GIC_BASER_SHAREABILITY(reg, type)				\
 	(GIC_BASER_##type << reg##_SHAREABILITY_SHIFT)
 
+/* encode a size field of width @w containing @n - 1 units */
+#define GIC_ENCODE_SZ(n, w) (((unsigned long)(n) - 1) & GENMASK_ULL(((w) - 1), 0))
+
 #define GICR_PROPBASER_SHAREABILITY_SHIFT		(10)
 #define GICR_PROPBASER_INNER_CACHEABILITY_SHIFT		(7)
 #define GICR_PROPBASER_OUTER_CACHEABILITY_SHIFT		(56)
@@ -232,6 +235,7 @@
 #define GITS_CTLR_QUIESCENT		(1U << 31)
 
 #define GITS_TYPER_PLPIS		(1UL << 0)
+#define GITS_TYPER_ITT_ENTRY_SIZE_SHIFT	4
 #define GITS_TYPER_IDBITS_SHIFT		8
 #define GITS_TYPER_DEVBITS_SHIFT	13
 #define GITS_TYPER_DEVBITS(r)		((((r) >> GITS_TYPER_DEVBITS_SHIFT) & 0x1f) + 1)
@@ -290,6 +294,7 @@
 #define GITS_BASER_TYPE(r)		(((r) >> GITS_BASER_TYPE_SHIFT) & 7)
 #define GITS_BASER_ENTRY_SIZE_SHIFT		(48)
 #define GITS_BASER_ENTRY_SIZE(r)	((((r) >> GITS_BASER_ENTRY_SIZE_SHIFT) & 0x1f) + 1)
+#define GITS_BASER_ENTRY_SIZE_MASK	GENMASK_ULL(52, 48)
 #define GITS_BASER_SHAREABILITY_SHIFT	(10)
 #define GITS_BASER_InnerShareable					\
 	GIC_BASER_SHAREABILITY(GITS_BASER, InnerShareable)
