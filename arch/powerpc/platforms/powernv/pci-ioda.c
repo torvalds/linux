@@ -2440,7 +2440,8 @@ static unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
 
 		tce_table_size /= direct_table_size;
 		tce_table_size <<= 3;
-		tce_table_size = _ALIGN_UP(tce_table_size, direct_table_size);
+		tce_table_size = max_t(unsigned long,
+				tce_table_size, direct_table_size);
 	}
 
 	return bytes;
