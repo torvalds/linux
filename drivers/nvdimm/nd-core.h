@@ -32,6 +32,7 @@ struct nvdimm_bus {
 	struct list_head poison_list;
 	struct list_head mapping_list;
 	struct mutex reconfig_mutex;
+	spinlock_t poison_lock;
 };
 
 struct nvdimm {

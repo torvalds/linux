@@ -296,6 +296,7 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 	init_waitqueue_head(&nvdimm_bus->probe_wait);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
 	mutex_init(&nvdimm_bus->reconfig_mutex);
+	spin_lock_init(&nvdimm_bus->poison_lock);
 	if (nvdimm_bus->id < 0) {
 		kfree(nvdimm_bus);
 		return NULL;
@@ -364,9 +365,9 @@ static int nd_bus_remove(struct device *dev)
 	nd_synchronize();
 	device_for_each_child(&nvdimm_bus->dev, NULL, child_unregister);
 
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	spin_lock(&nvdimm_bus->poison_lock);
 	free_poison_list(&nvdimm_bus->poison_list);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
+	spin_unlock(&nvdimm_bus->poison_lock);
 
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
 
@@ -990,7 +991,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 
 		if (clear_err->cleared) {
 			/* clearing the poison list we keep track of */
-			__nvdimm_forget_poison(nvdimm_bus, clear_err->address,
+			nvdimm_forget_poison(nvdimm_bus, clear_err->address,
 					clear_err->cleared);
 
 			/* now sync the badblocks lists */
