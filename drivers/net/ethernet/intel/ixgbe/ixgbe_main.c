@@ -3639,6 +3639,28 @@ void ixgbe_store_key(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_init_rss_key - Initialize adapter RSS key
+ * @adapter: device handle
+ *
+ * Allocates and initializes the RSS key if it is not allocated.
+ **/
+static inline int ixgbe_init_rss_key(struct ixgbe_adapter *adapter)
+{
+	u32 *rss_key;
+
+	if (!adapter->rss_key) {
+		rss_key = kzalloc(IXGBE_RSS_KEY_SIZE, GFP_KERNEL);
+		if (unlikely(!rss_key))
+			return -ENOMEM;
+
+		netdev_rss_key_fill(rss_key, IXGBE_RSS_KEY_SIZE);
+		adapter->rss_key = rss_key;
+	}
+
+	return 0;
+}
+
+/**
  * ixgbe_store_reta - Write the RETA table to HW
  * @adapter: device handle
  *
@@ -3740,7 +3762,7 @@ static void ixgbe_setup_vfreta(struct ixgbe_adapter *adapter)
 	/* Fill out hash function seeds */
 	for (i = 0; i < 10; i++)
 		IXGBE_WRITE_REG(hw, IXGBE_PFVFRSSRK(i, pf_pool),
-				adapter->rss_key[i]);
+				*(adapter->rss_key + i));
 
 	/* Fill out the redirection table */
 	for (i = 0, j = 0; i < 64; i++, j++) {
@@ -3801,7 +3823,6 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV6_UDP)
 		rss_field |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 
-	netdev_rss_key_fill(adapter->rss_key, sizeof(adapter->rss_key));
 	if ((hw->mac.type >= ixgbe_mac_X550) &&
 	    (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)) {
 		unsigned int pf_pool = adapter->num_vfs;
@@ -6013,6 +6034,9 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 				     hw->mac.num_rar_entries,
 				     GFP_ATOMIC);
 	if (!adapter->mac_table)
+		return -ENOMEM;
+
+	if (ixgbe_init_rss_key(adapter))
 		return -ENOMEM;
 
 	/* Set MAC specific capability flags and exceptions */
@@ -10391,6 +10415,7 @@ err_sw_init:
 	iounmap(adapter->io_addr);
 	kfree(adapter->jump_tables[0]);
 	kfree(adapter->mac_table);
+	kfree(adapter->rss_key);
 err_ioremap:
 	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
 	free_netdev(netdev);
@@ -10475,6 +10500,7 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	}
 
 	kfree(adapter->mac_table);
+	kfree(adapter->rss_key);
 	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
 	free_netdev(netdev);
 

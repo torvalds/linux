@@ -769,7 +769,7 @@ struct ixgbe_adapter {
 	u8 rss_indir_tbl[IXGBE_MAX_RETA_ENTRIES];
 
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
-	u32 rss_key[IXGBE_RSS_KEY_SIZE / sizeof(u32)];
+	u32 *rss_key;
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)

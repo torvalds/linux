@@ -2967,9 +2967,7 @@ static int ixgbe_rss_indir_tbl_max(struct ixgbe_adapter *adapter)
 
 static u32 ixgbe_get_rxfh_key_size(struct net_device *netdev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	return sizeof(adapter->rss_key);
+	return IXGBE_RSS_KEY_SIZE;
 }
 
 static u32 ixgbe_rss_indir_size(struct net_device *netdev)

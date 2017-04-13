@@ -1113,7 +1113,7 @@ static int ixgbe_get_vf_rss_key(struct ixgbe_adapter *adapter,
 		return -EOPNOTSUPP;
 	}
 
-	memcpy(rss_key, adapter->rss_key, sizeof(adapter->rss_key));
+	memcpy(rss_key, adapter->rss_key, IXGBE_RSS_KEY_SIZE);
 
 	return 0;
 }
