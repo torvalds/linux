@@ -57,6 +57,12 @@ static int rk_hdmi_dp_hw_params(struct snd_pcm_substream *substream,
 	case 88200:
 		mclk = 11289600;
 		break;
+	case 176400:
+		mclk = 11289600 * 2;
+		break;
+	case 192000:
+		mclk = 12288000 * 2;
+		break;
 	default:
 		return -EINVAL;
 	}
