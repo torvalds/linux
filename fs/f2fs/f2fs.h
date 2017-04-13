@@ -367,6 +367,8 @@ static inline bool __has_cursum_space(struct f2fs_journal *journal,
 #define F2FS_IOC_DEFRAGMENT		_IO(F2FS_IOCTL_MAGIC, 8)
 #define F2FS_IOC_MOVE_RANGE		_IOWR(F2FS_IOCTL_MAGIC, 9,	\
 						struct f2fs_move_range)
+#define F2FS_IOC_FLUSH_DEVICE		_IOW(F2FS_IOCTL_MAGIC, 10,	\
+						struct f2fs_flush_device)
 
 #define F2FS_IOC_SET_ENCRYPTION_POLICY	FS_IOC_SET_ENCRYPTION_POLICY
 #define F2FS_IOC_GET_ENCRYPTION_POLICY	FS_IOC_GET_ENCRYPTION_POLICY
@@ -401,6 +403,11 @@ struct f2fs_move_range {
 	u64 pos_in;		/* start position in src_fd */
 	u64 pos_out;		/* start position in dst_fd */
 	u64 len;		/* size to move */
+};
+
+struct f2fs_flush_device {
+	u32 dev_num;		/* device number to flush */
+	u32 segments;		/* # of segments to flush */
 };
 
 /*
@@ -1047,7 +1054,6 @@ struct f2fs_sb_info {
 	int bg_gc;				/* background gc calls */
 	unsigned int ndirty_inode[NR_INODE_TYPE];	/* # of dirty inodes */
 #endif
-	unsigned int last_victim[2];		/* last victim segment # */
 	spinlock_t stat_lock;			/* lock for stat operations */
 
 	/* For sysfs suppport */
@@ -2429,7 +2435,8 @@ int f2fs_migrate_page(struct address_space *mapping, struct page *newpage,
 int start_gc_thread(struct f2fs_sb_info *sbi);
 void stop_gc_thread(struct f2fs_sb_info *sbi);
 block_t start_bidx_of_node(unsigned int node_ofs, struct inode *inode);
-int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background);
+int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background,
+			unsigned int segno);
 void build_gc_manager(struct f2fs_sb_info *sbi);
 
 /*

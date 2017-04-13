@@ -138,7 +138,10 @@ enum {
  */
 enum {
 	GC_CB = 0,
-	GC_GREEDY
+	GC_GREEDY,
+	ALLOC_NEXT,
+	FLUSH_DEVICE,
+	MAX_GC_POLICY,
 };
 
 /*
@@ -233,6 +236,8 @@ struct sit_info {
 	unsigned long long mounted_time;	/* mount time */
 	unsigned long long min_mtime;		/* min. modification time */
 	unsigned long long max_mtime;		/* max. modification time */
+
+	unsigned int last_victim[MAX_GC_POLICY]; /* last victim segment # */
 };
 
 struct free_segmap_info {
