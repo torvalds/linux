@@ -294,7 +294,7 @@ static inline void get_aes_decrypt_key(unsigned char *dec_key,
 
 static struct crypto_shash *chcr_alloc_shash(unsigned int ds)
 {
-	struct crypto_shash *base_hash = NULL;
+	struct crypto_shash *base_hash = ERR_PTR(-EINVAL);
 
 	switch (ds) {
 	case SHA1_DIGEST_SIZE:
@@ -2305,7 +2305,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	int err = 0, i, key_ctx_len = 0;
 	unsigned char ck_size = 0;
 	unsigned char pad[CHCR_HASH_MAX_BLOCK_SIZE_128] = { 0 };
-	struct crypto_shash *base_hash = NULL;
+	struct crypto_shash *base_hash = ERR_PTR(-EINVAL);
 	struct algo_param param;
 	int align;
 	u8 *o_ptr = NULL;
@@ -2408,7 +2408,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	}
 out:
 	aeadctx->enckey_len = 0;
-	if (base_hash)
+	if (!IS_ERR(base_hash))
 		chcr_free_shash(base_hash);
 	return -EINVAL;
 }
