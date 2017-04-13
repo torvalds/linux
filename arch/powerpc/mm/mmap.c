@@ -100,7 +100,7 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	if (unlikely(addr > mm->context.addr_limit && addr < TASK_SIZE))
 		mm->context.addr_limit = TASK_SIZE;
 
-	if (len > mm->context.addr_limit - mmap_min_addr)
+	if (len > mm->task_size - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
@@ -109,7 +109,7 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (mm->context.addr_limit - len >= addr && addr >= mmap_min_addr &&
+		if (mm->task_size - len >= addr && addr >= mmap_min_addr &&
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
@@ -143,7 +143,7 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 		mm->context.addr_limit = TASK_SIZE;
 
 	/* requested length too big for entire address space */
-	if (len > mm->context.addr_limit - mmap_min_addr)
+	if (len > mm->task_size - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
@@ -153,7 +153,7 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (mm->context.addr_limit - len >= addr && addr >= mmap_min_addr &&
+		if (mm->task_size - len >= addr && addr >= mmap_min_addr &&
 				(!vma || addr + len <= vma->vm_start))
 			return addr;
 	}

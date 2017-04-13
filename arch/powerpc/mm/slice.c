@@ -292,8 +292,8 @@ static unsigned long slice_find_area_bottomup(struct mm_struct *mm,
 		 * Check if we need to reduce the range, or if we can
 		 * extend it to cover the next available slice.
 		 */
-		if (addr >= mm->context.addr_limit)
-			addr = mm->context.addr_limit;
+		if (addr >= high_limit)
+			addr = high_limit;
 		else if (slice_scan_available(addr, available, 1, &next_end)) {
 			addr = next_end;
 			goto next_slice;
