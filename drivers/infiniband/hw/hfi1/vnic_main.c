@@ -62,6 +62,159 @@
 
 static DEFINE_SPINLOCK(vport_cntr_lock);
 
+static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
+{
+	unsigned int rcvctrl_ops = 0;
+	int ret;
+
+	ret = hfi1_init_ctxt(uctxt->sc);
+	if (ret)
+		goto done;
+
+	uctxt->do_interrupt = &handle_receive_interrupt;
+
+	/* Now allocate the RcvHdr queue and eager buffers. */
+	ret = hfi1_create_rcvhdrq(dd, uctxt);
+	if (ret)
+		goto done;
+
+	ret = hfi1_setup_eagerbufs(uctxt);
+	if (ret)
+		goto done;
+
+	set_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags);
+
+	if (uctxt->rcvhdrtail_kvaddr)
+		clear_rcvhdrtail(uctxt);
+
+	rcvctrl_ops = HFI1_RCVCTRL_CTXT_ENB;
+	rcvctrl_ops |= HFI1_RCVCTRL_INTRAVAIL_ENB;
+
+	if (!HFI1_CAP_KGET_MASK(uctxt->flags, MULTI_PKT_EGR))
+		rcvctrl_ops |= HFI1_RCVCTRL_ONE_PKT_EGR_ENB;
+	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_EGR_FULL))
+		rcvctrl_ops |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
+	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
+		rcvctrl_ops |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
+	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
+		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
+
+	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt->ctxt);
+
+	uctxt->is_vnic = true;
+done:
+	return ret;
+}
+
+static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
+			      struct hfi1_ctxtdata **vnic_ctxt)
+{
+	struct hfi1_ctxtdata *uctxt;
+	unsigned int ctxt;
+	int ret;
+
+	if (dd->flags & HFI1_FROZEN)
+		return -EIO;
+
+	for (ctxt = dd->first_dyn_alloc_ctxt;
+	     ctxt < dd->num_rcv_contexts; ctxt++)
+		if (!dd->rcd[ctxt])
+			break;
+
+	if (ctxt == dd->num_rcv_contexts)
+		return -EBUSY;
+
+	uctxt = hfi1_create_ctxtdata(dd->pport, ctxt, dd->node);
+	if (!uctxt) {
+		dd_dev_err(dd, "Unable to create ctxtdata, failing open\n");
+		return -ENOMEM;
+	}
+
+	uctxt->flags = HFI1_CAP_KGET(MULTI_PKT_EGR) |
+			HFI1_CAP_KGET(NODROP_RHQ_FULL) |
+			HFI1_CAP_KGET(NODROP_EGR_FULL) |
+			HFI1_CAP_KGET(DMA_RTAIL);
+	uctxt->seq_cnt = 1;
+
+	/* Allocate and enable a PIO send context */
+	uctxt->sc = sc_alloc(dd, SC_VNIC, uctxt->rcvhdrqentsize,
+			     uctxt->numa_id);
+
+	ret = uctxt->sc ? 0 : -ENOMEM;
+	if (ret)
+		goto bail;
+
+	dd_dev_dbg(dd, "allocated vnic send context %u(%u)\n",
+		   uctxt->sc->sw_index, uctxt->sc->hw_context);
+	ret = sc_enable(uctxt->sc);
+	if (ret)
+		goto bail;
+
+	if (dd->num_msix_entries)
+		hfi1_set_vnic_msix_info(uctxt);
+
+	hfi1_stats.sps_ctxts++;
+	dd_dev_dbg(dd, "created vnic context %d\n", uctxt->ctxt);
+	*vnic_ctxt = uctxt;
+
+	return ret;
+bail:
+	/*
+	 * hfi1_free_ctxtdata() also releases send_context
+	 * structure if uctxt->sc is not null
+	 */
+	dd->rcd[uctxt->ctxt] = NULL;
+	hfi1_free_ctxtdata(dd, uctxt);
+	dd_dev_dbg(dd, "vnic allocation failed. rc %d\n", ret);
+	return ret;
+}
+
+static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
+				 struct hfi1_ctxtdata *uctxt)
+{
+	unsigned long flags;
+
+	dd_dev_dbg(dd, "closing vnic context %d\n", uctxt->ctxt);
+	flush_wc();
+
+	if (dd->num_msix_entries)
+		hfi1_reset_vnic_msix_info(uctxt);
+
+	spin_lock_irqsave(&dd->uctxt_lock, flags);
+	/*
+	 * Disable receive context and interrupt available, reset all
+	 * RcvCtxtCtrl bits to default values.
+	 */
+	hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS |
+		     HFI1_RCVCTRL_TIDFLOW_DIS |
+		     HFI1_RCVCTRL_INTRAVAIL_DIS |
+		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
+		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
+		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt->ctxt);
+	/*
+	 * VNIC contexts are allocated from user context pool.
+	 * Release them back to user context pool.
+	 *
+	 * Reset context integrity checks to default.
+	 * (writes to CSRs probably belong in chip.c)
+	 */
+	write_kctxt_csr(dd, uctxt->sc->hw_context, SEND_CTXT_CHECK_ENABLE,
+			hfi1_pkt_default_send_ctxt_mask(dd, SC_USER));
+	sc_disable(uctxt->sc);
+
+	dd->send_contexts[uctxt->sc->sw_index].type = SC_USER;
+	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+
+	dd->rcd[uctxt->ctxt] = NULL;
+	uctxt->event_flags = 0;
+
+	hfi1_clear_tids(uctxt);
+	hfi1_clear_ctxt_pkey(dd, uctxt->ctxt);
+
+	hfi1_stats.sps_ctxts--;
+	hfi1_free_ctxtdata(dd, uctxt);
+}
+
 void hfi1_vnic_setup(struct hfi1_devdata *dd)
 {
 	idr_init(&dd->vnic.vesw_idr);
@@ -519,6 +672,9 @@ static void hfi1_vnic_down(struct hfi1_vnic_vport_info *vinfo)
 	netif_tx_disable(vinfo->netdev);
 	idr_remove(&dd->vnic.vesw_idr, vinfo->vesw_id);
 
+	/* ensure irqs see the change */
+	hfi1_vnic_synchronize_irq(dd);
+
 	/* remove unread skbs */
 	for (i = 0; i < vinfo->num_rx_q; i++) {
 		struct hfi1_vnic_rx_queue *rxq = &vinfo->rxq[i];
@@ -548,6 +704,84 @@ static int hfi1_netdev_close(struct net_device *netdev)
 		hfi1_vnic_down(vinfo);
 	mutex_unlock(&vinfo->lock);
 	return 0;
+}
+
+static int hfi1_vnic_allot_ctxt(struct hfi1_devdata *dd,
+				struct hfi1_ctxtdata **vnic_ctxt)
+{
+	int rc;
+
+	rc = allocate_vnic_ctxt(dd, vnic_ctxt);
+	if (rc) {
+		dd_dev_err(dd, "vnic ctxt alloc failed %d\n", rc);
+		return rc;
+	}
+
+	rc = setup_vnic_ctxt(dd, *vnic_ctxt);
+	if (rc) {
+		dd_dev_err(dd, "vnic ctxt setup failed %d\n", rc);
+		deallocate_vnic_ctxt(dd, *vnic_ctxt);
+		*vnic_ctxt = NULL;
+	}
+
+	return rc;
+}
+
+static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
+{
+	struct hfi1_devdata *dd = vinfo->dd;
+	int i, rc = 0;
+
+	mutex_lock(&hfi1_mutex);
+	if (!dd->vnic.num_vports)
+		dd->vnic.msix_idx = dd->first_dyn_msix_idx;
+
+	for (i = dd->vnic.num_ctxt; i < vinfo->num_rx_q; i++) {
+		rc = hfi1_vnic_allot_ctxt(dd, &dd->vnic.ctxt[i]);
+		if (rc)
+			break;
+		dd->vnic.ctxt[i]->vnic_q_idx = i;
+	}
+
+	if (i < vinfo->num_rx_q) {
+		/*
+		 * If required amount of contexts is not
+		 * allocated successfully then remaining contexts
+		 * are released.
+		 */
+		while (i-- > dd->vnic.num_ctxt) {
+			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
+			dd->vnic.ctxt[i] = NULL;
+		}
+		goto alloc_fail;
+	}
+
+	if (dd->vnic.num_ctxt != i) {
+		dd->vnic.num_ctxt = i;
+		hfi1_init_vnic_rsm(dd);
+	}
+
+	dd->vnic.num_vports++;
+alloc_fail:
+	mutex_unlock(&hfi1_mutex);
+	return rc;
+}
+
+static void hfi1_vnic_deinit(struct hfi1_vnic_vport_info *vinfo)
+{
+	struct hfi1_devdata *dd = vinfo->dd;
+	int i;
+
+	mutex_lock(&hfi1_mutex);
+	if (--dd->vnic.num_vports == 0) {
+		for (i = 0; i < dd->vnic.num_ctxt; i++) {
+			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
+			dd->vnic.ctxt[i] = NULL;
+		}
+		hfi1_deinit_vnic_rsm(dd);
+		dd->vnic.num_ctxt = 0;
+	}
+	mutex_unlock(&hfi1_mutex);
 }
 
 static void hfi1_vnic_set_vesw_id(struct net_device *netdev, int id)
@@ -594,7 +828,7 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 	struct hfi1_vnic_vport_info *vinfo;
 	struct net_device *netdev;
 	struct rdma_netdev *rn;
-	int i, size;
+	int i, size, rc;
 
 	if (!port_num || (port_num > dd->num_pports))
 		return ERR_PTR(-EINVAL);
@@ -632,13 +866,22 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 		netif_napi_add(netdev, &rxq->napi, hfi1_vnic_napi, 64);
 	}
 
+	rc = hfi1_vnic_init(vinfo);
+	if (rc)
+		goto init_fail;
+
 	return netdev;
+init_fail:
+	mutex_destroy(&vinfo->lock);
+	free_netdev(netdev);
+	return ERR_PTR(rc);
 }
 
 void hfi1_vnic_free_rn(struct net_device *netdev)
 {
 	struct hfi1_vnic_vport_info *vinfo = opa_vnic_dev_priv(netdev);
 
+	hfi1_vnic_deinit(vinfo);
 	mutex_destroy(&vinfo->lock);
 	free_netdev(netdev);
 }

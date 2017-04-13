@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -586,8 +586,8 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * knows where it's own bitmap is within the page.
 		 */
 		memaddr = (unsigned long)(dd->events +
-					  ((uctxt->ctxt - dd->first_user_ctxt) *
-					   HFI1_MAX_SHARED_CTXTS)) & PAGE_MASK;
+				  ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
+				   HFI1_MAX_SHARED_CTXTS)) & PAGE_MASK;
 		memlen = PAGE_SIZE;
 		/*
 		 * v3.7 removes VM_RESERVED but the effect is kept by
@@ -756,7 +756,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	 * Clear any left over, unhandled events so the next process that
 	 * gets this context doesn't get confused.
 	 */
-	ev = dd->events + ((uctxt->ctxt - dd->first_user_ctxt) *
+	ev = dd->events + ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 			   HFI1_MAX_SHARED_CTXTS) + fdata->subctxt;
 	*ev = 0;
 
@@ -909,12 +909,18 @@ static int find_shared_ctxt(struct file *fp,
 
 		if (!(dd && (dd->flags & HFI1_PRESENT) && dd->kregbase))
 			continue;
-		for (i = dd->first_user_ctxt; i < dd->num_rcv_contexts; i++) {
+		for (i = dd->first_dyn_alloc_ctxt;
+		     i < dd->num_rcv_contexts; i++) {
 			struct hfi1_ctxtdata *uctxt = dd->rcd[i];
 
 			/* Skip ctxts which are not yet open */
 			if (!uctxt || !uctxt->cnt)
 				continue;
+
+			/* Skip dynamically allocted kernel contexts */
+			if (uctxt->sc && (uctxt->sc->type == SC_KERNEL))
+				continue;
+
 			/* Skip ctxt if it doesn't match the requested one */
 			if (memcmp(uctxt->uuid, uinfo->uuid,
 				   sizeof(uctxt->uuid)) ||
@@ -960,7 +966,8 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 		return -EIO;
 	}
 
-	for (ctxt = dd->first_user_ctxt; ctxt < dd->num_rcv_contexts; ctxt++)
+	for (ctxt = dd->first_dyn_alloc_ctxt;
+	     ctxt < dd->num_rcv_contexts; ctxt++)
 		if (!dd->rcd[ctxt])
 			break;
 
@@ -1306,7 +1313,7 @@ static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
 	 */
 	binfo.user_regbase = HFI1_MMAP_TOKEN(UREGS, uctxt->ctxt,
 					    fd->subctxt, 0);
-	offset = offset_in_page((((uctxt->ctxt - dd->first_user_ctxt) *
+	offset = offset_in_page((((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 		    HFI1_MAX_SHARED_CTXTS) + fd->subctxt) *
 		  sizeof(*dd->events));
 	binfo.events_bufbase = HFI1_MMAP_TOKEN(EVENTS, uctxt->ctxt,
@@ -1400,12 +1407,12 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
 	}
 
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
-	for (ctxt = dd->first_user_ctxt; ctxt < dd->num_rcv_contexts;
+	for (ctxt = dd->first_dyn_alloc_ctxt; ctxt < dd->num_rcv_contexts;
 	     ctxt++) {
 		uctxt = dd->rcd[ctxt];
 		if (uctxt) {
 			unsigned long *evs = dd->events +
-				(uctxt->ctxt - dd->first_user_ctxt) *
+				(uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 				HFI1_MAX_SHARED_CTXTS;
 			int i;
 			/*
@@ -1477,7 +1484,7 @@ static int user_event_ack(struct hfi1_ctxtdata *uctxt, int subctxt,
 	if (!dd->events)
 		return 0;
 
-	evs = dd->events + ((uctxt->ctxt - dd->first_user_ctxt) *
+	evs = dd->events + ((uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
 			    HFI1_MAX_SHARED_CTXTS) + subctxt;
 
 	for (i = 0; i <= _HFI1_MAX_EVENT_BIT; i++) {

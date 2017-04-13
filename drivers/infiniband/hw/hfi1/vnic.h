@@ -149,5 +149,8 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 				      unsigned char name_assign_type,
 				      void (*setup)(struct net_device *));
 void hfi1_vnic_free_rn(struct net_device *netdev);
+int hfi1_vnic_send_dma(struct hfi1_devdata *dd, u8 q_idx,
+		       struct hfi1_vnic_vport_info *vinfo,
+		       struct sk_buff *skb, u64 pbc, u8 plen);
 
 #endif /* _HFI1_VNIC_H */

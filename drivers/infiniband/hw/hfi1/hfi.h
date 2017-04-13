@@ -54,6 +54,7 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -66,6 +67,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <rdma/ib_hdrs.h>
 #include <linux/rhashtable.h>
+#include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -278,6 +280,8 @@ struct hfi1_ctxtdata {
 	struct hfi1_devdata *dd;
 	/* so functions that need physical port can get it easily */
 	struct hfi1_pportdata *ppd;
+	/* associated msix interrupt */
+	u32 msix_intr;
 	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
 	void *subctxt_uregbase;
 	/* An array of pages for the eager receive buffers * N */
@@ -814,15 +818,27 @@ struct hfi1_asic_data {
 	struct hfi1_i2c_bus *i2c_bus1;
 };
 
+/* sizes for both the QP and RSM map tables */
+#define NUM_MAP_ENTRIES	 256
+#define NUM_MAP_REGS      32
+
 /*
  * Number of VNIC contexts used. Ensure it is less than or equal to
  * max queues supported by VNIC (HFI1_VNIC_MAX_QUEUE).
  */
 #define HFI1_NUM_VNIC_CTXT   8
 
+/* Number of VNIC RSM entries */
+#define NUM_VNIC_MAP_ENTRIES 8
+
 /* Virtual NIC information */
 struct hfi1_vnic_data {
+	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
+	u8 num_vports;
 	struct idr vesw_idr;
+	u8 rmt_start;
+	u8 num_ctxt;
+	u32 msix_idx;
 };
 
 struct hfi1_vnic_vport_info;
@@ -1050,6 +1066,7 @@ struct hfi1_devdata {
 	/* MSI-X information */
 	struct hfi1_msix_entry *msix_entries;
 	u32 num_msix_entries;
+	u32 first_dyn_msix_idx;
 
 	/* INTx information */
 	u32 requested_intx_irq;		/* did we request one? */
@@ -1148,8 +1165,8 @@ struct hfi1_devdata {
 	u16 flags;
 	/* Number of physical ports available */
 	u8 num_pports;
-	/* Lowest context number which can be used by user processes */
-	u8 first_user_ctxt;
+	/* Lowest context number which can be used by user processes or VNIC */
+	u8 first_dyn_alloc_ctxt;
 	/* adding a new field here would make it part of this cacheline */
 
 	/* seqlock for sc2vl */
@@ -1196,6 +1213,11 @@ struct hfi1_devdata {
 	/* vnic data */
 	struct hfi1_vnic_data vnic;
 };
+
+static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)
+{
+	return (dd->vnic.rmt_start + spare) > NUM_MAP_ENTRIES;
+}
 
 /* 8051 firmware version helper */
 #define dc8051_ver(a, b, c) ((a) << 16 | (b) << 8 | (c))
@@ -1261,6 +1283,9 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *, int);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *, int);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *, int);
 void set_all_slowpath(struct hfi1_devdata *dd);
+void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd);
+void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd);
+void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd);
 
 extern const struct pci_device_id hfi1_pci_tbl[];
 

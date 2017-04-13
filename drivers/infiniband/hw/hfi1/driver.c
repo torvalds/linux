@@ -874,20 +874,42 @@ bail:
 	return last;
 }
 
-static inline void set_all_nodma_rtail(struct hfi1_devdata *dd)
+static inline void set_nodma_rtail(struct hfi1_devdata *dd, u8 ctxt)
 {
 	int i;
 
-	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_user_ctxt; i++)
+	/*
+	 * For dynamically allocated kernel contexts (like vnic) switch
+	 * interrupt handler only for that context. Otherwise, switch
+	 * interrupt handler for all statically allocated kernel contexts.
+	 */
+	if (ctxt >= dd->first_dyn_alloc_ctxt) {
+		dd->rcd[ctxt]->do_interrupt =
+			&handle_receive_interrupt_nodma_rtail;
+		return;
+	}
+
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++)
 		dd->rcd[i]->do_interrupt =
 			&handle_receive_interrupt_nodma_rtail;
 }
 
-static inline void set_all_dma_rtail(struct hfi1_devdata *dd)
+static inline void set_dma_rtail(struct hfi1_devdata *dd, u8 ctxt)
 {
 	int i;
 
-	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_user_ctxt; i++)
+	/*
+	 * For dynamically allocated kernel contexts (like vnic) switch
+	 * interrupt handler only for that context. Otherwise, switch
+	 * interrupt handler for all statically allocated kernel contexts.
+	 */
+	if (ctxt >= dd->first_dyn_alloc_ctxt) {
+		dd->rcd[ctxt]->do_interrupt =
+			&handle_receive_interrupt_dma_rtail;
+		return;
+	}
+
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++)
 		dd->rcd[i]->do_interrupt =
 			&handle_receive_interrupt_dma_rtail;
 }
@@ -897,8 +919,13 @@ void set_all_slowpath(struct hfi1_devdata *dd)
 	int i;
 
 	/* HFI1_CTRL_CTXT must always use the slow path interrupt handler */
-	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_user_ctxt; i++)
-		dd->rcd[i]->do_interrupt = &handle_receive_interrupt;
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->num_rcv_contexts; i++) {
+		struct hfi1_ctxtdata *rcd = dd->rcd[i];
+
+		if ((i < dd->first_dyn_alloc_ctxt) ||
+		    (rcd && rcd->sc && (rcd->sc->type == SC_KERNEL)))
+			rcd->do_interrupt = &handle_receive_interrupt;
+	}
 }
 
 static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
@@ -1008,7 +1035,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 				last = RCV_PKT_DONE;
 			if (needset) {
 				dd_dev_info(dd, "Switching to NO_DMA_RTAIL\n");
-				set_all_nodma_rtail(dd);
+				set_nodma_rtail(dd, rcd->ctxt);
 				needset = 0;
 			}
 		} else {
@@ -1030,7 +1057,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			if (needset) {
 				dd_dev_info(dd,
 					    "Switching to DMA_RTAIL\n");
-				set_all_dma_rtail(dd);
+				set_dma_rtail(dd, rcd->ctxt);
 				needset = 0;
 			}
 		}
@@ -1079,10 +1106,10 @@ void receive_interrupt_work(struct work_struct *work)
 	set_link_state(ppd, HLS_UP_ACTIVE);
 
 	/*
-	 * Interrupt all kernel contexts that could have had an
-	 * interrupt during auto activation.
+	 * Interrupt all statically allocated kernel contexts that could
+	 * have had an interrupt during auto activation.
 	 */
-	for (i = HFI1_CTRL_CTXT; i < dd->first_user_ctxt; i++)
+	for (i = HFI1_CTRL_CTXT; i < dd->first_dyn_alloc_ctxt; i++)
 		force_recv_intr(dd->rcd[i]);
 }
 
@@ -1296,7 +1323,8 @@ int hfi1_reset_device(int unit)
 
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	if (dd->rcd)
-		for (i = dd->first_user_ctxt; i < dd->num_rcv_contexts; i++) {
+		for (i = dd->first_dyn_alloc_ctxt;
+		     i < dd->num_rcv_contexts; i++) {
 			if (!dd->rcd[i] || !dd->rcd[i]->cnt)
 				continue;
 			spin_unlock_irqrestore(&dd->uctxt_lock, flags);

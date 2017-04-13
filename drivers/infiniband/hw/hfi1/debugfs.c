@@ -1,6 +1,6 @@
 #ifdef CONFIG_DEBUG_FS
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -174,7 +174,7 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
 
-	for (j = 0; j < dd->first_user_ctxt; j++) {
+	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
 		if (!dd->rcd[j])
 			continue;
 		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
@@ -200,7 +200,7 @@ static void *_ctx_stats_seq_start(struct seq_file *s, loff_t *pos)
 
 	if (!*pos)
 		return SEQ_START_TOKEN;
-	if (*pos >= dd->first_user_ctxt)
+	if (*pos >= dd->first_dyn_alloc_ctxt)
 		return NULL;
 	return pos;
 }
@@ -214,7 +214,7 @@ static void *_ctx_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
 		return pos;
 
 	++*pos;
-	if (*pos >= dd->first_user_ctxt)
+	if (*pos >= dd->first_dyn_alloc_ctxt)
 		return NULL;
 	return pos;
 }
@@ -1099,7 +1099,7 @@ static int _fault_stats_seq_show(struct seq_file *s, void *v)
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
 
-	for (j = 0; j < dd->first_user_ctxt; j++) {
+	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
 		if (!dd->rcd[j])
 			continue;
 		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
