@@ -40,6 +40,7 @@ struct hdmi_codec_priv {
 	struct device *dev;
 	struct notifier_block nb;
 	unsigned int jack_status;
+	unsigned int mode;
 };
 
 static const struct snd_soc_dapm_widget hdmi_widgets[] = {
@@ -78,6 +79,36 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int hdmi_audio_mode_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = HBR;
+	return 0;
+}
+
+static int hdmi_audio_mode_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct hdmi_codec_priv *hcp = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = hcp->mode;
+	return 0;
+}
+
+static int hdmi_audio_mode_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct hdmi_codec_priv *hcp = snd_soc_component_get_drvdata(component);
+
+	hcp->mode = ucontrol->value.integer.value[0];
+	return 0;
+}
+
 static const struct snd_kcontrol_new hdmi_controls[] = {
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
@@ -87,6 +118,17 @@ static const struct snd_kcontrol_new hdmi_controls[] = {
 		.info = hdmi_eld_ctl_info,
 		.get = hdmi_eld_ctl_get,
 	},
+	{
+		.access = SNDRV_CTL_ELEM_ACCESS_READ |
+			  SNDRV_CTL_ELEM_ACCESS_WRITE |
+			  SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+		.name = "AUDIO MODE",
+		.info = hdmi_audio_mode_info,
+		.get = hdmi_audio_mode_get,
+		.put = hdmi_audio_mode_put,
+	},
+
 };
 
 static int hdmi_codec_new_stream(struct snd_pcm_substream *substream,
@@ -201,6 +243,7 @@ static int hdmi_codec_hw_params(struct snd_pcm_substream *substream,
 	hp.sample_width = params_width(params);
 	hp.sample_rate = params_rate(params);
 	hp.channels = params_channels(params);
+	hp.mode = hcp->mode;
 
 	return hcp->hcd.ops->hw_params(dai->dev->parent, hcp->hcd.data,
 				       &hcp->daifmt[dai->id], &hp);
