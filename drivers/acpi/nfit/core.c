@@ -1246,12 +1246,14 @@ static ssize_t flags_show(struct device *dev,
 {
 	u16 flags = to_nfit_memdev(dev)->flags;
 
-	return sprintf(buf, "%s%s%s%s%s\n",
+	return sprintf(buf, "%s%s%s%s%s%s%s\n",
 		flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save_fail " : "",
 		flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore_fail " : "",
 		flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush_fail " : "",
 		flags & ACPI_NFIT_MEM_NOT_ARMED ? "not_armed " : "",
-		flags & ACPI_NFIT_MEM_HEALTH_OBSERVED ? "smart_event " : "");
+		flags & ACPI_NFIT_MEM_HEALTH_OBSERVED ? "smart_event " : "",
+		flags & ACPI_NFIT_MEM_MAP_FAILED ? "map_fail " : "",
+		flags & ACPI_NFIT_MEM_HEALTH_ENABLED ? "smart_notify " : "");
 }
 static DEVICE_ATTR_RO(flags);
 
