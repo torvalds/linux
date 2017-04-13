@@ -958,16 +958,6 @@ static void btc8821a2ant_sw_mechanism1(struct btc_coexist *btcoexist,
 				       bool shrink_rx_lpf, bool low_penalty_ra,
 				       bool limited_dig, bool bt_lna_constrain)
 {
-	u32 wifi_bw;
-
-	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
-
-	if (BTC_WIFI_BW_HT40 != wifi_bw) {
-		/*only shrink RF Rx LPF for HT40*/
-		if (shrink_rx_lpf)
-			shrink_rx_lpf = false;
-	}
-
 	btc8821a2ant_low_penalty_ra(btcoexist, NORMAL_EXEC, low_penalty_ra);
 }
 
