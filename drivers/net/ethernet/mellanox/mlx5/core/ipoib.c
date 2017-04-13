@@ -34,6 +34,18 @@
 #include "en.h"
 #include "ipoib.h"
 
+static int mlx5i_open(struct net_device *netdev);
+static int mlx5i_close(struct net_device *netdev);
+static int  mlx5i_dev_init(struct net_device *dev);
+static void mlx5i_dev_cleanup(struct net_device *dev);
+
+static const struct net_device_ops mlx5i_netdev_ops = {
+	.ndo_open                = mlx5i_open,
+	.ndo_stop                = mlx5i_close,
+	.ndo_init                = mlx5i_dev_init,
+	.ndo_uninit              = mlx5i_dev_cleanup,
+};
+
 /* IPoIB mlx5 netdev profile */
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
@@ -52,7 +64,17 @@ static void mlx5i_init(struct mlx5_core_dev *mdev,
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
 
 	mutex_init(&priv->state_lock);
-	/* TODO : init netdev features here */
+
+	netdev->hw_features    |= NETIF_F_SG;
+	netdev->hw_features    |= NETIF_F_IP_CSUM;
+	netdev->hw_features    |= NETIF_F_IPV6_CSUM;
+	netdev->hw_features    |= NETIF_F_GRO;
+	netdev->hw_features    |= NETIF_F_TSO;
+	netdev->hw_features    |= NETIF_F_TSO6;
+	netdev->hw_features    |= NETIF_F_RXCSUM;
+	netdev->hw_features    |= NETIF_F_RXHASH;
+
+	netdev->netdev_ops = &mlx5i_netdev_ops;
 }
 
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
@@ -180,6 +202,72 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.max_nch	   = mlx5e_get_max_num_channels,
 	.max_tc		   = MLX5I_MAX_NUM_TC,
 };
+
+/* mlx5i netdev NDos */
+
+static int mlx5i_dev_init(struct net_device *dev)
+{
+	struct mlx5e_priv    *priv   = mlx5i_epriv(dev);
+	struct mlx5i_priv    *ipriv  = priv->ppriv;
+
+	/* Set dev address using underlay QP */
+	dev->dev_addr[1] = (ipriv->qp.qpn >> 16) & 0xff;
+	dev->dev_addr[2] = (ipriv->qp.qpn >>  8) & 0xff;
+	dev->dev_addr[3] = (ipriv->qp.qpn) & 0xff;
+
+	return 0;
+}
+
+static void mlx5i_dev_cleanup(struct net_device *dev)
+{
+	/* TODO: detach underlay qp from flow-steering by reset it */
+}
+
+static int mlx5i_open(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+	int err;
+
+	mutex_lock(&priv->state_lock);
+
+	set_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	err = mlx5e_open_channels(priv, &priv->channels);
+	if (err)
+		goto err_clear_state_opened_flag;
+
+	mlx5e_refresh_tirs(priv, false);
+	mlx5e_activate_priv_channels(priv);
+	mutex_unlock(&priv->state_lock);
+	return 0;
+
+err_clear_state_opened_flag:
+	clear_bit(MLX5E_STATE_OPENED, &priv->state);
+	mutex_unlock(&priv->state_lock);
+	return err;
+}
+
+static int mlx5i_close(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
+
+	/* May already be CLOSED in case a previous configuration operation
+	 * (e.g RX/TX queue size change) that involves close&open failed.
+	 */
+	mutex_lock(&priv->state_lock);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto unlock;
+
+	clear_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	netif_carrier_off(priv->netdev);
+	mlx5e_deactivate_priv_channels(priv);
+	mlx5e_close_channels(&priv->channels);
+unlock:
+	mutex_unlock(&priv->state_lock);
+	return 0;
+}
 
 /* IPoIB RDMA netdev callbacks */
 

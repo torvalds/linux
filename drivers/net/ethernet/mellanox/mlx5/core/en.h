@@ -883,6 +883,8 @@ typedef int (*mlx5e_fp_hw_modify)(struct mlx5e_priv *priv);
 void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 				struct mlx5e_channels *new_chs,
 				mlx5e_fp_hw_modify hw_modify);
+void mlx5e_activate_priv_channels(struct mlx5e_priv *priv);
+void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv);
 
 void mlx5e_build_default_indir_rqt(struct mlx5_core_dev *mdev,
 				   u32 *indirection_rqt, int len,
