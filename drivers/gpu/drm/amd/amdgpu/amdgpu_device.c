@@ -2215,7 +2215,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	struct drm_connector *connector;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_crtc *crtc;
-	int r;
+	int r = 0;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -2227,11 +2227,8 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 		pci_set_power_state(dev->pdev, PCI_D0);
 		pci_restore_state(dev->pdev);
 		r = pci_enable_device(dev->pdev);
-		if (r) {
-			if (fbcon)
-				console_unlock();
-			return r;
-		}
+		if (r)
+			goto unlock;
 	}
 	if (adev->is_atom_fw)
 		amdgpu_atomfirmware_scratch_regs_restore(adev);
@@ -2248,7 +2245,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	r = amdgpu_resume(adev);
 	if (r) {
 		DRM_ERROR("amdgpu_resume failed (%d).\n", r);
-		return r;
+		goto unlock;
 	}
 	amdgpu_fence_driver_resume(adev);
 
@@ -2259,11 +2256,8 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	r = amdgpu_late_init(adev);
-	if (r) {
-		if (fbcon)
-			console_unlock();
-		return r;
-	}
+	if (r)
+		goto unlock;
 
 	/* pin cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -2313,12 +2307,14 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	dev->dev->power.disable_depth--;
 #endif
 
-	if (fbcon) {
+	if (fbcon)
 		amdgpu_fbdev_set_suspend(adev, 0);
-		console_unlock();
-	}
 
-	return 0;
+unlock:
+	if (fbcon)
+		console_unlock();
+
+	return r;
 }
 
 static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
