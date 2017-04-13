@@ -72,6 +72,8 @@ struct opa_vnic_adapter;
 
 /**
  * struct __opa_vesw_info - OPA vnic virtual switch info
+ *
+ * Same as opa_vesw_info without bitwise attribute.
  */
 struct __opa_vesw_info {
 	u16  fabric_id;
@@ -95,6 +97,8 @@ struct __opa_vesw_info {
 
 /**
  * struct __opa_per_veswport_info - OPA vnic per port info
+ *
+ * Same as opa_per_veswport_info without bitwise attribute.
  */
 struct __opa_per_veswport_info {
 	u32  port_num;
@@ -133,11 +137,28 @@ struct __opa_per_veswport_info {
 
 /**
  * struct __opa_veswport_info - OPA vnic port info
+ *
+ * Same as opa_veswport_info without bitwise attribute.
  */
 struct __opa_veswport_info {
 	struct __opa_vesw_info            vesw;
 	struct __opa_per_veswport_info    vport;
 };
+
+/**
+ * struct __opa_veswport_trap - OPA vnic trap info
+ *
+ * Same as opa_veswport_trap without bitwise attribute.
+ */
+struct __opa_veswport_trap {
+	u16	fabric_id;
+	u16	veswid;
+	u32	veswportnum;
+	u16	opaportnum;
+	u8	veswportindex;
+	u8	opcode;
+	u32	reserved;
+} __packed;
 
 /**
  * struct opa_vnic_adapter - OPA VNIC netdev private data structure
@@ -174,6 +195,18 @@ struct opa_vnic_adapter {
 	netdev_info(adapter->netdev, format, ## arg)
 #define v_warn(format, arg...) \
 	netdev_warn(adapter->netdev, format, ## arg)
+
+/* The maximum allowed entries in the mac table */
+#define OPA_VNIC_MAC_TBL_MAX_ENTRIES  2048
+/* Limit of smac entries in mac table */
+#define OPA_VNIC_MAX_SMAC_LIMIT       256
+
+/* The last octet of the MAC address is used as the key to the hash table */
+#define OPA_VNIC_MAC_HASH_IDX         5
+
+/* The VNIC MAC hash table is of size 2^8 */
+#define OPA_VNIC_MAC_TBL_HASH_BITS    8
+#define OPA_VNIC_MAC_TBL_SIZE  BIT(OPA_VNIC_MAC_TBL_HASH_BITS)
 
 struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 					     u8 port_num, u8 vport_num);
