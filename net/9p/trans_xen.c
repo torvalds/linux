@@ -386,7 +386,7 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 	struct xenbus_transaction xbt;
 	struct xen_9pfs_front_priv *priv = NULL;
 	char *versions;
-	unsigned int max_rings, max_ring_order, len;
+	unsigned int max_rings, max_ring_order, len = 0;
 
 	versions = xenbus_read(XBT_NIL, dev->otherend, "versions", &len);
 	if (!len)
