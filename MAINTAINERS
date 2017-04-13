@@ -4160,6 +4160,12 @@ F:	include/drm/drm*
 F:	include/uapi/drm/drm*
 F:	include/linux/vga*
 
+DRM DRIVER FOR ARM PL111 CLCD
+M:	Eric Anholt <eric@anholt.net>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Supported
+F:	drivers/gpu/drm/pl111/
+
 DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
 M:	Dave Airlie <airlied@redhat.com>
 S:	Odd Fixes
