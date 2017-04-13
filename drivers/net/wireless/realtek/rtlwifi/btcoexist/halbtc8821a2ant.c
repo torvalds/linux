@@ -1364,6 +1364,7 @@ static void btc8821a2ant_coex_all_off(struct btc_coexist *btcoexist)
 static void btc8821a2ant_coex_under_5g(struct btc_coexist *btcoexist)
 {
 	btc8821a2ant_coex_all_off(btcoexist);
+	btc8821a2ant_ignore_wlan_act(btcoexist, NORMAL_EXEC, true);
 }
 
 static void btc8821a2ant_init_coex_dm(struct btc_coexist *btcoexist)
