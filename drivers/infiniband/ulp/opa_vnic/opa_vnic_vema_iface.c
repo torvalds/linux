@@ -70,7 +70,7 @@ void opa_vnic_vema_report_event(struct opa_vnic_adapter *adapter, u8 event)
 	trap_data.veswportindex = adapter->vport_num;
 	trap_data.opcode = event;
 
-	/* Need to send trap here */
+	opa_vnic_vema_send_trap(adapter, &trap_data, info->vport.encap_slid);
 }
 
 /**

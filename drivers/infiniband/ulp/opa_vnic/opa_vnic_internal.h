@@ -164,10 +164,12 @@ struct __opa_veswport_trap {
  * struct opa_vnic_ctrl_port - OPA virtual NIC control port
  * @ibdev: pointer to ib device
  * @ops: opa vnic control operations
+ * @num_ports: number of opa ports
  */
 struct opa_vnic_ctrl_port {
 	struct ib_device           *ibdev;
 	struct opa_vnic_ctrl_ops   *ops;
+	u8                          num_ports;
 };
 
 /**
@@ -187,6 +189,8 @@ struct opa_vnic_ctrl_port {
  * @mactbl_lock: mac table lock
  * @stats_lock: statistics lock
  * @flow_tbl: flow to default port redirection table
+ * @trap_timeout: trap timeout
+ * @trap_count: no. of traps allowed within timeout period
  */
 struct opa_vnic_adapter {
 	struct net_device             *netdev;
@@ -213,6 +217,9 @@ struct opa_vnic_adapter {
 	struct mutex stats_lock;
 
 	u8 flow_tbl[OPA_VNIC_FLOW_TBL_SIZE];
+
+	unsigned long trap_timeout;
+	u8            trap_count;
 };
 
 /* Same as opa_veswport_mactable_entry, but without bitwise attribute */
@@ -247,6 +254,8 @@ struct opa_vnic_mac_tbl_node {
 	dev_err(&cport->ibdev->dev, format, ## arg)
 #define c_info(format, arg...) \
 	dev_info(&cport->ibdev->dev, format, ## arg)
+#define c_dbg(format, arg...) \
+	dev_dbg(&cport->ibdev->dev, format, ## arg)
 
 /* The maximum allowed entries in the mac table */
 #define OPA_VNIC_MAC_TBL_MAX_ENTRIES  2048
@@ -281,6 +290,9 @@ struct opa_vnic_mac_tbl_node {
 		    !obj && (bkt) < OPA_VNIC_MAC_TBL_SIZE; (bkt)++)           \
 		hlist_for_each_entry(obj, &name[bkt], member)
 
+extern char opa_vnic_driver_name[];
+extern const char opa_vnic_driver_version[];
+
 struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 					     u8 port_num, u8 vport_num);
 void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter);
@@ -310,9 +322,8 @@ void opa_vnic_get_per_veswport_info(struct opa_vnic_adapter *adapter,
 void opa_vnic_set_per_veswport_info(struct opa_vnic_adapter *adapter,
 				    struct opa_per_veswport_info *info);
 void opa_vnic_vema_report_event(struct opa_vnic_adapter *adapter, u8 event);
-struct opa_vnic_adapter *opa_vnic_add_vport(struct opa_vnic_ctrl_port *cport,
-					    u8 port_num, u8 vport_num);
-void opa_vnic_rem_vport(struct opa_vnic_adapter *adapter);
 void opa_vnic_set_ethtool_ops(struct net_device *netdev);
+void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
+			     struct __opa_veswport_trap *data, u32 lid);
 
 #endif /* _OPA_VNIC_INTERNAL_H */

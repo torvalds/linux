@@ -120,6 +120,17 @@ static struct vnic_stats vnic_gstrings_stats[] = {
 
 #define VNIC_STATS_LEN  ARRAY_SIZE(vnic_gstrings_stats)
 
+/* vnic_get_drvinfo - get driver info */
+static void vnic_get_drvinfo(struct net_device *netdev,
+			     struct ethtool_drvinfo *drvinfo)
+{
+	strlcpy(drvinfo->driver, opa_vnic_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, opa_vnic_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->bus_info, dev_name(netdev->dev.parent),
+		sizeof(drvinfo->bus_info));
+}
+
 /* vnic_get_sset_count - get string set count */
 static int vnic_get_sset_count(struct net_device *netdev, int sset)
 {
@@ -162,6 +173,7 @@ static void vnic_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 /* ethtool ops */
 static const struct ethtool_ops opa_vnic_ethtool_ops = {
+	.get_drvinfo = vnic_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_strings = vnic_get_strings,
 	.get_sset_count = vnic_get_sset_count,
