@@ -1109,7 +1109,6 @@ static void btc8821a2ant_set_ant_path(struct btc_coexist *btcoexist,
 		btcoexist->btc_write_4byte(btcoexist, 0x4c, u4tmp);
 
 		btcoexist->btc_write_4byte(btcoexist, 0x974, 0x3ff);
-		btcoexist->btc_write_1byte(btcoexist, 0xcb4, 0x77);
 
 		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT) {
 			/* tell firmware "antenna inverse"  ==> WRONG firmware
