@@ -1142,7 +1142,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 		 * it is possible for mperf's non-halted cycles + idle states
 		 * to exceed TSC's all cycles: show c1 = 0% in that case.
 		 */
-		if ((old->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > old->tsc)
+		if ((old->mperf + core_delta->c3 + core_delta->c6 + core_delta->c7) > (old->tsc * tsc_tweak))
 			old->c1 = 0;
 		else {
 			/* normal case, derive c1 */
@@ -2485,8 +2485,10 @@ int snapshot_gfx_mhz(void)
 
 	if (fp == NULL)
 		fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", "r");
-	else
+	else {
 		rewind(fp);
+		fflush(fp);
+	}
 
 	retval = fscanf(fp, "%d", &gfx_cur_mhz);
 	if (retval != 1)
@@ -3111,7 +3113,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	fprintf(outf, "cpu%d: MSR_HWP_CAPABILITIES: 0x%08llx "
-			"(high 0x%x guar 0x%x eff 0x%x low 0x%x)\n",
+			"(high %d guar %d eff %d low %d)\n",
 			cpu, msr,
 			(unsigned int)HWP_HIGHEST_PERF(msr),
 			(unsigned int)HWP_GUARANTEED_PERF(msr),
@@ -3122,7 +3124,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		return 0;
 
 	fprintf(outf, "cpu%d: MSR_HWP_REQUEST: 0x%08llx "
-			"(min 0x%x max 0x%x des 0x%x epp 0x%x window 0x%x pkg 0x%x)\n",
+			"(min %d max %d des %d epp 0x%x window 0x%x pkg 0x%x)\n",
 			cpu, msr,
 			(unsigned int)(((msr) >> 0) & 0xff),
 			(unsigned int)(((msr) >> 8) & 0xff),
@@ -3136,7 +3138,7 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return 0;
 
 		fprintf(outf, "cpu%d: MSR_HWP_REQUEST_PKG: 0x%08llx "
-			"(min 0x%x max 0x%x des 0x%x epp 0x%x window 0x%x)\n",
+			"(min %d max %d des %d epp 0x%x window 0x%x)\n",
 			cpu, msr,
 			(unsigned int)(((msr) >> 0) & 0xff),
 			(unsigned int)(((msr) >> 8) & 0xff),
@@ -3353,17 +3355,19 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case INTEL_FAM6_SKYLAKE_DESKTOP:	/* SKL */
 	case INTEL_FAM6_KABYLAKE_MOBILE:	/* KBL */
 	case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
-		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
+		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_GFX | RAPL_PKG_POWER_INFO;
 		BIC_PRESENT(BIC_PKG__);
 		BIC_PRESENT(BIC_RAM__);
 		if (rapl_joules) {
 			BIC_PRESENT(BIC_Pkg_J);
 			BIC_PRESENT(BIC_Cor_J);
 			BIC_PRESENT(BIC_RAM_J);
+			BIC_PRESENT(BIC_GFX_J);
 		} else {
 			BIC_PRESENT(BIC_PkgWatt);
 			BIC_PRESENT(BIC_CorWatt);
 			BIC_PRESENT(BIC_RAMWatt);
+			BIC_PRESENT(BIC_GFXWatt);
 		}
 		break;
 	case INTEL_FAM6_HASWELL_X:	/* HSX */
@@ -3478,7 +3482,7 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
-	unsigned int dts;
+	unsigned int dts, dts2;
 	int cpu;
 
 	if (!(do_dts || do_ptm))
@@ -3503,7 +3507,6 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_STATUS: 0x%08llx (%d C)\n",
 			cpu, msr, tcc_activation_temp - dts);
 
-#ifdef	THERM_DEBUG
 		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, &msr))
 			return 0;
 
@@ -3511,11 +3514,10 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		dts2 = (msr >> 8) & 0x7F;
 		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
 			cpu, msr, tcc_activation_temp - dts, tcc_activation_temp - dts2);
-#endif
 	}
 
 
-	if (do_dts) {
+	if (do_dts && debug) {
 		unsigned int resolution;
 
 		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
@@ -3526,7 +3528,6 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		fprintf(outf, "cpu%d: MSR_IA32_THERM_STATUS: 0x%08llx (%d C +/- %d)\n",
 			cpu, msr, tcc_activation_temp - dts, resolution);
 
-#ifdef THERM_DEBUG
 		if (get_msr(cpu, MSR_IA32_THERM_INTERRUPT, &msr))
 			return 0;
 
@@ -3534,7 +3535,6 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		dts2 = (msr >> 8) & 0x7F;
 		fprintf(outf, "cpu%d: MSR_IA32_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
 			cpu, msr, tcc_activation_temp - dts, tcc_activation_temp - dts2);
-#endif
 	}
 
 	return 0;
@@ -4578,7 +4578,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 17.02.24"
+	fprintf(outf, "turbostat version 17.04.12"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
