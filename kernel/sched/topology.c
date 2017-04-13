@@ -513,6 +513,47 @@ int group_balance_cpu(struct sched_group *sg)
 	return cpumask_first_and(sched_group_cpus(sg), sched_group_mask(sg));
 }
 
+static struct sched_group *
+build_group_from_child_sched_domain(struct sched_domain *sd, int cpu)
+{
+	struct sched_group *sg;
+	struct cpumask *sg_span;
+
+	sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
+			GFP_KERNEL, cpu_to_node(cpu));
+
+	if (!sg)
+		return NULL;
+
+	sg_span = sched_group_cpus(sg);
+	if (sd->child)
+		cpumask_copy(sg_span, sched_domain_span(sd->child));
+	else
+		cpumask_copy(sg_span, sched_domain_span(sd));
+
+	return sg;
+}
+
+static void init_overlap_sched_group(struct sched_domain *sd,
+				     struct sched_group *sg, int cpu)
+{
+	struct sd_data *sdd = sd->private;
+	struct cpumask *sg_span;
+
+	sg->sgc = *per_cpu_ptr(sdd->sgc, cpu);
+	if (atomic_inc_return(&sg->sgc->ref) == 1)
+		build_group_mask(sd, sg);
+
+	/*
+	 * Initialize sgc->capacity such that even if we mess up the
+	 * domains and no possible iteration will get us here, we won't
+	 * die on a /0 trap.
+	 */
+	sg_span = sched_group_cpus(sg);
+	sg->sgc->capacity = SCHED_CAPACITY_SCALE * cpumask_weight(sg_span);
+	sg->sgc->min_capacity = SCHED_CAPACITY_SCALE;
+}
+
 static int
 build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 {
@@ -537,31 +578,14 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 		if (!cpumask_test_cpu(i, sched_domain_span(sibling)))
 			continue;
 
-		sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
-				GFP_KERNEL, cpu_to_node(cpu));
-
+		sg = build_group_from_child_sched_domain(sibling, cpu);
 		if (!sg)
 			goto fail;
 
 		sg_span = sched_group_cpus(sg);
-		if (sibling->child)
-			cpumask_copy(sg_span, sched_domain_span(sibling->child));
-		else
-			cpumask_set_cpu(i, sg_span);
-
 		cpumask_or(covered, covered, sg_span);
 
-		sg->sgc = *per_cpu_ptr(sdd->sgc, i);
-		if (atomic_inc_return(&sg->sgc->ref) == 1)
-			build_group_mask(sd, sg);
-
-		/*
-		 * Initialize sgc->capacity such that even if we mess up the
-		 * domains and no possible iteration will get us here, we won't
-		 * die on a /0 trap.
-		 */
-		sg->sgc->capacity = SCHED_CAPACITY_SCALE * cpumask_weight(sg_span);
-		sg->sgc->min_capacity = SCHED_CAPACITY_SCALE;
+		init_overlap_sched_group(sd, sg, i);
 
 		/*
 		 * Make sure the first group of this domain contains the
