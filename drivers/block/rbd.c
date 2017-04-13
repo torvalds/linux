@@ -387,6 +387,7 @@ struct rbd_device {
 
 	struct rw_semaphore	lock_rwsem;
 	enum rbd_lock_state	lock_state;
+	char			lock_cookie[32];
 	struct rbd_client_id	owner_cid;
 	struct work_struct	acquired_lock_work;
 	struct work_struct	released_lock_work;
@@ -3079,7 +3080,8 @@ static int rbd_lock(struct rbd_device *rbd_dev)
 	char cookie[32];
 	int ret;
 
-	WARN_ON(__rbd_is_lock_owner(rbd_dev));
+	WARN_ON(__rbd_is_lock_owner(rbd_dev) ||
+		rbd_dev->lock_cookie[0] != '\0');
 
 	format_lock_cookie(rbd_dev, cookie);
 	ret = ceph_cls_lock(osdc, &rbd_dev->header_oid, &rbd_dev->header_oloc,
@@ -3089,6 +3091,7 @@ static int rbd_lock(struct rbd_device *rbd_dev)
 		return ret;
 
 	rbd_dev->lock_state = RBD_LOCK_STATE_LOCKED;
+	strcpy(rbd_dev->lock_cookie, cookie);
 	rbd_set_owner_cid(rbd_dev, &cid);
 	queue_work(rbd_dev->task_wq, &rbd_dev->acquired_lock_work);
 	return 0;
@@ -3100,19 +3103,19 @@ static int rbd_lock(struct rbd_device *rbd_dev)
 static void rbd_unlock(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
-	char cookie[32];
 	int ret;
 
-	WARN_ON(!__rbd_is_lock_owner(rbd_dev));
+	WARN_ON(!__rbd_is_lock_owner(rbd_dev) ||
+		rbd_dev->lock_cookie[0] == '\0');
 
-	format_lock_cookie(rbd_dev, cookie);
 	ret = ceph_cls_unlock(osdc, &rbd_dev->header_oid, &rbd_dev->header_oloc,
-			      RBD_LOCK_NAME, cookie);
+			      RBD_LOCK_NAME, rbd_dev->lock_cookie);
 	if (ret && ret != -ENOENT)
 		rbd_warn(rbd_dev, "failed to unlock: %d", ret);
 
 	/* treat errors as the image is unlocked */
 	rbd_dev->lock_state = RBD_LOCK_STATE_UNLOCKED;
+	rbd_dev->lock_cookie[0] = '\0';
 	rbd_set_owner_cid(rbd_dev, &rbd_empty_cid);
 	queue_work(rbd_dev->task_wq, &rbd_dev->released_lock_work);
 }
