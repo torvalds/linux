@@ -552,11 +552,10 @@ static __le32 __iomem *xhci_get_port_io_addr(struct usb_hcd *hcd, int index)
  * method.
  */
 static void xhci_set_port_power(struct xhci_hcd *xhci, struct usb_hcd *hcd,
-				u16 index, bool on)
+				u16 index, bool on, unsigned long *flags)
 {
 	__le32 __iomem *addr;
 	u32 temp;
-	unsigned long flags = 0;
 
 	addr = xhci_get_port_io_addr(hcd, index);
 	temp = readl(addr);
@@ -572,13 +571,13 @@ static void xhci_set_port_power(struct xhci_hcd *xhci, struct usb_hcd *hcd,
 		writel(temp & ~PORT_POWER, addr);
 	}
 
-	spin_unlock_irqrestore(&xhci->lock, flags);
+	spin_unlock_irqrestore(&xhci->lock, *flags);
 	temp = usb_acpi_power_manageable(hcd->self.root_hub,
 					index);
 	if (temp)
 		usb_acpi_set_power_state(hcd->self.root_hub,
 			index, on);
-	spin_lock_irqsave(&xhci->lock, flags);
+	spin_lock_irqsave(&xhci->lock, *flags);
 }
 
 static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
@@ -598,7 +597,7 @@ static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
 }
 
 static int xhci_enter_test_mode(struct xhci_hcd *xhci,
-				u16 test_mode, u16 wIndex)
+				u16 test_mode, u16 wIndex, unsigned long *flags)
 {
 	int i, retval;
 
@@ -614,10 +613,10 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 	xhci_dbg(xhci, "Disable all port (PP = 0)\n");
 	/* Power off USB3 ports*/
 	for (i = 0; i < xhci->num_usb3_ports; i++)
-		xhci_set_port_power(xhci, xhci->shared_hcd, i, false);
+		xhci_set_port_power(xhci, xhci->shared_hcd, i, false, flags);
 	/* Power off USB2 ports*/
 	for (i = 0; i < xhci->num_usb2_ports; i++)
-		xhci_set_port_power(xhci, xhci->main_hcd, i, false);
+		xhci_set_port_power(xhci, xhci->main_hcd, i, false, flags);
 	/* Stop the controller */
 	xhci_dbg(xhci, "Stop controller\n");
 	retval = xhci_halt(xhci);
@@ -1209,7 +1208,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 * However, hub_wq will ignore the roothub events until
 			 * the roothub is registered.
 			 */
-			xhci_set_port_power(xhci, hcd, wIndex, true);
+			xhci_set_port_power(xhci, hcd, wIndex, true, &flags);
 			break;
 		case USB_PORT_FEAT_RESET:
 			temp = (temp | PORT_RESET);
@@ -1254,7 +1253,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				goto error;
 			if (test_mode > TEST_FORCE_EN || test_mode < TEST_J)
 				goto error;
-			retval = xhci_enter_test_mode(xhci, test_mode, wIndex);
+			retval = xhci_enter_test_mode(xhci, test_mode, wIndex,
+						      &flags);
 			break;
 		default:
 			goto error;
@@ -1322,7 +1322,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					port_array[wIndex], temp);
 			break;
 		case USB_PORT_FEAT_POWER:
-			xhci_set_port_power(xhci, hcd, wIndex, false);
+			xhci_set_port_power(xhci, hcd, wIndex, false, &flags);
 			break;
 		case USB_PORT_FEAT_TEST:
 			retval = xhci_exit_test_mode(xhci);
