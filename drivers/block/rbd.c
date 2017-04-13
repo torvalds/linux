@@ -3097,7 +3097,7 @@ static int rbd_lock(struct rbd_device *rbd_dev)
 /*
  * lock_rwsem must be held for write
  */
-static int rbd_unlock(struct rbd_device *rbd_dev)
+static void rbd_unlock(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	char cookie[32];
@@ -3105,19 +3105,16 @@ static int rbd_unlock(struct rbd_device *rbd_dev)
 
 	WARN_ON(!__rbd_is_lock_owner(rbd_dev));
 
-	rbd_dev->lock_state = RBD_LOCK_STATE_UNLOCKED;
-
 	format_lock_cookie(rbd_dev, cookie);
 	ret = ceph_cls_unlock(osdc, &rbd_dev->header_oid, &rbd_dev->header_oloc,
 			      RBD_LOCK_NAME, cookie);
-	if (ret && ret != -ENOENT) {
-		rbd_warn(rbd_dev, "cls_unlock failed: %d", ret);
-		return ret;
-	}
+	if (ret && ret != -ENOENT)
+		rbd_warn(rbd_dev, "failed to unlock: %d", ret);
 
+	/* treat errors as the image is unlocked */
+	rbd_dev->lock_state = RBD_LOCK_STATE_UNLOCKED;
 	rbd_set_owner_cid(rbd_dev, &rbd_empty_cid);
 	queue_work(rbd_dev->task_wq, &rbd_dev->released_lock_work);
-	return 0;
 }
 
 static int __rbd_notify_op_lock(struct rbd_device *rbd_dev,
@@ -3490,16 +3487,15 @@ static bool rbd_release_lock(struct rbd_device *rbd_dev)
 	if (rbd_dev->lock_state != RBD_LOCK_STATE_RELEASING)
 		return false;
 
-	if (!rbd_unlock(rbd_dev))
-		/*
-		 * Give others a chance to grab the lock - we would re-acquire
-		 * almost immediately if we got new IO during ceph_osdc_sync()
-		 * otherwise.  We need to ack our own notifications, so this
-		 * lock_dwork will be requeued from rbd_wait_state_locked()
-		 * after wake_requests() in rbd_handle_released_lock().
-		 */
-		cancel_delayed_work(&rbd_dev->lock_dwork);
-
+	rbd_unlock(rbd_dev);
+	/*
+	 * Give others a chance to grab the lock - we would re-acquire
+	 * almost immediately if we got new IO during ceph_osdc_sync()
+	 * otherwise.  We need to ack our own notifications, so this
+	 * lock_dwork will be requeued from rbd_wait_state_locked()
+	 * after wake_requests() in rbd_handle_released_lock().
+	 */
+	cancel_delayed_work(&rbd_dev->lock_dwork);
 	return true;
 }
 
