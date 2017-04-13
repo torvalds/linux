@@ -478,13 +478,6 @@ static int minor_to_rbd_dev_id(int minor)
 	return minor >> RBD_SINGLE_MAJOR_PART_SHIFT;
 }
 
-static bool rbd_is_lock_supported(struct rbd_device *rbd_dev)
-{
-	return (rbd_dev->header.features & RBD_FEATURE_EXCLUSIVE_LOCK) &&
-	       rbd_dev->spec->snap_id == CEPH_NOSNAP &&
-	       !rbd_dev->mapping.read_only;
-}
-
 static bool __rbd_is_lock_owner(struct rbd_device *rbd_dev)
 {
 	return rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED ||
@@ -4052,10 +4045,6 @@ static void rbd_queue_workfn(struct work_struct *work)
 	if (op_type != OBJ_OP_READ) {
 		snapc = rbd_dev->header.snapc;
 		ceph_get_snap_context(snapc);
-		must_be_locked = rbd_is_lock_supported(rbd_dev);
-	} else {
-		must_be_locked = rbd_dev->opts->lock_on_read &&
-					rbd_is_lock_supported(rbd_dev);
 	}
 	up_read(&rbd_dev->header_rwsem);
 
@@ -4066,6 +4055,9 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 
+	must_be_locked =
+	    (rbd_dev->header.features & RBD_FEATURE_EXCLUSIVE_LOCK) &&
+	    (op_type != OBJ_OP_READ || rbd_dev->opts->lock_on_read);
 	if (must_be_locked) {
 		down_read(&rbd_dev->lock_rwsem);
 		if (rbd_dev->lock_state != RBD_LOCK_STATE_LOCKED &&
