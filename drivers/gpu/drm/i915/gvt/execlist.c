@@ -56,8 +56,8 @@ static int context_switch_events[] = {
 
 static int ring_id_to_context_switch_event(int ring_id)
 {
-	if (WARN_ON(ring_id < RCS && ring_id >
-				ARRAY_SIZE(context_switch_events)))
+	if (WARN_ON(ring_id < RCS ||
+		    ring_id >= ARRAY_SIZE(context_switch_events)))
 		return -EINVAL;
 
 	return context_switch_events[ring_id];
