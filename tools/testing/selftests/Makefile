@@ -133,4 +133,4 @@ clean:
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET clean;\
 	done;
 
-.PHONY: install
+.PHONY: all run_tests hotplug run_hotplug clean_hotplug run_pstore_crash install clean
