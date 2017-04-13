@@ -2006,7 +2006,7 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 		return;
 	case HID_DG_TOOLSERIALNUMBER:
 		wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFFULL);
-		wacom_wac->serial[0] |= value;
+		wacom_wac->serial[0] |= (__u32)value;
 		return;
 	case WACOM_HID_WD_SENSE:
 		wacom_wac->hid_data.sense_state = value;
