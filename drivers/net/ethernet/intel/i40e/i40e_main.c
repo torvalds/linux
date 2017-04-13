@@ -32,6 +32,12 @@
 #include "i40e.h"
 #include "i40e_diag.h"
 #include <net/udp_tunnel.h>
+/* All i40e tracepoints are defined by the include below, which
+ * must be included exactly once across the whole kernel with
+ * CREATE_TRACE_POINTS defined
+ */
+#define CREATE_TRACE_POINTS
+#include "i40e_trace.h"
 
 const char i40e_driver_name[] = "i40e";
 static const char i40e_driver_string[] =
