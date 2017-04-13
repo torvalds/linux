@@ -503,3 +503,90 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 		sq->cc += wi->num_wqebbs;
 	}
 }
+
+#ifdef CONFIG_MLX5_CORE_IPOIB
+
+struct mlx5_wqe_eth_pad {
+	u8 rsvd0[16];
+};
+
+struct mlx5i_tx_wqe {
+	struct mlx5_wqe_ctrl_seg     ctrl;
+	struct mlx5_wqe_datagram_seg datagram;
+	struct mlx5_wqe_eth_pad      pad;
+	struct mlx5_wqe_eth_seg      eth;
+};
+
+static inline void
+mlx5i_txwqe_build_datagram(struct mlx5_av *av, u32 dqpn, u32 dqkey,
+			   struct mlx5_wqe_datagram_seg *dseg)
+{
+	memcpy(&dseg->av, av, sizeof(struct mlx5_av));
+	dseg->av.dqp_dct = cpu_to_be32(dqpn | MLX5_EXTENDED_UD_AV);
+	dseg->av.key.qkey.qkey = cpu_to_be32(dqkey);
+}
+
+netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+			  struct mlx5_av *av, u32 dqpn, u32 dqkey)
+{
+	struct mlx5_wq_cyc       *wq   = &sq->wq;
+	u16                       pi   = sq->pc & wq->sz_m1;
+	struct mlx5i_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
+	struct mlx5e_tx_wqe_info *wi   = &sq->db.wqe_info[pi];
+
+	struct mlx5_wqe_ctrl_seg     *cseg = &wqe->ctrl;
+	struct mlx5_wqe_datagram_seg *datagram = &wqe->datagram;
+	struct mlx5_wqe_eth_seg      *eseg = &wqe->eth;
+
+	unsigned char *skb_data = skb->data;
+	unsigned int skb_len = skb->len;
+	u8  opcode = MLX5_OPCODE_SEND;
+	unsigned int num_bytes;
+	int num_dma;
+	u16 headlen;
+	u16 ds_cnt;
+	u16 ihs;
+
+	memset(wqe, 0, sizeof(*wqe));
+
+	mlx5i_txwqe_build_datagram(av, dqpn, dqkey, datagram);
+
+	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
+
+	if (skb_is_gso(skb)) {
+		opcode = MLX5_OPCODE_LSO;
+		ihs = mlx5e_txwqe_build_eseg_gso(sq, skb, eseg, &num_bytes);
+	} else {
+		ihs = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
+		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
+	}
+
+	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
+	if (ihs) {
+		memcpy(eseg->inline_hdr.start, skb_data, ihs);
+		mlx5e_tx_skb_pull_inline(&skb_data, &skb_len, ihs);
+		eseg->inline_hdr.sz = cpu_to_be16(ihs);
+		ds_cnt += DIV_ROUND_UP(ihs - sizeof(eseg->inline_hdr.start), MLX5_SEND_WQE_DS);
+	}
+
+	headlen = skb_len - skb->data_len;
+	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen,
+					  (struct mlx5_wqe_data_seg *)cseg + ds_cnt);
+	if (unlikely(num_dma < 0))
+		goto dma_unmap_wqe_err;
+
+	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt + num_dma,
+			     num_bytes, num_dma, wi, cseg);
+
+	return NETDEV_TX_OK;
+
+dma_unmap_wqe_err:
+	sq->stats.dropped++;
+	mlx5e_dma_unmap_wqe_err(sq, wi->num_dma);
+
+	dev_kfree_skb_any(skb);
+
+	return NETDEV_TX_OK;
+}
+
+#endif

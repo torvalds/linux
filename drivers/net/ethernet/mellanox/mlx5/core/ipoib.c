@@ -393,6 +393,16 @@ int mlx5i_detach_mcast(struct net_device *netdev, struct ib_device *hca,
 	return err;
 }
 
+int mlx5i_xmit(struct net_device *dev, struct sk_buff *skb,
+	       struct ib_ah *address, u32 dqpn, u32 dqkey)
+{
+	struct mlx5e_priv *epriv = mlx5i_epriv(dev);
+	struct mlx5e_txqsq *sq   = epriv->txq2sq[skb_get_queue_mapping(skb)];
+	struct mlx5_ib_ah *mah   = to_mah(address);
+
+	return mlx5i_sq_xmit(sq, skb, &mah->av, dqpn, dqkey);
+}
+
 static int mlx5i_check_required_hca_cap(struct mlx5_core_dev *mdev)
 {
 	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_IB)

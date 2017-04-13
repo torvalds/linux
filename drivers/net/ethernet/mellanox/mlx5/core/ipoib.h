@@ -47,4 +47,7 @@ struct mlx5i_priv {
 /* Extract mlx5e_priv from IPoIB netdev */
 #define mlx5i_epriv(netdev) ((void *)(((struct mlx5i_priv *)netdev_priv(netdev))->mlx5e_priv))
 
+netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+			  struct mlx5_av *av, u32 dqpn, u32 dqkey);
+
 #endif /* __MLX5E_IPOB_H__ */
