@@ -691,7 +691,7 @@ static void cvm_mmc_dma_request(struct mmc_host *mmc,
 	 * bit mask to check for CRC errors and timeouts only.
 	 * Otherwise, use the default power reset value.
 	 */
-	if (mmc->card && mmc_card_sd(mmc->card))
+	if (mmc_card_sd(mmc->card))
 		writeq(0x00b00000ull, host->base + MIO_EMM_STS_MASK(host));
 	else
 		writeq(0xe4390080ull, host->base + MIO_EMM_STS_MASK(host));
