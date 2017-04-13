@@ -855,7 +855,8 @@ static int ixgbevf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 
 	if (adapter->hw.mac.type >= ixgbe_mac_X550_vf) {
 		if (key)
-			memcpy(key, adapter->rss_key, sizeof(adapter->rss_key));
+			memcpy(key, adapter->rss_key,
+			       ixgbevf_get_rxfh_key_size(netdev));
 
 		if (indir) {
 			int i;
