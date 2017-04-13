@@ -23,7 +23,6 @@
 #include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
-#include <linux/serial.h>
 #include <linux/idr.h>
 #include <linux/fs.h>
 #include <linux/kdev_t.h>
