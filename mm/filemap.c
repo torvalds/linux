@@ -2033,7 +2033,6 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
-		struct iov_iter data = *iter;
 		loff_t size;
 
 		size = i_size_read(inode);
@@ -2044,11 +2043,12 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 		file_accessed(file);
 
-		retval = mapping->a_ops->direct_IO(iocb, &data);
+		retval = mapping->a_ops->direct_IO(iocb, iter);
 		if (retval >= 0) {
 			iocb->ki_pos += retval;
-			iov_iter_advance(iter, retval);
+			count -= retval;
 		}
+		iov_iter_revert(iter, iov_iter_count(iter) - count);
 
 		/*
 		 * Btrfs can have a short DIO read if we encounter
@@ -2059,7 +2059,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		 * the rest of the read.  Buffered reads will not work for
 		 * DAX files, so don't bother trying.
 		 */
-		if (retval < 0 || !iov_iter_count(iter) || iocb->ki_pos >= size ||
+		if (retval < 0 || !count || iocb->ki_pos >= size ||
 		    IS_DAX(inode))
 			goto out;
 	}
