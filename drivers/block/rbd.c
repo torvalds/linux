@@ -3820,24 +3820,51 @@ static void rbd_unregister_watch(struct rbd_device *rbd_dev)
 	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
 }
 
+/*
+ * lock_rwsem must be held for write
+ */
+static void rbd_reacquire_lock(struct rbd_device *rbd_dev)
+{
+	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	char cookie[32];
+	int ret;
+
+	WARN_ON(rbd_dev->lock_state != RBD_LOCK_STATE_LOCKED);
+
+	format_lock_cookie(rbd_dev, cookie);
+	ret = ceph_cls_set_cookie(osdc, &rbd_dev->header_oid,
+				  &rbd_dev->header_oloc, RBD_LOCK_NAME,
+				  CEPH_CLS_LOCK_EXCLUSIVE, rbd_dev->lock_cookie,
+				  RBD_LOCK_TAG, cookie);
+	if (ret) {
+		if (ret != -EOPNOTSUPP)
+			rbd_warn(rbd_dev, "failed to update lock cookie: %d",
+				 ret);
+
+		/*
+		 * Lock cookie cannot be updated on older OSDs, so do
+		 * a manual release and queue an acquire.
+		 */
+		if (rbd_release_lock(rbd_dev))
+			queue_delayed_work(rbd_dev->task_wq,
+					   &rbd_dev->lock_dwork, 0);
+	} else {
+		strcpy(rbd_dev->lock_cookie, cookie);
+	}
+}
+
 static void rbd_reregister_watch(struct work_struct *work)
 {
 	struct rbd_device *rbd_dev = container_of(to_delayed_work(work),
 					    struct rbd_device, watch_dwork);
-	bool was_lock_owner = false;
-	bool need_to_wake = false;
 	int ret;
 
 	dout("%s rbd_dev %p\n", __func__, rbd_dev);
 
-	down_write(&rbd_dev->lock_rwsem);
-	if (rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED)
-		was_lock_owner = rbd_release_lock(rbd_dev);
-
 	mutex_lock(&rbd_dev->watch_mutex);
 	if (rbd_dev->watch_state != RBD_WATCH_STATE_ERROR) {
 		mutex_unlock(&rbd_dev->watch_mutex);
-		goto out;
+		return;
 	}
 
 	ret = __rbd_register_watch(rbd_dev);
@@ -3845,36 +3872,28 @@ static void rbd_reregister_watch(struct work_struct *work)
 		rbd_warn(rbd_dev, "failed to reregister watch: %d", ret);
 		if (ret == -EBLACKLISTED || ret == -ENOENT) {
 			set_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags);
-			need_to_wake = true;
+			wake_requests(rbd_dev, true);
 		} else {
 			queue_delayed_work(rbd_dev->task_wq,
 					   &rbd_dev->watch_dwork,
 					   RBD_RETRY_DELAY);
 		}
 		mutex_unlock(&rbd_dev->watch_mutex);
-		goto out;
+		return;
 	}
 
-	need_to_wake = true;
 	rbd_dev->watch_state = RBD_WATCH_STATE_REGISTERED;
 	rbd_dev->watch_cookie = rbd_dev->watch_handle->linger_id;
 	mutex_unlock(&rbd_dev->watch_mutex);
 
+	down_write(&rbd_dev->lock_rwsem);
+	if (rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED)
+		rbd_reacquire_lock(rbd_dev);
+	up_write(&rbd_dev->lock_rwsem);
+
 	ret = rbd_dev_refresh(rbd_dev);
 	if (ret)
 		rbd_warn(rbd_dev, "reregisteration refresh failed: %d", ret);
-
-	if (was_lock_owner) {
-		ret = rbd_try_lock(rbd_dev);
-		if (ret)
-			rbd_warn(rbd_dev, "reregisteration lock failed: %d",
-				 ret);
-	}
-
-out:
-	up_write(&rbd_dev->lock_rwsem);
-	if (need_to_wake)
-		wake_requests(rbd_dev, true);
 }
 
 /*
@@ -4052,9 +4071,6 @@ static void rbd_queue_workfn(struct work_struct *work)
 		if (rbd_dev->lock_state != RBD_LOCK_STATE_LOCKED &&
 		    !test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags))
 			rbd_wait_state_locked(rbd_dev);
-
-		WARN_ON((rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED) ^
-			!test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags));
 		if (test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags)) {
 			result = -EBLACKLISTED;
 			goto err_unlock;
