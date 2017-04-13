@@ -36,7 +36,7 @@ static struct rt2880_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
 static struct rt2880_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
 static struct rt2880_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
 static struct rt2880_pmx_func lna_a_func[] = { FUNC("lna a", 0, 32, 3) };
-static struct rt2880_pmx_func lna_g_func[] = { FUNC("lna a", 0, 35, 3) };
+static struct rt2880_pmx_func lna_g_func[] = { FUNC("lna g", 0, 35, 3) };
 static struct rt2880_pmx_func pci_func[] = {
 	FUNC("pci-dev", 0, 40, 32),
 	FUNC("pci-host2", 1, 40, 32),
@@ -44,7 +44,7 @@ static struct rt2880_pmx_func pci_func[] = {
 	FUNC("pci-fnc", 3, 40, 32)
 };
 static struct rt2880_pmx_func ge1_func[] = { FUNC("ge1", 0, 72, 12) };
-static struct rt2880_pmx_func ge2_func[] = { FUNC("ge1", 0, 84, 12) };
+static struct rt2880_pmx_func ge2_func[] = { FUNC("ge2", 0, 84, 12) };
 
 static struct rt2880_pmx_group rt3883_pinmux_data[] = {
 	GRP("i2c", i2c_func, 1, RT3883_GPIO_MODE_I2C),
