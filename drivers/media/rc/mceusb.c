@@ -419,6 +419,7 @@ struct mceusb_dev {
 	struct urb *urb_in;
 	unsigned int pipe_in;
 	struct usb_endpoint_descriptor *usb_ep_out;
+	unsigned int pipe_out;
 
 	/* buffers and dma */
 	unsigned char *buf_in;
@@ -739,6 +740,11 @@ static void mce_async_callback(struct urb *urb)
 		break;
 
 	case -EPIPE:
+		dev_err(ir->dev, "Error: request urb status = %d (TX HALT)",
+			urb->status);
+		mceusb_defer_kevent(ir, EVENT_TX_HALT);
+		break;
+
 	default:
 		dev_err(ir->dev, "Error: request urb status = %d", urb->status);
 		break;
@@ -753,7 +759,7 @@ static void mce_async_callback(struct urb *urb)
 static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 								int size)
 {
-	int res, pipe;
+	int res;
 	struct urb *async_urb;
 	struct device *dev = ir->dev;
 	unsigned char *async_buf;
@@ -771,19 +777,14 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 	}
 
 	/* outbound data */
-	if (usb_endpoint_xfer_int(ir->usb_ep_out)) {
-		pipe = usb_sndintpipe(ir->usbdev,
-				 ir->usb_ep_out->bEndpointAddress);
-		usb_fill_int_urb(async_urb, ir->usbdev, pipe, async_buf,
-				 size, mce_async_callback, ir,
+	if (usb_endpoint_xfer_int(ir->usb_ep_out))
+		usb_fill_int_urb(async_urb, ir->usbdev, ir->pipe_out,
+				 async_buf, size, mce_async_callback, ir,
 				 ir->usb_ep_out->bInterval);
-	} else {
-		pipe = usb_sndbulkpipe(ir->usbdev,
-				 ir->usb_ep_out->bEndpointAddress);
-		usb_fill_bulk_urb(async_urb, ir->usbdev, pipe,
-				 async_buf, size, mce_async_callback,
-				 ir);
-	}
+	else
+		usb_fill_bulk_urb(async_urb, ir->usbdev, ir->pipe_out,
+				  async_buf, size, mce_async_callback, ir);
+
 	memcpy(async_buf, data, size);
 
 	dev_dbg(dev, "send request called (size=%#x)", size);
@@ -1222,15 +1223,23 @@ static void mceusb_deferred_kevent(struct work_struct *work)
 		if (status < 0) {
 			dev_err(ir->dev, "rx clear halt error %d",
 				status);
-			return;
 		}
 		clear_bit(EVENT_RX_HALT, &ir->kevent_flags);
-		status = usb_submit_urb(ir->urb_in, GFP_KERNEL);
-		if (status < 0) {
-			dev_err(ir->dev, "rx unhalt submit urb error %d",
-				status);
-			return;
+		if (status == 0) {
+			status = usb_submit_urb(ir->urb_in, GFP_KERNEL);
+			if (status < 0) {
+				dev_err(ir->dev,
+					"rx unhalt submit urb error %d",
+					status);
+			}
 		}
+	}
+
+	if (test_bit(EVENT_TX_HALT, &ir->kevent_flags)) {
+		status = usb_clear_halt(ir->usbdev, ir->pipe_out);
+		if (status < 0)
+			dev_err(ir->dev, "tx clear halt error %d", status);
+		clear_bit(EVENT_TX_HALT, &ir->kevent_flags);
 	}
 }
 
@@ -1386,6 +1395,12 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 
 	/* Saving usb interface data for use by the transmitter routine */
 	ir->usb_ep_out = ep_out;
+	if (usb_endpoint_xfer_int(ep_out))
+		ir->pipe_out = usb_sndintpipe(ir->usbdev,
+					      ep_out->bEndpointAddress);
+	else
+		ir->pipe_out = usb_sndbulkpipe(ir->usbdev,
+					       ep_out->bEndpointAddress);
 
 	if (dev->descriptor.iManufacturer
 	    && usb_string(dev, dev->descriptor.iManufacturer,
