@@ -355,7 +355,7 @@ typedef void (*fsg_routine_t)(struct fsg_dev *);
 
 static int exception_in_progress(struct fsg_common *common)
 {
-	return common->state > FSG_STATE_IDLE;
+	return common->state > FSG_STATE_NORMAL;
 }
 
 /* Make bulk-out requests be divisible by the maxpacket size */
@@ -528,7 +528,7 @@ static int fsg_setup(struct usb_function *f,
 		 * and reinitialize our state.
 		 */
 		DBG(fsg, "bulk reset request\n");
-		raise_exception(fsg->common, FSG_STATE_RESET);
+		raise_exception(fsg->common, FSG_STATE_PROTOCOL_RESET);
 		return USB_GADGET_DELAYED_STATUS;
 
 	case US_BULK_GET_MAX_LUN:
@@ -1625,7 +1625,7 @@ static int finish_reply(struct fsg_common *common)
 	return rc;
 }
 
-static int send_status(struct fsg_common *common)
+static void send_status(struct fsg_common *common)
 {
 	struct fsg_lun		*curlun = common->curlun;
 	struct fsg_buffhd	*bh;
@@ -1639,7 +1639,7 @@ static int send_status(struct fsg_common *common)
 	while (bh->state != BUF_STATE_EMPTY) {
 		rc = sleep_thread(common, true);
 		if (rc)
-			return rc;
+			return;
 	}
 
 	if (curlun) {
@@ -1674,10 +1674,10 @@ static int send_status(struct fsg_common *common)
 	bh->inreq->zero = 0;
 	if (!start_in_transfer(common, bh))
 		/* Don't know what to do if common->fsg is NULL */
-		return -EIO;
+		return;
 
 	common->next_buffhd_to_fill = bh->next;
-	return 0;
+	return;
 }
 
 
@@ -2362,9 +2362,11 @@ static void handle_exception(struct fsg_common *common)
 		if (!sig)
 			break;
 		if (sig != SIGUSR1) {
+			spin_lock_irq(&common->lock);
 			if (common->state < FSG_STATE_EXIT)
 				DBG(common, "Main thread exiting on signal\n");
-			raise_exception(common, FSG_STATE_EXIT);
+			common->state = FSG_STATE_EXIT;
+			spin_unlock_irq(&common->lock);
 		}
 	}
 
@@ -2413,10 +2415,9 @@ static void handle_exception(struct fsg_common *common)
 	common->next_buffhd_to_drain = &common->buffhds[0];
 	exception_req_tag = common->exception_req_tag;
 	old_state = common->state;
+	common->state = FSG_STATE_NORMAL;
 
-	if (old_state == FSG_STATE_ABORT_BULK_OUT)
-		common->state = FSG_STATE_STATUS_PHASE;
-	else {
+	if (old_state != FSG_STATE_ABORT_BULK_OUT) {
 		for (i = 0; i < ARRAY_SIZE(common->luns); ++i) {
 			curlun = common->luns[i];
 			if (!curlun)
@@ -2427,21 +2428,19 @@ static void handle_exception(struct fsg_common *common)
 			curlun->sense_data_info = 0;
 			curlun->info_valid = 0;
 		}
-		common->state = FSG_STATE_IDLE;
 	}
 	spin_unlock_irq(&common->lock);
 
 	/* Carry out any extra actions required for the exception */
 	switch (old_state) {
-	case FSG_STATE_ABORT_BULK_OUT:
-		send_status(common);
-		spin_lock_irq(&common->lock);
-		if (common->state == FSG_STATE_STATUS_PHASE)
-			common->state = FSG_STATE_IDLE;
-		spin_unlock_irq(&common->lock);
+	case FSG_STATE_NORMAL:
 		break;
 
-	case FSG_STATE_RESET:
+	case FSG_STATE_ABORT_BULK_OUT:
+		send_status(common);
+		break;
+
+	case FSG_STATE_PROTOCOL_RESET:
 		/*
 		 * In case we were forced against our will to halt a
 		 * bulk endpoint, clear the halt now.  (The SuperH UDC
@@ -2474,19 +2473,13 @@ static void handle_exception(struct fsg_common *common)
 		break;
 
 	case FSG_STATE_EXIT:
-	case FSG_STATE_TERMINATED:
 		do_set_interface(common, NULL);		/* Free resources */
 		spin_lock_irq(&common->lock);
 		common->state = FSG_STATE_TERMINATED;	/* Stop the thread */
 		spin_unlock_irq(&common->lock);
 		break;
 
-	case FSG_STATE_INTERFACE_CHANGE:
-	case FSG_STATE_DISCONNECT:
-	case FSG_STATE_COMMAND_PHASE:
-	case FSG_STATE_DATA_PHASE:
-	case FSG_STATE_STATUS_PHASE:
-	case FSG_STATE_IDLE:
+	case FSG_STATE_TERMINATED:
 		break;
 	}
 }
@@ -2529,29 +2522,13 @@ static int fsg_main_thread(void *common_)
 			continue;
 		}
 
-		if (get_next_command(common))
+		if (get_next_command(common) || exception_in_progress(common))
 			continue;
-
-		spin_lock_irq(&common->lock);
-		if (!exception_in_progress(common))
-			common->state = FSG_STATE_DATA_PHASE;
-		spin_unlock_irq(&common->lock);
-
-		if (do_scsi_command(common) || finish_reply(common))
+		if (do_scsi_command(common) || exception_in_progress(common))
 			continue;
-
-		spin_lock_irq(&common->lock);
-		if (!exception_in_progress(common))
-			common->state = FSG_STATE_STATUS_PHASE;
-		spin_unlock_irq(&common->lock);
-
-		if (send_status(common))
+		if (finish_reply(common) || exception_in_progress(common))
 			continue;
-
-		spin_lock_irq(&common->lock);
-		if (!exception_in_progress(common))
-			common->state = FSG_STATE_IDLE;
-		spin_unlock_irq(&common->lock);
+		send_status(common);
 	}
 
 	spin_lock_irq(&common->lock);
@@ -2972,7 +2949,6 @@ static void fsg_common_release(struct kref *ref)
 	if (common->state != FSG_STATE_TERMINATED) {
 		raise_exception(common, FSG_STATE_EXIT);
 		wait_for_completion(&common->thread_notifier);
-		common->thread_task = NULL;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(common->luns); ++i) {
@@ -3021,11 +2997,11 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	}
 
 	if (!common->thread_task) {
-		common->state = FSG_STATE_IDLE;
+		common->state = FSG_STATE_NORMAL;
 		common->thread_task =
 			kthread_create(fsg_main_thread, common, "file-storage");
 		if (IS_ERR(common->thread_task)) {
-			int ret = PTR_ERR(common->thread_task);
+			ret = PTR_ERR(common->thread_task);
 			common->thread_task = NULL;
 			common->state = FSG_STATE_TERMINATED;
 			return ret;
