@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -65,6 +65,7 @@
 #include "verbs.h"
 #include "aspm.h"
 #include "affinity.h"
+#include "vnic.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -1498,6 +1499,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* do the generic initialization */
 	initfail = hfi1_init(dd, 0);
 
+	/* setup vnic */
+	hfi1_vnic_setup(dd);
+
 	ret = hfi1_register_ib_device(dd);
 
 	/*
@@ -1574,6 +1578,9 @@ static void remove_one(struct pci_dev *pdev)
 
 	/* unregister from IB core */
 	hfi1_unregister_ib_device(dd);
+
+	/* cleanup vnic */
+	hfi1_vnic_cleanup(dd);
 
 	/*
 	 * Disable the IB link, disable interrupts on the device,

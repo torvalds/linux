@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -60,6 +60,7 @@
 #include "qp.h"
 #include "sdma.h"
 #include "debugfs.h"
+#include "vnic.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -1381,15 +1382,31 @@ int process_receive_ib(struct hfi1_packet *packet)
 	return RHF_RCV_CONTINUE;
 }
 
+static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
+{
+	/* Packet received in VNIC context via RSM */
+	if (packet->rcd->is_vnic)
+		return true;
+
+	if ((HFI1_GET_L2_TYPE(packet->ebuf) == OPA_VNIC_L2_TYPE) &&
+	    (HFI1_GET_L4_TYPE(packet->ebuf) == OPA_VNIC_L4_ETHR))
+		return true;
+
+	return false;
+}
+
 int process_receive_bypass(struct hfi1_packet *packet)
 {
 	struct hfi1_devdata *dd = packet->rcd->dd;
 
-	if (unlikely(rhf_err_flags(packet->rhf)))
+	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
+	} else if (hfi1_is_vnic_packet(packet)) {
+		hfi1_vnic_bypass_rcv(packet);
+		return RHF_RCV_CONTINUE;
+	}
 
-	dd_dev_err(dd,
-		   "Bypass packets are not supported in normal operation. Dropping\n");
+	dd_dev_err(dd, "Unsupported bypass packet. Dropping\n");
 	incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
 	if (!(dd->err_info_rcvport.status_and_code & OPA_EI_STATUS_SMASK)) {
 		u64 *flits = packet->ebuf;

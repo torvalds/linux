@@ -1,7 +1,7 @@
 #ifndef _HFI1_KERNEL_H
 #define _HFI1_KERNEL_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -337,6 +337,12 @@ struct hfi1_ctxtdata {
 	 * packets with the wrong interrupt handler.
 	 */
 	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
+
+	/* Indicates that this is vnic context */
+	bool is_vnic;
+
+	/* vnic queue index this context is mapped to */
+	u8 vnic_q_idx;
 };
 
 /*
@@ -808,6 +814,19 @@ struct hfi1_asic_data {
 	struct hfi1_i2c_bus *i2c_bus1;
 };
 
+/*
+ * Number of VNIC contexts used. Ensure it is less than or equal to
+ * max queues supported by VNIC (HFI1_VNIC_MAX_QUEUE).
+ */
+#define HFI1_NUM_VNIC_CTXT   8
+
+/* Virtual NIC information */
+struct hfi1_vnic_data {
+	struct idr vesw_idr;
+};
+
+struct hfi1_vnic_vport_info;
+
 /* device data struct now contains only "general per-device" info.
  * fields related to a physical IB port are in a hfi1_pportdata struct.
  */
@@ -1115,6 +1134,9 @@ struct hfi1_devdata {
 	send_routine process_dma_send;
 	void (*pio_inline_send)(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 				u64 pbc, const void *from, size_t count);
+	int (*process_vnic_dma_send)(struct hfi1_devdata *dd, u8 q_idx,
+				     struct hfi1_vnic_vport_info *vinfo,
+				     struct sk_buff *skb, u64 pbc, u8 plen);
 	/* hfi1_pportdata, points to array of (physical) port-specific
 	 * data structs, indexed by pidx (0..n-1)
 	 */
@@ -1170,6 +1192,9 @@ struct hfi1_devdata {
 	struct rhashtable *sdma_rht;
 
 	struct kobject kobj;
+
+	/* vnic data */
+	struct hfi1_vnic_data vnic;
 };
 
 /* 8051 firmware version helper */
