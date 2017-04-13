@@ -108,7 +108,7 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 		vecs_to_assign = min(vecs_per_node, ncpus);
 
 		/* Account for rounding errors */
-		extra_vecs = ncpus - vecs_to_assign;
+		extra_vecs = ncpus - vecs_to_assign * (ncpus / vecs_to_assign);
 
 		for (v = 0; curvec < last_affv && v < vecs_to_assign;
 		     curvec++, v++) {
