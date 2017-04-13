@@ -7318,7 +7318,7 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 				 "Too many MDD events on VF %d, disabled\n", i);
 			dev_info(&pf->pdev->dev,
 				 "Use PF Control I/F to re-enable the VF\n");
-			set_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
+			set_bit(I40E_VF_STATE_DISABLED, &vf->vf_states);
 		}
 	}
 

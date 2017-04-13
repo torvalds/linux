@@ -1826,7 +1826,7 @@ static inline bool i40e_active_vfs(struct i40e_pf *pf)
 	int i;
 
 	for (i = 0; i < pf->num_alloc_vfs; i++)
-		if (test_bit(I40E_VF_STAT_ACTIVE, &vfs[i].vf_states))
+		if (test_bit(I40E_VF_STATE_ACTIVE, &vfs[i].vf_states))
 			return true;
 	return false;
 }
