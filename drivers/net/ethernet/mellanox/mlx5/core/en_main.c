@@ -2115,11 +2115,15 @@ void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt)
 	mlx5_core_destroy_rqt(priv->mdev, rqt->rqtn);
 }
 
-static int mlx5e_create_indirect_rqts(struct mlx5e_priv *priv)
+int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rqt *rqt = &priv->indir_rqt;
+	int err;
 
-	return mlx5e_create_rqt(priv, MLX5E_INDIR_RQT_SIZE, rqt);
+	err = mlx5e_create_rqt(priv, MLX5E_INDIR_RQT_SIZE, rqt);
+	if (err)
+		mlx5_core_warn(priv->mdev, "create indirect rqts failed, %d\n", err);
+	return err;
 }
 
 int mlx5e_create_direct_rqts(struct mlx5e_priv *priv)
@@ -2138,10 +2142,19 @@ int mlx5e_create_direct_rqts(struct mlx5e_priv *priv)
 	return 0;
 
 err_destroy_rqts:
+	mlx5_core_warn(priv->mdev, "create direct rqts failed, %d\n", err);
 	for (ix--; ix >= 0; ix--)
 		mlx5e_destroy_rqt(priv, &priv->direct_tir[ix].rqt);
 
 	return err;
+}
+
+void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++)
+		mlx5e_destroy_rqt(priv, &priv->direct_tir[i].rqt);
 }
 
 static int mlx5e_rx_hash_fn(int hfunc)
@@ -2818,7 +2831,7 @@ static void mlx5e_build_direct_tir_ctx(struct mlx5e_priv *priv, u32 rqtn, u32 *t
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
 }
 
-static int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv)
+int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tir *tir;
 	void *tirc;
@@ -2847,6 +2860,7 @@ static int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv)
 	return 0;
 
 err_destroy_tirs:
+	mlx5_core_warn(priv->mdev, "create indirect tirs failed, %d\n", err);
 	for (tt--; tt >= 0; tt--)
 		mlx5e_destroy_tir(priv->mdev, &priv->indir_tir[tt]);
 
@@ -2885,6 +2899,7 @@ int mlx5e_create_direct_tirs(struct mlx5e_priv *priv)
 	return 0;
 
 err_destroy_ch_tirs:
+	mlx5_core_warn(priv->mdev, "create direct tirs failed, %d\n", err);
 	for (ix--; ix >= 0; ix--)
 		mlx5e_destroy_tir(priv->mdev, &priv->direct_tir[ix]);
 
@@ -2893,7 +2908,7 @@ err_destroy_ch_tirs:
 	return err;
 }
 
-static void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv)
+void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv)
 {
 	int i;
 
@@ -3794,9 +3809,9 @@ u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
 	return MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]);
 }
 
-static void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
-				   struct mlx5e_params *params,
-				   u16 max_channels)
+void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
+			    struct mlx5e_params *params,
+			    u16 max_channels)
 {
 	u8 cq_period_mode = 0;
 	u32 link_speed = 0;
@@ -4031,31 +4046,22 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
-	int i;
 
-	err = mlx5e_create_indirect_rqts(priv);
-	if (err) {
-		mlx5_core_warn(mdev, "create indirect rqts failed, %d\n", err);
+	err = mlx5e_create_indirect_rqt(priv);
+	if (err)
 		return err;
-	}
 
 	err = mlx5e_create_direct_rqts(priv);
-	if (err) {
-		mlx5_core_warn(mdev, "create direct rqts failed, %d\n", err);
+	if (err)
 		goto err_destroy_indirect_rqts;
-	}
 
 	err = mlx5e_create_indirect_tirs(priv);
-	if (err) {
-		mlx5_core_warn(mdev, "create indirect tirs failed, %d\n", err);
+	if (err)
 		goto err_destroy_direct_rqts;
-	}
 
 	err = mlx5e_create_direct_tirs(priv);
-	if (err) {
-		mlx5_core_warn(mdev, "create direct tirs failed, %d\n", err);
+	if (err)
 		goto err_destroy_indirect_tirs;
-	}
 
 	err = mlx5e_create_flow_steering(priv);
 	if (err) {
@@ -4076,8 +4082,7 @@ err_destroy_direct_tirs:
 err_destroy_indirect_tirs:
 	mlx5e_destroy_indirect_tirs(priv);
 err_destroy_direct_rqts:
-	for (i = 0; i < priv->profile->max_nch(mdev); i++)
-		mlx5e_destroy_rqt(priv, &priv->direct_tir[i].rqt);
+	mlx5e_destroy_direct_rqts(priv);
 err_destroy_indirect_rqts:
 	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
 	return err;
@@ -4085,14 +4090,11 @@ err_destroy_indirect_rqts:
 
 static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 {
-	int i;
-
 	mlx5e_tc_cleanup(priv);
 	mlx5e_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);
-	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++)
-		mlx5e_destroy_rqt(priv, &priv->direct_tir[i].rqt);
+	mlx5e_destroy_direct_rqts(priv);
 	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
 }
 

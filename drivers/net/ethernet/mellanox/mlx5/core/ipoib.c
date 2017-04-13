@@ -44,8 +44,15 @@ static void mlx5i_init(struct mlx5_core_dev *mdev,
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
 
-	priv->ppriv = ppriv;
-	/*  TODO: init netdev and mlx5e_params here */
+	priv->mdev        = mdev;
+	priv->netdev      = netdev;
+	priv->profile     = profile;
+	priv->ppriv       = ppriv;
+
+	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
+
+	mutex_init(&priv->state_lock);
+	/* TODO : init netdev features here */
 }
 
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
@@ -67,12 +74,41 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
-	/* TODO: create IPoIB RX HW steering contexts */
+	int err;
+
+	err = mlx5e_create_indirect_rqt(priv);
+	if (err)
+		return err;
+
+	err = mlx5e_create_direct_rqts(priv);
+	if (err)
+		goto err_destroy_indirect_rqts;
+
+	err = mlx5e_create_indirect_tirs(priv);
+	if (err)
+		goto err_destroy_direct_rqts;
+
+	err = mlx5e_create_direct_tirs(priv);
+	if (err)
+		goto err_destroy_indirect_tirs;
+
 	return 0;
+
+err_destroy_indirect_tirs:
+	mlx5e_destroy_indirect_tirs(priv);
+err_destroy_direct_rqts:
+	mlx5e_destroy_direct_rqts(priv);
+err_destroy_indirect_rqts:
+	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
+	return err;
 }
 
 static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 {
+	mlx5e_destroy_direct_tirs(priv);
+	mlx5e_destroy_indirect_tirs(priv);
+	mlx5e_destroy_direct_rqts(priv);
+	mlx5e_destroy_rqt(priv, &priv->indir_rqt);
 }
 
 static const struct mlx5e_profile mlx5i_nic_profile = {
