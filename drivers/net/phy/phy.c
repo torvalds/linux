@@ -176,7 +176,9 @@ struct phy_setting {
 	u32 setting;
 };
 
-/* A mapping of all SUPPORTED settings to speed/duplex */
+/* A mapping of all SUPPORTED settings to speed/duplex.  This table
+ * must be grouped by speed and sorted in descending match priority
+ * - iow, descending speed. */
 static const struct phy_setting settings[] = {
 	{
 		.speed = SPEED_10000,
@@ -235,45 +237,70 @@ static const struct phy_setting settings[] = {
 	},
 };
 
-#define MAX_NUM_SETTINGS ARRAY_SIZE(settings)
-
 /**
- * phy_find_setting - find a PHY settings array entry that matches speed & duplex
+ * phy_lookup_setting - lookup a PHY setting
  * @speed: speed to match
  * @duplex: duplex to match
+ * @feature: allowed link modes
+ * @exact: an exact match is required
  *
- * Description: Searches the settings array for the setting which
- *   matches the desired speed and duplex, and returns the index
- *   of that setting.  Returns the index of the last setting if
- *   none of the others match.
+ * Search the settings array for a setting that matches the speed and
+ * duplex, and which is supported.
+ *
+ * If @exact is unset, either an exact match or %NULL for no match will
+ * be returned.
+ *
+ * If @exact is set, an exact match, the fastest supported setting at
+ * or below the specified speed, the slowest supported setting, or if
+ * they all fail, %NULL will be returned.
  */
-static inline unsigned int phy_find_setting(int speed, int duplex)
+static const struct phy_setting *
+phy_lookup_setting(int speed, int duplex, u32 features, bool exact)
 {
-	unsigned int idx = 0;
+	const struct phy_setting *p, *match = NULL, *last = NULL;
+	int i;
 
-	while (idx < ARRAY_SIZE(settings) &&
-	       (settings[idx].speed != speed || settings[idx].duplex != duplex))
-		idx++;
+	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
+		if (p->setting & features) {
+			last = p;
+			if (p->speed == speed && p->duplex == duplex) {
+				/* Exact match for speed and duplex */
+				match = p;
+				break;
+			} else if (!exact) {
+				if (!match && p->speed <= speed)
+					/* Candidate */
+					match = p;
 
-	return idx < MAX_NUM_SETTINGS ? idx : MAX_NUM_SETTINGS - 1;
+				if (p->speed < speed)
+					break;
+			}
+		}
+	}
+
+	if (!match && !exact)
+		match = last;
+
+	return match;
 }
 
 /**
- * phy_find_valid - find a PHY setting that matches the requested features mask
- * @idx: The first index in settings[] to search
- * @features: A mask of the valid settings
+ * phy_find_valid - find a PHY setting that matches the requested parameters
+ * @speed: desired speed
+ * @duplex: desired duplex
+ * @supported: mask of supported link modes
  *
- * Description: Returns the index of the first valid setting less
- *   than or equal to the one pointed to by idx, as determined by
- *   the mask in features.  Returns the index of the last setting
- *   if nothing else matches.
+ * Locate a supported phy setting that is, in priority order:
+ * - an exact match for the specified speed and duplex mode
+ * - a match for the specified speed, or slower speed
+ * - the slowest supported speed
+ * Returns the matched phy_setting entry, or %NULL if no supported phy
+ * settings were found.
  */
-static inline unsigned int phy_find_valid(unsigned int idx, u32 features)
+static const struct phy_setting *
+phy_find_valid(int speed, int duplex, u32 supported)
 {
-	while (idx < MAX_NUM_SETTINGS && !(settings[idx].setting & features))
-		idx++;
-
-	return idx < MAX_NUM_SETTINGS ? idx : MAX_NUM_SETTINGS - 1;
+	return phy_lookup_setting(speed, duplex, supported, false);
 }
 
 /**
@@ -293,11 +320,9 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
 	unsigned int count = 0;
 	unsigned int idx = 0;
 
-	while (idx < MAX_NUM_SETTINGS && count < size) {
-		idx = phy_find_valid(idx, phy->supported);
-
+	for (idx = 0; idx < ARRAY_SIZE(settings) && count < size; idx++) {
 		if (!(settings[idx].setting & phy->supported))
-			break;
+			continue;
 
 		/* Assumes settings are grouped by speed */
 		if ((count == 0) ||
@@ -305,7 +330,6 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
 			speeds[count] = settings[idx].speed;
 			count++;
 		}
-		idx++;
 	}
 
 	return count;
@@ -322,12 +346,7 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
  */
 static inline bool phy_check_valid(int speed, int duplex, u32 features)
 {
-	unsigned int idx;
-
-	idx = phy_find_valid(phy_find_setting(speed, duplex), features);
-
-	return settings[idx].speed == speed && settings[idx].duplex == duplex &&
-		(settings[idx].setting & features);
+	return !!phy_lookup_setting(speed, duplex, features, true);
 }
 
 /**
@@ -340,18 +359,22 @@ static inline bool phy_check_valid(int speed, int duplex, u32 features)
  */
 static void phy_sanitize_settings(struct phy_device *phydev)
 {
+	const struct phy_setting *setting;
 	u32 features = phydev->supported;
-	unsigned int idx;
 
 	/* Sanitize settings based on PHY capabilities */
 	if ((features & SUPPORTED_Autoneg) == 0)
 		phydev->autoneg = AUTONEG_DISABLE;
 
-	idx = phy_find_valid(phy_find_setting(phydev->speed, phydev->duplex),
-			features);
-
-	phydev->speed = settings[idx].speed;
-	phydev->duplex = settings[idx].duplex;
+	setting = phy_find_valid(phydev->speed, phydev->duplex, features);
+	if (setting) {
+		phydev->speed = setting->speed;
+		phydev->duplex = setting->duplex;
+	} else {
+		/* We failed to find anything (no supported speeds?) */
+		phydev->speed = SPEED_UNKNOWN;
+		phydev->duplex = DUPLEX_UNKNOWN;
+	}
 }
 
 /**
