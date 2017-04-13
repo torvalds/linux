@@ -1813,6 +1813,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		struct iwl_mvm_compressed_ba_notif *ba_res =
 			(void *)pkt->data;
+		int i;
 
 		sta_id = ba_res->sta_id;
 		ba_info.status.ampdu_ack_len = (u8)le16_to_cpu(ba_res->done);
@@ -1825,22 +1826,17 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		if (!le16_to_cpu(ba_res->tfd_cnt))
 			goto out;
 
-		/*
-		 * TODO:
-		 * When supporting multi TID aggregations - we need to move
-		 * next_reclaimed to be per TXQ and not per TID or handle it
-		 * in a different way.
-		 * This will go together with SN and AddBA offload and cannot
-		 * be handled properly for now.
-		 */
-		WARN_ON(le16_to_cpu(ba_res->ra_tid_cnt) != 1);
-		tid = ba_res->ra_tid[0].tid;
-		if (tid == IWL_MGMT_TID)
-			tid = IWL_MAX_TID_COUNT;
-		iwl_mvm_tx_reclaim(mvm, sta_id, tid,
-				   (int)(le16_to_cpu(ba_res->tfd[0].q_num)),
-				   le16_to_cpu(ba_res->tfd[0].tfd_index),
-				   &ba_info, le32_to_cpu(ba_res->tx_rate));
+		/* Free per TID */
+		for (i = 0; i < le16_to_cpu(ba_res->tfd_cnt); i++) {
+			struct iwl_mvm_compressed_ba_tfd *ba_tfd =
+				&ba_res->tfd[i];
+
+			iwl_mvm_tx_reclaim(mvm, sta_id, ba_tfd->tid,
+					   (int)(le16_to_cpu(ba_tfd->q_num)),
+					   le16_to_cpu(ba_tfd->tfd_index),
+					   &ba_info,
+					   le32_to_cpu(ba_res->tx_rate));
+		}
 
 out:
 		IWL_DEBUG_TX_REPLY(mvm,

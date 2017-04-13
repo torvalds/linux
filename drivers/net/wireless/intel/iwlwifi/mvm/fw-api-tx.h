@@ -668,13 +668,15 @@ struct iwl_mvm_ba_notif {
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
  * @scd_queue: For debug only - the physical queue the TFD queue is bound to
+ * @tid: TID of the queue (0-7)
  * @reserved: reserved for alignment
  */
 struct iwl_mvm_compressed_ba_tfd {
 	__le16 q_num;
 	__le16 tfd_index;
 	u8 scd_queue;
-	u8 reserved[3];
+	u8 tid;
+	u8 reserved[2];
 } __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
 
 /**
