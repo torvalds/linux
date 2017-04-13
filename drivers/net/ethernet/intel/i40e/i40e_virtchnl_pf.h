@@ -63,6 +63,7 @@ enum i40e_vf_states {
 	I40E_VF_STATE_DISABLED,
 	I40E_VF_STATE_MC_PROMISC,
 	I40E_VF_STATE_UC_PROMISC,
+	I40E_VF_STATE_PRE_ENABLE,
 };
 
 /* VF capabilities */

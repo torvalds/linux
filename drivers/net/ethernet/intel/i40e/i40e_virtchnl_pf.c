@@ -1007,7 +1007,8 @@ static void i40e_cleanup_reset_vf(struct i40e_vf *vf)
 		set_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states);
 		clear_bit(I40E_VF_STATE_DISABLED, &vf->vf_states);
 		/* Do not notify the client during VF init */
-		if (vf->pf->num_alloc_vfs)
+		if (test_and_clear_bit(I40E_VF_STATE_PRE_ENABLE,
+				       &vf->vf_states))
 			i40e_notify_client_of_vf_reset(pf, abs_vf_id);
 		vf->num_vlan = 0;
 	}
@@ -1280,11 +1281,14 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		/* assign default capabilities */
 		set_bit(I40E_VIRTCHNL_VF_CAP_L2, &vfs[i].vf_caps);
 		vfs[i].spoofchk = true;
-		/* VF resources get allocated during reset */
-		i40e_reset_vf(&vfs[i], false);
+
+		set_bit(I40E_VF_STATE_PRE_ENABLE, &vfs[i].vf_states);
 
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
+
+	/* VF resources get allocated during reset */
+	i40e_reset_all_vfs(pf, false);
 
 	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
 
