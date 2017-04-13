@@ -4121,12 +4121,57 @@ static int mlx5e_init_nic_tx(struct mlx5e_priv *priv)
 	return 0;
 }
 
+static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
+	int vport;
+	u8 mac[ETH_ALEN];
+
+	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
+		return;
+
+	mlx5_query_nic_vport_mac_address(mdev, 0, mac);
+
+	for (vport = 1; vport < total_vfs; vport++) {
+		struct mlx5_eswitch_rep rep;
+
+		rep.load = mlx5e_vport_rep_load;
+		rep.unload = mlx5e_vport_rep_unload;
+		rep.vport = vport;
+		ether_addr_copy(rep.hw_id, mac);
+		mlx5_eswitch_register_vport_rep(esw, vport, &rep);
+	}
+}
+
+static void mlx5e_unregister_vport_rep(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
+	int vport;
+
+	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
+		return;
+
+	for (vport = 1; vport < total_vfs; vport++)
+		mlx5_eswitch_unregister_vport_rep(esw, vport);
+}
+
 static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	struct mlx5_eswitch_rep rep;
+	u16 max_mtu;
+
+	mlx5e_init_l2_addr(priv);
+
+	/* MTU range: 68 - hw-specific max */
+	netdev->min_mtu = ETH_MIN_MTU;
+	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
+	netdev->max_mtu = MLX5E_HW2SW_MTU(max_mtu);
+	mlx5e_set_dev_port_mtu(priv);
 
 	mlx5_lag_add(mdev, netdev);
 
@@ -4141,6 +4186,8 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 		mlx5_eswitch_register_vport_rep(esw, 0, &rep);
 	}
 
+	mlx5e_register_vport_rep(mdev);
+
 	if (netdev->reg_state != NETREG_REGISTERED)
 		return;
 
@@ -4152,6 +4199,12 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	}
 
 	queue_work(priv->wq, &priv->set_rx_mode_work);
+
+	rtnl_lock();
+	if (netif_running(netdev))
+		mlx5e_open(netdev);
+	netif_device_attach(netdev);
+	rtnl_unlock();
 }
 
 static void mlx5e_nic_disable(struct mlx5e_priv *priv)
@@ -4159,7 +4212,14 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 
+	rtnl_lock();
+	if (netif_running(priv->netdev))
+		mlx5e_close(priv->netdev);
+	netif_device_detach(priv->netdev);
+	rtnl_unlock();
+
 	queue_work(priv->wq, &priv->set_rx_mode_work);
+	mlx5e_unregister_vport_rep(mdev);
 	if (MLX5_CAP_GEN(mdev, vport_group_manager))
 		mlx5_eswitch_unregister_vport_rep(esw, 0);
 	mlx5e_disable_async_events(priv);
@@ -4179,6 +4239,8 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.max_nch	   = mlx5e_get_max_num_channels,
 	.max_tc		   = MLX5E_MAX_NUM_TC,
 };
+
+/* mlx5e generic netdev management API (move to en_common.c) */
 
 struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 				       const struct mlx5e_profile *profile,
@@ -4219,14 +4281,12 @@ err_cleanup_nic:
 	return NULL;
 }
 
-int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
+int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	const struct mlx5e_profile *profile;
-	struct mlx5e_priv *priv;
-	u16 max_mtu;
 	int err;
 
-	priv = netdev_priv(netdev);
 	profile = priv->profile;
 	clear_bit(MLX5E_STATE_DESTROYING, &priv->state);
 
@@ -4246,23 +4306,8 @@ int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
 
 	mlx5e_create_q_counter(priv);
 
-	mlx5e_init_l2_addr(priv);
-
-	/* MTU range: 68 - hw-specific max */
-	netdev->min_mtu = ETH_MIN_MTU;
-	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
-	netdev->max_mtu = MLX5E_HW2SW_MTU(max_mtu);
-
-	mlx5e_set_dev_port_mtu(priv);
-
 	if (profile->enable)
 		profile->enable(priv);
-
-	rtnl_lock();
-	if (netif_running(netdev))
-		mlx5e_open(netdev);
-	netif_device_attach(netdev);
-	rtnl_unlock();
 
 	return 0;
 
@@ -4276,54 +4321,11 @@ out:
 	return err;
 }
 
-static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
+void mlx5e_detach_netdev(struct mlx5e_priv *priv)
 {
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	int vport;
-	u8 mac[ETH_ALEN];
-
-	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
-		return;
-
-	mlx5_query_nic_vport_mac_address(mdev, 0, mac);
-
-	for (vport = 1; vport < total_vfs; vport++) {
-		struct mlx5_eswitch_rep rep;
-
-		rep.load = mlx5e_vport_rep_load;
-		rep.unload = mlx5e_vport_rep_unload;
-		rep.vport = vport;
-		ether_addr_copy(rep.hw_id, mac);
-		mlx5_eswitch_register_vport_rep(esw, vport, &rep);
-	}
-}
-
-static void mlx5e_unregister_vport_rep(struct mlx5_core_dev *mdev)
-{
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	int vport;
-
-	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
-		return;
-
-	for (vport = 1; vport < total_vfs; vport++)
-		mlx5_eswitch_unregister_vport_rep(esw, vport);
-}
-
-void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
-{
-	struct mlx5e_priv *priv = netdev_priv(netdev);
 	const struct mlx5e_profile *profile = priv->profile;
 
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
-
-	rtnl_lock();
-	if (netif_running(netdev))
-		mlx5e_close(netdev);
-	netif_device_detach(netdev);
-	rtnl_unlock();
 
 	if (profile->disable)
 		profile->disable(priv);
@@ -4334,6 +4336,17 @@ void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	profile->cleanup_tx(priv);
 	cancel_delayed_work_sync(&priv->update_stats_work);
+}
+
+void mlx5e_destroy_netdev(struct mlx5e_priv *priv)
+{
+	const struct mlx5e_profile *profile = priv->profile;
+	struct net_device *netdev = priv->netdev;
+
+	destroy_workqueue(priv->wq);
+	if (profile->cleanup)
+		profile->cleanup(priv);
+	free_netdev(netdev);
 }
 
 /* mlx5e_attach and mlx5e_detach scope should be only creating/destroying
@@ -4352,13 +4365,12 @@ static int mlx5e_attach(struct mlx5_core_dev *mdev, void *vpriv)
 	if (err)
 		return err;
 
-	err = mlx5e_attach_netdev(mdev, netdev);
+	err = mlx5e_attach_netdev(priv);
 	if (err) {
 		mlx5e_destroy_mdev_resources(mdev);
 		return err;
 	}
 
-	mlx5e_register_vport_rep(mdev);
 	return 0;
 }
 
@@ -4370,8 +4382,7 @@ static void mlx5e_detach(struct mlx5_core_dev *mdev, void *vpriv)
 	if (!netif_device_present(netdev))
 		return;
 
-	mlx5e_unregister_vport_rep(mdev);
-	mlx5e_detach_netdev(mdev, netdev);
+	mlx5e_detach_netdev(priv);
 	mlx5e_destroy_mdev_resources(mdev);
 }
 
@@ -4418,7 +4429,7 @@ err_detach:
 	mlx5e_detach(mdev, priv);
 
 err_destroy_netdev:
-	mlx5e_destroy_netdev(mdev, priv);
+	mlx5e_destroy_netdev(priv);
 
 err_unregister_reps:
 	for (vport = 1; vport < total_vfs; vport++)
@@ -4427,24 +4438,13 @@ err_unregister_reps:
 	return NULL;
 }
 
-void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv)
-{
-	const struct mlx5e_profile *profile = priv->profile;
-	struct net_device *netdev = priv->netdev;
-
-	destroy_workqueue(priv->wq);
-	if (profile->cleanup)
-		profile->cleanup(priv);
-	free_netdev(netdev);
-}
-
 static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 {
 	struct mlx5e_priv *priv = vpriv;
 
 	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
-	mlx5e_destroy_netdev(mdev, priv);
+	mlx5e_destroy_netdev(priv);
 }
 
 static void *mlx5e_get_netdev(void *vpriv)

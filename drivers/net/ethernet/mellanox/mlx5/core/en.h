@@ -999,12 +999,6 @@ void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_stats_work(struct work_struct *work);
-struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
-				       const struct mlx5e_profile *profile,
-				       void *ppriv);
-void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv);
-int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
-void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
 
 int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
@@ -1013,4 +1007,13 @@ bool mlx5e_has_offload_stats(const struct net_device *dev, int attr_id);
 
 bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);
 bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv);
+
+/* mlx5e generic netdev management API */
+struct net_device*
+mlx5e_create_netdev(struct mlx5_core_dev *mdev, const struct mlx5e_profile *profile,
+		    void *ppriv);
+int mlx5e_attach_netdev(struct mlx5e_priv *priv);
+void mlx5e_detach_netdev(struct mlx5e_priv *priv);
+void mlx5e_destroy_netdev(struct mlx5e_priv *priv);
+
 #endif /* __MLX5_EN_H__ */

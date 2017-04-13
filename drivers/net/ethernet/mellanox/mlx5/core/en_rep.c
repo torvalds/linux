@@ -470,6 +470,8 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	int err;
 	int i;
 
+	mlx5e_init_l2_addr(priv);
+
 	err = mlx5e_create_direct_rqts(priv);
 	if (err) {
 		mlx5_core_warn(mdev, "create direct rqts failed, %d\n", err);
@@ -563,7 +565,7 @@ int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
 
 	rep->netdev = netdev;
 
-	err = mlx5e_attach_netdev(esw->dev, netdev);
+	err = mlx5e_attach_netdev(netdev_priv(netdev));
 	if (err) {
 		pr_warn("Failed to attach representor netdev for vport %d\n",
 			rep->vport);
@@ -580,10 +582,10 @@ int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
 	return 0;
 
 err_detach_netdev:
-	mlx5e_detach_netdev(esw->dev, netdev);
+	mlx5e_detach_netdev(netdev_priv(netdev));
 
 err_destroy_netdev:
-	mlx5e_destroy_netdev(esw->dev, netdev_priv(netdev));
+	mlx5e_destroy_netdev(netdev_priv(netdev));
 
 	return err;
 
@@ -595,6 +597,6 @@ void mlx5e_vport_rep_unload(struct mlx5_eswitch *esw,
 	struct net_device *netdev = rep->netdev;
 
 	unregister_netdev(netdev);
-	mlx5e_detach_netdev(esw->dev, netdev);
-	mlx5e_destroy_netdev(esw->dev, netdev_priv(netdev));
+	mlx5e_detach_netdev(netdev_priv(netdev));
+	mlx5e_destroy_netdev(netdev_priv(netdev));
 }
