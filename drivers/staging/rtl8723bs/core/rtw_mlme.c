@@ -1093,11 +1093,7 @@ void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
 		rtw_init_bcmc_stainfo(adapter);
 	}
 
-	if (lock_scanned_queue) {
-		find_network(adapter);
-	} else {
-		find_network(adapter);
-	}
+	find_network(adapter);
 
 	if (lock_scanned_queue)
 		adapter->securitypriv.key_mask = 0;
