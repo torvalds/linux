@@ -2,7 +2,15 @@
 #define _ASM_ARM_XEN_PAGE_COHERENT_H
 
 #include <asm/page.h>
+#include <asm/dma-mapping.h>
 #include <linux/dma-mapping.h>
+
+static inline const struct dma_map_ops *__generic_dma_ops(struct device *dev)
+{
+	if (dev && dev->archdata.dev_dma_ops)
+		return dev->archdata.dev_dma_ops;
+	return get_arch_dma_ops(NULL);
+}
 
 void __xen_dma_map_page(struct device *hwdev, struct page *page,
 	     dma_addr_t dev_addr, unsigned long offset, size_t size,
