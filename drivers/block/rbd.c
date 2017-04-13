@@ -3572,12 +3572,16 @@ static void rbd_handle_released_lock(struct rbd_device *rbd_dev, u8 struct_v,
 	up_read(&rbd_dev->lock_rwsem);
 }
 
-static bool rbd_handle_request_lock(struct rbd_device *rbd_dev, u8 struct_v,
-				    void **p)
+/*
+ * Returns result for ResponseMessage to be encoded (<= 0), or 1 if no
+ * ResponseMessage is needed.
+ */
+static int rbd_handle_request_lock(struct rbd_device *rbd_dev, u8 struct_v,
+				   void **p)
 {
 	struct rbd_client_id my_cid = rbd_get_cid(rbd_dev);
 	struct rbd_client_id cid = { 0 };
-	bool need_to_send;
+	int result = 1;
 
 	if (struct_v >= 2) {
 		cid.gid = ceph_decode_64(p);
@@ -3587,19 +3591,30 @@ static bool rbd_handle_request_lock(struct rbd_device *rbd_dev, u8 struct_v,
 	dout("%s rbd_dev %p cid %llu-%llu\n", __func__, rbd_dev, cid.gid,
 	     cid.handle);
 	if (rbd_cid_equal(&cid, &my_cid))
-		return false;
+		return result;
 
 	down_read(&rbd_dev->lock_rwsem);
-	need_to_send = __rbd_is_lock_owner(rbd_dev);
-	if (rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED) {
-		if (!rbd_cid_equal(&rbd_dev->owner_cid, &rbd_empty_cid)) {
+	if (__rbd_is_lock_owner(rbd_dev)) {
+		if (rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED &&
+		    rbd_cid_equal(&rbd_dev->owner_cid, &rbd_empty_cid))
+			goto out_unlock;
+
+		/*
+		 * encode ResponseMessage(0) so the peer can detect
+		 * a missing owner
+		 */
+		result = 0;
+
+		if (rbd_dev->lock_state == RBD_LOCK_STATE_LOCKED) {
 			dout("%s rbd_dev %p queueing unlock_work\n", __func__,
 			     rbd_dev);
 			queue_work(rbd_dev->task_wq, &rbd_dev->unlock_work);
 		}
 	}
+
+out_unlock:
 	up_read(&rbd_dev->lock_rwsem);
-	return need_to_send;
+	return result;
 }
 
 static void __rbd_acknowledge_notify(struct rbd_device *rbd_dev,
@@ -3682,13 +3697,10 @@ static void rbd_watch_cb(void *arg, u64 notify_id, u64 cookie,
 		rbd_acknowledge_notify(rbd_dev, notify_id, cookie);
 		break;
 	case RBD_NOTIFY_OP_REQUEST_LOCK:
-		if (rbd_handle_request_lock(rbd_dev, struct_v, &p))
-			/*
-			 * send ResponseMessage(0) back so the client
-			 * can detect a missing owner
-			 */
+		ret = rbd_handle_request_lock(rbd_dev, struct_v, &p);
+		if (ret <= 0)
 			rbd_acknowledge_notify_result(rbd_dev, notify_id,
-						      cookie, 0);
+						      cookie, ret);
 		else
 			rbd_acknowledge_notify(rbd_dev, notify_id, cookie);
 		break;
