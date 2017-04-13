@@ -1753,7 +1753,7 @@ void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
 	struct va_format vaf;
 	va_list args;
 
-	if (!adapter->dev || !(adapter->debug_mask & mask))
+	if (!(adapter->debug_mask & mask))
 		return;
 
 	va_start(args, fmt);
@@ -1761,7 +1761,10 @@ void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	dev_info(adapter->dev, "%pV", &vaf);
+	if (adapter->dev)
+		dev_info(adapter->dev, "%pV", &vaf);
+	else
+		pr_info("%pV", &vaf);
 
 	va_end(args);
 }
