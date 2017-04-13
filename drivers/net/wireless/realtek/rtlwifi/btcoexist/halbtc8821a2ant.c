@@ -1090,7 +1090,7 @@ static void btc8821a2ant_sw_mechanism2(struct btc_coexist *btcoexist,
 				       bool sw_dac_swing, u32 dac_swing_lvl)
 {
 	btc8821a2ant_dac_swing(btcoexist, NORMAL_EXEC, sw_dac_swing,
-			       sw_dac_swing);
+			       dac_swing_lvl);
 }
 
 static void btc8821a2ant_set_ant_path(struct btc_coexist *btcoexist,
