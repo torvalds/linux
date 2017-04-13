@@ -63,13 +63,23 @@ static void mlx5i_cleanup(struct mlx5e_priv *priv)
 
 static int mlx5i_init_tx(struct mlx5e_priv *priv)
 {
+	struct mlx5i_priv *ipriv = priv->ppriv;
+	int err;
+
 	/* TODO: Create IPoIB underlay QP */
-	/* TODO: create IPoIB TX HW TIS */
+
+	err = mlx5e_create_tis(priv->mdev, 0 /* tc */, ipriv->qp.qpn, &priv->tisn[0]);
+	if (err) {
+		mlx5_core_warn(priv->mdev, "create tis failed, %d\n", err);
+		return err;
+	}
+
 	return 0;
 }
 
-static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
+void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 {
+	mlx5e_destroy_tis(priv->mdev, priv->tisn[0]);
 }
 
 static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
