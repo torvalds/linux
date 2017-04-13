@@ -406,6 +406,10 @@ static void hfi1_vnic_maybe_stop_tx(struct hfi1_vnic_vport_info *vinfo,
 				    u8 q_idx)
 {
 	netif_stop_subqueue(vinfo->netdev, q_idx);
+	if (!hfi1_vnic_sdma_write_avail(vinfo, q_idx))
+		return;
+
+	netif_start_subqueue(vinfo->netdev, q_idx);
 }
 
 static netdev_tx_t hfi1_netdev_start_xmit(struct sk_buff *skb,
@@ -477,7 +481,13 @@ static u16 hfi1_vnic_select_queue(struct net_device *netdev,
 				  void *accel_priv,
 				  select_queue_fallback_t fallback)
 {
-	return 0;
+	struct hfi1_vnic_vport_info *vinfo = opa_vnic_dev_priv(netdev);
+	struct opa_vnic_skb_mdata *mdata;
+	struct sdma_engine *sde;
+
+	mdata = (struct opa_vnic_skb_mdata *)skb->data;
+	sde = sdma_select_engine_vl(vinfo->dd, mdata->entropy, mdata->vl);
+	return sde->this_idx;
 }
 
 /* hfi1_vnic_decap_skb - strip OPA header from the skb (ethernet) packet */
@@ -733,8 +743,13 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 	int i, rc = 0;
 
 	mutex_lock(&hfi1_mutex);
-	if (!dd->vnic.num_vports)
+	if (!dd->vnic.num_vports) {
+		rc = hfi1_vnic_txreq_init(dd);
+		if (rc)
+			goto txreq_fail;
+
 		dd->vnic.msix_idx = dd->first_dyn_msix_idx;
+	}
 
 	for (i = dd->vnic.num_ctxt; i < vinfo->num_rx_q; i++) {
 		rc = hfi1_vnic_allot_ctxt(dd, &dd->vnic.ctxt[i]);
@@ -762,7 +777,11 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 	}
 
 	dd->vnic.num_vports++;
+	hfi1_vnic_sdma_init(vinfo);
 alloc_fail:
+	if (!dd->vnic.num_vports)
+		hfi1_vnic_txreq_deinit(dd);
+txreq_fail:
 	mutex_unlock(&hfi1_mutex);
 	return rc;
 }
@@ -780,6 +799,7 @@ static void hfi1_vnic_deinit(struct hfi1_vnic_vport_info *vinfo)
 		}
 		hfi1_deinit_vnic_rsm(dd);
 		dd->vnic.num_ctxt = 0;
+		hfi1_vnic_txreq_deinit(dd);
 	}
 	mutex_unlock(&hfi1_mutex);
 }

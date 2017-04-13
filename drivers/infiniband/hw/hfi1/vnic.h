@@ -49,6 +49,7 @@
 
 #include <rdma/opa_vnic.h>
 #include "hfi.h"
+#include "sdma.h"
 
 #define HFI1_VNIC_MAX_TXQ     16
 #define HFI1_VNIC_MAX_PAD     12
@@ -85,6 +86,26 @@
 #define HFI1_VNIC_MAX_QUEUE 16
 
 /**
+ * struct hfi1_vnic_sdma - VNIC per Tx ring SDMA information
+ * @dd - device data pointer
+ * @sde - sdma engine
+ * @vinfo - vnic info pointer
+ * @wait - iowait structure
+ * @stx - sdma tx request
+ * @state - vnic Tx ring SDMA state
+ * @q_idx - vnic Tx queue index
+ */
+struct hfi1_vnic_sdma {
+	struct hfi1_devdata *dd;
+	struct sdma_engine  *sde;
+	struct hfi1_vnic_vport_info *vinfo;
+	struct iowait wait;
+	struct sdma_txreq stx;
+	unsigned int state;
+	u8 q_idx;
+};
+
+/**
  * struct hfi1_vnic_rx_queue - HFI1 VNIC receive queue
  * @idx: queue index
  * @vinfo: pointer to vport information
@@ -111,6 +132,7 @@ struct hfi1_vnic_rx_queue {
  * @vesw_id: virtual switch id
  * @rxq: Array of receive queues
  * @stats: per queue stats
+ * @sdma: VNIC SDMA structure per TXQ
  */
 struct hfi1_vnic_vport_info {
 	struct hfi1_devdata *dd;
@@ -126,6 +148,7 @@ struct hfi1_vnic_vport_info {
 	struct hfi1_vnic_rx_queue rxq[HFI1_NUM_VNIC_CTXT];
 
 	struct opa_vnic_stats  stats[HFI1_VNIC_MAX_QUEUE];
+	struct hfi1_vnic_sdma  sdma[HFI1_VNIC_MAX_TXQ];
 };
 
 #define v_dbg(format, arg...) \
@@ -138,8 +161,13 @@ struct hfi1_vnic_vport_info {
 /* vnic hfi1 internal functions */
 void hfi1_vnic_setup(struct hfi1_devdata *dd);
 void hfi1_vnic_cleanup(struct hfi1_devdata *dd);
+int hfi1_vnic_txreq_init(struct hfi1_devdata *dd);
+void hfi1_vnic_txreq_deinit(struct hfi1_devdata *dd);
 
 void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet);
+void hfi1_vnic_sdma_init(struct hfi1_vnic_vport_info *vinfo);
+bool hfi1_vnic_sdma_write_avail(struct hfi1_vnic_vport_info *vinfo,
+				u8 q_idx);
 
 /* vnic rdma netdev operations */
 struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,

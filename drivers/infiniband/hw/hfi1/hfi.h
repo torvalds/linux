@@ -834,6 +834,7 @@ struct hfi1_asic_data {
 /* Virtual NIC information */
 struct hfi1_vnic_data {
 	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
+	struct kmem_cache *txreq_cache;
 	u8 num_vports;
 	struct idr vesw_idr;
 	u8 rmt_start;
