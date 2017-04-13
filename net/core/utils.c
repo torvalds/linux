@@ -339,7 +339,7 @@ static int inet6_pton(struct net *net, const char *src, u16 port_num,
 	    src + srclen != scope_delim && *scope_delim == '%') {
 		struct net_device *dev;
 		char scope_id[16];
-		size_t scope_len = min_t(size_t, sizeof(scope_id),
+		size_t scope_len = min_t(size_t, sizeof(scope_id) - 1,
 					 src + srclen - scope_delim - 1);
 
 		memcpy(scope_id, scope_delim + 1, scope_len);
