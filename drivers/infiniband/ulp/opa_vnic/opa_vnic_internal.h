@@ -169,6 +169,8 @@ struct __opa_veswport_trap {
  * @vport_num: vesw port number
  * @lock: adapter lock
  * @info: virtual ethernet switch port information
+ * @mactbl: hash table of MAC entries
+ * @mactbl_lock: mac table lock
  * @stats_lock: statistics lock
  * @flow_tbl: flow to default port redirection table
  */
@@ -184,11 +186,34 @@ struct opa_vnic_adapter {
 	struct mutex lock;
 
 	struct __opa_veswport_info  info;
+	struct hlist_head  __rcu   *mactbl;
+
+	/* Lock used to protect updates to mac table */
+	struct mutex mactbl_lock;
 
 	/* Lock used to protect access to vnic counters */
 	struct mutex stats_lock;
 
 	u8 flow_tbl[OPA_VNIC_FLOW_TBL_SIZE];
+};
+
+/* Same as opa_veswport_mactable_entry, but without bitwise attribute */
+struct __opa_vnic_mactable_entry {
+	u8  mac_addr[ETH_ALEN];
+	u8  mac_addr_mask[ETH_ALEN];
+	u32 dlid_sd;
+} __packed;
+
+/**
+ * struct opa_vnic_mac_tbl_node - OPA VNIC mac table node
+ * @hlist: hash list handle
+ * @index: index of entry in the mac table
+ * @entry: entry in the table
+ */
+struct opa_vnic_mac_tbl_node {
+	struct hlist_node                    hlist;
+	u16                                  index;
+	struct __opa_vnic_mactable_entry     entry;
 };
 
 #define v_dbg(format, arg...) \
@@ -212,12 +237,38 @@ struct opa_vnic_adapter {
 #define OPA_VNIC_MAC_TBL_HASH_BITS    8
 #define OPA_VNIC_MAC_TBL_SIZE  BIT(OPA_VNIC_MAC_TBL_HASH_BITS)
 
+/* VNIC HASH MACROS */
+#define vnic_hash_init(hashtable) __hash_init(hashtable, OPA_VNIC_MAC_TBL_SIZE)
+
+#define vnic_hash_add(hashtable, node, key)                                   \
+	hlist_add_head(node,                                                  \
+		&hashtable[hash_min(key, ilog2(OPA_VNIC_MAC_TBL_SIZE))])
+
+#define vnic_hash_for_each_safe(name, bkt, tmp, obj, member)                  \
+	for ((bkt) = 0, obj = NULL;                                           \
+		    !obj && (bkt) < OPA_VNIC_MAC_TBL_SIZE; (bkt)++)           \
+		hlist_for_each_entry_safe(obj, tmp, &name[bkt], member)
+
+#define vnic_hash_for_each_possible(name, obj, member, key)                   \
+	hlist_for_each_entry(obj,                                             \
+		&name[hash_min(key, ilog2(OPA_VNIC_MAC_TBL_SIZE))], member)
+
+#define vnic_hash_for_each(name, bkt, obj, member)                            \
+	for ((bkt) = 0, obj = NULL;                                           \
+		    !obj && (bkt) < OPA_VNIC_MAC_TBL_SIZE; (bkt)++)           \
+		hlist_for_each_entry(obj, &name[bkt], member)
+
 struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 					     u8 port_num, u8 vport_num);
 void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter);
 void opa_vnic_encap_skb(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
 u8 opa_vnic_get_vl(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
 u8 opa_vnic_calc_entropy(struct opa_vnic_adapter *adapter, struct sk_buff *skb);
+void opa_vnic_release_mac_tbl(struct opa_vnic_adapter *adapter);
+void opa_vnic_query_mac_tbl(struct opa_vnic_adapter *adapter,
+			    struct opa_veswport_mactable *tbl);
+int opa_vnic_update_mac_tbl(struct opa_vnic_adapter *adapter,
+			    struct opa_veswport_mactable *tbl);
 void opa_vnic_set_ethtool_ops(struct net_device *netdev);
 
 #endif /* _OPA_VNIC_INTERNAL_H */

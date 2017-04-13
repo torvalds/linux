@@ -206,6 +206,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	netdev->hard_header_len += OPA_VNIC_SKB_HEADROOM;
 	mutex_init(&adapter->lock);
+	mutex_init(&adapter->mactbl_lock);
 	mutex_init(&adapter->stats_lock);
 
 	SET_NETDEV_DEV(netdev, ibdev->dev.parent);
@@ -222,6 +223,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	return adapter;
 netdev_err:
 	mutex_destroy(&adapter->lock);
+	mutex_destroy(&adapter->mactbl_lock);
 	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 adapter_err:
@@ -238,7 +240,9 @@ void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter)
 
 	v_info("removing\n");
 	unregister_netdev(netdev);
+	opa_vnic_release_mac_tbl(adapter);
 	mutex_destroy(&adapter->lock);
+	mutex_destroy(&adapter->mactbl_lock);
 	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 	ibdev->free_rdma_netdev(netdev);
