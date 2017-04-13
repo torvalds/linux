@@ -7108,6 +7108,10 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	/* restart the VSIs that were rebuilt and running before the reset */
 	i40e_pf_unquiesce_all_vsi(pf);
 
+	/* Release the RTNL lock before we start resetting VFs */
+	if (!lock_acquired)
+		rtnl_unlock();
+
 	if (pf->num_alloc_vfs) {
 		for (v = 0; v < pf->num_alloc_vfs; v++)
 			i40e_reset_vf(&pf->vf[v], true);
@@ -7116,9 +7120,12 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	/* tell the firmware that we're starting */
 	i40e_send_version(pf);
 
+	/* We've already released the lock, so don't do it again */
+	goto end_core_reset;
+
 end_unlock:
-if (!lock_acquired)
-	rtnl_unlock();
+	if (!lock_acquired)
+		rtnl_unlock();
 end_core_reset:
 	clear_bit(__I40E_RESET_FAILED, &pf->state);
 clear_recovery:
