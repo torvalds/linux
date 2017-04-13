@@ -57,6 +57,7 @@ struct lpfc_nvme_buf {
 	struct list_head list;
 	struct nvmefc_fcp_req *nvmeCmd;
 	struct lpfc_nvme_rport *nrport;
+	struct lpfc_nodelist *ndlp;
 
 	uint32_t timeout;
 

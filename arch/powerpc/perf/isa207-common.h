@@ -246,6 +246,7 @@
 #define MMCRA_THR_CMP_SHIFT		32
 #define MMCRA_SDAR_MODE_SHIFT		42
 #define MMCRA_SDAR_MODE_TLB		(1ull << MMCRA_SDAR_MODE_SHIFT)
+#define MMCRA_SDAR_MODE_NO_UPDATES	~(0x3ull << MMCRA_SDAR_MODE_SHIFT)
 #define MMCRA_IFM_SHIFT			30
 
 /* MMCR1 Threshold Compare bit constant for power9 */

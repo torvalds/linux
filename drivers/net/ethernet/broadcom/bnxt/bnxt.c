@@ -4465,6 +4465,10 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
 	}
 #endif
+	if (BNXT_PF(bp) && (le16_to_cpu(resp->flags) &
+			    FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED))
+		bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_5:
@@ -5507,8 +5511,9 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK;
 	}
-	link_info->support_auto_speeds =
-		le16_to_cpu(resp->supported_speeds_auto_mode);
+	if (resp->supported_speeds_auto_mode)
+		link_info->support_auto_speeds =
+			le16_to_cpu(resp->supported_speeds_auto_mode);
 
 hwrm_phy_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -6495,8 +6500,14 @@ static void bnxt_reset_task(struct bnxt *bp, bool silent)
 	if (!silent)
 		bnxt_dbg_dump_states(bp);
 	if (netif_running(bp->dev)) {
+		int rc;
+
+		if (!silent)
+			bnxt_ulp_stop(bp);
 		bnxt_close_nic(bp, false, false);
-		bnxt_open_nic(bp, false, false);
+		rc = bnxt_open_nic(bp, false, false);
+		if (!silent && !rc)
+			bnxt_ulp_start(bp);
 	}
 }
 
@@ -7444,6 +7455,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
+	rc = bnxt_hwrm_func_reset(bp);
+	if (rc)
+		goto init_err_pci_clean;
+
 	bnxt_hwrm_fw_set_time(bp);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
@@ -7551,10 +7566,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
 
 	rc = bnxt_probe_phy(bp);
-	if (rc)
-		goto init_err_pci_clean;
-
-	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)
 		goto init_err_pci_clean;
 

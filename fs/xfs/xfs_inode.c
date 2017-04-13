@@ -3475,6 +3475,7 @@ xfs_iflush_int(
 	struct xfs_inode_log_item *iip = ip->i_itemp;
 	struct xfs_dinode	*dip;
 	struct xfs_mount	*mp = ip->i_mount;
+	int			error;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(xfs_isiflocked(ip));
@@ -3557,9 +3558,14 @@ xfs_iflush_int(
 	if (ip->i_d.di_flushiter == DI_MAX_FLUSH)
 		ip->i_d.di_flushiter = 0;
 
-	xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK);
-	if (XFS_IFORK_Q(ip))
-		xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK);
+	error = xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK);
+	if (error)
+		return error;
+	if (XFS_IFORK_Q(ip)) {
+		error = xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK);
+		if (error)
+			return error;
+	}
 	xfs_inobp_check(mp, bp);
 
 	/*

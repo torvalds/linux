@@ -254,8 +254,8 @@ static int exynos_pcie_phy_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	exynos_phy->blk_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(exynos_phy->phy_base))
-		return PTR_ERR(exynos_phy->phy_base);
+	if (IS_ERR(exynos_phy->blk_base))
+		return PTR_ERR(exynos_phy->blk_base);
 
 	exynos_phy->drv_data = drv_data;
 

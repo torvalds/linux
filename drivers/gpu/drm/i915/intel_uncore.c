@@ -119,6 +119,8 @@ fw_domains_get(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 
 	for_each_fw_domain_masked(d, fw_domains, dev_priv)
 		fw_domain_wait_ack(d);
+
+	dev_priv->uncore.fw_domains_active |= fw_domains;
 }
 
 static void
@@ -130,6 +132,8 @@ fw_domains_put(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 		fw_domain_put(d);
 		fw_domain_posting_read(d);
 	}
+
+	dev_priv->uncore.fw_domains_active &= ~fw_domains;
 }
 
 static void
@@ -240,10 +244,8 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	if (WARN_ON(domain->wake_count == 0))
 		domain->wake_count++;
 
-	if (--domain->wake_count == 0) {
+	if (--domain->wake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, domain->mask);
-		dev_priv->uncore.fw_domains_active &= ~domain->mask;
-	}
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
@@ -454,10 +456,8 @@ static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 			fw_domains &= ~domain->mask;
 	}
 
-	if (fw_domains) {
+	if (fw_domains)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
-		dev_priv->uncore.fw_domains_active |= fw_domains;
-	}
 }
 
 /**
@@ -968,7 +968,6 @@ static noinline void ___force_wake_auto(struct drm_i915_private *dev_priv,
 		fw_domain_arm_timer(domain);
 
 	dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
-	dev_priv->uncore.fw_domains_active |= fw_domains;
 }
 
 static inline void __force_wake_auto(struct drm_i915_private *dev_priv,

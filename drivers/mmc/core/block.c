@@ -1560,10 +1560,7 @@ static bool mmc_blk_rw_cmd_err(struct mmc_blk_data *md, struct mmc_card *card,
 			       struct mmc_blk_request *brq, struct request *req,
 			       bool old_req_pending)
 {
-	struct mmc_queue_req *mq_rq;
 	bool req_pending;
-
-	mq_rq = container_of(brq, struct mmc_queue_req, brq);
 
 	/*
 	 * If this is an SD card and we're writing, we can first
@@ -1701,7 +1698,8 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		case MMC_BLK_CMD_ERR:
 			req_pending = mmc_blk_rw_cmd_err(md, card, brq, old_req, req_pending);
 			if (mmc_blk_reset(md, card->host, type)) {
-				mmc_blk_rw_cmd_abort(card, old_req);
+				if (req_pending)
+					mmc_blk_rw_cmd_abort(card, old_req);
 				mmc_blk_rw_try_restart(mq, new_req);
 				return;
 			}
@@ -1817,6 +1815,7 @@ void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		mmc_blk_issue_flush(mq, req);
 	} else {
 		mmc_blk_issue_rw_rq(mq, req);
+		card->host->context_info.is_waiting_last_req = false;
 	}
 
 out:
