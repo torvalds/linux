@@ -665,7 +665,7 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 		return 0;
 
 	err = nla_parse_nested(tb, CTA_PROTOINFO_DCCP_MAX, attr,
-			       dccp_nla_policy);
+			       dccp_nla_policy, NULL);
 	if (err < 0)
 		return err;
 

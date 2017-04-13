@@ -315,7 +315,7 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	s64 buffer, mtu;
 	u64 rate64 = 0, prate64 = 0;
 
-	err = nla_parse_nested(tb, TCA_TBF_MAX, opt, tbf_policy);
+	err = nla_parse_nested(tb, TCA_TBF_MAX, opt, tbf_policy, NULL);
 	if (err < 0)
 		return err;
 

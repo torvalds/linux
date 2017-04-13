@@ -484,7 +484,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_RSVP_MAX, opt, rsvp_policy);
+	err = nla_parse_nested(tb, TCA_RSVP_MAX, opt, rsvp_policy, NULL);
 	if (err < 0)
 		return err;
 

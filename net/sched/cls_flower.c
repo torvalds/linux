@@ -848,7 +848,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	if (!tb)
 		return -ENOBUFS;
 
-	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS], fl_policy);
+	err = nla_parse_nested(tb, TCA_FLOWER_MAX, tca[TCA_OPTIONS],
+			       fl_policy, NULL);
 	if (err < 0)
 		goto errout_tb;
 

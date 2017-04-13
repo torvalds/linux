@@ -641,7 +641,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 	memset(mod, 0, sizeof(*mod));
 
 	err = nlmsg_parse(nlh, sizeof(struct rtcanmsg), tb, CGW_MAX,
-			  cgw_policy);
+			  cgw_policy, NULL);
 	if (err < 0)
 		return err;
 

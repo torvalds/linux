@@ -96,7 +96,7 @@ static unsigned int dnrmg_hook(void *priv,
 }
 
 
-#define RCV_SKB_FAIL(err) do { netlink_ack(skb, nlh, (err)); return; } while (0)
+#define RCV_SKB_FAIL(err) do { netlink_ack(skb, nlh, (err), NULL); return; } while (0)
 
 static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 {

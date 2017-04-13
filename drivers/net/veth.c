@@ -368,7 +368,8 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		ifmp = nla_data(nla_peer);
 		err = rtnl_nla_parse_ifla(peer_tb,
 					  nla_data(nla_peer) + sizeof(struct ifinfomsg),
-					  nla_len(nla_peer) - sizeof(struct ifinfomsg));
+					  nla_len(nla_peer) - sizeof(struct ifinfomsg),
+					  NULL);
 		if (err < 0)
 			return err;
 

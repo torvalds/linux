@@ -146,7 +146,8 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(ibnl_put_attr);
 
-static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
+			struct netlink_ext_ack *extack)
 {
 	struct ibnl_client *client;
 	int type = nlh->nlmsg_type;
@@ -209,7 +210,7 @@ static void ibnl_rcv_reply_skb(struct sk_buff *skb)
 		if (nlh->nlmsg_flags & NLM_F_REQUEST)
 			return;
 
-		ibnl_rcv_msg(skb, nlh);
+		ibnl_rcv_msg(skb, nlh, NULL);
 
 		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
 		if (msglen > skb->len)

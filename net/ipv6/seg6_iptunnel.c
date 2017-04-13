@@ -328,7 +328,7 @@ static int seg6_build_state(struct nlattr *nla,
 	int err;
 
 	err = nla_parse_nested(tb, SEG6_IPTUNNEL_MAX, nla,
-			       seg6_iptunnel_policy);
+			       seg6_iptunnel_policy, NULL);
 
 	if (err < 0)
 		return err;

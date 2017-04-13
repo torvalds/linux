@@ -244,7 +244,8 @@ nfacct_filter_alloc(const struct nlattr * const attr)
 	struct nlattr *tb[NFACCT_FILTER_MAX + 1];
 	int err;
 
-	err = nla_parse_nested(tb, NFACCT_FILTER_MAX, attr, filter_policy);
+	err = nla_parse_nested(tb, NFACCT_FILTER_MAX, attr, filter_policy,
+			       NULL);
 	if (err < 0)
 		return ERR_PTR(err);
 

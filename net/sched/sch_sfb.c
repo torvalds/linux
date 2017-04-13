@@ -495,7 +495,7 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt)
 	int err;
 
 	if (opt) {
-		err = nla_parse_nested(tb, TCA_SFB_MAX, opt, sfb_policy);
+		err = nla_parse_nested(tb, TCA_SFB_MAX, opt, sfb_policy, NULL);
 		if (err < 0)
 			return -EINVAL;
 
