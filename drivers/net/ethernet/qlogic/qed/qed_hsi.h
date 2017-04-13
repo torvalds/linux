@@ -3473,6 +3473,11 @@ void qed_set_geneve_dest_port(struct qed_hwfn *p_hwfn,
 void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt,
 			   bool eth_geneve_enable, bool ip_geneve_enable);
+void qed_set_rfs_mode_disable(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt, u16 pf_id);
+void qed_set_rfs_mode_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			     u16 pf_id, bool tcp, bool udp,
+			     bool ipv4, bool ipv6);
 
 #define	YSTORM_FLOW_CONTROL_MODE_OFFSET			(IRO[0].base)
 #define	YSTORM_FLOW_CONTROL_MODE_SIZE			(IRO[0].size)
@@ -4862,6 +4867,18 @@ struct eth_vport_tx_mode {
 	__le16 reserved2[3];
 };
 
+enum gft_filter_update_action {
+	GFT_ADD_FILTER,
+	GFT_DELETE_FILTER,
+	MAX_GFT_FILTER_UPDATE_ACTION
+};
+
+enum gft_logic_filter_type {
+	GFT_FILTER_TYPE,
+	RFS_FILTER_TYPE,
+	MAX_GFT_LOGIC_FILTER_TYPE
+};
+
 /* Ramrod data for rx queue start ramrod */
 struct rx_queue_start_ramrod_data {
 	__le16 rx_queue_id;
@@ -4930,6 +4947,16 @@ struct rx_udp_filter_data {
 	__le16 udp_dst_port;
 	__le16 udp_src_port;
 	__le32 tenant_id;
+};
+
+struct rx_update_gft_filter_data {
+	struct regpair pkt_hdr_addr;
+	__le16 pkt_hdr_length;
+	__le16 rx_qid_or_action_icid;
+	u8 vport_id;
+	u8 filter_type;
+	u8 filter_action;
+	u8 reserved;
 };
 
 /* Ramrod data for rx queue start ramrod */
@@ -5073,6 +5100,166 @@ struct vport_update_ramrod_data {
 	struct eth_vport_tpa_param tpa_param;
 	struct vport_update_ramrod_mcast approx_mcast;
 	struct eth_vport_rss_config rss_config;
+};
+
+struct gft_cam_line {
+	__le32 camline;
+#define GFT_CAM_LINE_VALID_MASK		0x1
+#define GFT_CAM_LINE_VALID_SHIFT	0
+#define GFT_CAM_LINE_DATA_MASK		0x3FFF
+#define GFT_CAM_LINE_DATA_SHIFT		1
+#define GFT_CAM_LINE_MASK_BITS_MASK	0x3FFF
+#define GFT_CAM_LINE_MASK_BITS_SHIFT	15
+#define GFT_CAM_LINE_RESERVED1_MASK	0x7
+#define GFT_CAM_LINE_RESERVED1_SHIFT	29
+};
+
+struct gft_cam_line_mapped {
+	__le32 camline;
+#define GFT_CAM_LINE_MAPPED_VALID_MASK				0x1
+#define GFT_CAM_LINE_MAPPED_VALID_SHIFT				0
+#define GFT_CAM_LINE_MAPPED_IP_VERSION_MASK			0x1
+#define GFT_CAM_LINE_MAPPED_IP_VERSION_SHIFT			1
+#define GFT_CAM_LINE_MAPPED_TUNNEL_IP_VERSION_MASK		0x1
+#define GFT_CAM_LINE_MAPPED_TUNNEL_IP_VERSION_SHIFT		2
+#define GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE_MASK		0xF
+#define GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE_SHIFT		3
+#define GFT_CAM_LINE_MAPPED_TUNNEL_TYPE_MASK			0xF
+#define GFT_CAM_LINE_MAPPED_TUNNEL_TYPE_SHIFT			7
+#define GFT_CAM_LINE_MAPPED_PF_ID_MASK				0xF
+#define GFT_CAM_LINE_MAPPED_PF_ID_SHIFT				11
+#define GFT_CAM_LINE_MAPPED_IP_VERSION_MASK_MASK		0x1
+#define GFT_CAM_LINE_MAPPED_IP_VERSION_MASK_SHIFT		15
+#define GFT_CAM_LINE_MAPPED_TUNNEL_IP_VERSION_MASK_MASK		0x1
+#define GFT_CAM_LINE_MAPPED_TUNNEL_IP_VERSION_MASK_SHIFT	16
+#define GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE_MASK_MASK	0xF
+#define GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE_MASK_SHIFT	17
+#define GFT_CAM_LINE_MAPPED_TUNNEL_TYPE_MASK_MASK		0xF
+#define GFT_CAM_LINE_MAPPED_TUNNEL_TYPE_MASK_SHIFT		21
+#define GFT_CAM_LINE_MAPPED_PF_ID_MASK_MASK			0xF
+#define GFT_CAM_LINE_MAPPED_PF_ID_MASK_SHIFT			25
+#define GFT_CAM_LINE_MAPPED_RESERVED1_MASK			0x7
+#define GFT_CAM_LINE_MAPPED_RESERVED1_SHIFT			29
+};
+
+union gft_cam_line_union {
+	struct gft_cam_line cam_line;
+	struct gft_cam_line_mapped cam_line_mapped;
+};
+
+enum gft_profile_ip_version {
+	GFT_PROFILE_IPV4 = 0,
+	GFT_PROFILE_IPV6 = 1,
+	MAX_GFT_PROFILE_IP_VERSION
+};
+
+enum gft_profile_upper_protocol_type {
+	GFT_PROFILE_ROCE_PROTOCOL = 0,
+	GFT_PROFILE_RROCE_PROTOCOL = 1,
+	GFT_PROFILE_FCOE_PROTOCOL = 2,
+	GFT_PROFILE_ICMP_PROTOCOL = 3,
+	GFT_PROFILE_ARP_PROTOCOL = 4,
+	GFT_PROFILE_USER_TCP_SRC_PORT_1_INNER = 5,
+	GFT_PROFILE_USER_TCP_DST_PORT_1_INNER = 6,
+	GFT_PROFILE_TCP_PROTOCOL = 7,
+	GFT_PROFILE_USER_UDP_DST_PORT_1_INNER = 8,
+	GFT_PROFILE_USER_UDP_DST_PORT_2_OUTER = 9,
+	GFT_PROFILE_UDP_PROTOCOL = 10,
+	GFT_PROFILE_USER_IP_1_INNER = 11,
+	GFT_PROFILE_USER_IP_2_OUTER = 12,
+	GFT_PROFILE_USER_ETH_1_INNER = 13,
+	GFT_PROFILE_USER_ETH_2_OUTER = 14,
+	GFT_PROFILE_RAW = 15,
+	MAX_GFT_PROFILE_UPPER_PROTOCOL_TYPE
+};
+
+struct gft_ram_line {
+	__le32 low32bits;
+#define GFT_RAM_LINE_VLAN_SELECT_MASK			0x3
+#define GFT_RAM_LINE_VLAN_SELECT_SHIFT			0
+#define GFT_RAM_LINE_TUNNEL_ENTROPHY_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_ENTROPHY_SHIFT		2
+#define GFT_RAM_LINE_TUNNEL_TTL_EQUAL_ONE_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_TTL_EQUAL_ONE_SHIFT		3
+#define GFT_RAM_LINE_TUNNEL_TTL_MASK			0x1
+#define GFT_RAM_LINE_TUNNEL_TTL_SHIFT			4
+#define GFT_RAM_LINE_TUNNEL_ETHERTYPE_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_ETHERTYPE_SHIFT		5
+#define GFT_RAM_LINE_TUNNEL_DST_PORT_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_DST_PORT_SHIFT		6
+#define GFT_RAM_LINE_TUNNEL_SRC_PORT_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_SRC_PORT_SHIFT		7
+#define GFT_RAM_LINE_TUNNEL_DSCP_MASK			0x1
+#define GFT_RAM_LINE_TUNNEL_DSCP_SHIFT			8
+#define GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL_MASK	0x1
+#define GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL_SHIFT	9
+#define GFT_RAM_LINE_TUNNEL_DST_IP_MASK			0x1
+#define GFT_RAM_LINE_TUNNEL_DST_IP_SHIFT		10
+#define GFT_RAM_LINE_TUNNEL_SRC_IP_MASK			0x1
+#define GFT_RAM_LINE_TUNNEL_SRC_IP_SHIFT		11
+#define GFT_RAM_LINE_TUNNEL_PRIORITY_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_PRIORITY_SHIFT		12
+#define GFT_RAM_LINE_TUNNEL_PROVIDER_VLAN_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_PROVIDER_VLAN_SHIFT		13
+#define GFT_RAM_LINE_TUNNEL_VLAN_MASK			0x1
+#define GFT_RAM_LINE_TUNNEL_VLAN_SHIFT			14
+#define GFT_RAM_LINE_TUNNEL_DST_MAC_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_DST_MAC_SHIFT		15
+#define GFT_RAM_LINE_TUNNEL_SRC_MAC_MASK		0x1
+#define GFT_RAM_LINE_TUNNEL_SRC_MAC_SHIFT		16
+#define GFT_RAM_LINE_TTL_EQUAL_ONE_MASK			0x1
+#define GFT_RAM_LINE_TTL_EQUAL_ONE_SHIFT		17
+#define GFT_RAM_LINE_TTL_MASK				0x1
+#define GFT_RAM_LINE_TTL_SHIFT				18
+#define GFT_RAM_LINE_ETHERTYPE_MASK			0x1
+#define GFT_RAM_LINE_ETHERTYPE_SHIFT			19
+#define GFT_RAM_LINE_RESERVED0_MASK			0x1
+#define GFT_RAM_LINE_RESERVED0_SHIFT			20
+#define GFT_RAM_LINE_TCP_FLAG_FIN_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_FIN_SHIFT			21
+#define GFT_RAM_LINE_TCP_FLAG_SYN_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_SYN_SHIFT			22
+#define GFT_RAM_LINE_TCP_FLAG_RST_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_RST_SHIFT			23
+#define GFT_RAM_LINE_TCP_FLAG_PSH_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_PSH_SHIFT			24
+#define GFT_RAM_LINE_TCP_FLAG_ACK_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_ACK_SHIFT			25
+#define GFT_RAM_LINE_TCP_FLAG_URG_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_URG_SHIFT			26
+#define GFT_RAM_LINE_TCP_FLAG_ECE_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_ECE_SHIFT			27
+#define GFT_RAM_LINE_TCP_FLAG_CWR_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_CWR_SHIFT			28
+#define GFT_RAM_LINE_TCP_FLAG_NS_MASK			0x1
+#define GFT_RAM_LINE_TCP_FLAG_NS_SHIFT			29
+#define GFT_RAM_LINE_DST_PORT_MASK			0x1
+#define GFT_RAM_LINE_DST_PORT_SHIFT			30
+#define GFT_RAM_LINE_SRC_PORT_MASK			0x1
+#define GFT_RAM_LINE_SRC_PORT_SHIFT			31
+	__le32 high32bits;
+#define GFT_RAM_LINE_DSCP_MASK				0x1
+#define GFT_RAM_LINE_DSCP_SHIFT				0
+#define GFT_RAM_LINE_OVER_IP_PROTOCOL_MASK		0x1
+#define GFT_RAM_LINE_OVER_IP_PROTOCOL_SHIFT		1
+#define GFT_RAM_LINE_DST_IP_MASK			0x1
+#define GFT_RAM_LINE_DST_IP_SHIFT			2
+#define GFT_RAM_LINE_SRC_IP_MASK			0x1
+#define GFT_RAM_LINE_SRC_IP_SHIFT			3
+#define GFT_RAM_LINE_PRIORITY_MASK			0x1
+#define GFT_RAM_LINE_PRIORITY_SHIFT			4
+#define GFT_RAM_LINE_PROVIDER_VLAN_MASK			0x1
+#define GFT_RAM_LINE_PROVIDER_VLAN_SHIFT		5
+#define GFT_RAM_LINE_VLAN_MASK				0x1
+#define GFT_RAM_LINE_VLAN_SHIFT				6
+#define GFT_RAM_LINE_DST_MAC_MASK			0x1
+#define GFT_RAM_LINE_DST_MAC_SHIFT			7
+#define GFT_RAM_LINE_SRC_MAC_MASK			0x1
+#define GFT_RAM_LINE_SRC_MAC_SHIFT			8
+#define GFT_RAM_LINE_TENANT_ID_MASK			0x1
+#define GFT_RAM_LINE_TENANT_ID_SHIFT			9
+#define GFT_RAM_LINE_RESERVED1_MASK			0x3FFFFF
+#define GFT_RAM_LINE_RESERVED1_SHIFT			10
 };
 
 struct mstorm_eth_conn_ag_ctx {

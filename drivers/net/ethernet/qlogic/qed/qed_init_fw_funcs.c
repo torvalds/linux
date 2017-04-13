@@ -961,3 +961,132 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_IP_EN,
 	       ip_geneve_enable ? 1 : 0);
 }
+
+#define T_ETH_PACKET_MATCH_RFS_EVENTID 25
+#define PARSER_ETH_CONN_CM_HDR (0x0)
+#define CAM_LINE_SIZE sizeof(u32)
+#define RAM_LINE_SIZE sizeof(u64)
+#define REG_SIZE sizeof(u32)
+
+void qed_set_rfs_mode_disable(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt, u16 pf_id)
+{
+	union gft_cam_line_union camline;
+	struct gft_ram_line ramline;
+	u32 *p_ramline, i;
+
+	p_ramline = (u32 *)&ramline;
+
+	/*stop using gft logic */
+	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_GFT, 0);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, 0x0);
+	memset(&camline, 0, sizeof(union gft_cam_line_union));
+	qed_wr(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id,
+	       camline.cam_line_mapped.camline);
+	memset(&ramline, 0, sizeof(union gft_cam_line_union));
+
+	for (i = 0; i < RAM_LINE_SIZE / REG_SIZE; i++) {
+		u32 hw_addr = PRS_REG_GFT_PROFILE_MASK_RAM;
+
+		hw_addr += (RAM_LINE_SIZE * pf_id + i * REG_SIZE);
+
+		qed_wr(p_hwfn, p_ptt, hw_addr, *(p_ramline + i));
+	}
+}
+
+void qed_set_rfs_mode_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			     u16 pf_id, bool tcp, bool udp,
+			     bool ipv4, bool ipv6)
+{
+	u32 rfs_cm_hdr_event_id, *p_ramline;
+	union gft_cam_line_union camline;
+	struct gft_ram_line ramline;
+	int i;
+
+	rfs_cm_hdr_event_id = qed_rd(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT);
+	p_ramline = (u32 *)&ramline;
+
+	if (!ipv6 && !ipv4)
+		DP_NOTICE(p_hwfn,
+			  "set_rfs_mode_enable: must accept at least on of - ipv4 or ipv6");
+	if (!tcp && !udp)
+		DP_NOTICE(p_hwfn,
+			  "set_rfs_mode_enable: must accept at least on of - udp or tcp");
+
+	rfs_cm_hdr_event_id |= T_ETH_PACKET_MATCH_RFS_EVENTID <<
+					PRS_REG_CM_HDR_GFT_EVENT_ID_SHIFT;
+	rfs_cm_hdr_event_id |= PARSER_ETH_CONN_CM_HDR <<
+					PRS_REG_CM_HDR_GFT_CM_HDR_SHIFT;
+	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, rfs_cm_hdr_event_id);
+
+	/* Configure Registers for RFS mode */
+	qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_GFT, 1);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_LOAD_L2_FILTER, 0);
+	camline.cam_line_mapped.camline = 0;
+
+	/* cam line is now valid!! */
+	SET_FIELD(camline.cam_line_mapped.camline,
+		  GFT_CAM_LINE_MAPPED_VALID, 1);
+
+	/* filters are per PF!! */
+	SET_FIELD(camline.cam_line_mapped.camline,
+		  GFT_CAM_LINE_MAPPED_PF_ID_MASK, 1);
+	SET_FIELD(camline.cam_line_mapped.camline,
+		  GFT_CAM_LINE_MAPPED_PF_ID, pf_id);
+	if (!(tcp && udp)) {
+		SET_FIELD(camline.cam_line_mapped.camline,
+			  GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE_MASK, 1);
+		if (tcp)
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE,
+				  GFT_PROFILE_TCP_PROTOCOL);
+		else
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_UPPER_PROTOCOL_TYPE,
+				  GFT_PROFILE_UDP_PROTOCOL);
+	}
+
+	if (!(ipv4 && ipv6)) {
+		SET_FIELD(camline.cam_line_mapped.camline,
+			  GFT_CAM_LINE_MAPPED_IP_VERSION_MASK, 1);
+		if (ipv4)
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_IP_VERSION,
+				  GFT_PROFILE_IPV4);
+		else
+			SET_FIELD(camline.cam_line_mapped.camline,
+				  GFT_CAM_LINE_MAPPED_IP_VERSION,
+				  GFT_PROFILE_IPV6);
+	}
+
+	/* write characteristics to cam */
+	qed_wr(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id,
+	       camline.cam_line_mapped.camline);
+	camline.cam_line_mapped.camline = qed_rd(p_hwfn, p_ptt,
+						 PRS_REG_GFT_CAM +
+						 CAM_LINE_SIZE * pf_id);
+
+	/* write line to RAM - compare to filter 4 tuple */
+	ramline.low32bits = 0;
+	ramline.high32bits = 0;
+	SET_FIELD(ramline.high32bits, GFT_RAM_LINE_DST_IP, 1);
+	SET_FIELD(ramline.high32bits, GFT_RAM_LINE_SRC_IP, 1);
+	SET_FIELD(ramline.low32bits, GFT_RAM_LINE_SRC_PORT, 1);
+	SET_FIELD(ramline.low32bits, GFT_RAM_LINE_DST_PORT, 1);
+
+	/* each iteration write to reg */
+	for (i = 0; i < RAM_LINE_SIZE / REG_SIZE; i++)
+		qed_wr(p_hwfn, p_ptt,
+		       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id +
+		       i * REG_SIZE, *(p_ramline + i));
+
+	/* set default profile so that no filter match will happen */
+	ramline.low32bits = 0xffff;
+	ramline.high32bits = 0xffff;
+
+	for (i = 0; i < RAM_LINE_SIZE / REG_SIZE; i++)
+		qed_wr(p_hwfn, p_ptt,
+		       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *
+		       PRS_GFT_CAM_LINES_NO_MATCH + i * REG_SIZE,
+		       *(p_ramline + i));
+}

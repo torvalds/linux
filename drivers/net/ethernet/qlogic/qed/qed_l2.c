@@ -1799,6 +1799,84 @@ void qed_reset_vport_stats(struct qed_dev *cdev)
 		_qed_get_vport_stats(cdev, cdev->reset_stats);
 }
 
+static void
+qed_arfs_mode_configure(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			struct qed_arfs_config_params *p_cfg_params)
+{
+	if (p_cfg_params->arfs_enable) {
+		qed_set_rfs_mode_enable(p_hwfn, p_ptt, p_hwfn->rel_pf_id,
+					p_cfg_params->tcp, p_cfg_params->udp,
+					p_cfg_params->ipv4, p_cfg_params->ipv6);
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "tcp = %s, udp = %s, ipv4 = %s, ipv6 =%s\n",
+			   p_cfg_params->tcp ? "Enable" : "Disable",
+			   p_cfg_params->udp ? "Enable" : "Disable",
+			   p_cfg_params->ipv4 ? "Enable" : "Disable",
+			   p_cfg_params->ipv6 ? "Enable" : "Disable");
+	} else {
+		qed_set_rfs_mode_disable(p_hwfn, p_ptt, p_hwfn->rel_pf_id);
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP, "Configured ARFS mode : %s\n",
+		   p_cfg_params->arfs_enable ? "Enable" : "Disable");
+}
+
+static int
+qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+				struct qed_spq_comp_cb *p_cb,
+				dma_addr_t p_addr, u16 length, u16 qid,
+				u8 vport_id, bool b_is_add)
+{
+	struct rx_update_gft_filter_data *p_ramrod = NULL;
+	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
+	u16 abs_rx_q_id = 0;
+	u8 abs_vport_id = 0;
+	int rc = -EINVAL;
+
+	rc = qed_fw_vport(p_hwfn, vport_id, &abs_vport_id);
+	if (rc)
+		return rc;
+
+	rc = qed_fw_l2_queue(p_hwfn, qid, &abs_rx_q_id);
+	if (rc)
+		return rc;
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+
+	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
+
+	if (p_cb) {
+		init_data.comp_mode = QED_SPQ_MODE_CB;
+		init_data.p_comp_data = p_cb;
+	} else {
+		init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+	}
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 ETH_RAMROD_GFT_UPDATE_FILTER,
+				 PROTOCOLID_ETH, &init_data);
+	if (rc)
+		return rc;
+
+	p_ramrod = &p_ent->ramrod.rx_update_gft;
+	DMA_REGPAIR_LE(p_ramrod->pkt_hdr_addr, p_addr);
+	p_ramrod->pkt_hdr_length = cpu_to_le16(length);
+	p_ramrod->rx_qid_or_action_icid = cpu_to_le16(abs_rx_q_id);
+	p_ramrod->vport_id = abs_vport_id;
+	p_ramrod->filter_type = RFS_FILTER_TYPE;
+	p_ramrod->filter_action = b_is_add ? GFT_ADD_FILTER : GFT_DELETE_FILTER;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "V[%0x], Q[%04x] - %s filter from 0x%llx [length %04xb]\n",
+		   abs_vport_id, abs_rx_q_id,
+		   b_is_add ? "Adding" : "Removing", (u64)p_addr, length);
+
+	return qed_spq_post(p_hwfn, p_ent, NULL);
+}
+
 static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 				 struct qed_dev_eth_info *info)
 {
@@ -2356,6 +2434,59 @@ static int qed_configure_filter(struct qed_dev *cdev,
 	}
 }
 
+static int qed_configure_arfs_searcher(struct qed_dev *cdev, bool en_searcher)
+{
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_arfs_config_params arfs_config_params;
+
+	memset(&arfs_config_params, 0, sizeof(arfs_config_params));
+	arfs_config_params.tcp = true;
+	arfs_config_params.udp = true;
+	arfs_config_params.ipv4 = true;
+	arfs_config_params.ipv6 = true;
+	arfs_config_params.arfs_enable = en_searcher;
+
+	qed_arfs_mode_configure(p_hwfn, p_hwfn->p_arfs_ptt,
+				&arfs_config_params);
+	return 0;
+}
+
+static void
+qed_arfs_sp_response_handler(struct qed_hwfn *p_hwfn,
+			     void *cookie, union event_ring_data *data,
+			     u8 fw_return_code)
+{
+	struct qed_common_cb_ops *op = p_hwfn->cdev->protocol_ops.common;
+	void *dev = p_hwfn->cdev->ops_cookie;
+
+	op->arfs_filter_op(dev, cookie, fw_return_code);
+}
+
+static int qed_ntuple_arfs_filter_config(struct qed_dev *cdev, void *cookie,
+					 dma_addr_t mapping, u16 length,
+					 u16 vport_id, u16 rx_queue_id,
+					 bool add_filter)
+{
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_spq_comp_cb cb;
+	int rc = -EINVAL;
+
+	cb.function = qed_arfs_sp_response_handler;
+	cb.cookie = cookie;
+
+	rc = qed_configure_rfs_ntuple_filter(p_hwfn, p_hwfn->p_arfs_ptt,
+					     &cb, mapping, length, rx_queue_id,
+					     vport_id, add_filter);
+	if (rc)
+		DP_NOTICE(p_hwfn,
+			  "Failed to issue a-RFS filter configuration\n");
+	else
+		DP_VERBOSE(p_hwfn, NETIF_MSG_DRV,
+			   "Successfully issued a-RFS filter configuration\n");
+
+	return rc;
+}
+
 static int qed_fp_cqe_completion(struct qed_dev *dev,
 				 u8 rss_id, struct eth_slow_path_rx_cqe *cqe)
 {
@@ -2397,6 +2528,8 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 	.eth_cqe_completion = &qed_fp_cqe_completion,
 	.get_vport_stats = &qed_get_vport_stats,
 	.tunn_config = &qed_tunn_configure,
+	.ntuple_filter_config = &qed_ntuple_arfs_filter_config,
+	.configure_arfs_searcher = &qed_configure_arfs_searcher,
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void)

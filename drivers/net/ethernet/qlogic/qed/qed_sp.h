@@ -84,6 +84,7 @@ union ramrod_data {
 	struct tx_queue_stop_ramrod_data tx_queue_stop;
 	struct vport_start_ramrod_data vport_start;
 	struct vport_stop_ramrod_data vport_stop;
+	struct rx_update_gft_filter_data rx_update_gft;
 	struct vport_update_ramrod_data vport_update;
 	struct core_rx_start_ramrod_data core_rx_queue_start;
 	struct core_rx_stop_ramrod_data core_rx_queue_stop;

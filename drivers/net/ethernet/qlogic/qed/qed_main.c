@@ -883,6 +883,9 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 		params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
 	}
 
+	if (cdev->num_hwfns > 1 || IS_VF(cdev))
+		params->eth_pf_params.num_arfs_filters = 0;
+
 	/* In case we might support RDMA, don't allow qede to be greedy
 	 * with the L2 contexts. Allow for 64 queues [rx, tx, xdp] per hwfn.
 	 */
@@ -926,6 +929,18 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			goto err;
 		}
 
+#ifdef CONFIG_RFS_ACCEL
+		if (cdev->num_hwfns == 1) {
+			p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+			if (p_ptt) {
+				QED_LEADING_HWFN(cdev)->p_arfs_ptt = p_ptt;
+			} else {
+				DP_NOTICE(cdev,
+					  "Failed to acquire PTT for aRFS\n");
+				goto err;
+			}
+		}
+#endif
 		p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
 		if (p_ptt) {
 			QED_LEADING_HWFN(cdev)->p_ptp_ptt = p_ptt;
@@ -1032,6 +1047,12 @@ err:
 	if (IS_PF(cdev))
 		release_firmware(cdev->firmware);
 
+#ifdef CONFIG_RFS_ACCEL
+	if (IS_PF(cdev) && (cdev->num_hwfns == 1) &&
+	    QED_LEADING_HWFN(cdev)->p_arfs_ptt)
+		qed_ptt_release(QED_LEADING_HWFN(cdev),
+				QED_LEADING_HWFN(cdev)->p_arfs_ptt);
+#endif
 	if (IS_PF(cdev) && QED_LEADING_HWFN(cdev)->p_ptp_ptt)
 		qed_ptt_release(QED_LEADING_HWFN(cdev),
 				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
@@ -1049,6 +1070,11 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	qed_ll2_dealloc_if(cdev);
 
 	if (IS_PF(cdev)) {
+#ifdef CONFIG_RFS_ACCEL
+		if (cdev->num_hwfns == 1)
+			qed_ptt_release(QED_LEADING_HWFN(cdev),
+					QED_LEADING_HWFN(cdev)->p_arfs_ptt);
+#endif
 		qed_ptt_release(QED_LEADING_HWFN(cdev),
 				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
 		qed_free_stream_mem(cdev);
