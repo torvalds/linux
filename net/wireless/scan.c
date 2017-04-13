@@ -321,8 +321,7 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 			spin_unlock_bh(&rdev->bss_lock);
 			request->scan_start = jiffies;
 		}
-		nl80211_send_sched_scan(rdev, request->dev,
-					NL80211_CMD_SCHED_SCAN_RESULTS);
+		nl80211_send_sched_scan(request, NL80211_CMD_SCHED_SCAN_RESULTS);
 	}
 
 	rtnl_unlock();
@@ -379,7 +378,7 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 			return err;
 	}
 
-	nl80211_send_sched_scan(rdev, dev, NL80211_CMD_SCHED_SCAN_STOPPED);
+	nl80211_send_sched_scan(sched_scan_req, NL80211_CMD_SCHED_SCAN_STOPPED);
 
 	RCU_INIT_POINTER(rdev->sched_scan_req, NULL);
 	kfree_rcu(sched_scan_req, rcu_head);
