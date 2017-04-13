@@ -2494,8 +2494,8 @@ mwifiex_pcie_reg_dump(struct mwifiex_adapter *adapter, char *drv_buf)
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	int pcie_scratch_reg[] = {PCIE_SCRATCH_12_REG,
-				  PCIE_SCRATCH_13_REG,
-				  PCIE_SCRATCH_14_REG};
+				  PCIE_SCRATCH_14_REG,
+				  PCIE_SCRATCH_15_REG};
 
 	if (!p)
 		return 0;

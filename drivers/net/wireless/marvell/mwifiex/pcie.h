@@ -77,8 +77,9 @@
 #define PCIE_SCRATCH_10_REG				0xCE8
 #define PCIE_SCRATCH_11_REG				0xCEC
 #define PCIE_SCRATCH_12_REG				0xCF0
-#define PCIE_SCRATCH_13_REG				0xCF8
-#define PCIE_SCRATCH_14_REG				0xCFC
+#define PCIE_SCRATCH_13_REG				0xCF4
+#define PCIE_SCRATCH_14_REG				0xCF8
+#define PCIE_SCRATCH_15_REG				0xCFC
 #define PCIE_RD_DATA_PTR_Q0_Q1                          0xC08C
 #define PCIE_WR_DATA_PTR_Q0_Q1                          0xC05C
 
@@ -217,8 +218,8 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8897 = {
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
 	.sleep_cookie = 0,
-	.fw_dump_ctrl = 0xcf4,
-	.fw_dump_start = 0xcf8,
+	.fw_dump_ctrl = PCIE_SCRATCH_13_REG,
+	.fw_dump_start = PCIE_SCRATCH_14_REG,
 	.fw_dump_end = 0xcff,
 	.fw_dump_host_ready = 0xee,
 	.fw_dump_read_done = 0xfe,
@@ -254,8 +255,8 @@ static const struct mwifiex_pcie_card_reg mwifiex_reg_8997 = {
 	.ring_tx_start_ptr = MWIFIEX_BD_FLAG_TX_START_PTR,
 	.pfu_enabled = 1,
 	.sleep_cookie = 0,
-	.fw_dump_ctrl = 0xcf4,
-	.fw_dump_start = 0xcf8,
+	.fw_dump_ctrl = PCIE_SCRATCH_13_REG,
+	.fw_dump_start = PCIE_SCRATCH_14_REG,
 	.fw_dump_end = 0xcff,
 	.fw_dump_host_ready = 0xcc,
 	.fw_dump_read_done = 0xdd,
