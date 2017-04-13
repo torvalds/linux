@@ -311,6 +311,7 @@
 
 &i2s2 {
 	#sound-dai-cells = <0>;
+	rockchip,bclk-fs = <128>;
 };
 
 &rkvdec {
