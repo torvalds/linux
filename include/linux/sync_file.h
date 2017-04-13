@@ -14,7 +14,6 @@
 #define _LINUX_SYNC_FILE_H
 
 #include <linux/types.h>
-#include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -24,7 +23,6 @@
 /**
  * struct sync_file - sync file to export to the userspace
  * @file:		file representing this fence
- * @kref:		reference count on fence.
  * @name:		name of sync_file.  Useful for debugging
  * @sync_file_list:	membership in global file list
  * @wq:			wait queue for fence signaling
@@ -33,7 +31,6 @@
  */
 struct sync_file {
 	struct file		*file;
-	struct kref		kref;
 	char			name[32];
 #ifdef CONFIG_DEBUG_FS
 	struct list_head	sync_file_list;
