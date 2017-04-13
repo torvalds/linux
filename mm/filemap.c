@@ -2704,7 +2704,6 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t		written;
 	size_t		write_len;
 	pgoff_t		end;
-	struct iov_iter data;
 
 	write_len = iov_iter_count(from);
 	end = (pos + write_len - 1) >> PAGE_SHIFT;
@@ -2733,8 +2732,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 		}
 	}
 
-	data = *from;
-	written = mapping->a_ops->direct_IO(iocb, &data);
+	written = mapping->a_ops->direct_IO(iocb, from);
 
 	/*
 	 * Finally, try again to invalidate clean pages which might have been
@@ -2751,13 +2749,14 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 
 	if (written > 0) {
 		pos += written;
-		iov_iter_advance(from, written);
+		write_len -= written;
 		if (pos > i_size_read(inode) && !S_ISBLK(inode->i_mode)) {
 			i_size_write(inode, pos);
 			mark_inode_dirty(inode);
 		}
 		iocb->ki_pos = pos;
 	}
+	iov_iter_revert(from, write_len - iov_iter_count(from));
 out:
 	return written;
 }
