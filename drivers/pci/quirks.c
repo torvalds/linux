@@ -3957,6 +3957,20 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2260, quirk_mic_x200_dma_alias);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2264, quirk_mic_x200_dma_alias);
 
 /*
+ * The IOMMU and interrupt controller on Broadcom Vulcan/Cavium ThunderX2 are
+ * associated not at the root bus, but at a bridge below. This quirk avoids
+ * generating invalid DMA aliases.
+ */
+static void quirk_bridge_cavm_thrx2_pcie_root(struct pci_dev *pdev)
+{
+	pdev->dev_flags |= PCI_DEV_FLAGS_BRIDGE_XLATE_ROOT;
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM, 0x9000,
+				quirk_bridge_cavm_thrx2_pcie_root);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM, 0x9084,
+				quirk_bridge_cavm_thrx2_pcie_root);
+
+/*
  * Intersil/Techwell TW686[4589]-based video capture cards have an empty (zero)
  * class code.  Fix it.
  */
