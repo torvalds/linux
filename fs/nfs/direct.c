@@ -537,7 +537,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
-	return 0;
+	return requested_bytes;
 }
 
 /**
@@ -566,7 +566,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter)
 	struct inode *inode = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
-	ssize_t result = -EINVAL;
+	ssize_t result = -EINVAL, requested;
 	size_t count = iov_iter_count(iter);
 	nfs_add_stats(mapping->host, NFSIOS_DIRECTREADBYTES, count);
 
@@ -600,14 +600,19 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter)
 	nfs_start_io_direct(inode);
 
 	NFS_I(inode)->read_io += count;
-	result = nfs_direct_read_schedule_iovec(dreq, iter, iocb->ki_pos);
+	requested = nfs_direct_read_schedule_iovec(dreq, iter, iocb->ki_pos);
 
 	nfs_end_io_direct(inode);
 
-	if (!result) {
+	if (requested > 0) {
 		result = nfs_direct_wait(dreq);
-		if (result > 0)
+		if (result > 0) {
+			requested -= result;
 			iocb->ki_pos += result;
+		}
+		iov_iter_revert(iter, requested);
+	} else {
+		result = requested;
 	}
 
 out_release:
@@ -954,7 +959,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 
 	if (put_dreq(dreq))
 		nfs_direct_write_complete(dreq);
-	return 0;
+	return requested_bytes;
 }
 
 /**
@@ -979,7 +984,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
  */
 ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 {
-	ssize_t result = -EINVAL;
+	ssize_t result = -EINVAL, requested;
 	size_t count;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -1022,7 +1027,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 
 	nfs_start_io_direct(inode);
 
-	result = nfs_direct_write_schedule_iovec(dreq, iter, pos);
+	requested = nfs_direct_write_schedule_iovec(dreq, iter, pos);
 
 	if (mapping->nrpages) {
 		invalidate_inode_pages2_range(mapping,
@@ -1031,13 +1036,17 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 
 	nfs_end_io_direct(inode);
 
-	if (!result) {
+	if (requested > 0) {
 		result = nfs_direct_wait(dreq);
 		if (result > 0) {
+			requested -= result;
 			iocb->ki_pos = pos + result;
 			/* XXX: should check the generic_write_sync retval */
 			generic_write_sync(iocb, result);
 		}
+		iov_iter_revert(iter, requested);
+	} else {
+		result = requested;
 	}
 out_release:
 	nfs_direct_req_release(dreq);
