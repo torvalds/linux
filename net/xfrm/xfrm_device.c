@@ -22,6 +22,35 @@
 #include <net/xfrm.h>
 #include <linux/notifier.h>
 
+int validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features)
+{
+	int err;
+	struct xfrm_state *x;
+	struct xfrm_offload *xo = xfrm_offload(skb);
+
+	if (skb_is_gso(skb))
+		return 0;
+
+	if (xo) {
+		x = skb->sp->xvec[skb->sp->len - 1];
+		if (xo->flags & XFRM_GRO || x->xso.flags & XFRM_OFFLOAD_INBOUND)
+			return 0;
+
+		x->outer_mode->xmit(x, skb);
+
+		err = x->type_offload->xmit(x, skb, features);
+		if (err) {
+			XFRM_INC_STATS(xs_net(x), LINUX_MIB_XFRMOUTSTATEPROTOERROR);
+			return err;
+		}
+
+		skb_push(skb, skb->data - skb_mac_header(skb));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(validate_xmit_xfrm);
+
 int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		       struct xfrm_user_offload *xuo)
 {

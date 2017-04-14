@@ -1862,6 +1862,7 @@ static inline struct xfrm_offload *xfrm_offload(struct sk_buff *skb)
 
 #ifdef CONFIG_XFRM_OFFLOAD
 void __net_init xfrm_dev_init(void);
+int validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features);
 int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		       struct xfrm_user_offload *xuo);
 bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
@@ -1888,6 +1889,11 @@ static inline void xfrm_dev_state_free(struct xfrm_state *x)
 #else
 static inline void __net_init xfrm_dev_init(void)
 {
+}
+
+static inline int validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features)
+{
+	return 0;
 }
 
 static inline int xfrm_dev_state_add(struct net *net, struct xfrm_state *x, struct xfrm_user_offload *xuo)
