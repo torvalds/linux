@@ -141,6 +141,7 @@ struct blk_mq_alloc_data {
 	/* input parameter */
 	struct request_queue *q;
 	unsigned int flags;
+	unsigned int shallow_depth;
 
 	/* input & output parameter */
 	struct blk_mq_ctx *ctx;
