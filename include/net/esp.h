@@ -26,4 +26,7 @@ struct esp_info {
 int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp);
 int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp);
 int esp_input_done2(struct sk_buff *skb, int err);
+int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp);
+int esp6_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *esp);
+int esp6_input_done2(struct sk_buff *skb, int err);
 #endif

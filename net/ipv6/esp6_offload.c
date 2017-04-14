@@ -86,19 +86,122 @@ out:
 	return NULL;
 }
 
+static int esp6_input_tail(struct xfrm_state *x, struct sk_buff *skb)
+{
+	struct crypto_aead *aead = x->data;
+
+	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead)))
+		return -EINVAL;
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	return esp6_input_done2(skb, 0);
+}
+
+static int esp6_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_t features)
+{
+	int err;
+	int alen;
+	int blksize;
+	struct xfrm_offload *xo;
+	struct ip_esp_hdr *esph;
+	struct crypto_aead *aead;
+	struct esp_info esp;
+	bool hw_offload = true;
+
+	esp.inplace = true;
+
+	xo = xfrm_offload(skb);
+
+	if (!xo)
+		return -EINVAL;
+
+	if (!(features & NETIF_F_HW_ESP) ||
+	    (x->xso.offload_handle &&  x->xso.dev != skb->dev)) {
+		xo->flags |= CRYPTO_FALLBACK;
+	}
+
+	esp.proto = xo->proto;
+
+	/* skb is pure payload to encrypt */
+
+	aead = x->data;
+	alen = crypto_aead_authsize(aead);
+
+	esp.tfclen = 0;
+	/* XXX: Add support for tfc padding here. */
+
+	blksize = ALIGN(crypto_aead_blocksize(aead), 4);
+	esp.clen = ALIGN(skb->len + 2 + esp.tfclen, blksize);
+	esp.plen = esp.clen - skb->len - esp.tfclen;
+	esp.tailen = esp.tfclen + esp.plen + alen;
+
+	if (!hw_offload || (hw_offload && !skb_is_gso(skb))) {
+		esp.nfrags = esp6_output_head(x, skb, &esp);
+		if (esp.nfrags < 0)
+			return esp.nfrags;
+	}
+
+	esph = ip_esp_hdr(skb);
+	esph->spi = x->id.spi;
+
+	skb_push(skb, -skb_network_offset(skb));
+
+	if (xo->flags & XFRM_GSO_SEGMENT) {
+		esph->seq_no = htonl(xo->seq.low);
+	} else {
+		int len;
+
+		len = skb->len - sizeof(struct ipv6hdr);
+		if (len > IPV6_MAXPLEN)
+			len = 0;
+
+		ipv6_hdr(skb)->payload_len = htons(len);
+	}
+
+	if (x->xso.offload_handle && !(xo->flags & CRYPTO_FALLBACK))
+		return 0;
+
+	esp.seqno = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
+
+	err = esp6_output_tail(x, skb, &esp);
+	if (err < 0)
+		return err;
+
+	secpath_reset(skb);
+
+	return 0;
+}
+
 static const struct net_offload esp6_offload = {
 	.callbacks = {
 		.gro_receive = esp6_gro_receive,
 	},
 };
 
+static const struct xfrm_type_offload esp6_type_offload = {
+	.description	= "ESP6 OFFLOAD",
+	.owner		= THIS_MODULE,
+	.proto	     	= IPPROTO_ESP,
+	.input_tail	= esp6_input_tail,
+	.xmit		= esp6_xmit,
+};
+
 static int __init esp6_offload_init(void)
 {
+	if (xfrm_register_type_offload(&esp6_type_offload, AF_INET6) < 0) {
+		pr_info("%s: can't add xfrm type offload\n", __func__);
+		return -EAGAIN;
+	}
+
 	return inet6_add_offload(&esp6_offload, IPPROTO_ESP);
 }
 
 static void __exit esp6_offload_exit(void)
 {
+	if (xfrm_unregister_type_offload(&esp6_type_offload, AF_INET6) < 0)
+		pr_info("%s: can't remove xfrm type offload\n", __func__);
+
 	inet6_del_offload(&esp6_offload, IPPROTO_ESP);
 }
 
