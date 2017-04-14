@@ -146,8 +146,7 @@ void snd_tscm_stream_lock_changed(struct snd_tscm *tscm);
 int snd_tscm_stream_lock_try(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_release(struct snd_tscm *tscm);
 
-int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
-		struct fw_unit *unit);
+void snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port);
 
 static inline void
 snd_fw_async_midi_port_run(struct snd_fw_async_midi_port *port,

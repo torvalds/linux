@@ -236,17 +236,10 @@ static void midi_port_work(struct work_struct *work)
 			port);
 }
 
-int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
-		struct fw_unit *unit)
+void snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port)
 {
-	port->parent = fw_parent_device(unit);
 	port->idling = true;
-	port->next_ktime = 0;
 	port->error = false;
-
-	INIT_WORK(&port->work, midi_port_work);
-
-	return 0;
 }
 
 static void handle_midi_tx(struct fw_card *card, struct fw_request *request,
@@ -324,10 +317,9 @@ int snd_tscm_transaction_register(struct snd_tscm *tscm)
 		goto error;
 
 	for (i = 0; i < TSCM_MIDI_OUT_PORT_MAX; i++) {
-		err = snd_fw_async_midi_port_init(
-				&tscm->out_ports[i], tscm->unit);
-		if (err < 0)
-			goto error;
+		tscm->out_ports[i].parent = fw_parent_device(tscm->unit);
+		tscm->out_ports[i].next_ktime = 0;
+		INIT_WORK(&tscm->out_ports[i].work, midi_port_work);
 	}
 
 	return err;

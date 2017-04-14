@@ -18,6 +18,8 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_tscm *tscm = substream->rmidi->private_data;
 
+	snd_fw_async_midi_port_init(&tscm->out_ports[substream->number]);
+
 	/* Initialize internal status. */
 	tscm->running_status[substream->number] = 0;
 	tscm->on_sysex[substream->number] = 0;
