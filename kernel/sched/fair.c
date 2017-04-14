@@ -5310,43 +5310,6 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 	return shallowest_idle_cpu != -1 ? shallowest_idle_cpu : least_loaded_cpu;
 }
 
-/*
- * Implement a for_each_cpu() variant that starts the scan at a given cpu
- * (@start), and wraps around.
- *
- * This is used to scan for idle CPUs; such that not all CPUs looking for an
- * idle CPU find the same CPU. The down-side is that tasks tend to cycle
- * through the LLC domain.
- *
- * Especially tbench is found sensitive to this.
- */
-
-static int cpumask_next_wrap(int n, const struct cpumask *mask, int start, int *wrapped)
-{
-	int next;
-
-again:
-	next = find_next_bit(cpumask_bits(mask), nr_cpumask_bits, n+1);
-
-	if (*wrapped) {
-		if (next >= start)
-			return nr_cpumask_bits;
-	} else {
-		if (next >= nr_cpumask_bits) {
-			*wrapped = 1;
-			n = -1;
-			goto again;
-		}
-	}
-
-	return next;
-}
-
-#define for_each_cpu_wrap(cpu, mask, start, wrap)				\
-	for ((wrap) = 0, (cpu) = (start)-1;					\
-		(cpu) = cpumask_next_wrap((cpu), (mask), (start), &(wrap)),	\
-		(cpu) < nr_cpumask_bits; )
-
 #ifdef CONFIG_SCHED_SMT
 
 static inline void set_idle_cores(int cpu, int val)
@@ -5406,14 +5369,14 @@ unlock:
 static int select_idle_core(struct task_struct *p, struct sched_domain *sd, int target)
 {
 	struct cpumask *cpus = this_cpu_cpumask_var_ptr(select_idle_mask);
-	int core, cpu, wrap;
+	int core, cpu;
 
 	if (!test_idle_cores(target, false))
 		return -1;
 
 	cpumask_and(cpus, sched_domain_span(sd), tsk_cpus_allowed(p));
 
-	for_each_cpu_wrap(core, cpus, target, wrap) {
+	for_each_cpu_wrap(core, cpus, target) {
 		bool idle = true;
 
 		for_each_cpu(cpu, cpu_smt_mask(core)) {
@@ -5476,7 +5439,7 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int t
 	u64 avg_cost, avg_idle = this_rq()->avg_idle;
 	u64 time, cost;
 	s64 delta;
-	int cpu, wrap;
+	int cpu;
 
 	this_sd = rcu_dereference(*this_cpu_ptr(&sd_llc));
 	if (!this_sd)
@@ -5493,7 +5456,7 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int t
 
 	time = local_clock();
 
-	for_each_cpu_wrap(cpu, sched_domain_span(sd), target, wrap) {
+	for_each_cpu_wrap(cpu, sched_domain_span(sd), target) {
 		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
 			continue;
 		if (idle_cpu(cpu))
