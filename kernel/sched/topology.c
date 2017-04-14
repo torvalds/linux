@@ -82,12 +82,22 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 
 		printk(KERN_CONT " %*pbl",
 		       cpumask_pr_args(sched_group_cpus(group)));
+
+		if ((sd->flags & SD_OVERLAP) && !cpumask_full(sched_group_mask(group))) {
+			printk(KERN_CONT " (mask: %*pbl)",
+				cpumask_pr_args(sched_group_mask(group)));
+		}
+
 		if (group->sgc->capacity != SCHED_CAPACITY_SCALE) {
-			printk(KERN_CONT " (cpu_capacity = %lu)",
+			printk(KERN_CONT " (cpu_capacity: %lu)",
 				group->sgc->capacity);
 		}
 
 		group = group->next;
+
+		if (group != sd->groups)
+			printk(KERN_CONT ",");
+
 	} while (group != sd->groups);
 	printk(KERN_CONT "\n");
 
