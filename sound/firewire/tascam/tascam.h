@@ -56,7 +56,6 @@ struct snd_fw_async_midi_port {
 	struct fw_transaction transaction;
 
 	u8 *buf;
-	unsigned int len;
 
 	struct snd_rawmidi_substream *substream;
 	int consume_bytes;
@@ -149,7 +148,7 @@ int snd_tscm_stream_lock_try(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_release(struct snd_tscm *tscm);
 
 int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
-		struct fw_unit *unit, u64 addr, unsigned int len);
+		struct fw_unit *unit, u64 addr);
 void snd_fw_async_midi_port_destroy(struct snd_fw_async_midi_port *port);
 
 static inline void

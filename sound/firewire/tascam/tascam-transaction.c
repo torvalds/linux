@@ -176,7 +176,6 @@ static void midi_port_work(struct work_struct *work)
 			container_of(work, struct snd_fw_async_midi_port, work);
 	struct snd_rawmidi_substream *substream = ACCESS_ONCE(port->substream);
 	int generation;
-	int type;
 
 	/* Under transacting or error state. */
 	if (!port->idling || port->error)
@@ -196,7 +195,7 @@ static void midi_port_work(struct work_struct *work)
 	 * Fill the buffer. The callee must use snd_rawmidi_transmit_peek().
 	 * Later, snd_rawmidi_transmit_ack() is called.
 	 */
-	memset(port->buf, 0, port->len);
+	memset(port->buf, 0, 4);
 	port->consume_bytes = fill_message(substream, port->buf);
 	if (port->consume_bytes <= 0) {
 		/* Do it in next chance, immediately. */
@@ -209,12 +208,6 @@ static void midi_port_work(struct work_struct *work)
 		}
 		return;
 	}
-
-	/* Calculate type of transaction. */
-	if (port->len == 4)
-		type = TCODE_WRITE_QUADLET_REQUEST;
-	else
-		type = TCODE_WRITE_BLOCK_REQUEST;
 
 	/* Set interval to next transaction. */
 	port->next_ktime = ktime_add_ns(ktime_get(),
@@ -234,18 +227,18 @@ static void midi_port_work(struct work_struct *work)
 	generation = port->parent->generation;
 	smp_rmb();
 
-	fw_send_request(port->parent->card, &port->transaction, type,
+	fw_send_request(port->parent->card, &port->transaction,
+			TCODE_WRITE_QUADLET_REQUEST,
 			port->parent->node_id, generation,
 			port->parent->max_speed, port->addr,
-			port->buf, port->len, async_midi_port_callback,
+			port->buf, 4, async_midi_port_callback,
 			port);
 }
 
 int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
-		struct fw_unit *unit, u64 addr, unsigned int len)
+		struct fw_unit *unit, u64 addr)
 {
-	port->len = DIV_ROUND_UP(len, 4) * 4;
-	port->buf = kzalloc(port->len, GFP_KERNEL);
+	port->buf = kzalloc(4, GFP_KERNEL);
 	if (port->buf == NULL)
 		return -ENOMEM;
 
@@ -344,8 +337,7 @@ int snd_tscm_transaction_register(struct snd_tscm *tscm)
 	for (i = 0; i < TSCM_MIDI_OUT_PORT_MAX; i++) {
 		err = snd_fw_async_midi_port_init(
 				&tscm->out_ports[i], tscm->unit,
-				TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_RX_QUAD,
-				4);
+				TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_RX_QUAD);
 		if (err < 0)
 			goto error;
 	}
