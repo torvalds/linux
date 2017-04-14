@@ -206,35 +206,6 @@ static int twl4030bci_read_adc_val(u8 reg)
 }
 
 /*
- * Check if Battery Pack was present
- */
-static int twl4030_is_battery_present(struct twl4030_bci *bci)
-{
-	int ret;
-	u8 val = 0;
-
-	/* Battery presence in Main charge? */
-	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val, TWL4030_BCIMFSTS3);
-	if (ret)
-		return ret;
-	if (val & TWL4030_BATSTSMCHG)
-		return 0;
-
-	/*
-	 * OK, It could be that bootloader did not enable main charger,
-	 * pre-charge is h/w auto. So, Battery presence in Pre-charge?
-	 */
-	ret = twl_i2c_read_u8(TWL4030_MODULE_PRECHARGE, &val,
-			      TWL4030_BCIMFSTS1);
-	if (ret)
-		return ret;
-	if (val & TWL4030_BATSTSPCHG)
-		return 0;
-
-	return -ENODEV;
-}
-
-/*
  * TI provided formulas:
  * CGAIN == 0: ICHG = (BCIICHG * 1.7) / (2^10 - 1) - 0.85
  * CGAIN == 1: ICHG = (BCIICHG * 3.4) / (2^10 - 1) - 1.7
@@ -1067,13 +1038,6 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 	bci->dev = &pdev->dev;
 	bci->irq_chg = platform_get_irq(pdev, 0);
 	bci->irq_bci = platform_get_irq(pdev, 1);
-
-	/* Only proceed further *IF* battery is physically present */
-	ret = twl4030_is_battery_present(bci);
-	if  (ret) {
-		dev_crit(&pdev->dev, "Battery was not detected:%d\n", ret);
-		return ret;
-	}
 
 	platform_set_drvdata(pdev, bci);
 
