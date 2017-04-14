@@ -93,11 +93,11 @@ config TOUCHSCREEN_AD7879_SPI
 	  module will be called ad7879-spi.
 
 config TOUCHSCREEN_AR1021_I2C
-	tristate "Microchip AR1021 i2c touchscreen"
+	tristate "Microchip AR1020/1021 i2c touchscreen"
 	depends on I2C && OF
 	help
-	  Say Y here if you have the Microchip AR1021 touchscreen controller
-	  chip in your system.
+	  Say Y here if you have the Microchip AR1020 or AR1021 touchscreen
+	  controller chip in your system.
 
 	  If unsure, say N.
 
