@@ -1441,6 +1441,7 @@ mwifiex_reinit_sw(struct mwifiex_adapter *adapter)
 	init_waitqueue_head(&adapter->init_wait_q);
 	adapter->is_suspended = false;
 	adapter->hs_activated = false;
+	adapter->is_cmd_timedout = 0;
 	init_waitqueue_head(&adapter->hs_activate_wait_q);
 	init_waitqueue_head(&adapter->cmd_wait_q.wait);
 	adapter->cmd_wait_q.status = 0;
