@@ -3750,20 +3750,7 @@ static int reset_chelsio_generic_dev(struct pci_dev *dev, int probe)
 				      PCI_MSIX_FLAGS_ENABLE |
 				      PCI_MSIX_FLAGS_MASKALL);
 
-	/*
-	 * Start of pcie_flr() code sequence.  This reset code is a copy of
-	 * the guts of pcie_flr() because that's not an exported function.
-	 */
-
-	if (!pci_wait_for_pending_transaction(dev))
-		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
-
-	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-	msleep(100);
-
-	/*
-	 * End of pcie_flr() code sequence.
-	 */
+	pcie_flr(dev);
 
 	/*
 	 * Restore the configuration information (BAR values, etc.) including
