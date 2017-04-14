@@ -493,7 +493,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	if (ret) {
 		d = ERR_PTR(ret);
-		goto free_op;
+		goto free_sb_and_op;
 	}
 
 	/*
@@ -519,6 +519,9 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
 
+	/* Must be removed from the list now. */
+	ORANGEFS_SB(sb)->no_list = 0;
+
 	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
@@ -533,6 +536,10 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	return dget(sb->s_root);
 
+free_sb_and_op:
+	/* Will call orangefs_kill_sb with sb not in list. */
+	ORANGEFS_SB(sb)->no_list = 1;
+	deactivate_locked_super(sb);
 free_op:
 	gossip_err("orangefs_mount: mount request failed with %d\n", ret);
 	if (ret == -EINVAL) {
@@ -558,12 +565,14 @@ void orangefs_kill_sb(struct super_block *sb)
 	 */
 	 orangefs_unmount_sb(sb);
 
-	/* remove the sb from our list of orangefs specific sb's */
-
-	spin_lock(&orangefs_superblocks_lock);
-	__list_del_entry(&ORANGEFS_SB(sb)->list);	/* not list_del_init */
-	ORANGEFS_SB(sb)->list.prev = NULL;
-	spin_unlock(&orangefs_superblocks_lock);
+	if (!ORANGEFS_SB(sb)->no_list) {
+		/* remove the sb from our list of orangefs specific sb's */
+		spin_lock(&orangefs_superblocks_lock);
+		/* not list_del_init */
+		__list_del_entry(&ORANGEFS_SB(sb)->list);
+		ORANGEFS_SB(sb)->list.prev = NULL;
+		spin_unlock(&orangefs_superblocks_lock);
+	}
 
 	/*
 	 * make sure that ORANGEFS_DEV_REMOUNT_ALL loop that might've seen us
