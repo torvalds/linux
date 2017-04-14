@@ -260,6 +260,33 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
 
 /**
+ * drm_fb_cma_get_gem_addr() - Get physical address for framebuffer
+ * @fb: The framebuffer
+ * @state: Which state of drm plane
+ * @plane: Which plane
+ * Return the CMA GEM address for given framebuffer.
+ *
+ * This function will usually be called from the PLANE callback functions.
+ */
+dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
+				   struct drm_plane_state *state,
+				   unsigned int plane)
+{
+	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
+	dma_addr_t paddr;
+
+	if (plane >= 4)
+		return 0;
+
+	paddr = fb_cma->obj[plane]->paddr + fb->offsets[plane];
+	paddr += fb->format->cpp[plane] * (state->src_x >> 16);
+	paddr += fb->pitches[plane] * (state->src_y >> 16);
+
+	return paddr;
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_addr);
+
+/**
  * drm_fb_cma_prepare_fb() - Prepare CMA framebuffer
  * @plane: Which plane
  * @state: Plane state attach fence to
