@@ -24,13 +24,13 @@ Optional properties when compatible is a dsi devices:
 - panel-init-sequence: A byte stream formed by simple multiple dcs packets.
 	byte 0: dcs data type
 	byte 1: wait number of specified ms after dcs command transmitted
-	byte 2, 3: 16 bits length in network byte order
-	byte 4 and beyond: number byte of payload
+	byte 2: packet payload length
+	byte 3 and beyond: number byte of payload
 - panel-exit-sequence: A byte stream formed by simple multiple dcs packets.
 	byte 0: dcs data type
 	byte 1: wait number of specified ms after dcs command transmitted
-	byte 2, 3: 16 bits length in network byte order
-	byte 4 and beyond: number byte of payload
+	byte 2: packet payload length
+	byte 3 and beyond: number byte of payload
 
 Example:
 
@@ -64,16 +64,16 @@ Or:
 		dsi,lanes = <4>;
 
 		panel-init-sequence = [
-			39 00 00 10 b1 6c 15 15 24 E4 11 f1 80 e4
-				    d7 23 80 c0 d2 58
+			39 00 10 b1 6c 15 15 24 E4 11 f1 80 e4
+				 d7 23 80 c0 d2 58
 			...
-			05 78 00 01 11
-			05 00 00 01 29
+			05 78 01 11
+			05 00 01 29
 		];
 
 		panel-exit-sequence = [
-			05 00 00 01 28
-			05 78 00 01 10
+			05 00 01 28
+			05 78 01 10
 		];
 
 		display-timings {

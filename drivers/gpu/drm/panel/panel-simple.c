@@ -41,7 +41,7 @@
 struct dsi_ctrl_hdr {
 	u8 dtype;	/* data type */
 	u8 wait;	/* ms */
-	u16 dlen;	/* payload len */
+	u8 dlen;	/* payload len */
 } __packed;
 
 struct dsi_cmd_desc {
@@ -151,7 +151,6 @@ static int panel_simple_dsi_parse_dcs_cmds(struct device *dev,
 	cnt = 0;
 	while (len > sizeof(*dchdr)) {
 		dchdr = (struct dsi_ctrl_hdr *)bp;
-		dchdr->dlen = ntohs(dchdr->dlen);
 
 		if (dchdr->dlen > len) {
 			dev_err(dev, "%s: error, len=%d", __func__,
