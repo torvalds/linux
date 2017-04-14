@@ -11,6 +11,7 @@
 #include "bpf_helpers.h"
 
 #define MAX_ENTRIES 1000
+#define MAX_NR_CPUS 1024
 
 struct bpf_map_def SEC("maps") hash_map = {
 	.type = BPF_MAP_TYPE_HASH,
@@ -32,6 +33,19 @@ struct bpf_map_def SEC("maps") nocommon_lru_hash_map = {
 	.value_size = sizeof(long),
 	.max_entries = 10000,
 	.map_flags = BPF_F_NO_COMMON_LRU,
+};
+
+struct bpf_map_def SEC("maps") inner_lru_hash_map = {
+	.type = BPF_MAP_TYPE_LRU_HASH,
+	.key_size = sizeof(u32),
+	.value_size = sizeof(long),
+	.max_entries = MAX_ENTRIES,
+};
+
+struct bpf_map_def SEC("maps") array_of_lru_hashs = {
+	.type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
+	.key_size = sizeof(u32),
+	.max_entries = MAX_NR_CPUS,
 };
 
 struct bpf_map_def SEC("maps") percpu_hash_map = {
@@ -154,13 +168,27 @@ int stress_lru_hmap_alloc(struct pt_regs *ctx)
 
 	test_case = dst6[7];
 
-	if (test_case == 0)
+	if (test_case == 0) {
 		ret = bpf_map_update_elem(&lru_hash_map, &key, &val, BPF_ANY);
-	else if (test_case == 1)
+	} else if (test_case == 1) {
 		ret = bpf_map_update_elem(&nocommon_lru_hash_map, &key, &val,
 					  BPF_ANY);
-	else
+	} else if (test_case == 2) {
+		void *nolocal_lru_map;
+		int cpu = bpf_get_smp_processor_id();
+
+		nolocal_lru_map = bpf_map_lookup_elem(&array_of_lru_hashs,
+						      &cpu);
+		if (!nolocal_lru_map) {
+			ret = -ENOENT;
+			goto done;
+		}
+
+		ret = bpf_map_update_elem(nolocal_lru_map, &key, &val,
+					  BPF_ANY);
+	} else {
 		ret = -EINVAL;
+	}
 
 done:
 	if (ret)

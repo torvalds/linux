@@ -25,6 +25,7 @@
 #include "bpf_load.h"
 
 #define TEST_BIT(t) (1U << (t))
+#define MAX_NR_CPUS 1024
 
 static __u64 time_get_ns(void)
 {
@@ -44,6 +45,7 @@ enum test_type {
 	LPM_KMALLOC,
 	HASH_LOOKUP,
 	ARRAY_LOOKUP,
+	INNER_LRU_HASH_PREALLOC,
 	NR_TESTS,
 };
 
@@ -57,10 +59,14 @@ const char *test_map_names[NR_TESTS] = {
 	[LPM_KMALLOC] = "lpm_trie_map_alloc",
 	[HASH_LOOKUP] = "hash_map",
 	[ARRAY_LOOKUP] = "array_map",
+	[INNER_LRU_HASH_PREALLOC] = "inner_lru_hash_map",
 };
 
 static int test_flags = ~0;
 static uint32_t num_map_entries;
+static uint32_t inner_lru_hash_size;
+static int inner_lru_hash_idx = -1;
+static int array_of_lru_hashs_idx = -1;
 static uint32_t max_cnt = 1000000;
 
 static int check_test_flags(enum test_type t)
@@ -82,10 +88,41 @@ static void test_hash_prealloc(int cpu)
 
 static void do_test_lru(enum test_type test, int cpu)
 {
+	static int inner_lru_map_fds[MAX_NR_CPUS];
+
 	struct sockaddr_in6 in6 = { .sin6_family = AF_INET6 };
 	const char *test_name;
 	__u64 start_time;
 	int i, ret;
+
+	if (test == INNER_LRU_HASH_PREALLOC) {
+		int outer_fd = map_fd[array_of_lru_hashs_idx];
+
+		assert(cpu < MAX_NR_CPUS);
+
+		if (cpu) {
+			inner_lru_map_fds[cpu] =
+				bpf_create_map(BPF_MAP_TYPE_LRU_HASH,
+					       sizeof(uint32_t), sizeof(long),
+					       inner_lru_hash_size, 0);
+			if (inner_lru_map_fds[cpu] == -1) {
+				printf("cannot create BPF_MAP_TYPE_LRU_HASH %s(%d)\n",
+				       strerror(errno), errno);
+				exit(1);
+			}
+		} else {
+			inner_lru_map_fds[cpu] = map_fd[inner_lru_hash_idx];
+		}
+
+		ret = bpf_map_update_elem(outer_fd, &cpu,
+					  &inner_lru_map_fds[cpu],
+					  BPF_ANY);
+		if (ret) {
+			printf("cannot update ARRAY_OF_LRU_HASHS with key:%u. %s(%d)\n",
+			       cpu, strerror(errno), errno);
+			exit(1);
+		}
+	}
 
 	in6.sin6_addr.s6_addr16[0] = 0xdead;
 	in6.sin6_addr.s6_addr16[1] = 0xbeef;
@@ -96,6 +133,9 @@ static void do_test_lru(enum test_type test, int cpu)
 	} else if (test == NOCOMMON_LRU_HASH_PREALLOC) {
 		test_name = "nocommon_lru_hash_map_perf";
 		in6.sin6_addr.s6_addr16[7] = 1;
+	} else if (test == INNER_LRU_HASH_PREALLOC) {
+		test_name = "inner_lru_hash_map_perf";
+		in6.sin6_addr.s6_addr16[7] = 2;
 	} else {
 		assert(0);
 	}
@@ -118,6 +158,11 @@ static void test_lru_hash_prealloc(int cpu)
 static void test_nocommon_lru_hash_prealloc(int cpu)
 {
 	do_test_lru(NOCOMMON_LRU_HASH_PREALLOC, cpu);
+}
+
+static void test_inner_lru_hash_prealloc(int cpu)
+{
+	do_test_lru(INNER_LRU_HASH_PREALLOC, cpu);
 }
 
 static void test_percpu_hash_prealloc(int cpu)
@@ -203,6 +248,7 @@ const test_func test_funcs[] = {
 	[LPM_KMALLOC] = test_lpm_kmalloc,
 	[HASH_LOOKUP] = test_hash_lookup,
 	[ARRAY_LOOKUP] = test_array_lookup,
+	[INNER_LRU_HASH_PREALLOC] = test_inner_lru_hash_prealloc,
 };
 
 static void loop(int cpu)
@@ -278,8 +324,24 @@ static void fixup_map(struct bpf_map_def *map, const char *name, int idx)
 {
 	int i;
 
+	if (!strcmp("inner_lru_hash_map", name)) {
+		inner_lru_hash_idx = idx;
+		inner_lru_hash_size = map->max_entries;
+	}
+
+	if (!strcmp("array_of_lru_hashs", name)) {
+		if (inner_lru_hash_idx == -1) {
+			printf("inner_lru_hash_map must be defined before array_of_lru_hashs\n");
+			exit(1);
+		}
+		map->inner_map_idx = inner_lru_hash_idx;
+		array_of_lru_hashs_idx = idx;
+	}
+
 	if (num_map_entries <= 0)
 		return;
+
+	inner_lru_hash_size = num_map_entries;
 
 	/* Only change the max_entries for the enabled test(s) */
 	for (i = 0; i < NR_TESTS; i++) {
