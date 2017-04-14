@@ -45,6 +45,29 @@ struct snd_tscm_spec {
 #define TSCM_MIDI_IN_PORT_MAX	4
 #define TSCM_MIDI_OUT_PORT_MAX	4
 
+struct snd_fw_async_midi_port;
+typedef int (*snd_fw_async_midi_port_fill)(
+				struct snd_rawmidi_substream *substream,
+				u8 *buf);
+
+struct snd_fw_async_midi_port {
+	struct fw_device *parent;
+	struct work_struct work;
+	bool idling;
+	ktime_t next_ktime;
+	bool error;
+
+	u64 addr;
+	struct fw_transaction transaction;
+
+	u8 *buf;
+	unsigned int len;
+
+	struct snd_rawmidi_substream *substream;
+	snd_fw_async_midi_port_fill fill;
+	int consume_bytes;
+};
+
 struct snd_tscm {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -130,6 +153,28 @@ void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_changed(struct snd_tscm *tscm);
 int snd_tscm_stream_lock_try(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_release(struct snd_tscm *tscm);
+
+int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
+		struct fw_unit *unit, u64 addr, unsigned int len,
+		snd_fw_async_midi_port_fill fill);
+void snd_fw_async_midi_port_destroy(struct snd_fw_async_midi_port *port);
+
+static inline void
+snd_fw_async_midi_port_run(struct snd_fw_async_midi_port *port,
+			   struct snd_rawmidi_substream *substream)
+{
+	if (!port->error) {
+		port->substream = substream;
+		schedule_work(&port->work);
+	}
+}
+
+static inline void
+snd_fw_async_midi_port_finish(struct snd_fw_async_midi_port *port)
+{
+	port->substream = NULL;
+	port->error = false;
+}
 
 int snd_tscm_transaction_register(struct snd_tscm *tscm);
 int snd_tscm_transaction_reregister(struct snd_tscm *tscm);
