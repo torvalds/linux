@@ -345,9 +345,9 @@ static int vctrl_init_vtable(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	vctrl->vtable = devm_kmalloc_array(
-		&pdev->dev, sizeof(struct vctrl_voltage_table),
-		rdesc->n_voltages, GFP_KERNEL | __GFP_ZERO);
+	vctrl->vtable = devm_kcalloc(&pdev->dev, rdesc->n_voltages,
+				     sizeof(struct vctrl_voltage_table),
+				     GFP_KERNEL);
 	if (!vctrl->vtable)
 		return -ENOMEM;
 
@@ -371,7 +371,7 @@ static int vctrl_init_vtable(struct platform_device *pdev)
 	     NULL);
 
 	/* pre-calculate OVP-safe downward transitions */
-	for (i = n_voltages - 1; i > 0; i--) {
+	for (i = rdesc->n_voltages - 1; i > 0; i--) {
 		int j;
 		int ovp_min_uV = (vctrl->vtable[i].out *
 				  (100 - vctrl->ovp_threshold)) / 100;
