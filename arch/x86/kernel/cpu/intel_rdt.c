@@ -212,8 +212,6 @@ static inline bool get_rdt_resources(void)
 		ret = true;
 	}
 
-	rdt_init_padding();
-
 	return ret;
 }
 
@@ -409,6 +407,8 @@ static int __init intel_rdt_late_init(void)
 
 	if (!get_rdt_resources())
 		return -ENODEV;
+
+	rdt_init_padding();
 
 	state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				  "x86/rdt/cat:online:",
