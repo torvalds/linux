@@ -1090,7 +1090,7 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 	struct rt5514_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5514_priv *rt5514;
 	int ret;
-	unsigned int val;
+	unsigned int val = ~0;
 
 	rt5514 = devm_kzalloc(&i2c->dev, sizeof(struct rt5514_priv),
 				GFP_KERNEL);
@@ -1120,8 +1120,8 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
-	if (val != RT5514_DEVICE_ID) {
+	ret = regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
+	if (ret || val != RT5514_DEVICE_ID) {
 		dev_err(&i2c->dev,
 			"Device with ID register %x is not rt5514\n", val);
 		return -ENODEV;
