@@ -620,6 +620,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			 */
 			*loc = fsel(val, addend); 
 			break;
+		case R_PARISC_SECREL32:
+			/* 32-bit section relative address. */
+			*loc = fsel(val, addend);
+			break;
 		case R_PARISC_DPREL21L:
 			/* left 21 bit of relative address */
 			val = lrsel(val - dp, addend);
@@ -806,6 +810,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			 * the beginning of this file.
 			 */
 			*loc = fsel(val, addend); 
+			break;
+		case R_PARISC_SECREL32:
+			/* 32-bit section relative address. */
+			*loc = fsel(val, addend);
 			break;
 		case R_PARISC_FPTR64:
 			/* 64-bit function address */

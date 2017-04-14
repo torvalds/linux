@@ -403,6 +403,9 @@ struct intel_engine_cs {
 	 */
 	struct i915_gem_context *legacy_active_context;
 
+	/* status_notifier: list of callbacks for context-switch changes */
+	struct atomic_notifier_head context_status_notifier;
+
 	struct intel_engine_hangcheck hangcheck;
 
 	bool needs_cmd_parser;
@@ -518,11 +521,17 @@ static inline void intel_ring_advance(struct intel_ring *ring)
 	 */
 }
 
+static inline u32
+intel_ring_wrap(const struct intel_ring *ring, u32 pos)
+{
+	return pos & (ring->size - 1);
+}
+
 static inline u32 intel_ring_offset(struct intel_ring *ring, void *addr)
 {
 	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
 	u32 offset = addr - ring->vaddr;
-	return offset & (ring->size - 1);
+	return intel_ring_wrap(ring, offset);
 }
 
 int __intel_ring_space(int head, int tail, int size);
