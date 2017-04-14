@@ -1,0 +1,32 @@
+Toshiba tc358749x audio CODEC
+
+Required properties:
+
+- compatible: "toshiba,tc358749x"
+- reg: the I2C address of the device for I2C
+- power-gpios: tc358749x 1.2v power control gpio
+- power18-gpios: tc358749x 1.8v power control gpio
+- power33-gpios: tc358749x 3.3v power control gpio
+- csi-ctl-gpios: rk3399-sapphire hw csi select control
+- stanby-gpios: tc358749x stanby pin control
+- reset-gpios: tc358749x reset pin control
+- int-gpios: tc358749x interrupt pin control gpio
+- pinctrl-names: must contain a "default" entry.
+- pinctrl-0: pin control group to be used for gpio.
+
+Example:
+
+tc358749x: tc358749x@0f {
+	compatible = "toshiba,tc358749x";
+	reg = <0x0f>;
+	power-gpios = <&gpio2 6 GPIO_ACTIVE_HIGH>;
+	power18-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+	power33-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+	csi-ctl-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+	stanby-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+	int-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmiin_gpios>;
+	status = "okay";
+};
