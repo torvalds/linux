@@ -84,19 +84,121 @@ out:
 	return NULL;
 }
 
+static int esp_input_tail(struct xfrm_state *x, struct sk_buff *skb)
+{
+	struct crypto_aead *aead = x->data;
+
+	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead)))
+		return -EINVAL;
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	return esp_input_done2(skb, 0);
+}
+
+static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_t features)
+{
+	int err;
+	int alen;
+	int blksize;
+	struct xfrm_offload *xo;
+	struct ip_esp_hdr *esph;
+	struct crypto_aead *aead;
+	struct esp_info esp;
+	bool hw_offload = true;
+
+	esp.inplace = true;
+
+	xo = xfrm_offload(skb);
+
+	if (!xo)
+		return -EINVAL;
+
+	if (!(features & NETIF_F_HW_ESP) ||
+	    (x->xso.offload_handle &&  x->xso.dev != skb->dev)) {
+		xo->flags |= CRYPTO_FALLBACK;
+		hw_offload = false;
+	}
+
+	esp.proto = xo->proto;
+
+	/* skb is pure payload to encrypt */
+
+	aead = x->data;
+	alen = crypto_aead_authsize(aead);
+
+	esp.tfclen = 0;
+	/* XXX: Add support for tfc padding here. */
+
+	blksize = ALIGN(crypto_aead_blocksize(aead), 4);
+	esp.clen = ALIGN(skb->len + 2 + esp.tfclen, blksize);
+	esp.plen = esp.clen - skb->len - esp.tfclen;
+	esp.tailen = esp.tfclen + esp.plen + alen;
+
+	esp.esph = ip_esp_hdr(skb);
+
+
+	if (!hw_offload || (hw_offload && !skb_is_gso(skb))) {
+		esp.nfrags = esp_output_head(x, skb, &esp);
+		if (esp.nfrags < 0)
+			return esp.nfrags;
+	}
+
+	esph = esp.esph;
+	esph->spi = x->id.spi;
+
+	skb_push(skb, -skb_network_offset(skb));
+
+	if (xo->flags & XFRM_GSO_SEGMENT) {
+		esph->seq_no = htonl(xo->seq.low);
+	} else {
+		ip_hdr(skb)->tot_len = htons(skb->len);
+		ip_send_check(ip_hdr(skb));
+	}
+
+	if (hw_offload)
+		return 0;
+
+	esp.seqno = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
+
+	err = esp_output_tail(x, skb, &esp);
+	if (err < 0)
+		return err;
+
+	secpath_reset(skb);
+
+	return 0;
+}
+
 static const struct net_offload esp4_offload = {
 	.callbacks = {
 		.gro_receive = esp4_gro_receive,
 	},
 };
 
+static const struct xfrm_type_offload esp_type_offload = {
+	.description	= "ESP4 OFFLOAD",
+	.owner		= THIS_MODULE,
+	.proto	     	= IPPROTO_ESP,
+	.input_tail	= esp_input_tail,
+	.xmit		= esp_xmit,
+};
+
 static int __init esp4_offload_init(void)
 {
+	if (xfrm_register_type_offload(&esp_type_offload, AF_INET) < 0) {
+		pr_info("%s: can't add xfrm type offload\n", __func__);
+		return -EAGAIN;
+	}
+
 	return inet_add_offload(&esp4_offload, IPPROTO_ESP);
 }
 
 static void __exit esp4_offload_exit(void)
 {
+	if (xfrm_unregister_type_offload(&esp_type_offload, AF_INET) < 0)
+		pr_info("%s: can't remove xfrm type offload\n", __func__);
+
 	inet_del_offload(&esp4_offload, IPPROTO_ESP);
 }
 
