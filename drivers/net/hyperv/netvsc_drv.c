@@ -861,7 +861,7 @@ static void netvsc_init_settings(struct net_device *dev)
 	struct net_device_context *ndc = netdev_priv(dev);
 
 	ndc->speed = SPEED_UNKNOWN;
-	ndc->duplex = DUPLEX_UNKNOWN;
+	ndc->duplex = DUPLEX_FULL;
 }
 
 static int netvsc_get_link_ksettings(struct net_device *dev,
