@@ -168,53 +168,6 @@ static void rdt_get_cdp_l3_config(int type)
 	r->enabled = false;
 }
 
-/**
- * Choose a width for the resource name
- * and resource data based on the resource that has
- * widest name and cbm.
- */
-static void rdt_init_padding(void)
-{
-	struct rdt_resource *r;
-	int cl;
-
-	for_each_enabled_rdt_resource(r) {
-		cl = strlen(r->name);
-		if (cl > max_name_width)
-			max_name_width = cl;
-
-		if (r->data_width > max_data_width)
-			max_data_width = r->data_width;
-	}
-}
-
-static inline bool get_rdt_resources(void)
-{
-	bool ret = false;
-
-	if (cache_alloc_hsw_probe())
-		return true;
-
-	if (!boot_cpu_has(X86_FEATURE_RDT_A))
-		return false;
-
-	if (boot_cpu_has(X86_FEATURE_CAT_L3)) {
-		rdt_get_config(1, &rdt_resources_all[RDT_RESOURCE_L3]);
-		if (boot_cpu_has(X86_FEATURE_CDP_L3)) {
-			rdt_get_cdp_l3_config(RDT_RESOURCE_L3DATA);
-			rdt_get_cdp_l3_config(RDT_RESOURCE_L3CODE);
-		}
-		ret = true;
-	}
-	if (boot_cpu_has(X86_FEATURE_CAT_L2)) {
-		/* CPUID 0x10.2 fields are same format at 0x10.1 */
-		rdt_get_config(2, &rdt_resources_all[RDT_RESOURCE_L2]);
-		ret = true;
-	}
-
-	return ret;
-}
-
 static int get_cache_id(int cpu, int level)
 {
 	struct cpu_cacheinfo *ci = get_cpu_cacheinfo(cpu);
@@ -398,6 +351,51 @@ static int intel_rdt_offline_cpu(unsigned int cpu)
 	mutex_unlock(&rdtgroup_mutex);
 
 	return 0;
+}
+
+/*
+ * Choose a width for the resource name and resource data based on the
+ * resource that has widest name and cbm.
+ */
+static __init void rdt_init_padding(void)
+{
+	struct rdt_resource *r;
+	int cl;
+
+	for_each_enabled_rdt_resource(r) {
+		cl = strlen(r->name);
+		if (cl > max_name_width)
+			max_name_width = cl;
+
+		if (r->data_width > max_data_width)
+			max_data_width = r->data_width;
+	}
+}
+
+static __init bool get_rdt_resources(void)
+{
+	bool ret = false;
+
+	if (cache_alloc_hsw_probe())
+		return true;
+
+	if (!boot_cpu_has(X86_FEATURE_RDT_A))
+		return false;
+
+	if (boot_cpu_has(X86_FEATURE_CAT_L3)) {
+		rdt_get_config(1, &rdt_resources_all[RDT_RESOURCE_L3]);
+		if (boot_cpu_has(X86_FEATURE_CDP_L3)) {
+			rdt_get_cdp_l3_config(RDT_RESOURCE_L3DATA);
+			rdt_get_cdp_l3_config(RDT_RESOURCE_L3CODE);
+		}
+		ret = true;
+	}
+	if (boot_cpu_has(X86_FEATURE_CAT_L2)) {
+		/* CPUID 0x10.2 fields are same format at 0x10.1 */
+		rdt_get_config(2, &rdt_resources_all[RDT_RESOURCE_L2]);
+		ret = true;
+	}
+	return ret;
 }
 
 static int __init intel_rdt_late_init(void)
