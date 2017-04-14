@@ -50,6 +50,7 @@ to_drm_gem_cma_obj(struct drm_gem_object *gem_obj)
 		.read		= drm_read,\
 		.llseek		= noop_llseek,\
 		.mmap		= drm_gem_cma_mmap,\
+		.get_unmapped_area	= drm_gem_cma_get_unmapped_area,\
 	}
 
 /* free GEM object */
