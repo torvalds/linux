@@ -172,6 +172,7 @@ struct nwl_pcie {
 	u8 root_busno;
 	struct nwl_msi msi;
 	struct irq_domain *legacy_irq_domain;
+	raw_spinlock_t leg_mask_lock;
 };
 
 static inline u32 nwl_bridge_readl(struct nwl_pcie *pcie, u32 off)
@@ -383,11 +384,52 @@ static void nwl_pcie_msi_handler_low(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static void nwl_mask_leg_irq(struct irq_data *data)
+{
+	struct irq_desc *desc = irq_to_desc(data->irq);
+	struct nwl_pcie *pcie;
+	unsigned long flags;
+	u32 mask;
+	u32 val;
+
+	pcie = irq_desc_get_chip_data(desc);
+	mask = 1 << (data->hwirq - 1);
+	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
+	val = nwl_bridge_readl(pcie, MSGF_LEG_MASK);
+	nwl_bridge_writel(pcie, (val & (~mask)), MSGF_LEG_MASK);
+	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
+}
+
+static void nwl_unmask_leg_irq(struct irq_data *data)
+{
+	struct irq_desc *desc = irq_to_desc(data->irq);
+	struct nwl_pcie *pcie;
+	unsigned long flags;
+	u32 mask;
+	u32 val;
+
+	pcie = irq_desc_get_chip_data(desc);
+	mask = 1 << (data->hwirq - 1);
+	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
+	val = nwl_bridge_readl(pcie, MSGF_LEG_MASK);
+	nwl_bridge_writel(pcie, (val | mask), MSGF_LEG_MASK);
+	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
+}
+
+static struct irq_chip nwl_leg_irq_chip = {
+	.name = "nwl_pcie:legacy",
+	.irq_enable = nwl_unmask_leg_irq,
+	.irq_disable = nwl_mask_leg_irq,
+	.irq_mask = nwl_mask_leg_irq,
+	.irq_unmask = nwl_unmask_leg_irq,
+};
+
 static int nwl_legacy_map(struct irq_domain *domain, unsigned int irq,
 			  irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &nwl_leg_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
+	irq_set_status_flags(irq, IRQ_LEVEL);
 
 	return 0;
 }
@@ -526,6 +568,7 @@ static int nwl_pcie_init_irq_domain(struct nwl_pcie *pcie)
 		return -ENOMEM;
 	}
 
+	raw_spin_lock_init(&pcie->leg_mask_lock);
 	nwl_pcie_init_msi_irq_domain(pcie);
 	return 0;
 }
