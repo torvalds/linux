@@ -24,7 +24,7 @@
 #include "libbpf.h"
 #include "bpf_load.h"
 
-#define MAX_CNT 1000000
+#define TEST_BIT(t) (1U << (t))
 
 static __u64 time_get_ns(void)
 {
@@ -34,17 +34,39 @@ static __u64 time_get_ns(void)
 	return ts.tv_sec * 1000000000ull + ts.tv_nsec;
 }
 
-#define HASH_PREALLOC		(1 << 0)
-#define PERCPU_HASH_PREALLOC	(1 << 1)
-#define HASH_KMALLOC		(1 << 2)
-#define PERCPU_HASH_KMALLOC	(1 << 3)
-#define LRU_HASH_PREALLOC	(1 << 4)
-#define NOCOMMON_LRU_HASH_PREALLOC	(1 << 5)
-#define LPM_KMALLOC		(1 << 6)
-#define HASH_LOOKUP		(1 << 7)
-#define ARRAY_LOOKUP		(1 << 8)
+enum test_type {
+	HASH_PREALLOC,
+	PERCPU_HASH_PREALLOC,
+	HASH_KMALLOC,
+	PERCPU_HASH_KMALLOC,
+	LRU_HASH_PREALLOC,
+	NOCOMMON_LRU_HASH_PREALLOC,
+	LPM_KMALLOC,
+	HASH_LOOKUP,
+	ARRAY_LOOKUP,
+	NR_TESTS,
+};
+
+const char *test_map_names[NR_TESTS] = {
+	[HASH_PREALLOC] = "hash_map",
+	[PERCPU_HASH_PREALLOC] = "percpu_hash_map",
+	[HASH_KMALLOC] = "hash_map_alloc",
+	[PERCPU_HASH_KMALLOC] = "percpu_hash_map_alloc",
+	[LRU_HASH_PREALLOC] = "lru_hash_map",
+	[NOCOMMON_LRU_HASH_PREALLOC] = "nocommon_lru_hash_map",
+	[LPM_KMALLOC] = "lpm_trie_map_alloc",
+	[HASH_LOOKUP] = "hash_map",
+	[ARRAY_LOOKUP] = "array_map",
+};
 
 static int test_flags = ~0;
+static uint32_t num_map_entries;
+static uint32_t max_cnt = 1000000;
+
+static int check_test_flags(enum test_type t)
+{
+	return test_flags & TEST_BIT(t);
+}
 
 static void test_hash_prealloc(int cpu)
 {
@@ -52,13 +74,13 @@ static void test_hash_prealloc(int cpu)
 	int i;
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
+	for (i = 0; i < max_cnt; i++)
 		syscall(__NR_getuid);
 	printf("%d:hash_map_perf pre-alloc %lld events per sec\n",
-	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+	       cpu, max_cnt * 1000000000ll / (time_get_ns() - start_time));
 }
 
-static void do_test_lru(int lru_test_flag, int cpu)
+static void do_test_lru(enum test_type test, int cpu)
 {
 	struct sockaddr_in6 in6 = { .sin6_family = AF_INET6 };
 	const char *test_name;
@@ -68,10 +90,10 @@ static void do_test_lru(int lru_test_flag, int cpu)
 	in6.sin6_addr.s6_addr16[0] = 0xdead;
 	in6.sin6_addr.s6_addr16[1] = 0xbeef;
 
-	if (lru_test_flag & LRU_HASH_PREALLOC) {
+	if (test == LRU_HASH_PREALLOC) {
 		test_name = "lru_hash_map_perf";
 		in6.sin6_addr.s6_addr16[7] = 0;
-	} else if (lru_test_flag & NOCOMMON_LRU_HASH_PREALLOC) {
+	} else if (test == NOCOMMON_LRU_HASH_PREALLOC) {
 		test_name = "nocommon_lru_hash_map_perf";
 		in6.sin6_addr.s6_addr16[7] = 1;
 	} else {
@@ -79,13 +101,13 @@ static void do_test_lru(int lru_test_flag, int cpu)
 	}
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++) {
+	for (i = 0; i < max_cnt; i++) {
 		ret = connect(-1, (const struct sockaddr *)&in6, sizeof(in6));
 		assert(ret == -1 && errno == EBADF);
 	}
 	printf("%d:%s pre-alloc %lld events per sec\n",
 	       cpu, test_name,
-	       MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+	       max_cnt * 1000000000ll / (time_get_ns() - start_time));
 }
 
 static void test_lru_hash_prealloc(int cpu)
@@ -104,10 +126,10 @@ static void test_percpu_hash_prealloc(int cpu)
 	int i;
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
+	for (i = 0; i < max_cnt; i++)
 		syscall(__NR_geteuid);
 	printf("%d:percpu_hash_map_perf pre-alloc %lld events per sec\n",
-	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+	       cpu, max_cnt * 1000000000ll / (time_get_ns() - start_time));
 }
 
 static void test_hash_kmalloc(int cpu)
@@ -116,10 +138,10 @@ static void test_hash_kmalloc(int cpu)
 	int i;
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
+	for (i = 0; i < max_cnt; i++)
 		syscall(__NR_getgid);
 	printf("%d:hash_map_perf kmalloc %lld events per sec\n",
-	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+	       cpu, max_cnt * 1000000000ll / (time_get_ns() - start_time));
 }
 
 static void test_percpu_hash_kmalloc(int cpu)
@@ -128,10 +150,10 @@ static void test_percpu_hash_kmalloc(int cpu)
 	int i;
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
+	for (i = 0; i < max_cnt; i++)
 		syscall(__NR_getegid);
 	printf("%d:percpu_hash_map_perf kmalloc %lld events per sec\n",
-	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+	       cpu, max_cnt * 1000000000ll / (time_get_ns() - start_time));
 }
 
 static void test_lpm_kmalloc(int cpu)
@@ -140,10 +162,10 @@ static void test_lpm_kmalloc(int cpu)
 	int i;
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
+	for (i = 0; i < max_cnt; i++)
 		syscall(__NR_gettid);
 	printf("%d:lpm_perf kmalloc %lld events per sec\n",
-	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+	       cpu, max_cnt * 1000000000ll / (time_get_ns() - start_time));
 }
 
 static void test_hash_lookup(int cpu)
@@ -152,10 +174,10 @@ static void test_hash_lookup(int cpu)
 	int i;
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
+	for (i = 0; i < max_cnt; i++)
 		syscall(__NR_getpgid, 0);
 	printf("%d:hash_lookup %lld lookups per sec\n",
-	       cpu, MAX_CNT * 1000000000ll * 64 / (time_get_ns() - start_time));
+	       cpu, max_cnt * 1000000000ll * 64 / (time_get_ns() - start_time));
 }
 
 static void test_array_lookup(int cpu)
@@ -164,46 +186,38 @@ static void test_array_lookup(int cpu)
 	int i;
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
+	for (i = 0; i < max_cnt; i++)
 		syscall(__NR_getpgrp, 0);
 	printf("%d:array_lookup %lld lookups per sec\n",
-	       cpu, MAX_CNT * 1000000000ll * 64 / (time_get_ns() - start_time));
+	       cpu, max_cnt * 1000000000ll * 64 / (time_get_ns() - start_time));
 }
+
+typedef void (*test_func)(int cpu);
+const test_func test_funcs[] = {
+	[HASH_PREALLOC] = test_hash_prealloc,
+	[PERCPU_HASH_PREALLOC] = test_percpu_hash_prealloc,
+	[HASH_KMALLOC] = test_hash_kmalloc,
+	[PERCPU_HASH_KMALLOC] = test_percpu_hash_kmalloc,
+	[LRU_HASH_PREALLOC] = test_lru_hash_prealloc,
+	[NOCOMMON_LRU_HASH_PREALLOC] = test_nocommon_lru_hash_prealloc,
+	[LPM_KMALLOC] = test_lpm_kmalloc,
+	[HASH_LOOKUP] = test_hash_lookup,
+	[ARRAY_LOOKUP] = test_array_lookup,
+};
 
 static void loop(int cpu)
 {
 	cpu_set_t cpuset;
+	int i;
 
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
 	sched_setaffinity(0, sizeof(cpuset), &cpuset);
 
-	if (test_flags & HASH_PREALLOC)
-		test_hash_prealloc(cpu);
-
-	if (test_flags & PERCPU_HASH_PREALLOC)
-		test_percpu_hash_prealloc(cpu);
-
-	if (test_flags & HASH_KMALLOC)
-		test_hash_kmalloc(cpu);
-
-	if (test_flags & PERCPU_HASH_KMALLOC)
-		test_percpu_hash_kmalloc(cpu);
-
-	if (test_flags & LRU_HASH_PREALLOC)
-		test_lru_hash_prealloc(cpu);
-
-	if (test_flags & NOCOMMON_LRU_HASH_PREALLOC)
-		test_nocommon_lru_hash_prealloc(cpu);
-
-	if (test_flags & LPM_KMALLOC)
-		test_lpm_kmalloc(cpu);
-
-	if (test_flags & HASH_LOOKUP)
-		test_hash_lookup(cpu);
-
-	if (test_flags & ARRAY_LOOKUP)
-		test_array_lookup(cpu);
+	for (i = 0; i < NR_TESTS; i++) {
+		if (check_test_flags(i))
+			test_funcs[i](cpu);
+	}
 }
 
 static void run_perf_test(int tasks)
@@ -260,6 +274,22 @@ static void fill_lpm_trie(void)
 	assert(!r);
 }
 
+static void fixup_map(struct bpf_map_def *map, const char *name, int idx)
+{
+	int i;
+
+	if (num_map_entries <= 0)
+		return;
+
+	/* Only change the max_entries for the enabled test(s) */
+	for (i = 0; i < NR_TESTS; i++) {
+		if (!strcmp(test_map_names[i], name) &&
+		    (check_test_flags(i))) {
+			map->max_entries = num_map_entries;
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
@@ -275,7 +305,13 @@ int main(int argc, char **argv)
 	if (argc > 2)
 		num_cpu = atoi(argv[2]) ? : num_cpu;
 
-	if (load_bpf_file(filename)) {
+	if (argc > 3)
+		num_map_entries = atoi(argv[3]);
+
+	if (argc > 4)
+		max_cnt = atoi(argv[4]);
+
+	if (load_bpf_file_fixup_map(filename, fixup_map)) {
 		printf("%s", bpf_log_buf);
 		return 1;
 	}
