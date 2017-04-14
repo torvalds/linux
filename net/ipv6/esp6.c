@@ -179,9 +179,14 @@ static struct ip_esp_hdr *esp_output_set_esn(struct sk_buff *skb,
 	 * encryption.
 	 */
 	if ((x->props.flags & XFRM_STATE_ESN)) {
+		struct xfrm_offload *xo = xfrm_offload(skb);
+
 		esph = (void *)(skb_transport_header(skb) - sizeof(__be32));
 		*seqhi = esph->spi;
-		esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.hi);
+		if (xo)
+			esph->seq_no = htonl(xo->seq.hi);
+		else
+			esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.hi);
 	}
 
 	esph->spi = x->id.spi;
@@ -223,7 +228,6 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 	struct sk_buff *trailer;
 	int tailen = esp->tailen;
 
-	*skb_mac_header(skb) = IPPROTO_ESP;
 	esph = ip_esp_hdr(skb);
 
 	if (!skb_cloned(skb)) {

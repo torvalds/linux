@@ -161,11 +161,19 @@ static struct ip_esp_hdr *esp_output_set_extra(struct sk_buff *skb,
 	 * encryption.
 	 */
 	if ((x->props.flags & XFRM_STATE_ESN)) {
+		__u32 seqhi;
+		struct xfrm_offload *xo = xfrm_offload(skb);
+
+		if (xo)
+			seqhi = xo->seq.hi;
+		else
+			seqhi = XFRM_SKB_CB(skb)->seq.output.hi;
+
 		extra->esphoff = (unsigned char *)esph -
 				 skb_transport_header(skb);
 		esph = (struct ip_esp_hdr *)((unsigned char *)esph - 4);
 		extra->seqhi = esph->spi;
-		esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.hi);
+		esph->seq_no = htonl(seqhi);
 	}
 
 	esph->spi = x->id.spi;

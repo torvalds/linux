@@ -45,7 +45,8 @@ u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq)
 
 	return seq_hi;
 }
-
+EXPORT_SYMBOL(xfrm_replay_seqhi);
+;
 static void xfrm_replay_notify(struct xfrm_state *x, int event)
 {
 	struct km_event c;
