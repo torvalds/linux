@@ -387,6 +387,10 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 	unsigned int map_size;
 	int next_cpu = 0;
 
+	if (map_flags & BPF_F_NO_COMMON_LRU)
+		/* This test is only applicable to common LRU list */
+		return;
+
 	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
 	       map_flags);
 
@@ -396,11 +400,7 @@ static void test_lru_sanity3(int map_type, int map_flags, unsigned int tgt_free)
 	assert(batch_size * 2 == tgt_free);
 
 	map_size = tgt_free * 2;
-	if (map_flags & BPF_F_NO_COMMON_LRU)
-		lru_map_fd = create_map(map_type, map_flags,
-					map_size * nr_cpus);
-	else
-		lru_map_fd = create_map(map_type, map_flags, map_size);
+	lru_map_fd = create_map(map_type, map_flags, map_size);
 	assert(lru_map_fd != -1);
 
 	expected_map_fd = create_map(BPF_MAP_TYPE_HASH, 0, map_size);
@@ -566,6 +566,65 @@ static void test_lru_sanity5(int map_type, int map_flags)
 	printf("Pass\n");
 }
 
+/* Test list rotation for BPF_F_NO_COMMON_LRU map */
+static void test_lru_sanity6(int map_type, int map_flags, int tgt_free)
+{
+	int lru_map_fd, expected_map_fd;
+	unsigned long long key, value[nr_cpus];
+	unsigned int map_size = tgt_free * 2;
+	int next_cpu = 0;
+
+	if (!(map_flags & BPF_F_NO_COMMON_LRU))
+		return;
+
+	printf("%s (map_type:%d map_flags:0x%X): ", __func__, map_type,
+	       map_flags);
+
+	assert(sched_next_online(0, &next_cpu) != -1);
+
+	expected_map_fd = create_map(BPF_MAP_TYPE_HASH, 0, map_size);
+	assert(expected_map_fd != -1);
+
+	lru_map_fd = create_map(map_type, map_flags, map_size * nr_cpus);
+	assert(lru_map_fd != -1);
+
+	value[0] = 1234;
+
+	for (key = 1; key <= tgt_free; key++) {
+		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
+					    BPF_NOEXIST));
+		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
+					    BPF_NOEXIST));
+	}
+
+	for (; key <= tgt_free * 2; key++) {
+		unsigned long long stable_key;
+
+		/* Make ref bit sticky for key: [1, tgt_free] */
+		for (stable_key = 1; stable_key <= tgt_free; stable_key++) {
+			/* Mark the ref bit */
+			assert(!bpf_map_lookup_elem(lru_map_fd, &stable_key,
+						    value));
+		}
+		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
+					    BPF_NOEXIST));
+	}
+
+	for (; key <= tgt_free * 3; key++) {
+		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
+					    BPF_NOEXIST));
+		assert(!bpf_map_update_elem(expected_map_fd, &key, value,
+					    BPF_NOEXIST));
+	}
+
+	assert(map_equal(lru_map_fd, expected_map_fd));
+
+	close(expected_map_fd);
+	close(lru_map_fd);
+
+	printf("Pass\n");
+}
+
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
@@ -593,6 +652,7 @@ int main(int argc, char **argv)
 			test_lru_sanity3(map_types[t], map_flags[f], tgt_free);
 			test_lru_sanity4(map_types[t], map_flags[f], tgt_free);
 			test_lru_sanity5(map_types[t], map_flags[f]);
+			test_lru_sanity6(map_types[t], map_flags[f], tgt_free);
 
 			printf("\n");
 		}
