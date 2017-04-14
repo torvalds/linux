@@ -511,6 +511,9 @@ static int mmhub_v1_0_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		mmhub_v1_0_update_medium_grain_clock_gating(adev,
