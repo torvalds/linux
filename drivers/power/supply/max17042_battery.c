@@ -150,12 +150,12 @@ static int max17042_get_battery_health(struct max17042_chip *chip, int *health)
 	if (ret < 0)
 		goto health_error;
 
-	if (temp <= chip->pdata->temp_min) {
+	if (temp < chip->pdata->temp_min) {
 		*health = POWER_SUPPLY_HEALTH_COLD;
 		goto out;
 	}
 
-	if (temp >= chip->pdata->temp_max) {
+	if (temp > chip->pdata->temp_max) {
 		*health = POWER_SUPPLY_HEALTH_OVERHEAT;
 		goto out;
 	}
@@ -772,8 +772,9 @@ static void max17042_init_worker(struct work_struct *work)
 
 #ifdef CONFIG_OF
 static struct max17042_platform_data *
-max17042_get_pdata(struct device *dev)
+max17042_get_pdata(struct max17042_chip *chip)
 {
+	struct device *dev = &chip->client->dev;
 	struct device_node *np = dev->of_node;
 	u32 prop;
 	struct max17042_platform_data *pdata;
@@ -806,10 +807,55 @@ max17042_get_pdata(struct device *dev)
 	return pdata;
 }
 #else
+static struct max17042_reg_data max17047_default_pdata_init_regs[] = {
+	/*
+	 * Some firmwares do not set FullSOCThr, Enable End-of-Charge Detection
+	 * when the voltage FG reports 95%, as recommended in the datasheet.
+	 */
+	{ MAX17047_FullSOCThr, MAX17042_BATTERY_FULL << 8 },
+};
+
 static struct max17042_platform_data *
-max17042_get_pdata(struct device *dev)
+max17042_get_pdata(struct max17042_chip *chip)
 {
-	return dev->platform_data;
+	struct device *dev = &chip->client->dev;
+	struct max17042_platform_data *pdata;
+	int ret, misc_cfg;
+
+	if (dev->platform_data)
+		return dev->platform_data;
+
+	/*
+	 * The MAX17047 gets used on x86 where we might not have pdata, assume
+	 * the firmware will already have initialized the fuel-gauge and provide
+	 * default values for the non init bits to make things work.
+	 */
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return pdata;
+
+	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17042) {
+		pdata->init_data = max17047_default_pdata_init_regs;
+		pdata->num_init_data =
+			ARRAY_SIZE(max17047_default_pdata_init_regs);
+	}
+
+	ret = regmap_read(chip->regmap, MAX17042_MiscCFG, &misc_cfg);
+	if (ret < 0)
+		return NULL;
+
+	/* If bits 0-1 are set to 3 then only Voltage readings are used */
+	if ((misc_cfg & 0x3) == 0x3)
+		pdata->enable_current_sense = false;
+	else
+		pdata->enable_current_sense = true;
+
+	pdata->vmin = MAX17042_DEFAULT_VMIN;
+	pdata->vmax = MAX17042_DEFAULT_VMAX;
+	pdata->temp_min = MAX17042_DEFAULT_TEMP_MIN;
+	pdata->temp_max = MAX17042_DEFAULT_TEMP_MAX;
+
+	return pdata;
 }
 #endif
 
@@ -858,20 +904,20 @@ static int max17042_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	chip->client = client;
+	chip->chip_type = id->driver_data;
 	chip->regmap = devm_regmap_init_i2c(client, &max17042_regmap_config);
 	if (IS_ERR(chip->regmap)) {
 		dev_err(&client->dev, "Failed to initialize regmap\n");
 		return -EINVAL;
 	}
 
-	chip->pdata = max17042_get_pdata(&client->dev);
+	chip->pdata = max17042_get_pdata(chip);
 	if (!chip->pdata) {
 		dev_err(&client->dev, "no platform data provided\n");
 		return -EINVAL;
 	}
 
 	i2c_set_clientdata(client, chip);
-	chip->chip_type = id->driver_data;
 	psy_cfg.drv_data = chip;
 
 	/* When current is not measured,
