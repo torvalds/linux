@@ -815,7 +815,9 @@ static int sh_cmt_register_clockevent(struct sh_cmt_channel *ch,
 	ced->shift = 32;
 	ced->mult = div_sc(ch->cmt->rate, NSEC_PER_SEC, ced->shift);
 	ced->max_delta_ns = clockevent_delta2ns(ch->max_match_value, ced);
+	ced->max_delta_ticks = ch->max_match_value;
 	ced->min_delta_ns = clockevent_delta2ns(0x1f, ced);
+	ced->min_delta_ticks = 0x1f;
 
 	dev_info(&ch->cmt->pdev->dev, "ch%u: used for clock events\n",
 		 ch->index);

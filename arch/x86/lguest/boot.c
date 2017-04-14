@@ -994,7 +994,9 @@ static struct clock_event_device lguest_clockevent = {
 	.mult                   = 1,
 	.shift                  = 0,
 	.min_delta_ns           = LG_CLOCK_MIN_DELTA,
+	.min_delta_ticks        = LG_CLOCK_MIN_DELTA,
 	.max_delta_ns           = LG_CLOCK_MAX_DELTA,
+	.max_delta_ticks        = LG_CLOCK_MAX_DELTA,
 };
 
 /*
