@@ -539,6 +539,14 @@ struct btrfs_io_ctl {
 	unsigned check_crcs:1;
 };
 
+/*
+ * Tree to record all locked full stripes of a RAID5/6 block group
+ */
+struct btrfs_full_stripe_locks_tree {
+	struct rb_root root;
+	struct mutex lock;
+};
+
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
@@ -649,6 +657,9 @@ struct btrfs_block_group_cache {
 	 * Protected by free_space_lock.
 	 */
 	int needs_free_space;
+
+	/* Record locked full stripes for RAID5/6 block group */
+	struct btrfs_full_stripe_locks_tree full_stripe_locks_root;
 };
 
 /* delayed seq elem */
@@ -3653,6 +3664,12 @@ int btrfs_scrub_cancel_dev(struct btrfs_fs_info *info,
 			   struct btrfs_device *dev);
 int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 			 struct btrfs_scrub_progress *progress);
+static inline void btrfs_init_full_stripe_locks_tree(
+			struct btrfs_full_stripe_locks_tree *locks_root)
+{
+	locks_root->root = RB_ROOT;
+	mutex_init(&locks_root->lock);
+}
 
 /* dev-replace.c */
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info);

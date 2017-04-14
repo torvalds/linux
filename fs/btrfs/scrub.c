@@ -240,6 +240,13 @@ struct scrub_warning {
 	struct btrfs_device	*dev;
 };
 
+struct full_stripe_lock {
+	struct rb_node node;
+	u64 logical;
+	u64 refs;
+	struct mutex mutex;
+};
+
 static void scrub_pending_bio_inc(struct scrub_ctx *sctx);
 static void scrub_pending_bio_dec(struct scrub_ctx *sctx);
 static void scrub_pending_trans_workers_inc(struct scrub_ctx *sctx);
@@ -346,6 +353,222 @@ static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 {
 	scrub_pause_on(fs_info);
 	scrub_pause_off(fs_info);
+}
+
+/*
+ * Insert new full stripe lock into full stripe locks tree
+ *
+ * Return pointer to existing or newly inserted full_stripe_lock structure if
+ * everything works well.
+ * Return ERR_PTR(-ENOMEM) if we failed to allocate memory
+ *
+ * NOTE: caller must hold full_stripe_locks_root->lock before calling this
+ * function
+ */
+static struct full_stripe_lock *insert_full_stripe_lock(
+		struct btrfs_full_stripe_locks_tree *locks_root,
+		u64 fstripe_logical)
+{
+	struct rb_node **p;
+	struct rb_node *parent = NULL;
+	struct full_stripe_lock *entry;
+	struct full_stripe_lock *ret;
+
+	WARN_ON(!mutex_is_locked(&locks_root->lock));
+
+	p = &locks_root->root.rb_node;
+	while (*p) {
+		parent = *p;
+		entry = rb_entry(parent, struct full_stripe_lock, node);
+		if (fstripe_logical < entry->logical) {
+			p = &(*p)->rb_left;
+		} else if (fstripe_logical > entry->logical) {
+			p = &(*p)->rb_right;
+		} else {
+			entry->refs++;
+			return entry;
+		}
+	}
+
+	/* Insert new lock */
+	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
+	if (!ret)
+		return ERR_PTR(-ENOMEM);
+	ret->logical = fstripe_logical;
+	ret->refs = 1;
+	mutex_init(&ret->mutex);
+
+	rb_link_node(&ret->node, parent, p);
+	rb_insert_color(&ret->node, &locks_root->root);
+	return ret;
+}
+
+/*
+ * Search for a full stripe lock of a block group
+ *
+ * Return pointer to existing full stripe lock if found
+ * Return NULL if not found
+ */
+static struct full_stripe_lock *search_full_stripe_lock(
+		struct btrfs_full_stripe_locks_tree *locks_root,
+		u64 fstripe_logical)
+{
+	struct rb_node *node;
+	struct full_stripe_lock *entry;
+
+	WARN_ON(!mutex_is_locked(&locks_root->lock));
+
+	node = locks_root->root.rb_node;
+	while (node) {
+		entry = rb_entry(node, struct full_stripe_lock, node);
+		if (fstripe_logical < entry->logical)
+			node = node->rb_left;
+		else if (fstripe_logical > entry->logical)
+			node = node->rb_right;
+		else
+			return entry;
+	}
+	return NULL;
+}
+
+/*
+ * Helper to get full stripe logical from a normal bytenr.
+ *
+ * Caller must ensure @cache is a RAID56 block group.
+ */
+static u64 get_full_stripe_logical(struct btrfs_block_group_cache *cache,
+				   u64 bytenr)
+{
+	u64 ret;
+
+	/*
+	 * Due to chunk item size limit, full stripe length should not be
+	 * larger than U32_MAX. Just a sanity check here.
+	 */
+	WARN_ON_ONCE(cache->full_stripe_len >= U32_MAX);
+
+	/*
+	 * round_down() can only handle power of 2, while RAID56 full
+	 * stripe length can be 64KiB * n, so we need to manually round down.
+	 */
+	ret = div64_u64(bytenr - cache->key.objectid, cache->full_stripe_len) *
+		cache->full_stripe_len + cache->key.objectid;
+	return ret;
+}
+
+/*
+ * Lock a full stripe to avoid concurrency of recovery and read
+ *
+ * It's only used for profiles with parities (RAID5/6), for other profiles it
+ * does nothing.
+ *
+ * Return 0 if we locked full stripe covering @bytenr, with a mutex held.
+ * So caller must call unlock_full_stripe() at the same context.
+ *
+ * Return <0 if encounters error.
+ */
+static int lock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
+			    bool *locked_ret)
+{
+	struct btrfs_block_group_cache *bg_cache;
+	struct btrfs_full_stripe_locks_tree *locks_root;
+	struct full_stripe_lock *existing;
+	u64 fstripe_start;
+	int ret = 0;
+
+	*locked_ret = false;
+	bg_cache = btrfs_lookup_block_group(fs_info, bytenr);
+	if (!bg_cache) {
+		ASSERT(0);
+		return -ENOENT;
+	}
+
+	/* Profiles not based on parity don't need full stripe lock */
+	if (!(bg_cache->flags & BTRFS_BLOCK_GROUP_RAID56_MASK))
+		goto out;
+	locks_root = &bg_cache->full_stripe_locks_root;
+
+	fstripe_start = get_full_stripe_logical(bg_cache, bytenr);
+
+	/* Now insert the full stripe lock */
+	mutex_lock(&locks_root->lock);
+	existing = insert_full_stripe_lock(locks_root, fstripe_start);
+	mutex_unlock(&locks_root->lock);
+	if (IS_ERR(existing)) {
+		ret = PTR_ERR(existing);
+		goto out;
+	}
+	mutex_lock(&existing->mutex);
+	*locked_ret = true;
+out:
+	btrfs_put_block_group(bg_cache);
+	return ret;
+}
+
+/*
+ * Unlock a full stripe.
+ *
+ * NOTE: Caller must ensure it's the same context calling corresponding
+ * lock_full_stripe().
+ *
+ * Return 0 if we unlock full stripe without problem.
+ * Return <0 for error
+ */
+static int unlock_full_stripe(struct btrfs_fs_info *fs_info, u64 bytenr,
+			      bool locked)
+{
+	struct btrfs_block_group_cache *bg_cache;
+	struct btrfs_full_stripe_locks_tree *locks_root;
+	struct full_stripe_lock *fstripe_lock;
+	u64 fstripe_start;
+	bool freeit = false;
+	int ret = 0;
+
+	/* If we didn't acquire full stripe lock, no need to continue */
+	if (!locked)
+		return 0;
+
+	bg_cache = btrfs_lookup_block_group(fs_info, bytenr);
+	if (!bg_cache) {
+		ASSERT(0);
+		return -ENOENT;
+	}
+	if (!(bg_cache->flags & BTRFS_BLOCK_GROUP_RAID56_MASK))
+		goto out;
+
+	locks_root = &bg_cache->full_stripe_locks_root;
+	fstripe_start = get_full_stripe_logical(bg_cache, bytenr);
+
+	mutex_lock(&locks_root->lock);
+	fstripe_lock = search_full_stripe_lock(locks_root, fstripe_start);
+	/* Unpaired unlock_full_stripe() detected */
+	if (!fstripe_lock) {
+		WARN_ON(1);
+		ret = -ENOENT;
+		mutex_unlock(&locks_root->lock);
+		goto out;
+	}
+
+	if (fstripe_lock->refs == 0) {
+		WARN_ON(1);
+		btrfs_warn(fs_info, "full stripe lock at %llu refcount underflow",
+			fstripe_lock->logical);
+	} else {
+		fstripe_lock->refs--;
+	}
+
+	if (fstripe_lock->refs == 0) {
+		rb_erase(&fstripe_lock->node, &locks_root->root);
+		freeit = true;
+	}
+	mutex_unlock(&locks_root->lock);
+
+	mutex_unlock(&fstripe_lock->mutex);
+	if (freeit)
+		kfree(fstripe_lock);
+out:
+	btrfs_put_block_group(bg_cache);
+	return ret;
 }
 
 /*

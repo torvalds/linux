@@ -131,6 +131,16 @@ void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
 	if (atomic_dec_and_test(&cache->count)) {
 		WARN_ON(cache->pinned > 0);
 		WARN_ON(cache->reserved > 0);
+
+		/*
+		 * If not empty, someone is still holding mutex of
+		 * full_stripe_lock, which can only be released by caller.
+		 * And it will definitely cause use-after-free when caller
+		 * tries to release full stripe lock.
+		 *
+		 * No better way to resolve, but only to warn.
+		 */
+		WARN_ON(!RB_EMPTY_ROOT(&cache->full_stripe_locks_root.root));
 		kfree(cache->free_space_ctl);
 		kfree(cache);
 	}
@@ -9917,6 +9927,7 @@ btrfs_create_block_group_cache(struct btrfs_fs_info *fs_info,
 	btrfs_init_free_space_ctl(cache);
 	atomic_set(&cache->trimming, 0);
 	mutex_init(&cache->free_space_lock);
+	btrfs_init_full_stripe_locks_tree(&cache->full_stripe_locks_root);
 
 	return cache;
 }
