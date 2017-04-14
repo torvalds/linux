@@ -824,6 +824,16 @@ struct netdev_xdp {
 	};
 };
 
+#ifdef CONFIG_XFRM_OFFLOAD
+struct xfrmdev_ops {
+	int	(*xdo_dev_state_add) (struct xfrm_state *x);
+	void	(*xdo_dev_state_delete) (struct xfrm_state *x);
+	void	(*xdo_dev_state_free) (struct xfrm_state *x);
+	bool	(*xdo_dev_offload_ok) (struct sk_buff *skb,
+				       struct xfrm_state *x);
+};
+#endif
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -1695,6 +1705,10 @@ struct net_device {
 #endif
 #if IS_ENABLED(CONFIG_IPV6)
 	const struct ndisc_ops *ndisc_ops;
+#endif
+
+#ifdef CONFIG_XFRM
+	const struct xfrmdev_ops *xfrmdev_ops;
 #endif
 
 	const struct header_ops *header_ops;

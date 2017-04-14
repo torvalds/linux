@@ -29,7 +29,8 @@ static int xfrm4_tunnel_check_size(struct sk_buff *skb)
 		goto out;
 
 	mtu = dst_mtu(skb_dst(skb));
-	if (skb->len > mtu) {
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) && skb_gso_network_seglen(skb) > ip_skb_dst_mtu(skb->sk, skb))) {
 		skb->protocol = htons(ETH_P_IP);
 
 		if (skb->sk)

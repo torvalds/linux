@@ -116,11 +116,10 @@ static const struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short fa
 	return afinfo;
 }
 
-static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
-						  int tos, int oif,
-						  const xfrm_address_t *saddr,
-						  const xfrm_address_t *daddr,
-						  int family)
+struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos, int oif,
+				    const xfrm_address_t *saddr,
+				    const xfrm_address_t *daddr,
+				    int family)
 {
 	const struct xfrm_policy_afinfo *afinfo;
 	struct dst_entry *dst;
@@ -135,6 +134,7 @@ static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
 
 	return dst;
 }
+EXPORT_SYMBOL(__xfrm_dst_lookup);
 
 static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x,
 						int tos, int oif,

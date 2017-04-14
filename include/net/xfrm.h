@@ -120,6 +120,13 @@ struct xfrm_state_walk {
 	struct xfrm_address_filter *filter;
 };
 
+struct xfrm_state_offload {
+	struct net_device	*dev;
+	unsigned long		offload_handle;
+	unsigned int		num_exthdrs;
+	u8			flags;
+};
+
 /* Full description of state of transformer. */
 struct xfrm_state {
 	possible_net_t		xs_net;
@@ -206,6 +213,8 @@ struct xfrm_state {
 
 	struct xfrm_lifetime_cur curlft;
 	struct tasklet_hrtimer	mtimer;
+
+	struct xfrm_state_offload xso;
 
 	/* used to fix curlft->add_time when changing date */
 	long		saved_tmo;
@@ -1453,7 +1462,6 @@ struct xfrm6_tunnel {
 void xfrm_init(void);
 void xfrm4_init(void);
 int xfrm_state_init(struct net *net);
-void xfrm_dev_init(void);
 void xfrm_state_fini(struct net *net);
 void xfrm4_state_init(void);
 void xfrm4_protocol_init(void);
@@ -1559,6 +1567,7 @@ struct xfrmk_spdinfo {
 struct xfrm_state *xfrm_find_acq_byseq(struct net *net, u32 mark, u32 seq);
 int xfrm_state_delete(struct xfrm_state *x);
 int xfrm_state_flush(struct net *net, u8 proto, bool task_valid);
+int xfrm_dev_state_flush(struct net *net, struct net_device *dev, bool task_valid);
 void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si);
 void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
 u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq);
@@ -1640,6 +1649,11 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 #endif
+
+struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos, int oif,
+				    const xfrm_address_t *saddr,
+				    const xfrm_address_t *daddr,
+				    int family);
 
 struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp);
 
@@ -1843,6 +1857,55 @@ static inline struct xfrm_offload *xfrm_offload(struct sk_buff *skb)
 		return NULL;
 
 	return &sp->ovec[sp->olen - 1];
+}
+#endif
+
+#ifdef CONFIG_XFRM_OFFLOAD
+void __net_init xfrm_dev_init(void);
+int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
+		       struct xfrm_user_offload *xuo);
+bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
+
+static inline void xfrm_dev_state_delete(struct xfrm_state *x)
+{
+	struct xfrm_state_offload *xso = &x->xso;
+
+	if (xso->dev)
+		xso->dev->xfrmdev_ops->xdo_dev_state_delete(x);
+}
+
+static inline void xfrm_dev_state_free(struct xfrm_state *x)
+{
+	struct xfrm_state_offload *xso = &x->xso;
+	 struct net_device *dev = xso->dev;
+
+	if (dev && dev->xfrmdev_ops) {
+		dev->xfrmdev_ops->xdo_dev_state_free(x);
+		xso->dev = NULL;
+		dev_put(dev);
+	}
+}
+#else
+static inline void __net_init xfrm_dev_init(void)
+{
+}
+
+static inline int xfrm_dev_state_add(struct net *net, struct xfrm_state *x, struct xfrm_user_offload *xuo)
+{
+	return 0;
+}
+
+static inline void xfrm_dev_state_delete(struct xfrm_state *x)
+{
+}
+
+static inline void xfrm_dev_state_free(struct xfrm_state *x)
+{
+}
+
+static inline bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
+{
+	return false;
 }
 #endif
 
