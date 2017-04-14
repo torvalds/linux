@@ -82,17 +82,12 @@ blk_mq_sched_allow_merge(struct request_queue *q, struct request *rq,
 	return true;
 }
 
-static inline void
-blk_mq_sched_completed_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
+static inline void blk_mq_sched_completed_request(struct request *rq)
 {
-	struct elevator_queue *e = hctx->queue->elevator;
+	struct elevator_queue *e = rq->q->elevator;
 
 	if (e && e->type->ops.mq.completed_request)
-		e->type->ops.mq.completed_request(hctx, rq);
-
-	BUG_ON(rq->internal_tag == -1);
-
-	blk_mq_put_tag(hctx, hctx->sched_tags, rq->mq_ctx, rq->internal_tag);
+		e->type->ops.mq.completed_request(rq);
 }
 
 static inline void blk_mq_sched_started_request(struct request *rq)
