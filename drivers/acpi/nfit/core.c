@@ -457,9 +457,9 @@ static bool add_memdev(struct acpi_nfit_desc *acpi_desc,
 	INIT_LIST_HEAD(&nfit_memdev->list);
 	memcpy(nfit_memdev->memdev, memdev, sizeof(*memdev));
 	list_add_tail(&nfit_memdev->list, &acpi_desc->memdevs);
-	dev_dbg(dev, "%s: memdev handle: %#x spa: %d dcr: %d\n",
+	dev_dbg(dev, "%s: memdev handle: %#x spa: %d dcr: %d flags: %#x\n",
 			__func__, memdev->device_handle, memdev->range_index,
-			memdev->region_index);
+			memdev->region_index, memdev->flags);
 	return true;
 }
 
@@ -1505,6 +1505,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
 		struct acpi_nfit_flush_address *flush;
 		unsigned long flags = 0, cmd_mask;
+		struct nfit_memdev *nfit_memdev;
 		u32 device_handle;
 		u16 mem_flags;
 
@@ -1517,6 +1518,17 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 
 		if (nfit_mem->bdw && nfit_mem->memdev_pmem)
 			flags |= NDD_ALIASING;
+
+		/* collate flags across all memdevs for this dimm */
+		list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
+			struct acpi_nfit_memory_map *dimm_memdev;
+
+			dimm_memdev = __to_nfit_memdev(nfit_mem);
+			if (dimm_memdev->device_handle
+					!= nfit_memdev->memdev->device_handle)
+				continue;
+			dimm_memdev->flags |= nfit_memdev->memdev->flags;
+		}
 
 		mem_flags = __to_nfit_memdev(nfit_mem)->flags;
 		if (mem_flags & ACPI_NFIT_MEM_NOT_ARMED)
