@@ -371,6 +371,8 @@ static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 		 */
 		mwifiex_shutdown_sw(adapter);
 		adapter->surprise_removed = true;
+		clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
+		clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
 	} else {
 		/* Kernel stores and restores PCIe function context before and
 		 * after performing FLR respectively. Reconfigure the software
