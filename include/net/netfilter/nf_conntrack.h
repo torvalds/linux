@@ -273,11 +273,6 @@ static inline int nf_ct_is_dying(const struct nf_conn *ct)
 	return test_bit(IPS_DYING_BIT, &ct->status);
 }
 
-static inline int nf_ct_is_untracked(const struct nf_conn *ct)
-{
-	return false;
-}
-
 /* Packet is received from loopback */
 static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
 {

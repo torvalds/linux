@@ -121,9 +121,6 @@ xt_cluster_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (ct == NULL)
 		return false;
 
-	if (nf_ct_is_untracked(ct))
-		return false;
-
 	if (ct->master)
 		hash = xt_cluster_hash(ct->master, info);
 	else
