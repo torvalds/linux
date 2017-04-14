@@ -447,7 +447,7 @@ error:
 	return err;
 }
 
-static int esp_input_done2(struct sk_buff *skb, int err)
+static int esp6_input_done2(struct sk_buff *skb, int err)
 {
 	struct xfrm_state *x = xfrm_input_state(skb);
 	struct xfrm_offload *xo = xfrm_offload(skb);
@@ -499,7 +499,7 @@ static void esp_input_done(struct crypto_async_request *base, int err)
 {
 	struct sk_buff *skb = base->data;
 
-	xfrm_input_resume(skb, esp_input_done2(skb, err));
+	xfrm_input_resume(skb, esp6_input_done2(skb, err));
 }
 
 static void esp_input_restore_header(struct sk_buff *skb)
@@ -621,7 +621,7 @@ skip_cow:
 	if ((x->props.flags & XFRM_STATE_ESN))
 		esp_input_restore_header(skb);
 
-	ret = esp_input_done2(skb, ret);
+	ret = esp6_input_done2(skb, ret);
 
 out:
 	return ret;
