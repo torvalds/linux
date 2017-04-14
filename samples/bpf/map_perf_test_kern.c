@@ -26,7 +26,7 @@ struct bpf_map_def SEC("maps") lru_hash_map = {
 	.max_entries = 10000,
 };
 
-struct bpf_map_def SEC("maps") percpu_lru_hash_map = {
+struct bpf_map_def SEC("maps") nocommon_lru_hash_map = {
 	.type = BPF_MAP_TYPE_LRU_HASH,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -100,6 +100,7 @@ int stress_percpu_hmap(struct pt_regs *ctx)
 		bpf_map_delete_elem(&percpu_hash_map, &key);
 	return 0;
 }
+
 SEC("kprobe/sys_getgid")
 int stress_hmap_alloc(struct pt_regs *ctx)
 {
@@ -128,24 +129,42 @@ int stress_percpu_hmap_alloc(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/sys_getpid")
+SEC("kprobe/sys_connect")
 int stress_lru_hmap_alloc(struct pt_regs *ctx)
 {
-	u32 key = bpf_get_prandom_u32();
+	struct sockaddr_in6 *in6;
+	u16 test_case, dst6[8];
+	int addrlen, ret;
+	char fmt[] = "Failed at stress_lru_hmap_alloc. ret:%d\n";
 	long val = 1;
-
-	bpf_map_update_elem(&lru_hash_map, &key, &val, BPF_ANY);
-
-	return 0;
-}
-
-SEC("kprobe/sys_getppid")
-int stress_percpu_lru_hmap_alloc(struct pt_regs *ctx)
-{
 	u32 key = bpf_get_prandom_u32();
-	long val = 1;
 
-	bpf_map_update_elem(&percpu_lru_hash_map, &key, &val, BPF_ANY);
+	in6 = (struct sockaddr_in6 *)PT_REGS_PARM2(ctx);
+	addrlen = (int)PT_REGS_PARM3(ctx);
+
+	if (addrlen != sizeof(*in6))
+		return 0;
+
+	ret = bpf_probe_read(dst6, sizeof(dst6), &in6->sin6_addr);
+	if (ret)
+		goto done;
+
+	if (dst6[0] != 0xdead || dst6[1] != 0xbeef)
+		return 0;
+
+	test_case = dst6[7];
+
+	if (test_case == 0)
+		ret = bpf_map_update_elem(&lru_hash_map, &key, &val, BPF_ANY);
+	else if (test_case == 1)
+		ret = bpf_map_update_elem(&nocommon_lru_hash_map, &key, &val,
+					  BPF_ANY);
+	else
+		ret = -EINVAL;
+
+done:
+	if (ret)
+		bpf_trace_printk(fmt, sizeof(fmt), ret);
 
 	return 0;
 }

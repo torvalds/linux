@@ -18,6 +18,9 @@
 #include <string.h>
 #include <time.h>
 #include <sys/resource.h>
+#include <arpa/inet.h>
+#include <errno.h>
+
 #include "libbpf.h"
 #include "bpf_load.h"
 
@@ -36,7 +39,7 @@ static __u64 time_get_ns(void)
 #define HASH_KMALLOC		(1 << 2)
 #define PERCPU_HASH_KMALLOC	(1 << 3)
 #define LRU_HASH_PREALLOC	(1 << 4)
-#define PERCPU_LRU_HASH_PREALLOC	(1 << 5)
+#define NOCOMMON_LRU_HASH_PREALLOC	(1 << 5)
 #define LPM_KMALLOC		(1 << 6)
 #define HASH_LOOKUP		(1 << 7)
 #define ARRAY_LOOKUP		(1 << 8)
@@ -55,28 +58,44 @@ static void test_hash_prealloc(int cpu)
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 }
 
-static void test_lru_hash_prealloc(int cpu)
+static void do_test_lru(int lru_test_flag, int cpu)
 {
+	struct sockaddr_in6 in6 = { .sin6_family = AF_INET6 };
+	const char *test_name;
 	__u64 start_time;
-	int i;
+	int i, ret;
+
+	in6.sin6_addr.s6_addr16[0] = 0xdead;
+	in6.sin6_addr.s6_addr16[1] = 0xbeef;
+
+	if (lru_test_flag & LRU_HASH_PREALLOC) {
+		test_name = "lru_hash_map_perf";
+		in6.sin6_addr.s6_addr16[7] = 0;
+	} else if (lru_test_flag & NOCOMMON_LRU_HASH_PREALLOC) {
+		test_name = "nocommon_lru_hash_map_perf";
+		in6.sin6_addr.s6_addr16[7] = 1;
+	} else {
+		assert(0);
+	}
 
 	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
-		syscall(__NR_getpid);
-	printf("%d:lru_hash_map_perf pre-alloc %lld events per sec\n",
-	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+	for (i = 0; i < MAX_CNT; i++) {
+		ret = connect(-1, (const struct sockaddr *)&in6, sizeof(in6));
+		assert(ret == -1 && errno == EBADF);
+	}
+	printf("%d:%s pre-alloc %lld events per sec\n",
+	       cpu, test_name,
+	       MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 }
 
-static void test_percpu_lru_hash_prealloc(int cpu)
+static void test_lru_hash_prealloc(int cpu)
 {
-	__u64 start_time;
-	int i;
+	do_test_lru(LRU_HASH_PREALLOC, cpu);
+}
 
-	start_time = time_get_ns();
-	for (i = 0; i < MAX_CNT; i++)
-		syscall(__NR_getppid);
-	printf("%d:lru_hash_map_perf pre-alloc %lld events per sec\n",
-	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+static void test_nocommon_lru_hash_prealloc(int cpu)
+{
+	do_test_lru(NOCOMMON_LRU_HASH_PREALLOC, cpu);
 }
 
 static void test_percpu_hash_prealloc(int cpu)
@@ -174,8 +193,8 @@ static void loop(int cpu)
 	if (test_flags & LRU_HASH_PREALLOC)
 		test_lru_hash_prealloc(cpu);
 
-	if (test_flags & PERCPU_LRU_HASH_PREALLOC)
-		test_percpu_lru_hash_prealloc(cpu);
+	if (test_flags & NOCOMMON_LRU_HASH_PREALLOC)
+		test_nocommon_lru_hash_prealloc(cpu);
 
 	if (test_flags & LPM_KMALLOC)
 		test_lpm_kmalloc(cpu);
