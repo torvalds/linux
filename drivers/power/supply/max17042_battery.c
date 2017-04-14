@@ -220,6 +220,7 @@ static int max17042_get_property(struct power_supply *psy,
 	struct regmap *map = chip->regmap;
 	int ret;
 	u32 data;
+	u64 data64;
 
 	if (!chip->init_complete)
 		return -EAGAIN;
@@ -309,7 +310,9 @@ static int max17042_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return ret;
 
-		val->intval = data * 1000 / 2;
+		data64 = data * 5000000ll;
+		do_div(data64, chip->pdata->r_sns);
+		val->intval = data64;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		ret = regmap_read(map, MAX17042_QH, &data);
