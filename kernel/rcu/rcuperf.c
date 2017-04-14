@@ -452,6 +452,15 @@ rcu_perf_cleanup(void)
 	u64 *wdp;
 	u64 *wdpp;
 
+	/*
+	 * Would like warning at start, but everything is expedited
+	 * during the mid-boot phase, so have to wait till the end.
+	 */
+	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp)
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
+	if (rcu_gp_is_normal() && gp_exp)
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
+
 	if (torture_cleanup_begin())
 		return;
 
@@ -622,16 +631,6 @@ rcu_perf_init(void)
 	if (!writer_tasks || !writer_durations || !writer_n_durations) {
 		VERBOSE_PERFOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
-		goto unwind;
-	}
-	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp) {
-		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
-		firsterr = -EINVAL;
-		goto unwind;
-	}
-	if (rcu_gp_is_normal() && gp_exp) {
-		VERBOSE_PERFOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
-		firsterr = -EINVAL;
 		goto unwind;
 	}
 	for (i = 0; i < nrealwriters; i++) {
