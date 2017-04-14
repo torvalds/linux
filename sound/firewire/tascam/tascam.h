@@ -45,11 +45,6 @@ struct snd_tscm_spec {
 #define TSCM_MIDI_IN_PORT_MAX	4
 #define TSCM_MIDI_OUT_PORT_MAX	4
 
-struct snd_fw_async_midi_port;
-typedef int (*snd_fw_async_midi_port_fill)(
-				struct snd_rawmidi_substream *substream,
-				u8 *buf);
-
 struct snd_fw_async_midi_port {
 	struct fw_device *parent;
 	struct work_struct work;
@@ -64,7 +59,6 @@ struct snd_fw_async_midi_port {
 	unsigned int len;
 
 	struct snd_rawmidi_substream *substream;
-	snd_fw_async_midi_port_fill fill;
 	int consume_bytes;
 };
 
@@ -155,8 +149,7 @@ int snd_tscm_stream_lock_try(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_release(struct snd_tscm *tscm);
 
 int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
-		struct fw_unit *unit, u64 addr, unsigned int len,
-		snd_fw_async_midi_port_fill fill);
+		struct fw_unit *unit, u64 addr, unsigned int len);
 void snd_fw_async_midi_port_destroy(struct snd_fw_async_midi_port *port);
 
 static inline void

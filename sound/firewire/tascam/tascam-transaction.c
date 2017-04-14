@@ -197,7 +197,7 @@ static void midi_port_work(struct work_struct *work)
 	 * Later, snd_rawmidi_transmit_ack() is called.
 	 */
 	memset(port->buf, 0, port->len);
-	port->consume_bytes = port->fill(substream, port->buf);
+	port->consume_bytes = fill_message(substream, port->buf);
 	if (port->consume_bytes <= 0) {
 		/* Do it in next chance, immediately. */
 		if (port->consume_bytes == 0) {
@@ -242,8 +242,7 @@ static void midi_port_work(struct work_struct *work)
 }
 
 int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
-		struct fw_unit *unit, u64 addr, unsigned int len,
-		snd_fw_async_midi_port_fill fill)
+		struct fw_unit *unit, u64 addr, unsigned int len)
 {
 	port->len = DIV_ROUND_UP(len, 4) * 4;
 	port->buf = kzalloc(port->len, GFP_KERNEL);
@@ -252,7 +251,6 @@ int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
 
 	port->parent = fw_parent_device(unit);
 	port->addr = addr;
-	port->fill = fill;
 	port->idling = true;
 	port->next_ktime = 0;
 	port->error = false;
@@ -347,7 +345,7 @@ int snd_tscm_transaction_register(struct snd_tscm *tscm)
 		err = snd_fw_async_midi_port_init(
 				&tscm->out_ports[i], tscm->unit,
 				TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_RX_QUAD,
-				4, fill_message);
+				4);
 		if (err < 0)
 			goto error;
 	}
