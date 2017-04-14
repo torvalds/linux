@@ -30,6 +30,7 @@
 #define F34_IDLE_WAIT_MS	500
 #define F34_ENABLE_WAIT_MS	300
 #define F34_ERASE_WAIT_MS	5000
+#define F34_WRITE_WAIT_MS	3000
 
 #define F34_BOOTLOADER_ID_LEN	2
 
@@ -47,11 +48,6 @@
 #define CONFIG_ID_SIZE			32
 #define PRODUCT_ID_SIZE			10
 
-#define ENABLE_WAIT_MS			(1 * 1000)
-#define WRITE_WAIT_MS			(3 * 1000)
-
-#define MIN_SLEEP_TIME_US		50
-#define MAX_SLEEP_TIME_US		100
 
 #define HAS_BSR				BIT(5)
 #define HAS_CONFIG_ID			BIT(3)
@@ -292,6 +288,7 @@ struct f34v7_data {
 
 	const void *config_data;
 	const void *image;
+	struct completion cmd_done;
 };
 
 struct f34_data {
