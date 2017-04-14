@@ -55,6 +55,8 @@ struct snd_fw_async_midi_port {
 	struct fw_transaction transaction;
 
 	u8 buf[4];
+	u8 running_status;
+	bool on_sysex;
 
 	struct snd_rawmidi_substream *substream;
 	int consume_bytes;
@@ -87,8 +89,6 @@ struct snd_tscm {
 
 	/* For MIDI message outgoing transactions. */
 	struct snd_fw_async_midi_port out_ports[TSCM_MIDI_OUT_PORT_MAX];
-	u8 running_status[TSCM_MIDI_OUT_PORT_MAX];
-	bool on_sysex[TSCM_MIDI_OUT_PORT_MAX];
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull
