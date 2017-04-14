@@ -1702,7 +1702,16 @@ static int atmel_spi_suspend(struct device *dev)
 static int atmel_spi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
+	struct atmel_spi *as = spi_master_get_devdata(master);
 	int ret;
+
+	ret = clk_prepare_enable(as->clk);
+	if (ret)
+		return ret;
+
+	atmel_spi_init(as);
+
+	clk_disable_unprepare(as->clk);
 
 	if (!pm_runtime_suspended(dev)) {
 		ret = atmel_spi_runtime_resume(dev);
