@@ -3318,6 +3318,7 @@ static void mvneta_adjust_link(struct net_device *ndev)
 static int mvneta_mdio_probe(struct mvneta_port *pp)
 {
 	struct phy_device *phy_dev;
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 
 	phy_dev = of_phy_connect(pp->dev, pp->phy_node, mvneta_adjust_link, 0,
 				 pp->phy_interface);
@@ -3325,6 +3326,9 @@ static int mvneta_mdio_probe(struct mvneta_port *pp)
 		netdev_err(pp->dev, "could not find the PHY\n");
 		return -ENODEV;
 	}
+
+	phy_ethtool_get_wol(phy_dev, &wol);
+	device_set_wakeup_capable(&pp->dev->dev, !!wol.supported);
 
 	phy_dev->supported &= PHY_GBIT_FEATURES;
 	phy_dev->advertising = phy_dev->supported;
@@ -3942,10 +3946,16 @@ static void mvneta_ethtool_get_wol(struct net_device *dev,
 static int mvneta_ethtool_set_wol(struct net_device *dev,
 				  struct ethtool_wolinfo *wol)
 {
+	int ret;
+
 	if (!dev->phydev)
 		return -EOPNOTSUPP;
 
-	return phy_ethtool_set_wol(dev->phydev, wol);
+	ret = phy_ethtool_set_wol(dev->phydev, wol);
+	if (!ret)
+		device_set_wakeup_enable(&dev->dev, !!wol->wolopts);
+
+	return ret;
 }
 
 static const struct net_device_ops mvneta_netdev_ops = {
