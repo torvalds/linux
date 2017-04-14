@@ -251,7 +251,7 @@ static int rmi_irq_init(struct rmi_device *rmi_dev)
 
 	ret = devm_request_threaded_irq(&rmi_dev->dev, pdata->irq, NULL,
 					rmi_irq_fn, irq_flags | IRQF_ONESHOT,
-					dev_name(rmi_dev->xport->dev),
+					dev_driver_string(rmi_dev->xport->dev),
 					rmi_dev);
 	if (ret < 0) {
 		dev_err(&rmi_dev->dev, "Failed to register interrupt %d\n",
