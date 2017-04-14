@@ -198,6 +198,10 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	rdesc->owner = THIS_MODULE;
 
 	of_property_read_string(np, "regulator-name", &rdesc->name);
+	if (!rdesc->name) {
+		dev_err(dev, "failed to get a regulator-name\n");
+		return -EINVAL;
+	}
 
 	initdata = of_get_regulator_init_data(dev, np, rdesc);
 	if (!initdata)
@@ -300,8 +304,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 			sreg->sel = 22;
 
 		/* set the default voltage of the pcie phy to be 1.100v */
-		if (!sreg->sel && rdesc->name &&
-		    !strcmp(rdesc->name, "vddpcie"))
+		if (!sreg->sel && !strcmp(rdesc->name, "vddpcie"))
 			sreg->sel = 0x10;
 
 		if (!sreg->bypass && !sreg->sel) {
