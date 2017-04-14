@@ -534,7 +534,7 @@ static int rdt_min_cbm_bits_show(struct kernfs_open_file *of,
 {
 	struct rdt_resource *r = of->kn->parent->priv;
 
-	seq_printf(seq, "%d\n", r->min_cbm_bits);
+	seq_printf(seq, "%u\n", r->cache.min_cbm_bits);
 
 	return 0;
 }

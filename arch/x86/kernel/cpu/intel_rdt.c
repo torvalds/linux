@@ -37,56 +37,64 @@ DEFINE_MUTEX(rdtgroup_mutex);
 
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_closid);
 
-#define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
-
 /*
  * Used to store the max resource name width and max resource data width
  * to display the schemata in a tabular format
  */
 int max_name_width, max_data_width;
 
+#define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
+
 struct rdt_resource rdt_resources_all[] = {
 	{
-		.name		= "L3",
-		.domains	= domain_init(RDT_RESOURCE_L3),
-		.msr_base	= IA32_L3_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 3,
-		.cbm_idx_multi	= 1,
-		.cbm_idx_offset	= 0
+		.name			= "L3",
+		.domains		= domain_init(RDT_RESOURCE_L3),
+		.msr_base		= IA32_L3_CBM_BASE,
+		.cache_level		= 3,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 1,
+			.cbm_idx_offset	= 0,
+		},
 	},
 	{
-		.name		= "L3DATA",
-		.domains	= domain_init(RDT_RESOURCE_L3DATA),
-		.msr_base	= IA32_L3_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 3,
-		.cbm_idx_multi	= 2,
-		.cbm_idx_offset	= 0
+		.name			= "L3DATA",
+		.domains		= domain_init(RDT_RESOURCE_L3DATA),
+		.msr_base		= IA32_L3_CBM_BASE,
+		.cache_level		= 3,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 2,
+			.cbm_idx_offset	= 0,
+		},
 	},
 	{
-		.name		= "L3CODE",
-		.domains	= domain_init(RDT_RESOURCE_L3CODE),
-		.msr_base	= IA32_L3_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 3,
-		.cbm_idx_multi	= 2,
-		.cbm_idx_offset	= 1
+		.name			= "L3CODE",
+		.domains		= domain_init(RDT_RESOURCE_L3CODE),
+		.msr_base		= IA32_L3_CBM_BASE,
+		.cache_level		= 3,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 2,
+			.cbm_idx_offset	= 1,
+		},
 	},
 	{
-		.name		= "L2",
-		.domains	= domain_init(RDT_RESOURCE_L2),
-		.msr_base	= IA32_L2_CBM_BASE,
-		.min_cbm_bits	= 1,
-		.cache_level	= 2,
-		.cbm_idx_multi	= 1,
-		.cbm_idx_offset	= 0
+		.name			= "L2",
+		.domains		= domain_init(RDT_RESOURCE_L2),
+		.msr_base		= IA32_L2_CBM_BASE,
+		.cache_level		= 2,
+		.cache = {
+			.min_cbm_bits	= 1,
+			.cbm_idx_mult	= 1,
+			.cbm_idx_offset	= 0,
+		},
 	},
 };
 
-static int cbm_idx(struct rdt_resource *r, int closid)
+static unsigned int cbm_idx(struct rdt_resource *r, unsigned int closid)
 {
-	return closid * r->cbm_idx_multi + r->cbm_idx_offset;
+	return closid * r->cache.cbm_idx_mult + r->cache.cbm_idx_offset;
 }
 
 /*
@@ -124,9 +132,9 @@ static inline bool cache_alloc_hsw_probe(void)
 			return false;
 
 		r->num_closid = 4;
-		r->cbm_len = 20;
 		r->default_ctrl = max_cbm;
-		r->min_cbm_bits = 2;
+		r->cache.cbm_len = 20;
+		r->cache.min_cbm_bits = 2;
 		r->capable = true;
 		r->enabled = true;
 
@@ -144,9 +152,9 @@ static void rdt_get_cache_config(int idx, struct rdt_resource *r)
 
 	cpuid_count(0x00000010, idx, &eax.full, &ebx, &ecx, &edx.full);
 	r->num_closid = edx.split.cos_max + 1;
-	r->cbm_len = eax.split.cbm_len + 1;
+	r->cache.cbm_len = eax.split.cbm_len + 1;
 	r->default_ctrl = BIT_MASK(eax.split.cbm_len + 1) - 1;
-	r->data_width = (r->cbm_len + 3) / 4;
+	r->data_width = (r->cache.cbm_len + 3) / 4;
 	r->capable = true;
 	r->enabled = true;
 }
@@ -157,9 +165,9 @@ static void rdt_get_cdp_l3_config(int type)
 	struct rdt_resource *r = &rdt_resources_all[type];
 
 	r->num_closid = r_l3->num_closid / 2;
-	r->cbm_len = r_l3->cbm_len;
+	r->cache.cbm_len = r_l3->cache.cbm_len;
 	r->default_ctrl = r_l3->default_ctrl;
-	r->data_width = (r->cbm_len + 3) / 4;
+	r->data_width = (r->cache.cbm_len + 3) / 4;
 	r->capable = true;
 	/*
 	 * By default, CDP is disabled. CDP can be enabled by mount parameter
@@ -200,7 +208,7 @@ void rdt_ctrl_update(void *arg)
 
 found:
 	for (i = m->low; i < m->high; i++) {
-		int idx = cbm_idx(r, i);
+		unsigned int idx = cbm_idx(r, i);
 
 		wrmsrl(r->msr_base + idx, d->ctrl_val[i]);
 	}
@@ -282,7 +290,7 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 	}
 
 	for (i = 0; i < r->num_closid; i++) {
-		int idx = cbm_idx(r, i);
+		unsigned int idx = cbm_idx(r, i);
 
 		d->ctrl_val[i] = r->default_ctrl;
 		wrmsrl(r->msr_base + idx, d->ctrl_val[i]);

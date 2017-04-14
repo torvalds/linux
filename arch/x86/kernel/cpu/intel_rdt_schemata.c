@@ -37,17 +37,18 @@
 static bool cbm_validate(unsigned long var, struct rdt_resource *r)
 {
 	unsigned long first_bit, zero_bit;
+	unsigned int cbm_len = r->cache.cbm_len;
 
 	if (var == 0 || var > r->default_ctrl)
 		return false;
 
-	first_bit = find_first_bit(&var, r->cbm_len);
-	zero_bit = find_next_zero_bit(&var, r->cbm_len, first_bit);
+	first_bit = find_first_bit(&var, cbm_len);
+	zero_bit = find_next_zero_bit(&var, cbm_len, first_bit);
 
-	if (find_next_bit(&var, r->cbm_len, zero_bit) < r->cbm_len)
+	if (find_next_bit(&var, cbm_len, zero_bit) < cbm_len)
 		return false;
 
-	if ((zero_bit - first_bit) < r->min_cbm_bits)
+	if ((zero_bit - first_bit) < r->cache.min_cbm_bits)
 		return false;
 	return true;
 }
