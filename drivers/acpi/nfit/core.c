@@ -2581,6 +2581,7 @@ static void acpi_nfit_scrub(struct work_struct *work)
 			acpi_nfit_register_region(acpi_desc, nfit_spa);
 		}
 	}
+	acpi_desc->init_complete = 1;
 
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list)
 		acpi_nfit_async_scrub(acpi_desc, nfit_spa);
@@ -2783,6 +2784,12 @@ static int acpi_nfit_flush_probe(struct nvdimm_bus_descriptor *nd_desc)
 	/* bounce the device lock to flush acpi_nfit_add / acpi_nfit_notify */
 	device_lock(dev);
 	device_unlock(dev);
+
+	/* bounce the init_mutex to make init_complete valid */
+	mutex_lock(&acpi_desc->init_mutex);
+	mutex_unlock(&acpi_desc->init_mutex);
+	if (acpi_desc->init_complete)
+		return 0;
 
 	/*
 	 * Scrub work could take 10s of seconds, userspace may give up so we
