@@ -54,6 +54,13 @@
 	};
 
 	rt5651-sound {
+		status = "disabled";
+	};
+
+	hdmiin-sound {
+		compatible = "rockchip,rockchip-rt5651-tc358749x-sound";
+		rockchip,cpu = <&i2s0>;
+		rockchip,codec = <&rt5651 &rt5651 &tc358749x>;
 		status = "okay";
 	};
 };
