@@ -888,6 +888,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 	struct list_head ordered_vmas;
 	struct list_head pinned_vmas;
 	bool has_fenced_gpu_access = INTEL_GEN(engine->i915) < 4;
+	bool needs_unfenced_map = INTEL_INFO(engine->i915)->unfenced_needs_alignment;
 	int retry;
 
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
@@ -908,7 +909,8 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 		if (!has_fenced_gpu_access)
 			entry->flags &= ~EXEC_OBJECT_NEEDS_FENCE;
 		need_fence =
-			entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
+			(entry->flags & EXEC_OBJECT_NEEDS_FENCE ||
+			 needs_unfenced_map) &&
 			i915_gem_object_is_tiled(obj);
 		need_mappable = need_fence || need_reloc_mappable(vma);
 

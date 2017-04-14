@@ -102,4 +102,5 @@ NG4bzero:
 	bne,pt		%icc, 1b
 	 add		%o0, 0x30, %o0
 	ba,a,pt		%icc, .Lpostloop
+	 nop
 	.size		NG4bzero,.-NG4bzero
