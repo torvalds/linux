@@ -289,8 +289,8 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 				"mmSDMA%i_GFX_RB_WPTR == 0x%08x "
 				"mmSDMA%i_GFX_RB_WPTR_HI == 0x%08x \n",
 				me,
-				me,
 				lower_32_bits(ring->wptr << 2),
+				me,
 				upper_32_bits(ring->wptr << 2));
 		WREG32(sdma_v4_0_get_reg_offset(me, mmSDMA0_GFX_RB_WPTR), lower_32_bits(ring->wptr << 2));
 		WREG32(sdma_v4_0_get_reg_offset(me, mmSDMA0_GFX_RB_WPTR_HI), upper_32_bits(ring->wptr << 2));
