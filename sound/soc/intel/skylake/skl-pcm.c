@@ -1323,10 +1323,10 @@ int skl_platform_unregister(struct device *dev)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
 	struct skl *skl = ebus_to_skl(ebus);
-	struct skl_module_deferred_bind *modules;
+	struct skl_module_deferred_bind *modules, *tmp;
 
 	if (!list_empty(&skl->bind_list)) {
-		list_for_each_entry(modules, &skl->bind_list, node) {
+		list_for_each_entry_safe(modules, tmp, &skl->bind_list, node) {
 			list_del(&modules->node);
 			kfree(modules);
 		}

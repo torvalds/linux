@@ -1091,7 +1091,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	struct skl_module_cfg *src_module = NULL, *dst_module;
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_pipe *s_pipe = mconfig->pipe;
-	struct skl_module_deferred_bind *modules;
+	struct skl_module_deferred_bind *modules, *tmp;
 
 	if (s_pipe->state == SKL_PIPE_INVALID)
 		return -EINVAL;
@@ -1105,7 +1105,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 
 		src_module = w_module->w->priv;
 
-		list_for_each_entry(modules, &skl->bind_list, node) {
+		list_for_each_entry_safe(modules, tmp, &skl->bind_list, node) {
 			/*
 			 * When the destination module is deleted, Unbind the
 			 * modules from deferred bind list.
