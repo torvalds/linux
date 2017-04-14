@@ -121,8 +121,13 @@ static const struct flag_info flag_array[] = {
 		.set	= "user",
 		.clear	= "    ",
 	}, {
+#if _PAGE_RO == 0
 		.mask	= _PAGE_RW,
 		.val	= _PAGE_RW,
+#else
+		.mask	= _PAGE_RO,
+		.val	= 0,
+#endif
 		.set	= "rw",
 		.clear	= "ro",
 	}, {
@@ -222,6 +227,10 @@ static const struct flag_info flag_array[] = {
 		.mask	= _PAGE_SPECIAL,
 		.val	= _PAGE_SPECIAL,
 		.set	= "special",
+	}, {
+		.mask	= _PAGE_SHARED,
+		.val	= _PAGE_SHARED,
+		.set	= "shared",
 	}
 };
 
