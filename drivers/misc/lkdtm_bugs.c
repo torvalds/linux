@@ -69,7 +69,7 @@ void lkdtm_WARNING(void)
 
 void lkdtm_EXCEPTION(void)
 {
-	*((int *) 0) = 0;
+	*((volatile int *) 0) = 0;
 }
 
 void lkdtm_LOOP(void)
