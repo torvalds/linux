@@ -28,12 +28,14 @@ enum ip_conntrack_info {
 	/* only for userspace compatibility */
 #ifndef __KERNEL__
 	IP_CT_NEW_REPLY = IP_CT_NUMBER,
+#else
+	IP_CT_UNTRACKED = 7,
 #endif
 };
 
 #define NF_CT_STATE_INVALID_BIT			(1 << 0)
 #define NF_CT_STATE_BIT(ctinfo)			(1 << ((ctinfo) % IP_CT_IS_REPLY + 1))
-#define NF_CT_STATE_UNTRACKED_BIT		(1 << (IP_CT_NUMBER + 1))
+#define NF_CT_STATE_UNTRACKED_BIT		(1 << (IP_CT_UNTRACKED + 1))
 
 /* Bitset representing status of connection. */
 enum ip_conntrack_status {
@@ -94,7 +96,7 @@ enum ip_conntrack_status {
 	IPS_TEMPLATE_BIT = 11,
 	IPS_TEMPLATE = (1 << IPS_TEMPLATE_BIT),
 
-	/* Conntrack is a fake untracked entry */
+	/* Conntrack is a fake untracked entry.  Obsolete and not used anymore */
 	IPS_UNTRACKED_BIT = 12,
 	IPS_UNTRACKED = (1 << IPS_UNTRACKED_BIT),
 

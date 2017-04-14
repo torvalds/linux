@@ -72,12 +72,12 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 
 	switch (priv->key) {
 	case NFT_CT_STATE:
-		if (ct == NULL)
-			state = NF_CT_STATE_INVALID_BIT;
-		else if (nf_ct_is_untracked(ct))
+		if (ct)
+			state = NF_CT_STATE_BIT(ctinfo);
+		else if (ctinfo == IP_CT_UNTRACKED)
 			state = NF_CT_STATE_UNTRACKED_BIT;
 		else
-			state = NF_CT_STATE_BIT(ctinfo);
+			state = NF_CT_STATE_INVALID_BIT;
 		*dest = state;
 		return;
 	default:
@@ -718,12 +718,10 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 
 	ct = nf_ct_get(pkt->skb, &ctinfo);
 	/* Previously seen (loopback or untracked)?  Ignore. */
-	if (ct)
+	if (ct || ctinfo == IP_CT_UNTRACKED)
 		return;
 
-	ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
-	nf_ct_set(skb, ct, IP_CT_NEW);
+	nf_ct_set(skb, ct, IP_CT_UNTRACKED);
 }
 
 static struct nft_expr_type nft_notrack_type;

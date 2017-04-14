@@ -180,14 +180,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 
 unsigned int nf_conntrack_max __read_mostly;
 seqcount_t nf_conntrack_generation __read_mostly;
-
-/* nf_conn must be 8 bytes aligned, as the 3 LSB bits are used
- * for the nfctinfo. We cheat by (ab)using the PER CPU cache line
- * alignment to enforce this.
- */
-DEFINE_PER_CPU_ALIGNED(struct nf_conn, nf_conntrack_untracked);
-EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
-
 static unsigned int nf_conntrack_hash_rnd __read_mostly;
 
 static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
@@ -1314,9 +1306,10 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	int ret;
 
 	tmpl = nf_ct_get(skb, &ctinfo);
-	if (tmpl) {
+	if (tmpl || ctinfo == IP_CT_UNTRACKED) {
 		/* Previously seen (loopback or untracked)?  Ignore. */
-		if (!nf_ct_is_template(tmpl)) {
+		if ((tmpl && !nf_ct_is_template(tmpl)) ||
+		     ctinfo == IP_CT_UNTRACKED) {
 			NF_CT_STAT_INC_ATOMIC(net, ignore);
 			return NF_ACCEPT;
 		}
@@ -1629,18 +1622,6 @@ void nf_ct_free_hashtable(void *hash, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
-static int untrack_refs(void)
-{
-	int cnt = 0, cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct nf_conn *ct = &per_cpu(nf_conntrack_untracked, cpu);
-
-		cnt += atomic_read(&ct->ct_general.use) - 1;
-	}
-	return cnt;
-}
-
 void nf_conntrack_cleanup_start(void)
 {
 	conntrack_gc_work.exiting = true;
@@ -1650,8 +1631,6 @@ void nf_conntrack_cleanup_start(void)
 void nf_conntrack_cleanup_end(void)
 {
 	RCU_INIT_POINTER(nf_ct_destroy, NULL);
-	while (untrack_refs() > 0)
-		schedule();
 
 	cancel_delayed_work_sync(&conntrack_gc_work.dwork);
 	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_htable_size);
@@ -1825,20 +1804,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
 module_param_call(hashsize, nf_conntrack_set_hashsize, param_get_uint,
 		  &nf_conntrack_htable_size, 0600);
 
-void nf_ct_untracked_status_or(unsigned long bits)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(nf_conntrack_untracked, cpu).status |= bits;
-}
-EXPORT_SYMBOL_GPL(nf_ct_untracked_status_or);
-
 int nf_conntrack_init_start(void)
 {
 	int max_factor = 8;
 	int ret = -ENOMEM;
-	int i, cpu;
+	int i;
 
 	seqcount_init(&nf_conntrack_generation);
 
@@ -1921,15 +1891,6 @@ int nf_conntrack_init_start(void)
 	if (ret < 0)
 		goto err_proto;
 
-	/* Set up fake conntrack: to never be deleted, not in any hashes */
-	for_each_possible_cpu(cpu) {
-		struct nf_conn *ct = &per_cpu(nf_conntrack_untracked, cpu);
-		write_pnet(&ct->ct_net, &init_net);
-		atomic_set(&ct->ct_general.use, 1);
-	}
-	/*  - and look it like as a confirmed connection */
-	nf_ct_untracked_status_or(IPS_CONFIRMED | IPS_UNTRACKED);
-
 	conntrack_gc_work_init(&conntrack_gc_work);
 	queue_delayed_work(system_long_wq, &conntrack_gc_work.dwork, HZ);
 
@@ -1977,6 +1938,7 @@ int nf_conntrack_init_net(struct net *net)
 	int ret = -ENOMEM;
 	int cpu;
 
+	BUILD_BUG_ON(IP_CT_UNTRACKED == IP_CT_NUMBER);
 	atomic_set(&net->ct.count, 0);
 
 	net->ct.pcpu_lists = alloc_percpu(struct ct_pcpu);

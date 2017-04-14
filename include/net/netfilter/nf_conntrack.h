@@ -243,14 +243,6 @@ extern s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			       enum ip_conntrack_dir dir,
 			       u32 seq);
 
-/* Fake conntrack entry for untracked connections */
-DECLARE_PER_CPU_ALIGNED(struct nf_conn, nf_conntrack_untracked);
-static inline struct nf_conn *nf_ct_untracked_get(void)
-{
-	return raw_cpu_ptr(&nf_conntrack_untracked);
-}
-void nf_ct_untracked_status_or(unsigned long bits);
-
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
 void nf_ct_iterate_cleanup(struct net *net,
 			   int (*iter)(struct nf_conn *i, void *data),
@@ -283,7 +275,7 @@ static inline int nf_ct_is_dying(const struct nf_conn *ct)
 
 static inline int nf_ct_is_untracked(const struct nf_conn *ct)
 {
-	return test_bit(IPS_UNTRACKED_BIT, &ct->status);
+	return false;
 }
 
 /* Packet is received from loopback */

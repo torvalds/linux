@@ -861,9 +861,6 @@ static int __init nf_nat_init(void)
 
 	nf_ct_helper_expectfn_register(&follow_master_nat);
 
-	/* Initialize fake conntrack so that NAT will skip it */
-	nf_ct_untracked_status_or(IPS_NAT_DONE_MASK);
-
 	BUG_ON(nfnetlink_parse_nat_setup_hook != NULL);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook,
 			   nfnetlink_parse_nat_setup);
