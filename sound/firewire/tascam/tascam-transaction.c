@@ -239,10 +239,6 @@ static void midi_port_work(struct work_struct *work)
 int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
 		struct fw_unit *unit)
 {
-	port->buf = kzalloc(4, GFP_KERNEL);
-	if (port->buf == NULL)
-		return -ENOMEM;
-
 	port->parent = fw_parent_device(unit);
 	port->idling = true;
 	port->next_ktime = 0;
@@ -251,13 +247,6 @@ int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
 	INIT_WORK(&port->work, midi_port_work);
 
 	return 0;
-}
-
-void snd_fw_async_midi_port_destroy(struct snd_fw_async_midi_port *port)
-{
-	snd_fw_async_midi_port_finish(port);
-	cancel_work_sync(&port->work);
-	kfree(port->buf);
 }
 
 static void handle_midi_tx(struct fw_card *card, struct fw_request *request,
@@ -389,7 +378,6 @@ int snd_tscm_transaction_reregister(struct snd_tscm *tscm)
 void snd_tscm_transaction_unregister(struct snd_tscm *tscm)
 {
 	__be32 reg;
-	unsigned int i;
 
 	if (tscm->async_handler.callback_data == NULL)
 		return;
@@ -416,7 +404,4 @@ void snd_tscm_transaction_unregister(struct snd_tscm *tscm)
 
 	fw_core_remove_address_handler(&tscm->async_handler);
 	tscm->async_handler.callback_data = NULL;
-
-	for (i = 0; i < TSCM_MIDI_OUT_PORT_MAX; i++)
-		snd_fw_async_midi_port_destroy(&tscm->out_ports[i]);
 }
