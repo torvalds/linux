@@ -43,6 +43,9 @@ DEFINE_PER_CPU_READ_MOSTLY(int, cpu_closid);
  */
 int max_name_width, max_data_width;
 
+static void
+cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
+
 #define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
 
 struct rdt_resource rdt_resources_all[] = {
@@ -50,6 +53,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.name			= "L3",
 		.domains		= domain_init(RDT_RESOURCE_L3),
 		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
 			.min_cbm_bits	= 1,
@@ -61,6 +65,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.name			= "L3DATA",
 		.domains		= domain_init(RDT_RESOURCE_L3DATA),
 		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
 			.min_cbm_bits	= 1,
@@ -72,6 +77,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.name			= "L3CODE",
 		.domains		= domain_init(RDT_RESOURCE_L3CODE),
 		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
 			.min_cbm_bits	= 1,
@@ -83,6 +89,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.name			= "L2",
 		.domains		= domain_init(RDT_RESOURCE_L2),
 		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_update		= cat_wrmsr,
 		.cache_level		= 2,
 		.cache = {
 			.min_cbm_bits	= 1,
@@ -189,29 +196,31 @@ static int get_cache_id(int cpu, int level)
 	return -1;
 }
 
+static void
+cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+{
+	unsigned int i;
+
+	for (i = m->low; i < m->high; i++)
+		wrmsrl(r->msr_base + cbm_idx(r, i), d->ctrl_val[i]);
+}
+
 void rdt_ctrl_update(void *arg)
 {
-	struct msr_param *m = (struct msr_param *)arg;
+	struct msr_param *m = arg;
 	struct rdt_resource *r = m->res;
-	int i, cpu = smp_processor_id();
+	int cpu = smp_processor_id();
 	struct rdt_domain *d;
 
 	list_for_each_entry(d, &r->domains, list) {
 		/* Find the domain that contains this CPU */
-		if (cpumask_test_cpu(cpu, &d->cpu_mask))
-			goto found;
+		if (cpumask_test_cpu(cpu, &d->cpu_mask)) {
+			r->msr_update(d, m, r);
+			return;
+		}
 	}
-	pr_info_once("cpu %d not found in any domain for resource %s\n",
+	pr_warn_once("cpu %d not found in any domain for resource %s\n",
 		     cpu, r->name);
-
-	return;
-
-found:
-	for (i = m->low; i < m->high; i++) {
-		unsigned int idx = cbm_idx(r, i);
-
-		wrmsrl(r->msr_base + idx, d->ctrl_val[i]);
-	}
 }
 
 /*
@@ -247,6 +256,32 @@ static struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
 	return NULL;
 }
 
+static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
+{
+	struct msr_param m;
+	u32 *dc;
+	int i;
+
+	dc = kmalloc_array(r->num_closid, sizeof(*d->ctrl_val), GFP_KERNEL);
+	if (!dc)
+		return -ENOMEM;
+
+	d->ctrl_val = dc;
+
+	/*
+	 * Initialize the Control MSRs to having no control.
+	 * For Cache Allocation: Set all bits in cbm
+	 * For Memory Allocation: Set b/w requested to 100
+	 */
+	for (i = 0; i < r->num_closid; i++, dc++)
+		*dc = r->default_ctrl;
+
+	m.low = 0;
+	m.high = r->num_closid;
+	r->msr_update(d, &m, r);
+	return 0;
+}
+
 /*
  * domain_add_cpu - Add a cpu to a resource's domain list.
  *
@@ -262,7 +297,7 @@ static struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
  */
 static void domain_add_cpu(int cpu, struct rdt_resource *r)
 {
-	int i, id = get_cache_id(cpu, r->cache_level);
+	int id = get_cache_id(cpu, r->cache_level);
 	struct list_head *add_pos = NULL;
 	struct rdt_domain *d;
 
@@ -283,17 +318,9 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 
 	d->id = id;
 
-	d->ctrl_val = kmalloc_array(r->num_closid, sizeof(*d->ctrl_val), GFP_KERNEL);
-	if (!d->ctrl_val) {
+	if (domain_setup_ctrlval(r, d)) {
 		kfree(d);
 		return;
-	}
-
-	for (i = 0; i < r->num_closid; i++) {
-		unsigned int idx = cbm_idx(r, i);
-
-		d->ctrl_val[i] = r->default_ctrl;
-		wrmsrl(r->msr_base + idx, d->ctrl_val[i]);
 	}
 
 	cpumask_set_cpu(cpu, &d->cpu_mask);

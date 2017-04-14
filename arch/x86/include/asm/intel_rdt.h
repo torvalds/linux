@@ -74,48 +74,6 @@ struct rftype {
 };
 
 /**
- * struct rdt_cache - Cache allocation related data
- * @cbm_len:		Length of the cache bit mask
- * @min_cbm_bits:	Minimum number of consecutive bits to be set
- * @cbm_idx_mult:	Multiplier of CBM index
- * @cbm_idx_offset:	Offset of CBM index. CBM index is computed by:
- *			closid * cbm_idx_multi + cbm_idx_offset
- *			in a cache bit mask
- */
-struct rdt_cache {
-	unsigned int	cbm_len;
-	unsigned int	min_cbm_bits;
-	unsigned int	cbm_idx_mult;
-	unsigned int	cbm_idx_offset;
-};
-
-/**
- * struct rdt_resource - attributes of an RDT resource
- * @enabled:		Is this feature enabled on this machine
- * @capable:		Is this feature available on this machine
- * @name:		Name to use in "schemata" file
- * @num_closid:		Number of CLOSIDs available
- * @cache_level:	Which cache level defines scope of this resource
- * @default_ctrl:	Specifies default cache cbm or memory B/W percent.
- * @msr_base:		Base MSR address for CBMs
- * @data_width:		Character width of data when displaying
- * @domains:		All domains for this resource
- * @cache:		Cache allocation related data
- */
-struct rdt_resource {
-	bool			enabled;
-	bool			capable;
-	char			*name;
-	int			num_closid;
-	int			cache_level;
-	u32			default_ctrl;
-	unsigned int		msr_base;
-	int			data_width;
-	struct list_head	domains;
-	struct rdt_cache	cache;
-};
-
-/**
  * struct rdt_domain - group of cpus sharing an RDT resource
  * @list:	all instances of this resource
  * @id:		unique id for this instance
@@ -143,6 +101,51 @@ struct msr_param {
 	struct rdt_resource	*res;
 	int			low;
 	int			high;
+};
+
+/**
+ * struct rdt_cache - Cache allocation related data
+ * @cbm_len:		Length of the cache bit mask
+ * @min_cbm_bits:	Minimum number of consecutive bits to be set
+ * @cbm_idx_mult:	Multiplier of CBM index
+ * @cbm_idx_offset:	Offset of CBM index. CBM index is computed by:
+ *			closid * cbm_idx_multi + cbm_idx_offset
+ *			in a cache bit mask
+ */
+struct rdt_cache {
+	unsigned int	cbm_len;
+	unsigned int	min_cbm_bits;
+	unsigned int	cbm_idx_mult;
+	unsigned int	cbm_idx_offset;
+};
+
+/**
+ * struct rdt_resource - attributes of an RDT resource
+ * @enabled:		Is this feature enabled on this machine
+ * @capable:		Is this feature available on this machine
+ * @name:		Name to use in "schemata" file
+ * @num_closid:		Number of CLOSIDs available
+ * @cache_level:	Which cache level defines scope of this resource
+ * @default_ctrl:	Specifies default cache cbm or memory B/W percent.
+ * @msr_base:		Base MSR address for CBMs
+ * @msr_update:		Function pointer to update QOS MSRs
+ * @data_width:		Character width of data when displaying
+ * @domains:		All domains for this resource
+ * @cache:		Cache allocation related data
+ */
+struct rdt_resource {
+	bool			enabled;
+	bool			capable;
+	char			*name;
+	int			num_closid;
+	int			cache_level;
+	u32			default_ctrl;
+	unsigned int		msr_base;
+	void (*msr_update)	(struct rdt_domain *d, struct msr_param *m,
+				 struct rdt_resource *r);
+	int			data_width;
+	struct list_head	domains;
+	struct rdt_cache	cache;
 };
 
 extern struct mutex rdtgroup_mutex;
