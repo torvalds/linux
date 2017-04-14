@@ -31,7 +31,7 @@
 	status = "okay";
 
 	eeprom@51 {
-		compatible = "st,24c64";
+		compatible = "st,24c64", "atmel,24c64";
 		reg = <0x51>;
 		pagesize = <32>;
 	};
