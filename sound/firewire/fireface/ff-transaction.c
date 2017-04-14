@@ -21,7 +21,7 @@ static void finish_transmit_midi_msg(struct snd_ff *ff, unsigned int port,
 
 	if (rcode != RCODE_COMPLETE) {
 		/* Transfer the message again, immediately. */
-		ff->next_ktime[port] = ktime_set(0, 0);
+		ff->next_ktime[port] = 0;
 		schedule_work(&ff->rx_midi_work[port]);
 		return;
 	}
