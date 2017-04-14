@@ -17,6 +17,24 @@ static inline int ifindex_to_name(int sock, struct lkl_ifreq *ifr, int ifindex)
 	return lkl_sys_ioctl(sock, LKL_SIOCGIFNAME, (long)ifr);
 }
 
+int lkl_ifname_to_ifindex(const char *name)
+{
+	struct lkl_ifreq ifr;
+	int fd, ret;
+
+	fd = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_DGRAM, 0);
+	if (fd < 0)
+		return fd;
+
+	strcpy(ifr.lkl_ifr_name, name);
+
+	ret = lkl_sys_ioctl(fd, LKL_SIOCGIFINDEX, (long)&ifr);
+	if (ret < 0)
+		return ret;
+
+	return ifr.lkl_ifr_ifindex;
+}
+
 int lkl_if_up(int ifindex)
 {
 	struct lkl_ifreq ifr;
