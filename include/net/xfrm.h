@@ -222,6 +222,8 @@ struct xfrm_state {
 	struct xfrm_mode	*inner_mode_iaf;
 	struct xfrm_mode	*outer_mode;
 
+	const struct xfrm_type_offload	*type_offload;
+
 	/* Security context */
 	struct xfrm_sec_ctx	*security;
 
@@ -314,12 +316,14 @@ void km_state_expired(struct xfrm_state *x, int hard, u32 portid);
 int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
-	unsigned int		family;
-	unsigned int		proto;
-	__be16			eth_proto;
-	struct module		*owner;
-	const struct xfrm_type	*type_map[IPPROTO_MAX];
-	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
+	unsigned int			family;
+	unsigned int			proto;
+	__be16				eth_proto;
+	struct module			*owner;
+	const struct xfrm_type		*type_map[IPPROTO_MAX];
+	const struct xfrm_type_offload	*type_offload_map[IPPROTO_MAX];
+	struct xfrm_mode		*mode_map[XFRM_MODE_MAX];
+
 	int			(*init_flags)(struct xfrm_state *x);
 	void			(*init_tempsel)(struct xfrm_selector *sel,
 						const struct flowi *fl);
@@ -379,6 +383,18 @@ struct xfrm_type {
 
 int xfrm_register_type(const struct xfrm_type *type, unsigned short family);
 int xfrm_unregister_type(const struct xfrm_type *type, unsigned short family);
+
+struct xfrm_type_offload {
+	char		*description;
+	struct module	*owner;
+	u8		proto;
+	void		(*encap)(struct xfrm_state *, struct sk_buff *pskb);
+	int		(*input_tail)(struct xfrm_state *x, struct sk_buff *skb);
+	int		(*xmit)(struct xfrm_state *, struct sk_buff *pskb, netdev_features_t features);
+};
+
+int xfrm_register_type_offload(const struct xfrm_type_offload *type, unsigned short family);
+int xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
 
 struct xfrm_mode {
 	/*
