@@ -70,6 +70,16 @@ config SND_SOC_ROCKCHIP_RT5645
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using the RT5645/RT5650 codec, such as Veyron.
 
+config SND_SOC_ROCKCHIP_RT5651_TC358749
+	tristate "ASoC support for Rockchip boards RT5651 TC358749 HDMIIN"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_RT5651
+	select SND_SOC_TC358749X
+	help
+	  Say Y or M here if you want to add support for SoC audio on Rockchip
+	  boards for RT5651 TC358749 HDMIIn
+
 config SND_SOC_ROCKCHIP_CDNDP
 	tristate "ASoC support for Rockchip CDN DP common codec"
 	depends on SND_SOC_ROCKCHIP && CLKDEV_LOOKUP
