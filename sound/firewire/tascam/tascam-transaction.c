@@ -230,20 +230,20 @@ static void midi_port_work(struct work_struct *work)
 	fw_send_request(port->parent->card, &port->transaction,
 			TCODE_WRITE_QUADLET_REQUEST,
 			port->parent->node_id, generation,
-			port->parent->max_speed, port->addr,
+			port->parent->max_speed,
+			TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_RX_QUAD,
 			port->buf, 4, async_midi_port_callback,
 			port);
 }
 
 int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
-		struct fw_unit *unit, u64 addr)
+		struct fw_unit *unit)
 {
 	port->buf = kzalloc(4, GFP_KERNEL);
 	if (port->buf == NULL)
 		return -ENOMEM;
 
 	port->parent = fw_parent_device(unit);
-	port->addr = addr;
 	port->idling = true;
 	port->next_ktime = 0;
 	port->error = false;
@@ -336,8 +336,7 @@ int snd_tscm_transaction_register(struct snd_tscm *tscm)
 
 	for (i = 0; i < TSCM_MIDI_OUT_PORT_MAX; i++) {
 		err = snd_fw_async_midi_port_init(
-				&tscm->out_ports[i], tscm->unit,
-				TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_RX_QUAD);
+				&tscm->out_ports[i], tscm->unit);
 		if (err < 0)
 			goto error;
 	}
