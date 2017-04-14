@@ -1149,7 +1149,7 @@ static int rt5514_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-struct i2c_driver rt5514_i2c_driver = {
+static struct i2c_driver rt5514_i2c_driver = {
 	.driver = {
 		.name = "rt5514",
 		.of_match_table = of_match_ptr(rt5514_of_match),
