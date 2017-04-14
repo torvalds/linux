@@ -76,6 +76,7 @@ struct max17042_chip {
 };
 
 static enum power_supply_property max17042_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
@@ -110,6 +111,46 @@ static int max17042_get_temperature(struct max17042_chip *chip, int *temp)
 	/* The value is converted into deci-centigrade scale */
 	/* Units of LSB = 1 / 256 degree Celsius */
 	*temp = *temp * 10 / 256;
+	return 0;
+}
+
+static int max17042_get_status(struct max17042_chip *chip, int *status)
+{
+	int ret, charge_full, charge_now;
+
+	ret = power_supply_am_i_supplied(chip->battery);
+	if (ret < 0) {
+		*status = POWER_SUPPLY_STATUS_UNKNOWN;
+		return 0;
+	}
+	if (ret == 0) {
+		*status = POWER_SUPPLY_STATUS_DISCHARGING;
+		return 0;
+	}
+
+	/*
+	 * The MAX170xx has builtin end-of-charge detection and will update
+	 * FullCAP to match RepCap when it detects end of charging.
+	 *
+	 * When this cycle the battery gets charged to a higher (calculated)
+	 * capacity then the previous cycle then FullCAP will get updated
+	 * contineously once end-of-charge detection kicks in, so allow the
+	 * 2 to differ a bit.
+	 */
+
+	ret = regmap_read(chip->regmap, MAX17042_FullCAP, &charge_full);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(chip->regmap, MAX17042_RepCap, &charge_now);
+	if (ret < 0)
+		return ret;
+
+	if ((charge_full - charge_now) <= MAX17042_FULL_THRESHOLD)
+		*status = POWER_SUPPLY_STATUS_FULL;
+	else
+		*status = POWER_SUPPLY_STATUS_CHARGING;
+
 	return 0;
 }
 
@@ -182,6 +223,11 @@ static int max17042_get_property(struct power_supply *psy,
 		return -EAGAIN;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = max17042_get_status(chip, &val->intval);
+		if (ret < 0)
+			return ret;
+		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		ret = regmap_read(map, MAX17042_STATUS, &data);
 		if (ret < 0)
