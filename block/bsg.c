@@ -573,7 +573,7 @@ bsg_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	int ret;
 	ssize_t bytes_read;
 
-	dprintk("%s: read %Zd bytes\n", bd->name, count);
+	dprintk("%s: read %zd bytes\n", bd->name, count);
 
 	bsg_set_block(bd, file);
 
@@ -648,7 +648,7 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	ssize_t bytes_written;
 	int ret;
 
-	dprintk("%s: write %Zd bytes\n", bd->name, count);
+	dprintk("%s: write %zd bytes\n", bd->name, count);
 
 	if (unlikely(segment_eq(get_fs(), KERNEL_DS)))
 		return -EINVAL;
@@ -667,7 +667,7 @@ bsg_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	if (!bytes_written || err_block_err(ret))
 		bytes_written = ret;
 
-	dprintk("%s: returning %Zd\n", bd->name, bytes_written);
+	dprintk("%s: returning %zd\n", bd->name, bytes_written);
 	return bytes_written;
 }
 

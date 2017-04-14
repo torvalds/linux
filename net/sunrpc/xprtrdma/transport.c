@@ -67,7 +67,7 @@ unsigned int xprt_rdma_max_inline_read = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_inline_write_padding;
 static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_FRMR;
-		int xprt_rdma_pad_optimize = 1;
+		int xprt_rdma_pad_optimize = 0;
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 
@@ -709,10 +709,6 @@ xprt_rdma_send_request(struct rpc_task *task)
 	return 0;
 
 failed_marshal:
-	dprintk("RPC:       %s: rpcrdma_marshal_req failed, status %i\n",
-		__func__, rc);
-	if (rc == -EIO)
-		r_xprt->rx_stats.failed_marshal_count++;
 	if (rc != -ENOTCONN)
 		return rc;
 drop_connection:

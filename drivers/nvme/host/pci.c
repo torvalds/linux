@@ -613,10 +613,7 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	spin_lock_irq(&nvmeq->q_lock);
 	if (unlikely(nvmeq->cq_vector < 0)) {
-		if (ns && !test_bit(NVME_NS_DEAD, &ns->flags))
-			ret = BLK_MQ_RQ_QUEUE_BUSY;
-		else
-			ret = BLK_MQ_RQ_QUEUE_ERROR;
+		ret = BLK_MQ_RQ_QUEUE_ERROR;
 		spin_unlock_irq(&nvmeq->q_lock);
 		goto out_cleanup_iod;
 	}
@@ -1041,9 +1038,10 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 }
 
 static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
-							int depth)
+							int depth, int node)
 {
-	struct nvme_queue *nvmeq = kzalloc(sizeof(*nvmeq), GFP_KERNEL);
+	struct nvme_queue *nvmeq = kzalloc_node(sizeof(*nvmeq), GFP_KERNEL,
+							node);
 	if (!nvmeq)
 		return NULL;
 
@@ -1220,7 +1218,8 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 
 	nvmeq = dev->queues[0];
 	if (!nvmeq) {
-		nvmeq = nvme_alloc_queue(dev, 0, NVME_AQ_DEPTH);
+		nvmeq = nvme_alloc_queue(dev, 0, NVME_AQ_DEPTH,
+					dev_to_node(dev->dev));
 		if (!nvmeq)
 			return -ENOMEM;
 	}
@@ -1312,7 +1311,9 @@ static int nvme_create_io_queues(struct nvme_dev *dev)
 	int ret = 0;
 
 	for (i = dev->queue_count; i <= dev->max_qid; i++) {
-		if (!nvme_alloc_queue(dev, i, dev->q_depth)) {
+		/* vector == qid - 1, match nvme_create_queue */
+		if (!nvme_alloc_queue(dev, i, dev->q_depth,
+		     pci_irq_get_node(to_pci_dev(dev->dev), i - 1))) {
 			ret = -ENOMEM;
 			break;
 		}
@@ -1674,21 +1675,34 @@ static void nvme_pci_disable(struct nvme_dev *dev)
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
 	int i, queues;
-	u32 csts = -1;
+	bool dead = true;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	del_timer_sync(&dev->watchdog_timer);
 
 	mutex_lock(&dev->shutdown_lock);
-	if (pci_is_enabled(to_pci_dev(dev->dev))) {
-		nvme_stop_queues(&dev->ctrl);
-		csts = readl(dev->bar + NVME_REG_CSTS);
+	if (pci_is_enabled(pdev)) {
+		u32 csts = readl(dev->bar + NVME_REG_CSTS);
+
+		if (dev->ctrl.state == NVME_CTRL_LIVE)
+			nvme_start_freeze(&dev->ctrl);
+		dead = !!((csts & NVME_CSTS_CFS) || !(csts & NVME_CSTS_RDY) ||
+			pdev->error_state  != pci_channel_io_normal);
 	}
+
+	/*
+	 * Give the controller a chance to complete all entered requests if
+	 * doing a safe shutdown.
+	 */
+	if (!dead && shutdown)
+		nvme_wait_freeze_timeout(&dev->ctrl, NVME_IO_TIMEOUT);
+	nvme_stop_queues(&dev->ctrl);
 
 	queues = dev->online_queues - 1;
 	for (i = dev->queue_count - 1; i > 0; i--)
 		nvme_suspend_queue(dev->queues[i]);
 
-	if (csts & NVME_CSTS_CFS || !(csts & NVME_CSTS_RDY)) {
+	if (dead) {
 		/* A device might become IO incapable very soon during
 		 * probe, before the admin queue is configured. Thus,
 		 * queue_count can be 0 here.
@@ -1703,6 +1717,14 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 
 	blk_mq_tagset_busy_iter(&dev->tagset, nvme_cancel_request, &dev->ctrl);
 	blk_mq_tagset_busy_iter(&dev->admin_tagset, nvme_cancel_request, &dev->ctrl);
+
+	/*
+	 * The driver will not be starting up queues again if shutting down so
+	 * must flush all entered requests to their failed completion to avoid
+	 * deadlocking blk-mq hot-cpu notifier.
+	 */
+	if (shutdown)
+		nvme_start_queues(&dev->ctrl);
 	mutex_unlock(&dev->shutdown_lock);
 }
 
@@ -1739,7 +1761,7 @@ static void nvme_pci_free_ctrl(struct nvme_ctrl *ctrl)
 	if (dev->ctrl.admin_q)
 		blk_put_queue(dev->ctrl.admin_q);
 	kfree(dev->queues);
-	kfree(dev->ctrl.opal_dev);
+	free_opal_dev(dev->ctrl.opal_dev);
 	kfree(dev);
 }
 
@@ -1789,13 +1811,16 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result)
 		goto out;
 
-	if ((dev->ctrl.oacs & NVME_CTRL_OACS_SEC_SUPP) && !dev->ctrl.opal_dev) {
-		dev->ctrl.opal_dev =
-			init_opal_dev(&dev->ctrl, &nvme_sec_submit);
+	if (dev->ctrl.oacs & NVME_CTRL_OACS_SEC_SUPP) {
+		if (!dev->ctrl.opal_dev)
+			dev->ctrl.opal_dev =
+				init_opal_dev(&dev->ctrl, &nvme_sec_submit);
+		else if (was_suspend)
+			opal_unlock_from_suspend(dev->ctrl.opal_dev);
+	} else {
+		free_opal_dev(dev->ctrl.opal_dev);
+		dev->ctrl.opal_dev = NULL;
 	}
-
-	if (was_suspend)
-		opal_unlock_from_suspend(dev->ctrl.opal_dev);
 
 	result = nvme_setup_io_queues(dev);
 	if (result)
@@ -1822,7 +1847,9 @@ static void nvme_reset_work(struct work_struct *work)
 		nvme_remove_namespaces(&dev->ctrl);
 	} else {
 		nvme_start_queues(&dev->ctrl);
+		nvme_wait_freeze(&dev->ctrl);
 		nvme_dev_add(dev);
+		nvme_unfreeze(&dev->ctrl);
 	}
 
 	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_LIVE)) {
@@ -2001,8 +2028,10 @@ static void nvme_remove(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, NULL);
 
-	if (!pci_device_is_present(pdev))
+	if (!pci_device_is_present(pdev)) {
 		nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DEAD);
+		nvme_dev_disable(dev, false);
+	}
 
 	flush_work(&dev->reset_work);
 	nvme_uninit_ctrl(&dev->ctrl);
@@ -2121,6 +2150,7 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY, },
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2001) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2003) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, nvme_id_table);

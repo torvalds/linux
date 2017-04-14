@@ -37,7 +37,7 @@
 #include <linux/idr.h>
 #include <linux/completion.h>
 #include <linux/netdevice.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/inet.h>

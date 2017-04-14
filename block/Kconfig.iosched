@@ -69,50 +69,6 @@ config MQ_IOSCHED_DEADLINE
 	---help---
 	  MQ version of the deadline IO scheduler.
 
-config MQ_IOSCHED_NONE
-	bool
-	default y
-
-choice
-	prompt "Default single-queue blk-mq I/O scheduler"
-	default DEFAULT_SQ_NONE
-	help
-	  Select the I/O scheduler which will be used by default for blk-mq
-	  managed block devices with a single queue.
-
-	config DEFAULT_SQ_DEADLINE
-		bool "MQ Deadline" if MQ_IOSCHED_DEADLINE=y
-
-	config DEFAULT_SQ_NONE
-		bool "None"
-
-endchoice
-
-config DEFAULT_SQ_IOSCHED
-	string
-	default "mq-deadline" if DEFAULT_SQ_DEADLINE
-	default "none" if DEFAULT_SQ_NONE
-
-choice
-	prompt "Default multi-queue blk-mq I/O scheduler"
-	default DEFAULT_MQ_NONE
-	help
-	  Select the I/O scheduler which will be used by default for blk-mq
-	  managed block devices with multiple queues.
-
-	config DEFAULT_MQ_DEADLINE
-		bool "MQ Deadline" if MQ_IOSCHED_DEADLINE=y
-
-	config DEFAULT_MQ_NONE
-		bool "None"
-
-endchoice
-
-config DEFAULT_MQ_IOSCHED
-	string
-	default "mq-deadline" if DEFAULT_MQ_DEADLINE
-	default "none" if DEFAULT_MQ_NONE
-
 endmenu
 
 endif

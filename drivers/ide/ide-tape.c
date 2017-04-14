@@ -1136,7 +1136,7 @@ static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 	ssize_t ret = 0;
 	int rc;
 
-	ide_debug_log(IDE_DBG_FUNC, "count %Zd", count);
+	ide_debug_log(IDE_DBG_FUNC, "count %zd", count);
 
 	if (tape->chrdev_dir != IDETAPE_DIR_READ) {
 		if (test_bit(ilog2(IDE_AFLAG_DETECT_BS), &drive->atapi_flags))
@@ -1195,7 +1195,7 @@ static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 	if (tape->write_prot)
 		return -EACCES;
 
-	ide_debug_log(IDE_DBG_FUNC, "count %Zd", count);
+	ide_debug_log(IDE_DBG_FUNC, "count %zd", count);
 
 	/* Initialize write operation */
 	rc = idetape_init_rw(drive, IDETAPE_DIR_WRITE);

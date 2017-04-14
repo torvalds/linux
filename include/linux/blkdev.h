@@ -2,6 +2,7 @@
 #define _LINUX_BLKDEV_H
 
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -434,7 +435,6 @@ struct request_queue {
 	struct delayed_work	delay_work;
 
 	struct backing_dev_info	*backing_dev_info;
-	struct disk_devt	*disk_devt;
 
 	/*
 	 * The queue owner gets to use this for whatever they like.
@@ -610,7 +610,6 @@ struct request_queue {
 #define QUEUE_FLAG_FLUSH_NQ    25	/* flush not queueuable */
 #define QUEUE_FLAG_DAX         26	/* device supports DAX */
 #define QUEUE_FLAG_STATS       27	/* track rq completion times */
-#define QUEUE_FLAG_RESTART     28	/* queue needs restart at completion */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\

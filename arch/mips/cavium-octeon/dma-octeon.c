@@ -200,7 +200,7 @@ static phys_addr_t octeon_unity_dma_to_phys(struct device *dev, dma_addr_t daddr
 }
 
 struct octeon_dma_map_ops {
-	struct dma_map_ops dma_map_ops;
+	const struct dma_map_ops dma_map_ops;
 	dma_addr_t (*phys_to_dma)(struct device *dev, phys_addr_t paddr);
 	phys_addr_t (*dma_to_phys)(struct device *dev, dma_addr_t daddr);
 };
@@ -328,7 +328,7 @@ static struct octeon_dma_map_ops _octeon_pci_dma_map_ops = {
 	},
 };
 
-struct dma_map_ops *octeon_pci_dma_map_ops;
+const struct dma_map_ops *octeon_pci_dma_map_ops;
 
 void __init octeon_pci_dma_init(void)
 {

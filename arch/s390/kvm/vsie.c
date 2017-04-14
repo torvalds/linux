@@ -14,6 +14,8 @@
 #include <linux/bug.h>
 #include <linux/list.h>
 #include <linux/bitmap.h>
+#include <linux/sched/signal.h>
+
 #include <asm/gmap.h>
 #include <asm/mmu_context.h>
 #include <asm/sclp.h>

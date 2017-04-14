@@ -27,6 +27,8 @@
 #include <linux/inetdevice.h>
 #include <linux/workqueue.h>
 #include <linux/in.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <net/smc.h>
@@ -942,7 +944,7 @@ out:
 }
 
 static int smc_accept(struct socket *sock, struct socket *new_sock,
-		      int flags)
+		      int flags, bool kern)
 {
 	struct sock *sk = sock->sk, *nsk;
 	DECLARE_WAITQUEUE(wait, current);

@@ -498,7 +498,7 @@ setup_ntlmv2_ret:
 }
 
 enum securityEnum
-select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
+cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 {
 	switch (server->negflavor) {
 	case CIFS_NEGFLAVOR_EXTENDED:
@@ -1391,7 +1391,7 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 {
 	int type;
 
-	type = select_sectype(ses->server, ses->sectype);
+	type = cifs_select_sectype(ses->server, ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
 	if (type == Unspecified) {
 		cifs_dbg(VFS,

@@ -89,7 +89,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_EnableSideportControl,                 /* indicates Sideport can be controlled */
 	PHM_PlatformCaps_VideoPlaybackEEUNotification,          /* indicates EEU notification of video start/stop is required */
 	PHM_PlatformCaps_TurnOffPll_ASPML1,                     /* PCIE Turn Off PLL in ASPM L1 */
-	PHM_PlatformCaps_EnableHTLinkControl,                   /* indicates HT Link can be controlled by ACPI or CLMC overrided/automated mode. */
+	PHM_PlatformCaps_EnableHTLinkControl,                   /* indicates HT Link can be controlled by ACPI or CLMC overridden/automated mode. */
 	PHM_PlatformCaps_PerformanceStateOnly,                  /* indicates only performance power state to be used on current system. */
 	PHM_PlatformCaps_ExclusiveModeAlwaysHigh,               /* In Exclusive (3D) mode always stay in High state. */
 	PHM_PlatformCaps_DisableMGClockGating,                  /* to disable Medium Grain Clock Gating or not */

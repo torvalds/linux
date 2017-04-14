@@ -1550,7 +1550,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->owner = THIS_MODULE;
 	ibdev->node_guid = ppd->guid;
 	ibdev->phys_port_cnt = dd->num_pports;
-	ibdev->dma_device = &dd->pcidev->dev;
+	ibdev->dev.parent = &dd->pcidev->dev;
 	ibdev->modify_device = qib_modify_device;
 	ibdev->process_mad = qib_process_mad;
 

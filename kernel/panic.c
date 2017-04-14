@@ -9,6 +9,7 @@
  * to indicate a major problem.
  */
 #include <linux/debug_locks.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
@@ -273,7 +274,8 @@ void panic(const char *fmt, ...)
 		extern int stop_a_enabled;
 		/* Make sure the user can actually press Stop-A (L1-A) */
 		stop_a_enabled = 1;
-		pr_emerg("Press Stop-A (L1-A) to return to the boot prom\n");
+		pr_emerg("Press Stop-A (L1-A) from sun keyboard or send break\n"
+			 "twice on console to return to the boot prom\n");
 	}
 #endif
 #if defined(CONFIG_S390)

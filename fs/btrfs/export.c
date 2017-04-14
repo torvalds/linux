@@ -30,7 +30,7 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	len  = BTRFS_FID_SIZE_NON_CONNECTABLE;
 	type = FILEID_BTRFS_WITHOUT_PARENT;
 
-	fid->objectid = btrfs_ino(inode);
+	fid->objectid = btrfs_ino(BTRFS_I(inode));
 	fid->root_objectid = BTRFS_I(inode)->root->objectid;
 	fid->gen = inode->i_generation;
 
@@ -166,13 +166,13 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
-	if (btrfs_ino(dir) == BTRFS_FIRST_FREE_OBJECTID) {
+	if (btrfs_ino(BTRFS_I(dir)) == BTRFS_FIRST_FREE_OBJECTID) {
 		key.objectid = root->root_key.objectid;
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;
 	} else {
-		key.objectid = btrfs_ino(dir);
+		key.objectid = btrfs_ino(BTRFS_I(dir));
 		key.type = BTRFS_INODE_REF_KEY;
 		key.offset = (u64)-1;
 	}
@@ -235,13 +235,10 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 	int ret;
 	u64 ino;
 
-	if (!dir || !inode)
-		return -EINVAL;
-
 	if (!S_ISDIR(dir->i_mode))
 		return -EINVAL;
 
-	ino = btrfs_ino(inode);
+	ino = btrfs_ino(BTRFS_I(inode));
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -255,7 +252,7 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 		root = fs_info->tree_root;
 	} else {
 		key.objectid = ino;
-		key.offset = btrfs_ino(dir);
+		key.offset = btrfs_ino(BTRFS_I(dir));
 		key.type = BTRFS_INODE_REF_KEY;
 	}
 

@@ -114,7 +114,7 @@ phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 	return daddr;
 }
 
-static struct dma_map_ops loongson_dma_map_ops = {
+static const struct dma_map_ops loongson_dma_map_ops = {
 	.alloc = loongson_dma_alloc_coherent,
 	.free = loongson_dma_free_coherent,
 	.map_page = loongson_dma_map_page,

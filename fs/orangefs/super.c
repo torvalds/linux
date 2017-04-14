@@ -115,6 +115,13 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	return &orangefs_inode->vfs_inode;
 }
 
+static void orangefs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
+}
+
 static void orangefs_destroy_inode(struct inode *inode)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
@@ -123,7 +130,7 @@ static void orangefs_destroy_inode(struct inode *inode)
 			"%s: deallocated %p destroying inode %pU\n",
 			__func__, orangefs_inode, get_khandle_from_ino(inode));
 
-	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
+	call_rcu(&inode->i_rcu, orangefs_i_callback);
 }
 
 /*
@@ -256,8 +263,13 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 		if (!new_op)
 			return -ENOMEM;
 		new_op->upcall.req.features.features = 0;
-		ret = service_operation(new_op, "orangefs_features", 0);
-		orangefs_features = new_op->downcall.resp.features.features;
+		ret = service_operation(new_op, "orangefs_features",
+		    ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
+		if (!ret)
+			orangefs_features =
+			    new_op->downcall.resp.features.features;
+		else
+			orangefs_features = 0;
 		op_release(new_op);
 	} else {
 		orangefs_features = 0;

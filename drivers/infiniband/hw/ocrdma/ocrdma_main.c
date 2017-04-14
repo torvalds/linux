@@ -199,7 +199,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.alloc_ucontext = ocrdma_alloc_ucontext;
 	dev->ibdev.dealloc_ucontext = ocrdma_dealloc_ucontext;
 	dev->ibdev.mmap = ocrdma_mmap;
-	dev->ibdev.dma_device = &dev->nic_info.pdev->dev;
+	dev->ibdev.dev.parent = &dev->nic_info.pdev->dev;
 
 	dev->ibdev.process_mad = ocrdma_process_mad;
 	dev->ibdev.get_port_immutable = ocrdma_port_immutable;

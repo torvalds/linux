@@ -2326,11 +2326,7 @@ static int __init eni_init(void)
 {
 	struct sk_buff *skb; /* dummy for sizeof */
 
-	if (sizeof(skb->cb) < sizeof(struct eni_skb_prv)) {
-		printk(KERN_ERR "eni_detect: skb->cb is too small (%Zd < %Zd)\n",
-		    sizeof(skb->cb),sizeof(struct eni_skb_prv));
-		return -EIO;
-	}
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct eni_skb_prv));
 	return pci_register_driver(&eni_driver);
 }
 

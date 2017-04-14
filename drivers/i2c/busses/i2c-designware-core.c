@@ -820,7 +820,7 @@ static u32 i2c_dw_func(struct i2c_adapter *adap)
 	return dev->functionality;
 }
 
-static struct i2c_algorithm i2c_dw_algo = {
+static const struct i2c_algorithm i2c_dw_algo = {
 	.master_xfer	= i2c_dw_xfer,
 	.functionality	= i2c_dw_func,
 };

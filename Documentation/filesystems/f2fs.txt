@@ -125,13 +125,14 @@ active_logs=%u         Support configuring the number of active logs. In the
 disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
                        does not aware of cold files such as media files.
 inline_xattr           Enable the inline xattrs feature.
+noinline_xattr         Disable the inline xattrs feature.
 inline_data            Enable the inline data feature: New created small(<~3.4k)
                        files can be written into inode block.
 inline_dentry          Enable the inline dir feature: data in new created
                        directory entries can be written into inode block. The
                        space of inode block which is used to store inline
                        dentries is limited to ~3.4k.
-noinline_dentry        Diable the inline dentry feature.
+noinline_dentry        Disable the inline dentry feature.
 flush_merge	       Merge concurrent cache_flush commands as much as possible
                        to eliminate redundant command issues. If the underlying
 		       device handles the cache_flush command relatively slowly,
@@ -157,6 +158,8 @@ data_flush             Enable data flushing before checkpoint in order to
 mode=%s                Control block allocation mode which supports "adaptive"
                        and "lfs". In "lfs" mode, there should be no random
                        writes towards main area.
+io_bits=%u             Set the bit size of write IO requests. It should be set
+                       with "mode=lfs".
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -174,7 +177,7 @@ f2fs. Each file shows the whole f2fs information.
 SYSFS ENTRIES
 ================================================================================
 
-Information about mounted f2f2 file systems can be found in
+Information about mounted f2fs file systems can be found in
 /sys/fs/f2fs.  Each mounted filesystem will have a directory in
 /sys/fs/f2fs based on its device name (i.e., /sys/fs/f2fs/sda).
 The files in each per-device directory are shown in table below.

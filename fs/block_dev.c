@@ -870,6 +870,7 @@ static void init_once(void *foo)
 #ifdef CONFIG_SYSFS
 	INIT_LIST_HEAD(&bdev->bd_holder_disks);
 #endif
+	bdev->bd_bdi = &noop_backing_dev_info;
 	inode_init_once(&ei->vfs_inode);
 	/* Initialize mutex for freeze. */
 	mutex_init(&bdev->bd_fsfreeze_mutex);
@@ -884,8 +885,10 @@ static void bdev_evict_inode(struct inode *inode)
 	spin_lock(&bdev_lock);
 	list_del_init(&bdev->bd_list);
 	spin_unlock(&bdev_lock);
-	if (bdev->bd_bdi != &noop_backing_dev_info)
+	if (bdev->bd_bdi != &noop_backing_dev_info) {
 		bdi_put(bdev->bd_bdi);
+		bdev->bd_bdi = &noop_backing_dev_info;
+	}
 }
 
 static const struct super_operations bdev_sops = {
@@ -988,8 +991,7 @@ struct block_device *bdget(dev_t dev)
 		bdev->bd_contains = NULL;
 		bdev->bd_super = NULL;
 		bdev->bd_inode = inode;
-		bdev->bd_bdi = &noop_backing_dev_info;
-		bdev->bd_block_size = (1 << inode->i_blkbits);
+		bdev->bd_block_size = i_blocksize(inode);
 		bdev->bd_part_count = 0;
 		bdev->bd_invalidated = 0;
 		inode->i_mode = S_IFBLK;
@@ -1043,12 +1045,21 @@ static struct block_device *bd_acquire(struct inode *inode)
 
 	spin_lock(&bdev_lock);
 	bdev = inode->i_bdev;
-	if (bdev) {
+	if (bdev && !inode_unhashed(bdev->bd_inode)) {
 		bdgrab(bdev);
 		spin_unlock(&bdev_lock);
 		return bdev;
 	}
 	spin_unlock(&bdev_lock);
+
+	/*
+	 * i_bdev references block device inode that was already shut down
+	 * (corresponding device got removed).  Remove the reference and look
+	 * up block device inode again just in case new device got
+	 * reestablished under the same device number.
+	 */
+	if (bdev)
+		bd_forget(inode);
 
 	bdev = bdget(inode->i_rdev);
 	if (bdev) {

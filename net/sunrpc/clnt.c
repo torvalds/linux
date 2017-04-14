@@ -1453,21 +1453,6 @@ size_t rpc_max_bc_payload(struct rpc_clnt *clnt)
 EXPORT_SYMBOL_GPL(rpc_max_bc_payload);
 
 /**
- * rpc_get_timeout - Get timeout for transport in units of HZ
- * @clnt: RPC client to query
- */
-unsigned long rpc_get_timeout(struct rpc_clnt *clnt)
-{
-	unsigned long ret;
-
-	rcu_read_lock();
-	ret = rcu_dereference(clnt->cl_xprt)->timeout->to_initval;
-	rcu_read_unlock();
-	return ret;
-}
-EXPORT_SYMBOL_GPL(rpc_get_timeout);
-
-/**
  * rpc_force_rebind - force transport to check that remote port is unchanged
  * @clnt: client to rebind
  *
@@ -2699,6 +2684,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 {
 	struct rpc_xprt_switch *xps;
 	struct rpc_xprt *xprt;
+	unsigned long connect_timeout;
 	unsigned long reconnect_timeout;
 	unsigned char resvport;
 	int ret = 0;
@@ -2711,6 +2697,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		return -EAGAIN;
 	}
 	resvport = xprt->resvport;
+	connect_timeout = xprt->connect_timeout;
 	reconnect_timeout = xprt->max_reconnect_timeout;
 	rcu_read_unlock();
 
@@ -2720,7 +2707,10 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		goto out_put_switch;
 	}
 	xprt->resvport = resvport;
-	xprt->max_reconnect_timeout = reconnect_timeout;
+	if (xprt->ops->set_connect_timeout != NULL)
+		xprt->ops->set_connect_timeout(xprt,
+				connect_timeout,
+				reconnect_timeout);
 
 	rpc_xprt_switch_set_roundrobin(xps);
 	if (setup) {
@@ -2737,26 +2727,39 @@ out_put_switch:
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_add_xprt);
 
+struct connect_timeout_data {
+	unsigned long connect_timeout;
+	unsigned long reconnect_timeout;
+};
+
 static int
-rpc_xprt_cap_max_reconnect_timeout(struct rpc_clnt *clnt,
+rpc_xprt_set_connect_timeout(struct rpc_clnt *clnt,
 		struct rpc_xprt *xprt,
 		void *data)
 {
-	unsigned long timeout = *((unsigned long *)data);
+	struct connect_timeout_data *timeo = data;
 
-	if (timeout < xprt->max_reconnect_timeout)
-		xprt->max_reconnect_timeout = timeout;
+	if (xprt->ops->set_connect_timeout)
+		xprt->ops->set_connect_timeout(xprt,
+				timeo->connect_timeout,
+				timeo->reconnect_timeout);
 	return 0;
 }
 
 void
-rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt, unsigned long timeo)
+rpc_set_connect_timeout(struct rpc_clnt *clnt,
+		unsigned long connect_timeout,
+		unsigned long reconnect_timeout)
 {
+	struct connect_timeout_data timeout = {
+		.connect_timeout = connect_timeout,
+		.reconnect_timeout = reconnect_timeout,
+	};
 	rpc_clnt_iterate_for_each_xprt(clnt,
-			rpc_xprt_cap_max_reconnect_timeout,
-			&timeo);
+			rpc_xprt_set_connect_timeout,
+			&timeout);
 }
-EXPORT_SYMBOL_GPL(rpc_cap_max_reconnect_timeout);
+EXPORT_SYMBOL_GPL(rpc_set_connect_timeout);
 
 void rpc_clnt_xprt_switch_put(struct rpc_clnt *clnt)
 {

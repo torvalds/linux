@@ -7,7 +7,7 @@
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/export.h>
 #include <asm/branch.h>

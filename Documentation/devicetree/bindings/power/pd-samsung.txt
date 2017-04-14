@@ -23,7 +23,7 @@ Optional Properties:
 - clock-names: The following clocks can be specified:
 	- oscclk: Oscillator clock.
 	- clkN: Input clocks to the devices in this power domain. These clocks
-		will be reparented to oscclk before swithing power domain off.
+		will be reparented to oscclk before switching power domain off.
 		Their original parent will be brought back after turning on
 		the domain. Maximum of 4 clocks (N = 0 to 3) are supported.
 	- asbN: Clocks required by asynchronous bridges (ASB) present in

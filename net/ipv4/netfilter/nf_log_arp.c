@@ -69,7 +69,7 @@ static void dump_arp_packet(struct nf_log_buf *m,
 
 	ap = skb_header_pointer(skb, sizeof(_arph), sizeof(_arpp), &_arpp);
 	if (ap == NULL) {
-		nf_log_buf_add(m, " INCOMPLETE [%Zu bytes]",
+		nf_log_buf_add(m, " INCOMPLETE [%zu bytes]",
 			       skb->len - sizeof(_arph));
 		return;
 	}

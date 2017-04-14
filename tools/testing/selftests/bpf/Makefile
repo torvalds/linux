@@ -1,26 +1,30 @@
 LIBDIR := ../../../lib
-BPFOBJ := $(LIBDIR)/bpf/bpf.o
+BPFDIR := $(LIBDIR)/bpf
+APIDIR := ../../../include/uapi
+GENDIR := ../../../../include/generated
+GENHDR := $(GENDIR)/autoconf.h
 
-CFLAGS += -Wall -O2 -lcap -I../../../include/uapi -I$(LIBDIR)
+ifneq ($(wildcard $(GENHDR)),)
+  GENFLAGS := -DHAVE_GENHDR
+endif
 
-test_objs = test_verifier test_tag test_maps test_lru_map test_lpm_map
+CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS)
+LDLIBS += -lcap
 
-TEST_PROGS := $(test_objs) test_kmod.sh
-TEST_FILES := $(test_objs)
+TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map
 
-.PHONY: all clean force
+TEST_PROGS := test_kmod.sh
 
-all: $(test_objs)
+include ../lib.mk
+
+BPFOBJ := $(OUTPUT)/bpf.o
+
+$(TEST_GEN_PROGS): $(BPFOBJ)
+
+.PHONY: force
 
 # force a rebuild of BPFOBJ when its dependencies are updated
 force:
 
 $(BPFOBJ): force
-	$(MAKE) -C $(dir $(BPFOBJ))
-
-$(test_objs): $(BPFOBJ)
-
-include ../lib.mk
-
-clean:
-	$(RM) $(test_objs)
+	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/

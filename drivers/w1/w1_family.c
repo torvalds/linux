@@ -14,7 +14,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/sched.h>	/* schedule_timeout() */
+#include <linux/sched/signal.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 

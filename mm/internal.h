@@ -335,12 +335,15 @@ __vma_address(struct page *page, struct vm_area_struct *vma)
 static inline unsigned long
 vma_address(struct page *page, struct vm_area_struct *vma)
 {
-	unsigned long address = __vma_address(page, vma);
+	unsigned long start, end;
+
+	start = __vma_address(page, vma);
+	end = start + PAGE_SIZE * (hpage_nr_pages(page) - 1);
 
 	/* page should be within @vma mapping range */
-	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+	VM_BUG_ON_VMA(end < vma->vm_start || start >= vma->vm_end, vma);
 
-	return address;
+	return max(start, vma->vm_start);
 }
 
 #else /* !CONFIG_MMU */
@@ -477,6 +480,13 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 
 enum ttu_flags;
 struct tlbflush_unmap_batch;
+
+
+/*
+ * only for MM internal work items which do not depend on
+ * any allocations or locks which might depend on allocations
+ */
+extern struct workqueue_struct *mm_percpu_wq;
 
 #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
 void try_to_unmap_flush(void);

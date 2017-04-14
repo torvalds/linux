@@ -81,9 +81,9 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	struct ast_private *ast = crtc->dev->dev_private;
 	const struct drm_framebuffer *fb = crtc->primary->fb;
 	u32 refresh_rate_index = 0, mode_id, color_index, refresh_rate;
+	const struct ast_vbios_enhtable *best = NULL;
 	u32 hborder, vborder;
 	bool check_sync;
-	struct ast_vbios_enhtable *best = NULL;
 
 	switch (fb->format->cpp[0] * 8) {
 	case 8:
@@ -147,7 +147,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 	refresh_rate = drm_mode_vrefresh(mode);
 	check_sync = vbios_mode->enh_table->flags & WideScreenMode;
 	do {
-		struct ast_vbios_enhtable *loop = vbios_mode->enh_table;
+		const struct ast_vbios_enhtable *loop = vbios_mode->enh_table;
 
 		while (loop->refresh_rate != 0xff) {
 			if ((check_sync) &&
@@ -227,7 +227,7 @@ static void ast_set_std_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 			    struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	struct ast_vbios_stdtable *stdtable;
+	const struct ast_vbios_stdtable *stdtable;
 	u32 i;
 	u8 jreg;
 
@@ -273,7 +273,11 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
-	u16 temp;
+	u16 temp, precache = 0;
+
+	if ((ast->chip == AST2500) &&
+	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
+		precache = 40;
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
 
@@ -299,12 +303,12 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 		jregAD |= 0x01;  /* HBE D[5] */
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x03, 0xE0, (temp & 0x1f));
 
-	temp = (mode->crtc_hsync_start >> 3) - 1;
+	temp = ((mode->crtc_hsync_start-precache) >> 3) - 1;
 	if (temp & 0x100)
 		jregAC |= 0x40; /* HRS D[5] */
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x04, 0x00, temp);
 
-	temp = ((mode->crtc_hsync_end >> 3) - 1) & 0x3f;
+	temp = (((mode->crtc_hsync_end-precache) >> 3) - 1) & 0x3f;
 	if (temp & 0x20)
 		jregAD |= 0x04; /* HRE D[5] */
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x05, 0x60, (u8)((temp & 0x1f) | jreg05));
@@ -365,6 +369,11 @@ static void ast_set_crtc_reg(struct drm_crtc *crtc, struct drm_display_mode *mod
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x09, 0xdf, jreg09);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAE, 0x00, (jregAE | 0x80));
 
+	if (precache)
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0x3f, 0x80);
+	else
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0x3f, 0x00);
+
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x80);
 }
 
@@ -384,14 +393,18 @@ static void ast_set_dclk_reg(struct drm_device *dev, struct drm_display_mode *mo
 			     struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = dev->dev_private;
-	struct ast_vbios_dclk_info *clk_info;
+	const struct ast_vbios_dclk_info *clk_info;
 
-	clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
+	if (ast->chip == AST2500)
+		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
+	else
+		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc0, 0x00, clk_info->param1);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc1, 0x00, clk_info->param2);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xbb, 0x0f,
-			       (clk_info->param3 & 0x80) | ((clk_info->param3 & 0x3) << 4));
+			       (clk_info->param3 & 0xc0) |
+			       ((clk_info->param3 & 0x3) << 4));
 }
 
 static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
@@ -425,7 +438,8 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa8, 0xfd, jregA8);
 
 	/* Set Threshold */
-	if (ast->chip == AST2300 || ast->chip == AST2400) {
+	if (ast->chip == AST2300 || ast->chip == AST2400 ||
+	    ast->chip == AST2500) {
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x78);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x60);
 	} else if (ast->chip == AST2100 ||
@@ -800,7 +814,9 @@ static int ast_mode_valid(struct drm_connector *connector,
 		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
 			return MODE_OK;
 
-		if ((ast->chip == AST2100) || (ast->chip == AST2200) || (ast->chip == AST2300) || (ast->chip == AST2400) || (ast->chip == AST1180)) {
+		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
+		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
+		    (ast->chip == AST2500) || (ast->chip == AST1180)) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
 				return MODE_OK;
 

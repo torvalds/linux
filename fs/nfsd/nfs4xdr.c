@@ -58,7 +58,7 @@
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
-u32 nfsd_suppattrs[3][3] = {
+const u32 nfsd_suppattrs[3][3] = {
 	{NFSD4_SUPPORTED_ATTRS_WORD0,
 	 NFSD4_SUPPORTED_ATTRS_WORD1,
 	 NFSD4_SUPPORTED_ATTRS_WORD2},
@@ -1250,7 +1250,7 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 	READ_BUF(16);
 	p = xdr_decode_hyper(p, &write->wr_offset);
 	write->wr_stable_how = be32_to_cpup(p++);
-	if (write->wr_stable_how > 2)
+	if (write->wr_stable_how > NFS_FILE_SYNC)
 		goto xdr_error;
 	write->wr_buflen = be32_to_cpup(p++);
 
@@ -1941,12 +1941,12 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		} else
 			max_reply += nfsd4_max_reply(argp->rqstp, op);
 		/*
-		 * OP_LOCK may return a conflicting lock.  (Special case
-		 * because it will just skip encoding this if it runs
-		 * out of xdr buffer space, and it is the only operation
-		 * that behaves this way.)
+		 * OP_LOCK and OP_LOCKT may return a conflicting lock.
+		 * (Special case because it will just skip encoding this
+		 * if it runs out of xdr buffer space, and it is the only
+		 * operation that behaves this way.)
 		 */
-		if (op->opnum == OP_LOCK)
+		if (op->opnum == OP_LOCK || op->opnum == OP_LOCKT)
 			max_reply += NFS4_OPAQUE_LIMIT;
 
 		if (op->status) {
@@ -1966,9 +1966,13 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	DECODE_TAIL;
 }
 
-static __be32 *encode_change(__be32 *p, struct kstat *stat, struct inode *inode)
+static __be32 *encode_change(__be32 *p, struct kstat *stat, struct inode *inode,
+			     struct svc_export *exp)
 {
-	if (IS_I_VERSION(inode)) {
+	if (exp->ex_flags & NFSEXP_V4ROOT) {
+		*p++ = cpu_to_be32(convert_to_wallclock(exp->cd->flush_time));
+		*p++ = 0;
+	} else if (IS_I_VERSION(inode)) {
 		p = xdr_encode_hyper(p, inode->i_version);
 	} else {
 		*p++ = cpu_to_be32(stat->ctime.tv_sec);
@@ -2297,7 +2301,7 @@ static int get_parent_attributes(struct svc_export *exp, struct kstat *stat)
 		if (path.dentry != path.mnt->mnt_root)
 			break;
 	}
-	err = vfs_getattr(&path, stat);
+	err = vfs_getattr(&path, stat, STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
 	path_put(&path);
 	return err;
 }
@@ -2381,7 +2385,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 
-	err = vfs_getattr(&path, &stat);
+	err = vfs_getattr(&path, &stat, STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
 	if (err)
 		goto out_nfserr;
 	if ((bmval0 & (FATTR4_WORD0_FILES_AVAIL | FATTR4_WORD0_FILES_FREE |
@@ -2417,8 +2421,11 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	if ((bmval2 & FATTR4_WORD2_SECURITY_LABEL) ||
 	     bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
-		err = security_inode_getsecctx(d_inode(dentry),
+		if (exp->ex_flags & NFSEXP_SECURITY_LABEL)
+			err = security_inode_getsecctx(d_inode(dentry),
 						&context, &contextlen);
+		else
+			err = -EOPNOTSUPP;
 		contextsupport = (err == 0);
 		if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
 			if (err == -EOPNOTSUPP)
@@ -2490,7 +2497,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		p = xdr_reserve_space(xdr, 8);
 		if (!p)
 			goto out_resource;
-		p = encode_change(p, &stat, d_inode(dentry));
+		p = encode_change(p, &stat, d_inode(dentry), exp);
 	}
 	if (bmval0 & FATTR4_WORD0_SIZE) {
 		p = xdr_reserve_space(xdr, 8);

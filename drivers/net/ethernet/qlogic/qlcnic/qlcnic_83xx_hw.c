@@ -178,7 +178,7 @@ const u32 qlcnic_83xx_reg_tbl[] = {
 	0x3540,		/* Device state, DRV_REG1 */
 	0x3544,		/* Driver state, DRV_REG2 */
 	0x3548,		/* Driver scratch, DRV_REG3 */
-	0x354C,		/* Device partiton info, DRV_REG4 */
+	0x354C,		/* Device partition info, DRV_REG4 */
 	0x3524,		/* Driver IDC ver, DRV_REG5 */
 	0x3550,		/* FW_VER_MAJOR */
 	0x3554,		/* FW_VER_MINOR */

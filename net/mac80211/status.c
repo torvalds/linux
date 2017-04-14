@@ -51,7 +51,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	int ac;
 
-	if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER) {
+	if (info->flags & (IEEE80211_TX_CTL_NO_PS_BUFFER |
+			   IEEE80211_TX_CTL_AMPDU)) {
 		ieee80211_free_txskb(&local->hw, skb);
 		return;
 	}
@@ -462,9 +463,7 @@ static void ieee80211_report_ack_skb(struct ieee80211_local *local,
 	unsigned long flags;
 
 	spin_lock_irqsave(&local->ack_status_lock, flags);
-	skb = idr_find(&local->ack_status_frames, info->ack_frame_id);
-	if (skb)
-		idr_remove(&local->ack_status_frames, info->ack_frame_id);
+	skb = idr_remove(&local->ack_status_frames, info->ack_frame_id);
 	spin_unlock_irqrestore(&local->ack_status_lock, flags);
 
 	if (!skb)

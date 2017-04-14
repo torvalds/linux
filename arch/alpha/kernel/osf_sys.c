@@ -11,7 +11,10 @@
  */
 
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task_stack.h>
+#include <linux/sched/cputime.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -1287,7 +1290,7 @@ SYSCALL_DEFINE1(old_adjtimex, struct timex32 __user *, txc_p)
 	/* copy relevant bits of struct timex. */
 	if (copy_from_user(&txc, txc_p, offsetof(struct timex32, time)) ||
 	    copy_from_user(&txc.tick, &txc_p->tick, sizeof(struct timex32) - 
-			   offsetof(struct timex32, time)))
+			   offsetof(struct timex32, tick)))
 	  return -EFAULT;
 
 	ret = do_adjtimex(&txc);	

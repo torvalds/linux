@@ -24,7 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/net.h>
 
 /*

@@ -655,6 +655,11 @@ struct inode {
 	void			*i_private; /* fs or device private pointer */
 };
 
+static inline unsigned int i_blocksize(const struct inode *node)
+{
+	return (1 << node->i_blkbits);
+}
+
 static inline int inode_unhashed(struct inode *inode)
 {
 	return hlist_unhashed(&inode->i_hash);
@@ -1562,6 +1567,9 @@ extern int vfs_unlink(struct inode *, struct dentry *, struct inode **);
 extern int vfs_rename(struct inode *, struct dentry *, struct inode *, struct dentry *, struct inode **, unsigned int);
 extern int vfs_whiteout(struct inode *, struct dentry *);
 
+extern struct dentry *vfs_tmpfile(struct dentry *dentry, umode_t mode,
+				  int open_flag);
+
 /*
  * VFS file helper functions.
  */
@@ -1701,7 +1709,7 @@ struct inode_operations {
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*setattr) (struct dentry *, struct iattr *);
-	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
+	int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
 		      u64 len);
@@ -1712,6 +1720,29 @@ struct inode_operations {
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
 	int (*set_acl)(struct inode *, struct posix_acl *, int);
 } ____cacheline_aligned;
+
+static inline ssize_t call_read_iter(struct file *file, struct kiocb *kio,
+				     struct iov_iter *iter)
+{
+	return file->f_op->read_iter(kio, iter);
+}
+
+static inline ssize_t call_write_iter(struct file *file, struct kiocb *kio,
+				      struct iov_iter *iter)
+{
+	return file->f_op->write_iter(kio, iter);
+}
+
+static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	return file->f_op->mmap(file, vma);
+}
+
+static inline int call_fsync(struct file *file, loff_t start, loff_t end,
+			     int datasync)
+{
+	return file->f_op->fsync(file, start, end, datasync);
+}
 
 ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
 			      unsigned long nr_segs, unsigned long fast_segs,
@@ -1738,19 +1769,6 @@ extern int vfs_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
 					 loff_t len, bool *is_same);
 extern int vfs_dedupe_file_range(struct file *file,
 				 struct file_dedupe_range *same);
-
-static inline int do_clone_file_range(struct file *file_in, loff_t pos_in,
-				      struct file *file_out, loff_t pos_out,
-				      u64 len)
-{
-	int ret;
-
-	sb_start_write(file_inode(file_out)->i_sb);
-	ret = vfs_clone_file_range(file_in, pos_in, file_out, pos_out, len);
-	sb_end_write(file_inode(file_out)->i_sb);
-
-	return ret;
-}
 
 struct super_operations {
    	struct inode *(*alloc_inode)(struct super_block *sb);
@@ -2563,6 +2581,19 @@ static inline void file_end_write(struct file *file)
 	__sb_end_write(file_inode(file)->i_sb, SB_FREEZE_WRITE);
 }
 
+static inline int do_clone_file_range(struct file *file_in, loff_t pos_in,
+				      struct file *file_out, loff_t pos_out,
+				      u64 len)
+{
+	int ret;
+
+	file_start_write(file_out);
+	ret = vfs_clone_file_range(file_in, pos_in, file_out, pos_out, len);
+	file_end_write(file_out);
+
+	return ret;
+}
+
 /*
  * get_write_access() gets write permission for a file.
  * put_write_access() releases this write permission.
@@ -2647,7 +2678,7 @@ static const char * const kernel_read_file_str[] = {
 
 static inline const char *kernel_read_file_id_str(enum kernel_read_file_id id)
 {
-	if (id < 0 || id >= READING_MAX_ID)
+	if ((unsigned)id >= READING_MAX_ID)
 		return kernel_read_file_str[READING_UNKNOWN];
 
 	return kernel_read_file_str[id];
@@ -2871,8 +2902,8 @@ extern int page_symlink(struct inode *inode, const char *symname, int len);
 extern const struct inode_operations page_symlink_inode_operations;
 extern void kfree_link(void *);
 extern void generic_fillattr(struct inode *, struct kstat *);
-int vfs_getattr_nosec(struct path *path, struct kstat *stat);
-extern int vfs_getattr(struct path *, struct kstat *);
+extern int vfs_getattr_nosec(const struct path *, struct kstat *, u32, unsigned int);
+extern int vfs_getattr(const struct path *, struct kstat *, u32, unsigned int);
 void __inode_add_bytes(struct inode *inode, loff_t bytes);
 void inode_add_bytes(struct inode *inode, loff_t bytes);
 void __inode_sub_bytes(struct inode *inode, loff_t bytes);
@@ -2885,10 +2916,29 @@ extern const struct inode_operations simple_symlink_inode_operations;
 
 extern int iterate_dir(struct file *, struct dir_context *);
 
-extern int vfs_stat(const char __user *, struct kstat *);
-extern int vfs_lstat(const char __user *, struct kstat *);
-extern int vfs_fstat(unsigned int, struct kstat *);
-extern int vfs_fstatat(int , const char __user *, struct kstat *, int);
+extern int vfs_statx(int, const char __user *, int, struct kstat *, u32);
+extern int vfs_statx_fd(unsigned int, struct kstat *, u32, unsigned int);
+
+static inline int vfs_stat(const char __user *filename, struct kstat *stat)
+{
+	return vfs_statx(AT_FDCWD, filename, 0, stat, STATX_BASIC_STATS);
+}
+static inline int vfs_lstat(const char __user *name, struct kstat *stat)
+{
+	return vfs_statx(AT_FDCWD, name, AT_SYMLINK_NOFOLLOW,
+			 stat, STATX_BASIC_STATS);
+}
+static inline int vfs_fstatat(int dfd, const char __user *filename,
+			      struct kstat *stat, int flags)
+{
+	return vfs_statx(dfd, filename, flags, stat, STATX_BASIC_STATS);
+}
+static inline int vfs_fstat(int fd, struct kstat *stat)
+{
+	return vfs_statx_fd(fd, stat, STATX_BASIC_STATS, 0);
+}
+
+
 extern const char *vfs_get_link(struct dentry *, struct delayed_call *);
 extern int vfs_readlink(struct dentry *, char __user *, int);
 
@@ -2918,7 +2968,7 @@ extern int dcache_dir_close(struct inode *, struct file *);
 extern loff_t dcache_dir_lseek(struct file *, loff_t, int);
 extern int dcache_readdir(struct file *, struct dir_context *);
 extern int simple_setattr(struct dentry *, struct iattr *);
-extern int simple_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int simple_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int simple_statfs(struct dentry *, struct kstatfs *);
 extern int simple_open(struct inode *inode, struct file *file);
 extern int simple_link(struct dentry *, struct inode *, struct dentry *);

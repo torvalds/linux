@@ -47,6 +47,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/dma-mapping.h>
 #include "vt.h"
 #include "trace.h"
 
@@ -778,8 +779,7 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	}
 
 	/* DMA Operations */
-	rdi->ibdev.dma_ops =
-		rdi->ibdev.dma_ops ? : &rvt_default_dma_mapping_ops;
+	rdi->ibdev.dev.dma_ops = rdi->ibdev.dev.dma_ops ? : &dma_virt_ops;
 
 	/* Protection Domain */
 	spin_lock_init(&rdi->n_pds_lock);

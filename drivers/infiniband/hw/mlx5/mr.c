@@ -966,7 +966,7 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		       int page_shift, int flags)
 {
 	struct mlx5_ib_dev *dev = mr->dev;
-	struct device *ddev = dev->ib_dev.dma_device;
+	struct device *ddev = dev->ib_dev.dev.parent;
 	struct mlx5_ib_ucontext *uctx = NULL;
 	int size;
 	void *xlt;
@@ -1411,9 +1411,9 @@ mlx5_alloc_priv_descs(struct ib_device *device,
 
 	mr->descs = PTR_ALIGN(mr->descs_alloc, MLX5_UMR_ALIGN);
 
-	mr->desc_map = dma_map_single(device->dma_device, mr->descs,
+	mr->desc_map = dma_map_single(device->dev.parent, mr->descs,
 				      size, DMA_TO_DEVICE);
-	if (dma_mapping_error(device->dma_device, mr->desc_map)) {
+	if (dma_mapping_error(device->dev.parent, mr->desc_map)) {
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -1432,7 +1432,7 @@ mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
 		struct ib_device *device = mr->ibmr.device;
 		int size = mr->max_descs * mr->desc_size;
 
-		dma_unmap_single(device->dma_device, mr->desc_map,
+		dma_unmap_single(device->dev.parent, mr->desc_map,
 				 size, DMA_TO_DEVICE);
 		kfree(mr->descs_alloc);
 		mr->descs = NULL;

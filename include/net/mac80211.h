@@ -3392,7 +3392,7 @@ enum ieee80211_reconfig_type {
  *	since there won't be any time to beacon before the switch anyway.
  * @pre_channel_switch: This is an optional callback that is called
  *	before a channel switch procedure is started (ie. when a STA
- *	gets a CSA or an userspace initiated channel-switch), allowing
+ *	gets a CSA or a userspace initiated channel-switch), allowing
  *	the driver to prepare for the channel switch.
  * @post_channel_switch: This is an optional callback that is called
  *	after a channel switch procedure is completed, allowing the

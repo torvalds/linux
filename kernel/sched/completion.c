@@ -11,7 +11,8 @@
  * Waiting for completion is a typically sync point, but not an exclusion point.
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/completion.h>
 
 /**

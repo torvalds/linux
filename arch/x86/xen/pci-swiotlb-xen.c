@@ -18,7 +18,7 @@
 
 int xen_swiotlb __read_mostly;
 
-static struct dma_map_ops xen_swiotlb_dma_ops = {
+static const struct dma_map_ops xen_swiotlb_dma_ops = {
 	.alloc = xen_swiotlb_alloc_coherent,
 	.free = xen_swiotlb_free_coherent,
 	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,

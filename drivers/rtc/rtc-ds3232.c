@@ -23,28 +23,28 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 
-#define DS3232_REG_SECONDS	0x00
-#define DS3232_REG_MINUTES	0x01
-#define DS3232_REG_HOURS	0x02
-#define DS3232_REG_AMPM		0x02
-#define DS3232_REG_DAY		0x03
-#define DS3232_REG_DATE		0x04
-#define DS3232_REG_MONTH	0x05
-#define DS3232_REG_CENTURY	0x05
-#define DS3232_REG_YEAR		0x06
-#define DS3232_REG_ALARM1         0x07	/* Alarm 1 BASE */
-#define DS3232_REG_ALARM2         0x0B	/* Alarm 2 BASE */
-#define DS3232_REG_CR		0x0E	/* Control register */
-#	define DS3232_REG_CR_nEOSC        0x80
-#       define DS3232_REG_CR_INTCN        0x04
-#       define DS3232_REG_CR_A2IE        0x02
-#       define DS3232_REG_CR_A1IE        0x01
+#define DS3232_REG_SECONDS      0x00
+#define DS3232_REG_MINUTES      0x01
+#define DS3232_REG_HOURS        0x02
+#define DS3232_REG_AMPM         0x02
+#define DS3232_REG_DAY          0x03
+#define DS3232_REG_DATE         0x04
+#define DS3232_REG_MONTH        0x05
+#define DS3232_REG_CENTURY      0x05
+#define DS3232_REG_YEAR         0x06
+#define DS3232_REG_ALARM1       0x07       /* Alarm 1 BASE */
+#define DS3232_REG_ALARM2       0x0B       /* Alarm 2 BASE */
+#define DS3232_REG_CR           0x0E       /* Control register */
+#       define DS3232_REG_CR_nEOSC   0x80
+#       define DS3232_REG_CR_INTCN   0x04
+#       define DS3232_REG_CR_A2IE    0x02
+#       define DS3232_REG_CR_A1IE    0x01
 
-#define DS3232_REG_SR	0x0F	/* control/status register */
-#	define DS3232_REG_SR_OSF   0x80
-#       define DS3232_REG_SR_BSY   0x04
-#       define DS3232_REG_SR_A2F   0x02
-#       define DS3232_REG_SR_A1F   0x01
+#define DS3232_REG_SR           0x0F       /* control/status register */
+#       define DS3232_REG_SR_OSF     0x80
+#       define DS3232_REG_SR_BSY     0x04
+#       define DS3232_REG_SR_A2F     0x02
+#       define DS3232_REG_SR_A1F     0x01
 
 struct ds3232 {
 	struct device *dev;
@@ -363,6 +363,9 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ret)
 		return ret;
 
+	if (ds3232->irq > 0)
+		device_init_wakeup(dev, 1);
+
 	ds3232->rtc = devm_rtc_device_register(dev, name, &ds3232_rtc_ops,
 						THIS_MODULE);
 	if (IS_ERR(ds3232->rtc))
@@ -374,10 +377,10 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 						IRQF_SHARED | IRQF_ONESHOT,
 						name, dev);
 		if (ret) {
+			device_set_wakeup_capable(dev, 0);
 			ds3232->irq = 0;
 			dev_err(dev, "unable to request IRQ\n");
-		} else
-			device_init_wakeup(dev, 1);
+		}
 	}
 
 	return 0;
@@ -420,6 +423,7 @@ static int ds3232_i2c_probe(struct i2c_client *client,
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
+		.max_register = 0x13,
 	};
 
 	regmap = devm_regmap_init_i2c(client, &config);
@@ -479,6 +483,7 @@ static int ds3234_probe(struct spi_device *spi)
 	static const struct regmap_config config = {
 		.reg_bits = 8,
 		.val_bits = 8,
+		.max_register = 0x13,
 		.write_flag_mask = 0x80,
 	};
 	struct regmap *regmap;

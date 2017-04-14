@@ -70,19 +70,13 @@ static void dwmac4_rx_queue_enable(struct mac_device_info *hw, u32 queue)
 	writel(value, ioaddr + GMAC_RXQ_CTRL0);
 }
 
-static void dwmac4_dump_regs(struct mac_device_info *hw)
+static void dwmac4_dump_regs(struct mac_device_info *hw, u32 *reg_space)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	int i;
 
-	pr_debug("\tDWMAC4 regs (base addr = 0x%p)\n", ioaddr);
-
-	for (i = 0; i < GMAC_REG_NUM; i++) {
-		int offset = i * 4;
-
-		pr_debug("\tReg No. %d (offset 0x%x): 0x%08x\n", i,
-			 offset, readl(ioaddr + offset));
-	}
+	for (i = 0; i < GMAC_REG_NUM; i++)
+		reg_space[i] = readl(ioaddr + i * 4);
 }
 
 static int dwmac4_rx_ipc_enable(struct mac_device_info *hw)

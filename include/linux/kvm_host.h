@@ -26,6 +26,7 @@
 #include <linux/context_tracking.h>
 #include <linux/irqbypass.h>
 #include <linux/swait.h>
+#include <linux/refcount.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -161,8 +162,8 @@ int kvm_io_bus_read(struct kvm_vcpu *vcpu, enum kvm_bus bus_idx, gpa_t addr,
 		    int len, void *val);
 int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 			    int len, struct kvm_io_device *dev);
-int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
-			      struct kvm_io_device *dev);
+void kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
+			       struct kvm_io_device *dev);
 struct kvm_io_device *kvm_io_bus_get_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 					 gpa_t addr);
 
@@ -401,7 +402,7 @@ struct kvm {
 #endif
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
-	atomic_t users_count;
+	refcount_t users_count;
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
 	spinlock_t ring_lock;

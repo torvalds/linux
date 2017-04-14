@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
+#include <linux/sched/signal.h>
 
 #include <asm/firmware.h>
 #include <asm/lv1call.h>

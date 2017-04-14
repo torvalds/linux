@@ -3014,8 +3014,7 @@ cleanup:
 		ack_vfs[vfid / 32] |= BIT((vfid % 32));
 		p_hwfn->pf_iov_info->pending_flr[rel_vf_id / 64] &=
 		    ~(1ULL << (rel_vf_id % 64));
-		p_hwfn->pf_iov_info->pending_events[rel_vf_id / 64] &=
-		    ~(1ULL << (rel_vf_id % 64));
+		p_vf->vf_mbx.b_pending_msg = false;
 	}
 
 	return rc;
@@ -3128,10 +3127,19 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 	mbx = &p_vf->vf_mbx;
 
 	/* qed_iov_process_mbx_request */
-	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-		   "VF[%02x]: Processing mailbox message\n", p_vf->abs_vf_id);
+	if (!mbx->b_pending_msg) {
+		DP_NOTICE(p_hwfn,
+			  "VF[%02x]: Trying to process mailbox message when none is pending\n",
+			  p_vf->abs_vf_id);
+		return;
+	}
+	mbx->b_pending_msg = false;
 
 	mbx->first_tlv = mbx->req_virt->first_tlv;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+		   "VF[%02x]: Processing mailbox message [type %04x]\n",
+		   p_vf->abs_vf_id, mbx->first_tlv.tl.type);
 
 	/* check if tlv type is known */
 	if (qed_iov_tlv_supported(mbx->first_tlv.tl.type) &&
@@ -3219,20 +3227,19 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static void qed_iov_pf_add_pending_events(struct qed_hwfn *p_hwfn, u8 vfid)
+void qed_iov_pf_get_pending_events(struct qed_hwfn *p_hwfn, u64 *events)
 {
-	u64 add_bit = 1ULL << (vfid % 64);
+	int i;
 
-	p_hwfn->pf_iov_info->pending_events[vfid / 64] |= add_bit;
-}
+	memset(events, 0, sizeof(u64) * QED_VF_ARRAY_LENGTH);
 
-static void qed_iov_pf_get_and_clear_pending_events(struct qed_hwfn *p_hwfn,
-						    u64 *events)
-{
-	u64 *p_pending_events = p_hwfn->pf_iov_info->pending_events;
+	qed_for_each_vf(p_hwfn, i) {
+		struct qed_vf_info *p_vf;
 
-	memcpy(events, p_pending_events, sizeof(u64) * QED_VF_ARRAY_LENGTH);
-	memset(p_pending_events, 0, sizeof(u64) * QED_VF_ARRAY_LENGTH);
+		p_vf = &p_hwfn->pf_iov_info->vfs_array[i];
+		if (p_vf->vf_mbx.b_pending_msg)
+			events[i / 64] |= 1ULL << (i % 64);
+	}
 }
 
 static struct qed_vf_info *qed_sriov_get_vf_from_absid(struct qed_hwfn *p_hwfn,
@@ -3266,7 +3273,7 @@ static int qed_sriov_vfpf_msg(struct qed_hwfn *p_hwfn,
 	p_vf->vf_mbx.pending_req = (((u64)vf_msg->hi) << 32) | vf_msg->lo;
 
 	/* Mark the event and schedule the workqueue */
-	qed_iov_pf_add_pending_events(p_hwfn, p_vf->relative_vf_id);
+	p_vf->vf_mbx.b_pending_msg = true;
 	qed_schedule_iov(p_hwfn, QED_IOV_WQ_MSG_FLAG);
 
 	return 0;
@@ -4030,7 +4037,7 @@ static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
 		return;
 	}
 
-	qed_iov_pf_get_and_clear_pending_events(hwfn, events);
+	qed_iov_pf_get_pending_events(hwfn, events);
 
 	DP_VERBOSE(hwfn, QED_MSG_IOV,
 		   "Event mask of VF events: 0x%llx 0x%llx 0x%llx\n",

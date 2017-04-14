@@ -1953,7 +1953,7 @@ struct ieee80211_device {
 
 	/* ask to the driver to retune the radio .
 	 * This function can sleep. the driver should ensure
-	 * the radio has been swithced before return.
+	 * the radio has been switched before return.
 	 */
 	void (*set_chan)(struct net_device *dev, short ch);
 
@@ -1964,7 +1964,7 @@ struct ieee80211_device {
 	 * The syncro version is similar to the start_scan but
 	 * does not return until all channels has been scanned.
 	 * this is called in user context and should sleep,
-	 * it is called in a work_queue when swithcing to ad-hoc mode
+	 * it is called in a work_queue when switching to ad-hoc mode
 	 * or in behalf of iwlist scan when the card is associated
 	 * and root user ask for a scan.
 	 * the function stop_scan should stop both the syncro and

@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/rwsem.h>
 #include <linux/memcontrol.h>
+#include <linux/highmem.h>
 
 /*
  * The anon_vma heads a list of private "related" vmas, to scan if
@@ -196,41 +197,30 @@ int page_referenced(struct page *, int is_locked,
 
 int try_to_unmap(struct page *, enum ttu_flags flags);
 
-/*
- * Used by uprobes to replace a userspace page safely
- */
-pte_t *__page_check_address(struct page *, struct mm_struct *,
-				unsigned long, spinlock_t **, int);
+/* Avoid racy checks */
+#define PVMW_SYNC		(1 << 0)
+/* Look for migarion entries rather than present PTEs */
+#define PVMW_MIGRATION		(1 << 1)
 
-static inline pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-					unsigned long address,
-					spinlock_t **ptlp, int sync)
+struct page_vma_mapped_walk {
+	struct page *page;
+	struct vm_area_struct *vma;
+	unsigned long address;
+	pmd_t *pmd;
+	pte_t *pte;
+	spinlock_t *ptl;
+	unsigned int flags;
+};
+
+static inline void page_vma_mapped_walk_done(struct page_vma_mapped_walk *pvmw)
 {
-	pte_t *ptep;
-
-	__cond_lock(*ptlp, ptep = __page_check_address(page, mm, address,
-						       ptlp, sync));
-	return ptep;
+	if (pvmw->pte)
+		pte_unmap(pvmw->pte);
+	if (pvmw->ptl)
+		spin_unlock(pvmw->ptl);
 }
 
-/*
- * Used by idle page tracking to check if a page was referenced via page
- * tables.
- */
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-bool page_check_address_transhuge(struct page *page, struct mm_struct *mm,
-				  unsigned long address, pmd_t **pmdp,
-				  pte_t **ptep, spinlock_t **ptlp);
-#else
-static inline bool page_check_address_transhuge(struct page *page,
-				struct mm_struct *mm, unsigned long address,
-				pmd_t **pmdp, pte_t **ptep, spinlock_t **ptlp)
-{
-	*ptep = page_check_address(page, mm, address, ptlp, 0);
-	*pmdp = NULL;
-	return !!*ptep;
-}
-#endif
+bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw);
 
 /*
  * Used by swapoff to help locate where page is expected in vma.

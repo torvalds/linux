@@ -2,7 +2,6 @@
 #define _ASM_X86_APIC_H
 
 #include <linux/cpumask.h>
-#include <linux/pm.h>
 
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>

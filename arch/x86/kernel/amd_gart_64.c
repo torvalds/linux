@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
@@ -695,7 +696,7 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 	return -1;
 }
 
-static struct dma_map_ops gart_dma_ops = {
+static const struct dma_map_ops gart_dma_ops = {
 	.map_sg				= gart_map_sg,
 	.unmap_sg			= gart_unmap_sg,
 	.map_page			= gart_map_page,

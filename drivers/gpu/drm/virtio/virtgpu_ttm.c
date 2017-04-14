@@ -114,18 +114,17 @@ static void virtio_gpu_ttm_global_fini(struct virtio_gpu_device *vgdev)
 static struct vm_operations_struct virtio_gpu_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops;
 
-static int virtio_gpu_ttm_fault(struct vm_area_struct *vma,
-				struct vm_fault *vmf)
+static int virtio_gpu_ttm_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
 	struct virtio_gpu_device *vgdev;
 	int r;
 
-	bo = (struct ttm_buffer_object *)vma->vm_private_data;
+	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
 	if (bo == NULL)
 		return VM_FAULT_NOPAGE;
 	vgdev = virtio_gpu_get_vgdev(bo->bdev);
-	r = ttm_vm_ops->fault(vma, vmf);
+	r = ttm_vm_ops->fault(vmf);
 	return r;
 }
 #endif

@@ -46,7 +46,8 @@ static char *policycap_names[] = {
 	"network_peer_controls",
 	"open_perms",
 	"extended_socket_class",
-	"always_check_network"
+	"always_check_network",
+	"cgroup_seclabel"
 };
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
@@ -424,10 +425,9 @@ out:
 	return ret;
 }
 
-static int sel_mmap_policy_fault(struct vm_area_struct *vma,
-				 struct vm_fault *vmf)
+static int sel_mmap_policy_fault(struct vm_fault *vmf)
 {
-	struct policy_load_memory *plm = vma->vm_file->private_data;
+	struct policy_load_memory *plm = vmf->vma->vm_file->private_data;
 	unsigned long offset;
 	struct page *page;
 

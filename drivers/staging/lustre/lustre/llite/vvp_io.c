@@ -1014,7 +1014,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 {
 	struct vm_fault *vmf = cfio->ft_vmf;
 
-	cfio->ft_flags = filemap_fault(cfio->ft_vma, vmf);
+	cfio->ft_flags = filemap_fault(vmf);
 	cfio->ft_flags_valid = 1;
 
 	if (vmf->page) {

@@ -29,8 +29,11 @@
 #include <linux/kexec.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/syscalls.h>
+#include <linux/mm_types.h>
 
 #include <asm/atomic.h>
 #include <asm/bug.h>

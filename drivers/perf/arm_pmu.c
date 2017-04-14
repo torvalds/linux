@@ -20,6 +20,7 @@
 #include <linux/perf/arm_pmu.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/spinlock.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>

@@ -3282,7 +3282,7 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
  * sure that it doesn't change while being written back.
  */
 static int
-cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+cifs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 

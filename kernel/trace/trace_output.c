@@ -8,6 +8,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/ftrace.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/mm.h>
 
 #include "trace_output.h"
 

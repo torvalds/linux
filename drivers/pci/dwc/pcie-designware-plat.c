@@ -86,6 +86,9 @@ static int dw_plat_add_pcie_port(struct pcie_port *pp,
 	return 0;
 }
 
+static const struct dw_pcie_ops dw_pcie_ops = {
+};
+
 static int dw_plat_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -103,6 +106,9 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pci->dev = dev;
+	pci->ops = &dw_pcie_ops;
+
+	dw_plat_pcie->pci = pci;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pci->dbi_base = devm_ioremap_resource(dev, res);

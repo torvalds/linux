@@ -33,6 +33,7 @@ struct blk_mq_hw_ctx {
 	struct blk_mq_ctx	**ctxs;
 	unsigned int		nr_ctx;
 
+	wait_queue_t		dispatch_wait;
 	atomic_t		wait_index;
 
 	struct blk_mq_tags	*tags;
@@ -50,6 +51,7 @@ struct blk_mq_hw_ctx {
 
 	atomic_t		nr_active;
 
+	struct delayed_work	delayed_run_work;
 	struct delayed_work	delay_work;
 
 	struct hlist_node	cpuhp_dead;
@@ -160,6 +162,7 @@ enum {
 	BLK_MQ_S_STOPPED	= 0,
 	BLK_MQ_S_TAG_ACTIVE	= 1,
 	BLK_MQ_S_SCHED_RESTART	= 2,
+	BLK_MQ_S_TAG_WAITING	= 3,
 
 	BLK_MQ_MAX_DEPTH	= 10240,
 
@@ -236,6 +239,7 @@ void blk_mq_stop_hw_queues(struct request_queue *q);
 void blk_mq_start_hw_queues(struct request_queue *q);
 void blk_mq_start_stopped_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
 void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async);
+void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
 void blk_mq_run_hw_queues(struct request_queue *q, bool async);
 void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
 void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
@@ -243,6 +247,9 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_unfreeze_queue(struct request_queue *q);
 void blk_mq_freeze_queue_start(struct request_queue *q);
+void blk_mq_freeze_queue_wait(struct request_queue *q);
+int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
+				     unsigned long timeout);
 int blk_mq_reinit_tagset(struct blk_mq_tag_set *set);
 
 int blk_mq_map_queues(struct blk_mq_tag_set *set);

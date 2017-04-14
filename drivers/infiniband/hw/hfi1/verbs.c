@@ -1703,7 +1703,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	strlcpy(ibdev->name + lcpysz, "_%d", IB_DEVICE_NAME_MAX - lcpysz);
 	ibdev->owner = THIS_MODULE;
 	ibdev->phys_port_cnt = dd->num_pports;
-	ibdev->dma_device = &dd->pcidev->dev;
+	ibdev->dev.parent = &dd->pcidev->dev;
 	ibdev->modify_device = modify_device;
 	ibdev->alloc_hw_stats = alloc_hw_stats;
 	ibdev->get_hw_stats = get_hw_stats;

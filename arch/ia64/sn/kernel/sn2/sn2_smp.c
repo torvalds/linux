@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>

@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/elf.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/asm.h>
 #include <asm/branch.h>

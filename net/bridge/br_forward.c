@@ -186,8 +186,9 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		/* Do not flood unicast traffic to ports that turn it off */
 		if (pkt_type == BR_PKT_UNICAST && !(p->flags & BR_FLOOD))
 			continue;
+		/* Do not flood if mc off, except for traffic we originate */
 		if (pkt_type == BR_PKT_MULTICAST &&
-		    !(p->flags & BR_MCAST_FLOOD))
+		    !(p->flags & BR_MCAST_FLOOD) && skb->dev != br->dev)
 			continue;
 
 		/* Do not flood to ports that enable proxy ARP */

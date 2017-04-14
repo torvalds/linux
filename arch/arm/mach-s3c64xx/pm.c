@@ -304,7 +304,7 @@ static void s3c64xx_pm_prepare(void)
 			      wake_irqs, ARRAY_SIZE(wake_irqs));
 
 	/* store address of resume. */
-	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C64XX_INFORM0);
+	__raw_writel(__pa_symbol(s3c_cpu_resume), S3C64XX_INFORM0);
 
 	/* ensure previous wakeup state is cleared before sleeping */
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT), S3C64XX_WAKEUP_STAT);

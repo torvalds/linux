@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mmu_context.h>
+#include <linux/sched/mm.h>
 
 #include "async_pf.h"
 #include <trace/events/kvm.h>
@@ -204,7 +205,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 	work->addr = hva;
 	work->arch = *arch;
 	work->mm = current->mm;
-	atomic_inc(&work->mm->mm_users);
+	mmget(work->mm);
 	kvm_get_kvm(work->vcpu->kvm);
 
 	/* this can't really happen otherwise gfn_to_pfn_async

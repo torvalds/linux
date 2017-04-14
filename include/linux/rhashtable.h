@@ -25,7 +25,7 @@
 #include <linux/list_nulls.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
-#include <linux/rcupdate.h>
+#include <linux/rculist.h>
 
 /*
  * The end of the chain is marked with a special nulls marks which has

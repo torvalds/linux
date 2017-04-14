@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/syscore_ops.h>
 #include <linux/hrtimer.h>
 #include <linux/sched_clock.h>

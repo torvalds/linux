@@ -572,7 +572,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
 	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
-	dev->ibdev.dma_device = &(dev->rdev.lldi.pdev->dev);
+	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;
 	dev->ibdev.query_device = c4iw_query_device;
 	dev->ibdev.query_port = c4iw_query_port;
 	dev->ibdev.query_pkey = c4iw_query_pkey;

@@ -2389,9 +2389,8 @@ qed_chain_alloc_sanity_check(struct qed_dev *cdev,
 	 * size/capacity fields are of a u32 type.
 	 */
 	if ((cnt_type == QED_CHAIN_CNT_TYPE_U16 &&
-	     chain_size > 0x10000) ||
-	    (cnt_type == QED_CHAIN_CNT_TYPE_U32 &&
-	     chain_size > 0x100000000ULL)) {
+	     chain_size > ((u32)U16_MAX + 1)) ||
+	    (cnt_type == QED_CHAIN_CNT_TYPE_U32 && chain_size > U32_MAX)) {
 		DP_NOTICE(cdev,
 			  "The actual chain size (0x%llx) is larger than the maximal possible value\n",
 			  chain_size);
@@ -3198,7 +3197,8 @@ int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
 }
 
 /* API to configure WFQ from mcp link change */
-void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
+void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
+					 struct qed_ptt *p_ptt, u32 min_pf_rate)
 {
 	int i;
 
@@ -3212,8 +3212,7 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
-		__qed_configure_vp_wfq_on_link_change(p_hwfn,
-						      p_hwfn->p_dpc_ptt,
+		__qed_configure_vp_wfq_on_link_change(p_hwfn, p_ptt,
 						      min_pf_rate);
 	}
 }

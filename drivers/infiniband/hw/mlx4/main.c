@@ -39,6 +39,9 @@
 #include <linux/inetdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
+
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 #include <net/devlink.h>
@@ -2628,7 +2631,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.phys_port_cnt     = mlx4_is_bonded(dev) ?
 						1 : ibdev->num_ports;
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
-	ibdev->ib_dev.dma_device	= &dev->persist->pdev->dev;
+	ibdev->ib_dev.dev.parent	= &dev->persist->pdev->dev;
 	ibdev->ib_dev.get_netdev	= mlx4_ib_get_netdev;
 	ibdev->ib_dev.add_gid		= mlx4_ib_add_gid;
 	ibdev->ib_dev.del_gid		= mlx4_ib_del_gid;

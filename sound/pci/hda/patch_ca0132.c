@@ -2866,7 +2866,7 @@ static unsigned int ca0132_capture_pcm_delay(struct hda_pcm_stream *info,
 #define CA0132_CODEC_MUTE(xname, nid, dir) \
 	CA0132_CODEC_MUTE_MONO(xname, nid, 3, dir)
 
-/* The followings are for tuning of products */
+/* The following are for tuning of products */
 #ifdef ENABLE_TUNING_CONTROLS
 
 static unsigned int voice_focus_vals_lookup[] = {

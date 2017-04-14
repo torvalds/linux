@@ -2933,7 +2933,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	sprintf(target->target_name, "SRP.T10:%016llX",
 		be64_to_cpu(target->id_ext));
 
-	if (scsi_add_host(target->scsi_host, host->srp_dev->dev->dma_device))
+	if (scsi_add_host(target->scsi_host, host->srp_dev->dev->dev.parent))
 		return -ENODEV;
 
 	memcpy(ids.port_id, &target->id_ext, 8);
@@ -3546,7 +3546,7 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 	host->port = port;
 
 	host->dev.class = &srp_class;
-	host->dev.parent = device->dev->dma_device;
+	host->dev.parent = device->dev->dev.parent;
 	dev_set_name(&host->dev, "srp-%s-%d", device->dev->name, port);
 
 	if (device_register(&host->dev))

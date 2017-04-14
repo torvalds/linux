@@ -1224,7 +1224,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.node_type            = RDMA_NODE_IB_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.num_comp_vectors     = 1;
-	dev->ib_dev.dma_device           = &dev->pdev->dev;
+	dev->ib_dev.dev.parent           = &dev->pdev->dev;
 	dev->ib_dev.query_device         = mthca_query_device;
 	dev->ib_dev.query_port           = mthca_query_port;
 	dev->ib_dev.modify_device        = mthca_modify_device;

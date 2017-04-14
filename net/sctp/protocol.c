@@ -199,6 +199,7 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 			      sctp_scope_t scope, gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
+	union sctp_addr laddr;
 	int error = 0;
 
 	rcu_read_lock();
@@ -220,7 +221,10 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 		     !(copy_flags & SCTP_ADDR6_PEERSUPP)))
 			continue;
 
-		if (sctp_bind_addr_state(bp, &addr->a) != -1)
+		laddr = addr->a;
+		/* also works for setting ipv6 address port */
+		laddr.v4.sin_port = htons(bp->port);
+		if (sctp_bind_addr_state(bp, &laddr) != -1)
 			continue;
 
 		error = sctp_add_bind_addr(bp, &addr->a, sizeof(addr->a),
@@ -571,10 +575,11 @@ static int sctp_v4_is_ce(const struct sk_buff *skb)
 
 /* Create and initialize a new sk for the socket returned by accept(). */
 static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
-					     struct sctp_association *asoc)
+					     struct sctp_association *asoc,
+					     bool kern)
 {
 	struct sock *newsk = sk_alloc(sock_net(sk), PF_INET, GFP_KERNEL,
-			sk->sk_prot, 0);
+			sk->sk_prot, kern);
 	struct inet_sock *newinet;
 
 	if (!newsk)

@@ -213,8 +213,8 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 			rbo->placement.num_busy_placement = 0;
 			for (i = 0; i < rbo->placement.num_placement; i++) {
 				if (rbo->placements[i].flags & TTM_PL_FLAG_VRAM) {
-					if (rbo->placements[0].fpfn < fpfn)
-						rbo->placements[0].fpfn = fpfn;
+					if (rbo->placements[i].fpfn < fpfn)
+						rbo->placements[i].fpfn = fpfn;
 				} else {
 					rbo->placement.busy_placement =
 						&rbo->placements[i];
@@ -979,19 +979,19 @@ void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
 static struct vm_operations_struct radeon_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops = NULL;
 
-static int radeon_ttm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int radeon_ttm_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
 	struct radeon_device *rdev;
 	int r;
 
-	bo = (struct ttm_buffer_object *)vma->vm_private_data;	
+	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
 	if (bo == NULL) {
 		return VM_FAULT_NOPAGE;
 	}
 	rdev = radeon_get_rdev(bo->bdev);
 	down_read(&rdev->pm.mclk_lock);
-	r = ttm_vm_ops->fault(vma, vmf);
+	r = ttm_vm_ops->fault(vmf);
 	up_read(&rdev->pm.mclk_lock);
 	return r;
 }

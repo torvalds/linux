@@ -467,7 +467,7 @@ void __init ltq_soc_init(void)
 
 		if (!np_xbar)
 			panic("Failed to load xbar nodes from devicetree");
-		if (of_address_to_resource(np_pmu, 0, &res_xbar))
+		if (of_address_to_resource(np_xbar, 0, &res_xbar))
 			panic("Failed to get xbar resources");
 		if (!request_mem_region(res_xbar.start, resource_size(&res_xbar),
 			res_xbar.name))

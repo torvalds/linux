@@ -76,6 +76,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/cred.h>
+#include <linux/rculist.h>
 #include <linux/user_namespace.h>
 
 #include "include/apparmor.h"

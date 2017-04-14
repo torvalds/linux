@@ -59,6 +59,7 @@
 #include <media/tveeprom.h>
 #include <media/i2c/saa7115.h>
 #include "tuner-xc2028.h"
+#include <uapi/linux/sched/types.h>
 
 /* If you have already X v4l cards, then set this to X. This way
    the device numbers stay matched. Example: you have a WinTV card

@@ -439,7 +439,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	ib_dev->owner			= THIS_MODULE;
 	ib_dev->node_type		= RDMA_NODE_IB_CA;
-	ib_dev->dma_device		= dev;
+	ib_dev->dev.parent		= dev;
 
 	ib_dev->phys_port_cnt		= hr_dev->caps.num_ports;
 	ib_dev->local_dma_lkey		= hr_dev->caps.reserved_lkey;

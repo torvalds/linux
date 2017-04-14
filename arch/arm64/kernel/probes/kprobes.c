@@ -22,6 +22,7 @@
 #include <linux/extable.h>
 #include <linux/slab.h>
 #include <linux/stop_machine.h>
+#include <linux/sched/debug.h>
 #include <linux/stringify.h>
 #include <asm/traps.h>
 #include <asm/ptrace.h>
@@ -369,12 +370,6 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 			return 1;
 	}
 	return 0;
-}
-
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
-				       unsigned long val, void *data)
-{
-	return NOTIFY_DONE;
 }
 
 static void __kprobes kprobe_handler(struct pt_regs *regs)

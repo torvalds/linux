@@ -30,7 +30,7 @@ static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
 		return true;
 
 	if (!memcmp(h->oem_table_id, "QDF2400 ", ACPI_OEM_TABLE_ID_SIZE) &&
-			h->oem_revision == 0)
+			h->oem_revision == 1)
 		return true;
 
 	return false;
@@ -46,7 +46,7 @@ static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
  * console is registered and if @earlycon is true, earlycon is set up.
  *
  * When CONFIG_ACPI_SPCR_TABLE is defined, this function should be called
- * from arch inintialization code as soon as the DT/ACPI decision is made.
+ * from arch initialization code as soon as the DT/ACPI decision is made.
  *
  */
 int __init parse_spcr(bool earlycon)

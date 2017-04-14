@@ -61,6 +61,8 @@ struct timer_list {
 #define TIMER_ARRAYSHIFT	22
 #define TIMER_ARRAYMASK		0xFFC00000
 
+#define TIMER_TRACE_FLAGMASK	(TIMER_MIGRATING | TIMER_DEFERRABLE | TIMER_PINNED | TIMER_IRQSAFE)
+
 #define __TIMER_INITIALIZER(_function, _expires, _data, _flags) { \
 		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
@@ -210,7 +212,7 @@ struct hrtimer;
 extern enum hrtimer_restart it_real_fn(struct hrtimer *);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-#include <linux/sysctl.h>
+struct ctl_table;
 
 extern unsigned int sysctl_timer_migration;
 int timer_migration_handler(struct ctl_table *table, int write,

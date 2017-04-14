@@ -817,7 +817,7 @@ static void bcm_enet_adjust_phy_link(struct net_device *dev)
 			rx_pause_en = 1;
 			tx_pause_en = 1;
 		} else if (!priv->pause_auto) {
-			/* pause setting overrided by user */
+			/* pause setting overridden by user */
 			rx_pause_en = priv->pause_rx;
 			tx_pause_en = priv->pause_tx;
 		} else {

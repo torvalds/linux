@@ -398,12 +398,12 @@ static void *uffd_poll_thread(void *arg)
 			uffd = msg.arg.fork.ufd;
 			pollfd[0].fd = uffd;
 			break;
-		case UFFD_EVENT_MADVDONTNEED:
-			uffd_reg.range.start = msg.arg.madv_dn.start;
-			uffd_reg.range.len = msg.arg.madv_dn.end -
-				msg.arg.madv_dn.start;
+		case UFFD_EVENT_REMOVE:
+			uffd_reg.range.start = msg.arg.remove.start;
+			uffd_reg.range.len = msg.arg.remove.end -
+				msg.arg.remove.start;
 			if (ioctl(uffd, UFFDIO_UNREGISTER, &uffd_reg.range))
-				fprintf(stderr, "madv_dn failure\n"), exit(1);
+				fprintf(stderr, "remove failure\n"), exit(1);
 			break;
 		case UFFD_EVENT_REMAP:
 			area_dst = (char *)(unsigned long)msg.arg.remap.to;
@@ -569,9 +569,9 @@ static int userfaultfd_open(int features)
  * part is accessed after mremap. Since hugetlbfs does not support
  * mremap, the entire monitored area is accessed in a single pass for
  * HUGETLB_TEST.
- * The release of the pages currently generates event only for
- * anonymous memory (UFFD_EVENT_MADVDONTNEED), hence it is not checked
- * for hugetlb and shmem.
+ * The release of the pages currently generates event for shmem and
+ * anonymous memory (UFFD_EVENT_REMOVE), hence it is not checked
+ * for hugetlb.
  */
 static int faulting_process(void)
 {
@@ -610,7 +610,6 @@ static int faulting_process(void)
 		}
 	}
 
-#ifndef SHMEM_TEST
 	if (release_pages(area_dst))
 		return 1;
 
@@ -618,7 +617,6 @@ static int faulting_process(void)
 		if (my_bcmp(area_dst + nr * page_size, zeropage, page_size))
 			fprintf(stderr, "nr %lu is not zero\n", nr), exit(1);
 	}
-#endif /* SHMEM_TEST */
 
 #endif /* HUGETLB_TEST */
 
@@ -715,14 +713,14 @@ static int userfaultfd_events_test(void)
 	pid_t pid;
 	char c;
 
-	printf("testing events (fork, remap, madv_dn): ");
+	printf("testing events (fork, remap, remove): ");
 	fflush(stdout);
 
 	if (release_pages(area_dst))
 		return 1;
 
 	features = UFFD_FEATURE_EVENT_FORK | UFFD_FEATURE_EVENT_REMAP |
-		UFFD_FEATURE_EVENT_MADVDONTNEED;
+		UFFD_FEATURE_EVENT_REMOVE;
 	if (userfaultfd_open(features) < 0)
 		return 1;
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);

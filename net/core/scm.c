@@ -14,6 +14,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/user.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/stat.h>

@@ -1087,6 +1087,7 @@ struct smb_version_operations smb1_operations = {
 	.is_read_op = cifs_is_read_op,
 	.wp_retry_size = cifs_wp_retry_size,
 	.dir_needs_close = cifs_dir_needs_close,
+	.select_sectype = cifs_select_sectype,
 #ifdef CONFIG_CIFS_XATTR
 	.query_all_EAs = CIFSSMBQAllEAs,
 	.set_EA = CIFSSMBSetEA,

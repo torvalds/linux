@@ -3731,7 +3731,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 
 	nesibdev->ibdev.phys_port_cnt = 1;
 	nesibdev->ibdev.num_comp_vectors = 1;
-	nesibdev->ibdev.dma_device = &nesdev->pcidev->dev;
 	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
 	nesibdev->ibdev.query_device = nes_query_device;
 	nesibdev->ibdev.query_port = nes_query_port;

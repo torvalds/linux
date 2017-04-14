@@ -29,7 +29,6 @@ struct led_pwm_data {
 	unsigned int		active_low;
 	unsigned int		period;
 	int			duty;
-	bool			can_sleep;
 };
 
 struct led_pwm_priv {
@@ -49,8 +48,8 @@ static void __led_pwm_set(struct led_pwm_data *led_dat)
 		pwm_enable(led_dat->pwm);
 }
 
-static void led_pwm_set(struct led_classdev *led_cdev,
-	enum led_brightness brightness)
+static int led_pwm_set(struct led_classdev *led_cdev,
+		       enum led_brightness brightness)
 {
 	struct led_pwm_data *led_dat =
 		container_of(led_cdev, struct led_pwm_data, cdev);
@@ -66,12 +65,7 @@ static void led_pwm_set(struct led_classdev *led_cdev,
 	led_dat->duty = duty;
 
 	__led_pwm_set(led_dat);
-}
 
-static int led_pwm_set_blocking(struct led_classdev *led_cdev,
-	enum led_brightness brightness)
-{
-	led_pwm_set(led_cdev, brightness);
 	return 0;
 }
 
@@ -112,11 +106,7 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 		return ret;
 	}
 
-	led_data->can_sleep = pwm_can_sleep(led_data->pwm);
-	if (!led_data->can_sleep)
-		led_data->cdev.brightness_set = led_pwm_set;
-	else
-		led_data->cdev.brightness_set_blocking = led_pwm_set_blocking;
+	led_data->cdev.brightness_set_blocking = led_pwm_set;
 
 	/*
 	 * FIXME: pwm_apply_args() should be removed when switching to the

@@ -62,7 +62,7 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 		rste |= move_set_bit(pte_val(pte), _PAGE_NOEXEC,
 				     _SEGMENT_ENTRY_NOEXEC);
 	} else
-		rste = _SEGMENT_ENTRY_INVALID;
+		rste = _SEGMENT_ENTRY_EMPTY;
 	return rste;
 }
 

@@ -213,15 +213,8 @@ static void tpg110_init(struct device *dev, struct device_node *np,
 	board->disable = tpg110_disable;
 }
 
-int nomadik_clcd_init_panel(struct clcd_fb *fb,
-			    struct device_node *endpoint)
+int nomadik_clcd_init_panel(struct clcd_fb *fb, struct device_node *panel)
 {
-	struct device_node *panel;
-
-	panel = of_graph_get_remote_port_parent(endpoint);
-	if (!panel)
-		return -ENODEV;
-
 	if (of_device_is_compatible(panel, "tpo,tpg110"))
 		tpg110_init(&fb->dev->dev, panel, fb->board);
 	else

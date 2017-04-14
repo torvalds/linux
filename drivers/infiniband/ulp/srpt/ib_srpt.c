@@ -2479,8 +2479,7 @@ static void srpt_add_one(struct ib_device *device)
 	struct ib_srq_init_attr srq_attr;
 	int i;
 
-	pr_debug("device = %p, device->dma_ops = %p\n", device,
-		 device->dma_ops);
+	pr_debug("device = %p\n", device);
 
 	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)

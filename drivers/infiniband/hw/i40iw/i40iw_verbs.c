@@ -2758,7 +2758,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND);
 	iwibdev->ibdev.phys_port_cnt = 1;
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
-	iwibdev->ibdev.dma_device = &pcidev->dev;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
 	iwibdev->ibdev.query_port = i40iw_query_port;
 	iwibdev->ibdev.modify_port = i40iw_modify_port;

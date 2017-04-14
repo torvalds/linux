@@ -109,10 +109,8 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, unsigned long pfn,
 				  pgprot_t prot,
-				  phys_addr_t (*pgtable_alloc)(void),
-				  bool page_mappings_only)
+				  phys_addr_t (*pgtable_alloc)(void))
 {
-	pgprot_t __prot = prot;
 	pte_t *pte;
 
 	BUG_ON(pmd_sect(*pmd));
@@ -130,18 +128,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 	do {
 		pte_t old_pte = *pte;
 
-		/*
-		 * Set the contiguous bit for the subsequent group of PTEs if
-		 * its size and alignment are appropriate.
-		 */
-		if (((addr | PFN_PHYS(pfn)) & ~CONT_PTE_MASK) == 0) {
-			if (end - addr >= CONT_PTE_SIZE && !page_mappings_only)
-				__prot = __pgprot(pgprot_val(prot) | PTE_CONT);
-			else
-				__prot = prot;
-		}
-
-		set_pte(pte, pfn_pte(pfn, __prot));
+		set_pte(pte, pfn_pte(pfn, prot));
 		pfn++;
 
 		/*
@@ -160,7 +147,6 @@ static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 				  phys_addr_t (*pgtable_alloc)(void),
 				  bool page_mappings_only)
 {
-	pgprot_t __prot = prot;
 	pmd_t *pmd;
 	unsigned long next;
 
@@ -187,18 +173,7 @@ static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 		/* try section mapping first */
 		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
 		      !page_mappings_only) {
-			/*
-			 * Set the contiguous bit for the subsequent group of
-			 * PMDs if its size and alignment are appropriate.
-			 */
-			if (((addr | phys) & ~CONT_PMD_MASK) == 0) {
-				if (end - addr >= CONT_PMD_SIZE)
-					__prot = __pgprot(pgprot_val(prot) |
-							  PTE_CONT);
-				else
-					__prot = prot;
-			}
-			pmd_set_huge(pmd, phys, __prot);
+			pmd_set_huge(pmd, phys, prot);
 
 			/*
 			 * After the PMD entry has been populated once, we
@@ -208,8 +183,7 @@ static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 						      pmd_val(*pmd)));
 		} else {
 			alloc_init_pte(pmd, addr, next, __phys_to_pfn(phys),
-				       prot, pgtable_alloc,
-				       page_mappings_only);
+				       prot, pgtable_alloc);
 
 			BUG_ON(pmd_val(old_pmd) != 0 &&
 			       pmd_val(old_pmd) != pmd_val(*pmd));

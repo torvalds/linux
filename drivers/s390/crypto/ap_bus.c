@@ -1107,16 +1107,6 @@ static void ap_config_timeout(unsigned long ptr)
 	queue_work(system_long_wq, &ap_scan_work);
 }
 
-static void ap_reset_domain(void)
-{
-	int i;
-
-	if (ap_domain_index == -1 || !ap_test_config_domain(ap_domain_index))
-		return;
-	for (i = 0; i < AP_DEVICES; i++)
-		ap_rapq(AP_MKQID(i, ap_domain_index));
-}
-
 static void ap_reset_all(void)
 {
 	int i, j;

@@ -1808,7 +1808,7 @@ static void debug_warn(const char *warn, va_list params)
 {
 	char msg[1024];
 
-	if (!verbose)
+	if (verbose <= 0)
 		return;
 
 	vsnprintf(msg, sizeof(msg), warn, params);

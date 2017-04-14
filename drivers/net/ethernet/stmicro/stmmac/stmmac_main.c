@@ -1729,11 +1729,6 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	priv->hw->dma->start_tx(priv->ioaddr);
 	priv->hw->dma->start_rx(priv->ioaddr);
 
-	/* Dump DMA/MAC registers */
-	if (netif_msg_hw(priv)) {
-		priv->hw->mac->dump_regs(priv->hw);
-		priv->hw->dma->dump_regs(priv->ioaddr);
-	}
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
 
 	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {

@@ -430,7 +430,6 @@ struct mlx4_en_dev {
 	seqlock_t		clock_lock;
 	struct timecounter	clock;
 	unsigned long		last_overflow_check;
-	unsigned long		overflow_period;
 	struct ptp_clock	*ptp_clock;
 	struct ptp_clock_info	ptp_clock_info;
 	struct notifier_block	nb;

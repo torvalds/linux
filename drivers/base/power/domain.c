@@ -274,6 +274,93 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
 }
 
 /**
+ * genpd_power_off - Remove power from a given PM domain.
+ * @genpd: PM domain to power down.
+ * @one_dev_on: If invoked from genpd's ->runtime_suspend|resume() callback, the
+ * RPM status of the releated device is in an intermediate state, not yet turned
+ * into RPM_SUSPENDED. This means genpd_power_off() must allow one device to not
+ * be RPM_SUSPENDED, while it tries to power off the PM domain.
+ *
+ * If all of the @genpd's devices have been suspended and all of its subdomains
+ * have been powered down, remove power from @genpd.
+ */
+static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
+			   unsigned int depth)
+{
+	struct pm_domain_data *pdd;
+	struct gpd_link *link;
+	unsigned int not_suspended = 0;
+
+	/*
+	 * Do not try to power off the domain in the following situations:
+	 * (1) The domain is already in the "power off" state.
+	 * (2) System suspend is in progress.
+	 */
+	if (genpd->status == GPD_STATE_POWER_OFF
+	    || genpd->prepared_count > 0)
+		return 0;
+
+	if (atomic_read(&genpd->sd_count) > 0)
+		return -EBUSY;
+
+	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+		enum pm_qos_flags_status stat;
+
+		stat = dev_pm_qos_flags(pdd->dev,
+					PM_QOS_FLAG_NO_POWER_OFF
+						| PM_QOS_FLAG_REMOTE_WAKEUP);
+		if (stat > PM_QOS_FLAGS_NONE)
+			return -EBUSY;
+
+		/*
+		 * Do not allow PM domain to be powered off, when an IRQ safe
+		 * device is part of a non-IRQ safe domain.
+		 */
+		if (!pm_runtime_suspended(pdd->dev) ||
+			irq_safe_dev_in_no_sleep_domain(pdd->dev, genpd))
+			not_suspended++;
+	}
+
+	if (not_suspended > 1 || (not_suspended == 1 && !one_dev_on))
+		return -EBUSY;
+
+	if (genpd->gov && genpd->gov->power_down_ok) {
+		if (!genpd->gov->power_down_ok(&genpd->domain))
+			return -EAGAIN;
+	}
+
+	if (genpd->power_off) {
+		int ret;
+
+		if (atomic_read(&genpd->sd_count) > 0)
+			return -EBUSY;
+
+		/*
+		 * If sd_count > 0 at this point, one of the subdomains hasn't
+		 * managed to call genpd_power_on() for the master yet after
+		 * incrementing it.  In that case genpd_power_on() will wait
+		 * for us to drop the lock, so we can call .power_off() and let
+		 * the genpd_power_on() restore power for us (this shouldn't
+		 * happen very often).
+		 */
+		ret = _genpd_power_off(genpd, true);
+		if (ret)
+			return ret;
+	}
+
+	genpd->status = GPD_STATE_POWER_OFF;
+
+	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+		genpd_sd_counter_dec(link->master);
+		genpd_lock_nested(link->master, depth + 1);
+		genpd_power_off(link->master, false, depth + 1);
+		genpd_unlock(link->master);
+	}
+
+	return 0;
+}
+
+/**
  * genpd_power_on - Restore power to a given PM domain and its masters.
  * @genpd: PM domain to power up.
  * @depth: nesting count for lockdep.
@@ -321,7 +408,9 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 					&genpd->slave_links,
 					slave_node) {
 		genpd_sd_counter_dec(link->master);
-		genpd_queue_power_off_work(link->master);
+		genpd_lock_nested(link->master, depth + 1);
+		genpd_power_off(link->master, false, depth + 1);
+		genpd_unlock(link->master);
 	}
 
 	return ret;
@@ -368,87 +457,6 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 }
 
 /**
- * genpd_power_off - Remove power from a given PM domain.
- * @genpd: PM domain to power down.
- * @is_async: PM domain is powered down from a scheduled work
- *
- * If all of the @genpd's devices have been suspended and all of its subdomains
- * have been powered down, remove power from @genpd.
- */
-static int genpd_power_off(struct generic_pm_domain *genpd, bool is_async)
-{
-	struct pm_domain_data *pdd;
-	struct gpd_link *link;
-	unsigned int not_suspended = 0;
-
-	/*
-	 * Do not try to power off the domain in the following situations:
-	 * (1) The domain is already in the "power off" state.
-	 * (2) System suspend is in progress.
-	 */
-	if (genpd->status == GPD_STATE_POWER_OFF
-	    || genpd->prepared_count > 0)
-		return 0;
-
-	if (atomic_read(&genpd->sd_count) > 0)
-		return -EBUSY;
-
-	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
-		enum pm_qos_flags_status stat;
-
-		stat = dev_pm_qos_flags(pdd->dev,
-					PM_QOS_FLAG_NO_POWER_OFF
-						| PM_QOS_FLAG_REMOTE_WAKEUP);
-		if (stat > PM_QOS_FLAGS_NONE)
-			return -EBUSY;
-
-		/*
-		 * Do not allow PM domain to be powered off, when an IRQ safe
-		 * device is part of a non-IRQ safe domain.
-		 */
-		if (!pm_runtime_suspended(pdd->dev) ||
-			irq_safe_dev_in_no_sleep_domain(pdd->dev, genpd))
-			not_suspended++;
-	}
-
-	if (not_suspended > 1 || (not_suspended == 1 && is_async))
-		return -EBUSY;
-
-	if (genpd->gov && genpd->gov->power_down_ok) {
-		if (!genpd->gov->power_down_ok(&genpd->domain))
-			return -EAGAIN;
-	}
-
-	if (genpd->power_off) {
-		int ret;
-
-		if (atomic_read(&genpd->sd_count) > 0)
-			return -EBUSY;
-
-		/*
-		 * If sd_count > 0 at this point, one of the subdomains hasn't
-		 * managed to call genpd_power_on() for the master yet after
-		 * incrementing it.  In that case genpd_power_on() will wait
-		 * for us to drop the lock, so we can call .power_off() and let
-		 * the genpd_power_on() restore power for us (this shouldn't
-		 * happen very often).
-		 */
-		ret = _genpd_power_off(genpd, true);
-		if (ret)
-			return ret;
-	}
-
-	genpd->status = GPD_STATE_POWER_OFF;
-
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
-		genpd_sd_counter_dec(link->master);
-		genpd_queue_power_off_work(link->master);
-	}
-
-	return 0;
-}
-
-/**
  * genpd_power_off_work_fn - Power off PM domain whose subdomain count is 0.
  * @work: Work structure used for scheduling the execution of this function.
  */
@@ -459,7 +467,7 @@ static void genpd_power_off_work_fn(struct work_struct *work)
 	genpd = container_of(work, struct generic_pm_domain, power_off_work);
 
 	genpd_lock(genpd);
-	genpd_power_off(genpd, true);
+	genpd_power_off(genpd, false, 0);
 	genpd_unlock(genpd);
 }
 
@@ -578,7 +586,7 @@ static int genpd_runtime_suspend(struct device *dev)
 		return 0;
 
 	genpd_lock(genpd);
-	genpd_power_off(genpd, false);
+	genpd_power_off(genpd, true, 0);
 	genpd_unlock(genpd);
 
 	return 0;
@@ -658,7 +666,7 @@ err_poweroff:
 	if (!pm_runtime_is_irq_safe(dev) ||
 		(pm_runtime_is_irq_safe(dev) && genpd_is_irq_safe(genpd))) {
 		genpd_lock(genpd);
-		genpd_power_off(genpd, 0);
+		genpd_power_off(genpd, true, 0);
 		genpd_unlock(genpd);
 	}
 

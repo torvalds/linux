@@ -3705,6 +3705,39 @@ int i2c_slave_unregister(struct i2c_client *client)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i2c_slave_unregister);
+
+/**
+ * i2c_detect_slave_mode - detect operation mode
+ * @dev: The device owning the bus
+ *
+ * This checks the device nodes for an I2C slave by checking the address
+ * used in the reg property. If the address match the I2C_OWN_SLAVE_ADDRESS
+ * flag this means the device is configured to act as a I2C slave and it will
+ * be listening at that address.
+ *
+ * Returns true if an I2C own slave address is detected, otherwise returns
+ * false.
+ */
+bool i2c_detect_slave_mode(struct device *dev)
+{
+	if (IS_BUILTIN(CONFIG_OF) && dev->of_node) {
+		struct device_node *child;
+		u32 reg;
+
+		for_each_child_of_node(dev->of_node, child) {
+			of_property_read_u32(child, "reg", &reg);
+			if (reg & I2C_OWN_SLAVE_ADDRESS) {
+				of_node_put(child);
+				return true;
+			}
+		}
+	} else if (IS_BUILTIN(CONFIG_ACPI) && ACPI_HANDLE(dev)) {
+		dev_dbg(dev, "ACPI slave is not supported yet\n");
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(i2c_detect_slave_mode);
+
 #endif
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");

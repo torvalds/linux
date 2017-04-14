@@ -485,11 +485,15 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	if (!skb->ignore_df && skb->len > mtu) {
 		skb_dst(skb)->ops->update_pmtu(dst, NULL, skb, mtu);
 
-		if (skb->protocol == htons(ETH_P_IPV6))
+		if (skb->protocol == htons(ETH_P_IPV6)) {
+			if (mtu < IPV6_MIN_MTU)
+				mtu = IPV6_MIN_MTU;
+
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
-		else
+		} else {
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 				  htonl(mtu));
+		}
 
 		return -EMSGSIZE;
 	}
@@ -693,6 +697,10 @@ vti6_parm_to_user(struct ip6_tnl_parm2 *u, const struct __ip6_tnl_parm *p)
 	u->link = p->link;
 	u->i_key = p->i_key;
 	u->o_key = p->o_key;
+	if (u->i_key)
+		u->i_flags |= GRE_KEY;
+	if (u->o_key)
+		u->o_flags |= GRE_KEY;
 	u->proto = p->proto;
 
 	memcpy(u->name, p->name, sizeof(u->name));

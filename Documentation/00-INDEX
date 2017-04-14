@@ -270,8 +270,8 @@ m68k/
 	- directory with info about Linux on Motorola 68k architecture.
 mailbox.txt
 	- How to write drivers for the common mailbox framework (IPC).
-md-cluster.txt
-	- info on shared-device RAID MD cluster.
+md/
+	- directory with info about Linux Software RAID
 media/
 	- info on media drivers: uAPI, kAPI and driver documentation.
 memory-barriers.txt

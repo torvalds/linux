@@ -21,6 +21,7 @@
 #include <linux/compat.h>
 #include <linux/errno.h>
 #include <linux/time.h>
+#include <linux/cred.h>
 #include <linux/fs.h>
 #include <linux/fcntl.h>
 #include <linux/namei.h>

@@ -1110,9 +1110,14 @@ static int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg,
 	flags = (msg->msg_flags & MSG_DONTWAIT) ? O_NONBLOCK : 0;
 	err = __inet_stream_connect(sk->sk_socket, msg->msg_name,
 				    msg->msg_namelen, flags, 1);
-	inet->defer_connect = 0;
-	*copied = tp->fastopen_req->copied;
-	tcp_free_fastopen_req(tp);
+	/* fastopen_req could already be freed in __inet_stream_connect
+	 * if the connection times out or gets rst
+	 */
+	if (tp->fastopen_req) {
+		*copied = tp->fastopen_req->copied;
+		tcp_free_fastopen_req(tp);
+		inet->defer_connect = 0;
+	}
 	return err;
 }
 
@@ -2318,6 +2323,10 @@ int tcp_disconnect(struct sock *sk, int flags)
 	memset(&tp->rx_opt, 0, sizeof(tp->rx_opt));
 	__sk_dst_reset(sk);
 
+	/* Clean up fastopen related fields */
+	tcp_free_fastopen_req(tp);
+	inet->defer_connect = 0;
+
 	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
@@ -2761,7 +2770,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct tcp_sock *tp = tcp_sk(sk); /* iff sk_type == SOCK_STREAM */
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	u32 now = tcp_time_stamp, intv;
+	u32 now, intv;
 	u64 rate64;
 	bool slow;
 	u32 rate;
@@ -2830,6 +2839,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_retrans = tp->retrans_out;
 	info->tcpi_fackets = tp->fackets_out;
 
+	now = tcp_time_stamp;
 	info->tcpi_last_data_sent = jiffies_to_msecs(now - tp->lsndtime);
 	info->tcpi_last_data_recv = jiffies_to_msecs(now - icsk->icsk_ack.lrcvtime);
 	info->tcpi_last_ack_recv = jiffies_to_msecs(now - tp->rcv_tstamp);

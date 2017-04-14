@@ -695,6 +695,14 @@ struct fsctl_get_integrity_information_rsp {
 /* Integrity flags for above */
 #define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
 
+/* See MS-DFSC 2.2.2 */
+struct fsctl_get_dfs_referral_req {
+	__le16 MaxReferralLevel;
+	__u8 RequestFileName[];
+} __packed;
+
+/* DFS response is struct get_dfs_refer_rsp */
+
 /* See MS-SMB2 2.2.31.3 */
 struct network_resiliency_req {
 	__le32 Timeout;

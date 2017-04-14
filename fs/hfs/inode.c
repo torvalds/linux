@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/uio.h>
 #include <linux/xattr.h>
 

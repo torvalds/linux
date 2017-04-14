@@ -1269,7 +1269,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	list_del(&free_space_root->dirty_list);
 
 	btrfs_tree_lock(free_space_root->node);
-	clean_tree_block(trans, fs_info, free_space_root->node);
+	clean_tree_block(fs_info, free_space_root->node);
 	btrfs_tree_unlock(free_space_root->node);
 	btrfs_free_tree_block(trans, free_space_root, free_space_root->node,
 			      0, 1);

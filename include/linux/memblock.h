@@ -42,6 +42,7 @@ struct memblock_type {
 	unsigned long max;	/* size of the allocated array */
 	phys_addr_t total_size;	/* size of all regions */
 	struct memblock_region *regions;
+	char *name;
 };
 
 struct memblock {

@@ -206,17 +206,15 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 			void *accel_priv, select_queue_fallback_t fallback)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct netvsc_device *nvsc_dev = net_device_ctx->nvdev;
+	unsigned int num_tx_queues = ndev->real_num_tx_queues;
 	struct sock *sk = skb->sk;
 	int q_idx = sk_tx_queue_get(sk);
 
-	if (q_idx < 0 || skb->ooo_okay ||
-	    q_idx >= ndev->real_num_tx_queues) {
+	if (q_idx < 0 || skb->ooo_okay || q_idx >= num_tx_queues) {
 		u16 hash = __skb_tx_hash(ndev, skb, VRSS_SEND_TAB_SIZE);
 		int new_idx;
 
-		new_idx = nvsc_dev->send_table[hash]
-			% nvsc_dev->num_chn;
+		new_idx = net_device_ctx->tx_send_table[hash] % num_tx_queues;
 
 		if (q_idx != new_idx && sk &&
 		    sk_fullsock(sk) && rcu_access_pointer(sk->sk_dst_cache))
@@ -224,9 +222,6 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 
 		q_idx = new_idx;
 	}
-
-	if (unlikely(!nvsc_dev->chan_table[q_idx].channel))
-		q_idx = 0;
 
 	return q_idx;
 }
@@ -859,15 +854,22 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	if (ret)
 		goto out;
 
-	ndevctx->start_remove = true;
-	rndis_filter_device_remove(hdev, nvdev);
-
-	ndev->mtu = mtu;
-
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.num_chn = nvdev->num_chn;
 	device_info.max_num_vrss_chns = nvdev->num_chn;
+
+	ndevctx->start_remove = true;
+	rndis_filter_device_remove(hdev, nvdev);
+
+	/* 'nvdev' has been freed in rndis_filter_device_remove() ->
+	 * netvsc_device_remove () -> free_netvsc_device().
+	 * We mustn't access it before it's re-created in
+	 * rndis_filter_device_add() -> netvsc_device_add().
+	 */
+
+	ndev->mtu = mtu;
+
 	rndis_filter_device_add(hdev, &device_info);
 
 out:
