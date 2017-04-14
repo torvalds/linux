@@ -5406,6 +5406,23 @@ F:	fs/fuse/
 F:	include/uapi/linux/fuse.h
 F:	Documentation/filesystems/fuse.txt
 
+FUTEX SUBSYSTEM
+M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Ingo Molnar <mingo@redhat.com>
+R:	Peter Zijlstra <peterz@infradead.org>
+R:	Darren Hart <dvhart@infradead.org>
+L:	linux-kernel@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git locking/core
+S:	Maintained
+F:	kernel/futex.c
+F:	kernel/futex_compat.c
+F:	include/asm-generic/futex.h
+F:	include/linux/futex.h
+F:	include/uapi/linux/futex.h
+F:	tools/testing/selftests/futex/
+F:	tools/perf/bench/futex*
+F:	Documentation/*futex*
+
 FUTURE DOMAIN TMC-16x0 SCSI DRIVER (16-bit)
 M:	Rik Faith <faith@cs.unc.edu>
 L:	linux-scsi@vger.kernel.org
