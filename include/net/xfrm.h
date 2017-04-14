@@ -444,6 +444,16 @@ struct xfrm_mode {
 	 */
 	int (*output)(struct xfrm_state *x, struct sk_buff *skb);
 
+	/*
+	 * Adjust pointers into the packet and do GSO segmentation.
+	 */
+	struct sk_buff *(*gso_segment)(struct xfrm_state *x, struct sk_buff *skb, netdev_features_t features);
+
+	/*
+	 * Adjust pointers into the packet when IPsec is done at layer2.
+	 */
+	void (*xmit)(struct xfrm_state *x, struct sk_buff *skb);
+
 	struct xfrm_state_afinfo *afinfo;
 	struct module *owner;
 	unsigned int encap;
