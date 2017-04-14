@@ -672,7 +672,7 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
-static void __add_discard_cmd(struct f2fs_sb_info *sbi,
+static struct discard_cmd *__create_discard_cmd(struct f2fs_sb_info *sbi,
 		struct block_device *bdev, block_t lstart,
 		block_t start, block_t len)
 {
@@ -689,18 +689,46 @@ static void __add_discard_cmd(struct f2fs_sb_info *sbi,
 	dc->state = D_PREP;
 	dc->error = 0;
 	init_completion(&dc->wait);
-
-	mutex_lock(&dcc->cmd_lock);
 	list_add_tail(&dc->list, pend_list);
-	mutex_unlock(&dcc->cmd_lock);
-
 	atomic_inc(&dcc->discard_cmd_cnt);
+
+	return dc;
 }
 
-static void __remove_discard_cmd(struct f2fs_sb_info *sbi, struct discard_cmd *dc)
+static struct discard_cmd *__attach_discard_cmd(struct f2fs_sb_info *sbi,
+				struct block_device *bdev, block_t lstart,
+				block_t start, block_t len,
+				struct rb_node *parent, struct rb_node **p)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	struct discard_cmd *dc;
+
+	dc = __create_discard_cmd(sbi, bdev, lstart, start, len);
+
+	rb_link_node(&dc->rb_node, parent, p);
+	rb_insert_color(&dc->rb_node, &dcc->root);
+
+	return dc;
+}
+
+static void __detach_discard_cmd(struct discard_cmd_control *dcc,
+							struct discard_cmd *dc)
 {
 	if (dc->state == D_DONE)
-		atomic_dec(&(SM_I(sbi)->dcc_info->issing_discard));
+		atomic_dec(&dcc->issing_discard);
+
+	list_del(&dc->list);
+	rb_erase(&dc->rb_node, &dcc->root);
+
+	kmem_cache_free(discard_cmd_slab, dc);
+
+	atomic_dec(&dcc->discard_cmd_cnt);
+}
+
+static void __remove_discard_cmd(struct f2fs_sb_info *sbi,
+							struct discard_cmd *dc)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 
 	if (dc->error == -EOPNOTSUPP)
 		dc->error = 0;
@@ -708,9 +736,7 @@ static void __remove_discard_cmd(struct f2fs_sb_info *sbi, struct discard_cmd *d
 	if (dc->error)
 		f2fs_msg(sbi->sb, KERN_INFO,
 				"Issue discard failed, ret: %d", dc->error);
-	list_del(&dc->list);
-	kmem_cache_free(discard_cmd_slab, dc);
-	atomic_dec(&SM_I(sbi)->dcc_info->discard_cmd_cnt);
+	__detach_discard_cmd(dcc, dc);
 }
 
 static void f2fs_submit_discard_endio(struct bio *bio)
@@ -833,6 +859,148 @@ static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 	}
 }
 
+static struct discard_cmd *__insert_discard_tree(struct f2fs_sb_info *sbi,
+				struct block_device *bdev, block_t lstart,
+				block_t start, block_t len,
+				struct rb_node **insert_p,
+				struct rb_node *insert_parent)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	struct rb_node **p = &dcc->root.rb_node;
+	struct rb_node *parent = NULL;
+	struct discard_cmd *dc = NULL;
+
+	if (insert_p && insert_parent) {
+		parent = insert_parent;
+		p = insert_p;
+		goto do_insert;
+	}
+
+	p = __lookup_rb_tree_for_insert(sbi, &dcc->root, &parent, lstart);
+do_insert:
+	dc = __attach_discard_cmd(sbi, bdev, lstart, start, len, parent, p);
+	if (!dc)
+		return NULL;
+
+	return dc;
+}
+
+static void __punch_discard_cmd(struct f2fs_sb_info *sbi,
+				struct discard_cmd *dc, block_t blkaddr)
+{
+	struct discard_info di = dc->di;
+	bool modified = false;
+
+	if (dc->state == D_DONE || dc->len == 1) {
+		__remove_discard_cmd(sbi, dc);
+		return;
+	}
+
+	if (blkaddr > di.lstart) {
+		dc->len = blkaddr - dc->lstart;
+		modified = true;
+	}
+
+	if (blkaddr < di.lstart + di.len - 1) {
+		if (modified) {
+			__insert_discard_tree(sbi, dc->bdev, blkaddr + 1,
+					di.start + blkaddr + 1 - di.lstart,
+					di.lstart + di.len - 1 - blkaddr,
+					NULL, NULL);
+		} else {
+			dc->lstart++;
+			dc->len--;
+			dc->start++;
+		}
+	}
+}
+
+static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
+				struct block_device *bdev, block_t lstart,
+				block_t start, block_t len)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	struct discard_cmd *prev_dc = NULL, *next_dc = NULL;
+	struct discard_cmd *dc;
+	struct discard_info di = {0};
+	struct rb_node **insert_p = NULL, *insert_parent = NULL;
+	block_t end = lstart + len;
+
+	mutex_lock(&dcc->cmd_lock);
+
+	dc = (struct discard_cmd *)__lookup_rb_tree_ret(&dcc->root,
+					NULL, lstart,
+					(struct rb_entry **)&prev_dc,
+					(struct rb_entry **)&next_dc,
+					&insert_p, &insert_parent, true);
+	if (dc)
+		prev_dc = dc;
+
+	if (!prev_dc) {
+		di.lstart = lstart;
+		di.len = next_dc ? next_dc->lstart - lstart : len;
+		di.len = min(di.len, len);
+		di.start = start;
+	}
+
+	while (1) {
+		struct rb_node *node;
+		bool merged = false;
+		struct discard_cmd *tdc = NULL;
+
+		if (prev_dc) {
+			di.lstart = prev_dc->lstart + prev_dc->len;
+			if (di.lstart < lstart)
+				di.lstart = lstart;
+			if (di.lstart >= end)
+				break;
+
+			if (!next_dc || next_dc->lstart > end)
+				di.len = end - di.lstart;
+			else
+				di.len = next_dc->lstart - di.lstart;
+			di.start = start + di.lstart - lstart;
+		}
+
+		if (!di.len)
+			goto next;
+
+		if (prev_dc && prev_dc->state == D_PREP &&
+			prev_dc->bdev == bdev &&
+			__is_discard_back_mergeable(&di, &prev_dc->di)) {
+			prev_dc->di.len += di.len;
+			di = prev_dc->di;
+			tdc = prev_dc;
+			merged = true;
+		}
+
+		if (next_dc && next_dc->state == D_PREP &&
+			next_dc->bdev == bdev &&
+			__is_discard_front_mergeable(&di, &next_dc->di)) {
+			next_dc->di.lstart = di.lstart;
+			next_dc->di.len += di.len;
+			next_dc->di.start = di.start;
+			if (tdc)
+				__remove_discard_cmd(sbi, tdc);
+
+			merged = true;
+		}
+
+		if (!merged)
+			__insert_discard_tree(sbi, bdev, di.lstart, di.start,
+							di.len, NULL, NULL);
+ next:
+		prev_dc = next_dc;
+		if (!prev_dc)
+			break;
+
+		node = rb_next(&prev_dc->rb_node);
+		next_dc = rb_entry_safe(node, struct discard_cmd, rb_node);
+	}
+
+	mutex_unlock(&dcc->cmd_lock);
+}
+
 static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 		struct block_device *bdev, block_t blkstart, block_t blklen)
 {
@@ -845,50 +1013,24 @@ static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 
 		blkstart -= FDEV(devi).start_blk;
 	}
-	__add_discard_cmd(sbi, bdev, lblkstart, blkstart, blklen);
+	__update_discard_tree_range(sbi, bdev, lblkstart, blkstart, blklen);
 	wake_up(&SM_I(sbi)->dcc_info->discard_wait_queue);
 	return 0;
-}
-
-static void __punch_discard_cmd(struct f2fs_sb_info *sbi,
-				struct discard_cmd *dc, block_t blkaddr)
-{
-	block_t end_block = START_BLOCK(sbi, GET_SEGNO(sbi, blkaddr) + 1);
-
-	if (dc->state == D_DONE || dc->lstart + dc->len <= end_block) {
-		__remove_discard_cmd(sbi, dc);
-		return;
-	}
-
-	if (blkaddr - dc->lstart < dc->lstart + dc->len - end_block) {
-		dc->start += (end_block - dc->lstart);
-		dc->len -= (end_block - dc->lstart);
-		dc->lstart = end_block;
-	} else {
-		dc->len = blkaddr - dc->lstart;
-	}
 }
 
 /* This should be covered by global mutex, &sit_i->sentry_lock */
 void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
-	struct list_head *pend_list = &(dcc->discard_pend_list);
-	struct list_head *wait_list = &(dcc->discard_wait_list);
-	struct discard_cmd *dc, *tmp;
+	struct discard_cmd *dc;
 
 	mutex_lock(&dcc->cmd_lock);
 
-	list_for_each_entry_safe(dc, tmp, pend_list, list) {
-		if (dc->lstart <= blkaddr && blkaddr < dc->lstart + dc->len)
-			__punch_discard_cmd(sbi, dc, blkaddr);
-	}
-
-	list_for_each_entry_safe(dc, tmp, wait_list, list) {
-		if (dc->lstart <= blkaddr && blkaddr < dc->lstart + dc->len) {
+	dc = (struct discard_cmd *)__lookup_rb_tree(&dcc->root, NULL, blkaddr);
+	if (dc) {
+		if (dc->state != D_PREP)
 			wait_for_completion_io(&dc->wait);
-			__punch_discard_cmd(sbi, dc, blkaddr);
-		}
+		__punch_discard_cmd(sbi, dc, blkaddr);
 	}
 
 	mutex_unlock(&dcc->cmd_lock);
@@ -1257,6 +1399,7 @@ static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 	atomic_set(&dcc->discard_cmd_cnt, 0);
 	dcc->nr_discards = 0;
 	dcc->max_discards = 0;
+	dcc->root = RB_ROOT;
 
 	init_waitqueue_head(&dcc->discard_wait_queue);
 	SM_I(sbi)->dcc_info = dcc;

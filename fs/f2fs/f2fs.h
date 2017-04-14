@@ -261,13 +261,26 @@ enum {
 	D_DONE,
 };
 
+struct discard_info {
+	block_t lstart;			/* logical start address */
+	block_t len;			/* length */
+	block_t start;			/* actual start address in dev */
+};
+
 struct discard_cmd {
+	struct rb_node rb_node;		/* rb node located in rb-tree */
+	union {
+		struct {
+			block_t lstart;	/* logical start address */
+			block_t len;	/* length */
+			block_t start;	/* actual start address in dev */
+		};
+		struct discard_info di;	/* discard info */
+
+	};
 	struct list_head list;		/* command list */
 	struct completion wait;		/* compleation */
 	struct block_device *bdev;	/* bdev */
-	block_t lstart;			/* logical start address */
-	block_t start;			/* actual start address in dev */
-	block_t len;			/* length */
 	int state;			/* state */
 	int error;			/* bio error */
 };
@@ -284,6 +297,7 @@ struct discard_cmd_control {
 	atomic_t issued_discard;		/* # of issued discard */
 	atomic_t issing_discard;		/* # of issing discard */
 	atomic_t discard_cmd_cnt;		/* # of cached cmd count */
+	struct rb_root root;			/* root of discard rb-tree */
 };
 
 /* for the list of fsync inodes, used only during recovery */
@@ -582,6 +596,24 @@ static inline void set_extent_info(struct extent_info *ei, unsigned int fofs,
 	ei->fofs = fofs;
 	ei->blk = blk;
 	ei->len = len;
+}
+
+static inline bool __is_discard_mergeable(struct discard_info *back,
+						struct discard_info *front)
+{
+	return back->lstart + back->len == front->lstart;
+}
+
+static inline bool __is_discard_back_mergeable(struct discard_info *cur,
+						struct discard_info *back)
+{
+	return __is_discard_mergeable(back, cur);
+}
+
+static inline bool __is_discard_front_mergeable(struct discard_info *cur,
+						struct discard_info *front)
+{
+	return __is_discard_mergeable(cur, front);
 }
 
 static inline bool __is_extent_mergeable(struct extent_info *back,
@@ -2640,6 +2672,16 @@ void f2fs_leave_shrinker(struct f2fs_sb_info *sbi);
 /*
  * extent_cache.c
  */
+struct rb_entry *__lookup_rb_tree(struct rb_root *root,
+				struct rb_entry *cached_re, unsigned int ofs);
+struct rb_node **__lookup_rb_tree_for_insert(struct f2fs_sb_info *sbi,
+				struct rb_root *root, struct rb_node **parent,
+				unsigned int ofs);
+struct rb_entry *__lookup_rb_tree_ret(struct rb_root *root,
+		struct rb_entry *cached_re, unsigned int ofs,
+		struct rb_entry **prev_entry, struct rb_entry **next_entry,
+		struct rb_node ***insert_p, struct rb_node **insert_parent,
+		bool force);
 unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink);
 bool f2fs_init_extent_tree(struct inode *inode, struct f2fs_extent *i_ext);
 void f2fs_drop_extent_tree(struct inode *inode);
