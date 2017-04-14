@@ -738,28 +738,38 @@ static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
 	}
 }
 
-static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
+static int __nfit_mem_init(struct acpi_nfit_desc *acpi_desc,
 		struct acpi_nfit_system_address *spa)
 {
 	struct nfit_mem *nfit_mem, *found;
 	struct nfit_memdev *nfit_memdev;
-	int type = nfit_spa_type(spa);
+	int type = spa ? nfit_spa_type(spa) : 0;
 
 	switch (type) {
 	case NFIT_SPA_DCR:
 	case NFIT_SPA_PM:
 		break;
 	default:
-		return 0;
+		if (spa)
+			return 0;
 	}
 
+	/*
+	 * This loop runs in two modes, when a dimm is mapped the loop
+	 * adds memdev associations to an existing dimm, or creates a
+	 * dimm. In the unmapped dimm case this loop sweeps for memdev
+	 * instances with an invalid / zero range_index and adds those
+	 * dimms without spa associations.
+	 */
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
 		struct nfit_flush *nfit_flush;
 		struct nfit_dcr *nfit_dcr;
 		u32 device_handle;
 		u16 dcr;
 
-		if (nfit_memdev->memdev->range_index != spa->range_index)
+		if (spa && nfit_memdev->memdev->range_index != spa->range_index)
+			continue;
+		if (!spa && nfit_memdev->memdev->range_index)
 			continue;
 		found = NULL;
 		dcr = nfit_memdev->memdev->region_index;
@@ -844,14 +854,15 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 				break;
 			}
 			nfit_mem_init_bdw(acpi_desc, nfit_mem, spa);
-		} else {
+		} else if (type == NFIT_SPA_PM) {
 			/*
 			 * A single dimm may belong to multiple SPA-PM
 			 * ranges, record at least one in addition to
 			 * any SPA-DCR range.
 			 */
 			nfit_mem->memdev_pmem = nfit_memdev->memdev;
-		}
+		} else
+			nfit_mem->memdev_dcr = nfit_memdev->memdev;
 	}
 
 	return 0;
@@ -875,6 +886,8 @@ static int nfit_mem_cmp(void *priv, struct list_head *_a, struct list_head *_b)
 static int nfit_mem_init(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nfit_spa *nfit_spa;
+	int rc;
+
 
 	/*
 	 * For each SPA-DCR or SPA-PMEM address range find its
@@ -885,12 +898,19 @@ static int nfit_mem_init(struct acpi_nfit_desc *acpi_desc)
 	 * BDWs are optional.
 	 */
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
-		int rc;
-
-		rc = nfit_mem_dcr_init(acpi_desc, nfit_spa->spa);
+		rc = __nfit_mem_init(acpi_desc, nfit_spa->spa);
 		if (rc)
 			return rc;
 	}
+
+	/*
+	 * If a DIMM has failed to be mapped into SPA there will be no
+	 * SPA entries above. Find and register all the unmapped DIMMs
+	 * for reporting and recovery purposes.
+	 */
+	rc = __nfit_mem_init(acpi_desc, NULL);
+	if (rc)
+		return rc;
 
 	list_sort(NULL, &acpi_desc->dimms, nfit_mem_cmp);
 
@@ -1301,8 +1321,16 @@ static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	if (!to_nfit_dcr(dev))
+	if (!to_nfit_dcr(dev)) {
+		/* Without a dcr only the memdev attributes can be surfaced */
+		if (a == &dev_attr_handle.attr || a == &dev_attr_phys_id.attr
+				|| a == &dev_attr_flags.attr
+				|| a == &dev_attr_family.attr
+				|| a == &dev_attr_dsm_mask.attr)
+			return a->mode;
 		return 0;
+	}
+
 	if (a == &dev_attr_format1.attr && num_nvdimm_formats(nvdimm) <= 1)
 		return 0;
 	return a->mode;
@@ -1522,12 +1550,13 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		if ((mem_flags & ACPI_NFIT_MEM_FAILED_MASK) == 0)
 			continue;
 
-		dev_info(acpi_desc->dev, "%s flags:%s%s%s%s\n",
+		dev_info(acpi_desc->dev, "%s flags:%s%s%s%s%s\n",
 				nvdimm_name(nvdimm),
 		  mem_flags & ACPI_NFIT_MEM_SAVE_FAILED ? " save_fail" : "",
 		  mem_flags & ACPI_NFIT_MEM_RESTORE_FAILED ? " restore_fail":"",
 		  mem_flags & ACPI_NFIT_MEM_FLUSH_FAILED ? " flush_fail" : "",
-		  mem_flags & ACPI_NFIT_MEM_NOT_ARMED ? " not_armed" : "");
+		  mem_flags & ACPI_NFIT_MEM_NOT_ARMED ? " not_armed" : "",
+		  mem_flags & ACPI_NFIT_MEM_MAP_FAILED ? " map_fail" : "");
 
 	}
 
