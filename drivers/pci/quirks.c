@@ -3641,19 +3641,11 @@ static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 	 *
 	 * The 82599 supports FLR on VFs, but FLR support is reported only
 	 * in the PF DEVCAP (sec 9.3.10.4), not in the VF DEVCAP (sec 9.5).
-	 * Therefore, we can't use pcie_flr(), which checks the VF DEVCAP.
+	 * Thus we must call pcie_flr() directly without first checking if it is
+	 * supported.
 	 */
-
-	if (probe)
-		return 0;
-
-	if (!pci_wait_for_pending_transaction(dev))
-		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
-
-	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-
-	msleep(100);
-
+	if (!probe)
+		pcie_flr(dev);
 	return 0;
 }
 
