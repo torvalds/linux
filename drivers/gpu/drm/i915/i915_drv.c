@@ -1434,8 +1434,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 		goto out;
 	}
 
-	intel_guc_suspend(dev_priv);
-
 	intel_display_suspend(dev);
 
 	intel_dp_mst_suspend(dev);

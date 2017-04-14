@@ -2230,14 +2230,8 @@ static bool virtnet_validate_features(struct virtio_device *vdev)
 #define MIN_MTU ETH_MIN_MTU
 #define MAX_MTU ETH_MAX_MTU
 
-static int virtnet_probe(struct virtio_device *vdev)
+static int virtnet_validate(struct virtio_device *vdev)
 {
-	int i, err;
-	struct net_device *dev;
-	struct virtnet_info *vi;
-	u16 max_queue_pairs;
-	int mtu;
-
 	if (!vdev->config->get) {
 		dev_err(&vdev->dev, "%s failure: config access disabled\n",
 			__func__);
@@ -2246,6 +2240,25 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	if (!virtnet_validate_features(vdev))
 		return -EINVAL;
+
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_MTU)) {
+		int mtu = virtio_cread16(vdev,
+					 offsetof(struct virtio_net_config,
+						  mtu));
+		if (mtu < MIN_MTU)
+			__virtio_clear_bit(vdev, VIRTIO_NET_F_MTU);
+	}
+
+	return 0;
+}
+
+static int virtnet_probe(struct virtio_device *vdev)
+{
+	int i, err;
+	struct net_device *dev;
+	struct virtnet_info *vi;
+	u16 max_queue_pairs;
+	int mtu;
 
 	/* Find if host supports multiqueue virtio_net device */
 	err = virtio_cread_feature(vdev, VIRTIO_NET_F_MQ,
@@ -2362,11 +2375,20 @@ static int virtnet_probe(struct virtio_device *vdev)
 				     offsetof(struct virtio_net_config,
 					      mtu));
 		if (mtu < dev->min_mtu) {
-			__virtio_clear_bit(vdev, VIRTIO_NET_F_MTU);
-		} else {
-			dev->mtu = mtu;
-			dev->max_mtu = mtu;
+			/* Should never trigger: MTU was previously validated
+			 * in virtnet_validate.
+			 */
+			dev_err(&vdev->dev, "device MTU appears to have changed "
+				"it is now %d < %d", mtu, dev->min_mtu);
+			goto free_stats;
 		}
+
+		dev->mtu = mtu;
+		dev->max_mtu = mtu;
+
+		/* TODO: size buffers correctly in this case. */
+		if (dev->mtu > ETH_DATA_LEN)
+			vi->big_packets = true;
 	}
 
 	if (vi->any_header_sg)
@@ -2544,6 +2566,7 @@ static struct virtio_driver virtio_net_driver = {
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
+	.validate =	virtnet_validate,
 	.probe =	virtnet_probe,
 	.remove =	virtnet_remove,
 	.config_changed = virtnet_config_changed,
