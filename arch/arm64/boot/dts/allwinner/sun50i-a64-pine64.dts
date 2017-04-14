@@ -66,6 +66,10 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -88,6 +92,10 @@
 	cd-inverted;
 	disable-wp;
 	bus-width = <4>;
+	status = "okay";
+};
+
+&ohci0 {
 	status = "okay";
 };
 
