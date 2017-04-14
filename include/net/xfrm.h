@@ -1443,6 +1443,7 @@ struct xfrm6_tunnel {
 void xfrm_init(void);
 void xfrm4_init(void);
 int xfrm_state_init(struct net *net);
+void xfrm_dev_init(void);
 void xfrm_state_fini(struct net *net);
 void xfrm4_state_init(void);
 void xfrm4_protocol_init(void);
