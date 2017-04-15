@@ -411,6 +411,18 @@ err_rmap:
 	return -ENOMEM;
 }
 
+static void nvm_unregister_map(struct nvm_dev *dev)
+{
+	struct nvm_dev_map *rmap = dev->rmap;
+	int i;
+
+	for (i = 0; i < dev->geo.nr_chnls; i++)
+		kfree(rmap->chnls[i].lun_offs);
+
+	kfree(rmap->chnls);
+	kfree(rmap);
+}
+
 static void nvm_map_to_dev(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 {
 	struct nvm_dev_map *dev_map = tgt_dev->map;
@@ -992,7 +1004,7 @@ void nvm_free(struct nvm_dev *dev)
 	if (dev->dma_pool)
 		dev->ops->destroy_dma_pool(dev->dma_pool);
 
-	kfree(dev->rmap);
+	nvm_unregister_map(dev);
 	kfree(dev->lptbl);
 	kfree(dev->lun_map);
 	kfree(dev);
