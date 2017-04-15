@@ -24,7 +24,6 @@
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <media/i2c/mt9v011.h>
-#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 
 /* Possible i2c addresses of Micron sensors */
@@ -311,17 +310,9 @@ int em28xx_detect_sensor(struct em28xx *dev)
 
 int em28xx_init_camera(struct em28xx *dev)
 {
-	char clk_name[V4L2_CLK_NAME_SIZE];
 	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
 	struct i2c_adapter *adap = &dev->i2c_adap[dev->def_i2c_bus];
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
-	int ret = 0;
-
-	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
-			  i2c_adapter_id(adap), client->addr);
-	v4l2->clk = v4l2_clk_register_fixed(clk_name, -EINVAL);
-	if (IS_ERR(v4l2->clk))
-		return PTR_ERR(v4l2->clk);
 
 	switch (dev->em28xx_sensor) {
 	case EM28XX_MT9V011:
@@ -351,10 +342,8 @@ int em28xx_init_camera(struct em28xx *dev)
 		pdata.xtal = v4l2->sensor_xtal;
 		if (NULL ==
 		    v4l2_i2c_new_subdev_board(&v4l2->v4l2_dev, adap,
-					      &mt9v011_info, NULL)) {
-			ret = -ENODEV;
-			break;
-		}
+					      &mt9v011_info, NULL))
+			return -ENODEV;
 		/* probably means GRGB 16 bit bayer */
 		v4l2->vinmode = 0x0d;
 		v4l2->vinctl = 0x00;
@@ -410,10 +399,8 @@ int em28xx_init_camera(struct em28xx *dev)
 		subdev =
 		     v4l2_i2c_new_subdev_board(&v4l2->v4l2_dev, adap,
 					       &ov2640_info, NULL);
-		if (NULL == subdev) {
-			ret = -ENODEV;
-			break;
-		}
+		if (subdev == NULL)
+			return -ENODEV;
 
 		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = 640;
@@ -430,14 +417,9 @@ int em28xx_init_camera(struct em28xx *dev)
 	}
 	case EM28XX_NOSENSOR:
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-	if (ret < 0) {
-		v4l2_clk_unregister_fixed(v4l2->clk);
-		v4l2->clk = NULL;
-	}
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(em28xx_init_camera);
