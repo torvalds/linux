@@ -2771,36 +2771,80 @@ static void btc8821a2ant_action_hid(struct btc_coexist *btcoexist)
 /* A2DP only / PAN(EDR) only/ A2DP+PAN(HS) */
 static void btc8821a2ant_action_a2dp(struct btc_coexist *btcoexist)
 {
-	u8 wifi_rssi_state, bt_rssi_state;
+	u8 wifi_rssi_state, wifi_rssi_state1, bt_rssi_state;
+	u8 ap_num = 0;
 	u32 wifi_bw;
 
-	wifi_rssi_state = btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2,
-						       15, 0);
-	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist, 2, 35, 0);
+	wifi_rssi_state = btc8821a2ant_wifi_rssi_state(btcoexist, 0, 2, 15, 0);
+	wifi_rssi_state1 = btc8821a2ant_wifi_rssi_state(btcoexist, 1, 2,
+				BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES, 0);
+	bt_rssi_state = btc8821a2ant_bt_rssi_state(btcoexist,
+		2, BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES, 0);
 
-	/* fw dac swing is called in btc8821a2ant_tdma_duration_adjust()
-	 * btc8821a2ant_fw_dac_swing_lvl(btcoexist, NORMAL_EXEC, 6);
-	 */
+	if ((ap_num >= 10) && BTC_RSSI_HIGH(wifi_rssi_state1) &&
+	    BTC_RSSI_HIGH(bt_rssi_state)) {
+		btc8821a2ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
+					      0x0, 0x0);
 
-	if (BTC_RSSI_HIGH(bt_rssi_state))
-		btc8821a2ant_dec_bt_pwr(btcoexist, NORMAL_EXEC, true);
-	else
-		btc8821a2ant_dec_bt_pwr(btcoexist, NORMAL_EXEC, false);
+		btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1, 0xfffff,
+					  0x0);
+		btc8821a2ant_limited_rx(btcoexist, NORMAL_EXEC, false, false,
+					0x8);
+		btc8821a2ant_fw_dac_swing_lvl(btcoexist, NORMAL_EXEC, 6);
+		btc8821a2ant_dec_bt_pwr(btcoexist, NORMAL_EXEC, 2);
 
-	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
+		btc8821a2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
 
-	if (BTC_WIFI_BW_HT40 == wifi_bw) {
-		/* fw mechanism */
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			btc8821a2ant_tdma_duration_adjust(btcoexist, false,
-							  false, 1);
-		} else {
-			btc8821a2ant_tdma_duration_adjust(btcoexist, false,
-							  true, 1);
-		}
+		btc8821a2ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
+					      0x0, 0x0);
+		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);
 
 		/* sw mechanism */
+		btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
+		if (wifi_bw == BTC_WIFI_BW_HT40) {
+			btc8821a2ant_sw_mechanism1(btcoexist, true, false,
+						   false, false);
+			btc8821a2ant_sw_mechanism2(btcoexist, true, false,
+						   true, 0x6);
+		} else {
+			btc8821a2ant_sw_mechanism1(btcoexist, false, false,
+						   false, false);
+			btc8821a2ant_sw_mechanism2(btcoexist, true, false,
+						   true, 0x6);
+		}
+		return;
+	}
+
+	btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1, 0xfffff, 0x0);
+	btc8821a2ant_limited_rx(btcoexist, NORMAL_EXEC, false, false, 0x8);
+
+	btc8821a2ant_fw_dac_swing_lvl(btcoexist, NORMAL_EXEC, 6);
+
+	if (BTC_RSSI_HIGH(bt_rssi_state))
+		btc8821a2ant_dec_bt_pwr(btcoexist, NORMAL_EXEC, 2);
+	else
+		btc8821a2ant_dec_bt_pwr(btcoexist, NORMAL_EXEC, 0);
+
+	if (BTC_RSSI_HIGH(wifi_rssi_state1) && BTC_RSSI_HIGH(bt_rssi_state)) {
+		btc8821a2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 7);
+		btc8821a2ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
+					      0x0, 0x0);
+	} else {
+		btc8821a2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 13);
+		btc8821a2ant_power_save_state(btcoexist, BTC_PS_LPS_ON, 0x50,
+					      0x4);
+	}
+
+	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
+	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
+		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);
+	} else {
+		btc8821a2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);
+	}
+
+	/* sw mechanism */
+	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
+	if (wifi_bw == BTC_WIFI_BW_HT40) {
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
 		    (wifi_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
 			btc8821a2ant_sw_mechanism1(btcoexist, true, false,
@@ -2814,17 +2858,6 @@ static void btc8821a2ant_action_a2dp(struct btc_coexist *btcoexist)
 						   false, 0x18);
 		}
 	} else {
-		/* fw mechanism */
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			btc8821a2ant_tdma_duration_adjust(btcoexist, false,
-							  false, 1);
-		} else {
-			btc8821a2ant_tdma_duration_adjust(btcoexist, false,
-							  true, 1);
-		}
-
-		/* sw mechanism */
 		if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
 		    (wifi_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
 			btc8821a2ant_sw_mechanism1(btcoexist, false, false,
