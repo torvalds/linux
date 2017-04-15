@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/amigaffs.h>
+#include "amigaffs.h"
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
