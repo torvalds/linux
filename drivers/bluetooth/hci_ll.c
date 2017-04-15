@@ -537,8 +537,7 @@ static int read_local_version(struct hci_dev *hdev)
 	if (IS_ERR(skb)) {
 		bt_dev_err(hdev, "Reading TI version information failed (%ld)",
 			   PTR_ERR(skb));
-		err = PTR_ERR(skb);
-		goto out;
+		return PTR_ERR(skb);
 	}
 	if (skb->len != sizeof(*ver)) {
 		err = -EILSEQ;
