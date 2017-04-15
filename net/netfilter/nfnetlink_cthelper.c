@@ -104,7 +104,7 @@ nfnl_cthelper_from_nlattr(struct nlattr *attr, struct nf_conn *ct)
 	if (help->helper->data_len == 0)
 		return -EINVAL;
 
-	memcpy(help->data, nla_data(attr), help->helper->data_len);
+	nla_memcpy(help->data, nla_data(attr), sizeof(help->data));
 	return 0;
 }
 
@@ -216,6 +216,7 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 {
 	struct nf_conntrack_helper *helper;
 	struct nfnl_cthelper *nfcth;
+	unsigned int size;
 	int ret;
 
 	if (!tb[NFCTH_TUPLE] || !tb[NFCTH_POLICY] || !tb[NFCTH_PRIV_DATA_LEN])
@@ -231,7 +232,12 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 		goto err1;
 
 	strncpy(helper->name, nla_data(tb[NFCTH_NAME]), NF_CT_HELPER_NAME_LEN);
-	helper->data_len = ntohl(nla_get_be32(tb[NFCTH_PRIV_DATA_LEN]));
+	size = ntohl(nla_get_be32(tb[NFCTH_PRIV_DATA_LEN]));
+	if (size > FIELD_SIZEOF(struct nf_conn_help, data)) {
+		ret = -ENOMEM;
+		goto err2;
+	}
+
 	helper->flags |= NF_CT_HELPER_F_USERSPACE;
 	memcpy(&helper->tuple, tuple, sizeof(struct nf_conntrack_tuple));
 
