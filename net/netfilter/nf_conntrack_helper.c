@@ -178,8 +178,7 @@ nf_ct_helper_ext_add(struct nf_conn *ct,
 {
 	struct nf_conn_help *help;
 
-	help = nf_ct_ext_add_length(ct, NF_CT_EXT_HELPER,
-				    helper->data_len, gfp);
+	help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, gfp);
 	if (help)
 		INIT_HLIST_HEAD(&help->expectations);
 	else
@@ -484,7 +483,7 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 		       u16 l3num, u16 protonum, const char *name,
 		       u16 default_port, u16 spec_port, u32 id,
 		       const struct nf_conntrack_expect_policy *exp_pol,
-		       u32 expect_class_max, u32 data_len,
+		       u32 expect_class_max,
 		       int (*help)(struct sk_buff *skb, unsigned int protoff,
 				   struct nf_conn *ct,
 				   enum ip_conntrack_info ctinfo),
@@ -497,7 +496,6 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 	helper->tuple.src.u.all = htons(spec_port);
 	helper->expect_policy = exp_pol;
 	helper->expect_class_max = expect_class_max;
-	helper->data_len = data_len;
 	helper->help = help;
 	helper->from_nlattr = from_nlattr;
 	helper->me = module;

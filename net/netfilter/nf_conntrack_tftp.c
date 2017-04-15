@@ -121,10 +121,10 @@ static int __init nf_conntrack_tftp_init(void)
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&tftp[2 * i], AF_INET, IPPROTO_UDP, "tftp",
 				  TFTP_PORT, ports[i], i, &tftp_exp_policy,
-				  0, 0, tftp_help, NULL, THIS_MODULE);
+				  0, tftp_help, NULL, THIS_MODULE);
 		nf_ct_helper_init(&tftp[2 * i + 1], AF_INET6, IPPROTO_UDP, "tftp",
 				  TFTP_PORT, ports[i], i, &tftp_exp_policy,
-				  0, 0, tftp_help, NULL, THIS_MODULE);
+				  0, tftp_help, NULL, THIS_MODULE);
 	}
 
 	ret = nf_conntrack_helpers_register(tftp, ports_c * 2);

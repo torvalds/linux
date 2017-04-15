@@ -1630,23 +1630,19 @@ static int __init nf_conntrack_sip_init(void)
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&sip[4 * i], AF_INET, IPPROTO_UDP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_udp,
+				  SIP_EXPECT_MAX, sip_help_udp,
 				  NULL, THIS_MODULE);
 		nf_ct_helper_init(&sip[4 * i + 1], AF_INET, IPPROTO_TCP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_tcp,
+				  SIP_EXPECT_MAX, sip_help_tcp,
 				  NULL, THIS_MODULE);
 		nf_ct_helper_init(&sip[4 * i + 2], AF_INET6, IPPROTO_UDP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_udp,
+				  SIP_EXPECT_MAX, sip_help_udp,
 				  NULL, THIS_MODULE);
 		nf_ct_helper_init(&sip[4 * i + 3], AF_INET6, IPPROTO_TCP, "sip",
 				  SIP_PORT, ports[i], i, sip_exp_policy,
-				  SIP_EXPECT_MAX,
-				  sizeof(struct nf_ct_sip_master), sip_help_tcp,
+				  SIP_EXPECT_MAX, sip_help_tcp,
 				  NULL, THIS_MODULE);
 	}
 

@@ -263,7 +263,7 @@ static int __init nf_conntrack_irc_init(void)
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&irc[i], AF_INET, IPPROTO_TCP, "irc",
 				  IRC_PORT, ports[i], i, &irc_exp_policy,
-				  0, 0, help, NULL, THIS_MODULE);
+				  0, help, NULL, THIS_MODULE);
 	}
 
 	ret = nf_conntrack_helpers_register(&irc[0], ports_c);
