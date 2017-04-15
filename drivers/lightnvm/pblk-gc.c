@@ -527,10 +527,10 @@ int pblk_gc_init(struct pblk *pblk)
 
 	return 0;
 
-fail_free_main_kthread:
-	kthread_stop(gc->gc_ts);
 fail_free_writer_kthread:
 	kthread_stop(gc->gc_writer_ts);
+fail_free_main_kthread:
+	kthread_stop(gc->gc_ts);
 
 	return ret;
 }
