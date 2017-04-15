@@ -318,10 +318,6 @@ static int rrpc_move_valid_pages(struct rrpc *rrpc, struct rrpc_block *rblk)
 	}
 
 	page = mempool_alloc(rrpc->page_pool, GFP_NOIO);
-	if (!page) {
-		bio_put(bio);
-		return -ENOMEM;
-	}
 
 	while ((slot = find_first_zero_bit(rblk->invalid_pages,
 					    nr_sec_per_blk)) < nr_sec_per_blk) {
@@ -1006,11 +1002,6 @@ static blk_qc_t rrpc_make_rq(struct request_queue *q, struct bio *bio)
 	}
 
 	rqd = mempool_alloc(rrpc->rq_pool, GFP_KERNEL);
-	if (!rqd) {
-		pr_err_ratelimited("rrpc: not able to queue bio.");
-		bio_io_error(bio);
-		return BLK_QC_T_NONE;
-	}
 	memset(rqd, 0, sizeof(struct nvm_rq));
 
 	err = rrpc_submit_io(rrpc, bio, rqd, NVM_IOTYPE_NONE);
