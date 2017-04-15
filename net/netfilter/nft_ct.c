@@ -264,7 +264,7 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 	struct nf_conn *ct;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct == NULL)
+	if (ct == NULL || nf_ct_is_template(ct))
 		return;
 
 	switch (priv->key) {
@@ -283,6 +283,22 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 				      &regs->data[priv->sreg],
 				      NF_CT_LABELS_MAX_SIZE / sizeof(u32));
 		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	case NFT_CT_EVENTMASK: {
+		struct nf_conntrack_ecache *e = nf_ct_ecache_find(ct);
+		u32 ctmask = regs->data[priv->sreg];
+
+		if (e) {
+			if (e->ctmask != ctmask)
+				e->ctmask = ctmask;
+			break;
+		}
+
+		if (ctmask && !nf_ct_is_confirmed(ct))
+			nf_ct_ecache_ext_add(ct, ctmask, 0, GFP_ATOMIC);
+		break;
+	}
 #endif
 	default:
 		break;
@@ -537,6 +553,13 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 			return -ENOMEM;
 		nft_ct_pcpu_template_refcnt++;
 		len = sizeof(u16);
+		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	case NFT_CT_EVENTMASK:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
+		len = sizeof(u32);
 		break;
 #endif
 	default:
