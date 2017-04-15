@@ -49,8 +49,8 @@ static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	int i, j = 0;
 
 	/* logic error: lba out-of-bounds. Ignore read request */
-	if (!(blba + nr_secs < pblk->rl.nr_secs)) {
-		WARN_ON("pblk: read lbas out of bounds\n");
+	if (blba + nr_secs >= pblk->rl.nr_secs) {
+		WARN(1, "pblk: read lbas out of bounds\n");
 		return;
 	}
 
@@ -254,8 +254,8 @@ static void pblk_read_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	sector_t lba = pblk_get_lba(bio);
 
 	/* logic error: lba out-of-bounds. Ignore read request */
-	if (!(lba < pblk->rl.nr_secs)) {
-		WARN_ON("pblk: read lba out of bounds\n");
+	if (lba >= pblk->rl.nr_secs) {
+		WARN(1, "pblk: read lba out of bounds\n");
 		return;
 	}
 
@@ -411,8 +411,8 @@ static int read_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 	int valid_secs = 0;
 
 	/* logic error: lba out-of-bounds */
-	if (!(lba < pblk->rl.nr_secs)) {
-		WARN_ON("pblk: read lba out of bounds\n");
+	if (lba >= pblk->rl.nr_secs) {
+		WARN(1, "pblk: read lba out of bounds\n");
 		goto out;
 	}
 

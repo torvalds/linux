@@ -141,7 +141,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 
 		/* Logic error */
 		if (bit > c_ctx->nr_valid) {
-			WARN_ON_ONCE("pblk: corrupted write request\n");
+			WARN_ONCE(1, "pblk: corrupted write request\n");
 			goto out;
 		}
 

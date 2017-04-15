@@ -167,7 +167,7 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 		if (le64_to_cpu(lba_list[i]) == ADDR_EMPTY) {
 			spin_lock(&line->lock);
 			if (test_and_set_bit(i, line->invalid_bitmap))
-				WARN_ON_ONCE("pblk: rec. double invalidate:\n");
+				WARN_ONCE(1, "pblk: rec. double invalidate:\n");
 			else
 				line->vsc--;
 			spin_unlock(&line->lock);
