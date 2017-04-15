@@ -344,6 +344,13 @@ static sctp_paramhdr_t *sctp_chunk_lookup_strreset_param(
 	return NULL;
 }
 
+static void sctp_update_strreset_result(struct sctp_association *asoc,
+					__u32 result)
+{
+	asoc->strreset_result[1] = asoc->strreset_result[0];
+	asoc->strreset_result[0] = result;
+}
+
 struct sctp_chunk *sctp_process_strreset_outreq(
 				struct sctp_association *asoc,
 				union sctp_params param,
@@ -360,15 +367,19 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 	if (ntohl(outreq->send_reset_at_tsn) >
 	    sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map)) {
 		result = SCTP_STRRESET_IN_PROGRESS;
-		goto out;
+		goto err;
 	}
 
-	if (request_seq > asoc->strreset_inseq) {
+	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
+	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
 		result = SCTP_STRRESET_ERR_BAD_SEQNO;
-		goto out;
-	} else if (request_seq == asoc->strreset_inseq) {
-		asoc->strreset_inseq++;
+		goto err;
+	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
+		i = asoc->strreset_inseq - request_seq - 1;
+		result = asoc->strreset_result[i];
+		goto err;
 	}
+	asoc->strreset_inseq++;
 
 	/* Check strreset_enable after inseq inc, as sender cannot tell
 	 * the peer doesn't enable strreset after receiving response with
@@ -427,6 +438,8 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 		GFP_ATOMIC);
 
 out:
+	sctp_update_strreset_result(asoc, result);
+err:
 	return sctp_make_strreset_resp(asoc, result, request_seq);
 }
 
@@ -582,15 +595,19 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 	__u32 result = SCTP_STRRESET_DENIED;
 	struct sctp_stream_in *streamin;
 	__u32 request_seq, incnt;
-	__u16 in;
+	__u16 in, i;
 
 	request_seq = ntohl(addstrm->request_seq);
-	if (request_seq > asoc->strreset_inseq) {
+	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
+	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
 		result = SCTP_STRRESET_ERR_BAD_SEQNO;
-		goto out;
-	} else if (request_seq == asoc->strreset_inseq) {
-		asoc->strreset_inseq++;
+		goto err;
+	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
+		i = asoc->strreset_inseq - request_seq - 1;
+		result = asoc->strreset_result[i];
+		goto err;
 	}
+	asoc->strreset_inseq++;
 
 	if (!(asoc->strreset_enable & SCTP_ENABLE_CHANGE_ASSOC_REQ))
 		goto out;
@@ -638,6 +655,8 @@ struct sctp_chunk *sctp_process_strreset_addstrm_out(
 		0, ntohs(addstrm->number_of_streams), 0, GFP_ATOMIC);
 
 out:
+	sctp_update_strreset_result(asoc, result);
+err:
 	return sctp_make_strreset_resp(asoc, result, request_seq);
 }
 
