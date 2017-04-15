@@ -738,7 +738,7 @@ static inline struct gadget_info *os_desc_item_to_gadget_info(
 
 static ssize_t os_desc_use_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d",
+	return sprintf(page, "%d\n",
 			os_desc_item_to_gadget_info(item)->use_os_desc);
 }
 
@@ -762,7 +762,7 @@ static ssize_t os_desc_use_store(struct config_item *item, const char *page,
 
 static ssize_t os_desc_b_vendor_code_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d",
+	return sprintf(page, "0x%02x\n",
 			os_desc_item_to_gadget_info(item)->b_vendor_code);
 }
 
@@ -904,7 +904,7 @@ static inline struct usb_os_desc_ext_prop
 
 static ssize_t ext_prop_type_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d", to_usb_os_desc_ext_prop(item)->type);
+	return sprintf(page, "%d\n", to_usb_os_desc_ext_prop(item)->type);
 }
 
 static ssize_t ext_prop_type_store(struct config_item *item,
