@@ -2919,7 +2919,9 @@ static void em28xx_card_setup(struct em28xx *dev)
 	 * If sensor is not found, then it isn't a webcam.
 	 */
 	if (dev->board.is_webcam) {
-		if (em28xx_detect_sensor(dev) < 0)
+		em28xx_detect_sensor(dev);
+		if (dev->em28xx_sensor == EM28XX_NOSENSOR)
+			/* NOTE: error/unknown sensor/no sensor */
 			dev->board.is_webcam = 0;
 	}
 
@@ -3667,9 +3669,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		try_bulk = usb_xfer_mode > 0;
 	}
 
-	/* Disable V4L2 if the device doesn't have a decoder */
+	/* Disable V4L2 if the device doesn't have a decoder or image sensor */
 	if (has_video &&
-	    dev->board.decoder == EM28XX_NODECODER && !dev->board.is_webcam) {
+	    dev->board.decoder == EM28XX_NODECODER &&
+	    dev->em28xx_sensor == EM28XX_NOSENSOR) {
+
 		dev_err(&interface->dev,
 			"Currently, V4L2 is not supported on this model\n");
 		has_video = false;
