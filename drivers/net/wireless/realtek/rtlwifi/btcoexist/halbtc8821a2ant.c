@@ -3483,6 +3483,12 @@ static void btc8821a2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 		return;
 	}
 
+	if (coex_sta->under_ips) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], wifi is under IPS !!!\n");
+		return;
+	}
+
 	algorithm = btc8821a2ant_action_algorithm(btcoexist);
 	if (coex_sta->c2h_bt_inquiry_page &&
 	    (BT_8821A_2ANT_COEX_ALGO_PANHS != algorithm)) {
