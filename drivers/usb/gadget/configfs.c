@@ -787,9 +787,13 @@ static ssize_t os_desc_b_vendor_code_store(struct config_item *item,
 static ssize_t os_desc_qw_sign_show(struct config_item *item, char *page)
 {
 	struct gadget_info *gi = os_desc_item_to_gadget_info(item);
+	int res;
 
-	memcpy(page, gi->qw_sign, OS_STRING_QW_SIGN_LEN);
-	return OS_STRING_QW_SIGN_LEN;
+	res = utf16s_to_utf8s((wchar_t *) gi->qw_sign, OS_STRING_QW_SIGN_LEN,
+			      UTF16_LITTLE_ENDIAN, page, PAGE_SIZE - 1);
+	page[res++] = '\n';
+
+	return res;
 }
 
 static ssize_t os_desc_qw_sign_store(struct config_item *item, const char *page,
