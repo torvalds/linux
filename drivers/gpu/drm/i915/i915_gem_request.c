@@ -292,6 +292,19 @@ static void advance_ring(struct drm_i915_gem_request *request)
 	request->ring->head = tail;
 }
 
+static void free_capture_list(struct drm_i915_gem_request *request)
+{
+	struct i915_gem_capture_list *capture;
+
+	capture = request->capture_list;
+	while (capture) {
+		struct i915_gem_capture_list *next = capture->next;
+
+		kfree(capture);
+		capture = next;
+	}
+}
+
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -316,6 +329,8 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	}
 	unreserve_seqno(request->engine);
 	advance_ring(request);
+
+	free_capture_list(request);
 
 	/* Walk through the active list, calling retire on each. This allows
 	 * objects to track their GPU activity and mark themselves as idle
@@ -615,6 +630,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->global_seqno = 0;
 	req->file_priv = NULL;
 	req->batch = NULL;
+	req->capture_list = NULL;
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to

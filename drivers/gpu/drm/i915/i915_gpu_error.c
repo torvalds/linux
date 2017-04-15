@@ -712,6 +712,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			print_error_obj(m, dev_priv->engine[i], NULL, obj);
 		}
 
+		for (j = 0; j < ee->user_bo_count; j++)
+			print_error_obj(m, dev_priv->engine[i],
+					"user", ee->user_bo[j]);
+
 		if (ee->num_requests) {
 			err_printf(m, "%s --- %d requests\n",
 				   dev_priv->engine[i]->name,
@@ -825,10 +829,14 @@ void __i915_gpu_state_free(struct kref *error_ref)
 {
 	struct i915_gpu_state *error =
 		container_of(error_ref, typeof(*error), ref);
-	int i;
+	long i, j;
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		struct drm_i915_error_engine *ee = &error->engine[i];
+
+		for (j = 0; j < ee->user_bo_count; j++)
+			i915_error_object_free(ee->user_bo[j]);
+		kfree(ee->user_bo);
 
 		i915_error_object_free(ee->batchbuffer);
 		i915_error_object_free(ee->wa_batchbuffer);
@@ -1346,6 +1354,35 @@ static void record_context(struct drm_i915_error_context *e,
 	e->active = ctx->active_count;
 }
 
+static void request_record_user_bo(struct drm_i915_gem_request *request,
+				   struct drm_i915_error_engine *ee)
+{
+	struct i915_gem_capture_list *c;
+	struct drm_i915_error_object **bo;
+	long count;
+
+	count = 0;
+	for (c = request->capture_list; c; c = c->next)
+		count++;
+
+	bo = NULL;
+	if (count)
+		bo = kcalloc(count, sizeof(*bo), GFP_ATOMIC);
+	if (!bo)
+		return;
+
+	count = 0;
+	for (c = request->capture_list; c; c = c->next) {
+		bo[count] = i915_error_object_create(request->i915, c->vma);
+		if (!bo[count])
+			break;
+		count++;
+	}
+
+	ee->user_bo = bo;
+	ee->user_bo_count = count;
+}
+
 static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				  struct i915_gpu_state *error)
 {
@@ -1392,6 +1429,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				ee->wa_batchbuffer =
 					i915_error_object_create(dev_priv,
 								 engine->scratch);
+			request_record_user_bo(request, ee);
 
 			ee->ctx =
 				i915_error_object_create(dev_priv,

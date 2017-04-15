@@ -1025,6 +1025,9 @@ struct i915_gpu_state {
 			u32 *pages[0];
 		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
 
+		struct drm_i915_error_object **user_bo;
+		long user_bo_count;
+
 		struct drm_i915_error_object *wa_ctx;
 
 		struct drm_i915_error_request {
