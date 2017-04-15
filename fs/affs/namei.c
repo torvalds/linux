@@ -478,11 +478,6 @@ static struct inode *affs_nfs_get_inode(struct super_block *sb, u64 ino,
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	if (generation && inode->i_generation != generation) {
-		iput(inode);
-		return ERR_PTR(-ESTALE);
-	}
-
 	return inode;
 }
 
