@@ -280,7 +280,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	tdisk->fops = &nvm_fops;
 	tdisk->queue = tqueue;
 
-	targetdata = tt->init(tgt_dev, tdisk);
+	targetdata = tt->init(tgt_dev, tdisk, create->flags);
 	if (IS_ERR(targetdata))
 		goto err_init;
 
@@ -1244,8 +1244,16 @@ static long nvm_ioctl_dev_create(struct file *file, void __user *arg)
 	create.tgtname[DISK_NAME_LEN - 1] = '\0';
 
 	if (create.flags != 0) {
-		pr_err("nvm: no flags supported\n");
-		return -EINVAL;
+		__u32 flags = create.flags;
+
+		/* Check for valid flags */
+		if (flags & NVM_TARGET_FACTORY)
+			flags &= ~NVM_TARGET_FACTORY;
+
+		if (flags) {
+			pr_err("nvm: flag not supported\n");
+			return -EINVAL;
+		}
 	}
 
 	return __nvm_configure_create(&create);

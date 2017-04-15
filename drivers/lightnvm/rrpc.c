@@ -1506,7 +1506,8 @@ err:
 
 static struct nvm_tgt_type tt_rrpc;
 
-static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk)
+static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
+		       int flags)
 {
 	struct request_queue *bqueue = dev->q;
 	struct request_queue *tqueue = tdisk->queue;
