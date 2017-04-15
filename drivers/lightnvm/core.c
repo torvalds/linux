@@ -273,7 +273,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		goto err_disk;
 	blk_queue_make_request(tqueue, tt->make_rq);
 
-	sprintf(tdisk->disk_name, "%s", create->tgtname);
+	strlcpy(tdisk->disk_name, create->tgtname, sizeof(tdisk->disk_name));
 	tdisk->flags = GENHD_FL_EXT_DEVT;
 	tdisk->major = 0;
 	tdisk->first_minor = 0;
@@ -1198,13 +1198,13 @@ static long nvm_ioctl_get_devices(struct file *file, void __user *arg)
 	list_for_each_entry(dev, &nvm_devices, devices) {
 		struct nvm_ioctl_device_info *info = &devices->info[i];
 
-		sprintf(info->devname, "%s", dev->name);
+		strlcpy(info->devname, dev->name, sizeof(info->devname));
 
 		/* kept for compatibility */
 		info->bmversion[0] = 1;
 		info->bmversion[1] = 0;
 		info->bmversion[2] = 0;
-		sprintf(info->bmname, "%s", "gennvm");
+		strlcpy(info->bmname, "gennvm", sizeof(info->bmname));
 		i++;
 
 		if (i > 31) {
