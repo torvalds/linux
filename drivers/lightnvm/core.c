@@ -264,14 +264,14 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		goto err_t;
 	}
 
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
-	if (!tqueue)
-		goto err_dev;
-	blk_queue_make_request(tqueue, tt->make_rq);
-
 	tdisk = alloc_disk(0);
 	if (!tdisk)
-		goto err_queue;
+		goto err_dev;
+
+	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
+	if (!tqueue)
+		goto err_disk;
+	blk_queue_make_request(tqueue, tt->make_rq);
 
 	sprintf(tdisk->disk_name, "%s", create->tgtname);
 	tdisk->flags = GENHD_FL_EXT_DEVT;
@@ -308,9 +308,9 @@ err_sysfs:
 	if (tt->exit)
 		tt->exit(targetdata);
 err_init:
-	put_disk(tdisk);
-err_queue:
 	blk_cleanup_queue(tqueue);
+err_disk:
+	put_disk(tdisk);
 err_dev:
 	nvm_remove_tgt_dev(tgt_dev, 0);
 err_t:
