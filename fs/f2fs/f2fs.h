@@ -287,12 +287,12 @@ struct discard_cmd {
 
 struct discard_cmd_control {
 	struct task_struct *f2fs_issue_discard;	/* discard thread */
-	struct list_head discard_entry_list;	/* 4KB discard entry list */
-	int nr_discards;			/* # of discards in the list */
-	struct list_head discard_pend_list;	/* store pending entries */
-	struct list_head discard_wait_list;	/* store on-flushing entries */
+	struct list_head entry_list;		/* 4KB discard entry list */
+	struct list_head pend_list;		/* store pending entries */
+	struct list_head wait_list;		/* store on-flushing entries */
 	wait_queue_head_t discard_wait_queue;	/* waiting queue for wake-up */
 	struct mutex cmd_lock;
+	int nr_discards;			/* # of discards in the list */
 	int max_discards;			/* max. discards to be issued */
 	atomic_t issued_discard;		/* # of issued discard */
 	atomic_t issing_discard;		/* # of issing discard */
