@@ -123,7 +123,7 @@ enum {
 	/* NAND Access Modes */
 	NVM_IO_SUSPEND		= 0x80,
 	NVM_IO_SLC_MODE		= 0x100,
-	NVM_IO_SCRAMBLE_DISABLE	= 0x200,
+	NVM_IO_SCRAMBLE_ENABLE	= 0x200,
 
 	/* Block Types */
 	NVM_BLK_T_FREE		= 0x0,
