@@ -543,7 +543,7 @@ static int pblk_lines_init(struct pblk *pblk)
 	long nr_bad_blks, nr_meta_blks, nr_free_blks;
 	int bb_distance;
 	int i;
-	int ret = 0;
+	int ret;
 
 	lm->sec_per_line = geo->sec_per_blk * geo->nr_luns;
 	lm->blk_per_line = geo->nr_luns;
@@ -638,12 +638,16 @@ add_emeta_page:
 	}
 
 	l_mg->bb_template = kzalloc(lm->sec_bitmap_len, GFP_KERNEL);
-	if (!l_mg->bb_template)
+	if (!l_mg->bb_template) {
+		ret = -ENOMEM;
 		goto fail_free_meta;
+	}
 
 	l_mg->bb_aux = kzalloc(lm->sec_bitmap_len, GFP_KERNEL);
-	if (!l_mg->bb_aux)
+	if (!l_mg->bb_aux) {
+		ret = -ENOMEM;
 		goto fail_free_bb_template;
+	}
 
 	bb_distance = (geo->nr_luns) * geo->sec_per_pl;
 	for (i = 0; i < lm->sec_per_line; i += bb_distance)
@@ -667,8 +671,10 @@ add_emeta_page:
 
 	pblk->lines = kcalloc(l_mg->nr_lines, sizeof(struct pblk_line),
 								GFP_KERNEL);
-	if (!pblk->lines)
+	if (!pblk->lines) {
+		ret = -ENOMEM;
 		goto fail_free_bb_aux;
+	}
 
 	nr_free_blks = 0;
 	for (i = 0; i < l_mg->nr_lines; i++) {
@@ -682,8 +688,10 @@ add_emeta_page:
 		spin_lock_init(&line->lock);
 
 		nr_bad_blks = pblk_bb_line(pblk, line);
-		if (nr_bad_blks < 0 || nr_bad_blks > lm->blk_per_line)
+		if (nr_bad_blks < 0 || nr_bad_blks > lm->blk_per_line) {
+			ret = -EINVAL;
 			goto fail_free_lines;
+		}
 
 		line->blk_in_line = lm->blk_per_line - nr_bad_blks;
 		if (line->blk_in_line < lm->min_blk_line) {
@@ -733,7 +741,7 @@ static int pblk_writer_init(struct pblk *pblk)
 	pblk->writer_ts = kthread_create(pblk_write_ts, pblk, "pblk-writer-t");
 	if (IS_ERR(pblk->writer_ts)) {
 		pr_err("pblk: could not allocate writer kthread\n");
-		return 1;
+		return PTR_ERR(pblk->writer_ts);
 	}
 
 	return 0;
