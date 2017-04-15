@@ -2142,7 +2142,6 @@ OK:
 
 static const char *path_init(struct nameidata *nd, unsigned flags)
 {
-	int retval = 0;
 	const char *s = nd->name->name;
 
 	if (!*s)
@@ -2154,13 +2153,8 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	if (flags & LOOKUP_ROOT) {
 		struct dentry *root = nd->root.dentry;
 		struct inode *inode = root->d_inode;
-		if (*s) {
-			if (!d_can_lookup(root))
-				return ERR_PTR(-ENOTDIR);
-			retval = inode_permission(inode, MAY_EXEC);
-			if (retval)
-				return ERR_PTR(retval);
-		}
+		if (*s && unlikely(!d_can_lookup(root)))
+			return ERR_PTR(-ENOTDIR);
 		nd->path = nd->root;
 		nd->inode = inode;
 		if (flags & LOOKUP_RCU) {
