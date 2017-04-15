@@ -1118,7 +1118,7 @@ TRACE_EVENT(f2fs_write_checkpoint,
 		__entry->msg)
 );
 
-TRACE_EVENT(f2fs_issue_discard,
+DECLARE_EVENT_CLASS(f2fs_discard,
 
 	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
 
@@ -1140,6 +1140,20 @@ TRACE_EVENT(f2fs_issue_discard,
 		show_dev(__entry->dev),
 		(unsigned long long)__entry->blkstart,
 		(unsigned long long)__entry->blklen)
+);
+
+DEFINE_EVENT(f2fs_discard, f2fs_queue_discard,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
+
+	TP_ARGS(dev, blkstart, blklen)
+);
+
+DEFINE_EVENT(f2fs_discard, f2fs_issue_discard,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart, block_t blklen),
+
+	TP_ARGS(dev, blkstart, blklen)
 );
 
 TRACE_EVENT(f2fs_issue_reset_zone,
