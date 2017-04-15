@@ -510,12 +510,16 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	}
 	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
-	rq->ioprio = bio_prio(bio);
-	if (bio_has_data(bio))
-		rq->nr_phys_segments = bio_phys_segments(q, bio);
-
-	rq->__data_len = bio->bi_iter.bi_size;
-	rq->bio = rq->biotail = bio;
+	if (bio) {
+		rq->ioprio = bio_prio(bio);
+		rq->__data_len = bio->bi_iter.bi_size;
+		rq->bio = rq->biotail = bio;
+		if (bio_has_data(bio))
+			rq->nr_phys_segments = bio_phys_segments(q, bio);
+	} else {
+		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
+		rq->__data_len = 0;
+	}
 
 	nvme_nvm_rqtocmd(rq, rqd, ns, cmd);
 
@@ -524,21 +528,6 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	blk_execute_rq_nowait(q, NULL, rq, 0, nvme_nvm_end_io);
 
 	return 0;
-}
-
-static int nvme_nvm_erase_block(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	struct request_queue *q = dev->q;
-	struct nvme_ns *ns = q->queuedata;
-	struct nvme_nvm_command c = {};
-
-	c.erase.opcode = NVM_OP_ERASE;
-	c.erase.nsid = cpu_to_le32(ns->ns_id);
-	c.erase.spba = cpu_to_le64(rqd->ppa_addr.ppa);
-	c.erase.length = cpu_to_le16(rqd->nr_ppas - 1);
-	c.erase.control = cpu_to_le16(rqd->flags);
-
-	return nvme_submit_sync_cmd(q, (struct nvme_command *)&c, NULL, 0);
 }
 
 static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
@@ -576,7 +565,6 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.set_bb_tbl		= nvme_nvm_set_bb_tbl,
 
 	.submit_io		= nvme_nvm_submit_io,
-	.erase_block		= nvme_nvm_erase_block,
 
 	.create_dma_pool	= nvme_nvm_create_dma_pool,
 	.destroy_dma_pool	= nvme_nvm_destroy_dma_pool,

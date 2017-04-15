@@ -590,11 +590,11 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas, 1);
+	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
 	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
 
 	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
-	nvm_free_rqd_ppalist(dev, &rqd);
+	nvm_free_rqd_ppalist(tgt_dev, &rqd);
 	if (ret) {
 		pr_err("nvm: failed bb mark\n");
 		return -EINVAL;
@@ -626,34 +626,45 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
-int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas, int flags)
+static void nvm_end_io_sync(struct nvm_rq *rqd)
 {
-	struct nvm_dev *dev = tgt_dev->parent;
+	struct completion *waiting = rqd->private;
+
+	complete(waiting);
+}
+
+int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
+								int nr_ppas)
+{
+	struct nvm_geo *geo = &tgt_dev->geo;
 	struct nvm_rq rqd;
 	int ret;
-
-	if (!dev->ops->erase_block)
-		return 0;
-
-	nvm_map_to_dev(tgt_dev, ppas);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	ret = nvm_set_rqd_ppalist(dev, &rqd, ppas, 1, 1);
+	rqd.opcode = NVM_OP_ERASE;
+	rqd.end_io = nvm_end_io_sync;
+	rqd.private = &wait;
+	rqd.flags = geo->plane_mode >> 1;
+
+	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
 	if (ret)
 		return ret;
 
-	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
+	ret = nvm_submit_io(tgt_dev, &rqd);
+	if (ret) {
+		pr_err("rrpr: erase I/O submission failed: %d\n", ret);
+		goto free_ppa_list;
+	}
+	wait_for_completion_io(&wait);
 
-	rqd.flags = flags;
-
-	ret = dev->ops->erase_block(dev, &rqd);
-
-	nvm_free_rqd_ppalist(dev, &rqd);
+free_ppa_list:
+	nvm_free_rqd_ppalist(tgt_dev, &rqd);
 
 	return ret;
 }
-EXPORT_SYMBOL(nvm_erase_blk);
+EXPORT_SYMBOL(nvm_erase_sync);
 
 int nvm_get_l2p_tbl(struct nvm_tgt_dev *tgt_dev, u64 slba, u32 nlb,
 		    nvm_l2p_update_fn *update_l2p, void *priv)
@@ -732,10 +743,11 @@ void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t begin)
 }
 EXPORT_SYMBOL(nvm_put_area);
 
-int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
+int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
 			const struct ppa_addr *ppas, int nr_ppas, int vblk)
 {
-	struct nvm_geo *geo = &dev->geo;
+	struct nvm_dev *dev = tgt_dev->parent;
+	struct nvm_geo *geo = &tgt_dev->geo;
 	int i, plane_cnt, pl_idx;
 	struct ppa_addr ppa;
 
@@ -773,12 +785,12 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 }
 EXPORT_SYMBOL(nvm_set_rqd_ppalist);
 
-void nvm_free_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd)
+void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
 	if (!rqd->ppa_list)
 		return;
 
-	nvm_dev_dma_free(dev, rqd->ppa_list, rqd->dma_ppa_list);
+	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 }
 EXPORT_SYMBOL(nvm_free_rqd_ppalist);
 

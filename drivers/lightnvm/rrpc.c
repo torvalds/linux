@@ -414,7 +414,6 @@ static void rrpc_block_gc(struct work_struct *work)
 	struct rrpc *rrpc = gcb->rrpc;
 	struct rrpc_block *rblk = gcb->rblk;
 	struct rrpc_lun *rlun = rblk->rlun;
-	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct ppa_addr ppa;
 
 	mempool_free(gcb, rrpc->gcb_pool);
@@ -430,7 +429,7 @@ static void rrpc_block_gc(struct work_struct *work)
 	ppa.g.lun = rlun->bppa.g.lun;
 	ppa.g.blk = rblk->id;
 
-	if (nvm_erase_blk(dev, &ppa, 0))
+	if (nvm_erase_sync(rrpc->dev, &ppa, 1))
 		goto put_back;
 
 	rrpc_put_blk(rrpc, rblk);
