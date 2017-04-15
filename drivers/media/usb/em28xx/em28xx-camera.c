@@ -344,8 +344,7 @@ int em28xx_init_camera(struct em28xx *dev)
 		    v4l2_i2c_new_subdev_board(&v4l2->v4l2_dev, adap,
 					      &mt9v011_info, NULL))
 			return -ENODEV;
-		/* probably means GRGB 16 bit bayer */
-		v4l2->vinmode = 0x0d;
+		v4l2->vinmode = EM28XX_VINMODE_RGB8_GRBG;
 		v4l2->vinctl = 0x00;
 
 		break;
@@ -356,8 +355,7 @@ int em28xx_init_camera(struct em28xx *dev)
 
 		em28xx_initialize_mt9m001(dev);
 
-		/* probably means BGGR 16 bit bayer */
-		v4l2->vinmode = 0x0c;
+		v4l2->vinmode = EM28XX_VINMODE_RGB8_BGGR;
 		v4l2->vinctl = 0x00;
 
 		break;
@@ -369,7 +367,7 @@ int em28xx_init_camera(struct em28xx *dev)
 		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
 		em28xx_initialize_mt9m111(dev);
 
-		v4l2->vinmode = 0x0a;
+		v4l2->vinmode = EM28XX_VINMODE_YUV422_UYVY;
 		v4l2->vinctl = 0x00;
 
 		break;
@@ -410,7 +408,7 @@ int em28xx_init_camera(struct em28xx *dev)
 		/* NOTE: for UXGA=1600x1200 switch to 12MHz */
 		dev->board.xclk = EM28XX_XCLK_FREQUENCY_24MHZ;
 		em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk);
-		v4l2->vinmode = 0x08;
+		v4l2->vinmode = EM28XX_VINMODE_YUV422_YUYV;
 		v4l2->vinctl = 0x00;
 
 		break;

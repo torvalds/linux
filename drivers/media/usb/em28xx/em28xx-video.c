@@ -2459,7 +2459,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	/*
 	 * Default format, used for tvp5150 or saa711x output formats
 	 */
-	v4l2->vinmode = 0x10;
+	v4l2->vinmode = EM28XX_VINMODE_YUV422_CbYCrY;
 	v4l2->vinctl  = EM28XX_VINCTRL_INTERLACED |
 			EM28XX_VINCTRL_CCIR656_ENABLE;
 
