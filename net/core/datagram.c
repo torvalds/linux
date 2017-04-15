@@ -398,7 +398,7 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 			   struct iov_iter *to, int len)
 {
 	int start = skb_headlen(skb);
-	int i, copy = start - offset;
+	int i, copy = start - offset, start_off = offset, n;
 	struct sk_buff *frag_iter;
 
 	trace_skb_copy_datagram_iovec(skb, len);
@@ -407,11 +407,12 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		if (copy_to_iter(skb->data + offset, copy, to) != copy)
+		n = copy_to_iter(skb->data + offset, copy, to);
+		offset += n;
+		if (n != copy)
 			goto short_copy;
 		if ((len -= copy) == 0)
 			return 0;
-		offset += copy;
 	}
 
 	/* Copy paged appendix. Hmm... why does this look so complicated? */
@@ -425,13 +426,14 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 		if ((copy = end - offset) > 0) {
 			if (copy > len)
 				copy = len;
-			if (copy_page_to_iter(skb_frag_page(frag),
+			n = copy_page_to_iter(skb_frag_page(frag),
 					      frag->page_offset + offset -
-					      start, copy, to) != copy)
+					      start, copy, to);
+			offset += n;
+			if (n != copy)
 				goto short_copy;
 			if (!(len -= copy))
 				return 0;
-			offset += copy;
 		}
 		start = end;
 	}
@@ -463,6 +465,7 @@ int skb_copy_datagram_iter(const struct sk_buff *skb, int offset,
 	 */
 
 fault:
+	iov_iter_revert(to, offset - start_off);
 	return -EFAULT;
 
 short_copy:
@@ -613,7 +616,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      __wsum *csump)
 {
 	int start = skb_headlen(skb);
-	int i, copy = start - offset;
+	int i, copy = start - offset, start_off = offset;
 	struct sk_buff *frag_iter;
 	int pos = 0;
 	int n;
@@ -623,11 +626,11 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 		if (copy > len)
 			copy = len;
 		n = csum_and_copy_to_iter(skb->data + offset, copy, csump, to);
+		offset += n;
 		if (n != copy)
 			goto fault;
 		if ((len -= copy) == 0)
 			return 0;
-		offset += copy;
 		pos = copy;
 	}
 
@@ -649,12 +652,12 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 						  offset - start, copy,
 						  &csum2, to);
 			kunmap(page);
+			offset += n;
 			if (n != copy)
 				goto fault;
 			*csump = csum_block_add(*csump, csum2, pos);
 			if (!(len -= copy))
 				return 0;
-			offset += copy;
 			pos += copy;
 		}
 		start = end;
@@ -687,6 +690,7 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 		return 0;
 
 fault:
+	iov_iter_revert(to, offset - start_off);
 	return -EFAULT;
 }
 
@@ -771,6 +775,7 @@ int skb_copy_and_csum_datagram_msg(struct sk_buff *skb,
 	}
 	return 0;
 csum_error:
+	iov_iter_revert(&msg->msg_iter, chunk);
 	return -EINVAL;
 fault:
 	return -EFAULT;

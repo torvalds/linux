@@ -481,6 +481,13 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 enum ttu_flags;
 struct tlbflush_unmap_batch;
 
+
+/*
+ * only for MM internal work items which do not depend on
+ * any allocations or locks which might depend on allocations
+ */
+extern struct workqueue_struct *mm_percpu_wq;
+
 #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
 void try_to_unmap_flush(void);
 void try_to_unmap_flush_dirty(void);

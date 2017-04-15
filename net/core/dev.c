@@ -6757,7 +6757,6 @@ int dev_change_xdp_fd(struct net_device *dev, int fd, u32 flags)
 
 	return err;
 }
-EXPORT_SYMBOL(dev_change_xdp_fd);
 
 /**
  *	dev_new_index	-	allocate an ifindex

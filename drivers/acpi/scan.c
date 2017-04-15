@@ -1857,14 +1857,19 @@ static void acpi_bus_attach(struct acpi_device *device)
 		return;
 
 	device->flags.match_driver = true;
-	if (!ret) {
-		ret = device_attach(&device->dev);
-		if (ret < 0)
-			return;
-
-		if (!ret && device->pnp.type.platform_id)
-			acpi_default_enumeration(device);
+	if (ret > 0) {
+		acpi_device_set_enumerated(device);
+		goto ok;
 	}
+
+	ret = device_attach(&device->dev);
+	if (ret < 0)
+		return;
+
+	if (ret > 0 || !device->pnp.type.platform_id)
+		acpi_device_set_enumerated(device);
+	else
+		acpi_default_enumeration(device);
 
  ok:
 	list_for_each_entry(child, &device->children, node)
