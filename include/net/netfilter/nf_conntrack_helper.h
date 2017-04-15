@@ -66,8 +66,11 @@ struct nf_conn_help {
 	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
 
 	/* private helper information. */
-	char data[];
+	char data[32] __aligned(8);
 };
+
+#define NF_CT_HELPER_BUILD_BUG_ON(structsize) \
+	BUILD_BUG_ON((structsize) > FIELD_SIZEOF(struct nf_conn_help, data))
 
 struct nf_conntrack_helper *__nf_conntrack_helper_find(const char *name,
 						       u16 l3num, u8 protonum);

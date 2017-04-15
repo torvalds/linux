@@ -577,6 +577,8 @@ static int __init nf_conntrack_ftp_init(void)
 {
 	int i, ret = 0;
 
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_ftp_master));
+
 	ftp_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!ftp_buffer)
 		return -ENOMEM;

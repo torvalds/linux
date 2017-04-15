@@ -1622,6 +1622,8 @@ static int __init nf_conntrack_sip_init(void)
 {
 	int i, ret;
 
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sip_master));
+
 	if (ports_c == 0)
 		ports[ports_c++] = SIP_PORT;
 

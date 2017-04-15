@@ -184,6 +184,8 @@ static int __init nf_conntrack_sane_init(void)
 {
 	int i, ret = 0;
 
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sane_master));
+
 	sane_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!sane_buffer)
 		return -ENOMEM;

@@ -1836,6 +1836,8 @@ static int __init nf_conntrack_h323_init(void)
 {
 	int ret;
 
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_h323_master));
+
 	h323_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!h323_buffer)
 		return -ENOMEM;

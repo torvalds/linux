@@ -113,6 +113,8 @@ static int __init nf_conntrack_tftp_init(void)
 {
 	int i, ret;
 
+	NF_CT_HELPER_BUILD_BUG_ON(0);
+
 	if (ports_c == 0)
 		ports[ports_c++] = TFTP_PORT;
 
