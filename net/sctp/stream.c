@@ -529,12 +529,21 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 	__u16 i;
 
 	request_seq = ntohl(tsnreq->request_seq);
-	if (request_seq > asoc->strreset_inseq) {
+	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
+	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
 		result = SCTP_STRRESET_ERR_BAD_SEQNO;
-		goto out;
-	} else if (request_seq == asoc->strreset_inseq) {
-		asoc->strreset_inseq++;
+		goto err;
+	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
+		i = asoc->strreset_inseq - request_seq - 1;
+		result = asoc->strreset_result[i];
+		if (result == SCTP_STRRESET_PERFORMED) {
+			next_tsn = asoc->next_tsn;
+			init_tsn =
+				sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map) + 1;
+		}
+		goto err;
 	}
+	asoc->strreset_inseq++;
 
 	if (!(asoc->strreset_enable & SCTP_ENABLE_RESET_ASSOC_REQ))
 		goto out;
@@ -591,6 +600,8 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 						    next_tsn, GFP_ATOMIC);
 
 out:
+	sctp_update_strreset_result(asoc, result);
+err:
 	return sctp_make_strreset_tsnresp(asoc, result, request_seq,
 					  next_tsn, init_tsn);
 }
