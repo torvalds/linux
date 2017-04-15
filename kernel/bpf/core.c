@@ -1162,12 +1162,12 @@ out:
 	LD_ABS_W: /* BPF_R0 = ntohl(*(u32 *) (skb->data + imm32)) */
 		off = IMM;
 load_word:
-		/* BPF_LD + BPD_ABS and BPF_LD + BPF_IND insns are
-		 * only appearing in the programs where ctx ==
-		 * skb. All programs keep 'ctx' in regs[BPF_REG_CTX]
-		 * == BPF_R6, bpf_convert_filter() saves it in BPF_R6,
-		 * internal BPF verifier will check that BPF_R6 ==
-		 * ctx.
+		/* BPF_LD + BPD_ABS and BPF_LD + BPF_IND insns are only
+		 * appearing in the programs where ctx == skb
+		 * (see may_access_skb() in the verifier). All programs
+		 * keep 'ctx' in regs[BPF_REG_CTX] == BPF_R6,
+		 * bpf_convert_filter() saves it in BPF_R6, internal BPF
+		 * verifier will check that BPF_R6 == ctx.
 		 *
 		 * BPF_ABS and BPF_IND are wrappers of function calls,
 		 * so they scratch BPF_R1-BPF_R5 registers, preserve
