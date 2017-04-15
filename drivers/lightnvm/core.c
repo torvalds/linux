@@ -89,7 +89,7 @@ static void nvm_release_luns_err(struct nvm_dev *dev, int lun_begin,
 		WARN_ON(!test_and_clear_bit(i, dev->lun_map));
 }
 
-static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev)
+static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev, int clear)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 	struct nvm_dev_map *dev_map = tgt_dev->map;
@@ -100,11 +100,14 @@ static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev)
 		int *lun_offs = ch_map->lun_offs;
 		int ch = i + ch_map->ch_off;
 
-		for (j = 0; j < ch_map->nr_luns; j++) {
-			int lun = j + lun_offs[j];
-			int lunid = (ch * dev->geo.luns_per_chnl) + lun;
+		if (clear) {
+			for (j = 0; j < ch_map->nr_luns; j++) {
+				int lun = j + lun_offs[j];
+				int lunid = (ch * dev->geo.luns_per_chnl) + lun;
 
-			WARN_ON(!test_and_clear_bit(lunid, dev->lun_map));
+				WARN_ON(!test_and_clear_bit(lunid,
+							dev->lun_map));
+			}
 		}
 
 		kfree(ch_map->lun_offs);
@@ -309,7 +312,7 @@ err_init:
 err_queue:
 	blk_cleanup_queue(tqueue);
 err_dev:
-	nvm_remove_tgt_dev(tgt_dev);
+	nvm_remove_tgt_dev(tgt_dev, 0);
 err_t:
 	kfree(t);
 err_reserve:
@@ -332,7 +335,7 @@ static void __nvm_remove_target(struct nvm_target *t)
 	if (tt->exit)
 		tt->exit(tdisk->private_data);
 
-	nvm_remove_tgt_dev(t->dev);
+	nvm_remove_tgt_dev(t->dev, 1);
 	put_disk(tdisk);
 
 	list_del(&t->list);
