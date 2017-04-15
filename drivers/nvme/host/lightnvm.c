@@ -754,7 +754,7 @@ static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
 	c.common.cdw2[1] = cpu_to_le32(vcmd.cdw3);
 	/* cdw11-12 */
 	c.ph_rw.length = cpu_to_le16(vcmd.nppas);
-	c.ph_rw.control  = cpu_to_le32(vcmd.control);
+	c.ph_rw.control  = cpu_to_le16(vcmd.control);
 	c.common.cdw10[3] = cpu_to_le32(vcmd.cdw13);
 	c.common.cdw10[4] = cpu_to_le32(vcmd.cdw14);
 	c.common.cdw10[5] = cpu_to_le32(vcmd.cdw15);
