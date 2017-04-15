@@ -3467,6 +3467,7 @@ static void btc8821a2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 	u32 num_of_wifi_link = 0;
 	u32 wifi_link_status = 0;
 	bool miracast_plus_bt = false;
+	bool scan = false, link = false, roam = false;
 
 	if (btcoexist->manual_control) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
@@ -3495,6 +3496,17 @@ static void btc8821a2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], BT is under inquiry/page scan !!\n");
 		btc8821a2ant_action_bt_inquiry(btcoexist);
+		return;
+	}
+
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_ROAM, &roam);
+
+	if (scan || link || roam) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], WiFi is under Link Process !!\n");
+		btc8821a2ant_action_wifi_link_process(btcoexist);
 		return;
 	}
 
