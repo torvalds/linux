@@ -999,7 +999,7 @@ err_fmtype:
 	return ret;
 }
 
-void nvm_free(struct nvm_dev *dev)
+static void nvm_free(struct nvm_dev *dev)
 {
 	if (!dev)
 		return;
