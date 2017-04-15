@@ -501,7 +501,6 @@ void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
 		int *lun_roffs;
 		struct ppa_addr gaddr;
 		u64 pba = le64_to_cpu(entries[i]);
-		int off;
 		u64 diff;
 
 		if (!pba)
@@ -510,8 +509,6 @@ void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
 		gaddr = linear_to_generic_addr(geo, pba);
 		ch_rmap = &dev_rmap->chnls[gaddr.g.ch];
 		lun_roffs = ch_rmap->lun_offs;
-
-		off = gaddr.g.ch * geo->luns_per_chnl + gaddr.g.lun;
 
 		diff = ((ch_rmap->ch_off * geo->luns_per_chnl) +
 				(lun_roffs[gaddr.g.lun])) * geo->sec_per_lun;
