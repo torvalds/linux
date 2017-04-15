@@ -86,7 +86,7 @@ void set_affinity(const char *arg)
 	cpu = strtol(arg, &endptr, 0);
 	assert(!*endptr);
 
-	assert(cpu >= 0 || cpu < CPU_SETSIZE);
+	assert(cpu >= 0 && cpu < CPU_SETSIZE);
 
 	self = pthread_self();
 	CPU_ZERO(&cpuset);
