@@ -226,7 +226,8 @@ uint	rtw_get_rateset_len(u8	*rateset)
 int rtw_generate_ie(struct registry_priv *pregistrypriv)
 {
 	u8	wireless_mode;
-	int	sz = 0, rateLen;
+	int	rateLen;
+	uint    sz = 0;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
 
