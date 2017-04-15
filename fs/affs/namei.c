@@ -365,6 +365,7 @@ affs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 				symname++;
 	}
 	*p = 0;
+	inode->i_size = i + 1;
 	mark_buffer_dirty_inode(bh, inode);
 	affs_brelse(bh);
 	mark_inode_dirty(inode);
