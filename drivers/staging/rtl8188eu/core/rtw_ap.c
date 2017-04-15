@@ -719,7 +719,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	u8 val8, cur_channel, cur_bwmode, cur_ch_offset;
 	u16 bcn_interval;
 	u32	acparm;
-	int	ie_len;
+	uint	ie_len;
 	struct registry_priv	 *pregpriv = &padapter->registrypriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;

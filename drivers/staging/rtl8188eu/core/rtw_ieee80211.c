@@ -158,7 +158,7 @@ u8 *rtw_set_ie
 /*----------------------------------------------------------------------------
 index: the information element id index, limit is the limit for search
 -----------------------------------------------------------------------------*/
-u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit)
+u8 *rtw_get_ie(u8 *pbuf, int index, uint *len, int limit)
 {
 	int tmp, i;
 	u8 *p;
@@ -293,7 +293,7 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 
 unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
 {
-	int len;
+	uint len;
 	u16 val16;
 	__le16 le_tmp;
 	unsigned char wpa_oui_type[] = {0x00, 0x50, 0xf2, 0x01};
@@ -331,7 +331,7 @@ check_next_ie:
 	return NULL;
 }
 
-unsigned char *rtw_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit)
+unsigned char *rtw_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len, int limit)
 {
 
 	return rtw_get_ie(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
@@ -1000,7 +1000,7 @@ int ieee80211_get_hdrlen(u16 fc)
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
-	int wpa_ielen;
+	uint wpa_ielen;
 	unsigned char *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
@@ -1045,7 +1045,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	__le16 le_tmp;
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
-	int len;
+	uint len;
 	unsigned char		*p;
 
 	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);
