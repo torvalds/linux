@@ -292,7 +292,7 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv)
 	return sz;
 }
 
-unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
+unsigned char *rtw_get_wpa_ie(unsigned char *pie, uint *wpa_ie_len, int limit)
 {
 	uint len;
 	u16 val16;

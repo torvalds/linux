@@ -861,7 +861,7 @@ u8 *rtw_get_ie(u8 *pbuf, int index, uint *len, int limit);
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode);
 
-unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit);
+unsigned char *rtw_get_wpa_ie(unsigned char *pie, uint *wpa_ie_len, int limit);
 unsigned char *rtw_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len, int limit);
 int rtw_get_wpa_cipher_suite(u8 *s);
 int rtw_get_wpa2_cipher_suite(u8 *s);
