@@ -769,7 +769,7 @@ static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid)
 #define MLXSW_REG_SPVM_ID 0x200F
 #define MLXSW_REG_SPVM_BASE_LEN 0x04 /* base length, without records */
 #define MLXSW_REG_SPVM_REC_LEN 0x04 /* record length */
-#define MLXSW_REG_SPVM_REC_MAX_COUNT 256
+#define MLXSW_REG_SPVM_REC_MAX_COUNT 255
 #define MLXSW_REG_SPVM_LEN (MLXSW_REG_SPVM_BASE_LEN +	\
 		    MLXSW_REG_SPVM_REC_LEN * MLXSW_REG_SPVM_REC_MAX_COUNT)
 
@@ -1702,7 +1702,7 @@ static inline void mlxsw_reg_sfmr_pack(char *payload,
 #define MLXSW_REG_SPVMLR_ID 0x2020
 #define MLXSW_REG_SPVMLR_BASE_LEN 0x04 /* base length, without records */
 #define MLXSW_REG_SPVMLR_REC_LEN 0x04 /* record length */
-#define MLXSW_REG_SPVMLR_REC_MAX_COUNT 256
+#define MLXSW_REG_SPVMLR_REC_MAX_COUNT 255
 #define MLXSW_REG_SPVMLR_LEN (MLXSW_REG_SPVMLR_BASE_LEN + \
 			      MLXSW_REG_SPVMLR_REC_LEN * \
 			      MLXSW_REG_SPVMLR_REC_MAX_COUNT)

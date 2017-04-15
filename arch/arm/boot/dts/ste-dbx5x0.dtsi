@@ -14,6 +14,7 @@
 #include <dt-bindings/mfd/dbx500-prcmu.h>
 #include <dt-bindings/arm/ux500_pm_domains.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/ste-ab8500.h>
 #include "skeleton.dtsi"
 
 / {
@@ -603,6 +604,11 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 
+				ab8500_clock: clock-controller {
+					compatible = "stericsson,ab8500-clk";
+					#clock-cells = <1>;
+				};
+
 				ab8500_gpio: ab8500-gpio {
 					compatible = "stericsson,ab8500-gpio";
 					gpio-controller;
@@ -686,6 +692,8 @@
 
 				ab8500-pwm {
 					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
 				};
 
 				ab8500-debugfs {
@@ -699,6 +707,9 @@
 					V-AMIC1-supply = <&ab8500_ldo_anamic1_reg>;
 					V-AMIC2-supply = <&ab8500_ldo_anamic2_reg>;
 					V-DMIC-supply = <&ab8500_ldo_dmic_reg>;
+
+					clocks = <&ab8500_clock AB8500_SYSCLK_AUDIO>;
+					clock-names = "audioclk";
 
 					stericsson,earpeice-cmv = <950>; /* Units in mV. */
 				};
@@ -1093,6 +1104,14 @@
 			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
+		};
+
+		sound {
+			compatible = "stericsson,snd-soc-mop500";
+			stericsson,cpu-dai = <&msp1 &msp3>;
+			stericsson,audio-codec = <&codec>;
+			clocks = <&prcmu_clk PRCMU_SYSCLK>, <&ab8500_clock AB8500_SYSCLK_ULP>, <&ab8500_clock AB8500_SYSCLK_INT>;
+			clock-names = "sysclk", "ulpclk", "intclk";
 		};
 
 		msp0: msp@80123000 {

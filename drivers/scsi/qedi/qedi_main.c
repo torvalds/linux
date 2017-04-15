@@ -1805,7 +1805,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	 */
 	qedi_ops->common->update_pf_params(qedi->cdev, &qedi->pf_params);
 
-	qedi_setup_int(qedi);
+	rc = qedi_setup_int(qedi);
 	if (rc)
 		goto stop_iscsi_func;
 

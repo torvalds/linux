@@ -318,7 +318,8 @@ out:
 	return error;
 }
 
-static int svc_accept(struct socket *sock, struct socket *newsock, int flags)
+static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
+		      bool kern)
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
@@ -329,7 +330,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	lock_sock(sk);
 
-	error = svc_create(sock_net(sk), newsock, 0, 0);
+	error = svc_create(sock_net(sk), newsock, 0, kern);
 	if (error)
 		goto out;
 

@@ -84,7 +84,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 				(u32)((workload->ctx_desc.lrca + i) <<
 				GTT_PAGE_SHIFT));
 		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
-			gvt_err("Invalid guest context descriptor\n");
+			gvt_vgpu_err("Invalid guest context descriptor\n");
 			return -EINVAL;
 		}
 
@@ -130,12 +130,10 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 static int shadow_context_status_change(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
-	struct intel_vgpu *vgpu = container_of(nb,
-			struct intel_vgpu, shadow_ctx_notifier_block);
-	struct drm_i915_gem_request *req =
-		(struct drm_i915_gem_request *)data;
-	struct intel_gvt_workload_scheduler *scheduler =
-		&vgpu->gvt->scheduler;
+	struct drm_i915_gem_request *req = (struct drm_i915_gem_request *)data;
+	struct intel_gvt *gvt = container_of(nb, struct intel_gvt,
+				shadow_ctx_notifier_block[req->engine->id]);
+	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload =
 		scheduler->current_workload[req->engine->id];
 
@@ -175,7 +173,9 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	int ring_id = workload->ring_id;
 	struct i915_gem_context *shadow_ctx = workload->vgpu->shadow_ctx;
 	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
+	struct intel_engine_cs *engine = dev_priv->engine[ring_id];
 	struct drm_i915_gem_request *rq;
+	struct intel_vgpu *vgpu = workload->vgpu;
 	int ret;
 
 	gvt_dbg_sched("ring id %d prepare to dispatch workload %p\n",
@@ -187,9 +187,24 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
+	/* pin shadow context by gvt even the shadow context will be pinned
+	 * when i915 alloc request. That is because gvt will update the guest
+	 * context from shadow context when workload is completed, and at that
+	 * moment, i915 may already unpined the shadow context to make the
+	 * shadow_ctx pages invalid. So gvt need to pin itself. After update
+	 * the guest context, gvt can unpin the shadow_ctx safely.
+	 */
+	ret = engine->context_pin(engine, shadow_ctx);
+	if (ret) {
+		gvt_vgpu_err("fail to pin shadow context\n");
+		workload->status = ret;
+		mutex_unlock(&dev_priv->drm.struct_mutex);
+		return ret;
+	}
+
 	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
 	if (IS_ERR(rq)) {
-		gvt_err("fail to allocate gem request\n");
+		gvt_vgpu_err("fail to allocate gem request\n");
 		ret = PTR_ERR(rq);
 		goto out;
 	}
@@ -202,9 +217,12 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	if (ret)
 		goto out;
 
-	ret = intel_gvt_scan_and_shadow_wa_ctx(&workload->wa_ctx);
-	if (ret)
-		goto out;
+	if ((workload->ring_id == RCS) &&
+	    (workload->wa_ctx.indirect_ctx.size != 0)) {
+		ret = intel_gvt_scan_and_shadow_wa_ctx(&workload->wa_ctx);
+		if (ret)
+			goto out;
+	}
 
 	ret = populate_shadow_context(workload);
 	if (ret)
@@ -227,6 +245,9 @@ out:
 
 	if (!IS_ERR_OR_NULL(rq))
 		i915_add_request_no_flush(rq);
+	else
+		engine->context_unpin(engine, shadow_ctx);
+
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return ret;
 }
@@ -322,7 +343,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 				(u32)((workload->ctx_desc.lrca + i) <<
 					GTT_PAGE_SHIFT));
 		if (context_gpa == INTEL_GVT_INVALID_ADDR) {
-			gvt_err("invalid guest context descriptor\n");
+			gvt_vgpu_err("invalid guest context descriptor\n");
 			return;
 		}
 
@@ -376,6 +397,10 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	 * For the workload w/o request, directly complete the workload.
 	 */
 	if (workload->req) {
+		struct drm_i915_private *dev_priv =
+			workload->vgpu->gvt->dev_priv;
+		struct intel_engine_cs *engine =
+			dev_priv->engine[workload->ring_id];
 		wait_event(workload->shadow_ctx_status_wq,
 			   !atomic_read(&workload->shadow_ctx_active));
 
@@ -388,6 +413,10 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 					 INTEL_GVT_EVENT_MAX)
 				intel_vgpu_trigger_virtual_event(vgpu, event);
 		}
+		mutex_lock(&dev_priv->drm.struct_mutex);
+		/* unpin shadow ctx as the shadow_ctx update is done */
+		engine->context_unpin(engine, workload->vgpu->shadow_ctx);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 
 	gvt_dbg_sched("ring id %d complete workload %p status %d\n",
@@ -417,6 +446,7 @@ static int workload_thread(void *priv)
 	int ring_id = p->ring_id;
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload = NULL;
+	struct intel_vgpu *vgpu = NULL;
 	int ret;
 	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
@@ -459,25 +489,14 @@ static int workload_thread(void *priv)
 		mutex_unlock(&gvt->lock);
 
 		if (ret) {
-			gvt_err("fail to dispatch workload, skip\n");
+			vgpu = workload->vgpu;
+			gvt_vgpu_err("fail to dispatch workload, skip\n");
 			goto complete;
 		}
 
 		gvt_dbg_sched("ring id %d wait workload %p\n",
 				workload->ring_id, workload);
-retry:
-		i915_wait_request(workload->req,
-					 0, MAX_SCHEDULE_TIMEOUT);
-		/* I915 has replay mechanism and a request will be replayed
-		 * if there is i915 reset. So the seqno will be updated anyway.
-		 * If the seqno is not updated yet after waiting, which means
-		 * the replay may still be in progress and we can wait again.
-		 */
-		if (!i915_gem_request_completed(workload->req)) {
-			gvt_dbg_sched("workload %p not completed, wait again\n",
-					workload);
-			goto retry;
-		}
+		i915_wait_request(workload->req, 0, MAX_SCHEDULE_TIMEOUT);
 
 complete:
 		gvt_dbg_sched("will complete workload %p, status: %d\n",
@@ -513,15 +532,16 @@ void intel_gvt_wait_vgpu_idle(struct intel_vgpu *vgpu)
 void intel_gvt_clean_workload_scheduler(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
-	int i;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id i;
 
 	gvt_dbg_core("clean workload scheduler\n");
 
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		if (scheduler->thread[i]) {
-			kthread_stop(scheduler->thread[i]);
-			scheduler->thread[i] = NULL;
-		}
+	for_each_engine(engine, gvt->dev_priv, i) {
+		atomic_notifier_chain_unregister(
+					&engine->context_status_notifier,
+					&gvt->shadow_ctx_notifier_block[i]);
+		kthread_stop(scheduler->thread[i]);
 	}
 }
 
@@ -529,18 +549,15 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct workload_thread_param *param = NULL;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id i;
 	int ret;
-	int i;
 
 	gvt_dbg_core("init workload scheduler\n");
 
 	init_waitqueue_head(&scheduler->workload_complete_wq);
 
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		/* check ring mask at init time */
-		if (!HAS_ENGINE(gvt->dev_priv, i))
-			continue;
-
+	for_each_engine(engine, gvt->dev_priv, i) {
 		init_waitqueue_head(&scheduler->waitq[i]);
 
 		param = kzalloc(sizeof(*param), GFP_KERNEL);
@@ -559,6 +576,11 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 			ret = PTR_ERR(scheduler->thread[i]);
 			goto err;
 		}
+
+		gvt->shadow_ctx_notifier_block[i].notifier_call =
+					shadow_context_status_change;
+		atomic_notifier_chain_register(&engine->context_status_notifier,
+					&gvt->shadow_ctx_notifier_block[i]);
 	}
 	return 0;
 err:
@@ -570,9 +592,6 @@ err:
 
 void intel_vgpu_clean_gvt_context(struct intel_vgpu *vgpu)
 {
-	atomic_notifier_chain_unregister(&vgpu->shadow_ctx->status_notifier,
-			&vgpu->shadow_ctx_notifier_block);
-
 	i915_gem_context_put_unlocked(vgpu->shadow_ctx);
 }
 
@@ -587,10 +606,5 @@ int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)
 
 	vgpu->shadow_ctx->engine[RCS].initialised = true;
 
-	vgpu->shadow_ctx_notifier_block.notifier_call =
-		shadow_context_status_change;
-
-	atomic_notifier_chain_register(&vgpu->shadow_ctx->status_notifier,
-				       &vgpu->shadow_ctx_notifier_block);
 	return 0;
 }

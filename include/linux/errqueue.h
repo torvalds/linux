@@ -20,6 +20,8 @@ struct sock_exterr_skb {
 	struct sock_extended_err	ee;
 	u16				addr_offset;
 	__be16				port;
+	u8				opt_stats:1,
+					unused:7;
 };
 
 #endif
