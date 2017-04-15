@@ -817,7 +817,7 @@ static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 
 	for (i = 0; i < npages; i++) {
 		/* We assume that mapping occurs at 4KB granularity */
-		BUG_ON(!(laddr + i >= 0 && laddr + i < rrpc->nr_sects));
+		BUG_ON(!(laddr + i < rrpc->nr_sects));
 		gp = &rrpc->trans_map[laddr + i];
 
 		if (gp->rblk) {
@@ -846,7 +846,7 @@ static int rrpc_read_rq(struct rrpc *rrpc, struct bio *bio, struct nvm_rq *rqd,
 	if (!is_gc && rrpc_lock_rq(rrpc, bio, rqd))
 		return NVM_IO_REQUEUE;
 
-	BUG_ON(!(laddr >= 0 && laddr < rrpc->nr_sects));
+	BUG_ON(!(laddr < rrpc->nr_sects));
 	gp = &rrpc->trans_map[laddr];
 
 	if (gp->rblk) {
