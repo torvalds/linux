@@ -50,25 +50,6 @@ union nf_conntrack_expect_proto {
 #define NF_CT_ASSERT(x)
 #endif
 
-struct nf_conntrack_helper;
-
-/* Must be kept in sync with the classes defined by helpers */
-#define NF_CT_MAX_EXPECT_CLASSES	4
-
-/* nf_conn feature for connections that have a helper */
-struct nf_conn_help {
-	/* Helper. if any */
-	struct nf_conntrack_helper __rcu *helper;
-
-	struct hlist_head expectations;
-
-	/* Current number of expected connections */
-	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
-
-	/* private helper information. */
-	char data[];
-};
-
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 

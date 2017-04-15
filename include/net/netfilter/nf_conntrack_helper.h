@@ -52,6 +52,23 @@ struct nf_conntrack_helper {
 	unsigned int queue_num;		/* For user-space helpers. */
 };
 
+/* Must be kept in sync with the classes defined by helpers */
+#define NF_CT_MAX_EXPECT_CLASSES	4
+
+/* nf_conn feature for connections that have a helper */
+struct nf_conn_help {
+	/* Helper. if any */
+	struct nf_conntrack_helper __rcu *helper;
+
+	struct hlist_head expectations;
+
+	/* Current number of expected connections */
+	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
+
+	/* private helper information. */
+	char data[];
+};
+
 struct nf_conntrack_helper *__nf_conntrack_helper_find(const char *name,
 						       u16 l3num, u8 protonum);
 
