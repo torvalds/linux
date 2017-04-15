@@ -456,12 +456,18 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 	__u32 request_seq;
 
 	request_seq = ntohl(inreq->request_seq);
-	if (request_seq > asoc->strreset_inseq) {
+	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
+	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
 		result = SCTP_STRRESET_ERR_BAD_SEQNO;
-		goto out;
-	} else if (request_seq == asoc->strreset_inseq) {
-		asoc->strreset_inseq++;
+		goto err;
+	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
+		i = asoc->strreset_inseq - request_seq - 1;
+		result = asoc->strreset_result[i];
+		if (result == SCTP_STRRESET_PERFORMED)
+			return NULL;
+		goto err;
 	}
+	asoc->strreset_inseq++;
 
 	if (!(asoc->strreset_enable & SCTP_ENABLE_RESET_STREAM_REQ))
 		goto out;
@@ -496,10 +502,14 @@ struct sctp_chunk *sctp_process_strreset_inreq(
 	asoc->strreset_outstanding = 1;
 	sctp_chunk_hold(asoc->strreset_chunk);
 
+	result = SCTP_STRRESET_PERFORMED;
+
 	*evp = sctp_ulpevent_make_stream_reset_event(asoc,
 		SCTP_STREAM_RESET_INCOMING_SSN, nums, str_p, GFP_ATOMIC);
 
 out:
+	sctp_update_strreset_result(asoc, result);
+err:
 	if (!chunk)
 		chunk =  sctp_make_strreset_resp(asoc, result, request_seq);
 
@@ -671,15 +681,21 @@ struct sctp_chunk *sctp_process_strreset_addstrm_in(
 	struct sctp_stream_out *streamout;
 	struct sctp_chunk *chunk = NULL;
 	__u32 request_seq, outcnt;
-	__u16 out;
+	__u16 out, i;
 
 	request_seq = ntohl(addstrm->request_seq);
-	if (request_seq > asoc->strreset_inseq) {
+	if (TSN_lt(asoc->strreset_inseq, request_seq) ||
+	    TSN_lt(request_seq, asoc->strreset_inseq - 2)) {
 		result = SCTP_STRRESET_ERR_BAD_SEQNO;
-		goto out;
-	} else if (request_seq == asoc->strreset_inseq) {
-		asoc->strreset_inseq++;
+		goto err;
+	} else if (TSN_lt(request_seq, asoc->strreset_inseq)) {
+		i = asoc->strreset_inseq - request_seq - 1;
+		result = asoc->strreset_result[i];
+		if (result == SCTP_STRRESET_PERFORMED)
+			return NULL;
+		goto err;
 	}
+	asoc->strreset_inseq++;
 
 	if (!(asoc->strreset_enable & SCTP_ENABLE_CHANGE_ASSOC_REQ))
 		goto out;
@@ -712,10 +728,14 @@ struct sctp_chunk *sctp_process_strreset_addstrm_in(
 
 	stream->outcnt = outcnt;
 
+	result = SCTP_STRRESET_PERFORMED;
+
 	*evp = sctp_ulpevent_make_stream_change_event(asoc,
 		0, 0, ntohs(addstrm->number_of_streams), GFP_ATOMIC);
 
 out:
+	sctp_update_strreset_result(asoc, result);
+err:
 	if (!chunk)
 		chunk = sctp_make_strreset_resp(asoc, result, request_seq);
 
