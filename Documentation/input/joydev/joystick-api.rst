@@ -1,3 +1,5 @@
+.. _joystick-api:
+
 =====================
 Programming Interface
 =====================

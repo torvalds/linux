@@ -1,3 +1,5 @@
+.. _input-event-codes:
+
 =================
 Input event codes
 =================
