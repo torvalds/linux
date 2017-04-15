@@ -116,6 +116,11 @@ static struct em28xx_fmt format[] = {
 		.depth    = 16,
 		.reg      = EM28XX_OUTFMT_RGB_16_656,
 	}, {
+		.name     = "8 bpp Bayer RGRG..GBGB",
+		.fourcc   = V4L2_PIX_FMT_SRGGB8,
+		.depth    = 8,
+		.reg      = EM28XX_OUTFMT_RGB_8_RGRG,
+	}, {
 		.name     = "8 bpp Bayer BGBG..GRGR",
 		.fourcc   = V4L2_PIX_FMT_SBGGR8,
 		.depth    = 8,
