@@ -265,6 +265,10 @@ static int seg6_input(struct sk_buff *skb)
 		skb_dst_set(skb, dst);
 	}
 
+	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
+	if (unlikely(err))
+		return err;
+
 	return dst_input(skb);
 }
 
@@ -309,6 +313,10 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
+
+	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
+	if (unlikely(err))
+		goto drop;
 
 	return dst_output(net, sk, skb);
 drop:
