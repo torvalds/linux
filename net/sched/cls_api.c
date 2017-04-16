@@ -201,7 +201,8 @@ EXPORT_SYMBOL(tcf_destroy_chain);
 
 /* Add/change/delete/get a filter node */
 
-static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
+static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tca[TCA_MAX + 1];
@@ -229,7 +230,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
 replay:
 	tp_created = 0;
 
-	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL, NULL);
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL, extack);
 	if (err < 0)
 		return err;
 

@@ -61,7 +61,8 @@ static const struct nla_policy ifa_phonet_policy[IFA_MAX+1] = {
 	[IFA_LOCAL] = { .type = NLA_U8 },
 };
 
-static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+		     struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
@@ -79,7 +80,7 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 	ASSERT_RTNL();
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_phonet_policy,
-			  NULL);
+			  extack);
 	if (err < 0)
 		return err;
 
@@ -227,7 +228,8 @@ static const struct nla_policy rtm_phonet_policy[RTA_MAX+1] = {
 	[RTA_OIF] = { .type = NLA_U32 },
 };
 
-static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[RTA_MAX+1];
@@ -245,7 +247,7 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 	ASSERT_RTNL();
 
 	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_phonet_policy,
-			  NULL);
+			  extack);
 	if (err < 0)
 		return err;
 

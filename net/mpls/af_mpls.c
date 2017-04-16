@@ -1110,7 +1110,8 @@ static const struct nla_policy devconf_mpls_policy[NETCONFA_MAX + 1] = {
 };
 
 static int mpls_netconf_get_devconf(struct sk_buff *in_skb,
-				    struct nlmsghdr *nlh)
+				    struct nlmsghdr *nlh,
+				    struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct nlattr *tb[NETCONFA_MAX + 1];
@@ -1746,7 +1747,8 @@ errout:
 	return err;
 }
 
-static int mpls_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int mpls_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
 	struct mpls_route_config *cfg;
 	int err;
@@ -1767,7 +1769,8 @@ out:
 }
 
 
-static int mpls_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int mpls_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
 	struct mpls_route_config *cfg;
 	int err;

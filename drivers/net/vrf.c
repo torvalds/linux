@@ -1282,11 +1282,11 @@ static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
 	/* fib_nl_{new,del}rule handling looks for net from skb->sk */
 	skb->sk = dev_net(dev)->rtnl;
 	if (add_it) {
-		err = fib_nl_newrule(skb, nlh);
+		err = fib_nl_newrule(skb, nlh, NULL);
 		if (err == -EEXIST)
 			err = 0;
 	} else {
-		err = fib_nl_delrule(skb, nlh);
+		err = fib_nl_delrule(skb, nlh, NULL);
 		if (err == -ENOENT)
 			err = 0;
 	}

@@ -2430,7 +2430,8 @@ static int ipmr_nla_get_ttls(const struct nlattr *nla, struct mfcctl *mfcc)
 /* returns < 0 on error, 0 for ADD_MFC and 1 for ADD_MFC_PROXY */
 static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
 			    struct mfcctl *mfcc, int *mrtsock,
-			    struct mr_table **mrtret)
+			    struct mr_table **mrtret,
+			    struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = NULL;
 	u32 tblid = RT_TABLE_DEFAULT;
@@ -2440,7 +2441,7 @@ static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
 	int ret, rem;
 
 	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy,
-			     NULL);
+			     extack);
 	if (ret < 0)
 		goto out;
 	rtm = nlmsg_data(nlh);
@@ -2499,7 +2500,8 @@ out:
 }
 
 /* takes care of both newroute and delroute */
-static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	int ret, mrtsock, parent;
@@ -2508,7 +2510,7 @@ static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	mrtsock = 0;
 	tbl = NULL;
-	ret = rtm_to_ipmr_mfcc(net, nlh, &mfcc, &mrtsock, &tbl);
+	ret = rtm_to_ipmr_mfcc(net, nlh, &mfcc, &mrtsock, &tbl, extack);
 	if (ret < 0)
 		return ret;
 

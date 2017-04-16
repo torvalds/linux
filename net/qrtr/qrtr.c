@@ -943,7 +943,8 @@ static const struct nla_policy qrtr_policy[IFA_MAX + 1] = {
 	[IFA_LOCAL] = { .type = NLA_U32 },
 };
 
-static int qrtr_addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int qrtr_addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[IFA_MAX + 1];
 	struct ifaddrmsg *ifm;
@@ -957,7 +958,7 @@ static int qrtr_addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	ASSERT_RTNL();
 
-	rc = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, qrtr_policy, NULL);
+	rc = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, qrtr_policy, extack);
 	if (rc < 0)
 		return rc;
 

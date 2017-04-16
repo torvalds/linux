@@ -569,7 +569,8 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	return ret;
 }
 
-static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;
@@ -663,7 +664,8 @@ unlock:
 	return err;
 }
 
-static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_bridge_vlan_group *vg;

@@ -1696,7 +1696,8 @@ static const struct reply_func reply_funcs[DCB_CMD_MAX+1] = {
 	[DCB_CMD_CEE_GET]	= { RTM_GETDCB, dcbnl_cee_get },
 };
 
-static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
+		    struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_device *netdev;
@@ -1712,7 +1713,7 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EPERM;
 
 	ret = nlmsg_parse(nlh, sizeof(*dcb), tb, DCB_ATTR_MAX,
-			  dcbnl_rtnl_policy, NULL);
+			  dcbnl_rtnl_policy, extack);
 	if (ret < 0)
 		return ret;
 
