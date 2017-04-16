@@ -1840,6 +1840,8 @@ static void acpi_bus_attach(struct acpi_device *device)
 			device->flags.power_manageable = 0;
 
 		device->flags.initialized = true;
+	} else if (device->flags.visited) {
+		goto ok;
 	}
 
 	ret = acpi_scan_attach_handler(device);
