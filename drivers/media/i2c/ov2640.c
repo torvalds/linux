@@ -106,6 +106,10 @@
 #define   CTRL1_AWB_GAIN     0x04
 #define   CTRL1_LENC         0x02
 #define   CTRL1_PRE          0x01
+/*      REG 0xC7 (unknown name): affects Auto White Balance (AWB)
+ *	  AWB_OFF            0x40
+ *	  AWB_SIMPLE         0x10
+ *	  AWB_ON             0x00	(Advanced AWB ?) */
 #define R_DVP_SP    0xD3 /* DVP output speed control */
 #define   R_DVP_SP_AUTO_MODE 0x80
 #define   R_DVP_SP_DVP_MASK  0x3F /* DVP PCLK = sysclk (48)/[6:0] (YUV0);
@@ -449,7 +453,7 @@ static const struct regval_list ov2640_init_regs[] = {
 	{ 0xc5,   0x11 },
 	{ 0xc6,   0x51 },
 	{ 0xbf,   0x80 },
-	{ 0xc7,   0x10 },
+	{ 0xc7,   0x10 },	/* simple AWB */
 	{ 0xb6,   0x66 },
 	{ 0xb8,   0xA5 },
 	{ 0xb7,   0x64 },
