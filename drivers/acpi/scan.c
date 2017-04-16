@@ -1856,10 +1856,10 @@ static void acpi_bus_attach(struct acpi_device *device)
 	if (ret < 0)
 		return;
 
-	if (ret > 0 || !device->pnp.type.platform_id)
-		acpi_device_set_enumerated(device);
-	else
+	if (device->pnp.type.platform_id)
 		acpi_default_enumeration(device);
+	else
+		acpi_device_set_enumerated(device);
 
  ok:
 	list_for_each_entry(child, &device->children, node)
