@@ -49,6 +49,21 @@
 /* Base bits plus 1 bit for nulls marker */
 #define RHT_HASH_RESERVED_SPACE	(RHT_BASE_BITS + 1)
 
+/* Maximum chain length before rehash
+ *
+ * The maximum (not average) chain length grows with the size of the hash
+ * table, at a rate of (log N)/(log log N).
+ *
+ * The value of 16 is selected so that even if the hash table grew to
+ * 2^32 you would not expect the maximum chain length to exceed it
+ * unless we are under attack (or extremely unlucky).
+ *
+ * As this limit is only to detect attacks, we don't need to set it to a
+ * lower value as you'd need the chain length to vastly exceed 16 to have
+ * any real effect on the system.
+ */
+#define RHT_ELASTICITY	16u
+
 struct rhash_head {
 	struct rhash_head __rcu		*next;
 };
@@ -114,7 +129,6 @@ struct rhashtable;
  * @max_size: Maximum size while expanding
  * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
- * @insecure_elasticity: Set to true to disable chain length checks
  * @automatic_shrinking: Enable automatic shrinking of tables
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
@@ -130,7 +144,6 @@ struct rhashtable_params {
 	unsigned int		max_size;
 	unsigned int		min_size;
 	u32			nulls_base;
-	bool			insecure_elasticity;
 	bool			automatic_shrinking;
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
@@ -143,7 +156,6 @@ struct rhashtable_params {
  * @tbl: Bucket table
  * @nelems: Number of elements in table
  * @key_len: Key length for hashfn
- * @elasticity: Maximum chain length before rehash
  * @p: Configuration parameters
  * @rhlist: True if this is an rhltable
  * @run_work: Deferred worker to expand/shrink asynchronously
@@ -154,7 +166,6 @@ struct rhashtable {
 	struct bucket_table __rcu	*tbl;
 	atomic_t			nelems;
 	unsigned int			key_len;
-	unsigned int			elasticity;
 	struct rhashtable_params	p;
 	bool				rhlist;
 	struct work_struct		run_work;
@@ -726,7 +737,7 @@ slow_path:
 		return rhashtable_insert_slow(ht, key, obj);
 	}
 
-	elasticity = ht->elasticity;
+	elasticity = RHT_ELASTICITY;
 	pprev = rht_bucket_insert(ht, tbl, hash);
 	data = ERR_PTR(-ENOMEM);
 	if (!pprev)

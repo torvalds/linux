@@ -535,7 +535,7 @@ static void *rhashtable_lookup_one(struct rhashtable *ht,
 	struct rhash_head *head;
 	int elasticity;
 
-	elasticity = ht->elasticity;
+	elasticity = RHT_ELASTICITY;
 	pprev = rht_bucket_var(tbl, hash);
 	rht_for_each_continue(head, *pprev, tbl, hash) {
 		struct rhlist_head *list;
@@ -971,21 +971,6 @@ int rhashtable_init(struct rhashtable *ht,
 
 	if (params->nelem_hint)
 		size = rounded_hashtable_size(&ht->p);
-
-	/* The maximum (not average) chain length grows with the
-	 * size of the hash table, at a rate of (log N)/(log log N).
-	 * The value of 16 is selected so that even if the hash
-	 * table grew to 2^32 you would not expect the maximum
-	 * chain length to exceed it unless we are under attack
-	 * (or extremely unlucky).
-	 *
-	 * As this limit is only to detect attacks, we don't need
-	 * to set it to a lower value as you'd need the chain
-	 * length to vastly exceed 16 to have any real effect
-	 * on the system.
-	 */
-	if (!params->insecure_elasticity)
-		ht->elasticity = 16;
 
 	if (params->locks_mul)
 		ht->p.locks_mul = roundup_pow_of_two(params->locks_mul);
