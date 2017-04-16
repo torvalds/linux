@@ -482,43 +482,26 @@ static long vfio_unpin_pages_remote(struct vfio_dma *dma, dma_addr_t iova,
 static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 				  unsigned long *pfn_base, bool do_accounting)
 {
-	unsigned long limit;
-	bool lock_cap = has_capability(dma->task, CAP_IPC_LOCK);
 	struct mm_struct *mm;
 	int ret;
-	bool rsvd;
 
 	mm = get_task_mm(dma->task);
 	if (!mm)
 		return -ENODEV;
 
 	ret = vaddr_get_pfn(mm, vaddr, dma->prot, pfn_base);
-	if (ret)
-		goto pin_page_exit;
-
-	rsvd = is_invalid_reserved_pfn(*pfn_base);
-	limit = task_rlimit(dma->task, RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-
-	if (!rsvd && !lock_cap && mm->locked_vm + 1 > limit) {
-		put_pfn(*pfn_base, dma->prot);
-		pr_warn("%s: Task %s (%d) RLIMIT_MEMLOCK (%ld) exceeded\n",
-			__func__, dma->task->comm, task_pid_nr(dma->task),
-			limit << PAGE_SHIFT);
-		ret = -ENOMEM;
-		goto pin_page_exit;
-	}
-
-	if (!rsvd && do_accounting) {
-		ret = vfio_lock_acct(dma->task, 1, &lock_cap);
+	if (!ret && do_accounting && !is_invalid_reserved_pfn(*pfn_base)) {
+		ret = vfio_lock_acct(dma->task, 1, NULL);
 		if (ret) {
 			put_pfn(*pfn_base, dma->prot);
-			goto pin_page_exit;
+			if (ret == -ENOMEM)
+				pr_warn("%s: Task %s (%d) RLIMIT_MEMLOCK "
+					"(%ld) exceeded\n", __func__,
+					dma->task->comm, task_pid_nr(dma->task),
+					task_rlimit(dma->task, RLIMIT_MEMLOCK));
 		}
 	}
 
-	ret = 1;
-
-pin_page_exit:
 	mmput(mm);
 	return ret;
 }
@@ -598,10 +581,8 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 		remote_vaddr = dma->vaddr + iova - dma->iova;
 		ret = vfio_pin_page_external(dma, remote_vaddr, &phys_pfn[i],
 					     do_accounting);
-		if (ret <= 0) {
-			WARN_ON(!ret);
+		if (ret)
 			goto pin_unwind;
-		}
 
 		ret = vfio_add_to_pfn_list(dma, iova, phys_pfn[i]);
 		if (ret) {
