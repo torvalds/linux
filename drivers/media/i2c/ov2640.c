@@ -634,6 +634,8 @@ static const struct regval_list ov2640_rgb565_le_regs[] = {
 static u32 ov2640_codes[] = {
 	MEDIA_BUS_FMT_YUYV8_2X8,
 	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_YVYU8_2X8,
+	MEDIA_BUS_FMT_VYUY8_2X8,
 	MEDIA_BUS_FMT_RGB565_2X8_BE,
 	MEDIA_BUS_FMT_RGB565_2X8_LE,
 };
@@ -798,6 +800,7 @@ static int ov2640_set_params(struct i2c_client *client,
 {
 	struct ov2640_priv       *priv = to_ov2640(client);
 	const struct regval_list *selected_cfmt_regs;
+	u8 val;
 	int ret;
 
 	/* select win */
@@ -821,6 +824,14 @@ static int ov2640_set_params(struct i2c_client *client,
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 	default:
 		dev_dbg(&client->dev, "%s: Selected cfmt UYVY", __func__);
+		selected_cfmt_regs = ov2640_uyvy_regs;
+		break;
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+		dev_dbg(&client->dev, "%s: Selected cfmt YVYU", __func__);
+		selected_cfmt_regs = ov2640_yuyv_regs;
+		break;
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+		dev_dbg(&client->dev, "%s: Selected cfmt VYUY", __func__);
 		selected_cfmt_regs = ov2640_uyvy_regs;
 		break;
 	}
@@ -853,6 +864,11 @@ static int ov2640_set_params(struct i2c_client *client,
 
 	/* set cfmt */
 	ret = ov2640_write_array(client, selected_cfmt_regs);
+	if (ret < 0)
+		goto err;
+	val = (code == MEDIA_BUS_FMT_YVYU8_2X8)
+	      || (code == MEDIA_BUS_FMT_VYUY8_2X8) ? CTRL0_VFIRST : 0x00;
+	ret = ov2640_mask_set(client, CTRL0, CTRL0_VFIRST, val);
 	if (ret < 0)
 		goto err;
 
@@ -917,6 +933,8 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 	case MEDIA_BUS_FMT_RGB565_2X8_LE:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
 		break;
 	default:
 		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
