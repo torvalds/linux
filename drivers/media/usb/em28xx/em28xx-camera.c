@@ -98,8 +98,6 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 {
 	int ret, i;
 	char *name;
-	u8 reg;
-	__be16 id_be;
 	u16 id;
 
 	struct i2c_client *client = &dev->i2c_client[dev->def_i2c_bus];
@@ -107,10 +105,8 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 	dev->em28xx_sensor = EM28XX_NOSENSOR;
 	for (i = 0; micron_sensor_addrs[i] != I2C_CLIENT_END; i++) {
 		client->addr = micron_sensor_addrs[i];
-		/* NOTE: i2c_smbus_read_word_data() doesn't work with BE data */
 		/* Read chip ID from register 0x00 */
-		reg = 0x00;
-		ret = i2c_master_send(client, &reg, 1);
+		ret = i2c_smbus_read_word_data(client, 0x00); /* assumes LE */
 		if (ret < 0) {
 			if (ret != -ENXIO)
 				dev_err(&dev->intf->dev,
@@ -118,24 +114,9 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 				       client->addr << 1, ret);
 			continue;
 		}
-		ret = i2c_master_recv(client, (u8 *)&id_be, 2);
-		if (ret < 0) {
-			dev_err(&dev->intf->dev,
-				"couldn't read from i2c device 0x%02x: error %i\n",
-				client->addr << 1, ret);
-			continue;
-		}
-		id = be16_to_cpu(id_be);
+		id = swab16(ret); /* LE -> BE */
 		/* Read chip ID from register 0xff */
-		reg = 0xff;
-		ret = i2c_master_send(client, &reg, 1);
-		if (ret < 0) {
-			dev_err(&dev->intf->dev,
-				"couldn't read from i2c device 0x%02x: error %i\n",
-				client->addr << 1, ret);
-			continue;
-		}
-		ret = i2c_master_recv(client, (u8 *)&id_be, 2);
+		ret = i2c_smbus_read_word_data(client, 0xff);
 		if (ret < 0) {
 			dev_err(&dev->intf->dev,
 				"couldn't read from i2c device 0x%02x: error %i\n",
@@ -143,10 +124,9 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 			continue;
 		}
 		/* Validate chip ID to be sure we have a Micron device */
-		if (id != be16_to_cpu(id_be))
+		if (id != swab16(ret))
 			continue;
 		/* Check chip ID */
-		id = be16_to_cpu(id_be);
 		switch (id) {
 		case 0x1222:
 			name = "MT9V012"; /* MI370 */ /* 640x480 */
