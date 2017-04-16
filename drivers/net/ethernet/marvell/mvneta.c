@@ -4027,9 +4027,11 @@ static int mvneta_init(struct device *dev, struct mvneta_port *pp)
 		rxq->size = pp->rx_ring_size;
 		rxq->pkts_coal = MVNETA_RX_COAL_PKTS;
 		rxq->time_coal = MVNETA_RX_COAL_USEC;
-		rxq->buf_virt_addr = devm_kmalloc(pp->dev->dev.parent,
-						  rxq->size * sizeof(void *),
-						  GFP_KERNEL);
+		rxq->buf_virt_addr
+			= devm_kmalloc_array(pp->dev->dev.parent,
+					     rxq->size,
+					     sizeof(*rxq->buf_virt_addr),
+					     GFP_KERNEL);
 		if (!rxq->buf_virt_addr)
 			return -ENOMEM;
 	}
