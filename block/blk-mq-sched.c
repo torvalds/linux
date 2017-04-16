@@ -171,7 +171,8 @@ void blk_mq_sched_put_request(struct request *rq)
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
-	struct elevator_queue *e = hctx->queue->elevator;
+	struct request_queue *q = hctx->queue;
+	struct elevator_queue *e = q->elevator;
 	const bool has_sched_dispatch = e && e->type->ops.mq.dispatch_request;
 	bool did_work = false;
 	LIST_HEAD(rq_list);
@@ -203,10 +204,10 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart_hctx(hctx);
-		did_work = blk_mq_dispatch_rq_list(hctx, &rq_list);
+		did_work = blk_mq_dispatch_rq_list(q, &rq_list);
 	} else if (!has_sched_dispatch) {
 		blk_mq_flush_busy_ctxs(hctx, &rq_list);
-		blk_mq_dispatch_rq_list(hctx, &rq_list);
+		blk_mq_dispatch_rq_list(q, &rq_list);
 	}
 
 	/*
@@ -222,7 +223,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 			if (!rq)
 				break;
 			list_add(&rq->queuelist, &rq_list);
-		} while (blk_mq_dispatch_rq_list(hctx, &rq_list));
+		} while (blk_mq_dispatch_rq_list(q, &rq_list));
 	}
 }
 
@@ -317,25 +318,68 @@ static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
 	return true;
 }
 
-static void blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
+static bool blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
 {
 	if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state)) {
 		clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
-		if (blk_mq_hctx_has_pending(hctx))
+		if (blk_mq_hctx_has_pending(hctx)) {
 			blk_mq_run_hw_queue(hctx, true);
+			return true;
+		}
 	}
+	return false;
 }
 
-void blk_mq_sched_restart_queues(struct blk_mq_hw_ctx *hctx)
-{
-	struct request_queue *q = hctx->queue;
-	unsigned int i;
+/**
+ * list_for_each_entry_rcu_rr - iterate in a round-robin fashion over rcu list
+ * @pos:    loop cursor.
+ * @skip:   the list element that will not be examined. Iteration starts at
+ *          @skip->next.
+ * @head:   head of the list to examine. This list must have at least one
+ *          element, namely @skip.
+ * @member: name of the list_head structure within typeof(*pos).
+ */
+#define list_for_each_entry_rcu_rr(pos, skip, head, member)		\
+	for ((pos) = (skip);						\
+	     (pos = (pos)->member.next != (head) ? list_entry_rcu(	\
+			(pos)->member.next, typeof(*pos), member) :	\
+	      list_entry_rcu((pos)->member.next->next, typeof(*pos), member)), \
+	     (pos) != (skip); )
 
-	if (test_bit(QUEUE_FLAG_RESTART, &q->queue_flags)) {
-		if (test_and_clear_bit(QUEUE_FLAG_RESTART, &q->queue_flags)) {
-			queue_for_each_hw_ctx(q, hctx, i)
-				blk_mq_sched_restart_hctx(hctx);
+/*
+ * Called after a driver tag has been freed to check whether a hctx needs to
+ * be restarted. Restarts @hctx if its tag set is not shared. Restarts hardware
+ * queues in a round-robin fashion if the tag set of @hctx is shared with other
+ * hardware queues.
+ */
+void blk_mq_sched_restart(struct blk_mq_hw_ctx *const hctx)
+{
+	struct blk_mq_tags *const tags = hctx->tags;
+	struct blk_mq_tag_set *const set = hctx->queue->tag_set;
+	struct request_queue *const queue = hctx->queue, *q;
+	struct blk_mq_hw_ctx *hctx2;
+	unsigned int i, j;
+
+	if (set->flags & BLK_MQ_F_TAG_SHARED) {
+		rcu_read_lock();
+		list_for_each_entry_rcu_rr(q, queue, &set->tag_list,
+					   tag_set_list) {
+			queue_for_each_hw_ctx(q, hctx2, i)
+				if (hctx2->tags == tags &&
+				    blk_mq_sched_restart_hctx(hctx2))
+					goto done;
 		}
+		j = hctx->queue_num + 1;
+		for (i = 0; i < queue->nr_hw_queues; i++, j++) {
+			if (j == queue->nr_hw_queues)
+				j = 0;
+			hctx2 = queue->queue_hw_ctx[j];
+			if (hctx2->tags == tags &&
+			    blk_mq_sched_restart_hctx(hctx2))
+				break;
+		}
+done:
+		rcu_read_unlock();
 	} else {
 		blk_mq_sched_restart_hctx(hctx);
 	}
@@ -431,54 +475,26 @@ static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
 	}
 }
 
-int blk_mq_sched_setup(struct request_queue *q)
+static int blk_mq_sched_alloc_tags(struct request_queue *q,
+				   struct blk_mq_hw_ctx *hctx,
+				   unsigned int hctx_idx)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
-	struct blk_mq_hw_ctx *hctx;
-	int ret, i;
+	int ret;
 
-	/*
-	 * Default to 256, since we don't split into sync/async like the
-	 * old code did. Additionally, this is a per-hw queue depth.
-	 */
-	q->nr_requests = 2 * BLKDEV_MAX_RQ;
+	hctx->sched_tags = blk_mq_alloc_rq_map(set, hctx_idx, q->nr_requests,
+					       set->reserved_tags);
+	if (!hctx->sched_tags)
+		return -ENOMEM;
 
-	/*
-	 * We're switching to using an IO scheduler, so setup the hctx
-	 * scheduler tags and switch the request map from the regular
-	 * tags to scheduler tags. First allocate what we need, so we
-	 * can safely fail and fallback, if needed.
-	 */
-	ret = 0;
-	queue_for_each_hw_ctx(q, hctx, i) {
-		hctx->sched_tags = blk_mq_alloc_rq_map(set, i,
-				q->nr_requests, set->reserved_tags);
-		if (!hctx->sched_tags) {
-			ret = -ENOMEM;
-			break;
-		}
-		ret = blk_mq_alloc_rqs(set, hctx->sched_tags, i, q->nr_requests);
-		if (ret)
-			break;
-	}
+	ret = blk_mq_alloc_rqs(set, hctx->sched_tags, hctx_idx, q->nr_requests);
+	if (ret)
+		blk_mq_sched_free_tags(set, hctx, hctx_idx);
 
-	/*
-	 * If we failed, free what we did allocate
-	 */
-	if (ret) {
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (!hctx->sched_tags)
-				continue;
-			blk_mq_sched_free_tags(set, hctx, i);
-		}
-
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
-void blk_mq_sched_teardown(struct request_queue *q)
+static void blk_mq_sched_tags_teardown(struct request_queue *q)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 	struct blk_mq_hw_ctx *hctx;
@@ -486,6 +502,71 @@ void blk_mq_sched_teardown(struct request_queue *q)
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_sched_free_tags(set, hctx, i);
+}
+
+int blk_mq_sched_init_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
+			   unsigned int hctx_idx)
+{
+	struct elevator_queue *e = q->elevator;
+
+	if (!e)
+		return 0;
+
+	return blk_mq_sched_alloc_tags(q, hctx, hctx_idx);
+}
+
+void blk_mq_sched_exit_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
+			    unsigned int hctx_idx)
+{
+	struct elevator_queue *e = q->elevator;
+
+	if (!e)
+		return;
+
+	blk_mq_sched_free_tags(q->tag_set, hctx, hctx_idx);
+}
+
+int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
+{
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+	int ret;
+
+	if (!e) {
+		q->elevator = NULL;
+		return 0;
+	}
+
+	/*
+	 * Default to 256, since we don't split into sync/async like the
+	 * old code did. Additionally, this is a per-hw queue depth.
+	 */
+	q->nr_requests = 2 * BLKDEV_MAX_RQ;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		ret = blk_mq_sched_alloc_tags(q, hctx, i);
+		if (ret)
+			goto err;
+	}
+
+	ret = e->ops.mq.init_sched(q, e);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	blk_mq_sched_tags_teardown(q);
+	q->elevator = NULL;
+	return ret;
+}
+
+void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
+{
+	if (e->type->ops.mq.exit_sched)
+		e->type->ops.mq.exit_sched(e);
+	blk_mq_sched_tags_teardown(q);
+	q->elevator = NULL;
 }
 
 int blk_mq_sched_init(struct request_queue *q)
