@@ -778,21 +778,16 @@ static int ov2640_s_power(struct v4l2_subdev *sd, int on)
 }
 
 /* Select the nearest higher resolution for capture */
-static const struct ov2640_win_size *ov2640_select_win(u32 *width, u32 *height)
+static const struct ov2640_win_size *ov2640_select_win(u32 width, u32 height)
 {
 	int i, default_size = ARRAY_SIZE(ov2640_supported_win_sizes) - 1;
 
 	for (i = 0; i < ARRAY_SIZE(ov2640_supported_win_sizes); i++) {
-		if (ov2640_supported_win_sizes[i].width  >= *width &&
-		    ov2640_supported_win_sizes[i].height >= *height) {
-			*width = ov2640_supported_win_sizes[i].width;
-			*height = ov2640_supported_win_sizes[i].height;
+		if (ov2640_supported_win_sizes[i].width  >= width &&
+		    ov2640_supported_win_sizes[i].height >= height)
 			return &ov2640_supported_win_sizes[i];
-		}
 	}
 
-	*width = ov2640_supported_win_sizes[default_size].width;
-	*height = ov2640_supported_win_sizes[default_size].height;
 	return &ov2640_supported_win_sizes[default_size];
 }
 
@@ -883,8 +878,7 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (!priv->win) {
-		u32 width = SVGA_WIDTH, height = SVGA_HEIGHT;
-		priv->win = ov2640_select_win(&width, &height);
+		priv->win = ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
 		priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
@@ -909,7 +903,9 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	/* select suitable win */
-	win = ov2640_select_win(&mf->width, &mf->height);
+	win = ov2640_select_win(mf->width, mf->height);
+	mf->width	= win->width;
+	mf->height	= win->height;
 
 	mf->field	= V4L2_FIELD_NONE;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
