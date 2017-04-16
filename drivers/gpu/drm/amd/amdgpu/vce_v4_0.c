@@ -49,63 +49,6 @@ static void vce_v4_0_mc_resume(struct amdgpu_device *adev);
 static void vce_v4_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v4_0_set_irq_funcs(struct amdgpu_device *adev);
 
-static inline void mmsch_insert_direct_wt(struct mmsch_v1_0_cmd_direct_write *direct_wt,
-					  uint32_t *init_table,
-					  uint32_t reg_offset,
-					  uint32_t value)
-{
-	direct_wt->cmd_header.reg_offset = reg_offset;
-	direct_wt->reg_value = value;
-	memcpy((void *)init_table, direct_wt, sizeof(struct mmsch_v1_0_cmd_direct_write));
-}
-
-static inline void mmsch_insert_direct_rd_mod_wt(struct mmsch_v1_0_cmd_direct_read_modify_write *direct_rd_mod_wt,
-						 uint32_t *init_table,
-						 uint32_t reg_offset,
-						 uint32_t mask, uint32_t data)
-{
-	direct_rd_mod_wt->cmd_header.reg_offset = reg_offset;
-	direct_rd_mod_wt->mask_value = mask;
-	direct_rd_mod_wt->write_data = data;
-	memcpy((void *)init_table, direct_rd_mod_wt,
-	       sizeof(struct mmsch_v1_0_cmd_direct_read_modify_write));
-}
-
-static inline void mmsch_insert_direct_poll(struct mmsch_v1_0_cmd_direct_polling *direct_poll,
-					    uint32_t *init_table,
-					    uint32_t reg_offset,
-					    uint32_t mask, uint32_t wait)
-{
-	direct_poll->cmd_header.reg_offset = reg_offset;
-	direct_poll->mask_value = mask;
-	direct_poll->wait_value = wait;
-	memcpy((void *)init_table, direct_poll, sizeof(struct mmsch_v1_0_cmd_direct_polling));
-}
-
-#define INSERT_DIRECT_RD_MOD_WT(reg, mask, data) { \
-	mmsch_insert_direct_rd_mod_wt(&direct_rd_mod_wt, \
-				      init_table, (reg), \
-				      (mask), (data)); \
-	init_table += sizeof(struct mmsch_v1_0_cmd_direct_read_modify_write)/4; \
-	table_size += sizeof(struct mmsch_v1_0_cmd_direct_read_modify_write)/4; \
-}
-
-#define INSERT_DIRECT_WT(reg, value) { \
-	mmsch_insert_direct_wt(&direct_wt, \
-			       init_table, (reg), \
-			       (value)); \
-	init_table += sizeof(struct mmsch_v1_0_cmd_direct_write)/4; \
-	table_size += sizeof(struct mmsch_v1_0_cmd_direct_write)/4; \
-}
-
-#define INSERT_DIRECT_POLL(reg, mask, wait) { \
-	mmsch_insert_direct_poll(&direct_poll, \
-				 init_table, (reg), \
-				 (mask), (wait)); \
-	init_table += sizeof(struct mmsch_v1_0_cmd_direct_polling)/4; \
-	table_size += sizeof(struct mmsch_v1_0_cmd_direct_polling)/4; \
-}
-
 /**
  * vce_v4_0_ring_get_rptr - get read pointer
  *
@@ -280,67 +223,73 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 		init_table += header->vce_table_offset;
 
 		ring = &adev->vce.ring[0];
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_BASE_LO), lower_32_bits(ring->gpu_addr));
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_BASE_HI), upper_32_bits(ring->gpu_addr));
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_SIZE), ring->ring_size / 4);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_BASE_LO),
+					    lower_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_BASE_HI),
+					    upper_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_RB_SIZE),
+					    ring->ring_size / 4);
 
 		/* BEGING OF MC_RESUME */
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CTRL), 0x398000);
-		INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CACHE_CTRL), ~0x1, 0);
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_SWAP_CNTL), 0);
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_SWAP_CNTL1), 0);
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VM_CTRL), 0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CTRL), 0x398000);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CACHE_CTRL), ~0x1, 0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_SWAP_CNTL), 0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_SWAP_CNTL1), 0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VM_CTRL), 0);
 
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		    INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
-				adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
-		    INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
-				adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
-		    INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR2),
-				adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
+		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
+						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
+		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
+						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
+		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR2),
+						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
 		} else {
-		    INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
-				adev->vce.gpu_addr >> 8);
-		    INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
-				adev->vce.gpu_addr >> 8);
-		    INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR2),
-				adev->vce.gpu_addr >> 8);
+		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
+						adev->vce.gpu_addr >> 8);
+		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
+						adev->vce.gpu_addr >> 8);
+		    MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VCPU_CACHE_40BIT_BAR2),
+						adev->vce.gpu_addr >> 8);
 		}
 
 		offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 		size = VCE_V4_0_FW_SIZE;
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0), offset & 0x7FFFFFFF);
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE0), size);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0),
+					    offset & 0x7FFFFFFF);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE0), size);
 
 		offset += size;
 		size = VCE_V4_0_STACK_SIZE;
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET1), offset & 0x7FFFFFFF);
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE1), size);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET1),
+					    offset & 0x7FFFFFFF);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE1), size);
 
 		offset += size;
 		size = VCE_V4_0_DATA_SIZE;
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET2), offset & 0x7FFFFFFF);
-		INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE2), size);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET2),
+					    offset & 0x7FFFFFFF);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE2), size);
 
-		INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CTRL2), ~0x100, 0);
-		INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_SYS_INT_EN),
-				0xffffffff, VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CTRL2), ~0x100, 0);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_SYS_INT_EN),
+						   0xffffffff, VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
 
 		/* end of MC_RESUME */
-		INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS),
-				VCE_STATUS__JOB_BUSY_MASK, ~VCE_STATUS__JOB_BUSY_MASK);
-		INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CNTL),
-				~0x200001, VCE_VCPU_CNTL__CLK_EN_MASK);
-		INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_SOFT_RESET),
-				~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK, 0);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS),
+						   VCE_STATUS__JOB_BUSY_MASK, ~VCE_STATUS__JOB_BUSY_MASK);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CNTL),
+						   ~0x200001, VCE_VCPU_CNTL__CLK_EN_MASK);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_SOFT_RESET),
+						   ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK, 0);
 
-		INSERT_DIRECT_POLL(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS),
-				VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK,
-				VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK);
+		MMSCH_V1_0_INSERT_DIRECT_POLL(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS),
+					      VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK,
+					      VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK);
 
 		/* clear BUSY flag */
-		INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS),
-				~VCE_STATUS__JOB_BUSY_MASK, 0);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS),
+						   ~VCE_STATUS__JOB_BUSY_MASK, 0);
 
 		/* add end packet */
 		memcpy((void *)init_table, &end, sizeof(struct mmsch_v1_0_cmd_end));
