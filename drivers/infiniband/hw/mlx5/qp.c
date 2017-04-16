@@ -2799,7 +2799,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       qp->port) - 1;
 		mibport = &dev->port[port_num];
 		context->qp_counter_set_usr_page |=
-			cpu_to_be32((u32)(mibport->q_cnts.set_id) << 24);
+			cpu_to_be32((u32)(mibport->cnts.set_id) << 24);
 	}
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
@@ -2827,7 +2827,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 		raw_qp_param.operation = op;
 		if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
-			raw_qp_param.rq_q_ctr_id = mibport->q_cnts.set_id;
+			raw_qp_param.rq_q_ctr_id = mibport->cnts.set_id;
 			raw_qp_param.set_mask |= MLX5_RAW_QP_MOD_SET_RQ_Q_CTR_ID;
 		}
 
@@ -4965,7 +4965,8 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		if (MLX5_CAP_GEN(dev->mdev, modify_rq_counter_set_id)) {
 			MLX5_SET64(modify_rq_in, in, modify_bitmask,
 				   MLX5_MODIFY_RQ_IN_MODIFY_BITMASK_RQ_COUNTER_SET_ID);
-			MLX5_SET(rqc, rqc, counter_set_id, dev->port->q_cnts.set_id);
+			MLX5_SET(rqc, rqc, counter_set_id,
+				 dev->port->cnts.set_id);
 		} else
 			pr_info_once("%s: Receive WQ counters are not supported on current FW\n",
 				     dev->ib_dev.name);

@@ -57,6 +57,7 @@
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_ib.h"
+#include "cmd.h"
 
 #define DRIVER_NAME "mlx5_ib"
 #define DRIVER_VERSION "2.2-1"
@@ -3213,7 +3214,7 @@ static void mlx5_disable_eth(struct mlx5_ib_dev *dev)
 		mlx5_nic_vport_disable_roce(dev->mdev);
 }
 
-struct mlx5_ib_q_counter {
+struct mlx5_ib_counter {
 	const char *name;
 	size_t offset;
 };
@@ -3221,18 +3222,18 @@ struct mlx5_ib_q_counter {
 #define INIT_Q_COUNTER(_name)		\
 	{ .name = #_name, .offset = MLX5_BYTE_OFF(query_q_counter_out, _name)}
 
-static const struct mlx5_ib_q_counter basic_q_cnts[] = {
+static const struct mlx5_ib_counter basic_q_cnts[] = {
 	INIT_Q_COUNTER(rx_write_requests),
 	INIT_Q_COUNTER(rx_read_requests),
 	INIT_Q_COUNTER(rx_atomic_requests),
 	INIT_Q_COUNTER(out_of_buffer),
 };
 
-static const struct mlx5_ib_q_counter out_of_seq_q_cnts[] = {
+static const struct mlx5_ib_counter out_of_seq_q_cnts[] = {
 	INIT_Q_COUNTER(out_of_sequence),
 };
 
-static const struct mlx5_ib_q_counter retrans_q_cnts[] = {
+static const struct mlx5_ib_counter retrans_q_cnts[] = {
 	INIT_Q_COUNTER(duplicate_request),
 	INIT_Q_COUNTER(rnr_nak_retry_err),
 	INIT_Q_COUNTER(packet_seq_err),
@@ -3240,22 +3241,31 @@ static const struct mlx5_ib_q_counter retrans_q_cnts[] = {
 	INIT_Q_COUNTER(local_ack_timeout_err),
 };
 
-static void mlx5_ib_dealloc_q_counters(struct mlx5_ib_dev *dev)
+#define INIT_CONG_COUNTER(_name)		\
+	{ .name = #_name, .offset =	\
+		MLX5_BYTE_OFF(query_cong_statistics_out, _name ## _high)}
+
+static const struct mlx5_ib_counter cong_cnts[] = {
+	INIT_CONG_COUNTER(rp_cnp_ignored),
+	INIT_CONG_COUNTER(rp_cnp_handled),
+	INIT_CONG_COUNTER(np_ecn_marked_roce_packets),
+	INIT_CONG_COUNTER(np_cnp_sent),
+};
+
+static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 {
 	unsigned int i;
 
 	for (i = 0; i < dev->num_ports; i++) {
 		mlx5_core_dealloc_q_counter(dev->mdev,
-					    dev->port[i].q_cnts.set_id);
-		kfree(dev->port[i].q_cnts.names);
-		kfree(dev->port[i].q_cnts.offsets);
+					    dev->port[i].cnts.set_id);
+		kfree(dev->port[i].cnts.names);
+		kfree(dev->port[i].cnts.offsets);
 	}
 }
 
-static int __mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev,
-				      const char ***names,
-				      size_t **offsets,
-				      u32 *num)
+static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
+				    struct mlx5_ib_counters *cnts)
 {
 	u32 num_counters;
 
@@ -3266,27 +3276,32 @@ static int __mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev,
 
 	if (MLX5_CAP_GEN(dev->mdev, retransmission_q_counters))
 		num_counters += ARRAY_SIZE(retrans_q_cnts);
+	cnts->num_q_counters = num_counters;
 
-	*names = kcalloc(num_counters, sizeof(**names), GFP_KERNEL);
-	if (!*names)
+	if (MLX5_CAP_GEN(dev->mdev, cc_query_allowed)) {
+		cnts->num_cong_counters = ARRAY_SIZE(cong_cnts);
+		num_counters += ARRAY_SIZE(cong_cnts);
+	}
+
+	cnts->names = kcalloc(num_counters, sizeof(cnts->names), GFP_KERNEL);
+	if (!cnts->names)
 		return -ENOMEM;
 
-	*offsets = kcalloc(num_counters, sizeof(**offsets), GFP_KERNEL);
-	if (!*offsets)
+	cnts->offsets = kcalloc(num_counters,
+				sizeof(cnts->offsets), GFP_KERNEL);
+	if (!cnts->offsets)
 		goto err_names;
-
-	*num = num_counters;
 
 	return 0;
 
 err_names:
-	kfree(*names);
+	kfree(cnts->names);
 	return -ENOMEM;
 }
 
-static void mlx5_ib_fill_q_counters(struct mlx5_ib_dev *dev,
-				    const char **names,
-				    size_t *offsets)
+static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
+				  const char **names,
+				  size_t *offsets)
 {
 	int i;
 	int j = 0;
@@ -3309,9 +3324,16 @@ static void mlx5_ib_fill_q_counters(struct mlx5_ib_dev *dev,
 			offsets[j] = retrans_q_cnts[i].offset;
 		}
 	}
+
+	if (MLX5_CAP_GEN(dev->mdev, cc_query_allowed)) {
+		for (i = 0; i < ARRAY_SIZE(cong_cnts); i++, j++) {
+			names[j] = cong_cnts[i].name;
+			offsets[j] = cong_cnts[i].offset;
+		}
+	}
 }
 
-static int mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev)
+static int mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev)
 {
 	int i;
 	int ret;
@@ -3320,7 +3342,7 @@ static int mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev)
 		struct mlx5_ib_port *port = &dev->port[i];
 
 		ret = mlx5_core_alloc_q_counter(dev->mdev,
-						&port->q_cnts.set_id);
+						&port->cnts.set_id);
 		if (ret) {
 			mlx5_ib_warn(dev,
 				     "couldn't allocate queue counter for port %d, err %d\n",
@@ -3328,15 +3350,12 @@ static int mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev)
 			goto dealloc_counters;
 		}
 
-		ret = __mlx5_ib_alloc_q_counters(dev,
-						 &port->q_cnts.names,
-						 &port->q_cnts.offsets,
-						 &port->q_cnts.num_counters);
+		ret = __mlx5_ib_alloc_counters(dev, &port->cnts);
 		if (ret)
 			goto dealloc_counters;
 
-		mlx5_ib_fill_q_counters(dev, port->q_cnts.names,
-					port->q_cnts.offsets);
+		mlx5_ib_fill_counters(dev, port->cnts.names,
+				      port->cnts.offsets);
 	}
 
 	return 0;
@@ -3344,7 +3363,7 @@ static int mlx5_ib_alloc_q_counters(struct mlx5_ib_dev *dev)
 dealloc_counters:
 	while (--i >= 0)
 		mlx5_core_dealloc_q_counter(dev->mdev,
-					    dev->port[i].q_cnts.set_id);
+					    dev->port[i].cnts.set_id);
 
 	return ret;
 }
@@ -3359,9 +3378,67 @@ static struct rdma_hw_stats *mlx5_ib_alloc_hw_stats(struct ib_device *ibdev,
 	if (port_num == 0)
 		return NULL;
 
-	return rdma_alloc_hw_stats_struct(port->q_cnts.names,
-					  port->q_cnts.num_counters,
+	return rdma_alloc_hw_stats_struct(port->cnts.names,
+					  port->cnts.num_q_counters +
+					  port->cnts.num_cong_counters,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+static int mlx5_ib_query_q_counters(struct mlx5_ib_dev *dev,
+				    struct mlx5_ib_port *port,
+				    struct rdma_hw_stats *stats)
+{
+	int outlen = MLX5_ST_SZ_BYTES(query_q_counter_out);
+	void *out;
+	__be32 val;
+	int ret, i;
+
+	out = mlx5_vzalloc(outlen);
+	if (!out)
+		return -ENOMEM;
+
+	ret = mlx5_core_query_q_counter(dev->mdev,
+					port->cnts.set_id, 0,
+					out, outlen);
+	if (ret)
+		goto free;
+
+	for (i = 0; i < port->cnts.num_q_counters; i++) {
+		val = *(__be32 *)(out + port->cnts.offsets[i]);
+		stats->value[i] = (u64)be32_to_cpu(val);
+	}
+
+free:
+	kvfree(out);
+	return ret;
+}
+
+static int mlx5_ib_query_cong_counters(struct mlx5_ib_dev *dev,
+				       struct mlx5_ib_port *port,
+				       struct rdma_hw_stats *stats)
+{
+	int outlen = MLX5_ST_SZ_BYTES(query_cong_statistics_out);
+	void *out;
+	int ret, i;
+	int offset = port->cnts.num_q_counters;
+
+	out = mlx5_vzalloc(outlen);
+	if (!out)
+		return -ENOMEM;
+
+	ret = mlx5_cmd_query_cong_counter(dev->mdev, false, out, outlen);
+	if (ret)
+		goto free;
+
+	for (i = 0; i < port->cnts.num_cong_counters; i++) {
+		stats->value[i + offset] =
+			be64_to_cpup((__be64 *)(out +
+				     port->cnts.offsets[i + offset]));
+	}
+
+free:
+	kvfree(out);
+	return ret;
 }
 
 static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
@@ -3370,33 +3447,24 @@ static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_ib_port *port = &dev->port[port_num - 1];
-	int outlen = MLX5_ST_SZ_BYTES(query_q_counter_out);
-	void *out;
-	__be32 val;
-	int ret;
-	int i;
+	int ret, num_counters;
 
 	if (!stats)
-		return -ENOSYS;
+		return -EINVAL;
 
-	out = mlx5_vzalloc(outlen);
-	if (!out)
-		return -ENOMEM;
-
-	ret = mlx5_core_query_q_counter(dev->mdev,
-					port->q_cnts.set_id, 0,
-					out, outlen);
+	ret = mlx5_ib_query_q_counters(dev, port, stats);
 	if (ret)
-		goto free;
+		return ret;
+	num_counters = port->cnts.num_q_counters;
 
-	for (i = 0; i < port->q_cnts.num_counters; i++) {
-		val = *(__be32 *)(out + port->q_cnts.offsets[i]);
-		stats->value[i] = (u64)be32_to_cpu(val);
+	if (MLX5_CAP_GEN(dev->mdev, cc_query_allowed)) {
+		ret = mlx5_ib_query_cong_counters(dev, port, stats);
+		if (ret)
+			return ret;
+		num_counters += port->cnts.num_cong_counters;
 	}
 
-free:
-	kvfree(out);
-	return port->q_cnts.num_counters;
+	return num_counters;
 }
 
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
@@ -3603,14 +3671,14 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		goto err_rsrc;
 
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
-		err = mlx5_ib_alloc_q_counters(dev);
+		err = mlx5_ib_alloc_counters(dev);
 		if (err)
 			goto err_odp;
 	}
 
 	dev->mdev->priv.uar = mlx5_get_uars_page(dev->mdev);
 	if (!dev->mdev->priv.uar)
-		goto err_q_cnt;
+		goto err_cnt;
 
 	err = mlx5_alloc_bfreg(dev->mdev, &dev->bfreg, false, false);
 	if (err)
@@ -3654,9 +3722,9 @@ err_bfreg:
 err_uar_page:
 	mlx5_put_uars_page(dev->mdev, dev->mdev->priv.uar);
 
-err_q_cnt:
+err_cnt:
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
-		mlx5_ib_dealloc_q_counters(dev);
+		mlx5_ib_dealloc_counters(dev);
 
 err_odp:
 	mlx5_ib_odp_remove_one(dev);
@@ -3690,7 +3758,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	mlx5_free_bfreg(dev->mdev, &dev->bfreg);
 	mlx5_put_uars_page(dev->mdev, mdev->priv.uar);
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
-		mlx5_ib_dealloc_q_counters(dev);
+		mlx5_ib_dealloc_counters(dev);
 	destroy_umrc_res(dev);
 	mlx5_ib_odp_remove_one(dev);
 	destroy_dev_resources(&dev->devr);
