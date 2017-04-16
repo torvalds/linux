@@ -500,6 +500,9 @@ static const struct regval_list ov2640_init_regs[] = {
 static const struct regval_list ov2640_size_change_preamble_regs[] = {
 	{ BANK_SEL, BANK_SEL_DSP },
 	{ RESET, RESET_DVP },
+	{ SIZEL, SIZEL_HSIZE8_11_SET(UXGA_WIDTH) |
+		 SIZEL_HSIZE8_SET(UXGA_WIDTH) |
+		 SIZEL_VSIZE8_SET(UXGA_HEIGHT) },
 	{ HSIZE8, HSIZE8_SET(UXGA_WIDTH) },
 	{ VSIZE8, VSIZE8_SET(UXGA_HEIGHT) },
 	{ CTRL2, CTRL2_DCW_EN | CTRL2_SDE_EN |
