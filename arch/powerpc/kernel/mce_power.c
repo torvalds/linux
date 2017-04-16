@@ -72,10 +72,14 @@ void __flush_tlb_power8(unsigned int action)
 
 void __flush_tlb_power9(unsigned int action)
 {
-	if (radix_enabled())
-		flush_tlb_206(POWER9_TLB_SETS_RADIX, action);
+	unsigned int num_sets;
 
-	flush_tlb_206(POWER9_TLB_SETS_HASH, action);
+	if (radix_enabled())
+		num_sets = POWER9_TLB_SETS_RADIX;
+	else
+		num_sets = POWER9_TLB_SETS_HASH;
+
+	flush_tlb_206(num_sets, action);
 }
 
 
