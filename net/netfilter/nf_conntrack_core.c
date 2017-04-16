@@ -76,6 +76,7 @@ struct conntrack_gc_work {
 	struct delayed_work	dwork;
 	u32			last_bucket;
 	bool			exiting;
+	bool			early_drop;
 	long			next_gc_run;
 };
 
@@ -951,10 +952,30 @@ static noinline int early_drop(struct net *net, unsigned int _hash)
 	return false;
 }
 
+static bool gc_worker_skip_ct(const struct nf_conn *ct)
+{
+	return !nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct);
+}
+
+static bool gc_worker_can_early_drop(const struct nf_conn *ct)
+{
+	const struct nf_conntrack_l4proto *l4proto;
+
+	if (!test_bit(IPS_ASSURED_BIT, &ct->status))
+		return true;
+
+	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
+	if (l4proto->can_early_drop && l4proto->can_early_drop(ct))
+		return true;
+
+	return false;
+}
+
 static void gc_worker(struct work_struct *work)
 {
 	unsigned int min_interval = max(HZ / GC_MAX_BUCKETS_DIV, 1u);
 	unsigned int i, goal, buckets = 0, expired_count = 0;
+	unsigned int nf_conntrack_max95 = 0;
 	struct conntrack_gc_work *gc_work;
 	unsigned int ratio, scanned = 0;
 	unsigned long next_run;
@@ -963,6 +984,8 @@ static void gc_worker(struct work_struct *work)
 
 	goal = nf_conntrack_htable_size / GC_MAX_BUCKETS_DIV;
 	i = gc_work->last_bucket;
+	if (gc_work->early_drop)
+		nf_conntrack_max95 = nf_conntrack_max / 100u * 95u;
 
 	do {
 		struct nf_conntrack_tuple_hash *h;
@@ -979,6 +1002,8 @@ static void gc_worker(struct work_struct *work)
 			i = 0;
 
 		hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[i], hnnode) {
+			struct net *net;
+
 			tmp = nf_ct_tuplehash_to_ctrack(h);
 
 			scanned++;
@@ -987,6 +1012,27 @@ static void gc_worker(struct work_struct *work)
 				expired_count++;
 				continue;
 			}
+
+			if (nf_conntrack_max95 == 0 || gc_worker_skip_ct(tmp))
+				continue;
+
+			net = nf_ct_net(tmp);
+			if (atomic_read(&net->ct.count) < nf_conntrack_max95)
+				continue;
+
+			/* need to take reference to avoid possible races */
+			if (!atomic_inc_not_zero(&tmp->ct_general.use))
+				continue;
+
+			if (gc_worker_skip_ct(tmp)) {
+				nf_ct_put(tmp);
+				continue;
+			}
+
+			if (gc_worker_can_early_drop(tmp))
+				nf_ct_kill(tmp);
+
+			nf_ct_put(tmp);
 		}
 
 		/* could check get_nulls_value() here and restart if ct
@@ -1032,6 +1078,7 @@ static void gc_worker(struct work_struct *work)
 
 	next_run = gc_work->next_gc_run;
 	gc_work->last_bucket = i;
+	gc_work->early_drop = false;
 	queue_delayed_work(system_long_wq, &gc_work->dwork, next_run);
 }
 
@@ -1057,6 +1104,8 @@ __nf_conntrack_alloc(struct net *net,
 	if (nf_conntrack_max &&
 	    unlikely(atomic_read(&net->ct.count) > nf_conntrack_max)) {
 		if (!early_drop(net, hash)) {
+			if (!conntrack_gc_work.early_drop)
+				conntrack_gc_work.early_drop = true;
 			atomic_dec(&net->ct.count);
 			net_warn_ratelimited("nf_conntrack: table full, dropping packet\n");
 			return ERR_PTR(-ENOMEM);
