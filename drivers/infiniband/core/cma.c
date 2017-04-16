@@ -1755,6 +1755,9 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.status = -ETIMEDOUT;
 		break;
 	case IB_CM_REP_RECEIVED:
+		if (cma_comp(id_priv, RDMA_CM_CONNECT) &&
+		    (id_priv->id.qp_type != IB_QPT_UD))
+			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 		if (id_priv->id.qp) {
 			event.status = cma_rep_recv(id_priv);
 			event.event = event.status ? RDMA_CM_EVENT_CONNECT_ERROR :
