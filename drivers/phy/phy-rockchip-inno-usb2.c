@@ -1461,6 +1461,12 @@ static int rk3399_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 				    GENMASK(17, 16) | 0x0);
 		ret |= regmap_write(rphy->grf, 0x44b4,
 				    GENMASK(17, 16) | 0x0);
+
+		/*
+		 * Set PHY0 A port squelch trigger point to 125mv
+		 */
+		ret |= regmap_write(rphy->grf, 0x4480,
+				    GENMASK(30, 30) | 0x4000);
 	} else {
 		/*
 		 * Set max ODT compensation voltage and
@@ -1483,6 +1489,12 @@ static int rk3399_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 				    GENMASK(17, 16) | 0x0);
 		ret |= regmap_write(rphy->grf, 0x4534,
 				    GENMASK(17, 16) | 0x0);
+
+		/*
+		 * Set PHY1 A port squelch trigger point to 125mv
+		 */
+		ret |= regmap_write(rphy->grf, 0x4500,
+				    GENMASK(30, 30) | 0x4000);
 	}
 
 	return ret;
