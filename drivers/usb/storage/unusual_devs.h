@@ -42,7 +42,7 @@
  *	- a patch that adds the entry for your device, including your
  *	  email address right above the entry (plus maybe a brief
  *	  explanation of the reason for the entry),
- *	- a copy of /proc/bus/usb/devices with your device plugged in
+ *	- a copy of /sys/kernel/debug/usb/devices with your device plugged in
  *	  running with this patch.
  * Send your submission to either Phil Dibowitz <phil@ipom.com> or
  * Alan Stern <stern@rowland.harvard.edu>, and don't forget to CC: the

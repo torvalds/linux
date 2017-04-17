@@ -294,7 +294,7 @@ static int usblp_ctrl_msg(struct usblp *usblp, int request, int type, int dir, i
 
 /*
  * See the description for usblp_select_alts() below for the usage
- * explanation.  Look into your /proc/bus/usb/devices and dmesg in
+ * explanation.  Look into your /sys/kernel/debug/usb/devices and dmesg in
  * case of any trouble.
  */
 static int proto_bias = -1;
