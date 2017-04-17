@@ -34,7 +34,6 @@
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <inttypes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <sys/ttydefaults.h>
@@ -49,25 +48,6 @@ extern const char *graph_dotted_line;
 extern const char *spaces;
 extern const char *dots;
 extern char buildid_dir[];
-
-/* On most systems <limits.h> would have given us this, but
- * not on some systems (e.g. GNU/Hurd).
- */
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
-
-#ifndef PRIuMAX
-#define PRIuMAX "llu"
-#endif
-
-#ifndef PRIu32
-#define PRIu32 "u"
-#endif
-
-#ifndef PRIx32
-#define PRIx32 "x"
-#endif
 
 #ifndef PATH_SEP
 #define PATH_SEP ':'
