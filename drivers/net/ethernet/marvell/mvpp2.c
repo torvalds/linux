@@ -4415,7 +4415,7 @@ static void mvpp2_egress_enable(struct mvpp2_port *port)
 	for (queue = 0; queue < txq_number; queue++) {
 		struct mvpp2_tx_queue *txq = port->txqs[queue];
 
-		if (txq->descs != NULL)
+		if (txq->descs)
 			qmap |= (1 << queue);
 	}
 
