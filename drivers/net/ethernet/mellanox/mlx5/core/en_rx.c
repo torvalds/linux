@@ -1031,3 +1031,81 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq)
 		mlx5e_page_release(rq, di, false);
 	}
 }
+
+#ifdef CONFIG_MLX5_CORE_IPOIB
+
+#define MLX5_IB_GRH_DGID_OFFSET 24
+#define MLX5_IB_GRH_BYTES       40
+#define MLX5_IPOIB_ENCAP_LEN    4
+#define MLX5_GID_SIZE           16
+
+static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
+					 struct mlx5_cqe64 *cqe,
+					 u32 cqe_bcnt,
+					 struct sk_buff *skb)
+{
+	struct net_device *netdev = rq->netdev;
+	u8 *dgid;
+	u8 g;
+
+	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
+	dgid = skb->data + MLX5_IB_GRH_DGID_OFFSET;
+	if ((!g) || dgid[0] != 0xff)
+		skb->pkt_type = PACKET_HOST;
+	else if (memcmp(dgid, netdev->broadcast + 4, MLX5_GID_SIZE) == 0)
+		skb->pkt_type = PACKET_BROADCAST;
+	else
+		skb->pkt_type = PACKET_MULTICAST;
+
+	/* TODO: IB/ipoib: Allow mcast packets from other VFs
+	 * 68996a6e760e5c74654723eeb57bf65628ae87f4
+	 */
+
+	skb_pull(skb, MLX5_IB_GRH_BYTES);
+
+	skb->protocol = *((__be16 *)(skb->data));
+
+	skb->ip_summed = CHECKSUM_COMPLETE;
+	skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
+
+	skb_record_rx_queue(skb, rq->ix);
+
+	if (likely(netdev->features & NETIF_F_RXHASH))
+		mlx5e_skb_set_hash(cqe, skb);
+
+	skb_reset_mac_header(skb);
+	skb_pull(skb, MLX5_IPOIB_ENCAP_LEN);
+
+	skb->dev = netdev;
+
+	rq->stats.csum_complete++;
+	rq->stats.packets++;
+	rq->stats.bytes += cqe_bcnt;
+}
+
+void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
+{
+	struct mlx5e_rx_wqe *wqe;
+	__be16 wqe_counter_be;
+	struct sk_buff *skb;
+	u16 wqe_counter;
+	u32 cqe_bcnt;
+
+	wqe_counter_be = cqe->wqe_counter;
+	wqe_counter    = be16_to_cpu(wqe_counter_be);
+	wqe            = mlx5_wq_ll_get_wqe(&rq->wq, wqe_counter);
+	cqe_bcnt       = be32_to_cpu(cqe->byte_cnt);
+
+	skb = skb_from_cqe(rq, cqe, wqe_counter, cqe_bcnt);
+	if (!skb)
+		goto wq_ll_pop;
+
+	mlx5i_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
+	napi_gro_receive(rq->cq.napi, skb);
+
+wq_ll_pop:
+	mlx5_wq_ll_pop(&rq->wq, wqe_counter_be,
+		       &wqe->next.next_wqe_index);
+}
+
+#endif /* CONFIG_MLX5_CORE_IPOIB */

@@ -104,12 +104,18 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    u32 level,
 				    u32 flags);
 
+struct mlx5_flow_table_attr {
+	int prio;
+	int max_fte;
+	u32 level;
+	u32 flags;
+	u32 underlay_qpn;
+};
+
 struct mlx5_flow_table *
 mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
-		       int prio,
-		       int num_flow_table_entries,
-		       u32 level,
-		       u32 flags);
+		       struct mlx5_flow_table_attr *ft_attr);
+
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
 			     int prio,

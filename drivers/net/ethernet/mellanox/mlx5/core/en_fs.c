@@ -792,7 +792,7 @@ err:
 	return err;
 }
 
-static void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv)
+void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv)
 {
 	struct mlx5e_ttc_table *ttc = &priv->fs.ttc;
 
@@ -800,14 +800,19 @@ static void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv)
 	mlx5e_destroy_flow_table(&ttc->ft);
 }
 
-static int mlx5e_create_ttc_table(struct mlx5e_priv *priv)
+int mlx5e_create_ttc_table(struct mlx5e_priv *priv, u32 underlay_qpn)
 {
 	struct mlx5e_ttc_table *ttc = &priv->fs.ttc;
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5e_flow_table *ft = &ttc->ft;
 	int err;
 
-	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_TTC_TABLE_SIZE, MLX5E_TTC_FT_LEVEL, 0);
+	ft_attr.max_fte = MLX5E_TTC_TABLE_SIZE;
+	ft_attr.level = MLX5E_TTC_FT_LEVEL;
+	ft_attr.prio = MLX5E_NIC_PRIO;
+	ft_attr.underlay_qpn = underlay_qpn;
+
+	ft->t = mlx5_create_flow_table(priv->fs.ns, &ft_attr);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
 		ft->t = NULL;
@@ -973,12 +978,16 @@ static int mlx5e_create_l2_table(struct mlx5e_priv *priv)
 {
 	struct mlx5e_l2_table *l2_table = &priv->fs.l2;
 	struct mlx5e_flow_table *ft = &l2_table->ft;
+	struct mlx5_flow_table_attr ft_attr = {};
 	int err;
 
 	ft->num_groups = 0;
-	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_L2_TABLE_SIZE, MLX5E_L2_FT_LEVEL, 0);
 
+	ft_attr.max_fte = MLX5E_L2_TABLE_SIZE;
+	ft_attr.level = MLX5E_L2_FT_LEVEL;
+	ft_attr.prio = MLX5E_NIC_PRIO;
+
+	ft->t = mlx5_create_flow_table(priv->fs.ns, &ft_attr);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
 		ft->t = NULL;
@@ -1076,11 +1085,16 @@ static int mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft)
 static int mlx5e_create_vlan_table(struct mlx5e_priv *priv)
 {
 	struct mlx5e_flow_table *ft = &priv->fs.vlan.ft;
+	struct mlx5_flow_table_attr ft_attr = {};
 	int err;
 
 	ft->num_groups = 0;
-	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_VLAN_TABLE_SIZE, MLX5E_VLAN_FT_LEVEL, 0);
+
+	ft_attr.max_fte = MLX5E_VLAN_TABLE_SIZE;
+	ft_attr.level = MLX5E_VLAN_FT_LEVEL;
+	ft_attr.prio = MLX5E_NIC_PRIO;
+
+	ft->t = mlx5_create_flow_table(priv->fs.ns, &ft_attr);
 
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
@@ -1133,7 +1147,7 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
 	}
 
-	err = mlx5e_create_ttc_table(priv);
+	err = mlx5e_create_ttc_table(priv, 0);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
 			   err);

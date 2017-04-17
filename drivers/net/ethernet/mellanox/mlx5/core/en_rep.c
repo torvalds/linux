@@ -329,7 +329,7 @@ bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 	return false;
 }
 
-bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv)
+static bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch_rep *rep = (struct mlx5_eswitch_rep *)priv->ppriv;
 
@@ -465,22 +465,18 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_eswitch_rep *rep = priv->ppriv;
-	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_flow_handle *flow_rule;
 	int err;
-	int i;
+
+	mlx5e_init_l2_addr(priv);
 
 	err = mlx5e_create_direct_rqts(priv);
-	if (err) {
-		mlx5_core_warn(mdev, "create direct rqts failed, %d\n", err);
+	if (err)
 		return err;
-	}
 
 	err = mlx5e_create_direct_tirs(priv);
-	if (err) {
-		mlx5_core_warn(mdev, "create direct tirs failed, %d\n", err);
+	if (err)
 		goto err_destroy_direct_rqts;
-	}
 
 	flow_rule = mlx5_eswitch_create_vport_rx_rule(esw,
 						      rep->vport,
@@ -502,21 +498,18 @@ err_del_flow_rule:
 err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
 err_destroy_direct_rqts:
-	for (i = 0; i < priv->channels.params.num_channels; i++)
-		mlx5e_destroy_rqt(priv, &priv->direct_tir[i].rqt);
+	mlx5e_destroy_direct_rqts(priv);
 	return err;
 }
 
 static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch_rep *rep = priv->ppriv;
-	int i;
 
 	mlx5e_tc_cleanup(priv);
 	mlx5_del_flow_rules(rep->vport_rx_rule);
 	mlx5e_destroy_direct_tirs(priv);
-	for (i = 0; i < priv->channels.params.num_channels; i++)
-		mlx5e_destroy_rqt(priv, &priv->direct_tir[i].rqt);
+	mlx5e_destroy_direct_rqts(priv);
 }
 
 static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
@@ -545,6 +538,8 @@ static struct mlx5e_profile mlx5e_rep_profile = {
 	.cleanup_tx		= mlx5e_cleanup_nic_tx,
 	.update_stats           = mlx5e_rep_update_stats,
 	.max_nch		= mlx5e_get_rep_max_num_channels,
+	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
+	.rx_handlers.handle_rx_cqe_mpwqe = NULL /* Not supported */,
 	.max_tc			= 1,
 };
 
@@ -563,7 +558,7 @@ int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
 
 	rep->netdev = netdev;
 
-	err = mlx5e_attach_netdev(esw->dev, netdev);
+	err = mlx5e_attach_netdev(netdev_priv(netdev));
 	if (err) {
 		pr_warn("Failed to attach representor netdev for vport %d\n",
 			rep->vport);
@@ -580,10 +575,10 @@ int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
 	return 0;
 
 err_detach_netdev:
-	mlx5e_detach_netdev(esw->dev, netdev);
+	mlx5e_detach_netdev(netdev_priv(netdev));
 
 err_destroy_netdev:
-	mlx5e_destroy_netdev(esw->dev, netdev_priv(netdev));
+	mlx5e_destroy_netdev(netdev_priv(netdev));
 
 	return err;
 
@@ -595,6 +590,6 @@ void mlx5e_vport_rep_unload(struct mlx5_eswitch *esw,
 	struct net_device *netdev = rep->netdev;
 
 	unregister_netdev(netdev);
-	mlx5e_detach_netdev(esw->dev, netdev);
-	mlx5e_destroy_netdev(esw->dev, netdev_priv(netdev));
+	mlx5e_detach_netdev(netdev_priv(netdev));
+	mlx5e_destroy_netdev(netdev_priv(netdev));
 }
