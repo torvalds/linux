@@ -1081,6 +1081,59 @@
 		status = "disabled";
 	};
 
+	isp: isp@ff910000 {
+		compatible = "rockchip,rk3288-isp", "rockchip,isp";
+		reg = <0xff910000 0x4000>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&power RK3288_PD_VIO>;
+		clocks =
+			<&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru SCLK_ISP>,
+			<&cru SCLK_ISP_JPE>, <&cru PCLK_ISP_IN>,
+			<&cru SCLK_VIP_OUT>, <&cru SCLK_MIPIDSI_24M>,
+			<&cru SCLK_VIP_OUT>, <&cru PCLK_MIPI_CSI>;
+		clock-names =
+			"aclk_isp", "hclk_isp", "clk_isp",
+			"clk_isp_jpe", "pclkin_isp", "clk_cif_out",
+			"clk_mipi_24m", "clk_cif_pll", "hclk_mipiphy1";
+		pinctrl-names =
+			"default", "isp_dvp8bit2", "isp_dvp10bit",
+			"isp_dvp12bit", "isp_dvp8bit0", "isp_mipi_fl",
+			"isp_mipi_fl_prefl", "isp_flash_as_gpio",
+			"isp_flash_as_trigger_out";
+		pinctrl-0 = <&isp_mipi>;
+		pinctrl-1 = <&isp_mipi &isp_dvp_d2d9>;
+		pinctrl-2 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1>;
+		pinctrl-3 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1
+					&isp_dvp_d10d11>;
+		pinctrl-4 = <&isp_mipi &isp_dvp_d0d7>;
+		pinctrl-5 = <&isp_mipi>;
+		pinctrl-6 = <&isp_mipi &isp_prelight>;
+		pinctrl-7 = <&isp_flash_trigger_as_gpio>;
+		pinctrl-8 = <&isp_flash_trigger>;
+		rockchip,isp,mipiphy = <2>;
+		rockchip,isp,cifphy = <1>;
+		rockchip,isp,mipiphy1,reg = <0xff968000 0x4000>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
+		rockchip,gpios = <&gpio7 13 GPIO_ACTIVE_HIGH>;
+		rockchip,isp,iommu_enable = <1>;
+		iommus = <&isp_mmu>;
+		status = "disabled";
+	};
+
+	isp_mmu: iommu@ff914000 {
+		compatible = "rockchip,iommu";
+		reg = <0xff914000 0x100>, <0xff915000 0x100>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_mmu";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
+		clock-names = "aclk", "hclk";
+		rk_iommu,disable_reset_quirk;
+		#iommu-cells = <0>;
+		power-domains = <&power RK3288_PD_VIO>;
+		status = "disabled";
+	};
+
 	rga: rga@ff920000 {
 		compatible = "rockchip,rk3288-rga";
 		reg = <0xff920000 0x180>;
@@ -2082,5 +2135,85 @@
 						<2 11 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
+
+		isp_pin {
+			isp_mipi: isp-mipi {
+				rockchip,pins =
+					/* cif_clkout */
+					<2 11 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d2d9: isp-d2d9 {
+				rockchip,pins =
+					/* cif_data2 ... cif_data9 */
+					<2 0 RK_FUNC_1 &pcfg_pull_none>,
+					<2 1 RK_FUNC_1 &pcfg_pull_none>,
+					<2 2 RK_FUNC_1 &pcfg_pull_none>,
+					<2 3 RK_FUNC_1 &pcfg_pull_none>,
+					<2 4 RK_FUNC_1 &pcfg_pull_none>,
+					<2 5 RK_FUNC_1 &pcfg_pull_none>,
+					<2 6 RK_FUNC_1 &pcfg_pull_none>,
+					<2 7 RK_FUNC_1 &pcfg_pull_none>,
+					/* cif_sync, cif_href */
+					<2 8 RK_FUNC_1 &pcfg_pull_none>,
+					<2 9 RK_FUNC_1 &pcfg_pull_none>,
+					/* cif_clkin, cif_clkout */
+					<2 10 RK_FUNC_1 &pcfg_pull_none>,
+					<2 11 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d0d1: isp-d0d1 {
+				rockchip,pins =
+					/* cif_data0, cif_data1 */
+					<2 12 RK_FUNC_1 &pcfg_pull_none>,
+					<2 13 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d10d11: isp-d10d11 {
+				rockchip,pins =
+					/* cif_data10, cif_data11 */
+					<2 14 RK_FUNC_1 &pcfg_pull_none>,
+					<2 15 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d0d7: isp-d0d7 {
+				rockchip,pins =
+					/* cif_data0 ... cif_data7 */
+					<2 12 RK_FUNC_1 &pcfg_pull_none>,
+					<2 13 RK_FUNC_1 &pcfg_pull_none>,
+					<2 0 RK_FUNC_1 &pcfg_pull_none>,
+					<2 1 RK_FUNC_1 &pcfg_pull_none>,
+					<2 2 RK_FUNC_1 &pcfg_pull_none>,
+					<2 3 RK_FUNC_1 &pcfg_pull_none>,
+					<2 4 RK_FUNC_1 &pcfg_pull_none>,
+					<2 5 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			isp_shutter: isp-shutter {
+				rockchip,pins =
+					/* SHUTTEREN, SHUTTERTRIG */
+					<7 12 RK_FUNC_2 &pcfg_pull_none>,
+					<7 15 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			isp_flash_trigger: isp-flash-trigger {
+				rockchip,pins =
+					/* ISP_FLASHTRIGOU */
+					<7 13 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			isp_prelight: isp-prelight {
+				rockchip,pins =
+					/* ISP_PRELIGHTTRIG */
+					<7 14 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			isp_flash_trigger_as_gpio: isp-flash-trigger-as-gpio {
+				rockchip,pins =
+					/* ISP_FLASHTRIGOU */
+					<7 13 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
 	};
 };
