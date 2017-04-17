@@ -358,6 +358,107 @@ bool rtl8821ae_phy_rf_config(struct ieee80211_hw *hw)
 	return rtl8821ae_phy_rf6052_config(hw);
 }
 
+static void _rtl8812ae_phy_set_rfe_reg_24g(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	u8 tmp;
+
+	switch (rtlhal->rfe_type) {
+	case 3:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x54337770);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x54337770);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, 0x900, 0x00000303, 0x1);
+		break;
+	case 4:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x001);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x001);
+		break;
+	case 5:
+		rtl_write_byte(rtlpriv, RA_RFE_PINMUX + 2, 0x77);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		tmp = rtl_read_byte(rtlpriv, RA_RFE_INV + 3);
+		rtl_write_byte(rtlpriv, RA_RFE_INV + 3, tmp & ~0x1);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		break;
+	case 1:
+		if (rtlpriv->btcoexist.bt_coexistence) {
+			rtl_set_bbreg(hw, RA_RFE_PINMUX, 0xffffff, 0x777777);
+			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
+				      0x77777777);
+			rtl_set_bbreg(hw, RA_RFE_INV, 0x33f00000, 0x000);
+			rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+			break;
+		}
+	case 0:
+	case 2:
+	default:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77777777);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x000);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		break;
+	}
+}
+
+static void _rtl8812ae_phy_set_rfe_reg_5g(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	u8 tmp;
+
+	switch (rtlhal->rfe_type) {
+	case 0:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77337717);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77337717);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		break;
+	case 1:
+		if (rtlpriv->btcoexist.bt_coexistence) {
+			rtl_set_bbreg(hw, RA_RFE_PINMUX, 0xffffff, 0x337717);
+			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
+				      0x77337717);
+			rtl_set_bbreg(hw, RA_RFE_INV, 0x33f00000, 0x000);
+			rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		} else {
+			rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD,
+				      0x77337717);
+			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
+				      0x77337717);
+			rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x000);
+			rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x000);
+		}
+		break;
+	case 3:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x54337717);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x54337717);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, 0x900, 0x00000303, 0x1);
+		break;
+	case 5:
+		rtl_write_byte(rtlpriv, RA_RFE_PINMUX + 2, 0x33);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77337777);
+		tmp = rtl_read_byte(rtlpriv, RA_RFE_INV + 3);
+		rtl_write_byte(rtlpriv, RA_RFE_INV + 3, tmp | 0x1);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		break;
+	case 2:
+	case 4:
+	default:
+		rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD, 0x77337777);
+		rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD, 0x77337777);
+		rtl_set_bbreg(hw, RA_RFE_INV, BMASKRFEINV, 0x010);
+		rtl_set_bbreg(hw, RB_RFE_INV, BMASKRFEINV, 0x010);
+		break;
+	}
+}
+
 u32 phy_get_tx_swing_8812A(struct ieee80211_hw *hw, u8	band,
 			   u8 rf_path)
 {
@@ -552,14 +653,9 @@ void rtl8821ae_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 			/* 0x82C[1:0] = 2b'00 */
 			rtl_set_bbreg(hw, 0x82c, 0x3, 0);
 		}
-		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD,
-				      0x77777777);
-			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
-				      0x77777777);
-			rtl_set_bbreg(hw, RA_RFE_INV, 0x3ff00000, 0x000);
-			rtl_set_bbreg(hw, RB_RFE_INV, 0x3ff00000, 0x000);
-		}
+
+		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE)
+			_rtl8812ae_phy_set_rfe_reg_24g(hw);
 
 		rtl_set_bbreg(hw, RTXPATH, 0xf0, 0x1);
 		rtl_set_bbreg(hw, RCCK_RX, 0x0f000000, 0x1);
@@ -614,14 +710,8 @@ void rtl8821ae_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 			/* 0x82C[1:0] = 2'b00 */
 			rtl_set_bbreg(hw, 0x82c, 0x3, 1);
 
-		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-			rtl_set_bbreg(hw, RA_RFE_PINMUX, BMASKDWORD,
-				      0x77337777);
-			rtl_set_bbreg(hw, RB_RFE_PINMUX, BMASKDWORD,
-				      0x77337777);
-			rtl_set_bbreg(hw, RA_RFE_INV, 0x3ff00000, 0x010);
-			rtl_set_bbreg(hw, RB_RFE_INV, 0x3ff00000, 0x010);
-		}
+		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE)
+			_rtl8812ae_phy_set_rfe_reg_5g(hw);
 
 		rtl_set_bbreg(hw, RTXPATH, 0xf0, 0);
 		rtl_set_bbreg(hw, RCCK_RX, 0x0f000000, 0xf);
