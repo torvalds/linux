@@ -3205,7 +3205,7 @@ static int mvpp2_prs_default_init(struct platform_device *pdev,
 		mvpp2_prs_hw_inv(priv, index);
 
 	priv->prs_shadow = devm_kcalloc(&pdev->dev, MVPP2_PRS_TCAM_SRAM_SIZE,
-					sizeof(struct mvpp2_prs_shadow),
+					sizeof(*priv->prs_shadow),
 					GFP_KERNEL);
 	if (!priv->prs_shadow)
 		return -ENOMEM;
