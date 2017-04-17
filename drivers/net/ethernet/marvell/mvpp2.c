@@ -5606,7 +5606,7 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 					       DMA_TO_DEVICE);
 		if (dma_mapping_error(port->dev->dev.parent, buf_dma_addr)) {
 			mvpp2_txq_desc_put(txq);
-			goto error;
+			goto cleanup;
 		}
 
 		mvpp2_txdesc_offset_set(port, tx_desc,
@@ -5627,8 +5627,7 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 	}
 
 	return 0;
-
-error:
+cleanup:
 	/* Release all descriptors that were used to map fragments of
 	 * this packet, as well as the corresponding DMA mappings
 	 */
