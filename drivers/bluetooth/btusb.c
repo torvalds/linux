@@ -26,6 +26,7 @@
 #include <linux/firmware.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/suspend.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -262,6 +263,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0cf3, 0xe007), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0cf3, 0xe009), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0cf3, 0xe300), .driver_info = BTUSB_QCA_ROME },
+	{ USB_DEVICE(0x0cf3, 0xe301), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0cf3, 0xe360), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x0489, 0xe092), .driver_info = BTUSB_QCA_ROME },
 	{ USB_DEVICE(0x04ca, 0x3011), .driver_info = BTUSB_QCA_ROME },
@@ -328,6 +330,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x1286, 0x204e), .driver_info = BTUSB_MARVELL },
 
 	/* Intel Bluetooth devices */
+	{ USB_DEVICE(0x8087, 0x0025), .driver_info = BTUSB_INTEL_NEW },
 	{ USB_DEVICE(0x8087, 0x07da), .driver_info = BTUSB_CSR },
 	{ USB_DEVICE(0x8087, 0x07dc), .driver_info = BTUSB_INTEL },
 	{ USB_DEVICE(0x8087, 0x0a2a), .driver_info = BTUSB_INTEL },
@@ -2024,13 +2027,18 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 		return -EINVAL;
 	}
 
-	/* At the moment the iBT 3.0 hardware variants 0x0b (LnP/SfP)
-	 * and 0x0c (WsP) are supported by this firmware loading method.
+	/* Check for supported iBT hardware variants of this firmware
+	 * loading method.
 	 *
 	 * This check has been put in place to ensure correct forward
 	 * compatibility options when newer hardware variants come along.
 	 */
-	if (ver.hw_variant != 0x0b && ver.hw_variant != 0x0c) {
+	switch (ver.hw_variant) {
+	case 0x0b:	/* SfP */
+	case 0x0c:	/* WsP */
+	case 0x12:	/* ThP */
+		break;
+	default:
 		BT_ERR("%s: Unsupported Intel hardware variant (%u)",
 		       hdev->name, ver.hw_variant);
 		return -EINVAL;
@@ -2792,6 +2800,7 @@ static irqreturn_t btusb_oob_wake_handler(int irq, void *priv)
 	struct btusb_data *data = priv;
 
 	pm_wakeup_event(&data->udev->dev, 0);
+	pm_system_wakeup();
 
 	/* Disable only if not already disabled (keep it balanced) */
 	if (test_and_clear_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags)) {

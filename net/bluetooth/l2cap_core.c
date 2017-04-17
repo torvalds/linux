@@ -2425,6 +2425,22 @@ static int l2cap_segment_le_sdu(struct l2cap_chan *chan,
 	return 0;
 }
 
+static void l2cap_le_flowctl_send(struct l2cap_chan *chan)
+{
+	int sent = 0;
+
+	BT_DBG("chan %p", chan);
+
+	while (chan->tx_credits && !skb_queue_empty(&chan->tx_q)) {
+		l2cap_do_send(chan, skb_dequeue(&chan->tx_q));
+		chan->tx_credits--;
+		sent++;
+	}
+
+	BT_DBG("Sent %d credits %u queued %u", sent, chan->tx_credits,
+	       skb_queue_len(&chan->tx_q));
+}
+
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 {
 	struct sk_buff *skb;
@@ -2458,9 +2474,6 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 		if (len > chan->omtu)
 			return -EMSGSIZE;
 
-		if (!chan->tx_credits)
-			return -EAGAIN;
-
 		__skb_queue_head_init(&seg_queue);
 
 		err = l2cap_segment_le_sdu(chan, &seg_queue, msg, len);
@@ -2475,10 +2488,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 
 		skb_queue_splice_tail_init(&seg_queue, &chan->tx_q);
 
-		while (chan->tx_credits && !skb_queue_empty(&chan->tx_q)) {
-			l2cap_do_send(chan, skb_dequeue(&chan->tx_q));
-			chan->tx_credits--;
-		}
+		l2cap_le_flowctl_send(chan);
 
 		if (!chan->tx_credits)
 			chan->ops->suspend(chan);
@@ -5570,10 +5580,8 @@ static inline int l2cap_le_credits(struct l2cap_conn *conn,
 
 	chan->tx_credits += credits;
 
-	while (chan->tx_credits && !skb_queue_empty(&chan->tx_q)) {
-		l2cap_do_send(chan, skb_dequeue(&chan->tx_q));
-		chan->tx_credits--;
-	}
+	/* Resume sending */
+	l2cap_le_flowctl_send(chan);
 
 	if (chan->tx_credits)
 		chan->ops->resume(chan);
