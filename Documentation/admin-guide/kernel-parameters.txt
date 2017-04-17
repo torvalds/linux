@@ -3319,6 +3319,17 @@
 			This wake_up() will be accompanied by a
 			WARN_ONCE() splat and an ftrace_dump().
 
+	rcuperf.gp_async= [KNL]
+			Measure performance of asynchronous
+			grace-period primitives such as call_rcu().
+
+	rcuperf.gp_async_max= [KNL]
+			Specify the maximum number of outstanding
+			callbacks per writer thread.  When a writer
+			thread exceeds this limit, it invokes the
+			corresponding flavor of rcu_barrier() to allow
+			previously posted callbacks to drain.
+
 	rcuperf.gp_exp= [KNL]
 			Measure performance of expedited synchronous
 			grace-period primitives.
