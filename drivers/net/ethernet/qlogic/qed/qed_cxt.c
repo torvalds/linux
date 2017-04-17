@@ -219,9 +219,6 @@ struct qed_cxt_mngr {
 	 */
 	u32				vf_count;
 
-	/* total number of SRQ's for this hwfn */
-	u32 srq_count;
-
 	/* Acquired CIDs */
 	struct qed_cid_acquired_map	acquired[MAX_CONN_TYPES];
 
@@ -237,6 +234,12 @@ struct qed_cxt_mngr {
 	u32 t2_num_pages;
 	u64 first_free;
 	u64 last_free;
+
+	/* total number of SRQ's for this hwfn */
+	u32 srq_count;
+
+	/* Maximal number of L2 steering filters */
+	u32 arfs_count;
 };
 static bool src_proto(enum protocol_type type)
 {
@@ -291,6 +294,9 @@ static void qed_cxt_src_iids(struct qed_cxt_mngr *p_mngr,
 		iids->pf_cids += p_mngr->conn_cfg[i].cid_count;
 		iids->per_vf_cids += p_mngr->conn_cfg[i].cids_per_vf;
 	}
+
+	/* Add L2 filtering filters in addition */
+	iids->pf_cids += p_mngr->arfs_count;
 }
 
 /* counts the iids for the Timers block configuration */
@@ -2007,6 +2013,7 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 
 		qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
 					    p_params->num_cons, 1);
+		p_hwfn->p_cxt_mngr->arfs_count = p_params->num_arfs_filters;
 		break;
 	}
 	case QED_PCI_FCOE:

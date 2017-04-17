@@ -301,6 +301,14 @@ struct qed_eth_ops {
 
 	int (*tunn_config)(struct qed_dev *cdev,
 			   struct qed_tunn_params *params);
+
+	int (*ntuple_filter_config)(struct qed_dev *cdev, void *cookie,
+				    dma_addr_t mapping, u16 length,
+				    u16 vport_id, u16 rx_queue_id,
+				    bool add_filter);
+
+	int (*configure_arfs_searcher)(struct qed_dev *cdev,
+				       bool en_searcher);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

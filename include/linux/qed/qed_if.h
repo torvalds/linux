@@ -178,6 +178,12 @@ struct qed_eth_pf_params {
 	 * to update_pf_params routine invoked before slowpath start
 	 */
 	u16 num_cons;
+
+	/* To enable arfs, previous to HW-init a positive number needs to be
+	 * set [as filters require allocated searcher ILT memory].
+	 * This will set the maximal number of configured steering-filters.
+	 */
+	u32 num_arfs_filters;
 };
 
 struct qed_fcoe_pf_params {
@@ -427,6 +433,7 @@ struct qed_int_info {
 };
 
 struct qed_common_cb_ops {
+	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void	(*link_update)(void			*dev,
 			       struct qed_link_output	*link);
 	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);

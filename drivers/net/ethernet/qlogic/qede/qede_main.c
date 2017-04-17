@@ -225,6 +225,9 @@ static struct pci_driver qede_pci_driver = {
 
 static struct qed_eth_cb_ops qede_ll_ops = {
 	{
+#ifdef CONFIG_RFS_ACCEL
+		.arfs_filter_op = qede_arfs_filter_op,
+#endif
 		.link_update = qede_link_update,
 	},
 	.force_mac = qede_force_mac,
@@ -554,6 +557,9 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
 	.ndo_features_check = qede_features_check,
 	.ndo_xdp = qede_xdp,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer = qede_rx_flow_steer,
+#endif
 };
 
 /* -------------------------------------------------------------------------
@@ -603,7 +609,7 @@ static void qede_init_ndev(struct qede_dev *edev)
 {
 	struct net_device *ndev = edev->ndev;
 	struct pci_dev *pdev = edev->pdev;
-	u32 hw_features;
+	netdev_features_t hw_features;
 
 	pci_set_drvdata(pdev, ndev);
 
@@ -629,6 +635,10 @@ static void qede_init_ndev(struct qede_dev *edev)
 	hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
 		       NETIF_F_TSO_ECN | NETIF_F_GSO_UDP_TUNNEL_CSUM |
 		       NETIF_F_GSO_GRE_CSUM;
+
+	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1)
+		hw_features |= NETIF_F_NTUPLE;
+
 	ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO_ECN |
 				NETIF_F_TSO6 | NETIF_F_GSO_GRE |
@@ -798,6 +808,12 @@ static void qede_sp_task(struct work_struct *work)
 		qed_ops->tunn_config(cdev, &tunn_params);
 	}
 
+#ifdef CONFIG_RFS_ACCEL
+	if (test_and_clear_bit(QEDE_SP_ARFS_CONFIG, &edev->sp_flags)) {
+		if (edev->state == QEDE_STATE_OPEN)
+			qede_process_arfs_filters(edev, false);
+	}
+#endif
 	__qede_unlock(edev);
 }
 
@@ -808,6 +824,9 @@ static void qede_update_pf_params(struct qed_dev *cdev)
 	/* 64 rx + 64 tx + 64 XDP */
 	memset(&pf_params, 0, sizeof(struct qed_pf_params));
 	pf_params.eth_pf_params.num_cons = (MAX_SB_PER_PF_MIMD - 1) * 3;
+#ifdef CONFIG_RFS_ACCEL
+	pf_params.eth_pf_params.num_arfs_filters = QEDE_RFS_MAX_FLTR;
+#endif
 	qed_ops->common->update_pf_params(cdev, &pf_params);
 }
 
@@ -962,9 +981,8 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 	DP_INFO(edev, "Starting qede_remove\n");
 
-	cancel_delayed_work_sync(&edev->sp_task);
-
 	unregister_netdev(ndev);
+	cancel_delayed_work_sync(&edev->sp_task);
 
 	qede_ptp_remove(edev);
 
@@ -1490,6 +1508,18 @@ static int qede_req_msix_irqs(struct qede_dev *edev)
 	}
 
 	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
+#ifdef CONFIG_RFS_ACCEL
+		struct qede_fastpath *fp = &edev->fp_array[i];
+
+		if (edev->ndev->rx_cpu_rmap && (fp->type & QEDE_FASTPATH_RX)) {
+			rc = irq_cpu_rmap_add(edev->ndev->rx_cpu_rmap,
+					      edev->int_info.msix[i].vector);
+			if (rc) {
+				DP_ERR(edev, "Failed to add CPU rmap\n");
+				qede_free_arfs(edev);
+			}
+		}
+#endif
 		rc = request_irq(edev->int_info.msix[i].vector,
 				 qede_msix_fp_int, 0, edev->fp_array[i].name,
 				 &edev->fp_array[i]);
@@ -1871,7 +1901,12 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 
 	qede_vlan_mark_nonconfigured(edev);
 	edev->ops->fastpath_stop(edev->cdev);
-
+#ifdef CONFIG_RFS_ACCEL
+	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1) {
+		qede_poll_for_freeing_arfs_filters(edev);
+		qede_free_arfs(edev);
+	}
+#endif
 	/* Release the interrupts */
 	qede_sync_free_irqs(edev);
 	edev->ops->common->set_fp_int(edev->cdev, 0);
@@ -1923,6 +1958,13 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	if (rc)
 		goto err2;
 
+#ifdef CONFIG_RFS_ACCEL
+	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1) {
+		rc = qede_alloc_arfs(edev);
+		if (rc)
+			DP_NOTICE(edev, "aRFS memory allocation failed\n");
+	}
+#endif
 	qede_napi_add_enable(edev);
 	DP_INFO(edev, "Napi added and enabled\n");
 
