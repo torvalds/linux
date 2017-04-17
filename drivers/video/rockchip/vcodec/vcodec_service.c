@@ -175,6 +175,12 @@ static const struct vcodec_info vcodec_info_set[] = {
 		.task_info      = task_vpu2,
 		.trans_info     = trans_vpu2,
 	},
+	{
+		.hw_id		= RKV_DEC_ID2,
+		.hw_info	= &hw_rkvdec,
+		.task_info	= task_rkv,
+		.trans_info	= trans_rkv,
+	},
 };
 
 /* Both VPU1 and VPU2 */
@@ -2411,7 +2417,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	}
 
 	data->child_dev = device_create(data->cls, dev,
-		data->dev_t, "%s", name);
+		data->dev_t, NULL, "%s", name);
 
 	platform_set_drvdata(pdev, data);
 

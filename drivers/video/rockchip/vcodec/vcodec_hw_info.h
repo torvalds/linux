@@ -28,6 +28,7 @@ enum VPU_HW_ID {
 	VPU_ID_4831		= 0x4831,
 	HEVC_ID			= 0x6867,
 	RKV_DEC_ID		= 0x6876,
+	RKV_DEC_ID2             = 0x3410,
 	VPU2_ID			= 0x0000,
 };
 
