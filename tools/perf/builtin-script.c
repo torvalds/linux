@@ -24,6 +24,7 @@
 #include "util/thread-stack.h"
 #include "util/time-utils.h"
 #include <linux/bitmap.h>
+#include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include "asm/bug.h"

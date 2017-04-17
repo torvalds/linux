@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
+#include <linux/kernel.h>
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";

@@ -9,6 +9,7 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include "perf.h"
 #include "debug.h"

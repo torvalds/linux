@@ -7,6 +7,7 @@
 #include "evlist.h"
 #include <traceevent/event-parse.h>
 #include "mem-events.h"
+#include <linux/kernel.h>
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";

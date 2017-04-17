@@ -1,4 +1,5 @@
 #include <asm/bug.h>
+#include <linux/kernel.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "symbol.h"

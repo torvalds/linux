@@ -10,6 +10,7 @@
 #include "../../util/evsel.h"
 #include "../../util/config.h"
 #include <pthread.h>
+#include <linux/kernel.h>
 
 struct disasm_line_samples {
 	double		percent;

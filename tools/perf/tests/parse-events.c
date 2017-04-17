@@ -1,4 +1,3 @@
-
 #include "parse-events.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -6,6 +5,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "util.h"
+#include <linux/kernel.h>
 #include <linux/hw_breakpoint.h>
 #include <api/fs/fs.h>
 

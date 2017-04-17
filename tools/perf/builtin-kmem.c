@@ -20,6 +20,7 @@
 
 #include "util/debug.h"
 
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
 #include <locale.h>

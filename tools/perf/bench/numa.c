@@ -30,6 +30,7 @@
 #include <sys/wait.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
+#include <linux/kernel.h>
 #include <linux/time64.h>
 
 #include <numa.h>

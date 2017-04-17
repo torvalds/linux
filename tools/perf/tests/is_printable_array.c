@@ -1,4 +1,5 @@
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 #include "tests.h"
 #include "debug.h"
 #include "util.h"

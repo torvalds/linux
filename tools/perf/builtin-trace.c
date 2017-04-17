@@ -45,6 +45,7 @@
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
+#include <linux/kernel.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>

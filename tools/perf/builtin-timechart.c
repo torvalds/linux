@@ -23,6 +23,7 @@
 #include "util/cache.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/time64.h>
 #include "util/symbol.h"

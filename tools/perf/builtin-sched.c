@@ -22,6 +22,7 @@
 
 #include "util/debug.h"
 
+#include <linux/kernel.h>
 #include <linux/log2.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>

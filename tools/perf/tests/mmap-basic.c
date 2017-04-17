@@ -7,6 +7,7 @@
 #include "cpumap.h"
 #include "tests.h"
 #include <linux/err.h>
+#include <linux/kernel.h>
 
 /*
  * This test will generate random numbers of calls to some getpid syscalls,

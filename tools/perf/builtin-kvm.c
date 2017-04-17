@@ -24,6 +24,7 @@
 #include <sys/timerfd.h>
 #endif
 
+#include <linux/kernel.h>
 #include <linux/time64.h>
 #include <termios.h>
 #include <semaphore.h>

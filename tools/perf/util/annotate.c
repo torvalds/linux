@@ -22,6 +22,7 @@
 #include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
+#include <linux/kernel.h>
 #include <sys/utsname.h>
 
 const char 	*disassembler_style;

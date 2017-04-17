@@ -8,6 +8,7 @@
  */
 
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 #include <babeltrace/ctf-writer/writer.h>
 #include <babeltrace/ctf-writer/clock.h>
 #include <babeltrace/ctf-writer/stream.h>

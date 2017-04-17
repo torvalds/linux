@@ -13,6 +13,7 @@
 #include "color.h"
 #include <subcmd/parse-options.h>
 #include "symbol.h"
+#include <linux/kernel.h>
 
 static bool dont_fork;
 

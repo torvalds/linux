@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <stdlib.h>
 #include <unistd.h>
