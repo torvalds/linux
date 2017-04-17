@@ -2542,11 +2542,9 @@ static int gfx_v9_0_kiq_enable(struct amdgpu_ring *ring)
 	return r;
 }
 
-static int gfx_v9_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
-				     struct amdgpu_ring *ring)
+static int gfx_v9_0_map_queues_enable(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = kiq_ring->adev;
-	uint64_t mqd_addr, wptr_addr;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
 	uint32_t scratch, tmp = 0;
 	int r, i;
 
@@ -2557,33 +2555,36 @@ static int gfx_v9_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
 	}
 	WREG32(scratch, 0xCAFEDEAD);
 
-	r = amdgpu_ring_alloc(kiq_ring, 10);
+	r = amdgpu_ring_alloc(kiq_ring, (7 * adev->gfx.num_compute_rings) + 3);
 	if (r) {
 		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
 		amdgpu_gfx_scratch_free(adev, scratch);
 		return r;
 	}
 
-	mqd_addr = amdgpu_bo_gpu_offset(ring->mqd_obj);
-	wptr_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
+		uint64_t mqd_addr = amdgpu_bo_gpu_offset(ring->mqd_obj);
+		uint64_t wptr_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
 
-	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_MAP_QUEUES, 5));
-	/* Q_sel:0, vmid:0, vidmem: 1, engine:0, num_Q:1*/
-	amdgpu_ring_write(kiq_ring, /* Q_sel: 0, vmid: 0, engine: 0, num_Q: 1 */
-			  PACKET3_MAP_QUEUES_QUEUE_SEL(0) | /* Queue_Sel */
-			  PACKET3_MAP_QUEUES_VMID(0) | /* VMID */
-			  PACKET3_MAP_QUEUES_QUEUE(ring->queue) |
-			  PACKET3_MAP_QUEUES_PIPE(ring->pipe) |
-			  PACKET3_MAP_QUEUES_ME((ring->me == 1 ? 0 : 1)) |
-			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
-			  PACKET3_MAP_QUEUES_ALLOC_FORMAT(1) | /* alloc format: all_on_one_pipe */
-			  PACKET3_MAP_QUEUES_ENGINE_SEL(0) | /* engine_sel: compute */
-			  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
-	amdgpu_ring_write(kiq_ring, PACKET3_MAP_QUEUES_DOORBELL_OFFSET(ring->doorbell_index));
-	amdgpu_ring_write(kiq_ring, lower_32_bits(mqd_addr));
-	amdgpu_ring_write(kiq_ring, upper_32_bits(mqd_addr));
-	amdgpu_ring_write(kiq_ring, lower_32_bits(wptr_addr));
-	amdgpu_ring_write(kiq_ring, upper_32_bits(wptr_addr));
+		amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_MAP_QUEUES, 5));
+		/* Q_sel:0, vmid:0, vidmem: 1, engine:0, num_Q:1*/
+		amdgpu_ring_write(kiq_ring, /* Q_sel: 0, vmid: 0, engine: 0, num_Q: 1 */
+				  PACKET3_MAP_QUEUES_QUEUE_SEL(0) | /* Queue_Sel */
+				  PACKET3_MAP_QUEUES_VMID(0) | /* VMID */
+				  PACKET3_MAP_QUEUES_QUEUE(ring->queue) |
+				  PACKET3_MAP_QUEUES_PIPE(ring->pipe) |
+				  PACKET3_MAP_QUEUES_ME((ring->me == 1 ? 0 : 1)) |
+				  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
+				  PACKET3_MAP_QUEUES_ALLOC_FORMAT(1) | /* alloc format: all_on_one_pipe */
+				  PACKET3_MAP_QUEUES_ENGINE_SEL(0) | /* engine_sel: compute */
+				  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
+		amdgpu_ring_write(kiq_ring, PACKET3_MAP_QUEUES_DOORBELL_OFFSET(ring->doorbell_index));
+		amdgpu_ring_write(kiq_ring, lower_32_bits(mqd_addr));
+		amdgpu_ring_write(kiq_ring, upper_32_bits(mqd_addr));
+		amdgpu_ring_write(kiq_ring, lower_32_bits(wptr_addr));
+		amdgpu_ring_write(kiq_ring, upper_32_bits(wptr_addr));
+	}
 	/* write to scratch for completion */
 	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
 	amdgpu_ring_write(kiq_ring, (scratch - PACKET3_SET_UCONFIG_REG_START));
@@ -2886,10 +2887,8 @@ static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring)
 static int gfx_v9_0_kcq_init_queue(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	struct v9_mqd *mqd = ring->mqd_ptr;
 	int mqd_idx = ring - &adev->gfx.compute_ring[0];
-	int r;
 
 	if (!adev->gfx.in_reset) {
 		memset((void *)mqd, 0, sizeof(*mqd));
@@ -2911,9 +2910,7 @@ static int gfx_v9_0_kcq_init_queue(struct amdgpu_ring *ring)
 		amdgpu_ring_clear_ring(ring);
 	}
 
-	r = gfx_v9_0_map_queue_enable(&kiq->ring, ring);
-
-	return r;
+	return 0;
 }
 
 static int gfx_v9_0_kiq_resume(struct amdgpu_device *adev)
@@ -2956,13 +2953,14 @@ static int gfx_v9_0_kiq_resume(struct amdgpu_device *adev)
 			goto done;
 	}
 
+	r = gfx_v9_0_map_queues_enable(adev);
 done:
 	return r;
 }
 
 static int gfx_v9_0_cp_resume(struct amdgpu_device *adev)
 {
-	int r,i;
+	int r, i;
 	struct amdgpu_ring *ring;
 
 	if (!(adev->flags & AMD_IS_APU))
