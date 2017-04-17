@@ -61,7 +61,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		ret = st->core.read_ec_sensors_data(indio_dev, 1 << idx, &data);
 		if (ret < 0)
 			break;
-
+		ret = IIO_VAL_INT;
 		*val = data;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -76,7 +76,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
 			st->core.calib[i] =
 				st->core.resp->sensor_offset.offset[i];
-
+		ret = IIO_VAL_INT;
 		*val = st->core.calib[idx];
 		break;
 	case IIO_CHAN_INFO_SCALE:
