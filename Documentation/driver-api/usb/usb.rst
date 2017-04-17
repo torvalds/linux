@@ -111,7 +111,8 @@ USB-Standard Types
 
 In ``<linux/usb/ch9.h>`` you will find the USB data types defined in
 chapter 9 of the USB specification. These data types are used throughout
-USB, and in APIs including this host side API, gadget APIs, and usbfs.
+USB, and in APIs including this host side API, gadget APIs, usb character
+devices and debugfs interfaces.
 
 .. kernel-doc:: include/linux/usb/ch9.h
    :internal:
@@ -204,40 +205,32 @@ significantly reduce hcd-specific behaviors.
 .. kernel-doc:: drivers/usb/core/buffer.c
    :internal:
 
-The USB Filesystem (usbfs)
-==========================
+The USB character device nodes
+==============================
 
-This chapter presents the Linux *usbfs*. You may prefer to avoid writing
-new kernel code for your USB driver; that's the problem that usbfs set
-out to solve. User mode device drivers are usually packaged as
-applications or libraries, and may use usbfs through some programming
-library that wraps it. Such libraries include
+This chapter presents the Linux character device nodes. You may prefer
+to avoid writing new kernel code for your USB driver. User mode device
+drivers are usually packaged as applications or libraries, and may use
+character devices through some programming library that wraps it.
+Such libraries include
 `libusb <http://libusb.sourceforge.net>`__ for C/C++, and
 `jUSB <http://jUSB.sourceforge.net>`__ for Java.
 
 .. note::
 
-    This particular documentation is incomplete, especially with respect
-    to the asynchronous mode. As of kernel 2.5.66 the code and this
-    (new) documentation need to be cross-reviewed.
+  - They were used to be implemented via *usbfs*, but this is not part of
+    the sysfs debug interface.
 
-Configure usbfs into Linux kernels by enabling the *USB filesystem*
-option (CONFIG_USB_DEVICEFS), and you get basic support for user mode
-USB device drivers. Until relatively recently it was often (confusingly)
-called *usbdevfs* although it wasn't solving what *devfs* was. Every USB
-device will appear in usbfs, regardless of whether or not it has a
-kernel driver.
+   - This particular documentation is incomplete, especially with respect
+     to the asynchronous mode. As of kernel 2.5.66 the code and this
+     (new) documentation need to be cross-reviewed.
 
-What files are in "usbfs"?
---------------------------
+What files are in "devtmpfs"?
+-----------------------------
 
-Conventionally mounted at ``/proc/bus/usb``, usbfs features include:
+Conventionally mounted at ``/dev/bus/usb/``, usbfs features include:
 
--  ``/proc/bus/usb/devices`` ... a text file showing each of the USB
-   devices on known to the kernel, and their configuration descriptors.
-   You can also poll() this to learn about new devices.
-
--  ``/proc/bus/usb/BBB/DDD`` ... magic files exposing the each device's
+-  ``/dev/bus/usb//BBB/DDD`` ... magic files exposing the each device's
    configuration descriptors, and supporting a series of ioctls for
    making device requests, including I/O to devices. (Purely for access
    by programs.)
@@ -252,100 +245,7 @@ them. HID and networking devices expose these stable IDs, so that for
 example you can be sure that you told the right UPS to power down its
 second server. "usbfs" doesn't (yet) expose those IDs.
 
-Mounting and Access Control
----------------------------
-
-There are a number of mount options for usbfs, which will be of most
-interest to you if you need to override the default access control
-policy. That policy is that only root may read or write device files
-(``/proc/bus/BBB/DDD``) although anyone may read the ``devices`` or
-``drivers`` files. I/O requests to the device also need the
-CAP_SYS_RAWIO capability,
-
-The significance of that is that by default, all user mode device
-drivers need super-user privileges. You can change modes or ownership in
-a driver setup when the device hotplugs, or maye just start the driver
-right then, as a privileged server (or some activity within one). That's
-the most secure approach for multi-user systems, but for single user
-systems ("trusted" by that user) it's more convenient just to grant
-everyone all access (using the *devmode=0666* option) so the driver can
-start whenever it's needed.
-
-The mount options for usbfs, usable in /etc/fstab or in command line
-invocations of *mount*, are:
-
-*busgid*\ =NNNNN
-    Controls the GID used for the /proc/bus/usb/BBB directories.
-    (Default: 0)
-
-*busmode*\ =MMM
-    Controls the file mode used for the /proc/bus/usb/BBB directories.
-    (Default: 0555)
-
-*busuid*\ =NNNNN
-    Controls the UID used for the /proc/bus/usb/BBB directories.
-    (Default: 0)
-
-*devgid*\ =NNNNN
-    Controls the GID used for the /proc/bus/usb/BBB/DDD files. (Default:
-    0)
-
-*devmode*\ =MMM
-    Controls the file mode used for the /proc/bus/usb/BBB/DDD files.
-    (Default: 0644)
-
-*devuid*\ =NNNNN
-    Controls the UID used for the /proc/bus/usb/BBB/DDD files. (Default:
-    0)
-
-*listgid*\ =NNNNN
-    Controls the GID used for the /proc/bus/usb/devices and drivers
-    files. (Default: 0)
-
-*listmode*\ =MMM
-    Controls the file mode used for the /proc/bus/usb/devices and
-    drivers files. (Default: 0444)
-
-*listuid*\ =NNNNN
-    Controls the UID used for the /proc/bus/usb/devices and drivers
-    files. (Default: 0)
-
-Note that many Linux distributions hard-wire the mount options for usbfs
-in their init scripts, such as ``/etc/rc.d/rc.sysinit``, rather than
-making it easy to set this per-system policy in ``/etc/fstab``.
-
-/proc/bus/usb/devices
----------------------
-
-This file is handy for status viewing tools in user mode, which can scan
-the text format and ignore most of it. More detailed device status
-(including class and vendor status) is available from device-specific
-files. For information about the current format of this file, see the
-``Documentation/usb/proc_usb_info.txt`` file in your Linux kernel
-sources.
-
-This file, in combination with the poll() system call, can also be used
-to detect when devices are added or removed::
-
-    int fd;
-    struct pollfd pfd;
-
-    fd = open("/proc/bus/usb/devices", O_RDONLY);
-    pfd = { fd, POLLIN, 0 };
-    for (;;) {
-	/* The first time through, this call will return immediately. */
-	poll(&pfd, 1, -1);
-
-	/* To see what's changed, compare the file's previous and current
-	   contents or scan the filesystem.  (Scanning is more precise.) */
-    }
-
-Note that this behavior is intended to be used for informational and
-debug purposes. It would be more appropriate to use programs such as
-udev or HAL to initialize a device or start a user-mode helper program,
-for instance.
-
-/proc/bus/usb/BBB/DDD
+/dev/bus/usb//BBB/DDD
 ---------------------
 
 Use these files in one of these basic ways:
@@ -376,7 +276,7 @@ Life Cycle of User Mode Drivers
 Such a driver first needs to find a device file for a device it knows
 how to handle. Maybe it was told about it because a ``/sbin/hotplug``
 event handling agent chose that driver to handle the new device. Or
-maybe it's an application that scans all the /proc/bus/usb device files,
+maybe it's an application that scans all the /dev/bus/usb/ device files,
 and ignores most devices. In either case, it should :c:func:`read()`
 all the descriptors from the device file, and check them against what it
 knows how to handle. It might just reject everything except a particular
@@ -734,3 +634,43 @@ USBDEVFS_REAPURBNDELAY
 
 USBDEVFS_SUBMITURB
     *TBS*
+
+The USB devices
+===============
+
+The USB devices are now exported via debugfs:
+
+-  ``/sys/kernel/debug/usb/devices`` ... a text file showing each of the USB
+   devices on known to the kernel, and their configuration descriptors.
+   You can also poll() this to learn about new devices.
+
+/sys/kernel/debug/usb/devices
+-----------------------------
+
+This file is handy for status viewing tools in user mode, which can scan
+the text format and ignore most of it. More detailed device status
+(including class and vendor status) is available from device-specific
+files. For information about the current format of this file, see the
+``Documentation/usb/proc_usb_info.txt`` file in your Linux kernel
+sources.
+
+This file, in combination with the poll() system call, can also be used
+to detect when devices are added or removed::
+
+    int fd;
+    struct pollfd pfd;
+
+    fd = open("/sys/kernel/debug/usb/devices", O_RDONLY);
+    pfd = { fd, POLLIN, 0 };
+    for (;;) {
+	/* The first time through, this call will return immediately. */
+	poll(&pfd, 1, -1);
+
+	/* To see what's changed, compare the file's previous and current
+	   contents or scan the filesystem.  (Scanning is more precise.) */
+    }
+
+Note that this behavior is intended to be used for informational and
+debug purposes. It would be more appropriate to use programs such as
+udev or HAL to initialize a device or start a user-mode helper program,
+for instance.

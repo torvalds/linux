@@ -4,7 +4,7 @@
 
 
 The usbfs filesystem for USB devices is traditionally mounted at
-/proc/bus/usb.  It provides the /proc/bus/usb/devices file, as well as
+/proc/bus/usb.  It provides the /sys/kernel/debug/usb/devices file, as well as
 the /proc/bus/usb/BBB/DDD files.
 
 In many modern systems the usbfs filesystem isn't used at all.  Instead
@@ -24,7 +24,7 @@ USB device nodes are created under /dev/usb/ or someplace similar.  The
       none  /proc/bus/usb  usbfs  defaults  0  0
 
 	  to /etc/fstab.  This will mount usbfs at each reboot.
-	  You can then issue `cat /proc/bus/usb/devices` to extract
+	  You can then issue `cat /sys/kernel/debug/usb/devices` to extract
 	  USB device information, and user mode drivers can use usbfs
 	  to interact with USB devices.
 
@@ -60,7 +60,7 @@ descriptors are in bus endian format! The configuration descriptor
 are wTotalLength bytes apart. If a device returns less configuration
 descriptor data than indicated by wTotalLength there will be a hole in
 the file for the missing bytes.  This information is also shown
-in text form by the /proc/bus/usb/devices file, described later.
+in text form by the /sys/kernel/debug/usb/devices file, described later.
 
 These files may also be used to write user-level drivers for the USB
 devices.  You would open the /proc/bus/usb/BBB/DDD file read/write,
@@ -79,9 +79,9 @@ usbfs mount options such as "devmode=0666" may be helpful.
 
 
 
-THE /proc/bus/usb/devices FILE:
+THE /sys/kernel/debug/usb/devices FILE:
 -------------------------------
-In /proc/bus/usb/devices, each device's output has multiple
+In /sys/kernel/debug/usb/devices, each device's output has multiple
 lines of ASCII output.
 I made it ASCII instead of binary on purpose, so that someone
 can obtain some useful data from it without the use of an
@@ -104,7 +104,7 @@ E = Endpoint descriptor info.
 
 =======================================================================
 
-/proc/bus/usb/devices output format:
+/sys/kernel/debug/usb/devices output format:
 
 Legend:
   d = decimal number (may have leading spaces or 0's)
@@ -277,16 +277,16 @@ E:  Ad=xx(s) Atr=xx(ssss) MxPS=dddd Ivl=dddss
 
 
 If a user or script is interested only in Topology info, for
-example, use something like "grep ^T: /proc/bus/usb/devices"
+example, use something like "grep ^T: /sys/kernel/debug/usb/devices"
 for only the Topology lines.  A command like
-"grep -i ^[tdp]: /proc/bus/usb/devices" can be used to list
+"grep -i ^[tdp]: /sys/kernel/debug/usb/devices" can be used to list
 only the lines that begin with the characters in square brackets,
 where the valid characters are TDPCIE.  With a slightly more able
 script, it can display any selected lines (for example, only T, D,
 and P lines) and change their output format.  (The "procusb"
 Perl script is the beginning of this idea.  It will list only
 selected lines [selected from TBDPSCIE] or "All" lines from
-/proc/bus/usb/devices.)
+/sys/kernel/debug/usb/devices.)
 
 The Topology lines can be used to generate a graphic/pictorial
 of the USB devices on a system's root hub.  (See more below
@@ -297,7 +297,7 @@ being used for each device, and which altsetting it activated.
 
 The Configuration lines could be used to list maximum power
 (in milliamps) that a system's USB devices are using.
-For example, "grep ^C: /proc/bus/usb/devices".
+For example, "grep ^C: /sys/kernel/debug/usb/devices".
 
 
 Here's an example, from a system which has a UHCI root hub,
