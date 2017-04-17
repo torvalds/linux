@@ -22,7 +22,7 @@
 #define LINUX_CEC_NOTIFIER_H
 
 #include <linux/types.h>
-#include <media/cec-edid.h>
+#include <media/cec.h>
 
 struct device;
 struct edid;

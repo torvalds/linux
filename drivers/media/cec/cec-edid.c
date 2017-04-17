@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <media/cec-edid.h>
+#include <media/cec.h>
 
 /*
  * This EDID is expected to be a CEA-861 compliant, which means that there are

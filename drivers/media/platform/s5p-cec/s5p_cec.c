@@ -25,7 +25,6 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <media/cec.h>
-#include <media/cec-edid.h>
 #include <media/cec-notifier.h>
 
 #include "exynos_hdmi_cec.h"
