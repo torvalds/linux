@@ -1838,7 +1838,8 @@ static void gfx_v9_0_kiq_enable(struct amdgpu_ring *ring)
 	amdgpu_ring_alloc(ring, 8);
 	/* set resources */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_RESOURCES, 6));
-	amdgpu_ring_write(ring, 0);	/* vmid_mask:0 queue_type:0 (KIQ) */
+	amdgpu_ring_write(ring, PACKET3_SET_RESOURCES_VMID_MASK(0) |
+			  PACKET3_SET_RESOURCES_QUEUE_TYPE(0));	/* vmid_mask:0 queue_type:0 (KIQ) */
 	amdgpu_ring_write(ring, 0x000000FF);	/* queue mask lo */
 	amdgpu_ring_write(ring, 0);	/* queue mask hi */
 	amdgpu_ring_write(ring, 0);	/* gws mask lo */
@@ -1862,16 +1863,16 @@ static void gfx_v9_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
 	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_MAP_QUEUES, 5));
 	/* Q_sel:0, vmid:0, vidmem: 1, engine:0, num_Q:1*/
 	amdgpu_ring_write(kiq_ring, /* Q_sel: 0, vmid: 0, engine: 0, num_Q: 1 */
-			  (0 << 4) | /* Queue_Sel */
-			  (0 << 8) | /* VMID */
-			  (ring->queue << 13 ) |
-			  (ring->pipe << 16) |
-			  ((ring->me == 1 ? 0 : 1) << 18) |
-			  (0 << 21) | /*queue_type: normal compute queue */
-			  (1 << 24) | /* alloc format: all_on_one_pipe */
-			  (0 << 26) | /* engine_sel: compute */
-			  (1 << 29)); /* num_queues: must be 1 */
-	amdgpu_ring_write(kiq_ring, (ring->doorbell_index << 2));
+			  PACKET3_MAP_QUEUES_QUEUE_SEL(0) | /* Queue_Sel */
+			  PACKET3_MAP_QUEUES_VMID(0) | /* VMID */
+			  PACKET3_MAP_QUEUES_QUEUE(ring->queue) |
+			  PACKET3_MAP_QUEUES_PIPE(ring->pipe) |
+			  PACKET3_MAP_QUEUES_ME((ring->me == 1 ? 0 : 1)) |
+			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
+			  PACKET3_MAP_QUEUES_ALLOC_FORMAT(1) | /* alloc format: all_on_one_pipe */
+			  PACKET3_MAP_QUEUES_ENGINE_SEL(0) | /* engine_sel: compute */
+			  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
+	amdgpu_ring_write(kiq_ring, PACKET3_MAP_QUEUES_DOORBELL_OFFSET(ring->doorbell_index));
 	amdgpu_ring_write(kiq_ring, lower_32_bits(mqd_addr));
 	amdgpu_ring_write(kiq_ring, upper_32_bits(mqd_addr));
 	amdgpu_ring_write(kiq_ring, lower_32_bits(wptr_addr));
