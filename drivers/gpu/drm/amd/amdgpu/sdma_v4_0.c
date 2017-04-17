@@ -744,10 +744,8 @@ static int sdma_v4_0_start(struct amdgpu_device *adev)
 	if (r)
 		return r;
 	r = sdma_v4_0_rlc_resume(adev);
-	if (r)
-		return r;
 
-	return 0;
+	return r;
 }
 
 /**
@@ -1158,8 +1156,6 @@ static int sdma_v4_0_hw_init(void *handle)
 	sdma_v4_0_init_golden_registers(adev);
 
 	r = sdma_v4_0_start(adev);
-	if (r)
-		return r;
 
 	return r;
 }
