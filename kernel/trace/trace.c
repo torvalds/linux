@@ -7150,6 +7150,7 @@ static int instance_rmdir(const char *name)
 
 	tracing_set_nop(tr);
 	event_trace_del_tracer(tr);
+	ftrace_clear_pids(tr);
 	ftrace_destroy_function_files(tr);
 	tracefs_remove_recursive(tr->dir);
 	free_trace_buffers(tr);

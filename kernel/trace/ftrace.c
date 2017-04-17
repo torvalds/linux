@@ -5401,6 +5401,15 @@ static void clear_ftrace_pids(struct trace_array *tr)
 	trace_free_pid_list(pid_list);
 }
 
+void ftrace_clear_pids(struct trace_array *tr)
+{
+	mutex_lock(&ftrace_lock);
+
+	clear_ftrace_pids(tr);
+
+	mutex_unlock(&ftrace_lock);
+}
+
 static void ftrace_pid_reset(struct trace_array *tr)
 {
 	mutex_lock(&ftrace_lock);
