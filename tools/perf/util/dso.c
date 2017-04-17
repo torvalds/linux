@@ -8,6 +8,7 @@
 #include "auxtrace.h"
 #include "util.h"
 #include "debug.h"
+#include "string2.h"
 #include "vdso.h"
 
 static const char * const debuglink_paths[] = {

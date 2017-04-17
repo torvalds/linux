@@ -21,6 +21,7 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "util/string2.h"
 #include "util/thread-stack.h"
 #include "util/time-utils.h"
 #include "print_binary.h"

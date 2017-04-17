@@ -19,6 +19,7 @@
 #include "annotate.h"
 #include "evsel.h"
 #include "block-range.h"
+#include "string2.h"
 #include "arch/common.h"
 #include <regex.h>
 #include <pthread.h>

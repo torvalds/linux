@@ -7,7 +7,7 @@
 #include <subcmd/parse-options.h>
 #include "parse-events.h"
 #include <subcmd/exec-cmd.h>
-#include "string.h"
+#include "string2.h"
 #include "symbol.h"
 #include "cache.h"
 #include "header.h"

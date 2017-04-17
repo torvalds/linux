@@ -1,5 +1,7 @@
-#include "util.h"
-#include "linux/string.h"
+#include "string2.h"
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <stdlib.h>
 
 #include "sane_ctype.h"
 
@@ -101,8 +103,10 @@ static int count_argc(const char *str)
 void argv_free(char **argv)
 {
 	char **p;
-	for (p = argv; *p; p++)
-		zfree(p);
+	for (p = argv; *p; p++) {
+		free(*p);
+		*p = NULL;
+	}
 
 	free(argv);
 }
@@ -122,7 +126,7 @@ void argv_free(char **argv)
 char **argv_split(const char *str, int *argcp)
 {
 	int argc = count_argc(str);
-	char **argv = zalloc(sizeof(*argv) * (argc+1));
+	char **argv = calloc(argc + 1, sizeof(*argv));
 	char **argvp;
 
 	if (argv == NULL)
@@ -379,7 +383,7 @@ char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints
 				goto out_err_overflow;
 
 			if (i > 0)
-				printed += snprintf(e + printed, size - printed, " %s ", or_and);
+				printed += scnprintf(e + printed, size - printed, " %s ", or_and);
 			printed += scnprintf(e + printed, size - printed,
 					     "%s %s %d", var, eq_neq, ints[i]);
 		}

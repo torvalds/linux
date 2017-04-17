@@ -1,4 +1,5 @@
 #include "../util.h"
+#include "../string2.h"
 #include "../config.h"
 #include "../../perf.h"
 #include "libslang.h"

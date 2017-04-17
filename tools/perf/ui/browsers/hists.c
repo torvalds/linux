@@ -20,6 +20,7 @@
 #include "map.h"
 #include "annotate.h"
 #include "srcline.h"
+#include "string2.h"
 
 #include "sane_ctype.h"
 

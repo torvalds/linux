@@ -8,7 +8,7 @@
 #include "hist.h"
 #include "machine.h"
 #include "sort.h"
-#include "string.h"
+#include "string2.h"
 #include "strlist.h"
 #include "thread.h"
 #include "thread_map.h"

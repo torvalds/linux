@@ -47,6 +47,7 @@
 #include "probe-finder.h"
 #include "probe-file.h"
 #include "session.h"
+#include "string2.h"
 
 #include "sane_ctype.h"
 

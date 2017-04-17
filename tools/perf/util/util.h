@@ -98,18 +98,6 @@ int copyfile(const char *from, const char *to);
 int copyfile_mode(const char *from, const char *to, mode_t mode);
 int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 size);
 
-s64 perf_atoll(const char *str);
-char **argv_split(const char *str, int *argcp);
-void argv_free(char **argv);
-bool strglobmatch(const char *str, const char *pat);
-bool strglobmatch_nocase(const char *str, const char *pat);
-bool strlazymatch(const char *str, const char *pat);
-static inline bool strisglob(const char *str)
-{
-	return strpbrk(str, "*?[") != NULL;
-}
-int strtailcmp(const char *s1, const char *s2);
-char *strxfrchar(char *s, char from, char to);
 unsigned long convert_unit(unsigned long value, char *unit);
 ssize_t readn(int fd, void *buf, size_t n);
 ssize_t writen(int fd, void *buf, size_t n);
@@ -120,14 +108,6 @@ void event_attr_init(struct perf_event_attr *attr);
 
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
-
-char *ltrim(char *s);
-char *rtrim(char *s);
-
-static inline char *trim(char *s)
-{
-	return ltrim(rtrim(s));
-}
 
 void dump_stack(void);
 void sighandler_dump_stack(int sig);
@@ -174,18 +154,6 @@ int gzip_decompress_to_file(const char *input, int output_fd);
 #ifdef HAVE_LZMA_SUPPORT
 int lzma_decompress_to_file(const char *input, int output_fd);
 #endif
-
-char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints);
-
-static inline char *asprintf_expr_in_ints(const char *var, size_t nints, int *ints)
-{
-	return asprintf_expr_inout_ints(var, true, nints, ints);
-}
-
-static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int *ints)
-{
-	return asprintf_expr_inout_ints(var, false, nints, ints);
-}
 
 int get_stack_size(const char *str, unsigned long *_size);
 

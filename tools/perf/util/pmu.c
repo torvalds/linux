@@ -15,6 +15,7 @@
 #include "header.h"
 #include "pmu-events/pmu-events.h"
 #include "cache.h"
+#include "string2.h"
 
 struct perf_pmu_format {
 	char *name;

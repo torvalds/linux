@@ -1,5 +1,5 @@
 #include "util.h"
-#include "string.h"
+#include "string2.h"
 #include "strfilter.h"
 
 #include "sane_ctype.h"

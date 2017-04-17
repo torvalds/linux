@@ -28,6 +28,7 @@
 #include "probe-file.h"
 #include "session.h"
 #include "perf_regs.h"
+#include "string2.h"
 
 /* 4096 - 2 ('\n' + '\0') */
 #define MAX_CMDLEN 4094
