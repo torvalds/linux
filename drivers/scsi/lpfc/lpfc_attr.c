@@ -3010,6 +3010,12 @@ MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
 static DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
 		   lpfc_poll_show, lpfc_poll_store);
 
+int lpfc_no_hba_reset_cnt;
+unsigned long lpfc_no_hba_reset[MAX_HBAS_NO_RESET] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+module_param_array(lpfc_no_hba_reset, ulong, &lpfc_no_hba_reset_cnt, 0444);
+MODULE_PARM_DESC(lpfc_no_hba_reset, "WWPN of HBAs that should not be reset");
+
 LPFC_ATTR(sli_mode, 0, 0, 3,
 	"SLI mode selector:"
 	" 0 - auto (SLI-3 if supported),"
@@ -4451,7 +4457,8 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	phba->cfg_fcp_imax = (uint32_t)val;
-	for (i = 0; i < phba->io_channel_irqs; i++)
+
+	for (i = 0; i < phba->io_channel_irqs; i += LPFC_MAX_EQ_DELAY_EQID_CNT)
 		lpfc_modify_hba_eq_delay(phba, i);
 
 	return strlen(buf);

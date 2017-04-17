@@ -6,6 +6,7 @@
 struct kmem_cache;
 struct page;
 struct vm_struct;
+struct task_struct;
 
 #ifdef CONFIG_KASAN
 
