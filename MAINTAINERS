@@ -3075,8 +3075,6 @@ S:	Supported
 F:	Documentation/media/kapi/cec-core.rst
 F:	Documentation/media/uapi/cec
 F:	drivers/media/cec/
-F:	drivers/media/cec-edid.c
-F:	drivers/media/cec-notifier.c
 F:	drivers/media/rc/keymaps/rc-cec.c
 F:	include/media/cec.h
 F:	include/media/cec-edid.h

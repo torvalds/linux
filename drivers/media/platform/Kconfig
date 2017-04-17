@@ -461,34 +461,6 @@ config VIDEO_TI_SC
 config VIDEO_TI_CSC
 	tristate
 
-menuconfig V4L_CEC_DRIVERS
-	bool "Platform HDMI CEC drivers"
-	depends on MEDIA_CEC_SUPPORT
-
-if V4L_CEC_DRIVERS
-
-config VIDEO_SAMSUNG_S5P_CEC
-       tristate "Samsung S5P CEC driver"
-       depends on VIDEO_DEV && MEDIA_CEC_SUPPORT && (PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST)
-       select MEDIA_CEC_NOTIFIER
-       ---help---
-         This is a driver for Samsung S5P HDMI CEC interface. It uses the
-         generic CEC framework interface.
-         CEC bus is present in the HDMI connector and enables communication
-         between compatible devices.
-
-config VIDEO_STI_HDMI_CEC
-       tristate "STMicroelectronics STiH4xx HDMI CEC driver"
-       depends on VIDEO_DEV && MEDIA_CEC_SUPPORT && (ARCH_STI || COMPILE_TEST)
-       select MEDIA_CEC_NOTIFIER
-       ---help---
-         This is a driver for STIH4xx HDMI CEC interface. It uses the
-         generic CEC framework interface.
-         CEC bus is present in the HDMI connector and enables communication
-         between compatible devices.
-
-endif #V4L_CEC_DRIVERS
-
 menuconfig V4L_TEST_DRIVERS
 	bool "Media test drivers"
 	depends on MEDIA_CAMERA_SUPPORT
@@ -520,3 +492,31 @@ menuconfig DVB_PLATFORM_DRIVERS
 if DVB_PLATFORM_DRIVERS
 source "drivers/media/platform/sti/c8sectpfe/Kconfig"
 endif #DVB_PLATFORM_DRIVERS
+
+menuconfig CEC_PLATFORM_DRIVERS
+	bool "CEC platform devices"
+	depends on MEDIA_CEC_SUPPORT
+
+if CEC_PLATFORM_DRIVERS
+
+config VIDEO_SAMSUNG_S5P_CEC
+       tristate "Samsung S5P CEC driver"
+       depends on CEC_CORE && (PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST)
+       select MEDIA_CEC_NOTIFIER
+       ---help---
+         This is a driver for Samsung S5P HDMI CEC interface. It uses the
+         generic CEC framework interface.
+         CEC bus is present in the HDMI connector and enables communication
+         between compatible devices.
+
+config VIDEO_STI_HDMI_CEC
+       tristate "STMicroelectronics STiH4xx HDMI CEC driver"
+       depends on CEC_CORE && (ARCH_STI || COMPILE_TEST)
+       select MEDIA_CEC_NOTIFIER
+       ---help---
+         This is a driver for STIH4xx HDMI CEC interface. It uses the
+         generic CEC framework interface.
+         CEC bus is present in the HDMI connector and enables communication
+         between compatible devices.
+
+endif #CEC_PLATFORM_DRIVERS

@@ -209,7 +209,6 @@ config VIDEO_ADV7604
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on GPIOLIB || COMPILE_TEST
 	select HDMI
-	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -221,7 +220,7 @@ config VIDEO_ADV7604
 
 config VIDEO_ADV7604_CEC
 	bool "Enable Analog Devices ADV7604 CEC support"
-	depends on VIDEO_ADV7604 && MEDIA_CEC_SUPPORT
+	depends on VIDEO_ADV7604 && CEC_CORE
 	---help---
 	  When selected the adv7604 will support the optional
 	  HDMI CEC feature.
@@ -230,7 +229,6 @@ config VIDEO_ADV7842
 	tristate "Analog Devices ADV7842 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
-	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7842 video decoder.
 
@@ -242,7 +240,7 @@ config VIDEO_ADV7842
 
 config VIDEO_ADV7842_CEC
 	bool "Enable Analog Devices ADV7842 CEC support"
-	depends on VIDEO_ADV7842 && MEDIA_CEC_SUPPORT
+	depends on VIDEO_ADV7842 && CEC_CORE
 	---help---
 	  When selected the adv7842 will support the optional
 	  HDMI CEC feature.
@@ -470,7 +468,6 @@ config VIDEO_ADV7511
 	tristate "Analog Devices ADV7511 encoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
-	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7511 video encoder.
 
@@ -481,7 +478,7 @@ config VIDEO_ADV7511
 
 config VIDEO_ADV7511_CEC
 	bool "Enable Analog Devices ADV7511 CEC support"
-	depends on VIDEO_ADV7511 && MEDIA_CEC_SUPPORT
+	depends on VIDEO_ADV7511 && CEC_CORE
 	---help---
 	  When selected the adv7511 will support the optional
 	  HDMI CEC feature.

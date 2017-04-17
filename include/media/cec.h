@@ -204,7 +204,7 @@ static inline bool cec_is_sink(const struct cec_adapter *adap)
 	return adap->phys_addr == 0;
 }
 
-#if IS_ENABLED(CONFIG_MEDIA_CEC_SUPPORT)
+#if IS_ENABLED(CONFIG_CEC_CORE)
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		void *priv, const char *name, u32 caps, u8 available_las);
 int cec_register_adapter(struct cec_adapter *adap, struct device *parent);

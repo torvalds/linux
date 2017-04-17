@@ -165,7 +165,3 @@ int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cec_phys_addr_validate);
-
-MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
-MODULE_DESCRIPTION("CEC EDID helper functions");
-MODULE_LICENSE("GPL");
