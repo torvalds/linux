@@ -5083,9 +5083,9 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		txq_pcpu->size = txq->size;
-		txq_pcpu->buffs = kmalloc(txq_pcpu->size *
-					  sizeof(struct mvpp2_txq_pcpu_buf),
-					  GFP_KERNEL);
+		txq_pcpu->buffs = kmalloc_array(txq_pcpu->size,
+						sizeof(*txq_pcpu->buffs),
+						GFP_KERNEL);
 		if (!txq_pcpu->buffs)
 			goto error;
 
