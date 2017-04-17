@@ -3833,7 +3833,7 @@ static int mvpp2_bm_init(struct platform_device *pdev, struct mvpp2 *priv)
 
 	/* Allocate and initialize BM pools */
 	priv->bm_pools = devm_kcalloc(&pdev->dev, MVPP2_BM_POOLS_NUM,
-				     sizeof(struct mvpp2_bm_pool), GFP_KERNEL);
+				      sizeof(*priv->bm_pools), GFP_KERNEL);
 	if (!priv->bm_pools)
 		return -ENOMEM;
 
