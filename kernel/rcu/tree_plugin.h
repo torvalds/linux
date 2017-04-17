@@ -664,8 +664,13 @@ EXPORT_SYMBOL_GPL(call_rcu);
  * synchronize_rcu() was waiting.  RCU read-side critical sections are
  * delimited by rcu_read_lock() and rcu_read_unlock(), and may be nested.
  *
- * See the description of synchronize_sched() for more detailed information
- * on memory ordering guarantees.
+ * See the description of synchronize_sched() for more detailed
+ * information on memory-ordering guarantees.  However, please note
+ * that -only- the memory-ordering guarantees apply.  For example,
+ * synchronize_rcu() is -not- guaranteed to wait on things like code
+ * protected by preempt_disable(), instead, synchronize_rcu() is -only-
+ * guaranteed to wait on RCU read-side critical sections, that is, sections
+ * of code protected by rcu_read_lock().
  */
 void synchronize_rcu(void)
 {
