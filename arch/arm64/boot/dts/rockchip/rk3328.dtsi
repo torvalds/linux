@@ -558,28 +558,6 @@
 		resets = <&cru SRST_GPU_A>;
 	};
 
-	h265e_mmu: iommu@ff330200 {
-		compatible = "rockchip,iommu";
-		reg = <0x0 0xff330200 0 0x100>;
-		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "h265e_mmu";
-		clocks = <&cru ACLK_H265>, <&cru PCLK_H265>;
-		clock-names = "aclk", "iface";
-		#iommu-cells = <0>;
-		status = "disabled";
-	};
-
-	vepu_mmu: iommu@ff340800 {
-		compatible = "rockchip,iommu";
-		reg = <0x0 0xff340800 0x0 0x40>;
-		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vepu_mmu";
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
-		clock-names = "aclk", "iface";
-		#iommu-cells = <0>;
-		status = "disabled";
-	};
-
 	vpu_mmu: iommu@ff350800 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff350800 0x0 0x40>;
@@ -600,6 +578,68 @@
 		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		status = "disabled";
+	};
+
+	h265e: h265e@ff330000 {
+		compatible = "rockchip,h265e";
+		rockchip,grf = <&grf>;
+		iommu_enabled = <1>;
+		iommus = <&h265e_mmu>;
+		reg = <0x0 0xff330000 0 0x200>;
+		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_H265>, <&cru PCLK_H265>,
+			<&cru SCLK_VENC_CORE>, <&cru SCLK_VENC_DSP>,
+			<&cru ACLK_RKVENC>, <&cru ACLK_AXISRAM>;
+		clock-names = "aclk_h265", "pclk_h265", "clk_core",
+			"clk_dsp", "aclk_venc", "aclk_axi2sram";
+		rockchip,srv = <&venc_srv>;
+		mode_bit = <11>;
+		mode_ctrl = <0x40c>;
+		name = "h265e";
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	h265e_mmu: iommu@ff330200 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff330200 0 0x100>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "h265e_mmu";
+		#iommu-cells = <0>;
+	};
+
+	vepu: vepu@ff340000 {
+		compatible = "rockchip,rk3328-vepu", "rockchip,vepu";
+		rockchip,grf = <&grf>;
+		iommu_enabled = <1>;
+		iommus = <&vepu_mmu>;
+		reg = <0x0 0xff340000 0x0 0x400>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_RKVENC_H264_H>,
+			<&cru SRST_RKVENC_H264_A>;
+		reset-names = "video_h", "video_a";
+		rockchip,srv = <&venc_srv>;
+		mode_bit = <11>;
+		mode_ctrl = <0x40c>;
+		name = "vepu";
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	vepu_mmu: iommu@ff340800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff340800 0x0 0x40>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vepu_mmu";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
+	};
+
+	venc_srv: venc_srv {
+		compatible = "rockchip,mpp_service";
 	};
 
 	vop: vop@ff370000 {
