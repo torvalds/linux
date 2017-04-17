@@ -5065,30 +5065,28 @@ static void pci_request_resource_alignment(struct pci_dev *dev, int bar,
 	}
 
 	size = resource_size(r);
-	if (size < align) {
+	if (size >= align)
+		return;
 
-		/*
-		 * Increase the size of the resource.  BARs are aligned on
-		 * their size, so when we reallocate space for this
-		 * resource, we'll allocate it with the larger alignment.
-		 * It also prevents assignment of any other BARs inside the
-		 * size.  If we're requesting page alignment, this means no
-		 * other BARs will share the page.
-		 *
-		 * This makes the resource larger than the hardware BAR,
-		 * which may break drivers that compute things based on the
-		 * resource size, e.g., to find registers at a fixed offset
-		 * before the end of the BAR.  We hope users don't request
-		 * alignment for such devices.
-		 */
-		size = align;
-		dev_info(&dev->dev, "BAR%d %pR: requesting alignment to %#llx\n",
-			 bar, r, (unsigned long long)align);
+	/*
+	 * Increase the size of the resource.  BARs are aligned on their
+	 * size, so when we reallocate space for this resource, we'll
+	 * allocate it with the larger alignment.  It also prevents
+	 * assignment of any other BARs inside the size.  If we're
+	 * requesting page alignment, this means no other BARs will share
+	 * the page.
+	 *
+	 * This makes the resource larger than the hardware BAR, which may
+	 * break drivers that compute things based on the resource size,
+	 * e.g., to find registers at a fixed offset before the end of the
+	 * BAR.  We hope users don't request alignment for such devices.
+	 */
+	dev_info(&dev->dev, "BAR%d %pR: requesting alignment to %#llx\n",
+		 bar, r, (unsigned long long)align);
 
-	}
-	r->flags |= IORESOURCE_UNSET;
-	r->end = size - 1;
 	r->start = 0;
+	r->end = align - 1;
+	r->flags |= IORESOURCE_UNSET;
 }
 
 /*
