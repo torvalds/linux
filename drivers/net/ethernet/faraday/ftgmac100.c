@@ -1077,6 +1077,9 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 	phydev->advertising = phydev->supported;
 
+	/* Display what we found */
+	phy_attached_info(phydev);
+
 	return 0;
 }
 
