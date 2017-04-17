@@ -2657,7 +2657,7 @@ static int skge_down(struct net_device *dev)
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
 
-	if (skge->mem == NULL)
+	if (!skge->mem)
 		return 0;
 
 	netif_info(skge, ifdown, skge->netdev, "disabling interface\n");
