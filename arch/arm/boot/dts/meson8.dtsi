@@ -50,8 +50,6 @@
 	model = "Amlogic Meson8 SoC";
 	compatible = "amlogic,meson8";
 
-	interrupt-parent = <&gic>;
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -91,18 +89,55 @@
 		clock-frequency = <141666666>;
 	};
 
-	pinctrl_cbus: pinctrl@c1109880 {
-		compatible = "amlogic,meson8-cbus-pinctrl";
-		reg = <0xc1109880 0x10>;
+}; /* end of / */
+
+&aobus {
+	pinctrl_aobus: pinctrl@84 {
+		compatible = "amlogic,meson8-aobus-pinctrl";
+		reg = <0x84 0xc>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
-		gpio: banks@c11080b0 {
-			reg = <0xc11080b0 0x28>,
-			      <0xc11080e8 0x18>,
-			      <0xc1108120 0x18>,
-			      <0xc1108030 0x30>;
+		gpio_ao: ao-bank@14 {
+			reg = <0x14 0x4>,
+			      <0x2c 0x4>,
+			      <0x24 0x8>;
+			reg-names = "mux", "pull", "gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_aobus 0 120 16>;
+		};
+
+		uart_ao_a_pins: uart_ao_a {
+			mux {
+				groups = "uart_tx_ao_a", "uart_rx_ao_a";
+				function = "uart_ao";
+			};
+		};
+
+		i2c_ao_pins: i2c_mst_ao {
+			mux {
+				groups = "i2c_mst_sck_ao", "i2c_mst_sda_ao";
+				function = "i2c_mst_ao";
+			};
+		};
+	};
+};
+
+&cbus {
+	pinctrl_cbus: pinctrl@9880 {
+		compatible = "amlogic,meson8-cbus-pinctrl";
+		reg = <0x9880 0x10>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio: banks@80b0 {
+			reg = <0x80b0 0x28>,
+			      <0x80e8 0x18>,
+			      <0x8120 0x18>,
+			      <0x8030 0x30>;
 			reg-names = "mux", "pull", "pull-enable", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -134,36 +169,41 @@
 			};
 		};
 	};
+};
 
-	pinctrl_aobus: pinctrl@c8100084 {
-		compatible = "amlogic,meson8-aobus-pinctrl";
-		reg = <0xc8100084 0xc>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
+&ethmac {
+	clocks = <&clk81>;
+	clock-names = "stmmaceth";
+};
 
-		gpio_ao: ao-bank@c1108030 {
-			reg = <0xc8100014 0x4>,
-			      <0xc810002c 0x4>,
-			      <0xc8100024 0x8>;
-			reg-names = "mux", "pull", "gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_aobus 0 120 16>;
-		};
+&i2c_AO {
+	clocks = <&clk81>;
+};
 
-		uart_ao_a_pins: uart_ao_a {
-			mux {
-				groups = "uart_tx_ao_a", "uart_rx_ao_a";
-				function = "uart_ao";
-			};
-		};
+&i2c_A {
+	clocks = <&clk81>;
+};
 
-		i2c_ao_pins: i2c_mst_ao {
-			mux {
-				groups = "i2c_mst_sck_ao", "i2c_mst_sda_ao";
-				function = "i2c_mst_ao";
-			};
-		};
-	};
-}; /* end of / */
+&i2c_B {
+	clocks = <&clk81>;
+};
+
+&spifc {
+	clocks = <&clk81>;
+};
+
+&uart_AO {
+	clocks = <&clk81>;
+};
+
+&uart_A {
+	clocks = <&clk81>;
+};
+
+&uart_B {
+	clocks = <&clk81>;
+};
+
+&uart_C {
+	clocks = <&clk81>;
+};
