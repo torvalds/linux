@@ -101,5 +101,6 @@ static struct platform_driver ns_thermal_driver = {
 };
 module_platform_driver(ns_thermal_driver);
 
+MODULE_AUTHOR("Rafał Miłecki <rafal@milecki.pl>");
 MODULE_DESCRIPTION("Northstar thermal driver");
 MODULE_LICENSE("GPL v2");
