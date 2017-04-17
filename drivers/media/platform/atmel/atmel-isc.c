@@ -1490,6 +1490,7 @@ static int isc_formats_init(struct isc_device *isc)
 		}
 	}
 
+	fmt = &isc_formats[0];
 	for (i = 0, num_fmts = 0; i < ARRAY_SIZE(isc_formats); i++) {
 		if (fmt->isc_support || fmt->sd_support)
 			num_fmts++;
