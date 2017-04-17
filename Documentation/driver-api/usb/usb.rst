@@ -212,9 +212,14 @@ This chapter presents the Linux character device nodes. You may prefer
 to avoid writing new kernel code for your USB driver. User mode device
 drivers are usually packaged as applications or libraries, and may use
 character devices through some programming library that wraps it.
-Such libraries include
-`libusb <http://libusb.sourceforge.net>`__ for C/C++, and
-`jUSB <http://jUSB.sourceforge.net>`__ for Java.
+Such libraries include:
+
+ - `libusb <http://libusb.sourceforge.net>`__ for C/C++, and
+ - `jUSB <http://jUSB.sourceforge.net>`__ for Java.
+
+Some old information about it can be seen at the "USB Device Filesystem"
+section of the USB Guide. The latest copy of the USB Guide can be found
+at http://www.linux-usb.org/
 
 .. note::
 
@@ -230,45 +235,80 @@ What files are in "devtmpfs"?
 
 Conventionally mounted at ``/dev/bus/usb/``, usbfs features include:
 
--  ``/dev/bus/usb//BBB/DDD`` ... magic files exposing the each device's
+-  ``/dev/bus/usb/BBB/DDD`` ... magic files exposing the each device's
    configuration descriptors, and supporting a series of ioctls for
    making device requests, including I/O to devices. (Purely for access
    by programs.)
 
-Each bus is given a number (BBB) based on when it was enumerated; within
-each bus, each device is given a similar number (DDD). Those BBB/DDD
+Each bus is given a number (``BBB``) based on when it was enumerated; within
+each bus, each device is given a similar number (``DDD``). Those ``BBB/DDD``
 paths are not "stable" identifiers; expect them to change even if you
 always leave the devices plugged in to the same hub port. *Don't even
 think of saving these in application configuration files.* Stable
 identifiers are available, for user mode applications that want to use
 them. HID and networking devices expose these stable IDs, so that for
 example you can be sure that you told the right UPS to power down its
-second server. "usbfs" doesn't (yet) expose those IDs.
+second server. Pleast note that it doesn't (yet) expose those IDs.
 
-/dev/bus/usb//BBB/DDD
----------------------
+/dev/bus/usb/BBB/DDD
+--------------------
 
 Use these files in one of these basic ways:
 
-*They can be read,* producing first the device descriptor (18 bytes) and
-then the descriptors for the current configuration. See the USB 2.0 spec
-for details about those binary data formats. You'll need to convert most
-multibyte values from little endian format to your native host byte
-order, although a few of the fields in the device descriptor (both of
-the BCD-encoded fields, and the vendor and product IDs) will be
-byteswapped for you. Note that configuration descriptors include
-descriptors for interfaces, altsettings, endpoints, and maybe additional
-class descriptors.
+- *They can be read,* producing first the device descriptor (18 bytes) and
+  then the descriptors for the current configuration. See the USB 2.0 spec
+  for details about those binary data formats. You'll need to convert most
+  multibyte values from little endian format to your native host byte
+  order, although a few of the fields in the device descriptor (both of
+  the BCD-encoded fields, and the vendor and product IDs) will be
+  byteswapped for you. Note that configuration descriptors include
+  descriptors for interfaces, altsettings, endpoints, and maybe additional
+  class descriptors.
 
-*Perform USB operations* using *ioctl()* requests to make endpoint I/O
-requests (synchronously or asynchronously) or manage the device. These
-requests need the CAP_SYS_RAWIO capability, as well as filesystem
-access permissions. Only one ioctl request can be made on one of these
-device files at a time. This means that if you are synchronously reading
-an endpoint from one thread, you won't be able to write to a different
-endpoint from another thread until the read completes. This works for
-*half duplex* protocols, but otherwise you'd use asynchronous i/o
-requests.
+- *Perform USB operations* using *ioctl()* requests to make endpoint I/O
+  requests (synchronously or asynchronously) or manage the device. These
+  requests need the ``CAP_SYS_RAWIO`` capability, as well as filesystem
+  access permissions. Only one ioctl request can be made on one of these
+  device files at a time. This means that if you are synchronously reading
+  an endpoint from one thread, you won't be able to write to a different
+  endpoint from another thread until the read completes. This works for
+  *half duplex* protocols, but otherwise you'd use asynchronous i/o
+  requests.
+
+Each connected USB device has one file.  The ``BBB`` indicates the bus
+number.  The ``DDD`` indicates the device address on that bus.  Both
+of these numbers are assigned sequentially, and can be reused, so
+you can't rely on them for stable access to devices.  For example,
+it's relatively common for devices to re-enumerate while they are
+still connected (perhaps someone jostled their power supply, hub,
+or USB cable), so a device might be ``002/027`` when you first connect
+it and ``002/048`` sometime later.
+
+These files can be read as binary data.  The binary data consists
+of first the device descriptor, then the descriptors for each
+configuration of the device.  Multi-byte fields in the device descriptor
+are converted to host endianness by the kernel.  The configuration
+descriptors are in bus endian format! The configuration descriptor
+are wTotalLength bytes apart. If a device returns less configuration
+descriptor data than indicated by wTotalLength there will be a hole in
+the file for the missing bytes.  This information is also shown
+in text form by the ``/sys/kernel/debug/usb/devices`` file, described later.
+
+These files may also be used to write user-level drivers for the USB
+devices.  You would open the ``/dev/bus/usb/BBB/DDD`` file read/write,
+read its descriptors to make sure it's the device you expect, and then
+bind to an interface (or perhaps several) using an ioctl call.  You
+would issue more ioctls to the device to communicate to it using
+control, bulk, or other kinds of USB transfers.  The IOCTLs are
+listed in the ``<linux/usbdevice_fs.h>`` file, and at this writing the
+source code (``linux/drivers/usb/core/devio.c``) is the primary reference
+for how to access devices through those files.
+
+Note that since by default these ``BBB/DDD`` files are writable only by
+root, only root can write such user mode drivers.  You can selectively
+grant read/write permissions to other users by using ``chmod``.  Also,
+usbfs mount options such as ``devmode=0666`` may be helpful.
+
 
 Life Cycle of User Mode Drivers
 -------------------------------
@@ -276,7 +316,7 @@ Life Cycle of User Mode Drivers
 Such a driver first needs to find a device file for a device it knows
 how to handle. Maybe it was told about it because a ``/sbin/hotplug``
 event handling agent chose that driver to handle the new device. Or
-maybe it's an application that scans all the /dev/bus/usb/ device files,
+maybe it's an application that scans all the ``/dev/bus/usb`` device files,
 and ignores most devices. In either case, it should :c:func:`read()`
 all the descriptors from the device file, and check them against what it
 knows how to handle. It might just reject everything except a particular
@@ -430,7 +470,7 @@ USBDEVFS_RELEASEINTERFACE
     the number of the interface (bInterfaceNumber from descriptor); File
     modification time is not updated by this request.
 
-.. warning::
+    .. warning::
 
 	*No security check is made to ensure that the task which made
 	the claim is the one which is releasing it. This means that user
@@ -442,7 +482,7 @@ USBDEVFS_RESETEP
     as identified in the endpoint descriptor), with USB_DIR_IN added
     if the device's endpoint sends data to the host.
 
-	**Warning**
+    .. Warning::
 
 	*Avoid using this request. It should probably be removed.* Using
 	it typically means the device and driver will lose toggle
@@ -479,10 +519,10 @@ USBDEVFS_BULK
 		void          *data;
 	};
 
-    The "ep" value identifies a bulk endpoint number (1 to 15, as
+    The ``ep`` value identifies a bulk endpoint number (1 to 15, as
     identified in an endpoint descriptor), masked with USB_DIR_IN when
     referring to an endpoint which sends data to the host from the
-    device. The length of the data buffer is identified by "len"; Recent
+    device. The length of the data buffer is identified by ``len``; Recent
     kernels support requests up to about 128KBytes. *FIXME say how read
     length is returned, and how short reads are handled.*.
 
@@ -494,7 +534,7 @@ USBDEVFS_CLEAR_HALT
     which sends data to the host from the device.
 
     Use this on bulk or interrupt endpoints which have stalled,
-    returning *-EPIPE* status to a data transfer request. Do not issue
+    returning ``-EPIPE`` status to a data transfer request. Do not issue
     the control request directly, since that could invalidate the host's
     record of the data toggle.
 
@@ -674,3 +714,334 @@ Note that this behavior is intended to be used for informational and
 debug purposes. It would be more appropriate to use programs such as
 udev or HAL to initialize a device or start a user-mode helper program,
 for instance.
+
+In this file, each device's output has multiple lines of ASCII output.
+
+I made it ASCII instead of binary on purpose, so that someone
+can obtain some useful data from it without the use of an
+auxiliary program.  However, with an auxiliary program, the numbers
+in the first 4 columns of each ``T:`` line (topology info:
+Lev, Prnt, Port, Cnt) can be used to build a USB topology diagram.
+
+Each line is tagged with a one-character ID for that line::
+
+	T = Topology (etc.)
+	B = Bandwidth (applies only to USB host controllers, which are
+	virtualized as root hubs)
+	D = Device descriptor info.
+	P = Product ID info. (from Device descriptor, but they won't fit
+	together on one line)
+	S = String descriptors.
+	C = Configuration descriptor info. (* = active configuration)
+	I = Interface descriptor info.
+	E = Endpoint descriptor info.
+
+/sys/kernel/debug/usb/devices output format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Legend::
+  d = decimal number (may have leading spaces or 0's)
+  x = hexadecimal number (may have leading spaces or 0's)
+  s = string
+
+
+
+Topology info
+^^^^^^^^^^^^^
+
+::
+
+	T:  Bus=dd Lev=dd Prnt=dd Port=dd Cnt=dd Dev#=ddd Spd=dddd MxCh=dd
+	|   |      |      |       |       |      |        |        |__MaxChildren
+	|   |      |      |       |       |      |        |__Device Speed in Mbps
+	|   |      |      |       |       |      |__DeviceNumber
+	|   |      |      |       |       |__Count of devices at this level
+	|   |      |      |       |__Connector/Port on Parent for this device
+	|   |      |      |__Parent DeviceNumber
+	|   |      |__Level in topology for this bus
+	|   |__Bus number
+	|__Topology info tag
+
+Speed may be:
+
+	======= ======================================================
+	1.5	Mbit/s for low speed USB
+	12	Mbit/s for full speed USB
+	480	Mbit/s for high speed USB (added for USB 2.0);
+		also used for Wireless USB, which has no fixed speed
+	5000	Mbit/s for SuperSpeed USB (added for USB 3.0)
+	======= ======================================================
+
+For reasons lost in the mists of time, the Port number is always
+too low by 1.  For example, a device plugged into port 4 will
+show up with ``Port=03``.
+
+Bandwidth info
+^^^^^^^^^^^^^^
+
+::
+
+	B:  Alloc=ddd/ddd us (xx%), #Int=ddd, #Iso=ddd
+	|   |                       |         |__Number of isochronous requests
+	|   |                       |__Number of interrupt requests
+	|   |__Total Bandwidth allocated to this bus
+	|__Bandwidth info tag
+
+Bandwidth allocation is an approximation of how much of one frame
+(millisecond) is in use.  It reflects only periodic transfers, which
+are the only transfers that reserve bandwidth.  Control and bulk
+transfers use all other bandwidth, including reserved bandwidth that
+is not used for transfers (such as for short packets).
+
+The percentage is how much of the "reserved" bandwidth is scheduled by
+those transfers.  For a low or full speed bus (loosely, "USB 1.1"),
+90% of the bus bandwidth is reserved.  For a high speed bus (loosely,
+"USB 2.0") 80% is reserved.
+
+
+Device descriptor info & Product ID info
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+	D:  Ver=x.xx Cls=xx(s) Sub=xx Prot=xx MxPS=dd #Cfgs=dd
+	P:  Vendor=xxxx ProdID=xxxx Rev=xx.xx
+
+where::
+
+	D:  Ver=x.xx Cls=xx(sssss) Sub=xx Prot=xx MxPS=dd #Cfgs=dd
+	|   |        |             |      |       |       |__NumberConfigurations
+	|   |        |             |      |       |__MaxPacketSize of Default Endpoint
+	|   |        |             |      |__DeviceProtocol
+	|   |        |             |__DeviceSubClass
+	|   |        |__DeviceClass
+	|   |__Device USB version
+	|__Device info tag #1
+
+where::
+
+	P:  Vendor=xxxx ProdID=xxxx Rev=xx.xx
+	|   |           |           |__Product revision number
+	|   |           |__Product ID code
+	|   |__Vendor ID code
+	|__Device info tag #2
+
+
+String descriptor info
+^^^^^^^^^^^^^^^^^^^^^^
+::
+
+	S:  Manufacturer=ssss
+	|   |__Manufacturer of this device as read from the device.
+	|      For USB host controller drivers (virtual root hubs) this may
+	|      be omitted, or (for newer drivers) will identify the kernel
+	|      version and the driver which provides this hub emulation.
+	|__String info tag
+
+	S:  Product=ssss
+	|   |__Product description of this device as read from the device.
+	|      For older USB host controller drivers (virtual root hubs) this
+	|      indicates the driver; for newer ones, it's a product (and vendor)
+	|      description that often comes from the kernel's PCI ID database.
+	|__String info tag
+
+	S:  SerialNumber=ssss
+	|   |__Serial Number of this device as read from the device.
+	|      For USB host controller drivers (virtual root hubs) this is
+	|      some unique ID, normally a bus ID (address or slot name) that
+	|      can't be shared with any other device.
+	|__String info tag
+
+
+
+Configuration descriptor info
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+	C:* #Ifs=dd Cfg#=dd Atr=xx MPwr=dddmA
+	| | |       |       |      |__MaxPower in mA
+	| | |       |       |__Attributes
+	| | |       |__ConfiguratioNumber
+	| | |__NumberOfInterfaces
+	| |__ "*" indicates the active configuration (others are " ")
+	|__Config info tag
+
+USB devices may have multiple configurations, each of which act
+rather differently.  For example, a bus-powered configuration
+might be much less capable than one that is self-powered.  Only
+one device configuration can be active at a time; most devices
+have only one configuration.
+
+Each configuration consists of one or more interfaces.  Each
+interface serves a distinct "function", which is typically bound
+to a different USB device driver.  One common example is a USB
+speaker with an audio interface for playback, and a HID interface
+for use with software volume control.
+
+Interface descriptor info (can be multiple per Config)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+	I:* If#=dd Alt=dd #EPs=dd Cls=xx(sssss) Sub=xx Prot=xx Driver=ssss
+	| | |      |      |       |             |      |       |__Driver name
+	| | |      |      |       |             |      |          or "(none)"
+	| | |      |      |       |             |      |__InterfaceProtocol
+	| | |      |      |       |             |__InterfaceSubClass
+	| | |      |      |       |__InterfaceClass
+	| | |      |      |__NumberOfEndpoints
+	| | |      |__AlternateSettingNumber
+	| | |__InterfaceNumber
+	| |__ "*" indicates the active altsetting (others are " ")
+	|__Interface info tag
+
+A given interface may have one or more "alternate" settings.
+For example, default settings may not use more than a small
+amount of periodic bandwidth.  To use significant fractions
+of bus bandwidth, drivers must select a non-default altsetting.
+
+Only one setting for an interface may be active at a time, and
+only one driver may bind to an interface at a time.  Most devices
+have only one alternate setting per interface.
+
+
+Endpoint descriptor info (can be multiple per Interface)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+	E:  Ad=xx(s) Atr=xx(ssss) MxPS=dddd Ivl=dddss
+	|   |        |            |         |__Interval (max) between transfers
+	|   |        |            |__EndpointMaxPacketSize
+	|   |        |__Attributes(EndpointType)
+	|   |__EndpointAddress(I=In,O=Out)
+	|__Endpoint info tag
+
+The interval is nonzero for all periodic (interrupt or isochronous)
+endpoints.  For high speed endpoints the transfer interval may be
+measured in microseconds rather than milliseconds.
+
+For high speed periodic endpoints, the ``EndpointMaxPacketSize`` reflects
+the per-microframe data transfer size.  For "high bandwidth"
+endpoints, that can reflect two or three packets (for up to
+3KBytes every 125 usec) per endpoint.
+
+With the Linux-USB stack, periodic bandwidth reservations use the
+transfer intervals and sizes provided by URBs, which can be less
+than those found in endpoint descriptor.
+
+Usage examples
+~~~~~~~~~~~~~~
+
+If a user or script is interested only in Topology info, for
+example, use something like ``grep ^T: /sys/kernel/debug/usb/devices``
+for only the Topology lines.  A command like
+``grep -i ^[tdp]: /sys/kernel/debug/usb/devices`` can be used to list
+only the lines that begin with the characters in square brackets,
+where the valid characters are TDPCIE.  With a slightly more able
+script, it can display any selected lines (for example, only T, D,
+and P lines) and change their output format.  (The ``procusb``
+Perl script is the beginning of this idea.  It will list only
+selected lines [selected from TBDPSCIE] or "All" lines from
+``/sys/kernel/debug/usb/devices``.)
+
+The Topology lines can be used to generate a graphic/pictorial
+of the USB devices on a system's root hub.  (See more below
+on how to do this.)
+
+The Interface lines can be used to determine what driver is
+being used for each device, and which altsetting it activated.
+
+The Configuration lines could be used to list maximum power
+(in milliamps) that a system's USB devices are using.
+For example, ``grep ^C: /sys/kernel/debug/usb/devices``.
+
+
+Here's an example, from a system which has a UHCI root hub,
+an external hub connected to the root hub, and a mouse and
+a serial converter connected to the external hub.
+
+::
+
+	T:  Bus=00 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12   MxCh= 2
+	B:  Alloc= 28/900 us ( 3%), #Int=  2, #Iso=  0
+	D:  Ver= 1.00 Cls=09(hub  ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+	P:  Vendor=0000 ProdID=0000 Rev= 0.00
+	S:  Product=USB UHCI Root Hub
+	S:  SerialNumber=dce0
+	C:* #Ifs= 1 Cfg#= 1 Atr=40 MxPwr=  0mA
+	I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+	E:  Ad=81(I) Atr=03(Int.) MxPS=   8 Ivl=255ms
+
+	T:  Bus=00 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12   MxCh= 4
+	D:  Ver= 1.00 Cls=09(hub  ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+	P:  Vendor=0451 ProdID=1446 Rev= 1.00
+	C:* #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=100mA
+	I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+	E:  Ad=81(I) Atr=03(Int.) MxPS=   1 Ivl=255ms
+
+	T:  Bus=00 Lev=02 Prnt=02 Port=00 Cnt=01 Dev#=  3 Spd=1.5  MxCh= 0
+	D:  Ver= 1.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+	P:  Vendor=04b4 ProdID=0001 Rev= 0.00
+	C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
+	I:  If#= 0 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=01 Prot=02 Driver=mouse
+	E:  Ad=81(I) Atr=03(Int.) MxPS=   3 Ivl= 10ms
+
+	T:  Bus=00 Lev=02 Prnt=02 Port=02 Cnt=02 Dev#=  4 Spd=12   MxCh= 0
+	D:  Ver= 1.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+	P:  Vendor=0565 ProdID=0001 Rev= 1.08
+	S:  Manufacturer=Peracom Networks, Inc.
+	S:  Product=Peracom USB to Serial Converter
+	C:* #Ifs= 1 Cfg#= 1 Atr=a0 MxPwr=100mA
+	I:  If#= 0 Alt= 0 #EPs= 3 Cls=00(>ifc ) Sub=00 Prot=00 Driver=serial
+	E:  Ad=81(I) Atr=02(Bulk) MxPS=  64 Ivl= 16ms
+	E:  Ad=01(O) Atr=02(Bulk) MxPS=  16 Ivl= 16ms
+	E:  Ad=82(I) Atr=03(Int.) MxPS=   8 Ivl=  8ms
+
+
+Selecting only the ``T:`` and ``I:`` lines from this (for example, by using
+``procusb ti``), we have
+
+::
+
+	T:  Bus=00 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12   MxCh= 2
+	T:  Bus=00 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12   MxCh= 4
+	I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+	T:  Bus=00 Lev=02 Prnt=02 Port=00 Cnt=01 Dev#=  3 Spd=1.5  MxCh= 0
+	I:  If#= 0 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=01 Prot=02 Driver=mouse
+	T:  Bus=00 Lev=02 Prnt=02 Port=02 Cnt=02 Dev#=  4 Spd=12   MxCh= 0
+	I:  If#= 0 Alt= 0 #EPs= 3 Cls=00(>ifc ) Sub=00 Prot=00 Driver=serial
+
+
+Physically this looks like (or could be converted to)::
+
+                      +------------------+
+                      |  PC/root_hub (12)|   Dev# = 1
+                      +------------------+   (nn) is Mbps.
+    Level 0           |  CN.0   |  CN.1  |   [CN = connector/port #]
+                      +------------------+
+                          /
+                         /
+            +-----------------------+
+  Level 1   | Dev#2: 4-port hub (12)|
+            +-----------------------+
+            |CN.0 |CN.1 |CN.2 |CN.3 |
+            +-----------------------+
+                \           \____________________
+                 \_____                          \
+                       \                          \
+               +--------------------+      +--------------------+
+  Level 2      | Dev# 3: mouse (1.5)|      | Dev# 4: serial (12)|
+               +--------------------+      +--------------------+
+
+
+
+Or, in a more tree-like structure (ports [Connectors] without
+connections could be omitted)::
+
+	PC:  Dev# 1, root hub, 2 ports, 12 Mbps
+	|_ CN.0:  Dev# 2, hub, 4 ports, 12 Mbps
+	     |_ CN.0:  Dev #3, mouse, 1.5 Mbps
+	     |_ CN.1:
+	     |_ CN.2:  Dev #4, serial, 12 Mbps
+	     |_ CN.3:
+	|_ CN.1:
