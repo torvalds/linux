@@ -144,8 +144,6 @@ struct parse_tag {
 
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
 
-#define SRCLINE_UNKNOWN  ((char *) "??:0")
-
 static inline int path__join(char *bf, size_t size,
 			     const char *path1, const char *path2)
 {
@@ -160,16 +158,6 @@ static inline int path__join3(char *bf, size_t size,
 			 path1, path1[0] ? "/" : "",
 			 path2, path2[0] ? "/" : "", path3);
 }
-
-struct dso;
-struct symbol;
-
-extern bool srcline_full_filename;
-char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool show_addr);
-char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool show_addr, bool unwind_inlines);
-void free_srcline(char *srcline);
 
 int perf_event_paranoid(void);
 
@@ -220,20 +208,5 @@ int sched_getcpu(void);
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
 
 int unit_number__scnprintf(char *buf, size_t size, u64 n);
-
-struct inline_list {
-	char			*filename;
-	char			*funcname;
-	unsigned int		line_nr;
-	struct list_head	list;
-};
-
-struct inline_node {
-	u64			addr;
-	struct list_head	val;
-};
-
-struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr);
-void inline_node__delete(struct inline_node *node);
 
 #endif /* GIT_COMPAT_UTIL_H */

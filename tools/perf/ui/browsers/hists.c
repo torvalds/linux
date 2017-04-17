@@ -19,6 +19,7 @@
 #include "../ui.h"
 #include "map.h"
 #include "annotate.h"
+#include "srcline.h"
 
 #include "sane_ctype.h"
 

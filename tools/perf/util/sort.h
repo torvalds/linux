@@ -21,6 +21,7 @@
 #include <subcmd/parse-options.h>
 #include "parse-events.h"
 #include "hist.h"
+#include "srcline.h"
 #include "thread.h"
 
 extern regex_t parent_regex;

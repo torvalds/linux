@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "machine.h"
 #include <linux/string.h>
+#include "srcline.h"
 #include "unwind.h"
 
 static void __maps__insert(struct maps *maps, struct map *map);
