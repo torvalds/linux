@@ -1010,13 +1010,16 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&vc4->power_lock);
-	if (vc4->power_refcount++ == 0)
+	if (vc4->power_refcount++ == 0) {
 		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-	mutex_unlock(&vc4->power_lock);
-	if (ret < 0) {
-		kfree(exec);
-		return ret;
+		if (ret < 0) {
+			mutex_unlock(&vc4->power_lock);
+			vc4->power_refcount--;
+			kfree(exec);
+			return ret;
+		}
 	}
+	mutex_unlock(&vc4->power_lock);
 
 	exec->args = args;
 	INIT_LIST_HEAD(&exec->unref_list);
