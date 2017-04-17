@@ -103,6 +103,9 @@ static uint64_t uvd_v7_0_enc_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
+	if (ring->use_doorbell)
+		return adev->wb.wb[ring->wptr_offs];
+
 	if (ring == &adev->uvd.ring_enc[0])
 		return RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_WPTR));
 	else
@@ -133,6 +136,13 @@ static void uvd_v7_0_ring_set_wptr(struct amdgpu_ring *ring)
 static void uvd_v7_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+
+	if (ring->use_doorbell) {
+		/* XXX check if swapping is necessary on BE */
+		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
+		return;
+	}
 
 	if (ring == &adev->uvd.ring_enc[0])
 		WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_WPTR),
@@ -421,6 +431,10 @@ static int uvd_v7_0_sw_init(void *handle)
 	for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 		ring = &adev->uvd.ring_enc[i];
 		sprintf(ring->name, "uvd_enc%d", i);
+		if (amdgpu_sriov_vf(adev)) {
+			ring->use_doorbell = true;
+			ring->doorbell_index = AMDGPU_DOORBELL64_UVD_RING0_1 * 2;
+		}
 		r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.irq, 0);
 		if (r)
 			return r;
