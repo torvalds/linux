@@ -9,9 +9,14 @@ axp223 (X-Powers)
 axp809 (X-Powers)
 
 Required properties:
-- compatible: "x-powers,axp152", "x-powers,axp202", "x-powers,axp209",
-	      "x-powers,axp221", "x-powers,axp223", "x-powers,axp806",
-	      "x-powers,axp809"
+- compatible: should be one of:
+    * "x-powers,axp152"
+    * "x-powers,axp202"
+    * "x-powers,axp209"
+    * "x-powers,axp221"
+    * "x-powers,axp223"
+    * "x-powers,axp806"
+    * "x-powers,axp809"
 - reg: The I2C slave address or RSB hardware address for the AXP chip
 - interrupt-parent: The parent interrupt controller
 - interrupts: SoC NMI / GPIO interrupt connected to the PMIC's IRQ pin
