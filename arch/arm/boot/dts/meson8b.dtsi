@@ -171,6 +171,12 @@
 	};
 };
 
+&L2 {
+	arm,data-latency = <3 3 3>;
+	arm,tag-latency = <2 2 2>;
+	arm,filter-ranges = <0x100000 0xc0000000>;
+};
+
 &uart_AO {
 	clocks = <&clkc CLKID_CLK81>;
 };

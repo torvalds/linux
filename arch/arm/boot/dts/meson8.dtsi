@@ -188,6 +188,12 @@
 	clocks = <&clk81>;
 };
 
+&L2 {
+	arm,data-latency = <3 3 3>;
+	arm,tag-latency = <2 2 2>;
+	arm,filter-ranges = <0x100000 0xc0000000>;
+};
+
 &spifc {
 	clocks = <&clk81>;
 };
