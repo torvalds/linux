@@ -2411,35 +2411,9 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
-	if (data->smu_features[GNLD_AVFS].supported) {
-		uint32_t features_enabled;
-		result = vega10_get_smc_features(hwmgr->smumgr, &features_enabled);
-		PP_ASSERT_WITH_CODE(!result,
-				"Failed to Retrieve Enabled Features!",
-				return result);
-		if (!(features_enabled & (1 << FEATURE_AVFS_BIT))) {
-			result = vega10_perform_btc(hwmgr->smumgr);
-			PP_ASSERT_WITH_CODE(!result,
-					"Failed to Perform BTC!",
+	result = vega10_avfs_enable(hwmgr, true);
+	PP_ASSERT_WITH_CODE(!result, "Attempt to enable AVFS feature Failed!",
 					return result);
-			result = vega10_avfs_enable(hwmgr, true);
-			PP_ASSERT_WITH_CODE(!result,
-					"Attempt to enable AVFS feature Failed!",
-					return result);
-			result = vega10_save_vft_table(hwmgr->smumgr,
-					(uint8_t *)&(data->smc_state_table.avfs_table));
-			PP_ASSERT_WITH_CODE(!result,
-					"Attempt to save VFT table Failed!",
-					return result);
-		} else {
-			data->smu_features[GNLD_AVFS].enabled = true;
-			result = vega10_restore_vft_table(hwmgr->smumgr,
-					(uint8_t *)&(data->smc_state_table.avfs_table));
-			PP_ASSERT_WITH_CODE(!result,
-					"Attempt to restore VFT table Failed!",
-					return result;);
-		}
-	}
 
 	return 0;
 }

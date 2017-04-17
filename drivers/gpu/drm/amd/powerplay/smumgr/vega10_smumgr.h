@@ -62,7 +62,6 @@ int vega10_get_smc_features(struct pp_smumgr *smumgr,
 		uint32_t *features_enabled);
 int vega10_save_vft_table(struct pp_smumgr *smumgr, uint8_t *avfs_table);
 int vega10_restore_vft_table(struct pp_smumgr *smumgr, uint8_t *avfs_table);
-int vega10_perform_btc(struct pp_smumgr *smumgr);
 
 int vega10_set_tools_address(struct pp_smumgr *smumgr);
 

@@ -299,15 +299,6 @@ int vega10_copy_table_to_smc(struct pp_smumgr *smumgr,
 	return 0;
 }
 
-int vega10_perform_btc(struct pp_smumgr *smumgr)
-{
-	PP_ASSERT_WITH_CODE(!vega10_send_msg_to_smc_with_parameter(
-			smumgr, PPSMC_MSG_RunBtc, 0),
-			"Attempt to run DC BTC Failed!",
-			return -1);
-	return 0;
-}
-
 int vega10_save_vft_table(struct pp_smumgr *smumgr, uint8_t *avfs_table)
 {
 	PP_ASSERT_WITH_CODE(avfs_table,
