@@ -328,16 +328,6 @@ static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	unsigned int i;
-	static const char ext[] = STRIP_EXTENSION;
-
-	if (sizeof(ext) > 1) {
-		i = strlen(argv[0]) - strlen(ext);
-		if (i > 0 && !strcmp(argv[0] + i, ext)) {
-			char *argv0 = strdup(argv[0]);
-			argv[0] = cmd = argv0;
-			argv0[i] = '\0';
-		}
-	}
 
 	/* Turn "perf cmd --help" into "perf help cmd" */
 	if (argc > 1 && !strcmp(argv[1], "--help")) {
