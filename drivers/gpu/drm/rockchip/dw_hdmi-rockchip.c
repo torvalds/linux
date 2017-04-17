@@ -390,7 +390,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 			return -ENOMEM;
 		}
 		phy_table_size = val / 16;
-		of_property_read_u32_array(np, "rockchip,phy_table",
+		of_property_read_u32_array(np, "rockchip,phy-table",
 					   phy_config, val / sizeof(u32));
 		ret = rockchip_hdmi_update_phy_table(hdmi, phy_config,
 						     phy_table_size);
