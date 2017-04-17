@@ -1588,6 +1588,17 @@ static int ftgmac100_set_features(struct net_device *netdev,
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void ftgmac100_poll_controller(struct net_device *netdev)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ftgmac100_interrupt(netdev->irq, netdev);
+	local_irq_restore(flags);
+}
+#endif
+
 static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_open		= ftgmac100_open,
 	.ndo_stop		= ftgmac100_stop,
@@ -1598,6 +1609,9 @@ static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_tx_timeout		= ftgmac100_tx_timeout,
 	.ndo_set_rx_mode	= ftgmac100_set_rx_mode,
 	.ndo_set_features	= ftgmac100_set_features,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ftgmac100_poll_controller,
+#endif
 };
 
 static int ftgmac100_setup_mdio(struct net_device *netdev)
