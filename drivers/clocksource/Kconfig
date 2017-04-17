@@ -67,20 +67,22 @@ config DW_APB_TIMER_OF
 	select DW_APB_TIMER
 	select CLKSRC_OF
 
-config GEMINI_TIMER
-	bool "Cortina Gemini timer driver" if COMPILE_TEST
+config FTTMR010_TIMER
+	bool "Faraday Technology timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select MFD_SYSCON
 	help
-	  Enables support for the Gemini timer
+	  Enables support for the Faraday Technology timer block
+	  FTTMR010.
 
 config ROCKCHIP_TIMER
 	bool "Rockchip timer driver" if COMPILE_TEST
 	depends on ARM || ARM64
 	select CLKSRC_OF
+	select CLKSRC_MMIO
 	help
 	  Enables the support for the rockchip timer driver.
 
@@ -365,6 +367,17 @@ config HISILICON_ERRATUM_161010101
 	  This option enables a workaround for Hisilicon Erratum
 	  161010101. The workaround will be active if the hisilicon,erratum-161010101
 	  property is found in the timer node.
+
+config ARM64_ERRATUM_858921
+	bool "Workaround for Cortex-A73 erratum 858921"
+	default y
+	select ARM_ARCH_TIMER_OOL_WORKAROUND
+	depends on ARM_ARCH_TIMER && ARM64
+	help
+	  This option enables a workaround applicable to Cortex-A73
+	  (all versions), whose counter may return incorrect values.
+	  The workaround will be dynamically enabled when an affected
+	  core is detected.
 
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST

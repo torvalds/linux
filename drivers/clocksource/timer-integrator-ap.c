@@ -200,7 +200,7 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 	err = of_property_read_string(of_aliases,
 				"arm,timer-primary", &path);
 	if (err) {
-		pr_warn("Failed to read property");
+		pr_warn("Failed to read property\n");
 		return err;
 	}
 
@@ -209,7 +209,7 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 	err = of_property_read_string(of_aliases,
 				"arm,timer-secondary", &path);
 	if (err) {
-		pr_warn("Failed to read property");		
+		pr_warn("Failed to read property\n");
 		return err;
 	}
 

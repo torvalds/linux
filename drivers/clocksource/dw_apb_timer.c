@@ -101,7 +101,7 @@ static irqreturn_t dw_apb_clockevent_irq(int irq, void *data)
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 
 	if (!evt->event_handler) {
-		pr_info("Spurious APBT timer interrupt %d", irq);
+		pr_info("Spurious APBT timer interrupt %d\n", irq);
 		return IRQ_NONE;
 	}
 
