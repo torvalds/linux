@@ -34,9 +34,6 @@
 #define INTERFACE_CONTROL	0xa038
 #define STATION_ADDR0		0xa040
 #define STATION_ADDR1		0xa044
-#define RBYT			0xa09c
-#define RPKT			0xa0a0
-#define RFCS			0xa0a4
 
 #define RGMII_REG_0		0x27e0
 #define ICM_CONFIG0_REG_0	0x2c00

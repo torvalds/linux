@@ -38,6 +38,7 @@
 #include "mac.h"
 #include "enet.h"
 #include "ring.h"
+#include "ethtool.h"
 
 #define XGENE_ENET_V2_VERSION	"v1.0"
 #define XGENE_ENET_STD_MTU	1536
@@ -75,6 +76,5 @@ struct xge_pdata {
 
 int xge_mdio_config(struct net_device *ndev);
 void xge_mdio_remove(struct net_device *ndev);
-void xge_set_ethtool_ops(struct net_device *ndev);
 
 #endif /* __XGENE_ENET_V2_MAIN_H__ */
