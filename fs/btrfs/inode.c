@@ -8577,16 +8577,16 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 				loff_t file_offset)
 {
 	struct btrfs_dio_private *dip = NULL;
-	struct bio *io_bio = NULL;
-	struct btrfs_io_bio *btrfs_bio;
+	struct bio *bio = NULL;
+	struct btrfs_io_bio *io_bio;
 	int skip_sum;
 	bool write = (bio_op(dio_bio) == REQ_OP_WRITE);
 	int ret = 0;
 
 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
-	io_bio = btrfs_bio_clone(dio_bio, GFP_NOFS);
-	if (!io_bio) {
+	bio = btrfs_bio_clone(dio_bio, GFP_NOFS);
+	if (!bio) {
 		ret = -ENOMEM;
 		goto free_ordered;
 	}
@@ -8602,17 +8602,17 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 	dip->logical_offset = file_offset;
 	dip->bytes = dio_bio->bi_iter.bi_size;
 	dip->disk_bytenr = (u64)dio_bio->bi_iter.bi_sector << 9;
-	io_bio->bi_private = dip;
-	dip->orig_bio = io_bio;
+	bio->bi_private = dip;
+	dip->orig_bio = bio;
 	dip->dio_bio = dio_bio;
 	atomic_set(&dip->pending_bios, 0);
-	btrfs_bio = btrfs_io_bio(io_bio);
-	btrfs_bio->logical = file_offset;
+	io_bio = btrfs_io_bio(bio);
+	io_bio->logical = file_offset;
 
 	if (write) {
-		io_bio->bi_end_io = btrfs_endio_direct_write;
+		bio->bi_end_io = btrfs_endio_direct_write;
 	} else {
-		io_bio->bi_end_io = btrfs_endio_direct_read;
+		bio->bi_end_io = btrfs_endio_direct_read;
 		dip->subio_endio = btrfs_subio_endio_read;
 	}
 
@@ -8635,8 +8635,8 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 	if (!ret)
 		return;
 
-	if (btrfs_bio->end_io)
-		btrfs_bio->end_io(btrfs_bio, ret);
+	if (io_bio->end_io)
+		io_bio->end_io(io_bio, ret);
 
 free_ordered:
 	/*
@@ -8648,16 +8648,16 @@ free_ordered:
 	 * same as btrfs_endio_direct_[write|read] because we can't call these
 	 * callbacks - they require an allocated dip and a clone of dio_bio.
 	 */
-	if (io_bio && dip) {
-		io_bio->bi_error = -EIO;
-		bio_endio(io_bio);
+	if (bio && dip) {
+		bio->bi_error = -EIO;
+		bio_endio(bio);
 		/*
-		 * The end io callbacks free our dip, do the final put on io_bio
+		 * The end io callbacks free our dip, do the final put on bio
 		 * and all the cleanup and final put for dio_bio (through
 		 * dio_end_io()).
 		 */
 		dip = NULL;
-		io_bio = NULL;
+		bio = NULL;
 	} else {
 		if (write)
 			__endio_write_update_ordered(inode,
@@ -8675,8 +8675,8 @@ free_ordered:
 		 */
 		dio_end_io(dio_bio, ret);
 	}
-	if (io_bio)
-		bio_put(io_bio);
+	if (bio)
+		bio_put(bio);
 	kfree(dip);
 }
 
