@@ -5087,7 +5087,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 						sizeof(*txq_pcpu->buffs),
 						GFP_KERNEL);
 		if (!txq_pcpu->buffs)
-			goto error;
+			goto cleanup;
 
 		txq_pcpu->count = 0;
 		txq_pcpu->reserved_num = 0;
@@ -5096,8 +5096,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	}
 
 	return 0;
-
-error:
+cleanup:
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		kfree(txq_pcpu->buffs);
