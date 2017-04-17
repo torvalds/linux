@@ -46,6 +46,7 @@
 #include "../call-path.h"
 #include "thread_map.h"
 #include "cpumap.h"
+#include "print_binary.h"
 #include "stat.h"
 
 PyMODINIT_FUNC initperf_trace_context(void);

@@ -36,6 +36,7 @@
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
 #include "callchain.h"
+#include "print_binary.h"
 #include "syscalltbl.h"
 #include "rb_resort.h"
 

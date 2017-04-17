@@ -21,6 +21,7 @@ util/cgroup.c
 util/parse-branch-options.c
 util/rblist.c
 util/counts.c
+util/print_binary.c
 util/strlist.c
 util/trace-event.c
 ../lib/rbtree.c

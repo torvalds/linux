@@ -213,32 +213,9 @@ const char *perf_tip(const char *dirpath);
 bool is_regular_file(const char *file);
 int fetch_current_timestamp(char *buf, size_t sz);
 
-enum binary_printer_ops {
-	BINARY_PRINT_DATA_BEGIN,
-	BINARY_PRINT_LINE_BEGIN,
-	BINARY_PRINT_ADDR,
-	BINARY_PRINT_NUM_DATA,
-	BINARY_PRINT_NUM_PAD,
-	BINARY_PRINT_SEP,
-	BINARY_PRINT_CHAR_DATA,
-	BINARY_PRINT_CHAR_PAD,
-	BINARY_PRINT_LINE_END,
-	BINARY_PRINT_DATA_END,
-};
-
-typedef void (*print_binary_t)(enum binary_printer_ops,
-			       unsigned int val,
-			       void *extra);
-
-void print_binary(unsigned char *data, size_t len,
-		  size_t bytes_per_line, print_binary_t printer,
-		  void *extra);
-
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
 #endif
-
-int is_printable_array(char *p, unsigned int len);
 
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
 

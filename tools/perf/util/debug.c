@@ -13,6 +13,7 @@
 #include "color.h"
 #include "event.h"
 #include "debug.h"
+#include "print_binary.h"
 #include "util.h"
 #include "target.h"
 

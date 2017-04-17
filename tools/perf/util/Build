@@ -16,6 +16,7 @@ libperf-y += llvm-utils.o
 libperf-y += parse-events.o
 libperf-y += perf_regs.o
 libperf-y += path.o
+libperf-y += print_binary.o
 libperf-y += rbtree.o
 libperf-y += libstring.o
 libperf-y += bitmap.o

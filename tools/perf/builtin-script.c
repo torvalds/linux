@@ -23,6 +23,7 @@
 #include "util/stat.h"
 #include "util/thread-stack.h"
 #include "util/time-utils.h"
+#include "print_binary.h"
 #include <linux/bitmap.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
