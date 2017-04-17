@@ -58,34 +58,38 @@
 	clock-rate = <50000000>;
 
 	flash@f8000000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		reg = <0xf8000000 0x800000>;
 		st,smi-fast-mode;
 
-		partition@0 {
-			label = "xloader";
-			reg = <0x0 0x10000>;
-		};
-		partition@10000 {
-			label = "u-boot";
-			reg = <0x10000 0x50000>;
-		};
-		partition@60000 {
-			label = "environment";
-			reg = <0x60000 0x10000>;
-		};
-		partition@70000 {
-			label = "dtb";
-			reg = <0x70000 0x10000>;
-		};
-		partition@80000 {
-			label = "linux";
-			reg = <0x80000 0x310000>;
-		};
-		partition@390000 {
-			label = "rootfs";
-			reg = <0x390000 0x0>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "xloader";
+				reg = <0x0 0x10000>;
+			};
+			partition@10000 {
+				label = "u-boot";
+				reg = <0x10000 0x50000>;
+			};
+			partition@60000 {
+				label = "environment";
+				reg = <0x60000 0x10000>;
+			};
+			partition@70000 {
+				label = "dtb";
+				reg = <0x70000 0x10000>;
+			};
+			partition@80000 {
+				label = "linux";
+				reg = <0x80000 0x310000>;
+			};
+			partition@390000 {
+				label = "rootfs";
+				reg = <0x390000 0x0>;
+			};
 		};
 	};
 };
