@@ -16,6 +16,7 @@ echo "		-k|--keep  Keep passed test logs"
 echo "		-v|--verbose Increase verbosity of test messages"
 echo "		-vv        Alias of -v -v (Show all results in stdout)"
 echo "		-d|--debug Debug mode (trace all shell commands)"
+echo "		-l|--logdir <dir> Save logs on the <dir>"
 exit $1
 }
 
@@ -63,6 +64,10 @@ parse_opts() { # opts
     --debug|-d)
       DEBUG=1
       shift 1
+    ;;
+    --logdir|-l)
+      LOG_DIR=$2
+      shift 2
     ;;
     *.tc)
       if [ -f "$1" ]; then
