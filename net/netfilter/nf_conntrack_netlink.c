@@ -417,8 +417,7 @@ nla_put_failure:
 	return -1;
 }
 
-static int ctnetlink_dump_ct_seq_adj(struct sk_buff *skb,
-				     const struct nf_conn *ct)
+static int ctnetlink_dump_ct_seq_adj(struct sk_buff *skb, struct nf_conn *ct)
 {
 	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
 	struct nf_ct_seqadj *seq;
@@ -426,15 +425,20 @@ static int ctnetlink_dump_ct_seq_adj(struct sk_buff *skb,
 	if (!(ct->status & IPS_SEQ_ADJUST) || !seqadj)
 		return 0;
 
+	spin_lock_bh(&ct->lock);
 	seq = &seqadj->seq[IP_CT_DIR_ORIGINAL];
 	if (dump_ct_seq_adj(skb, seq, CTA_SEQ_ADJ_ORIG) == -1)
-		return -1;
+		goto err;
 
 	seq = &seqadj->seq[IP_CT_DIR_REPLY];
 	if (dump_ct_seq_adj(skb, seq, CTA_SEQ_ADJ_REPLY) == -1)
-		return -1;
+		goto err;
 
+	spin_unlock_bh(&ct->lock);
 	return 0;
+err:
+	spin_unlock_bh(&ct->lock);
+	return -1;
 }
 
 static int ctnetlink_dump_id(struct sk_buff *skb, const struct nf_conn *ct)
@@ -1637,11 +1641,12 @@ ctnetlink_change_seq_adj(struct nf_conn *ct,
 	if (!seqadj)
 		return 0;
 
+	spin_lock_bh(&ct->lock);
 	if (cda[CTA_SEQ_ADJ_ORIG]) {
 		ret = change_seq_adj(&seqadj->seq[IP_CT_DIR_ORIGINAL],
 				     cda[CTA_SEQ_ADJ_ORIG]);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
 	}
@@ -1650,12 +1655,16 @@ ctnetlink_change_seq_adj(struct nf_conn *ct,
 		ret = change_seq_adj(&seqadj->seq[IP_CT_DIR_REPLY],
 				     cda[CTA_SEQ_ADJ_REPLY]);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
 	}
 
+	spin_unlock_bh(&ct->lock);
 	return 0;
+err:
+	spin_unlock_bh(&ct->lock);
+	return ret;
 }
 
 static int
