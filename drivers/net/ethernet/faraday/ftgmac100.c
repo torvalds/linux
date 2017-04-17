@@ -1045,13 +1045,6 @@ static void ftgmac100_get_drvinfo(struct net_device *netdev,
 	strlcpy(info->bus_info, dev_name(&netdev->dev), sizeof(info->bus_info));
 }
 
-static int ftgmac100_nway_reset(struct net_device *ndev)
-{
-	if (!ndev->phydev)
-		return -ENXIO;
-	return phy_start_aneg(ndev->phydev);
-}
-
 static void ftgmac100_get_ringparam(struct net_device *netdev,
 				    struct ethtool_ringparam *ering)
 {
@@ -1090,6 +1083,7 @@ static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_ringparam		= ftgmac100_get_ringparam,
 	.set_ringparam		= ftgmac100_set_ringparam,
 };
