@@ -136,6 +136,10 @@
 	};
 };
 
+&h265e {
+	status = "okay";
+};
+
 &i2s0 {
 	#sound-dai-cells = <0>;
 	rockchip,bclk-fs = <128>;
@@ -429,6 +433,10 @@
 };
 
 &usb_host0_ohci {
+	status = "okay";
+};
+
+&vepu {
 	status = "okay";
 };
 
