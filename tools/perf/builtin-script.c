@@ -32,6 +32,8 @@
 #include "util/dump-insn.h"
 #include <inttypes.h>
 
+#include "sane_ctype.h"
+
 static char const		*script_name;
 static char const		*generate_script_lang;
 static bool			debug_mode;

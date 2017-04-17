@@ -2,6 +2,8 @@
 #include "string.h"
 #include "strfilter.h"
 
+#include "sane_ctype.h"
+
 /* Operators */
 static const char *OP_and	= "&";	/* Logical AND */
 static const char *OP_or	= "|";	/* Logical OR */

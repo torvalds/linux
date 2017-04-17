@@ -48,6 +48,8 @@
 #include "probe-file.h"
 #include "session.h"
 
+#include "sane_ctype.h"
+
 #define PERFPROBE_GROUP "probe"
 
 bool probe_event_dry_run;	/* Dry run flag */

@@ -19,6 +19,7 @@
 #include "vdso.h"
 #include "probe-file.h"
 
+#include "sane_ctype.h"
 
 static bool no_buildid_cache;
 

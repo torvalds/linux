@@ -19,6 +19,7 @@
 #include "strlist.h"
 #include "intlist.h"
 #include "header.h"
+#include "sane_ctype.h"
 
 #include <elf.h>
 #include <limits.h>

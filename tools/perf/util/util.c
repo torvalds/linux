@@ -21,6 +21,8 @@
 #include "callchain.h"
 #include "strlist.h"
 
+#include "sane_ctype.h"
+
 #define CALLCHAIN_PARAM_DEFAULT			\
 	.mode		= CHAIN_GRAPH_ABS,	\
 	.min_percent	= 0.5,			\

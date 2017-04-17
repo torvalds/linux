@@ -1,6 +1,8 @@
 #include "util.h"
 #include "linux/string.h"
 
+#include "sane_ctype.h"
+
 #define K 1024LL
 /*
  * perf_atoll()

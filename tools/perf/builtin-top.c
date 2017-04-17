@@ -72,6 +72,8 @@
 #include <linux/time64.h>
 #include <linux/types.h>
 
+#include "sane_ctype.h"
+
 static volatile int done;
 
 #define HEADER_LINE_NR  5

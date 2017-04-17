@@ -26,6 +26,8 @@
 #include "genelf.h"
 #include "../builtin.h"
 
+#include "sane_ctype.h"
+
 struct jit_buf_desc {
 	struct perf_data_file *output;
 	struct perf_session *session;

@@ -31,6 +31,8 @@
 #include "stat.h"
 #include "util/parse-branch-options.h"
 
+#include "sane_ctype.h"
+
 static struct {
 	bool sample_id_all;
 	bool exclude_guest;

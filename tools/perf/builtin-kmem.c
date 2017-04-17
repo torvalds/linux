@@ -27,6 +27,8 @@
 #include <locale.h>
 #include <regex.h>
 
+#include "sane_ctype.h"
+
 static int	kmem_slab;
 static int	kmem_page;
 

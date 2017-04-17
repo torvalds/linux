@@ -74,6 +74,8 @@
 #include <locale.h>
 #include <math.h>
 
+#include "sane_ctype.h"
+
 #define DEFAULT_SEPARATOR	" "
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"

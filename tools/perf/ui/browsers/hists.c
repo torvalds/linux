@@ -20,6 +20,8 @@
 #include "map.h"
 #include "annotate.h"
 
+#include "sane_ctype.h"
+
 extern void hist_browser__init_hpp(void);
 
 static int perf_evsel_browser_title(struct hist_browser *browser,

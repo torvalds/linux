@@ -15,6 +15,8 @@
 #include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "config.h"
 
+#include "sane_ctype.h"
+
 #define MAXNAME (256)
 
 #define DEBUG_CACHE_DIR ".debug"

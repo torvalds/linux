@@ -4,7 +4,7 @@
 #include "../../util/hist.h"
 #include "../../util/sort.h"
 #include "../../util/evsel.h"
-
+#include "../../util/sane_ctype.h"
 
 static size_t callchain__fprintf_left_margin(FILE *fp, int left_margin)
 {

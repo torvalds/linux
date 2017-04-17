@@ -27,6 +27,8 @@
 #include <api/fs/fs.h>
 #include "asm/bug.h"
 
+#include "sane_ctype.h"
+
 /*
  * magic2 = "PERFILE2"
  * must be a numerical value to let the endianness
