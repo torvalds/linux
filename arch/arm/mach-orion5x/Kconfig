@@ -6,6 +6,7 @@ menuconfig ARCH_ORION5X
 	select GPIOLIB
 	select MVEBU_MBUS
 	select PCI
+	select PHYLIB if NETDEVICES
 	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
