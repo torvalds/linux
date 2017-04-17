@@ -6,6 +6,18 @@
 #define MAX_MAPS 32
 #define MAX_PROGS 32
 
+struct bpf_map_def {
+	unsigned int type;
+	unsigned int key_size;
+	unsigned int value_size;
+	unsigned int max_entries;
+	unsigned int map_flags;
+	unsigned int inner_map_idx;
+};
+
+typedef void (*fixup_map_cb)(struct bpf_map_def *map, const char *map_name,
+			     int idx);
+
 extern int map_fd[MAX_MAPS];
 extern int prog_fd[MAX_PROGS];
 extern int event_fd[MAX_PROGS];
@@ -25,6 +37,7 @@ extern int prog_cnt;
  * returns zero on success
  */
 int load_bpf_file(char *path);
+int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map);
 
 void read_trace_pipe(void);
 struct ksym {

@@ -21,6 +21,7 @@
 #include <sys/mman.h>
 #include <poll.h>
 #include <ctype.h>
+#include <assert.h>
 #include "libbpf.h"
 #include "bpf_load.h"
 #include "perf-sys.h"
@@ -36,15 +37,6 @@ int prog_fd[MAX_PROGS];
 int event_fd[MAX_PROGS];
 int prog_cnt;
 int prog_array_fd = -1;
-
-struct bpf_map_def {
-	unsigned int type;
-	unsigned int key_size;
-	unsigned int value_size;
-	unsigned int max_entries;
-	unsigned int map_flags;
-	unsigned int inner_map_idx;
-};
 
 static int populate_prog_array(const char *event, int prog_fd)
 {
@@ -193,11 +185,14 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	return 0;
 }
 
-static int load_maps(struct bpf_map_def *maps, int len)
+static int load_maps(struct bpf_map_def *maps, int len,
+		     const char **map_names, fixup_map_cb fixup_map)
 {
 	int i;
 
 	for (i = 0; i < len / sizeof(struct bpf_map_def); i++) {
+		if (fixup_map)
+			fixup_map(&maps[i], map_names[i], i);
 
 		if (maps[i].type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
 		    maps[i].type == BPF_MAP_TYPE_HASH_OF_MAPS) {
@@ -280,14 +275,64 @@ static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
 	return 0;
 }
 
-int load_bpf_file(char *path)
+static int cmp_symbols(const void *l, const void *r)
 {
-	int fd, i;
+	const GElf_Sym *lsym = (const GElf_Sym *)l;
+	const GElf_Sym *rsym = (const GElf_Sym *)r;
+
+	if (lsym->st_value < rsym->st_value)
+		return -1;
+	else if (lsym->st_value > rsym->st_value)
+		return 1;
+	else
+		return 0;
+}
+
+static int get_sorted_map_names(Elf *elf, Elf_Data *symbols, int maps_shndx,
+				int strtabidx, char **map_names)
+{
+	GElf_Sym map_symbols[MAX_MAPS];
+	int i, nr_maps = 0;
+
+	for (i = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
+		assert(nr_maps < MAX_MAPS);
+		if (!gelf_getsym(symbols, i, &map_symbols[nr_maps]))
+			continue;
+		if (map_symbols[nr_maps].st_shndx != maps_shndx)
+			continue;
+		nr_maps++;
+	}
+
+	qsort(map_symbols, nr_maps, sizeof(GElf_Sym), cmp_symbols);
+
+	for (i = 0; i < nr_maps; i++) {
+		char *map_name;
+
+		map_name = elf_strptr(elf, strtabidx, map_symbols[i].st_name);
+		if (!map_name) {
+			printf("cannot get map symbol\n");
+			return 1;
+		}
+
+		map_names[i] = strdup(map_name);
+		if (!map_names[i]) {
+			printf("strdup(%s): %s(%d)\n", map_name,
+			       strerror(errno), errno);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
+{
+	int fd, i, ret, maps_shndx = -1, strtabidx = -1;
 	Elf *elf;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr, shdr_prog;
-	Elf_Data *data, *data_prog, *symbols = NULL;
-	char *shname, *shname_prog;
+	Elf_Data *data, *data_prog, *data_maps = NULL, *symbols = NULL;
+	char *shname, *shname_prog, *map_names[MAX_MAPS] = { NULL };
 
 	/* reset global variables */
 	kern_version = 0;
@@ -335,12 +380,31 @@ int load_bpf_file(char *path)
 			}
 			memcpy(&kern_version, data->d_buf, sizeof(int));
 		} else if (strcmp(shname, "maps") == 0) {
-			processed_sec[i] = true;
-			if (load_maps(data->d_buf, data->d_size))
-				return 1;
+			maps_shndx = i;
+			data_maps = data;
 		} else if (shdr.sh_type == SHT_SYMTAB) {
+			strtabidx = shdr.sh_link;
 			symbols = data;
 		}
+	}
+
+	ret = 1;
+
+	if (!symbols) {
+		printf("missing SHT_SYMTAB section\n");
+		goto done;
+	}
+
+	if (data_maps) {
+		if (get_sorted_map_names(elf, symbols, maps_shndx, strtabidx,
+					 map_names))
+			goto done;
+
+		if (load_maps(data_maps->d_buf, data_maps->d_size,
+			      (const char **)map_names, fixup_map))
+			goto done;
+
+		processed_sec[maps_shndx] = true;
 	}
 
 	/* load programs that need map fixup (relocations) */
@@ -399,8 +463,22 @@ int load_bpf_file(char *path)
 			load_and_attach(shname, data->d_buf, data->d_size);
 	}
 
+	ret = 0;
+done:
+	for (i = 0; i < MAX_MAPS; i++)
+		free(map_names[i]);
 	close(fd);
-	return 0;
+	return ret;
+}
+
+int load_bpf_file(char *path)
+{
+	return do_load_bpf_file(path, NULL);
+}
+
+int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map)
+{
+	return do_load_bpf_file(path, fixup_map);
 }
 
 void read_trace_pipe(void)
