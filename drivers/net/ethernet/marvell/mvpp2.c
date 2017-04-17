@@ -6487,8 +6487,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	int phy_mode;
 	int err, i, cpu;
 
-	dev = alloc_etherdev_mqs(sizeof(struct mvpp2_port), txq_number,
-				 rxq_number);
+	dev = alloc_etherdev_mqs(sizeof(*port), txq_number, rxq_number);
 	if (!dev)
 		return -ENOMEM;
 
