@@ -928,6 +928,22 @@ static void __init rk3288_clk_init(struct device_node *np)
 				   RK3288_GRF_SOC_STATUS1);
 	rockchip_clk_register_branches(ctx, rk3288_clk_branches,
 				  ARRAY_SIZE(rk3288_clk_branches));
+
+	if (of_machine_is_compatible("rockchip,rk3288w")) {
+		clk = clk_register_divider(NULL, "hclk_vio", "aclk_vio1", 0,
+				ctx->reg_base + RK3288_CLKSEL_CON(28), 8, 5,
+				DFLAGS, &ctx->lock);
+	} else {
+		clk = clk_register_divider(NULL, "hclk_vio", "aclk_vio0", 0,
+				ctx->reg_base + RK3288_CLKSEL_CON(28), 8, 5,
+				DFLAGS, &ctx->lock);
+	}
+	if (IS_ERR(clk))
+		pr_warn("%s: could not register clock hclk_vio: %ld\n",
+			__func__, PTR_ERR(clk));
+	else
+		rockchip_clk_add_lookup(ctx, clk, HCLK_VIO);
+
 	rockchip_clk_protect_critical(rk3288_critical_clocks,
 				      ARRAY_SIZE(rk3288_critical_clocks));
 
@@ -945,20 +961,5 @@ static void __init rk3288_clk_init(struct device_node *np)
 	register_syscore_ops(&rk3288_clk_syscore_ops);
 
 	rockchip_clk_of_add_provider(np, ctx);
-
-	if (of_machine_is_compatible("rockchip,rk3288w")) {
-		clk = clk_register_divider(NULL, "hclk_vio", "aclk_vio1", 0,
-				ctx->reg_base + RK3288_CLKSEL_CON(28), 8, 5,
-				DFLAGS, &ctx->lock);
-	} else {
-		clk = clk_register_divider(NULL, "hclk_vio", "aclk_vio0", 0,
-				ctx->reg_base + RK3288_CLKSEL_CON(28), 8, 5,
-				DFLAGS, &ctx->lock);
-	}
-	if (IS_ERR(clk))
-		pr_warn("%s: could not register clock hclk_vio: %ld\n",
-			__func__, PTR_ERR(clk));
-	else
-		rockchip_clk_add_lookup(ctx, clk, HCLK_VIO);
 }
 CLK_OF_DECLARE(rk3288_cru, "rockchip,rk3288-cru", rk3288_clk_init);
