@@ -1732,7 +1732,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		    !(adap->log_addrs.flags & CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU))
 			break;
 
-#if IS_REACHABLE(CONFIG_RC_CORE)
+#ifdef CONFIG_MEDIA_CEC_RC
 		switch (msg->msg[2]) {
 		/*
 		 * Play function, this message can have variable length
@@ -1769,7 +1769,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		if (!(adap->capabilities & CEC_CAP_RC) ||
 		    !(adap->log_addrs.flags & CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU))
 			break;
-#if IS_REACHABLE(CONFIG_RC_CORE)
+#ifdef CONFIG_MEDIA_CEC_RC
 		rc_keyup(adap->rc);
 #endif
 		break;

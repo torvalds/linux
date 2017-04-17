@@ -220,7 +220,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	struct cec_adapter *adap;
 	int res;
 
-#if !IS_REACHABLE(CONFIG_RC_CORE)
+#ifndef CONFIG_MEDIA_CEC_RC
 	caps &= ~CEC_CAP_RC;
 #endif
 
@@ -256,7 +256,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		return ERR_PTR(res);
 	}
 
-#if IS_REACHABLE(CONFIG_RC_CORE)
+#ifdef CONFIG_MEDIA_CEC_RC
 	if (!(caps & CEC_CAP_RC))
 		return adap;
 
@@ -305,7 +305,7 @@ int cec_register_adapter(struct cec_adapter *adap,
 	adap->owner = parent->driver->owner;
 	adap->devnode.dev.parent = parent;
 
-#if IS_REACHABLE(CONFIG_RC_CORE)
+#ifdef CONFIG_MEDIA_CEC_RC
 	if (adap->capabilities & CEC_CAP_RC) {
 		adap->rc->dev.parent = parent;
 		res = rc_register_device(adap->rc);
@@ -322,7 +322,7 @@ int cec_register_adapter(struct cec_adapter *adap,
 
 	res = cec_devnode_register(&adap->devnode, adap->owner);
 	if (res) {
-#if IS_REACHABLE(CONFIG_RC_CORE)
+#ifdef CONFIG_MEDIA_CEC_RC
 		/* Note: rc_unregister also calls rc_free */
 		rc_unregister_device(adap->rc);
 		adap->rc = NULL;
@@ -357,7 +357,7 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 	if (IS_ERR_OR_NULL(adap))
 		return;
 
-#if IS_REACHABLE(CONFIG_RC_CORE)
+#ifdef CONFIG_MEDIA_CEC_RC
 	/* Note: rc_unregister also calls rc_free */
 	rc_unregister_device(adap->rc);
 	adap->rc = NULL;
@@ -381,7 +381,7 @@ void cec_delete_adapter(struct cec_adapter *adap)
 	kthread_stop(adap->kthread);
 	if (adap->kthread_config)
 		kthread_stop(adap->kthread_config);
-#if IS_REACHABLE(CONFIG_RC_CORE)
+#ifdef CONFIG_MEDIA_CEC_RC
 	rc_free_device(adap->rc);
 #endif
 	kfree(adap);
