@@ -47,6 +47,14 @@ config COMMON_CLK_RK808
 	  clocked at 32KHz each. Clkout1 is always on, Clkout2 can off
 	  by control register.
 
+config COMMON_CLK_HI655X
+	tristate "Clock driver for Hi655x"
+	depends on MFD_HI655X_PMIC || COMPILE_TEST
+	---help---
+	  This driver supports the hi655x PMIC clock. This
+	  multi-function device has one fixed-rate oscillator, clocked
+	  at 32KHz.
+
 config COMMON_CLK_SCPI
 	tristate "Clock driver controlled via SCPI interface"
 	depends on ARM_SCPI_PROTOCOL || COMPILE_TEST
