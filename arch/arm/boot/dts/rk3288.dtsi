@@ -1099,6 +1099,46 @@
 		status = "disabled";
 	};
 
+	isp: isp@ff910000 {
+		compatible = "rockchip,rk3288-isp", "rockchip,isp";
+		reg = <0x0 0xff910000 0x0 0x4000>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&power RK3288_PD_VIO>;
+		clocks =
+			<&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru SCLK_ISP>,
+			<&cru SCLK_ISP_JPE>, <&cru PCLK_ISP_IN>,
+			<&cru SCLK_VIP_OUT>, <&cru SCLK_MIPIDSI_24M>,
+			<&cru SCLK_VIP_OUT>, <&cru PCLK_MIPI_CSI>;
+		clock-names =
+			"aclk_isp", "hclk_isp", "clk_isp",
+			"clk_isp_jpe", "pclkin_isp", "clk_cif_out",
+			"clk_mipi_24m", "clk_cif_pll", "hclk_mipiphy1";
+		pinctrl-names =
+			"default", "isp_dvp8bit2", "isp_dvp10bit",
+			"isp_dvp12bit", "isp_dvp8bit0", "isp_mipi_fl",
+			"isp_mipi_fl_prefl", "isp_flash_as_gpio",
+			"isp_flash_as_trigger_out";
+		pinctrl-0 = <&isp_mipi>;
+		pinctrl-1 = <&isp_mipi &isp_dvp_d2d9>;
+		pinctrl-2 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1>;
+		pinctrl-3 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1
+					&isp_dvp_d10d11>;
+		pinctrl-4 = <&isp_mipi &isp_dvp_d0d7>;
+		pinctrl-5 = <&isp_mipi>;
+		pinctrl-6 = <&isp_mipi &isp_prelight>;
+		pinctrl-7 = <&isp_flash_trigger_as_gpio>;
+		pinctrl-8 = <&isp_flash_trigger>;
+		rockchip,isp,mipiphy = <2>;
+		rockchip,isp,cifphy = <1>;
+		rockchip,isp,mipiphy1,reg = <0xff968000 0x4000>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
+		rockchip,gpios = <&gpio7 13 GPIO_ACTIVE_HIGH>;
+		rockchip,isp,iommu_enable = <1>;
+		iommus = <&isp_mmu>;
+		status = "disabled";
+	};
+
 	isp_mmu: iommu@ff914000 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff914000 0x0 0x100>, <0x0 0xff915000 0x0 0x100>;
@@ -2298,6 +2338,84 @@
 		spdif {
 			spdif_tx: spdif-tx {
 				rockchip,pins = <6 RK_PB3 1 &pcfg_pull_none>;
+			};
+		};
+
+		isp_pin {
+			isp_mipi: isp-mipi {
+				rockchip,pins =
+					/* cif_clkout */
+					<2 RK_PB3 1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d2d9: isp-d2d9 {
+				rockchip,pins =
+					/* cif_data2 ... cif_data9 */
+					<2 RK_PA0 1 &pcfg_pull_none>,
+					<2 RK_PA1 1 &pcfg_pull_none>,
+					<2 RK_PA2 1 &pcfg_pull_none>,
+					<2 RK_PA3 1 &pcfg_pull_none>,
+					<2 RK_PA4 1 &pcfg_pull_none>,
+					<2 RK_PA5 1 &pcfg_pull_none>,
+					<2 RK_PA6 1 &pcfg_pull_none>,
+					<2 RK_PA7 1 &pcfg_pull_none>,
+					/* cif_sync, cif_href */
+					<2 RK_PB0 1 &pcfg_pull_none>,
+					<2 RK_PB1 1 &pcfg_pull_none>,
+					/* cif_clkin */
+					<2 RK_PB2 1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d0d1: isp-d0d1 {
+				rockchip,pins =
+					/* cif_data0, cif_data1 */
+					<2 RK_PB4 1 &pcfg_pull_none>,
+					<2 RK_PB5 1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d10d11: isp-d10d11 {
+				rockchip,pins =
+					/* cif_data10, cif_data11 */
+					<2 RK_PB6 1 &pcfg_pull_none>,
+					<2 RK_PB7 1 &pcfg_pull_none>;
+			};
+
+			isp_dvp_d0d7: isp-d0d7 {
+				rockchip,pins =
+					/* cif_data0 ... cif_data7 */
+					<2 RK_PB4 1 &pcfg_pull_none>,
+					<2 RK_PB5 1 &pcfg_pull_none>,
+					<2 RK_PA0 1 &pcfg_pull_none>,
+					<2 RK_PA1 1 &pcfg_pull_none>,
+					<2 RK_PA2 1 &pcfg_pull_none>,
+					<2 RK_PA3 1 &pcfg_pull_none>,
+					<2 RK_PA4 1 &pcfg_pull_none>,
+					<2 RK_PA5 1 &pcfg_pull_none>;
+			};
+
+			isp_shutter: isp-shutter {
+				rockchip,pins =
+					/* SHUTTEREN, SHUTTERTRIG */
+					<7 RK_PB4 2 &pcfg_pull_none>,
+					<7 RK_PB7 2 &pcfg_pull_none>;
+			};
+
+			isp_flash_trigger: isp-flash-trigger {
+				rockchip,pins =
+					/* ISP_FLASHTRIGOU */
+					<7 RK_PB5 2 &pcfg_pull_none>;
+			};
+
+			isp_prelight: isp-prelight {
+				rockchip,pins =
+					/* ISP_PRELIGHTTRIG */
+					<7 RK_PB6 2 &pcfg_pull_none>;
+			};
+
+			isp_flash_trigger_as_gpio: isp-flash-trigger-as-gpio {
+				rockchip,pins =
+					/* ISP_FLASHTRIGOU */
+					<7 RK_PB5 2 &pcfg_pull_none>;
 			};
 		};
 	};
