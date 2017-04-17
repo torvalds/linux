@@ -27,10 +27,14 @@
 #include "amdgpu_uvd.h"
 #include "soc15d.h"
 #include "soc15_common.h"
+#include "mmsch_v1_0.h"
 
 #include "vega10/soc15ip.h"
 #include "vega10/UVD/uvd_7_0_offset.h"
 #include "vega10/UVD/uvd_7_0_sh_mask.h"
+#include "vega10/VCE/vce_4_0_offset.h"
+#include "vega10/VCE/vce_4_0_default.h"
+#include "vega10/VCE/vce_4_0_sh_mask.h"
 #include "vega10/NBIF/nbif_6_1_offset.h"
 #include "vega10/HDP/hdp_4_0_offset.h"
 #include "vega10/MMHUB/mmhub_1_0_offset.h"
@@ -41,6 +45,7 @@ static void uvd_v7_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 static int uvd_v7_0_start(struct amdgpu_device *adev);
 static void uvd_v7_0_stop(struct amdgpu_device *adev);
+static int uvd_v7_0_sriov_start(struct amdgpu_device *adev);
 
 /**
  * uvd_v7_0_ring_get_rptr - get read pointer
@@ -616,6 +621,247 @@ static void uvd_v7_0_mc_resume(struct amdgpu_device *adev)
 			adev->gfx.config.gb_addr_config);
 
 	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_GP_SCRATCH4), adev->uvd.max_handles);
+}
+
+static int uvd_v7_0_mmsch_start(struct amdgpu_device *adev,
+				struct amdgpu_mm_table *table)
+{
+	uint32_t data = 0, loop;
+	uint64_t addr = table->gpu_addr;
+	struct mmsch_v1_0_init_header *header = (struct mmsch_v1_0_init_header *)table->cpu_addr;
+	uint32_t size;
+
+	size = header->header_size + header->vce_table_size + header->uvd_table_size;
+
+	/* 1, write to vce_mmsch_vf_ctx_addr_lo/hi register with GPU mc addr of memory descriptor location */
+	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_CTX_ADDR_LO), lower_32_bits(addr));
+	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_CTX_ADDR_HI), upper_32_bits(addr));
+
+	/* 2, update vmid of descriptor */
+	data = RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_VMID));
+	data &= ~VCE_MMSCH_VF_VMID__VF_CTX_VMID_MASK;
+	data |= (0 << VCE_MMSCH_VF_VMID__VF_CTX_VMID__SHIFT); /* use domain0 for MM scheduler */
+	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_VMID), data);
+
+	/* 3, notify mmsch about the size of this descriptor */
+	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_CTX_SIZE), size);
+
+	/* 4, set resp to zero */
+	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP), 0);
+
+	/* 5, kick off the initialization and wait until VCE_MMSCH_VF_MAILBOX_RESP becomes non-zero */
+	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_HOST), 0x10000001);
+
+	data = RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP));
+	loop = 1000;
+	while ((data & 0x10000002) != 0x10000002) {
+		udelay(10);
+		data = RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP));
+		loop--;
+		if (!loop)
+			break;
+	}
+
+	if (!loop) {
+		dev_err(adev->dev, "failed to init MMSCH, mmVCE_MMSCH_VF_MAILBOX_RESP = %x\n", data);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int uvd_v7_0_sriov_start(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	uint32_t offset, size, tmp;
+	uint32_t table_size = 0;
+	struct mmsch_v1_0_cmd_direct_write direct_wt = { {0} };
+	struct mmsch_v1_0_cmd_direct_read_modify_write direct_rd_mod_wt = { {0} };
+	struct mmsch_v1_0_cmd_direct_polling direct_poll = { {0} };
+	//struct mmsch_v1_0_cmd_indirect_write indirect_wt = {{0}};
+	struct mmsch_v1_0_cmd_end end = { {0} };
+	uint32_t *init_table = adev->virt.mm_table.cpu_addr;
+	struct mmsch_v1_0_init_header *header = (struct mmsch_v1_0_init_header *)init_table;
+
+	direct_wt.cmd_header.command_type = MMSCH_COMMAND__DIRECT_REG_WRITE;
+	direct_rd_mod_wt.cmd_header.command_type = MMSCH_COMMAND__DIRECT_REG_READ_MODIFY_WRITE;
+	direct_poll.cmd_header.command_type = MMSCH_COMMAND__DIRECT_REG_POLLING;
+	end.cmd_header.command_type = MMSCH_COMMAND__END;
+
+	if (header->uvd_table_offset == 0 && header->uvd_table_size == 0) {
+		header->version = MMSCH_VERSION;
+		header->header_size = sizeof(struct mmsch_v1_0_init_header) >> 2;
+
+		if (header->vce_table_offset == 0 && header->vce_table_size == 0)
+			header->uvd_table_offset = header->header_size;
+		else
+			header->uvd_table_offset = header->vce_table_size + header->vce_table_offset;
+
+		init_table += header->uvd_table_offset;
+
+		ring = &adev->uvd.ring;
+		size = AMDGPU_GPU_PAGE_ALIGN(adev->uvd.fw->size + 4);
+
+		/* disable clock gating */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_POWER_STATUS),
+						   ~UVD_POWER_STATUS__UVD_PG_MODE_MASK, 0);
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS),
+						   0xFFFFFFFF, 0x00000004);
+		/* mc resume*/
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
+						    lower_32_bits(adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].mc_addr));
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
+						    upper_32_bits(adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].mc_addr));
+			offset = 0;
+		} else {
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW),
+						    lower_32_bits(adev->uvd.gpu_addr));
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH),
+						    upper_32_bits(adev->uvd.gpu_addr));
+			offset = size;
+		}
+
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_OFFSET0),
+					    AMDGPU_UVD_FIRMWARE_OFFSET >> 3);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_SIZE0), size);
+
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE1_64BIT_BAR_LOW),
+					    lower_32_bits(adev->uvd.gpu_addr + offset));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE1_64BIT_BAR_HIGH),
+					    upper_32_bits(adev->uvd.gpu_addr + offset));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_OFFSET1), (1 << 21));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_SIZE1), AMDGPU_UVD_HEAP_SIZE);
+
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE2_64BIT_BAR_LOW),
+					    lower_32_bits(adev->uvd.gpu_addr + offset + AMDGPU_UVD_HEAP_SIZE));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_VCPU_CACHE2_64BIT_BAR_HIGH),
+					    upper_32_bits(adev->uvd.gpu_addr + offset + AMDGPU_UVD_HEAP_SIZE));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_OFFSET2), (2 << 21));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CACHE_SIZE2),
+					    AMDGPU_UVD_STACK_SIZE + (AMDGPU_UVD_SESSION_SIZE * 40));
+
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_UDEC_ADDR_CONFIG),
+					    adev->gfx.config.gb_addr_config);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_UDEC_DB_ADDR_CONFIG),
+					    adev->gfx.config.gb_addr_config);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_UDEC_DBW_ADDR_CONFIG),
+					    adev->gfx.config.gb_addr_config);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_GP_SCRATCH4), adev->uvd.max_handles);
+		/* mc resume end*/
+
+		/* disable clock gating */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_CGC_CTRL),
+						   ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK, 0);
+
+		/* disable interupt */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN),
+						   ~UVD_MASTINT_EN__VCPU_EN_MASK, 0);
+
+		/* stall UMC and register bus before resetting VCPU */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2),
+						   ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK,
+						   UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
+
+		/* put LMI, VCPU, RBC etc... into reset */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET),
+					    (uint32_t)(UVD_SOFT_RESET__LMI_SOFT_RESET_MASK |
+						       UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK |
+						       UVD_SOFT_RESET__LBSI_SOFT_RESET_MASK |
+						       UVD_SOFT_RESET__RBC_SOFT_RESET_MASK |
+						       UVD_SOFT_RESET__CSM_SOFT_RESET_MASK |
+						       UVD_SOFT_RESET__CXW_SOFT_RESET_MASK |
+						       UVD_SOFT_RESET__TAP_SOFT_RESET_MASK |
+						       UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK));
+
+		/* initialize UVD memory controller */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL),
+					    (uint32_t)((0x40 << UVD_LMI_CTRL__WRITE_CLEAN_TIMER__SHIFT) |
+						       UVD_LMI_CTRL__WRITE_CLEAN_TIMER_EN_MASK |
+						       UVD_LMI_CTRL__DATA_COHERENCY_EN_MASK |
+						       UVD_LMI_CTRL__VCPU_DATA_COHERENCY_EN_MASK |
+						       UVD_LMI_CTRL__REQ_MODE_MASK |
+						       0x00100000L));
+
+		/* disable byte swapping */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_SWAP_CNTL), 0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MP_SWAP_CNTL), 0);
+
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXA0), 0x40c2040);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXA1), 0x0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXB0), 0x40c2040);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUXB1), 0x0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_ALU), 0);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MPC_SET_MUX), 0x88);
+
+		/* take all subblocks out of reset, except VCPU */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET),
+					    UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
+
+		/* enable VCPU clock */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_VCPU_CNTL),
+					    UVD_VCPU_CNTL__CLK_EN_MASK);
+
+		/* enable UMC */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2),
+						   ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK, 0);
+
+		/* boot up the VCPU */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET), 0);
+
+		MMSCH_V1_0_INSERT_DIRECT_POLL(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS), 0x02, 0x02);
+
+		/* enable master interrupt */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN),
+						   ~(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK),
+						   (UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK));
+
+		/* clear the bit 4 of UVD_STATUS */
+		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS),
+						   ~(2 << UVD_STATUS__VCPU_REPORT__SHIFT), 0);
+
+		/* force RBC into idle state */
+		size = order_base_2(ring->ring_size);
+		tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, size);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_WPTR_POLL_EN, 0);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
+		tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), tmp);
+
+		/* set the write pointer delay */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_WPTR_CNTL), 0);
+
+		/* set the wb address */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_RPTR_ADDR),
+					    (upper_32_bits(ring->gpu_addr) >> 2));
+
+		/* programm the RB_BASE for ring buffer */
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_RB_64BIT_BAR_LOW),
+					    lower_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH),
+					    upper_32_bits(ring->gpu_addr));
+
+		ring->wptr = 0;
+		ring = &adev->uvd.ring_enc[0];
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_LO), ring->gpu_addr);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_HI), upper_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_SIZE), ring->ring_size / 4);
+
+		ring = &adev->uvd.ring_enc[1];
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_LO2), ring->gpu_addr);
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_BASE_HI2), upper_32_bits(ring->gpu_addr));
+		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(UVD, 0, mmUVD_RB_SIZE2), ring->ring_size / 4);
+
+		/* add end packet */
+		memcpy((void *)init_table, &end, sizeof(struct mmsch_v1_0_cmd_end));
+		table_size += sizeof(struct mmsch_v1_0_cmd_end) / 4;
+		header->uvd_table_size = table_size;
+
+		return uvd_v7_0_mmsch_start(adev, &adev->virt.mm_table);
+	}
+	return -EINVAL; /* already initializaed ? */
 }
 
 /**
