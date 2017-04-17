@@ -2266,7 +2266,7 @@ static void dce110_set_bandwidth(
 		struct validate_context *context,
 		bool decrease_allowed)
 {
-	dc->hwss.set_displaymarks(dc, context);
+	dce110_set_displaymarks(dc, context);
 
 	if (decrease_allowed || context->dispclk_khz > dc->current_context->dispclk_khz) {
 		context->res_ctx.pool->display_clock->funcs->set_clock(
@@ -2468,7 +2468,6 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.enable_display_power_gating = dce110_enable_display_power_gating,
 	.power_down_front_end = dce110_power_down_fe,
 	.pipe_control_lock = dce_pipe_control_lock,
-	.set_displaymarks = dce110_set_displaymarks,
 	.set_bandwidth = dce110_set_bandwidth,
 	.set_drr = set_drr,
 	.set_static_screen_control = set_static_screen_control,

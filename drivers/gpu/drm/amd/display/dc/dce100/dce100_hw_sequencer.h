@@ -33,9 +33,10 @@ struct validate_context;
 
 bool dce100_hw_sequencer_construct(struct core_dc *dc);
 
-void dce100_pplib_apply_display_requirements(
-	struct core_dc *dc,
-	struct validate_context *context);
+void dce100_set_bandwidth(
+		struct core_dc *dc,
+		struct validate_context *context,
+		bool decrease_allowed);
 
 #endif /* __DC_HWSS_DCE100_H__ */
 

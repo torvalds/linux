@@ -107,30 +107,13 @@ static bool dce80_enable_display_power_gating(
 		return false;
 }
 
-static void set_displaymarks(
-		const struct core_dc *dc, struct validate_context *context)
-{
-	/* Do nothing until we have proper bandwitdth calcs */
-}
-
-static void set_bandwidth(
-		struct core_dc *dc,
-		struct validate_context *context,
-		bool decrease_allowed)
-{
-	dc->hwss.set_displaymarks(dc, context);
-	dce100_pplib_apply_display_requirements(dc, context);
-}
-
-
 bool dce80_hw_sequencer_construct(struct core_dc *dc)
 {
 	dce110_hw_sequencer_construct(dc);
 
 	dc->hwss.enable_display_power_gating = dce80_enable_display_power_gating;
 	dc->hwss.pipe_control_lock = dce_pipe_control_lock;
-	dc->hwss.set_displaymarks = set_displaymarks;
-	dc->hwss.set_bandwidth = set_bandwidth;
+	dc->hwss.set_bandwidth = dce100_set_bandwidth;
 
 	return true;
 }

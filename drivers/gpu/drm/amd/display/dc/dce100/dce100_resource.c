@@ -771,6 +771,7 @@ bool dce100_validate_bandwidth(
 {
 	/* TODO implement when needed but for now hardcode max value*/
 	context->dispclk_khz = 681000;
+	context->bw_results.required_yclk = 250000 * MEMORY_TYPE_MULTIPLIER;
 
 	return true;
 }

@@ -123,10 +123,6 @@ struct hw_sequencer_funcs {
 				struct pipe_ctx *pipe,
 				bool lock);
 
-	void (*set_displaymarks)(
-				const struct core_dc *dc,
-				struct validate_context *context);
-
 	void (*set_bandwidth)(
 			struct core_dc *dc,
 			struct validate_context *context,

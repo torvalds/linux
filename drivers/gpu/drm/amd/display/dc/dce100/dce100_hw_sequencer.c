@@ -28,6 +28,8 @@
 #include "core_types.h"
 #include "hw_sequencer.h"
 #include "dce100_hw_sequencer.h"
+#include "resource.h"
+
 #include "dce110/dce110_hw_sequencer.h"
 
 /* include DCE10 register header files */
@@ -104,7 +106,7 @@ static bool dce100_enable_display_power_gating(
 		return false;
 }
 
-void dce100_pplib_apply_display_requirements(
+static void dce100_pplib_apply_display_requirements(
 	struct core_dc *dc,
 	struct validate_context *context)
 {
@@ -112,6 +114,8 @@ void dce100_pplib_apply_display_requirements(
 
 	pp_display_cfg->avail_mclk_switch_time_us =
 						dce110_get_min_vblank_time_us(context);
+	pp_display_cfg->min_memory_clock_khz = context->bw_results.required_yclk
+		/ MEMORY_TYPE_MULTIPLIER;
 
 	dce110_fill_display_configs(context, pp_display_cfg);
 
@@ -122,20 +126,18 @@ void dce100_pplib_apply_display_requirements(
 	dc->prev_display_config = *pp_display_cfg;
 }
 
-
-
-static void set_displaymarks(
-		const struct core_dc *dc, struct validate_context *context)
-{
-	/* Do nothing until we have proper bandwitdth calcs */
-}
-
-static void set_bandwidth(
+void dce100_set_bandwidth(
 		struct core_dc *dc,
 		struct validate_context *context,
 		bool decrease_allowed)
 {
-	dc->hwss.set_displaymarks(dc, context);
+	if (decrease_allowed || context->dispclk_khz > dc->current_context->dispclk_khz) {
+		context->res_ctx.pool->display_clock->funcs->set_clock(
+				context->res_ctx.pool->display_clock,
+				context->dispclk_khz * 115 / 100);
+		dc->current_context->bw_results.dispclk_khz = context->dispclk_khz;
+		dc->current_context->dispclk_khz = context->dispclk_khz;
+	}
 	dce100_pplib_apply_display_requirements(dc, context);
 }
 
@@ -146,10 +148,8 @@ bool dce100_hw_sequencer_construct(struct core_dc *dc)
 {
 	dce110_hw_sequencer_construct(dc);
 
-	/* TODO: dce80 is empty implementation at the moment*/
 	dc->hwss.enable_display_power_gating = dce100_enable_display_power_gating;
-	dc->hwss.set_displaymarks = set_displaymarks;
-	dc->hwss.set_bandwidth = set_bandwidth;
+	dc->hwss.set_bandwidth = dce100_set_bandwidth;
 
 	return true;
 }
