@@ -9,6 +9,7 @@
 #include <byteswap.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <linux/stringify.h>
 
 #include "util.h"
 #include "event.h"
@@ -181,7 +182,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 			jd->use_arch_timestamp);
 
 	if (header.version > JITHEADER_VERSION) {
-		pr_err("wrong jitdump version %u, expected " STR(JITHEADER_VERSION),
+		pr_err("wrong jitdump version %u, expected " __stringify(JITHEADER_VERSION),
 			header.version);
 		goto error;
 	}

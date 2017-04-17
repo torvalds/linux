@@ -180,9 +180,6 @@ struct perf_event_attr;
 
 void event_attr_init(struct perf_event_attr *attr);
 
-#define _STR(x) #x
-#define STR(x) _STR(x)
-
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
