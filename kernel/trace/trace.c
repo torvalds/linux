@@ -257,7 +257,7 @@ unsigned long long ns2usecs(u64 nsec)
 
 /* trace_flags that are default zero for instances */
 #define ZEROED_TRACE_FLAGS \
-	TRACE_ITER_EVENT_FORK
+	(TRACE_ITER_EVENT_FORK | TRACE_ITER_FUNC_FORK)
 
 /*
  * The global_trace is the descriptor that holds the top-level tracing
@@ -4204,6 +4204,9 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 
 	if (mask == TRACE_ITER_EVENT_FORK)
 		trace_event_follow_fork(tr, enabled);
+
+	if (mask == TRACE_ITER_FUNC_FORK)
+		ftrace_pid_follow_fork(tr, enabled);
 
 	if (mask == TRACE_ITER_OVERWRITE) {
 		ring_buffer_change_overwrite(tr->trace_buffer.buffer, enabled);

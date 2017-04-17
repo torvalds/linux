@@ -5600,6 +5600,43 @@ ftrace_filter_pid_sched_switch_probe(void *data, bool preempt,
 		       trace_ignore_this_task(pid_list, next));
 }
 
+static void
+ftrace_pid_follow_sched_process_fork(void *data,
+				     struct task_struct *self,
+				     struct task_struct *task)
+{
+	struct trace_pid_list *pid_list;
+	struct trace_array *tr = data;
+
+	pid_list = rcu_dereference_sched(tr->function_pids);
+	trace_filter_add_remove_task(pid_list, self, task);
+}
+
+static void
+ftrace_pid_follow_sched_process_exit(void *data, struct task_struct *task)
+{
+	struct trace_pid_list *pid_list;
+	struct trace_array *tr = data;
+
+	pid_list = rcu_dereference_sched(tr->function_pids);
+	trace_filter_add_remove_task(pid_list, NULL, task);
+}
+
+void ftrace_pid_follow_fork(struct trace_array *tr, bool enable)
+{
+	if (enable) {
+		register_trace_sched_process_fork(ftrace_pid_follow_sched_process_fork,
+						  tr);
+		register_trace_sched_process_exit(ftrace_pid_follow_sched_process_exit,
+						  tr);
+	} else {
+		unregister_trace_sched_process_fork(ftrace_pid_follow_sched_process_fork,
+						    tr);
+		unregister_trace_sched_process_exit(ftrace_pid_follow_sched_process_exit,
+						    tr);
+	}
+}
+
 static void clear_ftrace_pids(struct trace_array *tr)
 {
 	struct trace_pid_list *pid_list;
