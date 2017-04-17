@@ -17,6 +17,7 @@
  *
  */
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include "util.h"
 #include "debug.h"

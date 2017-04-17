@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "callchain.h"
 #include "debug.h"
 #include "event.h"

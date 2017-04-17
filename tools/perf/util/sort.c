@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <sys/mman.h>
 #include "sort.h"
 #include "hist.h"

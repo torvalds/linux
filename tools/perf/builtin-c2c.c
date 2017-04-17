@@ -9,6 +9,7 @@
  *   Dick Fowles <fowles@inreach.com>
  *   Joe Mario <jmario@redhat.com>
  */
+#include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>

@@ -2,6 +2,7 @@
 
 #include "../perf.h"
 
+#include <inttypes.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>

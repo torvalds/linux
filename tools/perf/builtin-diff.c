@@ -19,6 +19,7 @@
 #include "util/data.h"
 #include "util/config.h"
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <math.h>
 

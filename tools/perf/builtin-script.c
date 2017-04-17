@@ -30,6 +30,7 @@
 #include "asm/bug.h"
 #include "util/mem-events.h"
 #include "util/dump-insn.h"
+#include <inttypes.h>
 
 static char const		*script_name;
 static char const		*generate_script_lang;

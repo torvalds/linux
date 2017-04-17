@@ -18,6 +18,7 @@
  * permissions. All the event text files are stored there.
  */
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/types.h>

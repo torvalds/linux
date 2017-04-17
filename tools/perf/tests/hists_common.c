@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "perf.h"
 #include "util/debug.h"
 #include "util/symbol.h"

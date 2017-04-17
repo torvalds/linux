@@ -70,6 +70,7 @@
 #include <api/fs/fs.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <math.h>
 

@@ -4,6 +4,7 @@
  * numa: Simulate NUMA-sensitive workload and measure their NUMA performance
  */
 
+#include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 

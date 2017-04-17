@@ -26,6 +26,7 @@
 #include <linux/log2.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <inttypes.h>
 
 #include <semaphore.h>
 #include <pthread.h>

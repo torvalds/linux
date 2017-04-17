@@ -18,6 +18,7 @@
 #include <elf.h>
 #include <gelf.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>

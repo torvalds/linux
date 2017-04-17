@@ -8,6 +8,7 @@
  */
 #include "util.h"
 #include <api/fs/fs.h>
+#include <inttypes.h>
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"

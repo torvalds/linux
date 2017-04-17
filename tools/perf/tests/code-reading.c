@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>

@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "util.h"
 #include <sys/types.h>
 #include <byteswap.h>

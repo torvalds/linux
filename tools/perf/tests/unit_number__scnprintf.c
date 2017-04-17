@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include "tests.h"

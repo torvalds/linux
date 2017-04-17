@@ -1,3 +1,4 @@
+#include <inttypes.h>
 /* For the CPU_* macros */
 #include <pthread.h>
 

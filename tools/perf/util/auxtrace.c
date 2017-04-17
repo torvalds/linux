@@ -13,6 +13,7 @@
  *
  */
 
+#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <stdbool.h>

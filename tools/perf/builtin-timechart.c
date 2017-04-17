@@ -12,6 +12,7 @@
  * of the License.
  */
 
+#include <inttypes.h>
 #include <traceevent/event-parse.h>
 
 #include "builtin.h"

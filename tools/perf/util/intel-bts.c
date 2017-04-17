@@ -15,6 +15,7 @@
 
 #include <endian.h>
 #include <byteswap.h>
+#include <inttypes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
