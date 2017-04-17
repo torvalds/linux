@@ -1512,23 +1512,8 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 
 	helper = __nf_conntrack_helper_find(helpname, nf_ct_l3num(ct),
 					    nf_ct_protonum(ct));
-	if (helper == NULL) {
-#ifdef CONFIG_MODULES
-		spin_unlock_bh(&nf_conntrack_expect_lock);
-
-		if (request_module("nfct-helper-%s", helpname) < 0) {
-			spin_lock_bh(&nf_conntrack_expect_lock);
-			return -EOPNOTSUPP;
-		}
-
-		spin_lock_bh(&nf_conntrack_expect_lock);
-		helper = __nf_conntrack_helper_find(helpname, nf_ct_l3num(ct),
-						    nf_ct_protonum(ct));
-		if (helper)
-			return -EAGAIN;
-#endif
+	if (helper == NULL)
 		return -EOPNOTSUPP;
-	}
 
 	if (help) {
 		if (help->helper == helper) {
