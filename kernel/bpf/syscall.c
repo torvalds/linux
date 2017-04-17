@@ -623,6 +623,7 @@ static void fixup_bpf_calls(struct bpf_prog *prog)
 				 * in the program array.
 				 */
 				prog->cb_access = 1;
+				prog->xdp_adjust_head = 1;
 
 				/* mark bpf_tail_call as different opcode
 				 * to avoid conditional branch in
