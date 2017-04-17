@@ -204,6 +204,14 @@
 				interrupt-parent = <&vic0>;
 				interrupts = <16>;
 			};
+
+			adc: adc@d820b000 {
+				compatible = "st,spear600-adc";
+				reg = <0xd820b000 0x1000>;
+				interrupt-parent = <&vic1>;
+				interrupts = <6>;
+				status = "disabled";
+			};
 		};
 	};
 };
