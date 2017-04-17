@@ -15,13 +15,13 @@
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;
-	char name[FLEX_ARRAY];
+	char name[0];
 } *man_viewer_list;
 
 static struct man_viewer_info_list {
 	struct man_viewer_info_list *next;
 	const char *info;
-	char name[FLEX_ARRAY];
+	char name[0];
 } *man_viewer_info_list;
 
 enum help_format {
