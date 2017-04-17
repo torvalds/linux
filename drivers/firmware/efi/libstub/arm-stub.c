@@ -32,6 +32,12 @@
 #define EFI_RT_VIRTUAL_BASE	SZ_512M
 #define EFI_RT_VIRTUAL_SIZE	SZ_512M
 
+#ifdef CONFIG_ARM64
+# define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE_64
+#else
+# define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE
+#endif
+
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
 
 efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
@@ -236,8 +242,9 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 		 * shift of 21 bit positions into account when scaling
 		 * the headroom value using a 32-bit random value.
 		 */
-		u64 headroom = TASK_SIZE - EFI_RT_VIRTUAL_BASE -
-			       EFI_RT_VIRTUAL_SIZE;
+		static const u64 headroom = EFI_RT_VIRTUAL_LIMIT -
+					    EFI_RT_VIRTUAL_BASE -
+					    EFI_RT_VIRTUAL_SIZE;
 		u32 rnd;
 
 		status = efi_get_random_bytes(sys_table, sizeof(rnd),
