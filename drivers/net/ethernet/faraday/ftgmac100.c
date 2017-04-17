@@ -99,6 +99,11 @@ struct ftgmac100 {
 	int cur_duplex;
 	bool use_ncsi;
 
+	/* Flow control settings */
+	bool tx_pause;
+	bool rx_pause;
+	bool aneg_pause;
+
 	/* Misc */
 	bool need_mac_restart;
 	bool is_aspeed;
@@ -217,6 +222,23 @@ static int ftgmac100_set_mac_addr(struct net_device *dev, void *p)
 	ftgmac100_write_mac_addr(netdev_priv(dev), dev->dev_addr);
 
 	return 0;
+}
+
+static void ftgmac100_config_pause(struct ftgmac100 *priv)
+{
+	u32 fcr = FTGMAC100_FCR_PAUSE_TIME(16);
+
+	/* Throttle tx queue when receiving pause frames */
+	if (priv->rx_pause)
+		fcr |= FTGMAC100_FCR_FC_EN;
+
+	/* Enables sending pause frames when the RX queue is past a
+	 * certain threshold.
+	 */
+	if (priv->tx_pause)
+		fcr |= FTGMAC100_FCR_FCTHR_EN;
+
+	iowrite32(fcr, priv->base + FTGMAC100_OFFSET_FCR);
 }
 
 static void ftgmac100_init_hw(struct ftgmac100 *priv)
@@ -912,6 +934,7 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
+	bool tx_pause, rx_pause;
 	int new_speed;
 
 	/* We store "no link" as speed 0 */
@@ -920,8 +943,21 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	else
 		new_speed = phydev->speed;
 
+	/* Grab pause settings from PHY if configured to do so */
+	if (priv->aneg_pause) {
+		rx_pause = tx_pause = phydev->pause;
+		if (phydev->asym_pause)
+			tx_pause = !rx_pause;
+	} else {
+		rx_pause = priv->rx_pause;
+		tx_pause = priv->tx_pause;
+	}
+
+	/* Link hasn't changed, do nothing */
 	if (phydev->speed == priv->cur_speed &&
-	    phydev->duplex == priv->cur_duplex)
+	    phydev->duplex == priv->cur_duplex &&
+	    rx_pause == priv->rx_pause &&
+	    tx_pause == priv->tx_pause)
 		return;
 
 	/* Print status if we have a link or we had one and just lost it,
@@ -932,6 +968,8 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 
 	priv->cur_speed = new_speed;
 	priv->cur_duplex = phydev->duplex;
+	priv->rx_pause = rx_pause;
+	priv->tx_pause = tx_pause;
 
 	/* Link is down, do nothing else */
 	if (!new_speed)
@@ -962,6 +1000,12 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 		netdev_err(netdev, "%s: Could not attach to PHY\n", netdev->name);
 		return PTR_ERR(phydev);
 	}
+
+	/* Indicate that we support PAUSE frames (see comment in
+	 * Documentation/networking/phy.txt)
+	 */
+	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	phydev->advertising = phydev->supported;
 
 	return 0;
 }
@@ -1078,6 +1122,48 @@ static int ftgmac100_set_ringparam(struct net_device *netdev,
 	return 0;
 }
 
+static void ftgmac100_get_pauseparam(struct net_device *netdev,
+				     struct ethtool_pauseparam *pause)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	pause->autoneg = priv->aneg_pause;
+	pause->tx_pause = priv->tx_pause;
+	pause->rx_pause = priv->rx_pause;
+}
+
+static int ftgmac100_set_pauseparam(struct net_device *netdev,
+				    struct ethtool_pauseparam *pause)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+	struct phy_device *phydev = netdev->phydev;
+
+	priv->aneg_pause = pause->autoneg;
+	priv->tx_pause = pause->tx_pause;
+	priv->rx_pause = pause->rx_pause;
+
+	if (phydev) {
+		phydev->advertising &= ~ADVERTISED_Pause;
+		phydev->advertising &= ~ADVERTISED_Asym_Pause;
+
+		if (pause->rx_pause) {
+			phydev->advertising |= ADVERTISED_Pause;
+			phydev->advertising |= ADVERTISED_Asym_Pause;
+		}
+
+		if (pause->tx_pause)
+			phydev->advertising ^= ADVERTISED_Asym_Pause;
+	}
+	if (netif_running(netdev)) {
+		if (phydev && priv->aneg_pause)
+			phy_start_aneg(phydev);
+		else
+			ftgmac100_config_pause(priv);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.get_drvinfo		= ftgmac100_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -1086,6 +1172,8 @@ static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.nway_reset		= phy_ethtool_nway_reset,
 	.get_ringparam		= ftgmac100_get_ringparam,
 	.set_ringparam		= ftgmac100_set_ringparam,
+	.get_pauseparam		= ftgmac100_get_pauseparam,
+	.set_pauseparam		= ftgmac100_set_pauseparam,
 };
 
 static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
@@ -1217,6 +1305,7 @@ static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
 
 	/* Reinit and restart HW */
 	ftgmac100_init_hw(priv);
+	ftgmac100_config_pause(priv);
 	ftgmac100_start_hw(priv);
 
 	/* Re-enable the device */
@@ -1545,6 +1634,11 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	}
 
 	netdev->irq = irq;
+
+	/* Enable pause */
+	priv->tx_pause = true;
+	priv->rx_pause = true;
+	priv->aneg_pause = true;
 
 	/* MAC address from chip or random one */
 	ftgmac100_initial_mac(priv);
