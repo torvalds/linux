@@ -1344,6 +1344,7 @@ static void qm_congestion_task(struct work_struct *work)
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		spin_unlock(&p->cgr_lock);
 		dev_crit(p->config->dev, "QUERYCONGESTION timeout\n");
+		qman_p_irqsource_add(p, QM_PIRQ_CSCI);
 		return;
 	}
 	/* mask out the ones I'm not interested in */
@@ -1358,6 +1359,7 @@ static void qm_congestion_task(struct work_struct *work)
 		if (cgr->cb && qman_cgrs_get(&c, cgr->cgrid))
 			cgr->cb(p, cgr, qman_cgrs_get(&rr, cgr->cgrid));
 	spin_unlock(&p->cgr_lock);
+	qman_p_irqsource_add(p, QM_PIRQ_CSCI);
 }
 
 static void qm_mr_process_task(struct work_struct *work)
@@ -1417,12 +1419,14 @@ static void qm_mr_process_task(struct work_struct *work)
 	}
 
 	qm_mr_cci_consume(&p->p, num);
+	qman_p_irqsource_add(p, QM_PIRQ_MRI);
 	preempt_enable();
 }
 
 static u32 __poll_portal_slow(struct qman_portal *p, u32 is)
 {
 	if (is & QM_PIRQ_CSCI) {
+		qman_p_irqsource_remove(p, QM_PIRQ_CSCI);
 		queue_work_on(smp_processor_id(), qm_portal_wq,
 			      &p->congestion_work);
 	}
@@ -1434,6 +1438,7 @@ static u32 __poll_portal_slow(struct qman_portal *p, u32 is)
 	}
 
 	if (is & QM_PIRQ_MRI) {
+		qman_p_irqsource_remove(p, QM_PIRQ_MRI);
 		queue_work_on(smp_processor_id(), qm_portal_wq,
 			      &p->mr_work);
 	}
