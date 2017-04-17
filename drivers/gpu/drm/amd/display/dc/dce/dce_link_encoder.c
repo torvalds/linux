@@ -1026,9 +1026,13 @@ bool dce110_link_encoder_validate_output_with_stream(
 	break;
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
-	case SIGNAL_TYPE_EDP:
 		is_valid = dce110_link_encoder_validate_dp_output(
-			enc110, &stream->public.timing);
+					enc110, &stream->public.timing);
+	break;
+	case SIGNAL_TYPE_EDP:
+		is_valid =
+			(stream->public.timing.
+				pixel_encoding == PIXEL_ENCODING_RGB) ? true : false;
 	break;
 	case SIGNAL_TYPE_VIRTUAL:
 		is_valid = true;
