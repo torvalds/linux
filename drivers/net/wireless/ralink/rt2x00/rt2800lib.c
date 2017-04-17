@@ -3407,6 +3407,8 @@ static void rt2800_config_alc(struct rt2x00_dev *rt2x00dev,
 			rt2800_rfcsr_write(rt2x00dev, 42, 0x5b);
 	}
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, mac_sys_ctrl);
+
+	rt2800_vco_calibration(rt2x00dev);
 }
 
 static void rt2800_bbp_write_with_rx_chain(struct rt2x00_dev *rt2x00dev,
