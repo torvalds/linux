@@ -2149,6 +2149,7 @@ static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring)
 
 		/* reset ring buffer */
 		ring->wptr = 0;
+		amdgpu_ring_clear_ring(ring);
 
 		if (is_kiq) {
 		    mutex_lock(&adev->srbm_mutex);
