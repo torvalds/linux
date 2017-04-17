@@ -100,7 +100,7 @@ static void vq_info_add(struct vdev_info *dev, int num)
 	vring_init(&info->vring, num, info->ring, 4096);
 	info->vq = vring_new_virtqueue(info->idx,
 				       info->vring.num, 4096, &dev->vdev,
-				       true, info->ring,
+				       true, false, info->ring,
 				       vq_notify, vq_callback, "test");
 	assert(info->vq);
 	info->vq->priv = info;
