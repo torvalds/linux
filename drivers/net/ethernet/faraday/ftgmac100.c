@@ -1349,6 +1349,13 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		 */
 		iowrite32(FTGMAC100_INT_RXTX,
 			  priv->base + FTGMAC100_OFFSET_ISR);
+
+		/* Push the above (and provides a barrier vs. subsequent
+		 * reads of the descriptor).
+		 */
+		ioread32(priv->base + FTGMAC100_OFFSET_ISR);
+
+		/* Check RX and TX descriptors for more work to do */
 		if (ftgmac100_check_rx(priv) ||
 		    ftgmac100_tx_buf_cleanable(priv))
 			return budget;
