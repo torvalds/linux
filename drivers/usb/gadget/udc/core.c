@@ -139,10 +139,8 @@ int usb_ep_disable(struct usb_ep *ep)
 		goto out;
 
 	ret = ep->ops->disable(ep);
-	if (ret) {
-		ret = ret;
+	if (ret)
 		goto out;
-	}
 
 	ep->enabled = false;
 
