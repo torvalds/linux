@@ -167,10 +167,8 @@ struct rdt_resource {
 				 struct rdt_resource *r);
 	int			data_width;
 	struct list_head	domains;
-	union {
-		struct rdt_cache	cache;
-		struct rdt_membw	membw;
-	};
+	struct rdt_cache	cache;
+	struct rdt_membw	membw;
 	struct rftype		*info_files;
 	int			nr_info_files;
 	const char		*format_str;
