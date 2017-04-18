@@ -81,16 +81,14 @@ struct hisi_clock_data *hisi_clk_init(struct device_node *np,
 	}
 
 	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
-	if (!clk_data) {
-		pr_err("%s: could not allocate clock data\n", __func__);
+	if (!clk_data)
 		goto err;
-	}
+
 	clk_data->base = base;
 	clk_table = kcalloc(nr_clks, sizeof(*clk_table), GFP_KERNEL);
-	if (!clk_table) {
-		pr_err("%s: could not allocate clock lookup table\n", __func__);
+	if (!clk_table)
 		goto err_data;
-	}
+
 	clk_data->clk_data.clks = clk_table;
 	clk_data->clk_data.clk_num = nr_clks;
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data->clk_data);
