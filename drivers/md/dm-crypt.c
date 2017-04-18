@@ -938,8 +938,13 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 		return -EINVAL;
 	}
 
-	if (bi->tag_size != cc->on_disk_tag_size) {
+	if (bi->tag_size != cc->on_disk_tag_size ||
+	    bi->tuple_size != cc->on_disk_tag_size) {
 		ti->error = "Integrity profile tag size mismatch.";
+		return -EINVAL;
+	}
+	if (1 << bi->interval_exp != cc->sector_size) {
+		ti->error = "Integrity profile sector size mismatch.";
 		return -EINVAL;
 	}
 
@@ -1322,7 +1327,7 @@ static int crypt_convert(struct crypt_config *cc,
 		case -EINPROGRESS:
 			ctx->r.req = NULL;
 			ctx->cc_sector += sector_step;
-			tag_offset += sector_step;
+			tag_offset++;
 			continue;
 		/*
 		 * The request was already processed (synchronously).
@@ -1330,7 +1335,7 @@ static int crypt_convert(struct crypt_config *cc,
 		case 0:
 			atomic_dec(&ctx->cc_pending);
 			ctx->cc_sector += sector_step;
-			tag_offset += sector_step;
+			tag_offset++;
 			cond_resched();
 			continue;
 		/*
@@ -2735,6 +2740,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			ti->error = "Cannot allocate integrity tags mempool";
 			goto bad;
 		}
+
+		cc->tag_pool_max_sectors <<= cc->sector_shift;
 	}
 
 	ret = -ENOMEM;
@@ -2816,16 +2823,15 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_iter.bi_sector));
 
 	if (cc->on_disk_tag_size) {
-		unsigned tag_len = cc->on_disk_tag_size * bio_sectors(bio);
+		unsigned tag_len = cc->on_disk_tag_size * (bio_sectors(bio) >> cc->sector_shift);
 
 		if (unlikely(tag_len > KMALLOC_MAX_SIZE) ||
-		    unlikely(!(io->integrity_metadata = kzalloc(tag_len,
+		    unlikely(!(io->integrity_metadata = kmalloc(tag_len,
 				GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN)))) {
 			if (bio_sectors(bio) > cc->tag_pool_max_sectors)
 				dm_accept_partial_bio(bio, cc->tag_pool_max_sectors);
 			io->integrity_metadata = mempool_alloc(cc->tag_pool, GFP_NOIO);
 			io->integrity_metadata_from_pool = true;
-			memset(io->integrity_metadata, 0, cc->tag_pool_max_sectors * (1 << SECTOR_SHIFT));
 		}
 	}
 
