@@ -513,7 +513,7 @@ static int ptdump_init(void)
 
 	populate_markers();
 	build_pgtable_complete_mask();
-	debugfs_file = debugfs_create_file("kernel_pagetables", 0400, NULL,
+	debugfs_file = debugfs_create_file("kernel_page_tables", 0400, NULL,
 			NULL, &ptdump_fops);
 	return debugfs_file ? 0 : -ENOMEM;
 }
