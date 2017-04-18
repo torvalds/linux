@@ -8165,6 +8165,85 @@ struct mlx5_ifc_mtppse_reg_bits {
 	u8         reserved_at_40[0x40];
 };
 
+struct mlx5_ifc_mcqi_cap_bits {
+	u8         supported_info_bitmask[0x20];
+
+	u8         component_size[0x20];
+
+	u8         max_component_size[0x20];
+
+	u8         log_mcda_word_size[0x4];
+	u8         reserved_at_64[0xc];
+	u8         mcda_max_write_size[0x10];
+
+	u8         rd_en[0x1];
+	u8         reserved_at_81[0x1];
+	u8         match_chip_id[0x1];
+	u8         match_psid[0x1];
+	u8         check_user_timestamp[0x1];
+	u8         match_base_guid_mac[0x1];
+	u8         reserved_at_86[0x1a];
+};
+
+struct mlx5_ifc_mcqi_reg_bits {
+	u8         read_pending_component[0x1];
+	u8         reserved_at_1[0xf];
+	u8         component_index[0x10];
+
+	u8         reserved_at_20[0x20];
+
+	u8         reserved_at_40[0x1b];
+	u8         info_type[0x5];
+
+	u8         info_size[0x20];
+
+	u8         offset[0x20];
+
+	u8         reserved_at_a0[0x10];
+	u8         data_size[0x10];
+
+	u8         data[0][0x20];
+};
+
+struct mlx5_ifc_mcc_reg_bits {
+	u8         reserved_at_0[0x4];
+	u8         time_elapsed_since_last_cmd[0xc];
+	u8         reserved_at_10[0x8];
+	u8         instruction[0x8];
+
+	u8         reserved_at_20[0x10];
+	u8         component_index[0x10];
+
+	u8         reserved_at_40[0x8];
+	u8         update_handle[0x18];
+
+	u8         handle_owner_type[0x4];
+	u8         handle_owner_host_id[0x4];
+	u8         reserved_at_68[0x1];
+	u8         control_progress[0x7];
+	u8         error_code[0x8];
+	u8         reserved_at_78[0x4];
+	u8         control_state[0x4];
+
+	u8         component_size[0x20];
+
+	u8         reserved_at_a0[0x60];
+};
+
+struct mlx5_ifc_mcda_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         update_handle[0x18];
+
+	u8         offset[0x20];
+
+	u8         reserved_at_40[0x10];
+	u8         size[0x10];
+
+	u8         reserved_at_60[0x20];
+
+	u8         data[0][0x20];
+};
+
 union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_bufferx_reg_bits bufferx_reg;
 	struct mlx5_ifc_eth_2819_cntrs_grp_data_layout_bits eth_2819_cntrs_grp_data_layout;
@@ -8214,6 +8293,9 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_mtppse_reg_bits mtppse_reg;
 	struct mlx5_ifc_fpga_ctrl_bits fpga_ctrl_bits;
 	struct mlx5_ifc_fpga_cap_bits fpga_cap_bits;
+	struct mlx5_ifc_mcqi_reg_bits mcqi_reg;
+	struct mlx5_ifc_mcc_reg_bits mcc_reg;
+	struct mlx5_ifc_mcda_reg_bits mcda_reg;
 	u8         reserved_at_0[0x60e0];
 };
 
