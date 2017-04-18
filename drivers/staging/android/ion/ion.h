@@ -28,14 +28,6 @@ struct ion_mapper;
 struct ion_client;
 struct ion_buffer;
 
-/*
- * This should be removed some day when phys_addr_t's are fully
- * plumbed in the kernel, and all instances of ion_phys_addr_t should
- * be converted to phys_addr_t.  For the time being many kernel interfaces
- * do not accept phys_addr_t's that would have to
- */
-#define ion_phys_addr_t unsigned long
-
 /**
  * struct ion_platform_heap - defines a heap in the given platform
  * @type:	type of the heap from ion_heap_type enum
@@ -53,9 +45,9 @@ struct ion_platform_heap {
 	enum ion_heap_type type;
 	unsigned int id;
 	const char *name;
-	ion_phys_addr_t base;
+	phys_addr_t base;
 	size_t size;
-	ion_phys_addr_t align;
+	phys_addr_t align;
 	void *priv;
 };
 

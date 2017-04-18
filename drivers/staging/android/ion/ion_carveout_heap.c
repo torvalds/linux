@@ -30,10 +30,10 @@
 struct ion_carveout_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
-	ion_phys_addr_t base;
+	phys_addr_t base;
 };
 
-static ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
+static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 					     unsigned long size)
 {
 	struct ion_carveout_heap *carveout_heap =
@@ -46,7 +46,7 @@ static ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 	return offset;
 }
 
-static void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
+static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
 			      unsigned long size)
 {
 	struct ion_carveout_heap *carveout_heap =
@@ -63,7 +63,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 				      unsigned long flags)
 {
 	struct sg_table *table;
-	ion_phys_addr_t paddr;
+	phys_addr_t paddr;
 	int ret;
 
 	table = kmalloc(sizeof(*table), GFP_KERNEL);
@@ -96,7 +96,7 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 	struct ion_heap *heap = buffer->heap;
 	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
-	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
+	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
 
 	ion_heap_buffer_zero(buffer);
 
