@@ -295,7 +295,7 @@ static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer,
 		return ret;
 	}
 
-	rw_data = WRITE_STATUS_BUSY;
+	rw_data = REG_STATUS_BUSY;
 	ret = ks7010_sdio_write(priv, WRITE_STATUS, &rw_data, sizeof(rw_data));
 	if (ret) {
 		DPRINTK(1, " error : WRITE_STATUS=%02X\n", rw_data);
@@ -415,7 +415,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 					     rx_buffer->data, 32);
 #endif
 		/* rx_status update */
-		read_status = READ_STATUS_IDLE;
+		read_status = REG_STATUS_IDLE;
 		ret = ks7010_sdio_write(priv, READ_STATUS, &read_status,
 					sizeof(read_status));
 		if (ret)
@@ -431,7 +431,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 	inc_rxqtail(priv);
 
 	/* read status update */
-	read_status = READ_STATUS_IDLE;
+	read_status = REG_STATUS_IDLE;
 	ret = ks7010_sdio_write(priv, READ_STATUS, &read_status,
 				sizeof(read_status));
 	if (ret)

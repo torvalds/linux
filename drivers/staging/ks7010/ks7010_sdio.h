@@ -22,21 +22,19 @@
 /* Older sources suggest earlier versions were named 7910 or 79xx */
 #define SDIO_DEVICE_ID_KS_7010		0x7910
 
-/* Read Status Register */
+/* Read/Write Status Register */
 #define READ_STATUS		0x000000
-#define READ_STATUS_BUSY	0
-#define READ_STATUS_IDLE	1
+#define WRITE_STATUS		0x00000C
+enum reg_status_type {
+	REG_STATUS_BUSY,
+	REG_STATUS_IDLE
+};
 
 /* Read Index Register */
 #define READ_INDEX		0x000004
 
 /* Read Data Size Register */
 #define READ_DATA_SIZE		0x000008
-
-/* Write Status Register */
-#define WRITE_STATUS		0x00000C
-#define WRITE_STATUS_BUSY	0
-#define WRITE_STATUS_IDLE	1
 
 /* Write Index Register */
 #define WRITE_INDEX		0x000010
