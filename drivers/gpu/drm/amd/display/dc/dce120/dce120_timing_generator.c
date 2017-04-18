@@ -540,10 +540,10 @@ void dce120_timing_generator_set_drr(
 
 		CRTC_REG_UPDATE(
 				CRTC0_CRTC_V_TOTAL_MIN,
-				CRTC_V_TOTAL_MIN, params->vertical_total_min - 1);
+				CRTC_V_TOTAL_MIN, params->vertical_total_min);
 		CRTC_REG_UPDATE(
 				CRTC0_CRTC_V_TOTAL_MAX,
-				CRTC_V_TOTAL_MAX, params->vertical_total_max - 1);
+				CRTC_V_TOTAL_MAX, params->vertical_total_max);
 		CRTC_REG_SET_N(CRTC0_CRTC_V_TOTAL_CONTROL, 6,
 				FD(CRTC0_CRTC_V_TOTAL_CONTROL__CRTC_V_TOTAL_MIN_SEL), 1,
 				FD(CRTC0_CRTC_V_TOTAL_CONTROL__CRTC_V_TOTAL_MAX_SEL), 1,
