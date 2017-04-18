@@ -57,6 +57,8 @@ static void __init of_numa_parse_cpu_nodes(void)
 		else
 			node_set(nid, numa_nodes_parsed);
 	}
+
+	of_node_put(cpus);
 }
 
 static int __init of_numa_parse_memory_nodes(void)
