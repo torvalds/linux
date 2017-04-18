@@ -701,23 +701,14 @@ bus_configure(struct controlvm_message *inmsg,
 	int err = 0;
 
 	bus_no = cmd->configure_bus.bus_no;
-	POSTCODE_LINUX(BUS_CONFIGURE_ENTRY_PC, 0, bus_no,
-		       DIAG_SEVERITY_PRINT);
-
 	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info) {
-		POSTCODE_LINUX(BUS_CONFIGURE_FAILURE_PC, 0, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -EINVAL;
 		goto err_respond;
 	} else if (bus_info->state.created == 0) {
-		POSTCODE_LINUX(BUS_CONFIGURE_FAILURE_PC, 0, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -EINVAL;
 		goto err_respond;
 	} else if (bus_info->pending_msg_hdr) {
-		POSTCODE_LINUX(BUS_CONFIGURE_FAILURE_PC, 0, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -EIO;
 		goto err_respond;
 	}
@@ -733,14 +724,13 @@ bus_configure(struct controlvm_message *inmsg,
 		bus_info->name = parser_name_get(parser_ctx);
 	}
 
-	POSTCODE_LINUX(BUS_CONFIGURE_EXIT_PC, 0, bus_no,
-		       DIAG_SEVERITY_PRINT);
-
 	if (inmsg->hdr.flags.response_expected == 1)
 		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return 0;
 
 err_respond:
+	dev_err(&chipset_dev->acpi_device->dev,
+		"bus_configured exited with err: %d\n", err);
 	if (inmsg->hdr.flags.response_expected == 1)
 		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
