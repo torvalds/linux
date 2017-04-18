@@ -995,8 +995,6 @@ create_bus_instance(struct visor_device *dev)
 	int err;
 	struct spar_vbus_headerinfo *hdr_info;
 
-	POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, 0, DIAG_SEVERITY_PRINT);
-
 	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
 	if (!hdr_info)
 		return -ENOMEM;
@@ -1019,11 +1017,8 @@ create_bus_instance(struct visor_device *dev)
 		goto err_debugfs_dir;
 
 	err = device_register(&dev->device);
-	if (err < 0) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, 0, id,
-			       DIAG_SEVERITY_ERR);
+	if (err < 0)
 		goto err_debugfs_dir;
-	}
 
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
 
@@ -1038,6 +1033,7 @@ create_bus_instance(struct visor_device *dev)
 err_debugfs_dir:
 	debugfs_remove_recursive(dev->debugfs_dir);
 	kfree(hdr_info);
+	dev_err(&dev->device, "create_bus_instance failed: %d\n", err);
 	return err;
 }
 
