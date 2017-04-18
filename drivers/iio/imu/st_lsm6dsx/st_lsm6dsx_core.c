@@ -559,19 +559,11 @@ static const unsigned long st_lsm6dsx_available_scan_masks[] = {0x7, 0x0};
 static int st_lsm6dsx_of_get_drdy_pin(struct st_lsm6dsx_hw *hw, int *drdy_pin)
 {
 	struct device_node *np = hw->dev->of_node;
-	int err;
 
 	if (!np)
 		return -EINVAL;
 
-	err = of_property_read_u32(np, "st,drdy-int-pin", drdy_pin);
-	if (err == -ENODATA) {
-		/* if the property has not been specified use default value */
-		*drdy_pin = 1;
-		err = 0;
-	}
-
-	return err;
+	return of_property_read_u32(np, "st,drdy-int-pin", drdy_pin);
 }
 
 static int st_lsm6dsx_get_drdy_reg(struct st_lsm6dsx_hw *hw, u8 *drdy_reg)
@@ -642,7 +634,8 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 }
 
 static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
-					       enum st_lsm6dsx_sensor_id id)
+					       enum st_lsm6dsx_sensor_id id,
+					       const char *name)
 {
 	struct st_lsm6dsx_sensor *sensor;
 	struct iio_dev *iio_dev;
@@ -666,27 +659,30 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 	case ST_LSM6DSX_ID_ACC:
 		iio_dev->channels = st_lsm6dsx_acc_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_acc_channels);
-		iio_dev->name = "lsm6dsx_accel";
 		iio_dev->info = &st_lsm6dsx_acc_info;
 
 		sensor->decimator_mask = ST_LSM6DSX_REG_ACC_DEC_MASK;
+		scnprintf(sensor->name, sizeof(sensor->name), "%s_accel",
+			  name);
 		break;
 	case ST_LSM6DSX_ID_GYRO:
 		iio_dev->channels = st_lsm6dsx_gyro_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_gyro_channels);
-		iio_dev->name = "lsm6dsx_gyro";
 		iio_dev->info = &st_lsm6dsx_gyro_info;
 
 		sensor->decimator_mask = ST_LSM6DSX_REG_GYRO_DEC_MASK;
+		scnprintf(sensor->name, sizeof(sensor->name), "%s_gyro",
+			  name);
 		break;
 	default:
 		return NULL;
 	}
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }
 
-int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
+int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 		     const struct st_lsm6dsx_transfer_function *tf_ops)
 {
 	struct st_lsm6dsx_hw *hw;
@@ -710,7 +706,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 		return err;
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
-		hw->iio_devs[i] = st_lsm6dsx_alloc_iiodev(hw, i);
+		hw->iio_devs[i] = st_lsm6dsx_alloc_iiodev(hw, i, name);
 		if (!hw->iio_devs[i])
 			return -ENOMEM;
 	}
