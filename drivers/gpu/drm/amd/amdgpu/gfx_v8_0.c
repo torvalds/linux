@@ -1406,6 +1406,7 @@ static int gfx_v8_0_kiq_init_ring(struct amdgpu_device *adev,
 
 	return r;
 }
+
 static void gfx_v8_0_kiq_free_ring(struct amdgpu_ring *ring,
 				   struct amdgpu_irq_src *irq)
 {
@@ -4756,7 +4757,7 @@ static int gfx_v8_0_kiq_kcq_disable(struct amdgpu_device *adev)
 		DRM_UDELAY(1);
 	}
 	if (i >= adev->usec_timeout) {
-		DRM_ERROR("KCQ enable failed (scratch(0x%04X)=0x%08X)\n",
+		DRM_ERROR("KCQ disabled failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
