@@ -676,6 +676,7 @@ static void _update_client_tee_cmd(struct tee_session *sess,
 {
 	int idx;
 	struct tee_context *ctx;
+	TEEC_Operation op;
 
 	BUG_ON(!cmd_io);
 	BUG_ON(!cmd_io->op);
@@ -692,6 +693,9 @@ static void _update_client_tee_cmd(struct tee_session *sess,
 
 	if (cmd->param.type_original == TEEC_PARAM_TYPES(TEEC_NONE,
 			TEEC_NONE, TEEC_NONE, TEEC_NONE))
+		return;
+
+	if (tee_context_copy_from_client(ctx, &op, cmd_io->op, sizeof(op)))
 		return;
 
 	for (idx = 0; idx < TEEC_CONFIG_PAYLOAD_REF_COUNT; ++idx) {
@@ -728,11 +732,11 @@ static void _update_client_tee_cmd(struct tee_session *sess,
 			/* Returned updated size */
 			size_new = cmd->param.params[idx].shm->size_req;
 			if (size_new !=
-				cmd_io->op->params[idx].tmpref.size) {
+				op.params[idx].tmpref.size) {
 				dev_dbg(_DEV_TEE,
 					"Size has been updated by the TA %zd != %zd\n",
 					size_new,
-					cmd_io->op->params[idx].tmpref.size);
+					op.params[idx].tmpref.size);
 				tee_put_user(ctx, size_new,
 				     &cmd_io->op->params[idx].tmpref.size);
 			}
@@ -741,15 +745,15 @@ static void _update_client_tee_cmd(struct tee_session *sess,
 				cmd->param.params[idx].shm->kaddr);
 
 			/* ensure we do not exceed the shared buffer length */
-			if (size_new > cmd_io->op->params[idx].tmpref.size)
+			if (size_new > op.params[idx].tmpref.size)
 				dev_err(_DEV_TEE,
 					"  *** Wrong returned size from %d:%zd > %zd\n",
 					idx, size_new,
-					cmd_io->op->params[idx].tmpref.size);
+					op.params[idx].tmpref.size);
 
 			else if (tee_copy_to_user
 				 (ctx,
-				  cmd_io->op->params[idx].tmpref.buffer,
+				  op.params[idx].tmpref.buffer,
 				  cmd->param.params[idx].shm->kaddr,
 				  size_new))
 				dev_err(_DEV_TEE,
@@ -765,8 +769,8 @@ static void _update_client_tee_cmd(struct tee_session *sess,
 				offset = 0;
 				size = parent->size;
 			} else {
-				offset = cmd_io->op->params[idx].memref.offset;
-				size = cmd_io->op->params[idx].memref.size;
+				offset = op.params[idx].memref.offset;
+				size = op.params[idx].memref.size;
 			}
 
 			/* Returned updated size */
