@@ -626,9 +626,6 @@ create_visor_device(struct visor_device *dev)
 	u32 chipset_bus_no = dev->chipset_bus_no;
 	u32 chipset_dev_no = dev->chipset_dev_no;
 
-	POSTCODE_LINUX(DEVICE_CREATE_ENTRY_PC, chipset_dev_no, chipset_bus_no,
-		       DIAG_SEVERITY_PRINT);
-
 	mutex_init(&dev->visordriver_callback_lock);
 	dev->device.bus = &visorbus_type;
 	dev->device.groups = visorbus_channel_groups;
@@ -666,17 +663,15 @@ create_visor_device(struct visor_device *dev)
 	 *  bus_type.klist_devices regardless (use bus_for_each_dev).
 	 */
 	err = device_add(&dev->device);
-	if (err < 0) {
-		POSTCODE_LINUX(DEVICE_ADD_PC, 0, chipset_bus_no,
-			       DIAG_SEVERITY_ERR);
+	if (err < 0)
 		goto err_put;
-	}
 
 	list_add_tail(&dev->list_all, &list_all_device_instances);
 	return 0; /* success: reference kept via unmatched get_device() */
 
 err_put:
 	put_device(&dev->device);
+	dev_err(&dev->device, "Creating visor device failed. %d\n", err);
 	return err;
 }
 
