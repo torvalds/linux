@@ -939,8 +939,6 @@ static inline void ftrace_pid_follow_fork(struct trace_array *tr, bool enable) {
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)
 
 struct ftrace_probe_ops {
-	struct ftrace_ops	ops;
-	struct list_head	list;
 	void			(*func)(unsigned long ip,
 					unsigned long parent_ip,
 					struct trace_array *tr,
@@ -976,7 +974,8 @@ extern int
 register_ftrace_function_probe(char *glob, struct trace_array *tr,
 			       struct ftrace_probe_ops *ops, void *data);
 extern int
-unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
+unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
+				      struct ftrace_probe_ops *ops);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
 int unregister_ftrace_command(struct ftrace_func_command *cmd);

@@ -6832,7 +6832,7 @@ ftrace_trace_snapshot_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	ops = param ? &snapshot_count_probe_ops :  &snapshot_probe_ops;
 
 	if (glob[0] == '!')
-		return unregister_ftrace_function_probe_func(glob+1, ops);
+		return unregister_ftrace_function_probe_func(glob+1, tr, ops);
 
 	if (!param)
 		goto out_reg;

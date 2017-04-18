@@ -1101,6 +1101,14 @@ struct ftrace_func_entry {
 	unsigned long ip;
 };
 
+struct ftrace_func_probe {
+	struct ftrace_probe_ops	*probe_ops;
+	struct ftrace_ops	ops;
+	struct trace_array	*tr;
+	struct list_head	list;
+	int			ref;
+};
+
 /*
  * We make these constant because no one should touch them,
  * but they are used as the default "empty hash", to avoid allocating
@@ -3054,7 +3062,7 @@ struct ftrace_iterator {
 	loff_t				func_pos;
 	struct ftrace_page		*pg;
 	struct dyn_ftrace		*func;
-	struct ftrace_probe_ops		*probe;
+	struct ftrace_func_probe	*probe;
 	struct ftrace_func_entry	*probe_entry;
 	struct trace_parser		parser;
 	struct ftrace_hash		*hash;
@@ -3088,7 +3096,7 @@ t_probe_next(struct seq_file *m, loff_t *pos)
 
 	if (!iter->probe) {
 		next = func_probes->next;
-		iter->probe = list_entry(next, struct ftrace_probe_ops, list);
+		iter->probe = list_entry(next, struct ftrace_func_probe, list);
 	}
 
 	if (iter->probe_entry)
@@ -3102,7 +3110,7 @@ t_probe_next(struct seq_file *m, loff_t *pos)
 		if (iter->probe->list.next == func_probes)
 			return NULL;
 		next = iter->probe->list.next;
-		iter->probe = list_entry(next, struct ftrace_probe_ops, list);
+		iter->probe = list_entry(next, struct ftrace_func_probe, list);
 		hash = iter->probe->ops.func_hash->filter_hash;
 		size = 1 << hash->size_bits;
 		iter->pidx = 0;
@@ -3166,8 +3174,9 @@ static void *t_probe_start(struct seq_file *m, loff_t *pos)
 static int
 t_probe_show(struct seq_file *m, struct ftrace_iterator *iter)
 {
-	struct ftrace_probe_ops *probe;
 	struct ftrace_func_entry *probe_entry;
+	struct ftrace_probe_ops *probe_ops;
+	struct ftrace_func_probe *probe;
 
 	probe = iter->probe;
 	probe_entry = iter->probe_entry;
@@ -3175,10 +3184,13 @@ t_probe_show(struct seq_file *m, struct ftrace_iterator *iter)
 	if (WARN_ON_ONCE(!probe || !probe_entry))
 		return -EIO;
 
-	if (probe->print)
-		return probe->print(m, probe_entry->ip, probe, NULL);
+	probe_ops = probe->probe_ops;
 
-	seq_printf(m, "%ps:%ps\n", (void *)probe_entry->ip, (void *)probe->func);
+	if (probe_ops->print)
+		return probe_ops->print(m, probe_entry->ip, probe_ops, NULL);
+
+	seq_printf(m, "%ps:%ps\n", (void *)probe_entry->ip,
+		   (void *)probe_ops->func);
 
 	return 0;
 }
@@ -3791,9 +3803,10 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 				      struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	struct ftrace_probe_ops *probe_ops;
-	struct trace_array *tr = op->private;
+	struct ftrace_func_probe *probe;
 
-	probe_ops = container_of(op, struct ftrace_probe_ops, ops);
+	probe = container_of(op, struct ftrace_func_probe, ops);
+	probe_ops = probe->probe_ops;
 
 	/*
 	 * Disable preemption for these calls to prevent a RCU grace
@@ -3801,7 +3814,7 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 	 * on the hash. rcu_read_lock is too dangerous here.
 	 */
 	preempt_disable_notrace();
-	probe_ops->func(ip, parent_ip, tr, probe_ops, NULL);
+	probe_ops->func(ip, parent_ip, probe->tr, probe_ops, NULL);
 	preempt_enable_notrace();
 }
 
@@ -3946,11 +3959,41 @@ void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
 	free_ftrace_hash(&mapper->hash);
 }
 
+static void release_probe(struct ftrace_func_probe *probe)
+{
+	struct ftrace_probe_ops *probe_ops;
+
+	mutex_lock(&ftrace_lock);
+
+	WARN_ON(probe->ref <= 0);
+
+	/* Subtract the ref that was used to protect this instance */
+	probe->ref--;
+
+	if (!probe->ref) {
+		probe_ops = probe->probe_ops;
+		list_del(&probe->list);
+		kfree(probe);
+	}
+	mutex_unlock(&ftrace_lock);
+}
+
+static void acquire_probe_locked(struct ftrace_func_probe *probe)
+{
+	/*
+	 * Add one ref to keep it from being freed when releasing the
+	 * ftrace_lock mutex.
+	 */
+	probe->ref++;
+}
+
 int
 register_ftrace_function_probe(char *glob, struct trace_array *tr,
-			       struct ftrace_probe_ops *ops, void *data)
+			       struct ftrace_probe_ops *probe_ops,
+			       void *data)
 {
 	struct ftrace_func_entry *entry;
+	struct ftrace_func_probe *probe;
 	struct ftrace_hash **orig_hash;
 	struct ftrace_hash *old_hash;
 	struct ftrace_hash *hash;
@@ -3966,16 +4009,33 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 	if (WARN_ON(glob[0] == '!'))
 		return -EINVAL;
 
-	if (!(ops->ops.flags & FTRACE_OPS_FL_INITIALIZED)) {
-		ops->ops.func = function_trace_probe_call;
-		ftrace_ops_init(&ops->ops);
-		INIT_LIST_HEAD(&ops->list);
-		ops->ops.private = tr;
+
+	mutex_lock(&ftrace_lock);
+	/* Check if the probe_ops is already registered */
+	list_for_each_entry(probe, &tr->func_probes, list) {
+		if (probe->probe_ops == probe_ops)
+			break;
+	}
+	if (&probe->list == &tr->func_probes) {
+		probe = kzalloc(sizeof(*probe), GFP_KERNEL);
+		if (!probe) {
+			mutex_unlock(&ftrace_lock);
+			return -ENOMEM;
+		}
+		probe->probe_ops = probe_ops;
+		probe->ops.func = function_trace_probe_call;
+		probe->tr = tr;
+		ftrace_ops_init(&probe->ops);
+		list_add(&probe->list, &tr->func_probes);
 	}
 
-	mutex_lock(&ops->ops.func_hash->regex_lock);
+	acquire_probe_locked(probe);
 
-	orig_hash = &ops->ops.func_hash->filter_hash;
+	mutex_unlock(&ftrace_lock);
+
+	mutex_lock(&probe->ops.func_hash->regex_lock);
+
+	orig_hash = &probe->ops.func_hash->filter_hash;
 	old_hash = *orig_hash;
 	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, old_hash);
 
@@ -3998,8 +4058,9 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 			 * for each function we find. We call the callback
 			 * to give the caller an opportunity to do so.
 			 */
-			if (ops->init) {
-				ret = ops->init(ops, tr, entry->ip, data);
+			if (probe_ops->init) {
+				ret = probe_ops->init(probe_ops, tr,
+						      entry->ip, data);
 				if (ret < 0)
 					goto out;
 			}
@@ -4009,16 +4070,22 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 
 	mutex_lock(&ftrace_lock);
 
-	ret = ftrace_hash_move_and_update_ops(&ops->ops, orig_hash,
-						      hash, 1);
+	if (!count) {
+		/* Nothing was added? */
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	ret = ftrace_hash_move_and_update_ops(&probe->ops, orig_hash,
+					      hash, 1);
 	if (ret < 0)
 		goto err_unlock;
 
-	if (list_empty(&ops->list))
-		list_add(&ops->list, &tr->func_probes);
+	/* One ref for each new function traced */
+	probe->ref += count;
 
-	if (!(ops->ops.flags & FTRACE_OPS_FL_ENABLED))
-		ret = ftrace_startup(&ops->ops, 0);
+	if (!(probe->ops.flags & FTRACE_OPS_FL_ENABLED))
+		ret = ftrace_startup(&probe->ops, 0);
 
  out_unlock:
 	mutex_unlock(&ftrace_lock);
@@ -4026,13 +4093,15 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 	if (!ret)
 		ret = count;
  out:
-	mutex_unlock(&ops->ops.func_hash->regex_lock);
+	mutex_unlock(&probe->ops.func_hash->regex_lock);
 	free_ftrace_hash(hash);
+
+	release_probe(probe);
 
 	return ret;
 
  err_unlock:
-	if (!ops->free)
+	if (!probe_ops->free || !count)
 		goto out_unlock;
 
 	/* Failed to do the move, need to call the free functions */
@@ -4040,32 +4109,29 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 		hlist_for_each_entry(entry, &hash->buckets[i], hlist) {
 			if (ftrace_lookup_ip(old_hash, entry->ip))
 				continue;
-			ops->free(ops, tr, entry->ip, NULL);
+			probe_ops->free(probe_ops, tr, entry->ip, NULL);
 		}
 	}
 	goto out_unlock;
 }
 
 int
-unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
+unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
+				      struct ftrace_probe_ops *probe_ops)
 {
 	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_func_entry *entry;
+	struct ftrace_func_probe *probe;
 	struct ftrace_glob func_g;
 	struct ftrace_hash **orig_hash;
 	struct ftrace_hash *old_hash;
 	struct ftrace_hash *hash = NULL;
 	struct hlist_node *tmp;
 	struct hlist_head hhd;
-	struct trace_array *tr;
 	char str[KSYM_SYMBOL_LEN];
-	int i, ret;
+	int count = 0;
+	int i, ret = -ENODEV;
 	int size;
-
-	if (!(ops->ops.flags & FTRACE_OPS_FL_INITIALIZED))
-		return -EINVAL;
-
-	tr = ops->ops.private;
 
 	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
 		func_g.search = NULL;
@@ -4082,12 +4148,28 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 			return -EINVAL;
 	}
 
-	mutex_lock(&ops->ops.func_hash->regex_lock);
-
-	orig_hash = &ops->ops.func_hash->filter_hash;
-	old_hash = *orig_hash;
+	mutex_lock(&ftrace_lock);
+	/* Check if the probe_ops is already registered */
+	list_for_each_entry(probe, &tr->func_probes, list) {
+		if (probe->probe_ops == probe_ops)
+			break;
+	}
+	if (&probe->list == &tr->func_probes)
+		goto err_unlock_ftrace;
 
 	ret = -EINVAL;
+	if (!(probe->ops.flags & FTRACE_OPS_FL_INITIALIZED))
+		goto err_unlock_ftrace;
+
+	acquire_probe_locked(probe);
+
+	mutex_unlock(&ftrace_lock);
+
+	mutex_lock(&probe->ops.func_hash->regex_lock);
+
+	orig_hash = &probe->ops.func_hash->filter_hash;
+	old_hash = *orig_hash;
+
 	if (ftrace_hash_empty(old_hash))
 		goto out_unlock;
 
@@ -4112,46 +4194,54 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 				if (!ftrace_match(str, &func_g))
 					continue;
 			}
-
+			count++;
 			remove_hash_entry(hash, entry);
 			hlist_add_head(&entry->hlist, &hhd);
 		}
 	}
 
 	/* Nothing found? */
-	if (hlist_empty(&hhd)) {
+	if (!count) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
 	mutex_lock(&ftrace_lock);
 
-	if (ftrace_hash_empty(hash)) {
-		ftrace_shutdown(&ops->ops, 0);
-		list_del_init(&ops->list);
-	}
+	WARN_ON(probe->ref < count);
 
+	probe->ref -= count;
 
-	ret = ftrace_hash_move_and_update_ops(&ops->ops, orig_hash,
+	if (ftrace_hash_empty(hash))
+		ftrace_shutdown(&probe->ops, 0);
+
+	ret = ftrace_hash_move_and_update_ops(&probe->ops, orig_hash,
 					      hash, 1);
 
 	/* still need to update the function call sites */
 	if (ftrace_enabled && !ftrace_hash_empty(hash))
-		ftrace_run_modify_code(&ops->ops, FTRACE_UPDATE_CALLS,
+		ftrace_run_modify_code(&probe->ops, FTRACE_UPDATE_CALLS,
 				       &old_hash_ops);
 	synchronize_sched();
 
 	hlist_for_each_entry_safe(entry, tmp, &hhd, hlist) {
 		hlist_del(&entry->hlist);
-		if (ops->free)
-			ops->free(ops, tr, entry->ip, NULL);
+		if (probe_ops->free)
+			probe_ops->free(probe_ops, tr, entry->ip, NULL);
 		kfree(entry);
 	}
 	mutex_unlock(&ftrace_lock);
 
  out_unlock:
-	mutex_unlock(&ops->ops.func_hash->regex_lock);
+	mutex_unlock(&probe->ops.func_hash->regex_lock);
 	free_ftrace_hash(hash);
+
+	release_probe(probe);
+
+	return ret;
+
+ err_unlock_ftrace:
+	mutex_unlock(&ftrace_lock);
 	return ret;
 }
 
