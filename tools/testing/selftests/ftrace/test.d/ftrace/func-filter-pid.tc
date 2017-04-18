@@ -19,10 +19,19 @@ if [ ! -f set_ftrace_filter ]; then
     exit_unsupported
 fi
 
+do_function_fork=1
+
+if [ ! -f options/function-fork ]; then
+    do_function_fork=0
+    echo "no option for function-fork found. Option will not be tested."
+fi
+
 read PID _ < /proc/self/stat
 
-# default value of function-fork option
-orig_value=`grep function-fork trace_options`
+if [ $do_function_fork -eq 1 ]; then
+    # default value of function-fork option
+    orig_value=`grep function-fork trace_options`
+fi
 
 do_reset() {
     reset_tracer
@@ -30,6 +39,10 @@ do_reset() {
     enable_tracing
     echo > set_ftrace_filter
     echo > set_ftrace_pid
+
+    if [ $do_function_fork -eq 0 ]; then
+	return
+    fi
 
     echo $orig_value > trace_options
 }
@@ -53,8 +66,10 @@ do_test() {
     echo $PID > set_ftrace_pid
     echo function > current_tracer
 
-    # don't allow children to be traced
-    echo nofunction-fork > trace_options
+    if [ $do_function_fork -eq 1 ]; then
+	# don't allow children to be traced
+	echo nofunction-fork > trace_options
+    fi
 
     enable_tracing
     yield
@@ -69,6 +84,10 @@ do_test() {
 
     disable_tracing
     clear_trace
+
+    if [ $do_function_fork -eq 0 ]; then
+	return
+    fi
 
     # allow children to be traced
     echo function-fork > trace_options
