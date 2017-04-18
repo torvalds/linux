@@ -1969,7 +1969,7 @@ static struct acpi_driver unisys_acpi_driver = {
 
 MODULE_DEVICE_TABLE(acpi, unisys_device_ids);
 
-static __init uint32_t visorutil_spar_detect(void)
+static __init int visorutil_spar_detect(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
