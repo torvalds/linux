@@ -419,7 +419,8 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/*
 	 * Check if we need to expland slice area.
 	 */
-	if (unlikely(addr > mm->context.addr_limit && addr < TASK_SIZE)) {
+	if (unlikely(addr > mm->context.addr_limit &&
+		     mm->context.addr_limit != TASK_SIZE)) {
 		mm->context.addr_limit = TASK_SIZE;
 		on_each_cpu(slice_flush_segments, mm, 1);
 	}

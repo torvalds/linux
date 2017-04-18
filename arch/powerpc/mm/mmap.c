@@ -97,7 +97,8 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_area_struct *vma;
 	struct vm_unmapped_area_info info;
 
-	if (unlikely(addr > mm->context.addr_limit && addr < TASK_SIZE))
+	if (unlikely(addr > mm->context.addr_limit &&
+		     mm->context.addr_limit != TASK_SIZE))
 		mm->context.addr_limit = TASK_SIZE;
 
 	if (len > mm->task_size - mmap_min_addr)
@@ -139,7 +140,8 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 	unsigned long addr = addr0;
 	struct vm_unmapped_area_info info;
 
-	if (unlikely(addr > mm->context.addr_limit && addr < TASK_SIZE))
+	if (unlikely(addr > mm->context.addr_limit &&
+		     mm->context.addr_limit != TASK_SIZE))
 		mm->context.addr_limit = TASK_SIZE;
 
 	/* requested length too big for entire address space */
