@@ -57,6 +57,12 @@ struct parser_context {
 	char data[0];
 };
 
+struct vmcall_controlvm_addr {
+	struct vmcall_io_controlvm_addr_params params;
+	int err;
+	u64 physaddr;
+};
+
 struct visorchipset_device {
 	struct acpi_device *acpi_device;
 	unsigned long poll_jiffies;
@@ -74,6 +80,7 @@ struct visorchipset_device {
 	 */
 	struct controlvm_message controlvm_pending_msg;
 	bool controlvm_pending_msg_valid;
+	struct vmcall_controlvm_addr controlvm_addr;
 };
 
 static struct visorchipset_device *chipset_dev;
@@ -1338,17 +1345,15 @@ error: /* Need to convert from VMCALL error codes to Linux */
 static unsigned int
 issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 {
-	struct vmcall_io_controlvm_addr_params params;
-	int err;
-	u64 physaddr;
+	chipset_dev->controlvm_addr.physaddr = virt_to_phys(
+					   &chipset_dev->controlvm_addr.params);
+	chipset_dev->controlvm_addr.err = unisys_vmcall(VMCALL_CONTROLVM_ADDR,
+					  chipset_dev->controlvm_addr.physaddr);
+	if (chipset_dev->controlvm_addr.err)
+		return chipset_dev->controlvm_addr.err;
 
-	physaddr = virt_to_phys(&params);
-	err = unisys_vmcall(VMCALL_CONTROLVM_ADDR, physaddr);
-	if (err)
-		return err;
-
-	*control_addr = params.address;
-	*control_bytes = params.channel_bytes;
+	*control_addr = chipset_dev->controlvm_addr.params.address;
+	*control_bytes = chipset_dev->controlvm_addr.params.channel_bytes;
 
 	return 0;
 }
@@ -1819,12 +1824,12 @@ visorchipset_init(struct acpi_device *acpi_device)
 	uuid_le uuid = SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
 	struct visorchannel *controlvm_channel;
 
-	addr = controlvm_get_channel_address();
-	if (!addr)
-		goto error;
-
 	chipset_dev = kzalloc(sizeof(*chipset_dev), GFP_KERNEL);
 	if (!chipset_dev)
+		goto error;
+
+	addr = controlvm_get_channel_address();
+	if (!addr)
 		goto error;
 
 	acpi_device->driver_data = chipset_dev;
