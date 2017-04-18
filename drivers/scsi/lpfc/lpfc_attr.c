@@ -181,7 +181,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				wwn_to_u64(vport->fc_nodename.u.wwn),
 				phba->targetport->port_id);
 
-		len += snprintf(buf + len, PAGE_SIZE,
+		len += snprintf(buf + len, PAGE_SIZE - len,
 				"\nNVME Target: Statistics\n");
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 		len += snprintf(buf+len, PAGE_SIZE-len,
@@ -326,7 +326,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	len += snprintf(buf + len, PAGE_SIZE, "\nNVME Statistics\n");
+	len += snprintf(buf + len, PAGE_SIZE - len, "\nNVME Statistics\n");
 	len += snprintf(buf+len, PAGE_SIZE-len,
 			"LS: Xmt %016llx Cmpl %016llx\n",
 			phba->fc4NvmeLsRequests,
