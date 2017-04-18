@@ -234,13 +234,72 @@ static int arizona_ldo1_of_get_pdata(struct arizona_ldo1_pdata *pdata,
 	return 0;
 }
 
+static int arizona_ldo1_common_init(struct platform_device *pdev,
+				    struct arizona_ldo1 *ldo1,
+				    const struct regulator_desc *desc,
+				    struct arizona_ldo1_pdata *pdata,
+				    bool *external_dcvdd)
+{
+	struct device *parent_dev = pdev->dev.parent;
+	struct regulator_config config = { };
+	int ret;
+
+	*external_dcvdd = false;
+
+	ldo1->supply.supply = "DCVDD";
+	ldo1->init_data.consumer_supplies = &ldo1->supply;
+	ldo1->supply.dev_name = dev_name(parent_dev);
+
+	config.dev = parent_dev;
+	config.driver_data = ldo1;
+	config.regmap = ldo1->regmap;
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(parent_dev)) {
+			ret = arizona_ldo1_of_get_pdata(pdata,
+							&config, desc,
+							external_dcvdd);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	config.ena_gpio = pdata->ldoena;
+
+	if (pdata->init_data)
+		config.init_data = pdata->init_data;
+	else
+		config.init_data = &ldo1->init_data;
+
+	/*
+	 * LDO1 can only be used to supply DCVDD so if it has no
+	 * consumers then DCVDD is supplied externally.
+	 */
+	if (config.init_data->num_consumer_supplies == 0)
+		*external_dcvdd = true;
+
+	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
+
+	of_node_put(config.of_node);
+
+	if (IS_ERR(ldo1->regulator)) {
+		ret = PTR_ERR(ldo1->regulator);
+		dev_err(&pdev->dev, "Failed to register LDO1 supply: %d\n",
+			ret);
+		return ret;
+	}
+
+	platform_set_drvdata(pdev, ldo1);
+
+	return 0;
+}
+
 static int arizona_ldo1_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
-	const struct regulator_desc *desc;
-	struct regulator_config config = { };
 	struct arizona_ldo1 *ldo1;
-	bool external_dcvdd = false;
+	const struct regulator_desc *desc;
+	bool external_dcvdd;
 	int ret;
 
 	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
@@ -273,54 +332,13 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 		break;
 	}
 
-	ldo1->init_data.consumer_supplies = &ldo1->supply;
-	ldo1->supply.supply = "DCVDD";
-	ldo1->supply.dev_name = dev_name(arizona->dev);
-
-	config.dev = arizona->dev;
-	config.driver_data = ldo1;
-	config.regmap = arizona->regmap;
-
-	if (IS_ENABLED(CONFIG_OF)) {
-		if (!dev_get_platdata(arizona->dev)) {
-			ret = arizona_ldo1_of_get_pdata(&arizona->pdata.ldo1,
-							&config, desc,
-							&external_dcvdd);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	config.ena_gpio = arizona->pdata.ldo1.ldoena;
-
-	if (arizona->pdata.ldo1.init_data)
-		config.init_data = arizona->pdata.ldo1.init_data;
-	else
-		config.init_data = &ldo1->init_data;
-
-	/*
-	 * LDO1 can only be used to supply DCVDD so if it has no
-	 * consumers then DCVDD is supplied externally.
-	 */
-	if (config.init_data->num_consumer_supplies == 0)
-		arizona->external_dcvdd = true;
-	else
+	ret = arizona_ldo1_common_init(pdev, ldo1, desc,
+				       &arizona->pdata.ldo1,
+				       &external_dcvdd);
+	if (ret == 0)
 		arizona->external_dcvdd = external_dcvdd;
 
-	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
-
-	of_node_put(config.of_node);
-
-	if (IS_ERR(ldo1->regulator)) {
-		ret = PTR_ERR(ldo1->regulator);
-		dev_err(arizona->dev, "Failed to register LDO1 supply: %d\n",
-			ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, ldo1);
-
-	return 0;
+	return ret;
 }
 
 static struct platform_driver arizona_ldo1_driver = {
