@@ -17,7 +17,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <term.h>
 #include <limits.h>
 #include <sys/param.h>
 #include <sys/types.h>
@@ -35,11 +34,8 @@
 #include <sys/ioctl.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <sys/ttydefaults.h>
 #include <api/fs/tracing_path.h>
-#include <termios.h>
 #include <linux/bitops.h>
-#include <termios.h>
 
 extern char buildid_dir[];
 

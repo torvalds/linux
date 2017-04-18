@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/rbtree.h>
+#include <sys/ttydefaults.h>
 
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"

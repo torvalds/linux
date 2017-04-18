@@ -40,6 +40,7 @@
 #include "util/cpumap.h"
 #include "util/xyarray.h"
 #include "util/sort.h"
+#include "util/term.h"
 #include "util/intlist.h"
 #include "util/parse-branch-options.h"
 #include "arch/common.h"
