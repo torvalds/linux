@@ -4038,8 +4038,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 				err = mlxsw_sp_port_vlan_link(mlxsw_sp_port,
 							      upper_dev);
 			else
-				 mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
-							   upper_dev);
+				mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
+							  upper_dev);
 		} else if (netif_is_bridge_master(upper_dev)) {
 			if (info->linking)
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
