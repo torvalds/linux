@@ -10,3 +10,10 @@ menuconfig ION
 	  If you're not using Android its probably safe to
 	  say N here.
 
+config ION_CMA_HEAP
+	bool "Ion CMA heap support"
+	depends on ION && CMA
+	help
+	  Choose this option to enable CMA heaps with Ion. This heap is backed
+	  by the Contiguous Memory Allocator (CMA). If your system has these
+	  regions, you should say Y here.
