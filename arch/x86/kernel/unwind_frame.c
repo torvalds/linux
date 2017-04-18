@@ -36,7 +36,7 @@ static void unwind_dump(struct unwind_state *state, unsigned long *sp)
 
 	dumped_before = true;
 
-	printk_deferred("unwind stack type:%d next_sp:%p mask:%lx graph_idx:%d\n",
+	printk_deferred("unwind stack type:%d next_sp:%p mask:0x%lx graph_idx:%d\n",
 			state->stack_info.type, state->stack_info.next_sp,
 			state->stack_mask, state->graph_idx);
 
