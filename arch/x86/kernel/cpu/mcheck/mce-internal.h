@@ -13,7 +13,7 @@ enum severity_level {
 	MCE_PANIC_SEVERITY,
 };
 
-extern struct atomic_notifier_head x86_mce_decoder_chain;
+extern struct blocking_notifier_head x86_mce_decoder_chain;
 
 #define ATTR_LEN		16
 #define INITIAL_CHECK_INTERVAL	5 * 60 /* 5 minutes */

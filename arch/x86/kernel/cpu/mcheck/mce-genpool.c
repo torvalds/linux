@@ -85,7 +85,7 @@ void mce_gen_pool_process(void)
 	head = llist_reverse_order(head);
 	llist_for_each_entry_safe(node, tmp, head, llnode) {
 		mce = &node->mce;
-		atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
+		blocking_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
 		gen_pool_free(mce_evt_pool, (unsigned long)node, sizeof(*node));
 	}
 }
