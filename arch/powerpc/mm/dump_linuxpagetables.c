@@ -26,6 +26,10 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 
+#ifdef CONFIG_PPC32
+#define KERN_VIRT_START	0
+#endif
+
 /*
  * To visualise what is happening,
  *
@@ -71,6 +75,7 @@ static struct addr_marker address_markers[] = {
 	{ 0,	"Start of kernel VM" },
 	{ 0,	"vmalloc() Area" },
 	{ 0,	"vmalloc() End" },
+#ifdef CONFIG_PPC64
 	{ 0,	"isa I/O start" },
 	{ 0,	"isa I/O end" },
 	{ 0,	"phb I/O start" },
@@ -78,6 +83,20 @@ static struct addr_marker address_markers[] = {
 	{ 0,	"I/O remap start" },
 	{ 0,	"I/O remap end" },
 	{ 0,	"vmemmap start" },
+#else
+	{ 0,	"Early I/O remap start" },
+	{ 0,	"Early I/O remap end" },
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	{ 0,	"Consistent mem start" },
+	{ 0,	"Consistent mem end" },
+#endif
+#ifdef CONFIG_HIGHMEM
+	{ 0,	"Highmem PTEs start" },
+	{ 0,	"Highmem PTEs end" },
+#endif
+	{ 0,	"Fixmap start" },
+	{ 0,	"Fixmap end" },
+#endif
 	{ -1,	NULL },
 };
 
@@ -404,20 +423,38 @@ static void walk_pagetables(struct pg_state *st)
 
 static void populate_markers(void)
 {
-	address_markers[0].start_address = PAGE_OFFSET;
-	address_markers[1].start_address = VMALLOC_START;
-	address_markers[2].start_address = VMALLOC_END;
-	address_markers[3].start_address = ISA_IO_BASE;
-	address_markers[4].start_address = ISA_IO_END;
-	address_markers[5].start_address = PHB_IO_BASE;
-	address_markers[6].start_address = PHB_IO_END;
-	address_markers[7].start_address = IOREMAP_BASE;
-	address_markers[8].start_address = IOREMAP_END;
+	int i = 0;
+
+	address_markers[i++].start_address = PAGE_OFFSET;
+	address_markers[i++].start_address = VMALLOC_START;
+	address_markers[i++].start_address = VMALLOC_END;
+#ifdef CONFIG_PPC64
+	address_markers[i++].start_address = ISA_IO_BASE;
+	address_markers[i++].start_address = ISA_IO_END;
+	address_markers[i++].start_address = PHB_IO_BASE;
+	address_markers[i++].start_address = PHB_IO_END;
+	address_markers[i++].start_address = IOREMAP_BASE;
+	address_markers[i++].start_address = IOREMAP_END;
 #ifdef CONFIG_PPC_STD_MMU_64
-	address_markers[9].start_address =  H_VMEMMAP_BASE;
+	address_markers[i++].start_address =  H_VMEMMAP_BASE;
 #else
-	address_markers[9].start_address =  VMEMMAP_BASE;
+	address_markers[i++].start_address =  VMEMMAP_BASE;
 #endif
+#else /* !CONFIG_PPC64 */
+	address_markers[i++].start_address = ioremap_bot;
+	address_markers[i++].start_address = IOREMAP_TOP;
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	address_markers[i++].start_address = IOREMAP_TOP;
+	address_markers[i++].start_address = IOREMAP_TOP +
+					     CONFIG_CONSISTENT_SIZE;
+#endif
+#ifdef CONFIG_HIGHMEM
+	address_markers[i++].start_address = PKMAP_BASE;
+	address_markers[i++].start_address = PKMAP_ADDR(LAST_PKMAP);
+#endif
+	address_markers[i++].start_address = FIXADDR_START;
+	address_markers[i++].start_address = FIXADDR_TOP;
+#endif /* CONFIG_PPC64 */
 }
 
 static int ptdump_show(struct seq_file *m, void *v)
