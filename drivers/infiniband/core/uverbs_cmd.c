@@ -2989,18 +2989,12 @@ int ib_uverbs_ex_destroy_wq(struct ib_uverbs_file *file,
 	uverbs_uobject_get(uobj);
 
 	ret = uobj_remove_commit(uobj);
-	if (ret) {
-		uverbs_uobject_put(uobj);
-		return ret;
-	}
-
 	resp.events_reported = obj->uevent.events_reported;
 	uverbs_uobject_put(uobj);
-	ret = ib_copy_to_udata(ucore, &resp, resp.response_length);
 	if (ret)
 		return ret;
 
-	return 0;
+	return ib_copy_to_udata(ucore, &resp, resp.response_length);
 }
 
 int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
