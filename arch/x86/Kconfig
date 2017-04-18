@@ -1966,7 +1966,7 @@ config RELOCATABLE
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image (KASLR)"
 	depends on RELOCATABLE
-	default n
+	default y
 	---help---
 	  In support of Kernel Address Space Layout Randomization (KASLR),
 	  this randomizes the physical address at which the kernel image
@@ -1996,7 +1996,7 @@ config RANDOMIZE_BASE
 	  theoretically possible, but the implementations are further
 	  limited due to memory layouts.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 # Relocation on x86 needs some additional build support
 config X86_NEED_RELOCS
@@ -2045,7 +2045,7 @@ config RANDOMIZE_MEMORY
 	   configuration have in average 30,000 different possible virtual
 	   addresses for each memory section.
 
-	   If unsure, say N.
+	   If unsure, say Y.
 
 config RANDOMIZE_MEMORY_PHYSICAL_PADDING
 	hex "Physical memory mapping padding" if EXPERT
