@@ -223,3 +223,117 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 
 	return 0;
 }
+
+enum mlxsw_reg_mcc_instruction {
+	MLX5_REG_MCC_INSTRUCTION_LOCK_UPDATE_HANDLE = 0x01,
+	MLX5_REG_MCC_INSTRUCTION_RELEASE_UPDATE_HANDLE = 0x02,
+	MLX5_REG_MCC_INSTRUCTION_UPDATE_COMPONENT = 0x03,
+	MLX5_REG_MCC_INSTRUCTION_VERIFY_COMPONENT = 0x04,
+	MLX5_REG_MCC_INSTRUCTION_ACTIVATE = 0x06,
+	MLX5_REG_MCC_INSTRUCTION_CANCEL = 0x08,
+};
+
+static int mlx5_reg_mcc_set(struct mlx5_core_dev *dev,
+			    enum mlxsw_reg_mcc_instruction instr,
+			    u16 component_index, u32 update_handle,
+			    u32 component_size)
+{
+	u32 out[MLX5_ST_SZ_DW(mcc_reg)];
+	u32 in[MLX5_ST_SZ_DW(mcc_reg)];
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(mcc_reg, in, instruction, instr);
+	MLX5_SET(mcc_reg, in, component_index, component_index);
+	MLX5_SET(mcc_reg, in, update_handle, update_handle);
+	MLX5_SET(mcc_reg, in, component_size, component_size);
+
+	return mlx5_core_access_reg(dev, in, sizeof(in), out,
+				    sizeof(out), MLX5_REG_MCC, 0, 1);
+}
+
+static int mlx5_reg_mcc_query(struct mlx5_core_dev *dev,
+			      u32 *update_handle, u8 *error_code,
+			      u8 *control_state)
+{
+	u32 out[MLX5_ST_SZ_DW(mcc_reg)];
+	u32 in[MLX5_ST_SZ_DW(mcc_reg)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+	MLX5_SET(mcc_reg, in, update_handle, *update_handle);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_MCC, 0, 0);
+	if (err)
+		goto out;
+
+	*update_handle = MLX5_GET(mcc_reg, out, update_handle);
+	*error_code = MLX5_GET(mcc_reg, out, error_code);
+	*control_state = MLX5_GET(mcc_reg, out, control_state);
+
+out:
+	return err;
+}
+
+static int mlx5_reg_mcda_set(struct mlx5_core_dev *dev,
+			     u32 update_handle,
+			     u32 offset, u16 size,
+			     u8 *data)
+{
+	int err, in_size = MLX5_ST_SZ_BYTES(mcda_reg) + size;
+	u32 out[MLX5_ST_SZ_DW(mcda_reg)];
+	int i, j, dw_size = size >> 2;
+	__be32 data_element;
+	u32 *in;
+
+	in = kzalloc(in_size, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(mcda_reg, in, update_handle, update_handle);
+	MLX5_SET(mcda_reg, in, offset, offset);
+	MLX5_SET(mcda_reg, in, size, size);
+
+	for (i = 0; i < dw_size; i++) {
+		j = i * 4;
+		data_element = htonl(*(u32 *)&data[j]);
+		memcpy(MLX5_ADDR_OF(mcda_reg, in, data) + j, &data_element, 4);
+	}
+
+	err = mlx5_core_access_reg(dev, in, in_size, out,
+				   sizeof(out), MLX5_REG_MCDA, 0, 1);
+	kfree(in);
+	return err;
+}
+
+static int mlx5_reg_mcqi_query(struct mlx5_core_dev *dev,
+			       u16 component_index,
+			       u32 *max_component_size,
+			       u8 *log_mcda_word_size,
+			       u16 *mcda_max_write_size)
+{
+	u32 out[MLX5_ST_SZ_DW(mcqi_reg) + MLX5_ST_SZ_DW(mcqi_cap)];
+	int offset = MLX5_ST_SZ_DW(mcqi_reg);
+	u32 in[MLX5_ST_SZ_DW(mcqi_reg)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(mcqi_reg, in, component_index, component_index);
+	MLX5_SET(mcqi_reg, in, data_size, MLX5_ST_SZ_BYTES(mcqi_cap));
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_MCQI, 0, 0);
+	if (err)
+		goto out;
+
+	*max_component_size = MLX5_GET(mcqi_cap, out + offset, max_component_size);
+	*log_mcda_word_size = MLX5_GET(mcqi_cap, out + offset, log_mcda_word_size);
+	*mcda_max_write_size = MLX5_GET(mcqi_cap, out + offset, mcda_max_write_size);
+
+out:
+	return err;
+}
