@@ -199,6 +199,13 @@
 #define FTGMAC100_PHYDATA_MIIRDATA(phydata)	(((phydata) >> 16) & 0xffff)
 
 /*
+ * Flow control register
+ */
+#define FTGMAC100_FCR_FC_EN		(1 << 0)
+#define FTGMAC100_FCR_FCTHR_EN		(1 << 2)
+#define FTGMAC100_FCR_PAUSE_TIME(x)	(((x) & 0xffff) << 16)
+
+/*
  * Transmit descriptor, aligned to 16 bytes
  */
 struct ftgmac100_txdes {
