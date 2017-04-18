@@ -22,7 +22,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
-#include "ion_priv.h"
+
+#include "ion.h"
 
 static void *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
 {

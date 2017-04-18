@@ -19,7 +19,6 @@
 #include <linux/uaccess.h>
 
 #include "ion.h"
-#include "ion_priv.h"
 
 union ion_ioctl_arg {
 	struct ion_fd_data fd;

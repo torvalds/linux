@@ -23,7 +23,6 @@
 #include <linux/scatterlist.h>
 
 #include "ion.h"
-#include "ion_priv.h"
 
 struct ion_cma_heap {
 	struct ion_heap heap;
