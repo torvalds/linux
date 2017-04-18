@@ -60,6 +60,11 @@
 #define REFCLKDIV(x)	(((x) & 0x3) << 3)
 #define REFCLKDIV_MASK	REFCLKDIV(0x3)
 
+/* FUNC_CFG2 */
+#define LFRATIO_MASK	(1 << 3)
+#define LFRATIO_20_12	(0 << 3)
+#define LFRATIO_12_20	(1 << 3)
+
 #define CH_SIZE_ERR(ch)		((ch < 0) || (ch >= CH_MAX))
 #define hw_to_priv(_hw)		container_of(_hw, struct cs2000_priv, hw)
 #define priv_to_client(priv)	(priv->client)
@@ -127,6 +132,12 @@ static int cs2000_enable_dev_config(struct cs2000_priv *priv, bool enable)
 
 	ret = cs2000_bset(priv, FUNC_CFG1, CLKSKIPEN,
 			  enable ? CLKSKIPEN : 0);
+	if (ret < 0)
+		return ret;
+
+	/* FIXME: for Static ratio mode */
+	ret = cs2000_bset(priv, FUNC_CFG2, LFRATIO_MASK,
+			  LFRATIO_12_20);
 	if (ret < 0)
 		return ret;
 
