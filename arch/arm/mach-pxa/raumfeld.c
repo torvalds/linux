@@ -973,7 +973,7 @@ static struct gpiod_lookup_table raumfeld_controller_gpios_table = {
 	},
 };
 
-static const struct resource raumfeld_controller_resources[] = __initconst {
+static const struct resource raumfeld_controller_resources[] __initconst = {
 	{
 		.start	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
 		.end	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
