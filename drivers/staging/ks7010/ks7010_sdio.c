@@ -237,8 +237,9 @@ int ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 
 static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 			 unsigned long size,
-			 void (*complete_handler)(void *arg1, void *arg2),
-			 void *arg1, void *arg2)
+			 void (*complete_handler)(struct ks_wlan_private *priv,
+						  struct sk_buff *skb),
+			 struct sk_buff *skb)
 {
 	struct tx_device_buffer *sp;
 	int ret;
@@ -259,8 +260,7 @@ static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 	sp->sendp = p;
 	sp->size = size;
 	sp->complete_handler = complete_handler;
-	sp->arg1 = arg1;
-	sp->arg2 = arg2;
+	sp->skb = skb;
 	inc_txqtail(priv);
 
 	return 0;
@@ -268,7 +268,7 @@ static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 err_complete:
 	kfree(p);
 	if (complete_handler)
-		(*complete_handler) (arg1, arg2);
+		(*complete_handler)(priv, skb);
 
 	return ret;
 }
@@ -327,7 +327,7 @@ static void tx_device_task(struct ks_wlan_private *priv)
 	}
 	kfree(sp->sendp);
 	if (sp->complete_handler)	/* TX Complete */
-		(*sp->complete_handler) (sp->arg1, sp->arg2);
+		(*sp->complete_handler)(priv, sp->skb);
 	inc_txqhead(priv);
 
 	if (cnt_txqbody(priv) > 0) {
@@ -337,8 +337,9 @@ static void tx_device_task(struct ks_wlan_private *priv)
 }
 
 int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
-		  void (*complete_handler)(void *arg1, void *arg2),
-		  void *arg1, void *arg2)
+		  void (*complete_handler)(struct ks_wlan_private *priv,
+					   struct sk_buff *skb),
+		  struct sk_buff *skb)
 {
 	int result = 0;
 	struct hostif_hdr *hdr;
@@ -356,7 +357,7 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 
 	DPRINTK(4, "event=%04X\n", hdr->event);
 	spin_lock(&priv->tx_dev.tx_dev_lock);
-	result = enqueue_txdev(priv, p, size, complete_handler, arg1, arg2);
+	result = enqueue_txdev(priv, p, size, complete_handler, skb);
 	spin_unlock(&priv->tx_dev.tx_dev_lock);
 
 	if (cnt_txqbody(priv) > 0) {
@@ -628,7 +629,7 @@ static void trx_device_exit(struct ks_wlan_private *priv)
 		sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
 		kfree(sp->sendp);	/* allocated memory free */
 		if (sp->complete_handler)	/* TX Complete */
-			(*sp->complete_handler) (sp->arg1, sp->arg2);
+			(*sp->complete_handler)(priv, sp->skb);
 		inc_txqhead(priv);
 	}
 

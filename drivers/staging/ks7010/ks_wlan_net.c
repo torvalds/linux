@@ -2908,11 +2908,8 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-void send_packet_complete(void *arg1, void *arg2)
+void send_packet_complete(struct ks_wlan_private *priv, struct sk_buff *skb)
 {
-	struct ks_wlan_private *priv = (struct ks_wlan_private *)arg1;
-	struct sk_buff *packet = (struct sk_buff *)arg2;
-
 	DPRINTK(3, "\n");
 
 	priv->nstats.tx_packets++;
@@ -2920,10 +2917,9 @@ void send_packet_complete(void *arg1, void *arg2)
 	if (netif_queue_stopped(priv->net_dev))
 		netif_wake_queue(priv->net_dev);
 
-	if (packet) {
-		priv->nstats.tx_bytes += packet->len;
-		dev_kfree_skb(packet);
-		packet = NULL;
+	if (skb) {
+		priv->nstats.tx_bytes += skb->len;
+		dev_kfree_skb(skb);
 	}
 }
 

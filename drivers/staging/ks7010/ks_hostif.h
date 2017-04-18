@@ -656,9 +656,10 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, uint16_t event);
 int hostif_init(struct ks_wlan_private *priv);
 void hostif_exit(struct ks_wlan_private *priv);
 int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
-		  void (*complete_handler)(void *arg1, void *arg2),
-		  void *arg1, void *arg2);
-void send_packet_complete(void *arg1, void *arg2);
+		  void (*complete_handler)(struct ks_wlan_private *priv,
+					   struct sk_buff *skb),
+		  struct sk_buff *skb);
+void send_packet_complete(struct ks_wlan_private *priv, struct sk_buff *skb);
 
 void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv);
 int ks_wlan_hw_power_save(struct ks_wlan_private *priv);
