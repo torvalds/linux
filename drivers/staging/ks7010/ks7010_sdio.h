@@ -85,6 +85,14 @@ enum gen_com_reg_b {
 
 #define KS7010_IRAM_ADDRESS	0x06000000
 
+/**
+ * struct ks_sdio_card - SDIO device data.
+ *
+ * Structure is used as the &struct sdio_func private data.
+ *
+ * @func: Pointer to the SDIO function device.
+ * @priv: Pointer to the &struct net_device private data.
+ */
 struct ks_sdio_card {
 	struct sdio_func *func;
 	struct ks_wlan_private *priv;
