@@ -24,6 +24,7 @@
 #include "util/evlist.h"
 #include <subcmd/exec-cmd.h>
 #include "util/machine.h"
+#include "util/path.h"
 #include "util/session.h"
 #include "util/thread.h"
 #include <subcmd/parse-options.h>

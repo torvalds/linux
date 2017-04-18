@@ -12,6 +12,7 @@
 #include "thread_map.h"
 #include "symbol.h"
 #include "thread.h"
+#include "util.h"
 
 #define THREADS 4
 

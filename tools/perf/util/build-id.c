@@ -18,6 +18,7 @@
 #include "tool.h"
 #include "header.h"
 #include "vdso.h"
+#include "path.h"
 #include "probe-file.h"
 #include "strlist.h"
 
