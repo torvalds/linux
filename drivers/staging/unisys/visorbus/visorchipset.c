@@ -1237,18 +1237,11 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 	if (!req)
 		return -ENOMEM;
 
+	/*
+	 * For enable messages, just respond with success right away, we don't
+	 * need to wait to see if the enable was successful.
+	 */
 	if (inmsg->cmd.device_change_state.state.active) {
-		/*
-		 * For enable messages, just respond with success
-		 * right away. This is a bit of a hack, but there are
-		 * issues with the early enable messages we get (with
-		 * either the udev script not detecting that the device
-		 * is up, or not getting called at all). Fortunately
-		 * the messages that get lost don't matter anyway, as
-		 *
-		 * devices are automatically enabled at
-		 * initialization.
-		 */
 		err = parahotplug_request_kickoff(req);
 		if (err)
 			goto err_respond;
