@@ -310,6 +310,10 @@
 	};
 };
 
+&i2c3 {
+	status = "okay";
+};
+
 &i2c4 {
 	status = "okay";
 
@@ -341,6 +345,14 @@
 };
 
 &pwm0 {
+	status = "okay";
+};
+
+&isp {
+	status = "okay";
+};
+
+&isp_mmu {
 	status = "okay";
 };
 
