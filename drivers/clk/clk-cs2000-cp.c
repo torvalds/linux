@@ -54,6 +54,7 @@
 #define ENDEV2		(0x1)
 
 /* FUNC_CFG1 */
+#define CLKSKIPEN	(1 << 7)
 #define REFCLKDIV(x)	(((x) & 0x3) << 3)
 #define REFCLKDIV_MASK	REFCLKDIV(0x3)
 
@@ -119,6 +120,11 @@ static int cs2000_enable_dev_config(struct cs2000_priv *priv, bool enable)
 
 	ret = cs2000_bset(priv, GLOBAL_CFG,  ENDEV2,
 			  enable ? ENDEV2 : 0);
+	if (ret < 0)
+		return ret;
+
+	ret = cs2000_bset(priv, FUNC_CFG1, CLKSKIPEN,
+			  enable ? CLKSKIPEN : 0);
 	if (ret < 0)
 		return ret;
 
