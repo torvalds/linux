@@ -1689,7 +1689,7 @@ static void mvpp2_prs_mac_drop_all_set(struct mvpp2 *priv, int port, bool add)
 		mvpp2_prs_hw_read(priv, &pe);
 	} else {
 		/* Entry doesn't exist - create new */
-		memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+		memset(&pe, 0, sizeof(pe));
 		mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_MAC);
 		pe.index = MVPP2_PE_DROP_ALL;
 
@@ -1726,7 +1726,7 @@ static void mvpp2_prs_mac_promisc_set(struct mvpp2 *priv, int port, bool add)
 		mvpp2_prs_hw_read(priv, &pe);
 	} else {
 		/* Entry doesn't exist - create new */
-		memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+		memset(&pe, 0, sizeof(pe));
 		mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_MAC);
 		pe.index = MVPP2_PE_MAC_PROMISCUOUS;
 
@@ -1772,7 +1772,7 @@ static void mvpp2_prs_mac_multi_set(struct mvpp2 *priv, int port, int index,
 		mvpp2_prs_hw_read(priv, &pe);
 	} else {
 		/* Entry doesn't exist - create new */
-		memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+		memset(&pe, 0, sizeof(pe));
 		mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_MAC);
 		pe.index = index;
 
@@ -1824,7 +1824,7 @@ static void mvpp2_prs_dsa_tag_set(struct mvpp2 *priv, int port, bool add,
 		mvpp2_prs_hw_read(priv, &pe);
 	} else {
 		/* Entry doesn't exist - create new */
-		memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+		memset(&pe, 0, sizeof(pe));
 		mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_DSA);
 		pe.index = tid;
 
@@ -1887,7 +1887,7 @@ static void mvpp2_prs_dsa_tag_ethertype_set(struct mvpp2 *priv, int port,
 		mvpp2_prs_hw_read(priv, &pe);
 	} else {
 		/* Entry doesn't exist - create new */
-		memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+		memset(&pe, 0, sizeof(pe));
 		mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_DSA);
 		pe.index = tid;
 
@@ -2021,10 +2021,10 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 
 		if (tid <= tid_aux) {
 			ret = -EINVAL;
-			goto error;
+			goto free_pe;
 		}
 
-		memset(pe, 0 , sizeof(struct mvpp2_prs_entry));
+		memset(pe, 0, sizeof(*pe));
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_VLAN);
 		pe->index = tid;
 
@@ -2053,8 +2053,7 @@ static int mvpp2_prs_vlan_add(struct mvpp2 *priv, unsigned short tpid, int ai,
 	mvpp2_prs_tcam_port_map_set(pe, port_map);
 
 	mvpp2_prs_hw_write(priv, pe);
-
-error:
+free_pe:
 	kfree(pe);
 
 	return ret;
@@ -2139,7 +2138,7 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 		ai = mvpp2_prs_double_vlan_ai_free_get(priv);
 		if (ai < 0) {
 			ret = ai;
-			goto error;
+			goto free_pe;
 		}
 
 		/* Get first single/triple vlan tid */
@@ -2162,10 +2161,10 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 
 		if (tid >= tid_aux) {
 			ret = -ERANGE;
-			goto error;
+			goto free_pe;
 		}
 
-		memset(pe, 0, sizeof(struct mvpp2_prs_entry));
+		memset(pe, 0, sizeof(*pe));
 		mvpp2_prs_tcam_lu_set(pe, MVPP2_PRS_LU_VLAN);
 		pe->index = tid;
 
@@ -2189,8 +2188,7 @@ static int mvpp2_prs_double_vlan_add(struct mvpp2 *priv, unsigned short tpid1,
 	/* Update ports' mask */
 	mvpp2_prs_tcam_port_map_set(pe, port_map);
 	mvpp2_prs_hw_write(priv, pe);
-
-error:
+free_pe:
 	kfree(pe);
 	return ret;
 }
@@ -2212,7 +2210,7 @@ static int mvpp2_prs_ip4_proto(struct mvpp2 *priv, unsigned short proto,
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP4);
 	pe.index = tid;
 
@@ -2270,7 +2268,7 @@ static int mvpp2_prs_ip4_cast(struct mvpp2 *priv, unsigned short l3_cast)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP4);
 	pe.index = tid;
 
@@ -2326,7 +2324,7 @@ static int mvpp2_prs_ip6_proto(struct mvpp2 *priv, unsigned short proto,
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP6);
 	pe.index = tid;
 
@@ -2365,7 +2363,7 @@ static int mvpp2_prs_ip6_cast(struct mvpp2 *priv, unsigned short l3_cast)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP6);
 	pe.index = tid;
 
@@ -2425,7 +2423,7 @@ static void mvpp2_prs_def_flow_init(struct mvpp2 *priv)
 	int port;
 
 	for (port = 0; port < MVPP2_MAX_PORTS; port++) {
-		memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+		memset(&pe, 0, sizeof(pe));
 		mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_FLOWS);
 		pe.index = MVPP2_PE_FIRST_DEFAULT_FLOW - port;
 
@@ -2447,7 +2445,7 @@ static void mvpp2_prs_mh_init(struct mvpp2 *priv)
 {
 	struct mvpp2_prs_entry pe;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 
 	pe.index = MVPP2_PE_MH_DEFAULT;
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_MH);
@@ -2470,7 +2468,7 @@ static void mvpp2_prs_mac_init(struct mvpp2 *priv)
 {
 	struct mvpp2_prs_entry pe;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 
 	/* Non-promiscuous mode for all ports - DROP unknown packets */
 	pe.index = MVPP2_PE_MAC_NON_PROMISCUOUS;
@@ -2531,7 +2529,7 @@ static void mvpp2_prs_dsa_init(struct mvpp2 *priv)
 					MVPP2_PRS_TAGGED, MVPP2_PRS_DSA);
 
 	/* Set default entry, in case DSA or EDSA tag not found */
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_DSA);
 	pe.index = MVPP2_PE_DSA_DEFAULT;
 	mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_VLAN);
@@ -2561,7 +2559,7 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_L2);
 	pe.index = tid;
 
@@ -2587,7 +2585,7 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_L2);
 	pe.index = tid;
 
@@ -2617,7 +2615,7 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_L2);
 	pe.index = tid;
 
@@ -2651,7 +2649,7 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_L2);
 	pe.index = tid;
 
@@ -2716,7 +2714,7 @@ static int mvpp2_prs_etype_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_L2);
 	pe.index = tid;
 
@@ -2813,7 +2811,7 @@ static int mvpp2_prs_vlan_init(struct platform_device *pdev, struct mvpp2 *priv)
 		return err;
 
 	/* Set default double vlan entry */
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_VLAN);
 	pe.index = MVPP2_PE_VLAN_DBL;
 
@@ -2833,7 +2831,7 @@ static int mvpp2_prs_vlan_init(struct platform_device *pdev, struct mvpp2 *priv)
 	mvpp2_prs_hw_write(priv, &pe);
 
 	/* Set default vlan none entry */
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_VLAN);
 	pe.index = MVPP2_PE_VLAN_NONE;
 
@@ -2863,7 +2861,7 @@ static int mvpp2_prs_pppoe_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_PPPOE);
 	pe.index = tid;
 
@@ -2913,7 +2911,7 @@ static int mvpp2_prs_pppoe_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_PPPOE);
 	pe.index = tid;
 
@@ -2940,7 +2938,7 @@ static int mvpp2_prs_pppoe_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_PPPOE);
 	pe.index = tid;
 
@@ -2998,7 +2996,7 @@ static int mvpp2_prs_ip4_init(struct mvpp2 *priv)
 		return err;
 
 	/* Default IPv4 entry for unknown protocols */
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP4);
 	pe.index = MVPP2_PE_IP4_PROTO_UN;
 
@@ -3023,7 +3021,7 @@ static int mvpp2_prs_ip4_init(struct mvpp2 *priv)
 	mvpp2_prs_hw_write(priv, &pe);
 
 	/* Default IPv4 entry for unicast address */
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP4);
 	pe.index = MVPP2_PE_IP4_ADDR_UN;
 
@@ -3091,7 +3089,7 @@ static int mvpp2_prs_ip6_init(struct mvpp2 *priv)
 	if (tid < 0)
 		return tid;
 
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP6);
 	pe.index = tid;
 
@@ -3112,7 +3110,7 @@ static int mvpp2_prs_ip6_init(struct mvpp2 *priv)
 	mvpp2_prs_hw_write(priv, &pe);
 
 	/* Default IPv6 entry for unknown protocols */
-	memset(&pe, 0, sizeof(struct mvpp2_prs_entry));
+	memset(&pe, 0, sizeof(pe));
 	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_IP6);
 	pe.index = MVPP2_PE_IP6_PROTO_UN;
 
@@ -3205,7 +3203,7 @@ static int mvpp2_prs_default_init(struct platform_device *pdev,
 		mvpp2_prs_hw_inv(priv, index);
 
 	priv->prs_shadow = devm_kcalloc(&pdev->dev, MVPP2_PRS_TCAM_SRAM_SIZE,
-					sizeof(struct mvpp2_prs_shadow),
+					sizeof(*priv->prs_shadow),
 					GFP_KERNEL);
 	if (!priv->prs_shadow)
 		return -ENOMEM;
@@ -3833,7 +3831,7 @@ static int mvpp2_bm_init(struct platform_device *pdev, struct mvpp2 *priv)
 
 	/* Allocate and initialize BM pools */
 	priv->bm_pools = devm_kcalloc(&pdev->dev, MVPP2_BM_POOLS_NUM,
-				     sizeof(struct mvpp2_bm_pool), GFP_KERNEL);
+				      sizeof(*priv->bm_pools), GFP_KERNEL);
 	if (!priv->bm_pools)
 		return -ENOMEM;
 
@@ -4417,7 +4415,7 @@ static void mvpp2_egress_enable(struct mvpp2_port *port)
 	for (queue = 0; queue < txq_number; queue++) {
 		struct mvpp2_tx_queue *txq = port->txqs[queue];
 
-		if (txq->descs != NULL)
+		if (txq->descs)
 			qmap |= (1 << queue);
 	}
 
@@ -5083,11 +5081,11 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		txq_pcpu->size = txq->size;
-		txq_pcpu->buffs = kmalloc(txq_pcpu->size *
-					  sizeof(struct mvpp2_txq_pcpu_buf),
-					  GFP_KERNEL);
+		txq_pcpu->buffs = kmalloc_array(txq_pcpu->size,
+						sizeof(*txq_pcpu->buffs),
+						GFP_KERNEL);
 		if (!txq_pcpu->buffs)
-			goto error;
+			goto cleanup;
 
 		txq_pcpu->count = 0;
 		txq_pcpu->reserved_num = 0;
@@ -5096,8 +5094,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	}
 
 	return 0;
-
-error:
+cleanup:
 	for_each_present_cpu(cpu) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		kfree(txq_pcpu->buffs);
@@ -5515,7 +5512,7 @@ static int mvpp2_rx(struct mvpp2_port *port, int rx_todo,
 		 * comprised by the RX descriptor.
 		 */
 		if (rx_status & MVPP2_RXD_ERR_SUMMARY) {
-		err_drop_frame:
+err_drop_frame:
 			dev->stats.rx_errors++;
 			mvpp2_rx_error(port, rx_desc);
 			/* Return the buffer to the pool */
@@ -5606,7 +5603,7 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 					       DMA_TO_DEVICE);
 		if (dma_mapping_error(port->dev->dev.parent, buf_dma_addr)) {
 			mvpp2_txq_desc_put(txq);
-			goto error;
+			goto cleanup;
 		}
 
 		mvpp2_txdesc_offset_set(port, tx_desc,
@@ -5627,8 +5624,7 @@ static int mvpp2_tx_frag_process(struct mvpp2_port *port, struct sk_buff *skb,
 	}
 
 	return 0;
-
-error:
+cleanup:
 	/* Release all descriptors that were used to map fragments of
 	 * this packet, as well as the corresponding DMA mappings
 	 */
@@ -6065,7 +6061,7 @@ static int mvpp2_set_mac_address(struct net_device *dev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
 		err = -EADDRNOTAVAIL;
-		goto error;
+		goto log_error;
 	}
 
 	if (!netif_running(dev)) {
@@ -6075,7 +6071,7 @@ static int mvpp2_set_mac_address(struct net_device *dev, void *p)
 		/* Reconfigure parser to accept the original MAC address */
 		err = mvpp2_prs_update_mac_da(dev, dev->dev_addr);
 		if (err)
-			goto error;
+			goto log_error;
 	}
 
 	mvpp2_stop_dev(port);
@@ -6087,15 +6083,14 @@ static int mvpp2_set_mac_address(struct net_device *dev, void *p)
 	/* Reconfigure parser accept the original MAC address */
 	err = mvpp2_prs_update_mac_da(dev, dev->dev_addr);
 	if (err)
-		goto error;
+		goto log_error;
 out_start:
 	mvpp2_start_dev(port);
 	mvpp2_egress_enable(port);
 	mvpp2_ingress_enable(port);
 	return 0;
-
-error:
-	netdev_err(dev, "fail to change MAC address\n");
+log_error:
+	netdev_err(dev, "failed to change MAC address\n");
 	return err;
 }
 
@@ -6120,7 +6115,7 @@ static int mvpp2_change_mtu(struct net_device *dev, int mtu)
 		/* Reconfigure BM to the original MTU */
 		err = mvpp2_bm_update_mtu(dev, dev->mtu);
 		if (err)
-			goto error;
+			goto log_error;
 	}
 
 	mvpp2_stop_dev(port);
@@ -6134,7 +6129,7 @@ static int mvpp2_change_mtu(struct net_device *dev, int mtu)
 	/* Reconfigure BM to the original MTU */
 	err = mvpp2_bm_update_mtu(dev, dev->mtu);
 	if (err)
-		goto error;
+		goto log_error;
 
 out_start:
 	mvpp2_start_dev(port);
@@ -6142,9 +6137,8 @@ out_start:
 	mvpp2_ingress_enable(port);
 
 	return 0;
-
-error:
-	netdev_err(dev, "fail to change MTU\n");
+log_error:
+	netdev_err(dev, "failed to change MTU\n");
 	return err;
 }
 
@@ -6313,7 +6307,7 @@ static int mvpp2_ethtool_set_ringparam(struct net_device *dev,
 err_clean_rxqs:
 	mvpp2_cleanup_rxqs(port);
 err_out:
-	netdev_err(dev, "fail to change ring parameters");
+	netdev_err(dev, "failed to change ring parameters");
 	return err;
 }
 
@@ -6487,8 +6481,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	int phy_mode;
 	int err, i, cpu;
 
-	dev = alloc_etherdev_mqs(sizeof(struct mvpp2_port), txq_number,
-				 rxq_number);
+	dev = alloc_etherdev_mqs(sizeof(*port), txq_number, rxq_number);
 	if (!dev)
 		return -ENOMEM;
 
@@ -6806,7 +6799,7 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 
 	/* Allocate and initialize aggregated TXQs */
 	priv->aggr_txqs = devm_kcalloc(&pdev->dev, num_present_cpus(),
-				       sizeof(struct mvpp2_tx_queue),
+				       sizeof(*priv->aggr_txqs),
 				       GFP_KERNEL);
 	if (!priv->aggr_txqs)
 		return -ENOMEM;
@@ -6873,7 +6866,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	int port_count, cpu;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct mvpp2), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -6970,8 +6963,8 @@ static int mvpp2_probe(struct platform_device *pdev)
 	}
 
 	priv->port_list = devm_kcalloc(&pdev->dev, port_count,
-				      sizeof(struct mvpp2_port *),
-				      GFP_KERNEL);
+				       sizeof(*priv->port_list),
+				       GFP_KERNEL);
 	if (!priv->port_list) {
 		err = -ENOMEM;
 		goto err_mg_clk;

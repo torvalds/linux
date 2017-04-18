@@ -1107,7 +1107,7 @@ static void mvneta_port_up(struct mvneta_port *pp)
 	q_map = 0;
 	for (queue = 0; queue < txq_number; queue++) {
 		struct mvneta_tx_queue *txq = &pp->txqs[queue];
-		if (txq->descs != NULL)
+		if (txq->descs)
 			q_map |= (1 << queue);
 	}
 	mvreg_write(pp, MVNETA_TXQ_CMD, q_map);
@@ -1116,7 +1116,7 @@ static void mvneta_port_up(struct mvneta_port *pp)
 	for (queue = 0; queue < rxq_number; queue++) {
 		struct mvneta_rx_queue *rxq = &pp->rxqs[queue];
 
-		if (rxq->descs != NULL)
+		if (rxq->descs)
 			q_map |= (1 << queue);
 	}
 	mvreg_write(pp, MVNETA_RXQ_CMD, q_map);
@@ -2850,7 +2850,7 @@ static int mvneta_rxq_init(struct mvneta_port *pp,
 	rxq->descs = dma_alloc_coherent(pp->dev->dev.parent,
 					rxq->size * MVNETA_DESC_ALIGNED_SIZE,
 					&rxq->descs_phys, GFP_KERNEL);
-	if (rxq->descs == NULL)
+	if (!rxq->descs)
 		return -ENOMEM;
 
 	rxq->last_desc = rxq->size - 1;
@@ -2920,7 +2920,7 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	txq->descs = dma_alloc_coherent(pp->dev->dev.parent,
 					txq->size * MVNETA_DESC_ALIGNED_SIZE,
 					&txq->descs_phys, GFP_KERNEL);
-	if (txq->descs == NULL)
+	if (!txq->descs)
 		return -ENOMEM;
 
 	txq->last_desc = txq->size - 1;
@@ -2933,8 +2933,9 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	mvreg_write(pp, MVNETA_TXQ_BASE_ADDR_REG(txq->id), txq->descs_phys);
 	mvreg_write(pp, MVNETA_TXQ_SIZE_REG(txq->id), txq->size);
 
-	txq->tx_skb = kmalloc(txq->size * sizeof(*txq->tx_skb), GFP_KERNEL);
-	if (txq->tx_skb == NULL) {
+	txq->tx_skb = kmalloc_array(txq->size, sizeof(*txq->tx_skb),
+				    GFP_KERNEL);
+	if (!txq->tx_skb) {
 		dma_free_coherent(pp->dev->dev.parent,
 				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
 				  txq->descs, txq->descs_phys);
@@ -2945,7 +2946,7 @@ static int mvneta_txq_init(struct mvneta_port *pp,
 	txq->tso_hdrs = dma_alloc_coherent(pp->dev->dev.parent,
 					   txq->size * TSO_HEADER_SIZE,
 					   &txq->tso_hdrs_phys, GFP_KERNEL);
-	if (txq->tso_hdrs == NULL) {
+	if (!txq->tso_hdrs) {
 		kfree(txq->tx_skb);
 		dma_free_coherent(pp->dev->dev.parent,
 				  txq->size * MVNETA_DESC_ALIGNED_SIZE,
@@ -4002,8 +4003,7 @@ static int mvneta_init(struct device *dev, struct mvneta_port *pp)
 	/* Set port default values */
 	mvneta_defaults_set(pp);
 
-	pp->txqs = devm_kcalloc(dev, txq_number, sizeof(struct mvneta_tx_queue),
-				GFP_KERNEL);
+	pp->txqs = devm_kcalloc(dev, txq_number, sizeof(*pp->txqs), GFP_KERNEL);
 	if (!pp->txqs)
 		return -ENOMEM;
 
@@ -4015,8 +4015,7 @@ static int mvneta_init(struct device *dev, struct mvneta_port *pp)
 		txq->done_pkts_coal = MVNETA_TXDONE_COAL_PKTS;
 	}
 
-	pp->rxqs = devm_kcalloc(dev, rxq_number, sizeof(struct mvneta_rx_queue),
-				GFP_KERNEL);
+	pp->rxqs = devm_kcalloc(dev, rxq_number, sizeof(*pp->rxqs), GFP_KERNEL);
 	if (!pp->rxqs)
 		return -ENOMEM;
 
@@ -4027,9 +4026,11 @@ static int mvneta_init(struct device *dev, struct mvneta_port *pp)
 		rxq->size = pp->rx_ring_size;
 		rxq->pkts_coal = MVNETA_RX_COAL_PKTS;
 		rxq->time_coal = MVNETA_RX_COAL_USEC;
-		rxq->buf_virt_addr = devm_kmalloc(pp->dev->dev.parent,
-						  rxq->size * sizeof(void *),
-						  GFP_KERNEL);
+		rxq->buf_virt_addr
+			= devm_kmalloc_array(pp->dev->dev.parent,
+					     rxq->size,
+					     sizeof(*rxq->buf_virt_addr),
+					     GFP_KERNEL);
 		if (!rxq->buf_virt_addr)
 			return -ENOMEM;
 	}
