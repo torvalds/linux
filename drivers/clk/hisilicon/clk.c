@@ -54,8 +54,9 @@ struct hisi_clock_data *hisi_clk_alloc(struct platform_device *pdev,
 	if (!clk_data->base)
 		return NULL;
 
-	clk_table = devm_kmalloc(&pdev->dev, sizeof(struct clk *) * nr_clks,
-				GFP_KERNEL);
+	clk_table = devm_kmalloc_array(&pdev->dev, nr_clks,
+				       sizeof(*clk_table),
+				       GFP_KERNEL);
 	if (!clk_table)
 		return NULL;
 
