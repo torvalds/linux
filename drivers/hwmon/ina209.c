@@ -117,7 +117,7 @@ static long ina209_from_reg(const u8 reg, const u16 val)
 	case INA209_SHUNT_VOLTAGE_POS_WARN:
 	case INA209_SHUNT_VOLTAGE_NEG_WARN:
 		/* LSB=10 uV. Convert to mV. */
-		return DIV_ROUND_CLOSEST(val, 100);
+		return DIV_ROUND_CLOSEST((s16)val, 100);
 
 	case INA209_BUS_VOLTAGE:
 	case INA209_BUS_VOLTAGE_MAX_PEAK:
@@ -146,7 +146,7 @@ static long ina209_from_reg(const u8 reg, const u16 val)
 
 	case INA209_CURRENT:
 		/* LSB=1 mA (selected). Is in mA */
-		return val;
+		return (s16)val;
 	}
 
 	/* programmer goofed */
