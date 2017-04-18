@@ -411,14 +411,12 @@ chipset_init(struct controlvm_message *inmsg)
 	int rc = CONTROLVM_RESP_SUCCESS;
 	int res = 0;
 
-	POSTCODE_LINUX(CHIPSET_INIT_ENTRY_PC, 0, 0, DIAG_SEVERITY_PRINT);
 	if (chipset_inited) {
 		rc = -CONTROLVM_RESP_ALREADY_DONE;
 		res = -EIO;
 		goto out_respond;
 	}
 	chipset_inited = 1;
-	POSTCODE_LINUX(CHIPSET_INIT_EXIT_PC, 0, 0, DIAG_SEVERITY_PRINT);
 
 	/*
 	 * Set features to indicate we support parahotplug (if Command
