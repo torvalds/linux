@@ -750,31 +750,29 @@ my_device_create(struct controlvm_message *inmsg)
 
 	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to get bus by id: %d\n", bus_no);
 		err = -ENODEV;
 		goto err_respond;
 	}
 
 	if (bus_info->state.created == 0) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"bus not created, id: %d\n", bus_no);
 		err = -EINVAL;
 		goto err_respond;
 	}
 
 	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
 	if (dev_info && (dev_info->state.created == 1)) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to get bus by id: %d/%d\n", bus_no, dev_no);
 		err = -EEXIST;
 		goto err_respond;
 	}
 
 	dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
 	if (!dev_info) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -ENOMEM;
 		goto err_respond;
 	}
@@ -786,9 +784,6 @@ my_device_create(struct controlvm_message *inmsg)
 	/* not sure where the best place to set the 'parent' */
 	dev_info->device.parent = &bus_info->device;
 
-	POSTCODE_LINUX(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
-		       DIAG_SEVERITY_PRINT);
-
 	visorchannel =
 	       visorchannel_create_with_lock(cmd->create_device.channel_addr,
 					     cmd->create_device.channel_bytes,
@@ -796,8 +791,9 @@ my_device_create(struct controlvm_message *inmsg)
 					     cmd->create_device.data_type_uuid);
 
 	if (!visorchannel) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to create visorchannel: %d/%d\n",
+			bus_no, dev_no);
 		err = -ENOMEM;
 		goto err_free_dev_info;
 	}
@@ -826,8 +822,6 @@ my_device_create(struct controlvm_message *inmsg)
 	if (err)
 		goto err_destroy_visorchannel;
 
-	POSTCODE_LINUX(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
-		       DIAG_SEVERITY_PRINT);
 	return 0;
 
 err_destroy_visorchannel:
