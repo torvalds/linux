@@ -66,4 +66,12 @@ config NET_DSA_SMSC_LAN9303_I2C
 	  Enable access functions if the SMSC/Microchip LAN9303 is configured
 	  for I2C managed mode.
 
+config NET_DSA_SMSC_LAN9303_MDIO
+	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in MDIO managed mode"
+	depends on NET_DSA
+	select NET_DSA_SMSC_LAN9303
+	---help---
+	  Enable access functions if the SMSC/Microchip LAN9303 is configured
+	  for MDIO managed mode.
+
 endmenu
