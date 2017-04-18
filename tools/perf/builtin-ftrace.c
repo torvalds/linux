@@ -16,6 +16,7 @@
 
 #include "debug.h"
 #include <subcmd/parse-options.h>
+#include <api/fs/tracing_path.h>
 #include "evlist.h"
 #include "target.h"
 #include "cpumap.h"
