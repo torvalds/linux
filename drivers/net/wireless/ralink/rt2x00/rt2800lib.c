@@ -4932,7 +4932,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, TX_PIN_CFG, tx_pin);
 
 	if (rt2x00_rt(rt2x00dev, RT6352)) {
-		if (rt2x00dev->default_ant.tx_chain_num == 1) {
+		if (rt2x00dev->default_ant.rx_chain_num == 1) {
 			rt2800_bbp_write(rt2x00dev, 91, 0x07);
 			rt2800_bbp_write(rt2x00dev, 95, 0x1A);
 			rt2800_bbp_write(rt2x00dev, 195, 128);
@@ -4953,8 +4953,8 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		}
 
 		if (rt2x00_has_cap_external_lna_bg(rt2x00dev)) {
-			rt2800_bbp_write(rt2x00dev, 75, 0x60);
-			rt2800_bbp_write(rt2x00dev, 76, 0x44);
+			rt2800_bbp_write(rt2x00dev, 75, 0x68);
+			rt2800_bbp_write(rt2x00dev, 76, 0x4C);
 			rt2800_bbp_write(rt2x00dev, 79, 0x1C);
 			rt2800_bbp_write(rt2x00dev, 80, 0x0C);
 			rt2800_bbp_write(rt2x00dev, 82, 0xB6);
