@@ -1082,8 +1082,12 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	 * result in ADD/DEL notifiers to group->notifier
 	 */
 	if (action == BUS_NOTIFY_ADD_DEVICE) {
-		if (ops->add_device)
-			return ops->add_device(dev);
+		if (ops->add_device) {
+			int ret;
+
+			ret = ops->add_device(dev);
+			return (ret) ? NOTIFY_DONE : NOTIFY_OK;
+		}
 	} else if (action == BUS_NOTIFY_REMOVED_DEVICE) {
 		if (ops->remove_device && dev->iommu_group) {
 			ops->remove_device(dev);
