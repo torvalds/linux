@@ -7802,7 +7802,7 @@ L:	linux-man@vger.kernel.org
 S:	Maintained
 
 MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
-M:	Rahul Bedarkar <rahul.bedarkar@imgtec.com>
+M:	Rahul Bedarkar <rahulbedarkar89@gmail.com>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/boot/dts/img/pistachio_marduk.dts
