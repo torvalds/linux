@@ -280,24 +280,10 @@ bool ion_buffer_cached(struct ion_buffer *buffer);
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer);
 
 /**
- * ion_device_create - allocates and returns an ion device
- *
- * returns a valid device or -PTR_ERR
- */
-struct ion_device *ion_device_create(void);
-
-/**
- * ion_device_destroy - free and device and it's resource
- * @dev:		the device
- */
-void ion_device_destroy(struct ion_device *dev);
-
-/**
  * ion_device_add_heap - adds a heap to the ion device
- * @dev:		the device
  * @heap:		the heap to add
  */
-void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap);
+void ion_device_add_heap(struct ion_heap *heap);
 
 /**
  * some helpers for common operations on buffers using the sg_table
@@ -388,30 +374,6 @@ size_t ion_heap_freelist_shrink(struct ion_heap *heap,
  */
 size_t ion_heap_freelist_size(struct ion_heap *heap);
 
-
-/**
- * functions for creating and destroying the built in ion heaps.
- * architectures can add their own custom architecture specific
- * heaps as appropriate.
- */
-
-
-struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data);
-void ion_heap_destroy(struct ion_heap *heap);
-
-struct ion_heap *ion_system_heap_create(struct ion_platform_heap *unused);
-void ion_system_heap_destroy(struct ion_heap *heap);
-struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *heap);
-void ion_system_contig_heap_destroy(struct ion_heap *heap);
-
-struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data);
-void ion_carveout_heap_destroy(struct ion_heap *heap);
-
-struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data);
-void ion_chunk_heap_destroy(struct ion_heap *heap);
-
-struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data);
-void ion_cma_heap_destroy(struct ion_heap *heap);
 
 /**
  * functions for creating and destroying a heap pool -- allows you

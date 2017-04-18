@@ -40,6 +40,9 @@
 
 #include "ion.h"
 
+static struct ion_device *internal_dev;
+static int heap_id = 0;
+
 bool ion_buffer_cached(struct ion_buffer *buffer)
 {
 	return !!(buffer->flags & ION_FLAG_CACHED);
@@ -1198,9 +1201,10 @@ static int debug_shrink_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
 			debug_shrink_set, "%llu\n");
 
-void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
+void ion_device_add_heap(struct ion_heap *heap)
 {
 	struct dentry *debug_file;
+	struct ion_device *dev = internal_dev;
 
 	if (!heap->ops->allocate || !heap->ops->free)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
@@ -1217,6 +1221,7 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 
 	heap->dev = dev;
 	down_write(&dev->lock);
+	heap->id = heap_id++;
 	/*
 	 * use negative heap->id to reverse the priority -- when traversing
 	 * the list later attempt higher id numbers first
@@ -1256,14 +1261,14 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 }
 EXPORT_SYMBOL(ion_device_add_heap);
 
-struct ion_device *ion_device_create(void)
+int ion_device_create(void)
 {
 	struct ion_device *idev;
 	int ret;
 
 	idev = kzalloc(sizeof(*idev), GFP_KERNEL);
 	if (!idev)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	idev->dev.minor = MISC_DYNAMIC_MINOR;
 	idev->dev.name = "ion";
@@ -1273,7 +1278,7 @@ struct ion_device *ion_device_create(void)
 	if (ret) {
 		pr_err("ion: failed to register misc device.\n");
 		kfree(idev);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
 	idev->debug_root = debugfs_create_dir("ion", NULL);
@@ -1292,7 +1297,6 @@ struct ion_device *ion_device_create(void)
 		pr_err("ion: failed to create debugfs clients directory.\n");
 
 debugfs_done:
-
 	idev->buffers = RB_ROOT;
 	mutex_init(&idev->buffer_lock);
 	init_rwsem(&idev->lock);
@@ -1300,15 +1304,7 @@ debugfs_done:
 	idev->clients = RB_ROOT;
 	ion_root_client = &idev->clients;
 	mutex_init(&debugfs_mutex);
-	return idev;
+	internal_dev = idev;
+	return 0;
 }
-EXPORT_SYMBOL(ion_device_create);
-
-void ion_device_destroy(struct ion_device *dev)
-{
-	misc_deregister(&dev->dev);
-	debugfs_remove_recursive(dev->debug_root);
-	/* XXX need to free the heaps and clients ? */
-	kfree(dev);
-}
-EXPORT_SYMBOL(ion_device_destroy);
+subsys_initcall(ion_device_create);

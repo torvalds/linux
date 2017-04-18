@@ -145,13 +145,3 @@ struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 
 	return &carveout_heap->heap;
 }
-
-void ion_carveout_heap_destroy(struct ion_heap *heap)
-{
-	struct ion_carveout_heap *carveout_heap =
-	     container_of(heap, struct  ion_carveout_heap, heap);
-
-	gen_pool_destroy(carveout_heap->pool);
-	kfree(carveout_heap);
-	carveout_heap = NULL;
-}

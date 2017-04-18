@@ -320,7 +320,7 @@ err_create_pool:
 	return -ENOMEM;
 }
 
-struct ion_heap *ion_system_heap_create(struct ion_platform_heap *unused)
+static struct ion_heap *__ion_system_heap_create(void)
 {
 	struct ion_system_heap *heap;
 
@@ -348,19 +348,19 @@ free_heap:
 	return ERR_PTR(-ENOMEM);
 }
 
-void ion_system_heap_destroy(struct ion_heap *heap)
+static int ion_system_heap_create(void)
 {
-	struct ion_system_heap *sys_heap = container_of(heap,
-							struct ion_system_heap,
-							heap);
-	int i;
+	struct ion_heap *heap;
 
-	for (i = 0; i < NUM_ORDERS; i++) {
-		ion_page_pool_destroy(sys_heap->uncached_pools[i]);
-		ion_page_pool_destroy(sys_heap->cached_pools[i]);
-	}
-	kfree(sys_heap);
+	heap = __ion_system_heap_create();
+	if (IS_ERR(heap))
+		return PTR_ERR(heap);
+	heap->name = "ion_system_heap";
+
+	ion_device_add_heap(heap);
+	return 0;
 }
+device_initcall(ion_system_heap_create);
 
 static int ion_system_contig_heap_allocate(struct ion_heap *heap,
 					   struct ion_buffer *buffer,
@@ -429,7 +429,7 @@ static struct ion_heap_ops kmalloc_ops = {
 	.map_user = ion_heap_map_user,
 };
 
-struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *unused)
+static struct ion_heap *__ion_system_contig_heap_create(void)
 {
 	struct ion_heap *heap;
 
@@ -438,10 +438,20 @@ struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *unused)
 		return ERR_PTR(-ENOMEM);
 	heap->ops = &kmalloc_ops;
 	heap->type = ION_HEAP_TYPE_SYSTEM_CONTIG;
+	heap->name = "ion_system_contig_heap";
 	return heap;
 }
 
-void ion_system_contig_heap_destroy(struct ion_heap *heap)
+static int ion_system_contig_heap_create(void)
 {
-	kfree(heap);
+	struct ion_heap *heap;
+
+	heap = __ion_system_contig_heap_create();
+	if (IS_ERR(heap))
+		return PTR_ERR(heap);
+
+	ion_device_add_heap(heap);
+	return 0;
 }
+device_initcall(ion_system_contig_heap_create);
+
