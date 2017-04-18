@@ -582,3 +582,24 @@ platform data is provided, this uses the step_wise throttling policy.
 This function serves as an arbitrator to set the state of a cooling
 device. It sets the cooling device to the deepest cooling state if
 possible.
+
+6. thermal_emergency_poweroff:
+
+On an event of critical trip temperature crossing. Thermal framework
+allows the system to shutdown gracefully by calling orderly_poweroff().
+In the event of a failure of orderly_poweroff() to shut down the system
+we are in danger of keeping the system alive at undesirably high
+temperatures. To mitigate this high risk scenario we program a work
+queue to fire after a pre-determined number of seconds to start
+an emergency shutdown of the device using the kernel_power_off()
+function. In case kernel_power_off() fails then finally
+emergency_restart() is called in the worst case.
+
+The delay should be carefully profiled so as to give adequate time for
+orderly_poweroff(). In case of failure of an orderly_poweroff() the
+emergency poweroff kicks in after the delay has elapsed and shuts down
+the system.
+
+If set to 0 emergency poweroff will not be supported. So a carefully
+profiled non-zero positive value is a must for emergerncy poweroff to be
+triggered.
