@@ -46,6 +46,7 @@
 #include <net/tcp_states.h>
 #include <net/ip6_checksum.h>
 #include <net/xfrm.h>
+#include <net/inet_hashtables.h>
 #include <net/inet6_hashtables.h>
 #include <net/busy_poll.h>
 #include <net/sock_reuseport.h>
@@ -864,21 +865,26 @@ discard:
 	return 0;
 }
 
+
 static struct sock *__udp6_lib_demux_lookup(struct net *net,
 			__be16 loc_port, const struct in6_addr *loc_addr,
 			__be16 rmt_port, const struct in6_addr *rmt_addr,
 			int dif)
 {
+	unsigned short hnum = ntohs(loc_port);
+	unsigned int hash2 = udp6_portaddr_hash(net, loc_addr, hnum);
+	unsigned int slot2 = hash2 & udp_table.mask;
+	struct udp_hslot *hslot2 = &udp_table.hash2[slot2];
+	const __portpair ports = INET_COMBINED_PORTS(rmt_port, hnum);
 	struct sock *sk;
 
-	rcu_read_lock();
-	sk = __udp6_lib_lookup(net, rmt_addr, rmt_port, loc_addr, loc_port,
-			       dif, &udp_table, NULL);
-	if (sk && !atomic_inc_not_zero(&sk->sk_refcnt))
-		sk = NULL;
-	rcu_read_unlock();
-
-	return sk;
+	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
+		if (INET6_MATCH(sk, net, rmt_addr, loc_addr, ports, dif))
+			return sk;
+		/* Only check first socket in chain */
+		break;
+	}
+	return NULL;
 }
 
 static void udp_v6_early_demux(struct sk_buff *skb)
@@ -903,7 +909,7 @@ static void udp_v6_early_demux(struct sk_buff *skb)
 	else
 		return;
 
-	if (!sk)
+	if (!sk || !atomic_inc_not_zero_hint(&sk->sk_refcnt, 2))
 		return;
 
 	skb->sk = sk;
