@@ -33,7 +33,7 @@
 
 struct arizona_ldo1 {
 	struct regulator_dev *regulator;
-	struct arizona *arizona;
+	struct regmap *regmap;
 
 	struct regulator_consumer_supply supply;
 	struct regulator_init_data init_data;
@@ -67,7 +67,7 @@ static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 					   unsigned sel)
 {
 	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->arizona->regmap;
+	struct regmap *regmap = ldo->regmap;
 	unsigned int val;
 	int ret;
 
@@ -93,7 +93,7 @@ static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->arizona->regmap;
+	struct regmap *regmap = ldo->regmap;
 	unsigned int val;
 	int ret;
 
@@ -247,7 +247,7 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	if (!ldo1)
 		return -ENOMEM;
 
-	ldo1->arizona = arizona;
+	ldo1->regmap = arizona->regmap;
 
 	/*
 	 * Since the chip usually supplies itself we provide some
