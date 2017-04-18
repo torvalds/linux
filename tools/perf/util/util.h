@@ -20,7 +20,6 @@
 #include <limits.h>
 #include <sys/param.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
@@ -82,6 +81,7 @@ static inline void *zalloc(size_t size)
 
 #define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
 
+struct dirent;
 struct strlist;
 
 int mkdir_p(char *path, mode_t mode);

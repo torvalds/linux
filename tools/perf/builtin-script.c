@@ -32,6 +32,7 @@
 #include "asm/bug.h"
 #include "util/mem-events.h"
 #include "util/dump-insn.h"
+#include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
 

@@ -1,3 +1,4 @@
+#include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/kernel.h>

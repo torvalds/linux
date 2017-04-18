@@ -1,5 +1,6 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/err.h>
+#include <dirent.h>
 #include <errno.h>
 #include "term.h"
 #include "../perf.h"

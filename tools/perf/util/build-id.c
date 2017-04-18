@@ -7,6 +7,7 @@
  * Copyright (C) 2009, 2010 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 #include "util.h"
+#include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include "build-id.h"
