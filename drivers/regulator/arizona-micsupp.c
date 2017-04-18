@@ -231,14 +231,66 @@ static int arizona_micsupp_of_get_pdata(struct arizona_micsupp_pdata *pdata,
 	return 0;
 }
 
+static int arizona_micsupp_common_init(struct platform_device *pdev,
+				       struct arizona_micsupp *micsupp,
+				       const struct regulator_desc *desc,
+				       struct arizona_micsupp_pdata *pdata)
+{
+	struct regulator_config config = { };
+	int ret;
+
+	INIT_WORK(&micsupp->check_cp_work, arizona_micsupp_check_cp);
+
+	micsupp->init_data.consumer_supplies = &micsupp->supply;
+	micsupp->supply.supply = "MICVDD";
+	micsupp->supply.dev_name = dev_name(micsupp->dev);
+	micsupp->enable_reg = desc->enable_reg;
+
+	config.dev = micsupp->dev;
+	config.driver_data = micsupp;
+	config.regmap = micsupp->regmap;
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(micsupp->dev)) {
+			ret = arizona_micsupp_of_get_pdata(pdata, &config,
+							   desc);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	if (pdata->init_data)
+		config.init_data = pdata->init_data;
+	else
+		config.init_data = &micsupp->init_data;
+
+	/* Default to regulated mode */
+	regmap_update_bits(micsupp->regmap, micsupp->enable_reg,
+			   ARIZONA_CPMIC_BYPASS, 0);
+
+	micsupp->regulator = devm_regulator_register(&pdev->dev,
+						     desc,
+						     &config);
+
+	of_node_put(config.of_node);
+
+	if (IS_ERR(micsupp->regulator)) {
+		ret = PTR_ERR(micsupp->regulator);
+		dev_err(micsupp->dev, "Failed to register mic supply: %d\n",
+			ret);
+		return ret;
+	}
+
+	platform_set_drvdata(pdev, micsupp);
+
+	return 0;
+}
+
 static int arizona_micsupp_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	const struct regulator_desc *desc;
-	struct regulator_config config = { };
-	struct arizona_micsupp_pdata *pdata = &arizona->pdata.micvdd;
 	struct arizona_micsupp *micsupp;
-	int ret;
 
 	micsupp = devm_kzalloc(&pdev->dev, sizeof(*micsupp), GFP_KERNEL);
 	if (!micsupp)
@@ -247,7 +299,6 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	micsupp->regmap = arizona->regmap;
 	micsupp->dapm = &arizona->dapm;
 	micsupp->dev = arizona->dev;
-	INIT_WORK(&micsupp->check_cp_work, arizona_micsupp_check_cp);
 
 	/*
 	 * Since the chip usually supplies itself we provide some
@@ -266,49 +317,8 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 		break;
 	}
 
-	micsupp->init_data.consumer_supplies = &micsupp->supply;
-	micsupp->supply.supply = "MICVDD";
-	micsupp->supply.dev_name = dev_name(arizona->dev);
-	micsupp->enable_reg = desc->enable_reg;
-
-	config.dev = arizona->dev;
-	config.driver_data = micsupp;
-	config.regmap = arizona->regmap;
-
-	if (IS_ENABLED(CONFIG_OF)) {
-		if (!dev_get_platdata(arizona->dev)) {
-			ret = arizona_micsupp_of_get_pdata(pdata, &config,
-							   desc);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	if (pdata->init_data)
-		config.init_data = pdata->init_data;
-	else
-		config.init_data = &micsupp->init_data;
-
-	/* Default to regulated mode until the API supports bypass */
-	regmap_update_bits(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1,
-			   ARIZONA_CPMIC_BYPASS, 0);
-
-	micsupp->regulator = devm_regulator_register(&pdev->dev,
-						     desc,
-						     &config);
-
-	of_node_put(config.of_node);
-
-	if (IS_ERR(micsupp->regulator)) {
-		ret = PTR_ERR(micsupp->regulator);
-		dev_err(arizona->dev, "Failed to register mic supply: %d\n",
-			ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, micsupp);
-
-	return 0;
+	return arizona_micsupp_common_init(pdev, micsupp, desc,
+					   &arizona->pdata.micvdd);
 }
 
 static struct platform_driver arizona_micsupp_driver = {
