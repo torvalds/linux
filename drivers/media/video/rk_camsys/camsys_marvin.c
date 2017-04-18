@@ -1050,8 +1050,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 			}
 		}
 	} else{
-		mrv_clk->pd_isp		  =
-			devm_clk_get(&pdev->dev, "pd_isp");
+		/*mrv_clk->pd_isp	  =                */
+		/*	devm_clk_get(&pdev->dev, "pd_isp");*/
 		mrv_clk->aclk_isp	  =
 			devm_clk_get(&pdev->dev, "aclk_isp");
 		mrv_clk->hclk_isp	  =
@@ -1069,7 +1069,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 		mrv_clk->clk_mipi_24m =
 			devm_clk_get(&pdev->dev, "clk_mipi_24m");
 
-		if (IS_ERR_OR_NULL(mrv_clk->pd_isp)      ||
+		if (
+			/*IS_ERR_OR_NULL(mrv_clk->pd_isp)    ||*/
 			IS_ERR_OR_NULL(mrv_clk->aclk_isp)    ||
 			IS_ERR_OR_NULL(mrv_clk->hclk_isp)    ||
 			IS_ERR_OR_NULL(mrv_clk->isp)         ||

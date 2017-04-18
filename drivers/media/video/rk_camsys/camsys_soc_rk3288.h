@@ -99,9 +99,9 @@
 #define CSIHOST_ERR2                      (0x24)
 
 #define write_grf_reg(addr, val)           \
-	__raw_writel(val, addr + RK_GRF_VIRT)
+	__raw_writel(val, (void *)(addr + para->camsys_dev->rk_grf_base))
 #define read_grf_reg(addr)                 \
-	__raw_readl(addr + RK_GRF_VIRT)
+	__raw_readl((void *)(addr + para->camsys_dev->rk_grf_base))
 #define mask_grf_reg(addr, msk, val)       \
 	write_grf_reg(addr, (val) | ((~(msk)) & read_grf_reg(addr)))
 #ifdef CONFIG_ARM64

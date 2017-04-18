@@ -155,8 +155,10 @@
 	1) clock clk_vio0_noc would cause mipi lcdc no display on 3368h, remove it.
 *v0.0x21.0xb:
 	1) some log is boring, so set print level more high.
+*v0.0x21.0xc:
+	1) support rk3288.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xb)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xc)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"

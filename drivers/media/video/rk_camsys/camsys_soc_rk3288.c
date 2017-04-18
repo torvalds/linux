@@ -44,7 +44,7 @@ static struct mipiphy_hsfreqrange_s mipiphy_hsfreqrange[] = {
 
 
 static int camsys_rk3288_mipiphy0_wr_reg(
-unsigned char addr, unsigned char data)
+unsigned char addr, unsigned char data, camsys_mipiphy_soc_para_t *para)
 {
     /*TESTCLK=1*/
 	write_grf_reg(GRF_SOC_CON14_OFFSET,
@@ -201,22 +201,22 @@ camsys_mipiphy_soc_para_t *para)
 
 			/*set clock lane*/
 			camsys_rk3288_mipiphy0_wr_reg
-				(0x34, 0x15);
+				(0x34, 0x15, para);
 			if (para->phy->data_en_bit >= 0x00)
 				camsys_rk3288_mipiphy0_wr_reg
-					(0x44, hsfreqrange);
+					(0x44, hsfreqrange, para);
 			if (para->phy->data_en_bit >= 0x01)
 				camsys_rk3288_mipiphy0_wr_reg(
-					0x54, hsfreqrange);
+					0x54, hsfreqrange, para);
 			if (para->phy->data_en_bit >= 0x04) {
 				camsys_rk3288_mipiphy0_wr_reg
-					(0x84, hsfreqrange);
+					(0x84, hsfreqrange, para);
 				camsys_rk3288_mipiphy0_wr_reg
-					(0x94, hsfreqrange);
+					(0x94, hsfreqrange, para);
 			}
 
 			/*Normal operation*/
-			camsys_rk3288_mipiphy0_wr_reg(0x0, -1);
+			camsys_rk3288_mipiphy0_wr_reg(0x0, -1, para);
 		    /*TESTCLK=1*/
 			write_grf_reg(GRF_SOC_CON14_OFFSET,
 					DPHY_RX0_TESTCLK_MASK
@@ -332,6 +332,9 @@ fail:
 	return -1;
 }
 
+#define MRV_AFM_BASE    0x0000
+#define VI_IRCL         0x0014
+
 int camsys_rk3288_cfg(
 camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para)
 {
@@ -341,7 +344,7 @@ camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para)
 	case Clk_DriverStrength_Cfg: {
 		para_int = (unsigned int *)cfg_para;
 		__raw_writel((((*para_int) & 0x03) << 3)|(0x03 << 3),
-			RK_GRF_VIRT + 0x01d4);
+			(void *)(camsys_dev->rk_grf_base + 0x01d4));
 		break;
 	}
 
@@ -351,12 +354,12 @@ camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para)
 			/* 1.8v IO*/
 			__raw_writel
 				(((1 << 1) | (1 << (1 + 16))),
-				RK_GRF_VIRT + 0x0380);
+				(void *)(camsys_dev->rk_grf_base + 0x0380));
 		} else {
 			/* 3.3v IO*/
 			__raw_writel
 				(((0 << 1) | (1 << (1 + 16))),
-				RK_GRF_VIRT + 0x0380);
+				(void *)(camsys_dev->rk_grf_base + 0x0380));
 		}
 		break;
 	}
@@ -371,12 +374,21 @@ camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para)
 		unsigned int reset;
 
 		reset = (unsigned int)cfg_para;
-
+		/*
 		if (reset == 1)
 			cru_writel(0x40004000, 0x1d0);
 		else
 			cru_writel(0x40000000, 0x1d0);
 			camsys_trace(2, "Isp_SoftRst: %d", reset);
+		break;
+		*/
+		if (reset == 1)
+			__raw_writel(0x80, (void *)(camsys_dev->rk_isp_base +
+				MRV_AFM_BASE + VI_IRCL));
+		else
+			__raw_writel(0x00, (void *)(camsys_dev->rk_isp_base +
+				MRV_AFM_BASE + VI_IRCL));
+		camsys_trace(2, "Isp self soft rst: %d", reset);
 		break;
 	}
 
