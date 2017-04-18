@@ -451,14 +451,14 @@ void disable_buildid_cache(void)
 }
 
 static bool lsdir_bid_head_filter(const char *name __maybe_unused,
-				  struct dirent *d __maybe_unused)
+				  struct dirent *d)
 {
 	return (strlen(d->d_name) == 2) &&
 		isxdigit(d->d_name[0]) && isxdigit(d->d_name[1]);
 }
 
 static bool lsdir_bid_tail_filter(const char *name __maybe_unused,
-				  struct dirent *d __maybe_unused)
+				  struct dirent *d)
 {
 	int i = 0;
 	while (isxdigit(d->d_name[i]) && i < SBUILD_ID_SIZE - 3)
