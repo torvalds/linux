@@ -138,7 +138,7 @@ Driver Installation
 
 Once you have the adapter cable, if needed, and the controller connected
 the xpad module should be auto loaded. To confirm you can cat
-/proc/bus/usb/devices. There should be an entry like the one at the end [4]_.
+/sys/kernel/debug/usb/devices. There should be an entry like the one at the end [4]_.
 
 
 
@@ -202,7 +202,7 @@ References
 .. [1] http://euc.jp/periphs/xbox-controller.ja.html (ITO Takayuki)
 .. [2] http://xpad.xbox-scene.com/
 .. [3] http://www.markosweb.com/www/xboxhackz.com/
-.. [4] /proc/bus/usb/devices - dump from InterAct PowerPad Pro (Germany):
+.. [4] /sys/kernel/debug/usb/devices - dump from InterAct PowerPad Pro (Germany):
 
  ::
 
@@ -213,7 +213,7 @@ References
     I:  If#= 0 Alt= 0 #EPs= 2 Cls=58(unk. ) Sub=42 Prot=00 Driver=(none)
     E:  Ad=81(I) Atr=03(Int.) MxPS=  32 Ivl= 10ms
     E:  Ad=02(O) Atr=03(Int.) MxPS=  32 Ivl= 10ms
-.. [5] /proc/bus/usb/devices - dump from Redoctane Xbox Dance Pad (US):
+.. [5] /sys/kernel/debug/usb/devices - dump from Redoctane Xbox Dance Pad (US):
 
  ::
 
