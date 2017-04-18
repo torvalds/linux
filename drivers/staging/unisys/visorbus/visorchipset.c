@@ -577,16 +577,14 @@ bus_create(struct controlvm_message *inmsg)
 
 	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (bus_info && (bus_info->state.created == 1)) {
-		POSTCODE_LINUX(BUS_CREATE_FAILURE_PC, 0, bus_no,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed bus_create: already exists\n");
 		err = -EEXIST;
 		goto err_respond;
 	}
 
 	bus_info = kzalloc(sizeof(*bus_info), GFP_KERNEL);
 	if (!bus_info) {
-		POSTCODE_LINUX(BUS_CREATE_FAILURE_PC, 0, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -ENOMEM;
 		goto err_respond;
 	}
@@ -594,8 +592,6 @@ bus_create(struct controlvm_message *inmsg)
 	INIT_LIST_HEAD(&bus_info->list_all);
 	bus_info->chipset_bus_no = bus_no;
 	bus_info->chipset_dev_no = BUS_ROOT_DEVICE;
-
-	POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, bus_no, DIAG_SEVERITY_PRINT);
 
 	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0) {
 		err = save_crash_message(inmsg, CRASH_BUS);
@@ -607,9 +603,6 @@ bus_create(struct controlvm_message *inmsg)
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr),
 				   GFP_KERNEL);
 		if (!pmsg_hdr) {
-			POSTCODE_LINUX(MALLOC_FAILURE_PC, cmd,
-				       bus_info->chipset_bus_no,
-				       DIAG_SEVERITY_ERR);
 			err = -ENOMEM;
 			goto err_free_bus_info;
 		}
@@ -625,8 +618,6 @@ bus_create(struct controlvm_message *inmsg)
 					   cmd->create_bus.bus_data_type_uuid);
 
 	if (!visorchannel) {
-		POSTCODE_LINUX(BUS_CREATE_FAILURE_PC, 0, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -ENOMEM;
 		goto err_free_pending_msg;
 	}
@@ -638,7 +629,6 @@ bus_create(struct controlvm_message *inmsg)
 	if (err)
 		goto err_destroy_channel;
 
-	POSTCODE_LINUX(BUS_CREATE_EXIT_PC, 0, bus_no, DIAG_SEVERITY_PRINT);
 	return 0;
 
 err_destroy_channel:
