@@ -257,10 +257,9 @@ static ssize_t ib_uverbs_event_read(struct ib_uverbs_event_file *file,
 				    struct ib_uverbs_file *uverbs_file,
 				    struct file *filp, char __user *buf,
 				    size_t count, loff_t *pos,
-				    bool is_async)
+				    size_t eventsz)
 {
 	struct ib_uverbs_event *event;
-	int eventsz;
 	int ret = 0;
 
 	spin_lock_irq(&file->lock);
@@ -289,11 +288,6 @@ static ssize_t ib_uverbs_event_read(struct ib_uverbs_event_file *file,
 	}
 
 	event = list_entry(file->event_list.next, struct ib_uverbs_event, list);
-
-	if (is_async)
-		eventsz = sizeof (struct ib_uverbs_async_event_desc);
-	else
-		eventsz = sizeof (struct ib_uverbs_comp_event_desc);
 
 	if (eventsz > count) {
 		ret   = -EINVAL;
@@ -326,7 +320,8 @@ static ssize_t ib_uverbs_async_event_read(struct file *filp, char __user *buf,
 	struct ib_uverbs_async_event_file *file = filp->private_data;
 
 	return ib_uverbs_event_read(&file->ev_file, file->uverbs_file, filp,
-				    buf, count, pos, true);
+				    buf, count, pos,
+				    sizeof(struct ib_uverbs_async_event_desc));
 }
 
 static ssize_t ib_uverbs_comp_event_read(struct file *filp, char __user *buf,
@@ -337,7 +332,8 @@ static ssize_t ib_uverbs_comp_event_read(struct file *filp, char __user *buf,
 
 	return ib_uverbs_event_read(&comp_ev_file->ev_file,
 				    comp_ev_file->uobj_file.ufile, filp,
-				    buf, count, pos, false);
+				    buf, count, pos,
+				    sizeof(struct ib_uverbs_comp_event_desc));
 }
 
 static unsigned int ib_uverbs_event_poll(struct ib_uverbs_event_file *file,
