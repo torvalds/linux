@@ -48,11 +48,13 @@ static void unwind_dump(struct unwind_state *state, unsigned long *sp)
 
 		if (zero) {
 			if (!prev_zero)
-				printk_deferred("%p: %016x ...\n", sp, 0);
+				printk_deferred("%p: %0*x ...\n",
+						sp, BITS_PER_LONG/4, 0);
 			continue;
 		}
 
-		printk_deferred("%p: %016lx (%pB)\n", sp, word, (void *)word);
+		printk_deferred("%p: %0*lx (%pB)\n",
+				sp, BITS_PER_LONG/4, word, (void *)word);
 	}
 }
 
