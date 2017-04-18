@@ -62,7 +62,8 @@ static int osdmap_show(struct seq_file *s, void *p)
 		return 0;
 
 	down_read(&osdc->lock);
-	seq_printf(s, "epoch %d flags 0x%x\n", map->epoch, map->flags);
+	seq_printf(s, "epoch %u barrier %u flags 0x%x\n", map->epoch,
+			osdc->epoch_barrier, map->flags);
 
 	for (n = rb_first(&map->pg_pools); n; n = rb_next(n)) {
 		struct ceph_pg_pool_info *pi =
