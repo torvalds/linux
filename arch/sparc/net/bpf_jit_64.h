@@ -1,24 +1,13 @@
 #ifndef _BPF_JIT_H
 #define _BPF_JIT_H
 
-/* Conventions:
- *  %g1 : temporary
- *  %g2 : Secondary temporary used by SKB data helper stubs.
- *  %g3 : packet offset passed into SKB data helper stubs.
- *  %o0 : pointer to skb (first argument given to JIT function)
- *  %o1 : BPF A accumulator
- *  %o2 : BPF X accumulator
- *  %o3 : Holds saved %o7 so we can call helper functions without needing
- *        to allocate a register window.
- *  %o4 : skb->len - skb->data_len
- *  %o5 : skb->data
- */
-
 #ifndef __ASSEMBLER__
 #define G0		0x00
 #define G1		0x01
+#define G2		0x02
 #define G3		0x03
 #define G6		0x06
+#define G7		0x07
 #define O0		0x08
 #define O1		0x09
 #define O2		0x0a
@@ -27,19 +16,30 @@
 #define O5		0x0d
 #define SP		0x0e
 #define O7		0x0f
+#define L0		0x10
+#define L1		0x11
+#define L2		0x12
+#define L3		0x13
+#define L4		0x14
+#define L5		0x15
+#define L6		0x16
+#define L7		0x17
+#define I0		0x18
+#define I1		0x19
+#define I2		0x1a
+#define I3		0x1b
+#define I4		0x1c
+#define I5		0x1d
 #define FP		0x1e
+#define I7		0x1f
 
-#define r_SKB		O0
-#define r_A		O1
-#define r_X		O2
-#define r_saved_O7	O3
-#define r_HEADLEN	O4
-#define r_SKB_DATA	O5
+#define r_SKB		L0
+#define r_HEADLEN	L4
+#define r_SKB_DATA	L5
 #define r_TMP		G1
-#define r_TMP2		G2
-#define r_OFF		G3
+#define r_TMP2		G3
 
-/* assembly code in arch/sparc/net/bpf_jit_asm_32.S */
+/* assembly code in arch/sparc/net/bpf_jit_asm_64.S */
 extern u32 bpf_jit_load_word[];
 extern u32 bpf_jit_load_half[];
 extern u32 bpf_jit_load_byte[];
@@ -54,15 +54,13 @@ extern u32 bpf_jit_load_byte_negative_offset[];
 extern u32 bpf_jit_load_byte_msh_negative_offset[];
 
 #else
+#define r_RESULT	%o0
 #define r_SKB		%o0
-#define r_A		%o1
-#define r_X		%o2
-#define r_saved_O7	%o3
-#define r_HEADLEN	%o4
-#define r_SKB_DATA	%o5
+#define r_OFF		%o1
+#define r_HEADLEN	%l4
+#define r_SKB_DATA	%l5
 #define r_TMP		%g1
-#define r_TMP2		%g2
-#define r_OFF		%g3
+#define r_TMP2		%g3
 #endif
 
 #endif /* _BPF_JIT_H */

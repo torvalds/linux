@@ -17,24 +17,6 @@ static inline bool is_simm13(unsigned int value)
 	return value + 0x1000 < 0x2000;
 }
 
-static void bpf_flush_icache(void *start_, void *end_)
-{
-#ifdef CONFIG_SPARC64
-	/* Cheetah's I-cache is fully coherent.  */
-	if (tlb_type == spitfire) {
-		unsigned long start = (unsigned long) start_;
-		unsigned long end = (unsigned long) end_;
-
-		start &= ~7UL;
-		end = (end + 7UL) & ~7UL;
-		while (start < end) {
-			flushi(start);
-			start += 32;
-		}
-	}
-#endif
-}
-
 #define SEEN_DATAREF 1 /* might call external helpers */
 #define SEEN_XREG    2 /* ebx is used */
 #define SEEN_MEM     4 /* use mem[] for temporary storage */
@@ -82,11 +64,7 @@ static void bpf_flush_icache(void *start_, void *end_)
 #define BE		(F2(0, 2) | CONDE)
 #define BNE		(F2(0, 2) | CONDNE)
 
-#ifdef CONFIG_SPARC64
-#define BE_PTR		(F2(0, 1) | CONDE | (2 << 20))
-#else
 #define BE_PTR		BE
-#endif
 
 #define SETHI(K, REG)	\
 	(F2(0, 0x4) | RD(REG) | (((K) >> 10) & 0x3fffff))
@@ -116,13 +94,8 @@ static void bpf_flush_icache(void *start_, void *end_)
 #define LD64		F3(3, 0x0b)
 #define ST32		F3(3, 0x04)
 
-#ifdef CONFIG_SPARC64
-#define LDPTR		LD64
-#define BASE_STACKFRAME	176
-#else
 #define LDPTR		LD32
 #define BASE_STACKFRAME	96
-#endif
 
 #define LD32I		(LD32 | IMMED)
 #define LD8I		(LD8 | IMMED)
@@ -234,11 +207,7 @@ do {	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u8));	\
 	__emit_load8(BASE, STRUCT, FIELD, DEST);			\
 } while (0)
 
-#ifdef CONFIG_SPARC64
-#define BIAS (STACK_BIAS - 4)
-#else
 #define BIAS (-4)
-#endif
 
 #define emit_ldmem(OFF, DEST)						\
 do {	*prog++ = LD32I | RS1(SP) | S13(BIAS - (OFF)) | RD(DEST);	\
@@ -249,13 +218,8 @@ do {	*prog++ = ST32I | RS1(SP) | S13(BIAS - (OFF)) | RD(SRC);	\
 } while (0)
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_SPARC64
-#define emit_load_cpu(REG)						\
-	emit_load16(G6, struct thread_info, cpu, REG)
-#else
 #define emit_load_cpu(REG)						\
 	emit_load32(G6, struct thread_info, cpu, REG)
-#endif
 #else
 #define emit_load_cpu(REG)	emit_clear(REG)
 #endif
@@ -486,7 +450,6 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				if (K == 1)
 					break;
 				emit_write_y(G0);
-#ifdef CONFIG_SPARC32
 				/* The Sparc v8 architecture requires
 				 * three instructions between a %y
 				 * register write and the first use.
@@ -494,31 +457,21 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				emit_nop();
 				emit_nop();
 				emit_nop();
-#endif
 				emit_alu_K(DIV, K);
 				break;
 			case BPF_ALU | BPF_DIV | BPF_X:	/* A /= X; */
 				emit_cmpi(r_X, 0);
 				if (pc_ret0 > 0) {
 					t_offset = addrs[pc_ret0 - 1];
-#ifdef CONFIG_SPARC32
 					emit_branch(BE, t_offset + 20);
-#else
-					emit_branch(BE, t_offset + 8);
-#endif
 					emit_nop(); /* delay slot */
 				} else {
 					emit_branch_off(BNE, 16);
 					emit_nop();
-#ifdef CONFIG_SPARC32
 					emit_jump(cleanup_addr + 20);
-#else
-					emit_jump(cleanup_addr + 8);
-#endif
 					emit_clear(r_A);
 				}
 				emit_write_y(G0);
-#ifdef CONFIG_SPARC32
 				/* The Sparc v8 architecture requires
 				 * three instructions between a %y
 				 * register write and the first use.
@@ -526,7 +479,6 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				emit_nop();
 				emit_nop();
 				emit_nop();
-#endif
 				emit_alu_X(DIV);
 				break;
 			case BPF_ALU | BPF_NEG:
@@ -797,7 +749,6 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 		bpf_jit_dump(flen, proglen, pass + 1, image);
 
 	if (image) {
-		bpf_flush_icache(image, image + proglen);
 		fp->bpf_func = (void *)image;
 		fp->jited = 1;
 	}
