@@ -54,17 +54,18 @@ struct uverbs_obj_type_class {
 	 *		 destroyed.
 	 * [lookup]:	 Starts with lookup_get which fetches and locks the
 	 *		 object. After the handler finished using the object, it
-	 *		 needs to call lookup_put to unlock it. The write flag
-	 *		 indicates if the object is locked for exclusive access.
-	 * [remove]:	 Starts with lookup_get with write flag set. This locks
-	 *		 the object for exclusive access. If the handler code
-	 *		 completed successfully, remove_commit is called and
-	 *		 the ib_uobject is removed from the context's uobjects
-	 *		 repository and put. The object itself is destroyed as
-	 *		 well. Once remove succeeds new krefs to the object
-	 *		 cannot be acquired by other threads or userspace and
-	 *		 the hardware driver is removed from the object.
-	 *		 Other krefs on the object may still exist.
+	 *		 needs to call lookup_put to unlock it. The exclusive
+	 *		 flag indicates if the object is locked for exclusive
+	 *		 access.
+	 * [remove]:	 Starts with lookup_get with exclusive flag set. This
+	 *		 locks the object for exclusive access. If the handler
+	 *		 code completed successfully, remove_commit is called
+	 *		 and the ib_uobject is removed from the context's
+	 *		 uobjects repository and put. The object itself is
+	 *		 destroyed as well. Once remove succeeds new krefs to
+	 *		 the object cannot be acquired by other threads or
+	 *		 userspace and the hardware driver is removed from the
+	 *		 object. Other krefs on the object may still exist.
 	 *		 If the handler code failed, lookup_put should be
 	 *		 called. This callback is used when the context
 	 *		 is destroyed as well (process termination,
@@ -77,10 +78,10 @@ struct uverbs_obj_type_class {
 
 	struct ib_uobject *(*lookup_get)(const struct uverbs_obj_type *type,
 					 struct ib_ucontext *ucontext, int id,
-					 bool write);
-	void (*lookup_put)(struct ib_uobject *uobj, bool write);
+					 bool exclusive);
+	void (*lookup_put)(struct ib_uobject *uobj, bool exclusive);
 	/*
-	 * Must be called with the write lock held. If successful uobj is
+	 * Must be called with the exclusive lock held. If successful uobj is
 	 * invalid on return. On failure uobject is left completely
 	 * unchanged
 	 */
@@ -121,8 +122,8 @@ struct uverbs_obj_idr_type {
 
 struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 					   struct ib_ucontext *ucontext,
-					   int id, bool write);
-void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool write);
+					   int id, bool exclusive);
+void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive);
 struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
 					    struct ib_ucontext *ucontext);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
