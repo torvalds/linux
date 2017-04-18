@@ -191,9 +191,10 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 	/* get extra reference on main device to hold on
 	 * behalf of devs.  This holds the chip structure
 	 * while cdevs is in use.  The corresponding put
-	 * is in the tpm_devs_release
+	 * is in the tpm_devs_release (TPM2 only)
 	 */
-	get_device(&chip->dev);
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		get_device(&chip->dev);
 
 	if (chip->dev_num == 0)
 		chip->dev.devt = MKDEV(MISC_MAJOR, TPM_MINOR);
