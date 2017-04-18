@@ -312,7 +312,7 @@ parser_string_get(struct parser_context *ctx)
 		}
 	if (value_length < 0)	/* '\0' was not included in the length */
 		value_length = nscan;
-	value = kmalloc(value_length + 1, GFP_KERNEL | __GFP_NORETRY);
+	value = kmalloc(value_length + 1, GFP_KERNEL);
 	if (!value)
 		return NULL;
 	if (value_length > 0)
@@ -1033,7 +1033,7 @@ parahotplug_request_create(struct controlvm_message *msg)
 {
 	struct parahotplug_request *req;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL | __GFP_NORETRY);
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return NULL;
 
@@ -1571,7 +1571,7 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 		*retry = true;
 		return NULL;
 	}
-	ctx = kzalloc(allocbytes, GFP_KERNEL | __GFP_NORETRY);
+	ctx = kzalloc(allocbytes, GFP_KERNEL);
 	if (!ctx) {
 		*retry = true;
 		return NULL;
