@@ -700,6 +700,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	pm_runtime_get_sync(dev);
 
+	rcar_i2c_init(priv);
+
 	ret = rcar_i2c_bus_barrier(priv);
 	if (ret < 0)
 		goto out;
@@ -859,8 +861,6 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	ret = rcar_i2c_clock_calculate(priv, &i2c_t);
 	if (ret < 0)
 		goto out_pm_put;
-
-	rcar_i2c_init(priv);
 
 	/* Don't suspend when multi-master to keep arbitration working */
 	if (of_property_read_bool(dev->of_node, "multi-master"))
