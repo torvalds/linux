@@ -83,8 +83,20 @@
 	cpu0-supply = <&vdd_cpu>;
 };
 
+&edp {
+	status = "okay";
+};
+
 &edp_panel {
+	compatible ="lg,lp079qx1-sp0v", "simple-panel";
+	enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&lcd_cs>;
 	power-supply = <&vcc_lcd>;
+	status = "okay";
+};
+
+&edp_phy {
+	status = "okay";
 };
 
 &gpu {

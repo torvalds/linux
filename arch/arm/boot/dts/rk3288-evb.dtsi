@@ -50,9 +50,6 @@
 	};
 
 	edp_panel: edp-panel {
-		compatible ="lg,lp079qx1-sp0v", "simple-panel";
-		enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&lcd_cs>;
 		status = "disabled";
 
 		ports {
@@ -267,13 +264,9 @@
 	supports-sd;
 };
 
-&edp_phy {
-	status = "okay";
-};
-
 &edp {
 	force-hpd;
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		edp_out: port@1 {
