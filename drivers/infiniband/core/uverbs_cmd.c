@@ -943,7 +943,7 @@ ssize_t ib_uverbs_create_comp_channel(struct ib_uverbs_file *file,
 
 	ev_file = container_of(uobj, struct ib_uverbs_completion_event_file,
 			       uobj_file.uobj);
-	ib_uverbs_init_event_file(&ev_file->ev_file);
+	ib_uverbs_init_event_queue(&ev_file->ev_queue);
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -1015,7 +1015,7 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	cq->uobject       = &obj->uobject;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
-	cq->cq_context    = &ev_file->ev_file;
+	cq->cq_context    = &ev_file->ev_queue;
 	atomic_set(&cq->usecnt, 0);
 
 	obj->uobject.object = cq;
@@ -1296,7 +1296,7 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	struct ib_uobject		*uobj;
 	struct ib_cq               	*cq;
 	struct ib_ucq_object        	*obj;
-	struct ib_uverbs_event_file	*ev_file;
+	struct ib_uverbs_event_queue	*ev_queue;
 	int                        	 ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1313,7 +1313,7 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	 */
 	uverbs_uobject_get(uobj);
 	cq      = uobj->object;
-	ev_file = cq->cq_context;
+	ev_queue = cq->cq_context;
 	obj     = container_of(cq->uobject, struct ib_ucq_object, uobject);
 
 	memset(&resp, 0, sizeof(resp));

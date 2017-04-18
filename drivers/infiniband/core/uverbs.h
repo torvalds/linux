@@ -76,12 +76,13 @@
  * an asynchronous event queue file is created and released when the
  * event file is closed.
  *
- * struct ib_uverbs_event_file: One reference is held by the VFS and
- * released when the file is closed.  For asynchronous event files,
- * another reference is held by the corresponding main context file
- * and released when that file is closed.  For completion event files,
- * a reference is taken when a CQ is created that uses the file, and
- * released when the CQ is destroyed.
+ * struct ib_uverbs_event_queue: Base structure for
+ * struct ib_uverbs_async_event_file and struct ib_uverbs_completion_event_file.
+ * One reference is held by the VFS and released when the file is closed.
+ * For asynchronous event files, another reference is held by the corresponding
+ * main context file and released when that file is closed.  For completion
+ * event files, a reference is taken when a CQ is created that uses the file,
+ * and released when the CQ is destroyed.
  */
 
 struct ib_uverbs_device {
@@ -101,7 +102,7 @@ struct ib_uverbs_device {
 	struct list_head			uverbs_events_file_list;
 };
 
-struct ib_uverbs_event_file {
+struct ib_uverbs_event_queue {
 	spinlock_t				lock;
 	int					is_closed;
 	wait_queue_head_t			poll_wait;
@@ -110,7 +111,7 @@ struct ib_uverbs_event_file {
 };
 
 struct ib_uverbs_async_event_file {
-	struct ib_uverbs_event_file		ev_file;
+	struct ib_uverbs_event_queue		ev_queue;
 	struct ib_uverbs_file		       *uverbs_file;
 	struct kref				ref;
 	struct list_head			list;
@@ -118,7 +119,7 @@ struct ib_uverbs_async_event_file {
 
 struct ib_uverbs_completion_event_file {
 	struct ib_uobject_file			uobj_file;
-	struct ib_uverbs_event_file		ev_file;
+	struct ib_uverbs_event_queue		ev_queue;
 };
 
 struct ib_uverbs_file {
@@ -191,7 +192,7 @@ struct ib_ucq_object {
 };
 
 extern const struct file_operations uverbs_event_fops;
-void ib_uverbs_init_event_file(struct ib_uverbs_event_file *ev_file);
+void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
 struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,
 					      struct ib_device *ib_dev);
 void ib_uverbs_free_async_event_file(struct ib_uverbs_file *uverbs_file);
