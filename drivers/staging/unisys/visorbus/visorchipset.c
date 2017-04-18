@@ -1964,7 +1964,7 @@ static struct acpi_driver unisys_acpi_driver = {
 	.ops = {
 		.add = visorchipset_init,
 		.remove = visorchipset_exit,
-		},
+	},
 };
 
 MODULE_DEVICE_TABLE(acpi, unisys_device_ids);
