@@ -48,7 +48,9 @@
 #define AUTORMOD	(1 << 3)
 #define LOCKCLK(x)	(((x) & 0x3) << 1)
 #define LOCKCLK_MASK	LOCKCLK(0x3)
-#define FRACNSRC	(1 << 0)
+#define FRACNSRC_MASK	(1 << 0)
+#define FRACNSRC_STATIC		(0 << 0)
+#define FRACNSRC_DYNAMIC	(1 << 1)
 
 /* GLOBAL_CFG */
 #define ENDEV2		(0x1)
@@ -267,8 +269,8 @@ static int cs2000_ratio_select(struct cs2000_priv *priv, int ch)
 		return ret;
 
 	ret = cs2000_bset(priv, DEVICE_CFG2,
-			  (AUTORMOD | LOCKCLK_MASK | FRACNSRC),
-			  0);
+			  (AUTORMOD | LOCKCLK_MASK | FRACNSRC_MASK),
+			  (LOCKCLK(ch) | FRACNSRC_STATIC));
 	if (ret < 0)
 		return ret;
 
