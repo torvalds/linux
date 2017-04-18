@@ -442,7 +442,8 @@ static void srcu_schedule_cbs_snp(struct srcu_struct *sp, struct srcu_node *snp)
 	int cpu;
 
 	for (cpu = snp->grplo; cpu <= snp->grphi; cpu++)
-		srcu_schedule_cbs_sdp(per_cpu_ptr(sp->sda, cpu), SRCU_INTERVAL);
+		srcu_schedule_cbs_sdp(per_cpu_ptr(sp->sda, cpu),
+				      atomic_read(&sp->srcu_exp_cnt) ? 0 : SRCU_INTERVAL);
 }
 
 /*
