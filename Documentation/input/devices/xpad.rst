@@ -138,15 +138,37 @@ Driver Installation
 
 Once you have the adapter cable, if needed, and the controller connected
 the xpad module should be auto loaded. To confirm you can cat
-/sys/kernel/debug/usb/devices. There should be an entry like the one at the end [4]_.
+/sys/kernel/debug/usb/devices. There should be an entry like those:
 
+.. code-block:: none
+   :caption: dump from InterAct PowerPad Pro (Germany)
+
+    T:  Bus=01 Lev=03 Prnt=04 Port=00 Cnt=01 Dev#=  5 Spd=12  MxCh= 0
+    D:  Ver= 1.10 Cls=00(>ifc ) Sub=00 Prot=00 MxPS=32 #Cfgs=  1
+    P:  Vendor=05fd ProdID=107a Rev= 1.00
+    C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
+    I:  If#= 0 Alt= 0 #EPs= 2 Cls=58(unk. ) Sub=42 Prot=00 Driver=(none)
+    E:  Ad=81(I) Atr=03(Int.) MxPS=  32 Ivl= 10ms
+    E:  Ad=02(O) Atr=03(Int.) MxPS=  32 Ivl= 10ms
+
+.. code-block:: none
+   :caption: dump from Redoctane Xbox Dance Pad (US)
+
+    T:  Bus=01 Lev=02 Prnt=09 Port=00 Cnt=01 Dev#= 10 Spd=12  MxCh= 0
+    D:  Ver= 1.10 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+    P:  Vendor=0c12 ProdID=8809 Rev= 0.01
+    S:  Product=XBOX DDR
+    C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
+    I:  If#= 0 Alt= 0 #EPs= 2 Cls=58(unk. ) Sub=42 Prot=00 Driver=xpad
+    E:  Ad=82(I) Atr=03(Int.) MxPS=  32 Ivl=4ms
+    E:  Ad=02(O) Atr=03(Int.) MxPS=  32 Ivl=4ms
 
 
 Supported Controllers
 =====================
 
 For a full list of supported controllers and associated vendor and product
-IDs see the xpad_device[] array[6].
+IDs see the xpad_device[] array\ [4]_.
 
 As of the historic version 0.0.6 (2006-10-10) the following devices
 were supported::
@@ -202,30 +224,7 @@ References
 .. [1] http://euc.jp/periphs/xbox-controller.ja.html (ITO Takayuki)
 .. [2] http://xpad.xbox-scene.com/
 .. [3] http://www.markosweb.com/www/xboxhackz.com/
-.. [4] /sys/kernel/debug/usb/devices - dump from InterAct PowerPad Pro (Germany):
-
- ::
-
-    T:  Bus=01 Lev=03 Prnt=04 Port=00 Cnt=01 Dev#=  5 Spd=12  MxCh= 0
-    D:  Ver= 1.10 Cls=00(>ifc ) Sub=00 Prot=00 MxPS=32 #Cfgs=  1
-    P:  Vendor=05fd ProdID=107a Rev= 1.00
-    C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
-    I:  If#= 0 Alt= 0 #EPs= 2 Cls=58(unk. ) Sub=42 Prot=00 Driver=(none)
-    E:  Ad=81(I) Atr=03(Int.) MxPS=  32 Ivl= 10ms
-    E:  Ad=02(O) Atr=03(Int.) MxPS=  32 Ivl= 10ms
-.. [5] /sys/kernel/debug/usb/devices - dump from Redoctane Xbox Dance Pad (US):
-
- ::
-
-    T:  Bus=01 Lev=02 Prnt=09 Port=00 Cnt=01 Dev#= 10 Spd=12  MxCh= 0
-    D:  Ver= 1.10 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
-    P:  Vendor=0c12 ProdID=8809 Rev= 0.01
-    S:  Product=XBOX DDR
-    C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
-    I:  If#= 0 Alt= 0 #EPs= 2 Cls=58(unk. ) Sub=42 Prot=00 Driver=xpad
-    E:  Ad=82(I) Atr=03(Int.) MxPS=  32 Ivl=4ms
-    E:  Ad=02(O) Atr=03(Int.) MxPS=  32 Ivl=4ms
-.. [6] http://lxr.free-electrons.com/ident?i=xpad_device
+.. [4] http://lxr.free-electrons.com/ident?i=xpad_device
 
 
 Historic Edits
