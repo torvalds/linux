@@ -120,7 +120,7 @@ static struct sk_buff *esp6_gso_segment(struct sk_buff *skb,
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
 
-	if (xo)
+	if (!xo)
 		goto out;
 
 	seq = xo->seq.low;
