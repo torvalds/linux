@@ -1847,27 +1847,32 @@ static irqreturn_t udc_irq(struct ci_hdrc *ci)
 		if (USBi_PCI & intr) {
 			ci->gadget.speed = hw_port_is_high_speed(ci) ?
 				USB_SPEED_HIGH : USB_SPEED_FULL;
-			if (ci->suspended && ci->driver->resume) {
-				spin_unlock(&ci->lock);
-				ci->driver->resume(&ci->gadget);
-				spin_lock(&ci->lock);
+			if (ci->suspended) {
+				if (ci->driver->resume) {
+					spin_unlock(&ci->lock);
+					ci->driver->resume(&ci->gadget);
+					spin_lock(&ci->lock);
+				}
 				ci->suspended = 0;
+				usb_gadget_set_state(&ci->gadget,
+						ci->resume_state);
 			}
 		}
 
 		if (USBi_UI  & intr)
 			isr_tr_complete_handler(ci);
 
-		if (USBi_SLI & intr) {
+		if ((USBi_SLI & intr) && !(ci->suspended)) {
+			ci->suspended = 1;
+			ci->resume_state = ci->gadget.state;
 			if (ci->gadget.speed != USB_SPEED_UNKNOWN &&
 			    ci->driver->suspend) {
-				ci->suspended = 1;
 				spin_unlock(&ci->lock);
 				ci->driver->suspend(&ci->gadget);
-				usb_gadget_set_state(&ci->gadget,
-						USB_STATE_SUSPENDED);
 				spin_lock(&ci->lock);
 			}
+			usb_gadget_set_state(&ci->gadget,
+					USB_STATE_SUSPENDED);
 		}
 		retval = IRQ_HANDLED;
 	} else {
@@ -1975,6 +1980,8 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 	 */
 	if (ci->is_otg)
 		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);
+
+	ci->vbus_active = 0;
 }
 
 /**

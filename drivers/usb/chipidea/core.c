@@ -838,6 +838,56 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 	}
 }
 
+static ssize_t ci_role_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ci_role(ci)->name);
+}
+
+static ssize_t ci_role_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t n)
+{
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	enum ci_role role;
+	int ret;
+
+	if (!(ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET])) {
+		dev_warn(dev, "Current configuration is not dual-role, quit\n");
+		return -EPERM;
+	}
+
+	for (role = CI_ROLE_HOST; role < CI_ROLE_END; role++)
+		if (!strncmp(buf, ci->roles[role]->name,
+			     strlen(ci->roles[role]->name)))
+			break;
+
+	if (role == CI_ROLE_END || role == ci->role)
+		return -EINVAL;
+
+	pm_runtime_get_sync(dev);
+	disable_irq(ci->irq);
+	ci_role_stop(ci);
+	ret = ci_role_start(ci, role);
+	if (!ret && ci->role == CI_ROLE_GADGET)
+		ci_handle_vbus_change(ci);
+	enable_irq(ci->irq);
+	pm_runtime_put_sync(dev);
+
+	return (ret == 0) ? n : ret;
+}
+static DEVICE_ATTR(role, 0644, ci_role_show, ci_role_store);
+
+static struct attribute *ci_attrs[] = {
+	&dev_attr_role.attr,
+	NULL,
+};
+
+static struct attribute_group ci_attr_group = {
+	.attrs = ci_attrs,
+};
+
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -1004,11 +1054,18 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		ci_hdrc_otg_fsm_start(ci);
 
 	device_set_wakeup_capable(&pdev->dev, true);
-
 	ret = dbg_create_files(ci);
-	if (!ret)
-		return 0;
+	if (ret)
+		goto stop;
 
+	ret = sysfs_create_group(&dev->kobj, &ci_attr_group);
+	if (ret)
+		goto remove_debug;
+
+	return 0;
+
+remove_debug:
+	dbg_remove_files(ci);
 stop:
 	ci_role_destroy(ci);
 deinit_phy:
@@ -1030,6 +1087,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	}
 
 	dbg_remove_files(ci);
+	sysfs_remove_group(&ci->dev->kobj, &ci_attr_group);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_exit(ci);
