@@ -871,8 +871,8 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	sdio_set_drvdata(func, card);
 
-	DPRINTK(5, "class = 0x%X, vendor = 0x%X, "
-		"device = 0x%X\n", func->class, func->vendor, func->device);
+	DPRINTK(5, "class = 0x%X, vendor = 0x%X, device = 0x%X\n",
+		func->class, func->vendor, func->device);
 
 	/* private memory allocate */
 	netdev = alloc_etherdev(sizeof(*priv));
