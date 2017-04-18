@@ -474,15 +474,14 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 					 saved_crash_message_count),
 				&local_crash_msg_count, sizeof(u16));
 	if (err) {
-		POSTCODE_LINUX(CRASH_DEV_CTRL_RD_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to read message count\n");
 		return err;
 	}
 
 	if (local_crash_msg_count != CONTROLVM_CRASHMSG_MAX) {
-		POSTCODE_LINUX(CRASH_DEV_COUNT_FAILURE_PC, 0,
-			       local_crash_msg_count,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"invalid number of messages\n");
 		return -EIO;
 	}
 
@@ -491,8 +490,8 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 					 saved_crash_message_offset),
 				&local_crash_msg_offset, sizeof(u32));
 	if (err) {
-		POSTCODE_LINUX(CRASH_DEV_CTRL_RD_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to read offset\n");
 		return err;
 	}
 
@@ -504,8 +503,8 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 					 msg,
 					 sizeof(struct controlvm_message));
 		if (err) {
-			POSTCODE_LINUX(SAVE_MSG_DEV_FAILURE_PC, 0, 0,
-				       DIAG_SEVERITY_ERR);
+			dev_err(&chipset_dev->acpi_device->dev,
+				"failed to write dev msg\n");
 			return err;
 		}
 		break;
@@ -515,13 +514,14 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 					 msg,
 					 sizeof(struct controlvm_message));
 		if (err) {
-			POSTCODE_LINUX(SAVE_MSG_BUS_FAILURE_PC, 0, 0,
-				       DIAG_SEVERITY_ERR);
+			dev_err(&chipset_dev->acpi_device->dev,
+				"failed to write bus msg\n");
 			return err;
 		}
 		break;
 	default:
-		pr_info("Invalid crash_obj_type\n");
+		dev_err(&chipset_dev->acpi_device->dev,
+			"Invalid crash_obj_type\n");
 		break;
 	}
 	return 0;
