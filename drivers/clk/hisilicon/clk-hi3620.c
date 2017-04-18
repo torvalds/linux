@@ -144,7 +144,7 @@ static struct hisi_divider_clock hi3620_div_clks[] __initdata = {
 	{ HI3620_MMC3_DIV,     "mmc3_div",   "mmc3_mux",  0, 0x140, 5, 4, CLK_DIVIDER_HIWORD_MASK, NULL, },
 };
 
-static struct hisi_gate_clock hi3620_seperated_gate_clks[] __initdata = {
+static struct hisi_gate_clock hi3620_separated_gate_clks[] __initdata = {
 	{ HI3620_TIMERCLK01,   "timerclk01",   "timer_rclk01", CLK_SET_RATE_PARENT, 0x20, 0, 0, },
 	{ HI3620_TIMER_RCLK01, "timer_rclk01", "rclk_tcxo",    CLK_SET_RATE_PARENT, 0x20, 1, 0, },
 	{ HI3620_TIMERCLK23,   "timerclk23",   "timer_rclk23", CLK_SET_RATE_PARENT, 0x20, 2, 0, },
@@ -224,8 +224,8 @@ static void __init hi3620_clk_init(struct device_node *np)
 			      clk_data);
 	hisi_clk_register_divider(hi3620_div_clks, ARRAY_SIZE(hi3620_div_clks),
 				  clk_data);
-	hisi_clk_register_gate_sep(hi3620_seperated_gate_clks,
-				   ARRAY_SIZE(hi3620_seperated_gate_clks),
+	hisi_clk_register_gate_sep(hi3620_separated_gate_clks,
+				   ARRAY_SIZE(hi3620_separated_gate_clks),
 				   clk_data);
 }
 CLK_OF_DECLARE(hi3620_clk, "hisilicon,hi3620-clock", hi3620_clk_init);
