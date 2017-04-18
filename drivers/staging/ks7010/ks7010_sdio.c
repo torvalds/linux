@@ -474,18 +474,18 @@ static void ks7010_rw_function(struct work_struct *work)
 			ks_wlan_hw_wakeup_request(priv);
 			queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 		}
-		goto err_release_host;
+		goto release_host;
 	}
 
 	/* sleep mode doze */
 	if (atomic_read(&priv->sleepstatus.doze_request) == 1) {
 		ks_wlan_hw_sleep_doze_request(priv);
-		goto err_release_host;
+		goto release_host;
 	}
 	/* sleep mode wakeup */
 	if (atomic_read(&priv->sleepstatus.wakeup_request) == 1) {
 		ks_wlan_hw_sleep_wakeup_request(priv);
-		goto err_release_host;
+		goto release_host;
 	}
 
 	/* read (WriteStatus/ReadDataSize FN1:00_0014) */
@@ -493,7 +493,7 @@ static void ks7010_rw_function(struct work_struct *work)
 	if (ret) {
 		DPRINTK(1, " error : WSTATUS_RSIZE=%02X psstatus=%d\n", rw_data,
 			atomic_read(&priv->psstatus.status));
-		goto err_release_host;
+		goto release_host;
 	}
 	DPRINTK(4, "WSTATUS_RSIZE=%02X\n", rw_data);
 
@@ -505,7 +505,7 @@ static void ks7010_rw_function(struct work_struct *work)
 
 	_ks_wlan_hw_power_save(priv);
 
-err_release_host:
+release_host:
 	sdio_release_host(priv->ks_sdio_card->func);
 }
 
