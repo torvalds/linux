@@ -190,6 +190,14 @@
 	status = "okay";
 };
 
+&mailbox {
+	status = "okay";
+};
+
+&mailbox_scpi {
+	status = "okay";
+};
+
 &vpu_combo {
 	status = "okay";
 };
