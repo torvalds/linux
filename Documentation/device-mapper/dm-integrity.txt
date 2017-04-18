@@ -69,17 +69,17 @@ Target arguments:
 
 Additional arguments:
 
-journal-sectors:number
+journal_sectors:number
 	The size of journal, this argument is used only if formatting the
 	device. If the device is already formatted, the value from the
 	superblock is used.
 
-interleave-sectors:number
+interleave_sectors:number
 	The number of interleaved sectors. This values is rounded down to
 	a power of two. If the device is already formatted, the value from
 	the superblock is used.
 
-buffer-sectors:number
+buffer_sectors:number
 	The number of sectors in one buffer. The value is rounded down to
 	a power of two.
 
@@ -87,17 +87,17 @@ buffer-sectors:number
 	configurable. The large buffer size means that the I/O size will
 	be larger, but there could be less I/Os issued.
 
-journal-watermark:number
+journal_watermark:number
 	The journal watermark in percents. When the size of the journal
 	exceeds this watermark, the thread that flushes the journal will
 	be started.
 
-commit-time:number
+commit_time:number
 	Commit time in milliseconds. When this time passes, the journal is
 	written. The journal is also written immediatelly if the FLUSH
 	request is received.
 
-internal-hash:algorithm(:key)	(the key is optional)
+internal_hash:algorithm(:key)	(the key is optional)
 	Use internal hash or crc.
 	When this argument is used, the dm-integrity target won't accept
 	integrity tags from the upper target, but it will automatically
@@ -113,7 +113,7 @@ internal-hash:algorithm(:key)	(the key is optional)
 	from an upper layer target, such as dm-crypt. The upper layer
 	target should check the validity of the integrity tags.
 
-journal-crypt:algorithm(:key)	(the key is optional)
+journal_crypt:algorithm(:key)	(the key is optional)
 	Encrypt the journal using given algorithm to make sure that the
 	attacker can't read the journal. You can use a block cipher here
 	(such as "cbc(aes)") or a stream cipher (for example "chacha20",
@@ -125,7 +125,7 @@ journal-crypt:algorithm(:key)	(the key is optional)
 	the size of files that were written. To protect against this
 	situation, you can encrypt the journal.
 
-journal-mac:algorithm(:key)	(the key is optional)
+journal_mac:algorithm(:key)	(the key is optional)
 	Protect sector numbers in the journal from accidental or malicious
 	modification. To protect against accidental modification, use a
 	crc algorithm, to protect against malicious modification, use a
@@ -137,7 +137,7 @@ journal-mac:algorithm(:key)	(the key is optional)
 	this stage.
 
 
-The journal mode (D/J), buffer-sectors, journal-watermark, commit-time can
+The journal mode (D/J), buffer_sectors, journal_watermark, commit_time can
 be changed when reloading the target (load an inactive table and swap the
 tables with suspend and resume). The other arguments should not be changed
 when reloading the target because the layout of disk data depend on them
@@ -158,7 +158,7 @@ The layout of the formatted block device:
 	  provides (i.e. the size of the device minus the size of all
 	  metadata and padding). The user of this target should not send
 	  bios that access data beyond the "provided data sectors" limit.
-	* flags - a flag is set if journal-mac is used
+	* flags - a flag is set if journal_mac is used
 * journal
 	The journal is divided into sections, each section contains:
 	* metadata area (4kiB), it contains journal entries

@@ -27,8 +27,8 @@
 #define DEFAULT_JOURNAL_WATERMARK	50
 #define DEFAULT_SYNC_MSEC		10000
 #define DEFAULT_MAX_JOURNAL_SECTORS	131072
-#define MIN_INTERLEAVE_SECTORS		3
-#define MAX_INTERLEAVE_SECTORS		31
+#define MIN_LOG2_INTERLEAVE_SECTORS	3
+#define MAX_LOG2_INTERLEAVE_SECTORS	31
 #define METADATA_WORKQUEUE_MAX_ACTIVE	16
 
 /*
@@ -414,7 +414,7 @@ static void page_list_location(struct dm_integrity_c *ic, unsigned section, unsi
 {
 	unsigned sector;
 
-	access_journal_check(ic, section, offset, false, "access_journal");
+	access_journal_check(ic, section, offset, false, "page_list_location");
 
 	sector = section * ic->journal_section_sectors + offset;
 
@@ -1211,7 +1211,7 @@ static void integrity_metadata(struct work_struct *w)
 		unsigned digest_size = crypto_shash_digestsize(ic->internal_hash);
 		struct bio *bio = dm_bio_from_per_bio_data(dio, sizeof(struct dm_integrity_io));
 		char *checksums;
-		unsigned extra_space = digest_size > ic->tag_size ? digest_size - ic->tag_size : 0;
+		unsigned extra_space = unlikely(digest_size > ic->tag_size) ? digest_size - ic->tag_size : 0;
 		char checksums_onstack[ic->tag_size + extra_space];
 		unsigned sectors_to_process = dio->range.n_sectors;
 		sector_t sector = dio->range.logical_sector;
@@ -1820,7 +1820,7 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 				    unlikely(from_replay) &&
 #endif
 				    ic->internal_hash) {
-					unsigned char test_tag[ic->tag_size];
+					char test_tag[max(crypto_shash_digestsize(ic->internal_hash), ic->tag_size)];
 
 					integrity_sector_checksum(ic, sec + (l - j),
 								  (char *)access_journal_data(ic, i, l), test_tag);
@@ -2135,11 +2135,11 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 		arg_count += !!ic->journal_mac_alg.alg_string;
 		DMEMIT("%s %llu %u %c %u", ic->dev->name, (unsigned long long)ic->start,
 		       ic->tag_size, ic->mode, arg_count);
-		DMEMIT(" journal-sectors:%u", ic->initial_sectors - SB_SECTORS);
-		DMEMIT(" interleave-sectors:%u", 1U << ic->sb->log2_interleave_sectors);
-		DMEMIT(" buffer-sectors:%u", 1U << ic->log2_buffer_sectors);
-		DMEMIT(" journal-watermark:%u", (unsigned)watermark_percentage);
-		DMEMIT(" commit-time:%u", ic->autocommit_msec);
+		DMEMIT(" journal_sectors:%u", ic->initial_sectors - SB_SECTORS);
+		DMEMIT(" interleave_sectors:%u", 1U << ic->sb->log2_interleave_sectors);
+		DMEMIT(" buffer_sectors:%u", 1U << ic->log2_buffer_sectors);
+		DMEMIT(" journal_watermark:%u", (unsigned)watermark_percentage);
+		DMEMIT(" commit_time:%u", ic->autocommit_msec);
 
 #define EMIT_ALG(a, n)							\
 		do {							\
@@ -2149,9 +2149,9 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 					DMEMIT(":%s", ic->a.key_string);\
 			}						\
 		} while (0)
-		EMIT_ALG(internal_hash_alg, "internal-hash");
-		EMIT_ALG(journal_crypt_alg, "journal-crypt");
-		EMIT_ALG(journal_mac_alg, "journal-mac");
+		EMIT_ALG(internal_hash_alg, "internal_hash");
+		EMIT_ALG(journal_crypt_alg, "journal_crypt");
+		EMIT_ALG(journal_mac_alg, "journal_mac");
 		break;
 	}
 	}
@@ -2213,6 +2213,7 @@ static int initialize_superblock(struct dm_integrity_c *ic, unsigned journal_sec
 	unsigned journal_sections;
 	int test_bit;
 
+	memset(ic->sb, 0, SB_SECTORS << SECTOR_SHIFT);
 	memcpy(ic->sb->magic, SB_MAGIC, 8);
 	ic->sb->version = SB_VERSION;
 	ic->sb->integrity_tag_size = cpu_to_le16(ic->tag_size);
@@ -2225,9 +2226,11 @@ static int initialize_superblock(struct dm_integrity_c *ic, unsigned journal_sec
 		journal_sections = 1;
 	ic->sb->journal_sections = cpu_to_le32(journal_sections);
 
+	if (!interleave_sectors)
+		interleave_sectors = DEFAULT_INTERLEAVE_SECTORS;
 	ic->sb->log2_interleave_sectors = __fls(interleave_sectors);
-	ic->sb->log2_interleave_sectors = max((__u8)MIN_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
-	ic->sb->log2_interleave_sectors = min((__u8)MAX_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
+	ic->sb->log2_interleave_sectors = max((__u8)MIN_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
+	ic->sb->log2_interleave_sectors = min((__u8)MAX_LOG2_INTERLEAVE_SECTORS, ic->sb->log2_interleave_sectors);
 
 	ic->provided_data_sectors = 0;
 	for (test_bit = fls64(ic->device_sectors) - 1; test_bit >= 3; test_bit--) {
@@ -2238,7 +2241,7 @@ static int initialize_superblock(struct dm_integrity_c *ic, unsigned journal_sec
 			ic->provided_data_sectors = prev_data_sectors;
 	}
 
-	if (!le64_to_cpu(ic->provided_data_sectors))
+	if (!ic->provided_data_sectors)
 		return -EINVAL;
 
 	ic->sb->provided_data_sectors = cpu_to_le64(ic->provided_data_sectors);
@@ -2444,6 +2447,12 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 	int r = 0;
 	unsigned i;
 	__u64 journal_pages, journal_desc_size, journal_tree_size;
+	unsigned char *crypt_data = NULL;
+
+	ic->commit_ids[0] = cpu_to_le64(0x1111111111111111ULL);
+	ic->commit_ids[1] = cpu_to_le64(0x2222222222222222ULL);
+	ic->commit_ids[2] = cpu_to_le64(0x3333333333333333ULL);
+	ic->commit_ids[3] = cpu_to_le64(0x4444444444444444ULL);
 
 	journal_pages = roundup((__u64)ic->journal_sections * ic->journal_section_sectors,
 				PAGE_SIZE >> SECTOR_SHIFT) >> (PAGE_SHIFT - SECTOR_SHIFT);
@@ -2541,7 +2550,13 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 			SKCIPHER_REQUEST_ON_STACK(req, ic->journal_crypt);
 			unsigned char iv[ivsize];
 			unsigned crypt_len = roundup(ivsize, blocksize);
-			unsigned char crypt_data[crypt_len];
+
+			crypt_data = kmalloc(crypt_len, GFP_KERNEL);
+			if (!crypt_data) {
+				*error = "Unable to allocate crypt data";
+				r = -ENOMEM;
+				goto bad;
+			}
 
 			skcipher_request_set_tfm(req, ic->journal_crypt);
 
@@ -2630,38 +2645,38 @@ retest_commit_id:
 		r = -ENOMEM;
 	}
 bad:
+	kfree(crypt_data);
 	return r;
 }
 
 /*
- * Construct a integrity mapping: <dev_path> <offset> <tag_size>
+ * Construct a integrity mapping
  *
  * Arguments:
  *	device
  *	offset from the start of the device
  *	tag size
- *	D - direct writes, J - journal writes
+ *	D - direct writes, J - journal writes, R - recovery mode
  *	number of optional arguments
  *	optional arguments:
- *		journal-sectors
- *		interleave-sectors
- *		buffer-sectors
- *		journal-watermark
- *		commit-time
- *		internal-hash
- *		journal-crypt
- *		journal-mac
+ *		journal_sectors
+ *		interleave_sectors
+ *		buffer_sectors
+ *		journal_watermark
+ *		commit_time
+ *		internal_hash
+ *		journal_crypt
+ *		journal_mac
  */
 static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
 	struct dm_integrity_c *ic;
 	char dummy;
 	int r;
-	unsigned i;
 	unsigned extra_args;
 	struct dm_arg_set as;
 	static struct dm_arg _args[] = {
-		{0, 7, "Invalid number of feature args"},
+		{0, 8, "Invalid number of feature args"},
 	};
 	unsigned journal_sectors, interleave_sectors, buffer_sectors, journal_watermark, sync_msec;
 	bool should_write_sb;
@@ -2682,11 +2697,6 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	ti->private = ic;
 	ti->per_io_data_size = sizeof(struct dm_integrity_io);
-
-	ic->commit_ids[0] = cpu_to_le64(0x1111111111111111ULL);
-	ic->commit_ids[1] = cpu_to_le64(0x2222222222222222ULL);
-	ic->commit_ids[2] = cpu_to_le64(0x3333333333333333ULL);
-	ic->commit_ids[3] = cpu_to_le64(0x4444444444444444ULL);
 
 	ic->in_progress = RB_ROOT;
 	init_waitqueue_head(&ic->endio_wait);
@@ -2718,7 +2728,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (!strcmp(argv[3], "J") || !strcmp(argv[3], "D") || !strcmp(argv[3], "R"))
 		ic->mode = argv[3][0];
 	else {
-		ti->error = "Invalid mode (expecting J or D)";
+		ti->error = "Invalid mode (expecting J, D, R)";
 		r = -EINVAL;
 		goto bad;
 	}
@@ -2746,29 +2756,29 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			ti->error = "Not enough feature arguments";
 			goto bad;
 		}
-		if (sscanf(opt_string, "journal-sectors:%u%c", &val, &dummy) == 1)
+		if (sscanf(opt_string, "journal_sectors:%u%c", &val, &dummy) == 1)
 			journal_sectors = val;
-		else if (sscanf(opt_string, "interleave-sectors:%u%c", &val, &dummy) == 1)
+		else if (sscanf(opt_string, "interleave_sectors:%u%c", &val, &dummy) == 1)
 			interleave_sectors = val;
-		else if (sscanf(opt_string, "buffer-sectors:%u%c", &val, &dummy) == 1)
+		else if (sscanf(opt_string, "buffer_sectors:%u%c", &val, &dummy) == 1)
 			buffer_sectors = val;
-		else if (sscanf(opt_string, "journal-watermark:%u%c", &val, &dummy) == 1 && val <= 100)
+		else if (sscanf(opt_string, "journal_watermark:%u%c", &val, &dummy) == 1 && val <= 100)
 			journal_watermark = val;
-		else if (sscanf(opt_string, "commit-time:%u%c", &val, &dummy) == 1)
+		else if (sscanf(opt_string, "commit_time:%u%c", &val, &dummy) == 1)
 			sync_msec = val;
-		else if (!memcmp(opt_string, "internal-hash:", strlen("internal-hash:"))) {
+		else if (!memcmp(opt_string, "internal_hash:", strlen("internal_hash:"))) {
 			r = get_alg_and_key(opt_string, &ic->internal_hash_alg, &ti->error,
-					    "Invalid internal-hash argument");
+					    "Invalid internal_hash argument");
 			if (r)
 				goto bad;
-		} else if (!memcmp(opt_string, "journal-crypt:", strlen("journal-crypt:"))) {
+		} else if (!memcmp(opt_string, "journal_crypt:", strlen("journal_crypt:"))) {
 			r = get_alg_and_key(opt_string, &ic->journal_crypt_alg, &ti->error,
-					    "Invalid journal-crypt argument");
+					    "Invalid journal_crypt argument");
 			if (r)
 				goto bad;
-		} else if (!memcmp(opt_string, "journal-mac:", strlen("journal-mac:"))) {
+		} else if (!memcmp(opt_string, "journal_mac:", strlen("journal_mac:"))) {
 			r = get_alg_and_key(opt_string, &ic->journal_mac_alg,  &ti->error,
-					    "Invalid journal-mac argument");
+					    "Invalid journal_mac argument");
 			if (r)
 				goto bad;
 		} else {
@@ -2877,12 +2887,10 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	should_write_sb = false;
 	if (memcmp(ic->sb->magic, SB_MAGIC, 8)) {
 		if (ic->mode != 'R') {
-			for (i = 0; i < 512; i += 8) {
-				if (*(__u64 *)((__u8 *)ic->sb + i)) {
-					r = -EINVAL;
-					ti->error = "The device is not initialized";
-					goto bad;
-				}
+			if (memchr_inv(ic->sb, 0, SB_SECTORS << SECTOR_SHIFT)) {
+				r = -EINVAL;
+				ti->error = "The device is not initialized";
+				goto bad;
 			}
 		}
 
@@ -2906,8 +2914,8 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 	/* make sure that ti->max_io_len doesn't overflow */
-	if (ic->sb->log2_interleave_sectors < MIN_INTERLEAVE_SECTORS ||
-	    ic->sb->log2_interleave_sectors > MAX_INTERLEAVE_SECTORS) {
+	if (ic->sb->log2_interleave_sectors < MIN_LOG2_INTERLEAVE_SECTORS ||
+	    ic->sb->log2_interleave_sectors > MAX_LOG2_INTERLEAVE_SECTORS) {
 		r = -EINVAL;
 		ti->error = "Invalid interleave_sectors in the superblock";
 		goto bad;
