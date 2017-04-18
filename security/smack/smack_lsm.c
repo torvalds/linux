@@ -695,10 +695,8 @@ static int smack_parse_opts_str(char *options,
 
 	opts->mnt_opts_flags = kcalloc(NUM_SMK_MNT_OPTS, sizeof(int),
 			GFP_KERNEL);
-	if (!opts->mnt_opts_flags) {
-		kfree(opts->mnt_opts);
+	if (!opts->mnt_opts_flags)
 		goto out_err;
-	}
 
 	if (fsdefault) {
 		opts->mnt_opts[num_mnt_opts] = fsdefault;
