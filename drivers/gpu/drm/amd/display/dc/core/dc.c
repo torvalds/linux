@@ -175,6 +175,31 @@ static bool stream_adjust_vmin_vmax(struct dc *dc,
 	return ret;
 }
 
+static bool stream_get_crtc_position(struct dc *dc,
+		const struct dc_stream **stream, int num_streams,
+		unsigned int *v_pos, unsigned int *nom_v_pos)
+{
+	/* TODO: Support multiple streams */
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream[0]);
+	int i = 0;
+	bool ret = false;
+	struct crtc_position position;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe =
+				&core_dc->current_context->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == core_stream && pipe->stream_enc) {
+			core_dc->hwss.get_position(&pipe, 1, &position);
+
+			*v_pos = position.vertical_count;
+			*nom_v_pos = position.nominal_vcount;
+			ret = true;
+		}
+	}
+	return ret;
+}
 
 static bool set_gamut_remap(struct dc *dc,
 			const struct dc_stream **stream, int num_streams)
@@ -348,6 +373,9 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 
 	core_dc->public.stream_funcs.set_static_screen_events =
 			set_static_screen_events;
+
+	core_dc->public.stream_funcs.get_crtc_position =
+			stream_get_crtc_position;
 
 	core_dc->public.stream_funcs.set_gamut_remap =
 			set_gamut_remap;

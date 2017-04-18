@@ -129,6 +129,26 @@ bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
 		const struct dc_stream *stream,
 		struct mod_freesync_user_enable *user_enable);
 
+bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
+		const struct dc_stream *streams,
+		unsigned int min_refresh,
+		unsigned int max_refresh);
+
+bool mod_freesync_get_min_max(struct mod_freesync *mod_freesync,
+		const struct dc_stream *stream,
+		unsigned int *min_refresh,
+		unsigned int *max_refresh);
+
+bool mod_freesync_get_vmin_vmax(struct mod_freesync *mod_freesync,
+		const struct dc_stream *stream,
+		unsigned int *vmin,
+		unsigned int *vmax);
+
+bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
+		const struct dc_stream *stream,
+		unsigned int *nom_v_pos,
+		unsigned int *v_pos);
+
 void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		const struct dc_stream **streams, int num_streams);
 

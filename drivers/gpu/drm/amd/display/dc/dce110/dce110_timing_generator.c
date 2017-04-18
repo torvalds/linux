@@ -518,34 +518,38 @@ uint32_t dce110_timing_generator_get_vblank_counter(struct timing_generator *tg)
 
 /**
  *****************************************************************************
- *  Function: dce110_get_crtc_positions
+ *  Function: dce110_timing_generator_get_position
  *
  *  @brief
  *     Returns CRTC vertical/horizontal counters
  *
- *  @param [out] v_position, h_position
+ *  @param [out] position
  *****************************************************************************
  */
-
-void dce110_timing_generator_get_crtc_positions(
-	struct timing_generator *tg,
-	int32_t *h_position,
-	int32_t *v_position)
+void dce110_timing_generator_get_position(struct timing_generator *tg,
+	struct crtc_position *position)
 {
 	uint32_t value;
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
 	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_STATUS_POSITION));
 
-	*h_position = get_reg_field_value(
+	position->horizontal_count = get_reg_field_value(
 			value,
 			CRTC_STATUS_POSITION,
 			CRTC_HORZ_COUNT);
 
-	*v_position = get_reg_field_value(
+	position->vertical_count = get_reg_field_value(
 			value,
 			CRTC_STATUS_POSITION,
 			CRTC_VERT_COUNT);
+
+	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_NOM_VERT_POSITION));
+
+	position->nominal_vcount = get_reg_field_value(
+			value,
+			CRTC_NOM_VERT_POSITION,
+			CRTC_VERT_COUNT_NOM);
 }
 
 /**
@@ -566,18 +570,23 @@ void dce110_timing_generator_get_crtc_scanoutpos(
 	uint32_t *v_position)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+	struct crtc_position position;
 
-	uint32_t v_blank_start_end  = dm_read_reg(tg->ctx,
+	uint32_t value  = dm_read_reg(tg->ctx,
 			CRTC_REG(mmCRTC_V_BLANK_START_END));
 
-	*v_blank_start = get_reg_field_value(v_blank_start_end,
+	*v_blank_start = get_reg_field_value(value,
 					     CRTC_V_BLANK_START_END,
 					     CRTC_V_BLANK_START);
-	*v_blank_end = get_reg_field_value(v_blank_start_end,
+	*v_blank_end = get_reg_field_value(value,
 					   CRTC_V_BLANK_START_END,
 					   CRTC_V_BLANK_END);
 
-	dce110_timing_generator_get_crtc_positions(tg, h_position, v_position);
+	dce110_timing_generator_get_position(
+			tg, &position);
+
+	*h_position = position.horizontal_count;
+	*v_position = position.vertical_count;
 }
 
 /* TODO: is it safe to assume that mask/shift of Primary and Underlay
@@ -1344,15 +1353,13 @@ void dce110_timing_generator_tear_down_global_swap_lock(
  */
 bool dce110_timing_generator_is_counter_moving(struct timing_generator *tg)
 {
-	uint32_t h1 = 0;
-	uint32_t h2 = 0;
-	uint32_t v1 = 0;
-	uint32_t v2 = 0;
+	struct crtc_position position1, position2;
 
-	tg->funcs->get_position(tg, &h1, &v1);
-	tg->funcs->get_position(tg, &h2, &v2);
+	tg->funcs->get_position(tg, &position1);
+	tg->funcs->get_position(tg, &position2);
 
-	if (h1 == h2 && v1 == v2)
+	if (position1.horizontal_count == position2.horizontal_count &&
+		position1.vertical_count == position2.vertical_count)
 		return false;
 	else
 		return true;
@@ -1750,18 +1757,6 @@ void dce110_tg_set_overscan_color(struct timing_generator *tg,
 	dm_write_reg(ctx, addr, value);
 }
 
-void dce110_tg_get_position(struct timing_generator *tg,
-	struct crtc_position *position)
-{
-	int32_t h_position;
-	int32_t v_position;
-
-	dce110_timing_generator_get_crtc_positions(tg, &h_position, &v_position);
-
-	position->horizontal_count = (uint32_t)h_position;
-	position->vertical_count = (uint32_t)v_position;
-}
-
 void dce110_tg_program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
 	bool use_vbios)
@@ -1895,7 +1890,7 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 		.enable_crtc = dce110_timing_generator_enable_crtc,
 		.disable_crtc = dce110_timing_generator_disable_crtc,
 		.is_counter_moving = dce110_timing_generator_is_counter_moving,
-		.get_position = dce110_timing_generator_get_crtc_positions,
+		.get_position = dce110_timing_generator_get_position,
 		.get_frame_count = dce110_timing_generator_get_vblank_counter,
 		.get_scanoutpos = dce110_timing_generator_get_crtc_scanoutpos,
 		.set_early_control = dce110_timing_generator_set_early_control,

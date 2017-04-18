@@ -1362,6 +1362,18 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	}
 }
 
+static void get_position(struct pipe_ctx **pipe_ctx,
+		int num_pipes,
+		struct crtc_position *position)
+{
+	int i = 0;
+
+	/* TODO: handle pipes > 1
+	 */
+	for (i = 0; i < num_pipes; i++)
+		pipe_ctx[i]->tg->funcs->get_position(pipe_ctx[i]->tg, position);
+}
+
 static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 		int num_pipes, const struct dc_static_screen_events *events)
 {
@@ -2486,6 +2498,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.pipe_control_lock = dce_pipe_control_lock,
 	.set_bandwidth = dce110_set_bandwidth,
 	.set_drr = set_drr,
+	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
 	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,

@@ -287,6 +287,7 @@ void context_timing_trace(
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	struct dal_logger *logger =  core_dc->ctx->logger;
 	int h_pos[MAX_PIPES], v_pos[MAX_PIPES];
+	struct crtc_position position;
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
@@ -294,7 +295,9 @@ void context_timing_trace(
 		if (pipe_ctx->stream == NULL)
 			continue;
 
-		pipe_ctx->tg->funcs->get_position(pipe_ctx->tg, &h_pos[i], &v_pos[i]);
+		pipe_ctx->tg->funcs->get_position(pipe_ctx->tg, &position);
+		h_pos[i] = position.horizontal_count;
+		v_pos[i] = position.vertical_count;
 	}
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];

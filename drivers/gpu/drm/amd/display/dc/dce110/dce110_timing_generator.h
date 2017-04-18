@@ -151,11 +151,9 @@ void dce110_timing_generator_set_early_control(
 uint32_t dce110_timing_generator_get_vblank_counter(
 		struct timing_generator *tg);
 
-/* Get current H and V position */
-void dce110_timing_generator_get_crtc_positions(
+void dce110_timing_generator_get_position(
 	struct timing_generator *tg,
-	int32_t *h_position,
-	int32_t *v_position);
+	struct crtc_position *position);
 
 /* return true if TG counter is moving. false if TG is stopped */
 bool dce110_timing_generator_is_counter_moving(struct timing_generator *tg);
@@ -250,9 +248,6 @@ void dce110_tg_program_blank_color(struct timing_generator *tg,
 
 void dce110_tg_set_overscan_color(struct timing_generator *tg,
 	const struct tg_color *overscan_color);
-
-void dce110_tg_get_position(struct timing_generator *tg,
-	struct crtc_position *position);
 
 void dce110_tg_program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,

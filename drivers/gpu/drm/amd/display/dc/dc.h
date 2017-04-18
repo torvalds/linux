@@ -103,6 +103,12 @@ struct dc_stream_funcs {
 			int num_streams,
 			int vmin,
 			int vmax);
+	bool (*get_crtc_position)(struct dc *dc,
+			const struct dc_stream **stream,
+			int num_streams,
+			unsigned int *v_pos,
+			unsigned int *nom_v_pos);
+
 
 	void (*stream_update_scaling)(const struct dc *dc,
 			const struct dc_stream *dc_stream,

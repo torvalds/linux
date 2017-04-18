@@ -30,9 +30,9 @@ struct dc_bios;
 
 /* Contains CRTC vertical/horizontal pixel counters */
 struct crtc_position {
-	uint32_t vertical_count;
-	uint32_t horizontal_count;
-	uint32_t nominal_vcount;
+	int32_t vertical_count;
+	int32_t horizontal_count;
+	int32_t nominal_vcount;
 };
 
 struct dcp_gsl_params {
@@ -105,8 +105,8 @@ struct timing_generator_funcs {
 	bool (*disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);
 	void (*get_position)(struct timing_generator *tg,
-								int32_t *h_position,
-								int32_t *v_position);
+				struct crtc_position *position);
+
 	uint32_t (*get_frame_count)(struct timing_generator *tg);
 	void (*get_scanoutpos)(
 		struct timing_generator *tg,

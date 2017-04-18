@@ -180,10 +180,9 @@ uint32_t dce120_timing_generator_get_vblank_counter(
 }
 
 /* Get current H and V position */
-void dce120_timing_generator_get_crtc_positions(
+void dce120_timing_generator_get_crtc_position(
 	struct timing_generator *tg,
-	int32_t *h_position,
-	int32_t *v_position)
+	struct crtc_position *position)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t value = dm_read_reg_soc15(
@@ -191,11 +190,19 @@ void dce120_timing_generator_get_crtc_positions(
 				mmCRTC0_CRTC_STATUS_POSITION,
 				tg110->offsets.crtc);
 
-	*h_position = get_reg_field_value(
-					value, CRTC0_CRTC_STATUS_POSITION, CRTC_HORZ_COUNT);
+	position->horizontal_count = get_reg_field_value(value,
+			CRTC0_CRTC_STATUS_POSITION, CRTC_HORZ_COUNT);
 
-	*v_position = get_reg_field_value(
-						value, CRTC0_CRTC_STATUS_POSITION, CRTC_VERT_COUNT);
+	position->vertical_count = get_reg_field_value(value,
+			CRTC0_CRTC_STATUS_POSITION, CRTC_VERT_COUNT);
+
+	value = dm_read_reg_soc15(
+				tg->ctx,
+				mmCRTC0_CRTC_NOM_VERT_POSITION,
+				tg110->offsets.crtc);
+
+	position->nominal_vcount = get_reg_field_value(value,
+			CRTC0_CRTC_NOM_VERT_POSITION, CRTC_VERT_COUNT_NOM);
 }
 
 /* wait until TG is in beginning of vertical blank region */
@@ -576,6 +583,49 @@ void dce120_timing_generator_set_drr(
 	}
 }
 
+/**
+ *****************************************************************************
+ *  Function: dce120_timing_generator_get_position
+ *
+ *  @brief
+ *     Returns CRTC vertical/horizontal counters
+ *
+ *  @param [out] position
+ *****************************************************************************
+ */
+void dce120_timing_generator_get_position(struct timing_generator *tg,
+	struct crtc_position *position)
+{
+	uint32_t value;
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+
+	value = dm_read_reg_soc15(
+			tg->ctx,
+			mmCRTC0_CRTC_STATUS_POSITION,
+			tg110->offsets.crtc);
+
+	position->horizontal_count = get_reg_field_value(
+			value,
+			CRTC0_CRTC_STATUS_POSITION,
+			CRTC_HORZ_COUNT);
+
+	position->vertical_count = get_reg_field_value(
+			value,
+			CRTC0_CRTC_STATUS_POSITION,
+			CRTC_VERT_COUNT);
+
+	value = dm_read_reg_soc15(
+			tg->ctx,
+			mmCRTC0_CRTC_NOM_VERT_POSITION,
+			tg110->offsets.crtc);
+
+	position->nominal_vcount = get_reg_field_value(
+			value,
+			CRTC0_CRTC_NOM_VERT_POSITION,
+			CRTC_VERT_COUNT_NOM);
+}
+
+
 void dce120_timing_generator_get_crtc_scanoutpos(
 	struct timing_generator *tg,
 	uint32_t *v_blank_start,
@@ -584,6 +634,7 @@ void dce120_timing_generator_get_crtc_scanoutpos(
 	uint32_t *v_position)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+	struct crtc_position position;
 
 	uint32_t v_blank_start_end = dm_read_reg_soc15(
 			tg->ctx,
@@ -597,7 +648,11 @@ void dce120_timing_generator_get_crtc_scanoutpos(
 					   CRTC0_CRTC_V_BLANK_START_END,
 					   CRTC_V_BLANK_END);
 
-	dce120_timing_generator_get_crtc_positions(tg, h_position, v_position);
+	dce120_timing_generator_get_crtc_position(
+			tg, &position);
+
+	*h_position = position.horizontal_count;
+	*v_position = position.vertical_count;
 }
 
 void dce120_timing_generator_enable_advanced_request(
@@ -1076,7 +1131,7 @@ static struct timing_generator_funcs dce120_tg_funcs = {
 		/* used by enable_timing_synchronization. Not need for FPGA */
 		.is_counter_moving = dce110_timing_generator_is_counter_moving,
 		/* never be called */
-		.get_position = dce120_timing_generator_get_crtc_positions,
+		.get_position = dce120_timing_generator_get_crtc_position,
 		.get_frame_count = dce120_timing_generator_get_vblank_counter,
 		.get_scanoutpos = dce120_timing_generator_get_crtc_scanoutpos,
 		.set_early_control = dce120_timing_generator_set_early_control,
