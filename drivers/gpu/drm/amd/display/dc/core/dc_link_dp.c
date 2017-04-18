@@ -2169,8 +2169,7 @@ static void retrieve_link_cap(struct core_link *link)
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
 
 	/* TODO: Confirm if need retrieve_psr_link_cap */
-	if (link->public.reported_link_cap.link_rate < LINK_RATE_HIGH2)
-		retrieve_psr_link_cap(link, link->edp_revision);
+	retrieve_psr_link_cap(link, link->edp_revision);
 }
 
 void detect_dp_sink_caps(struct core_link *link)
