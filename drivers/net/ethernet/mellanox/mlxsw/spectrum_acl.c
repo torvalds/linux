@@ -403,6 +403,13 @@ int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 					      rulei->counter_index);
 }
 
+int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_rule_info *rulei,
+				   u16 fid)
+{
+	return mlxsw_afa_block_append_fid_set(rulei->act_block, fid);
+}
+
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
