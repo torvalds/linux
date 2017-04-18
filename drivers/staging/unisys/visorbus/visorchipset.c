@@ -1373,8 +1373,6 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	u32 local_crash_msg_offset;
 	u16 local_crash_msg_count;
 
-	POSTCODE_LINUX(CRASH_DEV_ENTRY_PC, 0, 0, DIAG_SEVERITY_PRINT);
-
 	/* send init chipset msg */
 	msg.hdr.id = CONTROLVM_CHIPSET_INIT;
 	msg.cmd.init_chipset.bus_count = 23;
@@ -1387,15 +1385,14 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       saved_crash_message_count),
 			      &local_crash_msg_count, sizeof(u16)) < 0) {
-		POSTCODE_LINUX(CRASH_DEV_CTRL_RD_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to read channel\n");
 		return;
 	}
 
 	if (local_crash_msg_count != CONTROLVM_CRASHMSG_MAX) {
-		POSTCODE_LINUX(CRASH_DEV_COUNT_FAILURE_PC, 0,
-			       local_crash_msg_count,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"invalid count\n");
 		return;
 	}
 
@@ -1404,8 +1401,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       saved_crash_message_offset),
 			      &local_crash_msg_offset, sizeof(u32)) < 0) {
-		POSTCODE_LINUX(CRASH_DEV_CTRL_RD_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to read channel\n");
 		return;
 	}
 
@@ -1414,8 +1411,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			      local_crash_msg_offset,
 			      &local_crash_bus_msg,
 			      sizeof(struct controlvm_message)) < 0) {
-		POSTCODE_LINUX(CRASH_DEV_RD_BUS_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to read channel\n");
 		return;
 	}
 
@@ -1425,28 +1422,26 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			      sizeof(struct controlvm_message),
 			      &local_crash_dev_msg,
 			      sizeof(struct controlvm_message)) < 0) {
-		POSTCODE_LINUX(CRASH_DEV_RD_DEV_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"failed to read channel\n");
 		return;
 	}
 
 	/* reuse IOVM create bus message */
 	if (!local_crash_bus_msg.cmd.create_bus.channel_addr) {
-		POSTCODE_LINUX(CRASH_DEV_BUS_NULL_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"no valid create_bus message\n");
 		return;
 	}
 	bus_create(&local_crash_bus_msg);
 
 	/* reuse create device message for storage device */
 	if (!local_crash_dev_msg.cmd.create_device.channel_addr) {
-		POSTCODE_LINUX(CRASH_DEV_DEV_NULL_FAILURE_PC, 0, 0,
-			       DIAG_SEVERITY_ERR);
+		dev_err(&chipset_dev->acpi_device->dev,
+			"no valid create_device message\n");
 		return;
 	}
 	my_device_create(&local_crash_dev_msg);
-
-	POSTCODE_LINUX(CRASH_DEV_EXIT_PC, 0, 0, DIAG_SEVERITY_PRINT);
 }
 
 void
