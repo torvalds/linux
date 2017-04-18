@@ -562,7 +562,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 		}
 		DPRINTK(4, "WSTATUS_RSIZE=%02X\n", rw_data);
 		rsize = rw_data & RSIZE_MASK;
-		if (rsize != 0) 	/* Read schedule */
+		if (rsize != 0)		/* Read schedule */
 			ks_wlan_hw_rx(priv, (uint16_t)(rsize << 4));
 
 		if (rw_data & WSTATUS_MASK) {
