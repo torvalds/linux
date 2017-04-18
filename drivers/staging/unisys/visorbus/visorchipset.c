@@ -1861,8 +1861,6 @@ visorchipset_init(struct acpi_device *acpi_device)
 	schedule_delayed_work(&chipset_dev->periodic_controlvm_work,
 			      chipset_dev->poll_jiffies);
 
-	POSTCODE_LINUX(CHIPSET_INIT_SUCCESS_PC, 0, 0, DIAG_SEVERITY_PRINT);
-
 	err = visorbus_init();
 	if (err < 0)
 		goto error_cancel_work;
@@ -1883,7 +1881,7 @@ error_free_chipset_dev:
 	kfree(chipset_dev);
 
 error:
-	POSTCODE_LINUX(CHIPSET_INIT_FAILURE_PC, 0, err, DIAG_SEVERITY_ERR);
+	dev_err(&acpi_device->dev, "failed with error %d\n", err);
 	return err;
 }
 
