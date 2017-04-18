@@ -4036,6 +4036,56 @@ static void mlxsw_sp_port_vlan_unlink(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_vport->dev = mlxsw_sp_port->dev;
 }
 
+static int mlxsw_sp_port_stp_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				 bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	enum mlxsw_reg_spms_state spms_state;
+	char *spms_pl;
+	u16 vid;
+	int err;
+
+	spms_state = enable ? MLXSW_REG_SPMS_STATE_FORWARDING :
+			      MLXSW_REG_SPMS_STATE_DISCARDING;
+
+	spms_pl = kmalloc(MLXSW_REG_SPMS_LEN, GFP_KERNEL);
+	if (!spms_pl)
+		return -ENOMEM;
+	mlxsw_reg_spms_pack(spms_pl, mlxsw_sp_port->local_port);
+
+	for (vid = 0; vid < VLAN_N_VID; vid++)
+		mlxsw_reg_spms_vid_pack(spms_pl, vid, spms_state);
+
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spms), spms_pl);
+	kfree(spms_pl);
+	return err;
+}
+
+static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	int err;
+
+	err = mlxsw_sp_port_stp_set(mlxsw_sp_port, true);
+	if (err)
+		return err;
+	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+				     true, false);
+	if (err)
+		goto err_port_vlan_set;
+	return 0;
+
+err_port_vlan_set:
+	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
+	return err;
+}
+
+static void mlxsw_sp_port_ovs_leave(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+			       false, false);
+	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
+}
+
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 					       unsigned long event, void *ptr)
 {
@@ -4055,7 +4105,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 		if (!is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(upper_dev) &&
 		    !netif_is_bridge_master(upper_dev) &&
-		    !netif_is_l3_master(upper_dev))
+		    !netif_is_l3_master(upper_dev) &&
+		    !netif_is_ovs_master(upper_dev))
 			return -EINVAL;
 		if (!info->linking)
 			break;
@@ -4071,6 +4122,10 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 			return -EINVAL;
 		if (netif_is_lag_port(dev) && is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(vlan_dev_real_dev(upper_dev)))
+			return -EINVAL;
+		if (netif_is_ovs_master(upper_dev) && vlan_uses_dev(dev))
+			return -EINVAL;
+		if (netif_is_ovs_port(dev) && is_vlan_dev(upper_dev))
 			return -EINVAL;
 		break;
 	case NETDEV_CHANGEUPPER:
@@ -4100,6 +4155,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 				err = mlxsw_sp_port_vrf_join(mlxsw_sp_port);
 			else
 				mlxsw_sp_port_vrf_leave(mlxsw_sp_port);
+		} else if (netif_is_ovs_master(upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_port_ovs_join(mlxsw_sp_port);
+			else
+				mlxsw_sp_port_ovs_leave(mlxsw_sp_port);
 		} else {
 			err = -EINVAL;
 			WARN_ON(1);
