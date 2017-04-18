@@ -2,7 +2,7 @@
 #define __PERF_SORT_H
 #include "../builtin.h"
 
-#include "util.h"
+#include <regex.h>
 
 #include "color.h"
 #include <linux/list.h>

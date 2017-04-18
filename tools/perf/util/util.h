@@ -23,9 +23,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
-#include <fnmatch.h>
 #include <assert.h>
-#include <regex.h>
 #include <utime.h>
 #include <sys/wait.h>
 #include <poll.h>

@@ -1,6 +1,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <regex.h>
 #include "callchain.h"
 #include "debug.h"
 #include "event.h"

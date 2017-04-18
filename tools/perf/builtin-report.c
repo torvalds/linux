@@ -41,6 +41,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <regex.h>
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
 
