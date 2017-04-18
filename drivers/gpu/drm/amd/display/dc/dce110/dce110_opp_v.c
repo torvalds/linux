@@ -56,10 +56,6 @@ bool dce110_opp_v_construct(struct dce110_opp *opp110,
 
 	opp110->base.ctx = ctx;
 
-	opp110->base.regamma_params = dm_alloc(sizeof(struct pwl_params));
-	if (opp110->base.regamma_params == NULL)
-		return false;
-
 	return true;
 }
 

@@ -203,7 +203,7 @@ enum opp_regamma {
 struct output_pixel_processor {
 	struct dc_context *ctx;
 	uint32_t inst;
-	struct pwl_params *regamma_params;
+	struct pwl_params regamma_params;
 	const struct opp_funcs *funcs;
 };
 
