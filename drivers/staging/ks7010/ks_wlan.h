@@ -413,7 +413,10 @@ struct wps_status_t {
 #endif /* WPS */
 
 struct ks_wlan_private {
-	struct hw_info_t ks_wlan_hw;	/* hardware information */
+	/* hardware information */
+	struct ks_sdio_card *ks_sdio_card;
+	struct workqueue_struct *wq;
+	struct delayed_work rw_dwork;
 	struct tasklet_struct rx_bh_task;
 
 	struct net_device *net_dev;

@@ -85,12 +85,6 @@ enum gen_com_reg_b {
 
 #define KS7010_IRAM_ADDRESS	0x06000000
 
-struct hw_info_t {
-	struct ks_sdio_card *sdio_card;
-	struct workqueue_struct *ks7010sdio_wq;
-	struct delayed_work rw_wq;
-};
-
 struct ks_sdio_card {
 	struct sdio_func *func;
 	struct ks_wlan_private *priv;

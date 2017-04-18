@@ -743,8 +743,7 @@ void hostif_sleep_confirm(struct ks_wlan_private *priv)
 	DPRINTK(3, "\n");
 
 	atomic_set(&priv->sleepstatus.doze_request, 1);
-	queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
-			   &priv->ks_wlan_hw.rw_wq, 1);
+	queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 }
 
 static
@@ -1745,8 +1744,7 @@ void hostif_sleep_request(struct ks_wlan_private *priv, unsigned long mode)
 			      NULL);
 	} else if (mode == SLP_ACTIVE) {
 		atomic_set(&priv->sleepstatus.wakeup_request, 1);
-		queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
-				   &priv->ks_wlan_hw.rw_wq, 1);
+		queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 	} else {
 		DPRINTK(3, "invalid mode %ld\n", mode);
 		return;
