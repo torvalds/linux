@@ -25,11 +25,11 @@
 	val;						\
 })
 
-static void unwind_dump(struct unwind_state *state, unsigned long *sp)
+static void unwind_dump(struct unwind_state *state)
 {
 	static bool dumped_before = false;
 	bool prev_zero, zero = false;
-	unsigned long word;
+	unsigned long word, *sp;
 
 	if (dumped_before)
 		return;
@@ -287,13 +287,13 @@ bad_address:
 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
 			state->regs, state->task->comm,
 			state->task->pid, next_bp);
-		unwind_dump(state, (unsigned long *)state->regs);
+		unwind_dump(state);
 	} else {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack frame pointer at %p in %s:%d has bad value %p\n",
 			state->bp, state->task->comm,
 			state->task->pid, next_bp);
-		unwind_dump(state, state->bp);
+		unwind_dump(state);
 	}
 the_end:
 	state->stack_info.type = STACK_TYPE_UNKNOWN;
