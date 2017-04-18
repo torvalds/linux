@@ -19,6 +19,7 @@
 #include "header.h"
 #include "vdso.h"
 #include "probe-file.h"
+#include "strlist.h"
 
 #include "sane_ctype.h"
 

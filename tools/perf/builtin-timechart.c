@@ -30,7 +30,6 @@
 #include <linux/time64.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
-#include "util/strlist.h"
 
 #include "perf.h"
 #include "util/header.h"

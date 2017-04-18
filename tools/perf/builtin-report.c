@@ -16,7 +16,6 @@
 #include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
-#include "util/strlist.h"
 #include "util/values.h"
 
 #include "perf.h"

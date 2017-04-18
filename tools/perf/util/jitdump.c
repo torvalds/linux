@@ -17,7 +17,6 @@
 #include "debug.h"
 #include "evlist.h"
 #include "symbol.h"
-#include "strlist.h"
 #include <elf.h>
 
 #include "tsc.h"

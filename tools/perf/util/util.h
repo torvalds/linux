@@ -40,7 +40,6 @@
 #include <termios.h>
 #include <linux/bitops.h>
 #include <termios.h>
-#include "strlist.h"
 
 extern char buildid_dir[];
 
@@ -88,6 +87,8 @@ static inline void *zalloc(size_t size)
 }
 
 #define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
+
+struct strlist;
 
 int mkdir_p(char *path, mode_t mode);
 int rm_rf(const char *path);

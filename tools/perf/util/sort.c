@@ -7,6 +7,7 @@
 #include "symbol.h"
 #include "evsel.h"
 #include "evlist.h"
+#include "strlist.h"
 #include <traceevent/event-parse.h>
 #include "mem-events.h"
 #include <linux/kernel.h>

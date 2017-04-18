@@ -11,7 +11,6 @@
 #include "symbol.h"
 #include "string.h"
 #include "callchain.h"
-#include "strlist.h"
 #include "values.h"
 
 #include "../perf.h"

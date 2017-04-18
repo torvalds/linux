@@ -19,6 +19,7 @@
 #include "util.h"
 #include "event.h"
 #include "strlist.h"
+#include "strfilter.h"
 #include "debug.h"
 #include "cache.h"
 #include "color.h"

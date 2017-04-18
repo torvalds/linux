@@ -9,7 +9,6 @@
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include "map.h"
 #include "thread.h"
-#include "strlist.h"
 #include "vdso.h"
 #include "build-id.h"
 #include "util.h"
