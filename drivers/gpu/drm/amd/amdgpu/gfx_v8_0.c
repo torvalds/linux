@@ -1932,6 +1932,7 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		case 0xca:
 		case 0xce:
 		case 0x88:
+		case 0xe6:
 			/* B6 */
 			adev->gfx.config.max_cu_per_sh = 6;
 			break;
@@ -1964,17 +1965,28 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.max_backends_per_se = 1;
 
 		switch (adev->pdev->revision) {
+		case 0x80:
+		case 0x81:
 		case 0xc0:
 		case 0xc1:
 		case 0xc2:
 		case 0xc4:
 		case 0xc8:
 		case 0xc9:
+		case 0xd6:
+		case 0xda:
+		case 0xe9:
+		case 0xea:
 			adev->gfx.config.max_cu_per_sh = 3;
 			break;
+		case 0x83:
 		case 0xd0:
 		case 0xd1:
 		case 0xd2:
+		case 0xd4:
+		case 0xdb:
+		case 0xe1:
+		case 0xe2:
 		default:
 			adev->gfx.config.max_cu_per_sh = 2;
 			break;
