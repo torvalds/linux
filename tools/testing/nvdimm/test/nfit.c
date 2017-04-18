@@ -1851,6 +1851,10 @@ static int nfit_test_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+	rc = devm_add_action_or_reset(&pdev->dev, acpi_nfit_shutdown, acpi_desc);
+	if (rc)
+		return rc;
+
 	if (nfit_test->setup != nfit_test0_setup)
 		return 0;
 

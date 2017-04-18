@@ -2604,7 +2604,8 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 				return rc;
 		}
 
-	queue_work(nfit_wq, &acpi_desc->work);
+	if (!acpi_desc->cancel)
+		queue_work(nfit_wq, &acpi_desc->work);
 	return 0;
 }
 
@@ -2650,32 +2651,11 @@ static int acpi_nfit_desc_init_scrub_attr(struct acpi_nfit_desc *acpi_desc)
 	return 0;
 }
 
-static void acpi_nfit_destruct(void *data)
+static void acpi_nfit_unregister(void *data)
 {
 	struct acpi_nfit_desc *acpi_desc = data;
-	struct device *bus_dev = to_nvdimm_bus_dev(acpi_desc->nvdimm_bus);
 
-	/*
-	 * Destruct under acpi_desc_lock so that nfit_handle_mce does not
-	 * race teardown
-	 */
-	mutex_lock(&acpi_desc_lock);
-	acpi_desc->cancel = 1;
-	/*
-	 * Bounce the nvdimm bus lock to make sure any in-flight
-	 * acpi_nfit_ars_rescan() submissions have had a chance to
-	 * either submit or see ->cancel set.
-	 */
-	device_lock(bus_dev);
-	device_unlock(bus_dev);
-
-	flush_workqueue(nfit_wq);
-	if (acpi_desc->scrub_count_state)
-		sysfs_put(acpi_desc->scrub_count_state);
 	nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
-	acpi_desc->nvdimm_bus = NULL;
-	list_del(&acpi_desc->list);
-	mutex_unlock(&acpi_desc_lock);
 }
 
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
@@ -2693,7 +2673,7 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
 		if (!acpi_desc->nvdimm_bus)
 			return -ENOMEM;
 
-		rc = devm_add_action_or_reset(dev, acpi_nfit_destruct,
+		rc = devm_add_action_or_reset(dev, acpi_nfit_unregister,
 				acpi_desc);
 		if (rc)
 			return rc;
@@ -2787,9 +2767,10 @@ static int acpi_nfit_flush_probe(struct nvdimm_bus_descriptor *nd_desc)
 
 	/* bounce the init_mutex to make init_complete valid */
 	mutex_lock(&acpi_desc->init_mutex);
-	mutex_unlock(&acpi_desc->init_mutex);
-	if (acpi_desc->init_complete)
+	if (acpi_desc->cancel || acpi_desc->init_complete) {
+		mutex_unlock(&acpi_desc->init_mutex);
 		return 0;
+	}
 
 	/*
 	 * Scrub work could take 10s of seconds, userspace may give up so we
@@ -2798,6 +2779,7 @@ static int acpi_nfit_flush_probe(struct nvdimm_bus_descriptor *nd_desc)
 	INIT_WORK_ONSTACK(&flush.work, flush_probe);
 	COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
 	queue_work(nfit_wq, &flush.work);
+	mutex_unlock(&acpi_desc->init_mutex);
 
 	rc = wait_for_completion_interruptible(&flush.cmp);
 	cancel_work_sync(&flush.work);
@@ -2834,10 +2816,12 @@ int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc)
 	if (work_busy(&acpi_desc->work))
 		return -EBUSY;
 
-	if (acpi_desc->cancel)
-		return 0;
-
 	mutex_lock(&acpi_desc->init_mutex);
+	if (acpi_desc->cancel) {
+		mutex_unlock(&acpi_desc->init_mutex);
+		return 0;
+	}
+
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
 		struct acpi_nfit_system_address *spa = nfit_spa->spa;
 
@@ -2886,6 +2870,35 @@ static void acpi_nfit_put_table(void *table)
 	acpi_put_table(table);
 }
 
+void acpi_nfit_shutdown(void *data)
+{
+	struct acpi_nfit_desc *acpi_desc = data;
+	struct device *bus_dev = to_nvdimm_bus_dev(acpi_desc->nvdimm_bus);
+
+	/*
+	 * Destruct under acpi_desc_lock so that nfit_handle_mce does not
+	 * race teardown
+	 */
+	mutex_lock(&acpi_desc_lock);
+	list_del(&acpi_desc->list);
+	mutex_unlock(&acpi_desc_lock);
+
+	mutex_lock(&acpi_desc->init_mutex);
+	acpi_desc->cancel = 1;
+	mutex_unlock(&acpi_desc->init_mutex);
+
+	/*
+	 * Bounce the nvdimm bus lock to make sure any in-flight
+	 * acpi_nfit_ars_rescan() submissions have had a chance to
+	 * either submit or see ->cancel set.
+	 */
+	device_lock(bus_dev);
+	device_unlock(bus_dev);
+
+	flush_workqueue(nfit_wq);
+}
+EXPORT_SYMBOL_GPL(acpi_nfit_shutdown);
+
 static int acpi_nfit_add(struct acpi_device *adev)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -2933,12 +2946,15 @@ static int acpi_nfit_add(struct acpi_device *adev)
 		rc = acpi_nfit_init(acpi_desc, (void *) tbl
 				+ sizeof(struct acpi_table_nfit),
 				sz - sizeof(struct acpi_table_nfit));
-	return rc;
+
+	if (rc)
+		return rc;
+	return devm_add_action_or_reset(dev, acpi_nfit_shutdown, acpi_desc);
 }
 
 static int acpi_nfit_remove(struct acpi_device *adev)
 {
-	/* see acpi_nfit_destruct */
+	/* see acpi_nfit_unregister */
 	return 0;
 }
 
