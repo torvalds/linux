@@ -380,7 +380,7 @@ static void rx_event_task(unsigned long dev)
 		inc_rxqhead(priv);
 
 		if (cnt_rxqbody(priv) > 0)
-			tasklet_schedule(&priv->ks_wlan_hw.rx_bh_task);
+			tasklet_schedule(&priv->rx_bh_task);
 	}
 }
 
@@ -447,8 +447,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 		}
 	}
 
-	/* rx_event_task((void *)priv); */
-	tasklet_schedule(&priv->ks_wlan_hw.rx_bh_task);
+	tasklet_schedule(&priv->rx_bh_task);
 }
 
 static void ks7010_rw_function(struct work_struct *work)
@@ -614,8 +613,7 @@ static int trx_device_init(struct ks_wlan_private *priv)
 	spin_lock_init(&priv->tx_dev.tx_dev_lock);
 	spin_lock_init(&priv->rx_dev.rx_dev_lock);
 
-	tasklet_init(&priv->ks_wlan_hw.rx_bh_task, rx_event_task,
-		     (unsigned long)priv);
+	tasklet_init(&priv->rx_bh_task, rx_event_task, (unsigned long)priv);
 
 	return 0;
 }
@@ -633,7 +631,7 @@ static void trx_device_exit(struct ks_wlan_private *priv)
 		inc_txqhead(priv);
 	}
 
-	tasklet_kill(&priv->ks_wlan_hw.rx_bh_task);
+	tasklet_kill(&priv->rx_bh_task);
 }
 
 static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)

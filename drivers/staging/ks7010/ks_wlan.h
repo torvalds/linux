@@ -414,6 +414,7 @@ struct wps_status_t {
 
 struct ks_wlan_private {
 	struct hw_info_t ks_wlan_hw;	/* hardware information */
+	struct tasklet_struct rx_bh_task;
 
 	struct net_device *net_dev;
 	int reg_net;	/* register_netdev */
