@@ -1431,22 +1431,21 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse IOVM create bus message */
-	if (local_crash_bus_msg.cmd.create_bus.channel_addr) {
-		bus_create(&local_crash_bus_msg);
-	} else {
+	if (!local_crash_bus_msg.cmd.create_bus.channel_addr) {
 		POSTCODE_LINUX(CRASH_DEV_BUS_NULL_FAILURE_PC, 0, 0,
 			       DIAG_SEVERITY_ERR);
 		return;
 	}
+	bus_create(&local_crash_bus_msg);
 
 	/* reuse create device message for storage device */
-	if (local_crash_dev_msg.cmd.create_device.channel_addr) {
-		my_device_create(&local_crash_dev_msg);
-	} else {
+	if (!local_crash_dev_msg.cmd.create_device.channel_addr) {
 		POSTCODE_LINUX(CRASH_DEV_DEV_NULL_FAILURE_PC, 0, 0,
 			       DIAG_SEVERITY_ERR);
 		return;
 	}
+	my_device_create(&local_crash_dev_msg);
+
 	POSTCODE_LINUX(CRASH_DEV_EXIT_PC, 0, 0, DIAG_SEVERITY_PRINT);
 }
 
