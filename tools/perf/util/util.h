@@ -56,22 +56,6 @@ void set_warning_routine(void (*routine)(const char *err, va_list params));
 int prefixcmp(const char *str, const char *prefix);
 void set_buildid_dir(const char *dir);
 
-#ifdef __GLIBC_PREREQ
-#if __GLIBC_PREREQ(2, 1)
-#define HAVE_STRCHRNUL
-#endif
-#endif
-
-#ifndef HAVE_STRCHRNUL
-#define strchrnul gitstrchrnul
-static inline char *gitstrchrnul(const char *s, int c)
-{
-	while (*s && *s != c)
-		s++;
-	return (char *)s;
-}
-#endif
-
 static inline void *zalloc(size_t size)
 {
 	return calloc(1, size);
