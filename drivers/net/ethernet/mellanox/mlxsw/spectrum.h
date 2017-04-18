@@ -57,6 +57,8 @@
 #define MLXSW_SP_VFID_BASE VLAN_N_VID
 #define MLXSW_SP_VFID_MAX 1024	/* Bridged VLAN interfaces */
 
+#define MLXSW_SP_DUMMY_FID 15359
+
 #define MLXSW_SP_RFID_BASE 15360
 
 #define MLXSW_SP_MID_MAX 7000
@@ -105,7 +107,7 @@ static inline u16 mlxsw_sp_fid_to_vfid(u16 fid)
 
 static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 {
-	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_RFID_BASE;
+	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_DUMMY_FID;
 }
 
 struct mlxsw_sp_sb_pr {
