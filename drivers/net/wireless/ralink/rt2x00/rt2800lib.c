@@ -8145,9 +8145,11 @@ static void rt2800_init_rfcsr_6352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 44, 0xB3);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 45, 0xD5);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 46, 0x27);
-	rt2800_rfcsr_write_chanreg(rt2x00dev, 47, 0x69);
+	rt2800_rfcsr_write_bank(rt2x00dev, 4, 47, 0x67);
+	rt2800_rfcsr_write_bank(rt2x00dev, 6, 47, 0x69);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 48, 0xFF);
-	rt2800_rfcsr_write_chanreg(rt2x00dev, 54, 0x20);
+	rt2800_rfcsr_write_bank(rt2x00dev, 4, 54, 0x27);
+	rt2800_rfcsr_write_bank(rt2x00dev, 6, 54, 0x20);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 55, 0x66);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 56, 0xFF);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 57, 0x1C);
