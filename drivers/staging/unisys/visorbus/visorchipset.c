@@ -441,7 +441,8 @@ out_respond:
 }
 
 static int
-controlvm_respond(struct controlvm_message_header *msg_hdr, int response)
+controlvm_respond(struct controlvm_message_header *msg_hdr, int response,
+		  struct spar_segment_state *state)
 {
 	struct controlvm_message outmsg;
 
@@ -449,19 +450,11 @@ controlvm_respond(struct controlvm_message_header *msg_hdr, int response)
 	if (outmsg.hdr.flags.test_message == 1)
 		return -EINVAL;
 
-	return visorchannel_signalinsert(chipset_dev->controlvm_channel,
-					 CONTROLVM_QUEUE_REQUEST, &outmsg);
-}
+	if (state) {
+		outmsg.cmd.device_change_state.state = *state;
+		outmsg.cmd.device_change_state.flags.phys_device = 1;
+	}
 
-static int controlvm_respond_physdev_changestate(
-		struct controlvm_message_header *msg_hdr, int response,
-		struct spar_segment_state state)
-{
-	struct controlvm_message outmsg;
-
-	controlvm_init_response(&outmsg, msg_hdr, response);
-	outmsg.cmd.device_change_state.state = state;
-	outmsg.cmd.device_change_state.flags.phys_device = 1;
 	return visorchannel_signalinsert(chipset_dev->controlvm_channel,
 					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
@@ -547,7 +540,7 @@ controlvm_responder(enum controlvm_id cmd_id,
 	if (pending_msg_hdr->id != (u32)cmd_id)
 		return -EINVAL;
 
-	return controlvm_respond(pending_msg_hdr, response);
+	return controlvm_respond(pending_msg_hdr, response, NULL);
 }
 
 static int
@@ -1096,9 +1089,9 @@ parahotplug_request_complete(int id, u16 active)
 			spin_unlock(&parahotplug_request_list_lock);
 			req->msg.cmd.device_change_state.state.active = active;
 			if (req->msg.hdr.flags.response_expected)
-				controlvm_respond_physdev_changestate(
-					&req->msg.hdr, CONTROLVM_RESP_SUCCESS,
-					req->msg.cmd.device_change_state.state);
+				controlvm_respond(
+				       &req->msg.hdr, CONTROLVM_RESP_SUCCESS,
+				       &req->msg.cmd.device_change_state.state);
 			parahotplug_request_destroy(req);
 			return 0;
 		}
@@ -1259,10 +1252,8 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		err = parahotplug_request_kickoff(req);
 		if (err)
 			goto err_respond;
-		controlvm_respond_physdev_changestate
-			(&inmsg->hdr,
-			 CONTROLVM_RESP_SUCCESS,
-			 inmsg->cmd.device_change_state.state);
+		controlvm_respond(&inmsg->hdr, CONTROLVM_RESP_SUCCESS,
+				  &inmsg->cmd.device_change_state.state);
 		parahotplug_request_destroy(req);
 		return 0;
 	}
@@ -1283,9 +1274,8 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 	return 0;
 
 err_respond:
-	controlvm_respond_physdev_changestate
-				(&inmsg->hdr, err,
-				 inmsg->cmd.device_change_state.state);
+	controlvm_respond(&inmsg->hdr, err,
+			  &inmsg->cmd.device_change_state.state);
 	return err;
 }
 
@@ -1305,7 +1295,7 @@ chipset_ready_uevent(struct controlvm_message_header *msg_hdr)
 			     KOBJ_ONLINE);
 
 	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, res);
+		controlvm_respond(msg_hdr, res, NULL);
 
 	return res;
 }
@@ -1329,7 +1319,7 @@ chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 				 KOBJ_CHANGE, envp);
 
 	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, res);
+		controlvm_respond(msg_hdr, res, NULL);
 
 	return res;
 }
@@ -1349,7 +1339,7 @@ chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 	res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
 			     KOBJ_OFFLINE);
 	if (msg_hdr->flags.response_expected)
-		controlvm_respond(msg_hdr, res);
+		controlvm_respond(msg_hdr, res, NULL);
 
 	return res;
 }
@@ -1715,7 +1705,8 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	case CONTROLVM_DEVICE_CONFIGURE:
 		/* no op just send a respond that we passed */
 		if (inmsg.hdr.flags.response_expected)
-			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
+			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS,
+					  NULL);
 		break;
 	case CONTROLVM_CHIPSET_READY:
 		err = chipset_ready_uevent(&inmsg.hdr);
@@ -1730,7 +1721,7 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		err = -ENOMSG;
 		if (inmsg.hdr.flags.response_expected)
 			controlvm_respond(&inmsg.hdr,
-					  -CONTROLVM_RESP_ID_UNKNOWN);
+					  -CONTROLVM_RESP_ID_UNKNOWN, NULL);
 		break;
 	}
 
@@ -1787,10 +1778,10 @@ parahotplug_process_list(void)
 
 		list_del(pos);
 		if (req->msg.hdr.flags.response_expected)
-			controlvm_respond_physdev_changestate(
+			controlvm_respond(
 				&req->msg.hdr,
 				CONTROLVM_RESP_DEVICE_UDEV_TIMEOUT,
-				req->msg.cmd.device_change_state.state);
+				&req->msg.cmd.device_change_state.state);
 		parahotplug_request_destroy(req);
 	}
 
