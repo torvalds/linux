@@ -25,6 +25,8 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
+#include <linux/regulator/arizona-ldo1.h>
+
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
@@ -186,20 +188,19 @@ static const struct regulator_init_data arizona_ldo1_wm5110 = {
 	.num_consumer_supplies = 1,
 };
 
-static int arizona_ldo1_of_get_pdata(struct device *dev,
-				     struct arizona *arizona,
+static int arizona_ldo1_of_get_pdata(struct arizona_ldo1_pdata *pdata,
 				     struct regulator_config *config,
-				     const struct regulator_desc *desc)
+				     const struct regulator_desc *desc,
+				     bool *external_dcvdd)
 {
-	struct arizona_pdata *pdata = &arizona->pdata;
 	struct arizona_ldo1 *ldo1 = config->driver_data;
-	struct device_node *np = arizona->dev->of_node;
+	struct device_node *np = config->dev->of_node;
 	struct device_node *init_node, *dcvdd_node;
 	struct regulator_init_data *init_data;
 
 	pdata->ldoena = of_get_named_gpio(np, "wlf,ldoena", 0);
 	if (pdata->ldoena < 0) {
-		dev_warn(arizona->dev,
+		dev_warn(config->dev,
 			 "LDOENA GPIO property missing/malformed: %d\n",
 			 pdata->ldoena);
 		pdata->ldoena = 0;
@@ -213,19 +214,19 @@ static int arizona_ldo1_of_get_pdata(struct device *dev,
 	if (init_node) {
 		config->of_node = init_node;
 
-		init_data = of_get_regulator_init_data(dev, init_node, desc);
-
+		init_data = of_get_regulator_init_data(config->dev, init_node,
+						       desc);
 		if (init_data) {
 			init_data->consumer_supplies = &ldo1->supply;
 			init_data->num_consumer_supplies = 1;
 
 			if (dcvdd_node && dcvdd_node != init_node)
-				arizona->external_dcvdd = true;
+				*external_dcvdd = true;
 
-			pdata->ldo1 = init_data;
+			pdata->init_data = init_data;
 		}
 	} else if (dcvdd_node) {
-		arizona->external_dcvdd = true;
+		*external_dcvdd = true;
 	}
 
 	of_node_put(dcvdd_node);
@@ -239,9 +240,8 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	const struct regulator_desc *desc;
 	struct regulator_config config = { };
 	struct arizona_ldo1 *ldo1;
+	bool external_dcvdd = false;
 	int ret;
-
-	arizona->external_dcvdd = false;
 
 	ldo1 = devm_kzalloc(&pdev->dev, sizeof(*ldo1), GFP_KERNEL);
 	if (!ldo1)
@@ -283,17 +283,18 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(arizona->dev)) {
-			ret = arizona_ldo1_of_get_pdata(&pdev->dev, arizona,
-							&config, desc);
+			ret = arizona_ldo1_of_get_pdata(&arizona->pdata.ldo1,
+							&config, desc,
+							&external_dcvdd);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
-	config.ena_gpio = arizona->pdata.ldoena;
+	config.ena_gpio = arizona->pdata.ldo1.ldoena;
 
-	if (arizona->pdata.ldo1)
-		config.init_data = arizona->pdata.ldo1;
+	if (arizona->pdata.ldo1.init_data)
+		config.init_data = arizona->pdata.ldo1.init_data;
 	else
 		config.init_data = &ldo1->init_data;
 
@@ -303,6 +304,8 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	 */
 	if (config.init_data->num_consumer_supplies == 0)
 		arizona->external_dcvdd = true;
+	else
+		arizona->external_dcvdd = external_dcvdd;
 
 	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
 
