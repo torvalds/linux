@@ -1925,8 +1925,6 @@ error:
 static int
 visorchipset_exit(struct acpi_device *acpi_device)
 {
-	POSTCODE_LINUX(DRIVER_EXIT_PC, 0, 0, DIAG_SEVERITY_PRINT);
-
 	visorbus_exit();
 	cancel_delayed_work_sync(&chipset_dev->periodic_controlvm_work);
 	sysfs_remove_groups(&chipset_dev->acpi_device->dev.kobj,
@@ -1934,8 +1932,6 @@ visorchipset_exit(struct acpi_device *acpi_device)
 
 	visorchannel_destroy(chipset_dev->controlvm_channel);
 	kfree(chipset_dev);
-
-	POSTCODE_LINUX(DRIVER_EXIT_PC, 0, 0, DIAG_SEVERITY_PRINT);
 
 	return 0;
 }
