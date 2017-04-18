@@ -38,7 +38,6 @@ atomisp-objs += \
 	css2400/sh_css_params.o \
 	css2400/sh_css.o \
 	css2400/isp/kernels/hdr/ia_css_hdr.host.o \
-	css2400/isp/kernels/uds/uds_1.0/ia_css_uds.host.o \
 	css2400/isp/kernels/ynr/ynr_2/ia_css_ynr2.host.o \
 	css2400/isp/kernels/ynr/ynr_1.0/ia_css_ynr.host.o \
 	css2400/isp/kernels/conversion/conversion_1.0/ia_css_conversion.host.o \
@@ -65,7 +64,6 @@ atomisp-objs += \
 	css2400/isp/kernels/ctc/ctc_1.0/ia_css_ctc_table.host.o \
 	css2400/isp/kernels/ctc/ctc2/ia_css_ctc2.host.o \
 	css2400/isp/kernels/ctc/ctc1_5/ia_css_ctc1_5.host.o \
-	css2400/isp/kernels/fixedbds/fixedbds_1.0/ia_css_fixedbds.host.o \
 	css2400/isp/kernels/bh/bh_2/ia_css_bh.host.o \
 	css2400/isp/kernels/bnlm/ia_css_bnlm_default.host.o \
 	css2400/isp/kernels/bnlm/ia_css_bnlm.host.o \
