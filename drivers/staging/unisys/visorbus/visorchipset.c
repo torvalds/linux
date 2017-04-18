@@ -1785,6 +1785,7 @@ static void
 controlvm_periodic_work(struct work_struct *work)
 {
 	struct controlvm_message inmsg;
+	int count = 0;
 	int err;
 
 	/* Drain the RESPONSE queue make it empty */
@@ -1792,7 +1793,7 @@ controlvm_periodic_work(struct work_struct *work)
 		err = visorchannel_signalremove(chipset_dev->controlvm_channel,
 						CONTROLVM_QUEUE_RESPONSE,
 						&inmsg);
-	} while (!err);
+	} while ((!err) && (++count < CONTROLVM_MESSAGE_MAX));
 
 	if (err != -EAGAIN)
 		goto schedule_out;
