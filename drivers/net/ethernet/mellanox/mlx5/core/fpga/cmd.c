@@ -47,6 +47,17 @@ int mlx5_fpga_caps(struct mlx5_core_dev *dev, u32 *caps)
 				    MLX5_REG_FPGA_CAP, 0, 0);
 }
 
+int mlx5_fpga_ctrl_op(struct mlx5_core_dev *dev, u8 op)
+{
+	u32 in[MLX5_ST_SZ_DW(fpga_ctrl)] = {0};
+	u32 out[MLX5_ST_SZ_DW(fpga_ctrl)];
+
+	MLX5_SET(fpga_ctrl, in, operation, op);
+
+	return mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out),
+				    MLX5_REG_FPGA_CTRL, 0, true);
+}
+
 int mlx5_fpga_query(struct mlx5_core_dev *dev, struct mlx5_fpga_query *query)
 {
 	u32 in[MLX5_ST_SZ_DW(fpga_ctrl)] = {0};

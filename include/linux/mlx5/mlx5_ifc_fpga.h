@@ -108,6 +108,15 @@ struct mlx5_ifc_fpga_cap_bits {
 	u8         reserved_at_500[0x300];
 };
 
+enum {
+	MLX5_FPGA_CTRL_OPERATION_LOAD                = 0x1,
+	MLX5_FPGA_CTRL_OPERATION_RESET               = 0x2,
+	MLX5_FPGA_CTRL_OPERATION_FLASH_SELECT        = 0x3,
+	MLX5_FPGA_CTRL_OPERATION_SANDBOX_BYPASS_ON   = 0x4,
+	MLX5_FPGA_CTRL_OPERATION_SANDBOX_BYPASS_OFF  = 0x5,
+	MLX5_FPGA_CTRL_OPERATION_RESET_SANDBOX       = 0x6,
+};
+
 struct mlx5_ifc_fpga_ctrl_bits {
 	u8         reserved_at_0[0x8];
 	u8         operation[0x8];
