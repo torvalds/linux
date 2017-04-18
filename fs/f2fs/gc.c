@@ -1033,4 +1033,9 @@ void build_gc_manager(struct f2fs_sb_info *sbi)
 
 	sbi->fggc_threshold = div64_u64((main_count - ovp_count) *
 				BLKS_PER_SEC(sbi), (main_count - resv_count));
+
+	/* give warm/cold data area from slower device */
+	if (sbi->s_ndevs && sbi->segs_per_sec == 1)
+		SIT_I(sbi)->last_victim[ALLOC_NEXT] =
+				GET_SEGNO(sbi, FDEV(0).end_blk) + 1;
 }
