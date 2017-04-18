@@ -3036,6 +3036,7 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 						      memory_clock,
 						      &memory_level->MinVddcPhases);
 
+	memory_level->EnabledForActivity = 1;
 	memory_level->EnabledForThrottle = 1;
 	memory_level->UpH = 0;
 	memory_level->DownH = 100;
@@ -3467,8 +3468,6 @@ static int ci_populate_all_memory_levels(struct amdgpu_device *adev)
 		if (ret)
 			return ret;
 	}
-
-	pi->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
 	if ((dpm_table->mclk_table.count >= 2) &&
 	    ((adev->pdev->device == 0x67B0) || (adev->pdev->device == 0x67B1))) {
