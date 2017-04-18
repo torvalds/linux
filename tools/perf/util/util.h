@@ -35,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <api/fs/tracing_path.h>
-#include <linux/bitops.h>
 
 extern char buildid_dir[];
 
