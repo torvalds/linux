@@ -227,6 +227,12 @@ typedef unsigned (*dm_num_write_bios_fn) (struct dm_target *ti, struct bio *bio)
 #define DM_TARGET_INTEGRITY		0x00000010
 #define dm_target_has_integrity(type)	((type)->features & DM_TARGET_INTEGRITY)
 
+/*
+ * A target passes integrity data to the lower device.
+ */
+#define DM_TARGET_PASSES_INTEGRITY	0x00000020
+#define dm_target_passes_integrity(type) ((type)->features & DM_TARGET_PASSES_INTEGRITY)
+
 struct dm_target {
 	struct dm_table *table;
 	struct target_type *type;

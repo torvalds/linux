@@ -1135,6 +1135,13 @@ static struct gendisk * dm_table_get_integrity_disk(struct dm_table *t)
 	struct list_head *devices = dm_table_get_devices(t);
 	struct dm_dev_internal *dd = NULL;
 	struct gendisk *prev_disk = NULL, *template_disk = NULL;
+	unsigned i;
+
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		struct dm_target *ti = dm_table_get_target(t, i);
+		if (!dm_target_passes_integrity(ti->type))
+			goto no_integrity;
+	}
 
 	list_for_each_entry(dd, devices, list) {
 		template_disk = dd->dm_dev->bdev->bd_disk;
