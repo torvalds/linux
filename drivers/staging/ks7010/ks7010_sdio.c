@@ -32,8 +32,6 @@ static const struct sdio_device_id ks7010_sdio_ids[] = {
 };
 MODULE_DEVICE_TABLE(sdio, ks7010_sdio_ids);
 
-/* macro */
-
 #define inc_txqhead(priv) \
 	(priv->tx_dev.qhead = (priv->tx_dev.qhead + 1) % TX_DEVICE_BUFF_SIZE)
 #define inc_txqtail(priv) \
@@ -247,7 +245,6 @@ static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 	}
 
 	if ((TX_DEVICE_BUFF_SIZE - 1) <= cnt_txqbody(priv)) {
-		/* in case of buffer overflow */
 		DPRINTK(1, "tx buffer overflow\n");
 		ret = -EOVERFLOW;
 		goto err_complete;
@@ -389,7 +386,6 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 
 	/* receive data */
 	if (cnt_rxqbody(priv) >= (RX_DEVICE_BUFF_SIZE - 1)) {
-		/* in case of buffer overflow */
 		DPRINTK(1, "rx buffer overflow\n");
 		return;
 	}
@@ -453,14 +449,14 @@ static void ks7010_rw_function(struct work_struct *work)
 
 	DPRINTK(4, "\n");
 
-	/* wiat after DOZE */
+	/* wait after DOZE */
 	if (time_after(priv->last_doze + ((30 * HZ) / 1000), jiffies)) {
 		DPRINTK(4, "wait after DOZE\n");
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 		return;
 	}
 
-	/* wiat after WAKEUP */
+	/* wait after WAKEUP */
 	while (time_after(priv->last_wakeup + ((30 * HZ) / 1000), jiffies)) {
 		DPRINTK(4, "wait after WAKEUP\n");
 		dev_info(&priv->ks_sdio_card->func->dev,
@@ -588,15 +584,12 @@ queue_delayed_work:
 
 static int trx_device_init(struct ks_wlan_private *priv)
 {
-	/* initialize values (tx) */
 	priv->tx_dev.qhead = 0;
 	priv->tx_dev.qtail = 0;
 
-	/* initialize values (rx) */
 	priv->rx_dev.qhead = 0;
 	priv->rx_dev.qtail = 0;
 
-	/* initialize spinLock (tx,rx) */
 	spin_lock_init(&priv->tx_dev.tx_dev_lock);
 	spin_lock_init(&priv->rx_dev.rx_dev_lock);
 
@@ -612,7 +605,7 @@ static void trx_device_exit(struct ks_wlan_private *priv)
 	/* tx buffer clear */
 	while (cnt_txqbody(priv) > 0) {
 		sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
-		kfree(sp->sendp);	/* allocated memory free */
+		kfree(sp->sendp);
 		if (sp->complete_handler)	/* TX Complete */
 			(*sp->complete_handler)(priv, sp->skb);
 		inc_txqhead(priv);
@@ -686,7 +679,6 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 	unsigned int length;
 	const struct firmware *fw_entry = NULL;
 
-	/* buffer allocate */
 	rom_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
 	if (!rom_buf)
 		return -ENOMEM;
@@ -707,7 +699,6 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 
 	length = fw_entry->size;
 
-	/* Load Program */
 	n = 0;
 	do {
 		if (length >= ROM_BUFF_SIZE) {
@@ -721,18 +712,16 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 		if (size == 0)
 			break;
 		memcpy(rom_buf, fw_entry->data + n, size);
-		/* Update write index */
+
 		offset = n;
 		ret = ks7010_sdio_update_index(priv, KS7010_IRAM_ADDRESS + offset);
 		if (ret)
 			goto release_firmware;
 
-		/* Write data */
 		ret = ks7010_sdio_write(priv, DATA_WINDOW, rom_buf, size);
 		if (ret)
 			goto release_firmware;
 
-		/* compare */
 		ret = ks7010_sdio_data_compare(priv, DATA_WINDOW, rom_buf, size);
 		if (ret)
 			goto release_firmware;
@@ -741,7 +730,6 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 
 	} while (size);
 
-	/* Remap request */
 	rw_data = GCR_A_REMAP;
 	ret = ks7010_sdio_write(priv, GCR_A, &rw_data, sizeof(rw_data));
 	if (ret)
@@ -781,7 +769,6 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 {
 	DPRINTK(5, "\ncard_init_task()\n");
 
-	/* init_waitqueue_head(&priv->confirm_wait); */
 	init_completion(&priv->confirm_wait);
 
 	DPRINTK(5, "init_completion()\n");
@@ -872,27 +859,18 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	priv = NULL;
 	netdev = NULL;
 
-	/* initialize ks_sdio_card */
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
 
 	card->func = func;
 
-	/*** Initialize  SDIO ***/
 	sdio_claim_host(func);
 
-	/* bus setting  */
-	/* Issue config request to override clock rate */
-
-	/* function blocksize set */
 	ret = sdio_set_block_size(func, KS7010_IO_BLOCK_SIZE);
 	DPRINTK(5, "multi_block=%d sdio_set_block_size()=%d %d\n",
 		func->card->cccr.multi_block, func->cur_blksize, ret);
 
-	/* Allocate the slot current */
-
-	/* function enable */
 	ret = sdio_enable_func(func);
 	DPRINTK(5, "sdio_enable_func() %d\n", ret);
 	if (ret)
@@ -942,7 +920,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	priv->net_dev = netdev;
 	priv->firmware_version[0] = '\0';
 	priv->version_size = 0;
-	priv->last_doze = jiffies;	/* set current jiffies */
+	priv->last_doze = jiffies;
 	priv->last_wakeup = jiffies;
 	memset(&priv->nstats, 0, sizeof(priv->nstats));
 	memset(&priv->wstats, 0, sizeof(priv->wstats));
