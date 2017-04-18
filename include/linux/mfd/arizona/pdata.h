@@ -12,6 +12,7 @@
 #define _ARIZONA_PDATA_H
 
 #include <dt-bindings/mfd/arizona.h>
+#include <linux/regulator/arizona-micsupp.h>
 
 #define ARIZONA_GPN_DIR_MASK                     0x8000  /* GPN_DIR */
 #define ARIZONA_GPN_DIR_SHIFT                        15  /* GPN_DIR */
@@ -79,7 +80,7 @@ struct arizona_pdata {
 	int ldoena;     /** GPIO controlling LODENA, if any */
 
 	/** Regulator configuration for MICVDD */
-	struct regulator_init_data *micvdd;
+	struct arizona_micsupp_pdata micvdd;
 
 	/** Regulator configuration for LDO1 */
 	struct regulator_init_data *ldo1;

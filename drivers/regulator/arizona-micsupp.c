@@ -30,6 +30,8 @@
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 
+#include <linux/regulator/arizona-micsupp.h>
+
 struct arizona_micsupp {
 	struct regulator_dev *regulator;
 	struct arizona *arizona;
@@ -199,28 +201,26 @@ static const struct regulator_init_data arizona_micsupp_ext_default = {
 	.num_consumer_supplies = 1,
 };
 
-static int arizona_micsupp_of_get_pdata(struct device *dev,
-					struct arizona *arizona,
+static int arizona_micsupp_of_get_pdata(struct arizona_micsupp_pdata *pdata,
 					struct regulator_config *config,
 					const struct regulator_desc *desc)
 {
-	struct arizona_pdata *pdata = &arizona->pdata;
 	struct arizona_micsupp *micsupp = config->driver_data;
 	struct device_node *np;
 	struct regulator_init_data *init_data;
 
-	np = of_get_child_by_name(arizona->dev->of_node, "micvdd");
+	np = of_get_child_by_name(config->dev->of_node, "micvdd");
 
 	if (np) {
 		config->of_node = np;
 
-		init_data = of_get_regulator_init_data(dev, np, desc);
+		init_data = of_get_regulator_init_data(config->dev, np, desc);
 
 		if (init_data) {
 			init_data->consumer_supplies = &micsupp->supply;
 			init_data->num_consumer_supplies = 1;
 
-			pdata->micvdd = init_data;
+			pdata->init_data = init_data;
 		}
 	}
 
@@ -232,6 +232,7 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	const struct regulator_desc *desc;
 	struct regulator_config config = { };
+	struct arizona_micsupp_pdata *pdata = &arizona->pdata.micvdd;
 	struct arizona_micsupp *micsupp;
 	int ret;
 
@@ -269,15 +270,15 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(arizona->dev)) {
-			ret = arizona_micsupp_of_get_pdata(&pdev->dev, arizona,
-							   &config, desc);
+			ret = arizona_micsupp_of_get_pdata(pdata, &config,
+							   desc);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
-	if (arizona->pdata.micvdd)
-		config.init_data = arizona->pdata.micvdd;
+	if (pdata->init_data)
+		config.init_data = pdata->init_data;
 	else
 		config.init_data = &micsupp->init_data;
 
