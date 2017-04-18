@@ -556,9 +556,11 @@ enum {
 	F2FS_IPU_UTIL,
 	F2FS_IPU_SSR_UTIL,
 	F2FS_IPU_FSYNC,
+	F2FS_IPU_ASYNC,
 };
 
-static inline bool need_inplace_update(struct inode *inode)
+static inline bool need_inplace_update(struct inode *inode,
+				struct f2fs_io_info *fio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	unsigned int policy = SM_I(sbi)->ipu_policy;
@@ -579,6 +581,14 @@ static inline bool need_inplace_update(struct inode *inode)
 		return true;
 	if (policy & (0x1 << F2FS_IPU_SSR_UTIL) && need_SSR(sbi) &&
 			utilization(sbi) > SM_I(sbi)->min_ipu_util)
+		return true;
+
+	/*
+	 * IPU for rewrite async pages
+	 */
+	if (policy & (0x1 << F2FS_IPU_ASYNC) &&
+			fio && fio->op == REQ_OP_WRITE &&
+			!(fio->op_flags & REQ_SYNC))
 		return true;
 
 	/* this is only set during fdatasync */

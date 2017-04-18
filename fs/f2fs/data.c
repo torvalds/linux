@@ -1354,7 +1354,7 @@ retry_encrypt:
 	if (unlikely(fio->old_blkaddr != NEW_ADDR &&
 			!is_cold_data(page) &&
 			!IS_ATOMIC_WRITTEN_PAGE(page) &&
-			need_inplace_update(inode))) {
+			need_inplace_update(inode, fio))) {
 		f2fs_unlock_op(F2FS_I_SB(inode));
 		fio->cp_rwsem_locked = false;
 		err = rewrite_data_page(fio);
