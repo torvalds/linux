@@ -860,6 +860,7 @@ struct f2fs_io_info {
 	struct page *page;	/* page to be written */
 	struct page *encrypted_page;	/* encrypted page */
 	bool submitted;		/* indicate IO submission */
+	bool cp_rwsem_locked;	/* indicate cp_rwsem is held */
 };
 
 #define is_read_io(rw) ((rw) == READ)
