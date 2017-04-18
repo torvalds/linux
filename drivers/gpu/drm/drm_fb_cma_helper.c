@@ -189,7 +189,7 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
 		if (!obj) {
 			dev_err(dev->dev, "Failed to lookup GEM object\n");
-			ret = -ENXIO;
+			ret = -ENOENT;
 			goto err_gem_object_put;
 		}
 
