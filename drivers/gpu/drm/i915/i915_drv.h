@@ -1563,7 +1563,7 @@ struct i915_gpu_error {
 	 *
 	 * This is a counter which gets incremented when reset is triggered,
 	 *
-	 * Before the reset commences, the I915_RESET_IN_PROGRESS bit is set
+	 * Before the reset commences, the I915_RESET_BACKOFF bit is set
 	 * meaning that any waiters holding onto the struct_mutex should
 	 * relinquish the lock immediately in order for the reset to start.
 	 *
