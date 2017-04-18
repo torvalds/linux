@@ -482,7 +482,7 @@ static void __init hi3620_mmc_clk_init(struct device_node *node)
 	if (WARN_ON(!clk_data))
 		return;
 
-	clk_data->clks = kzalloc(sizeof(struct clk *) * num, GFP_KERNEL);
+	clk_data->clks = kcalloc(num, sizeof(*clk_data->clks), GFP_KERNEL);
 	if (!clk_data->clks) {
 		pr_err("%s: fail to allocate mmc clk\n", __func__);
 		return;
