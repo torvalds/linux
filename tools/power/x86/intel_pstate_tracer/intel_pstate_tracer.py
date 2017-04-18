@@ -353,6 +353,14 @@ def split_csv():
                 os.system('grep -m 1 common_cpu cpu.csv > cpu{:0>3}.csv'.format(index))
                 os.system('grep CPU_{:0>3} cpu.csv >> cpu{:0>3}.csv'.format(index, index))
 
+def fix_ownership(path):
+    """Change the owner of the file to SUDO_UID, if required"""
+
+    uid = os.environ.get('SUDO_UID')
+    gid = os.environ.get('SUDO_GID')
+    if uid is not None:
+        os.chown(path, int(uid), int(gid))
+
 def cleanup_data_files():
     """ clean up existing data files """
 
@@ -518,12 +526,16 @@ else:
 
 if not os.path.exists('results'):
     os.mkdir('results')
+    # The regular user needs to own the directory, not root.
+    fix_ownership('results')
 
 os.chdir('results')
 if os.path.exists(testname):
     print('The test name directory already exists. Please provide a unique test name. Test re-run not supported, yet.')
     sys.exit()
 os.mkdir(testname)
+# The regular user needs to own the directory, not root.
+fix_ownership(testname)
 os.chdir(testname)
 
 # Temporary (or perhaps not)
@@ -565,5 +577,10 @@ plot_duration_cpu()
 plot_scaled_cpu()
 plot_boost_cpu()
 plot_ghz_cpu()
+
+# It is preferrable, but not necessary, that the regular user owns the files, not root.
+for root, dirs, files in os.walk('.'):
+    for f in files:
+        fix_ownership(f)
 
 os.chdir('../../')
