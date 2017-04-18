@@ -47,6 +47,8 @@ struct srcu_data {
 	struct delayed_work work;		/* Context for CB invoking. */
 	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
 	struct srcu_node *mynode;		/* Leaf srcu_node. */
+	unsigned long grpmask;			/* Mask for leaf srcu_node */
+						/*  ->srcu_data_have_cbs[]. */
 	int cpu;
 	struct srcu_struct *sp;
 };
@@ -59,6 +61,8 @@ struct srcu_node {
 	unsigned long srcu_have_cbs[4];		/* GP seq for children */
 						/*  having CBs, but only */
 						/*  is > ->srcu_gq_seq. */
+	unsigned long srcu_data_have_cbs[4];	/* Which srcu_data structs */
+						/*  have CBs for given GP? */
 	struct srcu_node *srcu_parent;		/* Next up in tree. */
 	int grplo;				/* Least CPU for node. */
 	int grphi;				/* Biggest CPU for node. */

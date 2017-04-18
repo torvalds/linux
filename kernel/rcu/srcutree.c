@@ -66,8 +66,12 @@ static void init_srcu_struct_nodes(struct srcu_struct *sp, bool is_static)
 	/* Each pass through this loop initializes one srcu_node structure. */
 	rcu_for_each_node_breadth_first(sp, snp) {
 		spin_lock_init(&snp->lock);
-		for (i = 0; i < ARRAY_SIZE(snp->srcu_have_cbs); i++)
+		WARN_ON_ONCE(ARRAY_SIZE(snp->srcu_have_cbs) !=
+			     ARRAY_SIZE(snp->srcu_data_have_cbs));
+		for (i = 0; i < ARRAY_SIZE(snp->srcu_have_cbs); i++) {
 			snp->srcu_have_cbs[i] = 0;
+			snp->srcu_data_have_cbs[i] = 0;
+		}
 		snp->grplo = -1;
 		snp->grphi = -1;
 		if (snp == &sp->node[0]) {
@@ -107,6 +111,7 @@ static void init_srcu_struct_nodes(struct srcu_struct *sp, bool is_static)
 		sdp->cpu = cpu;
 		INIT_DELAYED_WORK(&sdp->work, srcu_invoke_callbacks);
 		sdp->sp = sp;
+		sdp->grpmask = 1 << (cpu - sdp->mynode->grplo);
 		if (is_static)
 			continue;
 
@@ -434,16 +439,21 @@ static void srcu_schedule_cbs_sdp(struct srcu_data *sdp, unsigned long delay)
 
 /*
  * Schedule callback invocation for all srcu_data structures associated
- * with the specified srcu_node structure, if possible, on the corresponding
- * CPUs.
+ * with the specified srcu_node structure that have callbacks for the
+ * just-completed grace period, the one corresponding to idx.  If possible,
+ * schedule this invocation on the corresponding CPUs.
  */
-static void srcu_schedule_cbs_snp(struct srcu_struct *sp, struct srcu_node *snp)
+static void srcu_schedule_cbs_snp(struct srcu_struct *sp, struct srcu_node *snp,
+				  unsigned long mask)
 {
 	int cpu;
 
-	for (cpu = snp->grplo; cpu <= snp->grphi; cpu++)
+	for (cpu = snp->grplo; cpu <= snp->grphi; cpu++) {
+		if (!(mask & (1 << (cpu - snp->grplo))))
+			continue;
 		srcu_schedule_cbs_sdp(per_cpu_ptr(sp->sda, cpu),
 				      atomic_read(&sp->srcu_exp_cnt) ? 0 : SRCU_INTERVAL);
+	}
 }
 
 /*
@@ -461,6 +471,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	unsigned long gpseq;
 	int idx;
 	int idxnext;
+	unsigned long mask;
 	struct srcu_node *snp;
 
 	/* Prevent more than one additional grace period. */
@@ -486,10 +497,12 @@ static void srcu_gp_end(struct srcu_struct *sp)
 			cbs = snp->srcu_have_cbs[idx] == gpseq;
 		snp->srcu_have_cbs[idx] = gpseq;
 		rcu_seq_set_state(&snp->srcu_have_cbs[idx], 1);
+		mask = snp->srcu_data_have_cbs[idx];
+		snp->srcu_data_have_cbs[idx] = 0;
 		spin_unlock_irq(&snp->lock);
 		if (cbs) {
 			smp_mb(); /* GP end before CB invocation. */
-			srcu_schedule_cbs_snp(sp, snp);
+			srcu_schedule_cbs_snp(sp, snp, mask);
 		}
 	}
 
@@ -536,6 +549,8 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp,
 		spin_lock_irqsave(&snp->lock, flags);
 		if (ULONG_CMP_GE(snp->srcu_have_cbs[idx], s)) {
 			snp_seq = snp->srcu_have_cbs[idx];
+			if (snp == sdp->mynode && snp_seq == s)
+				snp->srcu_data_have_cbs[idx] |= sdp->grpmask;
 			spin_unlock_irqrestore(&snp->lock, flags);
 			if (snp == sdp->mynode && snp_seq != s) {
 				smp_mb(); /* CBs after GP! */
@@ -544,6 +559,8 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp,
 			return;
 		}
 		snp->srcu_have_cbs[idx] = s;
+		if (snp == sdp->mynode)
+			snp->srcu_data_have_cbs[idx] |= sdp->grpmask;
 		spin_unlock_irqrestore(&snp->lock, flags);
 	}
 
