@@ -84,7 +84,7 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
 static struct ib_uobject *alloc_uobj(struct ib_ucontext *context,
 				     const struct uverbs_obj_type *type)
 {
-	struct ib_uobject *uobj = kmalloc(type->obj_size, GFP_KERNEL);
+	struct ib_uobject *uobj = kzalloc(type->obj_size, GFP_KERNEL);
 
 	if (!uobj)
 		return ERR_PTR(-ENOMEM);
