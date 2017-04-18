@@ -849,14 +849,10 @@ my_device_changestate(struct controlvm_message *inmsg)
 
 	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
 	if (!dev_info) {
-		POSTCODE_LINUX(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -ENODEV;
 		goto err_respond;
 	}
 	if (dev_info->state.created == 0) {
-		POSTCODE_LINUX(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
 		err = -EINVAL;
 		goto err_respond;
 	}
@@ -895,6 +891,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 	return 0;
 
 err_respond:
+	dev_err(&chipset_dev->acpi_device->dev, "failed: %d\n", err);
 	if (inmsg->hdr.flags.response_expected == 1)
 		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
