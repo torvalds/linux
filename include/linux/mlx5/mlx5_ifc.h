@@ -605,7 +605,10 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         tunnel_statless_gre[0x1];
 	u8         tunnel_stateless_vxlan[0x1];
 
-	u8         reserved_at_20[0x20];
+	u8         swp[0x1];
+	u8         swp_csum[0x1];
+	u8         swp_lso[0x1];
+	u8         reserved_at_23[0x1d];
 
 	u8         reserved_at_40[0x10];
 	u8         lro_min_mss_size[0x10];
@@ -2438,7 +2441,8 @@ struct mlx5_ifc_sqc_bits {
 	u8	   min_wqe_inline_mode[0x3];
 	u8         state[0x4];
 	u8         reg_umr[0x1];
-	u8         reserved_at_d[0x13];
+	u8         allow_swp[0x1];
+	u8         reserved_at_e[0x12];
 
 	u8         reserved_at_20[0x8];
 	u8         user_index[0x18];

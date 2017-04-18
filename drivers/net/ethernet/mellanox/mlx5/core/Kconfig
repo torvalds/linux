@@ -52,3 +52,15 @@ config MLX5_CORE_IPOIB
 	default n
 	---help---
 	  MLX5 IPoIB offloads & acceleration support.
+
+config MLX5_EN_IPSEC
+	bool "IPSec XFRM cryptography-offload accelaration"
+	depends on MLX5_ACCEL
+	depends on MLX5_CORE_EN
+	depends on XFRM_OFFLOAD
+	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
+	default n
+	---help---
+	  Build support for IPsec cryptography-offload accelaration in the NIC.
+	  Note: Support for hardware with this capability needs to be selected
+	  for this option to become available.
