@@ -1,6 +1,6 @@
 #include <asm/ptrace.h>
 
-#include "bpf_jit.h"
+#include "bpf_jit_32.h"
 
 #ifdef CONFIG_SPARC64
 #define SAVE_SZ		176

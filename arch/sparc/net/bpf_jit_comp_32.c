@@ -8,7 +8,7 @@
 #include <asm/cacheflush.h>
 #include <asm/ptrace.h>
 
-#include "bpf_jit.h"
+#include "bpf_jit_32.h"
 
 int bpf_jit_enable __read_mostly;
 
