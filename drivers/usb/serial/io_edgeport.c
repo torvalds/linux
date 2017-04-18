@@ -2839,9 +2839,9 @@ static int edge_startup(struct usb_serial *serial)
 	bool interrupt_in_found;
 	bool bulk_in_found;
 	bool bulk_out_found;
-	static __u32 descriptor[3] = {	EDGE_COMPATIBILITY_MASK0,
-					EDGE_COMPATIBILITY_MASK1,
-					EDGE_COMPATIBILITY_MASK2 };
+	static const __u32 descriptor[3] = {	EDGE_COMPATIBILITY_MASK0,
+						EDGE_COMPATIBILITY_MASK1,
+						EDGE_COMPATIBILITY_MASK2 };
 
 	dev = serial->dev;
 

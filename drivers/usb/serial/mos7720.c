@@ -1408,7 +1408,7 @@ struct divisor_table_entry {
 /* Define table of divisors for moschip 7720 hardware	   *
  * These assume a 3.6864MHz crystal, the standard /16, and *
  * MCR.7 = 0.						   */
-static struct divisor_table_entry divisor_table[] = {
+static const struct divisor_table_entry divisor_table[] = {
 	{   50,		2304},
 	{   110,	1047},	/* 2094.545455 => 230450   => .0217 % over */
 	{   134,	857},	/* 1713.011152 => 230398.5 => .00065% under */
