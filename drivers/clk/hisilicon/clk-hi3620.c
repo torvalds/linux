@@ -430,10 +430,8 @@ static struct clk *hisi_register_clk_mmc(struct hisi_mmc_clock *mmc_clk,
 	struct clk_init_data init;
 
 	mclk = kzalloc(sizeof(*mclk), GFP_KERNEL);
-	if (!mclk) {
-		pr_err("%s: fail to allocate mmc clk\n", __func__);
+	if (!mclk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = mmc_clk->name;
 	init.ops = &clk_mmc_ops;
@@ -483,10 +481,8 @@ static void __init hi3620_mmc_clk_init(struct device_node *node)
 		return;
 
 	clk_data->clks = kcalloc(num, sizeof(*clk_data->clks), GFP_KERNEL);
-	if (!clk_data->clks) {
-		pr_err("%s: fail to allocate mmc clk\n", __func__);
+	if (!clk_data->clks)
 		return;
-	}
 
 	for (i = 0; i < num; i++) {
 		struct hisi_mmc_clock *mmc_clk = &hi3620_mmc_clks[i];
