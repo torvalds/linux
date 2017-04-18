@@ -1081,17 +1081,11 @@ int
 chipset_bus_create(struct visor_device *dev)
 {
 	int err;
-	u32 bus_no = dev->chipset_bus_no;
 
-	POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, bus_no, DIAG_SEVERITY_PRINT);
 	err = create_bus_instance(dev);
-	POSTCODE_LINUX(BUS_CREATE_EXIT_PC, 0, bus_no, DIAG_SEVERITY_PRINT);
 
-	if (err < 0) {
-		POSTCODE_LINUX(BUS_CREATE_FAILURE_PC, 0, bus_no,
-			       DIAG_SEVERITY_ERR);
+	if (err < 0)
 		return err;
-	}
 
 	bus_create_response(dev, err);
 
@@ -1109,21 +1103,10 @@ int
 chipset_device_create(struct visor_device *dev_info)
 {
 	int err;
-	u32 bus_no = dev_info->chipset_bus_no;
-	u32 dev_no = dev_info->chipset_dev_no;
-
-	POSTCODE_LINUX(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
-		       DIAG_SEVERITY_PRINT);
 
 	err = create_visor_device(dev_info);
-	if (err < 0) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_ERR);
+	if (err < 0)
 		return err;
-	}
-
-	POSTCODE_LINUX(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
-		       DIAG_SEVERITY_PRINT);
 
 	device_create_response(dev_info, err);
 
