@@ -682,9 +682,6 @@ bus_destroy(struct controlvm_message *inmsg)
 	if (inmsg->hdr.flags.response_expected == 1) {
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
 		if (!pmsg_hdr) {
-			POSTCODE_LINUX(MALLOC_FAILURE_PC, cmd,
-				       bus_info->chipset_bus_no,
-				       DIAG_SEVERITY_ERR);
 			err = -ENOMEM;
 			goto err_respond;
 		}
