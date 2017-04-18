@@ -136,6 +136,11 @@ journal_mac:algorithm(:key)	(the key is optional)
 	the journal. Thus, modified sector number would be detected at
 	this stage.
 
+block_size:number
+	The size of a data block in bytes.  The larger the block size the
+	less overhead there is for per-block integrity metadata.
+	Supported values are 512, 1024, 2048 and 4096 bytes.  If not
+	specified the default block size is 512 bytes.
 
 The journal mode (D/J), buffer_sectors, journal_watermark, commit_time can
 be changed when reloading the target (load an inactive table and swap the
