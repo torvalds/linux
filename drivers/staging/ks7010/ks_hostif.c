@@ -66,10 +66,12 @@ inline u32 get_DWORD(struct ks_wlan_private *priv)
 
 static void ks_wlan_hw_wakeup_task(struct work_struct *work)
 {
-	struct ks_wlan_private *priv =
-	    container_of(work, struct ks_wlan_private, ks_wlan_wakeup_task);
-	int ps_status = atomic_read(&priv->psstatus.status);
+	struct ks_wlan_private *priv;
+	int ps_status;
 	long time_left;
+
+	priv = container_of(work, struct ks_wlan_private, wakeup_work);
+	ps_status = atomic_read(&priv->psstatus.status);
 
 	if (ps_status == PS_SNOOZE) {
 		ks_wlan_hw_wakeup_request(priv);
@@ -78,7 +80,7 @@ static void ks_wlan_hw_wakeup_task(struct work_struct *work)
 				msecs_to_jiffies(20));
 		if (time_left <= 0) {
 			DPRINTK(1, "wake up timeout or interrupted !!!\n");
-			schedule_work(&priv->ks_wlan_wakeup_task);
+			schedule_work(&priv->wakeup_work);
 			return;
 		}
 	} else {
@@ -2656,10 +2658,8 @@ int hostif_init(struct ks_wlan_private *priv)
 	atomic_set(&priv->psstatus.status, PS_NONE);
 	atomic_set(&priv->psstatus.confirm_wait, 0);
 	atomic_set(&priv->psstatus.snooze_guard, 0);
-	/* init_waitqueue_head(&priv->psstatus.wakeup_wait); */
 	init_completion(&priv->psstatus.wakeup_wait);
-	//INIT_WORK(&priv->ks_wlan_wakeup_task, ks_wlan_hw_wakeup_task, (void *)priv);
-	INIT_WORK(&priv->ks_wlan_wakeup_task, ks_wlan_hw_wakeup_task);
+	INIT_WORK(&priv->wakeup_work, ks_wlan_hw_wakeup_task);
 
 	/* WPA */
 	memset(&priv->wpa, 0, sizeof(priv->wpa));
