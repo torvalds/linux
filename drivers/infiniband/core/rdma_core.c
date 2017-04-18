@@ -363,8 +363,7 @@ static void lockdep_check(struct ib_uobject *uobj, bool exclusive)
 }
 
 static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
-						    enum rdma_remove_reason why,
-						    bool lock)
+						    enum rdma_remove_reason why)
 {
 	int ret;
 	struct ib_ucontext *ucontext = uobj->context;
@@ -375,11 +374,9 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 		atomic_set(&uobj->usecnt, 0);
 		uobj->type->type_class->lookup_put(uobj, true);
 	} else {
-		if (lock)
-			mutex_lock(&ucontext->uobjects_lock);
+		mutex_lock(&ucontext->uobjects_lock);
 		list_del(&uobj->list);
-		if (lock)
-			mutex_unlock(&ucontext->uobjects_lock);
+		mutex_unlock(&ucontext->uobjects_lock);
 		/* put the ref we took when we created the object */
 		uverbs_uobject_put(uobj);
 	}
@@ -401,7 +398,7 @@ int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
 		return 0;
 	}
 	lockdep_check(uobj, true);
-	ret = _rdma_remove_commit_uobject(uobj, RDMA_REMOVE_DESTROY, true);
+	ret = _rdma_remove_commit_uobject(uobj, RDMA_REMOVE_DESTROY);
 
 	up_read(&ucontext->cleanup_rwsem);
 	return ret;
@@ -534,8 +531,7 @@ static void _uverbs_close_fd(struct ib_uobject_file *uobj_file)
 		goto unlock;
 
 	ucontext = uobj_file->uobj.context;
-	ret = _rdma_remove_commit_uobject(&uobj_file->uobj, RDMA_REMOVE_CLOSE,
-					  true);
+	ret = _rdma_remove_commit_uobject(&uobj_file->uobj, RDMA_REMOVE_CLOSE);
 	up_read(&ucontext->cleanup_rwsem);
 	if (ret)
 		pr_warn("uverbs: unable to clean up uobject file in uverbs_close_fd.\n");
@@ -583,7 +579,7 @@ void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed)
 		 */
 		mutex_lock(&ucontext->uobjects_lock);
 		list_for_each_entry_safe(obj, next_obj, &ucontext->uobjects,
-					 list)
+					 list) {
 			if (obj->type->destroy_order == cur_order) {
 				int ret;
 
@@ -592,15 +588,19 @@ void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed)
 				 * racing with a lookup_get.
 				 */
 				WARN_ON(uverbs_try_lock_object(obj, true));
-				ret = _rdma_remove_commit_uobject(obj, reason,
-								  false);
+				ret = obj->type->type_class->remove_commit(obj,
+									   reason);
+				list_del(&obj->list);
 				if (ret)
 					pr_warn("ib_uverbs: failed to remove uobject id %d order %u\n",
 						obj->id, cur_order);
+				/* put the ref we took when we created the object */
+				uverbs_uobject_put(obj);
 			} else {
 				next_order = min(next_order,
 						 obj->type->destroy_order);
 			}
+		}
 		mutex_unlock(&ucontext->uobjects_lock);
 		cur_order = next_order;
 	}
