@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -389,26 +389,48 @@ struct iwl_mvm_add_sta_cmd {
 } __packed; /* ADD_STA_CMD_API_S_VER_8 */
 
 /**
- * struct iwl_mvm_add_sta_key_cmd - add/modify sta key
+ * struct iwl_mvm_add_sta_key_common - add/modify sta key common part
  * ( REPLY_ADD_STA_KEY = 0x17 )
  * @sta_id: index of station in uCode's station table
  * @key_offset: key offset in key storage
  * @key_flags: type %iwl_sta_key_flag
  * @key: key material data
  * @rx_secur_seq_cnt: RX security sequence counter for the key
- * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
- * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
  */
-struct iwl_mvm_add_sta_key_cmd {
+struct iwl_mvm_add_sta_key_common {
 	u8 sta_id;
 	u8 key_offset;
 	__le16 key_flags;
 	u8 key[32];
 	u8 rx_secur_seq_cnt[16];
+} __packed;
+
+/**
+ * struct iwl_mvm_add_sta_key_cmd_v1 - add/modify sta key
+ * @common: see &struct iwl_mvm_add_sta_key_common
+ * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
+ * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
+ */
+struct iwl_mvm_add_sta_key_cmd_v1 {
+	struct iwl_mvm_add_sta_key_common common;
 	u8 tkip_rx_tsc_byte2;
 	u8 reserved;
 	__le16 tkip_rx_ttak[5];
 } __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_1 */
+
+/**
+ * struct iwl_mvm_add_sta_key_cmd - add/modify sta key
+ * @common: see &struct iwl_mvm_add_sta_key_common
+ * @rx_mic_key: TKIP RX unicast or multicast key
+ * @tx_mic_key: TKIP TX key
+ * @transmit_seq_cnt: TSC, transmit packet number
+ */
+struct iwl_mvm_add_sta_key_cmd {
+	struct iwl_mvm_add_sta_key_common common;
+	__le64 rx_mic_key;
+	__le64 tx_mic_key;
+	__le64 transmit_seq_cnt;
+} __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_2 */
 
 /**
  * enum iwl_mvm_add_sta_rsp_status - status in the response to ADD_STA command

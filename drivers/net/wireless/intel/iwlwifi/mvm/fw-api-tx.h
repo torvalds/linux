@@ -635,6 +635,10 @@ enum iwl_mvm_ba_resp_flags {
  * @tx_rate: the rate the aggregation was sent at
  * @tfd_cnt: number of TFD-Q elements
  * @ra_tid_cnt: number of RATID-Q elements
+ * @ba_tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
+ *	for details.
+ * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
+ *	&iwl_mvm_compressed_ba_ratid for more details.
  */
 struct iwl_mvm_compressed_ba_notif {
 	__le32 flags;
@@ -646,6 +650,7 @@ struct iwl_mvm_compressed_ba_notif {
 	__le16 query_frame_cnt;
 	__le16 txed;
 	__le16 done;
+	__le16 reserved;
 	__le32 wireless_time;
 	__le32 tx_rate;
 	__le16 tfd_cnt;

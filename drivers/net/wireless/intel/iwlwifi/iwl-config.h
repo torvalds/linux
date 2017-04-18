@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2016 Intel Deutschland GmbH
+ * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2016 Intel Deutschland GmbH
+ * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -283,6 +283,8 @@ struct iwl_pwr_tx_backoff {
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
+ * @fw_name_pre_next_step: same as @fw_name_pre, only for next step
+ *	(if supported)
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section
@@ -321,6 +323,7 @@ struct iwl_pwr_tx_backoff {
  * @vht_mu_mimo_supported: VHT MU-MIMO support
  * @rf_id: need to read rf_id to determine the firmware image
  * @integrated: discrete or integrated
+ * @gen2: a000 and on transport operation
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -330,6 +333,7 @@ struct iwl_cfg {
 	/* params specific to an individual device within a device family */
 	const char *name;
 	const char *fw_name_pre;
+	const char *fw_name_pre_next_step;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
@@ -365,7 +369,8 @@ struct iwl_cfg {
 	    vht_mu_mimo_supported:1,
 	    rf_id:1,
 	    integrated:1,
-	    use_tfh:1;
+	    use_tfh:1,
+	    gen2:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
@@ -449,7 +454,6 @@ extern const struct iwl_cfg iwl4165_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
-extern const struct iwl_cfg iwl9000lc_2ac_cfg;
 extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
 extern const struct iwl_cfg iwl9270_2ac_cfg;

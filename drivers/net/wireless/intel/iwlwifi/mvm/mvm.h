@@ -407,6 +407,7 @@ struct iwl_mvm_vif {
 	struct iwl_mvm_time_event_data hs_time_event_data;
 
 	struct iwl_mvm_int_sta bcast_sta;
+	struct iwl_mvm_int_sta mcast_sta;
 
 	/*
 	 * Assigned while mac80211 has the interface in a channel context,
@@ -975,7 +976,10 @@ struct iwl_mvm {
 #endif
 
 	/* Tx queues */
-	u8 aux_queue;
+	u16 aux_queue;
+	u16 probe_queue;
+	u16 p2p_dev_queue;
+
 	u8 first_agg_queue;
 	u8 last_agg_queue;
 
@@ -1222,13 +1226,15 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 {
 	/*
 	 * TODO:
-	 * The issue of how to determine CDB support is still not well defined.
-	 * It may be that it will be for all next HW devices and it may be per
-	 * FW compilation and it may also differ between different devices.
-	 * For now take a ride on the new TX API and get back to it when
-	 * it is well defined.
+	 * The issue of how to determine CDB APIs and usage is still not fully
+	 * defined.
+	 * There is a compilation for CDB and non-CDB FW, but there may
+	 * be also runtime check.
+	 * For now there is a TLV for checking compilation mode, but a
+	 * runtime check will also have to be here - once defined.
 	 */
-	return iwl_mvm_has_new_tx_api(mvm);
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
 }
 
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
@@ -1389,6 +1395,8 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			    int queue);
 void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_mfu_assert_dump_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 				   struct iwl_rx_cmd_buffer *rxb);
@@ -1701,7 +1709,8 @@ void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 {
-	iwl_free_fw_paging(mvm);
+	if (!iwl_mvm_has_new_tx_api(mvm))
+		iwl_free_fw_paging(mvm);
 	mvm->ucode_loaded = false;
 	iwl_trans_stop_device(mvm->trans);
 }

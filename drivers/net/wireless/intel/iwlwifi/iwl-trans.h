@@ -644,8 +644,6 @@ struct iwl_trans_ops {
 	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
 				    bool shared);
 
-	dma_addr_t (*get_txq_byte_table)(struct iwl_trans *trans, int txq_id);
-
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
 				 bool freeze);
@@ -774,9 +772,6 @@ enum iwl_plat_pm_mode {
  *	the transport must set this before calling iwl_drv_start()
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
- * @dev_cmd_headroom: room needed for the transport's private use before the
- *	device_cmd for Tx - for internal use only
- *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
  *	starting the firmware, used for tracing
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
@@ -827,7 +822,6 @@ struct iwl_trans {
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
-	size_t dev_cmd_headroom;
 	char dev_cmd_pool_name[50];
 
 	struct dentry *dbgfs_dir;
@@ -1000,13 +994,13 @@ iwl_trans_dump_data(struct iwl_trans *trans,
 static inline struct iwl_device_cmd *
 iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 {
-	u8 *dev_cmd_ptr = kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
+	struct iwl_device_cmd *dev_cmd_ptr =
+		kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
 
 	if (unlikely(dev_cmd_ptr == NULL))
 		return NULL;
 
-	return (struct iwl_device_cmd *)
-			(dev_cmd_ptr + trans->dev_cmd_headroom);
+	return dev_cmd_ptr;
 }
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
@@ -1014,9 +1008,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
 					 struct iwl_device_cmd *dev_cmd)
 {
-	u8 *dev_cmd_ptr = (u8 *)dev_cmd - trans->dev_cmd_headroom;
-
-	kmem_cache_free(trans->dev_cmd_pool, dev_cmd_ptr);
+	kmem_cache_free(trans->dev_cmd_pool, dev_cmd);
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
@@ -1070,15 +1062,6 @@ static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
 {
 	if (trans->ops->txq_set_shared_mode)
 		trans->ops->txq_set_shared_mode(trans, queue, shared_mode);
-}
-
-static inline dma_addr_t iwl_trans_get_txq_byte_table(struct iwl_trans *trans,
-						      int queue)
-{
-	/* we should never be called if the trans doesn't support it */
-	BUG_ON(!trans->ops->get_txq_byte_table);
-
-	return trans->ops->get_txq_byte_table(trans, queue);
 }
 
 static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
@@ -1248,8 +1231,7 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans)
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
 				  const struct iwl_cfg *cfg,
-				  const struct iwl_trans_ops *ops,
-				  size_t dev_cmd_headroom);
+				  const struct iwl_trans_ops *ops);
 void iwl_trans_free(struct iwl_trans *trans);
 
 /*****************************************************

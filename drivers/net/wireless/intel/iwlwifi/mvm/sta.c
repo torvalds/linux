@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1652,8 +1652,7 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 	return 0;
 }
 
-static void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm,
-				    struct iwl_mvm_int_sta *sta)
+void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta)
 {
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], NULL);
 	memset(sta, 0, sizeof(struct iwl_mvm_int_sta));
@@ -1808,9 +1807,9 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 		if (vif->type == NL80211_IFTYPE_AP ||
 		    vif->type == NL80211_IFTYPE_ADHOC)
-			queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+			queue = mvm->probe_queue;
 		else if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
-			queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
+			queue = mvm->p2p_dev_queue;
 		else if (WARN(1, "Missing required TXQ for adding bcast STA\n"))
 			return -EINVAL;
 
@@ -1869,24 +1868,18 @@ static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
 				    IWL_MAX_TID_COUNT, 0);
 
-	if (mvmvif->bcast_sta.tfd_queue_msk &
-	    BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE)) {
-		iwl_mvm_disable_txq(mvm,
-				    IWL_MVM_DQA_AP_PROBE_RESP_QUEUE,
+	if (mvmvif->bcast_sta.tfd_queue_msk & BIT(mvm->probe_queue)) {
+		iwl_mvm_disable_txq(mvm, mvm->probe_queue,
 				    vif->hw_queue[0], IWL_MAX_TID_COUNT,
 				    0);
-		mvmvif->bcast_sta.tfd_queue_msk &=
-			~BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE);
+		mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(mvm->probe_queue);
 	}
 
-	if (mvmvif->bcast_sta.tfd_queue_msk &
-	    BIT(IWL_MVM_DQA_P2P_DEVICE_QUEUE)) {
-		iwl_mvm_disable_txq(mvm,
-				    IWL_MVM_DQA_P2P_DEVICE_QUEUE,
+	if (mvmvif->bcast_sta.tfd_queue_msk & BIT(mvm->p2p_dev_queue)) {
+		iwl_mvm_disable_txq(mvm, mvm->p2p_dev_queue,
 				    vif->hw_queue[0], IWL_MAX_TID_COUNT,
 				    0);
-		mvmvif->bcast_sta.tfd_queue_msk &=
-			~BIT(IWL_MVM_DQA_P2P_DEVICE_QUEUE);
+		mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(mvm->p2p_dev_queue);
 	}
 }
 
@@ -1978,6 +1971,80 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	ret = iwl_mvm_send_rm_bcast_sta(mvm, vif);
 
 	iwl_mvm_dealloc_bcast_sta(mvm, vif);
+
+	return ret;
+}
+
+/*
+ * Allocate a new station entry for the multicast station to the given vif,
+ * and send it to the FW.
+ * Note that each AP/GO mac should have its own multicast station.
+ *
+ * @mvm: the mvm component
+ * @vif: the interface to which the multicast station is added
+ */
+int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_int_sta *msta = &mvmvif->mcast_sta;
+	static const u8 _maddr[] = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+	const u8 *maddr = _maddr;
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = IWL_MVM_TX_FIFO_MCAST,
+		.sta_id = msta->sta_id,
+		.tid = IWL_MAX_TID_COUNT,
+		.aggregate = false,
+		.frame_limit = IWL_FRAME_LIMIT,
+	};
+	unsigned int timeout = iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!iwl_mvm_is_dqa_supported(mvm))
+		return 0;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_AP))
+		return -ENOTSUPP;
+
+	ret = iwl_mvm_add_int_sta_common(mvm, msta, maddr,
+					 mvmvif->id, mvmvif->color);
+	if (ret) {
+		iwl_mvm_dealloc_int_sta(mvm, msta);
+		return ret;
+	}
+
+	/*
+	 * Enable cab queue after the ADD_STA command is sent.
+	 * This is needed for a000 firmware which won't accept SCD_QUEUE_CFG
+	 * command with unknown station id.
+	 */
+	iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue, 0, &cfg,
+			   timeout);
+
+	return 0;
+}
+
+/*
+ * Send the FW a request to remove the station from it's internal data
+ * structures, and in addition remove it from the local data structure.
+ */
+int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!iwl_mvm_is_dqa_supported(mvm))
+		return 0;
+
+	iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
+			    IWL_MAX_TID_COUNT, 0);
+
+	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->mcast_sta.sta_id);
+	if (ret)
+		IWL_WARN(mvm, "Failed sending remove station\n");
 
 	return ret;
 }
@@ -2697,68 +2764,97 @@ static struct iwl_mvm_sta *iwl_mvm_get_key_sta(struct iwl_mvm *mvm,
 
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 				struct iwl_mvm_sta *mvm_sta,
-				struct ieee80211_key_conf *keyconf, bool mcast,
+				struct ieee80211_key_conf *key, bool mcast,
 				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags,
 				u8 key_offset)
 {
-	struct iwl_mvm_add_sta_key_cmd cmd = {};
+	union {
+		struct iwl_mvm_add_sta_key_cmd_v1 cmd_v1;
+		struct iwl_mvm_add_sta_key_cmd cmd;
+	} u = {};
 	__le16 key_flags;
 	int ret;
 	u32 status;
 	u16 keyidx;
-	int i;
-	u8 sta_id = mvm_sta->sta_id;
+	u64 pn = 0;
+	int i, size;
+	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
 
-	keyidx = (keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
+	keyidx = (key->keyidx << STA_KEY_FLG_KEYID_POS) &
 		 STA_KEY_FLG_KEYID_MSK;
 	key_flags = cpu_to_le16(keyidx);
 	key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_KEY_MAP);
 
-	switch (keyconf->cipher) {
+	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_TKIP);
-		cmd.tkip_rx_tsc_byte2 = tkip_iv32;
-		for (i = 0; i < 5; i++)
-			cmd.tkip_rx_ttak[i] = cpu_to_le16(tkip_p1k[i]);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		if (new_api) {
+			memcpy((void *)&u.cmd.tx_mic_key,
+			       &key->key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
+			       IWL_MIC_KEY_SIZE);
+
+			memcpy((void *)&u.cmd.rx_mic_key,
+			       &key->key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+			       IWL_MIC_KEY_SIZE);
+			pn = atomic64_read(&key->tx_pn);
+
+		} else {
+			u.cmd_v1.tkip_rx_tsc_byte2 = tkip_iv32;
+			for (i = 0; i < 5; i++)
+				u.cmd_v1.tkip_rx_ttak[i] =
+					cpu_to_le16(tkip_p1k[i]);
+		}
+		memcpy(u.cmd.common.key, key->key, key->keylen);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_CCM);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key, key->key, key->keylen);
+		if (new_api)
+			pn = atomic64_read(&key->tx_pn);
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_13BYTES);
 		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP);
-		memcpy(cmd.key + 3, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key + 3, key->key, key->keylen);
 		break;
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_KEY_32BYTES);
 		/* fall through */
 	case WLAN_CIPHER_SUITE_GCMP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_GCMP);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key, key->key, key->keylen);
+		if (new_api)
+			pn = atomic64_read(&key->tx_pn);
 		break;
 	default:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_EXT);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key, key->key, key->keylen);
 	}
 
 	if (mcast)
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
 
-	cmd.key_offset = key_offset;
-	cmd.key_flags = key_flags;
-	cmd.sta_id = sta_id;
+	u.cmd.common.key_offset = key_offset;
+	u.cmd.common.key_flags = key_flags;
+	u.cmd.common.sta_id = mvm_sta->sta_id;
+
+	if (new_api) {
+		u.cmd.transmit_seq_cnt = cpu_to_le64(pn);
+		size = sizeof(u.cmd);
+	} else {
+		size = sizeof(u.cmd_v1);
+	}
 
 	status = ADD_STA_SUCCESS;
 	if (cmd_flags & CMD_ASYNC)
-		ret =  iwl_mvm_send_cmd_pdu(mvm, ADD_STA_KEY, CMD_ASYNC,
-					    sizeof(cmd), &cmd);
+		ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA_KEY, CMD_ASYNC, size,
+					   &u.cmd);
 	else
-		ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
-						  &cmd, &status);
+		ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, size,
+						  &u.cmd, &status);
 
 	switch (status) {
 	case ADD_STA_SUCCESS:
@@ -2911,9 +3007,14 @@ static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
 				    struct ieee80211_key_conf *keyconf,
 				    bool mcast)
 {
-	struct iwl_mvm_add_sta_key_cmd cmd = {};
+	union {
+		struct iwl_mvm_add_sta_key_cmd_v1 cmd_v1;
+		struct iwl_mvm_add_sta_key_cmd cmd;
+	} u = {};
+	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
 	__le16 key_flags;
-	int ret;
+	int ret, size;
 	u32 status;
 
 	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
@@ -2924,13 +3025,19 @@ static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
 	if (mcast)
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
 
-	cmd.key_flags = key_flags;
-	cmd.key_offset = keyconf->hw_key_idx;
-	cmd.sta_id = sta_id;
+	/*
+	 * The fields assigned here are in the same location at the start
+	 * of the command, so we can do this union trick.
+	 */
+	u.cmd.common.key_flags = key_flags;
+	u.cmd.common.key_offset = keyconf->hw_key_idx;
+	u.cmd.common.sta_id = sta_id;
+
+	size = new_api ? sizeof(u.cmd) : sizeof(u.cmd_v1);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
-					  &cmd, &status);
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, size, &u.cmd,
+					  &status);
 
 	switch (status) {
 	case ADD_STA_SUCCESS:

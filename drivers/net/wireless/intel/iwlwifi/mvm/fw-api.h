@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -345,9 +345,10 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_ACCESS_COMPLETE = 0x0,
 };
 
-enum iwl_fmac_debug_cmds {
+enum iwl_debug_cmds {
 	LMAC_RD_WR = 0x0,
 	UMAC_RD_WR = 0x1,
+	MFU_ASSERT_DUMP_NTF = 0xFE,
 };
 
 /* command groups */
@@ -673,10 +674,8 @@ struct iwl_error_resp {
 
 
 /* Common PHY, MAC and Bindings definitions */
-
 #define MAX_MACS_IN_BINDING	(3)
 #define MAX_BINDINGS		(4)
-#define AUX_BINDING_INDEX	(3)
 
 /* Used to extract ID and color from the context dword */
 #define FW_CTXT_ID_POS	  (0)
@@ -960,6 +959,7 @@ struct iwl_time_event_notif {
  * @action: action to perform, one of FW_CTXT_ACTION_*
  * @macs: array of MAC id and colors which belong to the binding
  * @phy: PHY id and color which belongs to the binding
+ * @lmac_id: the lmac id the binding belongs to
  */
 struct iwl_binding_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
@@ -968,7 +968,13 @@ struct iwl_binding_cmd {
 	/* BINDING_DATA_API_S_VER_1 */
 	__le32 macs[MAX_MACS_IN_BINDING];
 	__le32 phy;
-} __packed; /* BINDING_CMD_API_S_VER_1 */
+	/* BINDING_CMD_API_S_VER_1 */
+	__le32 lmac_id;
+} __packed; /* BINDING_CMD_API_S_VER_2 */
+
+#define IWL_BINDING_CMD_SIZE_V1	offsetof(struct iwl_binding_cmd, lmac_id)
+#define IWL_LMAC_24G_INDEX		0
+#define IWL_LMAC_5G_INDEX		1
 
 /* The maximal number of fragments in the FW's schedule session */
 #define IWL_MVM_MAX_QUOTA 128
@@ -990,6 +996,9 @@ struct iwl_time_quota_data {
  * struct iwl_time_quota_cmd - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
  * @quotas: allocations per binding
+ * Note: on non-CDB the fourth one is the auxilary mac and is
+ *	essentially zero.
+ *	On CDB the fourth one is a regular binding.
  */
 struct iwl_time_quota_cmd {
 	struct iwl_time_quota_data quotas[MAX_BINDINGS];
@@ -1229,6 +1238,25 @@ struct iwl_mfuart_load_notif {
 	/* image size valid only in v2 of the command */
 	__le32 image_size;
 } __packed; /*MFU_LOADER_NTFY_API_S_VER_2*/
+
+/**
+ * struct iwl_mfu_assert_dump_notif - mfuart dump logs
+ * ( MFU_ASSERT_DUMP_NTF = 0xfe )
+ * @assert_id: mfuart assert id that cause the notif
+ * @curr_reset_num: number of asserts since uptime
+ * @index_num: current chunk id
+ * @parts_num: total number of chunks
+ * @data_size: number of data bytes sent
+ * @data: data buffer
+ */
+struct iwl_mfu_assert_dump_notif {
+	__le32   assert_id;
+	__le32   curr_reset_num;
+	__le16   index_num;
+	__le16   parts_num;
+	__le32   data_size;
+	__le32   data[0];
+} __packed; /*MFU_DUMP_ASSERT_API_S_VER_1*/
 
 /**
  * struct iwl_set_calib_default_cmd - set default value for calibration.

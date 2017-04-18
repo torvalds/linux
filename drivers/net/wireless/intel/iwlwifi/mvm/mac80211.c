@@ -6,8 +6,8 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,7 +33,8 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1351,6 +1352,17 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			goto out_release;
 		}
 
+		if (iwl_mvm_is_dqa_supported(mvm)) {
+			/*
+			 * Only queue for this station is the mcast queue,
+			 * which shouldn't be in TFD mask anyway
+			 */
+			ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->mcast_sta,
+						       0, vif->type);
+			if (ret)
+				goto out_release;
+		}
+
 		iwl_mvm_vif_dbgfs_register(mvm, vif);
 		goto out_unlock;
 	}
@@ -1516,6 +1528,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 			mvm->noa_duration = 0;
 		}
 #endif
+		iwl_mvm_dealloc_int_sta(mvm, &mvmvif->mcast_sta);
 		iwl_mvm_dealloc_bcast_sta(mvm, vif);
 		goto out_release;
 	}
@@ -2104,6 +2117,10 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unbind;
 
+	ret = iwl_mvm_add_mcast_sta(mvm, vif);
+	if (ret)
+		goto out_rm_bcast;
+
 	/* must be set before quota calculations */
 	mvmvif->ap_ibss_active = true;
 
@@ -2131,6 +2148,8 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 out_quota_failed:
 	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
+	iwl_mvm_rm_mcast_sta(mvm, vif);
+out_rm_bcast:
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);
 out_unbind:
 	iwl_mvm_binding_remove_vif(mvm, vif);
@@ -2177,6 +2196,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false, NULL);
 
 	iwl_mvm_update_quotas(mvm, false, NULL);
+	iwl_mvm_rm_mcast_sta(mvm, vif);
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
@@ -2341,6 +2361,9 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		if (!iwl_mvm_is_dqa_supported(mvm) &&
 		    tid_data->state != IWL_AGG_ON &&
 		    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+			continue;
+
+		if (tid_data->txq_id == IEEE80211_INVAL_HW_QUEUE)
 			continue;
 
 		__set_bit(tid_data->txq_id, &txqs);

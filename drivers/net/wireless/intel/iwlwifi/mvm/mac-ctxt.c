@@ -473,6 +473,7 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 	}
 
 	mvmvif->bcast_sta.sta_id = IWL_MVM_STATION_COUNT;
+	mvmvif->mcast_sta.sta_id = IWL_MVM_STATION_COUNT;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)

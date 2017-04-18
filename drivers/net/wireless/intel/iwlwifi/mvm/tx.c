@@ -514,21 +514,21 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		 */
 		if (ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc) ||
 		    ieee80211_is_deauth(fc))
-			return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+			return mvm->probe_queue;
 		if (info->hw_queue == info->control.vif->cab_queue)
 			return info->hw_queue;
 
 		WARN_ONCE(info->control.vif->type != NL80211_IFTYPE_ADHOC,
 			  "fc=0x%02x", le16_to_cpu(fc));
-		return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+		return mvm->probe_queue;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (ieee80211_is_mgmt(fc))
-			return IWL_MVM_DQA_P2P_DEVICE_QUEUE;
+			return mvm->p2p_dev_queue;
 		if (info->hw_queue == info->control.vif->cab_queue)
 			return info->hw_queue;
 
 		WARN_ON_ONCE(1);
-		return IWL_MVM_DQA_P2P_DEVICE_QUEUE;
+		return mvm->p2p_dev_queue;
 	default:
 		WARN_ONCE(1, "Not a ctrl vif, no available queue\n");
 		return -1;

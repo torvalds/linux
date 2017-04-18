@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -462,6 +462,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	int i;
 	u16 sn = 0, index = 0;
 	bool expired = false;
+	bool cont = false;
 
 	spin_lock(&buf->lock);
 
@@ -473,12 +474,21 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	for (i = 0; i < buf->buf_size ; i++) {
 		index = (buf->head_sn + i) % buf->buf_size;
 
-		if (skb_queue_empty(&buf->entries[index]))
+		if (skb_queue_empty(&buf->entries[index])) {
+			/*
+			 * If there is a hole and the next frame didn't expire
+			 * we want to break and not advance SN
+			 */
+			cont = false;
 			continue;
-		if (!time_after(jiffies, buf->reorder_time[index] +
-				RX_REORDER_BUF_TIMEOUT_MQ))
+		}
+		if (!cont && !time_after(jiffies, buf->reorder_time[index] +
+					 RX_REORDER_BUF_TIMEOUT_MQ))
 			break;
+
 		expired = true;
+		/* continue until next hole after this expired frames */
+		cont = true;
 		sn = ieee80211_sn_add(buf->head_sn, i + 1);
 	}
 

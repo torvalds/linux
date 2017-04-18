@@ -104,7 +104,20 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    u8 crypt_len,
 					    struct iwl_rx_cmd_buffer *rxb)
 {
-	unsigned int hdrlen, fraglen;
+	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	unsigned int fraglen;
+
+	/*
+	 * The 'hdrlen' (plus the 8 bytes for the SNAP and the crypt_len,
+	 * but those are all multiples of 4 long) all goes away, but we
+	 * want the *end* of it, which is going to be the start of the IP
+	 * header, to be aligned when it gets pulled in.
+	 * The beginning of the skb->data is aligned on at least a 4-byte
+	 * boundary after allocation. Everything here is aligned at least
+	 * on a 2-byte boundary so we can just take hdrlen & 3 and pad by
+	 * the result.
+	 */
+	skb_reserve(skb, hdrlen & 3);
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
 	 * If not, only pull ieee80211_hdr (including crypto if present, and
@@ -118,8 +131,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	 * If the latter changes (there are efforts in the standards group
 	 * to do so) we should revisit this and ieee80211_data_to_8023().
 	 */
-	hdrlen = (len <= skb_tailroom(skb)) ? len :
-					      sizeof(*hdr) + crypt_len + 8;
+	hdrlen = (len <= skb_tailroom(skb)) ? len : hdrlen + crypt_len + 8;
 
 	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
 	fraglen = len - hdrlen;
