@@ -420,6 +420,9 @@ int nf_conntrack_ecache_init(void)
 	int ret = nf_ct_extend_register(&event_extend);
 	if (ret < 0)
 		pr_err("nf_ct_event: Unable to register event extension.\n");
+
+	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* ctmask, missed use u16 */
+
 	return ret;
 }
 
