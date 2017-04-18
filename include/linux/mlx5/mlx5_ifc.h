@@ -8309,6 +8309,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_sltp_reg_bits sltp_reg;
 	struct mlx5_ifc_mtpps_reg_bits mtpps_reg;
 	struct mlx5_ifc_mtppse_reg_bits mtppse_reg;
+	struct mlx5_ifc_fpga_access_reg_bits fpga_access_reg;
 	struct mlx5_ifc_fpga_ctrl_bits fpga_ctrl_bits;
 	struct mlx5_ifc_fpga_cap_bits fpga_cap_bits;
 	struct mlx5_ifc_mcqi_reg_bits mcqi_reg;

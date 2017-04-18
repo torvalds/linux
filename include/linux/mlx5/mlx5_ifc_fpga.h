@@ -150,6 +150,19 @@ struct mlx5_ifc_fpga_error_event_bits {
 	u8         reserved_at_60[0x80];
 };
 
+#define MLX5_FPGA_ACCESS_REG_SIZE_MAX 64
+
+struct mlx5_ifc_fpga_access_reg_bits {
+	u8         reserved_at_0[0x20];
+
+	u8         reserved_at_20[0x10];
+	u8         size[0x10];
+
+	u8         address[0x40];
+
+	u8         data[0][0x8];
+};
+
 enum mlx5_ifc_fpga_qp_state {
 	MLX5_FPGA_QPC_STATE_INIT    = 0x0,
 	MLX5_FPGA_QPC_STATE_ACTIVE  = 0x1,
