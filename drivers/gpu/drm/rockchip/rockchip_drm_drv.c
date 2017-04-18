@@ -115,7 +115,7 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 
 	logo = private->logo;
 	start = phys_to_virt(logo->start);
-	end = phys_to_virt(logo->size);
+	end = phys_to_virt(logo->start + logo->size);
 
 	if (private->domain) {
 		iommu_unmap(private->domain, logo->dma_addr,
