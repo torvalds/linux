@@ -78,7 +78,6 @@ struct ion_platform_heap {
  *			handle, used for debugging
  */
 struct ion_buffer {
-	struct kref ref;
 	union {
 		struct rb_node node;
 		struct list_head list;
@@ -109,8 +108,6 @@ void ion_buffer_destroy(struct ion_buffer *buffer);
  * @buffers:		an rb tree of all the existing buffers
  * @buffer_lock:	lock protecting the tree of buffers
  * @lock:		rwsem protecting the tree of heaps and clients
- * @heaps:		list of all the heaps in the system
- * @user_clients:	list of all the clients created from userspace
  */
 struct ion_device {
 	struct miscdevice dev;
@@ -118,62 +115,8 @@ struct ion_device {
 	struct mutex buffer_lock;
 	struct rw_semaphore lock;
 	struct plist_head heaps;
-	struct rb_root clients;
 	struct dentry *debug_root;
-	struct dentry *heaps_debug_root;
-	struct dentry *clients_debug_root;
 	int heap_cnt;
-};
-
-/**
- * struct ion_client - a process/hw block local address space
- * @node:		node in the tree of all clients
- * @dev:		backpointer to ion device
- * @handles:		an rb tree of all the handles in this client
- * @idr:		an idr space for allocating handle ids
- * @lock:		lock protecting the tree of handles
- * @name:		used for debugging
- * @display_name:	used for debugging (unique version of @name)
- * @display_serial:	used for debugging (to make display_name unique)
- * @task:		used for debugging
- *
- * A client represents a list of buffers this client may access.
- * The mutex stored here is used to protect both handles tree
- * as well as the handles themselves, and should be held while modifying either.
- */
-struct ion_client {
-	struct rb_node node;
-	struct ion_device *dev;
-	struct rb_root handles;
-	struct idr idr;
-	struct mutex lock;
-	const char *name;
-	char *display_name;
-	int display_serial;
-	struct task_struct *task;
-	pid_t pid;
-	struct dentry *debug_root;
-};
-
-/**
- * ion_handle - a client local reference to a buffer
- * @ref:		reference count
- * @client:		back pointer to the client the buffer resides in
- * @buffer:		pointer to the buffer
- * @node:		node in the client's handle rbtree
- * @kmap_cnt:		count of times this client has mapped to kernel
- * @id:			client-unique id allocated by client->idr
- *
- * Modifications to node, map_cnt or mapping should be protected by the
- * lock in the client.  Other fields are never changed after initialization.
- */
-struct ion_handle {
-	struct kref ref;
-	struct ion_client *client;
-	struct ion_buffer *buffer;
-	struct rb_node node;
-	unsigned int kmap_cnt;
-	int id;
 };
 
 /**
@@ -296,13 +239,9 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
-struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
+int ion_alloc(size_t len,
 				unsigned int heap_id_mask,
 				unsigned int flags);
-
-void ion_free(struct ion_client *client, struct ion_handle *handle);
-
-int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
 
 /**
  * ion_heap_init_shrinker
@@ -431,18 +370,6 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
-struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
-						int id);
-
-void ion_free_nolock(struct ion_client *client, struct ion_handle *handle);
-
-int ion_handle_put_nolock(struct ion_handle *handle);
-
-struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
-						int id);
-
-int ion_handle_put(struct ion_handle *handle);
-
-int ion_query_heaps(struct ion_client *client, struct ion_heap_query *query);
+int ion_query_heaps(struct ion_heap_query *query);
 
 #endif /* _ION_H */

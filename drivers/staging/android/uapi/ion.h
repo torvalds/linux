@@ -85,31 +85,8 @@ struct ion_allocation_data {
 	__u64 len;
 	__u32 heap_id_mask;
 	__u32 flags;
-	__u32 handle;
-	__u32 unused;
-};
-
-/**
- * struct ion_fd_data - metadata passed to/from userspace for a handle/fd pair
- * @handle:	a handle
- * @fd:		a file descriptor representing that handle
- *
- * For ION_IOC_SHARE or ION_IOC_MAP userspace populates the handle field with
- * the handle returned from ion alloc, and the kernel returns the file
- * descriptor to share or map in the fd field.  For ION_IOC_IMPORT, userspace
- * provides the file descriptor and the kernel returns the handle.
- */
-struct ion_fd_data {
-	__u32 handle;
 	__u32 fd;
-};
-
-/**
- * struct ion_handle_data - a handle passed to/from the kernel
- * @handle:	a handle
- */
-struct ion_handle_data {
-	__u32 handle;
+	__u32 unused;
 };
 
 #define MAX_HEAP_NAME			32
