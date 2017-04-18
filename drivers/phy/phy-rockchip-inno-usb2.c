@@ -1522,7 +1522,13 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 
 static int rockchip_usb2phy_pm_resume(struct device *dev)
 {
-	return 0;
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (rphy->phy_cfg->phy_tuning)
+		ret = rphy->phy_cfg->phy_tuning(rphy);
+
+	return ret;
 }
 
 static const struct dev_pm_ops rockchip_usb2phy_dev_pm_ops = {
