@@ -695,6 +695,7 @@ static struct discard_cmd *__create_discard_cmd(struct f2fs_sb_info *sbi,
 	init_completion(&dc->wait);
 	list_add_tail(&dc->list, pend_list);
 	atomic_inc(&dcc->discard_cmd_cnt);
+	dcc->undiscard_blks += len;
 
 	return dc;
 }
@@ -723,6 +724,7 @@ static void __detach_discard_cmd(struct discard_cmd_control *dcc,
 
 	list_del(&dc->list);
 	rb_erase(&dc->rb_node, &dcc->root);
+	dcc->undiscard_blks -= dc->len;
 
 	kmem_cache_free(discard_cmd_slab, dc);
 
@@ -909,8 +911,11 @@ static void __punch_discard_cmd(struct f2fs_sb_info *sbi,
 		return;
 	}
 
+	dcc->undiscard_blks -= di.len;
+
 	if (blkaddr > di.lstart) {
 		dc->len = blkaddr - dc->lstart;
+		dcc->undiscard_blks += dc->len;
 		__relocate_discard_cmd(dcc, dc);
 		f2fs_bug_on(sbi, !__check_rb_tree_consistence(sbi, &dcc->root));
 		modified = true;
@@ -928,6 +933,7 @@ static void __punch_discard_cmd(struct f2fs_sb_info *sbi,
 			dc->lstart++;
 			dc->len--;
 			dc->start++;
+			dcc->undiscard_blks += dc->len;
 			__relocate_discard_cmd(dcc, dc);
 			f2fs_bug_on(sbi,
 				!__check_rb_tree_consistence(sbi, &dcc->root));
@@ -989,6 +995,7 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 			prev_dc->bdev == bdev &&
 			__is_discard_back_mergeable(&di, &prev_dc->di)) {
 			prev_dc->di.len += di.len;
+			dcc->undiscard_blks += di.len;
 			__relocate_discard_cmd(dcc, prev_dc);
 			f2fs_bug_on(sbi,
 				!__check_rb_tree_consistence(sbi, &dcc->root));
@@ -1003,6 +1010,7 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 			next_dc->di.lstart = di.lstart;
 			next_dc->di.len += di.len;
 			next_dc->di.start = di.start;
+			dcc->undiscard_blks += di.len;
 			__relocate_discard_cmd(dcc, next_dc);
 			if (tdc)
 				__remove_discard_cmd(sbi, tdc);
@@ -1436,6 +1444,7 @@ static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 	atomic_set(&dcc->discard_cmd_cnt, 0);
 	dcc->nr_discards = 0;
 	dcc->max_discards = 0;
+	dcc->undiscard_blks = 0;
 	dcc->root = RB_ROOT;
 
 	init_waitqueue_head(&dcc->discard_wait_queue);

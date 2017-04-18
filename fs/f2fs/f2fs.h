@@ -299,6 +299,7 @@ struct discard_cmd_control {
 	struct mutex cmd_lock;
 	int nr_discards;			/* # of discards in the list */
 	int max_discards;			/* max. discards to be issued */
+	unsigned int undiscard_blks;		/* # of undiscard blocks */
 	atomic_t issued_discard;		/* # of issued discard */
 	atomic_t issing_discard;		/* # of issing discard */
 	atomic_t discard_cmd_cnt;		/* # of cached cmd count */
@@ -2457,6 +2458,7 @@ struct f2fs_stat_info {
 	int bg_gc, nr_wb_cp_data, nr_wb_data;
 	int nr_flushing, nr_flushed, nr_discarding, nr_discarded;
 	int nr_discard_cmd;
+	unsigned int undiscard_blks;
 	int inline_xattr, inline_inode, inline_dir, append, update, orphans;
 	int aw_cnt, max_aw_cnt, vw_cnt, max_vw_cnt;
 	unsigned int valid_count, valid_node_count, valid_inode_count, discard_blks;
