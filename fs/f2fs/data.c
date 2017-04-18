@@ -1357,6 +1357,8 @@ retry_encrypt:
 			!is_cold_data(page) &&
 			!IS_ATOMIC_WRITTEN_PAGE(page) &&
 			need_inplace_update(inode))) {
+		f2fs_unlock_op(F2FS_I_SB(inode));
+		fio->cp_rwsem_locked = false;
 		err = rewrite_data_page(fio);
 		set_inode_flag(inode, FI_UPDATE_WRITE);
 		trace_f2fs_do_write_data_page(page, IPU);
@@ -1392,6 +1394,7 @@ static int __write_data_page(struct page *page, bool *submitted,
 		.page = page,
 		.encrypted_page = NULL,
 		.submitted = false,
+		.cp_rwsem_locked = true,
 	};
 
 	trace_f2fs_writepage(page, DATA);
@@ -1449,7 +1452,8 @@ write:
 		err = do_write_data_page(&fio);
 	if (F2FS_I(inode)->last_disk_size < psize)
 		F2FS_I(inode)->last_disk_size = psize;
-	f2fs_unlock_op(sbi);
+	if (fio.cp_rwsem_locked)
+		f2fs_unlock_op(sbi);
 done:
 	if (err && err != -ENOENT)
 		goto redirty_out;
