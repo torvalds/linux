@@ -1070,6 +1070,7 @@ static void passdown_endio(struct bio *bio)
 	 * to unmap (we ignore err).
 	 */
 	queue_passdown_pt2(bio->bi_private);
+	bio_put(bio);
 }
 
 static void process_prepared_discard_passdown_pt1(struct dm_thin_new_mapping *m)
