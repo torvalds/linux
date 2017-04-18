@@ -19,7 +19,6 @@
 
 #include "visorbus.h"
 #include "visorbus_private.h"
-#include "vmcallinterface.h"
 
 #define MYDRVNAME "visorbus"
 
@@ -1262,8 +1261,6 @@ visorbus_init(void)
 {
 	int err;
 
-	POSTCODE_LINUX(DRIVER_ENTRY_PC, 0, 0, DIAG_SEVERITY_PRINT);
-
 	visorbus_debugfs_dir = debugfs_create_dir("visorbus", NULL);
 	if (!visorbus_debugfs_dir)
 		return -ENOMEM;
@@ -1271,19 +1268,14 @@ visorbus_init(void)
 	bus_device_info_init(&clientbus_driverinfo, "clientbus", "visorbus");
 
 	err = bus_register(&visorbus_type);
-	if (err < 0) {
-		POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, 0, DIAG_SEVERITY_ERR);
-		goto error;
-	}
+	if (err < 0)
+		return err;
+
 	initialized = true;
 
 	bus_device_info_init(&chipset_driverinfo, "chipset", "visorchipset");
 
 	return 0;
-
-error:
-	POSTCODE_LINUX(CHIPSET_INIT_FAILURE_PC, 0, err, DIAG_SEVERITY_ERR);
-	return err;
 }
 
 void
