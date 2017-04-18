@@ -9,6 +9,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include <errno.h>
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>

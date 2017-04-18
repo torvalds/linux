@@ -41,6 +41,7 @@
 #include "syscalltbl.h"
 #include "rb_resort.h"
 
+#include <errno.h>
 #include <inttypes.h>
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>

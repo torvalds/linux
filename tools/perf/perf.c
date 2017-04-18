@@ -19,6 +19,7 @@
 #include "util/debug.h"
 #include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>

@@ -9,6 +9,7 @@
  *   Dick Fowles <fowles@inreach.com>
  *   Joe Mario <jmario@redhat.com>
  */
+#include <errno.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>

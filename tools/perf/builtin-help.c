@@ -13,6 +13,7 @@
 #include <subcmd/help.h>
 #include "util/debug.h"
 #include <linux/kernel.h>
+#include <errno.h>
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;

@@ -12,6 +12,7 @@
  * of the License.
  */
 
+#include <errno.h>
 #include <inttypes.h>
 #include <traceevent/event-parse.h>
 

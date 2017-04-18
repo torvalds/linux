@@ -2,6 +2,7 @@
 #include "pmu.h"
 #include "util.h"
 #include "tests.h"
+#include <errno.h>
 #include <linux/kernel.h>
 
 /* Simulated format definitions. */

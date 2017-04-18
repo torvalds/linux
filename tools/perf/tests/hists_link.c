@@ -9,6 +9,7 @@
 #include "thread.h"
 #include "parse-events.h"
 #include "hists_common.h"
+#include <errno.h>
 #include <linux/kernel.h>
 
 struct sample {

@@ -3,6 +3,7 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <errno.h>
 #include <unistd.h>
 #include <string.h>
 #include "builtin.h"

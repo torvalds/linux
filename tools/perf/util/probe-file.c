@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  *
  */
+#include <errno.h>
 #include <sys/uio.h>
 #include "util.h"
 #include "event.h"

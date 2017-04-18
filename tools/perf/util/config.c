@@ -8,6 +8,7 @@
  * Copyright (C) Johannes Schindelin, 2005
  *
  */
+#include <errno.h>
 #include "util.h"
 #include "cache.h"
 #include <subcmd/exec-cmd.h>

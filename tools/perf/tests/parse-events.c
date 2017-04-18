@@ -5,6 +5,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "util.h"
+#include <errno.h>
 #include <linux/kernel.h>
 #include <linux/hw_breakpoint.h>
 #include <api/fs/fs.h>

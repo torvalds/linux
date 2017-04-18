@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <errno.h>
 #include "symbol.h"
 #include "dso.h"
 #include "machine.h"

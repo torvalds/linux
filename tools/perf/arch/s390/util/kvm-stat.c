@@ -9,6 +9,7 @@
  * as published by the Free Software Foundation.
  */
 
+#include <errno.h>
 #include "../../util/kvm-stat.h"
 #include <asm/sie.h>
 

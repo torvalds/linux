@@ -17,6 +17,7 @@
  *
  */
 
+#include <errno.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include "util.h"

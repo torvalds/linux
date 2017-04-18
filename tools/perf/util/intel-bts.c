@@ -14,6 +14,7 @@
  */
 
 #include <endian.h>
+#include <errno.h>
 #include <byteswap.h>
 #include <inttypes.h>
 #include <linux/kernel.h>

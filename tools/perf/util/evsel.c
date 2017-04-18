@@ -8,6 +8,7 @@
  */
 
 #include <byteswap.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <linux/bitops.h>
 #include <api/fs/tracing_path.h>

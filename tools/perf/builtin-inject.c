@@ -22,6 +22,7 @@
 #include <subcmd/parse-options.h>
 
 #include <linux/list.h>
+#include <errno.h>
 
 struct perf_inject {
 	struct perf_tool	tool;

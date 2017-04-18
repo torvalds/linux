@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <dirent.h>
+#include <errno.h>
 #include <unistd.h>
 #include "builtin.h"
 #include "perf.h"

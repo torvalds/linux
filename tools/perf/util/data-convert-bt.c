@@ -7,6 +7,7 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 
+#include <errno.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>

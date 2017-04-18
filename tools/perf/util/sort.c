@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <inttypes.h>
 #include <sys/mman.h>
 #include "sort.h"

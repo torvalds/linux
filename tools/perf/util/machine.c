@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <inttypes.h>
 #include "callchain.h"
 #include "debug.h"

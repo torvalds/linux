@@ -1,6 +1,7 @@
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdbool.h>

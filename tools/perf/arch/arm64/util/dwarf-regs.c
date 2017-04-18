@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <dwarf-regs.h>
 #include <linux/ptrace.h> /* for struct user_pt_regs */

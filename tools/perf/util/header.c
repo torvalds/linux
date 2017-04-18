@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <inttypes.h>
 #include "util.h"
 #include "string2.h"

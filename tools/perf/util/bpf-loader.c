@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <errno.h>
 #include "perf.h"
 #include "debug.h"
 #include "bpf-loader.h"

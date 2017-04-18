@@ -16,6 +16,7 @@
  */
 
 #include <elf.h>
+#include <errno.h>
 #include <gelf.h>
 #include <fcntl.h>
 #include <inttypes.h>

@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <inttypes.h>
 #include <api/fs/tracing_path.h>
 #include <linux/err.h>

@@ -28,6 +28,7 @@
 #include <sys/resource.h>
 #include <inttypes.h>
 
+#include <errno.h>
 #include <semaphore.h>
 #include <pthread.h>
 #include <math.h>

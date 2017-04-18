@@ -18,7 +18,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <term.h>
-#include <errno.h>
 #include <limits.h>
 #include <sys/param.h>
 #include <sys/types.h>
