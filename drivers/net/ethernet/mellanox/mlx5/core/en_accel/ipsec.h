@@ -50,6 +50,11 @@ struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_rx_drop_sp_alloc;
 	atomic64_t ipsec_rx_drop_sadb_miss;
 	atomic64_t ipsec_rx_drop_syndrome;
+	atomic64_t ipsec_tx_drop_bundle;
+	atomic64_t ipsec_tx_drop_no_state;
+	atomic64_t ipsec_tx_drop_not_ip;
+	atomic64_t ipsec_tx_drop_trailer;
+	atomic64_t ipsec_tx_drop_metadata;
 };
 
 struct mlx5e_ipsec {
@@ -60,6 +65,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_sw_stats sw_stats;
 };
 
+void mlx5e_ipsec_build_inverse_table(void);
 int mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
@@ -68,6 +74,10 @@ struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *dev,
 					      unsigned int handle);
 
 #else
+
+static inline void mlx5e_ipsec_build_inverse_table(void)
+{
+}
 
 static inline int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 {

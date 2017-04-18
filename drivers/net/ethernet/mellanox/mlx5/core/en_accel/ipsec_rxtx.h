@@ -34,6 +34,8 @@
 #ifndef __MLX5E_IPSEC_RXTX_H__
 #define __MLX5E_IPSEC_RXTX_H__
 
+#ifdef CONFIG_MLX5_EN_IPSEC
+
 #include <linux/skbuff.h>
 #include "en.h"
 
@@ -41,4 +43,13 @@ struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 					  struct sk_buff *skb);
 void mlx5e_ipsec_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 
-#endif	/* __MLX5E_IPSEC_RXTX_H__ */
+void mlx5e_ipsec_inverse_table_init(void);
+bool mlx5e_ipsec_feature_check(struct sk_buff *skb, struct net_device *netdev,
+			       netdev_features_t features);
+struct sk_buff *mlx5e_ipsec_handle_tx_skb(struct net_device *netdev,
+					  struct mlx5e_tx_wqe *wqe,
+					  struct sk_buff *skb);
+
+#endif /* CONFIG_MLX5_EN_IPSEC */
+
+#endif /* __MLX5E_IPSEC_RXTX_H__ */

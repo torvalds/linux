@@ -399,10 +399,26 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 	priv->ipsec = NULL;
 }
 
+static bool mlx5e_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
+{
+	if (x->props.family == AF_INET) {
+		/* Offload with IPv4 options is not supported yet */
+		if (ip_hdr(skb)->ihl > 5)
+			return false;
+	} else {
+		/* Offload with IPv6 extension headers is not support yet */
+		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
+			return false;
+	}
+
+	return true;
+}
+
 static const struct xfrmdev_ops mlx5e_ipsec_xfrmdev_ops = {
 	.xdo_dev_state_add	= mlx5e_xfrm_add_state,
 	.xdo_dev_state_delete	= mlx5e_xfrm_del_state,
 	.xdo_dev_state_free	= mlx5e_xfrm_free_state,
+	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
 };
 
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
@@ -431,4 +447,15 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 
 	netdev->features |= NETIF_F_HW_ESP_TX_CSUM;
 	netdev->hw_enc_features |= NETIF_F_HW_ESP_TX_CSUM;
+
+	if (!(mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_LSO) ||
+	    !MLX5_CAP_ETH(mdev, swp_lso)) {
+		mlx5_core_dbg(mdev, "mlx5e: ESP LSO not supported\n");
+		return;
+	}
+
+	mlx5_core_dbg(mdev, "mlx5e: ESP GSO capability turned on\n");
+	netdev->features |= NETIF_F_GSO_ESP;
+	netdev->hw_features |= NETIF_F_GSO_ESP;
+	netdev->hw_enc_features |= NETIF_F_GSO_ESP;
 }

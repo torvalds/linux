@@ -328,6 +328,7 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_ENABLED,
+	MLX5E_SQ_STATE_IPSEC,
 };
 
 struct mlx5e_sq_wqe_info {
