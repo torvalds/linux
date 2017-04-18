@@ -288,7 +288,6 @@ int dlpar_detach_node(struct device_node *dn)
 	if (rc)
 		return rc;
 
-	of_node_put(dn); /* Must decrement the refcount */
 	return 0;
 }
 
