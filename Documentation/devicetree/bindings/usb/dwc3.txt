@@ -46,6 +46,8 @@ Optional properties:
 			a free-running PHY clock.
  - snps,dis-del-phy-power-chg-quirk: when set core will change PHY power
 			from P0 to P1/P2/P3 without delay.
+ - snps,tx-ipgap-linecheck-dis-quirk: when set, disable u2mac linestate check
+			during HS transmit.
  - snps,xhci-slow-suspend-quirk: when set, need an extraordinary delay to wait
 			for xHC enter the Halted state (i.e. HCH in the USBSTS
 			register is '1').
