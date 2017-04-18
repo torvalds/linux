@@ -88,12 +88,6 @@ the default settings.
 HOWEVER if you have an unknown dance pad not listed below, it will not
 work UNLESS you set "dpad_to_buttons" to 1 in the module configuration.
 
-PLEASE, if you have an unknown controller, email Dom <binary1230@yahoo.com> with
-a dump from /proc/bus/usb and a description of the pad (manufacturer, country,
-whether it is a dance pad or normal controller) so that we can add your pad
-to the list of supported devices, ensuring that it will work out of the
-box in the future.
-
 
 USB adapters
 ============
