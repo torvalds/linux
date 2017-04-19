@@ -746,13 +746,20 @@ static void kill_optimized_kprobe(struct kprobe *p)
 	arch_remove_optimized_kprobe(op);
 }
 
+static inline
+void __prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
+{
+	if (!kprobe_ftrace(p))
+		arch_prepare_optimized_kprobe(op, p);
+}
+
 /* Try to prepare optimized instructions */
 static void prepare_optimized_kprobe(struct kprobe *p)
 {
 	struct optimized_kprobe *op;
 
 	op = container_of(p, struct optimized_kprobe, kp);
-	arch_prepare_optimized_kprobe(op, p);
+	__prepare_optimized_kprobe(op, p);
 }
 
 /* Allocate new optimized_kprobe and try to prepare optimized instructions */
@@ -766,7 +773,7 @@ static struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 
 	INIT_LIST_HEAD(&op->list);
 	op->kp.addr = p->addr;
-	arch_prepare_optimized_kprobe(op, p);
+	__prepare_optimized_kprobe(op, p);
 
 	return &op->kp;
 }
