@@ -1248,9 +1248,10 @@ _GLOBAL(ftrace_caller)
 
 	/* Get the _mcount() call site out of LR */
 	mflr	r7
-	/* Save it as pt_regs->nip & pt_regs->link */
+	/* Save it as pt_regs->nip */
 	std     r7, _NIP(r1)
-	std     r7, _LINK(r1)
+	/* Save the read LR in pt_regs->link */
+	std     r0, _LINK(r1)
 
 	/* Save callee's TOC in the ABI compliant location */
 	std	r2, 24(r1)
@@ -1297,15 +1298,15 @@ ftrace_call:
 	REST_8GPRS(16,r1)
 	REST_8GPRS(24,r1)
 
+	/* Restore possibly modified LR */
+	ld	r0, _LINK(r1)
+	mtlr	r0
+
 	/* Restore callee's TOC */
 	ld	r2, 24(r1)
 
 	/* Pop our stack frame */
 	addi r1, r1, SWITCH_FRAME_SIZE
-
-	/* Restore original LR for return to B */
-	ld	r0, LRSAVE(r1)
-	mtlr	r0
 
 #ifdef CONFIG_LIVEPATCH
         /* Based on the cmpd above, if the NIP was altered handle livepatch */
