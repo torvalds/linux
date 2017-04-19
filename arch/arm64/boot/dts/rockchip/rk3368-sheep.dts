@@ -591,6 +591,10 @@
 	status = "okay";
 };
 
+&route_mipi {
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 };
