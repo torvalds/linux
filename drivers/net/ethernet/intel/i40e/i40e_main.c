@@ -1050,13 +1050,13 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 			   &osd->rx_lpi_count, &nsd->rx_lpi_count);
 
 	if (pf->flags & I40E_FLAG_FD_SB_ENABLED &&
-	    !(pf->hw_disabled_flags & I40E_FLAG_FD_SB_ENABLED))
+	    !(pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED))
 		nsd->fd_sb_status = true;
 	else
 		nsd->fd_sb_status = false;
 
 	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED &&
-	    !(pf->hw_disabled_flags & I40E_FLAG_FD_ATR_ENABLED))
+	    !(pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED))
 		nsd->fd_atr_status = true;
 	else
 		nsd->fd_atr_status = false;
@@ -6078,31 +6078,30 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	if (test_bit(__I40E_FD_FLUSH_REQUESTED, pf->state))
 		return;
 
-	/* Check if, FD SB or ATR was auto disabled and if there is enough room
-	 * to re-enable
-	 */
+	/* Check if we have enough room to re-enable FDir SB capability. */
 	fcnt_prog = i40e_get_global_fd_count(pf);
 	fcnt_avail = pf->fdir_pf_filter_count;
 	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) ||
 	    (pf->fd_add_err == 0) ||
 	    (i40e_get_current_atr_cnt(pf) < pf->fd_atr_cnt)) {
-		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
-		    (pf->hw_disabled_flags & I40E_FLAG_FD_SB_ENABLED)) {
-			pf->hw_disabled_flags &= ~I40E_FLAG_FD_SB_ENABLED;
-			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+		if (pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED) {
+			pf->flags &= ~I40E_FLAG_FD_SB_AUTO_DISABLED;
+			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+			    (I40E_DEBUG_FD & pf->hw.debug_mask))
 				dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
 		}
 	}
 
-	/* Wait for some more space to be available to turn on ATR. We also
-	 * must check that no existing ntuple rules for TCP are in effect
+	/* We should wait for even more space before re-enabling ATR.
+	 * Additionally, we cannot enable ATR as long as we still have TCP SB
+	 * rules active.
 	 */
-	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM * 2)) {
-		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    (pf->hw_disabled_flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    (pf->fd_tcp4_filter_cnt == 0)) {
-			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR)) &&
+	    (pf->fd_tcp4_filter_cnt == 0)) {
+		if (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED) {
+			pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
+			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+			    (I40E_DEBUG_FD & pf->hw.debug_mask))
 				dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table and there are no conflicting ntuple rules\n");
 		}
 	}
@@ -6153,7 +6152,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 	}
 
 	pf->fd_flush_timestamp = jiffies;
-	pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
+	pf->flags |= I40E_FLAG_FD_ATR_AUTO_DISABLED;
 	/* flush all filters */
 	wr32(&pf->hw, I40E_PFQF_CTL_1,
 	     I40E_PFQF_CTL_1_CLEARFDTABLE_MASK);
@@ -6173,7 +6172,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 		/* replay sideband filters */
 		i40e_fdir_filter_restore(pf->vsi[pf->lan_vsi]);
 		if (!disable_atr && !pf->fd_tcp4_filter_cnt)
-			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
 		clear_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
@@ -8822,9 +8821,9 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		    (pf->hw.aq.api_min_ver > 4))) {
 		/* Supported in FW API version higher than 1.4 */
 		pf->flags |= I40E_FLAG_GENEVE_OFFLOAD_CAPABLE;
-		pf->hw_disabled_flags = I40E_FLAG_HW_ATR_EVICT_CAPABLE;
+		pf->flags = I40E_FLAG_HW_ATR_EVICT_CAPABLE;
 	} else {
-		pf->hw_disabled_flags = I40E_FLAG_HW_ATR_EVICT_CAPABLE;
+		pf->flags = I40E_FLAG_HW_ATR_EVICT_CAPABLE;
 	}
 
 	pf->eeprom_version = 0xDEAD;
@@ -8884,16 +8883,16 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 			need_reset = true;
 			i40e_fdir_filter_exit(pf);
 		}
-		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
-		pf->hw_disabled_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		pf->flags &= ~(I40E_FLAG_FD_SB_ENABLED |
+			       I40E_FLAG_FD_SB_AUTO_DISABLED);
 		/* reset fd counters */
 		pf->fd_add_err = 0;
 		pf->fd_atr_cnt = 0;
 		/* if ATR was auto disabled it can be re-enabled. */
-		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    (pf->hw_disabled_flags & I40E_FLAG_FD_ATR_ENABLED)) {
-			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-			if (I40E_DEBUG_FD & pf->hw.debug_mask)
+		if (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED) {
+			pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
+			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+			    (I40E_DEBUG_FD & pf->hw.debug_mask))
 				dev_info(&pf->pdev->dev, "ATR re-enabled.\n");
 		}
 	}

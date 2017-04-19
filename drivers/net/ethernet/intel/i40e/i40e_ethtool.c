@@ -3643,7 +3643,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return -EOPNOTSUPP;
 
-	if (pf->hw_disabled_flags & I40E_FLAG_FD_SB_ENABLED)
+	if (pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED)
 		return -ENOSPC;
 
 	if (test_bit(__I40E_RESET_RECOVERY_PENDING, pf->state) ||
@@ -4086,12 +4086,12 @@ flags_complete:
 	/* Flush current ATR settings if ATR was disabled */
 	if ((changed_flags & I40E_FLAG_FD_ATR_ENABLED) &&
 	    !(pf->flags & I40E_FLAG_FD_ATR_ENABLED)) {
-		pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
+		pf->flags |= I40E_FLAG_FD_ATR_AUTO_DISABLED;
 		set_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 	}
 
 	/* Only allow ATR evict on hardware that is capable of handling it */
-	if (pf->hw_disabled_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)
+	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)
 		pf->flags &= ~I40E_FLAG_HW_ATR_EVICT_CAPABLE;
 
 	if (changed_flags & I40E_FLAG_TRUE_PROMISC_SUPPORT) {

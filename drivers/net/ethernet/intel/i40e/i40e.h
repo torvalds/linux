@@ -408,6 +408,8 @@ struct i40e_pf {
 #define I40E_FLAG_DCB_ENABLED			BIT_ULL(20)
 #define I40E_FLAG_FD_SB_ENABLED			BIT_ULL(21)
 #define I40E_FLAG_FD_ATR_ENABLED		BIT_ULL(22)
+#define I40E_FLAG_FD_SB_AUTO_DISABLED		BIT_ULL(23)
+#define I40E_FLAG_FD_ATR_AUTO_DISABLED		BIT_ULL(24)
 #define I40E_FLAG_PTP				BIT_ULL(25)
 #define I40E_FLAG_MFP_ENABLED			BIT_ULL(26)
 #define I40E_FLAG_UDP_FILTER_SYNC		BIT_ULL(27)
@@ -439,13 +441,6 @@ struct i40e_pf {
 #define I40E_FLAG_CLIENT_L2_CHANGE		BIT_ULL(56)
 #define I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE		BIT_ULL(57)
 #define I40E_FLAG_LEGACY_RX			BIT_ULL(58)
-
-	/* Tracks features that are disabled due to hw limitations.
-	 * If a bit is set here, it means that the corresponding
-	 * bit in the 'flags' field is cleared i.e that feature
-	 * is disabled
-	 */
-	u64 hw_disabled_flags;
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
