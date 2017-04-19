@@ -404,12 +404,9 @@ static int meson_uart_verify_port(struct uart_port *port,
 
 static void meson_uart_release_port(struct uart_port *port)
 {
-	if (port->flags & UPF_IOREMAP) {
-		devm_release_mem_region(port->dev, port->mapbase,
-					port->mapsize);
-		devm_iounmap(port->dev, port->membase);
-		port->membase = NULL;
-	}
+	devm_iounmap(port->dev, port->membase);
+	port->membase = NULL;
+	devm_release_mem_region(port->dev, port->mapbase, port->mapsize);
 }
 
 static int meson_uart_request_port(struct uart_port *port)
@@ -420,13 +417,10 @@ static int meson_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 	}
 
-	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev,
-						     port->mapbase,
-						     port->mapsize);
-		if (port->membase == NULL)
-			return -ENOMEM;
-	}
+	port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+					     port->mapsize);
+	if (!port->membase)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -623,7 +617,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 	port->mapbase = res_mem->start;
 	port->mapsize = resource_size(res_mem);
 	port->irq = res_irq->start;
-	port->flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP | UPF_LOW_LATENCY;
+	port->flags = UPF_BOOT_AUTOCONF | UPF_LOW_LATENCY;
 	port->dev = &pdev->dev;
 	port->line = pdev->id;
 	port->type = PORT_MESON;
