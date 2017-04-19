@@ -355,7 +355,7 @@ static void meson_uart_set_termios(struct uart_port *port,
 	if (cflags & CSTOPB)
 		val |= AML_UART_STOP_BIN_2SB;
 	else
-		val &= ~AML_UART_STOP_BIN_1SB;
+		val |= AML_UART_STOP_BIN_1SB;
 
 	if (cflags & CRTSCTS)
 		val &= ~AML_UART_TWO_WIRE_EN;
