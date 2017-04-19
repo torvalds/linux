@@ -2,16 +2,12 @@
 #define BUILTIN_H
 
 #include "util/util.h"
-#include "util/strbuf.h"
 
 extern const char perf_usage_string[];
 extern const char perf_more_info_string[];
 
 void list_common_cmds_help(void);
 const char *help_unknown_cmd(const char *cmd);
-void prune_packed_objects(int);
-int read_line_with_nul(char *buf, int size, FILE *file);
-int check_pager_config(const char *cmd);
 
 int cmd_annotate(int argc, const char **argv);
 int cmd_bench(int argc, const char **argv);

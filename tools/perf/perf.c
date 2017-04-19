@@ -91,7 +91,7 @@ static int pager_command_config(const char *var, const char *value, void *data)
 }
 
 /* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
-int check_pager_config(const char *cmd)
+static int check_pager_config(const char *cmd)
 {
 	int err;
 	struct pager_config c;
