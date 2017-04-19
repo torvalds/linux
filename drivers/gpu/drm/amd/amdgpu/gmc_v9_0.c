@@ -394,8 +394,9 @@ static int gmc_v9_0_late_init(void *handle)
 		unsigned vmhub = ring->funcs->vmhub;
 
 		ring->vm_inv_eng = vm_inv_eng[vmhub]++;
-		dev_info(adev->dev, "ring %u uses VM inv eng %u on hub %u\n",
-			 ring->idx, ring->vm_inv_eng, ring->funcs->vmhub);
+		dev_info(adev->dev, "ring %u(%s) uses VM inv eng %u on hub %u\n",
+			 ring->idx, ring->name, ring->vm_inv_eng,
+			 ring->funcs->vmhub);
 	}
 
 	/* Engine 17 is used for GART flushes */
