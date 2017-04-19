@@ -10,18 +10,14 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <sys/statfs.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/types.h>
-#include <assert.h>
 #include <sys/wait.h>
 #include <poll.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <linux/types.h>
 
