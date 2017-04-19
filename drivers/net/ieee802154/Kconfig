@@ -86,8 +86,8 @@ config IEEE802154_ADF7242
 config IEEE802154_CA8210
 	tristate "Cascoda CA8210 transceiver driver"
 	depends on IEEE802154_DRIVERS && MAC802154
+	depends on COMMON_CLK
 	depends on SPI
-	select COMMON_CLK
 	---help---
 	  Say Y here to enable the CA8210 SPI 802.15.4 wireless
 	  controller.
