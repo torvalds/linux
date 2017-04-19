@@ -359,8 +359,9 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 		goto out;
 	}
 
-	if (iwl_pcie_ctxt_info_init(trans, fw))
-		return -ENOMEM;
+	ret = iwl_pcie_ctxt_info_init(trans, fw);
+	if (ret)
+		goto out;
 
 	/* re-check RF-Kill state since we may have missed the interrupt */
 	hw_rfkill = iwl_trans_check_hw_rf_kill(trans);
