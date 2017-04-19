@@ -20,6 +20,8 @@
 
 #include <linux/linkage.h>
 
+#include <soc/tegra/flowctrl.h>
+
 #include <asm/assembler.h>
 #include <asm/proc-fns.h>
 #include <asm/cp15.h>
@@ -27,7 +29,6 @@
 
 #include "irammap.h"
 #include "sleep.h"
-#include "flowctrl.h"
 
 #define EMC_CFG				0xc
 #define EMC_ADR_CFG			0x10

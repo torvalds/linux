@@ -21,6 +21,7 @@
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 
+#include <soc/tegra/flowctrl.h>
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
 
@@ -30,7 +31,6 @@
 #include <asm/smp_scu.h>
 
 #include "common.h"
-#include "flowctrl.h"
 #include "iomap.h"
 #include "reset.h"
 
