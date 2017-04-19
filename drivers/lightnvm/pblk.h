@@ -119,7 +119,7 @@ struct pblk_w_ctx {
 	struct bio_list bios;		/* Original bios - used for completion
 					 * in REQ_FUA, REQ_FLUSH case
 					 */
-	sector_t lba;			/* Logic addr. associated with entry */
+	u64 lba;			/* Logic addr. associated with entry */
 	struct ppa_addr ppa;		/* Physic addr. associated with entry */
 	int flags;			/* Write context flags */
 };
