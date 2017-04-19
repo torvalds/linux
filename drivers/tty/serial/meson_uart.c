@@ -295,7 +295,7 @@ static int meson_uart_startup(struct uart_port *port)
 	writel(val, port->membase + AML_UART_MISC);
 
 	ret = request_irq(port->irq, meson_uart_interrupt, 0,
-			  meson_uart_type(port), port);
+			  port->name, port);
 
 	return ret;
 }
