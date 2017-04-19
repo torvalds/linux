@@ -67,7 +67,14 @@
 		status = "okay";
 	};
 
-	rt5651 {
+	rt5651-sound {
+		status = "disabled";
+	};
+
+	hdmiin-sound {
+		compatible = "rockchip,rockchip-rt5651-tc358749x-sound";
+		rockchip,cpu = <&i2s0>;
+		rockchip,codec = <&rt5651 &rt5651 &tc358749x>;
 		status = "okay";
 	};
 };
@@ -106,6 +113,10 @@
 	status = "disabled";
 };
 
+&rt5651 {
+	status = "okay";
+};
+
 &hdmi_sound {
 	status = "okay";
 };
@@ -125,6 +136,37 @@
 		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
 		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	};
+
+	tc358749x: tc358749x@0f {
+		compatible = "toshiba,tc358749x";
+		reg = <0x0f>;
+		power-gpios = <&gpio2 6 GPIO_ACTIVE_HIGH>;
+		power18-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+		power33-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		csi-ctl-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		stanby-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		int-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_gpios>;
+		status = "okay";
+	};
+};
+
+&isp0 {
+	status = "okay";
+};
+
+&isp1 {
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
 };
 
 &vopb {
@@ -145,6 +187,18 @@
 	lcd-panel {
 		lcd_panel_reset: lcd-panel-reset {
 			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	hdmiin {
+		hdmiin_gpios: hdmiin_gpios {
+		rockchip,pins =
+				<2 5 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 8 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 9 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
