@@ -12,6 +12,7 @@
  *     - JMicron (hardware and technical support)
  */
 
+#include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
@@ -413,6 +414,7 @@ static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
 {
 	union acpi_object *obj;
 	int err = 0;
+	size_t len;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), intel_dsm_uuid, 0, fn, NULL);
 	if (!obj)
@@ -423,12 +425,10 @@ static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
 		goto out;
 	}
 
-	if (obj->buffer.length >= 4)
-		*result = *(u32 *)obj->buffer.pointer;
-	else if (obj->buffer.length >= 2)
-		*result = *(u16 *)obj->buffer.pointer;
-	else
-		*result = *(u8 *)obj->buffer.pointer;
+	len = min_t(size_t, obj->buffer.length, 4);
+
+	*result = 0;
+	memcpy(result, obj->buffer.pointer, len);
 out:
 	ACPI_FREE(obj);
 
