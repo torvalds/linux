@@ -371,8 +371,8 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	cdev = pf->cinst;
 
 	/* If we're down or resetting, just bail */
-	if (test_bit(__I40E_DOWN, &pf->state) ||
-	    test_bit(__I40E_CONFIG_BUSY, &pf->state))
+	if (test_bit(__I40E_DOWN, pf->state) ||
+	    test_bit(__I40E_CONFIG_BUSY, pf->state))
 		return;
 
 	if (!client || !cdev)
@@ -382,7 +382,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	 * the netdev is up, then open the client.
 	 */
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
-		if (!test_bit(__I40E_VSI_DOWN, &vsi->state) &&
+		if (!test_bit(__I40E_VSI_DOWN, vsi->state) &&
 		    client->ops && client->ops->open) {
 			set_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
 			ret = client->ops->open(&cdev->lan_info, client);
@@ -397,7 +397,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	/* Likewise for client close. If the client is up, but the netdev
 	 * is down, then close the client.
 	 */
-		if (test_bit(__I40E_VSI_DOWN, &vsi->state) &&
+		if (test_bit(__I40E_VSI_DOWN, vsi->state) &&
 		    client->ops && client->ops->close) {
 			clear_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
 			client->ops->close(&cdev->lan_info, client, false);
@@ -503,7 +503,7 @@ static void i40e_client_release(struct i40e_client *client)
 			continue;
 
 		while (test_and_set_bit(__I40E_SERVICE_SCHED,
-					&pf->state))
+					pf->state))
 			usleep_range(500, 1000);
 
 		if (test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
@@ -521,7 +521,7 @@ static void i40e_client_release(struct i40e_client *client)
 		i40e_client_del_instance(pf);
 		dev_info(&pf->pdev->dev, "Deleted client instance of Client %s\n",
 			 client->name);
-		clear_bit(__I40E_SERVICE_SCHED, &pf->state);
+		clear_bit(__I40E_SERVICE_SCHED, pf->state);
 	}
 	mutex_unlock(&i40e_device_mutex);
 }
@@ -661,10 +661,10 @@ static void i40e_client_request_reset(struct i40e_info *ldev,
 
 	switch (reset_level) {
 	case I40E_CLIENT_RESET_LEVEL_PF:
-		set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+		set_bit(__I40E_PF_RESET_REQUESTED, pf->state);
 		break;
 	case I40E_CLIENT_RESET_LEVEL_CORE:
-		set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+		set_bit(__I40E_PF_RESET_REQUESTED, pf->state);
 		break;
 	default:
 		dev_warn(&pf->pdev->dev,

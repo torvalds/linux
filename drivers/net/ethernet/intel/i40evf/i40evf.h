@@ -52,6 +52,8 @@
 /* VSI state flags shared with common code */
 enum i40evf_vsi_state_t {
 	__I40E_VSI_DOWN,
+	/* This must be last as it determines the size of the BITMAP */
+	__I40E_VSI_STATE_SIZE__,
 };
 
 /* dummy struct to make common code less painful */
@@ -61,7 +63,7 @@ struct i40e_vsi {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 seid;
 	u16 id;
-	unsigned long state;
+	DECLARE_BITMAP(state, __I40E_VSI_STATE_SIZE__);
 	int base_vector;
 	u16 work_limit;
 	u16 qs_handle;

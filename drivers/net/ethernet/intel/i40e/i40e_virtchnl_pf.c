@@ -1036,7 +1036,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	int i;
 
 	/* If VFs have been disabled, there is no need to reset */
-	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+	if (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		return;
 
 	i40e_trigger_vf_reset(vf, flr);
@@ -1073,7 +1073,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	i40e_cleanup_reset_vf(vf);
 
 	i40e_flush(hw);
-	clear_bit(__I40E_VF_DISABLE, &pf->state);
+	clear_bit(__I40E_VF_DISABLE, pf->state);
 }
 
 /**
@@ -1098,7 +1098,7 @@ void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 		return;
 
 	/* If VFs have been disabled, there is no need to reset */
-	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+	if (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		return;
 
 	/* Begin reset on all VFs at once */
@@ -1173,7 +1173,7 @@ void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 		i40e_cleanup_reset_vf(&pf->vf[v]);
 
 	i40e_flush(hw);
-	clear_bit(__I40E_VF_DISABLE, &pf->state);
+	clear_bit(__I40E_VF_DISABLE, pf->state);
 }
 
 /**
@@ -1190,7 +1190,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 
 	if (!pf->vf)
 		return;
-	while (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+	while (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		usleep_range(1000, 2000);
 
 	i40e_notify_client_of_vf_enable(pf, 0);
@@ -1246,7 +1246,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 		}
 	}
-	clear_bit(__I40E_VF_DISABLE, &pf->state);
+	clear_bit(__I40E_VF_DISABLE, pf->state);
 }
 
 #ifdef CONFIG_PCI_IOV
@@ -1326,7 +1326,7 @@ static int i40e_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	int pre_existing_vfs = pci_num_vf(pdev);
 	int err = 0;
 
-	if (test_bit(__I40E_TESTING, &pf->state)) {
+	if (test_bit(__I40E_TESTING, pf->state)) {
 		dev_warn(&pdev->dev,
 			 "Cannot enable SR-IOV virtual functions while the device is undergoing diagnostic testing\n");
 		err = -EPERM;
@@ -2818,7 +2818,7 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 	struct i40e_vf *vf;
 	int vf_id;
 
-	if (!test_bit(__I40E_VFLR_EVENT_PENDING, &pf->state))
+	if (!test_bit(__I40E_VFLR_EVENT_PENDING, pf->state))
 		return 0;
 
 	/* Re-enable the VFLR interrupt cause here, before looking for which
@@ -2831,7 +2831,7 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
 	i40e_flush(hw);
 
-	clear_bit(__I40E_VFLR_EVENT_PENDING, &pf->state);
+	clear_bit(__I40E_VFLR_EVENT_PENDING, pf->state);
 	for (vf_id = 0; vf_id < pf->num_alloc_vfs; vf_id++) {
 		reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
 		bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;

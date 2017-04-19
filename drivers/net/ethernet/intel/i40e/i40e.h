@@ -145,6 +145,8 @@ enum i40e_state_t {
 	__I40E_RESET_FAILED,
 	__I40E_PORT_SUSPENDED,
 	__I40E_VF_DISABLE,
+	/* This must be last as it determines the size of the BITMAP */
+	__I40E_STATE_SIZE__,
 };
 
 /* VSI state flags */
@@ -155,6 +157,8 @@ enum i40e_vsi_state_t {
 	__I40E_VSI_OVERFLOW_PROMISC,
 	__I40E_VSI_REINIT_REQUESTED,
 	__I40E_VSI_DOWN_REQUESTED,
+	/* This must be last as it determines the size of the BITMAP */
+	__I40E_VSI_STATE_SIZE__,
 };
 
 enum i40e_interrupt_policy {
@@ -330,7 +334,7 @@ struct i40e_flex_pit {
 struct i40e_pf {
 	struct pci_dev *pdev;
 	struct i40e_hw hw;
-	unsigned long state;
+	DECLARE_BITMAP(state, __I40E_STATE_SIZE__);
 	struct msix_entry *msix_entries;
 	bool fc_autoneg_status;
 
@@ -601,7 +605,7 @@ struct i40e_vsi {
 	bool stat_offsets_loaded;
 
 	u32 current_netdev_flags;
-	unsigned long state;
+	DECLARE_BITMAP(state, __I40E_VSI_STATE_SIZE__);
 #define I40E_VSI_FLAG_FILTER_CHANGED	BIT(0)
 #define I40E_VSI_FLAG_VEB_OWNER		BIT(1)
 	unsigned long flags;

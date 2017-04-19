@@ -589,7 +589,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		 * progress do nothing, once flush is complete the state will
 		 * be cleared.
 		 */
-		if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+		if (test_bit(__I40E_FD_FLUSH_REQUESTED, pf->state))
 			return;
 
 		pf->fd_add_err++;
@@ -599,7 +599,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		if ((rx_desc->wb.qword0.hi_dword.fd_id == 0) &&
 		    (pf->hw_disabled_flags & I40E_FLAG_FD_SB_ENABLED)) {
 			pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
-			set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+			set_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 		}
 
 		/* filter programming failed most likely due to table full */
@@ -850,7 +850,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 
 		if (budget &&
 		    ((j / WB_STRIDE) == 0) && (j > 0) &&
-		    !test_bit(__I40E_VSI_DOWN, &vsi->state) &&
+		    !test_bit(__I40E_VSI_DOWN, vsi->state) &&
 		    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
 			tx_ring->arm_wb = true;
 	}
@@ -868,7 +868,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		smp_mb();
 		if (__netif_subqueue_stopped(tx_ring->netdev,
 					     tx_ring->queue_index) &&
-		   !test_bit(__I40E_VSI_DOWN, &vsi->state)) {
+		   !test_bit(__I40E_VSI_DOWN, vsi->state)) {
 			netif_wake_subqueue(tx_ring->netdev,
 					    tx_ring->queue_index);
 			++tx_ring->tx_stats.restart_queue;
@@ -2179,7 +2179,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	}
 
 enable_int:
-	if (!test_bit(__I40E_VSI_DOWN, &vsi->state))
+	if (!test_bit(__I40E_VSI_DOWN, vsi->state))
 		wr32(hw, INTREG(vector - 1), txval);
 
 	if (q_vector->itr_countdown)
@@ -2208,7 +2208,7 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	int budget_per_ring;
 	int work_done = 0;
 
-	if (test_bit(__I40E_VSI_DOWN, &vsi->state)) {
+	if (test_bit(__I40E_VSI_DOWN, vsi->state)) {
 		napi_complete(napi);
 		return 0;
 	}
@@ -2634,7 +2634,7 @@ static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		return 0;
 
 	if (pf->ptp_tx &&
-	    !test_and_set_bit_lock(__I40E_PTP_TX_IN_PROGRESS, &pf->state)) {
+	    !test_and_set_bit_lock(__I40E_PTP_TX_IN_PROGRESS, pf->state)) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		pf->ptp_tx_skb = skb_get(skb);
 	} else {
