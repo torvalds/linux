@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <errno.h>
+#include "compress.h"
 #include "path.h"
 #include "symbol.h"
 #include "dso.h"

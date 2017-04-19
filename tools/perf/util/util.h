@@ -99,14 +99,6 @@ void mem_bswap_32(void *src, int byte_size);
 
 bool find_process(const char *name);
 
-#ifdef HAVE_ZLIB_SUPPORT
-int gzip_decompress_to_file(const char *input, int output_fd);
-#endif
-
-#ifdef HAVE_LZMA_SUPPORT
-int lzma_decompress_to_file(const char *input, int output_fd);
-#endif
-
 int get_stack_size(const char *str, unsigned long *_size);
 
 int fetch_kernel_version(unsigned int *puint,

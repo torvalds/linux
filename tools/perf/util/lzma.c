@@ -2,6 +2,7 @@
 #include <lzma.h>
 #include <stdio.h>
 #include <linux/compiler.h>
+#include "compress.h"
 #include "util.h"
 #include "debug.h"
 
