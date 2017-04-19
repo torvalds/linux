@@ -1588,7 +1588,6 @@ typedef enum {
  */
 typedef enum {
 	XFS_EXT_NORM, XFS_EXT_UNWRITTEN,
-	XFS_EXT_DMAPI_OFFLINE, XFS_EXT_INVALID
 } xfs_exntst_t;
 
 /*
