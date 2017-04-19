@@ -556,12 +556,12 @@ BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 
-	lbz	r7,PACA_THREAD_MASK(r13)
 	ld	r14,PACA_CORE_IDLE_STATE_PTR(r13)
-lwarx_loop2:
-	lwarx	r15,0,r14
-	andis.	r9,r15,PNV_CORE_IDLE_LOCK_BIT@h
+	lbz	r7,PACA_THREAD_MASK(r13)
+
 	/*
+	 * Take the core lock to synchronize against other threads.
+	 *
 	 * Lock bit is set in one of the 2 cases-
 	 * a. In the sleep/winkle enter path, the last thread is executing
 	 * fastsleep workaround code.
@@ -569,7 +569,14 @@ lwarx_loop2:
 	 * workaround undo code or resyncing timebase or restoring context
 	 * In either case loop until the lock bit is cleared.
 	 */
+1:
+	lwarx	r15,0,r14
+	andis.	r9,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	bnel-	core_idle_lock_held
+	oris	r15,r15,PNV_CORE_IDLE_LOCK_BIT@h
+	stwcx.	r15,0,r14
+	bne-	1b
+	isync
 
 	andi.	r9,r15,PNV_CORE_IDLE_THREAD_BITS
 	cmpwi	cr2,r9,0
@@ -580,11 +587,6 @@ lwarx_loop2:
 	 * cr3-  gt if waking up with partial/complete hypervisor state loss
 	 * cr4 - gt or eq if waking up from complete hypervisor state loss.
 	 */
-
-	oris	r15,r15,PNV_CORE_IDLE_LOCK_BIT@h
-	stwcx.	r15,0,r14
-	bne-	lwarx_loop2
-	isync
 
 BEGIN_FTR_SECTION
 	lbz	r4,PACA_SUBCORE_SIBLING_MASK(r13)
