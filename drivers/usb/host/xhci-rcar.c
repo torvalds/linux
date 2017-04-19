@@ -198,3 +198,14 @@ int xhci_rcar_init_quirk(struct usb_hcd *hcd)
 
 	return xhci_rcar_download_firmware(hcd);
 }
+
+int xhci_rcar_resume_quirk(struct usb_hcd *hcd)
+{
+	int ret;
+
+	ret = xhci_rcar_download_firmware(hcd);
+	if (!ret)
+		xhci_rcar_start(hcd);
+
+	return ret;
+}
