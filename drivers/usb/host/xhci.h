@@ -1724,7 +1724,6 @@ struct xhci_hcd {
 	int		page_shift;
 	/* msi-x vectors */
 	int		msix_count;
-	struct msix_entry	*msix_entries;
 	/* optional clock */
 	struct clk		*clk;
 	/* data structures */

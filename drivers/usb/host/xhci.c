@@ -216,21 +216,8 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return ret;
 }
 
+
 #ifdef CONFIG_USB_PCI
-static int xhci_free_msi(struct xhci_hcd *xhci)
-{
-	int i;
-
-	if (!xhci->msix_entries)
-		return -EINVAL;
-
-	for (i = 0; i < xhci->msix_count; i++)
-		if (xhci->msix_entries[i].vector)
-			free_irq(xhci->msix_entries[i].vector,
-					xhci_to_hcd(xhci));
-	return 0;
-}
-
 /*
  * Set up MSI
  */
@@ -242,8 +229,8 @@ static int xhci_setup_msi(struct xhci_hcd *xhci)
 	 */
 	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
-	ret = pci_enable_msi(pdev);
-	if (ret) {
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+	if (ret < 0) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"failed to allocate MSI entry");
 		return ret;
@@ -254,32 +241,10 @@ static int xhci_setup_msi(struct xhci_hcd *xhci)
 	if (ret) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"disable MSI interrupt");
-		pci_disable_msi(pdev);
+		pci_free_irq_vectors(pdev);
 	}
 
 	return ret;
-}
-
-/*
- * Free IRQs
- * free all IRQs request
- */
-static void xhci_free_irq(struct xhci_hcd *xhci)
-{
-	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.sysdev);
-	int ret;
-
-	/* return if using legacy interrupt */
-	if (xhci_to_hcd(xhci)->irq > 0)
-		return;
-
-	ret = xhci_free_msi(xhci);
-	if (!ret)
-		return;
-	if (pdev->irq > 0)
-		free_irq(pdev->irq, xhci_to_hcd(xhci));
-
-	return;
 }
 
 /*
@@ -301,28 +266,17 @@ static int xhci_setup_msix(struct xhci_hcd *xhci)
 	xhci->msix_count = min(num_online_cpus() + 1,
 				HCS_MAX_INTRS(xhci->hcs_params1));
 
-	xhci->msix_entries =
-		kmalloc((sizeof(struct msix_entry))*xhci->msix_count,
-				GFP_KERNEL);
-	if (!xhci->msix_entries)
-		return -ENOMEM;
-
-	for (i = 0; i < xhci->msix_count; i++) {
-		xhci->msix_entries[i].entry = i;
-		xhci->msix_entries[i].vector = 0;
-	}
-
-	ret = pci_enable_msix_exact(pdev, xhci->msix_entries, xhci->msix_count);
-	if (ret) {
+	ret = pci_alloc_irq_vectors(pdev, xhci->msix_count, xhci->msix_count,
+			PCI_IRQ_MSIX);
+	if (ret < 0) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 				"Failed to enable MSI-X");
-		goto free_entries;
+		return ret;
 	}
 
 	for (i = 0; i < xhci->msix_count; i++) {
-		ret = request_irq(xhci->msix_entries[i].vector,
-				xhci_msi_irq,
-				0, "xhci_hcd", xhci_to_hcd(xhci));
+		ret = request_irq(pci_irq_vector(pdev, i), xhci_msi_irq, 0,
+				"xhci_hcd", xhci_to_hcd(xhci));
 		if (ret)
 			goto disable_msix;
 	}
@@ -332,11 +286,9 @@ static int xhci_setup_msix(struct xhci_hcd *xhci)
 
 disable_msix:
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "disable MSI-X interrupt");
-	xhci_free_irq(xhci);
-	pci_disable_msix(pdev);
-free_entries:
-	kfree(xhci->msix_entries);
-	xhci->msix_entries = NULL;
+	while (--i >= 0)
+		free_irq(pci_irq_vector(pdev, i), xhci_to_hcd(xhci));
+	pci_free_irq_vectors(pdev);
 	return ret;
 }
 
@@ -349,27 +301,33 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 	if (xhci->quirks & XHCI_PLAT)
 		return;
 
-	xhci_free_irq(xhci);
+	/* return if using legacy interrupt */
+	if (hcd->irq > 0)
+		return;
 
-	if (xhci->msix_entries) {
-		pci_disable_msix(pdev);
-		kfree(xhci->msix_entries);
-		xhci->msix_entries = NULL;
+	if (hcd->msix_enabled) {
+		int i;
+
+		for (i = 0; i < xhci->msix_count; i++)
+			free_irq(pci_irq_vector(pdev, i), xhci_to_hcd(xhci));
 	} else {
-		pci_disable_msi(pdev);
+		free_irq(pci_irq_vector(pdev, 0), xhci_to_hcd(xhci));
 	}
 
+	pci_free_irq_vectors(pdev);
 	hcd->msix_enabled = 0;
-	return;
 }
 
 static void __maybe_unused xhci_msix_sync_irqs(struct xhci_hcd *xhci)
 {
-	int i;
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 
-	if (xhci->msix_entries) {
+	if (hcd->msix_enabled) {
+		struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
+		int i;
+
 		for (i = 0; i < xhci->msix_count; i++)
-			synchronize_irq(xhci->msix_entries[i].vector);
+			synchronize_irq(pci_irq_vector(pdev, i));
 	}
 }
 
