@@ -277,6 +277,14 @@ int __kprobes kprobe_handler(struct pt_regs *regs)
 			kprobes_inc_nmissed_count(p);
 			prepare_singlestep(p, regs);
 			kcb->kprobe_status = KPROBE_REENTER;
+			if (p->ainsn.boostable >= 0) {
+				ret = try_to_emulate(p, regs);
+
+				if (ret > 0) {
+					restore_previous_kprobe(kcb);
+					return 1;
+				}
+			}
 			return 1;
 		} else {
 			if (*addr != BREAKPOINT_INSTRUCTION) {
