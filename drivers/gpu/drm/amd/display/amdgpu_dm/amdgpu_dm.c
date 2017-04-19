@@ -1027,8 +1027,8 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	 *    for acknowledging and handling. */
 
 	/* Use VBLANK interrupt */
-	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i+1, &adev->crtc_irq);
+	for (i = 1; i <= adev->mode_info.num_crtc; i++) {
+		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i, &adev->crtc_irq);
 
 		if (r) {
 			DRM_ERROR("Failed to add crtc irq id!\n");
@@ -1037,7 +1037,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 
 		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
 		int_params.irq_source =
-			dc_interrupt_to_irq_source(dc, i+1, 0);
+			dc_interrupt_to_irq_source(dc, i, 0);
 
 		c_irq_params = &adev->dm.vblank_params[int_params.irq_source - DC_IRQ_SOURCE_VBLANK1];
 
@@ -1048,6 +1048,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 				dm_crtc_high_irq, c_irq_params);
 	}
 
+	/* Use GRPH_PFLIP interrupt */
 	for (i = VISLANDS30_IV_SRCID_D1_GRPH_PFLIP;
 			i <= VISLANDS30_IV_SRCID_D6_GRPH_PFLIP; i += 2) {
 		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i, &adev->pageflip_irq);
