@@ -743,13 +743,16 @@ static int ov2640_s_power(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov2640_priv *priv = to_ov2640(client);
 
-	gpiod_direction_output(priv->pwdn_gpio, !on);
+#ifdef CONFIG_GPIOLIB
+	if (priv->pwdn_gpio)
+		gpiod_direction_output(priv->pwdn_gpio, !on);
 	if (on && priv->resetb_gpio) {
 		/* Active the resetb pin to perform a reset pulse */
 		gpiod_direction_output(priv->resetb_gpio, 1);
 		usleep_range(3000, 5000);
 		gpiod_direction_output(priv->resetb_gpio, 0);
 	}
+#endif
 	return 0;
 }
 
