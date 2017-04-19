@@ -2,8 +2,8 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8974.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/reset/qcom,gcc-msm8974.h>
 #include "skeleton.dtsi"
 
 / {
@@ -67,7 +67,7 @@
 		#size-cells = <0>;
 		interrupts = <1 9 0xf04>;
 
-		cpu@0 {
+		CPU0: cpu@0 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
@@ -78,7 +78,7 @@
 			cpu-idle-states = <&CPU_SPC>;
 		};
 
-		cpu@1 {
+		CPU1: cpu@1 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
@@ -89,7 +89,7 @@
 			cpu-idle-states = <&CPU_SPC>;
 		};
 
-		cpu@2 {
+		CPU2: cpu@2 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
@@ -100,7 +100,7 @@
 			cpu-idle-states = <&CPU_SPC>;
 		};
 
-		cpu@3 {
+		CPU3: cpu@3 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
@@ -249,6 +249,9 @@
 		interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
 
 		cx-supply = <&pm8841_s2>;
+
+		clocks = <&xo_board>;
+		clock-names = "xo";
 
 		memory-region = <&adsp_region>;
 
@@ -695,42 +698,276 @@
 			qcom,ee = <0>;
 		};
 
-		usb1_phy: usb-phy@f9a55000 {
-			compatible = "qcom,usb-otg-snps";
+		etr@fc322000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0xfc322000 0x1000>;
 
-			reg = <0xf9a55000 0x400>;
-			interrupts-extended = <&intc 0 134 0>, <&intc 0 140 0>,
-				<&spmi_bus 0 0x9 0 0>;
-			interrupt-names = "core_irq", "async_irq", "pmic_id_irq";
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
 
-			vddcx-supply = <&pm8841_s2>;
-			v3p3-supply = <&pm8941_l24>;
-			v1p8-supply = <&pm8941_l6>;
-
-			dr_mode = "otg";
-			qcom,phy-init-sequence = <0x63 0x81 0xfffffff>;
-			qcom,otg-control = <1>;
-			qcom,phy-num = <0>;
-
-			resets = <&gcc GCC_USB2A_PHY_BCR>, <&gcc GCC_USB_HS_BCR>;
-			reset-names = "phy", "link";
-
-			clocks = <&gcc GCC_XO_CLK>, <&gcc GCC_USB_HS_SYSTEM_CLK>,
-				<&gcc GCC_USB_HS_AHB_CLK>;
-			clock-names = "phy", "core", "iface";
-
-			status = "disabled";
+			port {
+				etr_in: endpoint {
+					slave-mode;
+					remote-endpoint = <&replicator_out0>;
+				};
+			};
 		};
 
-		usb@f9a55000 {
-			compatible = "qcom,ci-hdrc";
-			reg = <0xf9a55000 0x400>;
-			dr_mode = "otg";
-			interrupts = <0 134 0>, <0 140 0>;
-			interrupt-names = "core_irq", "async_irq";
-			usb-phy = <&usb1_phy>;
+		tpiu@fc318000 {
+			compatible = "arm,coresight-tpiu", "arm,primecell";
+			reg = <0xfc318000 0x1000>;
 
-			status = "disabled";
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			port {
+				tpiu_in: endpoint {
+					 slave-mode;
+					 remote-endpoint = <&replicator_out1>;
+				 };
+			};
+		};
+
+		replicator@fc31c000 {
+			compatible = "qcom,coresight-replicator1x", "arm,primecell";
+			reg = <0xfc31c000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					replicator_out0: endpoint {
+						remote-endpoint = <&etr_in>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					replicator_out1: endpoint {
+						remote-endpoint = <&tpiu_in>;
+					};
+				};
+				port@2 {
+					reg = <0>;
+					replicator_in: endpoint {
+						slave-mode;
+						remote-endpoint = <&etf_out>;
+					};
+				};
+			};
+		};
+
+		etf@fc307000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0xfc307000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					etf_out: endpoint {
+						remote-endpoint = <&replicator_in>;
+					};
+				};
+				port@1 {
+					reg = <0>;
+					etf_in: endpoint {
+						slave-mode;
+						remote-endpoint = <&merger_out>;
+					};
+				};
+			};
+		};
+
+		funnel@fc31b000 {
+			compatible = "arm,coresight-funnel", "arm,primecell";
+			reg = <0xfc31b000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/*
+				 * Not described input ports:
+				 * 0 - connected trought funnel to Audio, Modem and
+				 *     Resource and Power Manager CPU's
+				 * 2...7 - not-connected
+				 */
+				port@1 {
+					reg = <1>;
+					merger_in1: endpoint {
+						slave-mode;
+						remote-endpoint = <&funnel1_out>;
+					};
+				};
+				port@8 {
+					reg = <0>;
+					merger_out: endpoint {
+						remote-endpoint = <&etf_in>;
+					};
+				};
+			};
+		};
+
+		funnel@fc31a000 {
+			compatible = "arm,coresight-funnel", "arm,primecell";
+			reg = <0xfc31a000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/*
+				 * Not described input ports:
+				 * 0 - not-connected
+				 * 1 - connected trought funnel to Multimedia CPU
+				 * 2 - connected to Wireless CPU
+				 * 3 - not-connected
+				 * 4 - not-connected
+				 * 6 - not-connected
+				 * 7 - connected to STM
+				 */
+				port@5 {
+					reg = <5>;
+					funnel1_in5: endpoint {
+						slave-mode;
+						remote-endpoint = <&kpss_out>;
+					};
+				};
+				port@8 {
+					reg = <0>;
+					funnel1_out: endpoint {
+						remote-endpoint = <&merger_in1>;
+					};
+				};
+			};
+		};
+
+		funnel@fc345000 { /* KPSS funnel only 4 inputs are used */
+			compatible = "arm,coresight-funnel", "arm,primecell";
+			reg = <0xfc345000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					kpss_in0: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm0_out>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					kpss_in1: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm1_out>;
+					};
+				};
+				port@2 {
+					reg = <2>;
+					kpss_in2: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm2_out>;
+					};
+				};
+				port@3 {
+					reg = <3>;
+					kpss_in3: endpoint {
+						slave-mode;
+						remote-endpoint = <&etm3_out>;
+					};
+				};
+				port@8 {
+					reg = <0>;
+					kpss_out: endpoint {
+						remote-endpoint = <&funnel1_in5>;
+					};
+				};
+			};
+		};
+
+		etm@fc33c000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0xfc33c000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU0>;
+
+			port {
+				etm0_out: endpoint {
+					remote-endpoint = <&kpss_in0>;
+				};
+			};
+		};
+
+		etm@fc33d000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0xfc33d000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU1>;
+
+			port {
+				etm1_out: endpoint {
+					remote-endpoint = <&kpss_in1>;
+				};
+			};
+		};
+
+		etm@fc33e000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0xfc33e000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU2>;
+
+			port {
+				etm2_out: endpoint {
+					remote-endpoint = <&kpss_in2>;
+				};
+			};
+		};
+
+		etm@fc33f000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0xfc33f000 0x1000>;
+
+			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
+			clock-names = "apb_pclk", "atclk";
+
+			cpu = <&CPU3>;
+
+			port {
+				etm3_out: endpoint {
+					remote-endpoint = <&kpss_in3>;
+				};
+			};
 		};
 	};
 
@@ -759,6 +996,11 @@
 			rpm_requests {
 				compatible = "qcom,rpm-msm8974";
 				qcom,smd-channels = "rpm_requests";
+
+				rpmcc: clock-controller {
+					compatible = "qcom,rpmcc-msm8974", "qcom,rpmcc";
+					#clock-cells = <1>;
+				};
 
 				pm8841-regulators {
 					compatible = "qcom,rpm-pm8841-regulators";
