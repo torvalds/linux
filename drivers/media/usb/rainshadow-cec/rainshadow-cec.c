@@ -296,7 +296,7 @@ static int rain_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 			 cec_msg_destination(msg), msg->msg[1]);
 		for (i = 2; i < msg->len; i++) {
 			snprintf(hex, sizeof(hex), "%02x", msg->msg[i]);
-			strncat(cmd, hex, sizeof(cmd));
+			strlcat(cmd, hex, sizeof(cmd));
 		}
 	}
 	mutex_lock(&rain->write_lock);
