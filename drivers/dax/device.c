@@ -645,7 +645,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 		goto err_id;
 	}
 
-	dax_dev = alloc_dax(dev_dax);
+	dax_dev = alloc_dax(dev_dax, NULL);
 	if (!dax_dev)
 		goto err_dax;
 

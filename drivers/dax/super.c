@@ -30,6 +30,10 @@ static DEFINE_IDA(dax_minor_ida);
 static struct kmem_cache *dax_cache __read_mostly;
 static struct super_block *dax_superblock __read_mostly;
 
+#define DAX_HASH_SIZE (PAGE_SIZE / sizeof(struct hlist_head))
+static struct hlist_head dax_host_list[DAX_HASH_SIZE];
+static DEFINE_SPINLOCK(dax_host_lock);
+
 int dax_read_lock(void)
 {
 	return srcu_read_lock(&dax_srcu);
@@ -46,12 +50,15 @@ EXPORT_SYMBOL_GPL(dax_read_unlock);
  * struct dax_device - anchor object for dax services
  * @inode: core vfs
  * @cdev: optional character interface for "device dax"
+ * @host: optional name for lookups where the device path is not available
  * @private: dax driver private data
  * @alive: !alive + rcu grace period == no new operations / mappings
  */
 struct dax_device {
+	struct hlist_node list;
 	struct inode inode;
 	struct cdev cdev;
+	const char *host;
 	void *private;
 	bool alive;
 };
@@ -62,6 +69,11 @@ bool dax_alive(struct dax_device *dax_dev)
 	return dax_dev->alive;
 }
 EXPORT_SYMBOL_GPL(dax_alive);
+
+static int dax_host_hash(const char *host)
+{
+	return hashlen_hash(hashlen_string("DAX", host)) % DAX_HASH_SIZE;
+}
 
 /*
  * Note, rcu is not protecting the liveness of dax_dev, rcu is ensuring
@@ -75,7 +87,13 @@ void kill_dax(struct dax_device *dax_dev)
 		return;
 
 	dax_dev->alive = false;
+
 	synchronize_srcu(&dax_srcu);
+
+	spin_lock(&dax_host_lock);
+	hlist_del_init(&dax_dev->list);
+	spin_unlock(&dax_host_lock);
+
 	dax_dev->private = NULL;
 }
 EXPORT_SYMBOL_GPL(kill_dax);
@@ -98,6 +116,8 @@ static void dax_i_callback(struct rcu_head *head)
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct dax_device *dax_dev = to_dax_dev(inode);
 
+	kfree(dax_dev->host);
+	dax_dev->host = NULL;
 	ida_simple_remove(&dax_minor_ida, MINOR(inode->i_rdev));
 	kmem_cache_free(dax_cache, dax_dev);
 }
@@ -169,26 +189,53 @@ static struct dax_device *dax_dev_get(dev_t devt)
 	return dax_dev;
 }
 
-struct dax_device *alloc_dax(void *private)
+static void dax_add_host(struct dax_device *dax_dev, const char *host)
+{
+	int hash;
+
+	/*
+	 * Unconditionally init dax_dev since it's coming from a
+	 * non-zeroed slab cache
+	 */
+	INIT_HLIST_NODE(&dax_dev->list);
+	dax_dev->host = host;
+	if (!host)
+		return;
+
+	hash = dax_host_hash(host);
+	spin_lock(&dax_host_lock);
+	hlist_add_head(&dax_dev->list, &dax_host_list[hash]);
+	spin_unlock(&dax_host_lock);
+}
+
+struct dax_device *alloc_dax(void *private, const char *__host)
 {
 	struct dax_device *dax_dev;
+	const char *host;
 	dev_t devt;
 	int minor;
 
+	host = kstrdup(__host, GFP_KERNEL);
+	if (__host && !host)
+		return NULL;
+
 	minor = ida_simple_get(&dax_minor_ida, 0, nr_dax, GFP_KERNEL);
 	if (minor < 0)
-		return NULL;
+		goto err_minor;
 
 	devt = MKDEV(MAJOR(dax_devt), minor);
 	dax_dev = dax_dev_get(devt);
 	if (!dax_dev)
-		goto err_inode;
+		goto err_dev;
 
+	dax_add_host(dax_dev, host);
 	dax_dev->private = private;
 	return dax_dev;
 
- err_inode:
+ err_dev:
 	ida_simple_remove(&dax_minor_ida, minor);
+ err_minor:
+	kfree(host);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(alloc_dax);
@@ -200,6 +247,38 @@ void put_dax(struct dax_device *dax_dev)
 	iput(&dax_dev->inode);
 }
 EXPORT_SYMBOL_GPL(put_dax);
+
+/**
+ * dax_get_by_host() - temporary lookup mechanism for filesystem-dax
+ * @host: alternate name for the device registered by a dax driver
+ */
+struct dax_device *dax_get_by_host(const char *host)
+{
+	struct dax_device *dax_dev, *found = NULL;
+	int hash, id;
+
+	if (!host)
+		return NULL;
+
+	hash = dax_host_hash(host);
+
+	id = dax_read_lock();
+	spin_lock(&dax_host_lock);
+	hlist_for_each_entry(dax_dev, &dax_host_list[hash], list) {
+		if (!dax_alive(dax_dev)
+				|| strcmp(host, dax_dev->host) != 0)
+			continue;
+
+		if (igrab(&dax_dev->inode))
+			found = dax_dev;
+		break;
+	}
+	spin_unlock(&dax_host_lock);
+	dax_read_unlock(id);
+
+	return found;
+}
+EXPORT_SYMBOL_GPL(dax_get_by_host);
 
 /**
  * inode_dax: convert a public inode into its dax_dev
