@@ -134,6 +134,15 @@
 		memory-region = <&drm_logo>;
 
 		route {
+			route_edp: route-edp {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vopb_out_edp>;
+			};
+
 			route_mipi: route-mipi {
 				status = "disabled";
 				logo,uboot = "logo.bmp";
