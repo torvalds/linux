@@ -411,7 +411,7 @@ struct ppl_header_entry {
 #define PPL_HEADER_SIZE 4096
 #define PPL_HDR_RESERVED 512
 #define PPL_HDR_ENTRY_SPACE \
-	(PPL_HEADER_SIZE - PPL_HDR_RESERVED - 4 * sizeof(u32) - sizeof(u64))
+	(PPL_HEADER_SIZE - PPL_HDR_RESERVED - 4 * sizeof(__le32) - sizeof(__le64))
 #define PPL_HDR_MAX_ENTRIES \
 	(PPL_HDR_ENTRY_SPACE / sizeof(struct ppl_header_entry))
 
