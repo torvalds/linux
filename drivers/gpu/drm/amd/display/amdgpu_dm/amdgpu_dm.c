@@ -201,7 +201,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	uint8_t crtc_index = 0;
 	struct amdgpu_crtc *acrtc;
 
-	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VUPDATE);
+	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
 
 	if (acrtc)
 		crtc_index = acrtc->crtc_id;
@@ -1026,9 +1026,10 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	 *    amdgpu_dm_irq_handler() will re-direct the interrupt to DC
 	 *    for acknowledging and handling. */
 
-	for (i = VISLANDS30_IV_SRCID_D1_V_UPDATE_INT;
-			i <= VISLANDS30_IV_SRCID_D6_V_UPDATE_INT; i += 2) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i, &adev->crtc_irq);
+	/* Use VBLANK interrupt */
+	for (i = 0; i < adev->mode_info.num_crtc; i++) {
+		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i+1, &adev->crtc_irq);
+
 		if (r) {
 			DRM_ERROR("Failed to add crtc irq id!\n");
 			return r;
@@ -1036,9 +1037,9 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 
 		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
 		int_params.irq_source =
-			dc_interrupt_to_irq_source(dc, i, 0);
+			dc_interrupt_to_irq_source(dc, i+1, 0);
 
-		c_irq_params = &adev->dm.vupdate_params[int_params.irq_source - DC_IRQ_SOURCE_VUPDATE1];
+		c_irq_params = &adev->dm.vblank_params[int_params.irq_source - DC_IRQ_SOURCE_VBLANK1];
 
 		c_irq_params->adev = adev;
 		c_irq_params->irq_src = int_params.irq_source;

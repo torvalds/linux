@@ -736,7 +736,7 @@ static int amdgpu_dm_set_crtc_irq_state(struct amdgpu_device *adev,
 		source,
 		crtc_id,
 		state,
-		IRQ_TYPE_VUPDATE,
+		IRQ_TYPE_VBLANK,
 		__func__);
 }
 

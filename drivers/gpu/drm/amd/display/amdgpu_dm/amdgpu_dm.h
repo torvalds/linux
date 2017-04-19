@@ -105,7 +105,7 @@ struct amdgpu_display_manager {
 	pflip_params[DC_IRQ_SOURCE_PFLIP_LAST - DC_IRQ_SOURCE_PFLIP_FIRST + 1];
 
 	struct common_irq_params
-	vupdate_params[DC_IRQ_SOURCE_VUPDATE6 - DC_IRQ_SOURCE_VUPDATE1 + 1];
+	vblank_params[DC_IRQ_SOURCE_VBLANK6 - DC_IRQ_SOURCE_VBLANK1 + 1];
 
 	/* this spin lock synchronizes access to 'irq_handler_list_table' */
 	spinlock_t irq_handler_list_table_lock;
