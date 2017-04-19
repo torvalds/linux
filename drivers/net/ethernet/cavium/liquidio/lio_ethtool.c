@@ -1323,8 +1323,6 @@ static void octnet_intrmod_callback(struct octeon_device *oct_dev,
 
 	ctx->status = status;
 
-	oct_dev = lio_get_device(ctx->octeon_id);
-
 	WRITE_ONCE(ctx->cond, 1);
 
 	/* This barrier is required to be sure that the response has been
