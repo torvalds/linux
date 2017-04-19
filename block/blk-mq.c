@@ -1424,7 +1424,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 {
-	init_request_from_bio(rq, bio);
+	blk_init_request_from_bio(rq, bio);
 
 	blk_account_io_start(rq, true);
 }

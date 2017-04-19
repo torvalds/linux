@@ -1628,7 +1628,7 @@ out:
 	return ret;
 }
 
-void init_request_from_bio(struct request *req, struct bio *bio)
+void blk_init_request_from_bio(struct request *req, struct bio *bio)
 {
 	if (bio->bi_opf & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
@@ -1640,6 +1640,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 		req->ioprio = bio_prio(bio);
 	blk_rq_bio_prep(req->q, req, bio);
 }
+EXPORT_SYMBOL_GPL(blk_init_request_from_bio);
 
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
@@ -1730,7 +1731,7 @@ get_rq:
 	 * We don't worry about that case for efficiency. It won't happen
 	 * often, and the elevators are able to handle it.
 	 */
-	init_request_from_bio(req, bio);
+	blk_init_request_from_bio(req, bio);
 
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags))
 		req->cpu = raw_smp_processor_id();
