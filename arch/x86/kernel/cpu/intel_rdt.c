@@ -492,7 +492,7 @@ static __init void rdt_init_padding(void)
 	struct rdt_resource *r;
 	int cl;
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_capable_rdt_resource(r) {
 		cl = strlen(r->name);
 		if (cl > max_name_width)
 			max_name_width = cl;
