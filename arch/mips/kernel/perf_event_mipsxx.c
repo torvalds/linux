@@ -1597,7 +1597,6 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 		break;
 	case CPU_P5600:
 	case CPU_P6600:
-	case CPU_I6400:
 		/* 8-bit event numbers */
 		raw_id = config & 0x1ff;
 		base_id = raw_id & 0xff;
@@ -1609,6 +1608,11 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 #ifdef CONFIG_MIPS_MT_SMP
 		raw_event.range = P;
 #endif
+		break;
+	case CPU_I6400:
+		/* 8-bit event numbers */
+		base_id = config & 0xff;
+		raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
 		break;
 	case CPU_1004K:
 		if (IS_BOTH_COUNTERS_1004K_EVENT(base_id))
