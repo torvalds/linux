@@ -147,6 +147,20 @@
 	status = "okay";
 };
 
+&ap_sdhci0 {
+	status = "okay";
+	bus-width = <4>;
+	no-1-8-v;
+	non-removable;
+};
+
+&cpm_sdhci0 {
+	status = "okay";
+	bus-width = <4>;
+	no-1-8-v;
+	non-removable;
+};
+
 &cpm_mdio {
 	phy0: ethernet-phy@0 {
 		reg = <0>;
@@ -170,4 +184,8 @@
 	status = "okay";
 	phy = <&phy1>;
 	phy-mode = "rgmii-id";
+};
+
+&cpm_crypto {
+	status = "okay";
 };

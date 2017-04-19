@@ -217,6 +217,22 @@
 				clocks = <&cps_syscon0 1 25>;
 				status = "okay";
 			};
+
+			cps_crypto: crypto@800000 {
+				compatible = "inside-secure,safexcel-eip197";
+				reg = <0x800000 0x200000>;
+				interrupts = <GIC_SPI 34 (IRQ_TYPE_EDGE_RISING
+				| IRQ_TYPE_LEVEL_HIGH)>,
+					     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "mem", "ring0", "ring1",
+						  "ring2", "ring3", "eip";
+				clocks = <&cps_syscon0 1 26>;
+				status = "disabled";
+			};
 		};
 
 		cps_pcie0: pcie@f4600000 {

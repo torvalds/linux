@@ -140,6 +140,10 @@
 	phy-mode = "rgmii-id";
 };
 
+&cpm_crypto {
+	status = "okay";
+};
+
 /* CON5 on CP1 expansion */
 &cps_pcie2 {
 	status = "okay";
@@ -163,4 +167,16 @@
 /* CON10 on CP1 expansion */
 &cps_usb3_1 {
 	status = "okay";
+};
+
+&ap_sdhci0 {
+	status = "okay";
+	bus-width = <4>;
+	non-removable;
+};
+
+&cpm_sdhci0 {
+	status = "okay";
+	bus-width = <8>;
+	non-removable;
 };
