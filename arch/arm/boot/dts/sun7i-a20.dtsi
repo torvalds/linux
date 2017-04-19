@@ -1190,12 +1190,6 @@
 				bias-pull-up;
 			};
 
-			mmc0_cd_pin_reference_design: mmc0_cd_pin@0 {
-				pins = "PH1";
-				function = "gpio_in";
-				bias-pull-up;
-			};
-
 			mmc2_pins_a: mmc2@0 {
 				pins = "PC6", "PC7", "PC8",
 				       "PC9", "PC10", "PC11";
