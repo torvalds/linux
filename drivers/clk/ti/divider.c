@@ -428,21 +428,16 @@ struct clk_hw *ti_clk_build_component_div(struct ti_clk_divider *setup)
 
 struct clk *ti_clk_register_divider(struct ti_clk *setup)
 {
-	struct ti_clk_divider *div;
-	struct clk_omap_reg *reg_setup;
-	u32 reg;
+	struct ti_clk_divider *div = setup->data;
+	struct clk_omap_reg reg = {
+		.index = div->module,
+		.offset = div->reg,
+	};
 	u8 width;
 	u32 flags = 0;
 	u8 div_flags = 0;
 	const struct clk_div_table *table;
 	struct clk *clk;
-
-	div = setup->data;
-
-	reg_setup = (struct clk_omap_reg *)&reg;
-
-	reg_setup->index = div->module;
-	reg_setup->offset = div->reg;
 
 	if (div->flags & CLKF_INDEX_STARTS_AT_ONE)
 		div_flags |= CLK_DIVIDER_ONE_BASED;
@@ -458,7 +453,7 @@ struct clk *ti_clk_register_divider(struct ti_clk *setup)
 		return (struct clk *)table;
 
 	clk = _register_divider(NULL, setup->name, div->parent,
-				flags, (void __iomem *)reg, div->bit_shift,
+				flags, &reg, div->bit_shift,
 				width, div_flags, table);
 
 	if (IS_ERR(clk))
