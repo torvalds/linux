@@ -154,19 +154,6 @@ static int __init __gic_clocksource_init(void)
 	return ret;
 }
 
-void __init gic_clocksource_init(unsigned int frequency)
-{
-	gic_frequency = frequency;
-	gic_timer_irq = MIPS_GIC_IRQ_BASE +
-		GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_COMPARE);
-
-	__gic_clocksource_init();
-	gic_clockevent_init();
-
-	/* And finally start the counter */
-	gic_start_count();
-}
-
 static int __init gic_clocksource_of_init(struct device_node *node)
 {
 	struct clk *clk;
