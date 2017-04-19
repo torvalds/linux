@@ -241,8 +241,11 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_ctxt_info_init_fw_sec(trans, fw, ctxt_info);
-	if (ret)
+	if (ret) {
+		dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info),
+				  ctxt_info, trans_pcie->ctxt_info_dma_addr);
 		return ret;
+	}
 
 	trans_pcie->ctxt_info = ctxt_info;
 
