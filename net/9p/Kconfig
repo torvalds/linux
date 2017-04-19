@@ -24,6 +24,7 @@ config NET_9P_VIRTIO
 
 config NET_9P_XEN
 	depends on XEN
+	select XEN_XENBUS_FRONTEND
 	tristate "9P Xen Transport"
 	help
 	  This builds support for a transport for 9pfs between
