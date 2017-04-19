@@ -66,8 +66,8 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 			case TCPOPT_WINDOW:
 				if (opsize == TCPOLEN_WINDOW) {
 					opts->wscale = *ptr;
-					if (opts->wscale > 14)
-						opts->wscale = 14;
+					if (opts->wscale > TCP_MAX_WSCALE)
+						opts->wscale = TCP_MAX_WSCALE;
 					opts->options |= XT_SYNPROXY_OPT_WSCALE;
 				}
 				break;

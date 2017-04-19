@@ -419,10 +419,9 @@ static void tcp_options(const struct sk_buff *skb,
 				 && opsize == TCPOLEN_WINDOW) {
 				state->td_scale = *(u_int8_t *)ptr;
 
-				if (state->td_scale > 14) {
-					/* See RFC1323 */
-					state->td_scale = 14;
-				}
+				if (state->td_scale > TCP_MAX_WSCALE)
+					state->td_scale = TCP_MAX_WSCALE;
+
 				state->flags |=
 					IP_CT_TCP_FLAG_WINDOW_SCALE;
 			}
