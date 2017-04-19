@@ -21,6 +21,8 @@
 #include <linux/timer.h>
 #include <linux/mod_devicetable.h>
 
+struct input_dev_poller;
+
 /**
  * struct input_value - input value representation
  * @type: type of value (EV_KEY, EV_ABS, etc)
@@ -71,6 +73,8 @@ enum input_clock_type {
  *	not sleep
  * @ff: force feedback structure associated with the device if device
  *	supports force feedback effects
+ * @poller: poller structure associated with the device if device is
+ *	set up to use polling mode
  * @repeat_key: stores key code of the last key pressed; used to implement
  *	software autorepeat
  * @timer: timer for software autorepeat
@@ -155,6 +159,8 @@ struct input_dev {
 			  struct input_keymap_entry *ke);
 
 	struct ff_device *ff;
+
+	struct input_dev_poller *poller;
 
 	unsigned int repeat_key;
 	struct timer_list timer;
@@ -371,6 +377,12 @@ int __must_check input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
 void input_reset_device(struct input_dev *);
+
+int input_setup_polling(struct input_dev *dev,
+			void (*poll_fn)(struct input_dev *dev));
+void input_set_poll_interval(struct input_dev *dev, unsigned int interval);
+void input_set_min_poll_interval(struct input_dev *dev, unsigned int interval);
+void input_set_max_poll_interval(struct input_dev *dev, unsigned int interval);
 
 int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
