@@ -704,15 +704,11 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 	default:
 		break;
 	}
-	if (rsp != NULL) {
-		*flags = READ_ONCE(rsp->gp_flags);
-		*gpnum = READ_ONCE(rsp->gpnum);
-		*completed = READ_ONCE(rsp->completed);
+	if (rsp == NULL)
 		return;
-	}
-	*flags = 0;
-	*gpnum = 0;
-	*completed = 0;
+	*flags = READ_ONCE(rsp->gp_flags);
+	*gpnum = READ_ONCE(rsp->gpnum);
+	*completed = READ_ONCE(rsp->completed);
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
 

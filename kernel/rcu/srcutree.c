@@ -1011,3 +1011,16 @@ void process_srcu(struct work_struct *work)
 	srcu_reschedule(sp, atomic_read(&sp->srcu_exp_cnt) ? 0 : SRCU_INTERVAL);
 }
 EXPORT_SYMBOL_GPL(process_srcu);
+
+void srcutorture_get_gp_data(enum rcutorture_type test_type,
+					   struct srcu_struct *sp, int *flags,
+					   unsigned long *gpnum,
+					   unsigned long *completed)
+{
+	if (test_type != SRCU_FLAVOR)
+		return;
+	*flags = 0;
+	*completed = rcu_seq_ctr(sp->srcu_gp_seq);
+	*gpnum = rcu_seq_ctr(sp->srcu_gp_seq_needed);
+}
+EXPORT_SYMBOL_GPL(srcutorture_get_gp_data);
