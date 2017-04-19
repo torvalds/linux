@@ -422,8 +422,6 @@ static void set_audio_input(struct au8522_state *state)
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x00);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x00);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_REG0F4H, 0x00);
-	au8522_writereg(state, AU8522_I2C_CONTROL_REG1_REG091H, 0x80);
-	au8522_writereg(state, AU8522_I2C_CONTROL_REG0_REG090H, 0x84);
 	msleep(150);
 	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H, 0x00);
 	msleep(10);
