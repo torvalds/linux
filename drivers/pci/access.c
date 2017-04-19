@@ -700,7 +700,8 @@ static bool pcie_downstream_port(const struct pci_dev *dev)
 	int type = pci_pcie_type(dev);
 
 	return type == PCI_EXP_TYPE_ROOT_PORT ||
-	       type == PCI_EXP_TYPE_DOWNSTREAM;
+	       type == PCI_EXP_TYPE_DOWNSTREAM ||
+	       type == PCI_EXP_TYPE_PCIE_BRIDGE;
 }
 
 bool pcie_cap_has_lnkctl(const struct pci_dev *dev)
