@@ -7,8 +7,8 @@
 #define PNV_THREAD_NAP                  1
 #define PNV_THREAD_SLEEP                2
 #define PNV_THREAD_WINKLE               3
-#define PNV_CORE_IDLE_LOCK_BIT          0x100
-#define PNV_CORE_IDLE_THREAD_BITS       0x0FF
+#define PNV_CORE_IDLE_LOCK_BIT          0x10000000
+#define PNV_CORE_IDLE_THREAD_BITS       0x000000FF
 
 /*
  * ============================ NOTE =================================

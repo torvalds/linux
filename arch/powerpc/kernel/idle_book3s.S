@@ -95,12 +95,12 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 core_idle_lock_held:
 	HMT_LOW
 3:	lwz	r15,0(r14)
-	andi.   r15,r15,PNV_CORE_IDLE_LOCK_BIT
+	andis.	r15,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	bne	3b
 	HMT_MEDIUM
 	lwarx	r15,0,r14
-	andi.	r9,r15,PNV_CORE_IDLE_LOCK_BIT
-	bne	core_idle_lock_held
+	andis.	r9,r15,PNV_CORE_IDLE_LOCK_BIT@h
+	bne-	core_idle_lock_held
 	blr
 
 /*
@@ -213,8 +213,8 @@ pnv_enter_arch207_idle_mode:
 lwarx_loop1:
 	lwarx	r15,0,r14
 
-	andi.   r9,r15,PNV_CORE_IDLE_LOCK_BIT
-	bnel	core_idle_lock_held
+	andis.	r9,r15,PNV_CORE_IDLE_LOCK_BIT@h
+	bnel-	core_idle_lock_held
 
 	andc	r15,r15,r7			/* Clear thread bit */
 
@@ -241,7 +241,7 @@ common_enter: /* common code for all the threads entering sleep or winkle */
 	IDLE_STATE_ENTER_SEQ_NORET(PPC_SLEEP)
 
 fastsleep_workaround_at_entry:
-	ori	r15,r15,PNV_CORE_IDLE_LOCK_BIT
+	oris	r15,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	stwcx.	r15,0,r14
 	bne-	lwarx_loop1
 	isync
@@ -251,10 +251,10 @@ fastsleep_workaround_at_entry:
 	li	r4,1
 	bl	opal_config_cpu_idle_state
 
-	/* Clear Lock bit */
-	li	r0,0
+	/* Unlock */
+	xoris	r15,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	lwsync
-	stw	r0,0(r14)
+	stw	r15,0(r14)
 	b	common_enter
 
 enter_winkle:
@@ -302,8 +302,8 @@ power_enter_stop:
 
 lwarx_loop_stop:
 	lwarx   r15,0,r14
-	andi.   r9,r15,PNV_CORE_IDLE_LOCK_BIT
-	bnel    core_idle_lock_held
+	andis.	r9,r15,PNV_CORE_IDLE_LOCK_BIT@h
+	bnel-	core_idle_lock_held
 	andc    r15,r15,r7                      /* Clear thread bit */
 
 	stwcx.  r15,0,r14
@@ -560,7 +560,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	ld	r14,PACA_CORE_IDLE_STATE_PTR(r13)
 lwarx_loop2:
 	lwarx	r15,0,r14
-	andi.	r9,r15,PNV_CORE_IDLE_LOCK_BIT
+	andis.	r9,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	/*
 	 * Lock bit is set in one of the 2 cases-
 	 * a. In the sleep/winkle enter path, the last thread is executing
@@ -569,9 +569,10 @@ lwarx_loop2:
 	 * workaround undo code or resyncing timebase or restoring context
 	 * In either case loop until the lock bit is cleared.
 	 */
-	bnel	core_idle_lock_held
+	bnel-	core_idle_lock_held
 
-	cmpwi	cr2,r15,0
+	andi.	r9,r15,PNV_CORE_IDLE_THREAD_BITS
+	cmpwi	cr2,r9,0
 
 	/*
 	 * At this stage
@@ -580,7 +581,7 @@ lwarx_loop2:
 	 * cr4 - gt or eq if waking up from complete hypervisor state loss.
 	 */
 
-	ori	r15,r15,PNV_CORE_IDLE_LOCK_BIT
+	oris	r15,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	stwcx.	r15,0,r14
 	bne-	lwarx_loop2
 	isync
@@ -670,7 +671,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	mtspr	SPRN_WORC,r4
 
 clear_lock:
-	andi.	r15,r15,PNV_CORE_IDLE_THREAD_BITS
+	xoris	r15,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	lwsync
 	stw	r15,0(r14)
 
