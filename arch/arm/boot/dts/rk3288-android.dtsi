@@ -51,6 +51,11 @@
 		ramoops_mem: ramoops@00000000 {
 			reg = <0x8000000 0xF0000>;
 		};
+
+		drm_logo: drm-logo@00000000 {
+		compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0>;
+		};
 	};
 
 	ramoops {
@@ -126,6 +131,8 @@
 		status = "okay";
 
 		ports = <&vopb_out>, <&vopl_out>;
+		memory-region = <&drm_logo>;
+
 		route {
 			route_mipi: route-mipi {
 				status = "disabled";
