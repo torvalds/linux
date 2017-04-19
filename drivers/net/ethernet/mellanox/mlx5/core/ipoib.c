@@ -471,10 +471,11 @@ struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 	 */
 	return netdev;
 
-free_mdev_resources:
-	mlx5e_destroy_mdev_resources(mdev);
 err_free_netdev:
 	free_netdev(netdev);
+free_mdev_resources:
+	mlx5e_destroy_mdev_resources(mdev);
+
 	return NULL;
 }
 EXPORT_SYMBOL(mlx5_rdma_netdev_alloc);
