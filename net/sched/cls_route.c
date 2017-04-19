@@ -140,8 +140,6 @@ static int route4_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		goto failure;
 
 	id = dst->tclassid;
-	if (head == NULL)
-		goto old_method;
 
 	iif = inet_iif(skb);
 
@@ -194,15 +192,6 @@ restart:
 		route4_set_fastmap(head, id, iif, ROUTE4_FAILURE);
 failure:
 	return -1;
-
-old_method:
-	if (id && (TC_H_MAJ(id) == 0 ||
-		   !(TC_H_MAJ(id^tp->q->handle)))) {
-		res->classid = id;
-		res->class = 0;
-		return 0;
-	}
-	return -1;
 }
 
 static inline u32 to_hash(u32 id)
@@ -233,9 +222,6 @@ static unsigned long route4_get(struct tcf_proto *tp, u32 handle)
 	struct route4_bucket *b;
 	struct route4_filter *f;
 	unsigned int h1, h2;
-
-	if (!head)
-		return 0;
 
 	h1 = to_hash(handle);
 	if (h1 > 256)
@@ -305,7 +291,6 @@ static void route4_destroy(struct tcf_proto *tp)
 			kfree_rcu(b, rcu);
 		}
 	}
-	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
 }
 

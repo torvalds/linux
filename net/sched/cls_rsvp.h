@@ -152,8 +152,6 @@ static int rsvp_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		return -1;
 	nhptr = ip_hdr(skb);
 #endif
-	if (unlikely(!head))
-		return -1;
 restart:
 
 #if RSVP_DST_LEN == 4
@@ -309,8 +307,6 @@ static void rsvp_destroy(struct tcf_proto *tp)
 
 	if (data == NULL)
 		return;
-
-	RCU_INIT_POINTER(tp->root, NULL);
 
 	for (h1 = 0; h1 < 256; h1++) {
 		struct rsvp_session *s;
