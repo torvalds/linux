@@ -37,14 +37,6 @@ struct hash_cell {
 	struct dm_table *new_map;
 };
 
-/*
- * A dummy definition to make RCU happy.
- * struct dm_table should never be dereferenced in this file.
- */
-struct dm_table {
-	int undefined__;
-};
-
 struct vers_iter {
     size_t param_size;
     struct dm_target_versions *vers, *old_vers;
