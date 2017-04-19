@@ -210,15 +210,20 @@ pnv_enter_arch207_idle_mode:
 	/* Sleep or winkle */
 	lbz	r7,PACA_THREAD_MASK(r13)
 	ld	r14,PACA_CORE_IDLE_STATE_PTR(r13)
+	li	r5,0
+	beq	cr3,3f
+	lis	r5,PNV_CORE_IDLE_WINKLE_COUNT@h
+3:
 lwarx_loop1:
 	lwarx	r15,0,r14
 
 	andis.	r9,r15,PNV_CORE_IDLE_LOCK_BIT@h
 	bnel-	core_idle_lock_held
 
+	add	r15,r15,r5			/* Add if winkle */
 	andc	r15,r15,r7			/* Clear thread bit */
 
-	andi.	r15,r15,PNV_CORE_IDLE_THREAD_BITS
+	andi.	r9,r15,PNV_CORE_IDLE_THREAD_BITS
 
 /*
  * If cr0 = 0, then current thread is the last thread of the core entering
@@ -509,14 +514,13 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_POWER9_DD1)
 pnv_restore_hyp_resource_arch207:
 	/*
 	 * POWER ISA 2.07 or less.
-	 * Check if we slept with winkle.
+	 * Check if we slept with sleep or winkle.
 	 */
 	ld	r2,PACATOC(r13);
 
-	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
-	cmpwi   cr2,r0,PNV_THREAD_NAP
-	cmpwi   cr4,r0,PNV_THREAD_WINKLE
-	bgt     cr2,pnv_wakeup_tb_loss	/* Either sleep or Winkle */
+	lbz	r4,PACA_THREAD_IDLE_STATE(r13)
+	cmpwi	cr2,r4,PNV_THREAD_NAP
+	bgt	cr2,pnv_wakeup_tb_loss	/* Either sleep or Winkle */
 
 	/*
 	 * We fall through here if PACA_THREAD_IDLE_STATE shows we are waking
@@ -535,7 +539,12 @@ pnv_restore_hyp_resource_arch207:
  *
  * r13 - PACA
  * cr3 - gt if waking up with partial/complete hypervisor state loss
+ *
+ * If ISA300:
  * cr4 - gt or eq if waking up from complete hypervisor state loss.
+ *
+ * If ISA207:
+ * r4 - PACA_THREAD_IDLE_STATE
  */
 pnv_wakeup_tb_loss:
 	ld	r1,PACAR1(r13)
@@ -550,6 +559,7 @@ pnv_wakeup_tb_loss:
 	 * is required to return back to reset vector after hypervisor state
 	 * restore is complete.
 	 */
+	mr	r18,r4
 	mflr	r17
 	mfspr	r16,SPRN_SRR1
 BEGIN_FTR_SECTION
@@ -585,10 +595,77 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	 * At this stage
 	 * cr2 - eq if first thread to wakeup in core
 	 * cr3-  gt if waking up with partial/complete hypervisor state loss
+	 * ISA300:
 	 * cr4 - gt or eq if waking up from complete hypervisor state loss.
 	 */
 
 BEGIN_FTR_SECTION
+	/*
+	 * Were we in winkle?
+	 * If yes, check if all threads were in winkle, decrement our
+	 * winkle count, set all thread winkle bits if all were in winkle.
+	 * Check if our thread has a winkle bit set, and set cr4 accordingly
+	 * (to match ISA300, above). Pseudo-code for core idle state
+	 * transitions for ISA207 is as follows (everything happens atomically
+	 * due to store conditional and/or lock bit):
+	 *
+	 * nap_idle() { }
+	 * nap_wake() { }
+	 *
+	 * sleep_idle()
+	 * {
+	 *	core_idle_state &= ~thread_in_core
+	 * }
+	 *
+	 * sleep_wake()
+	 * {
+	 *     bool first_in_core, first_in_subcore;
+	 *
+	 *     first_in_core = (core_idle_state & IDLE_THREAD_BITS) == 0;
+	 *     first_in_subcore = (core_idle_state & SUBCORE_SIBLING_MASK) == 0;
+	 *
+	 *     core_idle_state |= thread_in_core;
+	 * }
+	 *
+	 * winkle_idle()
+	 * {
+	 *	core_idle_state &= ~thread_in_core;
+	 *	core_idle_state += 1 << WINKLE_COUNT_SHIFT;
+	 * }
+	 *
+	 * winkle_wake()
+	 * {
+	 *     bool first_in_core, first_in_subcore, winkle_state_lost;
+	 *
+	 *     first_in_core = (core_idle_state & IDLE_THREAD_BITS) == 0;
+	 *     first_in_subcore = (core_idle_state & SUBCORE_SIBLING_MASK) == 0;
+	 *
+	 *     core_idle_state |= thread_in_core;
+	 *
+	 *     if ((core_idle_state & WINKLE_MASK) == (8 << WINKLE_COUNT_SIHFT))
+	 *         core_idle_state |= THREAD_WINKLE_BITS;
+	 *     core_idle_state -= 1 << WINKLE_COUNT_SHIFT;
+	 *
+	 *     winkle_state_lost = core_idle_state &
+	 *				(thread_in_core << WINKLE_THREAD_SHIFT);
+	 *     core_idle_state &= ~(thread_in_core << WINKLE_THREAD_SHIFT);
+	 * }
+	 *
+	 */
+	cmpwi	r18,PNV_THREAD_WINKLE
+	bne	2f
+	andis.	r9,r15,PNV_CORE_IDLE_WINKLE_COUNT_ALL_BIT@h
+	subis	r15,r15,PNV_CORE_IDLE_WINKLE_COUNT@h
+	beq	2f
+	ori	r15,r15,PNV_CORE_IDLE_THREAD_WINKLE_BITS /* all were winkle */
+2:
+	/* Shift thread bit to winkle mask, then test if this thread is set,
+	 * and remove it from the winkle bits */
+	slwi	r8,r7,8
+	and	r8,r8,r15
+	andc	r15,r15,r8
+	cmpwi	cr4,r8,1 /* cr4 will be gt if our bit is set, lt if not */
+
 	lbz	r4,PACA_SUBCORE_SIBLING_MASK(r13)
 	and	r4,r4,r15
 	cmpwi	r4,0	/* Check if first in subcore */
