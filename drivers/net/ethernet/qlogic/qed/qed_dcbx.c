@@ -1008,6 +1008,8 @@ qed_dcbx_set_pfc_data(struct qed_hwfn *p_hwfn,
 	u8 pfc_map = 0;
 	int i;
 
+	*pfc &= ~DCBX_PFC_ERROR_MASK;
+
 	if (p_params->pfc.willing)
 		*pfc |= DCBX_PFC_WILLING_MASK;
 	else
