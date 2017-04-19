@@ -123,6 +123,9 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 		data->registry_data.enable_tdc_limit_feature = 1;
 	}
 
+	data->registry_data.clock_stretcher_support =
+			hwmgr->feature_mask & PP_CLOCK_STRETCH_MASK ? true : false;
+
 	data->registry_data.disable_water_mark = 0;
 
 	data->registry_data.fan_control_support = 1;
@@ -2045,10 +2048,10 @@ static int vega10_populate_clock_stretcher_table(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_sclk;
 	uint32_t i;
 
-	for (i = 0; dep_table->count; i++) {
+	for (i = 0; i < dep_table->count; i++) {
 		pp_table->CksEnable[i] = dep_table->entries[i].cks_enable;
-		pp_table->CksVidOffset[i] = convert_to_vid(
-				dep_table->entries[i].cks_voffset);
+		pp_table->CksVidOffset[i] = (uint8_t)(dep_table->entries[i].cks_voffset
+				* VOLTAGE_VID_OFFSET_SCALE2 / VOLTAGE_VID_OFFSET_SCALE1);
 	}
 
 	return 0;
@@ -2380,8 +2383,7 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 			"Failed to initialize UVD Level!",
 			return result);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ClockStretcher)) {
+	if (data->registry_data.clock_stretcher_support) {
 		result = vega10_populate_clock_stretcher_table(hwmgr);
 		PP_ASSERT_WITH_CODE(!result,
 				"Failed to populate Clock Stretcher Table!",
