@@ -344,11 +344,6 @@
 	status = "okay";
 };
 
-&usb1_vbus_pin_a {
-	/* different pin from sunxi-common-regulators */
-	pins = "PH24";
-};
-
 &usbphy {
 	usb0_id_det-gpio = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
 	usb0_vbus_det-gpio = <&pio 0 16 GPIO_ACTIVE_HIGH>; /* PA16 */

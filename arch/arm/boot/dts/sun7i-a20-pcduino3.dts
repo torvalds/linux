@@ -106,10 +106,6 @@
 	status = "okay";
 };
 
-&ahci_pwr_pin_a {
-	pins = "PH2";
-};
-
 &codec {
 	status = "okay";
 };

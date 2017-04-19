@@ -120,10 +120,6 @@
 	status = "okay";
 };
 
-&usb2_vbus_pin_a {
-	pins = "PH6";
-};
-
 &usb_otg {
 	dr_mode = "otg";
 	status = "okay";
