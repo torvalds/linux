@@ -29,20 +29,6 @@
 static struct kmem_cache *nfs_page_cachep;
 static const struct rpc_call_ops nfs_pgio_common_ops;
 
-static bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount,
-					gfp_t gfp_flags)
-{
-	p->npages = pagecount;
-	if (pagecount <= ARRAY_SIZE(p->page_array))
-		p->pagevec = p->page_array;
-	else {
-		p->pagevec = kcalloc(pagecount, sizeof(struct page *), gfp_flags);
-		if (!p->pagevec)
-			p->npages = 0;
-	}
-	return p->pagevec != NULL;
-}
-
 struct nfs_pgio_mirror *
 nfs_pgio_current_mirror(struct nfs_pageio_descriptor *desc)
 {
@@ -758,16 +744,24 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 				*last_page;
 	struct list_head *head = &mirror->pg_list;
 	struct nfs_commit_info cinfo;
+	struct nfs_page_array *pg_array = &hdr->page_array;
 	unsigned int pagecount, pageused;
 	gfp_t gfp_flags = GFP_KERNEL;
 
 	pagecount = nfs_page_array_len(mirror->pg_base, mirror->pg_count);
-	if (desc->pg_rw_ops->rw_mode == FMODE_WRITE)
-		gfp_flags = GFP_NOIO;
-	if (!nfs_pgarray_set(&hdr->page_array, pagecount, gfp_flags)) {
-		nfs_pgio_error(hdr);
-		desc->pg_error = -ENOMEM;
-		return desc->pg_error;
+
+	if (pagecount <= ARRAY_SIZE(pg_array->page_array))
+		pg_array->pagevec = pg_array->page_array;
+	else {
+		if (desc->pg_rw_ops->rw_mode == FMODE_WRITE)
+			gfp_flags = GFP_NOIO;
+		pg_array->pagevec = kcalloc(pagecount, sizeof(struct page *), gfp_flags);
+		if (!pg_array->pagevec) {
+			pg_array->npages = 0;
+			nfs_pgio_error(hdr);
+			desc->pg_error = -ENOMEM;
+			return desc->pg_error;
+		}
 	}
 
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
