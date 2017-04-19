@@ -165,10 +165,11 @@ extern u32 		GLBtcDbgType[];
 }
 
 #else
-#define BTC_PRINT(dbgtype, dbgflag, printstr)
-#define BTC_PRINT_F(dbgtype, dbgflag, printstr)
-#define BTC_PRINT_ADDR(dbgtype, dbgflag, printstr, _Ptr)
-#define BTC_PRINT_DATA(dbgtype, dbgflag, _TitleString, _HexData, _HexDataLen)
+#define BTC_PRINT(dbgtype, dbgflag, printstr)		 no_printk printstr
+#define BTC_PRINT_F(dbgtype, dbgflag, printstr)		 no_printk printstr
+#define BTC_PRINT_ADDR(dbgtype, dbgflag, printstr, _Ptr) no_printk printstr
+#define BTC_PRINT_DATA(dbgtype, dbgflag, _TitleString, _HexData, _HexDataLen) \
+			no_printk("%s %p %zu", _TitleString, _HexData, _HexDataLen)
 #endif
 
 typedef struct _BTC_BOARD_INFO {

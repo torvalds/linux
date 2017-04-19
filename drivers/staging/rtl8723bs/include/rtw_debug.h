@@ -263,7 +263,7 @@
 #ifdef CONFIG_DBG_COUNTER
 #define DBG_COUNTER(counter) counter++
 #else
-#define DBG_COUNTER(counter)
+#define DBG_COUNTER(counter) do {} while (0)
 #endif
 
 void dump_drv_version(void *sel);

@@ -151,13 +151,14 @@
 		DbgPrint("\n");\
 	}
 #else
-#define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)
-#define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)
-#define ODM_RT_ASSERT(pDM_Odm, expr, fmt)
-#define ODM_dbg_enter()
-#define ODM_dbg_exit()
-#define ODM_dbg_trace(str)
-#define ODM_PRINT_ADDR(pDM_Odm, comp, level, title_str, ptr)
+#define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)		no_printk fmt
+#define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)	no_printk fmt
+#define ODM_RT_ASSERT(pDM_Odm, expr, fmt)		no_printk fmt
+#define ODM_dbg_enter()					do {} while (0)
+#define ODM_dbg_exit()					do {} while (0)
+#define ODM_dbg_trace(str)				no_printk("%s", str)
+#define ODM_PRINT_ADDR(pDM_Odm, comp, level, title_str, ptr) \
+	no_printk("%s %p", title_str, ptr)
 #endif
 
 void ODM_InitDebugSetting(PDM_ODM_T pDM_Odm);
