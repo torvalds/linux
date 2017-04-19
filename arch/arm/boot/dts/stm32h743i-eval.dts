@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - Maxime Coquelin <mcoquelin.stm32@gmail.com>
+ * Copyright 2017 - Alexandre Torgue <alexandre.torgue@st.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -15,11 +15,6 @@
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
  *
  * Or, alternatively,
  *
@@ -46,78 +41,34 @@
  */
 
 /dts-v1/;
-#include "stm32f429.dtsi"
-#include <dt-bindings/input/input.h>
+#include "stm32h743.dtsi"
+#include "stm32h743-pinctrl.dtsi"
 
 / {
-	model = "STMicroelectronics STM32F429i-DISCO board";
-	compatible = "st,stm32f429i-disco", "st,stm32f429";
+	model = "STMicroelectronics STM32H743i-EVAL board";
+	compatible = "st,stm32h743i-eval", "st,stm32h743";
 
 	chosen {
-		bootargs = "root=/dev/ram rdinit=/linuxrc";
+		bootargs = "root=/dev/ram";
 		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
-		reg = <0x90000000 0x800000>;
+		reg = <0xd0000000 0x2000000>;
 	};
 
 	aliases {
 		serial0 = &usart1;
 	};
-
-	leds {
-		compatible = "gpio-leds";
-		red {
-			gpios = <&gpiog 14 0>;
-		};
-		green {
-			gpios = <&gpiog 13 0>;
-			linux,default-trigger = "heartbeat";
-		};
-	};
-
-	gpio_keys {
-		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		autorepeat;
-		button@0 {
-			label = "User";
-			linux,code = <KEY_HOME>;
-			gpios = <&gpioa 0 0>;
-		};
-	};
-
-	/* This turns on vbus for otg for host mode (dwc2) */
-	vcc5v_otg: vcc5v-otg-regulator {
-		compatible = "regulator-fixed";
-		gpio = <&gpioc 4 0>;
-		regulator-name = "vcc5_host1";
-		regulator-always-on;
-	};
 };
 
 &clk_hse {
-	clock-frequency = <8000000>;
-};
-
-&rtc {
-	assigned-clocks = <&rcc 1 CLK_RTC>;
-	assigned-clock-parents = <&rcc 1 CLK_LSI>;
-	status = "okay";
+	clock-frequency = <125000000>;
 };
 
 &usart1 {
-	pinctrl-0 = <&usart1_pins_a>;
+	pinctrl-0 = <&usart1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
 
-&usbotg_hs {
-	compatible = "st,stm32f4x9-fsotg";
-	dr_mode = "host";
-	pinctrl-0 = <&usbotg_fs_pins_b>;
-	pinctrl-names = "default";
-	status = "okay";
-};
