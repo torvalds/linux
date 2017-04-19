@@ -338,8 +338,9 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (!pci->dbi_base) {
-		pci->dbi_base = devm_ioremap(dev, pp->cfg->start,
-					resource_size(pp->cfg));
+		pci->dbi_base = devm_pci_remap_cfgspace(dev,
+						pp->cfg->start,
+						resource_size(pp->cfg));
 		if (!pci->dbi_base) {
 			dev_err(dev, "error with ioremap\n");
 			ret = -ENOMEM;
@@ -350,8 +351,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	pp->mem_base = pp->mem->start;
 
 	if (!pp->va_cfg0_base) {
-		pp->va_cfg0_base = devm_ioremap(dev, pp->cfg0_base,
-						pp->cfg0_size);
+		pp->va_cfg0_base = devm_pci_remap_cfgspace(dev,
+					pp->cfg0_base, pp->cfg0_size);
 		if (!pp->va_cfg0_base) {
 			dev_err(dev, "error with ioremap in function\n");
 			ret = -ENOMEM;
@@ -360,7 +361,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (!pp->va_cfg1_base) {
-		pp->va_cfg1_base = devm_ioremap(dev, pp->cfg1_base,
+		pp->va_cfg1_base = devm_pci_remap_cfgspace(dev,
+						pp->cfg1_base,
 						pp->cfg1_size);
 		if (!pp->va_cfg1_base) {
 			dev_err(dev, "error with ioremap\n");
