@@ -2082,6 +2082,8 @@ static int qed_dcbnl_ieee_setpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++)
 		dcbx_set.config.params.pfc.prio[i] = !!(pfc->pfc_en & BIT(i));
 
+	dcbx_set.config.params.pfc.max_tc = pfc->pfc_cap;
+
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)
 		return -EINVAL;
