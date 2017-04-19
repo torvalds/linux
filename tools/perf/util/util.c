@@ -496,20 +496,6 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 	return ret;
 }
 
-const char *get_filename_for_perf_kvm(void)
-{
-	const char *filename;
-
-	if (perf_host && !perf_guest)
-		filename = strdup("perf.data.host");
-	else if (!perf_host && perf_guest)
-		filename = strdup("perf.data.guest");
-	else
-		filename = strdup("perf.data.kvm");
-
-	return filename;
-}
-
 int perf_event_paranoid(void)
 {
 	int value;
