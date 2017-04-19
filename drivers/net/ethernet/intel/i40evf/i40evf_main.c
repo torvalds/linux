@@ -1508,6 +1508,13 @@ int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter)
 {
 	int err;
 
+	err = i40evf_alloc_queues(adapter);
+	if (err) {
+		dev_err(&adapter->pdev->dev,
+			"Unable to allocate memory for queues\n");
+		goto err_alloc_queues;
+	}
+
 	rtnl_lock();
 	err = i40evf_set_interrupt_capability(adapter);
 	rtnl_unlock();
@@ -1524,23 +1531,16 @@ int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter)
 		goto err_alloc_q_vectors;
 	}
 
-	err = i40evf_alloc_queues(adapter);
-	if (err) {
-		dev_err(&adapter->pdev->dev,
-			"Unable to allocate memory for queues\n");
-		goto err_alloc_queues;
-	}
-
 	dev_info(&adapter->pdev->dev, "Multiqueue %s: Queue pair count = %u",
 		 (adapter->num_active_queues > 1) ? "Enabled" : "Disabled",
 		 adapter->num_active_queues);
 
 	return 0;
-err_alloc_queues:
-	i40evf_free_q_vectors(adapter);
 err_alloc_q_vectors:
 	i40evf_reset_interrupt_capability(adapter);
 err_set_interrupt:
+	i40evf_free_queues(adapter);
+err_alloc_queues:
 	return err;
 }
 
