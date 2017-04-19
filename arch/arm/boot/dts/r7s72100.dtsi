@@ -51,6 +51,20 @@
 			clock-frequency = <0>;
 		};
 
+		rtc_x1_clk: rtc_x1 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			/* If clk present, value must be set by board to 32678 */
+			clock-frequency = <0>;
+		};
+
+		rtc_x3_clk: rtc_x3 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			/* If clk present, value must be set by board to 4000000 */
+			clock-frequency = <0>;
+		};
+
 		/* Fixed factor clocks */
 		b_clk: b {
 			#clock-cells = <0>;
@@ -117,11 +131,20 @@
 			clock-output-names = "ostm0", "ostm1";
 		};
 
+		mstp6_clks: mstp6_clks@fcfe042c {
+			#clock-cells = <1>;
+			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xfcfe042c 4>;
+			clocks = <&p0_clk>;
+			clock-indices = <R7S72100_CLK_RTC>;
+			clock-output-names = "rtc";
+		};
+
 		mstp7_clks: mstp7_clks@fcfe0430 {
 			#clock-cells = <1>;
 			compatible = "renesas,r7s72100-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0xfcfe0430 4>;
-			clocks = <&p0_clk>;
+			clocks = <&b_clk>;
 			clock-indices = <R7S72100_CLK_ETHER>;
 			clock-output-names = "ether";
 		};
@@ -501,6 +524,7 @@
 		clocks = <&mstp12_clks R7S72100_CLK_SDHI00>,
 			 <&mstp12_clks R7S72100_CLK_SDHI01>;
 		clock-names = "core", "cd";
+		power-domains = <&cpg_clocks>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
 		status = "disabled";
@@ -516,6 +540,7 @@
 		clocks = <&mstp12_clks R7S72100_CLK_SDHI10>,
 			 <&mstp12_clks R7S72100_CLK_SDHI11>;
 		clock-names = "core", "cd";
+		power-domains = <&cpg_clocks>;
 		cap-sd-highspeed;
 		cap-sdio-irq;
 		status = "disabled";
@@ -535,6 +560,20 @@
 		reg = <0xfcfec400 0x30>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_EDGE_RISING>;
 		clocks = <&mstp5_clks R7S72100_CLK_OSTM1>;
+		power-domains = <&cpg_clocks>;
+		status = "disabled";
+	};
+
+	rtc: rtc@fcff1000 {
+		compatible = "renesas,r7s72100-rtc", "renesas,sh-rtc";
+		reg = <0xfcff1000 0x2e>;
+		interrupts = <GIC_SPI 276 IRQ_TYPE_EDGE_RISING
+			      GIC_SPI 277 IRQ_TYPE_EDGE_RISING
+			      GIC_SPI 278 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "alarm", "period", "carry";
+		clocks = <&mstp6_clks R7S72100_CLK_RTC>, <&rtc_x1_clk>,
+			 <&rtc_x3_clk>, <&extal_clk>;
+		clock-names = "fck", "rtc_x1", "rtc_x3", "extal";
 		power-domains = <&cpg_clocks>;
 		status = "disabled";
 	};

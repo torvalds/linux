@@ -29,6 +29,9 @@
 #define R7S72100_CLK_OSTM0	1
 #define R7S72100_CLK_OSTM1	0
 
+/* MSTP6 */
+#define R7S72100_CLK_RTC	0
+
 /* MSTP7 */
 #define R7S72100_CLK_ETHER	4
 

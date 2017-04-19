@@ -46,7 +46,7 @@
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 			clock-frequency = <1000000000>;
-			clocks = <&cpg_clocks R8A7792_CLK_Z>;
+			clocks = <&z_clk>;
 			power-domains = <&sysc R8A7792_PD_CA15_CPU0>;
 			next-level-cache = <&L2_CA15>;
 		};
@@ -766,7 +766,7 @@
 			clocks = <&extal_clk>;
 			#clock-cells = <1>;
 			clock-output-names = "main", "pll0", "pll1", "pll3",
-					     "lb", "qspi", "z";
+					     "lb", "qspi";
 			#power-domain-cells = <0>;
 		};
 
@@ -776,6 +776,13 @@
 			clocks = <&cpg_clocks R8A7792_CLK_PLL1>;
 			#clock-cells = <0>;
 			clock-div = <2>;
+			clock-mult = <1>;
+		};
+		z_clk: z {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7792_CLK_PLL0>;
+			#clock-cells = <0>;
+			clock-div = <1>;
 			clock-mult = <1>;
 		};
 		zx_clk: zx {
