@@ -4,9 +4,6 @@
 #include <api/fs/fs.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>
-#ifdef HAVE_BACKTRACE_SUPPORT
-#include <execinfo.h>
-#endif
 #include <dirent.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -351,34 +348,6 @@ int hex2u64(const char *ptr, u64 *long_val)
 	}
 
 	return p - ptr;
-}
-
-/* Obtain a backtrace and print it to stdout. */
-#ifdef HAVE_BACKTRACE_SUPPORT
-void dump_stack(void)
-{
-	void *array[16];
-	size_t size = backtrace(array, ARRAY_SIZE(array));
-	char **strings = backtrace_symbols(array, size);
-	size_t i;
-
-	printf("Obtained %zd stack frames.\n", size);
-
-	for (i = 0; i < size; i++)
-		printf("%s\n", strings[i]);
-
-	free(strings);
-}
-#else
-void dump_stack(void) {}
-#endif
-
-void sighandler_dump_stack(int sig)
-{
-	psignal(sig, "perf");
-	dump_stack();
-	signal(sig, SIG_DFL);
-	raise(sig);
 }
 
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags)

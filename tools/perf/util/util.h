@@ -80,9 +80,6 @@ void event_attr_init(struct perf_event_attr *attr);
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
-void dump_stack(void);
-void sighandler_dump_stack(int sig);
-
 extern unsigned int page_size;
 extern int cacheline_size;
 extern int sysctl_perf_event_max_stack;
