@@ -1309,6 +1309,12 @@ static void release_sub_crq_queue(struct ibmvnic_adapter *adapter,
 					scrq->crq_num);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
+	if (rc) {
+		netdev_err(adapter->netdev,
+			   "Failed to release sub-CRQ %16lx, rc = %ld\n",
+			   scrq->crq_num, rc);
+	}
+
 	dma_unmap_single(dev, scrq->msg_token, 4 * PAGE_SIZE,
 			 DMA_BIDIRECTIONAL);
 	free_pages((unsigned long)scrq->msgs, 2);
