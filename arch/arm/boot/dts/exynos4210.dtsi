@@ -119,6 +119,14 @@
 		};
 	};
 
+	watchdog: watchdog@10060000 {
+		compatible = "samsung,s3c6410-wdt";
+		reg = <0x10060000 0x100>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_WDT>;
+		clock-names = "watchdog";
+	};
+
 	clock: clock-controller@10030000 {
 		compatible = "samsung,exynos4210-clock";
 		reg = <0x10030000 0x20000>;
