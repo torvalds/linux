@@ -269,6 +269,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	uint32_t status;
 	unsigned long Address;
 	unsigned long pfn;
+	struct page __maybe_unused *page;
 	void *virt;
 	spinlock_t * ptl;
 	pte_t * pte;
@@ -338,8 +339,30 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			   << PAGE_SHIFT)) & ~PAGE_MASK));
 		pte_unmap_unlock(pte, ptl);
 		pageTable[i] = (uint32_t)Address;
-		virt = phys_to_virt(pageTable[i]);
-		rga_dma_flush_range(virt, virt + 4 * 1024);
+
+#ifdef CONFIG_ARM
+		page = pfn_to_page(pfn);
+		if (PageHighMem(page)) {
+			if (cache_is_vipt_nonaliasing()) {
+				virt = kmap_atomic(page);
+				dmac_flush_range(virt, virt + PAGE_SIZE);
+				kunmap_atomic(virt);
+			} else {
+				virt = kmap_high_get(page);
+				if (virt) {
+					dmac_flush_range(virt,
+							 virt + PAGE_SIZE);
+					kunmap_high(page);
+				}
+			}
+			outer_flush_range(pageTable[i],
+					  pageTable[i] + PAGE_SIZE);
+		} else
+#endif
+		{
+			virt = phys_to_virt(pageTable[i]);
+			rga_dma_flush_range(virt, virt + 4 * 1024);
+		}
 	}
 	up_read(&current->mm->mmap_sem);
 	return status;
