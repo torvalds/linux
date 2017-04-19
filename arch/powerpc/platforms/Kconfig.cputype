@@ -279,7 +279,8 @@ config PPC_ICSWX
 
 	  This option enables kernel support for the PowerPC Initiate
 	  Coprocessor Store Word (icswx) coprocessor instruction on POWER7
-	  or newer processors.
+	  and POWER8 processors. POWER9 uses new copy/paste instructions
+	  to invoke the coprocessor.
 
 	  This option is only useful if you have a processor that supports
 	  the icswx coprocessor instruction. It does not have any effect
