@@ -169,7 +169,6 @@ static const struct of_device_id zx296718_pm_domain_matches[] = {
 static struct platform_driver zx296718_pd_driver = {
 	.driver = {
 		.name = "zx296718-powerdomain",
-		.owner = THIS_MODULE,
 		.of_match_table = zx296718_pm_domain_matches,
 	},
 	.probe = zx296718_pd_probe,
