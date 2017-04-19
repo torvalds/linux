@@ -73,6 +73,10 @@ module_param(report_key_events, int, 0644);
 MODULE_PARM_DESC(report_key_events,
 	"0: none, 1: output changes, 2: brightness changes, 3: all");
 
+/*
+ * Whether the struct acpi_video_device_attrib::device_id_scheme bit should be
+ * assumed even if not actually set.
+ */
 static bool device_id_scheme = false;
 module_param(device_id_scheme, bool, 0444);
 
@@ -144,7 +148,15 @@ struct acpi_video_device_attrib {
 				   the VGA device. */
 	u32 pipe_id:3;		/* For VGA multiple-head devices. */
 	u32 reserved:10;	/* Must be 0 */
-	u32 device_id_scheme:1;	/* Device ID Scheme */
+
+	/*
+	 * The device ID might not actually follow the scheme described by this
+	 * struct acpi_video_device_attrib. If it does, then this bit
+	 * device_id_scheme is set; otherwise, other fields should be ignored.
+	 *
+	 * (but also see the global flag device_id_scheme)
+	 */
+	u32 device_id_scheme:1;
 };
 
 struct acpi_video_enumerated_device {
@@ -728,7 +740,33 @@ static int acpi_video_bqc_quirk(struct acpi_video_device *device,
 
 	/*
 	 * Some systems always report current brightness level as maximum
-	 * through _BQC, we need to test another value for them.
+	 * through _BQC, we need to test another value for them. However,
+	 * there is a subtlety:
+	 *
+	 * If the _BCL package ordering is descending, the first level
+	 * (br->levels[2]) is likely to be 0, and if the number of levels
+	 * matches the number of steps, we might confuse a returned level to
+	 * mean the index.
+	 *
+	 * For example:
+	 *
+	 *     current_level = max_level = 100
+	 *     test_level = 0
+	 *     returned level = 100
+	 *
+	 * In this case 100 means the level, not the index, and _BCM failed.
+	 * Still, if the _BCL package ordering is descending, the index of
+	 * level 0 is also 100, so we assume _BQC is indexed, when it's not.
+	 *
+	 * This causes all _BQC calls to return bogus values causing weird
+	 * behavior from the user's perspective.  For example:
+	 *
+	 * xbacklight -set 10; xbacklight -set 20;
+	 *
+	 * would flash to 90% and then slowly down to the desired level (20).
+	 *
+	 * The solution is simple; test anything other than the first level
+	 * (e.g. 1).
 	 */
 	test_level = current_level == max_level
 		? br->levels[ACPI_VIDEO_FIRST_LEVEL + 1]
@@ -789,6 +827,11 @@ int acpi_video_get_levels(struct acpi_device *device,
 		goto out;
 	}
 
+	/*
+	 * Note that we have to reserve 2 extra items (ACPI_VIDEO_FIRST_LEVEL),
+	 * in order to account for buggy BIOS which don't export the first two
+	 * special levels (see below)
+	 */
 	br->levels = kmalloc((obj->package.count + ACPI_VIDEO_FIRST_LEVEL) *
 	                     sizeof(*br->levels), GFP_KERNEL);
 	if (!br->levels) {
