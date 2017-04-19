@@ -2094,5 +2094,51 @@
 				rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_none>;//ISP_FLASHTRIGOU
 			};
 		};
+
+		lcdc {
+			lcdc_lcdc: lcdc-lcdc {
+				rockchip,pins =
+					<0 14 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D10 */
+					<0 15 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D11 */
+					<0 16 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D12 */
+					<0 17 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D13 */
+					<0 18 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D14 */
+					<0 19 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D15 */
+					<0 20 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D16 */
+					<0 21 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D17 */
+					<0 22 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D18 */
+					<0 23 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D19 */
+					<0 24 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D20 */
+					<0 25 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D21 */
+					<0 26 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D22 */
+					<0 27 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D23 */
+					<0 31 RK_FUNC_1 &pcfg_pull_none>,  /* DCLK */
+					<0 30 RK_FUNC_1 &pcfg_pull_none>,  /* DEN */
+					<0 28 RK_FUNC_1 &pcfg_pull_none>,  /* HSYNC */
+					<0 28 RK_FUNC_1 &pcfg_pull_none>;  /* VSYN */
+			};
+
+			lcdc_gpio: lcdc-gpio {
+				rockchip,pins =
+					<0 14 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D10 */
+					<0 15 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D11 */
+					<0 16 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D12 */
+					<0 17 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D13 */
+					<0 18 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D14 */
+					<0 19 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D15 */
+					<0 20 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D16 */
+					<0 21 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D17 */
+					<0 22 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D18 */
+					<0 23 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D19 */
+					<0 24 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D20 */
+					<0 25 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D21 */
+					<0 26 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D22 */
+					<0 27 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D23 */
+					<0 31 RK_FUNC_GPIO &pcfg_pull_none>,  /* DCLK */
+					<0 30 RK_FUNC_GPIO &pcfg_pull_none>,  /* DEN */
+					<0 28 RK_FUNC_GPIO &pcfg_pull_none>,  /* HSYNC */
+					<0 29 RK_FUNC_GPIO &pcfg_pull_none>;  /* VSYN */
+			};
+		};
 	};
 };
