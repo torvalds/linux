@@ -3292,7 +3292,7 @@ static int gfx_v6_0_sw_init(void *handle)
 		ring->me = 1;
 		ring->pipe = i;
 		ring->queue = i;
-		sprintf(ring->name, "comp %d.%d.%d", ring->me, ring->pipe, ring->queue);
+		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->gfx.eop_irq, irq_type);
