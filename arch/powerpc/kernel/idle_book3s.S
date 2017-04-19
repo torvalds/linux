@@ -415,11 +415,12 @@ power9_dd1_recover_paca:
 	stb	r0,PACA_NAPSTATELOST(r13)
 	blr
 
+/*
+ * Called from reset vector for powersave wakeups.
+ * cr3 - set to gt if waking up with partial/complete hypervisor state loss
+ */
 .global pnv_powersave_wakeup
 pnv_powersave_wakeup:
-BEGIN_FTR_SECTION
-	GET_PACA(r13) /* Restore HSPRG0 to get the winkle bit in r13 */
-END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	bl	pnv_restore_hyp_resource
 
 	li	r0,PNV_THREAD_RUNNING
@@ -446,18 +447,18 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
  * Check whether we have woken up with hypervisor state loss.
  * If yes, restore hypervisor state and return back to link.
  *
- * r13 - Contents of HSPRG0
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
  */
 pnv_restore_hyp_resource:
 BEGIN_FTR_SECTION
-BEGIN_FTR_SECTION_NESTED(70)
 	mflr 	r6
 	bl	power9_dd1_recover_paca
 	mtlr	r6
-FTR_SECTION_ELSE_NESTED(70)
+FTR_SECTION_ELSE
 	ld	r2, PACATOC(r13)
-ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_POWER9_DD1, 70)
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_POWER9_DD1)
+
+BEGIN_FTR_SECTION
 	/*
 	 * POWER ISA 3. Use PSSCR to determine if we
 	 * are waking up from deep idle state
@@ -480,19 +481,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	/*
 	 * POWER ISA 2.07 or less.
-	 * Check if last bit of HSPGR0 is set. This indicates whether we are
-	 * waking up from winkle.
+	 * Check if we slept with winkle.
 	 */
-	clrldi	r5,r13,63
-	clrrdi	r13,r13,1
-
-	/* Now that we are sure r13 is corrected, load TOC */
-	ld	r2,PACATOC(r13);
-	cmpwi	cr4,r5,1
-	mtspr	SPRN_HSPRG0,r13
-
 	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
 	cmpwi   cr2,r0,PNV_THREAD_NAP
+	cmpwi   cr4,r0,PNV_THREAD_WINKLE
 	bgt     cr2,pnv_wakeup_tb_loss	/* Either sleep or Winkle */
 
 	/*

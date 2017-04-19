@@ -53,19 +53,6 @@ static int pnv_save_sprs_for_deep_states(void)
 		uint64_t pir = get_hard_smp_processor_id(cpu);
 		uint64_t hsprg0_val = (uint64_t)&paca[cpu];
 
-		if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
-			/*
-			 * HSPRG0 is used to store the cpu's pointer to paca.
-			 * Hence last 3 bits are guaranteed to be 0. Program
-			 * slw to restore HSPRG0 with 63rd bit set, so that
-			 * when a thread wakes up at 0x100 we can use this bit
-			 * to distinguish between fastsleep and deep winkle.
-			 * This is not necessary with stop/psscr since PLS
-			 * field of psscr indicates which state we are waking
-			 * up from.
-			 */
-			hsprg0_val |= 1;
-		}
 		rc = opal_slw_set_reg(pir, SPRN_HSPRG0, hsprg0_val);
 		if (rc != 0)
 			return rc;

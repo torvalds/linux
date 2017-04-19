@@ -116,9 +116,7 @@ EXC_VIRT_NONE(0x4000, 0x100)
 
 EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
 	SET_SCRATCH0(r13)
-	GET_PACA(r13)
-	clrrdi	r13,r13,1 /* Last bit of HSPRG0 is set if waking from winkle */
-	EXCEPTION_PROLOG_PSERIES_PACA(PACA_EXGEN, system_reset_common, EXC_STD,
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
 				 IDLETEST, 0x100)
 
 EXC_REAL_END(system_reset, 0x100, 0x100)
@@ -148,14 +146,6 @@ EXC_REAL_BEGIN(machine_check, 0x200, 0x100)
 	 * vector
 	 */
 	SET_SCRATCH0(r13)		/* save r13 */
-	/*
-	 * Running native on arch 2.06 or later, we may wakeup from winkle
-	 * inside machine check. If yes, then last bit of HSPRG0 would be set
-	 * to 1. Hence clear it unconditionally.
-	 */
-	GET_PACA(r13)
-	clrrdi	r13,r13,1
-	SET_PACA(r13)
 	EXCEPTION_PROLOG_0(PACA_EXMC)
 BEGIN_FTR_SECTION
 	b	machine_check_powernv_early
@@ -339,7 +329,7 @@ EXC_COMMON_BEGIN(machine_check_handle_early)
 	 * Go back to nap/sleep/winkle mode again if (b) is true.
 	 */
 	rlwinm.	r11,r12,47-31,30,31	/* Was it in power saving mode? */
-	beq	4f			/* No, it wasn;t */
+	beq	4f			/* No, it wasn't */
 	/* Thread was in power saving mode. Go back to nap again. */
 	cmpwi	r11,2
 	blt	3f
@@ -369,13 +359,8 @@ EXC_COMMON_BEGIN(machine_check_handle_early)
 	/*
 	 * Go back to winkle. Please note that this thread was woken up in
 	 * machine check from winkle and have not restored the per-subcore
-	 * state. Hence before going back to winkle, set last bit of HSPRG0
-	 * to 1. This will make sure that if this thread gets woken up
-	 * again at reset vector 0x100 then it will get chance to restore
-	 * the subcore state.
+	 * state.
 	 */
-	ori	r13,r13,1
-	SET_PACA(r13)
 	IDLE_STATE_ENTER_SEQ_NORET(PPC_WINKLE)
 	/* No return */
 4:
