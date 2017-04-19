@@ -17,7 +17,6 @@
 
 /* Developer notes:
  *
- * VBI support is not yet working
  * Enough is implemented here for CVBS and S-Video inputs, but the actual
  *  analog demodulator code isn't implemented (not needed for xc5000 since it
  *  has its own demodulator and outputs CVBS)
