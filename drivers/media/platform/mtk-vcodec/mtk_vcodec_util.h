@@ -66,15 +66,15 @@ extern bool mtk_vcodec_dbg;
 
 #else
 
-#define mtk_v4l2_debug(level, fmt, args...)
-#define mtk_v4l2_err(fmt, args...)
-#define mtk_v4l2_debug_enter()
-#define mtk_v4l2_debug_leave()
+#define mtk_v4l2_debug(level, fmt, args...) {}
+#define mtk_v4l2_err(fmt, args...) {}
+#define mtk_v4l2_debug_enter() {}
+#define mtk_v4l2_debug_leave() {}
 
-#define mtk_vcodec_debug(h, fmt, args...)
-#define mtk_vcodec_err(h, fmt, args...)
-#define mtk_vcodec_debug_enter(h)
-#define mtk_vcodec_debug_leave(h)
+#define mtk_vcodec_debug(h, fmt, args...) {}
+#define mtk_vcodec_err(h, fmt, args...) {}
+#define mtk_vcodec_debug_enter(h) {}
+#define mtk_vcodec_debug_leave(h) {}
 
 #endif
 
