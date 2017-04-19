@@ -53,9 +53,13 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
 
-	/* no target to schedule */
-	if (!scheduler->next_vgpu)
+	/* no need to schedule if next_vgpu is the same with current_vgpu,
+	 * let scheduler chose next_vgpu again by setting it to NULL.
+	 */
+	if (scheduler->next_vgpu == scheduler->current_vgpu) {
+		scheduler->next_vgpu = NULL;
 		return;
+	}
 
 	gvt_dbg_sched("try to schedule next vgpu %d\n",
 			scheduler->next_vgpu->id);
