@@ -665,6 +665,25 @@ void wbt_disable_default(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(wbt_disable_default);
 
+/*
+ * Enable wbt if defaults are configured that way
+ */
+void wbt_enable_default(struct request_queue *q)
+{
+	/* Throttling already enabled? */
+	if (q->rq_wb)
+		return;
+
+	/* Queue not registered? Maybe shutting down... */
+	if (!test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags))
+		return;
+
+	if ((q->mq_ops && IS_ENABLED(CONFIG_BLK_WBT_MQ)) ||
+	    (q->request_fn && IS_ENABLED(CONFIG_BLK_WBT_SQ)))
+		wbt_init(q);
+}
+EXPORT_SYMBOL_GPL(wbt_enable_default);
+
 u64 wbt_default_latency_nsec(struct request_queue *q)
 {
 	/*
