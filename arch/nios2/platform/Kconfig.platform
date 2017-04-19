@@ -81,6 +81,15 @@ config NIOS2_HW_DIV_SUPPORT
 	  Set to true if you configured the Nios II to include the DIV
 	  instruction.  Enables the -mhw-div compiler flag.
 
+config NIOS2_BMX_SUPPORT
+	bool "Enable BMX instructions"
+	depends on NIOS2_ARCH_REVISION = 2
+	default n
+	help
+	  Set to true if you configured the Nios II R2 to include
+	  the BMX Bit Manipulation Extension instructions. Enables
+	  the -mbmx compiler flag.
+
 config NIOS2_FPU_SUPPORT
 	bool "Custom floating point instr support"
 	default n

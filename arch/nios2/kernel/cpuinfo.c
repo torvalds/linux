@@ -67,6 +67,7 @@ void __init setup_cpuinfo(void)
 	cpuinfo.has_div = of_property_read_bool(cpu, "altr,has-div");
 	cpuinfo.has_mul = of_property_read_bool(cpu, "altr,has-mul");
 	cpuinfo.has_mulx = of_property_read_bool(cpu, "altr,has-mulx");
+	cpuinfo.has_bmx = of_property_read_bool(cpu, "altr,has-bmx");
 	cpuinfo.mmu = of_property_read_bool(cpu, "altr,has-mmu");
 
 	if (IS_ENABLED(CONFIG_NIOS2_HW_DIV_SUPPORT) && !cpuinfo.has_div)
@@ -77,6 +78,9 @@ void __init setup_cpuinfo(void)
 
 	if (IS_ENABLED(CONFIG_NIOS2_HW_MULX_SUPPORT) && !cpuinfo.has_mulx)
 		err_cpu("MULX");
+
+	if (IS_ENABLED(CONFIG_NIOS2_BMX_SUPPORT) && !cpuinfo.has_bmx)
+		err_cpu("BMX");
 
 	cpuinfo.tlb_num_ways = fcpu(cpu, "altr,tlb-num-ways");
 	if (!cpuinfo.tlb_num_ways)
@@ -143,10 +147,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   "HW:\n"
 		   " MUL:\t\t%s\n"
 		   " MULX:\t\t%s\n"
-		   " DIV:\t\t%s\n",
+		   " DIV:\t\t%s\n"
+		   " BMX:\t\t%s\n",
 		   cpuinfo.has_mul ? "yes" : "no",
 		   cpuinfo.has_mulx ? "yes" : "no",
-		   cpuinfo.has_div ? "yes" : "no");
+		   cpuinfo.has_div ? "yes" : "no",
+		   cpuinfo.has_bmx ? "yes" : "no");
 
 	seq_printf(m,
 		   "Icache:\t\t%ukB, line length: %u\n",
