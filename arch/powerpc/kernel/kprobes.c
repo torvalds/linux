@@ -49,8 +49,21 @@ kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 #ifdef PPC64_ELF_ABI_v2
 	/* PPC64 ABIv2 needs local entry point */
 	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
-	if (addr && !offset)
-		addr = (kprobe_opcode_t *)ppc_function_entry(addr);
+	if (addr && !offset) {
+#ifdef CONFIG_KPROBES_ON_FTRACE
+		unsigned long faddr;
+		/*
+		 * Per livepatch.h, ftrace location is always within the first
+		 * 16 bytes of a function on powerpc with -mprofile-kernel.
+		 */
+		faddr = ftrace_location_range((unsigned long)addr,
+					      (unsigned long)addr + 16);
+		if (faddr)
+			addr = (kprobe_opcode_t *)faddr;
+		else
+#endif
+			addr = (kprobe_opcode_t *)ppc_function_entry(addr);
+	}
 #elif defined(PPC64_ELF_ABI_v1)
 	/*
 	 * 64bit powerpc ABIv1 uses function descriptors:
