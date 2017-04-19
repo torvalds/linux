@@ -603,6 +603,7 @@ struct __sk_buff {
 	__u32 tc_classid;
 	__u32 data;
 	__u32 data_end;
+	__u32 napi_id;
 };
 
 struct bpf_tunnel_key {
