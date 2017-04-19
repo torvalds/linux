@@ -1520,10 +1520,10 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	ccn->node = devm_kzalloc(ccn->dev, sizeof(*ccn->node) * ccn->num_nodes,
-		GFP_KERNEL);
-	ccn->xp = devm_kzalloc(ccn->dev, sizeof(*ccn->node) * ccn->num_xps,
-		GFP_KERNEL);
+	ccn->node = devm_kcalloc(ccn->dev, ccn->num_nodes, sizeof(*ccn->node),
+				 GFP_KERNEL);
+	ccn->xp = devm_kcalloc(ccn->dev, ccn->num_xps, sizeof(*ccn->node),
+			       GFP_KERNEL);
 	if (!ccn->node || !ccn->xp)
 		return -ENOMEM;
 
