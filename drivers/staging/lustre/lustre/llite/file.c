@@ -2952,15 +2952,16 @@ static int ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 	return rc;
 }
 
-int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
+int ll_getattr(const struct path *path, struct kstat *stat,
+	       u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_inode(de);
+	struct inode *inode = d_inode(path->dentry);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int res;
 
-	res = ll_inode_revalidate(de, MDS_INODELOCK_UPDATE |
-				      MDS_INODELOCK_LOOKUP);
+	res = ll_inode_revalidate(path->dentry,
+				  MDS_INODELOCK_UPDATE | MDS_INODELOCK_LOOKUP);
 	ll_stats_ops_tally(sbi, LPROC_LL_GETATTR, 1);
 
 	if (res)

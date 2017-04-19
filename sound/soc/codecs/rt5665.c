@@ -1241,7 +1241,7 @@ static irqreturn_t rt5665_irq(int irq, void *data)
 static void rt5665_jd_check_handler(struct work_struct *work)
 {
 	struct rt5665_priv *rt5665 = container_of(work, struct rt5665_priv,
-		calibrate_work.work);
+		jd_check_work.work);
 
 	if (snd_soc_read(rt5665->codec, RT5665_AJD1_CTRL) & 0x0010) {
 		/* jack out */
@@ -2252,7 +2252,7 @@ static const char * const rt5665_if2_1_adc_in_src[] = {
 
 static const SOC_ENUM_SINGLE_DECL(
 	rt5665_if2_1_adc_in_enum, RT5665_DIG_INF2_DATA,
-	RT5665_IF3_ADC_IN_SFT, rt5665_if2_1_adc_in_src);
+	RT5665_IF2_1_ADC_IN_SFT, rt5665_if2_1_adc_in_src);
 
 static const struct snd_kcontrol_new rt5665_if2_1_adc_in_mux =
 	SOC_DAPM_ENUM("IF2_1 ADC IN Source", rt5665_if2_1_adc_in_enum);
@@ -3178,6 +3178,9 @@ static const struct snd_soc_dapm_route rt5665_dapm_routes[] = {
 	{"DAC Mono Right Filter", NULL, "DAC Mono R ASRC", is_using_asrc},
 	{"DAC Stereo1 Filter", NULL, "DAC STO1 ASRC", is_using_asrc},
 	{"DAC Stereo2 Filter", NULL, "DAC STO2 ASRC", is_using_asrc},
+	{"I2S1 ASRC", NULL, "CLKDET"},
+	{"I2S2 ASRC", NULL, "CLKDET"},
+	{"I2S3 ASRC", NULL, "CLKDET"},
 
 	/*Vref*/
 	{"Mic Det Power", NULL, "Vref2"},
@@ -3912,6 +3915,7 @@ static const struct snd_soc_dapm_route rt5665_dapm_routes[] = {
 	{"Mono MIX", "MONOVOL Switch", "MONOVOL"},
 	{"Mono Amp", NULL, "Mono MIX"},
 	{"Mono Amp", NULL, "Vref2"},
+	{"Mono Amp", NULL, "Vref3"},
 	{"Mono Amp", NULL, "CLKDET SYS"},
 	{"Mono Amp", NULL, "CLKDET MONO"},
 	{"Mono Playback", "Switch", "Mono Amp"},
@@ -4798,7 +4802,7 @@ static int rt5665_i2c_probe(struct i2c_client *i2c,
 	/* Enhance performance*/
 	regmap_update_bits(rt5665->regmap, RT5665_PWR_ANLG_1,
 		RT5665_HP_DRIVER_MASK | RT5665_LDO1_DVO_MASK,
-		RT5665_HP_DRIVER_5X | RT5665_LDO1_DVO_09);
+		RT5665_HP_DRIVER_5X | RT5665_LDO1_DVO_12);
 
 	INIT_DELAYED_WORK(&rt5665->jack_detect_work,
 				rt5665_jack_detect_handler);

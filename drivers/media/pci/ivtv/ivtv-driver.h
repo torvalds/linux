@@ -38,37 +38,38 @@
  *                using information provided by Jiun-Kuei Jung @ AVerMedia.
  */
 
-#include <asm/byteorder.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
+#include <linux/pci.h>
+#include <linux/interrupt.h>
+#include <linux/spinlock.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/ivtv.h>
-#include <linux/kernel.h>
-#include <linux/kthread.h>
 #include <linux/list.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/pagemap.h>
-#include <linux/pci.h>
-#include <linux/scatterlist.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/uaccess.h>
 #include <linux/unistd.h>
+#include <linux/pagemap.h>
+#include <linux/scatterlist.h>
+#include <linux/kthread.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <asm/byteorder.h>
 
-#include <media/drv-intf/cx2341x.h>
-#include <media/i2c/ir-kbd-i2c.h>
-#include <media/tuner.h>
+#include <linux/dvb/video.h>
+#include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
-#include <media/v4l2-ioctl.h>
+#include <media/tuner.h>
+#include <media/drv-intf/cx2341x.h>
+#include <media/i2c/ir-kbd-i2c.h>
+
+#include <linux/ivtv.h>
 
 /* Memory layout */
 #define IVTV_ENCODER_OFFSET	0x00000000

@@ -1983,20 +1983,25 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 
 		for (j = 0; j < max_idx; j++) {
 			struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[j];
+			dma_addr_t mapping = rx_buf->mapping;
 			void *data = rx_buf->data;
 
 			if (!data)
 				continue;
 
-			dma_unmap_single(&pdev->dev, rx_buf->mapping,
-					 bp->rx_buf_use_size, bp->rx_dir);
-
 			rx_buf->data = NULL;
 
-			if (BNXT_RX_PAGE_MODE(bp))
+			if (BNXT_RX_PAGE_MODE(bp)) {
+				mapping -= bp->rx_dma_offset;
+				dma_unmap_page(&pdev->dev, mapping,
+					       PAGE_SIZE, bp->rx_dir);
 				__free_page(data);
-			else
+			} else {
+				dma_unmap_single(&pdev->dev, mapping,
+						 bp->rx_buf_use_size,
+						 bp->rx_dir);
 				kfree(data);
+			}
 		}
 
 		for (j = 0; j < max_agg_idx; j++) {
@@ -2453,6 +2458,18 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 	}
 
 	return 0;
+}
+
+static void bnxt_init_cp_rings(struct bnxt *bp)
+{
+	int i;
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_cp_ring_info *cpr = &bp->bnapi[i]->cp_ring;
+		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
+
+		ring->fw_ring_id = INVALID_HW_RING_ID;
+	}
 }
 
 static int bnxt_init_rx_rings(struct bnxt *bp)
@@ -4465,6 +4482,10 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
 	}
 #endif
+	if (BNXT_PF(bp) && (le16_to_cpu(resp->flags) &
+			    FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED))
+		bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_5:
@@ -4728,7 +4749,7 @@ static int bnxt_set_tpa(struct bnxt *bp, bool set_tpa)
 		rc = bnxt_hwrm_vnic_set_tpa(bp, i, tpa_flags);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic set tpa failure rc for vnic %d: %x\n",
-				   rc, i);
+				   i, rc);
 			return rc;
 		}
 	}
@@ -5002,6 +5023,7 @@ static int bnxt_shutdown_nic(struct bnxt *bp, bool irq_re_init)
 
 static int bnxt_init_nic(struct bnxt *bp, bool irq_re_init)
 {
+	bnxt_init_cp_rings(bp);
 	bnxt_init_rx_rings(bp);
 	bnxt_init_tx_rings(bp);
 	bnxt_init_ring_grps(bp, irq_re_init);
@@ -5507,8 +5529,9 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK;
 	}
-	link_info->support_auto_speeds =
-		le16_to_cpu(resp->supported_speeds_auto_mode);
+	if (resp->supported_speeds_auto_mode)
+		link_info->support_auto_speeds =
+			le16_to_cpu(resp->supported_speeds_auto_mode);
 
 hwrm_phy_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -6495,8 +6518,14 @@ static void bnxt_reset_task(struct bnxt *bp, bool silent)
 	if (!silent)
 		bnxt_dbg_dump_states(bp);
 	if (netif_running(bp->dev)) {
+		int rc;
+
+		if (!silent)
+			bnxt_ulp_stop(bp);
 		bnxt_close_nic(bp, false, false);
-		bnxt_open_nic(bp, false, false);
+		rc = bnxt_open_nic(bp, false, false);
+		if (!silent && !rc)
+			bnxt_ulp_start(bp);
 	}
 }
 
@@ -7444,6 +7473,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
+	rc = bnxt_hwrm_func_reset(bp);
+	if (rc)
+		goto init_err_pci_clean;
+
 	bnxt_hwrm_fw_set_time(bp);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
@@ -7551,10 +7584,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
 
 	rc = bnxt_probe_phy(bp);
-	if (rc)
-		goto init_err_pci_clean;
-
-	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)
 		goto init_err_pci_clean;
 

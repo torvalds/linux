@@ -234,7 +234,7 @@ static unsigned int us2e_freq_get(unsigned int cpu)
 	cpumask_t cpus_allowed;
 	unsigned long clock_tick, estar;
 
-	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
+	cpumask_copy(&cpus_allowed, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	clock_tick = sparc64_get_clock_tick(cpu) / 1000;
@@ -252,7 +252,7 @@ static int us2e_freq_target(struct cpufreq_policy *policy, unsigned int index)
 	unsigned long clock_tick, divisor, old_divisor, estar;
 	cpumask_t cpus_allowed;
 
-	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
+	cpumask_copy(&cpus_allowed, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	new_freq = clock_tick = sparc64_get_clock_tick(cpu) / 1000;

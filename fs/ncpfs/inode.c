@@ -30,6 +30,7 @@
 #include <linux/vfs.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
+#include <linux/sched/signal.h>
 #include <linux/namei.h>
 
 #include <net/sock.h>

@@ -48,6 +48,7 @@
 #include <linux/cdev.h>
 #include <linux/vmalloc.h>
 #include <linux/io.h>
+#include <linux/sched/mm.h>
 
 #include <rdma/ib.h>
 
@@ -185,7 +186,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	if (fd) {
 		fd->rec_cpu_num = -1; /* no cpu affinity by default */
 		fd->mm = current->mm;
-		atomic_inc(&fd->mm->mm_count);
+		mmgrab(fd->mm);
 		fp->private_data = fd;
 	} else {
 		fp->private_data = NULL;

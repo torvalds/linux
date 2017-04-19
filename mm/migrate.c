@@ -40,6 +40,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
 #include <linux/page_owner.h>
+#include <linux/sched/mm.h>
 
 #include <asm/tlbflush.h>
 
@@ -208,8 +209,11 @@ static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 
 	VM_BUG_ON_PAGE(PageTail(page), page);
 	while (page_vma_mapped_walk(&pvmw)) {
-		new = page - pvmw.page->index +
-			linear_page_index(vma, pvmw.address);
+		if (PageKsm(page))
+			new = page;
+		else
+			new = page - pvmw.page->index +
+				linear_page_index(vma, pvmw.address);
 
 		get_page(new);
 		pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));

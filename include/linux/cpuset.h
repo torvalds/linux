@@ -9,6 +9,8 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/topology.h>
+#include <linux/sched/task.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/mm.h>

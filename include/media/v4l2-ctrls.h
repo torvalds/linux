@@ -174,10 +174,10 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  *		not freed when the control is deleted. Should this be needed
  *		then a new internal bitfield can be added to tell the framework
  *		to free this pointer.
- * @p_cur:	The control's current value represented via an union with
+ * @p_cur:	The control's current value represented via a union with
  *		provides a standard way of accessing control types
  *		through a pointer.
- * @p_new:	The control's new value represented via an union with provides
+ * @p_new:	The control's new value represented via a union with provides
  *		a standard way of accessing control types
  *		through a pointer.
  */

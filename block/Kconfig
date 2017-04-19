@@ -189,4 +189,9 @@ config BLK_MQ_PCI
 	depends on BLOCK && PCI
 	default y
 
+config BLK_MQ_VIRTIO
+	bool
+	depends on BLOCK && VIRTIO
+	default y
+
 source block/Kconfig.iosched

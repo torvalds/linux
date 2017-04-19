@@ -230,7 +230,7 @@ static inline int hugepd_ok(hugepd_t hpd)
 	return ((hpd_val(hpd) & 0x4) != 0);
 #else
 	/* We clear the top bit to indicate hugepd */
-	return ((hpd_val(hpd) & PD_HUGE) ==  0);
+	return (hpd_val(hpd) && (hpd_val(hpd) & PD_HUGE) == 0);
 #endif
 }
 

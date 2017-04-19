@@ -251,14 +251,13 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
 
-void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 pmtu)
+void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu)
 {
-	struct dst_entry *dst;
+	struct dst_entry *dst = sctp_transport_dst_check(t);
 
 	if (unlikely(pmtu < SCTP_DEFAULT_MINSEGMENT)) {
 		pr_warn("%s: Reported pmtu %d too low, using default minimum of %d\n",
-			__func__, pmtu,
-			SCTP_DEFAULT_MINSEGMENT);
+			__func__, pmtu, SCTP_DEFAULT_MINSEGMENT);
 		/* Use default minimum segment size and disable
 		 * pmtu discovery on this transport.
 		 */
@@ -267,17 +266,13 @@ void sctp_transport_update_pmtu(struct sock *sk, struct sctp_transport *t, u32 p
 		t->pathmtu = pmtu;
 	}
 
-	dst = sctp_transport_dst_check(t);
-	if (!dst)
-		t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
-
 	if (dst) {
-		dst->ops->update_pmtu(dst, sk, NULL, pmtu);
-
+		dst->ops->update_pmtu(dst, t->asoc->base.sk, NULL, pmtu);
 		dst = sctp_transport_dst_check(t);
-		if (!dst)
-			t->af_specific->get_dst(t, &t->saddr, &t->fl, sk);
 	}
+
+	if (!dst)
+		t->af_specific->get_dst(t, &t->saddr, &t->fl, t->asoc->base.sk);
 }
 
 /* Caches the dst entry and source address for a transport's destination
@@ -643,9 +638,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->srtt = 0;
 	t->rttvar = 0;
 
-	/* Reset these additional varibles so that we have a clean
-	 * slate.
-	 */
+	/* Reset these additional variables so that we have a clean slate. */
 	t->partial_bytes_acked = 0;
 	t->flight_size = 0;
 	t->error_count = 0;

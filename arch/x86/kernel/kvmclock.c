@@ -25,6 +25,7 @@
 #include <linux/hardirq.h>
 #include <linux/memblock.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>

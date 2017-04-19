@@ -12,6 +12,8 @@
 #ifndef __ASM_AVR32_MMU_CONTEXT_H
 #define __ASM_AVR32_MMU_CONTEXT_H
 
+#include <linux/mm_types.h>
+
 #include <asm/tlbflush.h>
 #include <asm/sysreg.h>
 #include <asm-generic/mm_hooks.h>

@@ -19,7 +19,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sched.h>	/* For jiffies, task states */
+#include <linux/sched/signal.h>	/* For jiffies, task states, etc. */
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
 #include <linux/module.h>
 #include <linux/ctype.h>

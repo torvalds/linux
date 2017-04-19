@@ -2216,18 +2216,15 @@ static int ofdpa_port_stp_update(struct ofdpa_port *ofdpa_port,
 {
 	bool want[OFDPA_CTRL_MAX] = { 0, };
 	bool prev_ctrls[OFDPA_CTRL_MAX];
-	u8 uninitialized_var(prev_state);
+	u8 prev_state;
 	int err;
 	int i;
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		memcpy(prev_ctrls, ofdpa_port->ctrls, sizeof(prev_ctrls));
-		prev_state = ofdpa_port->stp_state;
-	}
-
-	if (ofdpa_port->stp_state == state)
+	prev_state = ofdpa_port->stp_state;
+	if (prev_state == state)
 		return 0;
 
+	memcpy(prev_ctrls, ofdpa_port->ctrls, sizeof(prev_ctrls));
 	ofdpa_port->stp_state = state;
 
 	switch (state) {

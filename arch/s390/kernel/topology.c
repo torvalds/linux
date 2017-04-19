@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/topology.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>

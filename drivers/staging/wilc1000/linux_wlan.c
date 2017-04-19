@@ -213,7 +213,7 @@ static void deinit_irq(struct net_device *dev)
 	vif = netdev_priv(dev);
 	wilc = vif->wilc;
 
-	/* Deintialize IRQ */
+	/* Deinitialize IRQ */
 	if (wilc->dev_irq_num) {
 		free_irq(wilc->dev_irq_num, wilc);
 		gpio_free(wilc->gpio);

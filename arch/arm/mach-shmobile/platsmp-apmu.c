@@ -190,7 +190,7 @@ static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 static void __init shmobile_smp_apmu_setup_boot(void)
 {
 	/* install boot code shared by all CPUs */
-	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
+	shmobile_boot_fn = __pa_symbol(shmobile_smp_boot);
 }
 
 void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
@@ -204,7 +204,7 @@ void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus,
 int shmobile_smp_apmu_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	/* For this particular CPU register boot vector */
-	shmobile_smp_hook(cpu, virt_to_phys(secondary_startup), 0);
+	shmobile_smp_hook(cpu, __pa_symbol(secondary_startup), 0);
 
 	return apmu_wrap(cpu, apmu_power_on);
 }
@@ -308,7 +308,7 @@ int shmobile_smp_apmu_cpu_kill(unsigned int cpu)
 #if defined(CONFIG_SUSPEND)
 static int shmobile_smp_apmu_do_suspend(unsigned long cpu)
 {
-	shmobile_smp_hook(cpu, virt_to_phys(cpu_resume), 0);
+	shmobile_smp_hook(cpu, __pa_symbol(cpu_resume), 0);
 	shmobile_smp_apmu_cpu_shutdown(cpu);
 	cpu_do_idle(); /* WFI selects Core Standby */
 	return 1;

@@ -457,6 +457,7 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = true,
+		.bootime = 2,
 	},
 };
 

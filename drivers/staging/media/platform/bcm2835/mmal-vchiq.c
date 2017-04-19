@@ -397,8 +397,10 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 
 	/* get context */
 	msg_context = get_msg_context(instance);
-	if (msg_context == NULL)
-		return -ENOMEM;
+	if (!msg_context) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
 
 	/* store bulk message context for when data arrives */
 	msg_context->u.bulk.instance = instance;
@@ -454,6 +456,7 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 
 	vchi_service_release(instance->handle);
 
+unlock:
 	mutex_unlock(&instance->bulk_mutex);
 
 	return ret;

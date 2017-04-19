@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/net.h>
@@ -39,6 +40,7 @@ struct aead_async_req {
 	struct aead_async_rsgl first_rsgl;
 	struct list_head list;
 	struct kiocb *iocb;
+	struct sock *sk;
 	unsigned int tsgls;
 	char iv[];
 };
@@ -378,12 +380,10 @@ unlock:
 
 static void aead_async_cb(struct crypto_async_request *_req, int err)
 {
-	struct sock *sk = _req->data;
-	struct alg_sock *ask = alg_sk(sk);
-	struct aead_ctx *ctx = ask->private;
-	struct crypto_aead *tfm = crypto_aead_reqtfm(&ctx->aead_req);
-	struct aead_request *req = aead_request_cast(_req);
+	struct aead_request *req = _req->data;
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct aead_async_req *areq = GET_ASYM_REQ(req, tfm);
+	struct sock *sk = areq->sk;
 	struct scatterlist *sg = areq->tsgl;
 	struct aead_async_rsgl *rsgl;
 	struct kiocb *iocb = areq->iocb;
@@ -446,11 +446,12 @@ static int aead_recvmsg_async(struct socket *sock, struct msghdr *msg,
 	memset(&areq->first_rsgl, '\0', sizeof(areq->first_rsgl));
 	INIT_LIST_HEAD(&areq->list);
 	areq->iocb = msg->msg_iocb;
+	areq->sk = sk;
 	memcpy(areq->iv, ctx->iv, crypto_aead_ivsize(tfm));
 	aead_request_set_tfm(req, tfm);
 	aead_request_set_ad(req, ctx->aead_assoclen);
 	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				  aead_async_cb, sk);
+				  aead_async_cb, req);
 	used -= ctx->aead_assoclen;
 
 	/* take over all tx sgls from ctx */

@@ -815,10 +815,8 @@ static void blk_release_queue(struct kobject *kobj)
 	blkcg_exit_queue(q);
 
 	if (q->elevator) {
-		spin_lock_irq(q->queue_lock);
 		ioc_clear_queue(q);
-		spin_unlock_irq(q->queue_lock);
-		elevator_exit(q->elevator);
+		elevator_exit(q, q->elevator);
 	}
 
 	blk_exit_rl(&q->root_rl);

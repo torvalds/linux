@@ -464,6 +464,7 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+	unsigned long flags;
 
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 	mutex_lock(&tilcdc_crtc->enable_lock);
@@ -484,7 +485,17 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	tilcdc_write_mask(dev, LCDC_RASTER_CTRL_REG,
 			  LCDC_PALETTE_LOAD_MODE(DATA_ONLY),
 			  LCDC_PALETTE_LOAD_MODE_MASK);
+
+	/* There is no real chance for a race here as the time stamp
+	 * is taken before the raster DMA is started. The spin-lock is
+	 * taken to have a memory barrier after taking the time-stamp
+	 * and to avoid a context switch between taking the stamp and
+	 * enabling the raster.
+	 */
+	spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
+	tilcdc_crtc->last_vblank = ktime_get();
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
+	spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
 
 	drm_crtc_vblank_on(crtc);
 
@@ -539,7 +550,6 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 	}
 
 	drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
-	tilcdc_crtc->last_vblank = 0;
 
 	tilcdc_crtc->enabled = false;
 	mutex_unlock(&tilcdc_crtc->enable_lock);
@@ -602,7 +612,6 @@ int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
 
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
@@ -614,28 +623,30 @@ int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 	drm_framebuffer_reference(fb);
 
 	crtc->primary->fb = fb;
+	tilcdc_crtc->event = event;
 
-	spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
+	mutex_lock(&tilcdc_crtc->enable_lock);
 
-	if (crtc->hwmode.vrefresh && ktime_to_ns(tilcdc_crtc->last_vblank)) {
+	if (tilcdc_crtc->enabled) {
+		unsigned long flags;
 		ktime_t next_vblank;
 		s64 tdiff;
 
-		next_vblank = ktime_add_us(tilcdc_crtc->last_vblank,
-			1000000 / crtc->hwmode.vrefresh);
+		spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
 
+		next_vblank = ktime_add_us(tilcdc_crtc->last_vblank,
+					   1000000 / crtc->hwmode.vrefresh);
 		tdiff = ktime_to_us(ktime_sub(next_vblank, ktime_get()));
 
 		if (tdiff < TILCDC_VBLANK_SAFETY_THRESHOLD_US)
 			tilcdc_crtc->next_fb = fb;
+		else
+			set_scanout(crtc, fb);
+
+		spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
 	}
 
-	if (tilcdc_crtc->next_fb != fb)
-		set_scanout(crtc, fb);
-
-	tilcdc_crtc->event = event;
-
-	spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
+	mutex_unlock(&tilcdc_crtc->enable_lock);
 
 	return 0;
 }
@@ -1036,5 +1047,5 @@ int tilcdc_crtc_create(struct drm_device *dev)
 
 fail:
 	tilcdc_crtc_destroy(crtc);
-	return -ENOMEM;
+	return ret;
 }

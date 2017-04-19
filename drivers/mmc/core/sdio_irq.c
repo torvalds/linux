@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/kthread.h>
 #include <linux/export.h>
 #include <linux/wait.h>

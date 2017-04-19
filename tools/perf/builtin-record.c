@@ -432,7 +432,7 @@ static int record__open(struct record *rec)
 try_again:
 		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
-				if (verbose)
+				if (verbose > 0)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
@@ -1677,8 +1677,12 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
+	if (quiet)
+		perf_quiet_option();
+
+	/* Make system wide (-a) the default target. */
 	if (!argc && target__none(&rec->opts.target))
-		usage_with_options(record_usage, record_options);
+		rec->opts.target.system_wide = true;
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
 		usage_with_options_msg(record_usage, record_options,

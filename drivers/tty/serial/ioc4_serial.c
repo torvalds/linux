@@ -210,7 +210,7 @@
 #define IOC4_SSCR_PAUSE_STATE   0x40000000  /* Sets when PAUSE takes effect */
 #define IOC4_SSCR_RESET	        0x80000000  /* Reset DMA channels */
 
-/* All producer/comsumer pointers are the same bitfield */
+/* All producer/consumer pointers are the same bitfield */
 #define IOC4_PROD_CONS_PTR_4K   0x00000ff8	/* For 4K buffers */
 #define IOC4_PROD_CONS_PTR_1K   0x000003f8	/* For 1K buffers */
 #define IOC4_PROD_CONS_PTR_OFF           3

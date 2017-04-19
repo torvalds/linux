@@ -1700,6 +1700,7 @@ static int select_pmem_id(struct nd_region *nd_region, u8 *pmem_id)
 struct device *create_namespace_pmem(struct nd_region *nd_region,
 		struct nd_namespace_label *nd_label)
 {
+	u64 altcookie = nd_region_interleave_set_altcookie(nd_region);
 	u64 cookie = nd_region_interleave_set_cookie(nd_region);
 	struct nd_label_ent *label_ent;
 	struct nd_namespace_pmem *nspm;
@@ -1718,7 +1719,11 @@ struct device *create_namespace_pmem(struct nd_region *nd_region,
 	if (__le64_to_cpu(nd_label->isetcookie) != cookie) {
 		dev_dbg(&nd_region->dev, "invalid cookie in label: %pUb\n",
 				nd_label->uuid);
-		return ERR_PTR(-EAGAIN);
+		if (__le64_to_cpu(nd_label->isetcookie) != altcookie)
+			return ERR_PTR(-EAGAIN);
+
+		dev_dbg(&nd_region->dev, "valid altcookie in label: %pUb\n",
+				nd_label->uuid);
 	}
 
 	nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
@@ -1733,9 +1738,14 @@ struct device *create_namespace_pmem(struct nd_region *nd_region,
 	res->name = dev_name(&nd_region->dev);
 	res->flags = IORESOURCE_MEM;
 
-	for (i = 0; i < nd_region->ndr_mappings; i++)
-		if (!has_uuid_at_pos(nd_region, nd_label->uuid, cookie, i))
-			break;
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		if (has_uuid_at_pos(nd_region, nd_label->uuid, cookie, i))
+			continue;
+		if (has_uuid_at_pos(nd_region, nd_label->uuid, altcookie, i))
+			continue;
+		break;
+	}
+
 	if (i < nd_region->ndr_mappings) {
 		struct nvdimm_drvdata *ndd = to_ndd(&nd_region->mapping[i]);
 

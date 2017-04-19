@@ -2,7 +2,8 @@
  * Implement CPU time clocks for the POSIX clock interface.
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/cputime.h>
 #include <linux/posix-timers.h>
 #include <linux/errno.h>
 #include <linux/math64.h>

@@ -32,6 +32,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
+#include <linux/sched/signal.h>
 
 #define FIRMWARE "cpia2/stv0672_vp4.bin"
 MODULE_FIRMWARE(FIRMWARE);

@@ -9,6 +9,7 @@
  * to indicate a major problem.
  */
 #include <linux/debug_locks.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>

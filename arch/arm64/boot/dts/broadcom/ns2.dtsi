@@ -114,6 +114,7 @@
 	pcie0: pcie@20020000 {
 		compatible = "brcm,iproc-pcie";
 		reg = <0 0x20020000 0 0x1000>;
+		dma-coherent;
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0>;
@@ -144,6 +145,7 @@
 	pcie4: pcie@50020000 {
 		compatible = "brcm,iproc-pcie";
 		reg = <0 0x50020000 0 0x1000>;
+		dma-coherent;
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0>;
@@ -174,6 +176,7 @@
 	pcie8: pcie@60c00000 {
 		compatible = "brcm,iproc-pcie-paxc";
 		reg = <0 0x60c00000 0 0x1000>;
+		dma-coherent;
 		linux,pci-domain = <8>;
 
 		bus-range = <0x0 0x1>;
@@ -203,6 +206,7 @@
 			      <0x61030000 0x100>;
 			reg-names = "amac_base", "idm_base", "nicpm_base";
 			interrupts = <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			phy-handle = <&gphy0>;
 			phy-mode = "rgmii";
 			status = "disabled";
@@ -213,6 +217,7 @@
 			reg = <0x612c0000 0x445>;  /* PDC FS0 regs */
 			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
+			dma-coherent;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
 		};
@@ -222,6 +227,7 @@
 			reg = <0x612e0000 0x445>;  /* PDC FS1 regs */
 			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
+			dma-coherent;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
 		};
@@ -231,6 +237,7 @@
 			reg = <0x61300000 0x445>;  /* PDC FS2 regs */
 			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
+			dma-coherent;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
 		};
@@ -240,6 +247,7 @@
 			reg = <0x61320000 0x445>;  /* PDC FS3 regs */
 			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <1>;
+			dma-coherent;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
 		};
@@ -644,6 +652,7 @@
 		sata: ahci@663f2000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x663f2000 0x1000>;
+			dma-coherent;
 			reg-names = "ahci";
 			interrupts = <GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -667,6 +676,7 @@
 			compatible = "brcm,sdhci-iproc-cygnus";
 			reg = <0x66420000 0x100>;
 			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			bus-width = <8>;
 			clocks = <&genpll_sw BCM_NS2_GENPLL_SW_SDIO_CLK>;
 			status = "disabled";
@@ -676,6 +686,7 @@
 			compatible = "brcm,sdhci-iproc-cygnus";
 			reg = <0x66430000 0x100>;
 			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			bus-width = <8>;
 			clocks = <&genpll_sw BCM_NS2_GENPLL_SW_SDIO_CLK>;
 			status = "disabled";

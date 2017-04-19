@@ -140,6 +140,9 @@ struct qed_iov_vf_mbx {
 	/* Address in VF where a pending message is located */
 	dma_addr_t pending_req;
 
+	/* Message from VF awaits handling */
+	bool b_pending_msg;
+
 	u8 *offset;
 
 	/* saved VF request header */
@@ -232,7 +235,6 @@ struct qed_vf_info {
  */
 struct qed_pf_iov {
 	struct qed_vf_info vfs_array[MAX_NUM_VFS];
-	u64 pending_events[QED_VF_ARRAY_LENGTH];
 	u64 pending_flr[QED_VF_ARRAY_LENGTH];
 
 	/* Allocate message address continuosuly and split to each VF */

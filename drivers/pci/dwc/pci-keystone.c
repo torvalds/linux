@@ -401,6 +401,8 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 
+	ks_pcie->pci = pci;
+
 	/* initialize SerDes Phy if present */
 	phy = devm_phy_get(dev, "pcie-phy");
 	if (PTR_ERR_OR_ZERO(phy) == -EPROBE_DEFER)

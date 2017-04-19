@@ -4874,7 +4874,7 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		kfree(af_params);
 	} else {
 		brcmf_dbg(TRACE, "Unhandled, fc=%04x!!\n", mgmt->frame_control);
-		brcmf_dbg_hex_dump(true, buf, len, "payload, len=%Zu\n", len);
+		brcmf_dbg_hex_dump(true, buf, len, "payload, len=%zu\n", len);
 	}
 
 exit:

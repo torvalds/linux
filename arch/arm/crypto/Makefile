@@ -15,7 +15,17 @@ ce-obj-$(CONFIG_CRYPTO_SHA1_ARM_CE) += sha1-arm-ce.o
 ce-obj-$(CONFIG_CRYPTO_SHA2_ARM_CE) += sha2-arm-ce.o
 ce-obj-$(CONFIG_CRYPTO_GHASH_ARM_CE) += ghash-arm-ce.o
 ce-obj-$(CONFIG_CRYPTO_CRCT10DIF_ARM_CE) += crct10dif-arm-ce.o
-ce-obj-$(CONFIG_CRYPTO_CRC32_ARM_CE) += crc32-arm-ce.o
+crc-obj-$(CONFIG_CRYPTO_CRC32_ARM_CE) += crc32-arm-ce.o
+
+ifneq ($(crc-obj-y)$(crc-obj-m),)
+ifeq ($(call as-instr,.arch armv8-a\n.arch_extension crc,y,n),y)
+ce-obj-y += $(crc-obj-y)
+ce-obj-m += $(crc-obj-m)
+else
+$(warning These CRC Extensions modules need binutils 2.23 or higher)
+$(warning $(crc-obj-y) $(crc-obj-m))
+endif
+endif
 
 ifneq ($(ce-obj-y)$(ce-obj-m),)
 ifeq ($(call as-instr,.fpu crypto-neon-fp-armv8,y,n),y)

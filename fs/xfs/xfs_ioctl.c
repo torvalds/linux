@@ -43,6 +43,7 @@
 #include "xfs_acl.h"
 
 #include <linux/capability.h>
+#include <linux/cred.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>

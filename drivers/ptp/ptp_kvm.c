@@ -193,10 +193,7 @@ static int __init ptp_kvm_init(void)
 
 	kvm_ptp_clock.ptp_clock = ptp_clock_register(&kvm_ptp_clock.caps, NULL);
 
-	if (IS_ERR(kvm_ptp_clock.ptp_clock))
-		return PTR_ERR(kvm_ptp_clock.ptp_clock);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(kvm_ptp_clock.ptp_clock);
 }
 
 module_init(ptp_kvm_init);

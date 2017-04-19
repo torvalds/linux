@@ -334,7 +334,7 @@ static int test_parman_check_array(struct test_parman *test_parman,
 		last_priority = item->prio->priority;
 
 		if (item->parman_item.index != i) {
-			pr_err("Item has different index in compare to where it actualy is (%lu != %d)\n",
+			pr_err("Item has different index in compare to where it actually is (%lu != %d)\n",
 			       item->parman_item.index, i);
 			return -EINVAL;
 		}

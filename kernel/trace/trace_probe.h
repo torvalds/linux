@@ -248,7 +248,7 @@ ASSIGN_FETCH_FUNC(file_offset, ftype),			\
 #define FETCH_TYPE_STRING	0
 #define FETCH_TYPE_STRSIZE	1
 
-#ifdef CONFIG_KPROBE_EVENT
+#ifdef CONFIG_KPROBE_EVENTS
 struct symbol_cache;
 unsigned long update_symbol_cache(struct symbol_cache *sc);
 void free_symbol_cache(struct symbol_cache *sc);
@@ -278,7 +278,7 @@ alloc_symbol_cache(const char *sym, long offset)
 {
 	return NULL;
 }
-#endif /* CONFIG_KPROBE_EVENT */
+#endif /* CONFIG_KPROBE_EVENTS */
 
 struct probe_arg {
 	struct fetch_param	fetch;

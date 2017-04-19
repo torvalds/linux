@@ -1,5 +1,5 @@
 /**
- * OMAP and TWL PMIC specific intializations.
+ * OMAP and TWL PMIC specific initializations.
  *
  * Copyright (C) 2010 Texas Instruments Incorporated.
  * Thara Gopinath

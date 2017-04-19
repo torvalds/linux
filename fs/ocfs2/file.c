@@ -808,7 +808,7 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	/* We know that zero_from is block aligned */
 	for (block_start = zero_from; block_start < zero_to;
 	     block_start = block_end) {
-		block_end = block_start + (1 << inode->i_blkbits);
+		block_end = block_start + i_blocksize(inode);
 
 		/*
 		 * block_start is block-aligned.  Bump it by one to force
@@ -1306,16 +1306,15 @@ bail:
 	return status;
 }
 
-int ocfs2_getattr(struct vfsmount *mnt,
-		  struct dentry *dentry,
-		  struct kstat *stat)
+int ocfs2_getattr(const struct path *path, struct kstat *stat,
+		  u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_inode(dentry);
-	struct super_block *sb = dentry->d_sb;
+	struct inode *inode = d_inode(path->dentry);
+	struct super_block *sb = path->dentry->d_sb;
 	struct ocfs2_super *osb = sb->s_fs_info;
 	int err;
 
-	err = ocfs2_inode_revalidate(dentry);
+	err = ocfs2_inode_revalidate(path->dentry);
 	if (err) {
 		if (err != -ENOENT)
 			mlog_errno(err);

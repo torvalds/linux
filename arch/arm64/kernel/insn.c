@@ -31,6 +31,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/fixmap.h>
 #include <asm/insn.h>
+#include <asm/kprobes.h>
 
 #define AARCH64_INSN_SF_BIT	BIT(31)
 #define AARCH64_INSN_N_BIT	BIT(22)

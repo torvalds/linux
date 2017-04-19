@@ -118,10 +118,10 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	return 0;
 }
 
-static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			struct kstat *stat)
+static int proc_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	if (de && de->nlink)
 		set_nlink(inode, de->nlink);

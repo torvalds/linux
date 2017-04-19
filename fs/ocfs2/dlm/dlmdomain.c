@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/debugfs.h>
+#include <linux/sched/signal.h>
 
 #include "cluster/heartbeat.h"
 #include "cluster/nodemanager.h"

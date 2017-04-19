@@ -56,6 +56,8 @@
 #include <linux/syscalls.h>
 #include <linux/mount.h>
 #include <linux/uaccess.h>
+#include <linux/sched/cputime.h>
+
 #include <asm/div64.h>
 #include <linux/blkdev.h> /* sector_div */
 #include <linux/pid_namespace.h>

@@ -258,7 +258,7 @@ inet_csk_rto_backoff(const struct inet_connection_sock *icsk,
         return (unsigned long)min_t(u64, when, max_when);
 }
 
-struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
+struct sock *inet_csk_accept(struct sock *sk, int flags, int *err, bool kern);
 
 int inet_csk_get_port(struct sock *sk, unsigned short snum);
 

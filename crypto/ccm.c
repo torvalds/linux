@@ -45,6 +45,7 @@ struct crypto_rfc4309_req_ctx {
 
 struct crypto_ccm_req_priv_ctx {
 	u8 odata[16];
+	u8 idata[16];
 	u8 auth_tag[16];
 	u32 flags;
 	struct scatterlist src[3];
@@ -183,8 +184,8 @@ static int crypto_ccm_auth(struct aead_request *req, struct scatterlist *plain,
 	AHASH_REQUEST_ON_STACK(ahreq, ctx->mac);
 	unsigned int assoclen = req->assoclen;
 	struct scatterlist sg[3];
-	u8 odata[16];
-	u8 idata[16];
+	u8 *odata = pctx->odata;
+	u8 *idata = pctx->idata;
 	int ilen, err;
 
 	/* format control data for input */

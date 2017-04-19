@@ -80,8 +80,9 @@ static void test_hashmap(int task, void *data)
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == 0);
 	key = 2;
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
-	key = 1;
-	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
+	key = 3;
+	assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == -1 &&
+	       errno == E2BIG);
 
 	/* Check that key = 0 doesn't exist. */
 	key = 0;
@@ -108,6 +109,24 @@ static void test_hashmap(int task, void *data)
 	       errno == ENOENT);
 
 	close(fd);
+}
+
+static void test_hashmap_sizes(int task, void *data)
+{
+	int fd, i, j;
+
+	for (i = 1; i <= 512; i <<= 1)
+		for (j = 1; j <= 1 << 18; j <<= 1) {
+			fd = bpf_create_map(BPF_MAP_TYPE_HASH, i, j,
+					    2, map_flags);
+			if (fd < 0) {
+				printf("Failed to create hashmap key=%d value=%d '%s'\n",
+				       i, j, strerror(errno));
+				exit(1);
+			}
+			close(fd);
+			usleep(10); /* give kernel time to destroy */
+		}
 }
 
 static void test_hashmap_percpu(int task, void *data)
@@ -317,7 +336,10 @@ static void test_arraymap_percpu(int task, void *data)
 static void test_arraymap_percpu_many_keys(void)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
-	unsigned int nr_keys = 20000;
+	/* nr_keys is not too large otherwise the test stresses percpu
+	 * allocator more than anything else
+	 */
+	unsigned int nr_keys = 2000;
 	long values[nr_cpus];
 	int key, fd, i;
 
@@ -419,6 +441,7 @@ static void test_map_stress(void)
 {
 	run_parallel(100, test_hashmap, NULL);
 	run_parallel(100, test_hashmap_percpu, NULL);
+	run_parallel(100, test_hashmap_sizes, NULL);
 
 	run_parallel(100, test_arraymap, NULL);
 	run_parallel(100, test_arraymap_percpu, NULL);

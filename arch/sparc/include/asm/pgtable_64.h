@@ -12,6 +12,7 @@
  * the SpitFire page tables.
  */
 
+#include <asm-generic/5level-fixup.h>
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <asm/types.h>
@@ -678,6 +679,14 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	return pte_pfn(pte);
 }
 
+#define __HAVE_ARCH_PMD_WRITE
+static inline unsigned long pmd_write(pmd_t pmd)
+{
+	pte_t pte = __pte(pmd_val(pmd));
+
+	return pte_write(pte);
+}
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline unsigned long pmd_dirty(pmd_t pmd)
 {
@@ -691,13 +700,6 @@ static inline unsigned long pmd_young(pmd_t pmd)
 	pte_t pte = __pte(pmd_val(pmd));
 
 	return pte_young(pte);
-}
-
-static inline unsigned long pmd_write(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	return pte_write(pte);
 }
 
 static inline unsigned long pmd_trans_huge(pmd_t pmd)
@@ -877,6 +879,9 @@ static inline unsigned long pud_pfn(pud_t pud)
 #define pte_offset_kernel		pte_index
 #define pte_offset_map			pte_index
 #define pte_unmap(pte)			do { } while (0)
+
+/* We cannot include <linux/mm_types.h> at this point yet: */
+extern struct mm_struct init_mm;
 
 /* Actual page table PTE updates.  */
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,

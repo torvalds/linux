@@ -1523,18 +1523,6 @@ static bool ufs_qcom_testbus_cfg_is_ok(struct ufs_qcom_host *host)
 		return false;
 	}
 
-	/*
-	 * Not performing check for each individual select_major
-	 * mappings of select_minor, since there is no harm in
-	 * configuring a non-existent select_minor
-	 */
-	if (host->testbus.select_minor > 0xFF) {
-		dev_err(host->hba->dev,
-			"%s: 0x%05X is not a legal testbus option\n",
-			__func__, host->testbus.select_minor);
-		return false;
-	}
-
 	return true;
 }
 

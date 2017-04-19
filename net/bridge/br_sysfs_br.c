@@ -19,6 +19,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
 #include <linux/times.h>
+#include <linux/sched/signal.h>
 
 #include "br_private.h"
 

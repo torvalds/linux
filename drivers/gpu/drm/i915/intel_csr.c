@@ -35,7 +35,6 @@
  */
 
 #define I915_CSR_GLK "i915/glk_dmc_ver1_01.bin"
-MODULE_FIRMWARE(I915_CSR_GLK);
 #define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
 
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"

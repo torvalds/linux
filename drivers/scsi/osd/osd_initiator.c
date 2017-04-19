@@ -1290,7 +1290,7 @@ int osd_req_add_get_attr_list(struct osd_request *or,
 	or->enc_get_attr.total_bytes = total_bytes;
 
 	OSD_DEBUG(
-	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%Zu)\n",
+	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%zu)\n",
 	       or->get_attr.total_bytes,
 	       or->get_attr.total_bytes - _osd_req_sizeof_alist_header(or),
 	       or->enc_get_attr.total_bytes,
@@ -1677,7 +1677,7 @@ int osd_finalize_request(struct osd_request *or,
 		}
 	} else {
 		/* TODO: I think that for the GET_ATTR command these 2 should
-		 * be reversed to keep them in execution order (for embeded
+		 * be reversed to keep them in execution order (for embedded
 		 * targets with low memory footprint)
 		 */
 		ret = _osd_req_finalize_set_attr_list(or);

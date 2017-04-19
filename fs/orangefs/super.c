@@ -115,6 +115,13 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	return &orangefs_inode->vfs_inode;
 }
 
+static void orangefs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
+}
+
 static void orangefs_destroy_inode(struct inode *inode)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
@@ -123,7 +130,7 @@ static void orangefs_destroy_inode(struct inode *inode)
 			"%s: deallocated %p destroying inode %pU\n",
 			__func__, orangefs_inode, get_khandle_from_ino(inode));
 
-	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
+	call_rcu(&inode->i_rcu, orangefs_i_callback);
 }
 
 /*
@@ -256,8 +263,13 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 		if (!new_op)
 			return -ENOMEM;
 		new_op->upcall.req.features.features = 0;
-		ret = service_operation(new_op, "orangefs_features", 0);
-		orangefs_features = new_op->downcall.resp.features.features;
+		ret = service_operation(new_op, "orangefs_features",
+		    ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
+		if (!ret)
+			orangefs_features =
+			    new_op->downcall.resp.features.features;
+		else
+			orangefs_features = 0;
 		op_release(new_op);
 	} else {
 		orangefs_features = 0;
@@ -481,7 +493,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	if (ret) {
 		d = ERR_PTR(ret);
-		goto free_op;
+		goto free_sb_and_op;
 	}
 
 	/*
@@ -507,6 +519,9 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
 
+	/* Must be removed from the list now. */
+	ORANGEFS_SB(sb)->no_list = 0;
+
 	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
@@ -521,6 +536,10 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	return dget(sb->s_root);
 
+free_sb_and_op:
+	/* Will call orangefs_kill_sb with sb not in list. */
+	ORANGEFS_SB(sb)->no_list = 1;
+	deactivate_locked_super(sb);
 free_op:
 	gossip_err("orangefs_mount: mount request failed with %d\n", ret);
 	if (ret == -EINVAL) {
@@ -546,12 +565,14 @@ void orangefs_kill_sb(struct super_block *sb)
 	 */
 	 orangefs_unmount_sb(sb);
 
-	/* remove the sb from our list of orangefs specific sb's */
-
-	spin_lock(&orangefs_superblocks_lock);
-	__list_del_entry(&ORANGEFS_SB(sb)->list);	/* not list_del_init */
-	ORANGEFS_SB(sb)->list.prev = NULL;
-	spin_unlock(&orangefs_superblocks_lock);
+	if (!ORANGEFS_SB(sb)->no_list) {
+		/* remove the sb from our list of orangefs specific sb's */
+		spin_lock(&orangefs_superblocks_lock);
+		/* not list_del_init */
+		__list_del_entry(&ORANGEFS_SB(sb)->list);
+		ORANGEFS_SB(sb)->list.prev = NULL;
+		spin_unlock(&orangefs_superblocks_lock);
+	}
 
 	/*
 	 * make sure that ORANGEFS_DEV_REMOUNT_ALL loop that might've seen us

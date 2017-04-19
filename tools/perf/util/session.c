@@ -932,7 +932,7 @@ static void branch_stack__printf(struct perf_sample *sample)
 
 		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
 			i, e->from, e->to,
-			e->flags.cycles,
+			(unsigned short)e->flags.cycles,
 			e->flags.mispred ? "M" : " ",
 			e->flags.predicted ? "P" : " ",
 			e->flags.abort ? "A" : " ",

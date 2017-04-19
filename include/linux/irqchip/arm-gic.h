@@ -96,6 +96,9 @@
 #define GICH_MISR_EOI			(1 << 0)
 #define GICH_MISR_U			(1 << 1)
 
+#define GICV_PMR_PRIORITY_SHIFT		3
+#define GICV_PMR_PRIORITY_MASK		(0x1f << GICV_PMR_PRIORITY_SHIFT)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/irqdomain.h>

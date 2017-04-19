@@ -325,7 +325,7 @@ _dispatch_do_ipage_fault:
     .org 0x500
 	EXCEPTION_HANDLE(_timer_handler)
 
-/* ---[ 0x600: Aligment exception ]-------------------------------------- */
+/* ---[ 0x600: Alignment exception ]-------------------------------------- */
     .org 0x600
 	EXCEPTION_HANDLE(_alignment_handler)
 
@@ -640,8 +640,8 @@ _flush_tlb:
 
 /* ========================================[ cache ]=== */
 
-	/* aligment here so we don't change memory offsets with
-	 * memory controler defined
+	/* alignment here so we don't change memory offsets with
+	 * memory controller defined
 	 */
 	.align 0x2000
 

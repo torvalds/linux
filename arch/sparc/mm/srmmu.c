@@ -54,6 +54,7 @@
 enum mbus_module srmmu_modtype;
 static unsigned int hwbug_bitmask;
 int vac_cache_size;
+EXPORT_SYMBOL(vac_cache_size);
 int vac_line_size;
 
 extern struct resource sparc_iomap;

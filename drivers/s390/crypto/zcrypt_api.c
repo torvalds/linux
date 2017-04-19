@@ -374,7 +374,7 @@ out:
 	return rc;
 }
 
-static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
+long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
@@ -444,6 +444,7 @@ out:
 			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
+EXPORT_SYMBOL(zcrypt_send_cprb);
 
 static bool is_desired_ep11_card(unsigned int dev_id,
 				 unsigned short target_num,
@@ -619,7 +620,7 @@ out:
 	return rc;
 }
 
-static void zcrypt_device_status_mask(struct zcrypt_device_matrix *matrix)
+void zcrypt_device_status_mask(struct zcrypt_device_matrix *matrix)
 {
 	struct zcrypt_card *zc;
 	struct zcrypt_queue *zq;

@@ -679,7 +679,8 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 
 	/* Min bandwidth configuration */
 	__qed_configure_pf_min_bandwidth(p_hwfn, p_ptt, p_link, min_bw);
-	qed_configure_vp_wfq_on_link_change(p_hwfn->cdev, p_link->min_pf_rate);
+	qed_configure_vp_wfq_on_link_change(p_hwfn->cdev, p_ptt,
+					    p_link->min_pf_rate);
 
 	p_link->an = !!(status & LINK_STATUS_AUTO_NEGOTIATE_ENABLED);
 	p_link->an_complete = !!(status &

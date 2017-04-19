@@ -2357,7 +2357,7 @@ int wilc_deinit_host_int(struct net_device *net)
 		del_timer_sync(&wilc_during_ip_timer);
 
 	if (s32Error)
-		netdev_err(net, "Error while deintializing host interface\n");
+		netdev_err(net, "Error while deinitializing host interface\n");
 
 	return s32Error;
 }

@@ -123,7 +123,7 @@ static int __init arcnet_init(void)
 		arc_proto_map[count] = arc_proto_default;
 
 	if (BUGLVL(D_DURING))
-		pr_info("struct sizes: %Zd %Zd %Zd %Zd %Zd\n",
+		pr_info("struct sizes: %zd %zd %zd %zd %zd\n",
 			sizeof(struct arc_hardware),
 			sizeof(struct arc_rfc1201),
 			sizeof(struct arc_rfc1051),

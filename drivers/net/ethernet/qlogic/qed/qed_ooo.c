@@ -159,6 +159,8 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	if (!p_ooo_info->ooo_history.p_cqes)
 		goto no_history_mem;
 
+	p_ooo_info->ooo_history.num_of_cqes = QED_MAX_NUM_OOO_HISTORY_ENTRIES;
+
 	return p_ooo_info;
 
 no_history_mem:

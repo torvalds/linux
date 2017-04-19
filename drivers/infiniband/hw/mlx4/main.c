@@ -39,6 +39,9 @@
 #include <linux/inetdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
+
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 #include <net/devlink.h>

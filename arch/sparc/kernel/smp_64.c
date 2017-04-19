@@ -5,7 +5,8 @@
 
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/hotplug.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/threads.h>
@@ -122,7 +123,7 @@ void smp_callin(void)
 	current_thread_info()->new_child = 0;
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	/* inform the notifiers about the new cpu */

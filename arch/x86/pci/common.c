@@ -735,6 +735,15 @@ void pcibios_disable_device (struct pci_dev *dev)
 		pcibios_disable_irq(dev);
 }
 
+#ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
+void pcibios_release_device(struct pci_dev *dev)
+{
+	if (atomic_dec_return(&dev->enable_cnt) >= 0)
+		pcibios_disable_device(dev);
+
+}
+#endif
+
 int pci_ext_cfg_avail(void)
 {
 	if (raw_pci_ext_ops)

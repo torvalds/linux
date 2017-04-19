@@ -336,12 +336,26 @@ int ib_register_device(struct ib_device *device,
 	struct device *parent = device->dev.parent;
 
 	WARN_ON_ONCE(!parent);
-	if (!device->dev.dma_ops)
-		device->dev.dma_ops = parent->dma_ops;
-	if (!device->dev.dma_mask)
-		device->dev.dma_mask = parent->dma_mask;
-	if (!device->dev.coherent_dma_mask)
-		device->dev.coherent_dma_mask = parent->coherent_dma_mask;
+	WARN_ON_ONCE(device->dma_device);
+	if (device->dev.dma_ops) {
+		/*
+		 * The caller provided custom DMA operations. Copy the
+		 * DMA-related fields that are used by e.g. dma_alloc_coherent()
+		 * into device->dev.
+		 */
+		device->dma_device = &device->dev;
+		if (!device->dev.dma_mask)
+			device->dev.dma_mask = parent->dma_mask;
+		if (!device->dev.coherent_dma_mask)
+			device->dev.coherent_dma_mask =
+				parent->coherent_dma_mask;
+	} else {
+		/*
+		 * The caller did not provide custom DMA operations. Use the
+		 * DMA mapping operations of the parent device.
+		 */
+		device->dma_device = parent;
+	}
 
 	mutex_lock(&device_mutex);
 
@@ -369,10 +383,18 @@ int ib_register_device(struct ib_device *device,
 		goto out;
 	}
 
+	ret = ib_device_register_rdmacg(device);
+	if (ret) {
+		pr_warn("Couldn't register device with rdma cgroup\n");
+		ib_cache_cleanup_one(device);
+		goto out;
+	}
+
 	memset(&device->attrs, 0, sizeof(device->attrs));
 	ret = device->query_device(device, &device->attrs, &uhw);
 	if (ret) {
 		pr_warn("Couldn't query the device attributes\n");
+		ib_device_unregister_rdmacg(device);
 		ib_cache_cleanup_one(device);
 		goto out;
 	}
@@ -381,6 +403,7 @@ int ib_register_device(struct ib_device *device,
 	if (ret) {
 		pr_warn("Couldn't register device %s with driver model\n",
 			device->name);
+		ib_device_unregister_rdmacg(device);
 		ib_cache_cleanup_one(device);
 		goto out;
 	}
@@ -430,6 +453,7 @@ void ib_unregister_device(struct ib_device *device)
 
 	mutex_unlock(&device_mutex);
 
+	ib_device_unregister_rdmacg(device);
 	ib_device_unregister_sysfs(device);
 	ib_cache_cleanup_one(device);
 
@@ -1005,8 +1029,7 @@ static int __init ib_core_init(void)
 		return -ENOMEM;
 
 	ib_comp_wq = alloc_workqueue("ib-comp-wq",
-			WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
-			WQ_UNBOUND_MAX_ACTIVE);
+			WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_SYSFS, 0);
 	if (!ib_comp_wq) {
 		ret = -ENOMEM;
 		goto err;

@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/signal.h>
+#include <linux/sched/signal.h>
 #include <linux/file.h>
 #include "autofs_i.h"
 

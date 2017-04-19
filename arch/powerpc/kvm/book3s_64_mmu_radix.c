@@ -32,6 +32,7 @@ int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	u32 pid;
 	int ret, level, ps;
 	__be64 prte, rpte;
+	unsigned long ptbl;
 	unsigned long root, pte, index;
 	unsigned long rts, bits, offset;
 	unsigned long gpa;
@@ -53,8 +54,8 @@ int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		return -EINVAL;
 
 	/* Read partition table to find root of tree for effective PID */
-	ret = kvm_read_guest(kvm, kvm->arch.process_table + pid * 16,
-			     &prte, sizeof(prte));
+	ptbl = (kvm->arch.process_table & PRTB_MASK) + (pid * 16);
+	ret = kvm_read_guest(kvm, ptbl, &prte, sizeof(prte));
 	if (ret)
 		return ret;
 

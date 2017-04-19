@@ -1883,17 +1883,6 @@ static int m88e1510_probe(struct phy_device *phydev)
 	return m88e1510_hwmon_probe(phydev);
 }
 
-static void marvell_remove(struct phy_device *phydev)
-{
-#ifdef CONFIG_HWMON
-
-	struct marvell_priv *priv = phydev->priv;
-
-	if (priv && priv->hwmon_dev)
-		hwmon_device_unregister(priv->hwmon_dev);
-#endif
-}
-
 static struct phy_driver marvell_drivers[] = {
 	{
 		.phy_id = MARVELL_PHY_ID_88E1101,
@@ -1974,7 +1963,6 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = &m88e1121_probe,
-		.remove = &marvell_remove,
 		.config_init = &m88e1121_config_init,
 		.config_aneg = &m88e1121_config_aneg,
 		.read_status = &marvell_read_status,
@@ -2087,7 +2075,6 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES | SUPPORTED_FIBRE,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = &m88e1510_probe,
-		.remove = &marvell_remove,
 		.config_init = &m88e1510_config_init,
 		.config_aneg = &m88e1510_config_aneg,
 		.read_status = &marvell_read_status,
@@ -2109,7 +2096,6 @@ static struct phy_driver marvell_drivers[] = {
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = m88e1510_probe,
-		.remove = &marvell_remove,
 		.config_init = &marvell_config_init,
 		.config_aneg = &m88e1510_config_aneg,
 		.read_status = &marvell_read_status,
@@ -2127,7 +2113,6 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1545",
 		.probe = m88e1510_probe,
-		.remove = &marvell_remove,
 		.features = PHY_GBIT_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.config_init = &marvell_config_init,

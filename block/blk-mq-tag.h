@@ -85,4 +85,10 @@ static inline void blk_mq_tag_set_rq(struct blk_mq_hw_ctx *hctx,
 	hctx->tags->rqs[tag] = rq;
 }
 
+static inline bool blk_mq_tag_is_reserved(struct blk_mq_tags *tags,
+					  unsigned int tag)
+{
+	return tag < tags->nr_reserved_tags;
+}
+
 #endif

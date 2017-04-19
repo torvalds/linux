@@ -495,9 +495,9 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 	/*
 	 * Two types of references are supported - those created by Index and
 	 * ref_of operators. A name reference (AML_NAMEPATH_OP) can be converted
-	 * to an union acpi_object, so it is not dereferenced here. A ddb_handle
+	 * to a union acpi_object, so it is not dereferenced here. A ddb_handle
 	 * (AML_LOAD_OP) cannot be dereferenced, nor can it be converted to
-	 * an union acpi_object.
+	 * a union acpi_object.
 	 */
 	switch (info->return_object->reference.class) {
 	case ACPI_REFCLASS_INDEX:

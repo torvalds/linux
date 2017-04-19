@@ -220,8 +220,8 @@ drm_connector_detect(struct drm_connector *connector, bool force)
  *    - drm_mode_validate_basic() performs basic sanity checks
  *    - drm_mode_validate_size() filters out modes larger than @maxX and @maxY
  *      (if specified)
- *    - drm_mode_validate_flag() checks the modes againt basic connector
- *      capabilites (interlace_allowed,doublescan_allowed,stereo_allowed)
+ *    - drm_mode_validate_flag() checks the modes against basic connector
+ *      capabilities (interlace_allowed,doublescan_allowed,stereo_allowed)
  *    - the optional &drm_connector_helper_funcs.mode_valid helper can perform
  *      driver and/or hardware specific checks
  *

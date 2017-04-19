@@ -121,11 +121,9 @@ static inline void native_pmd_clear(pmd_t *pmd)
 	*(tmp + 1) = 0;
 }
 
-#ifndef CONFIG_SMP
 static inline void native_pud_clear(pud_t *pudp)
 {
 }
-#endif
 
 static inline void pud_clear(pud_t *pudp)
 {

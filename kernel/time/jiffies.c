@@ -125,7 +125,7 @@ int register_refined_jiffies(long cycles_per_second)
 	shift_hz += cycles_per_tick/2;
 	do_div(shift_hz, cycles_per_tick);
 	/* Calculate nsec_per_tick using shift_hz */
-	nsec_per_tick = (u64)TICK_NSEC << 8;
+	nsec_per_tick = (u64)NSEC_PER_SEC << 8;
 	nsec_per_tick += (u32)shift_hz/2;
 	do_div(nsec_per_tick, (u32)shift_hz);
 

@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/ktime.h>
+#include <linux/sched/signal.h>
 
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>

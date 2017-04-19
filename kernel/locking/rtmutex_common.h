@@ -13,6 +13,7 @@
 #define __KERNEL_RTMUTEX_COMMON_H
 
 #include <linux/rtmutex.h>
+#include <linux/sched/wake_q.h>
 
 /*
  * This is the control structure for tasks blocked on a rt_mutex,

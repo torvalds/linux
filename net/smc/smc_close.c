@@ -9,6 +9,8 @@
  */
 
 #include <linux/workqueue.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 
 #include "smc.h"

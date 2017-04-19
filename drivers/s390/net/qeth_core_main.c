@@ -3837,6 +3837,7 @@ EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
  * @card:			qeth card structure, to check max. elems.
  * @skb:			SKB address
  * @extra_elems:		extra elems needed, to check against max.
+ * @data_offset:		range starts at skb->data + data_offset
  *
  * Returns the number of pages, and thus QDIO buffer elements, needed to cover
  * skb data, including linear part and fragments. Checks if the result plus
@@ -3844,10 +3845,10 @@ EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
  * Note: extra_elems is not included in the returned result.
  */
 int qeth_get_elements_no(struct qeth_card *card,
-		     struct sk_buff *skb, int extra_elems)
+		     struct sk_buff *skb, int extra_elems, int data_offset)
 {
 	int elements = qeth_get_elements_for_range(
-				(addr_t)skb->data,
+				(addr_t)skb->data + data_offset,
 				(addr_t)skb->data + skb_headlen(skb)) +
 			qeth_get_elements_for_frags(skb);
 

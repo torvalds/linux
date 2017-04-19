@@ -293,6 +293,7 @@ enum plane_id {
 	PLANE_PRIMARY,
 	PLANE_SPRITE0,
 	PLANE_SPRITE1,
+	PLANE_SPRITE2,
 	PLANE_CURSOR,
 	I915_MAX_PLANES,
 };
@@ -805,6 +806,7 @@ struct intel_csr {
 	func(has_resource_streamer); \
 	func(has_runtime_pm); \
 	func(has_snoop); \
+	func(unfenced_needs_alignment); \
 	func(cursor_needs_physical); \
 	func(hws_needs_physical); \
 	func(overlay_needs_physical); \
@@ -1324,7 +1326,7 @@ struct intel_gen6_power_mgmt {
 	unsigned boosts;
 
 	/* manual wa residency calculations */
-	struct intel_rps_ei up_ei, down_ei;
+	struct intel_rps_ei ei;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -2062,8 +2064,6 @@ struct drm_i915_private {
 	struct kmem_cache *dependencies;
 
 	const struct intel_device_info info;
-
-	int relative_constants_mode;
 
 	void __iomem *regs;
 
@@ -3341,6 +3341,7 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 }
 
 int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
+void i915_gem_reset(struct drm_i915_private *dev_priv);
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);

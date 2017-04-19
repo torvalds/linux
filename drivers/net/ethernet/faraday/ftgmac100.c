@@ -28,8 +28,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <net/ip.h>
 #include <net/ncsi.h>
 
@@ -1456,7 +1458,7 @@ err_alloc_etherdev:
 	return err;
 }
 
-static int __exit ftgmac100_remove(struct platform_device *pdev)
+static int ftgmac100_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
@@ -1483,7 +1485,7 @@ MODULE_DEVICE_TABLE(of, ftgmac100_of_match);
 
 static struct platform_driver ftgmac100_driver = {
 	.probe	= ftgmac100_probe,
-	.remove	= __exit_p(ftgmac100_remove),
+	.remove	= ftgmac100_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.of_match_table	= ftgmac100_of_match,

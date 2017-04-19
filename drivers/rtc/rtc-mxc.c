@@ -353,7 +353,7 @@ static int mxc_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 }
 
 /* RTC layer */
-static struct rtc_class_ops mxc_rtc_ops = {
+static const struct rtc_class_ops mxc_rtc_ops = {
 	.release		= mxc_rtc_release,
 	.read_time		= mxc_rtc_read_time,
 	.set_mmss64		= mxc_rtc_set_mmss,

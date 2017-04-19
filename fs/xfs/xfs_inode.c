@@ -50,6 +50,7 @@
 #include "xfs_log.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_reflink.h"
+#include "xfs_dir2_priv.h"
 
 kmem_zone_t *xfs_inode_zone;
 
@@ -1615,7 +1616,7 @@ xfs_itruncate_extents(
 
 	/* Remove all pending CoW reservations. */
 	error = xfs_reflink_cancel_cow_blocks(ip, &tp, first_unmap_block,
-			last_block);
+			last_block, true);
 	if (error)
 		goto out;
 
@@ -3545,6 +3546,12 @@ xfs_iflush_int(
 	 */
 	if (ip->i_d.di_version < 3)
 		ip->i_d.di_flushiter++;
+
+	/* Check the inline directory data. */
+	if (S_ISDIR(VFS_I(ip)->i_mode) &&
+	    ip->i_d.di_format == XFS_DINODE_FMT_LOCAL &&
+	    xfs_dir2_sf_verify(ip))
+		goto corrupt_out;
 
 	/*
 	 * Copy the dirty parts of the inode into the on-disk inode.  We always

@@ -271,10 +271,13 @@ const struct file_operations tty_ldiscs_proc_fops = {
 
 struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
 {
+	struct tty_ldisc *ld;
+
 	ldsem_down_read(&tty->ldisc_sem, MAX_SCHEDULE_TIMEOUT);
-	if (!tty->ldisc)
+	ld = tty->ldisc;
+	if (!ld)
 		ldsem_up_read(&tty->ldisc_sem);
-	return tty->ldisc;
+	return ld;
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
 

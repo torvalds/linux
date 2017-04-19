@@ -520,7 +520,7 @@ static void struct_ep_qh_setup(struct fsl_udc *udc, unsigned char ep_num,
 /* Setup qh structure and ep register for ep0. */
 static void ep0_setup(struct fsl_udc *udc)
 {
-	/* the intialization of an ep includes: fields in QH, Regs,
+	/* the initialization of an ep includes: fields in QH, Regs,
 	 * fsl_ep struct */
 	struct_ep_qh_setup(udc, 0, USB_RECV, USB_ENDPOINT_XFER_CONTROL,
 			USB_MAX_CTRL_PAYLOAD, 0, 0);
@@ -2349,7 +2349,7 @@ static int struct_ep_setup(struct fsl_udc *udc, unsigned char index,
 }
 
 /* Driver probe function
- * all intialization operations implemented here except enabling usb_intr reg
+ * all initialization operations implemented here except enabling usb_intr reg
  * board setup should have been done in the platform code
  */
 static int fsl_udc_probe(struct platform_device *pdev)

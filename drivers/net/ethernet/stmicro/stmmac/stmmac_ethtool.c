@@ -435,32 +435,14 @@ static int stmmac_ethtool_get_regs_len(struct net_device *dev)
 static void stmmac_ethtool_gregs(struct net_device *dev,
 			  struct ethtool_regs *regs, void *space)
 {
-	int i;
 	u32 *reg_space = (u32 *) space;
 
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
-	if (priv->plat->has_gmac || priv->plat->has_gmac4) {
-		/* MAC registers */
-		for (i = 0; i < 55; i++)
-			reg_space[i] = readl(priv->ioaddr + (i * 4));
-		/* DMA registers */
-		for (i = 0; i < 22; i++)
-			reg_space[i + 55] =
-			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
-	} else {
-		/* MAC registers */
-		for (i = 0; i < 12; i++)
-			reg_space[i] = readl(priv->ioaddr + (i * 4));
-		/* DMA registers */
-		for (i = 0; i < 9; i++)
-			reg_space[i + 12] =
-			    readl(priv->ioaddr + (DMA_BUS_MODE + (i * 4)));
-		reg_space[22] = readl(priv->ioaddr + DMA_CUR_TX_BUF_ADDR);
-		reg_space[23] = readl(priv->ioaddr + DMA_CUR_RX_BUF_ADDR);
-	}
+	priv->hw->mac->dump_regs(priv->hw, reg_space);
+	priv->hw->dma->dump_regs(priv->ioaddr, reg_space);
 }
 
 static void

@@ -29,7 +29,7 @@ config OPROFILE_EVENT_MULTIPLEX
 	  The number of hardware counters is limited. The multiplexing
 	  feature enables OProfile to gather more events than counters
 	  are provided by the hardware. This is realized by switching
-	  between events at an user specified time interval.
+	  between events at a user specified time interval.
 
 	  If unsure, say N.
 

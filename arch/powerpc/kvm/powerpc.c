@@ -23,6 +23,7 @@
 #include <linux/kvm_host.h>
 #include <linux/vmalloc.h>
 #include <linux/hrtimer.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/file.h>

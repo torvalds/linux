@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -350,7 +351,7 @@ static int genregs64_set(struct task_struct *target,
 	}
 
 	if (!ret) {
-		unsigned long y;
+		unsigned long y = regs->y;
 
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 &y,

@@ -27,6 +27,8 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/stringify.h>
+#include <linux/sched/signal.h>
+
 #include <asm/ioctls.h>
 
 #include <net/bluetooth/bluetooth.h>

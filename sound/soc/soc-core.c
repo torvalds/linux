@@ -3041,7 +3041,7 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 	unsigned int i;
 	int ret;
 
-	dev_dbg(dev, "ASoC: dai register %s #%Zu\n", dev_name(dev), count);
+	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
 
 	component->dai_drv = dai_drv;
 
@@ -3326,7 +3326,10 @@ static int snd_soc_platform_drv_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_platform *platform = rtd->platform;
 
-	return platform->driver->pcm_new(rtd);
+	if (platform->driver->pcm_new)
+		return platform->driver->pcm_new(rtd);
+	else
+		return 0;
 }
 
 static void snd_soc_platform_drv_pcm_free(struct snd_pcm *pcm)
@@ -3334,7 +3337,8 @@ static void snd_soc_platform_drv_pcm_free(struct snd_pcm *pcm)
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
 
-	platform->driver->pcm_free(pcm);
+	if (platform->driver->pcm_free)
+		platform->driver->pcm_free(pcm);
 }
 
 /**

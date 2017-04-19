@@ -26,6 +26,8 @@
 #define __HCI_CORE_H
 
 #include <linux/leds.h>
+#include <linux/rculist.h>
+
 #include <net/bluetooth/hci.h>
 #include <net/bluetooth/hci_sock.h>
 

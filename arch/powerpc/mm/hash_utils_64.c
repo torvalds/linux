@@ -23,7 +23,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/sysctl.h>

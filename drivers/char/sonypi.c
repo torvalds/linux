@@ -603,7 +603,7 @@ static void sonypi_type3_srs(void)
 	u16 v16;
 	u8  v8;
 
-	/* This model type uses the same initialiazation of
+	/* This model type uses the same initialization of
 	 * the embedded controller as the type2 models. */
 	sonypi_type2_srs();
 

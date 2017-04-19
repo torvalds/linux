@@ -569,6 +569,11 @@ struct amd_iommu {
 	volatile u64 __aligned(8) cmd_sem;
 };
 
+static inline struct amd_iommu *dev_to_amd_iommu(struct device *dev)
+{
+	return container_of(dev, struct amd_iommu, iommu.dev);
+}
+
 #define ACPIHID_UID_LEN 256
 #define ACPIHID_HID_LEN 9
 

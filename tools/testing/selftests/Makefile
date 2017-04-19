@@ -26,6 +26,7 @@ TARGETS += ptrace
 TARGETS += seccomp
 TARGETS += sigaltstack
 TARGETS += size
+TARGETS += splice
 TARGETS += static_keys
 TARGETS += sync
 TARGETS += sysctl

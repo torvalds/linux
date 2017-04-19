@@ -20,7 +20,7 @@
 #define CS42L42_HPOUT_LOAD_1NF		0
 #define CS42L42_HPOUT_LOAD_10NF		1
 
-/* HPOUT Clamp to GND Overide */
+/* HPOUT Clamp to GND Override */
 #define CS42L42_HPOUT_CLAMP_EN		0
 #define CS42L42_HPOUT_CLAMP_DIS		1
 

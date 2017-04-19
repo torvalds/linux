@@ -92,17 +92,13 @@ static int dwmac1000_rx_ipc_enable(struct mac_device_info *hw)
 	return !!(value & GMAC_CONTROL_IPC);
 }
 
-static void dwmac1000_dump_regs(struct mac_device_info *hw)
+static void dwmac1000_dump_regs(struct mac_device_info *hw, u32 *reg_space)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	int i;
-	pr_info("\tDWMAC1000 regs (base addr = 0x%p)\n", ioaddr);
 
-	for (i = 0; i < 55; i++) {
-		int offset = i * 4;
-		pr_info("\tReg No. %d (offset 0x%x): 0x%08x\n", i,
-			offset, readl(ioaddr + offset));
-	}
+	for (i = 0; i < 55; i++)
+		reg_space[i] = readl(ioaddr + i * 4);
 }
 
 static void dwmac1000_set_umac_addr(struct mac_device_info *hw,

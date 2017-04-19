@@ -360,29 +360,6 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static unsigned long vgic_mmio_read_its_ctlr(struct kvm *vcpu,
-					     struct vgic_its *its,
-					     gpa_t addr, unsigned int len)
-{
-	u32 reg = 0;
-
-	mutex_lock(&its->cmd_lock);
-	if (its->creadr == its->cwriter)
-		reg |= GITS_CTLR_QUIESCENT;
-	if (its->enabled)
-		reg |= GITS_CTLR_ENABLE;
-	mutex_unlock(&its->cmd_lock);
-
-	return reg;
-}
-
-static void vgic_mmio_write_its_ctlr(struct kvm *kvm, struct vgic_its *its,
-				     gpa_t addr, unsigned int len,
-				     unsigned long val)
-{
-	its->enabled = !!(val & GITS_CTLR_ENABLE);
-}
-
 static unsigned long vgic_mmio_read_its_typer(struct kvm *kvm,
 					      struct vgic_its *its,
 					      gpa_t addr, unsigned int len)
@@ -1161,33 +1138,16 @@ static void vgic_mmio_write_its_cbaser(struct kvm *kvm, struct vgic_its *its,
 #define ITS_CMD_SIZE			32
 #define ITS_CMD_OFFSET(reg)		((reg) & GENMASK(19, 5))
 
-/*
- * By writing to CWRITER the guest announces new commands to be processed.
- * To avoid any races in the first place, we take the its_cmd lock, which
- * protects our ring buffer variables, so that there is only one user
- * per ITS handling commands at a given time.
- */
-static void vgic_mmio_write_its_cwriter(struct kvm *kvm, struct vgic_its *its,
-					gpa_t addr, unsigned int len,
-					unsigned long val)
+/* Must be called with the cmd_lock held. */
+static void vgic_its_process_commands(struct kvm *kvm, struct vgic_its *its)
 {
 	gpa_t cbaser;
 	u64 cmd_buf[4];
-	u32 reg;
 
-	if (!its)
+	/* Commands are only processed when the ITS is enabled. */
+	if (!its->enabled)
 		return;
 
-	mutex_lock(&its->cmd_lock);
-
-	reg = update_64bit_reg(its->cwriter, addr & 7, len, val);
-	reg = ITS_CMD_OFFSET(reg);
-	if (reg >= ITS_CMD_BUFFER_SIZE(its->cbaser)) {
-		mutex_unlock(&its->cmd_lock);
-		return;
-	}
-
-	its->cwriter = reg;
 	cbaser = CBASER_ADDRESS(its->cbaser);
 
 	while (its->cwriter != its->creadr) {
@@ -1207,6 +1167,34 @@ static void vgic_mmio_write_its_cwriter(struct kvm *kvm, struct vgic_its *its,
 		if (its->creadr == ITS_CMD_BUFFER_SIZE(its->cbaser))
 			its->creadr = 0;
 	}
+}
+
+/*
+ * By writing to CWRITER the guest announces new commands to be processed.
+ * To avoid any races in the first place, we take the its_cmd lock, which
+ * protects our ring buffer variables, so that there is only one user
+ * per ITS handling commands at a given time.
+ */
+static void vgic_mmio_write_its_cwriter(struct kvm *kvm, struct vgic_its *its,
+					gpa_t addr, unsigned int len,
+					unsigned long val)
+{
+	u64 reg;
+
+	if (!its)
+		return;
+
+	mutex_lock(&its->cmd_lock);
+
+	reg = update_64bit_reg(its->cwriter, addr & 7, len, val);
+	reg = ITS_CMD_OFFSET(reg);
+	if (reg >= ITS_CMD_BUFFER_SIZE(its->cbaser)) {
+		mutex_unlock(&its->cmd_lock);
+		return;
+	}
+	its->cwriter = reg;
+
+	vgic_its_process_commands(kvm, its);
 
 	mutex_unlock(&its->cmd_lock);
 }
@@ -1285,6 +1273,39 @@ static void vgic_mmio_write_its_baser(struct kvm *kvm,
 	reg = vgic_sanitise_its_baser(reg);
 
 	*regptr = reg;
+}
+
+static unsigned long vgic_mmio_read_its_ctlr(struct kvm *vcpu,
+					     struct vgic_its *its,
+					     gpa_t addr, unsigned int len)
+{
+	u32 reg = 0;
+
+	mutex_lock(&its->cmd_lock);
+	if (its->creadr == its->cwriter)
+		reg |= GITS_CTLR_QUIESCENT;
+	if (its->enabled)
+		reg |= GITS_CTLR_ENABLE;
+	mutex_unlock(&its->cmd_lock);
+
+	return reg;
+}
+
+static void vgic_mmio_write_its_ctlr(struct kvm *kvm, struct vgic_its *its,
+				     gpa_t addr, unsigned int len,
+				     unsigned long val)
+{
+	mutex_lock(&its->cmd_lock);
+
+	its->enabled = !!(val & GITS_CTLR_ENABLE);
+
+	/*
+	 * Try to process any pending commands. This function bails out early
+	 * if the ITS is disabled or no commands have been queued.
+	 */
+	vgic_its_process_commands(kvm, its);
+
+	mutex_unlock(&its->cmd_lock);
 }
 
 #define REGISTER_ITS_DESC(off, rd, wr, length, acc)		\

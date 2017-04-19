@@ -315,15 +315,15 @@ void omap3_save_scratchpad_contents(void)
 	scratchpad_contents.boot_config_ptr = 0x0;
 	if (cpu_is_omap3630())
 		scratchpad_contents.public_restore_ptr =
-			virt_to_phys(omap3_restore_3630);
+			__pa_symbol(omap3_restore_3630);
 	else if (omap_rev() != OMAP3430_REV_ES3_0 &&
 					omap_rev() != OMAP3430_REV_ES3_1 &&
 					omap_rev() != OMAP3430_REV_ES3_1_2)
 		scratchpad_contents.public_restore_ptr =
-			virt_to_phys(omap3_restore);
+			__pa_symbol(omap3_restore);
 	else
 		scratchpad_contents.public_restore_ptr =
-			virt_to_phys(omap3_restore_es3);
+			__pa_symbol(omap3_restore_es3);
 
 	if (omap_type() == OMAP2_DEVICE_TYPE_GP)
 		scratchpad_contents.secure_ram_restore_ptr = 0x0;
@@ -395,7 +395,7 @@ void omap3_save_scratchpad_contents(void)
 	sdrc_block_contents.flags = 0x0;
 	sdrc_block_contents.block_size = 0x0;
 
-	arm_context_addr = virt_to_phys(omap3_arm_context);
+	arm_context_addr = __pa_symbol(omap3_arm_context);
 
 	/* Copy all the contents to the scratchpad location */
 	scratchpad_address = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD);

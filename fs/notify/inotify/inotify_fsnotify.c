@@ -30,6 +30,7 @@
 #include <linux/slab.h> /* kmem_* */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/user.h>
 
 #include "inotify.h"
 

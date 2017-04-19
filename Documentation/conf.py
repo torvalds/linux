@@ -135,7 +135,7 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-primary_domain = 'C'
+primary_domain = 'c'
 highlight_language = 'none'
 
 # -- Options for HTML output ----------------------------------------------

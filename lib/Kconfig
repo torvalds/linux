@@ -559,7 +559,7 @@ config SBITMAP
 	bool
 
 config PARMAN
-	tristate
+	tristate "parman" if COMPILE_TEST
 
 config PRIME_NUMBERS
 	tristate

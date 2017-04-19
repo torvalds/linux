@@ -13,6 +13,7 @@
 #include <linux/bpf_trace.h>
 #include <linux/syscalls.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/vmalloc.h>
 #include <linux/mmzone.h>
 #include <linux/anon_inodes.h>
@@ -616,6 +617,14 @@ static void fixup_bpf_calls(struct bpf_prog *prog)
 			if (insn->imm == BPF_FUNC_xdp_adjust_head)
 				prog->xdp_adjust_head = 1;
 			if (insn->imm == BPF_FUNC_tail_call) {
+				/* If we tail call into other programs, we
+				 * cannot make any assumptions since they
+				 * can be replaced dynamically during runtime
+				 * in the program array.
+				 */
+				prog->cb_access = 1;
+				prog->xdp_adjust_head = 1;
+
 				/* mark bpf_tail_call as different opcode
 				 * to avoid conditional branch in
 				 * interpeter for every normal call

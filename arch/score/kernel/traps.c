@@ -24,7 +24,11 @@
  */
 
 #include <linux/extable.h>
-#include <linux/sched.h>
+#include <linux/ptrace.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/mm_types.h>
 
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
@@ -336,7 +340,7 @@ void __init trap_init(void)
 	set_except_vector(18, handle_dbe);
 	flush_icache_range(DEBUG_VECTOR_BASE_ADDR, IRQ_VECTOR_BASE_ADDR);
 
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	cpu_cache_init();
 }

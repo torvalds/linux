@@ -1251,10 +1251,10 @@ struct ksz_port_info {
  * @tx_size:		Transmit data size.  Used for TX optimization.
  * 			The maximum is defined by MAX_TX_HELD_SIZE.
  * @perm_addr:		Permanent MAC address.
- * @override_addr:	Overrided MAC address.
+ * @override_addr:	Overridden MAC address.
  * @address:		Additional MAC address entries.
  * @addr_list_size:	Additional MAC address list size.
- * @mac_override:	Indication of MAC address overrided.
+ * @mac_override:	Indication of MAC address overridden.
  * @promiscuous:	Counter to keep track of promiscuous mode set.
  * @all_multi:		Counter to keep track of all multicast mode set.
  * @multi_list:		Multicast address entries.
@@ -4042,7 +4042,7 @@ static int empty_addr(u8 *addr)
  * @hw: 	The hardware instance.
  *
  * This routine programs the MAC address of the hardware when the address is
- * overrided.
+ * overridden.
  */
 static void hw_set_addr(struct ksz_hw *hw)
 {
@@ -7043,7 +7043,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (macaddr[0] != ':')
 		get_mac_addr(hw_priv, macaddr, MAIN_PORT);
 
-	/* Read MAC address and initialize override address if not overrided. */
+	/* Read MAC address and initialize override address if not overridden. */
 	hw_read_addr(hw);
 
 	/* Multiple device interfaces mode requires a second MAC address. */

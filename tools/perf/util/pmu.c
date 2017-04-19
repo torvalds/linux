@@ -745,7 +745,7 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 		}
 	}
 
-	if (verbose)
+	if (verbose > 0)
 		printf("Required parameter '%s' not specified\n", term->config);
 
 	return -1;
@@ -803,7 +803,7 @@ static int pmu_config_term(struct list_head *formats,
 
 	format = pmu_find_format(formats, term->config);
 	if (!format) {
-		if (verbose)
+		if (verbose > 0)
 			printf("Invalid event/parameter '%s'\n", term->config);
 		if (err) {
 			char *pmu_term = pmu_formats_string(formats);
@@ -834,11 +834,20 @@ static int pmu_config_term(struct list_head *formats,
 	 * Either directly use a numeric term, or try to translate string terms
 	 * using event parameters.
 	 */
-	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
+	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
+		if (term->no_value &&
+		    bitmap_weight(format->bits, PERF_PMU_FORMAT_BITS) > 1) {
+			if (err) {
+				err->idx = term->err_val;
+				err->str = strdup("no value assigned for term");
+			}
+			return -EINVAL;
+		}
+
 		val = term->val.num;
-	else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR) {
+	} else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR) {
 		if (strcmp(term->val.str, "?")) {
-			if (verbose) {
+			if (verbose > 0) {
 				pr_info("Invalid sysfs entry %s=%s\n",
 						term->config, term->val.str);
 			}
@@ -1223,7 +1232,7 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			printf("%*s", 8, "[");
 			wordwrap(aliases[j].desc, 8, columns, 0);
 			printf("]\n");
-			if (verbose)
+			if (verbose > 0)
 				printf("%*s%s/%s/\n", 8, "", aliases[j].pmu, aliases[j].str);
 		} else
 			printf("  %-50s [Kernel PMU event]\n", aliases[j].name);

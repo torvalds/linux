@@ -76,6 +76,8 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/timer.h>
+#include <linux/sched/signal.h>
+
 #include "ar-internal.h"
 
 __read_mostly unsigned int rxrpc_max_client_connections = 1000;

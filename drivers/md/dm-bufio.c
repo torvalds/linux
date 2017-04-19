@@ -11,6 +11,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 #include <linux/jiffies.h>
 #include <linux/vmalloc.h>
 #include <linux/shrinker.h>

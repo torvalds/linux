@@ -1364,6 +1364,10 @@ struct cpl_tx_data {
 #define TX_FORCE_S	13
 #define TX_FORCE_V(x)	((x) << TX_FORCE_S)
 
+#define T6_TX_FORCE_S		20
+#define T6_TX_FORCE_V(x)	((x) << T6_TX_FORCE_S)
+#define T6_TX_FORCE_F		T6_TX_FORCE_V(1U)
+
 enum {
 	ULP_TX_MEM_READ = 2,
 	ULP_TX_MEM_WRITE = 3,

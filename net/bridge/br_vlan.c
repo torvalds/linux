@@ -997,10 +997,10 @@ err_vlan_add:
 	RCU_INIT_POINTER(p->vlgrp, NULL);
 	synchronize_rcu();
 	vlan_tunnel_deinit(vg);
-err_vlan_enabled:
 err_tunnel_init:
 	rhashtable_destroy(&vg->vlan_hash);
 err_rhtbl:
+err_vlan_enabled:
 	kfree(vg);
 
 	goto out;

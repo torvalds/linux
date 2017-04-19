@@ -30,6 +30,8 @@
 #include <linux/crc32.h>
 #include <linux/pagevec.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include "nilfs.h"
 #include "btnode.h"
 #include "page.h"
@@ -723,7 +725,7 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
 
 		lock_page(page);
 		if (!page_has_buffers(page))
-			create_empty_buffers(page, 1 << inode->i_blkbits, 0);
+			create_empty_buffers(page, i_blocksize(inode), 0);
 		unlock_page(page);
 
 		bh = head = page_buffers(page);

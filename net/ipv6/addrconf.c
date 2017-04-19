@@ -43,6 +43,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
@@ -3625,14 +3626,19 @@ restart:
 	INIT_LIST_HEAD(&del_list);
 	list_for_each_entry_safe(ifa, tmp, &idev->addr_list, if_list) {
 		struct rt6_info *rt = NULL;
+		bool keep;
 
 		addrconf_del_dad_work(ifa);
+
+		keep = keep_addr && (ifa->flags & IFA_F_PERMANENT) &&
+			!addr_is_local(&ifa->addr);
+		if (!keep)
+			list_move(&ifa->if_list, &del_list);
 
 		write_unlock_bh(&idev->lock);
 		spin_lock_bh(&ifa->lock);
 
-		if (keep_addr && (ifa->flags & IFA_F_PERMANENT) &&
-		    !addr_is_local(&ifa->addr)) {
+		if (keep) {
 			/* set state to skip the notifier below */
 			state = INET6_IFADDR_STATE_DEAD;
 			ifa->state = 0;
@@ -3644,8 +3650,6 @@ restart:
 		} else {
 			state = ifa->state;
 			ifa->state = INET6_IFADDR_STATE_DEAD;
-
-			list_move(&ifa->if_list, &del_list);
 		}
 
 		spin_unlock_bh(&ifa->lock);
@@ -5692,13 +5696,18 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 	struct inet6_dev *idev = (struct inet6_dev *)ctl->extra1;
 	struct net *net = (struct net *)ctl->extra2;
 
+	if (!rtnl_trylock())
+		return restart_syscall();
+
 	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
 
 	if (write) {
 		new_val = *((int *)ctl->data);
 
-		if (check_addr_gen_mode(new_val) < 0)
-			return -EINVAL;
+		if (check_addr_gen_mode(new_val) < 0) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		/* request for default */
 		if (&net->ipv6.devconf_dflt->addr_gen_mode == ctl->data) {
@@ -5707,19 +5716,22 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 		/* request for individual net device */
 		} else {
 			if (!idev)
-				return ret;
+				goto out;
 
-			if (check_stable_privacy(idev, net, new_val) < 0)
-				return -EINVAL;
+			if (check_stable_privacy(idev, net, new_val) < 0) {
+				ret = -EINVAL;
+				goto out;
+			}
 
 			if (idev->cnf.addr_gen_mode != new_val) {
 				idev->cnf.addr_gen_mode = new_val;
-				rtnl_lock();
 				addrconf_dev_config(idev->dev);
-				rtnl_unlock();
 			}
 		}
 	}
+
+out:
+	rtnl_unlock();
 
 	return ret;
 }
