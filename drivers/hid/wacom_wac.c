@@ -2176,6 +2176,16 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 		wacom_wac->hid_data.cc_index = field->index;
 		wacom_wac->hid_data.cc_value_index = usage->usage_index;
 		break;
+	case HID_DG_CONTACTID:
+		if ((field->logical_maximum - field->logical_minimum) < touch_max) {
+			/*
+			 * The HID descriptor for G11 sensors leaves logical
+			 * maximum set to '1' despite it being a multitouch
+			 * device. Override to a sensible number.
+			 */
+			field->logical_maximum = 255;
+		}
+		break;
 	}
 }
 
