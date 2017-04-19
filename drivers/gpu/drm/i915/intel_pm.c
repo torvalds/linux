@@ -4376,6 +4376,12 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		break;
 	}
 
+	/* When byt can survive without system hang with dynamic
+	 * sw freq adjustments, this restriction can be lifted.
+	 */
+	if (IS_VALLEYVIEW(dev_priv))
+		goto skip_hw_write;
+
 	I915_WRITE(GEN6_RP_UP_EI,
 		GT_INTERVAL_FROM_US(dev_priv, ei_up));
 	I915_WRITE(GEN6_RP_UP_THRESHOLD,
@@ -4394,6 +4400,7 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		    GEN6_RP_UP_BUSY_AVG |
 		    GEN6_RP_DOWN_IDLE_AVG);
 
+skip_hw_write:
 	dev_priv->rps.power = new_power;
 	dev_priv->rps.up_threshold = threshold_up;
 	dev_priv->rps.down_threshold = threshold_down;
@@ -4404,8 +4411,9 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 {
 	u32 mask = 0;
 
+	/* We use UP_EI_EXPIRED interupts for both up/down in manual mode */
 	if (val > dev_priv->rps.min_freq_softlimit)
-		mask |= GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
+		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
 	if (val < dev_priv->rps.max_freq_softlimit)
 		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_UP_THRESHOLD;
 
@@ -4509,7 +4517,7 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
-		if (dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED))
+		if (dev_priv->pm_rps_events & GEN6_PM_RP_UP_EI_EXPIRED)
 			gen6_rps_reset_ei(dev_priv);
 		I915_WRITE(GEN6_PMINTRMSK,
 			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));

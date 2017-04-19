@@ -2955,6 +2955,9 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 		put_res(dev, slave, srqn, RES_SRQ);
 		qp->srq = srq;
 	}
+
+	/* Save param3 for dynamic changes from VST back to VGT */
+	qp->param3 = qpc->param3;
 	put_res(dev, slave, rcqn, RES_CQ);
 	put_res(dev, slave, mtt_base, RES_MTT);
 	res_end_move(dev, slave, RES_QP, qpn);
@@ -3747,7 +3750,6 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	int qpn = vhcr->in_modifier & 0x7fffff;
 	struct res_qp *qp;
 	u8 orig_sched_queue;
-	__be32	orig_param3 = qpc->param3;
 	u8 orig_vlan_control = qpc->pri_path.vlan_control;
 	u8 orig_fvl_rx = qpc->pri_path.fvl_rx;
 	u8 orig_pri_path_fl = qpc->pri_path.fl;
@@ -3789,7 +3791,6 @@ out:
 	 */
 	if (!err) {
 		qp->sched_queue = orig_sched_queue;
-		qp->param3	= orig_param3;
 		qp->vlan_control = orig_vlan_control;
 		qp->fvl_rx	=  orig_fvl_rx;
 		qp->pri_path_fl = orig_pri_path_fl;
