@@ -51,7 +51,7 @@ static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 		return ret;
 
 	/* Resume to read actual registers for input pins */
-	if (!(val & ARIZONA_GPN_DIR)) {
+	if (val & ARIZONA_GPN_DIR) {
 		ret = pm_runtime_get_sync(chip->parent);
 		if (ret < 0) {
 			dev_err(chip->parent, "Failed to resume: %d\n", ret);
