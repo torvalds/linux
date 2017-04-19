@@ -112,8 +112,8 @@ int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
 
 		ret = clk_hw_register(NULL, hw);
 		if (ret) {
-			pr_err("Couldn't register clock %s\n",
-			       clk_hw_get_name(hw));
+			pr_err("Couldn't register clock %d - %s\n",
+			       i, clk_hw_get_name(hw));
 			goto err_clk_unreg;
 		}
 	}

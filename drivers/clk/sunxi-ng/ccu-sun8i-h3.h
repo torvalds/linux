@@ -57,6 +57,7 @@
 
 /* And the GPU module clock is exported */
 
-#define CLK_NUMBER		(CLK_GPU + 1)
+#define CLK_NUMBER_H3		(CLK_GPU + 1)
+#define CLK_NUMBER_H5		(CLK_BUS_SCR1 + 1)
 
 #endif /* _CCU_SUN8I_H3_H_ */

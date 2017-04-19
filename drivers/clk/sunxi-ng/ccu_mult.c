@@ -137,6 +137,8 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	spin_unlock_irqrestore(cm->common.lock, flags);
 
+	ccu_helper_wait_for_lock(&cm->common, cm->lock);
+
 	return 0;
 }
 
