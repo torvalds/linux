@@ -90,6 +90,15 @@ config NIOS2_BMX_SUPPORT
 	  the BMX Bit Manipulation Extension instructions. Enables
 	  the -mbmx compiler flag.
 
+config NIOS2_CDX_SUPPORT
+	bool "Enable CDX instructions"
+	depends on NIOS2_ARCH_REVISION = 2
+	default n
+	help
+	  Set to true if you configured the Nios II R2 to include
+	  the CDX Bit Manipulation Extension instructions. Enables
+	  the -mcdx compiler flag.
+
 config NIOS2_FPU_SUPPORT
 	bool "Custom floating point instr support"
 	default n
