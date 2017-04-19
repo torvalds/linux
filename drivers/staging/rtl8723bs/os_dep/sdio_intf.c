@@ -258,7 +258,8 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 	struct dvobj_priv *dvobj = NULL;
 	PSDIO_DATA psdio;
 
-	if ((dvobj = devobj_init()) == NULL) {
+	dvobj = devobj_init();
+	if (dvobj == NULL) {
 		goto exit;
 	}
 
@@ -336,7 +337,8 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	struct adapter *padapter = NULL;
 	PSDIO_DATA psdio = &dvobj->intf_data;
 
-	if ((padapter = (struct adapter *)vzalloc(sizeof(*padapter))) == NULL) {
+	padapter = (struct adapter *)vzalloc(sizeof(*padapter));
+	if (padapter == NULL) {
 		goto exit;
 	}
 
@@ -481,18 +483,21 @@ static int rtw_drv_init(
 	struct adapter *if1 = NULL, *if2 = NULL;
 	struct dvobj_priv *dvobj;
 
-	if ((dvobj = sdio_dvobj_init(func)) == NULL) {
+	dvobj = sdio_dvobj_init(func);
+	if (dvobj == NULL) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("initialize device object priv Failed!\n"));
 		goto exit;
 	}
 
-	if ((if1 = rtw_sdio_if1_init(dvobj, id)) == NULL) {
+	if1 = rtw_sdio_if1_init(dvobj, id);
+	if (if1 == NULL) {
 		DBG_871X("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
 	}
 
 	/* dev_alloc_name && register_netdev */
-	if ((status = rtw_drv_register_netdev(if1)) != _SUCCESS) {
+	status = rtw_drv_register_netdev(if1);
+	if (status != _SUCCESS) {
 		goto free_if2;
 	}
 
