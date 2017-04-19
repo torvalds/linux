@@ -584,8 +584,9 @@ void netvsc_device_remove(struct hv_device *device)
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
 
+	/* And dissassociate NAPI context from device */
 	for (i = 0; i < net_device->num_chn; i++)
-		napi_disable(&net_device->chan_table[i].napi);
+		netif_napi_del(&net_device->chan_table[i].napi);
 
 	/* Release all resources */
 	free_netvsc_device_rcu(net_device);
@@ -1320,8 +1321,6 @@ int netvsc_device_add(struct hv_device *device,
 		struct netvsc_channel *nvchan = &net_device->chan_table[i];
 
 		nvchan->channel = device->channel;
-		netif_napi_add(ndev, &nvchan->napi,
-			       netvsc_poll, NAPI_POLL_WEIGHT);
 	}
 
 	/* Open the channel */
@@ -1339,6 +1338,8 @@ int netvsc_device_add(struct hv_device *device,
 	netdev_dbg(ndev, "hv_netvsc channel opened successfully\n");
 
 	/* Enable NAPI handler for init callbacks */
+	netif_napi_add(ndev, &net_device->chan_table[0].napi,
+		       netvsc_poll, NAPI_POLL_WEIGHT);
 	napi_enable(&net_device->chan_table[0].napi);
 
 	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
@@ -1357,7 +1358,7 @@ int netvsc_device_add(struct hv_device *device,
 	return ret;
 
 close:
-	napi_disable(&net_device->chan_table[0].napi);
+	netif_napi_del(&net_device->chan_table[0].napi);
 
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
