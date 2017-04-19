@@ -42,14 +42,14 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
 
-kprobe_opcode_t *kprobe_lookup_name(const char *name)
+kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
 {
 	kprobe_opcode_t *addr;
 
 #ifdef PPC64_ELF_ABI_v2
 	/* PPC64 ABIv2 needs local entry point */
 	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
-	if (addr)
+	if (addr && !offset)
 		addr = (kprobe_opcode_t *)ppc_function_entry(addr);
 #elif defined(PPC64_ELF_ABI_v1)
 	/*

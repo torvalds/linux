@@ -243,8 +243,8 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	/*
 	 * 2. branch to optimized_callback() and emulate_step()
 	 */
-	op_callback_addr = kprobe_lookup_name("optimized_callback");
-	emulate_step_addr = kprobe_lookup_name("emulate_step");
+	op_callback_addr = kprobe_lookup_name("optimized_callback", 0);
+	emulate_step_addr = kprobe_lookup_name("emulate_step", 0);
 	if (!op_callback_addr || !emulate_step_addr) {
 		WARN(1, "kprobe_lookup_name() failed\n");
 		goto error;
