@@ -1904,11 +1904,11 @@ int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags)
 	return ret;
 }
 
-int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool int_sta, u32 flags)
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal, u32 flags)
 {
 	u32 mask;
 
-	if (int_sta) {
+	if (internal) {
 		struct iwl_mvm_int_sta *int_sta = sta;
 
 		mask = int_sta->tfd_queue_msk;
