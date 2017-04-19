@@ -9,6 +9,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		rtc@6000 {
+			compatible = "qcom,pm8941-rtc";
+			reg = <0x6000>, <0x6100>;
+			reg-names = "rtc", "alarm";
+			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
+		};
+
 		pm8994_gpios: gpios@c000 {
 			compatible = "qcom,pm8994-gpio";
 			reg = <0xc000>;
