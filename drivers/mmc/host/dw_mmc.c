@@ -1621,16 +1621,10 @@ static void dw_mci_init_card(struct mmc_host *mmc, struct mmc_card *card)
 
 		if (card->type == MMC_TYPE_SDIO ||
 		    card->type == MMC_TYPE_SD_COMBO) {
-			if (!test_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags)) {
-				pm_runtime_get_noresume(mmc->parent);
-				set_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
-			}
+			set_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
 			clk_en_a = clk_en_a_old & ~clken_low_pwr;
 		} else {
-			if (test_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags)) {
-				pm_runtime_put_noidle(mmc->parent);
-				clear_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
-			}
+			clear_bit(DW_MMC_CARD_NO_LOW_PWR, &slot->flags);
 			clk_en_a = clk_en_a_old | clken_low_pwr;
 		}
 
