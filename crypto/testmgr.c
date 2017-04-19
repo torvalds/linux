@@ -1458,7 +1458,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_acomp_tfm(tfm));
 	unsigned int i;
-	char *output;
+	char *output, *decomp_out;
 	int ret;
 	struct scatterlist src, dst;
 	struct acomp_req *req;
@@ -1467,6 +1467,12 @@ static int test_acomp(struct crypto_acomp *tfm,
 	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
 	if (!output)
 		return -ENOMEM;
+
+	decomp_out = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
+	if (!decomp_out) {
+		kfree(output);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < ctcount; i++) {
 		unsigned int dlen = COMP_BUF_SIZE;
@@ -1506,7 +1512,23 @@ static int test_acomp(struct crypto_acomp *tfm,
 			goto out;
 		}
 
-		if (req->dlen != ctemplate[i].outlen) {
+		ilen = req->dlen;
+		dlen = COMP_BUF_SIZE;
+		sg_init_one(&src, output, ilen);
+		sg_init_one(&dst, decomp_out, dlen);
+		init_completion(&result.completion);
+		acomp_request_set_params(req, &src, &dst, ilen, dlen);
+
+		ret = wait_async_op(&result, crypto_acomp_decompress(req));
+		if (ret) {
+			pr_err("alg: acomp: compression failed on test %d for %s: ret=%d\n",
+			       i + 1, algo, -ret);
+			kfree(input_vec);
+			acomp_request_free(req);
+			goto out;
+		}
+
+		if (req->dlen != ctemplate[i].inlen) {
 			pr_err("alg: acomp: Compression test %d failed for %s: output len = %d\n",
 			       i + 1, algo, req->dlen);
 			ret = -EINVAL;
@@ -1515,7 +1537,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 			goto out;
 		}
 
-		if (memcmp(output, ctemplate[i].output, req->dlen)) {
+		if (memcmp(input_vec, decomp_out, req->dlen)) {
 			pr_err("alg: acomp: Compression test %d failed for %s\n",
 			       i + 1, algo);
 			hexdump(output, req->dlen);
@@ -1593,6 +1615,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 	ret = 0;
 
 out:
+	kfree(decomp_out);
 	kfree(output);
 	return ret;
 }
