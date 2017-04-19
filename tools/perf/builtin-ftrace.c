@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #include "debug.h"
 #include <subcmd/parse-options.h>

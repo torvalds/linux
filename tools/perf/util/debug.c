@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <sys/wait.h>
 #include <api/debug.h>
 #include <linux/time64.h>
 #ifdef HAVE_BACKTRACE_SUPPORT

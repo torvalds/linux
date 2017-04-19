@@ -30,6 +30,7 @@
 #include <linux/time64.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <poll.h>
 #include <termios.h>
 #include <semaphore.h>
 #include <signal.h>

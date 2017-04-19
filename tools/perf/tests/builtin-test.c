@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 #include "builtin.h"
 #include "hist.h"
 #include "intlist.h"
