@@ -1206,11 +1206,8 @@ xfs_adjust_extent_unmap_boundaries(
 		return error;
 
 	if (nimap && imap.br_startblock != HOLESTARTBLOCK) {
-		xfs_daddr_t	block;
-
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-		block = imap.br_startblock;
-		mod = do_div(block, mp->m_sb.sb_rextsize);
+		mod = do_mod(imap.br_startblock, mp->m_sb.sb_rextsize);
 		if (mod)
 			*startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 	}
