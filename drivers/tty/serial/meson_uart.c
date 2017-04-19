@@ -307,8 +307,6 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 	while (!meson_uart_tx_empty(port))
 		cpu_relax();
 
-	val = readl(port->membase + AML_UART_REG5);
-	val &= ~AML_UART_BAUD_MASK;
 	if (port->uartclk == 24000000) {
 		val = ((port->uartclk / 3) / baud) - 1;
 		val |= AML_UART_BAUD_XTAL;
