@@ -141,6 +141,7 @@ next:
 	id = strsep(&dom, "=");
 	if (!dom || kstrtoul(id, 10, &dom_id))
 		return -EINVAL;
+	dom = strim(dom);
 	list_for_each_entry(d, &r->domains, list) {
 		if (d->id == dom_id) {
 			if (r->parse_ctrlval(dom, r, d))
@@ -214,7 +215,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 			dom->have_new_ctrl = false;
 
 	while ((tok = strsep(&buf, "\n")) != NULL) {
-		resname = strsep(&tok, ":");
+		resname = strim(strsep(&tok, ":"));
 		if (!tok) {
 			ret = -EINVAL;
 			goto out;
