@@ -12,6 +12,7 @@
 #include "ui/progress.h"
 #include <errno.h>
 #include <math.h>
+#include <sys/param.h>
 
 static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he);

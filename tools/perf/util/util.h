@@ -17,7 +17,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/param.h>
 #include <sys/types.h>
 #include <assert.h>
 #include <sys/wait.h>

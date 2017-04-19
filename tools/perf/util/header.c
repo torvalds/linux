@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include "util.h"
 #include "string2.h"
+#include <sys/param.h>
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>

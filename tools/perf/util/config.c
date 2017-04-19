@@ -9,6 +9,7 @@
  *
  */
 #include <errno.h>
+#include <sys/param.h>
 #include "util.h"
 #include "cache.h"
 #include <subcmd/exec-cmd.h>

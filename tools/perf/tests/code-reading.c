@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/param.h>
 
 #include "parse-events.h"
 #include "evlist.h"

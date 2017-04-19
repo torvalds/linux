@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <asm/bug.h>
+#include <sys/param.h>
 #include "util.h"
 #include "debug.h"
 #include "builtin.h"
