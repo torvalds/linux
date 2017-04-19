@@ -248,7 +248,7 @@ static int hp_wmi_display_state(void)
 	int ret = hp_wmi_perform_query(HPWMI_DISPLAY_QUERY, 0, &state,
 				       sizeof(state), sizeof(state));
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 	return state;
 }
 
@@ -258,7 +258,7 @@ static int hp_wmi_hddtemp_state(void)
 	int ret = hp_wmi_perform_query(HPWMI_HDDTEMP_QUERY, 0, &state,
 				       sizeof(state), sizeof(state));
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 	return state;
 }
 
@@ -268,7 +268,7 @@ static int hp_wmi_als_state(void)
 	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 0, &state,
 				       sizeof(state), sizeof(state));
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 	return state;
 }
 
@@ -279,7 +279,7 @@ static int hp_wmi_dock_state(void)
 				       sizeof(state), sizeof(state));
 
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 
 	return state & 0x1;
 }
@@ -290,7 +290,7 @@ static int hp_wmi_tablet_state(void)
 	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
 				       sizeof(state), sizeof(state));
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 
 	return (state & 0x4) ? 1 : 0;
 }
@@ -323,7 +323,7 @@ static int __init hp_wmi_enable_hotkeys(void)
 	int ret = hp_wmi_perform_query(HPWMI_BIOS_QUERY, 1, &value,
 				       sizeof(value), 0);
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 	return 0;
 }
 
@@ -336,7 +336,7 @@ static int hp_wmi_set_block(void *data, bool blocked)
 	ret = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1,
 				   &query, sizeof(query), 0);
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 	return 0;
 }
 
@@ -428,7 +428,7 @@ static int hp_wmi_post_code_state(void)
 	int ret = hp_wmi_perform_query(HPWMI_POSTCODEERROR_QUERY, 0, &state,
 				       sizeof(state), sizeof(state));
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 	return state;
 }
 
@@ -494,7 +494,7 @@ static ssize_t set_als(struct device *dev, struct device_attribute *attr,
 	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 1, &tmp,
 				       sizeof(tmp), sizeof(tmp));
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 
 	return count;
 }
@@ -515,7 +515,7 @@ static ssize_t set_postcode(struct device *dev, struct device_attribute *attr,
 	ret = hp_wmi_perform_query(HPWMI_POSTCODEERROR_QUERY, 1, &tmp,
 				       sizeof(tmp), sizeof(tmp));
 	if (ret)
-		return -EINVAL;
+		return ret < 0 ? ret : -EINVAL;
 
 	return count;
 }
