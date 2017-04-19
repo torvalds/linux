@@ -42,6 +42,9 @@ struct is31fl32xx_led_data {
 	struct led_classdev cdev;
 	u8 channel; /* 1-based, max priv->cdef->channels */
 	struct is31fl32xx_priv *priv;
+	unsigned int register_delay;
+	struct device *dev;
+	struct delayed_work register_work;
 };
 
 struct is31fl32xx_priv {
@@ -147,8 +150,8 @@ static int is31fl32xx_write(struct is31fl32xx_priv *priv, u8 reg, u8 val)
 	ret =  i2c_smbus_write_byte_data(priv->client, reg, val);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"register write to 0x%02X failed (error %d)",
-			reg, ret);
+			"register write to 0x%02X failed (error %d),val=%d",
+			reg, ret, val);
 	}
 	return ret;
 }
@@ -342,7 +345,9 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 {
 	struct led_classdev *cdev = &led_data->cdev;
 	int ret = 0;
-	u32 reg;
+	u32 reg = -1;
+	u32 blink_delay_on = 0;
+	u32 blink_delay_off = 0;
 
 	if (of_property_read_string(child, "label", &cdev->name))
 		cdev->name = child->name;
@@ -358,6 +363,17 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 
 	of_property_read_string(child, "linux,default-trigger",
 				&cdev->default_trigger);
+
+	of_property_read_u32(child, "linux,blink-delay-on-ms",
+			     &blink_delay_on);
+	cdev->blink_delay_on = (u64)blink_delay_on;
+
+	of_property_read_u32(child, "linux,blink-delay-off-ms",
+			     &blink_delay_off);
+	cdev->blink_delay_off = (u64)blink_delay_off;
+
+	of_property_read_u32(child, "linux,default-trigger-delay-ms",
+			     &led_data->register_delay);
 
 	cdev->brightness_set = is31fl32xx_brightness_set;
 
@@ -378,6 +394,21 @@ static struct is31fl32xx_led_data *is31fl32xx_find_led_data(
 	return NULL;
 }
 
+static void register_classdev_delayed(struct work_struct *ws)
+{
+	struct is31fl32xx_led_data *led_data =
+		container_of(ws, struct is31fl32xx_led_data,
+			     register_work.work);
+	int ret;
+
+	ret = devm_led_classdev_register(led_data->dev, &led_data->cdev);
+	if (ret) {
+		dev_err(led_data->dev, "failed to register PWM led for %s: %d\n",
+			led_data->cdev.name, ret);
+		return;
+	}
+}
+
 static int is31fl32xx_parse_dt(struct device *dev,
 			       struct is31fl32xx_priv *priv)
 {
@@ -390,6 +421,7 @@ static int is31fl32xx_parse_dt(struct device *dev,
 		const struct is31fl32xx_led_data *other_led_data;
 
 		led_data->priv = priv;
+		led_data->dev = dev;
 
 		ret = is31fl32xx_parse_child_dt(dev, child, led_data);
 		if (ret)
@@ -406,14 +438,19 @@ static int is31fl32xx_parse_dt(struct device *dev,
 				led_data->channel);
 			goto err;
 		}
-
-		ret = devm_led_classdev_register(dev, &led_data->cdev);
-		if (ret) {
-			dev_err(dev, "failed to register PWM led for %s: %d\n",
-				led_data->cdev.name, ret);
-			goto err;
+		if (led_data->register_delay) {
+			INIT_DELAYED_WORK(&led_data->register_work,
+					  register_classdev_delayed);
+			schedule_delayed_work(&led_data->register_work,
+					      msecs_to_jiffies(led_data->register_delay));
+		} else {
+			ret = devm_led_classdev_register(dev, &led_data->cdev);
+			if (ret) {
+				dev_err(dev, "failed to register PWM led for %s: %d\n",
+					led_data->cdev.name, ret);
+				goto err;
+			}
 		}
-
 		priv->num_leds++;
 	}
 
