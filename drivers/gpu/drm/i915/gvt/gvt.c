@@ -52,6 +52,8 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 	.vgpu_create = intel_gvt_create_vgpu,
 	.vgpu_destroy = intel_gvt_destroy_vgpu,
 	.vgpu_reset = intel_gvt_reset_vgpu,
+	.vgpu_activate = intel_gvt_activate_vgpu,
+	.vgpu_deactivate = intel_gvt_deactivate_vgpu,
 };
 
 /**

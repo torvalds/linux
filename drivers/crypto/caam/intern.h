@@ -66,7 +66,6 @@ struct caam_drv_private_jr {
 struct caam_drv_private {
 
 	struct device *dev;
-	struct platform_device **jrpdev; /* Alloc'ed array per sub-device */
 	struct platform_device *pdev;
 
 	/* Physical-presence section */
