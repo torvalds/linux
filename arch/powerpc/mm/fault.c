@@ -254,7 +254,7 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 	}
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE) || \
-			     defined(CONFIG_PPC_BOOK3S_64))
+      defined(CONFIG_PPC_BOOK3S_64) || defined(CONFIG_PPC_8xx))
   	if (error_code & DSISR_DABRMATCH) {
 		/* breakpoint match */
 		do_break(regs, address, error_code);
