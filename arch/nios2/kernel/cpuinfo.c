@@ -125,12 +125,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m,
 		   "CPU:\t\tNios II/%s\n"
+		   "REV:\t\t%i\n"
 		   "MMU:\t\t%s\n"
 		   "FPU:\t\tnone\n"
 		   "Clocking:\t%u.%02u MHz\n"
 		   "BogoMips:\t%lu.%02lu\n"
 		   "Calibration:\t%lu loops\n",
 		   cpuinfo.cpu_impl,
+		   CONFIG_NIOS2_ARCH_REVISION,
 		   cpuinfo.mmu ? "present" : "none",
 		   clockfreq / 1000000, (clockfreq / 100000) % 10,
 		   (loops_per_jiffy * HZ) / 500000,

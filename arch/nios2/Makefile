@@ -22,7 +22,10 @@ export MMU
 
 LIBGCC         := $(shell $(CC) $(KBUILD_CFLAGS) $(KCFLAGS) -print-libgcc-file-name)
 
+KBUILD_AFLAGS += -march=r$(CONFIG_NIOS2_ARCH_REVISION)
+
 KBUILD_CFLAGS += -pipe -D__linux__ -D__ELF__
+KBUILD_CFLAGS += -march=r$(CONFIG_NIOS2_ARCH_REVISION)
 KBUILD_CFLAGS += $(if $(CONFIG_NIOS2_HW_MUL_SUPPORT),-mhw-mul,-mno-hw-mul)
 KBUILD_CFLAGS += $(if $(CONFIG_NIOS2_HW_MULX_SUPPORT),-mhw-mulx,-mno-hw-mulx)
 KBUILD_CFLAGS += $(if $(CONFIG_NIOS2_HW_DIV_SUPPORT),-mhw-div,-mno-hw-div)
