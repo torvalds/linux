@@ -2890,11 +2890,12 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 	struct ibmvnic_generic_crq *gen_crq = &crq->generic;
 	struct net_device *netdev = adapter->netdev;
 	struct device *dev = &adapter->vdev->dev;
+	u64 *u64_crq = (u64 *)crq;
 	long rc;
 
 	netdev_dbg(netdev, "Handling CRQ: %016lx %016lx\n",
-		   ((unsigned long int *)crq)[0],
-		   ((unsigned long int *)crq)[1]);
+		   (unsigned long int)cpu_to_be64(u64_crq[0]),
+		   (unsigned long int)cpu_to_be64(u64_crq[1]));
 	switch (gen_crq->first) {
 	case IBMVNIC_CRQ_INIT_RSP:
 		switch (gen_crq->cmd) {
