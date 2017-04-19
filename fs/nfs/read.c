@@ -35,7 +35,11 @@ static struct kmem_cache *nfs_rdata_cachep;
 
 static struct nfs_pgio_header *nfs_readhdr_alloc(void)
 {
-	return kmem_cache_zalloc(nfs_rdata_cachep, GFP_KERNEL);
+	struct nfs_pgio_header *p = kmem_cache_zalloc(nfs_rdata_cachep, GFP_KERNEL);
+
+	if (p)
+		p->rw_mode = FMODE_READ;
+	return p;
 }
 
 static void nfs_readhdr_free(struct nfs_pgio_header *rhdr)
@@ -64,7 +68,7 @@ void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 		pg_ops = server->pnfs_curr_ld->pg_read_ops;
 #endif
 	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, &nfs_rw_read_ops,
-			server->rsize, 0);
+			server->rsize, 0, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
@@ -451,7 +455,6 @@ void nfs_destroy_readpagecache(void)
 }
 
 static const struct nfs_rw_ops nfs_rw_read_ops = {
-	.rw_mode		= FMODE_READ,
 	.rw_alloc_header	= nfs_readhdr_alloc,
 	.rw_free_header		= nfs_readhdr_free,
 	.rw_done		= nfs_readpage_done,
