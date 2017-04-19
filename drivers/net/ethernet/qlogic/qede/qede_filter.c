@@ -267,7 +267,8 @@ int qede_alloc_arfs(struct qede_dev *edev)
 		return -ENOMEM;
 	}
 
-	edev->arfs->arfs_fltr_bmap = vzalloc(BITS_TO_LONGS(QEDE_RFS_MAX_FLTR));
+	edev->arfs->arfs_fltr_bmap = vzalloc(BITS_TO_LONGS(QEDE_RFS_MAX_FLTR) *
+					     sizeof(long));
 	if (!edev->arfs->arfs_fltr_bmap) {
 		free_irq_cpu_rmap(edev->ndev->rx_cpu_rmap);
 		edev->ndev->rx_cpu_rmap = NULL;
