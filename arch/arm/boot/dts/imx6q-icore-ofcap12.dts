@@ -1,5 +1,6 @@
 /*
- * Copyright 2016 Toradex AG
+ * Copyright (C) 2016 Amarula Solutions B.V.
+ * Copyright (C) 2016 Engicam S.r.l.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -7,9 +8,8 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -40,112 +40,37 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/dts-v1/;
+
+#include "imx6q.dtsi"
+#include "imx6qdl-icore.dtsi"
+
 / {
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
+	model = "Engicam i.CoreM6 Quad/Dual OpenFrame Capacitive touch 12 Kit";
+	compatible = "engicam,imx6-icore", "fsl,imx6q";
+};
 
-	panel: panel {
-		compatible = "edt,et057090dhu";
-		backlight = <&bl>;
-		power-supply = <&reg_3v3>;
+&ldb {
+	status = "okay";
 
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&lcdif_out>;
+	lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <18>;
+		status = "okay";
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <46800000>;
+				hactive = <1280>;
+				vactive = <480>;
+				hback-porch = <353>;
+				hfront-porch = <47>;
+				vback-porch = <39>;
+				vfront-porch = <4>;
+				hsync-len = <8>;
+				vsync-len = <2>;
 			};
 		};
 	};
-
-	reg_3v3: regulator-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	reg_5v0: regulator-5v0 {
-		compatible = "regulator-fixed";
-		regulator-name = "5V";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
-};
-
-&bl {
-	brightness-levels = <0 4 8 16 32 64 128 255>;
-	default-brightness-level = <6>;
-	power-supply = <&reg_3v3>;
-
-	status = "okay";
-};
-
-&adc1 {
-	status = "okay";
-};
-
-&adc2 {
-	status = "okay";
-};
-
-&fec1 {
-	status = "okay";
-};
-
-&i2c4 {
-	status = "okay";
-
-	/* M41T0M6 real time clock on carrier board */
-	rtc: m41t0m6@68 {
-		compatible = "st,m41t00";
-		reg = <0x68>;
-	};
-};
-
-&lcdif {
-	status = "okay";
-
-	port {
-		lcdif_out: endpoint {
-			remote-endpoint = <&panel_in>;
-		};
-	};
-};
-
-&pwm1 {
-	status = "okay";
-};
-
-&pwm2 {
-	status = "okay";
-};
-
-&pwm3 {
-	status = "okay";
-};
-
-&pwm4 {
-	status = "okay";
-};
-
-&uart1 {
-	status = "okay";
-};
-
-&uart2 {
-	status = "okay";
-};
-
-&uart3 {
-	status = "okay";
-};
-
-&usbotg1 {
-	status = "okay";
-};
-
-&usdhc1 {
-	keep-power-in-suspend;
-	wakeup-source;
-	status = "okay";
 };
