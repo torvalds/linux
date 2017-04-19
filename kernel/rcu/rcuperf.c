@@ -254,6 +254,35 @@ static struct rcu_perf_ops srcu_ops = {
 	.name		= "srcu"
 };
 
+static struct srcu_struct srcud;
+
+static void srcu_sync_perf_init(void)
+{
+	srcu_ctlp = &srcud;
+	init_srcu_struct(srcu_ctlp);
+}
+
+static void srcu_sync_perf_cleanup(void)
+{
+	cleanup_srcu_struct(srcu_ctlp);
+}
+
+static struct rcu_perf_ops srcud_ops = {
+	.ptype		= SRCU_FLAVOR,
+	.init		= srcu_sync_perf_init,
+	.cleanup	= srcu_sync_perf_cleanup,
+	.readlock	= srcu_perf_read_lock,
+	.readunlock	= srcu_perf_read_unlock,
+	.started	= NULL,
+	.completed	= srcu_perf_completed,
+	.exp_completed	= srcu_perf_completed,
+	.async		= srcu_call_rcu,
+	.gp_barrier	= srcu_rcu_barrier,
+	.sync		= srcu_perf_synchronize,
+	.exp_sync	= srcu_perf_synchronize_expedited,
+	.name		= "srcud"
+};
+
 /*
  * Definitions for sched perf testing.
  */
@@ -622,7 +651,7 @@ rcu_perf_init(void)
 	long i;
 	int firsterr = 0;
 	static struct rcu_perf_ops *perf_ops[] = {
-		&rcu_ops, &rcu_bh_ops, &srcu_ops, &sched_ops,
+		&rcu_ops, &rcu_bh_ops, &srcu_ops, &srcud_ops, &sched_ops,
 		RCUPERF_TASKS_OPS
 	};
 
