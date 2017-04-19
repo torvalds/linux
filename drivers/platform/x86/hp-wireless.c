@@ -110,21 +110,4 @@ static struct acpi_driver hpwl_driver = {
 	},
 };
 
-static int __init hpwl_init(void)
-{
-	int err;
-
-	err = acpi_bus_register_driver(&hpwl_driver);
-	if (err)
-		pr_err("Unable to register HP wireless control driver.\n");
-
-	return err;
-}
-
-static void __exit hpwl_exit(void)
-{
-	acpi_bus_unregister_driver(&hpwl_driver);
-}
-
-module_init(hpwl_init);
-module_exit(hpwl_exit);
+module_acpi_driver(hpwl_driver);
