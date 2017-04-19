@@ -198,8 +198,8 @@
 				brcm,pins = <0 1>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			i2c0_gpio32: i2c0_gpio32 {
-				brcm,pins = <32 34>;
+			i2c0_gpio28: i2c0_gpio28 {
+				brcm,pins = <28 29>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
 			i2c0_gpio44: i2c0_gpio44 {
@@ -295,19 +295,27 @@
 			/* Separate from the uart0_gpio14 group
 			 * because it conflicts with spi1_gpio16, and
 			 * people often run uart0 on the two pins
-			 * without flow contrl.
+			 * without flow control.
 			 */
 			uart0_ctsrts_gpio16: uart0_ctsrts_gpio16 {
 				brcm,pins = <16 17>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			uart0_gpio30: uart0_gpio30 {
+			uart0_ctsrts_gpio30: uart0_ctsrts_gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			uart0_ctsrts_gpio32: uart0_ctsrts_gpio32 {
+			uart0_gpio32: uart0_gpio32 {
 				brcm,pins = <32 33>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
+			};
+			uart0_gpio36: uart0_gpio36 {
+				brcm,pins = <36 37>;
+				brcm,function = <BCM2835_FSEL_ALT2>;
+			};
+			uart0_ctsrts_gpio38: uart0_ctsrts_gpio38 {
+				brcm,pins = <38 39>;
+				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
 
 			uart1_gpio14: uart1_gpio14 {
@@ -325,10 +333,6 @@
 			uart1_ctsrts_gpio30: uart1_ctsrts_gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
-			};
-			uart1_gpio36: uart1_gpio36 {
-				brcm,pins = <36 37 38 39>;
-				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
 			uart1_gpio40: uart1_gpio40 {
 				brcm,pins = <40 41>;
