@@ -868,7 +868,6 @@ struct ibmvnic_tx_buff {
 	int index;
 	int pool_index;
 	bool last_frag;
-	bool used_bounce;
 	union sub_crq indir_arr[6];
 	u8 hdr_data[140];
 	dma_addr_t indir_dma;
@@ -924,9 +923,6 @@ struct ibmvnic_adapter {
 	dma_addr_t ip_offload_ctrl_tok;
 	bool migrated;
 	u32 msg_enable;
-	void *bounce_buffer;
-	int bounce_buffer_size;
-	dma_addr_t bounce_buffer_dma;
 
 	/* Statistics */
 	struct ibmvnic_statistics stats;
