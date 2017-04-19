@@ -347,6 +347,7 @@ static int xhci_plat_suspend(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	int ret;
 
 	/*
 	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
@@ -356,13 +357,21 @@ static int xhci_plat_suspend(struct device *dev)
 	 * reconsider this when xhci_plat_suspend enlarges its scope, e.g.,
 	 * also applies to runtime suspend.
 	 */
-	return xhci_suspend(xhci, device_may_wakeup(dev));
+	ret = xhci_suspend(xhci, device_may_wakeup(dev));
+
+	if (!device_may_wakeup(dev) && !IS_ERR(xhci->clk))
+		clk_disable_unprepare(xhci->clk);
+
+	return ret;
 }
 
 static int xhci_plat_resume(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	if (!device_may_wakeup(dev) && !IS_ERR(xhci->clk))
+		clk_prepare_enable(xhci->clk);
 
 	return xhci_resume(xhci, 0);
 }
