@@ -1606,7 +1606,6 @@ struct xhci_scratchpad {
 	u64 *sp_array;
 	dma_addr_t sp_dma;
 	void **sp_buffers;
-	dma_addr_t *sp_dma_buffers;
 };
 
 struct urb_priv {
