@@ -193,9 +193,9 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 	if (!ltb->buff)
 		return;
 
-	dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 	if (!adapter->failover)
 		send_request_unmap(adapter, ltb->map_id);
+	dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 }
 
 static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
