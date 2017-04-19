@@ -78,6 +78,17 @@ config MQ_IOSCHED_KYBER
 	  synchronous writes, it will self-tune queue depths to achieve that
 	  goal.
 
+config IOSCHED_BFQ
+	tristate "BFQ I/O scheduler"
+	default n
+	---help---
+	BFQ I/O scheduler for BLK-MQ. BFQ distributes the bandwidth of
+	of the device among all processes according to their weights,
+	regardless of the device parameters and with any workload. It
+	also guarantees a low latency to interactive and soft
+	real-time applications.  Details in
+	Documentation/block/bfq-iosched.txt
+
 endmenu
 
 endif
