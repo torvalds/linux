@@ -606,7 +606,7 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 		return err;
 	}
 
-	port->reg_base = devm_ioremap_resource(dev, &regs);
+	port->reg_base = devm_pci_remap_cfg_resource(dev, &regs);
 	if (IS_ERR(port->reg_base))
 		return PTR_ERR(port->reg_base);
 
