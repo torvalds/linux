@@ -138,7 +138,8 @@ static int versatile_pci_probe(struct platform_device *pdev)
 		return PTR_ERR(versatile_cfg_base[0]);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	versatile_cfg_base[1] = devm_ioremap_resource(&pdev->dev, res);
+	versatile_cfg_base[1] = devm_pci_remap_cfg_resource(&pdev->dev,
+							    res);
 	if (IS_ERR(versatile_cfg_base[1]))
 		return PTR_ERR(versatile_cfg_base[1]);
 
