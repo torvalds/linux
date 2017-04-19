@@ -1194,9 +1194,21 @@ void i40e_free_vfs(struct i40e_pf *pf)
 		usleep_range(1000, 2000);
 
 	i40e_notify_client_of_vf_enable(pf, 0);
-	for (i = 0; i < pf->num_alloc_vfs; i++)
+
+	/* Amortize wait time by stopping all VFs at the same time */
+	for (i = 0; i < pf->num_alloc_vfs; i++) {
 		if (test_bit(I40E_VF_STATE_INIT, &pf->vf[i].vf_states))
-			i40e_vsi_stop_rings(pf->vsi[pf->vf[i].lan_vsi_idx]);
+			continue;
+
+		i40e_vsi_stop_rings_no_wait(pf->vsi[pf->vf[i].lan_vsi_idx]);
+	}
+
+	for (i = 0; i < pf->num_alloc_vfs; i++) {
+		if (test_bit(I40E_VF_STATE_INIT, &pf->vf[i].vf_states))
+			continue;
+
+		i40e_vsi_wait_queues_disabled(pf->vsi[pf->vf[i].lan_vsi_idx]);
+	}
 
 	/* Disable IOV before freeing resources. This lets any VF drivers
 	 * running in the host get themselves cleaned up before we yank
