@@ -95,8 +95,10 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 void sdio_run_irqs(struct mmc_host *host)
 {
 	mmc_claim_host(host);
-	host->sdio_irq_pending = true;
-	process_sdio_pending_irqs(host);
+	if (host->sdio_irqs) {
+		host->sdio_irq_pending = true;
+		process_sdio_pending_irqs(host);
+	}
 	mmc_release_host(host);
 }
 EXPORT_SYMBOL_GPL(sdio_run_irqs);
