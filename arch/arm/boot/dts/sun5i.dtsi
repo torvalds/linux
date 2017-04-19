@@ -46,7 +46,6 @@
 
 #include <dt-bindings/clock/sun5i-ccu.h>
 #include <dt-bindings/dma/sun4i-a10.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 #include <dt-bindings/reset/sun5i-ccu.h>
 
 / {
@@ -61,6 +60,31 @@
 			compatible = "arm,cortex-a8";
 			reg = <0x0>;
 			clocks = <&ccu CLK_CPU>;
+		};
+	};
+
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer@0 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0";
+			clocks = <&ccu CLK_AHB_LCD>, <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
+				 <&ccu CLK_TCON_CH0>, <&ccu CLK_DRAM_DE_BE>;
+			status = "disabled";
+		};
+
+		framebuffer@1 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0-tve0";
+			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
+				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
+				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
+			status = "disabled";
 		};
 	};
 
@@ -105,6 +129,12 @@
 				ranges = <0 0x00000000 0xc000>;
 			};
 
+			emac_sram: sram-section@8000 {
+				compatible = "allwinner,sun4i-a10-sram-a3-a4";
+				reg = <0x8000 0x4000>;
+				status = "disabled";
+			};
+
 			sram_d: sram@00010000 {
 				compatible = "mmio-sram";
 				reg = <0x00010000 0x1000>;
@@ -126,6 +156,19 @@
 			interrupts = <27>;
 			clocks = <&ccu CLK_AHB_DMA>;
 			#dma-cells = <2>;
+		};
+
+		nfc: nand@01c03000 {
+			compatible = "allwinner,sun4i-a10-nand";
+			reg = <0x01c03000 0x1000>;
+			interrupts = <37>;
+			clocks = <&ccu CLK_AHB_NAND>, <&ccu CLK_NAND>;
+			clock-names = "ahb", "mod";
+			dmas = <&dma SUN4I_DMA_DEDICATED 3>;
+			dma-names = "rxtx";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi0: spi@01c05000 {
@@ -154,6 +197,84 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		tve0: tv-encoder@01c0a000 {
+			compatible = "allwinner,sun4i-a10-tv-encoder";
+			reg = <0x01c0a000 0x1000>;
+			clocks = <&ccu CLK_AHB_TVE>;
+			resets = <&ccu RST_TVE>;
+			status = "disabled";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				tve0_in_tcon0: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&tcon0_out_tve0>;
+				};
+			};
+		};
+
+		emac: ethernet@01c0b000 {
+			compatible = "allwinner,sun4i-a10-emac";
+			reg = <0x01c0b000 0x1000>;
+			interrupts = <55>;
+			clocks = <&ccu CLK_AHB_EMAC>;
+			allwinner,sram = <&emac_sram 1>;
+			status = "disabled";
+		};
+
+		mdio: mdio@01c0b080 {
+			compatible = "allwinner,sun4i-a10-mdio";
+			reg = <0x01c0b080 0x14>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		tcon0: lcd-controller@01c0c000 {
+			compatible = "allwinner,sun5i-a13-tcon";
+			reg = <0x01c0c000 0x1000>;
+			interrupts = <44>;
+			resets = <&ccu RST_LCD>;
+			reset-names = "lcd";
+			clocks = <&ccu CLK_AHB_LCD>,
+				 <&ccu CLK_TCON_CH0>,
+				 <&ccu CLK_TCON_CH1>;
+			clock-names = "ahb",
+				      "tcon-ch0",
+				      "tcon-ch1";
+			clock-output-names = "tcon-pixel-clock";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				tcon0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					tcon0_in_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_out_tcon0>;
+					};
+				};
+
+				tcon0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					tcon0_out_tve0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tve0_in_tcon0>;
+					};
+				};
+			};
 		};
 
 		mmc0: mmc@01c0f000 {
@@ -273,6 +394,15 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
+			emac_pins_a: emac0@0 {
+				pins = "PD6", "PD7", "PD10",
+				       "PD11", "PD12", "PD13", "PD14",
+				       "PD15", "PD18", "PD19", "PD20",
+				       "PD21", "PD22", "PD23", "PD24",
+				       "PD25", "PD26", "PD27";
+				function = "emac";
+			};
+
 			i2c0_pins_a: i2c0@0 {
 				pins = "PB0", "PB1";
 				function = "i2c0";
@@ -288,11 +418,24 @@
 				function = "i2c2";
 			};
 
+			ir0_rx_pins_a: ir0@0 {
+				pins = "PB4";
+				function = "ir0";
+			};
+
 			lcd_rgb565_pins: lcd_rgb565@0 {
 				pins = "PD3", "PD4", "PD5", "PD6", "PD7",
 						 "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
 						 "PD19", "PD20", "PD21", "PD22", "PD23",
 						 "PD24", "PD25", "PD26", "PD27";
+				function = "lcd0";
+			};
+
+			lcd_rgb666_pins: lcd_rgb666@0 {
+				pins = "PD2", "PD3", "PD4", "PD5", "PD6", "PD7",
+				       "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
+				       "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
+				       "PD24", "PD25", "PD26", "PD27";
 				function = "lcd0";
 			};
 
@@ -321,6 +464,24 @@
 				bias-pull-up;
 			};
 
+			nand_pins_a: nand-base0@0 {
+				pins = "PC0", "PC1", "PC2",
+				       "PC5", "PC8", "PC9", "PC10",
+				       "PC11", "PC12", "PC13", "PC14",
+				       "PC15";
+				function = "nand0";
+			};
+
+			nand_cs0_pins_a: nand-cs@0 {
+				pins = "PC4";
+				function = "nand0";
+			};
+
+			nand_rb0_pins_a: nand-rb@0 {
+				pins = "PC6";
+				function = "nand0";
+			};
+
 			spi2_pins_a: spi2@0 {
 				pins = "PE1", "PE2", "PE3";
 				function = "spi2";
@@ -331,12 +492,32 @@
 				function = "spi2";
 			};
 
+			uart1_pins_a: uart1@0 {
+				pins = "PE10", "PE11";
+				function = "uart1";
+			};
+
+			uart1_pins_b: uart1@1 {
+				pins = "PG3", "PG4";
+				function = "uart1";
+			};
+
+			uart2_pins_a: uart2@0 {
+				pins = "PD2", "PD3";
+				function = "uart2";
+			};
+
+			uart2_cts_rts_pins_a: uart2-cts-rts@0 {
+				pins = "PD4", "PD5";
+				function = "uart2";
+			};
+
 			uart3_pins_a: uart3@0 {
 				pins = "PG9", "PG10";
 				function = "uart3";
 			};
 
-			uart3_pins_cts_rts_a: uart3-cts-rts@0 {
+			uart3_cts_rts_pins_a: uart3-cts-rts@0 {
 				pins = "PG11", "PG12";
 				function = "uart3";
 			};
@@ -357,6 +538,15 @@
 		wdt: watchdog@01c20c90 {
 			compatible = "allwinner,sun4i-a10-wdt";
 			reg = <0x01c20c90 0x10>;
+		};
+
+		ir0: ir@01c21800 {
+			compatible = "allwinner,sun4i-a10-ir";
+			clocks = <&ccu CLK_APB0_IR>, <&ccu CLK_IR>;
+			clock-names = "apb", "ir";
+			interrupts = <5>;
+			reg = <0x01c21800 0x40>;
+			status = "disabled";
 		};
 
 		lradc: lradc@01c22800 {
@@ -391,6 +581,16 @@
 			#thermal-sensor-cells = <0>;
 		};
 
+		uart0: serial@01c28000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28000 0x400>;
+			interrupts = <1>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&ccu CLK_APB1_UART0>;
+			status = "disabled";
+		};
+
 		uart1: serial@01c28400 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28400 0x400>;
@@ -398,6 +598,16 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&ccu CLK_APB1_UART1>;
+			status = "disabled";
+		};
+
+		uart2: serial@01c28800 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28800 0x400>;
+			interrupts = <3>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&ccu CLK_APB1_UART2>;
 			status = "disabled";
 		};
 
@@ -446,6 +656,76 @@
 			reg = <0x01c60000 0x1000>;
 			interrupts = <82>, <83>;
 			clocks = <&ccu CLK_AHB_HSTIMER>;
+		};
+
+		fe0: display-frontend@01e00000 {
+			compatible = "allwinner,sun5i-a13-display-frontend";
+			reg = <0x01e00000 0x20000>;
+			interrupts = <47>;
+			clocks = <&ccu CLK_DE_FE>, <&ccu CLK_DE_FE>,
+				 <&ccu CLK_DRAM_DE_FE>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&ccu RST_DE_FE>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				fe0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					fe0_out_be0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&be0_in_fe0>;
+					};
+				};
+			};
+		};
+
+		be0: display-backend@01e60000 {
+			compatible = "allwinner,sun5i-a13-display-backend";
+			reg = <0x01e60000 0x10000>;
+			interrupts = <47>;
+			clocks = <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
+				 <&ccu CLK_DRAM_DE_BE>;
+			clock-names = "ahb", "mod",
+				      "ram";
+			resets = <&ccu RST_DE_BE>;
+			status = "disabled";
+
+			assigned-clocks = <&ccu CLK_DE_BE>;
+			assigned-clock-rates = <300000000>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				be0_in: port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					be0_in_fe0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&fe0_out_be0>;
+					};
+				};
+
+				be0_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+
+					be0_out_tcon0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon0_in_be0>;
+					};
+				};
+			};
 		};
 	};
 };

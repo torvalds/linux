@@ -43,7 +43,6 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 &pio {
 	ahci_pwr_pin_a: ahci_pwr_pin@0 {

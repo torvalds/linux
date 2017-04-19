@@ -171,7 +171,7 @@
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins_a>, <&pwm1_pins>;
+	pinctrl-0 = <&pwm0_pins>, <&pwm1_pins>;
 	status = "disabled";
 };
 
@@ -220,7 +220,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_a>, <&uart1_cts_rts_pins_a>;
+	pinctrl-0 = <&uart1_pins_b>, <&uart1_cts_rts_pins_a>;
 	status = "okay";
 };
 
