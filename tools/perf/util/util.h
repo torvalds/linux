@@ -17,7 +17,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <limits.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <assert.h>
@@ -25,7 +24,6 @@
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <linux/kernel.h>
 #include <linux/types.h>
 
 extern char buildid_dir[];
@@ -98,8 +96,6 @@ void mem_bswap_64(void *src, int byte_size);
 void mem_bswap_32(void *src, int byte_size);
 
 bool find_process(const char *name);
-
-int get_stack_size(const char *str, unsigned long *_size);
 
 int fetch_kernel_version(unsigned int *puint,
 			 char *str, size_t str_sz);
