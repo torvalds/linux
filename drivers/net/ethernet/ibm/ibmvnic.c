@@ -1360,12 +1360,12 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 	struct ibmvnic_sub_crq_queue *scrq;
 	int rc;
 
-	scrq = kmalloc(sizeof(*scrq), GFP_ATOMIC);
+	scrq = kzalloc(sizeof(*scrq), GFP_ATOMIC);
 	if (!scrq)
 		return NULL;
 
-	scrq->msgs = (union sub_crq *)__get_free_pages(GFP_ATOMIC, 2);
-	memset(scrq->msgs, 0, 4 * PAGE_SIZE);
+	scrq->msgs =
+		(union sub_crq *)__get_free_pages(GFP_ATOMIC | __GFP_ZERO, 2);
 	if (!scrq->msgs) {
 		dev_warn(dev, "Couldn't allocate crq queue messages page\n");
 		goto zero_page_failed;
@@ -1393,9 +1393,6 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 
 	scrq->adapter = adapter;
 	scrq->size = 4 * PAGE_SIZE / sizeof(*scrq->msgs);
-	scrq->cur = 0;
-	atomic_set(&scrq->used, 0);
-	scrq->rx_skb_top = NULL;
 	spin_lock_init(&scrq->lock);
 
 	netdev_dbg(adapter->netdev,
