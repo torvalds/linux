@@ -12,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -979,14 +978,3 @@ static int __init artpec6_pmx_init(void)
 	return platform_driver_register(&artpec6_pmx_driver);
 }
 arch_initcall(artpec6_pmx_init);
-
-static void __exit artpec6_pmx_exit(void)
-{
-	platform_driver_unregister(&artpec6_pmx_driver);
-}
-module_exit(artpec6_pmx_exit);
-
-MODULE_AUTHOR("Chris Paterson <chris.paterson@linux.pieboy.co.uk>");
-MODULE_DESCRIPTION("Axis ARTPEC-6 pin control driver");
-MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, artpec6_pinctrl_match);
