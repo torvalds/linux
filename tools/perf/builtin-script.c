@@ -35,6 +35,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <signal.h>
 
 #include "sane_ctype.h"
 

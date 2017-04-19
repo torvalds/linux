@@ -59,6 +59,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sched.h>
+#include <signal.h>
 
 #include <sys/syscall.h>
 #include <sys/ioctl.h>

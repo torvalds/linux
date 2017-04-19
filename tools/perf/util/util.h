@@ -22,7 +22,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <time.h>
-#include <signal.h>
 #include <assert.h>
 #include <utime.h>
 #include <sys/wait.h>

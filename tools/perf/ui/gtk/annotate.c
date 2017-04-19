@@ -4,6 +4,7 @@
 #include "util/evsel.h"
 #include "ui/helpline.h"
 #include <inttypes.h>
+#include <signal.h>
 
 enum {
 	ANN_COL__PERCENT,

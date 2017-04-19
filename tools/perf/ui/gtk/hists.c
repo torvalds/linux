@@ -6,6 +6,7 @@
 #include "../helpline.h"
 #include "../string2.h"
 #include "gtk.h"
+#include <signal.h>
 
 #define MAX_COLUMNS			32
 

@@ -44,6 +44,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include <sched.h>
+#include <signal.h>
 #include <sys/mman.h>
 #include <asm/bug.h>
 #include <linux/time64.h>

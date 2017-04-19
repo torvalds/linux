@@ -70,6 +70,7 @@
 #include <linux/time64.h>
 #include <api/fs/fs.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
 #include <inttypes.h>

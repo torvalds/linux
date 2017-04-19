@@ -21,6 +21,7 @@
 #include <api/fs/tracing_path.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <time.h>
 #include <linux/kernel.h>

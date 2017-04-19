@@ -18,6 +18,7 @@
 #include "evsel.h"
 #include "debug.h"
 #include "asm/bug.h"
+#include <signal.h>
 #include <unistd.h>
 
 #include "parse-events.h"

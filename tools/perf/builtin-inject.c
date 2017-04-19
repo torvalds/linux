@@ -23,6 +23,7 @@
 
 #include <linux/list.h>
 #include <errno.h>
+#include <signal.h>
 
 struct perf_inject {
 	struct perf_tool	tool;

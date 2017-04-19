@@ -11,6 +11,7 @@
 #include "evsel.h"
 #include "util.h"
 #include "auxtrace.h"
+#include <signal.h>
 #include <unistd.h>
 
 struct pollfd;

@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/err.h>
