@@ -546,6 +546,23 @@ static int init_bounce_buffer(struct net_device *netdev)
 	return 0;
 }
 
+static void release_error_buffers(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_error_buff *error_buff, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->error_list_lock, flags);
+	list_for_each_entry_safe(error_buff, tmp, &adapter->errors, list) {
+		list_del(&error_buff->list);
+		dma_unmap_single(dev, error_buff->dma, error_buff->len,
+				 DMA_FROM_DEVICE);
+		kfree(error_buff->buff);
+		kfree(error_buff);
+	}
+	spin_unlock_irqrestore(&adapter->error_list_lock, flags);
+}
+
 static int ibmvnic_login(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -588,6 +605,7 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 	release_crq_queue(adapter);
 
 	release_stats_token(adapter);
+	release_error_buffers(adapter);
 }
 
 static int ibmvnic_open(struct net_device *netdev)
@@ -1957,13 +1975,11 @@ static void send_login(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_login_rsp_buffer *login_rsp_buffer;
 	struct ibmvnic_login_buffer *login_buffer;
-	struct ibmvnic_inflight_cmd *inflight_cmd;
 	struct device *dev = &adapter->vdev->dev;
 	dma_addr_t rsp_buffer_token;
 	dma_addr_t buffer_token;
 	size_t rsp_buffer_size;
 	union ibmvnic_crq crq;
-	unsigned long flags;
 	size_t buffer_size;
 	__be64 *tx_list_p;
 	__be64 *rx_list_p;
@@ -2000,11 +2016,7 @@ static void send_login(struct ibmvnic_adapter *adapter)
 		dev_err(dev, "Couldn't map login rsp buffer\n");
 		goto buf_rsp_map_failed;
 	}
-	inflight_cmd = kmalloc(sizeof(*inflight_cmd), GFP_ATOMIC);
-	if (!inflight_cmd) {
-		dev_err(dev, "Couldn't allocate inflight_cmd\n");
-		goto inflight_alloc_failed;
-	}
+
 	adapter->login_buf = login_buffer;
 	adapter->login_buf_token = buffer_token;
 	adapter->login_buf_sz = buffer_size;
@@ -2055,20 +2067,10 @@ static void send_login(struct ibmvnic_adapter *adapter)
 	crq.login.cmd = LOGIN;
 	crq.login.ioba = cpu_to_be32(buffer_token);
 	crq.login.len = cpu_to_be32(buffer_size);
-
-	memcpy(&inflight_cmd->crq, &crq, sizeof(crq));
-
-	spin_lock_irqsave(&adapter->inflight_lock, flags);
-	list_add_tail(&inflight_cmd->list, &adapter->inflight);
-	spin_unlock_irqrestore(&adapter->inflight_lock, flags);
-
 	ibmvnic_send_crq(adapter, &crq);
 
 	return;
 
-inflight_alloc_failed:
-	dma_unmap_single(dev, rsp_buffer_token, rsp_buffer_size,
-			 DMA_FROM_DEVICE);
 buf_rsp_map_failed:
 	kfree(login_rsp_buffer);
 buf_rsp_alloc_failed:
@@ -2374,7 +2376,6 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 				    struct ibmvnic_adapter *adapter)
 {
 	int detail_len = be32_to_cpu(crq->error_indication.detail_error_sz);
-	struct ibmvnic_inflight_cmd *inflight_cmd;
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_error_buff *error_buff;
 	union ibmvnic_crq new_crq;
@@ -2406,15 +2407,6 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 		return;
 	}
 
-	inflight_cmd = kmalloc(sizeof(*inflight_cmd), GFP_ATOMIC);
-	if (!inflight_cmd) {
-		dma_unmap_single(dev, error_buff->dma, detail_len,
-				 DMA_FROM_DEVICE);
-		kfree(error_buff->buff);
-		kfree(error_buff);
-		return;
-	}
-
 	error_buff->len = detail_len;
 	error_buff->error_id = crq->error_indication.error_id;
 
@@ -2428,13 +2420,6 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 	new_crq.request_error_info.ioba = cpu_to_be32(error_buff->dma);
 	new_crq.request_error_info.len = cpu_to_be32(detail_len);
 	new_crq.request_error_info.error_id = crq->error_indication.error_id;
-
-	memcpy(&inflight_cmd->crq, &crq, sizeof(crq));
-
-	spin_lock_irqsave(&adapter->inflight_lock, flags);
-	list_add_tail(&inflight_cmd->list, &adapter->inflight);
-	spin_unlock_irqrestore(&adapter->inflight_lock, flags);
-
 	ibmvnic_send_crq(adapter, &new_crq);
 }
 
@@ -2819,48 +2804,6 @@ out:
 	}
 }
 
-static void ibmvnic_free_inflight(struct ibmvnic_adapter *adapter)
-{
-	struct ibmvnic_inflight_cmd *inflight_cmd, *tmp1;
-	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_error_buff *error_buff, *tmp2;
-	unsigned long flags;
-	unsigned long flags2;
-
-	spin_lock_irqsave(&adapter->inflight_lock, flags);
-	list_for_each_entry_safe(inflight_cmd, tmp1, &adapter->inflight, list) {
-		switch (inflight_cmd->crq.generic.cmd) {
-		case LOGIN:
-			dma_unmap_single(dev, adapter->login_buf_token,
-					 adapter->login_buf_sz,
-					 DMA_BIDIRECTIONAL);
-			dma_unmap_single(dev, adapter->login_rsp_buf_token,
-					 adapter->login_rsp_buf_sz,
-					 DMA_BIDIRECTIONAL);
-			kfree(adapter->login_rsp_buf);
-			kfree(adapter->login_buf);
-			break;
-		case REQUEST_ERROR_INFO:
-			spin_lock_irqsave(&adapter->error_list_lock, flags2);
-			list_for_each_entry_safe(error_buff, tmp2,
-						 &adapter->errors, list) {
-				dma_unmap_single(dev, error_buff->dma,
-						 error_buff->len,
-						 DMA_FROM_DEVICE);
-				kfree(error_buff->buff);
-				list_del(&error_buff->list);
-				kfree(error_buff);
-			}
-			spin_unlock_irqrestore(&adapter->error_list_lock,
-					       flags2);
-			break;
-		}
-		list_del(&inflight_cmd->list);
-		kfree(inflight_cmd);
-	}
-	spin_unlock_irqrestore(&adapter->inflight_lock, flags);
-}
-
 static void ibmvnic_xport_event(struct work_struct *work)
 {
 	struct ibmvnic_adapter *adapter = container_of(work,
@@ -2869,7 +2812,6 @@ static void ibmvnic_xport_event(struct work_struct *work)
 	struct device *dev = &adapter->vdev->dev;
 	long rc;
 
-	ibmvnic_free_inflight(adapter);
 	release_sub_crqs(adapter);
 	if (adapter->migrated) {
 		rc = ibmvnic_reenable_crq_queue(adapter);
@@ -3333,9 +3275,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	spin_lock_init(&adapter->stats_lock);
 
 	INIT_LIST_HEAD(&adapter->errors);
-	INIT_LIST_HEAD(&adapter->inflight);
 	spin_lock_init(&adapter->error_list_lock);
-	spin_lock_init(&adapter->inflight_lock);
 
 	rc = ibmvnic_init(adapter);
 	if (rc) {

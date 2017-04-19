@@ -913,11 +913,6 @@ struct ibmvnic_error_buff {
 	__be32 error_id;
 };
 
-struct ibmvnic_inflight_cmd {
-	union ibmvnic_crq crq;
-	struct list_head list;
-};
-
 struct ibmvnic_adapter {
 	struct vio_dev *vdev;
 	struct net_device *netdev;
@@ -977,10 +972,6 @@ struct ibmvnic_adapter {
 	spinlock_t error_list_lock;
 
 	struct completion fw_done;
-
-	/* in-flight commands that allocate and/or map memory*/
-	struct list_head inflight;
-	spinlock_t inflight_lock;
 
 	/* partner capabilities */
 	u64 min_tx_queues;
