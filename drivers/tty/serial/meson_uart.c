@@ -124,6 +124,15 @@ static void meson_uart_stop_rx(struct uart_port *port)
 	writel(val, port->membase + AML_UART_CONTROL);
 }
 
+static void meson_uart_enable_tx_engine(struct uart_port *port)
+{
+	u32 val;
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	val |= AML_UART_TX_EN;
+	writel(val, port->membase + AML_UART_CONTROL);
+}
+
 static void meson_uart_shutdown(struct uart_port *port)
 {
 	unsigned long flags;
@@ -499,7 +508,6 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 	}
 
 	val = readl(port->membase + AML_UART_CONTROL);
-	val |= AML_UART_TX_EN;
 	tmp = val & ~(AML_UART_TX_INT_EN | AML_UART_RX_INT_EN);
 	writel(tmp, port->membase + AML_UART_CONTROL);
 
@@ -537,6 +545,8 @@ static int meson_serial_console_setup(struct console *co, char *options)
 	port = meson_ports[co->index];
 	if (!port || !port->membase)
 		return -ENODEV;
+
+	meson_uart_enable_tx_engine(port);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -576,6 +586,7 @@ meson_serial_early_console_setup(struct earlycon_device *device, const char *opt
 	if (!device->port.membase)
 		return -ENODEV;
 
+	meson_uart_enable_tx_engine(&device->port);
 	device->con->write = meson_serial_early_console_write;
 	return 0;
 }
