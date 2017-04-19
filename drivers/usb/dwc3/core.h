@@ -1,4 +1,4 @@
-/**
+/*
  * core.h - DesignWare USB3 DRD Core Header
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com
@@ -523,7 +523,6 @@ struct dwc3_event_buffer {
  * @trb_pool_dma: dma address of @trb_pool
  * @trb_enqueue: enqueue 'pointer' into TRB array
  * @trb_dequeue: dequeue 'pointer' into TRB array
- * @desc: usb_endpoint_descriptor pointer
  * @dwc: pointer to DWC controller
  * @saved_state: ep state saved during hibernation
  * @flags: endpoint flags (wedged, stalled, ...)
@@ -665,7 +664,7 @@ enum dwc3_link_state {
  * @bpl: DW0-3
  * @bph: DW4-7
  * @size: DW8-B
- * @trl: DWC-F
+ * @ctrl: DWC-F
  */
 struct dwc3_trb {
 	u32		bpl;
@@ -675,16 +674,16 @@ struct dwc3_trb {
 } __packed;
 
 /**
- * dwc3_hwparams - copy of HWPARAMS registers
- * @hwparams0 - GHWPARAMS0
- * @hwparams1 - GHWPARAMS1
- * @hwparams2 - GHWPARAMS2
- * @hwparams3 - GHWPARAMS3
- * @hwparams4 - GHWPARAMS4
- * @hwparams5 - GHWPARAMS5
- * @hwparams6 - GHWPARAMS6
- * @hwparams7 - GHWPARAMS7
- * @hwparams8 - GHWPARAMS8
+ * struct dwc3_hwparams - copy of HWPARAMS registers
+ * @hwparams0: GHWPARAMS0
+ * @hwparams1: GHWPARAMS1
+ * @hwparams2: GHWPARAMS2
+ * @hwparams3: GHWPARAMS3
+ * @hwparams4: GHWPARAMS4
+ * @hwparams5: GHWPARAMS5
+ * @hwparams6: GHWPARAMS6
+ * @hwparams7: GHWPARAMS7
+ * @hwparams8: GHWPARAMS8
  */
 struct dwc3_hwparams {
 	u32	hwparams0;
@@ -731,7 +730,8 @@ struct dwc3_hwparams {
  * @unaligned: true for OUT endpoints with length not divisible by maxp
  * @direction: IN or OUT direction flag
  * @mapped: true when request has been dma-mapped
- * @queued: true when request has been queued to HW
+ * @started: request is started
+ * @zero: wants a ZLP
  */
 struct dwc3_request {
 	struct usb_request	request;
@@ -762,17 +762,23 @@ struct dwc3_scratchpad_array {
 
 /**
  * struct dwc3 - representation of our controller
- * @drd_work - workqueue used for role swapping
+ * @drd_work: workqueue used for role swapping
  * @ep0_trb: trb which is used for the ctrl_req
+ * @bounce: address of bounce buffer
+ * @scratchbuf: address of scratch buffer
  * @setup_buf: used while precessing STD USB requests
- * @ep0_trb: dma address of ep0_trb
+ * @ep0_trb_addr: dma address of @ep0_trb
+ * @bounce_addr: dma address of @bounce
  * @ep0_usb_req: dummy req used while handling STD USB requests
  * @scratch_addr: dma address of scratchbuf
  * @ep0_in_setup: one control transfer is completed and enter setup phase
  * @lock: for synchronizing
  * @dev: pointer to our struct device
+ * @sysdev: pointer to the DMA-capable device
  * @xhci: pointer to our xHCI child
- * @event_buffer_list: a list of event buffers
+ * @xhci_resources: struct resources for our @xhci child
+ * @ev_buf: struct dwc3_event_buffer pointer
+ * @eps: endpoint array
  * @gadget: device side representation of the peripheral controller
  * @gadget_driver: pointer to the gadget driver
  * @regs: base address for our registers
@@ -796,8 +802,6 @@ struct dwc3_scratchpad_array {
  * @usb2_generic_phy: pointer to USB2 PHY
  * @usb3_generic_phy: pointer to USB3 PHY
  * @ulpi: pointer to ulpi interface
- * @dcfg: saved contents of DCFG register
- * @gctl: saved contents of GCTL register
  * @isoch_delay: wValue from Set Isochronous Delay request;
  * @u2sel: parameter from Set SEL request.
  * @u2pel: parameter from Set SEL request.
@@ -831,7 +835,6 @@ struct dwc3_scratchpad_array {
  * @pending_events: true when we have pending IRQs to be handled
  * @pullups_connected: true when Run/Stop bit is set
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
- * @start_config_issued: true when StartConfig command has been issued
  * @three_stage_setup: set if we perform a three phase setup
  * @usb3_lpm_capable: set if hadrware supports Link Power Management
  * @disable_scramble_quirk: set if we enable the disable scramble quirk
@@ -846,6 +849,7 @@ struct dwc3_scratchpad_array {
  * @dis_u2_susphy_quirk: set if we disable usb2 suspend phy
  * @dis_enblslpm_quirk: set if we clear enblslpm in GUSB2PHYCFG,
  *                      disabling the suspend signal to the PHY.
+ * @dis_rxdet_inp3_quirk: set if we disable Rx.Detect in P3
  * @dis_u2_freeclk_exists_quirk : set if we clear u2_freeclk_exists
  *			in GUSB2PHYCFG, specify that USB2 PHY doesn't
  *			provide a free-running PHY clock.
