@@ -70,8 +70,9 @@ extern void drop_cop(unsigned long acop, struct mm_struct *mm);
  * switch_mm is the entry point called from the architecture independent
  * code in kernel/sched/core.c
  */
-static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
-			     struct task_struct *tsk)
+static inline void switch_mm_irqs_off(struct mm_struct *prev,
+				      struct mm_struct *next,
+				      struct task_struct *tsk)
 {
 	/* Mark this context has been used on the new CPU */
 	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(next)))
@@ -109,6 +110,18 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 */
 	switch_mmu_context(prev, next, tsk);
 }
+
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+			     struct task_struct *tsk)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	switch_mm_irqs_off(prev, next, tsk);
+	local_irq_restore(flags);
+}
+#define switch_mm_irqs_off switch_mm_irqs_off
+
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 
