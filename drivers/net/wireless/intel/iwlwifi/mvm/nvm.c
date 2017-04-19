@@ -779,6 +779,10 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = sizeof(struct iwl_mcc_update_resp) +
 			   n_channels * sizeof(__le32);
 		resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
+		if (!resp_cp) {
+			resp_cp = ERR_PTR(-ENOMEM);
+			goto exit;
+		}
 	} else {
 		struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = (void *)pkt->data;
 
@@ -786,21 +790,18 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = sizeof(struct iwl_mcc_update_resp) +
 			   n_channels * sizeof(__le32);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
-
-		if (resp_cp) {
-			resp_cp->status = mcc_resp_v1->status;
-			resp_cp->mcc = mcc_resp_v1->mcc;
-			resp_cp->cap = mcc_resp_v1->cap;
-			resp_cp->source_id = mcc_resp_v1->source_id;
-			resp_cp->n_channels = mcc_resp_v1->n_channels;
-			memcpy(resp_cp->channels, mcc_resp_v1->channels,
-			       n_channels * sizeof(__le32));
+		if (!resp_cp) {
+			resp_cp = ERR_PTR(-ENOMEM);
+			goto exit;
 		}
-	}
 
-	if (!resp_cp) {
-		ret = -ENOMEM;
-		goto exit;
+		resp_cp->status = mcc_resp_v1->status;
+		resp_cp->mcc = mcc_resp_v1->mcc;
+		resp_cp->cap = mcc_resp_v1->cap;
+		resp_cp->source_id = mcc_resp_v1->source_id;
+		resp_cp->n_channels = mcc_resp_v1->n_channels;
+		memcpy(resp_cp->channels, mcc_resp_v1->channels,
+		       n_channels * sizeof(__le32));
 	}
 
 	status = le32_to_cpu(resp_cp->status);
@@ -820,8 +821,6 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 exit:
 	iwl_free_resp(&cmd);
-	if (ret)
-		return ERR_PTR(ret);
 	return resp_cp;
 }
 
