@@ -1,7 +1,9 @@
 /*
- * Device Tree file for Freescale LS1012A Freedom Board.
+ * Device Tree file for NXP LS1088A QDS Board.
  *
- * Copyright 2016, Freescale Semiconductor
+ * Copyright 2017 NXP
+ *
+ * Harninder Rai <harninder.rai@nxp.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPLv2 or the X11 license, at your option. Note that this dual
@@ -41,54 +43,69 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
+
 /dts-v1/;
 
-#include "fsl-ls1012a.dtsi"
+#include "fsl-ls1088a.dtsi"
 
 / {
-	model = "LS1012A Freedom Board";
-	compatible = "fsl,ls1012a-frdm", "fsl,ls1012a";
+	model = "LS1088A QDS Board";
+	compatible = "fsl,ls1088a-qds", "fsl,ls1088a";
+};
 
-	sys_mclk: clock-mclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <25000000>;
-	};
+&i2c0 {
+	status = "okay";
 
-	reg_1p8v: regulator-1p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "1P8V";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-	};
+	i2c-switch@77 {
+		compatible = "nxp,pca9547";
+		reg = <0x77>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,widgets =
-			"Microphone", "Microphone Jack",
-			"Headphone", "Headphone Jack",
-			"Speaker", "Speaker Ext",
-			"Line", "Line In Jack";
-		simple-audio-card,routing =
-			"MIC_IN", "Microphone Jack",
-			"Microphone Jack", "Mic Bias",
-			"LINE_IN", "Line In Jack",
-			"Headphone Jack", "HP_OUT",
-			"Speaker Ext", "LINE_OUT";
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
 
-		simple-audio-card,cpu {
-			sound-dai = <&sai2>;
-			frame-master;
-			bitclock-master;
+			ina220@40 {
+				compatible = "ti,ina220";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			ina220@41 {
+				compatible = "ti,ina220";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
 		};
 
-		simple-audio-card,codec {
-			sound-dai = <&codec>;
-			frame-master;
-			bitclock-master;
-			system-clock-frequency = <25000000>;
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3>;
+
+			temp-sensor@4c {
+				compatible = "adi,adt7461a";
+				reg = <0x4c>;
+			};
+
+			rtc@51 {
+				compatible = "nxp,pcf2129";
+				reg = <0x51>;
+				/* IRQ10_B */
+				interrupts = <0 150 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			eeprom@56 {
+				compatible = "atmel,24c512";
+				reg = <0x56>;
+			};
+
+			eeprom@57 {
+				compatible = "atmel,24c512";
+				reg = <0x57>;
+			};
 		};
 	};
 };
@@ -97,20 +114,7 @@
 	status = "okay";
 };
 
-&i2c0 {
-	status = "okay";
-
-	codec: sgtl5000@a {
-		#sound-dai-cells = <0>;
-		compatible = "fsl,sgtl5000";
-		reg = <0xa>;
-		VDDA-supply = <&reg_1p8v>;
-		VDDIO-supply = <&reg_1p8v>;
-		clocks = <&sys_mclk>;
-	};
-};
-
-&sai2 {
+&duart1 {
 	status = "okay";
 };
 

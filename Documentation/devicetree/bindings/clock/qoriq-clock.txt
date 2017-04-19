@@ -35,6 +35,7 @@ Required properties:
 	* "fsl,ls1021a-clockgen"
 	* "fsl,ls1043a-clockgen"
 	* "fsl,ls1046a-clockgen"
+	* "fsl,ls1088a-clockgen"
 	* "fsl,ls2080a-clockgen"
 	Chassis-version clock strings include:
 	* "fsl,qoriq-clockgen-1.0": for chassis 1.0 clocks

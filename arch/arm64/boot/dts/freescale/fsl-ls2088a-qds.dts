@@ -1,7 +1,9 @@
 /*
- * Device Tree file for Freescale LS1012A Freedom Board.
+ * Device Tree file for Freescale LS2088A QDS Board.
  *
- * Copyright 2016, Freescale Semiconductor
+ * Copyright (C) 2016-17, Freescale Semiconductor
+ *
+ * Abhimanyu Saini <abhimanyu.saini@nxp.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPLv2 or the X11 license, at your option. Note that this dual
@@ -41,79 +43,22 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
+
 /dts-v1/;
 
-#include "fsl-ls1012a.dtsi"
+#include "fsl-ls2088a.dtsi"
+#include "fsl-ls208xa-qds.dtsi"
 
 / {
-	model = "LS1012A Freedom Board";
-	compatible = "fsl,ls1012a-frdm", "fsl,ls1012a";
+	model = "Freescale Layerscape 2088A QDS Board";
+	compatible = "fsl,ls2088a-qds", "fsl,ls2088a";
 
-	sys_mclk: clock-mclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <25000000>;
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
 	};
 
-	reg_1p8v: regulator-1p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "1P8V";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
-
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,widgets =
-			"Microphone", "Microphone Jack",
-			"Headphone", "Headphone Jack",
-			"Speaker", "Speaker Ext",
-			"Line", "Line In Jack";
-		simple-audio-card,routing =
-			"MIC_IN", "Microphone Jack",
-			"Microphone Jack", "Mic Bias",
-			"LINE_IN", "Line In Jack",
-			"Headphone Jack", "HP_OUT",
-			"Speaker Ext", "LINE_OUT";
-
-		simple-audio-card,cpu {
-			sound-dai = <&sai2>;
-			frame-master;
-			bitclock-master;
-		};
-
-		simple-audio-card,codec {
-			sound-dai = <&codec>;
-			frame-master;
-			bitclock-master;
-			system-clock-frequency = <25000000>;
-		};
-	};
-};
-
-&duart0 {
-	status = "okay";
-};
-
-&i2c0 {
-	status = "okay";
-
-	codec: sgtl5000@a {
-		#sound-dai-cells = <0>;
-		compatible = "fsl,sgtl5000";
-		reg = <0xa>;
-		VDDA-supply = <&reg_1p8v>;
-		VDDIO-supply = <&reg_1p8v>;
-		clocks = <&sys_mclk>;
-	};
-};
-
-&sai2 {
-	status = "okay";
-};
-
-&sata {
-	status = "okay";
 };
