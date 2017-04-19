@@ -3027,12 +3027,8 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 static irqreturn_t ibmvnic_interrupt(int irq, void *instance)
 {
 	struct ibmvnic_adapter *adapter = instance;
-	unsigned long flags;
 
-	spin_lock_irqsave(&adapter->crq.lock, flags);
-	vio_disable_interrupts(adapter->vdev);
 	tasklet_schedule(&adapter->tasklet);
-	spin_unlock_irqrestore(&adapter->crq.lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -3040,32 +3036,23 @@ static void ibmvnic_tasklet(void *data)
 {
 	struct ibmvnic_adapter *adapter = data;
 	struct ibmvnic_crq_queue *queue = &adapter->crq;
-	struct vio_dev *vdev = adapter->vdev;
 	union ibmvnic_crq *crq;
 	unsigned long flags;
 	bool done = false;
 
 	spin_lock_irqsave(&queue->lock, flags);
-	vio_disable_interrupts(vdev);
 	while (!done) {
 		/* Pull all the valid messages off the CRQ */
 		while ((crq = ibmvnic_next_crq(adapter)) != NULL) {
 			ibmvnic_handle_crq(crq, adapter);
 			crq->generic.first = 0;
 		}
-		vio_enable_interrupts(vdev);
-		crq = ibmvnic_next_crq(adapter);
-		if (crq) {
-			vio_disable_interrupts(vdev);
-			ibmvnic_handle_crq(crq, adapter);
-			crq->generic.first = 0;
-		} else {
-			/* remain in tasklet until all
-			 * capabilities responses are received
-			 */
-			if (!adapter->wait_capability)
-				done = true;
-		}
+
+		/* remain in tasklet until all
+		 * capabilities responses are received
+		 */
+		if (!adapter->wait_capability)
+			done = true;
 	}
 	/* if capabilities CRQ's were sent in this tasklet, the following
 	 * tasklet must wait until all responses are received
