@@ -177,7 +177,7 @@
 /* CLKID_FCLK_DIV4 */
 #define CLKID_FCLK_DIV5		  7
 #define CLKID_FCLK_DIV7		  8
-#define CLKID_GP0_PLL		  9
+/* CLKID_GP0_PLL */
 #define CLKID_MPEG_SEL		  10
 #define CLKID_MPEG_DIV		  11
 /* CLKID_CLK81 */
@@ -206,16 +206,16 @@
 #define CLKID_I2S_SPDIF		  35
 /* CLKID_ETH */
 #define CLKID_DEMUX		  37
-#define CLKID_AIU_GLUE		  38
+/* CLKID_AIU_GLUE */
 #define CLKID_IEC958		  39
-#define CLKID_I2S_OUT		  40
+/* CLKID_I2S_OUT */
 #define CLKID_AMCLK		  41
 #define CLKID_AIFIFO2		  42
 #define CLKID_MIXER		  43
-#define CLKID_MIXER_IFACE	  44
+/* CLKID_MIXER_IFACE */
 #define CLKID_ADC		  45
 #define CLKID_BLKMV		  46
-#define CLKID_AIU		  47
+/* CLKID_AIU */
 #define CLKID_UART1		  48
 #define CLKID_G2D		  49
 /* CLKID_USB0 */
@@ -248,7 +248,7 @@
 /* CLKID_GCLK_VENCI_INT0 */
 #define CLKID_GCLK_VENCI_INT	  78
 #define CLKID_DAC_CLK		  79
-#define CLKID_AOCLK_GATE	  80
+/* CLKID_AOCLK_GATE */
 #define CLKID_IEC958_GATE	  81
 #define CLKID_ENC480P		  82
 #define CLKID_RNG1		  83
@@ -268,8 +268,15 @@
 /* CLKID_SAR_ADC_CLK */
 /* CLKID_SAR_ADC_SEL */
 #define CLKID_SAR_ADC_DIV	  99
+/* CLKID_MALI_0_SEL */
+#define CLKID_MALI_0_DIV	 101
+/* CLKID_MALI_0	*/
+/* CLKID_MALI_1_SEL */
+#define CLKID_MALI_1_DIV	 104
+/* CLKID_MALI_1	*/
+/* CLKID_MALI	*/
 
-#define NR_CLKS			  100
+#define NR_CLKS			  107
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>
