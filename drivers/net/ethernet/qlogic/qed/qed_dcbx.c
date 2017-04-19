@@ -583,6 +583,13 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 		   p_params->ets_cbs,
 		   p_ets->pri_tc_tbl[0], p_params->max_ets_tc);
 
+	if (p_params->ets_enabled && !p_params->max_ets_tc) {
+		p_params->max_ets_tc = QED_MAX_PFC_PRIORITIES;
+		DP_VERBOSE(p_hwfn, QED_MSG_DCB,
+			   "ETS params: max_ets_tc is forced to %d\n",
+		p_params->max_ets_tc);
+	}
+
 	/* 8 bit tsa and bw data corresponding to each of the 8 TC's are
 	 * encoded in a type u32 array of size 2.
 	 */
