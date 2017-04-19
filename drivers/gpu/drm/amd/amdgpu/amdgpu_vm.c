@@ -1338,6 +1338,12 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	flags &= ~AMDGPU_PTE_MTYPE_MASK;
 	flags |= (mapping->flags & AMDGPU_PTE_MTYPE_MASK);
 
+	if ((mapping->flags & AMDGPU_PTE_PRT) &&
+	    (adev->asic_type >= CHIP_VEGA10)) {
+		flags |= AMDGPU_PTE_PRT;
+		flags &= ~AMDGPU_PTE_VALID;
+	}
+
 	trace_amdgpu_vm_bo_update(mapping);
 
 	pfn = mapping->offset >> PAGE_SHIFT;

@@ -65,7 +65,8 @@ struct amdgpu_bo_list_entry;
 
 #define AMDGPU_PTE_FRAG(x)	((x & 0x1fULL) << 7)
 
-#define AMDGPU_PTE_PRT		(1ULL << 63)
+/* TILED for VEGA10, reserved for older ASICs  */
+#define AMDGPU_PTE_PRT		(1ULL << 51)
 
 /* VEGA10 only */
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
