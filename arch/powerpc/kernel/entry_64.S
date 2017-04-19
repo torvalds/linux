@@ -1313,16 +1313,12 @@ ftrace_call:
 #endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	stdu	r1, -112(r1)
 .globl ftrace_graph_call
 ftrace_graph_call:
 	b	ftrace_graph_stub
 _GLOBAL(ftrace_graph_stub)
-	addi	r1, r1, 112
 #endif
 
-	ld	r0,LRSAVE(r1)	/* restore callee's lr at _mcount site */
-	mtlr	r0
 	bctr			/* jump after _mcount site */
 #endif /* CC_USING_MPROFILE_KERNEL */
 
@@ -1471,6 +1467,7 @@ _GLOBAL(ftrace_graph_caller)
 
 #else /* CC_USING_MPROFILE_KERNEL */
 _GLOBAL(ftrace_graph_caller)
+	stdu	r1, -112(r1)
 	/* with -mprofile-kernel, parameter regs are still alive at _mcount */
 	std	r10, 104(r1)
 	std	r9, 96(r1)
