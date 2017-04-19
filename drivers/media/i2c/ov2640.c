@@ -765,17 +765,17 @@ static int ov2640_s_register(struct v4l2_subdev *sd,
 
 static int ov2640_s_power(struct v4l2_subdev *sd, int on)
 {
+#ifdef CONFIG_GPIOLIB
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov2640_priv *priv = to_ov2640(client);
 
-#ifdef CONFIG_GPIOLIB
 	if (priv->pwdn_gpio)
 		gpiod_direction_output(priv->pwdn_gpio, !on);
 	if (on && priv->resetb_gpio) {
 		/* Active the resetb pin to perform a reset pulse */
 		gpiod_direction_output(priv->resetb_gpio, 1);
 		usleep_range(3000, 5000);
-		gpiod_direction_output(priv->resetb_gpio, 0);
+		gpiod_set_value(priv->resetb_gpio, 0);
 	}
 #endif
 	return 0;
@@ -1048,21 +1048,35 @@ static const struct v4l2_subdev_ops ov2640_subdev_ops = {
 static int ov2640_probe_dt(struct i2c_client *client,
 		struct ov2640_priv *priv)
 {
+	int ret;
+
 	/* Request the reset GPIO deasserted */
 	priv->resetb_gpio = devm_gpiod_get_optional(&client->dev, "resetb",
 			GPIOD_OUT_LOW);
+
 	if (!priv->resetb_gpio)
 		dev_dbg(&client->dev, "resetb gpio is not assigned!\n");
-	else if (IS_ERR(priv->resetb_gpio))
-		return PTR_ERR(priv->resetb_gpio);
+
+	ret = PTR_ERR_OR_ZERO(priv->resetb_gpio);
+	if (ret && ret != -ENOSYS) {
+		dev_dbg(&client->dev,
+			"Error %d while getting resetb gpio\n", ret);
+		return ret;
+	}
 
 	/* Request the power down GPIO asserted */
 	priv->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "pwdn",
 			GPIOD_OUT_HIGH);
+
 	if (!priv->pwdn_gpio)
 		dev_dbg(&client->dev, "pwdn gpio is not assigned!\n");
-	else if (IS_ERR(priv->pwdn_gpio))
-		return PTR_ERR(priv->pwdn_gpio);
+
+	ret = PTR_ERR_OR_ZERO(priv->pwdn_gpio);
+	if (ret && ret != -ENOSYS) {
+		dev_dbg(&client->dev,
+			"Error %d while getting pwdn gpio\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
