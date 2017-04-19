@@ -734,8 +734,7 @@ static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
 	}
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int sh_rtc_suspend(struct device *dev)
+static int __maybe_unused sh_rtc_suspend(struct device *dev)
 {
 	if (device_may_wakeup(dev))
 		sh_rtc_set_irq_wake(dev, 1);
@@ -743,14 +742,13 @@ static int sh_rtc_suspend(struct device *dev)
 	return 0;
 }
 
-static int sh_rtc_resume(struct device *dev)
+static int __maybe_unused sh_rtc_resume(struct device *dev)
 {
 	if (device_may_wakeup(dev))
 		sh_rtc_set_irq_wake(dev, 0);
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(sh_rtc_pm_ops, sh_rtc_suspend, sh_rtc_resume);
 
