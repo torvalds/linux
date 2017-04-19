@@ -8224,7 +8224,7 @@ M:	Brian Norris <computersforpeace@gmail.com>
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
 M:	Marek Vasut <marek.vasut@gmail.com>
 M:	Richard Weinberger <richard@nod.at>
-M:	Cyrille Pitchen <cyrille.pitchen@atmel.com>
+M:	Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
@@ -11876,7 +11876,7 @@ S:	Maintained
 F:	drivers/clk/spear/
 
 SPI NOR SUBSYSTEM
-M:	Cyrille Pitchen <cyrille.pitchen@atmel.com>
+M:	Cyrille Pitchen <cyrille.pitchen@wedev4u.fr>
 M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
