@@ -70,6 +70,7 @@
 
 	vcc_lcd: vcc-lcd {
 		compatible = "regulator-fixed";
+		regulator-boot-on;
 		enable-active-high;
 		gpio = <&gpio7 3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
