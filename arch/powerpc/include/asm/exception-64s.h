@@ -256,20 +256,12 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	ld	r9,area+EX_R9(r13);					\
 	bctr
 
-#define BRANCH_TO_KVM(reg, label)					\
-	__LOAD_FAR_HANDLER(reg, label);					\
-	mtctr	reg;							\
-	bctr
-
 #else
 #define BRANCH_TO_COMMON(reg, label)					\
 	b	label
 
 #define BRANCH_LINK_TO_FAR(reg, label)					\
 	bl	label
-
-#define BRANCH_TO_KVM(reg, label)					\
-	b	label
 
 #define __BRANCH_TO_KVM_EXIT(area, label)				\
 	ld	r9,area+EX_R9(r13);					\

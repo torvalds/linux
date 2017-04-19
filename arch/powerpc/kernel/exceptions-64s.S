@@ -142,7 +142,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	lbz	r0,HSTATE_HWTHREAD_REQ(r13)
 	cmpwi	r0,0
 	beq	1f
-	BRANCH_TO_KVM(r10, kvm_start_guest)
+	b	kvm_start_guest
 1:
 #endif
 
