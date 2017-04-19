@@ -53,19 +53,19 @@ contains one byte.
       - [15:8]
       - [7:0]
     * - 0
-      - -
+      -
       - R/Cr/H max [7:0]
-      - -
+      -
       - R/Cr/H min [7:0]
     * - 4
-      - -
+      -
       - G/Y/S max [7:0]
-      - -
+      -
       - G/Y/S min [7:0]
     * - 8
-      - -
+      -
       - B/Cb/V max [7:0]
-      - -
+      -
       - B/Cb/V min [7:0]
     * - 12
       - :cspan:`4` R/Cr/H sum [31:0]
@@ -104,9 +104,9 @@ contains one byte.
       - [15:8]
       - [7:0]
     * - 0
-      - -
+      -
       - max(R,G,B) max [7:0]
-      - -
+      -
       - max(R,G,B) min [7:0]
     * - 4
       - :cspan:`4` max(R,G,B) sum [31:0]
@@ -129,9 +129,9 @@ contains one byte.
       - [15:8]
       - [7:0]
     * - 0
-      - -
+      -
       - Y max [7:0]
-      - -
+      -
       - Y min [7:0]
     * - 4
       - :cspan:`4` Y sum [31:0]
@@ -154,9 +154,9 @@ contains one byte.
       - [15:8]
       - [7:0]
     * - 0
-      - -
+      -
       - max(R,G,B) max [7:0]
-      - -
+      -
       - max(R,G,B) min [7:0]
     * - 4
       - :cspan:`4` max(R,G,B) sum [31:0]
