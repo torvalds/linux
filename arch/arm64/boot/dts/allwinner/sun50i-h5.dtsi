@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Jens Kuske <jenskuske@gmail.com>
+ * Copyright (C) 2016 ARM Ltd.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -48,79 +48,77 @@
 		#size-cells = <0>;
 
 		cpu@0 {
-			compatible = "arm,cortex-a7";
+			compatible = "arm,cortex-a53", "arm,armv8";
 			device_type = "cpu";
 			reg = <0>;
+			enable-method = "psci";
 		};
 
 		cpu@1 {
-			compatible = "arm,cortex-a7";
+			compatible = "arm,cortex-a53", "arm,armv8";
 			device_type = "cpu";
 			reg = <1>;
+			enable-method = "psci";
 		};
 
 		cpu@2 {
-			compatible = "arm,cortex-a7";
+			compatible = "arm,cortex-a53", "arm,armv8";
 			device_type = "cpu";
 			reg = <2>;
+			enable-method = "psci";
 		};
 
 		cpu@3 {
-			compatible = "arm,cortex-a7";
+			compatible = "arm,cortex-a53", "arm,armv8";
 			device_type = "cpu";
 			reg = <3>;
+			enable-method = "psci";
 		};
 	};
 
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
 	timer {
-		compatible = "arm,armv7-timer";
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 };
 
 &ccu {
-	compatible = "allwinner,sun8i-h3-ccu";
+	compatible = "allwinner,sun50i-h5-ccu";
 };
 
 &mmc0 {
-	compatible = "allwinner,sun7i-a20-mmc";
-	clocks = <&ccu CLK_BUS_MMC0>,
-		 <&ccu CLK_MMC0>,
-		 <&ccu CLK_MMC0_OUTPUT>,
-		 <&ccu CLK_MMC0_SAMPLE>;
-	clock-names = "ahb",
-		      "mmc",
-		      "output",
-		      "sample";
+	compatible = "allwinner,sun50i-h5-mmc",
+		     "allwinner,sun50i-a64-mmc";
+	clocks = <&ccu CLK_BUS_MMC0>, <&ccu CLK_MMC0>;
+	clock-names = "ahb", "mmc";
 };
 
 &mmc1 {
-	compatible = "allwinner,sun7i-a20-mmc";
-	clocks = <&ccu CLK_BUS_MMC1>,
-		 <&ccu CLK_MMC1>,
-		 <&ccu CLK_MMC1_OUTPUT>,
-		 <&ccu CLK_MMC1_SAMPLE>;
-	clock-names = "ahb",
-		      "mmc",
-		      "output",
-		      "sample";
+	compatible = "allwinner,sun50i-h5-mmc",
+		     "allwinner,sun50i-a64-mmc";
+	clocks = <&ccu CLK_BUS_MMC1>, <&ccu CLK_MMC1>;
+	clock-names = "ahb", "mmc";
 };
 
 &mmc2 {
-	compatible = "allwinner,sun7i-a20-mmc";
-	clocks = <&ccu CLK_BUS_MMC2>,
-		 <&ccu CLK_MMC2>,
-		 <&ccu CLK_MMC2_OUTPUT>,
-		 <&ccu CLK_MMC2_SAMPLE>;
-	clock-names = "ahb",
-		      "mmc",
-		      "output",
-		      "sample";
+	compatible = "allwinner,sun50i-h5-emmc",
+		     "allwinner,sun50i-a64-emmc";
+	clocks = <&ccu CLK_BUS_MMC2>, <&ccu CLK_MMC2>;
+	clock-names = "ahb", "mmc";
 };
 
 &pio {
-	compatible = "allwinner,sun8i-h3-pinctrl";
+	compatible = "allwinner,sun50i-h5-pinctrl";
 };
