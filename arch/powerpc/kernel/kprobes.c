@@ -192,7 +192,11 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 bool arch_function_offset_within_entry(unsigned long offset)
 {
 #ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_KPROBES_ON_FTRACE
+	return offset <= 16;
+#else
 	return offset <= 8;
+#endif
 #else
 	return !offset;
 #endif
@@ -301,7 +305,9 @@ int __kprobes kprobe_handler(struct pt_regs *regs)
 			}
 			p = __this_cpu_read(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
-				goto ss_probe;
+				if (!skip_singlestep(p, regs, kcb))
+					goto ss_probe;
+				ret = 1;
 			}
 		}
 		goto no_kprobe;
