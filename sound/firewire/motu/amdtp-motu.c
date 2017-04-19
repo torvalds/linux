@@ -268,8 +268,9 @@ static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 }
 
 /* For tracepoints. */
-static void copy_sph(u32 *frames, __be32 *buffer, unsigned int data_blocks,
-		     unsigned int data_block_quadlets)
+static void __maybe_unused copy_sph(u32 *frames, __be32 *buffer,
+				    unsigned int data_blocks,
+				    unsigned int data_block_quadlets)
 {
 	unsigned int i;
 
@@ -281,8 +282,9 @@ static void copy_sph(u32 *frames, __be32 *buffer, unsigned int data_blocks,
 }
 
 /* For tracepoints. */
-static void copy_message(u64 *frames, __be32 *buffer, unsigned int data_blocks,
-			 unsigned int data_block_quadlets)
+static void __maybe_unused copy_message(u64 *frames, __be32 *buffer,
+					unsigned int data_blocks,
+					unsigned int data_block_quadlets)
 {
 	unsigned int i;
 
