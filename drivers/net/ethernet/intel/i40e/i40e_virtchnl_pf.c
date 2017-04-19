@@ -1219,8 +1219,6 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	else
 		dev_warn(&pf->pdev->dev, "VFs are assigned - not disabling SR-IOV\n");
 
-	msleep(20); /* let any messages in transit get finished up */
-
 	/* free up VF resources */
 	tmp = pf->num_alloc_vfs;
 	pf->num_alloc_vfs = 0;
