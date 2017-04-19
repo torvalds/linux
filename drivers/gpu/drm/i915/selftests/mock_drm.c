@@ -24,31 +24,50 @@
 
 #include "mock_drm.h"
 
-static inline struct inode fake_inode(struct drm_i915_private *i915)
-{
-	return (struct inode){ .i_rdev = i915->drm.primary->index };
-}
-
 struct drm_file *mock_file(struct drm_i915_private *i915)
 {
-	struct inode inode = fake_inode(i915);
-	struct file filp = {};
+	struct file *filp;
+	struct inode *inode;
 	struct drm_file *file;
 	int err;
 
-	err = drm_open(&inode, &filp);
-	if (unlikely(err))
-		return ERR_PTR(err);
+	inode = kzalloc(sizeof(*inode), GFP_KERNEL);
+	if (!inode) {
+		err = -ENOMEM;
+		goto err;
+	}
 
-	file = filp.private_data;
+	inode->i_rdev = i915->drm.primary->index;
+
+	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
+	if (!filp) {
+		err = -ENOMEM;
+		goto err_inode;
+	}
+
+	err = drm_open(inode, filp);
+	if (err)
+		goto err_filp;
+
+	file = filp->private_data;
+	memset(&file->filp, POISON_INUSE, sizeof(file->filp));
 	file->authenticated = true;
+
+	kfree(filp);
+	kfree(inode);
 	return file;
+
+err_filp:
+	kfree(filp);
+err_inode:
+	kfree(inode);
+err:
+	return ERR_PTR(err);
 }
 
 void mock_file_free(struct drm_i915_private *i915, struct drm_file *file)
 {
-	struct inode inode = fake_inode(i915);
 	struct file filp = { .private_data = file };
 
-	drm_release(&inode, &filp);
+	drm_release(NULL, &filp);
 }
