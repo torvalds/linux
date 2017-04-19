@@ -235,13 +235,6 @@
 		clock-output-names = "pll_mac";
 	};
 
-	pll_vga: clk-pll-1073m {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <1073000000>;
-		clock-output-names = "pll_vga";
-	};
-
 	pll_mm0: clk-pll-1188m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -305,6 +298,51 @@
 			status = "disabled";
 		};
 
+		sd0: mmc@1110000 {
+			compatible = "zte,zx296718-dw-mshc";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x01110000 0x1000>;
+			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			fifo-depth = <32>;
+			data-addr = <0x200>;
+			fifo-watermark-aligned;
+			bus-width = <4>;
+			clock-frequency = <50000000>;
+			clocks = <&topcrm SD0_AHB>, <&topcrm SD0_WCLK>;
+			clock-names = "biu", "ciu";
+			num-slots = <1>;
+			max-frequency = <50000000>;
+			cap-sdio-irq;
+			cap-sd-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+			sd-uhs-sdr104;
+			sd-uhs-ddr50;
+			status = "disabled";
+		};
+
+		sd1: mmc@1111000 {
+			compatible = "zte,zx296718-dw-mshc";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x01111000 0x1000>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+			fifo-depth = <32>;
+			data-addr = <0x200>;
+			fifo-watermark-aligned;
+			bus-width = <4>;
+			clock-frequency = <167000000>;
+			clocks = <&topcrm SD1_AHB>, <&topcrm SD1_WCLK>;
+			clock-names = "biu", "ciu";
+			num-slots = <1>;
+			max-frequency = <167000000>;
+			cap-sdio-irq;
+			cap-sd-highspeed;
+			status = "disabled";
+		};
+
 		dma: dma-controller@1460000 {
 			compatible = "zte,zx296702-dma";
 			reg = <0x01460000 0x1000>;
@@ -328,6 +366,47 @@
 			#clock-cells = <1>;
 		};
 
+		vou: vou@1440000 {
+			compatible = "zte,zx296718-vou";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x1440000 0x10000>;
+
+			dpc: dpc@0 {
+				compatible = "zte,zx296718-dpc";
+				reg = <0x0000 0x1000>, <0x1000 0x1000>,
+				      <0x5000 0x1000>, <0x6000 0x1000>,
+				      <0xa000 0x1000>;
+				reg-names = "osd", "timing_ctrl",
+					    "dtrc", "vou_ctrl",
+					    "otfppu";
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&topcrm VOU_ACLK>, <&topcrm VOU_PPU_WCLK>,
+					 <&topcrm VOU_MAIN_WCLK>, <&topcrm VOU_AUX_WCLK>;
+				clock-names = "aclk", "ppu_wclk",
+					      "main_wclk", "aux_wclk";
+			};
+
+			hdmi: hdmi@c000 {
+				compatible = "zte,zx296718-hdmi";
+				reg = <0xc000 0x4000>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&topcrm HDMI_OSC_CEC>,
+					 <&topcrm HDMI_OSC_CLK>,
+					 <&topcrm HDMI_XCLK>;
+				clock-names = "osc_cec", "osc_clk", "xclk";
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+
+			tvenc: tvenc@2000 {
+				compatible = "zte,zx296718-tvenc";
+				reg = <0x2000 0x1000>;
+				zte,tvenc-power-control = <&sysctrl 0x170 0x10>;
+				status = "disabled";
+			};
+		};
+
 		topcrm: clock-controller@1461000 {
 			compatible = "zte,zx296718-topcrm";
 			reg = <0x01461000 0x1000>;
@@ -339,10 +418,43 @@
 			reg = <0x1463000 0x1000>;
 		};
 
+		emmc: mmc@1470000{
+			compatible = "zte,zx296718-dw-mshc";
+			reg = <0x01470000 0x1000>;
+			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+			zte,aon-syscon = <&aon_sysctrl>;
+			bus-width = <8>;
+			fifo-depth = <128>;
+			data-addr = <0x200>;
+			fifo-watermark-aligned;
+			clock-frequency = <167000000>;
+			clocks = <&topcrm EMMC_NAND_AHB>, <&topcrm EMMC_WCLK>;
+			clock-names = "biu", "ciu";
+			max-frequency = <167000000>;
+			cap-mmc-highspeed;
+			mmc-ddr-1_8v;
+			mmc-hs200-1_8v;
+			non-removable;
+			disable-wp;
+			status = "disabled";
+		};
+
 		audiocrm: clock-controller@1480000 {
 			compatible = "zte,zx296718-audiocrm";
 			reg = <0x01480000 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		spdif0: spdif@1488000 {
+			compatible = "zte,zx296702-spdif";
+			reg = <0x1488000 0x1000>;
+			clocks = <&audiocrm AUDIO_SPDIF0_WCLK>;
+			clock-names = "tx";
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			#sound-dai-cells = <0>;
+			dmas = <&dma 30>;
+			dma-names = "tx";
+			status = "disabled";
 		};
 	};
 };
