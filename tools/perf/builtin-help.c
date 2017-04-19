@@ -14,6 +14,10 @@
 #include "util/debug.h"
 #include <linux/kernel.h>
 #include <errno.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;

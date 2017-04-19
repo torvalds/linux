@@ -2,6 +2,7 @@
 #define __SUBCMD_HELP_H
 
 #include <sys/types.h>
+#include <stdio.h>
 
 struct cmdnames {
 	size_t alloc;

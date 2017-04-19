@@ -1,4 +1,7 @@
 #include <inttypes.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "builtin.h"
 #include "perf.h"
 

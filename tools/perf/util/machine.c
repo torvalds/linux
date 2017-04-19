@@ -14,6 +14,9 @@
 #include "thread.h"
 #include "vdso.h"
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "unwind.h"
 #include "linux/hash.h"
 #include "asm/bug.h"

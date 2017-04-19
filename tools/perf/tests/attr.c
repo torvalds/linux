@@ -25,6 +25,9 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../perf.h"
 #include "util.h"
 #include <subcmd/exec-cmd.h>

@@ -46,6 +46,9 @@
 #include <signal.h>
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 struct report {
 	struct perf_tool	tool;

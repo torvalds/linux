@@ -7,9 +7,6 @@
 #define _DEFAULT_SOURCE 1
 #define HAS_BOOL
 
-#include <unistd.h>
-#include <stdio.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>

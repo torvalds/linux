@@ -3,6 +3,7 @@
 #include "debug.h"
 #include <api/fs/fs.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/utsname.h>
 #include <dirent.h>
 #include <inttypes.h>

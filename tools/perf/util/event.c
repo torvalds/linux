@@ -3,6 +3,9 @@
 #include <inttypes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include <api/fs/fs.h>
 #include "event.h"

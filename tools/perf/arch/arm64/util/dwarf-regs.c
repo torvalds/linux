@@ -10,6 +10,7 @@
 
 #include <errno.h>
 #include <stddef.h>
+#include <string.h>
 #include <dwarf-regs.h>
 #include <linux/ptrace.h> /* for struct user_pt_regs */
 #include <linux/stringify.h>

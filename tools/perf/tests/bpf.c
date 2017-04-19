@@ -1,6 +1,8 @@
 #include <errno.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <util/util.h>
 #include <util/bpf-loader.h>
 #include <util/evlist.h>
