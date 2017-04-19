@@ -411,7 +411,6 @@ power9_dd1_recover_paca:
 	/* Load paca->thread_sibling_pacas[i] into r13 */
 	ldx	r13, r4, r5
 	SET_PACA(r13)
-	ld	r2, PACATOC(r13)
 	/*
 	 * Indicate that we have lost NVGPR state
 	 * which needs to be restored from the stack.
@@ -451,7 +450,12 @@ pnv_powersave_wakeup_mce:
  */
 .global pnv_powersave_wakeup
 pnv_powersave_wakeup:
+	ld	r2, PACATOC(r13)
+
 BEGIN_FTR_SECTION
+BEGIN_FTR_SECTION_NESTED(70)
+	bl	power9_dd1_recover_paca
+END_FTR_SECTION_NESTED_IFSET(CPU_FTR_POWER9_DD1, 70)
 	bl	pnv_restore_hyp_resource_arch300
 FTR_SECTION_ELSE
 	bl	pnv_restore_hyp_resource_arch207
@@ -488,14 +492,6 @@ pnv_restore_hyp_resource_arch300:
 	 * POWER ISA 3. Use PSSCR to determine if we
 	 * are waking up from deep idle state
 	 */
-BEGIN_FTR_SECTION
-	mflr 	r6
-	bl	power9_dd1_recover_paca
-	mtlr	r6
-FTR_SECTION_ELSE
-	ld	r2, PACATOC(r13)
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_POWER9_DD1)
-
 	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 
@@ -516,8 +512,6 @@ pnv_restore_hyp_resource_arch207:
 	 * POWER ISA 2.07 or less.
 	 * Check if we slept with sleep or winkle.
 	 */
-	ld	r2,PACATOC(r13);
-
 	lbz	r4,PACA_THREAD_IDLE_STATE(r13)
 	cmpwi	cr2,r4,PNV_THREAD_NAP
 	bgt	cr2,pnv_wakeup_tb_loss	/* Either sleep or Winkle */
