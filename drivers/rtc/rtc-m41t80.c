@@ -129,6 +129,11 @@ static const struct of_device_id m41t80_of_match[] = {
 		.data = (void *)(M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ)
 	},
 	{
+		.compatible = "microcrystal,rv4162",
+		.data = (void *)(M41T80_FEATURE_SQ | M41T80_FEATURE_WD | M41T80_FEATURE_SQ_ALT)
+	},
+	/* DT compatibility only, do not use compatibles below: */
+	{
 		.compatible = "st,rv4162",
 		.data = (void *)(M41T80_FEATURE_SQ | M41T80_FEATURE_WD | M41T80_FEATURE_SQ_ALT)
 	},
