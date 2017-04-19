@@ -302,20 +302,13 @@ static void rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 	call_rcu(&f->rcu, rsvp_delete_filter_rcu);
 }
 
-static bool rsvp_destroy(struct tcf_proto *tp, bool force)
+static void rsvp_destroy(struct tcf_proto *tp)
 {
 	struct rsvp_head *data = rtnl_dereference(tp->root);
 	int h1, h2;
 
 	if (data == NULL)
-		return true;
-
-	if (!force) {
-		for (h1 = 0; h1 < 256; h1++) {
-			if (rcu_access_pointer(data->ht[h1]))
-				return false;
-		}
-	}
+		return;
 
 	RCU_INIT_POINTER(tp->root, NULL);
 
@@ -337,10 +330,9 @@ static bool rsvp_destroy(struct tcf_proto *tp, bool force)
 		}
 	}
 	kfree_rcu(data, rcu);
-	return true;
 }
 
-static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
+static int rsvp_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
 	struct rsvp_head *head = rtnl_dereference(tp->root);
 	struct rsvp_filter *nfp, *f = (struct rsvp_filter *)arg;
@@ -348,7 +340,7 @@ static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
 	unsigned int h = f->handle;
 	struct rsvp_session __rcu **sp;
 	struct rsvp_session *nsp, *s = f->sess;
-	int i;
+	int i, h1;
 
 	fp = &s->ht[(h >> 8) & 0xFF];
 	for (nfp = rtnl_dereference(*fp); nfp;
@@ -361,7 +353,7 @@ static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
 
 			for (i = 0; i <= 16; i++)
 				if (s->ht[i])
-					return 0;
+					goto out;
 
 			/* OK, session has no flows */
 			sp = &head->ht[h & 0xFF];
@@ -370,13 +362,23 @@ static int rsvp_delete(struct tcf_proto *tp, unsigned long arg)
 				if (nsp == s) {
 					RCU_INIT_POINTER(*sp, s->next);
 					kfree_rcu(s, rcu);
-					return 0;
+					goto out;
 				}
 			}
 
-			return 0;
+			break;
 		}
 	}
+
+out:
+	*last = true;
+	for (h1 = 0; h1 < 256; h1++) {
+		if (rcu_access_pointer(head->ht[h1])) {
+			*last = false;
+			break;
+		}
+	}
+
 	return 0;
 }
 

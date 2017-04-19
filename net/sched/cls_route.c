@@ -276,20 +276,13 @@ static void route4_delete_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static bool route4_destroy(struct tcf_proto *tp, bool force)
+static void route4_destroy(struct tcf_proto *tp)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	int h1, h2;
 
 	if (head == NULL)
-		return true;
-
-	if (!force) {
-		for (h1 = 0; h1 <= 256; h1++) {
-			if (rcu_access_pointer(head->table[h1]))
-				return false;
-		}
-	}
+		return;
 
 	for (h1 = 0; h1 <= 256; h1++) {
 		struct route4_bucket *b;
@@ -314,10 +307,9 @@ static bool route4_destroy(struct tcf_proto *tp, bool force)
 	}
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
-	return true;
 }
 
-static int route4_delete(struct tcf_proto *tp, unsigned long arg)
+static int route4_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	struct route4_filter *f = (struct route4_filter *)arg;
@@ -325,7 +317,7 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 	struct route4_filter *nf;
 	struct route4_bucket *b;
 	unsigned int h = 0;
-	int i;
+	int i, h1;
 
 	if (!head || !f)
 		return -EINVAL;
@@ -356,16 +348,25 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 
 				rt = rtnl_dereference(b->ht[i]);
 				if (rt)
-					return 0;
+					goto out;
 			}
 
 			/* OK, session has no flows */
 			RCU_INIT_POINTER(head->table[to_hash(h)], NULL);
 			kfree_rcu(b, rcu);
-
-			return 0;
+			break;
 		}
 	}
+
+out:
+	*last = true;
+	for (h1 = 0; h1 <= 256; h1++) {
+		if (rcu_access_pointer(head->table[h1])) {
+			*last = false;
+			break;
+		}
+	}
+
 	return 0;
 }
 
