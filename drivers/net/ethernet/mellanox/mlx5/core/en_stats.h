@@ -268,7 +268,7 @@ static const struct counter_desc pport_2819_stats_desc[] = {
 };
 
 static const struct counter_desc pport_phy_statistical_stats_desc[] = {
-	{ "rx_symbol_errors_phy", PPORT_PHY_STATISTICAL_OFF(phy_symbol_errors) },
+	{ "rx_pcs_symbol_err_phy", PPORT_PHY_STATISTICAL_OFF(phy_symbol_errors) },
 	{ "rx_corrected_bits_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits) },
 };
 
