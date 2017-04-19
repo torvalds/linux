@@ -1122,7 +1122,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	/*recall flip functions to avoid flip registers
-	 * were overrided by default setting
+	 * were overridden by default setting
 	 */
 	if (h_flag)
 		ov2680_h_flip(sd, h_flag);
