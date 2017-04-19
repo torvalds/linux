@@ -248,7 +248,7 @@ static int xgene_pcie_ecam_init(struct pci_config_window *cfg, u32 ipversion)
 		dev_err(dev, "can't get CSR resource\n");
 		return ret;
 	}
-	port->csr_base = devm_ioremap_resource(dev, &csr);
+	port->csr_base = devm_pci_remap_cfg_resource(dev, &csr);
 	if (IS_ERR(port->csr_base))
 		return PTR_ERR(port->csr_base);
 
@@ -359,7 +359,7 @@ static int xgene_pcie_map_reg(struct xgene_pcie_port *port,
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csr");
-	port->csr_base = devm_ioremap_resource(dev, res);
+	port->csr_base = devm_pci_remap_cfg_resource(dev, res);
 	if (IS_ERR(port->csr_base))
 		return PTR_ERR(port->csr_base);
 
