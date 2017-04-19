@@ -206,8 +206,8 @@ int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 static const char * const snoop_access[] = {
 	"N/A",
 	"None",
-	"Miss",
 	"Hit",
+	"Miss",
 	"HitM",
 };
 
