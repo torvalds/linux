@@ -962,9 +962,8 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out;
 	}
 
-	atomic_inc(&tx_scrq->used);
-
-	if (atomic_read(&tx_scrq->used) >= adapter->req_tx_entries_per_subcrq) {
+	if (atomic_inc_return(&tx_scrq->used)
+					>= adapter->req_tx_entries_per_subcrq) {
 		netdev_info(netdev, "Stopping queue %d\n", queue_num);
 		netif_stop_subqueue(netdev, queue_num);
 	}
@@ -1499,9 +1498,8 @@ restart_loop:
 			}
 
 			if (txbuff->last_frag) {
-				atomic_dec(&scrq->used);
-
-				if (atomic_read(&scrq->used) <=
+				if (atomic_sub_return(next->tx_comp.num_comps,
+						      &scrq->used) <=
 				    (adapter->req_tx_entries_per_subcrq / 2) &&
 				    netif_subqueue_stopped(adapter->netdev,
 							   txbuff->skb)) {
