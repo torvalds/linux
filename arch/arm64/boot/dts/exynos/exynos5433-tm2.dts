@@ -52,6 +52,18 @@
 	assigned-clock-rates = <250000000>, <400000000>;
 };
 
+&dsi {
+	panel@0 {
+		compatible = "samsung,s6e3ha2";
+		reg = <0>;
+		vdd3-supply = <&ldo27_reg>;
+		vci-supply = <&ldo28_reg>;
+		reset-gpios = <&gpg0 0 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&gpf1 5 GPIO_ACTIVE_HIGH>;
+		te-gpios = <&gpf1 3 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &hsi2c_9 {
 	status = "okay";
 
@@ -75,4 +87,9 @@
 	regulator-name = "VCC_3.0V_MOTOR_AP";
 	regulator-min-microvolt = <3000000>;
 	regulator-max-microvolt = <3000000>;
+};
+
+&stmfts {
+	touchscreen-size-x = <1439>;
+	touchscreen-size-y = <2559>;
 };

@@ -63,3 +63,10 @@
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
 };
+
+&stmfts {
+	touchscreen-size-x = <1599>;
+	touchscreen-size-y = <2559>;
+	touch-key-connected;
+	ledvdd-supply = <&ldo33_reg>;
+};
