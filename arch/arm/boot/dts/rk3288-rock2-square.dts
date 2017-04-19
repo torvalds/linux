@@ -81,6 +81,17 @@
 		};
 	};
 
+	sata_pwr: sata-prw-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sata_pwr_en>;
+		/* Always turn on the 5V sata power connector */
+		regulator-always-on;
+		regulator-name = "sata_pwr";
+	};
+
 	spdif_out: spdif-out {
 		compatible = "linux,spdif-dit";
 		#sound-dai-cells = <0>;
@@ -237,6 +248,12 @@
 		};
 	};
 
+	sata {
+		sata_pwr_en: sata-pwr-en {
+			rockchip,pins = <0 13 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	sdmmc {
 		sdmmc_pwr: sdmmc-pwr {
 			rockchip,pins = <7 11 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -263,5 +280,9 @@
 };
 
 &usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1 {
 	status = "okay";
 };
