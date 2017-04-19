@@ -416,6 +416,31 @@ power9_dd1_recover_paca:
 	blr
 
 /*
+ * Called from machine check handler for powersave wakeups.
+ * Low level machine check processing has already been done. Now just
+ * go through the wake up path to get everything in order.
+ *
+ * r3 - The original SRR1 value.
+ * Original SRR[01] have been clobbered.
+ * MSR_RI is clear.
+ */
+.global pnv_powersave_wakeup_mce
+pnv_powersave_wakeup_mce:
+	/* Set cr3 for pnv_powersave_wakeup */
+	rlwinm	r11,r3,47-31,30,31
+	cmpwi	cr3,r11,2
+
+	/*
+	 * Now put the original SRR1 with SRR1_WAKEMCE_RESVD as the wake
+	 * reason into SRR1, which allows reuse of the system reset wakeup
+	 * code without being mistaken for another type of wakeup.
+	 */
+	oris	r3,r3,SRR1_WAKEMCE_RESVD@h
+	mtspr	SPRN_SRR1,r3
+
+	b	pnv_powersave_wakeup
+
+/*
  * Called from reset vector for powersave wakeups.
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
  */
