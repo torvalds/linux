@@ -418,28 +418,29 @@ static void set_audio_input(struct au8522_state *state)
 				lpfilter_coef[i].reg_val[0]);
 	}
 
-	/* Setup audio */
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x00);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x00);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_REG0F4H, 0x00);
-	msleep(150);
-	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H, 0x00);
-	msleep(10);
-	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
-			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
-	msleep(50);
+	/* Set the volume */
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x7F);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x7F);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_REG0F4H, 0xff);
-	msleep(80);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x7F);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x7F);
+
+	/* Not sure what this does */
 	au8522_writereg(state, AU8522_REG0F9H, AU8522_REG0F9H_AUDIO);
+
+	/* Setup the audio mode to stereo DBX */
 	au8522_writereg(state, AU8522_AUDIO_MODE_REG0F1H, 0x82);
 	msleep(70);
-	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_1_REG0A5H, 0x09);
+
+	/* Start the audio processing module */
+	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H, 0x9d);
+
+	/* Set the audio frequency to 48 KHz */
 	au8522_writereg(state, AU8522_AUDIOFREQ_REG606H, 0x03);
+
+	/* Set the I2S parameters (WS, LSB, mode, sample rate */
 	au8522_writereg(state, AU8522_I2S_CTRL_2_REG112H, 0xc2);
+
+	/* Enable the I2S output */
+	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_1_REG0A5H, 0x09);
 }
 
 /* ----------------------------------------------------------------------- */
