@@ -511,11 +511,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
 	if (bio) {
-		rq->ioprio = bio_prio(bio);
-		rq->__data_len = bio->bi_iter.bi_size;
-		rq->bio = rq->biotail = bio;
-		if (bio_has_data(bio))
-			rq->nr_phys_segments = bio_phys_segments(q, bio);
+		blk_init_request_from_bio(rq, bio);
 	} else {
 		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
 		rq->__data_len = 0;
