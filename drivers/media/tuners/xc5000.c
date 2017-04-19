@@ -565,38 +565,16 @@ static int xc_get_totalgain(struct xc5000_priv *priv, u16 *totalgain)
 	return xc5000_readreg(priv, XREG_TOTALGAIN, totalgain);
 }
 
-static u16 wait_for_lock(struct xc5000_priv *priv)
-{
-	u16 lock_state = 0;
-	int watch_dog_count = 40;
-
-	while ((lock_state == 0) && (watch_dog_count > 0)) {
-		xc_get_lock_status(priv, &lock_state);
-		if (lock_state != 1) {
-			msleep(5);
-			watch_dog_count--;
-		}
-	}
-	return lock_state;
-}
-
 #define XC_TUNE_ANALOG  0
 #define XC_TUNE_DIGITAL 1
 static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz, int mode)
 {
-	int found = 0;
-
 	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
 	if (xc_set_rf_frequency(priv, freq_hz) != 0)
-		return 0;
+		return -EREMOTEIO;
 
-	if (mode == XC_TUNE_ANALOG) {
-		if (wait_for_lock(priv) == 1)
-			found = 1;
-	}
-
-	return found;
+	return 0;
 }
 
 static int xc_set_xtal(struct dvb_frontend *fe)
