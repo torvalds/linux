@@ -25,6 +25,7 @@
 #include "parse-events.h"
 #include <subcmd/parse-options.h>
 
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 
 #include <linux/bitops.h>

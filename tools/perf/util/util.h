@@ -18,7 +18,6 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <poll.h>
-#include <sys/ioctl.h>
 #include <linux/types.h>
 
 extern char buildid_dir[];

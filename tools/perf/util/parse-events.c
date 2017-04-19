@@ -2,6 +2,7 @@
 #include <linux/err.h>
 #include <dirent.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 #include <sys/param.h>
 #include "term.h"
 #include "../perf.h"
