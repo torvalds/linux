@@ -252,7 +252,7 @@ retry_deleg:
 				goto retry_deleg;
 		}
 		if (error)
-			pr_err("sdcardfs: Failed to touch up lower fs gid/uid.\n");
+			pr_debug("sdcardfs: Failed to touch up lower fs gid/uid for %s\n", name);
 	}
 	sdcardfs_put_lower_path(dentry, &path);
 }
