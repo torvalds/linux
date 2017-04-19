@@ -254,14 +254,9 @@ static struct sk_buff *ch9200_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	tx_overhead = 0x40;
 
 	len = skb->len;
-	if (skb_headroom(skb) < tx_overhead) {
-		struct sk_buff *skb2;
-
-		skb2 = skb_copy_expand(skb, tx_overhead, 0, flags);
+	if (skb_cow_head(skb, tx_overhead)) {
 		dev_kfree_skb_any(skb);
-		skb = skb2;
-		if (!skb)
-			return NULL;
+		return NULL;
 	}
 
 	__skb_push(skb, tx_overhead);
