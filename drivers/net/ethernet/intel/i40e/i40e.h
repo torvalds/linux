@@ -245,7 +245,7 @@ struct i40e_tc_configuration {
 
 struct i40e_udp_port_config {
 	/* AdminQ command interface expects port number in Host byte order */
-	u16 index;
+	u16 port;
 	u8 type;
 };
 
