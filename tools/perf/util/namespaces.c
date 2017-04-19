@@ -11,6 +11,7 @@
 #include "event.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 struct namespaces *namespaces__new(struct namespaces_event *event)
 {

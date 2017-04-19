@@ -15,7 +15,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <string.h>
 #include <sys/wait.h>
 #include <poll.h>
 #include <linux/types.h>
