@@ -12464,7 +12464,6 @@ F:	drivers/clk/ti/
 F:	include/linux/clk/ti.h
 
 TI ETHERNET SWITCH DRIVER (CPSW)
-M:	Mugunthan V N <mugunthanvnm@ti.com>
 R:	Grygorii Strashko <grygorii.strashko@ti.com>
 L:	linux-omap@vger.kernel.org
 L:	netdev@vger.kernel.org
