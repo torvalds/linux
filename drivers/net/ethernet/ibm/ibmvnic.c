@@ -601,9 +601,6 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 	release_tx_pools(adapter);
 	release_rx_pools(adapter);
 
-	release_sub_crqs(adapter);
-	release_crq_queue(adapter);
-
 	release_stats_token(adapter);
 	release_error_buffers(adapter);
 }
@@ -3300,8 +3297,14 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 static int ibmvnic_remove(struct vio_dev *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(&dev->dev);
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+
+	release_resources(adapter);
+	release_sub_crqs(adapter);
+	release_crq_queue(adapter);
+
 	free_netdev(netdev);
 	dev_set_drvdata(&dev->dev, NULL);
 
