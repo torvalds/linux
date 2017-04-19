@@ -211,9 +211,10 @@ static int esp6_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features
 	if (!xo)
 		return -EINVAL;
 
-	if (!(features & NETIF_F_HW_ESP) ||
-	    (x->xso.offload_handle &&  x->xso.dev != skb->dev)) {
+	if (!(features & NETIF_F_HW_ESP) || !x->xso.offload_handle ||
+	    (x->xso.dev != skb->dev)) {
 		xo->flags |= CRYPTO_FALLBACK;
+		hw_offload = false;
 	}
 
 	esp.proto = xo->proto;
@@ -254,7 +255,7 @@ static int esp6_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features
 		ipv6_hdr(skb)->payload_len = htons(len);
 	}
 
-	if (x->xso.offload_handle && !(xo->flags & CRYPTO_FALLBACK))
+	if (hw_offload)
 		return 0;
 
 	esp.seqno = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
