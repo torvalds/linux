@@ -22,6 +22,7 @@
 #include "util/build-id.h"
 #include "util/session.h"
 #include "util/symbol.h"
+#include "util/time-utils.h"
 
 static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 {

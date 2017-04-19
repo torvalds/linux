@@ -20,10 +20,7 @@
 #include <limits.h>
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/time.h>
-#include <time.h>
 #include <assert.h>
-#include <utime.h>
 #include <sys/wait.h>
 #include <poll.h>
 #include <sys/socket.h>
@@ -125,12 +122,9 @@ int fetch_kernel_version(unsigned int *puint,
 #define KVER_PARAM(x)	KVER_VERSION(x), KVER_PATCHLEVEL(x), KVER_SUBLEVEL(x)
 
 const char *perf_tip(const char *dirpath);
-int fetch_current_timestamp(char *buf, size_t sz);
 
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
 #endif
-
-int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
 
 #endif /* GIT_COMPAT_UTIL_H */

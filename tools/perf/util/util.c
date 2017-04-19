@@ -381,14 +381,6 @@ void sighandler_dump_stack(int sig)
 	raise(sig);
 }
 
-int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz)
-{
-	u64  sec = timestamp / NSEC_PER_SEC;
-	u64 usec = (timestamp % NSEC_PER_SEC) / NSEC_PER_USEC;
-
-	return scnprintf(buf, sz, "%"PRIu64".%06"PRIu64, sec, usec);
-}
-
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
 {
 	struct parse_tag *i = tags;
@@ -691,21 +683,4 @@ out:
 	strlist__delete(tips);
 
 	return tip;
-}
-
-int fetch_current_timestamp(char *buf, size_t sz)
-{
-	struct timeval tv;
-	struct tm tm;
-	char dt[32];
-
-	if (gettimeofday(&tv, NULL) || !localtime_r(&tv.tv_sec, &tm))
-		return -1;
-
-	if (!strftime(dt, sizeof(dt), "%Y%m%d%H%M%S", &tm))
-		return -1;
-
-	scnprintf(buf, sz, "%s%02u", dt, (unsigned)tv.tv_usec / 10000);
-
-	return 0;
 }

@@ -38,6 +38,7 @@
 #include "util/bpf-loader.h"
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
+#include "util/time-utils.h"
 #include "util/units.h"
 #include "asm/bug.h"
 

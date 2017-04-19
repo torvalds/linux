@@ -24,6 +24,7 @@
 #ifdef HAVE_TIMERFD_SUPPORT
 #include <sys/timerfd.h>
 #endif
+#include <sys/time.h>
 
 #include <linux/kernel.h>
 #include <linux/time64.h>
