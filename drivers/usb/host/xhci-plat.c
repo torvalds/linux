@@ -197,10 +197,16 @@ static int xhci_plat_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+
 	hcd = __usb_create_hcd(driver, sysdev, &pdev->dev,
 			       dev_name(&pdev->dev), NULL);
-	if (!hcd)
-		return -ENOMEM;
+	if (!hcd) {
+		ret = -ENOMEM;
+		goto disable_runtime;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -278,6 +284,13 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto dealloc_usb2_hcd;
 
 	device_enable_async_suspend(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+
+	/*
+	 * Prevent runtime pm from being on as default, users should enable
+	 * runtime pm using power/control in sysfs.
+	 */
+	pm_runtime_forbid(&pdev->dev);
 
 	return 0;
 
@@ -297,6 +310,10 @@ disable_clk:
 
 put_hcd:
 	usb_put_hcd(hcd);
+
+disable_runtime:
+	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return ret;
 }
@@ -318,6 +335,9 @@ static int xhci_plat_remove(struct platform_device *dev)
 	if (!IS_ERR(clk))
 		clk_disable_unprepare(clk);
 	usb_put_hcd(hcd);
+
+	pm_runtime_set_suspended(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 
 	return 0;
 }
@@ -346,14 +366,33 @@ static int xhci_plat_resume(struct device *dev)
 
 	return xhci_resume(xhci, 0);
 }
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
+static int xhci_plat_runtime_suspend(struct device *dev)
+{
+	struct usb_hcd  *hcd = dev_get_drvdata(dev);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	return xhci_suspend(xhci, true);
+}
+
+static int xhci_plat_runtime_resume(struct device *dev)
+{
+	struct usb_hcd  *hcd = dev_get_drvdata(dev);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	return xhci_resume(xhci, 0);
+}
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops xhci_plat_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(xhci_plat_suspend, xhci_plat_resume)
+
+	SET_RUNTIME_PM_OPS(xhci_plat_runtime_suspend,
+			   xhci_plat_runtime_resume,
+			   NULL)
 };
-#define DEV_PM_OPS	(&xhci_plat_pm_ops)
-#else
-#define DEV_PM_OPS	NULL
-#endif /* CONFIG_PM */
 
 static const struct acpi_device_id usb_xhci_acpi_match[] = {
 	/* XHCI-compliant USB Controller */
@@ -368,7 +407,7 @@ static struct platform_driver usb_xhci_driver = {
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver	= {
 		.name = "xhci-hcd",
-		.pm = DEV_PM_OPS,
+		.pm = &xhci_plat_pm_ops,
 		.of_match_table = of_match_ptr(usb_xhci_of_match),
 		.acpi_match_table = ACPI_PTR(usb_xhci_acpi_match),
 	},
