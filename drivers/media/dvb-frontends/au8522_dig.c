@@ -284,7 +284,6 @@ static struct {
 	u16 data;
 } VSB_mod_tab[] = {
 	{ 0x0090, 0x84 },
-	{ 0x4092, 0x11 },
 	{ 0x2005, 0x00 },
 	{ 0x0091, 0x80 },
 	{ 0x00a3, 0x0c },
@@ -654,12 +653,12 @@ static int au8522_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	if (state->current_modulation == VSB_8) {
 		dprintk("%s() Checking VSB_8\n", __func__);
-		reg = au8522_readreg(state, 0x4088);
+		reg = au8522_readreg(state, 0x0088);
 		if ((reg & 0x03) == 0x03)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC | FE_HAS_VITERBI;
 	} else {
 		dprintk("%s() Checking QAM\n", __func__);
-		reg = au8522_readreg(state, 0x4541);
+		reg = au8522_readreg(state, 0x0541);
 		if (reg & 0x80)
 			*status |= FE_HAS_VITERBI;
 		if (reg & 0x20)
@@ -745,17 +744,17 @@ static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 	if (state->current_modulation == QAM_256)
 		ret = au8522_mse2snr_lookup(qam256_mse2snr_tab,
 					    ARRAY_SIZE(qam256_mse2snr_tab),
-					    au8522_readreg(state, 0x4522),
+					    au8522_readreg(state, 0x0522),
 					    snr);
 	else if (state->current_modulation == QAM_64)
 		ret = au8522_mse2snr_lookup(qam64_mse2snr_tab,
 					    ARRAY_SIZE(qam64_mse2snr_tab),
-					    au8522_readreg(state, 0x4522),
+					    au8522_readreg(state, 0x0522),
 					    snr);
 	else /* VSB_8 */
 		ret = au8522_mse2snr_lookup(vsb_mse2snr_tab,
 					    ARRAY_SIZE(vsb_mse2snr_tab),
-					    au8522_readreg(state, 0x4311),
+					    au8522_readreg(state, 0x0311),
 					    snr);
 
 	if (state->config.led_cfg)
@@ -804,9 +803,9 @@ static int au8522_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	struct au8522_state *state = fe->demodulator_priv;
 
 	if (state->current_modulation == VSB_8)
-		*ucblocks = au8522_readreg(state, 0x4087);
+		*ucblocks = au8522_readreg(state, 0x0087);
 	else
-		*ucblocks = au8522_readreg(state, 0x4543);
+		*ucblocks = au8522_readreg(state, 0x0543);
 
 	return 0;
 }
