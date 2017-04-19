@@ -2664,6 +2664,9 @@ void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 		i2c_del_adapter(&hdmi->i2c->adap);
 	else
 		i2c_put_adapter(hdmi->ddc);
+
+	flush_workqueue(hdmi->workqueue);
+	destroy_workqueue(hdmi->workqueue);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
 
