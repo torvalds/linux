@@ -16,6 +16,7 @@ Linux USB API
    persist
    error-codes
    writing_usb_driver
+   dwc3
    writing_musb_glue_layer
 
 .. only::  subproject and html
