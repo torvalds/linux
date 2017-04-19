@@ -272,28 +272,6 @@ int copyfile(const char *from, const char *to)
 	return copyfile_mode(from, to, 0755);
 }
 
-unsigned long convert_unit(unsigned long value, char *unit)
-{
-	*unit = ' ';
-
-	if (value > 1000) {
-		value /= 1000;
-		*unit = 'K';
-	}
-
-	if (value > 1000) {
-		value /= 1000;
-		*unit = 'M';
-	}
-
-	if (value > 1000) {
-		value /= 1000;
-		*unit = 'G';
-	}
-
-	return value;
-}
-
 static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 {
 	void *buf_start = buf;
@@ -730,17 +708,4 @@ int fetch_current_timestamp(char *buf, size_t sz)
 	scnprintf(buf, sz, "%s%02u", dt, (unsigned)tv.tv_usec / 10000);
 
 	return 0;
-}
-
-int unit_number__scnprintf(char *buf, size_t size, u64 n)
-{
-	char unit[4] = "BKMG";
-	int i = 0;
-
-	while (((n / 1024) > 1) && (i < 3)) {
-		n /= 1024;
-		i++;
-	}
-
-	return scnprintf(buf, size, "%" PRIu64 "%c", n, unit[i]);
 }

@@ -37,6 +37,7 @@
 #include "arch/common.h"
 #include "util/time-utils.h"
 #include "util/auxtrace.h"
+#include "util/units.h"
 
 #include <dlfcn.h>
 #include <errno.h>

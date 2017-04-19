@@ -24,6 +24,7 @@
 #include "annotate.h"
 #include "srcline.h"
 #include "string2.h"
+#include "units.h"
 
 #include "sane_ctype.h"
 

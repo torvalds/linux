@@ -17,6 +17,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
+#include "units.h"
 #include "asm/bug.h"
 #include <signal.h>
 #include <unistd.h>

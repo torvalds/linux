@@ -73,7 +73,6 @@ int copyfile(const char *from, const char *to);
 int copyfile_mode(const char *from, const char *to, mode_t mode);
 int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 size);
 
-unsigned long convert_unit(unsigned long value, char *unit);
 ssize_t readn(int fd, void *buf, size_t n);
 ssize_t writen(int fd, void *buf, size_t n);
 
@@ -133,7 +132,5 @@ int sched_getcpu(void);
 #endif
 
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
-
-int unit_number__scnprintf(char *buf, size_t size, u64 n);
 
 #endif /* GIT_COMPAT_UTIL_H */
