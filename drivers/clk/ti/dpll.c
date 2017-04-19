@@ -312,7 +312,6 @@ static void _register_dpll_x2(struct device_node *node,
 	struct clk_hw_omap *clk_hw;
 	const char *name = node->name;
 	const char *parent_name;
-	int ret;
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
@@ -332,16 +331,21 @@ static void _register_dpll_x2(struct device_node *node,
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
+	defined(CONFIG_SOC_DRA7XX)
 	if (hw_ops == &clkhwops_omap4_dpllmx) {
+		int ret;
+
 		/* Check if register defined, if not, drop hw-ops */
 		ret = of_property_count_elems_of_size(node, "reg", 1);
 		if (ret <= 0) {
-			hw_ops = NULL;
+			clk_hw->ops = NULL;
 		} else if (ti_clk_get_reg_addr(node, 0, &clk_hw->clksel_reg)) {
 			kfree(clk_hw);
 			return;
 		}
 	}
+#endif
 
 	/* register the clock */
 	clk = ti_clk_register(NULL, &clk_hw->hw, name);
