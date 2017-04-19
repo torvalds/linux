@@ -134,7 +134,7 @@ static int __init dn_rtmsg_init(void)
 		return -ENOMEM;
 	}
 
-	rv = nf_register_hook(&dnrmg_ops);
+	rv = nf_register_net_hook(&init_net, &dnrmg_ops);
 	if (rv) {
 		netlink_kernel_release(dnrmg);
 	}
@@ -144,7 +144,7 @@ static int __init dn_rtmsg_init(void)
 
 static void __exit dn_rtmsg_fini(void)
 {
-	nf_unregister_hook(&dnrmg_ops);
+	nf_unregister_net_hook(&init_net, &dnrmg_ops);
 	netlink_kernel_release(dnrmg);
 }
 
