@@ -1173,8 +1173,46 @@ static int s390_gs_cb_set(struct task_struct *target,
 
 	if (!MACHINE_HAS_GS)
 		return -ENODEV;
+	if (!data) {
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+		target->thread.gs_cb = data;
+	}
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  data, 0, sizeof(struct gs_cb));
+}
+
+static int s390_gs_bc_get(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  void *kbuf, void __user *ubuf)
+{
+	struct gs_cb *data = target->thread.gs_bc_cb;
+
+	if (!MACHINE_HAS_GS)
+		return -ENODEV;
 	if (!data)
 		return -ENODATA;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   data, 0, sizeof(struct gs_cb));
+}
+
+static int s390_gs_bc_set(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  const void *kbuf, const void __user *ubuf)
+{
+	struct gs_cb *data = target->thread.gs_bc_cb;
+
+	if (!MACHINE_HAS_GS)
+		return -ENODEV;
+	if (!data) {
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+		target->thread.gs_bc_cb = data;
+	}
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  data, 0, sizeof(struct gs_cb));
 }
@@ -1243,6 +1281,14 @@ static const struct user_regset s390_regsets[] = {
 		.align = sizeof(__u64),
 		.get = s390_gs_cb_get,
 		.set = s390_gs_cb_set,
+	},
+	{
+		.core_note_type = NT_S390_GS_BC,
+		.n = sizeof(struct gs_cb) / sizeof(__u64),
+		.size = sizeof(__u64),
+		.align = sizeof(__u64),
+		.get = s390_gs_bc_get,
+		.set = s390_gs_bc_set,
 	},
 };
 
