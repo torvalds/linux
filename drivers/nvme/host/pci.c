@@ -679,8 +679,7 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 		}
 
 		req = blk_mq_tag_to_rq(*nvmeq->tags, cqe.command_id);
-		nvme_req(req)->result = cqe.result;
-		blk_mq_complete_request(req, le16_to_cpu(cqe.status) >> 1);
+		nvme_end_request(req, cqe.status, cqe.result);
 	}
 
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
@@ -817,9 +816,9 @@ static void abort_endio(struct request *req, int error)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = iod->nvmeq;
-	u16 status = req->errors;
 
-	dev_warn(nvmeq->dev->ctrl.device, "Abort status: 0x%x", status);
+	dev_warn(nvmeq->dev->ctrl.device,
+		 "Abort status: 0x%x", nvme_req(req)->status);
 	atomic_inc(&nvmeq->dev->ctrl.abort_limit);
 	blk_mq_free_request(req);
 }
@@ -843,7 +842,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 			 "I/O %d QID %d timeout, disable controller\n",
 			 req->tag, nvmeq->qid);
 		nvme_dev_disable(dev, false);
-		req->errors = NVME_SC_CANCELLED;
+		nvme_req(req)->flags |= NVME_REQ_CANCELLED;
 		return BLK_EH_HANDLED;
 	}
 
@@ -863,7 +862,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 		 * Mark the request as handled, since the inline shutdown
 		 * forces all outstanding requests to complete.
 		 */
-		req->errors = NVME_SC_CANCELLED;
+		nvme_req(req)->flags |= NVME_REQ_CANCELLED;
 		return BLK_EH_HANDLED;
 	}
 

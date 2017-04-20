@@ -1178,8 +1178,7 @@ static int nvme_rdma_process_nvme_rsp(struct nvme_rdma_queue *queue,
 	    wc->ex.invalidate_rkey == req->mr->rkey)
 		req->mr->need_inval = false;
 
-	req->req.result = cqe->result;
-	blk_mq_complete_request(rq, le16_to_cpu(cqe->status) >> 1);
+	nvme_end_request(rq, cqe->status, cqe->result);
 	return ret;
 }
 
@@ -1416,7 +1415,7 @@ nvme_rdma_timeout(struct request *rq, bool reserved)
 	nvme_rdma_error_recovery(req->queue->ctrl);
 
 	/* fail with DNR on cmd timeout */
-	rq->errors = NVME_SC_ABORT_REQ | NVME_SC_DNR;
+	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
 
 	return BLK_EH_HANDLED;
 }

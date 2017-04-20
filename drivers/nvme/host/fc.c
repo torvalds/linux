@@ -1148,6 +1148,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	struct nvme_fc_queue *queue = op->queue;
 	struct nvme_completion *cqe = &op->rsp_iu.cqe;
 	__le16 status = cpu_to_le16(NVME_SC_SUCCESS << 1);
+	union nvme_result result;
 
 	/*
 	 * WARNING:
@@ -1215,7 +1216,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 			status = cpu_to_le16(NVME_SC_FC_TRANSPORT_ERROR << 1);
 			goto done;
 		}
-		op->nreq.result.u64 = 0;
+		result.u64 = 0;
 		break;
 
 	case sizeof(struct nvme_fc_ersp_iu):
@@ -1232,7 +1233,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 			status = cpu_to_le16(NVME_SC_FC_TRANSPORT_ERROR << 1);
 			goto done;
 		}
-		op->nreq.result = cqe->result;
+		result = cqe->result;
 		status = cqe->status;
 		break;
 
@@ -1243,13 +1244,12 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 
 done:
 	if (!queue->qnum && op->rqno >= AEN_CMDID_BASE) {
-		nvme_complete_async_event(&queue->ctrl->ctrl, status,
-					&op->nreq.result);
+		nvme_complete_async_event(&queue->ctrl->ctrl, status, &result);
 		nvme_fc_ctrl_put(ctrl);
 		return;
 	}
 
-	blk_mq_complete_request(rq, le16_to_cpu(status) >> 1);
+	nvme_end_request(rq, status, result);
 }
 
 static int

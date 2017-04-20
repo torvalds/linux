@@ -124,7 +124,6 @@ static void nvme_loop_queue_response(struct nvmet_req *req)
 				&cqe->result);
 	} else {
 		struct request *rq;
-		struct nvme_loop_iod *iod;
 
 		rq = blk_mq_tag_to_rq(nvme_loop_tagset(queue), cqe->command_id);
 		if (!rq) {
@@ -134,9 +133,7 @@ static void nvme_loop_queue_response(struct nvmet_req *req)
 			return;
 		}
 
-		iod = blk_mq_rq_to_pdu(rq);
-		iod->nvme_req.result = cqe->result;
-		blk_mq_complete_request(rq, le16_to_cpu(cqe->status) >> 1);
+		nvme_end_request(rq, cqe->status, cqe->result);
 	}
 }
 
@@ -157,7 +154,7 @@ nvme_loop_timeout(struct request *rq, bool reserved)
 	schedule_work(&iod->queue->ctrl->reset_work);
 
 	/* fail with DNR on admin cmd timeout */
-	rq->errors = NVME_SC_ABORT_REQ | NVME_SC_DNR;
+	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
 
 	return BLK_EH_HANDLED;
 }

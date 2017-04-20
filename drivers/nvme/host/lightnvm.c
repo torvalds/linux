@@ -484,7 +484,7 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 	struct nvm_rq *rqd = rq->end_io_data;
 
 	rqd->ppa_status = nvme_req(rq)->result.u64;
-	rqd->error = error;
+	rqd->error = nvme_req(rq)->status;
 	nvm_end_io(rqd);
 
 	kfree(nvme_req(rq)->cmd);
@@ -665,9 +665,12 @@ submit:
 
 	wait_for_completion_io(&wait);
 
-	ret = nvme_error_status(rq->errors);
+	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
+		ret = -EINTR;
+	else
+		ret = nvme_error_status(rq);
 	if (result)
-		*result = rq->errors & 0x7ff;
+		*result = nvme_req(rq)->status & 0x7ff;
 	if (status)
 		*status = le64_to_cpu(nvme_req(rq)->result.u64);
 
