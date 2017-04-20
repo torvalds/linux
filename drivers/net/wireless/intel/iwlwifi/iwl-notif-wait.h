@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,10 +90,10 @@ struct iwl_notif_wait_data {
  *
  * This structure is not used directly, to wait for a
  * notification declare it on the stack, and call
- * iwlagn_init_notification_wait() with appropriate
+ * iwl_init_notification_wait() with appropriate
  * parameters. Then do whatever will cause the ucode
  * to notify the driver, and to wait for that then
- * call iwlagn_wait_notification().
+ * call iwl_wait_notification().
  *
  * Each notification is one-shot. If at some point we
  * need to support multi-shot notifications (which
@@ -114,9 +115,23 @@ struct iwl_notification_wait {
 
 /* caller functions */
 void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_data);
-void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_data,
-				  struct iwl_rx_packet *pkt);
+bool iwl_notification_wait(struct iwl_notif_wait_data *notif_data,
+			   struct iwl_rx_packet *pkt);
 void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_data);
+
+static inline void
+iwl_notification_notify(struct iwl_notif_wait_data *notif_data)
+{
+	wake_up_all(&notif_data->notif_waitq);
+}
+
+static inline void
+iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_data,
+			     struct iwl_rx_packet *pkt)
+{
+	if (iwl_notification_wait(notif_data, pkt))
+		iwl_notification_notify(notif_data);
+}
 
 /* user functions */
 void __acquires(wait_entry)

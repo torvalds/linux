@@ -235,14 +235,17 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	/* initialize TX command queue */
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
-		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue].dma_addr);
+		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
 		TFD_QUEUE_CB_SIZE(TFD_QUEUE_SIZE_MAX);
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_ctxt_info_init_fw_sec(trans, fw, ctxt_info);
-	if (ret)
+	if (ret) {
+		dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info),
+				  ctxt_info, trans_pcie->ctxt_info_dma_addr);
 		return ret;
+	}
 
 	trans_pcie->ctxt_info = ctxt_info;
 

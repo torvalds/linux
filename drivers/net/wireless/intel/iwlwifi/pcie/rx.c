@@ -1094,7 +1094,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 				bool emergency)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
+	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
 	bool page_stolen = false;
 	int max_len = PAGE_SIZE << trans_pcie->rx_page_order;
 	u32 offset = 0;
@@ -1419,8 +1419,11 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	iwl_trans_fw_error(trans);
 	local_bh_enable();
 
-	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
-		del_timer(&trans_pcie->txq[i].stuck_timer);
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+		if (!trans_pcie->txq[i])
+			continue;
+		del_timer(&trans_pcie->txq[i]->stuck_timer);
+	}
 
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans_pcie->wait_command_queue);

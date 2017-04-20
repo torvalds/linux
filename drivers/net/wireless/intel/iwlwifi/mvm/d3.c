@@ -1208,7 +1208,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT) {
+	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA) {
 		/* if we're not associated, this must be netdetect */
 		if (!wowlan->nd_config) {
 			ret = 1;
@@ -2115,6 +2115,10 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	 * can play it back when we re-intiailize the D0 firmware
 	 */
 	iwl_mvm_update_changed_regdom(mvm);
+
+	if (!unified_image)
+		/*  Re-configure default SAR profile */
+		iwl_mvm_sar_select_profile(mvm, 1, 1);
 
 	if (mvm->net_detect) {
 		/* If this is a non-unified image, we restart the FW,

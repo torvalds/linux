@@ -205,11 +205,11 @@ struct iwl_cmd_meta {
  * into the buffer regardless of whether it should be mapped or not.
  * This indicates how big the first TB must be to include the scratch buffer
  * and the assigned PN.
- * Since PN location is 16 bytes at offset 24, it's 40 now.
+ * Since PN location is 8 bytes at offset 12, it's 20 now.
  * If we make it bigger then allocations will be bigger and copy slower, so
  * that's probably not useful.
  */
-#define IWL_FIRST_TB_SIZE	40
+#define IWL_FIRST_TB_SIZE	20
 #define IWL_FIRST_TB_SIZE_ALIGN ALIGN(IWL_FIRST_TB_SIZE, 64)
 
 struct iwl_pcie_txq_entry {
@@ -241,6 +241,7 @@ struct iwl_pcie_first_tb_buf {
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
  * @frozen: tx stuck queue timer is frozen
  * @frozen_expiry_remainder: remember how long until the timer fires
+ * @bc_tbl: byte count table of the queue (relevant only for gen2 transport)
  * @write_ptr: 1-st empty entry (index) host_w
  * @read_ptr: last used entry (index) host_r
  * @dma_addr:  physical addr for BD's
@@ -280,6 +281,7 @@ struct iwl_txq {
 	int block;
 	unsigned long wd_timeout;
 	struct sk_buff_head overflow_q;
+	struct iwl_dma_ptr bc_tbl;
 
 	int write_ptr;
 	int read_ptr;
@@ -411,7 +413,8 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr scd_bc_tbls;
 	struct iwl_dma_ptr kw;
 
-	struct iwl_txq *txq;
+	struct iwl_txq *txq_memory;
+	struct iwl_txq *txq[IWL_MAX_HW_QUEUES];
 	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 
@@ -650,6 +653,12 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
+static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
+				     struct iwl_txq *txq, int idx)
+{
+	return txq->tfds + trans_pcie->tfd_size * idx;
+}
+
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -758,10 +767,35 @@ void iwl_pcie_apm_config(struct iwl_trans *trans);
 int iwl_pcie_prepare_card_hw(struct iwl_trans *trans);
 void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);
 bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans);
+void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
+int iwl_queue_space(const struct iwl_txq *q);
+int iwl_pcie_apm_stop_master(struct iwl_trans *trans);
+void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
+int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
+		      int slots_num, bool cmd_queue);
+int iwl_pcie_txq_alloc(struct iwl_trans *trans,
+		       struct iwl_txq *txq, int slots_num,  bool cmd_queue);
+int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
+			   struct iwl_dma_ptr *ptr, size_t size);
+void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 				 const struct fw_img *fw, bool run_in_rfkill);
 void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr);
-
+int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
+				 struct iwl_tx_queue_cfg_cmd *cmd,
+				 int cmd_id,
+				 unsigned int timeout);
+void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue);
+int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
+			   struct iwl_device_cmd *dev_cmd, int txq_id);
+int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
+				  struct iwl_host_cmd *cmd);
+void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans,
+				     bool low_power);
+void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power);
+void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id);
+void iwl_pcie_gen2_tx_free(struct iwl_trans *trans);
+void iwl_pcie_gen2_tx_stop(struct iwl_trans *trans);
 #endif /* __iwl_trans_int_pcie_h__ */
