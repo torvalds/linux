@@ -740,7 +740,7 @@ static int ccp5_init(struct ccp_device *ccp)
 		ioread32(cmd_q->reg_status);
 
 		/* Clear the interrupts */
-		iowrite32(ALL_INTERRUPTS, cmd_q->reg_interrupt_status);
+		iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_interrupt_status);
 	}
 
 	dev_dbg(dev, "Requesting an IRQ...\n");
@@ -824,7 +824,7 @@ static int ccp5_init(struct ccp_device *ccp)
 	/* Enable interrupts */
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
-		iowrite32(ALL_INTERRUPTS, cmd_q->reg_int_enable);
+		iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_int_enable);
 	}
 
 	dev_dbg(dev, "Registering device...\n");
@@ -884,7 +884,7 @@ static void ccp5_destroy(struct ccp_device *ccp)
 		iowrite32(cmd_q->qcontrol & ~CMD5_Q_RUN, cmd_q->reg_control);
 
 		/* Disable the interrupts */
-		iowrite32(ALL_INTERRUPTS, cmd_q->reg_interrupt_status);
+		iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_interrupt_status);
 
 		/* Clear the interrupt status */
 		iowrite32(0x00, cmd_q->reg_int_enable);
@@ -944,7 +944,8 @@ static irqreturn_t ccp5_irq_handler(int irq, void *data)
 			cmd_q->int_rcvd = 1;
 
 			/* Acknowledge the interrupt and wake the kthread */
-			iowrite32(ALL_INTERRUPTS, cmd_q->reg_interrupt_status);
+			iowrite32(SUPPORTED_INTERRUPTS,
+				  cmd_q->reg_interrupt_status);
 			wake_up_interruptible(&cmd_q->int_queue);
 		}
 	}
