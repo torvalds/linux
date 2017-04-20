@@ -81,15 +81,21 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_set_dailink_name);
 int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 				     char *prefix)
 {
-	char prop[128];
 	int ret;
 
-	snprintf(prop, sizeof(prop), "%sname", prefix);
+	if (!prefix)
+		prefix = "";
 
 	/* Parse the card name from DT */
-	ret = snd_soc_of_parse_card_name(card, prop);
-	if (ret < 0)
-		return ret;
+	ret = snd_soc_of_parse_card_name(card, "label");
+	if (ret < 0) {
+		char prop[128];
+
+		snprintf(prop, sizeof(prop), "%sname", prefix);
+		ret = snd_soc_of_parse_card_name(card, prop);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (!card->name && card->dai_link)
 		card->name = card->dai_link->name;
