@@ -3098,7 +3098,9 @@ static int mlxsw_sp_inetaddr_vport_event(struct net_device *l3_dev,
 static int mlxsw_sp_inetaddr_port_event(struct net_device *port_dev,
 					unsigned long event)
 {
-	if (netif_is_bridge_port(port_dev) || netif_is_lag_port(port_dev))
+	if (netif_is_bridge_port(port_dev) ||
+	    netif_is_lag_port(port_dev) ||
+	    netif_is_ovs_port(port_dev))
 		return 0;
 
 	return mlxsw_sp_inetaddr_vport_event(port_dev, port_dev, event, 1);

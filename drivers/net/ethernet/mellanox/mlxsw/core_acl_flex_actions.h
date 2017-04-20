@@ -66,5 +66,6 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 				       u16 vid, u8 pcp, u8 et);
 int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 				   u32 counter_index);
+int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid);
 
 #endif

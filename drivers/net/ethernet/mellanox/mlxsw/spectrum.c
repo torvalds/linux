@@ -1061,8 +1061,9 @@ mlxsw_sp_port_get_stats64(struct net_device *dev,
 	memcpy(stats, mlxsw_sp_port->hw_stats.cache, sizeof(*stats));
 }
 
-int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
-			   u16 vid_end, bool is_member, bool untagged)
+static int __mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				    u16 vid_begin, u16 vid_end,
+				    bool is_member, bool untagged)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char *spvm_pl;
@@ -1077,6 +1078,26 @@ int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvm), spvm_pl);
 	kfree(spvm_pl);
 	return err;
+}
+
+int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
+			   u16 vid_end, bool is_member, bool untagged)
+{
+	u16 vid, vid_e;
+	int err;
+
+	for (vid = vid_begin; vid <= vid_end;
+	     vid += MLXSW_REG_SPVM_REC_MAX_COUNT) {
+		vid_e = min((u16) (vid + MLXSW_REG_SPVM_REC_MAX_COUNT - 1),
+			    vid_end);
+
+		err = __mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid_e,
+					       is_member, untagged);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
@@ -2987,6 +3008,7 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, TRAP_TO_CPU, IGMP, false),
 	MLXSW_SP_RXL_MARK(ARPBC, MIRROR_TO_CPU, ARP, false),
 	MLXSW_SP_RXL_MARK(ARPUC, MIRROR_TO_CPU, ARP, false),
+	MLXSW_SP_RXL_NO_MARK(FID_MISS, TRAP_TO_CPU, IP2ME, false),
 	/* L3 traps */
 	MLXSW_SP_RXL_NO_MARK(MTUERROR, TRAP_TO_CPU, ROUTER_EXP, false),
 	MLXSW_SP_RXL_NO_MARK(TTLERROR, TRAP_TO_CPU, ROUTER_EXP, false),
@@ -3268,6 +3290,18 @@ static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
+static int mlxsw_sp_vfid_op(struct mlxsw_sp *mlxsw_sp, u16 fid, bool create);
+
+static int mlxsw_sp_dummy_fid_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_sp_vfid_op(mlxsw_sp, MLXSW_SP_DUMMY_FID, true);
+}
+
+static void mlxsw_sp_dummy_fid_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp_vfid_op(mlxsw_sp, MLXSW_SP_DUMMY_FID, false);
+}
+
 static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info)
 {
@@ -3346,6 +3380,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_dpipe_init;
 	}
 
+	err = mlxsw_sp_dummy_fid_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init dummy FID\n");
+		goto err_dummy_fid_init;
+	}
+
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -3355,6 +3395,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
+	mlxsw_sp_dummy_fid_fini(mlxsw_sp);
+err_dummy_fid_init:
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 err_dpipe_init:
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
@@ -3381,6 +3423,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	mlxsw_sp_dummy_fid_fini(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
@@ -3994,6 +4037,56 @@ static void mlxsw_sp_port_vlan_unlink(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_vport->dev = mlxsw_sp_port->dev;
 }
 
+static int mlxsw_sp_port_stp_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				 bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	enum mlxsw_reg_spms_state spms_state;
+	char *spms_pl;
+	u16 vid;
+	int err;
+
+	spms_state = enable ? MLXSW_REG_SPMS_STATE_FORWARDING :
+			      MLXSW_REG_SPMS_STATE_DISCARDING;
+
+	spms_pl = kmalloc(MLXSW_REG_SPMS_LEN, GFP_KERNEL);
+	if (!spms_pl)
+		return -ENOMEM;
+	mlxsw_reg_spms_pack(spms_pl, mlxsw_sp_port->local_port);
+
+	for (vid = 0; vid < VLAN_N_VID; vid++)
+		mlxsw_reg_spms_vid_pack(spms_pl, vid, spms_state);
+
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spms), spms_pl);
+	kfree(spms_pl);
+	return err;
+}
+
+static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	int err;
+
+	err = mlxsw_sp_port_stp_set(mlxsw_sp_port, true);
+	if (err)
+		return err;
+	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+				     true, false);
+	if (err)
+		goto err_port_vlan_set;
+	return 0;
+
+err_port_vlan_set:
+	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
+	return err;
+}
+
+static void mlxsw_sp_port_ovs_leave(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
+			       false, false);
+	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
+}
+
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 					       unsigned long event, void *ptr)
 {
@@ -4013,7 +4106,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 		if (!is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(upper_dev) &&
 		    !netif_is_bridge_master(upper_dev) &&
-		    !netif_is_l3_master(upper_dev))
+		    !netif_is_l3_master(upper_dev) &&
+		    !netif_is_ovs_master(upper_dev))
 			return -EINVAL;
 		if (!info->linking)
 			break;
@@ -4030,6 +4124,10 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 		if (netif_is_lag_port(dev) && is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(vlan_dev_real_dev(upper_dev)))
 			return -EINVAL;
+		if (netif_is_ovs_master(upper_dev) && vlan_uses_dev(dev))
+			return -EINVAL;
+		if (netif_is_ovs_port(dev) && is_vlan_dev(upper_dev))
+			return -EINVAL;
 		break;
 	case NETDEV_CHANGEUPPER:
 		upper_dev = info->upper_dev;
@@ -4038,8 +4136,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 				err = mlxsw_sp_port_vlan_link(mlxsw_sp_port,
 							      upper_dev);
 			else
-				 mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
-							   upper_dev);
+				mlxsw_sp_port_vlan_unlink(mlxsw_sp_port,
+							  upper_dev);
 		} else if (netif_is_bridge_master(upper_dev)) {
 			if (info->linking)
 				err = mlxsw_sp_port_bridge_join(mlxsw_sp_port,
@@ -4058,6 +4156,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 				err = mlxsw_sp_port_vrf_join(mlxsw_sp_port);
 			else
 				mlxsw_sp_port_vrf_leave(mlxsw_sp_port);
+		} else if (netif_is_ovs_master(upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_port_ovs_join(mlxsw_sp_port);
+			else
+				mlxsw_sp_port_ovs_leave(mlxsw_sp_port);
 		} else {
 			err = -EINVAL;
 			WARN_ON(1);

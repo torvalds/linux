@@ -811,3 +811,47 @@ int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_counter);
+
+/* Virtual Router and Forwarding Domain Action
+ * -------------------------------------------
+ * Virtual Switch action is used for manipulate the Virtual Router (VR),
+ * MPLS label space and the Forwarding Identifier (FID).
+ */
+
+#define MLXSW_AFA_VIRFWD_CODE 0x0E
+#define MLXSW_AFA_VIRFWD_SIZE 1
+
+enum mlxsw_afa_virfwd_fid_cmd {
+	/* Do nothing */
+	MLXSW_AFA_VIRFWD_FID_CMD_NOOP,
+	/* Set the Forwarding Identifier (FID) to fid */
+	MLXSW_AFA_VIRFWD_FID_CMD_SET,
+};
+
+/* afa_virfwd_fid_cmd */
+MLXSW_ITEM32(afa, virfwd, fid_cmd, 0x08, 29, 3);
+
+/* afa_virfwd_fid
+ * The FID value.
+ */
+MLXSW_ITEM32(afa, virfwd, fid, 0x08, 0, 16);
+
+static inline void mlxsw_afa_virfwd_pack(char *payload,
+					 enum mlxsw_afa_virfwd_fid_cmd fid_cmd,
+					 u16 fid)
+{
+	mlxsw_afa_virfwd_fid_cmd_set(payload, fid_cmd);
+	mlxsw_afa_virfwd_fid_set(payload, fid);
+}
+
+int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_VIRFWD_CODE,
+						  MLXSW_AFA_VIRFWD_SIZE);
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_virfwd_pack(act, MLXSW_AFA_VIRFWD_FID_CMD_SET, fid);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_fid_set);

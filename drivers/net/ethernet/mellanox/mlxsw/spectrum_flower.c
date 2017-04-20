@@ -71,6 +71,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			int ifindex = tcf_mirred_ifindex(a);
 			struct net_device *out_dev;
 
+			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
+							     MLXSW_SP_DUMMY_FID);
+			if (err)
+				return err;
+
 			out_dev = __dev_get_by_index(dev_net(dev), ifindex);
 			if (out_dev == dev)
 				out_dev = NULL;
