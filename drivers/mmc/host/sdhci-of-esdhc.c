@@ -631,6 +631,25 @@ static int esdhc_signal_voltage_switch(struct mmc_host *mmc,
 	}
 }
 
+static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	u32 val;
+
+	/* Use tuning block for tuning procedure */
+	esdhc_clock_enable(host, false);
+	val = sdhci_readl(host, ESDHC_DMA_SYSCTL);
+	val |= ESDHC_FLUSH_ASYNC_FIFO;
+	sdhci_writel(host, val, ESDHC_DMA_SYSCTL);
+
+	val = sdhci_readl(host, ESDHC_TBCTL);
+	val |= ESDHC_TB_EN;
+	sdhci_writel(host, val, ESDHC_TBCTL);
+	esdhc_clock_enable(host, true);
+
+	return sdhci_execute_tuning(mmc, opcode);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static u32 esdhc_proctl;
 static int esdhc_of_suspend(struct device *dev)
@@ -790,6 +809,7 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 
 	host->mmc_host_ops.start_signal_voltage_switch =
 		esdhc_signal_voltage_switch;
+	host->mmc_host_ops.execute_tuning = esdhc_execute_tuning;
 
 	esdhc_init(pdev, host);
 
