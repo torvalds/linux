@@ -919,6 +919,7 @@ static int rga2_blit_async(rga2_session *session, struct rga2_req *req)
 static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
 {
 	struct rga2_req req_bak;
+	int restore = 0;
 	int try = 10;
 	int ret = -1;
 	int ret_timeout = 0;
@@ -969,11 +970,30 @@ retry:
 #endif
 	if (ret == -ETIMEDOUT && try--) {
 		memcpy(req, &req_bak, sizeof(req_bak));
+		/*
+		 * if rga work timeout with scaling, need do a non-scale work
+		 * first, restore hardware status, then do actually work.
+		 */
+		if (req->src.act_w != req->dst.act_w ||
+		    req->src.act_h != req->dst.act_h) {
+			req->src.act_w = MIN(320, MIN(req->src.act_w,
+						      req->dst.act_w));
+			req->src.act_h = MIN(240, MIN(req->src.act_h,
+						      req->dst.act_h));
+			req->dst.act_w = req->src.act_w;
+			req->dst.act_h = req->src.act_h;
+			restore = 1;
+		}
+		goto retry;
+	}
+	if (!ret && restore) {
+		memcpy(req, &req_bak, sizeof(req_bak));
+		restore = 0;
 		goto retry;
 	}
 
 	return ret;
-	}
+}
 
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
