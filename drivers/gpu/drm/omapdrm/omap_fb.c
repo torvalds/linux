@@ -258,7 +258,7 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		ret = omap_gem_get_paddr(plane->bo, &plane->paddr, true);
+		ret = omap_gem_get_paddr(plane->bo, &plane->paddr);
 		if (ret)
 			goto fail;
 		omap_gem_dma_sync(plane->bo, DMA_TO_DEVICE);

@@ -162,7 +162,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	 * to it).  Then we just need to be sure that we are able to re-
 	 * pin it in case of an opps.
 	 */
-	ret = omap_gem_get_paddr(fbdev->bo, &paddr, true);
+	ret = omap_gem_get_paddr(fbdev->bo, &paddr);
 	if (ret) {
 		dev_err(dev->dev,
 			"could not map (paddr)!  Skipping framebuffer alloc\n");

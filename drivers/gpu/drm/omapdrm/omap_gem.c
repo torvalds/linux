@@ -784,12 +784,10 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 	}
 }
 
-/* Get physical address for DMA.. if 'remap' is true, and the buffer is not
- * already contiguous, remap it to pin in physically contiguous memory.. (ie.
- * map in TILER)
+/* Get physical address for DMA.. if the buffer is not already contiguous, remap
+ * it to pin in physically contiguous memory.. (ie. map in TILER)
  */
-int omap_gem_get_paddr(struct drm_gem_object *obj,
-		dma_addr_t *paddr, bool remap)
+int omap_gem_get_paddr(struct drm_gem_object *obj, dma_addr_t *paddr)
 {
 	struct omap_drm_private *priv = obj->dev->dev_private;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
@@ -797,7 +795,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 
 	mutex_lock(&obj->dev->struct_mutex);
 
-	if (!is_contiguous(omap_obj) && remap && priv->has_dmm) {
+	if (!is_contiguous(omap_obj) && priv->has_dmm) {
 		if (omap_obj->paddr_cnt == 0) {
 			struct page **pages;
 			uint32_t npages = obj->size >> PAGE_SHIFT;
