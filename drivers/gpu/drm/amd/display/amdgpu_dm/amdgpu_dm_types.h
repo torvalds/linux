@@ -52,10 +52,9 @@ void amdgpu_dm_encoder_destroy(struct drm_encoder *encoder);
 
 int amdgpu_dm_connector_get_modes(struct drm_connector *connector);
 
-int amdgpu_dm_atomic_commit(
-	struct drm_device *dev,
-	struct drm_atomic_state *state,
-	bool async);
+void amdgpu_dm_atomic_commit_tail(
+	struct drm_atomic_state *state);
+
 int amdgpu_dm_atomic_check(struct drm_device *dev,
 				struct drm_atomic_state *state);
 

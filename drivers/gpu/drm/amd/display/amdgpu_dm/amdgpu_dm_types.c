@@ -687,8 +687,18 @@ static void dm_dc_surface_commit(
 {
 	struct dc_surface *dc_surface;
 	const struct dc_surface *dc_surfaces[1];
-	const struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	const struct dc_stream *dc_stream = acrtc->stream;
+	unsigned long flags;
+
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	if (acrtc->pflip_status != AMDGPU_FLIP_NONE) {
+		DRM_ERROR("dm_dc_surface_commit: acrtc %d, already busy\n", acrtc->crtc_id);
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		/* In comit tail framework this cannot happen */
+		BUG_ON(0);
+	}
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 	if (!dc_stream) {
 		dm_error(
@@ -1427,6 +1437,7 @@ static void clear_unrelated_fields(struct drm_plane_state *state)
 	state->fence = NULL;
 }
 
+/*TODO update because event is always present now */
 static bool page_flip_needed(
 	const struct drm_plane_state *new_state,
 	const struct drm_plane_state *old_state,
@@ -1482,11 +1493,13 @@ static bool page_flip_needed(
 	page_flip_required = memcmp(&old_state_tmp,
 				    &new_state_tmp,
 				    sizeof(old_state_tmp)) == 0 ? true:false;
+
 	if (new_state->crtc && page_flip_required == false) {
 		acrtc_new = to_amdgpu_crtc(new_state->crtc);
 		if (acrtc_new->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
 			page_flip_required = true;
 	}
+
 	return page_flip_required;
 }
 
@@ -1512,7 +1525,7 @@ static int dm_plane_helper_prepare_fb(
 	if (unlikely(r != 0))
 		return r;
 
-	r = amdgpu_bo_pin(rbo, AMDGPU_GEM_DOMAIN_VRAM, NULL);
+	r = amdgpu_bo_pin(rbo, AMDGPU_GEM_DOMAIN_VRAM, &afb->address);
 
 	amdgpu_bo_unreserve(rbo);
 
@@ -1521,6 +1534,7 @@ static int dm_plane_helper_prepare_fb(
 		return r;
 	}
 
+	amdgpu_bo_ref(rbo);
 	return 0;
 }
 
@@ -1544,7 +1558,10 @@ static void dm_plane_helper_cleanup_fb(
 	} else {
 		amdgpu_bo_unpin(rbo);
 		amdgpu_bo_unreserve(rbo);
+		amdgpu_bo_unref(&rbo);
 	}
+
+	afb->address = 0;
 }
 
 int dm_create_validation_set_for_connector(struct drm_connector *connector,
@@ -2135,51 +2152,6 @@ static enum dm_commit_action get_dm_commit_action(struct drm_crtc_state *state)
 	}
 }
 
-
-typedef bool (*predicate)(struct amdgpu_crtc *acrtc);
-
-static void wait_while_pflip_status(struct amdgpu_device *adev,
-		struct amdgpu_crtc *acrtc, predicate f) {
-	int count = 0;
-	while (f(acrtc)) {
-		/* Spin Wait*/
-		msleep(1);
-		count++;
-		if (count == 1000) {
-			DRM_ERROR("%s - crtc:%d[%p], pflip_stat:%d, probable hang!\n",
-										__func__, acrtc->crtc_id,
-										acrtc,
-										acrtc->pflip_status);
-
-			/* we do not expect to hit this case except on Polaris with PHY PLL
-			 * 1. DP to HDMI passive dongle connected
-			 * 2. unplug (headless)
-			 * 3. plug in DP
-			 * 3a. on plug in, DP will try verify link by training, and training
-			 * would disable PHY PLL which HDMI rely on to drive TG
-			 * 3b. this will cause flip interrupt cannot be generated, and we
-			 * exit when timeout expired.  however we do not have code to clean
-			 * up flip, flip clean up will happen when the address is written
-			 * with the restore mode change
-			 */
-			WARN_ON(1);
-			break;
-		}
-	}
-
-	DRM_DEBUG_DRIVER("%s - Finished waiting for:%d msec, crtc:%d[%p], pflip_stat:%d \n",
-											__func__,
-											count,
-											acrtc->crtc_id,
-											acrtc,
-											acrtc->pflip_status);
-}
-
-static bool pflip_in_progress_predicate(struct amdgpu_crtc *acrtc)
-{
-	return acrtc->pflip_status != AMDGPU_FLIP_NONE;
-}
-
 static void manage_dm_interrupts(
 	struct amdgpu_device *adev,
 	struct amdgpu_crtc *acrtc,
@@ -2201,8 +2173,6 @@ static void manage_dm_interrupts(
 			&adev->pageflip_irq,
 			irq_type);
 	} else {
-		wait_while_pflip_status(adev, acrtc,
-				pflip_in_progress_predicate);
 
 		amdgpu_irq_put(
 			adev,
@@ -2210,12 +2180,6 @@ static void manage_dm_interrupts(
 			irq_type);
 		drm_crtc_vblank_off(&acrtc->base);
 	}
-}
-
-
-static bool pflip_pending_predicate(struct amdgpu_crtc *acrtc)
-{
-	return acrtc->pflip_status == AMDGPU_FLIP_PENDING;
 }
 
 static bool is_scaling_state_different(
@@ -2255,116 +2219,94 @@ static void remove_stream(struct amdgpu_device *adev, struct amdgpu_crtc *acrtc)
 	acrtc->enabled = false;
 }
 
-int amdgpu_dm_atomic_commit(
-	struct drm_device *dev,
-	struct drm_atomic_state *state,
-	bool nonblock)
+
+/*
+ * Executes flip
+ *
+ * Waits on all BO's fences and for proper vblank count
+ */
+static void amdgpu_dm_do_flip(
+				struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				uint32_t target)
 {
+	unsigned long flags;
+	uint32_t target_vblank;
+	int r, vpos, hpos;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
+	struct amdgpu_bo *abo = gem_to_amdgpu_bo(afb->obj);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+	bool async_flip = (acrtc->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
+
+
+	/*TODO This might fail and hence better not used, wait
+	 * explicitly on fences instead
+	 * and in general should be called for
+	 * blocking commit to as per framework helpers
+	 * */
+	r = amdgpu_bo_reserve(abo, true);
+	if (unlikely(r != 0)) {
+		DRM_ERROR("failed to reserve buffer before flip\n");
+		BUG_ON(0);
+	}
+
+	/* Wait for all fences on this FB */
+	WARN_ON(reservation_object_wait_timeout_rcu(abo->tbo.resv, true, false,
+								    MAX_SCHEDULE_TIMEOUT) < 0);
+
+	amdgpu_bo_unreserve(abo);
+
+	/* Wait for target vblank */
+	/* Wait until we're out of the vertical blank period before the one
+	 * targeted by the flip
+	 */
+	target_vblank = target - drm_crtc_vblank_count(crtc) +
+			amdgpu_get_vblank_counter_kms(crtc->dev, acrtc->crtc_id);
+
+	while ((acrtc->enabled &&
+		(amdgpu_get_crtc_scanoutpos(adev->ddev, acrtc->crtc_id, 0,
+					&vpos, &hpos, NULL, NULL,
+					&crtc->hwmode)
+		 & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
+		(DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
+		(int)(target_vblank -
+		  amdgpu_get_vblank_counter_kms(adev->ddev, acrtc->crtc_id)) > 0)) {
+		usleep_range(1000, 1100);
+	}
+
+	/* Flip */
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	/* update crtc fb */
+	crtc->primary->fb = fb;
+
+	/* Do the flip (mmio) */
+	adev->mode_info.funcs->page_flip(adev, acrtc->crtc_id, afb->address, async_flip);
+
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+	DRM_DEBUG_DRIVER("crtc:%d, pflip_stat:AMDGPU_FLIP_SUBMITTED\n",
+						 acrtc->crtc_id);
+}
+
+void amdgpu_dm_atomic_commit_tail(
+	struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_display_manager *dm = &adev->dm;
 	struct drm_plane *plane;
-	struct drm_plane_state *new_plane_state;
 	struct drm_plane_state *old_plane_state;
 	uint32_t i;
-	int32_t ret = 0;
 	uint32_t commit_streams_count = 0;
 	uint32_t new_crtcs_count = 0;
-	uint32_t flip_crtcs_count = 0;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	const struct dc_stream *commit_streams[MAX_STREAMS];
 	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
 	const struct dc_stream *new_stream;
-	struct drm_crtc *flip_crtcs[MAX_STREAMS];
-	struct amdgpu_flip_work *work[MAX_STREAMS] = {0};
-	struct amdgpu_bo *new_abo[MAX_STREAMS] = {0};
+	unsigned long flags;
+	bool wait_for_vblank = true;
 
-	/* In this step all new fb would be pinned */
-
-	/*
-	 * TODO: Revisit when we support true asynchronous commit.
-	 * Right now we receive async commit only from pageflip, in which case
-	 * we should not pin/unpin the fb here, it should be done in
-	 * amdgpu_crtc_flip and from the vblank irq handler.
-	 */
-	if (!nonblock) {
-		ret = drm_atomic_helper_prepare_planes(dev, state);
-		if (ret)
-			return ret;
-	}
-
-	/* Page flip if needed */
-	for_each_plane_in_state(state, plane, new_plane_state, i) {
-		struct drm_plane_state *old_plane_state = plane->state;
-		struct drm_crtc *crtc = new_plane_state->crtc;
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-		struct drm_framebuffer *fb = new_plane_state->fb;
-		struct drm_crtc_state *crtc_state;
-
-		if (!fb || !crtc)
-			continue;
-
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
-
-		if (!crtc_state->planes_changed || !crtc_state->active)
-			continue;
-
-		if (page_flip_needed(
-				new_plane_state,
-				old_plane_state,
-				crtc_state->event,
-				false)) {
-			ret = amdgpu_crtc_prepare_flip(crtc,
-							fb,
-							crtc_state->event,
-							acrtc->flip_flags,
-							drm_crtc_vblank_count(crtc),
-							&work[flip_crtcs_count],
-							&new_abo[flip_crtcs_count]);
-
-			if (ret) {
-				/* According to atomic_commit hook API, EINVAL is not allowed */
-				if (unlikely(ret == -EINVAL))
-					ret = -ENOMEM;
-
-				DRM_ERROR("Atomic commit: Flip for  crtc id %d: [%p], "
-									"failed, errno = %d\n",
-									acrtc->crtc_id,
-									acrtc,
-									ret);
-				/* cleanup all flip configurations which
-				 * succeeded in this commit
-				 */
-				for (i = 0; i < flip_crtcs_count; i++)
-					amdgpu_crtc_cleanup_flip_ctx(
-							work[i],
-							new_abo[i]);
-
-				return ret;
-			}
-
-			flip_crtcs[flip_crtcs_count] = crtc;
-			flip_crtcs_count++;
-		}
-	}
-
-	/*
-	 * This is the point of no return - everything below never fails except
-	 * when the hw goes bonghits. Which means we can commit the new state on
-	 * the software side now.
-	 */
-
-	drm_atomic_helper_swap_state(state, true);
-
-	/*
-	 * From this point state become old state really. New state is
-	 * initialized to appropriate objects and could be accessed from there
-	 */
-
-	/*
-	 * there is no fences usage yet in state. We can skip the following line
-	 * wait_for_fences(dev, state);
-	 */
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
 
@@ -2520,11 +2462,11 @@ int amdgpu_dm_atomic_commit(
 	for_each_plane_in_state(state, plane, old_plane_state, i) {
 		struct drm_plane_state *plane_state = plane->state;
 		struct drm_crtc *crtc = plane_state->crtc;
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 		struct drm_framebuffer *fb = plane_state->fb;
 		struct drm_connector *connector;
 		struct dm_connector_state *dm_state = NULL;
 		enum dm_commit_action action;
+		bool pflip_needed;
 
 		if (!fb || !crtc || !crtc->state->active)
 			continue;
@@ -2535,12 +2477,14 @@ int amdgpu_dm_atomic_commit(
 		 * 1. This commit is not a page flip.
 		 * 2. This commit is a page flip, and streams are created.
 		 */
-		if (!page_flip_needed(
+		pflip_needed = !state->allow_modeset &&
+				page_flip_needed(
 				plane_state,
 				old_plane_state,
-				crtc->state->event, true) ||
-				action == DM_COMMIT_ACTION_DPMS_ON ||
-				action == DM_COMMIT_ACTION_SET) {
+				crtc->state->event, true);
+		if (!pflip_needed ||
+		     action == DM_COMMIT_ACTION_DPMS_ON ||
+		     action == DM_COMMIT_ACTION_SET) {
 			list_for_each_entry(connector,
 				&dev->mode_config.connector_list, head)	{
 				if (connector->state->crtc == crtc) {
@@ -2567,14 +2511,6 @@ int amdgpu_dm_atomic_commit(
 			if (!dm_state)
 				continue;
 
-			/*
-			 * if flip is pending (ie, still waiting for fence to return
-			 * before address is submitted) here, we cannot commit_surface
-			 * as commit_surface will pre-maturely write out the future
-			 * address. wait until flip is submitted before proceeding.
-			 */
-			wait_while_pflip_status(adev, acrtc, pflip_pending_predicate);
-
 			dm_dc_surface_commit(dm->dc, crtc);
 		}
 	}
@@ -2594,43 +2530,77 @@ int amdgpu_dm_atomic_commit(
 
 	}
 
-	/* Do actual flip */
-	flip_crtcs_count = 0;
 	for_each_plane_in_state(state, plane, old_plane_state, i) {
 		struct drm_plane_state *plane_state = plane->state;
 		struct drm_crtc *crtc = plane_state->crtc;
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 		struct drm_framebuffer *fb = plane_state->fb;
+		bool pflip_needed;
 
 		if (!fb || !crtc || !crtc->state->planes_changed ||
 			!crtc->state->active)
 			continue;
-
-		if (page_flip_needed(
+		pflip_needed = !state->allow_modeset &&
+				page_flip_needed(
 				plane_state,
 				old_plane_state,
 				crtc->state->event,
-				false)) {
-				amdgpu_crtc_submit_flip(
-							crtc,
-						    fb,
-						    work[flip_crtcs_count],
-						    new_abo[i]);
-				 flip_crtcs_count++;
+				false);
+
+		if (pflip_needed) {
+			amdgpu_dm_do_flip(
+					crtc,
+					fb,
+					drm_crtc_vblank_count(crtc));
+
+			wait_for_vblank =
+					acrtc->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC ?
+							false : true;
 			/*clean up the flags for next usage*/
 			acrtc->flip_flags = 0;
 		}
 	}
 
-	/* In this state all old framebuffers would be unpinned */
 
-	/* TODO: Revisit when we support true asynchronous commit.*/
-	if (!nonblock)
-		drm_atomic_helper_cleanup_planes(dev, state);
+	/*TODO mark consumed event on all crtc assigned event
+	 * in drm_atomic_helper_setup_commit just to signal completion
+	 */
+	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-	drm_atomic_state_put(state);
+		if (acrtc->base.state->event &&
+				acrtc->base.state->event->event.base.type != DRM_EVENT_FLIP_COMPLETE) {
+			acrtc->event = acrtc->base.state->event;
+			acrtc->base.state->event = NULL;
+		}
+	}
+	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
-	return ret;
+	/* Signal HW programming completion */
+	drm_atomic_helper_commit_hw_done(state);
+
+	if (wait_for_vblank)
+		drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	/*TODO send vblank event on all crtc assigned event
+	 * in drm_atomic_helper_setup_commit just to signal completion
+	 */
+	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+		if (acrtc->event &&
+			acrtc->event->event.base.type != DRM_EVENT_FLIP_COMPLETE) {
+			drm_send_event_locked(dev, &acrtc->event->base);
+			acrtc->event = NULL;
+		}
+	}
+	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+
+	/*TODO Is it to early if actual flip haven't happened yet ?*/
+	/* Release old FB */
+	drm_atomic_helper_cleanup_planes(dev, state);
 }
 /*
  * This functions handle all cases when set mode does not come upon hotplug.
@@ -2982,6 +2952,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			struct dm_connector_state *dm_state = NULL;
 			enum dm_commit_action action;
 			struct drm_crtc_state *crtc_state;
+			bool pflip_needed;
 
 
 			if (!fb || !crtc || crtc_set[i] != crtc ||
@@ -2995,10 +2966,12 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			 * 2. This commit is a page flip, and streams are created.
 			 */
 			crtc_state = drm_atomic_get_crtc_state(state, crtc);
-			if (!page_flip_needed(plane_state, old_plane_state,
-					crtc_state->event, true) ||
-					action == DM_COMMIT_ACTION_DPMS_ON ||
-					action == DM_COMMIT_ACTION_SET) {
+			pflip_needed = !state->allow_modeset &&
+					page_flip_needed(plane_state, old_plane_state,
+					crtc_state->event, true);
+			if (!pflip_needed ||
+				action == DM_COMMIT_ACTION_DPMS_ON ||
+				action == DM_COMMIT_ACTION_SET) {
 				struct dc_surface *surface;
 
 				list_for_each_entry(connector,

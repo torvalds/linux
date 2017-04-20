@@ -149,7 +149,6 @@ static struct amdgpu_crtc *get_crtc_by_otg_inst(
 
 static void dm_pflip_high_irq(void *interrupt_params)
 {
-	struct amdgpu_flip_work *works;
 	struct amdgpu_crtc *amdgpu_crtc;
 	struct common_irq_params *irq_params = interrupt_params;
 	struct amdgpu_device *adev = irq_params->adev;
@@ -165,7 +164,6 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	}
 
 	spin_lock_irqsave(&adev->ddev->event_lock, flags);
-	works = amdgpu_crtc->pflip_works;
 
 	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED){
 		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d !=AMDGPU_FLIP_SUBMITTED(%d) on crtc:%d[%p] \n",
@@ -177,22 +175,24 @@ static void dm_pflip_high_irq(void *interrupt_params)
 		return;
 	}
 
-	/* page flip completed. clean up */
-	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
-	amdgpu_crtc->pflip_works = NULL;
 
 	/* wakeup usersapce */
-	if (works->event)
-		drm_crtc_send_vblank_event(&amdgpu_crtc->base,
-					   works->event);
+	if (amdgpu_crtc->event
+			&& amdgpu_crtc->event->event.base.type
+			== DRM_EVENT_FLIP_COMPLETE) {
+		drm_crtc_send_vblank_event(&amdgpu_crtc->base, amdgpu_crtc->event);
+		/* page flip completed. clean up */
+		amdgpu_crtc->event = NULL;
+	} else
+		WARN_ON(1);
 
+	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
-	DRM_DEBUG_DRIVER("%s - crtc :%d[%p], pflip_stat:AMDGPU_FLIP_NONE, work: %p,\n",
-					__func__, amdgpu_crtc->crtc_id, amdgpu_crtc, works);
+	DRM_DEBUG_DRIVER("%s - crtc :%d[%p], pflip_stat:AMDGPU_FLIP_NONE\n",
+					__func__, amdgpu_crtc->crtc_id, amdgpu_crtc);
 
 	drm_crtc_vblank_put(&amdgpu_crtc->base);
-	schedule_work(&works->unpin_work);
 }
 
 static void dm_crtc_high_irq(void *interrupt_params)
@@ -719,7 +719,11 @@ static struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.fb_create = amdgpu_user_framebuffer_create,
 	.output_poll_changed = amdgpu_output_poll_changed,
 	.atomic_check = amdgpu_dm_atomic_check,
-	.atomic_commit = amdgpu_dm_atomic_commit
+	.atomic_commit = drm_atomic_helper_commit
+};
+
+static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
+	.atomic_commit_tail = amdgpu_dm_atomic_commit_tail
 };
 
 void amdgpu_dm_update_connector_after_detect(
@@ -1092,6 +1096,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	adev->mode_info.mode_config_initialized = true;
 
 	adev->ddev->mode_config.funcs = (void *)&amdgpu_dm_mode_funcs;
+	adev->ddev->mode_config.helper_private = &amdgpu_dm_mode_config_helperfuncs;
 
 	adev->ddev->mode_config.max_width = 16384;
 	adev->ddev->mode_config.max_height = 16384;
@@ -1345,6 +1350,14 @@ static void dm_page_flip(struct amdgpu_device *adev,
 	acrtc = adev->mode_info.crtcs[crtc_id];
 	stream = acrtc->stream;
 
+
+	if (acrtc->pflip_status != AMDGPU_FLIP_NONE) {
+		DRM_ERROR("flip queue: acrtc %d, already busy\n", acrtc->crtc_id);
+		/* In commit tail framework this cannot happen */
+		BUG_ON(0);
+	}
+
+
 	/*
 	 * Received a page flip call after the display has been reset.
 	 * Just return in this case. Everything should be clean-up on reset.
@@ -1359,15 +1372,28 @@ static void dm_page_flip(struct amdgpu_device *adev,
 	addr.address.grph.addr.high_part = upper_32_bits(crtc_base);
 	addr.flip_immediate = async;
 
+
+	if (acrtc->base.state->event &&
+	    acrtc->base.state->event->event.base.type ==
+			    DRM_EVENT_FLIP_COMPLETE) {
+		acrtc->event = acrtc->base.state->event;
+
+		/* Set the flip status */
+		acrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
+
+		/* Mark this event as consumed */
+		acrtc->base.state->event = NULL;
+	}
+
+	dc_flip_surface_addrs(adev->dm.dc,
+			      dc_stream_get_status(stream)->surfaces,
+			      &addr, 1);
+
 	DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x \n",
 			 __func__,
 			 addr.address.grph.addr.high_part,
 			 addr.address.grph.addr.low_part);
 
-	dc_flip_surface_addrs(
-			adev->dm.dc,
-			dc_stream_get_status(stream)->surfaces,
-			&addr, 1);
 }
 
 static int amdgpu_notify_freesync(struct drm_device *dev, void *data,
