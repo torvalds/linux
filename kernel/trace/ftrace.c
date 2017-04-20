@@ -3077,7 +3077,7 @@ static void *
 t_probe_next(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct trace_array *tr = global_ops.private;
+	struct trace_array *tr = iter->ops->private;
 	struct list_head *func_probes;
 	struct ftrace_hash *hash;
 	struct list_head *next;
@@ -4311,7 +4311,7 @@ static int ftrace_process_regex(struct ftrace_iterator *iter,
 				char *buff, int len, int enable)
 {
 	struct ftrace_hash *hash = iter->hash;
-	struct trace_array *tr = global_ops.private;
+	struct trace_array *tr = iter->ops->private;
 	char *func, *command, *next = buff;
 	struct ftrace_func_command *p;
 	int ret = -EINVAL;
