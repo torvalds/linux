@@ -2005,16 +2005,10 @@ encode_layoutcommit(struct xdr_stream *xdr,
 	*p++ = cpu_to_be32(0); /* Never send time_modify_changed */
 	*p++ = cpu_to_be32(NFS_SERVER(args->inode)->pnfs_curr_ld->id);/* type */
 
-	if (NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit) {
-		NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit(
-			NFS_I(inode)->layout, xdr, args);
-	} else {
-		encode_uint32(xdr, args->layoutupdate_len);
-		if (args->layoutupdate_pages) {
-			xdr_write_pages(xdr, args->layoutupdate_pages, 0,
-					args->layoutupdate_len);
-		}
-	}
+	encode_uint32(xdr, args->layoutupdate_len);
+	if (args->layoutupdate_pages)
+		xdr_write_pages(xdr, args->layoutupdate_pages, 0,
+				args->layoutupdate_len);
 
 	return 0;
 }
@@ -2024,7 +2018,6 @@ encode_layoutreturn(struct xdr_stream *xdr,
 		    const struct nfs4_layoutreturn_args *args,
 		    struct compound_hdr *hdr)
 {
-	const struct pnfs_layoutdriver_type *lr_ops = NFS_SERVER(args->inode)->pnfs_curr_ld;
 	__be32 *p;
 
 	encode_op_hdr(xdr, OP_LAYOUTRETURN, decode_layoutreturn_maxsz, hdr);
@@ -2041,8 +2034,6 @@ encode_layoutreturn(struct xdr_stream *xdr,
 	spin_unlock(&args->inode->i_lock);
 	if (args->ld_private->ops && args->ld_private->ops->encode)
 		args->ld_private->ops->encode(xdr, args, args->ld_private);
-	else if (lr_ops->encode_layoutreturn)
-		lr_ops->encode_layoutreturn(xdr, args);
 	else
 		encode_uint32(xdr, 0);
 }

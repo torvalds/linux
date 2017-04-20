@@ -173,14 +173,9 @@ struct pnfs_layoutdriver_type {
 			gfp_t gfp_flags);
 
 	int (*prepare_layoutreturn) (struct nfs4_layoutreturn_args *);
-	void (*encode_layoutreturn) (struct xdr_stream *xdr,
-				     const struct nfs4_layoutreturn_args *args);
 
 	void (*cleanup_layoutcommit) (struct nfs4_layoutcommit_data *data);
 	int (*prepare_layoutcommit) (struct nfs4_layoutcommit_args *args);
-	void (*encode_layoutcommit) (struct pnfs_layout_hdr *lo,
-				     struct xdr_stream *xdr,
-				     const struct nfs4_layoutcommit_args *args);
 	int (*prepare_layoutstats) (struct nfs42_layoutstat_args *args);
 };
 
