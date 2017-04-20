@@ -613,7 +613,6 @@ void nfs4_pnfs_v3_ds_connect_unload(void)
 		get_v3_ds_connect = NULL;
 	}
 }
-EXPORT_SYMBOL_GPL(nfs4_pnfs_v3_ds_connect_unload);
 
 static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 				 struct nfs4_pnfs_ds *ds,
