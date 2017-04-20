@@ -1589,21 +1589,15 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
 
 void dc_set_power_state(
 	struct dc *dc,
-	enum dc_acpi_cm_power_state power_state,
-	enum dc_video_power_state video_power_state)
+	enum dc_acpi_cm_power_state power_state)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-
-	core_dc->previous_power_state = core_dc->current_power_state;
-	core_dc->current_power_state = video_power_state;
 
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
 		core_dc->hwss.init_hw(core_dc);
 		break;
 	default:
-		/* NULL means "reset/release all DC streams" */
-		dc_commit_streams(dc, NULL, 0);
 
 		core_dc->hwss.power_down(core_dc);
 

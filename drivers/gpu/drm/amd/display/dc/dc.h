@@ -705,8 +705,7 @@ enum dc_irq_source dc_get_hpd_irq_source_at_index(
 
 void dc_set_power_state(
 		struct dc *dc,
-		enum dc_acpi_cm_power_state power_state,
-		enum dc_video_power_state video_power_state);
+		enum dc_acpi_cm_power_state power_state);
 void dc_resume(const struct dc *dc);
 
 /*******************************************************************************

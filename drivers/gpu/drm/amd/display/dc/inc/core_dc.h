@@ -26,10 +26,6 @@ struct core_dc {
 	struct validate_context *scratch_val_ctx;
 	struct resource_pool *res_pool;
 
-	/*Power State*/
-	enum dc_video_power_state previous_power_state;
-	enum dc_video_power_state current_power_state;
-
 	/* Display Engine Clock levels */
 	struct dm_pp_clock_levels sclk_lvls;
 
