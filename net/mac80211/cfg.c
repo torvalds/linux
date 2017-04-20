@@ -3,7 +3,7 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2015-2016 Intel Deutschland GmbH
+ * Copyright (C) 2015-2017 Intel Deutschland GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -22,11 +22,98 @@
 #include "mesh.h"
 #include "wme.h"
 
+static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
+					 struct vif_params *params)
+{
+	bool mu_mimo_groups = false;
+	bool mu_mimo_follow = false;
+
+	if (params->vht_mumimo_groups) {
+		u64 membership;
+
+		BUILD_BUG_ON(sizeof(membership) != WLAN_MEMBERSHIP_LEN);
+
+		memcpy(sdata->vif.bss_conf.mu_group.membership,
+		       params->vht_mumimo_groups, WLAN_MEMBERSHIP_LEN);
+		memcpy(sdata->vif.bss_conf.mu_group.position,
+		       params->vht_mumimo_groups + WLAN_MEMBERSHIP_LEN,
+		       WLAN_USER_POSITION_LEN);
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
+		/* don't care about endianness - just check for 0 */
+		memcpy(&membership, params->vht_mumimo_groups,
+		       WLAN_MEMBERSHIP_LEN);
+		mu_mimo_groups = membership != 0;
+	}
+
+	if (params->vht_mumimo_follow_addr) {
+		mu_mimo_follow =
+			is_valid_ether_addr(params->vht_mumimo_follow_addr);
+		ether_addr_copy(sdata->u.mntr.mu_follow_addr,
+				params->vht_mumimo_follow_addr);
+	}
+
+	sdata->vif.mu_mimo_owner = mu_mimo_groups || mu_mimo_follow;
+}
+
+static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
+				     struct vif_params *params)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_sub_if_data *monitor_sdata;
+
+	/* check flags first */
+	if (params->flags && ieee80211_sdata_running(sdata)) {
+		u32 mask = MONITOR_FLAG_COOK_FRAMES | MONITOR_FLAG_ACTIVE;
+
+		/*
+		 * Prohibit MONITOR_FLAG_COOK_FRAMES and
+		 * MONITOR_FLAG_ACTIVE to be changed while the
+		 * interface is up.
+		 * Else we would need to add a lot of cruft
+		 * to update everything:
+		 *	cooked_mntrs, monitor and all fif_* counters
+		 *	reconfigure hardware
+		 */
+		if ((params->flags & mask) != (sdata->u.mntr.flags & mask))
+			return -EBUSY;
+	}
+
+	/* also validate MU-MIMO change */
+	monitor_sdata = rtnl_dereference(local->monitor_sdata);
+
+	if (!monitor_sdata &&
+	    (params->vht_mumimo_groups || params->vht_mumimo_follow_addr))
+		return -EOPNOTSUPP;
+
+	/* apply all changes now - no failures allowed */
+
+	if (monitor_sdata)
+		ieee80211_set_mu_mimo_follow(monitor_sdata, params);
+
+	if (params->flags) {
+		if (ieee80211_sdata_running(sdata)) {
+			ieee80211_adjust_monitor_flags(sdata, -1);
+			sdata->u.mntr.flags = params->flags;
+			ieee80211_adjust_monitor_flags(sdata, 1);
+
+			ieee80211_configure_filter(local);
+		} else {
+			/*
+			 * Because the interface is down, ieee80211_do_stop
+			 * and ieee80211_do_open take care of "everything"
+			 * mentioned in the comment above.
+			 */
+			sdata->u.mntr.flags = params->flags;
+		}
+	}
+
+	return 0;
+}
+
 static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
 						const char *name,
 						unsigned char name_assign_type,
 						enum nl80211_iftype type,
-						u32 *flags,
 						struct vif_params *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
@@ -38,9 +125,14 @@ static struct wireless_dev *ieee80211_add_iface(struct wiphy *wiphy,
 	if (err)
 		return ERR_PTR(err);
 
-	if (type == NL80211_IFTYPE_MONITOR && flags) {
-		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-		sdata->u.mntr.flags = *flags;
+	sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	if (type == NL80211_IFTYPE_MONITOR) {
+		err = ieee80211_set_mon_options(sdata, params);
+		if (err) {
+			ieee80211_if_remove(sdata);
+			return NULL;
+		}
 	}
 
 	return wdev;
@@ -55,7 +147,7 @@ static int ieee80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 static int ieee80211_change_iface(struct wiphy *wiphy,
 				  struct net_device *dev,
-				  enum nl80211_iftype type, u32 *flags,
+				  enum nl80211_iftype type,
 				  struct vif_params *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -75,58 +167,9 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 	}
 
 	if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
-		struct ieee80211_local *local = sdata->local;
-		struct ieee80211_sub_if_data *monitor_sdata;
-		u32 mu_mntr_cap_flag = NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER;
-
-		monitor_sdata = rtnl_dereference(local->monitor_sdata);
-		if (monitor_sdata &&
-		    wiphy_ext_feature_isset(wiphy, mu_mntr_cap_flag)) {
-			memcpy(monitor_sdata->vif.bss_conf.mu_group.membership,
-			       params->vht_mumimo_groups, WLAN_MEMBERSHIP_LEN);
-			memcpy(monitor_sdata->vif.bss_conf.mu_group.position,
-			       params->vht_mumimo_groups + WLAN_MEMBERSHIP_LEN,
-			       WLAN_USER_POSITION_LEN);
-			monitor_sdata->vif.mu_mimo_owner = true;
-			ieee80211_bss_info_change_notify(monitor_sdata,
-							 BSS_CHANGED_MU_GROUPS);
-
-			ether_addr_copy(monitor_sdata->u.mntr.mu_follow_addr,
-					params->macaddr);
-		}
-
-		if (!flags)
-			return 0;
-
-		if (ieee80211_sdata_running(sdata)) {
-			u32 mask = MONITOR_FLAG_COOK_FRAMES |
-				   MONITOR_FLAG_ACTIVE;
-
-			/*
-			 * Prohibit MONITOR_FLAG_COOK_FRAMES and
-			 * MONITOR_FLAG_ACTIVE to be changed while the
-			 * interface is up.
-			 * Else we would need to add a lot of cruft
-			 * to update everything:
-			 *	cooked_mntrs, monitor and all fif_* counters
-			 *	reconfigure hardware
-			 */
-			if ((*flags & mask) != (sdata->u.mntr.flags & mask))
-				return -EBUSY;
-
-			ieee80211_adjust_monitor_flags(sdata, -1);
-			sdata->u.mntr.flags = *flags;
-			ieee80211_adjust_monitor_flags(sdata, 1);
-
-			ieee80211_configure_filter(local);
-		} else {
-			/*
-			 * Because the interface is down, ieee80211_do_stop
-			 * and ieee80211_do_open take care of "everything"
-			 * mentioned in the comment above.
-			 */
-			sdata->u.mntr.flags = *flags;
-		}
+		ret = ieee80211_set_mon_options(sdata, params);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -2042,6 +2085,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 					 params->basic_rates_len,
 					 &sdata->vif.bss_conf.basic_rates);
 		changed |= BSS_CHANGED_BASIC_RATES;
+		ieee80211_check_rate_mask(sdata);
 	}
 
 	if (params->ap_isolate >= 0) {
@@ -2630,6 +2674,33 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
+	bss_conf->cqm_rssi_low = 0;
+	bss_conf->cqm_rssi_high = 0;
+	sdata->u.mgd.last_cqm_event_signal = 0;
+
+	/* tell the driver upon association, unless already associated */
+	if (sdata->u.mgd.associated &&
+	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
+
+	return 0;
+}
+
+static int ieee80211_set_cqm_rssi_range_config(struct wiphy *wiphy,
+					       struct net_device *dev,
+					       s32 rssi_low, s32 rssi_high)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_vif *vif = &sdata->vif;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)
+		return -EOPNOTSUPP;
+
+	bss_conf->cqm_rssi_low = rssi_low;
+	bss_conf->cqm_rssi_high = rssi_high;
+	bss_conf->cqm_rssi_thold = 0;
+	bss_conf->cqm_rssi_hyst = 0;
 	sdata->u.mgd.last_cqm_event_signal = 0;
 
 	/* tell the driver upon association, unless already associated */
@@ -2656,6 +2727,21 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 		ret = drv_set_bitrate_mask(local, sdata, mask);
 		if (ret)
 			return ret;
+	}
+
+	/*
+	 * If active validate the setting and reject it if it doesn't leave
+	 * at least one basic rate usable, since we really have to be able
+	 * to send something, and if we're an AP we have to be able to do
+	 * so at a basic rate so that all clients can receive it.
+	 */
+	if (rcu_access_pointer(sdata->vif.chanctx_conf) &&
+	    sdata->vif.bss_conf.chandef.chan) {
+		u32 basic_rates = sdata->vif.bss_conf.basic_rates;
+		enum nl80211_band band = sdata->vif.bss_conf.chandef.chan->band;
+
+		if (!(mask->control[band].legacy & basic_rates))
+			return -EINVAL;
 	}
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
@@ -3639,6 +3725,7 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.mgmt_tx = ieee80211_mgmt_tx,
 	.mgmt_tx_cancel_wait = ieee80211_mgmt_tx_cancel_wait,
 	.set_cqm_rssi_config = ieee80211_set_cqm_rssi_config,
+	.set_cqm_rssi_range_config = ieee80211_set_cqm_rssi_range_config,
 	.mgmt_frame_register = ieee80211_mgmt_frame_register,
 	.set_antenna = ieee80211_set_antenna,
 	.get_antenna = ieee80211_get_antenna,

@@ -349,7 +349,7 @@ static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
 		chan_bw = IEEE80211_VHT_CHANWIDTH_USE_HT;
 		break;
 	}
-	vht_oper->center_freq_seg1_idx =
+	vht_oper->center_freq_seg0_idx =
 			mwifiex_get_center_freq_index(priv, BAND_AAC,
 						      bss_desc->channel,
 						      chan_bw);

@@ -2413,13 +2413,13 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	*pos++ = WLAN_EID_VHT_OPERATION;
 	*pos++ = sizeof(struct ieee80211_vht_operation);
 	vht_oper = (struct ieee80211_vht_operation *)pos;
-	vht_oper->center_freq_seg1_idx = ieee80211_frequency_to_channel(
+	vht_oper->center_freq_seg0_idx = ieee80211_frequency_to_channel(
 							chandef->center_freq1);
 	if (chandef->center_freq2)
-		vht_oper->center_freq_seg2_idx =
+		vht_oper->center_freq_seg1_idx =
 			ieee80211_frequency_to_channel(chandef->center_freq2);
 	else
-		vht_oper->center_freq_seg2_idx = 0x00;
+		vht_oper->center_freq_seg1_idx = 0x00;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_160:
@@ -2428,11 +2428,11 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 		 * workaround.
 		 */
 		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
-		vht_oper->center_freq_seg2_idx = vht_oper->center_freq_seg1_idx;
+		vht_oper->center_freq_seg1_idx = vht_oper->center_freq_seg0_idx;
 		if (chandef->chan->center_freq < chandef->center_freq1)
-			vht_oper->center_freq_seg1_idx -= 8;
+			vht_oper->center_freq_seg0_idx -= 8;
 		else
-			vht_oper->center_freq_seg1_idx += 8;
+			vht_oper->center_freq_seg0_idx += 8;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 		/*
@@ -2491,9 +2491,9 @@ bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
 	if (!oper)
 		return false;
 
-	cf1 = ieee80211_channel_to_frequency(oper->center_freq_seg1_idx,
+	cf1 = ieee80211_channel_to_frequency(oper->center_freq_seg0_idx,
 					     chandef->chan->band);
-	cf2 = ieee80211_channel_to_frequency(oper->center_freq_seg2_idx,
+	cf2 = ieee80211_channel_to_frequency(oper->center_freq_seg1_idx,
 					     chandef->chan->band);
 
 	switch (oper->chan_width) {
@@ -2503,11 +2503,11 @@ bool ieee80211_chandef_vht_oper(const struct ieee80211_vht_operation *oper,
 		new.width = NL80211_CHAN_WIDTH_80;
 		new.center_freq1 = cf1;
 		/* If needed, adjust based on the newer interop workaround. */
-		if (oper->center_freq_seg2_idx) {
+		if (oper->center_freq_seg1_idx) {
 			unsigned int diff;
 
-			diff = abs(oper->center_freq_seg2_idx -
-				   oper->center_freq_seg1_idx);
+			diff = abs(oper->center_freq_seg1_idx -
+				   oper->center_freq_seg0_idx);
 			if (diff == 8) {
 				new.width = NL80211_CHAN_WIDTH_160;
 				new.center_freq1 = cf2;

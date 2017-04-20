@@ -350,6 +350,7 @@ static const struct ieee80211_channel hwsim_channels_5ghz[] = {
 	CHAN5G(5785), /* Channel 157 */
 	CHAN5G(5805), /* Channel 161 */
 	CHAN5G(5825), /* Channel 165 */
+	CHAN5G(5845), /* Channel 169 */
 };
 
 static const struct ieee80211_rate hwsim_rates[] = {
@@ -525,6 +526,11 @@ struct mac80211_hwsim_data {
 	struct ieee80211_vif *hw_scan_vif;
 	int scan_chan_idx;
 	u8 scan_addr[ETH_ALEN];
+	struct {
+		struct ieee80211_channel *channel;
+		unsigned long next_start, start, end;
+	} survey_data[ARRAY_SIZE(hwsim_channels_2ghz) +
+		      ARRAY_SIZE(hwsim_channels_5ghz)];
 
 	struct ieee80211_channel *channel;
 	u64 beacon_int	/* beacon interval in us */;
@@ -551,8 +557,6 @@ struct mac80211_hwsim_data {
 	int netgroup;
 	/* wmediumd portid responsible for netgroup of this radio */
 	u32 wmediumd;
-
-	int power_level;
 
 	/* difference between this hw's clock and the real clock, in usecs */
 	s64 tsf_offset;
@@ -1201,7 +1205,9 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
 		rx_status.flag |= RX_FLAG_SHORT_GI;
 	/* TODO: simulate real signal strength (and optional packet loss) */
-	rx_status.signal = data->power_level - 50;
+	rx_status.signal = -50;
+	if (info->control.vif)
+		rx_status.signal += info->control.vif->bss_conf.txpower;
 
 	if (data->ps != PS_DISABLED)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
@@ -1576,6 +1582,7 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 		[IEEE80211_SMPS_STATIC] = "static",
 		[IEEE80211_SMPS_DYNAMIC] = "dynamic",
 	};
+	int idx;
 
 	if (conf->chandef.chan)
 		wiphy_debug(hw->wiphy,
@@ -1598,11 +1605,34 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 
 	data->idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
-	data->channel = conf->chandef.chan;
+	WARN_ON(conf->chandef.chan && data->use_chanctx);
 
-	WARN_ON(data->channel && data->use_chanctx);
+	mutex_lock(&data->mutex);
+	if (data->scanning && conf->chandef.chan) {
+		for (idx = 0; idx < ARRAY_SIZE(data->survey_data); idx++) {
+			if (data->survey_data[idx].channel == data->channel) {
+				data->survey_data[idx].start =
+					data->survey_data[idx].next_start;
+				data->survey_data[idx].end = jiffies;
+				break;
+			}
+		}
 
-	data->power_level = conf->power_level;
+		data->channel = conf->chandef.chan;
+
+		for (idx = 0; idx < ARRAY_SIZE(data->survey_data); idx++) {
+			if (data->survey_data[idx].channel &&
+			    data->survey_data[idx].channel != data->channel)
+				continue;
+			data->survey_data[idx].channel = data->channel;
+			data->survey_data[idx].next_start = jiffies;
+			break;
+		}
+	} else {
+		data->channel = conf->chandef.chan;
+	}
+	mutex_unlock(&data->mutex);
+
 	if (!data->started || !data->beacon_int)
 		tasklet_hrtimer_cancel(&data->beacon_timer);
 	else if (!hrtimer_is_queued(&data->beacon_timer.timer)) {
@@ -1787,28 +1817,37 @@ static int mac80211_hwsim_conf_tx(
 	return 0;
 }
 
-static int mac80211_hwsim_get_survey(
-	struct ieee80211_hw *hw, int idx,
-	struct survey_info *survey)
+static int mac80211_hwsim_get_survey(struct ieee80211_hw *hw, int idx,
+				     struct survey_info *survey)
 {
-	struct ieee80211_conf *conf = &hw->conf;
+	struct mac80211_hwsim_data *hwsim = hw->priv;
 
-	wiphy_debug(hw->wiphy, "%s (idx=%d)\n", __func__, idx);
-
-	if (idx != 0)
+	if (idx < 0 || idx >= ARRAY_SIZE(hwsim->survey_data))
 		return -ENOENT;
 
-	/* Current channel */
-	survey->channel = conf->chandef.chan;
+	mutex_lock(&hwsim->mutex);
+	survey->channel = hwsim->survey_data[idx].channel;
+	if (!survey->channel) {
+		mutex_unlock(&hwsim->mutex);
+		return -ENOENT;
+	}
 
 	/*
-	 * Magically conjured noise level --- this is only ok for simulated hardware.
+	 * Magically conjured dummy values --- this is only ok for simulated hardware.
 	 *
-	 * A real driver which cannot determine the real channel noise MUST NOT
-	 * report any noise, especially not a magically conjured one :-)
+	 * A real driver which cannot determine real values noise MUST NOT
+	 * report any, especially not a magically conjured ones :-)
 	 */
-	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->filled = SURVEY_INFO_NOISE_DBM |
+			 SURVEY_INFO_TIME |
+			 SURVEY_INFO_TIME_BUSY;
 	survey->noise = -92;
+	survey->time =
+		jiffies_to_msecs(hwsim->survey_data[idx].end -
+				 hwsim->survey_data[idx].start);
+	/* report 12.5% of channel time is used */
+	survey->time_busy = survey->time/8;
+	mutex_unlock(&hwsim->mutex);
 
 	return 0;
 }
@@ -1986,6 +2025,10 @@ static void hw_scan_work(struct work_struct *work)
 	}
 	ieee80211_queue_delayed_work(hwsim->hw, &hwsim->hw_scan,
 				     msecs_to_jiffies(dwell));
+	hwsim->survey_data[hwsim->scan_chan_idx].channel = hwsim->tmp_chan;
+	hwsim->survey_data[hwsim->scan_chan_idx].start = jiffies;
+	hwsim->survey_data[hwsim->scan_chan_idx].end =
+		jiffies + msecs_to_jiffies(dwell);
 	hwsim->scan_chan_idx++;
 	mutex_unlock(&hwsim->mutex);
 }
@@ -2011,6 +2054,7 @@ static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
 				     hw_req->req.mac_addr_mask);
 	else
 		memcpy(hwsim->scan_addr, vif->addr, ETH_ALEN);
+	memset(hwsim->survey_data, 0, sizeof(hwsim->survey_data));
 	mutex_unlock(&hwsim->mutex);
 
 	wiphy_debug(hw->wiphy, "hwsim hw_scan request\n");
@@ -2057,6 +2101,7 @@ static void mac80211_hwsim_sw_scan(struct ieee80211_hw *hw,
 
 	memcpy(hwsim->scan_addr, mac_addr, ETH_ALEN);
 	hwsim->scanning = true;
+	memset(hwsim->survey_data, 0, sizeof(hwsim->survey_data));
 
 out:
 	mutex_unlock(&hwsim->mutex);
@@ -2207,7 +2252,6 @@ static const char mac80211_hwsim_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"d_tx_failed",
 	"d_ps_mode",
 	"d_group",
-	"d_tx_power",
 };
 
 #define MAC80211_HWSIM_SSTATS_LEN ARRAY_SIZE(mac80211_hwsim_gstrings_stats)
@@ -2244,7 +2288,6 @@ static void mac80211_hwsim_get_et_stats(struct ieee80211_hw *hw,
 	data[i++] = ar->tx_failed;
 	data[i++] = ar->ps;
 	data[i++] = ar->group;
-	data[i++] = ar->power_level;
 
 	WARN_ON(i != MAC80211_HWSIM_SSTATS_LEN);
 }
@@ -2437,6 +2480,9 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		err = -ENOMEM;
 		goto failed;
 	}
+
+	/* ieee80211_alloc_hw_nm may have used a default name */
+	param->hwname = wiphy_name(hw->wiphy);
 
 	if (info)
 		net = genl_info_net(info);
@@ -2644,6 +2690,8 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	if (param->no_vif)
 		ieee80211_hw_set(hw, NO_AUTO_VIF);
+
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	err = ieee80211_register_hw(hw);
 	if (err < 0) {

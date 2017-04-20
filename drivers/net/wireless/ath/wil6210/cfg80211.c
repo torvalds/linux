@@ -178,9 +178,8 @@ int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 			BIT(NL80211_STA_INFO_RX_DROP_MISC) |
 			BIT(NL80211_STA_INFO_TX_FAILED);
 
-	sinfo->txrate.flags = RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_60G;
+	sinfo->txrate.flags = RATE_INFO_FLAGS_60G;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
-	sinfo->rxrate.flags = RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_60G;
 	sinfo->rxrate.mcs = stats->last_mcs_rx;
 	sinfo->rx_bytes = stats->rx_bytes;
 	sinfo->rx_packets = stats->rx_packets;
@@ -256,7 +255,7 @@ static struct wireless_dev *
 wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 		       unsigned char name_assign_type,
 		       enum nl80211_iftype type,
-		       u32 *flags, struct vif_params *params)
+		       struct vif_params *params)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -307,7 +306,7 @@ static int wil_cfg80211_del_iface(struct wiphy *wiphy,
 
 static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 				     struct net_device *ndev,
-				     enum nl80211_iftype type, u32 *flags,
+				     enum nl80211_iftype type,
 				     struct vif_params *params)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
@@ -334,11 +333,8 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 	case NL80211_IFTYPE_P2P_GO:
 		break;
 	case NL80211_IFTYPE_MONITOR:
-		if (flags)
-			wil->monitor_flags = *flags;
-		else
-			wil->monitor_flags = 0;
-
+		if (params->flags)
+			wil->monitor_flags = params->flags;
 		break;
 	default:
 		return -EOPNOTSUPP;

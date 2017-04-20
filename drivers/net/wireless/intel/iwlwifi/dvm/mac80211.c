@@ -213,6 +213,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 	iwl_leds_init(priv);
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);

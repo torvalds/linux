@@ -1529,7 +1529,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					      const char *name,
 					      unsigned char name_assign_type,
 					      enum nl80211_iftype type,
-					      u32 *flags,
 					      struct vif_params *params);
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev);
 

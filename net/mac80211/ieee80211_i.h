@@ -839,6 +839,8 @@ struct txq_info {
 struct ieee80211_if_mntr {
 	u32 flags;
 	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
+
+	struct list_head list;
 };
 
 /**
@@ -1259,6 +1261,7 @@ struct ieee80211_local {
 
 	/* see iface.c */
 	struct list_head interfaces;
+	struct list_head mon_list; /* only that are IFF_UP && !cooked */
 	struct mutex iflist_mtx;
 
 	/*

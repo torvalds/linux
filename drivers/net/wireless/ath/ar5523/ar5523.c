@@ -1689,6 +1689,8 @@ static int ar5523_probe(struct usb_interface *intf,
 	if (error)
 		goto out_cancel_rx_cmd;
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	usb_set_intfdata(intf, hw);
 
 	error = ieee80211_register_hw(hw);

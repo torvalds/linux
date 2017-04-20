@@ -363,6 +363,8 @@ static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
 
 /**
  * struct vif_params - describes virtual interface parameters
+ * @flags: monitor interface flags, unchanged if 0, otherwise
+ *	%MONITOR_FLAG_CHANGED will be set
  * @use_4addr: use 4-address frames
  * @macaddr: address to use for this virtual interface.
  *	If this parameter is set to zero address the driver may
@@ -370,13 +372,17 @@ static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
  *	This feature is only fully supported by drivers that enable the
  *	%NL80211_FEATURE_MAC_ON_CREATE flag.  Others may support creating
  **	only p2p devices with specified MAC.
- * @vht_mumimo_groups: MU-MIMO groupID. used for monitoring only
- *	 packets belonging to that MU-MIMO groupID.
+ * @vht_mumimo_groups: MU-MIMO groupID, used for monitoring MU-MIMO packets
+ *	belonging to that MU-MIMO groupID; %NULL if not changed
+ * @vht_mumimo_follow_addr: MU-MIMO follow address, used for monitoring
+ *	MU-MIMO packets going to the specified station; %NULL if not changed
  */
 struct vif_params {
+	u32 flags;
 	int use_4addr;
 	u8 macaddr[ETH_ALEN];
-	u8 vht_mumimo_groups[VHT_MUMIMO_GROUPS_DATA_LEN];
+	const u8 *vht_mumimo_groups;
+	const u8 *vht_mumimo_follow_addr;
 };
 
 /**
@@ -1211,6 +1217,7 @@ static inline int cfg80211_get_station(struct net_device *dev,
  * Monitor interface configuration flags. Note that these must be the bits
  * according to the nl80211 flags.
  *
+ * @MONITOR_FLAG_CHANGED: set if the flags were changed
  * @MONITOR_FLAG_FCSFAIL: pass frames with bad FCS
  * @MONITOR_FLAG_PLCPFAIL: pass frames with bad PLCP
  * @MONITOR_FLAG_CONTROL: pass control frames
@@ -1219,6 +1226,7 @@ static inline int cfg80211_get_station(struct net_device *dev,
  * @MONITOR_FLAG_ACTIVE: active monitor, ACKs frames on its MAC address
  */
 enum monitor_flags {
+	MONITOR_FLAG_CHANGED		= 1<<__NL80211_MNTR_FLAG_INVALID,
 	MONITOR_FLAG_FCSFAIL		= 1<<NL80211_MNTR_FLAG_FCSFAIL,
 	MONITOR_FLAG_PLCPFAIL		= 1<<NL80211_MNTR_FLAG_PLCPFAIL,
 	MONITOR_FLAG_CONTROL		= 1<<NL80211_MNTR_FLAG_CONTROL,
@@ -1641,6 +1649,7 @@ struct cfg80211_bss_select_adjust {
 /**
  * struct cfg80211_sched_scan_request - scheduled scan request description
  *
+ * @reqid: identifies this request.
  * @ssids: SSIDs to scan for (passed in the probe_reqs in active scans)
  * @n_ssids: number of SSIDs
  * @n_channels: total number of channels to scan
@@ -1685,6 +1694,7 @@ struct cfg80211_bss_select_adjust {
  *	comparisions.
  */
 struct cfg80211_sched_scan_request {
+	u64 reqid;
 	struct cfg80211_ssid *ssids;
 	int n_ssids;
 	u32 n_channels;
@@ -2073,6 +2083,19 @@ struct cfg80211_bss_selection {
  *	the BSSID of the current association, i.e., to the value that is
  *	included in the Current AP address field of the Reassociation Request
  *	frame.
+ * @fils_erp_username: EAP re-authentication protocol (ERP) username part of the
+ *	NAI or %NULL if not specified. This is used to construct FILS wrapped
+ *	data IE.
+ * @fils_erp_username_len: Length of @fils_erp_username in octets.
+ * @fils_erp_realm: EAP re-authentication protocol (ERP) realm part of NAI or
+ *	%NULL if not specified. This specifies the domain name of ER server and
+ *	is used to construct FILS wrapped data IE.
+ * @fils_erp_realm_len: Length of @fils_erp_realm in octets.
+ * @fils_erp_next_seq_num: The next sequence number to use in the FILS ERP
+ *	messages. This is also used to construct FILS wrapped data IE.
+ * @fils_erp_rrk: ERP re-authentication Root Key (rRK) used to derive additional
+ *	keys in FILS or %NULL if not specified.
+ * @fils_erp_rrk_len: Length of @fils_erp_rrk in octets.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -2098,6 +2121,13 @@ struct cfg80211_connect_params {
 	bool pbss;
 	struct cfg80211_bss_selection bss_select;
 	const u8 *prev_bssid;
+	const u8 *fils_erp_username;
+	size_t fils_erp_username_len;
+	const u8 *fils_erp_realm;
+	size_t fils_erp_realm_len;
+	u16 fils_erp_next_seq_num;
+	const u8 *fils_erp_rrk;
+	size_t fils_erp_rrk_len;
 };
 
 /**
@@ -2136,12 +2166,27 @@ enum wiphy_params_flags {
  * This structure is passed to the set/del_pmksa() method for PMKSA
  * caching.
  *
- * @bssid: The AP's BSSID.
- * @pmkid: The PMK material itself.
+ * @bssid: The AP's BSSID (may be %NULL).
+ * @pmkid: The identifier to refer a PMKSA.
+ * @pmk: The PMK for the PMKSA identified by @pmkid. This is used for key
+ *	derivation by a FILS STA. Otherwise, %NULL.
+ * @pmk_len: Length of the @pmk. The length of @pmk can differ depending on
+ *	the hash algorithm used to generate this.
+ * @ssid: SSID to specify the ESS within which a PMKSA is valid when using FILS
+ *	cache identifier (may be %NULL).
+ * @ssid_len: Length of the @ssid in octets.
+ * @cache_id: 2-octet cache identifier advertized by a FILS AP identifying the
+ *	scope of PMKSA. This is valid only if @ssid_len is non-zero (may be
+ *	%NULL).
  */
 struct cfg80211_pmksa {
 	const u8 *bssid;
 	const u8 *pmkid;
+	const u8 *pmk;
+	size_t pmk_len;
+	const u8 *ssid;
+	size_t ssid_len;
+	const u8 *cache_id;
 };
 
 /**
@@ -2712,6 +2757,11 @@ struct cfg80211_nan_func {
  *	the current level is above/below the configured threshold; this may
  *	need some care when the configuration is changed (without first being
  *	disabled.)
+ * @set_cqm_rssi_range_config: Configure two RSSI thresholds in the
+ *	connection quality monitor.  An event is to be sent only when the
+ *	signal level is found to be outside the two values.  The driver should
+ *	set %NL80211_EXT_FEATURE_CQM_RSSI_LIST if this method is implemented.
+ *	If it is provided then there's no point providing @set_cqm_rssi_config.
  * @set_cqm_txe_config: Configure connection quality monitor TX error
  *	thresholds.
  * @sched_scan_start: Tell the driver to start a scheduled scan.
@@ -2826,13 +2876,12 @@ struct cfg80211_ops {
 						  const char *name,
 						  unsigned char name_assign_type,
 						  enum nl80211_iftype type,
-						  u32 *flags,
 						  struct vif_params *params);
 	int	(*del_virtual_intf)(struct wiphy *wiphy,
 				    struct wireless_dev *wdev);
 	int	(*change_virtual_intf)(struct wiphy *wiphy,
 				       struct net_device *dev,
-				       enum nl80211_iftype type, u32 *flags,
+				       enum nl80211_iftype type,
 				       struct vif_params *params);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
@@ -3000,6 +3049,10 @@ struct cfg80211_ops {
 	int	(*set_cqm_rssi_config)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       s32 rssi_thold, u32 rssi_hyst);
+
+	int	(*set_cqm_rssi_range_config)(struct wiphy *wiphy,
+					     struct net_device *dev,
+					     s32 rssi_low, s32 rssi_high);
 
 	int	(*set_cqm_txe_config)(struct wiphy *wiphy,
 				      struct net_device *dev,
@@ -3871,6 +3924,7 @@ void wiphy_free(struct wiphy *wiphy);
 struct cfg80211_conn;
 struct cfg80211_internal_bss;
 struct cfg80211_cached_keys;
+struct cfg80211_cqm_config;
 
 /**
  * struct wireless_dev - wireless device state
@@ -3934,6 +3988,7 @@ struct cfg80211_cached_keys;
  * @event_list: (private) list for internal event processing
  * @event_lock: (private) lock for event list
  * @owner_nlportid: (private) owner socket port ID
+ * @cqm_config: (private) nl80211 RSSI monitor state
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -4002,6 +4057,8 @@ struct wireless_dev {
 		bool prev_bssid_valid;
 	} wext;
 #endif
+
+	struct cfg80211_cqm_config *cqm_config;
 };
 
 static inline u8 *wdev_address(struct wireless_dev *wdev)
@@ -4651,12 +4708,22 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 					gfp);
 }
 
+/**
+ * cfg80211_get_bss - get a BSS reference
+ * @wiphy: the wiphy this BSS struct belongs to
+ * @channel: the channel to search on (or %NULL)
+ * @bssid: the desired BSSID (or %NULL)
+ * @ssid: the desired SSID (or %NULL)
+ * @ssid_len: length of the SSID (or 0)
+ * @bss_type: type of BSS, see &enum ieee80211_bss_type
+ * @privacy: privacy filter, see &enum ieee80211_privacy
+ */
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 				      struct ieee80211_channel *channel,
 				      const u8 *bssid,
 				      const u8 *ssid, size_t ssid_len,
 				      enum ieee80211_bss_type bss_type,
-				      enum ieee80211_privacy);
+				      enum ieee80211_privacy privacy);
 static inline struct cfg80211_bss *
 cfg80211_get_ibss(struct wiphy *wiphy,
 		  struct ieee80211_channel *channel,
@@ -5123,6 +5190,78 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 #endif
 
 /**
+ * struct cfg80211_connect_resp_params - Connection response params
+ * @status: Status code, %WLAN_STATUS_SUCCESS for successful connection, use
+ *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
+ *	the real status code for failures. If this call is used to report a
+ *	failure due to a timeout (e.g., not receiving an Authentication frame
+ *	from the AP) instead of an explicit rejection by the AP, -1 is used to
+ *	indicate that this is a failure, but without a status code.
+ *	@timeout_reason is used to report the reason for the timeout in that
+ *	case.
+ * @bssid: The BSSID of the AP (may be %NULL)
+ * @bss: Entry of bss to which STA got connected to, can be obtained through
+ *	cfg80211_get_bss() (may be %NULL). Only one parameter among @bssid and
+ *	@bss needs to be specified.
+ * @req_ie: Association request IEs (may be %NULL)
+ * @req_ie_len: Association request IEs length
+ * @resp_ie: Association response IEs (may be %NULL)
+ * @resp_ie_len: Association response IEs length
+ * @fils_kek: KEK derived from a successful FILS connection (may be %NULL)
+ * @fils_kek_len: Length of @fils_kek in octets
+ * @update_erp_next_seq_num: Boolean value to specify whether the value in
+ *	@fils_erp_next_seq_num is valid.
+ * @fils_erp_next_seq_num: The next sequence number to use in ERP message in
+ *	FILS Authentication. This value should be specified irrespective of the
+ *	status for a FILS connection.
+ * @pmk: A new PMK if derived from a successful FILS connection (may be %NULL).
+ * @pmk_len: Length of @pmk in octets
+ * @pmkid: A new PMKID if derived from a successful FILS connection or the PMKID
+ *	used for this FILS connection (may be %NULL).
+ * @timeout_reason: Reason for connection timeout. This is used when the
+ *	connection fails due to a timeout instead of an explicit rejection from
+ *	the AP. %NL80211_TIMEOUT_UNSPECIFIED is used when the timeout reason is
+ *	not known. This value is used only if @status < 0 to indicate that the
+ *	failure is due to a timeout and not due to explicit rejection by the AP.
+ *	This value is ignored in other cases (@status >= 0).
+ */
+struct cfg80211_connect_resp_params {
+	int status;
+	const u8 *bssid;
+	struct cfg80211_bss *bss;
+	const u8 *req_ie;
+	size_t req_ie_len;
+	const u8 *resp_ie;
+	size_t resp_ie_len;
+	const u8 *fils_kek;
+	size_t fils_kek_len;
+	bool update_erp_next_seq_num;
+	u16 fils_erp_next_seq_num;
+	const u8 *pmk;
+	size_t pmk_len;
+	const u8 *pmkid;
+	enum nl80211_timeout_reason timeout_reason;
+};
+
+/**
+ * cfg80211_connect_done - notify cfg80211 of connection result
+ *
+ * @dev: network device
+ * @params: connection response parameters
+ * @gfp: allocation flags
+ *
+ * It should be called by the underlying driver once execution of the connection
+ * request from connect() has been completed. This is similar to
+ * cfg80211_connect_bss(), but takes a structure pointer for connection response
+ * parameters. Only one of the functions among cfg80211_connect_bss(),
+ * cfg80211_connect_result(), cfg80211_connect_timeout(),
+ * and cfg80211_connect_done() should be called.
+ */
+void cfg80211_connect_done(struct net_device *dev,
+			   struct cfg80211_connect_resp_params *params,
+			   gfp_t gfp);
+
+/**
  * cfg80211_connect_bss - notify cfg80211 of connection result
  *
  * @dev: network device
@@ -5152,13 +5291,31 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  * It should be called by the underlying driver once execution of the connection
  * request from connect() has been completed. This is similar to
  * cfg80211_connect_result(), but with the option of identifying the exact bss
- * entry for the connection. Only one of these functions should be called.
+ * entry for the connection. Only one of the functions among
+ * cfg80211_connect_bss(), cfg80211_connect_result(),
+ * cfg80211_connect_timeout(), and cfg80211_connect_done() should be called.
  */
-void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
-			  struct cfg80211_bss *bss, const u8 *req_ie,
-			  size_t req_ie_len, const u8 *resp_ie,
-			  size_t resp_ie_len, int status, gfp_t gfp,
-			  enum nl80211_timeout_reason timeout_reason);
+static inline void
+cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
+		     struct cfg80211_bss *bss, const u8 *req_ie,
+		     size_t req_ie_len, const u8 *resp_ie,
+		     size_t resp_ie_len, int status, gfp_t gfp,
+		     enum nl80211_timeout_reason timeout_reason)
+{
+	struct cfg80211_connect_resp_params params;
+
+	memset(&params, 0, sizeof(params));
+	params.status = status;
+	params.bssid = bssid;
+	params.bss = bss;
+	params.req_ie = req_ie;
+	params.req_ie_len = req_ie_len;
+	params.resp_ie = resp_ie;
+	params.resp_ie_len = resp_ie_len;
+	params.timeout_reason = timeout_reason;
+
+	cfg80211_connect_done(dev, &params, gfp);
+}
 
 /**
  * cfg80211_connect_result - notify cfg80211 of connection result
@@ -5177,7 +5334,8 @@ void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
  * It should be called by the underlying driver once execution of the connection
  * request from connect() has been completed. This is similar to
  * cfg80211_connect_bss() which allows the exact bss entry to be specified. Only
- * one of these functions should be called.
+ * one of the functions among cfg80211_connect_bss(), cfg80211_connect_result(),
+ * cfg80211_connect_timeout(), and cfg80211_connect_done() should be called.
  */
 static inline void
 cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
@@ -5204,7 +5362,9 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
  * in a sequence where no explicit authentication/association rejection was
  * received from the AP. This could happen, e.g., due to not being able to send
  * out the Authentication or Association Request frame or timing out while
- * waiting for the response.
+ * waiting for the response. Only one of the functions among
+ * cfg80211_connect_bss(), cfg80211_connect_result(),
+ * cfg80211_connect_timeout(), and cfg80211_connect_done() should be called.
  */
 static inline void
 cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,

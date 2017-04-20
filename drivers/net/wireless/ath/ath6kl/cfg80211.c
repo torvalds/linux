@@ -1503,7 +1503,6 @@ static struct wireless_dev *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
 						      const char *name,
 						      unsigned char name_assign_type,
 						      enum nl80211_iftype type,
-						      u32 *flags,
 						      struct vif_params *params)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
@@ -1550,7 +1549,7 @@ static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
 
 static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 					struct net_device *ndev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params)
 {
 	struct ath6kl_vif *vif = netdev_priv(ndev);

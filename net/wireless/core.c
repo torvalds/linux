@@ -357,6 +357,38 @@ static void cfg80211_sched_scan_stop_wk(struct work_struct *work)
 	rtnl_unlock();
 }
 
+static void cfg80211_propagate_radar_detect_wk(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    propagate_radar_detect_wk);
+
+	rtnl_lock();
+
+	regulatory_propagate_dfs_state(&rdev->wiphy, &rdev->radar_chandef,
+				       NL80211_DFS_UNAVAILABLE,
+				       NL80211_RADAR_DETECTED);
+
+	rtnl_unlock();
+}
+
+static void cfg80211_propagate_cac_done_wk(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    propagate_cac_done_wk);
+
+	rtnl_lock();
+
+	regulatory_propagate_dfs_state(&rdev->wiphy, &rdev->cac_done_chandef,
+				       NL80211_DFS_AVAILABLE,
+				       NL80211_RADAR_CAC_FINISHED);
+
+	rtnl_unlock();
+}
+
 /* exported functions */
 
 struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
@@ -456,6 +488,9 @@ use_default_name:
 	spin_lock_init(&rdev->destroy_list_lock);
 	INIT_WORK(&rdev->destroy_work, cfg80211_destroy_iface_wk);
 	INIT_WORK(&rdev->sched_scan_stop_wk, cfg80211_sched_scan_stop_wk);
+	INIT_WORK(&rdev->propagate_radar_detect_wk,
+		  cfg80211_propagate_radar_detect_wk);
+	INIT_WORK(&rdev->propagate_cac_done_wk, cfg80211_propagate_cac_done_wk);
 
 #ifdef CONFIG_CFG80211_DEFAULT_PS
 	rdev->wiphy.flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -915,6 +950,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->destroy_work);
 	flush_work(&rdev->sched_scan_stop_wk);
 	flush_work(&rdev->mlme_unreg_wk);
+	flush_work(&rdev->propagate_radar_detect_wk);
+	flush_work(&rdev->propagate_cac_done_wk);
 
 #ifdef CONFIG_PM
 	if (rdev->wiphy.wowlan_config && rdev->ops->set_wakeup)
@@ -954,6 +991,12 @@ void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked)
 }
 EXPORT_SYMBOL(wiphy_rfkill_set_hw_state);
 
+void cfg80211_cqm_config_free(struct wireless_dev *wdev)
+{
+	kfree(wdev->cqm_config);
+	wdev->cqm_config = NULL;
+}
+
 void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
@@ -980,6 +1023,8 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 		WARN_ON_ONCE(1);
 		break;
 	}
+
+	cfg80211_cqm_config_free(wdev);
 }
 EXPORT_SYMBOL(cfg80211_unregister_wdev);
 
@@ -1114,7 +1159,15 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		INIT_LIST_HEAD(&wdev->mgmt_registrations);
 		spin_lock_init(&wdev->mgmt_registrations_lock);
 
-		wdev->identifier = ++rdev->wdev_id;
+		/*
+		 * We get here also when the interface changes network namespaces,
+		 * as it's registered into the new one, but we don't want it to
+		 * change ID in that case. Checking if the ID is already assigned
+		 * works, because 0 isn't considered a valid ID and the memory is
+		 * 0-initialized.
+		 */
+		if (!wdev->identifier)
+			wdev->identifier = ++rdev->wdev_id;
 		list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
 		rdev->devlist_generation++;
 		/* can only change netns with wiphy */
@@ -1208,12 +1261,12 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 */
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
-		    rdev->ops->set_power_mgmt)
-			if (rdev_set_power_mgmt(rdev, dev, wdev->ps,
-						wdev->ps_timeout)) {
-				/* assume this means it's off */
-				wdev->ps = false;
-			}
+		    rdev->ops->set_power_mgmt &&
+		    rdev_set_power_mgmt(rdev, dev, wdev->ps,
+					wdev->ps_timeout)) {
+			/* assume this means it's off */
+			wdev->ps = false;
+		}
 		break;
 	case NETDEV_UNREGISTER:
 		/*
@@ -1234,6 +1287,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 			kzfree(wdev->wext.keys);
 #endif
 			flush_work(&wdev->disconnect_wk);
+			cfg80211_cqm_config_free(wdev);
 		}
 		/*
 		 * synchronise (so that we won't find this netdev

@@ -1100,8 +1100,14 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
-	if (mesh_matches_local(sdata, &elems))
-		mesh_neighbour_update(sdata, mgmt->sa, &elems);
+	if (mesh_matches_local(sdata, &elems)) {
+		mpl_dbg(sdata, "rssi_threshold=%d,rx_status->signal=%d\n",
+			sdata->u.mesh.mshcfg.rssi_threshold, rx_status->signal);
+		if (!sdata->u.mesh.user_mpm ||
+		    sdata->u.mesh.mshcfg.rssi_threshold == 0 ||
+		    sdata->u.mesh.mshcfg.rssi_threshold < rx_status->signal)
+			mesh_neighbour_update(sdata, mgmt->sa, &elems);
+	}
 
 	if (ifmsh->sync_ops)
 		ifmsh->sync_ops->rx_bcn_presp(sdata,

@@ -20,7 +20,6 @@
 #include "driver-ops.h"
 
 struct rate_control_ref {
-	struct ieee80211_local *local;
 	const struct rate_control_ops *ops;
 	void *priv;
 };
@@ -110,6 +109,8 @@ static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
 		ref->ops->remove_sta_debugfs(ref->priv, sta->rate_ctrl_priv);
 #endif
 }
+
+void ieee80211_check_rate_mask(struct ieee80211_sub_if_data *sdata);
 
 /* Get a reference to the rate control algorithm. If `name' is NULL, get the
  * first available algorithm. */

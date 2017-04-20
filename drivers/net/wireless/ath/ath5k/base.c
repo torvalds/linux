@@ -2564,6 +2564,8 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 
 	hw->extra_tx_headroom = 2;
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	/*
 	 * Mark the device as detached to avoid processing
 	 * interrupts until setup is complete.

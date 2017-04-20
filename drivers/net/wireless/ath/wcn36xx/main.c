@@ -1112,6 +1112,9 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 	wcn->hw->sta_data_size = sizeof(struct wcn36xx_sta);
 	wcn->hw->vif_data_size = sizeof(struct wcn36xx_vif);
 
+	wiphy_ext_feature_set(wcn->hw->wiphy,
+			      NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	return ret;
 }
 

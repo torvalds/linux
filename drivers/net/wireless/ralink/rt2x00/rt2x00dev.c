@@ -1456,6 +1456,9 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
+	wiphy_ext_feature_set(rt2x00dev->hw->wiphy,
+			      NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	/*
 	 * Initialize ieee80211 structure.
 	 */

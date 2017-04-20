@@ -596,7 +596,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	rtnl_lock();
 	/* Create station interface by default */
 	wdev = mwifiex_add_virtual_intf(adapter->wiphy, "mlan%d", NET_NAME_ENUM,
-					NL80211_IFTYPE_STATION, NULL, NULL);
+					NL80211_IFTYPE_STATION, NULL);
 	if (IS_ERR(wdev)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "cannot create default STA interface\n");
@@ -606,7 +606,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 
 	if (driver_mode & MWIFIEX_DRIVER_MODE_UAP) {
 		wdev = mwifiex_add_virtual_intf(adapter->wiphy, "uap%d", NET_NAME_ENUM,
-						NL80211_IFTYPE_AP, NULL, NULL);
+						NL80211_IFTYPE_AP, NULL);
 		if (IS_ERR(wdev)) {
 			mwifiex_dbg(adapter, ERROR,
 				    "cannot create AP interface\n");
@@ -617,8 +617,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 
 	if (driver_mode & MWIFIEX_DRIVER_MODE_P2P) {
 		wdev = mwifiex_add_virtual_intf(adapter->wiphy, "p2p%d", NET_NAME_ENUM,
-						NL80211_IFTYPE_P2P_CLIENT, NULL,
-						NULL);
+						NL80211_IFTYPE_P2P_CLIENT, NULL);
 		if (IS_ERR(wdev)) {
 			mwifiex_dbg(adapter, ERROR,
 				    "cannot create p2p client interface\n");

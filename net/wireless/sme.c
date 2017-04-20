@@ -253,10 +253,13 @@ void cfg80211_conn_work(struct work_struct *work)
 		}
 		treason = NL80211_TIMEOUT_UNSPECIFIED;
 		if (cfg80211_conn_do_work(wdev, &treason)) {
-			__cfg80211_connect_result(
-					wdev->netdev, bssid,
-					NULL, 0, NULL, 0, -1, false, NULL,
-					treason);
+			struct cfg80211_connect_resp_params cr;
+
+			memset(&cr, 0, sizeof(cr));
+			cr.status = -1;
+			cr.bssid = bssid;
+			cr.timeout_reason = treason;
+			__cfg80211_connect_result(wdev->netdev, &cr, false);
 		}
 		wdev_unlock(wdev);
 	}
@@ -359,10 +362,13 @@ void cfg80211_sme_rx_auth(struct wireless_dev *wdev, const u8 *buf, size_t len)
 		wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
 		schedule_work(&rdev->conn_work);
 	} else if (status_code != WLAN_STATUS_SUCCESS) {
-		__cfg80211_connect_result(wdev->netdev, mgmt->bssid,
-					  NULL, 0, NULL, 0,
-					  status_code, false, NULL,
-					  NL80211_TIMEOUT_UNSPECIFIED);
+		struct cfg80211_connect_resp_params cr;
+
+		memset(&cr, 0, sizeof(cr));
+		cr.status = status_code;
+		cr.bssid = mgmt->bssid;
+		cr.timeout_reason = NL80211_TIMEOUT_UNSPECIFIED;
+		__cfg80211_connect_result(wdev->netdev, &cr, false);
 	} else if (wdev->conn->state == CFG80211_CONN_AUTHENTICATING) {
 		wdev->conn->state = CFG80211_CONN_ASSOCIATE_NEXT;
 		schedule_work(&rdev->conn_work);
@@ -669,12 +675,9 @@ static DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);
  */
 
 /* This method must consume bss one way or another */
-void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
-			       const u8 *req_ie, size_t req_ie_len,
-			       const u8 *resp_ie, size_t resp_ie_len,
-			       int status, bool wextev,
-			       struct cfg80211_bss *bss,
-			       enum nl80211_timeout_reason timeout_reason)
+void __cfg80211_connect_result(struct net_device *dev,
+			       struct cfg80211_connect_resp_params *cr,
+			       bool wextev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	const u8 *country_ie;
@@ -686,48 +689,48 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT)) {
-		cfg80211_put_bss(wdev->wiphy, bss);
+		cfg80211_put_bss(wdev->wiphy, cr->bss);
 		return;
 	}
 
-	nl80211_send_connect_result(wiphy_to_rdev(wdev->wiphy), dev,
-				    bssid, req_ie, req_ie_len,
-				    resp_ie, resp_ie_len,
-				    status, timeout_reason, GFP_KERNEL);
+	nl80211_send_connect_result(wiphy_to_rdev(wdev->wiphy), dev, cr,
+				    GFP_KERNEL);
 
 #ifdef CONFIG_CFG80211_WEXT
 	if (wextev) {
-		if (req_ie && status == WLAN_STATUS_SUCCESS) {
+		if (cr->req_ie && cr->status == WLAN_STATUS_SUCCESS) {
 			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.length = req_ie_len;
-			wireless_send_event(dev, IWEVASSOCREQIE, &wrqu, req_ie);
+			wrqu.data.length = cr->req_ie_len;
+			wireless_send_event(dev, IWEVASSOCREQIE, &wrqu,
+					    cr->req_ie);
 		}
 
-		if (resp_ie && status == WLAN_STATUS_SUCCESS) {
+		if (cr->resp_ie && cr->status == WLAN_STATUS_SUCCESS) {
 			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.length = resp_ie_len;
-			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, resp_ie);
+			wrqu.data.length = cr->resp_ie_len;
+			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu,
+					    cr->resp_ie);
 		}
 
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		if (bssid && status == WLAN_STATUS_SUCCESS) {
-			memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
-			memcpy(wdev->wext.prev_bssid, bssid, ETH_ALEN);
+		if (cr->bssid && cr->status == WLAN_STATUS_SUCCESS) {
+			memcpy(wrqu.ap_addr.sa_data, cr->bssid, ETH_ALEN);
+			memcpy(wdev->wext.prev_bssid, cr->bssid, ETH_ALEN);
 			wdev->wext.prev_bssid_valid = true;
 		}
 		wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 	}
 #endif
 
-	if (!bss && (status == WLAN_STATUS_SUCCESS)) {
+	if (!cr->bss && (cr->status == WLAN_STATUS_SUCCESS)) {
 		WARN_ON_ONCE(!wiphy_to_rdev(wdev->wiphy)->ops->connect);
-		bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
-				       wdev->ssid, wdev->ssid_len,
-				       wdev->conn_bss_type,
-				       IEEE80211_PRIVACY_ANY);
-		if (bss)
-			cfg80211_hold_bss(bss_from_pub(bss));
+		cr->bss = cfg80211_get_bss(wdev->wiphy, NULL, cr->bssid,
+					   wdev->ssid, wdev->ssid_len,
+					   wdev->conn_bss_type,
+					   IEEE80211_PRIVACY_ANY);
+		if (cr->bss)
+			cfg80211_hold_bss(bss_from_pub(cr->bss));
 	}
 
 	if (wdev->current_bss) {
@@ -736,29 +739,29 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		wdev->current_bss = NULL;
 	}
 
-	if (status != WLAN_STATUS_SUCCESS) {
+	if (cr->status != WLAN_STATUS_SUCCESS) {
 		kzfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 		wdev->ssid_len = 0;
 		wdev->conn_owner_nlportid = 0;
-		if (bss) {
-			cfg80211_unhold_bss(bss_from_pub(bss));
-			cfg80211_put_bss(wdev->wiphy, bss);
+		if (cr->bss) {
+			cfg80211_unhold_bss(bss_from_pub(cr->bss));
+			cfg80211_put_bss(wdev->wiphy, cr->bss);
 		}
 		cfg80211_sme_free(wdev);
 		return;
 	}
 
-	if (WARN_ON(!bss))
+	if (WARN_ON(!cr->bss))
 		return;
 
-	wdev->current_bss = bss_from_pub(bss);
+	wdev->current_bss = bss_from_pub(cr->bss);
 
 	if (!(wdev->wiphy->flags & WIPHY_FLAG_HAS_STATIC_WEP))
 		cfg80211_upload_connect_keys(wdev);
 
 	rcu_read_lock();
-	country_ie = ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
+	country_ie = ieee80211_bss_get_ie(cr->bss, WLAN_EID_COUNTRY);
 	if (!country_ie) {
 		rcu_read_unlock();
 		return;
@@ -775,64 +778,95 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	 * - country_ie + 2, the start of the country ie data, and
 	 * - and country_ie[1] which is the IE length
 	 */
-	regulatory_hint_country_ie(wdev->wiphy, bss->channel->band,
+	regulatory_hint_country_ie(wdev->wiphy, cr->bss->channel->band,
 				   country_ie + 2, country_ie[1]);
 	kfree(country_ie);
 }
 
 /* Consumes bss object one way or another */
-void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
-			  struct cfg80211_bss *bss, const u8 *req_ie,
-			  size_t req_ie_len, const u8 *resp_ie,
-			  size_t resp_ie_len, int status, gfp_t gfp,
-			  enum nl80211_timeout_reason timeout_reason)
+void cfg80211_connect_done(struct net_device *dev,
+			   struct cfg80211_connect_resp_params *params,
+			   gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
+	u8 *next;
 
-	if (bss) {
+	if (params->bss) {
 		/* Make sure the bss entry provided by the driver is valid. */
-		struct cfg80211_internal_bss *ibss = bss_from_pub(bss);
+		struct cfg80211_internal_bss *ibss = bss_from_pub(params->bss);
 
 		if (WARN_ON(list_empty(&ibss->list))) {
-			cfg80211_put_bss(wdev->wiphy, bss);
+			cfg80211_put_bss(wdev->wiphy, params->bss);
 			return;
 		}
 	}
 
-	ev = kzalloc(sizeof(*ev) + req_ie_len + resp_ie_len, gfp);
+	ev = kzalloc(sizeof(*ev) + (params->bssid ? ETH_ALEN : 0) +
+		     params->req_ie_len + params->resp_ie_len +
+		     params->fils_kek_len + params->pmk_len +
+		     (params->pmkid ? WLAN_PMKID_LEN : 0), gfp);
 	if (!ev) {
-		cfg80211_put_bss(wdev->wiphy, bss);
+		cfg80211_put_bss(wdev->wiphy, params->bss);
 		return;
 	}
 
 	ev->type = EVENT_CONNECT_RESULT;
-	if (bssid)
-		memcpy(ev->cr.bssid, bssid, ETH_ALEN);
-	if (req_ie_len) {
-		ev->cr.req_ie = ((u8 *)ev) + sizeof(*ev);
-		ev->cr.req_ie_len = req_ie_len;
-		memcpy((void *)ev->cr.req_ie, req_ie, req_ie_len);
+	next = ((u8 *)ev) + sizeof(*ev);
+	if (params->bssid) {
+		ev->cr.bssid = next;
+		memcpy((void *)ev->cr.bssid, params->bssid, ETH_ALEN);
+		next += ETH_ALEN;
 	}
-	if (resp_ie_len) {
-		ev->cr.resp_ie = ((u8 *)ev) + sizeof(*ev) + req_ie_len;
-		ev->cr.resp_ie_len = resp_ie_len;
-		memcpy((void *)ev->cr.resp_ie, resp_ie, resp_ie_len);
+	if (params->req_ie_len) {
+		ev->cr.req_ie = next;
+		ev->cr.req_ie_len = params->req_ie_len;
+		memcpy((void *)ev->cr.req_ie, params->req_ie,
+		       params->req_ie_len);
+		next += params->req_ie_len;
 	}
-	if (bss)
-		cfg80211_hold_bss(bss_from_pub(bss));
-	ev->cr.bss = bss;
-	ev->cr.status = status;
-	ev->cr.timeout_reason = timeout_reason;
+	if (params->resp_ie_len) {
+		ev->cr.resp_ie = next;
+		ev->cr.resp_ie_len = params->resp_ie_len;
+		memcpy((void *)ev->cr.resp_ie, params->resp_ie,
+		       params->resp_ie_len);
+		next += params->resp_ie_len;
+	}
+	if (params->fils_kek_len) {
+		ev->cr.fils_kek = next;
+		ev->cr.fils_kek_len = params->fils_kek_len;
+		memcpy((void *)ev->cr.fils_kek, params->fils_kek,
+		       params->fils_kek_len);
+		next += params->fils_kek_len;
+	}
+	if (params->pmk_len) {
+		ev->cr.pmk = next;
+		ev->cr.pmk_len = params->pmk_len;
+		memcpy((void *)ev->cr.pmk, params->pmk, params->pmk_len);
+		next += params->pmk_len;
+	}
+	if (params->pmkid) {
+		ev->cr.pmkid = next;
+		memcpy((void *)ev->cr.pmkid, params->pmkid, WLAN_PMKID_LEN);
+		next += WLAN_PMKID_LEN;
+	}
+	ev->cr.update_erp_next_seq_num = params->update_erp_next_seq_num;
+	if (params->update_erp_next_seq_num)
+		ev->cr.fils_erp_next_seq_num = params->fils_erp_next_seq_num;
+	if (params->bss)
+		cfg80211_hold_bss(bss_from_pub(params->bss));
+	ev->cr.bss = params->bss;
+	ev->cr.status = params->status;
+	ev->cr.timeout_reason = params->timeout_reason;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
 	queue_work(cfg80211_wq, &rdev->event_work);
 }
-EXPORT_SYMBOL(cfg80211_connect_bss);
+EXPORT_SYMBOL(cfg80211_connect_done);
 
 /* Consumes bss object one way or another */
 void __cfg80211_roamed(struct wireless_dev *wdev,

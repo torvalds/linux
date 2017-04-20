@@ -1261,6 +1261,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	wiphy->reg_notifier = rsi_reg_notify;
 
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	status = ieee80211_register_hw(hw);
 	if (status)
 		return status;
