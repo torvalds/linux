@@ -727,7 +727,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 		ret = devm_request_irq(dev, pp->msi_irq,
 				       qcom_pcie_msi_irq_handler,
-				       IRQF_SHARED, "qcom-pcie-msi", pp);
+				       IRQF_SHARED | IRQF_NO_THREAD,
+				       "qcom-pcie-msi", pp);
 		if (ret) {
 			dev_err(dev, "cannot request msi irq\n");
 			return ret;
