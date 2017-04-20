@@ -719,16 +719,21 @@ fail:
  * Memory Management & DMA Sync
  */
 
-/**
- * shmem buffers that are mapped cached can simulate coherency via using
- * page faulting to keep track of dirty pages
+/*
+ * shmem buffers that are mapped cached are not coherent.
+ *
+ * We keep track of dirty pages using page faulting to perform cache management.
+ * When a page is mapped to the CPU in read/write mode the device can't access
+ * it and omap_obj->dma_addrs[i] is NULL. When a page is mapped to the device
+ * the omap_obj->dma_addrs[i] is set to the DMA address, and the page is
+ * unmapped from the CPU.
  */
 static inline bool is_cached_coherent(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 
-	return (omap_obj->flags & OMAP_BO_MEM_SHMEM) &&
-		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED);
+	return !((omap_obj->flags & OMAP_BO_MEM_SHMEM) &&
+		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED));
 }
 
 /* Sync the buffer for CPU access.. note pages should already be
@@ -739,7 +744,10 @@ void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff)
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 
-	if (is_cached_coherent(obj) && omap_obj->dma_addrs[pgoff]) {
+	if (is_cached_coherent(obj))
+		return;
+
+	if (omap_obj->dma_addrs[pgoff]) {
 		dma_unmap_page(dev->dev, omap_obj->dma_addrs[pgoff],
 				PAGE_SIZE, DMA_BIDIRECTIONAL);
 		omap_obj->dma_addrs[pgoff] = 0;
@@ -756,7 +764,7 @@ void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
 	struct page **pages = omap_obj->pages;
 	bool dirty = false;
 
-	if (!is_cached_coherent(obj))
+	if (is_cached_coherent(obj))
 		return;
 
 	for (i = 0; i < npages; i++) {
