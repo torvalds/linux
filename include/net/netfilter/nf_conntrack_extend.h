@@ -99,6 +99,6 @@ struct nf_ct_ext_type {
 	u8 align;
 };
 
-int nf_ct_extend_register(struct nf_ct_ext_type *type);
-void nf_ct_extend_unregister(struct nf_ct_ext_type *type);
+int nf_ct_extend_register(const struct nf_ct_ext_type *type);
+void nf_ct_extend_unregister(const struct nf_ct_ext_type *type);
 #endif /* _NF_CONNTRACK_EXTEND_H */

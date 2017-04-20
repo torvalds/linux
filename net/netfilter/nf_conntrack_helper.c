@@ -535,7 +535,7 @@ void nf_conntrack_helpers_unregister(struct nf_conntrack_helper *helper,
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helpers_unregister);
 
-static struct nf_ct_ext_type helper_extend __read_mostly = {
+static const struct nf_ct_ext_type helper_extend = {
 	.len	= sizeof(struct nf_conn_help),
 	.align	= __alignof__(struct nf_conn_help),
 	.id	= NF_CT_EXT_HELPER,

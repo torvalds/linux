@@ -347,7 +347,7 @@ static struct ctl_table event_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static struct nf_ct_ext_type event_extend __read_mostly = {
+static const struct nf_ct_ext_type event_extend = {
 	.len	= sizeof(struct nf_conntrack_ecache),
 	.align	= __alignof__(struct nf_conntrack_ecache),
 	.id	= NF_CT_EXT_ECACHE,

@@ -116,7 +116,7 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 EXPORT_SYMBOL(nf_ct_ext_add);
 
 /* This MUST be called in process context. */
-int nf_ct_extend_register(struct nf_ct_ext_type *type)
+int nf_ct_extend_register(const struct nf_ct_ext_type *type)
 {
 	int ret = 0;
 
@@ -134,7 +134,7 @@ out:
 EXPORT_SYMBOL_GPL(nf_ct_extend_register);
 
 /* This MUST be called in process context. */
-void nf_ct_extend_unregister(struct nf_ct_ext_type *type)
+void nf_ct_extend_unregister(const struct nf_ct_ext_type *type)
 {
 	mutex_lock(&nf_ct_ext_type_mutex);
 	RCU_INIT_POINTER(nf_ct_ext_types[type->id], NULL);

@@ -33,7 +33,7 @@ static struct ctl_table tstamp_sysctl_table[] = {
 };
 #endif /* CONFIG_SYSCTL */
 
-static struct nf_ct_ext_type tstamp_extend __read_mostly = {
+static const struct nf_ct_ext_type tstamp_extend = {
 	.len	= sizeof(struct nf_conn_tstamp),
 	.align	= __alignof__(struct nf_conn_tstamp),
 	.id	= NF_CT_EXT_TSTAMP,
