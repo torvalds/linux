@@ -59,6 +59,7 @@
 #include "trace.h"
 #include "qp.h"
 #include "sdma.h"
+#include "debugfs.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -1354,6 +1355,9 @@ void handle_eflags(struct hfi1_packet *packet)
  */
 int process_receive_ib(struct hfi1_packet *packet)
 {
+	if (unlikely(hfi1_dbg_fault_packet(packet)))
+		return RHF_RCV_CONTINUE;
+
 	trace_hfi1_rcvhdr(packet->rcd->ppd->dd,
 			  packet->rcd->ctxt,
 			  rhf_err_flags(packet->rhf),
@@ -1362,6 +1366,11 @@ int process_receive_ib(struct hfi1_packet *packet)
 			  packet->tlen,
 			  packet->updegr,
 			  rhf_egr_index(packet->rhf));
+
+	if (unlikely(
+		 (hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
+		 (packet->rhf & RHF_DC_ERR))))
+		return RHF_RCV_CONTINUE;
 
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
@@ -1398,6 +1407,12 @@ int process_receive_bypass(struct hfi1_packet *packet)
 
 int process_receive_error(struct hfi1_packet *packet)
 {
+	/* KHdrHCRCErr -- KDETH packet with a bad HCRC */
+	if (unlikely(
+		 hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
+		 rhf_rcv_type_err(packet->rhf) == 3))
+		return RHF_RCV_CONTINUE;
+
 	handle_eflags(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf)))
@@ -1409,6 +1424,8 @@ int process_receive_error(struct hfi1_packet *packet)
 
 int kdeth_process_expected(struct hfi1_packet *packet)
 {
+	if (unlikely(hfi1_dbg_fault_packet(packet)))
+		return RHF_RCV_CONTINUE;
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		handle_eflags(packet);
 
@@ -1421,6 +1438,8 @@ int kdeth_process_eager(struct hfi1_packet *packet)
 {
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		handle_eflags(packet);
+	if (unlikely(hfi1_dbg_fault_packet(packet)))
+		return RHF_RCV_CONTINUE;
 
 	dd_dev_err(packet->rcd->dd,
 		   "Unhandled eager packet received. Dropping.\n");

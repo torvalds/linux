@@ -1357,6 +1357,17 @@ struct ib_fmr_attr {
 
 struct ib_umem;
 
+enum rdma_remove_reason {
+	/* Userspace requested uobject deletion. Call could fail */
+	RDMA_REMOVE_DESTROY,
+	/* Context deletion. This call should delete the actual object itself */
+	RDMA_REMOVE_CLOSE,
+	/* Driver is being hot-unplugged. This call should delete the actual object itself */
+	RDMA_REMOVE_DRIVER_REMOVE,
+	/* Context is being cleaned-up, but commit was just completed */
+	RDMA_REMOVE_DURING_CLEANUP,
+};
+
 struct ib_rdmacg_object {
 #ifdef CONFIG_CGROUP_RDMA
 	struct rdma_cgroup	*cg;		/* owner rdma cgroup */
@@ -1365,18 +1376,15 @@ struct ib_rdmacg_object {
 
 struct ib_ucontext {
 	struct ib_device       *device;
-	struct list_head	pd_list;
-	struct list_head	mr_list;
-	struct list_head	mw_list;
-	struct list_head	cq_list;
-	struct list_head	qp_list;
-	struct list_head	srq_list;
-	struct list_head	ah_list;
-	struct list_head	xrcd_list;
-	struct list_head	rule_list;
-	struct list_head	wq_list;
-	struct list_head	rwq_ind_tbl_list;
+	struct ib_uverbs_file  *ufile;
 	int			closing;
+
+	/* locking the uobjects_list */
+	struct mutex		uobjects_lock;
+	struct list_head	uobjects;
+	/* protects cleanup process from other actions */
+	struct rw_semaphore	cleanup_rwsem;
+	enum rdma_remove_reason cleanup_reason;
 
 	struct pid             *tgid;
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
@@ -1407,9 +1415,16 @@ struct ib_uobject {
 	struct ib_rdmacg_object	cg_obj;		/* rdmacg object */
 	int			id;		/* index into kernel idr */
 	struct kref		ref;
-	struct rw_semaphore	mutex;		/* protects .live */
+	atomic_t		usecnt;		/* protects exclusive access */
 	struct rcu_head		rcu;		/* kfree_rcu() overhead */
-	int			live;
+
+	const struct uverbs_obj_type *type;
+};
+
+struct ib_uobject_file {
+	struct ib_uobject	uobj;
+	/* ufile contains the lock between context release and file close */
+	struct ib_uverbs_file	*ufile;
 };
 
 struct ib_udata {

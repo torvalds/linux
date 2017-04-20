@@ -938,7 +938,10 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		/* see post_send() */
 		barrier();
 		rvt_put_swqe(wqe);
-		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
+		rvt_qp_swqe_complete(qp,
+				     wqe,
+				     ib_qib_wc_opcode[wqe->wr.opcode],
+				     IB_WC_SUCCESS);
 	}
 	/*
 	 * If we were waiting for sends to complete before resending,
@@ -983,7 +986,10 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
+		rvt_qp_swqe_complete(qp,
+				     wqe,
+				     ib_qib_wc_opcode[wqe->wr.opcode],
+				     IB_WC_SUCCESS);
 	} else
 		this_cpu_inc(*ibp->rvp.rc_delayed_comp);
 

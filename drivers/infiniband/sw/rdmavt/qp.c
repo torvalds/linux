@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -116,23 +116,6 @@ const int ib_rvt_state_ops[IB_QPS_ERR + 1] = {
 	    RVT_POST_SEND_OK | RVT_FLUSH_SEND,
 };
 EXPORT_SYMBOL(ib_rvt_state_ops);
-
-/*
- * Translate ib_wr_opcode into ib_wc_opcode.
- */
-const enum ib_wc_opcode ib_rvt_wc_opcode[] = {
-	[IB_WR_RDMA_WRITE] = IB_WC_RDMA_WRITE,
-	[IB_WR_RDMA_WRITE_WITH_IMM] = IB_WC_RDMA_WRITE,
-	[IB_WR_SEND] = IB_WC_SEND,
-	[IB_WR_SEND_WITH_IMM] = IB_WC_SEND,
-	[IB_WR_RDMA_READ] = IB_WC_RDMA_READ,
-	[IB_WR_ATOMIC_CMP_AND_SWP] = IB_WC_COMP_SWAP,
-	[IB_WR_ATOMIC_FETCH_AND_ADD] = IB_WC_FETCH_ADD,
-	[IB_WR_SEND_WITH_INV] = IB_WC_SEND,
-	[IB_WR_LOCAL_INV] = IB_WC_LOCAL_INV,
-	[IB_WR_REG_MR] = IB_WC_REG_MR
-};
-EXPORT_SYMBOL(ib_rvt_wc_opcode);
 
 static void get_map_page(struct rvt_qpn_table *qpt,
 			 struct rvt_qpn_map *map,
@@ -1789,11 +1772,14 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 					0);
 		qp->s_next_psn = wqe->lpsn + 1;
 	}
-	trace_rvt_post_one_wr(qp, wqe);
-	if (unlikely(reserved_op))
+	if (unlikely(reserved_op)) {
+		wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 		rvt_qp_wqe_reserve(qp, wqe);
-	else
+	} else {
+		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		qp->s_avail--;
+	}
+	trace_rvt_post_one_wr(qp, wqe);
 	smp_wmb(); /* see request builders */
 	qp->s_head = next;
 
@@ -2069,8 +2055,12 @@ static void rvt_rc_timeout(unsigned long arg)
 	spin_lock_irqsave(&qp->r_lock, flags);
 	spin_lock(&qp->s_lock);
 	if (qp->s_flags & RVT_S_TIMER) {
+		struct rvt_ibport *rvp = rdi->ports[qp->port_num - 1];
+
 		qp->s_flags &= ~RVT_S_TIMER;
+		rvp->n_rc_timeouts++;
 		del_timer(&qp->s_timer);
+		trace_rvt_rc_timeout(qp, qp->s_last_psn + 1);
 		if (rdi->driver_f.notify_restart_rc)
 			rdi->driver_f.notify_restart_rc(qp,
 							qp->s_last_psn + 1,

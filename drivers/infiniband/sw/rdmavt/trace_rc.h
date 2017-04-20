@@ -1,7 +1,5 @@
-#ifndef _HFI1_DEBUGFS_H
-#define _HFI1_DEBUGFS_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -46,86 +44,66 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#if !defined(__RVT_TRACE_RC_H) || defined(TRACE_HEADER_MULTI_READ)
+#define __RVT_TRACE_RC_H
 
-struct hfi1_ibdev;
-#ifdef CONFIG_DEBUG_FS
-void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd);
-void hfi1_dbg_ibdev_exit(struct hfi1_ibdev *ibd);
-void hfi1_dbg_init(void);
-void hfi1_dbg_exit(void);
+#include <linux/tracepoint.h>
+#include <linux/trace_seq.h>
 
-#ifdef CONFIG_FAULT_INJECTION
-#include <linux/fault-inject.h>
-struct fault_opcode {
-	struct fault_attr attr;
-	struct dentry *dir;
-	bool fault_by_opcode;
-	u64 n_rxfaults[256];
-	u64 n_txfaults[256];
-	u8 opcode;
-	u8 mask;
-};
+#include <rdma/ib_verbs.h>
+#include <rdma/rdma_vt.h>
 
-struct fault_packet {
-	struct fault_attr attr;
-	struct dentry *dir;
-	bool fault_by_packet;
-	u64 n_faults;
-};
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM rvt_rc
 
-bool hfi1_dbg_fault_opcode(struct rvt_qp *qp, u32 opcode, bool rx);
-bool hfi1_dbg_fault_packet(struct hfi1_packet *packet);
-bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd);
-#else
-static inline bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
-{
-	return false;
-}
+DECLARE_EVENT_CLASS(rvt_rc_template,
+		    TP_PROTO(struct rvt_qp *qp, u32 psn),
+		    TP_ARGS(qp, psn),
+		    TP_STRUCT__entry(
+			RDI_DEV_ENTRY(ib_to_rvt(qp->ibqp.device))
+			__field(u32, qpn)
+			__field(u32, s_flags)
+			__field(u32, psn)
+			__field(u32, s_psn)
+			__field(u32, s_next_psn)
+			__field(u32, s_sending_psn)
+			__field(u32, s_sending_hpsn)
+			__field(u32, r_psn)
+			),
+		    TP_fast_assign(
+			RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+			__entry->qpn = qp->ibqp.qp_num;
+			__entry->s_flags = qp->s_flags;
+			__entry->psn = psn;
+			__entry->s_psn = qp->s_psn;
+			__entry->s_next_psn = qp->s_next_psn;
+			__entry->s_sending_psn = qp->s_sending_psn;
+			__entry->s_sending_hpsn = qp->s_sending_hpsn;
+			__entry->r_psn = qp->r_psn;
+			),
+		    TP_printk(
+			"[%s] qpn 0x%x s_flags 0x%x psn 0x%x s_psn 0x%x s_next_psn 0x%x s_sending_psn 0x%x sending_hpsn 0x%x r_psn 0x%x",
+			__get_str(dev),
+			__entry->qpn,
+			__entry->s_flags,
+			__entry->psn,
+			__entry->s_psn,
+			__entry->s_next_psn,
+			__entry->s_sending_psn,
+			__entry->s_sending_hpsn,
+			__entry->r_psn
+			)
+);
 
-static inline bool hfi1_dbg_fault_opcode(struct rvt_qp *qp,
-					 u32 opcode, bool rx)
-{
-	return false;
-}
+DEFINE_EVENT(rvt_rc_template, rvt_rc_timeout,
+	     TP_PROTO(struct rvt_qp *qp, u32 psn),
+	     TP_ARGS(qp, psn)
+);
 
-static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
-{
-	return false;
-}
-#endif
+#endif /* __RVT_TRACE_RC_H */
 
-#else
-static inline void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
-{
-}
-
-static inline void hfi1_dbg_ibdev_exit(struct hfi1_ibdev *ibd)
-{
-}
-
-static inline void hfi1_dbg_init(void)
-{
-}
-
-static inline void hfi1_dbg_exit(void)
-{
-}
-
-static inline bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_fault_opcode(struct rvt_qp *qp,
-					 u32 opcode, bool rx)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
-{
-	return false;
-}
-#endif
-
-#endif                          /* _HFI1_DEBUGFS_H */
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_rc
+#include <trace/define_trace.h>

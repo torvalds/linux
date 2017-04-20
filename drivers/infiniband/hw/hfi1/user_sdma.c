@@ -1615,9 +1615,10 @@ static inline void set_comp_state(struct hfi1_user_sdma_pkt_q *pq,
 {
 	hfi1_cdbg(SDMA, "[%u:%u:%u:%u] Setting completion status %u %d",
 		  pq->dd->unit, pq->ctxt, pq->subctxt, idx, state, ret);
-	cq->comps[idx].status = state;
 	if (state == ERROR)
 		cq->comps[idx].errcode = -ret;
+	smp_wmb(); /* make sure errcode is visible first */
+	cq->comps[idx].status = state;
 	trace_hfi1_sdma_user_completion(pq->dd, pq->ctxt, pq->subctxt,
 					idx, state, ret);
 }

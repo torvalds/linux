@@ -1020,7 +1020,7 @@ struct hfi1_devdata {
 	u8 qos_shift;
 
 	u16 irev;	/* implementation revision */
-	u16 dc8051_ver; /* 8051 firmware version */
+	u32 dc8051_ver; /* 8051 firmware version */
 
 	spinlock_t hfi1_diag_trans_lock; /* protect diag observer ops */
 	struct platform_config platform_config;
@@ -1167,15 +1167,16 @@ struct hfi1_devdata {
 	bool eprom_available;	/* true if EPROM is available for this device */
 	bool aspm_supported;	/* Does HW support ASPM */
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
-	struct rhashtable sdma_rht;
+	struct rhashtable *sdma_rht;
 
 	struct kobject kobj;
 };
 
 /* 8051 firmware version helper */
-#define dc8051_ver(a, b) ((a) << 8 | (b))
-#define dc8051_ver_maj(a) ((a & 0xff00) >> 8)
-#define dc8051_ver_min(a)  (a & 0x00ff)
+#define dc8051_ver(a, b, c) ((a) << 16 | (b) << 8 | (c))
+#define dc8051_ver_maj(a) (((a) & 0xff0000) >> 16)
+#define dc8051_ver_min(a) (((a) & 0x00ff00) >> 8)
+#define dc8051_ver_patch(a) ((a) & 0x0000ff)
 
 /* f_put_tid types */
 #define PT_EXPECTED 0

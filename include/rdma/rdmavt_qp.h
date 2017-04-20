@@ -2,7 +2,7 @@
 #define DEF_RDMAVT_INCQP_H
 
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -526,7 +526,6 @@ static inline void rvt_qp_wqe_reserve(
 	struct rvt_qp *qp,
 	struct rvt_swqe *wqe)
 {
-	wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 	atomic_inc(&qp->s_reserved_used);
 }
 
@@ -550,7 +549,6 @@ static inline void rvt_qp_wqe_unreserve(
 	struct rvt_swqe *wqe)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED)) {
-		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		atomic_dec(&qp->s_reserved_used);
 		/* insure no compiler re-order up to s_last change */
 		smp_mb__after_atomic();
@@ -574,6 +572,7 @@ extern const enum ib_wc_opcode ib_rvt_wc_opcode[];
 static inline void rvt_qp_swqe_complete(
 	struct rvt_qp *qp,
 	struct rvt_swqe *wqe,
+	enum ib_wc_opcode opcode,
 	enum ib_wc_status status)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED))
@@ -586,7 +585,7 @@ static inline void rvt_qp_swqe_complete(
 		memset(&wc, 0, sizeof(wc));
 		wc.wr_id = wqe->wr.wr_id;
 		wc.status = status;
-		wc.opcode = ib_rvt_wc_opcode[wqe->wr.opcode];
+		wc.opcode = opcode;
 		wc.qp = &qp->ibqp;
 		wc.byte_len = wqe->length;
 		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
