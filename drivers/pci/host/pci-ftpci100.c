@@ -556,6 +556,7 @@ static struct platform_driver faraday_pci_driver = {
 	.driver = {
 		.name = "ftpci100",
 		.of_match_table = of_match_ptr(faraday_pci_of_match),
+		.suppress_bind_attrs = true,
 	},
 	.probe  = faraday_pci_probe,
 };

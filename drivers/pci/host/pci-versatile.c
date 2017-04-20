@@ -222,6 +222,7 @@ static struct platform_driver versatile_pci_driver = {
 	.driver = {
 		.name = "versatile-pci",
 		.of_match_table = versatile_pci_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = versatile_pci_probe,
 };

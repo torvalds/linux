@@ -133,6 +133,7 @@ static struct platform_driver dw_plat_pcie_driver = {
 	.driver = {
 		.name	= "dw-pcie",
 		.of_match_table = dw_plat_pcie_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = dw_plat_pcie_probe,
 };
