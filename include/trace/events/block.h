@@ -61,7 +61,16 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
 	TP_ARGS(bh)
 );
 
-DECLARE_EVENT_CLASS(block_rq_with_error,
+/**
+ * block_rq_requeue - place block IO request back on a queue
+ * @q: queue holding operation
+ * @rq: block IO operation request
+ *
+ * The block operation request @rq is being placed back into queue
+ * @q.  For some reason the request was not completed and needs to be
+ * put back in the queue.
+ */
+TRACE_EVENT(block_rq_requeue,
 
 	TP_PROTO(struct request_queue *q, struct request *rq),
 
@@ -91,39 +100,6 @@ DECLARE_EVENT_CLASS(block_rq_with_error,
 		  __entry->rwbs, __get_str(cmd),
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sector, __entry->errors)
-);
-
-/**
- * block_rq_abort - abort block operation request
- * @q: queue containing the block operation request
- * @rq: block IO operation request
- *
- * Called immediately after pending block IO operation request @rq in
- * queue @q is aborted. The fields in the operation request @rq
- * can be examined to determine which device and sectors the pending
- * operation would access.
- */
-DEFINE_EVENT(block_rq_with_error, block_rq_abort,
-
-	TP_PROTO(struct request_queue *q, struct request *rq),
-
-	TP_ARGS(q, rq)
-);
-
-/**
- * block_rq_requeue - place block IO request back on a queue
- * @q: queue holding operation
- * @rq: block IO operation request
- *
- * The block operation request @rq is being placed back into queue
- * @q.  For some reason the request was not completed and needs to be
- * put back in the queue.
- */
-DEFINE_EVENT(block_rq_with_error, block_rq_requeue,
-
-	TP_PROTO(struct request_queue *q, struct request *rq),
-
-	TP_ARGS(q, rq)
 );
 
 /**
