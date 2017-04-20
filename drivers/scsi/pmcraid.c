@@ -77,7 +77,7 @@ static atomic_t pmcraid_adapter_count = ATOMIC_INIT(0);
  */
 static unsigned int pmcraid_major;
 static struct class *pmcraid_class;
-DECLARE_BITMAP(pmcraid_minor, PMCRAID_MAX_ADAPTERS);
+static DECLARE_BITMAP(pmcraid_minor, PMCRAID_MAX_ADAPTERS);
 
 /*
  * Module parameters
@@ -345,7 +345,7 @@ static void pmcraid_init_cmdblk(struct pmcraid_cmd *cmd, int index)
 	cmd->scsi_cmd = NULL;
 	cmd->release = 0;
 	cmd->completion_req = 0;
-	cmd->sense_buffer = 0;
+	cmd->sense_buffer = NULL;
 	cmd->sense_buffer_dma = 0;
 	cmd->dma_handle = 0;
 	init_timer(&cmd->timer);
@@ -4818,7 +4818,7 @@ static int pmcraid_allocate_host_rrqs(struct pmcraid_instance *pinstance)
 					buffer_size,
 					&(pinstance->hrrq_start_bus_addr[i]));
 
-		if (pinstance->hrrq_start[i] == 0) {
+		if (!pinstance->hrrq_start[i]) {
 			pmcraid_err("pci_alloc failed for hrrq vector : %d\n",
 				    i);
 			pmcraid_release_host_rrqs(pinstance, i);
