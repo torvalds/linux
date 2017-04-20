@@ -88,21 +88,15 @@ static inline void nf_ct_ext_free(struct nf_conn *ct)
 /* Add this type, returns pointer to data or NULL. */
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
-#define NF_CT_EXT_F_PREALLOC	0x0001
-
 struct nf_ct_ext_type {
 	/* Destroys relationships (can be NULL). */
 	void (*destroy)(struct nf_conn *ct);
 
 	enum nf_ct_ext_id id;
 
-	unsigned int flags;
-
 	/* Length and min alignment. */
 	u8 len;
 	u8 align;
-	/* initial size of nf_ct_ext. */
-	u8 alloc_size;
 };
 
 int nf_ct_extend_register(struct nf_ct_ext_type *type);

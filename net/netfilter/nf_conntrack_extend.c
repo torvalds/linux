@@ -18,6 +18,7 @@
 
 static struct nf_ct_ext_type __rcu *nf_ct_ext_types[NF_CT_EXT_NUM];
 static DEFINE_MUTEX(nf_ct_ext_type_mutex);
+#define NF_CT_EXT_PREALLOC	128u /* conntrack events are on by default */
 
 void __nf_ct_ext_destroy(struct nf_conn *ct)
 {
@@ -46,9 +47,8 @@ EXPORT_SYMBOL(__nf_ct_ext_destroy);
 static void *
 nf_ct_ext_create(struct nf_ct_ext **ext, enum nf_ct_ext_id id, gfp_t gfp)
 {
-	unsigned int off, len;
+	unsigned int off, len, alloc;
 	struct nf_ct_ext_type *t;
-	size_t alloc_size;
 
 	rcu_read_lock();
 	t = rcu_dereference(nf_ct_ext_types[id]);
@@ -59,10 +59,10 @@ nf_ct_ext_create(struct nf_ct_ext **ext, enum nf_ct_ext_id id, gfp_t gfp)
 
 	off = ALIGN(sizeof(struct nf_ct_ext), t->align);
 	len = off + t->len;
-	alloc_size = t->alloc_size;
 	rcu_read_unlock();
 
-	*ext = kzalloc(alloc_size, gfp);
+	alloc = max(len, NF_CT_EXT_PREALLOC);
+	*ext = kzalloc(alloc, gfp);
 	if (!*ext)
 		return NULL;
 
@@ -115,41 +115,6 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 }
 EXPORT_SYMBOL(nf_ct_ext_add);
 
-static void update_alloc_size(struct nf_ct_ext_type *type)
-{
-	int i, j;
-	struct nf_ct_ext_type *t1, *t2;
-	enum nf_ct_ext_id min = 0, max = NF_CT_EXT_NUM - 1;
-
-	/* unnecessary to update all types */
-	if ((type->flags & NF_CT_EXT_F_PREALLOC) == 0) {
-		min = type->id;
-		max = type->id;
-	}
-
-	/* This assumes that extended areas in conntrack for the types
-	   whose NF_CT_EXT_F_PREALLOC bit set are allocated in order */
-	for (i = min; i <= max; i++) {
-		t1 = rcu_dereference_protected(nf_ct_ext_types[i],
-				lockdep_is_held(&nf_ct_ext_type_mutex));
-		if (!t1)
-			continue;
-
-		t1->alloc_size = ALIGN(sizeof(struct nf_ct_ext), t1->align) +
-				 t1->len;
-		for (j = 0; j < NF_CT_EXT_NUM; j++) {
-			t2 = rcu_dereference_protected(nf_ct_ext_types[j],
-				lockdep_is_held(&nf_ct_ext_type_mutex));
-			if (t2 == NULL || t2 == t1 ||
-			    (t2->flags & NF_CT_EXT_F_PREALLOC) == 0)
-				continue;
-
-			t1->alloc_size = ALIGN(t1->alloc_size, t2->align)
-					 + t2->len;
-		}
-	}
-}
-
 /* This MUST be called in process context. */
 int nf_ct_extend_register(struct nf_ct_ext_type *type)
 {
@@ -161,12 +126,7 @@ int nf_ct_extend_register(struct nf_ct_ext_type *type)
 		goto out;
 	}
 
-	/* This ensures that nf_ct_ext_create() can allocate enough area
-	   before updating alloc_size */
-	type->alloc_size = ALIGN(sizeof(struct nf_ct_ext), type->align)
-			   + type->len;
 	rcu_assign_pointer(nf_ct_ext_types[type->id], type);
-	update_alloc_size(type);
 out:
 	mutex_unlock(&nf_ct_ext_type_mutex);
 	return ret;
@@ -178,7 +138,6 @@ void nf_ct_extend_unregister(struct nf_ct_ext_type *type)
 {
 	mutex_lock(&nf_ct_ext_type_mutex);
 	RCU_INIT_POINTER(nf_ct_ext_types[type->id], NULL);
-	update_alloc_size(type);
 	mutex_unlock(&nf_ct_ext_type_mutex);
 	synchronize_rcu();
 }
