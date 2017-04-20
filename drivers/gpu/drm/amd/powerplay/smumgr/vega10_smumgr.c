@@ -369,8 +369,11 @@ static int vega10_verify_smc_interface(struct pp_smumgr *smumgr)
 			"Attempt to read SMC IF Version Number Failed!",
 			return -1);
 
-	if (smc_driver_if_version != SMU9_DRIVER_IF_VERSION)
-		return -1;
+	if (smc_driver_if_version != SMU9_DRIVER_IF_VERSION) {
+		pr_err("Your firmware(0x%x) doesn't match SMU9_DRIVER_IF_VERSION(0x%x). Please update your firmware!\n",
+		       smc_driver_if_version, SMU9_DRIVER_IF_VERSION);
+		return -EINVAL;
+	}
 
 	return 0;
 }
