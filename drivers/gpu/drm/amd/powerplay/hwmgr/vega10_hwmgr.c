@@ -2163,7 +2163,7 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m2_shift = 12;
-			pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].b_shift = 0;
+			pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].b_shift = 12;
 
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->dcef_clk_quad_eqn_a) &&
@@ -2186,7 +2186,7 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m2_shift = 12;
-			pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].b_shift = 0;
+			pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].b_shift = 12;
 
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->pixel_clk_quad_eqn_a) &&
@@ -2209,7 +2209,7 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].m2_shift = 12;
-
+			pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].b_shift = 12;
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->phy_clk_quad_eqn_a) &&
 				(PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
@@ -2231,7 +2231,7 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m2_shift = 12;
-			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].b_shift = 0;
+			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].b_shift = 12;
 		} else {
 			data->smu_features[GNLD_AVFS].supported = false;
 		}
