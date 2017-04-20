@@ -166,15 +166,17 @@ static struct net_device *mlx5_ib_get_netdev(struct ib_device *device,
 	return ndev;
 }
 
-static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
-				struct ib_port_attr *props)
+static void mlx5_query_port_roce(struct ib_device *device, u8 port_num,
+				 struct ib_port_attr *props)
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct net_device *ndev, *upper;
 	enum ib_mtu ndev_ib_mtu;
 	u16 qkey_viol_cntr;
 
-	/* props being zeroed by the caller, avoid zeroing it here */
+	/* Getting netdev before filling out props so in case of an error it
+	 * will still be zeroed out.
+	 */
 
 	props->port_cap_flags  |= IB_PORT_CM_SUP;
 	props->port_cap_flags  |= IB_PORT_IP_BASED_GIDS;
@@ -192,7 +194,7 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 
 	ndev = mlx5_ib_get_netdev(device, port_num);
 	if (!ndev)
-		return 0;
+		return;
 
 	if (mlx5_lag_is_active(dev->mdev)) {
 		rcu_read_lock();
@@ -218,8 +220,6 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 
 	props->active_width	= IB_WIDTH_4X;  /* TODO */
 	props->active_speed	= IB_SPEED_QDR; /* TODO */
-
-	return 0;
 }
 
 static void ib_gid_to_mlx5_roce_addr(const union ib_gid *gid,
@@ -925,7 +925,8 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 		return mlx5_query_hca_port(ibdev, port, props);
 
 	case MLX5_VPORT_ACCESS_METHOD_NIC:
-		return mlx5_query_port_roce(ibdev, port, props);
+		mlx5_query_port_roce(ibdev, port, props);
+		return 0;
 
 	default:
 		return -EINVAL;
