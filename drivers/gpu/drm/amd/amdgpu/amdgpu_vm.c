@@ -540,6 +540,45 @@ error:
 	return r;
 }
 
+static void amdgpu_vm_free_reserved_vmid(struct amdgpu_device *adev,
+					  struct amdgpu_vm *vm,
+					  unsigned vmhub)
+{
+	struct amdgpu_vm_id_manager *id_mgr = &adev->vm_manager.id_mgr[vmhub];
+
+	mutex_lock(&id_mgr->lock);
+	if (vm->reserved_vmid[vmhub]) {
+		list_add(&vm->reserved_vmid[vmhub]->list,
+			&id_mgr->ids_lru);
+		vm->reserved_vmid[vmhub] = NULL;
+	}
+	mutex_unlock(&id_mgr->lock);
+}
+
+static int amdgpu_vm_alloc_reserved_vmid(struct amdgpu_device *adev,
+					 struct amdgpu_vm *vm,
+					 unsigned vmhub)
+{
+	struct amdgpu_vm_id_manager *id_mgr;
+	struct amdgpu_vm_id *idle;
+	int r = 0;
+
+	id_mgr = &adev->vm_manager.id_mgr[vmhub];
+	mutex_lock(&id_mgr->lock);
+	if (vm->reserved_vmid[vmhub])
+		goto unlock;
+	/* Select the first entry VMID */
+	idle = list_first_entry(&id_mgr->ids_lru, struct amdgpu_vm_id, list);
+	list_del_init(&idle->list);
+	vm->reserved_vmid[vmhub] = idle;
+	mutex_unlock(&id_mgr->lock);
+
+	return 0;
+unlock:
+	mutex_unlock(&id_mgr->lock);
+	return r;
+}
+
 static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -2261,18 +2300,8 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	amdgpu_vm_free_levels(&vm->root);
 	dma_fence_put(vm->last_dir_update);
-	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++) {
-		struct amdgpu_vm_id_manager *id_mgr =
-			&adev->vm_manager.id_mgr[i];
-
-		mutex_lock(&id_mgr->lock);
-		if (vm->reserved_vmid[i]) {
-			list_add(&vm->reserved_vmid[i]->list,
-				 &id_mgr->ids_lru);
-			vm->reserved_vmid[i] = NULL;
-		}
-		mutex_unlock(&id_mgr->lock);
-	}
+	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
+		amdgpu_vm_free_reserved_vmid(adev, vm, i);
 }
 
 /**
@@ -2341,11 +2370,20 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
 int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	union drm_amdgpu_vm *args = data;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	int r;
 
 	switch (args->in.op) {
 	case AMDGPU_VM_OP_RESERVE_VMID:
+		/* current, we only have requirement to reserve vmid from gfxhub */
+		r = amdgpu_vm_alloc_reserved_vmid(adev, &fpriv->vm,
+						  AMDGPU_GFXHUB);
+		if (r)
+			return r;
+		break;
 	case AMDGPU_VM_OP_UNRESERVE_VMID:
-		return -EINVAL;
+		amdgpu_vm_free_reserved_vmid(adev, &fpriv->vm, AMDGPU_GFXHUB);
 		break;
 	default:
 		return -EINVAL;
