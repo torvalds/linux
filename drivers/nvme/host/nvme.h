@@ -254,7 +254,6 @@ static inline void nvme_end_request(struct request *req, __le16 status,
 	blk_mq_complete_request(req, 0);
 }
 
-int nvme_error_status(struct request *req);
 void nvme_complete_rq(struct request *req);
 void nvme_cancel_request(struct request *req, void *data, bool reserved);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,

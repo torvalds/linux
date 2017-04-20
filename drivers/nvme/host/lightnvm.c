@@ -595,7 +595,7 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 	__le64 *metadata = NULL;
 	dma_addr_t metadata_dma;
 	DECLARE_COMPLETION_ONSTACK(wait);
-	int ret;
+	int ret = 0;
 
 	rq = nvme_alloc_request(q, (struct nvme_command *)vcmd, 0,
 			NVME_QID_ANY);
@@ -667,8 +667,8 @@ submit:
 
 	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
 		ret = -EINTR;
-	else
-		ret = nvme_error_status(rq);
+	else if (nvme_req(rq)->status & 0x7ff)
+		ret = -EIO;
 	if (result)
 		*result = nvme_req(rq)->status & 0x7ff;
 	if (status)

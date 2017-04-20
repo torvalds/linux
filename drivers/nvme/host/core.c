@@ -66,7 +66,7 @@ static DEFINE_SPINLOCK(dev_list_lock);
 
 static struct class *nvme_class;
 
-int nvme_error_status(struct request *req)
+static int nvme_error_status(struct request *req)
 {
 	switch (nvme_req(req)->status & 0x7ff) {
 	case NVME_SC_SUCCESS:
@@ -77,7 +77,6 @@ int nvme_error_status(struct request *req)
 		return -EIO;
 	}
 }
-EXPORT_SYMBOL_GPL(nvme_error_status);
 
 static inline bool nvme_req_needs_retry(struct request *req)
 {
