@@ -2585,12 +2585,26 @@ F:	include/uapi/linux/if_bonding.h
 
 BPF (Safe dynamic programs and tools)
 M:	Alexei Starovoitov <ast@kernel.org>
+M:	Daniel Borkmann <daniel@iogearbox.net>
 L:	netdev@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
 S:	Supported
+F:	arch/x86/net/bpf_jit*
+F:	Documentation/networking/filter.txt
+F:	include/linux/bpf*
+F:	include/linux/filter.h
+F:	include/uapi/linux/bpf*
+F:	include/uapi/linux/filter.h
 F:	kernel/bpf/
-F:	tools/testing/selftests/bpf/
+F:	kernel/trace/bpf_trace.c
 F:	lib/test_bpf.c
+F:	net/bpf/
+F:	net/core/filter.c
+F:	net/sched/act_bpf.c
+F:	net/sched/cls_bpf.c
+F:	samples/bpf/
+F:	tools/net/bpf*
+F:	tools/testing/selftests/bpf/
 
 BROADCOM B44 10/100 ETHERNET DRIVER
 M:	Michael Chan <michael.chan@broadcom.com>
