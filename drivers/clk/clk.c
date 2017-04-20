@@ -2083,11 +2083,11 @@ static void clk_dump_subtree(struct seq_file *s, struct clk_core *c, int level)
 	clk_dump_one(s, c, level);
 
 	hlist_for_each_entry(child, &c->children, child_node) {
-		seq_printf(s, ",");
+		seq_putc(s, ',');
 		clk_dump_subtree(s, child, level + 1);
 	}
 
-	seq_printf(s, "}");
+	seq_putc(s, '}');
 }
 
 static int clk_dump(struct seq_file *s, void *data)
@@ -2096,14 +2096,13 @@ static int clk_dump(struct seq_file *s, void *data)
 	bool first_node = true;
 	struct hlist_head **lists = (struct hlist_head **)s->private;
 
-	seq_printf(s, "{");
-
+	seq_putc(s, '{');
 	clk_prepare_lock();
 
 	for (; *lists; lists++) {
 		hlist_for_each_entry(c, *lists, child_node) {
 			if (!first_node)
-				seq_puts(s, ",");
+				seq_putc(s, ',');
 			first_node = false;
 			clk_dump_subtree(s, c, 0);
 		}
