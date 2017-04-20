@@ -289,6 +289,12 @@ static int psp_np_fw_load(struct psp_context *psp)
 		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
 		    psp_smu_reload_quirk(psp))
 			continue;
+		if (amdgpu_sriov_vf(adev) &&
+		   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G))
+			/*skip ucode loading in SRIOV VF */
+			continue;
 
 		ret = psp_prep_cmd_buf(ucode, psp->cmd);
 		if (ret)
