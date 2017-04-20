@@ -95,7 +95,7 @@ struct omap_gem_object {
 	struct page **pages;
 
 	/** addresses corresponding to pages in above array */
-	dma_addr_t *addrs;
+	dma_addr_t *dma_addrs;
 
 	/**
 	 * Virtual address, if mapped.
@@ -277,7 +277,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 		}
 	}
 
-	omap_obj->addrs = addrs;
+	omap_obj->dma_addrs = addrs;
 	omap_obj->pages = pages;
 
 	return 0;
@@ -323,15 +323,15 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
 		int i, npages = obj->size >> PAGE_SHIFT;
 		for (i = 0; i < npages; i++) {
-			if (omap_obj->addrs[i])
+			if (omap_obj->dma_addrs[i])
 				dma_unmap_page(obj->dev->dev,
-					       omap_obj->addrs[i],
+					       omap_obj->dma_addrs[i],
 					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
 	}
 
-	kfree(omap_obj->addrs);
-	omap_obj->addrs = NULL;
+	kfree(omap_obj->dma_addrs);
+	omap_obj->dma_addrs = NULL;
 
 	drm_gem_put_pages(obj, omap_obj->pages, true, false);
 	omap_obj->pages = NULL;
@@ -739,10 +739,10 @@ void omap_gem_cpu_sync(struct drm_gem_object *obj, int pgoff)
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 
-	if (is_cached_coherent(obj) && omap_obj->addrs[pgoff]) {
-		dma_unmap_page(dev->dev, omap_obj->addrs[pgoff],
+	if (is_cached_coherent(obj) && omap_obj->dma_addrs[pgoff]) {
+		dma_unmap_page(dev->dev, omap_obj->dma_addrs[pgoff],
 				PAGE_SIZE, DMA_BIDIRECTIONAL);
-		omap_obj->addrs[pgoff] = 0;
+		omap_obj->dma_addrs[pgoff] = 0;
 	}
 }
 
@@ -760,7 +760,7 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 		return;
 
 	for (i = 0; i < npages; i++) {
-		if (!omap_obj->addrs[i]) {
+		if (!omap_obj->dma_addrs[i]) {
 			dma_addr_t addr;
 
 			addr = dma_map_page(dev->dev, pages[i], 0,
@@ -773,7 +773,7 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 			}
 
 			dirty = true;
-			omap_obj->addrs[i] = addr;
+			omap_obj->dma_addrs[i] = addr;
 		}
 	}
 
