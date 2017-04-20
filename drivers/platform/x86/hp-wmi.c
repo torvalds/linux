@@ -343,33 +343,25 @@ static const struct rfkill_ops hp_wmi_rfkill_ops = {
 static bool hp_wmi_get_sw_state(enum hp_wmi_radio r)
 {
 	int mask = 0x200 << (r * 8);
-	int wireless = 0;
 
-	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, HPWMI_READ,
-			     &wireless, sizeof(wireless),
-			     sizeof(wireless));
+	int wireless = hp_wmi_read_int(HPWMI_WIRELESS_QUERY);
+
 	/* TBD: Pass error */
+	WARN_ONCE(wireless < 0, "error executing HPWMI_WIRELESS_QUERY");
 
-	if (wireless & mask)
-		return false;
-	else
-		return true;
+	return !(wireless & mask);
 }
 
 static bool hp_wmi_get_hw_state(enum hp_wmi_radio r)
 {
 	int mask = 0x800 << (r * 8);
-	int wireless = 0;
 
-	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, HPWMI_READ,
-			     &wireless, sizeof(wireless),
-			     sizeof(wireless));
+	int wireless = hp_wmi_read_int(HPWMI_WIRELESS_QUERY);
+
 	/* TBD: Pass error */
+	WARN_ONCE(wireless < 0, "error executing HPWMI_WIRELESS_QUERY");
 
-	if (wireless & mask)
-		return false;
-	else
-		return true;
+	return !(wireless & mask);
 }
 
 static int hp_wmi_rfkill2_set_block(void *data, bool blocked)
