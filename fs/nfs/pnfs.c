@@ -563,7 +563,6 @@ pnfs_put_lseg_locked(struct pnfs_layout_segment *lseg)
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(pnfs_put_lseg_locked);
 
 /*
  * is l2 fully contained in l1?
@@ -1209,7 +1208,6 @@ out:
 	dprintk("<-- %s status: %d\n", __func__, status);
 	return status;
 }
-EXPORT_SYMBOL_GPL(_pnfs_return_layout);
 
 int
 pnfs_commit_and_return_layout(struct inode *inode)
