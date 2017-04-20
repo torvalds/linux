@@ -123,6 +123,8 @@ struct amdgpu_vm {
 
 	/* client id */
 	u64                     client_id;
+	/* dedicated to vm */
+	struct amdgpu_vm_id	*reserved_vmid[AMDGPU_MAX_VMHUBS];
 	/* each VM will map on CSA */
 	struct amdgpu_bo_va *csa_bo_va;
 };
