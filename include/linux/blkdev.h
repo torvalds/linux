@@ -46,6 +46,9 @@ struct blk_stat_callback;
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
 
+/* Must be consisitent with blk_mq_poll_stats_bkt() */
+#define BLK_MQ_POLL_STATS_BKTS 16
+
 /*
  * Maximum number of blkcg policies allowed to be registered concurrently.
  * Defined here to simplify include dependency.
@@ -517,7 +520,7 @@ struct request_queue {
 	int			poll_nsec;
 
 	struct blk_stat_callback	*poll_cb;
-	struct blk_rq_stat	poll_stat[2];
+	struct blk_rq_stat	poll_stat[BLK_MQ_POLL_STATS_BKTS];
 
 	struct timer_list	timeout;
 	struct work_struct	timeout_work;

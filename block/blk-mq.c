@@ -42,8 +42,6 @@ static LIST_HEAD(all_q_list);
 static void blk_mq_poll_stats_start(struct request_queue *q);
 static void blk_mq_poll_stats_fn(struct blk_stat_callback *cb);
 
-/* Must be consisitent with function below */
-#define BLK_MQ_POLL_STATS_BKTS 16
 static int blk_mq_poll_stats_bkt(const struct request *rq)
 {
 	int ddir, bytes, bucket;
