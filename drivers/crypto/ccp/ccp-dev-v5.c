@@ -884,10 +884,10 @@ static void ccp5_destroy(struct ccp_device *ccp)
 		iowrite32(cmd_q->qcontrol & ~CMD5_Q_RUN, cmd_q->reg_control);
 
 		/* Disable the interrupts */
-		iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_interrupt_status);
+		iowrite32(0x00, cmd_q->reg_int_enable);
 
 		/* Clear the interrupt status */
-		iowrite32(0x00, cmd_q->reg_int_enable);
+		iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_interrupt_status);
 		ioread32(cmd_q->reg_int_status);
 		ioread32(cmd_q->reg_status);
 	}
