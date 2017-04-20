@@ -187,6 +187,7 @@ static void hci_uart_init_work(struct work_struct *work)
 		hci_free_dev(hu->hdev);
 		hu->hdev = NULL;
 		hu->proto->close(hu);
+		return;
 	}
 
 	set_bit(HCI_UART_REGISTERED, &hu->flags);
