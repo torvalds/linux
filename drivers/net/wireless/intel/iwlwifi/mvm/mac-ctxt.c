@@ -1457,6 +1457,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
+	mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 
 	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
 	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
