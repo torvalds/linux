@@ -501,7 +501,7 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 	vcn_v1_0_mc_resume(adev);
 
 	/* disable clock gating */
-	vcn_v1_0_disable_clock_gating(adev, false);
+	vcn_v1_0_disable_clock_gating(adev, true);
 
 	/* disable interupt */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN), 0,
@@ -682,7 +682,7 @@ static int vcn_v1_0_stop(struct amdgpu_device *adev)
 			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
 
 	/* enable clock gating */
-	vcn_v1_0_enable_clock_gating(adev, false);
+	vcn_v1_0_enable_clock_gating(adev, true);
 
 	return 0;
 }
