@@ -24,9 +24,6 @@ void blk_mq_sched_insert_requests(struct request_queue *q,
 				  struct list_head *list, bool run_queue_async);
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx);
-void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
-			struct list_head *rq_list,
-			struct request *(*get_rq)(struct blk_mq_hw_ctx *));
 
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e);
 void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e);

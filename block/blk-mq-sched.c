@@ -190,22 +190,6 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	}
 }
 
-void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
-				   struct list_head *rq_list,
-				   struct request *(*get_rq)(struct blk_mq_hw_ctx *))
-{
-	do {
-		struct request *rq;
-
-		rq = get_rq(hctx);
-		if (!rq)
-			break;
-
-		list_add_tail(&rq->queuelist, rq_list);
-	} while (1);
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_move_to_dispatch);
-
 bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
 			    struct request **merged_request)
 {
