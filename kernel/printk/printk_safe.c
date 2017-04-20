@@ -308,12 +308,24 @@ static int vprintk_nmi(const char *fmt, va_list args)
 
 void printk_nmi_enter(void)
 {
-	this_cpu_or(printk_context, PRINTK_NMI_CONTEXT_MASK);
+	/*
+	 * The size of the extra per-CPU buffer is limited. Use it only when
+	 * the main one is locked. If this CPU is not in the safe context,
+	 * the lock must be taken on another CPU and we could wait for it.
+	 */
+	if ((this_cpu_read(printk_context) & PRINTK_SAFE_CONTEXT_MASK) &&
+	    raw_spin_is_locked(&logbuf_lock)) {
+		this_cpu_or(printk_context, PRINTK_NMI_CONTEXT_MASK);
+	} else {
+		this_cpu_or(printk_context, PRINTK_NMI_DEFERRED_CONTEXT_MASK);
+	}
 }
 
 void printk_nmi_exit(void)
 {
-	this_cpu_and(printk_context, ~PRINTK_NMI_CONTEXT_MASK);
+	this_cpu_and(printk_context,
+		     ~(PRINTK_NMI_CONTEXT_MASK |
+		       PRINTK_NMI_DEFERRED_CONTEXT_MASK));
 }
 
 #else
@@ -351,12 +363,22 @@ void __printk_safe_exit(void)
 
 __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
 {
+	/* Use extra buffer in NMI when logbuf_lock is taken or in safe mode. */
 	if (this_cpu_read(printk_context) & PRINTK_NMI_CONTEXT_MASK)
 		return vprintk_nmi(fmt, args);
 
+	/* Use extra buffer to prevent a recursion deadlock in safe mode. */
 	if (this_cpu_read(printk_context) & PRINTK_SAFE_CONTEXT_MASK)
 		return vprintk_safe(fmt, args);
 
+	/*
+	 * Use the main logbuf when logbuf_lock is available in NMI.
+	 * But avoid calling console drivers that might have their own locks.
+	 */
+	if (this_cpu_read(printk_context) & PRINTK_NMI_DEFERRED_CONTEXT_MASK)
+		return vprintk_deferred(fmt, args);
+
+	/* No obstacles. */
 	return vprintk_default(fmt, args);
 }
 
