@@ -31,6 +31,10 @@
 #define SIP_SIP_VERSION			0x8200000a
 #define SIP_REMOTECTL_CFG		0x8200000b
 
+/* Rockchip Sip version */
+#define SIP_IMPLEMENT_V1                (1)
+#define SIP_IMPLEMENT_V2                (2)
+
 /* Trust firmware version */
 #define ATF_VER_MAJOR(ver)		(((ver) >> 16) & 0xffff)
 #define ATF_VER_MINOR(ver)		(((ver) >> 0) & 0xffff)

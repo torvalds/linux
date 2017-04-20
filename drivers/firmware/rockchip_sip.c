@@ -285,3 +285,22 @@ void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu)
 	__invoke_sip_fn_smc(SIP_UARTDBG_FN, tgt_cpu, 0, en);
 }
 
+/******************************************************************************/
+#ifdef CONFIG_ARM
+/*
+ * optee work on kernel 3.10 and 4.4, and we have different sip
+ * implement. We should tell optee the current rockchip sip version.
+ */
+static __init int sip_implement_version_init(void)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_SIP_VERSION, SIP_IMPLEMENT_V2,
+				  SECURE_REG_WR, 0);
+	if (IS_SIP_ERROR(res.a0))
+		pr_err("%s: set rockchip sip version v2 failed\n", __func__);
+
+	return 0;
+}
+arch_initcall(sip_implement_version_init);
+#endif
