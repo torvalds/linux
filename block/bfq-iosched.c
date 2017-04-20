@@ -4401,10 +4401,10 @@ static int bfq_get_rq_private(struct request_queue *q, struct request *rq,
 
 	spin_lock_irq(&bfqd->lock);
 
-	bfq_check_ioprio_change(bic, bio);
-
 	if (!bic)
 		goto queue_fail;
+
+	bfq_check_ioprio_change(bic, bio);
 
 	bfq_bic_update_cgroup(bic, bio);
 
