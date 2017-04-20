@@ -316,18 +316,13 @@ static int get_pages(struct drm_gem_object *obj, struct page ***pages)
 static void omap_gem_detach_pages(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	unsigned int npages = obj->size >> PAGE_SHIFT;
+	unsigned int i;
 
-	/* for non-cached buffers, ensure the new pages are clean because
-	 * DSS, GPU, etc. are not cache coherent:
-	 */
-	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
-		int i, npages = obj->size >> PAGE_SHIFT;
-		for (i = 0; i < npages; i++) {
-			if (omap_obj->dma_addrs[i])
-				dma_unmap_page(obj->dev->dev,
-					       omap_obj->dma_addrs[i],
-					       PAGE_SIZE, DMA_BIDIRECTIONAL);
-		}
+	for (i = 0; i < npages; i++) {
+		if (omap_obj->dma_addrs[i])
+			dma_unmap_page(obj->dev->dev, omap_obj->dma_addrs[i],
+				       PAGE_SIZE, DMA_BIDIRECTIONAL);
 	}
 
 	kfree(omap_obj->dma_addrs);
