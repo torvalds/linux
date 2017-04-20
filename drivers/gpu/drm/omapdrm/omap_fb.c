@@ -259,7 +259,7 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		ret = omap_gem_get_paddr(plane->bo, &plane->dma_addr);
+		ret = omap_gem_pin(plane->bo, &plane->dma_addr);
 		if (ret)
 			goto fail;
 		omap_gem_dma_sync(plane->bo, DMA_TO_DEVICE);
@@ -274,7 +274,7 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 fail:
 	for (i--; i >= 0; i--) {
 		struct plane *plane = &omap_fb->planes[i];
-		omap_gem_put_paddr(plane->bo);
+		omap_gem_unpin(plane->bo);
 		plane->dma_addr = 0;
 	}
 
@@ -300,7 +300,7 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		omap_gem_put_paddr(plane->bo);
+		omap_gem_unpin(plane->bo);
 		plane->dma_addr = 0;
 	}
 

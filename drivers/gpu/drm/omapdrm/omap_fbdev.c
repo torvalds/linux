@@ -162,10 +162,9 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	 * to it).  Then we just need to be sure that we are able to re-
 	 * pin it in case of an opps.
 	 */
-	ret = omap_gem_get_paddr(fbdev->bo, &dma_addr);
+	ret = omap_gem_pin(fbdev->bo, &dma_addr);
 	if (ret) {
-		dev_err(dev->dev,
-			"could not map (paddr)!  Skipping framebuffer alloc\n");
+		dev_err(dev->dev, "could not pin framebuffer\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -303,8 +302,8 @@ void omap_fbdev_free(struct drm_device *dev)
 
 	fbdev = to_omap_fbdev(priv->fbdev);
 
-	/* release the ref taken in omap_fbdev_create() */
-	omap_gem_put_paddr(fbdev->bo);
+	/* unpin the GEM object pinned in omap_fbdev_create() */
+	omap_gem_unpin(fbdev->bo);
 
 	/* this will free the backing object */
 	if (fbdev->fb)

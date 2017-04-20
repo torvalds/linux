@@ -41,7 +41,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 	/* camera, etc, need physically contiguous.. but we need a
 	 * better way to know this..
 	 */
-	ret = omap_gem_get_paddr(obj, &dma_addr);
+	ret = omap_gem_pin(obj, &dma_addr);
 	if (ret)
 		goto out;
 
@@ -54,7 +54,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 	sg_set_page(sg->sgl, pfn_to_page(PFN_DOWN(dma_addr)), obj->size, 0);
 	sg_dma_address(sg->sgl) = dma_addr;
 
-	/* this should be after _get_paddr() to ensure we have pages attached */
+	/* this must be after omap_gem_pin() to ensure we have pages attached */
 	omap_gem_dma_sync(obj, dir);
 
 	return sg;
@@ -67,7 +67,7 @@ static void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 		struct sg_table *sg, enum dma_data_direction dir)
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
-	omap_gem_put_paddr(obj);
+	omap_gem_unpin(obj);
 	sg_free_table(sg);
 	kfree(sg);
 }

@@ -66,9 +66,9 @@ struct omap_gem_object {
 	 *
 	 * Buffers mapped to the TILER have their DMA address pointing to the
 	 * TILER aperture. As TILER mappings are refcounted (through
-	 * dma_addr_cnt) the DMA address must be accessed through
-	 * omap_get_get_paddr() to ensure that the mapping won't disappear
-	 * unexpectedly. References must be released with omap_gem_put_paddr().
+	 * dma_addr_cnt) the DMA address must be accessed through omap_gem_pin()
+	 * to ensure that the mapping won't disappear unexpectedly. References
+	 * must be released with omap_gem_unpin().
 	 */
 	dma_addr_t dma_addr;
 
@@ -784,10 +784,21 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 	}
 }
 
-/* Get physical address for DMA.. if the buffer is not already contiguous, remap
- * it to pin in physically contiguous memory.. (ie. map in TILER)
+/**
+ * omap_gem_pin() - Pin a GEM object in memory
+ * @obj: the GEM object
+ * @dma_addr: the DMA address
+ *
+ * Pin the given GEM object in memory and fill the dma_addr pointer with the
+ * object's DMA address. If the buffer is not physically contiguous it will be
+ * remapped through the TILER to provide a contiguous view.
+ *
+ * Pins are reference-counted, calling this function multiple times is allowed
+ * as long the corresponding omap_gem_unpin() calls are balanced.
+ *
+ * Return 0 on success or a negative error code otherwise.
  */
-int omap_gem_get_paddr(struct drm_gem_object *obj, dma_addr_t *dma_addr)
+int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 {
 	struct omap_drm_private *priv = obj->dev->dev_private;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
@@ -855,10 +866,15 @@ fail:
 	return ret;
 }
 
-/* Release physical address, when DMA is no longer being performed.. this
- * could potentially unpin and unmap buffers from TILER
+/**
+ * omap_gem_unpin() - Unpin a GEM object from memory
+ * @obj: the GEM object
+ *
+ * Unpin the given GEM object previously pinned with omap_gem_pin(). Pins are
+ * reference-counted, the actualy unpin will only be performed when the number
+ * of calls to this function matches the number of calls to omap_gem_pin().
  */
-void omap_gem_put_paddr(struct drm_gem_object *obj)
+void omap_gem_unpin(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret;
@@ -919,9 +935,9 @@ int omap_gem_tiled_stride(struct drm_gem_object *obj, uint32_t orient)
  * increasing the pin count (which we don't really do yet anyways,
  * because we don't support swapping pages back out).  And 'remap'
  * might not be quite the right name, but I wanted to keep it working
- * similarly to omap_gem_get_paddr().  Note though that mutex is not
+ * similarly to omap_gem_pin().  Note though that mutex is not
  * aquired if !remap (because this can be called in atomic ctxt),
- * but probably omap_gem_get_paddr() should be changed to work in the
+ * but probably omap_gem_unpin() should be changed to work in the
  * same way.  If !remap, a matching omap_gem_put_pages() call is not
  * required (and should not be made).
  */
