@@ -894,23 +894,8 @@ int __trace_bputs(unsigned long ip, const char *str)
 EXPORT_SYMBOL_GPL(__trace_bputs);
 
 #ifdef CONFIG_TRACER_SNAPSHOT
-/**
- * trace_snapshot - take a snapshot of the current buffer.
- *
- * This causes a swap between the snapshot buffer and the current live
- * tracing buffer. You can use this to take snapshots of the live
- * trace when some condition is triggered, but continue to trace.
- *
- * Note, make sure to allocate the snapshot with either
- * a tracing_snapshot_alloc(), or by doing it manually
- * with: echo 1 > /sys/kernel/debug/tracing/snapshot
- *
- * If the snapshot buffer is not allocated, it will stop tracing.
- * Basically making a permanent snapshot.
- */
-void tracing_snapshot(void)
+static void tracing_snapshot_instance(struct trace_array *tr)
 {
-	struct trace_array *tr = &global_trace;
 	struct tracer *tracer = tr->current_trace;
 	unsigned long flags;
 
@@ -937,6 +922,27 @@ void tracing_snapshot(void)
 	local_irq_save(flags);
 	update_max_tr(tr, current, smp_processor_id());
 	local_irq_restore(flags);
+}
+
+/**
+ * trace_snapshot - take a snapshot of the current buffer.
+ *
+ * This causes a swap between the snapshot buffer and the current live
+ * tracing buffer. You can use this to take snapshots of the live
+ * trace when some condition is triggered, but continue to trace.
+ *
+ * Note, make sure to allocate the snapshot with either
+ * a tracing_snapshot_alloc(), or by doing it manually
+ * with: echo 1 > /sys/kernel/debug/tracing/snapshot
+ *
+ * If the snapshot buffer is not allocated, it will stop tracing.
+ * Basically making a permanent snapshot.
+ */
+void tracing_snapshot(void)
+{
+	struct trace_array *tr = &global_trace;
+
+	tracing_snapshot_instance(tr);
 }
 EXPORT_SYMBOL_GPL(tracing_snapshot);
 
@@ -6739,7 +6745,7 @@ ftrace_snapshot(unsigned long ip, unsigned long parent_ip,
 		struct trace_array *tr, struct ftrace_probe_ops *ops,
 		void *data)
 {
-	tracing_snapshot();
+	tracing_snapshot_instance(tr);
 }
 
 static void
@@ -6761,7 +6767,7 @@ ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip,
 		(*count)--;
 	}
 
-	tracing_snapshot();
+	tracing_snapshot_instance(tr);
 }
 
 static int
@@ -6868,7 +6874,7 @@ ftrace_trace_snapshot_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	ret = register_ftrace_function_probe(glob, tr, ops, count);
 
 	if (ret >= 0)
-		alloc_snapshot(&global_trace);
+		alloc_snapshot(tr);
 
 	return ret < 0 ? ret : 0;
 }
