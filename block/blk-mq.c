@@ -1571,6 +1571,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 	plug = current->plug;
 	if (unlikely(is_flush_fua)) {
+		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		if (q->elevator) {
 			blk_mq_sched_insert_request(rq, false, true, true,
@@ -1582,6 +1583,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	} else if (plug && q->nr_hw_queues == 1) {
 		struct request *last = NULL;
 
+		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 
 		/*
@@ -1626,20 +1628,19 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		if (same_queue_rq)
 			blk_mq_try_issue_directly(data.hctx, same_queue_rq,
 					&cookie);
-
-		return cookie;
 	} else if (q->nr_hw_queues > 1 && is_sync) {
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
-		return cookie;
 	} else if (q->elevator) {
+		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_sched_insert_request(rq, false, true, true, true);
-	} else if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio))
+	} else if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
+		blk_mq_put_ctx(data.ctx);
 		blk_mq_run_hw_queue(data.hctx, true);
+	}
 
-	blk_mq_put_ctx(data.ctx);
 	return cookie;
 }
 
