@@ -37,6 +37,7 @@
 
 /* Protocol Control Register */
 #define ESDHC_PROCTL			0x28
+#define ESDHC_VOLT_SEL			0x00000400
 #define ESDHC_CTRL_4BITBUS		(0x1 << 1)
 #define ESDHC_CTRL_8BITBUS		(0x2 << 1)
 #define ESDHC_CTRL_BUSWIDTH_MASK	(0x3 << 1)

@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/sys_soc.h>
@@ -560,6 +561,76 @@ static void esdhc_reset(struct sdhci_host *host, u8 mask)
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
 }
 
+/* The SCFG, Supplemental Configuration Unit, provides SoC specific
+ * configuration and status registers for the device. There is a
+ * SDHC IO VSEL control register on SCFG for some platforms. It's
+ * used to support SDHC IO voltage switching.
+ */
+static const struct of_device_id scfg_device_ids[] = {
+	{ .compatible = "fsl,t1040-scfg", },
+	{ .compatible = "fsl,ls1012a-scfg", },
+	{ .compatible = "fsl,ls1046a-scfg", },
+	{}
+};
+
+/* SDHC IO VSEL control register definition */
+#define SCFG_SDHCIOVSELCR	0x408
+#define SDHCIOVSELCR_TGLEN	0x80000000
+#define SDHCIOVSELCR_VSELVAL	0x60000000
+#define SDHCIOVSELCR_SDHC_VS	0x00000001
+
+static int esdhc_signal_voltage_switch(struct mmc_host *mmc,
+				       struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct device_node *scfg_node;
+	void __iomem *scfg_base = NULL;
+	u32 sdhciovselcr;
+	u32 val;
+
+	/*
+	 * Signal Voltage Switching is only applicable for Host Controllers
+	 * v3.00 and above.
+	 */
+	if (host->version < SDHCI_SPEC_300)
+		return 0;
+
+	val = sdhci_readl(host, ESDHC_PROCTL);
+
+	switch (ios->signal_voltage) {
+	case MMC_SIGNAL_VOLTAGE_330:
+		val &= ~ESDHC_VOLT_SEL;
+		sdhci_writel(host, val, ESDHC_PROCTL);
+		return 0;
+	case MMC_SIGNAL_VOLTAGE_180:
+		scfg_node = of_find_matching_node(NULL, scfg_device_ids);
+		if (scfg_node)
+			scfg_base = of_iomap(scfg_node, 0);
+		if (scfg_base) {
+			sdhciovselcr = SDHCIOVSELCR_TGLEN |
+				       SDHCIOVSELCR_VSELVAL;
+			iowrite32be(sdhciovselcr,
+				scfg_base + SCFG_SDHCIOVSELCR);
+
+			val |= ESDHC_VOLT_SEL;
+			sdhci_writel(host, val, ESDHC_PROCTL);
+			mdelay(5);
+
+			sdhciovselcr = SDHCIOVSELCR_TGLEN |
+				       SDHCIOVSELCR_SDHC_VS;
+			iowrite32be(sdhciovselcr,
+				scfg_base + SCFG_SDHCIOVSELCR);
+			iounmap(scfg_base);
+		} else {
+			val |= ESDHC_VOLT_SEL;
+			sdhci_writel(host, val, ESDHC_PROCTL);
+		}
+		return 0;
+	default:
+		return 0;
+	}
+}
+
 #ifdef CONFIG_PM_SLEEP
 static u32 esdhc_proctl;
 static int esdhc_of_suspend(struct device *dev)
@@ -716,6 +787,9 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 
 	if (IS_ERR(host))
 		return PTR_ERR(host);
+
+	host->mmc_host_ops.start_signal_voltage_switch =
+		esdhc_signal_voltage_switch;
 
 	esdhc_init(pdev, host);
 
