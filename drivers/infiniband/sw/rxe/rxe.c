@@ -64,6 +64,8 @@ static void rxe_cleanup(struct rxe_dev *rxe)
 	rxe_pool_cleanup(&rxe->mc_elem_pool);
 
 	rxe_cleanup_ports(rxe);
+
+	crypto_free_shash(rxe->tfm);
 }
 
 /* called when all references have been dropped */

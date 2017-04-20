@@ -406,6 +406,7 @@ struct rxe_dev {
 
 	struct rxe_port		port;
 	struct list_head	list;
+	struct crypto_shash	*tfm;
 };
 
 static inline void rxe_counter_inc(struct rxe_dev *rxe, enum rxe_counters cnt)
