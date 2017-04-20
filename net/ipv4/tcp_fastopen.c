@@ -410,10 +410,11 @@ static unsigned long tfo_active_disable_stamp __read_mostly;
 /* Disable active TFO and record current jiffies and
  * tfo_active_disable_times
  */
-void tcp_fastopen_active_disable(void)
+void tcp_fastopen_active_disable(struct sock *sk)
 {
 	atomic_inc(&tfo_active_disable_times);
 	tfo_active_disable_stamp = jiffies;
+	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPFASTOPENBLACKHOLE);
 }
 
 /* Reset tfo_active_disable_times to 0 */
@@ -469,7 +470,7 @@ void tcp_fastopen_active_disable_ofo_check(struct sock *sk)
 		if (p && !rb_next(p)) {
 			skb = rb_entry(p, struct sk_buff, rbnode);
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN) {
-				tcp_fastopen_active_disable();
+				tcp_fastopen_active_disable(sk);
 				return;
 			}
 		}
