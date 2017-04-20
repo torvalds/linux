@@ -310,7 +310,8 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	if (err)
 		goto out;
 
-	err = blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
+	blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
+	err = req->errors ? -EIO : 0;
 out:
 	blk_put_request(req);
 	return err;

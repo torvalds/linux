@@ -452,8 +452,8 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 	rq->special = cmd;
 	cmd->rq = rq;
 
-	error = blk_execute_rq(drive->queue, NULL, rq, 0);
-
+	blk_execute_rq(drive->queue, NULL, rq, 0);
+	error = rq->errors ? -EIO : 0;
 put_req:
 	blk_put_request(rq);
 	return error;

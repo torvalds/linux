@@ -489,7 +489,10 @@ static void _set_error_resid(struct osd_request *or, struct request *req,
 
 int osd_execute_request(struct osd_request *or)
 {
-	int error = blk_execute_rq(or->request->q, NULL, or->request, 0);
+	int error;
+
+	blk_execute_rq(or->request->q, NULL, or->request, 0);
+	error = or->request->errors ? -EIO : 0;
 
 	_set_error_resid(or, or->request, error);
 	return error;

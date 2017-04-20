@@ -242,10 +242,11 @@ static int nfsd4_scsi_identify_device(struct block_device *bdev,
 	req->cmd[4] = bufflen & 0xff;
 	req->cmd_len = COMMAND_SIZE(INQUIRY);
 
-	error = blk_execute_rq(rq->q, NULL, rq, 1);
-	if (error) {
+	blk_execute_rq(rq->q, NULL, rq, 1);
+	if (rq->errors) {
 		pr_err("pNFS: INQUIRY 0x83 failed with: %x\n",
 			rq->errors);
+		error = -EIO;
 		goto out_put_request;
 	}
 

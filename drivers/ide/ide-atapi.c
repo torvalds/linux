@@ -107,7 +107,8 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	memcpy(scsi_req(rq)->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
 		scsi_req(rq)->cmd[13] = REQ_IDETAPE_PC1;
-	error = blk_execute_rq(drive->queue, disk, rq, 0);
+	blk_execute_rq(drive->queue, disk, rq, 0);
+	error = rq->errors ? -EIO : 0;
 put_req:
 	blk_put_request(rq);
 	return error;

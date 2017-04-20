@@ -27,7 +27,8 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
 
-	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_execute_rq(drive->queue, NULL, rq, 0);
+	ret = rq->errors ? -EIO : 0;
 	blk_put_request(rq);
 
 	if (ret == 0 && ide_port_acpi(hwif)) {

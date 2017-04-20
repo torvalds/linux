@@ -173,8 +173,8 @@ int ide_devset_execute(ide_drive_t *drive, const struct ide_devset *setting,
 	*(int *)&scsi_req(rq)->cmd[1] = arg;
 	rq->special = setting->set;
 
-	if (blk_execute_rq(q, NULL, rq, 0))
-		ret = rq->errors;
+	blk_execute_rq(q, NULL, rq, 0);
+	ret = rq->errors;
 	blk_put_request(rq);
 
 	return ret;
