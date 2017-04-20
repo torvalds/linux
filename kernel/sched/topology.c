@@ -495,14 +495,6 @@ enum s_alloc {
 /*
  * Build an iteration mask that can exclude certain CPUs from the upwards
  * domain traversal.
- *
- * Asymmetric node setups can result in situations where the domain tree is of
- * unequal depth, make sure to skip domains that already cover the entire
- * range.
- *
- * In that case build_sched_domains() will have terminated the iteration early
- * and our sibling sd spans will be empty. Domains should always include the
- * CPU they're built on, so check that.
  */
 static void build_group_mask(struct sched_domain *sd, struct sched_group *sg)
 {
@@ -590,7 +582,16 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 
 		sibling = *per_cpu_ptr(sdd->sd, i);
 
-		/* See the comment near build_group_mask(). */
+		/*
+		 * Asymmetric node setups can result in situations where the
+		 * domain tree is of unequal depth, make sure to skip domains
+		 * that already cover the entire range.
+		 *
+		 * In that case build_sched_domains() will have terminated the
+		 * iteration early and our sibling sd spans will be empty.
+		 * Domains should always include the CPU they're built on, so
+		 * check that.
+		 */
 		if (!cpumask_test_cpu(i, sched_domain_span(sibling)))
 			continue;
 
