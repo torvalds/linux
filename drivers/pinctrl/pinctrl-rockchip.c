@@ -3003,10 +3003,10 @@ static struct rockchip_pin_ctrl rk3228_pin_ctrl = {
 };
 
 static struct rockchip_pin_bank rk3288_pin_banks[] = {
-	PIN_BANK_IOMUX_FLAGS(0, 24, "gpio0", IOMUX_SOURCE_PMU,
+	PIN_BANK_IOMUX_FLAGS(0, 32, "gpio0", IOMUX_SOURCE_PMU,
 					     IOMUX_SOURCE_PMU,
 					     IOMUX_SOURCE_PMU,
-					     IOMUX_UNROUTED
+					     IOMUX_SOURCE_PMU
 			    ),
 	PIN_BANK_IOMUX_FLAGS(1, 32, "gpio1", IOMUX_UNROUTED,
 					     IOMUX_UNROUTED,
