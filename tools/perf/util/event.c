@@ -141,8 +141,15 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 	ppids = strstr(bf, "PPid:");
 
 	if (name) {
+		char *nl;
+
 		name += 5;  /* strlen("Name:") */
-		name = rtrim(ltrim(name));
+		name = ltrim(name);
+
+		nl = strchr(name, '\n');
+		if (nl)
+			*nl = '\0';
+
 		size = strlen(name);
 		if (size >= len)
 			size = len - 1;
