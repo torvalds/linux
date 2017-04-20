@@ -3,9 +3,9 @@
 
 #include <limits.h>
 #include <stdio.h>
+#include <linux/kernel.h>
 
 #include "../perf.h"
-#include "map.h"
 #include "build-id.h"
 #include "perf_regs.h"
 
