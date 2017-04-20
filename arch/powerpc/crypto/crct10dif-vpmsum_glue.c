@@ -44,10 +44,13 @@ static u16 crct10dif_vpmsum(u16 crci, unsigned char const *p, size_t len)
 
 	if (len & ~VMX_ALIGN_MASK) {
 		crc <<= 16;
+		preempt_disable();
 		pagefault_disable();
 		enable_kernel_altivec();
 		crc = __crct10dif_vpmsum(crc, p, len & ~VMX_ALIGN_MASK);
+		disable_kernel_altivec();
 		pagefault_enable();
+		preempt_enable();
 		crc >>= 16;
 	}
 
