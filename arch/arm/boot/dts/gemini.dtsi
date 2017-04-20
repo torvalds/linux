@@ -28,6 +28,7 @@
 			compatible = "cortina,gemini-syscon",
 				     "syscon", "simple-mfd";
 			reg = <0x40000000 0x1000>;
+			#clock-cells = <1>;
 			#reset-cells = <1>;
 
 			syscon-reboot {
@@ -45,25 +46,29 @@
 			reg = <0x41000000 0x1000>;
 			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon 23>;
+			clocks = <&syscon 2>;
 		};
 
 		uart0: serial@42000000 {
 			compatible = "ns16550a";
 			reg = <0x42000000 0x100>;
 			resets = <&syscon 18>;
-			clock-frequency = <48000000>;
+			clocks = <&syscon 6>;
 			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 		};
 
 		timer@43000000 {
-			compatible = "cortina,gemini-timer";
+			compatible = "faraday,fttmr010";
 			reg = <0x43000000 0x1000>;
 			interrupt-parent = <&intcon>;
 			interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
 				     <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
 				     <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
 			resets = <&syscon 17>;
+			/* APB clock or RTC clock */
+			clocks = <&syscon 2>, <&syscon 0>;
+			clock-names = "PCLK", "EXTCLK";
 			syscon = <&syscon>;
 		};
 
@@ -72,6 +77,8 @@
 			reg = <0x45000000 0x100>;
 			interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon 16>;
+			clocks = <&syscon 2>, <&syscon 0>;
+			clock-names = "PCLK", "EXTCLK";
 		};
 
 		intcon: interrupt-controller@48000000 {
@@ -93,6 +100,7 @@
 			reg = <0x4d000000 0x100>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon 20>;
+			clocks = <&syscon 2>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
@@ -104,6 +112,7 @@
 			reg = <0x4e000000 0x100>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon 21>;
+			clocks = <&syscon 2>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
@@ -115,6 +124,7 @@
 			reg = <0x4f000000 0x100>;
 			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon 22>;
+			clocks = <&syscon 2>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
@@ -129,6 +139,8 @@
 			 */
 			reg = <0x50000000 0x100>;
 			resets = <&syscon 7>;
+			clocks = <&syscon 15>, <&syscon 4>;
+			clock-names = "PCLK", "PCICLK";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
