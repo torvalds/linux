@@ -254,7 +254,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 
 		for (i = 0; i < npages; i++) {
 			addrs[i] = dma_map_page(dev->dev, pages[i],
-					0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+					0, PAGE_SIZE, DMA_TO_DEVICE);
 
 			if (dma_mapping_error(dev->dev, addrs[i])) {
 				dev_warn(dev->dev,
@@ -262,7 +262,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 
 				for (i = i - 1; i >= 0; --i) {
 					dma_unmap_page(dev->dev, addrs[i],
-						PAGE_SIZE, DMA_BIDIRECTIONAL);
+						PAGE_SIZE, DMA_TO_DEVICE);
 				}
 
 				ret = -ENOMEM;
@@ -322,7 +322,7 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 	for (i = 0; i < npages; i++) {
 		if (omap_obj->dma_addrs[i])
 			dma_unmap_page(obj->dev->dev, omap_obj->dma_addrs[i],
-				       PAGE_SIZE, DMA_BIDIRECTIONAL);
+				       PAGE_SIZE, DMA_TO_DEVICE);
 	}
 
 	kfree(omap_obj->dma_addrs);
@@ -744,7 +744,7 @@ void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff)
 
 	if (omap_obj->dma_addrs[pgoff]) {
 		dma_unmap_page(dev->dev, omap_obj->dma_addrs[pgoff],
-				PAGE_SIZE, DMA_BIDIRECTIONAL);
+				PAGE_SIZE, DMA_TO_DEVICE);
 		omap_obj->dma_addrs[pgoff] = 0;
 	}
 }
@@ -767,8 +767,7 @@ void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
 			dma_addr_t addr;
 
 			addr = dma_map_page(dev->dev, pages[i], 0,
-					    PAGE_SIZE, DMA_BIDIRECTIONAL);
-
+					    PAGE_SIZE, dir);
 			if (dma_mapping_error(dev->dev, addr)) {
 				dev_warn(dev->dev, "%s: failed to map page\n",
 					__func__);
