@@ -710,6 +710,9 @@
 #define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0   0x2003   /* 1.2 */
 
 #define DP_DEVICE_SERVICE_IRQ_VECTOR_ESI1   0x2004   /* 1.2 */
+# define DP_RX_GTC_MSTR_REQ_STATUS_CHANGE    (1 << 0)
+# define DP_LOCK_ACQUISITION_REQUEST         (1 << 1)
+# define DP_CEC_IRQ                          (1 << 2)
 
 #define DP_LINK_SERVICE_IRQ_VECTOR_ESI0     0x2005   /* 1.2 */
 
@@ -742,6 +745,62 @@
 # define DP_VSC_EXT_VESA_SDP_CHAINING_SUPPORTED		(1 << 5)  /* DP 1.4 */
 # define DP_VSC_EXT_CEA_SDP_SUPPORTED			(1 << 6)  /* DP 1.4 */
 # define DP_VSC_EXT_CEA_SDP_CHAINING_SUPPORTED		(1 << 7)  /* DP 1.4 */
+
+/* HDMI CEC tunneling over AUX DP 1.3 section 5.3.3.3.1 DPCD 1.4+ */
+#define DP_CEC_TUNNELING_CAPABILITY            0x3000
+# define DP_CEC_TUNNELING_CAPABLE               (1 << 0)
+# define DP_CEC_SNOOPING_CAPABLE                (1 << 1)
+# define DP_CEC_MULTIPLE_LA_CAPABLE             (1 << 2)
+
+#define DP_CEC_TUNNELING_CONTROL               0x3001
+# define DP_CEC_TUNNELING_ENABLE                (1 << 0)
+# define DP_CEC_SNOOPING_ENABLE                 (1 << 1)
+
+#define DP_CEC_RX_MESSAGE_INFO                 0x3002
+# define DP_CEC_RX_MESSAGE_LEN_MASK             (0xf << 0)
+# define DP_CEC_RX_MESSAGE_LEN_SHIFT            0
+# define DP_CEC_RX_MESSAGE_HPD_STATE            (1 << 4)
+# define DP_CEC_RX_MESSAGE_HPD_LOST             (1 << 5)
+# define DP_CEC_RX_MESSAGE_ACKED                (1 << 6)
+# define DP_CEC_RX_MESSAGE_ENDED                (1 << 7)
+
+#define DP_CEC_TX_MESSAGE_INFO                 0x3003
+# define DP_CEC_TX_MESSAGE_LEN_MASK             (0xf << 0)
+# define DP_CEC_TX_MESSAGE_LEN_SHIFT            0
+# define DP_CEC_TX_RETRY_COUNT_MASK             (0x7 << 4)
+# define DP_CEC_TX_RETRY_COUNT_SHIFT            4
+# define DP_CEC_TX_MESSAGE_SEND                 (1 << 7)
+
+#define DP_CEC_TUNNELING_IRQ_FLAGS             0x3004
+# define DP_CEC_RX_MESSAGE_INFO_VALID           (1 << 0)
+# define DP_CEC_RX_MESSAGE_OVERFLOW             (1 << 1)
+# define DP_CEC_TX_MESSAGE_SENT                 (1 << 4)
+# define DP_CEC_TX_LINE_ERROR                   (1 << 5)
+# define DP_CEC_TX_ADDRESS_NACK_ERROR           (1 << 6)
+# define DP_CEC_TX_DATA_NACK_ERROR              (1 << 7)
+
+#define DP_CEC_LOGICAL_ADDRESS_MASK            0x300E /* 0x300F word */
+# define DP_CEC_LOGICAL_ADDRESS_0               (1 << 0)
+# define DP_CEC_LOGICAL_ADDRESS_1               (1 << 1)
+# define DP_CEC_LOGICAL_ADDRESS_2               (1 << 2)
+# define DP_CEC_LOGICAL_ADDRESS_3               (1 << 3)
+# define DP_CEC_LOGICAL_ADDRESS_4               (1 << 4)
+# define DP_CEC_LOGICAL_ADDRESS_5               (1 << 5)
+# define DP_CEC_LOGICAL_ADDRESS_6               (1 << 6)
+# define DP_CEC_LOGICAL_ADDRESS_7               (1 << 7)
+#define DP_CEC_LOGICAL_ADDRESS_MASK_2          0x300F /* 0x300E word */
+# define DP_CEC_LOGICAL_ADDRESS_8               (1 << 0)
+# define DP_CEC_LOGICAL_ADDRESS_9               (1 << 1)
+# define DP_CEC_LOGICAL_ADDRESS_10              (1 << 2)
+# define DP_CEC_LOGICAL_ADDRESS_11              (1 << 3)
+# define DP_CEC_LOGICAL_ADDRESS_12              (1 << 4)
+# define DP_CEC_LOGICAL_ADDRESS_13              (1 << 5)
+# define DP_CEC_LOGICAL_ADDRESS_14              (1 << 6)
+# define DP_CEC_LOGICAL_ADDRESS_15              (1 << 7)
+
+#define DP_CEC_RX_MESSAGE_BUFFER               0x3010
+#define DP_CEC_TX_MESSAGE_BUFFER               0x3020
+#define DP_CEC_MESSAGE_BUFFER_LENGTH             0x10
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
