@@ -179,6 +179,18 @@
 	assigned-clock-parents = <&cru PLL_VPLL>;
 };
 
+&pcie_phy {
+	status = "okay";
+};
+
+&pcie0 {
+	ep-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
+	num-lanes = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_clkreqn>;
+	status = "okay";
+};
+
 &route_edp {
 	status = "okay";
 };
