@@ -50,4 +50,28 @@ config NET_DSA_MT7530
 	  This enables support for the Mediatek MT7530 Ethernet switch
 	  chip.
 
+config NET_DSA_SMSC_LAN9303
+	tristate
+	select NET_DSA_TAG_LAN9303
+	---help---
+	  This enables support for the SMSC/Microchip LAN9303 3 port ethernet
+	  switch chips.
+
+config NET_DSA_SMSC_LAN9303_I2C
+	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in I2C managed mode"
+	depends on NET_DSA
+	select NET_DSA_SMSC_LAN9303
+	select REGMAP_I2C
+	---help---
+	  Enable access functions if the SMSC/Microchip LAN9303 is configured
+	  for I2C managed mode.
+
+config NET_DSA_SMSC_LAN9303_MDIO
+	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in MDIO managed mode"
+	depends on NET_DSA
+	select NET_DSA_SMSC_LAN9303
+	---help---
+	  Enable access functions if the SMSC/Microchip LAN9303 is configured
+	  for MDIO managed mode.
+
 endmenu

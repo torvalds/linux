@@ -33,4 +33,8 @@ config NET_DSA_TAG_QCA
 
 config NET_DSA_TAG_MTK
 	bool
+
+config NET_DSA_TAG_LAN9303
+	bool
+
 endif
