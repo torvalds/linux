@@ -191,7 +191,7 @@
 #define CLKID_ISA		  18
 #define CLKID_PL301		  19
 #define CLKID_PERIPHS		  20
-#define CLKID_SPICC		  21
+/* CLKID_SPICC */
 /* CLKID_I2C */
 /* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	  24

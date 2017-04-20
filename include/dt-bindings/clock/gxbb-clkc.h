@@ -13,6 +13,7 @@
 #define CLKID_GP0_PLL		9
 #define CLKID_CLK81		12
 #define CLKID_MPLL2		15
+#define CLKID_SPICC		21
 #define CLKID_I2C		22
 #define CLKID_SAR_ADC		23
 #define CLKID_RNG0		25
