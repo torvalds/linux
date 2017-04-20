@@ -309,6 +309,7 @@ err_sysfs:
 		tt->exit(targetdata);
 err_init:
 	blk_cleanup_queue(tqueue);
+	tdisk->queue = NULL;
 err_disk:
 	put_disk(tdisk);
 err_dev:
