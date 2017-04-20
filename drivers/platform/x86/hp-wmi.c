@@ -408,7 +408,7 @@ static ssize_t display_show(struct device *dev, struct device_attribute *attr,
 {
 	int value = hp_wmi_read_int(HPWMI_DISPLAY_QUERY);
 	if (value < 0)
-		return -EINVAL;
+		return value;
 	return sprintf(buf, "%d\n", value);
 }
 
@@ -417,7 +417,7 @@ static ssize_t hddtemp_show(struct device *dev, struct device_attribute *attr,
 {
 	int value = hp_wmi_read_int(HPWMI_HDDTEMP_QUERY);
 	if (value < 0)
-		return -EINVAL;
+		return value;
 	return sprintf(buf, "%d\n", value);
 }
 
@@ -426,7 +426,7 @@ static ssize_t als_show(struct device *dev, struct device_attribute *attr,
 {
 	int value = hp_wmi_read_int(HPWMI_ALS_QUERY);
 	if (value < 0)
-		return -EINVAL;
+		return value;
 	return sprintf(buf, "%d\n", value);
 }
 
@@ -435,7 +435,7 @@ static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
 {
 	int value = hp_wmi_hw_state(HPWMI_DOCK_MASK);
 	if (value < 0)
-		return -EINVAL;
+		return value;
 	return sprintf(buf, "%d\n", value);
 }
 
@@ -444,7 +444,7 @@ static ssize_t tablet_show(struct device *dev, struct device_attribute *attr,
 {
 	int value = hp_wmi_hw_state(HPWMI_TABLET_MASK);
 	if (value < 0)
-		return -EINVAL;
+		return value;
 	return sprintf(buf, "%d\n", value);
 }
 
@@ -454,7 +454,7 @@ static ssize_t postcode_show(struct device *dev, struct device_attribute *attr,
 	/* Get the POST error code of previous boot failure. */
 	int value = hp_wmi_read_int(HPWMI_POSTCODEERROR_QUERY);
 	if (value < 0)
-		return -EINVAL;
+		return value;
 	return sprintf(buf, "0x%x\n", value);
 }
 
