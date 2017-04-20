@@ -3243,7 +3243,7 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 
 /*-------------------------- Device entry points ----------------------------*/
 
-static void bond_work_init_all(struct bonding *bond)
+void bond_work_init_all(struct bonding *bond)
 {
 	INIT_DELAYED_WORK(&bond->mcast_work,
 			  bond_resend_igmp_join_requests_delayed);
