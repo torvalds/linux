@@ -2030,6 +2030,20 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 }
 #endif
 
+static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
+{
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+	int ret;
+
+	ret = bio_associate_current(bio);
+	if (ret == 0 || ret == -EBUSY)
+		bio->bi_cg_private = tg;
+	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
+#else
+	bio_associate_current(bio);
+#endif
+}
+
 bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 		    struct bio *bio)
 {
@@ -2039,7 +2053,6 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 	bool rw = bio_data_dir(bio);
 	bool throttled = false;
 	struct throtl_data *td = tg->td;
-	int ret;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
@@ -2054,12 +2067,7 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 	if (unlikely(blk_queue_bypass(q)))
 		goto out_unlock;
 
-	ret = bio_associate_current(bio);
-#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	if (ret == 0 || ret == -EBUSY)
-		bio->bi_cg_private = tg;
-	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
-#endif
+	blk_throtl_assoc_bio(tg, bio);
 	blk_throtl_update_idletime(tg);
 
 	sq = &tg->service_queue;
