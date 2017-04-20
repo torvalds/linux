@@ -89,31 +89,31 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp@245000000 {
+		opp-245000000 {
 			opp-hz = /bits/ 64 <245000000>;
 			clock-latency-ns = <300>;
 		};
-		opp@250000000 {
+		opp-250000000 {
 			opp-hz = /bits/ 64 <250000000>;
 			clock-latency-ns = <300>;
 		};
-		opp@490000000 {
+		opp-490000000 {
 			opp-hz = /bits/ 64 <490000000>;
 			clock-latency-ns = <300>;
 		};
-		opp@500000000 {
+		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
 			clock-latency-ns = <300>;
 		};
-		opp@653334000 {
+		opp-653334000 {
 			opp-hz = /bits/ 64 <653334000>;
 			clock-latency-ns = <300>;
 		};
-		opp@666667000 {
+		opp-666667000 {
 			opp-hz = /bits/ 64 <666667000>;
 			clock-latency-ns = <300>;
 		};
-		opp@980000000 {
+		opp-980000000 {
 			opp-hz = /bits/ 64 <980000000>;
 			clock-latency-ns = <300>;
 		};
