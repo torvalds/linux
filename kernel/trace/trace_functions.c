@@ -268,9 +268,10 @@ static struct tracer function_trace __tracer_data =
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 static void update_traceon_count(struct ftrace_probe_ops *ops,
-				 unsigned long ip, bool on)
+				 unsigned long ip, bool on,
+				 void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
 	long *count;
 	long old_count;
 
@@ -329,23 +330,23 @@ static void update_traceon_count(struct ftrace_probe_ops *ops,
 static void
 ftrace_traceon_count(unsigned long ip, unsigned long parent_ip,
 		     struct trace_array *tr, struct ftrace_probe_ops *ops,
-		     void **data)
+		     void *data)
 {
-	update_traceon_count(ops, ip, 1);
+	update_traceon_count(ops, ip, 1, data);
 }
 
 static void
 ftrace_traceoff_count(unsigned long ip, unsigned long parent_ip,
 		      struct trace_array *tr, struct ftrace_probe_ops *ops,
-		      void **data)
+		      void *data)
 {
-	update_traceon_count(ops, ip, 0);
+	update_traceon_count(ops, ip, 0, data);
 }
 
 static void
 ftrace_traceon(unsigned long ip, unsigned long parent_ip,
 	       struct trace_array *tr, struct ftrace_probe_ops *ops,
-	       void **data)
+	       void *data)
 {
 	if (tracing_is_on())
 		return;
@@ -356,7 +357,7 @@ ftrace_traceon(unsigned long ip, unsigned long parent_ip,
 static void
 ftrace_traceoff(unsigned long ip, unsigned long parent_ip,
 		struct trace_array *tr, struct ftrace_probe_ops *ops,
-		void **data)
+		void *data)
 {
 	if (!tracing_is_on())
 		return;
@@ -376,7 +377,7 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip,
 static void
 ftrace_stacktrace(unsigned long ip, unsigned long parent_ip,
 		  struct trace_array *tr, struct ftrace_probe_ops *ops,
-		  void **data)
+		  void *data)
 {
 	trace_dump_stack(STACK_SKIP);
 }
@@ -384,9 +385,9 @@ ftrace_stacktrace(unsigned long ip, unsigned long parent_ip,
 static void
 ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip,
 			struct trace_array *tr, struct ftrace_probe_ops *ops,
-			void **data)
+			void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
 	long *count;
 	long old_count;
 	long new_count;
@@ -423,9 +424,10 @@ ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip,
 	} while (new_count != old_count);
 }
 
-static int update_count(struct ftrace_probe_ops *ops, unsigned long ip)
+static int update_count(struct ftrace_probe_ops *ops, unsigned long ip,
+			void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
 	long *count = NULL;
 
 	if (mapper)
@@ -443,9 +445,9 @@ static int update_count(struct ftrace_probe_ops *ops, unsigned long ip)
 static void
 ftrace_dump_probe(unsigned long ip, unsigned long parent_ip,
 		  struct trace_array *tr, struct ftrace_probe_ops *ops,
-		  void **data)
+		  void *data)
 {
-	if (update_count(ops, ip))
+	if (update_count(ops, ip, data))
 		ftrace_dump(DUMP_ALL);
 }
 
@@ -453,17 +455,18 @@ ftrace_dump_probe(unsigned long ip, unsigned long parent_ip,
 static void
 ftrace_cpudump_probe(unsigned long ip, unsigned long parent_ip,
 		     struct trace_array *tr, struct ftrace_probe_ops *ops,
-		     void **data)
+		     void *data)
 {
-	if (update_count(ops, ip))
+	if (update_count(ops, ip, data))
 		ftrace_dump(DUMP_ORIG);
 }
 
 static int
 ftrace_probe_print(const char *name, struct seq_file *m,
-		   unsigned long ip, struct ftrace_probe_ops *ops)
+		   unsigned long ip, struct ftrace_probe_ops *ops,
+		   void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
 	long *count = NULL;
 
 	seq_printf(m, "%ps:%s", (void *)ip, name);
@@ -484,52 +487,64 @@ ftrace_traceon_print(struct seq_file *m, unsigned long ip,
 		     struct ftrace_probe_ops *ops,
 		     void *data)
 {
-	return ftrace_probe_print("traceon", m, ip, ops);
+	return ftrace_probe_print("traceon", m, ip, ops, data);
 }
 
 static int
 ftrace_traceoff_print(struct seq_file *m, unsigned long ip,
 			 struct ftrace_probe_ops *ops, void *data)
 {
-	return ftrace_probe_print("traceoff", m, ip, ops);
+	return ftrace_probe_print("traceoff", m, ip, ops, data);
 }
 
 static int
 ftrace_stacktrace_print(struct seq_file *m, unsigned long ip,
 			struct ftrace_probe_ops *ops, void *data)
 {
-	return ftrace_probe_print("stacktrace", m, ip, ops);
+	return ftrace_probe_print("stacktrace", m, ip, ops, data);
 }
 
 static int
 ftrace_dump_print(struct seq_file *m, unsigned long ip,
 			struct ftrace_probe_ops *ops, void *data)
 {
-	return ftrace_probe_print("dump", m, ip, ops);
+	return ftrace_probe_print("dump", m, ip, ops, data);
 }
 
 static int
 ftrace_cpudump_print(struct seq_file *m, unsigned long ip,
 			struct ftrace_probe_ops *ops, void *data)
 {
-	return ftrace_probe_print("cpudump", m, ip, ops);
+	return ftrace_probe_print("cpudump", m, ip, ops, data);
 }
 
 
 static int
 ftrace_count_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
-		  unsigned long ip, void *data)
+		  unsigned long ip, void *init_data, void **data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = *data;
 
-	return ftrace_func_mapper_add_ip(mapper, ip, data);
+	if (!mapper) {
+		mapper = allocate_ftrace_func_mapper();
+		if (!mapper)
+			return -ENOMEM;
+		*data = mapper;
+	}
+
+	return ftrace_func_mapper_add_ip(mapper, ip, init_data);
 }
 
 static void
 ftrace_count_free(struct ftrace_probe_ops *ops, struct trace_array *tr,
-		  unsigned long ip, void **_data)
+		  unsigned long ip, void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
+
+	if (!ip) {
+		free_ftrace_func_mapper(mapper, NULL);
+		return;
+	}
 
 	ftrace_func_mapper_remove_ip(mapper, ip);
 }
@@ -606,12 +621,6 @@ ftrace_trace_probe_callback(struct trace_array *tr,
 
 	if (!strlen(number))
 		goto out_reg;
-
-	if (!ops->private_data) {
-		ops->private_data = allocate_ftrace_func_mapper();
-		if (!ops->private_data)
-			return -ENOMEM;
-	}
 
 	/*
 	 * We use the callback data field (which is a pointer)

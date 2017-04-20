@@ -943,18 +943,18 @@ struct ftrace_probe_ops {
 					unsigned long parent_ip,
 					struct trace_array *tr,
 					struct ftrace_probe_ops *ops,
-					void **data);
+					void *data);
 	int			(*init)(struct ftrace_probe_ops *ops,
 					struct trace_array *tr,
-					unsigned long ip, void *data);
+					unsigned long ip, void *init_data,
+					void **data);
 	void			(*free)(struct ftrace_probe_ops *ops,
 					struct trace_array *tr,
-					unsigned long ip, void **data);
+					unsigned long ip, void *data);
 	int			(*print)(struct seq_file *m,
 					 unsigned long ip,
 					 struct ftrace_probe_ops *ops,
 					 void *data);
-	void			*private_data;
 };
 
 struct ftrace_func_mapper;

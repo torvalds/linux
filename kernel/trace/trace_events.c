@@ -2471,54 +2471,54 @@ static void update_event_probe(struct event_probe_data *data)
 static void
 event_enable_probe(unsigned long ip, unsigned long parent_ip,
 		   struct trace_array *tr, struct ftrace_probe_ops *ops,
-		   void **_data)
+		   void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
-	struct event_probe_data *data;
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
 	void **pdata;
 
 	pdata = ftrace_func_mapper_find_ip(mapper, ip);
 	if (!pdata || !*pdata)
 		return;
 
-	data = *pdata;
-	update_event_probe(data);
+	edata = *pdata;
+	update_event_probe(edata);
 }
 
 static void
 event_enable_count_probe(unsigned long ip, unsigned long parent_ip,
 			 struct trace_array *tr, struct ftrace_probe_ops *ops,
-			 void **_data)
+			 void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
-	struct event_probe_data *data;
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
 	void **pdata;
 
 	pdata = ftrace_func_mapper_find_ip(mapper, ip);
 	if (!pdata || !*pdata)
 		return;
 
-	data = *pdata;
+	edata = *pdata;
 
-	if (!data->count)
+	if (!edata->count)
 		return;
 
 	/* Skip if the event is in a state we want to switch to */
-	if (data->enable == !(data->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
+	if (edata->enable == !(edata->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
 		return;
 
-	if (data->count != -1)
-		(data->count)--;
+	if (edata->count != -1)
+		(edata->count)--;
 
-	update_event_probe(data);
+	update_event_probe(edata);
 }
 
 static int
 event_enable_print(struct seq_file *m, unsigned long ip,
-		   struct ftrace_probe_ops *ops, void *_data)
+		   struct ftrace_probe_ops *ops, void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
-	struct event_probe_data *data;
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
 	void **pdata;
 
 	pdata = ftrace_func_mapper_find_ip(mapper, ip);
@@ -2526,62 +2526,84 @@ event_enable_print(struct seq_file *m, unsigned long ip,
 	if (WARN_ON_ONCE(!pdata || !*pdata))
 		return 0;
 
-	data = *pdata;
+	edata = *pdata;
 
 	seq_printf(m, "%ps:", (void *)ip);
 
 	seq_printf(m, "%s:%s:%s",
-		   data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
-		   data->file->event_call->class->system,
-		   trace_event_name(data->file->event_call));
+		   edata->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
+		   edata->file->event_call->class->system,
+		   trace_event_name(edata->file->event_call));
 
-	if (data->count == -1)
+	if (edata->count == -1)
 		seq_puts(m, ":unlimited\n");
 	else
-		seq_printf(m, ":count=%ld\n", data->count);
+		seq_printf(m, ":count=%ld\n", edata->count);
 
 	return 0;
 }
 
 static int
 event_enable_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
-		  unsigned long ip, void *_data)
+		  unsigned long ip, void *init_data, void **data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
-	struct event_probe_data *data = _data;
+	struct ftrace_func_mapper *mapper = *data;
+	struct event_probe_data *edata = init_data;
 	int ret;
 
-	ret = ftrace_func_mapper_add_ip(mapper, ip, data);
+	if (!mapper) {
+		mapper = allocate_ftrace_func_mapper();
+		if (!mapper)
+			return -ENODEV;
+		*data = mapper;
+	}
+
+	ret = ftrace_func_mapper_add_ip(mapper, ip, edata);
 	if (ret < 0)
 		return ret;
 
-	data->ref++;
+	edata->ref++;
 
+	return 0;
+}
+
+static int free_probe_data(void *data)
+{
+	struct event_probe_data *edata = data;
+
+	edata->ref--;
+	if (!edata->ref) {
+		/* Remove the SOFT_MODE flag */
+		__ftrace_event_enable_disable(edata->file, 0, 1);
+		module_put(edata->file->event_call->mod);
+		kfree(edata);
+	}
 	return 0;
 }
 
 static void
 event_enable_free(struct ftrace_probe_ops *ops, struct trace_array *tr,
-		  unsigned long ip, void **_data)
+		  unsigned long ip, void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
-	struct event_probe_data *data;
+	struct ftrace_func_mapper *mapper = data;
+	struct event_probe_data *edata;
 
-	data = ftrace_func_mapper_remove_ip(mapper, ip);
-
-	if (WARN_ON_ONCE(!data))
+	if (!ip) {
+		if (!mapper)
+			return;
+		free_ftrace_func_mapper(mapper, free_probe_data);
 		return;
-
-	if (WARN_ON_ONCE(data->ref <= 0))
-		return;
-
-	data->ref--;
-	if (!data->ref) {
-		/* Remove the SOFT_MODE flag */
-		__ftrace_event_enable_disable(data->file, 0, 1);
-		module_put(data->file->event_call->mod);
-		kfree(data);
 	}
+
+	edata = ftrace_func_mapper_remove_ip(mapper, ip);
+
+	if (WARN_ON_ONCE(!edata))
+		return;
+
+	if (WARN_ON_ONCE(edata->ref <= 0))
+		return;
+
+	free_probe_data(edata);
 }
 
 static struct ftrace_probe_ops event_enable_probe_ops = {
@@ -2658,12 +2680,6 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 	}
 
 	ret = -ENOMEM;
-
-	if (!ops->private_data) {
-		ops->private_data = allocate_ftrace_func_mapper();
-		if (!ops->private_data)
-			goto out;
-	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)

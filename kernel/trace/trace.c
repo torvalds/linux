@@ -6737,7 +6737,7 @@ static const struct file_operations tracing_dyn_info_fops = {
 static void
 ftrace_snapshot(unsigned long ip, unsigned long parent_ip,
 		struct trace_array *tr, struct ftrace_probe_ops *ops,
-		void **data)
+		void *data)
 {
 	tracing_snapshot();
 }
@@ -6745,9 +6745,9 @@ ftrace_snapshot(unsigned long ip, unsigned long parent_ip,
 static void
 ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip,
 		      struct trace_array *tr, struct ftrace_probe_ops *ops,
-		      void **data)
+		      void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
 	long *count = NULL;
 
 	if (mapper)
@@ -6768,7 +6768,7 @@ static int
 ftrace_snapshot_print(struct seq_file *m, unsigned long ip,
 		      struct ftrace_probe_ops *ops, void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
 	long *count = NULL;
 
 	seq_printf(m, "%ps:", (void *)ip);
@@ -6788,18 +6788,32 @@ ftrace_snapshot_print(struct seq_file *m, unsigned long ip,
 
 static int
 ftrace_snapshot_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
-		     unsigned long ip, void *data)
+		     unsigned long ip, void *init_data, void **data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = *data;
 
-	return ftrace_func_mapper_add_ip(mapper, ip, data);
+	if (!mapper) {
+		mapper = allocate_ftrace_func_mapper();
+		if (!mapper)
+			return -ENOMEM;
+		*data = mapper;
+	}
+
+	return ftrace_func_mapper_add_ip(mapper, ip, init_data);
 }
 
 static void
 ftrace_snapshot_free(struct ftrace_probe_ops *ops, struct trace_array *tr,
-		     unsigned long ip, void **data)
+		     unsigned long ip, void *data)
 {
-	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct ftrace_func_mapper *mapper = data;
+
+	if (!ip) {
+		if (!mapper)
+			return;
+		free_ftrace_func_mapper(mapper, NULL);
+		return;
+	}
 
 	ftrace_func_mapper_remove_ip(mapper, ip);
 }
@@ -6841,12 +6855,6 @@ ftrace_trace_snapshot_callback(struct trace_array *tr, struct ftrace_hash *hash,
 
 	if (!strlen(number))
 		goto out_reg;
-
-	if (!ops->private_data) {
-		ops->private_data = allocate_ftrace_func_mapper();
-		if (!ops->private_data)
-			return -ENOMEM;
-	}
 
 	/*
 	 * We use the callback data field (which is a pointer)

@@ -1106,6 +1106,7 @@ struct ftrace_func_probe {
 	struct ftrace_ops	ops;
 	struct trace_array	*tr;
 	struct list_head	list;
+	void			*data;
 	int			ref;
 };
 
@@ -3187,7 +3188,7 @@ t_probe_show(struct seq_file *m, struct ftrace_iterator *iter)
 	probe_ops = probe->probe_ops;
 
 	if (probe_ops->print)
-		return probe_ops->print(m, probe_entry->ip, probe_ops, NULL);
+		return probe_ops->print(m, probe_entry->ip, probe_ops, probe->data);
 
 	seq_printf(m, "%ps:%ps\n", (void *)probe_entry->ip,
 		   (void *)probe_ops->func);
@@ -3814,7 +3815,7 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 	 * on the hash. rcu_read_lock is too dangerous here.
 	 */
 	preempt_disable_notrace();
-	probe_ops->func(ip, parent_ip, probe->tr, probe_ops, NULL);
+	probe_ops->func(ip, parent_ip, probe->tr, probe_ops, probe->data);
 	preempt_enable_notrace();
 }
 
@@ -3972,6 +3973,12 @@ static void release_probe(struct ftrace_func_probe *probe)
 
 	if (!probe->ref) {
 		probe_ops = probe->probe_ops;
+		/*
+		 * Sending zero as ip tells probe_ops to free
+		 * the probe->data itself
+		 */
+		if (probe_ops->free)
+			probe_ops->free(probe_ops, probe->tr, 0, probe->data);
 		list_del(&probe->list);
 		kfree(probe);
 	}
@@ -4060,9 +4067,15 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 			 */
 			if (probe_ops->init) {
 				ret = probe_ops->init(probe_ops, tr,
-						      entry->ip, data);
-				if (ret < 0)
+						      entry->ip, data,
+						      &probe->data);
+				if (ret < 0) {
+					if (probe_ops->free && count)
+						probe_ops->free(probe_ops, tr,
+								0, probe->data);
+					probe->data = NULL;
 					goto out;
+				}
 			}
 			count++;
 		}
@@ -4109,7 +4122,7 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 		hlist_for_each_entry(entry, &hash->buckets[i], hlist) {
 			if (ftrace_lookup_ip(old_hash, entry->ip))
 				continue;
-			probe_ops->free(probe_ops, tr, entry->ip, NULL);
+			probe_ops->free(probe_ops, tr, entry->ip, probe->data);
 		}
 	}
 	goto out_unlock;
@@ -4227,7 +4240,7 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 	hlist_for_each_entry_safe(entry, tmp, &hhd, hlist) {
 		hlist_del(&entry->hlist);
 		if (probe_ops->free)
-			probe_ops->free(probe_ops, tr, entry->ip, NULL);
+			probe_ops->free(probe_ops, tr, entry->ip, probe->data);
 		kfree(entry);
 	}
 	mutex_unlock(&ftrace_lock);
