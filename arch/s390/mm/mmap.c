@@ -90,7 +90,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct vm_area_struct *vma;
 	struct vm_unmapped_area_info info;
 
-	if (len > TASK_SIZE - mmap_min_addr)
+	if (len > mm->context.asce_limit - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
@@ -99,7 +99,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
+		if (mm->context.asce_limit - len >= addr &&
+		    addr >= mmap_min_addr &&
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
@@ -107,7 +108,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	info.flags = 0;
 	info.length = len;
 	info.low_limit = mm->mmap_base;
-	info.high_limit = TASK_SIZE;
+	info.high_limit = mm->context.asce_limit;
 	if (filp || (flags & MAP_SHARED))
 		info.align_mask = MMAP_ALIGN_MASK << PAGE_SHIFT;
 	else
@@ -127,7 +128,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct vm_unmapped_area_info info;
 
 	/* requested length too big for entire address space */
-	if (len > TASK_SIZE - mmap_min_addr)
+	if (len > mm->context.asce_limit - mmap_min_addr)
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED)
@@ -137,7 +138,8 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
+		if (mm->context.asce_limit - len >= addr &&
+		    addr >= mmap_min_addr &&
 				(!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
@@ -163,22 +165,11 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		VM_BUG_ON(addr != -ENOMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
-		info.high_limit = TASK_SIZE;
+		info.high_limit = mm->context.asce_limit;
 		addr = vm_unmapped_area(&info);
 	}
 
 	return addr;
-}
-
-int s390_mmap_check(unsigned long addr, unsigned long len, unsigned long flags)
-{
-	if (is_compat_task() || TASK_SIZE >= TASK_MAX_SIZE)
-		return 0;
-	if (!(flags & MAP_FIXED))
-		addr = 0;
-	if ((addr + len) >= TASK_SIZE)
-		return crst_table_upgrade(current->mm);
-	return 0;
 }
 
 static unsigned long
@@ -192,7 +183,8 @@ s390_get_unmapped_area(struct file *filp, unsigned long addr,
 	area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
 	if (!(area & ~PAGE_MASK))
 		return area;
-	if (area == -ENOMEM && !is_compat_task() && TASK_SIZE < TASK_MAX_SIZE) {
+	if (area == -ENOMEM && !is_compat_task() &&
+	    current->mm->context.asce_limit < TASK_SIZE_MAX) {
 		/* Upgrade the page table to 4 levels and retry. */
 		rc = crst_table_upgrade(mm);
 		if (rc)
@@ -214,7 +206,8 @@ s390_get_unmapped_area_topdown(struct file *filp, const unsigned long addr,
 	area = arch_get_unmapped_area_topdown(filp, addr, len, pgoff, flags);
 	if (!(area & ~PAGE_MASK))
 		return area;
-	if (area == -ENOMEM && !is_compat_task() && TASK_SIZE < TASK_MAX_SIZE) {
+	if (area == -ENOMEM && !is_compat_task() &&
+	    current->mm->context.asce_limit < TASK_SIZE_MAX) {
 		/* Upgrade the page table to 4 levels and retry. */
 		rc = crst_table_upgrade(mm);
 		if (rc)

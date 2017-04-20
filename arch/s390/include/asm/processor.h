@@ -91,14 +91,15 @@ extern void execve_tail(void);
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
  */
 
-#define TASK_SIZE_OF(tsk)	((tsk)->mm ? \
-				 (tsk)->mm->context.asce_limit : TASK_MAX_SIZE)
+#define TASK_SIZE_OF(tsk)	(test_tsk_thread_flag(tsk, TIF_31BIT) ? \
+					(1UL << 31) : (1UL << 53))
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 30) : (1UL << 41))
 #define TASK_SIZE		TASK_SIZE_OF(current)
-#define TASK_MAX_SIZE		(1UL << 53)
+#define TASK_SIZE_MAX		(1UL << 53)
 
-#define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
+#define STACK_TOP		(test_thread_flag(TIF_31BIT) ? \
+					(1UL << 31) : (1UL << 42))
 #define STACK_TOP_MAX		(1UL << 42)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
