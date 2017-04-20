@@ -16,6 +16,7 @@
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/data.h"
+#include <errno.h>
 
 static int sysfs__fprintf_build_id(FILE *fp)
 {

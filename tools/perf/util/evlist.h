@@ -1,6 +1,7 @@
 #ifndef __PERF_EVLIST_H
 #define __PERF_EVLIST_H 1
 
+#include <linux/kernel.h>
 #include <linux/refcount.h>
 #include <linux/list.h>
 #include <api/fd/array.h>

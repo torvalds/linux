@@ -8,9 +8,11 @@
  * published by the Free Software Foundation.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <dwarf-regs.h>
 #include <linux/ptrace.h> /* for struct user_pt_regs */
+#include <linux/stringify.h>
 #include "util.h"
 
 struct pt_regs_dwarfnum {
@@ -20,7 +22,7 @@ struct pt_regs_dwarfnum {
 
 #define REG_DWARFNUM_NAME(r, num) {.name = r, .dwarfnum = num}
 #define GPR_DWARFNUM_NAME(num) \
-	{.name = STR(%x##num), .dwarfnum = num}
+	{.name = __stringify(%x##num), .dwarfnum = num}
 #define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0}
 #define DWARFNUM2OFFSET(index) \
 	(index * sizeof((struct user_pt_regs *)0)->regs[0])

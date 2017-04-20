@@ -7,6 +7,7 @@
 #include "evsel.h"
 #include "event.h"
 #include "cpumap.h"
+#include "print_binary.h"
 #include "thread_map.h"
 
 /*

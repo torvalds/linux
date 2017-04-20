@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/string.h>

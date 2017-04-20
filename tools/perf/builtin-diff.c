@@ -19,6 +19,8 @@
 #include "util/data.h"
 #include "util/config.h"
 
+#include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <math.h>
 

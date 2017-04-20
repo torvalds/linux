@@ -16,7 +16,6 @@
 #include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
-#include "util/strlist.h"
 #include "util/values.h"
 
 #include "perf.h"
@@ -40,6 +39,9 @@
 #include "util/auxtrace.h"
 
 #include <dlfcn.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <regex.h>
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
 

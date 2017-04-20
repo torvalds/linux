@@ -9,12 +9,14 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include <errno.h>
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
 
 #include "debug.h"
 #include <subcmd/parse-options.h>
+#include <api/fs/tracing_path.h>
 #include "evlist.h"
 #include "target.h"
 #include "cpumap.h"

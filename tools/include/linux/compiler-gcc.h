@@ -16,3 +16,6 @@
 #if GCC_VERSION >= 40300
 # define __compiletime_error(message) __attribute__((error(message)))
 #endif /* GCC_VERSION >= 40300 */
+
+/* &a[0] degrades to a pointer: a different type from an array */
+#define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))

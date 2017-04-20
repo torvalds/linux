@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "builtin.h"
 #include "perf.h"
 

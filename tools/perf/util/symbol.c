@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <linux/kernel.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -18,6 +19,8 @@
 #include "strlist.h"
 #include "intlist.h"
 #include "header.h"
+#include "path.h"
+#include "sane_ctype.h"
 
 #include <elf.h>
 #include <limits.h>

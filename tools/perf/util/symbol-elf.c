@@ -10,8 +10,9 @@
 #include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
-#include <symbol/kallsyms.h>
 #include "debug.h"
+#include "sane_ctype.h"
+#include <symbol/kallsyms.h>
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */

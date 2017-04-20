@@ -1,4 +1,6 @@
 #include <linux/compiler.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <string.h>
 #include "tests.h"
 #include "evlist.h"

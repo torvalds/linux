@@ -13,7 +13,7 @@
 #include <libgen.h>
 #include "build-id.h"
 #include "event.h"
-#include "util.h"
+#include "path.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 #include <libelf.h>

@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdio.h>
 #include <sys/epoll.h>
 #include <util/util.h>
@@ -5,6 +6,7 @@
 #include <util/evlist.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <linux/kernel.h>
 #include <api/fs/fs.h>
 #include <bpf/bpf.h>
 #include "tests.h"

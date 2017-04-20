@@ -40,6 +40,8 @@
 #include "util/perf-hooks.h"
 #include "asm/bug.h"
 
+#include <errno.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <sched.h>
 #include <sys/mman.h>

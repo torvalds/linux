@@ -4,6 +4,7 @@
 #include "../util/cache.h"
 #include "../util/debug.h"
 #include "../util/hist.h"
+#include "../util/util.h"
 
 pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 void *perf_gtk_handle;

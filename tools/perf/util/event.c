@@ -1,3 +1,7 @@
+#include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include <api/fs/fs.h>
@@ -6,10 +10,11 @@
 #include "hist.h"
 #include "machine.h"
 #include "sort.h"
-#include "string.h"
+#include "string2.h"
 #include "strlist.h"
 #include "thread.h"
 #include "thread_map.h"
+#include "sane_ctype.h"
 #include "symbol/kallsyms.h"
 #include "asm/bug.h"
 #include "stat.h"

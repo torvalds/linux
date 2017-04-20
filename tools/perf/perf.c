@@ -19,9 +19,11 @@
 #include "util/debug.h"
 #include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
+#include <linux/kernel.h>
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
@@ -327,16 +329,6 @@ static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	unsigned int i;
-	static const char ext[] = STRIP_EXTENSION;
-
-	if (sizeof(ext) > 1) {
-		i = strlen(argv[0]) - strlen(ext);
-		if (i > 0 && !strcmp(argv[0] + i, ext)) {
-			char *argv0 = strdup(argv[0]);
-			argv[0] = cmd = argv0;
-			argv0[i] = '\0';
-		}
-	}
 
 	/* Turn "perf cmd --help" into "perf help cmd" */
 	if (argc > 1 && !strcmp(argv[1], "--help")) {

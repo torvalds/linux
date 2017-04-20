@@ -9,6 +9,7 @@
 #include "thread.h"
 #include "data.h"
 #include "ordered-events.h"
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 

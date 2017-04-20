@@ -2,7 +2,7 @@
 #define __PERF_SORT_H
 #include "../builtin.h"
 
-#include "util.h"
+#include <regex.h>
 
 #include "color.h"
 #include <linux/list.h>
@@ -11,7 +11,6 @@
 #include "symbol.h"
 #include "string.h"
 #include "callchain.h"
-#include "strlist.h"
 #include "values.h"
 
 #include "../perf.h"
@@ -21,6 +20,7 @@
 #include <subcmd/parse-options.h>
 #include "parse-events.h"
 #include "hist.h"
+#include "srcline.h"
 #include "thread.h"
 
 extern regex_t parent_regex;

@@ -1,4 +1,5 @@
 #include <dirent.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -6,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "string2.h"
 #include "strlist.h"
 #include <string.h>
 #include <api/fs/fs.h>

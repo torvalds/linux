@@ -17,6 +17,7 @@
 #define __PERF_AUXTRACE_H
 
 #include <sys/types.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <linux/list.h>

@@ -4,6 +4,7 @@
 #include "../sort.h"
 #include "../hist.h"
 #include "../helpline.h"
+#include "../string2.h"
 #include "gtk.h"
 
 #define MAX_COLUMNS			32

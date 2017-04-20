@@ -7,6 +7,8 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include "util.h"
 #include "ui/ui.h"
 #include "sort.h"
@@ -18,11 +20,15 @@
 #include "annotate.h"
 #include "evsel.h"
 #include "block-range.h"
+#include "string2.h"
 #include "arch/common.h"
 #include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
+#include <linux/kernel.h>
 #include <sys/utsname.h>
+
+#include "sane_ctype.h"
 
 const char 	*disassembler_style;
 const char	*objdump_path;

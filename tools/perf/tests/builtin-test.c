@@ -3,6 +3,7 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <errno.h>
 #include <unistd.h>
 #include <string.h>
 #include "builtin.h"
@@ -13,6 +14,7 @@
 #include "color.h"
 #include <subcmd/parse-options.h>
 #include "symbol.h"
+#include <linux/kernel.h>
 
 static bool dont_fork;
 

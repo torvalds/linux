@@ -1,5 +1,6 @@
 #include "comm.h"
 #include "util.h"
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/refcount.h>

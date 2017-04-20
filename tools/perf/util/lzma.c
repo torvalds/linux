@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <lzma.h>
 #include <stdio.h>
 #include <linux/compiler.h>

@@ -14,10 +14,12 @@
  * GNU General Public License for more details.
  *
  */
+#include <errno.h>
 #include <sys/uio.h>
 #include "util.h"
 #include "event.h"
 #include "strlist.h"
+#include "strfilter.h"
 #include "debug.h"
 #include "cache.h"
 #include "color.h"
@@ -28,6 +30,7 @@
 #include "probe-file.h"
 #include "session.h"
 #include "perf_regs.h"
+#include "string2.h"
 
 /* 4096 - 2 ('\n' + '\0') */
 #define MAX_CMDLEN 4094

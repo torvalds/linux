@@ -1,7 +1,9 @@
 #include "../perf.h"
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <linux/kernel.h>
 #include "session.h"
 #include "thread.h"
 #include "thread-stack.h"

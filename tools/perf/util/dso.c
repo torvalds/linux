@@ -1,12 +1,16 @@
 #include <asm/bug.h>
+#include <linux/kernel.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <errno.h>
+#include "path.h"
 #include "symbol.h"
 #include "dso.h"
 #include "machine.h"
 #include "auxtrace.h"
 #include "util.h"
 #include "debug.h"
+#include "string2.h"
 #include "vdso.h"
 
 static const char * const debuglink_paths[] = {

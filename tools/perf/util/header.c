@@ -1,4 +1,7 @@
+#include <errno.h>
+#include <inttypes.h>
 #include "util.h"
+#include "string2.h"
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>
@@ -25,6 +28,8 @@
 #include "data.h"
 #include <api/fs/fs.h>
 #include "asm/bug.h"
+
+#include "sane_ctype.h"
 
 /*
  * magic2 = "PERFILE2"

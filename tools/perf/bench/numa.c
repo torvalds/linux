@@ -4,6 +4,7 @@
  * numa: Simulate NUMA-sensitive workload and measure their NUMA performance
  */
 
+#include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 
@@ -30,6 +31,7 @@
 #include <sys/wait.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
+#include <linux/kernel.h>
 #include <linux/time64.h>
 
 #include <numa.h>

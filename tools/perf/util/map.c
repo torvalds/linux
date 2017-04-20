@@ -9,13 +9,13 @@
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include "map.h"
 #include "thread.h"
-#include "strlist.h"
 #include "vdso.h"
 #include "build-id.h"
 #include "util.h"
 #include "debug.h"
 #include "machine.h"
 #include <linux/string.h>
+#include "srcline.h"
 #include "unwind.h"
 
 static void __maps__insert(struct maps *maps, struct map *map);

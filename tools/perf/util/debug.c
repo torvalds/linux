@@ -2,6 +2,7 @@
 
 #include "../perf.h"
 
+#include <inttypes.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -12,8 +13,11 @@
 #include "color.h"
 #include "event.h"
 #include "debug.h"
+#include "print_binary.h"
 #include "util.h"
 #include "target.h"
+
+#include "sane_ctype.h"
 
 int verbose;
 bool dump_trace = false, quiet = false;

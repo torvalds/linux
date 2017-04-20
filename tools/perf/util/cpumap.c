@@ -3,10 +3,13 @@
 #include "../perf.h"
 #include "cpumap.h"
 #include <assert.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/bitmap.h>
 #include "asm/bug.h"
+
+#include "sane_ctype.h"
 
 static int max_cpu_num;
 static int max_present_cpu_num;

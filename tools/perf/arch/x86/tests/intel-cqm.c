@@ -7,6 +7,7 @@
 #include "arch-tests.h"
 
 #include <sys/mman.h>
+#include <errno.h>
 #include <string.h>
 
 static pid_t spawn(void)

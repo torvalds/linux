@@ -3,6 +3,7 @@
 
 #include "util/evsel.h"
 #include "util/evlist.h"
+#include "util/term.h"
 #include "util/util.h"
 #include "util/cache.h"
 #include "util/symbol.h"
@@ -24,7 +25,10 @@
 #include <sys/timerfd.h>
 #endif
 
+#include <linux/kernel.h>
 #include <linux/time64.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <termios.h>
 #include <semaphore.h>
 #include <pthread.h>
