@@ -1563,12 +1563,6 @@ static int wil_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	enum wmi_ps_profile_type ps_profile;
-	int rc;
-
-	if (!test_bit(WMI_FW_CAPABILITY_PS_CONFIG, wil->fw_capabilities)) {
-		wil_err(wil, "set_power_mgmt not supported\n");
-		return -EOPNOTSUPP;
-	}
 
 	wil_dbg_misc(wil, "enabled=%d, timeout=%d\n",
 		     enabled, timeout);
@@ -1578,11 +1572,7 @@ static int wil_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 	else
 		ps_profile = WMI_PS_PROFILE_TYPE_PS_DISABLED;
 
-	rc  = wmi_ps_dev_profile_cfg(wil, ps_profile);
-	if (rc)
-		wil_err(wil, "wmi_ps_dev_profile_cfg failed (%d)\n", rc);
-
-	return rc;
+	return wil_ps_update(wil, ps_profile);
 }
 
 static const struct cfg80211_ops wil_cfg80211_ops = {

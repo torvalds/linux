@@ -200,7 +200,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 
 release_pmc_skbs:
 	wil_err(wil, "exit on error: Releasing skbs...\n");
-	for (i = 0; pmc->descriptors[i].va && i < num_descriptors; i++) {
+	for (i = 0; i < num_descriptors && pmc->descriptors[i].va; i++) {
 		dma_free_coherent(dev,
 				  descriptor_size,
 				  pmc->descriptors[i].va,
@@ -283,7 +283,7 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 		int i;
 
 		for (i = 0;
-		     pmc->descriptors[i].va && i < pmc->num_descriptors; i++) {
+		     i < pmc->num_descriptors && pmc->descriptors[i].va; i++) {
 			dma_free_coherent(dev,
 					  pmc->descriptor_size,
 					  pmc->descriptors[i].va,

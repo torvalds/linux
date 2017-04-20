@@ -501,14 +501,16 @@ enum ath10k_state {
 	 * stopped in ath10k_core_restart() work holding conf_mutex. The state
 	 * RESTARTED means that the device is up and mac80211 has started hw
 	 * reconfiguration. Once mac80211 is done with the reconfiguration we
-	 * set the state to STATE_ON in reconfig_complete(). */
+	 * set the state to STATE_ON in reconfig_complete().
+	 */
 	ATH10K_STATE_RESTARTING,
 	ATH10K_STATE_RESTARTED,
 
 	/* The device has crashed while restarting hw. This state is like ON
 	 * but commands are blocked in HTC and -ECOMM response is given. This
 	 * prevents completion timeouts and makes the driver more responsive to
-	 * userspace commands. This is also prevents recursive recovery. */
+	 * userspace commands. This is also prevents recursive recovery.
+	 */
 	ATH10K_STATE_WEDGED,
 
 	/* factory tests */
@@ -920,7 +922,8 @@ struct ath10k {
 	struct work_struct restart_work;
 
 	/* cycle count is reported twice for each visited channel during scan.
-	 * access protected by data_lock */
+	 * access protected by data_lock
+	 */
 	u32 survey_last_rx_clear_count;
 	u32 survey_last_cycle_count;
 	struct survey_info survey[ATH10K_NUM_CHANS];
