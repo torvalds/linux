@@ -50,7 +50,7 @@ struct omap_gem_object {
 	uint32_t roll;
 
 	/**
-	 * paddr contains the buffer DMA address. It is valid for
+	 * dma_addr contains the buffer DMA address. It is valid for
 	 *
 	 * - buffers allocated through the DMA mapping API (with the
 	 *   OMAP_BO_MEM_DMA_API flag set)
@@ -58,24 +58,24 @@ struct omap_gem_object {
 	 * - buffers imported from dmabuf (with the OMAP_BO_MEM_DMABUF flag set)
 	 *   if they are physically contiguous (when sgt->orig_nents == 1)
 	 *
-	 * - buffers mapped through the TILER when paddr_cnt is not zero, in
+	 * - buffers mapped through the TILER when dma_addr_cnt is not zero, in
 	 *   which case the DMA address points to the TILER aperture
 	 *
 	 * Physically contiguous buffers have their DMA address equal to the
 	 * physical address as we don't remap those buffers through the TILER.
 	 *
 	 * Buffers mapped to the TILER have their DMA address pointing to the
-	 * TILER aperture. As TILER mappings are refcounted (through paddr_cnt)
-	 * the DMA address must be accessed through omap_get_get_paddr() to
-	 * ensure that the mapping won't disappear unexpectedly. References must
-	 * be released with omap_gem_put_paddr().
+	 * TILER aperture. As TILER mappings are refcounted (through
+	 * dma_addr_cnt) the DMA address must be accessed through
+	 * omap_get_get_paddr() to ensure that the mapping won't disappear
+	 * unexpectedly. References must be released with omap_gem_put_paddr().
 	 */
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 
 	/**
-	 * # of users of paddr
+	 * # of users of dma_addr
 	 */
-	uint32_t paddr_cnt;
+	uint32_t dma_addr_cnt;
 
 	/**
 	 * If the buffer has been imported from a dmabuf the OMAP_DB_DMABUF flag
@@ -119,7 +119,7 @@ struct omap_gem_object {
 #define NUM_USERGART_ENTRIES 2
 struct omap_drm_usergart_entry {
 	struct tiler_block *block;	/* the reserved tiler block */
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	struct drm_gem_object *obj;	/* the current pinned obj */
 	pgoff_t obj_pgoff;		/* page offset of obj currently
 					   mapped in */
@@ -392,7 +392,7 @@ static int fault_1d(struct drm_gem_object *obj,
 		pfn = page_to_pfn(omap_obj->pages[pgoff]);
 	} else {
 		BUG_ON(!is_contiguous(omap_obj));
-		pfn = (omap_obj->paddr >> PAGE_SHIFT) + pgoff;
+		pfn = (omap_obj->dma_addr >> PAGE_SHIFT) + pgoff;
 	}
 
 	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
@@ -485,7 +485,7 @@ static int fault_2d(struct drm_gem_object *obj,
 		return ret;
 	}
 
-	pfn = entry->paddr >> PAGE_SHIFT;
+	pfn = entry->dma_addr >> PAGE_SHIFT;
 
 	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
 			pfn, pfn << PAGE_SHIFT);
@@ -787,7 +787,7 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 /* Get physical address for DMA.. if the buffer is not already contiguous, remap
  * it to pin in physically contiguous memory.. (ie. map in TILER)
  */
-int omap_gem_get_paddr(struct drm_gem_object *obj, dma_addr_t *paddr)
+int omap_gem_get_paddr(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 {
 	struct omap_drm_private *priv = obj->dev->dev_private;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
@@ -796,7 +796,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj, dma_addr_t *paddr)
 	mutex_lock(&obj->dev->struct_mutex);
 
 	if (!is_contiguous(omap_obj) && priv->has_dmm) {
-		if (omap_obj->paddr_cnt == 0) {
+		if (omap_obj->dma_addr_cnt == 0) {
 			struct page **pages;
 			uint32_t npages = obj->size >> PAGE_SHIFT;
 			enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
@@ -833,17 +833,17 @@ int omap_gem_get_paddr(struct drm_gem_object *obj, dma_addr_t *paddr)
 				goto fail;
 			}
 
-			omap_obj->paddr = tiler_ssptr(block);
+			omap_obj->dma_addr = tiler_ssptr(block);
 			omap_obj->block = block;
 
-			DBG("got paddr: %pad", &omap_obj->paddr);
+			DBG("got dma address: %pad", &omap_obj->dma_addr);
 		}
 
-		omap_obj->paddr_cnt++;
+		omap_obj->dma_addr_cnt++;
 
-		*paddr = omap_obj->paddr;
+		*dma_addr = omap_obj->dma_addr;
 	} else if (is_contiguous(omap_obj)) {
-		*paddr = omap_obj->paddr;
+		*dma_addr = omap_obj->dma_addr;
 	} else {
 		ret = -EINVAL;
 		goto fail;
@@ -864,9 +864,9 @@ void omap_gem_put_paddr(struct drm_gem_object *obj)
 	int ret;
 
 	mutex_lock(&obj->dev->struct_mutex);
-	if (omap_obj->paddr_cnt > 0) {
-		omap_obj->paddr_cnt--;
-		if (omap_obj->paddr_cnt == 0) {
+	if (omap_obj->dma_addr_cnt > 0) {
+		omap_obj->dma_addr_cnt--;
+		if (omap_obj->dma_addr_cnt == 0) {
 			ret = tiler_unpin(omap_obj->block);
 			if (ret) {
 				dev_err(obj->dev->dev,
@@ -877,7 +877,7 @@ void omap_gem_put_paddr(struct drm_gem_object *obj)
 				dev_err(obj->dev->dev,
 					"could not release unmap: %d\n", ret);
 			}
-			omap_obj->paddr = 0;
+			omap_obj->dma_addr = 0;
 			omap_obj->block = NULL;
 		}
 	}
@@ -889,16 +889,16 @@ void omap_gem_put_paddr(struct drm_gem_object *obj)
  * specified orientation and x,y offset from top-left corner of buffer
  * (only valid for tiled 2d buffers)
  */
-int omap_gem_rotated_paddr(struct drm_gem_object *obj, uint32_t orient,
-		int x, int y, dma_addr_t *paddr)
+int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, uint32_t orient,
+		int x, int y, dma_addr_t *dma_addr)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = -EINVAL;
 
 	mutex_lock(&obj->dev->struct_mutex);
-	if ((omap_obj->paddr_cnt > 0) && omap_obj->block &&
+	if ((omap_obj->dma_addr_cnt > 0) && omap_obj->block &&
 			(omap_obj->flags & OMAP_BO_TILED)) {
-		*paddr = tiler_tsptr(omap_obj->block, orient, x, y);
+		*dma_addr = tiler_tsptr(omap_obj->block, orient, x, y);
 		ret = 0;
 	}
 	mutex_unlock(&obj->dev->struct_mutex);
@@ -1019,7 +1019,7 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 	seq_printf(m, "%08x: %2d (%2d) %08llx %pad (%2d) %p %4d",
 			omap_obj->flags, obj->name, kref_read(&obj->refcount),
-			off, &omap_obj->paddr, omap_obj->paddr_cnt,
+			off, &omap_obj->dma_addr, omap_obj->dma_addr_cnt,
 			omap_obj->vaddr, omap_obj->roll);
 
 	if (omap_obj->flags & OMAP_BO_TILED) {
@@ -1076,7 +1076,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	/* this means the object is still pinned.. which really should
 	 * not happen.  I think..
 	 */
-	WARN_ON(omap_obj->paddr_cnt > 0);
+	WARN_ON(omap_obj->dma_addr_cnt > 0);
 
 	if (omap_obj->pages) {
 		if (omap_obj->flags & OMAP_BO_MEM_DMABUF)
@@ -1087,7 +1087,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
 		dma_free_wc(dev->dev, obj->size, omap_obj->vaddr,
-			    omap_obj->paddr);
+			    omap_obj->dma_addr);
 	} else if (omap_obj->vaddr) {
 		vunmap(omap_obj->vaddr);
 	} else if (obj->import_attach) {
@@ -1184,7 +1184,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	/* Allocate memory if needed. */
 	if (flags & OMAP_BO_MEM_DMA_API) {
 		omap_obj->vaddr = dma_alloc_wc(dev->dev, size,
-					       &omap_obj->paddr,
+					       &omap_obj->dma_addr,
 					       GFP_KERNEL);
 		if (!omap_obj->vaddr)
 			goto err_release;
@@ -1228,7 +1228,7 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 	omap_obj->sgt = sgt;
 
 	if (sgt->orig_nents == 1) {
-		omap_obj->paddr = sg_dma_address(sgt->sgl);
+		omap_obj->dma_addr = sg_dma_address(sgt->sgl);
 	} else {
 		/* Create pages list from sgt */
 		struct sg_page_iter iter;
@@ -1335,11 +1335,11 @@ void omap_gem_init(struct drm_device *dev)
 						i, j, PTR_ERR(block));
 				return;
 			}
-			entry->paddr = tiler_ssptr(block);
+			entry->dma_addr = tiler_ssptr(block);
 			entry->block = block;
 
-			DBG("%d:%d: %dx%d: paddr=%pad stride=%d", i, j, w, h,
-					&entry->paddr,
+			DBG("%d:%d: %dx%d: dma_addr=%pad stride=%d", i, j, w, h,
+					&entry->dma_addr,
 					usergart[i].stride_pfn << PAGE_SHIFT);
 		}
 	}

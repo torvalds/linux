@@ -31,7 +31,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
 	struct sg_table *sg;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	int ret;
 
 	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
@@ -41,7 +41,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 	/* camera, etc, need physically contiguous.. but we need a
 	 * better way to know this..
 	 */
-	ret = omap_gem_get_paddr(obj, &paddr);
+	ret = omap_gem_get_paddr(obj, &dma_addr);
 	if (ret)
 		goto out;
 
@@ -51,8 +51,8 @@ static struct sg_table *omap_gem_map_dma_buf(
 
 	sg_init_table(sg->sgl, 1);
 	sg_dma_len(sg->sgl) = obj->size;
-	sg_set_page(sg->sgl, pfn_to_page(PFN_DOWN(paddr)), obj->size, 0);
-	sg_dma_address(sg->sgl) = paddr;
+	sg_set_page(sg->sgl, pfn_to_page(PFN_DOWN(dma_addr)), obj->size, 0);
+	sg_dma_address(sg->sgl) = dma_addr;
 
 	/* this should be after _get_paddr() to ensure we have pages attached */
 	omap_gem_dma_sync(obj, dir);

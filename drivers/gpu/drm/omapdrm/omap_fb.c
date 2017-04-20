@@ -74,7 +74,7 @@ struct plane {
 	struct drm_gem_object *bo;
 	uint32_t pitch;
 	uint32_t offset;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 };
 
 #define to_omap_framebuffer(x) container_of(x, struct omap_framebuffer, base)
@@ -85,7 +85,7 @@ struct omap_framebuffer {
 	const struct drm_format_info *format;
 	enum omap_color_mode dss_format;
 	struct plane planes[2];
-	/* lock for pinning (pin_count and planes.paddr) */
+	/* lock for pinning (pin_count and planes.dma_addr) */
 	struct mutex lock;
 };
 
@@ -130,7 +130,7 @@ static uint32_t get_linear_addr(struct plane *plane,
 	       + (x * format->cpp[n] / (n == 0 ? 1 : format->hsub))
 	       + (y * plane->pitch / (n == 0 ? 1 : format->vsub));
 
-	return plane->paddr + offset;
+	return plane->dma_addr + offset;
 }
 
 bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
@@ -201,7 +201,8 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		if (orient & MASK_X_INVERT)
 			x += w - 1;
 
-		omap_gem_rotated_paddr(plane->bo, orient, x, y, &info->paddr);
+		omap_gem_rotated_dma_addr(plane->bo, orient, x, y,
+					  &info->paddr);
 		info->rotation_type = OMAP_DSS_ROT_TILER;
 		info->screen_width  = omap_gem_tiled_stride(plane->bo, orient);
 	} else {
@@ -232,8 +233,8 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 
 		if (info->rotation_type == OMAP_DSS_ROT_TILER) {
 			WARN_ON(!(omap_gem_flags(plane->bo) & OMAP_BO_TILED));
-			omap_gem_rotated_paddr(plane->bo, orient,
-					x/2, y/2, &info->p_uv_addr);
+			omap_gem_rotated_dma_addr(plane->bo, orient, x/2, y/2,
+						  &info->p_uv_addr);
 		} else {
 			info->p_uv_addr = get_linear_addr(plane, format, 1, x, y);
 		}
@@ -258,7 +259,7 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		ret = omap_gem_get_paddr(plane->bo, &plane->paddr);
+		ret = omap_gem_get_paddr(plane->bo, &plane->dma_addr);
 		if (ret)
 			goto fail;
 		omap_gem_dma_sync(plane->bo, DMA_TO_DEVICE);
@@ -274,7 +275,7 @@ fail:
 	for (i--; i >= 0; i--) {
 		struct plane *plane = &omap_fb->planes[i];
 		omap_gem_put_paddr(plane->bo);
-		plane->paddr = 0;
+		plane->dma_addr = 0;
 	}
 
 	mutex_unlock(&omap_fb->lock);
@@ -300,7 +301,7 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
 		omap_gem_put_paddr(plane->bo);
-		plane->paddr = 0;
+		plane->dma_addr = 0;
 	}
 
 	mutex_unlock(&omap_fb->lock);
@@ -458,7 +459,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		plane->bo     = bos[i];
 		plane->offset = mode_cmd->offsets[i];
 		plane->pitch  = pitch;
-		plane->paddr  = 0;
+		plane->dma_addr  = 0;
 	}
 
 	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
