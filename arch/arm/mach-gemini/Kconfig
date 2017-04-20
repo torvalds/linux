@@ -3,6 +3,7 @@ menuconfig ARCH_GEMINI
 	depends on ARCH_MULTI_V4
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select COMMON_CLK_GEMINI
 	select FARADAY_FTINTC010
 	select FTTMR010_TIMER
 	select GPIO_FTGPIO010
