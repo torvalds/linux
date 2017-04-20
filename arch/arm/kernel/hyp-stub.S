@@ -125,7 +125,7 @@ ENTRY(__hyp_stub_install_secondary)
  * (see safe_svcmode_maskall).
  */
 	@ Now install the hypervisor stub:
-	adr	r7, __hyp_stub_vectors
+	W(adr)	r7, __hyp_stub_vectors
 	mcr	p15, 4, r7, c12, c0, 0	@ set hypervisor vector base (HVBAR)
 
 	@ Disable all traps, so we don't get any nasty surprise
