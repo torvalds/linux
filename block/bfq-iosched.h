@@ -816,9 +816,6 @@ void bfq_put_async_queues(struct bfq_data *bfqd, struct bfq_group *bfqg);
 
 /* ---------------- cgroups-support interface ---------------- */
 
-extern struct cftype bfq_blkcg_legacy_files[];
-extern struct cftype bfq_blkg_files[];
-
 void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
 			      unsigned int op);
 void bfqg_stats_update_io_remove(struct bfq_group *bfqg, unsigned int op);
@@ -844,6 +841,8 @@ struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node);
 void bfqg_put(struct bfq_group *bfqg);
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
+extern struct cftype bfq_blkcg_legacy_files[];
+extern struct cftype bfq_blkg_files[];
 extern struct blkcg_policy blkcg_policy_bfq;
 #endif
 
