@@ -180,8 +180,7 @@ struct aspeed_smc_controller {
 
 #define CONTROL_KEEP_MASK						\
 	(CONTROL_AAF_MODE | CONTROL_CE_INACTIVE_MASK | CONTROL_CLK_DIV4 | \
-	 CONTROL_IO_DUMMY_MASK | CONTROL_CLOCK_FREQ_SEL_MASK |		\
-	 CONTROL_LSB_FIRST | CONTROL_CLOCK_MODE_3)
+	 CONTROL_CLOCK_FREQ_SEL_MASK | CONTROL_LSB_FIRST | CONTROL_CLOCK_MODE_3)
 
 /*
  * The Segment Register uses a 8MB unit to encode the start address
