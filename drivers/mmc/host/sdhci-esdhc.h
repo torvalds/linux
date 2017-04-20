@@ -54,6 +54,7 @@
 
 /* Control Register for DMA transfer */
 #define ESDHC_DMA_SYSCTL		0x40c
+#define ESDHC_PERIPHERAL_CLK_SEL	0x00080000
 #define ESDHC_DMA_SNOOP			0x00000040
 
 #endif /* _DRIVERS_MMC_SDHCI_ESDHC_H */
