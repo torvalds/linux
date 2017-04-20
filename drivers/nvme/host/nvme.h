@@ -251,7 +251,7 @@ static inline void nvme_end_request(struct request *req, __le16 status,
 
 	rq->status = le16_to_cpu(status) >> 1;
 	rq->result = result;
-	blk_mq_complete_request(req, 0);
+	blk_mq_complete_request(req);
 }
 
 void nvme_complete_rq(struct request *req);

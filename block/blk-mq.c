@@ -442,17 +442,10 @@ static void blk_mq_stat_add(struct request *rq)
 
 static void __blk_mq_complete_request(struct request *rq)
 {
-	struct request_queue *q = rq->q;
-
 	if (rq->internal_tag != -1)
 		blk_mq_sched_completed_request(rq);
-
 	blk_mq_stat_add(rq);
-
-	if (!q->softirq_done_fn)
-		blk_mq_end_request(rq, rq->errors);
-	else
-		blk_mq_ipi_complete_request(rq);
+	blk_mq_ipi_complete_request(rq);
 }
 
 /**
@@ -463,16 +456,14 @@ static void __blk_mq_complete_request(struct request *rq)
  *	Ends all I/O on a request. It does not handle partial completions.
  *	The actual completion happens out-of-order, through a IPI handler.
  **/
-void blk_mq_complete_request(struct request *rq, int error)
+void blk_mq_complete_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
 	if (unlikely(blk_should_fake_timeout(q)))
 		return;
-	if (!blk_mark_rq_complete(rq)) {
-		rq->errors = error;
+	if (!blk_mark_rq_complete(rq))
 		__blk_mq_complete_request(rq);
-	}
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 

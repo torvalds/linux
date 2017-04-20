@@ -242,7 +242,7 @@ static void mtip_async_complete(struct mtip_port *port,
 	rq = mtip_rq_from_tag(dd, tag);
 
 	cmd->status = status;
-	blk_mq_complete_request(rq, 0);
+	blk_mq_complete_request(rq);
 }
 
 /*
@@ -4109,7 +4109,7 @@ static void mtip_no_dev_cleanup(struct request *rq, void *data, bool reserv)
 
 	if (likely(!reserv)) {
 		cmd->status = -ENODEV;
-		blk_mq_complete_request(rq, 0);
+		blk_mq_complete_request(rq);
 	} else if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &dd->port->flags)) {
 
 		cmd = mtip_cmd_from_tag(dd, MTIP_TAG_INTERNAL);

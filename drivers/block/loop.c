@@ -465,7 +465,7 @@ static void lo_rw_aio_complete(struct kiocb *iocb, long ret, long ret2)
 	struct loop_cmd *cmd = container_of(iocb, struct loop_cmd, iocb);
 
 	cmd->ret = ret;
-	blk_mq_complete_request(cmd->rq, 0);
+	blk_mq_complete_request(cmd->rq);
 }
 
 static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
@@ -1685,7 +1685,7 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 	/* complete non-aio request */
 	if (!cmd->use_aio || ret) {
 		cmd->ret = ret ? -EIO : 0;
-		blk_mq_complete_request(cmd->rq, 0);
+		blk_mq_complete_request(cmd->rq);
 	}
 }
 

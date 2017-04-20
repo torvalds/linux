@@ -1904,7 +1904,7 @@ static int scsi_mq_prep_fn(struct request *req)
 static void scsi_mq_done(struct scsi_cmnd *cmd)
 {
 	trace_scsi_dispatch_cmd_done(cmd);
-	blk_mq_complete_request(cmd->request, 0);
+	blk_mq_complete_request(cmd->request);
 }
 
 static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
