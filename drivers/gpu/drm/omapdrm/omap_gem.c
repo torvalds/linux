@@ -752,35 +752,34 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 {
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	int i, npages = obj->size >> PAGE_SHIFT;
+	struct page **pages = omap_obj->pages;
+	bool dirty = false;
 
-	if (is_cached_coherent(obj)) {
-		int i, npages = obj->size >> PAGE_SHIFT;
-		struct page **pages = omap_obj->pages;
-		bool dirty = false;
+	if (!is_cached_coherent(obj))
+		return;
 
-		for (i = 0; i < npages; i++) {
-			if (!omap_obj->addrs[i]) {
-				dma_addr_t addr;
+	for (i = 0; i < npages; i++) {
+		if (!omap_obj->addrs[i]) {
+			dma_addr_t addr;
 
-				addr = dma_map_page(dev->dev, pages[i], 0,
-						PAGE_SIZE, DMA_BIDIRECTIONAL);
+			addr = dma_map_page(dev->dev, pages[i], 0,
+					    PAGE_SIZE, DMA_BIDIRECTIONAL);
 
-				if (dma_mapping_error(dev->dev, addr)) {
-					dev_warn(dev->dev,
-						"%s: failed to map page\n",
-						__func__);
-					break;
-				}
-
-				dirty = true;
-				omap_obj->addrs[i] = addr;
+			if (dma_mapping_error(dev->dev, addr)) {
+				dev_warn(dev->dev, "%s: failed to map page\n",
+					__func__);
+				break;
 			}
-		}
 
-		if (dirty) {
-			unmap_mapping_range(obj->filp->f_mapping, 0,
-					omap_gem_mmap_size(obj), 1);
+			dirty = true;
+			omap_obj->addrs[i] = addr;
 		}
+	}
+
+	if (dirty) {
+		unmap_mapping_range(obj->filp->f_mapping, 0,
+				    omap_gem_mmap_size(obj), 1);
 	}
 }
 
