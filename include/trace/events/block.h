@@ -80,7 +80,6 @@ TRACE_EVENT(block_rq_requeue,
 		__field(  dev_t,	dev			)
 		__field(  sector_t,	sector			)
 		__field(  unsigned int,	nr_sector		)
-		__field(  int,		errors			)
 		__array(  char,		rwbs,	RWBS_LEN	)
 		__dynamic_array( char,	cmd,	1		)
 	),
@@ -89,7 +88,6 @@ TRACE_EVENT(block_rq_requeue,
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
 		__entry->sector    = blk_rq_trace_sector(rq);
 		__entry->nr_sector = blk_rq_trace_nr_sectors(rq);
-		__entry->errors    = rq->errors;
 
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
 		__get_str(cmd)[0] = '\0';
@@ -99,13 +97,13 @@ TRACE_EVENT(block_rq_requeue,
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
 		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->errors)
+		  __entry->nr_sector, 0)
 );
 
 /**
  * block_rq_complete - block IO operation completed by device driver
- * @q: queue containing the block operation request
  * @rq: block operations request
+ * @error: status code
  * @nr_bytes: number of completed bytes
  *
  * The block_rq_complete tracepoint event indicates that some portion
@@ -116,16 +114,15 @@ TRACE_EVENT(block_rq_requeue,
  */
 TRACE_EVENT(block_rq_complete,
 
-	TP_PROTO(struct request_queue *q, struct request *rq,
-		 unsigned int nr_bytes),
+	TP_PROTO(struct request *rq, int error, unsigned int nr_bytes),
 
-	TP_ARGS(q, rq, nr_bytes),
+	TP_ARGS(rq, error, nr_bytes),
 
 	TP_STRUCT__entry(
 		__field(  dev_t,	dev			)
 		__field(  sector_t,	sector			)
 		__field(  unsigned int,	nr_sector		)
-		__field(  int,		errors			)
+		__field(  int,		error			)
 		__array(  char,		rwbs,	RWBS_LEN	)
 		__dynamic_array( char,	cmd,	1		)
 	),
@@ -134,7 +131,7 @@ TRACE_EVENT(block_rq_complete,
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
 		__entry->sector    = blk_rq_pos(rq);
 		__entry->nr_sector = nr_bytes >> 9;
-		__entry->errors    = rq->errors;
+		__entry->error     = error;
 
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, nr_bytes);
 		__get_str(cmd)[0] = '\0';
@@ -144,7 +141,7 @@ TRACE_EVENT(block_rq_complete,
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
 		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->errors)
+		  __entry->nr_sector, __entry->error)
 );
 
 DECLARE_EVENT_CLASS(block_rq,

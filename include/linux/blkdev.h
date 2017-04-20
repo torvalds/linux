@@ -220,8 +220,6 @@ struct request {
 
 	void *special;		/* opaque pointer available for LLD use */
 
-	int errors;
-
 	unsigned int extra_len;	/* length of alignment and padding */
 
 	unsigned long deadline;
