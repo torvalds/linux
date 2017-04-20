@@ -55,7 +55,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 	sg_dma_address(sg->sgl) = dma_addr;
 
 	/* this must be after omap_gem_pin() to ensure we have pages attached */
-	omap_gem_dma_sync(obj, dir);
+	omap_gem_dma_sync_buffer(obj, dir);
 
 	return sg;
 out:
@@ -112,7 +112,7 @@ static void *omap_gem_dmabuf_kmap_atomic(struct dma_buf *buffer,
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
 	omap_gem_get_pages(obj, &pages, false);
-	omap_gem_cpu_sync(obj, page_num);
+	omap_gem_cpu_sync_page(obj, page_num);
 	return kmap_atomic(pages[page_num]);
 }
 
@@ -128,7 +128,7 @@ static void *omap_gem_dmabuf_kmap(struct dma_buf *buffer,
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
 	omap_gem_get_pages(obj, &pages, false);
-	omap_gem_cpu_sync(obj, page_num);
+	omap_gem_cpu_sync_page(obj, page_num);
 	return kmap(pages[page_num]);
 }
 

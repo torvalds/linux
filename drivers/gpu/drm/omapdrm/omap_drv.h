@@ -185,8 +185,8 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		struct vm_area_struct *vma);
 int omap_gem_fault(struct vm_fault *vmf);
 int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll);
-void omap_gem_cpu_sync(struct drm_gem_object *obj, int pgoff);
-void omap_gem_dma_sync(struct drm_gem_object *obj,
+void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff);
+void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
 		enum dma_data_direction dir);
 int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr);
 void omap_gem_unpin(struct drm_gem_object *obj);

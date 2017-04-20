@@ -388,7 +388,7 @@ static int fault_1d(struct drm_gem_object *obj,
 	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	if (omap_obj->pages) {
-		omap_gem_cpu_sync(obj, pgoff);
+		omap_gem_cpu_sync_page(obj, pgoff);
 		pfn = page_to_pfn(omap_obj->pages[pgoff]);
 	} else {
 		BUG_ON(!is_contiguous(omap_obj));
@@ -734,7 +734,7 @@ static inline bool is_cached_coherent(struct drm_gem_object *obj)
 /* Sync the buffer for CPU access.. note pages should already be
  * attached, ie. omap_gem_get_pages()
  */
-void omap_gem_cpu_sync(struct drm_gem_object *obj, int pgoff)
+void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff)
 {
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
@@ -747,7 +747,7 @@ void omap_gem_cpu_sync(struct drm_gem_object *obj, int pgoff)
 }
 
 /* sync the buffer for DMA access */
-void omap_gem_dma_sync(struct drm_gem_object *obj,
+void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
 		enum dma_data_direction dir)
 {
 	struct drm_device *dev = obj->dev;

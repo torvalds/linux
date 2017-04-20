@@ -262,7 +262,7 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 		ret = omap_gem_pin(plane->bo, &plane->dma_addr);
 		if (ret)
 			goto fail;
-		omap_gem_dma_sync(plane->bo, DMA_TO_DEVICE);
+		omap_gem_dma_sync_buffer(plane->bo, DMA_TO_DEVICE);
 	}
 
 	omap_fb->pin_count++;
