@@ -180,6 +180,7 @@ static void __xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio)
 	/* Disable the queue in HW */
 	for (;;) {
 		rc = opal_xive_set_queue_info(vp_id, prio, 0, 0, 0);
+		if (rc != OPAL_BUSY)
 			break;
 		msleep(1);
 	}
