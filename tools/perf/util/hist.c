@@ -9,6 +9,7 @@
 #include "evsel.h"
 #include "annotate.h"
 #include "srcline.h"
+#include "thread.h"
 #include "ui/progress.h"
 #include <errno.h>
 #include <math.h>

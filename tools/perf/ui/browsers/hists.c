@@ -14,6 +14,7 @@
 #include "../../util/sort.h"
 #include "../../util/util.h"
 #include "../../util/top.h"
+#include "../../util/thread.h"
 #include "../../arch/common.h"
 
 #include "../browsers/hists.h"

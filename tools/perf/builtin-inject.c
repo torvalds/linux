@@ -18,6 +18,7 @@
 #include "util/data.h"
 #include "util/auxtrace.h"
 #include "util/jit.h"
+#include "util/thread.h"
 
 #include <subcmd/parse-options.h>
 

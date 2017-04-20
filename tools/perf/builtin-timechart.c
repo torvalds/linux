@@ -29,6 +29,7 @@
 #include <linux/rbtree.h>
 #include <linux/time64.h>
 #include "util/symbol.h"
+#include "util/thread.h"
 #include "util/callchain.h"
 
 #include "perf.h"
