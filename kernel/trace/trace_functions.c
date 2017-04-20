@@ -268,7 +268,8 @@ static struct tracer function_trace __tracer_data =
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 static void update_traceon_count(struct ftrace_probe_ops *ops,
-				 unsigned long ip, bool on,
+				 unsigned long ip,
+				 struct trace_array *tr, bool on,
 				 void *data)
 {
 	struct ftrace_func_mapper *mapper = data;
@@ -313,13 +314,13 @@ static void update_traceon_count(struct ftrace_probe_ops *ops,
 	/* Make sure we see count before checking tracing state */
 	smp_rmb();
 
-	if (on == !!tracing_is_on())
+	if (on == !!tracer_tracing_is_on(tr))
 		return;
 
 	if (on)
-		tracing_on();
+		tracer_tracing_on(tr);
 	else
-		tracing_off();
+		tracer_tracing_off(tr);
 
 	/* Make sure tracing state is visible before updating count */
 	smp_wmb();
@@ -332,7 +333,7 @@ ftrace_traceon_count(unsigned long ip, unsigned long parent_ip,
 		     struct trace_array *tr, struct ftrace_probe_ops *ops,
 		     void *data)
 {
-	update_traceon_count(ops, ip, 1, data);
+	update_traceon_count(ops, ip, tr, 1, data);
 }
 
 static void
@@ -340,7 +341,7 @@ ftrace_traceoff_count(unsigned long ip, unsigned long parent_ip,
 		      struct trace_array *tr, struct ftrace_probe_ops *ops,
 		      void *data)
 {
-	update_traceon_count(ops, ip, 0, data);
+	update_traceon_count(ops, ip, tr, 0, data);
 }
 
 static void
@@ -348,10 +349,10 @@ ftrace_traceon(unsigned long ip, unsigned long parent_ip,
 	       struct trace_array *tr, struct ftrace_probe_ops *ops,
 	       void *data)
 {
-	if (tracing_is_on())
+	if (tracer_tracing_is_on(tr))
 		return;
 
-	tracing_on();
+	tracer_tracing_on(tr);
 }
 
 static void
@@ -359,10 +360,10 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip,
 		struct trace_array *tr, struct ftrace_probe_ops *ops,
 		void *data)
 {
-	if (!tracing_is_on())
+	if (!tracer_tracing_is_on(tr))
 		return;
 
-	tracing_off();
+	tracer_tracing_off(tr);
 }
 
 /*

@@ -757,7 +757,7 @@ __trace_buffer_lock_reserve(struct ring_buffer *buffer,
 	return event;
 }
 
-static void tracer_tracing_on(struct trace_array *tr)
+void tracer_tracing_on(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
 		ring_buffer_record_on(tr->trace_buffer.buffer);
@@ -1045,7 +1045,7 @@ void tracing_snapshot_alloc(void)
 EXPORT_SYMBOL_GPL(tracing_snapshot_alloc);
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
-static void tracer_tracing_off(struct trace_array *tr)
+void tracer_tracing_off(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
 		ring_buffer_record_off(tr->trace_buffer.buffer);
