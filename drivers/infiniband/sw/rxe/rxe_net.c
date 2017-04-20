@@ -210,6 +210,39 @@ static struct dst_entry *rxe_find_route6(struct net_device *ndev,
 
 #endif
 
+static struct dst_entry *rxe_find_route(struct rxe_dev *rxe,
+					struct rxe_qp *qp,
+					struct rxe_av *av)
+{
+	struct dst_entry *dst = NULL;
+
+	if (qp_type(qp) == IB_QPT_RC)
+		dst = sk_dst_get(qp->sk->sk);
+
+	if (!dst || !(dst->obsolete && dst->ops->check(dst, 0))) {
+		if (dst)
+			dst_release(dst);
+
+		if (av->network_type == RDMA_NETWORK_IPV4) {
+			struct in_addr *saddr;
+			struct in_addr *daddr;
+
+			saddr = &av->sgid_addr._sockaddr_in.sin_addr;
+			daddr = &av->dgid_addr._sockaddr_in.sin_addr;
+			dst = rxe_find_route4(rxe->ndev, saddr, daddr);
+		} else if (av->network_type == RDMA_NETWORK_IPV6) {
+			struct in6_addr *saddr6;
+			struct in6_addr *daddr6;
+
+			saddr6 = &av->sgid_addr._sockaddr_in6.sin6_addr;
+			daddr6 = &av->dgid_addr._sockaddr_in6.sin6_addr;
+			dst = rxe_find_route6(rxe->ndev, saddr6, daddr6);
+		}
+	}
+
+	return dst;
+}
+
 static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct udphdr *udph;
@@ -301,7 +334,7 @@ static void prepare_ipv4_hdr(struct dst_entry *dst, struct sk_buff *skb,
 	skb_scrub_packet(skb, xnet);
 
 	skb_clear_hash(skb);
-	skb_dst_set(skb, dst);
+	skb_dst_set(skb, dst_clone(dst));
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
 	skb_push(skb, sizeof(struct iphdr));
@@ -349,13 +382,14 @@ static void prepare_ipv6_hdr(struct dst_entry *dst, struct sk_buff *skb,
 static int prepare4(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		    struct sk_buff *skb, struct rxe_av *av)
 {
+	struct rxe_qp *qp = pkt->qp;
 	struct dst_entry *dst;
 	bool xnet = false;
 	__be16 df = htons(IP_DF);
 	struct in_addr *saddr = &av->sgid_addr._sockaddr_in.sin_addr;
 	struct in_addr *daddr = &av->dgid_addr._sockaddr_in.sin_addr;
 
-	dst = rxe_find_route4(rxe->ndev, saddr, daddr);
+	dst = rxe_find_route(rxe, qp, av);
 	if (!dst) {
 		pr_err("Host not reachable\n");
 		return -EHOSTUNREACH;
@@ -369,17 +403,24 @@ static int prepare4(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 
 	prepare_ipv4_hdr(dst, skb, saddr->s_addr, daddr->s_addr, IPPROTO_UDP,
 			 av->grh.traffic_class, av->grh.hop_limit, df, xnet);
+
+	if (qp_type(qp) == IB_QPT_RC)
+		sk_dst_set(qp->sk->sk, dst);
+	else
+		dst_release(dst);
+
 	return 0;
 }
 
 static int prepare6(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		    struct sk_buff *skb, struct rxe_av *av)
 {
-	struct dst_entry *dst;
+	struct rxe_qp *qp = pkt->qp;
+	struct dst_entry *dst = NULL;
 	struct in6_addr *saddr = &av->sgid_addr._sockaddr_in6.sin6_addr;
 	struct in6_addr *daddr = &av->dgid_addr._sockaddr_in6.sin6_addr;
 
-	dst = rxe_find_route6(rxe->ndev, saddr, daddr);
+	dst = rxe_find_route(rxe, qp, av);
 	if (!dst) {
 		pr_err("Host not reachable\n");
 		return -EHOSTUNREACH;
@@ -394,6 +435,12 @@ static int prepare6(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	prepare_ipv6_hdr(dst, skb, saddr, daddr, IPPROTO_UDP,
 			 av->grh.traffic_class,
 			 av->grh.hop_limit);
+
+	if (qp_type(qp) == IB_QPT_RC)
+		sk_dst_set(qp->sk->sk, dst);
+	else
+		dst_release(dst);
+
 	return 0;
 }
 
