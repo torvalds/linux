@@ -175,19 +175,15 @@ static int virtblk_add_req(struct virtqueue *vq, struct virtblk_req *vbr,
 static inline void virtblk_request_done(struct request *req)
 {
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
-	int error = virtblk_result(vbr);
 
 	switch (req_op(req)) {
 	case REQ_OP_SCSI_IN:
 	case REQ_OP_SCSI_OUT:
 		virtblk_scsi_request_done(req);
 		break;
-	case REQ_OP_DRV_IN:
-		req->errors = (error != 0);
-		break;
 	}
 
-	blk_mq_end_request(req, error);
+	blk_mq_end_request(req, virtblk_result(vbr));
 }
 
 static void virtblk_done(struct virtqueue *vq)
@@ -205,7 +201,7 @@ static void virtblk_done(struct virtqueue *vq)
 		while ((vbr = virtqueue_get_buf(vblk->vqs[qid].vq, &len)) != NULL) {
 			struct request *req = blk_mq_rq_from_pdu(vbr);
 
-			blk_mq_complete_request(req, req->errors);
+			blk_mq_complete_request(req, 0);
 			req_done = true;
 		}
 		if (unlikely(virtqueue_is_broken(vq)))
@@ -311,7 +307,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 		goto out;
 
 	blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
-	err = req->errors ? -EIO : 0;
+	err = virtblk_result(blk_mq_rq_to_pdu(req));
 out:
 	blk_put_request(req);
 	return err;
