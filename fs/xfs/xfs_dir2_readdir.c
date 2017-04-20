@@ -417,7 +417,8 @@ xfs_dir2_leaf_readbuf(
 		 * Read-ahead a contiguous directory block.
 		 */
 		if (i > mip->ra_current &&
-		    map[mip->ra_index].br_blockcount >= geo->fsbcount) {
+		    (map[mip->ra_index].br_blockcount - mip->ra_offset) >=
+		    geo->fsbcount) {
 			xfs_dir3_data_readahead(dp,
 				map[mip->ra_index].br_startoff + mip->ra_offset,
 				XFS_FSB_TO_DADDR(dp->i_mount,
@@ -450,7 +451,7 @@ xfs_dir2_leaf_readbuf(
 			 * The rest of this extent but not more than a dir
 			 * block.
 			 */
-			length = min_t(int, geo->fsbcount,
+			length = min_t(int, geo->fsbcount - j,
 					map[mip->ra_index].br_blockcount -
 							mip->ra_offset);
 			mip->ra_offset += length;
