@@ -320,6 +320,9 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_X_KX4:
 		hw->phy.type = ixgbe_phy_x550em_kx4;
 		break;
+	case IXGBE_DEV_ID_X550EM_X_XFI:
+		hw->phy.type = ixgbe_phy_x550em_xfi;
+		break;
 	case IXGBE_DEV_ID_X550EM_X_KR:
 	case IXGBE_DEV_ID_X550EM_A_KR:
 	case IXGBE_DEV_ID_X550EM_A_KR_L:
@@ -334,6 +337,16 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_X550EM_X_1G_T:
 	case IXGBE_DEV_ID_X550EM_X_10G_T:
 		return ixgbe_identify_phy_generic(hw);
+	case IXGBE_DEV_ID_X550EM_A_1G_T:
+	case IXGBE_DEV_ID_X550EM_A_1G_T_L:
+		hw->phy.type = ixgbe_phy_fw;
+		hw->phy.ops.read_reg = NULL;
+		hw->phy.ops.write_reg = NULL;
+		if (hw->bus.lan_id)
+			hw->phy.phy_semaphore_mask |= IXGBE_GSSR_PHY1_SM;
+		else
+			hw->phy.phy_semaphore_mask |= IXGBE_GSSR_PHY0_SM;
+		break;
 	default:
 		break;
 	}
@@ -2215,8 +2228,38 @@ static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 		else
 			*speed = IXGBE_LINK_SPEED_10GB_FULL;
 	} else {
-		*speed = IXGBE_LINK_SPEED_10GB_FULL |
-			 IXGBE_LINK_SPEED_1GB_FULL;
+		switch (hw->phy.type) {
+		case ixgbe_phy_x550em_kx4:
+			*speed = IXGBE_LINK_SPEED_1GB_FULL |
+				 IXGBE_LINK_SPEED_2_5GB_FULL |
+				 IXGBE_LINK_SPEED_10GB_FULL;
+			break;
+		case ixgbe_phy_x550em_xfi:
+			*speed = IXGBE_LINK_SPEED_1GB_FULL |
+				 IXGBE_LINK_SPEED_10GB_FULL;
+			break;
+		case ixgbe_phy_sgmii:
+			*speed = IXGBE_LINK_SPEED_1GB_FULL;
+			break;
+		case ixgbe_phy_x550em_kr:
+			if (hw->mac.type == ixgbe_mac_x550em_a) {
+				/* check different backplane modes */
+				if (hw->phy.nw_mng_if_sel &
+				    IXGBE_NW_MNG_IF_SEL_PHY_SPEED_2_5G) {
+					*speed = IXGBE_LINK_SPEED_2_5GB_FULL;
+					break;
+				} else if (hw->device_id ==
+					   IXGBE_DEV_ID_X550EM_A_KR_L) {
+					*speed = IXGBE_LINK_SPEED_1GB_FULL;
+					break;
+				}
+			}
+			/* fall through */
+		default:
+			*speed = IXGBE_LINK_SPEED_10GB_FULL |
+				 IXGBE_LINK_SPEED_1GB_FULL;
+			break;
+		}
 		*autoneg = true;
 	}
 	return 0;
@@ -2473,44 +2516,6 @@ static s32 ixgbe_setup_kr_speed_x550em(struct ixgbe_hw *hw,
 	return ixgbe_restart_an_internal_phy_x550em(hw);
 }
 
-/** ixgbe_setup_kx4_x550em - Configure the KX4 PHY.
- *  @hw: pointer to hardware structure
- *
- *   Configures the integrated KX4 PHY.
- **/
-static s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw)
-{
-	s32 status;
-	u32 reg_val;
-
-	status = hw->mac.ops.read_iosf_sb_reg(hw, IXGBE_KX4_LINK_CNTL_1,
-					      IXGBE_SB_IOSF_TARGET_KX4_PCS0 +
-					      hw->bus.lan_id, &reg_val);
-	if (status)
-		return status;
-
-	reg_val &= ~(IXGBE_KX4_LINK_CNTL_1_TETH_AN_CAP_KX4 |
-		     IXGBE_KX4_LINK_CNTL_1_TETH_AN_CAP_KX);
-
-	reg_val |= IXGBE_KX4_LINK_CNTL_1_TETH_AN_ENABLE;
-
-	/* Advertise 10G support. */
-	if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
-		reg_val |= IXGBE_KX4_LINK_CNTL_1_TETH_AN_CAP_KX4;
-
-	/* Advertise 1G support. */
-	if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
-		reg_val |= IXGBE_KX4_LINK_CNTL_1_TETH_AN_CAP_KX;
-
-	/* Restart auto-negotiation. */
-	reg_val |= IXGBE_KX4_LINK_CNTL_1_TETH_AN_RESTART;
-	status = hw->mac.ops.write_iosf_sb_reg(hw, IXGBE_KX4_LINK_CNTL_1,
-					       IXGBE_SB_IOSF_TARGET_KX4_PCS0 +
-					       hw->bus.lan_id, reg_val);
-
-	return status;
-}
-
 /**
  * ixgbe_setup_kr_x550em - Configure the KR PHY
  * @hw: pointer to hardware structure
@@ -2519,6 +2524,9 @@ static s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
 {
 	/* leave link alone for 2.5G */
 	if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_2_5GB_FULL)
+		return 0;
+
+	if (ixgbe_check_reset_blocked(hw))
 		return 0;
 
 	return ixgbe_setup_kr_speed_x550em(hw, hw->phy.autoneg_advertised);
@@ -3134,12 +3142,18 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 	/* Set functions pointers based on phy type */
 	switch (hw->phy.type) {
 	case ixgbe_phy_x550em_kx4:
-		phy->ops.setup_link = ixgbe_setup_kx4_x550em;
+		phy->ops.setup_link = NULL;
 		phy->ops.read_reg = ixgbe_read_phy_reg_x550em;
 		phy->ops.write_reg = ixgbe_write_phy_reg_x550em;
 		break;
 	case ixgbe_phy_x550em_kr:
 		phy->ops.setup_link = ixgbe_setup_kr_x550em;
+		phy->ops.read_reg = ixgbe_read_phy_reg_x550em;
+		phy->ops.write_reg = ixgbe_write_phy_reg_x550em;
+		break;
+	case ixgbe_phy_x550em_xfi:
+		/* link is managed by HW */
+		phy->ops.setup_link = NULL;
 		phy->ops.read_reg = ixgbe_read_phy_reg_x550em;
 		phy->ops.write_reg = ixgbe_write_phy_reg_x550em;
 		break;
@@ -3163,6 +3177,9 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 
 		phy->ops.handle_lasi = ixgbe_handle_lasi_ext_t_x550em;
 		phy->ops.reset = ixgbe_reset_phy_t_X550em;
+		break;
+	case ixgbe_phy_sgmii:
+		phy->ops.setup_link = NULL;
 		break;
 	case ixgbe_phy_fw:
 		phy->ops.setup_link = ixgbe_setup_fw_link;
@@ -3193,6 +3210,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 		/* Fallthrough */
 	case IXGBE_DEV_ID_X550EM_X_KR:
 	case IXGBE_DEV_ID_X550EM_X_KX4:
+	case IXGBE_DEV_ID_X550EM_X_XFI:
 	case IXGBE_DEV_ID_X550EM_A_KR:
 	case IXGBE_DEV_ID_X550EM_A_KR_L:
 		media_type = ixgbe_media_type_backplane;
@@ -3780,7 +3798,7 @@ static struct ixgbe_mac_operations mac_ops_x550em_a = {
 	.get_media_type		= ixgbe_get_media_type_X550em,
 	.get_san_mac_addr	= NULL,
 	.get_wwn_prefix		= NULL,
-	.setup_link		= NULL, /* defined later */
+	.setup_link		= &ixgbe_setup_mac_link_X540,
 	.get_link_capabilities	= ixgbe_get_link_capabilities_X550em,
 	.get_bus_info		= ixgbe_get_bus_info_X550em,
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
