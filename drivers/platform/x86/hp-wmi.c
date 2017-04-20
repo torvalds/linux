@@ -223,7 +223,7 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 	};
 	struct acpi_buffer input = { sizeof(struct bios_args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	u32 rc;
+	int ret = 0;
 
 	if (WARN_ON(insize > sizeof(args.data)))
 		return -EINVAL;
@@ -235,32 +235,32 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 
 	if (!obj)
 		return -EINVAL;
-	else if (obj->type != ACPI_TYPE_BUFFER) {
-		kfree(obj);
-		return -EINVAL;
+
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		ret = -EINVAL;
+		goto out_free;
 	}
 
 	bios_return = (struct bios_return *)obj->buffer.pointer;
-	rc = bios_return->return_code;
+	ret = bios_return->return_code;
 
-	if (rc) {
-		if (rc != HPWMI_RET_UNKNOWN_CMDTYPE)
-			pr_warn("query 0x%x returned error 0x%x\n", query, rc);
-		kfree(obj);
-		return rc;
+	if (ret) {
+		if (ret != HPWMI_RET_UNKNOWN_CMDTYPE)
+			pr_warn("query 0x%x returned error 0x%x\n", query, ret);
+		goto out_free;
 	}
 
-	if (!outsize) {
-		/* ignore output data */
-		kfree(obj);
-		return 0;
-	}
+	/* Ignore output data of zero size */
+	if (!outsize)
+		goto out_free;
 
 	actual_outsize = min(outsize, (int)(obj->buffer.length - sizeof(*bios_return)));
 	memcpy(buffer, obj->buffer.pointer + sizeof(*bios_return), actual_outsize);
 	memset(buffer + actual_outsize, 0, outsize - actual_outsize);
+
+out_free:
 	kfree(obj);
-	return 0;
+	return ret;
 }
 
 static int hp_wmi_read_int(int query)
@@ -313,9 +313,8 @@ static int __init hp_wmi_enable_hotkeys(void)
 	int value = 0x6e;
 	int ret = hp_wmi_perform_query(HPWMI_BIOS_QUERY, HPWMI_WRITE, &value,
 				       sizeof(value), 0);
-	if (ret)
-		return ret < 0 ? ret : -EINVAL;
-	return 0;
+
+	return ret <= 0 ? ret : -EINVAL;
 }
 
 static int hp_wmi_set_block(void *data, bool blocked)
@@ -326,9 +325,8 @@ static int hp_wmi_set_block(void *data, bool blocked)
 
 	ret = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, HPWMI_WRITE,
 				   &query, sizeof(query), 0);
-	if (ret)
-		return ret < 0 ? ret : -EINVAL;
-	return 0;
+
+	return ret <= 0 ? ret : -EINVAL;
 }
 
 static const struct rfkill_ops hp_wmi_rfkill_ops = {
@@ -363,11 +361,12 @@ static int hp_wmi_rfkill2_set_block(void *data, bool blocked)
 {
 	int rfkill_id = (int)(long)data;
 	char buffer[4] = { 0x01, 0x00, rfkill_id, !blocked };
+	int ret;
 
-	if (hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, HPWMI_WRITE,
-				   buffer, sizeof(buffer), 0))
-		return -EINVAL;
-	return 0;
+	ret = hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, HPWMI_WRITE,
+				   buffer, sizeof(buffer), 0);
+
+	return ret <= 0 ? ret : -EINVAL;
 }
 
 static const struct rfkill_ops hp_wmi_rfkill2_ops = {
@@ -478,13 +477,17 @@ static ssize_t postcode_store(struct device *dev, struct device_attribute *attr,
 	u32 tmp;
 
 	ret = kstrtoul(buf, 10, &tmp2);
-	if (ret || tmp2 != 1)
-		return -EINVAL;
+	if (!ret && tmp2 != 1)
+		ret = -EINVAL;
+	if (ret)
+		goto out;
 
 	/* Clear the POST error code. It is kept until until cleared. */
 	tmp = (u32) tmp2;
 	ret = hp_wmi_perform_query(HPWMI_POSTCODEERROR_QUERY, HPWMI_WRITE, &tmp,
 				       sizeof(tmp), sizeof(tmp));
+
+out:
 	if (ret)
 		return ret < 0 ? ret : -EINVAL;
 
@@ -689,7 +692,7 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 	int err, wireless;
 
 	wireless = hp_wmi_read_int(HPWMI_WIRELESS_QUERY);
-	if (wireless)
+	if (wireless < 0)
 		return wireless;
 
 	err = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, HPWMI_WRITE, &wireless,
@@ -775,7 +778,7 @@ static int __init hp_wmi_rfkill2_setup(struct platform_device *device)
 	err = hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, HPWMI_READ, &state,
 				   0, sizeof(state));
 	if (err)
-		return err;
+		return err < 0 ? err : -EINVAL;
 
 	if (state.count > HPWMI_MAX_RFKILL2_DEVICES) {
 		pr_warn("unable to parse 0x1b query output\n");
