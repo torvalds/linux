@@ -144,7 +144,6 @@ hyp_hvc:
 	ldr	r1, [r1]
 	ldr	ip, =__kvm_handle_stub_hvc
 	sub	ip, ip, r1
-THUMB(	add	ip, ip, #1)
 	pop	{r1}
 
 	bx	ip
