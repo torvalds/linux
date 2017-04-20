@@ -267,10 +267,8 @@ pll_clk_register(struct device *dev, const char *name,
 	}
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: could not allocate PLL clk\n", __func__);
+	if (!pll)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &pll_clk_ops;
@@ -356,11 +354,9 @@ src_clk_register(struct device *dev, const char *name,
 	struct clk_init_data init;
 
 	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
-	if (!sclk) {
-		pr_err("could not allocate SRC clock %s\n",
-			name);
+	if (!sclk)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	init.name = name;
 	init.ops = &src_clk_ops;
 	/* Do not force-disable the static SDRAM controller */
