@@ -568,13 +568,14 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 				clk_prepare_enable(clk->pclk_dphy_ref);
 			}
 
-		clk->in_on = true;
+			clk->in_on = true;
 
-		camsys_trace(1, "%s clock(f: %ld Hz) in turn on",
-			dev_name(camsys_dev->miscdev.this_device), isp_clk);
-		camsys_mrv_reset_cb(ptr, 1);
-		udelay(100);
-		camsys_mrv_reset_cb(ptr, 0);
+			camsys_trace(1, "%s clock(f: %ld Hz) in turn on",
+				     dev_name(camsys_dev->miscdev.this_device),
+				     isp_clk);
+			camsys_mrv_reset_cb(ptr, 1);
+			udelay(100);
+			camsys_mrv_reset_cb(ptr, 0);
 		} else if (!on && clk->in_on) {
 			if (strstr(camsys_dev->miscdev.name,
 				"camsys_marvin1")) {
@@ -601,11 +602,11 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 				clk_disable_unprepare(clk->pclk_dphy_ref);
 			}
 
-		/* rockchip_clear_system_status(SYS_STATUS_ISP); */
-		clk->in_on = false;
-		camsys_trace(1, "%s clock in turn off",
-			dev_name(camsys_dev->miscdev.this_device));
-		}
+			/* rockchip_clear_system_status(SYS_STATUS_ISP); */
+			clk->in_on = false;
+			camsys_trace(1, "%s clock in turn off",
+				     dev_name(camsys_dev->miscdev.this_device));
+			}
 	} else{
 		if (on && !clk->in_on) {
 			/* rockchip_set_system_status(SYS_STATUS_ISP); */
@@ -630,7 +631,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		} else {
 			clk_prepare_enable(clk->clk_mipi_24m);
 		}
-			clk->in_on = true;
+		clk->in_on = true;
 
 		camsys_trace(1, "%s clock(f: %ld Hz) in turn on",
 			dev_name(camsys_dev->miscdev.this_device), isp_clk);
@@ -1189,13 +1190,13 @@ clk_failed:
 		if (!IS_ERR_OR_NULL(mrv_clk->cif_clk_out))
 			clk_put(mrv_clk->cif_clk_out);
 
-	if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
-		if (!IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx))
-			clk_put(mrv_clk->pclk_dphyrx);
+		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
+			if (!IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx))
+				clk_put(mrv_clk->pclk_dphyrx);
 
-		if (!IS_ERR_OR_NULL(mrv_clk->clk_vio0_noc))
-		clk_put(mrv_clk->clk_vio0_noc);
-	}
+			if (!IS_ERR_OR_NULL(mrv_clk->clk_vio0_noc))
+				clk_put(mrv_clk->clk_vio0_noc);
+		}
 
 		kfree(mrv_clk);
 		mrv_clk = NULL;

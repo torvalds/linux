@@ -15,14 +15,14 @@ struct ext_fsh_dev_list_s{
 
 static struct ext_fsh_dev_list_s g_ext_fsh_devs;
 
-int camsys_init_ext_fsh_module()
+int camsys_init_ext_fsh_module(void)
 {
     camsys_trace(1,"init external flash module");
     INIT_LIST_HEAD(&g_ext_fsh_devs.dev_list);
     return 0;
 }
 
-int camsys_deinit_ext_fsh_module()
+int camsys_deinit_ext_fsh_module(void)
 {
     ext_fsh_info_t* cur_fsh_info = NULL;
     camsys_trace(1,"deinit external flash module");
@@ -58,7 +58,7 @@ void* camsys_register_ext_fsh_dev(camsys_flash_info_t *fsh_info)
             goto fail0;
         }
         
-		new_rt_dev = kzalloc(sizeof(*new_rt_dev), GFP_KERNEL);
+	new_rt_dev = kzalloc(sizeof(*new_rt_dev), GFP_KERNEL);
         if(!new_rt_dev){
             camsys_err("register new ext flash dev erro !");
             goto fail1;
@@ -66,7 +66,7 @@ void* camsys_register_ext_fsh_dev(camsys_flash_info_t *fsh_info)
 
         new_dev->pdev.id = -1;
         new_dev->pdev.name = fsh_info->fl_drv_name;
-		new_dev->pdev.dev.release = camsys_ext_fsh_release;
+	new_dev->pdev.dev.release = camsys_ext_fsh_release;
         new_dev->pdev.dev.platform_data = (void*)new_rt_dev;
         new_dev->dev_model = "rt-flash-led";
 
@@ -78,7 +78,7 @@ void* camsys_register_ext_fsh_dev(camsys_flash_info_t *fsh_info)
         camsys_trace(1,"flset name :%s, gpio %d, active %d \n",fsh_info->fl.name,new_rt_dev->flset_gpio,new_rt_dev->flset_active);
         new_rt_dev->ctl_gpio   = -1;
         new_rt_dev->def_lvp = RT8547_LVP_3V;
-	    new_rt_dev->def_tol = RT8547_TOL_100mA;
+	new_rt_dev->def_tol = RT8547_TOL_100mA;
 
     //    new_rt_dev->def_lvp = RT8547_LVP_MAX;
 	//    new_rt_dev->def_tol = RT8547_TOL_MAX;
@@ -113,7 +113,7 @@ int camsys_deregister_ext_fsh_dev(void* dev)
     	        /* free after unregister device ?*/
     	        kfree(cur_fsh_info->pdev.dev.platform_data);
     	        kfree(cur_fsh_info);
-				return 0;
+		return 0;
             }
         }
     }
@@ -140,8 +140,8 @@ int camsys_ext_fsh_ctrl(void* dev,int mode,unsigned int on)
         }
     }
     if(cur_fsh_info == NULL){
-		camsys_err("this flash dev have not been registered !");
-        return -1;
+	camsys_err("this flash dev have not been registered !");
+	return -1;
     }
 
     fled_dev = find_flashlight_by_name(cur_fsh_info->dev_model);
@@ -163,7 +163,7 @@ int camsys_ext_fsh_ctrl(void* dev,int mode,unsigned int on)
            /* set flashlight mode to Strobe */
            flashlight_set_mode(fled_dev, FLASHLIGHT_MODE_FLASH);
            flashlight_strobe(fled_dev);
-            break;
+	break;
         case 5: /* torch */
             /* set the torch brightness index 2 (75mA), refer to the datasheet for index current value. */
             flashlight_set_torch_brightness(fled_dev, 2);
