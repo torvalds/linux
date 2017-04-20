@@ -116,6 +116,10 @@ extern int radeon_mst;
 extern int radeon_uvd;
 extern int radeon_vce;
 
+#ifdef CONFIG_DRM_AMDGPU_CIK
+extern int radeon_cik_support;
+#endif
+
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
  * symbol;
