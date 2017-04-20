@@ -2165,9 +2165,24 @@ static void comedi_vm_close(struct vm_area_struct *area)
 	comedi_buf_map_put(bm);
 }
 
+static int comedi_vm_access(struct vm_area_struct *vma, unsigned long addr,
+			    void *buf, int len, int write)
+{
+	struct comedi_buf_map *bm = vma->vm_private_data;
+	unsigned long offset =
+	    addr - vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT);
+
+	if (len < 0)
+		return -EINVAL;
+	if (len > vma->vm_end - addr)
+		len = vma->vm_end - addr;
+	return comedi_buf_map_access(bm, offset, buf, len, write);
+}
+
 static const struct vm_operations_struct comedi_vm_ops = {
 	.open = comedi_vm_open,
 	.close = comedi_vm_close,
+	.access = comedi_vm_access,
 };
 
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
