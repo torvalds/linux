@@ -2006,7 +2006,7 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 		return;
 	case HID_DG_TOOLSERIALNUMBER:
 		wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFFULL);
-		wacom_wac->serial[0] |= value;
+		wacom_wac->serial[0] |= (__u32)value;
 		return;
 	case WACOM_HID_WD_SENSE:
 		wacom_wac->hid_data.sense_state = value;
@@ -2175,6 +2175,16 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 		wacom_wac->hid_data.cc_report = field->report->id;
 		wacom_wac->hid_data.cc_index = field->index;
 		wacom_wac->hid_data.cc_value_index = usage->usage_index;
+		break;
+	case HID_DG_CONTACTID:
+		if ((field->logical_maximum - field->logical_minimum) < touch_max) {
+			/*
+			 * The HID descriptor for G11 sensors leaves logical
+			 * maximum set to '1' despite it being a multitouch
+			 * device. Override to a sensible number.
+			 */
+			field->logical_maximum = 255;
+		}
 		break;
 	}
 }
