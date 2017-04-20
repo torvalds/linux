@@ -235,6 +235,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	struct nvm_target *t;
 	struct nvm_tgt_dev *tgt_dev;
 	void *targetdata;
+	int ret;
 
 	tt = nvm_find_target_type(create->tgttype, 1);
 	if (!tt) {
@@ -255,22 +256,29 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		return -ENOMEM;
 
 	t = kmalloc(sizeof(struct nvm_target), GFP_KERNEL);
-	if (!t)
+	if (!t) {
+		ret = -ENOMEM;
 		goto err_reserve;
+	}
 
 	tgt_dev = nvm_create_tgt_dev(dev, s->lun_begin, s->lun_end);
 	if (!tgt_dev) {
 		pr_err("nvm: could not create target device\n");
+		ret = -ENOMEM;
 		goto err_t;
 	}
 
 	tdisk = alloc_disk(0);
-	if (!tdisk)
+	if (!tdisk) {
+		ret = -ENOMEM;
 		goto err_dev;
+	}
 
 	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
-	if (!tqueue)
+	if (!tqueue) {
+		ret = -ENOMEM;
 		goto err_disk;
+	}
 	blk_queue_make_request(tqueue, tt->make_rq);
 
 	strlcpy(tdisk->disk_name, create->tgtname, sizeof(tdisk->disk_name));
@@ -281,8 +289,10 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	tdisk->queue = tqueue;
 
 	targetdata = tt->init(tgt_dev, tdisk, create->flags);
-	if (IS_ERR(targetdata))
+	if (IS_ERR(targetdata)) {
+		ret = PTR_ERR(targetdata);
 		goto err_init;
+	}
 
 	tdisk->private_data = targetdata;
 	tqueue->queuedata = targetdata;
@@ -292,8 +302,10 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	set_capacity(tdisk, tt->capacity(targetdata));
 	add_disk(tdisk);
 
-	if (tt->sysfs_init && tt->sysfs_init(tdisk))
+	if (tt->sysfs_init && tt->sysfs_init(tdisk)) {
+		ret = -ENOMEM;
 		goto err_sysfs;
+	}
 
 	t->type = tt;
 	t->disk = tdisk;
@@ -318,7 +330,7 @@ err_t:
 	kfree(t);
 err_reserve:
 	nvm_release_luns_err(dev, s->lun_begin, s->lun_end);
-	return -ENOMEM;
+	return ret;
 }
 
 static void __nvm_remove_target(struct nvm_target *t)
