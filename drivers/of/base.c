@@ -2487,6 +2487,20 @@ struct device_node *of_graph_get_endpoint_by_regs(
 EXPORT_SYMBOL(of_graph_get_endpoint_by_regs);
 
 /**
+ * of_graph_get_remote_endpoint() - get remote endpoint node
+ * @node: pointer to a local endpoint device_node
+ *
+ * Return: Remote endpoint node associated with remote endpoint node linked
+ *	   to @node. Use of_node_put() on it when done.
+ */
+struct device_node *of_graph_get_remote_endpoint(const struct device_node *node)
+{
+	/* Get remote endpoint node. */
+	return of_parse_phandle(node, "remote-endpoint", 0);
+}
+EXPORT_SYMBOL(of_graph_get_remote_endpoint);
+
+/**
  * of_graph_get_remote_port_parent() - get remote port's parent node
  * @node: pointer to a local endpoint device_node
  *
@@ -2500,7 +2514,7 @@ struct device_node *of_graph_get_remote_port_parent(
 	unsigned int depth;
 
 	/* Get remote endpoint node. */
-	np = of_parse_phandle(node, "remote-endpoint", 0);
+	np = of_graph_get_remote_endpoint(node);
 
 	/* Walk 3 levels up only if there is 'ports' node. */
 	for (depth = 3; depth && np; depth--) {
@@ -2524,7 +2538,7 @@ struct device_node *of_graph_get_remote_port(const struct device_node *node)
 	struct device_node *np;
 
 	/* Get remote endpoint node. */
-	np = of_parse_phandle(node, "remote-endpoint", 0);
+	np = of_graph_get_remote_endpoint(node);
 	if (!np)
 		return NULL;
 	return of_get_next_parent(np);
