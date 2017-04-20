@@ -1040,11 +1040,17 @@ uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 					    const struct ttm_place *place)
 {
-	if (bo->mem.mem_type == TTM_PL_VRAM &&
-	    bo->mem.start == AMDGPU_BO_INVALID_OFFSET) {
-		unsigned long num_pages = bo->mem.num_pages;
-		struct drm_mm_node *node = bo->mem.mm_node;
+	unsigned long num_pages = bo->mem.num_pages;
+	struct drm_mm_node *node = bo->mem.mm_node;
 
+	if (bo->mem.start != AMDGPU_BO_INVALID_OFFSET)
+		return ttm_bo_eviction_valuable(bo, place);
+
+	switch (bo->mem.mem_type) {
+	case TTM_PL_TT:
+		return true;
+
+	case TTM_PL_VRAM:
 		/* Check each drm MM node individually */
 		while (num_pages) {
 			if (place->fpfn < (node->start + node->size) &&
@@ -1054,8 +1060,10 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			num_pages -= node->size;
 			++node;
 		}
+		break;
 
-		return false;
+	default:
+		break;
 	}
 
 	return ttm_bo_eviction_valuable(bo, place);
