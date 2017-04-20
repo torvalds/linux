@@ -366,32 +366,6 @@ xfs_bmbt_to_bmdr(
 	memcpy(tpp, fpp, sizeof(*fpp) * dmxr);
 }
 
-/*
- * Check extent records, which have just been read, for
- * any bit in the extent flag field. ASSERT on debug
- * kernels, as this condition should not occur.
- * Return an error condition (1) if any flags found,
- * otherwise return 0.
- */
-
-int
-xfs_check_nostate_extents(
-	xfs_ifork_t		*ifp,
-	xfs_extnum_t		idx,
-	xfs_extnum_t		num)
-{
-	for (; num > 0; num--, idx++) {
-		xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, idx);
-		if ((ep->l0 >>
-		     (64 - BMBT_EXNTFLAG_BITLEN)) != 0) {
-			ASSERT(0);
-			return 1;
-		}
-	}
-	return 0;
-}
-
-
 STATIC struct xfs_btree_cur *
 xfs_bmbt_dup_cursor(
 	struct xfs_btree_cur	*cur)

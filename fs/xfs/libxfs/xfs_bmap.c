@@ -1231,7 +1231,6 @@ xfs_bmap_read_extents(
 	xfs_fsblock_t		bno;	/* block # of "block" */
 	xfs_buf_t		*bp;	/* buffer for "block" */
 	int			error;	/* error return value */
-	xfs_exntfmt_t		exntf;	/* XFS_EXTFMT_NOSTATE, if checking */
 	xfs_extnum_t		i, j;	/* index into the extents list */
 	xfs_ifork_t		*ifp;	/* fork structure */
 	int			level;	/* btree level, for checking */
@@ -1242,8 +1241,6 @@ xfs_bmap_read_extents(
 
 	mp = ip->i_mount;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
-	exntf = (whichfork != XFS_DATA_FORK) ? XFS_EXTFMT_NOSTATE :
-					XFS_EXTFMT_INODE(ip);
 	block = ifp->if_broot;
 	/*
 	 * Root level must use BMAP_BROOT_PTR_ADDR macro to get ptr out.
@@ -1311,18 +1308,9 @@ xfs_bmap_read_extents(
 			xfs_bmbt_rec_host_t *trp = xfs_iext_get_ext(ifp, i);
 			trp->l0 = be64_to_cpu(frp->l0);
 			trp->l1 = be64_to_cpu(frp->l1);
-		}
-		if (exntf == XFS_EXTFMT_NOSTATE) {
-			/*
-			 * Check all attribute bmap btree records and
-			 * any "older" data bmap btree records for a
-			 * set bit in the "extent flag" position.
-			 */
-			if (unlikely(xfs_check_nostate_extents(ifp,
-					start, num_recs))) {
+			if (!xfs_bmbt_validate_extent(mp, whichfork, trp)) {
 				XFS_ERROR_REPORT("xfs_bmap_read_extents(2)",
-						 XFS_ERRLEVEL_LOW,
-						 ip->i_mount);
+						 XFS_ERRLEVEL_LOW, mp);
 				goto error0;
 			}
 		}

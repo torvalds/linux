@@ -1576,14 +1576,6 @@ static inline xfs_filblks_t startblockval(xfs_fsblock_t x)
 }
 
 /*
- * Possible extent formats.
- */
-typedef enum {
-	XFS_EXTFMT_NOSTATE = 0,
-	XFS_EXTFMT_HASSTATE
-} xfs_exntfmt_t;
-
-/*
  * Possible extent states.
  */
 typedef enum {
