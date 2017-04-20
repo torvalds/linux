@@ -864,6 +864,8 @@ bool blk_mq_get_driver_tag(struct request *rq, struct blk_mq_hw_ctx **hctx,
 		.flags = wait ? 0 : BLK_MQ_REQ_NOWAIT,
 	};
 
+	might_sleep_if(wait);
+
 	if (rq->tag != -1)
 		goto done;
 
