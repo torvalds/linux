@@ -1354,10 +1354,8 @@ static int si5351_i2c_probe(struct i2c_client *client,
 		return -EINVAL;
 
 	drvdata = devm_kzalloc(&client->dev, sizeof(*drvdata), GFP_KERNEL);
-	if (drvdata == NULL) {
-		dev_err(&client->dev, "unable to allocate driver data\n");
+	if (!drvdata)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, drvdata);
 	drvdata->client = client;
