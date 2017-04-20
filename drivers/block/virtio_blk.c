@@ -111,7 +111,7 @@ static int virtblk_add_req_scsi(struct virtqueue *vq, struct virtblk_req *vbr,
 	return virtqueue_add_sgs(vq, sgs, num_out, num_in, vbr, GFP_ATOMIC);
 }
 
-static inline void virtblk_scsi_reques_done(struct request *req)
+static inline void virtblk_scsi_request_done(struct request *req)
 {
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
 	struct virtio_blk *vblk = req->q->queuedata;
@@ -144,7 +144,7 @@ static inline int virtblk_add_req_scsi(struct virtqueue *vq,
 {
 	return -EIO;
 }
-static inline void virtblk_scsi_reques_done(struct request *req)
+static inline void virtblk_scsi_request_done(struct request *req)
 {
 }
 #define virtblk_ioctl	NULL
@@ -180,7 +180,7 @@ static inline void virtblk_request_done(struct request *req)
 	switch (req_op(req)) {
 	case REQ_OP_SCSI_IN:
 	case REQ_OP_SCSI_OUT:
-		virtblk_scsi_reques_done(req);
+		virtblk_scsi_request_done(req);
 		break;
 	case REQ_OP_DRV_IN:
 		req->errors = (error != 0);
