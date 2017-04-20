@@ -536,8 +536,8 @@ static int max9611_probe(struct i2c_client *client,
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*max9611));
-	if (IS_ERR(indio_dev))
-		return PTR_ERR(indio_dev);
+	if (!indio_dev)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 
