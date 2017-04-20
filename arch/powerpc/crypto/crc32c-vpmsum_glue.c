@@ -33,10 +33,13 @@ static u32 crc32c_vpmsum(u32 crc, unsigned char const *p, size_t len)
 	}
 
 	if (len & ~VMX_ALIGN_MASK) {
+		preempt_disable();
 		pagefault_disable();
 		enable_kernel_altivec();
 		crc = __crc32c_vpmsum(crc, p, len & ~VMX_ALIGN_MASK);
+		disable_kernel_altivec();
 		pagefault_enable();
+		preempt_enable();
 	}
 
 	tail = len & VMX_ALIGN_MASK;

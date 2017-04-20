@@ -100,7 +100,7 @@ static u16 nvmet_get_smart_log(struct nvmet_req *req,
 	u16 status;
 
 	WARN_ON(req == NULL || slog == NULL);
-	if (req->cmd->get_log_page.nsid == 0xFFFFFFFF)
+	if (req->cmd->get_log_page.nsid == cpu_to_le32(0xFFFFFFFF))
 		status = nvmet_get_smart_log_all(req, slog);
 	else
 		status = nvmet_get_smart_log_nsid(req, slog);

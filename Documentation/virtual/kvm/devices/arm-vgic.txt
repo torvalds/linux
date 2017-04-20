@@ -83,6 +83,12 @@ Groups:
 
     Bits for undefined preemption levels are RAZ/WI.
 
+    For historical reasons and to provide ABI compatibility with userspace we
+    export the GICC_PMR register in the format of the GICH_VMCR.VMPriMask
+    field in the lower 5 bits of a word, meaning that userspace must always
+    use the lower 5 bits to communicate with the KVM device and must shift the
+    value left by 3 places to obtain the actual priority mask level.
+
   Limitations:
     - Priorities are not implemented, and registers are RAZ/WI
     - Currently only implemented for KVM_DEV_TYPE_ARM_VGIC_V2.

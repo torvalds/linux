@@ -2392,7 +2392,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_show(struct config_item *item,
 		char *page)
 {
 	return sprintf(page, "%d\n",
-		atomic_read(&to_tg_pt_gp(item)->tg_pt_gp_alua_access_state));
+		       to_tg_pt_gp(item)->tg_pt_gp_alua_access_state);
 }
 
 static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,

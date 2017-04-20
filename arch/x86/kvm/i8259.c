@@ -657,6 +657,9 @@ void kvm_pic_destroy(struct kvm *kvm)
 {
 	struct kvm_pic *vpic = kvm->arch.vpic;
 
+	if (!vpic)
+		return;
+
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_master);
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_slave);
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_eclr);

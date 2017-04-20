@@ -520,7 +520,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_hba *phba = ctxp->phba;
 	struct lpfc_iocbq *nvmewqeq;
 	unsigned long iflags;
-	int rc, id;
+	int rc;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (phba->ktime_on) {
@@ -530,7 +530,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 			ctxp->ts_nvme_data = ktime_get_ns();
 	}
 	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-		id = smp_processor_id();
+		int id = smp_processor_id();
 		ctxp->cpu = id;
 		if (id < LPFC_CHECK_CPU_CNT)
 			phba->cpucheck_xmt_io[id]++;

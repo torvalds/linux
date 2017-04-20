@@ -991,8 +991,12 @@ static void __init gic_map_single_int(struct device_node *node,
 
 static void __init gic_map_interrupts(struct device_node *node)
 {
+	gic_map_single_int(node, GIC_LOCAL_INT_WD);
+	gic_map_single_int(node, GIC_LOCAL_INT_COMPARE);
 	gic_map_single_int(node, GIC_LOCAL_INT_TIMER);
 	gic_map_single_int(node, GIC_LOCAL_INT_PERFCTR);
+	gic_map_single_int(node, GIC_LOCAL_INT_SWINT0);
+	gic_map_single_int(node, GIC_LOCAL_INT_SWINT1);
 	gic_map_single_int(node, GIC_LOCAL_INT_FDC);
 }
 

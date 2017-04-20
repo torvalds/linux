@@ -429,6 +429,13 @@ static const struct clk_div_table pll_divp_table[] = {
 	{ 0, 2 }, { 1, 4 }, { 2, 6 }, { 3, 8 }, { 0 }
 };
 
+static const struct clk_div_table pll_divq_table[] = {
+	{ 2, 2 }, { 3, 3 }, { 4, 4 }, { 5, 5 }, { 6, 6 }, { 7, 7 },
+	{ 8, 8 }, { 9, 9 }, { 10, 10 }, { 11, 11 }, { 12, 12 }, { 13, 13 },
+	{ 14, 14 }, { 15, 15 },
+	{ 0 }
+};
+
 static const struct clk_div_table pll_divr_table[] = {
 	{ 2, 2 }, { 3, 3 }, { 4, 4 }, { 5, 5 }, { 6, 6 }, { 7, 7 }, { 0 }
 };
@@ -496,9 +503,9 @@ struct stm32f4_div_data {
 
 #define MAX_PLL_DIV 3
 static const struct stm32f4_div_data  div_data[MAX_PLL_DIV] = {
-	{ 16, 2, 0,			pll_divp_table	},
-	{ 24, 4, CLK_DIVIDER_ONE_BASED, NULL		},
-	{ 28, 3, 0,			pll_divr_table	},
+	{ 16, 2, 0, pll_divp_table },
+	{ 24, 4, 0, pll_divq_table },
+	{ 28, 3, 0, pll_divr_table },
 };
 
 struct stm32f4_pll_data {

@@ -101,6 +101,7 @@ int aq_ring_init(struct aq_ring_s *self)
 	self->hw_head = 0;
 	self->sw_head = 0;
 	self->sw_tail = 0;
+	spin_lock_init(&self->header.lock);
 	return 0;
 }
 

@@ -670,15 +670,14 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 static struct intel_engine_cs *
 pt_lock_engine(struct i915_priotree *pt, struct intel_engine_cs *locked)
 {
-	struct intel_engine_cs *engine;
+	struct intel_engine_cs *engine =
+		container_of(pt, struct drm_i915_gem_request, priotree)->engine;
 
-	engine = container_of(pt,
-			      struct drm_i915_gem_request,
-			      priotree)->engine;
+	GEM_BUG_ON(!locked);
+
 	if (engine != locked) {
-		if (locked)
-			spin_unlock_irq(&locked->timeline->lock);
-		spin_lock_irq(&engine->timeline->lock);
+		spin_unlock(&locked->timeline->lock);
+		spin_lock(&engine->timeline->lock);
 	}
 
 	return engine;
@@ -686,7 +685,7 @@ pt_lock_engine(struct i915_priotree *pt, struct intel_engine_cs *locked)
 
 static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 {
-	struct intel_engine_cs *engine = NULL;
+	struct intel_engine_cs *engine;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
 	LIST_HEAD(dfs);
@@ -720,25 +719,22 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	list_for_each_entry_safe(dep, p, &dfs, dfs_link) {
 		struct i915_priotree *pt = dep->signaler;
 
-		list_for_each_entry(p, &pt->signalers_list, signal_link)
+		/* Within an engine, there can be no cycle, but we may
+		 * refer to the same dependency chain multiple times
+		 * (redundant dependencies are not eliminated) and across
+		 * engines.
+		 */
+		list_for_each_entry(p, &pt->signalers_list, signal_link) {
+			GEM_BUG_ON(p->signaler->priority < pt->priority);
 			if (prio > READ_ONCE(p->signaler->priority))
 				list_move_tail(&p->dfs_link, &dfs);
+		}
 
 		list_safe_reset_next(dep, p, dfs_link);
-		if (!RB_EMPTY_NODE(&pt->node))
-			continue;
-
-		engine = pt_lock_engine(pt, engine);
-
-		/* If it is not already in the rbtree, we can update the
-		 * priority inplace and skip over it (and its dependencies)
-		 * if it is referenced *again* as we descend the dfs.
-		 */
-		if (prio > pt->priority && RB_EMPTY_NODE(&pt->node)) {
-			pt->priority = prio;
-			list_del_init(&dep->dfs_link);
-		}
 	}
+
+	engine = request->engine;
+	spin_lock_irq(&engine->timeline->lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
@@ -751,16 +747,15 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 		if (prio <= pt->priority)
 			continue;
 
-		GEM_BUG_ON(RB_EMPTY_NODE(&pt->node));
-
 		pt->priority = prio;
-		rb_erase(&pt->node, &engine->execlist_queue);
-		if (insert_request(pt, &engine->execlist_queue))
-			engine->execlist_first = &pt->node;
+		if (!RB_EMPTY_NODE(&pt->node)) {
+			rb_erase(&pt->node, &engine->execlist_queue);
+			if (insert_request(pt, &engine->execlist_queue))
+				engine->execlist_first = &pt->node;
+		}
 	}
 
-	if (engine)
-		spin_unlock_irq(&engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline->lock);
 
 	/* XXX Do we need to preempt to make room for us and our deps? */
 }
@@ -1440,7 +1435,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	GEM_BUG_ON(request->ctx != port[0].request->ctx);
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
-	request->tail = request->wa_tail - WA_TAIL_DWORDS * sizeof(u32);
+	request->tail =
+		intel_ring_wrap(request->ring,
+				request->wa_tail - WA_TAIL_DWORDS*sizeof(u32));
 }
 
 static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)

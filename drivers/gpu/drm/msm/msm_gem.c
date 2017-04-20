@@ -812,6 +812,12 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 
 	size = PAGE_ALIGN(size);
 
+	/* Disallow zero sized objects as they make the underlying
+	 * infrastructure grumpy
+	 */
+	if (size == 0)
+		return ERR_PTR(-EINVAL);
+
 	ret = msm_gem_new_impl(dev, size, flags, NULL, &obj);
 	if (ret)
 		goto fail;

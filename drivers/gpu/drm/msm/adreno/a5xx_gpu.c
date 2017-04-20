@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -534,7 +534,7 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 	}
 
 	if (a5xx_gpu->gpmu_bo) {
-		if (a5xx_gpu->gpmu_bo)
+		if (a5xx_gpu->gpmu_iova)
 			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->id);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->gpmu_bo);
 	}
@@ -860,7 +860,9 @@ static const struct adreno_gpu_funcs funcs = {
 		.idle = a5xx_idle,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
+#ifdef CONFIG_DEBUG_FS
 		.show = a5xx_show,
+#endif
 	},
 	.get_timestamp = a5xx_get_timestamp,
 };

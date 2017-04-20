@@ -382,7 +382,8 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 				 unsigned int engine_mask);
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
-
+void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu);
 
 /* validating GM functions */
 #define vgpu_gmadr_is_aperture(vgpu, gmadr) \
@@ -449,6 +450,8 @@ struct intel_gvt_ops {
 				struct intel_vgpu_type *);
 	void (*vgpu_destroy)(struct intel_vgpu *);
 	void (*vgpu_reset)(struct intel_vgpu *);
+	void (*vgpu_activate)(struct intel_vgpu *);
+	void (*vgpu_deactivate)(struct intel_vgpu *);
 };
 
 

@@ -14,6 +14,7 @@
  * Copyright (C) 2015 - 2016 Cavium, Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of_address.h>
@@ -334,6 +335,49 @@ static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg,
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 
+#define PEM_RES_BASE		0x87e0c0000000UL
+#define PEM_NODE_MASK		GENMASK(45, 44)
+#define PEM_INDX_MASK		GENMASK(26, 24)
+#define PEM_MIN_DOM_IN_NODE	4
+#define PEM_MAX_DOM_IN_NODE	10
+
+static void thunder_pem_reserve_range(struct device *dev, int seg,
+				      struct resource *r)
+{
+	resource_size_t start = r->start, end = r->end;
+	struct resource *res;
+	const char *regionid;
+
+	regionid = kasprintf(GFP_KERNEL, "PEM RC:%d", seg);
+	if (!regionid)
+		return;
+
+	res = request_mem_region(start, end - start + 1, regionid);
+	if (res)
+		res->flags &= ~IORESOURCE_BUSY;
+	else
+		kfree(regionid);
+
+	dev_info(dev, "%pR %s reserved\n", r,
+		 res ? "has been" : "could not be");
+}
+
+static void thunder_pem_legacy_fw(struct acpi_pci_root *root,
+				 struct resource *res_pem)
+{
+	int node = acpi_get_node(root->device->handle);
+	int index;
+
+	if (node == NUMA_NO_NODE)
+		node = 0;
+
+	index = root->segment - PEM_MIN_DOM_IN_NODE;
+	index -= node * PEM_MAX_DOM_IN_NODE;
+	res_pem->start = PEM_RES_BASE | FIELD_PREP(PEM_NODE_MASK, node) |
+					FIELD_PREP(PEM_INDX_MASK, index);
+	res_pem->flags = IORESOURCE_MEM;
+}
+
 static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 {
 	struct device *dev = cfg->parent;
@@ -346,10 +390,24 @@ static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 	if (!res_pem)
 		return -ENOMEM;
 
-	ret = acpi_get_rc_resources(dev, "THRX0002", root->segment, res_pem);
+	ret = acpi_get_rc_resources(dev, "CAVA02B", root->segment, res_pem);
+
+	/*
+	 * If we fail to gather resources it means that we run with old
+	 * FW where we need to calculate PEM-specific resources manually.
+	 */
 	if (ret) {
-		dev_err(dev, "can't get rc base address\n");
-		return ret;
+		thunder_pem_legacy_fw(root, res_pem);
+		/*
+		 * Reserve 64K size PEM specific resources. The full 16M range
+		 * size is required for thunder_pem_init() call.
+		 */
+		res_pem->end = res_pem->start + SZ_64K - 1;
+		thunder_pem_reserve_range(dev, root->segment, res_pem);
+		res_pem->end = res_pem->start + SZ_16M - 1;
+
+		/* Reserve PCI configuration space as well. */
+		thunder_pem_reserve_range(dev, root->segment, &cfg->res);
 	}
 
 	return thunder_pem_init(dev, cfg, res_pem);
