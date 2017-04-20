@@ -102,6 +102,11 @@ enum hp_wmi_command {
 	HPWMI_ODM	= 0x03,
 };
 
+enum hp_wmi_hardware_mask {
+	HPWMI_DOCK_MASK		= 0x01,
+	HPWMI_TABLET_MASK	= 0x04,
+};
+
 #define BIOS_ARGS_INIT(write, ctype, size)				\
 	(struct bios_args)	{	.signature = 0x55434553,	\
 					.command = (write) ? 0x2 : 0x1,	\
@@ -271,7 +276,7 @@ static int hp_wmi_read_int(int query)
 	return val;
 }
 
-static int hp_wmi_dock_state(void)
+static int hp_wmi_hw_state(int mask)
 {
 	int state = hp_wmi_read_int(HPWMI_HARDWARE_QUERY);
 
@@ -279,16 +284,6 @@ static int hp_wmi_dock_state(void)
 		return state;
 
 	return state & 0x1;
-}
-
-static int hp_wmi_tablet_state(void)
-{
-	int state = hp_wmi_read_int(HPWMI_HARDWARE_QUERY);
-
-	if (state < 0)
-		return state;
-
-	return (state & 0x4) ? 1 : 0;
 }
 
 static int __init hp_wmi_bios_2008_later(void)
@@ -438,7 +433,7 @@ static ssize_t show_als(struct device *dev, struct device_attribute *attr,
 static ssize_t show_dock(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	int value = hp_wmi_dock_state();
+	int value = hp_wmi_hw_state(HPWMI_DOCK_MASK);
 	if (value < 0)
 		return -EINVAL;
 	return sprintf(buf, "%d\n", value);
@@ -447,7 +442,7 @@ static ssize_t show_dock(struct device *dev, struct device_attribute *attr,
 static ssize_t show_tablet(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	int value = hp_wmi_tablet_state();
+	int value = hp_wmi_hw_state(HPWMI_TABLET_MASK);
 	if (value < 0)
 		return -EINVAL;
 	return sprintf(buf, "%d\n", value);
@@ -550,10 +545,10 @@ static void hp_wmi_notify(u32 value, void *context)
 	case HPWMI_DOCK_EVENT:
 		if (test_bit(SW_DOCK, hp_wmi_input_dev->swbit))
 			input_report_switch(hp_wmi_input_dev, SW_DOCK,
-					    hp_wmi_dock_state());
+					    hp_wmi_hw_state(HPWMI_DOCK_MASK));
 		if (test_bit(SW_TABLET_MODE, hp_wmi_input_dev->swbit))
 			input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE,
-					    hp_wmi_tablet_state());
+					    hp_wmi_hw_state(HPWMI_TABLET_MASK));
 		input_sync(hp_wmi_input_dev);
 		break;
 	case HPWMI_PARK_HDD:
@@ -631,14 +626,14 @@ static int __init hp_wmi_input_setup(void)
 	__set_bit(EV_SW, hp_wmi_input_dev->evbit);
 
 	/* Dock */
-	val = hp_wmi_dock_state();
+	val = hp_wmi_hw_state(HPWMI_DOCK_MASK);
 	if (!(val < 0)) {
 		__set_bit(SW_DOCK, hp_wmi_input_dev->swbit);
 		input_report_switch(hp_wmi_input_dev, SW_DOCK, val);
 	}
 
 	/* Tablet mode */
-	val = hp_wmi_tablet_state();
+	val = hp_wmi_hw_state(HPWMI_TABLET_MASK);
 	if (!(val < 0)) {
 		__set_bit(SW_TABLET_MODE, hp_wmi_input_dev->swbit);
 		input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE, val);
@@ -932,10 +927,10 @@ static int hp_wmi_resume_handler(struct device *device)
 	if (hp_wmi_input_dev) {
 		if (test_bit(SW_DOCK, hp_wmi_input_dev->swbit))
 			input_report_switch(hp_wmi_input_dev, SW_DOCK,
-					    hp_wmi_dock_state());
+					    hp_wmi_hw_state(HPWMI_DOCK_MASK));
 		if (test_bit(SW_TABLET_MODE, hp_wmi_input_dev->swbit))
 			input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE,
-					    hp_wmi_tablet_state());
+					    hp_wmi_hw_state(HPWMI_TABLET_MASK));
 		input_sync(hp_wmi_input_dev);
 	}
 
