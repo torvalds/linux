@@ -433,7 +433,8 @@ enum ib_port_speed {
 	IB_SPEED_QDR	= 4,
 	IB_SPEED_FDR10	= 8,
 	IB_SPEED_FDR	= 16,
-	IB_SPEED_EDR	= 32
+	IB_SPEED_EDR	= 32,
+	IB_SPEED_HDR	= 64
 };
 
 /**
