@@ -2962,6 +2962,7 @@ static inline int sci_probe_earlyprintk(struct platform_device *pdev)
 
 static const char banner[] __initconst = "SuperH (H)SCI(F) driver initialized";
 
+static DEFINE_MUTEX(sci_uart_registration_lock);
 static struct uart_driver sci_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "sci",
@@ -3090,6 +3091,16 @@ static int sci_probe_single(struct platform_device *dev,
 		return -EINVAL;
 	}
 
+	mutex_lock(&sci_uart_registration_lock);
+	if (!sci_uart_driver.state) {
+		ret = uart_register_driver(&sci_uart_driver);
+		if (ret) {
+			mutex_unlock(&sci_uart_registration_lock);
+			return ret;
+		}
+	}
+	mutex_unlock(&sci_uart_registration_lock);
+
 	ret = sci_init_single(dev, sciport, index, p, false);
 	if (ret)
 		return ret;
@@ -3213,24 +3224,17 @@ static struct platform_driver sci_driver = {
 
 static int __init sci_init(void)
 {
-	int ret;
-
 	pr_info("%s\n", banner);
 
-	ret = uart_register_driver(&sci_uart_driver);
-	if (likely(ret == 0)) {
-		ret = platform_driver_register(&sci_driver);
-		if (unlikely(ret))
-			uart_unregister_driver(&sci_uart_driver);
-	}
-
-	return ret;
+	return platform_driver_register(&sci_driver);
 }
 
 static void __exit sci_exit(void)
 {
 	platform_driver_unregister(&sci_driver);
-	uart_unregister_driver(&sci_uart_driver);
+
+	if (sci_uart_driver.state)
+		uart_unregister_driver(&sci_uart_driver);
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
