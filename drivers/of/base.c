@@ -2559,6 +2559,18 @@ struct device_node *of_graph_get_remote_port(const struct device_node *node)
 }
 EXPORT_SYMBOL(of_graph_get_remote_port);
 
+int of_graph_get_endpoint_count(const struct device_node *np)
+{
+	struct device_node *endpoint;
+	int num = 0;
+
+	for_each_endpoint_of_node(np, endpoint)
+		num++;
+
+	return num;
+}
+EXPORT_SYMBOL(of_graph_get_endpoint_count);
+
 /**
  * of_graph_get_remote_node() - get remote parent device_node for given port/endpoint
  * @node: pointer to parent device_node containing graph port/endpoint
