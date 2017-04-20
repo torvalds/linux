@@ -601,8 +601,10 @@ static int vop_pre_init(struct rk_lcdc_driver *dev_drv)
 	vop_dev->aclk = devm_clk_get(vop_dev->dev, "aclk_lcdc");
 	vop_dev->dclk = devm_clk_get(vop_dev->dev, "dclk_lcdc");
 	if (IS_ERR(vop_dev->aclk) || IS_ERR(vop_dev->dclk) ||
-	    IS_ERR(vop_dev->hclk))
+	    IS_ERR(vop_dev->hclk)) {
 		dev_err(vop_dev->dev, "failed to get clk source\n");
+		return -1;
+	}
 	vop_dev->hclk_noc = devm_clk_get(vop_dev->dev, "hclk_vop_noc");
 	if (IS_ERR(vop_dev->hclk_noc)) {
 		vop_dev->hclk_noc = NULL;
@@ -2303,6 +2305,8 @@ static int vop_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
 
+	if (dev_drv->shutdown_flag)
+		return 0;
 	/* enable clk,when first layer open */
 	if ((open) && (!vop_dev->atv_layer_cnt)) {
 		/* rockchip_set_system_status(sys_status); */
@@ -2311,7 +2315,8 @@ static int vop_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			dev_warn(vop_dev->dev,
 				 "Timeout waiting for dmc when vop enable\n");
 		vop_dev->vop_switch_status = 1;
-		vop_pre_init(dev_drv);
+		if (vop_pre_init(dev_drv))
+			return -1;
 		vop_clk_enable(vop_dev);
 		vop_enable_irq(dev_drv);
 		if (dev_drv->iommu_enabled) {
@@ -5287,6 +5292,7 @@ static void vop_shutdown(struct platform_device *pdev)
 	struct rk_lcdc_driver *dev_drv = &vop_dev->driver;
 
 	dev_drv->suspend_flag = 1;
+	dev_drv->shutdown_flag = 1;
 	/* ensure suspend_flag take effect on multi process */
 	smp_wmb();
 	flush_kthread_worker(&dev_drv->update_regs_worker);
