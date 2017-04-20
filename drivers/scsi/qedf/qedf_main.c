@@ -2803,6 +2803,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		atomic_set(&qedf->num_offloads, 0);
 		qedf->stop_io_on_error = false;
 		pci_set_drvdata(pdev, qedf);
+		init_completion(&qedf->fipvlan_compl);
 
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "

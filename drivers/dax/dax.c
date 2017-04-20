@@ -25,6 +25,7 @@
 #include "dax.h"
 
 static dev_t dax_devt;
+DEFINE_STATIC_SRCU(dax_srcu);
 static struct class *dax_class;
 static DEFINE_IDA(dax_minor_ida);
 static int nr_dax = CONFIG_NR_DEV_DAX;
@@ -60,7 +61,7 @@ struct dax_region {
  * @region - parent region
  * @dev - device backing the character device
  * @cdev - core chardev data
- * @alive - !alive + rcu grace period == no new mappings can be established
+ * @alive - !alive + srcu grace period == no new mappings can be established
  * @id - child id in the region
  * @num_resources - number of physical address extents in this device
  * @res - array of physical address ranges
@@ -569,7 +570,7 @@ static int __dax_dev_pud_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 static int dax_dev_huge_fault(struct vm_fault *vmf,
 		enum page_entry_size pe_size)
 {
-	int rc;
+	int rc, id;
 	struct file *filp = vmf->vma->vm_file;
 	struct dax_dev *dax_dev = filp->private_data;
 
@@ -578,7 +579,7 @@ static int dax_dev_huge_fault(struct vm_fault *vmf,
 			? "write" : "read",
 			vmf->vma->vm_start, vmf->vma->vm_end);
 
-	rcu_read_lock();
+	id = srcu_read_lock(&dax_srcu);
 	switch (pe_size) {
 	case PE_SIZE_PTE:
 		rc = __dax_dev_pte_fault(dax_dev, vmf);
@@ -592,7 +593,7 @@ static int dax_dev_huge_fault(struct vm_fault *vmf,
 	default:
 		return VM_FAULT_FALLBACK;
 	}
-	rcu_read_unlock();
+	srcu_read_unlock(&dax_srcu, id);
 
 	return rc;
 }
@@ -713,11 +714,11 @@ static void unregister_dax_dev(void *dev)
 	 * Note, rcu is not protecting the liveness of dax_dev, rcu is
 	 * ensuring that any fault handlers that might have seen
 	 * dax_dev->alive == true, have completed.  Any fault handlers
-	 * that start after synchronize_rcu() has started will abort
+	 * that start after synchronize_srcu() has started will abort
 	 * upon seeing dax_dev->alive == false.
 	 */
 	dax_dev->alive = false;
-	synchronize_rcu();
+	synchronize_srcu(&dax_srcu);
 	unmap_mapping_range(dax_dev->inode->i_mapping, 0, 0, 1);
 	cdev_del(cdev);
 	device_unregister(dev);

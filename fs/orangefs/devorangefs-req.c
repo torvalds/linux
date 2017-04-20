@@ -208,14 +208,19 @@ restart:
 				continue;
 			/*
 			 * Skip ops whose filesystem we don't know about unless
-			 * it is being mounted.
+			 * it is being mounted or unmounted.  It is possible for
+			 * a filesystem we don't know about to be unmounted if
+			 * it fails to mount in the kernel after userspace has
+			 * been sent the mount request.
 			 */
 			/* XXX: is there a better way to detect this? */
 			} else if (ret == -1 &&
 				   !(op->upcall.type ==
 					ORANGEFS_VFS_OP_FS_MOUNT ||
 				     op->upcall.type ==
-					ORANGEFS_VFS_OP_GETATTR)) {
+					ORANGEFS_VFS_OP_GETATTR ||
+				     op->upcall.type ==
+					ORANGEFS_VFS_OP_FS_UMOUNT)) {
 				gossip_debug(GOSSIP_DEV_DEBUG,
 				    "orangefs: skipping op tag %llu %s\n",
 				    llu(op->tag), get_opname_string(op));
