@@ -375,12 +375,23 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip,
  */
 #define STACK_SKIP 4
 
+static __always_inline void trace_stack(struct trace_array *tr)
+{
+	unsigned long flags;
+	int pc;
+
+	local_save_flags(flags);
+	pc = preempt_count();
+
+	__trace_stack(tr, flags, STACK_SKIP, pc);
+}
+
 static void
 ftrace_stacktrace(unsigned long ip, unsigned long parent_ip,
 		  struct trace_array *tr, struct ftrace_probe_ops *ops,
 		  void *data)
 {
-	trace_dump_stack(STACK_SKIP);
+	trace_stack(tr);
 }
 
 static void
@@ -398,7 +409,7 @@ ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip,
 
 	/* unlimited? */
 	if (!mapper) {
-		trace_dump_stack(STACK_SKIP);
+		trace_stack(tr);
 		return;
 	}
 
@@ -417,7 +428,7 @@ ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip,
 		new_count = old_count - 1;
 		new_count = cmpxchg(count, old_count, new_count);
 		if (new_count == old_count)
-			trace_dump_stack(STACK_SKIP);
+			trace_stack(tr);
 
 		if (!tracing_is_on())
 			return;
