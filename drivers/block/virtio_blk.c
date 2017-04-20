@@ -119,7 +119,7 @@ static inline void virtblk_scsi_request_done(struct request *req)
 
 	sreq->resid_len = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.residual);
 	sreq->sense_len = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.sense_len);
-	req->errors = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.errors);
+	sreq->result = virtio32_to_cpu(vblk->vdev, vbr->in_hdr.errors);
 }
 
 static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,

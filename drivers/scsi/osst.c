@@ -327,7 +327,7 @@ static void osst_end_async(struct request *req, int update)
 	struct osst_tape *STp = SRpnt->stp;
 	struct rq_map_data *mdata = &SRpnt->stp->buffer->map_data;
 
-	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
+	STp->buffer->cmdstat.midlevel_result = SRpnt->result = rq->result;
 #if DEBUG
 	STp->write_pending = 0;
 #endif

@@ -262,11 +262,11 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	/*
 	 * fill in all the output members
 	 */
-	hdr->status = rq->errors & 0xff;
-	hdr->masked_status = status_byte(rq->errors);
-	hdr->msg_status = msg_byte(rq->errors);
-	hdr->host_status = host_byte(rq->errors);
-	hdr->driver_status = driver_byte(rq->errors);
+	hdr->status = req->result & 0xff;
+	hdr->masked_status = status_byte(req->result);
+	hdr->msg_status = msg_byte(req->result);
+	hdr->host_status = host_byte(req->result);
+	hdr->driver_status = driver_byte(req->result);
 	hdr->info = 0;
 	if (hdr->masked_status || hdr->host_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
@@ -509,7 +509,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 
 	blk_execute_rq(q, disk, rq, 0);
 
-	err = rq->errors & 0xff;	/* only 8 bit SCSI status */
+	err = req->result & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
 		if (req->sense_len && req->sense) {
 			bytes = (OMAX_SB_LEN > req->sense_len) ?
@@ -548,7 +548,7 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 	scsi_req(rq)->cmd[4] = data;
 	scsi_req(rq)->cmd_len = 6;
 	blk_execute_rq(q, bd_disk, rq, 0);
-	err = rq->errors ? -EIO : 0;
+	err = scsi_req(rq)->result ? -EIO : 0;
 	blk_put_request(rq);
 
 	return err;

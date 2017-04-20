@@ -1050,7 +1050,7 @@ static void pscsi_req_done(struct request *req, int uptodate)
 	struct se_cmd *cmd = req->end_io_data;
 	struct pscsi_plugin_task *pt = cmd->priv;
 
-	pt->pscsi_result = req->errors;
+	pt->pscsi_result = scsi_req(req)->result;
 	pt->pscsi_resid = scsi_req(req)->resid_len;
 
 	cmd->scsi_status = status_byte(pt->pscsi_result) << 1;

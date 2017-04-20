@@ -2219,7 +2219,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		bio = rq->bio;
 
 		blk_execute_rq(q, cdi->disk, rq, 0);
-		if (rq->errors) {
+		if (scsi_req(rq)->result) {
 			struct request_sense *s = req->sense;
 			ret = -EIO;
 			cdi->last_sense = s->sense_key;

@@ -1298,7 +1298,7 @@ sg_rq_end_io(struct request *rq, int uptodate)
 		pr_info("%s: device detaching\n", __func__);
 
 	sense = req->sense;
-	result = rq->errors;
+	result = req->result;
 	resid = req->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sdp,

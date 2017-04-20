@@ -184,7 +184,7 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 				blk_rq_bytes(req->next_rq);
 		handler = to_sas_internal(shost->transportt)->f->smp_handler;
 		ret = handler(shost, rphy, req);
-		req->errors = ret;
+		scsi_req(req)->result = ret;
 
 		blk_end_request_all(req, ret);
 
