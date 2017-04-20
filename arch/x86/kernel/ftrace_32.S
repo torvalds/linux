@@ -128,14 +128,14 @@ ENTRY(ftrace_regs_caller)
 	pushl	%edx
 	pushl	%ecx
 	pushl	%ebx
-#ifdef CC_USING_FENTRY
-	/* Load 4 off of the parent ip addr into ebp */
-	lea	14*4(%esp), %ebp
-#endif
 
 	movl	12*4(%esp), %eax		/* Load ip (1st parameter) */
 	subl	$MCOUNT_INSN_SIZE, %eax		/* Adjust ip */
+#ifdef CC_USING_FENTRY
+	movl	15*4(%esp), %edx		/* Load parent ip (2nd parameter) */
+#else
 	movl	0x4(%ebp), %edx			/* Load parent ip (2nd parameter) */
+#endif
 	movl	function_trace_op, %ecx		/* Save ftrace_pos in 3rd parameter */
 	pushl	%esp				/* Save pt_regs as 4th parameter */
 
