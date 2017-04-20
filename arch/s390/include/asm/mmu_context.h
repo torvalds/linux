@@ -28,6 +28,7 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.alloc_pgste = page_table_allocate_pgste;
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
+	mm->context.use_cmma = 0;
 #endif
 	switch (mm->context.asce_limit) {
 	case 1UL << 42:
