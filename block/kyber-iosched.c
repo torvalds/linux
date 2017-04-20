@@ -102,7 +102,7 @@ struct kyber_hctx_data {
 	atomic_t wait_index[KYBER_NUM_DOMAINS];
 };
 
-static unsigned int rq_sched_domain(const struct request *rq)
+static int rq_sched_domain(const struct request *rq)
 {
 	unsigned int op = rq->cmd_flags;
 

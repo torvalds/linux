@@ -19,7 +19,7 @@ struct blk_queue_stats {
 	bool enable_accounting;
 };
 
-unsigned int blk_stat_rq_ddir(const struct request *rq)
+int blk_stat_rq_ddir(const struct request *rq)
 {
 	return rq_data_dir(rq);
 }
@@ -104,6 +104,8 @@ void blk_stat_add(struct request *rq)
 	list_for_each_entry_rcu(cb, &q->stats->callbacks, list) {
 		if (blk_stat_is_active(cb)) {
 			bucket = cb->bucket_fn(rq);
+			if (bucket < 0)
+				continue;
 			stat = &this_cpu_ptr(cb->cpu_stat)[bucket];
 			__blk_stat_add(stat, value);
 		}
@@ -135,7 +137,7 @@ static void blk_stat_timer_fn(unsigned long data)
 
 struct blk_stat_callback *
 blk_stat_alloc_callback(void (*timer_fn)(struct blk_stat_callback *),
-			unsigned int (*bucket_fn)(const struct request *),
+			int (*bucket_fn)(const struct request *),
 			unsigned int buckets, void *data)
 {
 	struct blk_stat_callback *cb;
