@@ -810,6 +810,7 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	host->mmc_host_ops.start_signal_voltage_switch =
 		esdhc_signal_voltage_switch;
 	host->mmc_host_ops.execute_tuning = esdhc_execute_tuning;
+	host->tuning_delay = 1;
 
 	esdhc_init(pdev, host);
 
