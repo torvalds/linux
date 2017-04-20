@@ -50,6 +50,7 @@
 #include <dhd_bus.h>
 #include <dhd_proto.h>
 #include <dhd_config.h>
+#include <bcmsdbus.h>
 #include <dhd_dbg.h>
 #include <msgtrace.h>
 
@@ -673,9 +674,6 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		bcopy(&int_val, arg, val_size);
 		printf("cfg_msg_level=0x%x\n", wl_dbg_level);
 #endif
-#ifdef PKT_STATICS
-		dhdsdio_txpktstatics();
-#endif
 		break;
 
 	case IOV_SVAL(IOV_WLMSGLEVEL):
@@ -703,6 +701,9 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 	case IOV_GVAL(IOV_MSGLEVEL):
 		int_val = (int32)dhd_msg_level;
 		bcopy(&int_val, arg, val_size);
+#ifdef PKT_STATICS
+		dhdsdio_txpktstatics();
+#endif
 		break;
 
 	case IOV_SVAL(IOV_MSGLEVEL):
@@ -3126,6 +3127,7 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 	if (bcn_li_dtim == 0) {
 		bcn_li_dtim = 1;
 	}
+	bcn_li_dtim = MAX(dhd->suspend_bcn_li_dtim, bcn_li_dtim);
 #else /* ENABLE_MAX_DTIM_IN_SUSPEND */
 	/* attemp to use platform defined dtim skip interval */
 	bcn_li_dtim = dhd->suspend_bcn_li_dtim;

@@ -610,7 +610,7 @@ wl_iw_set_freq(
 	WL_ERROR(("%s: chan=%d\n", __FUNCTION__, chan));
 	chan = htod32(chan);
 	if ((error = dev_wlc_ioctl(dev, WLC_SET_CHANNEL, &chan, sizeof(chan)))) {
-		WL_ERROR(("%s: WLC_DISASSOC failed (%d).\n", __FUNCTION__, error));
+		WL_ERROR(("%s: WLC_SET_CHANNEL failed (%d).\n", __FUNCTION__, error));
 		return error;
 	}
 
@@ -1494,7 +1494,7 @@ wl_iw_get_scan(
 		// terence 20150419: limit the max. rssi to -2 or the bss will be filtered out in android OS
 		rssi = MIN(dtoh16(bi->RSSI), RSSI_MAXVAL);
 		channel = (bi->ctl_ch == 0) ? CHSPEC_CHANNEL(bi->chanspec) : bi->ctl_ch;
-		WL_SCAN(("%s: BSSID="MACSTR", channel=%d, RSSI=%d, merge broadcast SSID=\"%s\"\n",
+		WL_SCAN(("%s: BSSID="MACSTR", channel=%d, RSSI=%d, SSID=\"%s\"\n",
 		__FUNCTION__, MAC2STR(bi->BSSID.octet), channel, rssi, bi->SSID));
 
 		/* First entry must be the BSSID */
@@ -1628,7 +1628,7 @@ wl_iw_iscan_get_scan(
 			// terence 20150419: limit the max. rssi to -2 or the bss will be filtered out in android OS
 			rssi = MIN(dtoh16(bi->RSSI), RSSI_MAXVAL);
 			channel = (bi->ctl_ch == 0) ? CHSPEC_CHANNEL(bi->chanspec) : bi->ctl_ch;
-			WL_SCAN(("%s: BSSID="MACSTR", channel=%d, RSSI=%d, merge broadcast SSID=\"%s\"\n",
+			WL_SCAN(("%s: BSSID="MACSTR", channel=%d, RSSI=%d, SSID=\"%s\"\n",
 			__FUNCTION__, MAC2STR(bi->BSSID.octet), channel, rssi, bi->SSID));
 
 			/* First entry must be the BSSID */
@@ -3546,6 +3546,7 @@ int wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstat
 		goto done;
 
 	rssi = dtoh32(scb_val.val);
+	rssi = MIN(rssi, RSSI_MAXVAL);
 	WL_TRACE(("wl_iw_get_wireless_stats rssi=%d ****** \n", rssi));
 	if (rssi <= WL_IW_RSSI_NO_SIGNAL)
 		wstats->qual.qual = 0;
@@ -3878,7 +3879,6 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 	g_iscan = iscan;
 	iscan->dev = dev;
 	iscan->iscan_state = ISCAN_STATE_IDLE;
-
 
 	/* Set up the timer */
 	iscan->timer_ms    = 2000;

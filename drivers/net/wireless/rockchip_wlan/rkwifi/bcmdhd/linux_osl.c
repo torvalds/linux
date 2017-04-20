@@ -2615,10 +2615,13 @@ osl_sec_dma_free_consistent(osl_t *osh, void *va, uint size, dmaaddr_t pa)
 #include <linux/kallsyms.h>
 #include <net/sock.h>
 void
-osl_pkt_orphan_partial(struct sk_buff *skb)
+osl_pkt_orphan_partial(struct sk_buff *skb, int tsq)
 {
 	uint32 fraction;
 	static void *p_tcp_wfree = NULL;
+
+	if (tsq <= 0)
+		return;
 
 	if (!skb->destructor || skb->destructor == sock_wfree)
 		return;
@@ -2640,7 +2643,7 @@ osl_pkt_orphan_partial(struct sk_buff *skb)
 	 * sk_wmem_alloc to allow more skb can be allocated for this
 	 * socket for better cusion meeting WiFi device requirement
 	 */
-	fraction = skb->truesize * (TSQ_MULTIPLIER - 1) / TSQ_MULTIPLIER;
+	fraction = skb->truesize * (tsq - 1) / tsq;
 	skb->truesize -= fraction;
 	atomic_sub(fraction, &skb->sk->sk_wmem_alloc);
 }

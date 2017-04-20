@@ -51,22 +51,6 @@
 #include <linux/earlysuspend.h>
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND) */
 
-
-#if defined(CUSTOMER_HW)
-#define WLAN_PLAT_NODFS_FLAG    0x01
-#define WLAN_PLAT_AP_FLAG	0x02
-struct wifi_platform_data {
-	int (*set_power)(bool val);
-	int (*set_carddetect)(bool val);
-	void *(*mem_prealloc)(int section, unsigned long size);
-	int (*get_mac_addr)(unsigned char *buf);
-#if defined(CUSTOM_COUNTRY_CODE)
-	void *(*get_country_code)(char *ccode, u32 flags);
-#else /* defined (CUSTOM_COUNTRY_CODE) */
-	void *(*get_country_code)(char *ccode);
-#endif
-};
-#endif
 #define DHD_REGISTRATION_TIMEOUT  12000  /* msec : allowed time to finished dhd registration */
 
 typedef struct wifi_adapter_info {
@@ -80,7 +64,35 @@ typedef struct wifi_adapter_info {
 	uint		bus_type;
 	uint		bus_num;
 	uint		slot_num;
+#ifdef BUS_POWER_RESTORE
+#if defined(BCMSDIO)
+	struct sdio_func *sdio_func;
+#endif /* BCMSDIO */
+#if defined(BCMPCIE)
+	struct pci_dev *pci_dev;
+	struct pci_saved_state *pci_saved_state;
+#endif /* BCMPCIE */
+#endif
 } wifi_adapter_info_t;
+
+#define WLAN_PLAT_NODFS_FLAG    0x01
+#define WLAN_PLAT_AP_FLAG	0x02
+struct wifi_platform_data {
+#ifdef BUS_POWER_RESTORE
+	int (*set_power)(bool val, wifi_adapter_info_t *adapter);
+#else
+	int (*set_power)(bool val);
+#endif
+	int (*set_reset)(int val);
+	int (*set_carddetect)(bool val);
+	void *(*mem_prealloc)(int section, unsigned long size);
+	int (*get_mac_addr)(unsigned char *buf);
+#if defined(CUSTOM_COUNTRY_CODE)
+	void *(*get_country_code)(char *ccode, u32 flags);
+#else /* defined (CUSTOM_COUNTRY_CODE) */
+	void *(*get_country_code)(char *ccode);
+#endif
+};
 
 typedef struct bcmdhd_wifi_platdata {
 	uint				num_adapters;

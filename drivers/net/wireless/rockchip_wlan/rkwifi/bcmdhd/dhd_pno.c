@@ -477,12 +477,12 @@ _dhd_pno_set(dhd_pub_t *dhd, const dhd_pno_params_t *pno_params, dhd_pno_mode_t 
 
 
 #ifdef GSCAN_SUPPORT
-			if (mode == DHD_PNO_BATCH_MODE ||
-				((mode & DHD_PNO_GSCAN_MODE) && pno_params->params_gscan.mscan)) {
+	if (mode == DHD_PNO_BATCH_MODE ||
+		((mode & DHD_PNO_GSCAN_MODE) && pno_params->params_gscan.mscan))
 #else
-			if (mode == DHD_PNO_BATCH_MODE) {
+	if (mode == DHD_PNO_BATCH_MODE)
 #endif /* GSCAN_SUPPORT */
-
+	{
 		int _tmp = pfn_param.bestn;
 		/* set bestn to calculate the max mscan which firmware supports */
 		err = dhd_iovar(dhd, 0, "pfnmem", (char *)&_tmp, sizeof(_tmp), 1);
@@ -509,6 +509,7 @@ _dhd_pno_set(dhd_pub_t *dhd, const dhd_pno_params_t *pno_params, dhd_pno_mode_t 
 exit:
 	return err;
 }
+
 static int
 _dhd_pno_add_ssid(dhd_pub_t *dhd, wlc_ssid_ext_t* ssids_list, int nssid)
 {
@@ -560,12 +561,14 @@ _dhd_pno_add_ssid(dhd_pub_t *dhd, wlc_ssid_ext_t* ssids_list, int nssid)
 exit:
 	return err;
 }
+
 /* qsort compare function */
 static int
 _dhd_pno_cmpfunc(const void *a, const void *b)
 {
 	return (*(uint16*)a - *(uint16*)b);
 }
+
 static int
 _dhd_pno_chan_merge(uint16 *d_chan_list, int *nchan,
 	uint16 *chan_list1, int nchan1, uint16 *chan_list2, int nchan2)
@@ -601,6 +604,7 @@ _dhd_pno_chan_merge(uint16 *d_chan_list, int *nchan,
 	*nchan = k;
 	return err;
 }
+
 static int
 _dhd_pno_get_channels(dhd_pub_t *dhd, uint16 *d_chan_list,
 	int *nchan, uint8 band, bool skip_dfs)
@@ -649,6 +653,7 @@ _dhd_pno_get_channels(dhd_pub_t *dhd, uint16 *d_chan_list,
 exit:
 	return err;
 }
+
 static int
 _dhd_pno_convert_format(dhd_pub_t *dhd, struct dhd_pno_batch_params *params_batch,
 	char *buf, int nbufsize)
@@ -1172,10 +1177,11 @@ dhd_pno_set_for_ssid(dhd_pub_t *dhd, wlc_ssid_ext_t* ssid_list, int nssid,
 	/* If GSCAN is also ON will handle this down below */
 #ifdef GSCAN_SUPPORT
 	if (_pno_state->pno_mode & DHD_PNO_LEGACY_MODE &&
-		!(_pno_state->pno_mode & DHD_PNO_GSCAN_MODE)) {
+		!(_pno_state->pno_mode & DHD_PNO_GSCAN_MODE))
 #else
-		if (_pno_state->pno_mode & DHD_PNO_LEGACY_MODE) {
+	if (_pno_state->pno_mode & DHD_PNO_LEGACY_MODE)
 #endif /* GSCAN_SUPPORT */
+	{
 		DHD_ERROR(("%s : Legacy PNO mode was already started, "
 			"will disable previous one to start new one\n", __FUNCTION__));
 		err = dhd_pno_stop_for_ssid(dhd);
@@ -1319,6 +1325,7 @@ exit_no_clear:
 	}
 	return err;
 }
+
 int
 dhd_pno_set_for_batch(dhd_pub_t *dhd, struct dhd_pno_batch_params *batch_params)
 {
@@ -2823,10 +2830,11 @@ _dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 		goto exit_no_unlock;
 	}
 #ifdef GSCAN_SUPPORT
-	if (!(_pno_state->pno_mode & (DHD_PNO_BATCH_MODE | DHD_PNO_GSCAN_MODE))) {
+	if (!(_pno_state->pno_mode & (DHD_PNO_BATCH_MODE | DHD_PNO_GSCAN_MODE)))
 #else
-	if (!(_pno_state->pno_mode & DHD_PNO_BATCH_MODE)) {
+	if (!(_pno_state->pno_mode & DHD_PNO_BATCH_MODE))
 #endif /* GSCAN_SUPPORT */
+	{
 		DHD_ERROR(("%s: Batching SCAN mode is not enabled\n", __FUNCTION__));
 		goto exit_no_unlock;
 	}
@@ -3047,6 +3055,7 @@ exit_no_unlock:
 		complete(&_pno_state->get_batch_done);
 	return err;
 }
+
 static void
 _dhd_pno_get_batch_handler(struct work_struct *work)
 {

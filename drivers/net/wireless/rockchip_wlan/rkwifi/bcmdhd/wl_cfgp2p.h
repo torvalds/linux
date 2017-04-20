@@ -192,6 +192,18 @@ enum wl_cfgp2p_status {
 		add_timer(timer); \
 	} while (0);
 
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 0, 8))
+#ifdef WL_SUPPORT_BACKPORTED_KPATCHES
+#undef WL_SUPPORT_BACKPORTED_KPATCHES
+#endif
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0))
+#ifdef WL_CFG80211_STA_EVENT
+#undef WL_CFG80211_STA_EVENT
+#endif
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) && !defined(WL_CFG80211_P2P_DEV_IF)
 #define WL_CFG80211_P2P_DEV_IF
 

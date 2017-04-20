@@ -1034,6 +1034,7 @@ extern int 	dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
 extern void dhd_enable_packet_filter(int value, dhd_pub_t *dhd);
 extern int net_os_enable_packet_filter(struct net_device *dev, int val);
 extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
+extern int net_os_set_suspend_bcn_li_dtim(struct net_device *dev, int val);
 #endif /* PKT_FILTER_SUPPORT */
 
 extern int dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd);
@@ -1172,25 +1173,6 @@ extern int wl_iw_send_priv_event(struct net_device *dev, char *flag);
 extern uint dhd_watchdog_ms;
 extern bool dhd_os_wd_timer_enabled(void *bus);
 
-#ifdef PKT_STATICS
-typedef struct pkt_statics {
-	uint16	event_count;
-	uint32	event_size;
-	uint16	ctrl_count;
-	uint32	ctrl_size;
-	uint32	data_count;
-	uint32	data_size;
-	uint16	glom_1_count;
-	uint16	glom_3_count;
-	uint16	glom_3_8_count;
-	uint16	glom_8_count;
-	uint16	glom_count;
-	uint32	glom_size;
-	uint16	test_count;
-	uint32	test_size;
-} pkt_statics_t;
-#endif
-
 #ifdef DHD_PCIE_RUNTIMEPM
 extern uint dhd_runtimepm_ms;
 #endif /* DHD_PCIE_RUNTIMEPM */
@@ -1316,7 +1298,11 @@ extern uint dhd_force_tx_queueing;
 #define WIFI_TURNON_DELAY		DEFAULT_WIFI_TURNON_DELAY
 #endif /* WIFI_TURNON_DELAY */
 
+#ifdef BCMSDIO
 #define DEFAULT_DHD_WATCHDOG_INTERVAL_MS	10 /* msec */
+#else
+#define DEFAULT_DHD_WATCHDOG_INTERVAL_MS	0 /* msec */
+#endif
 #ifndef CUSTOM_DHD_WATCHDOG_MS
 #define CUSTOM_DHD_WATCHDOG_MS			DEFAULT_DHD_WATCHDOG_INTERVAL_MS
 #endif /* DEFAULT_DHD_WATCHDOG_INTERVAL_MS */

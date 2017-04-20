@@ -113,9 +113,12 @@ static int sdioh_probe(struct sdio_func *func)
 
 	sd_err(("bus num (host idx)=%d, slot num (rca)=%d\n", host_idx, rca));
 	adapter = dhd_wifi_platform_get_adapter(SDIO_BUS, host_idx, rca);
-	if (adapter  != NULL)
+	if (adapter != NULL) {
 		sd_err(("found adapter info '%s'\n", adapter->name));
-	else
+#ifdef BUS_POWER_RESTORE
+		adapter->sdio_func = func;
+#endif
+	} else
 		sd_err(("can't find adapter info for this chip\n"));
 
 #ifdef WL_CFG80211

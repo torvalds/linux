@@ -53,7 +53,7 @@
 #ifdef CUSTOM_MAX_TXGLOM_SIZE
 #define SDPCM_MAXGLOM_SIZE  CUSTOM_MAX_TXGLOM_SIZE
 #else
-#define SDPCM_MAXGLOM_SIZE	40
+#define SDPCM_MAXGLOM_SIZE	36
 #endif /* CUSTOM_MAX_TXGLOM_SIZE */
 
 #define SDPCM_TXGLOM_CPY 0			/* SDIO 2.0 should use copy mode */
@@ -69,6 +69,23 @@
 #warning "SDPCM_DEFGLOM_SIZE cannot be higher than SDPCM_MAXGLOM_SIZE!!"
 #undef SDPCM_DEFGLOM_SIZE
 #define SDPCM_DEFGLOM_SIZE SDPCM_MAXGLOM_SIZE
+#endif
+
+#ifdef PKT_STATICS
+typedef struct pkt_statics {
+	uint16	event_count;
+	uint32	event_size;
+	uint16	ctrl_count;
+	uint32	ctrl_size;
+	uint32	data_count;
+	uint32	data_size;
+	uint32	glom_cnt[SDPCM_MAXGLOM_SIZE];
+	uint16	glom_max;
+	uint16	glom_count;
+	uint32	glom_size;
+	uint16	test_count;
+	uint32	test_size;
+} pkt_statics_t;
 #endif
 
 typedef int SDIOH_API_RC;

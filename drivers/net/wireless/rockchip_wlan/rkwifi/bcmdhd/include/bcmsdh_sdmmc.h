@@ -36,6 +36,7 @@
 #define sd_debug(x)	do { if (sd_msglevel & SDH_DEBUG_VAL) printf x; } while (0)
 #define sd_data(x)	do { if (sd_msglevel & SDH_DATA_VAL) printf x; } while (0)
 #define sd_ctrl(x)	do { if (sd_msglevel & SDH_CTRL_VAL) printf x; } while (0)
+#define sd_cost(x)	do { if (sd_msglevel & SDH_COST_VAL) printf x; } while (0)
 
 #define sd_sync_dma(sd, read, nbytes)
 #define sd_init_dma(sd)
@@ -59,7 +60,7 @@
 /* private bus modes */
 #define SDIOH_MODE_SD4		2
 #define CLIENT_INTR			0x100	/* Get rid of this! */
-#define SDIOH_SDMMC_MAX_SG_ENTRIES	32
+#define SDIOH_SDMMC_MAX_SG_ENTRIES	SDPCM_MAXGLOM_SIZE
 
 #if defined(SWTXGLOM)
 typedef struct glom_buf {

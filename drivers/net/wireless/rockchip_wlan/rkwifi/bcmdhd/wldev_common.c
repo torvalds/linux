@@ -355,6 +355,7 @@ int wldev_get_datarate(struct net_device *dev, int *datarate)
 	return error;
 }
 
+#ifdef WL_CFG80211
 extern chanspec_t
 wl_chspec_driver_to_host(chanspec_t chanspec);
 #define WL_EXTRA_BUF_MAX 2048
@@ -406,6 +407,8 @@ int wldev_get_mode(
 	}
 	return error;
 }
+#endif
+
 int wldev_set_country(
 	struct net_device *dev, char *country_code, bool notify, bool user_enforced, int revinfo)
 {

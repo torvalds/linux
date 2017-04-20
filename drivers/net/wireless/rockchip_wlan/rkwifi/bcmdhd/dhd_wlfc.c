@@ -41,6 +41,7 @@
 #include <dhd_bus.h>
 
 #include <dhd_dbg.h>
+#include <dhd_config.h>
 
 #ifdef PROP_TXSTATUS /* a form of flow control between host and dongle */
 #include <wlfc_proto.h>
@@ -3538,7 +3539,7 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 
 	dhd_os_wlfc_block(dhd);
 	if (dhd->wlfc_enabled) {
-		DHD_INFO(("%s():%d, Already enabled!\n", __FUNCTION__, __LINE__));
+		DHD_ERROR(("%s():%d, Already enabled!\n", __FUNCTION__, __LINE__));
 		dhd_os_wlfc_unblock(dhd);
 		return BCME_OK;
 	}
@@ -3563,8 +3564,10 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 		Leaving the message for now, it should be removed after a while; once
 		the tlv situation is stable.
 		*/
-		DHD_INFO(("dhd_wlfc_init(): successfully %s bdcv2 tlv signaling, %d\n",
+		DHD_ERROR(("dhd_wlfc_init(): successfully %s bdcv2 tlv signaling, %d\n",
 			dhd->wlfc_enabled?"enabled":"disabled", tlv));
+		/* terence 20161229: enable ampdu_hostreorder if tlv enable hostreorder */
+		dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "ampdu_hostreorder", 1, 0, TRUE);
 	}
 
 	mode = 0;
@@ -3573,7 +3576,7 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 	ret = dhd_wl_ioctl_get_intiovar(dhd, "wlfc_mode", &fw_caps, WLC_GET_VAR, FALSE, 0);
 
 	if (!ret) {
-		DHD_INFO(("%s: query wlfc_mode succeed, fw_caps=0x%x\n", __FUNCTION__, fw_caps));
+		DHD_ERROR(("%s: query wlfc_mode succeed, fw_caps=0x%x\n", __FUNCTION__, fw_caps));
 
 		if (WLFC_IS_OLD_DEF(fw_caps)) {
 			/* enable proptxtstatus v2 by default */
@@ -3597,7 +3600,7 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 		}
 	}
 
-	DHD_INFO(("dhd_wlfc_init(): wlfc_mode=0x%x, ret=%d\n", dhd->wlfc_mode, ret));
+	DHD_ERROR(("dhd_wlfc_init(): wlfc_mode=0x%x, ret=%d\n", dhd->wlfc_mode, ret));
 
 	dhd_os_wlfc_unblock(dhd);
 
@@ -3639,6 +3642,8 @@ dhd_wlfc_hostreorder_init(dhd_pub_t *dhd)
 	dhd_os_wlfc_block(dhd);
 	dhd->proptxstatus_mode = WLFC_ONLY_AMPDU_HOSTREORDER;
 	dhd_os_wlfc_unblock(dhd);
+	/* terence 20161229: enable ampdu_hostreorder if tlv enable hostreorder */
+	dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "ampdu_hostreorder", 1, 0, TRUE);
 
 	return BCME_OK;
 }

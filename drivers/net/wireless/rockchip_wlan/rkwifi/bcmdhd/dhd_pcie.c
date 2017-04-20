@@ -813,7 +813,8 @@ dhdpcie_bus_remove_prep(dhd_bus_t *bus)
 	dhd_os_sdlock(bus->dhd);
 
 	dhdpcie_bus_intr_disable(bus);
-	if (!bus->dhd->dongle_isolation) {
+	// terence 20150406: fix for null pointer handle when doing remove driver
+	if (!bus->dhd->dongle_isolation && bus->sih) {
 		pcie_watchdog_reset(bus->osh, bus->sih, (sbpcieregs_t *)(bus->regs));
 	}
 
@@ -2086,7 +2087,7 @@ dhdpcie_bus_membytes(dhd_bus_t *bus, bool write, ulong address, uint8 *data, uin
 	dsize = sizeof(uint64);
 
 	/* Do the transfer(s) */
-	DHD_INFO(("%s: %s %d bytes in window 0x%08x\n",
+	DHD_INFO(("%s: %s %d bytes in window 0x%08lx\n",
 	          __FUNCTION__, (write ? "write" : "read"), size, address));
 	if (write) {
 		while (size) {
@@ -2180,7 +2181,7 @@ dhd_bus_schedule_queue(struct dhd_bus  *bus, uint16 flow_id, bool txs)
 		}
 
 		while ((txp = dhd_flow_queue_dequeue(bus->dhd, queue)) != NULL) {
-			PKTORPHAN(txp);
+			PKTORPHAN(txp, bus->dhd->conf->tsq);
 
 			/*
 			 * Modifying the packet length caused P2P cert failures.
@@ -3732,6 +3733,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 	unsigned long flags;
 	int rc = 0;
 
+	printf("%s: state=%d\n", __FUNCTION__, state);
 	if (bus->dhd == NULL) {
 		DHD_ERROR(("%s: bus not inited\n", __FUNCTION__));
 		return BCME_ERROR;

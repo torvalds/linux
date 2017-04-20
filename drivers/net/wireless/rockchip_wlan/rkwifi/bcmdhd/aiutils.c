@@ -357,7 +357,7 @@ ai_scan(si_t *sih, void *regs, uint devid)
 		sii->numcores++;
 	}
 
-	SI_ERROR(("Reached end of erom without finding END"));
+	SI_ERROR(("Reached end of erom without finding END\n"));
 
 error:
 	sii->numcores = 0;

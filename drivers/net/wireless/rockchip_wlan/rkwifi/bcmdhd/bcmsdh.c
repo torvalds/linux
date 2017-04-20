@@ -392,7 +392,7 @@ bcmsdh_reg_read(void *sdh, uint32 addr, uint size)
 	SDIOH_API_RC status;
 	uint32 word = 0;
 
-	BCMSDH_INFO(("%s:fun = 1, addr = 0x%x, ", __FUNCTION__, addr));
+	BCMSDH_INFO(("%s:fun = 1, addr = 0x%x\n", __FUNCTION__, addr));
 
 	if (!bcmsdh)
 		bcmsdh = l_bcmsdh;

@@ -493,6 +493,9 @@ dhdpcie_bus_unregister(void)
 int __devinit
 dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+#ifdef BUS_POWER_RESTORE
+	wifi_adapter_info_t *adapter = NULL;
+#endif
 
 	if (dhdpcie_chipmatch (pdev->vendor, pdev->device)) {
 		DHD_ERROR(("%s: chipmatch failed!!\n", __FUNCTION__));
@@ -511,6 +514,14 @@ dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* disable async suspend */
 	device_disable_async_suspend(&pdev->dev);
 #endif /* BCMPCIE_DISABLE_ASYNC_SUSPEND */
+
+#ifdef BUS_POWER_RESTORE
+	adapter = dhd_wifi_platform_get_adapter(PCI_BUS, pdev->bus->number,
+						PCI_SLOT(pdev->devfn));
+
+	if (adapter != NULL)
+		adapter->pci_dev = pdev;
+#endif
 
 	DHD_TRACE(("%s: PCIe Enumeration done!!\n", __FUNCTION__));
 	return 0;
@@ -599,12 +610,14 @@ dhdpcie_request_irq(dhdpcie_info_t *dhdpcie_info)
 {
 	dhd_bus_t *bus = dhdpcie_info->bus;
 	struct pci_dev *pdev = dhdpcie_info->bus->dev;
+	int err = 0;
 
 	if (!bus->irq_registered) {
 		snprintf(dhdpcie_info->pciname, sizeof(dhdpcie_info->pciname),
 		    "dhdpcie:%s", pci_name(pdev));
-		if (request_irq(pdev->irq, dhdpcie_isr, IRQF_SHARED,
-			dhdpcie_info->pciname, bus) < 0) {
+		err = request_irq(pdev->irq, dhdpcie_isr, IRQF_SHARED,
+			dhdpcie_info->pciname, bus);
+		if (err) {
 			DHD_ERROR(("%s: request_irq() failed\n", __FUNCTION__));
 			return -1;
 		} else {
@@ -1397,9 +1410,9 @@ int dhdpcie_oob_intr_register(dhd_bus_t *bus)
 	}
 
 	if (dhdpcie_osinfo->oob_irq_num > 0) {
-		DHD_INFO_HW4(("%s OOB irq=%d flags=%X \n", __FUNCTION__,
+		printf("%s OOB irq=%d flags=0x%X\n", __FUNCTION__,
 			(int)dhdpcie_osinfo->oob_irq_num,
-			(int)dhdpcie_osinfo->oob_irq_flags));
+			(int)dhdpcie_osinfo->oob_irq_flags);
 		err = request_irq(dhdpcie_osinfo->oob_irq_num, wlan_oob_irq,
 			dhdpcie_osinfo->oob_irq_flags, "dhdpcie_host_wake",
 			bus);
@@ -1408,10 +1421,17 @@ int dhdpcie_oob_intr_register(dhd_bus_t *bus)
 				__FUNCTION__, err));
 			return err;
 		}
+#if defined(DISABLE_WOWLAN)
+		printf("%s: disable_irq_wake\n", __FUNCTION__);
+		dhdpcie_osinfo->oob_irq_wake_enabled = FALSE;
+#else
+		printf("%s: enable_irq_wake\n", __FUNCTION__);
 		err = enable_irq_wake(dhdpcie_osinfo->oob_irq_num);
 		if (!err) {
 			dhdpcie_osinfo->oob_irq_wake_enabled = TRUE;
-		}
+		} else
+			printf("%s: enable_irq_wake failed with %d\n", __FUNCTION__, err);
+#endif
 		dhdpcie_osinfo->oob_irq_enabled = TRUE;
 	}
 
