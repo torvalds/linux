@@ -111,6 +111,8 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 			hwmgr->feature_mask & PP_SOCCLK_DPM_MASK ? false : true;
 	data->registry_data.mclk_dpm_key_disabled =
 			hwmgr->feature_mask & PP_MCLK_DPM_MASK ? false : true;
+	data->registry_data.pcie_dpm_key_disabled =
+			hwmgr->feature_mask & PP_PCIE_DPM_MASK ? false : true;
 
 	data->registry_data.dcefclk_dpm_key_disabled =
 			hwmgr->feature_mask & PP_DCEFCLK_DPM_MASK ? false : true;
@@ -121,7 +123,6 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 		data->registry_data.enable_tdc_limit_feature = 1;
 	}
 
-	data->registry_data.pcie_dpm_key_disabled = 1;
 	data->registry_data.disable_water_mark = 0;
 
 	data->registry_data.fan_control_support = 1;
