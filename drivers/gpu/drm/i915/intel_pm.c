@@ -913,6 +913,11 @@ static int g4x_tlb_miss_wa(int fifo_size, int width, int cpp)
 static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
 				const struct g4x_wm_values *wm)
 {
+	enum pipe pipe;
+
+	for_each_pipe(dev_priv, pipe)
+		trace_g4x_wm(intel_get_crtc_for_pipe(dev_priv, pipe), wm);
+
 	I915_WRITE(DSPFW1,
 		   FW_WM(wm->sr.plane, SR) |
 		   FW_WM(wm->pipe[PIPE_B].plane[PLANE_CURSOR], CURSORB) |
