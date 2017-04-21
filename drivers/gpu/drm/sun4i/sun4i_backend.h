@@ -151,6 +151,8 @@ struct sun4i_backend {
 	struct clk		*sat_clk;
 	struct reset_control	*sat_reset;
 
+	int			id;
+
 	/* Backend list management */
 	struct list_head	list;
 };

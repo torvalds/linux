@@ -20,6 +20,7 @@
 
 #include <linux/component.h>
 #include <linux/list.h>
+#include <linux/of_graph.h>
 #include <linux/reset.h>
 
 #include "sun4i_backend.h"
@@ -289,6 +290,45 @@ static int sun4i_backend_free_sat(struct device *dev) {
 	return 0;
 }
 
+/*
+ * The display backend can take video output from the display frontend, or
+ * the display enhancement unit on the A80, as input for one it its layers.
+ * This relationship within the display pipeline is encoded in the device
+ * tree with of_graph, and we use it here to figure out which backend, if
+ * there are 2 or more, we are currently probing. The number would be in
+ * the "reg" property of the upstream output port endpoint.
+ */
+static int sun4i_backend_of_get_id(struct device_node *node)
+{
+	struct device_node *port, *ep;
+	int ret = -EINVAL;
+
+	/* input is port 0 */
+	port = of_graph_get_port_by_id(node, 0);
+	if (!port)
+		return -EINVAL;
+
+	/* try finding an upstream endpoint */
+	for_each_available_child_of_node(port, ep) {
+		struct device_node *remote;
+		u32 reg;
+
+		remote = of_parse_phandle(ep, "remote-endpoint", 0);
+		if (!remote)
+			continue;
+
+		ret = of_property_read_u32(remote, "reg", &reg);
+		if (ret)
+			continue;
+
+		ret = reg;
+	}
+
+	of_node_put(port);
+
+	return ret;
+}
+
 static struct regmap_config sun4i_backend_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
@@ -311,6 +351,10 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	if (!backend)
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);
+
+	backend->id = sun4i_backend_of_get_id(dev->of_node);
+	if (backend->id < 0)
+		return backend->id;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
