@@ -454,13 +454,6 @@ static void vlv_get_fifo_size(struct intel_crtc_state *crtc_state)
 	fifo_state->plane[PLANE_SPRITE0] = sprite1_start - sprite0_start;
 	fifo_state->plane[PLANE_SPRITE1] = 511 - sprite1_start;
 	fifo_state->plane[PLANE_CURSOR] = 63;
-
-	DRM_DEBUG_KMS("Pipe %c FIFO size: %d/%d/%d/%d\n",
-		      pipe_name(pipe),
-		      fifo_state->plane[PLANE_PRIMARY],
-		      fifo_state->plane[PLANE_SPRITE0],
-		      fifo_state->plane[PLANE_SPRITE1],
-		      fifo_state->plane[PLANE_CURSOR]);
 }
 
 static int i9xx_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
