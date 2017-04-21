@@ -136,11 +136,14 @@ struct phm_vce_arbiter {
 
 struct phm_gfx_arbiter {
 	uint32_t sclk;
+	uint32_t sclk_hard_min;
 	uint32_t mclk;
 	uint32_t sclk_over_drive;
 	uint32_t mclk_over_drive;
 	uint32_t sclk_threshold;
 	uint32_t num_cus;
+	uint32_t gfxclk;
+	uint32_t fclk;
 };
 
 /* Entries in the master tables */
