@@ -2420,25 +2420,25 @@ static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
 	uint32_t domain;
 	int r;
 
-       if (!bo->shadow)
-               return 0;
+	if (!bo->shadow)
+		return 0;
 
-       r = amdgpu_bo_reserve(bo, false);
-       if (r)
-               return r;
-       domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
-       /* if bo has been evicted, then no need to recover */
-       if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
-               r = amdgpu_bo_restore_from_shadow(adev, ring, bo,
+	r = amdgpu_bo_reserve(bo, false);
+	if (r)
+		return r;
+	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
+	/* if bo has been evicted, then no need to recover */
+	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
+		r = amdgpu_bo_restore_from_shadow(adev, ring, bo,
 						 NULL, fence, true);
-               if (r) {
-                       DRM_ERROR("recover page table failed!\n");
-                       goto err;
-               }
-       }
+		if (r) {
+			DRM_ERROR("recover page table failed!\n");
+			goto err;
+		}
+	}
 err:
-       amdgpu_bo_unreserve(bo);
-       return r;
+	amdgpu_bo_unreserve(bo);
+	return r;
 }
 
 /**
