@@ -123,11 +123,12 @@ static void rain_irq_work_handler(struct work_struct *work)
 		char data;
 
 		spin_lock_irqsave(&rain->buf_lock, flags);
-		exit_loop = rain->buf_len == 0;
 		if (rain->buf_len) {
 			data = rain->buf[rain->buf_rd_idx];
 			rain->buf_len--;
 			rain->buf_rd_idx = (rain->buf_rd_idx + 1) & 0xff;
+		} else {
+			exit_loop = true;
 		}
 		spin_unlock_irqrestore(&rain->buf_lock, flags);
 
