@@ -74,6 +74,7 @@
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/workqueue.h>
+#include <linux/if_vlan.h>
 
 #include "ibmvnic.h"
 
@@ -1105,7 +1106,15 @@ restart_poll:
 		skb = rx_buff->skb;
 		skb_copy_to_linear_data(skb, rx_buff->data + offset,
 					length);
-		skb->vlan_tci = be16_to_cpu(next->rx_comp.vlan_tci);
+
+		/* VLAN Header has been stripped by the system firmware and
+		 * needs to be inserted by the driver
+		 */
+		if (adapter->rx_vlan_header_insertion &&
+		    (flags & IBMVNIC_VLAN_STRIPPED))
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       ntohs(next->rx_comp.vlan_tci));
+
 		/* free the entry */
 		next->rx_comp.first = 0;
 		remove_buff_from_pool(adapter, rx_buff);
@@ -2170,6 +2179,10 @@ static void send_cap_queries(struct ibmvnic_adapter *adapter)
 	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
+	crq.query_capability.capability = cpu_to_be16(RX_VLAN_HEADER_INSERTION);
+	atomic_inc(&adapter->running_cap_crqs);
+	ibmvnic_send_crq(adapter, &crq);
+
 	crq.query_capability.capability = cpu_to_be16(MAX_TX_SG_ENTRIES);
 	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
@@ -2718,6 +2731,12 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 			netdev->features |= NETIF_F_HW_VLAN_STAG_TX;
 		netdev_dbg(netdev, "vlan_header_insertion = %lld\n",
 			   adapter->vlan_header_insertion);
+		break;
+	case RX_VLAN_HEADER_INSERTION:
+		adapter->rx_vlan_header_insertion =
+		    be64_to_cpu(crq->query_capability.number);
+		netdev_dbg(netdev, "rx_vlan_header_insertion = %lld\n",
+			   adapter->rx_vlan_header_insertion);
 		break;
 	case MAX_TX_SG_ENTRIES:
 		adapter->max_tx_sg_entries =
