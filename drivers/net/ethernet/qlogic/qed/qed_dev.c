@@ -183,7 +183,7 @@ void qed_resc_free(struct qed_dev *cdev)
 		}
 		qed_iov_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
-		qed_dcbx_info_free(p_hwfn, p_hwfn->p_dcbx_info);
+		qed_dcbx_info_free(p_hwfn);
 	}
 }
 
