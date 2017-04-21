@@ -483,7 +483,7 @@ static void nvme_nvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
 
-	rqd->ppa_status = nvme_req(rq)->result.u64;
+	rqd->ppa_status = le64_to_cpu(nvme_req(rq)->result.u64);
 	rqd->error = nvme_req(rq)->status;
 	nvm_end_io(rqd);
 
