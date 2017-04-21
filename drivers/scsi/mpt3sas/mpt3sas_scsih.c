@@ -8298,7 +8298,6 @@ static void scsih_remove(struct pci_dev *pdev)
 	}
 
 	sas_remove_host(shost);
-	scsi_remove_host(shost);
 	mpt3sas_base_detach(ioc);
 	spin_lock(&gioc_lock);
 	list_del(&ioc->list);
