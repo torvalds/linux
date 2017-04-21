@@ -736,7 +736,7 @@ static struct flash_info dataflash_data[] = {
 
 static struct flash_info *jedec_probe(struct spi_device *spi)
 {
-	int ret, i;
+	int ret;
 	u8 code = OP_READ_ID;
 	u8 id[3];
 	u32 jedec;
@@ -767,9 +767,9 @@ static struct flash_info *jedec_probe(struct spi_device *spi)
 	jedec = jedec << 8;
 	jedec |= id[2];
 
-	for (i = 0, info = dataflash_data;
-			i < ARRAY_SIZE(dataflash_data);
-			i++, info++) {
+	for (info = dataflash_data;
+	     info < dataflash_data + ARRAY_SIZE(dataflash_data);
+	     info++) {
 		if (info->jedec_id == jedec) {
 			dev_dbg(&spi->dev, "OTP, sector protect%s\n",
 				(info->flags & SUP_POW2PS) ?
