@@ -419,6 +419,8 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	/* take care of lazy register loading */
 	save_fpu_regs();
 	save_access_regs(vcpu->run->s.regs.acrs);
+	if (MACHINE_HAS_GS && vcpu->arch.gs_enabled)
+		save_gs_cb(current->thread.gs_cb);
 
 	/* Extended save area */
 	rc = read_guest_lc(vcpu, __LC_MCESAD, &ext_sa_addr,

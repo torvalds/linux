@@ -198,18 +198,25 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int __skey_check_enable(struct kvm_vcpu *vcpu)
+int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 {
 	int rc = 0;
+	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
 
 	trace_kvm_s390_skey_related_inst(vcpu);
-	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
+	if (!(sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)) &&
+	    !(atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS))
 		return rc;
 
 	rc = s390_enable_skey();
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
-	if (!rc)
-		vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
+	if (!rc) {
+		if (atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS)
+			atomic_andnot(CPUSTAT_KSS, &sie_block->cpuflags);
+		else
+			sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE |
+					     ICTL_RRBE);
+	}
 	return rc;
 }
 
@@ -218,7 +225,7 @@ static int try_handle_skey(struct kvm_vcpu *vcpu)
 	int rc;
 
 	vcpu->stat.instruction_storage_key++;
-	rc = __skey_check_enable(vcpu);
+	rc = kvm_s390_skey_check_enable(vcpu);
 	if (rc)
 		return rc;
 	if (sclp.has_skey) {
@@ -916,7 +923,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		}
 
 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK) {
-			int rc = __skey_check_enable(vcpu);
+			int rc = kvm_s390_skey_check_enable(vcpu);
 
 			if (rc)
 				return rc;

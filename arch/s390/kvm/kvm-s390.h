@@ -254,6 +254,7 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
+int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu);
 
 /* implemented in vsie.c */
 int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
