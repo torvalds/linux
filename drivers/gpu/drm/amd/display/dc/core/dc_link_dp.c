@@ -1951,14 +1951,33 @@ static void get_active_converter_info(
 			link->dpcd_caps.dongle_type =
 				DISPLAY_DONGLE_DP_HDMI_CONVERTER;
 
+			link->dpcd_caps.dongle_caps.dongle_type = link->dpcd_caps.dongle_type;
 			if (ds_port.fields.DETAILED_CAPS) {
 
 				union dwnstream_port_caps_byte3_hdmi
 					hdmi_caps = {.raw = det_caps[3] };
+				union dwnstream_port_caps_byte1
+					hdmi_color_caps = {.raw = det_caps[2] };
+				link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk =
+					det_caps[1] * 25000;
 
-				link->dpcd_caps.is_dp_hdmi_s3d_converter =
+				link->dpcd_caps.dongle_caps.is_dp_hdmi_s3d_converter =
 					hdmi_caps.bits.FRAME_SEQ_TO_FRAME_PACK;
+				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_pass_through =
+					hdmi_caps.bits.YCrCr422_PASS_THROUGH;
+				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_pass_through =
+					hdmi_caps.bits.YCrCr420_PASS_THROUGH;
+				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_converter =
+					hdmi_caps.bits.YCrCr422_CONVERSION;
+				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_converter =
+					hdmi_caps.bits.YCrCr420_CONVERSION;
+
+				link->dpcd_caps.dongle_caps.dp_hdmi_max_bpc =
+					hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT;
+
+				link->dpcd_caps.dongle_caps.extendedCapValid = true;
 			}
+
 			break;
 		}
 	}

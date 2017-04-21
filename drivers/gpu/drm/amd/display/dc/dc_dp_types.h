@@ -255,7 +255,7 @@ enum dpcd_downstream_port_detailed_type {
 	DOWN_STREAM_DETAILED_DP_PLUS_PLUS
 };
 
-union dwnstream_port_caps_byte2 {
+union dwnstream_port_caps_byte1 {
 	struct {
 		uint8_t MAX_BITS_PER_COLOR_COMPONENT:2;
 		uint8_t RESERVED:6;
@@ -287,7 +287,11 @@ union dwnstream_port_caps_byte3_dvi {
 union dwnstream_port_caps_byte3_hdmi {
 	struct {
 		uint8_t FRAME_SEQ_TO_FRAME_PACK:1;
-		uint8_t RESERVED:7;
+		uint8_t YCrCr422_PASS_THROUGH:1;
+		uint8_t YCrCr420_PASS_THROUGH:1;
+		uint8_t YCrCr422_CONVERSION:1;
+		uint8_t YCrCr420_CONVERSION:1;
+		uint8_t RESERVED:3;
 	} bits;
 	uint8_t raw;
 };

@@ -623,7 +623,7 @@ struct dpcd_caps {
 	union sink_count sink_count;
 	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
 	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
-	bool is_dp_hdmi_s3d_converter;
+	struct dc_dongle_caps dongle_caps;
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;

@@ -338,6 +338,26 @@ enum {
 	LAYER_INDEX_PRIMARY = -1,
 };
 
+enum dpcd_downstream_port_max_bpc {
+	DOWN_STREAM_MAX_8BPC = 0,
+	DOWN_STREAM_MAX_10BPC,
+	DOWN_STREAM_MAX_12BPC,
+	DOWN_STREAM_MAX_16BPC
+};
+struct dc_dongle_caps {
+	/* dongle type (DP converter, CV smart dongle) */
+	enum display_dongle_type dongle_type;
+	bool extendedCapValid;
+	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
+	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
+	bool is_dp_hdmi_s3d_converter;
+	bool is_dp_hdmi_ycbcr422_pass_through;
+	bool is_dp_hdmi_ycbcr420_pass_through;
+	bool is_dp_hdmi_ycbcr422_converter;
+	bool is_dp_hdmi_ycbcr420_converter;
+	uint32_t dp_hdmi_max_bpc;
+	uint32_t dp_hdmi_max_pixel_clk;
+};
 /* Scaling format */
 enum scaling_transformation {
 	SCALING_TRANSFORMATION_UNINITIALIZED,
