@@ -217,6 +217,13 @@ struct mii_bus {
 	 * matching its address
 	 */
 	int irq[PHY_MAX_ADDR];
+
+	/* GPIO reset pulse width in microseconds */
+	int reset_delay_us;
+	/* Number of reset GPIOs */
+	int num_reset_gpios;
+	/* Array of RESET GPIO descriptors */
+	struct gpio_desc **reset_gpiod;
 };
 #define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 
