@@ -459,7 +459,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	 * ADG supports BRRA/BRRB output only
 	 * this means all clkout0/1/2/3 will be same rate
 	 */
-	prop = of_find_property(np, "clock-frequency", NULL);;
+	prop = of_find_property(np, "clock-frequency", NULL);
 	req_size = prop->length / sizeof(u32);
 
 	of_property_read_u32_array(np, "clock-frequency", req_rate, req_size);
