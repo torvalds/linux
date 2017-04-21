@@ -401,6 +401,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nodelist *ndlp;
 	struct ulp_bde64 *bpl;
 	struct lpfc_dmabuf *bmp;
+	uint16_t ntype, nstate;
 
 	/* there are two dma buf in the request, actually there is one and
 	 * the second one is just the start address + cmd size.
@@ -417,11 +418,26 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 	vport = lport->vport;
 
 	ndlp = lpfc_findnode_did(vport, pnvme_rport->port_id);
-	if (!ndlp) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
-				 "6043 Could not find node for DID %x\n",
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
+				 "6051 DID x%06x not an active rport.\n",
 				 pnvme_rport->port_id);
-		return 1;
+		return -ENODEV;
+	}
+
+	/* The remote node has to be a mapped nvme target or an
+	 * unmapped nvme initiator or it's an error.
+	 */
+	ntype = ndlp->nlp_type;
+	nstate = ndlp->nlp_state;
+	if ((ntype & NLP_NVME_TARGET && nstate != NLP_STE_MAPPED_NODE) ||
+	    (ntype & NLP_NVME_INITIATOR && nstate != NLP_STE_UNMAPPED_NODE)) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_IOERR,
+				 "6088 DID x%06x not ready for "
+				 "IO. State x%x, Type x%x\n",
+				 pnvme_rport->port_id,
+				 ndlp->nlp_state, ndlp->nlp_type);
+		return -ENODEV;
 	}
 	bmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (!bmp) {
@@ -456,7 +472,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 
 	/* Expand print to include key fields. */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-			 "6051 ENTER.  lport %p, rport %p lsreq%p rqstlen:%d "
+			 "6149 ENTER.  lport %p, rport %p lsreq%p rqstlen:%d "
 			 "rsplen:%d %pad %pad\n",
 			 pnvme_lport, pnvme_rport,
 			 pnvme_lsreq, pnvme_lsreq->rqstlen,
