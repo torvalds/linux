@@ -2498,6 +2498,81 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 }
 
 /**
+ * drm_dp_atomic_find_vcpi_slots() - Find and add vcpi slots to the state
+ * @state: global atomic state
+ * @mgr: MST topology manager for the port
+ * @port: port to find vcpi slots for
+ * @pbn: bandwidth required for the mode in PBN
+ *
+ * RETURNS:
+ * Total slots in the atomic state assigned for this port or error
+ */
+int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
+				  struct drm_dp_mst_topology_mgr *mgr,
+				  struct drm_dp_mst_port *port, int pbn)
+{
+	struct drm_dp_mst_topology_state *topology_state;
+	int req_slots;
+
+	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
+	if (topology_state == NULL)
+		return -ENOMEM;
+
+	port = drm_dp_get_validated_port_ref(mgr, port);
+	if (port == NULL)
+		return -EINVAL;
+	req_slots = DIV_ROUND_UP(pbn, mgr->pbn_div);
+	DRM_DEBUG_KMS("vcpi slots req=%d, avail=%d\n",
+			req_slots, topology_state->avail_slots);
+
+	if (req_slots > topology_state->avail_slots) {
+		drm_dp_put_port(port);
+		return -ENOSPC;
+	}
+
+	topology_state->avail_slots -= req_slots;
+	DRM_DEBUG_KMS("vcpi slots avail=%d", topology_state->avail_slots);
+
+	drm_dp_put_port(port);
+	return req_slots;
+}
+EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
+
+/**
+ * drm_dp_atomic_release_vcpi_slots() - Release allocated vcpi slots
+ * @state: global atomic state
+ * @mgr: MST topology manager for the port
+ * @slots: number of vcpi slots to release
+ *
+ * RETURNS:
+ * 0 if @slots were added back to &drm_dp_mst_topology_state->avail_slots or
+ * negative error code
+ */
+int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
+				     struct drm_dp_mst_topology_mgr *mgr,
+				     int slots)
+{
+	struct drm_dp_mst_topology_state *topology_state;
+
+	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
+	if (topology_state == NULL)
+		return -ENOMEM;
+
+	/* We cannot rely on port->vcpi.num_slots to update
+	 * topology_state->avail_slots as the port may not exist if the parent
+	 * branch device was unplugged. This should be fixed by tracking
+	 * per-port slot allocation in drm_dp_mst_topology_state instead of
+	 * depending on the caller to tell us how many slots to release.
+	 */
+	topology_state->avail_slots += slots;
+	DRM_DEBUG_KMS("vcpi slots released=%d, avail=%d\n",
+			slots, topology_state->avail_slots);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_atomic_release_vcpi_slots);
+
+/**
  * drm_dp_mst_allocate_vcpi() - Allocate a virtual channel
  * @mgr: manager for this port
  * @port: port to allocate a virtual channel for.
