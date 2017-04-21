@@ -729,8 +729,10 @@ static int ibmvnic_close(struct net_device *netdev)
 	adapter->closing = true;
 	disable_sub_crqs(adapter);
 
-	for (i = 0; i < adapter->req_rx_queues; i++)
-		napi_disable(&adapter->napi[i]);
+	if (adapter->napi) {
+		for (i = 0; i < adapter->req_rx_queues; i++)
+			napi_disable(&adapter->napi[i]);
+	}
 
 	if (!adapter->failover)
 		netif_tx_stop_all_queues(netdev);
