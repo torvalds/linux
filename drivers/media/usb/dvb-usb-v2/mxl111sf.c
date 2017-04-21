@@ -24,9 +24,6 @@
 #include "lgdt3305.h"
 #include "lg2160.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
-
 int dvb_usb_mxl111sf_debug;
 module_param_named(debug, dvb_usb_mxl111sf_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level "
@@ -56,27 +53,34 @@ MODULE_PARM_DESC(rfswitch, "force rf switch position (0=auto, 1=ext, 2=int).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
+int mxl111sf_ctrl_msg(struct mxl111sf_state *state,
 		      u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
+	struct dvb_usb_device *d = state->d;
 	int wo = (rbuf == NULL || rlen == 0); /* write-only */
 	int ret;
-	u8 sndbuf[MAX_XFER_SIZE];
 
-	if (1 + wlen > sizeof(sndbuf)) {
+	if (1 + wlen > MXL_MAX_XFER_SIZE) {
 		pr_warn("%s: len=%d is too big!\n", __func__, wlen);
 		return -EOPNOTSUPP;
 	}
 
 	pr_debug("%s(wlen = %d, rlen = %d)\n", __func__, wlen, rlen);
 
-	memset(sndbuf, 0, 1+wlen);
+	mutex_lock(&state->msg_lock);
+	memset(state->sndbuf, 0, 1+wlen);
+	memset(state->rcvbuf, 0, rlen);
 
-	sndbuf[0] = cmd;
-	memcpy(&sndbuf[1], wbuf, wlen);
+	state->sndbuf[0] = cmd;
+	memcpy(&state->sndbuf[1], wbuf, wlen);
 
-	ret = (wo) ? dvb_usbv2_generic_write(d, sndbuf, 1+wlen) :
-		dvb_usbv2_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen);
+	ret = (wo) ? dvb_usbv2_generic_write(d, state->sndbuf, 1+wlen) :
+		dvb_usbv2_generic_rw(d, state->sndbuf, 1+wlen, state->rcvbuf,
+				     rlen);
+
+	memcpy(rbuf, state->rcvbuf, rlen);
+	mutex_unlock(&state->msg_lock);
+
 	mxl_fail(ret);
 
 	return ret;
@@ -92,7 +96,7 @@ int mxl111sf_read_reg(struct mxl111sf_state *state, u8 addr, u8 *data)
 	u8 buf[2];
 	int ret;
 
-	ret = mxl111sf_ctrl_msg(state->d, MXL_CMD_REG_READ, &addr, 1, buf, 2);
+	ret = mxl111sf_ctrl_msg(state, MXL_CMD_REG_READ, &addr, 1, buf, 2);
 	if (mxl_fail(ret)) {
 		mxl_debug("error reading reg: 0x%02x", addr);
 		goto fail;
@@ -118,7 +122,7 @@ int mxl111sf_write_reg(struct mxl111sf_state *state, u8 addr, u8 data)
 
 	pr_debug("W: (0x%02x, 0x%02x)\n", addr, data);
 
-	ret = mxl111sf_ctrl_msg(state->d, MXL_CMD_REG_WRITE, buf, 2, NULL, 0);
+	ret = mxl111sf_ctrl_msg(state, MXL_CMD_REG_WRITE, buf, 2, NULL, 0);
 	if (mxl_fail(ret))
 		pr_err("error writing reg: 0x%02x, val: 0x%02x", addr, data);
 	return ret;
@@ -921,6 +925,8 @@ static int mxl111sf_init(struct dvb_usb_device *d)
 	int ret;
 	static u8 eeprom[256];
 	struct i2c_client c;
+
+	mutex_init(&state->msg_lock);
 
 	ret = get_chip_info(state);
 	if (mxl_fail(ret))
