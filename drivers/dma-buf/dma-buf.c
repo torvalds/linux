@@ -405,8 +405,8 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 			  || !exp_info->ops->map_dma_buf
 			  || !exp_info->ops->unmap_dma_buf
 			  || !exp_info->ops->release
-			  || !exp_info->ops->kmap_atomic
-			  || !exp_info->ops->kmap
+			  || !exp_info->ops->map_atomic
+			  || !exp_info->ops->map
 			  || !exp_info->ops->mmap)) {
 		return ERR_PTR(-EINVAL);
 	}
@@ -872,7 +872,7 @@ void *dma_buf_kmap_atomic(struct dma_buf *dmabuf, unsigned long page_num)
 {
 	WARN_ON(!dmabuf);
 
-	return dmabuf->ops->kmap_atomic(dmabuf, page_num);
+	return dmabuf->ops->map_atomic(dmabuf, page_num);
 }
 EXPORT_SYMBOL_GPL(dma_buf_kmap_atomic);
 
@@ -889,8 +889,8 @@ void dma_buf_kunmap_atomic(struct dma_buf *dmabuf, unsigned long page_num,
 {
 	WARN_ON(!dmabuf);
 
-	if (dmabuf->ops->kunmap_atomic)
-		dmabuf->ops->kunmap_atomic(dmabuf, page_num, vaddr);
+	if (dmabuf->ops->unmap_atomic)
+		dmabuf->ops->unmap_atomic(dmabuf, page_num, vaddr);
 }
 EXPORT_SYMBOL_GPL(dma_buf_kunmap_atomic);
 
@@ -907,7 +907,7 @@ void *dma_buf_kmap(struct dma_buf *dmabuf, unsigned long page_num)
 {
 	WARN_ON(!dmabuf);
 
-	return dmabuf->ops->kmap(dmabuf, page_num);
+	return dmabuf->ops->map(dmabuf, page_num);
 }
 EXPORT_SYMBOL_GPL(dma_buf_kmap);
 
@@ -924,8 +924,8 @@ void dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long page_num,
 {
 	WARN_ON(!dmabuf);
 
-	if (dmabuf->ops->kunmap)
-		dmabuf->ops->kunmap(dmabuf, page_num, vaddr);
+	if (dmabuf->ops->unmap)
+		dmabuf->ops->unmap(dmabuf, page_num, vaddr);
 }
 EXPORT_SYMBOL_GPL(dma_buf_kunmap);
 
