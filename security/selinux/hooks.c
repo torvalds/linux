@@ -6540,6 +6540,23 @@ static struct nf_hook_ops selinux_nf_ops[] = {
 #endif	/* IPV6 */
 };
 
+static int __net_init selinux_nf_register(struct net *net)
+{
+	return nf_register_net_hooks(net, selinux_nf_ops,
+				     ARRAY_SIZE(selinux_nf_ops));
+}
+
+static void __net_exit selinux_nf_unregister(struct net *net)
+{
+	nf_unregister_net_hooks(net, selinux_nf_ops,
+				ARRAY_SIZE(selinux_nf_ops));
+}
+
+static struct pernet_operations selinux_net_ops = {
+	.init = selinux_nf_register,
+	.exit = selinux_nf_unregister,
+};
+
 static int __init selinux_nf_ip_init(void)
 {
 	int err;
@@ -6549,13 +6566,12 @@ static int __init selinux_nf_ip_init(void)
 
 	printk(KERN_DEBUG "SELinux:  Registering netfilter hooks\n");
 
-	err = nf_register_hooks(selinux_nf_ops, ARRAY_SIZE(selinux_nf_ops));
+	err = register_pernet_subsys(&selinux_net_ops);
 	if (err)
-		panic("SELinux: nf_register_hooks: error %d\n", err);
+		panic("SELinux: register_pernet_subsys: error %d\n", err);
 
 	return 0;
 }
-
 __initcall(selinux_nf_ip_init);
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
@@ -6563,7 +6579,7 @@ static void selinux_nf_ip_exit(void)
 {
 	printk(KERN_DEBUG "SELinux:  Unregistering netfilter hooks\n");
 
-	nf_unregister_hooks(selinux_nf_ops, ARRAY_SIZE(selinux_nf_ops));
+	unregister_pernet_subsys(&selinux_net_ops);
 }
 #endif
 
