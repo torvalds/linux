@@ -1257,7 +1257,7 @@ __nvme_fc_fcpop_chk_teardowns(struct nvme_fc_ctrl *ctrl,
 	return complete_rq;
 }
 
-void
+static void
 nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 {
 	struct nvme_fc_fcp_op *op = fcp_req_to_fcp_op(req);
@@ -1768,7 +1768,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 			"reset work\n", ctrl->cnum);
 }
 
-enum blk_eh_timer_return
+static enum blk_eh_timer_return
 nvme_fc_timeout(struct request *rq, bool reserved)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
