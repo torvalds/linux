@@ -1639,7 +1639,8 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	} else if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_run_hw_queue(data.hctx, true);
-	}
+	} else
+		blk_mq_put_ctx(data.ctx);
 
 	return cookie;
 }
