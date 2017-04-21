@@ -436,7 +436,7 @@ int cfg80211_stop_sched_scan_req(struct cfg80211_registered_device *rdev,
 	ASSERT_RTNL();
 
 	if (!driver_initiated) {
-		int err = rdev_sched_scan_stop(rdev, req->dev);
+		int err = rdev_sched_scan_stop(rdev, req->dev, req->reqid);
 		if (err)
 			return err;
 	}
