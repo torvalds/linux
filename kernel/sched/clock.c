@@ -64,6 +64,7 @@
 #include <linux/workqueue.h>
 #include <linux/compiler.h>
 #include <linux/tick.h>
+#include <linux/init.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -202,7 +203,11 @@ void clear_sched_clock_stable(void)
 		__clear_sched_clock_stable();
 }
 
-void sched_clock_init_late(void)
+/*
+ * We run this as late_initcall() such that it runs after all built-in drivers,
+ * notably: acpi_processor and intel_idle, which can mark the TSC as unstable.
+ */
+static int __init sched_clock_init_late(void)
 {
 	sched_clock_running = 2;
 	/*
@@ -216,7 +221,10 @@ void sched_clock_init_late(void)
 
 	if (__sched_clock_stable_early)
 		__set_sched_clock_stable();
+
+	return 0;
 }
+late_initcall(sched_clock_init_late);
 
 /*
  * min, max except they take wrapping into account
