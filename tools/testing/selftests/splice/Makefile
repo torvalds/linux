@@ -4,5 +4,4 @@ all: $(TEST_PROGS) $(EXTRA)
 
 include ../lib.mk
 
-clean:
-	rm -fr $(EXTRA)
+EXTRA_CLEAN := $(EXTRA)
