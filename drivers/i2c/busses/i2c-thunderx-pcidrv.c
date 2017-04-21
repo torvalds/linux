@@ -211,6 +211,7 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 
 	i2c->adap = thunderx_i2c_ops;
 	i2c->adap.retries = 5;
+	i2c->adap.class = I2C_CLASS_HWMON;
 	i2c->adap.bus_recovery_info = &octeon_i2c_recovery_info;
 	i2c->adap.dev.parent = dev;
 	i2c->adap.dev.of_node = pdev->dev.of_node;
