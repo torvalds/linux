@@ -556,8 +556,9 @@ qed_dcbx_get_pfc_data(struct qed_hwfn *p_hwfn,
 	p_params->pfc.prio[7] = !!(pfc_map & DCBX_PFC_PRI_EN_BITMAP_PRI_7);
 
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB,
-		   "PFC params: willing %d, pfc_bitmap %d\n",
-		   p_params->pfc.willing, pfc_map);
+		   "PFC params: willing %d, pfc_bitmap %u max_tc = %u enabled = %d\n",
+		   p_params->pfc.willing, pfc_map, p_params->pfc.max_tc,
+		   p_params->pfc.enabled);
 }
 
 static void
@@ -576,10 +577,10 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 	p_params->max_ets_tc = QED_MFW_GET_FIELD(p_ets->flags,
 						 DCBX_ETS_MAX_TCS);
 	DP_VERBOSE(p_hwfn, QED_MSG_DCB,
-		   "ETS params: willing %d, ets_cbs %d pri_tc_tbl_0 %x max_ets_tc %d\n",
-		   p_params->ets_willing,
-		   p_params->ets_cbs,
-		   p_ets->pri_tc_tbl[0], p_params->max_ets_tc);
+		   "ETS params: willing %d, enabled = %d ets_cbs %d pri_tc_tbl_0 %x max_ets_tc %d\n",
+		   p_params->ets_willing, p_params->ets_enabled,
+		   p_params->ets_cbs, p_ets->pri_tc_tbl[0],
+		   p_params->max_ets_tc);
 
 	if (p_params->ets_enabled && !p_params->max_ets_tc) {
 		p_params->max_ets_tc = QED_MAX_PFC_PRIORITIES;
@@ -665,6 +666,7 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 	if (!enabled) {
 		p_operational->enabled = enabled;
 		p_operational->valid = false;
+		DP_VERBOSE(p_hwfn, QED_MSG_DCB, "Dcbx is disabled\n");
 		return;
 	}
 
@@ -1153,6 +1155,9 @@ qed_dcbx_set_local_params(struct qed_hwfn *p_hwfn,
 	} else {
 		local_admin->config = DCBX_CONFIG_VERSION_DISABLED;
 	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_DCB, "Dcbx version = %d\n",
+		   local_admin->config);
 
 	if (params->override_flags & QED_DCBX_OVERRIDE_PFC_CFG)
 		qed_dcbx_set_pfc_data(p_hwfn, &local_admin->features.pfc,
