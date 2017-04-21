@@ -320,7 +320,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	backend->regs = devm_regmap_init_mmio(dev, regs,
 					      &sun4i_backend_regmap_config);
 	if (IS_ERR(backend->regs)) {
-		dev_err(dev, "Couldn't create the backend0 regmap\n");
+		dev_err(dev, "Couldn't create the backend regmap\n");
 		return PTR_ERR(backend->regs);
 	}
 
