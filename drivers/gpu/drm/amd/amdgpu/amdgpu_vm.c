@@ -391,6 +391,72 @@ static bool amdgpu_vm_had_gpu_reset(struct amdgpu_device *adev,
 		atomic_read(&adev->gpu_reset_counter);
 }
 
+static bool amdgpu_vm_reserved_vmid_ready(struct amdgpu_vm *vm, unsigned vmhub)
+{
+	return !!vm->reserved_vmid[vmhub];
+}
+
+/* idr_mgr->lock must be held */
+static int amdgpu_vm_grab_reserved_vmid_locked(struct amdgpu_vm *vm,
+					       struct amdgpu_ring *ring,
+					       struct amdgpu_sync *sync,
+					       struct dma_fence *fence,
+					       struct amdgpu_job *job)
+{
+	struct amdgpu_device *adev = ring->adev;
+	unsigned vmhub = ring->funcs->vmhub;
+	uint64_t fence_context = adev->fence_context + ring->idx;
+	struct amdgpu_vm_id *id = vm->reserved_vmid[vmhub];
+	struct amdgpu_vm_id_manager *id_mgr = &adev->vm_manager.id_mgr[vmhub];
+	struct dma_fence *updates = sync->last_vm_update;
+	int r = 0;
+	struct dma_fence *flushed, *tmp;
+	bool needs_flush = false;
+
+	flushed  = id->flushed_updates;
+	if ((amdgpu_vm_had_gpu_reset(adev, id)) ||
+	    (atomic64_read(&id->owner) != vm->client_id) ||
+	    (job->vm_pd_addr != id->pd_gpu_addr) ||
+	    (updates && (!flushed || updates->context != flushed->context ||
+			dma_fence_is_later(updates, flushed))) ||
+	    (!id->last_flush || (id->last_flush->context != fence_context &&
+				 !dma_fence_is_signaled(id->last_flush)))) {
+		needs_flush = true;
+		/* to prevent one context starved by another context */
+		id->pd_gpu_addr = 0;
+		tmp = amdgpu_sync_peek_fence(&id->active, ring);
+		if (tmp) {
+			r = amdgpu_sync_fence(adev, sync, tmp);
+			return r;
+		}
+	}
+
+	/* Good we can use this VMID. Remember this submission as
+	* user of the VMID.
+	*/
+	r = amdgpu_sync_fence(ring->adev, &id->active, fence);
+	if (r)
+		goto out;
+
+	if (updates && (!flushed || updates->context != flushed->context ||
+			dma_fence_is_later(updates, flushed))) {
+		dma_fence_put(id->flushed_updates);
+		id->flushed_updates = dma_fence_get(updates);
+	}
+	id->pd_gpu_addr = job->vm_pd_addr;
+	id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
+	atomic64_set(&id->owner, vm->client_id);
+	job->vm_needs_flush = needs_flush;
+	if (needs_flush) {
+		dma_fence_put(id->last_flush);
+		id->last_flush = NULL;
+	}
+	job->vm_id = id - id_mgr->ids;
+	trace_amdgpu_vm_grab_id(vm, ring, job);
+out:
+	return r;
+}
+
 /**
  * amdgpu_vm_grab_id - allocate the next free VMID
  *
@@ -415,12 +481,17 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	unsigned i;
 	int r = 0;
 
-	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
-	if (!fences)
-		return -ENOMEM;
-
 	mutex_lock(&id_mgr->lock);
-
+	if (amdgpu_vm_reserved_vmid_ready(vm, vmhub)) {
+		r = amdgpu_vm_grab_reserved_vmid_locked(vm, ring, sync, fence, job);
+		mutex_unlock(&id_mgr->lock);
+		return r;
+	}
+	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
+	if (!fences) {
+		mutex_unlock(&id_mgr->lock);
+		return -ENOMEM;
+	}
 	/* Check if we have an idle VMID */
 	i = 0;
 	list_for_each_entry(idle, &id_mgr->ids_lru, list) {
