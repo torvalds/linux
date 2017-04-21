@@ -108,7 +108,7 @@ static struct ion_heap *__ion_cma_heap_create(struct cma *cma)
 
 int __ion_add_cma_heaps(struct cma *cma, void *data)
 {
-        struct ion_heap *heap;
+	struct ion_heap *heap;
 
 	heap = __ion_cma_heap_create(cma);
 	if (IS_ERR(heap))
@@ -116,8 +116,8 @@ int __ion_add_cma_heaps(struct cma *cma, void *data)
 
 	heap->name = cma_get_name(cma);
 
-        ion_device_add_heap(heap);
-        return 0;
+	ion_device_add_heap(heap);
+	return 0;
 }
 
 static int ion_add_cma_heaps(void)
