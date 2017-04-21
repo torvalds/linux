@@ -263,33 +263,15 @@ static __inline__ unsigned long ffz(unsigned long x)
  */
 static __inline__ int fls(unsigned int x)
 {
-	int lz;
-
-	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (x));
-	return 32 - lz;
+	return 32 - __builtin_clz(x);
 }
 
-static __inline__ unsigned long __fls(unsigned long x)
-{
-	return __ilog2(x);
-}
+#include <asm-generic/bitops/builtin-__fls.h>
 
-/*
- * 64-bit can do this using one cntlzd (count leading zeroes doubleword)
- * instruction; for 32-bit we use the generic version, which does two
- * 32-bit fls calls.
- */
-#ifdef __powerpc64__
 static __inline__ int fls64(__u64 x)
 {
-	int lz;
-
-	asm ("cntlzd %0,%1" : "=r" (lz) : "r" (x));
-	return 64 - lz;
+	return 64 - __builtin_clzll(x);
 }
-#else
-#include <asm-generic/bitops/fls64.h>
-#endif /* __powerpc64__ */
 
 #ifdef CONFIG_PPC64
 unsigned int __arch_hweight8(unsigned int w);
