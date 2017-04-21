@@ -7,8 +7,9 @@ include ../lib.mk
 
 all: $(BINARIES)
 
-clean:
+override define CLEAN
 	$(RM) $(BINARIES)
+endef
 
 CFLAGS += -O2 -g -std=gnu99 -Wall -I../../../../usr/include/
 LDLIBS += -lmount -I/usr/include/libmount
