@@ -19,6 +19,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include <linux/component.h>
+#include <linux/list.h>
 #include <linux/reset.h>
 
 #include "sun4i_backend.h"
@@ -310,7 +311,6 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	if (!backend)
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);
-	drv->backend = backend;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
@@ -369,6 +369,8 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		}
 	}
 
+	list_add_tail(&backend->list, &drv->backend_list);
+
 	/* Reset the registers */
 	for (i = 0x800; i < 0x1000; i += 4)
 		regmap_write(backend->regs, i, 0);
@@ -399,6 +401,8 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 				 void *data)
 {
 	struct sun4i_backend *backend = dev_get_drvdata(dev);
+
+	list_del(&backend->list);
 
 	if (of_device_is_compatible(dev->of_node,
 				    "allwinner,sun8i-a33-display-backend"))

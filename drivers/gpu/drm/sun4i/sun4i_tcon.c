@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+#include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_dotclock.h"
 #include "sun4i_drv.h"
@@ -407,14 +408,18 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
+	struct sun4i_backend *backend;
 	struct sun4i_tcon *tcon;
 	int ret;
+
+	/* Wait for a backend to be registered */
+	if (list_empty(&drv->backend_list))
+		return -EPROBE_DEFER;
 
 	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
 	if (!tcon)
 		return -ENOMEM;
 	dev_set_drvdata(dev, tcon);
-	drv->tcon = tcon;
 	tcon->drm = drm;
 	tcon->dev = dev;
 	tcon->quirks = of_device_get_match_data(dev);
@@ -459,7 +464,9 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		goto err_free_dotclock;
 	}
 
-	tcon->crtc = sun4i_crtc_init(drm, drv->backend, tcon);
+	backend = list_first_entry(&drv->backend_list,
+				   struct sun4i_backend, list);
+	tcon->crtc = sun4i_crtc_init(drm, backend, tcon);
 	if (IS_ERR(tcon->crtc)) {
 		dev_err(dev, "Couldn't create our CRTC\n");
 		ret = PTR_ERR(tcon->crtc);
@@ -469,6 +476,8 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	ret = sun4i_rgb_init(drm, tcon);
 	if (ret < 0)
 		goto err_free_clocks;
+
+	list_add_tail(&tcon->list, &drv->tcon_list);
 
 	return 0;
 
@@ -486,6 +495,7 @@ static void sun4i_tcon_unbind(struct device *dev, struct device *master,
 {
 	struct sun4i_tcon *tcon = dev_get_drvdata(dev);
 
+	list_del(&tcon->list);
 	sun4i_dclk_free(tcon);
 	sun4i_tcon_free_clocks(tcon);
 }

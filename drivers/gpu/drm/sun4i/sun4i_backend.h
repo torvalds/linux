@@ -14,6 +14,7 @@
 #define _SUN4I_BACKEND_H_
 
 #include <linux/clk.h>
+#include <linux/list.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
@@ -149,6 +150,9 @@ struct sun4i_backend {
 
 	struct clk		*sat_clk;
 	struct reset_control	*sat_reset;
+
+	/* Backend list management */
+	struct list_head	list;
 };
 
 void sun4i_backend_apply_color_correction(struct sun4i_backend *backend);
