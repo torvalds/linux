@@ -2055,7 +2055,7 @@ nvmet_fc_fcp_nvme_cmd_done(struct nvmet_req *nvme_req)
 /*
  * Actual processing routine for received FC-NVME LS Requests from the LLD
  */
-void
+static void
 nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_fcp_iod *fod)
 {
