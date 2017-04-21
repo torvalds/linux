@@ -951,14 +951,9 @@ void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 	p_dcb_data = &p_dest->fcoe_dcb_data;
 	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_FCOE);
 	p_dcb_data = &p_dest->roce_dcb_data;
-
-	if (p_src->arr[DCBX_PROTOCOL_ROCE].update)
-		qed_dcbx_update_protocol_data(p_dcb_data, p_src,
-					      DCBX_PROTOCOL_ROCE);
-	if (p_src->arr[DCBX_PROTOCOL_ROCE_V2].update)
-		qed_dcbx_update_protocol_data(p_dcb_data, p_src,
-					      DCBX_PROTOCOL_ROCE_V2);
-
+	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_ROCE);
+	p_dcb_data = &p_dest->rroce_dcb_data;
+	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_ROCE_V2);
 	p_dcb_data = &p_dest->iscsi_dcb_data;
 	qed_dcbx_update_protocol_data(p_dcb_data, p_src, DCBX_PROTOCOL_ISCSI);
 	p_dcb_data = &p_dest->eth_dcb_data;
