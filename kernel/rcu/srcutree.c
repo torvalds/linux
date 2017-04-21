@@ -1167,3 +1167,10 @@ void srcutorture_get_gp_data(enum rcutorture_type test_type,
 	*gpnum = rcu_seq_ctr(sp->srcu_gp_seq_needed);
 }
 EXPORT_SYMBOL_GPL(srcutorture_get_gp_data);
+
+static int __init srcu_bootup_announce(void)
+{
+	pr_info("Hierarchical SRCU implementation.\n");
+	return 0;
+}
+early_initcall(srcu_bootup_announce);

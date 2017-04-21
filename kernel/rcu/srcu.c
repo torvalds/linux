@@ -659,3 +659,10 @@ void process_srcu(struct work_struct *work)
 	srcu_reschedule(sp);
 }
 EXPORT_SYMBOL_GPL(process_srcu);
+
+static int __init srcu_bootup_announce(void)
+{
+	pr_info("Classic SRCU implementation.\n");
+	return 0;
+}
+early_initcall(srcu_bootup_announce);
