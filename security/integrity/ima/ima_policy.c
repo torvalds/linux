@@ -153,6 +153,17 @@ static struct ima_rule_entry default_appraise_rules[] __ro_after_init = {
 #endif
 };
 
+static struct ima_rule_entry secure_boot_rules[] __ro_after_init = {
+	{.action = APPRAISE, .func = MODULE_CHECK,
+	 .flags = IMA_FUNC | IMA_DIGSIG_REQUIRED},
+	{.action = APPRAISE, .func = FIRMWARE_CHECK,
+	 .flags = IMA_FUNC | IMA_DIGSIG_REQUIRED},
+	{.action = APPRAISE, .func = KEXEC_KERNEL_CHECK,
+	 .flags = IMA_FUNC | IMA_DIGSIG_REQUIRED},
+	{.action = APPRAISE, .func = POLICY_CHECK,
+	 .flags = IMA_FUNC | IMA_DIGSIG_REQUIRED},
+};
+
 static LIST_HEAD(ima_default_rules);
 static LIST_HEAD(ima_policy_rules);
 static LIST_HEAD(ima_temp_rules);
@@ -171,6 +182,7 @@ static int __init default_measure_policy_setup(char *str)
 __setup("ima_tcb", default_measure_policy_setup);
 
 static bool ima_use_appraise_tcb __initdata;
+static bool ima_use_secure_boot __initdata;
 static int __init policy_setup(char *str)
 {
 	char *p;
@@ -182,6 +194,8 @@ static int __init policy_setup(char *str)
 			ima_policy = DEFAULT_TCB;
 		else if (strcmp(p, "appraise_tcb") == 0)
 			ima_use_appraise_tcb = 1;
+		else if (strcmp(p, "secure_boot") == 0)
+			ima_use_secure_boot = 1;
 	}
 
 	return 1;
@@ -410,12 +424,14 @@ void ima_update_policy_flag(void)
  */
 void __init ima_init_policy(void)
 {
-	int i, measure_entries, appraise_entries;
+	int i, measure_entries, appraise_entries, secure_boot_entries;
 
 	/* if !ima_policy set entries = 0 so we load NO default rules */
 	measure_entries = ima_policy ? ARRAY_SIZE(dont_measure_rules) : 0;
 	appraise_entries = ima_use_appraise_tcb ?
 			 ARRAY_SIZE(default_appraise_rules) : 0;
+	secure_boot_entries = ima_use_secure_boot ?
+			ARRAY_SIZE(secure_boot_rules) : 0;
 
 	for (i = 0; i < measure_entries; i++)
 		list_add_tail(&dont_measure_rules[i].list, &ima_default_rules);
@@ -433,6 +449,14 @@ void __init ima_init_policy(void)
 	default:
 		break;
 	}
+
+	/*
+	 * Insert the appraise rules requiring file signatures, prior to
+	 * any other appraise rules.
+	 */
+	for (i = 0; i < secure_boot_entries; i++)
+		list_add_tail(&secure_boot_rules[i].list,
+			      &ima_default_rules);
 
 	for (i = 0; i < appraise_entries; i++) {
 		list_add_tail(&default_appraise_rules[i].list,
