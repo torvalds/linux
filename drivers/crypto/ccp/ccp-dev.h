@@ -332,7 +332,10 @@ struct ccp_device {
 	void *dev_specific;
 	int (*get_irq)(struct ccp_device *ccp);
 	void (*free_irq)(struct ccp_device *ccp);
+	unsigned int qim;
 	unsigned int irq;
+	bool use_tasklet;
+	struct tasklet_struct irq_tasklet;
 
 	/* I/O area used for device communication. The register mapping
 	 * starts at an offset into the mapped bar.
