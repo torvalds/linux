@@ -648,6 +648,11 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	return wm_size;
 }
 
+static int intel_wm_num_levels(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->wm.max_level + 1;
+}
+
 static bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state)
 {
@@ -1136,18 +1141,13 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int vlv_num_wm_levels(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->wm.max_level + 1;
-}
-
 /* mark all levels starting from 'level' as invalid */
 static void vlv_invalidate_wms(struct intel_crtc *crtc,
 			       struct vlv_wm_state *wm_state, int level)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	for (; level < vlv_num_wm_levels(dev_priv); level++) {
+	for (; level < intel_wm_num_levels(dev_priv); level++) {
 		enum plane_id plane_id;
 
 		for_each_plane_id_on_crtc(crtc, plane_id)
@@ -1174,7 +1174,7 @@ static bool vlv_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
 				 int level, enum plane_id plane_id, u16 value)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
-	int num_levels = vlv_num_wm_levels(dev_priv);
+	int num_levels = intel_wm_num_levels(dev_priv);
 	bool dirty = false;
 
 	for (; level < num_levels; level++) {
@@ -1192,7 +1192,7 @@ static bool vlv_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	enum plane_id plane_id = plane->id;
-	int num_levels = vlv_num_wm_levels(to_i915(plane->base.dev));
+	int num_levels = intel_wm_num_levels(to_i915(plane->base.dev));
 	int level;
 	bool dirty = false;
 
@@ -1306,7 +1306,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	}
 
 	/* initially allow all levels */
-	wm_state->num_levels = vlv_num_wm_levels(dev_priv);
+	wm_state->num_levels = intel_wm_num_levels(dev_priv);
 	/*
 	 * Note that enabling cxsr with no primary/sprite planes
 	 * enabled can wedge the pipe. Hence we only allow cxsr
