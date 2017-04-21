@@ -206,32 +206,7 @@ static __inline__ void __clear_bit_unlock(int nr, volatile unsigned long *addr)
  * Return the zero-based bit position (LE, not IBM bit numbering) of
  * the most significant 1-bit in a double word.
  */
-static __inline__ __attribute__((const))
-int __ilog2(unsigned long x)
-{
-	int lz;
-
-	asm (PPC_CNTLZL "%0,%1" : "=r" (lz) : "r" (x));
-	return BITS_PER_LONG - 1 - lz;
-}
-
-static inline __attribute__((const))
-int __ilog2_u32(u32 n)
-{
-	int bit;
-	asm ("cntlzw %0,%1" : "=r" (bit) : "r" (n));
-	return 31 - bit;
-}
-
-#ifdef __powerpc64__
-static inline __attribute__((const))
-int __ilog2_u64(u64 n)
-{
-	int bit;
-	asm ("cntlzd %0,%1" : "=r" (bit) : "r" (n));
-	return 63 - bit;
-}
-#endif
+#define __ilog2(x)	ilog2(x)
 
 #include <asm-generic/bitops/ffz.h>
 
