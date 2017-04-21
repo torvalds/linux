@@ -768,7 +768,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 		/* cursor SR */
 		wm = intel_calculate_wm(clock, &pineview_cursor_wm,
 					pineview_display_wm.fifo_size,
-					cpp, latency->cursor_sr);
+					4, latency->cursor_sr);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_CURSOR_SR_MASK;
 		reg |= FW_WM(wm, CURSOR_SR);
@@ -786,7 +786,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 		/* cursor HPLL off SR */
 		wm = intel_calculate_wm(clock, &pineview_cursor_hplloff_wm,
 					pineview_display_hplloff_wm.fifo_size,
-					cpp, latency->cursor_hpll_disable);
+					4, latency->cursor_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_CURSOR_MASK;
 		reg |= FW_WM(wm, HPLL_CURSOR);
@@ -842,7 +842,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	/* Use the large buffer method to calculate cursor watermark */
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
-	entries = line_count * crtc->base.cursor->state->crtc_w * cpp;
+	entries = line_count * crtc->base.cursor->state->crtc_w * 4;
 	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
 	if (tlb_miss > 0)
 		entries += tlb_miss;
@@ -930,7 +930,7 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 	*display_wm = entries + display->guard_size;
 
 	/* calculate the self-refresh watermark for display cursor */
-	entries = line_count * cpp * crtc->base.cursor->state->crtc_w;
+	entries = line_count * 4 * crtc->base.cursor->state->crtc_w;
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 
@@ -1736,7 +1736,7 @@ static void i965_update_wm(struct intel_crtc *unused_crtc)
 			      entries, srwm);
 
 		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			cpp * crtc->base.cursor->state->crtc_w;
+			4 * crtc->base.cursor->state->crtc_w;
 		entries = DIV_ROUND_UP(entries,
 					  i965_cursor_wm_info.cacheline_size);
 		cursor_sr = i965_cursor_wm_info.fifo_size -
