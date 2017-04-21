@@ -124,6 +124,12 @@ int sched_clock_stable(void)
 	return static_branch_likely(&__sched_clock_stable);
 }
 
+static void __scd_stamp(struct sched_clock_data *scd)
+{
+	scd->tick_gtod = ktime_get_ns();
+	scd->tick_raw = sched_clock();
+}
+
 static void __set_sched_clock_stable(void)
 {
 	struct sched_clock_data *scd = this_scd();
@@ -141,8 +147,37 @@ static void __set_sched_clock_stable(void)
 	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
+/*
+ * If we ever get here, we're screwed, because we found out -- typically after
+ * the fact -- that TSC wasn't good. This means all our clocksources (including
+ * ktime) could have reported wrong values.
+ *
+ * What we do here is an attempt to fix up and continue sort of where we left
+ * off in a coherent manner.
+ *
+ * The only way to fully avoid random clock jumps is to boot with:
+ * "tsc=unstable".
+ */
 static void __sched_clock_work(struct work_struct *work)
 {
+	struct sched_clock_data *scd;
+	int cpu;
+
+	/* take a current timestamp and set 'now' */
+	preempt_disable();
+	scd = this_scd();
+	__scd_stamp(scd);
+	scd->clock = scd->tick_gtod + __gtod_offset;
+	preempt_enable();
+
+	/* clone to all CPUs */
+	for_each_possible_cpu(cpu)
+		per_cpu(sched_clock_data, cpu) = *scd;
+
+	printk(KERN_INFO "sched_clock: Marking unstable (%lld, %lld)<-(%lld, %lld)\n",
+			scd->tick_gtod, __gtod_offset,
+			scd->tick_raw,  __sched_clock_offset);
+
 	static_branch_disable(&__sched_clock_stable);
 }
 
@@ -150,27 +185,11 @@ static DECLARE_WORK(sched_clock_work, __sched_clock_work);
 
 static void __clear_sched_clock_stable(void)
 {
-	struct sched_clock_data *scd = this_scd();
-
-	/*
-	 * Attempt to make the stable->unstable transition continuous.
-	 *
-	 * Trouble is, this is typically called from the TSC watchdog
-	 * timer, which is late per definition. This means the tick
-	 * values can already be screwy.
-	 *
-	 * Still do what we can.
-	 */
-	__gtod_offset = (scd->tick_raw + __sched_clock_offset) - (scd->tick_gtod);
-
-	printk(KERN_INFO "sched_clock: Marking unstable (%lld, %lld)<-(%lld, %lld)\n",
-			scd->tick_gtod, __gtod_offset,
-			scd->tick_raw,  __sched_clock_offset);
+	if (!sched_clock_stable())
+		return;
 
 	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
-
-	if (sched_clock_stable())
-		schedule_work(&sched_clock_work);
+	schedule_work(&sched_clock_work);
 }
 
 void clear_sched_clock_stable(void)
@@ -357,8 +376,7 @@ void sched_clock_tick(void)
 	 * XXX arguably we can skip this if we expose tsc_clocksource_reliable
 	 */
 	scd = this_scd();
-	scd->tick_raw  = sched_clock();
-	scd->tick_gtod = ktime_get_ns();
+	__scd_stamp(scd);
 
 	if (!sched_clock_stable() && likely(sched_clock_running))
 		sched_clock_local(scd);
