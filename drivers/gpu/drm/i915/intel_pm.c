@@ -799,6 +799,23 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 	}
 }
 
+/*
+ * Documentation says:
+ * "If the line size is small, the TLB fetches can get in the way of the
+ *  data fetches, causing some lag in the pixel data return which is not
+ *  accounted for in the above formulas. The following adjustment only
+ *  needs to be applied if eight whole lines fit in the buffer at once.
+ *  The WM is adjusted upwards by the difference between the FIFO size
+ *  and the size of 8 whole lines. This adjustment is always performed
+ *  in the actual pixel depth regardless of whether FBC is enabled or not."
+ */
+static int g4x_tlb_miss_wa(int fifo_size, int width, int cpp)
+{
+	int tlb_miss = fifo_size * 64 - width * cpp * 8;
+
+	return max(0, tlb_miss);
+}
+
 static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 			    int plane,
 			    const struct intel_watermark_params *display,
@@ -813,7 +830,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	const struct drm_framebuffer *fb;
 	int htotal, plane_width, cursor_width, clock, cpp;
 	int line_time_us, line_count;
-	int entries, tlb_miss;
+	int entries;
 
 	crtc = intel_get_crtc_for_plane(dev_priv, plane);
 	if (!intel_crtc_active(crtc)) {
@@ -832,9 +849,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * cpp / 1000) * display_latency_ns) / 1000;
-	tlb_miss = display->fifo_size*display->cacheline_size - plane_width * cpp * 8;
-	if (tlb_miss > 0)
-		entries += tlb_miss;
+	entries += g4x_tlb_miss_wa(display->fifo_size, plane_width, cpp);
 	entries = DIV_ROUND_UP(entries, display->cacheline_size);
 	*plane_wm = entries + display->guard_size;
 	if (*plane_wm > (int)display->max_wm)
@@ -844,9 +859,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
 	entries = line_count * cursor_width * 4;
-	tlb_miss = cursor->fifo_size*cursor->cacheline_size - cursor_width * 4 * 8;
-	if (tlb_miss > 0)
-		entries += tlb_miss;
+	entries += g4x_tlb_miss_wa(cursor->fifo_size, cursor_width, 4);
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 	if (*cursor_wm > (int)cursor->max_wm)
