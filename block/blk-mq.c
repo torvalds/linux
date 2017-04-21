@@ -46,7 +46,7 @@ static int blk_mq_poll_stats_bkt(const struct request *rq)
 {
 	int ddir, bytes, bucket;
 
-	ddir = blk_stat_rq_ddir(rq);
+	ddir = rq_data_dir(rq);
 	bytes = blk_rq_bytes(rq);
 
 	bucket = ddir + 2*(ilog2(bytes) - 9);

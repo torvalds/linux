@@ -696,6 +696,11 @@ u64 wbt_default_latency_nsec(struct request_queue *q)
 		return 75000000ULL;
 }
 
+static int wbt_data_dir(const struct request *rq)
+{
+	return rq_data_dir(rq);
+}
+
 int wbt_init(struct request_queue *q)
 {
 	struct rq_wb *rwb;
@@ -707,7 +712,7 @@ int wbt_init(struct request_queue *q)
 	if (!rwb)
 		return -ENOMEM;
 
-	rwb->cb = blk_stat_alloc_callback(wb_timer_fn, blk_stat_rq_ddir, 2, rwb);
+	rwb->cb = blk_stat_alloc_callback(wb_timer_fn, wbt_data_dir, 2, rwb);
 	if (!rwb->cb) {
 		kfree(rwb);
 		return -ENOMEM;

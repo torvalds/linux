@@ -19,12 +19,6 @@ struct blk_queue_stats {
 	bool enable_accounting;
 };
 
-int blk_stat_rq_ddir(const struct request *rq)
-{
-	return rq_data_dir(rq);
-}
-EXPORT_SYMBOL_GPL(blk_stat_rq_ddir);
-
 static void blk_stat_init(struct blk_rq_stat *stat)
 {
 	stat->min = -1ULL;

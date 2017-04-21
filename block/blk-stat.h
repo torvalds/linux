@@ -112,17 +112,6 @@ static inline void blk_stat_set_issue(struct blk_issue_stat *stat,
 /* record time/size info in request but not add a callback */
 void blk_stat_enable_accounting(struct request_queue *q);
 
-/*
- * blk_stat_rq_ddir() - Bucket callback function for the request data direction.
- * @rq: Request.
- *
- * This is the same as rq_data_dir() but as a function so it can be used as
- * @bucket_fn for blk_stat_alloc_callback().
- *
- * Return: Data direction of the request, either READ or WRITE.
- */
-int blk_stat_rq_ddir(const struct request *rq);
-
 /**
  * blk_stat_alloc_callback() - Allocate a block statistics callback.
  * @timer_fn: Timer callback function.
