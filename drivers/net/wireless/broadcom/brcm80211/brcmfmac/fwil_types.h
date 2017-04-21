@@ -835,4 +835,63 @@ struct brcmf_gtk_keyinfo_le {
 	u8 replay_counter[BRCMF_RSN_REPLAY_LEN];
 };
 
+/**
+ * struct brcmf_gscan_bucket_config - configuration data for channel bucket.
+ *
+ * @bucket_end_index: !unknown!
+ * @bucket_freq_multiple: !unknown!
+ * @flag: !unknown!
+ * @reserved: !unknown!
+ * @repeat: !unknown!
+ * @max_freq_multiple: !unknown!
+ */
+struct brcmf_gscan_bucket_config {
+	u8 bucket_end_index;
+	u8 bucket_freq_multiple;
+	u8 flag;
+	u8 reserved;
+	__le16 repeat;
+	__le16 max_freq_multiple;
+};
+
+/* version supported which must match firmware */
+#define BRCMF_GSCAN_CFG_VERSION                     1
+
+/**
+ * enum brcmf_gscan_cfg_flags - bit values for gscan flags.
+ *
+ * @BRCMF_GSCAN_CFG_FLAGS_ALL_RESULTS: send probe responses/beacons to host.
+ * @BRCMF_GSCAN_CFG_FLAGS_CHANGE_ONLY: indicated only flags member is changed.
+ */
+enum brcmf_gscan_cfg_flags {
+	BRCMF_GSCAN_CFG_FLAGS_ALL_RESULTS = BIT(0),
+	BRCMF_GSCAN_CFG_FLAGS_CHANGE_ONLY = BIT(7),
+};
+
+/**
+ * struct brcmf_gscan_config - configuration data for gscan.
+ *
+ * @version: version of the api to match firmware.
+ * @flags: flags according %enum brcmf_gscan_cfg_flags.
+ * @buffer_threshold: percentage threshold of buffer to generate an event.
+ * @swc_nbssid_threshold: number of BSSIDs with significant change that
+ *	will generate an event.
+ * @swc_rssi_window_size: size of rssi cache buffer (max=8).
+ * @count_of_channel_buckets: number of array members in @bucket.
+ * @retry_threshold: !unknown!
+ * @lost_ap_window: !unknown!
+ * @bucket: array of channel buckets.
+ */
+struct brcmf_gscan_config {
+	__le16 version;
+	u8  flags;
+	u8   buffer_threshold;
+	u8   swc_nbssid_threshold;
+	u8  swc_rssi_window_size;
+	u8  count_of_channel_buckets;
+	u8  retry_threshold;
+	__le16  lost_ap_window;
+	struct brcmf_gscan_bucket_config bucket[1];
+};
+
 #endif /* FWIL_TYPES_H_ */
