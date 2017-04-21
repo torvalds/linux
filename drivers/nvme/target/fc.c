@@ -119,7 +119,7 @@ struct nvmet_fc_tgt_queue {
 	u16				qid;
 	u16				sqsize;
 	u16				ersp_ratio;
-	u16				sqhd;
+	__le16				sqhd;
 	int				cpu;
 	atomic_t			connected;
 	atomic_t			sqtail;
