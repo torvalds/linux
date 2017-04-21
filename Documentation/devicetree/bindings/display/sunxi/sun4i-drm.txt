@@ -4,6 +4,16 @@ Allwinner A10 Display Pipeline
 The Allwinner A10 Display pipeline is composed of several components
 that are going to be documented below:
 
+For the input port of all components up to the TCON in the display
+pipeline, if there are multiple components, the local endpoint IDs
+must correspond to the index of the upstream block. For example, if
+the remote endpoint is Frontend 1, then the local endpoint ID must
+be 1.
+
+Conversely, for the output ports of the same group, the remote endpoint
+ID must be the index of the local hardware block. If the local backend
+is backend 1, then the remote endpoint ID must be 1.
+
 TV Encoder
 ----------
 
