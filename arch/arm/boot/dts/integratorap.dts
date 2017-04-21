@@ -153,7 +153,7 @@
 	};
 
 	pci: pciv3@62000000 {
-		compatible = "v3,v360epc-pci";
+		compatible = "arm,integrator-ap-pci", "v3,v360epc-pci";
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
