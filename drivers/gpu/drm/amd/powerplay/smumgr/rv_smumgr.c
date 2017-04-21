@@ -124,9 +124,8 @@ int rv_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 
 	rv_send_msg_to_smc_without_waiting(smumgr, msg);
 
-	PP_ASSERT_WITH_CODE(rv_wait_for_response(smumgr) == 1,
-			"Failed to send Message.",
-			return -EINVAL);
+	if (rv_wait_for_response(smumgr) == 0)
+		printk("Failed to send Message %x.\n", msg);
 
 	return 0;
 }
@@ -149,9 +148,9 @@ int rv_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
 
 	rv_send_msg_to_smc_without_waiting(smumgr, msg);
 
-	PP_ASSERT_WITH_CODE(rv_wait_for_response(smumgr) == 1,
-			"Failed to send Message.",
-			return -EINVAL);
+
+	if (rv_wait_for_response(smumgr) == 0)
+		printk("Failed to send Message %x.\n", msg);
 
 	return 0;
 }
