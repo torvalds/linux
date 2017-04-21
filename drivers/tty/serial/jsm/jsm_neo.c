@@ -675,8 +675,8 @@ static void neo_flush_uart_read(struct jsm_channel *ch)
 	for (i = 0; i < 10; i++) {
 
 		/* Check to see if the UART feels it completely flushed the FIFO. */
-		tmp = readb(&ch->ch_neo_uart->isr_fcr);
-		if (tmp & 2) {
+		tmp = readb(&ch->ch_neo_uart->isr_fcr) & UART_IIR_MASK;
+		if (tmp == UART_IIR_THRI) {
 			jsm_dbg(IOCTL, &ch->ch_bd->pci_dev,
 				"Still flushing RX UART... i: %d\n", i);
 			udelay(10);
@@ -734,21 +734,17 @@ static void neo_parse_isr(struct jsm_board *brd, u32 port)
 	/* Here we try to figure out what caused the interrupt to happen */
 	while (1) {
 
-		isr = readb(&ch->ch_neo_uart->isr_fcr);
+		isr = readb(&ch->ch_neo_uart->isr_fcr) &
+			(UART_IIR_MASK | UART_IIR_EXT_MASK);
 
 		/* Bail if no pending interrupt */
-		if (isr & UART_IIR_NO_INT)
+		if (isr == UART_IIR_NO_INT)
 			break;
-
-		/*
-		 * Yank off the upper 2 bits, which just show that the FIFO's are enabled.
-		 */
-		isr &= ~(UART_17158_IIR_FIFO_ENABLED);
 
 		jsm_dbg(INTR, &ch->ch_bd->pci_dev, "%s:%d isr: %x\n",
 			__FILE__, __LINE__, isr);
 
-		if (isr & (UART_17158_IIR_RDI_TIMEOUT | UART_IIR_RDI)) {
+		if ((isr == UART_IIR_RX_TIMEOUT) || (isr == UART_IIR_RDI)) {
 			/* Read data from uart -> queue */
 			neo_copy_data_from_uart_to_queue(ch);
 
@@ -758,7 +754,7 @@ static void neo_parse_isr(struct jsm_board *brd, u32 port)
 			spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 		}
 
-		if (isr & UART_IIR_THRI) {
+		if (isr == UART_IIR_THRI) {
 			/* Transfer data (if any) from Write Queue -> UART. */
 			spin_lock_irqsave(&ch->ch_lock, lock_flags);
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
@@ -766,7 +762,7 @@ static void neo_parse_isr(struct jsm_board *brd, u32 port)
 			neo_copy_data_from_queue_to_uart(ch);
 		}
 
-		if (isr & UART_17158_IIR_XONXOFF) {
+		if (isr == UART_IIR_XOFF) {
 			cause = readb(&ch->ch_neo_uart->xoffchar1);
 
 			jsm_dbg(INTR, &ch->ch_bd->pci_dev,
@@ -801,7 +797,7 @@ static void neo_parse_isr(struct jsm_board *brd, u32 port)
 			spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 		}
 
-		if (isr & UART_17158_IIR_HWFLOW_STATE_CHANGE) {
+		if (isr == UART_IIR_CTS_RTS_DSR) {
 			/*
 			 * If we get here, this means the hardware is doing auto flow control.
 			 * Check to see whether RTS/DTR or CTS/DSR caused this interrupt.

@@ -579,21 +579,21 @@ static inline void cls_parse_isr(struct jsm_board *brd, uint port)
 
 	/* Here we try to figure out what caused the interrupt to happen */
 	while (1) {
-		isr = readb(&ch->ch_cls_uart->isr_fcr);
+		isr = readb(&ch->ch_cls_uart->isr_fcr) & UART_IIR_MASK;
 
 		/* Bail if no pending interrupt on port */
-		if (isr & UART_IIR_NO_INT)
+		if (isr == UART_IIR_NO_INT)
 			break;
 
 		/* Receive Interrupt pending */
-		if (isr & (UART_IIR_RDI | UART_IIR_RDI_TIMEOUT)) {
+		if ((isr == UART_IIR_RDI) || (isr == UART_IIR_RX_TIMEOUT)) {
 			/* Read data from uart -> queue */
 			cls_copy_data_from_uart_to_queue(ch);
 			jsm_check_queue_flow_control(ch);
 		}
 
 		/* Transmit Hold register empty pending */
-		if (isr & UART_IIR_THRI) {
+		if (isr == UART_IIR_THRI) {
 			/* Transfer data (if any) from Write Queue -> UART. */
 			spin_lock_irqsave(&ch->ch_lock, flags);
 			ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
@@ -626,7 +626,7 @@ static void cls_flush_uart_write(struct jsm_channel *ch)
 
 	for (i = 0; i < 10; i++) {
 		/* Check to see if the UART feels it completely flushed FIFO */
-		tmp = readb(&ch->ch_cls_uart->isr_fcr);
+		tmp = readb(&ch->ch_cls_uart->isr_fcr) & UART_IIR_MASK;
 		if (tmp & UART_FCR_CLEAR_XMIT) {
 			jsm_dbg(IOCTL, &ch->ch_bd->pci_dev,
 				"Still flushing TX UART... i: %d\n", i);

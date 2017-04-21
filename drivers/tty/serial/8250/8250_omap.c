@@ -1025,6 +1025,8 @@ static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 	case UART_IIR_RDI:
 		omap_8250_rx_dma_flush(up);
 		return true;
+	default:
+		break;
 	}
 	return omap_8250_rx_dma(up);
 }

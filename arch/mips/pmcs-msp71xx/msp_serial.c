@@ -68,7 +68,7 @@ static int msp_serial_handle_irq(struct uart_port *p)
 
 	if (serial8250_handle_irq(p, iir)) {
 		return 1;
-	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+	} else if ((iir & UART_IIR_MASK) == UART_IIR_BUSY) {
 		/*
 		 * The DesignWare APB UART has an Busy Detect (0x07) interrupt
 		 * meaning an LCR write attempt occurred while the UART was

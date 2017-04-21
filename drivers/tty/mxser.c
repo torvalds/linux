@@ -2248,10 +2248,10 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 			int_cnt = 0;
 			spin_lock(&port->slock);
 			do {
-				iir = inb(port->ioaddr + UART_IIR);
-				if (iir & UART_IIR_NO_INT)
+				iir = inb(port->ioaddr + UART_IIR) &
+					UART_IIR_MASK | UART_IIR_EXT_MASK;
+				if (iir == UART_IIR_NO_INT)
 					break;
-				iir &= MOXA_MUST_IIR_MASK;
 				tty = tty_port_tty_get(&port->port);
 				if (!tty || port->closing ||
 				    !tty_port_initialized(&port->port)) {
@@ -2293,7 +2293,7 @@ static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 					mxser_check_modem_status(tty, port, msr);
 
 				if (port->board->chip_flag) {
-					if (iir == 0x02 && (status &
+					if (iir == UART_IIR_THRI && (status &
 								UART_LSR_THRE))
 						mxser_transmit_chars(tty, port);
 				} else {

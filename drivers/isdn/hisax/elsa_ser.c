@@ -407,13 +407,13 @@ static void rs_interrupt_elsa(struct IsdnCardState *cs)
 			printk("rs_single loop break.\n");
 			break;
 		}
-		iir = serial_inp(cs, UART_IIR);
+		iir = serial_inp(cs, UART_IIR) & UART_IIR_MASK;
 		debugl1(cs, "rs IIR %02x", iir);
-		if ((iir & 0xf) == 0) {
+		if (iir == UART_IIR_MSI) {
 			msr = serial_inp(cs, UART_MSR);
 			debugl1(cs, "rs MSR %02x", msr);
 		}
-	} while (!(iir & UART_IIR_NO_INT));
+	} while (iir != UART_IIR_NO_INT);
 #ifdef SERIAL_DEBUG_INTR
 	printk("end.\n");
 #endif

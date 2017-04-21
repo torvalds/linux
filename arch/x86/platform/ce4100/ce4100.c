@@ -59,8 +59,8 @@ static unsigned int ce4100_mem_serial_in(struct uart_port *p, int offset)
 
 	if (offset == UART_IIR) {
 		offset = offset << p->regshift;
-		ret = readl(p->membase + offset);
-		if (ret & UART_IIR_NO_INT) {
+		ret = readl(p->membase + offset) & UART_IIR_MASK;
+		if (ret == UART_IIR_NO_INT) {
 			/* see if the TX interrupt should have really set */
 			ier = mem_serial_in(p, UART_IER);
 			/* see if the UART's XMIT interrupt is enabled */
@@ -69,7 +69,7 @@ static unsigned int ce4100_mem_serial_in(struct uart_port *p, int offset)
 				/* now check to see if the UART should be
 				   generating an interrupt (but isn't) */
 				if (lsr & (UART_LSR_THRE | UART_LSR_TEMT))
-					ret &= ~UART_IIR_NO_INT;
+					ret != UART_IIR_NO_INT;
 			}
 		}
 	} else

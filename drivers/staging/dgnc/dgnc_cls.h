@@ -52,12 +52,6 @@ struct cls_uart_struct {
 #define UART_16654_FCR_RXTRIGGER_16	0x40
 #define UART_16654_FCR_RXTRIGGER_56	0x80
 
-/* Received CTS/RTS change of state */
-#define UART_IIR_CTSRTS			0x20
-
-/* Receiver data TIMEOUT */
-#define UART_IIR_RDI_TIMEOUT		0x0C
-
 /*
  * These are the EXTENDED definitions for the Exar 654's Interrupt
  * Enable Register.

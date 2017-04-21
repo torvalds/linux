@@ -297,8 +297,8 @@ elsa_interrupt(int intno, void *dev_id)
 	spin_lock_irqsave(&cs->lock, flags);
 #if ARCOFI_USE
 	if (cs->hw.elsa.MFlag) {
-		val = serial_inp(cs, UART_IIR);
-		if (!(val & UART_IIR_NO_INT)) {
+		val = serial_inp(cs, UART_IIR) & UART_IIR_MASK;
+		if (val != UART_IIR_NO_INT) {
 			debugl1(cs, "IIR %02x", val);
 			rs_interrupt_elsa(cs);
 		}
@@ -377,8 +377,8 @@ elsa_interrupt_ipac(int intno, void *dev_id)
 	}
 #if ARCOFI_USE
 	if (cs->hw.elsa.MFlag) {
-		val = serial_inp(cs, UART_IIR);
-		if (!(val & UART_IIR_NO_INT)) {
+		val = serial_inp(cs, UART_IIR) & UART_IIR_MASK;
+		if (val != UART_IIR_NO_INT) {
 			debugl1(cs, "IIR %02x", val);
 			rs_interrupt_elsa(cs);
 		}

@@ -31,6 +31,7 @@
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/stddef.h>
 #include <linux/nmi.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -110,7 +111,7 @@ static DEFINE_MUTEX(hash_mutex);	/* Used to walk the hash */
  */
 static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 {
-	struct irq_info *i = dev_id;
+	struct irq_info *i = (struct irq_info *)dev_id;
 	struct list_head *l, *end = NULL;
 	int pass_counter = 0, handled = 0;
 
@@ -137,7 +138,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
 			/* If we hit this, we're dead. */
 			printk_ratelimited(KERN_ERR
-				"serial8250: too much work for irq%d\n", irq);
+				"serial8250: too much work for irq%d (%p)\n", irq, port->membase);
 			break;
 		}
 	} while (l != end);

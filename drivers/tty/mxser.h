@@ -113,13 +113,6 @@
 #define MOXA_MUST_IIR_RTO		0x0C
 #define MOXA_MUST_IIR_LSR		0x06
 
-/* received Xon/Xoff or specical interrupt pending */
-#define MOXA_MUST_IIR_XSC		0x10
-
-/* RTS/CTS change state interrupt pending */
-#define MOXA_MUST_IIR_RTSCTS		0x20
-#define MOXA_MUST_IIR_MASK		0x3E
-
 #define MOXA_MUST_MCR_XON_FLAG		0x40
 #define MOXA_MUST_MCR_XON_ANY		0x80
 #define MOXA_MUST_MCR_TX_XON		0x08

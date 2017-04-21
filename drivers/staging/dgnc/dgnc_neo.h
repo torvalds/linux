@@ -125,7 +125,6 @@ struct neo_uart_struct {
 #define UART_17158_RX_FIFOSIZE		64
 #define UART_17158_TX_FIFOSIZE		64
 
-/* 17158 Extended IIR's */
 #define UART_17158_IIR_RDI_TIMEOUT	0x0C	/* Receiver data TIMEOUT */
 #define UART_17158_IIR_XONXOFF		0x10	/* Received an XON/XOFF char */
 #define UART_17158_IIR_HWFLOW_STATE_CHANGE 0x20	/* CTS/DSR or RTS/DTR

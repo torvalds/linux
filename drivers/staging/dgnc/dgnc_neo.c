@@ -418,7 +418,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 			neo_copy_data_from_queue_to_uart(ch);
 		}
 
-		if (isr & UART_17158_IIR_XONXOFF) {
+		if (isr == UART_17158_IIR_XONXOFF) {
 			cause = readb(&ch->ch_neo_uart->xoffchar1);
 
 			/*
@@ -447,7 +447,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 			}
 		}
 
-		if (isr & UART_17158_IIR_HWFLOW_STATE_CHANGE) {
+		if (isr == UART_17158_IIR_HWFLOW_STATE_CHANGE) {
 			/*
 			 * If we get here, this means the hardware is
 			 * doing auto flow control. Check to see whether
@@ -1228,8 +1228,8 @@ static void neo_flush_uart_write(struct channel_t *ch)
 		 * Check to see if the UART completely flushed the FIFO
 		 * FIFO.
 		 */
-		tmp = readb(&ch->ch_neo_uart->isr_fcr);
-		if (tmp & 4)
+		tmp = readb(&ch->ch_neo_uart->isr_fcr) & UART_IIR_MASK;
+		if (tmp == UART_IIR_RDI)
 			udelay(10);
 		else
 			break;
@@ -1259,8 +1259,8 @@ static void neo_flush_uart_read(struct channel_t *ch)
 		 * Check to see if the UART feels it completely flushed the
 		 * FIFO.
 		 */
-		tmp = readb(&ch->ch_neo_uart->isr_fcr);
-		if (tmp & 2)
+		tmp = readb(&ch->ch_neo_uart->isr_fcr) & UART_IIR_MASK;
+		if (tmp == UART_IIR_THRI)
 			udelay(10);
 		else
 			break;

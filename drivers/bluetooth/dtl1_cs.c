@@ -303,8 +303,8 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 
 	spin_lock(&(info->lock));
 
-	iir = inb(iobase + UART_IIR) & UART_IIR_ID;
-	while (iir) {
+	iir = inb(iobase + UART_IIR) & UART_IIR_MASK;
+	while (iir != UART_IIR_NO_INT) {
 
 		r = IRQ_HANDLED;
 		/* Clear interrupt */
@@ -333,7 +333,7 @@ static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 		if (boguscount++ > 100)
 			break;
 
-		iir = inb(iobase + UART_IIR) & UART_IIR_ID;
+		iir = inb(iobase + UART_IIR) & UART_IIR_MASK;
 
 	}
 

@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/sysrq.h>
 #include <uapi/linux/serial_core.h>
+#include <uapi/linux/serial_reg.h>
 
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 #define uart_console(port) \
@@ -263,6 +264,22 @@ static inline int serial_port_in(struct uart_port *up, int offset)
 static inline void serial_port_out(struct uart_port *up, int offset, int value)
 {
 	up->serial_out(up, offset, value);
+}
+
+/**
+ * serial_port_in_IIR - Helper function to obtain the interrupt ID from the
+ * 			Interrupt ID Register.
+ * @up:		UART port to get the intterupt ID from
+ * @mask:	Additional mask to filter against
+ */
+static inline int serial_port_in_IIR_MASK(struct uart_port *up, int mask)
+{
+	return serial_port_in(up, UART_IIR) & (UART_IIR_MASK | mask);
+}
+
+static inline int serial_port_in_IIR(struct uart_port *up)
+{
+	return serial_port_in_IIR_MASK(up, 0);
 }
 
 /**

@@ -1842,6 +1842,8 @@ static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 		/* fall-through */
 	case UART_IIR_RLSI:
 		return true;
+	default:
+		break;
 	}
 	return up->dma->rx_dma(up);
 }
@@ -1919,10 +1921,10 @@ static int exar_handle_irq(struct uart_port *port)
 static int serial8250_tx_threshold_handle_irq(struct uart_port *port)
 {
 	unsigned long flags;
-	unsigned int iir = serial_port_in(port, UART_IIR);
+	unsigned int iir = serial_port_in(port, UART_IIR) & UART_IIR_MASK;
 
 	/* TX Threshold IRQ triggered so load up FIFO */
-	if ((iir & UART_IIR_MASK) == UART_IIR_THRI) {
+	if (iir == UART_IIR_THRI) {
 		struct uart_8250_port *up = up_to_u8250p(port);
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -2274,11 +2276,11 @@ int serial8250_do_startup(struct uart_port *port)
 		wait_for_xmitr(up, UART_LSR_THRE);
 		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
 		udelay(1); /* allow THRE to set */
-		iir1 = serial_port_in(port, UART_IIR);
+		iir1 = serial_port_in(port, UART_IIR) & UART_IIR_MASK;
 		serial_port_out(port, UART_IER, 0);
 		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
 		udelay(1); /* allow a working UART time to re-assert THRE */
-		iir = serial_port_in(port, UART_IIR);
+		iir = serial_port_in(port, UART_IIR) & UART_IIR_MASK;
 		serial_port_out(port, UART_IER, 0);
 
 		if (port->irqflags & IRQF_SHARED)
@@ -2290,8 +2292,8 @@ int serial8250_do_startup(struct uart_port *port)
 		 * don't trust the iir, setup a timer to kick the UART
 		 * on a regular basis.
 		 */
-		if ((((iir1 & UART_IIR_MASK) != UART_IIR_NO_INT) &&
-		     ((iir & UART_IIR_MASK) == UART_IIR_NO_INT)) ||
+		if (((iir1 != UART_IIR_NO_INT) &&
+		     (iir == UART_IIR_NO_INT)) ||
 		    up->port.flags & UPF_BUG_THRE) {
 			up->bugs |= UART_BUG_THRE;
 		}
@@ -2339,10 +2341,10 @@ int serial8250_do_startup(struct uart_port *port)
 	 */
 	serial_port_out(port, UART_IER, UART_IER_THRI);
 	lsr = serial_port_in(port, UART_LSR);
-	iir = serial_port_in(port, UART_IIR);
+	iir = serial_port_in(port, UART_IIR) & UART_IIR_MASK;
 	serial_port_out(port, UART_IER, 0);
 
-	if (lsr & UART_LSR_TEMT && ((iir & UART_IIR_MASK) == UART_IIR_NO_INT)) {
+	if (lsr & UART_LSR_TEMT && (iir == UART_IIR_NO_INT)) {
 		if (!(up->bugs & UART_BUG_TXEN)) {
 			up->bugs |= UART_BUG_TXEN;
 			pr_debug("ttyS%d - enabling bad tx status workarounds\n",
