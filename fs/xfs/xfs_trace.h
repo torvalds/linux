@@ -2255,8 +2255,8 @@ DECLARE_EVENT_CLASS(xfs_defer_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(void *, dop)
-		__field(bool, committed)
-		__field(bool, low)
+		__field(char, committed)
+		__field(char, low)
 	),
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
@@ -2281,8 +2281,8 @@ DECLARE_EVENT_CLASS(xfs_defer_error_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(void *, dop)
-		__field(bool, committed)
-		__field(bool, low)
+		__field(char, committed)
+		__field(char, low)
 		__field(int, error)
 	),
 	TP_fast_assign(
@@ -2311,7 +2311,7 @@ DECLARE_EVENT_CLASS(xfs_defer_pending_class,
 		__field(dev_t, dev)
 		__field(int, type)
 		__field(void *, intent)
-		__field(bool, committed)
+		__field(char, committed)
 		__field(int, nr)
 	),
 	TP_fast_assign(
