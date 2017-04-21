@@ -124,8 +124,8 @@ static int xgpu_ai_poll_ack(struct amdgpu_device *adev)
 			r = -ETIME;
 			break;
 		}
-		msleep(1);
-		timeout -= 1;
+		mdelay(5);
+		timeout -= 5;
 
 		reg = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
 						     mmBIF_BX_PF0_MAILBOX_CONTROL));
@@ -141,12 +141,12 @@ static int xgpu_ai_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 	r = xgpu_ai_mailbox_rcv_msg(adev, event);
 	while (r) {
 		if (timeout <= 0) {
-			pr_err("Doesn't get ack from pf.\n");
+			pr_err("Doesn't get msg:%d from pf.\n", event);
 			r = -ETIME;
 			break;
 		}
-		msleep(1);
-		timeout -= 1;
+		mdelay(5);
+		timeout -= 5;
 
 		r = xgpu_ai_mailbox_rcv_msg(adev, event);
 	}
@@ -165,7 +165,7 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 	/* start to poll ack */
 	r = xgpu_ai_poll_ack(adev);
 	if (r)
-		return r;
+		pr_err("Doesn't get ack from pf, continue\n");
 
 	xgpu_ai_mailbox_set_valid(adev, false);
 
@@ -174,8 +174,10 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 		req == IDH_REQ_GPU_FINI_ACCESS ||
 		req == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_ai_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
-		if (r)
+		if (r) {
+			pr_err("Doesn't get READY_TO_ACCESS_GPU from pf, give up\n");
 			return r;
+		}
 	}
 
 	return 0;
@@ -211,7 +213,7 @@ static int xgpu_ai_mailbox_ack_irq(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("get ack intr and do nothing.\n");
+	printk("get ack intr and do nothing.\n");
 	return 0;
 }
 

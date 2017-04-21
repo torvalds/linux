@@ -398,8 +398,8 @@ static int xgpu_vi_poll_ack(struct amdgpu_device *adev)
 			r = -ETIME;
 			break;
 		}
-		msleep(1);
-		timeout -= 1;
+		mdelay(5);
+		timeout -= 5;
 
 		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	}
@@ -418,8 +418,8 @@ static int xgpu_vi_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 			r = -ETIME;
 			break;
 		}
-		msleep(1);
-		timeout -= 1;
+		mdelay(5);
+		timeout -= 5;
 
 		r = xgpu_vi_mailbox_rcv_msg(adev, event);
 	}
@@ -447,7 +447,7 @@ static int xgpu_vi_send_access_requests(struct amdgpu_device *adev,
 		request == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_vi_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
 		if (r)
-			return r;
+			pr_err("Doesn't get ack from pf, continue\n");
 	}
 
 	return 0;
