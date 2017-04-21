@@ -607,6 +607,10 @@ static int ibmvnic_open(struct net_device *netdev)
 		return -1;
 	}
 
+	rc = init_stats_token(adapter);
+	if (rc)
+		return rc;
+
 	adapter->map_id = 1;
 	adapter->napi = kcalloc(adapter->req_rx_queues,
 				sizeof(struct napi_struct), GFP_KERNEL);
@@ -3238,12 +3242,6 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	rc = init_crq_queue(adapter);
 	if (rc) {
 		dev_err(dev, "Couldn't initialize crq. rc=%d\n", rc);
-		return rc;
-	}
-
-	rc = init_stats_token(adapter);
-	if (rc) {
-		release_crq_queue(adapter);
 		return rc;
 	}
 
