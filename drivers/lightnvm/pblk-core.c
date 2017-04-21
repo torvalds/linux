@@ -1050,13 +1050,14 @@ int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line)
 	spin_lock(&l_mg->free_lock);
 	l_mg->data_line = line;
 	list_del(&line->list);
-	spin_unlock(&l_mg->free_lock);
 
 	ret = pblk_line_prepare(pblk, line);
 	if (ret) {
 		list_add(&line->list, &l_mg->free_list);
+		spin_unlock(&l_mg->free_lock);
 		return ret;
 	}
+	spin_unlock(&l_mg->free_lock);
 
 	pblk_rl_free_lines_dec(&pblk->rl, line);
 
@@ -1140,14 +1141,13 @@ static struct pblk_line *pblk_line_retry(struct pblk *pblk,
 	line->invalid_bitmap = NULL;
 	line->smeta = NULL;
 	line->emeta = NULL;
+	l_mg->data_line = retry_line;
 	spin_unlock(&l_mg->free_lock);
 
 	if (pblk_line_erase(pblk, retry_line))
 		return NULL;
 
 	pblk_rl_free_lines_dec(&pblk->rl, retry_line);
-
-	l_mg->data_line = retry_line;
 
 	return retry_line;
 }
