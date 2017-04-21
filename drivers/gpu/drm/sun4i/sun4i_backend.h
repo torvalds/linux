@@ -15,6 +15,7 @@
 
 #include <linux/clk.h>
 #include <linux/list.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
@@ -140,6 +141,7 @@
 #define SUN4I_BACKEND_PIPE_OFF(p)		(0x5000 + (0x400 * (p)))
 
 struct sun4i_backend {
+	struct device_node	*node;
 	struct regmap		*regs;
 
 	struct reset_control	*reset;

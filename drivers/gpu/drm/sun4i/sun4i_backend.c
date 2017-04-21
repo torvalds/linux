@@ -352,6 +352,7 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);
 
+	backend->node = dev->of_node;
 	backend->id = sun4i_backend_of_get_id(dev->of_node);
 	if (backend->id < 0)
 		return backend->id;
