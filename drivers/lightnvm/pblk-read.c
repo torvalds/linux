@@ -410,14 +410,14 @@ static int read_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 	struct ppa_addr ppa;
 	int valid_secs = 0;
 
+	if (lba == ADDR_EMPTY)
+		goto out;
+
 	/* logic error: lba out-of-bounds */
 	if (lba >= pblk->rl.nr_secs) {
 		WARN(1, "pblk: read lba out of bounds\n");
 		goto out;
 	}
-
-	if (lba == ADDR_EMPTY)
-		goto out;
 
 	spin_lock(&pblk->trans_lock);
 	ppa = pblk_trans_map_get(pblk, lba);
