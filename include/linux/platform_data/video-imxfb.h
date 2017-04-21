@@ -50,6 +50,7 @@
 struct imx_fb_videomode {
 	struct fb_videomode mode;
 	u32 pcr;
+	bool aus_mode;
 	unsigned char	bpp;
 };
 
