@@ -175,6 +175,7 @@ static void __sched_clock_work(struct work_struct *work)
 	for_each_possible_cpu(cpu)
 		per_cpu(sched_clock_data, cpu) = *scd;
 
+	printk(KERN_WARNING "TSC found unstable after boot, most likely due to broken BIOS. Use 'tsc=unstable'.\n");
 	printk(KERN_INFO "sched_clock: Marking unstable (%lld, %lld)<-(%lld, %lld)\n",
 			scd->tick_gtod, __gtod_offset,
 			scd->tick_raw,  __sched_clock_offset);
