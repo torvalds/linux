@@ -1436,9 +1436,7 @@ static int vega10_populate_ulv_state(struct pp_hwmgr *hwmgr)
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 
 	data->smc_state_table.pp_table.UlvOffsetVid =
-			(uint8_t)(table_info->us_ulv_voltage_offset *
-					VOLTAGE_VID_OFFSET_SCALE2 /
-					VOLTAGE_VID_OFFSET_SCALE1);
+			(uint8_t)table_info->us_ulv_voltage_offset;
 
 	data->smc_state_table.pp_table.UlvSmnclkDid =
 			(uint8_t)(table_info->us_ulv_smnclk_did);
@@ -2342,6 +2340,7 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 			(uint8_t)(table_info->uc_vce_dpm_voltage_mode);
 	pp_table->Mp0DpmVoltageMode =
 			(uint8_t)(table_info->uc_mp0_dpm_voltage_mode);
+
 	pp_table->DisplayDpmVoltageMode =
 			(uint8_t)(table_info->uc_dcef_dpm_voltage_mode);
 
