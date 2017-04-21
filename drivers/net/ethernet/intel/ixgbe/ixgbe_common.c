@@ -395,7 +395,8 @@ s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw)
 	}
 
 	/* Initialize the LED link active for LED blink support */
-	hw->mac.ops.init_led_link_act(hw);
+	if (hw->mac.ops.init_led_link_act)
+		hw->mac.ops.init_led_link_act(hw);
 
 	return status;
 }

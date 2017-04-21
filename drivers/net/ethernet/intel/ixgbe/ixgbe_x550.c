@@ -3206,6 +3206,7 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		phy->ops.setup_link = NULL;
 		phy->ops.read_reg = NULL;
 		phy->ops.write_reg = NULL;
+		phy->ops.reset = NULL;
 		break;
 	default:
 		break;
@@ -3819,6 +3820,28 @@ static const struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550,
 };
 
+static const struct ixgbe_mac_operations mac_ops_X550EM_x_fw = {
+	X550_COMMON_MAC
+	.led_on			= NULL,
+	.led_off		= NULL,
+	.init_led_link_act	= NULL,
+	.reset_hw		= &ixgbe_reset_hw_X550em,
+	.get_media_type		= &ixgbe_get_media_type_X550em,
+	.get_san_mac_addr	= NULL,
+	.get_wwn_prefix		= NULL,
+	.setup_link		= &ixgbe_setup_mac_link_X540,
+	.get_link_capabilities	= &ixgbe_get_link_capabilities_X550em,
+	.get_bus_info		= &ixgbe_get_bus_info_X550em,
+	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
+	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X550em,
+	.release_swfw_sync	= &ixgbe_release_swfw_sync_X550em,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
+	.setup_fc		= NULL,
+	.fc_autoneg		= ixgbe_fc_autoneg,
+	.read_iosf_sb_reg	= ixgbe_read_iosf_sb_reg_x550,
+	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550,
+};
+
 static struct ixgbe_mac_operations mac_ops_x550em_a = {
 	X550_COMMON_MAC
 	.led_on			= ixgbe_led_on_t_x550em,
@@ -3986,7 +4009,7 @@ const struct ixgbe_info ixgbe_X550EM_x_info = {
 const struct ixgbe_info ixgbe_x550em_x_fw_info = {
 	.mac			= ixgbe_mac_X550EM_x,
 	.get_invariants		= ixgbe_get_invariants_X550_x_fw,
-	.mac_ops		= &mac_ops_X550EM_x,
+	.mac_ops		= &mac_ops_X550EM_x_fw,
 	.eeprom_ops		= &eeprom_ops_X550EM_x,
 	.phy_ops		= &phy_ops_x550em_x_fw,
 	.mbx_ops		= &mbx_ops_generic,
