@@ -386,6 +386,43 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
 	return was_enabled;
 }
 
+/**
+ * intel_set_memory_cxsr - Configure CxSR state
+ * @dev_priv: i915 device
+ * @enable: Allow vs. disallow CxSR
+ *
+ * Allow or disallow the system to enter a special CxSR
+ * (C-state self refresh) state. What typically happens in CxSR mode
+ * is that several display FIFOs may get combined into a single larger
+ * FIFO for a particular plane (so called max FIFO mode) to allow the
+ * system to defer memory fetches longer, and the memory will enter
+ * self refresh.
+ *
+ * Note that enabling CxSR does not guarantee that the system enter
+ * this special mode, nor does it guarantee that the system stays
+ * in that mode once entered. So this just allows/disallows the system
+ * to autonomously utilize the CxSR mode. Other factors such as core
+ * C-states will affect when/if the system actually enters/exits the
+ * CxSR mode.
+ *
+ * Note that on VLV/CHV this actually only controls the max FIFO mode,
+ * and the system is free to enter/exit memory self refresh at any time
+ * even when the use of CxSR has been disallowed.
+ *
+ * While the system is actually in the CxSR/max FIFO mode, some plane
+ * control registers will not get latched on vblank. Thus in order to
+ * guarantee the system will respond to changes in the plane registers
+ * we must always disallow CxSR prior to making changes to those registers.
+ * Unfortunately the system will re-evaluate the CxSR conditions at
+ * frame start which happens after vblank start (which is when the plane
+ * registers would get latched), so we can't proceed with the plane update
+ * during the same frame where we disallowed CxSR.
+ *
+ * Certain platforms also have a deeper HPLL SR mode. Fortunately the
+ * HPLL SR mode depends on CxSR itself, so we don't have to hand hold
+ * the hardware w.r.t. HPLL SR when writing to plane registers.
+ * Disallowing just CxSR is sufficient.
+ */
 bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
 	bool ret;
