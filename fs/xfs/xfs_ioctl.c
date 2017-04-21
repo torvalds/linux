@@ -1640,7 +1640,7 @@ xfs_ioc_getfsmap(
 	struct xfs_inode	*ip,
 	void			__user *arg)
 {
-	struct getfsmap_info	info = {0};
+	struct getfsmap_info	info = { NULL };
 	struct xfs_fsmap_head	xhead = {0};
 	struct fsmap_head	head;
 	bool			aborted = false;
