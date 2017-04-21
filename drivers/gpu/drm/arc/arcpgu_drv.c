@@ -190,7 +190,7 @@ static struct drm_driver arcpgu_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
 	.lastclose = arcpgu_lastclose,
-	.name = "drm-arcpgu",
+	.name = "arcpgu",
 	.desc = "ARC PGU Controller",
 	.date = "20160219",
 	.major = 1,
