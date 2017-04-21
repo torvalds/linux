@@ -280,14 +280,14 @@ define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
 	$(call cmd_and_fixdep,cc_o_c)					  \
 	$(cmd_modversions_c)						  \
-	$(cmd_objtool)						          \
+	$(call echo-cmd,objtool) $(cmd_objtool)				  \
 	$(call echo-cmd,record_mcount) $(cmd_record_mcount)
 endef
 
 define rule_as_o_S
 	$(call cmd_and_fixdep,as_o_S)					  \
 	$(cmd_modversions_S)						  \
-	$(cmd_objtool)
+	$(call echo-cmd,objtool) $(cmd_objtool)
 endef
 
 # List module undefined symbols (or empty line if not enabled)
