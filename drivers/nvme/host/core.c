@@ -75,6 +75,20 @@ static int nvme_error_status(struct request *req)
 		return -ENOSPC;
 	default:
 		return -EIO;
+
+	/*
+	 * XXX: these errors are a nasty side-band protocol to
+	 * drivers/md/dm-mpath.c:noretry_error() that aren't documented
+	 * anywhere..
+	 */
+	case NVME_SC_CMD_SEQ_ERROR:
+		return -EILSEQ;
+	case NVME_SC_ONCS_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	case NVME_SC_WRITE_FAULT:
+	case NVME_SC_READ_ERROR:
+	case NVME_SC_UNWRITTEN_BLOCK:
+		return -ENODATA;
 	}
 }
 
