@@ -363,14 +363,14 @@ struct pblk_line {
 
 	unsigned int sec_in_line;	/* Number of usable secs in line */
 
-	unsigned int blk_in_line;	/* Number of good blocks in line */
+	atomic_t blk_in_line;		/* Number of good blocks in line */
 	unsigned long *blk_bitmap;	/* Bitmap for valid/invalid blocks */
 	unsigned long *erase_bitmap;	/* Bitmap for erased blocks */
 
 	unsigned long *map_bitmap;	/* Bitmap for mapped sectors in line */
 	unsigned long *invalid_bitmap;	/* Bitmap for invalid sectors in line */
 
-	int left_eblks;			/* Blocks left for erasing */
+	atomic_t left_eblks;		/* Blocks left for erasing */
 	atomic_t left_seblks;		/* Blocks left for sync erasing */
 
 	int left_msecs;			/* Sectors left for mapping */
@@ -383,7 +383,7 @@ struct pblk_line {
 	spinlock_t lock;		/* Necessary for invalid_bitmap only */
 };
 
-#define PBLK_DATA_LINES 2
+#define PBLK_DATA_LINES 4
 
 enum{
 	PBLK_KMALLOC_META = 1,

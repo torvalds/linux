@@ -332,7 +332,7 @@ next_gc_group:
 		}
 
 		line = list_first_entry(group_list, struct pblk_line, list);
-		nr_blocks_free += line->blk_in_line;
+		nr_blocks_free += atomic_read(&line->blk_in_line);
 
 		spin_lock(&line->lock);
 		WARN_ON(line->state != PBLK_LINESTATE_CLOSED);

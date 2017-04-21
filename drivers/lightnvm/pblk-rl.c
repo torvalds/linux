@@ -107,9 +107,10 @@ void pblk_rl_set_gc_rsc(struct pblk_rl *rl, int rsv)
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line)
 {
 	struct pblk *pblk = container_of(rl, struct pblk, rl);
+	int blk_in_line = atomic_read(&line->blk_in_line);
 	int ret;
 
-	atomic_add(line->blk_in_line, &rl->free_blocks);
+	atomic_add(blk_in_line, &rl->free_blocks);
 	/* Rates will not change that often - no need to lock update */
 	ret = pblk_rl_update_rates(rl, rl->rb_budget);
 
@@ -122,9 +123,10 @@ void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line)
 void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line)
 {
 	struct pblk *pblk = container_of(rl, struct pblk, rl);
+	int blk_in_line = atomic_read(&line->blk_in_line);
 	int ret;
 
-	atomic_sub(line->blk_in_line, &rl->free_blocks);
+	atomic_sub(blk_in_line, &rl->free_blocks);
 
 	/* Rates will not change that often - no need to lock update */
 	ret = pblk_rl_update_rates(rl, rl->rb_budget);

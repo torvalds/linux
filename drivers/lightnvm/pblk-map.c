@@ -110,7 +110,7 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 				continue;
 
 			set_bit(erase_lun, e_line->erase_bitmap);
-			e_line->left_eblks--;
+			atomic_dec(&e_line->left_eblks);
 			*erase_ppa = rqd->ppa_list[i];
 			erase_ppa->g.blk = e_line->id;
 
@@ -129,7 +129,7 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			return;
 
 		set_bit(i, e_line->erase_bitmap);
-		e_line->left_eblks--;
+		atomic_dec(&e_line->left_eblks);
 		*erase_ppa = pblk->luns[i].bppa; /* set ch and lun */
 		erase_ppa->g.blk = e_line->id;
 	}
