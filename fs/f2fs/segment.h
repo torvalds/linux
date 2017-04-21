@@ -593,7 +593,8 @@ static inline bool need_inplace_update(struct inode *inode,
 	 */
 	if (policy & (0x1 << F2FS_IPU_ASYNC) &&
 			fio && fio->op == REQ_OP_WRITE &&
-			!(fio->op_flags & REQ_SYNC))
+			!(fio->op_flags & REQ_SYNC) &&
+			!f2fs_encrypted_inode(inode))
 		return true;
 
 	/* this is only set during fdatasync */
