@@ -827,7 +827,7 @@ static int send_connect(struct c4iw_ep *ep)
 				t6req->params =
 					  cpu_to_be64(FILTER_TUPLE_V(params));
 				t6req->rsvd = cpu_to_be32(isn);
-				PDBG("%s snd_isn %u\n", __func__, t6req->rsvd);
+			pr_debug("%s snd_isn %u\n", __func__, t6req->rsvd);
 				t6req->opt2 = cpu_to_be32(opt2);
 			}
 		}
@@ -882,7 +882,7 @@ static int send_connect(struct c4iw_ep *ep)
 				t6req6->params =
 					    cpu_to_be64(FILTER_TUPLE_V(params));
 				t6req6->rsvd = cpu_to_be32(isn);
-				PDBG("%s snd_isn %u\n", __func__, t6req6->rsvd);
+			pr_debug("%s snd_isn %u\n", __func__, t6req6->rsvd);
 				t6req6->opt2 = cpu_to_be32(opt2);
 			}
 
