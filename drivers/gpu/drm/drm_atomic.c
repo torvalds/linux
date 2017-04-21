@@ -447,13 +447,12 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 }
 
 int
-drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
+drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					 struct drm_property_blob **blob,
 					 uint64_t blob_id,
 					 ssize_t expected_size,
 					 bool *replaced)
 {
-	struct drm_device *dev = crtc->dev;
 	struct drm_property_blob *new_blob = NULL;
 
 	if (blob_id != 0) {
@@ -504,7 +503,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		drm_property_unreference_blob(mode);
 		return ret;
 	} else if (property == config->degamma_lut_property) {
-		ret = drm_atomic_replace_property_blob_from_id(crtc,
+		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->degamma_lut,
 					val,
 					-1,
@@ -512,7 +511,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		state->color_mgmt_changed = replaced;
 		return ret;
 	} else if (property == config->ctm_property) {
-		ret = drm_atomic_replace_property_blob_from_id(crtc,
+		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->ctm,
 					val,
 					sizeof(struct drm_color_ctm),
@@ -520,7 +519,7 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		state->color_mgmt_changed = replaced;
 		return ret;
 	} else if (property == config->gamma_lut_property) {
-		ret = drm_atomic_replace_property_blob_from_id(crtc,
+		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->gamma_lut,
 					val,
 					-1,

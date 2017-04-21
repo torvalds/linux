@@ -2829,7 +2829,7 @@ static int vop_crtc_atomic_set_property(struct drm_crtc *crtc,
 		bool replaced;
 		ssize_t size = vop->cabc_lut_len * 4;
 
-		return drm_atomic_replace_property_blob_from_id(crtc,
+		return drm_atomic_replace_property_blob_from_id(crtc->dev,
 								&s->cabc_lut,
 								val,
 								size,

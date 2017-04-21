@@ -115,7 +115,7 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
 	return state->connector_states[index];
 }
 
-int drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
+int drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					     struct drm_property_blob **blob,
 					     uint64_t blob_id,
 					     ssize_t expected_size,
