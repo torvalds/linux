@@ -418,7 +418,6 @@ void sched_clock_idle_wakeup_event(void)
 		return;
 
 	sched_clock_tick();
-	touch_softlockup_watchdog_sched();
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
