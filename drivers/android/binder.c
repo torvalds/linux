@@ -3635,7 +3635,6 @@ static int binder_node_release(struct binder_node *node, int refs)
 
 static void binder_deferred_release(struct binder_proc *proc)
 {
-	struct binder_transaction *t;
 	struct binder_context *context = proc->context;
 	struct rb_node *n;
 	int threads, nodes, incoming_refs, outgoing_refs, buffers,
@@ -3693,14 +3692,8 @@ static void binder_deferred_release(struct binder_proc *proc)
 
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 
-		t = buffer->transaction;
-		if (t) {
-			t->buffer = NULL;
-			buffer->transaction = NULL;
-			pr_err("release proc %d, transaction %d, not freed\n",
-			       proc->pid, t->debug_id);
-			/*BUG();*/
-		}
+		/* Transaction should already have been freed */
+		BUG_ON(buffer->transaction);
 
 		binder_free_buf(proc, buffer);
 		buffers++;
