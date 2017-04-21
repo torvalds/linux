@@ -4831,7 +4831,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 				char *extra)
 {
 
-#ifdef CONFIG_DEBUG_RTW_WX_SET_PRIV
+#ifdef DEBUG_RTW_WX_SET_PRIV
 	char *ext_dbg;
 #endif
 
@@ -4860,7 +4860,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	/* 	 ("rtw_wx_set_priv: %s req =%s\n", */
 	/* 	  dev->name, ext)); */
 
-	#ifdef CONFIG_DEBUG_RTW_WX_SET_PRIV
+	#ifdef DEBUG_RTW_WX_SET_PRIV
 	if (!(ext_dbg = vmalloc(len)))
 	{
 		vfree(ext, len);
@@ -4918,7 +4918,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 FREE_EXT:
 
 	vfree(ext);
-	#ifdef CONFIG_DEBUG_RTW_WX_SET_PRIV
+	#ifdef DEBUG_RTW_WX_SET_PRIV
 	vfree(ext_dbg);
 	#endif
 

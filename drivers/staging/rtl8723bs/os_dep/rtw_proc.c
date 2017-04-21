@@ -17,7 +17,7 @@
 #include <rtw_debug.h>
 #include "rtw_proc.h"
 
-#ifdef CONFIG_PROC_DEBUG
+#ifdef PROC_DEBUG
 
 static struct proc_dir_entry *rtw_proc = NULL;
 
@@ -784,4 +784,4 @@ void rtw_adapter_proc_replace(struct net_device *dev)
 
 }
 
-#endif /* CONFIG_PROC_DEBUG */
+#endif /* PROC_DEBUG */

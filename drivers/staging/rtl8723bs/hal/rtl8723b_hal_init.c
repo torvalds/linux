@@ -225,6 +225,8 @@ void _8051Reset8723(struct adapter *padapter)
 	DBG_8192C("%s: Finish\n", __func__);
 }
 
+u8 g_fwdl_chksum_fail = 0;
+
 static s32 polling_fwdl_chksum(
 	struct adapter *adapter, u32 min_cnt, u32 timeout_ms
 )
@@ -267,6 +269,8 @@ exit:
 
 	return ret;
 }
+
+u8 g_fwdl_wintint_rdy_fail = 0;
 
 static s32 _FWFreeToGo(struct adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
@@ -896,7 +900,7 @@ static void hal_ReadEFuse_WiFi(
 	memset(efuseTbl, 0xFF, EFUSE_MAX_MAP_LEN);
 
 
-#ifdef CONFIG_DEBUG
+#ifdef DEBUG
 if (0) {
 	for (i = 0; i < 256; i++)
 		efuse_OneByteRead(padapter, i, &efuseTbl[i], false);
@@ -969,7 +973,7 @@ if (0) {
 	for (i = 0; i < _size_byte; i++)
 		pbuf[i] = efuseTbl[_offset+i];
 
-#ifdef CONFIG_DEBUG
+#ifdef DEBUG
 if (1) {
 	DBG_871X("Efuse Realmap:\n");
 	for (i = 0; i < _size_byte; i++) {
@@ -2602,7 +2606,7 @@ void Hal_EfuseParseTxPowerInfo_8723B(
 				pHalData->Index24G_CCK_Base[rfPath][ch] = pwrInfo24G.IndexCCK_Base[rfPath][group];
 				pHalData->Index24G_BW40_Base[rfPath][ch] = pwrInfo24G.IndexBW40_Base[rfPath][group];
 			}
-#ifdef CONFIG_DEBUG
+#ifdef DEBUG
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("======= Path %d, ChannelIndex %d, Group %d =======\n", rfPath, ch, group));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Index24G_CCK_Base[%d][%d] = 0x%x\n", rfPath, ch, pHalData->Index24G_CCK_Base[rfPath][ch]));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("Index24G_BW40_Base[%d][%d] = 0x%x\n", rfPath, ch, pHalData->Index24G_BW40_Base[rfPath][ch]));
@@ -2615,7 +2619,7 @@ void Hal_EfuseParseTxPowerInfo_8723B(
 			pHalData->BW20_24G_Diff[rfPath][TxCount] = pwrInfo24G.BW20_Diff[rfPath][TxCount];
 			pHalData->BW40_24G_Diff[rfPath][TxCount] = pwrInfo24G.BW40_Diff[rfPath][TxCount];
 
-#ifdef CONFIG_DEBUG
+#ifdef DEBUG
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("--------------------------------------- 2.4G ---------------------------------------\n"));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("CCK_24G_Diff[%d][%d]= %d\n", rfPath, TxCount, pHalData->CCK_24G_Diff[rfPath][TxCount]));
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("OFDM_24G_Diff[%d][%d]= %d\n", rfPath, TxCount, pHalData->OFDM_24G_Diff[rfPath][TxCount]));

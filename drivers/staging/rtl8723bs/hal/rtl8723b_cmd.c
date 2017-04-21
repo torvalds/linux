@@ -2267,12 +2267,12 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	DBG_8192C("+" FUNC_ADPT_FMT ": iface_type =%d fw_state = 0x%08X\n",
 		FUNC_ADPT_ARG(padapter), get_iface_type(padapter), get_fwstate(&padapter->mlmepriv));
 
-#ifdef CONFIG_DEBUG
+#ifdef DEBUG
 	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == false) {
 		DBG_8192C(FUNC_ADPT_FMT ": [WARNING] not in AP mode!!\n",
 			FUNC_ADPT_ARG(padapter));
 	}
-#endif /*  CONFIG_DEBUG */
+#endif /*  DEBUG */
 
 	pHalData = GET_HAL_DATA(padapter);
 	pmlmeext = &padapter->mlmeextpriv;
