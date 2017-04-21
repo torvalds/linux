@@ -1700,7 +1700,7 @@ nvmet_fc_prep_fcp_rsp(struct nvmet_fc_tgtport *tgtport,
 	    xfr_length != fod->total_length ||
 	    (le16_to_cpu(cqe->status) & 0xFFFE) || cqewd[0] || cqewd[1] ||
 	    (sqe->flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND)) ||
-	    queue_90percent_full(fod->queue, cqe->sq_head))
+	    queue_90percent_full(fod->queue, le16_to_cpu(cqe->sq_head)))
 		send_ersp = true;
 
 	/* re-set the fields */
