@@ -32,9 +32,10 @@ override define EMIT_TESTS
 	echo "./run.sh"
 endef
 
-clean:
+override define CLEAN
 	for DIR in $(SUBDIRS); do		\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;	\
 		mkdir $$BUILD_TARGET  -p;	\
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;\
 	done
+endef
