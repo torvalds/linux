@@ -2053,6 +2053,16 @@
 		};
 	};
 
+	hdmi_hdcp2: hdmi-hdcp2@ff988000 {
+		compatible = "rockchip,rk3399-hdmi-hdcp2";
+		reg = <0x0 0xff988000 0x0 0x2000>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru ACLK_HDCP22>, <&cru PCLK_HDCP22>,
+			 <&cru HCLK_HDCP22>;
+		clock-names ="aclk_hdcp2", "pclk_hdcp2", "hdcp2_clk_hdmi";
+		status = "disabled";
+	};
+
 	gpu: gpu@ff9a0000 {
 		compatible = "rockchip,rk3399-mali", "arm,mali-t860";
 		reg = <0x0 0xff9a0000 0x0 0x10000>;
