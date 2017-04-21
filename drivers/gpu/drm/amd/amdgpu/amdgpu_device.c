@@ -2429,6 +2429,18 @@ static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 	/* if bo has been evicted, then no need to recover */
 	if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
+		r = amdgpu_bo_validate(bo->shadow);
+		if (r) {
+			DRM_ERROR("bo validate failed!\n");
+			goto err;
+		}
+
+		r = amdgpu_ttm_bind(&bo->shadow->tbo, &bo->shadow->tbo.mem);
+		if (r) {
+			DRM_ERROR("%p bind failed\n", bo->shadow);
+			goto err;
+		}
+
 		r = amdgpu_bo_restore_from_shadow(adev, ring, bo,
 						 NULL, fence, true);
 		if (r) {

@@ -543,6 +543,27 @@ err:
 	return r;
 }
 
+int amdgpu_bo_validate(struct amdgpu_bo *bo)
+{
+	uint32_t domain;
+	int r;
+
+	if (bo->pin_count)
+		return 0;
+
+	domain = bo->prefered_domains;
+
+retry:
+	amdgpu_ttm_placement_from_domain(bo, domain);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
+		domain = bo->allowed_domains;
+		goto retry;
+	}
+
+	return r;
+}
+
 int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_bo *bo,
