@@ -450,20 +450,9 @@ static int vce_v4_0_sw_init(void *handle)
 			return r;
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
-		r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_VRAM,
-					    &adev->virt.mm_table.bo,
-					    &adev->virt.mm_table.gpu_addr,
-					    (void *)&adev->virt.mm_table.cpu_addr);
-		if (!r) {
-			memset((void *)adev->virt.mm_table.cpu_addr, 0, PAGE_SIZE);
-			printk("mm table gpu addr = 0x%llx, cpu addr = %p. \n",
-			       adev->virt.mm_table.gpu_addr,
-			       adev->virt.mm_table.cpu_addr);
-		}
+	r = amdgpu_virt_alloc_mm_table(adev);
+	if (r)
 		return r;
-	}
 
 	return r;
 }
@@ -474,10 +463,7 @@ static int vce_v4_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* free MM table */
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_bo_free_kernel(&adev->virt.mm_table.bo,
-				      &adev->virt.mm_table.gpu_addr,
-				      (void *)&adev->virt.mm_table.cpu_addr);
+	amdgpu_virt_free_mm_table(adev);
 
 	r = amdgpu_vce_suspend(adev);
 	if (r)
