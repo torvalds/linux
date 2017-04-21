@@ -811,7 +811,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 	const struct drm_display_mode *adjusted_mode;
 	const struct drm_framebuffer *fb;
-	int htotal, hdisplay, clock, cpp;
+	int htotal, plane_width, cursor_width, clock, cpp;
 	int line_time_us, line_count;
 	int entries, tlb_miss;
 
@@ -826,12 +826,13 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	fb = crtc->base.primary->state->fb;
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
-	hdisplay = crtc->config->pipe_src_w;
+	plane_width = crtc->config->pipe_src_w;
+	cursor_width = crtc->base.cursor->state->crtc_w;
 	cpp = fb->format->cpp[0];
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * cpp / 1000) * display_latency_ns) / 1000;
-	tlb_miss = display->fifo_size*display->cacheline_size - hdisplay * 8;
+	tlb_miss = display->fifo_size*display->cacheline_size - plane_width * cpp * 8;
 	if (tlb_miss > 0)
 		entries += tlb_miss;
 	entries = DIV_ROUND_UP(entries, display->cacheline_size);
@@ -842,8 +843,8 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	/* Use the large buffer method to calculate cursor watermark */
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
-	entries = line_count * crtc->base.cursor->state->crtc_w * 4;
-	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
+	entries = line_count * cursor_width * 4;
+	tlb_miss = cursor->fifo_size*cursor->cacheline_size - cursor_width * 4 * 8;
 	if (tlb_miss > 0)
 		entries += tlb_miss;
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
