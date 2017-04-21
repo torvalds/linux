@@ -34,7 +34,6 @@ static void xen_pvh_arch_setup(void)
 static void __init init_pvh_bootparams(void)
 {
 	struct xen_memory_map memmap;
-	unsigned int i;
 	int rc;
 
 	memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
@@ -46,25 +45,18 @@ static void __init init_pvh_bootparams(void)
 		xen_raw_printk("XENMEM_memory_map failed (%d)\n", rc);
 		BUG();
 	}
+	pvh_bootparams.e820_entries = memmap.nr_entries;
 
-	if (memmap.nr_entries < E820_MAX_ENTRIES_ZEROPAGE - 1) {
-		pvh_bootparams.e820_table[memmap.nr_entries].addr =
+	if (pvh_bootparams.e820_entries < E820_MAX_ENTRIES_ZEROPAGE - 1) {
+		pvh_bootparams.e820_table[pvh_bootparams.e820_entries].addr =
 			ISA_START_ADDRESS;
-		pvh_bootparams.e820_table[memmap.nr_entries].size =
+		pvh_bootparams.e820_table[pvh_bootparams.e820_entries].size =
 			ISA_END_ADDRESS - ISA_START_ADDRESS;
-		pvh_bootparams.e820_table[memmap.nr_entries].type =
+		pvh_bootparams.e820_table[pvh_bootparams.e820_entries].type =
 			E820_TYPE_RESERVED;
-		memmap.nr_entries++;
+		pvh_bootparams.e820_entries++;
 	} else
 		xen_raw_printk("Warning: Can fit ISA range into e820\n");
-
-	pvh_bootparams.e820_entries = memmap.nr_entries;
-	for (i = 0; i < pvh_bootparams.e820_entries; i++)
-		e820__range_add(pvh_bootparams.e820_table[i].addr,
-				pvh_bootparams.e820_table[i].size,
-				pvh_bootparams.e820_table[i].type);
-
-	e820__update_table(e820_table);
 
 	pvh_bootparams.hdr.cmd_line_ptr =
 		pvh_start_info.cmdline_paddr;
