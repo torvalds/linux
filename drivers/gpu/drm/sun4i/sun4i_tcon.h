@@ -174,6 +174,8 @@ struct sun4i_tcon {
 	/* Associated crtc */
 	struct sun4i_crtc		*crtc;
 
+	int				id;
+
 	/* TCON list management */
 	struct list_head		list;
 };
