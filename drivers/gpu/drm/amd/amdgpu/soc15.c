@@ -531,11 +531,6 @@ static int soc15_common_early_init(void *handle)
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_PSP)))
 		psp_enabled = true;
 
-	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_virt_init_setting(adev);
-		xgpu_ai_mailbox_set_irq_funcs(adev);
-	}
-
 	/*
 	 * nbio need be used for both sdma and gfx9, but only
 	 * initializes once
@@ -577,6 +572,11 @@ static int soc15_common_early_init(void *handle)
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
+	}
+
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_setting(adev);
+		xgpu_ai_mailbox_set_irq_funcs(adev);
 	}
 
 	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);

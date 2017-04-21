@@ -894,11 +894,6 @@ static int vi_common_early_init(void *handle)
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_SMC)))
 		smc_enabled = true;
 
-	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_virt_init_setting(adev);
-		xgpu_vi_mailbox_set_irq_funcs(adev);
-	}
-
 	adev->rev_id = vi_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
@@ -1069,6 +1064,11 @@ static int vi_common_early_init(void *handle)
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
+	}
+
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_setting(adev);
+		xgpu_vi_mailbox_set_irq_funcs(adev);
 	}
 
 	/* vi use smc load by default */
