@@ -2972,6 +2972,9 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 		    __skb_linearize(skb))
 			goto out_kfree_skb;
 
+		if (validate_xmit_xfrm(skb, features))
+			goto out_kfree_skb;
+
 		/* If packet is not checksummed and device does not
 		 * support checksumming for this protocol, complete
 		 * checksumming here.

@@ -492,6 +492,8 @@ enum {
 	SKB_GSO_TUNNEL_REMCSUM = 1 << 14,
 
 	SKB_GSO_SCTP = 1 << 15,
+
+	SKB_GSO_ESP = 1 << 16,
 };
 
 #if BITS_PER_LONG > 32

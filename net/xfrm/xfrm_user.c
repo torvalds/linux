@@ -595,6 +595,10 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 			goto error;
 	}
 
+	if (attrs[XFRMA_OFFLOAD_DEV] &&
+	    xfrm_dev_state_add(net, x, nla_data(attrs[XFRMA_OFFLOAD_DEV])))
+		goto error;
+
 	if ((err = xfrm_alloc_replay_state_esn(&x->replay_esn, &x->preplay_esn,
 					       attrs[XFRMA_REPLAY_ESN_VAL])))
 		goto error;
@@ -779,6 +783,23 @@ static int copy_sec_ctx(struct xfrm_sec_ctx *s, struct sk_buff *skb)
 	return 0;
 }
 
+static int copy_user_offload(struct xfrm_state_offload *xso, struct sk_buff *skb)
+{
+	struct xfrm_user_offload *xuo;
+	struct nlattr *attr;
+
+	attr = nla_reserve(skb, XFRMA_OFFLOAD_DEV, sizeof(*xuo));
+	if (attr == NULL)
+		return -EMSGSIZE;
+
+	xuo = nla_data(attr);
+
+	xuo->ifindex = xso->dev->ifindex;
+	xuo->flags = xso->flags;
+
+	return 0;
+}
+
 static int copy_to_user_auth(struct xfrm_algo_auth *auth, struct sk_buff *skb)
 {
 	struct xfrm_algo *algo;
@@ -867,6 +888,10 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 	else
 		ret = nla_put(skb, XFRMA_REPLAY_VAL, sizeof(x->replay),
 			      &x->replay);
+	if (ret)
+		goto out;
+	if(x->xso.dev)
+		ret = copy_user_offload(&x->xso, skb);
 	if (ret)
 		goto out;
 	if (x->security)
@@ -2406,6 +2431,7 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_SA_EXTRA_FLAGS]	= { .type = NLA_U32 },
 	[XFRMA_PROTO]		= { .type = NLA_U8 },
 	[XFRMA_ADDRESS_FILTER]	= { .len = sizeof(struct xfrm_address_filter) },
+	[XFRMA_OFFLOAD_DEV]	= { .len = sizeof(struct xfrm_user_offload) },
 };
 
 static const struct nla_policy xfrma_spd_policy[XFRMA_SPD_MAX+1] = {
@@ -2623,6 +2649,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 		l += nla_total_size(sizeof(*x->coaddr));
 	if (x->props.extra_flags)
 		l += nla_total_size(sizeof(x->props.extra_flags));
+	if (x->xso.dev)
+		 l += nla_total_size(sizeof(x->xso));
 
 	/* Must count x->lastused as it may become non-zero behind our back. */
 	l += nla_total_size_64bit(sizeof(u64));
