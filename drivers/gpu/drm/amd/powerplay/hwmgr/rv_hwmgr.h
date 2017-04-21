@@ -276,6 +276,11 @@ struct rv_hwmgr {
 	bool                           isp_tileB_power_gated;
 	uint32_t                       isp_actual_hard_min_freq;
 	uint32_t                       soc_actual_hard_min_freq;
+	uint32_t                       dcf_actual_hard_min_freq;
+
+	uint32_t                        f_actual_hard_min_freq;
+	uint32_t                        fabric_actual_soft_min_freq;
+	uint32_t                        gfx_actual_soft_min_freq;
 
 	bool                           vcn_power_gated;
 	bool                           vcn_dpg_mode;
@@ -286,6 +291,7 @@ struct rv_hwmgr {
 	DpmClocks_t                       clock_table;
 
 	uint32_t active_process_mask;
+	bool need_min_deep_sleep_dcefclk; /* disabled by default */
 };
 
 struct pp_hwmgr;
