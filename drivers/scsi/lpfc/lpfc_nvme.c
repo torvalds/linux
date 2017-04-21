@@ -2264,12 +2264,23 @@ lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 void
 lpfc_nvme_update_localport(struct lpfc_vport *vport)
 {
+#if (IS_ENABLED(CONFIG_NVME_FC))
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
 
 	localport = vport->localport;
+	if (!localport) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NVME,
+				 "6710 Update NVME fail. No localport\n");
+		return;
+	}
 	lport = (struct lpfc_nvme_lport *)localport->private;
-
+	if (!lport) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NVME,
+				 "6171 Update NVME fail. localP %p, No lport\n",
+				 localport);
+		return;
+	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
 			 "6012 Update NVME lport %p did x%x\n",
 			 localport, vport->fc_myDID);
@@ -2283,7 +2294,7 @@ lpfc_nvme_update_localport(struct lpfc_vport *vport)
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6030 bound lport %p to DID x%06x\n",
 			 lport, localport->port_id);
-
+#endif
 }
 
 int
