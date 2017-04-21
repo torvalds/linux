@@ -302,6 +302,8 @@ nfssvc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	 * bytes.
 	 */
 	hdr = (void*)p - head->iov_base;
+	if (hdr > head->iov_len)
+		return 0;
 	dlen = head->iov_len + rqstp->rq_arg.page_len - hdr;
 
 	/*
