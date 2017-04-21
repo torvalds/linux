@@ -626,8 +626,104 @@ static const struct intel_watermark_params i845_wm_info = {
 };
 
 /**
+ * intel_wm_method1 - Method 1 / "small buffer" watermark formula
+ * @pixel_rate: Pipe pixel rate in kHz
+ * @cpp: Plane bytes per pixel
+ * @latency: Memory wakeup latency in 0.1us units
+ *
+ * Compute the watermark using the method 1 or "small buffer"
+ * formula. The caller may additonally add extra cachelines
+ * to account for TLB misses and clock crossings.
+ *
+ * This method is concerned with the short term drain rate
+ * of the FIFO, ie. it does not account for blanking periods
+ * which would effectively reduce the average drain rate across
+ * a longer period. The name "small" refers to the fact the
+ * FIFO is relatively small compared to the amount of data
+ * fetched.
+ *
+ * The FIFO level vs. time graph might look something like:
+ *
+ *   |\   |\
+ *   | \  | \
+ * __---__---__ (- plane active, _ blanking)
+ * -> time
+ *
+ * or perhaps like this:
+ *
+ *   |\|\  |\|\
+ * __----__----__ (- plane active, _ blanking)
+ * -> time
+ *
+ * Returns:
+ * The watermark in bytes
+ */
+static unsigned int intel_wm_method1(unsigned int pixel_rate,
+				     unsigned int cpp,
+				     unsigned int latency)
+{
+	uint64_t ret;
+
+	ret = (uint64_t) pixel_rate * cpp * latency;
+	ret = DIV_ROUND_UP_ULL(ret, 10000);
+
+	return ret;
+}
+
+/**
+ * intel_wm_method2 - Method 2 / "large buffer" watermark formula
+ * @pixel_rate: Pipe pixel rate in kHz
+ * @htotal: Pipe horizontal total
+ * @width: Plane width in pixels
+ * @cpp: Plane bytes per pixel
+ * @latency: Memory wakeup latency in 0.1us units
+ *
+ * Compute the watermark using the method 2 or "large buffer"
+ * formula. The caller may additonally add extra cachelines
+ * to account for TLB misses and clock crossings.
+ *
+ * This method is concerned with the long term drain rate
+ * of the FIFO, ie. it does account for blanking periods
+ * which effectively reduce the average drain rate across
+ * a longer period. The name "large" refers to the fact the
+ * FIFO is relatively large compared to the amount of data
+ * fetched.
+ *
+ * The FIFO level vs. time graph might look something like:
+ *
+ *    |\___       |\___
+ *    |    \___   |    \___
+ *    |        \  |        \
+ * __ --__--__--__--__--__--__ (- plane active, _ blanking)
+ * -> time
+ *
+ * Returns:
+ * The watermark in bytes
+ */
+static unsigned int intel_wm_method2(unsigned int pixel_rate,
+				     unsigned int htotal,
+				     unsigned int width,
+				     unsigned int cpp,
+				     unsigned int latency)
+{
+	unsigned int ret;
+
+	/*
+	 * FIXME remove once all users are computing
+	 * watermarks in the correct place.
+	 */
+	if (WARN_ON_ONCE(htotal == 0))
+		htotal = 1;
+
+	ret = (latency * pixel_rate) / (htotal * 10000);
+	ret = (ret + 1) * width * cpp;
+
+	return ret;
+}
+
+/**
  * intel_calculate_wm - calculate watermark level
- * @clock_in_khz: pixel clock
+ * @pixel_rate: pixel clock
  * @wm: chip FIFO params
  * @cpp: bytes per pixel
  * @latency_ns: memory latency for the platform
@@ -643,12 +739,12 @@ static const struct intel_watermark_params i845_wm_info = {
  * past the watermark point.  If the FIFO drains completely, a FIFO underrun
  * will occur, and a display engine hang could result.
  */
-static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
-					const struct intel_watermark_params *wm,
-					int fifo_size, int cpp,
-					unsigned long latency_ns)
+static unsigned int intel_calculate_wm(int pixel_rate,
+				       const struct intel_watermark_params *wm,
+				       int fifo_size, int cpp,
+				       unsigned int latency_ns)
 {
-	long entries_required, wm_size;
+	int entries, wm_size;
 
 	/*
 	 * Note: we need to make sure we don't overflow for various clock &
@@ -656,18 +752,17 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	 * clocks go from a few thousand to several hundred thousand.
 	 * latency is usually a few thousand
 	 */
-	entries_required = ((clock_in_khz / 1000) * cpp * latency_ns) /
-		1000;
-	entries_required = DIV_ROUND_UP(entries_required, wm->cacheline_size);
+	entries = intel_wm_method1(pixel_rate, cpp,
+				   latency_ns / 100);
+	entries = DIV_ROUND_UP(entries, wm->cacheline_size) +
+		wm->guard_size;
+	DRM_DEBUG_KMS("FIFO entries required for mode: %d\n", entries);
 
-	DRM_DEBUG_KMS("FIFO entries required for mode: %ld\n", entries_required);
-
-	wm_size = fifo_size - (entries_required + wm->guard_size);
-
-	DRM_DEBUG_KMS("FIFO watermark level: %ld\n", wm_size);
+	wm_size = fifo_size - entries;
+	DRM_DEBUG_KMS("FIFO watermark level: %d\n", wm_size);
 
 	/* Don't promote wm_size to unsigned... */
-	if (wm_size > (long)wm->max_wm)
+	if (wm_size > wm->max_wm)
 		wm_size = wm->max_wm;
 	if (wm_size <= 0)
 		wm_size = wm->default_wm;
@@ -734,7 +829,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 	struct intel_crtc *crtc;
 	const struct cxsr_latency *latency;
 	u32 reg;
-	unsigned long wm;
+	unsigned int wm;
 
 	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
 					 dev_priv->is_ddr3,
@@ -829,7 +924,6 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	const struct drm_display_mode *adjusted_mode;
 	const struct drm_framebuffer *fb;
 	int htotal, plane_width, cursor_width, clock, cpp;
-	int line_time_us, line_count;
 	int entries;
 
 	crtc = intel_get_crtc_for_plane(dev_priv, plane);
@@ -848,7 +942,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	cpp = fb->format->cpp[0];
 
 	/* Use the small buffer method to calculate plane watermark */
-	entries = ((clock * cpp / 1000) * display_latency_ns) / 1000;
+	entries = intel_wm_method1(clock, cpp, display_latency_ns / 100);
 	entries += g4x_tlb_miss_wa(display->fifo_size, plane_width, cpp);
 	entries = DIV_ROUND_UP(entries, display->cacheline_size);
 	*plane_wm = entries + display->guard_size;
@@ -856,9 +950,8 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 		*plane_wm = display->max_wm;
 
 	/* Use the large buffer method to calculate cursor watermark */
-	line_time_us = max(htotal * 1000 / clock, 1);
-	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
-	entries = line_count * cursor_width * 4;
+	entries = intel_wm_method2(clock, htotal, cursor_width, 4,
+				   cursor_latency_ns / 100);
 	entries += g4x_tlb_miss_wa(cursor->fifo_size, cursor_width, 4);
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
@@ -914,8 +1007,6 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 	const struct drm_display_mode *adjusted_mode;
 	const struct drm_framebuffer *fb;
 	int hdisplay, htotal, cpp, clock;
-	unsigned long line_time_us;
-	int line_count, line_size;
 	int small, large;
 	int entries;
 
@@ -932,19 +1023,17 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 	hdisplay = crtc->config->pipe_src_w;
 	cpp = fb->format->cpp[0];
 
-	line_time_us = max(htotal * 1000 / clock, 1);
-	line_count = (latency_ns / line_time_us + 1000) / 1000;
-	line_size = hdisplay * cpp;
-
 	/* Use the minimum of the small and large buffer method for primary */
-	small = ((clock * cpp / 1000) * latency_ns) / 1000;
-	large = line_count * line_size;
-
+	small = intel_wm_method1(clock, cpp, latency_ns / 100);
+	large = intel_wm_method2(clock, htotal, hdisplay, cpp,
+				 latency_ns / 100);
 	entries = DIV_ROUND_UP(min(small, large), display->cacheline_size);
 	*display_wm = entries + display->guard_size;
 
 	/* calculate the self-refresh watermark for display cursor */
-	entries = line_count * 4 * crtc->base.cursor->state->crtc_w;
+	entries = intel_wm_method2(clock, htotal,
+				   crtc->base.cursor->state->crtc_w, 4,
+				   latency_ns / 100);
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 
@@ -1036,15 +1125,15 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 
 /* latency must be in 0.1us units. */
 static unsigned int vlv_wm_method2(unsigned int pixel_rate,
-				   unsigned int pipe_htotal,
-				   unsigned int horiz_pixels,
+				   unsigned int htotal,
+				   unsigned int width,
 				   unsigned int cpp,
 				   unsigned int latency)
 {
 	unsigned int ret;
 
-	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
-	ret = (ret + 1) * horiz_pixels * cpp;
+	ret = intel_wm_method2(pixel_rate, htotal,
+			       width, cpp, latency);
 	ret = DIV_ROUND_UP(ret, 64);
 
 	return ret;
@@ -1085,8 +1174,6 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	width = crtc_state->pipe_src_w;
-	if (WARN_ON(htotal == 0))
-		htotal = 1;
 
 	if (plane->id == PLANE_CURSOR) {
 		/*
@@ -1733,14 +1820,10 @@ static void i965_update_wm(struct intel_crtc *unused_crtc)
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = crtc->config->pipe_src_w;
 		int cpp = fb->format->cpp[0];
-		unsigned long line_time_us;
 		int entries;
 
-		line_time_us = max(htotal * 1000 / clock, 1);
-
-		/* Use ns/us then divide to preserve precision */
-		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			cpp * hdisplay;
+		entries = intel_wm_method2(clock, htotal,
+					   hdisplay, cpp, sr_latency_ns / 100);
 		entries = DIV_ROUND_UP(entries, I915_FIFO_LINE_SIZE);
 		srwm = I965_FIFO_SIZE - entries;
 		if (srwm < 0)
@@ -1749,13 +1832,14 @@ static void i965_update_wm(struct intel_crtc *unused_crtc)
 		DRM_DEBUG_KMS("self-refresh entries: %d, wm: %d\n",
 			      entries, srwm);
 
-		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			4 * crtc->base.cursor->state->crtc_w;
+		entries = intel_wm_method2(clock, htotal,
+					   crtc->base.cursor->state->crtc_w, 4,
+					   sr_latency_ns / 100);
 		entries = DIV_ROUND_UP(entries,
-					  i965_cursor_wm_info.cacheline_size);
-		cursor_sr = i965_cursor_wm_info.fifo_size -
-			(entries + i965_cursor_wm_info.guard_size);
+				       i965_cursor_wm_info.cacheline_size) +
+			i965_cursor_wm_info.guard_size;
 
+		cursor_sr = i965_cursor_wm_info.fifo_size - entries;
 		if (cursor_sr > i965_cursor_wm_info.max_wm)
 			cursor_sr = i965_cursor_wm_info.max_wm;
 
@@ -1892,7 +1976,6 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = enabled->config->pipe_src_w;
 		int cpp;
-		unsigned long line_time_us;
 		int entries;
 
 		if (IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
@@ -1900,11 +1983,8 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		else
 			cpp = fb->format->cpp[0];
 
-		line_time_us = max(htotal * 1000 / clock, 1);
-
-		/* Use ns/us then divide to preserve precision */
-		entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
-			cpp * hdisplay;
+		entries = intel_wm_method2(clock, htotal, hdisplay, cpp,
+					   sr_latency_ns / 100);
 		entries = DIV_ROUND_UP(entries, wm_info->cacheline_size);
 		DRM_DEBUG_KMS("self-refresh entries: %d\n", entries);
 		srwm = wm_info->fifo_size - entries;
@@ -1961,34 +2041,31 @@ static void i845_update_wm(struct intel_crtc *unused_crtc)
 }
 
 /* latency must be in 0.1us units. */
-static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t cpp, uint32_t latency)
+static unsigned int ilk_wm_method1(unsigned int pixel_rate,
+				   unsigned int cpp,
+				   unsigned int latency)
 {
-	uint64_t ret;
+	unsigned int ret;
 
-	if (WARN(latency == 0, "Latency value missing\n"))
-		return UINT_MAX;
-
-	ret = (uint64_t) pixel_rate * cpp * latency;
-	ret = DIV_ROUND_UP_ULL(ret, 64 * 10000) + 2;
+	ret = intel_wm_method1(pixel_rate, cpp, latency);
+	ret = DIV_ROUND_UP(ret, 64) + 2;
 
 	return ret;
 }
 
 /* latency must be in 0.1us units. */
-static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
-			       uint32_t horiz_pixels, uint8_t cpp,
-			       uint32_t latency)
+static unsigned int ilk_wm_method2(unsigned int pixel_rate,
+				   unsigned int htotal,
+				   unsigned int width,
+				   unsigned int cpp,
+				   unsigned int latency)
 {
-	uint32_t ret;
+	unsigned int ret;
 
-	if (WARN(latency == 0, "Latency value missing\n"))
-		return UINT_MAX;
-	if (WARN_ON(!pipe_htotal))
-		return UINT_MAX;
-
-	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
-	ret = (ret + 1) * horiz_pixels * cpp;
+	ret = intel_wm_method2(pixel_rate, htotal,
+			       width, cpp, latency);
 	ret = DIV_ROUND_UP(ret, 64) + 2;
+
 	return ret;
 }
 
