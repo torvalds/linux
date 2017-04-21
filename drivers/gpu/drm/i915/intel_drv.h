@@ -522,6 +522,22 @@ struct vlv_fifo_state {
 	u16 plane[I915_MAX_PLANES];
 };
 
+enum g4x_wm_level {
+	G4X_WM_LEVEL_NORMAL,
+	G4X_WM_LEVEL_SR,
+	G4X_WM_LEVEL_HPLL,
+	NUM_G4X_WM_LEVELS,
+};
+
+struct g4x_wm_state {
+	struct g4x_pipe_wm wm;
+	struct g4x_sr_wm sr;
+	struct g4x_sr_wm hpll;
+	bool cxsr;
+	bool hpll_en;
+	bool fbc_en;
+};
+
 struct intel_crtc_wm_state {
 	union {
 		struct {
@@ -557,6 +573,15 @@ struct intel_crtc_wm_state {
 			/* display FIFO split */
 			struct vlv_fifo_state fifo_state;
 		} vlv;
+
+		struct {
+			/* "raw" watermarks */
+			struct g4x_pipe_wm raw[NUM_G4X_WM_LEVELS];
+			/* intermediate watermarks */
+			struct g4x_wm_state intermediate;
+			/* optimal watermarks */
+			struct g4x_wm_state optimal;
+		} g4x;
 	};
 
 	/*
@@ -794,6 +819,7 @@ struct intel_crtc {
 		union {
 			struct intel_pipe_wm ilk;
 			struct vlv_wm_state vlv;
+			struct g4x_wm_state g4x;
 		} active;
 	} wm;
 
@@ -1841,6 +1867,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 		    struct intel_rps_client *rps,
 		    unsigned long submitted);
 void intel_queue_rps_boost_for_request(struct drm_i915_gem_request *req);
+void g4x_wm_get_hw_state(struct drm_device *dev);
 void vlv_wm_get_hw_state(struct drm_device *dev);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
@@ -1848,6 +1875,7 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
 void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
 			      struct skl_pipe_wm *out);
+void g4x_wm_sanitize(struct drm_i915_private *dev_priv);
 void vlv_wm_sanitize(struct drm_i915_private *dev_priv);
 bool intel_can_enable_sagv(struct drm_atomic_state *state);
 int intel_enable_sagv(struct drm_i915_private *dev_priv);

@@ -1654,11 +1654,13 @@ struct ilk_wm_values {
 
 struct g4x_pipe_wm {
 	uint16_t plane[I915_MAX_PLANES];
+	uint16_t fbc;
 };
 
 struct g4x_sr_wm {
 	uint16_t plane;
 	uint16_t cursor;
+	uint16_t fbc;
 };
 
 struct vlv_wm_ddl_values {
@@ -1671,6 +1673,15 @@ struct vlv_wm_values {
 	struct vlv_wm_ddl_values ddl[3];
 	uint8_t level;
 	bool cxsr;
+};
+
+struct g4x_wm_values {
+	struct g4x_pipe_wm pipe[2];
+	struct g4x_sr_wm sr;
+	struct g4x_sr_wm hpll;
+	bool cxsr;
+	bool hpll_en;
+	bool fbc_en;
 };
 
 struct skl_ddb_entry {
@@ -2301,6 +2312,7 @@ struct drm_i915_private {
 			struct ilk_wm_values hw;
 			struct skl_wm_values skl_hw;
 			struct vlv_wm_values vlv;
+			struct g4x_wm_values g4x;
 		};
 
 		uint8_t max_level;

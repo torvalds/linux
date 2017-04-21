@@ -429,7 +429,10 @@ bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
 	ret = _intel_set_memory_cxsr(dev_priv, enable);
-	dev_priv->wm.vlv.cxsr = enable;
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		dev_priv->wm.vlv.cxsr = enable;
+	else if (IS_G4X(dev_priv))
+		dev_priv->wm.g4x.cxsr = enable;
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 
 	return ret;
@@ -567,20 +570,6 @@ static const struct intel_watermark_params pineview_cursor_hplloff_wm = {
 	.default_wm = PINEVIEW_CURSOR_DFT_WM,
 	.guard_size = PINEVIEW_CURSOR_GUARD_WM,
 	.cacheline_size = PINEVIEW_FIFO_LINE_SIZE,
-};
-static const struct intel_watermark_params g4x_wm_info = {
-	.fifo_size = G4X_FIFO_SIZE,
-	.max_wm = G4X_MAX_WM,
-	.default_wm = G4X_MAX_WM,
-	.guard_size = 2,
-	.cacheline_size = G4X_FIFO_LINE_SIZE,
-};
-static const struct intel_watermark_params g4x_cursor_wm_info = {
-	.fifo_size = I965_CURSOR_FIFO,
-	.max_wm = I965_CURSOR_MAX_WM,
-	.default_wm = I965_CURSOR_DFT_WM,
-	.guard_size = 2,
-	.cacheline_size = G4X_FIFO_LINE_SIZE,
 };
 static const struct intel_watermark_params i965_cursor_wm_info = {
 	.fifo_size = I965_CURSOR_FIFO,
@@ -780,6 +769,16 @@ static unsigned int intel_calculate_wm(int pixel_rate,
 	return wm_size;
 }
 
+static bool is_disabling(int old, int new, int threshold)
+{
+	return old >= threshold && new < threshold;
+}
+
+static bool is_enabling(int old, int new, int threshold)
+{
+	return old < threshold && new >= threshold;
+}
+
 static int intel_wm_num_levels(struct drm_i915_private *dev_priv)
 {
 	return dev_priv->wm.max_level + 1;
@@ -911,138 +910,28 @@ static int g4x_tlb_miss_wa(int fifo_size, int width, int cpp)
 	return max(0, tlb_miss);
 }
 
-static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
-			    int plane,
-			    const struct intel_watermark_params *display,
-			    int display_latency_ns,
-			    const struct intel_watermark_params *cursor,
-			    int cursor_latency_ns,
-			    int *plane_wm,
-			    int *cursor_wm)
+static void g4x_write_wm_values(struct drm_i915_private *dev_priv,
+				const struct g4x_wm_values *wm)
 {
-	struct intel_crtc *crtc;
-	const struct drm_display_mode *adjusted_mode;
-	const struct drm_framebuffer *fb;
-	int htotal, plane_width, cursor_width, clock, cpp;
-	int entries;
+	I915_WRITE(DSPFW1,
+		   FW_WM(wm->sr.plane, SR) |
+		   FW_WM(wm->pipe[PIPE_B].plane[PLANE_CURSOR], CURSORB) |
+		   FW_WM(wm->pipe[PIPE_B].plane[PLANE_PRIMARY], PLANEB) |
+		   FW_WM(wm->pipe[PIPE_A].plane[PLANE_PRIMARY], PLANEA));
+	I915_WRITE(DSPFW2,
+		   (wm->fbc_en ? DSPFW_FBC_SR_EN : 0) |
+		   FW_WM(wm->sr.fbc, FBC_SR) |
+		   FW_WM(wm->hpll.fbc, FBC_HPLL_SR) |
+		   FW_WM(wm->pipe[PIPE_B].plane[PLANE_SPRITE0], SPRITEB) |
+		   FW_WM(wm->pipe[PIPE_A].plane[PLANE_CURSOR], CURSORA) |
+		   FW_WM(wm->pipe[PIPE_A].plane[PLANE_SPRITE0], SPRITEA));
+	I915_WRITE(DSPFW3,
+		   (wm->hpll_en ? DSPFW_HPLL_SR_EN : 0) |
+		   FW_WM(wm->sr.cursor, CURSOR_SR) |
+		   FW_WM(wm->hpll.cursor, HPLL_CURSOR) |
+		   FW_WM(wm->hpll.plane, HPLL_SR));
 
-	crtc = intel_get_crtc_for_plane(dev_priv, plane);
-	if (!intel_crtc_active(crtc)) {
-		*cursor_wm = cursor->guard_size;
-		*plane_wm = display->guard_size;
-		return false;
-	}
-
-	adjusted_mode = &crtc->config->base.adjusted_mode;
-	fb = crtc->base.primary->state->fb;
-	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->crtc_htotal;
-	plane_width = crtc->config->pipe_src_w;
-	cursor_width = crtc->base.cursor->state->crtc_w;
-	cpp = fb->format->cpp[0];
-
-	/* Use the small buffer method to calculate plane watermark */
-	entries = intel_wm_method1(clock, cpp, display_latency_ns / 100);
-	entries += g4x_tlb_miss_wa(display->fifo_size, plane_width, cpp);
-	entries = DIV_ROUND_UP(entries, display->cacheline_size);
-	*plane_wm = entries + display->guard_size;
-	if (*plane_wm > (int)display->max_wm)
-		*plane_wm = display->max_wm;
-
-	/* Use the large buffer method to calculate cursor watermark */
-	entries = intel_wm_method2(clock, htotal, cursor_width, 4,
-				   cursor_latency_ns / 100);
-	entries += g4x_tlb_miss_wa(cursor->fifo_size, cursor_width, 4);
-	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
-	*cursor_wm = entries + cursor->guard_size;
-	if (*cursor_wm > (int)cursor->max_wm)
-		*cursor_wm = (int)cursor->max_wm;
-
-	return true;
-}
-
-/*
- * Check the wm result.
- *
- * If any calculated watermark values is larger than the maximum value that
- * can be programmed into the associated watermark register, that watermark
- * must be disabled.
- */
-static bool g4x_check_srwm(struct drm_i915_private *dev_priv,
-			   int display_wm, int cursor_wm,
-			   const struct intel_watermark_params *display,
-			   const struct intel_watermark_params *cursor)
-{
-	DRM_DEBUG_KMS("SR watermark: display plane %d, cursor %d\n",
-		      display_wm, cursor_wm);
-
-	if (display_wm > display->max_wm) {
-		DRM_DEBUG_KMS("display watermark is too large(%d/%u), disabling\n",
-			      display_wm, display->max_wm);
-		return false;
-	}
-
-	if (cursor_wm > cursor->max_wm) {
-		DRM_DEBUG_KMS("cursor watermark is too large(%d/%u), disabling\n",
-			      cursor_wm, cursor->max_wm);
-		return false;
-	}
-
-	if (!(display_wm || cursor_wm)) {
-		DRM_DEBUG_KMS("SR latency is 0, disabling\n");
-		return false;
-	}
-
-	return true;
-}
-
-static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
-			     int plane,
-			     int latency_ns,
-			     const struct intel_watermark_params *display,
-			     const struct intel_watermark_params *cursor,
-			     int *display_wm, int *cursor_wm)
-{
-	struct intel_crtc *crtc;
-	const struct drm_display_mode *adjusted_mode;
-	const struct drm_framebuffer *fb;
-	int plane_width, cursor_width, htotal, cpp, clock;
-	int small, large;
-	int entries;
-
-	if (!latency_ns) {
-		*display_wm = *cursor_wm = 0;
-		return false;
-	}
-
-	crtc = intel_get_crtc_for_plane(dev_priv, plane);
-	adjusted_mode = &crtc->config->base.adjusted_mode;
-	fb = crtc->base.primary->state->fb;
-	clock = adjusted_mode->crtc_clock;
-	htotal = adjusted_mode->crtc_htotal;
-	plane_width = crtc->config->pipe_src_w;
-	cursor_width = crtc->base.cursor->state->crtc_w;
-	cpp = fb->format->cpp[0];
-
-	/* Use the minimum of the small and large buffer method for primary */
-	small = intel_wm_method1(clock, cpp, latency_ns / 100);
-	large = intel_wm_method2(clock, htotal, plane_width, cpp,
-				 latency_ns / 100);
-	entries = min(small, large);
-	entries += g4x_tlb_miss_wa(display->fifo_size, plane_width, cpp);
-	entries = DIV_ROUND_UP(entries, display->cacheline_size);
-	*display_wm = entries + display->guard_size;
-
-	/* calculate the self-refresh watermark for display cursor */
-	entries = intel_wm_method2(clock, htotal, cursor_width, 4,
-				   latency_ns / 100);
-	entries += g4x_tlb_miss_wa(cursor->fifo_size, cursor_width, 4);
-	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
-	*cursor_wm = entries + cursor->guard_size;
-
-	return g4x_check_srwm(dev_priv,
-			      *display_wm, *cursor_wm,
-			      display, cursor);
+	POSTING_READ(DSPFW1);
 }
 
 #define FW_WM_VLV(value, plane) \
@@ -1125,6 +1014,523 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 }
 
 #undef FW_WM_VLV
+
+static void g4x_setup_wm_latency(struct drm_i915_private *dev_priv)
+{
+	/* all latencies in usec */
+	dev_priv->wm.pri_latency[G4X_WM_LEVEL_NORMAL] = 5;
+	dev_priv->wm.pri_latency[G4X_WM_LEVEL_SR] = 12;
+
+	dev_priv->wm.max_level = G4X_WM_LEVEL_SR;
+}
+
+static int g4x_plane_fifo_size(enum plane_id plane_id, int level)
+{
+	/*
+	 * DSPCNTR[13] supposedly controls whether the
+	 * primary plane can use the FIFO space otherwise
+	 * reserved for the sprite plane. It's not 100% clear
+	 * what the actual FIFO size is, but it looks like we
+	 * can happily set both primary and sprite watermarks
+	 * up to 127 cachelines. So that would seem to mean
+	 * that either DSPCNTR[13] doesn't do anything, or that
+	 * the total FIFO is >= 256 cachelines in size. Either
+	 * way, we don't seem to have to worry about this
+	 * repartitioning as the maximum watermark value the
+	 * register can hold for each plane is lower than the
+	 * minimum FIFO size.
+	 */
+	switch (plane_id) {
+	case PLANE_CURSOR:
+		return 63;
+	case PLANE_PRIMARY:
+		return level == G4X_WM_LEVEL_NORMAL ? 127 : 511;
+	case PLANE_SPRITE0:
+		return level == G4X_WM_LEVEL_NORMAL ? 127 : 0;
+	default:
+		MISSING_CASE(plane_id);
+		return 0;
+	}
+}
+
+static int g4x_fbc_fifo_size(int level)
+{
+	switch (level) {
+	case G4X_WM_LEVEL_SR:
+		return 7;
+	case G4X_WM_LEVEL_HPLL:
+		return 15;
+	default:
+		MISSING_CASE(level);
+		return 0;
+	}
+}
+
+static uint16_t g4x_compute_wm(const struct intel_crtc_state *crtc_state,
+			       const struct intel_plane_state *plane_state,
+			       int level)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+	int clock, htotal, cpp, width, wm;
+	int latency = dev_priv->wm.pri_latency[level] * 10;
+
+	if (latency == 0)
+		return USHRT_MAX;
+
+	if (!intel_wm_plane_visible(crtc_state, plane_state))
+		return 0;
+
+	/*
+	 * Not 100% sure which way ELK should go here as the
+	 * spec only says CL/CTG should assume 32bpp and BW
+	 * doesn't need to. But as these things followed the
+	 * mobile vs. desktop lines on gen3 as well, let's
+	 * assume ELK doesn't need this.
+	 *
+	 * The spec also fails to list such a restriction for
+	 * the HPLL watermark, which seems a little strange.
+	 * Let's use 32bpp for the HPLL watermark as well.
+	 */
+	if (IS_GM45(dev_priv) && plane->id == PLANE_PRIMARY &&
+	    level != G4X_WM_LEVEL_NORMAL)
+		cpp = 4;
+	else
+		cpp = plane_state->base.fb->format->cpp[0];
+
+	clock = adjusted_mode->crtc_clock;
+	htotal = adjusted_mode->crtc_htotal;
+
+	if (plane->id == PLANE_CURSOR)
+		width = plane_state->base.crtc_w;
+	else
+		width = drm_rect_width(&plane_state->base.dst);
+
+	if (plane->id == PLANE_CURSOR) {
+		wm = intel_wm_method2(clock, htotal, width, cpp, latency);
+	} else if (plane->id == PLANE_PRIMARY &&
+		   level == G4X_WM_LEVEL_NORMAL) {
+		wm = intel_wm_method1(clock, cpp, latency);
+	} else {
+		int small, large;
+
+		small = intel_wm_method1(clock, cpp, latency);
+		large = intel_wm_method2(clock, htotal, width, cpp, latency);
+
+		wm = min(small, large);
+	}
+
+	wm += g4x_tlb_miss_wa(g4x_plane_fifo_size(plane->id, level),
+			      width, cpp);
+
+	wm = DIV_ROUND_UP(wm, 64) + 2;
+
+	return min_t(int, wm, USHRT_MAX);
+}
+
+static bool g4x_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
+				 int level, enum plane_id plane_id, u16 value)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	bool dirty = false;
+
+	for (; level < intel_wm_num_levels(dev_priv); level++) {
+		struct g4x_pipe_wm *raw = &crtc_state->wm.g4x.raw[level];
+
+		dirty |= raw->plane[plane_id] != value;
+		raw->plane[plane_id] = value;
+	}
+
+	return dirty;
+}
+
+static bool g4x_raw_fbc_wm_set(struct intel_crtc_state *crtc_state,
+			       int level, u16 value)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	bool dirty = false;
+
+	/* NORMAL level doesn't have an FBC watermark */
+	level = max(level, G4X_WM_LEVEL_SR);
+
+	for (; level < intel_wm_num_levels(dev_priv); level++) {
+		struct g4x_pipe_wm *raw = &crtc_state->wm.g4x.raw[level];
+
+		dirty |= raw->fbc != value;
+		raw->fbc = value;
+	}
+
+	return dirty;
+}
+
+static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
+				   const struct intel_plane_state *pstate,
+				   uint32_t pri_val);
+
+static bool g4x_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
+				     const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	int num_levels = intel_wm_num_levels(to_i915(plane->base.dev));
+	enum plane_id plane_id = plane->id;
+	bool dirty = false;
+	int level;
+
+	if (!intel_wm_plane_visible(crtc_state, plane_state)) {
+		dirty |= g4x_raw_plane_wm_set(crtc_state, 0, plane_id, 0);
+		if (plane_id == PLANE_PRIMARY)
+			dirty |= g4x_raw_fbc_wm_set(crtc_state, 0, 0);
+		goto out;
+	}
+
+	for (level = 0; level < num_levels; level++) {
+		struct g4x_pipe_wm *raw = &crtc_state->wm.g4x.raw[level];
+		int wm, max_wm;
+
+		wm = g4x_compute_wm(crtc_state, plane_state, level);
+		max_wm = g4x_plane_fifo_size(plane_id, level);
+
+		if (wm > max_wm)
+			break;
+
+		dirty |= raw->plane[plane_id] != wm;
+		raw->plane[plane_id] = wm;
+
+		if (plane_id != PLANE_PRIMARY ||
+		    level == G4X_WM_LEVEL_NORMAL)
+			continue;
+
+		wm = ilk_compute_fbc_wm(crtc_state, plane_state,
+					raw->plane[plane_id]);
+		max_wm = g4x_fbc_fifo_size(level);
+
+		/*
+		 * FBC wm is not mandatory as we
+		 * can always just disable its use.
+		 */
+		if (wm > max_wm)
+			wm = USHRT_MAX;
+
+		dirty |= raw->fbc != wm;
+		raw->fbc = wm;
+	}
+
+	/* mark watermarks as invalid */
+	dirty |= g4x_raw_plane_wm_set(crtc_state, level, plane_id, USHRT_MAX);
+
+	if (plane_id == PLANE_PRIMARY)
+		dirty |= g4x_raw_fbc_wm_set(crtc_state, level, USHRT_MAX);
+
+ out:
+	if (dirty) {
+		DRM_DEBUG_KMS("%s watermarks: normal=%d, SR=%d, HPLL=%d\n",
+			      plane->base.name,
+			      crtc_state->wm.g4x.raw[G4X_WM_LEVEL_NORMAL].plane[plane_id],
+			      crtc_state->wm.g4x.raw[G4X_WM_LEVEL_SR].plane[plane_id],
+			      crtc_state->wm.g4x.raw[G4X_WM_LEVEL_HPLL].plane[plane_id]);
+
+		if (plane_id == PLANE_PRIMARY)
+			DRM_DEBUG_KMS("FBC watermarks: SR=%d, HPLL=%d\n",
+				      crtc_state->wm.g4x.raw[G4X_WM_LEVEL_SR].fbc,
+				      crtc_state->wm.g4x.raw[G4X_WM_LEVEL_HPLL].fbc);
+	}
+
+	return dirty;
+}
+
+static bool g4x_raw_plane_wm_is_valid(const struct intel_crtc_state *crtc_state,
+				      enum plane_id plane_id, int level)
+{
+	const struct g4x_pipe_wm *raw = &crtc_state->wm.g4x.raw[level];
+
+	return raw->plane[plane_id] <= g4x_plane_fifo_size(plane_id, level);
+}
+
+static bool g4x_raw_crtc_wm_is_valid(const struct intel_crtc_state *crtc_state,
+				     int level)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	if (level > dev_priv->wm.max_level)
+		return false;
+
+	return g4x_raw_plane_wm_is_valid(crtc_state, PLANE_PRIMARY, level) &&
+		g4x_raw_plane_wm_is_valid(crtc_state, PLANE_SPRITE0, level) &&
+		g4x_raw_plane_wm_is_valid(crtc_state, PLANE_CURSOR, level);
+}
+
+/* mark all levels starting from 'level' as invalid */
+static void g4x_invalidate_wms(struct intel_crtc *crtc,
+			       struct g4x_wm_state *wm_state, int level)
+{
+	if (level <= G4X_WM_LEVEL_NORMAL) {
+		enum plane_id plane_id;
+
+		for_each_plane_id_on_crtc(crtc, plane_id)
+			wm_state->wm.plane[plane_id] = USHRT_MAX;
+	}
+
+	if (level <= G4X_WM_LEVEL_SR) {
+		wm_state->cxsr = false;
+		wm_state->sr.cursor = USHRT_MAX;
+		wm_state->sr.plane = USHRT_MAX;
+		wm_state->sr.fbc = USHRT_MAX;
+	}
+
+	if (level <= G4X_WM_LEVEL_HPLL) {
+		wm_state->hpll_en = false;
+		wm_state->hpll.cursor = USHRT_MAX;
+		wm_state->hpll.plane = USHRT_MAX;
+		wm_state->hpll.fbc = USHRT_MAX;
+	}
+}
+
+static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->base.state);
+	struct g4x_wm_state *wm_state = &crtc_state->wm.g4x.optimal;
+	int num_active_planes = hweight32(crtc_state->active_planes &
+					  ~BIT(PLANE_CURSOR));
+	const struct g4x_pipe_wm *raw;
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	enum plane_id plane_id;
+	int i, level;
+	unsigned int dirty = 0;
+
+	for_each_intel_plane_in_state(state, plane, plane_state, i) {
+		const struct intel_plane_state *old_plane_state =
+			to_intel_plane_state(plane->base.state);
+
+		if (plane_state->base.crtc != &crtc->base &&
+		    old_plane_state->base.crtc != &crtc->base)
+			continue;
+
+		if (g4x_raw_plane_wm_compute(crtc_state, plane_state))
+			dirty |= BIT(plane->id);
+	}
+
+	if (!dirty)
+		return 0;
+
+	level = G4X_WM_LEVEL_NORMAL;
+	if (!g4x_raw_crtc_wm_is_valid(crtc_state, level))
+		goto out;
+
+	raw = &crtc_state->wm.g4x.raw[level];
+	for_each_plane_id_on_crtc(crtc, plane_id)
+		wm_state->wm.plane[plane_id] = raw->plane[plane_id];
+
+	level = G4X_WM_LEVEL_SR;
+
+	if (!g4x_raw_crtc_wm_is_valid(crtc_state, level))
+		goto out;
+
+	raw = &crtc_state->wm.g4x.raw[level];
+	wm_state->sr.plane = raw->plane[PLANE_PRIMARY];
+	wm_state->sr.cursor = raw->plane[PLANE_CURSOR];
+	wm_state->sr.fbc = raw->fbc;
+
+	wm_state->cxsr = num_active_planes == BIT(PLANE_PRIMARY);
+
+	level = G4X_WM_LEVEL_HPLL;
+
+	if (!g4x_raw_crtc_wm_is_valid(crtc_state, level))
+		goto out;
+
+	raw = &crtc_state->wm.g4x.raw[level];
+	wm_state->hpll.plane = raw->plane[PLANE_PRIMARY];
+	wm_state->hpll.cursor = raw->plane[PLANE_CURSOR];
+	wm_state->hpll.fbc = raw->fbc;
+
+	wm_state->hpll_en = wm_state->cxsr;
+
+	level++;
+
+ out:
+	if (level == G4X_WM_LEVEL_NORMAL)
+		return -EINVAL;
+
+	/* invalidate the higher levels */
+	g4x_invalidate_wms(crtc, wm_state, level);
+
+	/*
+	 * Determine if the FBC watermark(s) can be used. IF
+	 * this isn't the case we prefer to disable the FBC
+	 ( watermark(s) rather than disable the SR/HPLL
+	 * level(s) entirely.
+	 */
+	wm_state->fbc_en = level > G4X_WM_LEVEL_NORMAL;
+
+	if (level >= G4X_WM_LEVEL_SR &&
+	    wm_state->sr.fbc > g4x_fbc_fifo_size(G4X_WM_LEVEL_SR))
+		wm_state->fbc_en = false;
+	else if (level >= G4X_WM_LEVEL_HPLL &&
+		 wm_state->hpll.fbc > g4x_fbc_fifo_size(G4X_WM_LEVEL_HPLL))
+		wm_state->fbc_en = false;
+
+	return 0;
+}
+
+static int g4x_compute_intermediate_wm(struct drm_device *dev,
+				       struct intel_crtc *crtc,
+				       struct intel_crtc_state *crtc_state)
+{
+	struct g4x_wm_state *intermediate = &crtc_state->wm.g4x.intermediate;
+	const struct g4x_wm_state *optimal = &crtc_state->wm.g4x.optimal;
+	const struct g4x_wm_state *active = &crtc->wm.active.g4x;
+	enum plane_id plane_id;
+
+	intermediate->cxsr = optimal->cxsr && active->cxsr &&
+		!crtc_state->disable_cxsr;
+	intermediate->hpll_en = optimal->hpll_en && active->hpll_en &&
+		!crtc_state->disable_cxsr;
+	intermediate->fbc_en = optimal->fbc_en && active->fbc_en;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		intermediate->wm.plane[plane_id] =
+			max(optimal->wm.plane[plane_id],
+			    active->wm.plane[plane_id]);
+
+		WARN_ON(intermediate->wm.plane[plane_id] >
+			g4x_plane_fifo_size(plane_id, G4X_WM_LEVEL_NORMAL));
+	}
+
+	intermediate->sr.plane = max(optimal->sr.plane,
+				     active->sr.plane);
+	intermediate->sr.cursor = max(optimal->sr.cursor,
+				      active->sr.cursor);
+	intermediate->sr.fbc = max(optimal->sr.fbc,
+				   active->sr.fbc);
+
+	intermediate->hpll.plane = max(optimal->hpll.plane,
+				       active->hpll.plane);
+	intermediate->hpll.cursor = max(optimal->hpll.cursor,
+					active->hpll.cursor);
+	intermediate->hpll.fbc = max(optimal->hpll.fbc,
+				     active->hpll.fbc);
+
+	WARN_ON((intermediate->sr.plane >
+		 g4x_plane_fifo_size(PLANE_PRIMARY, G4X_WM_LEVEL_SR) ||
+		 intermediate->sr.cursor >
+		 g4x_plane_fifo_size(PLANE_CURSOR, G4X_WM_LEVEL_SR)) &&
+		intermediate->cxsr);
+	WARN_ON((intermediate->sr.plane >
+		 g4x_plane_fifo_size(PLANE_PRIMARY, G4X_WM_LEVEL_HPLL) ||
+		 intermediate->sr.cursor >
+		 g4x_plane_fifo_size(PLANE_CURSOR, G4X_WM_LEVEL_HPLL)) &&
+		intermediate->hpll_en);
+
+	WARN_ON(intermediate->sr.fbc > g4x_fbc_fifo_size(1) &&
+		intermediate->fbc_en && intermediate->cxsr);
+	WARN_ON(intermediate->hpll.fbc > g4x_fbc_fifo_size(2) &&
+		intermediate->fbc_en && intermediate->hpll_en);
+
+	/*
+	 * If our intermediate WM are identical to the final WM, then we can
+	 * omit the post-vblank programming; only update if it's different.
+	 */
+	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
+		crtc_state->wm.need_postvbl_update = true;
+
+	return 0;
+}
+
+static void g4x_merge_wm(struct drm_i915_private *dev_priv,
+			 struct g4x_wm_values *wm)
+{
+	struct intel_crtc *crtc;
+	int num_active_crtcs = 0;
+
+	wm->cxsr = true;
+	wm->hpll_en = true;
+	wm->fbc_en = true;
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		const struct g4x_wm_state *wm_state = &crtc->wm.active.g4x;
+
+		if (!crtc->active)
+			continue;
+
+		if (!wm_state->cxsr)
+			wm->cxsr = false;
+		if (!wm_state->hpll_en)
+			wm->hpll_en = false;
+		if (!wm_state->fbc_en)
+			wm->fbc_en = false;
+
+		num_active_crtcs++;
+	}
+
+	if (num_active_crtcs != 1) {
+		wm->cxsr = false;
+		wm->hpll_en = false;
+		wm->fbc_en = false;
+	}
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		const struct g4x_wm_state *wm_state = &crtc->wm.active.g4x;
+		enum pipe pipe = crtc->pipe;
+
+		wm->pipe[pipe] = wm_state->wm;
+		if (crtc->active && wm->cxsr)
+			wm->sr = wm_state->sr;
+		if (crtc->active && wm->hpll_en)
+			wm->hpll = wm_state->hpll;
+	}
+}
+
+static void g4x_program_watermarks(struct drm_i915_private *dev_priv)
+{
+	struct g4x_wm_values *old_wm = &dev_priv->wm.g4x;
+	struct g4x_wm_values new_wm = {};
+
+	g4x_merge_wm(dev_priv, &new_wm);
+
+	if (memcmp(old_wm, &new_wm, sizeof(new_wm)) == 0)
+		return;
+
+	if (is_disabling(old_wm->cxsr, new_wm.cxsr, true))
+		_intel_set_memory_cxsr(dev_priv, false);
+
+	g4x_write_wm_values(dev_priv, &new_wm);
+
+	if (is_enabling(old_wm->cxsr, new_wm.cxsr, true))
+		_intel_set_memory_cxsr(dev_priv, true);
+
+	*old_wm = new_wm;
+}
+
+static void g4x_initial_watermarks(struct intel_atomic_state *state,
+				   struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+
+	mutex_lock(&dev_priv->wm.wm_mutex);
+	crtc->wm.active.g4x = crtc_state->wm.g4x.intermediate;
+	g4x_program_watermarks(dev_priv);
+	mutex_unlock(&dev_priv->wm.wm_mutex);
+}
+
+static void g4x_optimize_watermarks(struct intel_atomic_state *state,
+				    struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+
+	if (!crtc_state->wm.need_postvbl_update)
+		return;
+
+	mutex_lock(&dev_priv->wm.wm_mutex);
+	intel_crtc->wm.active.g4x = crtc_state->wm.g4x.optimal;
+	g4x_program_watermarks(dev_priv);
+	mutex_unlock(&dev_priv->wm.wm_mutex);
+}
 
 /* latency must be in 0.1us units. */
 static unsigned int vlv_wm_method2(unsigned int pixel_rate,
@@ -1673,16 +2079,6 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 	}
 }
 
-static bool is_disabling(int old, int new, int threshold)
-{
-	return old >= threshold && new < threshold;
-}
-
-static bool is_enabling(int old, int new, int threshold)
-{
-	return old < threshold && new >= threshold;
-}
-
 static void vlv_program_watermarks(struct drm_i915_private *dev_priv)
 {
 	struct vlv_wm_values *old_wm = &dev_priv->wm.vlv;
@@ -1741,65 +2137,6 @@ static void vlv_optimize_watermarks(struct intel_atomic_state *state,
 	intel_crtc->wm.active.vlv = crtc_state->wm.vlv.optimal;
 	vlv_program_watermarks(dev_priv);
 	mutex_unlock(&dev_priv->wm.wm_mutex);
-}
-
-#define single_plane_enabled(mask) is_power_of_2(mask)
-
-static void g4x_update_wm(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	static const int sr_latency_ns = 12000;
-	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
-	int plane_sr, cursor_sr;
-	unsigned int enabled = 0;
-	bool cxsr_enabled;
-
-	if (g4x_compute_wm0(dev_priv, PIPE_A,
-			    &g4x_wm_info, pessimal_latency_ns,
-			    &g4x_cursor_wm_info, pessimal_latency_ns,
-			    &planea_wm, &cursora_wm))
-		enabled |= 1 << PIPE_A;
-
-	if (g4x_compute_wm0(dev_priv, PIPE_B,
-			    &g4x_wm_info, pessimal_latency_ns,
-			    &g4x_cursor_wm_info, pessimal_latency_ns,
-			    &planeb_wm, &cursorb_wm))
-		enabled |= 1 << PIPE_B;
-
-	if (single_plane_enabled(enabled) &&
-	    g4x_compute_srwm(dev_priv, ffs(enabled) - 1,
-			     sr_latency_ns,
-			     &g4x_wm_info,
-			     &g4x_cursor_wm_info,
-			     &plane_sr, &cursor_sr)) {
-		cxsr_enabled = true;
-	} else {
-		cxsr_enabled = false;
-		intel_set_memory_cxsr(dev_priv, false);
-		plane_sr = cursor_sr = 0;
-	}
-
-	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, "
-		      "B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
-		      planea_wm, cursora_wm,
-		      planeb_wm, cursorb_wm,
-		      plane_sr, cursor_sr);
-
-	I915_WRITE(DSPFW1,
-		   FW_WM(plane_sr, SR) |
-		   FW_WM(cursorb_wm, CURSORB) |
-		   FW_WM(planeb_wm, PLANEB) |
-		   FW_WM(planea_wm, PLANEA));
-	I915_WRITE(DSPFW2,
-		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
-		   FW_WM(cursora_wm, CURSORA));
-	/* HPLL off in SR has some issues on G4x... disable it */
-	I915_WRITE(DSPFW3,
-		   (I915_READ(DSPFW3) & ~(DSPFW_HPLL_SR_EN | DSPFW_CURSOR_SR_MASK)) |
-		   FW_WM(cursor_sr, CURSOR_SR));
-
-	if (cxsr_enabled)
-		intel_set_memory_cxsr(dev_priv, true);
 }
 
 static void i965_update_wm(struct intel_crtc *unused_crtc)
@@ -4778,6 +5115,32 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 #define _FW_WM_VLV(value, plane) \
 	(((value) & DSPFW_ ## plane ## _MASK_VLV) >> DSPFW_ ## plane ## _SHIFT)
 
+static void g4x_read_wm_values(struct drm_i915_private *dev_priv,
+			       struct g4x_wm_values *wm)
+{
+	uint32_t tmp;
+
+	tmp = I915_READ(DSPFW1);
+	wm->sr.plane = _FW_WM(tmp, SR);
+	wm->pipe[PIPE_B].plane[PLANE_CURSOR] = _FW_WM(tmp, CURSORB);
+	wm->pipe[PIPE_B].plane[PLANE_PRIMARY] = _FW_WM(tmp, PLANEB);
+	wm->pipe[PIPE_A].plane[PLANE_PRIMARY] = _FW_WM(tmp, PLANEA);
+
+	tmp = I915_READ(DSPFW2);
+	wm->fbc_en = tmp & DSPFW_FBC_SR_EN;
+	wm->sr.fbc = _FW_WM(tmp, FBC_SR);
+	wm->hpll.fbc = _FW_WM(tmp, FBC_HPLL_SR);
+	wm->pipe[PIPE_B].plane[PLANE_SPRITE0] = _FW_WM(tmp, SPRITEB);
+	wm->pipe[PIPE_A].plane[PLANE_CURSOR] = _FW_WM(tmp, CURSORA);
+	wm->pipe[PIPE_A].plane[PLANE_SPRITE0] = _FW_WM(tmp, SPRITEA);
+
+	tmp = I915_READ(DSPFW3);
+	wm->hpll_en = tmp & DSPFW_HPLL_SR_EN;
+	wm->sr.cursor = _FW_WM(tmp, CURSOR_SR);
+	wm->hpll.cursor = _FW_WM(tmp, HPLL_CURSOR);
+	wm->hpll.plane = _FW_WM(tmp, HPLL_SR);
+}
+
 static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 			       struct vlv_wm_values *wm)
 {
@@ -4853,6 +5216,147 @@ static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 
 #undef _FW_WM
 #undef _FW_WM_VLV
+
+void g4x_wm_get_hw_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct g4x_wm_values *wm = &dev_priv->wm.g4x;
+	struct intel_crtc *crtc;
+
+	g4x_read_wm_values(dev_priv, wm);
+
+	wm->cxsr = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
+
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct g4x_wm_state *active = &crtc->wm.active.g4x;
+		struct g4x_pipe_wm *raw;
+		enum pipe pipe = crtc->pipe;
+		enum plane_id plane_id;
+		int level, max_level;
+
+		active->cxsr = wm->cxsr;
+		active->hpll_en = wm->hpll_en;
+		active->fbc_en = wm->fbc_en;
+
+		active->sr = wm->sr;
+		active->hpll = wm->hpll;
+
+		for_each_plane_id_on_crtc(crtc, plane_id) {
+			active->wm.plane[plane_id] =
+				wm->pipe[pipe].plane[plane_id];
+		}
+
+		if (wm->cxsr && wm->hpll_en)
+			max_level = G4X_WM_LEVEL_HPLL;
+		else if (wm->cxsr)
+			max_level = G4X_WM_LEVEL_SR;
+		else
+			max_level = G4X_WM_LEVEL_NORMAL;
+
+		level = G4X_WM_LEVEL_NORMAL;
+		raw = &crtc_state->wm.g4x.raw[level];
+		for_each_plane_id_on_crtc(crtc, plane_id)
+			raw->plane[plane_id] = active->wm.plane[plane_id];
+
+		if (++level > max_level)
+			goto out;
+
+		raw = &crtc_state->wm.g4x.raw[level];
+		raw->plane[PLANE_PRIMARY] = active->sr.plane;
+		raw->plane[PLANE_CURSOR] = active->sr.cursor;
+		raw->plane[PLANE_SPRITE0] = 0;
+		raw->fbc = active->sr.fbc;
+
+		if (++level > max_level)
+			goto out;
+
+		raw = &crtc_state->wm.g4x.raw[level];
+		raw->plane[PLANE_PRIMARY] = active->hpll.plane;
+		raw->plane[PLANE_CURSOR] = active->hpll.cursor;
+		raw->plane[PLANE_SPRITE0] = 0;
+		raw->fbc = active->hpll.fbc;
+
+	out:
+		for_each_plane_id_on_crtc(crtc, plane_id)
+			g4x_raw_plane_wm_set(crtc_state, level,
+					     plane_id, USHRT_MAX);
+		g4x_raw_fbc_wm_set(crtc_state, level, USHRT_MAX);
+
+		crtc_state->wm.g4x.optimal = *active;
+		crtc_state->wm.g4x.intermediate = *active;
+
+		DRM_DEBUG_KMS("Initial watermarks: pipe %c, plane=%d, cursor=%d, sprite=%d\n",
+			      pipe_name(pipe),
+			      wm->pipe[pipe].plane[PLANE_PRIMARY],
+			      wm->pipe[pipe].plane[PLANE_CURSOR],
+			      wm->pipe[pipe].plane[PLANE_SPRITE0]);
+	}
+
+	DRM_DEBUG_KMS("Initial SR watermarks: plane=%d, cursor=%d fbc=%d\n",
+		      wm->sr.plane, wm->sr.cursor, wm->sr.fbc);
+	DRM_DEBUG_KMS("Initial HPLL watermarks: plane=%d, SR cursor=%d fbc=%d\n",
+		      wm->hpll.plane, wm->hpll.cursor, wm->hpll.fbc);
+	DRM_DEBUG_KMS("Initial SR=%s HPLL=%s FBC=%s\n",
+		      yesno(wm->cxsr), yesno(wm->hpll_en), yesno(wm->fbc_en));
+}
+
+void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
+{
+	struct intel_plane *plane;
+	struct intel_crtc *crtc;
+
+	mutex_lock(&dev_priv->wm.wm_mutex);
+
+	for_each_intel_plane(&dev_priv->drm, plane) {
+		struct intel_crtc *crtc =
+			intel_get_crtc_for_pipe(dev_priv, plane->pipe);
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+		struct g4x_wm_state *wm_state = &crtc_state->wm.g4x.optimal;
+		enum plane_id plane_id = plane->id;
+		int level;
+
+		if (plane_state->base.visible)
+			continue;
+
+		for (level = 0; level < 3; level++) {
+			struct g4x_pipe_wm *raw =
+				&crtc_state->wm.g4x.raw[level];
+
+			raw->plane[plane_id] = 0;
+			wm_state->wm.plane[plane_id] = 0;
+		}
+
+		if (plane_id == PLANE_PRIMARY) {
+			for (level = 0; level < 3; level++) {
+				struct g4x_pipe_wm *raw =
+					&crtc_state->wm.g4x.raw[level];
+				raw->fbc = 0;
+			}
+
+			wm_state->sr.fbc = 0;
+			wm_state->hpll.fbc = 0;
+			wm_state->fbc_en = false;
+		}
+	}
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		crtc_state->wm.g4x.intermediate =
+			crtc_state->wm.g4x.optimal;
+		crtc->wm.active.g4x = crtc_state->wm.g4x.optimal;
+	}
+
+	g4x_program_watermarks(dev_priv);
+
+	mutex_unlock(&dev_priv->wm.wm_mutex);
+}
 
 void vlv_wm_get_hw_state(struct drm_device *dev)
 {
@@ -8160,6 +8664,12 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		dev_priv->display.initial_watermarks = vlv_initial_watermarks;
 		dev_priv->display.optimize_watermarks = vlv_optimize_watermarks;
 		dev_priv->display.atomic_update_watermarks = vlv_atomic_update_fifo;
+	} else if (IS_G4X(dev_priv)) {
+		g4x_setup_wm_latency(dev_priv);
+		dev_priv->display.compute_pipe_wm = g4x_compute_pipe_wm;
+		dev_priv->display.compute_intermediate_wm = g4x_compute_intermediate_wm;
+		dev_priv->display.initial_watermarks = g4x_initial_watermarks;
+		dev_priv->display.optimize_watermarks = g4x_optimize_watermarks;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
 					    dev_priv->is_ddr3,
@@ -8175,8 +8685,6 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pineview_update_wm;
-	} else if (IS_G4X(dev_priv)) {
-		dev_priv->display.update_wm = g4x_update_wm;
 	} else if (IS_GEN4(dev_priv)) {
 		dev_priv->display.update_wm = i965_update_wm;
 	} else if (IS_GEN3(dev_priv)) {
