@@ -4108,6 +4108,7 @@ static void mtip_no_dev_cleanup(struct request *rq, void *data, bool reserv)
 	struct mtip_cmd *cmd;
 
 	if (likely(!reserv)) {
+		cmd = blk_mq_rq_to_pdu(rq);
 		cmd->status = -ENODEV;
 		blk_mq_complete_request(rq);
 	} else if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &dd->port->flags)) {
