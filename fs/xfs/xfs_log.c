@@ -1852,7 +1852,7 @@ xlog_sync(
 	 */
 	if (log->l_badcrc_factor &&
 	    (prandom_u32() % log->l_badcrc_factor == 0)) {
-		iclog->ic_header.h_crc &= 0xAAAAAAAA;
+		iclog->ic_header.h_crc &= cpu_to_le32(0xAAAAAAAA);
 		iclog->ic_state |= XLOG_STATE_IOABORT;
 		xfs_warn(log->l_mp,
 	"Intentionally corrupted log record at LSN 0x%llx. Shutdown imminent.",
