@@ -3342,9 +3342,9 @@ static int pmcraid_copy_sglist(
 
 		kaddr = kmap(page);
 		if (direction == DMA_TO_DEVICE)
-			rc = __copy_from_user(kaddr, buffer, bsize_elem);
+			rc = copy_from_user(kaddr, buffer, bsize_elem);
 		else
-			rc = __copy_to_user(buffer, kaddr, bsize_elem);
+			rc = copy_to_user(buffer, kaddr, bsize_elem);
 
 		kunmap(page);
 
@@ -3362,9 +3362,9 @@ static int pmcraid_copy_sglist(
 		kaddr = kmap(page);
 
 		if (direction == DMA_TO_DEVICE)
-			rc = __copy_from_user(kaddr, buffer, len % bsize_elem);
+			rc = copy_from_user(kaddr, buffer, len % bsize_elem);
 		else
-			rc = __copy_to_user(buffer, kaddr, len % bsize_elem);
+			rc = copy_to_user(buffer, kaddr, len % bsize_elem);
 
 		kunmap(page);
 
@@ -3691,7 +3691,7 @@ static long pmcraid_ioctl_passthrough(
 
 	request_buffer = arg + request_offset;
 
-	rc = __copy_from_user(buffer, arg,
+	rc = copy_from_user(buffer, arg,
 			     sizeof(struct pmcraid_passthrough_ioctl_buffer));
 
 	ioasa = arg + offsetof(struct pmcraid_passthrough_ioctl_buffer, ioasa);
@@ -3712,14 +3712,7 @@ static long pmcraid_ioctl_passthrough(
 		direction = DMA_FROM_DEVICE;
 	}
 
-	if (request_size > 0) {
-		rc = access_ok(access, arg, request_offset + request_size);
-
-		if (!rc) {
-			rc = -EFAULT;
-			goto out_free_buffer;
-		}
-	} else if (request_size < 0) {
+	if (request_size < 0) {
 		rc = -EINVAL;
 		goto out_free_buffer;
 	}
@@ -3929,11 +3922,6 @@ static long pmcraid_ioctl_driver(
 {
 	int rc = -ENOSYS;
 
-	if (!access_ok(VERIFY_READ, user_buffer, _IOC_SIZE(cmd))) {
-		pmcraid_err("ioctl_driver: access fault in request buffer\n");
-		return -EFAULT;
-	}
-
 	switch (cmd) {
 	case PMCRAID_IOCTL_RESET_ADAPTER:
 		pmcraid_reset_bringup(pinstance);
@@ -3965,8 +3953,7 @@ static int pmcraid_check_ioctl_buffer(
 	struct pmcraid_ioctl_header *hdr
 )
 {
-	int rc = 0;
-	int access = VERIFY_READ;
+	int rc;
 
 	if (copy_from_user(hdr, arg, sizeof(struct pmcraid_ioctl_header))) {
 		pmcraid_err("couldn't copy ioctl header from user buffer\n");
@@ -3980,19 +3967,6 @@ static int pmcraid_check_ioctl_buffer(
 	if (rc) {
 		pmcraid_err("signature verification failed\n");
 		return -EINVAL;
-	}
-
-	/* check for appropriate buffer access */
-	if ((_IOC_DIR(cmd) & _IOC_READ) == _IOC_READ)
-		access = VERIFY_WRITE;
-
-	rc = access_ok(access,
-		       (arg + sizeof(struct pmcraid_ioctl_header)),
-		       hdr->buffer_length);
-	if (!rc) {
-		pmcraid_err("access failed for user buffer of size %d\n",
-			     hdr->buffer_length);
-		return -EFAULT;
 	}
 
 	return 0;
