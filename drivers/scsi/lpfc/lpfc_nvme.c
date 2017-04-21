@@ -2409,6 +2409,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_rport *rport;
 	struct nvme_fc_remote_port *remoteport;
+	unsigned long wait_tmo;
 
 	localport = vport->localport;
 
@@ -2451,11 +2452,12 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * before proceeding.  This guarantees the transport and driver
 		 * have completed the unreg process.
 		 */
-		ret = wait_for_completion_timeout(&rport->rport_unreg_done, 5);
+		wait_tmo = msecs_to_jiffies(5000);
+		ret = wait_for_completion_timeout(&rport->rport_unreg_done,
+						  wait_tmo);
 		if (ret == 0) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
-					 "6169 Unreg nvme wait failed %d\n",
-					 ret);
+					 "6169 Unreg nvme wait timeout\n");
 		}
 	}
 	return;
