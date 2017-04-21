@@ -1614,7 +1614,8 @@ xfs_ioc_getbmapx(
 
 struct getfsmap_info {
 	struct xfs_mount	*mp;
-	struct fsmap __user	*data;
+	struct fsmap_head __user *data;
+	unsigned int		idx;
 	__u32			last_flags;
 };
 
@@ -1628,17 +1629,17 @@ xfs_getfsmap_format(struct xfs_fsmap *xfm, void *priv)
 
 	info->last_flags = xfm->fmr_flags;
 	xfs_fsmap_from_internal(&fm, xfm);
-	if (copy_to_user(info->data, &fm, sizeof(struct fsmap)))
+	if (copy_to_user(&info->data->fmh_recs[info->idx++], &fm,
+			sizeof(struct fsmap)))
 		return -EFAULT;
 
-	info->data++;
 	return 0;
 }
 
 STATIC int
 xfs_ioc_getfsmap(
 	struct xfs_inode	*ip,
-	void			__user *arg)
+	struct fsmap_head	__user *arg)
 {
 	struct getfsmap_info	info = { NULL };
 	struct xfs_fsmap_head	xhead = {0};
@@ -1664,7 +1665,7 @@ xfs_ioc_getfsmap(
 	trace_xfs_getfsmap_high_key(ip->i_mount, &xhead.fmh_keys[1]);
 
 	info.mp = ip->i_mount;
-	info.data = ((__force struct fsmap_head *)arg)->fmh_recs;
+	info.data = arg;
 	error = xfs_getfsmap(ip->i_mount, &xhead, xfs_getfsmap_format, &info);
 	if (error == XFS_BTREE_QUERY_RANGE_ABORT) {
 		error = 0;
@@ -1674,10 +1675,9 @@ xfs_ioc_getfsmap(
 
 	/* If we didn't abort, set the "last" flag in the last fmx */
 	if (!aborted && xhead.fmh_entries) {
-		info.data--;
 		info.last_flags |= FMR_OF_LAST;
-		if (copy_to_user(&info.data->fmr_flags, &info.last_flags,
-				sizeof(info.last_flags)))
+		if (copy_to_user(&info.data->fmh_recs[info.idx - 1].fmr_flags,
+				&info.last_flags, sizeof(info.last_flags)))
 			return -EFAULT;
 	}
 
