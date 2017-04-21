@@ -282,7 +282,7 @@ static void test_arraymap_percpu(int task, void *data)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	int key, next_key, fd, i;
-	long values[nr_cpus];
+	long long values[nr_cpus];
 
 	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
 			    sizeof(values[0]), 2, 0);
@@ -340,7 +340,7 @@ static void test_arraymap_percpu_many_keys(void)
 	 * allocator more than anything else
 	 */
 	unsigned int nr_keys = 2000;
-	long values[nr_cpus];
+	long long values[nr_cpus];
 	int key, fd, i;
 
 	fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),

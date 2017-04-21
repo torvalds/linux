@@ -583,6 +583,13 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 		   p_params->ets_cbs,
 		   p_ets->pri_tc_tbl[0], p_params->max_ets_tc);
 
+	if (p_params->ets_enabled && !p_params->max_ets_tc) {
+		p_params->max_ets_tc = QED_MAX_PFC_PRIORITIES;
+		DP_VERBOSE(p_hwfn, QED_MSG_DCB,
+			   "ETS params: max_ets_tc is forced to %d\n",
+		p_params->max_ets_tc);
+	}
+
 	/* 8 bit tsa and bw data corresponding to each of the 8 TC's are
 	 * encoded in a type u32 array of size 2.
 	 */
@@ -1001,6 +1008,8 @@ qed_dcbx_set_pfc_data(struct qed_hwfn *p_hwfn,
 	u8 pfc_map = 0;
 	int i;
 
+	*pfc &= ~DCBX_PFC_ERROR_MASK;
+
 	if (p_params->pfc.willing)
 		*pfc |= DCBX_PFC_WILLING_MASK;
 	else
@@ -1255,7 +1264,7 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 {
 	struct qed_dcbx_get *dcbx_info;
 
-	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_ATOMIC);
 	if (!dcbx_info)
 		return NULL;
 
@@ -2072,6 +2081,8 @@ static int qed_dcbnl_ieee_setpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 	dcbx_set.override_flags |= QED_DCBX_OVERRIDE_PFC_CFG;
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++)
 		dcbx_set.config.params.pfc.prio[i] = !!(pfc->pfc_en & BIT(i));
+
+	dcbx_set.config.params.pfc.max_tc = pfc->pfc_cap;
 
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)

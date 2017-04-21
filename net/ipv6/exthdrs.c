@@ -388,7 +388,6 @@ looped_back:
 		icmpv6_param_prob(skb, ICMPV6_HDR_FIELD,
 				  ((&hdr->segments_left) -
 				   skb_network_header(skb)));
-		kfree_skb(skb);
 		return -1;
 	}
 
