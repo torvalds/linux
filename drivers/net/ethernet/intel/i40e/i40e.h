@@ -145,7 +145,7 @@ enum i40e_state_t {
 	__I40E_DOWN_REQUESTED,
 	__I40E_FD_FLUSH_REQUESTED,
 	__I40E_RESET_FAILED,
-	__I40E_PORT_TX_SUSPENDED,
+	__I40E_PORT_SUSPENDED,
 	__I40E_VF_DISABLE,
 };
 
@@ -763,21 +763,6 @@ static inline void i40e_vsi_setup_irqhandler(struct i40e_vsi *vsi,
 }
 
 /**
- * i40e_rx_is_programming_status - check for programming status descriptor
- * @qw: the first quad word of the program status descriptor
- *
- * The value of in the descriptor length field indicate if this
- * is a programming status descriptor for flow director or FCoE
- * by the value of I40E_RX_PROG_STATUS_DESC_LENGTH, otherwise
- * it is a packet descriptor.
- **/
-static inline bool i40e_rx_is_programming_status(u64 qw)
-{
-	return I40E_RX_PROG_STATUS_DESC_LENGTH ==
-		(qw >> I40E_RX_PROG_STATUS_DESC_LENGTH_SHIFT);
-}
-
-/**
  * i40e_get_fd_cnt_all - get the total FD filter space available
  * @pf: pointer to the PF struct
  **/
@@ -883,6 +868,8 @@ void i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
 
 int i40e_vsi_start_rings(struct i40e_vsi *vsi);
 void i40e_vsi_stop_rings(struct i40e_vsi *vsi);
+void i40e_vsi_stop_rings_no_wait(struct  i40e_vsi *vsi);
+int i40e_vsi_wait_queues_disabled(struct i40e_vsi *vsi);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc);

@@ -32,6 +32,12 @@
 #include "i40e.h"
 #include "i40e_diag.h"
 #include <net/udp_tunnel.h>
+/* All i40e tracepoints are defined by the include below, which
+ * must be included exactly once across the whole kernel with
+ * CREATE_TRACE_POINTS defined
+ */
+#define CREATE_TRACE_POINTS
+#include "i40e_trace.h"
 
 const char i40e_driver_name[] = "i40e";
 static const char i40e_driver_string[] =
@@ -3913,6 +3919,8 @@ static void i40e_netpoll(struct net_device *netdev)
 }
 #endif
 
+#define I40E_QTX_ENA_WAIT_COUNT 50
+
 /**
  * i40e_pf_txq_wait - Wait for a PF's Tx queue to be enabled or disabled
  * @pf: the PF being configured
@@ -3943,6 +3951,50 @@ static int i40e_pf_txq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 }
 
 /**
+ * i40e_control_tx_q - Start or stop a particular Tx queue
+ * @pf: the PF structure
+ * @pf_q: the PF queue to configure
+ * @enable: start or stop the queue
+ *
+ * This function enables or disables a single queue. Note that any delay
+ * required after the operation is expected to be handled by the caller of
+ * this function.
+ **/
+static void i40e_control_tx_q(struct i40e_pf *pf, int pf_q, bool enable)
+{
+	struct i40e_hw *hw = &pf->hw;
+	u32 tx_reg;
+	int i;
+
+	/* warn the TX unit of coming changes */
+	i40e_pre_tx_queue_cfg(&pf->hw, pf_q, enable);
+	if (!enable)
+		usleep_range(10, 20);
+
+	for (i = 0; i < I40E_QTX_ENA_WAIT_COUNT; i++) {
+		tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
+		if (((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT) & 1) ==
+		    ((tx_reg >> I40E_QTX_ENA_QENA_STAT_SHIFT) & 1))
+			break;
+		usleep_range(1000, 2000);
+	}
+
+	/* Skip if the queue is already in the requested state */
+	if (enable == !!(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
+		return;
+
+	/* turn on/off the queue */
+	if (enable) {
+		wr32(hw, I40E_QTX_HEAD(pf_q), 0);
+		tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK;
+	} else {
+		tx_reg &= ~I40E_QTX_ENA_QENA_REQ_MASK;
+	}
+
+	wr32(hw, I40E_QTX_ENA(pf_q), tx_reg);
+}
+
+/**
  * i40e_vsi_control_tx - Start or stop a VSI's rings
  * @vsi: the VSI being configured
  * @enable: start or stop the rings
@@ -3950,41 +4002,11 @@ static int i40e_pf_txq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 {
 	struct i40e_pf *pf = vsi->back;
-	struct i40e_hw *hw = &pf->hw;
-	int i, j, pf_q, ret = 0;
-	u32 tx_reg;
+	int i, pf_q, ret = 0;
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
-
-		/* warn the TX unit of coming changes */
-		i40e_pre_tx_queue_cfg(&pf->hw, pf_q, enable);
-		if (!enable)
-			usleep_range(10, 20);
-
-		for (j = 0; j < 50; j++) {
-			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
-			if (((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT) & 1) ==
-			    ((tx_reg >> I40E_QTX_ENA_QENA_STAT_SHIFT) & 1))
-				break;
-			usleep_range(1000, 2000);
-		}
-		/* Skip if the queue is already in the requested state */
-		if (enable == !!(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
-			continue;
-
-		/* turn on/off the queue */
-		if (enable) {
-			wr32(hw, I40E_QTX_HEAD(pf_q), 0);
-			tx_reg |= I40E_QTX_ENA_QENA_REQ_MASK;
-		} else {
-			tx_reg &= ~I40E_QTX_ENA_QENA_REQ_MASK;
-		}
-
-		wr32(hw, I40E_QTX_ENA(pf_q), tx_reg);
-		/* No waiting for the Tx queue to disable */
-		if (!enable && test_bit(__I40E_PORT_TX_SUSPENDED, &pf->state))
-			continue;
+		i40e_control_tx_q(pf, pf_q, enable);
 
 		/* wait for the change to finish */
 		ret = i40e_pf_txq_wait(pf, pf_q, enable);
@@ -4029,6 +4051,43 @@ static int i40e_pf_rxq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 }
 
 /**
+ * i40e_control_rx_q - Start or stop a particular Rx queue
+ * @pf: the PF structure
+ * @pf_q: the PF queue to configure
+ * @enable: start or stop the queue
+ *
+ * This function enables or disables a single queue. Note that any delay
+ * required after the operation is expected to be handled by the caller of
+ * this function.
+ **/
+static void i40e_control_rx_q(struct i40e_pf *pf, int pf_q, bool enable)
+{
+	struct i40e_hw *hw = &pf->hw;
+	u32 rx_reg;
+	int i;
+
+	for (i = 0; i < I40E_QTX_ENA_WAIT_COUNT; i++) {
+		rx_reg = rd32(hw, I40E_QRX_ENA(pf_q));
+		if (((rx_reg >> I40E_QRX_ENA_QENA_REQ_SHIFT) & 1) ==
+		    ((rx_reg >> I40E_QRX_ENA_QENA_STAT_SHIFT) & 1))
+			break;
+		usleep_range(1000, 2000);
+	}
+
+	/* Skip if the queue is already in the requested state */
+	if (enable == !!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
+		return;
+
+	/* turn on/off the queue */
+	if (enable)
+		rx_reg |= I40E_QRX_ENA_QENA_REQ_MASK;
+	else
+		rx_reg &= ~I40E_QRX_ENA_QENA_REQ_MASK;
+
+	wr32(hw, I40E_QRX_ENA(pf_q), rx_reg);
+}
+
+/**
  * i40e_vsi_control_rx - Start or stop a VSI's rings
  * @vsi: the VSI being configured
  * @enable: start or stop the rings
@@ -4036,33 +4095,11 @@ static int i40e_pf_rxq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 {
 	struct i40e_pf *pf = vsi->back;
-	struct i40e_hw *hw = &pf->hw;
-	int i, j, pf_q, ret = 0;
-	u32 rx_reg;
+	int i, pf_q, ret = 0;
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
-		for (j = 0; j < 50; j++) {
-			rx_reg = rd32(hw, I40E_QRX_ENA(pf_q));
-			if (((rx_reg >> I40E_QRX_ENA_QENA_REQ_SHIFT) & 1) ==
-			    ((rx_reg >> I40E_QRX_ENA_QENA_STAT_SHIFT) & 1))
-				break;
-			usleep_range(1000, 2000);
-		}
-
-		/* Skip if the queue is already in the requested state */
-		if (enable == !!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
-			continue;
-
-		/* turn on/off the queue */
-		if (enable)
-			rx_reg |= I40E_QRX_ENA_QENA_REQ_MASK;
-		else
-			rx_reg &= ~I40E_QRX_ENA_QENA_REQ_MASK;
-		wr32(hw, I40E_QRX_ENA(pf_q), rx_reg);
-		/* No waiting for the Tx queue to disable */
-		if (!enable && test_bit(__I40E_PORT_TX_SUSPENDED, &pf->state))
-			continue;
+		i40e_control_rx_q(pf, pf_q, enable);
 
 		/* wait for the change to finish */
 		ret = i40e_pf_rxq_wait(pf, pf_q, enable);
@@ -4106,11 +4143,38 @@ int i40e_vsi_start_rings(struct i40e_vsi *vsi)
  **/
 void i40e_vsi_stop_rings(struct i40e_vsi *vsi)
 {
+	/* When port TX is suspended, don't wait */
+	if (test_bit(__I40E_PORT_SUSPENDED, &vsi->back->state))
+		return i40e_vsi_stop_rings_no_wait(vsi);
+
 	/* do rx first for enable and last for disable
 	 * Ignore return value, we need to shutdown whatever we can
 	 */
 	i40e_vsi_control_tx(vsi, false);
 	i40e_vsi_control_rx(vsi, false);
+}
+
+/**
+ * i40e_vsi_stop_rings_no_wait - Stop a VSI's rings and do not delay
+ * @vsi: the VSI being shutdown
+ *
+ * This function stops all the rings for a VSI but does not delay to verify
+ * that rings have been disabled. It is expected that the caller is shutting
+ * down multiple VSIs at once and will delay together for all the VSIs after
+ * initiating the shutdown. This is particularly useful for shutting down lots
+ * of VFs together. Otherwise, a large delay can be incurred while configuring
+ * each VSI in serial.
+ **/
+void i40e_vsi_stop_rings_no_wait(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+	int i, pf_q;
+
+	pf_q = vsi->base_queue;
+	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
+		i40e_control_tx_q(pf, pf_q, false);
+		i40e_control_rx_q(pf, pf_q, false);
+	}
 }
 
 /**
@@ -4443,14 +4507,13 @@ static void i40e_pf_unquiesce_all_vsi(struct i40e_pf *pf)
 	}
 }
 
-#ifdef CONFIG_I40E_DCB
 /**
  * i40e_vsi_wait_queues_disabled - Wait for VSI's queues to be disabled
  * @vsi: the VSI being configured
  *
  * Wait until all queues on a given VSI have been disabled.
  **/
-static int i40e_vsi_wait_queues_disabled(struct i40e_vsi *vsi)
+int i40e_vsi_wait_queues_disabled(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 	int i, pf_q, ret;
@@ -4478,6 +4541,7 @@ static int i40e_vsi_wait_queues_disabled(struct i40e_vsi *vsi)
 	return 0;
 }
 
+#ifdef CONFIG_I40E_DCB
 /**
  * i40e_pf_wait_queues_disabled - Wait for all queues of PF VSIs to be disabled
  * @pf: the PF
@@ -5880,7 +5944,7 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	else
 		pf->flags &= ~I40E_FLAG_DCB_ENABLED;
 
-	set_bit(__I40E_PORT_TX_SUSPENDED, &pf->state);
+	set_bit(__I40E_PORT_SUSPENDED, &pf->state);
 	/* Reconfiguration needed quiesce all VSIs */
 	i40e_pf_quiesce_all_vsi(pf);
 
@@ -5889,7 +5953,7 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	ret = i40e_resume_port_tx(pf);
 
-	clear_bit(__I40E_PORT_TX_SUSPENDED, &pf->state);
+	clear_bit(__I40E_PORT_SUSPENDED, &pf->state);
 	/* In case of error no point in resuming VSIs */
 	if (ret)
 		goto exit;
@@ -7102,17 +7166,21 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	/* restart the VSIs that were rebuilt and running before the reset */
 	i40e_pf_unquiesce_all_vsi(pf);
 
-	if (pf->num_alloc_vfs) {
-		for (v = 0; v < pf->num_alloc_vfs; v++)
-			i40e_reset_vf(&pf->vf[v], true);
-	}
+	/* Release the RTNL lock before we start resetting VFs */
+	if (!lock_acquired)
+		rtnl_unlock();
+
+	i40e_reset_all_vfs(pf, true);
 
 	/* tell the firmware that we're starting */
 	i40e_send_version(pf);
 
+	/* We've already released the lock, so don't do it again */
+	goto end_core_reset;
+
 end_unlock:
-if (!lock_acquired)
-	rtnl_unlock();
+	if (!lock_acquired)
+		rtnl_unlock();
 end_core_reset:
 	clear_bit(__I40E_RESET_FAILED, &pf->state);
 clear_recovery:

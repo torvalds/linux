@@ -27,6 +27,13 @@
 #include "i40evf.h"
 #include "i40e_prototype.h"
 #include "i40evf_client.h"
+/* All i40evf tracepoints are defined by the include below, which must
+ * be included exactly once across the whole kernel with
+ * CREATE_TRACE_POINTS defined
+ */
+#define CREATE_TRACE_POINTS
+#include "i40e_trace.h"
+
 static int i40evf_setup_all_tx_resources(struct i40evf_adapter *adapter);
 static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter);
 static int i40evf_close(struct net_device *netdev);
@@ -2243,21 +2250,6 @@ static int i40evf_close(struct net_device *netdev)
 }
 
 /**
- * i40evf_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-static struct net_device_stats *i40evf_get_stats(struct net_device *netdev)
-{
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
-
-	/* only return the current stats */
-	return &adapter->net_stats;
-}
-
-/**
  * i40evf_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -2363,7 +2355,6 @@ static const struct net_device_ops i40evf_netdev_ops = {
 	.ndo_open		= i40evf_open,
 	.ndo_stop		= i40evf_close,
 	.ndo_start_xmit		= i40evf_xmit_frame,
-	.ndo_get_stats		= i40evf_get_stats,
 	.ndo_set_rx_mode	= i40evf_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= i40evf_set_mac,

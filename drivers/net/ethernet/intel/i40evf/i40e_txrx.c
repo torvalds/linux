@@ -28,6 +28,7 @@
 #include <net/busy_poll.h>
 
 #include "i40evf.h"
+#include "i40e_trace.h"
 #include "i40e_prototype.h"
 
 static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
@@ -180,6 +181,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		/* prevent any other reads prior to eop_desc */
 		read_barrier_depends();
 
+		i40e_trace(clean_tx_irq, tx_ring, tx_desc, tx_buf);
 		/* if the descriptor isn't done, no work yet to do */
 		if (!(eop_desc->cmd_type_offset_bsz &
 		      cpu_to_le64(I40E_TX_DESC_DTYPE_DESC_DONE)))
@@ -207,6 +209,8 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 
 		/* unmap remaining buffers */
 		while (tx_desc != eop_desc) {
+			i40e_trace(clean_tx_irq_unmap,
+				   tx_ring, tx_desc, tx_buf);
 
 			tx_buf++;
 			tx_desc++;
@@ -831,13 +835,6 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	if (rx_error & BIT(I40E_RX_DESC_ERROR_PPRS_SHIFT))
 		return;
 
-	/* If there is an outer header present that might contain a checksum
-	 * we need to bump the checksum level by 1 to reflect the fact that
-	 * we are indicating we validated the inner checksum.
-	 */
-	if (decoded.tunnel_type >= I40E_RX_PTYPE_TUNNEL_IP_GRENAT)
-		skb->csum_level = 1;
-
 	/* Only report checksum unnecessary for TCP, UDP, or SCTP */
 	switch (decoded.inner_prot) {
 	case I40E_RX_PTYPE_INNER_PROT_TCP:
@@ -1324,10 +1321,6 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 * hardware wrote DD then the length will be non-zero
 		 */
 		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
-		if (!size)
-			break;
 
 		/* This memory barrier is needed to keep us from reading
 		 * any other fields out of the rx_desc until we have
@@ -1335,6 +1328,12 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
+		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
+		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		if (!size)
+			break;
+
+		i40e_trace(clean_rx_irq, rx_ring, rx_desc, skb);
 		rx_buffer = i40e_get_rx_buffer(rx_ring, size);
 
 		/* retrieve a buffer from the ring */
@@ -1388,6 +1387,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		vlan_tag = (qword & BIT(I40E_RX_DESC_STATUS_L2TAG1P_SHIFT)) ?
 			   le16_to_cpu(rx_desc->wb.qword0.lo_dword.l2tag1) : 0;
 
+		i40e_trace(clean_rx_irq_rx, rx_ring, rx_desc, skb);
 		i40e_receive_skb(rx_ring, skb, vlan_tag);
 		skb = NULL;
 
@@ -2229,6 +2229,8 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	/* prefetch the data, we'll need it later */
 	prefetch(skb->data);
 
+	i40e_trace(xmit_frame_ring, skb, tx_ring);
+
 	count = i40e_xmit_descriptor_count(skb);
 	if (i40e_chk_linearize(skb, count)) {
 		if (__skb_linearize(skb)) {
@@ -2296,6 +2298,7 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 out_drop:
+	i40e_trace(xmit_frame_ring_drop, first->skb, tx_ring);
 	dev_kfree_skb_any(first->skb);
 	first->skb = NULL;
 	return NETDEV_TX_OK;

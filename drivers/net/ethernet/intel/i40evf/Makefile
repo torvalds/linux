@@ -29,6 +29,9 @@
 #
 #
 
+ccflags-y += -I$(src)
+subdir-ccflags-y += -I$(src)
+
 obj-$(CONFIG_I40EVF) += i40evf.o
 
 i40evf-objs :=	i40evf_main.o i40evf_ethtool.o i40evf_virtchnl.o \

@@ -923,22 +923,19 @@ static int i40e_quiesce_vf_pci(struct i40e_vf *vf)
 }
 
 /**
- * i40e_reset_vf
+ * i40e_trigger_vf_reset
  * @vf: pointer to the VF structure
  * @flr: VFLR was issued or not
  *
- * reset the VF
+ * Trigger hardware to start a reset for a particular VF. Expects the caller
+ * to wait the proper amount of time to allow hardware to reset the VF before
+ * it cleans up and restores VF functionality.
  **/
-void i40e_reset_vf(struct i40e_vf *vf, bool flr)
+static void i40e_trigger_vf_reset(struct i40e_vf *vf, bool flr)
 {
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_hw *hw = &pf->hw;
 	u32 reg, reg_idx, bit_idx;
-	bool rsd = false;
-	int i;
-
-	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
-		return;
 
 	/* warn the VF */
 	clear_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
@@ -970,37 +967,22 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	if (i40e_quiesce_vf_pci(vf))
 		dev_err(&pf->pdev->dev, "VF %d PCI transactions stuck\n",
 			vf->vf_id);
+}
 
-	/* poll VPGEN_VFRSTAT reg to make sure
-	 * that reset is complete
-	 */
-	for (i = 0; i < 10; i++) {
-		/* VF reset requires driver to first reset the VF and then
-		 * poll the status register to make sure that the reset
-		 * completed successfully. Due to internal HW FIFO flushes,
-		 * we must wait 10ms before the register will be valid.
-		 */
-		usleep_range(10000, 20000);
-		reg = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_id));
-		if (reg & I40E_VPGEN_VFRSTAT_VFRD_MASK) {
-			rsd = true;
-			break;
-		}
-	}
+/**
+ * i40e_cleanup_reset_vf
+ * @vf: pointer to the VF structure
+ *
+ * Cleanup a VF after the hardware reset is finished. Expects the caller to
+ * have verified whether the reset is finished properly, and ensure the
+ * minimum amount of wait time has passed.
+ **/
+static void i40e_cleanup_reset_vf(struct i40e_vf *vf)
+{
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_hw *hw = &pf->hw;
+	u32 reg;
 
-	if (flr)
-		usleep_range(10000, 20000);
-
-	if (!rsd)
-		dev_err(&pf->pdev->dev, "VF reset check timeout on VF %d\n",
-			vf->vf_id);
-
-	/* On initial reset, we won't have any queues */
-	if (vf->lan_vsi_idx == 0)
-		goto complete_reset;
-
-	i40e_vsi_stop_rings(pf->vsi[vf->lan_vsi_idx]);
-complete_reset:
 	/* free VF resources to begin resetting the VSI state */
 	i40e_free_vf_res(vf);
 
@@ -1035,6 +1017,159 @@ complete_reset:
 	 * request resources immediately after setting this flag.
 	 */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
+}
+
+/**
+ * i40e_reset_vf
+ * @vf: pointer to the VF structure
+ * @flr: VFLR was issued or not
+ *
+ * reset the VF
+ **/
+void i40e_reset_vf(struct i40e_vf *vf, bool flr)
+{
+	struct i40e_pf *pf = vf->pf;
+	struct i40e_hw *hw = &pf->hw;
+	bool rsd = false;
+	u32 reg;
+	int i;
+
+	/* If VFs have been disabled, there is no need to reset */
+	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+		return;
+
+	i40e_trigger_vf_reset(vf, flr);
+
+	/* poll VPGEN_VFRSTAT reg to make sure
+	 * that reset is complete
+	 */
+	for (i = 0; i < 10; i++) {
+		/* VF reset requires driver to first reset the VF and then
+		 * poll the status register to make sure that the reset
+		 * completed successfully. Due to internal HW FIFO flushes,
+		 * we must wait 10ms before the register will be valid.
+		 */
+		usleep_range(10000, 20000);
+		reg = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_id));
+		if (reg & I40E_VPGEN_VFRSTAT_VFRD_MASK) {
+			rsd = true;
+			break;
+		}
+	}
+
+	if (flr)
+		usleep_range(10000, 20000);
+
+	if (!rsd)
+		dev_err(&pf->pdev->dev, "VF reset check timeout on VF %d\n",
+			vf->vf_id);
+	usleep_range(10000, 20000);
+
+	/* On initial reset, we don't have any queues to disable */
+	if (vf->lan_vsi_idx != 0)
+		i40e_vsi_stop_rings(pf->vsi[vf->lan_vsi_idx]);
+
+	i40e_cleanup_reset_vf(vf);
+
+	i40e_flush(hw);
+	clear_bit(__I40E_VF_DISABLE, &pf->state);
+}
+
+/**
+ * i40e_reset_all_vfs
+ * @pf: pointer to the PF structure
+ * @flr: VFLR was issued or not
+ *
+ * Reset all allocated VFs in one go. First, tell the hardware to reset each
+ * VF, then do all the waiting in one chunk, and finally finish restoring each
+ * VF after the wait. This is useful during PF routines which need to reset
+ * all VFs, as otherwise it must perform these resets in a serialized fashion.
+ **/
+void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
+{
+	struct i40e_hw *hw = &pf->hw;
+	struct i40e_vf *vf;
+	int i, v;
+	u32 reg;
+
+	/* If we don't have any VFs, then there is nothing to reset */
+	if (!pf->num_alloc_vfs)
+		return;
+
+	/* If VFs have been disabled, there is no need to reset */
+	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+		return;
+
+	/* Begin reset on all VFs at once */
+	for (v = 0; v < pf->num_alloc_vfs; v++)
+		i40e_trigger_vf_reset(&pf->vf[v], flr);
+
+	/* HW requires some time to make sure it can flush the FIFO for a VF
+	 * when it resets it. Poll the VPGEN_VFRSTAT register for each VF in
+	 * sequence to make sure that it has completed. We'll keep track of
+	 * the VFs using a simple iterator that increments once that VF has
+	 * finished resetting.
+	 */
+	for (i = 0, v = 0; i < 10 && v < pf->num_alloc_vfs; i++) {
+		usleep_range(10000, 20000);
+
+		/* Check each VF in sequence, beginning with the VF to fail
+		 * the previous check.
+		 */
+		while (v < pf->num_alloc_vfs) {
+			vf = &pf->vf[v];
+			reg = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_id));
+			if (!(reg & I40E_VPGEN_VFRSTAT_VFRD_MASK))
+				break;
+
+			/* If the current VF has finished resetting, move on
+			 * to the next VF in sequence.
+			 */
+			v++;
+		}
+	}
+
+	if (flr)
+		usleep_range(10000, 20000);
+
+	/* Display a warning if at least one VF didn't manage to reset in
+	 * time, but continue on with the operation.
+	 */
+	if (v < pf->num_alloc_vfs)
+		dev_err(&pf->pdev->dev, "VF reset check timeout on VF %d\n",
+			pf->vf[v].vf_id);
+	usleep_range(10000, 20000);
+
+	/* Begin disabling all the rings associated with VFs, but do not wait
+	 * between each VF.
+	 */
+	for (v = 0; v < pf->num_alloc_vfs; v++) {
+		/* On initial reset, we don't have any queues to disable */
+		if (pf->vf[v].lan_vsi_idx == 0)
+			continue;
+
+		i40e_vsi_stop_rings_no_wait(pf->vsi[pf->vf[v].lan_vsi_idx]);
+	}
+
+	/* Now that we've notified HW to disable all of the VF rings, wait
+	 * until they finish.
+	 */
+	for (v = 0; v < pf->num_alloc_vfs; v++) {
+		/* On initial reset, we don't have any queues to disable */
+		if (pf->vf[v].lan_vsi_idx == 0)
+			continue;
+
+		i40e_vsi_wait_queues_disabled(pf->vsi[pf->vf[v].lan_vsi_idx]);
+	}
+
+	/* Hw may need up to 50ms to finish disabling the RX queues. We
+	 * minimize the wait by delaying only once for all VFs.
+	 */
+	mdelay(50);
+
+	/* Finish the reset on each VF */
+	for (v = 0; v < pf->num_alloc_vfs; v++)
+		i40e_cleanup_reset_vf(&pf->vf[v]);
 
 	i40e_flush(hw);
 	clear_bit(__I40E_VF_DISABLE, &pf->state);

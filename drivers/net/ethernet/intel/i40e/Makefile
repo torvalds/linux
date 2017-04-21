@@ -28,6 +28,9 @@
 # Makefile for the Intel(R) Ethernet Connection XL710 (i40e.ko) driver
 #
 
+ccflags-y += -I$(src)
+subdir-ccflags-y += -I$(src)
+
 obj-$(CONFIG_I40E) += i40e.o
 
 i40e-objs := i40e_main.o \
