@@ -1182,29 +1182,9 @@ static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 		else
 			pcie_table->lclk[i] =
 					bios_pcie_table->entries[i].pcie_sclk;
-
-		pcie_table->count++;
 	}
 
-	if (data->registry_data.pcieSpeedOverride)
-		pcie_table->pcie_gen[i] = data->registry_data.pcieSpeedOverride;
-	else
-		pcie_table->pcie_gen[i] =
-			bios_pcie_table->entries[bios_pcie_table->count - 1].gen_speed;
-
-	if (data->registry_data.pcieLaneOverride)
-		pcie_table->pcie_lane[i] = data->registry_data.pcieLaneOverride;
-	else
-		pcie_table->pcie_lane[i] =
-			bios_pcie_table->entries[bios_pcie_table->count - 1].lane_width;
-
-	if (data->registry_data.pcieClockOverride)
-		pcie_table->lclk[i] = data->registry_data.pcieClockOverride;
-	else
-		pcie_table->lclk[i] =
-			bios_pcie_table->entries[bios_pcie_table->count - 1].pcie_sclk;
-
-	pcie_table->count++;
+	pcie_table->count = NUM_LINK_LEVELS;
 
 	return 0;
 }
