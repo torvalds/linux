@@ -1261,14 +1261,24 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 				__dwc3_gadget_start_isoc(dwc, dep, cur_uf);
 				dep->flags &= ~DWC3_EP_PENDING_REQUEST;
 			}
+			return 0;
 		}
-		return 0;
+
+		if ((dep->flags & DWC3_EP_BUSY) &&
+		    !(dep->flags & DWC3_EP_MISSED_ISOC)) {
+			WARN_ON_ONCE(!dep->resource_index);
+			ret = __dwc3_gadget_kick_transfer(dep,
+							  dep->resource_index);
+		}
+
+		goto out;
 	}
 
 	if (!dwc3_calc_trbs_left(dep))
 		return 0;
 
 	ret = __dwc3_gadget_kick_transfer(dep, 0);
+out:
 	if (ret == -EBUSY)
 		ret = 0;
 
