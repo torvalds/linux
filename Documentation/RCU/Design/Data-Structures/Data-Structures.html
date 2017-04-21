@@ -1185,6 +1185,9 @@ Its fields are as follows:
   1   int dynticks_nesting;
   2   int dynticks_nmi_nesting;
   3   atomic_t dynticks;
+  4   bool rcu_need_heavy_qs;
+  5   unsigned long rcu_qs_ctr;
+  6   bool rcu_urgent_qs;
 </pre>
 
 <p>The <tt>-&gt;dynticks_nesting</tt> field counts the
@@ -1198,10 +1201,31 @@ NMIs are counted by the <tt>-&gt;dynticks_nmi_nesting</tt>
 field, except that NMIs that interrupt non-dyntick-idle execution
 are not counted.
 
-</p><p>Finally, the <tt>-&gt;dynticks</tt> field counts the corresponding
+</p><p>The <tt>-&gt;dynticks</tt> field counts the corresponding
 CPU's transitions to and from dyntick-idle mode, so that this counter
 has an even value when the CPU is in dyntick-idle mode and an odd
 value otherwise.
+
+</p><p>The <tt>-&gt;rcu_need_heavy_qs</tt> field is used
+to record the fact that the RCU core code would really like to
+see a quiescent state from the corresponding CPU, so much so that
+it is willing to call for heavy-weight dyntick-counter operations.
+This flag is checked by RCU's context-switch and <tt>cond_resched()</tt>
+code, which provide a momentary idle sojourn in response.
+
+</p><p>The <tt>-&gt;rcu_qs_ctr</tt> field is used to record
+quiescent states from <tt>cond_resched()</tt>.
+Because <tt>cond_resched()</tt> can execute quite frequently, this
+must be quite lightweight, as in a non-atomic increment of this
+per-CPU field.
+
+</p><p>Finally, the <tt>-&gt;rcu_urgent_qs</tt> field is used to record
+the fact that the RCU core code would really like to see a quiescent
+state from the corresponding CPU, with the various other fields indicating
+just how badly RCU wants this quiescent state.
+This flag is checked by RCU's context-switch and <tt>cond_resched()</tt>
+code, which, if nothing else, non-atomically increment <tt>-&gt;rcu_qs_ctr</tt>
+in response.
 
 <table>
 <tr><th>&nbsp;</th></tr>
