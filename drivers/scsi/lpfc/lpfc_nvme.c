@@ -1495,6 +1495,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 				 "io buffer.  Skipping abort req.\n");
 		return;
 	}
+	nvmereq_wqe = &lpfc_nbuf->cur_iocbq;
 
 	/*
 	 * The lpfc_nbuf and the mapped nvme_fcreq in the driver's
@@ -1508,20 +1509,19 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
 				 "6143 NVME req mismatch: "
 				 "lpfc_nbuf %p nvmeCmd %p, "
-				 "pnvme_fcreq %p.  Skipping Abort\n",
+				 "pnvme_fcreq %p.  Skipping Abort xri x%x\n",
 				 lpfc_nbuf, lpfc_nbuf->nvmeCmd,
-				 pnvme_fcreq);
+				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
 		return;
 	}
 
 	/* Don't abort IOs no longer on the pending queue. */
-	nvmereq_wqe = &lpfc_nbuf->cur_iocbq;
 	if (!(nvmereq_wqe->iocb_flag & LPFC_IO_ON_TXCMPLQ)) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
 				 "6142 NVME IO req %p not queued - skipping "
-				 "abort req\n",
-				 pnvme_fcreq);
+				 "abort req xri x%x\n",
+				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
 		return;
 	}
 
@@ -1535,8 +1535,9 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
 				 "6144 Outstanding NVME I/O Abort Request "
 				 "still pending on nvme_fcreq %p, "
-				 "lpfc_ncmd %p\n",
-				 pnvme_fcreq, lpfc_nbuf);
+				 "lpfc_ncmd %p xri x%x\n",
+				 pnvme_fcreq, lpfc_nbuf,
+				 nvmereq_wqe->sli4_xritag);
 		return;
 	}
 
@@ -1545,8 +1546,8 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
 				 "6136 No available abort wqes. Skipping "
-				 "Abts req for nvme_fcreq %p.\n",
-				 pnvme_fcreq);
+				 "Abts req for nvme_fcreq %p xri x%x\n",
+				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
 		return;
 	}
 
@@ -1604,7 +1605,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	}
 
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
-			 "6138 Transport Abort NVME Request Issued for\n"
+			 "6138 Transport Abort NVME Request Issued for "
 			 "ox_id x%x on reqtag x%x\n",
 			 nvmereq_wqe->sli4_xritag,
 			 abts_buf->iotag);
@@ -2491,7 +2492,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  input_err:
 #endif
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_DISC,
-			 "6168: State error: lport %p, rport%p FCID x%06x\n",
+			 "6168 State error: lport %p, rport%p FCID x%06x\n",
 			 vport->localport, ndlp->rport, ndlp->nlp_DID);
 }
 

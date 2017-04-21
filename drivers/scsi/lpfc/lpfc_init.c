@@ -11061,7 +11061,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	struct lpfc_hba   *phba;
 	struct lpfc_vport *vport = NULL;
 	struct Scsi_Host  *shost = NULL;
-	int error;
+	int error, cnt;
 	uint32_t cfg_mode, intr_mode;
 
 	/* Allocate memory for HBA structure */
@@ -11095,11 +11095,15 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_unset_pci_mem_s4;
 	}
 
+	cnt = phba->cfg_iocb_cnt * 1024;
+	if (phba->nvmet_support)
+		cnt += phba->cfg_nvmet_mrq_post * phba->cfg_nvmet_mrq;
+
 	/* Initialize and populate the iocb list per host */
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"2821 initialize iocb list %d.\n",
-			phba->cfg_iocb_cnt*1024);
-	error = lpfc_init_iocb_list(phba, phba->cfg_iocb_cnt*1024);
+			"2821 initialize iocb list %d total %d\n",
+			phba->cfg_iocb_cnt, cnt);
+	error = lpfc_init_iocb_list(phba, cnt);
 
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
