@@ -288,7 +288,7 @@ retry:
 int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
-	int nr_secs = pblk_get_secs(bio);
+	unsigned int nr_secs = pblk_get_secs(bio);
 	struct nvm_rq *rqd;
 	unsigned long read_bitmap; /* Max 64 ppas per request */
 	unsigned int bio_init_idx;
