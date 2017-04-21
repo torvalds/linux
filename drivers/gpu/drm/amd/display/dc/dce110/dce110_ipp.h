@@ -54,7 +54,7 @@ void dce110_ipp_cursor_set_position(
 	const struct dc_cursor_position *position,
 	const struct dc_cursor_mi_param *param);
 
-bool dce110_ipp_cursor_set_attributes(
+void dce110_ipp_cursor_set_attributes(
 	struct input_pixel_processor *ipp,
 	const struct dc_cursor_attributes *attributes);
 

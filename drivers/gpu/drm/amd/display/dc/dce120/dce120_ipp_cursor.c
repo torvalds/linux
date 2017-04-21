@@ -160,7 +160,7 @@ void dce120_ipp_cursor_set_position(
 	lock(ipp110, false);
 }
 
-bool dce120_ipp_cursor_set_attributes(
+void dce120_ipp_cursor_set_attributes(
 	struct input_pixel_processor *ipp,
 	const struct dc_cursor_attributes *attributes)
 {
@@ -189,7 +189,5 @@ bool dce120_ipp_cursor_set_attributes(
 
 	/* Unlock Cursor registers. */
 	lock(ipp110, false);
-
-	return true;
 }
 

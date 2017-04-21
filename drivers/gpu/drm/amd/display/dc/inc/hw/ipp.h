@@ -37,8 +37,6 @@ struct input_pixel_processor {
 	struct  dc_context *ctx;
 	unsigned int inst;
 	const struct ipp_funcs *funcs;
-
-	unsigned int cusor_width;
 };
 
 enum ipp_prescale_mode {
@@ -88,7 +86,7 @@ struct ipp_funcs {
 		const struct dc_cursor_position *position,
 		const struct dc_cursor_mi_param *param);
 
-	bool (*ipp_cursor_set_attributes)(
+	void (*ipp_cursor_set_attributes)(
 		struct input_pixel_processor *ipp,
 		const struct dc_cursor_attributes *attributes);
 

@@ -182,7 +182,6 @@ bool dc_stream_set_cursor_attributes(
 	struct core_stream *stream;
 	struct core_dc *core_dc;
 	struct resource_context *res_ctx;
-	bool ret = false;
 
 	if (NULL == dc_stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -200,28 +199,26 @@ bool dc_stream_set_cursor_attributes(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if ((pipe_ctx->stream == stream) &&
-			(pipe_ctx->ipp != NULL)) {
-			struct input_pixel_processor *ipp = pipe_ctx->ipp;
+		if (pipe_ctx->stream != stream || !pipe_ctx->ipp)
+			continue;
+		if (pipe_ctx->top_pipe && pipe_ctx->surface != pipe_ctx->top_pipe->surface)
+			continue;
 
-			if (ipp->funcs->ipp_cursor_set_attributes(
-				ipp, attributes))
-				ret = true;
-		}
+		pipe_ctx->ipp->funcs->ipp_cursor_set_attributes(
+				pipe_ctx->ipp, attributes);
 	}
 
-	return ret;
+	return true;
 }
 
 bool dc_stream_set_cursor_position(
 	const struct dc_stream *dc_stream,
-	struct dc_cursor_position *position)
+	const struct dc_cursor_position *position)
 {
 	int i;
 	struct core_stream *stream;
 	struct core_dc *core_dc;
 	struct resource_context *res_ctx;
-	bool ret = false;
 
 	if (NULL == dc_stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -239,27 +236,27 @@ bool dc_stream_set_cursor_position(
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+		struct input_pixel_processor *ipp = pipe_ctx->ipp;
+		struct dc_cursor_position pos_cpy = *position;
+		struct dc_cursor_mi_param param = {
+			.pixel_clk_khz = dc_stream->timing.pix_clk_khz,
+			.ref_clk_khz = res_ctx->pool->ref_clock_inKhz,
+			.viewport_x_start = pipe_ctx->scl_data.viewport.x,
+			.viewport_width = pipe_ctx->scl_data.viewport.width,
+			.h_scale_ratio = pipe_ctx->scl_data.ratios.horz
+		};
 
-		if (pipe_ctx->stream == stream &&
-				pipe_ctx->ipp && pipe_ctx->surface) {
-			struct input_pixel_processor *ipp = pipe_ctx->ipp;
-			struct dc_cursor_mi_param param = {
-				.pixel_clk_khz = dc_stream->timing.pix_clk_khz,
-				.ref_clk_khz = res_ctx->pool->ref_clock_inKhz,
-				.viewport_x_start = pipe_ctx->scl_data.viewport.x,
-				.viewport_width = pipe_ctx->scl_data.viewport.width,
-				.h_scale_ratio = pipe_ctx->scl_data.ratios.horz,
-			};
+		if (pipe_ctx->stream != stream ||
+				!pipe_ctx->ipp || !pipe_ctx->surface)
+			continue;
 
-			if (pipe_ctx->top_pipe && pipe_ctx->surface != pipe_ctx->top_pipe->surface)
-				position->enable = false;
+		if (pipe_ctx->top_pipe && pipe_ctx->surface != pipe_ctx->top_pipe->surface)
+			pos_cpy.enable = false;
 
-			ipp->funcs->ipp_cursor_set_position(ipp, position, &param);
-			ret = true;
-		}
+		ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
 	}
 
-	return ret;
+	return true;
 }
 
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream *dc_stream)
