@@ -150,6 +150,12 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 		touch_softlockup_watchdog_sched();
 		if (is_idle_task(current))
 			ts->idle_jiffies++;
+		/*
+		 * In case the current tick fired too early past its expected
+		 * expiration, make sure we don't bypass the next clock reprogramming
+		 * to the same deadline.
+		 */
+		ts->next_tick = 0;
 	}
 #endif
 	update_process_times(user_mode(regs));
@@ -660,6 +666,12 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS_PINNED);
 	else
 		tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
+
+	/*
+	 * Reset to make sure next tick stop doesn't get fooled by past
+	 * cached clock deadline.
+	 */
+	ts->next_tick = 0;
 }
 
 static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
@@ -771,12 +783,15 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	tick = expires;
 
 	/* Skip reprogram of event if its not changed */
-	if (ts->tick_stopped) {
-		if (hrtimer_active(&ts->sched_timer))
-			WARN_ON_ONCE(hrtimer_get_expires(&ts->sched_timer) < dev->next_event);
-
-		if (expires == dev->next_event)
+	if (ts->tick_stopped && (expires == ts->next_tick)) {
+		/* Sanity check: make sure clockevent is actually programmed */
+		if (likely(dev->next_event <= ts->next_tick))
 			goto out;
+
+		WARN_ON_ONCE(1);
+		printk_once("basemono: %llu ts->next_tick: %llu dev->next_event: %llu timer->active: %d timer->expires: %llu\n",
+			    basemono, ts->next_tick, dev->next_event,
+			    hrtimer_active(&ts->sched_timer), hrtimer_get_expires(&ts->sched_timer));
 	}
 
 	/*
@@ -796,6 +811,8 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 		trace_tick_stop(1, TICK_DEP_MASK_NONE);
 	}
 
+	ts->next_tick = tick;
+
 	/*
 	 * If the expiration time == KTIME_MAX, then we simply stop
 	 * the tick timer.
@@ -811,7 +828,10 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	else
 		tick_program_event(tick, 1);
 out:
-	/* Update the estimated sleep length */
+	/*
+	 * Update the estimated sleep length until the next timer
+	 * (not only the tick).
+	 */
 	ts->sleep_length = ktime_sub(dev->next_event, now);
 	return tick;
 }
@@ -869,6 +889,11 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 	if (unlikely(!cpu_online(cpu))) {
 		if (cpu == tick_do_timer_cpu)
 			tick_do_timer_cpu = TICK_DO_TIMER_NONE;
+		/*
+		 * Make sure the CPU doesn't get fooled by obsolete tick
+		 * deadline if it comes back online later.
+		 */
+		ts->next_tick = 0;
 		return false;
 	}
 
