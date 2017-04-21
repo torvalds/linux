@@ -1535,7 +1535,7 @@ static int arm_smmu_add_device(struct device *dev)
 		}
 		if (mask & ~smmu->smr_mask_mask) {
 			dev_err(dev, "SMR mask 0x%x out of range for SMMU (0x%x)\n",
-				sid, smmu->smr_mask_mask);
+				mask, smmu->smr_mask_mask);
 			goto out_free;
 		}
 	}
