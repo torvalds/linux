@@ -827,7 +827,7 @@ xfs_getfsmap(
 	struct xfs_trans		*tp = NULL;
 	struct xfs_fsmap		dkeys[2];	/* per-dev keys */
 	struct xfs_getfsmap_dev		handlers[XFS_GETFSMAP_DEVS];
-	struct xfs_getfsmap_info	info = {0};
+	struct xfs_getfsmap_info	info = { NULL };
 	int				i;
 	int				error = 0;
 
