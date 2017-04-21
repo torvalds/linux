@@ -1161,6 +1161,7 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 	static int hpet;
 	u64 tsc_stop, ref_stop, delta;
 	unsigned long freq;
+	int cpu;
 
 	/* Don't bother refining TSC on unstable systems */
 	if (check_tsc_unstable())
@@ -1210,6 +1211,10 @@ static void tsc_refine_calibration_work(struct work_struct *work)
 
 	/* Inform the TSC deadline clockevent devices about the recalibration */
 	lapic_update_tsc_freq();
+
+	/* Update the sched_clock() rate to match the clocksource one */
+	for_each_possible_cpu(cpu)
+		__set_cyc2ns_scale(tsc_khz, cpu, tsc_stop);
 
 out:
 	if (boot_cpu_has(X86_FEATURE_ART))
