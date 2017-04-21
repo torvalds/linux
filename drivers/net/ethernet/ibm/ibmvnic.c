@@ -561,6 +561,51 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 	release_error_buffers(adapter);
 }
 
+static int set_link_state(struct ibmvnic_adapter *adapter, u8 link_state)
+{
+	struct net_device *netdev = adapter->netdev;
+	unsigned long timeout = msecs_to_jiffies(30000);
+	union ibmvnic_crq crq;
+	bool resend;
+	int rc;
+
+	if (adapter->logical_link_state == link_state) {
+		netdev_dbg(netdev, "Link state already %d\n", link_state);
+		return 0;
+	}
+
+	netdev_err(netdev, "setting link state %d\n", link_state);
+	memset(&crq, 0, sizeof(crq));
+	crq.logical_link_state.first = IBMVNIC_CRQ_CMD;
+	crq.logical_link_state.cmd = LOGICAL_LINK_STATE;
+	crq.logical_link_state.link_state = link_state;
+
+	do {
+		resend = false;
+
+		reinit_completion(&adapter->init_done);
+		rc = ibmvnic_send_crq(adapter, &crq);
+		if (rc) {
+			netdev_err(netdev, "Failed to set link state\n");
+			return rc;
+		}
+
+		if (!wait_for_completion_timeout(&adapter->init_done,
+						 timeout)) {
+			netdev_err(netdev, "timeout setting link state\n");
+			return -1;
+		}
+
+		if (adapter->init_done_rc == 1) {
+			/* Partuial success, delay and re-send */
+			mdelay(1000);
+			resend = true;
+		}
+	} while (resend);
+
+	return 0;
+}
+
 static int set_real_num_queues(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -583,7 +628,6 @@ static int ibmvnic_open(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->vdev->dev;
-	union ibmvnic_crq crq;
 	int rc = 0;
 	int i;
 
@@ -643,11 +687,9 @@ static int ibmvnic_open(struct net_device *netdev)
 	for (i = 0; i < adapter->req_tx_queues; i++)
 		enable_scrq_irq(adapter, adapter->tx_scrq[i]);
 
-	memset(&crq, 0, sizeof(crq));
-	crq.logical_link_state.first = IBMVNIC_CRQ_CMD;
-	crq.logical_link_state.cmd = LOGICAL_LINK_STATE;
-	crq.logical_link_state.link_state = IBMVNIC_LOGICAL_LNK_UP;
-	ibmvnic_send_crq(adapter, &crq);
+	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_UP);
+	if (rc)
+		goto ibmvnic_open_fail;
 
 	netif_tx_start_all_queues(netdev);
 	adapter->is_closed = false;
@@ -681,7 +723,7 @@ static void disable_sub_crqs(struct ibmvnic_adapter *adapter)
 static int ibmvnic_close(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	union ibmvnic_crq crq;
+	int rc = 0;
 	int i;
 
 	adapter->closing = true;
@@ -693,17 +735,13 @@ static int ibmvnic_close(struct net_device *netdev)
 	if (!adapter->failover)
 		netif_tx_stop_all_queues(netdev);
 
-	memset(&crq, 0, sizeof(crq));
-	crq.logical_link_state.first = IBMVNIC_CRQ_CMD;
-	crq.logical_link_state.cmd = LOGICAL_LINK_STATE;
-	crq.logical_link_state.link_state = IBMVNIC_LOGICAL_LNK_DN;
-	ibmvnic_send_crq(adapter, &crq);
+	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_DN);
 
 	release_resources(adapter);
 
 	adapter->is_closed = true;
 	adapter->closing = false;
-	return 0;
+	return rc;
 }
 
 /**
@@ -2945,9 +2983,14 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		handle_login_rsp(crq, adapter);
 		break;
 	case LOGICAL_LINK_STATE_RSP:
-		netdev_dbg(netdev, "Got Logical Link State Response\n");
+		netdev_dbg(netdev,
+			   "Got Logical Link State Response, state: %d rc: %d\n",
+			   crq->logical_link_state_rsp.link_state,
+			   crq->logical_link_state_rsp.rc.code);
 		adapter->logical_link_state =
 		    crq->logical_link_state_rsp.link_state;
+		adapter->init_done_rc = crq->logical_link_state_rsp.rc.code;
+		complete(&adapter->init_done);
 		break;
 	case LINK_STATE_INDICATION:
 		netdev_dbg(netdev, "Got Logical Link State Indication\n");

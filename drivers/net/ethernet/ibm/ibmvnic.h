@@ -964,6 +964,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_tx_pool *tx_pool;
 	bool closing;
 	struct completion init_done;
+	int init_done_rc;
 
 	struct list_head errors;
 	spinlock_t error_list_lock;
