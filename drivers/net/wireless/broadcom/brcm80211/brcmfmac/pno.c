@@ -239,3 +239,13 @@ int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 	return ret;
 }
 
+void brcmf_pno_wiphy_params(struct wiphy *wiphy, bool gscan)
+{
+	/* scheduled scan settings */
+	wiphy->max_sched_scan_reqs = gscan ? 2 : 1;
+	wiphy->max_sched_scan_ssids = BRCMF_PNO_MAX_PFN_COUNT;
+	wiphy->max_match_sets = BRCMF_PNO_MAX_PFN_COUNT;
+	wiphy->max_sched_scan_ie_len = BRCMF_SCAN_IE_LEN_MAX;
+	wiphy->max_sched_scan_plan_interval = BRCMF_PNO_SCHED_SCAN_MAX_PERIOD;
+}
+
