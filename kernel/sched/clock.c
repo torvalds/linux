@@ -366,20 +366,38 @@ void sched_clock_tick(void)
 {
 	struct sched_clock_data *scd;
 
+	if (sched_clock_stable())
+		return;
+
+	if (unlikely(!sched_clock_running))
+		return;
+
 	WARN_ON_ONCE(!irqs_disabled());
 
-	/*
-	 * Update these values even if sched_clock_stable(), because it can
-	 * become unstable at any point in time at which point we need some
-	 * values to fall back on.
-	 *
-	 * XXX arguably we can skip this if we expose tsc_clocksource_reliable
-	 */
 	scd = this_scd();
 	__scd_stamp(scd);
+	sched_clock_local(scd);
+}
 
-	if (!sched_clock_stable() && likely(sched_clock_running))
-		sched_clock_local(scd);
+void sched_clock_tick_stable(void)
+{
+	u64 gtod, clock;
+
+	if (!sched_clock_stable())
+		return;
+
+	/*
+	 * Called under watchdog_lock.
+	 *
+	 * The watchdog just found this TSC to (still) be stable, so now is a
+	 * good moment to update our __gtod_offset. Because once we find the
+	 * TSC to be unstable, any computation will be computing crap.
+	 */
+	local_irq_disable();
+	gtod = ktime_get_ns();
+	clock = sched_clock();
+	__gtod_offset = (clock + __sched_clock_offset) - gtod;
+	local_irq_enable();
 }
 
 /*
