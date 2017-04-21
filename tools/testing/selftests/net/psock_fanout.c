@@ -71,7 +71,7 @@
 
 /* Open a socket in a given fanout mode.
  * @return -1 if mode is bad, a valid socket otherwise */
-static int sock_fanout_open(uint16_t typeflags, int num_packets)
+static int sock_fanout_open(uint16_t typeflags)
 {
 	int fd, val;
 
@@ -228,7 +228,7 @@ static void test_control_single(void)
 	fprintf(stderr, "test: control single socket\n");
 
 	if (sock_fanout_open(PACKET_FANOUT_ROLLOVER |
-			       PACKET_FANOUT_FLAG_ROLLOVER, 0) != -1) {
+			       PACKET_FANOUT_FLAG_ROLLOVER) != -1) {
 		fprintf(stderr, "ERROR: opened socket with dual rollover\n");
 		exit(1);
 	}
@@ -241,26 +241,26 @@ static void test_control_group(void)
 
 	fprintf(stderr, "test: control multiple sockets\n");
 
-	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH, 20);
+	fds[0] = sock_fanout_open(PACKET_FANOUT_HASH);
 	if (fds[0] == -1) {
 		fprintf(stderr, "ERROR: failed to open HASH socket\n");
 		exit(1);
 	}
 	if (sock_fanout_open(PACKET_FANOUT_HASH |
-			       PACKET_FANOUT_FLAG_DEFRAG, 10) != -1) {
+			       PACKET_FANOUT_FLAG_DEFRAG) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong flag defrag\n");
 		exit(1);
 	}
 	if (sock_fanout_open(PACKET_FANOUT_HASH |
-			       PACKET_FANOUT_FLAG_ROLLOVER, 10) != -1) {
+			       PACKET_FANOUT_FLAG_ROLLOVER) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong flag ro\n");
 		exit(1);
 	}
-	if (sock_fanout_open(PACKET_FANOUT_CPU, 10) != -1) {
+	if (sock_fanout_open(PACKET_FANOUT_CPU) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong mode\n");
 		exit(1);
 	}
-	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH, 20);
+	fds[1] = sock_fanout_open(PACKET_FANOUT_HASH);
 	if (fds[1] == -1) {
 		fprintf(stderr, "ERROR: failed to join group\n");
 		exit(1);
@@ -281,8 +281,8 @@ static int test_datapath(uint16_t typeflags, int port_off,
 
 	fprintf(stderr, "test: datapath 0x%hx\n", typeflags);
 
-	fds[0] = sock_fanout_open(typeflags, 20);
-	fds[1] = sock_fanout_open(typeflags, 20);
+	fds[0] = sock_fanout_open(typeflags);
+	fds[1] = sock_fanout_open(typeflags);
 	if (fds[0] == -1 || fds[1] == -1) {
 		fprintf(stderr, "ERROR: failed open\n");
 		exit(1);
