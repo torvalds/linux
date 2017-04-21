@@ -49,6 +49,11 @@ static const struct always_present_id always_present_ids[] = {
 	 */
 	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT1)),
 	ENTRY("80862288", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT)),
+	/*
+	 * The INT0002 device is necessary to clear wakeup interrupt sources
+	 * on Cherry Trail devices, without it we get nobody cared IRQ msgs.
+	 */
+	ENTRY("INT0002", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT)),
 };
 
 bool acpi_device_always_present(struct acpi_device *adev)
