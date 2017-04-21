@@ -59,6 +59,8 @@
 #define REG_VENDID		0x3E
 #define REG_DEVID2		0x3F
 
+#define REG_CONFIG1		0x40
+
 #define REG_STATUS1		0x41
 #define REG_STATUS2		0x42
 
@@ -1370,6 +1372,17 @@ static int adt7475_probe(struct i2c_client *client,
 	 */
 	for (i = 0; i < ADT7475_PWM_COUNT; i++)
 		adt7475_read_pwm(client, i);
+
+	/* Start monitoring */
+	switch (chip) {
+	case adt7475:
+	case adt7476:
+		i2c_smbus_write_byte_data(client, REG_CONFIG1,
+					  adt7475_read(REG_CONFIG1) | 0x01);
+		break;
+	default:
+		break;
+	}
 
 	ret = sysfs_create_group(&client->dev.kobj, &adt7475_attr_group);
 	if (ret)
