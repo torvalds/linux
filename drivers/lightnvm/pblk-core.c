@@ -1127,6 +1127,7 @@ static struct pblk_line *pblk_line_retry(struct pblk *pblk,
 	spin_lock(&l_mg->free_lock);
 	retry_line = pblk_line_get(pblk);
 	if (!retry_line) {
+		l_mg->data_line = NULL;
 		spin_unlock(&l_mg->free_lock);
 		return NULL;
 	}
@@ -1134,18 +1135,17 @@ static struct pblk_line *pblk_line_retry(struct pblk *pblk,
 	retry_line->smeta = line->smeta;
 	retry_line->emeta = line->emeta;
 	retry_line->meta_line = line->meta_line;
-	retry_line->map_bitmap = line->map_bitmap;
-	retry_line->invalid_bitmap = line->invalid_bitmap;
 
-	line->map_bitmap = NULL;
-	line->invalid_bitmap = NULL;
-	line->smeta = NULL;
-	line->emeta = NULL;
+	pblk_line_free(pblk, line);
 	l_mg->data_line = retry_line;
 	spin_unlock(&l_mg->free_lock);
 
-	if (pblk_line_erase(pblk, retry_line))
+	if (pblk_line_erase(pblk, retry_line)) {
+		spin_lock(&l_mg->free_lock);
+		l_mg->data_line = NULL;
+		spin_unlock(&l_mg->free_lock);
 		return NULL;
+	}
 
 	pblk_rl_free_lines_dec(&pblk->rl, retry_line);
 
@@ -1299,6 +1299,8 @@ void pblk_line_free(struct pblk *pblk, struct pblk_line *line)
 
 	line->map_bitmap = NULL;
 	line->invalid_bitmap = NULL;
+	line->smeta = NULL;
+	line->emeta = NULL;
 }
 
 void pblk_line_put(struct kref *ref)
