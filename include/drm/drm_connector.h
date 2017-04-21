@@ -1052,7 +1052,7 @@ void drm_connector_list_iter_end(struct drm_connector_list_iter *iter);
  *
  * Note that @connector is only valid within the list body, if you want to use
  * @connector after calling drm_connector_list_iter_end() then you need to grab
- * your own reference first using drm_connector_begin().
+ * your own reference first using drm_connector_get().
  */
 #define drm_for_each_connector_iter(connector, iter) \
 	while ((connector = drm_connector_list_iter_next(iter)))
