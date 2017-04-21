@@ -27,15 +27,15 @@
 #include <linux/swait.h>
 
 struct srcu_struct {
-	int srcu_lock_nesting[2];	/* srcu_read_lock() nesting depth. */
+	short srcu_lock_nesting[2];	/* srcu_read_lock() nesting depth. */
+	short srcu_idx;			/* Current reader array element. */
+	u8 srcu_gp_running;		/* GP workqueue running? */
+	u8 srcu_gp_waiting;		/* GP waiting for readers? */
 	struct swait_queue_head srcu_wq;
 					/* Last srcu_read_unlock() wakes GP. */
 	unsigned long srcu_gp_seq;	/* GP seq # for callback tagging. */
 	struct rcu_segcblist srcu_cblist;
 					/* Pending SRCU callbacks. */
-	int srcu_idx;			/* Current reader array element. */
-	bool srcu_gp_running;		/* GP workqueue running? */
-	bool srcu_gp_waiting;		/* GP waiting for readers? */
 	struct work_struct srcu_work;	/* For driving grace periods. */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;

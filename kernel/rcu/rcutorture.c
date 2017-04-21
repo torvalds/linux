@@ -609,7 +609,7 @@ static void srcu_torture_stats(void)
 	pr_cont("\n");
 #elif defined(CONFIG_TINY_SRCU)
 	idx = READ_ONCE(srcu_ctlp->srcu_idx) & 0x1;
-	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%d,%d)\n",
+	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd)\n",
 		 torture_type, TORTURE_FLAG, idx,
 		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[!idx]),
 		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[idx]));
