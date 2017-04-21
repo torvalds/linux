@@ -3023,14 +3023,14 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
 				if (TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0]) {
-					priv->cck_present_attentuation_20Mdefault = (u8)i;
+					priv->cck_present_attenuation_20Mdefault = (u8)i;
 					break;
 				}
 			}
-			priv->cck_present_attentuation_40Mdefault = 0;
-			priv->cck_present_attentuation_difference = 0;
-			priv->cck_present_attentuation =
-				priv->cck_present_attentuation_20Mdefault;
+			priv->cck_present_attenuation_40Mdefault = 0;
+			priv->cck_present_attenuation_difference = 0;
+			priv->cck_present_attenuation =
+				priv->cck_present_attenuation_20Mdefault;
 		}
 	}
 	write_nic_byte(dev, 0x87, 0x0);
