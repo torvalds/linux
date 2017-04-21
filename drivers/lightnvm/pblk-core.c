@@ -1273,7 +1273,7 @@ retry_meta:
 retry_setup:
 	if (!pblk_line_set_metadata(pblk, new, cur)) {
 		new = pblk_line_retry(pblk, new);
-		if (new)
+		if (!new)
 			return NULL;
 
 		goto retry_setup;
