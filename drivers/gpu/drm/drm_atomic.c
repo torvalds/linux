@@ -57,6 +57,7 @@ void drm_atomic_state_default_release(struct drm_atomic_state *state)
 	kfree(state->connectors);
 	kfree(state->crtcs);
 	kfree(state->planes);
+	kfree(state->private_objs);
 }
 EXPORT_SYMBOL(drm_atomic_state_default_release);
 
@@ -184,6 +185,17 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		state->planes[i].ptr = NULL;
 		state->planes[i].state = NULL;
 	}
+
+	for (i = 0; i < state->num_private_objs; i++) {
+		void *obj_state = state->private_objs[i].obj_state;
+
+		state->private_objs[i].funcs->destroy_state(obj_state);
+		state->private_objs[i].obj = NULL;
+		state->private_objs[i].obj_state = NULL;
+		state->private_objs[i].funcs = NULL;
+	}
+	state->num_private_objs = 0;
+
 }
 EXPORT_SYMBOL(drm_atomic_state_default_clear);
 
@@ -976,6 +988,59 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	if (plane->funcs->atomic_print_state)
 		plane->funcs->atomic_print_state(p, state);
 }
+
+/**
+ * drm_atomic_get_private_obj_state - get private object state
+ * @state: global atomic state
+ * @obj: private object to get the state for
+ * @funcs: pointer to the struct of function pointers that identify the object
+ * type
+ *
+ * This function returns the private object state for the given private object,
+ * allocating the state if needed. It does not grab any locks as the caller is
+ * expected to care of any required locking.
+ *
+ * RETURNS:
+ *
+ * Either the allocated state or the error code encoded into a pointer.
+ */
+void *
+drm_atomic_get_private_obj_state(struct drm_atomic_state *state, void *obj,
+			      const struct drm_private_state_funcs *funcs)
+{
+	int index, num_objs, i;
+	size_t size;
+	struct __drm_private_objs_state *arr;
+
+	for (i = 0; i < state->num_private_objs; i++)
+		if (obj == state->private_objs[i].obj &&
+		    state->private_objs[i].obj_state)
+			return state->private_objs[i].obj_state;
+
+	num_objs = state->num_private_objs + 1;
+	size = sizeof(*state->private_objs) * num_objs;
+	arr = krealloc(state->private_objs, size, GFP_KERNEL);
+	if (!arr)
+		return ERR_PTR(-ENOMEM);
+
+	state->private_objs = arr;
+	index = state->num_private_objs;
+	memset(&state->private_objs[index], 0, sizeof(*state->private_objs));
+
+	state->private_objs[index].obj_state = funcs->duplicate_state(state, obj);
+	if (!state->private_objs[index].obj_state)
+		return ERR_PTR(-ENOMEM);
+
+	state->private_objs[index].obj = obj;
+	state->private_objs[index].funcs = funcs;
+	state->num_private_objs = num_objs;
+
+	DRM_DEBUG_ATOMIC("Added new private object state %p to %p\n",
+			 state->private_objs[index].obj_state, state);
+
+	return state->private_objs[index].obj_state;
+}
+EXPORT_SYMBOL(drm_atomic_get_private_obj_state);
 
 /**
  * drm_atomic_get_connector_state - get connector state
