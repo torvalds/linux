@@ -484,6 +484,15 @@ struct freesync_context {
 	unsigned int nominal_refresh_in_micro_hz;
 };
 
+struct psr_config {
+	unsigned char psr_version;
+	unsigned int psr_rfb_setup_time;
+	bool psr_exit_link_training_required;
+
+	bool psr_frame_capture_indication_req;
+	unsigned int psr_sdp_transmit_line_num_deadline;
+};
+
 struct colorspace_transform {
 	struct fixed31_32 matrix[12];
 	bool enable_remap;
@@ -492,21 +501,6 @@ struct colorspace_transform {
 struct csc_transform {
 	uint16_t matrix[12];
 	bool enable_adjustment;
-};
-
-struct psr_caps {
-	/* These parameters are from PSR capabilities reported by Sink DPCD */
-	unsigned char psr_version;
-	unsigned int psr_rfb_setup_time;
-	bool psr_exit_link_training_required;
-
-	/* These parameters are calculated in Driver,
-	 * based on display timing and Sink capabilities.
-	 * If VBLANK region is too small and Sink takes a long time
-	 * to set up RFB, it may take an extra frame to enter PSR state.
-	 */
-	bool psr_frame_capture_indication_req;
-	unsigned int psr_sdp_transmit_line_num_deadline;
 };
 
 enum i2c_mot_mode {

@@ -371,7 +371,6 @@ void dce110_timing_generator_set_drr(
 	uint32_t v_total_min = 0;
 	uint32_t v_total_max = 0;
 	uint32_t v_total_cntl = 0;
-	uint32_t static_screen_cntl = 0;
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
 	uint32_t addr = 0;
@@ -384,9 +383,6 @@ void dce110_timing_generator_set_drr(
 
 	addr = CRTC_REG(mmCRTC_V_TOTAL_CONTROL);
 	v_total_cntl = dm_read_reg(tg->ctx, addr);
-
-	addr = CRTC_REG(mmCRTC_STATIC_SCREEN_CONTROL);
-	static_screen_cntl = dm_read_reg(tg->ctx, addr);
 
 	if (params != NULL &&
 		params->vertical_total_max > 0 &&
@@ -430,20 +426,11 @@ void dce110_timing_generator_set_drr(
 				0,
 				CRTC_V_TOTAL_CONTROL,
 				CRTC_SET_V_TOTAL_MIN_MASK);
-
-		set_reg_field_value(static_screen_cntl,
-				0x180,
-			CRTC_STATIC_SCREEN_CONTROL,
-			CRTC_STATIC_SCREEN_EVENT_MASK);
 	} else {
 		set_reg_field_value(v_total_cntl,
 			0,
 			CRTC_V_TOTAL_CONTROL,
 			CRTC_SET_V_TOTAL_MIN_MASK);
-		set_reg_field_value(static_screen_cntl,
-			0,
-			CRTC_STATIC_SCREEN_CONTROL,
-			CRTC_STATIC_SCREEN_EVENT_MASK);
 		set_reg_field_value(v_total_min,
 				0,
 				CRTC_V_TOTAL_MIN,
@@ -478,9 +465,6 @@ void dce110_timing_generator_set_drr(
 
 	addr = CRTC_REG(mmCRTC_V_TOTAL_CONTROL);
 	dm_write_reg(tg->ctx, addr, v_total_cntl);
-
-	addr = CRTC_REG(mmCRTC_STATIC_SCREEN_CONTROL);
-	dm_write_reg(tg->ctx, addr, static_screen_cntl);
 }
 
 void dce110_timing_generator_set_static_screen_control(

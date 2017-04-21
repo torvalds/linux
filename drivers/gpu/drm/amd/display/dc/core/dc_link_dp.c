@@ -1478,7 +1478,7 @@ static bool handle_hpd_irq_psr_sink(const struct core_link *link)
 {
 	union dpcd_psr_configuration psr_configuration;
 
-	if (link->public.psr_caps.psr_version == 0)
+	if (!link->psr_enabled)
 		return false;
 
 	dm_helpers_dp_read_dpcd(
@@ -2060,36 +2060,6 @@ static void dp_wa_power_up_0010FA(struct core_link *link, uint8_t *dpcd_data,
 		link->wa_flags.dp_keep_receiver_powered = false;
 }
 
-static void retrieve_psr_link_cap(struct core_link *link,
-		enum edp_revision edp_revision)
-{
-	if (edp_revision >= EDP_REVISION_13) {
-		core_link_read_dpcd(link,
-				DP_PSR_SUPPORT,
-				(uint8_t *)(&link->public.psr_caps),
-				sizeof(link->public.psr_caps));
-		if (link->public.psr_caps.psr_version != 0) {
-			unsigned char psr_capability = 0;
-
-			core_link_read_dpcd(link,
-					    DP_PSR_CAPS,
-						&psr_capability,
-						sizeof(psr_capability));
-			/* Bit 0 determines whether fast link training is
-			 * required on PSR exit. If set to 0, link training
-			 * is required. If set to 1, sink must lock within
-			 * five Idle Patterns after Main Link is turned on.
-			 */
-			link->public.psr_caps.psr_exit_link_training_required
-						= !(psr_capability & 0x1);
-
-			psr_capability = (psr_capability >> 1) & 0x7;
-			link->public.psr_caps.psr_rfb_setup_time =
-					55 * (6 - psr_capability);
-		}
-	}
-}
-
 static void retrieve_link_cap(struct core_link *link)
 {
 	uint8_t dpcd_data[DP_TRAINING_AUX_RD_INTERVAL - DP_DPCD_REV + 1];
@@ -2157,16 +2127,8 @@ static void retrieve_link_cap(struct core_link *link)
 	link->dpcd_caps.panel_mode_edp =
 		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
 
-	link->edp_revision = EDP_REVISION_11;
-
 	link->public.test_pattern_enabled = false;
 	link->public.compliance_test_state.raw = 0;
-
-	link->public.psr_caps.psr_exit_link_training_required = false;
-	link->public.psr_caps.psr_frame_capture_indication_req = false;
-	link->public.psr_caps.psr_rfb_setup_time = 0;
-	link->public.psr_caps.psr_sdp_transmit_line_num_deadline = 0;
-	link->public.psr_caps.psr_version = 0;
 
 	/* read sink count */
 	core_link_read_dpcd(link,
@@ -2174,21 +2136,8 @@ static void retrieve_link_cap(struct core_link *link)
 			&link->dpcd_caps.sink_count.raw,
 			sizeof(link->dpcd_caps.sink_count.raw));
 
-	/* Display control registers starting at DPCD 700h are only valid and
-	 * enabled if this eDP config cap bit is set. */
-	if (edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE) {
-		/* Read the Panel's eDP revision at DPCD 700h. */
-		core_link_read_dpcd(link,
-			DP_EDP_DPCD_REV,
-			(uint8_t *)(&link->edp_revision),
-			sizeof(link->edp_revision));
-	}
-
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
-
-	/* TODO: Confirm if need retrieve_psr_link_cap */
-	retrieve_psr_link_cap(link, link->edp_revision);
 }
 
 void detect_dp_sink_caps(struct core_link *link)

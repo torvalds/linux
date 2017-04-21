@@ -1430,14 +1430,14 @@ bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable)
 	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
-	if (dmcu != NULL && dc_link->psr_caps.psr_version > 0)
+	if (dmcu != NULL && link->psr_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, enable);
 
 	return true;
 }
 
 bool dc_link_setup_psr(const struct dc_link *dc_link,
-		const struct dc_stream *stream)
+		const struct dc_stream *stream, struct psr_config *psr_config)
 {
 	struct core_link *link = DC_LINK_TO_CORE(dc_link);
 	struct dc_context *ctx = link->ctx;
@@ -1449,10 +1449,8 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 
 	psr_context.controllerId = CONTROLLER_ID_UNDEFINED;
 
-
 	if (dc_link != NULL &&
-		dmcu != NULL &&
-		dc_link->psr_caps.psr_version > 0) {
+		dmcu != NULL) {
 		/* updateSinkPsrDpcdConfig*/
 		union dpcd_psr_configuration psr_configuration;
 
@@ -1461,10 +1459,10 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 		psr_configuration.bits.ENABLE                    = 1;
 		psr_configuration.bits.CRC_VERIFICATION          = 1;
 		psr_configuration.bits.FRAME_CAPTURE_INDICATION  =
-			dc_link->psr_caps.psr_frame_capture_indication_req;
+				psr_config->psr_frame_capture_indication_req;
 
 		/* Check for PSR v2*/
-		if (dc_link->psr_caps.psr_version == 0x2) {
+		if (psr_config->psr_version == 0x2) {
 			/* For PSR v2 selective update.
 			 * Indicates whether sink should start capturing
 			 * immediately following active scan line,
@@ -1512,14 +1510,13 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 						stream->timing.v_total),
 						stream->timing.h_total);
 
-		psr_context.psrSupportedDisplayConfig =
-			(dc_link->psr_caps.psr_version > 0) ? true : false;
+		psr_context.psrSupportedDisplayConfig = true;
 		psr_context.psrExitLinkTrainingRequired =
-			dc_link->psr_caps.psr_exit_link_training_required;
+			psr_config->psr_exit_link_training_required;
 		psr_context.sdpTransmitLineNumDeadline =
-			dc_link->psr_caps.psr_sdp_transmit_line_num_deadline;
+			psr_config->psr_sdp_transmit_line_num_deadline;
 		psr_context.psrFrameCaptureIndicationReq =
-			dc_link->psr_caps.psr_frame_capture_indication_req;
+			psr_config->psr_frame_capture_indication_req;
 
 		psr_context.skipPsrWaitForPllLock = 0; /* only = 1 in KV */
 
@@ -1550,6 +1547,7 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 		 */
 		psr_context.frame_delay = 0;
 
+		link->psr_enabled = true;
 		dmcu->funcs->setup_psr(dmcu, link, &psr_context);
 		return true;
 	} else

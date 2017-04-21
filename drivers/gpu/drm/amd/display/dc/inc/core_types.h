@@ -156,6 +156,7 @@ struct core_link {
 	unsigned int dpcd_sink_count;
 
 	enum edp_revision edp_revision;
+	bool psr_enabled;
 
 	/* MST record stream using this link */
 	struct link_flags {

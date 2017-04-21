@@ -132,7 +132,7 @@ struct hw_sequencer_funcs {
 			int vmin, int vmax);
 
 	void (*set_static_screen_control)(struct pipe_ctx **pipe_ctx,
-			int num_pipes, int value);
+			int num_pipes, const struct dc_static_screen_events *events);
 
 	enum dc_status (*prog_pixclk_crtc_otg)(
 			struct pipe_ctx *pipe_ctx,

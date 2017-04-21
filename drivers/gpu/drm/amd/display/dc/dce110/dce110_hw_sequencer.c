@@ -1005,6 +1005,10 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 				pipe_ctx->tg,
 				&stream->public.timing,
 				true);
+
+		pipe_ctx->tg->funcs->set_static_screen_control(
+				pipe_ctx->tg,
+				0x182);
 	}
 
 	if (!pipe_ctx_old->stream) {
@@ -1014,6 +1018,8 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 			return DC_ERROR_UNEXPECTED;
 		}
 	}
+
+
 
 	return DC_OK;
 }
@@ -1113,6 +1119,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 					stream->public.timing.v_total,
 					stream->public.timing.pix_clk_khz,
 					context->stream_count);
+
+	pipe_ctx->stream->sink->link->psr_enabled = false;
 
 	return DC_OK;
 }
@@ -1355,9 +1363,17 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 }
 
 static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
-		int num_pipes, int value)
+		int num_pipes, const struct dc_static_screen_events *events)
 {
 	unsigned int i;
+	unsigned int value = 0;
+
+	if (events->overlay_update)
+		value |= 0x100;
+	if (events->surface_update)
+		value |= 0x80;
+	if (events->cursor_update)
+		value |= 0x2;
 
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->tg->funcs->

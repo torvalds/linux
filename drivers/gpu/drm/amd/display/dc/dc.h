@@ -82,6 +82,12 @@ struct dc_surface_dcc_cap {
 	};
 };
 
+struct dc_static_screen_events {
+	bool cursor_update;
+	bool surface_update;
+	bool overlay_update;
+};
+
 /* Forward declaration*/
 struct dc;
 struct dc_surface;
@@ -102,10 +108,14 @@ struct dc_stream_funcs {
 			const struct dc_stream *dc_stream,
 			const struct rect *src,
 			const struct rect *dst);
+
 	bool (*set_gamut_remap)(struct dc *dc,
 			const struct dc_stream **stream, int num_streams);
-	bool (*set_psr_enable)(struct dc *dc, bool enable);
-	bool (*setup_psr)(struct dc *dc, const struct dc_stream *stream);
+
+	void (*set_static_screen_events)(struct dc *dc,
+			const struct dc_stream **stream,
+			int num_streams,
+			const struct dc_static_screen_events *events);
 };
 
 struct link_training_settings;
@@ -604,7 +614,6 @@ struct dc_link {
 	uint8_t ddc_hw_inst;
 	uint8_t link_enc_hw_inst;
 
-	struct psr_caps psr_caps;
 	bool test_pattern_enabled;
 	union compliance_test_state compliance_test_state;
 
@@ -657,7 +666,7 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable);
 
 bool dc_link_setup_psr(const struct dc_link *dc_link,
-		const struct dc_stream *stream);
+		const struct dc_stream *stream, struct psr_config *psr_config);
 
 /* Request DC to detect if there is a Panel connected.
  * boot - If this call is during initial boot.

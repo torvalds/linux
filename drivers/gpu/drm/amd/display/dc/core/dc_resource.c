@@ -2015,7 +2015,7 @@ static void set_vsc_info_packet(
 	unsigned int vscPacketRevision = 0;
 	unsigned int i;
 
-	if (stream->sink->link->public.psr_caps.psr_version != 0) {
+	if (stream->sink->link->psr_enabled) {
 		vscPacketRevision = 2;
 	}
 

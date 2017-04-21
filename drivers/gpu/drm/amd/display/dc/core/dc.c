@@ -199,6 +199,32 @@ static bool set_gamut_remap(struct dc *dc,
 	return ret;
 }
 
+static void set_static_screen_events(struct dc *dc,
+		const struct dc_stream **stream,
+		int num_streams,
+		const struct dc_static_screen_events *events)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	int i = 0;
+	int j = 0;
+	struct pipe_ctx *pipes_affected[MAX_PIPES];
+	int num_pipes_affected = 0;
+
+	for (i = 0; i < num_streams; i++) {
+		struct core_stream *core_stream = DC_STREAM_TO_CORE(stream[i]);
+
+		for (j = 0; j < MAX_PIPES; j++) {
+			if (core_dc->current_context->res_ctx.pipe_ctx[j].stream
+					== core_stream) {
+				pipes_affected[num_pipes_affected++] =
+						&core_dc->current_context->res_ctx.pipe_ctx[j];
+			}
+		}
+	}
+
+	core_dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, events);
+}
+
 /* This function is not expected to fail, proper implementation of
  * validation will prevent this from ever being called for unsupported
  * configurations.
@@ -238,45 +264,6 @@ static void stream_update_scaling(
 			return;
 		}
 	}
-}
-
-static bool set_psr_enable(struct dc *dc, bool enable)
-{
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int i;
-
-	for (i = 0; i < core_dc->link_count; i++)
-		dc_link_set_psr_enable(&core_dc->links[i]->public,
-				enable);
-
-	return true;
-}
-
-
-static bool setup_psr(struct dc *dc, const struct dc_stream *stream)
-{
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
-	struct pipe_ctx *pipes;
-	int i;
-	unsigned int underlay_idx = core_dc->res_pool->underlay_pipe_index;
-
-	for (i = 0; i < core_dc->link_count; i++) {
-		if (core_stream->sink->link == core_dc->links[i])
-			dc_link_setup_psr(&core_dc->links[i]->public,
-					stream);
-	}
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream
-				== core_stream && i != underlay_idx) {
-			pipes = &core_dc->current_context->res_ctx.pipe_ctx[i];
-			core_dc->hwss.set_static_screen_control(&pipes, 1,
-					0x182);
-		}
-	}
-
-	return true;
 }
 
 static void set_drive_settings(struct dc *dc,
@@ -359,14 +346,11 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 				stream_adjust_vmin_vmax;
 	}
 
+	core_dc->public.stream_funcs.set_static_screen_events =
+			set_static_screen_events;
+
 	core_dc->public.stream_funcs.set_gamut_remap =
 			set_gamut_remap;
-
-	core_dc->public.stream_funcs.set_psr_enable =
-			set_psr_enable;
-
-	core_dc->public.stream_funcs.setup_psr =
-			setup_psr;
 
 	core_dc->public.link_funcs.set_drive_settings =
 			set_drive_settings;

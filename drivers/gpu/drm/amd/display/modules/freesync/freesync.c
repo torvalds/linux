@@ -264,10 +264,10 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 					enable_for_video = false;
 		}
 
-		temp = core_stream->public.timing.pix_clk_khz;
+		temp = stream->timing.pix_clk_khz;
 		temp *= 1000ULL * 1000ULL * 1000ULL;
-		temp = div_u64(temp, core_stream->public.timing.h_total);
-		temp = div_u64(temp, core_stream->public.timing.v_total);
+		temp = div_u64(temp, stream->timing.h_total);
+		temp = div_u64(temp, stream->timing.v_total);
 
 		nom_refresh_rate_micro_hz = (unsigned int) temp;
 
@@ -657,6 +657,7 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 	unsigned int min_frame_duration_in_ns, vmax, vmin = 0;
 	struct freesync_state *state;
 	struct core_freesync *core_freesync = NULL;
+	struct dc_static_screen_events triggers = {0};
 
 	if (mod_freesync == NULL)
 		return;
@@ -749,6 +750,13 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 					core_freesync->dc, streams,
 					num_streams, v_total,
 					v_total);
+
+		triggers.overlay_update = true;
+		triggers.surface_update = true;
+
+		core_freesync->dc->stream_funcs.set_static_screen_events(
+					core_freesync->dc, streams,	num_streams,
+					&triggers);
 	}
 }
 
