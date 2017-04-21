@@ -393,12 +393,12 @@ void dce110_timing_generator_set_drr(
 		params->vertical_total_min > 0) {
 
 		set_reg_field_value(v_total_max,
-				params->vertical_total_max,
+				params->vertical_total_max - 1,
 				CRTC_V_TOTAL_MAX,
 				CRTC_V_TOTAL_MAX);
 
 		set_reg_field_value(v_total_min,
-				params->vertical_total_min,
+				params->vertical_total_min - 1,
 				CRTC_V_TOTAL_MIN,
 				CRTC_V_TOTAL_MIN);
 

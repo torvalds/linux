@@ -347,6 +347,7 @@ static void calc_vmin_vmax(struct core_freesync *core_freesync,
 {
 	unsigned int min_frame_duration_in_ns = 0, max_frame_duration_in_ns = 0;
 	unsigned int index = map_index_from_stream(core_freesync, stream);
+	uint32_t vtotal = stream->timing.v_total;
 
 	min_frame_duration_in_ns = ((unsigned int) (div64_u64(
 					(1000000000ULL * 1000000),
@@ -362,6 +363,17 @@ static void calc_vmin_vmax(struct core_freesync *core_freesync,
 	*vmin = div64_u64(div64_u64(((unsigned long long)(
 			min_frame_duration_in_ns) * stream->timing.pix_clk_khz),
 			stream->timing.h_total), 1000000);
+
+	/* In case of 4k free sync monitor, vmin or vmax cannot be less than vtotal */
+	if (*vmin < vtotal) {
+		ASSERT(false);
+		*vmin = vtotal;
+	}
+
+	if (*vmax < vtotal) {
+		ASSERT(false);
+		*vmax = vtotal;
+	}
 }
 
 static void calc_v_total_from_duration(const struct dc_stream *stream,
