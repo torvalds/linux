@@ -1194,8 +1194,8 @@ static bool vlv_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
 	return dirty;
 }
 
-static bool vlv_plane_wm_compute(struct intel_crtc_state *crtc_state,
-				 const struct intel_plane_state *plane_state)
+static bool vlv_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
+				     const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	enum plane_id plane_id = plane->id;
@@ -1234,8 +1234,8 @@ out:
 	return dirty;
 }
 
-static bool vlv_plane_wm_is_valid(const struct intel_crtc_state *crtc_state,
-				  enum plane_id plane_id, int level)
+static bool vlv_raw_plane_wm_is_valid(const struct intel_crtc_state *crtc_state,
+				      enum plane_id plane_id, int level)
 {
 	const struct vlv_pipe_wm *raw =
 		&crtc_state->wm.vlv.raw[level];
@@ -1245,12 +1245,12 @@ static bool vlv_plane_wm_is_valid(const struct intel_crtc_state *crtc_state,
 	return raw->plane[plane_id] <= fifo_state->plane[plane_id];
 }
 
-static bool vlv_crtc_wm_is_valid(const struct intel_crtc_state *crtc_state, int level)
+static bool vlv_raw_crtc_wm_is_valid(const struct intel_crtc_state *crtc_state, int level)
 {
-	return vlv_plane_wm_is_valid(crtc_state, PLANE_PRIMARY, level) &&
-		vlv_plane_wm_is_valid(crtc_state, PLANE_SPRITE0, level) &&
-		vlv_plane_wm_is_valid(crtc_state, PLANE_SPRITE1, level) &&
-		vlv_plane_wm_is_valid(crtc_state, PLANE_CURSOR, level);
+	return vlv_raw_plane_wm_is_valid(crtc_state, PLANE_PRIMARY, level) &&
+		vlv_raw_plane_wm_is_valid(crtc_state, PLANE_SPRITE0, level) &&
+		vlv_raw_plane_wm_is_valid(crtc_state, PLANE_SPRITE1, level) &&
+		vlv_raw_plane_wm_is_valid(crtc_state, PLANE_CURSOR, level);
 }
 
 static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
@@ -1279,7 +1279,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 		    old_plane_state->base.crtc != &crtc->base)
 			continue;
 
-		if (vlv_plane_wm_compute(crtc_state, plane_state))
+		if (vlv_raw_plane_wm_compute(crtc_state, plane_state))
 			dirty |= BIT(plane->id);
 	}
 
@@ -1325,7 +1325,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 		const struct vlv_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
 		const int sr_fifo_size = INTEL_INFO(dev_priv)->num_pipes * 512 - 1;
 
-		if (!vlv_crtc_wm_is_valid(crtc_state, level))
+		if (!vlv_raw_crtc_wm_is_valid(crtc_state, level))
 			break;
 
 		for_each_plane_id_on_crtc(crtc, plane_id) {
