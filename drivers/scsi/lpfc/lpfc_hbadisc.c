@@ -4368,9 +4368,16 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t did;
 	unsigned long flags;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
+	int rpi = LPFC_RPI_ALLOC_ERROR;
 
 	if (!ndlp)
 		return NULL;
+
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		if (rpi == LPFC_RPI_ALLOC_ERROR)
+			return NULL;
+	}
 
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
 	/* The ndlp should not be in memory free mode */
@@ -4381,7 +4388,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				"usgmap:x%x refcnt:%d\n",
 				(void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
-		return NULL;
+		goto free_rpi;
 	}
 	/* The ndlp should not already be in active mode */
 	if (NLP_CHK_NODE_ACT(ndlp)) {
@@ -4391,7 +4398,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				"usgmap:x%x refcnt:%d\n",
 				(void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
-		return NULL;
+		goto free_rpi;
 	}
 
 	/* Keep the original DID */
@@ -4409,7 +4416,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
-		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		ndlp->nlp_rpi = rpi;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0008 rpi:%x DID:%x flg:%x refcnt:%d "
 				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
@@ -4426,6 +4433,11 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		"node enable:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 	return ndlp;
+
+free_rpi:
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_sli4_free_rpi(vport->phba, rpi);
+	return NULL;
 }
 
 void
@@ -5107,11 +5119,9 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		if ((vport->fc_flag & FC_RSCN_MODE) != 0 &&
 		    lpfc_rscn_payload_check(vport, did) == 0)
 			return NULL;
-		ndlp = (struct lpfc_nodelist *)
-		     mempool_alloc(vport->phba->nlp_mem_pool, GFP_KERNEL);
+		ndlp = lpfc_nlp_init(vport, did);
 		if (!ndlp)
 			return NULL;
-		lpfc_nlp_init(vport, ndlp, did);
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		if (vport->phba->nvmet_support)
 			return ndlp;
@@ -5887,16 +5897,31 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 	return NULL;
 }
 
-void
-lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
-	      uint32_t did)
+struct lpfc_nodelist *
+lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 {
+	struct lpfc_nodelist *ndlp;
+	int rpi = LPFC_RPI_ALLOC_ERROR;
+
+	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
+		rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		if (rpi == LPFC_RPI_ALLOC_ERROR)
+			return NULL;
+	}
+
+	ndlp = mempool_alloc(vport->phba->nlp_mem_pool, GFP_KERNEL);
+	if (!ndlp) {
+		if (vport->phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_free_rpi(vport->phba, rpi);
+		return NULL;
+	}
+
 	memset(ndlp, 0, sizeof (struct lpfc_nodelist));
 
 	lpfc_initialize_node(vport, ndlp, did);
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
-		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		ndlp->nlp_rpi = rpi;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0007 rpi:%x DID:%x flg:%x refcnt:%d "
 				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
@@ -5918,7 +5943,7 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		"node init:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
-	return;
+	return ndlp;
 }
 
 /* This routine releases all resources associated with a specifc NPort's ndlp

@@ -2874,34 +2874,38 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 {
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
 	struct lpfc_vport **vports;
-	int i;
+	int i, rpi;
+	unsigned long flags;
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
 
 	vports = lpfc_create_vport_work_array(phba);
-	if (vports != NULL) {
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			if (vports[i]->load_flag & FC_UNLOADING)
-				continue;
+	if (vports == NULL)
+		return;
 
-			list_for_each_entry_safe(ndlp, next_ndlp,
-						 &vports[i]->fc_nodes,
-						 nlp_listp) {
-				if (NLP_CHK_NODE_ACT(ndlp)) {
-					ndlp->nlp_rpi =
-						lpfc_sli4_alloc_rpi(phba);
-					lpfc_printf_vlog(ndlp->vport, KERN_INFO,
-							 LOG_NODE,
-							 "0009 rpi:%x DID:%x "
-							 "flg:%x map:%x %p\n",
-							 ndlp->nlp_rpi,
-							 ndlp->nlp_DID,
-							 ndlp->nlp_flag,
-							 ndlp->nlp_usg_map,
-							 ndlp);
-				}
+	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+		if (vports[i]->load_flag & FC_UNLOADING)
+			continue;
+
+		list_for_each_entry_safe(ndlp, next_ndlp,
+					 &vports[i]->fc_nodes,
+					 nlp_listp) {
+			if (!NLP_CHK_NODE_ACT(ndlp))
+				continue;
+			rpi = lpfc_sli4_alloc_rpi(phba);
+			if (rpi == LPFC_RPI_ALLOC_ERROR) {
+				spin_lock_irqsave(&phba->ndlp_lock, flags);
+				NLP_CLR_NODE_ACT(ndlp);
+				spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+				continue;
 			}
+			ndlp->nlp_rpi = rpi;
+			lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+					 "0009 rpi:%x DID:%x "
+					 "flg:%x map:%x %p\n", ndlp->nlp_rpi,
+					 ndlp->nlp_DID, ndlp->nlp_flag,
+					 ndlp->nlp_usg_map, ndlp);
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -4722,10 +4726,9 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 	ndlp = lpfc_findnode_did(vport, Fabric_DID);
 	if (!ndlp) {
 		/* Cannot find existing Fabric ndlp, so allocate a new one */
-		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		ndlp = lpfc_nlp_init(vport, Fabric_DID);
 		if (!ndlp)
 			return 0;
-		lpfc_nlp_init(vport, ndlp, Fabric_DID);
 		/* Set the node type */
 		ndlp->nlp_type |= NLP_FABRIC;
 		/* Put ndlp onto node list */

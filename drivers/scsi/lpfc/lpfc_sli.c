@@ -16542,14 +16542,13 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 
 	ndlp = lpfc_findnode_did(vport, sid);
 	if (!ndlp) {
-		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		ndlp = lpfc_nlp_init(vport, sid);
 		if (!ndlp) {
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
 					 "1268 Failed to allocate ndlp for "
 					 "oxid:x%x SID:x%x\n", oxid, sid);
 			return;
 		}
-		lpfc_nlp_init(vport, ndlp, sid);
 		/* Put ndlp onto pport node list */
 		lpfc_enqueue_node(vport, ndlp);
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {

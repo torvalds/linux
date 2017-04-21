@@ -99,7 +99,7 @@ void lpfc_issue_reg_vpi(struct lpfc_hba *, struct lpfc_vport *);
 
 int lpfc_check_sli_ndlp(struct lpfc_hba *, struct lpfc_sli_ring *,
 			struct lpfc_iocbq *, struct lpfc_nodelist *);
-void lpfc_nlp_init(struct lpfc_vport *, struct lpfc_nodelist *, uint32_t);
+struct lpfc_nodelist *lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did);
 struct lpfc_nodelist *lpfc_nlp_get(struct lpfc_nodelist *);
 int  lpfc_nlp_put(struct lpfc_nodelist *);
 int  lpfc_nlp_not_used(struct lpfc_nodelist *ndlp);
