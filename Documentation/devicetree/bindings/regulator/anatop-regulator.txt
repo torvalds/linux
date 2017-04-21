@@ -2,6 +2,7 @@ Anatop Voltage regulators
 
 Required properties:
 - compatible: Must be "fsl,anatop-regulator"
+- regulator-name: A string used as a descriptive name for regulator outputs
 - anatop-reg-offset: Anatop MFD register offset
 - anatop-vol-bit-shift: Bit shift for the register
 - anatop-vol-bit-width: Number of bits used in the register
