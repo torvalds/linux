@@ -1020,8 +1020,9 @@ static void g4x_setup_wm_latency(struct drm_i915_private *dev_priv)
 	/* all latencies in usec */
 	dev_priv->wm.pri_latency[G4X_WM_LEVEL_NORMAL] = 5;
 	dev_priv->wm.pri_latency[G4X_WM_LEVEL_SR] = 12;
+	dev_priv->wm.pri_latency[G4X_WM_LEVEL_HPLL] = 35;
 
-	dev_priv->wm.max_level = G4X_WM_LEVEL_SR;
+	dev_priv->wm.max_level = G4X_WM_LEVEL_HPLL;
 }
 
 static int g4x_plane_fifo_size(enum plane_id plane_id, int level)
