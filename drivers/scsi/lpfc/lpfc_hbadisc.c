@@ -4148,7 +4148,6 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		       int old_state, int new_state)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_hba *phba = vport->phba;
 
 	if (new_state == NLP_STE_UNMAPPED_NODE) {
 		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
@@ -4167,14 +4166,14 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_unregister_remote_port(ndlp);
 		}
 
-		/* Notify the NVME transport of this rport's loss */
-		if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
-		    (vport->phba->nvmet_support == 0) &&
-		    ((ndlp->nlp_fc4_type & NLP_FC4_NVME) ||
-		    (ndlp->nlp_DID == Fabric_DID))) {
+		/* Notify the NVME transport of this rport's loss on the
+		 * Initiator.  For NVME Target, should upcall transport
+		 * in the else clause when API available.
+		 */
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
 			vport->phba->nport_event_cnt++;
-			lpfc_nvme_unregister_port(vport, ndlp);
+			if (vport->phba->nvmet_support == 0)
+				lpfc_nvme_unregister_port(vport, ndlp);
 		}
 	}
 
@@ -5128,6 +5127,8 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
+		if (vport->phba->nvmet_support)
+			return NULL;
 		if ((vport->fc_flag & FC_RSCN_MODE) != 0 &&
 		    lpfc_rscn_payload_check(vport, did) == 0)
 			return NULL;
@@ -5135,56 +5136,73 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		if (!ndlp)
 			return NULL;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
-		if (vport->phba->nvmet_support)
-			return ndlp;
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
 		return ndlp;
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		if (vport->phba->nvmet_support)
+			return NULL;
 		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_NPR_NODE);
 		if (!ndlp)
 			return NULL;
-		if (vport->phba->nvmet_support)
-			return ndlp;
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
 		return ndlp;
 	}
 
+	/* The NVME Target does not want to actively manage an rport.
+	 * The goal is to allow the target to reset its state and clear
+	 * pending IO in preparation for the initiator to recover.
+	 */
 	if ((vport->fc_flag & FC_RSCN_MODE) &&
 	    !(vport->fc_flag & FC_NDISC_ACTIVE)) {
 		if (lpfc_rscn_payload_check(vport, did)) {
+
+			/* Since this node is marked for discovery,
+			 * delay timeout is not needed.
+			 */
+			lpfc_cancel_retry_delay_tmo(vport, ndlp);
+
+			/* NVME Target mode waits until rport is known to be
+			 * impacted by the RSCN before it transitions.  No
+			 * active management - just go to NPR provided the
+			 * node had a valid login.
+			 */
+			if (vport->phba->nvmet_support)
+				return ndlp;
+
 			/* If we've already received a PLOGI from this NPort
 			 * we don't need to try to discover it again.
 			 */
 			if (ndlp->nlp_flag & NLP_RCV_PLOGI)
 				return NULL;
 
-			/* Since this node is marked for discovery,
-			 * delay timeout is not needed.
-			 */
-			lpfc_cancel_retry_delay_tmo(vport, ndlp);
-			if (vport->phba->nvmet_support)
-				return ndlp;
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 			spin_unlock_irq(shost->host_lock);
 		} else
 			ndlp = NULL;
 	} else {
-		/* If we've already received a PLOGI from this NPort,
-		 * or we are already in the process of discovery on it,
-		 * we don't need to try to discover it again.
+		/* If the initiator received a PLOGI from this NPort or if the
+		 * initiator is already in the process of discovery on it,
+		 * there's no need to try to discover it again.
 		 */
 		if (ndlp->nlp_state == NLP_STE_ADISC_ISSUE ||
 		    ndlp->nlp_state == NLP_STE_PLOGI_ISSUE ||
-		    ndlp->nlp_flag & NLP_RCV_PLOGI)
+		    (!vport->phba->nvmet_support &&
+		     ndlp->nlp_flag & NLP_RCV_PLOGI))
 			return NULL;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+
 		if (vport->phba->nvmet_support)
 			return ndlp;
+
+		/* Moving to NPR state clears unsolicited flags and
+		 * allows for rediscovery
+		 */
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);

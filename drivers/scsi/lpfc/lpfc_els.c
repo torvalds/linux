@@ -5861,8 +5861,11 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 		    (ndlp->nlp_state == NLP_STE_UNUSED_NODE) ||
 		    !lpfc_rscn_payload_check(vport, ndlp->nlp_DID))
 			continue;
+
+		/* NVME Target mode does not do RSCN Recovery. */
 		if (vport->phba->nvmet_support)
 			continue;
+
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
 		lpfc_cancel_retry_delay_tmo(vport, ndlp);
@@ -6150,22 +6153,16 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
 	    && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
-		/* Good ndlp, issue CT Request to NameServer */
+		/* Good ndlp, issue CT Request to NameServer.  Need to
+		 * know how many gidfts were issued.  If none, then just
+		 * flush the RSCN.  Otherwise, the outstanding requests
+		 * need to complete.
+		 */
 		vport->gidft_inp = 0;
-		if (lpfc_issue_gidft(vport) == 0)
-			/* Wait for NameServer query cmpl before we can
-			 * continue
-			 */
+		if (lpfc_issue_gidft(vport) > 0)
 			return 1;
 	} else {
-		/* If login to NameServer does not exist, issue one */
-		/* Good status, issue PLOGI to NameServer */
-		ndlp = lpfc_findnode_did(vport, NameServer_DID);
-		if (ndlp && NLP_CHK_NODE_ACT(ndlp))
-			/* Wait for NameServer login cmpl before we can
-			   continue */
-			return 1;
-
+		/* Nameserver login in question.  Revalidate. */
 		if (ndlp) {
 			ndlp = lpfc_enable_node(vport, ndlp,
 						NLP_STE_PLOGI_ISSUE);
