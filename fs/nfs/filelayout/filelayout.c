@@ -921,11 +921,11 @@ fl_pnfs_update_layout(struct inode *ino,
 	fl = FILELAYOUT_LSEG(lseg);
 
 	status = filelayout_check_deviceid(lo, fl, gfp_flags);
-	if (status)
-		lseg = ERR_PTR(status);
-out:
-	if (IS_ERR(lseg))
+	if (status) {
 		pnfs_put_lseg(lseg);
+		lseg = ERR_PTR(status);
+	}
+out:
 	return lseg;
 }
 
