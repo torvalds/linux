@@ -202,7 +202,7 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 /**
  * set_required_buffer_size - Sets the buffer size needed for performing IOCTL
  * @wdev: A wmi bus device from a driver
- * @instance: Instance index
+ * @length: Required buffer size
  *
  * Allocates memory needed for buffer, stores the buffer size in that memory
  */
@@ -222,8 +222,8 @@ EXPORT_SYMBOL_GPL(set_required_buffer_size);
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  * @instance: Instance index
  * @method_id: Method ID to call
- * &in: Buffer containing input for the method call
- * &out: Empty buffer to return the method results
+ * @in: Buffer containing input for the method call
+ * @out: Empty buffer to return the method results
  *
  * Call an ACPI-WMI method
  */
@@ -244,8 +244,8 @@ EXPORT_SYMBOL_GPL(wmi_evaluate_method);
  * @wdev: A wmi bus device from a driver
  * @instance: Instance index
  * @method_id: Method ID to call
- * &in: Buffer containing input for the method call
- * &out: Empty buffer to return the method results
+ * @in: Buffer containing input for the method call
+ * @out: Empty buffer to return the method results
  *
  * Call an ACPI-WMI method
  */
@@ -364,7 +364,7 @@ static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
  * wmi_query_block - Return contents of a WMI block (deprecated)
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  * @instance: Instance index
- * &out: Empty buffer to return the contents of the data block to
+ * @out: Empty buffer to return the contents of the data block to
  *
  * Return the contents of an ACPI-WMI data block to a buffer
  */
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(wmidev_block_query);
  * wmi_set_block - Write to a WMI block
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  * @instance: Instance index
- * &in: Buffer containing new values for the data block
+ * @in: Buffer containing new values for the data block
  *
  * Write the contents of the input buffer to an ACPI-WMI data block
  */
@@ -510,6 +510,7 @@ static void wmi_notify_debug(u32 value, void *context)
 
 /**
  * wmi_install_notify_handler - Register handler for WMI events
+ * @guid: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  * @handler: Function to handle notifications
  * @data: Data to be returned to handler when event is fired
  *
@@ -552,6 +553,7 @@ EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 
 /**
  * wmi_uninstall_notify_handler - Unregister handler for WMI events
+ * @guid: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  *
  * Unregister handler for events sent to the ACPI-WMI mapper device.
  */
