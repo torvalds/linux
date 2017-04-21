@@ -603,7 +603,6 @@ err:
 			 FSNOTIFY_MARK_FLAG_ATTACHED);
 	list_del_init(&mark->g_list);
 	atomic_dec(&group->num_marks);
-	spin_unlock(&mark->lock);
 
 	fsnotify_put_mark(mark);
 	return ret;
