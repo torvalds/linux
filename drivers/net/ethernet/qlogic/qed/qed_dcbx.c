@@ -680,8 +680,14 @@ qed_dcbx_get_operational_params(struct qed_hwfn *p_hwfn,
 		 DCBX_CONFIG_VERSION_CEE);
 	p_operational->cee = val;
 
-	DP_VERBOSE(p_hwfn, QED_MSG_DCB, "Version support: ieee %d, cee %d\n",
-		   p_operational->ieee, p_operational->cee);
+	val = !!(QED_MFW_GET_FIELD(flags, DCBX_CONFIG_VERSION) ==
+		 DCBX_CONFIG_VERSION_STATIC);
+	p_operational->local = val;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_DCB,
+		   "Version support: ieee %d, cee %d, static %d\n",
+		   p_operational->ieee, p_operational->cee,
+		   p_operational->local);
 
 	qed_dcbx_get_common_params(p_hwfn, &p_feat->app,
 				   p_feat->app.app_pri_tbl, &p_feat->ets,
@@ -1235,6 +1241,8 @@ int qed_dcbx_get_config_params(struct qed_hwfn *p_hwfn,
 		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_CEE;
 	if (dcbx_info->operational.ieee)
 		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_IEEE;
+	if (dcbx_info->operational.local)
+		p_hwfn->p_dcbx_info->set.ver_num |= DCBX_CONFIG_VERSION_STATIC;
 
 	p_hwfn->p_dcbx_info->set.enabled = dcbx_info->operational.enabled;
 	memcpy(&p_hwfn->p_dcbx_info->set.config.params,
@@ -1784,8 +1792,9 @@ static u8 qed_dcbnl_setdcbx(struct qed_dev *cdev, u8 mode)
 
 	DP_VERBOSE(hwfn, QED_MSG_DCB, "new mode = %x\n", mode);
 
-	if (!(mode & DCB_CAP_DCBX_VER_IEEE) && !(mode & DCB_CAP_DCBX_VER_CEE)) {
-		DP_INFO(hwfn, "Allowed mode is cee, ieee or both\n");
+	if (!(mode & DCB_CAP_DCBX_VER_IEEE) &&
+	    !(mode & DCB_CAP_DCBX_VER_CEE) && !(mode & DCB_CAP_DCBX_STATIC)) {
+		DP_INFO(hwfn, "Allowed modes are cee, ieee or static\n");
 		return 1;
 	}
 
@@ -1805,6 +1814,11 @@ static u8 qed_dcbnl_setdcbx(struct qed_dev *cdev, u8 mode)
 		dcbx_set.enabled = true;
 	}
 
+	if (mode & DCB_CAP_DCBX_STATIC) {
+		dcbx_set.ver_num |= DCBX_CONFIG_VERSION_STATIC;
+		dcbx_set.enabled = true;
+	}
+
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)
 		return 1;
@@ -1813,7 +1827,7 @@ static u8 qed_dcbnl_setdcbx(struct qed_dev *cdev, u8 mode)
 
 	qed_ptt_release(hwfn, ptt);
 
-	return 0;
+	return rc;
 }
 
 static u8 qed_dcbnl_getfeatcfg(struct qed_dev *cdev, int featid, u8 *flags)
