@@ -1325,7 +1325,7 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 	 * heuristic: we are willing to spend at most 2% of the time
 	 * transitioning between power states.  Therefore, when running
 	 * in any given state, we will enter the next lower-power
-	 * non-operational state after waiting 100 * (enlat + exlat)
+	 * non-operational state after waiting 50 * (enlat + exlat)
 	 * microseconds, as long as that state's total latency is under
 	 * the requested maximum latency.
 	 *
