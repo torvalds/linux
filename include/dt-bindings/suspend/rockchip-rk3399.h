@@ -41,6 +41,7 @@
 #define RKPM_TIME_OUT_WKUP_EN			(1 << 10)
 #define RKPM_PWM_WKUP_EN			(1 << 11)
 #define RKPM_PCIE_WKUP_EN			(1 << 13)
+#define RKPM_USB_LINESTATE_WKUP_EN		(1 << 14)
 
 /* the pwm regulator */
 #define PWM0_REGULATOR_EN			(1 << 0)
