@@ -335,6 +335,9 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 void
 lpfc_update_vport_wwn(struct lpfc_vport *vport)
 {
+	uint8_t vvvl = vport->fc_sparam.cmn.valid_vendor_ver_level;
+	u32 *fawwpn_key = (u32 *)&vport->fc_sparam.un.vendorVersion[0];
+
 	/* If the soft name exists then update it using the service params */
 	if (vport->phba->cfg_soft_wwnn)
 		u64_to_wwn(vport->phba->cfg_soft_wwnn,
@@ -354,9 +357,25 @@ lpfc_update_vport_wwn(struct lpfc_vport *vport)
 		memcpy(&vport->fc_sparam.nodeName, &vport->fc_nodename,
 			sizeof(struct lpfc_name));
 
-	if (vport->fc_portname.u.wwn[0] == 0 || vport->phba->cfg_soft_wwpn)
+	/*
+	 * If the port name has changed, then set the Param changes flag
+	 * to unreg the login
+	 */
+	if (vport->fc_portname.u.wwn[0] != 0 &&
+		memcmp(&vport->fc_portname, &vport->fc_sparam.portName,
+			sizeof(struct lpfc_name)))
+		vport->vport_flag |= FAWWPN_PARAM_CHG;
+
+	if (vport->fc_portname.u.wwn[0] == 0 ||
+	    vport->phba->cfg_soft_wwpn ||
+	    (vvvl == 1 && cpu_to_be32(*fawwpn_key) == FAPWWN_KEY_VENDOR) ||
+	    vport->vport_flag & FAWWPN_SET) {
 		memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
 			sizeof(struct lpfc_name));
+		vport->vport_flag &= ~FAWWPN_SET;
+		if (vvvl == 1 && cpu_to_be32(*fawwpn_key) == FAPWWN_KEY_VENDOR)
+			vport->vport_flag |= FAWWPN_SET;
+	}
 	else
 		memcpy(&vport->fc_sparam.portName, &vport->fc_portname,
 			sizeof(struct lpfc_name));
@@ -4518,9 +4537,15 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 		/* Parse and translate link attention fields */
 		la = (struct lpfc_mbx_read_top *)&pmb->u.mb.un.varReadTop;
 		la->eventTag = acqe_fc->event_tag;
-		bf_set(lpfc_mbx_read_top_att_type, la,
-		       LPFC_FC_LA_TYPE_LINK_DOWN);
 
+		if (phba->sli4_hba.link_state.status ==
+		    LPFC_FC_LA_TYPE_UNEXP_WWPN) {
+			bf_set(lpfc_mbx_read_top_att_type, la,
+			       LPFC_FC_LA_TYPE_UNEXP_WWPN);
+		} else {
+			bf_set(lpfc_mbx_read_top_att_type, la,
+			       LPFC_FC_LA_TYPE_LINK_DOWN);
+		}
 		/* Invoke the mailbox command callback function */
 		lpfc_mbx_cmpl_read_topology(phba, pmb);
 

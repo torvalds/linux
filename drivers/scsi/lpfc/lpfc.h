@@ -474,6 +474,8 @@ struct lpfc_vport {
 	unsigned long rcv_buffer_time_stamp;
 	uint32_t vport_flag;
 #define STATIC_VPORT	1
+#define FAWWPN_SET	2
+#define FAWWPN_PARAM_CHG	4
 
 	uint16_t fdmi_num_disc;
 	uint32_t fdmi_hba_mask;
