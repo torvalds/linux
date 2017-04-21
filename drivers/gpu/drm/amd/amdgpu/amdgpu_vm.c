@@ -551,6 +551,7 @@ static void amdgpu_vm_free_reserved_vmid(struct amdgpu_device *adev,
 		list_add(&vm->reserved_vmid[vmhub]->list,
 			&id_mgr->ids_lru);
 		vm->reserved_vmid[vmhub] = NULL;
+		atomic_dec(&id_mgr->reserved_vmid_num);
 	}
 	mutex_unlock(&id_mgr->lock);
 }
@@ -567,6 +568,13 @@ static int amdgpu_vm_alloc_reserved_vmid(struct amdgpu_device *adev,
 	mutex_lock(&id_mgr->lock);
 	if (vm->reserved_vmid[vmhub])
 		goto unlock;
+	if (atomic_inc_return(&id_mgr->reserved_vmid_num) >
+	    AMDGPU_VM_MAX_RESERVED_VMID) {
+		DRM_ERROR("Over limitation of reserved vmid\n");
+		atomic_dec(&id_mgr->reserved_vmid_num);
+		r = -EINVAL;
+		goto unlock;
+	}
 	/* Select the first entry VMID */
 	idle = list_first_entry(&id_mgr->ids_lru, struct amdgpu_vm_id, list);
 	list_del_init(&idle->list);
@@ -2321,6 +2329,7 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 
 		mutex_init(&id_mgr->lock);
 		INIT_LIST_HEAD(&id_mgr->ids_lru);
+		atomic_set(&id_mgr->reserved_vmid_num, 0);
 
 		/* skip over VMID 0, since it is the system VM */
 		for (j = 1; j < id_mgr->num_ids; ++j) {

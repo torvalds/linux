@@ -84,6 +84,8 @@ struct amdgpu_bo_list_entry;
 
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
+/* max vmids dedicated for process */
+#define AMDGPU_VM_MAX_RESERVED_VMID	1
 
 struct amdgpu_vm_pt {
 	struct amdgpu_bo	*bo;
@@ -154,6 +156,7 @@ struct amdgpu_vm_id_manager {
 	unsigned		num_ids;
 	struct list_head	ids_lru;
 	struct amdgpu_vm_id	ids[AMDGPU_NUM_VM];
+	atomic_t		reserved_vmid_num;
 };
 
 struct amdgpu_vm_manager {
