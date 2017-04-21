@@ -605,7 +605,7 @@ static bool is_max_vs_reached(
 }
 
 void dc_link_dp_set_drive_settings(
-	struct dc_link *link,
+	const struct dc_link *link,
 	struct link_training_settings *lt_settings)
 {
 	struct core_link *core_link = DC_LINK_TO_CORE(link);

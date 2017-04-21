@@ -691,7 +691,7 @@ void dc_link_remove_remote_sink(
 void dc_link_set_sink(const struct dc_link *link, struct dc_sink *sink);
 
 void dc_link_dp_set_drive_settings(
-	struct dc_link *link,
+	const struct dc_link *link,
 	struct link_training_settings *lt_settings);
 
 bool dc_link_dp_perform_link_training(
