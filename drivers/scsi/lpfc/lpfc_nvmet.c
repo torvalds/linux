@@ -709,7 +709,7 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 	pinfo.port_id = vport->fc_myDID;
 
 	lpfc_tgttemplate.max_hw_queues = phba->cfg_nvme_io_channel;
-	lpfc_tgttemplate.max_sgl_segments = phba->cfg_sg_seg_cnt;
+	lpfc_tgttemplate.max_sgl_segments = phba->cfg_sg_seg_cnt + 1;
 	lpfc_tgttemplate.target_features = NVMET_FCTGTFEAT_READDATA_RSP |
 					   NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED |
 					   NVMET_FCTGTFEAT_CMD_IN_ISR |

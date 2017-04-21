@@ -21,9 +21,7 @@
  * included with this package.                                     *
  ********************************************************************/
 
-#define LPFC_NVME_MIN_SEGS		16
-#define LPFC_NVME_DEFAULT_SEGS		66	/* 256K IOs - 64 + 2 */
-#define LPFC_NVME_MAX_SEGS		510
+#define LPFC_NVME_DEFAULT_SEGS		(64 + 1)	/* 256K IOs */
 #define LPFC_NVMET_MIN_POSTBUF		16
 #define LPFC_NVMET_DEFAULT_POSTBUF	1024
 #define LPFC_NVMET_MAX_POSTBUF		4096

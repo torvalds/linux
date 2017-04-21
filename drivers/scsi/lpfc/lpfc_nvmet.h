@@ -21,9 +21,7 @@
  * included with this package.                                     *
  ********************************************************************/
 
-#define LPFC_NVMET_MIN_SEGS		16
-#define LPFC_NVMET_DEFAULT_SEGS		64	/* 256K IOs */
-#define LPFC_NVMET_MAX_SEGS		510
+#define LPFC_NVMET_DEFAULT_SEGS		(64 + 1)	/* 256K IOs */
 #define LPFC_NVMET_SUCCESS_LEN	12
 
 /* Used for NVME Target */
