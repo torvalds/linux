@@ -300,6 +300,70 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request,
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
 
+void cfg80211_add_sched_scan_req(struct cfg80211_registered_device *rdev,
+				 struct cfg80211_sched_scan_request *req)
+{
+	ASSERT_RTNL();
+
+	list_add_rcu(&req->list, &rdev->sched_scan_req_list);
+}
+
+static void cfg80211_del_sched_scan_req(struct cfg80211_registered_device *rdev,
+					struct cfg80211_sched_scan_request *req)
+{
+	ASSERT_RTNL();
+
+	list_del_rcu(&req->list);
+	kfree_rcu(req, rcu_head);
+}
+
+static struct cfg80211_sched_scan_request *
+cfg80211_find_sched_scan_req(struct cfg80211_registered_device *rdev, u64 reqid)
+{
+	struct cfg80211_sched_scan_request *pos;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(pos, &rdev->sched_scan_req_list, list) {
+		if (pos->reqid == reqid)
+			return pos;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
+/*
+ * Determines if a scheduled scan request can be handled. When a legacy
+ * scheduled scan is running no other scheduled scan is allowed regardless
+ * whether the request is for legacy or multi-support scan. When a multi-support
+ * scheduled scan is running a request for legacy scan is not allowed. In this
+ * case a request for multi-support scan can be handled if resources are
+ * available, ie. struct wiphy::max_sched_scan_reqs limit is not yet reached.
+ */
+int cfg80211_sched_scan_req_possible(struct cfg80211_registered_device *rdev,
+				     bool want_multi)
+{
+	struct cfg80211_sched_scan_request *pos;
+	int i = 0;
+
+	list_for_each_entry(pos, &rdev->sched_scan_req_list, list) {
+		/* request id zero means legacy in progress */
+		if (!i && !pos->reqid)
+			return -EINPROGRESS;
+		i++;
+	}
+
+	if (i) {
+		/* no legacy allowed when multi request(s) are active */
+		if (!want_multi)
+			return -EINPROGRESS;
+
+		/* resource limit reached */
+		if (i == rdev->wiphy.max_sched_scan_reqs)
+			return -ENOSPC;
+	}
+	return 0;
+}
+
 void __cfg80211_sched_scan_results(struct work_struct *wk)
 {
 	struct cfg80211_registered_device *rdev;
@@ -310,10 +374,10 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 
 	rtnl_lock();
 
-	request = rtnl_dereference(rdev->sched_scan_req);
+	request = cfg80211_find_sched_scan_req(rdev, 0);
 
 	/* we don't have sched_scan_req anymore if the scan is stopping */
-	if (request) {
+	if (!IS_ERR(request)) {
 		if (request->flags & NL80211_SCAN_FLAG_FLUSH) {
 			/* flush entries from previous scans */
 			spin_lock_bh(&rdev->bss_lock);
@@ -329,10 +393,17 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 
 void cfg80211_sched_scan_results(struct wiphy *wiphy)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct cfg80211_sched_scan_request *request;
+
 	trace_cfg80211_sched_scan_results(wiphy);
 	/* ignore if we're not scanning */
 
-	if (rcu_access_pointer(wiphy_to_rdev(wiphy)->sched_scan_req))
+	rtnl_lock();
+	request = cfg80211_find_sched_scan_req(rdev, 0);
+	rtnl_unlock();
+
+	if (!IS_ERR(request))
 		queue_work(cfg80211_wq,
 			   &wiphy_to_rdev(wiphy)->sched_scan_results_wk);
 }
@@ -346,7 +417,7 @@ void cfg80211_sched_scan_stopped_rtnl(struct wiphy *wiphy)
 
 	trace_cfg80211_sched_scan_stopped(wiphy);
 
-	__cfg80211_stop_sched_scan(rdev, true);
+	__cfg80211_stop_sched_scan(rdev, 0, true);
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped_rtnl);
 
@@ -358,32 +429,38 @@ void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
 
-int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
-			       bool driver_initiated)
+int cfg80211_stop_sched_scan_req(struct cfg80211_registered_device *rdev,
+				 struct cfg80211_sched_scan_request *req,
+				 bool driver_initiated)
 {
-	struct cfg80211_sched_scan_request *sched_scan_req;
-	struct net_device *dev;
-
 	ASSERT_RTNL();
 
-	if (!rdev->sched_scan_req)
-		return -ENOENT;
-
-	sched_scan_req = rtnl_dereference(rdev->sched_scan_req);
-	dev = sched_scan_req->dev;
-
 	if (!driver_initiated) {
-		int err = rdev_sched_scan_stop(rdev, dev);
+		int err = rdev_sched_scan_stop(rdev, req->dev);
 		if (err)
 			return err;
 	}
 
-	nl80211_send_sched_scan(sched_scan_req, NL80211_CMD_SCHED_SCAN_STOPPED);
+	nl80211_send_sched_scan(req, NL80211_CMD_SCHED_SCAN_STOPPED);
 
-	RCU_INIT_POINTER(rdev->sched_scan_req, NULL);
-	kfree_rcu(sched_scan_req, rcu_head);
+	cfg80211_del_sched_scan_req(rdev, req);
 
 	return 0;
+}
+
+int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
+			       u64 reqid, bool driver_initiated)
+{
+	struct cfg80211_sched_scan_request *sched_scan_req;
+
+	ASSERT_RTNL();
+
+	sched_scan_req = cfg80211_find_sched_scan_req(rdev, reqid);
+	if (IS_ERR(sched_scan_req))
+		return PTR_ERR(sched_scan_req);
+
+	return cfg80211_stop_sched_scan_req(rdev, sched_scan_req,
+					    driver_initiated);
 }
 
 void cfg80211_bss_age(struct cfg80211_registered_device *rdev,

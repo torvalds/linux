@@ -419,6 +419,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 					.len = FILS_ERP_MAX_RRK_LEN },
 	[NL80211_ATTR_FILS_CACHE_ID] = { .len = 2 },
 	[NL80211_ATTR_PMK] = { .type = NLA_BINARY, .len = PMK_MAX_LEN },
+	[NL80211_ATTR_SCHED_SCAN_MULTI] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -1376,7 +1377,7 @@ static int nl80211_add_commands_unsplit(struct cfg80211_registered_device *rdev,
 		CMD(tdls_mgmt, TDLS_MGMT);
 		CMD(tdls_oper, TDLS_OPER);
 	}
-	if (rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN)
+	if (rdev->wiphy.max_sched_scan_reqs)
 		CMD(sched_scan_start, START_SCHED_SCAN);
 	CMD(probe_client, PROBE_CLIENT);
 	CMD(set_noack_map, SET_NOACK_MAP);
@@ -1813,6 +1814,11 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 
 		if (rdev->wiphy.regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED &&
 		    nla_put_flag(msg, NL80211_ATTR_WIPHY_SELF_MANAGED_REG))
+			goto nla_put_failure;
+
+		if (rdev->wiphy.max_sched_scan_reqs &&
+		    nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_MAX_REQS,
+				rdev->wiphy.max_sched_scan_reqs))
 			goto nla_put_failure;
 
 		if (nla_put(msg, NL80211_ATTR_EXT_FEATURES,
@@ -7336,14 +7342,16 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_sched_scan_request *sched_scan_req;
+	bool want_multi;
 	int err;
 
-	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN) ||
-	    !rdev->ops->sched_scan_start)
+	if (!rdev->wiphy.max_sched_scan_reqs || !rdev->ops->sched_scan_start)
 		return -EOPNOTSUPP;
 
-	if (rdev->sched_scan_req)
-		return -EINPROGRESS;
+	want_multi = info->attrs[NL80211_ATTR_SCHED_SCAN_MULTI];
+	err = cfg80211_sched_scan_req_possible(rdev, want_multi);
+	if (err)
+		return err;
 
 	sched_scan_req = nl80211_parse_sched_scan(&rdev->wiphy, wdev,
 						  info->attrs,
@@ -7352,6 +7360,14 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 	err = PTR_ERR_OR_ZERO(sched_scan_req);
 	if (err)
 		goto out_err;
+
+	/* leave request id zero for legacy request
+	 * or if driver does not support multi-scheduled scan
+	 */
+	if (want_multi && rdev->wiphy.max_sched_scan_reqs > 1) {
+		while (!sched_scan_req->reqid)
+			sched_scan_req->reqid = rdev->wiphy.cookie_counter++;
+	}
 
 	err = rdev_sched_scan_start(rdev, dev, sched_scan_req);
 	if (err)
@@ -7363,7 +7379,7 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 	if (info->attrs[NL80211_ATTR_SOCKET_OWNER])
 		sched_scan_req->owner_nlportid = info->snd_portid;
 
-	rcu_assign_pointer(rdev->sched_scan_req, sched_scan_req);
+	cfg80211_add_sched_scan_req(rdev, sched_scan_req);
 
 	nl80211_send_sched_scan(sched_scan_req, NL80211_CMD_START_SCHED_SCAN);
 	return 0;
@@ -7377,13 +7393,27 @@ out_err:
 static int nl80211_stop_sched_scan(struct sk_buff *skb,
 				   struct genl_info *info)
 {
+	struct cfg80211_sched_scan_request *req;
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	u64 cookie;
 
-	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN) ||
-	    !rdev->ops->sched_scan_stop)
+	if (!rdev->wiphy.max_sched_scan_reqs || !rdev->ops->sched_scan_stop)
 		return -EOPNOTSUPP;
 
-	return __cfg80211_stop_sched_scan(rdev, false);
+	if (info->attrs[NL80211_ATTR_COOKIE]) {
+		cookie = nla_get_u64(info->attrs[NL80211_ATTR_COOKIE]);
+		return __cfg80211_stop_sched_scan(rdev, cookie, false);
+	}
+
+	req = list_first_or_null_rcu(&rdev->sched_scan_req_list,
+				     struct cfg80211_sched_scan_request,
+				     list);
+	if (!req || req->reqid ||
+	    (req->owner_nlportid &&
+	     req->owner_nlportid != info->snd_portid))
+		return -ENOENT;
+
+	return cfg80211_stop_sched_scan_req(rdev, req, false);
 }
 
 static int nl80211_start_radar_detection(struct sk_buff *skb,
@@ -14883,16 +14913,15 @@ static int nl80211_netlink_notify(struct notifier_block * nb,
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(rdev, &cfg80211_rdev_list, list) {
-		struct cfg80211_sched_scan_request *sched_scan_req =
-			rcu_dereference(rdev->sched_scan_req);
+		struct cfg80211_sched_scan_request *sched_scan_req;
 
-		if (sched_scan_req && notify->portid &&
-		    sched_scan_req->owner_nlportid == notify->portid) {
-			sched_scan_req->owner_nlportid = 0;
-
-			if (rdev->ops->sched_scan_stop &&
-			    rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN)
+		list_for_each_entry_rcu(sched_scan_req,
+					&rdev->sched_scan_req_list,
+					list) {
+			if (sched_scan_req->owner_nlportid == notify->portid) {
+				sched_scan_req->nl_owner_dead = true;
 				schedule_work(&rdev->sched_scan_stop_wk);
+			}
 		}
 
 		list_for_each_entry_rcu(wdev, &rdev->wiphy.wdev_list, list) {
