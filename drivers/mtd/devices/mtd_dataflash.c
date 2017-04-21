@@ -82,6 +82,7 @@
 #define OP_WRITE_SECURITY_REVC	0x9A
 #define OP_WRITE_SECURITY	0x9B	/* revision D */
 
+#define CFI_MFR_ATMEL		0x1F
 
 struct dataflash {
 	u8			command[4];
@@ -738,14 +739,15 @@ static struct flash_info dataflash_data[] = {
 
 static struct flash_info *jedec_probe(struct spi_device *spi)
 {
-	int			tmp;
-	u8			code = OP_READ_ID;
-	u8			id[3];
-	u32			jedec;
-	struct flash_info	*info;
+	int ret, i;
+	u8 code = OP_READ_ID;
+	u8 id[3];
+	u32 jedec;
+	struct flash_info *info;
 	int status;
 
-	/* JEDEC also defines an optional "extended device information"
+	/*
+	 * JEDEC also defines an optional "extended device information"
 	 * string for after vendor-specific data, after the three bytes
 	 * we use here.  Supporting some chips might require using it.
 	 *
@@ -753,13 +755,14 @@ static struct flash_info *jedec_probe(struct spi_device *spi)
 	 * That's not an error; only rev C and newer chips handle it, and
 	 * only Atmel sells these chips.
 	 */
-	tmp = spi_write_then_read(spi, &code, 1, id, 3);
-	if (tmp < 0) {
+	ret = spi_write_then_read(spi, &code, 1, id, 3);
+	if (ret < 0) {
 		pr_debug("%s: error %d reading JEDEC ID\n",
-			dev_name(&spi->dev), tmp);
-		return ERR_PTR(tmp);
+			dev_name(&spi->dev), ret);
+		return ERR_PTR(ret);
 	}
-	if (id[0] != 0x1f)
+
+	if (id[0] != CFI_MFR_ATMEL)
 		return NULL;
 
 	jedec = id[0];
@@ -768,9 +771,9 @@ static struct flash_info *jedec_probe(struct spi_device *spi)
 	jedec = jedec << 8;
 	jedec |= id[2];
 
-	for (tmp = 0, info = dataflash_data;
-			tmp < ARRAY_SIZE(dataflash_data);
-			tmp++, info++) {
+	for (i = 0, info = dataflash_data;
+			i < ARRAY_SIZE(dataflash_data);
+			i++, info++) {
 		if (info->jedec_id == jedec) {
 			pr_debug("%s: OTP, sector protect%s\n",
 				dev_name(&spi->dev),
