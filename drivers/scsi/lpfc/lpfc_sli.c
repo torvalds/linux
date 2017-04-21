@@ -16521,7 +16521,7 @@ lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
  * This function sends a basic response to a previous unsol sequence abort
  * event after aborting the sequence handling.
  **/
-static void
+void
 lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 			struct fc_frame_header *fc_hdr, bool aborted)
 {
@@ -16696,6 +16696,11 @@ lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 			aborted = lpfc_sli4_abort_ulp_seq(vport, dmabuf);
 	}
 	lpfc_in_buf_free(phba, &dmabuf->dbuf);
+
+	if (phba->nvmet_support) {
+		lpfc_nvmet_rcv_unsol_abort(vport, &fc_hdr);
+		return;
+	}
 
 	/* Respond with BA_ACC or BA_RJT accordingly */
 	lpfc_sli4_seq_abort_rsp(vport, &fc_hdr, aborted);

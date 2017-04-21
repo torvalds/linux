@@ -868,15 +868,18 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				break;
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
 					 "6081 NVME Completion Protocol Error: "
-					 "status x%x result x%x placed x%x\n",
+					 "xri %x status x%x result x%x "
+					 "placed x%x\n",
+					 lpfc_ncmd->cur_iocbq.sli4_xritag,
 					 lpfc_ncmd->status, lpfc_ncmd->result,
 					 wcqe->total_data_placed);
 			break;
 		default:
 out_err:
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
-					 "6072 NVME Completion Error: "
+					 "6072 NVME Completion Error: xri %x "
 					 "status x%x result x%x placed x%x\n",
+					 lpfc_ncmd->cur_iocbq.sli4_xritag,
 					 lpfc_ncmd->status, lpfc_ncmd->result,
 					 wcqe->total_data_placed);
 			nCmd->transferred_length = 0;
@@ -1429,7 +1432,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	phba = vport->phba;
 
 	/* Announce entry to new IO submit field. */
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
 			 "6002 Abort Request to rport DID x%06x "
 			 "for nvme_fc_req %p\n",
 			 pnvme_rport->port_id,
@@ -1459,7 +1462,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* The remote node has to be ready to send an abort. */
 	if ((ndlp->nlp_state != NLP_STE_MAPPED_NODE) &&
 	    !(ndlp->nlp_type & NLP_NVME_TARGET)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE | LOG_NVME_ABTS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6048 rport %p, DID x%06x not ready for "
 				 "IO. State x%x, Type x%x\n",
 				 rport, pnvme_rport->port_id,
@@ -1474,7 +1477,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* driver queued commands are in process of being flushed */
 	if (phba->hba_flag & HBA_NVME_IOQ_FLUSH) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6139 Driver in reset cleanup - flushing "
 				 "NVME Req now.  hba_flag x%x\n",
 				 phba->hba_flag);
@@ -1484,13 +1487,13 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	lpfc_nbuf = (struct lpfc_nvme_buf *)pnvme_fcreq->private;
 	if (!lpfc_nbuf) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6140 NVME IO req has no matching lpfc nvme "
 				 "io buffer.  Skipping abort req.\n");
 		return;
 	} else if (!lpfc_nbuf->nvmeCmd) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6141 lpfc NVME IO req has no nvme_fcreq "
 				 "io buffer.  Skipping abort req.\n");
 		return;
@@ -1506,7 +1509,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	 */
 	if (lpfc_nbuf->nvmeCmd != pnvme_fcreq) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6143 NVME req mismatch: "
 				 "lpfc_nbuf %p nvmeCmd %p, "
 				 "pnvme_fcreq %p.  Skipping Abort xri x%x\n",
@@ -1518,7 +1521,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* Don't abort IOs no longer on the pending queue. */
 	if (!(nvmereq_wqe->iocb_flag & LPFC_IO_ON_TXCMPLQ)) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6142 NVME IO req %p not queued - skipping "
 				 "abort req xri x%x\n",
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
@@ -1532,7 +1535,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	/* Outstanding abort is in progress */
 	if (nvmereq_wqe->iocb_flag & LPFC_DRIVER_ABORTED) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6144 Outstanding NVME I/O Abort Request "
 				 "still pending on nvme_fcreq %p, "
 				 "lpfc_ncmd %p xri x%x\n",
@@ -1544,7 +1547,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	abts_buf = __lpfc_sli_get_iocbq(phba);
 	if (!abts_buf) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6136 No available abort wqes. Skipping "
 				 "Abts req for nvme_fcreq %p xri x%x\n",
 				 pnvme_fcreq, nvmereq_wqe->sli4_xritag);
@@ -1596,7 +1599,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	ret_val = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abts_buf);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	if (ret_val == IOCB_ERROR) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6137 Failed abts issue_wqe with status x%x "
 				 "for nvme_fcreq %p.\n",
 				 ret_val, pnvme_fcreq);
@@ -1604,7 +1607,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 	}
 
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
 			 "6138 Transport Abort NVME Request Issued for "
 			 "ox_id x%x on reqtag x%x\n",
 			 nvmereq_wqe->sli4_xritag,
@@ -2108,6 +2111,12 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 
 	lpfc_ncmd->nonsg_phys = 0;
 	if (lpfc_ncmd->flags & LPFC_SBUF_XBUSY) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
+				"6310 XB release deferred for "
+				"ox_id x%x on reqtag x%x\n",
+				lpfc_ncmd->cur_iocbq.sli4_xritag,
+				lpfc_ncmd->cur_iocbq.iotag);
+
 		spin_lock_irqsave(&phba->sli4_hba.abts_nvme_buf_list_lock,
 					iflag);
 		lpfc_ncmd->nvmeCmd = NULL;
@@ -2549,6 +2558,12 @@ lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
 					rxid, 1);
 				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
 			}
+
+			lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
+					"6311 XRI Aborted xri x%x tag x%x "
+					"released\n",
+					xri, lpfc_ncmd->cur_iocbq.iotag);
+
 			lpfc_release_nvme_buf(phba, lpfc_ncmd);
 			if (rrq_empty)
 				lpfc_worker_wake_up(phba);
@@ -2557,4 +2572,8 @@ lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
 	}
 	spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
+			"6312 XRI Aborted xri x%x not found\n", xri);
+
 }
