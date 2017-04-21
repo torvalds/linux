@@ -1336,6 +1336,8 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 
 	unsigned apste;
 	struct nvme_feat_auto_pst *table;
+	u64 max_lat_us = 0;
+	int max_ps = -1;
 	int ret;
 
 	/*
@@ -1357,6 +1359,7 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 	if (ctrl->ps_max_latency_us == 0) {
 		/* Turn off APST. */
 		apste = 0;
+		dev_dbg(ctrl->device, "APST disabled\n");
 	} else {
 		__le64 target = cpu_to_le64(0);
 		int state;
@@ -1406,9 +1409,22 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 
 			target = cpu_to_le64((state << 3) |
 					     (transition_ms << 8));
+
+			if (max_ps == -1)
+				max_ps = state;
+
+			if (total_latency_us > max_lat_us)
+				max_lat_us = total_latency_us;
 		}
 
 		apste = 1;
+
+		if (max_ps == -1) {
+			dev_dbg(ctrl->device, "APST enabled but no non-operational states are available\n");
+		} else {
+			dev_dbg(ctrl->device, "APST enabled: max PS = %d, max round-trip latency = %lluus, table = %*phN\n",
+				max_ps, max_lat_us, (int)sizeof(*table), table);
+		}
 	}
 
 	ret = nvme_set_features(ctrl, NVME_FEAT_AUTO_PST, apste,
