@@ -2004,13 +2004,8 @@ void xhci_init_driver(struct hc_driver *drv,
 int xhci_disable_slot(struct xhci_hcd *xhci,
 			struct xhci_command *command, u32 slot_id);
 
-#ifdef	CONFIG_PM
 int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup);
 int xhci_resume(struct xhci_hcd *xhci, bool hibernated);
-#else
-#define	xhci_suspend	NULL
-#define	xhci_resume	NULL
-#endif
 
 irqreturn_t xhci_irq(struct usb_hcd *hcd);
 irqreturn_t xhci_msi_irq(int irq, void *hcd);
