@@ -142,6 +142,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 		/* Logic error */
 		if (bit > c_ctx->nr_valid) {
 			WARN_ONCE(1, "pblk: corrupted write request\n");
+			mempool_free(recovery, pblk->rec_pool);
 			goto out;
 		}
 
@@ -149,6 +150,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 		entry = pblk_rb_sync_scan_entry(&pblk->rwb, &ppa);
 		if (!entry) {
 			pr_err("pblk: could not scan entry on write failure\n");
+			mempool_free(recovery, pblk->rec_pool);
 			goto out;
 		}
 
@@ -162,6 +164,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 	ret = pblk_recov_setup_rq(pblk, c_ctx, recovery, comp_bits, c_entries);
 	if (ret) {
 		pr_err("pblk: could not recover from write failure\n");
+		mempool_free(recovery, pblk->rec_pool);
 		goto out;
 	}
 
