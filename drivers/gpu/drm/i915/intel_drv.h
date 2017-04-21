@@ -512,8 +512,8 @@ enum vlv_wm_level {
 };
 
 struct vlv_wm_state {
-	struct vlv_pipe_wm wm[NUM_VLV_WM_LEVELS];
-	struct vlv_sr_wm sr[NUM_VLV_WM_LEVELS];
+	struct g4x_pipe_wm wm[NUM_VLV_WM_LEVELS];
+	struct g4x_sr_wm sr[NUM_VLV_WM_LEVELS];
 	uint8_t num_levels;
 	bool cxsr;
 };
@@ -549,7 +549,7 @@ struct intel_crtc_wm_state {
 
 		struct {
 			/* "raw" watermarks (not inverted) */
-			struct vlv_pipe_wm raw[NUM_VLV_WM_LEVELS];
+			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS];
 			/* intermediate watermarks (inverted) */
 			struct vlv_wm_state intermediate;
 			/* optimal watermarks (inverted) */
