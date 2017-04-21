@@ -2936,6 +2936,69 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		(*mgr->cbs->hotplug)(mgr);
 }
 
+void *drm_dp_mst_duplicate_state(struct drm_atomic_state *state, void *obj)
+{
+	struct drm_dp_mst_topology_mgr *mgr = obj;
+	struct drm_dp_mst_topology_state *new_mst_state;
+
+	if (WARN_ON(!mgr->state))
+		return NULL;
+
+	new_mst_state = kmemdup(mgr->state, sizeof(*new_mst_state), GFP_KERNEL);
+	if (new_mst_state)
+		new_mst_state->state = state;
+	return new_mst_state;
+}
+
+void drm_dp_mst_swap_state(void *obj, void **obj_state_ptr)
+{
+	struct drm_dp_mst_topology_mgr *mgr = obj;
+	struct drm_dp_mst_topology_state **topology_state_ptr;
+
+	topology_state_ptr = (struct drm_dp_mst_topology_state **)obj_state_ptr;
+
+	mgr->state->state = (*topology_state_ptr)->state;
+	swap(*topology_state_ptr, mgr->state);
+	mgr->state->state = NULL;
+}
+
+void drm_dp_mst_destroy_state(void *obj_state)
+{
+	kfree(obj_state);
+}
+
+static const struct drm_private_state_funcs mst_state_funcs = {
+	.duplicate_state = drm_dp_mst_duplicate_state,
+	.swap_state = drm_dp_mst_swap_state,
+	.destroy_state = drm_dp_mst_destroy_state,
+};
+
+/**
+ * drm_atomic_get_mst_topology_state: get MST topology state
+ *
+ * @state: global atomic state
+ * @mgr: MST topology manager, also the private object in this case
+ *
+ * This function wraps drm_atomic_get_priv_obj_state() passing in the MST atomic
+ * state vtable so that the private object state returned is that of a MST
+ * topology object. Also, drm_atomic_get_private_obj_state() expects the caller
+ * to care of the locking, so warn if don't hold the connection_mutex.
+ *
+ * RETURNS:
+ *
+ * The MST topology state or error pointer.
+ */
+struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
+								    struct drm_dp_mst_topology_mgr *mgr)
+{
+	struct drm_device *dev = mgr->dev;
+
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	return drm_atomic_get_private_obj_state(state, mgr,
+						&mst_state_funcs);
+}
+EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
+
 /**
  * drm_dp_mst_topology_mgr_init - initialise a topology manager
  * @mgr: manager struct to initialise
@@ -2980,6 +3043,15 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	if (test_calc_pbn_mode() < 0)
 		DRM_ERROR("MST PBN self-test failed\n");
 
+	mgr->state = kzalloc(sizeof(*mgr->state), GFP_KERNEL);
+	if (mgr->state == NULL)
+		return -ENOMEM;
+	mgr->state->mgr = mgr;
+
+	/* max. time slots - one slot for MTP header */
+	mgr->state->avail_slots = 63;
+	mgr->funcs = &mst_state_funcs;
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_init);
@@ -3000,6 +3072,9 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 	mutex_unlock(&mgr->payload_lock);
 	mgr->dev = NULL;
 	mgr->aux = NULL;
+	kfree(mgr->state);
+	mgr->state = NULL;
+	mgr->funcs = NULL;
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_destroy);
 
