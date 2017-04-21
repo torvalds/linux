@@ -35,6 +35,7 @@
 #define PPSMC_MSG_TestMessage                   0x1
 #define PPSMC_MSG_GetSmuVersion                 0x2
 #define PPSMC_MSG_GetDriverIfVersion            0x3
+#define PPSMC_MSG_PowerUpGfx                    0x6
 #define PPSMC_MSG_EnableGfxOff                  0x7
 #define PPSMC_MSG_DisableGfxOff                 0x8
 #define PPSMC_MSG_PowerDownIspByTile            0x9
@@ -48,7 +49,7 @@
 #define PPSMC_MSG_SetMinDisplayClock            0x11
 #define PPSMC_MSG_SetHardMinFclkByFreq          0x12
 #define PPSMC_MSG_SetAllowFclkSwitch            0x13
-#define PPSMC_MSG_SetGfxMinActiveFreq           0x14
+#define PPSMC_MSG_SetMinVideoGfxclkFreq         0x14
 #define PPSMC_MSG_ActiveProcessNotify           0x15
 #define PPSMC_MSG_SetCustomPolicy               0x16
 #define PPSMC_MSG_SetVideoFps                   0x17
@@ -63,9 +64,9 @@
 #define PPSMC_MSG_SetHardMinDcefclkByFreq       0x20
 #define PPSMC_MSG_SetHardMinSocclkByFreq        0x21
 #define PPSMC_MSG_SetMinVddcrSocVoltage         0x22
-
-
-#define PPSMC_Message_Count                     0x23
+#define PPSMC_MSG_SetMinVideoFclkFreq           0x23
+#define PPSMC_MSG_SetMinDeepSleepDcefclk        0x24
+#define PPSMC_Message_Count                     0x25
 
 typedef uint16_t PPSMC_Result;
 typedef int      PPSMC_Msg;
