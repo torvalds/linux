@@ -74,6 +74,7 @@ static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 		goto fail_exit;
 
 	INIT_LIST_HEAD_RCU(&tbl->it_group_list);
+	kref_init(&tbl->it_kref);
 	tgl->table_group = table_group;
 	list_add_rcu(&tgl->next, &tbl->it_group_list);
 
@@ -115,7 +116,7 @@ static void iommu_pseries_free_group(struct iommu_table_group *table_group,
 		BUG_ON(table_group->group);
 	}
 #endif
-	iommu_free_table(tbl, node_name);
+	iommu_tce_table_put(tbl);
 
 	kfree(table_group);
 }
