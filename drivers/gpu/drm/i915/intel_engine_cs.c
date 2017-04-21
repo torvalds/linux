@@ -265,6 +265,7 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	GEM_BUG_ON(!intel_engine_is_idle(engine));
+	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
 
 	/* Our semaphore implementation is strictly monotonic (i.e. we proceed
 	 * so long as the semaphore value in the register/page is greater
@@ -295,9 +296,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
 	clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted);
-
-	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
-	engine->hangcheck.seqno = seqno;
 
 	/* After manually advancing the seqno, fake the interrupt in case
 	 * there are any waiters for that seqno.
