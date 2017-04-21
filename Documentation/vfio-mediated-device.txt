@@ -217,9 +217,9 @@ Directories and files under the sysfs for Each Physical Device
 
 * [<type-id>]
 
-  The [<type-id>] name is created by adding the the device driver string as a
-  prefix to the string provided by the vendor driver. This format of this name
-  is as follows:
+  The [<type-id>] name is created by adding the device driver string as a prefix
+  to the string provided by the vendor driver. This format of this name is as
+  follows:
 
 	sprintf(buf, "%s-%s", dev_driver_string(parent->dev), group->name);
 
