@@ -629,7 +629,7 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static u32 ilk_sprite_ctl(const struct intel_crtc_state *crtc_state,
+static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv =
@@ -683,7 +683,7 @@ static u32 ilk_sprite_ctl(const struct intel_crtc_state *crtc_state,
 }
 
 static void
-ilk_update_plane(struct drm_plane *plane,
+g4x_update_plane(struct drm_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
 {
@@ -744,7 +744,7 @@ ilk_update_plane(struct drm_plane *plane,
 }
 
 static void
-ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
+g4x_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -964,7 +964,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		if (ret)
 			return ret;
 
-		state->ctl = ilk_sprite_ctl(crtc_state, state);
+		state->ctl = g4x_sprite_ctl(crtc_state, state);
 	}
 
 	return 0;
@@ -1024,7 +1024,7 @@ out:
 	return ret;
 }
 
-static const uint32_t ilk_plane_formats[] = {
+static const uint32_t g4x_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
@@ -1128,15 +1128,15 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
 
-		intel_plane->update_plane = ilk_update_plane;
-		intel_plane->disable_plane = ilk_disable_plane;
+		intel_plane->update_plane = g4x_update_plane;
+		intel_plane->disable_plane = g4x_disable_plane;
 
 		if (IS_GEN6(dev_priv)) {
 			plane_formats = snb_plane_formats;
 			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
 		} else {
-			plane_formats = ilk_plane_formats;
-			num_plane_formats = ARRAY_SIZE(ilk_plane_formats);
+			plane_formats = g4x_plane_formats;
+			num_plane_formats = ARRAY_SIZE(g4x_plane_formats);
 		}
 	}
 

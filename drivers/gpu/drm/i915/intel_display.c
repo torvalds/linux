@@ -1277,7 +1277,7 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 		I915_STATE_WARN(val & SPRITE_ENABLE,
 		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 		     plane_name(pipe), pipe_name(pipe));
-	} else if (INTEL_GEN(dev_priv) >= 5) {
+	} else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
 		u32 val = I915_READ(DVSCNTR(pipe));
 		I915_STATE_WARN(val & DVS_ENABLE,
 		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
@@ -14429,7 +14429,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_VYUY:
-		if (INTEL_GEN(dev_priv) < 5) {
+		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv)) {
 			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
 				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 			goto err;
