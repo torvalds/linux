@@ -59,7 +59,7 @@ config NET_DSA_SMSC_LAN9303
 
 config NET_DSA_SMSC_LAN9303_I2C
 	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in I2C managed mode"
-	depends on NET_DSA
+	depends on NET_DSA && I2C
 	select NET_DSA_SMSC_LAN9303
 	select REGMAP_I2C
 	---help---
