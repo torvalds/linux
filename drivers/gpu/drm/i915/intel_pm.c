@@ -1006,7 +1006,7 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc;
 	const struct drm_display_mode *adjusted_mode;
 	const struct drm_framebuffer *fb;
-	int hdisplay, htotal, cpp, clock;
+	int plane_width, cursor_width, htotal, cpp, clock;
 	int small, large;
 	int entries;
 
@@ -1020,20 +1020,23 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 	fb = crtc->base.primary->state->fb;
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
-	hdisplay = crtc->config->pipe_src_w;
+	plane_width = crtc->config->pipe_src_w;
+	cursor_width = crtc->base.cursor->state->crtc_w;
 	cpp = fb->format->cpp[0];
 
 	/* Use the minimum of the small and large buffer method for primary */
 	small = intel_wm_method1(clock, cpp, latency_ns / 100);
-	large = intel_wm_method2(clock, htotal, hdisplay, cpp,
+	large = intel_wm_method2(clock, htotal, plane_width, cpp,
 				 latency_ns / 100);
-	entries = DIV_ROUND_UP(min(small, large), display->cacheline_size);
+	entries = min(small, large);
+	entries += g4x_tlb_miss_wa(display->fifo_size, plane_width, cpp);
+	entries = DIV_ROUND_UP(entries, display->cacheline_size);
 	*display_wm = entries + display->guard_size;
 
 	/* calculate the self-refresh watermark for display cursor */
-	entries = intel_wm_method2(clock, htotal,
-				   crtc->base.cursor->state->crtc_w, 4,
+	entries = intel_wm_method2(clock, htotal, cursor_width, 4,
 				   latency_ns / 100);
+	entries += g4x_tlb_miss_wa(cursor->fifo_size, cursor_width, 4);
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 
