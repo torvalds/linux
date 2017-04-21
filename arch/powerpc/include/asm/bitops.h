@@ -233,25 +233,7 @@ int __ilog2_u64(u64 n)
 }
 #endif
 
-/*
- * Determines the bit position of the least significant 0 bit in the
- * specified double word. The returned bit position will be
- * zero-based, starting from the right side (63/31 - 0).
- */
-static __inline__ unsigned long ffz(unsigned long x)
-{
-	/* no zero exists anywhere in the 8 byte area. */
-	if ((x = ~x) == 0)
-		return BITS_PER_LONG;
-
-	/*
-	 * Calculate the bit position of the least significant '1' bit in x
-	 * (since x has been changed this will actually be the least significant
-	 * '0' bit in * the original x).  Note: (x & -x) gives us a mask that
-	 * is the least significant * (RIGHT-most) 1-bit of the value in x.
-	 */
-	return __ilog2(x & -x);
-}
+#include <asm-generic/bitops/ffz.h>
 
 #include <asm-generic/bitops/builtin-__ffs.h>
 
