@@ -2192,14 +2192,45 @@ qed_dcbnl_ieee_peer_getpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 	return qed_dcbnl_get_ieee_pfc(cdev, pfc, true);
 }
 
+static int qed_get_sf_ieee_value(u8 selector, u8 *sf_ieee)
+{
+	switch (selector) {
+	case IEEE_8021QAZ_APP_SEL_ETHERTYPE:
+		*sf_ieee = QED_DCBX_SF_IEEE_ETHTYPE;
+		break;
+	case IEEE_8021QAZ_APP_SEL_STREAM:
+		*sf_ieee = QED_DCBX_SF_IEEE_TCP_PORT;
+		break;
+	case IEEE_8021QAZ_APP_SEL_DGRAM:
+		*sf_ieee = QED_DCBX_SF_IEEE_UDP_PORT;
+		break;
+	case IEEE_8021QAZ_APP_SEL_ANY:
+		*sf_ieee = QED_DCBX_SF_IEEE_TCP_UDP_PORT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_dcbx_get *dcbx_info;
 	struct qed_app_entry *entry;
-	bool ethtype;
 	u8 prio = 0;
+	u8 sf_ieee;
 	int i;
+
+	DP_VERBOSE(hwfn, QED_MSG_DCB, "selector = %d protocol = %d\n",
+		   app->selector, app->protocol);
+
+	if (qed_get_sf_ieee_value(app->selector, &sf_ieee)) {
+		DP_INFO(cdev, "Invalid selector field value %d\n",
+			app->selector);
+		return -EINVAL;
+	}
 
 	dcbx_info = qed_dcbnl_get_dcbx(hwfn, QED_DCBX_OPERATIONAL_MIB);
 	if (!dcbx_info)
@@ -2211,11 +2242,9 @@ static int qed_dcbnl_ieee_getapp(struct qed_dev *cdev, struct dcb_app *app)
 		return -EINVAL;
 	}
 
-	/* ieee defines the selector field value for ethertype to be 1 */
-	ethtype = !!((app->selector - 1) == DCB_APP_IDTYPE_ETHTYPE);
 	for (i = 0; i < QED_DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &dcbx_info->operational.params.app_entry[i];
-		if ((entry->ethtype == ethtype) &&
+		if ((entry->sf_ieee == sf_ieee) &&
 		    (entry->proto_id == app->protocol)) {
 			prio = entry->prio;
 			break;
@@ -2243,11 +2272,19 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 	struct qed_dcbx_set dcbx_set;
 	struct qed_app_entry *entry;
 	struct qed_ptt *ptt;
-	bool ethtype;
+	u8 sf_ieee;
 	int rc, i;
 
+	DP_VERBOSE(hwfn, QED_MSG_DCB, "selector = %d protocol = %d pri = %d\n",
+		   app->selector, app->protocol, app->priority);
 	if (app->priority < 0 || app->priority >= QED_MAX_PFC_PRIORITIES) {
 		DP_INFO(hwfn, "Invalid priority %d\n", app->priority);
+		return -EINVAL;
+	}
+
+	if (qed_get_sf_ieee_value(app->selector, &sf_ieee)) {
+		DP_INFO(cdev, "Invalid selector field value %d\n",
+			app->selector);
 		return -EINVAL;
 	}
 
@@ -2268,11 +2305,9 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 	if (rc)
 		return -EINVAL;
 
-	/* ieee defines the selector field value for ethertype to be 1 */
-	ethtype = !!((app->selector - 1) == DCB_APP_IDTYPE_ETHTYPE);
 	for (i = 0; i < QED_DCBX_MAX_APP_PROTOCOL; i++) {
 		entry = &dcbx_set.config.params.app_entry[i];
-		if ((entry->ethtype == ethtype) &&
+		if ((entry->sf_ieee == sf_ieee) &&
 		    (entry->proto_id == app->protocol))
 			break;
 		/* First empty slot */
@@ -2288,7 +2323,7 @@ static int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 	}
 
 	dcbx_set.override_flags |= QED_DCBX_OVERRIDE_APP_CFG;
-	dcbx_set.config.params.app_entry[i].ethtype = ethtype;
+	dcbx_set.config.params.app_entry[i].sf_ieee = sf_ieee;
 	dcbx_set.config.params.app_entry[i].proto_id = app->protocol;
 	dcbx_set.config.params.app_entry[i].prio = BIT(app->priority);
 
