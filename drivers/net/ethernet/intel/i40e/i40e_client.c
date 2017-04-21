@@ -382,7 +382,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	 * the netdev is up, then open the client.
 	 */
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
-		if (!test_bit(__I40E_DOWN, &vsi->state) &&
+		if (!test_bit(__I40E_VSI_DOWN, &vsi->state) &&
 		    client->ops && client->ops->open) {
 			set_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
 			ret = client->ops->open(&cdev->lan_info, client);
@@ -397,7 +397,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	/* Likewise for client close. If the client is up, but the netdev
 	 * is down, then close the client.
 	 */
-		if (test_bit(__I40E_DOWN, &vsi->state) &&
+		if (test_bit(__I40E_VSI_DOWN, &vsi->state) &&
 		    client->ops && client->ops->close) {
 			clear_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
 			client->ops->close(&cdev->lan_info, client, false);

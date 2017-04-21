@@ -497,7 +497,7 @@ static void i40evf_netpoll(struct net_device *netdev)
 	int i;
 
 	/* if interface is down do nothing */
-	if (test_bit(__I40E_DOWN, &adapter->vsi.state))
+	if (test_bit(__I40E_VSI_DOWN, &adapter->vsi.state))
 		return;
 
 	for (i = 0; i < q_vectors; i++)
@@ -1087,7 +1087,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 static void i40evf_up_complete(struct i40evf_adapter *adapter)
 {
 	adapter->state = __I40EVF_RUNNING;
-	clear_bit(__I40E_DOWN, &adapter->vsi.state);
+	clear_bit(__I40E_VSI_DOWN, &adapter->vsi.state);
 
 	i40evf_napi_enable_all(adapter);
 
@@ -1753,7 +1753,7 @@ static void i40evf_disable_vf(struct i40evf_adapter *adapter)
 	adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
 
 	if (netif_running(adapter->netdev)) {
-		set_bit(__I40E_DOWN, &adapter->vsi.state);
+		set_bit(__I40E_VSI_DOWN, &adapter->vsi.state);
 		netif_carrier_off(adapter->netdev);
 		netif_tx_disable(adapter->netdev);
 		adapter->link_up = false;
@@ -2233,7 +2233,7 @@ static int i40evf_close(struct net_device *netdev)
 		return 0;
 
 
-	set_bit(__I40E_DOWN, &adapter->vsi.state);
+	set_bit(__I40E_VSI_DOWN, &adapter->vsi.state);
 	if (CLIENT_ENABLED(adapter))
 		adapter->flags |= I40EVF_FLAG_CLIENT_NEEDS_CLOSE;
 
@@ -2674,7 +2674,7 @@ static void i40evf_init_task(struct work_struct *work)
 		dev_info(&pdev->dev, "GRO is enabled\n");
 
 	adapter->state = __I40EVF_DOWN;
-	set_bit(__I40E_DOWN, &adapter->vsi.state);
+	set_bit(__I40E_VSI_DOWN, &adapter->vsi.state);
 	i40evf_misc_irq_enable(adapter);
 
 	adapter->rss_key = kzalloc(adapter->rss_key_size, GFP_KERNEL);

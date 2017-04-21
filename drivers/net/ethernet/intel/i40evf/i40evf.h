@@ -49,6 +49,11 @@
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
 #define PFX "i40evf: "
 
+/* VSI state flags shared with common code */
+enum i40evf_vsi_state_t {
+	__I40E_VSI_DOWN,
+};
+
 /* dummy struct to make common code less painful */
 struct i40e_vsi {
 	struct i40evf_adapter *back;
@@ -168,8 +173,6 @@ enum i40evf_critical_section_t {
 	__I40EVF_IN_CRITICAL_TASK,	/* cannot be interrupted */
 	__I40EVF_IN_CLIENT_TASK,
 };
-/* make common code happy */
-#define __I40E_DOWN __I40EVF_DOWN
 
 /* board specific private data structure */
 struct i40evf_adapter {
