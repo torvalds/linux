@@ -1613,11 +1613,15 @@ static inline void get_random_mask_addr(u8 *buf, const u8 *addr, const u8 *mask)
 /**
  * struct cfg80211_match_set - sets of attributes to match
  *
- * @ssid: SSID to be matched; may be zero-length for no match (RSSI only)
+ * @ssid: SSID to be matched; may be zero-length in case of BSSID match
+ *	or no match (RSSI only)
+ * @bssid: BSSID to be matched; may be all-zero BSSID in case of SSID match
+ *	or no match (RSSI only)
  * @rssi_thold: don't report scan results below this threshold (in s32 dBm)
  */
 struct cfg80211_match_set {
 	struct cfg80211_ssid ssid;
+	u8 bssid[ETH_ALEN];
 	s32 rssi_thold;
 };
 
