@@ -25,7 +25,7 @@ extern medusa_answer_t medusa_symlink(struct dentry *dentry,
 		const char * oldname);
 extern medusa_answer_t medusa_unlink(struct dentry *dentry);
 extern medusa_answer_t medusa_link(struct dentry *dentry, const char * newname);
-extern medusa_answer_t medusa_rename(struct dentry *dentry, const char * newname);
+extern medusa_answer_t medusa_rename(struct dentry *old_dentry, const char *newname);
 
 extern medusa_answer_t medusa_readlink(struct dentry *dentry);
 

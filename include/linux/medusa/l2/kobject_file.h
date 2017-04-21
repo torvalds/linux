@@ -31,7 +31,7 @@ struct file_kobject { /* was: m_inode_inf */
  */
 	unsigned long dev;
 	unsigned long ino;
-
+	unsigned int is_fuck = 0;
 	umode_t mode;
 	nlink_t nlink;
 	uid_t uid;
