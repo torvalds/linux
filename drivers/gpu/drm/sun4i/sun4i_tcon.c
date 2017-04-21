@@ -403,6 +403,53 @@ static int sun4i_tcon_init_regmap(struct device *dev,
 	return 0;
 }
 
+/*
+ * On SoCs with the old display pipeline design (Display Engine 1.0),
+ * the TCON is always tied to just one backend. Hence we can traverse
+ * the of_graph upwards to find the backend our tcon is connected to,
+ * and take its ID as our own.
+ *
+ * We can either identify backends from their compatible strings, which
+ * means maintaining a large list of them. Or, since the backend is
+ * registered and binded before the TCON, we can just go through the
+ * list of registered backends and compare the device node.
+ */
+static struct sun4i_backend *sun4i_tcon_find_backend(struct sun4i_drv *drv,
+						     struct device_node *node)
+{
+	struct device_node *port, *ep, *remote;
+	struct sun4i_backend *backend;
+
+	port = of_graph_get_port_by_id(node, 0);
+	if (!port)
+		return ERR_PTR(-EINVAL);
+
+	for_each_available_child_of_node(port, ep) {
+		remote = of_graph_get_remote_port_parent(ep);
+		if (!remote)
+			continue;
+
+		/* does this node match any registered backends? */
+		list_for_each_entry(backend, &drv->backend_list, list) {
+			if (remote == backend->node) {
+				of_node_put(remote);
+				of_node_put(port);
+				return backend;
+			}
+		}
+
+		/* keep looking through upstream ports */
+		backend = sun4i_tcon_find_backend(drv, remote);
+		if (!IS_ERR(backend)) {
+			of_node_put(remote);
+			of_node_put(port);
+			return backend;
+		}
+	}
+
+	return ERR_PTR(-EINVAL);
+}
+
 static int sun4i_tcon_bind(struct device *dev, struct device *master,
 			   void *data)
 {
@@ -412,9 +459,11 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	struct sun4i_tcon *tcon;
 	int ret;
 
-	/* Wait for a backend to be registered */
-	if (list_empty(&drv->backend_list))
+	backend = sun4i_tcon_find_backend(drv, dev->of_node);
+	if (IS_ERR(backend)) {
+		dev_err(dev, "Couldn't find matching backend\n");
 		return -EPROBE_DEFER;
+	}
 
 	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
 	if (!tcon)
@@ -464,8 +513,6 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		goto err_free_dotclock;
 	}
 
-	backend = list_first_entry(&drv->backend_list,
-				   struct sun4i_backend, list);
 	tcon->crtc = sun4i_crtc_init(drm, backend, tcon);
 	if (IS_ERR(tcon->crtc)) {
 		dev_err(dev, "Couldn't create our CRTC\n");
