@@ -83,6 +83,11 @@ enum nvme_quirks {
 	 * APST should not be used.
 	 */
 	NVME_QUIRK_NO_APST			= (1 << 4),
+
+	/*
+	 * The deepest sleep state should not be used.
+	 */
+	NVME_QUIRK_NO_DEEPEST_PS		= (1 << 5),
 };
 
 /*

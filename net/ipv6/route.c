@@ -1854,6 +1854,10 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 	int addr_type;
 	int err = -EINVAL;
 
+	/* RTF_PCPU is an internal flag; can not be set by userspace */
+	if (cfg->fc_flags & RTF_PCPU)
+		goto out;
+
 	if (cfg->fc_dst_len > 128 || cfg->fc_src_len > 128)
 		goto out;
 #ifndef CONFIG_IPV6_SUBTREES

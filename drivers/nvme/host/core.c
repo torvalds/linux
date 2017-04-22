@@ -1316,6 +1316,14 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 				table->entries[state] = target;
 
 			/*
+			 * Don't allow transitions to the deepest state
+			 * if it's quirked off.
+			 */
+			if (state == ctrl->npss &&
+			    (ctrl->quirks & NVME_QUIRK_NO_DEEPEST_PS))
+				continue;
+
+			/*
 			 * Is this state a useful non-operational state for
 			 * higher-power states to autonomously transition to?
 			 */
@@ -1387,16 +1395,15 @@ struct nvme_core_quirk_entry {
 };
 
 static const struct nvme_core_quirk_entry core_quirks[] = {
-	/*
-	 * Seen on a Samsung "SM951 NVMe SAMSUNG 256GB": using APST causes
-	 * the controller to go out to lunch.  It dies when the watchdog
-	 * timer reads CSTS and gets 0xffffffff.
-	 */
 	{
-		.vid = 0x144d,
-		.fr = "BXW75D0Q",
+		/*
+		 * This Toshiba device seems to die using any APST states.  See:
+		 * https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1678184/comments/11
+		 */
+		.vid = 0x1179,
+		.mn = "THNSF5256GPUK TOSHIBA",
 		.quirks = NVME_QUIRK_NO_APST,
-	},
+	}
 };
 
 /* match is null-terminated but idstr is space-padded. */
