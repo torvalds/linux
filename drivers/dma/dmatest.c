@@ -585,7 +585,7 @@ static int dmatest_func(void *data)
 		for (i = 0; i < src_cnt; i++) {
 			void *buf = thread->srcs[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
+			unsigned long pg_off = offset_in_page(buf);
 
 			um->addr[i] = dma_map_page(dev->dev, pg, pg_off,
 						   um->len, DMA_TO_DEVICE);
@@ -605,7 +605,7 @@ static int dmatest_func(void *data)
 		for (i = 0; i < dst_cnt; i++) {
 			void *buf = thread->dsts[i];
 			struct page *pg = virt_to_page(buf);
-			unsigned pg_off = (unsigned long) buf & ~PAGE_MASK;
+			unsigned long pg_off = offset_in_page(buf);
 
 			dsts[i] = dma_map_page(dev->dev, pg, pg_off, um->len,
 					       DMA_BIDIRECTIONAL);
