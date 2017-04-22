@@ -292,6 +292,12 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
 
 	preempt_disable();
+
+	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
+		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
+	if (base_pages_to_flush > tlb_single_page_flush_ceiling)
+		base_pages_to_flush = TLB_FLUSH_ALL;
+
 	if (current->active_mm != mm) {
 		/* Synchronize with switch_mm. */
 		smp_mb();
@@ -308,15 +314,11 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 		goto out;
 	}
 
-	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
-		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
-
 	/*
 	 * Both branches below are implicit full barriers (MOV to CR or
 	 * INVLPG) that synchronize with switch_mm.
 	 */
-	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
-		base_pages_to_flush = TLB_FLUSH_ALL;
+	if (base_pages_to_flush == TLB_FLUSH_ALL) {
 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
 		local_flush_tlb();
 	} else {
