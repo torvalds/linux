@@ -412,7 +412,8 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 
 	bi->flags = BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE |
 		template->flags;
-	bi->interval_exp = ilog2(queue_logical_block_size(disk->queue));
+	bi->interval_exp = template->interval_exp ? :
+		ilog2(queue_logical_block_size(disk->queue));
 	bi->profile = template->profile ? template->profile : &nop_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
