@@ -4483,7 +4483,8 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	}
 #endif
 	if (BNXT_PF(bp) && (le16_to_cpu(resp->flags) &
-			    FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED))
+			    (FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED |
+			     FUNC_QCFG_RESP_FLAGS_FW_LLDP_AGENT_ENABLED)))
 		bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
 
 	switch (resp->port_partition_type) {
