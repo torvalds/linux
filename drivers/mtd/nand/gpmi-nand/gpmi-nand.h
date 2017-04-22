@@ -130,6 +130,8 @@ struct gpmi_devdata {
 	enum gpmi_type type;
 	int bch_max_ecc_strength;
 	int max_chain_delay; /* See the async EDO mode */
+	const char * const *clks;
+	const int clks_count;
 };
 
 struct gpmi_nand_data {

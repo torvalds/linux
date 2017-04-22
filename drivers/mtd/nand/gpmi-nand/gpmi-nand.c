@@ -82,6 +82,10 @@ static int gpmi_ooblayout_free(struct mtd_info *mtd, int section,
 	return 0;
 }
 
+static const char * const gpmi_clks_for_mx2x[] = {
+	"gpmi_io",
+};
+
 static const struct mtd_ooblayout_ops gpmi_ooblayout_ops = {
 	.ecc = gpmi_ooblayout_ecc,
 	.free = gpmi_ooblayout_free,
@@ -91,24 +95,36 @@ static const struct gpmi_devdata gpmi_devdata_imx23 = {
 	.type = IS_MX23,
 	.bch_max_ecc_strength = 20,
 	.max_chain_delay = 16,
+	.clks = gpmi_clks_for_mx2x,
+	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx2x),
 };
 
 static const struct gpmi_devdata gpmi_devdata_imx28 = {
 	.type = IS_MX28,
 	.bch_max_ecc_strength = 20,
 	.max_chain_delay = 16,
+	.clks = gpmi_clks_for_mx2x,
+	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx2x),
+};
+
+static const char * const gpmi_clks_for_mx6[] = {
+	"gpmi_io", "gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch",
 };
 
 static const struct gpmi_devdata gpmi_devdata_imx6q = {
 	.type = IS_MX6Q,
 	.bch_max_ecc_strength = 40,
 	.max_chain_delay = 12,
+	.clks = gpmi_clks_for_mx6,
+	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx6),
 };
 
 static const struct gpmi_devdata gpmi_devdata_imx6sx = {
 	.type = IS_MX6SX,
 	.bch_max_ecc_strength = 62,
 	.max_chain_delay = 12,
+	.clks = gpmi_clks_for_mx6,
+	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx6),
 };
 
 static irqreturn_t bch_irq(int irq, void *cookie)
@@ -599,35 +615,14 @@ acquire_err:
 	return -EINVAL;
 }
 
-static char *extra_clks_for_mx6q[GPMI_CLK_MAX] = {
-	"gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch",
-};
-
 static int gpmi_get_clks(struct gpmi_nand_data *this)
 {
 	struct resources *r = &this->resources;
-	char **extra_clks = NULL;
 	struct clk *clk;
 	int err, i;
 
-	/* The main clock is stored in the first. */
-	r->clock[0] = devm_clk_get(this->dev, "gpmi_io");
-	if (IS_ERR(r->clock[0])) {
-		err = PTR_ERR(r->clock[0]);
-		goto err_clock;
-	}
-
-	/* Get extra clocks */
-	if (GPMI_IS_MX6(this))
-		extra_clks = extra_clks_for_mx6q;
-	if (!extra_clks)
-		return 0;
-
-	for (i = 1; i < GPMI_CLK_MAX; i++) {
-		if (extra_clks[i - 1] == NULL)
-			break;
-
-		clk = devm_clk_get(this->dev, extra_clks[i - 1]);
+	for (i = 0; i < this->devdata->clks_count; i++) {
+		clk = devm_clk_get(this->dev, this->devdata->clks[i]);
 		if (IS_ERR(clk)) {
 			err = PTR_ERR(clk);
 			goto err_clock;
