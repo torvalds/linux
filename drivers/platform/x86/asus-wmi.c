@@ -1757,7 +1757,7 @@ ASUS_WMI_CREATE_DEVICE_ATTR(cardr, 0644, ASUS_WMI_DEVID_CARDREADER);
 ASUS_WMI_CREATE_DEVICE_ATTR(lid_resume, 0644, ASUS_WMI_DEVID_LID_RESUME);
 ASUS_WMI_CREATE_DEVICE_ATTR(als_enable, 0644, ASUS_WMI_DEVID_ALS_ENABLE);
 
-static ssize_t store_cpufv(struct device *dev, struct device_attribute *attr,
+static ssize_t cpufv_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	int value, rv;
@@ -1774,7 +1774,7 @@ static ssize_t store_cpufv(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(cpufv, S_IRUGO | S_IWUSR, NULL, store_cpufv);
+static DEVICE_ATTR_WO(cpufv);
 
 static struct attribute *platform_attributes[] = {
 	&dev_attr_cpufv.attr,
