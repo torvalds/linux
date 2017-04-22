@@ -1045,6 +1045,8 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 	sense_reason_t (*exec_cmd)(struct se_cmd *cmd))
 {
 	unsigned char *cdb = cmd->t_task_cdb;
+	struct se_device *dev = cmd->se_dev;
+	unsigned int size;
 
 	/*
 	 * Clear a lun set in the cdb if the initiator talking to use spoke
@@ -1074,6 +1076,42 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 	if (cdb[0] == REPORT_LUNS) {
 		cmd->execute_cmd = spc_emulate_report_luns;
 		return TCM_NO_SENSE;
+	}
+
+	/*
+	 * For PERSISTENT RESERVE IN/OUT, RELEASE, and RESERVE we need to
+	 * emulate the response, since tcmu does not have the information
+	 * required to process these commands.
+	 */
+	if (!(dev->transport->transport_flags &
+	      TRANSPORT_FLAG_PASSTHROUGH_PGR)) {
+		if (cdb[0] == PERSISTENT_RESERVE_IN) {
+			cmd->execute_cmd = target_scsi3_emulate_pr_in;
+			size = (cdb[7] << 8) + cdb[8];
+			return target_cmd_size_check(cmd, size);
+		}
+		if (cdb[0] == PERSISTENT_RESERVE_OUT) {
+			cmd->execute_cmd = target_scsi3_emulate_pr_out;
+			size = (cdb[7] << 8) + cdb[8];
+			return target_cmd_size_check(cmd, size);
+		}
+
+		if (cdb[0] == RELEASE || cdb[0] == RELEASE_10) {
+			cmd->execute_cmd = target_scsi2_reservation_release;
+			if (cdb[0] == RELEASE_10)
+				size = (cdb[7] << 8) | cdb[8];
+			else
+				size = cmd->data_length;
+			return target_cmd_size_check(cmd, size);
+		}
+		if (cdb[0] == RESERVE || cdb[0] == RESERVE_10) {
+			cmd->execute_cmd = target_scsi2_reservation_reserve;
+			if (cdb[0] == RESERVE_10)
+				size = (cdb[7] << 8) | cdb[8];
+			else
+				size = cmd->data_length;
+			return target_cmd_size_check(cmd, size);
+		}
 	}
 
 	/* Set DATA_CDB flag for ops that should have it */
