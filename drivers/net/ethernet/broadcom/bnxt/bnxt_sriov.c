@@ -138,8 +138,11 @@ int bnxt_get_vf_config(struct net_device *dev, int vf_id,
 	ivi->max_tx_rate = vf->max_tx_rate;
 	ivi->min_tx_rate = vf->min_tx_rate;
 	ivi->vlan = vf->vlan;
-	ivi->qos = vf->flags & BNXT_VF_QOS;
-	ivi->spoofchk = vf->flags & BNXT_VF_SPOOFCHK;
+	if (vf->flags & BNXT_VF_QOS)
+		ivi->qos = vf->vlan >> VLAN_PRIO_SHIFT;
+	else
+		ivi->qos = 0;
+	ivi->spoofchk = !!(vf->flags & BNXT_VF_SPOOFCHK);
 	if (!(vf->flags & BNXT_VF_LINK_FORCED))
 		ivi->linkstate = IFLA_VF_LINK_STATE_AUTO;
 	else if (vf->flags & BNXT_VF_LINK_UP)
@@ -304,7 +307,6 @@ static int bnxt_set_vf_attr(struct bnxt *bp, int num_vfs)
 	for (i = 0; i < num_vfs; i++) {
 		vf = &bp->pf.vf[i];
 		memset(vf, 0, sizeof(*vf));
-		vf->flags = BNXT_VF_QOS | BNXT_VF_LINK_UP;
 	}
 	return 0;
 }
