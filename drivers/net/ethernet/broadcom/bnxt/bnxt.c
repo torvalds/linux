@@ -4482,10 +4482,15 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
 	}
 #endif
-	if (BNXT_PF(bp) && (le16_to_cpu(resp->flags) &
-			    (FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED |
-			     FUNC_QCFG_RESP_FLAGS_FW_LLDP_AGENT_ENABLED)))
-		bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+	if (BNXT_PF(bp)) {
+		u16 flags = le16_to_cpu(resp->flags);
+
+		if (flags & (FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED |
+			     FUNC_QCFG_RESP_FLAGS_FW_LLDP_AGENT_ENABLED))
+			bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+		if (flags & FUNC_QCFG_RESP_FLAGS_MULTI_HOST)
+			bp->flags |= BNXT_FLAG_MULTI_HOST;
+	}
 
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
