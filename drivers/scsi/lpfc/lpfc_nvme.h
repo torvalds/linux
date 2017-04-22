@@ -97,3 +97,7 @@ struct lpfc_nvme_buf {
 	uint64_t ts_data_nvme;
 #endif
 };
+
+struct lpfc_nvme_fcpreq_priv {
+	struct lpfc_nvme_buf *nvme_buf;
+};

@@ -761,6 +761,7 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct nvme_fc_cmd_iu *cp;
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nodelist *ndlp;
+	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	unsigned long flags;
 	uint32_t code;
 	uint16_t cid, sqhd, data;
@@ -918,6 +919,8 @@ out_err:
 			phba->cpucheck_cmpl_io[lpfc_ncmd->cpu]++;
 	}
 #endif
+	freqpriv = nCmd->private;
+	freqpriv->nvme_buf = NULL;
 	nCmd->done(nCmd);
 
 	spin_lock_irqsave(&phba->hbalock, flags);
@@ -1214,6 +1217,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_buf *lpfc_ncmd;
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvme_qhandle *lpfc_queue_info;
+	struct lpfc_nvme_fcpreq_priv *freqpriv = pnvme_fcreq->private;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint64_t start = 0;
 #endif
@@ -1292,7 +1296,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 * Do not let the IO hang out forever.  There is no midlayer issuing
 	 * an abort so inform the FW of the maximum IO pending time.
 	 */
-	pnvme_fcreq->private = (void *)lpfc_ncmd;
+	freqpriv->nvme_buf = lpfc_ncmd;
 	lpfc_ncmd->nvmeCmd = pnvme_fcreq;
 	lpfc_ncmd->nrport = rport;
 	lpfc_ncmd->ndlp = ndlp;
@@ -1422,6 +1426,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_buf *lpfc_nbuf;
 	struct lpfc_iocbq *abts_buf;
 	struct lpfc_iocbq *nvmereq_wqe;
+	struct lpfc_nvme_fcpreq_priv *freqpriv = pnvme_fcreq->private;
 	union lpfc_wqe *abts_wqe;
 	unsigned long flags;
 	int ret_val;
@@ -1484,7 +1489,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 	}
 
-	lpfc_nbuf = (struct lpfc_nvme_buf *)pnvme_fcreq->private;
+	lpfc_nbuf = freqpriv->nvme_buf;
 	if (!lpfc_nbuf) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
@@ -1637,7 +1642,7 @@ static struct nvme_fc_port_template lpfc_nvme_template = {
 	.local_priv_sz = sizeof(struct lpfc_nvme_lport),
 	.remote_priv_sz = sizeof(struct lpfc_nvme_rport),
 	.lsrqst_priv_sz = 0,
-	.fcprqst_priv_sz = 0,
+	.fcprqst_priv_sz = sizeof(struct lpfc_nvme_fcpreq_priv),
 };
 
 /**
@@ -2068,7 +2073,7 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		if (lpfc_test_rrq_active(phba, ndlp,
 					 lpfc_ncmd->cur_iocbq.sli4_lxritag))
 			continue;
-		list_del(&lpfc_ncmd->list);
+		list_del_init(&lpfc_ncmd->list);
 		found = 1;
 		break;
 	}
@@ -2083,7 +2088,7 @@ lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			if (lpfc_test_rrq_active(
 				phba, ndlp, lpfc_ncmd->cur_iocbq.sli4_lxritag))
 				continue;
-			list_del(&lpfc_ncmd->list);
+			list_del_init(&lpfc_ncmd->list);
 			found = 1;
 			break;
 		}
@@ -2542,7 +2547,7 @@ lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
 				 &phba->sli4_hba.lpfc_abts_nvme_buf_list,
 				 list) {
 		if (lpfc_ncmd->cur_iocbq.sli4_xritag == xri) {
-			list_del(&lpfc_ncmd->list);
+			list_del_init(&lpfc_ncmd->list);
 			lpfc_ncmd->flags &= ~LPFC_SBUF_XBUSY;
 			lpfc_ncmd->status = IOSTAT_SUCCESS;
 			spin_unlock(
