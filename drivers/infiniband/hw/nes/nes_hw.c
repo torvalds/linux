@@ -1849,9 +1849,8 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 		wqe_count -= counter;
 		nes_write32(nesdev->regs+NES_WQE_ALLOC, (counter << 24) | nesvnic->nic.qp_id);
 	} while (wqe_count);
-	init_timer(&nesvnic->rq_wqes_timer);
-	nesvnic->rq_wqes_timer.function = nes_rq_wqes_timeout;
-	nesvnic->rq_wqes_timer.data = (unsigned long)nesvnic;
+	setup_timer(&nesvnic->rq_wqes_timer, nes_rq_wqes_timeout,
+		    (unsigned long)nesvnic);
 	nes_debug(NES_DBG_INIT, "NAPI support Enabled\n");
 	if (nesdev->nesadapter->et_use_adaptive_rx_coalesce)
 	{
