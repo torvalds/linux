@@ -1407,7 +1407,8 @@ static int ds1307_probe(struct i2c_client *client,
 		break;
 	case mcp794xx:
 		rtc_ops = &mcp794xx_rtc_ops;
-		if (ds1307->irq > 0 && chip->alarm) {
+		if (chip->alarm && (ds1307->irq > 0 ||
+				    ds1307_can_wakeup_device)) {
 			irq_handler = mcp794xx_irq;
 			want_irq = true;
 		}
