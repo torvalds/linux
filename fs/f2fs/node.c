@@ -376,6 +376,7 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 	struct page *page = NULL;
 	struct f2fs_nat_entry ne;
 	struct nat_entry *e;
+	pgoff_t index;
 	int i;
 
 	ni->nid = nid;
@@ -401,17 +402,21 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 		node_info_from_raw_nat(ni, &ne);
 	}
 	up_read(&curseg->journal_rwsem);
-	if (i >= 0)
+	if (i >= 0) {
+		up_read(&nm_i->nat_tree_lock);
 		goto cache;
+	}
 
 	/* Fill node_info from nat page */
-	page = get_current_nat_page(sbi, start_nid);
+	index = current_nat_addr(sbi, nid);
+	up_read(&nm_i->nat_tree_lock);
+
+	page = get_meta_page(sbi, index);
 	nat_blk = (struct f2fs_nat_block *)page_address(page);
 	ne = nat_blk->entries[nid - start_nid];
 	node_info_from_raw_nat(ni, &ne);
 	f2fs_put_page(page, 1);
 cache:
-	up_read(&nm_i->nat_tree_lock);
 	/* cache nat entry */
 	down_write(&nm_i->nat_tree_lock);
 	cache_nat_entry(sbi, nid, &ne);
