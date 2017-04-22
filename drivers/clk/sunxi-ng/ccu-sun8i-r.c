@@ -81,7 +81,7 @@ static SUNXI_CCU_GATE(apb0_i2c_clk,	"apb0-i2c",	"apb0",
 static SUNXI_CCU_GATE(apb0_twd_clk,	"apb0-twd",	"apb0",
 		      0x28, BIT(7), 0);
 
-static const char * const r_mod0_default_parents[] = { "osc32K", "osc24M" };
+static const char * const r_mod0_default_parents[] = { "osc32k", "osc24M" };
 static SUNXI_CCU_MP_WITH_MUX_GATE(ir_clk, "ir",
 				  r_mod0_default_parents, 0x54,
 				  0, 4,		/* M */

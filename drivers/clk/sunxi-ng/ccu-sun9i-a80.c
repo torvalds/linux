@@ -70,8 +70,7 @@ static struct ccu_mult pll_c1cpux_clk = {
 /*
  * The Audio PLL has d1, d2 dividers in addition to the usual N, M
  * factors. Since we only need 2 frequencies from this PLL: 22.5792 MHz
- * and 24.576 MHz, ignore them for now. Enforce the default for them,
- * which is d1 = 0, d2 = 1.
+ * and 24.576 MHz, ignore them for now. Enforce d1 = 0 and d2 = 0.
  */
 #define SUN9I_A80_PLL_AUDIO_REG	0x008
 
