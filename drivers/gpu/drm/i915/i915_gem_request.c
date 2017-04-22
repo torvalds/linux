@@ -652,6 +652,9 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 
 	GEM_BUG_ON(to == from);
 
+	if (i915_gem_request_completed(from))
+		return 0;
+
 	if (to->engine->schedule) {
 		ret = i915_priotree_add_dependency(to->i915,
 						   &to->priotree,
