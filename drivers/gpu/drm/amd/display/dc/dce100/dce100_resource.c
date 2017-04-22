@@ -804,8 +804,6 @@ enum dc_status dce100_validate_with_context(
 	if (!dce100_validate_surface_sets(set, set_count))
 		return DC_FAIL_SURFACE_VALIDATE;
 
-	context->res_ctx.pool = dc->res_pool;
-
 	for (i = 0; i < set_count; i++) {
 		context->streams[i] = DC_STREAM_TO_CORE(set[i].stream);
 		dc_stream_retain(&context->streams[i]->public);
@@ -817,8 +815,8 @@ enum dc_status dce100_validate_with_context(
 	if (result == DC_OK)
 		result = resource_map_clock_resources(dc, context);
 
-	if (!resource_validate_attach_surfaces(
-			set, set_count, dc->current_context, context)) {
+	if (!resource_validate_attach_surfaces(set, set_count,
+			dc->current_context, context, dc->res_pool)) {
 		DC_ERROR("Failed to attach surface to stream!\n");
 		return DC_FAIL_ATTACH_SURFACES;
 	}
@@ -842,8 +840,6 @@ enum dc_status dce100_validate_guaranteed(
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->res_ctx.pool = dc->res_pool;
 
 	context->streams[0] = DC_STREAM_TO_CORE(dc_stream);
 	dc_stream_retain(&context->streams[0]->public);

@@ -749,22 +749,24 @@ static void destruct(struct dce110_resource_pool *pool)
 	}
 }
 
-static struct clock_source *find_matching_pll(struct resource_context *res_ctx,
+static struct clock_source *find_matching_pll(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
 		const struct core_stream *const stream)
 {
 	switch (stream->sink->link->link_enc->transmitter) {
 	case TRANSMITTER_UNIPHY_A:
-		return res_ctx->pool->clock_sources[DCE112_CLK_SRC_PLL0];
+		return pool->clock_sources[DCE112_CLK_SRC_PLL0];
 	case TRANSMITTER_UNIPHY_B:
-		return res_ctx->pool->clock_sources[DCE112_CLK_SRC_PLL1];
+		return pool->clock_sources[DCE112_CLK_SRC_PLL1];
 	case TRANSMITTER_UNIPHY_C:
-		return res_ctx->pool->clock_sources[DCE112_CLK_SRC_PLL2];
+		return pool->clock_sources[DCE112_CLK_SRC_PLL2];
 	case TRANSMITTER_UNIPHY_D:
-		return res_ctx->pool->clock_sources[DCE112_CLK_SRC_PLL3];
+		return pool->clock_sources[DCE112_CLK_SRC_PLL3];
 	case TRANSMITTER_UNIPHY_E:
-		return res_ctx->pool->clock_sources[DCE112_CLK_SRC_PLL4];
+		return pool->clock_sources[DCE112_CLK_SRC_PLL4];
 	case TRANSMITTER_UNIPHY_F:
-		return res_ctx->pool->clock_sources[DCE112_CLK_SRC_PLL5];
+		return pool->clock_sources[DCE112_CLK_SRC_PLL5];
 	default:
 		return NULL;
 	};
@@ -842,7 +844,7 @@ bool dce112_validate_bandwidth(
 			&dc->bw_dceip,
 			&dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
-			context->res_ctx.pool->pipe_count,
+			dc->res_pool->pipe_count,
 			&context->bw_results))
 		result = true;
 	context->dispclk_khz = context->bw_results.dispclk_khz;
@@ -928,17 +930,18 @@ enum dc_status resource_map_phy_clock_resources(
 			if (dc_is_dp_signal(pipe_ctx->stream->signal)
 				|| pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
 				pipe_ctx->clock_source =
-					context->res_ctx.pool->dp_clock_source;
+						dc->res_pool->dp_clock_source;
 			else
-				pipe_ctx->clock_source =
-					find_matching_pll(&context->res_ctx,
-							  stream);
+				pipe_ctx->clock_source = find_matching_pll(
+					&context->res_ctx, dc->res_pool,
+					stream);
 
 			if (pipe_ctx->clock_source == NULL)
 				return DC_NO_CLOCK_SOURCE_RESOURCE;
 
 			resource_reference_clock_source(
 				&context->res_ctx,
+				dc->res_pool,
 				pipe_ctx->clock_source);
 
 			/* only one cs per stream regardless of mpo */
@@ -983,8 +986,6 @@ enum dc_status dce112_validate_with_context(
 	if (!dce112_validate_surface_sets(set, set_count))
 		return DC_FAIL_SURFACE_VALIDATE;
 
-	context->res_ctx.pool = dc->res_pool;
-
 	for (i = 0; i < set_count; i++) {
 		context->streams[i] = DC_STREAM_TO_CORE(set[i].stream);
 		dc_stream_retain(&context->streams[i]->public);
@@ -996,8 +997,8 @@ enum dc_status dce112_validate_with_context(
 	if (result == DC_OK)
 		result = resource_map_phy_clock_resources(dc, context);
 
-	if (!resource_validate_attach_surfaces(
-			set, set_count, dc->current_context, context)) {
+	if (!resource_validate_attach_surfaces(set, set_count,
+			dc->current_context, context, dc->res_pool)) {
 		DC_ERROR("Failed to attach surface to stream!\n");
 		return DC_FAIL_ATTACH_SURFACES;
 	}
@@ -1021,8 +1022,6 @@ enum dc_status dce112_validate_guaranteed(
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->res_ctx.pool = dc->res_pool;
 
 	context->streams[0] = DC_STREAM_TO_CORE(dc_stream);
 	dc_stream_retain(&context->streams[0]->public);

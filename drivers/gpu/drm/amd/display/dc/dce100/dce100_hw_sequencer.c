@@ -132,8 +132,8 @@ void dce100_set_bandwidth(
 		bool decrease_allowed)
 {
 	if (decrease_allowed || context->dispclk_khz > dc->current_context->dispclk_khz) {
-		context->res_ctx.pool->display_clock->funcs->set_clock(
-				context->res_ctx.pool->display_clock,
+		dc->res_pool->display_clock->funcs->set_clock(
+				dc->res_pool->display_clock,
 				context->dispclk_khz * 115 / 100);
 		dc->current_context->bw_results.dispclk_khz = context->dispclk_khz;
 		dc->current_context->dispclk_khz = context->dispclk_khz;

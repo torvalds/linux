@@ -866,7 +866,7 @@ static enum dc_status validate_mapped_resource(
 				continue;
 
 			if (!is_surface_pixel_format_supported(pipe_ctx,
-							       context->res_ctx.pool->underlay_pipe_index))
+					dc->res_pool->underlay_pipe_index))
 				return DC_SURFACE_PIXEL_FORMAT_UNSUPPORTED;
 
 			if (!pipe_ctx->tg->funcs->validate_timing(
@@ -918,7 +918,7 @@ bool dce110_validate_bandwidth(
 			&dc->bw_dceip,
 			&dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
-			context->res_ctx.pool->pipe_count,
+			dc->res_pool->pipe_count,
 			&context->bw_results))
 		result =  true;
 	context->dispclk_khz = context->bw_results.dispclk_khz;
@@ -1030,8 +1030,6 @@ enum dc_status dce110_validate_with_context(
 	if (!dce110_validate_surface_sets(set, set_count))
 		return DC_FAIL_SURFACE_VALIDATE;
 
-	context->res_ctx.pool = dc->res_pool;
-
 	for (i = 0; i < set_count; i++) {
 		context->streams[i] = DC_STREAM_TO_CORE(set[i].stream);
 		dc_stream_retain(&context->streams[i]->public);
@@ -1043,8 +1041,8 @@ enum dc_status dce110_validate_with_context(
 	if (result == DC_OK)
 		result = resource_map_clock_resources(dc, context);
 
-	if (!resource_validate_attach_surfaces(
-			set, set_count, dc->current_context, context)) {
+	if (!resource_validate_attach_surfaces(set, set_count,
+			dc->current_context, context, dc->res_pool)) {
 		DC_ERROR("Failed to attach surface to stream!\n");
 		return DC_FAIL_ATTACH_SURFACES;
 	}
@@ -1068,8 +1066,6 @@ enum dc_status dce110_validate_guaranteed(
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->res_ctx.pool = dc->res_pool;
 
 	context->streams[0] = DC_STREAM_TO_CORE(dc_stream);
 	dc_stream_retain(&context->streams[0]->public);
@@ -1098,22 +1094,23 @@ enum dc_status dce110_validate_guaranteed(
 
 static struct pipe_ctx *dce110_acquire_underlay(
 		struct validate_context *context,
+		const struct resource_pool *pool,
 		struct core_stream *stream)
 {
 	struct core_dc *dc = DC_TO_CORE(stream->ctx->dc);
 	struct resource_context *res_ctx = &context->res_ctx;
-	unsigned int underlay_idx = res_ctx->pool->underlay_pipe_index;
+	unsigned int underlay_idx = pool->underlay_pipe_index;
 	struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[underlay_idx];
 
 	if (res_ctx->pipe_ctx[underlay_idx].stream)
 		return NULL;
 
-	pipe_ctx->tg = res_ctx->pool->timing_generators[underlay_idx];
-	pipe_ctx->mi = res_ctx->pool->mis[underlay_idx];
+	pipe_ctx->tg = pool->timing_generators[underlay_idx];
+	pipe_ctx->mi = pool->mis[underlay_idx];
 	/*pipe_ctx->ipp = res_ctx->pool->ipps[underlay_idx];*/
-	pipe_ctx->xfm = res_ctx->pool->transforms[underlay_idx];
-	pipe_ctx->opp = res_ctx->pool->opps[underlay_idx];
-	pipe_ctx->dis_clk = res_ctx->pool->display_clock;
+	pipe_ctx->xfm = pool->transforms[underlay_idx];
+	pipe_ctx->opp = pool->opps[underlay_idx];
+	pipe_ctx->dis_clk = pool->display_clock;
 	pipe_ctx->pipe_idx = underlay_idx;
 
 	pipe_ctx->stream = stream;

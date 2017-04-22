@@ -736,7 +736,7 @@ static void program_timing_sync(
 {
 	int i, j;
 	int group_index = 0;
-	int pipe_count = ctx->res_ctx.pool->pipe_count;
+	int pipe_count = core_dc->res_pool->pipe_count;
 	struct pipe_ctx *unsynced_pipes[MAX_PIPES] = { NULL };
 
 	for (i = 0; i < pipe_count; i++) {
@@ -939,7 +939,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	post_surface_trace(dc);
 
-	for (i = 0; i < context->res_ctx.pool->pipe_count; i++)
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].stream == NULL) {
 			context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			core_dc->hwss.power_down_front_end(
@@ -1015,7 +1015,7 @@ static bool is_surface_in_context(
 {
 	int j;
 
-	for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+	for (j = 0; j < MAX_PIPES; j++) {
 		const struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
 		if (surface == &pipe_ctx->surface->public) {
@@ -1245,7 +1245,8 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		/* add surface to context */
 		if (!resource_attach_surfaces_to_context(
-				new_surfaces, surface_count, dc_stream, context)) {
+				new_surfaces, surface_count, dc_stream,
+				context, core_dc->res_pool)) {
 			BREAK_TO_DEBUGGER();
 			goto fail;
 		}
@@ -1304,7 +1305,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		/* not sure if we still need this */
 		if (update_type == UPDATE_TYPE_FULL) {
-			for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+			for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
 				if (pipe_ctx->surface != surface)
@@ -1365,7 +1366,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	for (i = 0; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
 
-		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
 			if (pipe_ctx->surface != surface)
@@ -1389,7 +1390,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 				context_timing_trace(dc, &context->res_ctx);
 		}
 
-		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 			struct pipe_ctx *cur_pipe_ctx;
 			bool is_new_pipe_surface = true;
@@ -1427,7 +1428,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	}
 
 	/* Unlock pipes */
-	for (i = context->res_ctx.pool->pipe_count - 1; i >= 0; i--) {
+	for (i = core_dc->res_pool->pipe_count - 1; i >= 0; i--) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		for (j = 0; j < surface_count; j++) {
@@ -1570,8 +1571,6 @@ void dc_set_power_state(
 		 */
 		memset(core_dc->current_context, 0,
 				sizeof(*core_dc->current_context));
-
-		core_dc->current_context->res_ctx.pool = core_dc->res_pool;
 
 		break;
 	}

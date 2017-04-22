@@ -2245,7 +2245,7 @@ static void set_crtc_test_pattern(struct core_link *link,
 	case DP_TEST_PATTERN_VIDEO_MODE:
 	{
 		/* restore bitdepth reduction */
-		link->dc->current_context->res_ctx.pool->funcs->
+		link->dc->res_pool->funcs->
 			build_bit_depth_reduction_params(pipe_ctx->stream,
 					&params);
 		pipe_ctx->stream->bit_depth_params = params;

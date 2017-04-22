@@ -92,10 +92,12 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx);
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
 		struct clock_source **clock_source);
 
 void resource_reference_clock_source(
 		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
 		struct clock_source *clock_source);
 
 bool resource_are_streams_timing_synchronizable(
@@ -107,7 +109,8 @@ struct clock_source *resource_find_used_clk_src_for_sharing(
 		struct pipe_ctx *pipe_ctx);
 
 struct clock_source *dc_resource_find_first_free_pll(
-		struct resource_context *res_ctx);
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool);
 
 struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct resource_context *res_ctx,
@@ -117,9 +120,12 @@ bool resource_attach_surfaces_to_context(
 		const struct dc_surface *const *surfaces,
 		int surface_count,
 		const struct dc_stream *dc_stream,
-		struct validate_context *context);
+		struct validate_context *context,
+		const struct resource_pool *pool);
 
-struct pipe_ctx *find_idle_secondary_pipe(struct resource_context *res_ctx);
+struct pipe_ctx *find_idle_secondary_pipe(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool);
 
 bool resource_is_stream_unchanged(
 	const struct validate_context *old_context, const struct core_stream *stream);
@@ -131,7 +137,8 @@ bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],
 		int set_count,
 		const struct validate_context *old_context,
-		struct validate_context *context);
+		struct validate_context *context,
+		const struct resource_pool *pool);
 
 void validate_guaranteed_copy_streams(
 		struct validate_context *context,

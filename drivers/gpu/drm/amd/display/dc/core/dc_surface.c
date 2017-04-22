@@ -138,8 +138,7 @@ const struct dc_surface_status *dc_surface_get_status(
 	if (core_dc->current_context == NULL)
 		return NULL;
 
-	for (i = 0; i < core_dc->current_context->res_ctx.pool->pipe_count;
-			i++) {
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx =
 				&core_dc->current_context->res_ctx.pipe_ctx[i];
 

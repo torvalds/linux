@@ -212,6 +212,7 @@ struct resource_funcs {
 
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
 			struct validate_context *context,
+			const struct resource_pool *pool,
 			struct core_stream *stream);
 
 	void (*build_bit_depth_reduction_params)(
@@ -293,7 +294,6 @@ struct pipe_ctx {
 };
 
 struct resource_context {
-	const struct resource_pool *pool;
 	struct pipe_ctx pipe_ctx[MAX_PIPES];
 	bool is_stream_enc_acquired[MAX_PIPES * 2];
 	bool is_audio_acquired[MAX_PIPES];

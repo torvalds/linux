@@ -240,7 +240,7 @@ bool dc_stream_set_cursor_position(
 		struct dc_cursor_position pos_cpy = *position;
 		struct dc_cursor_mi_param param = {
 			.pixel_clk_khz = dc_stream->timing.pix_clk_khz,
-			.ref_clk_khz = res_ctx->pool->ref_clock_inKhz,
+			.ref_clk_khz = core_dc->res_pool->ref_clock_inKhz,
 			.viewport_x_start = pipe_ctx->scl_data.viewport.x,
 			.viewport_width = pipe_ctx->scl_data.viewport.width,
 			.h_scale_ratio = pipe_ctx->scl_data.ratios.horz
