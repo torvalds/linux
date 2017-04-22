@@ -128,14 +128,7 @@ static struct spk_synth synth_audptr = {
 
 static void synth_flush(struct spk_synth *synth)
 {
-	int timeout = SPK_XMITR_TIMEOUT;
-
-	while (spk_serial_tx_busy()) {
-		if (!--timeout)
-			break;
-		udelay(1);
-	}
-	outb(SYNTH_CLEAR, speakup_info.port_tts);
+	synth->io_ops->send_xchar(SYNTH_CLEAR);
 	synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 

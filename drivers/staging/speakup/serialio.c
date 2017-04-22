@@ -26,8 +26,13 @@ static const struct old_serial_port *serstate;
 static int timeouts;
 
 static int spk_serial_out(struct spk_synth *in_synth, const char ch);
+static void spk_serial_send_xchar(char ch);
+static void spk_serial_tiocmset(unsigned int set, unsigned int clear);
+
 struct spk_io_ops spk_serial_io_ops = {
 	.synth_out = spk_serial_out,
+	.send_xchar = spk_serial_send_xchar,
+	.tiocmset = spk_serial_tiocmset,
 };
 EXPORT_SYMBOL_GPL(spk_serial_io_ops);
 
@@ -134,6 +139,24 @@ static void start_serial_interrupt(int irq)
 	inb(speakup_info.port_tts + UART_IIR);
 	inb(speakup_info.port_tts + UART_MSR);
 	outb(1, speakup_info.port_tts + UART_FCR);	/* Turn FIFO On */
+}
+
+static void spk_serial_send_xchar(char ch)
+{
+	int timeout = SPK_XMITR_TIMEOUT;
+
+	while (spk_serial_tx_busy()) {
+		if (!--timeout)
+			break;
+		udelay(1);
+	}
+	outb(ch, speakup_info.port_tts);
+}
+
+static void spk_serial_tiocmset(unsigned int set, unsigned int clear)
+{
+	int old = inb(speakup_info.port_tts + UART_MCR);
+	outb((old & ~clear) | set, speakup_info.port_tts + UART_MCR);
 }
 
 int spk_serial_synth_probe(struct spk_synth *synth)
