@@ -302,6 +302,8 @@ static void proc_configure_early_demux(int enabled, int protocol)
 	struct inet6_protocol *ip6prot;
 #endif
 
+	rcu_read_lock();
+
 	ipprot = rcu_dereference(inet_protos[protocol]);
 	if (ipprot)
 		ipprot->early_demux = enabled ? ipprot->early_demux_handler :
@@ -313,6 +315,7 @@ static void proc_configure_early_demux(int enabled, int protocol)
 		ip6prot->early_demux = enabled ? ip6prot->early_demux_handler :
 						 NULL;
 #endif
+	rcu_read_unlock();
 }
 
 static int proc_tcp_early_demux(struct ctl_table *table, int write,
