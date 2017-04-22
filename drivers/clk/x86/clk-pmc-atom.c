@@ -339,8 +339,8 @@ static int plt_clk_probe(struct platform_device *pdev)
 		}
 	}
 	data->mclk_lookup = clkdev_hw_create(&data->clks[3]->hw, "mclk", NULL);
-	if (IS_ERR(data->mclk_lookup)) {
-		err = PTR_ERR(data->mclk_lookup);
+	if (!data->mclk_lookup) {
+		err = -ENOMEM;
 		goto err_unreg_clk_plt;
 	}
 
