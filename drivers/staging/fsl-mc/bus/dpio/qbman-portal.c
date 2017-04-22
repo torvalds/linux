@@ -963,7 +963,7 @@ int qbman_swp_alt_fq_state(struct qbman_swp *s, u32 fqid,
 	}
 
 	/* Decode the outcome */
-	WARN_ON(r->verb != alt_fq_verb);
+	WARN_ON((r->verb & QBMAN_RESULT_MASK) != alt_fq_verb);
 
 	/* Determine success or failure */
 	if (unlikely(r->rslt != QBMAN_MC_RSLT_OK)) {
