@@ -47,15 +47,25 @@ int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 		u16 index, u16 length, u8 *buffer)
 {
 	int status = 0;
+	u8 *usb_buffer;
 
 	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags))
 		return STATUS_FAILURE;
 
 	mutex_lock(&priv->usb_lock);
 
+	usb_buffer = kmemdup(buffer, length, GFP_KERNEL);
+	if (!usb_buffer) {
+		mutex_unlock(&priv->usb_lock);
+		return -ENOMEM;
+	}
+
 	status = usb_control_msg(priv->usb,
-		usb_sndctrlpipe(priv->usb, 0), request, 0x40, value,
-			index, buffer, length, USB_CTL_WAIT);
+				 usb_sndctrlpipe(priv->usb, 0),
+				 request, 0x40, value,
+				 index, usb_buffer, length, USB_CTL_WAIT);
+
+	kfree(usb_buffer);
 
 	mutex_unlock(&priv->usb_lock);
 
