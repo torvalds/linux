@@ -3055,7 +3055,7 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 		memcpy(cqp_wqe, &cqp_request->cqp_wqe, sizeof(*cqp_wqe));
 		barrier();
 
-		opcode = cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX];
+		opcode = le32_to_cpu(cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX]);
 		if ((opcode & NES_CQP_OPCODE_MASK) == NES_CQP_DOWNLOAD_SEGMENT)
 			ctx_index = NES_CQP_WQE_DL_COMP_CTX_LOW_IDX;
 		else
