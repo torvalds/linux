@@ -214,6 +214,8 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 
 	ret = -EOPNOTSUPP;
 	nest = nla_nest_start(skb, RTA_ENCAP);
+	if (!nest)
+		goto nla_put_failure;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->fill_encap))
