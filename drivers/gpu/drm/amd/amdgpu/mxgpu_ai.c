@@ -296,11 +296,11 @@ int xgpu_ai_mailbox_add_irq_id(struct amdgpu_device *adev)
 {
 	int r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 135, &adev->virt.rcv_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_BIF, 135, &adev->virt.rcv_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 138, &adev->virt.ack_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_BIF, 138, &adev->virt.ack_irq);
 	if (r) {
 		amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 		return r;
