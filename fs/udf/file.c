@@ -44,12 +44,12 @@ static void __udf_adinicb_readpage(struct page *page)
 	char *kaddr;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	kaddr = kmap(page);
+	kaddr = kmap_atomic(page);
 	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, inode->i_size);
 	memset(kaddr + inode->i_size, 0, PAGE_SIZE - inode->i_size);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
-	kunmap(page);
+	kunmap_atomic(kaddr);
 }
 
 static int udf_adinicb_readpage(struct file *file, struct page *page)
@@ -70,11 +70,11 @@ static int udf_adinicb_writepage(struct page *page,
 
 	BUG_ON(!PageLocked(page));
 
-	kaddr = kmap(page);
+	kaddr = kmap_atomic(page);
 	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr, inode->i_size);
-	mark_inode_dirty(inode);
 	SetPageUptodate(page);
-	kunmap(page);
+	kunmap_atomic(kaddr);
+	mark_inode_dirty(inode);
 	unlock_page(page);
 
 	return 0;
