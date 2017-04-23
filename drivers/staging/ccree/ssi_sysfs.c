@@ -316,7 +316,7 @@ static ssize_t ssi_sys_help_show(struct kobject *kobj,
 	int i=0, offset = 0;
 
 	offset += scnprintf(buf + offset, PAGE_SIZE - offset, "Usage:\n");
-	for ( i = 0; i < (sizeof(help_str)/sizeof(help_str[0])); i+=2) {
+	for ( i = 0; i < ARRAY_SIZE(help_str); i+=2) {
 	   offset += scnprintf(buf + offset, PAGE_SIZE - offset, "%s\t\t%s\n", help_str[i], help_str[i+1]);
 	}
 	return offset;
@@ -426,8 +426,7 @@ int ssi_sysfs_init(struct kobject *sys_dev_obj, struct ssi_drvdata *drvdata)
 	/* Initialize top directory */
 	retval = sys_init_dir(&sys_top_dir, drvdata, sys_dev_obj,
 				"cc_info", ssi_sys_top_level_attrs,
-				sizeof(ssi_sys_top_level_attrs) /
-				sizeof(struct kobj_attribute));
+				ARRAY_SIZE(ssi_sys_top_level_attrs));
 	return retval;
 }
 
