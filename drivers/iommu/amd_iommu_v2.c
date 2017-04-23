@@ -695,9 +695,9 @@ out_clear_state:
 
 out_unregister:
 	mmu_notifier_unregister(&pasid_state->mn, mm);
+	mmput(mm);
 
 out_free:
-	mmput(mm);
 	free_pasid_state(pasid_state);
 
 out:
