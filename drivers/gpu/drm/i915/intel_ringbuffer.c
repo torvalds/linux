@@ -1694,6 +1694,7 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 
 	GEM_BUG_ON(ring->emit > ring->size - bytes);
 	cs = ring->vaddr + ring->emit;
+	GEM_DEBUG_EXEC(memset(cs, POISON_INUSE, bytes));
 	ring->emit += bytes;
 	ring->space -= bytes;
 	GEM_BUG_ON(ring->space < 0);
