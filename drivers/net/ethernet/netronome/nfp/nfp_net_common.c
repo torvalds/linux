@@ -2165,7 +2165,7 @@ nfp_net_tx_ring_hw_cfg_write(struct nfp_net *nn,
  */
 static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 {
-	u32 new_ctrl, update = 0;
+	u32 bufsz, new_ctrl, update = 0;
 	unsigned int r;
 	int err;
 
@@ -2199,8 +2199,9 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	nfp_net_write_mac_addr(nn);
 
 	nn_writel(nn, NFP_NET_CFG_MTU, nn->dp.netdev->mtu);
-	nn_writel(nn, NFP_NET_CFG_FLBUFSZ,
-		  nn->dp.fl_bufsz - NFP_NET_RX_BUF_NON_DATA);
+
+	bufsz = nn->dp.fl_bufsz - nn->dp.rx_dma_off - NFP_NET_RX_BUF_NON_DATA;
+	nn_writel(nn, NFP_NET_CFG_FLBUFSZ, bufsz);
 
 	/* Enable device */
 	new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
