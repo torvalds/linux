@@ -1050,7 +1050,7 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 	u32 priority_a_mark = 0, priority_b_mark = 0;
 	u32 priority_a_cnt = PRIORITY_OFF;
 	u32 priority_b_cnt = PRIORITY_OFF;
-	u32 tmp, arb_control3;
+	u32 tmp, arb_control3, lb_vblank_lead_lines = 0;
 	fixed20_12 a, b, c;
 
 	if (amdgpu_crtc->base.enabled && num_heads && mode) {
@@ -1162,6 +1162,8 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 		c.full = dfixed_div(c, a);
 		priority_b_mark = dfixed_trunc(c);
 		priority_b_cnt |= priority_b_mark & PRIORITY_MARK_MASK;
+
+		lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
 
 	/* select wm A */
@@ -1191,6 +1193,9 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 	/* save values for DPM */
 	amdgpu_crtc->line_time = line_time;
 	amdgpu_crtc->wm_high = latency_watermark_a;
+
+	/* Save number of lines the linebuffer leads before the scanout */
+	amdgpu_crtc->lb_vblank_lead_lines = lb_vblank_lead_lines;
 }
 
 /* watermark setup */
