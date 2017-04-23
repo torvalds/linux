@@ -93,6 +93,7 @@ enum nfp_nsp_cmd {
 	SPCODE_FW_LOAD		= 6, /* Load fw from buffer, len in option */
 	SPCODE_ETH_RESCAN	= 7, /* Rescan ETHs, write ETH_TABLE to buf */
 	SPCODE_ETH_CONTROL	= 8, /* Update media config from buffer */
+	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
 
 	__MAX_SPCODE,
 };
@@ -492,4 +493,10 @@ int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 {
 	return nfp_nsp_command_buf(state, SPCODE_ETH_CONTROL, size, buf, size,
 				   NULL, 0);
+}
+
+int nfp_nsp_read_identify(struct nfp_nsp *state, void *buf, unsigned int size)
+{
+	return nfp_nsp_command_buf(state, SPCODE_NSP_IDENTIFY, size, NULL, 0,
+				   buf, size);
 }
