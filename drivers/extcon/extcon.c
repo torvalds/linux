@@ -964,12 +964,12 @@ EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
 
 /**
  * extcon_register_notifier_all() - Register a notifier block for all connectors
- * @edev:	the extcon device that has the external connecotr.
+ * @edev:	the extcon device that has the external connector.
  * @nb:		a notifier block to be registered.
  *
- * This fucntion registers a notifier block in order to receive the state
+ * This function registers a notifier block in order to receive the state
  * change of all supported external connectors from extcon device.
- * And The second parameter given to the callback of nb (val) is
+ * And the second parameter given to the callback of nb (val) is
  * the current state and third parameter is the edev pointer.
  *
  * Returns 0 if success or error number if fail
