@@ -1,0 +1,19 @@
+config CRYPTO_DEV_CCREE
+	tristate "Support for ARM TrustZone CryptoCell C7XX family of Crypto accelerators"
+	depends on CRYPTO_HW && OF && HAS_DMA
+	default n
+	help
+	  Say 'Y' to enable a driver for the Arm TrustZone CryptoCell 
+	  C7xx. Currently only the CryptoCell 712 REE is supported.
+	  Choose this if you wish to use hardware acceleration of
+	  cryptographic operations on the system REE.
+	  If unsure say Y.
+
+config CCREE_DISABLE_COHERENT_DMA_OPS
+	bool "Disable Coherent DMA operations for the CCREE driver"
+	depends on CRYPTO_DEV_CCREE
+	default n
+	help
+	  Say 'Y' to disable the use of coherent DMA operations by the
+	  CCREE driver for debugging purposes.  
+	  If unsure say N.
