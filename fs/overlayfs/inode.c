@@ -61,14 +61,51 @@ static int ovl_getattr(const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
+	enum ovl_path_type type;
 	struct path realpath;
 	const struct cred *old_cred;
 	int err;
 
-	ovl_path_real(dentry, &realpath);
+	type = ovl_path_real(dentry, &realpath);
 	old_cred = ovl_override_creds(dentry->d_sb);
 	err = vfs_getattr(&realpath, stat, request_mask, flags);
+	if (err)
+		goto out;
+
+	/*
+	 * When all layers are on the same fs, all real inode number are
+	 * unique, so we use the overlay st_dev, which is friendly to du -x.
+	 *
+	 * We also use st_ino of the copy up origin, if we know it.
+	 * This guaranties constant st_dev/st_ino across copy up.
+	 *
+	 * If filesystem supports NFS export ops, this also guaranties
+	 * persistent st_ino across mount cycle.
+	 */
+	if (ovl_same_sb(dentry->d_sb)) {
+		if (OVL_TYPE_ORIGIN(type)) {
+			struct kstat lowerstat;
+
+			ovl_path_lower(dentry, &realpath);
+			err = vfs_getattr(&realpath, &lowerstat,
+					  STATX_INO | STATX_NLINK, flags);
+			if (err)
+				goto out;
+
+			WARN_ON_ONCE(stat->dev != lowerstat.dev);
+			/*
+			 * Lower hardlinks are broken on copy up to different
+			 * upper files, so we cannot use the lower origin st_ino
+			 * for those different files, even for the same fs case.
+			 */
+			if (lowerstat.nlink == 1)
+				stat->ino = lowerstat.ino;
+		}
+		stat->dev = dentry->d_sb->s_dev;
+	}
+out:
 	revert_creds(old_cred);
+
 	return err;
 }
 
