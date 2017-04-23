@@ -1192,6 +1192,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	struct nvme_fc_ctrl *ctrl = op->ctrl;
 	struct nvme_fc_queue *queue = op->queue;
 	struct nvme_completion *cqe = &op->rsp_iu.cqe;
+	struct nvme_command *sqe = &op->cmd_iu.sqe;
 	__le16 status = cpu_to_le16(NVME_SC_SUCCESS << 1);
 	union nvme_result result;
 
@@ -1274,7 +1275,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 			     be32_to_cpu(op->rsp_iu.xfrd_len) !=
 					freq->transferred_length ||
 			     op->rsp_iu.status_code ||
-			     op->rqno != le16_to_cpu(cqe->command_id))) {
+			     sqe->common.command_id != cqe->command_id)) {
 			status = cpu_to_le16(NVME_SC_FC_TRANSPORT_ERROR << 1);
 			goto done;
 		}
