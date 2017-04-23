@@ -30,7 +30,7 @@
 #ifndef __LINUX_RCUTREE_H
 #define __LINUX_RCUTREE_H
 
-void rcu_note_context_switch(void);
+void rcu_note_context_switch(bool preempt);
 int rcu_needs_cpu(u64 basem, u64 *nextevt);
 void rcu_cpu_stall_reset(void);
 
@@ -41,7 +41,7 @@ void rcu_cpu_stall_reset(void);
  */
 static inline void rcu_virt_note_context_switch(int cpu)
 {
-	rcu_note_context_switch();
+	rcu_note_context_switch(false);
 }
 
 void synchronize_rcu_bh(void);
@@ -108,6 +108,7 @@ void rcu_scheduler_starting(void);
 extern int rcu_scheduler_active __read_mostly;
 
 bool rcu_is_watching(void);
+void rcu_request_urgent_qs_task(struct task_struct *t);
 
 void rcu_all_qs(void);
 

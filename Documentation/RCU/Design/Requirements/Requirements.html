@@ -659,8 +659,9 @@ systems with more than one CPU:
 	In other words, a given instance of <tt>synchronize_rcu()</tt>
 	can avoid waiting on a given RCU read-side critical section only
 	if it can prove that <tt>synchronize_rcu()</tt> started first.
+	</font>
 
-	<p>
+	<p><font color="ffffff">
 	A related question is &ldquo;When <tt>rcu_read_lock()</tt>
 	doesn't generate any code, why does it matter how it relates
 	to a grace period?&rdquo;
@@ -675,8 +676,9 @@ systems with more than one CPU:
 	within the critical section, in which case none of the accesses
 	within the critical section may observe the effects of any
 	access following the grace period.
+	</font>
 
-	<p>
+	<p><font color="ffffff">
 	As of late 2016, mathematical models of RCU take this
 	viewpoint, for example, see slides&nbsp;62 and&nbsp;63
 	of the
@@ -1616,8 +1618,8 @@ CPUs should at least make reasonable forward progress.
 In return for its shorter latencies, <tt>synchronize_rcu_expedited()</tt>
 is permitted to impose modest degradation of real-time latency
 on non-idle online CPUs.
-That said, it will likely be necessary to take further steps to reduce this
-degradation, hopefully to roughly that of a scheduling-clock interrupt.
+Here, &ldquo;modest&rdquo; means roughly the same latency
+degradation as a scheduling-clock interrupt.
 
 <p>
 There are a number of situations where even
@@ -1913,12 +1915,9 @@ This requirement is another factor driving batching of grace periods,
 but it is also the driving force behind the checks for large numbers
 of queued RCU callbacks in the <tt>call_rcu()</tt> code path.
 Finally, high update rates should not delay RCU read-side critical
-sections, although some read-side delays can occur when using
+sections, although some small read-side delays can occur when using
 <tt>synchronize_rcu_expedited()</tt>, courtesy of this function's use
-of <tt>try_stop_cpus()</tt>.
-(In the future, <tt>synchronize_rcu_expedited()</tt> will be
-converted to use lighter-weight inter-processor interrupts (IPIs),
-but this will still disturb readers, though to a much smaller degree.)
+of <tt>smp_call_function_single()</tt>.
 
 <p>
 Although all three of these corner cases were understood in the early
@@ -2154,7 +2153,8 @@ as will <tt>rcu_assign_pointer()</tt>.
 <p>
 Although <tt>call_rcu()</tt> may be invoked at any
 time during boot, callbacks are not guaranteed to be invoked until after
-the scheduler is fully up and running.
+all of RCU's kthreads have been spawned, which occurs at
+<tt>early_initcall()</tt> time.
 This delay in callback invocation is due to the fact that RCU does not
 invoke callbacks until it is fully initialized, and this full initialization
 cannot occur until after the scheduler has initialized itself to the
@@ -2167,8 +2167,10 @@ on what operations those callbacks could invoke.
 Perhaps surprisingly, <tt>synchronize_rcu()</tt>,
 <a href="#Bottom-Half Flavor"><tt>synchronize_rcu_bh()</tt></a>
 (<a href="#Bottom-Half Flavor">discussed below</a>),
-and
-<a href="#Sched Flavor"><tt>synchronize_sched()</tt></a>
+<a href="#Sched Flavor"><tt>synchronize_sched()</tt></a>,
+<tt>synchronize_rcu_expedited()</tt>,
+<tt>synchronize_rcu_bh_expedited()</tt>, and
+<tt>synchronize_sched_expedited()</tt>
 will all operate normally
 during very early boot, the reason being that there is only one CPU
 and preemption is disabled.
@@ -2178,45 +2180,59 @@ state and thus a grace period, so the early-boot implementation can
 be a no-op.
 
 <p>
-Both <tt>synchronize_rcu_bh()</tt> and <tt>synchronize_sched()</tt>
-continue to operate normally through the remainder of boot, courtesy
-of the fact that preemption is disabled across their RCU read-side
-critical sections and also courtesy of the fact that there is still
-only one CPU.
-However, once the scheduler starts initializing, preemption is enabled.
-There is still only a single CPU, but the fact that preemption is enabled
-means that the no-op implementation of <tt>synchronize_rcu()</tt> no
-longer works in <tt>CONFIG_PREEMPT=y</tt> kernels.
-Therefore, as soon as the scheduler starts initializing, the early-boot
-fastpath is disabled.
-This means that <tt>synchronize_rcu()</tt> switches to its runtime
-mode of operation where it posts callbacks, which in turn means that
-any call to <tt>synchronize_rcu()</tt> will block until the corresponding
-callback is invoked.
-Unfortunately, the callback cannot be invoked until RCU's runtime
-grace-period machinery is up and running, which cannot happen until
-the scheduler has initialized itself sufficiently to allow RCU's
-kthreads to be spawned.
-Therefore, invoking <tt>synchronize_rcu()</tt> during scheduler
-initialization can result in deadlock.
+However, once the scheduler has spawned its first kthread, this early
+boot trick fails for <tt>synchronize_rcu()</tt> (as well as for
+<tt>synchronize_rcu_expedited()</tt>) in <tt>CONFIG_PREEMPT=y</tt>
+kernels.
+The reason is that an RCU read-side critical section might be preempted,
+which means that a subsequent <tt>synchronize_rcu()</tt> really does have
+to wait for something, as opposed to simply returning immediately.
+Unfortunately, <tt>synchronize_rcu()</tt> can't do this until all of
+its kthreads are spawned, which doesn't happen until some time during
+<tt>early_initcalls()</tt> time.
+But this is no excuse:  RCU is nevertheless required to correctly handle
+synchronous grace periods during this time period.
+Once all of its kthreads are up and running, RCU starts running
+normally.
 
 <table>
 <tr><th>&nbsp;</th></tr>
 <tr><th align="left">Quick Quiz:</th></tr>
 <tr><td>
-	So what happens with <tt>synchronize_rcu()</tt> during
-	scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
-	kernels?
+	How can RCU possibly handle grace periods before all of its
+	kthreads have been spawned???
 </td></tr>
 <tr><th align="left">Answer:</th></tr>
 <tr><td bgcolor="#ffffff"><font color="ffffff">
-	In <tt>CONFIG_PREEMPT=n</tt> kernel, <tt>synchronize_rcu()</tt>
-	maps directly to <tt>synchronize_sched()</tt>.
-	Therefore, <tt>synchronize_rcu()</tt> works normally throughout
-	boot in <tt>CONFIG_PREEMPT=n</tt> kernels.
-	However, your code must also work in <tt>CONFIG_PREEMPT=y</tt> kernels,
-	so it is still necessary to avoid invoking <tt>synchronize_rcu()</tt>
-	during scheduler initialization.
+	Very carefully!
+	</font>
+
+	<p><font color="ffffff">
+	During the &ldquo;dead zone&rdquo; between the time that the
+	scheduler spawns the first task and the time that all of RCU's
+	kthreads have been spawned, all synchronous grace periods are
+	handled by the expedited grace-period mechanism.
+	At runtime, this expedited mechanism relies on workqueues, but
+	during the dead zone the requesting task itself drives the
+	desired expedited grace period.
+	Because dead-zone execution takes place within task context,
+	everything works.
+	Once the dead zone ends, expedited grace periods go back to
+	using workqueues, as is required to avoid problems that would
+	otherwise occur when a user task received a POSIX signal while
+	driving an expedited grace period.
+	</font>
+
+	<p><font color="ffffff">
+	And yes, this does mean that it is unhelpful to send POSIX
+	signals to random tasks between the time that the scheduler
+	spawns its first kthread and the time that RCU's kthreads
+	have all been spawned.
+	If there ever turns out to be a good reason for sending POSIX
+	signals during that time, appropriate adjustments will be made.
+	(If it turns out that POSIX signals are sent during this time for
+	no good reason, other adjustments will be made, appropriate
+	or otherwise.)
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>
@@ -2295,12 +2311,61 @@ situation, and Dipankar Sarma incorporated <tt>rcu_barrier()</tt> into RCU.
 The need for <tt>rcu_barrier()</tt> for module unloading became
 apparent later.
 
+<p>
+<b>Important note</b>: The <tt>rcu_barrier()</tt> function is not,
+repeat, <i>not</i>, obligated to wait for a grace period.
+It is instead only required to wait for RCU callbacks that have
+already been posted.
+Therefore, if there are no RCU callbacks posted anywhere in the system,
+<tt>rcu_barrier()</tt> is within its rights to return immediately.
+Even if there are callbacks posted, <tt>rcu_barrier()</tt> does not
+necessarily need to wait for a grace period.
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Wait a minute!
+	Each RCU callbacks must wait for a grace period to complete,
+	and <tt>rcu_barrier()</tt> must wait for each pre-existing
+	callback to be invoked.
+	Doesn't <tt>rcu_barrier()</tt> therefore need to wait for
+	a full grace period if there is even one callback posted anywhere
+	in the system?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Absolutely not!!!
+	</font>
+
+	<p><font color="ffffff">
+	Yes, each RCU callbacks must wait for a grace period to complete,
+	but it might well be partly (or even completely) finished waiting
+	by the time <tt>rcu_barrier()</tt> is invoked.
+	In that case, <tt>rcu_barrier()</tt> need only wait for the
+	remaining portion of the grace period to elapse.
+	So even if there are quite a few callbacks posted,
+	<tt>rcu_barrier()</tt> might well return quite quickly.
+	</font>
+
+	<p><font color="ffffff">
+	So if you need to wait for a grace period as well as for all
+	pre-existing callbacks, you will need to invoke both
+	<tt>synchronize_rcu()</tt> and <tt>rcu_barrier()</tt>.
+	If latency is a concern, you can always use workqueues
+	to invoke them concurrently.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
 <h3><a name="Hotplug CPU">Hotplug CPU</a></h3>
 
 <p>
 The Linux kernel supports CPU hotplug, which means that CPUs
 can come and go.
-It is of course illegal to use any RCU API member from an offline CPU.
+It is of course illegal to use any RCU API member from an offline CPU,
+with the exception of <a href="#Sleepable RCU">SRCU</a> read-side
+critical sections.
 This requirement was present from day one in DYNIX/ptx, but
 on the other hand, the Linux kernel's CPU-hotplug implementation
 is &ldquo;interesting.&rdquo;
@@ -2310,19 +2375,18 @@ The Linux-kernel CPU-hotplug implementation has notifiers that
 are used to allow the various kernel subsystems (including RCU)
 to respond appropriately to a given CPU-hotplug operation.
 Most RCU operations may be invoked from CPU-hotplug notifiers,
-including even normal synchronous grace-period operations
-such as <tt>synchronize_rcu()</tt>.
-However, expedited grace-period operations such as
-<tt>synchronize_rcu_expedited()</tt> are not supported,
-due to the fact that current implementations block CPU-hotplug
-operations, which could result in deadlock.
+including even synchronous grace-period operations such as
+<tt>synchronize_rcu()</tt> and <tt>synchronize_rcu_expedited()</tt>.
 
 <p>
-In addition, all-callback-wait operations such as
+However, all-callback-wait operations such as
 <tt>rcu_barrier()</tt> are also not supported, due to the
 fact that there are phases of CPU-hotplug operations where
 the outgoing CPU's callbacks will not be invoked until after
 the CPU-hotplug operation ends, which could also result in deadlock.
+Furthermore, <tt>rcu_barrier()</tt> blocks CPU-hotplug operations
+during its execution, which results in another type of deadlock
+when invoked from a CPU-hotplug notifier.
 
 <h3><a name="Scheduler and RCU">Scheduler and RCU</a></h3>
 
@@ -2864,6 +2928,27 @@ API, which, in combination with <tt>srcu_read_unlock()</tt>,
 guarantees a full memory barrier.
 
 <p>
+Also unlike other RCU flavors, SRCU's callbacks-wait function
+<tt>srcu_barrier()</tt> may be invoked from CPU-hotplug notifiers,
+though this is not necessarily a good idea.
+The reason that this is possible is that SRCU is insensitive
+to whether or not a CPU is online, which means that <tt>srcu_barrier()</tt>
+need not exclude CPU-hotplug operations.
+
+<p>
+As of v4.12, SRCU's callbacks are maintained per-CPU, eliminating
+a locking bottleneck present in prior kernel versions.
+Although this will allow users to put much heavier stress on
+<tt>call_srcu()</tt>, it is important to note that SRCU does not
+yet take any special steps to deal with callback flooding.
+So if you are posting (say) 10,000 SRCU callbacks per second per CPU,
+you are probably totally OK, but if you intend to post (say) 1,000,000
+SRCU callbacks per second per CPU, please run some tests first.
+SRCU just might need a few adjustment to deal with that sort of load.
+Of course, your mileage may vary based on the speed of your CPUs and
+the size of your memory.
+
+<p>
 The
 <a href="https://lwn.net/Articles/609973/#RCU Per-Flavor API Table">SRCU API</a>
 includes
@@ -3021,8 +3106,8 @@ to do some redesign to avoid this scalability problem.
 
 <p>
 RCU disables CPU hotplug in a few places, perhaps most notably in the
-expedited grace-period and <tt>rcu_barrier()</tt> operations.
-If there is a strong reason to use expedited grace periods in CPU-hotplug
+<tt>rcu_barrier()</tt> operations.
+If there is a strong reason to use <tt>rcu_barrier()</tt> in CPU-hotplug
 notifiers, it will be necessary to avoid disabling CPU hotplug.
 This would introduce some complexity, so there had better be a <i>very</i>
 good reason.
@@ -3096,9 +3181,5 @@ Andy Lutomirski for their help in rendering
 this article human readable, and to Michelle Rankin for her support
 of this effort.
 Other contributions are acknowledged in the Linux kernel's git archive.
-The cartoon is copyright (c) 2013 by Melissa Broussard,
-and is provided
-under the terms of the Creative Commons Attribution-Share Alike 3.0
-United States license.
 
 </body></html>
