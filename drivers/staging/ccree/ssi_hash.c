@@ -314,14 +314,11 @@ fail4:
 		state->digest_buff_dma_addr = 0;
 	}
 fail3:
-	if (state->opad_digest_buff != NULL)
-		kfree(state->opad_digest_buff);
+	kfree(state->opad_digest_buff);
 fail2:
-	if (state->digest_bytes_len != NULL)
-		kfree(state->digest_bytes_len);
+	kfree(state->digest_bytes_len);
 fail1:
-	if (state->digest_buff != NULL)
-		kfree(state->digest_buff);
+	 kfree(state->digest_buff);
 fail_digest_result_buff:
 	 if (state->digest_result_buff != NULL) {
 		 kfree(state->digest_result_buff);
@@ -370,18 +367,12 @@ static void ssi_hash_unmap_request(struct device *dev,
 		state->opad_digest_dma_addr = 0;
 	}
 
-	if (state->opad_digest_buff != NULL)
-		kfree(state->opad_digest_buff);
-	if (state->digest_bytes_len != NULL)
-		kfree(state->digest_bytes_len);
-	if (state->digest_buff != NULL)
-		kfree(state->digest_buff);
-	if (state->digest_result_buff != NULL) 
-	 	kfree(state->digest_result_buff);
-	if (state->buff1 != NULL) 
-		kfree(state->buff1);
-	if (state->buff0 != NULL)
-		kfree(state->buff0);
+	kfree(state->opad_digest_buff);
+	kfree(state->digest_bytes_len);
+	kfree(state->digest_buff);
+	kfree(state->digest_result_buff);
+	kfree(state->buff1);
+	kfree(state->buff0);
 }
 
 static void ssi_hash_unmap_result(struct device *dev, 
