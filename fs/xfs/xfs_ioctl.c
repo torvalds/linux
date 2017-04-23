@@ -1674,7 +1674,7 @@ xfs_ioc_getfsmap(
 		return error;
 
 	/* If we didn't abort, set the "last" flag in the last fmx */
-	if (!aborted && xhead.fmh_entries) {
+	if (!aborted && info.idx) {
 		info.last_flags |= FMR_OF_LAST;
 		if (copy_to_user(&info.data->fmh_recs[info.idx - 1].fmr_flags,
 				&info.last_flags, sizeof(info.last_flags)))
