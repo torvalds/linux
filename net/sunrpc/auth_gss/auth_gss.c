@@ -541,9 +541,13 @@ gss_setup_upcall(struct gss_auth *gss_auth, struct rpc_cred *cred)
 		return gss_new;
 	gss_msg = gss_add_msg(gss_new);
 	if (gss_msg == gss_new) {
-		int res = rpc_queue_upcall(gss_new->pipe, &gss_new->msg);
+		int res;
+		atomic_inc(&gss_msg->count);
+		res = rpc_queue_upcall(gss_new->pipe, &gss_new->msg);
 		if (res) {
 			gss_unhash_msg(gss_new);
+			atomic_dec(&gss_msg->count);
+			gss_release_msg(gss_new);
 			gss_msg = ERR_PTR(res);
 		}
 	} else
@@ -836,6 +840,7 @@ gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 			warn_gssd();
 		gss_release_msg(gss_msg);
 	}
+	gss_release_msg(gss_msg);
 }
 
 static void gss_pipe_dentry_destroy(struct dentry *dir,

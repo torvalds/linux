@@ -979,7 +979,11 @@ static int cmp_map(const void *m0, const void *m1)
 	const struct nfit_set_info_map *map0 = m0;
 	const struct nfit_set_info_map *map1 = m1;
 
-	return map0->region_offset - map1->region_offset;
+	if (map0->region_offset < map1->region_offset)
+		return -1;
+	else if (map0->region_offset > map1->region_offset)
+		return 1;
+	return 0;
 }
 
 /* Retrieve the nth entry referencing this spa */

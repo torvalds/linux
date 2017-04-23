@@ -1816,11 +1816,24 @@ static int __init acer_wmi_enable_lm(void)
 	return status;
 }
 
+#define ACER_WMID_ACCEL_HID	"BST0001"
+
 static acpi_status __init acer_wmi_get_handle_cb(acpi_handle ah, u32 level,
 						void *ctx, void **retval)
 {
+	struct acpi_device *dev;
+
+	if (!strcmp(ctx, "SENR")) {
+		if (acpi_bus_get_device(ah, &dev))
+			return AE_OK;
+		if (!strcmp(ACER_WMID_ACCEL_HID, acpi_device_hid(dev)))
+			return AE_OK;
+	} else
+		return AE_OK;
+
 	*(acpi_handle *)retval = ah;
-	return AE_OK;
+
+	return AE_CTRL_TERMINATE;
 }
 
 static int __init acer_wmi_get_handle(const char *name, const char *prop,
@@ -1847,7 +1860,7 @@ static int __init acer_wmi_accel_setup(void)
 {
 	int err;
 
-	err = acer_wmi_get_handle("SENR", "BST0001", &gsensor_handle);
+	err = acer_wmi_get_handle("SENR", ACER_WMID_ACCEL_HID, &gsensor_handle);
 	if (err)
 		return err;
 
@@ -2185,9 +2198,10 @@ static int __init acer_wmi_init(void)
 		err = acer_wmi_input_setup();
 		if (err)
 			return err;
+		err = acer_wmi_accel_setup();
+		if (err)
+			return err;
 	}
-
-	acer_wmi_accel_setup();
 
 	err = platform_driver_register(&acer_platform_driver);
 	if (err) {
