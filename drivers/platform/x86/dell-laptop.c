@@ -45,6 +45,7 @@
 #define KBD_LED_AUTO_100_TOKEN 0x02F6
 #define GLOBAL_MIC_MUTE_ENABLE 0x0364
 #define GLOBAL_MIC_MUTE_DISABLE 0x0365
+#define KBD_LED_AC_TOKEN 0x0451
 
 struct quirk_entry {
 	u8 touchpad_led;
@@ -1027,7 +1028,7 @@ static void touchpad_led_exit(void)
  *     bit 2     Pointing stick
  *     bit 3     Any mouse
  *     bits 4-7  Reserved for future use
- *  cbRES2, byte3  Current Timeout
+ *  cbRES2, byte3  Current Timeout on battery
  *     bits 7:6  Timeout units indicator:
  *     00b       Seconds
  *     01b       Minutes
@@ -1039,6 +1040,15 @@ static void touchpad_led_exit(void)
  *  cbRES3, byte0  Current setting of ALS value that turns the light on or off.
  *  cbRES3, byte1  Current ALS reading
  *  cbRES3, byte2  Current keyboard light level.
+ *  cbRES3, byte3  Current timeout on AC Power
+ *     bits 7:6  Timeout units indicator:
+ *     00b       Seconds
+ *     01b       Minutes
+ *     10b       Hours
+ *     11b       Days
+ *     Bits 5:0  Timeout value (0-63) in sec/min/hr/day
+ *     NOTE: A value of 0 means always on (no timeout) if any bits of RES3 byte2
+ *     are set upon return from the upon return from the [Get Feature information] call.
  *
  * cbArg1 0x2 = Set New State
  *  cbRES1         Standard return codes (0, -1, -2)
@@ -1061,7 +1071,7 @@ static void touchpad_led_exit(void)
  *     bit 2     Pointing stick
  *     bit 3     Any mouse
  *     bits 4-7  Reserved for future use
- *  cbArg2, byte3  Desired Timeout
+ *  cbArg2, byte3  Desired Timeout on battery
  *     bits 7:6  Timeout units indicator:
  *     00b       Seconds
  *     01b       Minutes
@@ -1070,6 +1080,13 @@ static void touchpad_led_exit(void)
  *     bits 5:0  Timeout value (0-63) in sec/min/hr/day
  *  cbArg3, byte0  Desired setting of ALS value that turns the light on or off.
  *  cbArg3, byte2  Desired keyboard light level.
+ *  cbArg3, byte3  Desired Timeout on AC power
+ *     bits 7:6  Timeout units indicator:
+ *     00b       Seconds
+ *     01b       Minutes
+ *     10b       Hours
+ *     11b       Days
+ *     bits 5:0  Timeout value (0-63) in sec/min/hr/day
  */
 
 
@@ -1115,6 +1132,8 @@ struct kbd_state {
 	u8 triggers;
 	u8 timeout_value;
 	u8 timeout_unit;
+	u8 timeout_value_ac;
+	u8 timeout_unit_ac;
 	u8 als_setting;
 	u8 als_value;
 	u8 level;
@@ -1134,6 +1153,7 @@ static u16 kbd_token_bits;
 static struct kbd_info kbd_info;
 static bool kbd_als_supported;
 static bool kbd_triggers_supported;
+static bool kbd_timeout_ac_supported;
 
 static u8 kbd_mode_levels[16];
 static int kbd_mode_levels_count;
@@ -1273,6 +1293,8 @@ static int kbd_get_state(struct kbd_state *state)
 	state->als_setting = buffer->output[2] & 0xFF;
 	state->als_value = (buffer->output[2] >> 8) & 0xFF;
 	state->level = (buffer->output[2] >> 16) & 0xFF;
+	state->timeout_value_ac = (buffer->output[2] >> 24) & 0x3F;
+	state->timeout_unit_ac = (buffer->output[2] >> 30) & 0x3;
 
  out:
 	dell_smbios_release_buffer();
@@ -1292,6 +1314,8 @@ static int kbd_set_state(struct kbd_state *state)
 	buffer->input[1] |= (state->timeout_unit & 0x3) << 30;
 	buffer->input[2] = state->als_setting & 0xFF;
 	buffer->input[2] |= (state->level & 0xFF) << 16;
+	buffer->input[2] |= (state->timeout_value_ac & 0x3F) << 24;
+	buffer->input[2] |= (state->timeout_unit_ac & 0x3) << 30;
 	dell_smbios_send_request(4, 11);
 	ret = buffer->output[0];
 	dell_smbios_release_buffer();
@@ -1397,6 +1421,13 @@ static inline int kbd_init_info(void)
 	ret = kbd_get_info(&kbd_info);
 	if (ret)
 		return ret;
+
+	/* NOTE: Old models without KBD_LED_AC_TOKEN token supports only one
+	 *       timeout value which is shared for both battery and AC power
+	 *       settings. So do not try to set AC values on old models.
+	 */
+	if (dell_smbios_find_token(KBD_LED_AC_TOKEN))
+		kbd_timeout_ac_supported = true;
 
 	kbd_get_state(&state);
 
@@ -1579,8 +1610,14 @@ static ssize_t kbd_led_timeout_store(struct device *dev,
 		goto out;
 
 	new_state = state;
-	new_state.timeout_value = value;
-	new_state.timeout_unit = unit;
+
+	if (kbd_timeout_ac_supported && power_supply_is_system_supplied() > 0) {
+		new_state.timeout_value_ac = value;
+		new_state.timeout_unit_ac = unit;
+	} else {
+		new_state.timeout_value = value;
+		new_state.timeout_unit = unit;
+	}
 
 	ret = kbd_set_state_safe(&new_state, &state);
 	if (ret)
@@ -1596,16 +1633,26 @@ static ssize_t kbd_led_timeout_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct kbd_state state;
+	int value;
 	int ret;
 	int len;
+	u8 unit;
 
 	ret = kbd_get_state(&state);
 	if (ret)
 		return ret;
 
-	len = sprintf(buf, "%d", state.timeout_value);
+	if (kbd_timeout_ac_supported && power_supply_is_system_supplied() > 0) {
+		value = state.timeout_value_ac;
+		unit = state.timeout_unit_ac;
+	} else {
+		value = state.timeout_value;
+		unit = state.timeout_unit;
+	}
 
-	switch (state.timeout_unit) {
+	len = sprintf(buf, "%d", value);
+
+	switch (unit) {
 	case KBD_TIMEOUT_SECONDS:
 		return len + sprintf(buf+len, "s\n");
 	case KBD_TIMEOUT_MINUTES:
