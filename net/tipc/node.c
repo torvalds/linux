@@ -2098,6 +2098,8 @@ int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	msg.skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg.skb)
+		return -ENOMEM;
 	msg.portid = info->snd_portid;
 	msg.seq = info->snd_seq;
 
