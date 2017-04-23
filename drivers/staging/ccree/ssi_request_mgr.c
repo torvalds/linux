@@ -30,6 +30,8 @@
 #include "ssi_sysfs.h"
 #include "ssi_ivgen.h"
 #include "ssi_pm.h"
+#include "ssi_fips.h"
+#include "ssi_fips_local.h"
 
 #define SSI_MAX_POLL_ITER	10
 

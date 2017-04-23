@@ -69,6 +69,7 @@
 #include "ssi_ivgen.h"
 #include "ssi_sram_mgr.h"
 #include "ssi_pm.h"
+#include "ssi_fips_local.h"
 
 
 #ifdef DX_DUMP_BYTES
@@ -142,7 +143,15 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 		irr &= ~SSI_COMP_IRQ_MASK;
 		complete_request(drvdata);
 	}
-
+#ifdef CC_SUPPORT_FIPS
+	/* TEE FIPS interrupt */
+	if (likely((irr & SSI_GPR0_IRQ_MASK) != 0)) {
+		/* Mask interrupt - will be unmasked in Deferred service handler */
+		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), imr | SSI_GPR0_IRQ_MASK);
+		irr &= ~SSI_GPR0_IRQ_MASK;
+		fips_handler(drvdata);
+	}
+#endif
 	/* AXI error interrupt */
 	if (unlikely((irr & SSI_AXI_ERR_IRQ_MASK) != 0)) {
 		uint32_t axi_err;
@@ -351,6 +360,12 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto init_cc_res_err;
 	}
 
+	rc = ssi_fips_init(new_drvdata);
+	if (unlikely(rc != 0)) {
+		SSI_LOG_ERR("SSI_FIPS_INIT failed 0x%x\n", rc);
+		goto init_cc_res_err;
+	}
+
 	rc = ssi_ivgen_init(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_ivgen_init failed\n");
@@ -391,6 +406,7 @@ init_cc_res_err:
 		ssi_buffer_mgr_fini(new_drvdata);
 		request_mgr_fini(new_drvdata);
 		ssi_sram_mgr_fini(new_drvdata);
+		ssi_fips_fini(new_drvdata);
 #ifdef ENABLE_CC_SYSFS
 		ssi_sysfs_fini();
 #endif
@@ -434,6 +450,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	ssi_buffer_mgr_fini(drvdata);
 	request_mgr_fini(drvdata);
 	ssi_sram_mgr_fini(drvdata);
+	ssi_fips_fini(drvdata);
 #ifdef ENABLE_CC_SYSFS
 	ssi_sysfs_fini();
 #endif

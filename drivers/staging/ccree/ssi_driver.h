@@ -54,6 +54,7 @@
 #include "cc_crypto_ctx.h"
 #include "ssi_sysfs.h"
 #include "hash_defs.h"
+#include "ssi_fips_local.h"
 
 #define DRV_MODULE_VERSION "3.0"
 
@@ -152,6 +153,7 @@ struct ssi_drvdata {
 	void *aead_handle;
 	void *blkcipher_handle;
 	void *request_mgr_handle;
+	void *fips_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;
 
