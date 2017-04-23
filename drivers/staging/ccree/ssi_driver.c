@@ -539,7 +539,6 @@ MODULE_DEVICE_TABLE(of, arm_cc7x_dev_of_match);
 static struct platform_driver cc7x_driver = {
 	.driver = {
 		   .name = "cc7xree",
-		   .owner = THIS_MODULE,
 #ifdef CONFIG_OF
 		   .of_match_table = arm_cc7x_dev_of_match,
 #endif
