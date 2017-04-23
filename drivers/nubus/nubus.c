@@ -92,9 +92,6 @@ static void nubus_rewind(unsigned char **ptr, int len, int map)
 {
 	unsigned char *p = *ptr;
 
-	/* Sanity check */
-	if (len > 65536)
-		pr_err("rewind of 0x%08x!\n", len);
 	while (len) {
 		do {
 			p--;
@@ -108,8 +105,6 @@ static void nubus_advance(unsigned char **ptr, int len, int map)
 {
 	unsigned char *p = *ptr;
 
-	if (len > 65536)
-		pr_err("advance of 0x%08x!\n", len);
 	while (len) {
 		while (not_useful(p, map))
 			p++;
@@ -121,10 +116,15 @@ static void nubus_advance(unsigned char **ptr, int len, int map)
 
 static void nubus_move(unsigned char **ptr, int len, int map)
 {
+	unsigned long slot_space = (unsigned long)*ptr & 0xFF000000;
+
 	if (len > 0)
 		nubus_advance(ptr, len, map);
 	else if (len < 0)
 		nubus_rewind(ptr, -len, map);
+
+	if (((unsigned long)*ptr & 0xFF000000) != slot_space)
+		pr_err("%s: moved out of slot address space!\n", __func__);
 }
 
 /* Now, functions to read the sResource tree */
@@ -808,8 +808,6 @@ void __init nubus_probe_slot(int slot)
 			continue;
 
 		dp = *rp;
-		if(dp == 0)
-			continue;
 
 		/* The last byte of the format block consists of two
 		   nybbles which are "mirror images" of each other.
@@ -818,7 +816,7 @@ void __init nubus_probe_slot(int slot)
 			continue;
 		/* Check that this value is actually *on* one of the
 		   bytelanes it claims are valid! */
-		if ((dp & 0x0F) >= (1 << i))
+		if (not_useful(rp, dp))
 			continue;
 
 		/* Looks promising.  Let's put it on the list. */
