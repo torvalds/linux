@@ -641,12 +641,12 @@ struct dc_crtc_timing {
 	struct dc_crtc_timing_flags flags;
 };
 
-struct _dlg_otg_param {
-	int vstartup_start;
-	int vupdate_offset;
-	int vupdate_width;
-	int vready_offset;
-	enum signal_type signal;
+#define MAX_TG_COLOR_VALUE 0x3FF
+struct tg_color {
+	/* Maximum 10 bits color value */
+	uint16_t color_r_cr;
+	uint16_t color_g_y;
+	uint16_t color_b_cb;
 };
 
 #endif /* DC_HW_TYPES_H */

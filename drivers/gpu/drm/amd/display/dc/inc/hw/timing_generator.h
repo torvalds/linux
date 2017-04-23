@@ -28,18 +28,6 @@
 
 struct dc_bios;
 
-/**
- *  These parameters are required as input when doing blanking/Unblanking
-*/
-#define MAX_TG_COLOR_VALUE 0x3FF
-
-struct tg_color {
-	/* Maximum 10 bits color value */
-	uint16_t color_r_cr;
-	uint16_t color_g_y;
-	uint16_t color_b_cb;
-};
-
 /* Contains CRTC vertical/horizontal pixel counters */
 struct crtc_position {
 	uint32_t vertical_count;
