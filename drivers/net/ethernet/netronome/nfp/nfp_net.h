@@ -284,6 +284,12 @@ struct nfp_net_rx_desc {
 
 #define NFP_NET_META_FIELD_MASK GENMASK(NFP_NET_META_FIELD_SIZE - 1, 0)
 
+struct nfp_meta_parsed {
+	u32 hash_type;
+	u32 hash;
+	u32 mark;
+};
+
 struct nfp_net_rx_hash {
 	__be32 hash_type;
 	__be32 hash;
