@@ -2373,46 +2373,43 @@ static int pmcraid_reset_reload(
 		spin_lock_irqsave(pinstance->host->host_lock, lock_flags);
 
 		if (pinstance->ioa_state == IOA_STATE_DEAD) {
-			spin_unlock_irqrestore(pinstance->host->host_lock,
-					       lock_flags);
 			pmcraid_info("reset_reload: IOA is dead\n");
-			return reset;
-		} else if (pinstance->ioa_state == target_state) {
+			goto out_unlock;
+		}
+
+		if (pinstance->ioa_state == target_state) {
 			reset = 0;
+			goto out_unlock;
 		}
 	}
 
-	if (reset) {
-		pmcraid_info("reset_reload: proceeding with reset\n");
-		scsi_block_requests(pinstance->host);
-		reset_cmd = pmcraid_get_free_cmd(pinstance);
-
-		if (reset_cmd == NULL) {
-			pmcraid_err("no free cmnd for reset_reload\n");
-			spin_unlock_irqrestore(pinstance->host->host_lock,
-					       lock_flags);
-			return reset;
-		}
-
-		if (shutdown_type == SHUTDOWN_NORMAL)
-			pinstance->ioa_bringdown = 1;
-
-		pinstance->ioa_shutdown_type = shutdown_type;
-		pinstance->reset_cmd = reset_cmd;
-		pinstance->force_ioa_reset = reset;
-		pmcraid_info("reset_reload: initiating reset\n");
-		pmcraid_ioa_reset(reset_cmd);
-		spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
-		pmcraid_info("reset_reload: waiting for reset to complete\n");
-		wait_event(pinstance->reset_wait_q,
-			   !pinstance->ioa_reset_in_progress);
-
-		pmcraid_info("reset_reload: reset is complete !!\n");
-		scsi_unblock_requests(pinstance->host);
-		if (pinstance->ioa_state == target_state)
-			reset = 0;
+	pmcraid_info("reset_reload: proceeding with reset\n");
+	scsi_block_requests(pinstance->host);
+	reset_cmd = pmcraid_get_free_cmd(pinstance);
+	if (reset_cmd == NULL) {
+		pmcraid_err("no free cmnd for reset_reload\n");
+		goto out_unlock;
 	}
 
+	if (shutdown_type == SHUTDOWN_NORMAL)
+		pinstance->ioa_bringdown = 1;
+
+	pinstance->ioa_shutdown_type = shutdown_type;
+	pinstance->reset_cmd = reset_cmd;
+	pinstance->force_ioa_reset = reset;
+	pmcraid_info("reset_reload: initiating reset\n");
+	pmcraid_ioa_reset(reset_cmd);
+	spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
+	pmcraid_info("reset_reload: waiting for reset to complete\n");
+	wait_event(pinstance->reset_wait_q,
+		   !pinstance->ioa_reset_in_progress);
+
+	pmcraid_info("reset_reload: reset is complete !!\n");
+	scsi_unblock_requests(pinstance->host);
+	return pinstance->ioa_state != target_state;
+
+out_unlock:
+	spin_unlock_irqrestore(pinstance->host->host_lock, lock_flags);
 	return reset;
 }
 
