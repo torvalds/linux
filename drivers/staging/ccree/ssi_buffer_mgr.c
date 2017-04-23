@@ -755,9 +755,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 				AES_BLOCK_SIZE, DMA_TO_DEVICE);
 		}
 
-		if (&areq_ctx->ccm_adata_sg != NULL)
-			dma_unmap_sg(dev, &areq_ctx->ccm_adata_sg,
-				1, DMA_TO_DEVICE);
+		dma_unmap_sg(dev, &areq_ctx->ccm_adata_sg, 1, DMA_TO_DEVICE);
 	}
 	if (areq_ctx->gen_ctx.iv_dma_addr != 0) {
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->gen_ctx.iv_dma_addr);
