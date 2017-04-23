@@ -87,16 +87,31 @@ void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 
 static dma_addr_t nfp_net_dma_map_rx(struct nfp_net_dp *dp, void *frag)
 {
-	return dma_map_single(dp->dev, frag + NFP_NET_RX_BUF_HEADROOM,
-			      dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
-			      dp->rx_dma_dir);
+	return dma_map_single_attrs(dp->dev, frag + NFP_NET_RX_BUF_HEADROOM,
+				    dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
+				    dp->rx_dma_dir, DMA_ATTR_SKIP_CPU_SYNC);
+}
+
+static void
+nfp_net_dma_sync_dev_rx(const struct nfp_net_dp *dp, dma_addr_t dma_addr)
+{
+	dma_sync_single_for_device(dp->dev, dma_addr,
+				   dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
+				   dp->rx_dma_dir);
 }
 
 static void nfp_net_dma_unmap_rx(struct nfp_net_dp *dp, dma_addr_t dma_addr)
 {
-	dma_unmap_single(dp->dev, dma_addr,
-			 dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
-			 dp->rx_dma_dir);
+	dma_unmap_single_attrs(dp->dev, dma_addr,
+			       dp->fl_bufsz - NFP_NET_RX_BUF_NON_DATA,
+			       dp->rx_dma_dir, DMA_ATTR_SKIP_CPU_SYNC);
+}
+
+static void nfp_net_dma_sync_cpu_rx(struct nfp_net_dp *dp, dma_addr_t dma_addr,
+				    unsigned int len)
+{
+	dma_sync_single_for_cpu(dp->dev, dma_addr - NFP_NET_RX_BUF_HEADROOM,
+				len, dp->rx_dma_dir);
 }
 
 /* Firmware reconfig
@@ -1208,6 +1223,8 @@ static void nfp_net_rx_give_one(const struct nfp_net_dp *dp,
 
 	wr_idx = rx_ring->wr_p & (rx_ring->cnt - 1);
 
+	nfp_net_dma_sync_dev_rx(dp, dma_addr);
+
 	/* Stash SKB and DMA address away */
 	rx_ring->rxbufs[wr_idx].frag = frag;
 	rx_ring->rxbufs[wr_idx].dma_addr = dma_addr;
@@ -1569,7 +1586,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 	tx_ring = r_vec->xdp_ring;
 
 	while (pkts_polled < budget) {
-		unsigned int meta_len, data_len, data_off, pkt_len;
+		unsigned int meta_len, data_len, meta_off, pkt_len, pkt_off;
 		u8 meta_prepend[NFP_NET_MAX_PREPEND];
 		struct nfp_net_rx_buf *rxbuf;
 		struct nfp_net_rx_desc *rxd;
@@ -1608,11 +1625,12 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		data_len = le16_to_cpu(rxd->rxd.data_len);
 		pkt_len = data_len - meta_len;
 
+		pkt_off = NFP_NET_RX_BUF_HEADROOM + dp->rx_dma_off;
 		if (dp->rx_offset == NFP_NET_CFG_RX_OFFSET_DYNAMIC)
-			data_off = NFP_NET_RX_BUF_HEADROOM + meta_len;
+			pkt_off += meta_len;
 		else
-			data_off = NFP_NET_RX_BUF_HEADROOM + dp->rx_offset;
-		data_off += dp->rx_dma_off;
+			pkt_off += dp->rx_offset;
+		meta_off = pkt_off - meta_len;
 
 		/* Stats update */
 		u64_stats_update_begin(&r_vec->rx_sync);
@@ -1621,7 +1639,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		u64_stats_update_end(&r_vec->rx_sync);
 
 		/* Pointer to start of metadata */
-		meta = rxbuf->frag + data_off - meta_len;
+		meta = rxbuf->frag + meta_off;
 
 		if (unlikely(meta_len > NFP_NET_MAX_PREPEND ||
 			     (dp->rx_offset && meta_len > dp->rx_offset))) {
@@ -1631,6 +1649,9 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			continue;
 		}
 
+		nfp_net_dma_sync_cpu_rx(dp, rxbuf->dma_addr + meta_off,
+					data_len);
+
 		if (xdp_prog && !(rxd->rxd.flags & PCIE_DESC_RX_BPF &&
 				  dp->bpf_offload_xdp)) {
 			unsigned int dma_off;
@@ -1638,10 +1659,6 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			int act;
 
 			hard_start = rxbuf->frag + NFP_NET_RX_BUF_HEADROOM;
-			dma_off = data_off - NFP_NET_RX_BUF_HEADROOM;
-			dma_sync_single_for_cpu(dp->dev, rxbuf->dma_addr,
-						dma_off + pkt_len,
-						DMA_BIDIRECTIONAL);
 
 			/* Move prepend out of the way */
 			if (xdp_prog->xdp_adjust_head) {
@@ -1650,12 +1667,12 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			}
 
 			act = nfp_net_run_xdp(xdp_prog, rxbuf->frag, hard_start,
-					      &data_off, &pkt_len);
+					      &pkt_off, &pkt_len);
 			switch (act) {
 			case XDP_PASS:
 				break;
 			case XDP_TX:
-				dma_off = data_off - NFP_NET_RX_BUF_HEADROOM;
+				dma_off = pkt_off - NFP_NET_RX_BUF_HEADROOM;
 				if (unlikely(!nfp_net_tx_xdp_buf(dp, rx_ring,
 								 tx_ring, rxbuf,
 								 dma_off,
@@ -1689,7 +1706,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		nfp_net_rx_give_one(dp, rx_ring, new_frag, new_dma_addr);
 
-		skb_reserve(skb, data_off);
+		skb_reserve(skb, pkt_off);
 		skb_put(skb, pkt_len);
 
 		if (!dp->chained_metadata_format) {
