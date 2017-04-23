@@ -2274,7 +2274,7 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 	struct drm_display_mode *mode = &radeon_crtc->base.mode;
 	struct dce6_wm_params wm_low, wm_high;
 	u32 dram_channels;
-	u32 pixel_period;
+	u32 active_time;
 	u32 line_time = 0;
 	u32 latency_watermark_a = 0, latency_watermark_b = 0;
 	u32 priority_a_mark = 0, priority_b_mark = 0;
@@ -2284,8 +2284,8 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 	fixed20_12 a, b, c;
 
 	if (radeon_crtc->base.enabled && num_heads && mode) {
-		pixel_period = 1000000 / (u32)mode->clock;
-		line_time = min((u32)mode->crtc_htotal * pixel_period, (u32)65535);
+		active_time = 1000000UL * (u32)mode->crtc_hdisplay / (u32)mode->clock;
+		line_time = min((u32) (1000000UL * (u32)mode->crtc_htotal / (u32)mode->clock), (u32)65535);
 		priority_a_cnt = 0;
 		priority_b_cnt = 0;
 
@@ -2307,7 +2307,7 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 
 		wm_high.disp_clk = mode->clock;
 		wm_high.src_width = mode->crtc_hdisplay;
-		wm_high.active_time = mode->crtc_hdisplay * pixel_period;
+		wm_high.active_time = active_time;
 		wm_high.blank_time = line_time - wm_high.active_time;
 		wm_high.interlaced = false;
 		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -2334,7 +2334,7 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 
 		wm_low.disp_clk = mode->clock;
 		wm_low.src_width = mode->crtc_hdisplay;
-		wm_low.active_time = mode->crtc_hdisplay * pixel_period;
+		wm_low.active_time = active_time;
 		wm_low.blank_time = line_time - wm_low.active_time;
 		wm_low.interlaced = false;
 		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
