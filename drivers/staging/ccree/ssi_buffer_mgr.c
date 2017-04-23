@@ -1863,8 +1863,7 @@ int ssi_buffer_mgr_fini(struct ssi_drvdata *drvdata)
 	struct buff_mgr_handle *buff_mgr_handle = drvdata->buff_mgr_handle;
 
 	if (buff_mgr_handle  != NULL) {
-		if (buff_mgr_handle->mlli_buffs_pool != NULL)
-			dma_pool_destroy(buff_mgr_handle->mlli_buffs_pool);
+		dma_pool_destroy(buff_mgr_handle->mlli_buffs_pool);
 		kfree(drvdata->buff_mgr_handle);
 		drvdata->buff_mgr_handle = NULL;
 
