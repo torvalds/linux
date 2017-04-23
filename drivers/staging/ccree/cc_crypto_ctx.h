@@ -220,6 +220,28 @@ struct drv_ctx_generic {
 } __attribute__((__may_alias__));
 
 
+struct drv_ctx_hash {
+	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_HASH */
+	enum drv_hash_mode mode;
+	uint8_t digest[CC_DIGEST_SIZE_MAX];
+	/* reserve to end of allocated context size */
+	uint8_t reserved[CC_CTX_SIZE - 2 * sizeof(uint32_t) -
+			CC_DIGEST_SIZE_MAX];
+};
+
+/* !!!! drv_ctx_hmac should have the same structure as drv_ctx_hash except
+   k0, k0_size fields */
+struct drv_ctx_hmac {
+	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_HMAC */
+	enum drv_hash_mode mode;
+	uint8_t digest[CC_DIGEST_SIZE_MAX];
+	uint32_t k0[CC_HMAC_BLOCK_SIZE_MAX/sizeof(uint32_t)];
+	uint32_t k0_size;
+	/* reserve to end of allocated context size */
+	uint8_t reserved[CC_CTX_SIZE - 3 * sizeof(uint32_t) -
+			CC_DIGEST_SIZE_MAX - CC_HMAC_BLOCK_SIZE_MAX];
+};
+
 /*******************************************************************/
 /***************** MESSAGE BASED CONTEXTS **************************/
 /*******************************************************************/

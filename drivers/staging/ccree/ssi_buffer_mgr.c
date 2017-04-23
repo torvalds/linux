@@ -17,6 +17,7 @@
 #include <linux/crypto.h>
 #include <linux/version.h>
 #include <crypto/algapi.h>
+#include <crypto/hash.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 #include <linux/dmapool.h>
@@ -27,6 +28,7 @@
 
 #include "ssi_buffer_mgr.h"
 #include "cc_lli_defs.h"
+#include "ssi_hash.h"
 
 #define LLI_MAX_NUM_OF_DATA_ENTRIES 128
 #define LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES 4
@@ -281,11 +283,6 @@ static inline int ssi_buffer_mgr_render_scatterlist_to_mlli(
 	return 0;
 }
 
-static int ssi_buffer_mgr_generate_mlli (
-	struct device *dev,
-	struct buffer_array *sg_data,
-	struct mlli_params *mlli_params) __maybe_unused;
-
 static int ssi_buffer_mgr_generate_mlli(
 	struct device *dev,
 	struct buffer_array *sg_data,
@@ -427,11 +424,6 @@ err:
 	return 0;
 }
 
-static int ssi_buffer_mgr_map_scatterlist (struct device *dev,
-	struct scatterlist *sg, unsigned int nbytes, int direction,
-	uint32_t *nents, uint32_t max_sg_nents, uint32_t *lbytes,
-	uint32_t *mapped_nents) __maybe_unused;
-
 static int ssi_buffer_mgr_map_scatterlist(
 	struct device *dev, struct scatterlist *sg,
 	unsigned int nbytes, int direction,
@@ -491,6 +483,305 @@ static int ssi_buffer_mgr_map_scatterlist(
 	}
 
 	return 0;
+}
+
+static inline int ssi_ahash_handle_curr_buf(struct device *dev,
+					   struct ahash_req_ctx *areq_ctx,
+					   uint8_t* curr_buff,
+					   uint32_t curr_buff_cnt,
+					   struct buffer_array *sg_data)
+{
+	SSI_LOG_DEBUG(" handle curr buff %x set to   DLLI \n", curr_buff_cnt);
+	/* create sg for the current buffer */
+	sg_init_one(areq_ctx->buff_sg,curr_buff, curr_buff_cnt);
+	if (unlikely(dma_map_sg(dev, areq_ctx->buff_sg, 1,
+				DMA_TO_DEVICE) != 1)) {
+			SSI_LOG_ERR("dma_map_sg() "
+			   "src buffer failed\n");
+			return -ENOMEM;
+	}
+	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=0x%llX "
+		     "page_link=0x%08lX addr=%pK "
+		     "offset=%u length=%u\n",
+		     (unsigned long long)sg_dma_address(areq_ctx->buff_sg), 
+		     areq_ctx->buff_sg->page_link, 
+		     sg_virt(areq_ctx->buff_sg),
+		     areq_ctx->buff_sg->offset, 
+		     areq_ctx->buff_sg->length);
+	areq_ctx->data_dma_buf_type = SSI_DMA_BUF_DLLI;
+	areq_ctx->curr_sg = areq_ctx->buff_sg;
+	areq_ctx->in_nents = 0;
+	/* prepare for case of MLLI */
+	ssi_buffer_mgr_add_scatterlist_entry(sg_data, 1, areq_ctx->buff_sg,
+				curr_buff_cnt, 0, false, NULL);
+	return 0;
+}
+
+int ssi_buffer_mgr_map_hash_request_final(
+	struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, bool do_update)
+{
+	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
+	struct device *dev = &drvdata->plat_dev->dev;
+	uint8_t* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
+			areq_ctx->buff0;
+	uint32_t *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
+			&areq_ctx->buff0_cnt;
+	struct mlli_params *mlli_params = &areq_ctx->mlli_params;	
+	struct buffer_array sg_data;
+	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
+	uint32_t dummy = 0;
+	uint32_t mapped_nents = 0;
+
+	SSI_LOG_DEBUG(" final params : curr_buff=%pK "
+		     "curr_buff_cnt=0x%X nbytes = 0x%X "
+		     "src=%pK curr_index=%u\n",
+		     curr_buff, *curr_buff_cnt, nbytes,
+		     src, areq_ctx->buff_index);
+	/* Init the type of the dma buffer */
+	areq_ctx->data_dma_buf_type = SSI_DMA_BUF_NULL;
+	mlli_params->curr_pool = NULL;
+	sg_data.num_of_buffers = 0;
+	areq_ctx->in_nents = 0;
+
+	if (unlikely(nbytes == 0 && *curr_buff_cnt == 0)) {
+		/* nothing to do */
+		return 0;
+	}
+	
+	/*TODO: copy data in case that buffer is enough for operation */
+	/* map the previous buffer */
+	if (*curr_buff_cnt != 0 ) {
+		if (ssi_ahash_handle_curr_buf(dev, areq_ctx, curr_buff,
+					    *curr_buff_cnt, &sg_data) != 0) {
+			return -ENOMEM;
+		}
+	}
+
+	if (src && (nbytes > 0) && do_update) {
+		if ( unlikely( ssi_buffer_mgr_map_scatterlist( dev,src,
+					  nbytes,
+					  DMA_TO_DEVICE,
+					  &areq_ctx->in_nents,
+					  LLI_MAX_NUM_OF_DATA_ENTRIES,
+					  &dummy, &mapped_nents))){
+			goto unmap_curr_buff;
+		}
+		if ( src && (mapped_nents == 1) 
+		     && (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) ) {
+			memcpy(areq_ctx->buff_sg,src,
+			       sizeof(struct scatterlist));
+			areq_ctx->buff_sg->length = nbytes;
+			areq_ctx->curr_sg = areq_ctx->buff_sg;
+			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_DLLI;
+		} else {
+			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_MLLI;
+		}
+
+	}
+
+	/*build mlli */
+	if (unlikely(areq_ctx->data_dma_buf_type == SSI_DMA_BUF_MLLI)) {
+		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
+		/* add the src data to the sg_data */
+		ssi_buffer_mgr_add_scatterlist_entry(&sg_data,
+					areq_ctx->in_nents,
+					src,
+					nbytes, 0,
+					true, &areq_ctx->mlli_nents);
+		if (unlikely(ssi_buffer_mgr_generate_mlli(dev, &sg_data,
+						  mlli_params) != 0)) {
+			goto fail_unmap_din;
+		}
+	}
+	/* change the buffer index for the unmap function */
+	areq_ctx->buff_index = (areq_ctx->buff_index^1);
+	SSI_LOG_DEBUG("areq_ctx->data_dma_buf_type = %s\n",
+		GET_DMA_BUFFER_TYPE(areq_ctx->data_dma_buf_type));
+	return 0;
+
+fail_unmap_din:
+	dma_unmap_sg(dev, src, areq_ctx->in_nents, DMA_TO_DEVICE);
+
+unmap_curr_buff:
+	if (*curr_buff_cnt != 0 ) {
+		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
+	}
+	return -ENOMEM;
+}
+
+int ssi_buffer_mgr_map_hash_request_update(
+	struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, unsigned int block_size)
+{
+	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
+	struct device *dev = &drvdata->plat_dev->dev;
+	uint8_t* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
+			areq_ctx->buff0;
+	uint32_t *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
+			&areq_ctx->buff0_cnt;
+	uint8_t* next_buff = areq_ctx->buff_index ? areq_ctx->buff0 :
+			areq_ctx->buff1;
+	uint32_t *next_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff0_cnt :
+			&areq_ctx->buff1_cnt;
+	struct mlli_params *mlli_params = &areq_ctx->mlli_params;	
+	unsigned int update_data_len;
+	uint32_t total_in_len = nbytes + *curr_buff_cnt;
+	struct buffer_array sg_data;
+	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
+	unsigned int swap_index = 0;
+	uint32_t dummy = 0;
+	uint32_t mapped_nents = 0;
+		
+	SSI_LOG_DEBUG(" update params : curr_buff=%pK "
+		     "curr_buff_cnt=0x%X nbytes=0x%X "
+		     "src=%pK curr_index=%u \n",
+		     curr_buff, *curr_buff_cnt, nbytes,
+		     src, areq_ctx->buff_index);
+	/* Init the type of the dma buffer */
+	areq_ctx->data_dma_buf_type = SSI_DMA_BUF_NULL;
+	mlli_params->curr_pool = NULL;
+	areq_ctx->curr_sg = NULL;
+	sg_data.num_of_buffers = 0;
+	areq_ctx->in_nents = 0;
+
+	if (unlikely(total_in_len < block_size)) {
+		SSI_LOG_DEBUG(" less than one block: curr_buff=%pK "
+			     "*curr_buff_cnt=0x%X copy_to=%pK\n",
+			curr_buff, *curr_buff_cnt,
+			&curr_buff[*curr_buff_cnt]);
+		areq_ctx->in_nents = 
+			ssi_buffer_mgr_get_sgl_nents(src,
+						    nbytes,
+						    &dummy, NULL);
+		sg_copy_to_buffer(src, areq_ctx->in_nents,
+				  &curr_buff[*curr_buff_cnt], nbytes); 
+		*curr_buff_cnt += nbytes;
+		return 1;
+	}
+
+	/* Calculate the residue size*/
+	*next_buff_cnt = total_in_len & (block_size - 1);
+	/* update data len */
+	update_data_len = total_in_len - *next_buff_cnt;
+
+	SSI_LOG_DEBUG(" temp length : *next_buff_cnt=0x%X "
+		     "update_data_len=0x%X\n",
+		*next_buff_cnt, update_data_len);
+
+	/* Copy the new residue to next buffer */
+	if (*next_buff_cnt != 0) {
+		SSI_LOG_DEBUG(" handle residue: next buff %pK skip data %u"
+			     " residue %u \n", next_buff,
+			     (update_data_len - *curr_buff_cnt),
+			     *next_buff_cnt);
+		ssi_buffer_mgr_copy_scatterlist_portion(next_buff, src,
+			     (update_data_len -*curr_buff_cnt),
+			     nbytes,SSI_SG_TO_BUF);
+		/* change the buffer index for next operation */
+		swap_index = 1;
+	}
+
+	if (*curr_buff_cnt != 0) {
+		if (ssi_ahash_handle_curr_buf(dev, areq_ctx, curr_buff,
+					    *curr_buff_cnt, &sg_data) != 0) {
+			return -ENOMEM;
+		}
+		/* change the buffer index for next operation */
+		swap_index = 1;
+	}
+	
+	if ( update_data_len > *curr_buff_cnt ) {
+		if ( unlikely( ssi_buffer_mgr_map_scatterlist( dev,src,
+					  (update_data_len -*curr_buff_cnt),
+					  DMA_TO_DEVICE,
+					  &areq_ctx->in_nents,
+					  LLI_MAX_NUM_OF_DATA_ENTRIES,
+					  &dummy, &mapped_nents))){
+			goto unmap_curr_buff;
+		}
+		if ( (mapped_nents == 1) 
+		     && (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) ) {
+			/* only one entry in the SG and no previous data */
+			memcpy(areq_ctx->buff_sg,src,
+			       sizeof(struct scatterlist));
+			areq_ctx->buff_sg->length = update_data_len;
+			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_DLLI;
+			areq_ctx->curr_sg = areq_ctx->buff_sg;
+		} else {
+			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_MLLI;
+		}
+	}
+
+	if (unlikely(areq_ctx->data_dma_buf_type == SSI_DMA_BUF_MLLI)) {
+		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
+		/* add the src data to the sg_data */
+		ssi_buffer_mgr_add_scatterlist_entry(&sg_data,
+					areq_ctx->in_nents,
+					src,
+					(update_data_len - *curr_buff_cnt), 0,
+					true, &areq_ctx->mlli_nents);
+		if (unlikely(ssi_buffer_mgr_generate_mlli(dev, &sg_data,
+						  mlli_params) != 0)) {
+			goto fail_unmap_din;
+		}
+
+	}
+	areq_ctx->buff_index = (areq_ctx->buff_index^swap_index);
+
+	return 0;
+
+fail_unmap_din:
+	dma_unmap_sg(dev, src, areq_ctx->in_nents, DMA_TO_DEVICE);
+
+unmap_curr_buff:
+	if (*curr_buff_cnt != 0 ) {
+		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
+	}
+	return -ENOMEM;
+}
+
+void ssi_buffer_mgr_unmap_hash_request(
+	struct device *dev, void *ctx, struct scatterlist *src, bool do_revert)
+{
+	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
+	uint32_t *prev_len = areq_ctx->buff_index ?  &areq_ctx->buff0_cnt :
+						&areq_ctx->buff1_cnt;
+
+	/*In case a pool was set, a table was 
+	  allocated and should be released */
+	if (areq_ctx->mlli_params.curr_pool != NULL) {
+		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%llX virt=%pK\n", 
+			     (unsigned long long)areq_ctx->mlli_params.mlli_dma_addr,
+			     areq_ctx->mlli_params.mlli_virt_addr);
+		SSI_RESTORE_DMA_ADDR_TO_48BIT(areq_ctx->mlli_params.mlli_dma_addr);
+		dma_pool_free(areq_ctx->mlli_params.curr_pool,
+			      areq_ctx->mlli_params.mlli_virt_addr,
+			      areq_ctx->mlli_params.mlli_dma_addr);
+	}
+	
+	if ((src) && likely(areq_ctx->in_nents != 0)) {
+		SSI_LOG_DEBUG("Unmapped sg src: virt=%pK dma=0x%llX len=0x%X\n",
+			     sg_virt(src),
+			     (unsigned long long)sg_dma_address(src), 
+			     sg_dma_len(src));
+		SSI_RESTORE_DMA_ADDR_TO_48BIT(sg_dma_address(src));
+		dma_unmap_sg(dev, src, 
+			     areq_ctx->in_nents, DMA_TO_DEVICE);
+	}
+
+	if (*prev_len != 0) {
+		SSI_LOG_DEBUG("Unmapped buffer: areq_ctx->buff_sg=%pK"
+			     "dma=0x%llX len 0x%X\n", 
+				sg_virt(areq_ctx->buff_sg),
+				(unsigned long long)sg_dma_address(areq_ctx->buff_sg), 
+				sg_dma_len(areq_ctx->buff_sg));
+		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
+		if (!do_revert) {
+			/* clean the previous data length for update operation */
+			*prev_len = 0;
+		} else {
+			areq_ctx->buff_index ^= 1;
+		}
+	}
 }
 
 int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata)

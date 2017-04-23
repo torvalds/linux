@@ -32,6 +32,7 @@
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/authenc.h>
+#include <crypto/hash.h>
 #include <linux/version.h>
 
 #ifndef INT32_MAX /* Missing in Linux kernel */
@@ -50,6 +51,7 @@
 #define CC_SUPPORT_SHA DX_DEV_SHA_MAX
 #include "cc_crypto_ctx.h"
 #include "ssi_sysfs.h"
+#include "hash_defs.h"
 
 #define DRV_MODULE_VERSION "3.0"
 
@@ -138,13 +140,13 @@ struct ssi_drvdata {
 	ssi_sram_addr_t mlli_sram_addr;
 	struct completion icache_setup_completion;
 	void *buff_mgr_handle;
+	void *hash_handle;
 	void *request_mgr_handle;
 	void *sram_mgr_handle;
 
 #ifdef ENABLE_CYCLE_COUNT
 	cycles_t isr_exit_cycles; /* Save for isr-to-tasklet latency */
 #endif
-	uint32_t inflight_counter;
 
 };
 

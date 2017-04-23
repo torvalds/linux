@@ -55,6 +55,12 @@ int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata);
 
 int ssi_buffer_mgr_fini(struct ssi_drvdata *drvdata);
 
+int ssi_buffer_mgr_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, bool do_update);
+
+int ssi_buffer_mgr_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, unsigned int block_size);
+
+void ssi_buffer_mgr_unmap_hash_request(struct device *dev, void *ctx, struct scatterlist *src, bool do_revert);
+
 void ssi_buffer_mgr_copy_scatterlist_portion(u8 *dest, struct scatterlist *sg, uint32_t to_skip, uint32_t end, enum ssi_sg_cpy_direct direct);
 
 void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, uint32_t data_len);
