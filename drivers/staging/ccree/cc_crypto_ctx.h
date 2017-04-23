@@ -263,6 +263,27 @@ struct drv_ctx_cipher {
 		(CC_AES_KEY_SIZE_MAX/sizeof(uint32_t))];
 };
 
+/* authentication and encryption with associated data class */
+struct drv_ctx_aead {
+	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_AES */
+	enum drv_cipher_mode mode;
+	enum drv_crypto_direction direction;
+	uint32_t key_size; /* numeric value in bytes   */
+	uint32_t nonce_size; /* nonce size (octets) */
+	uint32_t header_size; /* finit additional data size (octets) */
+	uint32_t text_size; /* finit text data size (octets) */
+	uint32_t tag_size; /* mac size, element of {4, 6, 8, 10, 12, 14, 16} */
+	/* block_state1/2 is the AES engine block state */
+	uint8_t block_state[CC_AES_BLOCK_SIZE];
+	uint8_t mac_state[CC_AES_BLOCK_SIZE]; /* MAC result */
+	uint8_t nonce[CC_AES_BLOCK_SIZE]; /* nonce buffer */
+	uint8_t key[CC_AES_KEY_SIZE_MAX];
+	/* reserve to end of allocated context size */
+	uint32_t reserved[CC_DRV_CTX_SIZE_WORDS - 8 -
+		3 * (CC_AES_BLOCK_SIZE/sizeof(uint32_t)) -
+		CC_AES_KEY_SIZE_MAX/sizeof(uint32_t)];
+};
+
 /*******************************************************************/
 /***************** MESSAGE BASED CONTEXTS **************************/
 /*******************************************************************/

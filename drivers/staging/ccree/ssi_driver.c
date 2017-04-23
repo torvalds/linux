@@ -21,6 +21,7 @@
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
+#include <crypto/aead.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/skcipher.h>
@@ -63,6 +64,7 @@
 #include "ssi_buffer_mgr.h"
 #include "ssi_sysfs.h"
 #include "ssi_cipher.h"
+#include "ssi_aead.h"
 #include "ssi_hash.h"
 #include "ssi_ivgen.h"
 #include "ssi_sram_mgr.h"
@@ -362,9 +364,16 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto init_cc_res_err;
 	}
 
+	/* hash must be allocated before aead since hash exports APIs */
 	rc = ssi_hash_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_hash_alloc failed\n");
+		goto init_cc_res_err;
+	}
+
+	rc = ssi_aead_alloc(new_drvdata);
+	if (unlikely(rc != 0)) {
+		SSI_LOG_ERR("ssi_aead_alloc failed\n");
 		goto init_cc_res_err;
 	}
 
@@ -374,6 +383,7 @@ init_cc_res_err:
 	SSI_LOG_ERR("Freeing CC HW resources!\n");
 	
 	if (new_drvdata != NULL) {
+		ssi_aead_free(new_drvdata);
 		ssi_hash_free(new_drvdata);
 		ssi_ablkcipher_free(new_drvdata);
 		ssi_ivgen_fini(new_drvdata);
@@ -416,6 +426,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	struct ssi_drvdata *drvdata =
 		(struct ssi_drvdata *)dev_get_drvdata(&plat_dev->dev);
 
+        ssi_aead_free(drvdata);
         ssi_hash_free(drvdata);
         ssi_ablkcipher_free(drvdata);
 	ssi_ivgen_fini(drvdata);

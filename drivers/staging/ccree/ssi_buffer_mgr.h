@@ -71,6 +71,10 @@ void ssi_buffer_mgr_unmap_blkcipher_request(
 	struct scatterlist *src,
 	struct scatterlist *dst);
 
+int ssi_buffer_mgr_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req);
+
+void ssi_buffer_mgr_unmap_aead_request(struct device *dev, struct aead_request *req);
+
 int ssi_buffer_mgr_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, bool do_update);
 
 int ssi_buffer_mgr_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx, struct scatterlist *src, unsigned int nbytes, unsigned int block_size);

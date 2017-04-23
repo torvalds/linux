@@ -32,6 +32,7 @@
 #include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
+#include <crypto/aead.h>
 #include <crypto/authenc.h>
 #include <crypto/hash.h>
 #include <linux/version.h>
@@ -148,6 +149,7 @@ struct ssi_drvdata {
 	struct completion icache_setup_completion;
 	void *buff_mgr_handle;
 	void *hash_handle;
+	void *aead_handle;
 	void *blkcipher_handle;
 	void *request_mgr_handle;
 	void *ivgen_handle;
@@ -167,6 +169,7 @@ struct ssi_crypto_alg {
 	int auth_mode;
 	struct ssi_drvdata *drvdata;
 	struct crypto_alg crypto_alg;
+	struct aead_alg aead_alg;
 };
 
 struct ssi_alg_template {
@@ -176,6 +179,7 @@ struct ssi_alg_template {
 	u32 type;
 	union {
 		struct ablkcipher_alg ablkcipher;
+		struct aead_alg aead;
 		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct compress_alg compress;
