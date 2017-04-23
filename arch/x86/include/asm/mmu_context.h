@@ -220,6 +220,18 @@ static inline int vma_pkey(struct vm_area_struct *vma)
 }
 #endif
 
+static inline bool __pkru_allows_pkey(u16 pkey, bool write)
+{
+	u32 pkru = read_pkru();
+
+	if (!__pkru_allows_read(pkru, pkey))
+		return false;
+	if (write && !__pkru_allows_write(pkru, pkey))
+		return false;
+
+	return true;
+}
+
 /*
  * We only want to enforce protection keys on the current process
  * because we effectively have no access to PKRU for other
