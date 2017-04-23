@@ -211,10 +211,15 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 		return 0;
 
 	/* Use link speed from ETH table if available, otherwise try the BAR */
-	if (nn->eth_port && nfp_net_link_changed_read_clear(nn))
-		nfp_net_refresh_port_config(nn);
-	/* Separate if - on FW error the port could've disappeared from table */
 	if (nn->eth_port) {
+		int err;
+
+		if (nfp_net_link_changed_read_clear(nn)) {
+			err = nfp_net_refresh_eth_port(nn);
+			if (err)
+				return err;
+		}
+
 		cmd->base.port = nn->eth_port->port_type;
 		cmd->base.speed = nn->eth_port->speed;
 		cmd->base.duplex = DUPLEX_FULL;
@@ -273,7 +278,7 @@ nfp_net_set_link_ksettings(struct net_device *netdev,
 	if (err > 0)
 		return 0; /* no change */
 
-	nfp_net_refresh_port_config(nn);
+	nfp_net_refresh_port_table(nn);
 
 	return err;
 

@@ -176,13 +176,13 @@ nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id)
 }
 
 static struct nfp_eth_table_port *
-nfp_net_find_port(struct nfp_pf *pf, unsigned int id)
+nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id)
 {
 	int i;
 
-	for (i = 0; pf->eth_tbl && i < pf->eth_tbl->count; i++)
-		if (pf->eth_tbl->ports[i].eth_index == id)
-			return &pf->eth_tbl->ports[i];
+	for (i = 0; eth_tbl && i < eth_tbl->count; i++)
+		if (eth_tbl->ports[i].eth_index == id)
+			return &eth_tbl->ports[i];
 
 	return NULL;
 }
@@ -367,7 +367,7 @@ nfp_net_pf_alloc_netdevs(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		prev_tx_base = tgt_tx_base;
 		prev_rx_base = tgt_rx_base;
 
-		eth_port = nfp_net_find_port(pf, i);
+		eth_port = nfp_net_find_port(pf->eth_tbl, i);
 		if (eth_port && eth_port->override_changed) {
 			nfp_warn(pf->cpp, "Config changed for port #%d, reboot required before port will be operational\n", i);
 		} else {
@@ -485,6 +485,7 @@ static void nfp_net_refresh_netdevs(struct work_struct *work)
 {
 	struct nfp_pf *pf = container_of(work, struct nfp_pf,
 					 port_refresh_work);
+	struct nfp_eth_table *eth_table;
 	struct nfp_net *nn, *next;
 
 	mutex_lock(&pf->port_lock);
@@ -492,6 +493,27 @@ static void nfp_net_refresh_netdevs(struct work_struct *work)
 	/* Check for nfp_net_pci_remove() racing against us */
 	if (list_empty(&pf->ports))
 		goto out;
+
+	list_for_each_entry(nn, &pf->ports, port_list)
+		nfp_net_link_changed_read_clear(nn);
+
+	eth_table = nfp_eth_read_ports(pf->cpp);
+	if (!eth_table) {
+		nfp_err(pf->cpp, "Error refreshing port config!\n");
+		goto out;
+	}
+
+	rtnl_lock();
+	list_for_each_entry(nn, &pf->ports, port_list) {
+		if (!nn->eth_port)
+			continue;
+		nn->eth_port = nfp_net_find_port(eth_table,
+						 nn->eth_port->eth_index);
+	}
+	rtnl_unlock();
+
+	kfree(pf->eth_tbl);
+	pf->eth_tbl = eth_table;
 
 	list_for_each_entry_safe(nn, next, &pf->ports, port_list) {
 		if (!nn->eth_port) {
@@ -517,31 +539,36 @@ out:
 	mutex_unlock(&pf->port_lock);
 }
 
-void nfp_net_refresh_port_config(struct nfp_net *nn)
+void nfp_net_refresh_port_table(struct nfp_net *nn)
 {
 	struct nfp_pf *pf = pci_get_drvdata(nn->pdev);
-	struct nfp_eth_table *old_table;
-
-	ASSERT_RTNL();
-
-	old_table = pf->eth_tbl;
-
-	list_for_each_entry(nn, &pf->ports, port_list)
-		nfp_net_link_changed_read_clear(nn);
-
-	pf->eth_tbl = nfp_eth_read_ports(pf->cpp);
-	if (!pf->eth_tbl) {
-		pf->eth_tbl = old_table;
-		nfp_err(pf->cpp, "Error refreshing port config!\n");
-		return;
-	}
-
-	list_for_each_entry(nn, &pf->ports, port_list)
-		nn->eth_port = nfp_net_find_port(pf, nn->eth_port->eth_index);
-
-	kfree(old_table);
 
 	schedule_work(&pf->port_refresh_work);
+}
+
+int nfp_net_refresh_eth_port(struct nfp_net *nn)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_eth_table *eth_table;
+
+	eth_table = nfp_eth_read_ports(nn->cpp);
+	if (!eth_table) {
+		nn_err(nn, "Error refreshing port state table!\n");
+		return -EIO;
+	}
+
+	eth_port = nfp_net_find_port(eth_table, nn->eth_port->eth_index);
+	if (!eth_port) {
+		nn_err(nn, "Error finding state of the port!\n");
+		kfree(eth_table);
+		return -EIO;
+	}
+
+	memcpy(nn->eth_port, eth_port, sizeof(*eth_port));
+
+	kfree(eth_table);
+
+	return 0;
 }
 
 /*
