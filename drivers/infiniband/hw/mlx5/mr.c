@@ -1828,7 +1828,7 @@ mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
 		klms[i].va = cpu_to_be64(sg_dma_address(sg) + sg_offset);
 		klms[i].bcount = cpu_to_be32(sg_dma_len(sg) - sg_offset);
 		klms[i].key = cpu_to_be32(lkey);
-		mr->ibmr.length += sg_dma_len(sg);
+		mr->ibmr.length += sg_dma_len(sg) - sg_offset;
 
 		sg_offset = 0;
 	}
