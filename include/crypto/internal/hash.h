@@ -173,6 +173,16 @@ static inline struct ahash_instance *ahash_alloc_instance(
 	return crypto_alloc_instance2(name, alg, ahash_instance_headroom());
 }
 
+static inline void ahash_request_complete(struct ahash_request *req, int err)
+{
+	req->base.complete(&req->base, err);
+}
+
+static inline u32 ahash_request_flags(struct ahash_request *req)
+{
+	return req->base.flags;
+}
+
 static inline struct crypto_ahash *crypto_spawn_ahash(
 	struct crypto_ahash_spawn *spawn)
 {
