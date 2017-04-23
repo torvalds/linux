@@ -428,24 +428,49 @@ static struct tc_action_ops *tc_lookup_action(struct nlattr *kind)
 	return res;
 }
 
+/*TCA_ACT_MAX_PRIO is 32, there count upto 32 */
+#define TCA_ACT_MAX_PRIO_MASK 0x1FF
 int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
 		    int nr_actions, struct tcf_result *res)
 {
 	int ret = -1, i;
+	u32 jmp_prgcnt = 0;
+	u32 jmp_ttl = TCA_ACT_MAX_PRIO; /*matches actions per filter */
 
 	if (skb_skip_tc_classify(skb))
 		return TC_ACT_OK;
 
+restart_act_graph:
 	for (i = 0; i < nr_actions; i++) {
 		const struct tc_action *a = actions[i];
 
+		if (jmp_prgcnt > 0) {
+			jmp_prgcnt -= 1;
+			continue;
+		}
 repeat:
 		ret = a->ops->act(skb, a, res);
 		if (ret == TC_ACT_REPEAT)
 			goto repeat;	/* we need a ttl - JHS */
+
+		if (ret & TC_ACT_JUMP) {
+			jmp_prgcnt = ret & TCA_ACT_MAX_PRIO_MASK;
+			if (!jmp_prgcnt || (jmp_prgcnt > nr_actions)) {
+				/* faulty opcode, stop pipeline */
+				return TC_ACT_OK;
+			} else {
+				jmp_ttl -= 1;
+				if (jmp_ttl > 0)
+					goto restart_act_graph;
+				else /* faulty graph, stop pipeline */
+					return TC_ACT_OK;
+			}
+		}
+
 		if (ret != TC_ACT_PIPE)
 			break;
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL(tcf_action_exec);
