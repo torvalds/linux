@@ -1717,7 +1717,8 @@ sint wlanhdr_to_ethhdr(union recv_frame *precvframe)
 }
 
 /* perform defrag */
-union recv_frame *recvframe_defrag(struct adapter *adapter, struct __queue *defrag_q)
+static union recv_frame *recvframe_defrag(struct adapter *adapter,
+					  struct __queue *defrag_q)
 {
 	struct list_head	 *plist, *phead;
 	u8 *data, wlanhdr_offset;
