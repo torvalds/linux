@@ -2188,13 +2188,7 @@ static u32 evergreen_latency_watermark(struct evergreen_wm_params *wm)
 	b.full = dfixed_const(wm->num_heads);
 	a.full = dfixed_div(a, b);
 
-	b.full = dfixed_const(1000);
-	c.full = dfixed_const(wm->disp_clk);
-	b.full = dfixed_div(c, b);
-	c.full = dfixed_const(wm->bytes_per_pixel);
-	b.full = dfixed_mul(b, c);
-
-	lb_fill_bw = min(dfixed_trunc(a), dfixed_trunc(b));
+	lb_fill_bw = min(dfixed_trunc(a), wm->disp_clk * wm->bytes_per_pixel / 1000);
 
 	a.full = dfixed_const(max_src_lines_per_dst_line * wm->src_width * wm->bytes_per_pixel);
 	b.full = dfixed_const(1000);
