@@ -787,6 +787,8 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 2);
 	dev->mmio = pci_ioremap_bar(pcidev, 3);
+	if (!dev->mmio)
+		return -ENOMEM;
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3xxx_irq_handler,
