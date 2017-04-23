@@ -45,6 +45,7 @@ struct blkcipher_req_ctx {
 	uint32_t out_nents;
 	uint32_t out_mlli_nents;
 	uint8_t *backup_info; /*store iv for generated IV flow*/
+	bool is_giv;
 	struct mlli_params mlli_params;
 };
 

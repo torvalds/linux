@@ -534,6 +534,7 @@ void ssi_buffer_mgr_unmap_blkcipher_request(
 		SSI_RESTORE_DMA_ADDR_TO_48BIT(req_ctx->gen_ctx.iv_dma_addr);
 		dma_unmap_single(dev, req_ctx->gen_ctx.iv_dma_addr, 
 				 ivsize, 
+				 req_ctx->is_giv ? DMA_BIDIRECTIONAL :
 				 DMA_TO_DEVICE);
 	}
 	/* Release pool */
@@ -587,6 +588,7 @@ int ssi_buffer_mgr_map_blkcipher_request(
 		req_ctx->gen_ctx.iv_dma_addr = 
 			dma_map_single(dev, (void *)info, 
 				       ivsize, 
+				       req_ctx->is_giv ? DMA_BIDIRECTIONAL:
 				       DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev, 
 					req_ctx->gen_ctx.iv_dma_addr))) {

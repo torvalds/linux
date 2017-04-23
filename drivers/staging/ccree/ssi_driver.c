@@ -64,6 +64,7 @@
 #include "ssi_sysfs.h"
 #include "ssi_cipher.h"
 #include "ssi_hash.h"
+#include "ssi_ivgen.h"
 #include "ssi_sram_mgr.h"
 #include "ssi_pm.h"
 
@@ -348,6 +349,12 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto init_cc_res_err;
 	}
 
+	rc = ssi_ivgen_init(new_drvdata);
+	if (unlikely(rc != 0)) {
+		SSI_LOG_ERR("ssi_ivgen_init failed\n");
+		goto init_cc_res_err;
+	}
+
 	/* Allocate crypto algs */
 	rc = ssi_ablkcipher_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
@@ -369,6 +376,7 @@ init_cc_res_err:
 	if (new_drvdata != NULL) {
 		ssi_hash_free(new_drvdata);
 		ssi_ablkcipher_free(new_drvdata);
+		ssi_ivgen_fini(new_drvdata);
 		ssi_power_mgr_fini(new_drvdata);
 		ssi_buffer_mgr_fini(new_drvdata);
 		request_mgr_fini(new_drvdata);
@@ -410,6 +418,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 
         ssi_hash_free(drvdata);
         ssi_ablkcipher_free(drvdata);
+	ssi_ivgen_fini(drvdata);
 	ssi_power_mgr_fini(drvdata);
 	ssi_buffer_mgr_fini(drvdata);
 	request_mgr_fini(drvdata);

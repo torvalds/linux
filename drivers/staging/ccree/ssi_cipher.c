@@ -819,6 +819,13 @@ static int ssi_blkcipher_process(
 			      areq,
 			      desc, &seq_len);
 
+	/* do we need to generate IV? */
+	if (req_ctx->is_giv == true) {
+		ssi_req.ivgen_dma_addr[0] = req_ctx->gen_ctx.iv_dma_addr;
+		ssi_req.ivgen_dma_addr_len = 1;
+		/* set the IV size (8/16 B long)*/
+		ssi_req.ivgen_size = ivsize;
+	}
 	END_CYCLE_COUNT(ssi_req.op_type, STAT_PHASE_2);
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
@@ -901,6 +908,7 @@ static int ssi_sblkcipher_encrypt(struct blkcipher_desc *desc,
 	unsigned int ivsize = crypto_blkcipher_ivsize(blk_tfm);
 
 	req_ctx->backup_info = desc->info;
+	req_ctx->is_giv = false;
 
 	return ssi_blkcipher_process(tfm, req_ctx, dst, src, nbytes, desc->info, ivsize, NULL, DRV_CRYPTO_DIRECTION_ENCRYPT);
 }
@@ -916,6 +924,7 @@ static int ssi_sblkcipher_decrypt(struct blkcipher_desc *desc,
 	unsigned int ivsize = crypto_blkcipher_ivsize(blk_tfm);
 
 	req_ctx->backup_info = desc->info;
+	req_ctx->is_giv = false;
 
 	return ssi_blkcipher_process(tfm, req_ctx, dst, src, nbytes, desc->info, ivsize, NULL, DRV_CRYPTO_DIRECTION_DECRYPT);
 }
@@ -948,6 +957,7 @@ static int ssi_ablkcipher_encrypt(struct ablkcipher_request *req)
 	unsigned int ivsize = crypto_ablkcipher_ivsize(ablk_tfm);
 
 	req_ctx->backup_info = req->info;
+	req_ctx->is_giv = false;
 
 	return ssi_blkcipher_process(tfm, req_ctx, req->dst, req->src, req->nbytes, req->info, ivsize, (void *)req, DRV_CRYPTO_DIRECTION_ENCRYPT);
 }
@@ -960,6 +970,7 @@ static int ssi_ablkcipher_decrypt(struct ablkcipher_request *req)
 	unsigned int ivsize = crypto_ablkcipher_ivsize(ablk_tfm);
 
 	req_ctx->backup_info = req->info;
+	req_ctx->is_giv = false;
 	return ssi_blkcipher_process(tfm, req_ctx, req->dst, req->src, req->nbytes, req->info, ivsize, (void *)req, DRV_CRYPTO_DIRECTION_DECRYPT);
 }
 

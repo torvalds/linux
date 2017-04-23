@@ -28,6 +28,7 @@
 #include "ssi_buffer_mgr.h"
 #include "ssi_request_mgr.h"
 #include "ssi_sysfs.h"
+#include "ssi_ivgen.h"
 #include "ssi_pm.h"
 
 #define SSI_MAX_POLL_ITER	10
@@ -359,9 +360,14 @@ int send_request(
 	void __iomem *cc_base = drvdata->cc_base;
 	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int used_sw_slots;
+	unsigned int iv_seq_len = 0;
 	unsigned int total_seq_len = len; /*initial sequence length*/
+	HwDesc_s iv_seq[SSI_IVPOOL_SEQ_LEN];
 	int rc;
-	unsigned int max_required_seq_len = total_seq_len + ((is_dout == 0) ? 1 : 0);
+	unsigned int max_required_seq_len = (total_seq_len +
+					((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
+					SSI_IVPOOL_SEQ_LEN ) +
+					((is_dout == 0 )? 1 : 0));
 	DECL_CYCLE_COUNT_RESOURCES;
 
 #if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
@@ -410,6 +416,30 @@ int send_request(
 		total_seq_len++;
 	}
 
+	if (ssi_req->ivgen_dma_addr_len > 0) {
+		SSI_LOG_DEBUG("Acquire IV from pool into %d DMA addresses 0x%llX, 0x%llX, 0x%llX, IV-size=%u\n",
+			ssi_req->ivgen_dma_addr_len,
+			(unsigned long long)ssi_req->ivgen_dma_addr[0],
+			(unsigned long long)ssi_req->ivgen_dma_addr[1],
+			(unsigned long long)ssi_req->ivgen_dma_addr[2],
+			ssi_req->ivgen_size);
+
+		/* Acquire IV from pool */
+		rc = ssi_ivgen_getiv(drvdata, ssi_req->ivgen_dma_addr, ssi_req->ivgen_dma_addr_len,
+			ssi_req->ivgen_size, iv_seq, &iv_seq_len);
+
+		if (unlikely(rc != 0)) {
+			SSI_LOG_ERR("Failed to generate IV (rc=%d)\n", rc);
+			spin_unlock_bh(&req_mgr_h->hw_lock);
+#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+			ssi_power_mgr_runtime_put_suspend(&drvdata->plat_dev->dev);
+#endif
+			return rc;
+		}
+
+		total_seq_len += iv_seq_len;
+	}
+	
 	used_sw_slots = ((req_mgr_h->req_queue_head - req_mgr_h->req_queue_tail) & (MAX_REQUEST_QUEUE_SIZE-1));
 	if (unlikely(used_sw_slots > req_mgr_h->max_used_sw_slots)) {
 		req_mgr_h->max_used_sw_slots = used_sw_slots;
@@ -432,6 +462,7 @@ int send_request(
 
 	/* STAT_PHASE_4: Push sequence */
 	START_CYCLE_COUNT();
+	enqueue_seq(cc_base, iv_seq, iv_seq_len);
 	enqueue_seq(cc_base, desc, len);
 	enqueue_seq(cc_base, &req_mgr_h->compl_desc, (is_dout ? 0 : 1));
 	END_CYCLE_COUNT(ssi_req->op_type, STAT_PHASE_4);

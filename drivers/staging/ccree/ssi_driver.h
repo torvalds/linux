@@ -106,9 +106,15 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
+#define SSI_MAX_IVGEN_DMA_ADDRESSES 	3
 struct ssi_crypto_req {
 	void (*user_cb)(struct device *dev, void *req, void __iomem *cc_base);
 	void *user_arg;
+	dma_addr_t ivgen_dma_addr[SSI_MAX_IVGEN_DMA_ADDRESSES]; /* For the first 'ivgen_dma_addr_len' addresses of this array,
+					 generated IV would be placed in it by send_request().
+					 Same generated IV for all addresses! */
+	unsigned int ivgen_dma_addr_len; /* Amount of 'ivgen_dma_addr' elements to be filled. */
+	unsigned int ivgen_size; /* The generated IV size required, 8/16 B allowed. */
 	struct completion seq_compl; /* request completion */
 #ifdef ENABLE_CYCLE_COUNT
 	enum stat_op op_type;
@@ -144,6 +150,7 @@ struct ssi_drvdata {
 	void *hash_handle;
 	void *blkcipher_handle;
 	void *request_mgr_handle;
+	void *ivgen_handle;
 	void *sram_mgr_handle;
 
 #ifdef ENABLE_CYCLE_COUNT

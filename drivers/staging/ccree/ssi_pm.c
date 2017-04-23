@@ -26,6 +26,7 @@
 #include "ssi_request_mgr.h"
 #include "ssi_sram_mgr.h"
 #include "ssi_sysfs.h"
+#include "ssi_ivgen.h"
 #include "ssi_hash.h"
 #include "ssi_pm.h"
 #include "ssi_pm_ext.h"
@@ -83,6 +84,7 @@ int ssi_power_mgr_runtime_resume(struct device *dev)
 	/* must be after the queue resuming as it uses the HW queue*/
 	ssi_hash_init_sram_digest_consts(drvdata);
 	
+	ssi_ivgen_init_sram_pool(drvdata);
 	return 0;
 }
 
