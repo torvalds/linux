@@ -545,13 +545,13 @@ config CLASSIC_SRCU
 
 config TINY_SRCU
 	bool
-	default y if TINY_RCU && !CLASSIC_SRCU
+	default y if SRCU && TINY_RCU && !CLASSIC_SRCU
 	help
 	  This option selects the single-CPU non-preemptible version of SRCU.
 
 config TREE_SRCU
 	bool
-	default y if !TINY_RCU && !CLASSIC_SRCU
+	default y if SRCU && !TINY_RCU && !CLASSIC_SRCU
 	help
 	  This option selects the full-fledged version of SRCU.
 
