@@ -28,6 +28,7 @@
 
 #include "ssi_buffer_mgr.h"
 #include "cc_lli_defs.h"
+#include "ssi_cipher.h"
 #include "ssi_hash.h"
 
 #define LLI_MAX_NUM_OF_DATA_ENTRIES 128
@@ -515,6 +516,152 @@ static inline int ssi_ahash_handle_curr_buf(struct device *dev,
 	ssi_buffer_mgr_add_scatterlist_entry(sg_data, 1, areq_ctx->buff_sg,
 				curr_buff_cnt, 0, false, NULL);
 	return 0;
+}
+
+void ssi_buffer_mgr_unmap_blkcipher_request(
+	struct device *dev,
+	void *ctx,
+	unsigned int ivsize,
+	struct scatterlist *src,
+	struct scatterlist *dst)
+{
+	struct blkcipher_req_ctx *req_ctx = (struct blkcipher_req_ctx *)ctx;
+
+	if (likely(req_ctx->gen_ctx.iv_dma_addr != 0)) {
+		SSI_LOG_DEBUG("Unmapped iv: iv_dma_addr=0x%llX iv_size=%u\n", 
+			(unsigned long long)req_ctx->gen_ctx.iv_dma_addr,
+			ivsize);
+		SSI_RESTORE_DMA_ADDR_TO_48BIT(req_ctx->gen_ctx.iv_dma_addr);
+		dma_unmap_single(dev, req_ctx->gen_ctx.iv_dma_addr, 
+				 ivsize, 
+				 DMA_TO_DEVICE);
+	}
+	/* Release pool */
+	if (req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI) {
+		SSI_RESTORE_DMA_ADDR_TO_48BIT(req_ctx->mlli_params.mlli_dma_addr);
+		dma_pool_free(req_ctx->mlli_params.curr_pool,
+			      req_ctx->mlli_params.mlli_virt_addr,
+			      req_ctx->mlli_params.mlli_dma_addr);
+	}
+
+	SSI_RESTORE_DMA_ADDR_TO_48BIT(sg_dma_address(src));
+	dma_unmap_sg(dev, src, req_ctx->in_nents,
+		DMA_BIDIRECTIONAL);
+	SSI_LOG_DEBUG("Unmapped req->src=%pK\n", 
+		     sg_virt(src));
+
+	if (src != dst) {
+		SSI_RESTORE_DMA_ADDR_TO_48BIT(sg_dma_address(dst));
+		dma_unmap_sg(dev, dst, req_ctx->out_nents, 
+			DMA_BIDIRECTIONAL);
+		SSI_LOG_DEBUG("Unmapped req->dst=%pK\n",
+			sg_virt(dst));
+	}
+}
+
+int ssi_buffer_mgr_map_blkcipher_request(
+	struct ssi_drvdata *drvdata,
+	void *ctx,
+	unsigned int ivsize,
+	unsigned int nbytes,
+	void *info,
+	struct scatterlist *src,
+	struct scatterlist *dst)
+{
+	struct blkcipher_req_ctx *req_ctx = (struct blkcipher_req_ctx *)ctx;
+	struct mlli_params *mlli_params = &req_ctx->mlli_params;	
+	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
+	struct device *dev = &drvdata->plat_dev->dev;
+	struct buffer_array sg_data;
+	uint32_t dummy = 0;
+	int rc = 0;
+	uint32_t mapped_nents = 0;
+
+	req_ctx->dma_buf_type = SSI_DMA_BUF_DLLI;
+	mlli_params->curr_pool = NULL;
+	sg_data.num_of_buffers = 0;
+
+	/* Map IV buffer */
+	if (likely(ivsize != 0) ) {
+		dump_byte_array("iv", (uint8_t *)info, ivsize);
+		req_ctx->gen_ctx.iv_dma_addr = 
+			dma_map_single(dev, (void *)info, 
+				       ivsize, 
+				       DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dev, 
+					req_ctx->gen_ctx.iv_dma_addr))) {
+			SSI_LOG_ERR("Mapping iv %u B at va=%pK "
+				   "for DMA failed\n", ivsize, info);
+			return -ENOMEM;
+		}
+		SSI_UPDATE_DMA_ADDR_TO_48BIT(req_ctx->gen_ctx.iv_dma_addr,
+								ivsize);
+		SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=0x%llX\n",
+			ivsize, info,
+			(unsigned long long)req_ctx->gen_ctx.iv_dma_addr);
+	} else
+		req_ctx->gen_ctx.iv_dma_addr = 0;
+	
+	/* Map the src SGL */
+	rc = ssi_buffer_mgr_map_scatterlist(dev, src,
+		nbytes, DMA_BIDIRECTIONAL, &req_ctx->in_nents,
+		LLI_MAX_NUM_OF_DATA_ENTRIES, &dummy, &mapped_nents);
+	if (unlikely(rc != 0)) {
+		rc = -ENOMEM;
+		goto ablkcipher_exit;
+	}
+	if (mapped_nents > 1)
+		req_ctx->dma_buf_type = SSI_DMA_BUF_MLLI;
+
+	if (unlikely(src == dst)) {
+		/* Handle inplace operation */
+		if (unlikely(req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI)) {
+			req_ctx->out_nents = 0;
+			ssi_buffer_mgr_add_scatterlist_entry(&sg_data,
+				req_ctx->in_nents, src,
+				nbytes, 0, true, &req_ctx->in_mlli_nents);
+		}
+	} else {
+		/* Map the dst sg */
+		if (unlikely(ssi_buffer_mgr_map_scatterlist(
+			dev,dst, nbytes,
+			DMA_BIDIRECTIONAL, &req_ctx->out_nents,
+			LLI_MAX_NUM_OF_DATA_ENTRIES, &dummy,
+			&mapped_nents))){
+			rc = -ENOMEM;
+			goto ablkcipher_exit;
+		}
+		if (mapped_nents > 1)
+			req_ctx->dma_buf_type = SSI_DMA_BUF_MLLI;
+
+		if (unlikely((req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI))) {
+			ssi_buffer_mgr_add_scatterlist_entry(&sg_data,
+				req_ctx->in_nents, src,
+				nbytes, 0, true,
+				&req_ctx->in_mlli_nents);
+			ssi_buffer_mgr_add_scatterlist_entry(&sg_data,
+				req_ctx->out_nents, dst,
+				nbytes, 0, true, 
+				&req_ctx->out_mlli_nents);
+		}
+	}
+	
+	if (unlikely(req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI)) {
+		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
+		rc = ssi_buffer_mgr_generate_mlli(dev, &sg_data, mlli_params);
+		if (unlikely(rc!= 0))
+			goto ablkcipher_exit;
+
+	}
+
+	SSI_LOG_DEBUG("areq_ctx->dma_buf_type = %s\n",
+		GET_DMA_BUFFER_TYPE(req_ctx->dma_buf_type));
+
+	return 0;
+
+ablkcipher_exit:
+	ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
+	return rc;
 }
 
 int ssi_buffer_mgr_map_hash_request_final(

@@ -23,6 +23,7 @@
 #include <crypto/sha.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
+#include <crypto/internal/skcipher.h>
 
 #include <linux/init.h>
 #include <linux/moduleparam.h>
@@ -61,6 +62,7 @@
 #include "ssi_request_mgr.h"
 #include "ssi_buffer_mgr.h"
 #include "ssi_sysfs.h"
+#include "ssi_cipher.h"
 #include "ssi_hash.h"
 #include "ssi_sram_mgr.h"
 #include "ssi_pm.h"
@@ -219,6 +221,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto init_cc_res_err;
 	}
 
+	/*Initialize inflight counter used in dx_ablkcipher_secure_complete used for count of BYSPASS blocks operations*/
+	new_drvdata->inflight_counter = 0;
+
 	dev_set_drvdata(&plat_dev->dev, new_drvdata);
 	/* Get device resources */
 	/* First CC registers space */
@@ -343,6 +348,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto init_cc_res_err;
 	}
 
+	/* Allocate crypto algs */
+	rc = ssi_ablkcipher_alloc(new_drvdata);
+	if (unlikely(rc != 0)) {
+		SSI_LOG_ERR("ssi_ablkcipher_alloc failed\n");
+		goto init_cc_res_err;
+	}
+
 	rc = ssi_hash_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_hash_alloc failed\n");
@@ -356,6 +368,7 @@ init_cc_res_err:
 	
 	if (new_drvdata != NULL) {
 		ssi_hash_free(new_drvdata);
+		ssi_ablkcipher_free(new_drvdata);
 		ssi_power_mgr_fini(new_drvdata);
 		ssi_buffer_mgr_fini(new_drvdata);
 		request_mgr_fini(new_drvdata);
@@ -396,6 +409,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 		(struct ssi_drvdata *)dev_get_drvdata(&plat_dev->dev);
 
         ssi_hash_free(drvdata);
+        ssi_ablkcipher_free(drvdata);
 	ssi_power_mgr_fini(drvdata);
 	ssi_buffer_mgr_fini(drvdata);
 	request_mgr_fini(drvdata);

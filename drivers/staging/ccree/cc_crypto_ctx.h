@@ -242,6 +242,27 @@ struct drv_ctx_hmac {
 			CC_DIGEST_SIZE_MAX - CC_HMAC_BLOCK_SIZE_MAX];
 };
 
+struct drv_ctx_cipher {
+	enum drv_crypto_alg alg; /* DRV_CRYPTO_ALG_AES */
+	enum drv_cipher_mode mode;
+	enum drv_crypto_direction direction;
+	enum drv_crypto_key_type crypto_key_type;
+	enum drv_crypto_padding_type padding_type;
+	uint32_t key_size; /* numeric value in bytes   */
+	uint32_t data_unit_size; /* required for XTS */
+	/* block_state is the AES engine block state.
+	*  It is used by the host to pass IV or counter at initialization.
+	*  It is used by SeP for intermediate block chaining state and for
+	*  returning MAC algorithms results.           */
+	uint8_t block_state[CC_AES_BLOCK_SIZE];
+	uint8_t key[CC_AES_KEY_SIZE_MAX];
+	uint8_t xex_key[CC_AES_KEY_SIZE_MAX];
+	/* reserve to end of allocated context size */
+	uint32_t reserved[CC_DRV_CTX_SIZE_WORDS - 7 -
+		CC_AES_BLOCK_SIZE/sizeof(uint32_t) - 2 *
+		(CC_AES_KEY_SIZE_MAX/sizeof(uint32_t))];
+};
+
 /*******************************************************************/
 /***************** MESSAGE BASED CONTEXTS **************************/
 /*******************************************************************/
