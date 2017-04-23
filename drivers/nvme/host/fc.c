@@ -65,6 +65,7 @@ enum nvme_fcop_flags {
 	FCOP_FLAGS_TERMIO	= (1 << 0),
 	FCOP_FLAGS_RELEASED	= (1 << 1),
 	FCOP_FLAGS_COMPLETE	= (1 << 2),
+	FCOP_FLAGS_AEN		= (1 << 3),
 };
 
 struct nvmefc_ls_req_op {
@@ -86,6 +87,7 @@ enum nvme_fcpop_state {
 	FCPOP_STATE_IDLE	= 1,
 	FCPOP_STATE_ACTIVE	= 2,
 	FCPOP_STATE_ABORTED	= 3,
+	FCPOP_STATE_COMPLETE	= 4,
 };
 
 struct nvme_fc_fcp_op {
@@ -104,6 +106,7 @@ struct nvme_fc_fcp_op {
 	struct request		*rq;
 
 	atomic_t		state;
+	u32			flags;
 	u32			rqno;
 	u32			nents;
 
@@ -1132,6 +1135,7 @@ nvme_fc_xmt_disconnect_assoc(struct nvme_fc_ctrl *ctrl)
 
 /* *********************** NVME Ctrl Routines **************************** */
 
+static void __nvme_fc_final_op_cleanup(struct request *rq);
 
 static int
 nvme_fc_reinit_request(void *data, struct request *rq)
@@ -1169,18 +1173,72 @@ nvme_fc_exit_request(void *data, struct request *rq,
 	return __nvme_fc_exit_request(data, op);
 }
 
+static int
+__nvme_fc_abort_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_fcp_op *op)
+{
+	int state;
+
+	state = atomic_xchg(&op->state, FCPOP_STATE_ABORTED);
+	if (state != FCPOP_STATE_ACTIVE) {
+		atomic_set(&op->state, state);
+		return -ECANCELED;
+	}
+
+	ctrl->lport->ops->fcp_abort(&ctrl->lport->localport,
+					&ctrl->rport->remoteport,
+					op->queue->lldd_handle,
+					&op->fcp_req);
+
+	return 0;
+}
+
 static void
-nvme_fc_exit_aen_ops(struct nvme_fc_ctrl *ctrl)
+nvme_fc_abort_aen_ops(struct nvme_fc_ctrl *ctrl)
 {
 	struct nvme_fc_fcp_op *aen_op = ctrl->aen_ops;
-	int i;
+	unsigned long flags;
+	int i, ret;
 
 	for (i = 0; i < NVME_FC_NR_AEN_COMMANDS; i++, aen_op++) {
-		if (atomic_read(&aen_op->state) == FCPOP_STATE_UNINIT)
+		if (atomic_read(&aen_op->state) != FCPOP_STATE_ACTIVE)
 			continue;
-		__nvme_fc_exit_request(ctrl, aen_op);
-		nvme_fc_ctrl_put(ctrl);
+
+		spin_lock_irqsave(&ctrl->lock, flags);
+		aen_op->flags |= FCOP_FLAGS_TERMIO;
+		spin_unlock_irqrestore(&ctrl->lock, flags);
+
+		ret = __nvme_fc_abort_op(ctrl, aen_op);
+		if (ret) {
+			/*
+			 * if __nvme_fc_abort_op failed the io wasn't
+			 * active. Thus this call path is running in
+			 * parallel to the io complete. Treat as non-error.
+			 */
+
+			/* back out the flags/counters */
+			spin_lock_irqsave(&ctrl->lock, flags);
+			aen_op->flags &= ~FCOP_FLAGS_TERMIO;
+			spin_unlock_irqrestore(&ctrl->lock, flags);
+			return;
+		}
 	}
+}
+
+static inline int
+__nvme_fc_fcpop_chk_teardowns(struct nvme_fc_ctrl *ctrl,
+		struct nvme_fc_fcp_op *op)
+{
+	unsigned long flags;
+	bool complete_rq = false;
+
+	spin_lock_irqsave(&ctrl->lock, flags);
+	if (op->flags & FCOP_FLAGS_RELEASED)
+		complete_rq = true;
+	else
+		op->flags |= FCOP_FLAGS_COMPLETE;
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+
+	return complete_rq;
 }
 
 void
@@ -1195,6 +1253,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	struct nvme_command *sqe = &op->cmd_iu.sqe;
 	__le16 status = cpu_to_le16(NVME_SC_SUCCESS << 1);
 	union nvme_result result;
+	bool complete_rq;
 
 	/*
 	 * WARNING:
@@ -1289,13 +1348,25 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	}
 
 done:
-	if (!queue->qnum && op->rqno >= AEN_CMDID_BASE) {
+	if (op->flags & FCOP_FLAGS_AEN) {
 		nvme_complete_async_event(&queue->ctrl->ctrl, status, &result);
+		complete_rq = __nvme_fc_fcpop_chk_teardowns(ctrl, op);
+		atomic_set(&op->state, FCPOP_STATE_IDLE);
+		op->flags = FCOP_FLAGS_AEN;	/* clear other flags */
 		nvme_fc_ctrl_put(ctrl);
 		return;
 	}
 
-	nvme_end_request(rq, status, result);
+	complete_rq = __nvme_fc_fcpop_chk_teardowns(ctrl, op);
+	if (!complete_rq) {
+		if (unlikely(op->flags & FCOP_FLAGS_TERMIO)) {
+			status = cpu_to_le16(NVME_SC_ABORT_REQ);
+			if (blk_queue_dying(rq->q))
+				status |= cpu_to_le16(NVME_SC_DNR);
+		}
+		nvme_end_request(rq, status, result);
+	} else
+		__nvme_fc_final_op_cleanup(rq);
 }
 
 static int
@@ -1388,8 +1459,11 @@ nvme_fc_init_aen_ops(struct nvme_fc_ctrl *ctrl)
 		if (ret)
 			return ret;
 
+		aen_op->flags = FCOP_FLAGS_AEN;
+
 		memset(sqe, 0, sizeof(*sqe));
 		sqe->common.opcode = nvme_admin_async_event;
+		/* Note: core layer may overwrite the sqe.command_id value */
 		sqe->common.command_id = AEN_CMDID_BASE + i;
 	}
 	return 0;
@@ -1644,32 +1718,10 @@ nvme_fc_free_nvme_ctrl(struct nvme_ctrl *nctrl)
 			nvme_fc_free_io_queues(ctrl);
 		}
 
-		nvme_fc_exit_aen_ops(ctrl);
-
 		nvme_fc_destroy_admin_queue(ctrl);
 	}
 
 	nvme_fc_ctrl_put(ctrl);
-}
-
-
-static int
-__nvme_fc_abort_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_fcp_op *op)
-{
-	int state;
-
-	state = atomic_xchg(&op->state, FCPOP_STATE_ABORTED);
-	if (state != FCPOP_STATE_ACTIVE) {
-		atomic_set(&op->state, state);
-		return -ECANCELED; /* fail */
-	}
-
-	ctrl->lport->ops->fcp_abort(&ctrl->lport->localport,
-					&ctrl->rport->remoteport,
-					op->queue->lldd_handle,
-					&op->fcp_req);
-
-	return 0;
 }
 
 enum blk_eh_timer_return
@@ -1830,10 +1882,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	sqe->rw.dptr.sgl.length = cpu_to_le32(data_len);
 	sqe->rw.dptr.sgl.addr = 0;
 
-	/* odd that we set the command_id - should come from nvme-fabrics */
-	WARN_ON_ONCE(sqe->common.command_id != cpu_to_le16(op->rqno));
-
-	if (op->rq) {				/* skipped on aens */
+	if (!(op->flags & FCOP_FLAGS_AEN)) {
 		ret = nvme_fc_map_data(ctrl, op->rq, op);
 		if (ret < 0) {
 			dev_err(queue->ctrl->ctrl.device,
@@ -1850,7 +1899,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 
 	atomic_set(&op->state, FCPOP_STATE_ACTIVE);
 
-	if (op->rq)
+	if (!(op->flags & FCOP_FLAGS_AEN))
 		blk_mq_start_request(op->rq);
 
 	ret = ctrl->lport->ops->fcp_io(&ctrl->lport->localport,
@@ -1967,19 +2016,47 @@ nvme_fc_submit_async_event(struct nvme_ctrl *arg, int aer_idx)
 }
 
 static void
-nvme_fc_complete_rq(struct request *rq)
+__nvme_fc_final_op_cleanup(struct request *rq)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 	struct nvme_fc_ctrl *ctrl = op->ctrl;
-	int state;
 
-	state = atomic_xchg(&op->state, FCPOP_STATE_IDLE);
+	atomic_set(&op->state, FCPOP_STATE_IDLE);
+	op->flags &= ~(FCOP_FLAGS_TERMIO | FCOP_FLAGS_RELEASED |
+			FCOP_FLAGS_COMPLETE);
 
 	nvme_cleanup_cmd(rq);
 	nvme_fc_unmap_data(ctrl, rq, op);
 	nvme_complete_rq(rq);
 	nvme_fc_ctrl_put(ctrl);
 
+}
+
+static void
+nvme_fc_complete_rq(struct request *rq)
+{
+	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
+	struct nvme_fc_ctrl *ctrl = op->ctrl;
+	unsigned long flags;
+	bool completed = false;
+
+	/*
+	 * the core layer, on controller resets after calling
+	 * nvme_shutdown_ctrl(), calls complete_rq without our
+	 * calling blk_mq_complete_request(), thus there may still
+	 * be live i/o outstanding with the LLDD. Means transport has
+	 * to track complete calls vs fcpio_done calls to know what
+	 * path to take on completes and dones.
+	 */
+	spin_lock_irqsave(&ctrl->lock, flags);
+	if (op->flags & FCOP_FLAGS_COMPLETE)
+		completed = true;
+	else
+		op->flags |= FCOP_FLAGS_RELEASED;
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+
+	if (completed)
+		__nvme_fc_final_op_cleanup(rq);
 }
 
 static const struct blk_mq_ops nvme_fc_mq_ops = {
@@ -2105,24 +2182,31 @@ nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
 	struct nvme_ctrl *nctrl = data;
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(req);
-int status;
+	unsigned long flags;
+	int status;
 
 	if (!blk_mq_request_started(req))
 		return;
 
-	/* this performs an ABTS-LS on the FC exchange for the io */
-	status = __nvme_fc_abort_op(ctrl, op);
-	/*
-	 * if __nvme_fc_abort_op failed: io wasn't active to abort
-	 * consider it done. Assume completion path already completing
-	 * in parallel
-	 */
-	if (status)
-		/* io wasn't active to abort consider it done */
-		/* assume completion path already completing in parallel */
-		return;
-}
+	spin_lock_irqsave(&ctrl->lock, flags);
+	op->flags |= FCOP_FLAGS_TERMIO;
+	spin_unlock_irqrestore(&ctrl->lock, flags);
 
+	status = __nvme_fc_abort_op(ctrl, op);
+	if (status) {
+		/*
+		 * if __nvme_fc_abort_op failed the io wasn't
+		 * active. Thus this call path is running in
+		 * parallel to the io complete. Treat as non-error.
+		 */
+
+		/* back out the flags/counters */
+		spin_lock_irqsave(&ctrl->lock, flags);
+		op->flags &= ~FCOP_FLAGS_TERMIO;
+		spin_unlock_irqrestore(&ctrl->lock, flags);
+		return;
+	}
+}
 
 /*
  * This routine stops operation of the controller. Admin and IO queues
@@ -2161,6 +2245,9 @@ nvme_fc_shutdown_ctrl(struct nvme_fc_ctrl *ctrl)
 	blk_mq_stop_hw_queues(ctrl->ctrl.admin_q);
 	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
 				nvme_fc_terminate_exchange, &ctrl->ctrl);
+
+	/* kill the aens as they are a separate path */
+	nvme_fc_abort_aen_ops(ctrl);
 }
 
 /*
@@ -2406,12 +2493,12 @@ __nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ret = nvme_fc_init_aen_ops(ctrl);
 	if (ret)
-		goto out_exit_aen_ops;
+		goto out_stop_keep_alive;
 
 	if (ctrl->queue_count > 1) {
 		ret = nvme_fc_create_io_queues(ctrl);
 		if (ret)
-			goto out_exit_aen_ops;
+			goto out_stop_keep_alive;
 	}
 
 	spin_lock_irqsave(&ctrl->lock, flags);
@@ -2438,8 +2525,8 @@ __nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	return &ctrl->ctrl;
 
-out_exit_aen_ops:
-	nvme_fc_exit_aen_ops(ctrl);
+out_stop_keep_alive:
+	nvme_stop_keep_alive(&ctrl->ctrl);
 out_remove_admin_queue:
 	/* send a Disconnect(association) LS to fc-nvme target */
 	nvme_fc_xmt_disconnect_assoc(ctrl);
