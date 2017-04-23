@@ -653,7 +653,7 @@ static void comp_handler(unsigned long devarg)
 			/* Avoid race with above clear: Test completion counter once more */
 			request_mgr_handle->axi_completed += CC_REG_FLD_GET(CRY_KERNEL, AXIM_MON_COMP, VALUE, 
 				CC_HAL_READ_REGISTER(AXIM_MON_BASE_OFFSET));
-		};
+		}
 	
 	}
 	/* after verifing that there is nothing to do, Unmask AXI completion interrupt */
