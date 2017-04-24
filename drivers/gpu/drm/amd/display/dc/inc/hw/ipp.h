@@ -118,7 +118,7 @@ struct ipp_funcs {
 		struct input_pixel_processor *ipp,
 		enum ipp_degamma_mode mode);
 
-	bool (*ipp_program_degamma_pwl)(
+	void (*ipp_program_degamma_pwl)(
 		struct input_pixel_processor *ipp,
 		const struct pwl_params *params);
 
