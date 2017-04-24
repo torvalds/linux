@@ -6,7 +6,6 @@
  */
 #include "lkdtm.h"
 #include <linux/list.h>
-#include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
@@ -135,88 +134,6 @@ void lkdtm_HUNG_TASK(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
-}
-
-void lkdtm_REFCOUNT_SATURATE_INC(void)
-{
-	refcount_t over = REFCOUNT_INIT(UINT_MAX - 1);
-
-	pr_info("attempting good refcount decrement\n");
-	refcount_dec(&over);
-	refcount_inc(&over);
-
-	pr_info("attempting bad refcount inc overflow\n");
-	refcount_inc(&over);
-	refcount_inc(&over);
-	if (refcount_read(&over) == UINT_MAX)
-		pr_err("Correctly stayed saturated, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount wrapped\n");
-}
-
-void lkdtm_REFCOUNT_SATURATE_ADD(void)
-{
-	refcount_t over = REFCOUNT_INIT(UINT_MAX - 1);
-
-	pr_info("attempting good refcount decrement\n");
-	refcount_dec(&over);
-	refcount_inc(&over);
-
-	pr_info("attempting bad refcount add overflow\n");
-	refcount_add(2, &over);
-	if (refcount_read(&over) == UINT_MAX)
-		pr_err("Correctly stayed saturated, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount wrapped\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_DEC(void)
-{
-	refcount_t zero = REFCOUNT_INIT(1);
-
-	pr_info("attempting bad refcount decrement to zero\n");
-	refcount_dec(&zero);
-	if (refcount_read(&zero) == 0)
-		pr_err("Stayed at zero, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount went crazy\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_SUB(void)
-{
-	refcount_t zero = REFCOUNT_INIT(1);
-
-	pr_info("attempting bad refcount subtract past zero\n");
-	if (!refcount_sub_and_test(2, &zero))
-		pr_info("wrap attempt was noticed\n");
-	if (refcount_read(&zero) == 1)
-		pr_err("Correctly stayed above 0, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount wrapped\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_INC(void)
-{
-	refcount_t zero = REFCOUNT_INIT(0);
-
-	pr_info("attempting bad refcount increment from zero\n");
-	refcount_inc(&zero);
-	if (refcount_read(&zero) == 0)
-		pr_err("Stayed at zero, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount went past zero\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_ADD(void)
-{
-	refcount_t zero = REFCOUNT_INIT(0);
-
-	pr_info("attempting bad refcount addition from zero\n");
-	refcount_add(2, &zero);
-	if (refcount_read(&zero) == 0)
-		pr_err("Stayed at zero, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount went past zero\n");
 }
 
 void lkdtm_CORRUPT_LIST_ADD(void)
