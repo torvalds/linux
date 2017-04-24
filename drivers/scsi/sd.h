@@ -272,8 +272,8 @@ static inline int sd_is_zoned(struct scsi_disk *sdkp)
 extern int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buffer);
 extern void sd_zbc_remove(struct scsi_disk *sdkp);
 extern void sd_zbc_print_zones(struct scsi_disk *sdkp);
-extern int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd);
-extern void sd_zbc_cancel_write_cmnd(struct scsi_cmnd *cmd);
+extern int sd_zbc_write_lock_zone(struct scsi_cmnd *cmd);
+extern void sd_zbc_write_unlock_zone(struct scsi_cmnd *cmd);
 extern int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd);
 extern int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd);
 extern void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
@@ -291,13 +291,13 @@ static inline void sd_zbc_remove(struct scsi_disk *sdkp) {}
 
 static inline void sd_zbc_print_zones(struct scsi_disk *sdkp) {}
 
-static inline int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd)
+static inline int sd_zbc_write_lock_zone(struct scsi_cmnd *cmd)
 {
 	/* Let the drive fail requests */
 	return BLKPREP_OK;
 }
 
-static inline void sd_zbc_cancel_write_cmnd(struct scsi_cmnd *cmd) {}
+static inline void sd_zbc_write_unlock_zone(struct scsi_cmnd *cmd) {}
 
 static inline int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd)
 {

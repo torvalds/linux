@@ -846,7 +846,7 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
 
 	if (sd_is_zoned(sdkp)) {
-		ret = sd_zbc_setup_write_cmnd(cmd);
+		ret = sd_zbc_write_lock_zone(cmd);
 		if (ret != BLKPREP_OK)
 			return ret;
 	}
@@ -918,7 +918,7 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	unsigned char protect;
 
 	if (zoned_write) {
-		ret = sd_zbc_setup_write_cmnd(SCpnt);
+		ret = sd_zbc_write_lock_zone(SCpnt);
 		if (ret != BLKPREP_OK)
 			return ret;
 	}
@@ -1145,7 +1145,7 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	ret = BLKPREP_OK;
  out:
 	if (zoned_write && ret != BLKPREP_OK)
-		sd_zbc_cancel_write_cmnd(SCpnt);
+		sd_zbc_write_unlock_zone(SCpnt);
 
 	return ret;
 }
