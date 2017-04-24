@@ -273,7 +273,7 @@ static int usage(void)
 	return 1;
 }
 
-void finish(int ret)
+static void finish(int ret)
 {
 	test_finish = true;
 }
