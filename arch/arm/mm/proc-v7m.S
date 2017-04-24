@@ -147,10 +147,10 @@ __v7m_setup_cont:
 
 	@ Configure caches (if implemented)
 	teq     r8, #0
-	stmneia	r12, {r0-r6, lr}	@ v7m_invalidate_l1 touches r0-r6
+	stmneia	sp, {r0-r6, lr}		@ v7m_invalidate_l1 touches r0-r6
 	blne	v7m_invalidate_l1
 	teq     r8, #0			@ re-evalutae condition
-	ldmneia	r12, {r0-r6, lr}
+	ldmneia	sp, {r0-r6, lr}
 
 	@ Configure the System Control Register to ensure 8-byte stack alignment
 	@ Note the STKALIGN bit is either RW or RAO.
