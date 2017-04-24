@@ -18,4 +18,5 @@ Linux Input Subsystem userspace API
    gamepad
    ff
    joydev/index
+   uinput
    userio
