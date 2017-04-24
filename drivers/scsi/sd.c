@@ -1815,8 +1815,6 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	struct request *req = SCpnt->request;
 	int sense_valid = 0;
 	int sense_deferred = 0;
-	unsigned char op = SCpnt->cmnd[0];
-	unsigned char unmap = SCpnt->cmnd[1] & 8;
 
 	switch (req_op(req)) {
 	case REQ_OP_DISCARD:
@@ -1874,26 +1872,27 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 			good_bytes = sd_completed_bytes(SCpnt);
 		break;
 	case ILLEGAL_REQUEST:
-		if (sshdr.asc == 0x10)  /* DIX: Host detected corruption */
+		switch (sshdr.asc) {
+		case 0x10:	/* DIX: Host detected corruption */
 			good_bytes = sd_completed_bytes(SCpnt);
-		/* INVALID COMMAND OPCODE or INVALID FIELD IN CDB */
-		if (sshdr.asc == 0x20 || sshdr.asc == 0x24) {
-			switch (op) {
+			break;
+		case 0x20:	/* INVALID COMMAND OPCODE */
+		case 0x24:	/* INVALID FIELD IN CDB */
+			switch (SCpnt->cmnd[0]) {
 			case UNMAP:
 				sd_config_discard(sdkp, SD_LBP_DISABLE);
 				break;
 			case WRITE_SAME_16:
 			case WRITE_SAME:
-				if (unmap)
+				if (SCpnt->cmnd[1] & 8) { /* UNMAP */
 					sd_config_discard(sdkp, SD_LBP_DISABLE);
-				else {
+				} else {
 					sdkp->device->no_write_same = 1;
 					sd_config_write_same(sdkp);
-
-					good_bytes = 0;
 					req->__data_len = blk_rq_bytes(req);
 					req->rq_flags |= RQF_QUIET;
 				}
+				break;
 			}
 		}
 		break;
