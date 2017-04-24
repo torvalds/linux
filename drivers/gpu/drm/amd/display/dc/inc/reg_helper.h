@@ -185,10 +185,10 @@
 
 /* macro to poll and wait for a register field to read back given value */
 
-#define REG_WAIT(reg_name, field, val, delay, max_try)	\
+#define REG_WAIT(reg_name, field, val, delay_between_poll_us, max_try)	\
 		generic_reg_wait(CTX, \
 				REG(reg_name), FN(reg_name, field), val,\
-				delay, max_try, __func__)
+				delay_between_poll_us, max_try, __func__)
 
 /* macro to update (read, modify, write) register fields
  */
