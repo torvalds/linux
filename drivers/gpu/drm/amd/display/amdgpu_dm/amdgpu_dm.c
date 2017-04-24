@@ -202,6 +202,9 @@ static void dm_pflip_high_irq(void *interrupt_params)
 	if (amdgpu_crtc->event
 			&& amdgpu_crtc->event->event.base.type
 			== DRM_EVENT_FLIP_COMPLETE) {
+		/* Update to correct count/ts if racing with vblank irq */
+		drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
+
 		drm_crtc_send_vblank_event(&amdgpu_crtc->base, amdgpu_crtc->event);
 		/* page flip completed. clean up */
 		amdgpu_crtc->event = NULL;
