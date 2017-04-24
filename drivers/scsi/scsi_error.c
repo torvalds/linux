@@ -46,6 +46,8 @@
 
 #include <trace/events/scsi.h>
 
+#include <asm/unaligned.h>
+
 static void scsi_eh_done(struct scsi_cmnd *scmd);
 
 /*
@@ -2361,44 +2363,34 @@ EXPORT_SYMBOL(scsi_command_normalize_sense);
  *			field will be placed if found.
  *
  * Return value:
- *	1 if information field found, 0 if not found.
+ *	true if information field found, false if not found.
  */
-int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
-			    u64 * info_out)
+bool scsi_get_sense_info_fld(const u8 *sense_buffer, int sb_len,
+			     u64 *info_out)
 {
-	int j;
 	const u8 * ucp;
-	u64 ull;
 
 	if (sb_len < 7)
-		return 0;
+		return false;
 	switch (sense_buffer[0] & 0x7f) {
 	case 0x70:
 	case 0x71:
 		if (sense_buffer[0] & 0x80) {
-			*info_out = (sense_buffer[3] << 24) +
-				    (sense_buffer[4] << 16) +
-				    (sense_buffer[5] << 8) + sense_buffer[6];
-			return 1;
-		} else
-			return 0;
+			*info_out = get_unaligned_be32(&sense_buffer[3]);
+			return true;
+		}
+		return false;
 	case 0x72:
 	case 0x73:
 		ucp = scsi_sense_desc_find(sense_buffer, sb_len,
 					   0 /* info desc */);
 		if (ucp && (0xa == ucp[1])) {
-			ull = 0;
-			for (j = 0; j < 8; ++j) {
-				if (j > 0)
-					ull <<= 8;
-				ull |= ucp[4 + j];
-			}
-			*info_out = ull;
-			return 1;
-		} else
-			return 0;
+			*info_out = get_unaligned_be64(&ucp[4]);
+			return true;
+		}
+		return false;
 	default:
-		return 0;
+		return false;
 	}
 }
 EXPORT_SYMBOL(scsi_get_sense_info_fld);

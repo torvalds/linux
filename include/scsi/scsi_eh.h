@@ -23,8 +23,8 @@ static inline bool scsi_sense_is_deferred(const struct scsi_sense_hdr *sshdr)
 	return ((sshdr->response_code >= 0x70) && (sshdr->response_code & 1));
 }
 
-extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
-				   u64 * info_out);
+extern bool scsi_get_sense_info_fld(const u8 *sense_buffer, int sb_len,
+				    u64 *info_out);
 
 extern int scsi_ioctl_reset(struct scsi_device *, int __user *);
 
