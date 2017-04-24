@@ -4482,9 +4482,15 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		vf->vlan = le16_to_cpu(resp->vlan) & VLAN_VID_MASK;
 	}
 #endif
-	if (BNXT_PF(bp) && (le16_to_cpu(resp->flags) &
-			    FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED))
-		bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+	if (BNXT_PF(bp)) {
+		u16 flags = le16_to_cpu(resp->flags);
+
+		if (flags & (FUNC_QCFG_RESP_FLAGS_FW_DCBX_AGENT_ENABLED |
+			     FUNC_QCFG_RESP_FLAGS_FW_LLDP_AGENT_ENABLED))
+			bp->flags |= BNXT_FLAG_FW_LLDP_AGENT;
+		if (flags & FUNC_QCFG_RESP_FLAGS_MULTI_HOST)
+			bp->flags |= BNXT_FLAG_MULTI_HOST;
+	}
 
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
@@ -5471,7 +5477,8 @@ static void bnxt_report_link(struct bnxt *bp)
 	if (bp->link_info.link_up) {
 		const char *duplex;
 		const char *flow_ctrl;
-		u16 speed, fec;
+		u32 speed;
+		u16 fec;
 
 		netif_carrier_on(bp->dev);
 		if (bp->link_info.duplex == BNXT_LINK_DUPLEX_FULL)
@@ -5487,7 +5494,7 @@ static void bnxt_report_link(struct bnxt *bp)
 		else
 			flow_ctrl = "none";
 		speed = bnxt_fw_to_ethtool_speed(bp->link_info.link_speed);
-		netdev_info(bp->dev, "NIC Link is Up, %d Mbps %s duplex, Flow control: %s\n",
+		netdev_info(bp->dev, "NIC Link is Up, %u Mbps %s duplex, Flow control: %s\n",
 			    speed, duplex, flow_ctrl);
 		if (bp->flags & BNXT_FLAG_EEE_CAP)
 			netdev_info(bp->dev, "EEE is %s\n",
