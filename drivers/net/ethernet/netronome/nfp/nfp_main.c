@@ -253,6 +253,7 @@ exit_release_fw:
 
 static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 {
+	struct nfp_nsp_identify *nspi;
 	struct nfp_nsp *nsp;
 	int err;
 
@@ -268,6 +269,12 @@ static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 		goto exit_close_nsp;
 
 	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+
+	nspi = __nfp_nsp_identify(nsp);
+	if (nspi) {
+		dev_info(&pdev->dev, "BSP: %s\n", nspi->version);
+		kfree(nspi);
+	}
 
 	err = nfp_fw_load(pdev, pf, nsp);
 	if (err < 0) {

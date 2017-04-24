@@ -284,6 +284,12 @@ struct nfp_net_rx_desc {
 
 #define NFP_NET_META_FIELD_MASK GENMASK(NFP_NET_META_FIELD_SIZE - 1, 0)
 
+struct nfp_meta_parsed {
+	u32 hash_type;
+	u32 hash;
+	u32 mark;
+};
+
 struct nfp_net_rx_hash {
 	__be32 hash_type;
 	__be32 hash;
@@ -813,7 +819,8 @@ struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
 int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new);
 
 bool nfp_net_link_changed_read_clear(struct nfp_net *nn);
-void nfp_net_refresh_port_config(struct nfp_net *nn);
+int nfp_net_refresh_eth_port(struct nfp_net *nn);
+void nfp_net_refresh_port_table(struct nfp_net *nn);
 
 #ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);
