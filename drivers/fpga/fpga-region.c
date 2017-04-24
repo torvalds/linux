@@ -245,7 +245,8 @@ static int fpga_region_program_fpga(struct fpga_region *region,
 	mgr = fpga_region_get_manager(region);
 	if (IS_ERR(mgr)) {
 		pr_err("failed to get fpga region manager\n");
-		return PTR_ERR(mgr);
+		ret = PTR_ERR(mgr);
+		goto err_put_region;
 	}
 
 	ret = fpga_region_get_bridges(region, overlay);
@@ -281,6 +282,7 @@ err_put_br:
 	fpga_bridges_put(&region->bridge_list);
 err_put_mgr:
 	fpga_mgr_put(mgr);
+err_put_region:
 	fpga_region_put(region);
 
 	return ret;
