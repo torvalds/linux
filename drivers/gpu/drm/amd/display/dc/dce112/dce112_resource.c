@@ -40,7 +40,7 @@
 #include "dce/dce_stream_encoder.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_opp.h"
-#include "dce110/dce110_ipp.h"
+#include "dce/dce_ipp.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 
@@ -177,28 +177,6 @@ static const struct dce110_mem_input_reg_offsets dce112_mi_reg_offsets[] = {
 	}
 };
 
-static const struct dce110_ipp_reg_offsets ipp_reg_offsets[] = {
-{
-	.dcp_offset = (mmDCP0_CUR_CONTROL - mmCUR_CONTROL),
-},
-{
-	.dcp_offset = (mmDCP1_CUR_CONTROL - mmCUR_CONTROL),
-},
-{
-	.dcp_offset = (mmDCP2_CUR_CONTROL - mmCUR_CONTROL),
-},
-{
-	.dcp_offset = (mmDCP3_CUR_CONTROL - mmCUR_CONTROL),
-},
-{
-	.dcp_offset = (mmDCP4_CUR_CONTROL - mmCUR_CONTROL),
-},
-{
-	.dcp_offset = (mmDCP5_CUR_CONTROL - mmCUR_CONTROL),
-}
-};
-
-
 /* set register offset */
 #define SR(reg_name)\
 	.reg_name = mm ## reg_name
@@ -242,6 +220,28 @@ static const struct dce_abm_shift abm_shift = {
 
 static const struct dce_abm_mask abm_mask = {
 		ABM_MASK_SH_LIST_DCE110(_MASK)
+};
+
+#define ipp_regs(id)\
+[id] = {\
+		IPP_DCE110_REG_LIST_DCE_BASE(id)\
+}
+
+static const struct dce_ipp_registers ipp_regs[] = {
+		ipp_regs(0),
+		ipp_regs(1),
+		ipp_regs(2),
+		ipp_regs(3),
+		ipp_regs(4),
+		ipp_regs(5)
+};
+
+static const struct dce_ipp_shift ipp_shift = {
+		IPP_DCE100_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
+};
+
+static const struct dce_ipp_mask ipp_mask = {
+		IPP_DCE100_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
 #define transform_regs(id)\
@@ -627,29 +627,19 @@ struct link_encoder *dce112_link_encoder_create(
 	return NULL;
 }
 
-struct input_pixel_processor *dce112_ipp_create(
-	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dce110_ipp_reg_offsets *offset)
+static struct input_pixel_processor *dce112_ipp_create(
+	struct dc_context *ctx, uint32_t inst)
 {
-	struct dce110_ipp *ipp =
-		dm_alloc(sizeof(struct dce110_ipp));
+	struct dce_ipp *ipp = dm_alloc(sizeof(struct dce_ipp));
 
-	if (!ipp)
+	if (!ipp) {
+		BREAK_TO_DEBUGGER();
 		return NULL;
+	}
 
-	if (dce110_ipp_construct(ipp, ctx, inst, offset))
-			return &ipp->base;
-
-	BREAK_TO_DEBUGGER();
-	dm_free(ipp);
-	return NULL;
-}
-
-void dce112_ipp_destroy(struct input_pixel_processor **ipp)
-{
-	dm_free(TO_DCE110_IPP(*ipp));
-	*ipp = NULL;
+	dce_ipp_construct(ipp, ctx, inst,
+			&ipp_regs[inst], &ipp_shift, &ipp_mask);
+	return &ipp->base;
 }
 
 struct output_pixel_processor *dce112_opp_create(
@@ -712,7 +702,7 @@ static void destruct(struct dce110_resource_pool *pool)
 			dce112_transform_destroy(&pool->base.transforms[i]);
 
 		if (pool->base.ipps[i] != NULL)
-			dce112_ipp_destroy(&pool->base.ipps[i]);
+			dce_ipp_destroy(&pool->base.ipps[i]);
 
 		if (pool->base.mis[i] != NULL) {
 			dm_free(TO_DCE110_MEM_INPUT(pool->base.mis[i]));
@@ -1370,10 +1360,7 @@ static bool construct(
 			goto res_create_fail;
 		}
 
-		pool->base.ipps[i] = dce112_ipp_create(
-			ctx,
-			i,
-			&ipp_reg_offsets[i]);
+		pool->base.ipps[i] = dce112_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(

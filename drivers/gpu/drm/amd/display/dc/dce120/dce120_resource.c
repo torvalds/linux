@@ -176,7 +176,7 @@ static const struct dce_abm_mask abm_mask = {
 
 #define ipp_regs(id)\
 [id] = {\
-		IPP_COMMON_REG_LIST_DCE_BASE(id)\
+		IPP_DCE110_REG_LIST_DCE_BASE(id)\
 }
 
 static const struct dce_ipp_registers ipp_regs[] = {
@@ -189,11 +189,11 @@ static const struct dce_ipp_registers ipp_regs[] = {
 };
 
 static const struct dce_ipp_shift ipp_shift = {
-		IPP_COMMON_MASK_SH_LIST_SOC_BASE(__SHIFT)
+		IPP_DCE120_MASK_SH_LIST_SOC_BASE(__SHIFT)
 };
 
 static const struct dce_ipp_mask ipp_mask = {
-		IPP_COMMON_MASK_SH_LIST_SOC_BASE(_MASK)
+		IPP_DCE120_MASK_SH_LIST_SOC_BASE(_MASK)
 };
 
 #define transform_regs(id)\
@@ -497,12 +497,6 @@ static struct timing_generator *dce120_timing_generator_create(
 	return NULL;
 }
 
-static void dce120_ipp_destroy(struct input_pixel_processor **ipp)
-{
-	dm_free(TO_DCE_IPP(*ipp));
-	*ipp = NULL;
-}
-
 static void dce120_transform_destroy(struct transform **xfm)
 {
 	dm_free(TO_DCE_TRANSFORM(*xfm));
@@ -521,7 +515,7 @@ static void destruct(struct dce110_resource_pool *pool)
 			dce120_transform_destroy(&pool->base.transforms[i]);
 
 		if (pool->base.ipps[i] != NULL)
-			dce120_ipp_destroy(&pool->base.ipps[i]);
+			dce_ipp_destroy(&pool->base.ipps[i]);
 
 		if (pool->base.mis[i] != NULL) {
 			dm_free(TO_DCE110_MEM_INPUT(pool->base.mis[i]));

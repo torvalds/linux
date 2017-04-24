@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef _DCE_DCE_IPP_H_
-#define _DCE_DCE_IPP_H_
+#ifndef _DCE_IPP_H_
+#define _DCE_IPP_H_
 
 #include "ipp.h"
 
@@ -46,13 +46,20 @@
 	SRI(PRESCALE_VALUES_GRPH_G, DCP, id), \
 	SRI(PRESCALE_VALUES_GRPH_B, DCP, id), \
 	SRI(INPUT_GAMMA_CONTROL, DCP, id), \
-	SRI(DCFE_MEM_PWR_CTRL, DCFE, id), \
 	SRI(DC_LUT_WRITE_EN_MASK, DCP, id), \
 	SRI(DC_LUT_RW_MODE, DCP, id), \
 	SRI(DC_LUT_CONTROL, DCP, id), \
 	SRI(DC_LUT_RW_INDEX, DCP, id), \
 	SRI(DC_LUT_SEQ_COLOR, DCP, id), \
 	SRI(DEGAMMA_CONTROL, DCP, id)
+
+#define IPP_DCE100_REG_LIST_DCE_BASE(id) \
+	IPP_COMMON_REG_LIST_DCE_BASE(id), \
+	SRI(DCFE_MEM_PWR_CTRL, CRTC, id)
+
+#define IPP_DCE110_REG_LIST_DCE_BASE(id) \
+	IPP_COMMON_REG_LIST_DCE_BASE(id), \
+	SRI(DCFE_MEM_PWR_CTRL, DCFE, id)
 
 #define IPP_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -85,7 +92,6 @@
 	IPP_SF(PRESCALE_VALUES_GRPH_B, GRPH_PRESCALE_SCALE_B, mask_sh), \
 	IPP_SF(PRESCALE_VALUES_GRPH_B, GRPH_PRESCALE_BIAS_B, mask_sh), \
 	IPP_SF(INPUT_GAMMA_CONTROL, GRPH_INPUT_GAMMA_MODE, mask_sh), \
-	IPP_SF(DCFE_MEM_PWR_CTRL, DCP_LUT_MEM_PWR_DIS, mask_sh), \
 	IPP_SF(DC_LUT_WRITE_EN_MASK, DC_LUT_WRITE_EN_MASK, mask_sh), \
 	IPP_SF(DC_LUT_RW_MODE, DC_LUT_RW_MODE, mask_sh), \
 	IPP_SF(DC_LUT_CONTROL, DC_LUT_DATA_R_FORMAT, mask_sh), \
@@ -97,7 +103,11 @@
 	IPP_SF(DEGAMMA_CONTROL, CURSOR_DEGAMMA_MODE, mask_sh), \
 	IPP_SF(DEGAMMA_CONTROL, CURSOR2_DEGAMMA_MODE, mask_sh)
 
-#define IPP_COMMON_MASK_SH_LIST_SOC_BASE(mask_sh) \
+#define IPP_DCE100_MASK_SH_LIST_DCE_COMMON_BASE(mask_sh) \
+	IPP_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(mask_sh), \
+	IPP_SF(DCFE_MEM_PWR_CTRL, DCP_LUT_MEM_PWR_DIS, mask_sh)
+
+#define IPP_DCE120_MASK_SH_LIST_SOC_BASE(mask_sh) \
 	IPP_SF(DCP0_CUR_UPDATE, CURSOR_UPDATE_LOCK, mask_sh), \
 	IPP_SF(DCP0_CUR_CONTROL, CURSOR_EN, mask_sh), \
 	IPP_SF(DCP0_CUR_CONTROL, CURSOR_MODE, mask_sh), \
@@ -223,4 +233,6 @@ void dce_ipp_construct(struct dce_ipp *ipp_dce,
 	const struct dce_ipp_shift *ipp_shift,
 	const struct dce_ipp_mask *ipp_mask);
 
-#endif /* _DCE_DCE_IPP_H_ */
+void dce_ipp_destroy(struct input_pixel_processor **ipp);
+
+#endif /* _DCE_IPP_H_ */

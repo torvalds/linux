@@ -174,7 +174,8 @@ static void dce_ipp_program_input_lut(
 	struct dce_ipp *ipp_dce = TO_DCE_IPP(ipp);
 
 	/* power on LUT memory */
-	REG_SET(DCFE_MEM_PWR_CTRL, 0, DCP_LUT_MEM_PWR_DIS, 1);
+	if (REG(DCFE_MEM_PWR_CTRL))
+		REG_SET(DCFE_MEM_PWR_CTRL, 0, DCP_LUT_MEM_PWR_DIS, 1);
 
 	/* enable all */
 	REG_SET(DC_LUT_WRITE_EN_MASK, 0, DC_LUT_WRITE_EN_MASK, 0x7);
@@ -199,7 +200,8 @@ static void dce_ipp_program_input_lut(
 	}
 
 	/* power off LUT memory */
-	REG_SET(DCFE_MEM_PWR_CTRL, 0, DCP_LUT_MEM_PWR_DIS, 0);
+	if (REG(DCFE_MEM_PWR_CTRL))
+		REG_SET(DCFE_MEM_PWR_CTRL, 0, DCP_LUT_MEM_PWR_DIS, 0);
 
 	/* bypass prescale, enable legacy LUT */
 	REG_UPDATE(PRESCALE_GRPH_CONTROL, GRPH_PRESCALE_BYPASS, 1);
@@ -249,4 +251,10 @@ void dce_ipp_construct(
 	ipp_dce->regs = regs;
 	ipp_dce->ipp_shift = ipp_shift;
 	ipp_dce->ipp_mask = ipp_mask;
+}
+
+void dce_ipp_destroy(struct input_pixel_processor **ipp)
+{
+	dm_free(TO_DCE_IPP(*ipp));
+	*ipp = NULL;
 }
