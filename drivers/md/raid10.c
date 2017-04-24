@@ -1874,13 +1874,9 @@ static int raid10_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			   * but will never see neither -- if they are careful.
 			   */
 		p->replacement = NULL;
-		clear_bit(WantReplacement, &rdev->flags);
-	} else
-		/* We might have just remove the Replacement as faulty
-		 * Clear the flag just in case
-		 */
-		clear_bit(WantReplacement, &rdev->flags);
+	}
 
+	clear_bit(WantReplacement, &rdev->flags);
 	err = md_integrity_register(mddev);
 
 abort:

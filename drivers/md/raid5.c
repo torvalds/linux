@@ -7603,15 +7603,12 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			   * but will never see neither - if they are careful
 			   */
 		p->replacement = NULL;
-		clear_bit(WantReplacement, &rdev->flags);
 
 		if (!err)
 			err = log_modify(conf, p->rdev, true);
-	} else
-		/* We might have just removed the Replacement as faulty-
-		 * clear the bit just in case
-		 */
-		clear_bit(WantReplacement, &rdev->flags);
+	}
+
+	clear_bit(WantReplacement, &rdev->flags);
 abort:
 
 	print_raid5_conf(conf);
