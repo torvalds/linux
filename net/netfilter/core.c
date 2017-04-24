@@ -162,14 +162,17 @@ __nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
 	struct nf_hook_entry *p = __nf_unregister_net_hook(net, reg);
+	unsigned int nfq;
 
 	if (!p)
 		return;
 
 	synchronize_net();
-	nf_queue_nf_hook_drop(net, p);
+
 	/* other cpu might still process nfqueue verdict that used reg */
-	synchronize_net();
+	nfq = nf_queue_nf_hook_drop(net);
+	if (nfq)
+		synchronize_net();
 	kfree(p);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
@@ -198,7 +201,7 @@ void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 			     unsigned int hookcount)
 {
 	struct nf_hook_entry *to_free[16];
-	unsigned int i, n;
+	unsigned int i, n, nfq;
 
 	do {
 		n = min_t(unsigned int, hookcount, ARRAY_SIZE(to_free));
@@ -208,12 +211,12 @@ void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 
 		synchronize_net();
 
-		for (i = 0; i < n; i++) {
-			if (to_free[i])
-				nf_queue_nf_hook_drop(net, to_free[i]);
-		}
-
-		synchronize_net();
+		/* need 2nd synchronize_net() if nfqueue is used, skb
+		 * can get reinjected right before nf_queue_hook_drop()
+		 */
+		nfq = nf_queue_nf_hook_drop(net);
+		if (nfq)
+			synchronize_net();
 
 		for (i = 0; i < n; i++)
 			kfree(to_free[i]);
