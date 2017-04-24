@@ -1536,9 +1536,11 @@ static struct hv_pci_dev *new_pcichild_device(struct hv_pcibus_device *hbus,
 	 * can have shorter names than based on the bus instance UUID.
 	 * Only the first device serial number is used for domain, so the
 	 * domain number will not change after the first device is added.
+	 * The lower 16 bits of the serial number is used, otherwise some
+	 * drivers may not be able to handle it.
 	 */
 	if (list_empty(&hbus->children))
-		hbus->sysdata.domain = desc->ser;
+		hbus->sysdata.domain = desc->ser & 0xFFFF;
 	list_add_tail(&hpdev->list_entry, &hbus->children);
 	spin_unlock_irqrestore(&hbus->device_list_lock, flags);
 	return hpdev;
