@@ -2140,7 +2140,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 		if (amdgpu_crtc->cursor_bo) {
 			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-			r = amdgpu_bo_reserve(aobj, false);
+			r = amdgpu_bo_reserve(aobj, true);
 			if (r == 0) {
 				amdgpu_bo_unpin(aobj);
 				amdgpu_bo_unreserve(aobj);
@@ -2153,7 +2153,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 		robj = gem_to_amdgpu_bo(rfb->obj);
 		/* don't unpin kernel fb objects */
 		if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
-			r = amdgpu_bo_reserve(robj, false);
+			r = amdgpu_bo_reserve(robj, true);
 			if (r == 0) {
 				amdgpu_bo_unpin(robj);
 				amdgpu_bo_unreserve(robj);
@@ -2260,7 +2260,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 
 		if (amdgpu_crtc->cursor_bo) {
 			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-			r = amdgpu_bo_reserve(aobj, false);
+			r = amdgpu_bo_reserve(aobj, true);
 			if (r == 0) {
 				r = amdgpu_bo_pin(aobj,
 						  AMDGPU_GEM_DOMAIN_VRAM,
