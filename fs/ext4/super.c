@@ -5377,6 +5377,11 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		struct inode *inode = d_inode(path->dentry);
 		handle_t *handle;
 
+		/*
+		 * Set inode flags to prevent userspace from messing with quota
+		 * files. If this fails, we return success anyway since quotas
+		 * are already enabled and this is not a hard failure.
+		 */
 		inode_lock(inode);
 		handle = ext4_journal_start(inode, EXT4_HT_QUOTA, 1);
 		if (IS_ERR(handle))
@@ -5477,8 +5482,11 @@ static int ext4_quota_off(struct super_block *sb, int type)
 		goto out_put;
 
 	inode_lock(inode);
-	/* Update modification times of quota files when userspace can
-	 * start looking at them */
+	/*
+	 * Update modification times of quota files when userspace can
+	 * start looking at them. If we fail, we return success anyway since
+	 * this is not a hard failure and quotas are already disabled.
+	 */
 	handle = ext4_journal_start(inode, EXT4_HT_QUOTA, 1);
 	if (IS_ERR(handle))
 		goto out_unlock;
