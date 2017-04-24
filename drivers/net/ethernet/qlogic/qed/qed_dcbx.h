@@ -119,7 +119,7 @@ qed_dcbx_mib_update_event(struct qed_hwfn *,
 			  struct qed_ptt *, enum qed_mib_read_type);
 
 int qed_dcbx_info_alloc(struct qed_hwfn *p_hwfn);
-void qed_dcbx_info_free(struct qed_hwfn *, struct qed_dcbx_info *);
+void qed_dcbx_info_free(struct qed_hwfn *p_hwfn);
 void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 				   struct pf_update_ramrod_data *p_dest);
 

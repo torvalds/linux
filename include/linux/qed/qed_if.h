@@ -144,6 +144,7 @@ struct qed_dcbx_operational_params {
 	bool enabled;
 	bool ieee;
 	bool cee;
+	bool local;
 	u32 err;
 };
 
