@@ -29,8 +29,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include <core/gpuobj.h>
 #include <core/option.h>
