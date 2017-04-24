@@ -1716,7 +1716,8 @@ nvme_fc_ctrl_free(struct kref *ref)
 	nvme_fc_rport_put(ctrl->rport);
 
 	ida_simple_remove(&nvme_fc_ctrl_cnt, ctrl->cnum);
-	nvmf_free_options(ctrl->ctrl.opts);
+	if (ctrl->ctrl.opts)
+		nvmf_free_options(ctrl->ctrl.opts);
 	kfree(ctrl);
 }
 
@@ -2807,6 +2808,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ret = nvme_fc_create_association(ctrl);
 	if (ret) {
+		ctrl->ctrl.opts = NULL;
 		/* initiate nvme ctrl ref counting teardown */
 		nvme_uninit_ctrl(&ctrl->ctrl);
 		nvme_put_ctrl(&ctrl->ctrl);
