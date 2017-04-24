@@ -1,5 +1,7 @@
 #include <asm/smp.h>
 
+#include <xen/events.h>
+
 #include "xen-ops.h"
 #include "smp.h"
 
@@ -49,6 +51,9 @@ static void xen_hvm_cpu_die(unsigned int cpu)
 
 void __init xen_hvm_smp_init(void)
 {
+	if (!xen_have_vector_callback)
+		return;
+
 	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
 	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
 	smp_ops.cpu_die = xen_hvm_cpu_die;

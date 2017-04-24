@@ -18,6 +18,9 @@
 #include "mmu.h"
 #include "smp.h"
 
+__read_mostly int xen_have_vector_callback;
+EXPORT_SYMBOL_GPL(xen_have_vector_callback);
+
 void __ref xen_hvm_init_shared_info(void)
 {
 	int cpu;
@@ -123,7 +126,7 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 		per_cpu(xen_vcpu_id, cpu) = cpu;
 	xen_vcpu_setup(cpu);
 
-	if (xen_feature(XENFEAT_hvm_safe_pvclock))
+	if (xen_have_vector_callback && xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_setup_timer(cpu);
 
 	rc = xen_smp_intr_init(cpu);
@@ -139,7 +142,7 @@ static int xen_cpu_dead_hvm(unsigned int cpu)
 {
 	xen_smp_intr_free(cpu);
 
-	if (xen_feature(XENFEAT_hvm_safe_pvclock))
+	if (xen_have_vector_callback && xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_teardown_timer(cpu);
 
        return 0;
@@ -156,7 +159,8 @@ static void __init xen_hvm_guest_init(void)
 
 	xen_panic_handler_init();
 
-	BUG_ON(!xen_feature(XENFEAT_hvm_callback_vector));
+	if (xen_feature(XENFEAT_hvm_callback_vector))
+		xen_have_vector_callback = 1;
 
 	xen_hvm_smp_init();
 	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_hvm, xen_cpu_dead_hvm));
@@ -189,7 +193,7 @@ bool xen_hvm_need_lapic(void)
 		return false;
 	if (!xen_hvm_domain())
 		return false;
-	if (xen_feature(XENFEAT_hvm_pirqs))
+	if (xen_feature(XENFEAT_hvm_pirqs) && xen_have_vector_callback)
 		return false;
 	return true;
 }
