@@ -2192,6 +2192,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
 					card->num_of_dapm_routes);
 
+	/* try to set some sane longname if DMI is available */
+	snd_soc_set_dmi_name(card, NULL);
+
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s", card->name);
 	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
