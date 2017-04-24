@@ -176,6 +176,11 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 				restart_tx = true;
 		}
 
+		/* Deliver to monitoring devices all correctly transmitted
+		 * packets.
+		 */
+		virtio_transport_deliver_tap_pkt(pkt);
+
 		virtio_transport_free_pkt(pkt);
 	}
 	if (added)
@@ -382,6 +387,9 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 		}
 
 		len = pkt->len;
+
+		/* Deliver to monitoring devices all received packets */
+		virtio_transport_deliver_tap_pkt(pkt);
 
 		/* Only accept correctly addressed packets */
 		if (le64_to_cpu(pkt->hdr.src_cid) == vsock->guest_cid)
