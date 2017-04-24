@@ -184,7 +184,7 @@ config SCHED_OMIT_FRAME_POINTER
 
 config PGTABLE_LEVELS
 	int
-	default 4
+	default 5
 
 source "init/Kconfig"
 

@@ -537,6 +537,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	unsigned long *table;
 	spinlock_t *ptl;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	int rc;
@@ -573,7 +574,9 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	mm = gmap->mm;
 	pgd = pgd_offset(mm, vmaddr);
 	VM_BUG_ON(pgd_none(*pgd));
-	pud = pud_offset(pgd, vmaddr);
+	p4d = p4d_offset(pgd, vmaddr);
+	VM_BUG_ON(p4d_none(*p4d));
+	pud = pud_offset(p4d, vmaddr);
 	VM_BUG_ON(pud_none(*pud));
 	/* large puds cannot yet be handled */
 	if (pud_large(*pud))
