@@ -2285,21 +2285,21 @@ static int qed_stop_txq(struct qed_dev *cdev, u8 rss_id, void *handle)
 static int qed_tunn_configure(struct qed_dev *cdev,
 			      struct qed_tunn_params *tunn_params)
 {
-	struct qed_tunn_update_params tunn_info;
+	struct qed_tunnel_info tunn_info;
 	int i, rc;
 
 	if (IS_VF(cdev))
 		return 0;
 
 	memset(&tunn_info, 0, sizeof(tunn_info));
-	if (tunn_params->update_vxlan_port == 1) {
-		tunn_info.update_vxlan_udp_port = 1;
-		tunn_info.vxlan_udp_port = tunn_params->vxlan_port;
+	if (tunn_params->update_vxlan_port) {
+		tunn_info.vxlan_port.b_update_port = true;
+		tunn_info.vxlan_port.port = tunn_params->vxlan_port;
 	}
 
-	if (tunn_params->update_geneve_port == 1) {
-		tunn_info.update_geneve_udp_port = 1;
-		tunn_info.geneve_udp_port = tunn_params->geneve_port;
+	if (tunn_params->update_geneve_port) {
+		tunn_info.geneve_port.b_update_port = true;
+		tunn_info.geneve_port.port = tunn_params->geneve_port;
 	}
 
 	for_each_hwfn(cdev, i) {
@@ -2307,7 +2307,6 @@ static int qed_tunn_configure(struct qed_dev *cdev,
 
 		rc = qed_sp_pf_update_tunn_cfg(hwfn, &tunn_info,
 					       QED_SPQ_MODE_EBLOCK, NULL);
-
 		if (rc)
 			return rc;
 	}

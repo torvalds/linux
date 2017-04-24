@@ -1453,7 +1453,7 @@ static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 
 static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt,
-			  struct qed_tunn_start_params *p_tunn,
+			  struct qed_tunnel_info *p_tunn,
 			  int hw_mode,
 			  bool b_hw_start,
 			  enum qed_int_mode int_mode,

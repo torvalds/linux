@@ -149,7 +149,33 @@ enum qed_tunn_clss {
 	QED_TUNN_CLSS_MAC_VNI,
 	QED_TUNN_CLSS_INNER_MAC_VLAN,
 	QED_TUNN_CLSS_INNER_MAC_VNI,
+	QED_TUNN_CLSS_MAC_VLAN_DUAL_STAGE,
 	MAX_QED_TUNN_CLSS,
+};
+
+struct qed_tunn_update_type {
+	bool b_update_mode;
+	bool b_mode_enabled;
+	enum qed_tunn_clss tun_cls;
+};
+
+struct qed_tunn_update_udp_port {
+	bool b_update_port;
+	u16 port;
+};
+
+struct qed_tunnel_info {
+	struct qed_tunn_update_type vxlan;
+	struct qed_tunn_update_type l2_geneve;
+	struct qed_tunn_update_type ip_geneve;
+	struct qed_tunn_update_type l2_gre;
+	struct qed_tunn_update_type ip_gre;
+
+	struct qed_tunn_update_udp_port vxlan_port;
+	struct qed_tunn_update_udp_port geneve_port;
+
+	bool b_update_rx_cls;
+	bool b_update_tx_cls;
 };
 
 struct qed_tunn_start_params {
@@ -648,9 +674,7 @@ struct qed_dev {
 	/* SRIOV */
 	struct qed_hw_sriov_info *p_iov_info;
 #define IS_QED_SRIOV(cdev)              (!!(cdev)->p_iov_info)
-
-	unsigned long			tunn_mode;
-
+	struct qed_tunnel_info		tunnel;
 	bool				b_is_vf;
 	u32				drv_type;
 	struct qed_eth_stats		*reset_stats;

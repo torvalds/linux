@@ -909,8 +909,8 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 {
 	struct qed_drv_load_params drv_load_params;
 	struct qed_hw_init_params hw_init_params;
-	struct qed_tunn_start_params tunn_info;
 	struct qed_mcp_drv_version drv_version;
+	struct qed_tunnel_info tunn_info;
 	const u8 *data = NULL;
 	struct qed_hwfn *hwfn;
 	struct qed_ptt *p_ptt;
@@ -974,19 +974,19 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 		qed_dbg_pf_init(cdev);
 	}
 
-	memset(&tunn_info, 0, sizeof(tunn_info));
-	tunn_info.tunn_mode |=  1 << QED_MODE_VXLAN_TUNN |
-				1 << QED_MODE_L2GRE_TUNN |
-				1 << QED_MODE_IPGRE_TUNN |
-				1 << QED_MODE_L2GENEVE_TUNN |
-				1 << QED_MODE_IPGENEVE_TUNN;
-
-	tunn_info.tunn_clss_vxlan = QED_TUNN_CLSS_MAC_VLAN;
-	tunn_info.tunn_clss_l2gre = QED_TUNN_CLSS_MAC_VLAN;
-	tunn_info.tunn_clss_ipgre = QED_TUNN_CLSS_MAC_VLAN;
-
 	/* Start the slowpath */
 	memset(&hw_init_params, 0, sizeof(hw_init_params));
+	memset(&tunn_info, 0, sizeof(tunn_info));
+	tunn_info.vxlan.b_mode_enabled = true;
+	tunn_info.l2_gre.b_mode_enabled = true;
+	tunn_info.ip_gre.b_mode_enabled = true;
+	tunn_info.l2_geneve.b_mode_enabled = true;
+	tunn_info.ip_geneve.b_mode_enabled = true;
+	tunn_info.vxlan.tun_cls = QED_TUNN_CLSS_MAC_VLAN;
+	tunn_info.l2_gre.tun_cls = QED_TUNN_CLSS_MAC_VLAN;
+	tunn_info.ip_gre.tun_cls = QED_TUNN_CLSS_MAC_VLAN;
+	tunn_info.l2_geneve.tun_cls = QED_TUNN_CLSS_MAC_VLAN;
+	tunn_info.ip_geneve.tun_cls = QED_TUNN_CLSS_MAC_VLAN;
 	hw_init_params.p_tunn = &tunn_info;
 	hw_init_params.b_hw_start = true;
 	hw_init_params.int_mode = cdev->int_params.out.int_mode;
