@@ -44,7 +44,6 @@ struct nvme_loop_iod {
 
 struct nvme_loop_ctrl {
 	struct nvme_loop_queue	*queues;
-	u32			queue_count;
 
 	struct blk_mq_tag_set	admin_tag_set;
 
@@ -241,7 +240,7 @@ static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nvme_loop_ctrl *ctrl = data;
 	struct nvme_loop_queue *queue = &ctrl->queues[hctx_idx + 1];
 
-	BUG_ON(hctx_idx >= ctrl->queue_count);
+	BUG_ON(hctx_idx >= ctrl->ctrl.queue_count);
 
 	hctx->driver_data = queue;
 	return 0;
@@ -307,7 +306,7 @@ static void nvme_loop_destroy_io_queues(struct nvme_loop_ctrl *ctrl)
 {
 	int i;
 
-	for (i = 1; i < ctrl->queue_count; i++)
+	for (i = 1; i < ctrl->ctrl.queue_count; i++)
 		nvmet_sq_destroy(&ctrl->queues[i].nvme_sq);
 }
 
@@ -330,7 +329,7 @@ static int nvme_loop_init_io_queues(struct nvme_loop_ctrl *ctrl)
 		if (ret)
 			goto out_destroy_queues;
 
-		ctrl->queue_count++;
+		ctrl->ctrl.queue_count++;
 	}
 
 	return 0;
@@ -344,7 +343,7 @@ static int nvme_loop_connect_io_queues(struct nvme_loop_ctrl *ctrl)
 {
 	int i, ret;
 
-	for (i = 1; i < ctrl->queue_count; i++) {
+	for (i = 1; i < ctrl->ctrl.queue_count; i++) {
 		ret = nvmf_connect_io_queue(&ctrl->ctrl, i);
 		if (ret)
 			return ret;
@@ -372,7 +371,7 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 	error = nvmet_sq_init(&ctrl->queues[0].nvme_sq);
 	if (error)
 		return error;
-	ctrl->queue_count = 1;
+	ctrl->ctrl.queue_count = 1;
 
 	error = blk_mq_alloc_tag_set(&ctrl->admin_tag_set);
 	if (error)
@@ -426,7 +425,7 @@ static void nvme_loop_shutdown_ctrl(struct nvme_loop_ctrl *ctrl)
 {
 	nvme_stop_keep_alive(&ctrl->ctrl);
 
-	if (ctrl->queue_count > 1) {
+	if (ctrl->ctrl.queue_count > 1) {
 		nvme_stop_queues(&ctrl->ctrl);
 		blk_mq_tagset_busy_iter(&ctrl->tag_set,
 					nvme_cancel_request, &ctrl->ctrl);
@@ -559,7 +558,7 @@ static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
 	ctrl->tag_set.cmd_size = sizeof(struct nvme_loop_iod) +
 		SG_CHUNK_SIZE * sizeof(struct scatterlist);
 	ctrl->tag_set.driver_data = ctrl;
-	ctrl->tag_set.nr_hw_queues = ctrl->queue_count - 1;
+	ctrl->tag_set.nr_hw_queues = ctrl->ctrl.queue_count - 1;
 	ctrl->tag_set.timeout = NVME_IO_TIMEOUT;
 	ctrl->ctrl.tagset = &ctrl->tag_set;
 
