@@ -398,7 +398,7 @@
 			#power-domain-cells = <1>;
 		};
 
-		pfc: pfc@e6060000 {
+		pfc: pin-controller@e6060000 {
 			compatible = "renesas,pfc-r8a7795";
 			reg = <0 0xe6060000 0 0x50c>;
 		};
