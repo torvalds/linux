@@ -123,7 +123,7 @@ out_cleanup:
 	}
 
 	if (sobj) {
-		r = amdgpu_bo_reserve(sobj, false);
+		r = amdgpu_bo_reserve(sobj, true);
 		if (likely(r == 0)) {
 			amdgpu_bo_unpin(sobj);
 			amdgpu_bo_unreserve(sobj);
@@ -131,7 +131,7 @@ out_cleanup:
 		amdgpu_bo_unref(&sobj);
 	}
 	if (dobj) {
-		r = amdgpu_bo_reserve(dobj, false);
+		r = amdgpu_bo_reserve(dobj, true);
 		if (likely(r == 0)) {
 			amdgpu_bo_unpin(dobj);
 			amdgpu_bo_unreserve(dobj);
