@@ -19,9 +19,6 @@ static int vfio_ccw_mdev_reset(struct mdev_device *mdev)
 	int ret;
 
 	private = dev_get_drvdata(mdev_parent_dev(mdev));
-	if (!private)
-		return -ENODEV;
-
 	sch = private->sch;
 	/*
 	 * TODO:
@@ -48,9 +45,6 @@ static int vfio_ccw_mdev_notifier(struct notifier_block *nb,
 {
 	struct vfio_ccw_private *private =
 		container_of(nb, struct vfio_ccw_private, nb);
-
-	if (!private)
-		return NOTIFY_STOP;
 
 	/*
 	 * Vendor drivers MUST unpin pages in response to an
@@ -132,22 +126,14 @@ static int vfio_ccw_mdev_remove(struct mdev_device *mdev)
 {
 	struct vfio_ccw_private *private =
 		dev_get_drvdata(mdev_parent_dev(mdev));
-	int ret;
 
-	if (!private)
-		goto out;
+	if ((private->state != VFIO_CCW_STATE_NOT_OPER) &&
+	    (private->state != VFIO_CCW_STATE_STANDBY)) {
+		if (!vfio_ccw_mdev_reset(mdev))
+			private->state = VFIO_CCW_STATE_STANDBY;
+		/* The state will be NOT_OPER on error. */
+	}
 
-	if ((private->state == VFIO_CCW_STATE_NOT_OPER) ||
-	    (private->state == VFIO_CCW_STATE_STANDBY))
-		goto out;
-
-	ret = vfio_ccw_mdev_reset(mdev);
-	if (ret)
-		return ret;
-
-	private->state = VFIO_CCW_STATE_STANDBY;
-
-out:
 	private->mdev = NULL;
 	atomic_inc(&private->avail);
 
@@ -187,9 +173,6 @@ static ssize_t vfio_ccw_mdev_read(struct mdev_device *mdev,
 		return -EINVAL;
 
 	private = dev_get_drvdata(mdev_parent_dev(mdev));
-	if (!private)
-		return -ENODEV;
-
 	region = &private->io_region;
 	if (copy_to_user(buf, (void *)region + *ppos, count))
 		return -EFAULT;
@@ -209,8 +192,6 @@ static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
 		return -EINVAL;
 
 	private = dev_get_drvdata(mdev_parent_dev(mdev));
-	if (!private)
-		return -ENODEV;
 	if (private->state != VFIO_CCW_STATE_IDLE)
 		return -EACCES;
 
@@ -274,9 +255,6 @@ static int vfio_ccw_mdev_set_irqs(struct mdev_device *mdev,
 		return -EINVAL;
 
 	private = dev_get_drvdata(mdev_parent_dev(mdev));
-	if (!private)
-		return -ENODEV;
-
 	ctx = &private->io_trigger;
 
 	switch (flags & VFIO_IRQ_SET_DATA_TYPE_MASK) {

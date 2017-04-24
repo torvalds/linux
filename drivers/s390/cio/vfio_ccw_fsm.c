@@ -161,12 +161,8 @@ err_out:
 static void fsm_irq(struct vfio_ccw_private *private,
 		    enum vfio_ccw_event event)
 {
-	struct irb *irb;
+	struct irb *irb = this_cpu_ptr(&cio_irb);
 
-	if (!private)
-		return;
-
-	irb = this_cpu_ptr(&cio_irb);
 	memcpy(&private->irb, irb, sizeof(*irb));
 
 	queue_work(vfio_ccw_work_q, &private->io_work);
