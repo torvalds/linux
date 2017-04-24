@@ -5300,8 +5300,16 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 
 		if (rst_seq_match)
 			tcp_reset(sk);
-		else
+		else {
+			/* Disable TFO if RST is out-of-order
+			 * and no data has been received
+			 * for current active TFO socket
+			 */
+			if (tp->syn_fastopen && !tp->data_segs_in &&
+			    sk->sk_state == TCP_ESTABLISHED)
+				tcp_fastopen_active_disable(sk);
 			tcp_send_challenge_ack(sk, skb);
+		}
 		goto discard;
 	}
 
@@ -6044,9 +6052,16 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 
-		if (tp->linger2 < 0 ||
-		    (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq &&
-		     after(TCP_SKB_CB(skb)->end_seq - th->fin, tp->rcv_nxt))) {
+		if (tp->linger2 < 0) {
+			tcp_done(sk);
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTONDATA);
+			return 1;
+		}
+		if (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq &&
+		    after(TCP_SKB_CB(skb)->end_seq - th->fin, tp->rcv_nxt)) {
+			/* Receive out of order FIN after close() */
+			if (tp->syn_fastopen && th->fin)
+				tcp_fastopen_active_disable(sk);
 			tcp_done(sk);
 			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTONDATA);
 			return 1;

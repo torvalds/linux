@@ -350,6 +350,19 @@ static int proc_udp_early_demux(struct ctl_table *table, int write,
 	return ret;
 }
 
+static int proc_tfo_blackhole_detect_timeout(struct ctl_table *table,
+					     int write,
+					     void __user *buffer,
+					     size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (write && ret == 0)
+		tcp_fastopen_active_timeout_reset();
+	return ret;
+}
+
 static struct ctl_table ipv4_table[] = {
 	{
 		.procname	= "tcp_timestamps",
@@ -398,6 +411,14 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0600,
 		.maxlen		= ((TCP_FASTOPEN_KEY_LENGTH * 2) + 10),
 		.proc_handler	= proc_tcp_fastopen_key,
+	},
+	{
+		.procname	= "tcp_fastopen_blackhole_timeout_sec",
+		.data		= &sysctl_tcp_fastopen_blackhole_timeout,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_tfo_blackhole_detect_timeout,
+		.extra1		= &zero,
 	},
 	{
 		.procname	= "tcp_abort_on_overflow",

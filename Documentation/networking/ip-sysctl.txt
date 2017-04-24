@@ -602,6 +602,14 @@ tcp_fastopen - INTEGER
 	Note that that additional client or server features are only
 	effective if the basic support (0x1 and 0x2) are enabled respectively.
 
+tcp_fastopen_blackhole_timeout_sec - INTEGER
+	Initial time period in second to disable Fastopen on active TCP sockets
+	when a TFO firewall blackhole issue happens.
+	This time period will grow exponentially when more blackhole issues
+	get detected right after Fastopen is re-enabled and will reset to
+	initial value when the blackhole issue goes away.
+	By default, it is set to 1hr.
+
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 127. Default value
