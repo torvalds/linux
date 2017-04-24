@@ -1594,6 +1594,19 @@ qed_fill_load_req_params(struct qed_load_req_params *p_load_req,
 	p_load_req->override_force_load = p_drv_load->override_force_load;
 }
 
+static int qed_vf_start(struct qed_hwfn *p_hwfn,
+			struct qed_hw_init_params *p_params)
+{
+	if (p_params->p_tunn) {
+		qed_vf_set_vf_start_tunn_update_param(p_params->p_tunn);
+		qed_vf_pf_tunnel_param_update(p_hwfn, p_params->p_tunn);
+	}
+
+	p_hwfn->b_int_enabled = 1;
+
+	return 0;
+}
+
 int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 {
 	struct qed_load_req_params load_req_params;
@@ -1623,7 +1636,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		}
 
 		if (IS_VF(cdev)) {
-			p_hwfn->b_int_enabled = 1;
+			qed_vf_start(p_hwfn, p_params);
 			continue;
 		}
 

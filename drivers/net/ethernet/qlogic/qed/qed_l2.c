@@ -2288,9 +2288,6 @@ static int qed_tunn_configure(struct qed_dev *cdev,
 	struct qed_tunnel_info tunn_info;
 	int i, rc;
 
-	if (IS_VF(cdev))
-		return 0;
-
 	memset(&tunn_info, 0, sizeof(tunn_info));
 	if (tunn_params->update_vxlan_port) {
 		tunn_info.vxlan_port.b_update_port = true;

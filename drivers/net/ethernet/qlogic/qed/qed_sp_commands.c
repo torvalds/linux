@@ -451,6 +451,9 @@ int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
 
+	if (IS_VF(p_hwfn->cdev))
+		return qed_vf_pf_tunnel_param_update(p_hwfn, p_tunn);
+
 	if (!p_tunn)
 		return -EINVAL;
 
