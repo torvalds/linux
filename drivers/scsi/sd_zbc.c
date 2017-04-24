@@ -237,7 +237,6 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	sector_t sector = blk_rq_pos(rq);
 	sector_t block = sectors_to_logical(sdkp->device, sector);
-	unsigned int zno = block >> sdkp->zone_shift;
 
 	if (!sd_is_zoned(sdkp))
 		/* Not a zoned device */
@@ -249,11 +248,6 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	if (sector & (sd_zbc_zone_sectors(sdkp) - 1))
 		/* Unaligned request */
 		return BLKPREP_KILL;
-
-	/* Do not allow concurrent reset and writes */
-	if (sdkp->zones_wlock &&
-	    test_and_set_bit(zno, sdkp->zones_wlock))
-		return BLKPREP_DEFER;
 
 	cmd->cmd_len = 16;
 	memset(cmd->cmnd, 0, cmd->cmd_len);
@@ -324,38 +318,34 @@ void sd_zbc_complete(struct scsi_cmnd *cmd,
 	struct request *rq = cmd->request;
 
 	switch (req_op(rq)) {
+	case REQ_OP_ZONE_RESET:
+
+		if (result &&
+		    sshdr->sense_key == ILLEGAL_REQUEST &&
+		    sshdr->asc == 0x24)
+			/*
+			 * INVALID FIELD IN CDB error: reset of a conventional
+			 * zone was attempted. Nothing to worry about, so be
+			 * quiet about the error.
+			 */
+			rq->rq_flags |= RQF_QUIET;
+		break;
+
 	case REQ_OP_WRITE:
 	case REQ_OP_WRITE_SAME:
-	case REQ_OP_ZONE_RESET:
 
 		/* Unlock the zone */
 		sd_zbc_write_unlock_zone(cmd);
 
-		if (!result ||
-		    sshdr->sense_key != ILLEGAL_REQUEST)
-			break;
-
-		switch (sshdr->asc) {
-		case 0x24:
-			/*
-			 * INVALID FIELD IN CDB error: For a zone reset,
-			 * this means that a reset of a conventional
-			 * zone was attempted. Nothing to worry about in
-			 * this case, so be quiet about the error.
-			 */
-			if (req_op(rq) == REQ_OP_ZONE_RESET)
-				rq->rq_flags |= RQF_QUIET;
-			break;
-		case 0x21:
+		if (result &&
+		    sshdr->sense_key == ILLEGAL_REQUEST &&
+		    sshdr->asc == 0x21)
 			/*
 			 * INVALID ADDRESS FOR WRITE error: It is unlikely that
 			 * retrying write requests failed with any kind of
 			 * alignement error will result in success. So don't.
 			 */
 			cmd->allowed = 0;
-			break;
-		}
-
 		break;
 
 	case REQ_OP_ZONE_REPORT:
