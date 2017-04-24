@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -23,6 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
+
+#include "../clk/rockchip/clk.h"
 
 #define MAX_CLUSTERS		2
 #define MAX_PROP_NAME_LEN	3
@@ -186,7 +189,8 @@ static int rockchip_cpufreq_of_parse_dt(struct device *dev,
 	int (*get_soc_version)(struct device_node *np, int *soc_version);
 	const struct of_device_id *match;
 	struct device_node *node, *np;
-	int ret;
+	struct clk *clk;
+	int ret, lkg_scaling_sel = -1;
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np) {
@@ -219,6 +223,25 @@ static int rockchip_cpufreq_of_parse_dt(struct device *dev,
 	if (ret) {
 		dev_err(dev, "Failed to get voltage-sel\n");
 		return ret;
+	}
+
+	ret = rockchip_get_leakage_sel(np, "leakage-scaling-sel",
+				       cluster->leakage,
+				       &lkg_scaling_sel);
+	if (ret) {
+		dev_err(dev, "Failed to get scaling-sel\n");
+		return ret;
+	} else if (lkg_scaling_sel >= 0) {
+		clk = of_clk_get_by_name(np, NULL);
+		if (IS_ERR(clk)) {
+			dev_err(dev, "Failed to get opp clk");
+			return PTR_ERR(clk);
+		}
+		ret = rockchip_pll_clk_adaptive_scaling(clk, lkg_scaling_sel);
+		if (ret) {
+			dev_err(dev, "Failed to adaptive scaling\n");
+			return ret;
+		}
 	}
 
 	return 0;
