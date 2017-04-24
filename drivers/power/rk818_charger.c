@@ -1283,9 +1283,13 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 {
 	struct rk818_charger *cg = platform_get_drvdata(pdev);
 
-	cancel_delayed_work_sync(&cg->host_work);
+	/* type-c only */
+	if (cg->pdata->extcon) {
+		cancel_delayed_work_sync(&cg->host_work);
+		cancel_delayed_work_sync(&cg->discnt_work);
+	}
+
 	cancel_delayed_work_sync(&cg->usb_work);
-	cancel_delayed_work_sync(&cg->discnt_work);
 	cancel_delayed_work_sync(&cg->dc_work);
 	cancel_delayed_work_sync(&cg->finish_sig_work);
 	cancel_delayed_work_sync(&cg->irq_work);
