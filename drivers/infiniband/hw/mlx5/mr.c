@@ -1823,7 +1823,7 @@ mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
 	mr->ndescs = sg_nents;
 
 	for_each_sg(sgl, sg, sg_nents, i) {
-		if (unlikely(i > mr->max_descs))
+		if (unlikely(i >= mr->max_descs))
 			break;
 		klms[i].va = cpu_to_be64(sg_dma_address(sg) + sg_offset);
 		klms[i].bcount = cpu_to_be32(sg_dma_len(sg) - sg_offset);
