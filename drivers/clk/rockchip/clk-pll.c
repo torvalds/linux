@@ -47,6 +47,8 @@ struct rockchip_clk_pll {
 	u8			flags;
 	const struct rockchip_pll_rate_table *rate_table;
 	unsigned int		rate_count;
+	int			sel;
+	unsigned long		scaling;
 	spinlock_t		*lock;
 
 	struct rockchip_clk_provider *ctx;
@@ -83,6 +85,23 @@ static int rockchip_rk3366_pll_set_params(struct rockchip_clk_pll *pll,
 #define MAX_FOUTVCO_FREQ	(2000 * MHZ)
 
 static struct rockchip_pll_rate_table auto_table;
+
+int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel)
+{
+	struct clk *parent = clk_get_parent(clk);
+	struct rockchip_clk_pll *pll;
+
+	if (IS_ERR_OR_NULL(parent))
+		return -EINVAL;
+
+	pll = to_rockchip_clk_pll(__clk_get_hw(parent));
+	if (!pll)
+		return -EINVAL;
+
+	pll->sel = sel;
+
+	return 0;
+}
 
 static struct rockchip_pll_rate_table *rk_pll_rate_table_get(void)
 {
@@ -260,9 +279,16 @@ static const struct rockchip_pll_rate_table *rockchip_get_pll_settings(
 	int i;
 
 	for (i = 0; i < pll->rate_count; i++) {
-		if (rate == rate_table[i].rate)
+		if (rate == rate_table[i].rate) {
+			if (i < pll->sel) {
+				pll->scaling = rate;
+				return &rate_table[pll->sel];
+			}
+			pll->scaling = 0;
 			return &rate_table[i];
+		}
 	}
+	pll->scaling = 0;
 
 	if (pll->type == pll_rk3066)
 		return rockchip_rk3066_pll_clk_set_by_auto(pll, 24 * MHZ, rate);
@@ -617,6 +643,9 @@ static unsigned long rockchip_rk3066_pll_recalc_rate(struct clk_hw *hw,
 		return prate;
 	}
 
+	if (pll->sel && pll->scaling)
+		return pll->scaling;
+
 	rockchip_rk3066_pll_get_params(pll, &cur);
 
 	rate64 *= cur.nf;
@@ -692,6 +721,7 @@ static int rockchip_rk3066_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	const struct rockchip_pll_rate_table *rate;
 	unsigned long old_rate = rockchip_rk3066_pll_recalc_rate(hw, prate);
 	struct regmap *grf = rockchip_clk_get_grf(pll->ctx);
+	int ret;
 
 	if (IS_ERR(grf)) {
 		pr_debug("%s: grf regmap not available, aborting rate change\n",
@@ -710,7 +740,11 @@ static int rockchip_rk3066_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 		return -EINVAL;
 	}
 
-	return rockchip_rk3066_pll_set_params(pll, rate);
+	ret = rockchip_rk3066_pll_set_params(pll, rate);
+	if (ret)
+		pll->scaling = 0;
+
+	return ret;
 }
 
 static int rockchip_rk3066_pll_enable(struct clk_hw *hw)
