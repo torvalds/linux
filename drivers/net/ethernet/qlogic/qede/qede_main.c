@@ -609,6 +609,7 @@ static void qede_init_ndev(struct qede_dev *edev)
 {
 	struct net_device *ndev = edev->ndev;
 	struct pci_dev *pdev = edev->pdev;
+	bool udp_tunnel_enable = false;
 	netdev_features_t hw_features;
 
 	pci_set_drvdata(pdev, ndev);
@@ -631,20 +632,33 @@ static void qede_init_ndev(struct qede_dev *edev)
 		      NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		      NETIF_F_TSO | NETIF_F_TSO6;
 
-	/* Encap features*/
-	hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
-		       NETIF_F_TSO_ECN | NETIF_F_GSO_UDP_TUNNEL_CSUM |
-		       NETIF_F_GSO_GRE_CSUM;
-
 	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1)
 		hw_features |= NETIF_F_NTUPLE;
 
-	ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO_ECN |
-				NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-				NETIF_F_GSO_UDP_TUNNEL | NETIF_F_RXCSUM |
-				NETIF_F_GSO_UDP_TUNNEL_CSUM |
-				NETIF_F_GSO_GRE_CSUM;
+	if (edev->dev_info.common.vxlan_enable ||
+	    edev->dev_info.common.geneve_enable)
+		udp_tunnel_enable = true;
+
+	if (udp_tunnel_enable || edev->dev_info.common.gre_enable) {
+		hw_features |= NETIF_F_TSO_ECN;
+		ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+					NETIF_F_SG | NETIF_F_TSO |
+					NETIF_F_TSO_ECN | NETIF_F_TSO6 |
+					NETIF_F_RXCSUM;
+	}
+
+	if (udp_tunnel_enable) {
+		hw_features |= (NETIF_F_GSO_UDP_TUNNEL |
+				NETIF_F_GSO_UDP_TUNNEL_CSUM);
+		ndev->hw_enc_features |= (NETIF_F_GSO_UDP_TUNNEL |
+					  NETIF_F_GSO_UDP_TUNNEL_CSUM);
+	}
+
+	if (edev->dev_info.common.gre_enable) {
+		hw_features |= (NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM);
+		ndev->hw_enc_features |= (NETIF_F_GSO_GRE |
+					  NETIF_F_GSO_GRE_CSUM);
+	}
 
 	ndev->vlan_features = hw_features | NETIF_F_RXHASH | NETIF_F_RXCSUM |
 			      NETIF_F_HIGHDMA;
