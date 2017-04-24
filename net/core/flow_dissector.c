@@ -126,9 +126,11 @@ __skb_flow_dissect_mpls(const struct sk_buff *skb,
 {
 	struct flow_dissector_key_keyid *key_keyid;
 	struct mpls_label *hdr, _hdr[2];
+	u32 entry, label;
 
 	if (!dissector_uses_key(flow_dissector,
-				FLOW_DISSECTOR_KEY_MPLS_ENTROPY))
+				FLOW_DISSECTOR_KEY_MPLS_ENTROPY) &&
+	    !dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS))
 		return FLOW_DISSECT_RET_OUT_GOOD;
 
 	hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data,
@@ -136,8 +138,25 @@ __skb_flow_dissect_mpls(const struct sk_buff *skb,
 	if (!hdr)
 		return FLOW_DISSECT_RET_OUT_BAD;
 
-	if ((ntohl(hdr[0].entry) & MPLS_LS_LABEL_MASK) >>
-	    MPLS_LS_LABEL_SHIFT == MPLS_LABEL_ENTROPY) {
+	entry = ntohl(hdr[0].entry);
+	label = (entry & MPLS_LS_LABEL_MASK) >> MPLS_LS_LABEL_SHIFT;
+
+	if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS)) {
+		struct flow_dissector_key_mpls *key_mpls;
+
+		key_mpls = skb_flow_dissector_target(flow_dissector,
+						     FLOW_DISSECTOR_KEY_MPLS,
+						     target_container);
+		key_mpls->mpls_label = label;
+		key_mpls->mpls_ttl = (entry & MPLS_LS_TTL_MASK)
+					>> MPLS_LS_TTL_SHIFT;
+		key_mpls->mpls_tc = (entry & MPLS_LS_TC_MASK)
+					>> MPLS_LS_TC_SHIFT;
+		key_mpls->mpls_bos = (entry & MPLS_LS_S_MASK)
+					>> MPLS_LS_S_SHIFT;
+	}
+
+	if (label == MPLS_LABEL_ENTROPY) {
 		key_keyid = skb_flow_dissector_target(flow_dissector,
 						      FLOW_DISSECTOR_KEY_MPLS_ENTROPY,
 						      target_container);
