@@ -170,19 +170,24 @@ static int __init default_measure_policy_setup(char *str)
 }
 __setup("ima_tcb", default_measure_policy_setup);
 
+static bool ima_use_appraise_tcb __initdata;
 static int __init policy_setup(char *str)
 {
-	if (ima_policy)
-		return 1;
+	char *p;
 
-	if (strcmp(str, "tcb") == 0)
-		ima_policy = DEFAULT_TCB;
+	while ((p = strsep(&str, " |\n")) != NULL) {
+		if (*p == ' ')
+			continue;
+		if ((strcmp(p, "tcb") == 0) && !ima_policy)
+			ima_policy = DEFAULT_TCB;
+		else if (strcmp(p, "appraise_tcb") == 0)
+			ima_use_appraise_tcb = 1;
+	}
 
 	return 1;
 }
 __setup("ima_policy=", policy_setup);
 
-static bool ima_use_appraise_tcb __initdata;
 static int __init default_appraise_policy_setup(char *str)
 {
 	ima_use_appraise_tcb = 1;
