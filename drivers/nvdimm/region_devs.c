@@ -968,17 +968,20 @@ EXPORT_SYMBOL_GPL(nvdimm_flush);
  */
 int nvdimm_has_flush(struct nd_region *nd_region)
 {
-	struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
 	int i;
 
 	/* no nvdimm == flushing capability unknown */
 	if (nd_region->ndr_mappings == 0)
 		return -ENXIO;
 
-	for (i = 0; i < nd_region->ndr_mappings; i++)
-		/* flush hints present, flushing required */
-		if (ndrd_get_flush_wpq(ndrd, i, 0))
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+
+		/* flush hints present / available */
+		if (nvdimm->num_flush)
 			return 1;
+	}
 
 	/*
 	 * The platform defines dimm devices without hints, assume
