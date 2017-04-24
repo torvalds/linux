@@ -21,7 +21,7 @@
  *
  */
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "cikd.h"
 #include "cik.h"
