@@ -1333,8 +1333,6 @@ static inline bool need_inplace_update(struct f2fs_io_info *fio)
 {
 	struct inode *inode = fio->page->mapping->host;
 
-	if (fio->old_blkaddr == NEW_ADDR)
-		return false;
 	if (S_ISDIR(inode->i_mode) || f2fs_is_atomic_file(inode))
 		return false;
 	if (is_cold_data(fio->page))
@@ -1343,6 +1341,15 @@ static inline bool need_inplace_update(struct f2fs_io_info *fio)
 		return false;
 
 	return need_inplace_update_policy(inode, fio);
+}
+
+static inline bool valid_ipu_blkaddr(struct f2fs_io_info *fio)
+{
+	if (fio->old_blkaddr == NEW_ADDR)
+		return false;
+	if (fio->old_blkaddr == NULL_ADDR)
+		return false;
+	return true;
 }
 
 int do_write_data_page(struct f2fs_io_info *fio)
@@ -1358,8 +1365,8 @@ int do_write_data_page(struct f2fs_io_info *fio)
 	if (need_inplace_update(fio) &&
 			f2fs_lookup_extent_cache(inode, page->index, &ei)) {
 		fio->old_blkaddr = ei.blk + page->index - ei.fofs;
-		if (fio->old_blkaddr != NULL_ADDR &&
-				fio->old_blkaddr != NEW_ADDR) {
+
+		if (valid_ipu_blkaddr(fio)) {
 			ipu_force = true;
 			goto got_it;
 		}
@@ -1386,7 +1393,7 @@ got_it:
 	 * If current allocation needs SSR,
 	 * it had better in-place writes for updated data.
 	 */
-	if (ipu_force || need_inplace_update(fio)) {
+	if (ipu_force || (valid_ipu_blkaddr(fio) && need_inplace_update(fio))) {
 		f2fs_bug_on(fio->sbi, !fio->cp_rwsem_locked);
 		f2fs_unlock_op(fio->sbi);
 		fio->cp_rwsem_locked = false;
