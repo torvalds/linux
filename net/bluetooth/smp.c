@@ -31,7 +31,7 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/mgmt.h>
 
-#include "ecc.h"
+#include "ecdh_helper.h"
 #include "smp.h"
 
 #define SMP_DEV(hdev) \
@@ -570,7 +570,7 @@ int smp_generate_oob(struct hci_dev *hdev, u8 hash[16], u8 rand[16])
 	} else {
 		while (true) {
 			/* Generate local key pair for Secure Connections */
-			if (!ecc_make_key(smp->local_pk, smp->local_sk))
+			if (!generate_ecdh_keys(smp->local_pk, smp->local_sk))
 				return -EIO;
 
 			/* This is unlikely, but we need to check that
@@ -1896,7 +1896,7 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 	} else {
 		while (true) {
 			/* Generate local key pair for Secure Connections */
-			if (!ecc_make_key(smp->local_pk, smp->local_sk))
+			if (!generate_ecdh_keys(smp->local_pk, smp->local_sk))
 				return SMP_UNSPECIFIED;
 
 			/* This is unlikely, but we need to check that
@@ -2670,7 +2670,7 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 	SMP_DBG("Remote Public Key X: %32phN", smp->remote_pk);
 	SMP_DBG("Remote Public Key Y: %32phN", smp->remote_pk + 32);
 
-	if (!ecdh_shared_secret(smp->remote_pk, smp->local_sk, smp->dhkey))
+	if (!compute_ecdh_secret(smp->remote_pk, smp->local_sk, smp->dhkey))
 		return SMP_UNSPECIFIED;
 
 	SMP_DBG("DHKey %32phN", smp->dhkey);
