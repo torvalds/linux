@@ -35,6 +35,13 @@ static inline uid_t multiuser_get_uid(userid_t user_id, appid_t app_id)
 	return (user_id * AID_USER_OFFSET) + (app_id % AID_USER_OFFSET);
 }
 
+static inline bool uid_is_app(uid_t uid)
+{
+	appid_t appid = uid % AID_USER_OFFSET;
+
+	return appid >= AID_APP_START && appid <= AID_APP_END;
+}
+
 static inline gid_t multiuser_get_ext_cache_gid(uid_t uid)
 {
 	return uid - AID_APP_START + AID_EXT_CACHE_GID_START;
