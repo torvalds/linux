@@ -130,8 +130,13 @@ static const struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
+static struct device_type l2tpeth_type = {
+	.name = "l2tpeth",
+};
+
 static void l2tp_eth_dev_setup(struct net_device *dev)
 {
+	SET_NETDEV_DEVTYPE(dev, &l2tpeth_type);
 	ether_setup(dev);
 	dev->priv_flags		&= ~IFF_TX_SKB_SHARING;
 	dev->features		|= NETIF_F_LLTX;
