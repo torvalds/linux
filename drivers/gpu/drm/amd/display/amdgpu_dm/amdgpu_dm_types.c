@@ -2305,6 +2305,9 @@ static void amdgpu_dm_do_flip(
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	bool async_flip = (acrtc->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 
+	/* Prepare wait for target vblank early - before the fence-waits */
+	target_vblank = target - drm_crtc_vblank_count(crtc) +
+			amdgpu_get_vblank_counter_kms(crtc->dev, acrtc->crtc_id);
 
 	/*TODO This might fail and hence better not used, wait
 	 * explicitly on fences instead
@@ -2323,13 +2326,9 @@ static void amdgpu_dm_do_flip(
 
 	amdgpu_bo_unreserve(abo);
 
-	/* Wait for target vblank */
 	/* Wait until we're out of the vertical blank period before the one
 	 * targeted by the flip
 	 */
-	target_vblank = target - drm_crtc_vblank_count(crtc) +
-			amdgpu_get_vblank_counter_kms(crtc->dev, acrtc->crtc_id);
-
 	while ((acrtc->enabled &&
 		(amdgpu_get_crtc_scanoutpos(adev->ddev, acrtc->crtc_id, 0,
 					&vpos, &hpos, NULL, NULL,
@@ -2605,14 +2604,15 @@ void amdgpu_dm_atomic_commit_tail(
 		pflip_needed = !state->allow_modeset;
 
 		if (pflip_needed) {
-			amdgpu_dm_do_flip(
-					crtc,
-					fb,
-					drm_crtc_vblank_count(crtc));
-
 			wait_for_vblank =
-					acrtc->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC ?
-							false : true;
+				acrtc->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC ?
+				false : true;
+
+			amdgpu_dm_do_flip(
+				crtc,
+				fb,
+				drm_crtc_vblank_count(crtc) + wait_for_vblank);
+
 			/*clean up the flags for next usage*/
 			acrtc->flip_flags = 0;
 		}
