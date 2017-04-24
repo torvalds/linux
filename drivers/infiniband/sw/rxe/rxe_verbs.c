@@ -1326,7 +1326,7 @@ int rxe_register_device(struct rxe_dev *rxe)
 
 	rxe->tfm = crypto_alloc_shash("crc32", 0, 0);
 	if (IS_ERR(rxe->tfm)) {
-		pr_err("failed to allocate crc algorithmi err:%ld",
+		pr_err("failed to allocate crc algorithm err:%ld\n",
 		       PTR_ERR(rxe->tfm));
 		return PTR_ERR(rxe->tfm);
 	}
