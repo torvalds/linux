@@ -1244,7 +1244,6 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 				void __iomem *base)
 {
 	struct samsung_clk_pll *pll;
-	struct clk *clk;
 	struct clk_init_data init;
 	int ret, len;
 
@@ -1376,20 +1375,21 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 	pll->lock_reg = base + pll_clk->lock_offset;
 	pll->con_reg = base + pll_clk->con_offset;
 
-	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk)) {
-		pr_err("%s: failed to register pll clock %s : %ld\n",
-			__func__, pll_clk->name, PTR_ERR(clk));
+	ret = clk_hw_register(NULL, &pll->hw);
+	if (ret) {
+		pr_err("%s: failed to register pll clock %s : %d\n",
+			__func__, pll_clk->name, ret);
 		kfree(pll);
 		return;
 	}
 
-	samsung_clk_add_lookup(ctx, clk, pll_clk->id);
+	samsung_clk_add_lookup(ctx, &pll->hw, pll_clk->id);
 
 	if (!pll_clk->alias)
 		return;
 
-	ret = clk_register_clkdev(clk, pll_clk->alias, pll_clk->dev_name);
+	ret = clk_hw_register_clkdev(&pll->hw, pll_clk->alias,
+				     pll_clk->dev_name);
 	if (ret)
 		pr_err("%s: failed to register lookup for %s : %d",
 			__func__, pll_clk->name, ret);

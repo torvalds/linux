@@ -411,7 +411,6 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 	struct exynos_cpuclk *cpuclk;
 	struct clk_init_data init;
 	struct clk *parent_clk;
-	struct clk *clk;
 	int ret = 0;
 
 	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
@@ -464,14 +463,13 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 		goto unregister_clk_nb;
 	}
 
-	clk = clk_register(NULL, &cpuclk->hw);
-	if (IS_ERR(clk)) {
+	ret = clk_hw_register(NULL, &cpuclk->hw);
+	if (ret) {
 		pr_err("%s: could not register cpuclk %s\n", __func__,	name);
-		ret = PTR_ERR(clk);
 		goto free_cpuclk_data;
 	}
 
-	samsung_clk_add_lookup(ctx, clk, lookup_id);
+	samsung_clk_add_lookup(ctx, &cpuclk->hw, lookup_id);
 	return 0;
 
 free_cpuclk_data:
