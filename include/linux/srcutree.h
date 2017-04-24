@@ -43,6 +43,7 @@ struct srcu_data {
 	spinlock_t lock ____cacheline_internodealigned_in_smp;
 	struct rcu_segcblist srcu_cblist;	/* List of callbacks.*/
 	unsigned long srcu_gp_seq_needed;	/* Furthest future GP needed. */
+	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	bool srcu_cblist_invoking;		/* Invoking these CBs? */
 	struct delayed_work work;		/* Context for CB invoking. */
 	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
@@ -63,6 +64,7 @@ struct srcu_node {
 						/*  is > ->srcu_gq_seq. */
 	unsigned long srcu_data_have_cbs[4];	/* Which srcu_data structs */
 						/*  have CBs for given GP? */
+	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	struct srcu_node *srcu_parent;		/* Next up in tree. */
 	int grplo;				/* Least CPU for node. */
 	int grphi;				/* Biggest CPU for node. */
@@ -81,7 +83,7 @@ struct srcu_struct {
 	unsigned int srcu_idx;			/* Current rdr array element. */
 	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
 	unsigned long srcu_gp_seq_needed;	/* Latest gp_seq needed. */
-	atomic_t srcu_exp_cnt;			/* # ongoing expedited GPs. */
+	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
 	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
 	struct mutex srcu_barrier_mutex;	/* Serialize barrier ops. */
