@@ -3407,6 +3407,8 @@ static void rt2800_config_alc(struct rt2x00_dev *rt2x00dev,
 			rt2800_rfcsr_write(rt2x00dev, 42, 0x5b);
 	}
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, mac_sys_ctrl);
+
+	rt2800_vco_calibration(rt2x00dev);
 }
 
 static void rt2800_bbp_write_with_rx_chain(struct rt2x00_dev *rt2x00dev,
@@ -3806,11 +3808,25 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (rt2x00_rt(rt2x00dev, RT5592) || rt2x00_rt(rt2x00dev, RT6352)) {
+		reg = 0x10;
+		if (!conf_is_ht40(conf)) {
+			if (rt2x00_rt(rt2x00dev, RT6352) &&
+			    rt2x00_has_cap_external_lna_bg(rt2x00dev)) {
+				reg |= 0x5;
+			} else {
+				reg |= 0xa;
+			}
+		}
 		rt2800_bbp_write(rt2x00dev, 195, 141);
-		rt2800_bbp_write(rt2x00dev, 196, conf_is_ht40(conf) ? 0x10 : 0x1a);
+		rt2800_bbp_write(rt2x00dev, 196, reg);
 
 		/* AGC init */
-		reg = (rf->channel <= 14 ? 0x1c : 0x24) + 2 * rt2x00dev->lna_gain;
+		if (rt2x00_rt(rt2x00dev, RT6352))
+			reg = 0x04;
+		else
+			reg = rf->channel <= 14 ? 0x1c : 0x24;
+
+		reg += 2 * rt2x00dev->lna_gain;
 		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, reg);
 
 		rt2800_iq_calibrate(rt2x00dev, rf->channel);
@@ -4916,7 +4932,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, TX_PIN_CFG, tx_pin);
 
 	if (rt2x00_rt(rt2x00dev, RT6352)) {
-		if (rt2x00dev->default_ant.tx_chain_num == 1) {
+		if (rt2x00dev->default_ant.rx_chain_num == 1) {
 			rt2800_bbp_write(rt2x00dev, 91, 0x07);
 			rt2800_bbp_write(rt2x00dev, 95, 0x1A);
 			rt2800_bbp_write(rt2x00dev, 195, 128);
@@ -4937,8 +4953,8 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		}
 
 		if (rt2x00_has_cap_external_lna_bg(rt2x00dev)) {
-			rt2800_bbp_write(rt2x00dev, 75, 0x60);
-			rt2800_bbp_write(rt2x00dev, 76, 0x44);
+			rt2800_bbp_write(rt2x00dev, 75, 0x68);
+			rt2800_bbp_write(rt2x00dev, 76, 0x4C);
 			rt2800_bbp_write(rt2x00dev, 79, 0x1C);
 			rt2800_bbp_write(rt2x00dev, 80, 0x0C);
 			rt2800_bbp_write(rt2x00dev, 82, 0xB6);
@@ -7014,9 +7030,9 @@ static void rt2800_init_rfcsr_3290(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 {
-	int tx0_int_pa = test_bit(CAPABILITY_INTERNAL_PA_TX0,
+	int tx0_ext_pa = test_bit(CAPABILITY_EXTERNAL_PA_TX0,
 				  &rt2x00dev->cap_flags);
-	int tx1_int_pa = test_bit(CAPABILITY_INTERNAL_PA_TX1,
+	int tx1_ext_pa = test_bit(CAPABILITY_EXTERNAL_PA_TX1,
 				  &rt2x00dev->cap_flags);
 	u8 rfcsr;
 
@@ -7056,9 +7072,9 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 32, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 33, 0x00);
 	rfcsr = 0x01;
-	if (!tx0_int_pa)
+	if (tx0_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR34_TX0_EXT_PA, 1);
-	if (!tx1_int_pa)
+	if (tx1_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR34_TX1_EXT_PA, 1);
 	rt2800_rfcsr_write(rt2x00dev, 34, rfcsr);
 	rt2800_rfcsr_write(rt2x00dev, 35, 0x03);
@@ -7068,13 +7084,13 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 39, 0xc5);
 	rt2800_rfcsr_write(rt2x00dev, 40, 0x33);
 	rfcsr = 0x52;
-	if (tx0_int_pa) {
+	if (!tx0_ext_pa) {
 		rt2x00_set_field8(&rfcsr, RFCSR41_BIT1, 1);
 		rt2x00_set_field8(&rfcsr, RFCSR41_BIT4, 1);
 	}
 	rt2800_rfcsr_write(rt2x00dev, 41, rfcsr);
 	rfcsr = 0x52;
-	if (tx1_int_pa) {
+	if (!tx1_ext_pa) {
 		rt2x00_set_field8(&rfcsr, RFCSR42_BIT1, 1);
 		rt2x00_set_field8(&rfcsr, RFCSR42_BIT4, 1);
 	}
@@ -7087,19 +7103,19 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 48, 0x14);
 	rt2800_rfcsr_write(rt2x00dev, 49, 0x00);
 	rfcsr = 0x2d;
-	if (!tx0_int_pa)
+	if (tx0_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX0_EXT_PA, 1);
-	if (!tx1_int_pa)
+	if (tx1_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX1_EXT_PA, 1);
 	rt2800_rfcsr_write(rt2x00dev, 50, rfcsr);
-	rt2800_rfcsr_write(rt2x00dev, 51, (tx0_int_pa ? 0x7f : 0x52));
-	rt2800_rfcsr_write(rt2x00dev, 52, (tx0_int_pa ? 0x00 : 0xc0));
-	rt2800_rfcsr_write(rt2x00dev, 53, (tx0_int_pa ? 0x52 : 0xd2));
-	rt2800_rfcsr_write(rt2x00dev, 54, (tx0_int_pa ? 0x1b : 0xc0));
-	rt2800_rfcsr_write(rt2x00dev, 55, (tx1_int_pa ? 0x7f : 0x52));
-	rt2800_rfcsr_write(rt2x00dev, 56, (tx1_int_pa ? 0x00 : 0xc0));
-	rt2800_rfcsr_write(rt2x00dev, 57, (tx0_int_pa ? 0x52 : 0x49));
-	rt2800_rfcsr_write(rt2x00dev, 58, (tx1_int_pa ? 0x1b : 0xc0));
+	rt2800_rfcsr_write(rt2x00dev, 51, (tx0_ext_pa ? 0x52 : 0x7f));
+	rt2800_rfcsr_write(rt2x00dev, 52, (tx0_ext_pa ? 0xc0 : 0x00));
+	rt2800_rfcsr_write(rt2x00dev, 53, (tx0_ext_pa ? 0xd2 : 0x52));
+	rt2800_rfcsr_write(rt2x00dev, 54, (tx0_ext_pa ? 0xc0 : 0x1b));
+	rt2800_rfcsr_write(rt2x00dev, 55, (tx1_ext_pa ? 0x52 : 0x7f));
+	rt2800_rfcsr_write(rt2x00dev, 56, (tx1_ext_pa ? 0xc0 : 0x00));
+	rt2800_rfcsr_write(rt2x00dev, 57, (tx0_ext_pa ? 0x49 : 0x52));
+	rt2800_rfcsr_write(rt2x00dev, 58, (tx1_ext_pa ? 0xc0 : 0x1b));
 	rt2800_rfcsr_write(rt2x00dev, 59, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 61, 0x00);
@@ -8129,9 +8145,11 @@ static void rt2800_init_rfcsr_6352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 44, 0xB3);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 45, 0xD5);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 46, 0x27);
-	rt2800_rfcsr_write_chanreg(rt2x00dev, 47, 0x69);
+	rt2800_rfcsr_write_bank(rt2x00dev, 4, 47, 0x67);
+	rt2800_rfcsr_write_bank(rt2x00dev, 6, 47, 0x69);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 48, 0xFF);
-	rt2800_rfcsr_write_chanreg(rt2x00dev, 54, 0x20);
+	rt2800_rfcsr_write_bank(rt2x00dev, 4, 54, 0x27);
+	rt2800_rfcsr_write_bank(rt2x00dev, 6, 54, 0x20);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 55, 0x66);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 56, 0xFF);
 	rt2800_rfcsr_write_chanreg(rt2x00dev, 57, 0x1C);
@@ -8782,13 +8800,13 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
 
 	if (rt2x00_rt(rt2x00dev, RT3352)) {
-		if (!rt2x00_get_field16(eeprom,
+		if (rt2x00_get_field16(eeprom,
 		    EEPROM_NIC_CONF1_EXTERNAL_TX0_PA_3352))
-		    __set_bit(CAPABILITY_INTERNAL_PA_TX0,
+		    __set_bit(CAPABILITY_EXTERNAL_PA_TX0,
 			      &rt2x00dev->cap_flags);
-		if (!rt2x00_get_field16(eeprom,
+		if (rt2x00_get_field16(eeprom,
 		    EEPROM_NIC_CONF1_EXTERNAL_TX1_PA_3352))
-		    __set_bit(CAPABILITY_INTERNAL_PA_TX1,
+		    __set_bit(CAPABILITY_EXTERNAL_PA_TX1,
 			      &rt2x00dev->cap_flags);
 	}
 

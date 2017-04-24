@@ -129,7 +129,7 @@ enum qca9377_chip_id_rev {
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
 #define ATH10K_FW_FILE_BASE		"firmware"
-#define ATH10K_FW_API_MAX		5
+#define ATH10K_FW_API_MAX		6
 #define ATH10K_FW_API_MIN		2
 
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
@@ -140,6 +140,9 @@ enum qca9377_chip_id_rev {
 
 /* HTT id conflict fix for management frames over HTT */
 #define ATH10K_FW_API5_FILE		"firmware-5.bin"
+
+/* the firmware-6.bin blob */
+#define ATH10K_FW_API6_FILE		"firmware-6.bin"
 
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 #define ATH10K_FW_UTF_API2_FILE		"utf-2.bin"
@@ -296,7 +299,8 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
- *    param, llc/snap) are aligned to 4byte boundaries each */
+ *    param, llc/snap) are aligned to 4byte boundaries each
+ */
 enum ath10k_hw_txrx_mode {
 	ATH10K_HW_TXRX_RAW = 0,
 
@@ -447,6 +451,9 @@ struct ath10k_hw_params {
 	/* hw specific clock control parameters */
 	const struct ath10k_hw_clk_params *hw_clk;
 	int target_cpu_freq;
+
+	/* Number of bytes to be discarded for each FFT sample */
+	int spectral_bin_discard;
 };
 
 struct htt_rx_desc;

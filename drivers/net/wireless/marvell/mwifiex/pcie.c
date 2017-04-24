@@ -371,6 +371,8 @@ static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 		 */
 		mwifiex_shutdown_sw(adapter);
 		adapter->surprise_removed = true;
+		clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
+		clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
 	} else {
 		/* Kernel stores and restores PCIe function context before and
 		 * after performing FLR respectively. Reconfigure the software
@@ -1035,6 +1037,7 @@ static int mwifiex_pcie_delete_cmdrsp_buf(struct mwifiex_adapter *adapter)
 	if (card && card->cmd_buf) {
 		mwifiex_unmap_pci_memory(adapter, card->cmd_buf,
 					 PCI_DMA_TODEVICE);
+		dev_kfree_skb_any(card->cmd_buf);
 	}
 	return 0;
 }
@@ -1601,6 +1604,11 @@ mwifiex_pcie_send_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		return -1;
 
 	card->cmd_buf = skb;
+	/*
+	 * Need to keep a reference, since core driver might free up this
+	 * buffer before we've unmapped it.
+	 */
+	skb_get(skb);
 
 	/* To send a command, the driver will:
 		1. Write the 64bit physical address of the data buffer to
@@ -1703,6 +1711,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 	if (card->cmd_buf) {
 		mwifiex_unmap_pci_memory(adapter, card->cmd_buf,
 					 PCI_DMA_TODEVICE);
+		dev_kfree_skb_any(card->cmd_buf);
 		card->cmd_buf = NULL;
 	}
 
@@ -1956,6 +1965,94 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 	return ret;
 }
 
+/* Combo firmware image is a combination of
+ * (1) combo crc heaer, start with CMD5
+ * (2) bluetooth image, start with CMD7, end with CMD6, data wrapped in CMD1.
+ * (3) wifi image.
+ *
+ * This function bypass the header and bluetooth part, return
+ * the offset of tail wifi-only part.
+ */
+
+static int mwifiex_extract_wifi_fw(struct mwifiex_adapter *adapter,
+				   const void *firmware, u32 firmware_len) {
+	const struct mwifiex_fw_data *fwdata;
+	u32 offset = 0, data_len, dnld_cmd;
+	int ret = 0;
+	bool cmd7_before = false;
+
+	while (1) {
+		/* Check for integer and buffer overflow */
+		if (offset + sizeof(fwdata->header) < sizeof(fwdata->header) ||
+		    offset + sizeof(fwdata->header) >= firmware_len) {
+			mwifiex_dbg(adapter, ERROR,
+				    "extract wifi-only fw failure!\n");
+			ret = -1;
+			goto done;
+		}
+
+		fwdata = firmware + offset;
+		dnld_cmd = le32_to_cpu(fwdata->header.dnld_cmd);
+		data_len = le32_to_cpu(fwdata->header.data_length);
+
+		/* Skip past header */
+		offset += sizeof(fwdata->header);
+
+		switch (dnld_cmd) {
+		case MWIFIEX_FW_DNLD_CMD_1:
+			if (!cmd7_before) {
+				mwifiex_dbg(adapter, ERROR,
+					    "no cmd7 before cmd1!\n");
+				ret = -1;
+				goto done;
+			}
+			if (offset + data_len < data_len) {
+				mwifiex_dbg(adapter, ERROR, "bad FW parse\n");
+				ret = -1;
+				goto done;
+			}
+			offset += data_len;
+			break;
+		case MWIFIEX_FW_DNLD_CMD_5:
+			/* Check for integer overflow */
+			if (offset + data_len < data_len) {
+				mwifiex_dbg(adapter, ERROR, "bad FW parse\n");
+				ret = -1;
+				goto done;
+			}
+			offset += data_len;
+			break;
+		case MWIFIEX_FW_DNLD_CMD_6:
+			/* Check for integer overflow */
+			if (offset + data_len < data_len) {
+				mwifiex_dbg(adapter, ERROR, "bad FW parse\n");
+				ret = -1;
+				goto done;
+			}
+			offset += data_len;
+			if (offset >= firmware_len) {
+				mwifiex_dbg(adapter, ERROR,
+					    "extract wifi-only fw failure!\n");
+				ret = -1;
+			} else {
+				ret = offset;
+			}
+			goto done;
+		case MWIFIEX_FW_DNLD_CMD_7:
+			cmd7_before = true;
+			break;
+		default:
+			mwifiex_dbg(adapter, ERROR, "unknown dnld_cmd %d\n",
+				    dnld_cmd);
+			ret = -1;
+			goto done;
+		}
+	}
+
+done:
+	return ret;
+}
+
 /*
  * This function downloads the firmware to the card.
  *
@@ -1971,7 +2068,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	u32 firmware_len = fw->fw_len;
 	u32 offset = 0;
 	struct sk_buff *skb;
-	u32 txlen, tx_blocks = 0, tries, len;
+	u32 txlen, tx_blocks = 0, tries, len, val;
 	u32 block_retry_cnt = 0;
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
@@ -1996,6 +2093,24 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	if (!skb) {
 		ret = -ENOMEM;
 		goto done;
+	}
+
+	ret = mwifiex_read_reg(adapter, PCIE_SCRATCH_13_REG, &val);
+	if (ret) {
+		mwifiex_dbg(adapter, FATAL, "Failed to read scratch register 13\n");
+		goto done;
+	}
+
+	/* PCIE FLR case: extract wifi part from combo firmware*/
+	if (val == MWIFIEX_PCIE_FLR_HAPPENS) {
+		ret = mwifiex_extract_wifi_fw(adapter, firmware, firmware_len);
+		if (ret < 0) {
+			mwifiex_dbg(adapter, ERROR, "Failed to extract wifi fw\n");
+			goto done;
+		}
+		offset = ret;
+		mwifiex_dbg(adapter, MSG,
+			    "info: dnld wifi firmware from %d bytes\n", offset);
 	}
 
 	/* Perform firmware data transfer */
@@ -2494,8 +2609,8 @@ mwifiex_pcie_reg_dump(struct mwifiex_adapter *adapter, char *drv_buf)
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	int pcie_scratch_reg[] = {PCIE_SCRATCH_12_REG,
-				  PCIE_SCRATCH_13_REG,
-				  PCIE_SCRATCH_14_REG};
+				  PCIE_SCRATCH_14_REG,
+				  PCIE_SCRATCH_15_REG};
 
 	if (!p)
 		return 0;
@@ -3069,12 +3184,6 @@ static void mwifiex_pcie_up_dev(struct mwifiex_adapter *adapter)
 	int ret;
 	struct pci_dev *pdev = card->dev;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
-
-	/* Bluetooth is not on pcie interface. Download Wifi only firmware
-	 * during pcie FLR, so that bluetooth part of firmware which is
-	 * already running doesn't get affected.
-	 */
-	strcpy(adapter->fw_name, PCIE8997_DEFAULT_WIFIFW_NAME);
 
 	/* tx_buf_size might be changed to 3584 by firmware during
 	 * data transfer, we should reset it to default size.

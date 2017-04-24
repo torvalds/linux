@@ -176,7 +176,8 @@ union bmi_resp {
 	} rompatch_uninstall;
 	struct {
 		/* 0 = nothing executed
-		 * otherwise = NVRAM segment return value */
+		 * otherwise = NVRAM segment return value
+		 */
 		__le32 result;
 	} nvram_process;
 	u8 payload[BMI_MAX_CMDBUF_SIZE];

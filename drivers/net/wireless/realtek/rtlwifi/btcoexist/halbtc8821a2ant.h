@@ -38,6 +38,11 @@
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8821A_2ANT	2
 
+/* WiFi RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation */
+#define BT_8821A_2ANT_WIFI_RSSI_COEXSWITCH_THRES 42
+/* BT RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation */
+#define BT_8821A_2ANT_BT_RSSI_COEXSWITCH_THRES	46
+
 enum _BT_INFO_SRC_8821A_2ANT {
 	BT_INFO_SRC_8821A_2ANT_WIFI_FW		= 0x0,
 	BT_INFO_SRC_8821A_2ANT_BT_RSP		= 0x1,
@@ -69,8 +74,8 @@ enum _BT_8821A_2ANT_COEX_ALGO {
 
 struct coex_dm_8821a_2ant {
 	/* fw mechanism */
-	bool		pre_dec_bt_pwr;
-	bool		cur_dec_bt_pwr;
+	bool		pre_dec_bt_pwr_lvl;
+	bool		cur_dec_bt_pwr_lvl;
 	bool		pre_bt_lna_constrain;
 	bool		cur_bt_lna_constrain;
 	u8		pre_bt_psd_mode;
@@ -82,8 +87,9 @@ struct coex_dm_8821a_2ant {
 	u8		pre_ps_tdma;
 	u8		cur_ps_tdma;
 	u8		ps_tdma_para[5];
-	u8		tdma_adj_type;
+	u8		ps_tdma_du_adj_type;
 	bool		reset_tdma_adjust;
+	bool		auto_tdma_adjust;
 	bool		pre_ps_tdma_on;
 	bool		cur_ps_tdma_on;
 	bool		pre_bt_auto_report;
@@ -118,6 +124,10 @@ struct coex_dm_8821a_2ant {
 	u8		cur_algorithm;
 	u8		bt_status;
 	u8		wifi_chnl_info[3];
+	u8		pre_lps;
+	u8		cur_lps;
+	u8		pre_rpwm;
+	u8		cur_rpwm;
 };
 
 struct coex_sta_8821a_2ant {
@@ -141,6 +151,19 @@ struct coex_sta_8821a_2ant {
 	bool	c2h_bt_inquiry_page;
 	u8	bt_retry_cnt;
 	u8	bt_info_ext;
+
+	u32	crc_ok_cck;
+	u32	crc_ok_11g;
+	u32	crc_ok_11n;
+	u32	crc_ok_11n_agg;
+
+	u32	crc_err_cck;
+	u32	crc_err_11g;
+	u32	crc_err_11n;
+	u32	crc_err_11n_agg;
+
+	u8	coex_table_type;
+	bool	force_lps_on;
 };
 
 /*===========================================

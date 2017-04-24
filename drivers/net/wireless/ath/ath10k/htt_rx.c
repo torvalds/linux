@@ -177,7 +177,8 @@ static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 	 * automatically balances load wrt to CPU power.
 	 *
 	 * This probably comes at a cost of lower maximum throughput but
-	 * improves the average and stability. */
+	 * improves the average and stability.
+	 */
 	spin_lock_bh(&htt->rx_ring.lock);
 	num_deficit = htt->rx_ring.fill_level - htt->rx_ring.fill_cnt;
 	num_to_fill = min(ATH10K_HTT_MAX_NUM_REFILL, num_deficit);
@@ -304,7 +305,8 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		rx_desc = (struct htt_rx_desc *)msdu->data;
 
 		/* FIXME: we must report msdu payload since this is what caller
-		 *        expects now */
+		 * expects now
+		 */
 		skb_put(msdu, offsetof(struct htt_rx_desc, msdu_payload));
 		skb_pull(msdu, offsetof(struct htt_rx_desc, msdu_payload));
 
@@ -639,7 +641,8 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 	case HTT_RX_VHT:
 	case HTT_RX_VHT_WITH_TXBF:
 		/* VHT-SIG-A1 in info2, VHT-SIG-A2 in info3
-		   TODO check this */
+		 * TODO check this
+		 */
 		bw = info2 & 3;
 		sgi = info3 & 1;
 		group_id = (info2 >> 4) & 0x3F;

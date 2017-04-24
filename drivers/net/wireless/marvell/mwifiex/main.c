@@ -149,7 +149,6 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 
 	kfree(adapter->regd);
 
-	vfree(adapter->chan_stats);
 	kfree(adapter);
 	return 0;
 }
@@ -632,6 +631,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	goto done;
 
 err_add_intf:
+	vfree(adapter->chan_stats);
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
 err_init_fw:
@@ -1416,6 +1416,7 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 			mwifiex_del_virtual_intf(adapter->wiphy, &priv->wdev);
 		rtnl_unlock();
 	}
+	vfree(adapter->chan_stats);
 
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 exit_return:
@@ -1440,6 +1441,7 @@ mwifiex_reinit_sw(struct mwifiex_adapter *adapter)
 	init_waitqueue_head(&adapter->init_wait_q);
 	adapter->is_suspended = false;
 	adapter->hs_activated = false;
+	adapter->is_cmd_timedout = 0;
 	init_waitqueue_head(&adapter->hs_activate_wait_q);
 	init_waitqueue_head(&adapter->cmd_wait_q.wait);
 	adapter->cmd_wait_q.status = 0;
@@ -1513,11 +1515,9 @@ static irqreturn_t mwifiex_irq_wakeup_handler(int irq, void *priv)
 {
 	struct mwifiex_adapter *adapter = priv;
 
-	if (adapter->irq_wakeup >= 0) {
-		dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
-		adapter->wake_by_wifi = true;
-		disable_irq_nosync(irq);
-	}
+	dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
+	adapter->wake_by_wifi = true;
+	disable_irq_nosync(irq);
 
 	/* Notify PM core we are wakeup source */
 	pm_wakeup_event(adapter->dev, 0);
@@ -1726,6 +1726,7 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 			mwifiex_del_virtual_intf(adapter->wiphy, &priv->wdev);
 		rtnl_unlock();
 	}
+	vfree(adapter->chan_stats);
 
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
@@ -1754,7 +1755,7 @@ void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
 	struct va_format vaf;
 	va_list args;
 
-	if (!adapter->dev || !(adapter->debug_mask & mask))
+	if (!(adapter->debug_mask & mask))
 		return;
 
 	va_start(args, fmt);
@@ -1762,7 +1763,10 @@ void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	dev_info(adapter->dev, "%pV", &vaf);
+	if (adapter->dev)
+		dev_info(adapter->dev, "%pV", &vaf);
+	else
+		pr_info("%pV", &vaf);
 
 	va_end(args);
 }
