@@ -629,7 +629,7 @@ static u64 prepare_ext_dma(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	emm_dma = FIELD_PREP(MIO_EMM_DMA_VAL, 1) |
 		  FIELD_PREP(MIO_EMM_DMA_SECTOR,
-			     (mrq->data->blksz == 512) ? 1 : 0) |
+			     mmc_card_is_blockaddr(mmc->card) ? 1 : 0) |
 		  FIELD_PREP(MIO_EMM_DMA_RW,
 			     (mrq->data->flags & MMC_DATA_WRITE) ? 1 : 0) |
 		  FIELD_PREP(MIO_EMM_DMA_BLOCK_CNT, mrq->data->blocks) |
