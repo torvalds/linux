@@ -358,9 +358,12 @@ ssize_t sdcardfs_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	get_file(lower_file); /* prevent lower_file from being released */
 	iocb->ki_filp = lower_file;
 	err = lower_file->f_op->read_iter(iocb, iter);
-	/* ? wait IO finish to update atime as ecryptfs ? */
 	iocb->ki_filp = file;
 	fput(lower_file);
+	/* update upper inode atime as needed */
+	if (err >= 0 || err == -EIOCBQUEUED)
+		fsstack_copy_attr_atime(file->f_path.dentry->d_inode,
+					file_inode(lower_file));
 out:
 	return err;
 }
@@ -384,6 +387,13 @@ ssize_t sdcardfs_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	err = lower_file->f_op->write_iter(iocb, iter);
 	iocb->ki_filp = file;
 	fput(lower_file);
+	/* update upper inode times/sizes as needed */
+	if (err >= 0 || err == -EIOCBQUEUED) {
+		fsstack_copy_inode_size(file->f_path.dentry->d_inode,
+					file_inode(lower_file));
+		fsstack_copy_attr_times(file->f_path.dentry->d_inode,
+					file_inode(lower_file));
+	}
 out:
 	return err;
 }
