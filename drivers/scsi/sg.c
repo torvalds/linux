@@ -2052,6 +2052,8 @@ sg_unlink_reserve(Sg_fd * sfp, Sg_request * srp)
 	req_schp->sglist_len = 0;
 	sfp->save_scat_len = 0;
 	srp->res_used = 0;
+	/* Called without mutex lock to avoid deadlock */
+	sfp->res_in_use = 0;
 }
 
 static Sg_request *
