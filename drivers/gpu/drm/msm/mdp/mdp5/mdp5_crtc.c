@@ -16,13 +16,13 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mdp5_kms.h"
-
 #include <linux/sort.h>
 #include <drm/drm_mode.h>
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_flip_work.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_flip_work.h>
+
+#include "mdp5_kms.h"
 
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
