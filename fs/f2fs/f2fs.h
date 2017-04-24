@@ -297,8 +297,8 @@ struct discard_cmd_control {
 	struct list_head wait_list;		/* store on-flushing entries */
 	wait_queue_head_t discard_wait_queue;	/* waiting queue for wake-up */
 	struct mutex cmd_lock;
-	int nr_discards;			/* # of discards in the list */
-	int max_discards;			/* max. discards to be issued */
+	unsigned int nr_discards;		/* # of discards in the list */
+	unsigned int max_discards;		/* max. discards to be issued */
 	unsigned int undiscard_blks;		/* # of undiscard blocks */
 	atomic_t issued_discard;		/* # of issued discard */
 	atomic_t issing_discard;		/* # of issing discard */
