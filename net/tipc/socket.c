@@ -1083,7 +1083,7 @@ static int __tipc_sendstream(struct socket *sock, struct msghdr *m, size_t dlen)
 		}
 	} while (sent < dlen && !rc);
 
-	return rc ? rc : sent;
+	return sent ? sent : rc;
 }
 
 /**
