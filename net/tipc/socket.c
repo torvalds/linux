@@ -1484,7 +1484,7 @@ restart:
 	if (unlikely(flags & MSG_PEEK))
 		goto exit;
 
-	tsk->rcv_unacked += tsk_inc(tsk, hlen + sz);
+	tsk->rcv_unacked += tsk_inc(tsk, hlen + msg_data_sz(msg));
 	if (unlikely(tsk->rcv_unacked >= (tsk->rcv_win / 4)))
 		tipc_sk_send_ack(tsk);
 	tsk_advance_rx_queue(sk);
