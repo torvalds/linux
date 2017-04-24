@@ -4981,7 +4981,6 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 		/* reset ring buffer */
 		ring->wptr = 0;
 		amdgpu_ring_clear_ring(ring);
-
 		mutex_lock(&adev->srbm_mutex);
 		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 		gfx_v8_0_kiq_init_register(ring);
@@ -5023,12 +5022,12 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 		/* reset MQD to a clean status */
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
 			memcpy(mqd, adev->gfx.mec.mqd_backup[mqd_idx], sizeof(*mqd));
-
 		/* reset ring buffer */
 		ring->wptr = 0;
 		amdgpu_ring_clear_ring(ring);
+	} else {
+		amdgpu_ring_clear_ring(ring);
 	}
-
 	return 0;
 }
 
