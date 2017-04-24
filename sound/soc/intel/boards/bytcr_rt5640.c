@@ -60,7 +60,7 @@ struct byt_rt5640_private {
 
 static unsigned long byt_rt5640_quirk = BYT_RT5640_MCLK_EN;
 static unsigned int quirk_override;
-module_param_named(quirk, quirk_override, int, 0444);
+module_param_named(quirk, quirk_override, uint, 0444);
 MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 static void log_quirks(struct device *dev)
@@ -811,7 +811,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5640_quirk_table);
 	if (quirk_override) {
-		dev_info(&pdev->dev, "Overriding quirk %0x => 0x%x\n",
+		dev_info(&pdev->dev, "Overriding quirk 0x%x => 0x%x\n",
 			 (unsigned int)byt_rt5640_quirk, quirk_override);
 		byt_rt5640_quirk = quirk_override;
 	}
