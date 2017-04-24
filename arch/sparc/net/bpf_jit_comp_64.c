@@ -18,6 +18,16 @@ static inline bool is_simm13(unsigned int value)
 	return value + 0x1000 < 0x2000;
 }
 
+static inline bool is_simm10(unsigned int value)
+{
+	return value + 0x200 < 0x400;
+}
+
+static inline bool is_simm5(unsigned int value)
+{
+	return value + 0x10 < 0x20;
+}
+
 static void bpf_flush_icache(void *start_, void *end_)
 {
 	/* Cheetah's I-cache is fully coherent.  */
@@ -39,6 +49,7 @@ static void bpf_flush_icache(void *start_, void *end_)
 #define SEEN_MEM     4 /* use mem[] for temporary storage */
 
 #define S13(X)		((X) & 0x1fff)
+#define S5(X)		((X) & 0x1f)
 #define IMMED		0x00002000
 #define RD(X)		((X) << 25)
 #define RS1(X)		((X) << 14)
@@ -46,7 +57,8 @@ static void bpf_flush_icache(void *start_, void *end_)
 #define OP(X)		((X) << 30)
 #define OP2(X)		((X) << 22)
 #define OP3(X)		((X) << 19)
-#define COND(X)		((X) << 25)
+#define COND(X)		(((X) & 0xf) << 25)
+#define CBCOND(X)	(((X) & 0x1f) << 25)
 #define F1(X)		OP(X)
 #define F2(X, Y)	(OP(X) | OP2(Y))
 #define F3(X, Y)	(OP(X) | OP3(Y))
@@ -75,10 +87,39 @@ static void bpf_flush_icache(void *start_, void *end_)
 #define WDISP22(X)	(((X) >> 2) & 0x3fffff)
 #define WDISP19(X)	(((X) >> 2) & 0x7ffff)
 
+/* The 10-bit branch displacement for CBCOND is split into two fields */
+static u32 WDISP10(u32 off)
+{
+	u32 ret = ((off >> 2) & 0xff) << 5;
+
+	ret |= ((off >> (2 + 8)) & 0x03) << 19;
+
+	return ret;
+}
+
+#define CBCONDE		CBCOND(0x09)
+#define CBCONDLE	CBCOND(0x0a)
+#define CBCONDL		CBCOND(0x0b)
+#define CBCONDLEU	CBCOND(0x0c)
+#define CBCONDCS	CBCOND(0x0d)
+#define CBCONDN		CBCOND(0x0e)
+#define CBCONDVS	CBCOND(0x0f)
+#define CBCONDNE	CBCOND(0x19)
+#define CBCONDG		CBCOND(0x1a)
+#define CBCONDGE	CBCOND(0x1b)
+#define CBCONDGU	CBCOND(0x1c)
+#define CBCONDCC	CBCOND(0x1d)
+#define CBCONDPOS	CBCOND(0x1e)
+#define CBCONDVC	CBCOND(0x1f)
+
+#define CBCONDGEU	CBCONDCC
+#define CBCONDLU	CBCONDCS
+
 #define ANNUL		(1 << 29)
 #define XCC		(1 << 21)
 
 #define BRANCH		(F2(0, 1) | XCC)
+#define CBCOND_OP	(F2(0, 3) | XCC)
 
 #define BA		(BRANCH | CONDA)
 #define BG		(BRANCH | CONDG)
@@ -351,6 +392,22 @@ static void emit_branch(unsigned int br_opc, unsigned int from_idx, unsigned int
 		emit(br_opc | WDISP22(off << 2), ctx);
 }
 
+static void emit_cbcond(unsigned int cb_opc, unsigned int from_idx, unsigned int to_idx,
+			const u8 dst, const u8 src, struct jit_ctx *ctx)
+{
+	unsigned int off = to_idx - from_idx;
+
+	emit(cb_opc | WDISP10(off << 2) | RS1(dst) | RS2(src), ctx);
+}
+
+static void emit_cbcondi(unsigned int cb_opc, unsigned int from_idx, unsigned int to_idx,
+			 const u8 dst, s32 imm, struct jit_ctx *ctx)
+{
+	unsigned int off = to_idx - from_idx;
+
+	emit(cb_opc | IMMED | WDISP10(off << 2) | RS1(dst) | S5(imm), ctx);
+}
+
 #define emit_read_y(REG, CTX)	emit(RD_Y | RD(REG), CTX)
 #define emit_write_y(REG, CTX)	emit(WR_Y | IMMED | RS1(REG) | S13(0), CTX)
 
@@ -358,13 +415,124 @@ static void emit_branch(unsigned int br_opc, unsigned int from_idx, unsigned int
 	emit(SUBCC | RS1(R1) | RS2(R2) | RD(G0), CTX)
 
 #define emit_cmpi(R1, IMM, CTX)				\
-	emit(SUBCC | IMMED | RS1(R1) | S13(IMM) | RD(G0), CTX);
+	emit(SUBCC | IMMED | RS1(R1) | S13(IMM) | RD(G0), CTX)
 
 #define emit_btst(R1, R2, CTX)				\
 	emit(ANDCC | RS1(R1) | RS2(R2) | RD(G0), CTX)
 
 #define emit_btsti(R1, IMM, CTX)			\
 	emit(ANDCC | IMMED | RS1(R1) | S13(IMM) | RD(G0), CTX)
+
+static int emit_compare_and_branch(const u8 code, const u8 dst, u8 src,
+				   const s32 imm, bool is_imm, int branch_dst,
+				   struct jit_ctx *ctx)
+{
+	bool use_cbcond = (sparc64_elf_hwcap & AV_SPARC_CBCOND) != 0;
+	const u8 tmp = bpf2sparc[TMP_REG_1];
+
+	branch_dst = ctx->offset[branch_dst];
+
+	if (!is_simm10(branch_dst - ctx->idx) ||
+	    BPF_OP(code) == BPF_JSET)
+		use_cbcond = false;
+
+	if (is_imm) {
+		bool fits = true;
+
+		if (use_cbcond) {
+			if (!is_simm5(imm))
+				fits = false;
+		} else if (!is_simm13(imm)) {
+			fits = false;
+		}
+		if (!fits) {
+			ctx->tmp_1_used = true;
+			emit_loadimm_sext(imm, tmp, ctx);
+			src = tmp;
+			is_imm = false;
+		}
+	}
+
+	if (!use_cbcond) {
+		u32 br_opcode;
+
+		if (BPF_OP(code) == BPF_JSET) {
+			if (is_imm)
+				emit_btsti(dst, imm, ctx);
+			else
+				emit_btst(dst, src, ctx);
+		} else {
+			if (is_imm)
+				emit_cmpi(dst, imm, ctx);
+			else
+				emit_cmp(dst, src, ctx);
+		}
+		switch (BPF_OP(code)) {
+		case BPF_JEQ:
+			br_opcode = BE;
+			break;
+		case BPF_JGT:
+			br_opcode = BGU;
+			break;
+		case BPF_JGE:
+			br_opcode = BGEU;
+			break;
+		case BPF_JSET:
+		case BPF_JNE:
+			br_opcode = BNE;
+			break;
+		case BPF_JSGT:
+			br_opcode = BG;
+			break;
+		case BPF_JSGE:
+			br_opcode = BGE;
+			break;
+		default:
+			/* Make sure we dont leak kernel information to the
+			 * user.
+			 */
+			return -EFAULT;
+		}
+		emit_branch(br_opcode, ctx->idx, branch_dst, ctx);
+		emit_nop(ctx);
+	} else {
+		u32 cbcond_opcode;
+
+		switch (BPF_OP(code)) {
+		case BPF_JEQ:
+			cbcond_opcode = CBCONDE;
+			break;
+		case BPF_JGT:
+			cbcond_opcode = CBCONDGU;
+			break;
+		case BPF_JGE:
+			cbcond_opcode = CBCONDGEU;
+			break;
+		case BPF_JNE:
+			cbcond_opcode = CBCONDNE;
+			break;
+		case BPF_JSGT:
+			cbcond_opcode = CBCONDG;
+			break;
+		case BPF_JSGE:
+			cbcond_opcode = CBCONDGE;
+			break;
+		default:
+			/* Make sure we dont leak kernel information to the
+			 * user.
+			 */
+			return -EFAULT;
+		}
+		cbcond_opcode |= CBCOND_OP;
+		if (is_imm)
+			emit_cbcondi(cbcond_opcode, ctx->idx, branch_dst,
+				     dst, imm, ctx);
+		else
+			emit_cbcond(cbcond_opcode, ctx->idx, branch_dst,
+				    dst, src, ctx);
+	}
+	return 0;
+}
 
 static void load_skb_regs(struct jit_ctx *ctx, u8 r_skb)
 {
@@ -765,44 +933,15 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	case BPF_JMP | BPF_JGE | BPF_X:
 	case BPF_JMP | BPF_JNE | BPF_X:
 	case BPF_JMP | BPF_JSGT | BPF_X:
-	case BPF_JMP | BPF_JSGE | BPF_X: {
-		u32 br_opcode;
+	case BPF_JMP | BPF_JSGE | BPF_X:
+	case BPF_JMP | BPF_JSET | BPF_X: {
+		int err;
 
-		emit_cmp(dst, src, ctx);
-emit_cond_jmp:
-		switch (BPF_OP(code)) {
-		case BPF_JEQ:
-			br_opcode = BE;
-			break;
-		case BPF_JGT:
-			br_opcode = BGU;
-			break;
-		case BPF_JGE:
-			br_opcode = BGEU;
-			break;
-		case BPF_JSET:
-		case BPF_JNE:
-			br_opcode = BNE;
-			break;
-		case BPF_JSGT:
-			br_opcode = BG;
-			break;
-		case BPF_JSGE:
-			br_opcode = BGE;
-			break;
-		default:
-			/* Make sure we dont leak kernel information to the
-			 * user.
-			 */
-			return -EFAULT;
-		}
-		emit_branch(br_opcode, ctx->idx, ctx->offset[i + off], ctx);
-		emit_nop(ctx);
+		err = emit_compare_and_branch(code, dst, src, 0, false, i + off, ctx);
+		if (err)
+			return err;
 		break;
 	}
-	case BPF_JMP | BPF_JSET | BPF_X:
-		emit_btst(dst, src, ctx);
-		goto emit_cond_jmp;
 	/* IF (dst COND imm) JUMP off */
 	case BPF_JMP | BPF_JEQ | BPF_K:
 	case BPF_JMP | BPF_JGT | BPF_K:
@@ -810,23 +949,14 @@ emit_cond_jmp:
 	case BPF_JMP | BPF_JNE | BPF_K:
 	case BPF_JMP | BPF_JSGT | BPF_K:
 	case BPF_JMP | BPF_JSGE | BPF_K:
-		if (is_simm13(imm)) {
-			emit_cmpi(dst, imm, ctx);
-		} else {
-			ctx->tmp_1_used = true;
-			emit_loadimm_sext(imm, bpf2sparc[TMP_REG_1], ctx);
-			emit_cmp(dst, bpf2sparc[TMP_REG_1], ctx);
-		}
-		goto emit_cond_jmp;
-	case BPF_JMP | BPF_JSET | BPF_K:
-		if (is_simm13(imm)) {
-			emit_btsti(dst, imm, ctx);
-		} else {
-			ctx->tmp_1_used = true;
-			emit_loadimm_sext(imm, bpf2sparc[TMP_REG_1], ctx);
-			emit_btst(dst, bpf2sparc[TMP_REG_1], ctx);
-		}
-		goto emit_cond_jmp;
+	case BPF_JMP | BPF_JSET | BPF_K: {
+		int err;
+
+		err = emit_compare_and_branch(code, dst, 0, imm, true, i + off, ctx);
+		if (err)
+			return err;
+		break;
+	}
 
 	/* function call */
 	case BPF_JMP | BPF_CALL:
