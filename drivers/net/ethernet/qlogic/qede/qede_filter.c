@@ -883,7 +883,11 @@ int qede_set_features(struct net_device *dev, netdev_features_t features)
 void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_tunn_params tunn_params;
 	u16 t_port = ntohs(ti->port);
+	int rc;
+
+	memset(&tunn_params, 0, sizeof(tunn_params));
 
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
@@ -893,12 +897,22 @@ void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
 		if (edev->vxlan_dst_port)
 			return;
 
-		edev->vxlan_dst_port = t_port;
+		tunn_params.update_vxlan_port = 1;
+		tunn_params.vxlan_port = t_port;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d\n",
-			   t_port);
+		__qede_lock(edev);
+		rc = edev->ops->tunn_config(edev->cdev, &tunn_params);
+		__qede_unlock(edev);
 
-		set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
+		if (!rc) {
+			edev->vxlan_dst_port = t_port;
+			DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d\n",
+				   t_port);
+		} else {
+			DP_NOTICE(edev, "Failed to add vxlan UDP port=%d\n",
+				  t_port);
+		}
+
 		break;
 	case UDP_TUNNEL_TYPE_GENEVE:
 		if (!edev->dev_info.common.geneve_enable)
@@ -907,51 +921,74 @@ void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
 		if (edev->geneve_dst_port)
 			return;
 
-		edev->geneve_dst_port = t_port;
+		tunn_params.update_geneve_port = 1;
+		tunn_params.geneve_port = t_port;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added geneve port=%d\n",
-			   t_port);
-		set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
+		__qede_lock(edev);
+		rc = edev->ops->tunn_config(edev->cdev, &tunn_params);
+		__qede_unlock(edev);
+
+		if (!rc) {
+			edev->geneve_dst_port = t_port;
+			DP_VERBOSE(edev, QED_MSG_DEBUG,
+				   "Added geneve port=%d\n", t_port);
+		} else {
+			DP_NOTICE(edev, "Failed to add geneve UDP port=%d\n",
+				  t_port);
+		}
+
 		break;
 	default:
 		return;
 	}
-
-	schedule_delayed_work(&edev->sp_task, 0);
 }
 
-void qede_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti)
+void qede_udp_tunnel_del(struct net_device *dev,
+			 struct udp_tunnel_info *ti)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_tunn_params tunn_params;
 	u16 t_port = ntohs(ti->port);
+
+	memset(&tunn_params, 0, sizeof(tunn_params));
 
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
 		if (t_port != edev->vxlan_dst_port)
 			return;
 
+		tunn_params.update_vxlan_port = 1;
+		tunn_params.vxlan_port = 0;
+
+		__qede_lock(edev);
+		edev->ops->tunn_config(edev->cdev, &tunn_params);
+		__qede_unlock(edev);
+
 		edev->vxlan_dst_port = 0;
 
 		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d\n",
 			   t_port);
 
-		set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
 		break;
 	case UDP_TUNNEL_TYPE_GENEVE:
 		if (t_port != edev->geneve_dst_port)
 			return;
 
+		tunn_params.update_geneve_port = 1;
+		tunn_params.geneve_port = 0;
+
+		__qede_lock(edev);
+		edev->ops->tunn_config(edev->cdev, &tunn_params);
+		__qede_unlock(edev);
+
 		edev->geneve_dst_port = 0;
 
 		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d\n",
 			   t_port);
-		set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
 		break;
 	default:
 		return;
 	}
-
-	schedule_delayed_work(&edev->sp_task, 0);
 }
 
 static void qede_xdp_reload_func(struct qede_dev *edev,
