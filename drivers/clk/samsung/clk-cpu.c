@@ -410,6 +410,7 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 {
 	struct exynos_cpuclk *cpuclk;
 	struct clk_init_data init;
+	struct clk *parent_clk;
 	struct clk *clk;
 	int ret = 0;
 
@@ -440,15 +441,15 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 		goto free_cpuclk;
 	}
 
-	clk = __clk_lookup(parent);
-	if (!clk) {
+	parent_clk = __clk_lookup(parent);
+	if (!parent_clk) {
 		pr_err("%s: could not lookup parent clock %s\n",
 				__func__, parent);
 		ret = -EINVAL;
 		goto free_cpuclk;
 	}
 
-	ret = clk_notifier_register(clk, &cpuclk->clk_nb);
+	ret = clk_notifier_register(parent_clk, &cpuclk->clk_nb);
 	if (ret) {
 		pr_err("%s: failed to register clock notifier for %s\n",
 				__func__, name);
@@ -476,7 +477,7 @@ int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 free_cpuclk_data:
 	kfree(cpuclk->cfg);
 unregister_clk_nb:
-	clk_notifier_unregister(__clk_lookup(parent), &cpuclk->clk_nb);
+	clk_notifier_unregister(parent_clk, &cpuclk->clk_nb);
 free_cpuclk:
 	kfree(cpuclk);
 	return ret;
