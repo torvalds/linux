@@ -1,7 +1,11 @@
+#include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/rbtree.h>
+#include <sys/ttydefaults.h>
 
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
@@ -10,6 +14,7 @@
 #include "../../util/sort.h"
 #include "../../util/util.h"
 #include "../../util/top.h"
+#include "../../util/thread.h"
 #include "../../arch/common.h"
 
 #include "../browsers/hists.h"
@@ -18,6 +23,11 @@
 #include "../ui.h"
 #include "map.h"
 #include "annotate.h"
+#include "srcline.h"
+#include "string2.h"
+#include "units.h"
+
+#include "sane_ctype.h"
 
 extern void hist_browser__init_hpp(void);
 

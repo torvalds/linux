@@ -1,9 +1,10 @@
 #ifndef __PROBE_FILE_H
 #define __PROBE_FILE_H
 
-#include "strlist.h"
-#include "strfilter.h"
 #include "probe-event.h"
+
+struct strlist;
+struct strfilter;
 
 /* Cache of probe definitions */
 struct probe_cache_entry {
@@ -41,6 +42,7 @@ int probe_file__open_both(int *kfd, int *ufd, int flag);
 struct strlist *probe_file__get_namelist(int fd);
 struct strlist *probe_file__get_rawlist(int fd);
 int probe_file__add_event(int fd, struct probe_trace_event *tev);
+
 int probe_file__del_events(int fd, struct strfilter *filter);
 int probe_file__get_events(int fd, struct strfilter *filter,
 				  struct strlist *plist);

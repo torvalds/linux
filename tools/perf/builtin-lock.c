@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <inttypes.h>
 #include "builtin.h"
 #include "perf.h"
 
@@ -26,6 +28,7 @@
 
 #include <linux/list.h>
 #include <linux/hash.h>
+#include <linux/kernel.h>
 
 static struct perf_session *session;
 

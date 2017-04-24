@@ -64,14 +64,24 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/group.h"
+#include "util/string2.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
 #include <api/fs/fs.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <math.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include "sane_ctype.h"
 
 #define DEFAULT_SEPARATOR	" "
 #define CNTR_NOT_SUPPORTED	"<not supported>"

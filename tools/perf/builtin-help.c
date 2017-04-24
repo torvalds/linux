@@ -12,16 +12,22 @@
 #include <subcmd/run-command.h>
 #include <subcmd/help.h>
 #include "util/debug.h"
+#include <linux/kernel.h>
+#include <errno.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;
-	char name[FLEX_ARRAY];
+	char name[0];
 } *man_viewer_list;
 
 static struct man_viewer_info_list {
 	struct man_viewer_info_list *next;
 	const char *info;
-	char name[FLEX_ARRAY];
+	char name[0];
 } *man_viewer_info_list;
 
 enum help_format {

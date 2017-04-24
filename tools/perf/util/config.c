@@ -8,12 +8,19 @@
  * Copyright (C) Johannes Schindelin, 2005
  *
  */
+#include <errno.h>
+#include <sys/param.h>
 #include "util.h"
 #include "cache.h"
 #include <subcmd/exec-cmd.h>
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "config.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "sane_ctype.h"
 
 #define MAXNAME (256)
 

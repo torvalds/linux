@@ -1,6 +1,8 @@
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -15,6 +17,7 @@
 #include "header.h"
 #include "pmu-events/pmu-events.h"
 #include "cache.h"
+#include "string2.h"
 
 struct perf_pmu_format {
 	char *name;

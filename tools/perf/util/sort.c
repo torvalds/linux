@@ -1,12 +1,18 @@
+#include <errno.h>
+#include <inttypes.h>
+#include <regex.h>
 #include <sys/mman.h>
 #include "sort.h"
 #include "hist.h"
 #include "comm.h"
 #include "symbol.h"
+#include "thread.h"
 #include "evsel.h"
 #include "evlist.h"
+#include "strlist.h"
 #include <traceevent/event-parse.h>
 #include "mem-events.h"
+#include <linux/kernel.h>
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";

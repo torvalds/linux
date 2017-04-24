@@ -3,6 +3,7 @@
 
 #include "util/evsel.h"
 #include "util/evlist.h"
+#include "util/term.h"
 #include "util/util.h"
 #include "util/cache.h"
 #include "util/symbol.h"
@@ -23,12 +24,32 @@
 #ifdef HAVE_TIMERFD_SUPPORT
 #include <sys/timerfd.h>
 #endif
+#include <sys/time.h>
 
+#include <linux/kernel.h>
 #include <linux/time64.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <poll.h>
 #include <termios.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <pthread.h>
 #include <math.h>
+
+static const char *get_filename_for_perf_kvm(void)
+{
+	const char *filename;
+
+	if (perf_host && !perf_guest)
+		filename = strdup("perf.data.host");
+	else if (!perf_host && perf_guest)
+		filename = strdup("perf.data.guest");
+	else
+		filename = strdup("perf.data.kvm");
+
+	return filename;
+}
 
 #ifdef HAVE_KVM_STAT_SUPPORT
 #include "util/kvm-stat.h"

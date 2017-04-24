@@ -33,6 +33,7 @@
 #include "util/block-range.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <linux/bitmap.h>
 
 struct perf_annotate {

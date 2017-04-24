@@ -20,10 +20,15 @@
 
 #include "util/debug.h"
 
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
+
+#include "sane_ctype.h"
 
 static int	kmem_slab;
 static int	kmem_page;

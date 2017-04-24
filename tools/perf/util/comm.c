@@ -1,7 +1,9 @@
 #include "comm.h"
 #include "util.h"
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <linux/refcount.h>
 
 struct comm_str {

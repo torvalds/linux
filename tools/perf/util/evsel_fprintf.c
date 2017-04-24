@@ -1,9 +1,11 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <traceevent/event-parse.h>
 #include "evsel.h"
 #include "callchain.h"
 #include "map.h"
+#include "strlist.h"
 #include "symbol.h"
 
 static int comma_fprintf(FILE *fp, bool *first, const char *fmt, ...)

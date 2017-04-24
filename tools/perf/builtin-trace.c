@@ -24,6 +24,7 @@
 #include "util/evlist.h"
 #include <subcmd/exec-cmd.h>
 #include "util/machine.h"
+#include "util/path.h"
 #include "util/session.h"
 #include "util/thread.h"
 #include <subcmd/parse-options.h>
@@ -36,18 +37,27 @@
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
 #include "callchain.h"
+#include "print_binary.h"
+#include "string2.h"
 #include "syscalltbl.h"
 #include "rb_resort.h"
 
+#include <errno.h>
+#include <inttypes.h>
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
+#include <poll.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
+#include <linux/kernel.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
+
+#include "sane_ctype.h"
 
 #ifndef O_CLOEXEC
 # define O_CLOEXEC		02000000

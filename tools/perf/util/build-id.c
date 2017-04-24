@@ -7,18 +7,26 @@
  * Copyright (C) 2009, 2010 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 #include "util.h"
+#include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "build-id.h"
 #include "event.h"
 #include "symbol.h"
+#include "thread.h"
 #include <linux/kernel.h>
 #include "debug.h"
 #include "session.h"
 #include "tool.h"
 #include "header.h"
 #include "vdso.h"
+#include "path.h"
 #include "probe-file.h"
+#include "strlist.h"
 
+#include "sane_ctype.h"
 
 static bool no_buildid_cache;
 
@@ -447,14 +455,14 @@ void disable_buildid_cache(void)
 }
 
 static bool lsdir_bid_head_filter(const char *name __maybe_unused,
-				  struct dirent *d __maybe_unused)
+				  struct dirent *d)
 {
 	return (strlen(d->d_name) == 2) &&
 		isxdigit(d->d_name[0]) && isxdigit(d->d_name[1]);
 }
 
 static bool lsdir_bid_tail_filter(const char *name __maybe_unused,
-				  struct dirent *d __maybe_unused)
+				  struct dirent *d)
 {
 	int i = 0;
 	while (isxdigit(d->d_name[i]) && i < SBUILD_ID_SIZE - 3)

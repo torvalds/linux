@@ -18,10 +18,13 @@
 #include "util/data.h"
 #include "util/auxtrace.h"
 #include "util/jit.h"
+#include "util/thread.h"
 
 #include <subcmd/parse-options.h>
 
 #include <linux/list.h>
+#include <errno.h>
+#include <signal.h>
 
 struct perf_inject {
 	struct perf_tool	tool;

@@ -38,11 +38,18 @@
 #include "util/bpf-loader.h"
 #include "util/trigger.h"
 #include "util/perf-hooks.h"
+#include "util/time-utils.h"
+#include "util/units.h"
 #include "asm/bug.h"
 
+#include <errno.h>
+#include <inttypes.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sched.h>
+#include <signal.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <asm/bug.h>
 #include <linux/time64.h>
 

@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <assert.h>
+#include <linux/compiler.h>
 
 #ifndef UINT_MAX
 #define UINT_MAX	(~0U)
@@ -75,6 +76,8 @@
 
 int vscnprintf(char *buf, size_t size, const char *fmt, va_list args);
 int scnprintf(char * buf, size_t size, const char * fmt, ...);
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 
 /*
  * This looks more complex than it should be. But we need to

@@ -12,6 +12,8 @@
  * of the License.
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include <traceevent/event-parse.h>
 
 #include "builtin.h"
@@ -23,11 +25,12 @@
 #include "util/cache.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/time64.h>
 #include "util/symbol.h"
+#include "util/thread.h"
 #include "util/callchain.h"
-#include "util/strlist.h"
 
 #include "perf.h"
 #include "util/header.h"

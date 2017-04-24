@@ -8,12 +8,15 @@
  */
 
 #include <byteswap.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/bitops.h>
 #include <api/fs/tracing_path.h>
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
 #include <linux/err.h>
+#include <sys/ioctl.h>
 #include <sys/resource.h>
 #include "asm/bug.h"
 #include "callchain.h"
@@ -29,6 +32,8 @@
 #include "trace-event.h"
 #include "stat.h"
 #include "util/parse-branch-options.h"
+
+#include "sane_ctype.h"
 
 static struct {
 	bool sample_id_all;

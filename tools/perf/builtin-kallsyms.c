@@ -7,6 +7,7 @@
  *
  * Released under the GPL v2. (and only v2, not any later version)
  */
+#include <inttypes.h>
 #include "builtin.h"
 #include <linux/compiler.h>
 #include <subcmd/parse-options.h>

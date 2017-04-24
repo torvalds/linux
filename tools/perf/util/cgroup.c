@@ -4,6 +4,7 @@
 #include "evsel.h"
 #include "cgroup.h"
 #include "evlist.h"
+#include <linux/stringify.h>
 
 int nr_cgroups;
 
@@ -27,8 +28,8 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
 	path_v1[0] = '\0';
 	path_v2[0] = '\0';
 
-	while (fscanf(fp, "%*s %"STR(PATH_MAX)"s %"STR(PATH_MAX)"s %"
-				STR(PATH_MAX)"s %*d %*d\n",
+	while (fscanf(fp, "%*s %"__stringify(PATH_MAX)"s %"__stringify(PATH_MAX)"s %"
+				__stringify(PATH_MAX)"s %*d %*d\n",
 				mountpoint, type, tokens) == 3) {
 
 		if (!path_v1[0] && !strcmp(type, "cgroup")) {

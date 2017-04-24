@@ -1,3 +1,7 @@
+#include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <regex.h>
 #include "callchain.h"
 #include "debug.h"
 #include "event.h"
@@ -10,10 +14,15 @@
 #include "thread.h"
 #include "vdso.h"
 #include <stdbool.h>
-#include <symbol/kallsyms.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "unwind.h"
 #include "linux/hash.h"
 #include "asm/bug.h"
+
+#include "sane_ctype.h"
+#include <symbol/kallsyms.h>
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
 

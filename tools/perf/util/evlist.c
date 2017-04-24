@@ -8,6 +8,8 @@
  */
 #include "util.h"
 #include <api/fs/fs.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
@@ -15,12 +17,15 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
+#include "units.h"
 #include "asm/bug.h"
+#include <signal.h>
 #include <unistd.h>
 
 #include "parse-events.h"
 #include <subcmd/parse-options.h>
 
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 
 #include <linux/bitops.h>

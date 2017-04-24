@@ -1,4 +1,11 @@
+#include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
 #include <api/fs/fs.h>
 #include "event.h"
@@ -6,10 +13,11 @@
 #include "hist.h"
 #include "machine.h"
 #include "sort.h"
-#include "string.h"
+#include "string2.h"
 #include "strlist.h"
 #include "thread.h"
 #include "thread_map.h"
+#include "sane_ctype.h"
 #include "symbol/kallsyms.h"
 #include "asm/bug.h"
 #include "stat.h"
@@ -133,8 +141,15 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 	ppids = strstr(bf, "PPid:");
 
 	if (name) {
+		char *nl;
+
 		name += 5;  /* strlen("Name:") */
-		name = rtrim(ltrim(name));
+		name = ltrim(name);
+
+		nl = strchr(name, '\n');
+		if (nl)
+			*nl = '\0';
+
 		size = strlen(name);
 		if (size >= len)
 			size = len - 1;

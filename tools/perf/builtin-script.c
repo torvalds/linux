@@ -21,14 +21,27 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "util/string2.h"
 #include "util/thread-stack.h"
 #include "util/time-utils.h"
+#include "print_binary.h"
 #include <linux/bitmap.h>
+#include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
 #include "util/dump-insn.h"
+#include <dirent.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <signal.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "sane_ctype.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;

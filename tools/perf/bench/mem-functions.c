@@ -12,6 +12,7 @@
 #include <subcmd/parse-options.h>
 #include "../util/header.h"
 #include "../util/cloexec.h"
+#include "../util/string2.h"
 #include "bench.h"
 #include "mem-memcpy-arch.h"
 #include "mem-memset-arch.h"
