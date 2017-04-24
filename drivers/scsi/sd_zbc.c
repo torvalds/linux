@@ -560,8 +560,7 @@ static int sd_zbc_setup(struct scsi_disk *sdkp)
 int sd_zbc_read_zones(struct scsi_disk *sdkp,
 		      unsigned char *buf)
 {
-	sector_t capacity;
-	int ret = 0;
+	int ret;
 
 	if (!sd_is_zoned(sdkp))
 		/*
@@ -593,7 +592,6 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp,
 	ret = sd_zbc_check_capacity(sdkp, buf);
 	if (ret)
 		goto err;
-	capacity = logical_to_sectors(sdkp->device, sdkp->capacity);
 
 	/*
 	 * Check zone size: only devices with a constant zone size (except
