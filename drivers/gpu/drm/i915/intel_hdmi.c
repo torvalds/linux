@@ -1327,6 +1327,11 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 			return false;
 	}
 
+	/* Display Wa #1139 */
+	if (IS_GLK_REVID(dev_priv, 0, GLK_REVID_A1) &&
+	    crtc_state->base.adjusted_mode.htotal > 5460)
+		return false;
+
 	return true;
 }
 
