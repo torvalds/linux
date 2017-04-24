@@ -38,7 +38,8 @@ extern enum xen_domain_type xen_domain_type;
  */
 #include <xen/features.h>
 #define xen_pvh_domain() (xen_pv_domain() && \
-			  xen_feature(XENFEAT_auto_translated_physmap))
+			  xen_feature(XENFEAT_auto_translated_physmap) && \
+			  xen_have_vector_callback)
 #else
 #define xen_pvh_domain()	(0)
 #endif
