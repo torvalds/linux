@@ -13,8 +13,6 @@
 
 #include <linux/fscrypt_supp.h>
 
-#define FS_FNAME_CRYPTO_DIGEST_SIZE	32
-
 /* Encryption parameters */
 #define FS_XTS_TWEAK_SIZE		16
 #define FS_AES_128_ECB_KEY_SIZE		16

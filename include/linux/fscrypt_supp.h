@@ -57,6 +57,84 @@ extern int fscrypt_fname_disk_to_usr(struct inode *, u32, u32,
 extern int fscrypt_fname_usr_to_disk(struct inode *, const struct qstr *,
 			struct fscrypt_str *);
 
+#define FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE	32
+
+/* Extracts the second-to-last ciphertext block; see explanation below */
+#define FSCRYPT_FNAME_DIGEST(name, len)	\
+	((name) + round_down((len) - FS_CRYPTO_BLOCK_SIZE - 1, \
+			     FS_CRYPTO_BLOCK_SIZE))
+
+#define FSCRYPT_FNAME_DIGEST_SIZE	FS_CRYPTO_BLOCK_SIZE
+
+/**
+ * fscrypt_digested_name - alternate identifier for an on-disk filename
+ *
+ * When userspace lists an encrypted directory without access to the key,
+ * filenames whose ciphertext is longer than FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE
+ * bytes are shown in this abbreviated form (base64-encoded) rather than as the
+ * full ciphertext (base64-encoded).  This is necessary to allow supporting
+ * filenames up to NAME_MAX bytes, since base64 encoding expands the length.
+ *
+ * To make it possible for filesystems to still find the correct directory entry
+ * despite not knowing the full on-disk name, we encode any filesystem-specific
+ * 'hash' and/or 'minor_hash' which the filesystem may need for its lookups,
+ * followed by the second-to-last ciphertext block of the filename.  Due to the
+ * use of the CBC-CTS encryption mode, the second-to-last ciphertext block
+ * depends on the full plaintext.  (Note that ciphertext stealing causes the
+ * last two blocks to appear "flipped".)  This makes collisions very unlikely:
+ * just a 1 in 2^128 chance for two filenames to collide even if they share the
+ * same filesystem-specific hashes.
+ *
+ * This scheme isn't strictly immune to intentional collisions because it's
+ * basically like a CBC-MAC, which isn't secure on variable-length inputs.
+ * However, generating a CBC-MAC collision requires the ability to choose
+ * arbitrary ciphertext, which won't normally be possible with filename
+ * encryption since it would require write access to the raw disk.
+ *
+ * Taking a real cryptographic hash like SHA-256 over the full ciphertext would
+ * be better in theory but would be less efficient and more complicated to
+ * implement, especially since the filesystem would need to calculate it for
+ * each directory entry examined during a search.
+ */
+struct fscrypt_digested_name {
+	u32 hash;
+	u32 minor_hash;
+	u8 digest[FSCRYPT_FNAME_DIGEST_SIZE];
+};
+
+/**
+ * fscrypt_match_name() - test whether the given name matches a directory entry
+ * @fname: the name being searched for
+ * @de_name: the name from the directory entry
+ * @de_name_len: the length of @de_name in bytes
+ *
+ * Normally @fname->disk_name will be set, and in that case we simply compare
+ * that to the name stored in the directory entry.  The only exception is that
+ * if we don't have the key for an encrypted directory and a filename in it is
+ * very long, then we won't have the full disk_name and we'll instead need to
+ * match against the fscrypt_digested_name.
+ *
+ * Return: %true if the name matches, otherwise %false.
+ */
+static inline bool fscrypt_match_name(const struct fscrypt_name *fname,
+				      const u8 *de_name, u32 de_name_len)
+{
+	if (unlikely(!fname->disk_name.name)) {
+		const struct fscrypt_digested_name *n =
+			(const void *)fname->crypto_buf.name;
+		if (WARN_ON_ONCE(fname->usr_fname->name[0] != '_'))
+			return false;
+		if (de_name_len <= FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE)
+			return false;
+		return !memcmp(FSCRYPT_FNAME_DIGEST(de_name, de_name_len),
+			       n->digest, FSCRYPT_FNAME_DIGEST_SIZE);
+	}
+
+	if (de_name_len != fname->disk_name.len)
+		return false;
+	return !memcmp(de_name, fname->disk_name.name, fname->disk_name.len);
+}
+
 /* bio.c */
 extern void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *, struct bio *);
 extern void fscrypt_pullback_bio_page(struct page **, bool);
