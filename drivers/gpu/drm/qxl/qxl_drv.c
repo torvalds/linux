@@ -31,9 +31,9 @@
 #include <linux/module.h>
 #include <linux/console.h>
 
-#include "drmP.h"
-#include "drm/drm.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm.h>
+#include <drm/drm_crtc_helper.h>
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
