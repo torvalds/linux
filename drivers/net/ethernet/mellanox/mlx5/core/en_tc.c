@@ -46,6 +46,7 @@
 #include <net/vxlan.h>
 #include "en.h"
 #include "en_tc.h"
+#include "en_rep.h"
 #include "eswitch.h"
 #include "vxlan.h"
 
@@ -702,16 +703,18 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 {
 	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
-	struct mlx5_eswitch_rep *rep = priv->ppriv;
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch_rep *rep;
 	u8 min_inline;
 	int err;
 
 	err = __parse_cls_flower(priv, spec, f, &min_inline);
 
-	if (!err && (flow->flags & MLX5E_TC_FLOW_ESWITCH) &&
-	    rep->vport != FDB_UPLINK_VPORT) {
-		if (esw->offloads.inline_mode != MLX5_INLINE_MODE_NONE &&
-		    esw->offloads.inline_mode < min_inline) {
+	if (!err && (flow->flags & MLX5E_TC_FLOW_ESWITCH)) {
+		rep = rpriv->rep;
+		if (rep->vport != FDB_UPLINK_VPORT &&
+		    (esw->offloads.inline_mode != MLX5_INLINE_MODE_NONE &&
+		    esw->offloads.inline_mode < min_inline)) {
 			netdev_warn(priv->netdev,
 				    "Flow is not offloaded due to min inline setting, required %d actual %d\n",
 				    min_inline, esw->offloads.inline_mode);
@@ -1439,6 +1442,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct ip_tunnel_info *info = NULL;
 	const struct tc_action *a;
 	LIST_HEAD(actions);
@@ -1449,7 +1453,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		return -EINVAL;
 
 	memset(attr, 0, sizeof(*attr));
-	attr->in_rep = priv->ppriv;
+	attr->in_rep = rpriv->rep;
 
 	tcf_exts_to_list(exts, &actions);
 	list_for_each_entry(a, &actions, list) {
@@ -1481,7 +1485,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				out_priv = netdev_priv(out_dev);
-				attr->out_rep = out_priv->ppriv;
+				rpriv = out_priv->ppriv;
+				attr->out_rep = rpriv->rep;
 			} else if (encap) {
 				err = mlx5e_attach_encap(priv, info,
 							 out_dev, attr);
@@ -1492,7 +1497,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				out_priv = netdev_priv(attr->encap->out_dev);
-				attr->out_rep = out_priv->ppriv;
+				rpriv = out_priv->ppriv;
+				attr->out_rep = rpriv->rep;
 			} else {
 				pr_err("devices %s %s not on same switch HW, can't offload forwarding\n",
 				       priv->netdev->name, out_dev->name);

@@ -35,9 +35,10 @@
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
 #include <linux/bpf.h>
+#include "eswitch.h"
 #include "en.h"
 #include "en_tc.h"
-#include "eswitch.h"
+#include "en_rep.h"
 #include "vxlan.h"
 
 struct mlx5e_rq_param {
@@ -4123,48 +4124,10 @@ static int mlx5e_init_nic_tx(struct mlx5e_priv *priv)
 	return 0;
 }
 
-static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
-{
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	int vport;
-	u8 mac[ETH_ALEN];
-
-	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
-		return;
-
-	mlx5_query_nic_vport_mac_address(mdev, 0, mac);
-
-	for (vport = 1; vport < total_vfs; vport++) {
-		struct mlx5_eswitch_rep rep;
-
-		rep.load = mlx5e_vport_rep_load;
-		rep.unload = mlx5e_vport_rep_unload;
-		rep.vport = vport;
-		ether_addr_copy(rep.hw_id, mac);
-		mlx5_eswitch_register_vport_rep(esw, vport, &rep);
-	}
-}
-
-static void mlx5e_unregister_vport_rep(struct mlx5_core_dev *mdev)
-{
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	int vport;
-
-	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
-		return;
-
-	for (vport = 1; vport < total_vfs; vport++)
-		mlx5_eswitch_unregister_vport_rep(esw, vport);
-}
-
 static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	struct mlx5_eswitch_rep rep;
 	u16 max_mtu;
 
 	mlx5e_init_l2_addr(priv);
@@ -4179,16 +4142,8 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 
 	mlx5e_enable_async_events(priv);
 
-	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
-		mlx5_query_nic_vport_mac_address(mdev, 0, rep.hw_id);
-		rep.load = mlx5e_nic_rep_load;
-		rep.unload = mlx5e_nic_rep_unload;
-		rep.vport = FDB_UPLINK_VPORT;
-		rep.netdev = netdev;
-		mlx5_eswitch_register_vport_rep(esw, 0, &rep);
-	}
-
-	mlx5e_register_vport_rep(mdev);
+	if (MLX5_CAP_GEN(mdev, vport_group_manager))
+		mlx5e_register_vport_reps(priv);
 
 	if (netdev->reg_state != NETREG_REGISTERED)
 		return;
@@ -4212,7 +4167,6 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 
 	rtnl_lock();
 	if (netif_running(priv->netdev))
@@ -4221,9 +4175,10 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 	rtnl_unlock();
 
 	queue_work(priv->wq, &priv->set_rx_mode_work);
-	mlx5e_unregister_vport_rep(mdev);
+
 	if (MLX5_CAP_GEN(mdev, vport_group_manager))
-		mlx5_eswitch_unregister_vport_rep(esw, 0);
+		mlx5e_unregister_vport_reps(priv);
+
 	mlx5e_disable_async_events(priv);
 	mlx5_lag_remove(mdev);
 }
@@ -4394,7 +4349,7 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
 	int total_vfs = MLX5_TOTAL_VPORTS(mdev);
-	void *ppriv = NULL;
+	struct mlx5e_rep_priv *rpriv = NULL;
 	void *priv;
 	int vport;
 	int err;
@@ -4404,10 +4359,17 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 	if (err)
 		return NULL;
 
-	if (MLX5_CAP_GEN(mdev, vport_group_manager))
-		ppriv = &esw->offloads.vport_reps[0];
+	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
+		rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
+		if (!rpriv) {
+			mlx5_core_warn(mdev,
+				       "Not creating net device, Failed to alloc rep priv data\n");
+			return NULL;
+		}
+		rpriv->rep = &esw->offloads.vport_reps[0];
+	}
 
-	netdev = mlx5e_create_netdev(mdev, &mlx5e_nic_profile, ppriv);
+	netdev = mlx5e_create_netdev(mdev, &mlx5e_nic_profile, rpriv);
 	if (!netdev) {
 		mlx5_core_err(mdev, "mlx5e_create_netdev failed\n");
 		goto err_unregister_reps;
@@ -4439,16 +4401,19 @@ err_unregister_reps:
 	for (vport = 1; vport < total_vfs; vport++)
 		mlx5_eswitch_unregister_vport_rep(esw, vport);
 
+	kfree(rpriv);
 	return NULL;
 }
 
 static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 {
 	struct mlx5e_priv *priv = vpriv;
+	void *ppriv = priv->ppriv;
 
 	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
 	mlx5e_destroy_netdev(priv);
+	kfree(ppriv);
 }
 
 static void *mlx5e_get_netdev(void *vpriv)

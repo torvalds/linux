@@ -991,20 +991,6 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
 int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb);
 
-struct mlx5_eswitch_rep;
-int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
-			 struct mlx5_eswitch_rep *rep);
-void mlx5e_vport_rep_unload(struct mlx5_eswitch *esw,
-			    struct mlx5_eswitch_rep *rep);
-int mlx5e_nic_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep);
-void mlx5e_nic_rep_unload(struct mlx5_eswitch *esw,
-			  struct mlx5_eswitch_rep *rep);
-int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
-void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
-int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr);
-void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
-void mlx5e_update_hw_rep_counters(struct mlx5e_priv *priv);
-
 /* common netdev helpers */
 int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv);
 
@@ -1030,12 +1016,6 @@ int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_stats_work(struct work_struct *work);
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
-
-int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
-			    void *sp);
-bool mlx5e_has_offload_stats(const struct net_device *dev, int attr_id);
-
-bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);
 
 /* mlx5e generic netdev management API */
 struct net_device*
