@@ -144,26 +144,38 @@ static int start_i2c_msg_xfer(struct slimpro_i2c_dev *ctx)
 	return 0;
 }
 
+static int slimpro_i2c_send_msg(struct slimpro_i2c_dev *ctx,
+				u32 *msg,
+				u32 *data)
+{
+	int rc;
+
+	ctx->resp_msg = data;
+
+	rc = mbox_send_message(ctx->mbox_chan, msg);
+	if (rc < 0)
+		goto err;
+
+	rc = start_i2c_msg_xfer(ctx);
+
+err:
+	ctx->resp_msg = NULL;
+
+	return rc;
+}
+
 static int slimpro_i2c_rd(struct slimpro_i2c_dev *ctx, u32 chip,
 			  u32 addr, u32 addrlen, u32 protocol,
 			  u32 readlen, u32 *data)
 {
 	u32 msg[3];
-	int rc;
 
 	msg[0] = SLIMPRO_IIC_ENCODE_MSG(SLIMPRO_IIC_BUS, chip,
 					SLIMPRO_IIC_READ, protocol, addrlen, readlen);
 	msg[1] = SLIMPRO_IIC_ENCODE_ADDR(addr);
 	msg[2] = 0;
-	ctx->resp_msg = data;
-	rc = mbox_send_message(ctx->mbox_chan, &msg);
-	if (rc < 0)
-		goto err;
 
-	rc = start_i2c_msg_xfer(ctx);
-err:
-	ctx->resp_msg = NULL;
-	return rc;
+	return slimpro_i2c_send_msg(ctx, msg, data);
 }
 
 static int slimpro_i2c_wr(struct slimpro_i2c_dev *ctx, u32 chip,
@@ -171,22 +183,13 @@ static int slimpro_i2c_wr(struct slimpro_i2c_dev *ctx, u32 chip,
 			  u32 data)
 {
 	u32 msg[3];
-	int rc;
 
 	msg[0] = SLIMPRO_IIC_ENCODE_MSG(SLIMPRO_IIC_BUS, chip,
 					SLIMPRO_IIC_WRITE, protocol, addrlen, writelen);
 	msg[1] = SLIMPRO_IIC_ENCODE_ADDR(addr);
 	msg[2] = data;
-	ctx->resp_msg = msg;
 
-	rc = mbox_send_message(ctx->mbox_chan, &msg);
-	if (rc < 0)
-		goto err;
-
-	rc = start_i2c_msg_xfer(ctx);
-err:
-	ctx->resp_msg = NULL;
-	return rc;
+	return slimpro_i2c_send_msg(ctx, msg, msg);
 }
 
 static int slimpro_i2c_blkrd(struct slimpro_i2c_dev *ctx, u32 chip, u32 addr,
@@ -201,8 +204,7 @@ static int slimpro_i2c_blkrd(struct slimpro_i2c_dev *ctx, u32 chip, u32 addr,
 	if (dma_mapping_error(ctx->dev, paddr)) {
 		dev_err(&ctx->adapter.dev, "Error in mapping dma buffer %p\n",
 			ctx->dma_buffer);
-		rc = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	msg[0] = SLIMPRO_IIC_ENCODE_MSG(SLIMPRO_IIC_BUS, chip, SLIMPRO_IIC_READ,
@@ -212,21 +214,13 @@ static int slimpro_i2c_blkrd(struct slimpro_i2c_dev *ctx, u32 chip, u32 addr,
 		 SLIMPRO_IIC_ENCODE_UPPER_BUFADDR(paddr) |
 		 SLIMPRO_IIC_ENCODE_ADDR(addr);
 	msg[2] = (u32)paddr;
-	ctx->resp_msg = msg;
 
-	rc = mbox_send_message(ctx->mbox_chan, &msg);
-	if (rc < 0)
-		goto err_unmap;
-
-	rc = start_i2c_msg_xfer(ctx);
+	rc = slimpro_i2c_send_msg(ctx, msg, msg);
 
 	/* Copy to destination */
 	memcpy(data, ctx->dma_buffer, readlen);
 
-err_unmap:
 	dma_unmap_single(ctx->dev, paddr, readlen, DMA_FROM_DEVICE);
-err:
-	ctx->resp_msg = NULL;
 	return rc;
 }
 
@@ -244,8 +238,7 @@ static int slimpro_i2c_blkwr(struct slimpro_i2c_dev *ctx, u32 chip,
 	if (dma_mapping_error(ctx->dev, paddr)) {
 		dev_err(&ctx->adapter.dev, "Error in mapping dma buffer %p\n",
 			ctx->dma_buffer);
-		rc = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	msg[0] = SLIMPRO_IIC_ENCODE_MSG(SLIMPRO_IIC_BUS, chip, SLIMPRO_IIC_WRITE,
@@ -254,21 +247,13 @@ static int slimpro_i2c_blkwr(struct slimpro_i2c_dev *ctx, u32 chip,
 		 SLIMPRO_IIC_ENCODE_UPPER_BUFADDR(paddr) |
 		 SLIMPRO_IIC_ENCODE_ADDR(addr);
 	msg[2] = (u32)paddr;
-	ctx->resp_msg = msg;
 
 	if (ctx->mbox_client.tx_block)
 		reinit_completion(&ctx->rd_complete);
 
-	rc = mbox_send_message(ctx->mbox_chan, &msg);
-	if (rc < 0)
-		goto err_unmap;
+	rc = slimpro_i2c_send_msg(ctx, msg, msg);
 
-	rc = start_i2c_msg_xfer(ctx);
-
-err_unmap:
 	dma_unmap_single(ctx->dev, paddr, writelen, DMA_TO_DEVICE);
-err:
-	ctx->resp_msg = NULL;
 	return rc;
 }
 
