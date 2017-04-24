@@ -33,6 +33,7 @@
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include "en.h"
+#include "ipoib.h"
 
 #define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
 #define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\

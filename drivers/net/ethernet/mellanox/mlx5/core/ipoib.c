@@ -178,7 +178,7 @@ static int mlx5i_init_tx(struct mlx5e_priv *priv)
 	return 0;
 }
 
-void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
+static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5i_priv *ipriv = priv->ppriv;
 
@@ -359,9 +359,10 @@ unlock:
 	return 0;
 }
 
+#ifdef notusedyet
 /* IPoIB RDMA netdev callbacks */
-int mlx5i_attach_mcast(struct net_device *netdev, struct ib_device *hca,
-		       union ib_gid *gid, u16 lid, int set_qkey)
+static int mlx5i_attach_mcast(struct net_device *netdev, struct ib_device *hca,
+			      union ib_gid *gid, u16 lid, int set_qkey)
 {
 	struct mlx5e_priv    *epriv = mlx5i_epriv(netdev);
 	struct mlx5_core_dev *mdev  = epriv->mdev;
@@ -377,8 +378,8 @@ int mlx5i_attach_mcast(struct net_device *netdev, struct ib_device *hca,
 	return err;
 }
 
-int mlx5i_detach_mcast(struct net_device *netdev, struct ib_device *hca,
-		       union ib_gid *gid, u16 lid)
+static int mlx5i_detach_mcast(struct net_device *netdev, struct ib_device *hca,
+			      union ib_gid *gid, u16 lid)
 {
 	struct mlx5e_priv    *epriv = mlx5i_epriv(netdev);
 	struct mlx5_core_dev *mdev  = epriv->mdev;
@@ -395,7 +396,7 @@ int mlx5i_detach_mcast(struct net_device *netdev, struct ib_device *hca,
 	return err;
 }
 
-int mlx5i_xmit(struct net_device *dev, struct sk_buff *skb,
+static int mlx5i_xmit(struct net_device *dev, struct sk_buff *skb,
 	       struct ib_ah *address, u32 dqpn, u32 dqkey)
 {
 	struct mlx5e_priv *epriv = mlx5i_epriv(dev);
@@ -404,6 +405,7 @@ int mlx5i_xmit(struct net_device *dev, struct sk_buff *skb,
 
 	return mlx5i_sq_xmit(sq, skb, &mah->av, dqpn, dqkey);
 }
+#endif
 
 static int mlx5i_check_required_hca_cap(struct mlx5_core_dev *mdev)
 {
@@ -418,10 +420,10 @@ static int mlx5i_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	return 0;
 }
 
-struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
-					  struct ib_device *ibdev,
-					  const char *name,
-					  void (*setup)(struct net_device *))
+static struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
+						 struct ib_device *ibdev,
+						 const char *name,
+						 void (*setup)(struct net_device *))
 {
 	const struct mlx5e_profile *profile = &mlx5i_nic_profile;
 	int nch = profile->max_nch(mdev);
@@ -480,7 +482,7 @@ free_mdev_resources:
 }
 EXPORT_SYMBOL(mlx5_rdma_netdev_alloc);
 
-void mlx5_rdma_netdev_free(struct net_device *netdev)
+static void mlx5_rdma_netdev_free(struct net_device *netdev)
 {
 	struct mlx5e_priv          *priv    = mlx5i_epriv(netdev);
 	const struct mlx5e_profile *profile = priv->profile;
