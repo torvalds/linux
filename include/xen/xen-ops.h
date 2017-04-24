@@ -22,6 +22,8 @@ void xen_timer_resume(void);
 void xen_arch_resume(void);
 void xen_arch_suspend(void);
 
+void xen_reboot(int reason);
+
 void xen_resume_notifier_register(struct notifier_block *nb);
 void xen_resume_notifier_unregister(struct notifier_block *nb);
 

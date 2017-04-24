@@ -153,7 +153,6 @@ int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
 
 void xen_pin_vcpu(int cpu);
 
-void xen_reboot(int reason);
 void xen_emergency_restart(void);
 #ifdef CONFIG_XEN_PV
 void xen_pv_pre_suspend(void);
