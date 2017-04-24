@@ -76,6 +76,12 @@ config BT_HCIUART
 	  Say Y here to compile support for Bluetooth UART devices into the
 	  kernel or say M to compile it as module (hci_uart).
 
+config BT_HCIUART_SERDEV
+	bool
+	depends on SERIAL_DEV_BUS && BT_HCIUART
+	depends on SERIAL_DEV_BUS=y || SERIAL_DEV_BUS=BT_HCIUART
+	default y
+
 config BT_HCIUART_H4
 	bool "UART (H4) protocol support"
 	depends on BT_HCIUART
@@ -89,7 +95,7 @@ config BT_HCIUART_H4
 config BT_HCIUART_NOKIA
 	tristate "UART Nokia H4+ protocol support"
 	depends on BT_HCIUART
-	depends on SERIAL_DEV_BUS
+	depends on BT_HCIUART_SERDEV
 	depends on PM
 	help
 	  Nokia H4+ is serial protocol for communication between Bluetooth
