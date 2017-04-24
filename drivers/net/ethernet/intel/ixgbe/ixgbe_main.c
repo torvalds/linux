@@ -593,6 +593,19 @@ static void ixgbe_regdump(struct ixgbe_hw *hw, struct ixgbe_reg_info *reginfo)
 
 }
 
+static void ixgbe_print_buffer(struct ixgbe_ring *ring, int n)
+{
+	struct ixgbe_tx_buffer *tx_buffer;
+
+	tx_buffer = &ring->tx_buffer_info[ring->next_to_clean];
+	pr_info(" %5d %5X %5X %016llX %08X %p %016llX\n",
+		n, ring->next_to_use, ring->next_to_clean,
+		(u64)dma_unmap_addr(tx_buffer, dma),
+		dma_unmap_len(tx_buffer, len),
+		tx_buffer->next_to_watch,
+		(u64)tx_buffer->time_stamp);
+}
+
 /*
  * ixgbe_dump - Print registers, tx-rings and rx-rings
  */
@@ -602,7 +615,7 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_reg_info *reginfo;
 	int n = 0;
-	struct ixgbe_ring *tx_ring;
+	struct ixgbe_ring *ring;
 	struct ixgbe_tx_buffer *tx_buffer;
 	union ixgbe_adv_tx_desc *tx_desc;
 	struct my_u0 { u64 a; u64 b; } *u0;
@@ -642,14 +655,13 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 		"Queue [NTU] [NTC] [bi(ntc)->dma  ]",
 		"leng", "ntw", "timestamp");
 	for (n = 0; n < adapter->num_tx_queues; n++) {
-		tx_ring = adapter->tx_ring[n];
-		tx_buffer = &tx_ring->tx_buffer_info[tx_ring->next_to_clean];
-		pr_info(" %5d %5X %5X %016llX %08X %p %016llX\n",
-			   n, tx_ring->next_to_use, tx_ring->next_to_clean,
-			   (u64)dma_unmap_addr(tx_buffer, dma),
-			   dma_unmap_len(tx_buffer, len),
-			   tx_buffer->next_to_watch,
-			   (u64)tx_buffer->time_stamp);
+		ring = adapter->tx_ring[n];
+		ixgbe_print_buffer(ring, n);
+	}
+
+	for (n = 0; n < adapter->num_xdp_queues; n++) {
+		ring = adapter->xdp_ring[n];
+		ixgbe_print_buffer(ring, n);
 	}
 
 	/* Print TX Rings */
@@ -694,28 +706,28 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 	 */
 
 	for (n = 0; n < adapter->num_tx_queues; n++) {
-		tx_ring = adapter->tx_ring[n];
+		ring = adapter->tx_ring[n];
 		pr_info("------------------------------------\n");
-		pr_info("TX QUEUE INDEX = %d\n", tx_ring->queue_index);
+		pr_info("TX QUEUE INDEX = %d\n", ring->queue_index);
 		pr_info("------------------------------------\n");
 		pr_info("%s%s    %s              %s        %s          %s\n",
 			"T [desc]     [address 63:0  ] ",
 			"[PlPOIdStDDt Ln] [bi->dma       ] ",
 			"leng", "ntw", "timestamp", "bi->skb");
 
-		for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
-			tx_desc = IXGBE_TX_DESC(tx_ring, i);
-			tx_buffer = &tx_ring->tx_buffer_info[i];
+		for (i = 0; ring->desc && (i < ring->count); i++) {
+			tx_desc = IXGBE_TX_DESC(ring, i);
+			tx_buffer = &ring->tx_buffer_info[i];
 			u0 = (struct my_u0 *)tx_desc;
 			if (dma_unmap_len(tx_buffer, len) > 0) {
 				const char *ring_desc;
 
-				if (i == tx_ring->next_to_use &&
-				    i == tx_ring->next_to_clean)
+				if (i == ring->next_to_use &&
+				    i == ring->next_to_clean)
 					ring_desc = " NTC/U";
-				else if (i == tx_ring->next_to_use)
+				else if (i == ring->next_to_use)
 					ring_desc = " NTU";
-				else if (i == tx_ring->next_to_clean)
+				else if (i == ring->next_to_clean)
 					ring_desc = " NTC";
 				else
 					ring_desc = "";
@@ -984,6 +996,10 @@ static void ixgbe_update_xoff_rx_lfc(struct ixgbe_adapter *adapter)
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		clear_bit(__IXGBE_HANG_CHECK_ARMED,
 			  &adapter->tx_ring[i]->state);
+
+	for (i = 0; i < adapter->num_xdp_queues; i++)
+		clear_bit(__IXGBE_HANG_CHECK_ARMED,
+			  &adapter->xdp_ring[i]->state);
 }
 
 static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
@@ -1027,6 +1043,14 @@ static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 		tc = tx_ring->dcb_tc;
 		if (xoff[tc])
 			clear_bit(__IXGBE_HANG_CHECK_ARMED, &tx_ring->state);
+	}
+
+	for (i = 0; i < adapter->num_xdp_queues; i++) {
+		struct ixgbe_ring *xdp_ring = adapter->xdp_ring[i];
+
+		tc = xdp_ring->dcb_tc;
+		if (xoff[tc])
+			clear_bit(__IXGBE_HANG_CHECK_ARMED, &xdp_ring->state);
 	}
 }
 
@@ -1179,7 +1203,10 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_packets += tx_buffer->gso_segs;
 
 		/* free the skb */
-		napi_consume_skb(tx_buffer->skb, napi_budget);
+		if (ring_is_xdp(tx_ring))
+			page_frag_free(tx_buffer->data);
+		else
+			napi_consume_skb(tx_buffer->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -1240,7 +1267,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	if (check_for_tx_hang(tx_ring) && ixgbe_check_tx_hang(tx_ring)) {
 		/* schedule immediate reset if we believe we hung */
 		struct ixgbe_hw *hw = &adapter->hw;
-		e_err(drv, "Detected Tx Unit Hang\n"
+		e_err(drv, "Detected Tx Unit Hang %s\n"
 			"  Tx Queue             <%d>\n"
 			"  TDH, TDT             <%x>, <%x>\n"
 			"  next_to_use          <%x>\n"
@@ -1248,13 +1275,16 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 			"tx_buffer_info[next_to_clean]\n"
 			"  time_stamp           <%lx>\n"
 			"  jiffies              <%lx>\n",
+			ring_is_xdp(tx_ring) ? "(XDP)" : "",
 			tx_ring->queue_index,
 			IXGBE_READ_REG(hw, IXGBE_TDH(tx_ring->reg_idx)),
 			IXGBE_READ_REG(hw, IXGBE_TDT(tx_ring->reg_idx)),
 			tx_ring->next_to_use, i,
 			tx_ring->tx_buffer_info[i].time_stamp, jiffies);
 
-		netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
+		if (!ring_is_xdp(tx_ring))
+			netif_stop_subqueue(tx_ring->netdev,
+					    tx_ring->queue_index);
 
 		e_info(probe,
 		       "tx hang %d detected on queue %d, resetting adapter\n",
@@ -1266,6 +1296,9 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		/* the adapter is about to reset, no point in enabling stuff */
 		return true;
 	}
+
+	if (ring_is_xdp(tx_ring))
+		return !!budget;
 
 	netdev_tx_completed_queue(txring_txq(tx_ring),
 				  total_packets, total_bytes);
@@ -2169,8 +2202,13 @@ static struct sk_buff *ixgbe_build_skb(struct ixgbe_ring *rx_ring,
 
 #define IXGBE_XDP_PASS 0
 #define IXGBE_XDP_CONSUMED 1
+#define IXGBE_XDP_TX 2
 
-static struct sk_buff *ixgbe_run_xdp(struct ixgbe_ring  *rx_ring,
+static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
+			       struct xdp_buff *xdp);
+
+static struct sk_buff *ixgbe_run_xdp(struct ixgbe_adapter *adapter,
+				     struct ixgbe_ring *rx_ring,
 				     struct xdp_buff *xdp)
 {
 	int result = IXGBE_XDP_PASS;
@@ -2187,9 +2225,11 @@ static struct sk_buff *ixgbe_run_xdp(struct ixgbe_ring  *rx_ring,
 	switch (act) {
 	case XDP_PASS:
 		break;
+	case XDP_TX:
+		result = ixgbe_xmit_xdp_ring(adapter, xdp);
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-	case XDP_TX:
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		/* fallthrough -- handle aborts by dropping packet */
@@ -2200,6 +2240,23 @@ static struct sk_buff *ixgbe_run_xdp(struct ixgbe_ring  *rx_ring,
 xdp_out:
 	rcu_read_unlock();
 	return ERR_PTR(-result);
+}
+
+static void ixgbe_rx_buffer_flip(struct ixgbe_ring *rx_ring,
+				 struct ixgbe_rx_buffer *rx_buffer,
+				 unsigned int size)
+{
+#if (PAGE_SIZE < 8192)
+	unsigned int truesize = ixgbe_rx_pg_size(rx_ring) / 2;
+
+	rx_buffer->page_offset ^= truesize;
+#else
+	unsigned int truesize = ring_uses_build_skb(rx_ring) ?
+				SKB_DATA_ALIGN(IXGBE_SKB_PAD + size) :
+				SKB_DATA_ALIGN(size);
+
+	rx_buffer->page_offset += truesize;
+#endif
 }
 
 /**
@@ -2220,8 +2277,8 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			       const int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
-#ifdef IXGBE_FCOE
 	struct ixgbe_adapter *adapter = q_vector->adapter;
+#ifdef IXGBE_FCOE
 	int ddp_bytes;
 	unsigned int mss = 0;
 #endif /* IXGBE_FCOE */
@@ -2261,13 +2318,16 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 					      ixgbe_rx_offset(rx_ring);
 			xdp.data_end = xdp.data + size;
 
-			skb = ixgbe_run_xdp(rx_ring, &xdp);
+			skb = ixgbe_run_xdp(adapter, rx_ring, &xdp);
 		}
 
 		if (IS_ERR(skb)) {
+			if (PTR_ERR(skb) == -IXGBE_XDP_TX)
+				ixgbe_rx_buffer_flip(rx_ring, rx_buffer, size);
+			else
+				rx_buffer->pagecnt_bias++;
 			total_rx_packets++;
 			total_rx_bytes += size;
-			rx_buffer->pagecnt_bias++;
 		} else if (skb) {
 			ixgbe_add_rx_frag(rx_ring, rx_buffer, skb, size);
 		} else if (ring_uses_build_skb(rx_ring)) {
@@ -3437,6 +3497,8 @@ static void ixgbe_configure_tx(struct ixgbe_adapter *adapter)
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		ixgbe_configure_tx_ring(adapter, adapter->tx_ring[i]);
+	for (i = 0; i < adapter->num_xdp_queues; i++)
+		ixgbe_configure_tx_ring(adapter, adapter->xdp_ring[i]);
 }
 
 static void ixgbe_enable_rx_drop(struct ixgbe_adapter *adapter,
@@ -5578,7 +5640,10 @@ static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 		union ixgbe_adv_tx_desc *eop_desc, *tx_desc;
 
 		/* Free all the Tx ring sk_buffs */
-		dev_kfree_skb_any(tx_buffer->skb);
+		if (ring_is_xdp(tx_ring))
+			page_frag_free(tx_buffer->data);
+		else
+			dev_kfree_skb_any(tx_buffer->skb);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -5619,7 +5684,8 @@ static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 	}
 
 	/* reset BQL for queue */
-	netdev_tx_reset_queue(txring_txq(tx_ring));
+	if (!ring_is_xdp(tx_ring))
+		netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	/* reset next_to_use and next_to_clean */
 	tx_ring->next_to_use = 0;
@@ -5648,6 +5714,8 @@ static void ixgbe_clean_all_tx_rings(struct ixgbe_adapter *adapter)
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		ixgbe_clean_tx_ring(adapter->tx_ring[i]);
+	for (i = 0; i < adapter->num_xdp_queues; i++)
+		ixgbe_clean_tx_ring(adapter->xdp_ring[i]);
 }
 
 static void ixgbe_fdir_filter_exit(struct ixgbe_adapter *adapter)
@@ -5740,6 +5808,11 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	/* disable transmits in the hardware now that interrupts are off */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		u8 reg_idx = adapter->tx_ring[i]->reg_idx;
+		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), IXGBE_TXDCTL_SWFLSH);
+	}
+	for (i = 0; i < adapter->num_xdp_queues; i++) {
+		u8 reg_idx = adapter->xdp_ring[i]->reg_idx;
+
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), IXGBE_TXDCTL_SWFLSH);
 	}
 
@@ -6112,7 +6185,7 @@ err:
  **/
 static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 {
-	int i, err = 0;
+	int i, j = 0, err = 0;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		err = ixgbe_setup_tx_resources(adapter->tx_ring[i]);
@@ -6122,10 +6195,20 @@ static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 		e_err(probe, "Allocation for Tx Queue %u failed\n", i);
 		goto err_setup_tx;
 	}
+	for (j = 0; j < adapter->num_xdp_queues; j++) {
+		err = ixgbe_setup_tx_resources(adapter->xdp_ring[j]);
+		if (!err)
+			continue;
+
+		e_err(probe, "Allocation for Tx Queue %u failed\n", j);
+		goto err_setup_tx;
+	}
 
 	return 0;
 err_setup_tx:
 	/* rewind the index freeing the rings as we go */
+	while (j--)
+		ixgbe_free_tx_resources(adapter->xdp_ring[j]);
 	while (i--)
 		ixgbe_free_tx_resources(adapter->tx_ring[i]);
 	return err;
@@ -6258,6 +6341,9 @@ static void ixgbe_free_all_tx_resources(struct ixgbe_adapter *adapter)
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		if (adapter->tx_ring[i]->desc)
 			ixgbe_free_tx_resources(adapter->tx_ring[i]);
+	for (i = 0; i < adapter->num_xdp_queues; i++)
+		if (adapter->xdp_ring[i]->desc)
+			ixgbe_free_tx_resources(adapter->xdp_ring[i]);
 }
 
 /**
@@ -6677,6 +6763,14 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		bytes += tx_ring->stats.bytes;
 		packets += tx_ring->stats.packets;
 	}
+	for (i = 0; i < adapter->num_xdp_queues; i++) {
+		struct ixgbe_ring *xdp_ring = adapter->xdp_ring[i];
+
+		restart_queue += xdp_ring->tx_stats.restart_queue;
+		tx_busy += xdp_ring->tx_stats.tx_busy;
+		bytes += xdp_ring->stats.bytes;
+		packets += xdp_ring->stats.packets;
+	}
 	adapter->restart_queue = restart_queue;
 	adapter->tx_busy = tx_busy;
 	netdev->stats.tx_bytes = bytes;
@@ -6870,6 +6964,9 @@ static void ixgbe_fdir_reinit_subtask(struct ixgbe_adapter *adapter)
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			set_bit(__IXGBE_TX_FDIR_INIT_DONE,
 				&(adapter->tx_ring[i]->state));
+		for (i = 0; i < adapter->num_xdp_queues; i++)
+			set_bit(__IXGBE_TX_FDIR_INIT_DONE,
+				&adapter->xdp_ring[i]->state);
 		/* re-enable flow director interrupts */
 		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMS_FLOW_DIR);
 	} else {
@@ -6903,6 +7000,8 @@ static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 	if (netif_carrier_ok(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			set_check_for_tx_hang(adapter->tx_ring[i]);
+		for (i = 0; i < adapter->num_xdp_queues; i++)
+			set_check_for_tx_hang(adapter->xdp_ring[i]);
 	}
 
 	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
@@ -7130,6 +7229,13 @@ static bool ixgbe_ring_tx_pending(struct ixgbe_adapter *adapter)
 		struct ixgbe_ring *tx_ring = adapter->tx_ring[i];
 
 		if (tx_ring->next_to_use != tx_ring->next_to_clean)
+			return true;
+	}
+
+	for (i = 0; i < adapter->num_xdp_queues; i++) {
+		struct ixgbe_ring *ring = adapter->xdp_ring[i];
+
+		if (ring->next_to_use != ring->next_to_clean)
 			return true;
 	}
 
@@ -8090,6 +8196,69 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 #endif
 }
 
+static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
+			       struct xdp_buff *xdp)
+{
+	struct ixgbe_ring *ring = adapter->xdp_ring[smp_processor_id()];
+	struct ixgbe_tx_buffer *tx_buffer;
+	union ixgbe_adv_tx_desc *tx_desc;
+	u32 len, cmd_type;
+	dma_addr_t dma;
+	u16 i;
+
+	len = xdp->data_end - xdp->data;
+
+	if (unlikely(!ixgbe_desc_unused(ring)))
+		return IXGBE_XDP_CONSUMED;
+
+	dma = dma_map_single(ring->dev, xdp->data, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(ring->dev, dma))
+		return IXGBE_XDP_CONSUMED;
+
+	/* record the location of the first descriptor for this packet */
+	tx_buffer = &ring->tx_buffer_info[ring->next_to_use];
+	tx_buffer->bytecount = len;
+	tx_buffer->gso_segs = 1;
+	tx_buffer->protocol = 0;
+
+	i = ring->next_to_use;
+	tx_desc = IXGBE_TX_DESC(ring, i);
+
+	dma_unmap_len_set(tx_buffer, len, len);
+	dma_unmap_addr_set(tx_buffer, dma, dma);
+	tx_buffer->data = xdp->data;
+	tx_desc->read.buffer_addr = cpu_to_le64(dma);
+
+	/* put descriptor type bits */
+	cmd_type = IXGBE_ADVTXD_DTYP_DATA |
+		   IXGBE_ADVTXD_DCMD_DEXT |
+		   IXGBE_ADVTXD_DCMD_IFCS;
+	cmd_type |= len | IXGBE_TXD_CMD;
+	tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
+	tx_desc->read.olinfo_status =
+		cpu_to_le32(len << IXGBE_ADVTXD_PAYLEN_SHIFT);
+
+	/* Force memory writes to complete before letting h/w know there
+	 * are new descriptors to fetch.  (Only applicable for weak-ordered
+	 * memory model archs, such as IA-64).
+	 *
+	 * We also need this memory barrier to make certain all of the
+	 * status bits have been updated before next_to_watch is written.
+	 */
+	wmb();
+
+	/* set next_to_watch value indicating a packet is present */
+	i++;
+	if (i == ring->count)
+		i = 0;
+
+	tx_buffer->next_to_watch = tx_desc;
+	ring->next_to_use = i;
+
+	writel(i, ring->tail);
+	return IXGBE_XDP_TX;
+}
+
 netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 			  struct ixgbe_adapter *adapter,
 			  struct ixgbe_ring *tx_ring)
@@ -8381,6 +8550,23 @@ static void ixgbe_netpoll(struct net_device *netdev)
 
 #endif
 
+static void ixgbe_get_ring_stats64(struct rtnl_link_stats64 *stats,
+				   struct ixgbe_ring *ring)
+{
+	u64 bytes, packets;
+	unsigned int start;
+
+	if (ring) {
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
+			packets = ring->stats.packets;
+			bytes   = ring->stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+		stats->tx_packets += packets;
+		stats->tx_bytes   += bytes;
+	}
+}
+
 static void ixgbe_get_stats64(struct net_device *netdev,
 			      struct rtnl_link_stats64 *stats)
 {
@@ -8406,18 +8592,13 @@ static void ixgbe_get_stats64(struct net_device *netdev,
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct ixgbe_ring *ring = ACCESS_ONCE(adapter->tx_ring[i]);
-		u64 bytes, packets;
-		unsigned int start;
 
-		if (ring) {
-			do {
-				start = u64_stats_fetch_begin_irq(&ring->syncp);
-				packets = ring->stats.packets;
-				bytes   = ring->stats.bytes;
-			} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
-			stats->tx_packets += packets;
-			stats->tx_bytes   += bytes;
-		}
+		ixgbe_get_ring_stats64(stats, ring);
+	}
+	for (i = 0; i < adapter->num_xdp_queues; i++) {
+		struct ixgbe_ring *ring = ACCESS_ONCE(adapter->xdp_ring[i]);
+
+		ixgbe_get_ring_stats64(stats, ring);
 	}
 	rcu_read_unlock();
 
@@ -9559,9 +9740,23 @@ static int ixgbe_xdp_setup(struct net_device *dev, struct bpf_prog *prog)
 			return -EINVAL;
 	}
 
+	if (nr_cpu_ids > MAX_XDP_QUEUES)
+		return -ENOMEM;
+
 	old_prog = xchg(&adapter->xdp_prog, prog);
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		xchg(&adapter->rx_ring[i]->xdp_prog, adapter->xdp_prog);
+
+	/* If transitioning XDP modes reconfigure rings */
+	if (!!prog != !!old_prog) {
+		int err = ixgbe_setup_tc(dev, netdev_get_num_tc(dev));
+
+		if (err) {
+			rcu_assign_pointer(adapter->xdp_prog, old_prog);
+			return -EINVAL;
+		}
+	} else {
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			xchg(&adapter->rx_ring[i]->xdp_prog, adapter->xdp_prog);
+	}
 
 	if (old_prog)
 		bpf_prog_put(old_prog);
@@ -10059,6 +10254,9 @@ skip_sriov:
 	err = ixgbe_init_interrupt_scheme(adapter);
 	if (err)
 		goto err_sw_init;
+
+	for (i = 0; i < adapter->num_xdp_queues; i++)
+		u64_stats_init(&adapter->xdp_ring[i]->syncp);
 
 	/* WOL not supported for all devices */
 	adapter->wol = 0;

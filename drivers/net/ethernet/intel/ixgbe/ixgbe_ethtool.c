@@ -1071,15 +1071,19 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			adapter->tx_ring[i]->count = new_tx_count;
+		for (i = 0; i < adapter->num_xdp_queues; i++)
+			adapter->xdp_ring[i]->count = new_tx_count;
 		for (i = 0; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
+		adapter->xdp_ring_count = new_tx_count;
 		adapter->rx_ring_count = new_rx_count;
 		goto clear_reset;
 	}
 
 	/* allocate temporary buffer to store rings in */
 	i = max_t(int, adapter->num_tx_queues, adapter->num_rx_queues);
+	i = max_t(int, i, adapter->num_xdp_queues);
 	temp_ring = vmalloc(i * sizeof(struct ixgbe_ring));
 
 	if (!temp_ring) {
@@ -1111,10 +1115,31 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			}
 		}
 
+		for (i = 0; i < adapter->num_xdp_queues; i++) {
+			memcpy(&temp_ring[i], adapter->xdp_ring[i],
+			       sizeof(struct ixgbe_ring));
+
+			temp_ring[i].count = new_tx_count;
+			err = ixgbe_setup_tx_resources(&temp_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbe_free_tx_resources(&temp_ring[i]);
+				}
+				goto err_setup;
+			}
+		}
+
 		for (i = 0; i < adapter->num_tx_queues; i++) {
 			ixgbe_free_tx_resources(adapter->tx_ring[i]);
 
 			memcpy(adapter->tx_ring[i], &temp_ring[i],
+			       sizeof(struct ixgbe_ring));
+		}
+		for (i = 0; i < adapter->num_xdp_queues; i++) {
+			ixgbe_free_tx_resources(adapter->xdp_ring[i]);
+
+			memcpy(adapter->xdp_ring[i], &temp_ring[i],
 			       sizeof(struct ixgbe_ring));
 		}
 
