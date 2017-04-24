@@ -143,6 +143,7 @@
 /* Software reset register (8 bit) */
 #define B53_SOFTRESET			0x79
 #define   SW_RST			BIT(7)
+#define   EN_CH_RST			BIT(6)
 #define   EN_SW_RST			BIT(4)
 
 /* Fast Aging Control register (8 bit) */

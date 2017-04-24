@@ -608,13 +608,36 @@ static void b53_switch_reset_gpio(struct b53_device *dev)
 
 static int b53_switch_reset(struct b53_device *dev)
 {
-	u8 mgmt;
+	unsigned int timeout = 1000;
+	u8 mgmt, reg;
 
 	b53_switch_reset_gpio(dev);
 
 	if (is539x(dev)) {
 		b53_write8(dev, B53_CTRL_PAGE, B53_SOFTRESET, 0x83);
 		b53_write8(dev, B53_CTRL_PAGE, B53_SOFTRESET, 0x00);
+	}
+
+	/* This is specific to 58xx devices here, do not use is58xx() which
+	 * covers the larger Starfigther 2 family, including 7445/7278 which
+	 * still use this driver as a library and need to perform the reset
+	 * earlier.
+	 */
+	if (dev->chip_id == BCM58XX_DEVICE_ID) {
+		b53_read8(dev, B53_CTRL_PAGE, B53_SOFTRESET, &reg);
+		reg |= SW_RST | EN_SW_RST | EN_CH_RST;
+		b53_write8(dev, B53_CTRL_PAGE, B53_SOFTRESET, reg);
+
+		do {
+			b53_read8(dev, B53_CTRL_PAGE, B53_SOFTRESET, &reg);
+			if (!(reg & SW_RST))
+				break;
+
+			usleep_range(1000, 2000);
+		} while (timeout-- > 0);
+
+		if (timeout == 0)
+			return -ETIMEDOUT;
 	}
 
 	b53_read8(dev, B53_CTRL_PAGE, B53_SWITCH_MODE, &mgmt);
