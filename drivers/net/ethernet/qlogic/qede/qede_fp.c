@@ -1697,13 +1697,24 @@ netdev_features_t qede_features_check(struct sk_buff *skb,
 		}
 
 		/* Disable offloads for geneve tunnels, as HW can't parse
-		 * the geneve header which has option length greater than 32B.
+		 * the geneve header which has option length greater than 32b
+		 * and disable offloads for the ports which are not offloaded.
 		 */
-		if ((l4_proto == IPPROTO_UDP) &&
-		    ((skb_inner_mac_header(skb) -
-		      skb_transport_header(skb)) > QEDE_MAX_TUN_HDR_LEN))
-			return features & ~(NETIF_F_CSUM_MASK |
-					    NETIF_F_GSO_MASK);
+		if (l4_proto == IPPROTO_UDP) {
+			struct qede_dev *edev = netdev_priv(dev);
+			u16 hdrlen, vxln_port, gnv_port;
+
+			hdrlen = QEDE_MAX_TUN_HDR_LEN;
+			vxln_port = edev->vxlan_dst_port;
+			gnv_port = edev->geneve_dst_port;
+
+			if ((skb_inner_mac_header(skb) -
+			     skb_transport_header(skb)) > hdrlen ||
+			     (ntohs(udp_hdr(skb)->dest) != vxln_port &&
+			      ntohs(udp_hdr(skb)->dest) != gnv_port))
+				return features & ~(NETIF_F_CSUM_MASK |
+						    NETIF_F_GSO_MASK);
+		}
 	}
 
 	return features;
