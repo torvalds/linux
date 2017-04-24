@@ -1275,6 +1275,7 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 	u16 cbcr_gather_num = 1;
 
 	switch (win->area[0].format) {
+	case XRGB888:
 	case ARGB888:
 	case XBGR888:
 	case ABGR888:
@@ -1284,7 +1285,9 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 		yrgb_gather_num = 3;
 		break;
 	case RGB888:
+	case BGR888:
 	case RGB565:
+	case BGR565:
 	case FBDC_RGB_565:
 		yrgb_gather_num = 2;
 		break;
