@@ -789,9 +789,9 @@ static int register_cpu_online(unsigned int cpu)
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static int unregister_cpu_online(unsigned int cpu)
 {
-#ifdef CONFIG_HOTPLUG_CPU
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct device *s = &c->dev;
 	struct device_attribute *attrs, *pmc_attrs;
@@ -870,9 +870,11 @@ static int unregister_cpu_online(unsigned int cpu)
 	cacheinfo_cpu_offline(cpu);
 	of_node_put(s->of_node);
 	s->of_node = NULL;
-#endif /* CONFIG_HOTPLUG_CPU */
 	return 0;
 }
+#else /* !CONFIG_HOTPLUG_CPU */
+#define unregister_cpu_online NULL
+#endif
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 ssize_t arch_cpu_probe(const char *buf, size_t count)
