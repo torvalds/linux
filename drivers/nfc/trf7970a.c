@@ -2059,7 +2059,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	}
 
 	of_property_read_u32(np, "clock-frequency", &clk_freq);
-	if ((clk_freq != TRF7970A_27MHZ_CLOCK_FREQUENCY) ||
+	if ((clk_freq != TRF7970A_27MHZ_CLOCK_FREQUENCY) &&
 	    (clk_freq != TRF7970A_13MHZ_CLOCK_FREQUENCY)) {
 		dev_err(trf->dev,
 			"clock-frequency (%u Hz) unsupported\n", clk_freq);
