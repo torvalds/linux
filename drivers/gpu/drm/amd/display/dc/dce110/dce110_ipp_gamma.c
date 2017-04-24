@@ -66,7 +66,7 @@
 
 
 
-bool dce110_ipp_set_degamma(
+void dce110_ipp_set_degamma(
 	struct input_pixel_processor *ipp,
 	enum ipp_degamma_mode mode)
 {
@@ -82,8 +82,6 @@ bool dce110_ipp_set_degamma(
 		GRPH_DEGAMMA_MODE, degamma_type,
 		CURSOR_DEGAMMA_MODE, degamma_type,
 		CURSOR2_DEGAMMA_MODE, degamma_type);
-
-	return true;
 }
 
 void dce110_ipp_program_prescale(

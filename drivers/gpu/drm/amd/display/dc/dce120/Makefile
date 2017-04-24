@@ -4,7 +4,6 @@
 
 
 DCE120 = dce120_resource.o dce120_timing_generator.o \
-dce120_ipp.o dce120_ipp_cursor.o dce120_ipp_gamma.o \
 dce120_mem_input.o dce120_hw_sequencer.o
 
 AMD_DAL_DCE120 = $(addprefix $(AMDDALPATH)/dc/dce120/,$(DCE120))

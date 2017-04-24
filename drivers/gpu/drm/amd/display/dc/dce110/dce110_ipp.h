@@ -59,7 +59,7 @@ void dce110_ipp_cursor_set_attributes(
 	const struct dc_cursor_attributes *attributes);
 
 /* DEGAMMA RELATED */
-bool dce110_ipp_set_degamma(
+void dce110_ipp_set_degamma(
 	struct input_pixel_processor *ipp,
 	enum ipp_degamma_mode mode);
 

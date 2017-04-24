@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,6 +27,7 @@
 #define __DAL_IPP_H__
 
 #include "hw_shared.h"
+#include "dc_hw_types.h"
 
 #define MAXTRIX_COEFFICIENTS_NUMBER 12
 #define MAXTRIX_COEFFICIENTS_WRAP_NUMBER (MAXTRIX_COEFFICIENTS_NUMBER + 4)
@@ -113,7 +114,7 @@ struct ipp_funcs {
 			const struct dc_gamma *gamma);
 
 	/*** DEGAMMA RELATED ***/
-	bool (*ipp_set_degamma)(
+	void (*ipp_set_degamma)(
 		struct input_pixel_processor *ipp,
 		enum ipp_degamma_mode mode);
 

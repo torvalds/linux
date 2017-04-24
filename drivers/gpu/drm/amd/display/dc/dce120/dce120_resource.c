@@ -40,7 +40,7 @@
 #include "dce/dce_opp.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_clocks.h"
-#include "dce120_ipp.h"
+#include "dce/dce_ipp.h"
 #include "dce110/dce110_mem_input.h"
 #include "dce120/dce120_mem_input.h"
 
@@ -172,6 +172,28 @@ static const struct dce_abm_shift abm_shift = {
 
 static const struct dce_abm_mask abm_mask = {
 		ABM_MASK_SH_LIST_DCE110(_MASK)
+};
+
+#define ipp_regs(id)\
+[id] = {\
+		IPP_COMMON_REG_LIST_DCE_BASE(id)\
+}
+
+static const struct dce_ipp_registers ipp_regs[] = {
+		ipp_regs(0),
+		ipp_regs(1),
+		ipp_regs(2),
+		ipp_regs(3),
+		ipp_regs(4),
+		ipp_regs(5)
+};
+
+static const struct dce_ipp_shift ipp_shift = {
+		IPP_COMMON_MASK_SH_LIST_SOC_BASE(__SHIFT)
+};
+
+static const struct dce_ipp_mask ipp_mask = {
+		IPP_COMMON_MASK_SH_LIST_SOC_BASE(_MASK)
 };
 
 #define transform_regs(id)\
@@ -354,27 +376,6 @@ struct output_pixel_processor *dce120_opp_create(
 	return NULL;
 }
 
-static const struct dce110_ipp_reg_offsets dce120_ipp_reg_offsets[] = {
-	{
-		.dcp_offset = (mmDCP0_CUR_CONTROL - mmDCP0_CUR_CONTROL),
-	},
-	{
-		.dcp_offset = (mmDCP1_CUR_CONTROL - mmDCP0_CUR_CONTROL),
-	},
-	{
-		.dcp_offset = (mmDCP2_CUR_CONTROL - mmDCP0_CUR_CONTROL),
-	},
-	{
-		.dcp_offset = (mmDCP3_CUR_CONTROL - mmDCP0_CUR_CONTROL),
-	},
-	{
-		.dcp_offset = (mmDCP4_CUR_CONTROL - mmDCP0_CUR_CONTROL),
-	},
-	{
-		.dcp_offset = (mmDCP5_CUR_CONTROL - mmDCP0_CUR_CONTROL),
-	}
-};
-
 static const struct dce110_mem_input_reg_offsets dce120_mi_reg_offsets[] = {
 	{
 		.dcp = (mmDCP0_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
@@ -498,7 +499,7 @@ static struct timing_generator *dce120_timing_generator_create(
 
 static void dce120_ipp_destroy(struct input_pixel_processor **ipp)
 {
-	dm_free(TO_DCE110_IPP(*ipp));
+	dm_free(TO_DCE_IPP(*ipp));
 	*ipp = NULL;
 }
 
@@ -622,21 +623,18 @@ struct link_encoder *dce120_link_encoder_create(
 }
 
 static struct input_pixel_processor *dce120_ipp_create(
-	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dce110_ipp_reg_offsets *offset)
+	struct dc_context *ctx, uint32_t inst)
 {
-	struct dce110_ipp *ipp = dm_alloc(sizeof(struct dce110_ipp));
+	struct dce_ipp *ipp = dm_alloc(sizeof(struct dce_ipp));
 
-	if (!ipp)
+	if (!ipp) {
+		BREAK_TO_DEBUGGER();
 		return NULL;
+	}
 
-	if (dce120_ipp_construct(ipp, ctx, inst, offset))
-		return &ipp->base;
-
-	BREAK_TO_DEBUGGER();
-	dm_free(ipp);
-	return NULL;
+	dce_ipp_construct(ipp, ctx, inst,
+			&ipp_regs[inst], &ipp_shift, &ipp_mask);
+	return &ipp->base;
 }
 
 static struct stream_encoder *dce120_stream_encoder_create(
@@ -1025,8 +1023,7 @@ static bool construct(
 			goto controller_create_fail;
 		}
 
-		pool->base.ipps[i] = dce120_ipp_create(ctx, i,
-				&dce120_ipp_reg_offsets[i]);
+		pool->base.ipps[i] = dce120_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(

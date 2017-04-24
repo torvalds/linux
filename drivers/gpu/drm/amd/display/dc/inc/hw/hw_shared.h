@@ -26,6 +26,9 @@
 #ifndef __DAL_HW_SHARED_H__
 #define __DAL_HW_SHARED_H__
 
+#include "os_types.h"
+#include "fixed31_32.h"
+
 /******************************************************************************
  * Data types shared between different Virtual HW blocks
  ******************************************************************************/

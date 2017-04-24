@@ -369,7 +369,7 @@ struct dce_transform {
 	bool prescaler_on;
 };
 
-bool dce_transform_construct(struct dce_transform *xfm110,
+bool dce_transform_construct(struct dce_transform *xfm_dce,
 	struct dc_context *ctx,
 	uint32_t inst,
 	const struct dce_transform_registers *regs,
