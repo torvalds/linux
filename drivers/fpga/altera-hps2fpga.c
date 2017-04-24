@@ -181,15 +181,18 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 				 (enable ? "enabling" : "disabling"));
 
 			ret = _alt_hps2fpga_enable_set(priv, enable);
-			if (ret) {
-				fpga_bridge_unregister(&pdev->dev);
-				return ret;
-			}
+			if (ret)
+				goto err;
 		}
 	}
 
-	return fpga_bridge_register(dev, priv->name, &altera_hps2fpga_br_ops,
-				    priv);
+	ret = fpga_bridge_register(dev, priv->name, &altera_hps2fpga_br_ops,
+				   priv);
+err:
+	if (ret)
+		clk_disable_unprepare(priv->clk);
+
+	return ret;
 }
 
 static int alt_fpga_bridge_remove(struct platform_device *pdev)
