@@ -2423,7 +2423,7 @@ static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
 	if (!bo->shadow)
 		return 0;
 
-	r = amdgpu_bo_reserve(bo, false);
+	r = amdgpu_bo_reserve(bo, true);
 	if (r)
 		return r;
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
