@@ -1758,41 +1758,44 @@ static int sd_eh_action(struct scsi_cmnd *scmd, int eh_disp)
 
 static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 {
-	u64 start_lba = blk_rq_pos(scmd->request);
-	u64 end_lba = blk_rq_pos(scmd->request) + (scsi_bufflen(scmd) / 512);
-	u64 factor = scmd->device->sector_size / 512;
-	u64 bad_lba;
-	int info_valid;
+	struct request *req = scmd->request;
+	struct scsi_device *sdev = scmd->device;
+	unsigned int transferred, good_bytes;
+	u64 start_lba, end_lba, bad_lba;
+
+	/*
+	 * Some commands have a payload smaller than the device logical
+	 * block size (e.g. INQUIRY on a 4K disk).
+	 */
+	if (scsi_bufflen(scmd) <= sdev->sector_size)
+		return 0;
+
+	/* Check if we have a 'bad_lba' information */
+	if (!scsi_get_sense_info_fld(scmd->sense_buffer,
+				     SCSI_SENSE_BUFFERSIZE,
+				     &bad_lba))
+		return 0;
+
+	/*
+	 * If the bad lba was reported incorrectly, we have no idea where
+	 * the error is.
+	 */
+	start_lba = sectors_to_logical(sdev, blk_rq_pos(req));
+	end_lba = start_lba + bytes_to_logical(sdev, scsi_bufflen(scmd));
+	if (bad_lba < start_lba || bad_lba >= end_lba)
+		return 0;
+
 	/*
 	 * resid is optional but mostly filled in.  When it's unused,
 	 * its value is zero, so we assume the whole buffer transferred
 	 */
-	unsigned int transferred = scsi_bufflen(scmd) - scsi_get_resid(scmd);
-	unsigned int good_bytes;
+	transferred = scsi_bufflen(scmd) - scsi_get_resid(scmd);
 
-	info_valid = scsi_get_sense_info_fld(scmd->sense_buffer,
-					     SCSI_SENSE_BUFFERSIZE,
-					     &bad_lba);
-	if (!info_valid)
-		return 0;
-
-	if (scsi_bufflen(scmd) <= scmd->device->sector_size)
-		return 0;
-
-	/* be careful ... don't want any overflows */
-	do_div(start_lba, factor);
-	do_div(end_lba, factor);
-
-	/* The bad lba was reported incorrectly, we have no idea where
-	 * the error is.
+	/* This computation should always be done in terms of the
+	 * resolution of the device's medium.
 	 */
-	if (bad_lba < start_lba  || bad_lba >= end_lba)
-		return 0;
+	good_bytes = logical_to_bytes(sdev, bad_lba - start_lba);
 
-	/* This computation should always be done in terms of
-	 * the resolution of the device's medium.
-	 */
-	good_bytes = (bad_lba - start_lba) * scmd->device->sector_size;
 	return min(good_bytes, transferred);
 }
 

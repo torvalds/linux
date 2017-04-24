@@ -169,6 +169,11 @@ static inline unsigned int logical_to_bytes(struct scsi_device *sdev, sector_t b
 	return blocks * sdev->sector_size;
 }
 
+static inline sector_t bytes_to_logical(struct scsi_device *sdev, unsigned int bytes)
+{
+	return bytes >> ilog2(sdev->sector_size);
+}
+
 static inline sector_t sectors_to_logical(struct scsi_device *sdev, sector_t sector)
 {
 	return sector >> (ilog2(sdev->sector_size) - 9);
