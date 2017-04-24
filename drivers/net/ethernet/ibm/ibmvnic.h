@@ -733,6 +733,7 @@ enum ibmvnic_capabilities {
 	REQ_MTU = 21,
 	MAX_MULTICAST_FILTERS = 22,
 	VLAN_HEADER_INSERTION = 23,
+	RX_VLAN_HEADER_INSERTION = 24,
 	MAX_TX_SG_ENTRIES = 25,
 	RX_SG_SUPPORTED = 26,
 	RX_SG_REQUESTED = 27,
@@ -963,6 +964,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_tx_pool *tx_pool;
 	bool closing;
 	struct completion init_done;
+	int init_done_rc;
 
 	struct list_head errors;
 	spinlock_t error_list_lock;
@@ -993,6 +995,7 @@ struct ibmvnic_adapter {
 	u64 req_mtu;
 	u64 max_multicast_filters;
 	u64 vlan_header_insertion;
+	u64 rx_vlan_header_insertion;
 	u64 max_tx_sg_entries;
 	u64 rx_sg_supported;
 	u64 rx_sg_requested;

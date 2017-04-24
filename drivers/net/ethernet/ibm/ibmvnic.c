@@ -74,6 +74,7 @@
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/workqueue.h>
+#include <linux/if_vlan.h>
 
 #include "ibmvnic.h"
 
@@ -560,11 +561,73 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 	release_error_buffers(adapter);
 }
 
+static int set_link_state(struct ibmvnic_adapter *adapter, u8 link_state)
+{
+	struct net_device *netdev = adapter->netdev;
+	unsigned long timeout = msecs_to_jiffies(30000);
+	union ibmvnic_crq crq;
+	bool resend;
+	int rc;
+
+	if (adapter->logical_link_state == link_state) {
+		netdev_dbg(netdev, "Link state already %d\n", link_state);
+		return 0;
+	}
+
+	netdev_err(netdev, "setting link state %d\n", link_state);
+	memset(&crq, 0, sizeof(crq));
+	crq.logical_link_state.first = IBMVNIC_CRQ_CMD;
+	crq.logical_link_state.cmd = LOGICAL_LINK_STATE;
+	crq.logical_link_state.link_state = link_state;
+
+	do {
+		resend = false;
+
+		reinit_completion(&adapter->init_done);
+		rc = ibmvnic_send_crq(adapter, &crq);
+		if (rc) {
+			netdev_err(netdev, "Failed to set link state\n");
+			return rc;
+		}
+
+		if (!wait_for_completion_timeout(&adapter->init_done,
+						 timeout)) {
+			netdev_err(netdev, "timeout setting link state\n");
+			return -1;
+		}
+
+		if (adapter->init_done_rc == 1) {
+			/* Partuial success, delay and re-send */
+			mdelay(1000);
+			resend = true;
+		}
+	} while (resend);
+
+	return 0;
+}
+
+static int set_real_num_queues(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	int rc;
+
+	rc = netif_set_real_num_tx_queues(netdev, adapter->req_tx_queues);
+	if (rc) {
+		netdev_err(netdev, "failed to set the number of tx queues\n");
+		return rc;
+	}
+
+	rc = netif_set_real_num_rx_queues(netdev, adapter->req_rx_queues);
+	if (rc)
+		netdev_err(netdev, "failed to set the number of rx queues\n");
+
+	return rc;
+}
+
 static int ibmvnic_open(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->vdev->dev;
-	union ibmvnic_crq crq;
 	int rc = 0;
 	int i;
 
@@ -578,17 +641,19 @@ static int ibmvnic_open(struct net_device *netdev)
 	if (rc)
 		return rc;
 
-	rc = netif_set_real_num_tx_queues(netdev, adapter->req_tx_queues);
-	if (rc) {
-		dev_err(dev, "failed to set the number of tx queues\n");
-		return -1;
-	}
+	rc = set_real_num_queues(netdev);
+	if (rc)
+		return rc;
 
 	rc = init_sub_crq_irqs(adapter);
 	if (rc) {
 		dev_err(dev, "failed to initialize sub crq irqs\n");
 		return -1;
 	}
+
+	rc = init_stats_token(adapter);
+	if (rc)
+		return rc;
 
 	adapter->map_id = 1;
 	adapter->napi = kcalloc(adapter->req_rx_queues,
@@ -622,11 +687,9 @@ static int ibmvnic_open(struct net_device *netdev)
 	for (i = 0; i < adapter->req_tx_queues; i++)
 		enable_scrq_irq(adapter, adapter->tx_scrq[i]);
 
-	memset(&crq, 0, sizeof(crq));
-	crq.logical_link_state.first = IBMVNIC_CRQ_CMD;
-	crq.logical_link_state.cmd = LOGICAL_LINK_STATE;
-	crq.logical_link_state.link_state = IBMVNIC_LOGICAL_LNK_UP;
-	ibmvnic_send_crq(adapter, &crq);
+	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_UP);
+	if (rc)
+		goto ibmvnic_open_fail;
 
 	netif_tx_start_all_queues(netdev);
 	adapter->is_closed = false;
@@ -660,29 +723,27 @@ static void disable_sub_crqs(struct ibmvnic_adapter *adapter)
 static int ibmvnic_close(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	union ibmvnic_crq crq;
+	int rc = 0;
 	int i;
 
 	adapter->closing = true;
 	disable_sub_crqs(adapter);
 
-	for (i = 0; i < adapter->req_rx_queues; i++)
-		napi_disable(&adapter->napi[i]);
+	if (adapter->napi) {
+		for (i = 0; i < adapter->req_rx_queues; i++)
+			napi_disable(&adapter->napi[i]);
+	}
 
 	if (!adapter->failover)
 		netif_tx_stop_all_queues(netdev);
 
-	memset(&crq, 0, sizeof(crq));
-	crq.logical_link_state.first = IBMVNIC_CRQ_CMD;
-	crq.logical_link_state.cmd = LOGICAL_LINK_STATE;
-	crq.logical_link_state.link_state = IBMVNIC_LOGICAL_LNK_DN;
-	ibmvnic_send_crq(adapter, &crq);
+	rc = set_link_state(adapter, IBMVNIC_LOGICAL_LNK_DN);
 
 	release_resources(adapter);
 
 	adapter->is_closed = true;
 	adapter->closing = false;
-	return 0;
+	return rc;
 }
 
 /**
@@ -847,9 +908,13 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 				   be32_to_cpu(adapter->login_rsp_buf->
 					       off_txsubm_subcrqs));
 	if (adapter->migrated) {
+		if (!netif_subqueue_stopped(netdev, skb))
+			netif_stop_subqueue(netdev, queue_num);
+		dev_kfree_skb_any(skb);
+
 		tx_send_failed++;
 		tx_dropped++;
-		ret = NETDEV_TX_BUSY;
+		ret = NETDEV_TX_OK;
 		goto out;
 	}
 
@@ -915,11 +980,13 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 						    sizeof(tx_buff->indir_arr),
 						    DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, tx_buff->indir_dma)) {
+			dev_kfree_skb_any(skb);
+			tx_buff->skb = NULL;
 			if (!firmware_has_feature(FW_FEATURE_CMO))
 				dev_err(dev, "tx: unable to map descriptor array\n");
 			tx_map_failed++;
 			tx_dropped++;
-			ret = NETDEV_TX_BUSY;
+			ret = NETDEV_TX_OK;
 			goto out;
 		}
 		lpar_rc = send_subcrq_indirect(adapter, handle_array[queue_num],
@@ -938,9 +1005,15 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		else
 			tx_pool->consumer_index--;
 
+		dev_kfree_skb_any(skb);
+		tx_buff->skb = NULL;
+
+		if (lpar_rc == H_CLOSED)
+			netif_stop_subqueue(netdev, queue_num);
+
 		tx_send_failed++;
 		tx_dropped++;
-		ret = NETDEV_TX_BUSY;
+		ret = NETDEV_TX_OK;
 		goto out;
 	}
 
@@ -1089,7 +1162,15 @@ restart_poll:
 		skb = rx_buff->skb;
 		skb_copy_to_linear_data(skb, rx_buff->data + offset,
 					length);
-		skb->vlan_tci = be16_to_cpu(next->rx_comp.vlan_tci);
+
+		/* VLAN Header has been stripped by the system firmware and
+		 * needs to be inserted by the driver
+		 */
+		if (adapter->rx_vlan_header_insertion &&
+		    (flags & IBMVNIC_VLAN_STRIPPED))
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       ntohs(next->rx_comp.vlan_tci));
+
 		/* free the entry */
 		next->rx_comp.first = 0;
 		remove_buff_from_pool(adapter, rx_buff);
@@ -2154,6 +2235,10 @@ static void send_cap_queries(struct ibmvnic_adapter *adapter)
 	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
 
+	crq.query_capability.capability = cpu_to_be16(RX_VLAN_HEADER_INSERTION);
+	atomic_inc(&adapter->running_cap_crqs);
+	ibmvnic_send_crq(adapter, &crq);
+
 	crq.query_capability.capability = cpu_to_be16(MAX_TX_SG_ENTRIES);
 	atomic_inc(&adapter->running_cap_crqs);
 	ibmvnic_send_crq(adapter, &crq);
@@ -2332,25 +2417,22 @@ static void handle_error_info_rsp(union ibmvnic_crq *crq,
 	kfree(error_buff);
 }
 
-static void handle_error_indication(union ibmvnic_crq *crq,
-				    struct ibmvnic_adapter *adapter)
+static void request_error_information(struct ibmvnic_adapter *adapter,
+				      union ibmvnic_crq *err_crq)
 {
-	int detail_len = be32_to_cpu(crq->error_indication.detail_error_sz);
 	struct device *dev = &adapter->vdev->dev;
+	struct net_device *netdev = adapter->netdev;
 	struct ibmvnic_error_buff *error_buff;
-	union ibmvnic_crq new_crq;
+	unsigned long timeout = msecs_to_jiffies(30000);
+	union ibmvnic_crq crq;
 	unsigned long flags;
-
-	dev_err(dev, "Firmware reports %serror id %x, cause %d\n",
-		crq->error_indication.
-		    flags & IBMVNIC_FATAL_ERROR ? "FATAL " : "",
-		be32_to_cpu(crq->error_indication.error_id),
-		be16_to_cpu(crq->error_indication.error_cause));
+	int rc, detail_len;
 
 	error_buff = kmalloc(sizeof(*error_buff), GFP_ATOMIC);
 	if (!error_buff)
 		return;
 
+	detail_len = be32_to_cpu(err_crq->error_indication.detail_error_sz);
 	error_buff->buff = kmalloc(detail_len, GFP_ATOMIC);
 	if (!error_buff->buff) {
 		kfree(error_buff);
@@ -2360,27 +2442,61 @@ static void handle_error_indication(union ibmvnic_crq *crq,
 	error_buff->dma = dma_map_single(dev, error_buff->buff, detail_len,
 					 DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, error_buff->dma)) {
-		if (!firmware_has_feature(FW_FEATURE_CMO))
-			dev_err(dev, "Couldn't map error buffer\n");
+		netdev_err(netdev, "Couldn't map error buffer\n");
 		kfree(error_buff->buff);
 		kfree(error_buff);
 		return;
 	}
 
 	error_buff->len = detail_len;
-	error_buff->error_id = crq->error_indication.error_id;
+	error_buff->error_id = err_crq->error_indication.error_id;
 
 	spin_lock_irqsave(&adapter->error_list_lock, flags);
 	list_add_tail(&error_buff->list, &adapter->errors);
 	spin_unlock_irqrestore(&adapter->error_list_lock, flags);
 
-	memset(&new_crq, 0, sizeof(new_crq));
-	new_crq.request_error_info.first = IBMVNIC_CRQ_CMD;
-	new_crq.request_error_info.cmd = REQUEST_ERROR_INFO;
-	new_crq.request_error_info.ioba = cpu_to_be32(error_buff->dma);
-	new_crq.request_error_info.len = cpu_to_be32(detail_len);
-	new_crq.request_error_info.error_id = crq->error_indication.error_id;
-	ibmvnic_send_crq(adapter, &new_crq);
+	memset(&crq, 0, sizeof(crq));
+	crq.request_error_info.first = IBMVNIC_CRQ_CMD;
+	crq.request_error_info.cmd = REQUEST_ERROR_INFO;
+	crq.request_error_info.ioba = cpu_to_be32(error_buff->dma);
+	crq.request_error_info.len = cpu_to_be32(detail_len);
+	crq.request_error_info.error_id = err_crq->error_indication.error_id;
+
+	rc = ibmvnic_send_crq(adapter, &crq);
+	if (rc) {
+		netdev_err(netdev, "failed to request error information\n");
+		goto err_info_fail;
+	}
+
+	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
+		netdev_err(netdev, "timeout waiting for error information\n");
+		goto err_info_fail;
+	}
+
+	return;
+
+err_info_fail:
+	spin_lock_irqsave(&adapter->error_list_lock, flags);
+	list_del(&error_buff->list);
+	spin_unlock_irqrestore(&adapter->error_list_lock, flags);
+
+	kfree(error_buff->buff);
+	kfree(error_buff);
+}
+
+static void handle_error_indication(union ibmvnic_crq *crq,
+				    struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+
+	dev_err(dev, "Firmware reports %serror id %x, cause %d\n",
+		crq->error_indication.flags
+			& IBMVNIC_FATAL_ERROR ? "FATAL " : "",
+		be32_to_cpu(crq->error_indication.error_id),
+		be16_to_cpu(crq->error_indication.error_cause));
+
+	if (be32_to_cpu(crq->error_indication.error_id))
+		request_error_information(adapter, crq);
 }
 
 static void handle_change_mac_rsp(union ibmvnic_crq *crq,
@@ -2703,6 +2819,12 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 		netdev_dbg(netdev, "vlan_header_insertion = %lld\n",
 			   adapter->vlan_header_insertion);
 		break;
+	case RX_VLAN_HEADER_INSERTION:
+		adapter->rx_vlan_header_insertion =
+		    be64_to_cpu(crq->query_capability.number);
+		netdev_dbg(netdev, "rx_vlan_header_insertion = %lld\n",
+			   adapter->rx_vlan_header_insertion);
+		break;
 	case MAX_TX_SG_ENTRIES:
 		adapter->max_tx_sg_entries =
 		    be64_to_cpu(crq->query_capability.number);
@@ -2875,9 +2997,14 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		handle_login_rsp(crq, adapter);
 		break;
 	case LOGICAL_LINK_STATE_RSP:
-		netdev_dbg(netdev, "Got Logical Link State Response\n");
+		netdev_dbg(netdev,
+			   "Got Logical Link State Response, state: %d rc: %d\n",
+			   crq->logical_link_state_rsp.link_state,
+			   crq->logical_link_state_rsp.rc.code);
 		adapter->logical_link_state =
 		    crq->logical_link_state_rsp.link_state;
+		adapter->init_done_rc = crq->logical_link_state_rsp.rc.code;
+		complete(&adapter->init_done);
 		break;
 	case LINK_STATE_INDICATION:
 		netdev_dbg(netdev, "Got Logical Link State Indication\n");
@@ -3172,12 +3299,6 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	rc = init_crq_queue(adapter);
 	if (rc) {
 		dev_err(dev, "Couldn't initialize crq. rc=%d\n", rc);
-		return rc;
-	}
-
-	rc = init_stats_token(adapter);
-	if (rc) {
-		release_crq_queue(adapter);
 		return rc;
 	}
 
