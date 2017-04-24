@@ -1200,6 +1200,9 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(sq);
 
+	if (use_napi && kick)
+		virtqueue_enable_cb_delayed(sq->vq);
+
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
 
