@@ -2322,3 +2322,19 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
 		}
 	}
 }
+
+int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
+{
+	union drm_amdgpu_vm *args = data;
+
+	switch (args->in.op) {
+	case AMDGPU_VM_OP_RESERVE_VMID:
+	case AMDGPU_VM_OP_UNRESERVE_VMID:
+		return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
