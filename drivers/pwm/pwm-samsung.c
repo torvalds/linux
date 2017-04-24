@@ -312,9 +312,6 @@ static int pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (period_ns > NSEC_PER_SEC)
 		return -ERANGE;
 
-	if (period_ns == chan->period_ns && duty_ns == chan->duty_ns)
-		return 0;
-
 	tcnt = readl(our_chip->base + REG_TCNTB(pwm->hwpwm));
 	oldtcmp = readl(our_chip->base + REG_TCMPB(pwm->hwpwm));
 
