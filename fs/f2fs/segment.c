@@ -1047,7 +1047,6 @@ static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 		blkstart -= FDEV(devi).start_blk;
 	}
 	__update_discard_tree_range(sbi, bdev, lblkstart, blkstart, blklen);
-	wake_up(&SM_I(sbi)->dcc_info->discard_wait_queue);
 	return 0;
 }
 
@@ -1414,6 +1413,8 @@ skip:
 		SM_I(sbi)->dcc_info->nr_discards -= total_len;
 		kmem_cache_free(discard_entry_slab, entry);
 	}
+
+	wake_up(&SM_I(sbi)->dcc_info->discard_wait_queue);
 }
 
 static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
