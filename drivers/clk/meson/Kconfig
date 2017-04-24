@@ -14,6 +14,7 @@ config COMMON_CLK_MESON8B
 config COMMON_CLK_GXBB
 	bool
 	depends on COMMON_CLK_AMLOGIC
+	select RESET_CONTROLLER
 	help
 	  Support for the clock controller on AmLogic S905 devices, aka gxbb.
 	  Say Y if you want peripherals and CPU frequency scaling to work.
