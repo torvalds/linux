@@ -679,7 +679,7 @@ static int affs_write_end_ofs(struct file *file, struct address_space *mapping,
 	int written;
 
 	from = pos & (PAGE_SIZE - 1);
-	to = pos + len;
+	to = from + len;
 	/*
 	 * XXX: not sure if this can handle short copies (len < copied), but
 	 * we don't have to, because the page should always be uptodate here,
