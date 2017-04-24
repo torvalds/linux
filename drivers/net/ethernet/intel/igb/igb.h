@@ -111,6 +111,16 @@ struct vf_data_storage {
 	bool spoofchk_enabled;
 };
 
+/* Number of unicast MAC filters reserved for the PF in the RAR registers */
+#define IGB_PF_MAC_FILTERS_RESERVED	3
+
+struct vf_mac_filter {
+	struct list_head l;
+	int vf;
+	bool free;
+	u8 vf_mac[ETH_ALEN];
+};
+
 #define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
 #define IGB_VF_FLAG_UNI_PROMISC    0x00000002 /* VF has unicast promisc */
 #define IGB_VF_FLAG_MULTI_PROMISC  0x00000004 /* VF has multicast promisc */
@@ -449,6 +459,15 @@ struct igb_nfc_filter {
 	u16 action;
 };
 
+struct igb_mac_addr {
+	u8 addr[ETH_ALEN];
+	u8 queue;
+	u8 state; /* bitmask */
+};
+
+#define IGB_MAC_STATE_DEFAULT	0x1
+#define IGB_MAC_STATE_IN_USE	0x2
+
 /* board specific private data structure */
 struct igb_adapter {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
@@ -575,6 +594,10 @@ struct igb_adapter {
 	/* lock for RX network flow classification filter */
 	spinlock_t nfc_lock;
 	bool etype_bitmap[MAX_ETYPE_FILTER];
+
+	struct igb_mac_addr *mac_table;
+	struct vf_mac_filter vf_macs;
+	struct vf_mac_filter *vf_mac_list;
 };
 
 /* flags controlling PTP/1588 function */

@@ -131,7 +131,6 @@ static void e1000_watchdog(struct work_struct *work);
 static void e1000_82547_tx_fifo_stall_task(struct work_struct *work);
 static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				    struct net_device *netdev);
-static struct net_device_stats *e1000_get_stats(struct net_device *netdev);
 static int e1000_change_mtu(struct net_device *netdev, int new_mtu);
 static int e1000_set_mac(struct net_device *netdev, void *p);
 static irqreturn_t e1000_intr(int irq, void *data);
@@ -846,7 +845,6 @@ static const struct net_device_ops e1000_netdev_ops = {
 	.ndo_open		= e1000_open,
 	.ndo_stop		= e1000_close,
 	.ndo_start_xmit		= e1000_xmit_frame,
-	.ndo_get_stats		= e1000_get_stats,
 	.ndo_set_rx_mode	= e1000_set_rx_mode,
 	.ndo_set_mac_address	= e1000_set_mac,
 	.ndo_tx_timeout		= e1000_tx_timeout,
@@ -3527,19 +3525,6 @@ static void e1000_reset_task(struct work_struct *work)
 
 	e_err(drv, "Reset adapter\n");
 	e1000_reinit_locked(adapter);
-}
-
-/**
- * e1000_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the watchdog.
- **/
-static struct net_device_stats *e1000_get_stats(struct net_device *netdev)
-{
-	/* only return the current stats */
-	return &netdev->stats;
 }
 
 /**
