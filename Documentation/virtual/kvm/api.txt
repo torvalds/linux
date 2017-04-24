@@ -110,11 +110,7 @@ Type: system ioctl
 Parameters: machine type identifier (KVM_VM_*)
 Returns: a VM fd that can be used to control the new virtual machine.
 
-The new VM has no virtual cpus and no memory.  An mmap() of a VM fd
-will access the virtual machine's physical address space; offset zero
-corresponds to guest physical address zero.  Use of mmap() on a VM fd
-is discouraged if userspace memory allocation (KVM_CAP_USER_MEMORY) is
-available.
+The new VM has no virtual cpus and no memory.
 You probably want to use 0 as machine type.
 
 In order to create user controlled virtual machines on S390, check
