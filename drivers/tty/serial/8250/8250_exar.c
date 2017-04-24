@@ -109,7 +109,6 @@ pci_fastcom335_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	u8 __iomem *p;
 	int err;
 
-	port->port.flags |= UPF_EXAR_EFR;
 	port->port.uartclk = baud * 16;
 
 	err = default_setup(priv, pcidev, idx, offset, port);
