@@ -853,7 +853,8 @@ static int rk3368_thermal_notify(struct notifier_block *nb,
 	} else if (event & (REGULATOR_EVENT_VOLTAGE_CHANGE |
 			    REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE)) {
 		ctx->regulator_uv = (unsigned long)data;
-		mutex_unlock(&thermal_reg_mutex);
+		if (mutex_is_locked(&thermal_reg_mutex))
+			mutex_unlock(&thermal_reg_mutex);
 	} else {
 		return NOTIFY_OK;
 	}
