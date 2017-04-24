@@ -2152,12 +2152,16 @@ out:
 
 static int crypt_wipe_key(struct crypt_config *cc)
 {
+	int r;
+
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
-	memset(&cc->key, 0, cc->key_size * sizeof(u8));
+	get_random_bytes(&cc->key, cc->key_size);
 	kzfree(cc->key_string);
 	cc->key_string = NULL;
+	r = crypt_setkey(cc);
+	memset(&cc->key, 0, cc->key_size * sizeof(u8));
 
-	return crypt_setkey(cc);
+	return r;
 }
 
 static void crypt_dtr(struct dm_target *ti)
