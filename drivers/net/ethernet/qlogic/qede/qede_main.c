@@ -231,6 +231,7 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 		.link_update = qede_link_update,
 	},
 	.force_mac = qede_force_mac,
+	.ports_update = qede_udp_ports_update,
 };
 
 static int qede_netdev_event(struct notifier_block *this, unsigned long event,

@@ -1251,6 +1251,18 @@ static bool qed_vf_bulletin_get_forced_mac(struct qed_hwfn *hwfn,
 	return true;
 }
 
+static void
+qed_vf_bulletin_get_udp_ports(struct qed_hwfn *p_hwfn,
+			      u16 *p_vxlan_port, u16 *p_geneve_port)
+{
+	struct qed_bulletin_content *p_bulletin;
+
+	p_bulletin = &p_hwfn->vf_iov_info->bulletin_shadow;
+
+	*p_vxlan_port = p_bulletin->vxlan_udp_port;
+	*p_geneve_port = p_bulletin->geneve_udp_port;
+}
+
 void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 			   u16 *fw_major, u16 *fw_minor,
 			   u16 *fw_rev, u16 *fw_eng)
@@ -1270,11 +1282,15 @@ static void qed_handle_bulletin_change(struct qed_hwfn *hwfn)
 	struct qed_eth_cb_ops *ops = hwfn->cdev->protocol_ops.eth;
 	u8 mac[ETH_ALEN], is_mac_exist, is_mac_forced;
 	void *cookie = hwfn->cdev->ops_cookie;
+	u16 vxlan_port, geneve_port;
 
+	qed_vf_bulletin_get_udp_ports(hwfn, &vxlan_port, &geneve_port);
 	is_mac_exist = qed_vf_bulletin_get_forced_mac(hwfn, mac,
 						      &is_mac_forced);
 	if (is_mac_exist && cookie)
 		ops->force_mac(cookie, mac, !!is_mac_forced);
+
+	ops->ports_update(cookie, vxlan_port, geneve_port);
 
 	/* Always update link configuration according to bulletin */
 	qed_link_update(hwfn);

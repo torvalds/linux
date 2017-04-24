@@ -2304,11 +2304,30 @@ static int qed_tunn_configure(struct qed_dev *cdev,
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_tunnel_info *tun;
+
+		tun = &hwfn->cdev->tunnel;
 
 		rc = qed_sp_pf_update_tunn_cfg(hwfn, &tunn_info,
 					       QED_SPQ_MODE_EBLOCK, NULL);
 		if (rc)
 			return rc;
+
+		if (IS_PF_SRIOV(hwfn)) {
+			u16 vxlan_port, geneve_port;
+			int j;
+
+			vxlan_port = tun->vxlan_port.port;
+			geneve_port = tun->geneve_port.port;
+
+			qed_for_each_vf(hwfn, j) {
+				qed_iov_bulletin_set_udp_ports(hwfn, j,
+							       vxlan_port,
+							       geneve_port);
+			}
+
+			qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
+		}
 	}
 
 	return 0;

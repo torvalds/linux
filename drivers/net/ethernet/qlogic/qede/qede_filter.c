@@ -480,6 +480,17 @@ ret_unlock:
 }
 #endif
 
+void qede_udp_ports_update(void *dev, u16 vxlan_port, u16 geneve_port)
+{
+	struct qede_dev *edev = dev;
+
+	if (edev->vxlan_dst_port != vxlan_port)
+		edev->vxlan_dst_port = 0;
+
+	if (edev->geneve_dst_port != geneve_port)
+		edev->geneve_dst_port = 0;
+}
+
 void qede_force_mac(void *dev, u8 *mac, bool forced)
 {
 	struct qede_dev *edev = dev;
