@@ -1830,6 +1830,7 @@ static int cpr_probe(struct platform_device *pdev)
 	u32 cpr_rev = FUSE_REVISION_UNKNOWN;
 	u32 speed_bin = SPEED_BIN_NONE;
 	u32 pvs_version = 0;
+	struct platform_device *cpufreq_dt_pdev;
 
 	np = of_parse_phandle(dev->of_node, "eeprom", 0);
 	if (!np)
@@ -1923,6 +1924,14 @@ static int cpr_probe(struct platform_device *pdev)
 	ret = cpr_populate_opps(dev->of_node, drv, plan);
 	if (ret)
 		return ret;
+
+	/* Register cpufreq-dt driver after the OPPs are populated */
+	cpufreq_dt_pdev = platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
+	if (IS_ERR(cpufreq_dt_pdev)) {
+		ret = PTR_ERR(cpufreq_dt_pdev);
+		pr_err("%s error registering cpufreq-dt (%d)\n", __func__, ret);
+		return ret;
+	}
 
 	drv->loop_disabled = cpr_is_close_loop_disabled(drv, desc, qfprom,
 			cpr_fuses, adj);
