@@ -425,7 +425,7 @@ config GCC_PLUGIN_STRUCTLEAK
 	bool "Force initialization of variables containing userspace addresses"
 	depends on GCC_PLUGINS
 	help
-	  This plugin zero-initializes any structures that containing a
+	  This plugin zero-initializes any structures containing a
 	  __user attribute. This can prevent some classes of information
 	  exposures.
 
