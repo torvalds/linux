@@ -1134,7 +1134,6 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 		u32 buf_len = skb_frag_size(frag);
 		dma_addr_t desc_dma;
 		u32 desc_dma_32;
-		u32 pkt_info;
 
 		dma_addr = dma_map_page(dev, page, page_offset, buf_len,
 					DMA_TO_DEVICE);
@@ -1151,9 +1150,6 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 		}
 
 		desc_dma = knav_pool_desc_virt_to_dma(netcp->tx_pool, ndesc);
-		pkt_info =
-			(netcp->tx_compl_qid & KNAV_DMA_DESC_RETQ_MASK) <<
-				KNAV_DMA_DESC_RETQ_SHIFT;
 		set_pkt_info(dma_addr, buf_len, 0, ndesc);
 		desc_dma_32 = (u32)desc_dma;
 		set_words(&desc_dma_32, 1, &pdesc->next_desc);
