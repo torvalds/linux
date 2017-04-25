@@ -629,6 +629,8 @@ static int dw_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	hdmi_writeb(hdmi, 0x00, HDMI_IH_MUTE_I2CM_STAT0);
 
 	/* Set slave device address taken from the first I2C message */
+	if (addr == DDC_SEGMENT_ADDR && msgs[0].len == 1)
+		addr = DDC_ADDR;
 	hdmi_writeb(hdmi, addr, HDMI_I2CM_SLAVE);
 
 	/* Set slave device register address on transfer */
