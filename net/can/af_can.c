@@ -903,6 +903,8 @@ static void can_pernet_exit(struct net *net)
 		}
 	}
 	rcu_read_unlock();
+
+	kfree(net->can.can_rx_alldev_list);
 }
 
 /*
