@@ -1076,6 +1076,22 @@ out:
 	mutex_unlock(&dcc->cmd_lock);
 }
 
+static void __wait_discard_cmd(struct f2fs_sb_info *sbi, bool wait_cond)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	struct list_head *wait_list = &(dcc->wait_list);
+	struct discard_cmd *dc, *tmp;
+
+	mutex_lock(&dcc->cmd_lock);
+	list_for_each_entry_safe(dc, tmp, wait_list, list) {
+		if (!wait_cond || dc->state == D_DONE) {
+			wait_for_completion_io(&dc->wait);
+			__remove_discard_cmd(sbi, dc);
+		}
+	}
+	mutex_unlock(&dcc->cmd_lock);
+}
+
 /* This should be covered by global mutex, &sit_i->sentry_lock */
 void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
@@ -1097,18 +1113,8 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 /* This comes from f2fs_put_super */
 void f2fs_wait_discard_bios(struct f2fs_sb_info *sbi)
 {
-	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
-	struct list_head *wait_list = &(dcc->wait_list);
-	struct discard_cmd *dc, *tmp;
-
 	__issue_discard_cmd(sbi, false);
-
-	mutex_lock(&dcc->cmd_lock);
-	list_for_each_entry_safe(dc, tmp, wait_list, list) {
-		wait_for_completion_io(&dc->wait);
-		__remove_discard_cmd(sbi, dc);
-	}
-	mutex_unlock(&dcc->cmd_lock);
+	__wait_discard_cmd(sbi, false);
 }
 
 static int issue_discard_thread(void *data)
@@ -1116,22 +1122,12 @@ static int issue_discard_thread(void *data)
 	struct f2fs_sb_info *sbi = data;
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 	wait_queue_head_t *q = &dcc->discard_wait_queue;
-	struct list_head *wait_list = &dcc->wait_list;
-	struct discard_cmd *dc, *tmp;
 repeat:
 	if (kthread_should_stop())
 		return 0;
 
 	__issue_discard_cmd(sbi, true);
-
-	mutex_lock(&dcc->cmd_lock);
-	list_for_each_entry_safe(dc, tmp, wait_list, list) {
-		if (dc->state == D_DONE) {
-			wait_for_completion_io(&dc->wait);
-			__remove_discard_cmd(sbi, dc);
-		}
-	}
-	mutex_unlock(&dcc->cmd_lock);
+	__wait_discard_cmd(sbi, true);
 
 	congestion_wait(BLK_RW_SYNC, HZ/50);
 
