@@ -2276,7 +2276,22 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	data->dev = dev;
 
 	INIT_WORK(&data->set_work, vpu_set_register_work);
-	of_property_read_u32(np, "dev_mode", (u32 *)&data->mode);
+
+	switch (pservice->dev_id) {
+	case VCODEC_DEVICE_ID_VPU:
+		data->mode = VCODEC_RUNNING_MODE_VPU;
+		break;
+	case VCODEC_DEVICE_ID_HEVC:
+		data->mode = VCODEC_RUNNING_MODE_HEVC;
+		break;
+	case VCODEC_DEVICE_ID_RKVDEC:
+		data->mode = VCODEC_RUNNING_MODE_RKVDEC;
+		break;
+	case VCODEC_DEVICE_ID_COMBO:
+	default:
+		of_property_read_u32(np, "dev_mode", (u32 *)&data->mode);
+		break;
+	}
 
 	if (pservice->reg_base == 0) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2369,6 +2384,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 			goto err;
 		}
 	}
+
 	data->irq_dec = platform_get_irq_byname(pdev, "irq_dec");
 	if (data->irq_dec > 0) {
 		ret = devm_request_threaded_irq(dev, data->irq_dec,
