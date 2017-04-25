@@ -1526,7 +1526,7 @@ static struct sched_domain_attr		*dattr_cur;
  * cpumask) fails, then fallback to a single sched domain,
  * as determined by the single cpumask fallback_doms.
  */
-cpumask_var_t				fallback_doms;
+static cpumask_var_t			fallback_doms;
 
 /*
  * arch_update_cpu_topology lets virtualized architectures update the
@@ -1568,9 +1568,12 @@ void free_sched_domains(cpumask_var_t doms[], unsigned int ndoms)
  * For now this just excludes isolated CPUs, but could be used to
  * exclude other special cases in the future.
  */
-int init_sched_domains(const struct cpumask *cpu_map)
+int sched_init_domains(const struct cpumask *cpu_map)
 {
 	int err;
+
+	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_KERNEL);
+	zalloc_cpumask_var(&fallback_doms, GFP_KERNEL);
 
 	arch_update_cpu_topology();
 	ndoms_cur = 1;

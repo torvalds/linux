@@ -606,11 +606,9 @@ struct root_domain {
 
 extern struct root_domain def_root_domain;
 extern struct mutex sched_domains_mutex;
-extern cpumask_var_t fallback_doms;
-extern cpumask_var_t sched_domains_tmpmask;
 
 extern void init_defrootdomain(void);
-extern int init_sched_domains(const struct cpumask *cpu_map);
+extern int sched_init_domains(const struct cpumask *cpu_map);
 extern void rq_attach_root(struct rq *rq, struct root_domain *rd);
 
 #endif /* CONFIG_SMP */
