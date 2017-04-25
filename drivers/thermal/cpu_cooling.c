@@ -564,12 +564,13 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
 	int ret;
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
 
+	/* Request state should be less than max_level */
+	if (WARN_ON(state > cpufreq_cdev->max_level))
+		return -EINVAL;
+
 	num_cpus = cpumask_weight(cpufreq_cdev->policy->cpus);
 
 	freq = cpufreq_cdev->freq_table[state].frequency;
-	if (!freq)
-		return -EINVAL;
-
 	dynamic_power = cpu_freq_to_power(cpufreq_cdev, freq) * num_cpus;
 	ret = get_static_power(cpufreq_cdev, tz, freq, &static_power);
 	if (ret)
