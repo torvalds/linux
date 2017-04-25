@@ -486,8 +486,6 @@ static void sun4i_tv_mode_set(struct drm_encoder *encoder,
 		      SUN4I_TVE_RESYNC_FIELD : 0));
 
 	regmap_write(tv->regs, SUN4I_TVE_SLAVE_REG, 0);
-
-	clk_set_rate(tcon->sclk1, mode->crtc_clock * 1000);
 }
 
 static struct drm_encoder_helper_funcs sun4i_tv_helper_funcs = {

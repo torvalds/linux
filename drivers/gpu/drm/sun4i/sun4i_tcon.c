@@ -130,6 +130,9 @@ void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
 	u8 clk_delay;
 	u32 val = 0;
 
+	/* Configure the dot clock */
+	clk_set_rate(tcon->dclk, mode->crtc_clock * 1000);
+
 	/* Adjust clock delay */
 	clk_delay = sun4i_tcon_get_clk_delay(mode, 0);
 	regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
@@ -204,6 +207,9 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	u32 val;
 
 	WARN_ON(!tcon->quirks->has_channel_1);
+
+	/* Configure the dot clock */
+	clk_set_rate(tcon->sclk1, mode->crtc_clock * 1000);
 
 	/* Adjust clock delay */
 	clk_delay = sun4i_tcon_get_clk_delay(mode, 1);
