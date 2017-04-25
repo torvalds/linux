@@ -158,6 +158,15 @@
 			charge_logo,mode = "center";
 			connect = <&vop_out_edp>;
 		};
+
+		route_hdmi: route-hdmi {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vop_out_hdmi>;
+		};
 	};
 };
 
