@@ -1115,6 +1115,22 @@ struct cifs_io_parms {
 	struct cifs_tcon *tcon;
 };
 
+struct cifs_aio_ctx {
+	struct kref		refcount;
+	struct list_head	list;
+	struct mutex		aio_mutex;
+	struct completion	done;
+	struct iov_iter		iter;
+	struct kiocb		*iocb;
+	struct cifsFileInfo	*cfile;
+	struct bio_vec		*bv;
+	unsigned int		npages;
+	ssize_t			rc;
+	unsigned int		len;
+	unsigned int		total_len;
+	bool			should_dirty;
+};
+
 struct cifs_readdata;
 
 /* asynchronous read support */
