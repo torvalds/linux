@@ -997,6 +997,12 @@ static void virtnet_napi_tx_enable(struct virtnet_info *vi,
 	return virtnet_napi_enable(vq, napi);
 }
 
+static void virtnet_napi_tx_disable(struct napi_struct *napi)
+{
+	if (napi->weight)
+		napi_disable(napi);
+}
+
 static void refill_work(struct work_struct *work)
 {
 	struct virtnet_info *vi =
@@ -1445,7 +1451,7 @@ static int virtnet_close(struct net_device *dev)
 
 	for (i = 0; i < vi->max_queue_pairs; i++) {
 		napi_disable(&vi->rq[i].napi);
-		napi_disable(&vi->sq[i].napi);
+		virtnet_napi_tx_disable(&vi->sq[i].napi);
 	}
 
 	return 0;
@@ -1803,7 +1809,7 @@ static void virtnet_freeze_down(struct virtio_device *vdev)
 	if (netif_running(vi->dev)) {
 		for (i = 0; i < vi->max_queue_pairs; i++) {
 			napi_disable(&vi->rq[i].napi);
-			napi_disable(&vi->sq[i].napi);
+			virtnet_napi_tx_disable(&vi->sq[i].napi);
 		}
 	}
 }
