@@ -75,8 +75,6 @@ static int stats_timer __read_mostly = 1;
 module_param(stats_timer, int, S_IRUGO);
 MODULE_PARM_DESC(stats_timer, "enable timer for statistics (default:on)");
 
-static int can_net_id;
-
 static struct kmem_cache *rcv_cache __read_mostly;
 
 /* table of registered CAN protocols */
@@ -935,8 +933,6 @@ static struct notifier_block can_netdev_notifier __read_mostly = {
 static struct pernet_operations can_pernet_ops __read_mostly = {
 	.init = can_pernet_init,
 	.exit = can_pernet_exit,
-	.id = &can_net_id,
-	.size = 0,
 };
 
 static __init int can_init(void)
