@@ -45,8 +45,7 @@ static bool tcp_rack_sent_after(const struct skb_mstamp *t1,
  * or tcp_time_to_recover()'s "Trick#1: the loss is proven" code path will
  * make us enter the CA_Recovery state.
  */
-static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now,
-				 u32 *reo_timeout)
+static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -79,7 +78,7 @@ static void tcp_rack_detect_loss(struct sock *sk, const struct skb_mstamp *now,
 			 * A packet is lost if its elapsed time is beyond
 			 * the recent RTT plus the reordering window.
 			 */
-			u32 elapsed = skb_mstamp_us_delta(now,
+			u32 elapsed = skb_mstamp_us_delta(&tp->tcp_mstamp,
 							  &skb->skb_mstamp);
 			s32 remaining = tp->rack.rtt_us + reo_wnd - elapsed;
 
@@ -115,7 +114,7 @@ void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now)
 
 	/* Reset the advanced flag to avoid unnecessary queue scanning */
 	tp->rack.advanced = 0;
-	tcp_rack_detect_loss(sk, now, &timeout);
+	tcp_rack_detect_loss(sk, &timeout);
 	if (timeout) {
 		timeout = usecs_to_jiffies(timeout + TCP_REO_TIMEOUT_MIN);
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_REO_TIMEOUT,
@@ -165,12 +164,10 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 void tcp_rack_reo_timeout(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct skb_mstamp now;
 	u32 timeout, prior_inflight;
 
-	skb_mstamp_get(&now);
 	prior_inflight = tcp_packets_in_flight(tp);
-	tcp_rack_detect_loss(sk, &now, &timeout);
+	tcp_rack_detect_loss(sk, &timeout);
 	if (prior_inflight != tcp_packets_in_flight(tp)) {
 		if (inet_csk(sk)->icsk_ca_state != TCP_CA_Recovery) {
 			tcp_enter_recovery(sk, false);
