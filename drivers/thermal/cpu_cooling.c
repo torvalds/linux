@@ -136,37 +136,6 @@ static unsigned long get_level(struct cpufreq_cooling_device *cpufreq_cdev,
 }
 
 /**
- * cpufreq_cooling_get_level - for a given cpu, return the cooling level.
- * @cpu: cpu for which the level is required
- * @freq: the frequency of interest
- *
- * This function will match the cooling level corresponding to the
- * requested @freq and return it.
- *
- * Return: The matched cooling level on success or THERMAL_CSTATE_INVALID
- * otherwise.
- */
-unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
-{
-	struct cpufreq_cooling_device *cpufreq_cdev;
-
-	mutex_lock(&cooling_list_lock);
-	list_for_each_entry(cpufreq_cdev, &cpufreq_cdev_list, node) {
-		if (cpumask_test_cpu(cpu, &cpufreq_cdev->allowed_cpus)) {
-			unsigned long level = get_level(cpufreq_cdev, freq);
-
-			mutex_unlock(&cooling_list_lock);
-			return level;
-		}
-	}
-	mutex_unlock(&cooling_list_lock);
-
-	pr_err("%s: cpu:%d not part of any cooling device\n", __func__, cpu);
-	return THERMAL_CSTATE_INVALID;
-}
-EXPORT_SYMBOL_GPL(cpufreq_cooling_get_level);
-
-/**
  * cpufreq_thermal_notifier - notifier callback for cpufreq policy change.
  * @nb:	struct notifier_block * with callback info.
  * @event: value showing cpufreq event for which this function invoked.
@@ -697,7 +666,7 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 	normalised_power = (dyn_power * 100) / last_load;
 	target_freq = cpu_power_to_freq(cpufreq_cdev, normalised_power);
 
-	*state = cpufreq_cooling_get_level(cpu, target_freq);
+	*state = get_level(cpufreq_cdev, target_freq);
 	if (*state == THERMAL_CSTATE_INVALID) {
 		dev_err_ratelimited(&cdev->device,
 				    "Failed to convert %dKHz for cpu %d into a cdev state\n",
