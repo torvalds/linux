@@ -23,6 +23,7 @@ struct netns_can {
 	struct proc_dir_entry *pde_rcvlist_sff;
 	struct proc_dir_entry *pde_rcvlist_eff;
 	struct proc_dir_entry *pde_rcvlist_err;
+	struct proc_dir_entry *bcmproc_dir;
 #endif
 
 	/* receive filters subscribed for 'all' CAN devices */
