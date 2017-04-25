@@ -66,7 +66,7 @@ unsigned long arch_mmap_rnd(void)
 	if (is_32bit_task())
 		shift = mmap_rnd_compat_bits;
 #endif
-	rnd = get_random_long() % (1 << shift);
+	rnd = get_random_long() % (1ul << shift);
 
 	return rnd << PAGE_SHIFT;
 }
