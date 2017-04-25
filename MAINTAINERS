@@ -11406,6 +11406,14 @@ F:	kernel/time/alarmtimer.c
 F:	kernel/time/ntp.c
 F:	tools/testing/selftests/timers/
 
+TI TRF7970A NFC DRIVER
+M:	Mark Greer <mgreer@animalcreek.com>
+L:	linux-wireless@vger.kernel.org
+L:	linux-nfc@lists.01.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/nfc/trf7970a.c
+F:	Documentation/devicetree/bindings/net/nfc/trf7970a.txt
+
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwanem@gmail.com>
 S:	Maintained
