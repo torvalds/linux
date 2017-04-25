@@ -333,16 +333,16 @@ struct tcp_sock {
 
 /* Receiver side RTT estimation */
 	struct {
-		u32	rtt;
-		u32	seq;
-		u32	time;
+		u32		rtt_us;
+		u32		seq;
+		struct skb_mstamp time;
 	} rcv_rtt_est;
 
 /* Receiver queue space */
 	struct {
-		int	space;
-		u32	seq;
-		u32	time;
+		int		space;
+		u32		seq;
+		struct skb_mstamp time;
 	} rcvq_space;
 
 /* TCP-specific MTU probe information. */
