@@ -65,10 +65,13 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 	unsigned int status;
 	unsigned int tmp;
 
-	if (player->state == UNIPERIF_STATE_STOPPED) {
-		/* Unexpected IRQ: do nothing */
-		return IRQ_NONE;
-	}
+	spin_lock(&player->irq_lock);
+	if (!player->substream)
+		goto irq_spin_unlock;
+
+	snd_pcm_stream_lock(player->substream);
+	if (player->state == UNIPERIF_STATE_STOPPED)
+		goto stream_unlock;
 
 	/* Get interrupt status & clear them immediately */
 	status = GET_UNIPERIF_ITS(player);
@@ -88,9 +91,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 			SET_UNIPERIF_ITM_BCLR_FIFO_ERROR(player);
 
 			/* Stop the player */
-			snd_pcm_stream_lock(player->substream);
 			snd_pcm_stop(player->substream, SNDRV_PCM_STATE_XRUN);
-			snd_pcm_stream_unlock(player->substream);
 		}
 
 		ret = IRQ_HANDLED;
@@ -104,9 +105,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 		SET_UNIPERIF_ITM_BCLR_DMA_ERROR(player);
 
 		/* Stop the player */
-		snd_pcm_stream_lock(player->substream);
 		snd_pcm_stop(player->substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock(player->substream);
 
 		ret = IRQ_HANDLED;
 	}
@@ -116,7 +115,8 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 		if (!player->underflow_enabled) {
 			dev_err(player->dev,
 				"unexpected Underflow recovering\n");
-			return -EPERM;
+			ret = -EPERM;
+			goto stream_unlock;
 		}
 		/* Read the underflow recovery duration */
 		tmp = GET_UNIPERIF_STATUS_1_UNDERFLOW_DURATION(player);
@@ -138,12 +138,15 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 		dev_err(player->dev, "Underflow recovery failed\n");
 
 		/* Stop the player */
-		snd_pcm_stream_lock(player->substream);
 		snd_pcm_stop(player->substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock(player->substream);
 
 		ret = IRQ_HANDLED;
 	}
+
+stream_unlock:
+	snd_pcm_stream_unlock(player->substream);
+irq_spin_unlock:
+	spin_unlock(&player->irq_lock);
 
 	return ret;
 }
@@ -588,6 +591,7 @@ static int uni_player_ctl_iec958_put(struct snd_kcontrol *kcontrol,
 	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
 	struct uniperif *player = priv->dai_data.uni;
 	struct snd_aes_iec958 *iec958 =  &player->stream_settings.iec958;
+	unsigned long flags;
 
 	mutex_lock(&player->ctrl_lock);
 	iec958->status[0] = ucontrol->value.iec958.status[0];
@@ -596,12 +600,14 @@ static int uni_player_ctl_iec958_put(struct snd_kcontrol *kcontrol,
 	iec958->status[3] = ucontrol->value.iec958.status[3];
 	mutex_unlock(&player->ctrl_lock);
 
+	spin_lock_irqsave(&player->irq_lock, flags);
 	if (player->substream && player->substream->runtime)
 		uni_player_set_channel_status(player,
 					      player->substream->runtime);
 	else
 		uni_player_set_channel_status(player, NULL);
 
+	spin_unlock_irqrestore(&player->irq_lock, flags);
 	return 0;
 }
 
@@ -686,9 +692,12 @@ static int uni_player_startup(struct snd_pcm_substream *substream,
 {
 	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
 	struct uniperif *player = priv->dai_data.uni;
+	unsigned long flags;
 	int ret;
 
+	spin_lock_irqsave(&player->irq_lock, flags);
 	player->substream = substream;
+	spin_unlock_irqrestore(&player->irq_lock, flags);
 
 	player->clk_adj = 0;
 
@@ -986,12 +995,15 @@ static void uni_player_shutdown(struct snd_pcm_substream *substream,
 {
 	struct sti_uniperiph_data *priv = snd_soc_dai_get_drvdata(dai);
 	struct uniperif *player = priv->dai_data.uni;
+	unsigned long flags;
 
+	spin_lock_irqsave(&player->irq_lock, flags);
 	if (player->state != UNIPERIF_STATE_STOPPED)
 		/* Stop the player */
 		uni_player_stop(player);
 
 	player->substream = NULL;
+	spin_unlock_irqrestore(&player->irq_lock, flags);
 }
 
 static int uni_player_parse_dt_audio_glue(struct platform_device *pdev,
@@ -1096,6 +1108,7 @@ int uni_player_init(struct platform_device *pdev,
 	}
 
 	mutex_init(&player->ctrl_lock);
+	spin_lock_init(&player->irq_lock);
 
 	/* Ensure that disabled by default */
 	SET_UNIPERIF_CONFIG_BACK_STALL_REQ_DISABLE(player);
