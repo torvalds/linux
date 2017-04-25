@@ -1513,19 +1513,27 @@ void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
-	bool hw_rfkill;
+	bool hw_rfkill, prev, report;
 
 	mutex_lock(&trans_pcie->mutex);
+	prev = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
 	hw_rfkill = iwl_is_rfkill_set(trans);
-	if (hw_rfkill)
-		set_bit(STATUS_RFKILL, &trans->status);
+	if (hw_rfkill) {
+		set_bit(STATUS_RFKILL_OPMODE, &trans->status);
+		set_bit(STATUS_RFKILL_HW, &trans->status);
+	}
+	if (trans_pcie->opmode_down)
+		report = hw_rfkill;
+	else
+		report = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
 
 	IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 		 hw_rfkill ? "disable radio" : "enable radio");
 
 	isr_stats->rfkill++;
 
-	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	if (prev != report)
+		iwl_trans_pcie_rf_kill(trans, report);
 	mutex_unlock(&trans_pcie->mutex);
 
 	if (hw_rfkill) {
@@ -1535,7 +1543,9 @@ void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans)
 					  "Rfkill while SYNC HCMD in flight\n");
 		wake_up(&trans_pcie->wait_command_queue);
 	} else {
-		clear_bit(STATUS_RFKILL, &trans->status);
+		clear_bit(STATUS_RFKILL_HW, &trans->status);
+		if (trans_pcie->opmode_down)
+			clear_bit(STATUS_RFKILL_OPMODE, &trans->status);
 	}
 }
 
