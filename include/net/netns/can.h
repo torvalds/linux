@@ -8,6 +8,8 @@
 #include <linux/spinlock.h>
 
 struct dev_rcv_lists;
+struct s_stats;
+struct s_pstats;
 
 struct netns_can {
 #if IS_ENABLED(CONFIG_PROC_FS)
@@ -26,6 +28,9 @@ struct netns_can {
 	/* receive filters subscribed for 'all' CAN devices */
 	struct dev_rcv_lists *can_rx_alldev_list;
 	spinlock_t can_rcvlists_lock;
+	struct timer_list can_stattimer;/* timer for statistics update */
+	struct s_stats *can_stats;	/* packet statistics */
+	struct s_pstats *can_pstats;	/* receive list statistics */
 };
 
 #endif /* __NETNS_CAN_H__ */
