@@ -340,11 +340,6 @@ static inline struct orangefs_khandle *get_khandle_from_ino(struct inode *inode)
 	return &(ORANGEFS_I(inode)->refn.khandle);
 }
 
-static inline __s32 get_fsid_from_ino(struct inode *inode)
-{
-	return ORANGEFS_I(inode)->refn.fs_id;
-}
-
 static inline ino_t get_ino_from_khandle(struct inode *inode)
 {
 	struct orangefs_khandle *khandle;
