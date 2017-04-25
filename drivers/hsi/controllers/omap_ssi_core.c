@@ -384,10 +384,8 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 	int err;
 
 	omap_ssi = devm_kzalloc(&ssi->device, sizeof(*omap_ssi), GFP_KERNEL);
-	if (!omap_ssi) {
-		dev_err(&pd->dev, "not enough memory for omap ssi\n");
+	if (!omap_ssi)
 		return -ENOMEM;
-	}
 
 	err = ida_simple_get(&platform_omap_ssi_ida, 0, 0, GFP_KERNEL);
 	if (err < 0)
