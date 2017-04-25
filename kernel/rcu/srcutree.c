@@ -34,9 +34,13 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/srcu.h>
 
 #include "rcu.h"
+
+ulong exp_holdoff = 50 * 1000; /* Holdoff (ns) for auto-expediting. */
+module_param(exp_holdoff, ulong, 0444);
 
 static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
@@ -145,6 +149,7 @@ static int init_srcu_struct_fields(struct srcu_struct *sp, bool is_static)
 		sp->sda = alloc_percpu(struct srcu_data);
 	init_srcu_struct_nodes(sp, is_static);
 	sp->srcu_gp_seq_needed_exp = 0;
+	sp->srcu_last_gp_end = ktime_get_mono_fast_ns();
 	smp_store_release(&sp->srcu_gp_seq_needed, 0); /* Init done. */
 	return sp->sda ? 0 : -ENOMEM;
 }
@@ -498,6 +503,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 	idx = rcu_seq_state(sp->srcu_gp_seq);
 	WARN_ON_ONCE(idx != SRCU_STATE_SCAN2);
 	cbdelay = srcu_get_delay(sp);
+	sp->srcu_last_gp_end = ktime_get_mono_fast_ns();
 	rcu_seq_end(&sp->srcu_gp_seq);
 	gpseq = rcu_seq_current(&sp->srcu_gp_seq);
 	if (ULONG_CMP_LT(sp->srcu_gp_seq_needed_exp, gpseq))
@@ -700,9 +706,10 @@ static void srcu_flip(struct srcu_struct *sp)
  */
 static bool srcu_might_be_idle(struct srcu_struct *sp)
 {
+	unsigned long curseq;
 	unsigned long flags;
 	struct srcu_data *sdp;
-	unsigned long curseq;
+	unsigned long t;
 
 	/* If the local srcu_data structure has callbacks, not idle.  */
 	local_irq_save(flags);
@@ -718,6 +725,15 @@ static bool srcu_might_be_idle(struct srcu_struct *sp)
 	 * Exact information would require acquiring locks, which would
 	 * kill scalability, hence the probabalistic nature of the probe.
 	 */
+
+	/* First, see if enough time has passed since the last GP. */
+	t = ktime_get_mono_fast_ns();
+	if (exp_holdoff == 0 ||
+	    time_in_range_open(t, sp->srcu_last_gp_end,
+			       sp->srcu_last_gp_end + exp_holdoff))
+		return false; /* Too soon after last GP. */
+
+	/* Next, check for probable idleness. */
 	curseq = rcu_seq_current(&sp->srcu_gp_seq);
 	smp_mb(); /* Order ->srcu_gp_seq with ->srcu_gp_seq_needed. */
 	if (ULONG_CMP_LT(curseq, READ_ONCE(sp->srcu_gp_seq_needed)))
