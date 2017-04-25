@@ -363,6 +363,44 @@ static void set_test_pattern(
 			cust_pattern_size);
 }
 
+void set_dither_option(const struct dc_stream *dc_stream,
+		enum dc_dither_option option)
+{
+	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
+	struct bit_depth_reduction_params params;
+	struct core_link *core_link = DC_LINK_TO_CORE(stream->status.link);
+	struct pipe_ctx *pipes =
+			core_link->dc->current_context->res_ctx.pipe_ctx;
+
+	memset(&params, 0, sizeof(params));
+	if (!stream)
+		return;
+	if (option > DITHER_OPTION_MAX)
+		return;
+	if (option == DITHER_OPTION_DEFAULT) {
+		switch (stream->public.timing.display_color_depth) {
+		case COLOR_DEPTH_666:
+			stream->public.dither_option = DITHER_OPTION_SPATIAL6;
+			break;
+		case COLOR_DEPTH_888:
+			stream->public.dither_option = DITHER_OPTION_SPATIAL8;
+			break;
+		case COLOR_DEPTH_101010:
+			stream->public.dither_option = DITHER_OPTION_SPATIAL10;
+			break;
+		default:
+			option = DITHER_OPTION_DISABLE;
+		}
+	} else {
+		stream->public.dither_option = option;
+	}
+	resource_build_bit_depth_reduction_params(stream,
+				&params);
+	stream->bit_depth_params = params;
+	pipes->opp->funcs->
+		opp_program_bit_depth_reduction(pipes->opp, &params);
+}
+
 static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 {
 	core_dc->public.stream_funcs.stream_update_scaling = stream_update_scaling;
@@ -379,6 +417,9 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 
 	core_dc->public.stream_funcs.set_gamut_remap =
 			set_gamut_remap;
+
+	core_dc->public.stream_funcs.set_dither_option =
+			set_dither_option;
 
 	core_dc->public.link_funcs.set_drive_settings =
 			set_drive_settings;

@@ -1062,7 +1062,7 @@ static const struct resource_funcs dce112_res_pool_funcs = {
 	.link_enc_create = dce112_link_encoder_create,
 	.validate_with_context = dce112_validate_with_context,
 	.validate_guaranteed = dce112_validate_guaranteed,
-	.validate_bandwidth = dce112_validate_bandwidth
+	.validate_bandwidth = dce112_validate_bandwidth,
 };
 
 static void bw_calcs_data_update_from_pplib(struct core_dc *dc)

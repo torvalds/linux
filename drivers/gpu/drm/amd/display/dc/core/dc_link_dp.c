@@ -11,6 +11,7 @@
 #include "dpcd_defs.h"
 
 #include "core_dc.h"
+#include "resource.h"
 
 /* maximum pre emphasis level allowed for each voltage swing level*/
 static const enum dc_pre_emphasis voltage_swing_to_pre_emphasis[] = {
@@ -2245,8 +2246,7 @@ static void set_crtc_test_pattern(struct core_link *link,
 	case DP_TEST_PATTERN_VIDEO_MODE:
 	{
 		/* restore bitdepth reduction */
-		link->dc->res_pool->funcs->
-			build_bit_depth_reduction_params(pipe_ctx->stream,
+		resource_build_bit_depth_reduction_params(pipe_ctx->stream,
 					&params);
 		pipe_ctx->stream->bit_depth_params = params;
 		pipe_ctx->opp->funcs->

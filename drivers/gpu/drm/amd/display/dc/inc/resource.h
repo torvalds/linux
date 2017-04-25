@@ -160,5 +160,7 @@ bool pipe_need_reprogram(
 		struct pipe_ctx *pipe_ctx_old,
 		struct pipe_ctx *pipe_ctx);
 
+void resource_build_bit_depth_reduction_params(const struct core_stream *stream,
+		struct bit_depth_reduction_params *fmt_bit_depth);
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

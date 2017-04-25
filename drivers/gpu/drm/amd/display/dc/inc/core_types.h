@@ -214,10 +214,6 @@ struct resource_funcs {
 			struct validate_context *context,
 			const struct resource_pool *pool,
 			struct core_stream *stream);
-
-	void (*build_bit_depth_reduction_params)(
-			const struct core_stream *stream,
-			struct bit_depth_reduction_params *fmt_bit_depth);
 };
 
 struct audio_support{

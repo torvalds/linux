@@ -122,6 +122,9 @@ struct dc_stream_funcs {
 			const struct dc_stream **stream,
 			int num_streams,
 			const struct dc_static_screen_events *events);
+
+	void (*set_dither_option)(const struct dc_stream *stream,
+			enum dc_dither_option option);
 };
 
 struct link_training_settings;

@@ -2246,3 +2246,113 @@ bool pipe_need_reprogram(
 
 	return false;
 }
+
+void resource_build_bit_depth_reduction_params(const struct core_stream *stream,
+		struct bit_depth_reduction_params *fmt_bit_depth)
+{
+	enum dc_dither_option option = stream->public.dither_option;
+	enum dc_pixel_encoding pixel_encoding =
+			stream->public.timing.pixel_encoding;
+
+	memset(fmt_bit_depth, 0, sizeof(*fmt_bit_depth));
+
+	if (option == DITHER_OPTION_DISABLE)
+		return;
+
+	if (option == DITHER_OPTION_TRUN6) {
+		fmt_bit_depth->flags.TRUNCATE_ENABLED = 1;
+		fmt_bit_depth->flags.TRUNCATE_DEPTH = 0;
+	} else if (option == DITHER_OPTION_TRUN8 ||
+			option == DITHER_OPTION_TRUN8_SPATIAL6 ||
+			option == DITHER_OPTION_TRUN8_FM6) {
+		fmt_bit_depth->flags.TRUNCATE_ENABLED = 1;
+		fmt_bit_depth->flags.TRUNCATE_DEPTH = 1;
+	} else if (option == DITHER_OPTION_TRUN10        ||
+			option == DITHER_OPTION_TRUN10_SPATIAL6   ||
+			option == DITHER_OPTION_TRUN10_SPATIAL8   ||
+			option == DITHER_OPTION_TRUN10_FM8     ||
+			option == DITHER_OPTION_TRUN10_FM6     ||
+			option == DITHER_OPTION_TRUN10_SPATIAL8_FM6) {
+		fmt_bit_depth->flags.TRUNCATE_ENABLED = 1;
+		fmt_bit_depth->flags.TRUNCATE_DEPTH = 2;
+	}
+
+	/* special case - Formatter can only reduce by 4 bits at most.
+	 * When reducing from 12 to 6 bits,
+	 * HW recommends we use trunc with round mode
+	 * (if we did nothing, trunc to 10 bits would be used)
+	 * note that any 12->10 bit reduction is ignored prior to DCE8,
+	 * as the input was 10 bits.
+	 */
+	if (option == DITHER_OPTION_SPATIAL6_FRAME_RANDOM ||
+			option == DITHER_OPTION_SPATIAL6 ||
+			option == DITHER_OPTION_FM6) {
+		fmt_bit_depth->flags.TRUNCATE_ENABLED = 1;
+		fmt_bit_depth->flags.TRUNCATE_DEPTH = 2;
+		fmt_bit_depth->flags.TRUNCATE_MODE = 1;
+	}
+
+	/* spatial dither
+	 * note that spatial modes 1-3 are never used
+	 */
+	if (option == DITHER_OPTION_SPATIAL6_FRAME_RANDOM            ||
+			option == DITHER_OPTION_SPATIAL6 ||
+			option == DITHER_OPTION_TRUN10_SPATIAL6      ||
+			option == DITHER_OPTION_TRUN8_SPATIAL6) {
+		fmt_bit_depth->flags.SPATIAL_DITHER_ENABLED = 1;
+		fmt_bit_depth->flags.SPATIAL_DITHER_DEPTH = 0;
+		fmt_bit_depth->flags.HIGHPASS_RANDOM = 1;
+		fmt_bit_depth->flags.RGB_RANDOM =
+				(pixel_encoding == PIXEL_ENCODING_RGB) ? 1 : 0;
+	} else if (option == DITHER_OPTION_SPATIAL8_FRAME_RANDOM            ||
+			option == DITHER_OPTION_SPATIAL8 ||
+			option == DITHER_OPTION_SPATIAL8_FM6        ||
+			option == DITHER_OPTION_TRUN10_SPATIAL8      ||
+			option == DITHER_OPTION_TRUN10_SPATIAL8_FM6) {
+		fmt_bit_depth->flags.SPATIAL_DITHER_ENABLED = 1;
+		fmt_bit_depth->flags.SPATIAL_DITHER_DEPTH = 1;
+		fmt_bit_depth->flags.HIGHPASS_RANDOM = 1;
+		fmt_bit_depth->flags.RGB_RANDOM =
+				(pixel_encoding == PIXEL_ENCODING_RGB) ? 1 : 0;
+	} else if (option == DITHER_OPTION_SPATIAL10_FRAME_RANDOM ||
+			option == DITHER_OPTION_SPATIAL10 ||
+			option == DITHER_OPTION_SPATIAL10_FM8 ||
+			option == DITHER_OPTION_SPATIAL10_FM6) {
+		fmt_bit_depth->flags.SPATIAL_DITHER_ENABLED = 1;
+		fmt_bit_depth->flags.SPATIAL_DITHER_DEPTH = 2;
+		fmt_bit_depth->flags.HIGHPASS_RANDOM = 1;
+		fmt_bit_depth->flags.RGB_RANDOM =
+				(pixel_encoding == PIXEL_ENCODING_RGB) ? 1 : 0;
+	}
+
+	if (option == DITHER_OPTION_SPATIAL6 ||
+			option == DITHER_OPTION_SPATIAL8 ||
+			option == DITHER_OPTION_SPATIAL10) {
+		fmt_bit_depth->flags.FRAME_RANDOM = 0;
+	} else {
+		fmt_bit_depth->flags.FRAME_RANDOM = 1;
+	}
+
+	//////////////////////
+	//// temporal dither
+	//////////////////////
+	if (option == DITHER_OPTION_FM6           ||
+			option == DITHER_OPTION_SPATIAL8_FM6     ||
+			option == DITHER_OPTION_SPATIAL10_FM6     ||
+			option == DITHER_OPTION_TRUN10_FM6     ||
+			option == DITHER_OPTION_TRUN8_FM6      ||
+			option == DITHER_OPTION_TRUN10_SPATIAL8_FM6) {
+		fmt_bit_depth->flags.FRAME_MODULATION_ENABLED = 1;
+		fmt_bit_depth->flags.FRAME_MODULATION_DEPTH = 0;
+	} else if (option == DITHER_OPTION_FM8        ||
+			option == DITHER_OPTION_SPATIAL10_FM8  ||
+			option == DITHER_OPTION_TRUN10_FM8) {
+		fmt_bit_depth->flags.FRAME_MODULATION_ENABLED = 1;
+		fmt_bit_depth->flags.FRAME_MODULATION_DEPTH = 1;
+	} else if (option == DITHER_OPTION_FM10) {
+		fmt_bit_depth->flags.FRAME_MODULATION_ENABLED = 1;
+		fmt_bit_depth->flags.FRAME_MODULATION_DEPTH = 2;
+	}
+
+	fmt_bit_depth->pixel_encoding = pixel_encoding;
+}
