@@ -1140,6 +1140,7 @@ struct cifs_readdata {
 	struct completion		done;
 	struct cifsFileInfo		*cfile;
 	struct address_space		*mapping;
+	struct cifs_aio_ctx		*ctx;
 	__u64				offset;
 	unsigned int			bytes;
 	unsigned int			got_bytes;
