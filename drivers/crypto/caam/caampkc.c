@@ -357,6 +357,14 @@ static void caam_rsa_free_key(struct caam_rsa_key *key)
 	key->n_sz = 0;
 }
 
+static void caam_rsa_drop_leading_zeros(const u8 **ptr, size_t *nbytes)
+{
+	while (!**ptr && *nbytes) {
+		(*ptr)++;
+		(*nbytes)--;
+	}
+}
+
 /**
  * caam_read_raw_data - Read a raw byte stream as a positive integer.
  * The function skips buffer's leading zeros, copies the remained data
@@ -370,10 +378,7 @@ static inline u8 *caam_read_raw_data(const u8 *buf, size_t *nbytes)
 {
 	u8 *val;
 
-	while (!*buf && *nbytes) {
-		buf++;
-		(*nbytes)--;
-	}
+	caam_rsa_drop_leading_zeros(&buf, nbytes);
 	if (!*nbytes)
 		return NULL;
 
