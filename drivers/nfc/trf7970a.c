@@ -2273,7 +2273,7 @@ static const struct dev_pm_ops trf7970a_pm_ops = {
 
 static const struct of_device_id trf7970a_of_match[] = {
 	{ .compatible = "ti,trf7970a", },
-	{ /* sentinel */ },
+	{},
 };
 MODULE_DEVICE_TABLE(of, trf7970a_of_match);
 
