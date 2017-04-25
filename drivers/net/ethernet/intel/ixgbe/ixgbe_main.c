@@ -3803,6 +3803,9 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 				mrqc = IXGBE_MRQC_VMDQRSS32EN;
 			else
 				mrqc = IXGBE_MRQC_VMDQRSS64EN;
+
+			/* Enable L3/L4 for Tx Switched packets */
+			mrqc |= IXGBE_MRQC_L3L4TXSWEN;
 		} else {
 			if (tcs > 4)
 				mrqc = IXGBE_MRQC_RTRSS8TCEN;
