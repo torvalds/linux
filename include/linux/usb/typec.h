@@ -117,13 +117,13 @@ struct typec_altmode_desc {
 
 struct typec_altmode
 *typec_partner_register_altmode(struct typec_partner *partner,
-				struct typec_altmode_desc *desc);
+				const struct typec_altmode_desc *desc);
 struct typec_altmode
 *typec_plug_register_altmode(struct typec_plug *plug,
-			     struct typec_altmode_desc *desc);
+			     const struct typec_altmode_desc *desc);
 struct typec_altmode
 *typec_port_register_altmode(struct typec_port *port,
-			     struct typec_altmode_desc *desc);
+			     const struct typec_altmode_desc *desc);
 void typec_unregister_altmode(struct typec_altmode *altmode);
 
 struct typec_port *typec_altmode2port(struct typec_altmode *alt);

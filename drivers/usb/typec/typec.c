@@ -291,7 +291,7 @@ typec_altmode_roles_show(struct device *dev, struct device_attribute *attr,
 }
 
 static void typec_init_modes(struct typec_altmode *alt,
-			     struct typec_mode_desc *desc, bool is_port)
+			     const struct typec_mode_desc *desc, bool is_port)
 {
 	int i;
 
@@ -378,7 +378,8 @@ static const struct device_type typec_altmode_dev_type = {
 };
 
 static struct typec_altmode *
-typec_register_altmode(struct device *parent, struct typec_altmode_desc *desc)
+typec_register_altmode(struct device *parent,
+		       const struct typec_altmode_desc *desc)
 {
 	struct typec_altmode *alt;
 	int ret;
@@ -495,7 +496,7 @@ EXPORT_SYMBOL_GPL(typec_partner_set_identity);
  */
 struct typec_altmode *
 typec_partner_register_altmode(struct typec_partner *partner,
-			       struct typec_altmode_desc *desc)
+			       const struct typec_altmode_desc *desc)
 {
 	return typec_register_altmode(&partner->dev, desc);
 }
@@ -590,7 +591,7 @@ static const struct device_type typec_plug_dev_type = {
  */
 struct typec_altmode *
 typec_plug_register_altmode(struct typec_plug *plug,
-			    struct typec_altmode_desc *desc)
+			    const struct typec_altmode_desc *desc)
 {
 	return typec_register_altmode(&plug->dev, desc);
 }
@@ -1159,7 +1160,7 @@ EXPORT_SYMBOL_GPL(typec_set_pwr_opmode);
  */
 struct typec_altmode *
 typec_port_register_altmode(struct typec_port *port,
-			    struct typec_altmode_desc *desc)
+			    const struct typec_altmode_desc *desc)
 {
 	return typec_register_altmode(&port->dev, desc);
 }
