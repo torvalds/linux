@@ -295,6 +295,31 @@ static int sbs_write_word_data(struct i2c_client *client, u8 address,
 	return 0;
 }
 
+static int sbs_status_correct(struct i2c_client *client, int *intval)
+{
+	int ret;
+
+	ret = sbs_read_word_data(client, sbs_data[REG_CURRENT].addr);
+	if (ret < 0)
+		return ret;
+
+	ret = (s16)ret;
+
+	/* Not drawing current means full (cannot be not charging) */
+	if (ret == 0)
+		*intval = POWER_SUPPLY_STATUS_FULL;
+
+	if (*intval == POWER_SUPPLY_STATUS_FULL) {
+		/* Drawing or providing current when full */
+		if (ret > 0)
+			*intval = POWER_SUPPLY_STATUS_CHARGING;
+		else if (ret < 0)
+			*intval = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+
+	return 0;
+}
+
 static int sbs_get_battery_presence_and_health(
 	struct i2c_client *client, enum power_supply_property psp,
 	union power_supply_propval *val)
@@ -400,6 +425,8 @@ static int sbs_get_battery_property(struct i2c_client *client,
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+
+		sbs_status_correct(client, &val->intval);
 
 		if (chip->poll_time == 0)
 			chip->last_state = val->intval;
@@ -720,6 +747,8 @@ static void sbs_delayed_work(struct work_struct *work)
 		ret = POWER_SUPPLY_STATUS_DISCHARGING;
 	else
 		ret = POWER_SUPPLY_STATUS_CHARGING;
+
+	sbs_status_correct(chip->client, &ret);
 
 	if (chip->last_state != ret) {
 		chip->poll_time = 0;
