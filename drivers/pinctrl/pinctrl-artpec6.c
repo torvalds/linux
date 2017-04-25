@@ -966,7 +966,6 @@ static const struct of_device_id artpec6_pinctrl_match[] = {
 static struct platform_driver artpec6_pmx_driver = {
 	.driver = {
 		.name = "artpec6-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = artpec6_pinctrl_match,
 	},
 	.probe = artpec6_pmx_probe,
