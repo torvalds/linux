@@ -637,7 +637,7 @@ static int tas2552_suspend(struct snd_soc_codec *codec)
 	if (ret != 0)
 		dev_err(codec->dev, "Failed to disable supplies: %d\n",
 			ret);
-	return 0;
+	return ret;
 }
 
 static int tas2552_resume(struct snd_soc_codec *codec)
@@ -653,7 +653,7 @@ static int tas2552_resume(struct snd_soc_codec *codec)
 			ret);
 	}
 
-	return 0;
+	return ret;
 }
 #else
 #define tas2552_suspend NULL
