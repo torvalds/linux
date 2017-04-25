@@ -127,8 +127,7 @@ void tcp_rack_mark_lost(struct sock *sk)
  * draft-cheng-tcpm-rack-00.txt
  */
 void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
-		      const struct skb_mstamp *xmit_time,
-		      const struct skb_mstamp *ack_time)
+		      const struct skb_mstamp *xmit_time)
 {
 	u32 rtt_us;
 
@@ -137,7 +136,7 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 				 end_seq, tp->rack.end_seq))
 		return;
 
-	rtt_us = skb_mstamp_us_delta(ack_time, xmit_time);
+	rtt_us = skb_mstamp_us_delta(&tp->tcp_mstamp, xmit_time);
 	if (sacked & TCPCB_RETRANS) {
 		/* If the sacked packet was retransmitted, it's ambiguous
 		 * whether the retransmission or the original (or the prior
