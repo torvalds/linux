@@ -158,6 +158,7 @@ struct qed_tunn_params {
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
 	void (*force_mac) (void *dev, u8 *mac, bool forced);
+	void (*ports_update)(void *dev, u16 vxlan_port, u16 geneve_port);
 };
 
 #define QED_MAX_PHC_DRIFT_PPB   291666666

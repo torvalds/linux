@@ -231,6 +231,7 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 		.link_update = qede_link_update,
 	},
 	.force_mac = qede_force_mac,
+	.ports_update = qede_udp_ports_update,
 };
 
 static int qede_netdev_event(struct notifier_block *this, unsigned long event,
@@ -609,6 +610,7 @@ static void qede_init_ndev(struct qede_dev *edev)
 {
 	struct net_device *ndev = edev->ndev;
 	struct pci_dev *pdev = edev->pdev;
+	bool udp_tunnel_enable = false;
 	netdev_features_t hw_features;
 
 	pci_set_drvdata(pdev, ndev);
@@ -631,20 +633,33 @@ static void qede_init_ndev(struct qede_dev *edev)
 		      NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		      NETIF_F_TSO | NETIF_F_TSO6;
 
-	/* Encap features*/
-	hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
-		       NETIF_F_TSO_ECN | NETIF_F_GSO_UDP_TUNNEL_CSUM |
-		       NETIF_F_GSO_GRE_CSUM;
-
 	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1)
 		hw_features |= NETIF_F_NTUPLE;
 
-	ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO_ECN |
-				NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-				NETIF_F_GSO_UDP_TUNNEL | NETIF_F_RXCSUM |
-				NETIF_F_GSO_UDP_TUNNEL_CSUM |
-				NETIF_F_GSO_GRE_CSUM;
+	if (edev->dev_info.common.vxlan_enable ||
+	    edev->dev_info.common.geneve_enable)
+		udp_tunnel_enable = true;
+
+	if (udp_tunnel_enable || edev->dev_info.common.gre_enable) {
+		hw_features |= NETIF_F_TSO_ECN;
+		ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+					NETIF_F_SG | NETIF_F_TSO |
+					NETIF_F_TSO_ECN | NETIF_F_TSO6 |
+					NETIF_F_RXCSUM;
+	}
+
+	if (udp_tunnel_enable) {
+		hw_features |= (NETIF_F_GSO_UDP_TUNNEL |
+				NETIF_F_GSO_UDP_TUNNEL_CSUM);
+		ndev->hw_enc_features |= (NETIF_F_GSO_UDP_TUNNEL |
+					  NETIF_F_GSO_UDP_TUNNEL_CSUM);
+	}
+
+	if (edev->dev_info.common.gre_enable) {
+		hw_features |= (NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM);
+		ndev->hw_enc_features |= (NETIF_F_GSO_GRE |
+					  NETIF_F_GSO_GRE_CSUM);
+	}
 
 	ndev->vlan_features = hw_features | NETIF_F_RXHASH | NETIF_F_RXCSUM |
 			      NETIF_F_HIGHDMA;
@@ -782,31 +797,12 @@ static void qede_sp_task(struct work_struct *work)
 {
 	struct qede_dev *edev = container_of(work, struct qede_dev,
 					     sp_task.work);
-	struct qed_dev *cdev = edev->cdev;
 
 	__qede_lock(edev);
 
 	if (test_and_clear_bit(QEDE_SP_RX_MODE, &edev->sp_flags))
 		if (edev->state == QEDE_STATE_OPEN)
 			qede_config_rx_mode(edev->ndev);
-
-	if (test_and_clear_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags)) {
-		struct qed_tunn_params tunn_params;
-
-		memset(&tunn_params, 0, sizeof(tunn_params));
-		tunn_params.update_vxlan_port = 1;
-		tunn_params.vxlan_port = edev->vxlan_dst_port;
-		qed_ops->tunn_config(cdev, &tunn_params);
-	}
-
-	if (test_and_clear_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags)) {
-		struct qed_tunn_params tunn_params;
-
-		memset(&tunn_params, 0, sizeof(tunn_params));
-		tunn_params.update_geneve_port = 1;
-		tunn_params.geneve_port = edev->geneve_dst_port;
-		qed_ops->tunn_config(cdev, &tunn_params);
-	}
 
 #ifdef CONFIG_RFS_ACCEL
 	if (test_and_clear_bit(QEDE_SP_ARFS_CONFIG, &edev->sp_flags)) {

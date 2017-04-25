@@ -2285,31 +2285,46 @@ static int qed_stop_txq(struct qed_dev *cdev, u8 rss_id, void *handle)
 static int qed_tunn_configure(struct qed_dev *cdev,
 			      struct qed_tunn_params *tunn_params)
 {
-	struct qed_tunn_update_params tunn_info;
+	struct qed_tunnel_info tunn_info;
 	int i, rc;
 
-	if (IS_VF(cdev))
-		return 0;
-
 	memset(&tunn_info, 0, sizeof(tunn_info));
-	if (tunn_params->update_vxlan_port == 1) {
-		tunn_info.update_vxlan_udp_port = 1;
-		tunn_info.vxlan_udp_port = tunn_params->vxlan_port;
+	if (tunn_params->update_vxlan_port) {
+		tunn_info.vxlan_port.b_update_port = true;
+		tunn_info.vxlan_port.port = tunn_params->vxlan_port;
 	}
 
-	if (tunn_params->update_geneve_port == 1) {
-		tunn_info.update_geneve_udp_port = 1;
-		tunn_info.geneve_udp_port = tunn_params->geneve_port;
+	if (tunn_params->update_geneve_port) {
+		tunn_info.geneve_port.b_update_port = true;
+		tunn_info.geneve_port.port = tunn_params->geneve_port;
 	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_tunnel_info *tun;
+
+		tun = &hwfn->cdev->tunnel;
 
 		rc = qed_sp_pf_update_tunn_cfg(hwfn, &tunn_info,
 					       QED_SPQ_MODE_EBLOCK, NULL);
-
 		if (rc)
 			return rc;
+
+		if (IS_PF_SRIOV(hwfn)) {
+			u16 vxlan_port, geneve_port;
+			int j;
+
+			vxlan_port = tun->vxlan_port.port;
+			geneve_port = tun->geneve_port.port;
+
+			qed_for_each_vf(hwfn, j) {
+				qed_iov_bulletin_set_udp_ports(hwfn, j,
+							       vxlan_port,
+							       geneve_port);
+			}
+
+			qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
+		}
 	}
 
 	return 0;

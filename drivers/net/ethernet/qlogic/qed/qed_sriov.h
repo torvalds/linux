@@ -270,6 +270,9 @@ enum qed_iov_wq_flag {
  */
 u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id);
 
+void qed_iov_bulletin_set_udp_ports(struct qed_hwfn *p_hwfn,
+				    int vfid, u16 vxlan_port, u16 geneve_port);
+
 /**
  * @brief Read sriov related information and allocated resources
  *  reads from configuraiton space, shmem, etc.
@@ -376,6 +379,12 @@ static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
 					     u16 rel_vf_id)
 {
 	return MAX_NUM_VFS;
+}
+
+static inline void
+qed_iov_bulletin_set_udp_ports(struct qed_hwfn *p_hwfn, int vfid,
+			       u16 vxlan_port, u16 geneve_port)
+{
 }
 
 static inline int qed_iov_hw_info(struct qed_hwfn *p_hwfn)

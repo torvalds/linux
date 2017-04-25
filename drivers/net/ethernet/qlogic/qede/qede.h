@@ -442,8 +442,6 @@ struct qede_fastpath {
 #define QEDE_TUNN_CSUM_UNNECESSARY	BIT(2)
 
 #define QEDE_SP_RX_MODE			1
-#define QEDE_SP_VXLAN_PORT_CONFIG	2
-#define QEDE_SP_GENEVE_PORT_CONFIG	3
 
 #ifdef CONFIG_RFS_ACCEL
 int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
@@ -482,6 +480,7 @@ irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie);
 
 /* Filtering function definitions */
 void qede_force_mac(void *dev, u8 *mac, bool forced);
+void qede_udp_ports_update(void *dev, u16 vxlan_port, u16 geneve_port);
 int qede_set_mac_addr(struct net_device *ndev, void *p);
 
 int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid);

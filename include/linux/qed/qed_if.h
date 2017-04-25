@@ -338,6 +338,11 @@ struct qed_dev_info {
 	bool wol_support;
 
 	enum qed_dev_type dev_type;
+
+	/* Output parameters for qede */
+	bool		vxlan_enable;
+	bool		gre_enable;
+	bool		geneve_enable;
 };
 
 enum qed_sb_type {
