@@ -24,12 +24,13 @@ if CLK_RENESAS
 config CLK_RENESAS_LEGACY
 	bool "Legacy DT clock support"
 	depends on CLK_R8A7790 || CLK_R8A7791 || CLK_R8A7792 || CLK_R8A7794
-	default y
 	help
 	  Enable backward compatibility with old device trees describing a
 	  hierarchical representation of the various CPG and MSTP clocks.
 
 	  Say Y if you want your kernel to work with old DTBs.
+	  It is safe to say N if you use the DTS that is supplied with the
+	  current kernel source tree.
 
 # SoC
 config CLK_EMEV2
