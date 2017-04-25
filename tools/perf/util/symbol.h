@@ -348,7 +348,18 @@ void arch__sym_update(struct symbol *s, GElf_Sym *sym);
 #define SYMBOL_A 0
 #define SYMBOL_B 1
 
+int arch__compare_symbol_names(const char *namea, const char *nameb);
+int arch__compare_symbol_names_n(const char *namea, const char *nameb,
+				 unsigned int n);
 int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
+
+enum symbol_tag_include {
+	SYMBOL_TAG_INCLUDE__NONE = 0,
+	SYMBOL_TAG_INCLUDE__DEFAULT_ONLY
+};
+
+int symbol__match_symbol_name(const char *namea, const char *nameb,
+			      enum symbol_tag_include includes);
 
 /* structure containing an SDT note's info */
 struct sdt_note {

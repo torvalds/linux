@@ -52,6 +52,18 @@ int arch__compare_symbol_names(const char *namea, const char *nameb)
 
 	return strcmp(namea, nameb);
 }
+
+int arch__compare_symbol_names_n(const char *namea, const char *nameb,
+				 unsigned int n)
+{
+	/* Skip over initial dot */
+	if (*namea == '.')
+		namea++;
+	if (*nameb == '.')
+		nameb++;
+
+	return strncmp(namea, nameb, n);
+}
 #endif
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2
