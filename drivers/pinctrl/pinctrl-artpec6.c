@@ -937,9 +937,9 @@ static int artpec6_pmx_probe(struct platform_device *pdev)
 	pmx->num_pin_groups = ARRAY_SIZE(artpec6_pin_groups);
 	pmx->pctl	    = pinctrl_register(&artpec6_desc, &pdev->dev, pmx);
 
-	if (!pmx->pctl) {
+	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
-		return -EINVAL;
+		return PTR_ERR(pmx->pctl);
 	}
 
 	platform_set_drvdata(pdev, pmx);
