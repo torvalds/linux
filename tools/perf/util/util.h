@@ -56,17 +56,11 @@ int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 si
 ssize_t readn(int fd, void *buf, size_t n);
 ssize_t writen(int fd, void *buf, size_t n);
 
-struct perf_event_attr;
-
-void event_attr_init(struct perf_event_attr *attr);
-
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
 extern unsigned int page_size;
 extern int cacheline_size;
-extern int sysctl_perf_event_max_stack;
-extern int sysctl_perf_event_max_contexts_per_stack;
 
 struct parse_tag {
 	char tag;
@@ -74,8 +68,6 @@ struct parse_tag {
 };
 
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
-
-int perf_event_paranoid(void);
 
 void mem_bswap_64(void *src, int byte_size);
 void mem_bswap_32(void *src, int byte_size);

@@ -681,4 +681,12 @@ u64 kallsyms__get_function_start(const char *kallsyms_filename,
 void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max);
 void  cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,
 			       u16 type, int max);
+
+void event_attr_init(struct perf_event_attr *attr);
+
+int perf_event_paranoid(void);
+
+extern int sysctl_perf_event_max_stack;
+extern int sysctl_perf_event_max_contexts_per_stack;
+
 #endif /* __PERF_RECORD_H */
