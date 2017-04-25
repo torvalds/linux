@@ -1124,6 +1124,7 @@ struct cifs_aio_ctx {
 	struct kiocb		*iocb;
 	struct cifsFileInfo	*cfile;
 	struct bio_vec		*bv;
+	loff_t			pos;
 	unsigned int		npages;
 	ssize_t			rc;
 	unsigned int		len;
@@ -1171,6 +1172,7 @@ struct cifs_writedata {
 	enum writeback_sync_modes	sync_mode;
 	struct work_struct		work;
 	struct cifsFileInfo		*cfile;
+	struct cifs_aio_ctx		*ctx;
 	__u64				offset;
 	pid_t				pid;
 	unsigned int			bytes;
