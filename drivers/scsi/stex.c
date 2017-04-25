@@ -363,7 +363,7 @@ struct st_card_info {
 	u16 sts_count;
 };
 
-int S6flag;
+static int S6flag;
 static int stex_halt(struct notifier_block *nb, ulong event, void *buf);
 static struct notifier_block stex_notifier = {
 	stex_halt, NULL, 0
