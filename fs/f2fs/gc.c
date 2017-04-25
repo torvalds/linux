@@ -714,6 +714,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
 			.type = DATA,
 			.op = REQ_OP_WRITE,
 			.op_flags = REQ_SYNC,
+			.old_blkaddr = NULL_ADDR,
 			.page = page,
 			.encrypted_page = NULL,
 		};
