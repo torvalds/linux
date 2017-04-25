@@ -60,6 +60,14 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	lower_dentry = lower_path.dentry;
 	lower_cur_parent_dentry = dget_parent(lower_dentry);
 
+	if ((lower_dentry->d_flags & DCACHE_OP_REVALIDATE)) {
+		err = lower_dentry->d_op->d_revalidate(lower_dentry, flags);
+		if (err == 0) {
+			d_drop(dentry);
+			goto out;
+		}
+	}
+
 	spin_lock(&lower_dentry->d_lock);
 	if (d_unhashed(lower_dentry)) {
 		spin_unlock(&lower_dentry->d_lock);
