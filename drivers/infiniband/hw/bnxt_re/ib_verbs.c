@@ -692,9 +692,9 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 		kfree(rdev->qp1_sqp);
 	}
 
-	if (qp->rumem && !IS_ERR(qp->rumem))
+	if (!IS_ERR_OR_NULL(qp->rumem))
 		ib_umem_release(qp->rumem);
-	if (qp->sumem && !IS_ERR(qp->sumem))
+	if (!IS_ERR_OR_NULL(qp->sumem))
 		ib_umem_release(qp->sumem);
 
 	mutex_lock(&rdev->qp_lock);
@@ -2116,7 +2116,7 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 		dev_err(rdev_to_dev(rdev), "Failed to destroy HW CQ");
 		return rc;
 	}
-	if (cq->umem && !IS_ERR(cq->umem))
+	if (!IS_ERR_OR_NULL(cq->umem))
 		ib_umem_release(cq->umem);
 
 	if (cq) {
@@ -2829,7 +2829,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 	}
 	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
 
-	if (!IS_ERR(mr->ib_umem) && mr->ib_umem)
+	if (!IS_ERR_OR_NULL(mr->ib_umem))
 		ib_umem_release(mr->ib_umem);
 
 	kfree(mr);
