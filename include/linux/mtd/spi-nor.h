@@ -161,14 +161,18 @@ enum spi_nor_protocol {
 	SNOR_PROTO_1_1_1 = SNOR_PROTO_STR(1, 1, 1),
 	SNOR_PROTO_1_1_2 = SNOR_PROTO_STR(1, 1, 2),
 	SNOR_PROTO_1_1_4 = SNOR_PROTO_STR(1, 1, 4),
+	SNOR_PROTO_1_1_8 = SNOR_PROTO_STR(1, 1, 8),
 	SNOR_PROTO_1_2_2 = SNOR_PROTO_STR(1, 2, 2),
 	SNOR_PROTO_1_4_4 = SNOR_PROTO_STR(1, 4, 4),
+	SNOR_PROTO_1_8_8 = SNOR_PROTO_STR(1, 8, 8),
 	SNOR_PROTO_2_2_2 = SNOR_PROTO_STR(2, 2, 2),
 	SNOR_PROTO_4_4_4 = SNOR_PROTO_STR(4, 4, 4),
+	SNOR_PROTO_8_8_8 = SNOR_PROTO_STR(8, 8, 8),
 
 	SNOR_PROTO_1_1_1_DTR = SNOR_PROTO_DTR(1, 1, 1),
 	SNOR_PROTO_1_2_2_DTR = SNOR_PROTO_DTR(1, 2, 2),
 	SNOR_PROTO_1_4_4_DTR = SNOR_PROTO_DTR(1, 4, 4),
+	SNOR_PROTO_1_8_8_DTR = SNOR_PROTO_DTR(1, 8, 8),
 };
 
 static inline bool spi_nor_protocol_is_dtr(enum spi_nor_protocol proto)
@@ -308,10 +312,11 @@ struct spi_nor_hwcaps {
 /*
  *(Fast) Read capabilities.
  * MUST be ordered by priority: the higher bit position, the higher priority.
- * As a matter of performances, it is relevant to use Quad SPI protocols first,
- * then Dual SPI protocols before Fast Read and lastly (Slow) Read.
+ * As a matter of performances, it is relevant to use Octo SPI protocols first,
+ * then Quad SPI protocols before Dual SPI protocols, Fast Read and lastly
+ * (Slow) Read.
  */
-#define SNOR_HWCAPS_READ_MASK		GENMASK(10, 0)
+#define SNOR_HWCAPS_READ_MASK		GENMASK(14, 0)
 #define SNOR_HWCAPS_READ		BIT(0)
 #define SNOR_HWCAPS_READ_FAST		BIT(1)
 #define SNOR_HWCAPS_READ_1_1_1_DTR	BIT(2)
@@ -328,22 +333,33 @@ struct spi_nor_hwcaps {
 #define SNOR_HWCAPS_READ_4_4_4		BIT(9)
 #define SNOR_HWCAPS_READ_1_4_4_DTR	BIT(10)
 
+#define SNOR_HWCPAS_READ_OCTO		GENMASK(14, 11)
+#define SNOR_HWCAPS_READ_1_1_8		BIT(11)
+#define SNOR_HWCAPS_READ_1_8_8		BIT(12)
+#define SNOR_HWCAPS_READ_8_8_8		BIT(13)
+#define SNOR_HWCAPS_READ_1_8_8_DTR	BIT(14)
+
 /*
  * Page Program capabilities.
  * MUST be ordered by priority: the higher bit position, the higher priority.
- * Like (Fast) Read capabilities, Quad SPI protocols are preferred to the
+ * Like (Fast) Read capabilities, Octo/Quad SPI protocols are preferred to the
  * legacy SPI 1-1-1 protocol.
  * Note that Dual Page Programs are not supported because there is no existing
  * JEDEC/SFDP standard to define them. Also at this moment no SPI flash memory
  * implements such commands.
  */
-#define SNOR_HWCAPS_PP_MASK	GENMASK(19, 16)
+#define SNOR_HWCAPS_PP_MASK	GENMASK(22, 16)
 #define SNOR_HWCAPS_PP		BIT(16)
 
 #define SNOR_HWCAPS_PP_QUAD	GENMASK(19, 17)
 #define SNOR_HWCAPS_PP_1_1_4	BIT(17)
 #define SNOR_HWCAPS_PP_1_4_4	BIT(18)
 #define SNOR_HWCAPS_PP_4_4_4	BIT(19)
+
+#define SNOR_HWCAPS_PP_OCTO	GENMASK(22, 20)
+#define SNOR_HWCAPS_PP_1_1_8	BIT(20)
+#define SNOR_HWCAPS_PP_1_8_8	BIT(21)
+#define SNOR_HWCAPS_PP_8_8_8	BIT(22)
 
 /**
  * spi_nor_scan() - scan the SPI NOR
