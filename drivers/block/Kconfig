@@ -479,7 +479,7 @@ config VIRTIO_BLK_SCSI
 	  Enable support for SCSI passthrough (e.g. the SG_IO ioctl) on
 	  virtio-blk devices.  This is only supported for the legacy
 	  virtio protocol and not enabled by default by any hypervisor.
-	  Your probably want to virtio-scsi instead.
+	  You probably want to use virtio-scsi instead.
 
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
