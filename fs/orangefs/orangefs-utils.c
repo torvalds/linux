@@ -523,41 +523,6 @@ int orangefs_flush_inode(struct inode *inode)
 	return ret;
 }
 
-int orangefs_unmount_sb(struct super_block *sb)
-{
-	int ret = -EINVAL;
-	struct orangefs_kernel_op_s *new_op = NULL;
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_unmount_sb called on sb %p\n",
-		     sb);
-
-	new_op = op_alloc(ORANGEFS_VFS_OP_FS_UMOUNT);
-	if (!new_op)
-		return -ENOMEM;
-	new_op->upcall.req.fs_umount.id = ORANGEFS_SB(sb)->id;
-	new_op->upcall.req.fs_umount.fs_id = ORANGEFS_SB(sb)->fs_id;
-	strncpy(new_op->upcall.req.fs_umount.orangefs_config_server,
-		ORANGEFS_SB(sb)->devname,
-		ORANGEFS_MAX_SERVER_ADDR_LEN);
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Attempting ORANGEFS Unmount via host %s\n",
-		     new_op->upcall.req.fs_umount.orangefs_config_server);
-
-	ret = service_operation(new_op, "orangefs_fs_umount", 0);
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_unmount: got return value of %d\n", ret);
-	if (ret)
-		sb = ERR_PTR(ret);
-	else
-		ORANGEFS_SB(sb)->mount_pending = 1;
-
-	op_release(new_op);
-	return ret;
-}
-
 void orangefs_make_bad_inode(struct inode *inode)
 {
 	if (is_root_handle(inode)) {
