@@ -3056,8 +3056,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct skb_mstamp first_ackt, last_ackt;
-	struct skb_mstamp *now = &sack->ack_time;
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct skb_mstamp *now = &tp->tcp_mstamp;
 	u32 prior_sacked = tp->sacked_out;
 	u32 reord = tp->packets_out;
 	bool fully_acked = true;
