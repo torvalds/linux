@@ -21,7 +21,7 @@
 struct orangefs_dir {
 	__u64 token;
 	void *directory;
-	size_t i, len;
+	size_t len;
 	int error;
 };
 
@@ -132,35 +132,40 @@ static int orangefs_dir_fill(struct orangefs_inode_s *oi,
 {
 	struct orangefs_khandle *khandle;
 	__u32 *len, padlen;
+	loff_t i;
 	char *s;
-	while (od->i < od->len) {
-		if (od->len < od->i + sizeof *len)
+	i = ctx->pos - 2;
+	while (i < od->len) {
+		if (od->len < i + sizeof *len)
 			goto eio;
-		len = od->directory + od->i;
+		len = od->directory + i;
 		/*
 		 * len is the size of the string itself.  padlen is the
 		 * total size of the encoded string.
 		 */
 		padlen = (sizeof *len + *len + 1) +
 		    (4 - (sizeof *len + *len + 1)%8)%8;
-		if (od->len < od->i + padlen + sizeof *khandle)
+		if (od->len < i + padlen + sizeof *khandle)
 			goto eio;
-		s = od->directory + od->i + sizeof *len;
+		s = od->directory + i + sizeof *len;
 		if (s[*len] != 0)
 			goto eio;
-		khandle = od->directory + od->i + padlen;
+		khandle = od->directory + i + padlen;
 
 		if (!dir_emit(ctx, s, *len,
 		    orangefs_khandle_to_ino(khandle), DT_UNKNOWN))
 			return 0;
-		od->i += padlen + sizeof *khandle;
-		od->i = od->i + (8 - od->i%8)%8;
-		ctx->pos = 2 + od->i;
+		i += padlen + sizeof *khandle;
+		i = i + (8 - i%8)%8;
+		ctx->pos = i + 2;
 	}
-	BUG_ON(od->i > od->len);
+	BUG_ON(i > od->len);
 	return 0;
 eio:
-	gossip_err("orangefs_dir_fill: userspace returns corrupt data\n");
+	/*
+	 * Here either data from userspace is corrupt or the application
+	 * has sought to an invalid location.
+	 */
 	od->error = -EIO;
 	return -EIO;
 }
@@ -193,12 +198,29 @@ static int orangefs_dir_iterate(struct file *file,
 
 	r = 0;
 
-	if (od->i < od->len) {
+	/*
+	 * Must read more if the user has sought past what has been read
+	 * so far.  Stop a user who has sought past the end.
+	 */
+	while (od->token != ORANGEFS_READDIR_END && ctx->pos - 2 >
+	    od->len) {
+		r = orangefs_dir_more(oi, od, dentry);
+		if (r)
+			return r;
+	}
+	if (od->token == ORANGEFS_READDIR_END && ctx->pos - 2 >
+	    od->len) {
+		return -EIO;
+	}
+
+	/* Then try to fill if there's any left in the buffer. */
+	if (ctx->pos - 2 < od->len) {
 		r = orangefs_dir_fill(oi, od, dentry, ctx);
 		if (r)
 			return r;
 	}
 
+	/* Finally get some more and try to fill. */
 	if (od->token != ORANGEFS_READDIR_END) {
 		r = orangefs_dir_more(oi, od, dentry);
 		if (r)
@@ -227,7 +249,6 @@ static int orangefs_dir_open(struct inode *inode, struct file *file)
 		kfree(file->private_data);
 		return -ENOMEM;
 	}
-	od->i = 0;
 	od->len = 0;
 	od->error = 0;
 	return 0;
@@ -243,6 +264,7 @@ static int orangefs_dir_release(struct inode *inode, struct file *file)
 }
 
 const struct file_operations orangefs_dir_operations = {
+	.llseek = default_llseek,
 	.read = generic_read_dir,
 	.iterate = orangefs_dir_iterate,
 	.open = orangefs_dir_open,
