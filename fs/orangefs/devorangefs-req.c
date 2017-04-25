@@ -180,6 +180,10 @@ static ssize_t orangefs_devreq_read(struct file *file,
 		return -EINVAL;
 	}
 
+	/* Check for an empty list before locking. */
+	if (list_empty(&orangefs_request_list))
+		return -EAGAIN;
+
 restart:
 	/* Get next op (if any) from top of list. */
 	spin_lock(&orangefs_request_list_lock);
