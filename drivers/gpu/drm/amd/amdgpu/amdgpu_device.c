@@ -2065,7 +2065,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 
 	DRM_INFO("amdgpu: finishing device.\n");
 	adev->shutdown = true;
-	drm_crtc_force_disable_all(adev->ddev);
+	if (adev->mode_info.mode_config_initialized)
+		drm_crtc_force_disable_all(adev->ddev);
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 	amdgpu_ib_pool_fini(adev);
