@@ -564,15 +564,11 @@ enum {
 	F2FS_IPU_ASYNC,
 };
 
-static inline bool need_inplace_update(struct inode *inode,
+static inline bool need_inplace_update_policy(struct inode *inode,
 				struct f2fs_io_info *fio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	unsigned int policy = SM_I(sbi)->ipu_policy;
-
-	/* IPU can be done only for the user data */
-	if (S_ISDIR(inode->i_mode) || f2fs_is_atomic_file(inode))
-		return false;
 
 	if (test_opt(sbi, LFS))
 		return false;
