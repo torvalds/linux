@@ -266,7 +266,6 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
 		struct malidp_plane *mp = to_malidp_plane(plane);
-		u64 crtc_w, crtc_h;
 		u32 phase;
 
 		if (!(mp->layer->id & scaling))
@@ -276,10 +275,10 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 		 * Convert crtc_[w|h] to U32.32, then divide by U16.16 src_[w|h]
 		 * to get the U16.16 result.
 		 */
-		crtc_w = (u64)pstate->crtc_w << 32;
-		crtc_h = (u64)pstate->crtc_h << 32;
-		h_upscale_factor = (u32)(crtc_w / pstate->src_w);
-		v_upscale_factor = (u32)(crtc_h / pstate->src_h);
+		h_upscale_factor = div_u64((u64)pstate->crtc_w << 32,
+					   pstate->src_w);
+		v_upscale_factor = div_u64((u64)pstate->crtc_h << 32,
+					   pstate->src_h);
 
 		s->enhancer_enable = ((h_upscale_factor >> 16) >= 2 ||
 				      (v_upscale_factor >> 16) >= 2);
