@@ -69,9 +69,6 @@ struct parse_tag {
 
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
 
-void mem_bswap_64(void *src, int byte_size);
-void mem_bswap_32(void *src, int byte_size);
-
 bool find_process(const char *name);
 
 int fetch_kernel_version(unsigned int *puint,
