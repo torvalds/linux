@@ -169,7 +169,7 @@ static void amdgpu_flip_cleanup_unpin(struct amdgpu_flip_work *work,
 void amdgpu_crtc_cleanup_flip_ctx(struct amdgpu_flip_work *work,
 				  struct amdgpu_bo *new_abo)
 {
-	if (unlikely(amdgpu_bo_reserve(new_abo, false) != 0)) {
+	if (unlikely(amdgpu_bo_reserve(new_abo, true) != 0)) {
 		DRM_ERROR("failed to reserve new abo in error path\n");
 		amdgpu_flip_work_cleanup(work);
 		return;
