@@ -16,6 +16,7 @@
 	interrupt-parent = <&intc>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c0;
@@ -130,6 +131,7 @@
 				reg = <0x210000 0x2000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				#pinctrl-cells = <1>;
 				ranges = <0 0x210000 0x2000>;
 
 				am33xx_pinmux: pinmux@800 {
@@ -137,15 +139,17 @@
 					reg = <0x800 0x238>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x7f>;
 				};
 
 				scm_conf: scm_conf@0 {
-					compatible = "syscon";
+					compatible = "syscon", "simple-bus";
 					reg = <0x0 0x800>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0 0x800>;
 
 					scm_clocks: clocks {
 						#address-cells = <1>;
@@ -505,6 +509,8 @@
 			interrupts = <75
 				      76>;
 			ti,hwmods = "rtc";
+			clocks = <&clkdiv32k_ick>;
+			clock-names = "int-clk";
 		};
 
 		spi0: spi@48030000 {
@@ -777,7 +783,6 @@
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
-			no_bd_ram = <0>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
@@ -855,6 +860,8 @@
 			interrupts = <16>;
 			ti,hwmods = "adc_tsc";
 			status = "disabled";
+			dmas = <&edma 53 0>, <&edma 57 0>;
+			dma-names = "fifo0", "fifo1";
 
 			tsc {
 				compatible = "ti,am3359-tsc";

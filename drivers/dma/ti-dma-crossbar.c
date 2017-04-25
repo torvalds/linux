@@ -149,6 +149,7 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 	match = of_match_node(ti_am335x_master_match, dma_node);
 	if (!match) {
 		dev_err(&pdev->dev, "DMA master is not supported\n");
+		of_node_put(dma_node);
 		return -EINVAL;
 	}
 
@@ -339,6 +340,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	match = of_match_node(ti_dra7_master_match, dma_node);
 	if (!match) {
 		dev_err(&pdev->dev, "DMA master is not supported\n");
+		of_node_put(dma_node);
 		return -EINVAL;
 	}
 

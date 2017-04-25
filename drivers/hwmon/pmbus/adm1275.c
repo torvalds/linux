@@ -499,15 +499,27 @@ static int adm1275_probe(struct i2c_client *client,
 		pindex = 2;
 		tindex = 3;
 
-		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT;
+		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
+			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+
+		/* Enable VOUT if not enabled (it is disabled by default) */
+		if (!(config & ADM1278_VOUT_EN)) {
+			config |= ADM1278_VOUT_EN;
+			ret = i2c_smbus_write_byte_data(client,
+							ADM1275_PMON_CONFIG,
+							config);
+			if (ret < 0) {
+				dev_err(&client->dev,
+					"Failed to enable VOUT monitoring\n");
+				return -ENODEV;
+			}
+		}
+
 		if (config & ADM1278_TEMP1_EN)
 			info->func[0] |=
 				PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 		if (config & ADM1278_VIN_EN)
 			info->func[0] |= PMBUS_HAVE_VIN;
-		if (config & ADM1278_VOUT_EN)
-			info->func[0] |=
-				PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
 		break;
 	case adm1293:
 	case adm1294:

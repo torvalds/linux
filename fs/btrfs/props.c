@@ -279,7 +279,7 @@ static void inode_prop_iterator(void *ctx,
 	if (unlikely(ret))
 		btrfs_warn(root->fs_info,
 			   "error applying prop %s to ino %llu (root %llu): %d",
-			   handler->xattr_name, btrfs_ino(inode),
+			   handler->xattr_name, btrfs_ino(BTRFS_I(inode)),
 			   root->root_key.objectid, ret);
 	else
 		set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
@@ -288,7 +288,7 @@ static void inode_prop_iterator(void *ctx,
 int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 ino = btrfs_ino(inode);
+	u64 ino = btrfs_ino(BTRFS_I(inode));
 	int ret;
 
 	ret = iterate_object_props(root, path, ino, inode_prop_iterator, inode);
@@ -301,6 +301,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 			 struct inode *parent)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	int i;
 
@@ -320,14 +321,14 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		if (!value)
 			continue;
 
-		num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+		num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 		ret = btrfs_block_rsv_add(root, trans->block_rsv,
 					  num_bytes, BTRFS_RESERVE_NO_FLUSH);
 		if (ret)
 			goto out;
 		ret = __btrfs_set_prop(trans, inode, h->xattr_name,
 				       value, strlen(value), 0);
-		btrfs_block_rsv_release(root, trans->block_rsv, num_bytes);
+		btrfs_block_rsv_release(fs_info, trans->block_rsv, num_bytes);
 		if (ret)
 			goto out;
 	}

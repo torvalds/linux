@@ -2966,8 +2966,6 @@ int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data,
 			spin_unlock(&dlm->spinlock);
 			dlm_kick_recovery_thread(dlm);
 			break;
-		default:
-			BUG();
 	}
 
 	mlog(0, "%s: recovery done, reco master was %u, dead now %u, master now %u\n",

@@ -59,7 +59,7 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <asm/io.h>		/* for inb_p, outb_p, inb, outb, etc. */
-#include <asm/uaccess.h>	/* for get_user, etc. */
+#include <linux/uaccess.h>	/* for get_user, etc. */
 #include <linux/wait.h>		/* for wait_queue */
 #include <linux/init.h>		/* for __init, module_{init,exit} */
 #include <linux/poll.h>		/* for POLLIN, etc. */

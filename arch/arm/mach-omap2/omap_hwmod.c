@@ -160,7 +160,6 @@
 #include "prm44xx.h"
 #include "prm33xx.h"
 #include "prminst44xx.h"
-#include "mux.h"
 #include "pm.h"
 
 /* Name of the OMAP hwmod for the MPU */
@@ -216,9 +215,6 @@ static LIST_HEAD(omap_hwmod_list);
 
 /* mpu_oh: used to add/remove MPU initiator from sleepdep list */
 static struct omap_hwmod *mpu_oh;
-
-/* io_chain_lock: used to serialize reconfigurations of the I/O chain */
-static DEFINE_SPINLOCK(io_chain_lock);
 
 /*
  * linkspace: ptr to a buffer that struct omap_hwmod_link records are
@@ -594,51 +590,6 @@ static int _set_module_autoidle(struct omap_hwmod *oh, u8 autoidle,
 }
 
 /**
- * _set_idle_ioring_wakeup - enable/disable IO pad wakeup on hwmod idle for mux
- * @oh: struct omap_hwmod *
- * @set_wake: bool value indicating to set (true) or clear (false) wakeup enable
- *
- * Set or clear the I/O pad wakeup flag in the mux entries for the
- * hwmod @oh.  This function changes the @oh->mux->pads_dynamic array
- * in memory.  If the hwmod is currently idled, and the new idle
- * values don't match the previous ones, this function will also
- * update the SCM PADCTRL registers.  Otherwise, if the hwmod is not
- * currently idled, this function won't touch the hardware: the new
- * mux settings are written to the SCM PADCTRL registers when the
- * hwmod is idled.  No return value.
- */
-static void _set_idle_ioring_wakeup(struct omap_hwmod *oh, bool set_wake)
-{
-	struct omap_device_pad *pad;
-	bool change = false;
-	u16 prev_idle;
-	int j;
-
-	if (!oh->mux || !oh->mux->enabled)
-		return;
-
-	for (j = 0; j < oh->mux->nr_pads_dynamic; j++) {
-		pad = oh->mux->pads_dynamic[j];
-
-		if (!(pad->flags & OMAP_DEVICE_PAD_WAKEUP))
-			continue;
-
-		prev_idle = pad->idle;
-
-		if (set_wake)
-			pad->idle |= OMAP_WAKEUP_EN;
-		else
-			pad->idle &= ~OMAP_WAKEUP_EN;
-
-		if (prev_idle != pad->idle)
-			change = true;
-	}
-
-	if (change && oh->_state == _HWMOD_STATE_IDLE)
-		omap_hwmod_mux(oh->mux, _HWMOD_STATE_IDLE);
-}
-
-/**
  * _enable_wakeup: set OCP_SYSCONFIG.ENAWAKEUP bit in the hardware
  * @oh: struct omap_hwmod *
  *
@@ -790,14 +741,14 @@ static int _init_main_clk(struct omap_hwmod *oh)
 	int ret = 0;
 	char name[MOD_CLK_MAX_NAME_LEN];
 	struct clk *clk;
+	static const char modck[] = "_mod_ck";
 
-	/* +7 magic comes from '_mod_ck' suffix */
-	if (strlen(oh->name) + 7 > MOD_CLK_MAX_NAME_LEN)
+	if (strlen(oh->name) >= MOD_CLK_MAX_NAME_LEN - strlen(modck))
 		pr_warn("%s: warning: cropping name for %s\n", __func__,
 			oh->name);
 
-	strncpy(name, oh->name, MOD_CLK_MAX_NAME_LEN - 7);
-	strcat(name, "_mod_ck");
+	strlcpy(name, oh->name, MOD_CLK_MAX_NAME_LEN - strlen(modck));
+	strlcat(name, modck, MOD_CLK_MAX_NAME_LEN);
 
 	clk = clk_get(NULL, name);
 	if (!IS_ERR(clk)) {
@@ -2018,29 +1969,6 @@ static int _reset(struct omap_hwmod *oh)
 }
 
 /**
- * _reconfigure_io_chain - clear any I/O chain wakeups and reconfigure chain
- *
- * Call the appropriate PRM function to clear any logged I/O chain
- * wakeups and to reconfigure the chain.  This apparently needs to be
- * done upon every mux change.  Since hwmods can be concurrently
- * enabled and idled, hold a spinlock around the I/O chain
- * reconfiguration sequence.  No return value.
- *
- * XXX When the PRM code is moved to drivers, this function can be removed,
- * as the PRM infrastructure should abstract this.
- */
-static void _reconfigure_io_chain(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&io_chain_lock, flags);
-
-	omap_prm_reconfigure_io_chain();
-
-	spin_unlock_irqrestore(&io_chain_lock, flags);
-}
-
-/**
  * _omap4_update_context_lost - increment hwmod context loss counter if
  * hwmod context was lost, and clear hardware context loss reg
  * @oh: hwmod to check for context loss
@@ -2109,18 +2037,9 @@ static int _enable(struct omap_hwmod *oh)
 
 	/*
 	 * hwmods with HWMOD_INIT_NO_IDLE flag set are left in enabled
-	 * state at init.  Now that someone is really trying to enable
-	 * them, just ensure that the hwmod mux is set.
+	 * state at init.
 	 */
 	if (oh->_int_flags & _HWMOD_SKIP_ENABLE) {
-		/*
-		 * If the caller has mux data populated, do the mux'ing
-		 * which wouldn't have been done as part of the _enable()
-		 * done during setup.
-		 */
-		if (oh->mux)
-			omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
-
 		oh->_int_flags &= ~_HWMOD_SKIP_ENABLE;
 		return 0;
 	}
@@ -2144,16 +2063,6 @@ static int _enable(struct omap_hwmod *oh)
 	 */
 	if (_are_all_hardreset_lines_asserted(oh))
 		return 0;
-
-	/* Mux pins for device runtime if populated */
-	if (oh->mux && (!oh->mux->enabled ||
-			((oh->_state == _HWMOD_STATE_IDLE) &&
-			 oh->mux->pads_dynamic))) {
-		omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
-		_reconfigure_io_chain();
-	} else if (oh->flags & HWMOD_RECONFIG_IO_CHAIN) {
-		_reconfigure_io_chain();
-	}
 
 	_add_initiator_dep(oh, mpu_oh);
 
@@ -2260,14 +2169,6 @@ static int _idle(struct omap_hwmod *oh)
 		clkdm_hwmod_disable(oh->clkdm, oh);
 	}
 
-	/* Mux pins for device idle if populated */
-	if (oh->mux && oh->mux->pads_dynamic) {
-		omap_hwmod_mux(oh->mux, _HWMOD_STATE_IDLE);
-		_reconfigure_io_chain();
-	} else if (oh->flags & HWMOD_RECONFIG_IO_CHAIN) {
-		_reconfigure_io_chain();
-	}
-
 	oh->_state = _HWMOD_STATE_IDLE;
 
 	return 0;
@@ -2333,10 +2234,6 @@ static int _shutdown(struct omap_hwmod *oh)
 
 	for (i = 0; i < oh->rst_lines_cnt; i++)
 		_assert_hardreset(oh, oh->rst_lines[i].name);
-
-	/* Mux pins to safe mode or use populated off mode values */
-	if (oh->mux)
-		omap_hwmod_mux(oh->mux, _HWMOD_STATE_DISABLED);
 
 	oh->_state = _HWMOD_STATE_DISABLED;
 
@@ -3352,6 +3249,36 @@ int __init omap_hwmod_setup_one(const char *oh_name)
 }
 
 /**
+ * omap_hwmod_setup_earlycon_flags - set up flags for early console
+ *
+ * Enable DEBUG_OMAPUART_FLAGS for uart hwmod that is being used as
+ * early concole so that hwmod core doesn't reset and keep it in idle
+ * that specific uart.
+ */
+#ifdef CONFIG_SERIAL_EARLYCON
+static void __init omap_hwmod_setup_earlycon_flags(void)
+{
+	struct device_node *np;
+	struct omap_hwmod *oh;
+	const char *uart;
+
+	np = of_find_node_by_path("/chosen");
+	if (np) {
+		uart = of_get_property(np, "stdout-path", NULL);
+		if (uart) {
+			np = of_find_node_by_path(uart);
+			if (np) {
+				uart = of_get_property(np, "ti,hwmods", NULL);
+				oh = omap_hwmod_lookup(uart);
+				if (oh)
+					oh->flags |= DEBUG_OMAPUART_FLAGS;
+			}
+		}
+	}
+}
+#endif
+
+/**
  * omap_hwmod_setup_all - set up all registered IP blocks
  *
  * Initialize and set up all IP blocks registered with the hwmod code.
@@ -3364,6 +3291,9 @@ static int __init omap_hwmod_setup_all(void)
 	_ensure_mpu_hwmod_is_setup(NULL);
 
 	omap_hwmod_for_each(_init, NULL);
+#ifdef CONFIG_SERIAL_EARLYCON
+	omap_hwmod_setup_earlycon_flags();
+#endif
 	omap_hwmod_for_each(_setup, NULL);
 
 	return 0;
@@ -3729,7 +3659,6 @@ int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
 		_write_sysconfig(v, oh);
 	}
 
-	_set_idle_ioring_wakeup(oh, true);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
@@ -3762,7 +3691,6 @@ int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 		_write_sysconfig(v, oh);
 	}
 
-	_set_idle_ioring_wakeup(oh, false);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;

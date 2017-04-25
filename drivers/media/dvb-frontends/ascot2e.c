@@ -254,14 +254,13 @@ static int ascot2e_init(struct dvb_frontend *fe)
 	return ascot2e_leave_power_save(priv);
 }
 
-static int ascot2e_release(struct dvb_frontend *fe)
+static void ascot2e_release(struct dvb_frontend *fe)
 {
 	struct ascot2e_priv *priv = fe->tuner_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int ascot2e_sleep(struct dvb_frontend *fe)

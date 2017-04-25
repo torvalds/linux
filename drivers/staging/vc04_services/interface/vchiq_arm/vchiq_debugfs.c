@@ -120,7 +120,7 @@ static int debugfs_log_open(struct inode *inode, struct file *file)
 	return single_open(file, debugfs_log_show, inode->i_private);
 }
 
-static int debugfs_log_write(struct file *file,
+static ssize_t debugfs_log_write(struct file *file,
 	const char __user *buffer,
 	size_t count, loff_t *ppos)
 {
@@ -229,7 +229,7 @@ static int debugfs_trace_open(struct inode *inode, struct file *file)
 	return single_open(file, debugfs_trace_show, inode->i_private);
 }
 
-static int debugfs_trace_write(struct file *file,
+static ssize_t debugfs_trace_write(struct file *file,
 	const char __user *buffer,
 	size_t count, loff_t *ppos)
 {

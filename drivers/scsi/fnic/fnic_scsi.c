@@ -441,30 +441,38 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	unsigned long ptr;
 	spinlock_t *io_lock = NULL;
 	int io_lock_acquired = 0;
+	struct fc_rport_libfc_priv *rp;
 
 	if (unlikely(fnic_chk_state_flags_locked(fnic, FNIC_FLAGS_IO_BLOCKED)))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
 	rport = starget_to_rport(scsi_target(sc->device));
+	if (!rport) {
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+				"returning DID_NO_CONNECT for IO as rport is NULL\n");
+		sc->result = DID_NO_CONNECT << 16;
+		done(sc);
+		return 0;
+	}
+
 	ret = fc_remote_port_chkready(rport);
 	if (ret) {
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+				"rport is not ready\n");
 		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
 		sc->result = ret;
 		done(sc);
 		return 0;
 	}
 
-	if (rport) {
-		struct fc_rport_libfc_priv *rp = rport->dd_data;
-
-		if (!rp || rp->rp_state != RPORT_ST_READY) {
-			FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+	rp = rport->dd_data;
+	if (!rp || rp->rp_state != RPORT_ST_READY) {
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
 				"returning DID_NO_CONNECT for IO as rport is removed\n");
-			atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
-			sc->result = DID_NO_CONNECT<<16;
-			done(sc);
-			return 0;
-		}
+		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+		sc->result = DID_NO_CONNECT<<16;
+		done(sc);
+		return 0;
 	}
 
 	if (lp->state != LPORT_ST_READY || !(lp->link_up))
@@ -2543,7 +2551,7 @@ int fnic_reset(struct Scsi_Host *shost)
 	 * Reset local port, this will clean up libFC exchanges,
 	 * reset remote port sessions, and if link is up, begin flogi
 	 */
-	ret = lp->tt.lport_reset(lp);
+	ret = fc_lport_reset(lp);
 
 	FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
 		      "Returning from fnic reset %s\n",
@@ -2573,6 +2581,19 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 	unsigned long wait_host_tmo;
 	struct Scsi_Host *shost = sc->device->host;
 	struct fc_lport *lp = shost_priv(shost);
+	struct fnic *fnic = lport_priv(lp);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	if (fnic->internal_reset_inprogress == 0) {
+		fnic->internal_reset_inprogress = 1;
+	} else {
+		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+			"host reset in progress skipping another host reset\n");
+		return SUCCESS;
+	}
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	/*
 	 * If fnic_reset is successful, wait for fabric login to complete
@@ -2593,6 +2614,9 @@ int fnic_host_reset(struct scsi_cmnd *sc)
 		}
 	}
 
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	fnic->internal_reset_inprogress = 0;
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 	return ret;
 }
 

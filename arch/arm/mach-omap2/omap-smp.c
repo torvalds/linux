@@ -316,9 +316,9 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	 * A barrier is added to ensure that write buffer is drained
 	 */
 	if (omap_secure_apis_support())
-		omap_auxcoreboot_addr(virt_to_phys(cfg.startup_addr));
+		omap_auxcoreboot_addr(__pa_symbol(cfg.startup_addr));
 	else
-		writel_relaxed(virt_to_phys(cfg.startup_addr),
+		writel_relaxed(__pa_symbol(cfg.startup_addr),
 			       base + OMAP_AUX_CORE_BOOT_1);
 }
 

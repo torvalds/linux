@@ -106,6 +106,7 @@ enum cgs_ucode_id {
 	CGS_UCODE_ID_CP_MEC_JT2,
 	CGS_UCODE_ID_GMCON_RENG,
 	CGS_UCODE_ID_RLC_G,
+	CGS_UCODE_ID_STORAGE,
 	CGS_UCODE_ID_MAXIMUM,
 };
 
@@ -170,6 +171,7 @@ struct cgs_firmware_info {
 	uint32_t		ucode_start_address;
 
 	void			*kptr;
+	bool			is_kicker;
 };
 
 struct cgs_mode_info {
@@ -619,6 +621,10 @@ typedef int (*cgs_call_acpi_method)(struct cgs_device *cgs_device,
 typedef int (*cgs_query_system_info)(struct cgs_device *cgs_device,
 				struct cgs_system_info *sys_info);
 
+typedef int (*cgs_is_virtualization_enabled_t)(void *cgs_device);
+
+typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
+
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_gpu_mem_info_t gpu_mem_info;
@@ -670,6 +676,8 @@ struct cgs_ops {
 	cgs_call_acpi_method call_acpi_method;
 	/* get system info */
 	cgs_query_system_info query_system_info;
+	cgs_is_virtualization_enabled_t is_virtualization_enabled;
+	cgs_enter_safe_mode enter_safe_mode;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -772,5 +780,11 @@ struct cgs_device
 	resource_base) \
 	CGS_CALL(get_pci_resource, cgs_device, resource_type, size, offset, \
 	resource_base)
+
+#define cgs_is_virtualization_enabled(cgs_device) \
+		CGS_CALL(is_virtualization_enabled, cgs_device)
+
+#define cgs_enter_safe_mode(cgs_device, en) \
+		CGS_CALL(enter_safe_mode, cgs_device, en)
 
 #endif /* _CGS_COMMON_H */

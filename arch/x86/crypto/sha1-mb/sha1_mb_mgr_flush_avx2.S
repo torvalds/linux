@@ -281,11 +281,13 @@ ENTRY(sha1_mb_mgr_get_comp_job_avx2)
 	ret
 ENDPROC(sha1_mb_mgr_get_comp_job_avx2)
 
-.data
-
+.section	.rodata.cst16.clear_low_nibble, "aM", @progbits, 16
 .align 16
 clear_low_nibble:
 .octa	0x000000000000000000000000FFFFFFF0
+
+.section	.rodata.cst8, "aM", @progbits, 8
+.align 8
 one:
 .quad  1
 two:

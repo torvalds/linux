@@ -32,7 +32,7 @@
 #include <linux/slab.h>
 #include <linux/phy.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -59,8 +59,8 @@
 #define B44_TX_TIMEOUT			(5 * HZ)
 
 /* hardware minimum and maximum for a single frame's data payload */
-#define B44_MIN_MTU			60
-#define B44_MAX_MTU			1500
+#define B44_MIN_MTU			ETH_ZLEN
+#define B44_MAX_MTU			ETH_DATA_LEN
 
 #define B44_RX_RING_SIZE		512
 #define B44_DEF_RX_RING_PENDING		200
@@ -902,7 +902,7 @@ static int b44_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		b44_enable_ints(bp);
 	}
 
@@ -1063,9 +1063,6 @@ err_out:
 static int b44_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct b44 *bp = netdev_priv(dev);
-
-	if (new_mtu < B44_MIN_MTU || new_mtu > B44_MAX_MTU)
-		return -EINVAL;
 
 	if (!netif_running(dev)) {
 		/* We'll just catch it later when the
@@ -1677,8 +1674,8 @@ static int b44_close(struct net_device *dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
-					struct rtnl_link_stats64 *nstat)
+static void b44_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *nstat)
 {
 	struct b44 *bp = netdev_priv(dev);
 	struct b44_hw_stats *hwstat = &bp->hw_stats;
@@ -1721,7 +1718,6 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 #endif
 	} while (u64_stats_fetch_retry_irq(&hwstat->syncp, start));
 
-	return nstat;
 }
 
 static int __b44_load_mcast(struct b44 *bp, struct net_device *dev)
@@ -2377,6 +2373,8 @@ static int b44_init_one(struct ssb_device *sdev,
 	dev->netdev_ops = &b44_netdev_ops;
 	netif_napi_add(dev, &bp->napi, b44_poll, 64);
 	dev->watchdog_timeo = B44_TX_TIMEOUT;
+	dev->min_mtu = B44_MIN_MTU;
+	dev->max_mtu = B44_MAX_MTU;
 	dev->irq = sdev->irq;
 	dev->ethtool_ops = &b44_ethtool_ops;
 

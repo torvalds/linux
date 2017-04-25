@@ -85,7 +85,6 @@ static int twl4030_pwrbutton_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	platform_set_drvdata(pdev, pwr);
 	device_init_wakeup(&pdev->dev, true);
 
 	return 0;

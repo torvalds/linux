@@ -38,8 +38,8 @@ struct backend_info {
 static struct kmem_cache *xen_blkif_cachep;
 static void connect(struct backend_info *);
 static int connect_ring(struct backend_info *);
-static void backend_changed(struct xenbus_watch *, const char **,
-			    unsigned int);
+static void backend_changed(struct xenbus_watch *, const char *,
+			    const char *);
 static void xen_blkif_free(struct xen_blkif *blkif);
 static void xen_vbd_free(struct xen_vbd *vbd);
 
@@ -533,13 +533,11 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 	struct xenbus_device *dev = be->dev;
 	struct xen_blkif *blkif = be->blkif;
 	int err;
-	int state = 0, discard_enable;
+	int state = 0;
 	struct block_device *bdev = be->blkif->vbd.bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
 
-	err = xenbus_scanf(XBT_NIL, dev->nodename, "discard-enable", "%d",
-			   &discard_enable);
-	if (err == 1 && !discard_enable)
+	if (!xenbus_read_unsigned(dev->nodename, "discard-enable", 1))
 		return;
 
 	if (blk_queue_discard(q)) {
@@ -663,7 +661,7 @@ fail:
  * ready, connect.
  */
 static void backend_changed(struct xenbus_watch *watch,
-			    const char **vec, unsigned int len)
+			    const char *path, const char *token)
 {
 	int err;
 	unsigned major;
@@ -1039,30 +1037,24 @@ static int connect_ring(struct backend_info *be)
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
 		return -ENOSYS;
 	}
-	err = xenbus_scanf(XBT_NIL, dev->otherend,
-			   "feature-persistent", "%u", &pers_grants);
-	if (err <= 0)
-		pers_grants = 0;
-
+	pers_grants = xenbus_read_unsigned(dev->otherend, "feature-persistent",
+					   0);
 	be->blkif->vbd.feature_gnt_persistent = pers_grants;
 	be->blkif->vbd.overflow_max_grants = 0;
 
 	/*
 	 * Read the number of hardware queues from frontend.
 	 */
-	err = xenbus_scanf(XBT_NIL, dev->otherend, "multi-queue-num-queues",
-			   "%u", &requested_num_queues);
-	if (err < 0) {
-		requested_num_queues = 1;
-	} else {
-		if (requested_num_queues > xenblk_max_queues
-		    || requested_num_queues == 0) {
-			/* Buggy or malicious guest. */
-			xenbus_dev_fatal(dev, err,
-					"guest requested %u queues, exceeding the maximum of %u.",
-					requested_num_queues, xenblk_max_queues);
-			return -ENOSYS;
-		}
+	requested_num_queues = xenbus_read_unsigned(dev->otherend,
+						    "multi-queue-num-queues",
+						    1);
+	if (requested_num_queues > xenblk_max_queues
+	    || requested_num_queues == 0) {
+		/* Buggy or malicious guest. */
+		xenbus_dev_fatal(dev, err,
+				"guest requested %u queues, exceeding the maximum of %u.",
+				requested_num_queues, xenblk_max_queues);
+		return -ENOSYS;
 	}
 	be->blkif->nr_rings = requested_num_queues;
 	if (xen_blkif_alloc_rings(be->blkif))

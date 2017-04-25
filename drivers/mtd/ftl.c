@@ -70,7 +70,7 @@
 #include <linux/hdreg.h>
 #include <linux/vmalloc.h>
 #include <linux/blkpg.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/mtd/ftl.h>
 

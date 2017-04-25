@@ -365,13 +365,6 @@ static struct drm_info_list hda_debugfs_files[] = {
 	{ "hda", hda_dbg_show, 0, NULL },
 };
 
-static void hda_debugfs_exit(struct sti_hda *hda, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(hda_debugfs_files,
-				 ARRAY_SIZE(hda_debugfs_files),
-				 minor);
-}
-
 static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
 {
 	unsigned int i;
@@ -642,12 +635,6 @@ struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
 	.mode_valid = sti_hda_connector_mode_valid,
 };
 
-static enum drm_connector_status
-sti_hda_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static int sti_hda_late_register(struct drm_connector *connector)
 {
 	struct sti_hda_connector *hda_connector
@@ -665,7 +652,6 @@ static int sti_hda_late_register(struct drm_connector *connector)
 static const struct drm_connector_funcs sti_hda_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = sti_hda_connector_detect,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -714,9 +700,8 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 
 	bridge->driver_private = hda;
 	bridge->funcs = &sti_hda_bridge_funcs;
-	drm_bridge_attach(drm_dev, bridge);
+	drm_bridge_attach(encoder, bridge, NULL);
 
-	encoder->bridge = bridge;
 	connector->encoder = encoder;
 
 	drm_connector = (struct drm_connector *)connector;
@@ -747,10 +732,6 @@ err_sysfs:
 static void sti_hda_unbind(struct device *dev,
 		struct device *master, void *data)
 {
-	struct sti_hda *hda = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	hda_debugfs_exit(hda, drm_dev->primary);
 }
 
 static const struct component_ops sti_hda_ops = {

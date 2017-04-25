@@ -97,3 +97,25 @@ $ echo 0 > /sys/bus/intel_th/devices/0-msc0/active
 # and now you can collect the trace from the device node:
 
 $ cat /dev/intel_th0/msc0 > my_stp_trace
+
+Host Debugger Mode
+==================
+
+It is possible to configure the Trace Hub and control its trace
+capture from a remote debug host, which should be connected via one of
+the hardware debugging interfaces, which will then be used to both
+control Intel Trace Hub and transfer its trace data to the debug host.
+
+The driver needs to be told that such an arrangement is taking place
+so that it does not touch any capture/port configuration and avoids
+conflicting with the debug host's configuration accesses. The only
+activity that the driver will perform in this mode is collecting
+software traces to the Software Trace Hub (an stm class device). The
+user is still responsible for setting up adequate master/channel
+mappings that the decoder on the receiving end would recognize.
+
+In order to enable the host mode, set the 'host_mode' parameter of the
+'intel_th' kernel module to 'y'. None of the virtual output devices
+will show up on the intel_th bus. Also, trace configuration and
+capture controlling attribute groups of the 'gth' device will not be
+exposed. The 'sth' device will operate as usual.

@@ -158,6 +158,7 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 	mutex_init(&ctxt->loc_mutex);
 	ctxt->loc_exp = class_export_get(disk_obd->obd_self_export);
 	ctxt->loc_flags = LLOG_CTXT_FLAG_UNINITIALIZED;
+	ctxt->loc_chunk_size = LLOG_MIN_CHUNK_SIZE;
 
 	rc = llog_group_set_ctxt(olg, ctxt, index);
 	if (rc) {

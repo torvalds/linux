@@ -458,13 +458,13 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	struct btrfs_root *tmp_root;
 	int ret = 0;
 
-	fs_info = btrfs_alloc_dummy_fs_info();
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
 		test_msg("Couldn't allocate dummy fs info\n");
 		return -ENOMEM;
 	}
 
-	root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
 		test_msg("Couldn't allocate root\n");
 		ret = PTR_ERR(root);
@@ -486,8 +486,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	 * Can't use bytenr 0, some things freak out
 	 * *cough*backref walking code*cough*
 	 */
-	root->node = alloc_test_extent_buffer(root->fs_info, nodesize,
-					nodesize);
+	root->node = alloc_test_extent_buffer(root->fs_info, nodesize);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		ret = -ENOMEM;
@@ -497,7 +496,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	btrfs_set_header_nritems(root->node, 0);
 	root->alloc_bytenr += 2 * nodesize;
 
-	tmp_root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
 		test_msg("Couldn't allocate a fs root\n");
 		ret = PTR_ERR(tmp_root);
@@ -512,7 +511,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	tmp_root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
 		test_msg("Couldn't allocate a fs root\n");
 		ret = PTR_ERR(tmp_root);

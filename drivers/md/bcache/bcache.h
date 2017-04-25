@@ -425,7 +425,7 @@ struct cache {
 	 * until a gc finishes - otherwise we could pointlessly burn a ton of
 	 * cpu
 	 */
-	unsigned		invalidate_needs_gc:1;
+	unsigned		invalidate_needs_gc;
 
 	bool			discard; /* Get rid of? */
 
@@ -593,8 +593,8 @@ struct cache_set {
 
 	/* Counts how many sectors bio_insert has added to the cache */
 	atomic_t		sectors_to_gc;
+	wait_queue_head_t	gc_wait;
 
-	wait_queue_head_t	moving_gc_wait;
 	struct keybuf		moving_gc_keys;
 	/* Number of moving GC bios in flight */
 	struct semaphore	moving_in_flight;

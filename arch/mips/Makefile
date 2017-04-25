@@ -131,6 +131,21 @@ cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.
 
 cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 				   -fno-omit-frame-pointer
+
+# Some distribution-specific toolchains might pass the -fstack-check
+# option during the build, which adds a simple stack-probe at the beginning
+# of every function.  This stack probe is to ensure that there is enough
+# stack space, else a SEGV is generated.  This is not desirable for MIPS
+# as kernel stacks are small, placed in unmapped virtual memory, and do not
+# grow when overflowed.  Especially on SGI IP27 platforms, this check will
+# lead to a NULL pointer dereference in _raw_spin_lock_irq.
+#
+# In disassembly, this stack probe appears at the top of a function as:
+#    sd		zero,<offset>(sp)
+# Where <offset> is a negative value.
+#
+cflags-y += -fno-stack-check
+
 #
 # CPU-dependent compiler/assembler options for optimization.
 #
@@ -320,16 +335,15 @@ bootz-y			:= vmlinuz
 bootz-y			+= vmlinuz.bin
 bootz-y			+= vmlinuz.ecoff
 bootz-y			+= vmlinuz.srec
+ifeq ($(shell expr $(zload-y) \< 0xffffffff80000000 2> /dev/null), 0)
+bootz-y			+= uzImage.bin
+endif
 
 ifdef CONFIG_LASAT
 rom.bin rom.sw: vmlinux
 	$(Q)$(MAKE) $(build)=arch/mips/lasat/image \
 		$(bootvars-y) $@
 endif
-
-CMD_RELOCS = arch/mips/boot/tools/relocs
-quiet_cmd_relocs = RELOCS  $<
-      cmd_relocs = $(CMD_RELOCS) $<
 
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
@@ -339,11 +353,6 @@ quiet_cmd_relocs = RELOCS  $<
 quiet_cmd_32 = OBJCOPY $@
 	cmd_32 = $(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
 vmlinux.32: vmlinux
-ifeq ($(CONFIG_RELOCATABLE)$(CONFIG_64BIT),yy)
-# Currently, objcopy fails to handle the relocations in the elf64
-# So the relocs tool must be run here to remove them first
-	$(call cmd,relocs)
-endif
 	$(call cmd,32)
 
 #
@@ -359,9 +368,6 @@ all:	$(all-y)
 
 # boot
 $(boot-y): $(vmlinux-32) FORCE
-ifeq ($(CONFIG_RELOCATABLE)$(CONFIG_32BIT),yy)
-	$(call cmd,relocs)
-endif
 	$(Q)$(MAKE) $(build)=arch/mips/boot VMLINUX=$(vmlinux-32) \
 		$(bootvars-y) arch/mips/boot/$@
 
@@ -395,11 +401,11 @@ dtbs_install:
 
 archprepare:
 ifdef CONFIG_MIPS32_N32
-	@echo '  Checking missing-syscalls for N32'
+	@$(kecho) '  Checking missing-syscalls for N32'
 	$(Q)$(MAKE) $(build)=. missing-syscalls missing_syscalls_flags="-mabi=n32"
 endif
 ifdef CONFIG_MIPS32_O32
-	@echo '  Checking missing-syscalls for O32'
+	@$(kecho) '  Checking missing-syscalls for O32'
 	$(Q)$(MAKE) $(build)=. missing-syscalls missing_syscalls_flags="-mabi=32"
 endif
 
@@ -433,6 +439,7 @@ define archhelp
 	echo '  uImage.gz            - U-Boot image (gzip)'
 	echo '  uImage.lzma          - U-Boot image (lzma)'
 	echo '  uImage.lzo           - U-Boot image (lzo)'
+	echo '  uzImage.bin          - U-Boot image (self-extracting)'
 	echo '  dtbs                 - Device-tree blobs for enabled boards'
 	echo '  dtbs_install         - Install dtbs to $(INSTALL_DTBS_PATH)'
 	echo

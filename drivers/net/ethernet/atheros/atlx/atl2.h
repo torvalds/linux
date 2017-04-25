@@ -228,12 +228,9 @@ static void atl2_force_ps(struct atl2_hw *hw);
 #define AUTONEG_ADVERTISE_SPEED_DEFAULT	0x000F	/* Everything */
 
 /* The size (in bytes) of a ethernet packet */
-#define ENET_HEADER_SIZE		14
 #define MAXIMUM_ETHERNET_FRAME_SIZE	1518	/* with FCS */
 #define MINIMUM_ETHERNET_FRAME_SIZE	64	/* with FCS */
-#define ETHERNET_FCS_SIZE		4
 #define MAX_JUMBO_FRAME_SIZE		0x2000
-#define VLAN_SIZE                                               4
 
 struct tx_pkt_header {
 	unsigned pkt_size:11;

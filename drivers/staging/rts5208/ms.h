@@ -202,9 +202,9 @@ void mspro_polling_format_status(struct rtsx_chip *chip);
 void mspro_stop_seq_mode(struct rtsx_chip *chip);
 int reset_ms_card(struct rtsx_chip *chip);
 int ms_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
-	u32 start_sector, u16 sector_cnt);
+	  u32 start_sector, u16 sector_cnt);
 int mspro_format(struct scsi_cmnd *srb, struct rtsx_chip *chip,
-		int short_data_len, bool quick_format);
+		 int short_data_len, bool quick_format);
 void ms_free_l2p_tbl(struct rtsx_chip *chip);
 void ms_cleanup_work(struct rtsx_chip *chip);
 int ms_power_off_card3v3(struct rtsx_chip *chip);

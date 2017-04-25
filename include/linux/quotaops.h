@@ -90,7 +90,7 @@ int dquot_file_open(struct inode *inode, struct file *file);
 int dquot_enable(struct inode *inode, int type, int format_id,
 	unsigned int flags);
 int dquot_quota_on(struct super_block *sb, int type, int format_id,
- 	struct path *path);
+	const struct path *path);
 int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
 int dquot_quota_off(struct super_block *sb, int type);

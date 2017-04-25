@@ -499,7 +499,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	memset(suspend_ocram_base, 0, sizeof(*pm_info));
 	pm_info = suspend_ocram_base;
 	pm_info->pbase = ocram_pbase;
-	pm_info->resume_addr = virt_to_phys(v7_cpu_resume);
+	pm_info->resume_addr = __pa_symbol(v7_cpu_resume);
 	pm_info->pm_info_size = sizeof(*pm_info);
 
 	/*

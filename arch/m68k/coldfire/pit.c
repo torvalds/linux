@@ -118,7 +118,7 @@ static struct irqaction pit_irq = {
 
 /***************************************************************************/
 
-static cycle_t pit_read_clk(struct clocksource *cs)
+static u64 pit_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
 	u32 cycles;

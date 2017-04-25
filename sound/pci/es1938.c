@@ -72,7 +72,7 @@ MODULE_SUPPORTED_DEVICE("{{ESS,ES1938},"
                 "{ESS,ES1969},"
 		"{TerraTec,128i PCI}}");
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
 #endif
 

@@ -347,7 +347,7 @@ Description:
 		because of fragmentation, SLUB will retry with the minimum order
 		possible depending on its characteristics.
 		When debug_guardpage_minorder=N (N > 0) parameter is specified
-		(see Documentation/kernel-parameters.txt), the minimum possible
+		(see Documentation/admin-guide/kernel-parameters.rst), the minimum possible
 		order is used and this sysfs entry can not be used to change
 		the order at run time.
 

@@ -403,6 +403,7 @@ static const struct of_device_id sti_mailbox_match[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sti_mailbox_match);
 
 static int sti_mbox_probe(struct platform_device *pdev)
 {

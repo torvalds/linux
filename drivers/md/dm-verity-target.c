@@ -868,7 +868,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	r = dm_get_device(ti, argv[2], FMODE_READ, &v->hash_dev);
 	if (r) {
-		ti->error = "Data device lookup failed";
+		ti->error = "Hash device lookup failed";
 		goto bad;
 	}
 

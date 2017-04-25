@@ -117,9 +117,9 @@ static __init void openrisc_clockevent_init(void)
  * is 32 bits wide and runs at the CPU clock frequency.
  */
 
-static cycle_t openrisc_timer_read(struct clocksource *cs)
+static u64 openrisc_timer_read(struct clocksource *cs)
 {
-	return (cycle_t) mfspr(SPR_TTCR);
+	return (u64) mfspr(SPR_TTCR);
 }
 
 static struct clocksource openrisc_timer = {

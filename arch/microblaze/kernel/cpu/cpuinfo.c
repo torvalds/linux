@@ -49,6 +49,8 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 	{"9.3", 0x20},
 	{"9.4", 0x21},
 	{"9.5", 0x22},
+	{"9.6", 0x23},
+	{"10.0", 0x24},
 	{NULL, 0},
 };
 
@@ -75,6 +77,10 @@ const struct family_string_key family_string_lookup[] = {
 	{"zynq7000", 0x12},
 	{"UltraScale Virtex", 0x13},
 	{"UltraScale Kintex", 0x14},
+	{"UltraScale+ Zynq", 0x15},
+	{"UltraScale+ Virtex", 0x16},
+	{"UltraScale+ Kintex", 0x17},
+	{"Spartan7", 0x18},
 	{NULL, 0},
 };
 

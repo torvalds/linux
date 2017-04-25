@@ -256,13 +256,6 @@ static void uml_net_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
-{
-	dev->mtu = new_mtu;
-
-	return 0;
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void uml_net_poll_controller(struct net_device *dev)
 {
@@ -374,7 +367,6 @@ static const struct net_device_ops uml_netdev_ops = {
 	.ndo_set_rx_mode	= uml_net_set_multicast_list,
 	.ndo_tx_timeout 	= uml_net_tx_timeout,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu 	= uml_net_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = uml_net_poll_controller,

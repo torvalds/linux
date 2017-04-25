@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MII_DM9161_SCR		0x10
 #define MII_DM9161_SCR_INIT	0x0610

@@ -49,7 +49,7 @@
 static inline int ABS(int x) { return x >= 0 ? x : -x; }
 
 /* Chip information */
-char chip_model[64] __write_once;
+char chip_model[64] __ro_after_init;
 
 #ifdef CONFIG_VT
 struct screen_info screen_info;
@@ -97,17 +97,17 @@ int node_controller[MAX_NUMNODES] = { [0 ... MAX_NUMNODES-1] = -1 };
 #ifdef CONFIG_HIGHMEM
 /* Map information from VAs to PAs */
 unsigned long pbase_map[1 << (32 - HPAGE_SHIFT)]
-  __write_once __attribute__((aligned(L2_CACHE_BYTES)));
+  __ro_after_init __attribute__((aligned(L2_CACHE_BYTES)));
 EXPORT_SYMBOL(pbase_map);
 
 /* Map information from PAs to VAs */
 void *vbase_map[NR_PA_HIGHBIT_VALUES]
-  __write_once __attribute__((aligned(L2_CACHE_BYTES)));
+  __ro_after_init __attribute__((aligned(L2_CACHE_BYTES)));
 EXPORT_SYMBOL(vbase_map);
 #endif
 
 /* Node number as a function of the high PA bits */
-int highbits_to_node[NR_PA_HIGHBIT_VALUES] __write_once;
+int highbits_to_node[NR_PA_HIGHBIT_VALUES] __ro_after_init;
 EXPORT_SYMBOL(highbits_to_node);
 
 static unsigned int __initdata maxmem_pfn = -1U;
@@ -844,11 +844,11 @@ static void __init zone_sizes_init(void)
 #ifdef CONFIG_NUMA
 
 /* which logical CPUs are on which nodes */
-struct cpumask node_2_cpu_mask[MAX_NUMNODES] __write_once;
+struct cpumask node_2_cpu_mask[MAX_NUMNODES] __ro_after_init;
 EXPORT_SYMBOL(node_2_cpu_mask);
 
 /* which node each logical CPU is on */
-char cpu_2_node[NR_CPUS] __write_once __attribute__((aligned(L2_CACHE_BYTES)));
+char cpu_2_node[NR_CPUS] __ro_after_init __attribute__((aligned(L2_CACHE_BYTES)));
 EXPORT_SYMBOL(cpu_2_node);
 
 /* Return cpu_to_node() except for cpus not yet assigned, which return -1 */
@@ -1269,7 +1269,7 @@ static void __init validate_va(void)
  * cpus plus any other cpus that are willing to share their cache.
  * It is set by hv_inquire_tiles(HV_INQ_TILES_LOTAR).
  */
-struct cpumask __write_once cpu_lotar_map;
+struct cpumask __ro_after_init cpu_lotar_map;
 EXPORT_SYMBOL(cpu_lotar_map);
 
 /*
@@ -1291,7 +1291,7 @@ EXPORT_SYMBOL(hash_for_home_map);
  * cache, those tiles will only appear in cpu_lotar_map, NOT in
  * cpu_cacheable_map, as they are a special case.
  */
-struct cpumask __write_once cpu_cacheable_map;
+struct cpumask __ro_after_init cpu_cacheable_map;
 EXPORT_SYMBOL(cpu_cacheable_map);
 
 static __initdata struct cpumask disabled_map;
@@ -1506,7 +1506,7 @@ void __init setup_arch(char **cmdline_p)
  * Set up per-cpu memory.
  */
 
-unsigned long __per_cpu_offset[NR_CPUS] __write_once;
+unsigned long __per_cpu_offset[NR_CPUS] __ro_after_init;
 EXPORT_SYMBOL(__per_cpu_offset);
 
 static size_t __initdata pfn_offset[MAX_NUMNODES] = { 0 };

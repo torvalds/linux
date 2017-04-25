@@ -388,4 +388,29 @@ int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
  */
 __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
 
+/**
+ * rdma_reject_msg - return a pointer to a reject message string.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
+						int reason);
+/**
+ * rdma_is_consumer_reject - return true if the consumer rejected the connect
+ *                           request.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason);
+
+/**
+ * rdma_consumer_reject_data - return the consumer reject private data and
+ *			       length, if any.
+ * @id: Communication identifier that received the REJECT event.
+ * @ev: RDMA CM reject event.
+ * @data_len: Pointer to the resulting length of the consumer data.
+ */
+const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
+				      struct rdma_cm_event *ev, u8 *data_len);
+
 #endif /* RDMA_CM_H */

@@ -361,7 +361,7 @@ static int stm_char_open(struct inode *inode, struct file *file)
 	struct stm_file *stmf;
 	struct device *dev;
 	unsigned int major = imajor(inode);
-	int err = -ENODEV;
+	int err = -ENOMEM;
 
 	dev = class_find_device(&stm_class, NULL, &major, major_match);
 	if (!dev)
@@ -369,8 +369,9 @@ static int stm_char_open(struct inode *inode, struct file *file)
 
 	stmf = kzalloc(sizeof(*stmf), GFP_KERNEL);
 	if (!stmf)
-		return -ENOMEM;
+		goto err_put_device;
 
+	err = -ENODEV;
 	stm_output_init(&stmf->output);
 	stmf->stm = to_stm_device(dev);
 
@@ -382,9 +383,10 @@ static int stm_char_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 
 err_free:
+	kfree(stmf);
+err_put_device:
 	/* matches class_find_device() above */
 	put_device(dev);
-	kfree(stmf);
 
 	return err;
 }
@@ -425,7 +427,7 @@ static int stm_file_assign(struct stm_file *stmf, char *id, unsigned int width)
 	return ret;
 }
 
-static ssize_t stm_write(struct stm_data *data, unsigned int master,
+static ssize_t notrace stm_write(struct stm_data *data, unsigned int master,
 			  unsigned int channel, const char *buf, size_t count)
 {
 	unsigned int flags = STP_PACKET_TIMESTAMPED;
@@ -1121,8 +1123,9 @@ void stm_source_unregister_device(struct stm_source_data *data)
 }
 EXPORT_SYMBOL_GPL(stm_source_unregister_device);
 
-int stm_source_write(struct stm_source_data *data, unsigned int chan,
-		     const char *buf, size_t count)
+int notrace stm_source_write(struct stm_source_data *data,
+			     unsigned int chan,
+			     const char *buf, size_t count)
 {
 	struct stm_source_device *src = data->src;
 	struct stm_device *stm;

@@ -228,6 +228,9 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
 	ucode->mc_addr = mc_addr;
 	ucode->kaddr = kptr;
 
+	if (ucode->ucode_id == AMDGPU_UCODE_ID_STORAGE)
+		return 0;
+
 	header = (const struct common_firmware_header *)ucode->fw->data;
 	memcpy(ucode->kaddr, (void *)((uint8_t *)ucode->fw->data +
 		le32_to_cpu(header->ucode_array_offset_bytes)),
@@ -235,6 +238,31 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
 
 	return 0;
 }
+
+static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
+				uint64_t mc_addr, void *kptr)
+{
+	const struct gfx_firmware_header_v1_0 *header = NULL;
+	const struct common_firmware_header *comm_hdr = NULL;
+	uint8_t* src_addr = NULL;
+	uint8_t* dst_addr = NULL;
+
+	if (NULL == ucode->fw)
+		return 0;
+
+	comm_hdr = (const struct common_firmware_header *)ucode->fw->data;
+	header = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
+	dst_addr = ucode->kaddr +
+			   ALIGN(le32_to_cpu(comm_hdr->ucode_size_bytes),
+			   PAGE_SIZE);
+	src_addr = (uint8_t *)ucode->fw->data +
+			   le32_to_cpu(comm_hdr->ucode_array_offset_bytes) +
+			   (le32_to_cpu(header->jt_offset) * 4);
+	memcpy(dst_addr, src_addr, le32_to_cpu(header->jt_size) * 4);
+
+	return 0;
+}
+
 
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 {
@@ -247,7 +275,8 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	const struct common_firmware_header *header = NULL;
 
 	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL, bo);
+				amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+				0, NULL, NULL, bo);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
 		goto failed;
@@ -259,7 +288,8 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 		goto failed_reserve;
 	}
 
-	err = amdgpu_bo_pin(*bo, AMDGPU_GEM_DOMAIN_GTT, &fw_mc_addr);
+	err = amdgpu_bo_pin(*bo, amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+				&fw_mc_addr);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer pin failed\n", err);
 		goto failed_pin;
@@ -279,6 +309,13 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 			header = (const struct common_firmware_header *)ucode->fw->data;
 			amdgpu_ucode_init_single_fw(ucode, fw_mc_addr + fw_offset,
 						    fw_buf_ptr + fw_offset);
+			if (i == AMDGPU_UCODE_ID_CP_MEC1) {
+				const struct gfx_firmware_header_v1_0 *cp_hdr;
+				cp_hdr = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
+				amdgpu_ucode_patch_jt(ucode, fw_mc_addr + fw_offset,
+						    fw_buf_ptr + fw_offset);
+				fw_offset += ALIGN(le32_to_cpu(cp_hdr->jt_size) << 2, PAGE_SIZE);
+			}
 			fw_offset += ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
 		}
 	}

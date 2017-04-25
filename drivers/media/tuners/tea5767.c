@@ -401,12 +401,10 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	return 0;
 }
 
-static int tea5767_release(struct dvb_frontend *fe)
+static void tea5767_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int tea5767_get_frequency(struct dvb_frontend *fe, u32 *frequency)

@@ -648,7 +648,7 @@ static void flush_descriptor(journal_t *journal,
 	set_buffer_jwrite(descriptor);
 	BUFFER_TRACE(descriptor, "write");
 	set_buffer_dirty(descriptor);
-	write_dirty_buffer(descriptor, WRITE_SYNC);
+	write_dirty_buffer(descriptor, REQ_SYNC);
 }
 #endif
 

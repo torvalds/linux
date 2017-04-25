@@ -21,6 +21,10 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 	*pmdp = pmd;
 }
 
+static inline void native_set_pud(pud_t *pudp, pud_t pud)
+{
+}
+
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
 	native_set_pte(ptep, pte);
@@ -29,6 +33,10 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 static inline void native_pmd_clear(pmd_t *pmdp)
 {
 	native_set_pmd(pmdp, __pmd(0));
+}
+
+static inline void native_pud_clear(pud_t *pudp)
+{
 }
 
 static inline void native_pte_clear(struct mm_struct *mm,
@@ -53,6 +61,15 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
 }
 #else
 #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
+#endif
+
+#ifdef CONFIG_SMP
+static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+{
+	return __pud(xchg((pudval_t *)xp, 0));
+}
+#else
+#define native_pudp_get_and_clear(xp) native_local_pudp_get_and_clear(xp)
 #endif
 
 /* Bit manipulation helper on pte/pgoff entry */

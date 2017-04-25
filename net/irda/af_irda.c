@@ -46,13 +46,14 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/net.h>
 #include <linux/irda.h>
 #include <linux/poll.h>
 
 #include <asm/ioctls.h>		/* TIOCOUTQ, TIOCINQ */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/sock.h>
 #include <net/tcp_states.h>

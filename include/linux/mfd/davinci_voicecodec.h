@@ -28,8 +28,6 @@
 #include <linux/mfd/core.h>
 #include <linux/platform_data/edma.h>
 
-#include <mach/hardware.h>
-
 struct regmap;
 
 /*
@@ -98,8 +96,6 @@ struct davinci_vcif {
 	dma_addr_t dma_tx_addr;
 	dma_addr_t dma_rx_addr;
 };
-
-struct davinci_vc;
 
 struct davinci_vc {
 	/* Device data */

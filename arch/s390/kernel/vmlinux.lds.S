@@ -44,6 +44,7 @@ SECTIONS
 		*(.gnu.warning)
 	} :text = 0x0700
 
+	. = ALIGN(PAGE_SIZE);
 	_etext = .;		/* End of text section */
 
 	NOTES :text :note
@@ -79,7 +80,13 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);	/* Init code and data */
 	__init_begin = .;
 
-	INIT_TEXT_SECTION(PAGE_SIZE)
+	. = ALIGN(PAGE_SIZE);
+	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
+		VMLINUX_SYMBOL(_sinittext) = . ;
+		INIT_TEXT
+		. = ALIGN(PAGE_SIZE);
+		VMLINUX_SYMBOL(_einittext) = . ;
+	}
 
 	/*
 	 * .exit.text is discarded at runtime, not link time,

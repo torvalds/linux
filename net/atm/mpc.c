@@ -451,7 +451,7 @@ static void lane2_assoc_ind(struct net_device *dev, const u8 *mac_addr,
 			return;
 	}
 	if (end_of_tlvs - tlvs != 0)
-		pr_info("(%s) ignoring %Zd bytes of trailing TLV garbage\n",
+		pr_info("(%s) ignoring %zd bytes of trailing TLV garbage\n",
 			dev->name, end_of_tlvs - tlvs);
 }
 

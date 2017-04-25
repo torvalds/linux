@@ -37,6 +37,8 @@
 
 #define DRV_NAME "hns_roce"
 
+#define HNS_ROCE_HW_VER1	('h' << 24 | 'i' << 16 | '0' << 8 | '6')
+
 #define MAC_ADDR_OCTET_NUM			6
 #define HNS_ROCE_MAX_MSG_LEN			0x80000000
 
@@ -54,6 +56,12 @@
 #define HNS_ROCE_MAX_INNER_MTPT_NUM		0x7
 #define HNS_ROCE_MAX_MTPT_PBL_NUM		0x100000
 
+#define HNS_ROCE_EACH_FREE_CQ_WAIT_MSECS	20
+#define HNS_ROCE_MAX_FREE_CQ_WAIT_CNT	\
+	(5000 / HNS_ROCE_EACH_FREE_CQ_WAIT_MSECS)
+#define HNS_ROCE_CQE_WCMD_EMPTY_BIT		0x2
+#define HNS_ROCE_MIN_CQE_CNT			16
+
 #define HNS_ROCE_MAX_IRQ_NUM			34
 
 #define HNS_ROCE_COMP_VEC_NUM			32
@@ -69,6 +77,9 @@
 #define HNS_ROCE_MAX_PORTS			6
 #define HNS_ROCE_MAX_GID_NUM			16
 #define HNS_ROCE_GID_SIZE			16
+
+#define BITMAP_NO_RR				0
+#define BITMAP_RR				1
 
 #define MR_TYPE_MR				0x00
 #define MR_TYPE_DMA				0x03
@@ -196,9 +207,9 @@ struct hns_roce_bitmap {
 /* Order = 0: bitmap is biggest, order = max bitmap is least (only a bit) */
 /* Every bit repesent to a partner free/used status in bitmap */
 /*
-* Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
-* Bit = 1 represent to idle and available; bit = 0: not available
-*/
+ * Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
+ * Bit = 1 represent to idle and available; bit = 0: not available
+ */
 struct hns_roce_buddy {
 	/* Members point to every order level bitmap */
 	unsigned long **bits;
@@ -296,7 +307,7 @@ struct hns_roce_cq {
 	u32				cq_depth;
 	u32				cons_index;
 	void __iomem			*cq_db_l;
-	void __iomem			*tptr_addr;
+	u16				*tptr_addr;
 	unsigned long			cqn;
 	u32				vector;
 	atomic_t			refcount;
@@ -360,27 +371,32 @@ struct hns_roce_cmdq {
 	struct mutex		hcr_mutex;
 	struct semaphore	poll_sem;
 	/*
-	* Event mode: cmd register mutex protection,
-	* ensure to not exceed max_cmds and user use limit region
-	*/
+	 * Event mode: cmd register mutex protection,
+	 * ensure to not exceed max_cmds and user use limit region
+	 */
 	struct semaphore	event_sem;
 	int			max_cmds;
 	spinlock_t		context_lock;
 	int			free_head;
 	struct hns_roce_cmd_context *context;
 	/*
-	* Result of get integer part
-	* which max_comds compute according a power of 2
-	*/
+	 * Result of get integer part
+	 * which max_comds compute according a power of 2
+	 */
 	u16			token_mask;
 	/*
-	* Process whether use event mode, init default non-zero
-	* After the event queue of cmd event ready,
-	* can switch into event mode
-	* close device, switch into poll mode(non event mode)
-	*/
+	 * Process whether use event mode, init default non-zero
+	 * After the event queue of cmd event ready,
+	 * can switch into event mode
+	 * close device, switch into poll mode(non event mode)
+	 */
 	u8			use_events;
 	u8			toggle;
+};
+
+struct hns_roce_cmd_mailbox {
+	void		       *buf;
+	dma_addr_t		dma;
 };
 
 struct hns_roce_dev;
@@ -424,8 +440,6 @@ struct hns_roce_ib_iboe {
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
 	struct notifier_block	nb;
 	struct notifier_block	nb_inet;
-	/* 16 GID is shared by 6 port in v1 engine. */
-	union ib_gid		gid_table[HNS_ROCE_MAX_GID_NUM];
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
 };
 
@@ -519,6 +533,8 @@ struct hns_roce_hw {
 			 struct ib_recv_wr **bad_recv_wr);
 	int (*req_notify_cq)(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
+	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr);
+	int (*destroy_cq)(struct ib_cq *ibcq);
 	void	*priv;
 };
 
@@ -553,6 +569,8 @@ struct hns_roce_dev {
 
 	int			cmd_mod;
 	int			loop_idc;
+	dma_addr_t		tptr_dma_addr; /*only for hw v1*/
+	u32			tptr_size; /*only for hw v1*/
 	struct hns_roce_hw	*hw;
 };
 
@@ -657,7 +675,8 @@ void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev);
 
 int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj);
-void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj);
+void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
+			 int rr);
 int hns_roce_bitmap_init(struct hns_roce_bitmap *bitmap, u32 num, u32 mask,
 			 u32 reserved_bot, u32 resetrved_top);
 void hns_roce_bitmap_cleanup(struct hns_roce_bitmap *bitmap);
@@ -665,9 +684,11 @@ void hns_roce_cleanup_bitmap(struct hns_roce_dev *hr_dev);
 int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 				int align, unsigned long *obj);
 void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
-				unsigned long obj, int cnt);
+				unsigned long obj, int cnt,
+				int rr);
 
-struct ib_ah *hns_roce_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
+struct ib_ah *hns_roce_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+				 struct ib_udata *udata);
 int hns_roce_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
 int hns_roce_destroy_ah(struct ib_ah *ah);
 
@@ -681,6 +702,10 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				   u64 virt_addr, int access_flags,
 				   struct ib_udata *udata);
 int hns_roce_dereg_mr(struct ib_mr *ibmr);
+int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
+		       struct hns_roce_cmd_mailbox *mailbox,
+		       unsigned long mpt_index);
+unsigned long key_to_hw_index(u32 key);
 
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 		       struct hns_roce_buf *buf);
@@ -717,6 +742,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				    struct ib_udata *udata);
 
 int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq);
+void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);

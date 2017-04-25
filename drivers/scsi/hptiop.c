@@ -26,7 +26,7 @@
 #include <linux/timer.h>
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/div64.h>
 #include <scsi/scsi_cmnd.h>

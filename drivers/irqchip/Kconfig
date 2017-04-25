@@ -211,6 +211,10 @@ config XTENSA_MX
 	bool
 	select IRQ_DOMAIN
 
+config XILINX_INTC
+	bool
+	select IRQ_DOMAIN
+
 config IRQ_CROSSBAR
 	bool
 	help
@@ -279,3 +283,12 @@ config EZNPS_GIC
 config STM32_EXTI
 	bool
 	select IRQ_DOMAIN
+
+config QCOM_IRQ_COMBINER
+	bool "QCOM IRQ combiner support"
+	depends on ARCH_QCOM && ACPI
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to add support for the IRQ combiner devices embedded
+	  in Qualcomm Technologies chips.

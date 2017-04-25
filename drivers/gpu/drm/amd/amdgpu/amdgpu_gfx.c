@@ -24,6 +24,7 @@
  */
 #include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_gfx.h"
 
 /*
  * GPU scratch registers helpers function.
@@ -41,12 +42,12 @@ int amdgpu_gfx_scratch_get(struct amdgpu_device *adev, uint32_t *reg)
 {
 	int i;
 
-	for (i = 0; i < adev->gfx.scratch.num_reg; i++) {
-		if (adev->gfx.scratch.free[i]) {
-			adev->gfx.scratch.free[i] = false;
-			*reg = adev->gfx.scratch.reg[i];
-			return 0;
-		}
+	i = ffs(adev->gfx.scratch.free_mask);
+	if (i != 0 && i <= adev->gfx.scratch.num_reg) {
+		i--;
+		adev->gfx.scratch.free_mask &= ~(1u << i);
+		*reg = adev->gfx.scratch.reg_base + i;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -61,14 +62,7 @@ int amdgpu_gfx_scratch_get(struct amdgpu_device *adev, uint32_t *reg)
  */
 void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg)
 {
-	int i;
-
-	for (i = 0; i < adev->gfx.scratch.num_reg; i++) {
-		if (adev->gfx.scratch.reg[i] == reg) {
-			adev->gfx.scratch.free[i] = true;
-			return;
-		}
-	}
+	adev->gfx.scratch.free_mask |= 1u << (reg - adev->gfx.scratch.reg_base);
 }
 
 /**

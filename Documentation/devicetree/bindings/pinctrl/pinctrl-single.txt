@@ -7,6 +7,9 @@ Required properties:
 
 - reg : offset and length of the register set for the mux registers
 
+- #pinctrl-cells : number of cells in addition to the index, set to 1
+  for pinctrl-single,pins and 2 for pinctrl-single,bits
+
 - pinctrl-single,register-width : pinmux register access width in bits
 
 - pinctrl-single,function-mask : mask of allowed pinmux function bits

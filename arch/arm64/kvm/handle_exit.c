@@ -57,6 +57,16 @@ static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 1;
 }
 
+/*
+ * Guest access to FP/ASIMD registers are routed to this handler only
+ * when the system doesn't support FP/ASIMD.
+ */
+static int handle_no_fpsimd(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	kvm_inject_undefined(vcpu);
+	return 1;
+}
+
 /**
  * kvm_handle_wfx - handle a wait-for-interrupts or wait-for-event
  *		    instruction executed by a guest
@@ -144,6 +154,7 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_BREAKPT_LOW]= kvm_handle_guest_debug,
 	[ESR_ELx_EC_BKPT32]	= kvm_handle_guest_debug,
 	[ESR_ELx_EC_BRK64]	= kvm_handle_guest_debug,
+	[ESR_ELx_EC_FP_ASIMD]	= handle_no_fpsimd,
 };
 
 static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)

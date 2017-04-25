@@ -75,6 +75,19 @@ config INET6_ESP
 
 	  If unsure, say Y.
 
+config INET6_ESP_OFFLOAD
+	tristate "IPv6: ESP transformation offload"
+	depends on INET6_ESP
+	select XFRM_OFFLOAD
+	default n
+	---help---
+	  Support for ESP transformation offload. This makes sense
+	  only if this system really does IPsec and want to do it
+	  with high throughput. A typical desktop system does not
+	  need it, even if it does IPsec.
+
+	  If unsure, say N.
+
 config INET6_IPCOMP
 	tristate "IPv6: IPComp transformation"
 	select INET6_XFRM_TUNNEL
@@ -208,6 +221,7 @@ config IPV6_TUNNEL
 	tristate "IPv6: IP-in-IPv6 tunnel (RFC2473)"
 	select INET6_TUNNEL
 	select DST_CACHE
+	select GRO_CELLS
 	---help---
 	  Support for IPv6-in-IPv6 and IPv4-in-IPv6 tunnels described in
 	  RFC 2473.
@@ -287,6 +301,41 @@ config IPV6_PIMSM_V2
 	depends on IPV6_MROUTE
 	---help---
 	  Support for IPv6 PIM multicast routing protocol PIM-SMv2.
+	  If unsure, say N.
+
+config IPV6_SEG6_LWTUNNEL
+	bool "IPv6: Segment Routing Header encapsulation support"
+	depends on IPV6
+	select LWTUNNEL
+	---help---
+	  Support for encapsulation of packets within an outer IPv6
+	  header and a Segment Routing Header using the lightweight
+	  tunnels mechanism.
+
+	  If unsure, say N.
+
+config IPV6_SEG6_INLINE
+	bool "IPv6: direct Segment Routing Header insertion "
+	depends on IPV6_SEG6_LWTUNNEL
+	---help---
+	  Support for direct insertion of the Segment Routing Header,
+	  also known as inline mode. Be aware that direct insertion of
+	  extension headers (as opposed to encapsulation) may break
+	  multiple mechanisms such as PMTUD or IPSec AH. Use this feature
+	  only if you know exactly what you are doing.
+
+	  If unsure, say N.
+
+config IPV6_SEG6_HMAC
+	bool "IPv6: Segment Routing HMAC support"
+	depends on IPV6
+	select CRYPTO_HMAC
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	---help---
+	  Support for HMAC signature generation and verification
+	  of SR-enabled packets.
+
 	  If unsure, say N.
 
 endif # IPV6

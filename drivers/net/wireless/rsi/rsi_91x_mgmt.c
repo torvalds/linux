@@ -617,7 +617,9 @@ static int rsi_program_bb_rf(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
-int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
+int rsi_set_vap_capabilities(struct rsi_common *common,
+			     enum opmode mode,
+			     u8 vap_status)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_vap_caps *vap_caps;
@@ -642,6 +644,7 @@ int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
 					     FRAME_DESC_SZ) |
 					     (RSI_WIFI_MGMT_Q << 12));
 	vap_caps->desc_word[1] = cpu_to_le16(VAP_CAPABILITIES);
+	vap_caps->desc_word[2] = cpu_to_le16(vap_status << 8);
 	vap_caps->desc_word[4] = cpu_to_le16(mode |
 					     (common->channel_width << 8));
 	vap_caps->desc_word[7] = cpu_to_le16((vap_id << 8) |
@@ -910,7 +913,8 @@ int rsi_band_check(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-int rsi_set_channel(struct rsi_common *common, u16 channel)
+int rsi_set_channel(struct rsi_common *common,
+		    struct ieee80211_channel *channel)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_mac_frame *mgmt_frame;
@@ -925,24 +929,76 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 		return -ENOMEM;
 	}
 
+	if (!channel) {
+		dev_kfree_skb(skb);
+		return 0;
+	}
 	memset(skb->data, 0, FRAME_DESC_SZ);
 	mgmt_frame = (struct rsi_mac_frame *)skb->data;
 
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(SCAN_REQUEST);
-	mgmt_frame->desc_word[4] = cpu_to_le16(channel);
+	mgmt_frame->desc_word[4] = cpu_to_le16(channel->hw_value);
+
+	mgmt_frame->desc_word[4] |=
+		cpu_to_le16(((char)(channel->max_antenna_gain)) << 8);
+	mgmt_frame->desc_word[5] =
+		cpu_to_le16((char)(channel->max_antenna_gain));
 
 	mgmt_frame->desc_word[7] = cpu_to_le16(PUT_BBP_RESET |
 					       BBP_REG_WRITE |
 					       (RSI_RF_TYPE << 4));
 
-	mgmt_frame->desc_word[5] = cpu_to_le16(0x01);
-	mgmt_frame->desc_word[6] = cpu_to_le16(0x12);
+	if (!(channel->flags & IEEE80211_CHAN_NO_IR) &&
+	       !(channel->flags & IEEE80211_CHAN_RADAR)) {
+		if (common->tx_power < channel->max_power)
+			mgmt_frame->desc_word[6] = cpu_to_le16(common->tx_power);
+		else
+			mgmt_frame->desc_word[6] = cpu_to_le16(channel->max_power);
+	}
+	mgmt_frame->desc_word[7] = cpu_to_le16(common->priv->dfs_region);
 
 	if (common->channel_width == BW_40MHZ)
 		mgmt_frame->desc_word[5] |= cpu_to_le16(0x1 << 8);
 
-	common->channel = channel;
+	common->channel = channel->hw_value;
+
+	skb_put(skb, FRAME_DESC_SZ);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+/**
+ * rsi_send_radio_params_update() - This function sends the radio
+ *				parameters update to device
+ * @common: Pointer to the driver private structure.
+ * @channel: Channel value to be set.
+ *
+ * Return: 0 on success, corresponding error code on failure.
+ */
+int rsi_send_radio_params_update(struct rsi_common *common)
+{
+	struct rsi_mac_frame *cmd_frame;
+	struct sk_buff *skb = NULL;
+
+	rsi_dbg(MGMT_TX_ZONE,
+		"%s: Sending Radio Params update frame\n", __func__);
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	cmd_frame = (struct rsi_mac_frame *)skb->data;
+
+	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	cmd_frame->desc_word[1] = cpu_to_le16(RADIO_PARAMS_UPDATE);
+	cmd_frame->desc_word[3] = cpu_to_le16(BIT(0));
+
+	cmd_frame->desc_word[3] |= cpu_to_le16(common->tx_power << 8);
 
 	skb_put(skb, FRAME_DESC_SZ);
 
@@ -1240,6 +1296,72 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 
 }
 
+/**
+ * rsi_send_rx_filter_frame() - Sends a frame to filter the RX packets
+ *
+ * @common: Pointer to the driver private structure.
+ * @rx_filter_word: Flags of filter packets
+ *
+ * @Return: 0 on success, -1 on failure.
+ */
+int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
+{
+	struct rsi_mac_frame *cmd_frame;
+	struct sk_buff *skb;
+
+	rsi_dbg(MGMT_TX_ZONE, "Sending RX filter frame\n");
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	cmd_frame = (struct rsi_mac_frame *)skb->data;
+
+	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	cmd_frame->desc_word[1] = cpu_to_le16(SET_RX_FILTER);
+	cmd_frame->desc_word[4] = cpu_to_le16(rx_filter_word);
+
+	skb_put(skb, FRAME_DESC_SZ);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+/**
+ * rsi_set_antenna() - This fuction send antenna configuration request
+ *		       to device
+ *
+ * @common: Pointer to the driver private structure.
+ * @antenna: bitmap for tx antenna selection
+ *
+ * Return: 0 on Success, negative error code on failure
+ */
+int rsi_set_antenna(struct rsi_common *common, u8 antenna)
+{
+	struct rsi_mac_frame *cmd_frame;
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	cmd_frame = (struct rsi_mac_frame *)skb->data;
+
+	cmd_frame->desc_word[1] = cpu_to_le16(ANT_SEL_FRAME);
+	cmd_frame->desc_word[3] = cpu_to_le16(antenna & 0x00ff);
+	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+
+	skb_put(skb, FRAME_DESC_SZ);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
 
 /**
  * rsi_handle_ta_confirm_type() - This function handles the confirm frames.

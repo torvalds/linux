@@ -19,6 +19,7 @@
  */
 
 #include <asm/ppc_asm.h>
+#include <asm/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/export.h>
 
@@ -41,26 +42,17 @@ PPC64_CACHES:
 
 	.macro err1
 100:
-	.section __ex_table,"a"
-	.align 3
-	.llong 100b,.Ldo_err1
-	.previous
+	EX_TABLE(100b,.Ldo_err1)
 	.endm
 
 	.macro err2
 200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldo_err2
-	.previous
+	EX_TABLE(200b,.Ldo_err2)
 	.endm
 
 	.macro err3
 300:
-	.section __ex_table,"a"
-	.align 3
-	.llong 300b,.Ldo_err3
-	.previous
+	EX_TABLE(300b,.Ldo_err3)
 	.endm
 
 .Ldo_err1:
@@ -160,9 +152,9 @@ err2;	std	r0,0(r3)
 	addi	r3,r3,8
 	addi	r4,r4,-8
 
-	/* Destination is 16 byte aligned, need to get it cacheline aligned */
-11:	lwz	r7,DCACHEL1LOGLINESIZE(r5)
-	lwz	r9,DCACHEL1LINESIZE(r5)
+	/* Destination is 16 byte aligned, need to get it cache block aligned */
+11:	lwz	r7,DCACHEL1LOGBLOCKSIZE(r5)
+	lwz	r9,DCACHEL1BLOCKSIZE(r5)
 
 	/*
 	 * With worst case alignment the long clear loop takes a minimum

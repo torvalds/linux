@@ -3,10 +3,14 @@
 
 #include <linux/compiler.h>		/* For unlikely.  */
 #include <linux/sched.h>		/* For struct task_struct.  */
+#include <linux/sched/signal.h>		/* For send_sig(), same_thread_group(), etc. */
 #include <linux/err.h>			/* for IS_ERR_VALUE */
 #include <linux/bug.h>			/* For BUG_ON.  */
 #include <linux/pid_namespace.h>	/* For task_active_pid_ns.  */
 #include <uapi/linux/ptrace.h>
+
+extern int ptrace_access_vm(struct task_struct *tsk, unsigned long addr,
+			    void *buf, int len, unsigned int gup_flags);
 
 /*
  * Ptrace flags
@@ -19,7 +23,6 @@
 #define PT_SEIZED	0x00010000	/* SEIZE used, enable new behavior */
 #define PT_PTRACED	0x00000001
 #define PT_DTRACE	0x00000002	/* delayed trace (used on m68k, i386) */
-#define PT_PTRACE_CAP	0x00000004	/* ptracer can follow suid-exec */
 
 #define PT_OPT_FLAG_SHIFT	3
 /* PT_TRACE_* event enable flags */

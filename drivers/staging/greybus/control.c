@@ -198,56 +198,6 @@ int gb_control_mode_switch_operation(struct gb_control *control)
 	return ret;
 }
 
-int gb_control_timesync_enable(struct gb_control *control, u8 count,
-			       u64 frame_time, u32 strobe_delay, u32 refclk)
-{
-	struct gb_control_timesync_enable_request request;
-
-	request.count = count;
-	request.frame_time = cpu_to_le64(frame_time);
-	request.strobe_delay = cpu_to_le32(strobe_delay);
-	request.refclk = cpu_to_le32(refclk);
-	return gb_operation_sync(control->connection,
-				 GB_CONTROL_TYPE_TIMESYNC_ENABLE, &request,
-				 sizeof(request), NULL, 0);
-}
-
-int gb_control_timesync_disable(struct gb_control *control)
-{
-	return gb_operation_sync(control->connection,
-				 GB_CONTROL_TYPE_TIMESYNC_DISABLE, NULL, 0,
-				 NULL, 0);
-}
-
-int gb_control_timesync_get_last_event(struct gb_control *control,
-				       u64 *frame_time)
-{
-	struct gb_control_timesync_get_last_event_response response;
-	int ret;
-
-	ret = gb_operation_sync(control->connection,
-				GB_CONTROL_TYPE_TIMESYNC_GET_LAST_EVENT,
-				NULL, 0, &response, sizeof(response));
-	if (!ret)
-		*frame_time = le64_to_cpu(response.frame_time);
-	return ret;
-}
-
-int gb_control_timesync_authoritative(struct gb_control *control,
-				      u64 *frame_time)
-{
-	struct gb_control_timesync_authoritative_request request;
-	int i;
-
-	for (i = 0; i < GB_TIMESYNC_MAX_STROBES; i++)
-		request.frame_time[i] = cpu_to_le64(frame_time[i]);
-
-	return gb_operation_sync(control->connection,
-				 GB_CONTROL_TYPE_TIMESYNC_AUTHORITATIVE,
-				 &request, sizeof(request),
-				 NULL, 0);
-}
-
 static int gb_control_bundle_pm_status_map(u8 status)
 {
 	switch (status) {

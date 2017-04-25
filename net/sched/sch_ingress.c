@@ -16,6 +16,7 @@
 
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 static struct Qdisc *ingress_leaf(struct Qdisc *sch, unsigned long arg)
 {

@@ -16,6 +16,26 @@
 #include <linux/kernel.h>
 #include <linux/serial_core.h>
 
+/*
+ * Some Qualcomm Datacenter Technologies SoCs have a defective UART BUSY bit.
+ * Detect them by examining the OEM fields in the SPCR header, similiar to PCI
+ * quirk detection in pci_mcfg.c.
+ */
+static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
+{
+	if (memcmp(h->oem_id, "QCOM  ", ACPI_OEM_ID_SIZE))
+		return false;
+
+	if (!memcmp(h->oem_table_id, "QDF2432 ", ACPI_OEM_TABLE_ID_SIZE))
+		return true;
+
+	if (!memcmp(h->oem_table_id, "QDF2400 ", ACPI_OEM_TABLE_ID_SIZE) &&
+			h->oem_revision == 0)
+		return true;
+
+	return false;
+}
+
 /**
  * parse_spcr() - parse ACPI SPCR table and add preferred console
  *
@@ -26,14 +46,13 @@
  * console is registered and if @earlycon is true, earlycon is set up.
  *
  * When CONFIG_ACPI_SPCR_TABLE is defined, this function should be called
- * from arch inintialization code as soon as the DT/ACPI decision is made.
+ * from arch initialization code as soon as the DT/ACPI decision is made.
  *
  */
 int __init parse_spcr(bool earlycon)
 {
 	static char opts[64];
 	struct acpi_table_spcr *table;
-	acpi_size table_size;
 	acpi_status status;
 	char *uart;
 	char *iotype;
@@ -43,9 +62,8 @@ int __init parse_spcr(bool earlycon)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	status = acpi_get_table_with_size(ACPI_SIG_SPCR, 0,
-					  (struct acpi_table_header **)&table,
-					  &table_size);
+	status = acpi_get_table(ACPI_SIG_SPCR, 0,
+				(struct acpi_table_header **)&table);
 
 	if (ACPI_FAILURE(status))
 		return -ENOENT;
@@ -95,6 +113,9 @@ int __init parse_spcr(bool earlycon)
 		goto done;
 	}
 
+	if (qdf2400_erratum_44_present(&table->header))
+		uart = "qdf2400_e44";
+
 	snprintf(opts, sizeof(opts), "%s,%s,0x%llx,%d", uart, iotype,
 		 table->serial_port.address, baud_rate);
 
@@ -106,6 +127,6 @@ int __init parse_spcr(bool earlycon)
 	err = add_preferred_console(uart, 0, opts + strlen(uart) + 1);
 
 done:
-	early_acpi_os_unmap_memory((void __iomem *)table, table_size);
+	acpi_put_table((struct acpi_table_header *)table);
 	return err;
 }

@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/i2c.h>
@@ -315,8 +311,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 			"dm1105: Updating to the latest version might help\n"
 			"dm1105: as well.\n");
 	}
-	printk(KERN_ERR "Here is a list of valid choices for the card=<n> "
-		   "insmod option:\n");
+	printk(KERN_ERR "Here is a list of valid choices for the card=<n> insmod option:\n");
 	for (i = 0; i < ARRAY_SIZE(dm1105_boards); i++)
 		printk(KERN_ERR "dm1105:    card=%d -> %s\n",
 				i, dm1105_boards[i].name);
@@ -744,7 +739,7 @@ static int dm1105_ir_init(struct dm1105_dev *dm1105)
 	struct rc_dev *dev;
 	int err = -ENOMEM;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev)
 		return -ENOMEM;
 
@@ -753,7 +748,6 @@ static int dm1105_ir_init(struct dm1105_dev *dm1105)
 
 	dev->driver_name = MODULE_NAME;
 	dev->map_name = RC_MAP_DM1105_NEC;
-	dev->driver_type = RC_DRIVER_SCANCODE;
 	dev->input_name = "DVB on-card IR receiver";
 	dev->input_phys = dm1105->ir.input_phys;
 	dev->input_id.bustype = BUS_PCI;

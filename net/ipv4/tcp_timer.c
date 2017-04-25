@@ -310,7 +310,7 @@ static void tcp_delack_timer(unsigned long data)
 		inet_csk(sk)->icsk_ack.blocked = 1;
 		__NET_INC_STATS(sock_net(sk), LINUX_MIB_DELAYEDACKLOCKED);
 		/* deleguate our work to tcp_release_cb() */
-		if (!test_and_set_bit(TCP_DELACK_TIMER_DEFERRED, &tcp_sk(sk)->tsq_flags))
+		if (!test_and_set_bit(TCP_DELACK_TIMER_DEFERRED, &sk->sk_tsq_flags))
 			sock_hold(sk);
 	}
 	bh_unlock_sock(sk);
@@ -563,8 +563,8 @@ void tcp_write_timer_handler(struct sock *sk)
 	event = icsk->icsk_pending;
 
 	switch (event) {
-	case ICSK_TIME_EARLY_RETRANS:
-		tcp_resume_early_retransmit(sk);
+	case ICSK_TIME_REO_TIMEOUT:
+		tcp_rack_reo_timeout(sk);
 		break;
 	case ICSK_TIME_LOSS_PROBE:
 		tcp_send_loss_probe(sk);
@@ -592,7 +592,7 @@ static void tcp_write_timer(unsigned long data)
 		tcp_write_timer_handler(sk);
 	} else {
 		/* delegate our work to tcp_release_cb() */
-		if (!test_and_set_bit(TCP_WRITE_TIMER_DEFERRED, &tcp_sk(sk)->tsq_flags))
+		if (!test_and_set_bit(TCP_WRITE_TIMER_DEFERRED, &sk->sk_tsq_flags))
 			sock_hold(sk);
 	}
 	bh_unlock_sock(sk);
@@ -617,6 +617,7 @@ void tcp_set_keepalive(struct sock *sk, int val)
 	else if (!val)
 		inet_csk_delete_keepalive_timer(sk);
 }
+EXPORT_SYMBOL_GPL(tcp_set_keepalive);
 
 
 static void tcp_keepalive_timer (unsigned long data)

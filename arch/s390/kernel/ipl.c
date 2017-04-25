@@ -8,7 +8,8 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
@@ -1546,7 +1547,8 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 	unsigned long ipib = (unsigned long) reipl_block_actual;
 	unsigned int csum;
 
-	csum = csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
+	csum = (__force unsigned int)
+	       csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
 	mem_assign_absolute(S390_lowcore.ipib, ipib);
 	mem_assign_absolute(S390_lowcore.ipib_checksum, csum);
 	dump_run(trigger);
@@ -1863,7 +1865,7 @@ static int __init s390_ipl_init(void)
 {
 	char str[8] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
 
-	sclp_get_ipl_info(&sclp_ipl_info);
+	sclp_early_get_ipl_info(&sclp_ipl_info);
 	/*
 	 * Fix loadparm: There are systems where the (SCSI) LOADPARM
 	 * returned by read SCP info is invalid (contains EBCDIC blanks)
@@ -1991,10 +1993,9 @@ void __init ipl_update_parameters(void)
 		diag308_set_works = 1;
 }
 
-void __init ipl_save_parameters(void)
+void __init ipl_verify_parameters(void)
 {
 	struct cio_iplinfo iplinfo;
-	void *src, *dst;
 
 	if (cio_get_iplinfo(&iplinfo))
 		return;
@@ -2005,10 +2006,6 @@ void __init ipl_save_parameters(void)
 	if (!iplinfo.is_qdio)
 		return;
 	ipl_flags |= IPL_PARMBLOCK_VALID;
-	src = (void *)(unsigned long)S390_lowcore.ipl_parmblock_ptr;
-	dst = (void *)IPL_PARMBLOCK_ORIGIN;
-	memmove(dst, src, PAGE_SIZE);
-	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
 }
 
 static LIST_HEAD(rcall);

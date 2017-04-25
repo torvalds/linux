@@ -1378,6 +1378,8 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 		return NULL;
 
 	retval = ext4_fname_setup_filename(dir, d_name, 1, &fname);
+	if (retval == -ENOENT)
+		return NULL;
 	if (retval)
 		return ERR_PTR(retval);
 
@@ -1616,13 +1618,15 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 		    !fscrypt_has_permitted_context(dir, inode)) {
 			int nokey = ext4_encrypted_inode(inode) &&
 				!fscrypt_has_encryption_key(inode);
-			iput(inode);
-			if (nokey)
+			if (nokey) {
+				iput(inode);
 				return ERR_PTR(-ENOKEY);
+			}
 			ext4_warning(inode->i_sb,
 				     "Inconsistent encryption contexts: %lu/%lu",
 				     (unsigned long) dir->i_ino,
 				     (unsigned long) inode->i_ino);
+			iput(inode);
 			return ERR_PTR(-EPERM);
 		}
 	}
@@ -1941,7 +1945,7 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
 	 * happen is that the times are slightly out of date
 	 * and/or different from the directory change time.
 	 */
-	dir->i_mtime = dir->i_ctime = ext4_current_time(dir);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	ext4_update_dx_flag(dir);
 	dir->i_version++;
 	ext4_mark_inode_dirty(handle, dir);
@@ -2935,6 +2939,9 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	struct ext4_dir_entry_2 *de;
 	handle_t *handle = NULL;
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+		return -EIO;
+
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
 	retval = dquot_initialize(dir);
@@ -2987,7 +2994,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	 * recovery. */
 	inode->i_size = 0;
 	ext4_orphan_add(handle, inode);
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = ext4_current_time(inode);
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 	ext4_dec_count(handle, dir);
 	ext4_update_dx_flag(dir);
@@ -3007,6 +3014,9 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	struct buffer_head *bh;
 	struct ext4_dir_entry_2 *de;
 	handle_t *handle = NULL;
+
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+		return -EIO;
 
 	trace_ext4_unlink_enter(dir, dentry);
 	/* Initialize quotas before so that eventual writes go
@@ -3050,13 +3060,13 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	retval = ext4_delete_entry(handle, dir, de, bh);
 	if (retval)
 		goto end_unlink;
-	dir->i_ctime = dir->i_mtime = ext4_current_time(dir);
+	dir->i_ctime = dir->i_mtime = current_time(dir);
 	ext4_update_dx_flag(dir);
 	ext4_mark_inode_dirty(handle, dir);
 	drop_nlink(inode);
 	if (!inode->i_nlink)
 		ext4_orphan_add(handle, inode);
-	inode->i_ctime = ext4_current_time(inode);
+	inode->i_ctime = current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 
 end_unlink:
@@ -3078,6 +3088,9 @@ static int ext4_symlink(struct inode *dir,
 	struct fscrypt_str disk_link;
 	struct fscrypt_symlink_data *sd = NULL;
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+		return -EIO;
+
 	disk_link.len = len + 1;
 	disk_link.name = (char *) symname;
 
@@ -3088,7 +3101,7 @@ static int ext4_symlink(struct inode *dir,
 		if (err)
 			return err;
 		if (!fscrypt_has_encryption_key(dir))
-			return -EPERM;
+			return -ENOKEY;
 		disk_link.len = (fscrypt_fname_encrypted_size(dir, len) +
 				 sizeof(struct fscrypt_symlink_data));
 		sd = kzalloc(disk_link.len, GFP_KERNEL);
@@ -3254,7 +3267,7 @@ retry:
 	if (IS_DIRSYNC(dir))
 		ext4_handle_sync(handle);
 
-	inode->i_ctime = ext4_current_time(inode);
+	inode->i_ctime = current_time(inode);
 	ext4_inc_count(handle, inode);
 	ihold(inode);
 
@@ -3381,7 +3394,7 @@ static int ext4_setent(handle_t *handle, struct ext4_renament *ent,
 		ent->de->file_type = file_type;
 	ent->dir->i_version++;
 	ent->dir->i_ctime = ent->dir->i_mtime =
-		ext4_current_time(ent->dir);
+		current_time(ent->dir);
 	ext4_mark_inode_dirty(handle, ent->dir);
 	BUFFER_TRACE(ent->bh, "call ext4_handle_dirty_metadata");
 	if (!ent->inlined) {
@@ -3525,6 +3538,12 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			EXT4_I(old_dentry->d_inode)->i_projid)))
 		return -EXDEV;
 
+	if ((ext4_encrypted_inode(old_dir) &&
+	     !fscrypt_has_encryption_key(old_dir)) ||
+	    (ext4_encrypted_inode(new_dir) &&
+	     !fscrypt_has_encryption_key(new_dir)))
+		return -ENOKEY;
+
 	retval = dquot_initialize(old.dir);
 	if (retval)
 		return retval;
@@ -3651,7 +3670,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * Like most other Unix systems, set the ctime for inodes on a
 	 * rename.
 	 */
-	old.inode->i_ctime = ext4_current_time(old.inode);
+	old.inode->i_ctime = current_time(old.inode);
 	ext4_mark_inode_dirty(handle, old.inode);
 
 	if (!whiteout) {
@@ -3663,9 +3682,9 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (new.inode) {
 		ext4_dec_count(handle, new.inode);
-		new.inode->i_ctime = ext4_current_time(new.inode);
+		new.inode->i_ctime = current_time(new.inode);
 	}
-	old.dir->i_ctime = old.dir->i_mtime = ext4_current_time(old.dir);
+	old.dir->i_ctime = old.dir->i_mtime = current_time(old.dir);
 	ext4_update_dx_flag(old.dir);
 	if (old.dir_bh) {
 		retval = ext4_rename_dir_finish(handle, &old, new.dir->i_ino);
@@ -3723,6 +3742,13 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	};
 	u8 new_file_type;
 	int retval;
+	struct timespec ctime;
+
+	if ((ext4_encrypted_inode(old_dir) &&
+	     !fscrypt_has_encryption_key(old_dir)) ||
+	    (ext4_encrypted_inode(new_dir) &&
+	     !fscrypt_has_encryption_key(new_dir)))
+		return -ENOKEY;
 
 	if ((ext4_encrypted_inode(old_dir) ||
 	     ext4_encrypted_inode(new_dir)) &&
@@ -3823,8 +3849,9 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * Like most other Unix systems, set the ctime for inodes on a
 	 * rename.
 	 */
-	old.inode->i_ctime = ext4_current_time(old.inode);
-	new.inode->i_ctime = ext4_current_time(new.inode);
+	ctime = current_time(old.inode);
+	old.inode->i_ctime = ctime;
+	new.inode->i_ctime = ctime;
 	ext4_mark_inode_dirty(handle, old.inode);
 	ext4_mark_inode_dirty(handle, new.inode);
 
@@ -3856,6 +3883,9 @@ static int ext4_rename2(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(old_dir->i_sb))))
+		return -EIO;
+
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
 		return -EINVAL;
 

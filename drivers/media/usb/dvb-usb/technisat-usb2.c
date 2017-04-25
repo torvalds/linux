@@ -14,10 +14,6 @@
  * License, or (at your option) any later version.
  *
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * THIS PROGRAM IS PROVIDED "AS IS" AND BOTH THE COPYRIGHT HOLDER AND
  * TECHNISAT DIGITAL UK LTD DISCLAIM ALL WARRANTIES WITH REGARD TO
  * THIS PROGRAM INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY OR
@@ -50,8 +46,7 @@ MODULE_PARM_DESC(debug,
 static int disable_led_control;
 module_param(disable_led_control, int, 0444);
 MODULE_PARM_DESC(disable_led_control,
-		"disable LED control of the device "
-		"(default: 0 - LED control is active).");
+		"disable LED control of the device (default: 0 - LED control is active).");
 
 /* device private data */
 struct technisat_usb2_state {
@@ -754,7 +749,7 @@ static struct dvb_usb_device_properties technisat_usb2_devices = {
 		.rc_codes    = RC_MAP_TECHNISAT_USB2,
 		.module_name = "technisat-usb2",
 		.rc_query    = technisat_usb2_rc_query,
-		.allowed_protos = RC_BIT_ALL,
+		.allowed_protos = RC_BIT_ALL_IR_DECODER,
 		.driver_type    = RC_DRIVER_IR_RAW,
 	}
 };

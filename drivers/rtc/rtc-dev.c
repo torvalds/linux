@@ -15,7 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/rtc.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include "rtc-core.h"
 
 static dev_t rtc_devt;

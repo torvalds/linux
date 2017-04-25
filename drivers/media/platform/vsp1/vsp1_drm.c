@@ -90,7 +90,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 		if (ret == -ETIMEDOUT)
 			dev_err(vsp1->dev, "DRM pipeline stop timeout\n");
 
-		media_entity_pipeline_stop(&pipe->output->entity.subdev.entity);
+		media_pipeline_stop(&pipe->output->entity.subdev.entity);
 
 		for (i = 0; i < bru->entity.source_pad; ++i) {
 			vsp1->drm->inputs[i].enabled = false;
@@ -196,7 +196,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 	if (ret < 0)
 		return ret;
 
-	ret = media_entity_pipeline_start(&pipe->output->entity.subdev.entity,
+	ret = media_pipeline_start(&pipe->output->entity.subdev.entity,
 					  &pipe->pipe);
 	if (ret < 0) {
 		dev_dbg(vsp1->dev, "%s: pipeline start failed\n", __func__);

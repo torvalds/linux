@@ -8,7 +8,7 @@
 #include <linux/stat.h>
 #include <linux/utime.h>
 #include <linux/syscalls.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #ifdef __ARCH_WANT_SYS_UTIME
@@ -48,7 +48,7 @@ static bool nsec_valid(long nsec)
 	return nsec >= 0 && nsec <= 999999999;
 }
 
-static int utimes_common(struct path *path, struct timespec *times)
+static int utimes_common(const struct path *path, struct timespec *times)
 {
 	int error;
 	struct iattr newattrs;

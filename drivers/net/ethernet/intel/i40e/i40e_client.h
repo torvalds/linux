@@ -203,8 +203,6 @@ struct i40e_client_instance {
 	struct i40e_info lan_info;
 	struct i40e_client *client;
 	unsigned long  state;
-	/* A count of all the in-progress calls to the client */
-	atomic_t ref_cnt;
 };
 
 struct i40e_client {

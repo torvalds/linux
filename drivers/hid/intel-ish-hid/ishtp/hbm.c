@@ -19,7 +19,6 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
-#include <linux/miscdevice.h>
 #include "ishtp-dev.h"
 #include "hbm.h"
 #include "client.h"
@@ -378,11 +377,10 @@ static void ishtp_hbm_cl_disconnect_res(struct ishtp_device *dev,
 	list_for_each_entry(cl, &dev->cl_list, link) {
 		if (!rs->status && ishtp_hbm_cl_addr_equal(cl, rs)) {
 			cl->state = ISHTP_CL_DISCONNECTED;
+			wake_up_interruptible(&cl->wait_ctrl_res);
 			break;
 		}
 	}
-	if (cl)
-		wake_up_interruptible(&cl->wait_ctrl_res);
 	spin_unlock_irqrestore(&dev->cl_list_lock, flags);
 }
 
@@ -431,11 +429,10 @@ static void ishtp_hbm_cl_connect_res(struct ishtp_device *dev,
 				cl->state = ISHTP_CL_DISCONNECTED;
 				cl->status = -ENODEV;
 			}
+			wake_up_interruptible(&cl->wait_ctrl_res);
 			break;
 		}
 	}
-	if (cl)
-		wake_up_interruptible(&cl->wait_ctrl_res);
 	spin_unlock_irqrestore(&dev->cl_list_lock, flags);
 }
 

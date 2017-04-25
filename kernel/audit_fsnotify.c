@@ -74,7 +74,7 @@ int audit_mark_compare(struct audit_fsnotify_mark *mark, unsigned long ino, dev_
 }
 
 static void audit_update_mark(struct audit_fsnotify_mark *audit_mark,
-			     struct inode *inode)
+			     const struct inode *inode)
 {
 	audit_mark->dev = inode ? inode->i_sb->s_dev : AUDIT_DEV_UNSET;
 	audit_mark->ino = inode ? inode->i_ino : AUDIT_INO_UNSET;
@@ -130,10 +130,9 @@ static void audit_mark_log_rule_change(struct audit_fsnotify_mark *audit_mark, c
 	ab = audit_log_start(NULL, GFP_NOFS, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return;
-	audit_log_format(ab, "auid=%u ses=%u op=",
+	audit_log_format(ab, "auid=%u ses=%u op=%s",
 			 from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			 audit_get_sessionid(current));
-	audit_log_string(ab, op);
+			 audit_get_sessionid(current), op);
 	audit_log_format(ab, " path=");
 	audit_log_untrustedstring(ab, audit_mark->path);
 	audit_log_key(ab, rule->filterkey);
@@ -168,11 +167,11 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 				    struct inode *to_tell,
 				    struct fsnotify_mark *inode_mark,
 				    struct fsnotify_mark *vfsmount_mark,
-				    u32 mask, void *data, int data_type,
+				    u32 mask, const void *data, int data_type,
 				    const unsigned char *dname, u32 cookie)
 {
 	struct audit_fsnotify_mark *audit_mark;
-	struct inode *inode = NULL;
+	const struct inode *inode = NULL;
 
 	audit_mark = container_of(inode_mark, struct audit_fsnotify_mark, mark);
 
@@ -180,10 +179,10 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 
 	switch (data_type) {
 	case (FSNOTIFY_EVENT_PATH):
-		inode = ((struct path *)data)->dentry->d_inode;
+		inode = ((const struct path *)data)->dentry->d_inode;
 		break;
 	case (FSNOTIFY_EVENT_INODE):
-		inode = (struct inode *)data;
+		inode = (const struct inode *)data;
 		break;
 	default:
 		BUG();

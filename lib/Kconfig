@@ -103,8 +103,7 @@ config CRC32
 	  functions require M here.
 
 config CRC32_SELFTEST
-	bool "CRC32 perform self test on init"
-	default n
+	tristate "CRC32 perform self test on init"
 	depends on CRC32
 	help
 	  This option enables the CRC32 library functions to perform a
@@ -395,6 +394,16 @@ config HAS_DMA
 	depends on !NO_DMA
 	default y
 
+config DMA_NOOP_OPS
+	bool
+	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
+	default n
+
+config DMA_VIRT_OPS
+	bool
+	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
+	default n
+
 config CHECK_SIGNATURE
 	bool
 
@@ -432,8 +441,7 @@ config GLOB
 	  depends on this.
 
 config GLOB_SELFTEST
-	bool "glob self-test on init"
-	default n
+	tristate "glob self-test on init"
 	depends on GLOB
 	help
 	  This option enables a simple self-test of the glob_match
@@ -549,5 +557,11 @@ config STACKDEPOT
 
 config SBITMAP
 	bool
+
+config PARMAN
+	tristate "parman" if COMPILE_TEST
+
+config PRIME_NUMBERS
+	tristate
 
 endmenu

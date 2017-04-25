@@ -240,9 +240,9 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	/* Print netdevice Info */
 	if (netdev) {
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
-		pr_info("Device Name     state            trans_start      last_rx\n");
-		pr_info("%-15s %016lX %016lX %016lX\n", netdev->name,
-			netdev->state, dev_trans_start(netdev), netdev->last_rx);
+		pr_info("Device Name     state            trans_start\n");
+		pr_info("%-15s %016lX %016lX\n", netdev->name,
+			netdev->state, dev_trans_start(netdev));
 	}
 
 	/* Print Registers */
@@ -4305,24 +4305,24 @@ void e1000e_reinit_locked(struct e1000_adapter *adapter)
 /**
  * e1000e_sanitize_systim - sanitize raw cycle counter reads
  * @hw: pointer to the HW structure
- * @systim: cycle_t value read, sanitized and returned
+ * @systim: time value read, sanitized and returned
  *
  * Errata for 82574/82583 possible bad bits read from SYSTIMH/L:
  * check to see that the time is incrementing at a reasonable
  * rate and is a multiple of incvalue.
  **/
-static cycle_t e1000e_sanitize_systim(struct e1000_hw *hw, cycle_t systim)
+static u64 e1000e_sanitize_systim(struct e1000_hw *hw, u64 systim)
 {
 	u64 time_delta, rem, temp;
-	cycle_t systim_next;
+	u64 systim_next;
 	u32 incvalue;
 	int i;
 
 	incvalue = er32(TIMINCA) & E1000_TIMINCA_INCVALUE_MASK;
 	for (i = 0; i < E1000_MAX_82574_SYSTIM_REREADS; i++) {
 		/* latch SYSTIMH on read of SYSTIML */
-		systim_next = (cycle_t)er32(SYSTIML);
-		systim_next |= (cycle_t)er32(SYSTIMH) << 32;
+		systim_next = (u64)er32(SYSTIML);
+		systim_next |= (u64)er32(SYSTIMH) << 32;
 
 		time_delta = systim_next - systim;
 		temp = time_delta;
@@ -4342,13 +4342,13 @@ static cycle_t e1000e_sanitize_systim(struct e1000_hw *hw, cycle_t systim)
  * e1000e_cyclecounter_read - read raw cycle counter (used by time counter)
  * @cc: cyclecounter structure
  **/
-static cycle_t e1000e_cyclecounter_read(const struct cyclecounter *cc)
+static u64 e1000e_cyclecounter_read(const struct cyclecounter *cc)
 {
 	struct e1000_adapter *adapter = container_of(cc, struct e1000_adapter,
 						     cc);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 systimel, systimeh;
-	cycle_t systim;
+	u64 systim;
 	/* SYSTIMH latching upon SYSTIML read does not work well.
 	 * This means that if SYSTIML overflows after we read it but before
 	 * we read SYSTIMH, the value of SYSTIMH has been incremented and we
@@ -4368,8 +4368,8 @@ static cycle_t e1000e_cyclecounter_read(const struct cyclecounter *cc)
 			systimel = systimel_2;
 		}
 	}
-	systim = (cycle_t)systimel;
-	systim |= (cycle_t)systimeh << 32;
+	systim = (u64)systimel;
+	systim |= (u64)systimeh << 32;
 
 	if (adapter->flags2 & FLAG2_CHECK_SYSTIM_OVERFLOW)
 		systim = e1000e_sanitize_systim(hw, systim);
@@ -5920,12 +5920,11 @@ static void e1000_reset_task(struct work_struct *work)
  *
  * Returns the address of the device statistics structure.
  **/
-struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
-					     struct rtnl_link_stats64 *stats)
+void e1000e_get_stats64(struct net_device *netdev,
+			struct rtnl_link_stats64 *stats)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	memset(stats, 0, sizeof(struct rtnl_link_stats64));
 	spin_lock(&adapter->stats64_lock);
 	e1000e_update_stats(adapter);
 	/* Fill out the OS statistics structure */
@@ -5958,7 +5957,6 @@ struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
 	/* Tx Dropped needs to be maintained elsewhere */
 
 	spin_unlock(&adapter->stats64_lock);
-	return stats;
 }
 
 /**
@@ -5974,16 +5972,9 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	int max_frame = new_mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 
 	/* Jumbo frame support */
-	if ((max_frame > (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)) &&
+	if ((new_mtu > ETH_DATA_LEN) &&
 	    !(adapter->flags & FLAG_HAS_JUMBO_FRAMES)) {
 		e_err("Jumbo Frames not supported.\n");
-		return -EINVAL;
-	}
-
-	/* Supported frame sizes */
-	if ((new_mtu < (VLAN_ETH_ZLEN + ETH_FCS_LEN)) ||
-	    (max_frame > adapter->max_hw_frame_size)) {
-		e_err("Unsupported MTU setting\n");
 		return -EINVAL;
 	}
 
@@ -6283,8 +6274,8 @@ static int e1000e_pm_freeze(struct device *dev)
 		/* Quiesce the device without resetting the hardware */
 		e1000e_down(adapter, false);
 		e1000_free_irq(adapter);
+		e1000e_reset_interrupt_capability(adapter);
 	}
-	e1000e_reset_interrupt_capability(adapter);
 
 	/* Allow time for pending master requests to run */
 	e1000e_disable_pcie_master(&adapter->hw);
@@ -6762,13 +6753,13 @@ static void e1000_netpoll(struct net_device *netdev)
 		e1000_intr_msix(adapter->pdev->irq, netdev);
 		break;
 	case E1000E_INT_MODE_MSI:
-		disable_irq(adapter->pdev->irq);
-		e1000_intr_msi(adapter->pdev->irq, netdev);
+		if (disable_hardirq(adapter->pdev->irq))
+			e1000_intr_msi(adapter->pdev->irq, netdev);
 		enable_irq(adapter->pdev->irq);
 		break;
 	default:		/* E1000E_INT_MODE_LEGACY */
-		disable_irq(adapter->pdev->irq);
-		e1000_intr(adapter->pdev->irq, netdev);
+		if (disable_hardirq(adapter->pdev->irq))
+			e1000_intr(adapter->pdev->irq, netdev);
 		enable_irq(adapter->pdev->irq);
 		break;
 	}
@@ -7186,6 +7177,11 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->features |= NETIF_F_HIGHDMA;
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
+
+	/* MTU range: 68 - max_hw_frame_size */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = adapter->max_hw_frame_size -
+			  (VLAN_ETH_HLEN + ETH_FCS_LEN);
 
 	if (e1000e_enable_mng_pass_thru(&adapter->hw))
 		adapter->flags |= FLAG_MNG_PT_ENABLED;

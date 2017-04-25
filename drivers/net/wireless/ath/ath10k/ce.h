@@ -20,8 +20,6 @@
 
 #include "hif.h"
 
-/* Maximum number of Copy Engine's supported */
-#define CE_COUNT_MAX 12
 #define CE_HTT_H2T_MSG_SRC_NENTRIES 8192
 
 /* Descriptor rings must be aligned to this boundary */
@@ -228,6 +226,8 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar);
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_disable_interrupts(struct ath10k *ar);
 void ath10k_ce_enable_interrupts(struct ath10k *ar);
+void ath10k_ce_dump_registers(struct ath10k *ar,
+			      struct ath10k_fw_crash_data *crash_data);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */

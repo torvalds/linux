@@ -4,7 +4,7 @@ be listed here unless the driver has its own driver-specific information
 file.
 
 
-See Documentation/kernel-parameters.txt for information on
+See Documentation/admin-guide/kernel-parameters.rst for information on
 providing kernel parameters for builtin drivers versus loadable
 modules.
 
@@ -206,6 +206,11 @@ nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------
 ni903x_wdt:
 timeout: Initial watchdog timeout in seconds (0<timeout<516, default=60)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
+nic7018_wdt:
+timeout: Initial watchdog timeout in seconds (0<timeout<464, default=80)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------

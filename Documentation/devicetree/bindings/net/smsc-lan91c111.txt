@@ -13,3 +13,5 @@ Optional properties:
   16-bit access only.
 - power-gpios: GPIO to control the PWRDWN pin
 - reset-gpios: GPIO to control the RESET pin
+- pxa-u16-align4 : Boolean, put in place the workaround the force all
+		   u16 writes to be 32 bits aligned

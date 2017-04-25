@@ -203,6 +203,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/kprobes.h>
 #include <linux/errno.h>
 #include <linux/stddef.h>

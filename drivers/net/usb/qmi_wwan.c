@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
@@ -649,6 +650,13 @@ static const struct usb_device_id products[] = {
 	},
 	{	/* ADU960S */
 		USB_DEVICE_AND_INTERFACE_INFO(0x16d5, 0x650a,
+					      USB_CLASS_COMM,
+					      USB_CDC_SUBCLASS_ETHERNET,
+					      USB_CDC_PROTO_NONE),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* HP lt2523 (Novatel E371) */
+		USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0x421d,
 					      USB_CLASS_COMM,
 					      USB_CDC_SUBCLASS_ETHERNET,
 					      USB_CDC_PROTO_NONE),

@@ -50,6 +50,7 @@ extern "C" {
 #define DRM_AMDGPU_WAIT_CS		0x09
 #define DRM_AMDGPU_GEM_OP		0x10
 #define DRM_AMDGPU_GEM_USERPTR		0x11
+#define DRM_AMDGPU_WAIT_FENCES		0x12
 
 #define DRM_IOCTL_AMDGPU_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE, union drm_amdgpu_gem_create)
 #define DRM_IOCTL_AMDGPU_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP, union drm_amdgpu_gem_mmap)
@@ -63,6 +64,7 @@ extern "C" {
 #define DRM_IOCTL_AMDGPU_WAIT_CS	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_CS, union drm_amdgpu_wait_cs)
 #define DRM_IOCTL_AMDGPU_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_OP, struct drm_amdgpu_gem_op)
 #define DRM_IOCTL_AMDGPU_GEM_USERPTR	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_USERPTR, struct drm_amdgpu_gem_userptr)
+#define DRM_IOCTL_AMDGPU_WAIT_FENCES	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_FENCES, union drm_amdgpu_wait_fences)
 
 #define AMDGPU_GEM_DOMAIN_CPU		0x1
 #define AMDGPU_GEM_DOMAIN_GTT		0x2
@@ -81,6 +83,8 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_VRAM_CLEARED		(1 << 3)
 /* Flag that create shadow bo(GTT) while allocating vram bo */
 #define AMDGPU_GEM_CREATE_SHADOW		(1 << 4)
+/* Flag that allocating the BO should use linear VRAM */
+#define AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS	(1 << 5)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
@@ -305,6 +309,32 @@ union drm_amdgpu_wait_cs {
 	struct drm_amdgpu_wait_cs_out out;
 };
 
+struct drm_amdgpu_fence {
+	__u32 ctx_id;
+	__u32 ip_type;
+	__u32 ip_instance;
+	__u32 ring;
+	__u64 seq_no;
+};
+
+struct drm_amdgpu_wait_fences_in {
+	/** This points to uint64_t * which points to fences */
+	__u64 fences;
+	__u32 fence_count;
+	__u32 wait_all;
+	__u64 timeout_ns;
+};
+
+struct drm_amdgpu_wait_fences_out {
+	__u32 status;
+	__u32 first_signaled;
+};
+
+union drm_amdgpu_wait_fences {
+	struct drm_amdgpu_wait_fences_in in;
+	struct drm_amdgpu_wait_fences_out out;
+};
+
 #define AMDGPU_GEM_OP_GET_GEM_CREATE_INFO	0
 #define AMDGPU_GEM_OP_SET_PLACEMENT		1
 
@@ -436,6 +466,7 @@ struct drm_amdgpu_cs_chunk_data {
  *
  */
 #define AMDGPU_IDS_FLAGS_FUSION         0x1
+#define AMDGPU_IDS_FLAGS_PREEMPTION     0x2
 
 /* indicate if acceleration can be working */
 #define AMDGPU_INFO_ACCEL_WORKING		0x00
@@ -487,6 +518,18 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_VIS_VRAM_USAGE		0x17
 /* number of TTM buffer evictions */
 #define AMDGPU_INFO_NUM_EVICTIONS		0x18
+/* Query memory about VRAM and GTT domains */
+#define AMDGPU_INFO_MEMORY			0x19
+/* Query vce clock table */
+#define AMDGPU_INFO_VCE_CLOCK_TABLE		0x1A
+/* Query vbios related information */
+#define AMDGPU_INFO_VBIOS			0x1B
+	/* Subquery id: Query vbios size */
+	#define AMDGPU_INFO_VBIOS_SIZE		0x1
+	/* Subquery id: Query vbios image */
+	#define AMDGPU_INFO_VBIOS_IMAGE		0x2
+/* Query UVD handles */
+#define AMDGPU_INFO_NUM_HANDLES			0x1C
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -545,6 +588,11 @@ struct drm_amdgpu_info {
 		} read_mmr_reg;
 
 		struct drm_amdgpu_query_fw query_fw;
+
+		struct {
+			__u32 type;
+			__u32 offset;
+		} vbios_info;
 	};
 };
 
@@ -570,6 +618,34 @@ struct drm_amdgpu_info_vram_gtt {
 	__u64 vram_size;
 	__u64 vram_cpu_accessible_size;
 	__u64 gtt_size;
+};
+
+struct drm_amdgpu_heap_info {
+	/** max. physical memory */
+	__u64 total_heap_size;
+
+	/** Theoretical max. available memory in the given heap */
+	__u64 usable_heap_size;
+
+	/**
+	 * Number of bytes allocated in the heap. This includes all processes
+	 * and private allocations in the kernel. It changes when new buffers
+	 * are allocated, freed, and moved. It cannot be larger than
+	 * heap_size.
+	 */
+	__u64 heap_usage;
+
+	/**
+	 * Theoretical possible max. size of buffer which
+	 * could be allocated in the given heap
+	 */
+	__u64 max_allocation;
+};
+
+struct drm_amdgpu_memory_info {
+	struct drm_amdgpu_heap_info vram;
+	struct drm_amdgpu_heap_info cpu_accessible_vram;
+	struct drm_amdgpu_heap_info gtt;
 };
 
 struct drm_amdgpu_info_firmware {
@@ -643,6 +719,31 @@ struct drm_amdgpu_info_hw_ip {
 	/** Bitmask of available rings. Bit 0 means ring 0, etc. */
 	__u32  available_rings;
 	__u32  _pad;
+};
+
+struct drm_amdgpu_info_num_handles {
+	/** Max handles as supported by firmware for UVD */
+	__u32  uvd_max_handles;
+	/** Handles currently in use for UVD */
+	__u32  uvd_used_handles;
+};
+
+#define AMDGPU_VCE_CLOCK_TABLE_ENTRIES		6
+
+struct drm_amdgpu_info_vce_clock_table_entry {
+	/** System clock */
+	__u32 sclk;
+	/** Memory clock */
+	__u32 mclk;
+	/** VCE clock */
+	__u32 eclk;
+	__u32 pad;
+};
+
+struct drm_amdgpu_info_vce_clock_table {
+	struct drm_amdgpu_info_vce_clock_table_entry entries[AMDGPU_VCE_CLOCK_TABLE_ENTRIES];
+	__u32 num_valid_entries;
+	__u32 pad;
 };
 
 /*

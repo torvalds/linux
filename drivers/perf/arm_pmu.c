@@ -20,6 +20,7 @@
 #include <linux/perf/arm_pmu.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/spinlock.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
@@ -1084,7 +1085,7 @@ static int arm_pmu_hp_init(void)
 	int ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_STARTING,
-				      "AP_PERF_ARM_STARTING",
+				      "perf/arm/pmu:starting",
 				      arm_perf_starting_cpu, NULL);
 	if (ret)
 		pr_err("CPU hotplug notifier for ARM PMU could not be registered: %d\n",

@@ -75,7 +75,16 @@ struct vfio_iommu_driver_ops {
 					struct iommu_group *group);
 	void		(*detach_group)(void *iommu_data,
 					struct iommu_group *group);
-
+	int		(*pin_pages)(void *iommu_data, unsigned long *user_pfn,
+				     int npage, int prot,
+				     unsigned long *phys_pfn);
+	int		(*unpin_pages)(void *iommu_data,
+				       unsigned long *user_pfn, int npage);
+	int		(*register_notifier)(void *iommu_data,
+					     unsigned long *events,
+					     struct notifier_block *nb);
+	int		(*unregister_notifier)(void *iommu_data,
+					       struct notifier_block *nb);
 };
 
 extern int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops);
@@ -92,6 +101,36 @@ extern int vfio_external_user_iommu_id(struct vfio_group *group);
 extern long vfio_external_check_extension(struct vfio_group *group,
 					  unsigned long arg);
 
+#define VFIO_PIN_PAGES_MAX_ENTRIES	(PAGE_SIZE/sizeof(unsigned long))
+
+extern int vfio_pin_pages(struct device *dev, unsigned long *user_pfn,
+			  int npage, int prot, unsigned long *phys_pfn);
+extern int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn,
+			    int npage);
+
+/* each type has independent events */
+enum vfio_notify_type {
+	VFIO_IOMMU_NOTIFY = 0,
+	VFIO_GROUP_NOTIFY = 1,
+};
+
+/* events for VFIO_IOMMU_NOTIFY */
+#define VFIO_IOMMU_NOTIFY_DMA_UNMAP	BIT(0)
+
+/* events for VFIO_GROUP_NOTIFY */
+#define VFIO_GROUP_NOTIFY_SET_KVM	BIT(0)
+
+extern int vfio_register_notifier(struct device *dev,
+				  enum vfio_notify_type type,
+				  unsigned long *required_events,
+				  struct notifier_block *nb);
+extern int vfio_unregister_notifier(struct device *dev,
+				    enum vfio_notify_type type,
+				    struct notifier_block *nb);
+
+struct kvm;
+extern void vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm);
+
 /*
  * Sub-module helpers
  */
@@ -102,6 +141,13 @@ struct vfio_info_cap {
 extern struct vfio_info_cap_header *vfio_info_cap_add(
 		struct vfio_info_cap *caps, size_t size, u16 id, u16 version);
 extern void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset);
+
+extern int vfio_info_add_capability(struct vfio_info_cap *caps,
+				    int cap_type_id, void *cap_type);
+
+extern int vfio_set_irqs_validate_and_prepare(struct vfio_irq_set *hdr,
+					      int num_irqs, int max_irq_type,
+					      size_t *data_size);
 
 struct pci_dev;
 #ifdef CONFIG_EEH

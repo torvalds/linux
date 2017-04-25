@@ -481,14 +481,14 @@ static void l2cap_chan_destroy(struct kref *kref)
 
 void l2cap_chan_hold(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
+	BT_DBG("chan %p orig refcnt %d", c, kref_read(&c->kref));
 
 	kref_get(&c->kref);
 }
 
 void l2cap_chan_put(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, atomic_read(&c->kref.refcount));
+	BT_DBG("chan %p orig refcnt %d", c, kref_read(&c->kref));
 
 	kref_put(&c->kref, l2cap_chan_destroy);
 }
@@ -2127,7 +2127,7 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 	struct sk_buff **frag;
 	int sent = 0;
 
-	if (copy_from_iter(skb_put(skb, count), count, &msg->msg_iter) != count)
+	if (!copy_from_iter_full(skb_put(skb, count), count, &msg->msg_iter))
 		return -EFAULT;
 
 	sent += count;
@@ -2147,8 +2147,8 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 
 		*frag = tmp;
 
-		if (copy_from_iter(skb_put(*frag, count), count,
-				   &msg->msg_iter) != count)
+		if (!copy_from_iter_full(skb_put(*frag, count), count,
+				   &msg->msg_iter))
 			return -EFAULT;
 
 		sent += count;

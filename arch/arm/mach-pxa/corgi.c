@@ -19,6 +19,7 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/mmc/host.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pm.h>
@@ -35,7 +36,6 @@
 #include <linux/mtd/sharpsl.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
-#include <linux/module.h>
 #include <linux/memblock.h>
 #include <video/w100fb.h>
 

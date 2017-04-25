@@ -42,6 +42,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level 0-1");
 
 #define VPIF_DRIVER_NAME	"vpif_display"
+MODULE_ALIAS("platform:" VPIF_DRIVER_NAME);
 
 /* Is set to 1 in case of SDTV formats, 2 in case of HDTV formats. */
 static int ycmux_mode;
@@ -271,10 +272,10 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 		vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 	} else {
-		if (common->cur_frm != NULL)
+		if (common->cur_frm)
 			vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
-		if (common->next_frm != NULL)
+		if (common->next_frm)
 			vb2_buffer_done(&common->next_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 	}
@@ -301,7 +302,7 @@ static struct vb2_ops video_qops = {
 
 static void process_progressive_mode(struct common_obj *common)
 {
-	unsigned long addr = 0;
+	unsigned long addr;
 
 	spin_lock(&common->irqlock);
 	/* Get the next buffer from buffer queue */
@@ -363,7 +364,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	struct channel_obj *ch;
 	struct common_obj *common;
 	int fid = -1, i;
-	int channel_id = 0;
+	int channel_id;
 
 	channel_id = *(int *)(dev_id);
 	if (!vpif_intr_status(channel_id + 2))
@@ -686,7 +687,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	struct v4l2_output output;
 	int ret;
 
-	if (config->chan_config[ch->channel_id].outputs == NULL)
+	if (!config->chan_config[ch->channel_id].outputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -732,7 +733,7 @@ static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	struct vpif_display_chan_config *chan_cfg;
 	struct v4l2_output output;
 
-	if (config->chan_config[ch->channel_id].outputs == NULL)
+	if (!config->chan_config[ch->channel_id].outputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -783,11 +784,11 @@ vpif_output_to_subdev(struct vpif_display_config *vpif_cfg,
 
 	vpif_dbg(2, debug, "vpif_output_to_subdev\n");
 
-	if (chan_cfg->outputs == NULL)
+	if (!chan_cfg->outputs)
 		return -1;
 
 	subdev_name = chan_cfg->outputs[index].subdev_name;
-	if (subdev_name == NULL)
+	if (!subdev_name)
 		return -1;
 
 	/* loop through the sub device list to get the sub device info */
@@ -833,7 +834,7 @@ static int vpif_set_output(struct vpif_display_config *vpif_cfg,
 	}
 	ch->output_idx = index;
 	ch->sd = sd;
-	if (chan_cfg->outputs != NULL)
+	if (chan_cfg->outputs)
 		/* update tvnorms from the sub device output info */
 		ch->video_dev.tvnorms = chan_cfg->outputs[index].output.std;
 	return 0;
@@ -885,7 +886,7 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 	struct v4l2_output output;
 	int ret;
 
-	if (config->chan_config[ch->channel_id].outputs == NULL)
+	if (!config->chan_config[ch->channel_id].outputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -922,7 +923,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	struct v4l2_output output;
 	int ret;
 
-	if (config->chan_config[ch->channel_id].outputs == NULL)
+	if (!config->chan_config[ch->channel_id].outputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -954,11 +955,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 				timings->bt.vfrontporch &&
 				(timings->bt.vbackporch ||
 				 timings->bt.vsync))) {
-		vpif_dbg(2, debug, "Timings for width, height, "
-				"horizontal back porch, horizontal sync, "
-				"horizontal front porch, vertical back porch, "
-				"vertical sync and vertical back porch "
-				"must be defined\n");
+		vpif_dbg(2, debug, "Timings for width, height, horizontal back porch, horizontal sync, horizontal front porch, vertical back porch, vertical sync and vertical back porch must be defined\n");
 		return -EINVAL;
 	}
 
@@ -983,8 +980,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 			std_info->l11 = std_info->vsize -
 				(bt->il_vfrontporch - 1);
 		} else {
-			vpif_dbg(2, debug, "Required timing values for "
-					"interlaced BT format missing\n");
+			vpif_dbg(2, debug, "Required timing values for interlaced BT format missing\n");
 			return -EINVAL;
 		}
 	} else {
@@ -1021,7 +1017,7 @@ static int vpif_g_dv_timings(struct file *file, void *priv,
 	struct video_obj *vid_ch = &ch->video;
 	struct v4l2_output output;
 
-	if (config->chan_config[ch->channel_id].outputs == NULL)
+	if (!config->chan_config[ch->channel_id].outputs)
 		goto error;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -1249,6 +1245,11 @@ static __init int vpif_probe(struct platform_device *pdev)
 	int res_idx = 0;
 	int i, err;
 
+	if (!pdev->dev.platform_data) {
+		dev_warn(&pdev->dev, "Missing platform data.  Giving up.\n");
+		return -EINVAL;
+	}
+
 	vpif_dev = &pdev->dev;
 	err = initialize_vpif();
 
@@ -1279,10 +1280,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 	vpif_obj.config = pdev->dev.platform_data;
 	subdev_count = vpif_obj.config->subdev_count;
 	subdevdata = vpif_obj.config->subdevinfo;
-	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
-								GFP_KERNEL);
-	if (vpif_obj.sd == NULL) {
-		vpif_err("unable to allocate memory for subdevice pointers\n");
+	vpif_obj.sd = kcalloc(subdev_count, sizeof(*vpif_obj.sd), GFP_KERNEL);
+	if (!vpif_obj.sd) {
 		err = -ENOMEM;
 		goto vpif_unregister;
 	}

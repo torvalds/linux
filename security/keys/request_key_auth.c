@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 #include <keys/user-type.h>
 

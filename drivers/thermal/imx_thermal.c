@@ -489,6 +489,10 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	data->tempmon = map;
 
 	data->socdata = of_device_get_match_data(&pdev->dev);
+	if (!data->socdata) {
+		dev_err(&pdev->dev, "no device match found\n");
+		return -ENODEV;
+	}
 
 	/* make sure the IRQ flag is clear before enabling irq on i.MX6SX */
 	if (data->socdata->version == TEMPMON_IMX6SX) {

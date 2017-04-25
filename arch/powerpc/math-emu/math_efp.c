@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/prctl.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/reg.h>
 
 #define FP_EX_BOOKE_E500_SPE

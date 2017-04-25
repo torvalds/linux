@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7164.h"
@@ -427,8 +423,8 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		write_distance = curr_gwp + bus->m_dwSizeGetRing - curr_grp;
 
 	if (bytes_to_read > write_distance) {
-		printk(KERN_ERR "%s() Invalid bus state, missing msg "
-			"or mangled ring, faulty H/W / bad code?\n", __func__);
+		printk(KERN_ERR "%s() Invalid bus state, missing msg or mangled ring, faulty H/W / bad code?\n",
+		       __func__);
 		ret = SAA_ERR_INVALID_COMMAND;
 		goto out;
 	}

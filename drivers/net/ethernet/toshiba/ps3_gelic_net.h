@@ -373,7 +373,6 @@ int gelic_net_stop(struct net_device *netdev);
 int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
 void gelic_net_set_multi(struct net_device *netdev);
 void gelic_net_tx_timeout(struct net_device *netdev);
-int gelic_net_change_mtu(struct net_device *netdev, int new_mtu);
 int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card);
 
 /* shared ethtool ops */

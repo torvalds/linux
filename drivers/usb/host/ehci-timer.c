@@ -88,8 +88,7 @@ static void ehci_enable_event(struct ehci_hcd *ehci, unsigned event,
 	ktime_t		*timeout = &ehci->hr_timeouts[event];
 
 	if (resched)
-		*timeout = ktime_add(ktime_get(),
-				ktime_set(0, event_delays_ns[event]));
+		*timeout = ktime_add(ktime_get(), event_delays_ns[event]);
 	ehci->enabled_hrtimer_events |= (1 << event);
 
 	/* Track only the lowest-numbered pending event */
@@ -425,7 +424,7 @@ static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
 	 */
 	now = ktime_get();
 	for_each_set_bit(e, &events, EHCI_HRTIMER_NUM_EVENTS) {
-		if (now.tv64 >= ehci->hr_timeouts[e].tv64)
+		if (now >= ehci->hr_timeouts[e])
 			event_handlers[e](ehci);
 		else
 			ehci_enable_event(ehci, e, false);

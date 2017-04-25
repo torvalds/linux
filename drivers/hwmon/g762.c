@@ -193,14 +193,17 @@ static inline unsigned int rpm_from_cnt(u8 cnt, u32 clk_freq, u16 p,
  * Convert fan RPM value from sysfs into count value for fan controller
  * register (FAN_SET_CNT).
  */
-static inline unsigned char cnt_from_rpm(u32 rpm, u32 clk_freq, u16 p,
+static inline unsigned char cnt_from_rpm(unsigned long rpm, u32 clk_freq, u16 p,
 					 u8 clk_div, u8 gear_mult)
 {
-	if (!rpm)         /* to stop the fan, set cnt to 255 */
+	unsigned long f1 = clk_freq * 30 * gear_mult;
+	unsigned long f2 = p * clk_div;
+
+	if (!rpm)	/* to stop the fan, set cnt to 255 */
 		return 0xff;
 
-	return clamp_val(((clk_freq * 30 * gear_mult) / (rpm * p * clk_div)),
-			 0, 255);
+	rpm = clamp_val(rpm, f1 / (255 * f2), ULONG_MAX / f2);
+	return DIV_ROUND_CLOSEST(f1, rpm * f2);
 }
 
 /* helper to grab and cache data, at most one time per second */
@@ -735,8 +738,8 @@ static int g762_pdata_prop_import(struct i2c_client *client)
  * Read function for fan1_input sysfs file. Return current fan RPM value, or
  * 0 if fan is out of control.
  */
-static ssize_t get_fan_rpm(struct device *dev, struct device_attribute *da,
-			   char *buf)
+static ssize_t fan1_input_show(struct device *dev,
+			       struct device_attribute *da, char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 	unsigned int rpm = 0;
@@ -761,8 +764,8 @@ static ssize_t get_fan_rpm(struct device *dev, struct device_attribute *da,
  * Read and write functions for pwm1_mode sysfs file. Get and set fan speed
  * control mode i.e. PWM (1) or DC (0).
  */
-static ssize_t get_pwm_mode(struct device *dev, struct device_attribute *da,
-			    char *buf)
+static ssize_t pwm1_mode_show(struct device *dev, struct device_attribute *da,
+			      char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 
@@ -773,8 +776,9 @@ static ssize_t get_pwm_mode(struct device *dev, struct device_attribute *da,
 		       !!(data->fan_cmd1 & G762_REG_FAN_CMD1_OUT_MODE));
 }
 
-static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *da,
-			    const char *buf, size_t count)
+static ssize_t pwm1_mode_store(struct device *dev,
+			       struct device_attribute *da, const char *buf,
+			       size_t count)
 {
 	unsigned long val;
 	int ret;
@@ -793,8 +797,8 @@ static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *da,
  * Read and write functions for fan1_div sysfs file. Get and set fan
  * controller prescaler value
  */
-static ssize_t get_fan_div(struct device *dev,
-			   struct device_attribute *da, char *buf)
+static ssize_t fan1_div_show(struct device *dev, struct device_attribute *da,
+			     char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 
@@ -804,9 +808,8 @@ static ssize_t get_fan_div(struct device *dev,
 	return sprintf(buf, "%d\n", G762_CLKDIV_FROM_REG(data->fan_cmd1));
 }
 
-static ssize_t set_fan_div(struct device *dev,
-			   struct device_attribute *da,
-			   const char *buf, size_t count)
+static ssize_t fan1_div_store(struct device *dev, struct device_attribute *da,
+			      const char *buf, size_t count)
 {
 	unsigned long val;
 	int ret;
@@ -825,8 +828,8 @@ static ssize_t set_fan_div(struct device *dev,
  * Read and write functions for fan1_pulses sysfs file. Get and set number
  * of tachometer pulses per fan revolution.
  */
-static ssize_t get_fan_pulses(struct device *dev,
-			      struct device_attribute *da, char *buf)
+static ssize_t fan1_pulses_show(struct device *dev,
+				struct device_attribute *da, char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 
@@ -836,9 +839,9 @@ static ssize_t get_fan_pulses(struct device *dev,
 	return sprintf(buf, "%d\n", G762_PULSE_FROM_REG(data->fan_cmd1));
 }
 
-static ssize_t set_fan_pulses(struct device *dev,
-			      struct device_attribute *da,
-			      const char *buf, size_t count)
+static ssize_t fan1_pulses_store(struct device *dev,
+				 struct device_attribute *da, const char *buf,
+				 size_t count)
 {
 	unsigned long val;
 	int ret;
@@ -858,7 +861,7 @@ static ssize_t set_fan_pulses(struct device *dev,
  * (i.e. closed or open-loop).
  *
  * Following documentation about hwmon's sysfs interface, a pwm1_enable node
- * should accept followings:
+ * should accept the following:
  *
  *  0 : no fan speed control (i.e. fan at full speed)
  *  1 : manual fan speed control enabled (use pwm[1-*]) (open-loop)
@@ -867,8 +870,8 @@ static ssize_t set_fan_pulses(struct device *dev,
  * but we do not accept 0 as this mode is not natively supported by the chip
  * and it is not emulated by g762 driver. -EINVAL is returned in this case.
  */
-static ssize_t get_pwm_enable(struct device *dev,
-			      struct device_attribute *da, char *buf)
+static ssize_t pwm1_enable_show(struct device *dev,
+				struct device_attribute *da, char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 
@@ -879,9 +882,9 @@ static ssize_t get_pwm_enable(struct device *dev,
 		       (!!(data->fan_cmd1 & G762_REG_FAN_CMD1_FAN_MODE)) + 1);
 }
 
-static ssize_t set_pwm_enable(struct device *dev,
-			      struct device_attribute *da,
-			      const char *buf, size_t count)
+static ssize_t pwm1_enable_store(struct device *dev,
+				 struct device_attribute *da, const char *buf,
+				 size_t count)
 {
 	unsigned long val;
 	int ret;
@@ -901,8 +904,8 @@ static ssize_t set_pwm_enable(struct device *dev,
  * (which affects fan speed) in open-loop mode. 0 stops the fan and 255
  * makes it run at full speed.
  */
-static ssize_t get_pwm(struct device *dev, struct device_attribute *da,
-		       char *buf)
+static ssize_t pwm1_show(struct device *dev, struct device_attribute *da,
+			 char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 
@@ -912,8 +915,8 @@ static ssize_t get_pwm(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", data->set_out);
 }
 
-static ssize_t set_pwm(struct device *dev, struct device_attribute *da,
-		       const char *buf, size_t count)
+static ssize_t pwm1_store(struct device *dev, struct device_attribute *da,
+			  const char *buf, size_t count)
 {
 	unsigned long val;
 	int ret;
@@ -939,8 +942,8 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *da,
  * Also note that due to rounding errors it is possible that you don't read
  * back exactly the value you have set.
  */
-static ssize_t get_fan_target(struct device *dev, struct device_attribute *da,
-			      char *buf)
+static ssize_t fan1_target_show(struct device *dev,
+				struct device_attribute *da, char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 	unsigned int rpm;
@@ -958,8 +961,9 @@ static ssize_t get_fan_target(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%u\n", rpm);
 }
 
-static ssize_t set_fan_target(struct device *dev, struct device_attribute *da,
-			      const char *buf, size_t count)
+static ssize_t fan1_target_store(struct device *dev,
+				 struct device_attribute *da, const char *buf,
+				 size_t count)
 {
 	unsigned long val;
 	int ret;
@@ -975,7 +979,7 @@ static ssize_t set_fan_target(struct device *dev, struct device_attribute *da,
 }
 
 /* read function for fan1_fault sysfs file. */
-static ssize_t get_fan_failure(struct device *dev, struct device_attribute *da,
+static ssize_t fan1_fault_show(struct device *dev, struct device_attribute *da,
 			       char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
@@ -990,8 +994,8 @@ static ssize_t get_fan_failure(struct device *dev, struct device_attribute *da,
  * read function for fan1_alarm sysfs file. Note that OOC condition is
  * enabled low
  */
-static ssize_t get_fan_ooc(struct device *dev, struct device_attribute *da,
-			   char *buf)
+static ssize_t fan1_alarm_show(struct device *dev,
+			       struct device_attribute *da, char *buf)
 {
 	struct g762_data *data = g762_update_client(dev);
 
@@ -1001,18 +1005,15 @@ static ssize_t get_fan_ooc(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%u\n", !(data->fan_sta & G762_REG_FAN_STA_OOC));
 }
 
-static DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, get_pwm, set_pwm);
-static DEVICE_ATTR(pwm1_mode, S_IWUSR | S_IRUGO, get_pwm_mode, set_pwm_mode);
-static DEVICE_ATTR(pwm1_enable, S_IWUSR | S_IRUGO,
-		   get_pwm_enable, set_pwm_enable);
-static DEVICE_ATTR(fan1_input, S_IRUGO, get_fan_rpm, NULL);
-static DEVICE_ATTR(fan1_alarm, S_IRUGO, get_fan_ooc, NULL);
-static DEVICE_ATTR(fan1_fault, S_IRUGO, get_fan_failure, NULL);
-static DEVICE_ATTR(fan1_target, S_IWUSR | S_IRUGO,
-		   get_fan_target, set_fan_target);
-static DEVICE_ATTR(fan1_div, S_IWUSR | S_IRUGO, get_fan_div, set_fan_div);
-static DEVICE_ATTR(fan1_pulses, S_IWUSR | S_IRUGO,
-		   get_fan_pulses, set_fan_pulses);
+static DEVICE_ATTR_RW(pwm1);
+static DEVICE_ATTR_RW(pwm1_mode);
+static DEVICE_ATTR_RW(pwm1_enable);
+static DEVICE_ATTR_RO(fan1_input);
+static DEVICE_ATTR_RO(fan1_alarm);
+static DEVICE_ATTR_RO(fan1_fault);
+static DEVICE_ATTR_RW(fan1_target);
+static DEVICE_ATTR_RW(fan1_div);
+static DEVICE_ATTR_RW(fan1_pulses);
 
 /* Driver data */
 static struct attribute *g762_attrs[] = {

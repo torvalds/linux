@@ -80,33 +80,10 @@ out:
  * CPU configuration related functions.
  */
 
-#define SCLP_CMDW_READ_CPU_INFO		0x00010001
 #define SCLP_CMDW_CONFIGURE_CPU		0x00110001
 #define SCLP_CMDW_DECONFIGURE_CPU	0x00100001
 
-struct read_cpu_info_sccb {
-	struct	sccb_header header;
-	u16	nr_configured;
-	u16	offset_configured;
-	u16	nr_standby;
-	u16	offset_standby;
-	u8	reserved[4096 - 16];
-} __attribute__((packed, aligned(PAGE_SIZE)));
-
-static void sclp_fill_core_info(struct sclp_core_info *info,
-				struct read_cpu_info_sccb *sccb)
-{
-	char *page = (char *) sccb;
-
-	memset(info, 0, sizeof(*info));
-	info->configured = sccb->nr_configured;
-	info->standby = sccb->nr_standby;
-	info->combined = sccb->nr_configured + sccb->nr_standby;
-	memcpy(&info->core, page + sccb->offset_configured,
-	       info->combined * sizeof(struct sclp_core_entry));
-}
-
-int sclp_get_core_info(struct sclp_core_info *info)
+int _sclp_get_core_info(struct sclp_core_info *info)
 {
 	int rc;
 	struct read_cpu_info_sccb *sccb;

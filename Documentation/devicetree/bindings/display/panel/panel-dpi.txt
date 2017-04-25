@@ -12,7 +12,7 @@ Optional properties:
 
 Required nodes:
 - "panel-timing" containing video timings
-  (Documentation/devicetree/bindings/display/display-timing.txt)
+  (Documentation/devicetree/bindings/display/panel/display-timing.txt)
 - Video port for DPI input
 
 Example

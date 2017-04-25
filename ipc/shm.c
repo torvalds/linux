@@ -89,6 +89,7 @@ void shm_init_ns(struct ipc_namespace *ns)
 static void do_shm_rmid(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
 	struct shmid_kernel *shp;
+
 	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
 
 	if (shp->shm_nattch) {
@@ -373,12 +374,12 @@ void exit_shm(struct task_struct *task)
 	up_write(&shm_ids(ns).rwsem);
 }
 
-static int shm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int shm_fault(struct vm_fault *vmf)
 {
-	struct file *file = vma->vm_file;
+	struct file *file = vmf->vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
 
-	return sfd->vm_ops->fault(vma, vmf);
+	return sfd->vm_ops->fault(vmf);
 }
 
 #ifdef CONFIG_NUMA
@@ -387,6 +388,7 @@ static int shm_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
 	struct file *file = vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
 	int err = 0;
+
 	if (sfd->vm_ops->set_policy)
 		err = sfd->vm_ops->set_policy(vma, new);
 	return err;
@@ -417,11 +419,11 @@ static int shm_mmap(struct file *file, struct vm_area_struct *vma)
 	 * In case of remap_file_pages() emulation, the file can represent
 	 * removed IPC ID: propogate shm_lock() error to caller.
 	 */
-	ret =__shm_open(vma);
+	ret = __shm_open(vma);
 	if (ret)
 		return ret;
 
-	ret = sfd->file->f_op->mmap(sfd->file, vma);
+	ret = call_mmap(sfd->file, vma);
 	if (ret) {
 		shm_close(vma);
 		return ret;
@@ -450,7 +452,7 @@ static int shm_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (!sfd->file->f_op->fsync)
 		return -EINVAL;
-	return sfd->file->f_op->fsync(sfd->file, start, end, datasync);
+	return call_fsync(sfd->file, start, end, datasync);
 }
 
 static long shm_fallocate(struct file *file, int mode, loff_t offset,
@@ -468,6 +470,7 @@ static unsigned long shm_get_unmapped_area(struct file *file,
 	unsigned long flags)
 {
 	struct shm_file_data *sfd = shm_file_data(file);
+
 	return sfd->file->f_op->get_unmapped_area(sfd->file, addr, len,
 						pgoff, flags);
 }
@@ -766,6 +769,7 @@ static void shm_add_rss_swap(struct shmid_kernel *shp,
 	} else {
 #ifdef CONFIG_SHMEM
 		struct shmem_inode_info *info = SHMEM_I(inode);
+
 		spin_lock_irq(&info->lock);
 		*rss_add += inode->i_mapping->nrpages;
 		*swp_add += info->swapped;
@@ -1028,6 +1032,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 
 		if (!ns_capable(ns->user_ns, CAP_IPC_LOCK)) {
 			kuid_t euid = current_euid();
+
 			if (!uid_eq(euid, shp->shm_perm.uid) &&
 			    !uid_eq(euid, shp->shm_perm.cuid)) {
 				err = -EPERM;
@@ -1045,6 +1050,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 
 		if (cmd == SHM_LOCK) {
 			struct user_struct *user = current_user();
+
 			err = shmem_lock(shm_file, 1, user);
 			if (!err && !(shp->shm_perm.mode & SHM_LOCKED)) {
 				shp->shm_perm.mode |= SHM_LOCKED;
@@ -1085,8 +1091,8 @@ out_unlock1:
  * "raddr" thing points to kernel space, and there has to be a wrapper around
  * this.
  */
-long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
-	      unsigned long shmlba)
+long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+	      ulong *raddr, unsigned long shmlba)
 {
 	struct shmid_kernel *shp;
 	unsigned long addr;
@@ -1107,8 +1113,13 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 		goto out;
 	else if ((addr = (ulong)shmaddr)) {
 		if (addr & (shmlba - 1)) {
-			if (shmflg & SHM_RND)
-				addr &= ~(shmlba - 1);	   /* round down */
+			/*
+			 * Round down to the nearest multiple of shmlba.
+			 * For sane do_mmap_pgoff() parameters, avoid
+			 * round downs that trigger nil-page and MAP_FIXED.
+			 */
+			if ((shmflg & SHM_RND) && addr >= shmlba)
+				addr &= ~(shmlba - 1);
 			else
 #ifndef __ARCH_FORCE_SHMLBA
 				if (addr & ~PAGE_MASK)
@@ -1216,7 +1227,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 			goto invalid;
 	}
 
-	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate);
+	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate, NULL);
 	*raddr = addr;
 	err = 0;
 	if (IS_ERR_VALUE(addr))
@@ -1323,7 +1334,7 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 			 */
 			file = vma->vm_file;
 			size = i_size_read(file_inode(vma->vm_file));
-			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
+			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start, NULL);
 			/*
 			 * We discovered the size of the shm segment, so
 			 * break out of here and fall through to the next
@@ -1350,15 +1361,16 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 		if ((vma->vm_ops == &shm_vm_ops) &&
 		    ((vma->vm_start - addr)/PAGE_SIZE == vma->vm_pgoff) &&
 		    (vma->vm_file == file))
-			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
+			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start, NULL);
 		vma = next;
 	}
 
-#else /* CONFIG_MMU */
+#else	/* CONFIG_MMU */
 	/* under NOMMU conditions, the exact address to be destroyed must be
-	 * given */
+	 * given
+	 */
 	if (vma && vma->vm_start == addr && vma->vm_ops == &shm_vm_ops) {
-		do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
+		do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start, NULL);
 		retval = 0;
 	}
 

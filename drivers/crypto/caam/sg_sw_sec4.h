@@ -7,7 +7,11 @@
 
 #include "regs.h"
 
-struct sec4_sg_entry;
+struct sec4_sg_entry {
+	u64 ptr;
+	u32 len;
+	u32 bpid_offset;
+};
 
 /*
  * convert single dma address to h/w link table format
@@ -68,15 +72,4 @@ static inline struct sec4_sg_entry *sg_to_sec4_sg_len(
 		total -= len;
 	} while (total);
 	return sec4_sg_ptr - 1;
-}
-
-/* derive number of elements in scatterlist, but return 0 for 1 */
-static inline int sg_count(struct scatterlist *sg_list, int nbytes)
-{
-	int sg_nents = sg_nents_for_len(sg_list, nbytes);
-
-	if (likely(sg_nents == 1))
-		return 0;
-
-	return sg_nents;
 }

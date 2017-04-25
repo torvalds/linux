@@ -29,6 +29,7 @@
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/bit_spinlock.h>
+#include <linux/bio.h>
 
 #include "aops.h"
 #include "attrib.h"
@@ -764,7 +765,7 @@ lock_retry_remap:
 			}
 			// TODO: Instantiate the hole.
 			// clear_buffer_new(bh);
-			// unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+			// clean_bdev_bh_alias(bh);
 			ntfs_error(vol->sb, "Writing into sparse regions is "
 					"not supported yet. Sorry.");
 			err = -EOPNOTSUPP;

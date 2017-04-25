@@ -37,7 +37,7 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 ////////////////////////////////////////////////////////////////
 
 #include <linux/ioctl.h>	/* For SCSI-Passthrough */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/stat.h>
 #include <linux/slab.h>		/* for kmalloc() */
@@ -651,7 +651,6 @@ static u32 adpt_ioctl_to_context(adpt_hba * pHba, void *reply)
 	}
 	spin_unlock_irqrestore(pHba->host->host_lock, flags);
 	if (i >= nr) {
-		kfree (reply);
 		printk(KERN_WARNING"%s: Too many outstanding "
 				"ioctl commands\n", pHba->name);
 		return (u32)-1;
@@ -1754,8 +1753,10 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 	sg_offset = (msg[0]>>4)&0xf;
 	msg[2] = 0x40000000; // IOCTL context
 	msg[3] = adpt_ioctl_to_context(pHba, reply);
-	if (msg[3] == (u32)-1)
+	if (msg[3] == (u32)-1) {
+		kfree(reply);
 		return -EBUSY;
+	}
 
 	memset(sg_list,0, sizeof(sg_list[0])*pHba->sg_tablesize);
 	if(sg_offset) {
@@ -2767,16 +2768,12 @@ static int adpt_i2o_activate_hba(adpt_hba* pHba)
  
 static int adpt_i2o_online_hba(adpt_hba* pHba)
 {
-	if (adpt_i2o_systab_send(pHba) < 0) {
-		adpt_i2o_delete_hba(pHba);
+	if (adpt_i2o_systab_send(pHba) < 0)
 		return -1;
-	}
 	/* In READY state */
 
-	if (adpt_i2o_enable_hba(pHba) < 0) {
-		adpt_i2o_delete_hba(pHba);
+	if (adpt_i2o_enable_hba(pHba) < 0)
 		return -1;
-	}
 
 	/* In OPERATIONAL state  */
 	return 0;
@@ -3350,7 +3347,7 @@ static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid,
 	if (opblk_va == NULL) {
 		dma_free_coherent(&pHba->pDev->dev, sizeof(u8) * (8+buflen),
 			resblk_va, resblk_pa);
-		printk(KERN_CRIT "%s: query operatio failed; Out of memory.\n",
+		printk(KERN_CRIT "%s: query operation failed; Out of memory.\n",
 			pHba->name);
 		return -ENOMEM;
 	}

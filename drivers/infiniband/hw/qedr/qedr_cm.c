@@ -87,11 +87,8 @@ void qedr_ll2_tx_cb(void *_qdev, struct qed_roce_ll2_packet *pkt)
 	qedr_inc_sw_gsi_cons(&qp->sq);
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	if (cq->ibcq.comp_handler) {
-		spin_lock_irqsave(&cq->comp_handler_lock, flags);
+	if (cq->ibcq.comp_handler)
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
-		spin_unlock_irqrestore(&cq->comp_handler_lock, flags);
-	}
 }
 
 void qedr_ll2_rx_cb(void *_dev, struct qed_roce_ll2_packet *pkt,
@@ -113,11 +110,8 @@ void qedr_ll2_rx_cb(void *_dev, struct qed_roce_ll2_packet *pkt,
 
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	if (cq->ibcq.comp_handler) {
-		spin_lock_irqsave(&cq->comp_handler_lock, flags);
+	if (cq->ibcq.comp_handler)
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
-		spin_unlock_irqrestore(&cq->comp_handler_lock, flags);
-	}
 }
 
 static void qedr_destroy_gsi_cq(struct qedr_dev *dev,
@@ -293,7 +287,7 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 	has_udp = (sgid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP);
 	if (!has_udp) {
 		/* RoCE v1 */
-		ether_type = ETH_P_ROCE;
+		ether_type = ETH_P_IBOE;
 		*roce_mode = ROCE_V1;
 	} else if (ipv6_addr_v4mapped((struct in6_addr *)&sgid)) {
 		/* RoCE v2 IPv4 */
@@ -404,9 +398,9 @@ static inline int qedr_gsi_build_packet(struct qedr_dev *dev,
 	}
 
 	if (ether_addr_equal(udh.eth.smac_h, udh.eth.dmac_h))
-		packet->tx_dest = QED_ROCE_LL2_TX_DEST_NW;
-	else
 		packet->tx_dest = QED_ROCE_LL2_TX_DEST_LB;
+	else
+		packet->tx_dest = QED_ROCE_LL2_TX_DEST_NW;
 
 	packet->roce_mode = roce_mode;
 	memcpy(packet->header.vaddr, ud_header_buffer, header_size);

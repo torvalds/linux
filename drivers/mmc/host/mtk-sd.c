@@ -28,6 +28,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/core.h>
@@ -927,8 +928,7 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		msdc_start_command(host, mrq, mrq->cmd);
 }
 
-static void msdc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
-		bool is_first_req)
+static void msdc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct msdc_host *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
@@ -1075,11 +1075,8 @@ static int msdc_card_busy(struct mmc_host *mmc)
 	struct msdc_host *host = mmc_priv(mmc);
 	u32 status = readl(host->base + MSDC_PS);
 
-	/* check if any pin between dat[0:3] is low */
-	if (((status >> 16) & 0xf) != 0xf)
-		return 1;
-
-	return 0;
+	/* only check if data0 is low */
+	return !(status & BIT(16));
 }
 
 static void msdc_request_timeout(struct work_struct *work)
@@ -1713,6 +1710,7 @@ static const struct of_device_id msdc_of_ids[] = {
 	{   .compatible = "mediatek,mt8135-mmc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, msdc_of_ids);
 
 static struct platform_driver mt_msdc_driver = {
 	.probe = msdc_drv_probe,

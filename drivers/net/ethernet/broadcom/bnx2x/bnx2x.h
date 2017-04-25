@@ -1396,9 +1396,9 @@ struct bnx2x {
 	int			tx_ring_size;
 
 /* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
-#define ETH_OVREHEAD		(ETH_HLEN + 8 + 8)
-#define ETH_MIN_PACKET_SIZE		60
-#define ETH_MAX_PACKET_SIZE		1500
+#define ETH_OVERHEAD		(ETH_HLEN + 8 + 8)
+#define ETH_MIN_PACKET_SIZE		(ETH_ZLEN - ETH_HLEN)
+#define ETH_MAX_PACKET_SIZE		ETH_DATA_LEN
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
 /* TCP with Timestamp Option (32) + IPv6 (40) */
 #define ETH_MAX_TPA_HEADER_SIZE		72

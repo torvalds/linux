@@ -46,7 +46,7 @@
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/vio.h>
 #include <asm/param.h>
 #include <asm/hvsi.h>

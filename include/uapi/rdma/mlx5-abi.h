@@ -61,19 +61,24 @@ enum {
  */
 
 struct mlx5_ib_alloc_ucontext_req {
-	__u32	total_num_uuars;
-	__u32	num_low_latency_uuars;
+	__u32	total_num_bfregs;
+	__u32	num_low_latency_bfregs;
+};
+
+enum mlx5_lib_caps {
+	MLX5_LIB_CAP_4K_UAR	= (u64)1 << 0,
 };
 
 struct mlx5_ib_alloc_ucontext_req_v2 {
-	__u32	total_num_uuars;
-	__u32	num_low_latency_uuars;
+	__u32	total_num_bfregs;
+	__u32	num_low_latency_bfregs;
 	__u32	flags;
 	__u32	comp_mask;
 	__u8	max_cqe_version;
 	__u8	reserved0;
 	__u16	reserved1;
 	__u32	reserved2;
+	__u64	lib_caps;
 };
 
 enum mlx5_ib_alloc_ucontext_resp_mask {
@@ -82,12 +87,24 @@ enum mlx5_ib_alloc_ucontext_resp_mask {
 
 enum mlx5_user_cmds_supp_uhw {
 	MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE = 1 << 0,
+	MLX5_USER_CMDS_SUPP_UHW_CREATE_AH    = 1 << 1,
+};
+
+/* The eth_min_inline response value is set to off-by-one vs the FW
+ * returned value to allow user-space to deal with older kernels.
+ */
+enum mlx5_user_inline_mode {
+	MLX5_USER_INLINE_MODE_NA,
+	MLX5_USER_INLINE_MODE_NONE,
+	MLX5_USER_INLINE_MODE_L2,
+	MLX5_USER_INLINE_MODE_IP,
+	MLX5_USER_INLINE_MODE_TCP_UDP,
 };
 
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
-	__u32	tot_uuars;
+	__u32	tot_bfregs;
 	__u32	cache_line_size;
 	__u16	max_sq_desc_sz;
 	__u16	max_rq_desc_sz;
@@ -100,8 +117,11 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	response_length;
 	__u8	cqe_version;
 	__u8	cmds_supp_uhw;
-	__u16	reserved2;
+	__u8	eth_min_inline;
+	__u8	reserved2;
 	__u64	hca_core_clock_offset;
+	__u32	log_uar_size;
+	__u32	num_uars_per_page;
 };
 
 struct mlx5_ib_alloc_pd_resp {
@@ -124,18 +144,47 @@ struct mlx5_ib_rss_caps {
 	__u8 reserved[7];
 };
 
+enum mlx5_ib_cqe_comp_res_format {
+	MLX5_IB_CQE_RES_FORMAT_HASH	= 1 << 0,
+	MLX5_IB_CQE_RES_FORMAT_CSUM	= 1 << 1,
+	MLX5_IB_CQE_RES_RESERVED	= 1 << 2,
+};
+
+struct mlx5_ib_cqe_comp_caps {
+	__u32 max_num;
+	__u32 supported_format; /* enum mlx5_ib_cqe_comp_res_format */
+};
+
+struct mlx5_packet_pacing_caps {
+	__u32 qp_rate_limit_min;
+	__u32 qp_rate_limit_max; /* In kpbs */
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
+	 */
+	__u32 supported_qpts;
+	__u32 reserved;
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
 	struct	mlx5_ib_tso_caps tso_caps;
 	struct	mlx5_ib_rss_caps rss_caps;
+	struct	mlx5_ib_cqe_comp_caps cqe_comp_caps;
+	struct	mlx5_packet_pacing_caps packet_pacing_caps;
+	__u32	mlx5_ib_support_multi_pkt_send_wqes;
+	__u32	reserved;
 };
 
 struct mlx5_ib_create_cq {
 	__u64	buf_addr;
 	__u64	db_addr;
 	__u32	cqe_size;
-	__u32	reserved; /* explicit padding (optional on i386) */
+	__u8    cqe_comp_en;
+	__u8    cqe_comp_res_format;
+	__u16	reserved; /* explicit padding (optional on i386) */
 };
 
 struct mlx5_ib_create_cq_resp {
@@ -211,7 +260,7 @@ struct mlx5_ib_create_qp_rss {
 };
 
 struct mlx5_ib_create_qp_resp {
-	__u32	uuar_index;
+	__u32	bfreg_index;
 };
 
 struct mlx5_ib_alloc_mw {
@@ -230,6 +279,12 @@ struct mlx5_ib_create_wq {
 	__u32   flags;
 	__u32   comp_mask;
 	__u32   reserved;
+};
+
+struct mlx5_ib_create_ah_resp {
+	__u32	response_length;
+	__u8	dmac[ETH_ALEN];
+	__u8	reserved[6];
 };
 
 struct mlx5_ib_create_wq_resp {

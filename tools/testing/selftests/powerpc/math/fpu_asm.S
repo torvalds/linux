@@ -7,8 +7,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include "../basic_asm.h"
-#include "../fpu_asm.h"
+#include "basic_asm.h"
+#include "fpu_asm.h"
 
 FUNC_START(check_fpu)
 	mr r4,r3

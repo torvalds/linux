@@ -274,8 +274,6 @@ enum hash_table_entry {
 	HASH_ENTRY_RECEIVE_DISCARD_BIT = 2
 };
 
-static int pxa168_get_link_ksettings(struct net_device *dev,
-				     struct ethtool_link_ksettings *cmd);
 static int pxa168_init_hw(struct pxa168_eth_private *pep);
 static int pxa168_init_phy(struct net_device *dev);
 static void eth_port_reset(struct net_device *dev);
@@ -987,10 +985,6 @@ static int pxa168_init_phy(struct net_device *dev)
 	if (err)
 		return err;
 
-	err = pxa168_get_link_ksettings(dev, &cmd);
-	if (err)
-		return err;
-
 	cmd.base.phy_address = pep->phy_addr;
 	cmd.base.speed = pep->phy_speed;
 	cmd.base.duplex = pep->phy_duplex;
@@ -1209,9 +1203,6 @@ static int pxa168_eth_change_mtu(struct net_device *dev, int mtu)
 	int retval;
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
-	if ((mtu > 9500) || (mtu < 68))
-		return -EINVAL;
-
 	dev->mtu = mtu;
 	retval = set_port_config_ext(pep);
 
@@ -1264,7 +1255,7 @@ static int pxa168_rx_poll(struct napi_struct *napi, int budget)
 	}
 	work_done = rxq_process(dev, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		wrl(pep, INT_MASK, ALL_INTS);
 	}
 
@@ -1373,18 +1364,6 @@ static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 	return -EOPNOTSUPP;
 }
 
-static int pxa168_get_link_ksettings(struct net_device *dev,
-				     struct ethtool_link_ksettings *cmd)
-{
-	int err;
-
-	err = phy_read_status(dev->phydev);
-	if (err == 0)
-		err = phy_ethtool_ksettings_get(dev->phydev, cmd);
-
-	return err;
-}
-
 static void pxa168_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
@@ -1396,9 +1375,10 @@ static void pxa168_get_drvinfo(struct net_device *dev,
 
 static const struct ethtool_ops pxa168_ethtool_ops = {
 	.get_drvinfo	= pxa168_get_drvinfo,
+	.nway_reset	= phy_ethtool_nway_reset,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
-	.get_link_ksettings = pxa168_get_link_ksettings,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
@@ -1458,6 +1438,10 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 	dev->ethtool_ops = &pxa168_ethtool_ops;
+
+	/* MTU range: 68 - 9500 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = 9500;
 
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 

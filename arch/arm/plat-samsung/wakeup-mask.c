@@ -20,7 +20,7 @@
 #include <plat/pm.h>
 
 void samsung_sync_wakemask(void __iomem *reg,
-			   struct samsung_wakeup_mask *mask, int nr_mask)
+			   const struct samsung_wakeup_mask *mask, int nr_mask)
 {
 	struct irq_data *data;
 	u32 val;

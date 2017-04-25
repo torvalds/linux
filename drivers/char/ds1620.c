@@ -13,7 +13,7 @@
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/therm.h>
 
 #ifdef CONFIG_PROC_FS

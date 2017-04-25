@@ -285,6 +285,7 @@ initiate_cifs_search(const unsigned int xid, struct file *file)
 			rc = -ENOMEM;
 			goto error_exit;
 		}
+		spin_lock_init(&cifsFile->file_info_lock);
 		file->private_data = cifsFile;
 		cifsFile->tlink = cifs_get_tlink(tlink);
 		tcon = tlink_tcon(tlink);

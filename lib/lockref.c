@@ -20,7 +20,7 @@
 		if (likely(old.lock_count == prev.lock_count)) {		\
 			SUCCESS;						\
 		}								\
-		cpu_relax_lowlatency();						\
+		cpu_relax();							\
 	}									\
 } while (0)
 

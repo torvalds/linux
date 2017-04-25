@@ -90,6 +90,7 @@ struct event_pool {
 
 /* all driver data associated with a host adapter */
 struct ibmvscsi_host_data {
+	struct list_head host_list;
 	atomic_t request_limit;
 	int client_migrated;
 	int reset_crq;

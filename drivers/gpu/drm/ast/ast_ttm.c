@@ -230,13 +230,12 @@ struct ttm_bo_driver ast_bo_driver = {
 	.ttm_tt_populate = ast_ttm_tt_populate,
 	.ttm_tt_unpopulate = ast_ttm_tt_unpopulate,
 	.init_mem_type = ast_bo_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = ast_bo_evict_flags,
 	.move = NULL,
 	.verify_access = ast_bo_verify_access,
 	.io_mem_reserve = &ast_ttm_io_mem_reserve,
 	.io_mem_free = &ast_ttm_io_mem_free,
-	.lru_tail = &ttm_bo_default_lru_tail,
-	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int ast_mm_init(struct ast_private *ast)

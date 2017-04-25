@@ -907,9 +907,6 @@ static int ax88179_change_mtu(struct net_device *net, int new_mtu)
 	struct usbnet *dev = netdev_priv(net);
 	u16 tmp16;
 
-	if (new_mtu <= 0 || new_mtu > 4088)
-		return -EINVAL;
-
 	net->mtu = new_mtu;
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 
@@ -1266,6 +1263,7 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->netdev_ops = &ax88179_netdev_ops;
 	dev->net->ethtool_ops = &ax88179_ethtool_ops;
 	dev->net->needed_headroom = 8;
+	dev->net->max_mtu = 4088;
 
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;

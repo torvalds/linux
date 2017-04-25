@@ -11,6 +11,7 @@
 
 #define pr_fmt(fmt) "kasan test: %s " fmt, __func__
 
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
@@ -331,6 +332,38 @@ static noinline void __init kmem_cache_oob(void)
 	kmem_cache_destroy(cache);
 }
 
+static noinline void __init memcg_accounted_kmem_cache(void)
+{
+	int i;
+	char *p;
+	size_t size = 200;
+	struct kmem_cache *cache;
+
+	cache = kmem_cache_create("test_cache", size, 0, SLAB_ACCOUNT, NULL);
+	if (!cache) {
+		pr_err("Cache allocation failed\n");
+		return;
+	}
+
+	pr_info("allocate memcg accounted object\n");
+	/*
+	 * Several allocations with a delay to allow for lazy per memcg kmem
+	 * cache creation.
+	 */
+	for (i = 0; i < 5; i++) {
+		p = kmem_cache_alloc(cache, GFP_KERNEL);
+		if (!p) {
+			pr_err("Allocation failed\n");
+			goto free_cache;
+		}
+		kmem_cache_free(cache, p);
+		msleep(100);
+	}
+
+free_cache:
+	kmem_cache_destroy(cache);
+}
+
 static char global_array[10];
 
 static noinline void __init kasan_global_oob(void)
@@ -460,6 +493,7 @@ static int __init kmalloc_tests_init(void)
 	kmalloc_uaf_memset();
 	kmalloc_uaf2();
 	kmem_cache_oob();
+	memcg_accounted_kmem_cache();
 	kasan_stack_oob();
 	kasan_global_oob();
 	ksize_unpoisons_memory();

@@ -20,7 +20,10 @@
 #include <linux/mmc/sdio_ids.h>
 
 #include "core.h"
+#include "card.h"
+#include "host.h"
 #include "bus.h"
+#include "quirks.h"
 #include "sd.h"
 #include "sdio_bus.h"
 #include "mmc_ops.h"
@@ -63,7 +66,8 @@ static int sdio_init_func(struct mmc_card *card, unsigned int fn)
 	int ret;
 	struct sdio_func *func;
 
-	BUG_ON(fn > SDIO_MAX_FUNCS);
+	if (WARN_ON(fn > SDIO_MAX_FUNCS))
+		return -EINVAL;
 
 	func = sdio_alloc_func(card);
 	if (IS_ERR(func))
@@ -540,6 +544,15 @@ out:
 	return err;
 }
 
+static void mmc_sdio_resend_if_cond(struct mmc_host *host,
+				    struct mmc_card *card)
+{
+	sdio_reset(host);
+	mmc_go_idle(host);
+	mmc_send_if_cond(host, host->ocr_avail);
+	mmc_remove_card(card);
+}
+
 /*
  * Handle the detection and initialisation of a card.
  *
@@ -555,7 +568,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	u32 rocr = 0;
 	u32 ocr_card = ocr;
 
-	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
 	/* to query card if 1.8V signalling is supported */
@@ -624,24 +636,21 @@ try_again:
 	 * to switch to 1.8V signaling level.  No 1.8v signalling if
 	 * UHS mode is not enabled to maintain compatibility and some
 	 * systems that claim 1.8v signalling in fact do not support
-	 * it.
+	 * it. Per SDIO spec v3, section 3.1.2, if the voltage is already
+	 * 1.8v, the card sets S18A to 0 in the R4 response. So it will
+	 * fails to check rocr & R4_18V_PRESENT,  but we still need to
+	 * try to init uhs card. sdio_read_cccr will take over this task
+	 * to make sure which speed mode should work.
 	 */
 	if (!powered_resume && (rocr & ocr & R4_18V_PRESENT)) {
-		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180,
-					ocr_card);
+		err = mmc_set_uhs_voltage(host, ocr_card);
 		if (err == -EAGAIN) {
-			sdio_reset(host);
-			mmc_go_idle(host);
-			mmc_send_if_cond(host, host->ocr_avail);
-			mmc_remove_card(card);
+			mmc_sdio_resend_if_cond(host, card);
 			retries--;
 			goto try_again;
 		} else if (err) {
 			ocr &= ~R4_18V_PRESENT;
 		}
-		err = 0;
-	} else {
-		ocr &= ~R4_18V_PRESENT;
 	}
 
 	/*
@@ -698,11 +707,20 @@ try_again:
 	}
 
 	/*
-	 * Read the common registers.
+	 * Read the common registers. Note that we should try to
+	 * validate whether UHS would work or not.
 	 */
 	err = sdio_read_cccr(card, ocr);
-	if (err)
-		goto remove;
+	if (err) {
+		mmc_sdio_resend_if_cond(host, card);
+		if (ocr & R4_18V_PRESENT) {
+			/* Retry init sequence, but without R4_18V_PRESENT. */
+			retries = 0;
+			goto try_again;
+		} else {
+			goto remove;
+		}
+	}
 
 	/*
 	 * Read the common CIS tuples.
@@ -721,7 +739,7 @@ try_again:
 		card = oldcard;
 	}
 	card->ocr = ocr_card;
-	mmc_fixup_device(card, NULL);
+	mmc_fixup_device(card, sdio_fixup_methods);
 
 	if (card->type == MMC_TYPE_SD_COMBO) {
 		err = mmc_sd_setup_card(host, card, oldcard != NULL);
@@ -791,9 +809,6 @@ static void mmc_sdio_remove(struct mmc_host *host)
 {
 	int i;
 
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
 	for (i = 0;i < host->card->sdio_funcs;i++) {
 		if (host->card->sdio_func[i]) {
 			sdio_remove_func(host->card->sdio_func[i]);
@@ -819,9 +834,6 @@ static int mmc_sdio_alive(struct mmc_host *host)
 static void mmc_sdio_detect(struct mmc_host *host)
 {
 	int err;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	/* Make sure card is powered before detecting it */
 	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
@@ -916,9 +928,6 @@ static int mmc_sdio_resume(struct mmc_host *host)
 {
 	int err = 0;
 
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);
 
@@ -969,9 +978,6 @@ static int mmc_sdio_resume(struct mmc_host *host)
 static int mmc_sdio_power_restore(struct mmc_host *host)
 {
 	int ret;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
 
@@ -1063,7 +1069,6 @@ int mmc_attach_sdio(struct mmc_host *host)
 	u32 ocr, rocr;
 	struct mmc_card *card;
 
-	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
 	err = mmc_send_io_op_cond(host, 0, &ocr);

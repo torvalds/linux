@@ -16,6 +16,7 @@
 
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <linux/bio.h>
 
 struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					 struct udf_fileident_bh *fibh,

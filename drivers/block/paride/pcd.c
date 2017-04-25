@@ -139,7 +139,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static DEFINE_MUTEX(pcd_mutex);
 static DEFINE_SPINLOCK(pcd_lock);
@@ -273,7 +273,7 @@ static const struct block_device_operations pcd_bdops = {
 	.check_events	= pcd_block_check_events,
 };
 
-static struct cdrom_device_ops pcd_dops = {
+static const struct cdrom_device_ops pcd_dops = {
 	.open		= pcd_open,
 	.release	= pcd_release,
 	.drive_status	= pcd_drive_status,

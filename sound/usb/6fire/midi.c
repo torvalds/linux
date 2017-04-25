@@ -139,14 +139,14 @@ static void usb6fire_midi_in_trigger(
 	spin_unlock_irqrestore(&rt->in_lock, flags);
 }
 
-static struct snd_rawmidi_ops out_ops = {
+static const struct snd_rawmidi_ops out_ops = {
 	.open = usb6fire_midi_out_open,
 	.close = usb6fire_midi_out_close,
 	.trigger = usb6fire_midi_out_trigger,
 	.drain = usb6fire_midi_out_drain
 };
 
-static struct snd_rawmidi_ops in_ops = {
+static const struct snd_rawmidi_ops in_ops = {
 	.open = usb6fire_midi_in_open,
 	.close = usb6fire_midi_in_close,
 	.trigger = usb6fire_midi_in_trigger

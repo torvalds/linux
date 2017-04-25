@@ -8,7 +8,7 @@
 
 /*
  * The use of "&&" / "||" is limited in certain expressions.
- * The followings enable to calculate "and" / "or" with macro expansion only.
+ * The following enable to calculate "and" / "or" with macro expansion only.
  */
 #define __and(x, y)			___and(x, y)
 #define ___and(x, y)			____and(__ARG_PLACEHOLDER_##x, y)

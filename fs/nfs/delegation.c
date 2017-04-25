@@ -391,10 +391,6 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	rcu_assign_pointer(nfsi->delegation, delegation);
 	delegation = NULL;
 
-	/* Ensure we revalidate the attributes and page cache! */
-	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_REVAL_FORCED;
-	spin_unlock(&inode->i_lock);
 	trace_nfs4_set_delegation(inode, res->delegation_type);
 
 out:

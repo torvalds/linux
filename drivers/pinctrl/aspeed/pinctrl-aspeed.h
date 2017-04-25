@@ -232,6 +232,11 @@
  * group.
  */
 
+#define ASPEED_IP_SCU		0
+#define ASPEED_IP_GFX		1
+#define ASPEED_IP_LPC		2
+#define ASPEED_NR_PINMUX_IPS	3
+
 /*
  * The "Multi-function Pins Mapping and Control" table in the SoC datasheet
  * references registers by the device/offset mnemonic. The register macros
@@ -255,13 +260,16 @@
 #define SCUA0           0xA0 /* Multi-function Pin Control #7 */
 #define SCUA4           0xA4 /* Multi-function Pin Control #8 */
 #define SCUA8           0xA8 /* Multi-function Pin Control #9 */
+#define SCUAC           0xAC /* Multi-function Pin Control #10 */
 #define HW_STRAP2       0xD0 /* Strapping */
 
  /**
   * A signal descriptor, which describes the register, bits and the
   * enable/disable values that should be compared or written.
   *
-  * @reg: The register offset from base in bytes
+  * @ip: The IP block identifier, used as an index into the regmap array in
+  *      struct aspeed_pinctrl_data
+  * @reg: The register offset with respect to the base address of the IP block
   * @mask: The mask to apply to the register. The lowest set bit of the mask is
   *        used to derive the shift value.
   * @enable: The value that enables the function. Value should be in the LSBs,
@@ -270,6 +278,7 @@
   *           LSBs, not at the position of the mask.
   */
 struct aspeed_sig_desc {
+	unsigned int ip;
 	unsigned int reg;
 	u32 mask;
 	u32 enable;
@@ -313,24 +322,30 @@ struct aspeed_pin_desc {
 
 /* Macro hell */
 
+#define SIG_DESC_IP_BIT(ip, reg, idx, val) \
+	{ ip, reg, BIT_MASK(idx), val, (((val) + 1) & 1) }
+
 /**
- * Short-hand macro for describing a configuration enabled by the state of one
- * bit. The disable value is derived.
+ * Short-hand macro for describing an SCU descriptor enabled by the state of
+ * one bit. The disable value is derived.
  *
  * @reg: The signal's associated register, offset from base
  * @idx: The signal's bit index in the register
  * @val: The value (0 or 1) that enables the function
  */
 #define SIG_DESC_BIT(reg, idx, val) \
-	{ reg, BIT_MASK(idx), val, (((val) + 1) & 1) }
+	SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, val)
+
+#define SIG_DESC_IP_SET(ip, reg, idx) SIG_DESC_IP_BIT(ip, reg, idx, 1)
 
 /**
- * A further short-hand macro describing a configuration enabled with a set bit.
+ * A further short-hand macro expanding to an SCU descriptor enabled by a set
+ * bit.
  *
- * @reg: The configuration's associated register, offset from base
- * @idx: The configuration's bit index in the register
+ * @reg: The register, offset from base
+ * @idx: The bit index in the register
  */
-#define SIG_DESC_SET(reg, idx) SIG_DESC_BIT(reg, idx, 1)
+#define SIG_DESC_SET(reg, idx) SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, 1)
 
 #define SIG_DESC_LIST_SYM(sig, func) sig_descs_ ## sig ## _ ## func
 #define SIG_DESC_LIST_DECL(sig, func, ...) \
@@ -500,7 +515,7 @@ struct aspeed_pin_desc {
 	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(gpio))
 
 struct aspeed_pinctrl_data {
-	struct regmap *map;
+	struct regmap *maps[ASPEED_NR_PINMUX_IPS];
 
 	const struct pinctrl_pin_desc *pins;
 	const unsigned int npins;

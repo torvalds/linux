@@ -31,10 +31,10 @@ static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clockfw_lock);
 
-static void __clk_enable(struct clk *clk)
+void davinci_clk_enable(struct clk *clk)
 {
 	if (clk->parent)
-		__clk_enable(clk->parent);
+		davinci_clk_enable(clk->parent);
 	if (clk->usecount++ == 0) {
 		if (clk->flags & CLK_PSC)
 			davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
@@ -44,7 +44,7 @@ static void __clk_enable(struct clk *clk)
 	}
 }
 
-static void __clk_disable(struct clk *clk)
+void davinci_clk_disable(struct clk *clk)
 {
 	if (WARN_ON(clk->usecount == 0))
 		return;
@@ -56,7 +56,7 @@ static void __clk_disable(struct clk *clk)
 			clk->clk_disable(clk);
 	}
 	if (clk->parent)
-		__clk_disable(clk->parent);
+		davinci_clk_disable(clk->parent);
 }
 
 int davinci_clk_reset(struct clk *clk, bool reset)
@@ -103,7 +103,7 @@ int clk_enable(struct clk *clk)
 		return -EINVAL;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	__clk_enable(clk);
+	davinci_clk_enable(clk);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return 0;
@@ -118,7 +118,7 @@ void clk_disable(struct clk *clk)
 		return;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	__clk_disable(clk);
+	davinci_clk_disable(clk);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);

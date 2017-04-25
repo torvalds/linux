@@ -80,6 +80,9 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 {
 	const struct bpf_reg_state *reg0 = &env->cur_state.regs[0];
 
+	if (nfp_prog->act == NN_ACT_XDP)
+		return 0;
+
 	if (reg0->type != CONST_IMM) {
 		pr_info("unsupported exit state: %d, imm: %llx\n",
 			reg0->type, reg0->imm);

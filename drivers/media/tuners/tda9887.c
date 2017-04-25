@@ -659,7 +659,7 @@ static void tda9887_release(struct dvb_frontend *fe)
 	fe->analog_demod_priv = NULL;
 }
 
-static struct analog_demod_ops tda9887_ops = {
+static const struct analog_demod_ops tda9887_ops = {
 	.info		= {
 		.name	= "tda9887",
 	},

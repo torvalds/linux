@@ -15,6 +15,8 @@
 #define AT91_PINCTRL_DEGLITCH		(1 << 2)
 #define AT91_PINCTRL_PULL_DOWN		(1 << 3)
 #define AT91_PINCTRL_DIS_SCHMIT		(1 << 4)
+#define AT91_PINCTRL_OUTPUT		(1 << 7)
+#define AT91_PINCTRL_OUTPUT_VAL(x)	((x & 0x1) << 8)
 #define AT91_PINCTRL_DEBOUNCE		(1 << 16)
 #define AT91_PINCTRL_DEBOUNCE_VAL(x)	(x << 17)
 

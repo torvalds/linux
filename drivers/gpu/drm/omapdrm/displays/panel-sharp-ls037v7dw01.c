@@ -26,7 +26,7 @@ struct panel_drv_data {
 
 	int data_lines;
 
-	struct omap_video_timings videomode;
+	struct videomode vm;
 
 	struct gpio_desc *resb_gpio;	/* low = reset active min 20 us */
 	struct gpio_desc *ini_gpio;	/* high = power on */
@@ -35,25 +35,27 @@ struct panel_drv_data {
 	struct gpio_desc *ud_gpio;	/* high = conventional vertical scanning */
 };
 
-static const struct omap_video_timings sharp_ls_timings = {
-	.x_res = 480,
-	.y_res = 640,
+static const struct videomode sharp_ls_vm = {
+	.hactive = 480,
+	.vactive = 640,
 
 	.pixelclock	= 19200000,
 
-	.hsw		= 2,
-	.hfp		= 1,
-	.hbp		= 28,
+	.hsync_len	= 2,
+	.hfront_porch	= 1,
+	.hback_porch	= 28,
 
-	.vsw		= 1,
-	.vfp		= 1,
-	.vbp		= 1,
+	.vsync_len	= 1,
+	.vfront_porch	= 1,
+	.vback_porch	= 1,
 
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
-	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_NEGEDGE |
+			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
+	/*
+	 * Note: According to the panel documentation:
+	 * DATA needs to be driven on the FALLING edge
+	 */
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -99,7 +101,7 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->data_lines)
 		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
+	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	if (ddata->vcc) {
 		r = regulator_enable(ddata->vcc);
@@ -154,32 +156,32 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 }
 
 static void sharp_ls_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dpi->set_timings(in, timings);
+	in->ops.dpi->set_timings(in, vm);
 }
 
 static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	*vm = ddata->vm;
 }
 
 static int sharp_ls_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dpi->check_timings(in, timings);
+	return in->ops.dpi->check_timings(in, vm);
 }
 
 static struct omap_dss_driver sharp_ls_ops = {
@@ -279,14 +281,14 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	ddata->videomode = sharp_ls_timings;
+	ddata->vm = sharp_ls_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &pdev->dev;
 	dssdev->driver = &sharp_ls_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->panel.vm = ddata->vm;
 	dssdev->phy.dpi.data_lines = ddata->data_lines;
 
 	r = omapdss_register_display(dssdev);

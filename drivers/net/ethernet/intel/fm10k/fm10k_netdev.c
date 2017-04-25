@@ -706,16 +706,6 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	return err;
 }
 
-static int fm10k_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < 68 || new_mtu > FM10K_MAX_JUMBO_FRAME_SIZE)
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-
-	return 0;
-}
-
 /**
  * fm10k_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
@@ -1128,8 +1118,8 @@ void fm10k_reset_rx_state(struct fm10k_intfc *interface)
  * Returns 64bit statistics, for use in the ndo_get_stats64 callback. This
  * function replaces fm10k_get_stats for kernels which support it.
  */
-static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
-						   struct rtnl_link_stats64 *stats)
+static void fm10k_get_stats64(struct net_device *netdev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_ring *ring;
@@ -1174,8 +1164,6 @@ static struct rtnl_link_stats64 *fm10k_get_stats64(struct net_device *netdev,
 
 	/* following stats updated by fm10k_service_task() */
 	stats->rx_missed_errors	= netdev->stats.rx_missed_errors;
-
-	return stats;
 }
 
 int fm10k_setup_tc(struct net_device *dev, u8 tc)
@@ -1405,7 +1393,6 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_start_xmit		= fm10k_xmit_frame,
 	.ndo_set_mac_address	= fm10k_set_mac,
-	.ndo_change_mtu		= fm10k_change_mtu,
 	.ndo_tx_timeout		= fm10k_tx_timeout,
 	.ndo_vlan_rx_add_vid	= fm10k_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= fm10k_vlan_rx_kill_vid,
@@ -1489,6 +1476,10 @@ struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	dev->hw_features |= hw_features;
+
+	/* MTU range: 68 - 15342 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = FM10K_MAX_JUMBO_FRAME_SIZE;
 
 	return dev;
 }

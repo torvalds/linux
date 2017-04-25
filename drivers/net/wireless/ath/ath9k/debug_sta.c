@@ -52,8 +52,8 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 			 "TID", "SEQ_START", "SEQ_NEXT", "BAW_SIZE",
 			 "BAW_HEAD", "BAW_TAIL", "BAR_IDX", "SCHED", "PAUSED");
 
-	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
+	for (tidno = 0; tidno < IEEE80211_NUM_TIDS; tidno++) {
+		tid = ath_node_to_tid(an, tidno);
 		txq = tid->txq;
 		ath_txq_lock(sc, txq);
 		if (tid->active) {
@@ -242,6 +242,59 @@ static const struct file_operations fops_node_recv = {
 	.llseek = default_llseek,
 };
 
+void ath_debug_airtime(struct ath_softc *sc,
+		struct ath_node *an,
+		u32 rx,
+		u32 tx)
+{
+	struct ath_airtime_stats *astats = &an->airtime_stats;
+
+	astats->rx_airtime += rx;
+	astats->tx_airtime += tx;
+}
+
+static ssize_t read_airtime(struct file *file, char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	struct ath_node *an = file->private_data;
+	struct ath_airtime_stats *astats;
+	static const char *qname[4] = {
+		"VO", "VI", "BE", "BK"
+	};
+	u32 len = 0, size = 256;
+	char *buf;
+	size_t retval;
+	int i;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	astats = &an->airtime_stats;
+
+	len += scnprintf(buf + len, size - len, "RX: %u us\n", astats->rx_airtime);
+	len += scnprintf(buf + len, size - len, "TX: %u us\n", astats->tx_airtime);
+	len += scnprintf(buf + len, size - len, "Deficit: ");
+	for (i = 0; i < 4; i++)
+		len += scnprintf(buf+len, size - len, "%s: %lld us ", qname[i], an->airtime_deficit[i]);
+	if (len < size)
+		buf[len++] = '\n';
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+
+static const struct file_operations fops_airtime = {
+	.read = read_airtime,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+
 void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
@@ -251,4 +304,5 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 
 	debugfs_create_file("node_aggr", S_IRUGO, dir, an, &fops_node_aggr);
 	debugfs_create_file("node_recv", S_IRUGO, dir, an, &fops_node_recv);
+	debugfs_create_file("airtime", S_IRUGO, dir, an, &fops_airtime);
 }

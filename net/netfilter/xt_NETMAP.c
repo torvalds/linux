@@ -33,8 +33,8 @@ netmap_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 		netmask.ip6[i] = ~(range->min_addr.ip6[i] ^
 				   range->max_addr.ip6[i]);
 
-	if (par->hooknum == NF_INET_PRE_ROUTING ||
-	    par->hooknum == NF_INET_LOCAL_OUT)
+	if (xt_hooknum(par) == NF_INET_PRE_ROUTING ||
+	    xt_hooknum(par) == NF_INET_LOCAL_OUT)
 		new_addr.in6 = ipv6_hdr(skb)->daddr;
 	else
 		new_addr.in6 = ipv6_hdr(skb)->saddr;
@@ -51,7 +51,7 @@ netmap_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	newrange.min_proto	= range->min_proto;
 	newrange.max_proto	= range->max_proto;
 
-	return nf_nat_setup_info(ct, &newrange, HOOK2MANIP(par->hooknum));
+	return nf_nat_setup_info(ct, &newrange, HOOK2MANIP(xt_hooknum(par)));
 }
 
 static int netmap_tg6_checkentry(const struct xt_tgchk_param *par)
@@ -60,7 +60,12 @@ static int netmap_tg6_checkentry(const struct xt_tgchk_param *par)
 
 	if (!(range->flags & NF_NAT_RANGE_MAP_IPS))
 		return -EINVAL;
-	return 0;
+	return nf_ct_netns_get(par->net, par->family);
+}
+
+static void netmap_tg_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static unsigned int
@@ -72,16 +77,16 @@ netmap_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
 	struct nf_nat_range newrange;
 
-	NF_CT_ASSERT(par->hooknum == NF_INET_PRE_ROUTING ||
-		     par->hooknum == NF_INET_POST_ROUTING ||
-		     par->hooknum == NF_INET_LOCAL_OUT ||
-		     par->hooknum == NF_INET_LOCAL_IN);
+	NF_CT_ASSERT(xt_hooknum(par) == NF_INET_PRE_ROUTING ||
+		     xt_hooknum(par) == NF_INET_POST_ROUTING ||
+		     xt_hooknum(par) == NF_INET_LOCAL_OUT ||
+		     xt_hooknum(par) == NF_INET_LOCAL_IN);
 	ct = nf_ct_get(skb, &ctinfo);
 
 	netmask = ~(mr->range[0].min_ip ^ mr->range[0].max_ip);
 
-	if (par->hooknum == NF_INET_PRE_ROUTING ||
-	    par->hooknum == NF_INET_LOCAL_OUT)
+	if (xt_hooknum(par) == NF_INET_PRE_ROUTING ||
+	    xt_hooknum(par) == NF_INET_LOCAL_OUT)
 		new_ip = ip_hdr(skb)->daddr & ~netmask;
 	else
 		new_ip = ip_hdr(skb)->saddr & ~netmask;
@@ -96,7 +101,7 @@ netmap_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	newrange.max_proto   = mr->range[0].max;
 
 	/* Hand modified range to generic setup. */
-	return nf_nat_setup_info(ct, &newrange, HOOK2MANIP(par->hooknum));
+	return nf_nat_setup_info(ct, &newrange, HOOK2MANIP(xt_hooknum(par)));
 }
 
 static int netmap_tg4_check(const struct xt_tgchk_param *par)
@@ -111,7 +116,7 @@ static int netmap_tg4_check(const struct xt_tgchk_param *par)
 		pr_debug("bad rangesize %u.\n", mr->rangesize);
 		return -EINVAL;
 	}
-	return 0;
+	return nf_ct_netns_get(par->net, par->family);
 }
 
 static struct xt_target netmap_tg_reg[] __read_mostly = {
@@ -127,6 +132,7 @@ static struct xt_target netmap_tg_reg[] __read_mostly = {
 		              (1 << NF_INET_LOCAL_OUT) |
 		              (1 << NF_INET_LOCAL_IN),
 		.checkentry = netmap_tg6_checkentry,
+		.destroy    = netmap_tg_destroy,
 		.me         = THIS_MODULE,
 	},
 	{
@@ -141,6 +147,7 @@ static struct xt_target netmap_tg_reg[] __read_mostly = {
 		              (1 << NF_INET_LOCAL_OUT) |
 		              (1 << NF_INET_LOCAL_IN),
 		.checkentry = netmap_tg4_check,
+		.destroy    = netmap_tg_destroy,
 		.me         = THIS_MODULE,
 	},
 };

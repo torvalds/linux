@@ -59,11 +59,6 @@ uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 	return len;
 }
 
-int rtw_endofpktfile(struct pkt_file *pfile)
-{
-	return pfile->pkt_len == 0;
-}
-
 int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 alloc_sz)
 {
 	int i;
@@ -85,8 +80,7 @@ int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitb
 	return _SUCCESS;
 }
 
-void rtw_os_xmit_resource_free(struct adapter *padapter,
-			       struct xmit_buf *pxmitbuf, u32 free_sz)
+void rtw_os_xmit_resource_free(struct xmit_buf *pxmitbuf)
 {
 	int i;
 

@@ -3202,6 +3202,21 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 		}
+
+		/*
+		 * If interface in AP mode and created with allmulticast then disable
+		 * the firmware filters so that all multicast packets are passed
+		 * This is mandatory for MDNS based discovery protocols 
+		 */
+ 		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
+ 			if (*total & FIF_ALLMULTI) {
+				ret = wl1271_acx_group_address_tbl(wl, wlvif,
+							false,
+							NULL, 0);
+				if (ret < 0)
+					goto out_sleep;
+			}
+		}
 	}
 
 	/*
@@ -5285,7 +5300,9 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 		}
 
 		ret = wl12xx_acx_set_ba_receiver_session(wl, tid, *ssn, true,
-							 hlid);
+				hlid,
+				params->buf_size);
+
 		if (!ret) {
 			*ba_bitmap |= BIT(tid);
 			wl->ba_rx_session_count++;
@@ -5306,7 +5323,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 		}
 
 		ret = wl12xx_acx_set_ba_receiver_session(wl, tid, 0, false,
-							 hlid);
+							 hlid, 0);
 		if (!ret) {
 			*ba_bitmap &= ~BIT(tid);
 			wl->ba_rx_session_count--;
@@ -6086,6 +6103,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	ieee80211_hw_set(wl->hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(wl->hw, SIGNAL_DBM);
 	ieee80211_hw_set(wl->hw, SUPPORTS_PS);
+	ieee80211_hw_set(wl->hw, SUPPORTS_TX_FRAG);
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
@@ -6119,6 +6137,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 				WIPHY_FLAG_SUPPORTS_SCHED_SCAN |
 				WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+
+	wl->hw->wiphy->features |= NL80211_FEATURE_AP_SCAN;
 
 	/* make sure all our channels fit in the scanned_ch bitmask */
 	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +

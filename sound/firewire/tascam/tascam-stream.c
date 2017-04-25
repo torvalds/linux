@@ -343,7 +343,7 @@ int snd_tscm_stream_init_duplex(struct snd_tscm *tscm)
 	if (err < 0)
 		amdtp_stream_destroy(&tscm->rx_stream);
 
-	return 0;
+	return err;
 }
 
 /* At bus reset, streaming is stopped and some registers are clear. */

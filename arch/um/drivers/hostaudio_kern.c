@@ -9,7 +9,7 @@
 #include <linux/sound.h>
 #include <linux/soundcard.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <init.h>
 #include <os.h>
 

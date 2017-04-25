@@ -57,7 +57,7 @@ static notrace u64 jcore_sched_clock_read(void)
 	return seclo * NSEC_PER_SEC + nsec;
 }
 
-static cycle_t jcore_clocksource_read(struct clocksource *cs)
+static u64 jcore_clocksource_read(struct clocksource *cs)
 {
 	return jcore_sched_clock_read();
 }
@@ -240,7 +240,7 @@ static int __init jcore_pit_init(struct device_node *node)
 	}
 
 	cpuhp_setup_state(CPUHP_AP_JCORE_TIMER_STARTING,
-			  "AP_JCORE_TIMER_STARTING",
+			  "clockevents/jcore:starting",
 			  jcore_pit_local_init, NULL);
 
 	return 0;

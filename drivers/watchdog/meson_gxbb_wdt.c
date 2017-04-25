@@ -264,7 +264,6 @@ static struct platform_driver meson_gxbb_wdt_driver = {
 
 module_platform_driver(meson_gxbb_wdt_driver);
 
-MODULE_ALIAS("platform:meson-gxbb-wdt");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_DESCRIPTION("Amlogic Meson GXBB Watchdog timer driver");
 MODULE_LICENSE("Dual BSD/GPL");

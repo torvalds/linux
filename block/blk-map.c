@@ -2,6 +2,7 @@
  * Functions related to mapping data to requests
  */
 #include <linux/kernel.h>
+#include <linux/sched/task_stack.h>
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
@@ -60,6 +61,9 @@ static int __blk_rq_map_user_iov(struct request *rq,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
+	bio->bi_opf &= ~REQ_OP_MASK;
+	bio->bi_opf |= req_op(rq);
+
 	if (map_data && map_data->null_mapped)
 		bio_set_flag(bio, BIO_NULL_MAPPED);
 
@@ -88,7 +92,7 @@ static int __blk_rq_map_user_iov(struct request *rq,
 }
 
 /**
- * blk_rq_map_user_iov - map user data to a request, for REQ_TYPE_BLOCK_PC usage
+ * blk_rq_map_user_iov - map user data to a request, for passthrough requests
  * @q:		request queue where request should be inserted
  * @rq:		request to map data to
  * @map_data:   pointer to the rq_map_data holding pages (if necessary)
@@ -138,7 +142,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	} while (iov_iter_count(&i));
 
 	if (!bio_flagged(bio, BIO_USER_MAPPED))
-		rq->cmd_flags |= REQ_COPY_USER;
+		rq->rq_flags |= RQF_COPY_USER;
 	return 0;
 
 unmap_rq:
@@ -197,7 +201,7 @@ int blk_rq_unmap_user(struct bio *bio)
 EXPORT_SYMBOL(blk_rq_unmap_user);
 
 /**
- * blk_rq_map_kern - map kernel data to a request, for REQ_TYPE_BLOCK_PC usage
+ * blk_rq_map_kern - map kernel data to a request, for passthrough requests
  * @q:		request queue where request should be inserted
  * @rq:		request to fill
  * @kbuf:	the kernel buffer
@@ -232,11 +236,11 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	if (!reading)
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+	bio->bi_opf &= ~REQ_OP_MASK;
+	bio->bi_opf |= req_op(rq);
 
 	if (do_copy)
-		rq->cmd_flags |= REQ_COPY_USER;
+		rq->rq_flags |= RQF_COPY_USER;
 
 	ret = blk_rq_append_bio(rq, bio);
 	if (unlikely(ret)) {

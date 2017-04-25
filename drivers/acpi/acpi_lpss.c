@@ -18,8 +18,10 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/clk-lpss.h>
+#include <linux/platform_data/x86/pmc_atom.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/pwm.h>
 #include <linux/delay.h>
 
 #include "internal.h"
@@ -31,7 +33,6 @@ ACPI_MODULE_NAME("acpi_lpss");
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
-#include <asm/pmc_atom.h>
 
 #define LPSS_ADDR(desc) ((unsigned long)&desc)
 
@@ -154,6 +155,18 @@ static void byt_i2c_setup(struct lpss_private_data *pdata)
 	writel(0, pdata->mmio_base + LPSS_I2C_ENABLE);
 }
 
+/* BSW PWM used for backlight control by the i915 driver */
+static struct pwm_lookup bsw_pwm_lookup[] = {
+	PWM_LOOKUP_WITH_MODULE("80862288:00", 0, "0000:00:02.0",
+			       "pwm_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-lpss-platform"),
+};
+
+static void bsw_pwm_setup(struct lpss_private_data *pdata)
+{
+	pwm_add_table(bsw_pwm_lookup, ARRAY_SIZE(bsw_pwm_lookup));
+}
+
 static const struct lpss_device_desc lpt_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_LTR,
 	.prv_offset = 0x800,
@@ -191,6 +204,7 @@ static const struct lpss_device_desc byt_pwm_dev_desc = {
 
 static const struct lpss_device_desc bsw_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX | LPSS_NO_D3_DELAY,
+	.setup = bsw_pwm_setup,
 };
 
 static const struct lpss_device_desc byt_uart_dev_desc = {
@@ -718,13 +732,14 @@ static int acpi_lpss_resume_early(struct device *dev)
 #define LPSS_GPIODEF0_DMA1_D3		BIT(2)
 #define LPSS_GPIODEF0_DMA2_D3		BIT(3)
 #define LPSS_GPIODEF0_DMA_D3_MASK	GENMASK(3, 2)
+#define LPSS_GPIODEF0_DMA_LLP		BIT(13)
 
 static DEFINE_MUTEX(lpss_iosf_mutex);
 
 static void lpss_iosf_enter_d3_state(void)
 {
 	u32 value1 = 0;
-	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK;
+	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK | LPSS_GPIODEF0_DMA_LLP;
 	u32 value2 = LPSS_PMCSR_D3hot;
 	u32 mask2 = LPSS_PMCSR_Dx_MASK;
 	/*
@@ -768,8 +783,9 @@ exit:
 
 static void lpss_iosf_exit_d3_state(void)
 {
-	u32 value1 = LPSS_GPIODEF0_DMA1_D3 | LPSS_GPIODEF0_DMA2_D3;
-	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK;
+	u32 value1 = LPSS_GPIODEF0_DMA1_D3 | LPSS_GPIODEF0_DMA2_D3 |
+		     LPSS_GPIODEF0_DMA_LLP;
+	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK | LPSS_GPIODEF0_DMA_LLP;
 	u32 value2 = LPSS_PMCSR_D0;
 	u32 mask2 = LPSS_PMCSR_Dx_MASK;
 

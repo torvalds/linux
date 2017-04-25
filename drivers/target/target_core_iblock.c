@@ -388,7 +388,7 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 	bio = bio_alloc(GFP_KERNEL, 0);
 	bio->bi_end_io = iblock_end_io_flush;
 	bio->bi_bdev = ib_dev->ibd_bd;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
+	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 	if (!immed)
 		bio->bi_private = cmd;
 	submit_bio(bio);
@@ -686,15 +686,15 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
 		/*
-		 * Force writethrough using WRITE_FUA if a volatile write cache
+		 * Force writethrough using REQ_FUA if a volatile write cache
 		 * is not enabled, or if initiator set the Force Unit Access bit.
 		 */
 		op = REQ_OP_WRITE;
 		if (test_bit(QUEUE_FLAG_FUA, &q->queue_flags)) {
 			if (cmd->se_cmd_flags & SCF_FUA)
-				op_flags = WRITE_FUA;
+				op_flags = REQ_FUA;
 			else if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
-				op_flags = WRITE_FUA;
+				op_flags = REQ_FUA;
 		}
 	} else {
 		op = REQ_OP_READ;

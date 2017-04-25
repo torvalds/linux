@@ -32,11 +32,10 @@ ENTRY(startup_continue)
 #
 # Setup stack
 #
-	larl	%r15,init_thread_union
-	stg	%r15,__LC_THREAD_INFO	# cache thread info in lowcore
-	lg	%r14,__TI_task(%r15)	# cache current in lowcore
+	larl	%r14,init_task
 	stg	%r14,__LC_CURRENT
-	aghi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union + THREAD_SIZE
+	larl	%r15,init_thread_union
+	aghi	%r15,1<<(PAGE_SHIFT+THREAD_SIZE_ORDER) # init_task_union + THREAD_SIZE
 	stg	%r15,__LC_KERNEL_STACK	# set end of kernel stack
 	aghi	%r15,-160
 #

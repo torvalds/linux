@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * File: card.h
  *
  * Purpose: Provide functions to setup NIC operation mode
@@ -50,7 +46,7 @@
 
 #define CB_MAX_CHANNEL_24G      14
 #define CB_MAX_CHANNEL_5G       42
-#define CB_MAX_CHANNEL          (CB_MAX_CHANNEL_24G+CB_MAX_CHANNEL_5G)
+#define CB_MAX_CHANNEL          (CB_MAX_CHANNEL_24G + CB_MAX_CHANNEL_5G)
 
 typedef enum _CARD_PKT_TYPE {
 	PKT_TYPE_802_11_BCN,

@@ -28,6 +28,7 @@
 #define SKBEDIT_F_QUEUE_MAPPING		0x2
 #define SKBEDIT_F_MARK			0x4
 #define SKBEDIT_F_PTYPE			0x8
+#define SKBEDIT_F_MASK			0x10
 
 struct tc_skbedit {
 	tc_gen;
@@ -42,6 +43,7 @@ enum {
 	TCA_SKBEDIT_MARK,
 	TCA_SKBEDIT_PAD,
 	TCA_SKBEDIT_PTYPE,
+	TCA_SKBEDIT_MASK,
 	__TCA_SKBEDIT_MAX
 };
 #define TCA_SKBEDIT_MAX (__TCA_SKBEDIT_MAX - 1)

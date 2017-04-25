@@ -1,6 +1,10 @@
 #ifndef PERF_TEST_LLVM_H
 #define PERF_TEST_LLVM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h> /* for size_t */
 #include <stdbool.h> /* for bool */
 
@@ -20,4 +24,7 @@ enum test_llvm__testcase {
 int test_llvm__fetch_bpf_obj(void **p_obj_buf, size_t *p_obj_buf_sz,
 			     enum test_llvm__testcase index, bool force,
 			     bool *should_load_fail);
+#ifdef __cplusplus
+}
+#endif
 #endif

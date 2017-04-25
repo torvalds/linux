@@ -170,6 +170,9 @@ int client_import_del_conn(struct obd_import *imp, struct obd_uuid *uuid)
 				ptlrpc_connection_put(dlmexp->exp_connection);
 				dlmexp->exp_connection = NULL;
 			}
+
+			if (dlmexp)
+				class_export_put(dlmexp);
 		}
 
 		list_del(&imp_conn->oic_item);
@@ -333,6 +336,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	INIT_LIST_HEAD(&cli->cl_lru_list);
 	spin_lock_init(&cli->cl_lru_list_lock);
 	atomic_long_set(&cli->cl_unstable_count, 0);
+	INIT_LIST_HEAD(&cli->cl_shrink_list);
 
 	init_waitqueue_head(&cli->cl_destroy_waitq);
 	atomic_set(&cli->cl_destroy_in_flight, 0);
@@ -347,13 +351,11 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	cli->cl_supp_cksum_types = OBD_CKSUM_CRC32;
 	atomic_set(&cli->cl_resends, OSC_DEFAULT_RESENDS);
 
-	/* This value may be reduced at connect time in
-	 * ptlrpc_connect_interpret() . We initialize it to only
-	 * 1MB until we know what the performance looks like.
-	 * In the future this should likely be increased. LU-1431
+	/*
+	 * Set it to possible maximum size. It may be reduced by ocd_brw_size
+	 * from OFD after connecting.
 	 */
-	cli->cl_max_pages_per_rpc = min_t(int, PTLRPC_MAX_BRW_PAGES,
-					  LNET_MTU >> PAGE_SHIFT);
+	cli->cl_max_pages_per_rpc = PTLRPC_MAX_BRW_PAGES;
 
 	/*
 	 * set cl_chunkbits default value to PAGE_CACHE_SHIFT,
@@ -372,6 +374,25 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	} else {
 		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
 	}
+
+	spin_lock_init(&cli->cl_mod_rpcs_lock);
+	spin_lock_init(&cli->cl_mod_rpcs_hist.oh_lock);
+	cli->cl_max_mod_rpcs_in_flight = 0;
+	cli->cl_mod_rpcs_in_flight = 0;
+	cli->cl_close_rpcs_in_flight = 0;
+	init_waitqueue_head(&cli->cl_mod_rpcs_waitq);
+	cli->cl_mod_tag_bitmap = NULL;
+
+	if (connect_op == MDS_CONNECT) {
+		cli->cl_max_mod_rpcs_in_flight = cli->cl_max_rpcs_in_flight - 1;
+		cli->cl_mod_tag_bitmap = kcalloc(BITS_TO_LONGS(OBD_MAX_RIF_MAX),
+						 sizeof(long), GFP_NOFS);
+		if (!cli->cl_mod_tag_bitmap) {
+			rc = -ENOMEM;
+			goto err;
+		}
+	}
+
 	rc = ldlm_get_ref();
 	if (rc) {
 		CERROR("ldlm_get_ref failed: %d\n", rc);
@@ -399,9 +420,8 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	}
 
 	cli->cl_import = imp;
-	/* cli->cl_max_mds_{easize,cookiesize} updated by mdc_init_ea_size() */
+	/* cli->cl_max_mds_easize updated by mdc_init_ea_size() */
 	cli->cl_max_mds_easize = sizeof(struct lov_mds_md_v3);
-	cli->cl_max_mds_cookiesize = sizeof(struct llog_cookie);
 
 	if (LUSTRE_CFG_BUFLEN(lcfg, 3) > 0) {
 		if (!strcmp(lustre_cfg_string(lcfg, 3), "inactive")) {
@@ -425,8 +445,6 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 		goto err_import;
 	}
 
-	cli->cl_qchk_stat = CL_NOT_QUOTACHECKED;
-
 	return rc;
 
 err_import:
@@ -434,12 +452,16 @@ err_import:
 err_ldlm:
 	ldlm_put_ref();
 err:
+	kfree(cli->cl_mod_tag_bitmap);
+	cli->cl_mod_tag_bitmap = NULL;
 	return rc;
 }
 EXPORT_SYMBOL(client_obd_setup);
 
 int client_obd_cleanup(struct obd_device *obddev)
 {
+	struct client_obd *cli = &obddev->u.cli;
+
 	ldlm_namespace_free_post(obddev->obd_namespace);
 	obddev->obd_namespace = NULL;
 
@@ -447,6 +469,10 @@ int client_obd_cleanup(struct obd_device *obddev)
 	LASSERT(!obddev->u.cli.cl_import);
 
 	ldlm_put_ref();
+
+	kfree(cli->cl_mod_tag_bitmap);
+	cli->cl_mod_tag_bitmap = NULL;
+
 	return 0;
 }
 EXPORT_SYMBOL(client_obd_cleanup);
@@ -461,6 +487,7 @@ int client_connect_import(const struct lu_env *env,
 	struct obd_import       *imp    = cli->cl_import;
 	struct obd_connect_data *ocd;
 	struct lustre_handle    conn    = { 0 };
+	bool is_mdc = false;
 	int		     rc;
 
 	*exp = NULL;
@@ -487,11 +514,17 @@ int client_connect_import(const struct lu_env *env,
 	ocd = &imp->imp_connect_data;
 	if (data) {
 		*ocd = *data;
+		is_mdc = !strncmp(imp->imp_obd->obd_type->typ_name,
+				  LUSTRE_MDC_NAME, 3);
+		if (is_mdc)
+			data->ocd_connect_flags |= OBD_CONNECT_MULTIMODRPCS;
 		imp->imp_connect_flags_orig = data->ocd_connect_flags;
 	}
 
 	rc = ptlrpc_connect_import(imp);
 	if (rc != 0) {
+		if (data && is_mdc)
+			data->ocd_connect_flags &= ~OBD_CONNECT_MULTIMODRPCS;
 		LASSERT(imp->imp_state == LUSTRE_IMP_DISCON);
 		goto out_ldlm;
 	}
@@ -502,6 +535,11 @@ int client_connect_import(const struct lu_env *env,
 			 ocd->ocd_connect_flags, "old %#llx, new %#llx\n",
 			 data->ocd_connect_flags, ocd->ocd_connect_flags);
 		data->ocd_connect_flags = ocd->ocd_connect_flags;
+		/* clear the flag as it was not set and is not known
+		 * by upper layers
+		 */
+		if (is_mdc)
+			data->ocd_connect_flags &= ~OBD_CONNECT_MULTIMODRPCS;
 	}
 
 	ptlrpc_pinger_add_import(imp);

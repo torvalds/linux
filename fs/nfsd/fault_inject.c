@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/nsproxy.h>
 #include <linux/sunrpc/addr.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "state.h"
 #include "netns.h"

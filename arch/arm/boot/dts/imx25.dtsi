@@ -9,10 +9,20 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "skeleton.dtsi"
 #include "imx25-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; reg = <0 0>; };
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;
@@ -41,12 +51,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -558,7 +569,7 @@
 				reg = <0x53ffc000 0x4000>;
 				clocks = <&clks 81>;
 				clock-names = "ipg";
-				interrupts = <25>;
+				interrupts = <25 56>;
 			};
 		};
 

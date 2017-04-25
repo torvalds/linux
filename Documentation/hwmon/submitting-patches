@@ -10,10 +10,10 @@ increase the chances of your change being accepted.
 ----------
 
 * It should be unnecessary to mention, but please read and follow
-    Documentation/SubmitChecklist
-    Documentation/SubmittingDrivers
-    Documentation/SubmittingPatches
-    Documentation/CodingStyle
+    Documentation/process/submit-checklist.rst
+    Documentation/process/submitting-drivers.rst
+    Documentation/process/submitting-patches.rst
+    Documentation/process/coding-style.rst
 
 * Please run your patch through 'checkpatch --strict'. There should be no
   errors, no warnings, and few if any check messages. If there are any

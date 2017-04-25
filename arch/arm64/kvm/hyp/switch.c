@@ -21,6 +21,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
+#include <asm/fpsimd.h>
 
 static bool __hyp_text __fpsimd_enabled_nvhe(void)
 {
@@ -76,16 +77,24 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 	 * traps are only taken to EL2 if the operation would not otherwise
 	 * trap to EL1.  Therefore, always make sure that for 32-bit guests,
 	 * we set FPEXC.EN to prevent traps to EL1, when setting the TFP bit.
+	 * If FP/ASIMD is not implemented, FPEXC is UNDEFINED and any access to
+	 * it will cause an exception.
 	 */
 	val = vcpu->arch.hcr_el2;
-	if (!(val & HCR_RW)) {
+	if (!(val & HCR_RW) && system_supports_fpsimd()) {
 		write_sysreg(1 << 30, fpexc32_el2);
 		isb();
 	}
 	write_sysreg(val, hcr_el2);
 	/* Trap on AArch32 cp15 c15 accesses (EL1 or EL0) */
 	write_sysreg(1 << 15, hstr_el2);
-	/* Make sure we trap PMU access from EL0 to EL2 */
+	/*
+	 * Make sure we trap PMU access from EL0 to EL2. Also sanitize
+	 * PMSELR_EL0 to make sure it never contains the cycle
+	 * counter, which could make a PMXEVCNTR_EL0 access UNDEF at
+	 * EL1 instead of being trapped to EL2.
+	 */
+	write_sysreg(0, pmselr_el0);
 	write_sysreg(ARMV8_PMU_USERENR_MASK, pmuserenr_el0);
 	write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
 	__activate_traps_arch()();
@@ -94,7 +103,13 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 static void __hyp_text __deactivate_traps_vhe(void)
 {
 	extern char vectors[];	/* kernel exception vectors */
+	u64 mdcr_el2 = read_sysreg(mdcr_el2);
 
+	mdcr_el2 &= MDCR_EL2_HPMN_MASK |
+		    MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT |
+		    MDCR_EL2_TPMS;
+
+	write_sysreg(mdcr_el2, mdcr_el2);
 	write_sysreg(HCR_HOST_VHE_FLAGS, hcr_el2);
 	write_sysreg(CPACR_EL1_FPEN, cpacr_el1);
 	write_sysreg(vectors, vbar_el1);
@@ -102,6 +117,12 @@ static void __hyp_text __deactivate_traps_vhe(void)
 
 static void __hyp_text __deactivate_traps_nvhe(void)
 {
+	u64 mdcr_el2 = read_sysreg(mdcr_el2);
+
+	mdcr_el2 &= MDCR_EL2_HPMN_MASK;
+	mdcr_el2 |= MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT;
+
+	write_sysreg(mdcr_el2, mdcr_el2);
 	write_sysreg(HCR_RW, hcr_el2);
 	write_sysreg(CPTR_EL2_DEFAULT, cptr_el2);
 }
@@ -123,7 +144,6 @@ static void __hyp_text __deactivate_traps(struct kvm_vcpu *vcpu)
 
 	__deactivate_traps_arch()();
 	write_sysreg(0, hstr_el2);
-	write_sysreg(read_sysreg(mdcr_el2) & MDCR_EL2_HPMN_MASK, mdcr_el2);
 	write_sysreg(0, pmuserenr_el0);
 }
 
@@ -348,6 +368,10 @@ again:
 	}
 
 	__debug_save_state(vcpu, kern_hyp_va(vcpu->arch.debug_ptr), guest_ctxt);
+	/*
+	 * This must come after restoring the host sysregs, since a non-VHE
+	 * system may enable SPE here and make use of the TTBRs.
+	 */
 	__debug_cond_restore_host_state(vcpu);
 
 	return exit_code;

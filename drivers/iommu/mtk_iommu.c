@@ -195,14 +195,14 @@ static irqreturn_t mtk_iommu_isr(int irq, void *dev_id)
 static void mtk_iommu_config(struct mtk_iommu_data *data,
 			     struct device *dev, bool enable)
 {
-	struct mtk_iommu_client_priv *head, *cur, *next;
 	struct mtk_smi_larb_iommu    *larb_mmu;
 	unsigned int                 larbid, portid;
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	int i;
 
-	head = dev->archdata.iommu;
-	list_for_each_entry_safe(cur, next, &head->client, client) {
-		larbid = MTK_M4U_TO_LARB(cur->mtk_m4u_id);
-		portid = MTK_M4U_TO_PORT(cur->mtk_m4u_id);
+	for (i = 0; i < fwspec->num_ids; ++i) {
+		larbid = MTK_M4U_TO_LARB(fwspec->ids[i]);
+		portid = MTK_M4U_TO_PORT(fwspec->ids[i]);
 		larb_mmu = &data->smi_imu.larb_imu[larbid];
 
 		dev_dbg(dev, "%s iommu port: %d\n",
@@ -282,14 +282,12 @@ static int mtk_iommu_attach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
-	struct mtk_iommu_client_priv *priv = dev->archdata.iommu;
-	struct mtk_iommu_data *data;
+	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
 	int ret;
 
-	if (!priv)
+	if (!data)
 		return -ENODEV;
 
-	data = dev_get_drvdata(priv->m4udev);
 	if (!data->m4u_dom) {
 		data->m4u_dom = dom;
 		ret = mtk_iommu_domain_finalise(data);
@@ -310,13 +308,11 @@ static int mtk_iommu_attach_device(struct iommu_domain *domain,
 static void mtk_iommu_detach_device(struct iommu_domain *domain,
 				    struct device *dev)
 {
-	struct mtk_iommu_client_priv *priv = dev->archdata.iommu;
-	struct mtk_iommu_data *data;
+	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
 
-	if (!priv)
+	if (!data)
 		return;
 
-	data = dev_get_drvdata(priv->m4udev);
 	mtk_iommu_config(data, dev, false);
 }
 
@@ -364,10 +360,14 @@ static phys_addr_t mtk_iommu_iova_to_phys(struct iommu_domain *domain,
 
 static int mtk_iommu_add_device(struct device *dev)
 {
+	struct mtk_iommu_data *data;
 	struct iommu_group *group;
 
-	if (!dev->archdata.iommu) /* Not a iommu client device */
-		return -ENODEV;
+	if (!dev->iommu_fwspec || dev->iommu_fwspec->ops != &mtk_iommu_ops)
+		return -ENODEV; /* Not a iommu client device */
+
+	data = dev->iommu_fwspec->iommu_priv;
+	iommu_device_link(&data->iommu, dev);
 
 	group = iommu_group_get_for_dev(dev);
 	if (IS_ERR(group))
@@ -379,44 +379,38 @@ static int mtk_iommu_add_device(struct device *dev)
 
 static void mtk_iommu_remove_device(struct device *dev)
 {
-	struct mtk_iommu_client_priv *head, *cur, *next;
+	struct mtk_iommu_data *data;
 
-	head = dev->archdata.iommu;
-	if (!head)
+	if (!dev->iommu_fwspec || dev->iommu_fwspec->ops != &mtk_iommu_ops)
 		return;
 
-	list_for_each_entry_safe(cur, next, &head->client, client) {
-		list_del(&cur->client);
-		kfree(cur);
-	}
-	kfree(head);
-	dev->archdata.iommu = NULL;
+	data = dev->iommu_fwspec->iommu_priv;
+	iommu_device_unlink(&data->iommu, dev);
 
 	iommu_group_remove_device(dev);
+	iommu_fwspec_free(dev);
 }
 
 static struct iommu_group *mtk_iommu_device_group(struct device *dev)
 {
-	struct mtk_iommu_data *data;
-	struct mtk_iommu_client_priv *priv;
+	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
 
-	priv = dev->archdata.iommu;
-	if (!priv)
+	if (!data)
 		return ERR_PTR(-ENODEV);
 
 	/* All the client devices are in the same m4u iommu-group */
-	data = dev_get_drvdata(priv->m4udev);
 	if (!data->m4u_group) {
 		data->m4u_group = iommu_group_alloc();
 		if (IS_ERR(data->m4u_group))
 			dev_err(dev, "Failed to allocate M4U IOMMU group\n");
+	} else {
+		iommu_group_ref_get(data->m4u_group);
 	}
 	return data->m4u_group;
 }
 
 static int mtk_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 {
-	struct mtk_iommu_client_priv *head, *priv, *next;
 	struct platform_device *m4updev;
 
 	if (args->args_count != 1) {
@@ -425,38 +419,16 @@ static int mtk_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 		return -EINVAL;
 	}
 
-	if (!dev->archdata.iommu) {
+	if (!dev->iommu_fwspec->iommu_priv) {
 		/* Get the m4u device */
 		m4updev = of_find_device_by_node(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
-		head = kzalloc(sizeof(*head), GFP_KERNEL);
-		if (!head)
-			return -ENOMEM;
-
-		dev->archdata.iommu = head;
-		INIT_LIST_HEAD(&head->client);
-		head->m4udev = &m4updev->dev;
-	} else {
-		head = dev->archdata.iommu;
+		dev->iommu_fwspec->iommu_priv = platform_get_drvdata(m4updev);
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		goto err_free_mem;
-
-	priv->mtk_m4u_id = args->args[0];
-	list_add_tail(&priv->client, &head->client);
-
-	return 0;
-
-err_free_mem:
-	list_for_each_entry_safe(priv, next, &head->client, client)
-		kfree(priv);
-	kfree(head);
-	dev->archdata.iommu = NULL;
-	return -ENOMEM;
+	return iommu_fwspec_add_ids(dev, args->args, 1);
 }
 
 static struct iommu_ops mtk_iommu_ops = {
@@ -534,6 +506,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	struct mtk_iommu_data   *data;
 	struct device           *dev = &pdev->dev;
 	struct resource         *res;
+	resource_size_t		ioaddr;
 	struct component_match  *match = NULL;
 	void                    *protect;
 	int                     i, larb_nr, ret;
@@ -556,6 +529,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	data->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
+	ioaddr = res->start;
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (data->irq < 0)
@@ -583,22 +557,36 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 			continue;
 
 		plarbdev = of_find_device_by_node(larbnode);
-		of_node_put(larbnode);
 		if (!plarbdev) {
 			plarbdev = of_platform_device_create(
 						larbnode, NULL,
 						platform_bus_type.dev_root);
-			if (!plarbdev)
+			if (!plarbdev) {
+				of_node_put(larbnode);
 				return -EPROBE_DEFER;
+			}
 		}
 		data->smi_imu.larb_imu[i].dev = &plarbdev->dev;
 
-		component_match_add(dev, &match, compare_of, larbnode);
+		component_match_add_release(dev, &match, release_of,
+					    compare_of, larbnode);
 	}
 
 	platform_set_drvdata(pdev, data);
 
 	ret = mtk_iommu_hw_init(data);
+	if (ret)
+		return ret;
+
+	ret = iommu_device_sysfs_add(&data->iommu, dev, NULL,
+				     "mtk-iommu.%pa", &ioaddr);
+	if (ret)
+		return ret;
+
+	iommu_device_set_ops(&data->iommu, &mtk_iommu_ops);
+	iommu_device_set_fwnode(&data->iommu, &pdev->dev.of_node->fwnode);
+
+	ret = iommu_device_register(&data->iommu);
 	if (ret)
 		return ret;
 
@@ -611,6 +599,9 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 static int mtk_iommu_remove(struct platform_device *pdev)
 {
 	struct mtk_iommu_data *data = platform_get_drvdata(pdev);
+
+	iommu_device_sysfs_remove(&data->iommu);
+	iommu_device_unregister(&data->iommu);
 
 	if (iommu_present(&platform_bus_type))
 		bus_set_iommu(&platform_bus_type, NULL);
@@ -690,7 +681,6 @@ static int mtk_iommu_init_fn(struct device_node *np)
 		return ret;
 	}
 
-	of_iommu_set_ops(np, &mtk_iommu_ops);
 	return 0;
 }
 

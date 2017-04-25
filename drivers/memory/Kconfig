@@ -134,6 +134,14 @@ config MTK_SMI
 	  mainly help enable/disable iommu and control the power domain and
 	  clocks for each local arbiter.
 
+config DA8XX_DDRCTL
+	bool "Texas Instruments da8xx DDR2/mDDR driver"
+	depends on ARCH_DAVINCI_DA8XX
+	help
+	  This driver is for the DDR2/mDDR Memory Controller present on
+	  Texas Instruments da8xx SoCs. It's used to tweak various memory
+	  controller configuration options.
+
 source "drivers/memory/samsung/Kconfig"
 source "drivers/memory/tegra/Kconfig"
 

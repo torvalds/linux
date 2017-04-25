@@ -846,10 +846,6 @@ int ubifs_gc_start_commit(struct ubifs_info *c)
 	 */
 	while (1) {
 		lp = ubifs_fast_find_freeable(c);
-		if (IS_ERR(lp)) {
-			err = PTR_ERR(lp);
-			goto out;
-		}
 		if (!lp)
 			break;
 		ubifs_assert(!(lp->flags & LPROPS_TAKEN));

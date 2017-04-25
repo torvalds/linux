@@ -55,7 +55,7 @@ static int davinci_target(struct cpufreq_policy *policy, unsigned int idx)
 			return ret;
 	}
 
-	ret = clk_set_rate(armclk, idx);
+	ret = clk_set_rate(armclk, new_freq * 1000);
 	if (ret)
 		return ret;
 

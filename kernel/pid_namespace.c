@@ -12,12 +12,15 @@
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
 #include <linux/syscalls.h>
+#include <linux/cred.h>
 #include <linux/err.h>
 #include <linux/acct.h>
 #include <linux/slab.h>
 #include <linux/proc_ns.h>
 #include <linux/reboot.h>
 #include <linux/export.h>
+#include <linux/sched/task.h>
+#include <linux/sched/signal.h>
 
 struct pid_cache {
 	int nr_ids;
@@ -151,8 +154,12 @@ out:
 
 static void delayed_free_pidns(struct rcu_head *p)
 {
-	kmem_cache_free(pid_ns_cachep,
-			container_of(p, struct pid_namespace, rcu));
+	struct pid_namespace *ns = container_of(p, struct pid_namespace, rcu);
+
+	dec_pid_namespaces(ns->ucounts);
+	put_user_ns(ns->user_ns);
+
+	kmem_cache_free(pid_ns_cachep, ns);
 }
 
 static void destroy_pid_namespace(struct pid_namespace *ns)
@@ -162,8 +169,6 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 	ns_free_inum(&ns->ns);
 	for (i = 0; i < PIDMAP_ENTRIES; i++)
 		kfree(ns->pidmap[i].page);
-	dec_pid_namespaces(ns->ucounts);
-	put_user_ns(ns->user_ns);
 	call_rcu(&ns->rcu, delayed_free_pidns);
 }
 

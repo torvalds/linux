@@ -40,7 +40,6 @@
 /*
  * XXX
  *  - build with sparse
- *  - should we limit the size of a mr region?  let transport return failure?
  *  - should we detect duplicate keys on a socket?  hmm.
  *  - an rdma is an mlock, apply rlimit?
  */
@@ -135,7 +134,7 @@ void rds_rdma_drop_keys(struct rds_sock *rs)
 	/* Release any MRs associated with this socket */
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	while ((node = rb_first(&rs->rs_rdma_keys))) {
-		mr = container_of(node, struct rds_mr, r_rb_node);
+		mr = rb_entry(node, struct rds_mr, r_rb_node);
 		if (mr->r_trans == rs->rs_transport)
 			mr->r_invalidate = 0;
 		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
@@ -197,6 +196,14 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	nr_pages = rds_pages_in_vec(&args->vec);
 	if (nr_pages == 0) {
 		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Restrict the size of mr irrespective of underlying transport
+	 * To account for unaligned mr regions, subtract one from nr_pages
+	 */
+	if ((nr_pages - 1) > (RDS_MAX_MSG_SIZE >> PAGE_SHIFT)) {
+		ret = -EMSGSIZE;
 		goto out;
 	}
 
@@ -415,7 +422,8 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
 	if (!mr) {
-		printk(KERN_ERR "rds: trying to unuse MR with unknown r_key %u!\n", r_key);
+		pr_debug("rds: trying to unuse MR with unknown r_key %u!\n",
+			 r_key);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 		return;
 	}
@@ -626,6 +634,16 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		}
 		op->op_notifier->n_user_token = args->user_token;
 		op->op_notifier->n_status = RDS_RDMA_SUCCESS;
+
+		/* Enable rmda notification on data operation for composite
+		 * rds messages and make sure notification is enabled only
+		 * for the data operation which follows it so that application
+		 * gets notified only after full message gets delivered.
+		 */
+		if (rm->data.op_sg) {
+			rm->rdma.op_notify = 0;
+			rm->data.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+		}
 	}
 
 	/* The cookie contains the R_Key of the remote memory region, and

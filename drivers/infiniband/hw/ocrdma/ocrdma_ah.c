@@ -59,7 +59,7 @@ static u16 ocrdma_hdr_type_to_proto_num(int devid, u8 hdr_type)
 {
 	switch (hdr_type) {
 	case OCRDMA_L3_TYPE_IB_GRH:
-		return (u16)0x8915;
+		return (u16)ETH_P_IBOE;
 	case OCRDMA_L3_TYPE_IPV4:
 		return (u16)0x0800;
 	case OCRDMA_L3_TYPE_IPV6:
@@ -94,7 +94,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	proto_num = ocrdma_hdr_type_to_proto_num(dev->id, ah->hdr_type);
 	if (!proto_num)
 		return -EINVAL;
-	nxthdr = (proto_num == 0x8915) ? 0x1b : 0x11;
+	nxthdr = (proto_num == ETH_P_IBOE) ? 0x1b : 0x11;
 	/* VLAN */
 	if (!vlan_tag || (vlan_tag > 0xFFF))
 		vlan_tag = dev->pvid;
@@ -154,7 +154,8 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	return status;
 }
 
-struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
+struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+			       struct ib_udata *udata)
 {
 	u32 *ahid_addr;
 	int status;

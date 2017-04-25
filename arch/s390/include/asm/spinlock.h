@@ -23,6 +23,14 @@ _raw_compare_and_swap(unsigned int *lock, unsigned int old, unsigned int new)
 	return __sync_bool_compare_and_swap(lock, old, new);
 }
 
+#ifndef CONFIG_SMP
+static inline bool arch_vcpu_is_preempted(int cpu) { return false; }
+#else
+bool arch_vcpu_is_preempted(int cpu);
+#endif
+
+#define vcpu_is_preempted arch_vcpu_is_preempted
+
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
  * on the local processor, one does not.
@@ -55,7 +63,7 @@ static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lp)
 {
-	return ACCESS_ONCE(lp->lock) != 0;
+	return READ_ONCE(lp->lock) != 0;
 }
 
 static inline int arch_spin_trylock_once(arch_spinlock_t *lp)

@@ -19,6 +19,6 @@ struct rcar_du_encoder;
 
 int rcar_du_lvds_connector_init(struct rcar_du_device *rcdu,
 				struct rcar_du_encoder *renc,
-				struct device_node *np);
+				const struct device_node *np);
 
 #endif /* __RCAR_DU_LVDSCON_H__ */

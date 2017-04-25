@@ -110,9 +110,9 @@ static void em_sti_disable(struct em_sti_priv *p)
 	clk_disable_unprepare(p->clk);
 }
 
-static cycle_t em_sti_count(struct em_sti_priv *p)
+static u64 em_sti_count(struct em_sti_priv *p)
 {
-	cycle_t ticks;
+	u64 ticks;
 	unsigned long flags;
 
 	/* the STI hardware buffers the 48-bit count, but to
@@ -121,14 +121,14 @@ static cycle_t em_sti_count(struct em_sti_priv *p)
 	 * Always read STI_COUNT_H before STI_COUNT_L.
 	 */
 	raw_spin_lock_irqsave(&p->lock, flags);
-	ticks = (cycle_t)(em_sti_read(p, STI_COUNT_H) & 0xffff) << 32;
+	ticks = (u64)(em_sti_read(p, STI_COUNT_H) & 0xffff) << 32;
 	ticks |= em_sti_read(p, STI_COUNT_L);
 	raw_spin_unlock_irqrestore(&p->lock, flags);
 
 	return ticks;
 }
 
-static cycle_t em_sti_set_next(struct em_sti_priv *p, cycle_t next)
+static u64 em_sti_set_next(struct em_sti_priv *p, u64 next)
 {
 	unsigned long flags;
 
@@ -198,7 +198,7 @@ static struct em_sti_priv *cs_to_em_sti(struct clocksource *cs)
 	return container_of(cs, struct em_sti_priv, cs);
 }
 
-static cycle_t em_sti_clocksource_read(struct clocksource *cs)
+static u64 em_sti_clocksource_read(struct clocksource *cs)
 {
 	return em_sti_count(cs_to_em_sti(cs));
 }
@@ -271,7 +271,7 @@ static int em_sti_clock_event_next(unsigned long delta,
 				   struct clock_event_device *ced)
 {
 	struct em_sti_priv *p = ced_to_em_sti(ced);
-	cycle_t next;
+	u64 next;
 	int safe;
 
 	next = em_sti_set_next(p, em_sti_count(p) + delta);

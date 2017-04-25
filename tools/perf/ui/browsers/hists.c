@@ -30,7 +30,7 @@ static struct rb_node *hists__filter_entries(struct rb_node *nd,
 
 static bool hist_browser__has_filter(struct hist_browser *hb)
 {
-	return hists__has_filter(hb->hists) || hb->min_pcnt || symbol_conf.has_filter;
+	return hists__has_filter(hb->hists) || hb->min_pcnt || symbol_conf.has_filter || hb->c2c_filter;
 }
 
 static int hist_browser__get_folding(struct hist_browser *browser)
@@ -501,8 +501,8 @@ static int hierarchy_set_folding(struct hist_browser *hb, struct hist_entry *he,
 	return n;
 }
 
-static void hist_entry__set_folding(struct hist_entry *he,
-				    struct hist_browser *hb, bool unfold)
+static void __hist_entry__set_folding(struct hist_entry *he,
+				      struct hist_browser *hb, bool unfold)
 {
 	hist_entry__init_have_children(he);
 	he->unfolded = unfold ? he->has_children : false;
@@ -520,12 +520,34 @@ static void hist_entry__set_folding(struct hist_entry *he,
 		he->nr_rows = 0;
 }
 
+static void hist_entry__set_folding(struct hist_entry *he,
+				    struct hist_browser *browser, bool unfold)
+{
+	double percent;
+
+	percent = hist_entry__get_percent_limit(he);
+	if (he->filtered || percent < browser->min_pcnt)
+		return;
+
+	__hist_entry__set_folding(he, browser, unfold);
+
+	if (!he->depth || unfold)
+		browser->nr_hierarchy_entries++;
+	if (he->leaf)
+		browser->nr_callchain_rows += he->nr_rows;
+	else if (unfold && !hist_entry__has_hierarchy_children(he, browser->min_pcnt)) {
+		browser->nr_hierarchy_entries++;
+		he->has_no_entry = true;
+		he->nr_rows = 1;
+	} else
+		he->has_no_entry = false;
+}
+
 static void
 __hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 {
 	struct rb_node *nd;
 	struct hist_entry *he;
-	double percent;
 
 	nd = rb_first(&browser->hists->entries);
 	while (nd) {
@@ -535,21 +557,6 @@ __hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 		nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD);
 
 		hist_entry__set_folding(he, browser, unfold);
-
-		percent = hist_entry__get_percent_limit(he);
-		if (he->filtered || percent < browser->min_pcnt)
-			continue;
-
-		if (!he->depth || unfold)
-			browser->nr_hierarchy_entries++;
-		if (he->leaf)
-			browser->nr_callchain_rows += he->nr_rows;
-		else if (unfold && !hist_entry__has_hierarchy_children(he, browser->min_pcnt)) {
-			browser->nr_hierarchy_entries++;
-			he->has_no_entry = true;
-			he->nr_rows = 1;
-		} else
-			he->has_no_entry = false;
 	}
 }
 
@@ -562,6 +569,15 @@ static void hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 	browser->b.nr_entries = hist_browser__nr_entries(browser);
 	/* Go to the start, we may be way after valid entries after a collapse */
 	ui_browser__reset_index(&browser->b);
+}
+
+static void hist_browser__set_folding_selected(struct hist_browser *browser, bool unfold)
+{
+	if (!browser->he_selection)
+		return;
+
+	hist_entry__set_folding(browser->he_selection, browser, unfold);
+	browser->b.nr_entries = hist_browser__nr_entries(browser);
 }
 
 static void ui_browser__warn_lost_events(struct ui_browser *browser)
@@ -637,9 +653,17 @@ int hist_browser__run(struct hist_browser *browser, const char *help)
 			/* Collapse the whole world. */
 			hist_browser__set_folding(browser, false);
 			break;
+		case 'c':
+			/* Collapse the selected entry. */
+			hist_browser__set_folding_selected(browser, false);
+			break;
 		case 'E':
 			/* Expand the whole world. */
 			hist_browser__set_folding(browser, true);
+			break;
+		case 'e':
+			/* Expand the selected entry. */
+			hist_browser__set_folding_selected(browser, true);
 			break;
 		case 'H':
 			browser->show_headers = !browser->show_headers;
@@ -738,6 +762,7 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 					     struct callchain_print_arg *arg)
 {
 	char bf[1024], *alloc_str;
+	char buf[64], *alloc_str2;
 	const char *str;
 
 	if (arg->row_offset != 0) {
@@ -746,12 +771,26 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 	}
 
 	alloc_str = NULL;
+	alloc_str2 = NULL;
+
 	str = callchain_list__sym_name(chain, bf, sizeof(bf),
 				       browser->show_dso);
 
-	if (need_percent) {
-		char buf[64];
+	if (symbol_conf.show_branchflag_count) {
+		if (need_percent)
+			callchain_list_counts__printf_value(node, chain, NULL,
+							    buf, sizeof(buf));
+		else
+			callchain_list_counts__printf_value(NULL, chain, NULL,
+							    buf, sizeof(buf));
 
+		if (asprintf(&alloc_str2, "%s%s", str, buf) < 0)
+			str = "Not enough memory!";
+		else
+			str = alloc_str2;
+	}
+
+	if (need_percent) {
 		callchain_node__scnprintf_value(node, buf, sizeof(buf),
 						total);
 
@@ -764,6 +803,7 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 	print(browser, chain, str, offset, row, arg);
 
 	free(alloc_str);
+	free(alloc_str2);
 	return 1;
 }
 
@@ -2833,7 +2873,10 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			do_zoom_dso(browser, actions);
 			continue;
 		case 'V':
-			browser->show_dso = !browser->show_dso;
+			verbose = (verbose + 1) % 4;
+			browser->show_dso = verbose > 0;
+			ui_helpline__fpush("Verbosity level set to %d\n",
+					   verbose);
 			continue;
 		case 't':
 			actions->thread = thread;

@@ -1843,7 +1843,7 @@ static int ofld_poll(struct napi_struct *napi, int budget)
 		__skb_queue_head_init(&queue);
 		skb_queue_splice_init(&q->rx_queue, &queue);
 		if (skb_queue_empty(&queue)) {
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			spin_unlock_irq(&q->lock);
 			return work_done;
 		}
@@ -2414,7 +2414,7 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	int work_done = process_responses(adap, qs, budget);
 
 	if (likely(work_done < budget)) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		/*
 		 * Because we don't atomically flush the following

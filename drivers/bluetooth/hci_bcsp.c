@@ -733,9 +733,7 @@ static int bcsp_open(struct hci_uart *hu)
 	skb_queue_head_init(&bcsp->rel);
 	skb_queue_head_init(&bcsp->unrel);
 
-	init_timer(&bcsp->tbcsp);
-	bcsp->tbcsp.function = bcsp_timed_event;
-	bcsp->tbcsp.data     = (u_long)hu;
+	setup_timer(&bcsp->tbcsp, bcsp_timed_event, (u_long)hu);
 
 	bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
 

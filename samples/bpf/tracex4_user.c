@@ -37,8 +37,8 @@ static void print_old_objects(int fd)
 	key = write(1, "\e[1;1H\e[2J", 12); /* clear screen */
 
 	key = -1;
-	while (bpf_get_next_key(map_fd[0], &key, &next_key) == 0) {
-		bpf_lookup_elem(map_fd[0], &next_key, &v);
+	while (bpf_map_get_next_key(map_fd[0], &key, &next_key) == 0) {
+		bpf_map_lookup_elem(map_fd[0], &next_key, &v);
 		key = next_key;
 		if (val - v.val < 1000000000ll)
 			/* object was allocated more then 1 sec ago */

@@ -86,4 +86,4 @@ config PSTORE_RAM
 	  Note that for historical reasons, the module will be named
 	  "ramoops.ko".
 
-	  For more information, see Documentation/ramoops.txt.
+	  For more information, see Documentation/admin-guide/ramoops.rst.

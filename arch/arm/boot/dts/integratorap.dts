@@ -10,6 +10,41 @@
 	compatible = "arm,integrator-ap";
 	dma-ranges = <0x80000000 0x0 0x80000000>;
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			/*
+			 * Since the board has pluggable CPU modules, we
+			 * cannot define a proper compatible here. Let the
+			 * boot loader fill in the apropriate compatible
+			 * string if necessary.
+			 */
+			/* compatible = "arm,arm926ej-s"; */
+			reg = <0>;
+			/*
+			 * The documentation in ARM DUI 0138E page 3-12 states
+			 * that the maximum frequency for this clock is 200 MHz
+			 * but painful trial-and-error has proved to me that it
+			 * is actually just hanging the system above 71 MHz.
+			 * Sad but true.
+			 */
+					 /* kHz     uV   */
+			operating-points = <71000  0
+					    66000  0
+					    60000  0
+					    48000  0
+					    36000  0
+					    24000  0
+					    12000  0>;
+			clocks = <&cmosc>;
+			clock-names = "cpu";
+			clock-latency = <1000000>; /* 1 ms */
+		};
+	};
+
 	aliases {
 		arm,timer-primary = &timer2;
 		arm,timer-secondary = &timer1;

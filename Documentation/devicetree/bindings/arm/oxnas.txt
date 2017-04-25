@@ -5,5 +5,10 @@ Boards with the OX810SE SoC shall have the following properties:
   Required root node property:
     compatible: "oxsemi,ox810se"
 
+Boards with the OX820 SoC shall have the following properties:
+  Required root node property:
+    compatible: "oxsemi,ox820"
+
 Board compatible values:
   - "wd,mbwe" (OX810SE)
+  - "cloudengines,pogoplugv3" (OX820)

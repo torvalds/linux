@@ -70,9 +70,9 @@ struct visorchannel *visorchannel_create_with_lock(u64 physaddr,
 						   gfp_t gfp, uuid_le guid);
 void visorchannel_destroy(struct visorchannel *channel);
 int visorchannel_read(struct visorchannel *channel, ulong offset,
-		      void *local, ulong nbytes);
+		      void *dest, ulong nbytes);
 int visorchannel_write(struct visorchannel *channel, ulong offset,
-		       void *local, ulong nbytes);
+		       void *dest, ulong nbytes);
 u64 visorchannel_get_physaddr(struct visorchannel *channel);
 ulong visorchannel_get_nbytes(struct visorchannel *channel);
 char *visorchannel_id(struct visorchannel *channel, char *s);

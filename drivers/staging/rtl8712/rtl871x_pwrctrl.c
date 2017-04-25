@@ -190,19 +190,15 @@ void r8712_init_pwrctrl_priv(struct _adapter *padapter)
 }
 
 /*
-Caller: r8712_cmd_thread
-
-Check if the fw_pwrstate is okay for issuing cmd.
-If not (cpwm should be is less than P2 state), then the sub-routine
-will raise the cpwm to be greater than or equal to P2.
-
-Calling Context: Passive
-
-Return Value:
-
-_SUCCESS: r8712_cmd_thread can issue cmds to firmware afterwards.
-_FAIL: r8712_cmd_thread can not do anything.
-*/
+ * Caller: r8712_cmd_thread
+ * Check if the fw_pwrstate is okay for issuing cmd.
+ * If not (cpwm should be is less than P2 state), then the sub-routine
+ * will raise the cpwm to be greater than or equal to P2.
+ * Calling Context: Passive
+ * Return Value:
+ * _SUCCESS: r8712_cmd_thread can issue cmds to firmware afterwards.
+ * _FAIL: r8712_cmd_thread can not do anything.
+ */
 sint r8712_register_cmd_alive(struct _adapter *padapter)
 {
 	uint res = _SUCCESS;
@@ -219,13 +215,11 @@ sint r8712_register_cmd_alive(struct _adapter *padapter)
 }
 
 /*
-Caller: ISR
-
-If ISR's txdone,
-No more pkts for TX,
-Then driver shall call this fun. to power down firmware again.
-*/
-
+ * Caller: ISR
+ * If ISR's txdone,
+ * No more pkts for TX,
+ * Then driver shall call this fun. to power down firmware again.
+ */
 void r8712_unregister_cmd_alive(struct _adapter *padapter)
 {
 	struct pwrctrl_priv *pwrctrl = &padapter->pwrctrlpriv;

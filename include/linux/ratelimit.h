@@ -77,8 +77,11 @@ extern int ___ratelimit(struct ratelimit_state *rs, const char *func);
 
 #ifdef CONFIG_PRINTK
 
-#define WARN_ON_RATELIMIT(condition, state)			\
-		WARN_ON((condition) && __ratelimit(state))
+#define WARN_ON_RATELIMIT(condition, state)	({		\
+	bool __rtn_cond = !!(condition);			\
+	WARN_ON(__rtn_cond && __ratelimit(state));		\
+	__rtn_cond;						\
+})
 
 #define WARN_RATELIMIT(condition, format, ...)			\
 ({								\

@@ -28,7 +28,6 @@
 #include <linux/of_address.h>
 #include <linux/regmap.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR			"xgene_edac"
@@ -1602,16 +1601,16 @@ static void xgene_edac_pa_report(struct edac_device_ctl_info *edac_dev)
 		dev_err(edac_dev->dev, "IOB PA read data RAM error\n");
 	if (reg & IOBPA_M_RDATA_CORRUPT_MASK)
 		dev_err(edac_dev->dev,
-			"Mutilple IOB PA read data RAM error\n");
+			"Multiple IOB PA read data RAM error\n");
 	if (reg & IOBPA_WDATA_CORRUPT_MASK)
 		dev_err(edac_dev->dev, "IOB PA write data RAM error\n");
 	if (reg & IOBPA_M_WDATA_CORRUPT_MASK)
 		dev_err(edac_dev->dev,
-			"Mutilple IOB PA write data RAM error\n");
+			"Multiple IOB PA write data RAM error\n");
 	if (reg & IOBPA_TRANS_CORRUPT_MASK)
 		dev_err(edac_dev->dev, "IOB PA transaction error\n");
 	if (reg & IOBPA_M_TRANS_CORRUPT_MASK)
-		dev_err(edac_dev->dev, "Mutilple IOB PA transaction error\n");
+		dev_err(edac_dev->dev, "Multiple IOB PA transaction error\n");
 	if (reg & IOBPA_REQIDRAM_CORRUPT_MASK)
 		dev_err(edac_dev->dev, "IOB PA transaction ID RAM error\n");
 	if (reg & IOBPA_M_REQIDRAM_CORRUPT_MASK)

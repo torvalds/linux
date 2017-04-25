@@ -474,10 +474,14 @@ config SRAM
 	bool "Generic on-chip SRAM driver"
 	depends on HAS_IOMEM
 	select GENERIC_ALLOCATOR
+	select SRAM_EXEC if ARM
 	help
 	  This driver allows you to declare a memory region to be managed by
 	  the genalloc API. It is supposed to be used for small on-chip SRAM
 	  areas found on many SoCs.
+
+config SRAM_EXEC
+	bool
 
 config VEXPRESS_SYSCFG
 	bool "Versatile Express System Configuration driver"
@@ -487,6 +491,7 @@ config VEXPRESS_SYSCFG
 	  ARM Ltd. Versatile Express uses specialised platform configuration
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
+
 config PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
@@ -494,14 +499,14 @@ config PANEL
 	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
 	  parallel port. This driver also features 4 and 6-key keypads. The LCD
 	  is accessible through the /dev/lcd char device (10, 156), and the
-	  keypad through /dev/keypad (10, 185). Both require misc device to be
-	  enabled. This code can either be compiled as a module, or linked into
-	  the kernel and started at boot. If you don't understand what all this
-	  is about, say N.
+	  keypad through /dev/keypad (10, 185). This code can either be
+	  compiled as a module, or linked into the kernel and started at boot.
+	  If you don't understand what all this is about, say N.
+
+if PANEL
 
 config PANEL_PARPORT
 	int "Default parallel port number (0=LPT1)"
-	depends on PANEL
 	range 0 255
 	default "0"
 	---help---
@@ -513,7 +518,6 @@ config PANEL_PARPORT
 
 config PANEL_PROFILE
 	int "Default panel profile (0-5, 0=custom)"
-	depends on PANEL
 	range 0 5
 	default "5"
 	---help---
@@ -534,7 +538,7 @@ config PANEL_PROFILE
 	  for experts.
 
 config PANEL_KEYPAD
-	depends on PANEL && PANEL_PROFILE="0"
+	depends on PANEL_PROFILE="0"
 	int "Keypad type (0=none, 1=old 6 keys, 2=new 6 keys, 3=Nexcom 4 keys)"
 	range 0 3
 	default 0
@@ -551,7 +555,7 @@ config PANEL_KEYPAD
 	  supports simultaneous keys pressed when the keypad supports them.
 
 config PANEL_LCD
-	depends on PANEL && PANEL_PROFILE="0"
+	depends on PANEL_PROFILE="0"
 	int "LCD type (0=none, 1=custom, 2=old //, 3=ks0074, 4=hantronix, 5=Nexcom)"
 	range 0 5
 	default 0
@@ -574,7 +578,7 @@ config PANEL_LCD
 	   that those values changed from the 2.4 driver for better consistency.
 
 config PANEL_LCD_HEIGHT
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
 	int "Number of lines on the LCD (1-2)"
 	range 1 2
 	default 2
@@ -583,7 +587,7 @@ config PANEL_LCD_HEIGHT
 	  It can either be 1 or 2.
 
 config PANEL_LCD_WIDTH
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
 	int "Number of characters per line on the LCD (1-40)"
 	range 1 40
 	default 40
@@ -592,7 +596,7 @@ config PANEL_LCD_WIDTH
 	  Common values are 16,20,24,40.
 
 config PANEL_LCD_BWIDTH
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
 	int "Internal LCD line width (1-40, 40 by default)"
 	range 1 40
 	default 40
@@ -608,7 +612,7 @@ config PANEL_LCD_BWIDTH
 	  If you don't know, put '40' here.
 
 config PANEL_LCD_HWIDTH
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
 	int "Hardware LCD line width (1-64, 64 by default)"
 	range 1 64
 	default 64
@@ -622,7 +626,7 @@ config PANEL_LCD_HWIDTH
 	  64 here for a 2x40.
 
 config PANEL_LCD_CHARSET
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
 	int "LCD character set (0=normal, 1=KS0074)"
 	range 0 1
 	default 0
@@ -638,7 +642,7 @@ config PANEL_LCD_CHARSET
 	  If you don't know, use the normal one (0).
 
 config PANEL_LCD_PROTO
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
 	int "LCD communication mode (0=parallel 8 bits, 1=serial)"
 	range 0 1
 	default 0
@@ -651,7 +655,7 @@ config PANEL_LCD_PROTO
 	  parallel LCD, and 1 for a serial LCD.
 
 config PANEL_LCD_PIN_E
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
         int "Parallel port pin number & polarity connected to the LCD E signal (-17...17) "
 	range -17 17
 	default 14
@@ -666,7 +670,7 @@ config PANEL_LCD_PIN_E
 	  Default for the 'E' pin in custom profile is '14' (AUTOFEED).
 
 config PANEL_LCD_PIN_RS
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
         int "Parallel port pin number & polarity connected to the LCD RS signal (-17...17) "
 	range -17 17
 	default 17
@@ -681,7 +685,7 @@ config PANEL_LCD_PIN_RS
 	  Default for the 'RS' pin in custom profile is '17' (SELECT IN).
 
 config PANEL_LCD_PIN_RW
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
         int "Parallel port pin number & polarity connected to the LCD RW signal (-17...17) "
 	range -17 17
 	default 16
@@ -696,7 +700,7 @@ config PANEL_LCD_PIN_RW
 	  Default for the 'RW' pin in custom profile is '16' (INIT).
 
 config PANEL_LCD_PIN_SCL
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
         int "Parallel port pin number & polarity connected to the LCD SCL signal (-17...17) "
 	range -17 17
 	default 1
@@ -711,7 +715,7 @@ config PANEL_LCD_PIN_SCL
 	  Default for the 'SCL' pin in custom profile is '1' (STROBE).
 
 config PANEL_LCD_PIN_SDA
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
         int "Parallel port pin number & polarity connected to the LCD SDA signal (-17...17) "
 	range -17 17
 	default 2
@@ -726,7 +730,7 @@ config PANEL_LCD_PIN_SDA
 	  Default for the 'SDA' pin in custom profile is '2' (D0).
 
 config PANEL_LCD_PIN_BL
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
+	depends on PANEL_PROFILE="0" && PANEL_LCD="1"
         int "Parallel port pin number & polarity connected to the LCD backlight signal (-17...17) "
 	range -17 17
 	default 0
@@ -741,7 +745,6 @@ config PANEL_LCD_PIN_BL
 	  Default for the 'BL' pin in custom profile is '0' (uncontrolled).
 
 config PANEL_CHANGE_MESSAGE
-	depends on PANEL
 	bool "Change LCD initialization message ?"
 	default "n"
 	---help---
@@ -754,7 +757,7 @@ config PANEL_CHANGE_MESSAGE
 	  say 'N' and keep the default message with the version.
 
 config PANEL_BOOT_MESSAGE
-	depends on PANEL && PANEL_CHANGE_MESSAGE="y"
+	depends on PANEL_CHANGE_MESSAGE="y"
 	string "New initialization message"
 	default ""
 	---help---
@@ -765,6 +768,8 @@ config PANEL_BOOT_MESSAGE
 
 	  An empty message will only clear the display at driver init time. Any other
 	  printf()-formatted message is valid with newline and escape codes.
+
+endif # PANEL
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

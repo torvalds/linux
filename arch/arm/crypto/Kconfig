@@ -62,35 +62,18 @@ config CRYPTO_SHA512_ARM
 	  using optimized ARM assembler and NEON, when available.
 
 config CRYPTO_AES_ARM
-	tristate "AES cipher algorithms (ARM-asm)"
-	depends on ARM
+	tristate "Scalar AES cipher for ARM"
 	select CRYPTO_ALGAPI
 	select CRYPTO_AES
 	help
 	  Use optimized AES assembler routines for ARM platforms.
 
-	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
-	  algorithm.
-
-	  Rijndael appears to be consistently a very good performer in
-	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
-	  modes. Its key setup time is excellent, and its key agility is
-	  good. Rijndael's very low memory requirements make it very well
-	  suited for restricted-space environments, in which it also
-	  demonstrates excellent performance. Rijndael's operations are
-	  among the easiest to defend against power and timing attacks.
-
-	  The AES specifies three key sizes: 128, 192 and 256 bits
-
-	  See <http://csrc.nist.gov/encryption/aes/> for more information.
-
 config CRYPTO_AES_ARM_BS
 	tristate "Bit sliced AES using NEON instructions"
 	depends on KERNEL_MODE_NEON
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_SIMD
 	select CRYPTO_AES_ARM
-	select CRYPTO_ABLK_HELPER
 	help
 	  Use a faster and more secure NEON based implementation of AES in CBC,
 	  CTR and XTS modes
@@ -104,8 +87,8 @@ config CRYPTO_AES_ARM_BS
 config CRYPTO_AES_ARM_CE
 	tristate "Accelerated AES using ARMv8 Crypto Extensions"
 	depends on KERNEL_MODE_NEON
-	select CRYPTO_ALGAPI
-	select CRYPTO_ABLK_HELPER
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_SIMD
 	help
 	  Use an implementation of AES in CBC, CTR and XTS modes that uses
 	  ARMv8 Crypto Extensions
@@ -119,5 +102,21 @@ config CRYPTO_GHASH_ARM_CE
 	  Use an implementation of GHASH (used by the GCM AEAD chaining mode)
 	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
 	  that is part of the ARMv8 Crypto Extensions
+
+config CRYPTO_CRCT10DIF_ARM_CE
+	tristate "CRCT10DIF digest algorithm using PMULL instructions"
+	depends on KERNEL_MODE_NEON && CRC_T10DIF
+	select CRYPTO_HASH
+
+config CRYPTO_CRC32_ARM_CE
+	tristate "CRC32(C) digest algorithm using CRC and/or PMULL instructions"
+	depends on KERNEL_MODE_NEON && CRC32
+	select CRYPTO_HASH
+
+config CRYPTO_CHACHA20_NEON
+	tristate "NEON accelerated ChaCha20 symmetric cipher"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_CHACHA20
 
 endif

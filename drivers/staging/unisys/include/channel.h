@@ -21,11 +21,11 @@
 #include <linux/uuid.h>
 
 /*
-* Whenever this file is changed a corresponding change must be made in
-* the Console/ServicePart/visordiag_early/supervisor_channel.h file
-* which is needed for Linux kernel compiles. These two files must be
-* in sync.
-*/
+ * Whenever this file is changed a corresponding change must be made in
+ * the Console/ServicePart/visordiag_early/supervisor_channel.h file
+ * which is needed for Linux kernel compiles. These two files must be
+ * in sync.
+ */
 
 /* define the following to prevent include nesting in kernel header
  * files of similar abbreviated content
@@ -310,82 +310,82 @@ static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
 }
 
 /*
-* Routine Description:
-* Tries to insert the prebuilt signal pointed to by pSignal into the nth
-* Queue of the Channel pointed to by pChannel
-*
-* Parameters:
-* pChannel: (IN) points to the IO Channel
-* Queue: (IN) nth Queue of the IO Channel
-* pSignal: (IN) pointer to the signal
-*
-* Assumptions:
-* - pChannel, Queue and pSignal are valid.
-* - If insertion fails due to a full queue, the caller will determine the
-* retry policy (e.g. wait & try again, report an error, etc.).
-*
-* Return value: 1 if the insertion succeeds, 0 if the queue was
-* full.
-*/
+ * Routine Description:
+ * Tries to insert the prebuilt signal pointed to by pSignal into the nth
+ * Queue of the Channel pointed to by pChannel
+ *
+ * Parameters:
+ * pChannel: (IN) points to the IO Channel
+ * Queue: (IN) nth Queue of the IO Channel
+ * pSignal: (IN) pointer to the signal
+ *
+ * Assumptions:
+ * - pChannel, Queue and pSignal are valid.
+ * - If insertion fails due to a full queue, the caller will determine the
+ * retry policy (e.g. wait & try again, report an error, etc.).
+ *
+ * Return value: 1 if the insertion succeeds, 0 if the queue was
+ * full.
+ */
 
 unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
 				 void *sig);
 
 /*
-* Routine Description:
-* Removes one signal from Channel pChannel's nth Queue at the
-* time of the call and copies it into the memory pointed to by
-* pSignal.
-*
-* Parameters:
-* pChannel: (IN) points to the IO Channel
-* Queue: (IN) nth Queue of the IO Channel
-* pSignal: (IN) pointer to where the signals are to be copied
-*
-* Assumptions:
-* - pChannel and Queue are valid.
-* - pSignal points to a memory area large enough to hold queue's SignalSize
-*
-* Return value: 1 if the removal succeeds, 0 if the queue was
-* empty.
-*/
+ * Routine Description:
+ * Removes one signal from Channel pChannel's nth Queue at the
+ * time of the call and copies it into the memory pointed to by
+ * pSignal.
+ *
+ * Parameters:
+ * pChannel: (IN) points to the IO Channel
+ * Queue: (IN) nth Queue of the IO Channel
+ * pSignal: (IN) pointer to where the signals are to be copied
+ *
+ * Assumptions:
+ * - pChannel and Queue are valid.
+ * - pSignal points to a memory area large enough to hold queue's SignalSize
+ *
+ * Return value: 1 if the removal succeeds, 0 if the queue was
+ * empty.
+ */
 
 unsigned char spar_signal_remove(struct channel_header __iomem *ch, u32 queue,
 				 void *sig);
 
 /*
-* Routine Description:
-* Removes all signals present in Channel pChannel's nth Queue at the
-* time of the call and copies them into the memory pointed to by
-* pSignal.  Returns the # of signals copied as the value of the routine.
-*
-* Parameters:
-* pChannel: (IN) points to the IO Channel
-* Queue: (IN) nth Queue of the IO Channel
-* pSignal: (IN) pointer to where the signals are to be copied
-*
-* Assumptions:
-* - pChannel and Queue are valid.
-* - pSignal points to a memory area large enough to hold Queue's MaxSignals
-* # of signals, each of which is Queue's SignalSize.
-*
-* Return value:
-* # of signals copied.
-*/
+ * Routine Description:
+ * Removes all signals present in Channel pChannel's nth Queue at the
+ * time of the call and copies them into the memory pointed to by
+ * pSignal.  Returns the # of signals copied as the value of the routine.
+ *
+ * Parameters:
+ * pChannel: (IN) points to the IO Channel
+ * Queue: (IN) nth Queue of the IO Channel
+ * pSignal: (IN) pointer to where the signals are to be copied
+ *
+ * Assumptions:
+ * - pChannel and Queue are valid.
+ * - pSignal points to a memory area large enough to hold Queue's MaxSignals
+ * # of signals, each of which is Queue's SignalSize.
+ *
+ * Return value:
+ * # of signals copied.
+ */
 unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
 				    void *sig);
 
 /*
-* Routine Description:
-* Determine whether a signal queue is empty.
-*
-* Parameters:
-* pChannel: (IN) points to the IO Channel
-* Queue: (IN) nth Queue of the IO Channel
-*
-* Return value:
-* 1 if the signal queue is empty, 0 otherwise.
-*/
+ * Routine Description:
+ * Determine whether a signal queue is empty.
+ *
+ * Parameters:
+ * pChannel: (IN) points to the IO Channel
+ * Queue: (IN) nth Queue of the IO Channel
+ *
+ * Return value:
+ * 1 if the signal queue is empty, 0 otherwise.
+ */
 unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
 				     u32 queue);
 

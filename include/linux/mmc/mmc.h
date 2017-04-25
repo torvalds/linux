@@ -24,6 +24,8 @@
 #ifndef LINUX_MMC_MMC_H
 #define LINUX_MMC_MMC_H
 
+#include <linux/types.h>
+
 /* Standard MMC commands (4.1)           type  argument     response */
    /* class 1 */
 #define MMC_GO_IDLE_STATE         0   /* bc                          */
@@ -83,6 +85,13 @@
   /* class 8 */
 #define MMC_APP_CMD              55   /* ac   [31:16] RCA        R1  */
 #define MMC_GEN_CMD              56   /* adtc [0] RD/WR          R1  */
+
+  /* class 11 */
+#define MMC_QUE_TASK_PARAMS      44   /* ac   [20:16] task id    R1  */
+#define MMC_QUE_TASK_ADDR        45   /* ac   [31:0] data addr   R1  */
+#define MMC_EXECUTE_READ_TASK    46   /* adtc [20:16] task id    R1  */
+#define MMC_EXECUTE_WRITE_TASK   47   /* adtc [20:16] task id    R1  */
+#define MMC_CMDQ_TASK_MGMT       48   /* ac   [20:16] task id    R1b */
 
 static inline bool mmc_op_multi(u32 opcode)
 {
@@ -175,50 +184,6 @@ static inline bool mmc_op_multi(u32 opcode)
 #define R2_SPI_OUT_OF_RANGE	(1 << 15)	/* or CSD overwrite */
 #define R2_SPI_CSD_OVERWRITE	R2_SPI_OUT_OF_RANGE
 
-/* These are unpacked versions of the actual responses */
-
-struct _mmc_csd {
-	u8  csd_structure;
-	u8  spec_vers;
-	u8  taac;
-	u8  nsac;
-	u8  tran_speed;
-	u16 ccc;
-	u8  read_bl_len;
-	u8  read_bl_partial;
-	u8  write_blk_misalign;
-	u8  read_blk_misalign;
-	u8  dsr_imp;
-	u16 c_size;
-	u8  vdd_r_curr_min;
-	u8  vdd_r_curr_max;
-	u8  vdd_w_curr_min;
-	u8  vdd_w_curr_max;
-	u8  c_size_mult;
-	union {
-		struct { /* MMC system specification version 3.1 */
-			u8  erase_grp_size;
-			u8  erase_grp_mult;
-		} v31;
-		struct { /* MMC system specification version 2.2 */
-			u8  sector_size;
-			u8  erase_grp_size;
-		} v22;
-	} erase;
-	u8  wp_grp_size;
-	u8  wp_grp_enable;
-	u8  default_ecc;
-	u8  r2w_factor;
-	u8  write_bl_len;
-	u8  write_bl_partial;
-	u8  file_format_grp;
-	u8  copy;
-	u8  perm_write_protect;
-	u8  tmp_write_protect;
-	u8  file_format;
-	u8  ecc;
-};
-
 /*
  * OCR bits are mostly in host.h
  */
@@ -272,6 +237,7 @@ struct _mmc_csd {
  * EXT_CSD fields
  */
 
+#define EXT_CSD_CMDQ_MODE_EN		15	/* R/W */
 #define EXT_CSD_FLUSH_CACHE		32      /* W */
 #define EXT_CSD_CACHE_CTRL		33      /* R/W */
 #define EXT_CSD_POWER_OFF_NOTIFICATION	34	/* R/W */
@@ -331,6 +297,11 @@ struct _mmc_csd {
 #define EXT_CSD_CACHE_SIZE		249	/* RO, 4 bytes */
 #define EXT_CSD_PWR_CL_DDR_200_360	253	/* RO */
 #define EXT_CSD_FIRMWARE_VERSION	254	/* RO, 8 bytes */
+#define EXT_CSD_PRE_EOL_INFO		267	/* RO */
+#define EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_A	268	/* RO */
+#define EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_B	269	/* RO */
+#define EXT_CSD_CMDQ_DEPTH		307	/* RO */
+#define EXT_CSD_CMDQ_SUPPORT		308	/* RO */
 #define EXT_CSD_SUPPORTED_MODE		493	/* RO */
 #define EXT_CSD_TAG_UNIT_SIZE		498	/* RO */
 #define EXT_CSD_DATA_TAG_SUPPORT	499	/* RO */
@@ -436,15 +407,34 @@ struct _mmc_csd {
  * BKOPS modes
  */
 #define EXT_CSD_MANUAL_BKOPS_MASK	0x01
+#define EXT_CSD_AUTO_BKOPS_MASK		0x02
+
+/*
+ * Command Queue
+ */
+#define EXT_CSD_CMDQ_MODE_ENABLED	BIT(0)
+#define EXT_CSD_CMDQ_DEPTH_MASK		GENMASK(4, 0)
+#define EXT_CSD_CMDQ_SUPPORTED		BIT(0)
 
 /*
  * MMC_SWITCH access modes
  */
-
 #define MMC_SWITCH_MODE_CMD_SET		0x00	/* Change the command set */
 #define MMC_SWITCH_MODE_SET_BITS	0x01	/* Set bits which are 1 in value */
 #define MMC_SWITCH_MODE_CLEAR_BITS	0x02	/* Clear bits which are 1 in value */
 #define MMC_SWITCH_MODE_WRITE_BYTE	0x03	/* Set target to value */
+
+/*
+ * Erase/trim/discard
+ */
+#define MMC_ERASE_ARG			0x00000000
+#define MMC_SECURE_ERASE_ARG		0x80000000
+#define MMC_TRIM_ARG			0x00000001
+#define MMC_DISCARD_ARG			0x00000003
+#define MMC_SECURE_TRIM1_ARG		0x80000001
+#define MMC_SECURE_TRIM2_ARG		0x80008000
+#define MMC_SECURE_ARGS			0x80000000
+#define MMC_TRIM_ARGS			0x00008001
 
 #define mmc_driver_type_mask(n)		(1 << (n))
 

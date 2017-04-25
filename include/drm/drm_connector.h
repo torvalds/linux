@@ -37,6 +37,7 @@ struct drm_crtc;
 struct drm_encoder;
 struct drm_property;
 struct drm_property_blob;
+struct drm_printer;
 struct edid;
 
 enum drm_connector_force {
@@ -93,7 +94,7 @@ enum subpixel_order {
  *
  * Describes a given display (e.g. CRT or flat panel) and its limitations. For
  * fixed display sinks like built-in panels there's not much difference between
- * this and struct &drm_connector. But for sinks with a real cable this
+ * this and &struct drm_connector. But for sinks with a real cable this
  * structure is meant to describe all the things at the other end of the cable.
  *
  * For sinks which provide an EDID this can be filled out by calling
@@ -116,7 +117,7 @@ struct drm_display_info {
 
 	/**
 	 * @pixel_clock: Maximum pixel clock supported by the sink, in units of
-	 * 100Hz. This mismatches the clok in &drm_display_mode (which is in
+	 * 100Hz. This mismatches the clock in &drm_display_mode (which is in
 	 * kHZ), because that's what the EDID uses as base unit.
 	 */
 	unsigned int pixel_clock;
@@ -194,10 +195,40 @@ int drm_display_info_set_bus_formats(struct drm_display_info *info,
 				     unsigned int num_formats);
 
 /**
+ * struct drm_tv_connector_state - TV connector related states
+ * @subconnector: selected subconnector
+ * @margins: left/right/top/bottom margins
+ * @mode: TV mode
+ * @brightness: brightness in percent
+ * @contrast: contrast in percent
+ * @flicker_reduction: flicker reduction in percent
+ * @overscan: overscan in percent
+ * @saturation: saturation in percent
+ * @hue: hue in percent
+ */
+struct drm_tv_connector_state {
+	enum drm_mode_subconnector subconnector;
+	struct {
+		unsigned int left;
+		unsigned int right;
+		unsigned int top;
+		unsigned int bottom;
+	} margins;
+	unsigned int mode;
+	unsigned int brightness;
+	unsigned int contrast;
+	unsigned int flicker_reduction;
+	unsigned int overscan;
+	unsigned int saturation;
+	unsigned int hue;
+};
+
+/**
  * struct drm_connector_state - mutable connector state
  * @connector: backpointer to the connector
  * @best_encoder: can be used by helpers and drivers to select the encoder
  * @state: backpointer to global drm_atomic_state
+ * @tv: TV connector state
  */
 struct drm_connector_state {
 	struct drm_connector *connector;
@@ -213,6 +244,8 @@ struct drm_connector_state {
 	struct drm_encoder *best_encoder;
 
 	struct drm_atomic_state *state;
+
+	struct drm_tv_connector_state tv;
 };
 
 /**
@@ -261,6 +294,9 @@ struct drm_connector_funcs {
 	 * connector due to a user request. force can be used by the driver to
 	 * avoid expensive, destructive operations during automated probing.
 	 *
+	 * This callback is optional, if not implemented the connector will be
+	 * considered as always being attached.
+	 *
 	 * FIXME:
 	 *
 	 * Note that this hook is only called by the probe helper. It's not in
@@ -295,15 +331,15 @@ struct drm_connector_funcs {
 	 *
 	 * Entry point for output detection and basic mode validation. The
 	 * driver should reprobe the output if needed (e.g. when hotplug
-	 * handling is unreliable), add all detected modes to connector->modes
+	 * handling is unreliable), add all detected modes to &drm_connector.modes
 	 * and filter out any the device can't support in any configuration. It
 	 * also needs to filter out any modes wider or higher than the
 	 * parameters max_width and max_height indicate.
 	 *
 	 * The drivers must also prune any modes no longer valid from
-	 * connector->modes. Furthermore it must update connector->status and
-	 * connector->edid.  If no EDID has been received for this output
-	 * connector->edid must be NULL.
+	 * &drm_connector.modes. Furthermore it must update
+	 * &drm_connector.status and &drm_connector.edid.  If no EDID has been
+	 * received for this output connector->edid must be NULL.
 	 *
 	 * Drivers using the probe helpers should use
 	 * drm_helper_probe_single_connector_modes() or
@@ -312,7 +348,7 @@ struct drm_connector_funcs {
 	 *
 	 * RETURNS:
 	 *
-	 * The number of modes detected and filled into connector->modes.
+	 * The number of modes detected and filled into &drm_connector.modes.
 	 */
 	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 
@@ -345,6 +381,8 @@ struct drm_connector_funcs {
 	 * core drm connector interfaces. Everything added from this callback
 	 * should be unregistered in the early_unregister callback.
 	 *
+	 * This is called while holding &drm_connector.mutex.
+	 *
 	 * Returns:
 	 *
 	 * 0 on success, or a negative error code on failure.
@@ -359,6 +397,8 @@ struct drm_connector_funcs {
 	 * late_register(). It is called from drm_connector_unregister(),
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
+	 *
+	 * This is called while holding &drm_connector.mutex.
 	 */
 	void (*early_unregister)(struct drm_connector *connector);
 
@@ -378,17 +418,17 @@ struct drm_connector_funcs {
 	 * Duplicate the current atomic state for this connector and return it.
 	 * The core and helpers guarantee that any atomic state duplicated with
 	 * this hook and still owned by the caller (i.e. not transferred to the
-	 * driver by calling ->atomic_commit() from struct
-	 * &drm_mode_config_funcs) will be cleaned up by calling the
-	 * @atomic_destroy_state hook in this structure.
+	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
+	 * cleaned up by calling the @atomic_destroy_state hook in this
+	 * structure.
 	 *
-	 * Atomic drivers which don't subclass struct &drm_connector_state should use
+	 * Atomic drivers which don't subclass &struct drm_connector_state should use
 	 * drm_atomic_helper_connector_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
 	 * __drm_atomic_helper_connector_duplicate_state() to make sure shared state is
 	 * duplicated in a consistent fashion across drivers.
 	 *
-	 * It is an error to call this hook before connector->state has been
+	 * It is an error to call this hook before &drm_connector.state has been
 	 * initialized correctly.
 	 *
 	 * NOTE:
@@ -481,6 +521,18 @@ struct drm_connector_funcs {
 				   const struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses &struct drm_connector_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_connector_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_connector_state *state);
 };
 
 /* mode specified on the command line */
@@ -511,10 +563,6 @@ struct drm_cmdline_mode {
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
  * @stereo_allowed: can this connector handle stereo modes?
- * @registered: is this connector exposed (registered) with userspace?
- * @modes: modes available on this connector (from fill_modes() + user)
- * @status: one of the drm_connector_status enums (connected, not, or unknown)
- * @probed_modes: list of modes derived directly from the display
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
@@ -560,6 +608,13 @@ struct drm_connector {
 	char *name;
 
 	/**
+	 * @mutex: Lock for general connector state, but currently only protects
+	 * @registered. Most of the connector state is still protected by
+	 * &drm_mode_config.mutex.
+	 */
+	struct mutex mutex;
+
+	/**
 	 * @index: Compacted connector index, which matches the position inside
 	 * the mode_config.list for drivers not supporting hot-add/removing. Can
 	 * be used as an array index. It is invariant over the lifetime of the
@@ -572,20 +627,42 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+	/**
+	 * @registered: Is this connector exposed (registered) with userspace?
+	 * Protected by @mutex.
+	 */
 	bool registered;
-	struct list_head modes; /* list of modes on this connector */
 
+	/**
+	 * @modes:
+	 * Modes available on this connector (from fill_modes() + user).
+	 * Protected by &drm_mode_config.mutex.
+	 */
+	struct list_head modes;
+
+	/**
+	 * @status:
+	 * One of the drm_connector_status enums (connected, not, or unknown).
+	 * Protected by &drm_mode_config.mutex.
+	 */
 	enum drm_connector_status status;
 
-	/* these are modes added by probing with DDC or the BIOS */
+	/**
+	 * @probed_modes:
+	 * These are modes added by probing with DDC or the BIOS, before
+	 * filtering is applied. Used by the probe helpers. Protected by
+	 * &drm_mode_config.mutex.
+	 */
 	struct list_head probed_modes;
 
 	/**
 	 * @display_info: Display information is filled from EDID information
 	 * when a display is detected. For non hot-pluggable displays such as
 	 * flat panels in embedded systems, the driver should initialize the
-	 * display_info.width_mm and display_info.height_mm fields with the
-	 * physical size of the display.
+	 * &drm_display_info.width_mm and &drm_display_info.height_mm fields
+	 * with the physical size of the display.
+	 *
+	 * Protected by &drm_mode_config.mutex.
 	 */
 	struct drm_display_info display_info;
 	const struct drm_connector_funcs *funcs;
@@ -762,17 +839,75 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid);
 
 /**
+ * struct drm_tile_group - Tile group metadata
+ * @refcount: reference count
+ * @dev: DRM device
+ * @id: tile group id exposed to userspace
+ * @group_data: Sink-private data identifying this group
+ *
+ * @group_data corresponds to displayid vend/prod/serial for external screens
+ * with an EDID.
+ */
+struct drm_tile_group {
+	struct kref refcount;
+	struct drm_device *dev;
+	int id;
+	u8 group_data[8];
+};
+
+struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
+						  char topology[8]);
+struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
+					       char topology[8]);
+void drm_mode_put_tile_group(struct drm_device *dev,
+			     struct drm_tile_group *tg);
+
+/**
  * drm_for_each_connector - iterate over all connectors
  * @connector: the loop cursor
  * @dev: the DRM device
  *
  * Iterate over all connectors of @dev.
+ *
+ * WARNING:
+ *
+ * This iterator is not safe against hotadd/removal of connectors and is
+ * deprecated. Use drm_for_each_connector_iter() instead.
  */
 #define drm_for_each_connector(connector, dev) \
-	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
-	     connector = list_first_entry(&(dev)->mode_config.connector_list,	\
-					  struct drm_connector, head);		\
-	     &connector->head != (&(dev)->mode_config.connector_list);		\
-	     connector = list_next_entry(connector, head))
+	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
+
+/**
+ * struct drm_connector_list_iter - connector_list iterator
+ *
+ * This iterator tracks state needed to be able to walk the connector_list
+ * within struct drm_mode_config. Only use together with
+ * drm_connector_list_iter_get(), drm_connector_list_iter_put() and
+ * drm_connector_list_iter_next() respectively the convenience macro
+ * drm_for_each_connector_iter().
+ */
+struct drm_connector_list_iter {
+/* private: */
+	struct drm_device *dev;
+	struct drm_connector *conn;
+};
+
+void drm_connector_list_iter_get(struct drm_device *dev,
+				 struct drm_connector_list_iter *iter);
+struct drm_connector *
+drm_connector_list_iter_next(struct drm_connector_list_iter *iter);
+void drm_connector_list_iter_put(struct drm_connector_list_iter *iter);
+
+/**
+ * drm_for_each_connector_iter - connector_list iterator macro
+ * @connector: &struct drm_connector pointer used as cursor
+ * @iter: &struct drm_connector_list_iter
+ *
+ * Note that @connector is only valid within the list body, if you want to use
+ * @connector after calling drm_connector_list_iter_put() then you need to grab
+ * your own reference first using drm_connector_reference().
+ */
+#define drm_for_each_connector_iter(connector, iter) \
+	while ((connector = drm_connector_list_iter_next(iter)))
 
 #endif

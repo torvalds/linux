@@ -47,8 +47,10 @@ nvkm_ltc_tags_clear(struct nvkm_ltc *ltc, u32 first, u32 count)
 
 	BUG_ON((first > limit) || (limit >= ltc->num_tags));
 
+	mutex_lock(&ltc->subdev.mutex);
 	ltc->func->cbc_clear(ltc, first, limit);
 	ltc->func->cbc_wait(ltc);
+	mutex_unlock(&ltc->subdev.mutex);
 }
 
 int

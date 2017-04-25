@@ -1562,7 +1562,7 @@ static int __init arm_ccn_init(void)
 	int i, ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-				      "AP_PERF_ARM_CCN_ONLINE", NULL,
+				      "perf/arm/ccn:online", NULL,
 				      arm_ccn_pmu_offline_cpu);
 	if (ret)
 		return ret;
@@ -1570,7 +1570,10 @@ static int __init arm_ccn_init(void)
 	for (i = 0; i < ARRAY_SIZE(arm_ccn_pmu_events); i++)
 		arm_ccn_pmu_events_attrs[i] = &arm_ccn_pmu_events[i].attr.attr;
 
-	return platform_driver_register(&arm_ccn_driver);
+	ret = platform_driver_register(&arm_ccn_driver);
+	if (ret)
+		cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_CCN_ONLINE);
+	return ret;
 }
 
 static void __exit arm_ccn_exit(void)

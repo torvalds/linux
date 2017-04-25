@@ -18,7 +18,6 @@
 #include <asm/octeon/cvmx-pci-defs.h>
 #include <asm/octeon/octeon.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 static void octeon_pci_poll(struct edac_pci_ctl_info *pci)

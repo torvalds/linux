@@ -26,6 +26,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/extdev.h>
 #include <subdev/bios/iccsense.h>
+#include <subdev/bios/power_budget.h>
 #include <subdev/i2c.h>
 
 static bool
@@ -96,60 +97,12 @@ nvkm_iccsense_ina3221_read(struct nvkm_iccsense *iccsense,
 }
 
 static void
-nvkm_iccsense_ina209_config(struct nvkm_iccsense *iccsense,
-			    struct nvkm_iccsense_sensor *sensor)
-{
-	struct nvkm_subdev *subdev = &iccsense->subdev;
-	/* configuration:
-	 * 0x0007: 0x0007 shunt and bus continous
-	 * 0x0078: 0x0078 128 samples shunt
-	 * 0x0780: 0x0780 128 samples bus
-	 * 0x1800: 0x0000 +-40 mV shunt range
-	 * 0x2000: 0x0000 16V FSR
-         */
-	u16 value = 0x07ff;
-	nvkm_debug(subdev, "config for sensor id %i: 0x%x\n", sensor->id, value);
-	nv_wr16i2cr(sensor->i2c, sensor->addr, 0x00, value);
-}
-
-static void
-nvkm_iccsense_ina3221_config(struct nvkm_iccsense *iccsense,
-			     struct nvkm_iccsense_sensor *sensor)
-{
-	struct nvkm_subdev *subdev = &iccsense->subdev;
-	/* configuration:
-	 * 0x0007: 0x0007 shunt and bus continous
-	 * 0x0031: 0x0000 140 us conversion time shunt
-	 * 0x01c0: 0x0000 140 us conversion time bus
-	 * 0x0f00: 0x0f00 1024 samples
-	 * 0x7000: 0x?000 channels
-         */
-	u16 value = 0x0e07;
-	if (sensor->rail_mask & 0x1)
-		value |= 0x1 << 14;
-	if (sensor->rail_mask & 0x2)
-		value |= 0x1 << 13;
-	if (sensor->rail_mask & 0x4)
-		value |= 0x1 << 12;
-	nvkm_debug(subdev, "config for sensor id %i: 0x%x\n", sensor->id, value);
-	nv_wr16i2cr(sensor->i2c, sensor->addr, 0x00, value);
-}
-
-static void
 nvkm_iccsense_sensor_config(struct nvkm_iccsense *iccsense,
 		            struct nvkm_iccsense_sensor *sensor)
 {
-	switch (sensor->type) {
-	case NVBIOS_EXTDEV_INA209:
-	case NVBIOS_EXTDEV_INA219:
-		nvkm_iccsense_ina209_config(iccsense, sensor);
-		break;
-	case NVBIOS_EXTDEV_INA3221:
-		nvkm_iccsense_ina3221_config(iccsense, sensor);
-		break;
-	default:
-		break;
-	}
+	struct nvkm_subdev *subdev = &iccsense->subdev;
+	nvkm_trace(subdev, "write config of extdev %i: 0x%04x\n", sensor->id, sensor->config);
+	nv_wr16i2cr(sensor->i2c, sensor->addr, 0x00, sensor->config);
 }
 
 int
@@ -196,7 +149,6 @@ nvkm_iccsense_dtor(struct nvkm_subdev *subdev)
 static struct nvkm_iccsense_sensor*
 nvkm_iccsense_create_sensor(struct nvkm_iccsense *iccsense, u8 id)
 {
-
 	struct nvkm_subdev *subdev = &iccsense->subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
 	struct nvkm_i2c *i2c = subdev->device->i2c;
@@ -245,7 +197,7 @@ nvkm_iccsense_create_sensor(struct nvkm_iccsense *iccsense, u8 id)
 	sensor->type = extdev.type;
 	sensor->i2c = &i2c_bus->i2c;
 	sensor->addr = addr;
-	sensor->rail_mask = 0x0;
+	sensor->config = 0x0;
 	return sensor;
 }
 
@@ -265,56 +217,79 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_iccsense *iccsense = nvkm_iccsense(subdev);
 	struct nvkm_bios *bios = subdev->device->bios;
+	struct nvbios_power_budget budget;
 	struct nvbios_iccsense stbl;
-	int i;
+	int i, ret;
 
-	if (!bios || nvbios_iccsense_parse(bios, &stbl) || !stbl.nr_entry)
+	if (!bios)
+		return 0;
+
+	ret = nvbios_power_budget_header(bios, &budget);
+	if (!ret && budget.cap_entry != 0xff) {
+		struct nvbios_power_budget_entry entry;
+		ret = nvbios_power_budget_entry(bios, &budget,
+		                                budget.cap_entry, &entry);
+		if (!ret) {
+			iccsense->power_w_max  = entry.avg_w;
+			iccsense->power_w_crit = entry.max_w;
+		}
+	}
+
+	if (nvbios_iccsense_parse(bios, &stbl) || !stbl.nr_entry)
 		return 0;
 
 	iccsense->data_valid = true;
 	for (i = 0; i < stbl.nr_entry; ++i) {
-		struct pwr_rail_t *r = &stbl.rail[i];
-		struct nvkm_iccsense_rail *rail;
+		struct pwr_rail_t *pwr_rail = &stbl.rail[i];
 		struct nvkm_iccsense_sensor *sensor;
-		int (*read)(struct nvkm_iccsense *,
-			    struct nvkm_iccsense_rail *);
+		int r;
 
-		if (!r->mode || r->resistor_mohm == 0)
+		if (pwr_rail->mode != 1 || !pwr_rail->resistor_count)
 			continue;
 
-		sensor = nvkm_iccsense_get_sensor(iccsense, r->extdev_id);
+		sensor = nvkm_iccsense_get_sensor(iccsense, pwr_rail->extdev_id);
 		if (!sensor)
 			continue;
 
-		switch (sensor->type) {
-		case NVBIOS_EXTDEV_INA209:
-			if (r->rail != 0)
-				continue;
-			read = nvkm_iccsense_ina209_read;
-			break;
-		case NVBIOS_EXTDEV_INA219:
-			if (r->rail != 0)
-				continue;
-			read = nvkm_iccsense_ina219_read;
-			break;
-		case NVBIOS_EXTDEV_INA3221:
-			if (r->rail >= 3)
-				continue;
-			read = nvkm_iccsense_ina3221_read;
-			break;
-		default:
-			continue;
-		}
+		if (!sensor->config)
+			sensor->config = pwr_rail->config;
+		else if (sensor->config != pwr_rail->config)
+			nvkm_error(subdev, "config mismatch found for extdev %i\n", pwr_rail->extdev_id);
 
-		rail = kmalloc(sizeof(*rail), GFP_KERNEL);
-		if (!rail)
-			return -ENOMEM;
-		sensor->rail_mask |= 1 << r->rail;
-		rail->read = read;
-		rail->sensor = sensor;
-		rail->idx = r->rail;
-		rail->mohm = r->resistor_mohm;
-		list_add_tail(&rail->head, &iccsense->rails);
+		for (r = 0; r < pwr_rail->resistor_count; ++r) {
+			struct nvkm_iccsense_rail *rail;
+			struct pwr_rail_resistor_t *res = &pwr_rail->resistors[r];
+			int (*read)(struct nvkm_iccsense *,
+				    struct nvkm_iccsense_rail *);
+
+			if (!res->mohm || !res->enabled)
+				continue;
+
+			switch (sensor->type) {
+			case NVBIOS_EXTDEV_INA209:
+				read = nvkm_iccsense_ina209_read;
+				break;
+			case NVBIOS_EXTDEV_INA219:
+				read = nvkm_iccsense_ina219_read;
+				break;
+			case NVBIOS_EXTDEV_INA3221:
+				read = nvkm_iccsense_ina3221_read;
+				break;
+			default:
+				continue;
+			}
+
+			rail = kmalloc(sizeof(*rail), GFP_KERNEL);
+			if (!rail)
+				return -ENOMEM;
+
+			rail->read = read;
+			rail->sensor = sensor;
+			rail->idx = r;
+			rail->mohm = res->mohm;
+			nvkm_debug(subdev, "create rail for extdev %i: { idx: %i, mohm: %i }\n", pwr_rail->extdev_id, r, rail->mohm);
+			list_add_tail(&rail->head, &iccsense->rails);
+		}
 	}
 	return 0;
 }
@@ -329,7 +304,8 @@ nvkm_iccsense_init(struct nvkm_subdev *subdev)
 	return 0;
 }
 
-struct nvkm_subdev_func iccsense_func = {
+static const struct nvkm_subdev_func
+iccsense_func = {
 	.oneinit = nvkm_iccsense_oneinit,
 	.init = nvkm_iccsense_init,
 	.dtor = nvkm_iccsense_dtor,

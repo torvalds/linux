@@ -320,8 +320,7 @@ dma_unmap:
 }
 
 static void jz4740_mmc_pre_request(struct mmc_host *mmc,
-				   struct mmc_request *mrq,
-				   bool is_first_req)
+				   struct mmc_request *mrq)
 {
 	struct jz4740_mmc_host *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;

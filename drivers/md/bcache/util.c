@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/types.h>
+#include <linux/sched/clock.h>
 
 #include "util.h"
 

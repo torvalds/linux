@@ -289,7 +289,7 @@ void msm_rd_debugfs_cleanup(struct drm_minor *minor)
 
 static void snapshot_buf(struct msm_rd_state *rd,
 		struct msm_gem_submit *submit, int idx,
-		uint32_t iova, uint32_t size)
+		uint64_t iova, uint32_t size)
 {
 	struct msm_gem_object *obj = submit->bos[idx].obj;
 	const char *buf;
@@ -306,7 +306,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	}
 
 	rd_write_section(rd, RD_GPUADDR,
-			(uint32_t[2]){ iova, size }, 8);
+			(uint32_t[3]){ iova, size, iova >> 32 }, 12);
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
 	msm_gem_put_vaddr_locked(&obj->base);

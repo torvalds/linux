@@ -27,7 +27,7 @@
 	(((size) - (((u64)adrs) & ((size)-1))) & ((size)-1))
 #endif
 
-#define VXGE_HW_MIN_MTU				68
+#define VXGE_HW_MIN_MTU				ETH_MIN_MTU
 #define VXGE_HW_MAX_MTU				9600
 #define VXGE_HW_DEFAULT_MTU			1500
 

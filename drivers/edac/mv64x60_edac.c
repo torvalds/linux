@@ -17,7 +17,6 @@
 #include <linux/edac.h>
 #include <linux/gfp.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 #include "mv64x60_edac.h"
 

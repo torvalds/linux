@@ -39,6 +39,8 @@
 #ifndef _LUSTRE_REQ_LAYOUT_H__
 #define _LUSTRE_REQ_LAYOUT_H__
 
+#include <linux/types.h>
+
 /** \defgroup req_layout req_layout
  *
  * @{
@@ -65,11 +67,6 @@ struct req_capsule {
 	enum req_location	rc_loc;
 	__u32		    rc_area[RCL_NR][REQ_MAX_FIELD_NR];
 };
-
-#if !defined(__REQ_LAYOUT_USER__)
-
-/* struct ptlrpc_request, lustre_msg* */
-#include "lustre_net.h"
 
 void req_capsule_init(struct req_capsule *pill, struct ptlrpc_request *req,
 		      enum req_location location);
@@ -120,9 +117,6 @@ void req_capsule_shrink(struct req_capsule *pill,
 int  req_layout_init(void);
 void req_layout_fini(void);
 
-/* __REQ_LAYOUT_USER__ */
-#endif
-
 extern struct req_format RQF_OBD_PING;
 extern struct req_format RQF_OBD_SET_INFO;
 extern struct req_format RQF_SEC_CTX;
@@ -148,13 +142,12 @@ extern struct req_format RQF_MDS_GETATTR;
  */
 extern struct req_format RQF_MDS_GETATTR_NAME;
 extern struct req_format RQF_MDS_CLOSE;
-extern struct req_format RQF_MDS_RELEASE_CLOSE;
+extern struct req_format RQF_MDS_INTENT_CLOSE;
 extern struct req_format RQF_MDS_CONNECT;
 extern struct req_format RQF_MDS_DISCONNECT;
 extern struct req_format RQF_MDS_GET_INFO;
 extern struct req_format RQF_MDS_READPAGE;
 extern struct req_format RQF_MDS_WRITEPAGE;
-extern struct req_format RQF_MDS_DONE_WRITING;
 extern struct req_format RQF_MDS_REINT;
 extern struct req_format RQF_MDS_REINT_CREATE;
 extern struct req_format RQF_MDS_REINT_CREATE_ACL;
@@ -166,10 +159,9 @@ extern struct req_format RQF_MDS_REINT_LINK;
 extern struct req_format RQF_MDS_REINT_RENAME;
 extern struct req_format RQF_MDS_REINT_SETATTR;
 extern struct req_format RQF_MDS_REINT_SETXATTR;
-extern struct req_format RQF_MDS_QUOTACHECK;
 extern struct req_format RQF_MDS_QUOTACTL;
-extern struct req_format RQF_QC_CALLBACK;
 extern struct req_format RQF_MDS_SWAP_LAYOUTS;
+extern struct req_format RQF_MDS_REINT_MIGRATE;
 /* MDS hsm formats */
 extern struct req_format RQF_MDS_HSM_STATE_GET;
 extern struct req_format RQF_MDS_HSM_STATE_SET;
@@ -181,7 +173,6 @@ extern struct req_format RQF_MDS_HSM_REQUEST;
 /* OST req_format */
 extern struct req_format RQF_OST_CONNECT;
 extern struct req_format RQF_OST_DISCONNECT;
-extern struct req_format RQF_OST_QUOTACHECK;
 extern struct req_format RQF_OST_QUOTACTL;
 extern struct req_format RQF_OST_GETATTR;
 extern struct req_format RQF_OST_SETATTR;

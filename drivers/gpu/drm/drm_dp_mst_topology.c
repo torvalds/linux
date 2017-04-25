@@ -1086,7 +1086,7 @@ static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
 }
 
 static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
-			    struct device *dev,
+			    struct drm_device *dev,
 			    struct drm_dp_link_addr_reply_port *port_msg)
 {
 	struct drm_dp_mst_port *port;
@@ -1104,7 +1104,7 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 		port->port_num = port_msg->port_number;
 		port->mgr = mstb->mgr;
 		port->aux.name = "DPMST";
-		port->aux.dev = dev;
+		port->aux.dev = dev->dev;
 		created = true;
 	} else {
 		old_pdt = port->pdt;
@@ -1817,7 +1817,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 				mgr->payloads[i].vcpi = req_payload.vcpi;
 			} else if (mgr->payloads[i].num_slots) {
 				mgr->payloads[i].num_slots = 0;
-				drm_dp_destroy_payload_step1(mgr, port, port->vcpi.vcpi, &mgr->payloads[i]);
+				drm_dp_destroy_payload_step1(mgr, port, mgr->payloads[i].vcpi, &mgr->payloads[i]);
 				req_payload.payload_state = mgr->payloads[i].payload_state;
 				mgr->payloads[i].start_slot = 0;
 			}
@@ -2949,7 +2949,7 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
  * Return 0 for success, or negative error code on failure
  */
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
-				 struct device *dev, struct drm_dp_aux *aux,
+				 struct drm_device *dev, struct drm_dp_aux *aux,
 				 int max_dpcd_transaction_bytes,
 				 int max_payloads, int conn_base_id)
 {

@@ -348,7 +348,7 @@ Drivers can now specify a request prepare function (q->prep_rq_fn) that the
 block layer would invoke to pre-build device commands for a given request,
 or perform other preparatory processing for the request. This is routine is
 called by elv_next_request(), i.e. typically just before servicing a request.
-(The prepare function would not be called for requests that have REQ_DONTPREP
+(The prepare function would not be called for requests that have RQF_DONTPREP
 enabled)
 
 Aside:
@@ -553,8 +553,8 @@ struct request {
 	struct request_list *rl;
 }
 	
-See the rq_flag_bits definitions for an explanation of the various flags
-available. Some bits are used by the block layer or i/o scheduler.
+See the req_ops and req_flag_bits definitions for an explanation of the various
+flags available. Some bits are used by the block layer or i/o scheduler.
 	
 The behaviour of the various sector counts are almost the same as before,
 except that since we have multi-segment bios, current_nr_sectors refers

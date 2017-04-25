@@ -1,16 +1,14 @@
 #ifndef SPEAKUP_TYPES_H
 #define SPEAKUP_TYPES_H
 
-/*
- * This file includes all of the typedefs and structs used in speakup.
- */
+/* This file includes all of the typedefs and structs used in speakup. */
 
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/wait.h>		/* for wait_queue */
-#include <linux/init.h> /* for __init */
+#include <linux/init.h>		/* for __init */
 #include <linux/module.h>
 #include <linux/vt_kern.h>
 #include <linux/spinlock.h>
@@ -105,7 +103,7 @@ struct st_var_header {
 	enum var_id_t var_id;
 	enum var_type_t var_type;
 	void *p_val; /* ptr to programs variable to store value */
-	void *data; /* ptr to the vars data */
+	void *data;  /* ptr to the vars data */
 };
 
 struct num_var_t {
@@ -114,8 +112,8 @@ struct num_var_t {
 	int low;
 	int high;
 	short offset, multiplier; /* for fiddling rates etc. */
-	char *out_str; /* if synth needs char representation of number */
-	int value; /* current value */
+	char *out_str;  /* if synth needs char representation of number */
+	int value;	/* current value */
 };
 
 struct punc_var_t {
@@ -169,7 +167,7 @@ struct spk_synth {
 	int (*probe)(struct spk_synth *synth);
 	void (*release)(void);
 	const char *(*synth_immediate)(struct spk_synth *synth,
-					const char *buff);
+				       const char *buff);
 	void (*catch_up)(struct spk_synth *synth);
 	void (*flush)(struct spk_synth *synth);
 	int (*is_alive)(struct spk_synth *synth);
@@ -181,7 +179,7 @@ struct spk_synth {
 	struct attribute_group attributes;
 };
 
-/**
+/*
  * module_spk_synth() - Helper macro for registering a speakup driver
  * @__spk_synth: spk_synth struct
  * Helper macro for speakup drivers which do not do anything special in module

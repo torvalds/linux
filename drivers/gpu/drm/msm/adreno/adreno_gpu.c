@@ -22,7 +22,7 @@
 #include "msm_mmu.h"
 
 #define RB_SIZE    SZ_32K
-#define RB_BLKSIZE 16
+#define RB_BLKSIZE 32
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 {
@@ -54,9 +54,6 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 	}
 }
 
-#define rbmemptr(adreno_gpu, member)  \
-	((adreno_gpu)->memptrs_iova + offsetof(struct adreno_rbmemptrs, member))
-
 int adreno_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -79,11 +76,14 @@ int adreno_hw_init(struct msm_gpu *gpu)
 			(adreno_is_a430(adreno_gpu) ? AXXX_CP_RB_CNTL_NO_UPDATE : 0));
 
 	/* Setup ringbuffer address: */
-	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_BASE, gpu->rb_iova);
+	adreno_gpu_write64(adreno_gpu, REG_ADRENO_CP_RB_BASE,
+		REG_ADRENO_CP_RB_BASE_HI, gpu->rb_iova);
 
-	if (!adreno_is_a430(adreno_gpu))
-		adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_RPTR_ADDR,
-						rbmemptr(adreno_gpu, rptr));
+	if (!adreno_is_a430(adreno_gpu)) {
+		adreno_gpu_write64(adreno_gpu, REG_ADRENO_CP_RB_RPTR_ADDR,
+			REG_ADRENO_CP_RB_RPTR_ADDR_HI,
+			rbmemptr(adreno_gpu, rptr));
+	}
 
 	return 0;
 }
@@ -126,11 +126,14 @@ void adreno_recover(struct msm_gpu *gpu)
 	adreno_gpu->memptrs->wptr  = 0;
 
 	gpu->funcs->pm_resume(gpu);
+
+	disable_irq(gpu->irq);
 	ret = gpu->funcs->hw_init(gpu);
 	if (ret) {
 		dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 		/* hmm, oh well? */
 	}
+	enable_irq(gpu->irq);
 }
 
 void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
@@ -210,7 +213,14 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 void adreno_flush(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	uint32_t wptr = get_wptr(gpu->rb);
+	uint32_t wptr;
+
+	/*
+	 * Mask wptr value that we calculate to fit in the HW range. This is
+	 * to account for the possibility that the last command fit exactly into
+	 * the ringbuffer and rb->next hasn't wrapped to zero yet
+	 */
+	wptr = get_wptr(gpu->rb) & ((gpu->rb->size / 4) - 1);
 
 	/* ensure writes to ringbuffer have hit system memory: */
 	mb();
@@ -218,19 +228,18 @@ void adreno_flush(struct msm_gpu *gpu)
 	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_WPTR, wptr);
 }
 
-void adreno_idle(struct msm_gpu *gpu)
+bool adreno_idle(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	uint32_t wptr = get_wptr(gpu->rb);
-	int ret;
 
 	/* wait for CP to drain ringbuffer: */
-	ret = spin_until(get_rptr(adreno_gpu) == wptr);
-
-	if (ret)
-		DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
+	if (!spin_until(get_rptr(adreno_gpu) == wptr))
+		return true;
 
 	/* TODO maybe we need to reset GPU here to recover from hang? */
+	DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
+	return false;
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -278,7 +287,6 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 void adreno_dump_info(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	int i;
 
 	printk("revision: %d (%d.%d.%d.%d)\n",
 			adreno_gpu->info->revn, adreno_gpu->rev.core,
@@ -290,11 +298,6 @@ void adreno_dump_info(struct msm_gpu *gpu)
 	printk("rptr:     %d\n", get_rptr(adreno_gpu));
 	printk("wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
-
-	for (i = 0; i < 8; i++) {
-		printk("CP_SCRATCH_REG%d: %u\n", i,
-			gpu_read(gpu, REG_AXXX_CP_SCRATCH_REG0 + i));
-	}
 }
 
 /* would be nice to not have to duplicate the _show() stuff with printk(): */
@@ -342,7 +345,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 {
 	struct adreno_platform_config *config = pdev->dev.platform_data;
 	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct msm_mmu *mmu;
 	int ret;
 
 	adreno_gpu->funcs = funcs;
@@ -381,8 +383,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	mmu = gpu->mmu;
-	if (mmu) {
+	if (gpu->aspace && gpu->aspace->mmu) {
+		struct msm_mmu *mmu = gpu->aspace->mmu;
 		ret = mmu->funcs->attach(mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret)

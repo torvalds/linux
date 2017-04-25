@@ -30,6 +30,9 @@
 
 #include "qman_priv.h"
 
+struct qman_portal *qman_dma_portal;
+EXPORT_SYMBOL(qman_dma_portal);
+
 /* Enable portal interupts (as opposed to polling mode) */
 #define CONFIG_FSL_DPA_PIRQ_SLOW  1
 #define CONFIG_FSL_DPA_PIRQ_FAST  1
@@ -150,6 +153,10 @@ static struct qman_portal *init_pcfg(struct qm_portal_config *pcfg)
 		/* all assigned portals are initialized now */
 		qman_init_cgr_all();
 	}
+
+	if (!qman_dma_portal)
+		qman_dma_portal = p;
+
 	spin_unlock(&qman_lock);
 
 	dev_info(pcfg->dev, "Portal initialised, cpu %d\n", pcfg->cpu);
@@ -179,7 +186,7 @@ static void qman_portal_update_sdest(const struct qm_portal_config *pcfg,
 	qman_set_sdest(pcfg->channel, cpu);
 }
 
-static void qman_offline_cpu(unsigned int cpu)
+static int qman_offline_cpu(unsigned int cpu)
 {
 	struct qman_portal *p;
 	const struct qm_portal_config *pcfg;
@@ -192,9 +199,10 @@ static void qman_offline_cpu(unsigned int cpu)
 			qman_portal_update_sdest(pcfg, 0);
 		}
 	}
+	return 0;
 }
 
-static void qman_online_cpu(unsigned int cpu)
+static int qman_online_cpu(unsigned int cpu)
 {
 	struct qman_portal *p;
 	const struct qm_portal_config *pcfg;
@@ -207,30 +215,8 @@ static void qman_online_cpu(unsigned int cpu)
 			qman_portal_update_sdest(pcfg, cpu);
 		}
 	}
+	return 0;
 }
-
-static int qman_hotplug_cpu_callback(struct notifier_block *nfb,
-				     unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		qman_online_cpu(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-		qman_offline_cpu(cpu);
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block qman_hotplug_cpu_notifier = {
-	.notifier_call = qman_hotplug_cpu_callback,
-};
 
 static int qman_portal_probe(struct platform_device *pdev)
 {
@@ -238,9 +224,9 @@ static int qman_portal_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct qm_portal_config *pcfg;
 	struct resource *addr_phys[2];
-	const u32 *channel;
 	void __iomem *va;
-	int irq, len, cpu;
+	int irq, cpu, err;
+	u32 val;
 
 	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
 	if (!pcfg)
@@ -264,13 +250,13 @@ static int qman_portal_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	channel = of_get_property(node, "cell-index", &len);
-	if (!channel || (len != 4)) {
+	err = of_property_read_u32(node, "cell-index", &val);
+	if (err) {
 		dev_err(dev, "Can't get %s property 'cell-index'\n",
 			node->full_name);
-		return -ENXIO;
+		return err;
 	}
-	pcfg->channel = *channel;
+	pcfg->channel = val;
 	pcfg->cpu = -1;
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
@@ -280,15 +266,19 @@ static int qman_portal_probe(struct platform_device *pdev)
 	pcfg->irq = irq;
 
 	va = ioremap_prot(addr_phys[0]->start, resource_size(addr_phys[0]), 0);
-	if (!va)
+	if (!va) {
+		dev_err(dev, "ioremap::CE failed\n");
 		goto err_ioremap1;
+	}
 
 	pcfg->addr_virt[DPAA_PORTAL_CE] = va;
 
 	va = ioremap_prot(addr_phys[1]->start, resource_size(addr_phys[1]),
 			  _PAGE_GUARDED | _PAGE_NO_CACHE);
-	if (!va)
+	if (!va) {
+		dev_err(dev, "ioremap::CI failed\n");
 		goto err_ioremap2;
+	}
 
 	pcfg->addr_virt[DPAA_PORTAL_CI] = va;
 
@@ -306,8 +296,15 @@ static int qman_portal_probe(struct platform_device *pdev)
 	spin_unlock(&qman_lock);
 	pcfg->cpu = cpu;
 
-	if (!init_pcfg(pcfg))
-		goto err_ioremap2;
+	if (dma_set_mask(dev, DMA_BIT_MASK(40))) {
+		dev_err(dev, "dma_set_mask() failed\n");
+		goto err_portal_init;
+	}
+
+	if (!init_pcfg(pcfg)) {
+		dev_err(dev, "portal init failed\n");
+		goto err_portal_init;
+	}
 
 	/* clear irq affinity if assigned cpu is offline */
 	if (!cpu_online(cpu))
@@ -315,10 +312,11 @@ static int qman_portal_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_portal_init:
+	iounmap(pcfg->addr_virt[DPAA_PORTAL_CI]);
 err_ioremap2:
 	iounmap(pcfg->addr_virt[DPAA_PORTAL_CE]);
 err_ioremap1:
-	dev_err(dev, "ioremap failed\n");
 	return -ENXIO;
 }
 
@@ -346,8 +344,14 @@ static int __init qman_portal_driver_register(struct platform_driver *drv)
 	if (ret < 0)
 		return ret;
 
-	register_hotcpu_notifier(&qman_hotplug_cpu_notifier);
-
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"soc/qman_portal:online",
+					qman_online_cpu, qman_offline_cpu);
+	if (ret < 0) {
+		pr_err("qman: failed to register hotplug callbacks.\n");
+		platform_driver_unregister(drv);
+		return ret;
+	}
 	return 0;
 }
 

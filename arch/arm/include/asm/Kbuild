@@ -2,7 +2,6 @@
 
 generic-y += bitsperlong.h
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += current.h
 generic-y += early_ioremap.h
 generic-y += emergency-restart.h
@@ -38,3 +37,6 @@ generic-y += termios.h
 generic-y += timex.h
 generic-y += trace_clock.h
 generic-y += unaligned.h
+
+generated-y += mach-types.h
+generated-y += unistd-nr.h

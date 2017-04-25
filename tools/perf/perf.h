@@ -55,6 +55,7 @@ struct record_opts {
 	bool	     all_user;
 	bool	     tail_synthesize;
 	bool	     overwrite;
+	bool	     ignore_missing_thread;
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int auxtrace_mmap_pages;

@@ -79,7 +79,7 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	struct g94_i2c_aux *aux = g94_i2c_aux(obj);
 	struct nvkm_device *device = aux->base.pad->i2c->subdev.device;
 	const u32 base = aux->ch * 0x50;
-	u32 ctrl, stat, timeout, retries;
+	u32 ctrl, stat, timeout, retries = 0;
 	u32 xbuf[4] = {};
 	int ret, i;
 
@@ -111,7 +111,7 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	nvkm_wr32(device, 0x00e4e0 + base, addr);
 
 	/* (maybe) retry transaction a number of times on failure... */
-	for (retries = 0; !ret && retries < 32; retries++) {
+	do {
 		/* reset, and delay a while if this is a retry */
 		nvkm_wr32(device, 0x00e4e4 + base, 0x80000000 | ctrl);
 		nvkm_wr32(device, 0x00e4e4 + base, 0x00000000 | ctrl);
@@ -131,20 +131,20 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 				goto out;
 			}
 		} while (ctrl & 0x00010000);
-		ret = 1;
+		ret = 0;
 
 		/* read status, and check if transaction completed ok */
 		stat = nvkm_mask(device, 0x00e4e8 + base, 0, 0);
 		if ((stat & 0x000f0000) == 0x00080000 ||
 		    (stat & 0x000f0000) == 0x00020000)
-			ret = retry ? 0 : 1;
+			ret = 1;
 		if ((stat & 0x00000100))
 			ret = -ETIMEDOUT;
 		if ((stat & 0x00000e00))
 			ret = -EIO;
 
 		AUX_TRACE(&aux->base, "%02d %08x %08x", retries, ctrl, stat);
-	}
+	} while (ret && retry && retries++ < 32);
 
 	if (type & 1) {
 		for (i = 0; i < 16; i += 4) {

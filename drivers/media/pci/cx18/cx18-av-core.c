@@ -15,11 +15,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #include "cx18-driver.h"
@@ -468,21 +463,19 @@ void cx18_av_std_setup(struct cx18 *cx)
 		CX18_DEBUG_INFO_DEV(sd, "Pixel rate = %d.%06d Mpixel/sec\n",
 				    pll / 8000000, (pll / 8) % 1000000);
 
-		CX18_DEBUG_INFO_DEV(sd, "ADC XTAL/pixel clock decimation ratio "
-				    "= %d.%03d\n", src_decimation / 256,
+		CX18_DEBUG_INFO_DEV(sd, "ADC XTAL/pixel clock decimation ratio = %d.%03d\n",
+				    src_decimation / 256,
 				    ((src_decimation % 256) * 1000) / 256);
 
 		tmp = 28636360 * (u64) sc;
 		do_div(tmp, src_decimation);
 		fsc = tmp >> 13;
 		CX18_DEBUG_INFO_DEV(sd,
-				    "Chroma sub-carrier initial freq = %d.%06d "
-				    "MHz\n", fsc / 1000000, fsc % 1000000);
+				    "Chroma sub-carrier initial freq = %d.%06d MHz\n",
+				    fsc / 1000000, fsc % 1000000);
 
-		CX18_DEBUG_INFO_DEV(sd, "hblank %i, hactive %i, vblank %i, "
-				    "vactive %i, vblank656 %i, src_dec %i, "
-				    "burst 0x%02x, luma_lpf %i, uv_lpf %i, "
-				    "comb 0x%02x, sc 0x%06x\n",
+		CX18_DEBUG_INFO_DEV(sd,
+				    "hblank %i, hactive %i, vblank %i, vactive %i, vblank656 %i, src_dec %i, burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, sc 0x%06x\n",
 				    hblank, hactive, vblank, vactive, vblank656,
 				    src_decimation, burst, luma_lpf, uv_lpf,
 				    comb, sc);
@@ -1069,8 +1062,7 @@ static void log_video_status(struct cx18 *cx)
 		CX18_INFO_DEV(sd, "Specified video input:     Composite %d\n",
 			      vid_input - CX18_AV_COMPOSITE1 + 1);
 	} else {
-		CX18_INFO_DEV(sd, "Specified video input:     "
-			      "S-Video (Luma In%d, Chroma In%d)\n",
+		CX18_INFO_DEV(sd, "Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
 			      (vid_input & 0xf0) >> 4,
 			      (vid_input & 0xf00) >> 8);
 	}

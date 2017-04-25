@@ -1894,8 +1894,9 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 		printk(KERN_INFO "tvaudio: TV audio decoder + audio/video mux driver\n");
 		printk(KERN_INFO "tvaudio: known chips: ");
 		for (desc = chiplist; desc->name != NULL; desc++)
-			printk("%s%s", (desc == chiplist) ? "" : ", ", desc->name);
-		printk("\n");
+			printk(KERN_CONT "%s%s",
+			       (desc == chiplist) ? "" : ", ", desc->name);
+		printk(KERN_CONT "\n");
 	}
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);

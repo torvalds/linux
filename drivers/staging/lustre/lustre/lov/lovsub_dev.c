@@ -44,46 +44,6 @@
 
 /*****************************************************************************
  *
- * Lovsub transfer operations.
- *
- */
-
-static void lovsub_req_completion(const struct lu_env *env,
-				  const struct cl_req_slice *slice, int ioret)
-{
-	struct lovsub_req *lsr;
-
-	lsr = cl2lovsub_req(slice);
-	kmem_cache_free(lovsub_req_kmem, lsr);
-}
-
-/**
- * Implementation of struct cl_req_operations::cro_attr_set() for lovsub
- * layer. Lov and lovsub are responsible only for struct obdo::o_stripe_idx
- * field, which is filled there.
- */
-static void lovsub_req_attr_set(const struct lu_env *env,
-				const struct cl_req_slice *slice,
-				const struct cl_object *obj,
-				struct cl_req_attr *attr, u64 flags)
-{
-	struct lovsub_object *subobj;
-
-	subobj = cl2lovsub(obj);
-	/*
-	 * There is no OBD_MD_* flag for obdo::o_stripe_idx, so set it
-	 * unconditionally. It never changes anyway.
-	 */
-	attr->cra_oa->o_stripe_idx = subobj->lso_index;
-}
-
-static const struct cl_req_operations lovsub_req_ops = {
-	.cro_attr_set   = lovsub_req_attr_set,
-	.cro_completion = lovsub_req_completion
-};
-
-/*****************************************************************************
- *
  * Lov-sub device and device type functions.
  *
  */
@@ -137,30 +97,10 @@ static struct lu_device *lovsub_device_free(const struct lu_env *env,
 	return next;
 }
 
-static int lovsub_req_init(const struct lu_env *env, struct cl_device *dev,
-			   struct cl_req *req)
-{
-	struct lovsub_req *lsr;
-	int result;
-
-	lsr = kmem_cache_zalloc(lovsub_req_kmem, GFP_NOFS);
-	if (lsr) {
-		cl_req_slice_add(req, &lsr->lsrq_cl, dev, &lovsub_req_ops);
-		result = 0;
-	} else {
-		result = -ENOMEM;
-	}
-	return result;
-}
-
 static const struct lu_device_operations lovsub_lu_ops = {
 	.ldo_object_alloc      = lovsub_object_alloc,
 	.ldo_process_config    = NULL,
 	.ldo_recovery_complete = NULL
-};
-
-static const struct cl_device_operations lovsub_cl_ops = {
-	.cdo_req_init = lovsub_req_init
 };
 
 static struct lu_device *lovsub_device_alloc(const struct lu_env *env,
@@ -178,7 +118,6 @@ static struct lu_device *lovsub_device_alloc(const struct lu_env *env,
 		if (result == 0) {
 			d = lovsub2lu_dev(lsd);
 			d->ld_ops	 = &lovsub_lu_ops;
-			lsd->acid_cl.cd_ops = &lovsub_cl_ops;
 		} else {
 			d = ERR_PTR(result);
 		}

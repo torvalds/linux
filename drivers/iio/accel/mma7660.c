@@ -39,7 +39,7 @@
 
 #define MMA7660_SCALE_AVAIL	"0.467142857"
 
-const int mma7660_nscale = 467142857;
+static const int mma7660_nscale = 467142857;
 
 #define MMA7660_CHANNEL(reg, axis) {	\
 	.type = IIO_ACCEL,	\

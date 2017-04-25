@@ -8,6 +8,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/slab.h>
 
 #include <asm/ldc.h>

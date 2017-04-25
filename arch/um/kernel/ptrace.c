@@ -7,7 +7,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/tracehook.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace-abi.h>
 
 void user_enable_single_step(struct task_struct *child)

@@ -96,8 +96,6 @@ int mthca_reset(struct mthca_dev *mdev)
 	hca_header = kmalloc(256, GFP_KERNEL);
 	if (!hca_header) {
 		err = -ENOMEM;
-		mthca_err(mdev, "Couldn't allocate memory to save HCA "
-			  "PCI header, aborting.\n");
 		goto put_dev;
 	}
 
@@ -119,8 +117,6 @@ int mthca_reset(struct mthca_dev *mdev)
 		bridge_header = kmalloc(256, GFP_KERNEL);
 		if (!bridge_header) {
 			err = -ENOMEM;
-			mthca_err(mdev, "Couldn't allocate memory to save HCA "
-				  "bridge PCI header, aborting.\n");
 			goto free_hca;
 		}
 

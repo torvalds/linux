@@ -394,7 +394,7 @@ struct xgmac_priv {
 };
 
 /* XGMAC Configuration Settings */
-#define MAX_MTU			9000
+#define XGMAC_MAX_MTU		9000
 #define PAUSE_TIME		0x400
 
 #define DMA_RX_RING_SZ		256
@@ -1247,7 +1247,7 @@ static int xgmac_poll(struct napi_struct *napi, int budget)
 	work_done = xgmac_rx(priv, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		__raw_writel(DMA_INTR_DEFAULT_MASK, priv->base + XGMAC_DMA_INTR_ENA);
 	}
 	return work_done;
@@ -1360,20 +1360,6 @@ out:
  */
 static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct xgmac_priv *priv = netdev_priv(dev);
-	int old_mtu;
-
-	if ((new_mtu < 46) || (new_mtu > MAX_MTU)) {
-		netdev_err(priv->dev, "invalid MTU, max MTU is: %d\n", MAX_MTU);
-		return -EINVAL;
-	}
-
-	old_mtu = dev->mtu;
-
-	/* return early if the buffer sizes will not change */
-	if (old_mtu == new_mtu)
-		return 0;
-
 	/* Stop everything, get ready to change the MTU */
 	if (!netif_running(dev))
 		return 0;
@@ -1460,9 +1446,9 @@ static void xgmac_poll_controller(struct net_device *dev)
 }
 #endif
 
-static struct rtnl_link_stats64 *
+static void
 xgmac_get_stats64(struct net_device *dev,
-		       struct rtnl_link_stats64 *storage)
+		  struct rtnl_link_stats64 *storage)
 {
 	struct xgmac_priv *priv = netdev_priv(dev);
 	void __iomem *base = priv->base;
@@ -1490,7 +1476,6 @@ xgmac_get_stats64(struct net_device *dev,
 
 	writel(0, base + XGMAC_MMC_CTRL);
 	spin_unlock_bh(&priv->stats_lock);
-	return storage;
 }
 
 static int xgmac_set_mac_address(struct net_device *dev, void *p)
@@ -1544,15 +1529,14 @@ static const struct net_device_ops xgmac_netdev_ops = {
 	.ndo_set_features = xgmac_set_features,
 };
 
-static int xgmac_ethtool_getsettings(struct net_device *dev,
-					  struct ethtool_cmd *cmd)
+static int xgmac_ethtool_get_link_ksettings(struct net_device *dev,
+					    struct ethtool_link_ksettings *cmd)
 {
-	cmd->autoneg = 0;
-	cmd->duplex = DUPLEX_FULL;
-	ethtool_cmd_speed_set(cmd, 10000);
-	cmd->supported = 0;
-	cmd->advertising = 0;
-	cmd->transceiver = XCVR_INTERNAL;
+	cmd->base.autoneg = 0;
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.speed = 10000;
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported, 0);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising, 0);
 	return 0;
 }
 
@@ -1695,7 +1679,6 @@ static int xgmac_set_wol(struct net_device *dev,
 }
 
 static const struct ethtool_ops xgmac_ethtool_ops = {
-	.get_settings = xgmac_ethtool_getsettings,
 	.get_link = ethtool_op_get_link,
 	.get_pauseparam = xgmac_get_pauseparam,
 	.set_pauseparam = xgmac_set_pauseparam,
@@ -1704,6 +1687,7 @@ static const struct ethtool_ops xgmac_ethtool_ops = {
 	.get_wol = xgmac_get_wol,
 	.set_wol = xgmac_set_wol,
 	.get_sset_count = xgmac_get_sset_count,
+	.get_link_ksettings = xgmac_ethtool_get_link_ksettings,
 };
 
 /**
@@ -1803,6 +1787,10 @@ static int xgmac_probe(struct platform_device *pdev)
 				     NETIF_F_RXCSUM;
 	ndev->features |= ndev->hw_features;
 	ndev->priv_flags |= IFF_UNICAST_FLT;
+
+	/* MTU range: 46 - 9000 */
+	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	ndev->max_mtu = XGMAC_MAX_MTU;
 
 	/* Get the MAC address */
 	xgmac_get_mac_addr(priv->base, ndev->dev_addr, 0);

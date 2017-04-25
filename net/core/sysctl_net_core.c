@@ -79,10 +79,13 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 
 		if (sock_table != orig_sock_table) {
 			rcu_assign_pointer(rps_sock_flow_table, sock_table);
-			if (sock_table)
+			if (sock_table) {
 				static_key_slow_inc(&rps_needed);
+				static_key_slow_inc(&rfs_needed);
+			}
 			if (orig_sock_table) {
 				static_key_slow_dec(&rps_needed);
+				static_key_slow_dec(&rfs_needed);
 				synchronize_rcu();
 				vfree(orig_sock_table);
 			}
@@ -219,6 +222,21 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 }
 #endif
 
+static int proc_do_dev_weight(struct ctl_table *table, int write,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (ret != 0)
+		return ret;
+
+	dev_rx_weight = weight_p * dev_weight_rx_bias;
+	dev_tx_weight = weight_p * dev_weight_tx_bias;
+
+	return ret;
+}
+
 static int proc_do_rss_key(struct ctl_table *table, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -270,7 +288,21 @@ static struct ctl_table net_core_table[] = {
 		.data		= &weight_p,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_do_dev_weight,
+	},
+	{
+		.procname	= "dev_weight_rx_bias",
+		.data		= &dev_weight_rx_bias,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_dev_weight,
+	},
+	{
+		.procname	= "dev_weight_tx_bias",
+		.data		= &dev_weight_tx_bias,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_dev_weight,
 	},
 	{
 		.procname	= "netdev_max_backlog",
@@ -298,6 +330,13 @@ static struct ctl_table net_core_table[] = {
 	{
 		.procname	= "bpf_jit_harden",
 		.data		= &bpf_jit_harden,
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "bpf_jit_kallsyms",
+		.data		= &bpf_jit_kallsyms,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
 		.proc_handler	= proc_dointvec,

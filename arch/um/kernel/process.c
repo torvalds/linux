@@ -17,6 +17,9 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
@@ -24,7 +27,7 @@
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <as-layout.h>
 #include <kern_util.h>
 #include <os.h>

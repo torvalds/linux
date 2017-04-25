@@ -130,7 +130,7 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 				    ETH_ALEN /* WDS */ +
 				    /* QOS Control */
 				    (RTLLIB_QOS_HAS_SEQ(fc) ? 2 : 0));
-		if (skb == NULL)
+		if (!skb)
 			return NULL;
 
 		entry = &ieee->frag_cache[tid][ieee->frag_next_idx[tid]];
@@ -986,7 +986,7 @@ static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 		ether_addr_copy(src, hdr->addr4);
 		ether_addr_copy(bssid, ieee->current_network.bssid);
 		break;
-	case 0:
+	default:
 		ether_addr_copy(dst, hdr->addr1);
 		ether_addr_copy(src, hdr->addr2);
 		ether_addr_copy(bssid, hdr->addr3);
@@ -1201,6 +1201,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) &&
 	    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 		struct eapol *eap = (struct eapol *)(skb->data + 24);
+
 		netdev_dbg(ieee->dev, "RX: IEEE 802.1X EAPOL frame: %s\n",
 			   eap_get_type(eap->type));
 	}
@@ -1374,7 +1375,6 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 		ieee->LinkDetectInfo.NumRecvDataInPeriod++;
 		ieee->LinkDetectInfo.NumRxOkInPeriod++;
 	}
-	dev->last_rx = jiffies;
 
 	/* Data frame - extract src/dst addresses */
 	rtllib_rx_extract_addr(ieee, hdr, dst, src, bssid);
@@ -1430,7 +1430,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full plaintext payload */
 	payload = skb->data + hdrlen;
 	rxb = kmalloc(sizeof(struct rtllib_rxb), GFP_ATOMIC);
-	if (rxb == NULL)
+	if (!rxb)
 		goto rx_dropped;
 
 	/* to parse amsdu packets */

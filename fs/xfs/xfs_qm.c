@@ -1135,7 +1135,7 @@ xfs_qm_get_rtblks(
 			return error;
 	}
 	rtblks = 0;
-	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+	nextents = xfs_iext_count(ifp);
 	for (idx = 0; idx < nextents; idx++)
 		rtblks += xfs_bmbt_get_blockcount(xfs_iext_get_ext(ifp, idx));
 	*O_rtblks = (xfs_qcnt_t)rtblks;
@@ -1177,7 +1177,8 @@ xfs_qm_dqusage_adjust(
 	 * the case in all other instances. It's OK that we do this because
 	 * quotacheck is done only at mount time.
 	 */
-	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_EXCL, &ip);
+	error = xfs_iget(mp, NULL, ino, XFS_IGET_DONTCACHE, XFS_ILOCK_EXCL,
+			 &ip);
 	if (error) {
 		*res = BULKSTAT_RV_NOTHING;
 		return error;

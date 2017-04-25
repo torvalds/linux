@@ -53,17 +53,29 @@ static inline __sum16 csum_fold(__wsum sum)
 	return (__force __sum16)(~((__force u32)sum + tmp) >> 16);
 }
 
+static inline u32 from64to32(u64 x)
+{
+	/* add up 32-bit and 32-bit for 32+c bit */
+	x = (x & 0xffffffff) + (x >> 32);
+	/* add up carry.. */
+	x = (x & 0xffffffff) + (x >> 32);
+	return (u32)x;
+}
+
 static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 					__u8 proto, __wsum sum)
 {
 #ifdef __powerpc64__
-	unsigned long s = (__force u32)sum;
+	u64 s = (__force u32)sum;
 
 	s += (__force u32)saddr;
 	s += (__force u32)daddr;
+#ifdef __BIG_ENDIAN__
 	s += proto + len;
-	s += (s >> 32);
-	return (__force __wsum) s;
+#else
+	s += (proto + len) << 8;
+#endif
+	return (__force __wsum) from64to32(s);
 #else
     __asm__("\n\
 	addc %0,%0,%1 \n\
@@ -123,8 +135,7 @@ static inline __wsum ip_fast_csum_nofold(const void *iph, unsigned int ihl)
 
 	for (i = 0; i < ihl - 1; i++, ptr++)
 		s += *ptr;
-	s += (s >> 32);
-	return (__force __wsum)s;
+	return (__force __wsum)from64to32(s);
 #else
 	__wsum sum, tmp;
 

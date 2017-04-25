@@ -343,7 +343,7 @@ void afs_dispatch_give_up_callbacks(struct work_struct *work)
 	 *   had callbacks entirely, and the server will call us later to break
 	 *   them
 	 */
-	afs_fs_give_up_callbacks(server, &afs_async_call);
+	afs_fs_give_up_callbacks(server, true);
 }
 
 /*

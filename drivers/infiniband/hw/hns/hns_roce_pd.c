@@ -40,7 +40,7 @@ static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
 
 static void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)
 {
-	hns_roce_bitmap_free(&hr_dev->pd_bitmap, pdn);
+	hns_roce_bitmap_free(&hr_dev->pd_bitmap, pdn, BITMAP_NO_RR);
 }
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)
@@ -121,7 +121,8 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 
 void hns_roce_uar_free(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
-	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->index);
+	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->index,
+			     BITMAP_NO_RR);
 }
 
 int hns_roce_init_uar_table(struct hns_roce_dev *hr_dev)

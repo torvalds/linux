@@ -549,14 +549,7 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	struct bnx2x_alloc_pool *pool = &fp->page_pool;
 	dma_addr_t mapping;
 
-	if (!pool->page || (PAGE_SIZE - pool->offset) < SGE_PAGE_SIZE) {
-
-		/* put page reference used by the memory pool, since we
-		 * won't be using this page as the mempool anymore.
-		 */
-		if (pool->page)
-			put_page(pool->page);
-
+	if (!pool->page) {
 		pool->page = alloc_pages(gfp_mask, PAGES_PER_SGE_SHIFT);
 		if (unlikely(!pool->page))
 			return -ENOMEM;
@@ -571,7 +564,6 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		return -ENOMEM;
 	}
 
-	get_page(pool->page);
 	sw_buf->page = pool->page;
 	sw_buf->offset = pool->offset;
 
@@ -581,7 +573,10 @@ static int bnx2x_alloc_rx_sge(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	sge->addr_lo = cpu_to_le32(U64_LO(mapping));
 
 	pool->offset += SGE_PAGE_SIZE;
-
+	if (PAGE_SIZE - pool->offset >= SGE_PAGE_SIZE)
+		get_page(pool->page);
+	else
+		pool->page = NULL;
 	return 0;
 }
 
@@ -724,7 +719,7 @@ static void bnx2x_gro_ipv6_csum(struct bnx2x *bp, struct sk_buff *skb)
 static void bnx2x_gro_csum(struct bnx2x *bp, struct sk_buff *skb,
 			    void (*gro_func)(struct bnx2x*, struct sk_buff*))
 {
-	skb_set_network_header(skb, 0);
+	skb_reset_network_header(skb);
 	gro_func(bp, skb);
 	tcp_gro_complete(skb);
 }
@@ -2023,7 +2018,7 @@ static void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 			mtu = bp->dev->mtu;
 		fp->rx_buf_size = BNX2X_FW_RX_ALIGN_START +
 				  IP_HEADER_ALIGNMENT_PADDING +
-				  ETH_OVREHEAD +
+				  ETH_OVERHEAD +
 				  mtu +
 				  BNX2X_FW_RX_ALIGN_END;
 		/* Note : rx_buf_size doesn't take into account NET_SKB_PAD */
@@ -3229,7 +3224,7 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 		 * has been updated when NAPI was scheduled.
 		 */
 		if (IS_FCOE_FP(fp)) {
-			napi_complete(napi);
+			napi_complete_done(napi, rx_work_done);
 		} else {
 			bnx2x_update_fpsb_idx(fp);
 			/* bnx2x_has_rx_work() reads the status block,
@@ -3248,13 +3243,14 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 			rmb();
 
 			if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
-				napi_complete(napi);
-				/* Re-enable interrupts */
-				DP(NETIF_MSG_RX_STATUS,
-				   "Update index to %d\n", fp->fp_hc_idx);
-				bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID,
-					     le16_to_cpu(fp->fp_hc_idx),
-					     IGU_INT_ENABLE, 1);
+				if (napi_complete_done(napi, rx_work_done)) {
+					/* Re-enable interrupts */
+					DP(NETIF_MSG_RX_STATUS,
+					   "Update index to %d\n", fp->fp_hc_idx);
+					bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID,
+						     le16_to_cpu(fp->fp_hc_idx),
+						     IGU_INT_ENABLE, 1);
+				}
 			} else {
 				rx_work_done = budget;
 			}
@@ -4853,12 +4849,6 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		BNX2X_ERR("Can't perform change MTU during parity recovery\n");
 		return -EAGAIN;
-	}
-
-	if ((new_mtu > ETH_MAX_JUMBO_PACKET_SIZE) ||
-	    ((new_mtu + ETH_HLEN) < ETH_MIN_PACKET_SIZE)) {
-		BNX2X_ERR("Can't support requested MTU size\n");
-		return -EINVAL;
 	}
 
 	/* This does not race with packet allocation

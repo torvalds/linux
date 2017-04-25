@@ -83,7 +83,7 @@ extern int cifs_revalidate_dentry(struct dentry *);
 extern int cifs_invalidate_mapping(struct inode *inode);
 extern int cifs_revalidate_mapping(struct inode *inode);
 extern int cifs_zap_mapping(struct inode *inode);
-extern int cifs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int cifs_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int cifs_setattr(struct dentry *, struct iattr *);
 
 extern const struct inode_operations cifs_file_inode_ops;

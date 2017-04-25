@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/bio.h>
 
 #include <linux/vmalloc.h>
 #include <linux/zlib.h>

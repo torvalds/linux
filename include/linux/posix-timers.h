@@ -8,19 +8,9 @@
 #include <linux/alarmtimer.h>
 
 
-static inline unsigned long long cputime_to_expires(cputime_t expires)
-{
-	return (__force unsigned long long)expires;
-}
-
-static inline cputime_t expires_to_cputime(unsigned long long expires)
-{
-	return (__force cputime_t)expires;
-}
-
 struct cpu_timer_list {
 	struct list_head entry;
-	unsigned long long expires, incr;
+	u64 expires, incr;
 	struct task_struct *task;
 	int firing;
 };
@@ -129,7 +119,7 @@ void run_posix_cpu_timers(struct task_struct *task);
 void posix_cpu_timers_exit(struct task_struct *task);
 void posix_cpu_timers_exit_group(struct task_struct *task);
 void set_process_cpu_timer(struct task_struct *task, unsigned int clock_idx,
-			   cputime_t *newval, cputime_t *oldval);
+			   u64 *newval, u64 *oldval);
 
 long clock_nanosleep_restart(struct restart_block *restart_block);
 

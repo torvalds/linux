@@ -1413,10 +1413,7 @@ struct ipr_chip_cfg_t {
 struct ipr_chip_t {
 	u16 vendor;
 	u16 device;
-	u16 intr_type;
-#define IPR_USE_LSI			0x00
-#define IPR_USE_MSI			0x01
-#define IPR_USE_MSIX			0x02
+	bool has_msi;
 	u16 sis_type;
 #define IPR_SIS32			0x00
 #define IPR_SIS64			0x01
@@ -1593,11 +1590,9 @@ struct ipr_ioa_cfg {
 	struct ipr_cmnd **ipr_cmnd_list;
 	dma_addr_t *ipr_cmnd_list_dma;
 
-	u16 intr_flag;
 	unsigned int nvectors;
 
 	struct {
-		unsigned short vec;
 		char desc[22];
 	} vectors_info[IPR_MAX_MSIX_VECTORS];
 

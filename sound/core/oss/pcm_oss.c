@@ -28,6 +28,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/time.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
@@ -2501,7 +2502,7 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 		return put_user(SNDRV_OSS_VERSION, p);
 	if (cmd == OSS_ALSAEMULVER)
 		return put_user(1, p);
-#if defined(CONFIG_SND_MIXER_OSS) || (defined(MODULE) && defined(CONFIG_SND_MIXER_OSS_MODULE))
+#if IS_REACHABLE(CONFIG_SND_MIXER_OSS)
 	if (((cmd >> 8) & 0xff) == 'M')	{	/* mixer ioctl - for OSS compatibility */
 		struct snd_pcm_substream *substream;
 		int idx;

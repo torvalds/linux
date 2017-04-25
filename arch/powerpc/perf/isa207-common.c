@@ -12,6 +12,40 @@
  */
 #include "isa207-common.h"
 
+PMU_FORMAT_ATTR(event,		"config:0-49");
+PMU_FORMAT_ATTR(pmcxsel,	"config:0-7");
+PMU_FORMAT_ATTR(mark,		"config:8");
+PMU_FORMAT_ATTR(combine,	"config:11");
+PMU_FORMAT_ATTR(unit,		"config:12-15");
+PMU_FORMAT_ATTR(pmc,		"config:16-19");
+PMU_FORMAT_ATTR(cache_sel,	"config:20-23");
+PMU_FORMAT_ATTR(sample_mode,	"config:24-28");
+PMU_FORMAT_ATTR(thresh_sel,	"config:29-31");
+PMU_FORMAT_ATTR(thresh_stop,	"config:32-35");
+PMU_FORMAT_ATTR(thresh_start,	"config:36-39");
+PMU_FORMAT_ATTR(thresh_cmp,	"config:40-49");
+
+struct attribute *isa207_pmu_format_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_pmcxsel.attr,
+	&format_attr_mark.attr,
+	&format_attr_combine.attr,
+	&format_attr_unit.attr,
+	&format_attr_pmc.attr,
+	&format_attr_cache_sel.attr,
+	&format_attr_sample_mode.attr,
+	&format_attr_thresh_sel.attr,
+	&format_attr_thresh_stop.attr,
+	&format_attr_thresh_start.attr,
+	&format_attr_thresh_cmp.attr,
+	NULL,
+};
+
+struct attribute_group isa207_pmu_format_group = {
+	.name = "format",
+	.attrs = isa207_pmu_format_attr,
+};
+
 static inline bool event_is_fab_match(u64 event)
 {
 	/* Only check pmc, unit and pmcxsel, ignore the edge bit (0) */
@@ -21,6 +55,70 @@ static inline bool event_is_fab_match(u64 event)
 	return (event == 0x30056 || event == 0x4f052);
 }
 
+static bool is_event_valid(u64 event)
+{
+	u64 valid_mask = EVENT_VALID_MASK;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
+		valid_mask = p9_EVENT_VALID_MASK;
+
+	return !(event & ~valid_mask);
+}
+
+static u64 mmcra_sdar_mode(u64 event)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
+		return p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
+
+	return MMCRA_SDAR_MODE_TLB;
+}
+
+static u64 thresh_cmp_val(u64 value)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
+		return value << p9_MMCRA_THR_CMP_SHIFT;
+
+	return value << MMCRA_THR_CMP_SHIFT;
+}
+
+static unsigned long combine_from_event(u64 event)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
+		return p9_EVENT_COMBINE(event);
+
+	return EVENT_COMBINE(event);
+}
+
+static unsigned long combine_shift(unsigned long pmc)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
+		return p9_MMCR1_COMBINE_SHIFT(pmc);
+
+	return MMCR1_COMBINE_SHIFT(pmc);
+}
+
+static inline bool event_is_threshold(u64 event)
+{
+	return (event >> EVENT_THR_SEL_SHIFT) & EVENT_THR_SEL_MASK;
+}
+
+static bool is_thresh_cmp_valid(u64 event)
+{
+	unsigned int cmp, exp;
+
+	/*
+	 * Check the mantissa upper two bits are not zero, unless the
+	 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
+	 */
+	cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
+	exp = cmp >> 7;
+
+	if (exp && (cmp & 0x60) == 0)
+		return false;
+
+	return true;
+}
+
 int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 {
 	unsigned int unit, pmc, cache, ebb;
@@ -28,7 +126,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 
 	mask = value = 0;
 
-	if (event & ~EVENT_VALID_MASK)
+	if (!is_event_valid(event))
 		return -1;
 
 	pmc   = (event >> EVENT_PMC_SHIFT)        & EVENT_PMC_MASK;
@@ -87,28 +185,26 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		value |= CNST_SAMPLE_VAL(event >> EVENT_SAMPLE_SHIFT);
 	}
 
-	/*
-	 * Special case for PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
-	 * the threshold control bits are used for the match value.
-	 */
-	if (event_is_fab_match(event)) {
-		mask  |= CNST_FAB_MATCH_MASK;
-		value |= CNST_FAB_MATCH_VAL(event >> EVENT_THR_CTL_SHIFT);
+	if (cpu_has_feature(CPU_FTR_ARCH_300))  {
+		if (event_is_threshold(event) && is_thresh_cmp_valid(event)) {
+			mask  |= CNST_THRESH_MASK;
+			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+		}
 	} else {
 		/*
-		 * Check the mantissa upper two bits are not zero, unless the
-		 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
+		 * Special case for PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
+		 * the threshold control bits are used for the match value.
 		 */
-		unsigned int cmp, exp;
+		if (event_is_fab_match(event)) {
+			mask  |= CNST_FAB_MATCH_MASK;
+			value |= CNST_FAB_MATCH_VAL(event >> EVENT_THR_CTL_SHIFT);
+		} else {
+			if (!is_thresh_cmp_valid(event))
+				return -1;
 
-		cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
-		exp = cmp >> 7;
-
-		if (exp && (cmp & 0x60) == 0)
-			return -1;
-
-		mask  |= CNST_THRESH_MASK;
-		value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+			mask  |= CNST_THRESH_MASK;
+			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+		}
 	}
 
 	if (!pmc && ebb)
@@ -155,15 +251,13 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			pmc_inuse |= 1 << pmc;
 	}
 
-	/* In continuous sampling mode, update SDAR on TLB miss */
-	mmcra = MMCRA_SDAR_MODE_TLB;
-	mmcr1 = mmcr2 = 0;
+	mmcra = mmcr1 = mmcr2 = 0;
 
 	/* Second pass: assign PMCs, set all MMCR1 fields */
 	for (i = 0; i < n_ev; ++i) {
 		pmc     = (event[i] >> EVENT_PMC_SHIFT) & EVENT_PMC_MASK;
 		unit    = (event[i] >> EVENT_UNIT_SHIFT) & EVENT_UNIT_MASK;
-		combine = (event[i] >> EVENT_COMBINE_SHIFT) & EVENT_COMBINE_MASK;
+		combine = combine_from_event(event[i]);
 		psel    =  event[i] & EVENT_PSEL_MASK;
 
 		if (!pmc) {
@@ -177,9 +271,12 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 
 		if (pmc <= 4) {
 			mmcr1 |= unit << MMCR1_UNIT_SHIFT(pmc);
-			mmcr1 |= combine << MMCR1_COMBINE_SHIFT(pmc);
+			mmcr1 |= combine << combine_shift(pmc);
 			mmcr1 |= psel << MMCR1_PMCSEL_SHIFT(pmc);
 		}
+
+		/* In continuous sampling mode, update SDAR on TLB miss */
+		mmcra |= mmcra_sdar_mode(event[i]);
 
 		if (event[i] & EVENT_IS_L1) {
 			cache = event[i] >> EVENT_CACHE_SEL_SHIFT;
@@ -202,7 +299,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 		 * PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
 		 * the threshold bits are used for the match value.
 		 */
-		if (event_is_fab_match(event[i])) {
+		if (!cpu_has_feature(CPU_FTR_ARCH_300) && event_is_fab_match(event[i])) {
 			mmcr1 |= ((event[i] >> EVENT_THR_CTL_SHIFT) &
 				  EVENT_THR_CTL_MASK) << MMCR1_FAB_SHIFT;
 		} else {
@@ -211,7 +308,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			val = (event[i] >> EVENT_THR_SEL_SHIFT) & EVENT_THR_SEL_MASK;
 			mmcra |= val << MMCRA_THR_SEL_SHIFT;
 			val = (event[i] >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
-			mmcra |= val << MMCRA_THR_CMP_SHIFT;
+			mmcra |= thresh_cmp_val(val);
 		}
 
 		if (event[i] & EVENT_WANTS_BHRB) {
@@ -260,4 +357,40 @@ void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 {
 	if (pmc <= 3)
 		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SHIFT(pmc + 1));
+}
+
+static int find_alternative(u64 event, const unsigned int ev_alt[][MAX_ALT], int size)
+{
+	int i, j;
+
+	for (i = 0; i < size; ++i) {
+		if (event < ev_alt[i][0])
+			break;
+
+		for (j = 0; j < MAX_ALT && ev_alt[i][j]; ++j)
+			if (event == ev_alt[i][j])
+				return i;
+	}
+
+	return -1;
+}
+
+int isa207_get_alternatives(u64 event, u64 alt[],
+				const unsigned int ev_alt[][MAX_ALT], int size)
+{
+	int i, j, num_alt = 0;
+	u64 alt_event;
+
+	alt[num_alt++] = event;
+	i = find_alternative(event, ev_alt, size);
+	if (i >= 0) {
+		/* Filter out the original event, it's already in alt[0] */
+		for (j = 0; j < MAX_ALT; ++j) {
+			alt_event = ev_alt[i][j];
+			if (alt_event && alt_event != event)
+				alt[num_alt++] = alt_event;
+		}
+	}
+
+	return num_alt;
 }

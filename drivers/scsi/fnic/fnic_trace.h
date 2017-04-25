@@ -72,7 +72,7 @@ struct fnic_trace_data {
 typedef struct fnic_trace_data fnic_trace_data_t;
 
 struct fc_trace_hdr {
-	struct timespec time_stamp;
+	struct timespec64 time_stamp;
 	u32 host_no;
 	u8 frame_type;
 	u8 frame_len;

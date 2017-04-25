@@ -31,10 +31,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -4326,8 +4322,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 			/* Frame end */
 			if ((in[9] + 1) * 8 != gspca_dev->pixfmt.width ||
 			    (in[10] + 1) * 8 != gspca_dev->pixfmt.height) {
-				PERR("Invalid frame size, got: %dx%d,"
-					" requested: %dx%d\n",
+				PERR("Invalid frame size, got: %dx%d, requested: %dx%d\n",
 					(in[9] + 1) * 8, (in[10] + 1) * 8,
 					gspca_dev->pixfmt.width,
 					gspca_dev->pixfmt.height);

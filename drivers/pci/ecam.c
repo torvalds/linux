@@ -162,3 +162,15 @@ struct pci_ecam_ops pci_generic_ecam_ops = {
 		.write		= pci_generic_config_write,
 	}
 };
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
+/* ECAM ops for 32-bit access only (non-compliant) */
+struct pci_ecam_ops pci_32b_ops = {
+	.bus_shift	= 20,
+	.pci_ops	= {
+		.map_bus	= pci_ecam_map_bus,
+		.read		= pci_generic_config_read32,
+		.write		= pci_generic_config_write32,
+	}
+};
+#endif

@@ -102,7 +102,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
-	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS];
+	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS], mb[DW_DMA_MAX_NR_CHANNELS];
 	u32 nr_masters;
 	u32 nr_channels;
 
@@ -118,6 +118,8 @@ dw_dma_parse_dt(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "dma-channels", &nr_channels))
 		return NULL;
+	if (nr_channels > DW_DMA_MAX_NR_CHANNELS)
+		return NULL;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -128,6 +130,12 @@ dw_dma_parse_dt(struct platform_device *pdev)
 
 	if (of_property_read_bool(np, "is_private"))
 		pdata->is_private = true;
+
+	/*
+	 * All known devices, which use DT for configuration, support
+	 * memory-to-memory transfers. So enable it by default.
+	 */
+	pdata->is_memcpy = true;
 
 	if (!of_property_read_u32(np, "chan_allocation_order", &tmp))
 		pdata->chan_allocation_order = (unsigned char)tmp;
@@ -144,6 +152,14 @@ dw_dma_parse_dt(struct platform_device *pdev)
 	} else if (!of_property_read_u32_array(np, "data_width", arr, nr_masters)) {
 		for (tmp = 0; tmp < nr_masters; tmp++)
 			pdata->data_width[tmp] = BIT(arr[tmp] & 0x07);
+	}
+
+	if (!of_property_read_u32_array(np, "multi-block", mb, nr_channels)) {
+		for (tmp = 0; tmp < nr_channels; tmp++)
+			pdata->multi_block[tmp] = mb[tmp];
+	} else {
+		for (tmp = 0; tmp < nr_channels; tmp++)
+			pdata->multi_block[tmp] = 1;
 	}
 
 	return pdata;
@@ -186,6 +202,7 @@ static int dw_probe(struct platform_device *pdev)
 		pdata = dw_dma_parse_dt(pdev);
 
 	chip->dev = dev;
+	chip->id = pdev->id;
 	chip->pdata = pdata;
 
 	chip->clk = devm_clk_get(chip->dev, "hclk");

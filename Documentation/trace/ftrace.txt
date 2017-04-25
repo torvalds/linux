@@ -362,6 +362,26 @@ of ftrace. Here is a list of some of the key files:
 		  to correlate events across hypervisor/guest if
 		  tb_offset is known.
 
+	  mono: This uses the fast monotonic clock (CLOCK_MONOTONIC)
+		which is monotonic and is subject to NTP rate adjustments.
+
+	  mono_raw:
+		This is the raw monotonic clock (CLOCK_MONOTONIC_RAW)
+		which is montonic but is not subject to any rate adjustments
+		and ticks at the same rate as the hardware clocksource.
+
+	  boot: This is the boot clock (CLOCK_BOOTTIME) and is based on the
+		fast monotonic clock, but also accounts for time spent in
+		suspend. Since the clock access is designed for use in
+		tracing in the suspend path, some side effects are possible
+		if clock is accessed after the suspend time is accounted before
+		the fast mono clock is updated. In this case, the clock update
+		appears to happen slightly sooner than it normally would have.
+		Also on 32-bit systems, it's possible that the 64-bit boot offset
+		sees a partial update. These effects are rare and post
+		processing should be able to handle them. See comments in the
+		ktime_get_boot_fast_ns() function for more information.
+
 	To set a clock, simply echo the clock name into this file.
 
 	  echo global > trace_clock
@@ -395,6 +415,12 @@ of ftrace. Here is a list of some of the key files:
 	start:
 
 		trace_fd = open("trace_marker", WR_ONLY);
+
+  trace_marker_raw:
+
+	This is similar to trace_marker above, but is meant for for binary data
+	to be written to it, where a tool can be used to parse the data
+	from trace_pipe_raw.
 
   uprobe_events:
  
@@ -2218,16 +2244,13 @@ hrtimer_interrupt
 sys_nanosleep
 
 
-Perhaps this is not enough. The filters also allow simple wild
-cards. Only the following are currently available
+Perhaps this is not enough. The filters also allow glob(7) matching.
 
   <match>*  - will match functions that begin with <match>
   *<match>  - will match functions that end with <match>
   *<match>* - will match functions that have <match> in it
-
-These are the only wild cards which are supported.
-
-  <match>*<match> will not work.
+  <match1>*<match2> - will match functions that begin with
+                      <match1> and end with <match2>
 
 Note: It is better to use quotes to enclose the wild cards,
       otherwise the shell may expand the parameters into names

@@ -20,6 +20,7 @@
 #ifndef _MWIFIEX_USB_H
 #define _MWIFIEX_USB_H
 
+#include <linux/completion.h>
 #include <linux/usb.h>
 
 #define USB8XXX_VID		0x1286
@@ -75,6 +76,7 @@ struct usb_card_rec {
 	struct mwifiex_adapter *adapter;
 	struct usb_device *udev;
 	struct usb_interface *intf;
+	struct completion fw_done;
 	u8 rx_cmd_ep;
 	struct urb_context rx_cmd;
 	atomic_t rx_cmd_urb_pending;

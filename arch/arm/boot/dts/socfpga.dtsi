@@ -93,6 +93,14 @@
 			};
 		};
 
+		base_fpga_region {
+			compatible = "fpga-region";
+			fpga-mgr = <&fpgamgr0>;
+
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+		};
+
 		can0: can@ffc00000 {
 			compatible = "bosch,d_can";
 			reg = <0xffc00000 0x1000>;
@@ -513,10 +521,24 @@
 				};
 		};
 
+		fpga_bridge0: fpga_bridge@ff400000 {
+			compatible = "altr,socfpga-lwhps2fpga-bridge";
+			reg = <0xff400000 0x100000>;
+			resets = <&rst LWHPS2FPGA_RESET>;
+			clocks = <&l4_main_clk>;
+		};
+
+		fpga_bridge1: fpga_bridge@ff500000 {
+			compatible = "altr,socfpga-hps2fpga-bridge";
+			reg = <0xff500000 0x10000>;
+			resets = <&rst HPS2FPGA_RESET>;
+			clocks = <&l4_main_clk>;
+		};
+
 		fpgamgr0: fpgamgr@ff706000 {
 			compatible = "altr,socfpga-fpga-mgr";
 			reg = <0xff706000 0x1000
-			       0xffb90000 0x1000>;
+			       0xffb90000 0x4>;
 			interrupts = <0 175 4>;
 		};
 
@@ -686,6 +708,17 @@
 			arm,data-latency = <2 1 1>;
 			prefetch-data = <1>;
 			prefetch-instr = <1>;
+			arm,shared-override;
+			arm,double-linefill = <1>;
+			arm,double-linefill-incr = <0>;
+			arm,double-linefill-wrap = <1>;
+			arm,prefetch-drop = <0>;
+			arm,prefetch-offset = <7>;
+		};
+
+		l3regs@0xff800000 {
+			compatible = "altr,l3regs", "syscon";
+			reg = <0xff800000 0x1000>;
 		};
 
 		mmc: dwmmc0@ff704000 {
@@ -700,9 +733,36 @@
 			status = "disabled";
 		};
 
+		nand0: nand@ff900000 {
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+			compatible = "denali,denali-nand-dt";
+			reg = <0xff900000 0x100000>,
+			      <0xffb80000 0x10000>;
+			reg-names = "nand_data", "denali_reg";
+			interrupts = <0x0 0x90 0x4>;
+			dma-mask = <0xffffffff>;
+			clocks = <&nand_clk>;
+			status = "disabled";
+		};
+
 		ocram: sram@ffff0000 {
 			compatible = "mmio-sram";
 			reg = <0xffff0000 0x10000>;
+		};
+
+		qspi: spi@ff705000 {
+			compatible = "cdns,qspi-nor";
+                        #address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xff705000 0x1000>,
+			      <0xffa00000 0x1000>;
+			interrupts = <0 151 4>;
+			cdns,fifo-depth = <128>;
+			cdns,fifo-width = <4>;
+			cdns,trigger-address = <0x00000000>;
+			clocks = <&qspi_clk>;
+			status = "disabled";
 		};
 
 		rst: rstmgr@ffd05000 {
@@ -718,7 +778,7 @@
 		};
 
 		sdr: sdr@ffc25000 {
-			compatible = "syscon";
+			compatible = "altr,sdr-ctl", "syscon";
 			reg = <0xffc25000 0x1000>;
 		};
 

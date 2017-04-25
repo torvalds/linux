@@ -33,7 +33,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/semaphore.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sem.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -61,15 +61,6 @@ static inline u32 end_of_queue_search(struct list_head *head,
 		struct list_head *plist)
 {
 	return (head == plist);
-}
-
-static inline void sleep_schedulable(int ms)
-{
-	u32 delta;
-
-	delta = msecs_to_jiffies(ms);/*(ms)*/
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(delta);
 }
 
 static inline void flush_signals_thread(void)

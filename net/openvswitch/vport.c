@@ -463,27 +463,11 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	ovs_dp_process_packet(skb, &key);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ovs_vport_receive);
 
-static void free_vport_rcu(struct rcu_head *rcu)
+static unsigned int packet_length(const struct sk_buff *skb,
+				  struct net_device *dev)
 {
-	struct vport *vport = container_of(rcu, struct vport, rcu);
-
-	ovs_vport_free(vport);
-}
-
-void ovs_vport_deferred_free(struct vport *vport)
-{
-	if (!vport)
-		return;
-
-	call_rcu(&vport->rcu, free_vport_rcu);
-}
-EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
-
-static unsigned int packet_length(const struct sk_buff *skb)
-{
-	unsigned int length = skb->len - ETH_HLEN;
+	unsigned int length = skb->len - dev->hard_header_len;
 
 	if (!skb_vlan_tag_present(skb) &&
 	    eth_type_vlan(skb->protocol))
@@ -497,14 +481,34 @@ static unsigned int packet_length(const struct sk_buff *skb)
 	return length;
 }
 
-void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto)
 {
 	int mtu = vport->dev->mtu;
 
-	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
+	switch (vport->dev->type) {
+	case ARPHRD_NONE:
+		if (mac_proto == MAC_PROTO_ETHERNET) {
+			skb_reset_network_header(skb);
+			skb_reset_mac_len(skb);
+			skb->protocol = htons(ETH_P_TEB);
+		} else if (mac_proto != MAC_PROTO_NONE) {
+			WARN_ON_ONCE(1);
+			goto drop;
+		}
+		break;
+	case ARPHRD_ETHER:
+		if (mac_proto != MAC_PROTO_ETHERNET)
+			goto drop;
+		break;
+	default:
+		goto drop;
+	}
+
+	if (unlikely(packet_length(skb, vport->dev) > mtu &&
+		     !skb_is_gso(skb))) {
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
 				     vport->dev->name,
-				     packet_length(skb), mtu);
+				     packet_length(skb, vport->dev), mtu);
 		vport->dev->stats.tx_errors++;
 		goto drop;
 	}

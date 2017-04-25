@@ -283,7 +283,7 @@ static int __init msi_wmi_input_setup(void)
 	if (err)
 		goto err_free_keymap;
 
-	last_pressed = ktime_set(0, 0);
+	last_pressed = 0;
 
 	return 0;
 

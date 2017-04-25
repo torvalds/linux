@@ -315,7 +315,7 @@ static void transfer_file(int fd, char *filename)
 		pabort("can't stat input file");
 
 	tx_fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	if (tx_fd < 0)
 		pabort("can't open input file");
 
 	tx = malloc(sb.st_size);

@@ -547,3 +547,11 @@ struct omap_hwmod_ocp_if am33xx_l3_main__aes0 = {
 	.addr		= am33xx_aes0_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
+
+/* l4 per -> rng */
+struct omap_hwmod_ocp_if am33xx_l4_per__rng = {
+	.master		= &am33xx_l4_ls_hwmod,
+	.slave		= &am33xx_rng_hwmod,
+	.clk		= "rng_fck",
+	.user		= OCP_USER_MPU,
+};

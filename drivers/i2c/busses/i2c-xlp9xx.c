@@ -334,7 +334,7 @@ static u32 xlp9xx_i2c_functionality(struct i2c_adapter *adapter)
 		I2C_FUNC_10BIT_ADDR;
 }
 
-static struct i2c_algorithm xlp9xx_i2c_algo = {
+static const struct i2c_algorithm xlp9xx_i2c_algo = {
 	.master_xfer = xlp9xx_i2c_xfer,
 	.functionality = xlp9xx_i2c_functionality,
 };
@@ -393,6 +393,7 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	init_completion(&priv->msg_complete);
 	priv->adapter.dev.parent = &pdev->dev;
 	priv->adapter.algo = &xlp9xx_i2c_algo;
+	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	priv->adapter.dev.of_node = pdev->dev.of_node;
 	priv->dev = &pdev->dev;
 

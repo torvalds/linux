@@ -986,6 +986,7 @@ static void rcar_dmac_free_chan_resources(struct dma_chan *chan)
 {
 	struct rcar_dmac_chan *rchan = to_rcar_dmac_chan(chan);
 	struct rcar_dmac *dmac = to_rcar_dmac(chan->device);
+	struct rcar_dmac_chan_map *map = &rchan->map;
 	struct rcar_dmac_desc_page *page, *_page;
 	struct rcar_dmac_desc *desc;
 	LIST_HEAD(list);
@@ -1017,6 +1018,13 @@ static void rcar_dmac_free_chan_resources(struct dma_chan *chan)
 	list_for_each_entry_safe(page, _page, &rchan->desc.pages, node) {
 		list_del(&page->node);
 		free_page((unsigned long)page);
+	}
+
+	/* Remove slave mapping if present. */
+	if (map->slave.xfer_size) {
+		dma_unmap_resource(chan->device->dev, map->addr,
+				   map->slave.xfer_size, map->dir, 0);
+		map->slave.xfer_size = 0;
 	}
 
 	pm_runtime_put(chan->device->dev);
@@ -1716,6 +1724,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 
 	dmac->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dmac);
+	dma_set_mask_and_coherent(dmac->dev, DMA_BIT_MASK(40));
 
 	ret = rcar_dmac_parse_of(&pdev->dev, dmac);
 	if (ret < 0)

@@ -383,14 +383,6 @@
 #define CLK_X  5
 #define CLK_MULTI 4
 
-/* spectraswconfig.h */
-#define CMD_DMA 0
-
-#define SPECTRA_PARTITION_ID    0
-/**** Block Table and Reserved Block Parameters *****/
-#define SPECTRA_START_BLOCK     3
-#define NUM_FREE_BLOCKS_GATE    30
-
 /* KBV - Updated to LNW scratch register address */
 #define SCRATCH_REG_ADDR    CONFIG_MTD_NAND_DENALI_SCRATCH_REG_ADDR
 #define SCRATCH_REG_SIZE    64
@@ -467,13 +459,9 @@ struct denali_nand_info {
 	spinlock_t irq_lock;
 	uint32_t irq_status;
 	int irq_debug_array[32];
-	int idx;
 	int irq;
 
 	uint32_t devnum;	/* represent how many nands connected */
-	uint32_t fwblks; /* represent how many blocks FW used */
-	uint32_t totalblks;
-	uint32_t blksperchip;
 	uint32_t bbtskipbytes;
 	uint32_t max_banks;
 };

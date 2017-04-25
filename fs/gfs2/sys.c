@@ -10,12 +10,13 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/genhd.h>
 

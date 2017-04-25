@@ -5,8 +5,10 @@
  * (C) Copyright 2002,2004 IBM Corp.
  * (C) Copyright 2006 Novell Inc.
  *
- * Endpoint sysfs stuff
+ * Released under the GPLv2 only.
+ * SPDX-License-Identifier: GPL-2.0
  *
+ * Endpoint sysfs stuff
  */
 
 #include <linux/kernel.h>
@@ -50,8 +52,7 @@ static ssize_t wMaxPacketSize_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct ep_device *ep = to_ep_device(dev);
-	return sprintf(buf, "%04x\n",
-			usb_endpoint_maxp(ep->desc) & 0x07ff);
+	return sprintf(buf, "%04x\n", usb_endpoint_maxp(ep->desc));
 }
 static DEVICE_ATTR_RO(wMaxPacketSize);
 

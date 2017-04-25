@@ -46,6 +46,8 @@ struct clp_fh_list_entry {
 #define CLP_UTIL_STR_LEN	64
 #define CLP_PFIP_NR_SEGMENTS	4
 
+extern bool zpci_unique_uid;
+
 /* List PCI functions request */
 struct clp_req_list_pci {
 	struct clp_req_hdr hdr;
@@ -59,7 +61,8 @@ struct clp_rsp_list_pci {
 	u64 resume_token;
 	u32 reserved2;
 	u16 max_fn;
-	u8 reserved3;
+	u8			: 7;
+	u8 uid_checking		: 1;
 	u8 entry_size;
 	struct clp_fh_list_entry fh_list[CLP_FH_LIST_NR_ENTRIES];
 } __packed;
@@ -82,9 +85,10 @@ struct clp_rsp_query_pci {
 	u32 fid;			/* pci function id */
 	u8 bar_size[PCI_BAR_COUNT];
 	u16 pchid;
-	u32 bar[PCI_BAR_COUNT];
+	__le32 bar[PCI_BAR_COUNT];
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
-	u32			: 24;
+	u32			: 16;
+	u8 fmb_len;
 	u8 pft;				/* pci function type */
 	u64 sdma;			/* start dma as */
 	u64 edma;			/* end dma as */

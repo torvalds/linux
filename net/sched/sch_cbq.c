@@ -19,6 +19,7 @@
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 
 /*	Class-Based Queueing (CBQ) algorithm.
@@ -122,7 +123,7 @@ struct cbq_class {
 	psched_time_t		penalized;
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
-	struct gnet_stats_rate_est64 rate_est;
+	struct net_rate_estimator __rcu *rate_est;
 	struct tc_cbq_xstats	xstats;
 
 	struct tcf_proto __rcu	*filter_list;
@@ -509,7 +510,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	if (delay) {
 		ktime_t time;
 
-		time = ktime_set(0, 0);
+		time = 0;
 		time = ktime_add_ns(time, PSCHED_TICKS2NS(now + delay));
 		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS_PINNED);
 	}
@@ -1346,7 +1347,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
-	    gnet_stats_copy_rate_est(d, &cl->bstats, &cl->rate_est) < 0 ||
+	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
 	    gnet_stats_copy_queue(d, NULL, &cl->qstats, cl->q->q.qlen) < 0)
 		return -1;
 
@@ -1405,7 +1406,7 @@ static void cbq_destroy_class(struct Qdisc *sch, struct cbq_class *cl)
 	tcf_destroy_chain(&cl->filter_list);
 	qdisc_destroy(cl->q);
 	qdisc_put_rtab(cl->R_tab);
-	gen_kill_estimator(&cl->bstats, &cl->rate_est);
+	gen_kill_estimator(&cl->rate_est);
 	if (cl != &q->link)
 		kfree(cl);
 }

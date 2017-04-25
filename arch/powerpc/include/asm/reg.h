@@ -153,6 +153,8 @@
 #define PSSCR_EC		0x00100000 /* Exit Criterion */
 #define PSSCR_ESL		0x00200000 /* Enable State Loss */
 #define PSSCR_SD		0x00400000 /* Status Disable */
+#define PSSCR_PLS	0xf000000000000000 /* Power-saving Level Status */
+#define PSSCR_GUEST_VIS	0xf0000000000003ff /* Guest-visible PSSCR fields */
 
 /* Floating Point Status and Control Register (FPSCR) Fields */
 #define FPSCR_FX	0x80000000	/* FPU exception summary */
@@ -236,6 +238,7 @@
 #define SPRN_TEXASRU	0x83	/* ''	   ''	   ''	 Upper 32  */
 #define   TEXASR_FS	__MASK(63-36) /* TEXASR Failure Summary */
 #define SPRN_TFHAR	0x80	/* Transaction Failure Handler Addr */
+#define SPRN_TIDR	144	/* Thread ID register */
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
 #define   CTRL_CT	0xc0000000	/* current thread */
@@ -271,10 +274,14 @@
 #define SPRN_DSISR	0x012	/* Data Storage Interrupt Status Register */
 #define   DSISR_NOHPTE		0x40000000	/* no translation found */
 #define   DSISR_PROTFAULT	0x08000000	/* protection fault */
+#define   DSISR_BADACCESS	0x04000000	/* bad access to CI or G */
 #define   DSISR_ISSTORE		0x02000000	/* access was a store */
 #define   DSISR_DABRMATCH	0x00400000	/* hit data breakpoint */
 #define   DSISR_NOSEGMENT	0x00200000	/* SLB miss */
 #define   DSISR_KEYFAULT	0x00200000	/* Key fault */
+#define   DSISR_UNSUPP_MMU	0x00080000	/* Unsupported MMU config */
+#define   DSISR_SET_RC		0x00040000	/* Failed setting of R/C bits */
+#define   DSISR_PGDIRFAULT      0x00020000      /* Fault on page directory */
 #define SPRN_TBRL	0x10C	/* Time Base Read Lower Register (user, R/O) */
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define SPRN_CIR	0x11B	/* Chip Information Register (hyper, R/0) */
@@ -292,8 +299,7 @@
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
 #define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
-#define SPRN_LMRR	0x32D	/* Load Monitor Region Register */
-#define SPRN_LMSER	0x32E	/* Load Monitor Section Enable Register */
+#define SPRN_ASDR	0x330	/* Access segment descriptor register */
 #define SPRN_IC		0x350	/* Virtual Instruction Count */
 #define SPRN_VTB	0x351	/* Virtual Time Base */
 #define SPRN_LDBAR	0x352	/* LD Base Address Register */
@@ -304,7 +310,7 @@
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
 
 /* HFSCR and FSCR bit numbers are the same */
-#define FSCR_LM_LG	11	/* Enable Load Monitor Registers */
+#define FSCR_MSGP_LG	10	/* Enable MSGP */
 #define FSCR_TAR_LG	8	/* Enable Target Address Register */
 #define FSCR_EBB_LG	7	/* Enable Event Based Branching */
 #define FSCR_TM_LG	5	/* Enable Transactional Memory */
@@ -314,12 +320,11 @@
 #define FSCR_VECVSX_LG	1	/* Enable VMX/VSX  */
 #define FSCR_FP_LG	0	/* Enable Floating Point */
 #define SPRN_FSCR	0x099	/* Facility Status & Control Register */
-#define   FSCR_LM	__MASK(FSCR_LM_LG)
 #define   FSCR_TAR	__MASK(FSCR_TAR_LG)
 #define   FSCR_EBB	__MASK(FSCR_EBB_LG)
 #define   FSCR_DSCR	__MASK(FSCR_DSCR_LG)
 #define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
-#define   HFSCR_LM	__MASK(FSCR_LM_LG)
+#define   HFSCR_MSGP	__MASK(FSCR_MSGP_LG)
 #define   HFSCR_TAR	__MASK(FSCR_TAR_LG)
 #define   HFSCR_EBB	__MASK(FSCR_EBB_LG)
 #define   HFSCR_TM	__MASK(FSCR_TM_LG)
@@ -337,7 +342,7 @@
 #define   LPCR_DPFD_SH		52
 #define   LPCR_DPFD		(ASM_CONST(7) << LPCR_DPFD_SH)
 #define   LPCR_VRMASD_SH	47
-#define   LPCR_VRMASD		(ASM_CONST(1) << LPCR_VRMASD_SH)
+#define   LPCR_VRMASD		(ASM_CONST(0x1f) << LPCR_VRMASD_SH)
 #define   LPCR_VRMA_L		ASM_CONST(0x0008000000000000)
 #define   LPCR_VRMA_LP0		ASM_CONST(0x0001000000000000)
 #define   LPCR_VRMA_LP1		ASM_CONST(0x0000800000000000)
@@ -358,6 +363,7 @@
 #define     LPCR_PECE_HVEE	ASM_CONST(0x0000400000000000)	/* P9 Wakeup on HV interrupts */
 #define   LPCR_MER		ASM_CONST(0x0000000000000800)	/* Mediated External Exception */
 #define   LPCR_MER_SH		11
+#define	  LPCR_GTSE		ASM_CONST(0x0000000000000400)  	/* Guest Translation Shootdown Enable */
 #define   LPCR_TC		ASM_CONST(0x0000000000000200)	/* Translation control */
 #define   LPCR_LPES		0x0000000c
 #define   LPCR_LPES0		ASM_CONST(0x0000000000000008)      /* LPAR Env selector 0 */
@@ -378,6 +384,12 @@
 #define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
 #define   PCR_VSX_DIS	(1ul << (63-1))	/* VSX disable (bit NA since POWER8) */
 #define   PCR_TM_DIS	(1ul << (63-2))	/* Trans. memory disable (POWER8) */
+/*
+ * These bits are used in the function kvmppc_set_arch_compat() to specify and
+ * determine both the compatibility level which we want to emulate and the
+ * compatibility level which the host is capable of emulating.
+ */
+#define   PCR_ARCH_207	0x8		/* Architecture 2.07 */
 #define   PCR_ARCH_206	0x4		/* Architecture 2.06 */
 #define   PCR_ARCH_205	0x2		/* Architecture 2.05 */
 #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */
@@ -540,7 +552,9 @@
 #define SPRN_IBAT7U	0x236		/* Instruction BAT 7 Upper Register */
 #define SPRN_ICMP	0x3D5		/* Instruction TLB Compare Register */
 #define SPRN_ICTC	0x3FB	/* Instruction Cache Throttling Control Reg */
+#ifndef SPRN_ICTRL
 #define SPRN_ICTRL	0x3F3	/* 1011 7450 icache and interrupt ctrl */
+#endif
 #define ICTRL_EICE	0x08000000	/* enable icache parity errs */
 #define ICTRL_EDC	0x04000000	/* enable dcache parity errs */
 #define ICTRL_EICP	0x00000100	/* enable icache par. check */
@@ -641,9 +655,10 @@
 #define   SRR1_ISI_N_OR_G	0x10000000 /* ISI: Access is no-exec or G */
 #define   SRR1_ISI_PROT		0x08000000 /* ISI: Other protection fault */
 #define   SRR1_WAKEMASK		0x00380000 /* reason for wakeup */
-#define   SRR1_WAKEMASK_P8	0x003c0000 /* reason for wakeup on POWER8 */
+#define   SRR1_WAKEMASK_P8	0x003c0000 /* reason for wakeup on POWER8 and 9 */
 #define   SRR1_WAKESYSERR	0x00300000 /* System error */
 #define   SRR1_WAKEEE		0x00200000 /* External interrupt */
+#define   SRR1_WAKEHVI		0x00240000 /* Hypervisor Virtualization Interrupt (P9) */
 #define   SRR1_WAKEMT		0x00280000 /* mtctrl */
 #define	  SRR1_WAKEHMI		0x00280000 /* Hypervisor maintenance */
 #define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
@@ -1219,6 +1234,7 @@
 #define PVR_ARCH_206	0x0f000003
 #define PVR_ARCH_206p	0x0f100003
 #define PVR_ARCH_207	0x0f000004
+#define PVR_ARCH_300	0x0f000005
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__

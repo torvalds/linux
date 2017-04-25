@@ -57,9 +57,6 @@ static void ll_release(struct dentry *de)
 
 	LASSERT(de);
 	lld = ll_d2d(de);
-	if (!lld) /* NFS copies the de->d_op methods (bug 4655) */
-		return;
-
 	if (lld->lld_it) {
 		ll_intent_release(lld->lld_it);
 		kfree(lld->lld_it);
@@ -126,30 +123,13 @@ static int ll_ddelete(const struct dentry *de)
 	return 0;
 }
 
-int ll_d_init(struct dentry *de)
+static int ll_d_init(struct dentry *de)
 {
-	CDEBUG(D_DENTRY, "ldd on dentry %pd (%p) parent %p inode %p refc %d\n",
-	       de, de, de->d_parent, d_inode(de), d_count(de));
-
-	if (!de->d_fsdata) {
-		struct ll_dentry_data *lld;
-
-		lld = kzalloc(sizeof(*lld), GFP_NOFS);
-		if (likely(lld)) {
-			spin_lock(&de->d_lock);
-			if (likely(!de->d_fsdata)) {
-				de->d_fsdata = lld;
-				__d_lustre_invalidate(de);
-			} else {
-				kfree(lld);
-			}
-			spin_unlock(&de->d_lock);
-		} else {
-			return -ENOMEM;
-		}
-	}
-	LASSERT(de->d_op == &ll_d_ops);
-
+	struct ll_dentry_data *lld = kzalloc(sizeof(*lld), GFP_KERNEL);
+	if (unlikely(!lld))
+		return -ENOMEM;
+	lld->lld_invalid = 1;
+	de->d_fsdata = lld;
 	return 0;
 }
 
@@ -267,16 +247,13 @@ static int ll_revalidate_dentry(struct dentry *dentry,
 		return 1;
 
 	/*
-	 * if open&create is set, talk to MDS to make sure file is created if
-	 * necessary, because we can't do this in ->open() later since that's
-	 * called on an inode. return 0 here to let lookup to handle this.
+	 * VFS warns us that this is the second go around and previous
+	 * operation failed (most likely open|creat), so this time
+	 * we better talk to the server via the lookup path by name,
+	 * not by fid.
 	 */
-	if ((lookup_flags & (LOOKUP_OPEN | LOOKUP_CREATE)) ==
-	    (LOOKUP_OPEN | LOOKUP_CREATE))
+	if (lookup_flags & LOOKUP_REVAL)
 		return 0;
-
-	if (lookup_flags & (LOOKUP_PARENT | LOOKUP_OPEN | LOOKUP_CREATE))
-		return 1;
 
 	if (!dentry_may_statahead(dir, dentry))
 		return 1;
@@ -300,6 +277,7 @@ static int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 }
 
 const struct dentry_operations ll_d_ops = {
+	.d_init = ll_d_init,
 	.d_revalidate = ll_revalidate_nd,
 	.d_release = ll_release,
 	.d_delete  = ll_ddelete,

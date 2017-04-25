@@ -620,14 +620,12 @@ error:
 static const struct net_device_ops br2684_netdev_ops = {
 	.ndo_start_xmit 	= br2684_start_xmit,
 	.ndo_set_mac_address	= br2684_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
 static const struct net_device_ops br2684_netdev_ops_routed = {
 	.ndo_start_xmit 	= br2684_start_xmit,
 	.ndo_set_mac_address	= br2684_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu
 };
 
 static void br2684_setup(struct net_device *netdev)
@@ -651,7 +649,9 @@ static void br2684_setup_routed(struct net_device *netdev)
 	netdev->hard_header_len = sizeof(llc_oui_ipv4); /* worst case */
 	netdev->netdev_ops = &br2684_netdev_ops_routed;
 	netdev->addr_len = 0;
-	netdev->mtu = 1500;
+	netdev->mtu = ETH_DATA_LEN;
+	netdev->min_mtu = 0;
+	netdev->max_mtu = ETH_MAX_MTU;
 	netdev->type = ARPHRD_PPP;
 	netdev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 	netdev->tx_queue_len = 100;

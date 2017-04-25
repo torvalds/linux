@@ -39,6 +39,7 @@ struct wilc_sdio {
 };
 
 static struct wilc_sdio g_sdio;
+static const struct wilc_hif_func wilc_hif_sdio;
 
 static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
 static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data);
@@ -79,7 +80,6 @@ static int wilc_sdio_cmd52(struct wilc *wilc, struct sdio_cmd52 *cmd)
 		dev_err(&func->dev, "wilc_sdio_cmd52..failed, err(%d)\n", ret);
 	return ret;
 }
-
 
 static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 {
@@ -126,7 +126,7 @@ static int linux_sdio_probe(struct sdio_func *func,
 
 	dev_dbg(&func->dev, "Initializing netdev\n");
 	ret = wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, gpio,
-			     &wilc_hif_sdio);
+			       &wilc_hif_sdio);
 	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
 		return ret;
@@ -914,7 +914,6 @@ static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 					__LINE__);
 				goto _fail_;
 			}
-
 		}
 	} else {
 		if (g_sdio.irq_gpio) {
@@ -944,7 +943,6 @@ static int sdio_clear_int_ext(struct wilc *wilc, u32 val)
 								__LINE__);
 							goto _fail_;
 						}
-
 					}
 					if (!ret)
 						break;
@@ -1100,7 +1098,7 @@ static int sdio_sync_ext(struct wilc *wilc, int nint)
  *
  ********************************************/
 
-const struct wilc_hif_func wilc_hif_sdio = {
+static const struct wilc_hif_func wilc_hif_sdio = {
 	.hif_init = sdio_init,
 	.hif_deinit = sdio_deinit,
 	.hif_read_reg = sdio_read_reg,

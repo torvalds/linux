@@ -1,0 +1,16 @@
+* Allwinner Codec Analog Controls
+
+Required properties:
+- compatible: must be one of the following compatibles:
+		- "allwinner,sun8i-a23-codec-analog"
+		- "allwinner,sun8i-h3-codec-analog"
+
+Required properties if not a sub-node of the PRCM node:
+- reg: must contain the registers location and length
+
+Example:
+prcm: prcm@01f01400 {
+	codec_analog: codec-analog {
+		compatible = "allwinner,sun8i-a23-codec-analog";
+	};
+};

@@ -1336,7 +1336,6 @@ static int genwqe_sriov_configure(struct pci_dev *dev, int numvfs)
 static struct pci_error_handlers genwqe_err_handler = {
 	.error_detected = genwqe_err_error_detected,
 	.mmio_enabled	= genwqe_err_result_none,
-	.link_reset	= genwqe_err_result_none,
 	.slot_reset	= genwqe_err_slot_reset,
 	.resume		= genwqe_err_resume,
 };

@@ -108,7 +108,7 @@ static int ipmi_fasync(int fd, struct file *file, int on)
 	return (result);
 }
 
-static struct ipmi_user_hndl ipmi_hndlrs =
+static const struct ipmi_user_hndl ipmi_hndlrs =
 {
 	.ipmi_recv_hndl	= file_receive_handler,
 };
@@ -989,4 +989,3 @@ module_exit(cleanup_ipmi);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
 MODULE_DESCRIPTION("Linux device interface for the IPMI message handler.");
-MODULE_ALIAS("platform:ipmi_si");

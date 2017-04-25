@@ -101,13 +101,15 @@ err_db_free:
 
 int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		     void *cqc, struct mlx5_cqwq *wq,
-		     struct mlx5_wq_ctrl *wq_ctrl)
+		     struct mlx5_frag_wq_ctrl *wq_ctrl)
 {
 	int err;
 
-	wq->log_stride = 6 + MLX5_GET(cqc, cqc, cqe_sz);
-	wq->log_sz = MLX5_GET(cqc, cqc, log_cq_size);
-	wq->sz_m1 = (1 << wq->log_sz) - 1;
+	wq->log_stride	= 6 + MLX5_GET(cqc, cqc, cqe_sz);
+	wq->log_sz	= MLX5_GET(cqc, cqc, log_cq_size);
+	wq->sz_m1	= (1 << wq->log_sz) - 1;
+	wq->log_frag_strides = PAGE_SHIFT - wq->log_stride;
+	wq->frag_sz_m1	= (1 << wq->log_frag_strides) - 1;
 
 	err = mlx5_db_alloc_node(mdev, &wq_ctrl->db, param->db_numa_node);
 	if (err) {
@@ -115,14 +117,16 @@ int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		return err;
 	}
 
-	err = mlx5_buf_alloc_node(mdev, mlx5_cqwq_get_byte_size(wq),
-				  &wq_ctrl->buf, param->buf_numa_node);
+	err = mlx5_frag_buf_alloc_node(mdev, mlx5_cqwq_get_byte_size(wq),
+				       &wq_ctrl->frag_buf,
+				       param->buf_numa_node);
 	if (err) {
-		mlx5_core_warn(mdev, "mlx5_buf_alloc_node() failed, %d\n", err);
+		mlx5_core_warn(mdev, "mlx5_frag_buf_alloc_node() failed, %d\n",
+			       err);
 		goto err_db_free;
 	}
 
-	wq->buf = wq_ctrl->buf.direct.buf;
+	wq->frag_buf = wq_ctrl->frag_buf;
 	wq->db  = wq_ctrl->db.db;
 
 	wq_ctrl->mdev = mdev;
@@ -182,5 +186,11 @@ err_db_free:
 void mlx5_wq_destroy(struct mlx5_wq_ctrl *wq_ctrl)
 {
 	mlx5_buf_free(wq_ctrl->mdev, &wq_ctrl->buf);
+	mlx5_db_free(wq_ctrl->mdev, &wq_ctrl->db);
+}
+
+void mlx5_cqwq_destroy(struct mlx5_frag_wq_ctrl *wq_ctrl)
+{
+	mlx5_frag_buf_free(wq_ctrl->mdev, &wq_ctrl->frag_buf);
 	mlx5_db_free(wq_ctrl->mdev, &wq_ctrl->db);
 }

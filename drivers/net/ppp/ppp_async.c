@@ -34,7 +34,7 @@
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/string.h>
 
 #define PPP_VERSION	"2.4.2"

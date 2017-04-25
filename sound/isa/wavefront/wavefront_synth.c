@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/firmware.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>

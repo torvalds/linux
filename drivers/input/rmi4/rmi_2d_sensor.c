@@ -144,8 +144,13 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 	int input_flags = 0;
 
 	if (sensor->report_abs) {
-		if (sensor->axis_align.swap_axes)
+		if (sensor->axis_align.swap_axes) {
 			swap(sensor->max_x, sensor->max_y);
+			swap(sensor->axis_align.clip_x_low,
+			     sensor->axis_align.clip_y_low);
+			swap(sensor->axis_align.clip_x_high,
+			     sensor->axis_align.clip_y_high);
+		}
 
 		sensor->min_x = sensor->axis_align.clip_x_low;
 		if (sensor->axis_align.clip_x_high)
@@ -177,10 +182,12 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 				sensor->dmax = DMAX * res_x;
 		}
 
-		input_set_abs_params(input, ABS_MT_PRESSURE, 0,	0xff, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,	0, 0x0f, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MINOR,	0, 0x0f, 0, 0);
-		input_set_abs_params(input, ABS_MT_ORIENTATION,	0, 1, 0, 0);
+		input_set_abs_params(input, ABS_MT_PRESSURE, 0, 0xff, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 0x0f, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 0x0f, 0, 0);
+		input_set_abs_params(input, ABS_MT_ORIENTATION, 0, 1, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOOL_TYPE,
+				     0, MT_TOOL_MAX, 0, 0);
 
 		if (sensor->sensor_type == rmi_sensor_touchpad)
 			input_flags = INPUT_MT_POINTER;

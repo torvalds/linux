@@ -246,21 +246,12 @@ tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
 tcp_early_retrans - INTEGER
-	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
-	for triggering fast retransmit when the amount of outstanding data is
-	small and when no previously unsent data can be transmitted (such
-	that limited transmit could be used). Also controls the use of
-	Tail loss probe (TLP) that converts RTOs occurring due to tail
-	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
+	Tail loss probe (TLP) converts RTOs occurring due to tail
+	losses into fast recovery (draft-ietf-tcpm-rack). Note that
+	TLP requires RACK to function properly (see tcp_recovery below)
 	Possible values:
-		0 disables ER
-		1 enables ER
-		2 enables ER but delays fast recovery and fast retransmit
-		  by a fourth of RTT. This mitigates connection falsely
-		  recovers when network has a small degree of reordering
-		  (less than 3 packets).
-		3 enables delayed ER and TLP.
-		4 enables TLP only.
+		0 disables TLP
+		3 or 4 enables TLP
 	Default: 3
 
 tcp_ecn - INTEGER
@@ -610,8 +601,13 @@ tcp_syn_retries - INTEGER
 	with the current initial RTO of 1second. With this the final timeout
 	for an active TCP connection attempt will happen after 127seconds.
 
-tcp_timestamps - BOOLEAN
-	Enable timestamps as defined in RFC1323.
+tcp_timestamps - INTEGER
+Enable timestamps as defined in RFC1323.
+	0: Disabled.
+	1: Enable timestamps as defined in RFC1323 and use random offset for
+	each connection rather than only using the current time.
+	2: Like 1, but without random offsets.
+	Default: 1
 
 tcp_min_tso_segs - INTEGER
 	Minimal number of segments per TSO frame.
@@ -707,18 +703,6 @@ tcp_thin_linear_timeouts - BOOLEAN
 	Documentation/networking/tcp-thin.txt
 	Default: 0
 
-tcp_thin_dupack - BOOLEAN
-	Enable dynamic triggering of retransmissions after one dupACK
-	for thin streams. If set, a check is performed upon reception
-	of a dupACK to determine if the stream is thin (less than 4
-	packets in flight). As long as the stream is found to be thin,
-	data is retransmitted on the first received dupACK. This
-	improves retransmission latency for non-aggressive thin
-	streams, often found to be time-dependent.
-	For more information on thin streams, see
-	Documentation/networking/tcp-thin.txt
-	Default: 0
-
 tcp_limit_output_bytes - INTEGER
 	Controls TCP Small Queue limit per tcp socket.
 	TCP bulk sender tends to increase packets in flight until it
@@ -736,6 +720,13 @@ tcp_challenge_ack_limit - INTEGER
 	Default: 100
 
 UDP variables:
+
+udp_l3mdev_accept - BOOLEAN
+	Enabling this option allows a "global" bound socket to work
+	across L3 master domains (e.g., VRFs) with packets capable of
+	being received regardless of the L3 domain in which they
+	originated. Only valid when the kernel was compiled with
+	CONFIG_NET_L3_MASTER_DEV.
 
 udp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all UDP sockets.
@@ -837,6 +828,15 @@ ip_local_reserved_ports - list of comma separated ranges
 	include the reserved ports.
 
 	Default: Empty
+
+ip_unprivileged_port_start - INTEGER
+	This is a per-namespace sysctl.  It defines the first
+	unprivileged port in the network namespace.  Privileged ports
+	require root or CAP_NET_BIND_SERVICE in order to bind to them.
+	To disable all privileged ports, set this to 0.  It may not
+	overlap with the ip_local_reserved_ports range.
+
+	Default: 1024
 
 ip_nonlocal_bind - BOOLEAN
 	If set, allows processes to bind() to non-local IP addresses,
@@ -966,6 +966,21 @@ igmp_qrv - INTEGER
 	Controls the IGMP query robustness variable (see RFC2236 8.1).
 	Default: 2 (as specified by RFC2236 8.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
+
+force_igmp_version - INTEGER
+	0 - (default) No enforcement of a IGMP version, IGMPv1/v2 fallback
+	    allowed. Will back to IGMPv3 mode again if all IGMPv1/v2 Querier
+	    Present timer expires.
+	1 - Enforce to use IGMP version 1. Will also reply IGMPv1 report if
+	    receive IGMPv2/v3 query.
+	2 - Enforce to use IGMP version 2. Will fallback to IGMPv1 if receive
+	    IGMPv1 query message. Will reply report if receive IGMPv3 query.
+	3 - Enforce to use IGMP version 3. The same react with default 0.
+
+	Note: this is not the same with force_mld_version because IGMPv3 RFC3376
+	Security Considerations does not have clear description that we could
+	ignore other version messages completely as MLDv2 RFC3810. So make
+	this value as default 0 is recommended.
 
 conf/interface/*  changes special settings per interface (where
 "interface" is the name of your network interface)
@@ -1713,6 +1728,15 @@ drop_unsolicited_na - BOOLEAN
 	(or in the case of 802.11, must not be used to prevent attacks.)
 
 	By default this is turned off.
+
+enhanced_dad - BOOLEAN
+	Include a nonce option in the IPv6 neighbor solicitation messages used for
+	duplicate address detection per RFC7527. A received DAD NS will only signal
+	a duplicate address if the nonce is different. This avoids any false
+	detection of duplicates due to loopback of the NS messages that we send.
+	The nonce option will be sent on an interface unless both of
+	conf/{all,interface}/enhanced_dad are set to FALSE.
+	Default: TRUE
 
 icmp/*:
 ratelimit - INTEGER

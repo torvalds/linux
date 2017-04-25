@@ -76,18 +76,19 @@ static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 	return 0;
 }
 
-struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
+struct lov_stripe_md *lsm_alloc_plain(u16 stripe_count)
 {
+	size_t oinfo_ptrs_size, lsm_size;
 	struct lov_stripe_md *lsm;
 	struct lov_oinfo     *loi;
-	int		   i, oinfo_ptrs_size;
+	int i;
 
 	LASSERT(stripe_count <= LOV_MAX_STRIPE_COUNT);
 
 	oinfo_ptrs_size = sizeof(struct lov_oinfo *) * stripe_count;
-	*size = sizeof(struct lov_stripe_md) + oinfo_ptrs_size;
+	lsm_size = sizeof(*lsm) + oinfo_ptrs_size;
 
-	lsm = libcfs_kvzalloc(*size, GFP_NOFS);
+	lsm = libcfs_kvzalloc(lsm_size, GFP_NOFS);
 	if (!lsm)
 		return NULL;
 
@@ -117,9 +118,43 @@ void lsm_free_plain(struct lov_stripe_md *lsm)
 	kvfree(lsm);
 }
 
-static void lsm_unpackmd_common(struct lov_stripe_md *lsm,
-				struct lov_mds_md *lmm)
+/*
+ * Find minimum stripe maxbytes value.  For inactive or
+ * reconnecting targets use LUSTRE_EXT3_STRIPE_MAXBYTES.
+ */
+static loff_t lov_tgt_maxbytes(struct lov_tgt_desc *tgt)
 {
+	loff_t maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
+	struct obd_import *imp;
+
+	if (!tgt->ltd_active)
+		return maxbytes;
+
+	imp = tgt->ltd_obd->u.cli.cl_import;
+	if (!imp)
+		return maxbytes;
+
+	spin_lock(&imp->imp_lock);
+	if (imp->imp_state == LUSTRE_IMP_FULL &&
+	    (imp->imp_connect_data.ocd_connect_flags & OBD_CONNECT_MAXBYTES) &&
+	     imp->imp_connect_data.ocd_maxbytes > 0)
+		maxbytes = imp->imp_connect_data.ocd_maxbytes;
+
+	spin_unlock(&imp->imp_lock);
+
+	return maxbytes;
+}
+
+static int lsm_unpackmd_common(struct lov_obd *lov,
+			       struct lov_stripe_md *lsm,
+			       struct lov_mds_md *lmm,
+			       struct lov_ost_data_v1 *objects)
+{
+	loff_t stripe_maxbytes = LLONG_MAX;
+	unsigned int stripe_count;
+	struct lov_oinfo *loi;
+	unsigned int i;
+
 	/*
 	 * This supposes lov_mds_md_v1/v3 first fields are
 	 * are the same
@@ -129,11 +164,54 @@ static void lsm_unpackmd_common(struct lov_stripe_md *lsm,
 	lsm->lsm_pattern = le32_to_cpu(lmm->lmm_pattern);
 	lsm->lsm_layout_gen = le16_to_cpu(lmm->lmm_layout_gen);
 	lsm->lsm_pool_name[0] = '\0';
+
+	stripe_count = lsm_is_released(lsm) ? 0 : lsm->lsm_stripe_count;
+
+	for (i = 0; i < stripe_count; i++) {
+		loff_t tgt_bytes;
+
+		loi = lsm->lsm_oinfo[i];
+		ostid_le_to_cpu(&objects[i].l_ost_oi, &loi->loi_oi);
+		loi->loi_ost_idx = le32_to_cpu(objects[i].l_ost_idx);
+		loi->loi_ost_gen = le32_to_cpu(objects[i].l_ost_gen);
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
+		if (loi->loi_ost_idx >= lov->desc.ld_tgt_count &&
+		    !lov2obd(lov)->obd_process_conf) {
+			CERROR("%s: OST index %d more than OST count %d\n",
+			       (char *)lov->desc.ld_uuid.uuid,
+			       loi->loi_ost_idx, lov->desc.ld_tgt_count);
+			lov_dump_lmm_v1(D_WARNING, lmm);
+			return -EINVAL;
+		}
+
+		if (!lov->lov_tgts[loi->loi_ost_idx]) {
+			CERROR("%s: OST index %d missing\n",
+			       (char *)lov->desc.ld_uuid.uuid,
+			       loi->loi_ost_idx);
+			lov_dump_lmm_v1(D_WARNING, lmm);
+			continue;
+		}
+
+		tgt_bytes = lov_tgt_maxbytes(lov->lov_tgts[loi->loi_ost_idx]);
+		stripe_maxbytes = min_t(loff_t, stripe_maxbytes, tgt_bytes);
+	}
+
+	if (stripe_maxbytes == LLONG_MAX)
+		stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
+
+	if (!lsm->lsm_stripe_count)
+		lsm->lsm_maxbytes = stripe_maxbytes * lov->desc.ld_tgt_count;
+	else
+		lsm->lsm_maxbytes = stripe_maxbytes * lsm->lsm_stripe_count;
+
+	return 0;
 }
 
 static void
 lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
-			  u64 *lov_off, u64 *swidth)
+			  loff_t *lov_off, loff_t *swidth)
 {
 	if (swidth)
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
@@ -141,34 +219,10 @@ lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
 
 static void
 lsm_stripe_by_offset_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   u64 *lov_off, u64 *swidth)
+			   loff_t *lov_off, loff_t *swidth)
 {
 	if (swidth)
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
-}
-
-/* Find minimum stripe maxbytes value.  For inactive or
- * reconnecting targets use LUSTRE_EXT3_STRIPE_MAXBYTES.
- */
-static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
-{
-	struct obd_import *imp = tgt->ltd_obd->u.cli.cl_import;
-
-	if (!imp || !tgt->ltd_active) {
-		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
-		return;
-	}
-
-	spin_lock(&imp->imp_lock);
-	if (imp->imp_state == LUSTRE_IMP_FULL &&
-	    (imp->imp_connect_data.ocd_connect_flags & OBD_CONNECT_MAXBYTES) &&
-	    imp->imp_connect_data.ocd_maxbytes > 0) {
-		if (*stripe_maxbytes > imp->imp_connect_data.ocd_maxbytes)
-			*stripe_maxbytes = imp->imp_connect_data.ocd_maxbytes;
-	} else {
-		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
-	}
-	spin_unlock(&imp->imp_lock);
 }
 
 static int lsm_lmm_verify_v1(struct lov_mds_md_v1 *lmm, int lmm_bytes,
@@ -197,45 +251,7 @@ static int lsm_lmm_verify_v1(struct lov_mds_md_v1 *lmm, int lmm_bytes,
 static int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 			   struct lov_mds_md_v1 *lmm)
 {
-	struct lov_oinfo *loi;
-	int i;
-	int stripe_count;
-	__u64 stripe_maxbytes = OBD_OBJECT_EOF;
-
-	lsm_unpackmd_common(lsm, lmm);
-
-	stripe_count = lsm_is_released(lsm) ? 0 : lsm->lsm_stripe_count;
-
-	for (i = 0; i < stripe_count; i++) {
-		/* XXX LOV STACKING call down to osc_unpackmd() */
-		loi = lsm->lsm_oinfo[i];
-		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
-		loi->loi_ost_idx = le32_to_cpu(lmm->lmm_objects[i].l_ost_idx);
-		loi->loi_ost_gen = le32_to_cpu(lmm->lmm_objects[i].l_ost_gen);
-		if (lov_oinfo_is_dummy(loi))
-			continue;
-
-		if (loi->loi_ost_idx >= lov->desc.ld_tgt_count) {
-			CERROR("OST index %d more than OST count %d\n",
-			       loi->loi_ost_idx, lov->desc.ld_tgt_count);
-			lov_dump_lmm_v1(D_WARNING, lmm);
-			return -EINVAL;
-		}
-		if (!lov->lov_tgts[loi->loi_ost_idx]) {
-			CERROR("OST index %d missing\n", loi->loi_ost_idx);
-			lov_dump_lmm_v1(D_WARNING, lmm);
-			return -EINVAL;
-		}
-		/* calculate the minimum stripe max bytes */
-		lov_tgt_maxbytes(lov->lov_tgts[loi->loi_ost_idx],
-				 &stripe_maxbytes);
-	}
-
-	lsm->lsm_maxbytes = stripe_maxbytes * lsm->lsm_stripe_count;
-	if (lsm->lsm_stripe_count == 0)
-		lsm->lsm_maxbytes = stripe_maxbytes * lov->desc.ld_tgt_count;
-
-	return 0;
+	return lsm_unpackmd_common(lov, lsm, lmm, lmm->lmm_objects);
 }
 
 const struct lsm_operations lsm_v1_ops = {
@@ -275,54 +291,20 @@ static int lsm_lmm_verify_v3(struct lov_mds_md *lmmv1, int lmm_bytes,
 }
 
 static int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
-			   struct lov_mds_md *lmmv1)
+			   struct lov_mds_md *lmm)
 {
-	struct lov_mds_md_v3 *lmm;
-	struct lov_oinfo *loi;
-	int i;
-	int stripe_count;
-	__u64 stripe_maxbytes = OBD_OBJECT_EOF;
-	int cplen = 0;
+	struct lov_mds_md_v3 *lmm_v3 = (struct lov_mds_md_v3 *)lmm;
+	size_t cplen = 0;
+	int rc;
 
-	lmm = (struct lov_mds_md_v3 *)lmmv1;
+	rc = lsm_unpackmd_common(lov, lsm, lmm, lmm_v3->lmm_objects);
+	if (rc)
+		return rc;
 
-	lsm_unpackmd_common(lsm, (struct lov_mds_md_v1 *)lmm);
-
-	stripe_count = lsm_is_released(lsm) ? 0 : lsm->lsm_stripe_count;
-
-	cplen = strlcpy(lsm->lsm_pool_name, lmm->lmm_pool_name,
+	cplen = strlcpy(lsm->lsm_pool_name, lmm_v3->lmm_pool_name,
 			sizeof(lsm->lsm_pool_name));
 	if (cplen >= sizeof(lsm->lsm_pool_name))
 		return -E2BIG;
-
-	for (i = 0; i < stripe_count; i++) {
-		/* XXX LOV STACKING call down to osc_unpackmd() */
-		loi = lsm->lsm_oinfo[i];
-		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
-		loi->loi_ost_idx = le32_to_cpu(lmm->lmm_objects[i].l_ost_idx);
-		loi->loi_ost_gen = le32_to_cpu(lmm->lmm_objects[i].l_ost_gen);
-		if (lov_oinfo_is_dummy(loi))
-			continue;
-
-		if (loi->loi_ost_idx >= lov->desc.ld_tgt_count) {
-			CERROR("OST index %d more than OST count %d\n",
-			       loi->loi_ost_idx, lov->desc.ld_tgt_count);
-			lov_dump_lmm_v3(D_WARNING, lmm);
-			return -EINVAL;
-		}
-		if (!lov->lov_tgts[loi->loi_ost_idx]) {
-			CERROR("OST index %d missing\n", loi->loi_ost_idx);
-			lov_dump_lmm_v3(D_WARNING, lmm);
-			return -EINVAL;
-		}
-		/* calculate the minimum stripe max bytes */
-		lov_tgt_maxbytes(lov->lov_tgts[loi->loi_ost_idx],
-				 &stripe_maxbytes);
-	}
-
-	lsm->lsm_maxbytes = stripe_maxbytes * lsm->lsm_stripe_count;
-	if (lsm->lsm_stripe_count == 0)
-		lsm->lsm_maxbytes = stripe_maxbytes * lov->desc.ld_tgt_count;
 
 	return 0;
 }

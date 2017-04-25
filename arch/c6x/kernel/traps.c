@@ -10,6 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/ptrace.h>
+#include <linux/sched/debug.h>
 #include <linux/kallsyms.h>
 #include <linux/bug.h>
 

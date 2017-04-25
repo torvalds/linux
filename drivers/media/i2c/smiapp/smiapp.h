@@ -150,11 +150,6 @@ struct smiapp_csi_data_format {
 #define SMIAPP_PAD_SRC			1
 #define SMIAPP_PADS			2
 
-#define SMIAPP_COMPRESSED_BASE		8
-#define SMIAPP_COMPRESSED_MAX		16
-#define SMIAPP_NR_OF_COMPRESSED		(SMIAPP_COMPRESSED_MAX - \
-					 SMIAPP_COMPRESSED_BASE + 1)
-
 struct smiapp_binning_subtype {
 	u8 horizontal:4;
 	u8 vertical:4;
@@ -162,9 +157,9 @@ struct smiapp_binning_subtype {
 
 struct smiapp_subdev {
 	struct v4l2_subdev sd;
-	struct media_pad pads[2];
+	struct media_pad pads[SMIAPP_PADS];
 	struct v4l2_rect sink_fmt;
-	struct v4l2_rect crop[2];
+	struct v4l2_rect crop[SMIAPP_PADS];
 	struct v4l2_rect compose; /* compose on sink */
 	unsigned short sink_pad;
 	unsigned short source_pad;
@@ -181,16 +176,9 @@ struct smiapp_sensor {
 	 * "mutex" is used to serialise access to all fields here
 	 * except v4l2_ctrls at the end of the struct. "mutex" is also
 	 * used to serialise access to file handle specific
-	 * information. The exception to this rule is the power_mutex
-	 * below.
+	 * information.
 	 */
 	struct mutex mutex;
-	/*
-	 * power_mutex is used to serialise power management related
-	 * activities. Acquiring "mutex" at that time isn't necessary
-	 * since there are no other users anyway.
-	 */
-	struct mutex power_mutex;
 	struct smiapp_subdev ssds[SMIAPP_SUBDEVS];
 	u32 ssds_used;
 	struct smiapp_subdev *src;
@@ -218,12 +206,14 @@ struct smiapp_sensor {
 
 	u8 hvflip_inv_mask; /* H/VFLIP inversion due to sensor orientation */
 	u8 frame_skip;
-	u16 image_start;	/* Offset to first line after metadata lines */
-
-	int power_count;
+	u16 embedded_start; /* embedded data start line */
+	u16 embedded_end;
+	u16 image_start; /* image data start line */
+	u16 visible_pixel_start; /* start pixel of the visible image */
 
 	bool streaming;
 	bool dev_init_done;
+	u8 compressed_min_bpp;
 
 	u8 *nvm;		/* nvm memory buffer */
 	unsigned int nvm_size;	/* bytes */
@@ -233,7 +223,7 @@ struct smiapp_sensor {
 	struct smiapp_pll pll;
 
 	/* Is a default format supported for a given BPP? */
-	unsigned long valid_link_freqs[SMIAPP_NR_OF_COMPRESSED];
+	unsigned long *valid_link_freqs;
 
 	/* Pixel array controls */
 	struct v4l2_ctrl *analog_gain;

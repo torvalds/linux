@@ -37,7 +37,7 @@
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
-#include "hns_roce_user.h"
+#include <rdma/hns-abi.h>
 
 #define SQP_NUM				(2 * HNS_ROCE_MAX_PORTS)
 
@@ -101,7 +101,7 @@ static void hns_roce_ib_qp_event(struct hns_roce_qp *hr_qp,
 			event.event = IB_EVENT_QP_ACCESS_ERR;
 			break;
 		default:
-			dev_dbg(ibqp->device->dma_device, "roce_ib: Unexpected event type %d on QP %06lx\n",
+			dev_dbg(ibqp->device->dev.parent, "roce_ib: Unexpected event type %d on QP %06lx\n",
 				type, hr_qp->qpn);
 			return;
 		}
@@ -250,7 +250,7 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 	if (base_qpn < SQP_NUM)
 		return;
 
-	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
+	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, BITMAP_RR);
 }
 
 static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,

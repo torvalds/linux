@@ -27,9 +27,6 @@
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
-/* With 4k base page size, hugepage PTEs go at the PMD level */
-#define MIN_HUGEPTE_SHIFT	PMD_SHIFT
-
 /* PUD_SHIFT determines what a third-level page table entry can map */
 #define PUD_SHIFT	(PMD_SHIFT + PMD_INDEX_SIZE)
 #define PUD_SIZE	(1UL << PUD_SHIFT)

@@ -162,24 +162,6 @@ static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 }
 
-static inline void up_scanned_network(struct mlme_priv *pmlmepriv)
-{
-	unsigned long irqL;
-
-	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	pmlmepriv->num_of_scanned++;
-	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
-}
-
-static inline void down_scanned_network(struct mlme_priv *pmlmepriv)
-{
-	unsigned long irqL;
-
-	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	pmlmepriv->num_of_scanned--;
-	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
-}
-
 static inline void set_scanned_network_val(struct mlme_priv *pmlmepriv,
 					     sint val)
 {

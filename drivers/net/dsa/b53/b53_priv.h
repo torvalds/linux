@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/phy.h>
+#include <linux/etherdevice.h>
 #include <net/dsa.h>
 
 #include "b53_regs.h"
@@ -61,6 +62,7 @@ enum {
 	BCM53019_DEVICE_ID = 0x53019,
 	BCM58XX_DEVICE_ID = 0x5800,
 	BCM7445_DEVICE_ID = 0x7445,
+	BCM7278_DEVICE_ID = 0x7278,
 };
 
 #define B53_N_PORTS	9
@@ -68,7 +70,6 @@ enum {
 
 struct b53_port {
 	u16		vlan_ctl_mask;
-	struct net_device *bridge_dev;
 };
 
 struct b53_vlan {
@@ -178,7 +179,8 @@ static inline int is5301x(struct b53_device *dev)
 static inline int is58xx(struct b53_device *dev)
 {
 	return dev->chip_id == BCM58XX_DEVICE_ID ||
-		dev->chip_id == BCM7445_DEVICE_ID;
+		dev->chip_id == BCM7445_DEVICE_ID ||
+		dev->chip_id == BCM7278_DEVICE_ID;
 }
 
 #define B53_CPU_PORT_25	5
@@ -325,25 +327,6 @@ struct b53_arl_entry {
 	u8 is_static:1;
 };
 
-static inline void b53_mac_from_u64(u64 src, u8 *dst)
-{
-	unsigned int i;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		dst[ETH_ALEN - 1 - i] = (src >> (8 * i)) & 0xff;
-}
-
-static inline u64 b53_mac_to_u64(const u8 *src)
-{
-	unsigned int i;
-	u64 dst = 0;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		dst |= (u64)src[ETH_ALEN - 1 - i] << (8 * i);
-
-	return dst;
-}
-
 static inline void b53_arl_to_entry(struct b53_arl_entry *ent,
 				    u64 mac_vid, u32 fwd_entry)
 {
@@ -352,14 +335,14 @@ static inline void b53_arl_to_entry(struct b53_arl_entry *ent,
 	ent->is_valid = !!(fwd_entry & ARLTBL_VALID);
 	ent->is_age = !!(fwd_entry & ARLTBL_AGE);
 	ent->is_static = !!(fwd_entry & ARLTBL_STATIC);
-	b53_mac_from_u64(mac_vid, ent->mac);
+	u64_to_ether_addr(mac_vid, ent->mac);
 	ent->vid = mac_vid >> ARLTBL_VID_S;
 }
 
 static inline void b53_arl_from_entry(u64 *mac_vid, u32 *fwd_entry,
 				      const struct b53_arl_entry *ent)
 {
-	*mac_vid = b53_mac_to_u64(ent->mac);
+	*mac_vid = ether_addr_to_u64(ent->mac);
 	*mac_vid |= (u64)(ent->vid & ARLTBL_VID_MASK) << ARLTBL_VID_S;
 	*fwd_entry = ent->port & ARLTBL_DATA_PORT_ID_MASK;
 	if (ent->is_valid)
@@ -392,4 +375,41 @@ static inline int b53_switch_get_reset_gpio(struct b53_device *dev)
 	return -ENOENT;
 }
 #endif
+
+/* Exported functions towards other drivers */
+void b53_get_strings(struct dsa_switch *ds, int port, uint8_t *data);
+void b53_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data);
+int b53_get_sset_count(struct dsa_switch *ds);
+int b53_br_join(struct dsa_switch *ds, int port, struct net_device *bridge);
+void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *bridge);
+void b53_br_set_stp_state(struct dsa_switch *ds, int port, u8 state);
+void b53_br_fast_age(struct dsa_switch *ds, int port);
+int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering);
+int b53_vlan_prepare(struct dsa_switch *ds, int port,
+		     const struct switchdev_obj_port_vlan *vlan,
+		     struct switchdev_trans *trans);
+void b53_vlan_add(struct dsa_switch *ds, int port,
+		  const struct switchdev_obj_port_vlan *vlan,
+		  struct switchdev_trans *trans);
+int b53_vlan_del(struct dsa_switch *ds, int port,
+		 const struct switchdev_obj_port_vlan *vlan);
+int b53_vlan_dump(struct dsa_switch *ds, int port,
+		  struct switchdev_obj_port_vlan *vlan,
+		  int (*cb)(struct switchdev_obj *obj));
+int b53_fdb_prepare(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_fdb *fdb,
+		    struct switchdev_trans *trans);
+void b53_fdb_add(struct dsa_switch *ds, int port,
+		 const struct switchdev_obj_port_fdb *fdb,
+		 struct switchdev_trans *trans);
+int b53_fdb_del(struct dsa_switch *ds, int port,
+		const struct switchdev_obj_port_fdb *fdb);
+int b53_fdb_dump(struct dsa_switch *ds, int port,
+		 struct switchdev_obj_port_fdb *fdb,
+		 int (*cb)(struct switchdev_obj *obj));
+int b53_mirror_add(struct dsa_switch *ds, int port,
+		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress);
+void b53_mirror_del(struct dsa_switch *ds, int port,
+		    struct dsa_mall_mirror_tc_entry *mirror);
+
 #endif

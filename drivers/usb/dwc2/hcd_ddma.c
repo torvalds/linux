@@ -89,13 +89,13 @@ static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 {
 	struct kmem_cache *desc_cache;
 
-	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC
-	    && qh->dev_speed == USB_SPEED_HIGH)
+	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC &&
+	    qh->dev_speed == USB_SPEED_HIGH)
 		desc_cache = hsotg->desc_hsisoc_cache;
 	else
 		desc_cache = hsotg->desc_gen_cache;
 
-	qh->desc_list_sz = sizeof(struct dwc2_hcd_dma_desc) *
+	qh->desc_list_sz = sizeof(struct dwc2_dma_desc) *
 						dwc2_max_desc_num(qh);
 
 	qh->desc_list = kmem_cache_zalloc(desc_cache, flags | GFP_DMA);
@@ -106,7 +106,7 @@ static int dwc2_desc_list_alloc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 					   qh->desc_list_sz,
 					   DMA_TO_DEVICE);
 
-	qh->n_bytes = kzalloc(sizeof(u32) * dwc2_max_desc_num(qh), flags);
+	qh->n_bytes = kcalloc(dwc2_max_desc_num(qh), sizeof(u32), flags);
 	if (!qh->n_bytes) {
 		dma_unmap_single(hsotg->dev, qh->desc_list_dma,
 				 qh->desc_list_sz,
@@ -123,8 +123,8 @@ static void dwc2_desc_list_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	struct kmem_cache *desc_cache;
 
-	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC
-	    && qh->dev_speed == USB_SPEED_HIGH)
+	if (qh->ep_type == USB_ENDPOINT_XFER_ISOC &&
+	    qh->dev_speed == USB_SPEED_HIGH)
 		desc_cache = hsotg->desc_hsisoc_cache;
 	else
 		desc_cache = hsotg->desc_gen_cache;
@@ -175,7 +175,6 @@ static void dwc2_frame_list_free(struct dwc2_hsotg *hsotg)
 	hsotg->frame_list = NULL;
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
-
 }
 
 static void dwc2_per_sched_enable(struct dwc2_hsotg *hsotg, u32 fr_list_en)
@@ -297,7 +296,7 @@ static void dwc2_release_channel_ddma(struct dwc2_hsotg *hsotg,
 	struct dwc2_host_chan *chan = qh->channel;
 
 	if (dwc2_qh_is_non_per(qh)) {
-		if (hsotg->core_params->uframe_sched > 0)
+		if (hsotg->params.uframe_sched)
 			hsotg->available_host_channels++;
 		else
 			hsotg->non_periodic_channels--;
@@ -322,7 +321,7 @@ static void dwc2_release_channel_ddma(struct dwc2_hsotg *hsotg,
 	qh->ntd = 0;
 
 	if (qh->desc_list)
-		memset(qh->desc_list, 0, sizeof(struct dwc2_hcd_dma_desc) *
+		memset(qh->desc_list, 0, sizeof(struct dwc2_dma_desc) *
 		       dwc2_max_desc_num(qh));
 }
 
@@ -404,7 +403,7 @@ void dwc2_hcd_qh_free_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	if ((qh->ep_type == USB_ENDPOINT_XFER_ISOC ||
 	     qh->ep_type == USB_ENDPOINT_XFER_INT) &&
-	    (hsotg->core_params->uframe_sched > 0 ||
+	    (hsotg->params.uframe_sched ||
 	     !hsotg->periodic_channels) && hsotg->frame_list) {
 		dwc2_per_sched_disable(hsotg);
 		dwc2_frame_list_free(hsotg);
@@ -542,7 +541,7 @@ static void dwc2_fill_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 					 struct dwc2_qh *qh, u32 max_xfer_size,
 					 u16 idx)
 {
-	struct dwc2_hcd_dma_desc *dma_desc = &qh->desc_list[idx];
+	struct dwc2_dma_desc *dma_desc = &qh->desc_list[idx];
 	struct dwc2_hcd_iso_packet_desc *frame_desc;
 
 	memset(dma_desc, 0, sizeof(*dma_desc));
@@ -570,9 +569,9 @@ static void dwc2_fill_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 #endif
 
 	dma_sync_single_for_device(hsotg->dev,
-			qh->desc_list_dma +
-			(idx * sizeof(struct dwc2_hcd_dma_desc)),
-			sizeof(struct dwc2_hcd_dma_desc),
+				   qh->desc_list_dma +
+			(idx * sizeof(struct dwc2_dma_desc)),
+			sizeof(struct dwc2_dma_desc),
 			DMA_TO_DEVICE);
 }
 
@@ -645,8 +644,8 @@ static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 		qh->desc_list[idx].status |= HOST_DMA_IOC;
 		dma_sync_single_for_device(hsotg->dev,
 					   qh->desc_list_dma + (idx *
-					   sizeof(struct dwc2_hcd_dma_desc)),
-					   sizeof(struct dwc2_hcd_dma_desc),
+					   sizeof(struct dwc2_dma_desc)),
+					   sizeof(struct dwc2_dma_desc),
 					   DMA_TO_DEVICE);
 	}
 #else
@@ -679,8 +678,8 @@ static void dwc2_init_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 	qh->desc_list[idx].status |= HOST_DMA_IOC;
 	dma_sync_single_for_device(hsotg->dev,
 				   qh->desc_list_dma +
-				   (idx * sizeof(struct dwc2_hcd_dma_desc)),
-				   sizeof(struct dwc2_hcd_dma_desc),
+				   (idx * sizeof(struct dwc2_dma_desc)),
+				   sizeof(struct dwc2_dma_desc),
 				   DMA_TO_DEVICE);
 #endif
 }
@@ -690,11 +689,11 @@ static void dwc2_fill_host_dma_desc(struct dwc2_hsotg *hsotg,
 				    struct dwc2_qtd *qtd, struct dwc2_qh *qh,
 				    int n_desc)
 {
-	struct dwc2_hcd_dma_desc *dma_desc = &qh->desc_list[n_desc];
+	struct dwc2_dma_desc *dma_desc = &qh->desc_list[n_desc];
 	int len = chan->xfer_len;
 
-	if (len > MAX_DMA_DESC_SIZE - (chan->max_packet - 1))
-		len = MAX_DMA_DESC_SIZE - (chan->max_packet - 1);
+	if (len > HOST_DMA_NBYTES_LIMIT - (chan->max_packet - 1))
+		len = HOST_DMA_NBYTES_LIMIT - (chan->max_packet - 1);
 
 	if (chan->ep_is_in) {
 		int num_packets;
@@ -721,8 +720,8 @@ static void dwc2_fill_host_dma_desc(struct dwc2_hsotg *hsotg,
 
 	dma_sync_single_for_device(hsotg->dev,
 				   qh->desc_list_dma +
-				   (n_desc * sizeof(struct dwc2_hcd_dma_desc)),
-				   sizeof(struct dwc2_hcd_dma_desc),
+				   (n_desc * sizeof(struct dwc2_dma_desc)),
+				   sizeof(struct dwc2_dma_desc),
 				   DMA_TO_DEVICE);
 
 	/*
@@ -776,10 +775,10 @@ static void dwc2_init_non_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 					 n_desc - 1,
 					 &qh->desc_list[n_desc - 1]);
 				dma_sync_single_for_device(hsotg->dev,
-					qh->desc_list_dma +
+							   qh->desc_list_dma +
 					((n_desc - 1) *
-					sizeof(struct dwc2_hcd_dma_desc)),
-					sizeof(struct dwc2_hcd_dma_desc),
+					sizeof(struct dwc2_dma_desc)),
+					sizeof(struct dwc2_dma_desc),
 					DMA_TO_DEVICE);
 			}
 			dwc2_fill_host_dma_desc(hsotg, chan, qtd, qh, n_desc);
@@ -808,16 +807,16 @@ static void dwc2_init_non_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 			 n_desc - 1, &qh->desc_list[n_desc - 1]);
 		dma_sync_single_for_device(hsotg->dev,
 					   qh->desc_list_dma + (n_desc - 1) *
-					   sizeof(struct dwc2_hcd_dma_desc),
-					   sizeof(struct dwc2_hcd_dma_desc),
+					   sizeof(struct dwc2_dma_desc),
+					   sizeof(struct dwc2_dma_desc),
 					   DMA_TO_DEVICE);
 		if (n_desc > 1) {
 			qh->desc_list[0].status |= HOST_DMA_A;
 			dev_vdbg(hsotg->dev, "set A bit in desc 0 (%p)\n",
 				 &qh->desc_list[0]);
 			dma_sync_single_for_device(hsotg->dev,
-					qh->desc_list_dma,
-					sizeof(struct dwc2_hcd_dma_desc),
+						   qh->desc_list_dma,
+					sizeof(struct dwc2_dma_desc),
 					DMA_TO_DEVICE);
 		}
 		chan->ntd = n_desc;
@@ -893,7 +892,7 @@ static int dwc2_cmpl_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 					struct dwc2_qtd *qtd,
 					struct dwc2_qh *qh, u16 idx)
 {
-	struct dwc2_hcd_dma_desc *dma_desc;
+	struct dwc2_dma_desc *dma_desc;
 	struct dwc2_hcd_iso_packet_desc *frame_desc;
 	u16 remain = 0;
 	int rc = 0;
@@ -902,8 +901,8 @@ static int dwc2_cmpl_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 		return -EINVAL;
 
 	dma_sync_single_for_cpu(hsotg->dev, qh->desc_list_dma + (idx *
-				sizeof(struct dwc2_hcd_dma_desc)),
-				sizeof(struct dwc2_hcd_dma_desc),
+				sizeof(struct dwc2_dma_desc)),
+				sizeof(struct dwc2_dma_desc),
 				DMA_FROM_DEVICE);
 
 	dma_desc = &qh->desc_list[idx];
@@ -1064,9 +1063,9 @@ stop_scan:
 }
 
 static int dwc2_update_non_isoc_urb_state_ddma(struct dwc2_hsotg *hsotg,
-					struct dwc2_host_chan *chan,
+					       struct dwc2_host_chan *chan,
 					struct dwc2_qtd *qtd,
-					struct dwc2_hcd_dma_desc *dma_desc,
+					struct dwc2_dma_desc *dma_desc,
 					enum dwc2_halt_status halt_status,
 					u32 n_bytes, int *xfer_done)
 {
@@ -1154,7 +1153,7 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 {
 	struct dwc2_qh *qh = chan->qh;
 	struct dwc2_hcd_urb *urb = qtd->urb;
-	struct dwc2_hcd_dma_desc *dma_desc;
+	struct dwc2_dma_desc *dma_desc;
 	u32 n_bytes;
 	int failed;
 
@@ -1165,8 +1164,8 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 
 	dma_sync_single_for_cpu(hsotg->dev,
 				qh->desc_list_dma + (desc_num *
-				sizeof(struct dwc2_hcd_dma_desc)),
-				sizeof(struct dwc2_hcd_dma_desc),
+				sizeof(struct dwc2_dma_desc)),
+				sizeof(struct dwc2_dma_desc),
 				DMA_FROM_DEVICE);
 
 	dma_desc = &qh->desc_list[desc_num];

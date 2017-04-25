@@ -40,7 +40,6 @@
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 #include <linux/lockdep.h>
-#include <linux/completion.h>
 #include <linux/debugobjects.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
@@ -226,45 +225,6 @@ void call_rcu_sched(struct rcu_head *head,
 
 void synchronize_sched(void);
 
-/*
- * Structure allowing asynchronous waiting on RCU.
- */
-struct rcu_synchronize {
-	struct rcu_head head;
-	struct completion completion;
-};
-void wakeme_after_rcu(struct rcu_head *head);
-
-void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
-		   struct rcu_synchronize *rs_array);
-
-#define _wait_rcu_gp(checktiny, ...) \
-do {									\
-	call_rcu_func_t __crcu_array[] = { __VA_ARGS__ };		\
-	struct rcu_synchronize __rs_array[ARRAY_SIZE(__crcu_array)];	\
-	__wait_rcu_gp(checktiny, ARRAY_SIZE(__crcu_array),		\
-			__crcu_array, __rs_array);			\
-} while (0)
-
-#define wait_rcu_gp(...) _wait_rcu_gp(false, __VA_ARGS__)
-
-/**
- * synchronize_rcu_mult - Wait concurrently for multiple grace periods
- * @...: List of call_rcu() functions for the flavors to wait on.
- *
- * This macro waits concurrently for multiple flavors of RCU grace periods.
- * For example, synchronize_rcu_mult(call_rcu, call_rcu_bh) would wait
- * on concurrent RCU and RCU-bh grace periods.  Waiting on a give SRCU
- * domain requires you to write a wrapper function for that SRCU domain's
- * call_srcu() function, supplying the corresponding srcu_struct.
- *
- * If Tiny RCU, tell _wait_rcu_gp() not to bother waiting for RCU
- * or RCU-bh, given that anywhere synchronize_rcu_mult() can be called
- * is automatically a grace period.
- */
-#define synchronize_rcu_mult(...) \
-	_wait_rcu_gp(IS_ENABLED(CONFIG_TINY_RCU), __VA_ARGS__)
-
 /**
  * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
  * @head: structure to be used for queueing the RCU updates.
@@ -443,6 +403,10 @@ bool __rcu_is_watching(void);
 #else
 #error "Unknown RCU implementation specified to kernel configuration"
 #endif
+
+#define RCU_SCHEDULER_INACTIVE	0
+#define RCU_SCHEDULER_INIT	1
+#define RCU_SCHEDULER_RUNNING	2
 
 /*
  * init_rcu_head_on_stack()/destroy_rcu_head_on_stack() are needed for dynamic
@@ -1156,6 +1120,18 @@ do { \
 	    !atomic_xchg(&___rfd_beenhere, 1)) \
 		ftrace_dump(oops_dump_mode); \
 } while (0)
+
+/*
+ * Place this after a lock-acquisition primitive to guarantee that
+ * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee applies
+ * if the UNLOCK and LOCK are executed by the same CPU or if the
+ * UNLOCK and LOCK operate on the same lock variable.
+ */
+#ifdef CONFIG_PPC
+#define smp_mb__after_unlock_lock()	smp_mb()  /* Full ordering for lock. */
+#else /* #ifdef CONFIG_PPC */
+#define smp_mb__after_unlock_lock()	do { } while (0)
+#endif /* #else #ifdef CONFIG_PPC */
 
 
 #endif /* __LINUX_RCUPDATE_H */

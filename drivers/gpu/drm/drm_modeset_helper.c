@@ -38,7 +38,7 @@
  * Some userspace presumes that the first connected connector is the main
  * display, where it's supposed to display e.g. the login screen. For
  * laptops, this should be the main panel. Use this function to sort all
- * (eDP/LVDS) panels to the front of the connector list, instead of
+ * (eDP/LVDS/DSI) panels to the front of the connector list, instead of
  * painstakingly trying to initialize them in the right order.
  */
 void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
@@ -48,40 +48,44 @@ void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&panel_list);
 
+	spin_lock_irq(&dev->mode_config.connector_list_lock);
 	list_for_each_entry_safe(connector, tmp,
 				 &dev->mode_config.connector_list, head) {
 		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-		    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		    connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_DSI)
 			list_move_tail(&connector->head, &panel_list);
 	}
 
 	list_splice(&panel_list, &dev->mode_config.connector_list);
+	spin_unlock_irq(&dev->mode_config.connector_list_lock);
 }
 EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
 
 /**
  * drm_helper_mode_fill_fb_struct - fill out framebuffer metadata
+ * @dev: DRM device
  * @fb: drm_framebuffer object to fill out
  * @mode_cmd: metadata from the userspace fb creation request
  *
  * This helper can be used in a drivers fb_create callback to pre-fill the fb's
  * metadata fields.
  */
-void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
+void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
+				    struct drm_framebuffer *fb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	int i;
 
+	fb->dev = dev;
+	fb->format = drm_format_info(mode_cmd->pixel_format);
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	for (i = 0; i < 4; i++) {
 		fb->pitches[i] = mode_cmd->pitches[i];
 		fb->offsets[i] = mode_cmd->offsets[i];
-		fb->modifier[i] = mode_cmd->modifier[i];
 	}
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
-				    &fb->bits_per_pixel);
-	fb->pixel_format = mode_cmd->pixel_format;
+	fb->modifier = mode_cmd->modifier[0];
 	fb->flags = mode_cmd->flags;
 }
 EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);

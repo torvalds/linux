@@ -77,14 +77,15 @@ static inline unsigned int IN_FROM_REG(u8 reg, int n)
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	return clamp_val(SCALE(val, 192, nom_mv[n]), 0, 255);
+	val = clamp_val(val, 0, nom_mv[n] * 255 / 192);
+	return SCALE(val, 192, nom_mv[n]);
 }
 
 /*
  * TEMP: 0.001 degC units (-128C to +127C)
  * REG: 1C/bit, two's complement
  */
-static inline s8 TEMP_TO_REG(int val)
+static inline s8 TEMP_TO_REG(long val)
 {
 	return SCALE(clamp_val(val, -128000, 127000), 1, 1000);
 }
@@ -399,23 +400,23 @@ show_temp_index(2)
 show_temp_index(3)
 
 /* VID */
-static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct smsc47m192_data *data = smsc47m192_update_device(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
-static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
+static ssize_t vrm_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct smsc47m192_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", data->vrm);
 }
 
-static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct smsc47m192_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -430,7 +431,7 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	data->vrm = val;
 	return count;
 }
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
+static DEVICE_ATTR_RW(vrm);
 
 /* Alarms */
 static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,

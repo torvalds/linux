@@ -30,6 +30,13 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
+#include <nvif/class.h>
+#include <nvif/cl5070.h>
+
+MODULE_PARM_DESC(mst, "Enable DisplayPort multi-stream (default: enabled)");
+static int nouveau_mst = 1;
+module_param_named(mst, nouveau_mst, int, 0400);
+
 static void
 nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 {
@@ -55,14 +62,14 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 	struct drm_device *dev = nv_encoder->base.base.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_i2c_aux *aux;
-	u8 *dpcd = nv_encoder->dp.dpcd;
+	u8 dpcd[8];
 	int ret;
 
 	aux = nv_encoder->aux;
 	if (!aux)
 		return -ENODEV;
 
-	ret = nvkm_rdaux(aux, DP_DPCD_REV, dpcd, 8);
+	ret = nvkm_rdaux(aux, DP_DPCD_REV, dpcd, sizeof(dpcd));
 	if (ret)
 		return ret;
 
@@ -84,5 +91,11 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
 	nouveau_dp_probe_oui(dev, aux, dpcd);
-	return 0;
+
+	ret = nv50_mstm_detect(nv_encoder->dp.mstm, dpcd, nouveau_mst);
+	if (ret == 1)
+		return NOUVEAU_DP_MST;
+	if (ret == 0)
+		return NOUVEAU_DP_SST;
+	return ret;
 }

@@ -21,6 +21,12 @@
 
 #include "ccp-dev.h"
 
+/* Allocate the requested number of contiguous LSB slots
+ * from the LSB bitmap. Look in the private range for this
+ * queue first; failing that, check the public area.
+ * If no space is available, wait around.
+ * Return: first slot number
+ */
 static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 {
 	struct ccp_device *ccp;
@@ -50,7 +56,7 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 			bitmap_set(ccp->lsbmap, start, count);
 
 			mutex_unlock(&ccp->sb_mutex);
-			return start * LSB_ITEM_SIZE;
+			return start;
 		}
 
 		ccp->sb_avail = 0;
@@ -63,17 +69,18 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 	}
 }
 
+/* Free a number of LSB slots from the bitmap, starting at
+ * the indicated starting slot number.
+ */
 static void ccp_lsb_free(struct ccp_cmd_queue *cmd_q, unsigned int start,
 			 unsigned int count)
 {
-	int lsbno = start / LSB_SIZE;
-
 	if (!start)
 		return;
 
-	if (cmd_q->lsb == lsbno) {
+	if (cmd_q->lsb == start) {
 		/* An entry from the private LSB */
-		bitmap_clear(cmd_q->lsbmap, start % LSB_SIZE, count);
+		bitmap_clear(cmd_q->lsbmap, start, count);
 	} else {
 		/* From the shared LSBs */
 		struct ccp_device *ccp = cmd_q->ccp;
@@ -243,17 +250,20 @@ static int ccp5_do_cmd(struct ccp5_desc *desc,
 		ret = wait_event_interruptible(cmd_q->int_queue,
 					       cmd_q->int_rcvd);
 		if (ret || cmd_q->cmd_error) {
+			/* Log the error and flush the queue by
+			 * moving the head pointer
+			 */
 			if (cmd_q->cmd_error)
 				ccp_log_error(cmd_q->ccp,
 					      cmd_q->cmd_error);
-			/* A version 5 device doesn't use Job IDs... */
+			iowrite32(tail, cmd_q->reg_head_lo);
 			if (!ret)
 				ret = -EIO;
 		}
 		cmd_q->int_rcvd = 0;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ccp5_perform_aes(struct ccp_op *op)
@@ -277,8 +287,7 @@ static int ccp5_perform_aes(struct ccp_op *op)
 	CCP_AES_ENCRYPT(&function) = op->u.aes.action;
 	CCP_AES_MODE(&function) = op->u.aes.mode;
 	CCP_AES_TYPE(&function) = op->u.aes.type;
-	if (op->u.aes.mode == CCP_AES_MODE_CFB)
-		CCP_AES_SIZE(&function) = 0x7f;
+	CCP_AES_SIZE(&function) = op->u.aes.size;
 
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
@@ -396,7 +405,7 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_PROT(&desc) = 0;
 
 	function.raw = 0;
-	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size;
+	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size >> 3;
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
 	CCP5_CMD_LEN(&desc) = op->u.rsa.input_len;
@@ -411,10 +420,10 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_DST_HI(&desc) = ccp_addr_hi(&op->dst.u.dma);
 	CCP5_CMD_DST_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
-	/* Key (Exponent) is in external memory */
-	CCP5_CMD_KEY_LO(&desc) = ccp_addr_lo(&op->exp.u.dma);
-	CCP5_CMD_KEY_HI(&desc) = ccp_addr_hi(&op->exp.u.dma);
-	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
+	/* Exponent is in LSB memory */
+	CCP5_CMD_KEY_LO(&desc) = op->sb_key * LSB_ITEM_SIZE;
+	CCP5_CMD_KEY_HI(&desc) = 0;
+	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SB;
 
 	return ccp5_do_cmd(&desc, op->cmd_q);
 }
@@ -525,7 +534,7 @@ static int ccp_find_lsb_regions(struct ccp_cmd_queue *cmd_q, u64 status)
 		status >>= LSB_REGION_WIDTH;
 	}
 	queues = bitmap_weight(cmd_q->lsbmask, MAX_LSB_CNT);
-	dev_info(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
+	dev_dbg(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
 		 cmd_q->id, queues);
 
 	return queues ? 0 : -EINVAL;
@@ -567,7 +576,7 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					 */
 					cmd_q->lsb = bitno;
 					bitmap_clear(lsb_pub, bitno, 1);
-					dev_info(ccp->dev,
+					dev_dbg(ccp->dev,
 						 "Queue %d gets LSB %d\n",
 						 i, bitno);
 					break;
@@ -725,7 +734,6 @@ static int ccp5_init(struct ccp_device *ccp)
 		ret = -EIO;
 		goto e_pool;
 	}
-	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
 
 	/* Turn off the queues and disable interrupts until ready */
 	for (i = 0; i < ccp->cmd_q_count; i++) {
@@ -750,9 +758,6 @@ static int ccp5_init(struct ccp_device *ccp)
 		dev_err(dev, "unable to allocate an IRQ\n");
 		goto e_pool;
 	}
-
-	/* Initialize the queue used to suspend */
-	init_waitqueue_head(&ccp->suspend_queue);
 
 	dev_dbg(dev, "Loading LSB map...\n");
 	/* Copy the private LSB mask to the public registers */
@@ -955,7 +960,7 @@ static irqreturn_t ccp5_irq_handler(int irq, void *data)
 static void ccp5_config(struct ccp_device *ccp)
 {
 	/* Public side */
-	iowrite32(0x00001249, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
+	iowrite32(0x0, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
 }
 
 static void ccp5other_config(struct ccp_device *ccp)

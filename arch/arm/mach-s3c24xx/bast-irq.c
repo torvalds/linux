@@ -44,7 +44,7 @@
 /* table of ISA irq nos to the relevant mask... zero means
  * the irq is not implemented
 */
-static unsigned char bast_pc104_irqmasks[] = {
+static const unsigned char bast_pc104_irqmasks[] = {
 	0,   /* 0 */
 	0,   /* 1 */
 	0,   /* 2 */
@@ -63,7 +63,7 @@ static unsigned char bast_pc104_irqmasks[] = {
 	0,   /* 15 */
 };
 
-static unsigned char bast_pc104_irqs[] = { 3, 5, 7, 10 };
+static const unsigned char bast_pc104_irqs[] = { 3, 5, 7, 10 };
 
 static void
 bast_pc104_mask(struct irq_data *data)

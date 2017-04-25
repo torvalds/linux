@@ -362,7 +362,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 	int err = 0;
 	int num_devs;
 	int domain, bus, slot, func;
-	int substate;
+	unsigned int substate;
 	int i, len;
 	char state_str[64];
 	char dev_str[64];
@@ -395,10 +395,8 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 					 "configuration");
 			goto out;
 		}
-		err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename, state_str,
-				   "%d", &substate);
-		if (err != 1)
-			substate = XenbusStateUnknown;
+		substate = xenbus_read_unsigned(pdev->xdev->nodename, state_str,
+						XenbusStateUnknown);
 
 		switch (substate) {
 		case XenbusStateInitialising:
@@ -654,7 +652,7 @@ out:
 }
 
 static void xen_pcibk_be_watch(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len)
+			       const char *path, const char *token)
 {
 	struct xen_pcibk_device *pdev =
 	    container_of(watch, struct xen_pcibk_device, be_watch);

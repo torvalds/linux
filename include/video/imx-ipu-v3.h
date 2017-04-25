@@ -247,8 +247,6 @@ void ipu_cpmem_set_yuv_planar_full(struct ipuv3_channel *ch,
 				   unsigned int uv_stride,
 				   unsigned int u_offset,
 				   unsigned int v_offset);
-void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
-			      u32 pixel_format, int stride, int height);
 int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc);
 int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image);
 void ipu_cpmem_dump(struct ipuv3_channel *ch);
@@ -320,6 +318,7 @@ int ipu_csi_init_interface(struct ipu_csi *csi,
 bool ipu_csi_is_interlaced(struct ipu_csi *csi);
 void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w);
 void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w);
+void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert);
 void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 				u32 r_value, u32 g_value, u32 b_value,
 				u32 pix_clk);

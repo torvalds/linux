@@ -865,66 +865,66 @@ static struct kobj_attribute version_attribute =
 	__ATTR_RO(version);
 
 static struct kobj_attribute delimiters_attribute =
-	__ATTR(delimiters, S_IWUSR | S_IRUGO, punc_show, punc_store);
+	__ATTR(delimiters, 0644, punc_show, punc_store);
 static struct kobj_attribute ex_num_attribute =
-	__ATTR(ex_num, S_IWUSR | S_IRUGO, punc_show, punc_store);
+	__ATTR(ex_num, 0644, punc_show, punc_store);
 static struct kobj_attribute punc_all_attribute =
-	__ATTR(punc_all, S_IWUSR | S_IRUGO, punc_show, punc_store);
+	__ATTR(punc_all, 0644, punc_show, punc_store);
 static struct kobj_attribute punc_most_attribute =
-	__ATTR(punc_most, S_IWUSR | S_IRUGO, punc_show, punc_store);
+	__ATTR(punc_most, 0644, punc_show, punc_store);
 static struct kobj_attribute punc_some_attribute =
-	__ATTR(punc_some, S_IWUSR | S_IRUGO, punc_show, punc_store);
+	__ATTR(punc_some, 0644, punc_show, punc_store);
 static struct kobj_attribute repeats_attribute =
-	__ATTR(repeats, S_IWUSR | S_IRUGO, punc_show, punc_store);
+	__ATTR(repeats, 0644, punc_show, punc_store);
 
 static struct kobj_attribute attrib_bleep_attribute =
-	__ATTR(attrib_bleep, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(attrib_bleep, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute bell_pos_attribute =
-	__ATTR(bell_pos, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(bell_pos, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute bleep_time_attribute =
-	__ATTR(bleep_time, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(bleep_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute bleeps_attribute =
-	__ATTR(bleeps, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(bleeps, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute cursor_time_attribute =
-	__ATTR(cursor_time, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(cursor_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute key_echo_attribute =
-	__ATTR(key_echo, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(key_echo, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute no_interrupt_attribute =
-	__ATTR(no_interrupt, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(no_interrupt, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute punc_level_attribute =
-	__ATTR(punc_level, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(punc_level, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute reading_punc_attribute =
-	__ATTR(reading_punc, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(reading_punc, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute say_control_attribute =
-	__ATTR(say_control, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(say_control, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute say_word_ctl_attribute =
-	__ATTR(say_word_ctl, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(say_word_ctl, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute spell_delay_attribute =
-	__ATTR(spell_delay, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(spell_delay, 0644, spk_var_show, spk_var_store);
 
 /*
  * These attributes are i18n related.
  */
 static struct kobj_attribute announcements_attribute =
-	__ATTR(announcements, S_IWUSR | S_IRUGO, message_show, message_store);
+	__ATTR(announcements, 0644, message_show, message_store);
 static struct kobj_attribute characters_attribute =
-	__ATTR(characters, S_IWUSR | S_IRUGO, chars_chartab_show,
+	__ATTR(characters, 0644, chars_chartab_show,
 	       chars_chartab_store);
 static struct kobj_attribute chartab_attribute =
-	__ATTR(chartab, S_IWUSR | S_IRUGO, chars_chartab_show,
+	__ATTR(chartab, 0644, chars_chartab_show,
 	       chars_chartab_store);
 static struct kobj_attribute ctl_keys_attribute =
-	__ATTR(ctl_keys, S_IWUSR | S_IRUGO, message_show, message_store);
+	__ATTR(ctl_keys, 0644, message_show, message_store);
 static struct kobj_attribute colors_attribute =
-	__ATTR(colors, S_IWUSR | S_IRUGO, message_show, message_store);
+	__ATTR(colors, 0644, message_show, message_store);
 static struct kobj_attribute formatted_attribute =
-	__ATTR(formatted, S_IWUSR | S_IRUGO, message_show, message_store);
+	__ATTR(formatted, 0644, message_show, message_store);
 static struct kobj_attribute function_names_attribute =
-	__ATTR(function_names, S_IWUSR | S_IRUGO, message_show, message_store);
+	__ATTR(function_names, 0644, message_show, message_store);
 static struct kobj_attribute key_names_attribute =
-	__ATTR(key_names, S_IWUSR | S_IRUGO, message_show, message_store);
+	__ATTR(key_names, 0644, message_show, message_store);
 static struct kobj_attribute states_attribute =
-	__ATTR(states, S_IWUSR | S_IRUGO, message_show, message_store);
+	__ATTR(states, 0644, message_show, message_store);
 
 /*
  * Create groups of attributes so that we can create and destroy them all

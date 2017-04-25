@@ -762,7 +762,7 @@ static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 		seq_printf(s, "mode %d ", mode);
 	}
 
-	seq_printf(s, "ctrl0 0x%08x ctrl1 0x%08x", ctrl0, ctrl1);
+	seq_printf(s, "0x%08x 0x%08x", ctrl0, ctrl1);
 
 	if (locked)
 		seq_puts(s, " [LOCKED]");
@@ -1059,7 +1059,7 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 }
 
 static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
-			       enum pin_config_param param, u16 arg)
+			       enum pin_config_param param, u32 arg)
 {
 	void __iomem *reg = chv_padreg(pctrl, pin, CHV_PADCTRL0);
 	unsigned long flags;
@@ -1151,7 +1151,7 @@ static int chv_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
 	int i, ret;
-	u16 arg;
+	u32 arg;
 
 	if (chv_pad_locked(pctrl, pin))
 		return -EBUSY;

@@ -18,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -47,6 +42,11 @@ static const struct nvt_chip nvt_chips[] = {
 	{ "NCT6776F", NVT_6776F },
 	{ "NCT6779D", NVT_6779D },
 };
+
+static inline struct device *nvt_get_dev(const struct nvt_dev *nvt)
+{
+	return nvt->rdev->dev.parent;
+}
 
 static inline bool is_w83667hg(struct nvt_dev *nvt)
 {
@@ -171,6 +171,41 @@ static void nvt_set_ioaddr(struct nvt_dev *nvt, unsigned long *ioaddr)
 	}
 }
 
+static void nvt_write_wakeup_codes(struct rc_dev *dev,
+				   const u8 *wbuf, int count)
+{
+	u8 tolerance, config;
+	struct nvt_dev *nvt = dev->priv;
+	int i;
+
+	/* hardcode the tolerance to 10% */
+	tolerance = DIV_ROUND_UP(count, 10);
+
+	spin_lock(&nvt->lock);
+
+	nvt_clear_cir_wake_fifo(nvt);
+	nvt_cir_wake_reg_write(nvt, count, CIR_WAKE_FIFO_CMP_DEEP);
+	nvt_cir_wake_reg_write(nvt, tolerance, CIR_WAKE_FIFO_CMP_TOL);
+
+	config = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRCON);
+
+	/* enable writes to wake fifo */
+	nvt_cir_wake_reg_write(nvt, config | CIR_WAKE_IRCON_MODE1,
+			       CIR_WAKE_IRCON);
+
+	if (count)
+		pr_info("Wake samples (%d) =", count);
+	else
+		pr_info("Wake sample fifo cleared");
+
+	for (i = 0; i < count; i++)
+		nvt_cir_wake_reg_write(nvt, wbuf[i], CIR_WAKE_WR_FIFO_DATA);
+
+	nvt_cir_wake_reg_write(nvt, config, CIR_WAKE_IRCON);
+
+	spin_unlock(&nvt->lock);
+}
+
 static ssize_t wakeup_data_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -182,7 +217,7 @@ static ssize_t wakeup_data_show(struct device *dev,
 	ssize_t buf_len = 0;
 	int i;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	fifo_len = nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_COUNT);
 	fifo_len = min(fifo_len, WAKEUP_MAX_SIZE);
@@ -199,7 +234,7 @@ static ssize_t wakeup_data_show(struct device *dev,
 	}
 	buf_len += snprintf(buf + buf_len, PAGE_SIZE - buf_len, "\n");
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	return buf_len;
 }
@@ -209,9 +244,7 @@ static ssize_t wakeup_data_store(struct device *dev,
 				 const char *buf, size_t len)
 {
 	struct rc_dev *rc_dev = to_rc_dev(dev);
-	struct nvt_dev *nvt = rc_dev->priv;
-	unsigned long flags;
-	u8 tolerance, config, wake_buf[WAKEUP_MAX_SIZE];
+	u8 wake_buf[WAKEUP_MAX_SIZE];
 	char **argv;
 	int i, count;
 	unsigned int val;
@@ -240,27 +273,7 @@ static ssize_t wakeup_data_store(struct device *dev,
 			wake_buf[i] |= BUF_PULSE_BIT;
 	}
 
-	/* hardcode the tolerance to 10% */
-	tolerance = DIV_ROUND_UP(count, 10);
-
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
-
-	nvt_clear_cir_wake_fifo(nvt);
-	nvt_cir_wake_reg_write(nvt, count, CIR_WAKE_FIFO_CMP_DEEP);
-	nvt_cir_wake_reg_write(nvt, tolerance, CIR_WAKE_FIFO_CMP_TOL);
-
-	config = nvt_cir_wake_reg_read(nvt, CIR_WAKE_IRCON);
-
-	/* enable writes to wake fifo */
-	nvt_cir_wake_reg_write(nvt, config | CIR_WAKE_IRCON_MODE1,
-			       CIR_WAKE_IRCON);
-
-	for (i = 0; i < count; i++)
-		nvt_cir_wake_reg_write(nvt, wake_buf[i], CIR_WAKE_WR_FIFO_DATA);
-
-	nvt_cir_wake_reg_write(nvt, config, CIR_WAKE_IRCON);
-
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	nvt_write_wakeup_codes(rc_dev, wake_buf, count);
 
 	ret = len;
 out:
@@ -385,6 +398,7 @@ static inline const char *nvt_find_chip(struct nvt_dev *nvt, int id)
 /* detect hardware features */
 static int nvt_hw_detect(struct nvt_dev *nvt)
 {
+	struct device *dev = nvt_get_dev(nvt);
 	const char *chip_name;
 	int chip_id;
 
@@ -405,8 +419,7 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 
 	chip_id = nvt->chip_major << 8 | nvt->chip_minor;
 	if (chip_id == NVT_INVALID) {
-		dev_err(&nvt->pdev->dev,
-			"No device found on either EFM port\n");
+		dev_err(dev, "No device found on either EFM port\n");
 		return -ENODEV;
 	}
 
@@ -414,12 +427,11 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 
 	/* warn, but still let the driver load, if we don't know this chip */
 	if (!chip_name)
-		dev_warn(&nvt->pdev->dev,
+		dev_warn(dev,
 			 "unknown chip, id: 0x%02x 0x%02x, it may not work...",
 			 nvt->chip_major, nvt->chip_minor);
 	else
-		dev_info(&nvt->pdev->dev,
-			 "found %s or compatible: chip id: 0x%02x 0x%02x",
+		dev_info(dev, "found %s or compatible: chip id: 0x%02x 0x%02x",
 			 chip_name, nvt->chip_major, nvt->chip_minor);
 
 	return 0;
@@ -586,7 +598,7 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 
 	nvt_efm_disable(nvt);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	nvt_cir_wake_reg_write(nvt, CIR_WAKE_IRCON_MODE0 | CIR_WAKE_IRCON_RXEN |
 			       CIR_WAKE_IRCON_R | CIR_WAKE_IRCON_RXINV |
@@ -595,11 +607,11 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 	nvt_cir_wake_reg_write(nvt, 0xff, CIR_WAKE_IRSTS);
 	nvt_cir_wake_reg_write(nvt, 0, CIR_WAKE_IREN);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 }
 
 #if 0 /* Currently unused */
-/* rx carrier detect only works in learning mode, must be called w/nvt_lock */
+/* rx carrier detect only works in learning mode, must be called w/lock */
 static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 {
 	u32 count, carrier, duration = 0;
@@ -616,7 +628,7 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 	duration *= SAMPLE_PERIOD;
 
 	if (!count || !duration) {
-		dev_notice(&nvt->pdev->dev,
+		dev_notice(nvt_get_dev(nvt),
 			   "Unable to determine carrier! (c:%u, d:%u)",
 			   count, duration);
 		return 0;
@@ -658,6 +670,62 @@ static int nvt_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 	return 0;
 }
 
+static int nvt_ir_raw_set_wakeup_filter(struct rc_dev *dev,
+					struct rc_scancode_filter *sc_filter)
+{
+	u8 buf_val;
+	int i, ret, count;
+	unsigned int val;
+	struct ir_raw_event *raw;
+	u8 wake_buf[WAKEUP_MAX_SIZE];
+	bool complete;
+
+	/* Require mask to be set */
+	if (!sc_filter->mask)
+		return 0;
+
+	raw = kmalloc_array(WAKEUP_MAX_SIZE, sizeof(*raw), GFP_KERNEL);
+	if (!raw)
+		return -ENOMEM;
+
+	ret = ir_raw_encode_scancode(dev->wakeup_protocol, sc_filter->data,
+				     raw, WAKEUP_MAX_SIZE);
+	complete = (ret != -ENOBUFS);
+	if (!complete)
+		ret = WAKEUP_MAX_SIZE;
+	else if (ret < 0)
+		goto out_raw;
+
+	/* Inspect the ir samples */
+	for (i = 0, count = 0; i < ret && count < WAKEUP_MAX_SIZE; ++i) {
+		/* NS to US */
+		val = DIV_ROUND_UP(raw[i].duration, 1000L) / SAMPLE_PERIOD;
+
+		/* Split too large values into several smaller ones */
+		while (val > 0 && count < WAKEUP_MAX_SIZE) {
+			/* Skip last value for better comparison tolerance */
+			if (complete && i == ret - 1 && val < BUF_LEN_MASK)
+				break;
+
+			/* Clamp values to BUF_LEN_MASK at most */
+			buf_val = (val > BUF_LEN_MASK) ? BUF_LEN_MASK : val;
+
+			wake_buf[count] = buf_val;
+			val -= buf_val;
+			if ((raw[i]).pulse)
+				wake_buf[count] |= BUF_PULSE_BIT;
+			count++;
+		}
+	}
+
+	nvt_write_wakeup_codes(dev, wake_buf, count);
+	ret = 0;
+out_raw:
+	kfree(raw);
+
+	return ret;
+}
+
 /*
  * nvt_tx_ir
  *
@@ -684,7 +752,7 @@ static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
 	u8 iren;
 	int ret;
 
-	spin_lock_irqsave(&nvt->tx.lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	ret = min((unsigned)(TX_BUF_LEN / sizeof(unsigned)), n);
 	nvt->tx.buf_count = (ret * sizeof(unsigned));
@@ -708,13 +776,13 @@ static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
 	for (i = 0; i < 9; i++)
 		nvt_cir_reg_write(nvt, 0x01, CIR_STXFIFO);
 
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	wait_event(nvt->tx.queue, nvt->tx.tx_state == ST_TX_REQUEST);
 
-	spin_lock_irqsave(&nvt->tx.lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 	nvt->tx.tx_state = ST_TX_NONE;
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* restore enabled interrupts to prior state */
 	nvt_cir_reg_write(nvt, iren, CIR_IREN);
@@ -781,7 +849,7 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 
 static void nvt_handle_rx_fifo_overrun(struct nvt_dev *nvt)
 {
-	dev_warn(&nvt->pdev->dev, "RX FIFO overrun detected, flushing data!");
+	dev_warn(nvt_get_dev(nvt), "RX FIFO overrun detected, flushing data!");
 
 	nvt->pkts = 0;
 	nvt_clear_cir_fifo(nvt);
@@ -828,14 +896,7 @@ static void nvt_cir_log_irqs(u8 status, u8 iren)
 
 static bool nvt_cir_tx_inactive(struct nvt_dev *nvt)
 {
-	unsigned long flags;
-	u8 tx_state;
-
-	spin_lock_irqsave(&nvt->tx.lock, flags);
-	tx_state = nvt->tx.tx_state;
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
-
-	return tx_state == ST_TX_NONE;
+	return nvt->tx.tx_state == ST_TX_NONE;
 }
 
 /* interrupt service routine for incoming and outgoing CIR data */
@@ -843,11 +904,10 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 {
 	struct nvt_dev *nvt = data;
 	u8 status, iren;
-	unsigned long flags;
 
 	nvt_dbg_verbose("%s firing", __func__);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock(&nvt->lock);
 
 	/*
 	 * Get IR Status register contents. Write 1 to ack/clear
@@ -869,7 +929,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 * logical device is being disabled.
 	 */
 	if (status == 0xff && iren == 0xff) {
-		spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+		spin_unlock(&nvt->lock);
 		nvt_dbg_verbose("Spurious interrupt detected");
 		return IRQ_HANDLED;
 	}
@@ -878,7 +938,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 * status bit whether the related interrupt source is enabled
 	 */
 	if (!(status & iren)) {
-		spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+		spin_unlock(&nvt->lock);
 		nvt_dbg_verbose("%s exiting, IRSTS 0x0", __func__);
 		return IRQ_NONE;
 	}
@@ -898,16 +958,12 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 			nvt_get_rx_ir_data(nvt);
 	}
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
-
 	if (status & CIR_IRSTS_TE)
 		nvt_clear_tx_fifo(nvt);
 
 	if (status & CIR_IRSTS_TTR) {
 		unsigned int pos, count;
 		u8 tmp;
-
-		spin_lock_irqsave(&nvt->tx.lock, flags);
 
 		pos = nvt->tx.cur_buf_num;
 		count = nvt->tx.buf_count;
@@ -921,19 +977,16 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 			tmp = nvt_cir_reg_read(nvt, CIR_IREN);
 			nvt_cir_reg_write(nvt, tmp & ~CIR_IREN_TTR, CIR_IREN);
 		}
-
-		spin_unlock_irqrestore(&nvt->tx.lock, flags);
-
 	}
 
 	if (status & CIR_IRSTS_TFU) {
-		spin_lock_irqsave(&nvt->tx.lock, flags);
 		if (nvt->tx.tx_state == ST_TX_REPLY) {
 			nvt->tx.tx_state = ST_TX_REQUEST;
 			wake_up(&nvt->tx.queue);
 		}
-		spin_unlock_irqrestore(&nvt->tx.lock, flags);
 	}
+
+	spin_unlock(&nvt->lock);
 
 	nvt_dbg_verbose("%s done", __func__);
 	return IRQ_HANDLED;
@@ -943,7 +996,7 @@ static void nvt_disable_cir(struct nvt_dev *nvt)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	/* disable CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
@@ -958,7 +1011,7 @@ static void nvt_disable_cir(struct nvt_dev *nvt)
 	nvt_clear_cir_fifo(nvt);
 	nvt_clear_tx_fifo(nvt);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* disable the CIR logical device */
 	nvt_disable_logical_dev(nvt, LOGICAL_DEV_CIR);
@@ -969,7 +1022,7 @@ static int nvt_open(struct rc_dev *dev)
 	struct nvt_dev *nvt = dev->priv;
 	unsigned long flags;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	/* set function enable flags */
 	nvt_cir_reg_write(nvt, CIR_IRCON_TXEN | CIR_IRCON_RXEN |
@@ -982,7 +1035,7 @@ static int nvt_open(struct rc_dev *dev)
 	/* enable interrupts */
 	nvt_set_cir_iren(nvt);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* enable the CIR logical device */
 	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
@@ -1002,40 +1055,41 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 {
 	struct nvt_dev *nvt;
 	struct rc_dev *rdev;
-	int ret = -ENOMEM;
+	int ret;
 
 	nvt = devm_kzalloc(&pdev->dev, sizeof(struct nvt_dev), GFP_KERNEL);
 	if (!nvt)
-		return ret;
+		return -ENOMEM;
 
 	/* input device for IR remote (and tx) */
-	rdev = rc_allocate_device();
-	if (!rdev)
-		goto exit_free_dev_rdev;
+	nvt->rdev = devm_rc_allocate_device(&pdev->dev, RC_DRIVER_IR_RAW);
+	if (!nvt->rdev)
+		return -ENOMEM;
+	rdev = nvt->rdev;
 
-	ret = -ENODEV;
 	/* activate pnp device */
-	if (pnp_activate_dev(pdev) < 0) {
+	ret = pnp_activate_dev(pdev);
+	if (ret) {
 		dev_err(&pdev->dev, "Could not activate PNP device!\n");
-		goto exit_free_dev_rdev;
+		return ret;
 	}
 
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0) ||
 	    pnp_port_len(pdev, 0) < CIR_IOREG_LENGTH) {
 		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
-		goto exit_free_dev_rdev;
+		return -EINVAL;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
 		dev_err(&pdev->dev, "PNP IRQ not valid!\n");
-		goto exit_free_dev_rdev;
+		return -EINVAL;
 	}
 
 	if (!pnp_port_valid(pdev, 1) ||
 	    pnp_port_len(pdev, 1) < CIR_IOREG_LENGTH) {
 		dev_err(&pdev->dev, "Wake PNP Port not valid!\n");
-		goto exit_free_dev_rdev;
+		return -EINVAL;
 	}
 
 	nvt->cir_addr = pnp_port_start(pdev, 0);
@@ -1046,17 +1100,15 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	nvt->cr_efir = CR_EFIR;
 	nvt->cr_efdr = CR_EFDR;
 
-	spin_lock_init(&nvt->nvt_lock);
-	spin_lock_init(&nvt->tx.lock);
+	spin_lock_init(&nvt->lock);
 
 	pnp_set_drvdata(pdev, nvt);
-	nvt->pdev = pdev;
 
 	init_waitqueue_head(&nvt->tx.queue);
 
 	ret = nvt_hw_detect(nvt);
 	if (ret)
-		goto exit_free_dev_rdev;
+		return ret;
 
 	/* Initialize CIR & CIR Wake Logical Devices */
 	nvt_efm_enable(nvt);
@@ -1073,19 +1125,20 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	/* Set up the rc device */
 	rdev->priv = nvt;
-	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protocols = RC_BIT_ALL;
+	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rdev->allowed_wakeup_protocols = RC_BIT_ALL_IR_ENCODER;
+	rdev->encode_wakeup = true;
 	rdev->open = nvt_open;
 	rdev->close = nvt_close;
 	rdev->tx_ir = nvt_tx_ir;
 	rdev->s_tx_carrier = nvt_set_tx_carrier;
+	rdev->s_wakeup_filter = nvt_ir_raw_set_wakeup_filter;
 	rdev->input_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
 	rdev->input_phys = "nuvoton/cir0";
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = PCI_VENDOR_ID_WINBOND2;
 	rdev->input_id.product = nvt->chip_major;
 	rdev->input_id.version = nvt->chip_minor;
-	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = NVT_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
 	rdev->timeout = MS_TO_NS(100);
@@ -1097,29 +1150,27 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	/* tx bits */
 	rdev->tx_resolution = XYZ;
 #endif
-	nvt->rdev = rdev;
-
-	ret = rc_register_device(rdev);
+	ret = devm_rc_register_device(&pdev->dev, rdev);
 	if (ret)
-		goto exit_free_dev_rdev;
+		return ret;
 
-	ret = -EBUSY;
 	/* now claim resources */
 	if (!devm_request_region(&pdev->dev, nvt->cir_addr,
 			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
-		goto exit_unregister_device;
+		return -EBUSY;
 
-	if (devm_request_irq(&pdev->dev, nvt->cir_irq, nvt_cir_isr,
-			     IRQF_SHARED, NVT_DRIVER_NAME, (void *)nvt))
-		goto exit_unregister_device;
+	ret = devm_request_irq(&pdev->dev, nvt->cir_irq, nvt_cir_isr,
+			       IRQF_SHARED, NVT_DRIVER_NAME, nvt);
+	if (ret)
+		return ret;
 
 	if (!devm_request_region(&pdev->dev, nvt->cir_wake_addr,
 			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME "-wake"))
-		goto exit_unregister_device;
+		return -EBUSY;
 
 	ret = device_create_file(&rdev->dev, &dev_attr_wakeup_data);
 	if (ret)
-		goto exit_unregister_device;
+		return ret;
 
 	device_init_wakeup(&pdev->dev, true);
 
@@ -1130,14 +1181,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	}
 
 	return 0;
-
-exit_unregister_device:
-	rc_unregister_device(rdev);
-	rdev = NULL;
-exit_free_dev_rdev:
-	rc_free_device(rdev);
-
-	return ret;
 }
 
 static void nvt_remove(struct pnp_dev *pdev)
@@ -1150,8 +1193,6 @@ static void nvt_remove(struct pnp_dev *pdev)
 
 	/* enable CIR Wake (for IR power-on) */
 	nvt_enable_wake(nvt);
-
-	rc_unregister_device(nvt->rdev);
 }
 
 static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
@@ -1161,16 +1202,14 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 	nvt_dbg("%s called", __func__);
 
-	spin_lock_irqsave(&nvt->tx.lock, flags);
-	nvt->tx.tx_state = ST_TX_NONE;
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	nvt->tx.tx_state = ST_TX_NONE;
 
 	/* disable all CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* disable cir logical dev */
 	nvt_disable_logical_dev(nvt, LOGICAL_DEV_CIR);

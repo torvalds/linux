@@ -43,7 +43,7 @@ EXPORT_SYMBOL(__xchg64);
 EXPORT_SYMBOL(__cmpxchg_u64);
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 EXPORT_SYMBOL(lclear_user);
 EXPORT_SYMBOL(lstrnlen_user);
 

@@ -364,11 +364,14 @@
 };
 
 &davinci_mdio {
+	status = "okay";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 
-	status = "okay";
+	phy1: ethernet-phy@1 {
+		reg = <7>;
+	};
 };
 
 &mmc1 {
@@ -404,5 +407,9 @@
 };
 
 &gpio0 {
+	ti,no-reset-on-init;
+};
+
+&gpio3 {
 	ti,no-reset-on-init;
 };

@@ -60,7 +60,7 @@ enum {
 	LU_CACHE_PERCENT_DEFAULT = 20
 };
 
-#define LU_CACHE_NR_MAX_ADJUST		128
+#define LU_CACHE_NR_MAX_ADJUST		512
 #define LU_CACHE_NR_UNLIMITED		-1
 #define LU_CACHE_NR_DEFAULT		LU_CACHE_NR_UNLIMITED
 #define LU_CACHE_NR_LDISKFS_LIMIT	LU_CACHE_NR_UNLIMITED
@@ -68,6 +68,7 @@ enum {
 
 #define LU_SITE_BITS_MIN	12
 #define LU_SITE_BITS_MAX	24
+#define LU_SITE_BITS_MAX_CL	19
 /**
  * total 256 buckets, we don't want too many buckets because:
  * - consume too much memory
@@ -150,7 +151,7 @@ void lu_object_put(const struct lu_env *env, struct lu_object *o)
 		LASSERT(list_empty(&top->loh_lru));
 		list_add_tail(&top->loh_lru, &bkt->lsb_lru);
 		bkt->lsb_lru_len++;
-		lprocfs_counter_incr(site->ls_stats, LU_SS_LRU_LEN);
+		percpu_counter_inc(&site->ls_lru_len_counter);
 		CDEBUG(D_INODE, "Add %p to site lru. hash: %p, bkt: %p, lru_len: %ld\n",
 		       o, site->ls_obj_hash, bkt, bkt->lsb_lru_len);
 		cfs_hash_bd_unlock(site->ls_obj_hash, &bd, 1);
@@ -201,7 +202,7 @@ void lu_object_unhash(const struct lu_env *env, struct lu_object *o)
 			list_del_init(&top->loh_lru);
 			bkt = cfs_hash_bd_extra_get(obj_hash, &bd);
 			bkt->lsb_lru_len--;
-			lprocfs_counter_decr(site->ls_stats, LU_SS_LRU_LEN);
+			percpu_counter_dec(&site->ls_lru_len_counter);
 		}
 		cfs_hash_bd_del_locked(obj_hash, &bd, &top->loh_hash);
 		cfs_hash_bd_unlock(obj_hash, &bd, 1);
@@ -328,8 +329,11 @@ static void lu_object_free(const struct lu_env *env, struct lu_object *o)
 
 /**
  * Free \a nr objects from the cold end of the site LRU list.
+ * if canblock is false, then don't block awaiting for another
+ * instance of lu_site_purge() to complete
  */
-int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
+int lu_site_purge_objects(const struct lu_env *env, struct lu_site *s,
+			  int nr, bool canblock)
 {
 	struct lu_object_header *h;
 	struct lu_object_header *temp;
@@ -338,7 +342,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	struct cfs_hash_bd	    bd2;
 	struct list_head	       dispose;
 	int		      did_sth;
-	unsigned int start;
+	unsigned int start = 0;
 	int		      count;
 	int		      bnr;
 	unsigned int i;
@@ -351,14 +355,19 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	 * Under LRU list lock, scan LRU list and move unreferenced objects to
 	 * the dispose list, removing them from LRU and hash table.
 	 */
-	start = s->ls_purge_start;
+	if (nr != ~0)
+		start = s->ls_purge_start;
 	bnr = (nr == ~0) ? -1 : nr / (int)CFS_HASH_NBKT(s->ls_obj_hash) + 1;
  again:
 	/*
 	 * It doesn't make any sense to make purge threads parallel, that can
 	 * only bring troubles to us. See LU-5331.
 	 */
-	mutex_lock(&s->ls_purge_mutex);
+	if (canblock)
+		mutex_lock(&s->ls_purge_mutex);
+	else if (!mutex_trylock(&s->ls_purge_mutex))
+		goto out;
+
 	did_sth = 0;
 	cfs_hash_for_each_bucket(s->ls_obj_hash, &bd, i) {
 		if (i < start)
@@ -377,7 +386,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 					       &bd2, &h->loh_hash);
 			list_move(&h->loh_lru, &dispose);
 			bkt->lsb_lru_len--;
-			lprocfs_counter_decr(s->ls_stats, LU_SS_LRU_LEN);
+			percpu_counter_dec(&s->ls_lru_len_counter);
 			if (did_sth == 0)
 				did_sth = 1;
 
@@ -412,10 +421,10 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	}
 	/* race on s->ls_purge_start, but nobody cares */
 	s->ls_purge_start = i % CFS_HASH_NBKT(s->ls_obj_hash);
-
+out:
 	return nr;
 }
-EXPORT_SYMBOL(lu_site_purge);
+EXPORT_SYMBOL(lu_site_purge_objects);
 
 /*
  * Object printing.
@@ -576,7 +585,7 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 		if (!list_empty(&h->loh_lru)) {
 			list_del_init(&h->loh_lru);
 			bkt->lsb_lru_len--;
-			lprocfs_counter_decr(s->ls_stats, LU_SS_LRU_LEN);
+			percpu_counter_dec(&s->ls_lru_len_counter);
 		}
 		return lu_object_top(h);
 	}
@@ -623,9 +632,12 @@ static void lu_object_limit(const struct lu_env *env, struct lu_device *dev)
 
 	size = cfs_hash_size_get(dev->ld_site->ls_obj_hash);
 	nr = (__u64)lu_cache_nr;
-	if (size > nr)
-		lu_site_purge(env, dev->ld_site,
-			      min_t(__u64, size - nr, LU_CACHE_NR_MAX_ADJUST));
+	if (size <= nr)
+		return;
+
+	lu_site_purge_objects(env, dev->ld_site,
+			      min_t(__u64, size - nr, LU_CACHE_NR_MAX_ADJUST),
+			      false);
 }
 
 static struct lu_object *lu_object_new(const struct lu_env *env,
@@ -818,7 +830,7 @@ EXPORT_SYMBOL(lu_device_type_fini);
  * Global list of all sites on this node
  */
 static LIST_HEAD(lu_sites);
-static DEFINE_MUTEX(lu_sites_guard);
+static DECLARE_RWSEM(lu_sites_guard);
 
 /**
  * Global environment used by site shrinker.
@@ -877,6 +889,9 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	unsigned long cache_size;
 	unsigned long bits;
 
+	if (!strcmp(top->ld_type->ldt_name, LUSTRE_VVP_NAME))
+		bits_max = LU_SITE_BITS_MAX_CL;
+
 	/*
 	 * Calculate hash table size, assuming that we want reasonable
 	 * performance when 20% of total memory is occupied by cache of
@@ -909,8 +924,8 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	return clamp_t(typeof(bits), bits, LU_SITE_BITS_MIN, bits_max);
 }
 
-static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
-				const void *key, unsigned mask)
+static unsigned int lu_obj_hop_hash(struct cfs_hash *hs,
+				    const void *key, unsigned int mask)
 {
 	struct lu_fid  *fid = (struct lu_fid *)key;
 	__u32	   hash;
@@ -989,9 +1004,15 @@ int lu_site_init(struct lu_site *s, struct lu_device *top)
 	unsigned long bits;
 	unsigned long i;
 	char name[16];
+	int rc;
 
 	memset(s, 0, sizeof(*s));
 	mutex_init(&s->ls_purge_mutex);
+
+	rc = percpu_counter_init(&s->ls_lru_len_counter, 0, GFP_NOFS);
+	if (rc)
+		return -ENOMEM;
+
 	snprintf(name, sizeof(name), "lu_site_%s", top->ld_type->ldt_name);
 	for (bits = lu_htable_order(top); bits >= LU_SITE_BITS_MIN; bits--) {
 		s->ls_obj_hash = cfs_hash_create(name, bits, bits,
@@ -1037,12 +1058,6 @@ int lu_site_init(struct lu_site *s, struct lu_device *top)
 			     0, "cache_death_race", "cache_death_race");
 	lprocfs_counter_init(s->ls_stats, LU_SS_LRU_PURGED,
 			     0, "lru_purged", "lru_purged");
-	/*
-	 * Unlike other counters, lru_len can be decremented so
-	 * need lc_sum instead of just lc_count
-	 */
-	lprocfs_counter_init(s->ls_stats, LU_SS_LRU_LEN,
-			     LPROCFS_CNTR_AVGMINMAX, "lru_len", "lru_len");
 
 	INIT_LIST_HEAD(&s->ls_linkage);
 	s->ls_top_dev = top;
@@ -1064,9 +1079,11 @@ EXPORT_SYMBOL(lu_site_init);
  */
 void lu_site_fini(struct lu_site *s)
 {
-	mutex_lock(&lu_sites_guard);
+	down_write(&lu_sites_guard);
 	list_del_init(&s->ls_linkage);
-	mutex_unlock(&lu_sites_guard);
+	up_write(&lu_sites_guard);
+
+	percpu_counter_destroy(&s->ls_lru_len_counter);
 
 	if (s->ls_obj_hash) {
 		cfs_hash_putref(s->ls_obj_hash);
@@ -1092,11 +1109,11 @@ int lu_site_init_finish(struct lu_site *s)
 {
 	int result;
 
-	mutex_lock(&lu_sites_guard);
+	down_write(&lu_sites_guard);
 	result = lu_context_refill(&lu_shrink_env.le_ctx);
 	if (result == 0)
 		list_add(&s->ls_linkage, &lu_sites);
-	mutex_unlock(&lu_sites_guard);
+	up_write(&lu_sites_guard);
 	return result;
 }
 EXPORT_SYMBOL(lu_site_init_finish);
@@ -1311,6 +1328,7 @@ enum {
 static struct lu_context_key *lu_keys[LU_CONTEXT_KEY_NR] = { NULL, };
 
 static DEFINE_SPINLOCK(lu_keys_guard);
+static atomic_t lu_key_initing_cnt = ATOMIC_INIT(0);
 
 /**
  * Global counter incremented whenever key is registered, unregistered,
@@ -1318,7 +1336,7 @@ static DEFINE_SPINLOCK(lu_keys_guard);
  * lu_context_refill(). No locking is provided, as initialization and shutdown
  * are supposed to be externally serialized.
  */
-static unsigned key_set_version;
+static unsigned int key_set_version;
 
 /**
  * Register new key.
@@ -1385,6 +1403,19 @@ void lu_context_key_degister(struct lu_context_key *key)
 	++key_set_version;
 	spin_lock(&lu_keys_guard);
 	key_fini(&lu_shrink_env.le_ctx, key->lct_index);
+
+	/**
+	 * Wait until all transient contexts referencing this key have
+	 * run lu_context_key::lct_fini() method.
+	 */
+	while (atomic_read(&key->lct_used) > 1) {
+		spin_unlock(&lu_keys_guard);
+		CDEBUG(D_INFO, "lu_context_key_degister: \"%s\" %p, %d\n",
+		       key->lct_owner ? key->lct_owner->name : "", key,
+		       atomic_read(&key->lct_used));
+		schedule();
+		spin_lock(&lu_keys_guard);
+	}
 	if (lu_keys[key->lct_index]) {
 		lu_keys[key->lct_index] = NULL;
 		lu_ref_fini(&key->lct_reference);
@@ -1507,14 +1538,25 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 
 	if (!(key->lct_tags & LCT_QUIESCENT)) {
 		/*
-		 * XXX layering violation.
-		 */
-		cl_env_cache_purge(~0);
-		key->lct_tags |= LCT_QUIESCENT;
-		/*
 		 * XXX memory barrier has to go here.
 		 */
 		spin_lock(&lu_keys_guard);
+		key->lct_tags |= LCT_QUIESCENT;
+
+		/**
+		 * Wait until all lu_context_key::lct_init() methods
+		 * have completed.
+		 */
+		while (atomic_read(&lu_key_initing_cnt) > 0) {
+			spin_unlock(&lu_keys_guard);
+			CDEBUG(D_INFO, "lu_context_key_quiesce: \"%s\" %p, %d (%d)\n",
+			       key->lct_owner ? key->lct_owner->name : "",
+			       key, atomic_read(&key->lct_used),
+			atomic_read(&lu_key_initing_cnt));
+			schedule();
+			spin_lock(&lu_keys_guard);
+		}
+
 		list_for_each_entry(ctx, &lu_context_remembered, lc_remember)
 			key_fini(ctx, key->lct_index);
 		spin_unlock(&lu_keys_guard);
@@ -1546,6 +1588,19 @@ static int keys_fill(struct lu_context *ctx)
 {
 	unsigned int i;
 
+	/*
+	 * A serialisation with lu_context_key_quiesce() is needed, but some
+	 * "key->lct_init()" are calling kernel memory allocation routine and
+	 * can't be called while holding a spin_lock.
+	 * "lu_keys_guard" is held while incrementing "lu_key_initing_cnt"
+	 * to ensure the start of the serialisation.
+	 * An atomic_t variable is still used, in order not to reacquire the
+	 * lock when decrementing the counter.
+	 */
+	spin_lock(&lu_keys_guard);
+	atomic_inc(&lu_key_initing_cnt);
+	spin_unlock(&lu_keys_guard);
+
 	LINVRNT(ctx->lc_value);
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
 		struct lu_context_key *key;
@@ -1563,12 +1618,19 @@ static int keys_fill(struct lu_context *ctx)
 			LINVRNT(key->lct_init);
 			LINVRNT(key->lct_index == i);
 
-			value = key->lct_init(ctx, key);
-			if (IS_ERR(value))
-				return PTR_ERR(value);
+			LASSERT(key->lct_owner);
+			if (!(ctx->lc_tags & LCT_NOREF) &&
+			    !try_module_get(key->lct_owner)) {
+				/* module is unloading, skip this key */
+				continue;
+			}
 
-			if (!(ctx->lc_tags & LCT_NOREF))
-				try_module_get(key->lct_owner);
+			value = key->lct_init(ctx, key);
+			if (unlikely(IS_ERR(value))) {
+				atomic_dec(&lu_key_initing_cnt);
+				return PTR_ERR(value);
+			}
+
 			lu_ref_add_atomic(&key->lct_reference, "ctx", ctx);
 			atomic_inc(&key->lct_used);
 			/*
@@ -1582,6 +1644,7 @@ static int keys_fill(struct lu_context *ctx)
 		}
 		ctx->lc_version = key_set_version;
 	}
+	atomic_dec(&lu_key_initing_cnt);
 	return 0;
 }
 
@@ -1663,6 +1726,9 @@ void lu_context_exit(struct lu_context *ctx)
 	ctx->lc_state = LCS_LEFT;
 	if (ctx->lc_tags & LCT_HAS_EXIT && ctx->lc_value) {
 		for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
+			/* could race with key quiescency */
+			if (ctx->lc_tags & LCT_REMEMBER)
+				spin_lock(&lu_keys_guard);
 			if (ctx->lc_value[i]) {
 				struct lu_context_key *key;
 
@@ -1671,6 +1737,8 @@ void lu_context_exit(struct lu_context *ctx)
 					key->lct_exit(ctx,
 						      key, ctx->lc_value[i]);
 			}
+			if (ctx->lc_tags & LCT_REMEMBER)
+				spin_unlock(&lu_keys_guard);
 		}
 	}
 }
@@ -1764,12 +1832,15 @@ static void lu_site_stats_get(struct cfs_hash *hs,
 }
 
 /*
- * lu_cache_shrink_count returns the number of cached objects that are
- * candidates to be freed by shrink_slab(). A counter, which tracks
- * the number of items in the site's lru, is maintained in the per cpu
- * stats of each site. The counter is incremented when an object is added
- * to a site's lru and decremented when one is removed. The number of
- * free-able objects is the sum of all per cpu counters for all sites.
+ * lu_cache_shrink_count() returns an approximate number of cached objects
+ * that can be freed by shrink_slab(). A counter, which tracks the
+ * number of items in the site's lru, is maintained in a percpu_counter
+ * for each site. The percpu values are incremented and decremented as
+ * objects are added or removed from the lru. The percpu values are summed
+ * and saved whenever a percpu value exceeds a threshold. Thus the saved,
+ * summed value at any given time may not accurately reflect the current
+ * lru length. But this value is sufficiently accurate for the needs of
+ * a shrinker.
  *
  * Using a per cpu counter is a compromise solution to concurrent access:
  * lu_object_put() can update the counter without locking the site and
@@ -1786,11 +1857,10 @@ static unsigned long lu_cache_shrink_count(struct shrinker *sk,
 	if (!(sc->gfp_mask & __GFP_FS))
 		return 0;
 
-	mutex_lock(&lu_sites_guard);
-	list_for_each_entry_safe(s, tmp, &lu_sites, ls_linkage) {
-		cached += ls_stats_read(s->ls_stats, LU_SS_LRU_LEN);
-	}
-	mutex_unlock(&lu_sites_guard);
+	down_read(&lu_sites_guard);
+	list_for_each_entry_safe(s, tmp, &lu_sites, ls_linkage)
+		cached += percpu_counter_read_positive(&s->ls_lru_len_counter);
+	up_read(&lu_sites_guard);
 
 	cached = (cached / 100) * sysctl_vfs_cache_pressure;
 	CDEBUG(D_INODE, "%ld objects cached, cache pressure %d\n",
@@ -1821,7 +1891,7 @@ static unsigned long lu_cache_shrink_scan(struct shrinker *sk,
 		 */
 		return SHRINK_STOP;
 
-	mutex_lock(&lu_sites_guard);
+	down_write(&lu_sites_guard);
 	list_for_each_entry_safe(s, tmp, &lu_sites, ls_linkage) {
 		freed = lu_site_purge(&lu_shrink_env, s, remain);
 		remain -= freed;
@@ -1832,7 +1902,7 @@ static unsigned long lu_cache_shrink_scan(struct shrinker *sk,
 		list_move_tail(&s->ls_linkage, &splice);
 	}
 	list_splice(&splice, lu_sites.prev);
-	mutex_unlock(&lu_sites_guard);
+	up_write(&lu_sites_guard);
 
 	return sc->nr_to_scan - remain;
 }
@@ -1869,9 +1939,9 @@ int lu_global_init(void)
 	 * conservatively. This should not be too bad, because this
 	 * environment is global.
 	 */
-	mutex_lock(&lu_sites_guard);
+	down_write(&lu_sites_guard);
 	result = lu_env_init(&lu_shrink_env, LCT_SHRINKER);
-	mutex_unlock(&lu_sites_guard);
+	up_write(&lu_sites_guard);
 	if (result != 0)
 		return result;
 
@@ -1897,9 +1967,9 @@ void lu_global_fini(void)
 	 * Tear shrinker environment down _after_ de-registering
 	 * lu_global_key, because the latter has a value in the former.
 	 */
-	mutex_lock(&lu_sites_guard);
+	down_write(&lu_sites_guard);
 	lu_env_fini(&lu_shrink_env);
-	mutex_unlock(&lu_sites_guard);
+	up_write(&lu_sites_guard);
 
 	lu_ref_global_fini();
 }
@@ -1909,13 +1979,6 @@ static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
 	struct lprocfs_counter ret;
 
 	lprocfs_stats_collect(stats, idx, &ret);
-	if (idx == LU_SS_LRU_LEN)
-		/*
-		 * protect against counter on cpu A being decremented
-		 * before counter is incremented on cpu B; unlikely
-		 */
-		return (__u32)((ret.lc_sum > 0) ? ret.lc_sum : 0);
-
 	return (__u32)ret.lc_count;
 }
 
@@ -1930,7 +1993,7 @@ int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 	memset(&stats, 0, sizeof(stats));
 	lu_site_stats_get(s->ls_obj_hash, &stats, 1);
 
-	seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d %d\n",
+	seq_printf(m, "%d/%d %d/%ld %d %d %d %d %d %d %d\n",
 		   stats.lss_busy,
 		   stats.lss_total,
 		   stats.lss_populated,
@@ -1941,8 +2004,7 @@ int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 		   ls_stats_read(s->ls_stats, LU_SS_CACHE_MISS),
 		   ls_stats_read(s->ls_stats, LU_SS_CACHE_RACE),
 		   ls_stats_read(s->ls_stats, LU_SS_CACHE_DEATH_RACE),
-		   ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED),
-		   ls_stats_read(s->ls_stats, LU_SS_LRU_LEN));
+		   ls_stats_read(s->ls_stats, LU_SS_LRU_PURGED));
 	return 0;
 }
 EXPORT_SYMBOL(lu_site_stats_print);

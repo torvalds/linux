@@ -9,7 +9,7 @@
  */
 
 #include <linux/export.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "input-compat.h"
 
 #ifdef CONFIG_COMPAT

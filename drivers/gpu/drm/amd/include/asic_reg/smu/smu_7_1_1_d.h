@@ -176,6 +176,8 @@
 #define mmSMU1_SMU_SMC_IND_DATA                                                 0x83
 #define mmSMU2_SMU_SMC_IND_DATA                                                 0x85
 #define mmSMU3_SMU_SMC_IND_DATA                                                 0x87
+#define mmSMC_IND_INDEX_11														0x1AC
+#define mmSMC_IND_DATA_11														0x1AD
 #define ixRCU_UC_EVENTS                                                         0xc0000004
 #define ixRCU_MISC_CTRL                                                         0xc0000010
 #define ixCC_RCU_FUSES                                                          0xc00c0000
@@ -1119,5 +1121,6 @@
 #define ixROM_SW_DATA_62                                                        0xc060011c
 #define ixROM_SW_DATA_63                                                        0xc0600120
 #define ixROM_SW_DATA_64                                                        0xc0600124
+#define ixCURRENT_PG_STATUS                                                     0xc020029c
 
 #endif /* SMU_7_1_1_D_H */

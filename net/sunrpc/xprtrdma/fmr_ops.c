@@ -310,10 +310,7 @@ fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	struct rpcrdma_mw *mw;
 
 	while (!list_empty(&req->rl_registered)) {
-		mw = list_first_entry(&req->rl_registered,
-				      struct rpcrdma_mw, mw_list);
-		list_del_init(&mw->mw_list);
-
+		mw = rpcrdma_pop_mw(&req->rl_registered);
 		if (sync)
 			fmr_op_recover_mr(mw);
 		else

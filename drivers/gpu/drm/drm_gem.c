@@ -316,8 +316,8 @@ EXPORT_SYMBOL(drm_gem_handle_delete);
  * @dev: corresponding drm_device
  * @handle: the dumb handle to remove
  * 
- * This implements the ->dumb_destroy kms driver callback for drivers which use
- * gem to manage their backing storage.
+ * This implements the &drm_driver.dumb_destroy kms driver callback for drivers
+ * which use gem to manage their backing storage.
  */
 int drm_gem_dumb_destroy(struct drm_file *file,
 			 struct drm_device *dev,
@@ -333,9 +333,9 @@ EXPORT_SYMBOL(drm_gem_dumb_destroy);
  * @obj: object to register
  * @handlep: pointer to return the created handle to the caller
  * 
- * This expects the dev->object_name_lock to be held already and will drop it
- * before returning. Used to avoid races in establishing new handles when
- * importing an object from either an flink name or a dma-buf.
+ * This expects the &drm_device.object_name_lock to be held already and will
+ * drop it before returning. Used to avoid races in establishing new handles
+ * when importing an object from either an flink name or a dma-buf.
  *
  * Handles must be release again through drm_gem_handle_delete(). This is done
  * when userspace closes @file_priv for all attached handles, or through the
@@ -447,8 +447,8 @@ EXPORT_SYMBOL(drm_gem_free_mmap_offset);
  * structures.
  *
  * This routine allocates and attaches a fake offset for @obj, in cases where
- * the virtual size differs from the physical size (ie. obj->size).  Otherwise
- * just use drm_gem_create_mmap_offset().
+ * the virtual size differs from the physical size (ie. &drm_gem_object.size).
+ * Otherwise just use drm_gem_create_mmap_offset().
  *
  * This function is idempotent and handles an already allocated mmap offset
  * transparently. Drivers do not need to check for this case.
@@ -787,7 +787,7 @@ EXPORT_SYMBOL(drm_gem_object_release);
  * @kref: kref of the object to free
  *
  * Called after the last reference to the object has been lost.
- * Must be called holding &drm_device->struct_mutex.
+ * Must be called holding &drm_device.struct_mutex.
  *
  * Frees the object
  */
@@ -813,7 +813,7 @@ EXPORT_SYMBOL(drm_gem_object_free);
  * @obj: GEM buffer object
  *
  * This releases a reference to @obj. Callers must not hold the
- * dev->struct_mutex lock when calling this function.
+ * &drm_device.struct_mutex lock when calling this function.
  *
  * See also __drm_gem_object_unreference().
  */
@@ -840,9 +840,9 @@ EXPORT_SYMBOL(drm_gem_object_unreference_unlocked);
  * drm_gem_object_unreference - release a GEM BO reference
  * @obj: GEM buffer object
  *
- * This releases a reference to @obj. Callers must hold the dev->struct_mutex
- * lock when calling this function, even when the driver doesn't use
- * dev->struct_mutex for anything.
+ * This releases a reference to @obj. Callers must hold the
+ * &drm_device.struct_mutex lock when calling this function, even when the
+ * driver doesn't use &drm_device.struct_mutex for anything.
  *
  * For drivers not encumbered with legacy locking use
  * drm_gem_object_unreference_unlocked() instead.

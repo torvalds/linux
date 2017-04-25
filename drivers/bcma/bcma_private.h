@@ -45,6 +45,9 @@ int bcma_sprom_get(struct bcma_bus *bus);
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc);
 void bcma_core_chipcommon_init(struct bcma_drv_cc *cc);
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
+#endif /* CONFIG_BCMA_DRIVER_MIPS */
 
 /* driver_chipcommon_b.c */
 int bcma_core_chipcommon_b_init(struct bcma_drv_cc_b *ccb);

@@ -2147,15 +2147,6 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 	}
 }
 
-static int sb1250_change_mtu(struct net_device *_dev, int new_mtu)
-{
-	if (new_mtu >  ENET_PACKET_SIZE)
-		return -EINVAL;
-	_dev->mtu = new_mtu;
-	pr_info("changing the mtu to %d\n", new_mtu);
-	return 0;
-}
-
 static const struct net_device_ops sbmac_netdev_ops = {
 	.ndo_open		= sbmac_open,
 	.ndo_stop		= sbmac_close,
@@ -2163,7 +2154,6 @@ static const struct net_device_ops sbmac_netdev_ops = {
 	.ndo_set_rx_mode	= sbmac_set_rx_mode,
 	.ndo_tx_timeout		= sbmac_tx_timeout,
 	.ndo_do_ioctl		= sbmac_mii_ioctl,
-	.ndo_change_mtu		= sb1250_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2229,6 +2219,8 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 
 	dev->netdev_ops = &sbmac_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
+	dev->min_mtu = 0;
+	dev->max_mtu = ENET_PACKET_SIZE;
 
 	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
 
@@ -2545,7 +2537,7 @@ static int sbmac_poll(struct napi_struct *napi, int budget)
 	sbdma_tx_process(sc, &(sc->sbm_txdma), 1);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 #ifdef CONFIG_SBMAC_COALESCE
 		__raw_writeq(((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_TX_CH0) |
@@ -2625,7 +2617,7 @@ out_out:
 	return err;
 }
 
-static int __exit sbmac_remove(struct platform_device *pldev)
+static int sbmac_remove(struct platform_device *pldev)
 {
 	struct net_device *dev = platform_get_drvdata(pldev);
 	struct sbmac_softc *sc = netdev_priv(dev);
@@ -2642,7 +2634,7 @@ static int __exit sbmac_remove(struct platform_device *pldev)
 
 static struct platform_driver sbmac_driver = {
 	.probe = sbmac_probe,
-	.remove = __exit_p(sbmac_remove),
+	.remove = sbmac_remove,
 	.driver = {
 		.name = sbmac_string,
 	},

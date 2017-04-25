@@ -461,7 +461,7 @@ static int max77620_probe(struct i2c_client *client,
 	chip->rmap = devm_regmap_init_i2c(client, rmap_config);
 	if (IS_ERR(chip->rmap)) {
 		ret = PTR_ERR(chip->rmap);
-		dev_err(chip->dev, "Failed to intialise regmap: %d\n", ret);
+		dev_err(chip->dev, "Failed to initialise regmap: %d\n", ret);
 		return ret;
 	}
 

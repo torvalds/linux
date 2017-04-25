@@ -149,8 +149,6 @@ static inline void cpu_relax(void)
 	asm volatile("yield" ::: "memory");
 }
 
-#define cpu_relax_lowlatency()                cpu_relax()
-
 /* Thread switching */
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 					 struct task_struct *next);
@@ -189,7 +187,6 @@ static inline void spin_lock_prefetch(const void *ptr)
 #endif
 
 int cpu_enable_pan(void *__unused);
-int cpu_enable_uao(void *__unused);
 int cpu_enable_cache_maint_trap(void *__unused);
 
 #endif /* __ASM_PROCESSOR_H */

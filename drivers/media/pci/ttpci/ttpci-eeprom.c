@@ -171,5 +171,4 @@ EXPORT_SYMBOL(ttpci_eeprom_parse_mac);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, others");
-MODULE_DESCRIPTION("Decode dvb_net MAC address from EEPROM of PCI DVB cards "
-		"made by Siemens, Technotrend, Hauppauge");
+MODULE_DESCRIPTION("Decode dvb_net MAC address from EEPROM of PCI DVB cards made by Siemens, Technotrend, Hauppauge");

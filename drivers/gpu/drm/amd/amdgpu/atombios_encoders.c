@@ -181,9 +181,6 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
 	if (!amdgpu_encoder->enc_priv)
 		return;
 
-	if (!adev->is_atom_bios)
-		return;
-
 	if (!(adev->mode_info.firmware_flags & ATOM_BIOS_INFO_BL_CONTROLLED_BY_GPU))
 		return;
 
@@ -234,9 +231,6 @@ amdgpu_atombios_encoder_fini_backlight(struct amdgpu_encoder *amdgpu_encoder)
 	struct amdgpu_encoder_atom_dig *dig;
 
 	if (!amdgpu_encoder->enc_priv)
-		return;
-
-	if (!adev->is_atom_bios)
 		return;
 
 	if (!(adev->mode_info.firmware_flags & ATOM_BIOS_INFO_BL_CONTROLLED_BY_GPU))

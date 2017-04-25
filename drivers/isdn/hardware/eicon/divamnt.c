@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "platform.h"
 #include "di_defs.h"

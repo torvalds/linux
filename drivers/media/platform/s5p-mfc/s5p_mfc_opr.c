@@ -45,13 +45,13 @@ int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
 	b->virt = dma_alloc_coherent(dev, b->size, &b->dma, GFP_KERNEL);
 
 	if (!b->virt) {
-		mfc_err("Allocating private buffer failed\n");
+		mfc_err("Allocating private buffer of size %zu failed\n",
+			b->size);
 		return -ENOMEM;
 	}
 
 	if (b->dma < base) {
-		mfc_err("Invaling memory configuration!\n");
-		mfc_err("Allocated buffer (%pad) is lower than memory base address (%pad)\n",
+		mfc_err("Invalid memory configuration - buffer (%pad) is below base memory address(%pad)\n",
 			&b->dma, &base);
 		dma_free_coherent(dev, b->size, b->virt, b->dma);
 		return -ENOMEM;

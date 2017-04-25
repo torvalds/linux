@@ -46,14 +46,20 @@ struct edp_power_seq {
 	u16 t11_t12;
 } __packed;
 
-/* MIPI Sequence Block definitions */
+/*
+ * MIPI Sequence Block definitions
+ *
+ * Note the VBT spec has AssertReset / DeassertReset swapped from their
+ * usual naming, we use the proper names here to avoid confusion when
+ * reading the code.
+ */
 enum mipi_seq {
 	MIPI_SEQ_END = 0,
-	MIPI_SEQ_ASSERT_RESET,
+	MIPI_SEQ_DEASSERT_RESET,	/* Spec says MipiAssertResetPin */
 	MIPI_SEQ_INIT_OTP,
 	MIPI_SEQ_DISPLAY_ON,
 	MIPI_SEQ_DISPLAY_OFF,
-	MIPI_SEQ_DEASSERT_RESET,
+	MIPI_SEQ_ASSERT_RESET,		/* Spec says MipiDeassertResetPin */
 	MIPI_SEQ_BACKLIGHT_ON,		/* sequence block v2+ */
 	MIPI_SEQ_BACKLIGHT_OFF,		/* sequence block v2+ */
 	MIPI_SEQ_TEAR_ON,		/* sequence block v2+ */

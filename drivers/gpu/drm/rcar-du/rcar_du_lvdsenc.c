@@ -104,7 +104,14 @@ static void rcar_du_lvdsenc_start_gen3(struct rcar_du_lvdsenc *lvds,
 
 	rcar_lvds_write(lvds, LVDPLLCR, pllcr);
 
-	/* Turn the PLL on, set it to LVDS normal mode, wait for the startup
+	/* Turn all the channels on. */
+	rcar_lvds_write(lvds, LVDCR1,
+			LVDCR1_CHSTBY_GEN3(3) | LVDCR1_CHSTBY_GEN3(2) |
+			LVDCR1_CHSTBY_GEN3(1) | LVDCR1_CHSTBY_GEN3(0) |
+			LVDCR1_CLKSTBY_GEN3);
+
+	/*
+	 * Turn the PLL on, set it to LVDS normal mode, wait for the startup
 	 * delay and turn the output on.
 	 */
 	lvdcr0 = LVDCR0_PLLON;
@@ -117,12 +124,6 @@ static void rcar_du_lvdsenc_start_gen3(struct rcar_du_lvdsenc *lvds,
 
 	lvdcr0 |= LVDCR0_LVRES;
 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
-
-	/* Turn all the channels on. */
-	rcar_lvds_write(lvds, LVDCR1,
-			LVDCR1_CHSTBY_GEN3(3) | LVDCR1_CHSTBY_GEN3(2) |
-			LVDCR1_CHSTBY_GEN3(1) | LVDCR1_CHSTBY_GEN3(0) |
-			LVDCR1_CLKSTBY_GEN3);
 }
 
 static int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
@@ -241,10 +242,8 @@ int rcar_du_lvdsenc_init(struct rcar_du_device *rcdu)
 
 	for (i = 0; i < rcdu->info->num_lvds; ++i) {
 		lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
-		if (lvds == NULL) {
-			dev_err(&pdev->dev, "failed to allocate private data\n");
+		if (lvds == NULL)
 			return -ENOMEM;
-		}
 
 		lvds->dev = rcdu;
 		lvds->index = i;

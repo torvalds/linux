@@ -189,6 +189,12 @@ struct sh_pfc_window {
 	unsigned long size;
 };
 
+struct sh_pfc_bias_info {
+	u16 pin;
+	u16 reg : 11;
+	u16 bit : 5;
+};
+
 struct sh_pfc_pin_range;
 
 struct sh_pfc {
@@ -538,6 +544,14 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 		.pin = PIN_NUMBER(row, col),				\
 		.name = __stringify(PIN_##_name),			\
 		.configs = SH_PFC_PIN_CFG_NO_GPIO,			\
+	}
+
+/* SH_PFC_PIN_NAMED_CFG - Expand to a sh_pfc_pin entry with the given name */
+#define SH_PFC_PIN_NAMED_CFG(row, col, _name, cfgs)			\
+	{								\
+		.pin = PIN_NUMBER(row, col),				\
+		.name = __stringify(PIN_##_name),			\
+		.configs = SH_PFC_PIN_CFG_NO_GPIO | cfgs,		\
 	}
 
 /* PINMUX_DATA_ALL - Expand to a list of PORT_name_DATA, PORT_name_FN0,

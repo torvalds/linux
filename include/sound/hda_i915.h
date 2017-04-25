@@ -10,8 +10,9 @@
 int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable);
 int snd_hdac_display_power(struct hdac_bus *bus, bool enable);
 void snd_hdac_i915_set_bclk(struct hdac_bus *bus);
-int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid, int rate);
-int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid,
+int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid,
+			     int dev_id, int rate);
+int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid, int dev_id,
 			   bool *audio_enabled, char *buffer, int max_bytes);
 int snd_hdac_i915_init(struct hdac_bus *bus);
 int snd_hdac_i915_exit(struct hdac_bus *bus);
@@ -29,13 +30,13 @@ static inline void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 {
 }
 static inline int snd_hdac_sync_audio_rate(struct hdac_device *codec,
-					   hda_nid_t nid, int rate)
+					   hda_nid_t nid, int dev_id, int rate)
 {
 	return 0;
 }
 static inline int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid,
-					 bool *audio_enabled, char *buffer,
-					 int max_bytes)
+					 int dev_id, bool *audio_enabled,
+					 char *buffer, int max_bytes)
 {
 	return -ENODEV;
 }

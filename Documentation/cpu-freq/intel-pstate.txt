@@ -48,7 +48,7 @@ In addition to the frequency-controlling interfaces provided by the cpufreq
 core, the driver provides its own sysfs files to control the P-State selection.
 These files have been added to /sys/devices/system/cpu/intel_pstate/.
 Any changes made to these files are applicable to all CPUs (even in a
-multi-package system).
+multi-package system, Refer to later section on placing "Per-CPU limits").
 
       max_perf_pct: Limits the maximum P-State that will be requested by
       the driver. It states it as a percentage of the available performance. The
@@ -85,6 +85,21 @@ Sysfs will show :
 Refer to "Intel® 64 and IA-32 Architectures Software Developer’s Manual
 Volume 3: System Programming Guide" to understand ratios.
 
+There is one more sysfs attribute in /sys/devices/system/cpu/intel_pstate/
+that can be used for controlling the operation mode of the driver:
+
+      status: Three settings are possible:
+      "off"     - The driver is not in use at this time.
+      "active"  - The driver works as a P-state governor (default).
+      "passive" - The driver works as a regular cpufreq one and collaborates
+                  with the generic cpufreq governors (it sets P-states as
+                  requested by those governors).
+      The current setting is returned by reads from this attribute.  Writing one
+      of the above strings to it changes the operation mode as indicated by that
+      string, if possible.  If HW-managed P-states (HWP) are enabled, it is not
+      possible to change the driver's operation mode and attempts to write to
+      this attribute will fail.
+
 cpufreq sysfs for Intel P-State
 
 Since this driver registers with cpufreq, cpufreq sysfs is also presented.
@@ -120,13 +135,57 @@ frequency is fictional for Intel Core processors. Even if the scaling
 driver selects a single P-State, the actual frequency the processor
 will run at is selected by the processor itself.
 
+Per-CPU limits
+
+The kernel command line option "intel_pstate=per_cpu_perf_limits" forces
+the intel_pstate driver to use per-CPU performance limits.  When it is set,
+the sysfs control interface described above is subject to limitations.
+- The following controls are not available for both read and write
+	/sys/devices/system/cpu/intel_pstate/max_perf_pct
+	/sys/devices/system/cpu/intel_pstate/min_perf_pct
+- The following controls can be used to set performance limits, as far as the
+architecture of the processor permits:
+	/sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq
+	/sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq
+	/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+- User can still observe turbo percent and number of P-States from
+	/sys/devices/system/cpu/intel_pstate/turbo_pct
+	/sys/devices/system/cpu/intel_pstate/num_pstates
+- User can read write system wide turbo status
+	/sys/devices/system/cpu/no_turbo
+
+Support of energy performance hints
+It is possible to provide hints to the HWP algorithms in the processor
+to be more performance centric to more energy centric. When the driver
+is using HWP, two additional cpufreq sysfs attributes are presented for
+each logical CPU.
+These attributes are:
+	- energy_performance_available_preferences
+	- energy_performance_preference
+
+To get list of supported hints:
+$ cat energy_performance_available_preferences
+    default performance balance_performance balance_power power
+
+The current preference can be read or changed via cpufreq sysfs
+attribute "energy_performance_preference". Reading from this attribute
+will display current effective setting. User can write any of the valid
+preference string to this attribute. User can always restore to power-on
+default by writing "default".
+
+Since threads can migrate to different CPUs, this is possible that the
+new CPU may have different energy performance preference than the previous
+one. To avoid such issues, either threads can be pinned to specific CPUs
+or set the same energy performance preference value to all CPUs.
+
 Tuning Intel P-State driver
 
-When HWP mode is not used, debugfs files have also been added to allow the
-tuning of the internal governor algorithm. These files are located at
-/sys/kernel/debug/pstate_snb/. The algorithm uses a PID (Proportional
-Integral Derivative) controller. The PID tunable parameters are:
+When the performance can be tuned using PID (Proportional Integral
+Derivative) controller, debugfs files are provided for adjusting performance.
+They are presented under:
+/sys/kernel/debug/pstate_snb/
 
+The PID tunable parameters are:
       deadband
       d_gain_pct
       i_gain_pct

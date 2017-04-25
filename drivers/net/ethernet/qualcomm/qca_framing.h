@@ -43,9 +43,9 @@
 /* Frame length is invalid */
 #define QCAFRM_INVFRAME (QCAFRM_ERR_BASE - 4)
 
-/* Min/Max Ethernet MTU */
-#define QCAFRM_ETHMINMTU 46
-#define QCAFRM_ETHMAXMTU 1500
+/* Min/Max Ethernet MTU: 46/1500 */
+#define QCAFRM_ETHMINMTU (ETH_ZLEN - ETH_HLEN)
+#define QCAFRM_ETHMAXMTU ETH_DATA_LEN
 
 /* Min/Max frame lengths */
 #define QCAFRM_ETHMINLEN (QCAFRM_ETHMINMTU + ETH_HLEN)

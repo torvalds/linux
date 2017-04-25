@@ -76,6 +76,7 @@ enum {
 	CPL_PASS_ESTABLISH    = 0x41,
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
+	CPL_RX_ISCSI_CMP      = 0x45,
 	CPL_TRACE_PKT_T5      = 0x48,
 	CPL_RX_ISCSI_DDP      = 0x49,
 
@@ -934,6 +935,18 @@ struct cpl_iscsi_data {
 	__u8 status;
 };
 
+struct cpl_rx_iscsi_cmp {
+	union opcode_tid ot;
+	__be16 pdu_len_ddp;
+	__be16 len;
+	__be32 seq;
+	__be16 urg;
+	__u8 rsvd;
+	__u8 status;
+	__be32 ulp_crc;
+	__be32 ddpvld;
+};
+
 struct cpl_tx_data_iso {
 	__be32 op_to_scsi;
 	__u8   reserved1;
@@ -1162,6 +1175,21 @@ struct cpl_rx_pkt {
 #define RXERR_CSUM_V(x) ((x) << RXERR_CSUM_S)
 #define RXERR_CSUM_F    RXERR_CSUM_V(1U)
 
+#define T6_COMPR_RXERR_LEN_S    1
+#define T6_COMPR_RXERR_LEN_V(x) ((x) << T6_COMPR_RXERR_LEN_S)
+#define T6_COMPR_RXERR_LEN_F    T6_COMPR_RXERR_LEN_V(1U)
+
+#define T6_COMPR_RXERR_VEC_S    0
+#define T6_COMPR_RXERR_VEC_M    0x3F
+#define T6_COMPR_RXERR_VEC_V(x) ((x) << T6_COMPR_RXERR_LEN_S)
+#define T6_COMPR_RXERR_VEC_G(x) \
+		(((x) >> T6_COMPR_RXERR_VEC_S) & T6_COMPR_RXERR_VEC_M)
+
+/* Logical OR of RX_ERROR_CSUM, RX_ERROR_CSIP */
+#define T6_COMPR_RXERR_SUM_S    4
+#define T6_COMPR_RXERR_SUM_V(x) ((x) << T6_COMPR_RXERR_SUM_S)
+#define T6_COMPR_RXERR_SUM_F    T6_COMPR_RXERR_SUM_V(1U)
+
 struct cpl_trace_pkt {
 	u8 opcode;
 	u8 intf;
@@ -1335,6 +1363,10 @@ struct cpl_tx_data {
 /* cpl_tx_data.flags field */
 #define TX_FORCE_S	13
 #define TX_FORCE_V(x)	((x) << TX_FORCE_S)
+
+#define T6_TX_FORCE_S		20
+#define T6_TX_FORCE_V(x)	((x) << T6_TX_FORCE_S)
+#define T6_TX_FORCE_F		T6_TX_FORCE_V(1U)
 
 enum {
 	ULP_TX_MEM_READ = 2,

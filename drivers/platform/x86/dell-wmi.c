@@ -114,7 +114,7 @@ static const struct key_entry dell_wmi_keymap_type_0000[] __initconst = {
 	{ KE_IGNORE, 0xe00e, { KEY_RESERVED } },
 
 	/* Wifi Catcher */
-	{ KE_KEY,    0xe011, { KEY_PROG2 } },
+	{ KE_KEY,    0xe011, { KEY_WLAN } },
 
 	/* Ambient light sensor toggle */
 	{ KE_IGNORE, 0xe013, { KEY_RESERVED } },
@@ -274,6 +274,16 @@ static const struct key_entry dell_wmi_keymap_type_0010[] __initconst = {
 
 	/* Stealth mode toggle */
 	{ KE_IGNORE, 0x155, { KEY_RESERVED } },
+
+	/* Rugged magnetic dock attach/detach events */
+	{ KE_IGNORE, 0x156, { KEY_RESERVED } },
+	{ KE_IGNORE, 0x157, { KEY_RESERVED } },
+
+	/* Rugged programmable (P1/P2/P3 keys) */
+	{ KE_KEY,    0x850, { KEY_PROG1 } },
+	{ KE_KEY,    0x851, { KEY_PROG2 } },
+	{ KE_KEY,    0x852, { KEY_PROG3 } },
+
 };
 
 /*

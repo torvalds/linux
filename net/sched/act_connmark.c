@@ -30,7 +30,7 @@
 
 #define CONNMARK_TAB_MASK     3
 
-static int connmark_net_id;
+static unsigned int connmark_net_id;
 static struct tc_action_ops act_connmark_ops;
 
 static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,

@@ -28,17 +28,15 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-#define NCR5380_implementation_fields   unsigned char *pdma_base; \
-                                        int pdma_residual
+#define NCR5380_implementation_fields   int pdma_residual
 
-#define NCR5380_read(reg)               macscsi_read(instance, reg)
-#define NCR5380_write(reg, value)       macscsi_write(instance, reg, value)
+#define NCR5380_read(reg)           in_8(hostdata->io + ((reg) << 4))
+#define NCR5380_write(reg, value)   out_8(hostdata->io + ((reg) << 4), value)
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        macscsi_dma_xfer_len(instance, cmd)
+#define NCR5380_dma_xfer_len            macscsi_dma_xfer_len
 #define NCR5380_dma_recv_setup          macscsi_pread
 #define NCR5380_dma_send_setup          macscsi_pwrite
-#define NCR5380_dma_residual(instance)  (hostdata->pdma_residual)
+#define NCR5380_dma_residual            macscsi_dma_residual
 
 #define NCR5380_intr                    macscsi_intr
 #define NCR5380_queue_command           macscsi_queue_command
@@ -60,20 +58,6 @@ static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 static int setup_toshiba_delay = -1;
 module_param(setup_toshiba_delay, int, 0);
-
-/*
- * NCR 5380 register access functions
- */
-
-static inline char macscsi_read(struct Scsi_Host *instance, int reg)
-{
-	return in_8(instance->base + (reg << 4));
-}
-
-static inline void macscsi_write(struct Scsi_Host *instance, int reg, int value)
-{
-	out_8(instance->base + (reg << 4), value);
-}
 
 #ifndef MODULE
 static int __init mac_scsi_setup(char *str)
@@ -167,16 +151,15 @@ __asm__ __volatile__					\
      : "0"(s), "1"(d), "2"(n)				\
      : "d0")
 
-static int macscsi_pread(struct Scsi_Host *instance,
-                         unsigned char *dst, int len)
+static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
+                                unsigned char *dst, int len)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	unsigned char *s = hostdata->pdma_base + (INPUT_DATA_REG << 4);
+	u8 __iomem *s = hostdata->pdma_io + (INPUT_DATA_REG << 4);
 	unsigned char *d = dst;
 	int n = len;
 	int transferred;
 
-	while (!NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
+	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
 	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
 		CP_IO_TO_MEM(s, d, n);
@@ -189,23 +172,23 @@ static int macscsi_pread(struct Scsi_Host *instance,
 			return 0;
 
 		/* Target changed phase early? */
-		if (NCR5380_poll_politely2(instance, STATUS_REG, SR_REQ, SR_REQ,
+		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK, BASR_ACK, HZ / 64) < 0)
 			scmd_printk(KERN_ERR, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
 		if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH))
 			return 0;
 
-		dsprintk(NDEBUG_PSEUDO_DMA, instance,
+		dsprintk(NDEBUG_PSEUDO_DMA, hostdata->host,
 		         "%s: bus error (%d/%d)\n", __func__, transferred, len);
-		NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+		NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 		d = dst + transferred;
 		n = len - transferred;
 	}
 
 	scmd_printk(KERN_ERR, hostdata->connected,
 	            "%s: phase mismatch or !DRQ\n", __func__);
-	NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+	NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 	return -1;
 }
 
@@ -270,16 +253,15 @@ __asm__ __volatile__					\
      : "0"(s), "1"(d), "2"(n)				\
      : "d0")
 
-static int macscsi_pwrite(struct Scsi_Host *instance,
-                          unsigned char *src, int len)
+static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
+                                 unsigned char *src, int len)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *s = src;
-	unsigned char *d = hostdata->pdma_base + (OUTPUT_DATA_REG << 4);
+	u8 __iomem *d = hostdata->pdma_io + (OUTPUT_DATA_REG << 4);
 	int n = len;
 	int transferred;
 
-	while (!NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
+	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
 	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
 		CP_MEM_TO_IO(s, d, n);
@@ -288,7 +270,7 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 		hostdata->pdma_residual = len - transferred;
 
 		/* Target changed phase early? */
-		if (NCR5380_poll_politely2(instance, STATUS_REG, SR_REQ, SR_REQ,
+		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK, BASR_ACK, HZ / 64) < 0)
 			scmd_printk(KERN_ERR, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
@@ -297,7 +279,7 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 
 		/* No bus error. */
 		if (n == 0) {
-			if (NCR5380_poll_politely(instance, TARGET_COMMAND_REG,
+			if (NCR5380_poll_politely(hostdata, TARGET_COMMAND_REG,
 			                          TCR_LAST_BYTE_SENT,
 			                          TCR_LAST_BYTE_SENT, HZ / 64) < 0)
 				scmd_printk(KERN_ERR, hostdata->connected,
@@ -305,30 +287,33 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 			return 0;
 		}
 
-		dsprintk(NDEBUG_PSEUDO_DMA, instance,
+		dsprintk(NDEBUG_PSEUDO_DMA, hostdata->host,
 		         "%s: bus error (%d/%d)\n", __func__, transferred, len);
-		NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+		NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 		s = src + transferred;
 		n = len - transferred;
 	}
 
 	scmd_printk(KERN_ERR, hostdata->connected,
 	            "%s: phase mismatch or !DRQ\n", __func__);
-	NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+	NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 
 	return -1;
 }
 
-static int macscsi_dma_xfer_len(struct Scsi_Host *instance,
+static int macscsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
                                 struct scsi_cmnd *cmd)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
 	if (hostdata->flags & FLAG_NO_PSEUDO_DMA ||
 	    cmd->SCp.this_residual < 16)
 		return 0;
 
 	return cmd->SCp.this_residual;
+}
+
+static int macscsi_dma_residual(struct NCR5380_hostdata *hostdata)
+{
+	return hostdata->pdma_residual;
 }
 
 #include "NCR5380.c"
@@ -356,6 +341,7 @@ static struct scsi_host_template mac_scsi_template = {
 static int __init mac_scsi_probe(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance;
+	struct NCR5380_hostdata *hostdata;
 	int error;
 	int host_flags = 0;
 	struct resource *irq, *pio_mem, *pdma_mem = NULL;
@@ -388,17 +374,18 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	if (!instance)
 		return -ENOMEM;
 
-	instance->base = pio_mem->start;
 	if (irq)
 		instance->irq = irq->start;
 	else
 		instance->irq = NO_IRQ;
 
-	if (pdma_mem && setup_use_pdma) {
-		struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	hostdata = shost_priv(instance);
+	hostdata->base = pio_mem->start;
+	hostdata->io = (u8 __iomem *)pio_mem->start;
 
-		hostdata->pdma_base = (unsigned char *)pdma_mem->start;
-	} else
+	if (pdma_mem && setup_use_pdma)
+		hostdata->pdma_io = (u8 __iomem *)pdma_mem->start;
+	else
 		host_flags |= FLAG_NO_PSEUDO_DMA;
 
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;

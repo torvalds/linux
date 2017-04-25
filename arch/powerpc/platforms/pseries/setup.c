@@ -66,6 +66,7 @@
 #include <asm/reg.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
+#include <asm/isa-bridge.h>
 
 #include "pseries.h"
 
@@ -367,7 +368,7 @@ void pseries_disable_reloc_on_exc(void)
 }
 EXPORT_SYMBOL(pseries_disable_reloc_on_exc);
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 static void pSeries_machine_kexec(struct kimage *image)
 {
 	if (firmware_has_feature(FW_FEATURE_SET_MODE))
@@ -725,7 +726,7 @@ define_machine(pseries) {
 	.progress		= rtas_progress,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.machine_kexec          = pSeries_machine_kexec,
 	.kexec_cpu_down         = pseries_kexec_cpu_down,
 #endif

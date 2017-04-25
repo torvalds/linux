@@ -73,7 +73,8 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 		nr_ioctl_req.Timeout = 0; /* use server default (120 seconds) */
 		nr_ioctl_req.Reserved = 0;
 		rc = SMB2_ioctl(xid, oparms->tcon, fid->persistent_fid,
-			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY, true,
+			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY,
+			true /* is_fsctl */, false /* use_ipc */,
 			(char *)&nr_ioctl_req, sizeof(nr_ioctl_req),
 			NULL, NULL /* no return info */);
 		if (rc == -EOPNOTSUPP) {
@@ -260,7 +261,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	 * and check it for zero before using.
 	 */
 	max_buf = tlink_tcon(cfile->tlink)->ses->server->maxBuf;
-	if (!max_buf) {
+	if (max_buf < sizeof(struct smb2_lock_element)) {
 		free_xid(xid);
 		return -EINVAL;
 	}

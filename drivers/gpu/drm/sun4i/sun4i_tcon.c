@@ -20,6 +20,7 @@
 #include <linux/component.h>
 #include <linux/ioport.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
@@ -62,7 +63,7 @@ void sun4i_tcon_channel_disable(struct sun4i_tcon *tcon, int channel)
 		return;
 	}
 
-	WARN_ON(!tcon->has_channel_1);
+	WARN_ON(!tcon->quirks->has_channel_1);
 	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
 			   SUN4I_TCON1_CTL_TCON_ENABLE, 0);
 	clk_disable_unprepare(tcon->sclk1);
@@ -80,7 +81,7 @@ void sun4i_tcon_channel_enable(struct sun4i_tcon *tcon, int channel)
 		return;
 	}
 
-	WARN_ON(!tcon->has_channel_1);
+	WARN_ON(!tcon->quirks->has_channel_1);
 	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
 			   SUN4I_TCON1_CTL_TCON_ENABLE,
 			   SUN4I_TCON1_CTL_TCON_ENABLE);
@@ -202,7 +203,7 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	u8 clk_delay;
 	u32 val;
 
-	WARN_ON(!tcon->has_channel_1);
+	WARN_ON(!tcon->quirks->has_channel_1);
 
 	/* Adjust clock delay */
 	clk_delay = sun4i_tcon_get_clk_delay(mode, 1);
@@ -266,7 +267,7 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	/*
 	 * FIXME: Undocumented bits
 	 */
-	if (tcon->has_mux)
+	if (tcon->quirks->has_unknown_mux)
 		regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, 1);
 }
 EXPORT_SYMBOL(sun4i_tcon1_mode_set);
@@ -327,7 +328,7 @@ static int sun4i_tcon_init_clocks(struct device *dev,
 		return PTR_ERR(tcon->sclk0);
 	}
 
-	if (tcon->has_channel_1) {
+	if (tcon->quirks->has_channel_1) {
 		tcon->sclk1 = devm_clk_get(dev, "tcon-ch1");
 		if (IS_ERR(tcon->sclk1)) {
 			dev_err(dev, "Couldn't get the TCON channel 1 clock\n");
@@ -487,14 +488,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	drv->tcon = tcon;
 	tcon->drm = drm;
 	tcon->dev = dev;
-
-	if (of_device_is_compatible(dev->of_node, "allwinner,sun5i-a13-tcon")) {
-		tcon->has_mux = true;
-		tcon->has_channel_1 = true;
-	} else {
-		tcon->has_mux = false;
-		tcon->has_channel_1 = false;
-	}
+	tcon->quirks = of_device_get_match_data(dev);
 
 	tcon->lcd_rst = devm_reset_control_get(dev, "lcd");
 	if (IS_ERR(tcon->lcd_rst)) {
@@ -551,7 +545,7 @@ static void sun4i_tcon_unbind(struct device *dev, struct device *master,
 	sun4i_tcon_free_clocks(tcon);
 }
 
-static struct component_ops sun4i_tcon_ops = {
+static const struct component_ops sun4i_tcon_ops = {
 	.bind	= sun4i_tcon_bind,
 	.unbind	= sun4i_tcon_unbind,
 };
@@ -588,9 +582,28 @@ static int sun4i_tcon_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sun4i_tcon_quirks sun5i_a13_quirks = {
+	.has_unknown_mux = true,
+	.has_channel_1	= true,
+};
+
+static const struct sun4i_tcon_quirks sun6i_a31_quirks = {
+	.has_channel_1	= true,
+};
+
+static const struct sun4i_tcon_quirks sun6i_a31s_quirks = {
+	.has_channel_1	= true,
+};
+
+static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
+	/* nothing is supported */
+};
+
 static const struct of_device_id sun4i_tcon_of_table[] = {
-	{ .compatible = "allwinner,sun5i-a13-tcon" },
-	{ .compatible = "allwinner,sun8i-a33-tcon" },
+	{ .compatible = "allwinner,sun5i-a13-tcon", .data = &sun5i_a13_quirks },
+	{ .compatible = "allwinner,sun6i-a31-tcon", .data = &sun6i_a31_quirks },
+	{ .compatible = "allwinner,sun6i-a31s-tcon", .data = &sun6i_a31s_quirks },
+	{ .compatible = "allwinner,sun8i-a33-tcon", .data = &sun8i_a33_quirks },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_tcon_of_table);

@@ -136,6 +136,13 @@
 		>;
 	};
 
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x980, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart1_rxd.uart1_rxd */
+			AM33XX_IOPAD(0x984, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* uart1_txd.uart1_txd */
+		>;
+	};
+
 	uart4_pins: pinmux_uart4_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x870, PIN_INPUT_PULLUP | MUX_MODE6)	/* gpmc_wait0.uart4_rxd */
@@ -147,13 +154,6 @@
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x988, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_sda.i2c0_sda */
 			AM33XX_IOPAD(0x98c, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c0_scl.i2c0_scl */
-		>;
-	};
-
-	i2c1_pins: pinmux_i2c1_pins {
-		pinctrl-single,pins = <
-			AM33XX_IOPAD(0x980, PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_rxd.i2c1_sda */
-			AM33XX_IOPAD(0x984, PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_txdi2c1_scl */
 		>;
 	};
 
@@ -262,6 +262,16 @@
 		>;
 	};
 
+	spi0_pins: pinmux_spi0_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x954, PIN_INPUT_PULLUP | MUX_MODE0)	/* SPI0_MOSI - spi0_d0.spi0_d0 */
+			AM33XX_IOPAD(0x958, PIN_INPUT_PULLUP | MUX_MODE0)	/* SPI0_MISO - spi0_d1.spi0_d1 */
+			AM33XX_IOPAD(0x950, PIN_INPUT_PULLUP | MUX_MODE0)	/* SPI0_CLK  - spi0_clk.spi0_clk */
+			AM33XX_IOPAD(0x95c, PIN_INPUT_PULLUP | MUX_MODE0)	/* SPI0_CS0 (NBATTSS) - spi0_cs0.spi0_cs0 */
+			AM33XX_IOPAD(0x960, PIN_INPUT_PULLUP | MUX_MODE0)	/* SPI0_CS1 (FPGA_FLASH_NCS) - spi0_cs1.spi0_cs1 */
+		>;
+	};
+
 	lwb_pins: pinmux_lwb_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x9a4, PIN_OUTPUT | MUX_MODE7)	/* SoundPA_en - mcasp0_fsr.gpio3_19 */
@@ -292,16 +302,22 @@
 		reg = <0x24>;
 	};
 
+	bq32000: rtc@68 {
+		compatible = "ti,bq32000";
+		trickle-resistor-ohms = <1120>;
+		reg = <0x68>;
+	};
+
 	eeprom: eeprom@50 {
 		compatible = "at,24c256";
 		reg = <0x50>;
 	};
-};
 
-&i2c1 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
+	gpio_exp: mcp23017@20 {
+		compatible = "microchip,mcp23017";
+		reg = <0x20>;
+	};
+
 };
 
 &i2c2 {
@@ -321,6 +337,16 @@
 		DRVDD-supply = <&ldo4_reg>;
 		DVDD-supply = <&ldo3_reg>;
 	};
+
+	/* Ambient Light Sensor */
+	als: isl29023@44 {
+		compatible = "isil,isl29023";
+		reg = <0x44>;
+	};
+};
+
+&rtc {
+	status = "disabled";
 };
 
 &usb {
@@ -394,10 +420,30 @@
 	pinctrl-0 = <&uart0_pins>;
 };
 
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+};
+
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart4_pins>;
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+
+	flash: n25q032@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q032";
+		reg = <1>;
+		spi-max-frequency = <5000000>;
+	};
 };
 
 #include "tps65217.dtsi"

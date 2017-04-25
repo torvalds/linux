@@ -25,10 +25,11 @@
 #include <linux/math64.h>
 #include <linux/mod_devicetable.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/processor.h>
 #include <asm/mce.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 #define SKX_REVISION    " Ver: 1.0 "
 
@@ -262,8 +263,8 @@ fail:
 	return -ENODEV;
 }
 
-const struct x86_cpu_id skx_cpuids[] = {
-	{ X86_VENDOR_INTEL, 6, 0x55, 0, 0 },	/* Skylake */
+static const struct x86_cpu_id skx_cpuids[] = {
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_X, 0, 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, skx_cpuids);
@@ -1006,7 +1007,8 @@ static int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 }
 
 static struct notifier_block skx_mce_dec = {
-	.notifier_call = skx_mce_check_error,
+	.notifier_call	= skx_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 static void skx_remove(void)
@@ -1036,7 +1038,7 @@ static void skx_remove(void)
  *	search for all the devices we need
  *	check which DIMMs are present.
  */
-int __init skx_init(void)
+static int __init skx_init(void)
 {
 	const struct x86_cpu_id *id;
 	const struct munit *m;

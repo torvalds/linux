@@ -23,6 +23,7 @@
  * 	    Roy Spliet <rspliet@eclipso.eu>
  */
 #include "priv.h"
+#include "ram.h"
 
 struct ramxlat {
 	int id;

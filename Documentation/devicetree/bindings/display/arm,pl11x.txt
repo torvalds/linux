@@ -22,7 +22,7 @@ Required properties:
 
 - clocks: contains phandle and clock specifier pairs for the entries
 	in the clock-names property. See
-	Documentation/devicetree/binding/clock/clock-bindings.txt
+	Documentation/devicetree/bindings/clock/clock-bindings.txt
 
 Optional properties:
 

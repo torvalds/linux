@@ -271,7 +271,7 @@ struct brcmf_cfg80211_wowl {
  * @pub: common driver information.
  * @channel: current channel.
  * @active_scan: current scan mode.
- * @sched_escan: e-scan for scheduled scan support running.
+ * @internal_escan: indicates internally initiated e-scan is running.
  * @ibss_starter: indicates this sta is ibss starter.
  * @pwr_save: indicate whether dongle to support power save mode.
  * @dongle_up: indicate whether dongle up or not.
@@ -303,7 +303,7 @@ struct brcmf_cfg80211_info {
 	struct brcmf_pub *pub;
 	u32 channel;
 	bool active_scan;
-	bool sched_escan;
+	bool internal_escan;
 	bool ibss_starter;
 	bool pwr_save;
 	bool dongle_up;
@@ -396,8 +396,6 @@ void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
 s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif);
-const struct brcmf_tlv *
-brcmf_parse_tlvs(const void *buf, int buflen, uint key);
 u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
 			struct ieee80211_channel *ch);
 bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg,

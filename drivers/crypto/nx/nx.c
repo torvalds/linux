@@ -32,7 +32,6 @@
 #include <linux/scatterlist.h>
 #include <linux/device.h>
 #include <linux/of.h>
-#include <linux/types.h>
 #include <asm/hvcall.h>
 #include <asm/vio.h>
 

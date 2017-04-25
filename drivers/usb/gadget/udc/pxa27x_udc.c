@@ -1473,7 +1473,7 @@ static int pxa_ep_disable(struct usb_ep *_ep)
 	return 0;
 }
 
-static struct usb_ep_ops pxa_ep_ops = {
+static const struct usb_ep_ops pxa_ep_ops = {
 	.enable		= pxa_ep_enable,
 	.disable	= pxa_ep_disable,
 

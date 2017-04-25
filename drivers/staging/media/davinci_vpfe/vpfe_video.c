@@ -129,7 +129,7 @@ __vpfe_video_get_format(struct vpfe_video_device *video,
 /* make a note of pipeline details */
 static int vpfe_prepare_pipeline(struct vpfe_video_device *video)
 {
-	struct media_entity_graph graph;
+	struct media_graph graph;
 	struct media_entity *entity = &video->video_dev.entity;
 	struct media_device *mdev = entity->graph_obj.mdev;
 	struct vpfe_pipeline *pipe = &video->pipe;
@@ -145,13 +145,13 @@ static int vpfe_prepare_pipeline(struct vpfe_video_device *video)
 		pipe->outputs[pipe->output_num++] = video;
 
 	mutex_lock(&mdev->graph_mutex);
-	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
+	ret = media_graph_walk_init(&graph, mdev);
 	if (ret) {
 		mutex_unlock(&mdev->graph_mutex);
 		return -ENOMEM;
 	}
-	media_entity_graph_walk_start(&graph, entity);
-	while ((entity = media_entity_graph_walk_next(&graph))) {
+	media_graph_walk_start(&graph, entity);
+	while ((entity = media_graph_walk_next(&graph))) {
 		if (entity == &video->video_dev.entity)
 			continue;
 		if (!is_media_entity_v4l2_video_device(entity))
@@ -162,7 +162,7 @@ static int vpfe_prepare_pipeline(struct vpfe_video_device *video)
 		else
 			pipe->outputs[pipe->output_num++] = far_end;
 	}
-	media_entity_graph_walk_cleanup(&graph);
+	media_graph_walk_cleanup(&graph);
 	mutex_unlock(&mdev->graph_mutex);
 
 	return 0;
@@ -198,7 +198,7 @@ static int vpfe_update_pipe_state(struct vpfe_video_device *video)
 	return 0;
 }
 
-/* checks wether pipeline is ready for enabling */
+/* checks whether pipeline is ready for enabling */
 int vpfe_video_is_pipe_ready(struct vpfe_pipeline *pipe)
 {
 	int i;
@@ -300,12 +300,11 @@ static int vpfe_pipeline_enable(struct vpfe_pipeline *pipe)
 
 	mdev = entity->graph_obj.mdev;
 	mutex_lock(&mdev->graph_mutex);
-	ret = media_entity_graph_walk_init(&pipe->graph,
-					   entity->graph_obj.mdev);
+	ret = media_graph_walk_init(&pipe->graph, mdev);
 	if (ret)
 		goto out;
-	media_entity_graph_walk_start(&pipe->graph, entity);
-	while ((entity = media_entity_graph_walk_next(&pipe->graph))) {
+	media_graph_walk_start(&pipe->graph, entity);
+	while ((entity = media_graph_walk_next(&pipe->graph))) {
 
 		if (!is_media_entity_v4l2_subdev(entity))
 			continue;
@@ -316,7 +315,7 @@ static int vpfe_pipeline_enable(struct vpfe_pipeline *pipe)
 	}
 out:
 	if (ret)
-		media_entity_graph_walk_cleanup(&pipe->graph);
+		media_graph_walk_cleanup(&pipe->graph);
 	mutex_unlock(&mdev->graph_mutex);
 	return ret;
 }
@@ -346,9 +345,9 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
 
 	mdev = entity->graph_obj.mdev;
 	mutex_lock(&mdev->graph_mutex);
-	media_entity_graph_walk_start(&pipe->graph, entity);
+	media_graph_walk_start(&pipe->graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&pipe->graph))) {
+	while ((entity = media_graph_walk_next(&pipe->graph))) {
 
 		if (!is_media_entity_v4l2_subdev(entity))
 			continue;
@@ -359,7 +358,7 @@ static int vpfe_pipeline_disable(struct vpfe_pipeline *pipe)
 	}
 	mutex_unlock(&mdev->graph_mutex);
 
-	media_entity_graph_walk_cleanup(&pipe->graph);
+	media_graph_walk_cleanup(&pipe->graph);
 	return ret ? -ETIMEDOUT : 0;
 }
 
@@ -1143,8 +1142,8 @@ static int vpfe_buffer_prepare(struct vb2_buffer *vb)
 	/* Initialize buffer */
 	vb2_set_plane_payload(vb, 0, video->fmt.fmt.pix.sizeimage);
 	if (vb2_plane_vaddr(vb, 0) &&
-		vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
-			return -EINVAL;
+	    vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
+		return -EINVAL;
 
 	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	/* Make sure user addresses are aligned to 32 bytes */
@@ -1362,7 +1361,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	ret = vb2_queue_init(q);
 	if (ret) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "vb2_queue_init() failed\n");
-		return ret;
+		goto unlock_out;
 	}
 
 	fh->io_allowed = 1;

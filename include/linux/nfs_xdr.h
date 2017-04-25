@@ -216,6 +216,20 @@ struct nfs4_get_lease_time_res {
 	struct nfs_fsinfo	       *lr_fsinfo;
 };
 
+struct xdr_stream;
+struct nfs4_xdr_opaque_data;
+
+struct nfs4_xdr_opaque_ops {
+	void (*encode)(struct xdr_stream *, const void *args,
+			const struct nfs4_xdr_opaque_data *);
+	void (*free)(struct nfs4_xdr_opaque_data *);
+};
+
+struct nfs4_xdr_opaque_data {
+	const struct nfs4_xdr_opaque_ops *ops;
+	void *data;
+};
+
 #define PNFS_LAYOUT_MAXSIZE 4096
 
 struct nfs4_layoutdriver_data {
@@ -306,6 +320,7 @@ struct nfs4_layoutreturn_args {
 	struct pnfs_layout_range range;
 	nfs4_stateid stateid;
 	__u32   layout_type;
+	struct nfs4_xdr_opaque_data *ld_private;
 };
 
 struct nfs4_layoutreturn_res {
@@ -321,6 +336,7 @@ struct nfs4_layoutreturn {
 	struct nfs_client *clp;
 	struct inode *inode;
 	int rpc_status;
+	struct nfs4_xdr_opaque_data ld_private;
 };
 
 #define PNFS_LAYOUTSTATS_MAXSIZE 256
@@ -341,8 +357,7 @@ struct nfs42_layoutstat_devinfo {
 	__u64 write_count;
 	__u64 write_bytes;
 	__u32 layout_type;
-	layoutstats_encode_t layoutstats_encode;
-	void *layout_private;
+	struct nfs4_xdr_opaque_data ld_private;
 };
 
 struct nfs42_layoutstat_args {
@@ -418,6 +433,7 @@ struct nfs_openargs {
 	enum open_claim_type4	claim;
 	enum createmode4	createmode;
 	const struct nfs4_label *label;
+	umode_t			umask;
 };
 
 struct nfs_openres {
@@ -469,6 +485,7 @@ struct nfs_closeargs {
 	fmode_t			fmode;
 	u32			share_access;
 	const u32 *		bitmask;
+	struct nfs4_layoutreturn_args *lr_args;
 };
 
 struct nfs_closeres {
@@ -477,6 +494,8 @@ struct nfs_closeres {
 	struct nfs_fattr *	fattr;
 	struct nfs_seqid *	seqid;
 	const struct nfs_server *server;
+	struct nfs4_layoutreturn_res *lr_res;
+	int lr_ret;
 };
 /*
  *  * Arguments to the lock,lockt, and locku call.
@@ -549,12 +568,15 @@ struct nfs4_delegreturnargs {
 	const struct nfs_fh *fhandle;
 	const nfs4_stateid *stateid;
 	const u32 * bitmask;
+	struct nfs4_layoutreturn_args *lr_args;
 };
 
 struct nfs4_delegreturnres {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs_fattr * fattr;
 	struct nfs_server *server;
+	struct nfs4_layoutreturn_res *lr_res;
+	int lr_ret;
 };
 
 /*
@@ -937,6 +959,7 @@ struct nfs4_create_arg {
 	const struct nfs_fh *		dir_fh;
 	const u32 *			bitmask;
 	const struct nfs4_label		*label;
+	umode_t				umask;
 };
 
 struct nfs4_create_res {

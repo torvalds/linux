@@ -259,8 +259,9 @@ nouveau_debugfs_init(struct nouveau_drm *drm)
 	if (!drm->debugfs)
 		return -ENOMEM;
 
-	ret = nvif_object_init(&drm->device.object, 0, NVIF_CLASS_CONTROL,
-			       NULL, 0, &drm->debugfs->ctrl);
+	ret = nvif_object_init(&drm->client.device.object, 0,
+			       NVIF_CLASS_CONTROL, NULL, 0,
+			       &drm->debugfs->ctrl);
 	if (ret)
 		return ret;
 

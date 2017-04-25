@@ -29,7 +29,7 @@
  * after soft reset, we should wait for 1 ms
  * before the device becomes operational
  */
-#define SOFT_RESET_DELAY_MS	3
+#define SOFT_RESET_DELAY_US	3000
 /* and after hard reset, we should wait for max 500ms */
 #define HARD_RESET_DELAY_MS	500
 
@@ -311,7 +311,7 @@ static int synaptics_i2c_reset_config(struct i2c_client *client)
 	if (ret) {
 		dev_err(&client->dev, "Unable to reset device\n");
 	} else {
-		msleep(SOFT_RESET_DELAY_MS);
+		usleep_range(SOFT_RESET_DELAY_US, SOFT_RESET_DELAY_US + 100);
 		ret = synaptics_i2c_config(client);
 		if (ret)
 			dev_err(&client->dev, "Unable to config device\n");

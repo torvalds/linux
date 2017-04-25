@@ -186,4 +186,3 @@ extern int qib_refresh_qsfp_cache(struct qib_pportdata *ppd,
 extern int qib_qsfp_mod_present(struct qib_pportdata *ppd);
 extern void qib_qsfp_init(struct qib_qsfp_data *qd,
 			  void (*fevent)(struct work_struct *));
-extern void qib_qsfp_deinit(struct qib_qsfp_data *qd);

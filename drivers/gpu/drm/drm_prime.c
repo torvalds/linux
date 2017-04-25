@@ -40,8 +40,11 @@
  * On the export the dma_buf holds a reference to the exporting GEM
  * object. It takes this reference in handle_to_fd_ioctl, when it
  * first calls .prime_export and stores the exporting GEM object in
- * the dma_buf priv. This reference is released when the dma_buf
- * object goes away in the driver .release function.
+ * the dma_buf priv. This reference needs to be released when the
+ * final reference to the &dma_buf itself is dropped and its
+ * &dma_buf_ops.release function is called. For GEM-based drivers,
+ * the dma_buf should be exported using drm_gem_dmabuf_export() and
+ * then released by drm_gem_dmabuf_release().
  *
  * On the import the importing GEM object holds a reference to the
  * dma_buf (which in turn holds a ref to the exporting GEM object).
@@ -50,6 +53,16 @@
  * attachment in the GEM object. When this attachment is destroyed
  * when the imported object is destroyed, we remove the attachment
  * and drop the reference to the dma_buf.
+ *
+ * When all the references to the &dma_buf are dropped, i.e. when
+ * userspace has closed both handles to the imported GEM object (through the
+ * FD_TO_HANDLE IOCTL) and closed the file descriptor of the exported
+ * (through the HANDLE_TO_FD IOCTL) dma_buf, and all kernel-internal references
+ * are also gone, then the dma_buf gets destroyed.  This can also happen as a
+ * part of the clean up procedure in the drm_release() function if userspace
+ * fails to properly clean up.  Note that both the kernel and userspace (by
+ * keeeping the PRIME file descriptors open) can hold references onto a
+ * &dma_buf.
  *
  * Thus the chain of references always flows in one direction
  * (avoiding loops): importing_gem -> dmabuf -> exporting_gem
@@ -290,7 +303,8 @@ static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
  *
  * This wraps dma_buf_export() for use by generic GEM drivers that are using
  * drm_gem_dmabuf_release(). In addition to calling dma_buf_export(), we take
- * a reference to the drm_device which is released by drm_gem_dmabuf_release().
+ * a reference to the &drm_device and the exported &drm_gem_object (stored in
+ * &dma_buf_export_info.priv) which is released by drm_gem_dmabuf_release().
  *
  * Returns the new dmabuf.
  */
@@ -300,8 +314,11 @@ struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 	struct dma_buf *dma_buf;
 
 	dma_buf = dma_buf_export(exp_info);
-	if (!IS_ERR(dma_buf))
-		drm_dev_ref(dev);
+	if (IS_ERR(dma_buf))
+		return dma_buf;
+
+	drm_dev_ref(dev);
+	drm_gem_object_reference(exp_info->priv);
 
 	return dma_buf;
 }
@@ -472,8 +489,6 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 	 */
 	obj->dma_buf = dmabuf;
 	get_dma_buf(obj->dma_buf);
-	/* Grab a new ref since the callers is now used by the dma-buf */
-	drm_gem_object_reference(obj);
 
 	return dmabuf;
 }

@@ -1419,7 +1419,8 @@ out:
 
 /* setup BA session receiver setting in the FW. */
 int wl12xx_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index,
-				       u16 ssn, bool enable, u8 peer_hlid)
+				       u16 ssn, bool enable, u8 peer_hlid,
+				       u8 win_size)
 {
 	struct wl1271_acx_ba_receiver_setup *acx;
 	int ret;
@@ -1435,7 +1436,7 @@ int wl12xx_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index,
 	acx->hlid = peer_hlid;
 	acx->tid = tid_index;
 	acx->enable = enable;
-	acx->win_size = wl->conf.ht.rx_ba_win_size;
+	acx->win_size =	win_size;
 	acx->ssn = ssn;
 
 	ret = wlcore_cmd_configure_failsafe(wl, ACX_BA_SESSION_RX_SETUP, acx,

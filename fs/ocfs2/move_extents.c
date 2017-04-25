@@ -235,10 +235,7 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	u64 phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
 
 	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && *len) {
-
-		BUG_ON(!(OCFS2_I(inode)->ip_dyn_features &
-			 OCFS2_HAS_REFCOUNT_FL));
-
+		BUG_ON(!ocfs2_is_refcount_inode(inode));
 		BUG_ON(!context->refcount_loc);
 
 		ret = ocfs2_lock_refcount_tree(osb, context->refcount_loc, 1,
@@ -581,10 +578,7 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 	phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
 
 	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && len) {
-
-		BUG_ON(!(OCFS2_I(inode)->ip_dyn_features &
-			 OCFS2_HAS_REFCOUNT_FL));
-
+		BUG_ON(!ocfs2_is_refcount_inode(inode));
 		BUG_ON(!context->refcount_loc);
 
 		ret = ocfs2_lock_refcount_tree(osb, context->refcount_loc, 1,

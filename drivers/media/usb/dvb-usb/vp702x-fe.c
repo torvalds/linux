@@ -323,7 +323,7 @@ static void vp702x_fe_release(struct dvb_frontend* fe)
 	kfree(st);
 }
 
-static struct dvb_frontend_ops vp702x_fe_ops;
+static const struct dvb_frontend_ops vp702x_fe_ops;
 
 struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d)
 {
@@ -345,7 +345,7 @@ error:
 }
 
 
-static struct dvb_frontend_ops vp702x_fe_ops = {
+static const struct dvb_frontend_ops vp702x_fe_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name           = "Twinhan DST-like frontend (VP7021/VP7020) DVB-S",

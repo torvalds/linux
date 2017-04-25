@@ -353,21 +353,6 @@ struct exception_table_entry {
 	int fixup;	/* location-relative continuation addr.; if bit 2 is set, r9 is set to 0 */
 };
 
-extern void ia64_handle_exception (struct pt_regs *regs, const struct exception_table_entry *e);
-extern const struct exception_table_entry *search_exception_tables (unsigned long addr);
-
-static inline int
-ia64_done_with_exception (struct pt_regs *regs)
-{
-	const struct exception_table_entry *e;
-	e = search_exception_tables(regs->cr_iip + ia64_psr(regs)->ri);
-	if (e) {
-		ia64_handle_exception(regs, e);
-		return 1;
-	}
-	return 0;
-}
-
 #define ARCH_HAS_TRANSLATE_MEM_PTR	1
 static __inline__ void *
 xlate_dev_mem_ptr(phys_addr_t p)

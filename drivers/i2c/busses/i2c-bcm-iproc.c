@@ -395,7 +395,7 @@ static const struct i2c_algorithm bcm_iproc_algo = {
 	.functionality = bcm_iproc_i2c_functionality,
 };
 
-static struct i2c_adapter_quirks bcm_iproc_i2c_quirks = {
+static const struct i2c_adapter_quirks bcm_iproc_i2c_quirks = {
 	/* need to reserve one byte in the FIFO for the slave address */
 	.max_read_len = M_TX_RX_FIFO_SIZE - 1,
 };

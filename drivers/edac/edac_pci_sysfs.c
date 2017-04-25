@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 
-#include "edac_core.h"
+#include "edac_pci.h"
 #include "edac_module.h"
 
 #define EDAC_PCI_SYMLINK	"device"
@@ -418,12 +418,6 @@ static void edac_pci_main_kobj_teardown(void)
 	}
 }
 
-/*
- *
- * edac_pci_create_sysfs
- *
- *	Create the controls/attributes for the specified EDAC PCI device
- */
 int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci)
 {
 	int err;
@@ -459,11 +453,6 @@ unregister_cleanup:
 	return err;
 }
 
-/*
- * edac_pci_remove_sysfs
- *
- *	remove the controls and attributes for this EDAC PCI device
- */
 void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci)
 {
 	edac_dbg(0, "index=%d\n", pci->pci_idx);

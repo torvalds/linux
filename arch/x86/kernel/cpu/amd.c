@@ -5,6 +5,7 @@
 
 #include <linux/io.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/random.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
@@ -19,6 +20,10 @@
 #endif
 
 #include "cpu.h"
+
+static const int amd_erratum_383[];
+static const int amd_erratum_400[];
+static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum);
 
 /*
  * nodes_per_socket: Stores the number of nodes per socket.
@@ -308,17 +313,43 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		u32 eax, ebx, ecx, edx;
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
-		node_id = ecx & 7;
 
-		/* get compute unit information */
-		smp_num_siblings = ((ebx >> 8) & 3) + 1;
-		c->x86_max_cores /= smp_num_siblings;
-		c->cpu_core_id = ebx & 0xff;
+		node_id  = ecx & 0xff;
+		smp_num_siblings = ((ebx >> 8) & 0xff) + 1;
+
+		if (c->x86 == 0x15)
+			c->cu_id = ebx & 0xff;
+
+		if (c->x86 >= 0x17) {
+			c->cpu_core_id = ebx & 0xff;
+
+			if (smp_num_siblings > 1)
+				c->x86_max_cores /= smp_num_siblings;
+		}
+
+		/*
+		 * We may have multiple LLCs if L3 caches exist, so check if we
+		 * have an L3 cache by looking at the L3 cache CPUID leaf.
+		 */
+		if (cpuid_edx(0x80000006)) {
+			if (c->x86 == 0x17) {
+				/*
+				 * LLC is at the core complex level.
+				 * Core complex id is ApicId[3].
+				 */
+				per_cpu(cpu_llc_id, cpu) = c->apicid >> 3;
+			} else {
+				/* LLC is at the node level. */
+				per_cpu(cpu_llc_id, cpu) = node_id;
+			}
+		}
 	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
 		node_id = value & 7;
+
+		per_cpu(cpu_llc_id, cpu) = node_id;
 	} else
 		return;
 
@@ -328,9 +359,6 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 
 		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
 		cus_per_node = c->x86_max_cores / nodes_per_socket;
-
-		/* store NodeID, use llc_shared_map to store sibling info */
-		per_cpu(cpu_llc_id, cpu) = node_id;
 
 		/* core id has to be in the [0 .. cores_per_node - 1] range */
 		c->cpu_core_id %= cus_per_node;
@@ -356,15 +384,6 @@ static void amd_detect_cmp(struct cpuinfo_x86 *c)
 	/* use socket ID also for last level cache */
 	per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
 	amd_get_topology(c);
-
-	/*
-	 * Fix percpu cpu_llc_id here as LLC topology is different
-	 * for Fam17h systems.
-	 */
-	 if (c->x86 != 0x17 || !cpuid_edx(0x80000006))
-		return;
-
-	per_cpu(cpu_llc_id, cpu) = c->apicid >> 3;
 #endif
 }
 
@@ -537,8 +556,10 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
-		if (!check_tsc_unstable())
-			set_sched_clock_stable();
+		if (check_tsc_unstable())
+			clear_sched_clock_stable();
+	} else {
+		clear_sched_clock_stable();
 	}
 
 	/* Bit 12 of 8000_0007 edx is accumulated power mechanism. */
@@ -585,11 +606,16 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	/* F16h erratum 793, CVE-2013-6885 */
 	if (c->x86 == 0x16 && c->x86_model <= 0xf)
 		msr_set_bit(MSR_AMD64_LS_CFG, 15);
-}
 
-static const int amd_erratum_383[];
-static const int amd_erratum_400[];
-static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum);
+	/*
+	 * Check whether the machine is affected by erratum 400. This is
+	 * used to select the proper idle routine and to enable the check
+	 * whether the machine is affected in arch_post_acpi_init(), which
+	 * sets the X86_BUG_AMD_APIC_C1E bug depending on the MSR check.
+	 */
+	if (cpu_has_amd_erratum(c, amd_erratum_400))
+		set_cpu_bug(c, X86_BUG_AMD_E400);
+}
 
 static void init_amd_k8(struct cpuinfo_x86 *c)
 {
@@ -769,9 +795,6 @@ static void init_amd(struct cpuinfo_x86 *c)
 	 */
 	if (c->x86 > 0x11)
 		set_cpu_cap(c, X86_FEATURE_ARAT);
-
-	if (cpu_has_amd_erratum(c, amd_erratum_400))
-		set_cpu_bug(c, X86_BUG_AMD_APIC_C1E);
 
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
 

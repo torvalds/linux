@@ -44,6 +44,7 @@
 #include <asm/msr.h>
 
 static struct class *msr_class;
+static enum cpuhp_state cpuhp_msr_state;
 
 static ssize_t msr_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
@@ -180,7 +181,7 @@ static const struct file_operations msr_fops = {
 	.compat_ioctl = msr_ioctl,
 };
 
-static int msr_device_create(int cpu)
+static int msr_device_create(unsigned int cpu)
 {
 	struct device *dev;
 
@@ -189,33 +190,11 @@ static int msr_device_create(int cpu)
 	return PTR_ERR_OR_ZERO(dev);
 }
 
-static void msr_device_destroy(int cpu)
+static int msr_device_destroy(unsigned int cpu)
 {
 	device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
+	return 0;
 }
-
-static int msr_class_cpu_callback(struct notifier_block *nfb,
-				  unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-	int err = 0;
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-		err = msr_device_create(cpu);
-		break;
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-	case CPU_DEAD:
-		msr_device_destroy(cpu);
-		break;
-	}
-	return notifier_from_errno(err);
-}
-
-static struct notifier_block __refdata msr_class_cpu_notifier = {
-	.notifier_call = msr_class_cpu_callback,
-};
 
 static char *msr_devnode(struct device *dev, umode_t *mode)
 {
@@ -224,13 +203,11 @@ static char *msr_devnode(struct device *dev, umode_t *mode)
 
 static int __init msr_init(void)
 {
-	int i, err = 0;
-	i = 0;
+	int err;
 
 	if (__register_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr", &msr_fops)) {
 		pr_err("unable to get major %d for msr\n", MSR_MAJOR);
-		err = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 	msr_class = class_create(THIS_MODULE, "msr");
 	if (IS_ERR(msr_class)) {
@@ -239,44 +216,27 @@ static int __init msr_init(void)
 	}
 	msr_class->devnode = msr_devnode;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(i) {
-		err = msr_device_create(i);
-		if (err != 0)
-			goto out_class;
-	}
-	__register_hotcpu_notifier(&msr_class_cpu_notifier);
-	cpu_notifier_register_done();
-
-	err = 0;
-	goto out;
+	err  = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/msr:online",
+				 msr_device_create, msr_device_destroy);
+	if (err < 0)
+		goto out_class;
+	cpuhp_msr_state = err;
+	return 0;
 
 out_class:
-	i = 0;
-	for_each_online_cpu(i)
-		msr_device_destroy(i);
-	cpu_notifier_register_done();
 	class_destroy(msr_class);
 out_chrdev:
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
-out:
 	return err;
 }
+module_init(msr_init);
 
 static void __exit msr_exit(void)
 {
-	int cpu = 0;
-
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		msr_device_destroy(cpu);
+	cpuhp_remove_state(cpuhp_msr_state);
 	class_destroy(msr_class);
 	__unregister_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr");
-	__unregister_hotcpu_notifier(&msr_class_cpu_notifier);
-	cpu_notifier_register_done();
 }
-
-module_init(msr_init);
 module_exit(msr_exit)
 
 MODULE_AUTHOR("H. Peter Anvin <hpa@zytor.com>");

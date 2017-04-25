@@ -87,7 +87,7 @@
 /* This should be 1500 if "jumbo" is not set in LIPP. */
 /* This should be at most 10226 (10240 - 14) if "jumbo" is set in LIPP. */
 /* ISSUE: This has not been thoroughly tested (except at 1500). */
-#define TILE_NET_MTU 1500
+#define TILE_NET_MTU ETH_DATA_LEN
 
 /* HACK: Define this to verify incoming packets. */
 /* #define TILE_NET_VERIFY_INGRESS */
@@ -842,7 +842,7 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
-	napi_complete(&info->napi);
+	napi_complete_done(&info->napi, work);
 
 	if (!priv->active)
 		goto done;
@@ -2047,8 +2047,8 @@ static int tile_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  *
  * Returns the address of the device statistics structure.
  */
-static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
-		struct rtnl_link_stats64 *stats)
+static void tile_net_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct tile_net_priv *priv = netdev_priv(dev);
 	u64 rx_packets = 0, tx_packets = 0;
@@ -2090,31 +2090,7 @@ static struct rtnl_link_stats64 *tile_net_get_stats64(struct net_device *dev,
 	stats->tx_bytes   = tx_bytes;
 	stats->rx_errors  = rx_errors;
 	stats->rx_dropped = rx_dropped;
-
-	return stats;
 }
-
-
-/*
- * Change the "mtu".
- *
- * The "change_mtu" method is usually not needed.
- * If you need it, it must be like this.
- */
-static int tile_net_change_mtu(struct net_device *dev, int new_mtu)
-{
-	PDEBUG("tile_net_change_mtu()\n");
-
-	/* Check ranges. */
-	if ((new_mtu < 68) || (new_mtu > 1500))
-		return -EINVAL;
-
-	/* Accept the value. */
-	dev->mtu = new_mtu;
-
-	return 0;
-}
-
 
 /*
  * Change the Ethernet Address of the NIC.
@@ -2229,7 +2205,6 @@ static const struct net_device_ops tile_net_ops = {
 	.ndo_start_xmit = tile_net_tx,
 	.ndo_do_ioctl = tile_net_ioctl,
 	.ndo_get_stats64 = tile_net_get_stats64,
-	.ndo_change_mtu = tile_net_change_mtu,
 	.ndo_tx_timeout = tile_net_tx_timeout,
 	.ndo_set_mac_address = tile_net_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2252,7 +2227,11 @@ static void tile_net_setup(struct net_device *dev)
 	dev->netdev_ops = &tile_net_ops;
 	dev->watchdog_timeo = TILE_NET_TIMEOUT;
 	dev->tx_queue_len = TILE_NET_TX_QUEUE_LEN;
+
+	/* MTU range: 68 - 1500 */
 	dev->mtu = TILE_NET_MTU;
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = TILE_NET_MTU;
 
 	features |= NETIF_F_HW_CSUM;
 	features |= NETIF_F_SG;

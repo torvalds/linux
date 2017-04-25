@@ -479,8 +479,8 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	struct ptlrpc_nrs_policy *policy;
 	struct ptlrpc_nrs_pol_info *infos;
 	struct ptlrpc_nrs_pol_info tmp;
-	unsigned num_pols;
-	unsigned pol_idx = 0;
+	unsigned int num_pols;
+	unsigned int pol_idx = 0;
 	bool hp = false;
 	int i;
 	int rc = 0;

@@ -23,7 +23,7 @@
 #include <linux/tracehook.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
 #include "kernel.h"

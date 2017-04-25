@@ -13,7 +13,7 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -142,7 +142,6 @@ static const struct of_device_id sunxi_reset_dt_ids[] = {
 	 { .compatible = "allwinner,sun6i-a31-clock-reset", },
 	 { /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, sunxi_reset_dt_ids);
 
 static int sunxi_reset_probe(struct platform_device *pdev)
 {
@@ -175,8 +174,4 @@ static struct platform_driver sunxi_reset_driver = {
 		.of_match_table	= sunxi_reset_dt_ids,
 	},
 };
-module_platform_driver(sunxi_reset_driver);
-
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
-MODULE_DESCRIPTION("Allwinner SoCs Reset Controller Driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sunxi_reset_driver);

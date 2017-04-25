@@ -406,7 +406,7 @@ TRACE_EVENT(i915_gem_evict,
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = vm->dev->primary->index;
+			   __entry->dev = vm->i915->drm.primary->index;
 			   __entry->vm = vm;
 			   __entry->size = size;
 			   __entry->align = align;
@@ -443,11 +443,39 @@ TRACE_EVENT(i915_gem_evict_vm,
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = vm->dev->primary->index;
+			   __entry->dev = vm->i915->drm.primary->index;
 			   __entry->vm = vm;
 			  ),
 
 	    TP_printk("dev=%d, vm=%p", __entry->dev, __entry->vm)
+);
+
+TRACE_EVENT(i915_gem_evict_node,
+	    TP_PROTO(struct i915_address_space *vm, struct drm_mm_node *node, unsigned int flags),
+	    TP_ARGS(vm, node, flags),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(struct i915_address_space *, vm)
+			     __field(u64, start)
+			     __field(u64, size)
+			     __field(unsigned long, color)
+			     __field(unsigned int, flags)
+			    ),
+
+	    TP_fast_assign(
+			   __entry->dev = vm->i915->drm.primary->index;
+			   __entry->vm = vm;
+			   __entry->start = node->start;
+			   __entry->size = node->size;
+			   __entry->color = node->color;
+			   __entry->flags = flags;
+			  ),
+
+	    TP_printk("dev=%d, vm=%p, start=%llx size=%llx, color=%lx, flags=%x",
+		      __entry->dev, __entry->vm,
+		      __entry->start, __entry->size,
+		      __entry->color, __entry->flags)
 );
 
 TRACE_EVENT(i915_gem_ring_sync_to,
@@ -466,7 +494,7 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 			   __entry->dev = from->i915->drm.primary->index;
 			   __entry->sync_from = from->engine->id;
 			   __entry->sync_to = to->engine->id;
-			   __entry->seqno = from->fence.seqno;
+			   __entry->seqno = from->global_seqno;
 			   ),
 
 	    TP_printk("dev=%u, sync-from=%u, sync-to=%u, seqno=%u",
@@ -489,9 +517,9 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->fence.seqno;
+			   __entry->seqno = req->global_seqno;
 			   __entry->flags = flags;
-			   fence_enable_sw_signaling(&req->fence);
+			   dma_fence_enable_sw_signaling(&req->fence);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
@@ -534,7 +562,7 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->fence.seqno;
+			   __entry->seqno = req->global_seqno;
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u",
@@ -596,7 +624,7 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->fence.seqno;
+			   __entry->seqno = req->global_seqno;
 			   __entry->blocking =
 				     mutex_is_locked(&req->i915->drm.struct_mutex);
 			   ),
@@ -711,7 +739,7 @@ DECLARE_EVENT_CLASS(i915_ppgtt,
 
 	TP_fast_assign(
 			__entry->vm = vm;
-			__entry->dev = vm->dev->primary->index;
+			__entry->dev = vm->i915->drm.primary->index;
 	),
 
 	TP_printk("dev=%u, vm=%p", __entry->dev, __entry->vm)

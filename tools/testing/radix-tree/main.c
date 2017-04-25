@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <assert.h>
+#include <limits.h>
 
 #include <linux/slab.h>
 #include <linux/radix-tree.h>
@@ -67,8 +68,7 @@ void big_gang_check(bool long_run)
 
 	for (i = 0; i < (long_run ? 1000 : 3); i++) {
 		__big_gang_check();
-		srand(time(0));
-		printf("%d ", i);
+		printv(2, "%d ", i);
 		fflush(stdout);
 	}
 }
@@ -129,14 +129,19 @@ void check_copied_tags(struct radix_tree_root *tree, unsigned long start, unsign
 			putchar('.'); */
 		if (idx[i] < start || idx[i] > end) {
 			if (item_tag_get(tree, idx[i], totag)) {
-				printf("%lu-%lu: %lu, tags %d-%d\n", start, end, idx[i], item_tag_get(tree, idx[i], fromtag), item_tag_get(tree, idx[i], totag));
+				printv(2, "%lu-%lu: %lu, tags %d-%d\n", start,
+				       end, idx[i], item_tag_get(tree, idx[i],
+								 fromtag),
+				       item_tag_get(tree, idx[i], totag));
 			}
 			assert(!item_tag_get(tree, idx[i], totag));
 			continue;
 		}
 		if (item_tag_get(tree, idx[i], fromtag) ^
 			item_tag_get(tree, idx[i], totag)) {
-			printf("%lu-%lu: %lu, tags %d-%d\n", start, end, idx[i], item_tag_get(tree, idx[i], fromtag), item_tag_get(tree, idx[i], totag));
+			printv(2, "%lu-%lu: %lu, tags %d-%d\n", start, end,
+			       idx[i], item_tag_get(tree, idx[i], fromtag),
+			       item_tag_get(tree, idx[i], totag));
 		}
 		assert(!(item_tag_get(tree, idx[i], fromtag) ^
 			 item_tag_get(tree, idx[i], totag)));
@@ -206,8 +211,7 @@ void copy_tag_check(void)
 	}
 
 //	printf("\ncopying tags...\n");
-	cur = start;
-	tagged = radix_tree_range_tag_if_tagged(&tree, &cur, end, ITEMS, 0, 1);
+	tagged = tag_tagged_items(&tree, NULL, start, end, ITEMS, 0, 1);
 
 //	printf("checking copied tags\n");
 	assert(tagged == count);
@@ -215,16 +219,13 @@ void copy_tag_check(void)
 
 	/* Copy tags in several rounds */
 //	printf("\ncopying tags...\n");
-	cur = start;
-	do {
-		tmp = rand() % (count/10+2);
-		tagged = radix_tree_range_tag_if_tagged(&tree, &cur, end, tmp, 0, 2);
-	} while (tmp == tagged);
+	tmp = rand() % (count / 10 + 2);
+	tagged = tag_tagged_items(&tree, NULL, start, end, tmp, 0, 2);
+	assert(tagged == count);
 
 //	printf("%lu %lu %lu\n", tagged, tmp, count);
 //	printf("checking copied tags\n");
 	check_copied_tags(&tree, start, end, idx, ITEMS, 0, 2);
-	assert(tagged < tmp);
 	verify_tag_consistency(&tree, 0);
 	verify_tag_consistency(&tree, 1);
 	verify_tag_consistency(&tree, 2);
@@ -240,9 +241,9 @@ static void __locate_check(struct radix_tree_root *tree, unsigned long index,
 
 	item_insert_order(tree, index, order);
 	item = item_lookup(tree, index);
-	index2 = radix_tree_locate_item(tree, item);
+	index2 = find_item(tree, item);
 	if (index != index2) {
-		printf("index %ld order %d inserted; found %ld\n",
+		printv(2, "index %ld order %d inserted; found %ld\n",
 			index, order, index2);
 		abort();
 	}
@@ -274,17 +275,17 @@ static void locate_check(void)
 			     index += (1UL << order)) {
 				__locate_check(&tree, index + offset, order);
 			}
-			if (radix_tree_locate_item(&tree, &tree) != -1)
+			if (find_item(&tree, &tree) != -1)
 				abort();
 
 			item_kill_tree(&tree);
 		}
 	}
 
-	if (radix_tree_locate_item(&tree, &tree) != -1)
+	if (find_item(&tree, &tree) != -1)
 		abort();
 	__locate_check(&tree, -1, 0);
-	if (radix_tree_locate_item(&tree, &tree) != -1)
+	if (find_item(&tree, &tree) != -1)
 		abort();
 	item_kill_tree(&tree);
 }
@@ -293,38 +294,70 @@ static void single_thread_tests(bool long_run)
 {
 	int i;
 
-	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
+	printv(1, "starting single_thread_tests: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	multiorder_checks();
-	printf("after multiorder_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after multiorder_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	locate_check();
-	printf("after locate_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after locate_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	tag_check();
-	printf("after tag_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after tag_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	gang_check();
-	printf("after gang_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after gang_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	add_and_check();
-	printf("after add_and_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after add_and_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	dynamic_height_check();
-	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after dynamic_height_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
+	idr_checks();
+	ida_checks();
+	rcu_barrier();
+	printv(2, "after idr_checks: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	big_gang_check(long_run);
-	printf("after big_gang_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after big_gang_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
 		copy_tag_check();
-		printf("%d ", i);
+		printv(2, "%d ", i);
 		fflush(stdout);
 	}
-	printf("after copy_tag_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after copy_tag_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 }
 
 int main(int argc, char **argv)
 {
 	bool long_run = false;
 	int opt;
+	unsigned int seed = time(NULL);
 
-	while ((opt = getopt(argc, argv, "l")) != -1) {
+	while ((opt = getopt(argc, argv, "ls:v")) != -1) {
 		if (opt == 'l')
 			long_run = true;
+		else if (opt == 's')
+			seed = strtoul(optarg, NULL, 0);
+		else if (opt == 'v')
+			test_verbose++;
 	}
+
+	printf("random seed %u\n", seed);
+	srand(seed);
+
+	printf("running tests\n");
 
 	rcu_register_thread();
 	radix_tree_init();
@@ -332,12 +365,21 @@ int main(int argc, char **argv)
 	regression1_test();
 	regression2_test();
 	regression3_test();
-	iteration_test();
+	iteration_test(0, 10 + 90 * long_run);
+	iteration_test(7, 10 + 90 * long_run);
 	single_thread_tests(long_run);
 
-	sleep(1);
-	printf("after sleep(1): %d allocated\n", nr_allocated);
+	/* Free any remaining preallocated nodes */
+	radix_tree_cpu_dead(0);
+
+	benchmark();
+
+	rcu_barrier();
+	printv(2, "after rcu_barrier: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	rcu_unregister_thread();
+
+	printf("tests completed\n");
 
 	exit(0);
 }

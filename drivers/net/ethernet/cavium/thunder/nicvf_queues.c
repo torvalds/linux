@@ -544,14 +544,18 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_BP_CFG;
-	mbx.rq.cfg = (1ULL << 63) | (1ULL << 62) | (qs->vnic_id << 0);
+	mbx.rq.cfg = BIT_ULL(63) | BIT_ULL(62) |
+		     (RQ_PASS_RBDR_LVL << 16) | (RQ_PASS_CQ_LVL << 8) |
+		     (qs->vnic_id << 0);
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	/* RQ drop config
 	 * Enable CQ drop to reserve sufficient CQEs for all tx packets
 	 */
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_DROP_CFG;
-	mbx.rq.cfg = (1ULL << 62) | (RQ_CQ_DROP << 8);
+	mbx.rq.cfg = BIT_ULL(63) | BIT_ULL(62) |
+		     (RQ_PASS_RBDR_LVL << 40) | (RQ_DROP_RBDR_LVL << 32) |
+		     (RQ_PASS_CQ_LVL << 16) | (RQ_DROP_CQ_LVL << 8);
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	if (!nic->sqs_mode && (qidx == 0)) {
@@ -599,7 +603,7 @@ void nicvf_cmp_queue_config(struct nicvf *nic, struct queue_set *qs,
 	cq_cfg.ena = 1;
 	cq_cfg.reset = 0;
 	cq_cfg.caching = 0;
-	cq_cfg.qsize = CMP_QSIZE;
+	cq_cfg.qsize = ilog2(qs->cq_len >> 10);
 	cq_cfg.avg_con = 0;
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_CFG, qidx, *(u64 *)&cq_cfg);
 
@@ -648,8 +652,12 @@ static void nicvf_snd_queue_config(struct nicvf *nic, struct queue_set *qs,
 	sq_cfg.ena = 1;
 	sq_cfg.reset = 0;
 	sq_cfg.ldwb = 0;
-	sq_cfg.qsize = SND_QSIZE;
+	sq_cfg.qsize = ilog2(qs->sq_len >> 10);
 	sq_cfg.tstmp_bgx_intf = 0;
+	/* CQ's level at which HW will stop processing SQEs to avoid
+	 * transmitting a pkt with no space in CQ to post CQE_TX.
+	 */
+	sq_cfg.cq_limit = (CMP_QUEUE_PIPELINE_RSVD * 256) / qs->cq_len;
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_CFG, qidx, *(u64 *)&sq_cfg);
 
 	/* Set threshold value for interrupt generation */
@@ -811,10 +819,20 @@ int nicvf_config_data_transfer(struct nicvf *nic, bool enable)
 {
 	bool disable = false;
 	struct queue_set *qs = nic->qs;
+	struct queue_set *pqs = nic->pnicvf->qs;
 	int qidx;
 
 	if (!qs)
 		return 0;
+
+	/* Take primary VF's queue lengths.
+	 * This is needed to take queue lengths set from ethtool
+	 * into consideration.
+	 */
+	if (nic->sqs_mode && pqs) {
+		qs->cq_len = pqs->cq_len;
+		qs->sq_len = pqs->sq_len;
+	}
 
 	if (enable) {
 		if (nicvf_alloc_resources(nic))
@@ -1185,30 +1203,12 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 }
 
 /* Append an skb to a SQ for packet transfer. */
-int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
+int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
+			struct sk_buff *skb, u8 sq_num)
 {
 	int i, size;
 	int subdesc_cnt, tso_sqe = 0;
-	int sq_num, qentry;
-	struct queue_set *qs;
-	struct snd_queue *sq;
-
-	sq_num = skb_get_queue_mapping(skb);
-	if (sq_num >= MAX_SND_QUEUES_PER_QS) {
-		/* Get secondary Qset's SQ structure */
-		i = sq_num / MAX_SND_QUEUES_PER_QS;
-		if (!nic->snicvf[i - 1]) {
-			netdev_warn(nic->netdev,
-				    "Secondary Qset#%d's ptr not initialized\n",
-				    i - 1);
-			return 1;
-		}
-		nic = (struct nicvf *)nic->snicvf[i - 1];
-		sq_num = sq_num % MAX_SND_QUEUES_PER_QS;
-	}
-
-	qs = nic->qs;
-	sq = &qs->sq[sq_num];
+	int qentry;
 
 	subdesc_cnt = nicvf_sq_subdesc_required(nic, skb);
 	if (subdesc_cnt > atomic_read(&sq->free_cnt))

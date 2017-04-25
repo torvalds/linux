@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
@@ -25,7 +26,7 @@
 #include <asm/desc.h>
 #include <asm/traps.h>
 #include <asm/vdso.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cpufeature.h>
 
 #define CREATE_TRACE_POINTS

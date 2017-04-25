@@ -218,7 +218,7 @@ static struct shutdown_handler shutdown_handlers[] = {
 };
 
 static void shutdown_handler(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len)
+			     const char *path, const char *token)
 {
 	char *str;
 	struct xenbus_transaction xbt;
@@ -266,8 +266,8 @@ static void shutdown_handler(struct xenbus_watch *watch,
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
-			  unsigned int len)
+static void sysrq_handler(struct xenbus_watch *watch, const char *path,
+			  const char *token)
 {
 	char sysrq_key = '\0';
 	struct xenbus_transaction xbt;
@@ -277,7 +277,7 @@ static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 	err = xenbus_transaction_start(&xbt);
 	if (err)
 		return;
-	if (!xenbus_scanf(xbt, "control", "sysrq", "%c", &sysrq_key)) {
+	if (xenbus_scanf(xbt, "control", "sysrq", "%c", &sysrq_key) < 0) {
 		pr_err("Unable to read sysrq code in control/sysrq\n");
 		xenbus_transaction_end(xbt, 1);
 		return;

@@ -32,6 +32,14 @@ optional properties:
 			- active low  = drive pixel data on falling edge/
 					sample data on rising edge
 			- ignored     = ignored
+ - syncclk-active: with
+			- active high = drive sync on rising edge/
+					sample sync on falling edge of pixel
+					clock
+			- active low  = drive sync on falling edge/
+					sample sync on rising edge of pixel
+					clock
+			- omitted     = same configuration as pixelclk-active
  - interlaced (bool): boolean to enable interlaced mode
  - doublescan (bool): boolean to enable doublescan mode
  - doubleclk (bool): boolean to enable doubleclock mode

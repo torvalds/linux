@@ -25,16 +25,9 @@ struct sti_private {
 	struct drm_property *plane_zorder_property;
 	struct drm_device *drm_dev;
 	struct drm_fbdev_cma *fbdev;
-
-	struct {
-		struct drm_atomic_state *state;
-		struct work_struct work;
-		struct mutex lock;
-	} commit;
 };
 
 extern struct platform_driver sti_tvout_driver;
-extern struct platform_driver sti_vtac_driver;
 extern struct platform_driver sti_hqvdp_driver;
 extern struct platform_driver sti_hdmi_driver;
 extern struct platform_driver sti_hda_driver;

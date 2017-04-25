@@ -111,7 +111,7 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 	}
 
 	skb->dev = wilc_wfi_mon;
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
@@ -215,7 +215,7 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 		cb_hdr->tx_flags = 0x0004;
 
 		skb2->dev = wilc_wfi_mon;
-		skb_set_mac_header(skb2, 0);
+		skb_reset_mac_header(skb2);
 		skb2->ip_summed = CHECKSUM_UNNECESSARY;
 		skb2->pkt_type = PACKET_OTHERHOST;
 		skb2->protocol = htons(ETH_P_802_2);

@@ -51,8 +51,8 @@ struct drm_pending_vblank_event {
  *
  * Note that for historical reasons - the vblank handling code is still shared
  * with legacy/non-kms drivers - this is a free-standing structure not directly
- * connected to struct &drm_crtc. But all public interface functions are taking
- * a struct &drm_crtc to hide this implementation detail.
+ * connected to &struct drm_crtc. But all public interface functions are taking
+ * a &struct drm_crtc to hide this implementation detail.
  */
 struct drm_vblank_crtc {
 	/**
@@ -67,7 +67,7 @@ struct drm_vblank_crtc {
 	 * @disable_timer: Disable timer for the delayed vblank disabling
 	 * hysteresis logic. Vblank disabling is controlled through the
 	 * drm_vblank_offdelay module option and the setting of the
-	 * max_vblank_count value in the &drm_device structure.
+	 * &drm_device.max_vblank_count value.
 	 */
 	struct timer_list disable_timer;
 
@@ -92,7 +92,7 @@ struct drm_vblank_crtc {
 	 */
 	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
 	/**
-	 * @last: Protected by dev->vbl_lock, used for wraparound handling.
+	 * @last: Protected by &drm_device.vbl_lock, used for wraparound handling.
 	 */
 	u32 last;
 	/**
@@ -130,42 +130,37 @@ struct drm_vblank_crtc {
 	bool enabled;
 };
 
-extern int drm_irq_install(struct drm_device *dev, int irq);
-extern int drm_irq_uninstall(struct drm_device *dev);
+int drm_irq_install(struct drm_device *dev, int irq);
+int drm_irq_uninstall(struct drm_device *dev);
 
-extern int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs);
-extern int drm_wait_vblank(struct drm_device *dev, void *data,
-			   struct drm_file *filp);
-extern u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe);
-extern u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
-extern u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
-					  struct timeval *vblanktime);
-extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
-				       struct drm_pending_vblank_event *e);
-extern void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
-				      struct drm_pending_vblank_event *e);
-extern bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
-extern bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
-extern int drm_crtc_vblank_get(struct drm_crtc *crtc);
-extern void drm_crtc_vblank_put(struct drm_crtc *crtc);
-extern void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe);
-extern void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
-extern void drm_vblank_off(struct drm_device *dev, unsigned int pipe);
-extern void drm_vblank_on(struct drm_device *dev, unsigned int pipe);
-extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
-extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
-extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
-extern void drm_vblank_cleanup(struct drm_device *dev);
-extern u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
-extern u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe);
+int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs);
+u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
+u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
+				   struct timeval *vblanktime);
+void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
+			       struct drm_pending_vblank_event *e);
+void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
+			      struct drm_pending_vblank_event *e);
+bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
+bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
+int drm_crtc_vblank_get(struct drm_crtc *crtc);
+void drm_crtc_vblank_put(struct drm_crtc *crtc);
+void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe);
+void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
+void drm_crtc_vblank_off(struct drm_crtc *crtc);
+void drm_crtc_vblank_reset(struct drm_crtc *crtc);
+void drm_crtc_vblank_on(struct drm_crtc *crtc);
+void drm_vblank_cleanup(struct drm_device *dev);
+u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
+u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe);
 
-extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-						 unsigned int pipe, int *max_error,
-						 struct timeval *vblank_time,
-						 unsigned flags,
-						 const struct drm_display_mode *mode);
-extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
-					    const struct drm_display_mode *mode);
+int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
+					  unsigned int pipe, int *max_error,
+					  struct timeval *vblank_time,
+					  unsigned flags,
+					  const struct drm_display_mode *mode);
+void drm_calc_timestamping_constants(struct drm_crtc *crtc,
+				     const struct drm_display_mode *mode);
 
 /**
  * drm_crtc_vblank_waitqueue - get vblank waitqueue for the CRTC

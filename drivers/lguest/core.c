@@ -8,6 +8,7 @@
 #include <linux/stddef.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/vmalloc.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
@@ -15,7 +16,7 @@
 #include <linux/slab.h>
 #include <asm/paravirt.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/poll.h>
 #include <asm/asm-offsets.h>
 #include "lg.h"

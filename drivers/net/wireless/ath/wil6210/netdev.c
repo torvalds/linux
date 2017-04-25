@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,10 +22,11 @@ static int wil_open(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "open\n");
 
-	if (debug_fw) {
-		wil_err(wil, "%s() while in debug_fw mode\n", __func__);
+	if (debug_fw ||
+	    test_bit(WMI_FW_CAPABILITY_WMI_ONLY, wil->fw_capabilities)) {
+		wil_err(wil, "while in debug_fw or wmi_only mode\n");
 		return -EINVAL;
 	}
 
@@ -36,24 +37,9 @@ static int wil_stop(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "stop\n");
 
 	return wil_down(wil);
-}
-
-static int wil_change_mtu(struct net_device *ndev, int new_mtu)
-{
-	struct wil6210_priv *wil = ndev_to_wil(ndev);
-
-	if (new_mtu < 68 || new_mtu > mtu_max) {
-		wil_err(wil, "invalid MTU %d\n", new_mtu);
-		return -EINVAL;
-	}
-
-	wil_dbg_misc(wil, "change MTU %d -> %d\n", ndev->mtu, new_mtu);
-	ndev->mtu = new_mtu;
-
-	return 0;
 }
 
 static int wil_do_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
@@ -69,7 +55,6 @@ static const struct net_device_ops wil_netdev_ops = {
 	.ndo_start_xmit		= wil_start_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= wil_change_mtu,
 	.ndo_do_ioctl		= wil_do_ioctl,
 };
 
@@ -84,7 +69,7 @@ static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
 	done = budget - quota;
 
 	if (done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, done);
 		wil6210_unmask_irq_rx(wil);
 		wil_dbg_txrx(wil, "NAPI RX complete\n");
 	}
@@ -126,6 +111,7 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 static void wil_dev_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->max_mtu = mtu_max;
 	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
@@ -147,7 +133,7 @@ void *wil_if_alloc(struct device *dev)
 	wil->wdev = wdev;
 	wil->radio_wdev = wdev;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "if_alloc\n");
 
 	rc = wil_priv_init(wil);
 	if (rc) {
@@ -194,7 +180,7 @@ void wil_if_free(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "if_free\n");
 
 	if (!ndev)
 		return;
@@ -229,7 +215,7 @@ int wil_if_add(struct wil6210_priv *wil)
 	netif_tx_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
 			  WIL6210_NAPI_BUDGET);
 
-	netif_tx_stop_all_queues(ndev);
+	wil_update_net_queues_bh(wil, NULL, true);
 
 	rc = register_netdev(ndev);
 	if (rc < 0) {
@@ -249,7 +235,7 @@ void wil_if_remove(struct wil6210_priv *wil)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil_to_wdev(wil);
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "if_remove\n");
 
 	unregister_netdev(ndev);
 	wiphy_unregister(wdev->wiphy);

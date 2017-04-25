@@ -97,7 +97,7 @@ lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask)
 		return -EINVAL;
 	}
 
-	CLASSERT(sizeof(ifr.ifr_name) >= IFNAMSIZ);
+	BUILD_BUG_ON(sizeof(ifr.ifr_name) < IFNAMSIZ);
 
 	if (strlen(name) > sizeof(ifr.ifr_name) - 1)
 		return -E2BIG;
@@ -393,8 +393,10 @@ lnet_sock_create(struct socket **sockp, int *fatal, __u32 local_ip,
 		memset(&locaddr, 0, sizeof(locaddr));
 		locaddr.sin_family = AF_INET;
 		locaddr.sin_port = htons(local_port);
-		locaddr.sin_addr.s_addr = !local_ip ?
-					  INADDR_ANY : htonl(local_ip);
+		if (!local_ip)
+			locaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+		else
+			locaddr.sin_addr.s_addr = htonl(local_ip);
 
 		rc = kernel_bind(sock, (struct sockaddr *)&locaddr,
 				 sizeof(locaddr));

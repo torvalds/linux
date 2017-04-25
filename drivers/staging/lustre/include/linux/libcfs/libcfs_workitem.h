@@ -62,9 +62,9 @@
 
 struct cfs_wi_sched;
 
-void cfs_wi_sched_destroy(struct cfs_wi_sched *);
+void cfs_wi_sched_destroy(struct cfs_wi_sched *sched);
 int cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab, int cpt,
-			int nthrs, struct cfs_wi_sched **);
+			int nthrs, struct cfs_wi_sched **sched_pp);
 
 struct cfs_workitem;
 

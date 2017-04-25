@@ -44,6 +44,7 @@ static inline int icp_hv_init(void) { return -ENODEV; }
 
 #ifdef CONFIG_PPC_POWERNV
 extern int icp_opal_init(void);
+extern void icp_opal_flush_interrupt(void);
 #else
 static inline int icp_opal_init(void) { return -ENODEV; }
 #endif

@@ -76,23 +76,23 @@ static inline long cfs_duration_sec(long d)
 
 #define cfs_time_current_64 get_jiffies_64
 
-static inline __u64 cfs_time_add_64(__u64 t, __u64 d)
+static inline u64 cfs_time_add_64(u64 t, u64 d)
 {
 	return t + d;
 }
 
-static inline __u64 cfs_time_shift_64(int seconds)
+static inline u64 cfs_time_shift_64(int seconds)
 {
 	return cfs_time_add_64(cfs_time_current_64(),
 			       cfs_time_seconds(seconds));
 }
 
-static inline int cfs_time_before_64(__u64 t1, __u64 t2)
+static inline int cfs_time_before_64(u64 t1, u64 t2)
 {
 	return (__s64)t2 - (__s64)t1 > 0;
 }
 
-static inline int cfs_time_beforeq_64(__u64 t1, __u64 t2)
+static inline int cfs_time_beforeq_64(u64 t1, u64 t2)
 {
 	return (__s64)t2 - (__s64)t1 >= 0;
 }

@@ -449,7 +449,7 @@ TRACE_EVENT(kvmppc_vcore_wakeup,
 		__entry->tgid   = current->tgid;
 	),
 
-	TP_printk("%s time %lld ns, tgid=%d",
+	TP_printk("%s time %llu ns, tgid=%d",
 		__entry->waited ? "wait" : "poll",
 		__entry->ns, __entry->tgid)
 );

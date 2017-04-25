@@ -201,6 +201,7 @@ static struct irq_chip m32700ut_lanpld_irq_type =
 #define lcdpldirq2port(x)	(unsigned long)((int)M32700UT_LCD_ICUCR1 + \
 				 (((x) - 1) * sizeof(unsigned short)))
 
+#ifdef CONFIG_USB
 static pld_icu_data_t lcdpld_icu_data[M32700UT_NUM_LCD_PLD_IRQ];
 
 static void disable_m32700ut_lcdpld_irq(unsigned int irq)
@@ -253,6 +254,7 @@ static struct irq_chip m32700ut_lcdpld_irq_type =
 	.irq_mask	= mask_m32700ut_lcdpld,
 	.irq_unmask	= unmask_m32700ut_lcdpld,
 };
+#endif
 
 void __init init_IRQ(void)
 {

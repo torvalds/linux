@@ -226,7 +226,12 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 #ifdef CONFIG_HUGETLB_PAGE
 static inline int hugepd_ok(hugepd_t hpd)
 {
-	return (hpd.pd > 0);
+#ifdef CONFIG_PPC_8xx
+	return ((hpd_val(hpd) & 0x4) != 0);
+#else
+	/* We clear the top bit to indicate hugepd */
+	return ((hpd_val(hpd) & PD_HUGE) ==  0);
+#endif
 }
 
 static inline int pmd_huge(pmd_t pmd)

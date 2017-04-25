@@ -18,7 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
@@ -429,7 +428,7 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct wmt_pinctrl_data *data = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 	u32 bank = WMT_BANK_FROM_PIN(pin);
 	u32 bit = WMT_BIT_FROM_PIN(pin);
 	u32 reg_pull_en = data->banks[bank].reg_pull_en;
@@ -607,13 +606,4 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 fail_range:
 	gpiochip_remove(&data->gpio_chip);
 	return err;
-}
-
-int wmt_pinctrl_remove(struct platform_device *pdev)
-{
-	struct wmt_pinctrl_data *data = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&data->gpio_chip);
-
-	return 0;
 }

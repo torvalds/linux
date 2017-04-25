@@ -881,8 +881,7 @@ static int ov9740_video_probe(struct i2c_client *client)
 		goto done;
 	}
 
-	dev_info(&client->dev, "ov9740 Model ID 0x%04x, Revision 0x%02x, "
-		 "Manufacturer 0x%02x, SMIA Version 0x%02x\n",
+	dev_info(&client->dev, "ov9740 Model ID 0x%04x, Revision 0x%02x, Manufacturer 0x%02x, SMIA Version 0x%02x\n",
 		 priv->model, priv->revision, priv->manid, priv->smiaver);
 
 	ret = v4l2_ctrl_handler_setup(&priv->hdl);

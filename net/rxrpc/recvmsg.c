@@ -14,6 +14,8 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
@@ -320,8 +322,10 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 	/* Barriers against rxrpc_input_data(). */
 	hard_ack = call->rx_hard_ack;
-	top = smp_load_acquire(&call->rx_top);
-	for (seq = hard_ack + 1; before_eq(seq, top); seq++) {
+	seq = hard_ack + 1;
+	while (top = smp_load_acquire(&call->rx_top),
+	       before_eq(seq, top)
+	       ) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		skb = call->rxtx_buffer[ix];
 		if (!skb) {
@@ -394,6 +398,8 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			ret = 1;
 			goto out;
 		}
+
+		seq++;
 	}
 
 out:
@@ -483,6 +489,20 @@ try_again:
 
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_dequeue, 0, 0, 0, 0);
 
+	/* We're going to drop the socket lock, so we need to lock the call
+	 * against interference by sendmsg.
+	 */
+	if (!mutex_trylock(&call->user_mutex)) {
+		ret = -EWOULDBLOCK;
+		if (flags & MSG_DONTWAIT)
+			goto error_requeue_call;
+		ret = -ERESTARTSYS;
+		if (mutex_lock_interruptible(&call->user_mutex) < 0)
+			goto error_requeue_call;
+	}
+
+	release_sock(&rx->sk);
+
 	if (test_bit(RXRPC_CALL_RELEASED, &call->flags))
 		BUG();
 
@@ -498,7 +518,7 @@ try_again:
 				       &call->user_call_ID);
 		}
 		if (ret < 0)
-			goto error;
+			goto error_unlock_call;
 	}
 
 	if (msg->msg_name) {
@@ -529,12 +549,12 @@ try_again:
 	}
 
 	if (ret < 0)
-		goto error;
+		goto error_unlock_call;
 
 	if (call->state == RXRPC_CALL_COMPLETE) {
 		ret = rxrpc_recvmsg_term(call, msg);
 		if (ret < 0)
-			goto error;
+			goto error_unlock_call;
 		if (!(flags & MSG_PEEK))
 			rxrpc_release_call(rx, call);
 		msg->msg_flags |= MSG_EOR;
@@ -547,8 +567,21 @@ try_again:
 		msg->msg_flags &= ~MSG_MORE;
 	ret = copied;
 
-error:
+error_unlock_call:
+	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put);
+	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, 0, 0, 0, ret);
+	return ret;
+
+error_requeue_call:
+	if (!(flags & MSG_PEEK)) {
+		write_lock_bh(&rx->recvmsg_lock);
+		list_add(&call->recvmsg_link, &rx->recvmsg_q);
+		write_unlock_bh(&rx->recvmsg_lock);
+		trace_rxrpc_recvmsg(call, rxrpc_recvmsg_requeue, 0, 0, 0, 0);
+	} else {
+		rxrpc_put_call(call, rxrpc_call_put);
+	}
 error_no_call:
 	release_sock(&rx->sk);
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, 0, 0, 0, ret);
@@ -605,7 +638,7 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 	iov.iov_len = size - *_offset;
 	iov_iter_kvec(&iter, ITER_KVEC | READ, &iov, 1, size - *_offset);
 
-	lock_sock(sock->sk);
+	mutex_lock(&call->user_mutex);
 
 	switch (call->state) {
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
@@ -644,7 +677,7 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 read_phase_complete:
 	ret = 1;
 out:
-	release_sock(sock->sk);
+	mutex_unlock(&call->user_mutex);
 	_leave(" = %d [%zu,%d]", ret, *_offset, *_abort);
 	return ret;
 

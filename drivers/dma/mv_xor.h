@@ -148,6 +148,7 @@ struct mv_xor_chan {
  */
 struct mv_xor_desc_slot {
 	struct list_head	node;
+	struct list_head	sg_tx_list;
 	enum dma_transaction_type	type;
 	void			*hw_desc;
 	u16			idx;

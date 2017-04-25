@@ -222,35 +222,6 @@ static void acpiphp_post_dock_fixup(struct acpi_device *adev)
 	acpiphp_let_context_go(context);
 }
 
-/* Check whether the PCI device is managed by native PCIe hotplug driver */
-static bool device_is_managed_by_native_pciehp(struct pci_dev *pdev)
-{
-	u32 reg32;
-	acpi_handle tmp;
-	struct acpi_pci_root *root;
-
-	/* Check whether the PCIe port supports native PCIe hotplug */
-	if (pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &reg32))
-		return false;
-	if (!(reg32 & PCI_EXP_SLTCAP_HPC))
-		return false;
-
-	/*
-	 * Check whether native PCIe hotplug has been enabled for
-	 * this PCIe hierarchy.
-	 */
-	tmp = acpi_find_root_bridge_handle(pdev);
-	if (!tmp)
-		return false;
-	root = acpi_pci_find_root(tmp);
-	if (!root)
-		return false;
-	if (!(root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL))
-		return false;
-
-	return true;
-}
-
 /**
  * acpiphp_add_context - Add ACPIPHP context to an ACPI device object.
  * @handle: ACPI handle of the object to add a context to.
@@ -334,7 +305,7 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 	 * expose slots to user space in those cases.
 	 */
 	if ((acpi_pci_check_ejectable(pbus, handle) || is_dock_device(adev))
-	    && !(pdev && device_is_managed_by_native_pciehp(pdev))) {
+	    && !(pdev && pdev->is_hotplug_bridge && pciehp_is_native(pdev))) {
 		unsigned long long sun;
 		int retval;
 

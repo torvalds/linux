@@ -60,13 +60,7 @@ struct netlbl_domhsh_walk_arg {
 };
 
 /* NetLabel Generic NETLINK CALIPSO family */
-static struct genl_family netlbl_calipso_gnl_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = 0,
-	.name = NETLBL_NLTYPE_CALIPSO_NAME,
-	.version = NETLBL_PROTO_VERSION,
-	.maxattr = NLBL_CALIPSO_A_MAX,
-};
+static struct genl_family netlbl_calipso_gnl_family;
 
 /* NetLabel Netlink attribute policy */
 static const struct nla_policy calipso_genl_policy[NLBL_CALIPSO_A_MAX + 1] = {
@@ -355,6 +349,16 @@ static const struct genl_ops netlbl_calipso_ops[] = {
 	},
 };
 
+static struct genl_family netlbl_calipso_gnl_family __ro_after_init = {
+	.hdrsize = 0,
+	.name = NETLBL_NLTYPE_CALIPSO_NAME,
+	.version = NETLBL_PROTO_VERSION,
+	.maxattr = NLBL_CALIPSO_A_MAX,
+	.module = THIS_MODULE,
+	.ops = netlbl_calipso_ops,
+	.n_ops = ARRAY_SIZE(netlbl_calipso_ops),
+};
+
 /* NetLabel Generic NETLINK Protocol Functions
  */
 
@@ -368,8 +372,7 @@ static const struct genl_ops netlbl_calipso_ops[] = {
  */
 int __init netlbl_calipso_genl_init(void)
 {
-	return genl_register_family_with_ops(&netlbl_calipso_gnl_family,
-					     netlbl_calipso_ops);
+	return genl_register_family(&netlbl_calipso_gnl_family);
 }
 
 static const struct netlbl_calipso_ops *calipso_ops;

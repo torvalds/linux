@@ -78,7 +78,8 @@ and the following optional properties:
   multiple lanes. If this property is not found, we assume that the
   value is 0.
 - reset-gpios: optional gpio to PERST#
-- reset-delay-us: delay in us to wait after reset de-assertion
+- reset-delay-us: delay in us to wait after reset de-assertion, if not
+  specified will default to 100ms, as required by the PCIe specification.
 
 Example:
 

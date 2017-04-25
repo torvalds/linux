@@ -58,7 +58,7 @@
 #include <linux/hdlcdrv.h>
 #include <linux/random.h>
 #include <net/ax25.h> 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/crc-ccitt.h>
 

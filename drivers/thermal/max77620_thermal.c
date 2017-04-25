@@ -149,6 +149,7 @@ static struct platform_device_id max77620_thermal_devtype[] = {
 	{ .name = "max77620-thermal", },
 	{},
 };
+MODULE_DEVICE_TABLE(platform, max77620_thermal_devtype);
 
 static struct platform_driver max77620_thermal_driver = {
 	.driver = {

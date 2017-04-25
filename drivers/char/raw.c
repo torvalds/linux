@@ -24,7 +24,7 @@
 #include <linux/compat.h>
 #include <linux/vmalloc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 struct raw_device_data {
 	struct block_device *binding;

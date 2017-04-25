@@ -23,7 +23,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/sysctl.h>
@@ -35,14 +35,16 @@
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
 #include <linux/libfdt.h>
+#include <linux/debugfs.h>
 
+#include <asm/debug.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/tlbflush.h>
@@ -747,7 +749,36 @@ static unsigned long __init htab_get_table_size(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int create_section_mapping(unsigned long start, unsigned long end)
+void resize_hpt_for_hotplug(unsigned long new_mem_size)
+{
+	unsigned target_hpt_shift;
+
+	if (!mmu_hash_ops.resize_hpt)
+		return;
+
+	target_hpt_shift = htab_shift_for_mem_size(new_mem_size);
+
+	/*
+	 * To avoid lots of HPT resizes if memory size is fluctuating
+	 * across a boundary, we deliberately have some hysterisis
+	 * here: we immediately increase the HPT size if the target
+	 * shift exceeds the current shift, but we won't attempt to
+	 * reduce unless the target shift is at least 2 below the
+	 * current shift
+	 */
+	if ((target_hpt_shift > ppc64_pft_size)
+	    || (target_hpt_shift < (ppc64_pft_size - 1))) {
+		int rc;
+
+		rc = mmu_hash_ops.resize_hpt(target_hpt_shift);
+		if (rc)
+			printk(KERN_WARNING
+			       "Unable to resize hash page table to target order %d: %d\n",
+			       target_hpt_shift, rc);
+	}
+}
+
+int hash__create_section_mapping(unsigned long start, unsigned long end)
 {
 	int rc = htab_bolt_mapping(start, end, __pa(start),
 				   pgprot_val(PAGE_KERNEL), mmu_linear_psize,
@@ -761,7 +792,7 @@ int create_section_mapping(unsigned long start, unsigned long end)
 	return rc;
 }
 
-int remove_section_mapping(unsigned long start, unsigned long end)
+int hash__remove_section_mapping(unsigned long start, unsigned long end)
 {
 	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
 				     mmu_kernel_ssize);
@@ -796,37 +827,17 @@ static void update_hid_for_hash(void)
 static void __init hash_init_partition_table(phys_addr_t hash_table,
 					     unsigned long htab_size)
 {
-	unsigned long ps_field;
-	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
+	mmu_partition_table_init();
 
 	/*
-	 * slb llp encoding for the page size used in VPM real mode.
-	 * We can ignore that for lpid 0
+	 * PS field (VRMA page size) is not used for LPID 0, hence set to 0.
+	 * For now, UPRT is 0 and we have no segment table.
 	 */
-	ps_field = 0;
 	htab_size =  __ilog2(htab_size) - 18;
-
-	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
-	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
-						MEMBLOCK_ALLOC_ANYWHERE));
-
-	/* Initialize the Partition Table with no entries */
-	memset((void *)partition_tb, 0, patb_size);
-	partition_tb->patb0 = cpu_to_be64(ps_field | hash_table | htab_size);
-	/*
-	 * FIXME!! This should be done via update_partition table
-	 * For now UPRT is 0 for us.
-	 */
-	partition_tb->patb1 = 0;
+	mmu_partition_table_set_entry(0, hash_table | htab_size, 0);
 	pr_info("Partition table %p\n", partition_tb);
 	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
 		update_hid_for_hash();
-	/*
-	 * update partition table control register,
-	 * 64 K size.
-	 */
-	mtspr(SPRN_PTCR, __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
-
 }
 
 static void __init htab_initialize(void)
@@ -1815,3 +1826,34 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* Finally limit subsequent allocations */
 	memblock_set_current_limit(ppc64_rma_size);
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+static int hpt_order_get(void *data, u64 *val)
+{
+	*val = ppc64_pft_size;
+	return 0;
+}
+
+static int hpt_order_set(void *data, u64 val)
+{
+	if (!mmu_hash_ops.resize_hpt)
+		return -ENODEV;
+
+	return mmu_hash_ops.resize_hpt(val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
+
+static int __init hash64_debugfs(void)
+{
+	if (!debugfs_create_file("hpt_order", 0600, powerpc_debugfs_root,
+				 NULL, &fops_hpt_order)) {
+		pr_err("lpar: unable to create hpt_order debugsfs file\n");
+	}
+
+	return 0;
+}
+machine_device_initcall(pseries, hash64_debugfs);
+
+#endif /* CONFIG_DEBUG_FS */

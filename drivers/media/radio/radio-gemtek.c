@@ -67,14 +67,10 @@ module_param(probe, bool, 0444);
 MODULE_PARM_DESC(probe, "Enable automatic device probing.");
 
 module_param(hardmute, bool, 0644);
-MODULE_PARM_DESC(hardmute, "Enable 'hard muting' by shutting down PLL, may "
-	 "reduce static noise.");
+MODULE_PARM_DESC(hardmute, "Enable 'hard muting' by shutting down PLL, may reduce static noise.");
 
 module_param_array(io, int, NULL, 0444);
-MODULE_PARM_DESC(io, "Force I/O ports for the GemTek Radio card if automatic "
-	 "probing is disabled or fails. The most common I/O ports are: 0x20c "
-	 "0x30c, 0x24c or 0x34c (0x20c, 0x248 and 0x28c have been reported to "
-	 "work for the combined sound/radiocard).");
+MODULE_PARM_DESC(io, "Force I/O ports for the GemTek Radio card if automatic probing is disabled or fails. The most common I/O ports are: 0x20c 0x30c, 0x24c or 0x34c (0x20c, 0x248 and 0x28c have been reported to work for the combined sound/radiocard).");
 
 module_param_array(radio_nr, int, NULL, 0444);
 MODULE_PARM_DESC(radio_nr, "Radio device numbers");

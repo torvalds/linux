@@ -1206,7 +1206,7 @@ static void bfin_mac_rx(struct bfin_mac_local *lp)
 	/* reserve 2 bytes for RXDWA padding */
 	skb_reserve(new_skb, NET_IP_ALIGN);
 	/* Invalidate the data cache of skb->data range when it is write back
-	 * cache. It will prevent overwritting the new data from DMA
+	 * cache. It will prevent overwriting the new data from DMA
 	 */
 	blackfin_dcache_invalidate_range((unsigned long)new_skb->head,
 					 (unsigned long)new_skb->end);
@@ -1274,7 +1274,7 @@ static int bfin_mac_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (i < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, i);
 		if (test_and_clear_bit(BFIN_MAC_RX_IRQ_DISABLED, &lp->flags))
 			enable_irq(IRQ_MAC_RX);
 	}
@@ -1571,7 +1571,6 @@ static const struct net_device_ops bfin_mac_netdev_ops = {
 	.ndo_set_rx_mode	= bfin_mac_set_multicast_list,
 	.ndo_do_ioctl           = bfin_mac_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bfin_mac_poll_controller,
 #endif

@@ -38,6 +38,11 @@
 
 #include <asm/irq.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/mdio.h>
+
+#include "mdio-boardinfo.h"
+
 int mdiobus_register_device(struct mdio_device *mdiodev)
 {
 	if (mdiodev->bus->mdio_map[mdiodev->addr])
@@ -340,6 +345,8 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 		}
 	}
 
+	mdiobus_setup_mdiodev_from_board_info(bus);
+
 	bus->state = MDIOBUS_REGISTERED;
 	pr_info("%s: probed\n", bus->name);
 	return 0;
@@ -461,6 +468,8 @@ int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum)
 	retval = bus->read(bus, addr, regnum);
 	mutex_unlock(&bus->mdio_lock);
 
+	trace_mdio_access(bus, 1, addr, regnum, retval, retval);
+
 	return retval;
 }
 EXPORT_SYMBOL(mdiobus_read_nested);
@@ -484,6 +493,8 @@ int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 	mutex_lock(&bus->mdio_lock);
 	retval = bus->read(bus, addr, regnum);
 	mutex_unlock(&bus->mdio_lock);
+
+	trace_mdio_access(bus, 1, addr, regnum, retval, retval);
 
 	return retval;
 }
@@ -513,6 +524,8 @@ int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 	err = bus->write(bus, addr, regnum, val);
 	mutex_unlock(&bus->mdio_lock);
 
+	trace_mdio_access(bus, 0, addr, regnum, val, err);
+
 	return err;
 }
 EXPORT_SYMBOL(mdiobus_write_nested);
@@ -537,6 +550,8 @@ int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 	mutex_lock(&bus->mdio_lock);
 	err = bus->write(bus, addr, regnum, val);
 	mutex_unlock(&bus->mdio_lock);
+
+	trace_mdio_access(bus, 0, addr, regnum, val, err);
 
 	return err;
 }

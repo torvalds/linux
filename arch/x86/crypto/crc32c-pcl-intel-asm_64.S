@@ -312,7 +312,7 @@ do_return:
         ret
 ENDPROC(crc_pcl)
 
-.section	.rodata, "a", %progbits
+.section	.rodata, "a", @progbits
         ################################################################
         ## jump table        Table is 129 entries x 2 bytes each
         ################################################################

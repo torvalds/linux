@@ -7,7 +7,7 @@ have dual GMAC each represented by a child node..
 * Ethernet controller node
 
 Required properties:
-- compatible: Should be "mediatek,mt7623-eth"
+- compatible: Should be "mediatek,mt2701-eth"
 - reg: Address and length of the register set for the device
 - interrupts: Should contain the three frame engines interrupts in numeric
 	order. These are fe_int0, fe_int1 and fe_int2.

@@ -125,7 +125,7 @@ static int add_evtchn(struct per_user_data *u, struct user_evtchn *evtchn)
 	while (*new) {
 		struct user_evtchn *this;
 
-		this = container_of(*new, struct user_evtchn, node);
+		this = rb_entry(*new, struct user_evtchn, node);
 
 		parent = *new;
 		if (this->port < evtchn->port)
@@ -157,7 +157,7 @@ static struct user_evtchn *find_evtchn(struct per_user_data *u, unsigned port)
 	while (node) {
 		struct user_evtchn *evtchn;
 
-		evtchn = container_of(node, struct user_evtchn, node);
+		evtchn = rb_entry(node, struct user_evtchn, node);
 
 		if (evtchn->port < port)
 			node = node->rb_left;

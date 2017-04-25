@@ -1,7 +1,7 @@
 /*
  * Tegra host1x Syncpoints
  *
- * Copyright (c) 2010-2013, NVIDIA Corporation.
+ * Copyright (c) 2010-2015, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -61,22 +61,24 @@ static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 	struct host1x_syncpt *sp = host->syncpt;
 	char *name;
 
+	mutex_lock(&host->syncpt_mutex);
+
 	for (i = 0; i < host->info->nb_pts && sp->name; i++, sp++)
 		;
 
 	if (i >= host->info->nb_pts)
-		return NULL;
+		goto unlock;
 
 	if (flags & HOST1X_SYNCPT_HAS_BASE) {
 		sp->base = host1x_syncpt_base_request(host);
 		if (!sp->base)
-			return NULL;
+			goto unlock;
 	}
 
 	name = kasprintf(GFP_KERNEL, "%02u-%s", sp->id,
 			dev ? dev_name(dev) : NULL);
 	if (!name)
-		return NULL;
+		goto free_base;
 
 	sp->dev = dev;
 	sp->name = name;
@@ -86,7 +88,15 @@ static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 	else
 		sp->client_managed = false;
 
+	mutex_unlock(&host->syncpt_mutex);
 	return sp;
+
+free_base:
+	host1x_syncpt_base_free(sp->base);
+	sp->base = NULL;
+unlock:
+	mutex_unlock(&host->syncpt_mutex);
+	return NULL;
 }
 
 u32 host1x_syncpt_id(struct host1x_syncpt *sp)
@@ -378,6 +388,7 @@ int host1x_syncpt_init(struct host1x *host)
 	for (i = 0; i < host->info->nb_bases; i++)
 		bases[i].id = i;
 
+	mutex_init(&host->syncpt_mutex);
 	host->syncpt = syncpt;
 	host->bases = bases;
 
@@ -405,12 +416,16 @@ void host1x_syncpt_free(struct host1x_syncpt *sp)
 	if (!sp)
 		return;
 
+	mutex_lock(&sp->host->syncpt_mutex);
+
 	host1x_syncpt_base_free(sp->base);
 	kfree(sp->name);
 	sp->base = NULL;
 	sp->dev = NULL;
 	sp->name = NULL;
 	sp->client_managed = false;
+
+	mutex_unlock(&sp->host->syncpt_mutex);
 }
 EXPORT_SYMBOL(host1x_syncpt_free);
 

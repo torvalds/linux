@@ -30,7 +30,7 @@
 #include <hv/hypervisor.h>
 #include <hv/drv_mshim_intf.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 #define DRV_NAME	"tile-edac"
 

@@ -686,8 +686,6 @@ static void
 sisusbcon_scrolldelta(struct vc_data *c, int lines)
 {
 	struct sisusb_usb_data *sisusb;
-	int margin = c->vc_size_row * 4;
-	int ul, we, p, st;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
@@ -700,39 +698,8 @@ sisusbcon_scrolldelta(struct vc_data *c, int lines)
 		return;
 	}
 
-	if (!lines)		/* Turn scrollback off */
-		c->vc_visible_origin = c->vc_origin;
-	else {
-
-		if (sisusb->con_rolled_over >
-				(c->vc_scr_end - sisusb->scrbuf) + margin) {
-
-			ul = c->vc_scr_end - sisusb->scrbuf;
-			we = sisusb->con_rolled_over + c->vc_size_row;
-
-		} else {
-
-			ul = 0;
-			we = sisusb->scrbuf_size;
-
-		}
-
-		p = (c->vc_visible_origin - sisusb->scrbuf - ul + we) % we +
-				lines * c->vc_size_row;
-
-		st = (c->vc_origin - sisusb->scrbuf - ul + we) % we;
-
-		if (st < 2 * margin)
-			margin = 0;
-
-		if (p < margin)
-			p = 0;
-
-		if (p > st - margin)
-			p = st;
-
-		c->vc_visible_origin = sisusb->scrbuf + (p + ul) % we;
-	}
+	vc_scrolldelta_helper(c, lines, sisusb->con_rolled_over,
+			(void *)sisusb->scrbuf, sisusb->scrbuf_size);
 
 	sisusbcon_set_start_address(sisusb, c);
 
@@ -808,9 +775,10 @@ sisusbcon_cursor(struct vc_data *c, int mode)
 	mutex_unlock(&sisusb->lock);
 }
 
-static int
+static bool
 sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
-					int t, int b, int dir, int lines)
+		unsigned int t, unsigned int b, enum con_scroll dir,
+		unsigned int lines)
 {
 	int cols = sisusb->sisusb_num_columns;
 	int length = ((b - t) * cols) * 2;
@@ -852,8 +820,9 @@ sisusbcon_scroll_area(struct vc_data *c, struct sisusb_usb_data *sisusb,
 }
 
 /* Interface routine */
-static int
-sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
+static bool
+sisusbcon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int lines)
 {
 	struct sisusb_usb_data *sisusb;
 	u16 eattr = c->vc_video_erase_char;
@@ -870,17 +839,17 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 	 */
 
 	if (!lines)
-		return 1;
+		return true;
 
 	sisusb = sisusb_get_sisusb_lock_and_check(c->vc_num);
 	if (!sisusb)
-		return 0;
+		return false;
 
 	/* sisusb->lock is down */
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
-		return 0;
+		return false;
 	}
 
 	/* Special case */
@@ -971,7 +940,7 @@ sisusbcon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 
 	mutex_unlock(&sisusb->lock);
 
-	return 1;
+	return true;
 }
 
 /* Interface routine */

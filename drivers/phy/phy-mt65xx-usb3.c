@@ -506,7 +506,7 @@ static struct phy *mt65xx_phy_xlate(struct device *dev,
 	return instance->phy;
 }
 
-static struct phy_ops mt65xx_u3phy_ops = {
+static const struct phy_ops mt65xx_u3phy_ops = {
 	.init		= mt65xx_phy_init,
 	.exit		= mt65xx_phy_exit,
 	.power_on	= mt65xx_phy_power_on,

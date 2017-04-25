@@ -33,7 +33,7 @@
  * to use &ww_mutex and acquire-contexts to avoid deadlocks.  But because
  * the locking is more distributed around the driver code, we want a bit
  * of extra utility/tracking out of our acquire-ctx.  This is provided
- * by drm_modeset_lock / drm_modeset_acquire_ctx.
+ * by &struct drm_modeset_lock and &struct drm_modeset_acquire_ctx.
  *
  * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.txt
  *
@@ -52,13 +52,15 @@
  *     drm_modeset_drop_locks(&ctx);
  *     drm_modeset_acquire_fini(&ctx);
  *
- *  On top of of these per-object locks using &ww_mutex there's also an overall
- *  dev->mode_config.lock, for protecting everything else. Mostly this means
- *  probe state of connectors, and preventing hotplug add/removal of connectors.
+ * On top of of these per-object locks using &ww_mutex there's also an overall
+ * &drm_mode_config.mutex, for protecting everything else. Mostly this means
+ * probe state of connectors, and preventing hotplug add/removal of connectors.
  *
- *  Finally there's a bunch of dedicated locks to protect drm core internal
- *  lists and lookup data structures.
+ * Finally there's a bunch of dedicated locks to protect drm core internal
+ * lists and lookup data structures.
  */
+
+static DEFINE_WW_CLASS(crtc_ww_class);
 
 /**
  * drm_modeset_lock_all - take all modeset locks
@@ -69,7 +71,7 @@
  * drm_modeset_unlock_all() function.
  *
  * This function is deprecated. It allocates a lock acquisition context and
- * stores it in the DRM device's ->mode_config. This facilitate conversion of
+ * stores it in &drm_device.mode_config. This facilitate conversion of
  * existing code because it removes the need to manually deal with the
  * acquisition context, but it is also brittle because the context is global
  * and care must be taken not to nest calls. New code should use the
@@ -122,7 +124,7 @@ EXPORT_SYMBOL(drm_modeset_lock_all);
  * drm_modeset_lock_all() function.
  *
  * This function is deprecated. It uses the lock acquisition context stored
- * in the DRM device's ->mode_config. This facilitates conversion of existing
+ * in &drm_device.mode_config. This facilitates conversion of existing
  * code because it removes the need to manually deal with the acquisition
  * context, but it is also brittle because the context is global and care must
  * be taken not to nest calls. New code should pass the acquisition context
@@ -398,6 +400,17 @@ int drm_modeset_backoff_interruptible(struct drm_modeset_acquire_ctx *ctx)
 EXPORT_SYMBOL(drm_modeset_backoff_interruptible);
 
 /**
+ * drm_modeset_lock_init - initialize lock
+ * @lock: lock to init
+ */
+void drm_modeset_lock_init(struct drm_modeset_lock *lock)
+{
+	ww_mutex_init(&lock->mutex, &crtc_ww_class);
+	INIT_LIST_HEAD(&lock->head);
+}
+EXPORT_SYMBOL(drm_modeset_lock_init);
+
+/**
  * drm_modeset_lock - take modeset lock
  * @lock: lock to take
  * @ctx: acquire ctx
@@ -455,7 +468,7 @@ EXPORT_SYMBOL(drm_modeset_unlock);
  * This function takes all modeset locks, suitable where a more fine-grained
  * scheme isn't (yet) implemented.
  *
- * Unlike drm_modeset_lock_all(), it doesn't take the dev->mode_config.mutex
+ * Unlike drm_modeset_lock_all(), it doesn't take the &drm_mode_config.mutex
  * since that lock isn't required for modeset state changes. Callers which
  * need to grab that lock too need to do so outside of the acquire context
  * @ctx.

@@ -57,7 +57,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 
 	if (info->control.hw_key &&
 	    (info->flags & IEEE80211_TX_CTL_DONTFRAG ||
-	     tx->local->ops->set_frag_threshold) &&
+	     ieee80211_hw_check(&tx->local->hw, SUPPORTS_TX_FRAG)) &&
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC)) {
 		/* hwaccel - with no need for SW-generated MMIC */
 		return TX_CONTINUE;
@@ -294,7 +294,8 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	/* Trim ICV */
-	skb_trim(skb, skb->len - IEEE80211_TKIP_ICV_LEN);
+	if (!(status->flag & RX_FLAG_ICV_STRIPPED))
+		skb_trim(skb, skb->len - IEEE80211_TKIP_ICV_LEN);
 
 	/* Remove IV */
 	memmove(skb->data + IEEE80211_TKIP_IV_LEN, skb->data, hdrlen);

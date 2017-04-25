@@ -369,9 +369,9 @@ static bool use_gptimer_clksrc __initdata;
 /*
  * clocksource
  */
-static cycle_t clocksource_read_cycles(struct clocksource *cs)
+static u64 clocksource_read_cycles(struct clocksource *cs)
 {
-	return (cycle_t)__omap_dm_timer_read_counter(&clksrc,
+	return (u64)__omap_dm_timer_read_counter(&clksrc,
 						     OMAP_TIMER_NONPOSTED);
 }
 
@@ -510,18 +510,19 @@ void __init omap3_secure_sync32k_timer_init(void)
 }
 #endif /* CONFIG_ARCH_OMAP3 */
 
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX) || \
+	defined(CONFIG_SOC_AM43XX)
 void __init omap3_gptimer_timer_init(void)
 {
 	__omap_sync32k_timer_init(2, "timer_sys_ck", NULL,
 			1, "timer_sys_ck", "ti,timer-alwon", true);
-
-	clocksource_probe();
+	if (of_have_populated_dt())
+		clocksource_probe();
 }
 #endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) ||		\
-	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
+	defined(CONFIG_SOC_DRA7XX)
 static void __init omap4_sync32k_timer_init(void)
 {
 	__omap_sync32k_timer_init(1, "timer_32k_ck", "ti,timer-alwon",

@@ -21,7 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <asm/hexagon_vm.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Additional functions */
 EXPORT_SYMBOL(__clear_user_hexagon);

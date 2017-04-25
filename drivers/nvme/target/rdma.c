@@ -438,6 +438,10 @@ static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
 {
 	struct ib_recv_wr *bad_wr;
 
+	ib_dma_sync_single_for_device(ndev->device,
+		cmd->sge[0].addr, cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+
 	if (ndev->srq)
 		return ib_post_srq_recv(ndev->srq, &cmd->wr, &bad_wr);
 	return ib_post_recv(cmd->queue->cm_id->qp, &cmd->wr, &bad_wr);
@@ -538,6 +542,11 @@ static void nvmet_rdma_queue_response(struct nvmet_req *req)
 		first_wr = &rsp->send_wr;
 
 	nvmet_rdma_post_recv(rsp->queue->dev, rsp->cmd);
+
+	ib_dma_sync_single_for_device(rsp->queue->dev->device,
+		rsp->send_sge.addr, rsp->send_sge.length,
+		DMA_TO_DEVICE);
+
 	if (ib_post_send(cm_id->qp, first_wr, &bad_wr)) {
 		pr_err("sending cmd response failed\n");
 		nvmet_rdma_release_rsp(rsp);
@@ -697,6 +706,14 @@ static void nvmet_rdma_handle_command(struct nvmet_rdma_queue *queue,
 	cmd->queue = queue;
 	cmd->n_rdma = 0;
 	cmd->req.port = queue->port;
+
+
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->cmd->sge[0].addr, cmd->cmd->sge[0].length,
+		DMA_FROM_DEVICE);
+	ib_dma_sync_single_for_cpu(queue->dev->device,
+		cmd->send_sge.addr, cmd->send_sge.length,
+		DMA_TO_DEVICE);
 
 	if (!nvmet_req_init(&cmd->req, &queue->nvme_cq,
 			&queue->nvme_sq, &nvmet_rdma_ops))
@@ -1024,6 +1041,9 @@ static int nvmet_rdma_cm_reject(struct rdma_cm_id *cm_id,
 {
 	struct nvme_rdma_cm_rej rej;
 
+	pr_debug("rejecting connect request: status %d (%s)\n",
+		 status, nvme_rdma_cm_msg(status));
+
 	rej.recfmt = cpu_to_le16(NVME_RDMA_CM_FMT_1_0);
 	rej.sts = cpu_to_le16(status);
 
@@ -1045,8 +1065,10 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	}
 
 	ret = nvmet_sq_init(&queue->nvme_sq);
-	if (ret)
+	if (ret) {
+		ret = NVME_RDMA_CM_NO_RSC;
 		goto out_free_queue;
+	}
 
 	ret = nvmet_rdma_parse_cm_connect_req(&event->param.conn, queue);
 	if (ret)
@@ -1072,7 +1094,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	queue->idx = ida_simple_get(&nvmet_rdma_queue_ida, 0, 0, GFP_KERNEL);
 	if (queue->idx < 0) {
 		ret = NVME_RDMA_CM_NO_RSC;
-		goto out_free_queue;
+		goto out_destroy_sq;
 	}
 
 	ret = nvmet_rdma_alloc_rsps(queue);
@@ -1129,7 +1151,8 @@ static void nvmet_rdma_qp_event(struct ib_event *event, void *priv)
 		rdma_notify(queue->cm_id, event->event);
 		break;
 	default:
-		pr_err("received unrecognized IB QP event %d\n", event->event);
+		pr_err("received IB QP event: %s (%d)\n",
+		       ib_event_msg(event->event), event->event);
 		break;
 	}
 }
@@ -1167,7 +1190,6 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	ndev = nvmet_rdma_find_get_device(cm_id);
 	if (!ndev) {
-		pr_err("no client data!\n");
 		nvmet_rdma_cm_reject(cm_id, NVME_RDMA_CM_NO_RSC);
 		return -ECONNREFUSED;
 	}
@@ -1370,6 +1392,9 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		ret = nvmet_rdma_device_removal(cm_id, queue);
 		break;
 	case RDMA_CM_EVENT_REJECTED:
+		pr_debug("Connection rejected: %s\n",
+			 rdma_reject_msg(cm_id, event->status));
+		/* FALLTHROUGH */
 	case RDMA_CM_EVENT_UNREACHABLE:
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		nvmet_rdma_queue_connect_fail(cm_id, queue);

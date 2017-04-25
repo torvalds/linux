@@ -259,7 +259,9 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
 	ram_block(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	/* MR1: turn termination on early, for some reason.. */
 	if ((ram->base.mr[1] & 0x03c) != 0x030) {
@@ -658,7 +660,9 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 		gk104_ram_train(fuc, 0x80020000, 0x01000000);
 
 	ram_unblock(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
 	if (next->bios.rammap_11_08_01)
 		data = 0x00000800;
@@ -706,7 +710,9 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
 	ram_block(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	if (vc == 1 && ram_have(fuc, gpio2E)) {
 		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[1]);
@@ -936,7 +942,9 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 	ram_nsec(fuc, 1000);
 
 	ram_unblock(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
 	if (next->bios.rammap_11_08_01)
 		data = 0x00000800;
@@ -981,7 +989,7 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 		int *N1, int *fN1, int *M1, int *P1,
 		int *N2, int *M2, int *P2)
 {
-	int best_clk = 0, best_err = target_khz, p_ref, n_ref;
+	int best_err = target_khz, p_ref, n_ref;
 	bool upper = false;
 
 	*M1 = 1;
@@ -1002,7 +1010,6 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 			/* we found a better combination */
 			if (cur_err < best_err) {
 				best_err = cur_err;
-				best_clk = cur_clk;
 				*N2 = cur_N;
 				*N1 = n_ref;
 				*P1 = p_ref;
@@ -1014,7 +1021,6 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 				- target_khz;
 			if (cur_err < best_err) {
 				best_err = cur_err;
-				best_clk = cur_clk;
 				*N2 = cur_N;
 				*N1 = n_ref;
 				*P1 = p_ref;
@@ -1530,6 +1536,12 @@ gk104_ram_func = {
 int
 gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
+	return gk104_ram_ctor(fb, pram, 0x022554);
+}
+
+int
+gk104_ram_ctor(struct nvkm_fb *fb, struct nvkm_ram **pram, u32 maskaddr)
+{
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
@@ -1544,7 +1556,7 @@ gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		return -ENOMEM;
 	*pram = &ram->base;
 
-	ret = gf100_ram_ctor(&gk104_ram_func, fb, 0x022554, &ram->base);
+	ret = gf100_ram_ctor(&gk104_ram_func, fb, maskaddr, &ram->base);
 	if (ret)
 		return ret;
 

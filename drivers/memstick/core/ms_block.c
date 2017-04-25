@@ -2000,16 +2000,6 @@ static int msb_bd_getgeo(struct block_device *bdev,
 	return 0;
 }
 
-static int msb_prepare_req(struct request_queue *q, struct request *req)
-{
-	if (req->cmd_type != REQ_TYPE_FS) {
-		blk_dump_rq_flags(req, "MS unsupported request");
-		return BLKPREP_KILL;
-	}
-	req->cmd_flags |= REQ_DONTPREP;
-	return BLKPREP_OK;
-}
-
 static void msb_submit_req(struct request_queue *q)
 {
 	struct memstick_dev *card = q->queuedata;
@@ -2132,7 +2122,6 @@ static int msb_init_disk(struct memstick_dev *card)
 	}
 
 	msb->queue->queuedata = card;
-	blk_queue_prep_rq(msb->queue, msb_prepare_req);
 
 	blk_queue_bounce_limit(msb->queue, limit);
 	blk_queue_max_hw_sectors(msb->queue, MS_BLOCK_MAX_PAGES);

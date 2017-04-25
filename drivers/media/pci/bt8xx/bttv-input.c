@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -185,8 +181,8 @@ static u32 bttv_rc5_decode(unsigned int code)
 			return 0;
 		}
 	}
-	dprintk("code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
-		"instr=%x\n", rc5, org_code, RC5_START(rc5),
+	dprintk("code=%x, rc5=%x, start=%x, toggle=%x, address=%x, instr=%x\n",
+		rc5, org_code, RC5_START(rc5),
 		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
 	return rc5;
 }
@@ -424,7 +420,7 @@ int bttv_input_init(struct bttv *btv)
 		return -ENODEV;
 
 	ir = kzalloc(sizeof(*ir),GFP_KERNEL);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ir || !rc)
 		goto err_out_free;
 

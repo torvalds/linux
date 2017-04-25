@@ -37,6 +37,7 @@
 #include "util/llvm-utils.h"
 #include "util/bpf-loader.h"
 #include "util/trigger.h"
+#include "util/perf-hooks.h"
 #include "asm/bug.h"
 
 #include <unistd.h>
@@ -44,6 +45,15 @@
 #include <sys/mman.h>
 #include <asm/bug.h>
 #include <linux/time64.h>
+
+struct switch_output {
+	bool		 enabled;
+	bool		 signal;
+	unsigned long	 size;
+	unsigned long	 time;
+	const char	*str;
+	bool		 set;
+};
 
 struct record {
 	struct perf_tool	tool;
@@ -61,9 +71,32 @@ struct record {
 	bool			no_buildid_cache_set;
 	bool			buildid_all;
 	bool			timestamp_filename;
-	bool			switch_output;
+	struct switch_output	switch_output;
 	unsigned long long	samples;
 };
+
+static volatile int auxtrace_record__snapshot_started;
+static DEFINE_TRIGGER(auxtrace_snapshot_trigger);
+static DEFINE_TRIGGER(switch_output_trigger);
+
+static bool switch_output_signal(struct record *rec)
+{
+	return rec->switch_output.signal &&
+	       trigger_is_ready(&switch_output_trigger);
+}
+
+static bool switch_output_size(struct record *rec)
+{
+	return rec->switch_output.size &&
+	       trigger_is_ready(&switch_output_trigger) &&
+	       (rec->bytes_written >= rec->switch_output.size);
+}
+
+static bool switch_output_time(struct record *rec)
+{
+	return rec->switch_output.time &&
+	       trigger_is_ready(&switch_output_trigger);
+}
 
 static int record__write(struct record *rec, void *bf, size_t size)
 {
@@ -73,6 +106,10 @@ static int record__write(struct record *rec, void *bf, size_t size)
 	}
 
 	rec->bytes_written += size;
+
+	if (switch_output_size(rec))
+		trigger_hit(&switch_output_trigger);
+
 	return 0;
 }
 
@@ -192,10 +229,6 @@ static volatile int done;
 static volatile int signr = -1;
 static volatile int child_finished;
 
-static volatile int auxtrace_record__snapshot_started;
-static DEFINE_TRIGGER(auxtrace_snapshot_trigger);
-static DEFINE_TRIGGER(switch_output_trigger);
-
 static void sig_handler(int sig)
 {
 	if (sig == SIGCHLD)
@@ -204,6 +237,12 @@ static void sig_handler(int sig)
 		signr = sig;
 
 	done = 1;
+}
+
+static void sigsegv_handler(int sig)
+{
+	perf_hooks__recover();
+	sighandler_dump_stack(sig);
 }
 
 static void record__sig_exit(void)
@@ -379,7 +418,7 @@ static int record__mmap(struct record *rec)
 
 static int record__open(struct record *rec)
 {
-	char msg[512];
+	char msg[BUFSIZ];
 	struct perf_evsel *pos;
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
@@ -393,7 +432,7 @@ static int record__open(struct record *rec)
 try_again:
 		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
-				if (verbose)
+				if (verbose > 0)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
@@ -616,22 +655,23 @@ record__finish_output(struct record *rec)
 
 static int record__synthesize_workload(struct record *rec, bool tail)
 {
-	struct {
-		struct thread_map map;
-		struct thread_map_data map_data;
-	} thread_map;
+	int err;
+	struct thread_map *thread_map;
 
 	if (rec->opts.tail_synthesize != tail)
 		return 0;
 
-	thread_map.map.nr = 1;
-	thread_map.map.map[0].pid = rec->evlist->workload.pid;
-	thread_map.map.map[0].comm = NULL;
-	return perf_event__synthesize_thread_map(&rec->tool, &thread_map.map,
+	thread_map = thread_map__new_by_tid(rec->evlist->workload.pid);
+	if (thread_map == NULL)
+		return -1;
+
+	err = perf_event__synthesize_thread_map(&rec->tool, thread_map,
 						 process_synthesized_event,
 						 &rec->session->machines.host,
 						 rec->opts.sample_address,
 						 rec->opts.proc_map_timeout);
+	thread_map__put(thread_map);
+	return err;
 }
 
 static int record__synthesize(struct record *rec, bool tail);
@@ -705,6 +745,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 }
 
 static void snapshot_sig_handler(int sig);
+static void alarm_sig_handler(int sig);
 
 int __weak
 perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused,
@@ -833,12 +874,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
+	signal(SIGSEGV, sigsegv_handler);
 
-	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output) {
+	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output.enabled) {
 		signal(SIGUSR2, snapshot_sig_handler);
 		if (rec->opts.auxtrace_snapshot_mode)
 			trigger_on(&auxtrace_snapshot_trigger);
-		if (rec->switch_output)
+		if (rec->switch_output.enabled)
 			trigger_on(&switch_output_trigger);
 	} else {
 		signal(SIGUSR2, SIG_IGN);
@@ -970,6 +1012,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
+	perf_hooks__invoke_record_start();
 	for (;;) {
 		unsigned long long hits = rec->samples;
 
@@ -1034,6 +1077,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 				err = fd;
 				goto out_child;
 			}
+
+			/* re-arm the alarm */
+			if (rec->switch_output.time)
+				alarm(rec->switch_output.time);
 		}
 
 		if (hits == rec->samples) {
@@ -1113,6 +1160,8 @@ out_child:
 			}
 		}
 	}
+
+	perf_hooks__invoke_record_end();
 
 	if (!err && !quiet) {
 		char samples[128];
@@ -1341,6 +1390,78 @@ out_free:
 	return ret;
 }
 
+static void switch_output_size_warn(struct record *rec)
+{
+	u64 wakeup_size = perf_evlist__mmap_size(rec->opts.mmap_pages);
+	struct switch_output *s = &rec->switch_output;
+
+	wakeup_size /= 2;
+
+	if (s->size < wakeup_size) {
+		char buf[100];
+
+		unit_number__scnprintf(buf, sizeof(buf), wakeup_size);
+		pr_warning("WARNING: switch-output data size lower than "
+			   "wakeup kernel buffer size (%s) "
+			   "expect bigger perf.data sizes\n", buf);
+	}
+}
+
+static int switch_output_setup(struct record *rec)
+{
+	struct switch_output *s = &rec->switch_output;
+	static struct parse_tag tags_size[] = {
+		{ .tag  = 'B', .mult = 1       },
+		{ .tag  = 'K', .mult = 1 << 10 },
+		{ .tag  = 'M', .mult = 1 << 20 },
+		{ .tag  = 'G', .mult = 1 << 30 },
+		{ .tag  = 0 },
+	};
+	static struct parse_tag tags_time[] = {
+		{ .tag  = 's', .mult = 1        },
+		{ .tag  = 'm', .mult = 60       },
+		{ .tag  = 'h', .mult = 60*60    },
+		{ .tag  = 'd', .mult = 60*60*24 },
+		{ .tag  = 0 },
+	};
+	unsigned long val;
+
+	if (!s->set)
+		return 0;
+
+	if (!strcmp(s->str, "signal")) {
+		s->signal = true;
+		pr_debug("switch-output with SIGUSR2 signal\n");
+		goto enabled;
+	}
+
+	val = parse_tag_value(s->str, tags_size);
+	if (val != (unsigned long) -1) {
+		s->size = val;
+		pr_debug("switch-output with %s size threshold\n", s->str);
+		goto enabled;
+	}
+
+	val = parse_tag_value(s->str, tags_time);
+	if (val != (unsigned long) -1) {
+		s->time = val;
+		pr_debug("switch-output with %s time threshold (%lu seconds)\n",
+			 s->str, s->time);
+		goto enabled;
+	}
+
+	return -1;
+
+enabled:
+	rec->timestamp_filename = true;
+	s->enabled              = true;
+
+	if (s->size && !rec->opts.no_buffering)
+		switch_output_size_warn(rec);
+
+	return 0;
+}
+
 static const char * const __record_usage[] = {
 	"perf record [<options>] [<command>]",
 	"perf record [<options>] -- <command> [<options>]",
@@ -1394,7 +1515,7 @@ static bool dry_run;
  * perf_evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
  * using pipes, etc.
  */
-struct option __record_options[] = {
+static struct option __record_options[] = {
 	OPT_CALLBACK('e', "event", &record.evlist, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
@@ -1508,8 +1629,10 @@ struct option __record_options[] = {
 		    "Record build-id of all DSOs regardless of hits"),
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
-	OPT_BOOLEAN(0, "switch-output", &record.switch_output,
-		    "Switch output when receive SIGUSR2"),
+	OPT_STRING_OPTARG_SET(0, "switch-output", &record.switch_output.str,
+			  &record.switch_output.set, "signal,size,time",
+			  "Switch output when receive SIGUSR2 or cross size,time threshold",
+			  "signal"),
 	OPT_BOOLEAN(0, "dry-run", &dry_run,
 		    "Parse options then exit"),
 	OPT_END()
@@ -1548,12 +1671,18 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (rec->evlist == NULL)
 		return -ENOMEM;
 
-	perf_config(perf_record_config, rec);
+	err = perf_config(perf_record_config, rec);
+	if (err)
+		return err;
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
+	if (quiet)
+		perf_quiet_option();
+
+	/* Make system wide (-a) the default target. */
 	if (!argc && target__none(&rec->opts.target))
-		usage_with_options(record_usage, record_options);
+		rec->opts.target.system_wide = true;
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
 		usage_with_options_msg(record_usage, record_options,
@@ -1567,8 +1696,15 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -EINVAL;
 	}
 
-	if (rec->switch_output)
-		rec->timestamp_filename = true;
+	if (switch_output_setup(rec)) {
+		parse_options_usage(record_usage, record_options, "switch-output", 0);
+		return -EINVAL;
+	}
+
+	if (rec->switch_output.time) {
+		signal(SIGALRM, alarm_sig_handler);
+		alarm(rec->switch_output.time);
+	}
 
 	if (!rec->itr) {
 		rec->itr = auxtrace_record__init(rec->evlist, &err);
@@ -1618,14 +1754,14 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (rec->no_buildid_cache || rec->no_buildid) {
 		disable_buildid_cache();
-	} else if (rec->switch_output) {
+	} else if (rec->switch_output.enabled) {
 		/*
 		 * In 'perf record --switch-output', disable buildid
 		 * generation by default to reduce data file switching
 		 * overhead. Still generate buildid if they are required
 		 * explicitly using
 		 *
-		 *  perf record --signal-trigger --no-no-buildid \
+		 *  perf record --switch-output --no-no-buildid \
 		 *              --no-no-buildid-cache
 		 *
 		 * Following code equals to:
@@ -1676,6 +1812,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out;
 	}
 
+	/* Enable ignoring missing threads when -u option is defined. */
+	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX;
+
 	err = -ENOMEM;
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
@@ -1707,6 +1846,8 @@ out:
 
 static void snapshot_sig_handler(int sig __maybe_unused)
 {
+	struct record *rec = &record;
+
 	if (trigger_is_ready(&auxtrace_snapshot_trigger)) {
 		trigger_hit(&auxtrace_snapshot_trigger);
 		auxtrace_record__snapshot_started = 1;
@@ -1714,6 +1855,14 @@ static void snapshot_sig_handler(int sig __maybe_unused)
 			trigger_error(&auxtrace_snapshot_trigger);
 	}
 
-	if (trigger_is_ready(&switch_output_trigger))
+	if (switch_output_signal(rec))
+		trigger_hit(&switch_output_trigger);
+}
+
+static void alarm_sig_handler(int sig __maybe_unused)
+{
+	struct record *rec = &record;
+
+	if (switch_output_time(rec))
 		trigger_hit(&switch_output_trigger);
 }

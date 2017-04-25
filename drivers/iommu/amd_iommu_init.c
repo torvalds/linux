@@ -28,6 +28,7 @@
 #include <linux/amd-iommu.h>
 #include <linux/export.h>
 #include <linux/iommu.h>
+#include <linux/kmemleak.h>
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -92,6 +93,8 @@
  * These data structures are laid over the table to parse the important values
  * out of it.
  */
+
+extern const struct iommu_ops amd_iommu_ops;
 
 /*
  * structure describing one IOMMU in the ACPI table. Typically followed by one
@@ -1504,7 +1507,7 @@ static ssize_t amd_iommu_show_cap(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	struct amd_iommu *iommu = dev_get_drvdata(dev);
+	struct amd_iommu *iommu = dev_to_amd_iommu(dev);
 	return sprintf(buf, "%x\n", iommu->cap);
 }
 static DEVICE_ATTR(cap, S_IRUGO, amd_iommu_show_cap, NULL);
@@ -1513,7 +1516,7 @@ static ssize_t amd_iommu_show_features(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct amd_iommu *iommu = dev_get_drvdata(dev);
+	struct amd_iommu *iommu = dev_to_amd_iommu(dev);
 	return sprintf(buf, "%llx\n", iommu->features);
 }
 static DEVICE_ATTR(features, S_IRUGO, amd_iommu_show_features, NULL);
@@ -1634,9 +1637,10 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	amd_iommu_erratum_746_workaround(iommu);
 	amd_iommu_ats_write_check_workaround(iommu);
 
-	iommu->iommu_dev = iommu_device_create(&iommu->dev->dev, iommu,
-					       amd_iommu_groups, "ivhd%d",
-					       iommu->index);
+	iommu_device_sysfs_add(&iommu->iommu, &iommu->dev->dev,
+			       amd_iommu_groups, "ivhd%d", iommu->index);
+	iommu_device_set_ops(&iommu->iommu, &amd_iommu_ops);
+	iommu_device_register(&iommu->iommu);
 
 	return pci_enable_device(iommu->dev);
 }
@@ -2090,6 +2094,7 @@ static struct syscore_ops amd_iommu_syscore_ops = {
 
 static void __init free_on_init_error(void)
 {
+	kmemleak_free(irq_lookup_table);
 	free_pages((unsigned long)irq_lookup_table,
 		   get_order(rlookup_table_size));
 
@@ -2207,14 +2212,13 @@ static void __init free_dma_resources(void)
 static int __init early_amd_iommu_init(void)
 {
 	struct acpi_table_header *ivrs_base;
-	acpi_size ivrs_size;
 	acpi_status status;
 	int i, remap_cache_sz, ret = 0;
 
 	if (!amd_iommu_detected)
 		return -ENODEV;
 
-	status = acpi_get_table_with_size("IVRS", 0, &ivrs_base, &ivrs_size);
+	status = acpi_get_table("IVRS", 0, &ivrs_base);
 	if (status == AE_NOT_FOUND)
 		return -ENODEV;
 	else if (ACPI_FAILURE(status)) {
@@ -2229,7 +2233,7 @@ static int __init early_amd_iommu_init(void)
 	 */
 	ret = check_ivrs_checksum(ivrs_base);
 	if (ret)
-		return ret;
+		goto out;
 
 	amd_iommu_target_ivhd_type = get_highest_supported_ivhd_type(ivrs_base);
 	DUMP_printk("Using IVHD type %#x\n", amd_iommu_target_ivhd_type);
@@ -2321,6 +2325,8 @@ static int __init early_amd_iommu_init(void)
 		irq_lookup_table = (void *)__get_free_pages(
 				GFP_KERNEL | __GFP_ZERO,
 				get_order(rlookup_table_size));
+		kmemleak_alloc(irq_lookup_table, rlookup_table_size,
+			       1, GFP_KERNEL);
 		if (!irq_lookup_table)
 			goto out;
 	}
@@ -2334,7 +2340,7 @@ static int __init early_amd_iommu_init(void)
 
 out:
 	/* Don't leak any ACPI memory */
-	early_acpi_os_unmap_memory((char __iomem *)ivrs_base, ivrs_size);
+	acpi_put_table(ivrs_base);
 	ivrs_base = NULL;
 
 	return ret;
@@ -2358,10 +2364,9 @@ out:
 static bool detect_ivrs(void)
 {
 	struct acpi_table_header *ivrs_base;
-	acpi_size ivrs_size;
 	acpi_status status;
 
-	status = acpi_get_table_with_size("IVRS", 0, &ivrs_base, &ivrs_size);
+	status = acpi_get_table("IVRS", 0, &ivrs_base);
 	if (status == AE_NOT_FOUND)
 		return false;
 	else if (ACPI_FAILURE(status)) {
@@ -2370,7 +2375,7 @@ static bool detect_ivrs(void)
 		return false;
 	}
 
-	early_acpi_os_unmap_memory((char __iomem *)ivrs_base, ivrs_size);
+	acpi_put_table(ivrs_base);
 
 	/* Make sure ACS will be enabled during PCI probe */
 	pci_request_acs();

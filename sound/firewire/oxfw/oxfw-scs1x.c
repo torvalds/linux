@@ -297,7 +297,7 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *stream, int up)
 	}
 }
 
-static struct snd_rawmidi_ops midi_capture_ops = {
+static const struct snd_rawmidi_ops midi_capture_ops = {
 	.open    = midi_capture_open,
 	.close   = midi_capture_close,
 	.trigger = midi_capture_trigger,
@@ -338,12 +338,6 @@ static void midi_playback_drain(struct snd_rawmidi_substream *stream)
 	wait_event(scs->idle_wait, scs->output_idle);
 }
 
-static struct snd_rawmidi_ops midi_playback_ops = {
-	.open    = midi_playback_open,
-	.close   = midi_playback_close,
-	.trigger = midi_playback_trigger,
-	.drain   = midi_playback_drain,
-};
 static int register_address(struct snd_oxfw *oxfw)
 {
 	struct fw_scs1x *scs = oxfw->spec;
@@ -369,6 +363,12 @@ void snd_oxfw_scs1x_update(struct snd_oxfw *oxfw)
 
 int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw)
 {
+	static const struct snd_rawmidi_ops midi_playback_ops = {
+		.open    = midi_playback_open,
+		.close   = midi_playback_close,
+		.trigger = midi_playback_trigger,
+		.drain   = midi_playback_drain,
+	};
 	struct snd_rawmidi *rmidi;
 	struct fw_scs1x *scs;
 	int err;

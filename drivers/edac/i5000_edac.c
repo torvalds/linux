@@ -22,7 +22,7 @@
 #include <linux/edac.h>
 #include <asm/mmzone.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /*
  * Alter this version for the I5000 module when modifications are made

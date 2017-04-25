@@ -5,40 +5,6 @@
 #include <linux/time.h>
 #include <linux/pstore.h>
 
-#if NR_CPUS <= 2 && defined(CONFIG_ARM_THUMB)
-#define PSTORE_CPU_IN_IP 0x1
-#elif NR_CPUS <= 4 && defined(CONFIG_ARM)
-#define PSTORE_CPU_IN_IP 0x3
-#endif
-
-struct pstore_ftrace_record {
-	unsigned long ip;
-	unsigned long parent_ip;
-#ifndef PSTORE_CPU_IN_IP
-	unsigned int cpu;
-#endif
-};
-
-static inline void
-pstore_ftrace_encode_cpu(struct pstore_ftrace_record *rec, unsigned int cpu)
-{
-#ifndef PSTORE_CPU_IN_IP
-	rec->cpu = cpu;
-#else
-	rec->ip |= cpu;
-#endif
-}
-
-static inline unsigned int
-pstore_ftrace_decode_cpu(struct pstore_ftrace_record *rec)
-{
-#ifndef PSTORE_CPU_IN_IP
-	return rec->cpu;
-#else
-	return rec->ip & PSTORE_CPU_IN_IP;
-#endif
-}
-
 #ifdef CONFIG_PSTORE_FTRACE
 extern void pstore_register_ftrace(void);
 extern void pstore_unregister_ftrace(void);

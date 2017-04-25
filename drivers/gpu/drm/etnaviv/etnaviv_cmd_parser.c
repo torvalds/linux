@@ -56,6 +56,8 @@ static const struct {
 	ST(0x0644, 1),
 	ST(0x064c, 1),
 	ST(0x0680, 8),
+	ST(0x086c, 1),
+	ST(0x1028, 1),
 	ST(0x1410, 1),
 	ST(0x1430, 1),
 	ST(0x1458, 1),
@@ -73,8 +75,12 @@ static const struct {
 	ST(0x16c0, 8),
 	ST(0x16e0, 8),
 	ST(0x1740, 8),
+	ST(0x17c0, 8),
+	ST(0x17e0, 8),
 	ST(0x2400, 14 * 16),
 	ST(0x10800, 32 * 16),
+	ST(0x14600, 16),
+	ST(0x14800, 8 * 8),
 #undef ST
 };
 
@@ -143,6 +149,7 @@ static bool etnaviv_validate_load_state(struct etna_validation_state *state,
 static uint8_t cmd_length[32] = {
 	[FE_OPCODE_DRAW_PRIMITIVES] = 4,
 	[FE_OPCODE_DRAW_INDEXED_PRIMITIVES] = 6,
+	[FE_OPCODE_DRAW_INSTANCED] = 4,
 	[FE_OPCODE_NOP] = 2,
 	[FE_OPCODE_STALL] = 2,
 };

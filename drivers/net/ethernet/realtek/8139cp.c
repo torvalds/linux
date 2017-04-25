@@ -76,7 +76,7 @@
 #include <linux/cache.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* These identify the driver base version and may not be removed. */
 static char version[] =
@@ -465,10 +465,8 @@ static int cp_rx_poll(struct napi_struct *napi, int budget)
 	struct cp_private *cp = container_of(napi, struct cp_private, napi);
 	struct net_device *dev = cp->dev;
 	unsigned int rx_tail = cp->rx_tail;
-	int rx;
+	int rx = 0;
 
-	rx = 0;
-rx_status_loop:
 	cpw16(IntrStatus, cp_rx_intr_mask);
 
 	while (rx < budget) {
@@ -556,15 +554,10 @@ rx_next:
 	/* if we did not reach work limit, then we're done with
 	 * this round of polling
 	 */
-	if (rx < budget) {
+	if (rx < budget && napi_complete_done(napi, rx)) {
 		unsigned long flags;
 
-		if (cpr16(IntrStatus) & cp_rx_intr_mask)
-			goto rx_status_loop;
-
-		napi_gro_flush(napi, false);
 		spin_lock_irqsave(&cp->lock, flags);
-		__napi_complete(napi);
 		cpw16_f(IntrMask, cp_intr_mask);
 		spin_unlock_irqrestore(&cp->lock, flags);
 	}
@@ -1276,10 +1269,6 @@ static void cp_tx_timeout(struct net_device *dev)
 static int cp_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct cp_private *cp = netdev_priv(dev);
-
-	/* check for invalid MTU, according to hardware limits */
-	if (new_mtu < CP_MIN_MTU || new_mtu > CP_MAX_MTU)
-		return -EINVAL;
 
 	/* if network interface not up, no need for complexity */
 	if (!netif_running(dev)) {
@@ -2009,6 +1998,10 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 		NETIF_F_HIGHDMA;
+
+	/* MTU range: 60 - 4096 */
+	dev->min_mtu = CP_MIN_MTU;
+	dev->max_mtu = CP_MAX_MTU;
 
 	rc = register_netdev(dev);
 	if (rc)

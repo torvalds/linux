@@ -264,8 +264,8 @@ static ssize_t get_pwm_en(struct device *dev, struct device_attribute
 	return sprintf(buf, "%d\n", PWM_EN_FROM_REG(data->pwm[attr->index]));
 }
 
-static ssize_t get_alarms(struct device *dev, struct device_attribute
-			  *devattr, char *buf)
+static ssize_t alarms_show(struct device *dev,
+			   struct device_attribute *devattr, char *buf)
 {
 	struct smsc47m1_data *data = smsc47m1_update_device(dev, 0);
 	return sprintf(buf, "%d\n", data->alarms);
@@ -440,16 +440,16 @@ fan_present(1);
 fan_present(2);
 fan_present(3);
 
-static DEVICE_ATTR(alarms, S_IRUGO, get_alarms, NULL);
+static DEVICE_ATTR_RO(alarms);
 
-static ssize_t show_name(struct device *dev, struct device_attribute
+static ssize_t name_show(struct device *dev, struct device_attribute
 			 *devattr, char *buf)
 {
 	struct smsc47m1_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", data->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct attribute *smsc47m1_attributes_fan1[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,

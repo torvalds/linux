@@ -13,7 +13,7 @@
 #include <linux/ptrace.h>
 #include <linux/syscalls.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 /*

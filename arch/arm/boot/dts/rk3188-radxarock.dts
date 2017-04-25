@@ -48,7 +48,7 @@
 	model = "Radxa Rock";
 	compatible = "radxa,rock", "rockchip,rk3188";
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x80000000>;
 	};
@@ -58,7 +58,7 @@
 		autorepeat;
 
 		power {
-			gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
@@ -72,19 +72,19 @@
 
 		green {
 			label = "rock:green:user1";
-			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		blue {
 			label = "rock:blue:user2";
-			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
 		sleep {
 			label = "rock:red:power";
-			gpios = <&gpio0 15 0>;
+			gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 	};
@@ -106,7 +106,7 @@
 
 	ir_recv: gpio-ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio0 10 1>;
+		gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ir_recv_pin>;
 	};
@@ -114,7 +114,7 @@
 	vcc_otg: usb-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio2 RK_PD7 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&otg_vbus_drv>;
 		regulator-name = "otg-vbus";
@@ -129,7 +129,7 @@
 		regulator-name = "sdmmc-supply";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio3 1 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <100000>;
 		vin-supply = <&vcc_io>;
 	};
@@ -137,7 +137,7 @@
 	vcc_host: usb-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "host-pwr";
@@ -168,7 +168,7 @@
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PD2 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -184,7 +184,7 @@
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PB5 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&rtc_int>;
 		#clock-cells = <0>;

@@ -28,9 +28,9 @@
 #include <linux/ctype.h>
 #include <linux/edac.h>
 #include <linux/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
-#include "edac_core.h"
+#include "edac_mc.h"
 #include "edac_module.h"
 #include <ras/ras_event.h>
 
@@ -239,30 +239,6 @@ static void _edac_mc_free(struct mem_ctl_info *mci)
 	kfree(mci);
 }
 
-/**
- * edac_mc_alloc: Allocate and partially fill a struct mem_ctl_info structure
- * @mc_num:		Memory controller number
- * @n_layers:		Number of MC hierarchy layers
- * layers:		Describes each layer as seen by the Memory Controller
- * @size_pvt:		size of private storage needed
- *
- *
- * Everything is kmalloc'ed as one big chunk - more efficient.
- * Only can be used if all structures have the same lifetime - otherwise
- * you have to allocate and initialize your own structures.
- *
- * Use edac_mc_free() to free mc structures allocated by this function.
- *
- * NOTE: drivers handle multi-rank memories in different ways: in some
- * drivers, one multi-rank memory stick is mapped as one entry, while, in
- * others, a single multi-rank memory stick would be mapped into several
- * entries. Currently, this function will allocate multiple struct dimm_info
- * on such scenarios, as grouping the multiple ranks require drivers change.
- *
- * Returns:
- *	On failure: NULL
- *	On success: struct mem_ctl_info pointer
- */
 struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 				   unsigned n_layers,
 				   struct edac_mc_layer *layers,
@@ -460,11 +436,6 @@ error:
 }
 EXPORT_SYMBOL_GPL(edac_mc_alloc);
 
-/**
- * edac_mc_free
- *	'Free' a previously allocated 'mci' structure
- * @mci: pointer to a struct mem_ctl_info structure
- */
 void edac_mc_free(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "\n");
@@ -482,15 +453,22 @@ void edac_mc_free(struct mem_ctl_info *mci)
 }
 EXPORT_SYMBOL_GPL(edac_mc_free);
 
+bool edac_has_mcs(void)
+{
+	bool ret;
 
-/**
- * find_mci_by_dev
- *
- *	scan list of controllers looking for the one that manages
- *	the 'dev' device
- * @dev: pointer to a struct device related with the MCI
- */
-struct mem_ctl_info *find_mci_by_dev(struct device *dev)
+	mutex_lock(&mem_ctls_mutex);
+
+	ret = list_empty(&mc_devices);
+
+	mutex_unlock(&mem_ctls_mutex);
+
+	return !ret;
+}
+EXPORT_SYMBOL_GPL(edac_has_mcs);
+
+/* Caller must hold mem_ctls_mutex */
+static struct mem_ctl_info *__find_mci_by_dev(struct device *dev)
 {
 	struct mem_ctl_info *mci;
 	struct list_head *item;
@@ -505,6 +483,24 @@ struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 	}
 
 	return NULL;
+}
+
+/**
+ * find_mci_by_dev
+ *
+ *	scan list of controllers looking for the one that manages
+ *	the 'dev' device
+ * @dev: pointer to a struct device related with the MCI
+ */
+struct mem_ctl_info *find_mci_by_dev(struct device *dev)
+{
+	struct mem_ctl_info *ret;
+
+	mutex_lock(&mem_ctls_mutex);
+	ret = __find_mci_by_dev(dev);
+	mutex_unlock(&mem_ctls_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(find_mci_by_dev);
 
@@ -588,7 +584,7 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 
 	insert_before = &mc_devices;
 
-	p = find_mci_by_dev(mci->pdev);
+	p = __find_mci_by_dev(mci->pdev);
 	if (unlikely(p != NULL))
 		goto fail0;
 
@@ -635,44 +631,30 @@ static int del_mc_from_global_list(struct mem_ctl_info *mci)
 	return handlers;
 }
 
-/**
- * edac_mc_find: Search for a mem_ctl_info structure whose index is 'idx'.
- *
- * If found, return a pointer to the structure.
- * Else return NULL.
- *
- * Caller must hold mem_ctls_mutex.
- */
 struct mem_ctl_info *edac_mc_find(int idx)
 {
+	struct mem_ctl_info *mci = NULL;
 	struct list_head *item;
-	struct mem_ctl_info *mci;
+
+	mutex_lock(&mem_ctls_mutex);
 
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
 
 		if (mci->mc_idx >= idx) {
-			if (mci->mc_idx == idx)
-				return mci;
-
+			if (mci->mc_idx == idx) {
+				goto unlock;
+			}
 			break;
 		}
 	}
 
-	return NULL;
+unlock:
+	mutex_unlock(&mem_ctls_mutex);
+	return mci;
 }
 EXPORT_SYMBOL(edac_mc_find);
 
-/**
- * edac_mc_add_mc_with_groups: Insert the 'mci' structure into the mci
- *	global list and create sysfs entries associated with mci structure
- * @mci: pointer to the mci structure to be added to the list
- * @groups: optional attribute groups for the driver-specific sysfs entries
- *
- * Return:
- *	0	Success
- *	!0	Failure
- */
 
 /* FIXME - should a warning be printed if no error detection? correction? */
 int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
@@ -763,13 +745,6 @@ fail0:
 }
 EXPORT_SYMBOL_GPL(edac_mc_add_mc_with_groups);
 
-/**
- * edac_mc_del_mc: Remove sysfs entries for specified mci structure and
- *                 remove mci structure from global list
- * @pdev: Pointer to 'struct device' representing mci structure to remove.
- *
- * Return pointer to removed mci structure, or NULL if device not found.
- */
 struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 {
 	struct mem_ctl_info *mci;
@@ -779,7 +754,7 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 	mutex_lock(&mem_ctls_mutex);
 
 	/* find the requested mci struct in the global list */
-	mci = find_mci_by_dev(dev);
+	mci = __find_mci_by_dev(dev);
 	if (mci == NULL) {
 		mutex_unlock(&mem_ctls_mutex);
 		return NULL;
@@ -1033,18 +1008,6 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
 }
 
-/**
- * edac_raw_mc_handle_error - reports a memory event to userspace without doing
- *			      anything to discover the error location
- *
- * @type:		severity of the error (CE/UE/Fatal)
- * @mci:		a struct mem_ctl_info pointer
- * @e:			error description
- *
- * This raw function is used internally by edac_mc_handle_error(). It should
- * only be called directly when the hardware error come directly from BIOS,
- * like in the case of APEI GHES driver.
- */
 void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
 			      struct mem_ctl_info *mci,
 			      struct edac_raw_error_desc *e)
@@ -1074,24 +1037,6 @@ void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
 }
 EXPORT_SYMBOL_GPL(edac_raw_mc_handle_error);
 
-/**
- * edac_mc_handle_error - reports a memory event to userspace
- *
- * @type:		severity of the error (CE/UE/Fatal)
- * @mci:		a struct mem_ctl_info pointer
- * @error_count:	Number of errors of the same type
- * @page_frame_number:	mem page where the error occurred
- * @offset_in_page:	offset of the error inside the page
- * @syndrome:		ECC syndrome
- * @top_layer:		Memory layer[0] position
- * @mid_layer:		Memory layer[1] position
- * @low_layer:		Memory layer[2] position
- * @msg:		Message meaningful to the end users that
- *			explains the event
- * @other_detail:	Technical details about the event that
- *			may help hardware manufacturers and
- *			EDAC developers to analyse the event
- */
 void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  struct mem_ctl_info *mci,
 			  const u16 error_count,

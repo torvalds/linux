@@ -22,8 +22,6 @@
 #include <linux/acpi.h>
 #include "emac.h"
 #include "emac-mac.h"
-#include "emac-phy.h"
-#include "emac-sgmii.h"
 
 /* EMAC base register offsets */
 #define EMAC_MDIO_CTRL                                        0x001414
@@ -201,6 +199,13 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		else
 			adpt->phydev = mdiobus_get_phy(mii_bus, phy_addr);
 
+		/* of_phy_find_device() claims a reference to the phydev,
+		 * so we do that here manually as well. When the driver
+		 * later unloads, it can unilaterally drop the reference
+		 * without worrying about ACPI vs DT.
+		 */
+		if (adpt->phydev)
+			get_device(&adpt->phydev->mdio.dev);
 	} else {
 		struct device_node *phy_np;
 
@@ -220,9 +225,6 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 		mdiobus_unregister(mii_bus);
 		return -ENODEV;
 	}
-
-	if (adpt->phydev->drv)
-		phy_attached_print(adpt->phydev, NULL);
 
 	return 0;
 }

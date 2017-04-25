@@ -66,10 +66,8 @@
 
 #define BMI160_REG_DUMMY		0x7F
 
-#define BMI160_ACCEL_PMU_MIN_USLEEP	3200
-#define BMI160_ACCEL_PMU_MAX_USLEEP	3800
-#define BMI160_GYRO_PMU_MIN_USLEEP	55000
-#define BMI160_GYRO_PMU_MAX_USLEEP	80000
+#define BMI160_ACCEL_PMU_MIN_USLEEP	3800
+#define BMI160_GYRO_PMU_MIN_USLEEP	80000
 #define BMI160_SOFTRESET_USLEEP		1000
 
 #define BMI160_CHANNEL(_type, _axis, _index) {			\
@@ -151,20 +149,9 @@ static struct bmi160_regs bmi160_regs[] = {
 	},
 };
 
-struct bmi160_pmu_time {
-	unsigned long min;
-	unsigned long max;
-};
-
-static struct bmi160_pmu_time bmi160_pmu_time[] = {
-	[BMI160_ACCEL] = {
-		.min = BMI160_ACCEL_PMU_MIN_USLEEP,
-		.max = BMI160_ACCEL_PMU_MAX_USLEEP
-	},
-	[BMI160_GYRO] = {
-		.min = BMI160_GYRO_PMU_MIN_USLEEP,
-		.max = BMI160_GYRO_PMU_MIN_USLEEP,
-	},
+static unsigned long bmi160_pmu_time[] = {
+	[BMI160_ACCEL] = BMI160_ACCEL_PMU_MIN_USLEEP,
+	[BMI160_GYRO] = BMI160_GYRO_PMU_MIN_USLEEP,
 };
 
 struct bmi160_scale {
@@ -289,7 +276,7 @@ int bmi160_set_mode(struct bmi160_data *data, enum bmi160_sensor_type t,
 	if (ret < 0)
 		return ret;
 
-	usleep_range(bmi160_pmu_time[t].min, bmi160_pmu_time[t].max);
+	usleep_range(bmi160_pmu_time[t], bmi160_pmu_time[t] + 1000);
 
 	return 0;
 }
@@ -338,9 +325,9 @@ static int bmi160_get_data(struct bmi160_data *data, int chan_type,
 	__le16 sample;
 	enum bmi160_sensor_type t = bmi160_to_sensor(chan_type);
 
-	reg = bmi160_regs[t].data + (axis - IIO_MOD_X) * sizeof(__le16);
+	reg = bmi160_regs[t].data + (axis - IIO_MOD_X) * sizeof(sample);
 
-	ret = regmap_bulk_read(data->regmap, reg, &sample, sizeof(__le16));
+	ret = regmap_bulk_read(data->regmap, reg, &sample, sizeof(sample));
 	if (ret < 0)
 		return ret;
 
@@ -398,14 +385,15 @@ static irqreturn_t bmi160_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmi160_data *data = iio_priv(indio_dev);
-	s16 buf[16]; /* 3 sens x 3 axis x s16 + 3 x s16 pad + 4 x s16 tstamp */
+	__le16 buf[16];
+	/* 3 sens x 3 axis x __le16 + 3 x __le16 pad + 4 x __le16 tstamp */
 	int i, ret, j = 0, base = BMI160_REG_DATA_MAGN_XOUT_L;
 	__le16 sample;
 
 	for_each_set_bit(i, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
-		ret = regmap_bulk_read(data->regmap, base + i * sizeof(__le16),
-				       &sample, sizeof(__le16));
+		ret = regmap_bulk_read(data->regmap, base + i * sizeof(sample),
+				       &sample, sizeof(sample));
 		if (ret < 0)
 			goto done;
 		buf[j++] = sample;

@@ -722,7 +722,18 @@ i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 			*((u16 *)&bytes[2]) = hw->nvm_wait_opcode;
 		}
 
+		/* Clear error status on read */
+		if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR)
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+
 		return 0;
+	}
+
+	/* Clear status even it is not read and log */
+	if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "Clearing I40E_NVMUPD_STATE_ERROR state without reading\n");
+		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
 	}
 
 	switch (hw->nvmupd_state) {
@@ -1073,6 +1084,11 @@ void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode)
 			hw->nvm_release_on_done = false;
 		}
 		hw->nvm_wait_opcode = 0;
+
+		if (hw->aq.arq_last_status) {
+			hw->nvmupd_state = I40E_NVMUPD_STATE_ERROR;
+			return;
+		}
 
 		switch (hw->nvmupd_state) {
 		case I40E_NVMUPD_STATE_INIT_WAIT:

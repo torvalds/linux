@@ -116,7 +116,3 @@ int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 
 	return 0;
 }
-
-void crypto_exit_cipher_ops(struct crypto_tfm *tfm)
-{
-}

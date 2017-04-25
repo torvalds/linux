@@ -80,11 +80,6 @@ static int __init orangefs_init(void)
 	int ret = -1;
 	__u32 i = 0;
 
-	ret = bdi_init(&orangefs_backing_dev_info);
-
-	if (ret)
-		return ret;
-
 	if (op_timeout_secs < 0)
 		op_timeout_secs = 0;
 
@@ -94,7 +89,7 @@ static int __init orangefs_init(void)
 	/* initialize global book keeping data structures */
 	ret = op_cache_initialize();
 	if (ret < 0)
-		goto err;
+		goto out;
 
 	ret = orangefs_inode_cache_initialize();
 	if (ret < 0)
@@ -181,9 +176,6 @@ cleanup_inode:
 cleanup_op:
 	op_cache_finalize();
 
-err:
-	bdi_destroy(&orangefs_backing_dev_info);
-
 out:
 	return ret;
 }
@@ -206,8 +198,6 @@ static void __exit orangefs_exit(void)
 	op_cache_finalize();
 
 	kfree(orangefs_htable_ops_in_progress);
-
-	bdi_destroy(&orangefs_backing_dev_info);
 
 	pr_info("orangefs: module version %s unloaded\n", ORANGEFS_VERSION);
 }

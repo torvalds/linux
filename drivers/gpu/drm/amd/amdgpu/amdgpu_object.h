@@ -71,12 +71,13 @@ static inline unsigned amdgpu_mem_type_to_domain(u32 mem_type)
  */
 static inline int amdgpu_bo_reserve(struct amdgpu_bo *bo, bool no_intr)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	int r;
 
 	r = ttm_bo_reserve(&bo->tbo, !no_intr, false, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
-			dev_err(bo->adev->dev, "%p reserve failed\n", bo);
+			dev_err(adev->dev, "%p reserve failed\n", bo);
 		return r;
 	}
 	return 0;
@@ -111,6 +112,15 @@ static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)
 static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
 {
 	return drm_vma_node_offset_addr(&bo->tbo.vma_node);
+}
+
+/**
+ * amdgpu_bo_gpu_accessible - return whether the bo is currently in memory that
+ * is accessible to the GPU.
+ */
+static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
+{
+	return bo->tbo.mem.mem_type != TTM_PL_SYSTEM;
 }
 
 int amdgpu_bo_create(struct amdgpu_device *adev,
@@ -154,21 +164,22 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 			   size_t buffer_size, uint32_t *metadata_size,
 			   uint64_t *flags);
 void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
-				  struct ttm_mem_reg *new_mem);
+			   bool evict,
+			   struct ttm_mem_reg *new_mem);
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
-void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
+void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared);
 u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo);
 int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
 			       struct reservation_object *resv,
-			       struct fence **fence, bool direct);
+			       struct dma_fence **fence, bool direct);
 int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_bo *bo,
 				  struct reservation_object *resv,
-				  struct fence **fence,
+				  struct dma_fence **fence,
 				  bool direct);
 
 
@@ -200,7 +211,7 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     unsigned size, unsigned align);
 void amdgpu_sa_bo_free(struct amdgpu_device *adev,
 			      struct amdgpu_sa_bo **sa_bo,
-			      struct fence *fence);
+			      struct dma_fence *fence);
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);

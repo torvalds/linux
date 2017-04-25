@@ -29,11 +29,22 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/percpu.h>
+
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
-#define raw_smp_processor_id() (current_thread_info()->cpu)
+DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
+
+/*
+ * We don't use this_cpu_read(cpu_number) as that has implicit writes to
+ * preempt_count, and associated (compiler) barriers, that we'd like to avoid
+ * the expense of. If we're preemptible, the value can be stale at use anyway.
+ * And we can't use this_cpu_ptr() either, as that winds up recursing back
+ * here under CONFIG_DEBUG_PREEMPT=y.
+ */
+#define raw_smp_processor_id() (*raw_cpu_ptr(&cpu_number))
 
 struct seq_file;
 
@@ -73,6 +84,7 @@ asmlinkage void secondary_start_kernel(void);
  */
 struct secondary_data {
 	void *stack;
+	struct task_struct *task;
 	long status;
 };
 

@@ -601,8 +601,14 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 
 	scale_type = iio_channel_read(chan, &scale_val, &scale_val2,
 					IIO_CHAN_INFO_SCALE);
-	if (scale_type < 0)
-		return scale_type;
+	if (scale_type < 0) {
+		/*
+		 * Just pass raw values as processed if no scaling is
+		 * available.
+		 */
+		*processed = raw;
+		return 0;
+	}
 
 	switch (scale_type) {
 	case IIO_VAL_INT:
@@ -658,6 +664,31 @@ err_unlock:
 }
 EXPORT_SYMBOL_GPL(iio_convert_raw_to_processed);
 
+static int iio_read_channel_attribute(struct iio_channel *chan,
+				      int *val, int *val2,
+				      enum iio_chan_info_enum attribute)
+{
+	int ret;
+
+	mutex_lock(&chan->indio_dev->info_exist_lock);
+	if (chan->indio_dev->info == NULL) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	ret = iio_channel_read(chan, val, val2, attribute);
+err_unlock:
+	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	return ret;
+}
+
+int iio_read_channel_offset(struct iio_channel *chan, int *val, int *val2)
+{
+	return iio_read_channel_attribute(chan, val, val2, IIO_CHAN_INFO_OFFSET);
+}
+EXPORT_SYMBOL_GPL(iio_read_channel_offset);
+
 int iio_read_channel_processed(struct iio_channel *chan, int *val)
 {
 	int ret;
@@ -687,21 +718,113 @@ EXPORT_SYMBOL_GPL(iio_read_channel_processed);
 
 int iio_read_channel_scale(struct iio_channel *chan, int *val, int *val2)
 {
+	return iio_read_channel_attribute(chan, val, val2, IIO_CHAN_INFO_SCALE);
+}
+EXPORT_SYMBOL_GPL(iio_read_channel_scale);
+
+static int iio_channel_read_avail(struct iio_channel *chan,
+				  const int **vals, int *type, int *length,
+				  enum iio_chan_info_enum info)
+{
+	if (!iio_channel_has_available(chan->channel, info))
+		return -EINVAL;
+
+	return chan->indio_dev->info->read_avail(chan->indio_dev, chan->channel,
+						 vals, type, length, info);
+}
+
+int iio_read_avail_channel_raw(struct iio_channel *chan,
+			       const int **vals, int *length)
+{
 	int ret;
+	int type;
 
 	mutex_lock(&chan->indio_dev->info_exist_lock);
-	if (chan->indio_dev->info == NULL) {
+	if (!chan->indio_dev->info) {
 		ret = -ENODEV;
 		goto err_unlock;
 	}
 
-	ret = iio_channel_read(chan, val, val2, IIO_CHAN_INFO_SCALE);
+	ret = iio_channel_read_avail(chan,
+				     vals, &type, length, IIO_CHAN_INFO_RAW);
+err_unlock:
+	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	if (ret >= 0 && type != IIO_VAL_INT) {
+		/* raw values are assumed to be IIO_VAL_INT */
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_read_avail_channel_raw);
+
+static int iio_channel_read_max(struct iio_channel *chan,
+				int *val, int *val2, int *type,
+				enum iio_chan_info_enum info)
+{
+	int unused;
+	const int *vals;
+	int length;
+	int ret;
+
+	if (!val2)
+		val2 = &unused;
+
+	ret = iio_channel_read_avail(chan, &vals, type, &length, info);
+	switch (ret) {
+	case IIO_AVAIL_RANGE:
+		switch (*type) {
+		case IIO_VAL_INT:
+			*val = vals[2];
+			break;
+		default:
+			*val = vals[4];
+			*val2 = vals[5];
+		}
+		return 0;
+
+	case IIO_AVAIL_LIST:
+		if (length <= 0)
+			return -EINVAL;
+		switch (*type) {
+		case IIO_VAL_INT:
+			*val = vals[--length];
+			while (length) {
+				if (vals[--length] > *val)
+					*val = vals[length];
+			}
+			break;
+		default:
+			/* FIXME: learn about max for other iio values */
+			return -EINVAL;
+		}
+		return 0;
+
+	default:
+		return ret;
+	}
+}
+
+int iio_read_max_channel_raw(struct iio_channel *chan, int *val)
+{
+	int ret;
+	int type;
+
+	mutex_lock(&chan->indio_dev->info_exist_lock);
+	if (!chan->indio_dev->info) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	ret = iio_channel_read_max(chan, val, NULL, &type, IIO_CHAN_INFO_RAW);
 err_unlock:
 	mutex_unlock(&chan->indio_dev->info_exist_lock);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(iio_read_channel_scale);
+EXPORT_SYMBOL_GPL(iio_read_max_channel_raw);
 
 int iio_get_channel_type(struct iio_channel *chan, enum iio_chan_type *type)
 {

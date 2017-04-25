@@ -96,7 +96,7 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	cfi->cfi_mapcount++;
 	spin_unlock(&cii->c_lock);
 
-	return host_file->f_op->mmap(host_file, vma);
+	return call_mmap(host_file, vma);
 }
 
 int coda_open(struct inode *coda_inode, struct file *coda_file)

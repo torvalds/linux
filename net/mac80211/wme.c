@@ -236,26 +236,35 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	u8 tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+	u8 flags;
 	u8 *p;
-	u8 ack_policy, tid;
 
 	if (!ieee80211_is_data_qos(hdr->frame_control))
 		return;
 
 	p = ieee80211_get_qos_ctl(hdr);
-	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 
-	/* preserve EOSP bit */
-	ack_policy = *p & IEEE80211_QOS_CTL_EOSP;
+	/* set up the first byte */
+
+	/*
+	 * preserve everything but the TID and ACK policy
+	 * (which we both write here)
+	 */
+	flags = *p & ~(IEEE80211_QOS_CTL_TID_MASK |
+		       IEEE80211_QOS_CTL_ACK_POLICY_MASK);
 
 	if (is_multicast_ether_addr(hdr->addr1) ||
 	    sdata->noack_map & BIT(tid)) {
-		ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
+		flags |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
 		info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	}
 
-	/* qos header is 2 bytes */
-	*p++ = ack_policy | tid;
+	*p = flags | tid;
+
+	/* set up the second byte */
+	p++;
+
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		/* preserve RSPI and Mesh PS Level bit */
 		*p &= ((IEEE80211_QOS_CTL_RSPI |

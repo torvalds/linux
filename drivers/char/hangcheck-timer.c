@@ -46,7 +46,7 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sysrq.h>
 #include <linux/timer.h>
 #include <linux/hrtimer.h>

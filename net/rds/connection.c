@@ -269,6 +269,8 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 			kmem_cache_free(rds_conn_slab, conn);
 			conn = found;
 		} else {
+			conn->c_my_gen_num = rds_gen_num;
+			conn->c_peer_gen_num = 0;
 			hlist_add_head_rcu(&conn->c_hash_node, head);
 			rds_cong_add_conn(conn);
 			rds_conn_count++;
@@ -543,11 +545,11 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 }
 EXPORT_SYMBOL_GPL(rds_for_each_conn_info);
 
-void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
-			     struct rds_info_iterator *iter,
-			     struct rds_info_lengths *lens,
-			     int (*visitor)(struct rds_conn_path *, void *),
-			     size_t item_len)
+static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
+				    struct rds_info_iterator *iter,
+				    struct rds_info_lengths *lens,
+				    int (*visitor)(struct rds_conn_path *, void *),
+				    size_t item_len)
 {
 	u64  buffer[(item_len + 7) / 8];
 	struct hlist_head *head;
@@ -681,6 +683,7 @@ void rds_conn_path_connect_if_down(struct rds_conn_path *cp)
 	    !test_and_set_bit(RDS_RECONNECT_PENDING, &cp->cp_flags))
 		queue_delayed_work(rds_wq, &cp->cp_conn_w, 0);
 }
+EXPORT_SYMBOL_GPL(rds_conn_path_connect_if_down);
 
 void rds_conn_connect_if_down(struct rds_connection *conn)
 {
@@ -688,21 +691,6 @@ void rds_conn_connect_if_down(struct rds_connection *conn)
 	rds_conn_path_connect_if_down(&conn->c_path[0]);
 }
 EXPORT_SYMBOL_GPL(rds_conn_connect_if_down);
-
-/*
- * An error occurred on the connection
- */
-void
-__rds_conn_error(struct rds_connection *conn, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vprintk(fmt, ap);
-	va_end(ap);
-
-	rds_conn_drop(conn);
-}
 
 void
 __rds_conn_path_error(struct rds_conn_path *cp, const char *fmt, ...)

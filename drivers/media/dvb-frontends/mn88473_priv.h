@@ -18,7 +18,9 @@
 #define MN88473_PRIV_H
 
 #include "dvb_frontend.h"
+#include "dvb_math.h"
 #include "mn88473.h"
+#include <linux/math64.h>
 #include <linux/firmware.h>
 #include <linux/regmap.h>
 

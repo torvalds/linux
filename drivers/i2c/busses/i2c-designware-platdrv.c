@@ -150,6 +150,29 @@ static int i2c_dw_plat_prepare_clk(struct dw_i2c_dev *i_dev, bool prepare)
 	return 0;
 }
 
+static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev, int id)
+{
+	u32 param, tx_fifo_depth, rx_fifo_depth;
+
+	/*
+	 * Try to detect the FIFO depth if not set by interface driver,
+	 * the depth could be from 2 to 256 from HW spec.
+	 */
+	param = i2c_dw_read_comp_param(dev);
+	tx_fifo_depth = ((param >> 16) & 0xff) + 1;
+	rx_fifo_depth = ((param >> 8)  & 0xff) + 1;
+	if (!dev->tx_fifo_depth) {
+		dev->tx_fifo_depth = tx_fifo_depth;
+		dev->rx_fifo_depth = rx_fifo_depth;
+		dev->adapter.nr = id;
+	} else if (tx_fifo_depth >= 2) {
+		dev->tx_fifo_depth = min_t(u32, dev->tx_fifo_depth,
+				tx_fifo_depth);
+		dev->rx_fifo_depth = min_t(u32, dev->rx_fifo_depth,
+				rx_fifo_depth);
+	}
+}
+
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -176,9 +199,6 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	dev->irq = irq;
 	platform_set_drvdata(pdev, dev);
 
-	/* fast mode by default because of legacy reasons */
-	dev->clk_freq = 400000;
-
 	if (pdata) {
 		dev->clk_freq = pdata->i2c_scl_freq;
 	} else {
@@ -193,8 +213,16 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	}
 
 	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
-	if (acpi_speed)
-		dev->clk_freq = acpi_speed;
+	/*
+	 * Find bus speed from the "clock-frequency" device property, ACPI
+	 * or by using fast mode if neither is set.
+	 */
+	if (acpi_speed && dev->clk_freq)
+		dev->clk_freq = min(dev->clk_freq, acpi_speed);
+	else if (acpi_speed || dev->clk_freq)
+		dev->clk_freq = max(dev->clk_freq, acpi_speed);
+	else
+		dev->clk_freq = 400000;
 
 	if (has_acpi_companion(&pdev->dev))
 		dw_i2c_acpi_configure(pdev);
@@ -214,13 +242,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	dev->functionality =
-		I2C_FUNC_I2C |
-		I2C_FUNC_10BIT_ADDR |
-		I2C_FUNC_SMBUS_BYTE |
-		I2C_FUNC_SMBUS_BYTE_DATA |
-		I2C_FUNC_SMBUS_WORD_DATA |
-		I2C_FUNC_SMBUS_I2C_BLOCK;
+	dev->functionality = I2C_FUNC_10BIT_ADDR | DW_IC_DEFAULT_FUNCTIONALITY;
 
 	dev->master_cfg = DW_IC_CON_MASTER | DW_IC_CON_SLAVE_DISABLE |
 			  DW_IC_CON_RESTART_EN;
@@ -246,13 +268,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 				1000000);
 	}
 
-	if (!dev->tx_fifo_depth) {
-		u32 param1 = i2c_dw_read_comp_param(dev);
-
-		dev->tx_fifo_depth = ((param1 >> 16) & 0xff) + 1;
-		dev->rx_fifo_depth = ((param1 >> 8)  & 0xff) + 1;
-		dev->adapter.nr = pdev->id;
-	}
+	dw_i2c_set_fifo_size(dev, pdev->id);
 
 	adap = &dev->adapter;
 	adap->owner = THIS_MODULE;

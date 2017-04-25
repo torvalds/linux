@@ -107,6 +107,11 @@ struct sysinfo_2_2_2 {
 	char reserved_3[5];
 	unsigned short cpus_dedicated;
 	unsigned short cpus_shared;
+	char reserved_4[3];
+	unsigned char vsne;
+	uuid_be uuid;
+	char reserved_5[160];
+	char ext_name[256];
 };
 
 #define LPAR_CHAR_DEDICATED	(1 << 7)
@@ -127,7 +132,7 @@ struct sysinfo_3_2_2 {
 		unsigned int caf;
 		char cpi[16];
 		char reserved_1[3];
-		char ext_name_encoding;
+		unsigned char evmne;
 		unsigned int reserved_2;
 		uuid_be uuid;
 	} vm[8];

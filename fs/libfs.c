@@ -7,6 +7,7 @@
 #include <linux/export.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
 #include <linux/quotaops.h>
@@ -16,14 +17,14 @@
 #include <linux/writeback.h>
 #include <linux/buffer_head.h> /* sync_mapping_buffers */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
-int simple_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		   struct kstat *stat)
+int simple_getattr(const struct path *path, struct kstat *stat,
+		   u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	generic_fillattr(inode, stat);
 	stat->blocks = inode->i_mapping->nrpages << (PAGE_SHIFT - 9);
 	return 0;
@@ -245,7 +246,8 @@ struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type, char *name,
 	struct inode *root;
 	struct qstr d_name = QSTR_INIT(name, strlen(name));
 
-	s = sget(fs_type, NULL, set_anon_super, MS_NOUSER, NULL);
+	s = sget_userns(fs_type, NULL, set_anon_super, MS_KERNMOUNT|MS_NOUSER,
+			&init_user_ns, NULL);
 	if (IS_ERR(s))
 		return ERR_CAST(s);
 
@@ -465,6 +467,8 @@ EXPORT_SYMBOL(simple_write_begin);
  * is not called, so a filesystem that actually does store data in .write_inode
  * should extend on what's done here with a call to mark_inode_dirty() in the
  * case that i_size has changed.
+ *
+ * Use *ONLY* with simple_readpage()
  */
 int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
@@ -474,14 +478,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
 	loff_t last_pos = pos + copied;
 
 	/* zero the stale part of the page if we did a short copy */
-	if (copied < len) {
-		unsigned from = pos & (PAGE_SIZE - 1);
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			unsigned from = pos & (PAGE_SIZE - 1);
 
-		zero_user(page, from + copied, len - copied);
-	}
-
-	if (!PageUptodate(page))
+			zero_user(page, from + copied, len - copied);
+		}
 		SetPageUptodate(page);
+	}
 	/*
 	 * No need to use i_size_read() here, the i_size
 	 * cannot change under us because we hold the i_mutex.
@@ -1129,7 +1133,6 @@ EXPORT_SYMBOL(simple_get_link);
 
 const struct inode_operations simple_symlink_inode_operations = {
 	.get_link = simple_get_link,
-	.readlink = generic_readlink
 };
 EXPORT_SYMBOL(simple_symlink_inode_operations);
 
@@ -1141,10 +1144,10 @@ static struct dentry *empty_dir_lookup(struct inode *dir, struct dentry *dentry,
 	return ERR_PTR(-ENOENT);
 }
 
-static int empty_dir_getattr(struct vfsmount *mnt, struct dentry *dentry,
-				 struct kstat *stat)
+static int empty_dir_getattr(const struct path *path, struct kstat *stat,
+			     u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	generic_fillattr(inode, stat);
 	return 0;
 }

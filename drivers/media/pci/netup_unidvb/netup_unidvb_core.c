@@ -1030,15 +1030,4 @@ static struct pci_driver netup_unidvb_pci_driver = {
 	.resume   = NULL,
 };
 
-static int __init netup_unidvb_init(void)
-{
-	return pci_register_driver(&netup_unidvb_pci_driver);
-}
-
-static void __exit netup_unidvb_fini(void)
-{
-	pci_unregister_driver(&netup_unidvb_pci_driver);
-}
-
-module_init(netup_unidvb_init);
-module_exit(netup_unidvb_fini);
+module_pci_driver(netup_unidvb_pci_driver);

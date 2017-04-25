@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ ******************************************************************************/
 #include "rtllib.h"
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"

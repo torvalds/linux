@@ -27,6 +27,7 @@
 #include <linux/uio_driver.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
+#include <linux/highmem.h>
 #include <net/genetlink.h>
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
@@ -147,8 +148,8 @@ static const struct genl_multicast_group tcmu_mcgrps[] = {
 };
 
 /* Our generic netlink family */
-static struct genl_family tcmu_genl_family = {
-	.id = GENL_ID_GENERATE,
+static struct genl_family tcmu_genl_family __ro_after_init = {
+	.module = THIS_MODULE,
 	.hdrsize = 0,
 	.name = "TCM-USER",
 	.version = 1,
@@ -537,7 +538,7 @@ tcmu_queue_cmd(struct se_cmd *se_cmd)
 	struct se_device *se_dev = se_cmd->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
-	int ret;
+	sense_reason_t ret;
 
 	tcmu_cmd = tcmu_alloc_cmd(se_cmd);
 	if (!tcmu_cmd)
@@ -641,9 +642,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 		WARN_ON(tcmu_hdr_get_op(entry->hdr.len_op) != TCMU_OP_CMD);
 
 		spin_lock(&udev->commands_lock);
-		cmd = idr_find(&udev->commands, entry->hdr.cmd_id);
-		if (cmd)
-			idr_remove(&udev->commands, cmd->cmd_id);
+		cmd = idr_remove(&udev->commands, entry->hdr.cmd_id);
 		spin_unlock(&udev->commands_lock);
 
 		if (!cmd) {
@@ -684,8 +683,6 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 	set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
 	target_complete_cmd(cmd->se_cmd, SAM_STAT_CHECK_CONDITION);
 	cmd->se_cmd = NULL;
-
-	kmem_cache_free(tcmu_cmd_cache, cmd);
 
 	return 0;
 }
@@ -784,15 +781,15 @@ static int tcmu_find_mem_index(struct vm_area_struct *vma)
 	return -1;
 }
 
-static int tcmu_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int tcmu_vma_fault(struct vm_fault *vmf)
 {
-	struct tcmu_dev *udev = vma->vm_private_data;
+	struct tcmu_dev *udev = vmf->vma->vm_private_data;
 	struct uio_info *info = &udev->uio_info;
 	struct page *page;
 	unsigned long offset;
 	void *addr;
 
-	int mi = tcmu_find_mem_index(vma);
+	int mi = tcmu_find_mem_index(vmf->vma);
 	if (mi < 0)
 		return VM_FAULT_SIGBUS;
 

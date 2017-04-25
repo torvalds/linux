@@ -199,6 +199,9 @@ struct audit_context {
 		struct {
 			int			argc;
 		} execve;
+		struct {
+			char			*name;
+		} module;
 	};
 	int fds[2];
 	struct audit_proctitle proctitle;
@@ -212,7 +215,7 @@ extern void audit_copy_inode(struct audit_names *name,
 extern void audit_log_cap(struct audit_buffer *ab, char *prefix,
 			  kernel_cap_t *cap);
 extern void audit_log_name(struct audit_context *context,
-			   struct audit_names *n, struct path *path,
+			   struct audit_names *n, const struct path *path,
 			   int record_num, int *call_panic);
 
 extern int audit_pid;

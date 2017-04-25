@@ -252,4 +252,3 @@ int of_flash_probe_versatile(struct platform_device *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(of_flash_probe_versatile);

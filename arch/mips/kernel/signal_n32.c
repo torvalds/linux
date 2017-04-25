@@ -33,7 +33,7 @@
 #include <asm/cacheflush.h>
 #include <asm/compat-signal.h>
 #include <asm/sim.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/fpu.h>
 #include <asm/cpu-features.h>

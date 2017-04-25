@@ -9,7 +9,7 @@ config VGA_CONSOLE
 	depends on !4xx && !8xx && !SPARC && !M68K && !PARISC && !FRV && \
 		!SUPERH && !BLACKFIN && !AVR32 && !MN10300 && !CRIS && \
 		(!ARM || ARCH_FOOTBRIDGE || ARCH_INTEGRATOR || ARCH_NETWINDER) && \
-		!ARM64 && !ARC && !MICROBLAZE
+		!ARM64 && !ARC && !MICROBLAZE && !OPENRISC
 	default y
 	help
 	  Saying Y here will allow you to use Linux in text mode through a
@@ -43,9 +43,30 @@ config VGACON_SOFT_SCROLLBACK_SIZE
        range 1 1024
        default "64"
        help
-         Enter the amount of System RAM to allocate for the scrollback
-	 buffer.  Each 64KB will give you approximately 16 80x25
-	 screenfuls of scrollback buffer
+	  Enter the amount of System RAM to allocate for scrollback
+	  buffers of VGA consoles. Each 64KB will give you approximately
+	  16 80x25 screenfuls of scrollback buffer.
+
+config VGACON_SOFT_SCROLLBACK_PERSISTENT_ENABLE_BY_DEFAULT
+	bool "Persistent Scrollback History for each console by default"
+	depends on VGACON_SOFT_SCROLLBACK
+	default n
+	help
+	  Say Y here if the scrollback history should persist by default when
+	  switching between consoles. Otherwise, the scrollback history will be
+	  flushed each time the console is switched. This feature can also be
+	  enabled using the boot command line parameter
+	  'vgacon.scrollback_persistent=1'.
+
+	  This feature might break your tool of choice to flush the scrollback
+	  buffer, e.g. clear(1) will work fine but Debian's clear_console(1)
+	  will be broken, which might cause security issues.
+	  You can use the escape sequence \e[3J instead if this feature is
+	  activated.
+
+	  Note that a buffer of VGACON_SOFT_SCROLLBACK_SIZE is taken for each
+	  created tty device.
+	  So if you use a RAM-constrained system, say N here.
 
 config MDA_CONSOLE
 	depends on !M68K && !PARISC && ISA

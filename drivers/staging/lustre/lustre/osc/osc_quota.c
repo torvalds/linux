@@ -106,7 +106,7 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 			}
 
 			CDEBUG(D_QUOTA, "%s: setdq to insert for %s %d (%d)\n",
-			       cli->cl_import->imp_obd->obd_name,
+			       cli_name(cli),
 			       type == USRQUOTA ? "user" : "group",
 			       qid[type], rc);
 		} else {
@@ -122,7 +122,7 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 				kmem_cache_free(osc_quota_kmem, oqi);
 
 			CDEBUG(D_QUOTA, "%s: setdq to remove for %s %d (%p)\n",
-			       cli->cl_import->imp_obd->obd_name,
+			       cli_name(cli),
 			       type == USRQUOTA ? "user" : "group",
 			       qid[type], oqi);
 		}
@@ -134,8 +134,8 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 /*
  * Hash operations for uid/gid <-> osc_quota_info
  */
-static unsigned
-oqi_hashfn(struct cfs_hash *hs, const void *key, unsigned mask)
+static unsigned int
+oqi_hashfn(struct cfs_hash *hs, const void *key, unsigned int mask)
 {
 	return cfs_hash_u32_hash(*((__u32 *)key), mask);
 }
@@ -279,49 +279,5 @@ int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	}
 	ptlrpc_req_finished(req);
 
-	return rc;
-}
-
-int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
-		   struct obd_quotactl *oqctl)
-{
-	struct client_obd *cli = &exp->exp_obd->u.cli;
-	struct ptlrpc_request *req;
-	struct obd_quotactl *body;
-	int rc;
-
-	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
-					&RQF_OST_QUOTACHECK, LUSTRE_OST_VERSION,
-					OST_QUOTACHECK);
-	if (!req)
-		return -ENOMEM;
-
-	body = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
-	*body = *oqctl;
-
-	ptlrpc_request_set_replen(req);
-
-	/* the next poll will find -ENODATA, that means quotacheck is going on
-	 */
-	cli->cl_qchk_stat = -ENODATA;
-	rc = ptlrpc_queue_wait(req);
-	if (rc)
-		cli->cl_qchk_stat = rc;
-	ptlrpc_req_finished(req);
-	return rc;
-}
-
-int osc_quota_poll_check(struct obd_export *exp, struct if_quotacheck *qchk)
-{
-	struct client_obd *cli = &exp->exp_obd->u.cli;
-	int rc;
-
-	qchk->obd_uuid = cli->cl_target_uuid;
-	memcpy(qchk->obd_type, LUSTRE_OST_NAME, strlen(LUSTRE_OST_NAME));
-
-	rc = cli->cl_qchk_stat;
-	/* the client is not the previous one */
-	if (rc == CL_NOT_QUOTACHECKED)
-		rc = -EINTR;
 	return rc;
 }

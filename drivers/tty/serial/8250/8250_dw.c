@@ -53,6 +53,8 @@
 /* Helper for fifo size calculation */
 #define DW_UART_CPR_FIFO_SIZE(a)	(((a >> 16) & 0xff) * 16)
 
+/* DesignWare specific register fields */
+#define DW_UART_MCR_SIRE		BIT(6)
 
 struct dw8250_data {
 	u8			usr_reg;
@@ -199,8 +201,31 @@ static unsigned int dw8250_serial_in32be(struct uart_port *p, int offset)
 
 static int dw8250_handle_irq(struct uart_port *p)
 {
+	struct uart_8250_port *up = up_to_u8250p(p);
 	struct dw8250_data *d = p->private_data;
 	unsigned int iir = p->serial_in(p, UART_IIR);
+	unsigned int status;
+	unsigned long flags;
+
+	/*
+	 * There are ways to get Designware-based UARTs into a state where
+	 * they are asserting UART_IIR_RX_TIMEOUT but there is no actual
+	 * data available.  If we see such a case then we'll do a bogus
+	 * read.  If we don't do this then the "RX TIMEOUT" interrupt will
+	 * fire forever.
+	 *
+	 * This problem has only been observed so far when not in DMA mode
+	 * so we limit the workaround only to non-DMA mode.
+	 */
+	if (!up->dma && ((iir & 0x3f) == UART_IIR_RX_TIMEOUT)) {
+		spin_lock_irqsave(&p->lock, flags);
+		status = p->serial_in(p, UART_LSR);
+
+		if (!(status & (UART_LSR_DR | UART_LSR_BI)))
+			(void) p->serial_in(p, UART_RX);
+
+		spin_unlock_irqrestore(&p->lock, flags);
+	}
 
 	if (serial8250_handle_irq(p, iir))
 		return 1;
@@ -246,12 +271,28 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	if (!ret)
 		p->uartclk = rate;
 
+out:
 	p->status &= ~UPSTAT_AUTOCTS;
 	if (termios->c_cflag & CRTSCTS)
 		p->status |= UPSTAT_AUTOCTS;
 
-out:
 	serial8250_do_set_termios(p, termios, old);
+}
+
+static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
+{
+	struct uart_8250_port *up = up_to_u8250p(p);
+	unsigned int mcr = p->serial_in(p, UART_MCR);
+
+	if (up->capabilities & UART_CAP_IRDA) {
+		if (termios->c_line == N_IRDA)
+			mcr |= DW_UART_MCR_SIRE;
+		else
+			mcr &= ~DW_UART_MCR_SIRE;
+
+		p->serial_out(p, UART_MCR, mcr);
+	}
+	serial8250_do_set_ldisc(p, termios);
 }
 
 /*
@@ -308,13 +349,11 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			p->serial_in = dw8250_serial_in32;
 			data->uart_16550_compatible = true;
 		}
-		p->set_termios = dw8250_set_termios;
 	}
 
 	/* Platforms with iDMA */
 	if (platform_get_resource_byname(to_platform_device(p->dev),
 					 IORESOURCE_MEM, "lpss_priv")) {
-		p->set_termios = dw8250_set_termios;
 		data->dma.rx_param = p->dev->parent;
 		data->dma.tx_param = p->dev->parent;
 		data->dma.fn = dw8250_idma_filter;
@@ -357,6 +396,9 @@ static void dw8250_setup_port(struct uart_port *p)
 
 	if (reg & DW_UART_CPR_AFCE_MODE)
 		up->capabilities |= UART_CAP_AFE;
+
+	if (reg & DW_UART_CPR_SIR_MODE)
+		up->capabilities |= UART_CAP_IRDA;
 }
 
 static int dw8250_probe(struct platform_device *pdev)
@@ -392,6 +434,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	p->iotype	= UPIO_MEM;
 	p->serial_in	= dw8250_serial_in;
 	p->serial_out	= dw8250_serial_out;
+	p->set_ldisc	= dw8250_set_ldisc;
+	p->set_termios	= dw8250_set_termios;
 
 	p->membase = devm_ioremap(dev, regs->start, resource_size(regs));
 	if (!p->membase)

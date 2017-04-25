@@ -41,7 +41,9 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
 {
 	int i;
 	size_t ret = 0;
-	char bf[1024];
+	char bf[1024], *alloc_str = NULL;
+	char buf[64];
+	const char *str;
 
 	ret += callchain__fprintf_left_margin(fp, left_margin);
 	for (i = 0; i < depth; i++) {
@@ -56,8 +58,26 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
 		} else
 			ret += fprintf(fp, "%s", "          ");
 	}
-	fputs(callchain_list__sym_name(chain, bf, sizeof(bf), false), fp);
+
+	str = callchain_list__sym_name(chain, bf, sizeof(bf), false);
+
+	if (symbol_conf.show_branchflag_count) {
+		if (!period)
+			callchain_list_counts__printf_value(node, chain, NULL,
+							    buf, sizeof(buf));
+		else
+			callchain_list_counts__printf_value(NULL, chain, NULL,
+							    buf, sizeof(buf));
+
+		if (asprintf(&alloc_str, "%s%s", str, buf) < 0)
+			str = "Not enough memory!";
+		else
+			str = alloc_str;
+	}
+
+	fputs(str, fp);
 	fputc('\n', fp);
+	free(alloc_str);
 	return ret;
 }
 
@@ -219,8 +239,15 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 			} else
 				ret += callchain__fprintf_left_margin(fp, left_margin);
 
-			ret += fprintf(fp, "%s\n", callchain_list__sym_name(chain, bf, sizeof(bf),
-							false));
+			ret += fprintf(fp, "%s",
+				       callchain_list__sym_name(chain, bf,
+								sizeof(bf),
+								false));
+
+			if (symbol_conf.show_branchflag_count)
+				ret += callchain_list_counts__printf_value(
+						NULL, chain, fp, NULL, 0);
+			ret += fprintf(fp, "\n");
 
 			if (++entries_printed == callchain_param.print_limit)
 				break;

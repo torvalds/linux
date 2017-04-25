@@ -15,6 +15,10 @@
 #define TCP_SCALABLE_AI_CNT	50U
 #define TCP_SCALABLE_MD_SCALE	3
 
+struct scalable {
+	u32 loss_cwnd;
+};
+
 static void tcp_scalable_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -32,12 +36,23 @@ static void tcp_scalable_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 static u32 tcp_scalable_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
+	struct scalable *ca = inet_csk_ca(sk);
+
+	ca->loss_cwnd = tp->snd_cwnd;
 
 	return max(tp->snd_cwnd - (tp->snd_cwnd>>TCP_SCALABLE_MD_SCALE), 2U);
 }
 
+static u32 tcp_scalable_cwnd_undo(struct sock *sk)
+{
+	const struct scalable *ca = inet_csk_ca(sk);
+
+	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
+}
+
 static struct tcp_congestion_ops tcp_scalable __read_mostly = {
 	.ssthresh	= tcp_scalable_ssthresh,
+	.undo_cwnd	= tcp_scalable_cwnd_undo,
 	.cong_avoid	= tcp_scalable_cong_avoid,
 
 	.owner		= THIS_MODULE,

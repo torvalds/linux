@@ -60,9 +60,6 @@ MODULE_DESCRIPTION("Cryptographic Coprocessor (message type 6), " \
 		   "Copyright IBM Corp. 2001, 2012");
 MODULE_LICENSE("GPL");
 
-static void zcrypt_msgtype6_receive(struct ap_device *, struct ap_message *,
-				 struct ap_message *);
-
 /**
  * CPRB
  *	  Note that all shorts, ints and longs are little-endian.
@@ -149,16 +146,122 @@ static struct CPRBX static_cprbx = {
 	.func_id	= {0x54, 0x32},
 };
 
+int speed_idx_cca(int req_type)
+{
+	switch (req_type) {
+	case 0x4142:
+	case 0x4149:
+	case 0x414D:
+	case 0x4341:
+	case 0x4344:
+	case 0x4354:
+	case 0x4358:
+	case 0x444B:
+	case 0x4558:
+	case 0x4643:
+	case 0x4651:
+	case 0x4C47:
+	case 0x4C4B:
+	case 0x4C51:
+	case 0x4F48:
+	case 0x504F:
+	case 0x5053:
+	case 0x5058:
+	case 0x5343:
+	case 0x5344:
+	case 0x5345:
+	case 0x5350:
+		return LOW;
+	case 0x414B:
+	case 0x4345:
+	case 0x4349:
+	case 0x434D:
+	case 0x4847:
+	case 0x4849:
+	case 0x484D:
+	case 0x4850:
+	case 0x4851:
+	case 0x4954:
+	case 0x4958:
+	case 0x4B43:
+	case 0x4B44:
+	case 0x4B45:
+	case 0x4B47:
+	case 0x4B48:
+	case 0x4B49:
+	case 0x4B4E:
+	case 0x4B50:
+	case 0x4B52:
+	case 0x4B54:
+	case 0x4B58:
+	case 0x4D50:
+	case 0x4D53:
+	case 0x4D56:
+	case 0x4D58:
+	case 0x5044:
+	case 0x5045:
+	case 0x5046:
+	case 0x5047:
+	case 0x5049:
+	case 0x504B:
+	case 0x504D:
+	case 0x5254:
+	case 0x5347:
+	case 0x5349:
+	case 0x534B:
+	case 0x534D:
+	case 0x5356:
+	case 0x5358:
+	case 0x5443:
+	case 0x544B:
+	case 0x5647:
+		return HIGH;
+	default:
+		return MEDIUM;
+	}
+}
+
+int speed_idx_ep11(int req_type)
+{
+	switch (req_type) {
+	case  1:
+	case  2:
+	case 36:
+	case 37:
+	case 38:
+	case 39:
+	case 40:
+		return LOW;
+	case 17:
+	case 18:
+	case 19:
+	case 20:
+	case 21:
+	case 22:
+	case 26:
+	case 30:
+	case 31:
+	case 32:
+	case 33:
+	case 34:
+	case 35:
+		return HIGH;
+	default:
+		return MEDIUM;
+	}
+}
+
+
 /**
  * Convert a ICAMEX message to a type6 MEX message.
  *
- * @zdev: crypto device pointer
+ * @zq: crypto device pointer
  * @ap_msg: pointer to AP message
  * @mex: pointer to user input data
  *
  * Returns 0 on success or -EFAULT.
  */
-static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_device *zdev,
+static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
 				       struct ica_rsa_modexpo *mex)
 {
@@ -172,11 +275,6 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_device *zdev,
 		.function_code	= {'P', 'K'},
 		.ulen		= 10,
 		.only_rule	= {'M', 'R', 'P', ' ', ' ', ' ', ' ', ' '}
-	};
-	static struct function_and_rules_block static_pke_fnr_MCL2 = {
-		.function_code	= {'P', 'K'},
-		.ulen		= 10,
-		.only_rule	= {'Z', 'E', 'R', 'O', '-', 'P', 'A', 'D'}
 	};
 	struct {
 		struct type6_hdr hdr;
@@ -204,11 +302,10 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_device *zdev,
 	msg->hdr.FromCardLen1 = PCIXCC_MAX_ICA_RESPONSE_SIZE - sizeof(msg->hdr);
 
 	msg->cprbx = static_cprbx;
-	msg->cprbx.domain = AP_QID_QUEUE(zdev->ap_dev->qid);
+	msg->cprbx.domain = AP_QID_QUEUE(zq->queue->qid);
 	msg->cprbx.rpl_msgbl = msg->hdr.FromCardLen1;
 
-	msg->fr = (zdev->user_space_type == ZCRYPT_PCIXCC_MCL2) ?
-		static_pke_fnr_MCL2 : static_pke_fnr;
+	msg->fr = static_pke_fnr;
 
 	msg->cprbx.req_parml = size - sizeof(msg->hdr) - sizeof(msg->cprbx);
 
@@ -219,13 +316,13 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_device *zdev,
 /**
  * Convert a ICACRT message to a type6 CRT message.
  *
- * @zdev: crypto device pointer
+ * @zq: crypto device pointer
  * @ap_msg: pointer to AP message
  * @crt: pointer to user input data
  *
  * Returns 0 on success or -EFAULT.
  */
-static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_device *zdev,
+static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
 				       struct ica_rsa_modexpo_crt *crt)
 {
@@ -241,11 +338,6 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_device *zdev,
 		.only_rule	= {'Z', 'E', 'R', 'O', '-', 'P', 'A', 'D'}
 	};
 
-	static struct function_and_rules_block static_pkd_fnr_MCL2 = {
-		.function_code	= {'P', 'D'},
-		.ulen		= 10,
-		.only_rule	= {'P', 'K', 'C', 'S', '-', '1', '.', '2'}
-	};
 	struct {
 		struct type6_hdr hdr;
 		struct CPRBX cprbx;
@@ -272,12 +364,11 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_device *zdev,
 	msg->hdr.FromCardLen1 = PCIXCC_MAX_ICA_RESPONSE_SIZE - sizeof(msg->hdr);
 
 	msg->cprbx = static_cprbx;
-	msg->cprbx.domain = AP_QID_QUEUE(zdev->ap_dev->qid);
+	msg->cprbx.domain = AP_QID_QUEUE(zq->queue->qid);
 	msg->cprbx.req_parml = msg->cprbx.rpl_msgbl =
 		size - sizeof(msg->hdr) - sizeof(msg->cprbx);
 
-	msg->fr = (zdev->user_space_type == ZCRYPT_PCIXCC_MCL2) ?
-		static_pkd_fnr_MCL2 : static_pkd_fnr;
+	msg->fr = static_pkd_fnr;
 
 	ap_msg->length = size;
 	return 0;
@@ -286,7 +377,7 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_device *zdev,
 /**
  * Convert a XCRB message to a type6 CPRB message.
  *
- * @zdev: crypto device pointer
+ * @zq: crypto device pointer
  * @ap_msg: pointer to AP message
  * @xcRB: pointer to user input data
  *
@@ -297,9 +388,10 @@ struct type86_fmt2_msg {
 	struct type86_fmt2_ext fmt2;
 } __packed;
 
-static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
-				       struct ap_message *ap_msg,
-				       struct ica_xcRB *xcRB)
+static int XCRB_msg_to_type6CPRB_msgX(struct ap_message *ap_msg,
+				      struct ica_xcRB *xcRB,
+				      unsigned int *fcode,
+				      unsigned short **dom)
 {
 	static struct type6_hdr static_type6_hdrX = {
 		.type		=  0x06,
@@ -379,6 +471,9 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	memcpy(msg->hdr.function_code, function_code,
 	       sizeof(msg->hdr.function_code));
 
+	*fcode = (msg->hdr.function_code[0] << 8) | msg->hdr.function_code[1];
+	*dom = (unsigned short *)&msg->cprbx.domain;
+
 	if (memcmp(function_code, "US", 2) == 0)
 		ap_msg->special = 1;
 	else
@@ -389,15 +484,15 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	    copy_from_user(req_data, xcRB->request_data_address,
 		xcRB->request_data_length))
 		return -EFAULT;
+
 	return 0;
 }
 
-static int xcrb_msg_to_type6_ep11cprb_msgx(struct zcrypt_device *zdev,
-				       struct ap_message *ap_msg,
-				       struct ep11_urb *xcRB)
+static int xcrb_msg_to_type6_ep11cprb_msgx(struct ap_message *ap_msg,
+				       struct ep11_urb *xcRB,
+				       unsigned int *fcode)
 {
 	unsigned int lfmt;
-
 	static struct type6_hdr static_type6_ep11_hdr = {
 		.type		=  0x06,
 		.rqid		= {0x00, 0x01},
@@ -421,7 +516,7 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(struct zcrypt_device *zdev,
 		unsigned char	dom_tag;	/* fixed value 0x4 */
 		unsigned char	dom_len;	/* fixed value 0x4 */
 		unsigned int	dom_val;	/* domain id	   */
-	} __packed * payload_hdr;
+	} __packed * payload_hdr = NULL;
 
 	if (CEIL4(xcRB->req_len) < xcRB->req_len)
 		return -EINVAL; /* overflow after alignment*/
@@ -450,43 +545,30 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(struct zcrypt_device *zdev,
 		return -EFAULT;
 	}
 
-	/*
-	 The target domain field within the cprb body/payload block will be
-	 replaced by the usage domain for non-management commands only.
-	 Therefore we check the first bit of the 'flags' parameter for
-	 management command indication.
-	   0 - non management command
-	   1 - management command
-	*/
-	if (!((msg->cprbx.flags & 0x80) == 0x80)) {
-		msg->cprbx.target_id = (unsigned int)
-					AP_QID_QUEUE(zdev->ap_dev->qid);
-
-		if ((msg->pld_lenfmt & 0x80) == 0x80) { /*ext.len.fmt 2 or 3*/
-			switch (msg->pld_lenfmt & 0x03) {
-			case 1:
-				lfmt = 2;
-				break;
-			case 2:
-				lfmt = 3;
-				break;
-			default:
-				return -EINVAL;
-			}
-		} else {
-			lfmt = 1; /* length format #1 */
-		  }
-		payload_hdr = (struct pld_hdr *)((&(msg->pld_lenfmt))+lfmt);
-		payload_hdr->dom_val = (unsigned int)
-					AP_QID_QUEUE(zdev->ap_dev->qid);
+	if ((msg->pld_lenfmt & 0x80) == 0x80) { /*ext.len.fmt 2 or 3*/
+		switch (msg->pld_lenfmt & 0x03) {
+		case 1:
+			lfmt = 2;
+			break;
+		case 2:
+			lfmt = 3;
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		lfmt = 1; /* length format #1 */
 	}
+	payload_hdr = (struct pld_hdr *)((&(msg->pld_lenfmt))+lfmt);
+	*fcode = payload_hdr->func_val & 0xFFFF;
+
 	return 0;
 }
 
 /**
  * Copy results from a type 86 ICA reply message back to user space.
  *
- * @zdev: crypto device pointer
+ * @zq: crypto device pointer
  * @reply: reply AP message.
  * @data: pointer to user output data
  * @length: size of user output data
@@ -508,7 +590,7 @@ struct type86_ep11_reply {
 	struct ep11_cprb cprbx;
 } __packed;
 
-static int convert_type86_ica(struct zcrypt_device *zdev,
+static int convert_type86_ica(struct zcrypt_queue *zq,
 			  struct ap_message *reply,
 			  char __user *outputdata,
 			  unsigned int outputdatalength)
@@ -556,26 +638,37 @@ static int convert_type86_ica(struct zcrypt_device *zdev,
 	service_rc = msg->cprbx.ccp_rtcode;
 	if (unlikely(service_rc != 0)) {
 		service_rs = msg->cprbx.ccp_rscode;
-		if (service_rc == 8 && service_rs == 66)
+		if ((service_rc == 8 && service_rs == 66) ||
+		    (service_rc == 8 && service_rs == 65) ||
+		    (service_rc == 8 && service_rs == 72) ||
+		    (service_rc == 8 && service_rs == 770) ||
+		    (service_rc == 12 && service_rs == 769)) {
+			ZCRYPT_DBF(DBF_DEBUG,
+				   "device=%02x.%04x rc/rs=%d/%d => rc=EINVAL\n",
+				   AP_QID_CARD(zq->queue->qid),
+				   AP_QID_QUEUE(zq->queue->qid),
+				   (int) service_rc, (int) service_rs);
 			return -EINVAL;
-		if (service_rc == 8 && service_rs == 65)
-			return -EINVAL;
-		if (service_rc == 8 && service_rs == 770)
-			return -EINVAL;
+		}
 		if (service_rc == 8 && service_rs == 783) {
-			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE_OLD;
+			zq->zcard->min_mod_size =
+				PCIXCC_MIN_MOD_SIZE_OLD;
+			ZCRYPT_DBF(DBF_DEBUG,
+				   "device=%02x.%04x rc/rs=%d/%d => rc=EAGAIN\n",
+				   AP_QID_CARD(zq->queue->qid),
+				   AP_QID_QUEUE(zq->queue->qid),
+				   (int) service_rc, (int) service_rs);
 			return -EAGAIN;
 		}
-		if (service_rc == 12 && service_rs == 769)
-			return -EINVAL;
-		if (service_rc == 8 && service_rs == 72)
-			return -EINVAL;
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
-			       AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online,
-			       msg->hdr.reply_code);
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF(DBF_ERR,
+			   "device=%02x.%04x rc/rs=%d/%d => online=0 rc=EAGAIN\n",
+			   AP_QID_CARD(zq->queue->qid),
+			   AP_QID_QUEUE(zq->queue->qid),
+			   (int) service_rc, (int) service_rs);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 	data = msg->text;
@@ -611,13 +704,13 @@ static int convert_type86_ica(struct zcrypt_device *zdev,
 /**
  * Copy results from a type 86 XCRB reply message back to user space.
  *
- * @zdev: crypto device pointer
+ * @zq: crypto device pointer
  * @reply: reply AP message.
  * @xcRB: pointer to XCRB
  *
  * Returns 0 on success or -EINVAL, -EFAULT, -EAGAIN in case of an error.
  */
-static int convert_type86_xcrb(struct zcrypt_device *zdev,
+static int convert_type86_xcrb(struct zcrypt_queue *zq,
 			       struct ap_message *reply,
 			       struct ica_xcRB *xcRB)
 {
@@ -642,13 +735,13 @@ static int convert_type86_xcrb(struct zcrypt_device *zdev,
 /**
  * Copy results from a type 86 EP11 XCRB reply message back to user space.
  *
- * @zdev: crypto device pointer
+ * @zq: crypto device pointer
  * @reply: reply AP message.
  * @xcRB: pointer to EP11 user request block
  *
  * Returns 0 on success or -EINVAL, -EFAULT, -EAGAIN in case of an error.
  */
-static int convert_type86_ep11_xcrb(struct zcrypt_device *zdev,
+static int convert_type86_ep11_xcrb(struct zcrypt_queue *zq,
 				    struct ap_message *reply,
 				    struct ep11_urb *xcRB)
 {
@@ -666,7 +759,7 @@ static int convert_type86_ep11_xcrb(struct zcrypt_device *zdev,
 	return 0;
 }
 
-static int convert_type86_rng(struct zcrypt_device *zdev,
+static int convert_type86_rng(struct zcrypt_queue *zq,
 			  struct ap_message *reply,
 			  char *buffer)
 {
@@ -683,104 +776,113 @@ static int convert_type86_rng(struct zcrypt_device *zdev,
 	return msg->fmt2.count2;
 }
 
-static int convert_response_ica(struct zcrypt_device *zdev,
+static int convert_response_ica(struct zcrypt_queue *zq,
 			    struct ap_message *reply,
 			    char __user *outputdata,
 			    unsigned int outputdatalength)
 {
 	struct type86x_reply *msg = reply->message;
 
-	/* Response type byte is the second byte in the response. */
-	switch (((unsigned char *) reply->message)[1]) {
+	switch (msg->hdr.type) {
 	case TYPE82_RSP_CODE:
 	case TYPE88_RSP_CODE:
-		return convert_error(zdev, reply);
+		return convert_error(zq, reply);
 	case TYPE86_RSP_CODE:
 		if (msg->cprbx.ccp_rtcode &&
 		   (msg->cprbx.ccp_rscode == 0x14f) &&
 		   (outputdatalength > 256)) {
-			if (zdev->max_exp_bit_length <= 17) {
-				zdev->max_exp_bit_length = 17;
+			if (zq->zcard->max_exp_bit_length <= 17) {
+				zq->zcard->max_exp_bit_length = 17;
 				return -EAGAIN;
 			} else
 				return -EINVAL;
 		}
 		if (msg->hdr.reply_code)
-			return convert_error(zdev, reply);
+			return convert_error(zq, reply);
 		if (msg->cprbx.cprb_ver_id == 0x02)
-			return convert_type86_ica(zdev, reply,
+			return convert_type86_ica(zq, reply,
 						  outputdata, outputdatalength);
 		/* Fall through, no break, incorrect cprb version is an unknown
 		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
-			       AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online);
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF(DBF_ERR,
+			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
+			   AP_QID_CARD(zq->queue->qid),
+			   AP_QID_QUEUE(zq->queue->qid),
+			   (int) msg->hdr.type);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }
 
-static int convert_response_xcrb(struct zcrypt_device *zdev,
+static int convert_response_xcrb(struct zcrypt_queue *zq,
 			    struct ap_message *reply,
 			    struct ica_xcRB *xcRB)
 {
 	struct type86x_reply *msg = reply->message;
 
-	/* Response type byte is the second byte in the response. */
-	switch (((unsigned char *) reply->message)[1]) {
+	switch (msg->hdr.type) {
 	case TYPE82_RSP_CODE:
 	case TYPE88_RSP_CODE:
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
-		return convert_error(zdev, reply);
+		return convert_error(zq, reply);
 	case TYPE86_RSP_CODE:
 		if (msg->hdr.reply_code) {
 			memcpy(&(xcRB->status), msg->fmt2.apfs, sizeof(u32));
-			return convert_error(zdev, reply);
+			return convert_error(zq, reply);
 		}
 		if (msg->cprbx.cprb_ver_id == 0x02)
-			return convert_type86_xcrb(zdev, reply, xcRB);
+			return convert_type86_xcrb(zq, reply, xcRB);
 		/* Fall through, no break, incorrect cprb version is an unknown
 		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
-			       AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online);
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF(DBF_ERR,
+			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
+			   AP_QID_CARD(zq->queue->qid),
+			   AP_QID_QUEUE(zq->queue->qid),
+			   (int) msg->hdr.type);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }
 
-static int convert_response_ep11_xcrb(struct zcrypt_device *zdev,
+static int convert_response_ep11_xcrb(struct zcrypt_queue *zq,
 	struct ap_message *reply, struct ep11_urb *xcRB)
 {
 	struct type86_ep11_reply *msg = reply->message;
 
-	/* Response type byte is the second byte in the response. */
-	switch (((unsigned char *)reply->message)[1]) {
+	switch (msg->hdr.type) {
 	case TYPE82_RSP_CODE:
 	case TYPE87_RSP_CODE:
-		return convert_error(zdev, reply);
+		return convert_error(zq, reply);
 	case TYPE86_RSP_CODE:
 		if (msg->hdr.reply_code)
-			return convert_error(zdev, reply);
+			return convert_error(zq, reply);
 		if (msg->cprbx.cprb_ver_id == 0x04)
-			return convert_type86_ep11_xcrb(zdev, reply, xcRB);
+			return convert_type86_ep11_xcrb(zq, reply, xcRB);
 	/* Fall through, no break, incorrect cprb version is an unknown resp.*/
 	default: /* Unknown response type, this should NEVER EVER happen */
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
-			       AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online);
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF(DBF_ERR,
+			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
+			   AP_QID_CARD(zq->queue->qid),
+			   AP_QID_QUEUE(zq->queue->qid),
+			   (int) msg->hdr.type);
 		return -EAGAIN; /* repeat the request on a different device. */
 	}
 }
 
-static int convert_response_rng(struct zcrypt_device *zdev,
+static int convert_response_rng(struct zcrypt_queue *zq,
 				 struct ap_message *reply,
 				 char *data)
 {
@@ -794,15 +896,19 @@ static int convert_response_rng(struct zcrypt_device *zdev,
 		if (msg->hdr.reply_code)
 			return -EINVAL;
 		if (msg->cprbx.cprb_ver_id == 0x02)
-			return convert_type86_rng(zdev, reply, data);
+			return convert_type86_rng(zq, reply, data);
 		/* Fall through, no break, incorrect cprb version is an unknown
 		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
-		zdev->online = 0;
-		pr_err("Cryptographic device %x failed and was set offline\n",
-		       AP_QID_DEVICE(zdev->ap_dev->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
-			       AP_QID_DEVICE(zdev->ap_dev->qid), zdev->online);
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       AP_QID_CARD(zq->queue->qid),
+		       AP_QID_QUEUE(zq->queue->qid));
+		ZCRYPT_DBF(DBF_ERR,
+			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
+			   AP_QID_CARD(zq->queue->qid),
+			   AP_QID_QUEUE(zq->queue->qid),
+			   (int) msg->hdr.type);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }
@@ -811,11 +917,11 @@ static int convert_response_rng(struct zcrypt_device *zdev,
  * This function is called from the AP bus code after a crypto request
  * "msg" has finished with the reply message "reply".
  * It is called from tasklet context.
- * @ap_dev: pointer to the AP device
+ * @aq: pointer to the AP queue
  * @msg: pointer to the AP message
  * @reply: pointer to the AP reply message
  */
-static void zcrypt_msgtype6_receive(struct ap_device *ap_dev,
+static void zcrypt_msgtype6_receive(struct ap_queue *aq,
 				  struct ap_message *msg,
 				  struct ap_message *reply)
 {
@@ -860,11 +966,11 @@ out:
  * This function is called from the AP bus code after a crypto request
  * "msg" has finished with the reply message "reply".
  * It is called from tasklet context.
- * @ap_dev: pointer to the AP device
+ * @aq: pointer to the AP queue
  * @msg: pointer to the AP message
  * @reply: pointer to the AP reply message
  */
-static void zcrypt_msgtype6_receive_ep11(struct ap_device *ap_dev,
+static void zcrypt_msgtype6_receive_ep11(struct ap_queue *aq,
 					 struct ap_message *msg,
 					 struct ap_message *reply)
 {
@@ -904,11 +1010,11 @@ static atomic_t zcrypt_step = ATOMIC_INIT(0);
 /**
  * The request distributor calls this function if it picked the PCIXCC/CEX2C
  * device to handle a modexpo request.
- * @zdev: pointer to zcrypt_device structure that identifies the
+ * @zq: pointer to zcrypt_queue structure that identifies the
  *	  PCIXCC/CEX2C device to the request distributor
  * @mex: pointer to the modexpo request buffer
  */
-static long zcrypt_msgtype6_modexpo(struct zcrypt_device *zdev,
+static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 				  struct ica_rsa_modexpo *mex)
 {
 	struct ap_message ap_msg;
@@ -925,21 +1031,21 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_device *zdev,
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &resp_type;
-	rc = ICAMEX_msg_to_type6MEX_msgX(zdev, &ap_msg, mex);
+	rc = ICAMEX_msg_to_type6MEX_msgX(zq, &ap_msg, mex);
 	if (rc)
 		goto out_free;
 	init_completion(&resp_type.work);
-	ap_queue_message(zdev->ap_dev, &ap_msg);
+	ap_queue_message(zq->queue, &ap_msg);
 	rc = wait_for_completion_interruptible(&resp_type.work);
 	if (rc == 0) {
 		rc = ap_msg.rc;
 		if (rc == 0)
-			rc = convert_response_ica(zdev, &ap_msg,
+			rc = convert_response_ica(zq, &ap_msg,
 						  mex->outputdata,
 						  mex->outputdatalength);
 	} else
 		/* Signal pending. */
-		ap_cancel_message(zdev->ap_dev, &ap_msg);
+		ap_cancel_message(zq->queue, &ap_msg);
 out_free:
 	free_page((unsigned long) ap_msg.message);
 	return rc;
@@ -948,11 +1054,11 @@ out_free:
 /**
  * The request distributor calls this function if it picked the PCIXCC/CEX2C
  * device to handle a modexpo_crt request.
- * @zdev: pointer to zcrypt_device structure that identifies the
+ * @zq: pointer to zcrypt_queue structure that identifies the
  *	  PCIXCC/CEX2C device to the request distributor
  * @crt: pointer to the modexpoc_crt request buffer
  */
-static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_device *zdev,
+static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 				      struct ica_rsa_modexpo_crt *crt)
 {
 	struct ap_message ap_msg;
@@ -969,148 +1075,258 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_device *zdev,
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
 	ap_msg.private = &resp_type;
-	rc = ICACRT_msg_to_type6CRT_msgX(zdev, &ap_msg, crt);
+	rc = ICACRT_msg_to_type6CRT_msgX(zq, &ap_msg, crt);
 	if (rc)
 		goto out_free;
 	init_completion(&resp_type.work);
-	ap_queue_message(zdev->ap_dev, &ap_msg);
+	ap_queue_message(zq->queue, &ap_msg);
 	rc = wait_for_completion_interruptible(&resp_type.work);
 	if (rc == 0) {
 		rc = ap_msg.rc;
 		if (rc == 0)
-			rc = convert_response_ica(zdev, &ap_msg,
+			rc = convert_response_ica(zq, &ap_msg,
 						  crt->outputdata,
 						  crt->outputdatalength);
-	} else
+	} else {
 		/* Signal pending. */
-		ap_cancel_message(zdev->ap_dev, &ap_msg);
+		ap_cancel_message(zq->queue, &ap_msg);
+	}
 out_free:
 	free_page((unsigned long) ap_msg.message);
+	return rc;
+}
+
+unsigned int get_cprb_fc(struct ica_xcRB *xcRB,
+				struct ap_message *ap_msg,
+				unsigned int *func_code, unsigned short **dom)
+{
+	struct response_type resp_type = {
+		.type = PCIXCC_RESPONSE_TYPE_XCRB,
+	};
+	int rc;
+
+	ap_init_message(ap_msg);
+	ap_msg->message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	if (!ap_msg->message)
+		return -ENOMEM;
+	ap_msg->receive = zcrypt_msgtype6_receive;
+	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
+				atomic_inc_return(&zcrypt_step);
+	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
+	if (!ap_msg->private) {
+		kzfree(ap_msg->message);
+		return -ENOMEM;
+	}
+	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
+	rc = XCRB_msg_to_type6CPRB_msgX(ap_msg, xcRB, func_code, dom);
+	if (rc) {
+		kzfree(ap_msg->message);
+		kzfree(ap_msg->private);
+	}
 	return rc;
 }
 
 /**
  * The request distributor calls this function if it picked the PCIXCC/CEX2C
  * device to handle a send_cprb request.
- * @zdev: pointer to zcrypt_device structure that identifies the
+ * @zq: pointer to zcrypt_queue structure that identifies the
  *	  PCIXCC/CEX2C device to the request distributor
  * @xcRB: pointer to the send_cprb request buffer
  */
-static long zcrypt_msgtype6_send_cprb(struct zcrypt_device *zdev,
-				    struct ica_xcRB *xcRB)
+static long zcrypt_msgtype6_send_cprb(struct zcrypt_queue *zq,
+				    struct ica_xcRB *xcRB,
+				    struct ap_message *ap_msg)
 {
-	struct ap_message ap_msg;
+	int rc;
+	struct response_type *rtype = (struct response_type *)(ap_msg->private);
+
+	init_completion(&rtype->work);
+	ap_queue_message(zq->queue, ap_msg);
+	rc = wait_for_completion_interruptible(&rtype->work);
+	if (rc == 0) {
+		rc = ap_msg->rc;
+		if (rc == 0)
+			rc = convert_response_xcrb(zq, ap_msg, xcRB);
+	} else
+		/* Signal pending. */
+		ap_cancel_message(zq->queue, ap_msg);
+
+	kzfree(ap_msg->message);
+	kzfree(ap_msg->private);
+	return rc;
+}
+
+unsigned int get_ep11cprb_fc(struct ep11_urb *xcrb,
+				    struct ap_message *ap_msg,
+				    unsigned int *func_code)
+{
 	struct response_type resp_type = {
-		.type = PCIXCC_RESPONSE_TYPE_XCRB,
+		.type = PCIXCC_RESPONSE_TYPE_EP11,
 	};
 	int rc;
 
-	ap_init_message(&ap_msg);
-	ap_msg.message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
-	if (!ap_msg.message)
+	ap_init_message(ap_msg);
+	ap_msg->message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	if (!ap_msg->message)
 		return -ENOMEM;
-	ap_msg.receive = zcrypt_msgtype6_receive;
-	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
+	ap_msg->receive = zcrypt_msgtype6_receive_ep11;
+	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
 				atomic_inc_return(&zcrypt_step);
-	ap_msg.private = &resp_type;
-	rc = XCRB_msg_to_type6CPRB_msgX(zdev, &ap_msg, xcRB);
-	if (rc)
-		goto out_free;
-	init_completion(&resp_type.work);
-	ap_queue_message(zdev->ap_dev, &ap_msg);
-	rc = wait_for_completion_interruptible(&resp_type.work);
-	if (rc == 0) {
-		rc = ap_msg.rc;
-		if (rc == 0)
-			rc = convert_response_xcrb(zdev, &ap_msg, xcRB);
-	} else
-		/* Signal pending. */
-		ap_cancel_message(zdev->ap_dev, &ap_msg);
-out_free:
-	kzfree(ap_msg.message);
+	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
+	if (!ap_msg->private) {
+		kzfree(ap_msg->message);
+		return -ENOMEM;
+	}
+	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
+	rc = xcrb_msg_to_type6_ep11cprb_msgx(ap_msg, xcrb, func_code);
+	if (rc) {
+		kzfree(ap_msg->message);
+		kzfree(ap_msg->private);
+	}
 	return rc;
 }
 
 /**
  * The request distributor calls this function if it picked the CEX4P
  * device to handle a send_ep11_cprb request.
- * @zdev: pointer to zcrypt_device structure that identifies the
+ * @zq: pointer to zcrypt_queue structure that identifies the
  *	  CEX4P device to the request distributor
  * @xcRB: pointer to the ep11 user request block
  */
-static long zcrypt_msgtype6_send_ep11_cprb(struct zcrypt_device *zdev,
-						struct ep11_urb *xcrb)
+static long zcrypt_msgtype6_send_ep11_cprb(struct zcrypt_queue *zq,
+					   struct ep11_urb *xcrb,
+					   struct ap_message *ap_msg)
 {
-	struct ap_message ap_msg;
-	struct response_type resp_type = {
-		.type = PCIXCC_RESPONSE_TYPE_EP11,
-	};
 	int rc;
+	unsigned int lfmt;
+	struct response_type *rtype = (struct response_type *)(ap_msg->private);
+	struct {
+		struct type6_hdr hdr;
+		struct ep11_cprb cprbx;
+		unsigned char	pld_tag;	/* fixed value 0x30 */
+		unsigned char	pld_lenfmt;	/* payload length format */
+	} __packed * msg = ap_msg->message;
+	struct pld_hdr {
+		unsigned char	func_tag;	/* fixed value 0x4 */
+		unsigned char	func_len;	/* fixed value 0x4 */
+		unsigned int	func_val;	/* function ID	   */
+		unsigned char	dom_tag;	/* fixed value 0x4 */
+		unsigned char	dom_len;	/* fixed value 0x4 */
+		unsigned int	dom_val;	/* domain id	   */
+	} __packed * payload_hdr = NULL;
 
-	ap_init_message(&ap_msg);
-	ap_msg.message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
-	if (!ap_msg.message)
-		return -ENOMEM;
-	ap_msg.receive = zcrypt_msgtype6_receive_ep11;
-	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
-				atomic_inc_return(&zcrypt_step);
-	ap_msg.private = &resp_type;
-	rc = xcrb_msg_to_type6_ep11cprb_msgx(zdev, &ap_msg, xcrb);
-	if (rc)
-		goto out_free;
-	init_completion(&resp_type.work);
-	ap_queue_message(zdev->ap_dev, &ap_msg);
-	rc = wait_for_completion_interruptible(&resp_type.work);
+
+	/**
+	 * The target domain field within the cprb body/payload block will be
+	 * replaced by the usage domain for non-management commands only.
+	 * Therefore we check the first bit of the 'flags' parameter for
+	 * management command indication.
+	 *   0 - non management command
+	 *   1 - management command
+	 */
+	if (!((msg->cprbx.flags & 0x80) == 0x80)) {
+		msg->cprbx.target_id = (unsigned int)
+					AP_QID_QUEUE(zq->queue->qid);
+
+		if ((msg->pld_lenfmt & 0x80) == 0x80) { /*ext.len.fmt 2 or 3*/
+			switch (msg->pld_lenfmt & 0x03) {
+			case 1:
+				lfmt = 2;
+				break;
+			case 2:
+				lfmt = 3;
+				break;
+			default:
+				return -EINVAL;
+			}
+		} else {
+			lfmt = 1; /* length format #1 */
+		}
+		payload_hdr = (struct pld_hdr *)((&(msg->pld_lenfmt))+lfmt);
+		payload_hdr->dom_val = (unsigned int)
+					AP_QID_QUEUE(zq->queue->qid);
+	}
+
+	init_completion(&rtype->work);
+	ap_queue_message(zq->queue, ap_msg);
+	rc = wait_for_completion_interruptible(&rtype->work);
 	if (rc == 0) {
-		rc = ap_msg.rc;
+		rc = ap_msg->rc;
 		if (rc == 0)
-			rc = convert_response_ep11_xcrb(zdev, &ap_msg, xcrb);
+			rc = convert_response_ep11_xcrb(zq, ap_msg, xcrb);
 	} else
 		/* Signal pending. */
-		ap_cancel_message(zdev->ap_dev, &ap_msg);
+		ap_cancel_message(zq->queue, ap_msg);
 
-out_free:
-	kzfree(ap_msg.message);
+	kzfree(ap_msg->message);
+	kzfree(ap_msg->private);
 	return rc;
+}
+
+unsigned int get_rng_fc(struct ap_message *ap_msg, int *func_code,
+						   unsigned int *domain)
+{
+	struct response_type resp_type = {
+		.type = PCIXCC_RESPONSE_TYPE_XCRB,
+	};
+
+	ap_init_message(ap_msg);
+	ap_msg->message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
+	if (!ap_msg->message)
+		return -ENOMEM;
+	ap_msg->receive = zcrypt_msgtype6_receive;
+	ap_msg->psmid = (((unsigned long long) current->pid) << 32) +
+				atomic_inc_return(&zcrypt_step);
+	ap_msg->private = kmalloc(sizeof(resp_type), GFP_KERNEL);
+	if (!ap_msg->private) {
+		kzfree(ap_msg->message);
+		return -ENOMEM;
+	}
+	memcpy(ap_msg->private, &resp_type, sizeof(resp_type));
+
+	rng_type6CPRB_msgX(ap_msg, ZCRYPT_RNG_BUFFER_SIZE, domain);
+
+	*func_code = HWRNG;
+	return 0;
 }
 
 /**
  * The request distributor calls this function if it picked the PCIXCC/CEX2C
  * device to generate random data.
- * @zdev: pointer to zcrypt_device structure that identifies the
+ * @zq: pointer to zcrypt_queue structure that identifies the
  *	  PCIXCC/CEX2C device to the request distributor
  * @buffer: pointer to a memory page to return random data
  */
-
-static long zcrypt_msgtype6_rng(struct zcrypt_device *zdev,
-				    char *buffer)
+static long zcrypt_msgtype6_rng(struct zcrypt_queue *zq,
+				char *buffer, struct ap_message *ap_msg)
 {
-	struct ap_message ap_msg;
-	struct response_type resp_type = {
-		.type = PCIXCC_RESPONSE_TYPE_XCRB,
-	};
+	struct {
+		struct type6_hdr hdr;
+		struct CPRBX cprbx;
+		char function_code[2];
+		short int rule_length;
+		char rule[8];
+		short int verb_length;
+		short int key_length;
+	} __packed * msg = ap_msg->message;
+	struct response_type *rtype = (struct response_type *)(ap_msg->private);
 	int rc;
 
-	ap_init_message(&ap_msg);
-	ap_msg.message = kmalloc(MSGTYPE06_MAX_MSG_SIZE, GFP_KERNEL);
-	if (!ap_msg.message)
-		return -ENOMEM;
-	ap_msg.receive = zcrypt_msgtype6_receive;
-	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
-				atomic_inc_return(&zcrypt_step);
-	ap_msg.private = &resp_type;
-	rng_type6CPRB_msgX(zdev->ap_dev, &ap_msg, ZCRYPT_RNG_BUFFER_SIZE);
-	init_completion(&resp_type.work);
-	ap_queue_message(zdev->ap_dev, &ap_msg);
-	rc = wait_for_completion_interruptible(&resp_type.work);
+	msg->cprbx.domain = AP_QID_QUEUE(zq->queue->qid);
+
+	init_completion(&rtype->work);
+	ap_queue_message(zq->queue, ap_msg);
+	rc = wait_for_completion_interruptible(&rtype->work);
 	if (rc == 0) {
-		rc = ap_msg.rc;
+		rc = ap_msg->rc;
 		if (rc == 0)
-			rc = convert_response_rng(zdev, &ap_msg, buffer);
+			rc = convert_response_rng(zq, ap_msg, buffer);
 	} else
 		/* Signal pending. */
-		ap_cancel_message(zdev->ap_dev, &ap_msg);
-	kfree(ap_msg.message);
+		ap_cancel_message(zq->queue, ap_msg);
+
+	kzfree(ap_msg->message);
+	kzfree(ap_msg->private);
 	return rc;
 }
 
@@ -1145,12 +1361,11 @@ static struct zcrypt_ops zcrypt_msgtype6_ep11_ops = {
 	.send_ep11_cprb = zcrypt_msgtype6_send_ep11_cprb,
 };
 
-int __init zcrypt_msgtype6_init(void)
+void __init zcrypt_msgtype6_init(void)
 {
 	zcrypt_msgtype_register(&zcrypt_msgtype6_norng_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ep11_ops);
-	return 0;
 }
 
 void __exit zcrypt_msgtype6_exit(void)
@@ -1159,6 +1374,3 @@ void __exit zcrypt_msgtype6_exit(void)
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ep11_ops);
 }
-
-module_init(zcrypt_msgtype6_init);
-module_exit(zcrypt_msgtype6_exit);

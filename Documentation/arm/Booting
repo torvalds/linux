@@ -51,7 +51,7 @@ As an alternative, the boot loader can pass the relevant 'console='
 option to the kernel via the tagged lists specifying the port, and
 serial format options as described in
 
-       Documentation/kernel-parameters.txt.
+       Documentation/admin-guide/kernel-parameters.rst.
 
 
 3. Detect the machine type

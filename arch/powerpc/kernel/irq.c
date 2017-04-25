@@ -55,7 +55,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>

@@ -287,6 +287,7 @@ static struct s3c2410_platform_nand mini2440_nand_info __initdata = {
 	.nr_sets	= ARRAY_SIZE(mini2440_nand_sets),
 	.sets		= mini2440_nand_sets,
 	.ignore_unset_ecc = 1,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 /* DM9000AEP 10/100 ethernet controller */

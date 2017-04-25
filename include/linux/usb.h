@@ -1160,7 +1160,7 @@ extern struct bus_type usb_bus_type;
  * @minor_base: the start of the minor range for this driver.
  *
  * This structure is used for the usb_register_dev() and
- * usb_unregister_dev() functions, to consolidate a number of the
+ * usb_deregister_dev() functions, to consolidate a number of the
  * parameters used for them.
  */
 struct usb_class_driver {

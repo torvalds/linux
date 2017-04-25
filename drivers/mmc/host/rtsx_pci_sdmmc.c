@@ -190,8 +190,7 @@ static int sd_pre_dma_transfer(struct realtek_pci_sdmmc *host,
 	return using_cookie;
 }
 
-static void sdmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
-		bool is_first_req)
+static void sdmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
@@ -708,7 +707,7 @@ static int sd_tuning_rx_cmd(struct realtek_pci_sdmmc *host,
 		u8 opcode, u8 sample_point)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	err = sd_change_phase(host, sample_point, true);
 	if (err < 0)

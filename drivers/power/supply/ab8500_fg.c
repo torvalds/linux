@@ -1900,7 +1900,7 @@ static void ab8500_fg_low_bat_work(struct work_struct *work)
  * ab8500_fg_battok_calc - calculate the bit pattern corresponding
  * to the target voltage.
  * @di:       pointer to the ab8500_fg structure
- * @target    target voltage
+ * @target:   target voltage
  *
  * Returns bit pattern closest to the target voltage
  * valid return values are 0-14. (0-BATT_OK_MAX_NR_INCREMENTS)
@@ -2391,7 +2391,7 @@ static void ab8500_fg_external_power_changed(struct power_supply *psy)
 }
 
 /**
- * abab8500_fg_reinit_work() - work to reset the FG algorithm
+ * ab8500_fg_reinit_work() - work to reset the FG algorithm
  * @work:	pointer to the work_struct structure
  *
  * Used to reset the current battery capacity to be able to
@@ -2528,7 +2528,7 @@ static struct kobj_type ab8500_fg_ktype = {
 };
 
 /**
- * ab8500_chargalg_sysfs_exit() - de-init of sysfs entry
+ * ab8500_fg_sysfs_exit() - de-init of sysfs entry
  * @di:                pointer to the struct ab8500_chargalg
  *
  * This function removes the entry in sysfs.
@@ -2539,7 +2539,7 @@ static void ab8500_fg_sysfs_exit(struct ab8500_fg *di)
 }
 
 /**
- * ab8500_chargalg_sysfs_init() - init of sysfs entry
+ * ab8500_fg_sysfs_init() - init of sysfs entry
  * @di:                pointer to the struct ab8500_chargalg
  *
  * This function adds an entry in sysfs.

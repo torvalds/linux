@@ -108,7 +108,7 @@ struct hist_entry {
 		/*
 		 * Since perf diff only supports the stdio output, TUI
 		 * fields are only accessed from perf report (or perf
-		 * top).  So make it an union to reduce memory usage.
+		 * top).  So make it a union to reduce memory usage.
 		 */
 		struct hist_entry_diff	diff;
 		struct /* for TUI */ {
@@ -280,4 +280,5 @@ int64_t
 sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t
 sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right);
+char *hist_entry__get_srcline(struct hist_entry *he);
 #endif	/* __PERF_SORT_H */

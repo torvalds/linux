@@ -45,7 +45,7 @@ enum cfs_trace_buf_type {
 /* trace file lock routines */
 
 #define TRACEFILE_NAME_SIZE 1024
-extern char      cfs_tracefile[TRACEFILE_NAME_SIZE];
+extern char cfs_tracefile[TRACEFILE_NAME_SIZE];
 extern long long cfs_tracefile_size;
 
 void libcfs_run_debug_log_upcall(char *file);
@@ -80,7 +80,7 @@ int cfs_trace_get_debug_mb(void);
 void libcfs_debug_dumplog_internal(void *arg);
 void libcfs_register_panic_notifier(void);
 void libcfs_unregister_panic_notifier(void);
-extern int  libcfs_panic_in_progress;
+extern int libcfs_panic_in_progress;
 int cfs_trace_max_debug_mb(void);
 
 #define TCD_MAX_PAGES (5 << (20 - PAGE_SHIFT))
@@ -113,14 +113,14 @@ union cfs_trace_data_union {
 		 * tcd_for_each_type_lock
 		 */
 		spinlock_t		tcd_lock;
-		unsigned long	   tcd_lock_flags;
+		unsigned long		tcd_lock_flags;
 
 		/*
 		 * pages with trace records not yet processed by tracefiled.
 		 */
-		struct list_head	      tcd_pages;
+		struct list_head	tcd_pages;
 		/* number of pages on ->tcd_pages */
-		unsigned long	   tcd_cur_pages;
+		unsigned long		tcd_cur_pages;
 
 		/*
 		 * pages with trace records already processed by
@@ -132,9 +132,9 @@ union cfs_trace_data_union {
 		 * (put_pages_on_daemon_list()). LRU pages from this list are
 		 * discarded when list grows too large.
 		 */
-		struct list_head	      tcd_daemon_pages;
+		struct list_head	tcd_daemon_pages;
 		/* number of pages on ->tcd_daemon_pages */
-		unsigned long	   tcd_cur_daemon_pages;
+		unsigned long		tcd_cur_daemon_pages;
 
 		/*
 		 * Maximal number of pages allowed on ->tcd_pages and
@@ -142,7 +142,7 @@ union cfs_trace_data_union {
 		 * Always TCD_MAX_PAGES * tcd_pages_factor / 100 in current
 		 * implementation.
 		 */
-		unsigned long	   tcd_max_pages;
+		unsigned long		tcd_max_pages;
 
 		/*
 		 * preallocated pages to write trace records into. Pages from
@@ -166,15 +166,15 @@ union cfs_trace_data_union {
 		 * TCD_STOCK_PAGES pagesful are consumed by trace records all
 		 * emitted in non-blocking contexts. Which is quite unlikely.
 		 */
-		struct list_head	      tcd_stock_pages;
+		struct list_head	tcd_stock_pages;
 		/* number of pages on ->tcd_stock_pages */
-		unsigned long	   tcd_cur_stock_pages;
+		unsigned long		tcd_cur_stock_pages;
 
-		unsigned short	  tcd_shutting_down;
-		unsigned short	  tcd_cpu;
-		unsigned short	  tcd_type;
+		unsigned short		tcd_shutting_down;
+		unsigned short		tcd_cpu;
+		unsigned short		tcd_type;
 		/* The factors to share debug memory. */
-		unsigned short	  tcd_pages_factor;
+		unsigned short		tcd_pages_factor;
 	} tcd;
 	char __pad[L1_CACHE_ALIGN(sizeof(struct cfs_trace_cpu_data))];
 };

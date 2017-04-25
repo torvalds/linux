@@ -132,7 +132,7 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 		default:
 			ideal_rate = 200000000;
 			break;
-		};
+		}
 
 		diff = (rate > ideal_rate) ?
 			rate - ideal_rate : ideal_rate - rate;

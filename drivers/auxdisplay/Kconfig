@@ -128,4 +128,17 @@ config IMG_ASCII_LCD
 	  development boards such as the MIPS Boston, MIPS Malta & MIPS SEAD3
 	  from Imagination Technologies.
 
+config HT16K33
+	tristate "Holtek Ht16K33 LED controller with keyscan"
+	depends on FB && OF && I2C && INPUT
+	select FB_SYS_FOPS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select INPUT_MATRIXKMAP
+	select FB_BACKLIGHT
+	help
+	  Say yes here to add support for Holtek HT16K33, RAM mapping 16*8
+	  LED controller driver with keyscan.
+
 endif # AUXDISPLAY

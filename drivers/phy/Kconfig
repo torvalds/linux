@@ -129,16 +129,6 @@ config PHY_MIPHY28LP
 	  Enable this to support the miphy transceiver (for SATA/PCIE/USB3)
 	  that is part of STMicroelectronics STiH407 SoC.
 
-config PHY_MIPHY365X
-	tristate "STMicroelectronics MIPHY365X PHY driver for STiH41x series"
-	depends on ARCH_STI
-	depends on HAS_IOMEM
-	depends on OF
-	select GENERIC_PHY
-	help
-	  Enable this to support the miphy transceiver (for SATA/PCIE)
-	  that is part of STMicroelectronics STiH41x SoC series.
-
 config PHY_RCAR_GEN2
 	tristate "Renesas R-Car generation 2 USB PHY driver"
 	depends on ARCH_RENESAS
@@ -341,6 +331,14 @@ config PHY_EXYNOS5_USBDRD
 	  This driver provides PHY interface for USB 3.0 DRD controller
 	  present on Exynos5 SoC series.
 
+config PHY_EXYNOS_PCIE
+	bool "Exynos PCIe PHY driver"
+	depends on OF && (ARCH_EXYNOS || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Enable PCIe PHY support for Exynos SoC series.
+	  This driver provides PHY interface for Exynos PCIe controller.
+
 config PHY_PISTACHIO_USB
 	tristate "IMG Pistachio USB2.0 PHY driver"
 	depends on MACH_PISTACHIO
@@ -373,7 +371,10 @@ config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	depends on COMMON_CLK
+	depends on EXTCON
+	depends on USB_SUPPORT
 	select GENERIC_PHY
+	select USB_COMMON
 	help
 	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
 
@@ -438,20 +439,27 @@ config PHY_STIH407_USB
 	  Enable this support to enable the picoPHY device used by USB2
 	  and USB3 controllers on STMicroelectronics STiH407 SoC families.
 
-config PHY_STIH41X_USB
-	tristate "STMicroelectronics USB2 PHY driver for STiH41x series"
-	depends on ARCH_STI
-	select GENERIC_PHY
-	help
-	  Enable this to support the USB transceiver that is part of
-	  STMicroelectronics STiH41x SoC series.
-
 config PHY_QCOM_UFS
 	tristate "Qualcomm UFS PHY driver"
 	depends on OF && ARCH_QCOM
 	select GENERIC_PHY
 	help
 	  Support for UFS PHY on QCOM chipsets.
+
+config PHY_QCOM_USB_HS
+	tristate "Qualcomm USB HS PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for the USB high-speed ULPI compliant phy on Qualcomm
+	  chipsets.
+
+config PHY_QCOM_USB_HSIC
+	tristate "Qualcomm USB HSIC ULPI PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for the USB HSIC ULPI compliant PHY on QCOM chipsets.
 
 config PHY_TUSB1210
 	tristate "TI TUSB1210 ULPI PHY module"
@@ -488,5 +496,26 @@ config PHY_NS2_PCIE
 	default ARCH_BCM_IPROC
 	help
 	  Enable this to support the Broadcom Northstar2 PCIe PHY.
+	  If unsure, say N.
+
+config PHY_MESON8B_USB2
+	tristate "Meson8b and GXBB USB2 PHY driver"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select USB_COMMON
+	select GENERIC_PHY
+	help
+	  Enable this to support the Meson USB2 PHYs found in Meson8b
+	  and GXBB SoCs.
+	  If unsure, say N.
+
+config PHY_NSP_USB3
+	tristate "Broadcom NorthStar plus USB3 PHY driver"
+	depends on OF && (ARCH_BCM_NSP || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_NSP
+	help
+	  Enable this to support the Broadcom Northstar plus USB3 PHY.
 	  If unsure, say N.
 endmenu

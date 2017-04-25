@@ -89,6 +89,8 @@
 #define VIDCON0_ENVID_F			(1 << 0)
 
 /* VIDOUTCON0 */
+#define VIDOUT_INTERLACE_FIELD_F	(1 << 29)
+#define VIDOUT_INTERLACE_EN_F		(1 << 28)
 #define VIDOUT_LCD_ON			(1 << 24)
 #define VIDOUT_IF_F_MASK		(0x3 << 20)
 #define VIDOUT_RGB_IF			(0x0 << 20)

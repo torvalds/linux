@@ -112,8 +112,8 @@ typedef struct attrlist_cursor_kern {
  *========================================================================*/
 
 
-/* Return 0 on success, or -errno; other state communicated via *context */
-typedef int (*put_listent_func_t)(struct xfs_attr_list_context *, int,
+/* void; state communicated via *context */
+typedef void (*put_listent_func_t)(struct xfs_attr_list_context *, int,
 			      unsigned char *, int, int);
 
 typedef struct xfs_attr_list_context {

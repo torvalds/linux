@@ -61,6 +61,18 @@ struct ish_hw {
 	void __iomem *mem_addr;
 };
 
+/*
+ * ISH FW status type
+ */
+enum {
+	FWSTS_AFTER_RESET		= 0,
+	FWSTS_WAIT_FOR_HOST		= 4,
+	FWSTS_START_KERNEL_DMA		= 5,
+	FWSTS_FW_IS_RUNNING		= 7,
+	FWSTS_SENSOR_APP_LOADED		= 8,
+	FWSTS_SENSOR_APP_RUNNING	= 15
+};
+
 #define to_ish_hw(dev) (struct ish_hw *)((dev)->hw)
 
 irqreturn_t ish_irq_handler(int irq, void *dev_id);

@@ -13,7 +13,12 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/user.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
+#include <linux/sched/cputime.h>
 #include <linux/fs.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
@@ -39,7 +44,7 @@
 #include <trace/events/signal.h>
 
 #include <asm/param.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/siginfo.h>
 #include <asm/cacheflush.h>
@@ -346,7 +351,7 @@ static bool task_participate_group_stop(struct task_struct *task)
 	 * fresh group stop.  Read comment in do_signal_stop() for details.
 	 */
 	if (!sig->group_stop_count && !(sig->flags & SIGNAL_STOP_STOPPED)) {
-		sig->flags = SIGNAL_STOP_STOPPED;
+		signal_set_stop_flags(sig, SIGNAL_STOP_STOPPED);
 		return true;
 	}
 	return false;
@@ -427,6 +432,7 @@ void flush_signals(struct task_struct *t)
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 }
 
+#ifdef CONFIG_POSIX_TIMERS
 static void __flush_itimer_signals(struct sigpending *pending)
 {
 	sigset_t signal, retain;
@@ -460,6 +466,7 @@ void flush_itimer_signals(void)
 	__flush_itimer_signals(&tsk->signal->shared_pending);
 	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
 }
+#endif
 
 void ignore_signals(struct task_struct *t)
 {
@@ -567,6 +574,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 	if (!signr) {
 		signr = __dequeue_signal(&tsk->signal->shared_pending,
 					 mask, info);
+#ifdef CONFIG_POSIX_TIMERS
 		/*
 		 * itimer signal ?
 		 *
@@ -584,12 +592,13 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 			struct hrtimer *tmr = &tsk->signal->real_timer;
 
 			if (!hrtimer_is_queued(tmr) &&
-			    tsk->signal->it_real_incr.tv64 != 0) {
+			    tsk->signal->it_real_incr != 0) {
 				hrtimer_forward(tmr, tmr->base->get_time(),
 						tsk->signal->it_real_incr);
 				hrtimer_restart(tmr);
 			}
 		}
+#endif
 	}
 
 	recalc_sigpending();
@@ -611,6 +620,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		 */
 		current->jobctl |= JOBCTL_STOP_DEQUEUED;
 	}
+#ifdef CONFIG_POSIX_TIMERS
 	if ((info->si_code & __SI_MASK) == __SI_TIMER && info->si_sys_private) {
 		/*
 		 * Release the siglock to ensure proper locking order
@@ -622,6 +632,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		do_schedule_next_timer(info);
 		spin_lock(&tsk->sighand->siglock);
 	}
+#endif
 	return signr;
 }
 
@@ -837,7 +848,7 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 			 * will take ->siglock, notice SIGNAL_CLD_MASK, and
 			 * notify its parent. See get_signal_to_deliver().
 			 */
-			signal->flags = why | SIGNAL_STOP_CONTINUED;
+			signal_set_stop_flags(signal, why | SIGNAL_STOP_CONTINUED);
 			signal->group_stop_count = 0;
 			signal->group_exit_code = 0;
 		}
@@ -1575,7 +1586,7 @@ bool do_notify_parent(struct task_struct *tsk, int sig)
 	unsigned long flags;
 	struct sighand_struct *psig;
 	bool autoreap = false;
-	cputime_t utime, stime;
+	u64 utime, stime;
 
 	BUG_ON(sig == -1);
 
@@ -1614,8 +1625,8 @@ bool do_notify_parent(struct task_struct *tsk, int sig)
 	rcu_read_unlock();
 
 	task_cputime(tsk, &utime, &stime);
-	info.si_utime = cputime_to_clock_t(utime + tsk->signal->utime);
-	info.si_stime = cputime_to_clock_t(stime + tsk->signal->stime);
+	info.si_utime = nsec_to_clock_t(utime + tsk->signal->utime);
+	info.si_stime = nsec_to_clock_t(stime + tsk->signal->stime);
 
 	info.si_status = tsk->exit_code & 0x7f;
 	if (tsk->exit_code & 0x80)
@@ -1679,7 +1690,7 @@ static void do_notify_parent_cldstop(struct task_struct *tsk,
 	unsigned long flags;
 	struct task_struct *parent;
 	struct sighand_struct *sighand;
-	cputime_t utime, stime;
+	u64 utime, stime;
 
 	if (for_ptracer) {
 		parent = tsk->parent;
@@ -1699,8 +1710,8 @@ static void do_notify_parent_cldstop(struct task_struct *tsk,
 	rcu_read_unlock();
 
 	task_cputime(tsk, &utime, &stime);
-	info.si_utime = cputime_to_clock_t(utime);
-	info.si_stime = cputime_to_clock_t(stime);
+	info.si_utime = nsec_to_clock_t(utime);
+	info.si_stime = nsec_to_clock_t(stime);
 
  	info.si_code = why;
  	switch (why) {
@@ -2389,11 +2400,11 @@ void exit_signals(struct task_struct *tsk)
 	 * @tsk is about to have PF_EXITING set - lock out users which
 	 * expect stable threadgroup.
 	 */
-	threadgroup_change_begin(tsk);
+	cgroup_threadgroup_change_begin(tsk);
 
 	if (thread_group_empty(tsk) || signal_group_exit(tsk->signal)) {
 		tsk->flags |= PF_EXITING;
-		threadgroup_change_end(tsk);
+		cgroup_threadgroup_change_end(tsk);
 		return;
 	}
 
@@ -2404,7 +2415,7 @@ void exit_signals(struct task_struct *tsk)
 	 */
 	tsk->flags |= PF_EXITING;
 
-	threadgroup_change_end(tsk);
+	cgroup_threadgroup_change_end(tsk);
 
 	if (!signal_pending(tsk))
 		goto out;
@@ -2484,6 +2495,13 @@ void set_current_blocked(sigset_t *newset)
 void __set_current_blocked(const sigset_t *newset)
 {
 	struct task_struct *tsk = current;
+
+	/*
+	 * In case the signal mask hasn't changed, there is nothing we need
+	 * to do. The current->blocked shouldn't be modified by other task.
+	 */
+	if (sigequalsets(&tsk->blocked, newset))
+		return;
 
 	spin_lock_irq(&tsk->sighand->siglock);
 	__set_task_blocked(tsk, newset);
@@ -2753,7 +2771,7 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
 		    const struct timespec *ts)
 {
-	ktime_t *to = NULL, timeout = { .tv64 = KTIME_MAX };
+	ktime_t *to = NULL, timeout = KTIME_MAX;
 	struct task_struct *tsk = current;
 	sigset_t mask = *which;
 	int sig, ret = 0;
@@ -2773,7 +2791,7 @@ int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
 
 	spin_lock_irq(&tsk->sighand->siglock);
 	sig = dequeue_signal(tsk, &mask, info);
-	if (!sig && timeout.tv64) {
+	if (!sig && timeout) {
 		/*
 		 * None ready, temporarily unblock those we're interested
 		 * while we are sleeping in so that we'll be awakened when
@@ -3226,10 +3244,17 @@ int compat_restore_altstack(const compat_stack_t __user *uss)
 
 int __compat_save_altstack(compat_stack_t __user *uss, unsigned long sp)
 {
+	int err;
 	struct task_struct *t = current;
-	return  __put_user(ptr_to_compat((void __user *)t->sas_ss_sp), &uss->ss_sp) |
-		__put_user(sas_ss_flags(sp), &uss->ss_flags) |
+	err = __put_user(ptr_to_compat((void __user *)t->sas_ss_sp),
+			 &uss->ss_sp) |
+		__put_user(t->sas_ss_flags, &uss->ss_flags) |
 		__put_user(t->sas_ss_size, &uss->ss_size);
+	if (err)
+		return err;
+	if (t->sas_ss_flags & SS_AUTODISARM)
+		sas_ss_reset(t);
+	return 0;
 }
 #endif
 

@@ -12,7 +12,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cachectl.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/syscalls.h>
 
 /*

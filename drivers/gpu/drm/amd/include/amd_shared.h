@@ -23,7 +23,7 @@
 #ifndef __AMD_SHARED_H__
 #define __AMD_SHARED_H__
 
-#define AMD_MAX_USEC_TIMEOUT		100000  /* 100 ms */
+#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
 
 /*
  * Supported ASIC types
@@ -46,6 +46,7 @@ enum amd_asic_type {
 	CHIP_STONEY,
 	CHIP_POLARIS10,
 	CHIP_POLARIS11,
+	CHIP_POLARIS12,
 	CHIP_LAST,
 };
 
@@ -79,9 +80,44 @@ enum amd_clockgating_state {
 	AMD_CG_STATE_UNGATE,
 };
 
+enum amd_dpm_forced_level {
+	AMD_DPM_FORCED_LEVEL_AUTO = 0x1,
+	AMD_DPM_FORCED_LEVEL_MANUAL = 0x2,
+	AMD_DPM_FORCED_LEVEL_LOW = 0x4,
+	AMD_DPM_FORCED_LEVEL_HIGH = 0x8,
+	AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD = 0x10,
+	AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK = 0x20,
+	AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK = 0x40,
+	AMD_DPM_FORCED_LEVEL_PROFILE_PEAK = 0x80,
+	AMD_DPM_FORCED_LEVEL_PROFILE_EXIT = 0x100,
+};
+
 enum amd_powergating_state {
 	AMD_PG_STATE_GATE = 0,
 	AMD_PG_STATE_UNGATE,
+};
+
+struct amd_vce_state {
+	/* vce clocks */
+	u32 evclk;
+	u32 ecclk;
+	/* gpu clocks */
+	u32 sclk;
+	u32 mclk;
+	u8 clk_idx;
+	u8 pstate;
+};
+
+
+#define AMD_MAX_VCE_LEVELS 6
+
+enum amd_vce_level {
+	AMD_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
+	AMD_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
+	AMD_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
+	AMD_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
+	AMD_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
+	AMD_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
 };
 
 /* CG flags */
@@ -103,6 +139,10 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_HDP_LS			(1 << 15)
 #define AMD_CG_SUPPORT_HDP_MGCG			(1 << 16)
 #define AMD_CG_SUPPORT_ROM_MGCG			(1 << 17)
+#define AMD_CG_SUPPORT_DRM_LS			(1 << 18)
+#define AMD_CG_SUPPORT_BIF_MGCG			(1 << 19)
+#define AMD_CG_SUPPORT_GFX_3D_CGCG		(1 << 20)
+#define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
 
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
@@ -178,6 +218,8 @@ struct amd_ip_funcs {
 	/* enable/disable pg for the IP block */
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
+	/* get current clockgating status */
+	void (*get_clockgating_state)(void *handle, u32 *flags);
 };
 
 #endif /* __AMD_SHARED_H__ */

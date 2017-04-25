@@ -37,6 +37,11 @@
 
 #define EMAC_MAX_FRAME_LEN	0x0600
 
+#define EMAC_DEFAULT_MSG_ENABLE 0x0000
+static int debug = -1;     /* defaults above */;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "debug message flags");
+
 /* Transmit timeout, default 5 seconds. */
 static int watchdog = 5000;
 module_param(watchdog, int, 0400);
@@ -225,11 +230,27 @@ static void emac_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, dev_name(&dev->dev), sizeof(info->bus_info));
 }
 
+static u32 emac_get_msglevel(struct net_device *dev)
+{
+	struct emac_board_info *db = netdev_priv(dev);
+
+	return db->msg_enable;
+}
+
+static void emac_set_msglevel(struct net_device *dev, u32 value)
+{
+	struct emac_board_info *db = netdev_priv(dev);
+
+	db->msg_enable = value;
+}
+
 static const struct ethtool_ops emac_ethtool_ops = {
 	.get_drvinfo	= emac_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_msglevel	= emac_get_msglevel,
+	.set_msglevel	= emac_set_msglevel,
 };
 
 static unsigned int emac_setup(struct net_device *ndev)
@@ -571,8 +592,7 @@ static void emac_rx(struct net_device *dev)
 		/* A packet ready now  & Get status/length */
 		good_packet = true;
 
-		emac_inblk_32bit(db->membase + EMAC_RX_IO_DATA_REG,
-				&rxhdr, sizeof(rxhdr));
+		rxhdr = readl(db->membase + EMAC_RX_IO_DATA_REG);
 
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "rxhdr: %x\n", *((int *)(&rxhdr)));
@@ -773,7 +793,6 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_tx_timeout		= emac_timeout,
 	.ndo_set_rx_mode	= emac_set_rx_mode,
 	.ndo_do_ioctl		= emac_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= emac_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -805,6 +824,7 @@ static int emac_probe(struct platform_device *pdev)
 	db->dev = &pdev->dev;
 	db->ndev = ndev;
 	db->pdev = pdev;
+	db->msg_enable = netif_msg_init(debug, EMAC_DEFAULT_MSG_ENABLE);
 
 	spin_lock_init(&db->lock);
 

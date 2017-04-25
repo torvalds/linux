@@ -6,9 +6,7 @@
 
 #include "compat.h"
 #include "regs.h"
-#include "intern.h"
 #include "desc.h"
-#include "jr.h"
 #include "error.h"
 
 static const struct {
@@ -146,10 +144,9 @@ static void report_ccb_status(struct device *jrdev, const u32 status,
 	    strlen(rng_err_id_list[err_id])) {
 		/* RNG-only error */
 		err_str = rng_err_id_list[err_id];
-	} else if (err_id < ARRAY_SIZE(err_id_list))
+	} else {
 		err_str = err_id_list[err_id];
-	else
-		snprintf(err_err_code, sizeof(err_err_code), "%02x", err_id);
+	}
 
 	/*
 	 * CCB ICV check failures are part of normal operation life;

@@ -24,7 +24,7 @@
 #include <linux/semaphore.h>
 
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/checksum.h>
 #include <asm/io.h>
 #include <asm/hardirq.h>
@@ -44,3 +44,4 @@ DECLARE_EXPORT(__ashldi3);
 DECLARE_EXPORT(__lshrdi3);
 
 EXPORT_SYMBOL(__copy_tofrom_user);
+EXPORT_SYMBOL(memset);

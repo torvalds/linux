@@ -103,6 +103,8 @@
 #define HWCAP_S390_HIGH_GPRS	512
 #define HWCAP_S390_TE		1024
 #define HWCAP_S390_VXRS		2048
+#define HWCAP_S390_VXRS_BCD	4096
+#define HWCAP_S390_VXRS_EXT	8192
 
 /* Internal bits, not exposed via elf */
 #define HWCAP_INT_SIE		1UL
@@ -130,7 +132,7 @@ typedef s390_fp_regs compat_elf_fpregset_t;
 typedef s390_compat_regs compat_elf_gregset_t;
 
 #include <linux/compat.h>
-#include <linux/sched.h>	/* for task_struct */
+#include <linux/sched/mm.h>	/* for task_struct */
 #include <asm/mmu_context.h>
 
 #include <asm/vdso.h>
@@ -193,7 +195,7 @@ extern char elf_platform[];
 do {								\
 	set_personality(PER_LINUX |				\
 		(current->personality & (~PER_MASK)));		\
-	current_thread_info()->sys_call_table = 		\
+	current->thread.sys_call_table =			\
 		(unsigned long) &sys_call_table;		\
 } while (0)
 #else /* CONFIG_COMPAT */
@@ -204,11 +206,11 @@ do {								\
 			(current->personality & ~PER_MASK));	\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32) {		\
 		set_thread_flag(TIF_31BIT);			\
-		current_thread_info()->sys_call_table =		\
+		current->thread.sys_call_table =		\
 			(unsigned long)	&sys_call_table_emu;	\
 	} else {						\
 		clear_thread_flag(TIF_31BIT);			\
-		current_thread_info()->sys_call_table =		\
+		current->thread.sys_call_table =		\
 			(unsigned long) &sys_call_table;	\
 	}							\
 } while (0)

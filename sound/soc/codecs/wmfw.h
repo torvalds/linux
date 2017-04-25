@@ -26,6 +26,10 @@
 #define WMFW_CTL_FLAG_WRITEABLE   0x0002
 #define WMFW_CTL_FLAG_READABLE    0x0001
 
+/* Non-ALSA coefficient types start at 0x1000 */
+#define WMFW_CTL_TYPE_ACKED       0x1000 /* acked control */
+#define WMFW_CTL_TYPE_HOSTEVENT   0x1001 /* event control */
+
 struct wmfw_header {
 	char magic[4];
 	__le32 len;

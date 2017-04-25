@@ -1,4 +1,5 @@
 #include <linux/export.h>
+#include <linux/bvec.h>
 #include <linux/uio.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
@@ -72,19 +73,21 @@
 }
 
 #define iterate_all_kinds(i, n, v, I, B, K) {			\
-	size_t skip = i->iov_offset;				\
-	if (unlikely(i->type & ITER_BVEC)) {			\
-		struct bio_vec v;				\
-		struct bvec_iter __bi;				\
-		iterate_bvec(i, n, v, __bi, skip, (B))		\
-	} else if (unlikely(i->type & ITER_KVEC)) {		\
-		const struct kvec *kvec;			\
-		struct kvec v;					\
-		iterate_kvec(i, n, v, kvec, skip, (K))		\
-	} else {						\
-		const struct iovec *iov;			\
-		struct iovec v;					\
-		iterate_iovec(i, n, v, iov, skip, (I))		\
+	if (likely(n)) {					\
+		size_t skip = i->iov_offset;			\
+		if (unlikely(i->type & ITER_BVEC)) {		\
+			struct bio_vec v;			\
+			struct bvec_iter __bi;			\
+			iterate_bvec(i, n, v, __bi, skip, (B))	\
+		} else if (unlikely(i->type & ITER_KVEC)) {	\
+			const struct kvec *kvec;		\
+			struct kvec v;				\
+			iterate_kvec(i, n, v, kvec, skip, (K))	\
+		} else {					\
+			const struct iovec *iov;		\
+			struct iovec v;				\
+			iterate_iovec(i, n, v, iov, skip, (I))	\
+		}						\
 	}							\
 }
 
@@ -568,6 +571,31 @@ size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL(copy_from_iter);
 
+bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
+{
+	char *to = addr;
+	if (unlikely(i->type & ITER_PIPE)) {
+		WARN_ON(1);
+		return false;
+	}
+	if (unlikely(i->count < bytes))
+		return false;
+
+	iterate_all_kinds(i, bytes, v, ({
+		if (__copy_from_user((to += v.iov_len) - v.iov_len,
+				      v.iov_base, v.iov_len))
+			return false;
+		0;}),
+		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
+				 v.bv_offset, v.bv_len),
+		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
+	)
+
+	iov_iter_advance(i, bytes);
+	return true;
+}
+EXPORT_SYMBOL(copy_from_iter_full);
+
 size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
@@ -586,6 +614,30 @@ size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 	return bytes;
 }
 EXPORT_SYMBOL(copy_from_iter_nocache);
+
+bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
+{
+	char *to = addr;
+	if (unlikely(i->type & ITER_PIPE)) {
+		WARN_ON(1);
+		return false;
+	}
+	if (unlikely(i->count < bytes))
+		return false;
+	iterate_all_kinds(i, bytes, v, ({
+		if (__copy_from_user_nocache((to += v.iov_len) - v.iov_len,
+					     v.iov_base, v.iov_len))
+			return false;
+		0;}),
+		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
+				 v.bv_offset, v.bv_len),
+		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
+	)
+
+	iov_iter_advance(i, bytes);
+	return true;
+}
+EXPORT_SYMBOL(copy_from_iter_full_nocache);
 
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
@@ -678,43 +730,50 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 }
 EXPORT_SYMBOL(iov_iter_copy_from_user_atomic);
 
-static void pipe_advance(struct iov_iter *i, size_t size)
+static inline void pipe_truncate(struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	struct pipe_buffer *buf;
-	int idx = i->idx;
-	size_t off = i->iov_offset, orig_sz;
-	
-	if (unlikely(i->count < size))
-		size = i->count;
-	orig_sz = size;
-
-	if (size) {
-		if (off) /* make it relative to the beginning of buffer */
-			size += off - pipe->bufs[idx].offset;
-		while (1) {
-			buf = &pipe->bufs[idx];
-			if (size <= buf->len)
-				break;
-			size -= buf->len;
-			idx = next_idx(idx, pipe);
-		}
-		buf->len = size;
-		i->idx = idx;
-		off = i->iov_offset = buf->offset + size;
-	}
-	if (off)
-		idx = next_idx(idx, pipe);
 	if (pipe->nrbufs) {
-		int unused = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
-		/* [curbuf,unused) is in use.  Free [idx,unused) */
-		while (idx != unused) {
+		size_t off = i->iov_offset;
+		int idx = i->idx;
+		int nrbufs = (idx - pipe->curbuf) & (pipe->buffers - 1);
+		if (off) {
+			pipe->bufs[idx].len = off - pipe->bufs[idx].offset;
+			idx = next_idx(idx, pipe);
+			nrbufs++;
+		}
+		while (pipe->nrbufs > nrbufs) {
 			pipe_buf_release(pipe, &pipe->bufs[idx]);
 			idx = next_idx(idx, pipe);
 			pipe->nrbufs--;
 		}
 	}
-	i->count -= orig_sz;
+}
+
+static void pipe_advance(struct iov_iter *i, size_t size)
+{
+	struct pipe_inode_info *pipe = i->pipe;
+	if (unlikely(i->count < size))
+		size = i->count;
+	if (size) {
+		struct pipe_buffer *buf;
+		size_t off = i->iov_offset, left = size;
+		int idx = i->idx;
+		if (off) /* make it relative to the beginning of buffer */
+			left += off - pipe->bufs[idx].offset;
+		while (1) {
+			buf = &pipe->bufs[idx];
+			if (left <= buf->len)
+				break;
+			left -= buf->len;
+			idx = next_idx(idx, pipe);
+		}
+		i->idx = idx;
+		i->iov_offset = buf->offset + left;
+	}
+	i->count -= size;
+	/* ... and discard everything past that point */
+	pipe_truncate(i);
 }
 
 void iov_iter_advance(struct iov_iter *i, size_t size)
@@ -774,6 +833,7 @@ void iov_iter_pipe(struct iov_iter *i, int direction,
 			size_t count)
 {
 	BUG_ON(direction != ITER_PIPE);
+	WARN_ON(pipe->nrbufs == pipe->buffers);
 	i->type = direction;
 	i->pipe = pipe;
 	i->idx = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
@@ -787,11 +847,8 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 	unsigned long res = 0;
 	size_t size = i->count;
 
-	if (!size)
-		return 0;
-
 	if (unlikely(i->type & ITER_PIPE)) {
-		if (i->iov_offset && allocated(&i->pipe->bufs[i->idx]))
+		if (size && i->iov_offset && allocated(&i->pipe->bufs[i->idx]))
 			return size | i->iov_offset;
 		return size;
 	}
@@ -806,10 +863,8 @@ EXPORT_SYMBOL(iov_iter_alignment);
 
 unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 {
-        unsigned long res = 0;
+	unsigned long res = 0;
 	size_t size = i->count;
-	if (!size)
-		return 0;
 
 	if (unlikely(i->type & ITER_PIPE)) {
 		WARN_ON(1);
@@ -824,7 +879,7 @@ unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 		(res |= (!res ? 0 : (unsigned long)v.iov_base) |
 			(size != v.iov_len ? size : 0))
 		);
-		return res;
+	return res;
 }
 EXPORT_SYMBOL(iov_iter_gap_alignment);
 
@@ -858,6 +913,9 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 	size_t capacity;
 	int idx;
 
+	if (!maxsize)
+		return 0;
+
 	if (!sanity(i))
 		return -EFAULT;
 
@@ -875,9 +933,6 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 {
 	if (maxsize > i->count)
 		maxsize = i->count;
-
-	if (!maxsize)
-		return 0;
 
 	if (unlikely(i->type & ITER_PIPE))
 		return pipe_get_pages(i, pages, maxsize, maxpages, start);
@@ -925,6 +980,9 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 	int idx;
 	int npages;
 
+	if (!maxsize)
+		return 0;
+
 	if (!sanity(i))
 		return -EFAULT;
 
@@ -955,9 +1013,6 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 
 	if (maxsize > i->count)
 		maxsize = i->count;
-
-	if (!maxsize)
-		return 0;
 
 	if (unlikely(i->type & ITER_PIPE))
 		return pipe_get_pages_alloc(i, pages, maxsize, start);
@@ -1008,7 +1063,7 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 	}
 	iterate_and_advance(i, bytes, v, ({
 		int err = 0;
-		next = csum_and_copy_from_user(v.iov_base, 
+		next = csum_and_copy_from_user(v.iov_base,
 					       (to += v.iov_len) - v.iov_len,
 					       v.iov_len, 0, &err);
 		if (!err) {
@@ -1037,6 +1092,51 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 }
 EXPORT_SYMBOL(csum_and_copy_from_iter);
 
+bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum,
+			       struct iov_iter *i)
+{
+	char *to = addr;
+	__wsum sum, next;
+	size_t off = 0;
+	sum = *csum;
+	if (unlikely(i->type & ITER_PIPE)) {
+		WARN_ON(1);
+		return false;
+	}
+	if (unlikely(i->count < bytes))
+		return false;
+	iterate_all_kinds(i, bytes, v, ({
+		int err = 0;
+		next = csum_and_copy_from_user(v.iov_base,
+					       (to += v.iov_len) - v.iov_len,
+					       v.iov_len, 0, &err);
+		if (err)
+			return false;
+		sum = csum_block_add(sum, next, off);
+		off += v.iov_len;
+		0;
+	}), ({
+		char *p = kmap_atomic(v.bv_page);
+		next = csum_partial_copy_nocheck(p + v.bv_offset,
+						 (to += v.bv_len) - v.bv_len,
+						 v.bv_len, 0);
+		kunmap_atomic(p);
+		sum = csum_block_add(sum, next, off);
+		off += v.bv_len;
+	}),({
+		next = csum_partial_copy_nocheck(v.iov_base,
+						 (to += v.iov_len) - v.iov_len,
+						 v.iov_len, 0);
+		sum = csum_block_add(sum, next, off);
+		off += v.iov_len;
+	})
+	)
+	*csum = sum;
+	iov_iter_advance(i, bytes);
+	return true;
+}
+EXPORT_SYMBOL(csum_and_copy_from_iter_full);
+
 size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum,
 			     struct iov_iter *i)
 {
@@ -1051,7 +1151,7 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum,
 	iterate_and_advance(i, bytes, v, ({
 		int err = 0;
 		next = csum_and_copy_to_user((from += v.iov_len) - v.iov_len,
-					     v.iov_base, 
+					     v.iov_base,
 					     v.iov_len, 0, &err);
 		if (!err) {
 			sum = csum_block_add(sum, next, off);

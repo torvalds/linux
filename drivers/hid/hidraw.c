@@ -33,7 +33,7 @@
 #include <linux/slab.h>
 #include <linux/hid.h>
 #include <linux/mutex.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 
 #include <linux/hidraw.h>

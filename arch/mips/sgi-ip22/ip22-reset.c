@@ -8,10 +8,9 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/rtc/ds1286.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/notifier.h>
 #include <linux/pm.h>
 #include <linux/timer.h>

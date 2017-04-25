@@ -28,6 +28,7 @@ struct nfnetlink_subsystem {
 	const struct nfnl_callback *cb;	/* callback for individual types */
 	int (*commit)(struct net *net, struct sk_buff *skb);
 	int (*abort)(struct net *net, struct sk_buff *skb);
+	bool (*valid_genid)(struct net *net, u32 genid);
 };
 
 int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n);

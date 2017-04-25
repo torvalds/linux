@@ -20,11 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/errno.h>
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "power_state.h"
-#include "pp_debug.h"
 
 #define PHM_FUNC_CHECK(hw) \
 	do {							\
@@ -208,6 +208,19 @@ int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 	}
 	return 0;
 }
+
+int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_TablelessHardwareInterface)) {
+		if (NULL != hwmgr->hwmgr_func->disable_clock_power_gating)
+			return hwmgr->hwmgr_func->disable_clock_power_gating(hwmgr);
+	}
+	return 0;
+}
+
 
 int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {

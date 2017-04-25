@@ -29,6 +29,7 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_atomic_helper.h>
 
 #define SUBPIXEL_MASK 0xffff
@@ -38,9 +39,9 @@
  *
  * This helper library has two parts. The first part has support to implement
  * primary plane support on top of the normal CRTC configuration interface.
- * Since the legacy ->set_config interface ties the primary plane together with
- * the CRTC state this does not allow userspace to disable the primary plane
- * itself.  To avoid too much duplicated code use
+ * Since the legacy &drm_mode_config_funcs.set_config interface ties the primary
+ * plane together with the CRTC state this does not allow userspace to disable
+ * the primary plane itself.  To avoid too much duplicated code use
  * drm_plane_helper_check_update() which can be used to enforce the same
  * restrictions as primary planes had thus. The default primary plane only
  * expose XRBG8888 and ARGB8888 as valid pixel formats for the attached
@@ -59,7 +60,7 @@
  * Again drivers are strongly urged to switch to the new interfaces.
  *
  * The plane helpers share the function table structures with other helpers,
- * specifically also the atomic helpers. See struct &drm_plane_helper_funcs for
+ * specifically also the atomic helpers. See &struct drm_plane_helper_funcs for
  * the details.
  */
 
@@ -74,6 +75,7 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	int count = 0;
 
 	/*
@@ -83,7 +85,8 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	 */
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	drm_for_each_connector(connector, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder && connector->encoder->crtc == crtc) {
 			if (connector_list != NULL && count < num_connectors)
 				*(connector_list++) = connector;
@@ -91,6 +94,7 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 			count++;
 		}
 	}
+	drm_connector_list_iter_put(&conn_iter);
 
 	return count;
 }
@@ -130,15 +134,8 @@ int drm_plane_helper_check_state(struct drm_plane_state *state,
 	unsigned int rotation = state->rotation;
 	int hscale, vscale;
 
-	src->x1 = state->src_x;
-	src->y1 = state->src_y;
-	src->x2 = state->src_x + state->src_w;
-	src->y2 = state->src_y + state->src_h;
-
-	dst->x1 = state->crtc_x;
-	dst->y1 = state->crtc_y;
-	dst->x2 = state->crtc_x + state->crtc_w;
-	dst->y2 = state->crtc_y + state->crtc_h;
+	*src = drm_plane_state_src(state);
+	*dst = drm_plane_state_dest(state);
 
 	if (!fb) {
 		state->visible = false;
@@ -387,7 +384,8 @@ EXPORT_SYMBOL(drm_primary_helper_update);
  * is called in response to a userspace SetPlane operation on the plane with a
  * NULL framebuffer parameter.  It unconditionally fails the disable call with
  * -EINVAL the only way to disable the primary plane without driver support is
- * to disable the entier CRTC. Which does not match the plane ->disable hook.
+ * to disable the entire CRTC. Which does not match the plane
+ * &drm_plane_funcs.disable_plane hook.
  *
  * Note that some hardware may be able to disable the primary plane without
  * disabling the whole CRTC.  Drivers for such hardware should provide their

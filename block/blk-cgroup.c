@@ -17,6 +17,7 @@
 #include <linux/ioprio.h>
 #include <linux/kdev_t.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/err.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
@@ -184,8 +185,9 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 		goto err_free_blkg;
 	}
 
-	wb_congested = wb_congested_get_create(&q->backing_dev_info,
-					       blkcg->css.id, GFP_NOWAIT);
+	wb_congested = wb_congested_get_create(q->backing_dev_info,
+					       blkcg->css.id,
+					       GFP_NOWAIT | __GFP_NOWARN);
 	if (!wb_congested) {
 		ret = -ENOMEM;
 		goto err_put_css;
@@ -193,7 +195,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 
 	/* allocate */
 	if (!new_blkg) {
-		new_blkg = blkg_alloc(blkcg, q, GFP_NOWAIT);
+		new_blkg = blkg_alloc(blkcg, q, GFP_NOWAIT | __GFP_NOWARN);
 		if (unlikely(!new_blkg)) {
 			ret = -ENOMEM;
 			goto err_put_congested;
@@ -468,8 +470,8 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 const char *blkg_dev_name(struct blkcg_gq *blkg)
 {
 	/* some drivers (floppy) instantiate a queue w/o disk registered */
-	if (blkg->q->backing_dev_info.dev)
-		return dev_name(blkg->q->backing_dev_info.dev);
+	if (blkg->q->backing_dev_info->dev)
+		return dev_name(blkg->q->backing_dev_info->dev);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(blkg_dev_name);
@@ -1022,7 +1024,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	}
 
 	spin_lock_init(&blkcg->lock);
-	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT);
+	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_NOWAIT | __GFP_NOWARN);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 #ifdef CONFIG_CGROUP_WRITEBACK
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
@@ -1078,10 +1080,8 @@ int blkcg_init_queue(struct request_queue *q)
 	if (preloaded)
 		radix_tree_preload_end();
 
-	if (IS_ERR(blkg)) {
-		blkg_free(new_blkg);
+	if (IS_ERR(blkg))
 		return PTR_ERR(blkg);
-	}
 
 	q->root_blkg = blkg;
 	q->root_rl.blkg = blkg;
@@ -1222,7 +1222,10 @@ int blkcg_activate_policy(struct request_queue *q,
 	if (blkcg_policy_enabled(q, pol))
 		return 0;
 
-	blk_queue_bypass_start(q);
+	if (q->mq_ops)
+		blk_mq_freeze_queue(q);
+	else
+		blk_queue_bypass_start(q);
 pd_prealloc:
 	if (!pd_prealloc) {
 		pd_prealloc = pol->pd_alloc_fn(GFP_KERNEL, q->node);
@@ -1240,7 +1243,7 @@ pd_prealloc:
 		if (blkg->pd[pol->plid])
 			continue;
 
-		pd = pol->pd_alloc_fn(GFP_NOWAIT, q->node);
+		pd = pol->pd_alloc_fn(GFP_NOWAIT | __GFP_NOWARN, q->node);
 		if (!pd)
 			swap(pd, pd_prealloc);
 		if (!pd) {
@@ -1260,7 +1263,10 @@ pd_prealloc:
 
 	spin_unlock_irq(q->queue_lock);
 out_bypass_end:
-	blk_queue_bypass_end(q);
+	if (q->mq_ops)
+		blk_mq_unfreeze_queue(q);
+	else
+		blk_queue_bypass_end(q);
 	if (pd_prealloc)
 		pol->pd_free_fn(pd_prealloc);
 	return ret;
@@ -1283,7 +1289,11 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	if (!blkcg_policy_enabled(q, pol))
 		return;
 
-	blk_queue_bypass_start(q);
+	if (q->mq_ops)
+		blk_mq_freeze_queue(q);
+	else
+		blk_queue_bypass_start(q);
+
 	spin_lock_irq(q->queue_lock);
 
 	__clear_bit(pol->plid, q->blkcg_pols);
@@ -1303,7 +1313,11 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	}
 
 	spin_unlock_irq(q->queue_lock);
-	blk_queue_bypass_end(q);
+
+	if (q->mq_ops)
+		blk_mq_unfreeze_queue(q);
+	else
+		blk_queue_bypass_end(q);
 }
 EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
 

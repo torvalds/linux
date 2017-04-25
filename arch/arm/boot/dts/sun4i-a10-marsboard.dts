@@ -164,17 +164,14 @@
 
 &pio {
 	led_pins_marsboard: led_pins@0 {
-		allwinner,pins = "PB5", "PB6", "PB7", "PB8";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB5", "PB6", "PB7", "PB8";
+		function = "gpio_out";
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH4";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 

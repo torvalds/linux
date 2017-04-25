@@ -490,7 +490,7 @@ static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 		svc_xprt_get(xprt);
 
 		dprintk("svc: transport %p dequeued, inuse=%d\n",
-			xprt, atomic_read(&xprt->xpt_ref.refcount));
+			xprt, kref_read(&xprt->xpt_ref));
 	}
 	spin_unlock_bh(&pool->sp_lock);
 out:
@@ -799,6 +799,8 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 
 	if (test_bit(XPT_CLOSE, &xprt->xpt_flags)) {
 		dprintk("svc_recv: found XPT_CLOSE\n");
+		if (test_and_clear_bit(XPT_KILL_TEMP, &xprt->xpt_flags))
+			xprt->xpt_ops->xpo_kill_temp_xprt(xprt);
 		svc_delete_xprt(xprt);
 		/* Leave XPT_BUSY set on the dead xprt: */
 		goto out;
@@ -820,7 +822,7 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 		/* XPT_DATA|XPT_DEFERRED case: */
 		dprintk("svc: server %p, pool %u, transport %p, inuse=%d\n",
 			rqstp, rqstp->rq_pool->sp_id, xprt,
-			atomic_read(&xprt->xpt_ref.refcount));
+			kref_read(&xprt->xpt_ref));
 		rqstp->rq_deferred = svc_deferred_dequeue(xprt);
 		if (rqstp->rq_deferred)
 			len = svc_deferred_recv(rqstp);
@@ -978,7 +980,7 @@ static void svc_age_temp_xprts(unsigned long closure)
 		 * through, close it. */
 		if (!test_and_set_bit(XPT_OLD, &xprt->xpt_flags))
 			continue;
-		if (atomic_read(&xprt->xpt_ref.refcount) > 1 ||
+		if (kref_read(&xprt->xpt_ref) > 1 ||
 		    test_bit(XPT_BUSY, &xprt->xpt_flags))
 			continue;
 		list_del_init(le);
@@ -1020,9 +1022,11 @@ void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
 		le = to_be_closed.next;
 		list_del_init(le);
 		xprt = list_entry(le, struct svc_xprt, xpt_list);
-		dprintk("svc_age_temp_xprts_now: closing %p\n", xprt);
-		xprt->xpt_ops->xpo_kill_temp_xprt(xprt);
-		svc_close_xprt(xprt);
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		set_bit(XPT_KILL_TEMP, &xprt->xpt_flags);
+		dprintk("svc_age_temp_xprts_now: queuing xprt %p for closing\n",
+				xprt);
+		svc_xprt_enqueue(xprt);
 	}
 }
 EXPORT_SYMBOL_GPL(svc_age_temp_xprts_now);

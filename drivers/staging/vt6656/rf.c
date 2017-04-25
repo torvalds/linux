@@ -730,9 +730,9 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			return false;
 
 		/*
-		* 0x080F1B00 for 3 wire control TxGain(D10)
-		* and 0x31 as TX Gain value
-		*/
+		 * 0x080F1B00 for 3 wire control TxGain(D10)
+		 * and 0x31 as TX Gain value
+		 */
 		power_setting = 0x080c0b00 | (power << 12);
 
 		ret &= vnt_rf_write_embedded(priv, power_setting);
@@ -771,7 +771,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			ret &= vnt_rf_write_embedded(priv, 0x015C0800);
 		} else {
 			dev_dbg(&priv->usb->dev,
-					"@@@@ vnt_rf_set_txpower> 11G mode\n");
+				"@@@@ vnt_rf_set_txpower> 11G mode\n");
 
 			power_setting = ((0x3f - power) << 20) | (0x7 << 8);
 
@@ -800,8 +800,8 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 /* Convert rssi to dbm */
 void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 {
-	u8 idx = (((rssi & 0xc0) >> 6) & 0x03);
-	long b = (rssi & 0x3f);
+	u8 idx = ((rssi & 0xc0) >> 6) & 0x03;
+	long b = rssi & 0x3f;
 	long a = 0;
 	u8 airoharf[4] = {0, 18, 0, 40};
 
@@ -876,7 +876,7 @@ void vnt_rf_table_download(struct vnt_private *priv)
 	memcpy(array, addr1, length1);
 
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
-		MESSAGE_REQUEST_RF_INIT, length1, array);
+		        MESSAGE_REQUEST_RF_INIT, length1, array);
 
 	/* Channel Table 0 */
 	value = 0;
@@ -889,7 +889,7 @@ void vnt_rf_table_download(struct vnt_private *priv)
 		memcpy(array, addr2, length);
 
 		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-			value, MESSAGE_REQUEST_RF_CH0, length, array);
+			        value, MESSAGE_REQUEST_RF_CH0, length, array);
 
 		length2 -= length;
 		value += length;
@@ -907,7 +907,7 @@ void vnt_rf_table_download(struct vnt_private *priv)
 		memcpy(array, addr3, length);
 
 		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-			value, MESSAGE_REQUEST_RF_CH1, length, array);
+			        value, MESSAGE_REQUEST_RF_CH1, length, array);
 
 		length3 -= length;
 		value += length;
@@ -924,7 +924,7 @@ void vnt_rf_table_download(struct vnt_private *priv)
 
 		/* Init Table 2 */
 		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-			0, MESSAGE_REQUEST_RF_INIT2, length1, array);
+			        0, MESSAGE_REQUEST_RF_INIT2, length1, array);
 
 		/* Channel Table 0 */
 		value = 0;
@@ -937,7 +937,7 @@ void vnt_rf_table_download(struct vnt_private *priv)
 			memcpy(array, addr2, length);
 
 			vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-				value, MESSAGE_REQUEST_RF_CH2, length, array);
+				        value, MESSAGE_REQUEST_RF_CH2, length, array);
 
 			length2 -= length;
 			value += length;

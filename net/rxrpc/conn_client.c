@@ -76,6 +76,8 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/timer.h>
+#include <linux/sched/signal.h>
+
 #include "ar-internal.h"
 
 __read_mostly unsigned int rxrpc_max_client_connections = 1000;
@@ -104,14 +106,6 @@ static void rxrpc_discard_expired_client_conns(struct work_struct *);
 
 static DECLARE_DELAYED_WORK(rxrpc_client_conn_reap,
 			    rxrpc_discard_expired_client_conns);
-
-const char rxrpc_conn_cache_states[RXRPC_CONN__NR_CACHE_STATES][5] = {
-	[RXRPC_CONN_CLIENT_INACTIVE]	= "Inac",
-	[RXRPC_CONN_CLIENT_WAITING]	= "Wait",
-	[RXRPC_CONN_CLIENT_ACTIVE]	= "Actv",
-	[RXRPC_CONN_CLIENT_CULLED]	= "Cull",
-	[RXRPC_CONN_CLIENT_IDLE]	= "Idle",
-};
 
 /*
  * Get a connection ID and epoch for a client connection from the global pool.
@@ -263,12 +257,12 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
 	 * times the maximum number of client conns away from the current
 	 * allocation point to try and keep the IDs concentrated.
 	 */
-	id_cursor = READ_ONCE(rxrpc_client_conn_ids.cur);
+	id_cursor = idr_get_cursor(&rxrpc_client_conn_ids);
 	id = conn->proto.cid >> RXRPC_CIDSHIFT;
 	distance = id - id_cursor;
 	if (distance < 0)
 		distance = -distance;
-	limit = round_up(rxrpc_max_client_connections, IDR_SIZE) * 4;
+	limit = max(rxrpc_max_client_connections * 4, 1024U);
 	if (distance > limit)
 		goto mark_dont_reuse;
 

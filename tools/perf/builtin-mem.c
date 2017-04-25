@@ -42,8 +42,8 @@ static int parse_record_events(const struct option *opt,
 
 		fprintf(stderr, "%-13s%-*s%s\n",
 			e->tag,
-			verbose ? 25 : 0,
-			verbose ? perf_mem_events__name(j) : "",
+			verbose > 0 ? 25 : 0,
+			verbose > 0 ? perf_mem_events__name(j) : "",
 			e->supported ? ": available" : "");
 	}
 	exit(0);
@@ -70,8 +70,8 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	OPT_UINTEGER(0, "ldlat", &perf_mem_events__loads_ldlat, "mem-loads latency"),
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose (show counter open errors, etc)"),
-	OPT_BOOLEAN('U', "--all-user", &all_user, "collect only user level data"),
-	OPT_BOOLEAN('K', "--all-kernel", &all_kernel, "collect only kernel level data"),
+	OPT_BOOLEAN('U', "all-user", &all_user, "collect only user level data"),
+	OPT_BOOLEAN('K', "all-kernel", &all_kernel, "collect only kernel level data"),
 	OPT_END()
 	};
 

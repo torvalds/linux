@@ -108,7 +108,7 @@ int rcar_du_hdmienc_init(struct rcar_du_device *rcdu,
 	if (hdmienc == NULL)
 		return -ENOMEM;
 
-	/* Locate drm bridge from the hdmi encoder DT node */
+	/* Locate the DRM bridge from the HDMI encoder DT node. */
 	bridge = of_drm_find_bridge(np);
 	if (!bridge)
 		return -EPROBE_DEFER;
@@ -123,11 +123,8 @@ int rcar_du_hdmienc_init(struct rcar_du_device *rcdu,
 	renc->hdmi = hdmienc;
 	hdmienc->renc = renc;
 
-	/* Link drm_bridge to encoder */
-	bridge->encoder = encoder;
-	encoder->bridge = bridge;
-
-	ret = drm_bridge_attach(rcdu->ddev, bridge);
+	/* Link the bridge to the encoder. */
+	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret) {
 		drm_encoder_cleanup(encoder);
 		return ret;

@@ -21,10 +21,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 
@@ -633,8 +629,7 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 	} else {
 		if (frm->cur_size + purb->actual_length > MAX_FRAME_SIZE) {
 			dev_info(&cam->udev->dev,
-				 "%s: buffer (%d bytes) too small to hold "
-				 "frame data. Discarding frame data.\n",
+				 "%s: buffer (%d bytes) too small to hold frame data. Discarding frame data.\n",
 				 __func__, MAX_FRAME_SIZE);
 		} else {
 			pdest += frm->cur_size;
@@ -1373,8 +1368,7 @@ static int zr364xx_board_init(struct zr364xx_camera *cam)
 			&cam->buffer.frame[i], i,
 			cam->buffer.frame[i].lpvbits);
 		if (cam->buffer.frame[i].lpvbits == NULL) {
-			printk(KERN_INFO KBUILD_MODNAME ": out of memory. "
-			       "Using less frames\n");
+			printk(KERN_INFO KBUILD_MODNAME ": out of memory. Using less frames\n");
 			break;
 		}
 	}

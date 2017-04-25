@@ -136,8 +136,8 @@
 void scsi_show_command(struct rtsx_chip *chip);
 void set_sense_type(struct rtsx_chip *chip, unsigned int lun, int sense_type);
 void set_sense_data(struct rtsx_chip *chip, unsigned int lun, u8 err_code,
-		u8 sense_key, u32 info, u8 asc, u8 ascq,
-		u8 sns_key_info0, u16 sns_key_info1);
+		    u8 sense_key, u32 info, u8 asc, u8 ascq,
+		    u8 sns_key_info0, u16 sns_key_info1);
 int rtsx_scsi_handler(struct scsi_cmnd *srb, struct rtsx_chip *chip);
 
 #endif   /* __REALTEK_RTSX_SCSI_H */

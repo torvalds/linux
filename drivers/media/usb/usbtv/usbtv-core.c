@@ -71,6 +71,7 @@ static int usbtv_probe(struct usb_interface *intf,
 	int size;
 	struct device *dev = &intf->dev;
 	struct usbtv *usbtv;
+	struct usb_host_endpoint *ep;
 
 	/* Checks that the device is what we think it is. */
 	if (intf->num_altsetting != 2)
@@ -78,10 +79,12 @@ static int usbtv_probe(struct usb_interface *intf,
 	if (intf->altsetting[1].desc.bNumEndpoints != 4)
 		return -ENODEV;
 
+	ep = &intf->altsetting[1].endpoint[0];
+
 	/* Packet size is split into 11 bits of base size and count of
 	 * extra multiplies of it.*/
-	size = usb_endpoint_maxp(&intf->altsetting[1].endpoint[0].desc);
-	size = (size & 0x07ff) * (((size & 0x1800) >> 11) + 1);
+	size = usb_endpoint_maxp(&ep->desc);
+	size = (size & 0x07ff) * usb_endpoint_maxp_mult(&ep->desc);
 
 	/* Device structure */
 	usbtv = kzalloc(sizeof(struct usbtv), GFP_KERNEL);

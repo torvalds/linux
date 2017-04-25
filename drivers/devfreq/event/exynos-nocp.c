@@ -190,6 +190,7 @@ static const struct of_device_id exynos_nocp_id_match[] = {
 	{ .compatible = "samsung,exynos5420-nocp", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, exynos_nocp_id_match);
 
 static struct regmap_config exynos_nocp_regmap_config = {
 	.reg_bits = 32,

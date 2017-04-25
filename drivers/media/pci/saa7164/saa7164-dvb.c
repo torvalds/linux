@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7164.h"
@@ -244,8 +240,8 @@ static int saa7164_dvb_start_port(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_api_transition_port(port, SAA_DMASTATE_STOP);
 		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
-			printk(KERN_ERR "%s() acquire/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() acquire/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 		ret = -EIO;
 		goto out;
@@ -261,8 +257,8 @@ static int saa7164_dvb_start_port(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_api_transition_port(port, SAA_DMASTATE_STOP);
 		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
-			printk(KERN_ERR "%s() pause/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() pause/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 
 		ret = -EIO;
@@ -279,8 +275,8 @@ static int saa7164_dvb_start_port(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_api_transition_port(port, SAA_DMASTATE_STOP);
 		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
-			printk(KERN_ERR "%s() run/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() run/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 
 		ret = -EIO;
@@ -357,8 +353,7 @@ static int dvb_register(struct saa7164_port *port)
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
 		result = -ENOMEM;
-		printk(KERN_ERR "%s: dvb_register_adapter failed "
-		       "(errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d), NO PCI configuration\n",
 			DRIVER_NAME, result);
 		goto fail_adapter;
 	}
@@ -386,8 +381,7 @@ static int dvb_register(struct saa7164_port *port)
 
 		if (!buf) {
 			result = -ENOMEM;
-			printk(KERN_ERR "%s: dvb_register_adapter failed "
-			       "(errno = %d), unable to allocate buffers\n",
+			printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d), unable to allocate buffers\n",
 				DRIVER_NAME, result);
 			goto fail_adapter;
 		}
@@ -401,8 +395,8 @@ static int dvb_register(struct saa7164_port *port)
 	result = dvb_register_adapter(&dvb->adapter, DRIVER_NAME, THIS_MODULE,
 			&dev->pci->dev, adapter_nr);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_adapter failed "
-		       "(errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_adapter;
 	}
 	dvb->adapter.priv = port;
@@ -410,8 +404,8 @@ static int dvb_register(struct saa7164_port *port)
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_frontend failed "
-		       "(errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: dvb_register_frontend failed (errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_frontend;
 	}
 
@@ -444,16 +438,16 @@ static int dvb_register(struct saa7164_port *port)
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed "
-		       "(DMX_FRONTEND_0, errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_fe_hw;
 	}
 
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed "
-		       "(DMX_MEMORY_FE, errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_fe_mem;
 	}
 

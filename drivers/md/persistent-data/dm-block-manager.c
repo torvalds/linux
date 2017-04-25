@@ -13,10 +13,13 @@
 #include <linux/rwsem.h>
 #include <linux/device-mapper.h>
 #include <linux/stacktrace.h>
+#include <linux/sched/task.h>
 
 #define DM_MSG_PREFIX "block manager"
 
 /*----------------------------------------------------------------*/
+
+#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
 
 /*
  * This is a read/write semaphore with a couple of differences.
@@ -118,7 +121,7 @@ static int __check_holder(struct block_lock *lock)
 static void __wait(struct waiter *w)
 {
 	for (;;) {
-		set_task_state(current, TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 
 		if (!w->task)
 			break;
@@ -126,7 +129,7 @@ static void __wait(struct waiter *w)
 		schedule();
 	}
 
-	set_task_state(current, TASK_RUNNING);
+	set_current_state(TASK_RUNNING);
 }
 
 static void __wake_waiter(struct waiter *w)
@@ -302,6 +305,18 @@ static void report_recursive_bug(dm_block_t b, int r)
 		      (unsigned long long) b);
 }
 
+#else  /* !CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+
+#define bl_init(x) do { } while (0)
+#define bl_down_read(x) 0
+#define bl_down_read_nonblock(x) 0
+#define bl_up_read(x) do { } while (0)
+#define bl_down_write(x) 0
+#define bl_up_write(x) do { } while (0)
+#define report_recursive_bug(x, y) do { } while (0)
+
+#endif /* CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+
 /*----------------------------------------------------------------*/
 
 /*
@@ -330,8 +345,11 @@ EXPORT_SYMBOL_GPL(dm_block_data);
 
 struct buffer_aux {
 	struct dm_block_validator *validator;
-	struct block_lock lock;
 	int write_locked;
+
+#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
+	struct block_lock lock;
+#endif
 };
 
 static void dm_block_manager_alloc_callback(struct dm_buffer *buf)
@@ -445,7 +463,7 @@ int dm_bm_read_lock(struct dm_block_manager *bm, dm_block_t b,
 	int r;
 
 	p = dm_bufio_read(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 
 	aux = dm_bufio_get_aux_data(to_buffer(*result));
@@ -481,7 +499,7 @@ int dm_bm_write_lock(struct dm_block_manager *bm,
 		return -EPERM;
 
 	p = dm_bufio_read(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 
 	aux = dm_bufio_get_aux_data(to_buffer(*result));
@@ -514,7 +532,7 @@ int dm_bm_read_try_lock(struct dm_block_manager *bm,
 	int r;
 
 	p = dm_bufio_get(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 	if (unlikely(!p))
 		return -EWOULDBLOCK;
@@ -550,7 +568,7 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm,
 		return -EPERM;
 
 	p = dm_bufio_new(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 
 	memset(p, 0, dm_bm_block_size(bm));

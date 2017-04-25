@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/kernel.h>
@@ -949,8 +945,8 @@ static long pvr2_v4l2_ioctl(struct file *file,
 	if (ret < 0) {
 		if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
 			pvr2_trace(PVR2_TRACE_V4LIOCTL,
-				   "pvr2_v4l2_do_ioctl failure, ret=%ld"
-				   " command was:", ret);
+				   "pvr2_v4l2_do_ioctl failure, ret=%ld command was:",
+ret);
 			v4l_printk_ioctl(pvr2_hdw_get_driver_name(hdw), cmd);
 		}
 	} else {
@@ -1054,7 +1050,7 @@ static int pvr2_v4l2_open(struct file *file)
 		pvr2_trace(PVR2_TRACE_STRUCT,
 			   "Destroying pvr_v4l2_fh id=%p (input mask error)",
 			   fhp);
-
+		v4l2_fh_exit(&fhp->fh);
 		kfree(fhp);
 		return ret;
 	}
@@ -1071,6 +1067,7 @@ static int pvr2_v4l2_open(struct file *file)
 		pvr2_trace(PVR2_TRACE_STRUCT,
 			   "Destroying pvr_v4l2_fh id=%p (input map failure)",
 			   fhp);
+		v4l2_fh_exit(&fhp->fh);
 		kfree(fhp);
 		return -ENOMEM;
 	}
@@ -1254,8 +1251,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		nr_ptr = video_nr;
 		if (!dip->stream) {
 			pr_err(KBUILD_MODNAME
-				": Failed to set up pvrusb2 v4l video dev"
-				" due to missing stream instance\n");
+				": Failed to set up pvrusb2 v4l video dev due to missing stream instance\n");
 			return;
 		}
 		break;
@@ -1272,8 +1268,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		break;
 	default:
 		/* Bail out (this should be impossible) */
-		pr_err(KBUILD_MODNAME ": Failed to set up pvrusb2 v4l dev"
-		    " due to unrecognized config\n");
+		pr_err(KBUILD_MODNAME ": Failed to set up pvrusb2 v4l dev due to unrecognized config\n");
 		return;
 	}
 

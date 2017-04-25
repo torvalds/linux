@@ -1,6 +1,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int
 fneg(u32 *frD, u32 *frB)

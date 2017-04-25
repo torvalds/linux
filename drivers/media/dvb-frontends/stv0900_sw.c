@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "stv0900.h"
@@ -1485,8 +1481,7 @@ static u32 stv0900_search_srate_coarse(struct dvb_frontend *fe)
 		current_step++;
 		direction *= -1;
 
-		dprintk("lock: I2C_DEMOD_MODE_FIELD =0. Search started."
-			" tuner freq=%d agc2=0x%x srate_coarse=%d tmg_cpt=%d\n",
+		dprintk("lock: I2C_DEMOD_MODE_FIELD =0. Search started. tuner freq=%d agc2=0x%x srate_coarse=%d tmg_cpt=%d\n",
 			tuner_freq, agc2_integr, coarse_srate, timingcpt);
 
 		if ((timingcpt >= 5) &&

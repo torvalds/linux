@@ -803,13 +803,6 @@ out:
 		    shost->host_failed, tries);
 }
 
-enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
-{
-	scmd_dbg(cmd, "command %p timed out\n", cmd);
-
-	return BLK_EH_NOT_HANDLED;
-}
-
 int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);

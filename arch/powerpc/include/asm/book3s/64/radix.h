@@ -139,27 +139,41 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
 
 		unsigned long new_pte;
 
-		old_pte = __radix_pte_update(ptep, ~0, 0);
-		asm volatile("ptesync" : : : "memory");
+		old_pte = __radix_pte_update(ptep, ~0ul, 0);
 		/*
 		 * new value of pte
 		 */
 		new_pte = (old_pte | set) & ~clr;
-
-		/*
-		 * For now let's do heavy pid flush
-		 * radix__flush_tlb_page_psize(mm, addr, mmu_virtual_psize);
-		 */
-		radix__flush_tlb_mm(mm);
-
-		__radix_pte_update(ptep, 0, new_pte);
+		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
+		if (new_pte)
+			__radix_pte_update(ptep, 0, new_pte);
 	} else
 		old_pte = __radix_pte_update(ptep, clr, set);
-	asm volatile("ptesync" : : : "memory");
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
 	return old_pte;
+}
+
+static inline pte_t radix__ptep_get_and_clear_full(struct mm_struct *mm,
+						   unsigned long addr,
+						   pte_t *ptep, int full)
+{
+	unsigned long old_pte;
+
+	if (full) {
+		/*
+		 * If we are trying to clear the pte, we can skip
+		 * the DD1 pte update sequence and batch the tlb flush. The
+		 * tlb flush batching is done by mmu gather code. We
+		 * still keep the cmp_xchg update to make sure we get
+		 * correct R/C bit which might be updated via Nest MMU.
+		 */
+		old_pte = __radix_pte_update(ptep, ~0ul, 0);
+	} else
+		old_pte = radix__pte_update(mm, addr, ptep, ~0ul, 0, 0);
+
+	return __pte(old_pte);
 }
 
 /*
@@ -167,7 +181,8 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
  * function doesn't need to invalidate tlb.
  */
 static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
-						pte_t *ptep, pte_t entry)
+						pte_t *ptep, pte_t entry,
+						unsigned long address)
 {
 
 	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
@@ -178,18 +193,11 @@ static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
 		unsigned long old_pte, new_pte;
 
 		old_pte = __radix_pte_update(ptep, ~0, 0);
-		asm volatile("ptesync" : : : "memory");
 		/*
 		 * new value of pte
 		 */
 		new_pte = old_pte | set;
-
-		/*
-		 * For now let's do heavy pid flush
-		 * radix__flush_tlb_page_psize(mm, addr, mmu_virtual_psize);
-		 */
-		radix__flush_tlb_mm(mm);
-
+		radix__flush_tlb_pte_p9_dd1(old_pte, mm, address);
 		__radix_pte_update(ptep, 0, new_pte);
 	} else
 		__radix_pte_update(ptep, 0, set);
@@ -243,6 +251,8 @@ static inline int radix__pmd_trans_huge(pmd_t pmd)
 
 static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
 {
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		return __pmd(pmd_val(pmd) | _PAGE_PTE | _PAGE_LARGE);
 	return __pmd(pmd_val(pmd) | _PAGE_PTE);
 }
 static inline void radix__pmdp_huge_split_prepare(struct vm_area_struct *vma,
@@ -293,5 +303,10 @@ static inline unsigned long radix__get_tree_size(void)
 	}
 	return rts_field;
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int radix__create_section_mapping(unsigned long start, unsigned long end);
+int radix__remove_section_mapping(unsigned long start, unsigned long end);
+#endif /* CONFIG_MEMORY_HOTPLUG */
 #endif /* __ASSEMBLY__ */
 #endif

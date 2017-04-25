@@ -36,7 +36,8 @@ struct flakey_c {
 };
 
 enum feature_flag_bits {
-	DROP_WRITES
+	DROP_WRITES,
+	ERROR_WRITES
 };
 
 struct per_bio_data {
@@ -75,6 +76,25 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		if (!strcasecmp(arg_name, "drop_writes")) {
 			if (test_and_set_bit(DROP_WRITES, &fc->flags)) {
 				ti->error = "Feature drop_writes duplicated";
+				return -EINVAL;
+			} else if (test_bit(ERROR_WRITES, &fc->flags)) {
+				ti->error = "Feature drop_writes conflicts with feature error_writes";
+				return -EINVAL;
+			}
+
+			continue;
+		}
+
+		/*
+		 * error_writes
+		 */
+		if (!strcasecmp(arg_name, "error_writes")) {
+			if (test_and_set_bit(ERROR_WRITES, &fc->flags)) {
+				ti->error = "Feature error_writes duplicated";
+				return -EINVAL;
+
+			} else if (test_bit(DROP_WRITES, &fc->flags)) {
+				ti->error = "Feature error_writes conflicts with feature drop_writes";
 				return -EINVAL;
 			}
 
@@ -134,6 +154,10 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 
 	if (test_bit(DROP_WRITES, &fc->flags) && (fc->corrupt_bio_rw == WRITE)) {
 		ti->error = "drop_writes is incompatible with corrupt_bio_byte with the WRITE flag set";
+		return -EINVAL;
+
+	} else if (test_bit(ERROR_WRITES, &fc->flags) && (fc->corrupt_bio_rw == WRITE)) {
+		ti->error = "error_writes is incompatible with corrupt_bio_byte with the WRITE flag set";
 		return -EINVAL;
 	}
 
@@ -200,11 +224,13 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (!(fc->up_interval + fc->down_interval)) {
 		ti->error = "Total (up + down) interval is zero";
+		r = -EINVAL;
 		goto bad;
 	}
 
 	if (fc->up_interval + fc->down_interval < fc->up_interval) {
 		ti->error = "Interval overflow";
+		r = -EINVAL;
 		goto bad;
 	}
 
@@ -289,20 +315,25 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		pb->bio_submitted = true;
 
 		/*
-		 * Error reads if neither corrupt_bio_byte or drop_writes are set.
+		 * Error reads if neither corrupt_bio_byte or drop_writes or error_writes are set.
 		 * Otherwise, flakey_end_io() will decide if the reads should be modified.
 		 */
 		if (bio_data_dir(bio) == READ) {
-			if (!fc->corrupt_bio_byte && !test_bit(DROP_WRITES, &fc->flags))
+			if (!fc->corrupt_bio_byte && !test_bit(DROP_WRITES, &fc->flags) &&
+			    !test_bit(ERROR_WRITES, &fc->flags))
 				return -EIO;
 			goto map_bio;
 		}
 
 		/*
-		 * Drop writes?
+		 * Drop or error writes?
 		 */
 		if (test_bit(DROP_WRITES, &fc->flags)) {
 			bio_endio(bio);
+			return DM_MAPIO_SUBMITTED;
+		}
+		else if (test_bit(ERROR_WRITES, &fc->flags)) {
+			bio_io_error(bio);
 			return DM_MAPIO_SUBMITTED;
 		}
 
@@ -340,10 +371,11 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 			 */
 			corrupt_bio_data(bio, fc);
 
-		} else if (!test_bit(DROP_WRITES, &fc->flags)) {
+		} else if (!test_bit(DROP_WRITES, &fc->flags) &&
+			   !test_bit(ERROR_WRITES, &fc->flags)) {
 			/*
 			 * Error read during the down_interval if drop_writes
-			 * wasn't configured.
+			 * and error_writes were not configured.
 			 */
 			return -EIO;
 		}
@@ -357,7 +389,7 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 {
 	unsigned sz = 0;
 	struct flakey_c *fc = ti->private;
-	unsigned drop_writes;
+	unsigned drop_writes, error_writes;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -370,10 +402,13 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 		       fc->down_interval);
 
 		drop_writes = test_bit(DROP_WRITES, &fc->flags);
-		DMEMIT("%u ", drop_writes + (fc->corrupt_bio_byte > 0) * 5);
+		error_writes = test_bit(ERROR_WRITES, &fc->flags);
+		DMEMIT("%u ", drop_writes + error_writes + (fc->corrupt_bio_byte > 0) * 5);
 
 		if (drop_writes)
 			DMEMIT("drop_writes ");
+		else if (error_writes)
+			DMEMIT("error_writes ");
 
 		if (fc->corrupt_bio_byte)
 			DMEMIT("corrupt_bio_byte %u %c %u %u ",
@@ -410,7 +445,7 @@ static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_
 
 static struct target_type flakey_target = {
 	.name   = "flakey",
-	.version = {1, 3, 1},
+	.version = {1, 4, 0},
 	.module = THIS_MODULE,
 	.ctr    = flakey_ctr,
 	.dtr    = flakey_dtr,

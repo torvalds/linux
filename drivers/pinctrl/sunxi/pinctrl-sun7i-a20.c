@@ -10,7 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -1045,7 +1045,6 @@ static const struct of_device_id sun7i_a20_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun7i-a20-pinctrl", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, sun7i_a20_pinctrl_match);
 
 static struct platform_driver sun7i_a20_pinctrl_driver = {
 	.probe	= sun7i_a20_pinctrl_probe,
@@ -1054,8 +1053,4 @@ static struct platform_driver sun7i_a20_pinctrl_driver = {
 		.of_match_table	= sun7i_a20_pinctrl_match,
 	},
 };
-module_platform_driver(sun7i_a20_pinctrl_driver);
-
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
-MODULE_DESCRIPTION("Allwinner A20 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sun7i_a20_pinctrl_driver);
