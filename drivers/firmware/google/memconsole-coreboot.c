@@ -95,8 +95,8 @@ static int __init platform_memconsole_init(void)
 	struct platform_device *pdev;
 
 	pdev = platform_device_register_simple("memconsole", -1, NULL, 0);
-	if (pdev == NULL)
-		return -ENODEV;
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	platform_driver_register(&memconsole_driver);
 
