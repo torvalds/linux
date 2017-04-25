@@ -427,6 +427,7 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		sst_dsp_inbox_read(ipc->dsp, msg->rx_data, msg->rx_size);
 		switch (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
 		case IPC_GLB_LOAD_MULTIPLE_MODS:
+		case IPC_GLB_LOAD_LIBRARY:
 			skl->mod_load_complete = true;
 			skl->mod_load_status = true;
 			wake_up(&skl->mod_load_wait);
@@ -443,6 +444,7 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 			ipc->dsp->fw_ops.get_fw_errcode(ipc->dsp));
 		switch (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
 		case IPC_GLB_LOAD_MULTIPLE_MODS:
+		case IPC_GLB_LOAD_LIBRARY:
 			skl->mod_load_complete = true;
 			skl->mod_load_status = false;
 			wake_up(&skl->mod_load_wait);

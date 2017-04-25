@@ -179,6 +179,18 @@ static int skl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 			dev_err(ctx->dev, "unable to load firmware\n");
 			return ret;
 		}
+
+		/* load libs as they are also lost on D3 */
+		if (skl->lib_count > 1) {
+			ret = ctx->fw_ops.load_library(ctx, skl->lib_info,
+							skl->lib_count);
+			if (ret < 0) {
+				dev_err(ctx->dev, "reload libs failed: %d\n",
+						ret);
+				return ret;
+			}
+
+		}
 	}
 
 	/*
@@ -204,7 +216,7 @@ static int skl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 
 	skl->cores.state[core_id] = SKL_DSP_RUNNING;
 
-	return ret;
+	return 0;
 }
 
 static int skl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
@@ -335,12 +347,16 @@ static int skl_transfer_module(struct sst_dsp *ctx, const void *data,
 	if (bytes_left < 0)
 		return bytes_left;
 
-	if (is_module) { /* load module */
+	/* check is_module flag to load module or library */
+	if (is_module)
 		ret = skl_ipc_load_modules(&skl->ipc, SKL_NUM_MODULES, &mod_id);
-		if (ret < 0) {
-			dev_err(ctx->dev, "Failed to Load module: %d\n", ret);
-			goto out;
-		}
+	else
+		ret = skl_sst_ipc_load_library(&skl->ipc, 0, table_id, false);
+
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to Load %s with err %d\n",
+				is_module ? "module" : "lib", ret);
+		goto out;
 	}
 
 	/*
@@ -370,6 +386,32 @@ static int skl_transfer_module(struct sst_dsp *ctx, const void *data,
 out:
 	ctx->cl_dev.ops.cl_stop_dma(ctx);
 
+	return ret;
+}
+
+static int
+kbl_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
+{
+	struct skl_sst *skl = ctx->thread_context;
+	struct firmware stripped_fw;
+	int ret, i;
+
+	/* library indices start from 1 to N. 0 represents base FW */
+	for (i = 1; i < lib_count; i++) {
+		ret = skl_prepare_lib_load(skl, &skl->lib_info[i], &stripped_fw,
+					SKL_ADSP_FW_BIN_HDR_OFFSET, i);
+		if (ret < 0)
+			goto load_library_failed;
+		ret = skl_transfer_module(ctx, stripped_fw.data,
+				stripped_fw.size, 0, i, false);
+		if (ret < 0)
+			goto load_library_failed;
+	}
+
+	return 0;
+
+load_library_failed:
+	skl_release_library(linfo, lib_count);
 	return ret;
 }
 
@@ -475,6 +517,7 @@ static struct skl_dsp_fw_ops kbl_fw_ops = {
 	.set_state_D3 = skl_set_dsp_D3,
 	.load_fw = skl_load_base_firmware,
 	.get_fw_errcode = skl_get_errorcode,
+	.load_library = kbl_load_library,
 	.load_mod = skl_load_module,
 	.unload_mod = skl_unload_module,
 };
@@ -554,6 +597,15 @@ int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 	}
 
 	skl_dsp_init_core_state(sst);
+
+	if (ctx->lib_count > 1) {
+		ret = sst->fw_ops.load_library(sst, ctx->lib_info,
+						ctx->lib_count);
+		if (ret < 0) {
+			dev_err(dev, "Load Library failed : %x\n", ret);
+			return ret;
+		}
+	}
 	ctx->is_first_boot = false;
 
 	return 0;
