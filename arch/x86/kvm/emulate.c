@@ -2543,7 +2543,7 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	u64 smbase;
 	int ret;
 
-	if ((ctxt->emul_flags & X86EMUL_SMM_MASK) == 0)
+	if ((ctxt->ops->get_hflags(ctxt) & X86EMUL_SMM_MASK) == 0)
 		return emulate_ud(ctxt);
 
 	/*
@@ -2592,11 +2592,11 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 		return X86EMUL_UNHANDLEABLE;
 	}
 
-	if ((ctxt->emul_flags & X86EMUL_SMM_INSIDE_NMI_MASK) == 0)
+	if ((ctxt->ops->get_hflags(ctxt) & X86EMUL_SMM_INSIDE_NMI_MASK) == 0)
 		ctxt->ops->set_nmi_mask(ctxt, false);
 
-	ctxt->emul_flags &= ~X86EMUL_SMM_INSIDE_NMI_MASK;
-	ctxt->emul_flags &= ~X86EMUL_SMM_MASK;
+	ctxt->ops->set_hflags(ctxt, ctxt->ops->get_hflags(ctxt) &
+		~(X86EMUL_SMM_INSIDE_NMI_MASK | X86EMUL_SMM_MASK));
 	return X86EMUL_CONTINUE;
 }
 
@@ -5312,6 +5312,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	const struct x86_emulate_ops *ops = ctxt->ops;
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = ctxt->dst.type;
+	unsigned emul_flags;
 
 	ctxt->mem_read.pos = 0;
 
@@ -5326,6 +5327,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 		goto done;
 	}
 
+	emul_flags = ctxt->ops->get_hflags(ctxt);
 	if (unlikely(ctxt->d &
 		     (No64|Undefined|Sse|Mmx|Intercept|CheckPerm|Priv|Prot|String))) {
 		if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
@@ -5359,7 +5361,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 				fetch_possible_mmx_operand(ctxt, &ctxt->dst);
 		}
 
-		if (unlikely(ctxt->emul_flags & X86EMUL_GUEST_MASK) && ctxt->intercept) {
+		if (unlikely(emul_flags & X86EMUL_GUEST_MASK) && ctxt->intercept) {
 			rc = emulator_check_intercept(ctxt, ctxt->intercept,
 						      X86_ICPT_PRE_EXCEPT);
 			if (rc != X86EMUL_CONTINUE)
@@ -5388,7 +5390,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 				goto done;
 		}
 
-		if (unlikely(ctxt->emul_flags & X86EMUL_GUEST_MASK) && (ctxt->d & Intercept)) {
+		if (unlikely(emul_flags & X86EMUL_GUEST_MASK) && (ctxt->d & Intercept)) {
 			rc = emulator_check_intercept(ctxt, ctxt->intercept,
 						      X86_ICPT_POST_EXCEPT);
 			if (rc != X86EMUL_CONTINUE)
@@ -5442,7 +5444,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 special_insn:
 
-	if (unlikely(ctxt->emul_flags & X86EMUL_GUEST_MASK) && (ctxt->d & Intercept)) {
+	if (unlikely(emul_flags & X86EMUL_GUEST_MASK) && (ctxt->d & Intercept)) {
 		rc = emulator_check_intercept(ctxt, ctxt->intercept,
 					      X86_ICPT_POST_MEMACCESS);
 		if (rc != X86EMUL_CONTINUE)
