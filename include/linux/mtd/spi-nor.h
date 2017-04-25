@@ -73,6 +73,15 @@
 #define SPINOR_OP_BE_32K_4B	0x5c	/* Erase 32KiB block */
 #define SPINOR_OP_SE_4B		0xdc	/* Sector erase (usually 64KiB) */
 
+/* Double Transfer Rate opcodes - defined in JEDEC JESD216B. */
+#define SPINOR_OP_READ_1_1_1_DTR	0x0d
+#define SPINOR_OP_READ_1_2_2_DTR	0xbd
+#define SPINOR_OP_READ_1_4_4_DTR	0xed
+
+#define SPINOR_OP_READ_1_1_1_DTR_4B	0x0e
+#define SPINOR_OP_READ_1_2_2_DTR_4B	0xbe
+#define SPINOR_OP_READ_1_4_4_DTR_4B	0xee
+
 /* Used for SST flashes only. */
 #define SPINOR_OP_BP		0x02	/* Byte program */
 #define SPINOR_OP_WRDI		0x04	/* Write disable */
@@ -138,10 +147,15 @@
 	((((unsigned long)(_nbits)) << SNOR_PROTO_DATA_SHIFT) & \
 	 SNOR_PROTO_DATA_MASK)
 
+#define SNOR_PROTO_IS_DTR	BIT(24)	/* Double Transfer Rate */
+
 #define SNOR_PROTO_STR(_inst_nbits, _addr_nbits, _data_nbits)	\
 	(SNOR_PROTO_INST(_inst_nbits) |				\
 	 SNOR_PROTO_ADDR(_addr_nbits) |				\
 	 SNOR_PROTO_DATA(_data_nbits))
+#define SNOR_PROTO_DTR(_inst_nbits, _addr_nbits, _data_nbits)	\
+	(SNOR_PROTO_IS_DTR |					\
+	 SNOR_PROTO_STR(_inst_nbits, _addr_nbits, _data_nbits))
 
 enum spi_nor_protocol {
 	SNOR_PROTO_1_1_1 = SNOR_PROTO_STR(1, 1, 1),
@@ -151,7 +165,16 @@ enum spi_nor_protocol {
 	SNOR_PROTO_1_4_4 = SNOR_PROTO_STR(1, 4, 4),
 	SNOR_PROTO_2_2_2 = SNOR_PROTO_STR(2, 2, 2),
 	SNOR_PROTO_4_4_4 = SNOR_PROTO_STR(4, 4, 4),
+
+	SNOR_PROTO_1_1_1_DTR = SNOR_PROTO_DTR(1, 1, 1),
+	SNOR_PROTO_1_2_2_DTR = SNOR_PROTO_DTR(1, 2, 2),
+	SNOR_PROTO_1_4_4_DTR = SNOR_PROTO_DTR(1, 4, 4),
 };
+
+static inline bool spi_nor_protocol_is_dtr(enum spi_nor_protocol proto)
+{
+	return !!(proto & SNOR_PROTO_IS_DTR);
+}
 
 static inline u8 spi_nor_get_protocol_inst_nbits(enum spi_nor_protocol proto)
 {
@@ -288,19 +311,22 @@ struct spi_nor_hwcaps {
  * As a matter of performances, it is relevant to use Quad SPI protocols first,
  * then Dual SPI protocols before Fast Read and lastly (Slow) Read.
  */
-#define SNOR_HWCAPS_READ_MASK		GENMASK(7, 0)
+#define SNOR_HWCAPS_READ_MASK		GENMASK(10, 0)
 #define SNOR_HWCAPS_READ		BIT(0)
 #define SNOR_HWCAPS_READ_FAST		BIT(1)
+#define SNOR_HWCAPS_READ_1_1_1_DTR	BIT(2)
 
-#define SNOR_HWCAPS_READ_DUAL		GENMASK(4, 2)
-#define SNOR_HWCAPS_READ_1_1_2		BIT(2)
-#define SNOR_HWCAPS_READ_1_2_2		BIT(3)
-#define SNOR_HWCAPS_READ_2_2_2		BIT(4)
+#define SNOR_HWCAPS_READ_DUAL		GENMASK(6, 3)
+#define SNOR_HWCAPS_READ_1_1_2		BIT(3)
+#define SNOR_HWCAPS_READ_1_2_2		BIT(4)
+#define SNOR_HWCAPS_READ_2_2_2		BIT(5)
+#define SNOR_HWCAPS_READ_1_2_2_DTR	BIT(6)
 
-#define SNOR_HWCAPS_READ_QUAD		GENMASK(7, 5)
-#define SNOR_HWCAPS_READ_1_1_4		BIT(5)
-#define SNOR_HWCAPS_READ_1_4_4		BIT(6)
-#define SNOR_HWCAPS_READ_4_4_4		BIT(7)
+#define SNOR_HWCAPS_READ_QUAD		GENMASK(10, 7)
+#define SNOR_HWCAPS_READ_1_1_4		BIT(7)
+#define SNOR_HWCAPS_READ_1_4_4		BIT(8)
+#define SNOR_HWCAPS_READ_4_4_4		BIT(9)
+#define SNOR_HWCAPS_READ_1_4_4_DTR	BIT(10)
 
 /*
  * Page Program capabilities.
