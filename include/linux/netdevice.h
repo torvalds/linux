@@ -1790,6 +1790,7 @@ struct net_device {
 	unsigned int		real_num_rx_queues;
 #endif
 
+	struct bpf_prog __rcu	*xdp_prog;
 	unsigned long		gro_flush_timeout;
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
@@ -1905,7 +1906,6 @@ struct net_device {
 	struct lock_class_key	*qdisc_tx_busylock;
 	struct lock_class_key	*qdisc_running_key;
 	bool			proto_down;
-	struct bpf_prog __rcu	*xdp_prog;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
