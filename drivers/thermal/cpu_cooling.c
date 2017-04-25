@@ -119,22 +119,19 @@ static LIST_HEAD(cpufreq_cdev_list);
  * @cpufreq_cdev: cpufreq_cdev for which the property is required
  * @freq: Frequency
  *
- * Return: level on success, THERMAL_CSTATE_INVALID on error.
+ * Return: level corresponding to the frequency.
  */
 static unsigned long get_level(struct cpufreq_cooling_device *cpufreq_cdev,
 			       unsigned int freq)
 {
+	struct freq_table *freq_table = cpufreq_cdev->freq_table;
 	unsigned long level;
 
-	for (level = 0; level <= cpufreq_cdev->max_level; level++) {
-		if (freq == cpufreq_cdev->freq_table[level].frequency)
-			return level;
-
-		if (freq > cpufreq_cdev->freq_table[level].frequency)
+	for (level = 1; level <= cpufreq_cdev->max_level; level++)
+		if (freq > freq_table[level].frequency)
 			break;
-	}
 
-	return THERMAL_CSTATE_INVALID;
+	return level - 1;
 }
 
 /**
@@ -627,13 +624,6 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 	target_freq = cpu_power_to_freq(cpufreq_cdev, normalised_power);
 
 	*state = get_level(cpufreq_cdev, target_freq);
-	if (*state == THERMAL_CSTATE_INVALID) {
-		dev_err_ratelimited(&cdev->device,
-				    "Failed to convert %dKHz for cpu %d into a cdev state\n",
-				    target_freq, policy->cpu);
-		return -EINVAL;
-	}
-
 	trace_thermal_power_cpu_limit(policy->related_cpus, target_freq, *state,
 				      power);
 	return 0;
