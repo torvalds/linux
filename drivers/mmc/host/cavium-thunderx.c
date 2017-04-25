@@ -179,18 +179,7 @@ static struct pci_driver thunder_mmc_driver = {
 	.remove = thunder_mmc_remove,
 };
 
-static int __init thunder_mmc_init_module(void)
-{
-	return pci_register_driver(&thunder_mmc_driver);
-}
-
-static void __exit thunder_mmc_exit_module(void)
-{
-	pci_unregister_driver(&thunder_mmc_driver);
-}
-
-module_init(thunder_mmc_init_module);
-module_exit(thunder_mmc_exit_module);
+module_pci_driver(thunder_mmc_driver);
 
 MODULE_AUTHOR("Cavium Inc.");
 MODULE_DESCRIPTION("Cavium ThunderX eMMC Driver");
