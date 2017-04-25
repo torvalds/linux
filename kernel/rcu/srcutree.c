@@ -402,6 +402,7 @@ static void srcu_gp_start(struct srcu_struct *sp)
 			      rcu_seq_current(&sp->srcu_gp_seq));
 	(void)rcu_segcblist_accelerate(&sdp->srcu_cblist,
 				       rcu_seq_snap(&sp->srcu_gp_seq));
+	smp_mb(); /* Order prior store to ->srcu_gp_seq_needed vs. GP start. */
 	rcu_seq_start(&sp->srcu_gp_seq);
 	state = rcu_seq_state(READ_ONCE(sp->srcu_gp_seq));
 	WARN_ON_ONCE(state != SRCU_STATE_SCAN1);
@@ -677,6 +678,57 @@ static void srcu_flip(struct srcu_struct *sp)
 }
 
 /*
+ * If SRCU is likely idle, return true, otherwise return false.
+ *
+ * Note that it is OK for several current from-idle requests for a new
+ * grace period from idle to specify expediting because they will all end
+ * up requesting the same grace period anyhow.  So no loss.
+ *
+ * Note also that if any CPU (including the current one) is still invoking
+ * callbacks, this function will nevertheless say "idle".  This is not
+ * ideal, but the overhead of checking all CPUs' callback lists is even
+ * less ideal, especially on large systems.  Furthermore, the wakeup
+ * can happen before the callback is fully removed, so we have no choice
+ * but to accept this type of error.
+ *
+ * This function is also subject to counter-wrap errors, but let's face
+ * it, if this function was preempted for enough time for the counters
+ * to wrap, it really doesn't matter whether or not we expedite the grace
+ * period.  The extra overhead of a needlessly expedited grace period is
+ * negligible when amoritized over that time period, and the extra latency
+ * of a needlessly non-expedited grace period is similarly negligible.
+ */
+static bool srcu_might_be_idle(struct srcu_struct *sp)
+{
+	unsigned long flags;
+	struct srcu_data *sdp;
+	unsigned long curseq;
+
+	/* If the local srcu_data structure has callbacks, not idle.  */
+	local_irq_save(flags);
+	sdp = this_cpu_ptr(sp->sda);
+	if (rcu_segcblist_pend_cbs(&sdp->srcu_cblist)) {
+		local_irq_restore(flags);
+		return false; /* Callbacks already present, so not idle. */
+	}
+	local_irq_restore(flags);
+
+	/*
+	 * No local callbacks, so probabalistically probe global state.
+	 * Exact information would require acquiring locks, which would
+	 * kill scalability, hence the probabalistic nature of the probe.
+	 */
+	curseq = rcu_seq_current(&sp->srcu_gp_seq);
+	smp_mb(); /* Order ->srcu_gp_seq with ->srcu_gp_seq_needed. */
+	if (ULONG_CMP_LT(curseq, READ_ONCE(sp->srcu_gp_seq_needed)))
+		return false; /* Grace period in progress, so not idle. */
+	smp_mb(); /* Order ->srcu_gp_seq with prior access. */
+	if (curseq != rcu_seq_current(&sp->srcu_gp_seq))
+		return false; /* GP # changed, so not idle. */
+	return true; /* With reasonable probability, idle! */
+}
+
+/*
  * Enqueue an SRCU callback on the srcu_data structure associated with
  * the current CPU and the specified srcu_struct structure, initiating
  * grace-period processing if it is not already running.
@@ -823,10 +875,15 @@ EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
  * Of course, these memory-ordering guarantees apply only when
  * synchronize_srcu(), srcu_read_lock(), and srcu_read_unlock() are
  * passed the same srcu_struct structure.
+ *
+ * If SRCU is likely idle, expedite the first request.  This semantic
+ * was provided by Classic SRCU, and is relied upon by its users, so TREE
+ * SRCU must also provide it.  Note that detecting idleness is heuristic
+ * and subject to both false positives and negatives.
  */
 void synchronize_srcu(struct srcu_struct *sp)
 {
-	if (rcu_gp_is_expedited())
+	if (srcu_might_be_idle(sp) || rcu_gp_is_expedited())
 		synchronize_srcu_expedited(sp);
 	else
 		__synchronize_srcu(sp, true);
