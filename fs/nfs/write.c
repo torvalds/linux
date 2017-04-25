@@ -569,6 +569,18 @@ static void nfs_write_error_remove_page(struct nfs_page *req)
 	nfs_release_request(req);
 }
 
+static bool
+nfs_error_is_fatal_on_server(int err)
+{
+	switch (err) {
+	case 0:
+	case -ERESTARTSYS:
+	case -EINTR:
+		return false;
+	}
+	return nfs_error_is_fatal(err);
+}
+
 /*
  * Find an associated nfs write request, and prepare to flush it out
  * May return an error if the user signalled nfs_wait_on_request().
@@ -591,6 +603,10 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 	WARN_ON_ONCE(test_bit(PG_CLEAN, &req->wb_flags));
 
 	ret = 0;
+	/* If there is a fatal error that covers this write, just exit */
+	if (nfs_error_is_fatal_on_server(req->wb_context->error))
+		goto out_launder;
+
 	if (!nfs_pageio_add_request(pgio, req)) {
 		ret = pgio->pg_error;
 		/*
@@ -600,10 +616,8 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 		 */
 		if (nfs_error_is_fatal(ret)) {
 			nfs_context_set_write_error(req->wb_context, ret);
-			if (launder) {
-				nfs_write_error_remove_page(req);
-				goto out;
-			}
+			if (launder)
+				goto out_launder;
 		}
 		nfs_redirty_request(req);
 		ret = -EAGAIN;
@@ -611,6 +625,9 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 		nfs_add_stats(page_file_mapping(page)->host,
 				NFSIOS_WRITEPAGES, 1);
 out:
+	return ret;
+out_launder:
+	nfs_write_error_remove_page(req);
 	return ret;
 }
 
