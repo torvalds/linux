@@ -135,6 +135,7 @@ int xge_mdio_config(struct net_device *ndev)
 	phydev = phy_find_first(mdio_bus);
 	if (!phydev) {
 		dev_err(dev, "no PHY found\n");
+		ret = -ENODEV;
 		goto err;
 	}
 	phydev = phy_connect(ndev, phydev_name(phydev),
