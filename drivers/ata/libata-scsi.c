@@ -3462,6 +3462,14 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	if (unlikely(!dev->dma_mode))
 		goto invalid_opcode;
 
+	/*
+	 * We only allow sending this command through the block layer,
+	 * as it modifies the DATA OUT buffer, which would corrupt user
+	 * memory for SG_IO commands.
+	 */
+	if (unlikely(blk_rq_is_passthrough(scmd->request)))
+		goto invalid_opcode;
+
 	if (unlikely(scmd->cmd_len < 16)) {
 		fp = 15;
 		goto invalid_fld;
