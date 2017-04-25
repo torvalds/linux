@@ -2005,12 +2005,6 @@ static int trf7970a_get_autosuspend_delay(struct device_node *np)
 	return autosuspend_delay;
 }
 
-static int trf7970a_get_vin_voltage_override(struct device_node *np,
-		u32 *vin_uvolts)
-{
-	return of_property_read_u32(np, "vin-voltage-override", vin_uvolts);
-}
-
 static int trf7970a_probe(struct spi_device *spi)
 {
 	struct device_node *np = spi->dev.of_node;
@@ -2108,10 +2102,7 @@ static int trf7970a_probe(struct spi_device *spi)
 		goto err_destroy_lock;
 	}
 
-	ret = trf7970a_get_vin_voltage_override(np, &uvolts);
-	if (ret)
-		uvolts = regulator_get_voltage(trf->regulator);
-
+	uvolts = regulator_get_voltage(trf->regulator);
 	if (uvolts > 4000000)
 		trf->chip_status_ctrl = TRF7970A_CHIP_STATUS_VRS5_3;
 
