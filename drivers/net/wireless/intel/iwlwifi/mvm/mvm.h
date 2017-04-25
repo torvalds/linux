@@ -1081,6 +1081,18 @@ struct iwl_mvm {
 #define IWL_MAC80211_GET_MVM(_hw)			\
 	IWL_OP_MODE_GET_MVM((struct iwl_op_mode *)((_hw)->priv))
 
+/**
+ * enum iwl_mvm_status - MVM status bits
+ * @IWL_MVM_STATUS_HW_RFKILL: HW RF-kill is asserted
+ * @IWL_MVM_STATUS_HW_CTKILL: CT-kill is active
+ * @IWL_MVM_STATUS_ROC_RUNNING: remain-on-channel is running
+ * @IWL_MVM_STATUS_IN_HW_RESTART: HW restart is active
+ * @IWL_MVM_STATUS_IN_D0I3: NIC is in D0i3
+ * @IWL_MVM_STATUS_ROC_AUX_RUNNING: AUX remain-on-channel is running
+ * @IWL_MVM_STATUS_D3_RECONFIG: D3 reconfiguration is being done
+ * @IWL_MVM_STATUS_DUMPING_FW_LOG: FW log is being dumped
+ * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
+ */
 enum iwl_mvm_status {
 	IWL_MVM_STATUS_HW_RFKILL,
 	IWL_MVM_STATUS_HW_CTKILL,
