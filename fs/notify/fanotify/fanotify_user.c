@@ -295,27 +295,37 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 		}
 
 		ret = copy_event_to_user(group, kevent, buf);
+		if (unlikely(ret == -EOPENSTALE)) {
+			/*
+			 * We cannot report events with stale fd so drop it.
+			 * Setting ret to 0 will continue the event loop and
+			 * do the right thing if there are no more events to
+			 * read (i.e. return bytes read, -EAGAIN or wait).
+			 */
+			ret = 0;
+		}
+
 		/*
 		 * Permission events get queued to wait for response.  Other
 		 * events can be destroyed now.
 		 */
 		if (!(kevent->mask & FAN_ALL_PERM_EVENTS)) {
 			fsnotify_destroy_event(group, kevent);
-			if (ret < 0)
-				break;
 		} else {
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-			if (ret < 0) {
+			if (ret <= 0) {
 				FANOTIFY_PE(kevent)->response = FAN_DENY;
 				wake_up(&group->fanotify_data.access_waitq);
-				break;
+			} else {
+				spin_lock(&group->notification_lock);
+				list_add_tail(&kevent->list,
+					&group->fanotify_data.access_list);
+				spin_unlock(&group->notification_lock);
 			}
-			spin_lock(&group->notification_lock);
-			list_add_tail(&kevent->list,
-				      &group->fanotify_data.access_list);
-			spin_unlock(&group->notification_lock);
 #endif
 		}
+		if (ret < 0)
+			break;
 		buf += ret;
 		count -= ret;
 	}
