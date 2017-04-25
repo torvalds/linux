@@ -1400,37 +1400,38 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 {
 	unsigned char *data = wacom->data;
 
-	if (wacom->pen_input)
+	if (wacom->pen_input) {
 		dev_dbg(wacom->pen_input->dev.parent,
 			"%s: received report #%d\n", __func__, data[0]);
-	else if (wacom->touch_input)
+
+		if (len == WACOM_PKGLEN_PENABLED ||
+		    data[0] == WACOM_REPORT_PENABLED)
+			return wacom_tpc_pen(wacom);
+	}
+	else if (wacom->touch_input) {
 		dev_dbg(wacom->touch_input->dev.parent,
 			"%s: received report #%d\n", __func__, data[0]);
 
-	switch (len) {
-	case WACOM_PKGLEN_TPC1FG:
-		return wacom_tpc_single_touch(wacom, len);
-
-	case WACOM_PKGLEN_TPC2FG:
-		return wacom_tpc_mt_touch(wacom);
-
-	case WACOM_PKGLEN_PENABLED:
-		return wacom_tpc_pen(wacom);
-
-	default:
-		switch (data[0]) {
-		case WACOM_REPORT_TPC1FG:
-		case WACOM_REPORT_TPCHID:
-		case WACOM_REPORT_TPCST:
-		case WACOM_REPORT_TPC1FGE:
+		switch (len) {
+		case WACOM_PKGLEN_TPC1FG:
 			return wacom_tpc_single_touch(wacom, len);
 
-		case WACOM_REPORT_TPCMT:
-		case WACOM_REPORT_TPCMT2:
-			return wacom_mt_touch(wacom);
+		case WACOM_PKGLEN_TPC2FG:
+			return wacom_tpc_mt_touch(wacom);
 
-		case WACOM_REPORT_PENABLED:
-			return wacom_tpc_pen(wacom);
+		default:
+			switch (data[0]) {
+			case WACOM_REPORT_TPC1FG:
+			case WACOM_REPORT_TPCHID:
+			case WACOM_REPORT_TPCST:
+			case WACOM_REPORT_TPC1FGE:
+				return wacom_tpc_single_touch(wacom, len);
+
+			case WACOM_REPORT_TPCMT:
+			case WACOM_REPORT_TPCMT2:
+				return wacom_mt_touch(wacom);
+
+			}
 		}
 	}
 
