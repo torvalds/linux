@@ -398,3 +398,46 @@ int skl_sst_ctx_init(struct device *dev, int irq, const char *fw_name,
 
 	return ret;
 }
+
+int skl_prepare_lib_load(struct skl_sst *skl, struct skl_lib_info *linfo,
+		struct firmware *stripped_fw,
+		unsigned int hdr_offset, int index)
+{
+	int ret;
+	struct sst_dsp *dsp = skl->dsp;
+
+	if (linfo->fw == NULL) {
+		ret = request_firmware(&linfo->fw, linfo->name,
+					skl->dev);
+		if (ret < 0) {
+			dev_err(skl->dev, "Request lib %s failed:%d\n",
+				linfo->name, ret);
+			return ret;
+		}
+	}
+
+	if (skl->is_first_boot) {
+		ret = snd_skl_parse_uuids(dsp, linfo->fw, hdr_offset, index);
+		if (ret < 0)
+			return ret;
+	}
+
+	stripped_fw->data = linfo->fw->data;
+	stripped_fw->size = linfo->fw->size;
+	skl_dsp_strip_extended_manifest(stripped_fw);
+
+	return 0;
+}
+
+void skl_release_library(struct skl_lib_info *linfo, int lib_count)
+{
+	int i;
+
+	/* library indices start from 1 to N. 0 represents base FW */
+	for (i = 1; i < lib_count; i++) {
+		if (linfo[i].fw) {
+			release_firmware(linfo[i].fw);
+			linfo[i].fw = NULL;
+		}
+	}
+}

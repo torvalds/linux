@@ -18,6 +18,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/uuid.h>
+#include <linux/firmware.h>
 #include <sound/memalloc.h>
 #include "skl-sst-cldma.h"
 
@@ -145,7 +146,7 @@ struct skl_dsp_fw_ops {
 	int (*load_fw)(struct sst_dsp  *ctx);
 	/* FW module parser/loader */
 	int (*load_library)(struct sst_dsp *ctx,
-		struct skl_lib_info *linfo, int count);
+		struct skl_lib_info *linfo, int lib_count);
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx, unsigned int core_id);
 	int (*set_state_D3)(struct sst_dsp *ctx, unsigned int core_id);
@@ -250,5 +251,9 @@ void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable);
 int skl_sst_ctx_init(struct device *dev, int irq, const char *fw_name,
 		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp,
 		struct sst_dsp_device *skl_dev);
+int skl_prepare_lib_load(struct skl_sst *skl, struct skl_lib_info *linfo,
+			struct firmware *stripped_fw,
+			unsigned int hdr_offset, int index);
+void skl_release_library(struct skl_lib_info *linfo, int lib_count);
 
 #endif /*__SKL_SST_DSP_H__*/

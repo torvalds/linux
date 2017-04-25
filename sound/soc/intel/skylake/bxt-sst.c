@@ -53,18 +53,6 @@ static unsigned int bxt_get_errorcode(struct sst_dsp *ctx)
 	 return sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE);
 }
 
-static void sst_bxt_release_library(struct skl_lib_info *linfo, int lib_count)
-{
-	int i;
-
-	for (i = 1; i < lib_count; i++) {
-		if (linfo[i].fw) {
-			release_firmware(linfo[i].fw);
-			linfo[i].fw = NULL;
-		}
-	}
-}
-
 static int
 bxt_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 {
@@ -75,26 +63,10 @@ bxt_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 
 	/* library indices start from 1 to N. 0 represents base FW */
 	for (i = 1; i < lib_count; i++) {
-		if (linfo[i].fw == NULL) {
-			ret = request_firmware(&linfo[i].fw, linfo[i].name,
-						ctx->dev);
-			if (ret < 0) {
-				dev_err(ctx->dev, "Request lib %s failed:%d\n",
-					linfo[i].name, ret);
-				goto load_library_failed;
-			}
-		}
-
-		if (skl->is_first_boot) {
-			ret = snd_skl_parse_uuids(ctx, linfo[i].fw,
+		ret = skl_prepare_lib_load(skl, &skl->lib_info[i], &stripped_fw,
 					BXT_ADSP_FW_BIN_HDR_OFFSET, i);
-			if (ret < 0)
-				goto load_library_failed;
-		}
-
-		stripped_fw.data = linfo[i].fw->data;
-		stripped_fw.size = linfo[i].fw->size;
-		skl_dsp_strip_extended_manifest(&stripped_fw);
+		if (ret < 0)
+			goto load_library_failed;
 
 		stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40,
 					stripped_fw.size, &dmab);
@@ -121,7 +93,7 @@ bxt_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 	return ret;
 
 load_library_failed:
-	sst_bxt_release_library(linfo, lib_count);
+	skl_release_library(linfo, lib_count);
 	return ret;
 }
 
@@ -648,7 +620,7 @@ EXPORT_SYMBOL_GPL(bxt_sst_init_fw);
 void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
 
-	sst_bxt_release_library(ctx->lib_info, ctx->lib_count);
+	skl_release_library(ctx->lib_info, ctx->lib_count);
 	if (ctx->dsp->fw)
 		release_firmware(ctx->dsp->fw);
 	skl_freeup_uuid_list(ctx);
