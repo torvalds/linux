@@ -171,7 +171,6 @@ struct sbs_info {
 	u32				i2c_retry_count;
 	u32				poll_retry_count;
 	struct delayed_work		work;
-	int				ignore_changes;
 };
 
 static char model_name[I2C_SMBUS_BLOCK_MAX + 1];
@@ -694,11 +693,6 @@ static void sbs_external_power_changed(struct power_supply *psy)
 {
 	struct sbs_info *chip = power_supply_get_drvdata(psy);
 
-	if (chip->ignore_changes > 0) {
-		chip->ignore_changes--;
-		return;
-	}
-
 	/* cancel outstanding work */
 	cancel_delayed_work_sync(&chip->work);
 
@@ -775,10 +769,6 @@ static int sbs_probe(struct i2c_client *client,
 	chip->enable_detection = false;
 	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = chip;
-	/* ignore first notification of external change, it is generated
-	 * from the power_supply_register call back
-	 */
-	chip->ignore_changes = 1;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
 
 	/* use pdata if available, fall back to DT properties,
