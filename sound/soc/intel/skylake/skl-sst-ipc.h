@@ -197,7 +197,7 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 		struct skl_ipc_large_config_msg *msg, u32 *param);
 
 int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
-			u8 dma_id, u8 table_id);
+			u8 dma_id, u8 table_id, bool wait);
 
 int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc,
 		struct skl_ipc_d0ix_msg *msg);

@@ -971,7 +971,7 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 EXPORT_SYMBOL_GPL(skl_ipc_get_large_config);
 
 int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
-				u8 dma_id, u8 table_id)
+				u8 dma_id, u8 table_id, bool wait)
 {
 	struct skl_ipc_header header = {0};
 	u64 *ipc_header = (u64 *)(&header);
@@ -983,7 +983,11 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_MOD_INSTANCE_ID(table_id);
 	header.primary |= IPC_MOD_ID(dma_id);
 
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	if (wait)
+		ret = sst_ipc_tx_message_wait(ipc, *ipc_header,
+					NULL, 0, NULL, 0);
+	else
+		ret = sst_ipc_tx_message_nowait(ipc, *ipc_header, NULL, 0);
 
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load lib failed\n");

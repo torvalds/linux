@@ -81,7 +81,7 @@ bxt_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 		memcpy(dmab.area, stripped_fw.data, stripped_fw.size);
 
 		ctx->dsp_ops.trigger(ctx->dev, true, stream_tag);
-		ret = skl_sst_ipc_load_library(&skl->ipc, dma_id, i);
+		ret = skl_sst_ipc_load_library(&skl->ipc, dma_id, i, true);
 		if (ret < 0)
 			dev_err(ctx->dev, "IPC Load Lib for %s fail: %d\n",
 					linfo[i].name, ret);
