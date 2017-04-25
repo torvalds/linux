@@ -865,7 +865,7 @@ static void nfs3_proc_commit_setup(struct nfs_commit_data *data, struct rpc_mess
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_COMMIT];
 }
 
-void nfs3_nlm_alloc_call(void *data)
+static void nfs3_nlm_alloc_call(void *data)
 {
 	struct nfs_lock_context *l_ctx = data;
 	if (l_ctx && test_bit(NFS_CONTEXT_UNLOCK, &l_ctx->open_context->flags)) {
@@ -874,7 +874,7 @@ void nfs3_nlm_alloc_call(void *data)
 	}
 }
 
-bool nfs3_nlm_unlock_prepare(struct rpc_task *task, void *data)
+static bool nfs3_nlm_unlock_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_lock_context *l_ctx = data;
 	if (l_ctx && test_bit(NFS_CONTEXT_UNLOCK, &l_ctx->open_context->flags))
@@ -883,7 +883,7 @@ bool nfs3_nlm_unlock_prepare(struct rpc_task *task, void *data)
 
 }
 
-void nfs3_nlm_release_call(void *data)
+static void nfs3_nlm_release_call(void *data)
 {
 	struct nfs_lock_context *l_ctx = data;
 	struct nfs_open_context *ctx;
