@@ -627,6 +627,12 @@ static inline int of_device_is_compatible(const struct device_node *device,
 	return 0;
 }
 
+static inline  int of_device_compatible_match(struct device_node *device,
+					      const char *const *compat)
+{
+	return 0;
+}
+
 static inline bool of_device_is_available(const struct device_node *device)
 {
 	return false;
