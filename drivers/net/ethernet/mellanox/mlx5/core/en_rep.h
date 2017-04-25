@@ -33,11 +33,24 @@
 #ifndef __MLX5E_REP_H__
 #define __MLX5E_REP_H__
 
+#include <net/ip_tunnels.h>
 #include "eswitch.h"
 #include "en.h"
 
 struct mlx5e_rep_priv {
 	struct mlx5_eswitch_rep *rep;
+};
+
+struct mlx5e_encap_entry {
+	struct hlist_node encap_hlist;
+	struct list_head flows;
+	u32 encap_id;
+	struct neighbour *n;
+	struct ip_tunnel_info tun_info;
+	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
+
+	struct net_device *out_dev;
+	int tunnel_type;
 };
 
 void mlx5e_register_vport_reps(struct mlx5e_priv *priv);

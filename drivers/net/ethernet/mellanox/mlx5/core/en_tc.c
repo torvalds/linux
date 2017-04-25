@@ -264,9 +264,9 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 
 	list_del(&flow->encap);
 	if (list_empty(next)) {
-		struct mlx5_encap_entry *e;
+		struct mlx5e_encap_entry *e;
 
-		e = list_entry(next, struct mlx5_encap_entry, flows);
+		e = list_entry(next, struct mlx5e_encap_entry, flows);
 		if (e->n) {
 			mlx5_encap_dealloc(priv->mdev, e->encap_id);
 			neigh_release(e->n);
@@ -1211,7 +1211,7 @@ static void gen_vxlan_header_ipv6(struct net_device *out_dev,
 
 static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 					  struct net_device *mirred_dev,
-					  struct mlx5_encap_entry *e,
+					  struct mlx5e_encap_entry *e,
 					  struct net_device **out_dev)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
@@ -1285,9 +1285,8 @@ out:
 
 static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 					  struct net_device *mirred_dev,
-					  struct mlx5_encap_entry *e,
+					  struct mlx5e_encap_entry *e,
 					  struct net_device **out_dev)
-
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	int ipv6_encap_size = ETH_HLEN + sizeof(struct ipv6hdr) + VXLAN_HLEN;
@@ -1371,7 +1370,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5e_priv *up_priv = netdev_priv(up_dev);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct ip_tunnel_key *key = &tun_info->key;
-	struct mlx5_encap_entry *e;
+	struct mlx5e_encap_entry *e;
 	struct net_device *out_dev;
 	int tunnel_type, err = 0;
 	uintptr_t hash_key;
