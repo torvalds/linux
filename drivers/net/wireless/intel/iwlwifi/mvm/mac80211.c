@@ -4277,11 +4277,13 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	if (notif->sync)
+	if (notif->sync) {
 		ret = wait_event_timeout(mvm->rx_sync_waitq,
-					 atomic_read(&mvm->queue_sync_counter) == 0,
+					 atomic_read(&mvm->queue_sync_counter) == 0 ||
+					 iwl_mvm_is_radio_killed(mvm),
 					 HZ);
-	WARN_ON_ONCE(!ret);
+		WARN_ON_ONCE(!ret && !iwl_mvm_is_radio_killed(mvm));
+	}
 
 out:
 	atomic_set(&mvm->queue_sync_counter, 0);
