@@ -513,7 +513,7 @@ static const struct musb_hdrc_config da8xx_config = {
 	.multipoint = 1,
 };
 
-static struct of_dev_auxdata da8xx_auxdata_lookup[] __initdata = {
+static struct of_dev_auxdata da8xx_auxdata_lookup[] = {
 	OF_DEV_AUXDATA("ti,da830-cppi41", 0x01e01000, "cppi41-dmaengine",
 		       NULL),
 	{}
