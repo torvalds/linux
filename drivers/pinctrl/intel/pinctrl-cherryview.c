@@ -1542,7 +1542,8 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Edgar"),
 			DMI_MATCH(DMI_BIOS_DATE, "05/21/2016"),
 		},
-	}
+	},
+	{}
 };
 
 static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
