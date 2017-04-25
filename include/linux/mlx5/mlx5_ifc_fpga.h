@@ -32,6 +32,14 @@
 #ifndef MLX5_IFC_FPGA_H
 #define MLX5_IFC_FPGA_H
 
+enum {
+	MLX5_FPGA_CAP_SANDBOX_VENDOR_ID_MLNX = 0x2c9,
+};
+
+enum {
+	MLX5_FPGA_CAP_SANDBOX_PRODUCT_ID_IPSEC    = 0x2,
+};
+
 struct mlx5_ifc_fpga_shell_caps_bits {
 	u8         max_num_qps[0x10];
 	u8         reserved_at_10[0x8];
@@ -360,6 +368,65 @@ struct mlx5_ifc_fpga_destroy_qp_out_bits {
 	u8         syndrome[0x20];
 
 	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_ipsec_extended_cap_bits {
+	u8         encapsulation[0x20];
+
+	u8         reserved_0[0x15];
+	u8         ipv4_fragment[0x1];
+	u8         ipv6[0x1];
+	u8         esn[0x1];
+	u8         lso[0x1];
+	u8         transport_and_tunnel_mode[0x1];
+	u8         tunnel_mode[0x1];
+	u8         transport_mode[0x1];
+	u8         ah_esp[0x1];
+	u8         esp[0x1];
+	u8         ah[0x1];
+	u8         ipv4_options[0x1];
+
+	u8         auth_alg[0x20];
+
+	u8         enc_alg[0x20];
+
+	u8         sa_cap[0x20];
+
+	u8         reserved_1[0x10];
+	u8         number_of_ipsec_counters[0x10];
+
+	u8         ipsec_counters_addr_low[0x20];
+	u8         ipsec_counters_addr_high[0x20];
+};
+
+struct mlx5_ifc_ipsec_counters_bits {
+	u8         dec_in_packets[0x40];
+
+	u8         dec_out_packets[0x40];
+
+	u8         dec_bypass_packets[0x40];
+
+	u8         enc_in_packets[0x40];
+
+	u8         enc_out_packets[0x40];
+
+	u8         enc_bypass_packets[0x40];
+
+	u8         drop_dec_packets[0x40];
+
+	u8         failed_auth_dec_packets[0x40];
+
+	u8         drop_enc_packets[0x40];
+
+	u8         success_add_sa[0x40];
+
+	u8         fail_add_sa[0x40];
+
+	u8         success_delete_sa[0x40];
+
+	u8         fail_delete_sa[0x40];
+
+	u8         dropped_cmd[0x40];
 };
 
 #endif /* MLX5_IFC_FPGA_H */

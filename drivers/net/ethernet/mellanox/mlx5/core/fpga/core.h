@@ -51,6 +51,8 @@ struct mlx5_fpga_device {
 		struct mlx5_core_mkey mkey;
 		struct mlx5_uars_page *uar;
 	} conn_res;
+
+	struct mlx5_fpga_ipsec *ipsec;
 };
 
 #define mlx5_fpga_dbg(__adev, format, ...) \
