@@ -32,6 +32,9 @@ struct netns_can {
 	struct timer_list can_stattimer;/* timer for statistics update */
 	struct s_stats *can_stats;	/* packet statistics */
 	struct s_pstats *can_pstats;	/* receive list statistics */
+
+	/* CAN GW per-net gateway jobs */
+	struct hlist_head cgw_list;
 };
 
 #endif /* __NETNS_CAN_H__ */
