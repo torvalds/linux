@@ -2787,8 +2787,7 @@ static void tcp_rack_identify_loss(struct sock *sk, int *ack_flag)
  * tcp_xmit_retransmit_queue().
  */
 static void tcp_fastretrans_alert(struct sock *sk, const int acked,
-				  bool is_dupack, int *ack_flag, int *rexmit,
-				  const struct skb_mstamp *ack_time)
+				  bool is_dupack, int *ack_flag, int *rexmit)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -3646,8 +3645,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	if (tcp_ack_is_dubious(sk, flag)) {
 		is_dupack = !(flag & (FLAG_SND_UNA_ADVANCED | FLAG_NOT_DUP));
-		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit,
-				      &sack_state.ack_time);
+		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit);
 	}
 	if (tp->tlp_high_seq)
 		tcp_process_tlp_ack(sk, ack, flag);
@@ -3668,8 +3666,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 no_queue:
 	/* If data was DSACKed, see if we can undo a cwnd reduction. */
 	if (flag & FLAG_DSACKING_ACK)
-		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit,
-				      &sack_state.ack_time);
+		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit);
 	/* If this ack opens up a zero window, clear backoff.  It was
 	 * being used to time the probes, and is probably far higher than
 	 * it needs to be for normal retransmission.
@@ -3693,8 +3690,7 @@ old_ack:
 		skb_mstamp_get(&sack_state.ack_time);
 		flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una,
 						&sack_state);
-		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit,
-				      &sack_state.ack_time);
+		tcp_fastretrans_alert(sk, acked, is_dupack, &flag, &rexmit);
 		tcp_xmit_recovery(sk, rexmit);
 	}
 
