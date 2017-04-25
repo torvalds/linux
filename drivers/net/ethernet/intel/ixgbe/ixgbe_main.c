@@ -2639,8 +2639,7 @@ static void ixgbe_check_overtemp_subtask(struct ixgbe_adapter *adapter)
 	if (test_bit(__IXGBE_DOWN, &adapter->state))
 		return;
 
-	if (!(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-	    !(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_EVENT))
+	if (!(adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_EVENT))
 		return;
 
 	adapter->flags2 &= ~IXGBE_FLAG2_TEMP_SENSOR_EVENT;
