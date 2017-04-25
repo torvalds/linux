@@ -67,6 +67,7 @@ struct power_table {
  *	registered.
  * @cdev: thermal_cooling_device pointer to keep track of the
  *	registered cooling device.
+ * @policy: cpufreq policy.
  * @cpufreq_state: integer value representing the current state of cpufreq
  *	cooling	devices.
  * @clipped_freq: integer value representing the absolute value of the clipped
@@ -91,6 +92,7 @@ struct power_table {
 struct cpufreq_cooling_device {
 	int id;
 	struct thermal_cooling_device *cdev;
+	struct cpufreq_policy *policy;
 	unsigned int cpufreq_state;
 	unsigned int clipped_freq;
 	unsigned int max_level;
@@ -760,6 +762,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	if (!cpufreq_cdev)
 		return ERR_PTR(-ENOMEM);
 
+	cpufreq_cdev->policy = policy;
 	num_cpus = cpumask_weight(policy->related_cpus);
 	cpufreq_cdev->time_in_idle = kcalloc(num_cpus,
 					    sizeof(*cpufreq_cdev->time_in_idle),
