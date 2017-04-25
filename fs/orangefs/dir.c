@@ -304,13 +304,13 @@ static int orangefs_dir_iterate(struct file *file,
 	 * Must read more if the user has sought past what has been read
 	 * so far.  Stop a user who has sought past the end.
 	 */
-	while (od->token != ORANGEFS_READDIR_END &&
+	while (od->token != ORANGEFS_ITERATE_END &&
 	    ctx->pos > od->end) {
 		r = orangefs_dir_more(oi, od, dentry);
 		if (r)
 			return r;
 	}
-	if (od->token == ORANGEFS_READDIR_END && ctx->pos > od->end)
+	if (od->token == ORANGEFS_ITERATE_END && ctx->pos > od->end)
 		return -EIO;
 
 	/* Then try to fill if there's any left in the buffer. */
@@ -321,7 +321,7 @@ static int orangefs_dir_iterate(struct file *file,
 	}
 
 	/* Finally get some more and try to fill. */
-	if (od->token != ORANGEFS_READDIR_END) {
+	if (od->token != ORANGEFS_ITERATE_END) {
 		r = orangefs_dir_more(oi, od, dentry);
 		if (r)
 			return r;
@@ -339,7 +339,7 @@ static int orangefs_dir_open(struct inode *inode, struct file *file)
 	if (!file->private_data)
 		return -ENOMEM;
 	od = file->private_data;
-	od->token = ORANGEFS_READDIR_START;
+	od->token = ORANGEFS_ITERATE_START;
 	od->part = NULL;
 	od->end = 1 << PART_SHIFT;
 	od->error = 0;
