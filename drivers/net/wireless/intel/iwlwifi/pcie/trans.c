@@ -2428,17 +2428,12 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
-
-	char buf[8];
-	int buf_size;
 	u32 reset_flag;
+	int ret;
 
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%x", &reset_flag) != 1)
-		return -EFAULT;
+	ret = kstrtou32_from_user(user_buf, count, 16, &reset_flag);
+	if (ret)
+		return ret;
 	if (reset_flag == 0)
 		memset(isr_stats, 0, sizeof(*isr_stats));
 
