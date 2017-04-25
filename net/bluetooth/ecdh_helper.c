@@ -59,16 +59,19 @@ bool compute_ecdh_secret(const u8 public_key[64], const u8 private_key[32],
 	struct ecdh p;
 	struct ecdh_completion result;
 	struct scatterlist src, dst;
-	u8 tmp[64];
-	u8 *buf;
+	u8 *tmp, *buf;
 	unsigned int buf_len;
 	int err = -ENOMEM;
+
+	tmp = kmalloc(64, GFP_KERNEL);
+	if (!tmp)
+		return false;
 
 	tfm = crypto_alloc_kpp("ecdh", CRYPTO_ALG_INTERNAL, 0);
 	if (IS_ERR(tfm)) {
 		pr_err("alg: kpp: Failed to load tfm for kpp: %ld\n",
 		       PTR_ERR(tfm));
-		return false;
+		goto free_tmp;
 	}
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
@@ -128,6 +131,8 @@ free_req:
 	kpp_request_free(req);
 free_kpp:
 	crypto_free_kpp(tfm);
+free_tmp:
+	kfree(tmp);
 	return (err == 0);
 }
 
@@ -138,18 +143,21 @@ bool generate_ecdh_keys(u8 public_key[64], u8 private_key[32])
 	struct ecdh p;
 	struct ecdh_completion result;
 	struct scatterlist dst;
-	u8 tmp[64];
-	u8 *buf;
+	u8 *tmp, *buf;
 	unsigned int buf_len;
 	int err = -ENOMEM;
 	const unsigned short max_tries = 16;
 	unsigned short tries = 0;
 
+	tmp = kmalloc(64, GFP_KERNEL);
+	if (!tmp)
+		return false;
+
 	tfm = crypto_alloc_kpp("ecdh", CRYPTO_ALG_INTERNAL, 0);
 	if (IS_ERR(tfm)) {
 		pr_err("alg: kpp: Failed to load tfm for kpp: %ld\n",
 		       PTR_ERR(tfm));
-		return false;
+		goto free_tmp;
 	}
 
 	req = kpp_request_alloc(tfm, GFP_KERNEL);
@@ -219,5 +227,7 @@ free_req:
 	kpp_request_free(req);
 free_kpp:
 	crypto_free_kpp(tfm);
+free_tmp:
+	kfree(tmp);
 	return (err == 0);
 }
