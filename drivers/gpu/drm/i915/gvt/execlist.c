@@ -775,7 +775,8 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 			_EL_OFFSET_STATUS_PTR);
 
 	ctx_status_ptr.dw = vgpu_vreg(vgpu, ctx_status_ptr_reg);
-	ctx_status_ptr.read_ptr = ctx_status_ptr.write_ptr = 0x7;
+	ctx_status_ptr.read_ptr = 0;
+	ctx_status_ptr.write_ptr = 0x7;
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 

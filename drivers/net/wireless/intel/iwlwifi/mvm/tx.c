@@ -506,6 +506,7 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 
 	switch (info->control.vif->type) {
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
 		/*
 		 * Handle legacy hostapd as well, where station may be added
 		 * only after assoc. Take care of the case where we send a
@@ -517,7 +518,8 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 		if (info->hw_queue == info->control.vif->cab_queue)
 			return info->hw_queue;
 
-		WARN_ONCE(1, "fc=0x%02x", le16_to_cpu(fc));
+		WARN_ONCE(info->control.vif->type != NL80211_IFTYPE_ADHOC,
+			  "fc=0x%02x", le16_to_cpu(fc));
 		return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (ieee80211_is_mgmt(fc))
@@ -584,7 +586,8 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			iwl_mvm_vif_from_mac80211(info.control.vif);
 
 		if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
-		    info.control.vif->type == NL80211_IFTYPE_AP) {
+		    info.control.vif->type == NL80211_IFTYPE_AP ||
+		    info.control.vif->type == NL80211_IFTYPE_ADHOC) {
 			sta_id = mvmvif->bcast_sta.sta_id;
 			queue = iwl_mvm_get_ctrl_vif_queue(mvm, &info,
 							   hdr->frame_control);

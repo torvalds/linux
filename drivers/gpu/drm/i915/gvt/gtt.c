@@ -1837,11 +1837,15 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		ret = gtt_entry_p2m(vgpu, &e, &m);
 		if (ret) {
 			gvt_vgpu_err("fail to translate guest gtt entry\n");
-			return ret;
+			/* guest driver may read/write the entry when partial
+			 * update the entry in this situation p2m will fail
+			 * settting the shadow entry to point to a scratch page
+			 */
+			ops->set_pfn(&m, gvt->gtt.scratch_ggtt_mfn);
 		}
 	} else {
 		m = e;
-		m.val64 = 0;
+		ops->set_pfn(&m, gvt->gtt.scratch_ggtt_mfn);
 	}
 
 	ggtt_set_shadow_entry(ggtt_mm, &m, g_gtt_index);

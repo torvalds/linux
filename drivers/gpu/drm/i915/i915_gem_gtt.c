@@ -2704,7 +2704,7 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
 	if (unlikely(ggtt->do_idle_maps)) {
-		if (i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED)) {
+		if (i915_gem_wait_for_idle(dev_priv, 0)) {
 			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);

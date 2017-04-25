@@ -1983,20 +1983,25 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 
 		for (j = 0; j < max_idx; j++) {
 			struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[j];
+			dma_addr_t mapping = rx_buf->mapping;
 			void *data = rx_buf->data;
 
 			if (!data)
 				continue;
 
-			dma_unmap_single(&pdev->dev, rx_buf->mapping,
-					 bp->rx_buf_use_size, bp->rx_dir);
-
 			rx_buf->data = NULL;
 
-			if (BNXT_RX_PAGE_MODE(bp))
+			if (BNXT_RX_PAGE_MODE(bp)) {
+				mapping -= bp->rx_dma_offset;
+				dma_unmap_page(&pdev->dev, mapping,
+					       PAGE_SIZE, bp->rx_dir);
 				__free_page(data);
-			else
+			} else {
+				dma_unmap_single(&pdev->dev, mapping,
+						 bp->rx_buf_use_size,
+						 bp->rx_dir);
 				kfree(data);
+			}
 		}
 
 		for (j = 0; j < max_agg_idx; j++) {
@@ -2453,6 +2458,18 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 	}
 
 	return 0;
+}
+
+static void bnxt_init_cp_rings(struct bnxt *bp)
+{
+	int i;
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_cp_ring_info *cpr = &bp->bnapi[i]->cp_ring;
+		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
+
+		ring->fw_ring_id = INVALID_HW_RING_ID;
+	}
 }
 
 static int bnxt_init_rx_rings(struct bnxt *bp)
@@ -4732,7 +4749,7 @@ static int bnxt_set_tpa(struct bnxt *bp, bool set_tpa)
 		rc = bnxt_hwrm_vnic_set_tpa(bp, i, tpa_flags);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic set tpa failure rc for vnic %d: %x\n",
-				   rc, i);
+				   i, rc);
 			return rc;
 		}
 	}
@@ -5006,6 +5023,7 @@ static int bnxt_shutdown_nic(struct bnxt *bp, bool irq_re_init)
 
 static int bnxt_init_nic(struct bnxt *bp, bool irq_re_init)
 {
+	bnxt_init_cp_rings(bp);
 	bnxt_init_rx_rings(bp);
 	bnxt_init_tx_rings(bp);
 	bnxt_init_ring_grps(bp, irq_re_init);

@@ -54,9 +54,7 @@ int kprobe_fault_handler(struct pt_regs *regs, unsigned long cause);
 void kretprobe_trampoline(void);
 void trap_is_kprobe(unsigned long address, struct pt_regs *regs);
 #else
-static void trap_is_kprobe(unsigned long address, struct pt_regs *regs)
-{
-}
+#define trap_is_kprobe(address, regs)
 #endif /* CONFIG_KPROBES */
 
 #endif /* _ARC_KPROBES_H */
