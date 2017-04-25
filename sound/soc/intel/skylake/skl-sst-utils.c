@@ -361,3 +361,40 @@ int skl_dsp_strip_extended_manifest(struct firmware *fw)
 
 	return 0;
 }
+
+int skl_sst_ctx_init(struct device *dev, int irq, const char *fw_name,
+	struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp,
+	struct sst_dsp_device *skl_dev)
+{
+	struct skl_sst *skl;
+	struct sst_dsp *sst;
+	int ret;
+
+	skl = devm_kzalloc(dev, sizeof(*skl), GFP_KERNEL);
+	if (skl == NULL)
+		return -ENOMEM;
+
+	skl->dev = dev;
+	skl_dev->thread_context = skl;
+	INIT_LIST_HEAD(&skl->uuid_list);
+	skl->dsp = skl_dsp_ctx_init(dev, skl_dev, irq);
+	if (!skl->dsp) {
+		dev_err(skl->dev, "%s: no device\n", __func__);
+		return -ENODEV;
+	}
+
+	sst = skl->dsp;
+	sst->fw_name = fw_name;
+	sst->dsp_ops = dsp_ops;
+	init_waitqueue_head(&skl->mod_load_wait);
+	INIT_LIST_HEAD(&sst->module_list);
+	ret = skl_ipc_init(dev, skl);
+	if (ret)
+		return ret;
+
+	skl->is_first_boot = true;
+	if (dsp)
+		*dsp = skl;
+
+	return ret;
+}

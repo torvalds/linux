@@ -330,7 +330,6 @@ static int skl_transfer_module(struct sst_dsp *ctx, const void *data,
 	int ret, bytes_left, curr_pos;
 	struct skl_sst *skl = ctx->thread_context;
 	skl->mod_load_complete = false;
-	init_waitqueue_head(&skl->mod_load_wait);
 
 	bytes_left = ctx->cl_dev.ops.cl_copy_to_dmabuf(ctx, data, size, false);
 	if (bytes_left < 0)
@@ -489,43 +488,24 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	struct sst_dsp *sst;
 	int ret;
 
-	skl = devm_kzalloc(dev, sizeof(*skl), GFP_KERNEL);
-	if (skl == NULL)
-		return -ENOMEM;
-
-	skl->dev = dev;
-	skl_dev.thread_context = skl;
-	INIT_LIST_HEAD(&skl->uuid_list);
-
-	skl->dsp = skl_dsp_ctx_init(dev, &skl_dev, irq);
-	if (!skl->dsp) {
-		dev_err(skl->dev, "%s: no device\n", __func__);
-		return -ENODEV;
+	ret = skl_sst_ctx_init(dev, irq, fw_name, dsp_ops, dsp, &skl_dev);
+	if (ret < 0) {
+		dev_err(dev, "%s: no device\n", __func__);
+		return ret;
 	}
 
+	skl = *dsp;
 	sst = skl->dsp;
-
-	sst->fw_name = fw_name;
 	sst->addr.lpe = mmio_base;
 	sst->addr.shim = mmio_base;
 	sst_dsp_mailbox_init(sst, (SKL_ADSP_SRAM0_BASE + SKL_ADSP_W0_STAT_SZ),
 			SKL_ADSP_W0_UP_SZ, SKL_ADSP_SRAM1_BASE, SKL_ADSP_W1_SZ);
 
-	INIT_LIST_HEAD(&sst->module_list);
-	sst->dsp_ops = dsp_ops;
 	sst->fw_ops = skl_fw_ops;
 
-	ret = skl_ipc_init(dev, skl);
-	if (ret)
-		return ret;
-
 	skl->cores.count = 2;
-	skl->is_first_boot = true;
 
-	if (dsp)
-		*dsp = skl;
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
 
