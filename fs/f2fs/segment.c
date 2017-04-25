@@ -1050,6 +1050,32 @@ static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 	return 0;
 }
 
+static void __issue_discard_cmd(struct f2fs_sb_info *sbi, bool issue_cond)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	struct list_head *pend_list;
+	struct discard_cmd *dc, *tmp;
+	struct blk_plug plug;
+	int i, iter = 0;
+
+	mutex_lock(&dcc->cmd_lock);
+	blk_start_plug(&plug);
+	for (i = MAX_PLIST_NUM - 1; i >= 0; i--) {
+		pend_list = &dcc->pend_list[i];
+		list_for_each_entry_safe(dc, tmp, pend_list, list) {
+			f2fs_bug_on(sbi, dc->state != D_PREP);
+
+			if (!issue_cond || is_idle(sbi))
+				__submit_discard_cmd(sbi, dc);
+			if (issue_cond && iter++ > DISCARD_ISSUE_RATE)
+				goto out;
+		}
+	}
+out:
+	blk_finish_plug(&plug);
+	mutex_unlock(&dcc->cmd_lock);
+}
+
 /* This should be covered by global mutex, &sit_i->sentry_lock */
 void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
@@ -1072,27 +1098,16 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 void f2fs_wait_discard_bios(struct f2fs_sb_info *sbi)
 {
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
-	struct list_head *pend_list;
 	struct list_head *wait_list = &(dcc->wait_list);
 	struct discard_cmd *dc, *tmp;
-	struct blk_plug plug;
-	int i;
+
+	__issue_discard_cmd(sbi, false);
 
 	mutex_lock(&dcc->cmd_lock);
-
-	blk_start_plug(&plug);
-	for (i = 0; i < MAX_PLIST_NUM; i++) {
-		pend_list = &dcc->pend_list[i];
-		list_for_each_entry_safe(dc, tmp, pend_list, list)
-			__submit_discard_cmd(sbi, dc);
-	}
-	blk_finish_plug(&plug);
-
 	list_for_each_entry_safe(dc, tmp, wait_list, list) {
 		wait_for_completion_io(&dc->wait);
 		__remove_discard_cmd(sbi, dc);
 	}
-
 	mutex_unlock(&dcc->cmd_lock);
 }
 
@@ -1101,32 +1116,15 @@ static int issue_discard_thread(void *data)
 	struct f2fs_sb_info *sbi = data;
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 	wait_queue_head_t *q = &dcc->discard_wait_queue;
-	struct list_head *pend_list;
 	struct list_head *wait_list = &dcc->wait_list;
 	struct discard_cmd *dc, *tmp;
-	struct blk_plug plug;
-	int iter = 0, i;
 repeat:
 	if (kthread_should_stop())
 		return 0;
 
+	__issue_discard_cmd(sbi, true);
+
 	mutex_lock(&dcc->cmd_lock);
-	blk_start_plug(&plug);
-	for (i = MAX_PLIST_NUM - 1; i >= 0; i--) {
-		pend_list = &dcc->pend_list[i];
-		list_for_each_entry_safe(dc, tmp, pend_list, list) {
-			f2fs_bug_on(sbi, dc->state != D_PREP);
-
-			if (is_idle(sbi))
-				__submit_discard_cmd(sbi, dc);
-
-			if (iter++ > DISCARD_ISSUE_RATE)
-				goto next_step;
-		}
-	}
-next_step:
-	blk_finish_plug(&plug);
-
 	list_for_each_entry_safe(dc, tmp, wait_list, list) {
 		if (dc->state == D_DONE) {
 			wait_for_completion_io(&dc->wait);
@@ -1135,7 +1133,6 @@ next_step:
 	}
 	mutex_unlock(&dcc->cmd_lock);
 
-	iter = 0;
 	congestion_wait(BLK_RW_SYNC, HZ/50);
 
 	wait_event_interruptible(*q, kthread_should_stop() ||
