@@ -105,8 +105,8 @@ struct cpufreq_cooling_device {
 	struct device *cpu_dev;
 	get_static_t plat_get_static_power;
 };
-static DEFINE_IDA(cpufreq_ida);
 
+static DEFINE_IDA(cpufreq_ida);
 static DEFINE_MUTEX(cooling_list_lock);
 static LIST_HEAD(cpufreq_dev_list);
 
