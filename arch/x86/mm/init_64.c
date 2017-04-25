@@ -962,7 +962,7 @@ remove_pud_table(pud_t *pud_start, unsigned long addr, unsigned long end,
 			continue;
 		}
 
-		pmd_base = (pmd_t *)pud_page_vaddr(*pud);
+		pmd_base = pmd_offset(pud, 0);
 		remove_pmd_table(pmd_base, addr, next, direct);
 		free_pmd_table(pmd_base, pud);
 	}
@@ -988,7 +988,7 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
 
 		BUILD_BUG_ON(p4d_large(*p4d));
 
-		pud_base = (pud_t *)p4d_page_vaddr(*p4d);
+		pud_base = pud_offset(p4d, 0);
 		remove_pud_table(pud_base, addr, next, direct);
 		free_pud_table(pud_base, p4d);
 	}
@@ -1013,7 +1013,7 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
 		if (!pgd_present(*pgd))
 			continue;
 
-		p4d = (p4d_t *)pgd_page_vaddr(*pgd);
+		p4d = p4d_offset(pgd, 0);
 		remove_p4d_table(p4d, addr, next, direct);
 	}
 
