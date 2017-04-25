@@ -470,6 +470,15 @@ static struct skl_dsp_fw_ops skl_fw_ops = {
 	.unload_mod = skl_unload_module,
 };
 
+static struct skl_dsp_fw_ops kbl_fw_ops = {
+	.set_state_D0 = skl_set_dsp_D0,
+	.set_state_D3 = skl_set_dsp_D3,
+	.load_fw = skl_load_base_firmware,
+	.get_fw_errcode = skl_get_errorcode,
+	.load_mod = skl_load_module,
+	.unload_mod = skl_unload_module,
+};
+
 static struct sst_ops skl_ops = {
 	.irq_handler = skl_dsp_sst_interrupt,
 	.write = sst_shim32_write,
@@ -511,6 +520,27 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
+
+int kbl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
+		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
+		struct skl_sst **dsp)
+{
+	struct sst_dsp *sst;
+	int ret;
+
+	ret = skl_sst_dsp_init(dev, mmio_base, irq, fw_name, dsp_ops, dsp);
+	if (ret < 0) {
+		dev_err(dev, "%s: Init failed %d\n", __func__, ret);
+		return ret;
+	}
+
+	sst = (*dsp)->dsp;
+	sst->fw_ops = kbl_fw_ops;
+
+	return 0;
+
+}
+EXPORT_SYMBOL_GPL(kbl_sst_dsp_init);
 
 int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 {
