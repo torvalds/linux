@@ -308,7 +308,7 @@ struct mlx5_esw_flow_attr {
 	int	action;
 	u16	vlan;
 	bool	vlan_handled;
-	struct mlx5_encap_entry *encap;
+	u32	encap_id;
 	u32	mod_hdr_id;
 };
 

@@ -1362,16 +1362,18 @@ out:
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct ip_tunnel_info *tun_info,
 			      struct net_device *mirred_dev,
-			      struct mlx5_esw_flow_attr *attr)
+			      struct net_device **encap_dev,
+			      struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct net_device *up_dev = mlx5_eswitch_get_uplink_netdev(esw);
-	struct mlx5e_priv *up_priv = netdev_priv(up_dev);
 	unsigned short family = ip_tunnel_info_af(tun_info);
+	struct mlx5e_priv *up_priv = netdev_priv(up_dev);
+	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct ip_tunnel_key *key = &tun_info->key;
 	struct mlx5_encap_entry *e;
 	struct net_device *out_dev;
-	int tunnel_type, err = -EOPNOTSUPP;
+	int tunnel_type, err = 0;
 	uintptr_t hash_key;
 	bool found = false;
 
@@ -1406,10 +1408,8 @@ vxlan_encap_offload_err:
 		}
 	}
 
-	if (found) {
-		attr->encap = e;
-		return 0;
-	}
+	if (found)
+		goto attach_flow;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
@@ -1427,10 +1427,14 @@ vxlan_encap_offload_err:
 	if (err)
 		goto out_err;
 
-	attr->encap = e;
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
 
-	return err;
+attach_flow:
+	list_add(&flow->encap, &e->flows);
+	*encap_dev = e->out_dev;
+	attr->encap_id = e->encap_id;
+
+	return 0;
 
 out_err:
 	kfree(e);
@@ -1475,7 +1479,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 		if (is_tcf_mirred_egress_redirect(a)) {
 			int ifindex = tcf_mirred_ifindex(a);
-			struct net_device *out_dev;
+			struct net_device *out_dev, *encap_dev = NULL;
 			struct mlx5e_priv *out_priv;
 
 			out_dev = __dev_get_by_index(dev_net(priv->netdev), ifindex);
@@ -1489,14 +1493,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				attr->out_rep = rpriv->rep;
 			} else if (encap) {
 				err = mlx5e_attach_encap(priv, info,
-							 out_dev, attr);
+							 out_dev, &encap_dev, flow);
 				if (err)
 					return err;
-				list_add(&flow->encap, &attr->encap->flows);
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_ENCAP |
 					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					MLX5_FLOW_CONTEXT_ACTION_COUNT;
-				out_priv = netdev_priv(attr->encap->out_dev);
+				out_priv = netdev_priv(encap_dev);
 				rpriv = out_priv->ppriv;
 				attr->out_rep = rpriv->rep;
 			} else {
