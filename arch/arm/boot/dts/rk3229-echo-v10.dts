@@ -1,0 +1,252 @@
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *  Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include "rk322x.dtsi"
+#include "rk322x-android.dtsi"
+
+/ {
+	model = "RK3229 Echo Board V1.0";
+	compatible = "rockchip,rk3229-echo", "rockchip,rk3229";
+
+	vcc_host: vcc-host-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-name = "vcc_host";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart1_rts>;
+		pinctrl-1 = <&uart1_gpios>;
+		BT,reset_gpio    = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6335";
+		sdio_vref = <1800>;
+		WIFI,host_wake_irq = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&emmc {
+	broken-cd;
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	supports-emmc;
+	disable-wp;
+	non-removable;
+	num-slots = <1>;
+	/delete-property/ default-sample-phase;
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	rk805: rk805@18 {
+		compatible = "rockchip,rk805";
+		status = "okay";
+		reg = <0x18>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		spinctrl-names = "default";
+		pinctrl-0 = <&pmic_int_l>;
+		rockchip,system-power-controller;
+		wakeup-source;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		rtc {
+			status = "okay";
+		};
+
+		pwrkey {
+			status = "okay";
+		};
+
+		gpio {
+			status = "okay";
+		};
+
+		regulators {
+			compatible = "rk805-regulator";
+			status = "okay";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdd_arm: RK805_DCDC1@0 {
+				regulator-compatible = "RK805_DCDC1";
+				regulator-name = "vdd_arm";
+				regulator-min-microvolt = <712500>;
+				regulator-max-microvolt = <1450000>;
+				regulator-initial-mode = <0x1>;
+				regulator-ramp-delay = <12500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <950000>;
+				};
+			};
+
+			vdd_logic: RK805_DCDC2@1 {
+				regulator-compatible = "RK805_DCDC2";
+				regulator-name = "vdd_logic";
+				regulator-min-microvolt = <712500>;
+				regulator-max-microvolt = <1450000>;
+				regulator-initial-mode = <0x1>;
+				regulator-ramp-delay = <12500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
+				};
+			};
+
+			vcc_ddr: RK805_DCDC3@2 {
+				regulator-compatible = "RK805_DCDC3";
+				regulator-name = "vcc_ddr";
+				regulator-initial-mode = <0x1>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+				};
+			};
+
+			vcc_io: RK805_DCDC4@3 {
+				regulator-compatible = "RK805_DCDC4";
+				regulator-name = "vcc_io";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <0x1>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+
+			vcc_18: RK805_LDO1@4 {
+				regulator-compatible = "RK805_LDO1";
+				regulator-name = "vcc_18";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			vcc_18emmc: RK805_LDO2@5 {
+				regulator-compatible = "RK805_LDO2";
+				regulator-name = "vcc_18emmc";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			vdd_10: RK805_LDO3@6 {
+				regulator-compatible = "RK805_LDO3";
+				regulator-name = "vdd_10";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	pmic {
+		pmic_int_l: pmic-int-l {
+			rockchip,pins = <1 12 RK_FUNC_GPIO &pcfg_pull_up>; /* gpio1_b4 */
+		};
+	};
+
+	usb {
+		host_vbus_drv: host-vbus-drv {
+			rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart1_gpios: uart1-gpios {
+			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
