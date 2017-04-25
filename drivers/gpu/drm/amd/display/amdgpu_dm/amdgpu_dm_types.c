@@ -511,21 +511,21 @@ static void fill_plane_attributes_from_fb(
 		surface->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
 		surface->address.video_progressive.luma_addr.low_part
 						= lower_32_bits(fb_location);
-		surface->address.video_progressive.chroma_addr.high_part
-						= upper_32_bits(fb_location);
+		surface->address.video_progressive.chroma_addr.low_part
+						= lower_32_bits(fb_location) +
+							(fb->width * fb->height);
 		surface->plane_size.video.luma_size.x = 0;
 		surface->plane_size.video.luma_size.y = 0;
 		surface->plane_size.video.luma_size.width = fb->width;
 		surface->plane_size.video.luma_size.height = fb->height;
 		/* TODO: unhardcode */
-		surface->plane_size.video.luma_pitch = fb->pitches[0] / 4;
+		surface->plane_size.video.luma_pitch = ALIGN(fb->width, 64);
 
 		surface->plane_size.video.chroma_size.x = 0;
 		surface->plane_size.video.chroma_size.y = 0;
-		surface->plane_size.video.chroma_size.width = fb->width;
-		surface->plane_size.video.chroma_size.height = fb->height;
-		surface->plane_size.video.chroma_pitch =
-			fb->pitches[0] / 4;
+		surface->plane_size.video.chroma_size.width = fb->width / 2;
+		surface->plane_size.video.chroma_size.height = fb->height / 2;
+		surface->plane_size.video.chroma_pitch = ALIGN(fb->width, 64) / 2;
 
 		/* TODO: unhardcode */
 		surface->color_space = COLOR_SPACE_YCBCR709;
