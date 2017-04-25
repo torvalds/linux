@@ -374,6 +374,8 @@ static inline u8 *caam_read_raw_data(const u8 *buf, size_t *nbytes)
 		buf++;
 		(*nbytes)--;
 	}
+	if (!*nbytes)
+		return NULL;
 
 	val = kzalloc(*nbytes, GFP_DMA | GFP_KERNEL);
 	if (!val)
