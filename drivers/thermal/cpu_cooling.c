@@ -456,7 +456,6 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long state)
 {
 	struct cpufreq_cooling_device *cpufreq_cdev = cdev->devdata;
-	unsigned int cpu = cpumask_any(&cpufreq_cdev->allowed_cpus);
 	unsigned int clip_freq;
 
 	/* Request state should be less than max_level */
@@ -471,7 +470,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	cpufreq_cdev->cpufreq_state = state;
 	cpufreq_cdev->clipped_freq = clip_freq;
 
-	cpufreq_update_policy(cpu);
+	cpufreq_update_policy(cpumask_any(&cpufreq_cdev->allowed_cpus));
 
 	return 0;
 }
