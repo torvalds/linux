@@ -311,6 +311,7 @@ static int __commit_inmem_pages(struct inode *inode,
 			}
 
 			fio.page = page;
+			fio.old_blkaddr = NULL_ADDR;
 			err = do_write_data_page(&fio);
 			if (err) {
 				unlock_page(page);
