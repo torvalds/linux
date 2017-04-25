@@ -2070,6 +2070,9 @@ static int trf7970a_probe(struct spi_device *spi)
 			dev_err(trf->dev, "Can't request EN2 GPIO: %d\n", ret);
 			return ret;
 		}
+
+		if (of_property_read_bool(np, "en2-rf-quirk"))
+			trf->quirks |= TRF7970A_QUIRK_EN2_MUST_STAY_LOW;
 	}
 
 	of_property_read_u32(np, "clock-frequency", &clk_freq);
@@ -2080,9 +2083,6 @@ static int trf7970a_probe(struct spi_device *spi)
 			clk_freq);
 		return -EINVAL;
 	}
-
-	if (of_property_read_bool(np, "en2-rf-quirk"))
-		trf->quirks |= TRF7970A_QUIRK_EN2_MUST_STAY_LOW;
 
 	ret = devm_request_threaded_irq(trf->dev, spi->irq, NULL,
 			trf7970a_irq, IRQF_TRIGGER_RISING | IRQF_ONESHOT,
