@@ -483,6 +483,8 @@ struct dsa_verify_pdb {
 #define RSA_PDB_E_MASK          (0xFFF << RSA_PDB_E_SHIFT)
 #define RSA_PDB_D_SHIFT         12
 #define RSA_PDB_D_MASK          (0xFFF << RSA_PDB_D_SHIFT)
+#define RSA_PDB_Q_SHIFT         12
+#define RSA_PDB_Q_MASK          (0xFFF << RSA_PDB_Q_SHIFT)
 
 #define RSA_PDB_SGF_F           (0x8 << RSA_PDB_SGF_SHIFT)
 #define RSA_PDB_SGF_G           (0x4 << RSA_PDB_SGF_SHIFT)
@@ -490,6 +492,7 @@ struct dsa_verify_pdb {
 #define RSA_PRIV_PDB_SGF_G      (0x8 << RSA_PDB_SGF_SHIFT)
 
 #define RSA_PRIV_KEY_FRM_1      0
+#define RSA_PRIV_KEY_FRM_2      1
 
 /**
  * RSA Encrypt Protocol Data Block
@@ -523,6 +526,32 @@ struct rsa_priv_f1_pdb {
 	dma_addr_t	f_dma;
 	dma_addr_t	n_dma;
 	dma_addr_t	d_dma;
+} __packed;
+
+/**
+ * RSA Decrypt PDB - Private Key Form #2
+ * @sgf     : scatter-gather field
+ * @g_dma   : dma address of encrypted input data
+ * @f_dma   : dma address of output data
+ * @d_dma   : dma address of RSA private exponent
+ * @p_dma   : dma address of RSA prime factor p of RSA modulus n
+ * @q_dma   : dma address of RSA prime factor q of RSA modulus n
+ * @tmp1_dma: dma address of temporary buffer. CAAM uses this temporary buffer
+ *            as internal state buffer. It is assumed to be as long as p.
+ * @tmp2_dma: dma address of temporary buffer. CAAM uses this temporary buffer
+ *            as internal state buffer. It is assumed to be as long as q.
+ * @p_q_len : length in bytes of first two prime factors of the RSA modulus n
+ */
+struct rsa_priv_f2_pdb {
+	u32		sgf;
+	dma_addr_t	g_dma;
+	dma_addr_t	f_dma;
+	dma_addr_t	d_dma;
+	dma_addr_t	p_dma;
+	dma_addr_t	q_dma;
+	dma_addr_t	tmp1_dma;
+	dma_addr_t	tmp2_dma;
+	u32		p_q_len;
 } __packed;
 
 #endif
