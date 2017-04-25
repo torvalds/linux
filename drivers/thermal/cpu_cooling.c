@@ -739,7 +739,6 @@ __cpufreq_cooling_register(struct device_node *np,
 	struct thermal_cooling_device *cdev;
 	struct cpufreq_cooling_device *cpufreq_cdev;
 	char dev_name[THERMAL_NAME_LENGTH];
-	struct cpufreq_frequency_table *pos, *table;
 	unsigned int freq, i, num_cpus;
 	int ret;
 	struct thermal_cooling_device_ops *cooling_ops;
@@ -750,9 +749,10 @@ __cpufreq_cooling_register(struct device_node *np,
 		return ERR_PTR(-EINVAL);
 	}
 
-	table = policy->freq_table;
-	if (!table) {
-		pr_debug("%s: CPUFreq table not found\n", __func__);
+	i = cpufreq_table_count_valid_entries(policy);
+	if (!i) {
+		pr_debug("%s: CPUFreq table not found or has no valid entries\n",
+			 __func__);
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -777,19 +777,15 @@ __cpufreq_cooling_register(struct device_node *np,
 		goto free_time_in_idle;
 	}
 
-	/* Find max levels */
-	cpufreq_for_each_valid_entry(pos, table)
-		cpufreq_cdev->max_level++;
+	/* max_level is an index, not a counter */
+	cpufreq_cdev->max_level = i - 1;
 
-	cpufreq_cdev->freq_table = kmalloc(sizeof(*cpufreq_cdev->freq_table) *
-					  cpufreq_cdev->max_level, GFP_KERNEL);
+	cpufreq_cdev->freq_table = kmalloc(sizeof(*cpufreq_cdev->freq_table) * i,
+					  GFP_KERNEL);
 	if (!cpufreq_cdev->freq_table) {
 		cdev = ERR_PTR(-ENOMEM);
 		goto free_time_in_idle_timestamp;
 	}
-
-	/* max_level is an index, not a counter */
-	cpufreq_cdev->max_level--;
 
 	cpumask_copy(&cpufreq_cdev->allowed_cpus, policy->related_cpus);
 
@@ -816,7 +812,7 @@ __cpufreq_cooling_register(struct device_node *np,
 
 	/* Fill freq-table in descending order of frequencies */
 	for (i = 0, freq = -1; i <= cpufreq_cdev->max_level; i++) {
-		freq = find_next_max(table, freq);
+		freq = find_next_max(policy->freq_table, freq);
 		cpufreq_cdev->freq_table[i] = freq;
 
 		/* Warn for duplicate entries */
