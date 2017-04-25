@@ -358,7 +358,7 @@ try_again:
 
 	returned_count = new_op->downcall.resp.listxattr.returned_count;
 	if (returned_count < 0 ||
-	    returned_count >= ORANGEFS_MAX_XATTR_LISTLEN) {
+	    returned_count > ORANGEFS_MAX_XATTR_LISTLEN) {
 		gossip_err("%s: impossible value for returned_count:%d:\n",
 		__func__,
 		returned_count);
