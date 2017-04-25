@@ -807,7 +807,7 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 EXPORT_SYMBOL_GPL(xdr_init_decode);
 
 /**
- * xdr_init_decode - Initialize an xdr_stream for decoding data.
+ * xdr_init_decode_pages - Initialize an xdr_stream for decoding into pages
  * @xdr: pointer to xdr_stream struct
  * @buf: pointer to XDR buffer from which to decode data
  * @pages: list of pages to decode into

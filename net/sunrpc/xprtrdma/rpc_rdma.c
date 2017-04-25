@@ -494,7 +494,7 @@ rpcrdma_prepare_hdr_sge(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 	}
 	sge->length = len;
 
-	ib_dma_sync_single_for_device(ia->ri_device, sge->addr,
+	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr,
 				      sge->length, DMA_TO_DEVICE);
 	req->rl_send_wr.num_sge++;
 	return true;
@@ -523,7 +523,7 @@ rpcrdma_prepare_msg_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req,
 	sge[sge_no].addr = rdmab_addr(rb);
 	sge[sge_no].length = xdr->head[0].iov_len;
 	sge[sge_no].lkey = rdmab_lkey(rb);
-	ib_dma_sync_single_for_device(device, sge[sge_no].addr,
+	ib_dma_sync_single_for_device(rdmab_device(rb), sge[sge_no].addr,
 				      sge[sge_no].length, DMA_TO_DEVICE);
 
 	/* If there is a Read chunk, the page list is being handled
@@ -781,9 +781,11 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	return 0;
 
 out_err:
-	pr_err("rpcrdma: rpcrdma_marshal_req failed, status %ld\n",
-	       PTR_ERR(iptr));
-	r_xprt->rx_stats.failed_marshal_count++;
+	if (PTR_ERR(iptr) != -ENOBUFS) {
+		pr_err("rpcrdma: rpcrdma_marshal_req failed, status %ld\n",
+		       PTR_ERR(iptr));
+		r_xprt->rx_stats.failed_marshal_count++;
+	}
 	return PTR_ERR(iptr);
 }
 
