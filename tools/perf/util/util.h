@@ -14,8 +14,6 @@
 #include <stdarg.h>
 #include <linux/types.h>
 
-extern char buildid_dir[];
-
 #ifdef __GNUC__
 #define NORETURN __attribute__((__noreturn__))
 #else
@@ -36,7 +34,6 @@ void warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
 void set_warning_routine(void (*routine)(const char *err, va_list params));
 
 int prefixcmp(const char *str, const char *prefix);
-void set_buildid_dir(const char *dir);
 
 static inline void *zalloc(size_t size)
 {

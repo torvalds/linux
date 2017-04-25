@@ -1,7 +1,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <sys/epoll.h>
-#include <util/util.h>
 #include <util/evlist.h>
 #include <linux/filter.h>
 #include "tests.h"
