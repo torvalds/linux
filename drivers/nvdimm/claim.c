@@ -246,7 +246,8 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)) {
 			long cleared;
 
-			cleared = nvdimm_clear_poison(&ndns->dev, offset, size);
+			cleared = nvdimm_clear_poison(&ndns->dev,
+					nsio->res.start + offset, size);
 			if (cleared < size)
 				rc = -EIO;
 			if (cleared > 0 && cleared / 512) {
