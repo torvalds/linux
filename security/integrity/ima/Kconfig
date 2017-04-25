@@ -155,6 +155,14 @@ config IMA_APPRAISE
 	  <http://linux-ima.sourceforge.net>
 	  If unsure, say N.
 
+config IMA_APPRAISE_BOOTPARAM
+	bool "ima_appraise boot parameter"
+	depends on IMA_APPRAISE
+	default y
+	help
+	  This option enables the different "ima_appraise=" modes
+	  (eg. fix, log) from the boot command line.
+
 config IMA_TRUSTED_KEYRING
 	bool "Require all keys on the .ima keyring be signed (deprecated)"
 	depends on IMA_APPRAISE && SYSTEM_TRUSTED_KEYRING
