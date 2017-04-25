@@ -1148,14 +1148,11 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	return ret;
 }
 
-static u32 port_seqno(struct execlist_port *port)
-{
-	return port->request ? port->request->global_seqno : 0;
-}
-
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+	struct execlist_port *port = engine->execlist_port;
+	unsigned int n;
 	int ret;
 
 	ret = intel_mocs_init_engine(engine);
@@ -1176,15 +1173,21 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	/* After a GPU reset, we may have requests to replay */
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-	if (!i915.enable_guc_submission && !execlists_elsp_idle(engine)) {
-		DRM_DEBUG_DRIVER("Restarting %s from requests [0x%x, 0x%x]\n",
-				 engine->name,
-				 port_seqno(&engine->execlist_port[0]),
-				 port_seqno(&engine->execlist_port[1]));
-		engine->execlist_port[0].count = 0;
-		engine->execlist_port[1].count = 0;
-		execlists_submit_ports(engine);
+
+	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++) {
+		if (!port[n].request)
+			break;
+
+		DRM_DEBUG_DRIVER("Restarting %s:%d from 0x%x\n",
+				 engine->name, n,
+				 port[n].request->global_seqno);
+
+		/* Discard the current inflight count */
+		port[n].count = 0;
 	}
+
+	if (!i915.enable_guc_submission && !execlists_elsp_idle(engine))
+		execlists_submit_ports(engine);
 
 	return 0;
 }
