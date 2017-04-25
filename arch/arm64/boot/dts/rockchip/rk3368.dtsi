@@ -1328,6 +1328,11 @@
 				reg = <1>;
 				remote-endpoint = <&edp_in_vop>;
 			};
+
+			vop_out_hdmi: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&hdmi_in_vop>;
+			};
 		};
 	};
 
@@ -1410,6 +1415,30 @@
 
 				edp_in_vop: endpoint {
 					remote-endpoint = <&vop_out_edp>;
+				};
+			};
+		};
+	};
+
+	hdmi: hdmi@ff980000 {
+		compatible = "rockchip,rk3368-dw-hdmi";
+		reg = <0x0 0xff980000 0x0 0x20000>;
+		reg-io-width = <4>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_HDCP>, <&cru SCLK_HDMI_CEC>;
+		clock-names = "iahb", "isfr", "cec";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
+		resets = <&cru SRST_HDMI>;
+		reset-names = "hdmi";
+		power-domains = <&power RK3368_PD_VIO>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			port {
+				hdmi_in_vop: endpoint {
+					remote-endpoint = <&vop_out_hdmi>;
 				};
 			};
 		};
@@ -1713,6 +1742,17 @@
 						<3 16 RK_FUNC_1 &pcfg_pull_none>,
 						<3 20 RK_FUNC_1 &pcfg_pull_none>,
 						<3 21 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		hdmi {
+			hdmi_cec: hdmi-cec {
+				rockchip,pins = <3 23 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			hdmi_i2c_xfer: hdmi-i2c-xfer {
+				rockchip,pins = <3 26 RK_FUNC_1 &pcfg_pull_none>,
+						<3 27 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
