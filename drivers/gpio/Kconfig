@@ -844,6 +844,17 @@ config GPIO_ARIZONA
 	help
 	  Support for GPIOs on Wolfson Arizona class devices.
 
+config GPIO_BD9571MWV
+	tristate "ROHM BD9571 GPIO support"
+	depends on MFD_BD9571MWV
+	help
+	  Support for GPIOs on ROHM BD9571 PMIC. There are two GPIOs
+	  available on the ROHM PMIC in total, both of which can also
+	  generate interrupts.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-bd9571mwv.
+
 config GPIO_CRYSTAL_COVE
 	tristate "GPIO support for Crystal Cove PMIC"
 	depends on (X86 || COMPILE_TEST) && INTEL_SOC_PMIC
