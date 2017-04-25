@@ -2046,7 +2046,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	if (of_property_read_bool(np, "irq-status-read-quirk"))
 		trf->quirks |= TRF7970A_QUIRK_IRQ_STATUS_READ;
 
-	/* There are two enable pins - both must be present */
+	/* There are two enable pins - only EN must be present in the DT */
 	trf->en_gpio = of_get_named_gpio(np, "ti,enable-gpios", 0);
 	if (!gpio_is_valid(trf->en_gpio)) {
 		dev_err(trf->dev, "No EN GPIO property\n");
