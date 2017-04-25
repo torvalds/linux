@@ -332,6 +332,9 @@ static int m41t80_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return err;
 	}
 
+	/* Keep SQWE bit value */
+	alarmvals[0] |= (ret & M41T80_ALMON_SQWE);
+
 	ret = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
 	if (ret < 0)
 		return ret;
