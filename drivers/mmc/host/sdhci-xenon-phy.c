@@ -639,11 +639,8 @@ static int get_dt_pad_ctrl_data(struct sdhci_host *host,
 
 	params->pad_ctrl.reg = devm_ioremap_resource(mmc_dev(host->mmc),
 						     &iomem);
-	if (IS_ERR(params->pad_ctrl.reg)) {
-		dev_err(mmc_dev(host->mmc), "Unable to get SoC PHY PAD ctrl register for %s\n",
-			np->name);
+	if (IS_ERR(params->pad_ctrl.reg))
 		return PTR_ERR(params->pad_ctrl.reg);
-	}
 
 	ret = of_property_read_string(np, "marvell,pad-type", &name);
 	if (ret) {
