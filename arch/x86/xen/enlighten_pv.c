@@ -277,26 +277,15 @@ static bool __init xen_check_mwait(void)
 
 static bool __init xen_check_xsave(void)
 {
-	unsigned int err, eax, edx;
+	unsigned int cx, xsave_mask;
 
-	/*
-	 * Xen 4.0 and older accidentally leaked the host XSAVE flag into guest
-	 * view, despite not being able to support guests using the
-	 * functionality. Probe for the actual availability of XSAVE by seeing
-	 * whether xgetbv executes successfully or raises #UD.
-	 */
-	asm volatile("1: .byte 0x0f,0x01,0xd0\n\t" /* xgetbv */
-		     "xor %[err], %[err]\n"
-		     "2:\n\t"
-		     ".pushsection .fixup,\"ax\"\n\t"
-		     "3: movl $1,%[err]\n\t"
-		     "jmp 2b\n\t"
-		     ".popsection\n\t"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [err] "=r" (err), "=a" (eax), "=d" (edx)
-		     : "c" (0));
+	cx = cpuid_ecx(1);
 
-	return err == 0;
+	xsave_mask = (1 << (X86_FEATURE_XSAVE % 32)) |
+		     (1 << (X86_FEATURE_OSXSAVE % 32));
+
+	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
+	return (cx & xsave_mask) == xsave_mask;
 }
 
 static void __init xen_init_capabilities(void)
@@ -317,10 +306,7 @@ static void __init xen_init_capabilities(void)
 	else
 		setup_clear_cpu_cap(X86_FEATURE_MWAIT);
 
-	if (xen_check_xsave()) {
-		setup_force_cpu_cap(X86_FEATURE_XSAVE);
-		setup_force_cpu_cap(X86_FEATURE_OSXSAVE);
-	} else {
+	if (!xen_check_xsave()) {
 		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 		setup_clear_cpu_cap(X86_FEATURE_OSXSAVE);
 	}
