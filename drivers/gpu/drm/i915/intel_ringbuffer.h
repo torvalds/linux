@@ -143,6 +143,7 @@ struct intel_ring {
 
 	u32 head;
 	u32 tail;
+	u32 emit;
 
 	int space;
 	int size;
@@ -494,6 +495,8 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size);
 int intel_ring_pin(struct intel_ring *ring,
 		   struct drm_i915_private *i915,
 		   unsigned int offset_bias);
+void intel_ring_reset(struct intel_ring *ring, u32 tail);
+void intel_ring_update_space(struct intel_ring *ring);
 void intel_ring_unpin(struct intel_ring *ring);
 void intel_ring_free(struct intel_ring *ring);
 
@@ -517,7 +520,7 @@ intel_ring_advance(struct drm_i915_gem_request *req, u32 *cs)
 	 * reserved for the command packet (i.e. the value passed to
 	 * intel_ring_begin()).
 	 */
-	GEM_BUG_ON((req->ring->vaddr + req->ring->tail) != cs);
+	GEM_BUG_ON((req->ring->vaddr + req->ring->emit) != cs);
 }
 
 static inline u32
@@ -546,7 +549,19 @@ assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 	GEM_BUG_ON(tail >= ring->size);
 }
 
-void intel_ring_update_space(struct intel_ring *ring);
+static inline unsigned int
+intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
+{
+	/* Whilst writes to the tail are strictly order, there is no
+	 * serialisation between readers and the writers. The tail may be
+	 * read by i915_gem_request_retire() just as it is being updated
+	 * by execlists, as although the breadcrumb is complete, the context
+	 * switch hasn't been seen.
+	 */
+	assert_ring_tail_valid(ring, tail);
+	ring->tail = tail;
+	return tail;
+}
 
 void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 

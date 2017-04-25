@@ -283,10 +283,18 @@ static void advance_ring(struct drm_i915_gem_request *request)
 	 * Note this requires that we are always called in request
 	 * completion order.
 	 */
-	if (list_is_last(&request->ring_link, &request->ring->request_list))
-		tail = request->ring->tail;
-	else
+	if (list_is_last(&request->ring_link, &request->ring->request_list)) {
+		/* We may race here with execlists resubmitting this request
+		 * as we retire it. The resubmission will move the ring->tail
+		 * forwards (to request->wa_tail). We either read the
+		 * current value that was written to hw, or the value that
+		 * is just about to be. Either works, if we miss the last two
+		 * noops - they are safe to be replayed on a reset.
+		 */
+		tail = READ_ONCE(request->ring->tail);
+	} else {
 		tail = request->postfix;
+	}
 	list_del(&request->ring_link);
 
 	request->ring->head = tail;
@@ -651,7 +659,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	req->head = req->ring->tail;
+	req->head = req->ring->emit;
 
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(req->timeline->seqno != req->fence.seqno);
