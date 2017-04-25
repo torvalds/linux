@@ -1668,14 +1668,8 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		dev_bytenr += (j - i) * PAGE_SIZE;
 		i = j;
 	}
-	for (i = 0; i < num_pages; i++) {
+	for (i = 0; i < num_pages; i++)
 		block_ctx->datav[i] = kmap(block_ctx->pagev[i]);
-		if (!block_ctx->datav[i]) {
-			pr_info("btrfsic: kmap() failed (dev %s)!\n",
-			       block_ctx->dev->name);
-			return -1;
-		}
-	}
 
 	return block_ctx->len;
 }
