@@ -4671,7 +4671,7 @@ static void update_capacity_of(int cpu)
 	if (!sched_freq())
 		return;
 
-	/* Convert scale-invariant capacity to cpu. */
+	/* Normalize scale-invariant capacity to cpu. */
 	req_cap = boosted_cpu_util(cpu);
 	req_cap = req_cap * SCHED_CAPACITY_SCALE / capacity_orig_of(cpu);
 	set_cfs_cpu_capacity(cpu, true, req_cap);
@@ -4864,7 +4864,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 			if (rq->cfs.nr_running)
 				update_capacity_of(cpu_of(rq));
 			else if (sched_freq())
-				set_cfs_cpu_capacity(cpu_of(rq), false, 0);
+				set_cfs_cpu_capacity(cpu_of(rq), false, 0); /* no normalization required for 0 */
 		}
 	}
 
