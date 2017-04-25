@@ -1853,7 +1853,7 @@ void tcp_v4_init(void);
 void tcp_init(void);
 
 /* tcp_recovery.c */
-extern void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now);
+extern void tcp_rack_mark_lost(struct sock *sk);
 extern void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 			     const struct skb_mstamp *xmit_time,
 			     const struct skb_mstamp *ack_time);

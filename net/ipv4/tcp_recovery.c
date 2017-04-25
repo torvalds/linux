@@ -104,7 +104,7 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 	}
 }
 
-void tcp_rack_mark_lost(struct sock *sk, const struct skb_mstamp *now)
+void tcp_rack_mark_lost(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 timeout;

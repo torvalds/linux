@@ -2769,7 +2769,7 @@ static void tcp_rack_identify_loss(struct sock *sk, int *ack_flag,
 	if (sysctl_tcp_recovery & TCP_RACK_LOSS_DETECTION) {
 		u32 prior_retrans = tp->retrans_out;
 
-		tcp_rack_mark_lost(sk, ack_time);
+		tcp_rack_mark_lost(sk);
 		if (prior_retrans > tp->retrans_out)
 			*ack_flag |= FLAG_LOST_RETRANS;
 	}
