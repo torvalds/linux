@@ -2461,11 +2461,50 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_rfkill_read(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	char buf[100];
+	int pos;
+
+	pos = scnprintf(buf, sizeof(buf), "debug: %d\nhw: %d\n",
+			trans_pcie->debug_rfkill,
+			!(iwl_read32(trans, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_rfkill_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	bool old = trans_pcie->debug_rfkill;
+	int ret;
+
+	ret = kstrtobool_from_user(user_buf, count, &trans_pcie->debug_rfkill);
+	if (ret)
+		return ret;
+	if (old == trans_pcie->debug_rfkill)
+		return count;
+	IWL_WARN(trans, "changing debug rfkill %d->%d\n",
+		 old, trans_pcie->debug_rfkill);
+	iwl_pcie_handle_rfkill_irq(trans);
+
+	return count;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
+DEBUGFS_READ_WRITE_FILE_OPS(rfkill);
 
 /* Create the debugfs files and directories */
 int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
@@ -2477,6 +2516,7 @@ int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	DEBUGFS_ADD_FILE(interrupt, dir, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(csr, dir, S_IWUSR);
 	DEBUGFS_ADD_FILE(fh_reg, dir, S_IRUSR);
+	DEBUGFS_ADD_FILE(rfkill, dir, S_IWUSR | S_IRUSR);
 	return 0;
 
 err:

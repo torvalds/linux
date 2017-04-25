@@ -404,6 +404,7 @@ struct iwl_trans_pcie {
 	int ict_index;
 	bool use_ict;
 	bool is_down;
+	bool debug_rfkill;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
@@ -675,6 +676,8 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 	}
 }
 
+void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans);
+
 static inline void iwl_wake_queue(struct iwl_trans *trans,
 				  struct iwl_txq *txq)
 {
@@ -713,7 +716,12 @@ static inline u8 get_cmd_index(struct iwl_txq *q, u32 index)
 
 static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 {
-	lockdep_assert_held(&IWL_TRANS_GET_PCIE_TRANS(trans)->mutex);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	lockdep_assert_held(&trans_pcie->mutex);
+
+	if (trans_pcie->debug_rfkill)
+		return true;
 
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
