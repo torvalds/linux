@@ -87,7 +87,6 @@ struct time_in_idle {
  * @node: list_head to link all cpufreq_cooling_device together.
  * @last_load: load measured by the latest call to cpufreq_get_requested_power()
  * @idle_time: idle time stats
- * @cpu_dev: the cpu_device of policy->cpu.
  * @plat_get_static_power: callback to calculate the static power
  *
  * This structure is required for keeping information of each registered
@@ -104,7 +103,6 @@ struct cpufreq_cooling_device {
 	struct list_head node;
 	u32 last_load;
 	struct time_in_idle *idle_time;
-	struct device *cpu_dev;
 	get_static_t plat_get_static_power;
 };
 
@@ -259,8 +257,6 @@ static int update_freq_table(struct cpufreq_cooling_device *cpufreq_cdev,
 		freq_table[i].power = power;
 	}
 
-	cpufreq_cdev->cpu_dev = dev;
-
 	return 0;
 }
 
@@ -342,19 +338,22 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 {
 	struct dev_pm_opp *opp;
 	unsigned long voltage;
-	struct cpumask *cpumask = cpufreq_cdev->policy->related_cpus;
+	struct cpufreq_policy *policy = cpufreq_cdev->policy;
+	struct cpumask *cpumask = policy->related_cpus;
 	unsigned long freq_hz = freq * 1000;
+	struct device *dev;
 
-	if (!cpufreq_cdev->plat_get_static_power || !cpufreq_cdev->cpu_dev) {
+	if (!cpufreq_cdev->plat_get_static_power) {
 		*power = 0;
 		return 0;
 	}
 
-	opp = dev_pm_opp_find_freq_exact(cpufreq_cdev->cpu_dev, freq_hz,
-					 true);
+	dev = get_cpu_device(policy->cpu);
+	WARN_ON(!dev);
+
+	opp = dev_pm_opp_find_freq_exact(dev, freq_hz, true);
 	if (IS_ERR(opp)) {
-		dev_warn_ratelimited(cpufreq_cdev->cpu_dev,
-				     "Failed to find OPP for frequency %lu: %ld\n",
+		dev_warn_ratelimited(dev, "Failed to find OPP for frequency %lu: %ld\n",
 				     freq_hz, PTR_ERR(opp));
 		return -EINVAL;
 	}
@@ -363,8 +362,7 @@ static int get_static_power(struct cpufreq_cooling_device *cpufreq_cdev,
 	dev_pm_opp_put(opp);
 
 	if (voltage == 0) {
-		dev_err_ratelimited(cpufreq_cdev->cpu_dev,
-				    "Failed to get voltage for frequency %lu\n",
+		dev_err_ratelimited(dev, "Failed to get voltage for frequency %lu\n",
 				    freq_hz);
 		return -EINVAL;
 	}
