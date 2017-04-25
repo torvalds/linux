@@ -193,8 +193,6 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
-
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s:%s:%d "
 		     "Found good inode [%lu] with count [%d]\n",
