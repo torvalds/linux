@@ -104,10 +104,8 @@ static int nokia_modem_gpio_probe(struct device *dev)
 
 	modem->gpios = devm_kcalloc(dev, gpio_count, sizeof(*modem->gpios),
 				    GFP_KERNEL);
-	if (!modem->gpios) {
-		dev_err(dev, "Could not allocate memory for gpios\n");
+	if (!modem->gpios)
 		return -ENOMEM;
-	}
 
 	modem->gpio_amount = gpio_count;
 
@@ -156,10 +154,9 @@ static int nokia_modem_probe(struct device *dev)
 	}
 
 	modem = devm_kzalloc(dev, sizeof(*modem), GFP_KERNEL);
-	if (!modem) {
-		dev_err(dev, "Could not allocate memory for nokia_modem_device\n");
+	if (!modem)
 		return -ENOMEM;
-	}
+
 	dev_set_drvdata(dev, modem);
 	modem->device = dev;
 
