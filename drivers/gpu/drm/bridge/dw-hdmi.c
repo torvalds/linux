@@ -1281,7 +1281,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	 * to enable mpll pre-divider.
 	 */
 	if (hdmi->hdmi_data.enc_in_format == YCBCR420 &&
-	    hdmi->dev_type == RK3399_HDMI)
+	    (hdmi->dev_type == RK3399_HDMI || hdmi->dev_type == RK3368_HDMI))
 		hdmi_phy_i2c_write(hdmi, mpll_config->res[res_idx].cpce | 4,
 				   0x06);
 	else
