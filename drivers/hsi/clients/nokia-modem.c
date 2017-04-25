@@ -179,7 +179,7 @@ static int nokia_modem_probe(struct device *dev)
 	}
 	enable_irq_wake(irq);
 
-	if(pm) {
+	if (pm) {
 		err = nokia_modem_gpio_probe(dev);
 		if (err < 0) {
 			dev_err(dev, "Could not probe GPIOs\n");
