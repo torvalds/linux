@@ -43,7 +43,7 @@ static int dbx500_cpufreq_exit(struct cpufreq_policy *policy)
 
 static void dbx500_cpufreq_ready(struct cpufreq_policy *policy)
 {
-	cdev = cpufreq_cooling_register(policy->cpus);
+	cdev = cpufreq_cooling_register(policy);
 	if (IS_ERR(cdev))
 		pr_err("Failed to register cooling device %ld\n", PTR_ERR(cdev));
 	else

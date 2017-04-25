@@ -320,9 +320,7 @@ static void mtk_cpufreq_ready(struct cpufreq_policy *policy)
 		of_property_read_u32(np, DYNAMIC_POWER, &capacitance);
 
 		info->cdev = of_cpufreq_power_cooling_register(np,
-						policy->related_cpus,
-						capacitance,
-						NULL);
+						policy, capacitance, NULL);
 
 		if (IS_ERR(info->cdev)) {
 			dev_err(info->cpu_dev,

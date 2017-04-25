@@ -717,7 +717,7 @@ static unsigned int find_next_max(struct cpufreq_frequency_table *table,
 /**
  * __cpufreq_cooling_register - helper function to create cpufreq cooling device
  * @np: a valid struct device_node to the cooling device device tree node
- * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
+ * @policy: cpufreq policy
  * Normally this should be same as cpufreq policy->related_cpus.
  * @capacitance: dynamic power coefficient for these cpus
  * @plat_static_func: function to calculate the static power consumed by these
@@ -733,45 +733,34 @@ static unsigned int find_next_max(struct cpufreq_frequency_table *table,
  */
 static struct thermal_cooling_device *
 __cpufreq_cooling_register(struct device_node *np,
-			const struct cpumask *clip_cpus, u32 capacitance,
+			struct cpufreq_policy *policy, u32 capacitance,
 			get_static_t plat_static_func)
 {
-	struct cpufreq_policy *policy;
 	struct thermal_cooling_device *cdev;
 	struct cpufreq_cooling_device *cpufreq_cdev;
 	char dev_name[THERMAL_NAME_LENGTH];
 	struct cpufreq_frequency_table *pos, *table;
-	cpumask_var_t temp_mask;
 	unsigned int freq, i, num_cpus;
 	int ret;
 	struct thermal_cooling_device_ops *cooling_ops;
 	bool first;
 
-	if (!alloc_cpumask_var(&temp_mask, GFP_KERNEL))
-		return ERR_PTR(-ENOMEM);
-
-	cpumask_and(temp_mask, clip_cpus, cpu_online_mask);
-	policy = cpufreq_cpu_get(cpumask_first(temp_mask));
-	if (!policy) {
-		pr_debug("%s: CPUFreq policy not found\n", __func__);
-		cdev = ERR_PTR(-EPROBE_DEFER);
-		goto free_cpumask;
+	if (IS_ERR_OR_NULL(policy)) {
+		pr_err("%s: cpufreq policy isn't valid: %p", __func__, policy);
+		return ERR_PTR(-EINVAL);
 	}
 
 	table = policy->freq_table;
 	if (!table) {
 		pr_debug("%s: CPUFreq table not found\n", __func__);
-		cdev = ERR_PTR(-ENODEV);
-		goto put_policy;
+		return ERR_PTR(-ENODEV);
 	}
 
 	cpufreq_cdev = kzalloc(sizeof(*cpufreq_cdev), GFP_KERNEL);
-	if (!cpufreq_cdev) {
-		cdev = ERR_PTR(-ENOMEM);
-		goto put_policy;
-	}
+	if (!cpufreq_cdev)
+		return ERR_PTR(-ENOMEM);
 
-	num_cpus = cpumask_weight(clip_cpus);
+	num_cpus = cpumask_weight(policy->related_cpus);
 	cpufreq_cdev->time_in_idle = kcalloc(num_cpus,
 					    sizeof(*cpufreq_cdev->time_in_idle),
 					    GFP_KERNEL);
@@ -802,7 +791,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	/* max_level is an index, not a counter */
 	cpufreq_cdev->max_level--;
 
-	cpumask_copy(&cpufreq_cdev->allowed_cpus, clip_cpus);
+	cpumask_copy(&cpufreq_cdev->allowed_cpus, policy->related_cpus);
 
 	if (capacitance) {
 		cpufreq_cdev->plat_get_static_power = plat_static_func;
@@ -858,7 +847,7 @@ __cpufreq_cooling_register(struct device_node *np,
 		cpufreq_register_notifier(&thermal_cpufreq_notifier_block,
 					  CPUFREQ_POLICY_NOTIFIER);
 
-	goto put_policy;
+	return cdev;
 
 remove_ida:
 	ida_simple_remove(&cpufreq_ida, cpufreq_cdev->id);
@@ -872,16 +861,12 @@ free_time_in_idle:
 	kfree(cpufreq_cdev->time_in_idle);
 free_cdev:
 	kfree(cpufreq_cdev);
-put_policy:
-	cpufreq_cpu_put(policy);
-free_cpumask:
-	free_cpumask_var(temp_mask);
 	return cdev;
 }
 
 /**
  * cpufreq_cooling_register - function to create cpufreq cooling device.
- * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
+ * @policy: cpufreq policy
  *
  * This interface function registers the cpufreq cooling device with the name
  * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
@@ -891,16 +876,16 @@ free_cpumask:
  * on failure, it returns a corresponding ERR_PTR().
  */
 struct thermal_cooling_device *
-cpufreq_cooling_register(const struct cpumask *clip_cpus)
+cpufreq_cooling_register(struct cpufreq_policy *policy)
 {
-	return __cpufreq_cooling_register(NULL, clip_cpus, 0, NULL);
+	return __cpufreq_cooling_register(NULL, policy, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
 
 /**
  * of_cpufreq_cooling_register - function to create cpufreq cooling device.
  * @np: a valid struct device_node to the cooling device device tree node
- * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
+ * @policy: cpufreq policy
  *
  * This interface function registers the cpufreq cooling device with the name
  * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
@@ -912,18 +897,18 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
  */
 struct thermal_cooling_device *
 of_cpufreq_cooling_register(struct device_node *np,
-			    const struct cpumask *clip_cpus)
+			    struct cpufreq_policy *policy)
 {
 	if (!np)
 		return ERR_PTR(-EINVAL);
 
-	return __cpufreq_cooling_register(np, clip_cpus, 0, NULL);
+	return __cpufreq_cooling_register(np, policy, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
 
 /**
  * cpufreq_power_cooling_register() - create cpufreq cooling device with power extensions
- * @clip_cpus:	cpumask of cpus where the frequency constraints will happen
+ * @policy:		cpufreq policy
  * @capacitance:	dynamic power coefficient for these cpus
  * @plat_static_func:	function to calculate the static power consumed by these
  *			cpus (optional)
@@ -943,10 +928,10 @@ EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
  * on failure, it returns a corresponding ERR_PTR().
  */
 struct thermal_cooling_device *
-cpufreq_power_cooling_register(const struct cpumask *clip_cpus, u32 capacitance,
+cpufreq_power_cooling_register(struct cpufreq_policy *policy, u32 capacitance,
 			       get_static_t plat_static_func)
 {
-	return __cpufreq_cooling_register(NULL, clip_cpus, capacitance,
+	return __cpufreq_cooling_register(NULL, policy, capacitance,
 				plat_static_func);
 }
 EXPORT_SYMBOL(cpufreq_power_cooling_register);
@@ -954,7 +939,7 @@ EXPORT_SYMBOL(cpufreq_power_cooling_register);
 /**
  * of_cpufreq_power_cooling_register() - create cpufreq cooling device with power extensions
  * @np:	a valid struct device_node to the cooling device device tree node
- * @clip_cpus:	cpumask of cpus where the frequency constraints will happen
+ * @policy: cpufreq policy
  * @capacitance:	dynamic power coefficient for these cpus
  * @plat_static_func:	function to calculate the static power consumed by these
  *			cpus (optional)
@@ -976,14 +961,14 @@ EXPORT_SYMBOL(cpufreq_power_cooling_register);
  */
 struct thermal_cooling_device *
 of_cpufreq_power_cooling_register(struct device_node *np,
-				  const struct cpumask *clip_cpus,
+				  struct cpufreq_policy *policy,
 				  u32 capacitance,
 				  get_static_t plat_static_func)
 {
 	if (!np)
 		return ERR_PTR(-EINVAL);
 
-	return __cpufreq_cooling_register(np, clip_cpus, capacitance,
+	return __cpufreq_cooling_register(np, policy, capacitance,
 				plat_static_func);
 }
 EXPORT_SYMBOL(of_cpufreq_power_cooling_register);
