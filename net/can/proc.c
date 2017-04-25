@@ -75,21 +75,23 @@ static const char rx_list_name[][8] = {
  * af_can statistics stuff
  */
 
-static void can_init_stats(void)
+static void can_init_stats(struct net *net)
 {
+	struct s_stats *can_stats = net->can.can_stats;
+	struct s_pstats *can_pstats = net->can.can_pstats;
 	/*
 	 * This memset function is called from a timer context (when
 	 * can_stattimer is active which is the default) OR in a process
 	 * context (reading the proc_fs when can_stattimer is disabled).
 	 */
-	memset(&can_stats, 0, sizeof(can_stats));
-	can_stats.jiffies_init = jiffies;
+	memset(can_stats, 0, sizeof(struct s_stats));
+	can_stats->jiffies_init = jiffies;
 
-	can_pstats.stats_reset++;
+	can_pstats->stats_reset++;
 
 	if (user_reset) {
 		user_reset = 0;
-		can_pstats.user_reset++;
+		can_pstats->user_reset++;
 	}
 }
 
@@ -115,64 +117,66 @@ static unsigned long calc_rate(unsigned long oldjif, unsigned long newjif,
 
 void can_stat_update(unsigned long data)
 {
+	struct net *net = (struct net *)data;
+	struct s_stats *can_stats = net->can.can_stats;
 	unsigned long j = jiffies; /* snapshot */
 
 	/* restart counting in timer context on user request */
 	if (user_reset)
-		can_init_stats();
+		can_init_stats(net);
 
 	/* restart counting on jiffies overflow */
-	if (j < can_stats.jiffies_init)
-		can_init_stats();
+	if (j < can_stats->jiffies_init)
+		can_init_stats(net);
 
 	/* prevent overflow in calc_rate() */
-	if (can_stats.rx_frames > (ULONG_MAX / HZ))
-		can_init_stats();
+	if (can_stats->rx_frames > (ULONG_MAX / HZ))
+		can_init_stats(net);
 
 	/* prevent overflow in calc_rate() */
-	if (can_stats.tx_frames > (ULONG_MAX / HZ))
-		can_init_stats();
+	if (can_stats->tx_frames > (ULONG_MAX / HZ))
+		can_init_stats(net);
 
 	/* matches overflow - very improbable */
-	if (can_stats.matches > (ULONG_MAX / 100))
-		can_init_stats();
+	if (can_stats->matches > (ULONG_MAX / 100))
+		can_init_stats(net);
 
 	/* calc total values */
-	if (can_stats.rx_frames)
-		can_stats.total_rx_match_ratio = (can_stats.matches * 100) /
-			can_stats.rx_frames;
+	if (can_stats->rx_frames)
+		can_stats->total_rx_match_ratio = (can_stats->matches * 100) /
+			can_stats->rx_frames;
 
-	can_stats.total_tx_rate = calc_rate(can_stats.jiffies_init, j,
-					    can_stats.tx_frames);
-	can_stats.total_rx_rate = calc_rate(can_stats.jiffies_init, j,
-					    can_stats.rx_frames);
+	can_stats->total_tx_rate = calc_rate(can_stats->jiffies_init, j,
+					    can_stats->tx_frames);
+	can_stats->total_rx_rate = calc_rate(can_stats->jiffies_init, j,
+					    can_stats->rx_frames);
 
 	/* calc current values */
-	if (can_stats.rx_frames_delta)
-		can_stats.current_rx_match_ratio =
-			(can_stats.matches_delta * 100) /
-			can_stats.rx_frames_delta;
+	if (can_stats->rx_frames_delta)
+		can_stats->current_rx_match_ratio =
+			(can_stats->matches_delta * 100) /
+			can_stats->rx_frames_delta;
 
-	can_stats.current_tx_rate = calc_rate(0, HZ, can_stats.tx_frames_delta);
-	can_stats.current_rx_rate = calc_rate(0, HZ, can_stats.rx_frames_delta);
+	can_stats->current_tx_rate = calc_rate(0, HZ, can_stats->tx_frames_delta);
+	can_stats->current_rx_rate = calc_rate(0, HZ, can_stats->rx_frames_delta);
 
 	/* check / update maximum values */
-	if (can_stats.max_tx_rate < can_stats.current_tx_rate)
-		can_stats.max_tx_rate = can_stats.current_tx_rate;
+	if (can_stats->max_tx_rate < can_stats->current_tx_rate)
+		can_stats->max_tx_rate = can_stats->current_tx_rate;
 
-	if (can_stats.max_rx_rate < can_stats.current_rx_rate)
-		can_stats.max_rx_rate = can_stats.current_rx_rate;
+	if (can_stats->max_rx_rate < can_stats->current_rx_rate)
+		can_stats->max_rx_rate = can_stats->current_rx_rate;
 
-	if (can_stats.max_rx_match_ratio < can_stats.current_rx_match_ratio)
-		can_stats.max_rx_match_ratio = can_stats.current_rx_match_ratio;
+	if (can_stats->max_rx_match_ratio < can_stats->current_rx_match_ratio)
+		can_stats->max_rx_match_ratio = can_stats->current_rx_match_ratio;
 
 	/* clear values for 'current rate' calculation */
-	can_stats.tx_frames_delta = 0;
-	can_stats.rx_frames_delta = 0;
-	can_stats.matches_delta   = 0;
+	can_stats->tx_frames_delta = 0;
+	can_stats->rx_frames_delta = 0;
+	can_stats->matches_delta   = 0;
 
 	/* restart timer (one second) */
-	mod_timer(&can_stattimer, round_jiffies(jiffies + HZ));
+	mod_timer(&net->can.can_stattimer, round_jiffies(jiffies + HZ));
 }
 
 /*
@@ -206,57 +210,61 @@ static void can_print_recv_banner(struct seq_file *m)
 
 static int can_stats_proc_show(struct seq_file *m, void *v)
 {
+	struct net *net = m->private;
+	struct s_stats *can_stats = net->can.can_stats;
+	struct s_pstats *can_pstats = net->can.can_pstats;
+
 	seq_putc(m, '\n');
-	seq_printf(m, " %8ld transmitted frames (TXF)\n", can_stats.tx_frames);
-	seq_printf(m, " %8ld received frames (RXF)\n", can_stats.rx_frames);
-	seq_printf(m, " %8ld matched frames (RXMF)\n", can_stats.matches);
+	seq_printf(m, " %8ld transmitted frames (TXF)\n", can_stats->tx_frames);
+	seq_printf(m, " %8ld received frames (RXF)\n", can_stats->rx_frames);
+	seq_printf(m, " %8ld matched frames (RXMF)\n", can_stats->matches);
 
 	seq_putc(m, '\n');
 
-	if (can_stattimer.function == can_stat_update) {
+	if (net->can.can_stattimer.function == can_stat_update) {
 		seq_printf(m, " %8ld %% total match ratio (RXMR)\n",
-				can_stats.total_rx_match_ratio);
+				can_stats->total_rx_match_ratio);
 
 		seq_printf(m, " %8ld frames/s total tx rate (TXR)\n",
-				can_stats.total_tx_rate);
+				can_stats->total_tx_rate);
 		seq_printf(m, " %8ld frames/s total rx rate (RXR)\n",
-				can_stats.total_rx_rate);
+				can_stats->total_rx_rate);
 
 		seq_putc(m, '\n');
 
 		seq_printf(m, " %8ld %% current match ratio (CRXMR)\n",
-				can_stats.current_rx_match_ratio);
+				can_stats->current_rx_match_ratio);
 
 		seq_printf(m, " %8ld frames/s current tx rate (CTXR)\n",
-				can_stats.current_tx_rate);
+				can_stats->current_tx_rate);
 		seq_printf(m, " %8ld frames/s current rx rate (CRXR)\n",
-				can_stats.current_rx_rate);
+				can_stats->current_rx_rate);
 
 		seq_putc(m, '\n');
 
 		seq_printf(m, " %8ld %% max match ratio (MRXMR)\n",
-				can_stats.max_rx_match_ratio);
+				can_stats->max_rx_match_ratio);
 
 		seq_printf(m, " %8ld frames/s max tx rate (MTXR)\n",
-				can_stats.max_tx_rate);
+				can_stats->max_tx_rate);
 		seq_printf(m, " %8ld frames/s max rx rate (MRXR)\n",
-				can_stats.max_rx_rate);
+				can_stats->max_rx_rate);
 
 		seq_putc(m, '\n');
 	}
 
 	seq_printf(m, " %8ld current receive list entries (CRCV)\n",
-			can_pstats.rcv_entries);
+			can_pstats->rcv_entries);
 	seq_printf(m, " %8ld maximum receive list entries (MRCV)\n",
-			can_pstats.rcv_entries_max);
+			can_pstats->rcv_entries_max);
 
-	if (can_pstats.stats_reset)
+	if (can_pstats->stats_reset)
 		seq_printf(m, "\n %8ld statistic resets (STR)\n",
-				can_pstats.stats_reset);
+				can_pstats->stats_reset);
 
-	if (can_pstats.user_reset)
+	if (can_pstats->user_reset)
 		seq_printf(m, " %8ld user statistic resets (USTR)\n",
-				can_pstats.user_reset);
+				can_pstats->user_reset);
 
 	seq_putc(m, '\n');
 	return 0;
@@ -264,7 +272,7 @@ static int can_stats_proc_show(struct seq_file *m, void *v)
 
 static int can_stats_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, can_stats_proc_show, NULL);
+	return single_open_net(inode, file, can_stats_proc_show);
 }
 
 static const struct file_operations can_stats_proc_fops = {
@@ -277,25 +285,28 @@ static const struct file_operations can_stats_proc_fops = {
 
 static int can_reset_stats_proc_show(struct seq_file *m, void *v)
 {
+	struct net *net = m->private;
+	struct s_pstats *can_pstats = net->can.can_pstats;
+	struct s_stats *can_stats = net->can.can_stats;
+
 	user_reset = 1;
 
-	if (can_stattimer.function == can_stat_update) {
+	if (net->can.can_stattimer.function == can_stat_update) {
 		seq_printf(m, "Scheduled statistic reset #%ld.\n",
-				can_pstats.stats_reset + 1);
-
+				can_pstats->stats_reset + 1);
 	} else {
-		if (can_stats.jiffies_init != jiffies)
-			can_init_stats();
+		if (can_stats->jiffies_init != jiffies)
+			can_init_stats(net);
 
 		seq_printf(m, "Performed statistic reset #%ld.\n",
-				can_pstats.stats_reset);
+				can_pstats->stats_reset);
 	}
 	return 0;
 }
 
 static int can_reset_stats_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, can_reset_stats_proc_show, NULL);
+	return single_open_net(inode, file, can_reset_stats_proc_show);
 }
 
 static const struct file_operations can_reset_stats_proc_fops = {
@@ -314,7 +325,7 @@ static int can_version_proc_show(struct seq_file *m, void *v)
 
 static int can_version_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, can_version_proc_show, NULL);
+	return single_open_net(inode, file, can_version_proc_show);
 }
 
 static const struct file_operations can_version_proc_fops = {

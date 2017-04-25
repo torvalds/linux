@@ -5,7 +5,7 @@
  *
  * Authors: Oliver Hartkopp <oliver.hartkopp@volkswagen.de>
  *          Urs Thuermann   <urs.thuermann@volkswagen.de>
- * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
+ * Copyright (c) 2002-2017 Volkswagen Group Electronic Research
  * All rights reserved.
  *
  */
@@ -17,7 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 
-#define CAN_VERSION "20120528"
+#define CAN_VERSION "20170425"
 
 /* increment this number each time you change some user-space interface */
 #define CAN_ABI_VERSION "9"

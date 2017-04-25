@@ -2,7 +2,7 @@
  * af_can.c - Protocol family CAN core module
  *            (used by different CAN protocol modules)
  *
- * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
+ * Copyright (c) 2002-2017 Volkswagen Group Electronic Research
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,17 +75,11 @@ static int stats_timer __read_mostly = 1;
 module_param(stats_timer, int, S_IRUGO);
 MODULE_PARM_DESC(stats_timer, "enable timer for statistics (default:on)");
 
-static int can_net_id;
-
 static struct kmem_cache *rcv_cache __read_mostly;
 
 /* table of registered CAN protocols */
 static const struct can_proto *proto_tab[CAN_NPROTO] __read_mostly;
 static DEFINE_MUTEX(proto_tab_lock);
-
-struct timer_list can_stattimer;   /* timer for statistics update */
-struct s_stats    can_stats;       /* packet statistics */
-struct s_pstats   can_pstats;      /* receive list statistics */
 
 static atomic_t skbcounter = ATOMIC_INIT(0);
 
@@ -223,6 +217,7 @@ int can_send(struct sk_buff *skb, int loop)
 {
 	struct sk_buff *newskb = NULL;
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
+	struct s_stats *can_stats = dev_net(skb->dev)->can.can_stats;
 	int err = -EINVAL;
 
 	if (skb->len == CAN_MTU) {
@@ -311,8 +306,8 @@ int can_send(struct sk_buff *skb, int loop)
 		netif_rx_ni(newskb);
 
 	/* update statistics */
-	can_stats.tx_frames++;
-	can_stats.tx_frames_delta++;
+	can_stats->tx_frames++;
+	can_stats->tx_frames_delta++;
 
 	return 0;
 
@@ -470,6 +465,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 	struct receiver *r;
 	struct hlist_head *rl;
 	struct dev_rcv_lists *d;
+	struct s_pstats *can_pstats = net->can.can_pstats;
 	int err = 0;
 
 	/* insert new receiver  (dev,canid,mask) -> (func,data) */
@@ -501,9 +497,9 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 		hlist_add_head_rcu(&r->list, rl);
 		d->entries++;
 
-		can_pstats.rcv_entries++;
-		if (can_pstats.rcv_entries_max < can_pstats.rcv_entries)
-			can_pstats.rcv_entries_max = can_pstats.rcv_entries;
+		can_pstats->rcv_entries++;
+		if (can_pstats->rcv_entries_max < can_pstats->rcv_entries)
+			can_pstats->rcv_entries_max = can_pstats->rcv_entries;
 	} else {
 		kmem_cache_free(rcv_cache, r);
 		err = -ENODEV;
@@ -545,6 +541,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 {
 	struct receiver *r = NULL;
 	struct hlist_head *rl;
+	struct s_pstats *can_pstats = net->can.can_pstats;
 	struct dev_rcv_lists *d;
 
 	if (dev && dev->type != ARPHRD_CAN)
@@ -591,8 +588,8 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	hlist_del_rcu(&r->list);
 	d->entries--;
 
-	if (can_pstats.rcv_entries > 0)
-		can_pstats.rcv_entries--;
+	if (can_pstats->rcv_entries > 0)
+		can_pstats->rcv_entries--;
 
 	/* remove device structure requested by NETDEV_UNREGISTER */
 	if (d->remove_on_zero_entries && !d->entries) {
@@ -686,11 +683,13 @@ static int can_rcv_filter(struct dev_rcv_lists *d, struct sk_buff *skb)
 static void can_receive(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dev_rcv_lists *d;
+	struct net *net = dev_net(dev);
+	struct s_stats *can_stats = net->can.can_stats;
 	int matches;
 
 	/* update statistics */
-	can_stats.rx_frames++;
-	can_stats.rx_frames_delta++;
+	can_stats->rx_frames++;
+	can_stats->rx_frames_delta++;
 
 	/* create non-zero unique skb identifier together with *skb */
 	while (!(can_skb_prv(skb)->skbcnt))
@@ -699,10 +698,10 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_lock();
 
 	/* deliver the packet to sockets listening on all devices */
-	matches = can_rcv_filter(dev_net(dev)->can.can_rx_alldev_list, skb);
+	matches = can_rcv_filter(net->can.can_rx_alldev_list, skb);
 
 	/* find receive list for this device */
-	d = find_dev_rcv_lists(dev_net(dev), dev);
+	d = find_dev_rcv_lists(net, dev);
 	if (d)
 		matches += can_rcv_filter(d, skb);
 
@@ -712,8 +711,8 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	consume_skb(skb);
 
 	if (matches > 0) {
-		can_stats.matches++;
-		can_stats.matches_delta++;
+		can_stats->matches++;
+		can_stats->matches_delta++;
 	}
 }
 
@@ -878,8 +877,20 @@ static int can_pernet_init(struct net *net)
 	net->can.can_rx_alldev_list =
 		kzalloc(sizeof(struct dev_rcv_lists), GFP_KERNEL);
 
-	if (IS_ENABLED(CONFIG_PROC_FS))
+	net->can.can_stats = kzalloc(sizeof(struct s_stats), GFP_KERNEL);
+	net->can.can_pstats = kzalloc(sizeof(struct s_pstats), GFP_KERNEL);
+
+	if (IS_ENABLED(CONFIG_PROC_FS)) {
+		/* the statistics are updated every second (timer triggered) */
+		if (stats_timer) {
+			setup_timer(&net->can.can_stattimer, can_stat_update,
+				    (unsigned long)net);
+			mod_timer(&net->can.can_stattimer,
+				  round_jiffies(jiffies + HZ));
+		}
+		net->can.can_stats->jiffies_init = jiffies;
 		can_init_proc(net);
+	}
 
 	return 0;
 }
@@ -888,8 +899,11 @@ static void can_pernet_exit(struct net *net)
 {
 	struct net_device *dev;
 
-	if (IS_ENABLED(CONFIG_PROC_FS))
+	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		can_remove_proc(net);
+		if (stats_timer)
+			del_timer_sync(&net->can.can_stattimer);
+	}
 
 	/* remove created dev_rcv_lists from still registered CAN devices */
 	rcu_read_lock();
@@ -903,6 +917,10 @@ static void can_pernet_exit(struct net *net)
 		}
 	}
 	rcu_read_unlock();
+
+	kfree(net->can.can_rx_alldev_list);
+	kfree(net->can.can_stats);
+	kfree(net->can.can_pstats);
 }
 
 /*
@@ -933,8 +951,6 @@ static struct notifier_block can_netdev_notifier __read_mostly = {
 static struct pernet_operations can_pernet_ops __read_mostly = {
 	.init = can_pernet_init,
 	.exit = can_pernet_exit,
-	.id = &can_net_id,
-	.size = 0,
 };
 
 static __init int can_init(void)
@@ -952,14 +968,6 @@ static __init int can_init(void)
 	if (!rcv_cache)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_PROC_FS)) {
-		if (stats_timer) {
-		/* the statistics are updated every second (timer triggered) */
-			setup_timer(&can_stattimer, can_stat_update, 0);
-			mod_timer(&can_stattimer, round_jiffies(jiffies + HZ));
-		}
-	}
-
 	register_pernet_subsys(&can_pernet_ops);
 
 	/* protocol register */
@@ -973,11 +981,6 @@ static __init int can_init(void)
 
 static __exit void can_exit(void)
 {
-	if (IS_ENABLED(CONFIG_PROC_FS)) {
-		if (stats_timer)
-			del_timer_sync(&can_stattimer);
-	}
-
 	/* protocol unregister */
 	dev_remove_pack(&canfd_packet);
 	dev_remove_pack(&can_packet);
