@@ -3357,16 +3357,21 @@
 	rcuperf.perf_runnable= [BOOT]
 			Start rcuperf running at boot time.
 
+	rcuperf.perf_type= [KNL]
+			Specify the RCU implementation to test.
+
 	rcuperf.shutdown= [KNL]
 			Shut the system down after performance tests
 			complete.  This is useful for hands-off automated
 			testing.
 
-	rcuperf.perf_type= [KNL]
-			Specify the RCU implementation to test.
-
 	rcuperf.verbose= [KNL]
 			Enable additional printk() statements.
+
+	rcuperf.writer_holdoff= [KNL]
+			Write-side holdoff between grace periods,
+			in microseconds.  The default of zero says
+			no holdoff.
 
 	rcutorture.cbflood_inter_holdoff= [KNL]
 			Set holdoff time (jiffies) between successive

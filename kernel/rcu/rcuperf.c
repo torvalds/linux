@@ -68,6 +68,7 @@ torture_param(int, nwriters, -1, "Number of RCU updater threads");
 torture_param(bool, shutdown, !IS_ENABLED(MODULE),
 	      "Shutdown at end of performance tests.");
 torture_param(bool, verbose, true, "Enable verbose debugging printk()s");
+torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable");
 
 static char *perf_type = "rcu";
 module_param(perf_type, charp, 0444);
@@ -447,6 +448,8 @@ rcu_perf_writer(void *arg)
 	}
 
 	do {
+		if (writer_holdoff)
+			udelay(writer_holdoff);
 		wdp = &wdpp[i];
 		*wdp = ktime_get_mono_fast_ns();
 		if (gp_async) {
