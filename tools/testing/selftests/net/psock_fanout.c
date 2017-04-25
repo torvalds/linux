@@ -305,7 +305,7 @@ static void test_unique_fanout_group_ids(void)
 		exit(1);
 	}
 
-	if (sock_fanout_open(PACKET_FANOUT_CPU, first_group_id)) {
+	if (sock_fanout_open(PACKET_FANOUT_CPU, first_group_id) != -1) {
 		fprintf(stderr, "ERROR: joined group with wrong type.\n");
 		exit(1);
 	}
