@@ -2450,16 +2450,6 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 				   size_t count, loff_t *ppos)
 {
 	struct iwl_trans *trans = file->private_data;
-	char buf[8];
-	int buf_size;
-	int csr;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &csr) != 1)
-		return -EFAULT;
 
 	iwl_pcie_dump_csr(trans);
 
