@@ -73,7 +73,8 @@ void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 {
 	u32 val;
 
-	DRM_DEBUG_DRIVER("Enabling layer %d\n", layer);
+	DRM_DEBUG_DRIVER("%sabling layer %d\n", enable ? "En" : "Dis",
+			 layer);
 
 	if (enable)
 		val = SUN4I_BACKEND_MODCTL_LAY_EN(layer);
