@@ -325,7 +325,7 @@ static struct skl_module_table *skl_module_get_from_id(
 }
 
 static int skl_transfer_module(struct sst_dsp *ctx, const void *data,
-				u32 size, u16 mod_id)
+			u32 size, u16 mod_id, u8 table_id, bool is_module)
 {
 	int ret, bytes_left, curr_pos;
 	struct skl_sst *skl = ctx->thread_context;
@@ -335,10 +335,12 @@ static int skl_transfer_module(struct sst_dsp *ctx, const void *data,
 	if (bytes_left < 0)
 		return bytes_left;
 
-	ret = skl_ipc_load_modules(&skl->ipc, SKL_NUM_MODULES, &mod_id);
-	if (ret < 0) {
-		dev_err(ctx->dev, "Failed to Load module: %d\n", ret);
-		goto out;
+	if (is_module) { /* load module */
+		ret = skl_ipc_load_modules(&skl->ipc, SKL_NUM_MODULES, &mod_id);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Failed to Load module: %d\n", ret);
+			goto out;
+		}
 	}
 
 	/*
@@ -393,7 +395,8 @@ static int skl_load_module(struct sst_dsp *ctx, u16 mod_id, u8 *guid)
 
 	if (!module_entry->usage_cnt) {
 		ret = skl_transfer_module(ctx, module_entry->mod_info->fw->data,
-				module_entry->mod_info->fw->size, mod_id);
+				module_entry->mod_info->fw->size,
+				mod_id, 0, true);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Failed to Load module\n");
 			return ret;
