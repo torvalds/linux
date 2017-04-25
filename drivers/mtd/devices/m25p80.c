@@ -111,14 +111,7 @@ static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 
 static inline unsigned int m25p80_rx_nbits(struct spi_nor *nor)
 {
-	switch (nor->flash_read) {
-	case SPI_NOR_DUAL:
-		return 2;
-	case SPI_NOR_QUAD:
-		return 4;
-	default:
-		return 0;
-	}
+	return spi_nor_get_protocol_data_nbits(nor->read_proto);
 }
 
 /*
@@ -196,7 +189,11 @@ static int m25p_probe(struct spi_device *spi)
 	struct flash_platform_data	*data;
 	struct m25p *flash;
 	struct spi_nor *nor;
-	enum read_mode mode = SPI_NOR_NORMAL;
+	struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_PP,
+	};
 	char *flash_name;
 	int ret;
 
@@ -222,9 +219,9 @@ static int m25p_probe(struct spi_device *spi)
 	flash->spi = spi;
 
 	if (spi->mode & SPI_RX_QUAD)
-		mode = SPI_NOR_QUAD;
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
 	else if (spi->mode & SPI_RX_DUAL)
-		mode = SPI_NOR_DUAL;
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_2;
 
 	if (data && data->name)
 		nor->mtd.name = data->name;
@@ -241,7 +238,7 @@ static int m25p_probe(struct spi_device *spi)
 	else
 		flash_name = spi->modalias;
 
-	ret = spi_nor_scan(nor, flash_name, mode);
+	ret = spi_nor_scan(nor, flash_name, &hwcaps);
 	if (ret)
 		return ret;
 

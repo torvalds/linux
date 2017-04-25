@@ -585,14 +585,12 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	 * TODO: Adjust clocks if fast read is supported and interpret
 	 * SPI-NOR flags to adjust controller settings.
 	 */
-	switch (chip->nor.flash_read) {
-	case SPI_NOR_NORMAL:
-		cmd = CONTROL_COMMAND_MODE_NORMAL;
-		break;
-	case SPI_NOR_FAST:
-		cmd = CONTROL_COMMAND_MODE_FREAD;
-		break;
-	default:
+	if (chip->nor.read_proto == SNOR_PROTO_1_1_1) {
+		if (chip->nor.read_dummy == 0)
+			cmd = CONTROL_COMMAND_MODE_NORMAL;
+		else
+			cmd = CONTROL_COMMAND_MODE_FREAD;
+	} else {
 		dev_err(chip->nor.dev, "unsupported SPI read mode\n");
 		return -EINVAL;
 	}
@@ -608,6 +606,11 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 				  struct device_node *np, struct resource *r)
 {
+	const struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_PP,
+	};
 	const struct aspeed_smc_info *info = controller->info;
 	struct device *dev = controller->dev;
 	struct device_node *child;
@@ -671,11 +674,11 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 			break;
 
 		/*
-		 * TODO: Add support for SPI_NOR_QUAD and SPI_NOR_DUAL
+		 * TODO: Add support for Dual and Quad SPI protocols
 		 * attach when board support is present as determined
 		 * by of property.
 		 */
-		ret = spi_nor_scan(nor, NULL, SPI_NOR_NORMAL);
+		ret = spi_nor_scan(nor, NULL, &hwcaps);
 		if (ret)
 			break;
 
