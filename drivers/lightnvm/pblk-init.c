@@ -399,13 +399,15 @@ static int pblk_bb_discovery(struct nvm_tgt_dev *dev, struct pblk_lun *rlun)
 
 	nr_blks = nvm_bb_tbl_fold(dev->parent, blks, nr_blks);
 	if (nr_blks < 0) {
-		kfree(blks);
 		ret = nr_blks;
+		goto out;
 	}
 
 	rlun->bb_list = blks;
 
+	return 0;
 out:
+	kfree(blks);
 	return ret;
 }
 
