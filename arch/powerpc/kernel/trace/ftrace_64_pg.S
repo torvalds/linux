@@ -1,5 +1,5 @@
 /*
- * Split from entry_64.S
+ * Split from ftrace_64.S
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,71 +15,54 @@
 #include <asm/export.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-_GLOBAL(mcount)
-_GLOBAL(_mcount)
-EXPORT_SYMBOL(_mcount)
-	mflr	r12
-	mtctr	r12
-	mtlr	r0
-	bctr
-
-#else /* CONFIG_DYNAMIC_FTRACE */
-_GLOBAL_TOC(_mcount)
-EXPORT_SYMBOL(_mcount)
+_GLOBAL_TOC(ftrace_caller)
 	/* Taken from output of objdump from lib64/glibc */
 	mflr	r3
 	ld	r11, 0(r1)
 	stdu	r1, -112(r1)
 	std	r3, 128(r1)
 	ld	r4, 16(r11)
-
 	subi	r3, r3, MCOUNT_INSN_SIZE
-	LOAD_REG_ADDR(r5,ftrace_trace_function)
-	ld	r5,0(r5)
-	ld	r5,0(r5)
-	mtctr	r5
-	bctrl
+.globl ftrace_call
+ftrace_call:
+	bl	ftrace_stub
 	nop
-
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	b	ftrace_graph_caller
+.globl ftrace_graph_call
+ftrace_graph_call:
+	b	ftrace_graph_stub
+_GLOBAL(ftrace_graph_stub)
 #endif
 	ld	r0, 128(r1)
 	mtlr	r0
 	addi	r1, r1, 112
+
 _GLOBAL(ftrace_stub)
 	blr
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-_GLOBAL(return_to_handler)
-	/* need to save return values */
-	std	r4,  -32(r1)
-	std	r3,  -24(r1)
-	/* save TOC */
-	std	r2,  -16(r1)
-	std	r31, -8(r1)
-	mr	r31, r1
-	stdu	r1, -112(r1)
+_GLOBAL(ftrace_graph_caller)
+	/* load r4 with local address */
+	ld	r4, 128(r1)
+	subi	r4, r4, MCOUNT_INSN_SIZE
 
-	/*
-	 * We might be called from a module.
-	 * Switch to our TOC to run inside the core kernel.
-	 */
-	ld	r2, PACATOC(r13)
+	/* Grab the LR out of the caller stack frame */
+	ld	r11, 112(r1)
+	ld	r3, 16(r11)
 
-	bl	ftrace_return_to_handler
+	bl	prepare_ftrace_return
 	nop
 
-	/* return value has real return address */
-	mtlr	r3
+	/*
+	 * prepare_ftrace_return gives us the address we divert to.
+	 * Change the LR in the callers stack frame to this.
+	 */
+	ld	r11, 112(r1)
+	std	r3, 16(r11)
 
-	ld	r1, 0(r1)
-	ld	r4,  -32(r1)
-	ld	r3,  -24(r1)
-	ld	r2,  -16(r1)
-	ld	r31, -8(r1)
-
-	/* Jump back to real return address */
+	ld	r0, 128(r1)
+	mtlr	r0
+	addi	r1, r1, 112
 	blr
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

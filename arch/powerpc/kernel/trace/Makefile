@@ -11,6 +11,11 @@ endif
 
 obj32-$(CONFIG_FUNCTION_TRACER)		+= ftrace_32.o
 obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace_64.o
+ifdef CONFIG_MPROFILE_KERNEL
+obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace_64_mprofile.o
+else
+obj64-$(CONFIG_FUNCTION_TRACER)		+= ftrace_64_pg.o
+endif
 obj-$(CONFIG_DYNAMIC_FTRACE)		+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
 obj-$(CONFIG_FTRACE_SYSCALLS)		+= ftrace.o
