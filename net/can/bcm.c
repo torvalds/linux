@@ -147,6 +147,7 @@ static inline ktime_t bcm_timeval_to_ktime(struct bcm_timeval tv)
 /*
  * procfs functions
  */
+#if IS_ENABLED(CONFIG_PROC_FS)
 static char *bcm_proc_getifname(struct net *net, char *result, int ifindex)
 {
 	struct net_device *dev;
@@ -251,6 +252,7 @@ static const struct file_operations bcm_proc_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif /* CONFIG_PROC_FS */
 
 /*
  * bcm_can_tx - send the (next) CAN frame to the appropriate CAN interface
@@ -1537,9 +1539,11 @@ static int bcm_release(struct socket *sock)
 		bcm_remove_op(op);
 	}
 
+#if IS_ENABLED(CONFIG_PROC_FS)
 	/* remove procfs entry */
 	if (net->can.bcmproc_dir && bo->bcm_proc_read)
 		remove_proc_entry(bo->procname, net->can.bcmproc_dir);
+#endif /* CONFIG_PROC_FS */
 
 	/* remove device reference */
 	if (bo->bound) {
@@ -1598,6 +1602,7 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 		bo->ifindex = 0;
 	}
 
+#if IS_ENABLED(CONFIG_PROC_FS)
 	if (net->can.bcmproc_dir) {
 		/* unique socket address as filename */
 		sprintf(bo->procname, "%lu", sock_i_ino(sk));
@@ -1609,6 +1614,7 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 			goto fail;
 		}
 	}
+#endif /* CONFIG_PROC_FS */
 
 	bo->bound = 1;
 
@@ -1691,22 +1697,21 @@ static const struct can_proto bcm_can_proto = {
 
 static int canbcm_pernet_init(struct net *net)
 {
+#if IS_ENABLED(CONFIG_PROC_FS)
 	/* create /proc/net/can-bcm directory */
-	if (IS_ENABLED(CONFIG_PROC_FS)) {
-		net->can.bcmproc_dir =
-			proc_net_mkdir(net, "can-bcm", net->proc_net);
-	}
+	net->can.bcmproc_dir = proc_net_mkdir(net, "can-bcm", net->proc_net);
+#endif /* CONFIG_PROC_FS */
 
 	return 0;
 }
 
 static void canbcm_pernet_exit(struct net *net)
 {
+#if IS_ENABLED(CONFIG_PROC_FS)
 	/* remove /proc/net/can-bcm directory */
-	if (IS_ENABLED(CONFIG_PROC_FS)) {
-		if (net->can.bcmproc_dir)
-			remove_proc_entry("can-bcm", net->proc_net);
-	}
+	if (net->can.bcmproc_dir)
+		remove_proc_entry("can-bcm", net->proc_net);
+#endif /* CONFIG_PROC_FS */
 }
 
 static struct pernet_operations canbcm_pernet_ops __read_mostly = {
