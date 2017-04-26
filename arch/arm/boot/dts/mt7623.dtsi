@@ -187,6 +187,17 @@
 		reg = <0 0x10200100 0 0x1c>;
 	};
 
+	efuse: efuse@10206000 {
+		compatible = "mediatek,mt7623-efuse",
+			     "mediatek,mt8173-efuse";
+		reg	   = <0 0x10206000 0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		thermal_calibration_data: calib@424 {
+			reg = <0x424 0xc>;
+		};
+	};
+
 	apmixedsys: syscon@10209000 {
 		compatible = "mediatek,mt7623-apmixedsys",
 			     "mediatek,mt2701-apmixedsys",
