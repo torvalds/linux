@@ -623,7 +623,6 @@ static void renesas_usb3_stop_controller(struct renesas_usb3 *usb3)
 {
 	usb3_disconnect(usb3);
 	usb3_write(usb3, 0, USB3_P0_INT_ENA);
-	usb3_write(usb3, 0, USB3_PN_INT_ENA);
 	usb3_write(usb3, 0, USB3_USB_OTG_INT_ENA);
 	usb3_write(usb3, 0, USB3_USB_INT_ENA_1);
 	usb3_write(usb3, 0, USB3_USB_INT_ENA_2);
@@ -1682,6 +1681,7 @@ static int usb3_disable_pipe_n(struct renesas_usb3_ep *usb3_ep)
 
 	spin_lock_irqsave(&usb3->lock, flags);
 	if (!usb3_pn_change(usb3, usb3_ep->num)) {
+		usb3_write(usb3, 0, USB3_PN_INT_ENA);
 		usb3_write(usb3, 0, USB3_PN_RAMMAP);
 		usb3_clear_bit(usb3, PN_CON_EN, USB3_PN_CON);
 	}
