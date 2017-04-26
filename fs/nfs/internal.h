@@ -756,9 +756,13 @@ static inline bool nfs_error_is_fatal(int err)
 {
 	switch (err) {
 	case -ERESTARTSYS:
+	case -EACCES:
+	case -EDQUOT:
+	case -EFBIG:
 	case -EIO:
 	case -ENOSPC:
 	case -EROFS:
+	case -ESTALE:
 	case -E2BIG:
 		return true;
 	default:
