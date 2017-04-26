@@ -413,7 +413,7 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 		status->enc_flags |= RX_ENC_FLAG_HT_GF;
 		/* fall through */
 	case MT_PHY_TYPE_HT:
-		status->enc_flags |= RX_ENC_FLAG_HT;
+		status->encoding = RX_ENC_HT;
 		status->rate_idx = idx;
 		break;
 	default:
@@ -428,7 +428,7 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 		status->enc_flags |= 1 << RX_ENC_FLAG_STBC_SHIFT;
 
 	if (rate & MT_RXWI_RATE_BW)
-		status->enc_flags |= RX_ENC_FLAG_40MHZ;
+		status->bw = RATE_INFO_BW_40;
 }
 
 static void

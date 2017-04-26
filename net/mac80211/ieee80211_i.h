@@ -1530,9 +1530,9 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 		     status->flag & RX_FLAG_MACTIME_END);
 	if (status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END))
 		return true;
-	/* can't handle HT/VHT preamble yet */
+	/* can't handle non-legacy preamble yet */
 	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
-	    !(status->enc_flags & (RX_ENC_FLAG_HT | RX_ENC_FLAG_VHT)))
+	    status->encoding != RX_ENC_LEGACY)
 		return true;
 	return false;
 }

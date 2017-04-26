@@ -1116,8 +1116,6 @@ enum mac80211_rx_flags {
  * enum mac80211_rx_encoding_flags - MCS & bandwidth flags
  *
  * @RX_ENC_FLAG_SHORTPRE: Short preamble was used for this frame
- * @RX_ENC_FLAG_HT: HT MCS was used and rate_idx is MCS index
- * @RX_ENC_FLAG_VHT: VHT MCS was used and rate_index is MCS index
  * @RX_ENC_FLAG_40MHZ: HT40 (40 MHz) was used
  * @RX_ENC_FLAG_SHORT_GI: Short guard interval was used
  * @RX_ENC_FLAG_HT_GF: This frame was received in a HT-greenfield transmission,
@@ -1126,29 +1124,25 @@ enum mac80211_rx_flags {
  *	to hw.radiotap_mcs_details to advertise that fact
  * @RX_ENC_FLAG_LDPC: LDPC was used
  * @RX_ENC_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
- * @RX_ENC_FLAG_10MHZ: 10 MHz (half channel) was used
- * @RX_ENC_FLAG_5MHZ: 5 MHz (quarter channel) was used
- * @RX_ENC_FLAG_80MHZ: 80 MHz was used
- * @RX_ENC_FLAG_160MHZ: 160 MHz was used
  * @RX_ENC_FLAG_BF: packet was beamformed
  */
 enum mac80211_rx_encoding_flags {
 	RX_ENC_FLAG_SHORTPRE		= BIT(0),
-	RX_ENC_FLAG_HT			= BIT(1),
-	RX_ENC_FLAG_40MHZ		= BIT(2),
-	RX_ENC_FLAG_SHORT_GI		= BIT(3),
-	RX_ENC_FLAG_HT_GF		= BIT(4),
-	RX_ENC_FLAG_VHT			= BIT(5),
-	RX_ENC_FLAG_STBC_MASK		= BIT(6) | BIT(7),
-	RX_ENC_FLAG_LDPC		= BIT(8),
-	RX_ENC_FLAG_10MHZ		= BIT(9),
-	RX_ENC_FLAG_5MHZ		= BIT(10),
-	RX_ENC_FLAG_80MHZ		= BIT(11),
-	RX_ENC_FLAG_160MHZ		= BIT(12),
-	RX_ENC_FLAG_BF			= BIT(13),
+	RX_ENC_FLAG_40MHZ		= BIT(1),
+	RX_ENC_FLAG_SHORT_GI		= BIT(2),
+	RX_ENC_FLAG_HT_GF		= BIT(3),
+	RX_ENC_FLAG_STBC_MASK		= BIT(4) | BIT(5),
+	RX_ENC_FLAG_LDPC		= BIT(6),
+	RX_ENC_FLAG_BF			= BIT(7),
 };
 
-#define RX_ENC_FLAG_STBC_SHIFT		6
+#define RX_ENC_FLAG_STBC_SHIFT		4
+
+enum mac80211_rx_encoding {
+	RX_ENC_LEGACY = 0,
+	RX_ENC_HT,
+	RX_ENC_VHT,
+};
 
 /**
  * struct ieee80211_rx_status - receive status
@@ -1179,6 +1173,8 @@ enum mac80211_rx_encoding_flags {
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
  * @vht_nss: number of streams (VHT only)
  * @flag: %RX_FLAG_\*
+ * @encoding: &enum mac80211_rx_encoding
+ * @bw: &enum rate_info_bw
  * @enc_flags: uses bits from &enum mac80211_rx_encoding_flags
  * @rx_flags: internal RX flags for mac80211
  * @ampdu_reference: A-MPDU reference number, must be a different value for
@@ -1191,8 +1187,9 @@ struct ieee80211_rx_status {
 	u32 device_timestamp;
 	u32 ampdu_reference;
 	u32 flag;
-	u16 enc_flags;
 	u16 freq;
+	u8 enc_flags;
+	u8 encoding:2, bw:3;
 	u8 rate_idx;
 	u8 vht_nss;
 	u8 rx_flags;

@@ -7092,9 +7092,9 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 	rspec = brcms_c_compute_rspec(rxh, plcp);
 	if (is_mcs_rate(rspec)) {
 		rx_status->rate_idx = rspec & RSPEC_RATE_MASK;
-		rx_status->enc_flags |= RX_ENC_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 		if (rspec_is40mhz(rspec))
-			rx_status->enc_flags |= RX_ENC_FLAG_40MHZ;
+			rx_status->bw = RATE_INFO_BW_40;
 	} else {
 		switch (rspec2rate(rspec)) {
 		case BRCM_RATE_1M:

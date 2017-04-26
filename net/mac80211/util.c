@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2015-2016	Intel Deutschland GmbH
+ * Copyright (C) 2015-2017	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2715,42 +2715,39 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 	memset(&ri, 0, sizeof(ri));
 
 	/* Fill cfg80211 rate info */
-	if (status->enc_flags & RX_ENC_FLAG_HT) {
+	switch (status->encoding) {
+	case RX_ENC_HT:
 		ri.mcs = status->rate_idx;
 		ri.flags |= RATE_INFO_FLAGS_MCS;
-		if (status->enc_flags & RX_ENC_FLAG_40MHZ)
-			ri.bw = RATE_INFO_BW_40;
-		else
-			ri.bw = RATE_INFO_BW_20;
+		ri.bw = status->bw;
 		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else if (status->enc_flags & RX_ENC_FLAG_VHT) {
+		break;
+	case RX_ENC_VHT:
 		ri.flags |= RATE_INFO_FLAGS_VHT_MCS;
 		ri.mcs = status->rate_idx;
 		ri.nss = status->vht_nss;
-		if (status->enc_flags & RX_ENC_FLAG_40MHZ)
-			ri.bw = RATE_INFO_BW_40;
-		else if (status->enc_flags & RX_ENC_FLAG_80MHZ)
-			ri.bw = RATE_INFO_BW_80;
-		else if (status->enc_flags & RX_ENC_FLAG_160MHZ)
-			ri.bw = RATE_INFO_BW_160;
-		else
-			ri.bw = RATE_INFO_BW_20;
+		ri.bw = status->bw;
 		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	} else {
+		break;
+	default:
+		WARN_ON(1);
+		/* fall through */
+	case RX_ENC_LEGACY: {
 		struct ieee80211_supported_band *sband;
 		int shift = 0;
 		int bitrate;
 
-		if (status->enc_flags & RX_ENC_FLAG_10MHZ) {
+		ri.bw = status->bw;
+
+		switch (status->bw) {
+		case RATE_INFO_BW_10:
 			shift = 1;
-			ri.bw = RATE_INFO_BW_10;
-		} else if (status->enc_flags & RX_ENC_FLAG_5MHZ) {
+			break;
+		case RATE_INFO_BW_5:
 			shift = 2;
-			ri.bw = RATE_INFO_BW_5;
-		} else {
-			ri.bw = RATE_INFO_BW_20;
+			break;
 		}
 
 		sband = local->hw.wiphy->bands[status->band];
@@ -2767,6 +2764,8 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 			} else {
 				ts += 192;
 			}
+		}
+		break;
 		}
 	}
 

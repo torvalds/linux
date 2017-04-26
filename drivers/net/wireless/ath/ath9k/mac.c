@@ -536,6 +536,7 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	rs->rs_status = 0;
 	rs->rs_flags = 0;
 	rs->enc_flags = 0;
+	rs->bw = RATE_INFO_BW_20;
 
 	rs->rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
 	rs->rs_tstamp = ads.AR_RcvTimestamp;

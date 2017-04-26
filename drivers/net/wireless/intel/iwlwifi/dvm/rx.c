@@ -887,7 +887,7 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 
 	/* Set up the HT phy flags */
 	if (rate_n_flags & RATE_MCS_HT_MSK)
-		rx_status.enc_flags |= RX_ENC_FLAG_HT;
+		rx_status.encoding = RX_ENC_HT;
 	if (rate_n_flags & RATE_MCS_HT40_MSK)
 		rx_status.enc_flags |= RX_ENC_FLAG_40MHZ;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)

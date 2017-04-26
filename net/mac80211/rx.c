@@ -156,7 +156,7 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 	/* padding for RX_FLAGS if necessary */
 	len = ALIGN(len, 2);
 
-	if (status->enc_flags & RX_ENC_FLAG_HT) /* HT info */
+	if (status->encoding == RX_ENC_HT) /* HT info */
 		len += 3;
 
 	if (status->flag & RX_FLAG_AMPDU_DETAILS) {
@@ -164,7 +164,7 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 		len += 8;
 	}
 
-	if (status->enc_flags & RX_ENC_FLAG_VHT) {
+	if (status->encoding == RX_ENC_VHT) {
 		len = ALIGN(len, 2);
 		len += 12;
 	}
@@ -334,7 +334,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	pos++;
 
 	/* IEEE80211_RADIOTAP_RATE */
-	if (!rate || status->enc_flags & (RX_ENC_FLAG_HT | RX_ENC_FLAG_VHT)) {
+	if (!rate || status->encoding != RX_ENC_LEGACY) {
 		/*
 		 * Without rate information don't add it. If we have,
 		 * MCS information is a separate field in radiotap,
@@ -345,9 +345,9 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	} else {
 		int shift = 0;
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
-		if (status->enc_flags & RX_ENC_FLAG_10MHZ)
+		if (status->bw == RATE_INFO_BW_10)
 			shift = 1;
-		else if (status->enc_flags & RX_ENC_FLAG_5MHZ)
+		else if (status->bw == RATE_INFO_BW_5)
 			shift = 2;
 		*pos = DIV_ROUND_UP(rate->bitrate, 5 * (1 << shift));
 	}
@@ -356,14 +356,14 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_CHANNEL */
 	put_unaligned_le16(status->freq, pos);
 	pos += 2;
-	if (status->enc_flags & RX_ENC_FLAG_10MHZ)
+	if (status->bw == RATE_INFO_BW_10)
 		channel_flags |= IEEE80211_CHAN_HALF;
-	else if (status->enc_flags & RX_ENC_FLAG_5MHZ)
+	else if (status->bw == RATE_INFO_BW_5)
 		channel_flags |= IEEE80211_CHAN_QUARTER;
 
 	if (status->band == NL80211_BAND_5GHZ)
 		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ;
-	else if (status->enc_flags & (RX_ENC_FLAG_HT | RX_ENC_FLAG_VHT))
+	else if (status->encoding != RX_ENC_LEGACY)
 		channel_flags |= IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
 	else if (rate && rate->flags & IEEE80211_RATE_ERP_G)
 		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ;
@@ -402,7 +402,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	put_unaligned_le16(rx_flags, pos);
 	pos += 2;
 
-	if (status->enc_flags & RX_ENC_FLAG_HT) {
+	if (status->encoding == RX_ENC_HT) {
 		unsigned int stbc;
 
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_MCS);
@@ -410,7 +410,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		*pos = 0;
 		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			*pos |= IEEE80211_RADIOTAP_MCS_SGI;
-		if (status->enc_flags & RX_ENC_FLAG_40MHZ)
+		if (status->bw == RATE_INFO_BW_40)
 			*pos |= IEEE80211_RADIOTAP_MCS_BW_40;
 		if (status->enc_flags & RX_ENC_FLAG_HT_GF)
 			*pos |= IEEE80211_RADIOTAP_MCS_FMT_GF;
@@ -449,7 +449,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		*pos++ = 0;
 	}
 
-	if (status->enc_flags & RX_ENC_FLAG_VHT) {
+	if (status->encoding == RX_ENC_VHT) {
 		u16 known = local->hw.radiotap_vht_details;
 
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_VHT);
@@ -465,14 +465,19 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			*pos |= IEEE80211_RADIOTAP_VHT_FLAG_BEAMFORMED;
 		pos++;
 		/* bandwidth */
-		if (status->enc_flags & RX_ENC_FLAG_80MHZ)
+		switch (status->bw) {
+		case RATE_INFO_BW_80:
 			*pos++ = 4;
-		else if (status->enc_flags & RX_ENC_FLAG_160MHZ)
+			break;
+		case RATE_INFO_BW_160:
 			*pos++ = 11;
-		else if (status->enc_flags & RX_ENC_FLAG_40MHZ)
+			break;
+		case RATE_INFO_BW_40:
 			*pos++ = 1;
-		else /* 20 MHz */
+			break;
+		default:
 			*pos++ = 0;
+		}
 		/* MCS/NSS */
 		*pos = (status->rate_idx << 4) | status->vht_nss;
 		pos += 4;
@@ -3336,8 +3341,8 @@ static void ieee80211_rx_handlers_result(struct ieee80211_rx_data *rx,
 		status = IEEE80211_SKB_RXCB((rx->skb));
 
 		sband = rx->local->hw.wiphy->bands[status->band];
-		if (!(status->enc_flags & RX_ENC_FLAG_HT) &&
-		    !(status->enc_flags & RX_ENC_FLAG_VHT))
+		if (!(status->encoding == RX_ENC_HT) &&
+		    !(status->encoding == RX_ENC_VHT))
 			rate = &sband->bitrates[status->rate_idx];
 
 		ieee80211_rx_cooked_monitor(rx, rate);
@@ -3598,7 +3603,7 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 			return false;
 		if (!rx->sta) {
 			int rate_idx;
-			if (status->enc_flags & (RX_ENC_FLAG_HT | RX_ENC_FLAG_VHT))
+			if (status->encoding != RX_ENC_LEGACY)
 				rate_idx = 0; /* TODO: HT/VHT rates */
 			else
 				rate_idx = status->rate_idx;
@@ -3618,7 +3623,7 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 			return false;
 		if (!rx->sta) {
 			int rate_idx;
-			if (status->enc_flags & RX_ENC_FLAG_HT)
+			if (status->encoding != RX_ENC_LEGACY)
 				rate_idx = 0; /* TODO: HT rates */
 			else
 				rate_idx = status->rate_idx;
@@ -4281,7 +4286,8 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 		 * we probably can't have a valid rate here anyway.
 		 */
 
-		if (status->enc_flags & RX_ENC_FLAG_HT) {
+		switch (status->encoding) {
+		case RX_ENC_HT:
 			/*
 			 * rate_idx is MCS index, which can be [0-76]
 			 * as documented on:
@@ -4299,14 +4305,19 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 				 status->rate_idx,
 				 status->rate_idx))
 				goto drop;
-		} else if (status->enc_flags & RX_ENC_FLAG_VHT) {
+			break;
+		case RX_ENC_VHT:
 			if (WARN_ONCE(status->rate_idx > 9 ||
 				      !status->vht_nss ||
 				      status->vht_nss > 8,
 				      "Rate marked as a VHT rate but data is invalid: MCS: %d, NSS: %d\n",
 				      status->rate_idx, status->vht_nss))
 				goto drop;
-		} else {
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			/* fall through */
+		case RX_ENC_LEGACY:
 			if (WARN_ON(status->rate_idx >= sband->n_bitrates))
 				goto drop;
 			rate = &sband->bitrates[status->rate_idx];

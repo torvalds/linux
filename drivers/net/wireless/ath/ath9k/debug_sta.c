@@ -116,7 +116,7 @@ void ath_debug_rate_stats(struct ath_softc *sc,
 		if (rxs->rate_idx >= ARRAY_SIZE(rstats->ht_stats))
 			goto exit;
 
-		if (rxs->enc_flags & RX_ENC_FLAG_40MHZ)
+		if ((rxs->bw == RATE_INFO_BW_40))
 			rstats->ht_stats[rxs->rate_idx].ht40_cnt++;
 		else
 			rstats->ht_stats[rxs->rate_idx].ht20_cnt++;

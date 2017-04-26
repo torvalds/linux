@@ -495,6 +495,7 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	rxs->rs_status = 0;
 	rxs->rs_flags =  0;
 	rxs->enc_flags = 0;
+	rxs->bw = RATE_INFO_BW_20;
 
 	rxs->rs_datalen = rxsp->status2 & AR_DataLen;
 	rxs->rs_tstamp =  rxsp->status3;
