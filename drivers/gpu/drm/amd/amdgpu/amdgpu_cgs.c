@@ -89,7 +89,7 @@ static int amdgpu_cgs_gmap_kmem(struct cgs_device *cgs_device, void *kmem,
 			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, NULL, &bo);
 	if (ret)
 		return ret;
-	ret = amdgpu_bo_reserve(bo, false);
+	ret = amdgpu_bo_reserve(bo, true);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -107,7 +107,7 @@ static int amdgpu_cgs_gunmap_kmem(struct cgs_device *cgs_device, cgs_handle_t km
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)kmem_handle;
 
 	if (obj) {
-		int r = amdgpu_bo_reserve(obj, false);
+		int r = amdgpu_bo_reserve(obj, true);
 		if (likely(r == 0)) {
 			amdgpu_bo_unpin(obj);
 			amdgpu_bo_unreserve(obj);
@@ -215,7 +215,7 @@ static int amdgpu_cgs_free_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
 
 	if (obj) {
-		int r = amdgpu_bo_reserve(obj, false);
+		int r = amdgpu_bo_reserve(obj, true);
 		if (likely(r == 0)) {
 			amdgpu_bo_kunmap(obj);
 			amdgpu_bo_unpin(obj);
@@ -239,7 +239,7 @@ static int amdgpu_cgs_gmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 	min_offset = obj->placements[0].fpfn << PAGE_SHIFT;
 	max_offset = obj->placements[0].lpfn << PAGE_SHIFT;
 
-	r = amdgpu_bo_reserve(obj, false);
+	r = amdgpu_bo_reserve(obj, true);
 	if (unlikely(r != 0))
 		return r;
 	r = amdgpu_bo_pin_restricted(obj, obj->prefered_domains,
@@ -252,7 +252,7 @@ static int amdgpu_cgs_gunmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t
 {
 	int r;
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
-	r = amdgpu_bo_reserve(obj, false);
+	r = amdgpu_bo_reserve(obj, true);
 	if (unlikely(r != 0))
 		return r;
 	r = amdgpu_bo_unpin(obj);
@@ -265,7 +265,7 @@ static int amdgpu_cgs_kmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 {
 	int r;
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
-	r = amdgpu_bo_reserve(obj, false);
+	r = amdgpu_bo_reserve(obj, true);
 	if (unlikely(r != 0))
 		return r;
 	r = amdgpu_bo_kmap(obj, map);
@@ -277,7 +277,7 @@ static int amdgpu_cgs_kunmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t
 {
 	int r;
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
-	r = amdgpu_bo_reserve(obj, false);
+	r = amdgpu_bo_reserve(obj, true);
 	if (unlikely(r != 0))
 		return r;
 	amdgpu_bo_kunmap(obj);
