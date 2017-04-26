@@ -440,6 +440,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[FRA_TUN_ID])
 		rule->tun_id = nla_get_be64(tb[FRA_TUN_ID]);
 
+	err = -EINVAL;
 	if (tb[FRA_L3MDEV]) {
 #ifdef CONFIG_NET_L3_MASTER_DEV
 		rule->l3mdev = nla_get_u8(tb[FRA_L3MDEV]);
@@ -461,7 +462,6 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	else
 		rule->suppress_ifgroup = -1;
 
-	err = -EINVAL;
 	if (tb[FRA_GOTO]) {
 		if (rule->action != FR_ACT_GOTO)
 			goto errout_free;
@@ -592,8 +592,10 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (tb[FRA_UID_RANGE]) {
 		range = nla_get_kuid_range(tb);
-		if (!uid_range_set(&range))
+		if (!uid_range_set(&range)) {
+			err = -EINVAL;
 			goto errout;
+		}
 	} else {
 		range = fib_kuid_range_unset;
 	}
