@@ -240,6 +240,7 @@ struct tcp_sock {
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
 /* RTT measurement */
+	struct skb_mstamp tcp_mstamp; /* most recent packet received/sent */
 	u32	srtt_us;	/* smoothed round trip time << 3 in usecs */
 	u32	mdev_us;	/* medium deviation			*/
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
@@ -332,16 +333,16 @@ struct tcp_sock {
 
 /* Receiver side RTT estimation */
 	struct {
-		u32	rtt;
-		u32	seq;
-		u32	time;
+		u32		rtt_us;
+		u32		seq;
+		struct skb_mstamp time;
 	} rcv_rtt_est;
 
 /* Receiver queue space */
 	struct {
-		int	space;
-		u32	seq;
-		u32	time;
+		int		space;
+		u32		seq;
+		struct skb_mstamp time;
 	} rcvq_space;
 
 /* TCP-specific MTU probe information. */
