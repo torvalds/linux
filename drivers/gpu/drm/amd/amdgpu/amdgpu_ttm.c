@@ -553,10 +553,9 @@ out_cleanup:
 	return r;
 }
 
-static int amdgpu_bo_move(struct ttm_buffer_object *bo,
-			bool evict, bool interruptible,
-			bool no_wait_gpu,
-			struct ttm_mem_reg *new_mem)
+static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
+			  struct ttm_operation_ctx *ctx,
+			  struct ttm_mem_reg *new_mem)
 {
 	struct amdgpu_device *adev;
 	struct amdgpu_bo *abo;
@@ -591,19 +590,21 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 
 	if (old_mem->mem_type == TTM_PL_VRAM &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
-		r = amdgpu_move_vram_ram(bo, evict, interruptible,
-					no_wait_gpu, new_mem);
+		r = amdgpu_move_vram_ram(bo, evict, ctx->interruptible,
+					ctx->no_wait_gpu, new_mem);
 	} else if (old_mem->mem_type == TTM_PL_SYSTEM &&
 		   new_mem->mem_type == TTM_PL_VRAM) {
-		r = amdgpu_move_ram_vram(bo, evict, interruptible,
-					    no_wait_gpu, new_mem);
+		r = amdgpu_move_ram_vram(bo, evict, ctx->interruptible,
+					    ctx->no_wait_gpu, new_mem);
 	} else {
-		r = amdgpu_move_blit(bo, evict, no_wait_gpu, new_mem, old_mem);
+		r = amdgpu_move_blit(bo, evict, ctx->no_wait_gpu,
+				     new_mem, old_mem);
 	}
 
 	if (r) {
 memcpy:
-		r = ttm_bo_move_memcpy(bo, interruptible, no_wait_gpu, new_mem);
+		r = ttm_bo_move_memcpy(bo, ctx->interruptible,
+				       ctx->no_wait_gpu, new_mem);
 		if (r) {
 			return r;
 		}

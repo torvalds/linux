@@ -1328,8 +1328,9 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 }
 
 static int
-nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
-		bool no_wait_gpu, struct ttm_mem_reg *new_reg)
+nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
+		struct ttm_operation_ctx *ctx,
+		struct ttm_mem_reg *new_reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
@@ -1337,7 +1338,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
-	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret)
 		return ret;
 
@@ -1361,22 +1362,26 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	/* Hardware assisted copy. */
 	if (drm->ttm.move) {
 		if (new_reg->mem_type == TTM_PL_SYSTEM)
-			ret = nouveau_bo_move_flipd(bo, evict, intr,
-						    no_wait_gpu, new_reg);
+			ret = nouveau_bo_move_flipd(bo, evict,
+						    ctx->interruptible,
+						    ctx->no_wait_gpu, new_reg);
 		else if (old_reg->mem_type == TTM_PL_SYSTEM)
-			ret = nouveau_bo_move_flips(bo, evict, intr,
-						    no_wait_gpu, new_reg);
+			ret = nouveau_bo_move_flips(bo, evict,
+						    ctx->interruptible,
+						    ctx->no_wait_gpu, new_reg);
 		else
-			ret = nouveau_bo_move_m2mf(bo, evict, intr,
-						   no_wait_gpu, new_reg);
+			ret = nouveau_bo_move_m2mf(bo, evict,
+						   ctx->interruptible,
+						   ctx->no_wait_gpu, new_reg);
 		if (!ret)
 			goto out;
 	}
 
 	/* Fallback to software copy. */
-	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret == 0)
-		ret = ttm_bo_move_memcpy(bo, intr, no_wait_gpu, new_reg);
+		ret = ttm_bo_move_memcpy(bo, ctx->interruptible,
+					 ctx->no_wait_gpu, new_reg);
 
 out:
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {

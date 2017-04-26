@@ -409,15 +409,13 @@ struct ttm_bo_driver {
 	 * @bo: the buffer to move
 	 * @evict: whether this motion is evicting the buffer from
 	 * the graphics address space
-	 * @interruptible: Use interruptible sleeps if possible when sleeping.
-	 * @no_wait: whether this should give up and return -EBUSY
-	 * if this move would require sleeping
+	 * @ctx: context for this move with parameters
 	 * @new_mem: the new memory region receiving the buffer
 	 *
 	 * Move a buffer between two memory regions.
 	 */
 	int (*move)(struct ttm_buffer_object *bo, bool evict,
-		    bool interruptible, bool no_wait_gpu,
+		    struct ttm_operation_ctx *ctx,
 		    struct ttm_mem_reg *new_mem);
 
 	/**

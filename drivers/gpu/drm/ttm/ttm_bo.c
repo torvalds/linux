@@ -327,8 +327,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		ret = ttm_bo_move_ttm(bo, ctx->interruptible,
 				      ctx->no_wait_gpu, mem);
 	else if (bdev->driver->move)
-		ret = bdev->driver->move(bo, evict, ctx->interruptible,
-					 ctx->no_wait_gpu, mem);
+		ret = bdev->driver->move(bo, evict, ctx, mem);
 	else
 		ret = ttm_bo_move_memcpy(bo, ctx->interruptible,
 					 ctx->no_wait_gpu, mem);
