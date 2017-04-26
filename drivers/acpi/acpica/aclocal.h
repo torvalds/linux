@@ -784,9 +784,10 @@ union acpi_parse_value {
 #define ACPI_DASM_LNOT_SUFFIX           0x09	/* End  of a Lnot_equal (etc.) pair of opcodes */
 #define ACPI_DASM_HID_STRING            0x0A	/* String is a _HID or _CID */
 #define ACPI_DASM_IGNORE_SINGLE         0x0B	/* Ignore the opcode but not it's children */
-#define ACPI_DASM_SWITCH_PREDICATE      0x0C	/* Object is a predicate for a Switch or Case block */
-#define ACPI_DASM_CASE                  0x0D	/* If/Else is a Case in a Switch/Case block */
-#define ACPI_DASM_DEFAULT               0x0E	/* Else is a Default in a Switch/Case block */
+#define ACPI_DASM_SWITCH                0x0C	/* While is a Switch */
+#define ACPI_DASM_SWITCH_PREDICATE      0x0D	/* Object is a predicate for a Switch or Case block */
+#define ACPI_DASM_CASE                  0x0E	/* If/Else is a Case in a Switch/Case block */
+#define ACPI_DASM_DEFAULT               0x0F	/* Else is a Default in a Switch/Case block */
 
 /*
  * Generic operation (for example:  If, While, Store)
