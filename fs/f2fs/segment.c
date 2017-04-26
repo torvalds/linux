@@ -688,6 +688,7 @@ static struct discard_cmd *__create_discard_cmd(struct f2fs_sb_info *sbi,
 	dc->lstart = lstart;
 	dc->start = start;
 	dc->len = len;
+	dc->ref = 0;
 	dc->state = D_PREP;
 	dc->error = 0;
 	init_completion(&dc->wait);
@@ -1086,6 +1087,8 @@ static void __wait_discard_cmd(struct f2fs_sb_info *sbi, bool wait_cond)
 	mutex_lock(&dcc->cmd_lock);
 	list_for_each_entry_safe(dc, tmp, wait_list, list) {
 		if (!wait_cond || dc->state == D_DONE) {
+			if (dc->ref)
+				continue;
 			wait_for_completion_io(&dc->wait);
 			__remove_discard_cmd(sbi, dc);
 		}
@@ -1098,17 +1101,29 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 	struct discard_cmd *dc;
+	bool need_wait = false;
 
 	mutex_lock(&dcc->cmd_lock);
-
 	dc = (struct discard_cmd *)__lookup_rb_tree(&dcc->root, NULL, blkaddr);
 	if (dc) {
-		if (dc->state != D_PREP)
-			wait_for_completion_io(&dc->wait);
-		__punch_discard_cmd(sbi, dc, blkaddr);
+		if (dc->state == D_PREP) {
+			__punch_discard_cmd(sbi, dc, blkaddr);
+		} else {
+			dc->ref++;
+			need_wait = true;
+		}
 	}
-
 	mutex_unlock(&dcc->cmd_lock);
+
+	if (need_wait) {
+		wait_for_completion_io(&dc->wait);
+		mutex_lock(&dcc->cmd_lock);
+		f2fs_bug_on(sbi, dc->state != D_DONE);
+		dc->ref--;
+		if (!dc->ref)
+			__remove_discard_cmd(sbi, dc);
+		mutex_unlock(&dcc->cmd_lock);
+	}
 }
 
 /* This comes from f2fs_put_super */
