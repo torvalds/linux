@@ -291,7 +291,6 @@ static int __commit_inmem_pages(struct inode *inode,
 		.type = DATA,
 		.op = REQ_OP_WRITE,
 		.op_flags = REQ_SYNC | REQ_PRIO,
-		.encrypted_page = NULL,
 	};
 	pgoff_t last_idx = ULONG_MAX;
 	int err = 0;
@@ -312,6 +311,7 @@ static int __commit_inmem_pages(struct inode *inode,
 
 			fio.page = page;
 			fio.old_blkaddr = NULL_ADDR;
+			fio.encrypted_page = NULL;
 			err = do_write_data_page(&fio);
 			if (err) {
 				unlock_page(page);
