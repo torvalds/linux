@@ -206,21 +206,6 @@ static u64 qede_ptp_read_cc(const struct cyclecounter *cc)
 	return phc_cycles;
 }
 
-static void qede_ptp_init_cc(struct qede_dev *edev)
-{
-	struct qede_ptp *ptp;
-
-	ptp = edev->ptp;
-	if (!ptp)
-		return;
-
-	memset(&ptp->cc, 0, sizeof(ptp->cc));
-	ptp->cc.read = qede_ptp_read_cc;
-	ptp->cc.mask = CYCLECOUNTER_MASK(64);
-	ptp->cc.shift = 0;
-	ptp->cc.mult = 1;
-}
-
 static int qede_ptp_cfg_filters(struct qede_dev *edev)
 {
 	struct qede_ptp *ptp = edev->ptp;
@@ -324,61 +309,6 @@ int qede_ptp_hw_ts(struct qede_dev *edev, struct ifreq *ifr)
 			    sizeof(config)) ? -EFAULT : 0;
 }
 
-/* Called during load, to initialize PTP-related stuff */
-static void qede_ptp_init(struct qede_dev *edev, bool init_tc)
-{
-	struct qede_ptp *ptp;
-	int rc;
-
-	ptp = edev->ptp;
-	if (!ptp)
-		return;
-
-	spin_lock_init(&ptp->lock);
-
-	/* Configure PTP in HW */
-	rc = ptp->ops->enable(edev->cdev);
-	if (rc) {
-		DP_ERR(edev, "Stopping PTP initialization\n");
-		return;
-	}
-
-	/* Init work queue for Tx timestamping */
-	INIT_WORK(&ptp->work, qede_ptp_task);
-
-	/* Init cyclecounter and timecounter. This is done only in the first
-	 * load. If done in every load, PTP application will fail when doing
-	 * unload / load (e.g. MTU change) while it is running.
-	 */
-	if (init_tc) {
-		qede_ptp_init_cc(edev);
-		timecounter_init(&ptp->tc, &ptp->cc,
-				 ktime_to_ns(ktime_get_real()));
-	}
-
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "PTP initialization is successful\n");
-}
-
-void qede_ptp_start(struct qede_dev *edev, bool init_tc)
-{
-	qede_ptp_init(edev, init_tc);
-	qede_ptp_cfg_filters(edev);
-}
-
-void qede_ptp_remove(struct qede_dev *edev)
-{
-	struct qede_ptp *ptp;
-
-	ptp = edev->ptp;
-	if (ptp && ptp->clock) {
-		ptp_clock_unregister(ptp->clock);
-		ptp->clock = NULL;
-	}
-
-	kfree(ptp);
-	edev->ptp = NULL;
-}
-
 int qede_ptp_get_ts_info(struct qede_dev *edev, struct ethtool_ts_info *info)
 {
 	struct qede_ptp *ptp = edev->ptp;
@@ -417,14 +347,18 @@ int qede_ptp_get_ts_info(struct qede_dev *edev, struct ethtool_ts_info *info)
 	return 0;
 }
 
-/* Called during unload, to stop PTP-related stuff */
-void qede_ptp_stop(struct qede_dev *edev)
+void qede_ptp_disable(struct qede_dev *edev)
 {
 	struct qede_ptp *ptp;
 
 	ptp = edev->ptp;
 	if (!ptp)
 		return;
+
+	if (ptp->clock) {
+		ptp_clock_unregister(ptp->clock);
+		ptp->clock = NULL;
+	}
 
 	/* Cancel PTP work queue. Should be done after the Tx queues are
 	 * drained to prevent additional scheduling.
@@ -439,11 +373,54 @@ void qede_ptp_stop(struct qede_dev *edev)
 	spin_lock_bh(&ptp->lock);
 	ptp->ops->disable(edev->cdev);
 	spin_unlock_bh(&ptp->lock);
+
+	kfree(ptp);
+	edev->ptp = NULL;
 }
 
-int qede_ptp_register_phc(struct qede_dev *edev)
+static int qede_ptp_init(struct qede_dev *edev, bool init_tc)
 {
 	struct qede_ptp *ptp;
+	int rc;
+
+	ptp = edev->ptp;
+	if (!ptp)
+		return -EINVAL;
+
+	spin_lock_init(&ptp->lock);
+
+	/* Configure PTP in HW */
+	rc = ptp->ops->enable(edev->cdev);
+	if (rc) {
+		DP_INFO(edev, "PTP HW enable failed\n");
+		return rc;
+	}
+
+	/* Init work queue for Tx timestamping */
+	INIT_WORK(&ptp->work, qede_ptp_task);
+
+	/* Init cyclecounter and timecounter. This is done only in the first
+	 * load. If done in every load, PTP application will fail when doing
+	 * unload / load (e.g. MTU change) while it is running.
+	 */
+	if (init_tc) {
+		memset(&ptp->cc, 0, sizeof(ptp->cc));
+		ptp->cc.read = qede_ptp_read_cc;
+		ptp->cc.mask = CYCLECOUNTER_MASK(64);
+		ptp->cc.shift = 0;
+		ptp->cc.mult = 1;
+
+		timecounter_init(&ptp->tc, &ptp->cc,
+				 ktime_to_ns(ktime_get_real()));
+	}
+
+	return rc;
+}
+
+int qede_ptp_enable(struct qede_dev *edev, bool init_tc)
+{
+	struct qede_ptp *ptp;
+	int rc;
 
 	ptp = kzalloc(sizeof(*ptp), GFP_KERNEL);
 	if (!ptp) {
@@ -454,13 +431,18 @@ int qede_ptp_register_phc(struct qede_dev *edev)
 	ptp->edev = edev;
 	ptp->ops = edev->ops->ptp;
 	if (!ptp->ops) {
-		kfree(ptp);
-		edev->ptp = NULL;
-		DP_ERR(edev, "PTP clock registeration failed\n");
-		return -EIO;
+		DP_INFO(edev, "PTP enable failed\n");
+		rc = -EIO;
+		goto err1;
 	}
 
 	edev->ptp = ptp;
+
+	rc = qede_ptp_init(edev, init_tc);
+	if (rc)
+		goto err1;
+
+	qede_ptp_cfg_filters(edev);
 
 	/* Fill the ptp_clock_info struct and register PTP clock */
 	ptp->clock_info.owner = THIS_MODULE;
@@ -478,13 +460,21 @@ int qede_ptp_register_phc(struct qede_dev *edev)
 
 	ptp->clock = ptp_clock_register(&ptp->clock_info, &edev->pdev->dev);
 	if (IS_ERR(ptp->clock)) {
-		ptp->clock = NULL;
-		kfree(ptp);
-		edev->ptp = NULL;
+		rc = -EINVAL;
 		DP_ERR(edev, "PTP clock registeration failed\n");
+		goto err2;
 	}
 
 	return 0;
+
+err2:
+	qede_ptp_disable(edev);
+	ptp->clock = NULL;
+err1:
+	kfree(ptp);
+	edev->ptp = NULL;
+
+	return rc;
 }
 
 void qede_ptp_tx_ts(struct qede_dev *edev, struct sk_buff *skb)
