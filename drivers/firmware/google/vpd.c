@@ -303,8 +303,8 @@ static int __init vpd_platform_init(void)
 	struct platform_device *pdev;
 
 	pdev = platform_device_register_simple("vpd", -1, NULL, 0);
-	if (!pdev)
-		return -ENODEV;
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
 
 	vpd_kobj = kobject_create_and_add("vpd", firmware_kobj);
 	if (!vpd_kobj)
