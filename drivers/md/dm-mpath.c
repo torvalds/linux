@@ -1469,6 +1469,7 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 {
 	struct dm_mpath_io *mpio = get_mpio(map_context);
 	struct pgpath *pgpath = mpio->pgpath;
+	int r = DM_ENDIO_DONE;
 
 	/*
 	 * We don't queue any clone request inside the multipath target
@@ -1484,14 +1485,18 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 	if (error && !noretry_error(error)) {
 		struct multipath *m = ti->private;
 
-		error = DM_ENDIO_REQUEUE;
+		r = DM_ENDIO_REQUEUE;
 
 		if (pgpath)
 			fail_path(pgpath);
 
 		if (atomic_read(&m->nr_valid_paths) == 0 &&
-		    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
-			error = dm_report_EIO(m);
+		    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
+			if (error == -EIO)
+				error = dm_report_EIO(m);
+			/* complete with the original error */
+			r = DM_ENDIO_DONE;
+		}
 	}
 
 	if (pgpath) {
@@ -1501,7 +1506,7 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
 	}
 
-	return error;
+	return r;
 }
 
 static int do_end_io_bio(struct multipath *m, struct bio *clone,

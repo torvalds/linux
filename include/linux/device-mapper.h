@@ -593,6 +593,7 @@ extern struct ratelimit_state dm_ratelimit_state;
 /*
  * Definitions of return values from target end_io function.
  */
+#define DM_ENDIO_DONE		0
 #define DM_ENDIO_INCOMPLETE	1
 #define DM_ENDIO_REQUEUE	2
 
