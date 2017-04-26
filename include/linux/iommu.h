@@ -26,8 +26,6 @@
 #include <linux/err.h>
 #include <linux/of.h>
 
-#include <trace/events/iommu.h>
-
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
 #define IOMMU_CACHE	(1 << 2) /* DMA cache coherency */
