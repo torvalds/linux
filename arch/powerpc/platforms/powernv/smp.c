@@ -249,12 +249,15 @@ static int pnv_smp_prepare_cpu(int cpu)
 	return 0;
 }
 
+/* Cause IPI as setup by the interrupt controller (xics or xive) */
+static void (*ic_cause_ipi)(int cpu);
+
 static void pnv_cause_ipi(int cpu)
 {
 	if (doorbell_try_core_ipi(cpu))
 		return;
 
-	icp_ops->cause_ipi(cpu);
+	ic_cause_ipi(cpu);
 }
 
 static void pnv_p9_dd1_cause_ipi(int cpu)
@@ -269,7 +272,7 @@ static void pnv_p9_dd1_cause_ipi(int cpu)
 	if (cpumask_test_cpu(cpu, cpu_sibling_mask(this_cpu)))
 		doorbell_global_ipi(cpu);
 	else
-		icp_ops->cause_ipi(cpu);
+		ic_cause_ipi(cpu);
 
 	put_cpu();
 }
@@ -282,6 +285,9 @@ static void __init pnv_smp_probe(void)
 		xics_smp_probe();
 
 	if (cpu_has_feature(CPU_FTR_DBELL)) {
+		ic_cause_ipi = smp_ops->cause_ipi;
+		WARN_ON(!ic_cause_ipi);
+
 		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 			if (cpu_has_feature(CPU_FTR_POWER9_DD1))
 				smp_ops->cause_ipi = pnv_p9_dd1_cause_ipi;
@@ -290,8 +296,6 @@ static void __init pnv_smp_probe(void)
 		} else {
 			smp_ops->cause_ipi = pnv_cause_ipi;
 		}
-	} else {
-		smp_ops->cause_ipi = icp_ops->cause_ipi;
 	}
 }
 
