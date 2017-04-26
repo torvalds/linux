@@ -1810,14 +1810,11 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 static int renesas_usb3_stop(struct usb_gadget *gadget)
 {
 	struct renesas_usb3 *usb3 = gadget_to_renesas_usb3(gadget);
-	unsigned long flags;
 
-	spin_lock_irqsave(&usb3->lock, flags);
 	usb3->softconnect = false;
 	usb3->gadget.speed = USB_SPEED_UNKNOWN;
 	usb3->driver = NULL;
 	renesas_usb3_stop_controller(usb3);
-	spin_unlock_irqrestore(&usb3->lock, flags);
 
 	pm_runtime_put(usb3_to_dev(usb3));
 	pm_runtime_disable(usb3_to_dev(usb3));
