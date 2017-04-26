@@ -1390,12 +1390,12 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 	struct ibmvnic_sub_crq_queue *scrq;
 	int rc;
 
-	scrq = kzalloc(sizeof(*scrq), GFP_ATOMIC);
+	scrq = kzalloc(sizeof(*scrq), GFP_KERNEL);
 	if (!scrq)
 		return NULL;
 
 	scrq->msgs =
-		(union sub_crq *)__get_free_pages(GFP_ATOMIC | __GFP_ZERO, 2);
+		(union sub_crq *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 2);
 	if (!scrq->msgs) {
 		dev_warn(dev, "Couldn't allocate crq queue messages page\n");
 		goto zero_page_failed;
@@ -1678,48 +1678,20 @@ req_tx_irq_failed:
 	return rc;
 }
 
-static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
+static int init_sub_crqs(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_sub_crq_queue **allqueues;
 	int registered_queues = 0;
-	union ibmvnic_crq crq;
 	int total_queues;
 	int more = 0;
 	int i;
 
-	if (!retry) {
-		/* Sub-CRQ entries are 32 byte long */
-		int entries_page = 4 * PAGE_SIZE / (sizeof(u64) * 4);
-
-		if (adapter->min_tx_entries_per_subcrq > entries_page ||
-		    adapter->min_rx_add_entries_per_subcrq > entries_page) {
-			dev_err(dev, "Fatal, invalid entries per sub-crq\n");
-			goto allqueues_failed;
-		}
-
-		/* Get the minimum between the queried max and the entries
-		 * that fit in our PAGE_SIZE
-		 */
-		adapter->req_tx_entries_per_subcrq =
-		    adapter->max_tx_entries_per_subcrq > entries_page ?
-		    entries_page : adapter->max_tx_entries_per_subcrq;
-		adapter->req_rx_add_entries_per_subcrq =
-		    adapter->max_rx_add_entries_per_subcrq > entries_page ?
-		    entries_page : adapter->max_rx_add_entries_per_subcrq;
-
-		adapter->req_tx_queues = adapter->opt_tx_comp_sub_queues;
-		adapter->req_rx_queues = adapter->opt_rx_comp_queues;
-		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
-
-		adapter->req_mtu = adapter->netdev->mtu + ETH_HLEN;
-	}
-
 	total_queues = adapter->req_tx_queues + adapter->req_rx_queues;
 
-	allqueues = kcalloc(total_queues, sizeof(*allqueues), GFP_ATOMIC);
+	allqueues = kcalloc(total_queues, sizeof(*allqueues), GFP_KERNEL);
 	if (!allqueues)
-		goto allqueues_failed;
+		return -1;
 
 	for (i = 0; i < total_queues; i++) {
 		allqueues[i] = init_sub_crq_queue(adapter);
@@ -1757,7 +1729,7 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 	}
 
 	adapter->tx_scrq = kcalloc(adapter->req_tx_queues,
-				   sizeof(*adapter->tx_scrq), GFP_ATOMIC);
+				   sizeof(*adapter->tx_scrq), GFP_KERNEL);
 	if (!adapter->tx_scrq)
 		goto tx_failed;
 
@@ -1767,13 +1739,58 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 	}
 
 	adapter->rx_scrq = kcalloc(adapter->req_rx_queues,
-				   sizeof(*adapter->rx_scrq), GFP_ATOMIC);
+				   sizeof(*adapter->rx_scrq), GFP_KERNEL);
 	if (!adapter->rx_scrq)
 		goto rx_failed;
 
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		adapter->rx_scrq[i] = allqueues[i + adapter->req_tx_queues];
 		adapter->rx_scrq[i]->scrq_num = i;
+	}
+
+	kfree(allqueues);
+	return 0;
+
+rx_failed:
+	kfree(adapter->tx_scrq);
+	adapter->tx_scrq = NULL;
+tx_failed:
+	for (i = 0; i < registered_queues; i++)
+		release_sub_crq_queue(adapter, allqueues[i]);
+	kfree(allqueues);
+	return -1;
+}
+
+static void ibmvnic_send_req_caps(struct ibmvnic_adapter *adapter, int retry)
+{
+	struct device *dev = &adapter->vdev->dev;
+	union ibmvnic_crq crq;
+
+	if (!retry) {
+		/* Sub-CRQ entries are 32 byte long */
+		int entries_page = 4 * PAGE_SIZE / (sizeof(u64) * 4);
+
+		if (adapter->min_tx_entries_per_subcrq > entries_page ||
+		    adapter->min_rx_add_entries_per_subcrq > entries_page) {
+			dev_err(dev, "Fatal, invalid entries per sub-crq\n");
+			return;
+		}
+
+		/* Get the minimum between the queried max and the entries
+		 * that fit in our PAGE_SIZE
+		 */
+		adapter->req_tx_entries_per_subcrq =
+		    adapter->max_tx_entries_per_subcrq > entries_page ?
+		    entries_page : adapter->max_tx_entries_per_subcrq;
+		adapter->req_rx_add_entries_per_subcrq =
+		    adapter->max_rx_add_entries_per_subcrq > entries_page ?
+		    entries_page : adapter->max_rx_add_entries_per_subcrq;
+
+		adapter->req_tx_queues = adapter->opt_tx_comp_sub_queues;
+		adapter->req_rx_queues = adapter->opt_rx_comp_queues;
+		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
+
+		adapter->req_mtu = adapter->netdev->mtu + ETH_HLEN;
 	}
 
 	memset(&crq, 0, sizeof(crq));
@@ -1829,20 +1846,6 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 		atomic_inc(&adapter->running_cap_crqs);
 		ibmvnic_send_crq(adapter, &crq);
 	}
-
-	kfree(allqueues);
-
-	return;
-
-rx_failed:
-	kfree(adapter->tx_scrq);
-	adapter->tx_scrq = NULL;
-tx_failed:
-	for (i = 0; i < registered_queues; i++)
-		release_sub_crq_queue(adapter, allqueues[i]);
-	kfree(allqueues);
-allqueues_failed:
-	ibmvnic_remove(adapter->vdev);
 }
 
 static int pending_scrq(struct ibmvnic_adapter *adapter,
@@ -2568,7 +2571,7 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 					       number), name);
 		release_sub_crqs(adapter);
 		*req_value = be64_to_cpu(crq->request_capability_rsp.number);
-		init_sub_crqs(adapter, 1);
+		ibmvnic_send_req_caps(adapter, 1);
 		return;
 	default:
 		dev_err(dev, "Error %d in request cap rsp\n",
@@ -2881,8 +2884,7 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 out:
 	if (atomic_read(&adapter->running_cap_crqs) == 0) {
 		adapter->wait_capability = false;
-		init_sub_crqs(adapter, 0);
-		/* We're done querying the capabilities, initialize sub-crqs */
+		ibmvnic_send_req_caps(adapter, 0);
 	}
 }
 
@@ -3310,7 +3312,13 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		return -1;
 	}
 
-	return 0;
+	rc = init_sub_crqs(adapter);
+	if (rc) {
+		dev_err(dev, "Initialization of sub crqs failed\n");
+		release_crq_queue(adapter);
+	}
+
+	return rc;
 }
 
 static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
