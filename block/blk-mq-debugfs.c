@@ -795,7 +795,7 @@ int blk_mq_debugfs_register(struct request_queue *q)
 	if (!q->debugfs_dir)
 		goto err;
 
-	if (blk_mq_debugfs_register_hctxs(q))
+	if (blk_mq_debugfs_register_mq(q))
 		goto err;
 
 	return 0;
@@ -865,7 +865,7 @@ static int blk_mq_debugfs_register_hctx(struct request_queue *q,
 	return 0;
 }
 
-int blk_mq_debugfs_register_hctxs(struct request_queue *q)
+int blk_mq_debugfs_register_mq(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
@@ -891,11 +891,11 @@ int blk_mq_debugfs_register_hctxs(struct request_queue *q)
 	return 0;
 
 err:
-	blk_mq_debugfs_unregister_hctxs(q);
+	blk_mq_debugfs_unregister_mq(q);
 	return -ENOMEM;
 }
 
-void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
+void blk_mq_debugfs_unregister_mq(struct request_queue *q)
 {
 	debugfs_remove_recursive(q->mq_debugfs_dir);
 	q->mq_debugfs_dir = NULL;
