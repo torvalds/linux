@@ -587,7 +587,7 @@ fail_free_irq:
 	esp_chips[dev->id] = NULL;
 	if (esp_chips[!dev->id] == NULL) {
 		spin_unlock(&esp_chips_lock);
-		free_irq(host->irq, esp);
+		free_irq(host->irq, NULL);
 	} else
 		spin_unlock(&esp_chips_lock);
 fail_free_priv:
