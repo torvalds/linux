@@ -57,7 +57,7 @@ static int ide_pm_execute_rq(struct request *rq)
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
 		scsi_req(rq)->result = -ENXIO;
-		__blk_end_request_all(rq, scsi_req(rq)->result);
+		__blk_end_request_all(rq, 0);
 		spin_unlock_irq(q->queue_lock);
 		return -ENXIO;
 	}
