@@ -33,7 +33,8 @@ struct at91_pm_data {
 	unsigned int mode;
 	void __iomem *shdwc;
 	void __iomem *sfrbu;
-	unsigned int deepest_state;
+	unsigned int standby_mode;
+	unsigned int suspend_mode;
 };
 #endif
 
