@@ -2496,7 +2496,7 @@ retry:
 	}
 
 	/* nothing to do, just clear the request */
-	clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
+	kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 
 	return 0;
 }

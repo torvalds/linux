@@ -1079,10 +1079,20 @@ static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 	set_bit(req, &vcpu->requests);
 }
 
+static inline bool kvm_test_request(int req, struct kvm_vcpu *vcpu)
+{
+	return test_bit(req, &vcpu->requests);
+}
+
+static inline void kvm_clear_request(int req, struct kvm_vcpu *vcpu)
+{
+	clear_bit(req, &vcpu->requests);
+}
+
 static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 {
-	if (test_bit(req, &vcpu->requests)) {
-		clear_bit(req, &vcpu->requests);
+	if (kvm_test_request(req, vcpu)) {
+		kvm_clear_request(req, vcpu);
 
 		/*
 		 * Ensure the rest of the request is visible to kvm_check_request's

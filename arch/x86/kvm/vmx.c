@@ -6299,7 +6299,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 		if (intr_window_requested && vmx_interrupt_allowed(vcpu))
 			return handle_interrupt_window(&vmx->vcpu);
 
-		if (test_bit(KVM_REQ_EVENT, &vcpu->requests))
+		if (kvm_test_request(KVM_REQ_EVENT, vcpu))
 			return 1;
 
 		err = emulate_instruction(vcpu, EMULTYPE_NO_REEXECUTE);
