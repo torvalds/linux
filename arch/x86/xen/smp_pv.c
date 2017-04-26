@@ -249,7 +249,7 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 
 	xen_pmu_init(0);
 
-	if (xen_smp_intr_init(0))
+	if (xen_smp_intr_init(0) || xen_smp_intr_init_pv(0))
 		BUG();
 
 	if (!alloc_cpumask_var(&xen_cpu_initialized_map, GFP_KERNEL))
