@@ -708,6 +708,8 @@ struct drm_syncobj_destroy {
 	__u32 pad;
 };
 
+#define DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE (1 << 0)
+#define DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE (1 << 0)
 struct drm_syncobj_handle {
 	__u32 handle;
 	__u32 flags;

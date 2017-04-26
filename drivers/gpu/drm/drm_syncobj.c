@@ -45,6 +45,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
+#include <linux/sync_file.h>
 
 #include "drm_internal.h"
 #include <drm/drm_syncobj.h>
@@ -276,6 +277,59 @@ static int drm_syncobj_fd_to_handle(struct drm_file *file_private,
 	return 0;
 }
 
+int drm_syncobj_import_sync_file_fence(struct drm_file *file_private,
+				       int fd, int handle)
+{
+	struct dma_fence *fence = sync_file_get_fence(fd);
+	struct drm_syncobj *syncobj;
+
+	if (!fence)
+		return -EINVAL;
+
+	syncobj = drm_syncobj_find(file_private, handle);
+	if (!syncobj) {
+		dma_fence_put(fence);
+		return -ENOENT;
+	}
+
+	drm_syncobj_replace_fence(file_private, syncobj, fence);
+	dma_fence_put(fence);
+	drm_syncobj_put(syncobj);
+	return 0;
+}
+
+int drm_syncobj_export_sync_file(struct drm_file *file_private,
+				 int handle, int *p_fd)
+{
+	int ret;
+	struct dma_fence *fence;
+	struct sync_file *sync_file;
+	int fd = get_unused_fd_flags(O_CLOEXEC);
+
+	if (fd < 0)
+		return fd;
+
+	ret = drm_syncobj_fence_get(file_private, handle, &fence);
+	if (ret)
+		goto err_put_fd;
+
+	sync_file = sync_file_create(fence);
+
+	dma_fence_put(fence);
+
+	if (!sync_file) {
+		ret = -EINVAL;
+		goto err_put_fd;
+	}
+
+	fd_install(fd, sync_file->file);
+
+	*p_fd = fd;
+	return 0;
+err_put_fd:
+	put_unused_fd(fd);
+	return ret;
+}
 /**
  * drm_syncobj_open - initalizes syncobj file-private structures at devnode open time
  * @dev: drm_device which is being opened by userspace
@@ -358,8 +412,16 @@ drm_syncobj_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
 		return -ENODEV;
 
-	if (args->pad || args->flags)
+	if (args->pad)
 		return -EINVAL;
+
+	if (args->flags != 0 &&
+	    args->flags != DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE)
+		return -EINVAL;
+
+	if (args->flags & DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE)
+		return drm_syncobj_export_sync_file(file_private, args->handle,
+						    &args->fd);
 
 	return drm_syncobj_handle_to_fd(file_private, args->handle,
 					&args->fd);
@@ -374,8 +436,17 @@ drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
 		return -ENODEV;
 
-	if (args->pad || args->flags)
+	if (args->pad)
 		return -EINVAL;
+
+	if (args->flags != 0 &&
+	    args->flags != DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE)
+		return -EINVAL;
+
+	if (args->flags & DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE)
+		return drm_syncobj_import_sync_file_fence(file_private,
+							  args->fd,
+							  args->handle);
 
 	return drm_syncobj_fd_to_handle(file_private, args->fd,
 					&args->handle);
