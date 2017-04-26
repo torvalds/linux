@@ -31,6 +31,8 @@
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
 
+#include "of_private.h"
+
 /*
  * of_fdt_limit_memory - limit the number of regions in the /memory node
  * @limit: maximum entries
@@ -469,11 +471,11 @@ static int unflatten_dt_nodes(const void *blob,
  * Returns NULL on failure or the memory chunk containing the unflattened
  * device tree on success.
  */
-static void *__unflatten_device_tree(const void *blob,
-				     struct device_node *dad,
-				     struct device_node **mynodes,
-				     void *(*dt_alloc)(u64 size, u64 align),
-				     bool detached)
+void *__unflatten_device_tree(const void *blob,
+			      struct device_node *dad,
+			      struct device_node **mynodes,
+			      void *(*dt_alloc)(u64 size, u64 align),
+			      bool detached)
 {
 	int size;
 	void *mem;
@@ -1261,6 +1263,8 @@ void __init unflatten_device_tree(void)
 
 	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
 	of_alias_scan(early_init_dt_alloc_memory_arch);
+
+	unittest_unflatten_overlay_base();
 }
 
 /**
