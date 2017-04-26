@@ -35,7 +35,6 @@
 #include "qed_hw.h"
 #include "qed_l2.h"
 #include "qed_mcp.h"
-#include "qed_ptp.h"
 #include "qed_reg_addr.h"
 
 /* 16 nano second time quantas to wait before making a Drift adjustment */
