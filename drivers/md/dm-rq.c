@@ -504,14 +504,12 @@ static int map_request(struct dm_rq_target_io *tio)
 		/* The target wants to requeue the I/O after a delay */
 		dm_requeue_original_request(tio, true);
 		break;
-	default:
-		if (r > 0) {
-			DMWARN("unimplemented target map return value: %d", r);
-			BUG();
-		}
-
+	case DM_MAPIO_KILL:
 		/* The target wants to complete the I/O */
-		dm_kill_unmapped_request(rq, r);
+		dm_kill_unmapped_request(rq, -EIO);
+	default:
+		DMWARN("unimplemented target map return value: %d", r);
+		BUG();
 	}
 
 	return r;
