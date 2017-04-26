@@ -631,64 +631,6 @@ static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
 	return rates_idx;
 }
 
-void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
-			       struct ieee80211_sta *pubsta,
-			       struct ieee80211_tx_info *info)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_tx_status status = {};
-	int retry_count;
-	bool acked, noack_success;
-
-	ieee80211_tx_get_rates(hw, info, &retry_count);
-
-	sband = hw->wiphy->bands[info->band];
-
-	acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
-	noack_success = !!(info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED);
-
-	if (pubsta) {
-		struct sta_info *sta;
-
-		sta = container_of(pubsta, struct sta_info, sta);
-
-		if (!acked)
-			sta->status_stats.retry_failed++;
-		sta->status_stats.retry_count += retry_count;
-
-		if (acked) {
-			sta->status_stats.last_ack = jiffies;
-
-			if (sta->status_stats.lost_packets)
-				sta->status_stats.lost_packets = 0;
-
-			/* Track when last TDLS packet was ACKed */
-			if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
-				sta->status_stats.last_tdls_pkt_time = jiffies;
-		} else {
-			ieee80211_lost_packet(sta, info);
-		}
-
-		status.sta = pubsta;
-		status.info = info;
-		rate_control_tx_status(local, sband, &status);
-	}
-
-	if (acked || noack_success) {
-		I802_DEBUG_INC(local->dot11TransmittedFrameCount);
-		if (!pubsta)
-			I802_DEBUG_INC(local->dot11MulticastTransmittedFrameCount);
-		if (retry_count > 0)
-			I802_DEBUG_INC(local->dot11RetryCount);
-		if (retry_count > 1)
-			I802_DEBUG_INC(local->dot11MultipleRetryCount);
-	} else {
-		I802_DEBUG_INC(local->dot11FailedCount);
-	}
-}
-EXPORT_SYMBOL(ieee80211_tx_status_noskb);
-
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 			  struct ieee80211_supported_band *sband,
 			  int retry_count, int shift, bool send_to_cooked)
@@ -958,6 +900,64 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	ieee80211_tx_monitor(local, skb, sband, retry_count, shift, send_to_cooked);
 }
 EXPORT_SYMBOL(ieee80211_tx_status);
+
+void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
+			       struct ieee80211_sta *pubsta,
+			       struct ieee80211_tx_info *info)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_tx_status status = {};
+	int retry_count;
+	bool acked, noack_success;
+
+	ieee80211_tx_get_rates(hw, info, &retry_count);
+
+	sband = hw->wiphy->bands[info->band];
+
+	acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
+	noack_success = !!(info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED);
+
+	if (pubsta) {
+		struct sta_info *sta;
+
+		sta = container_of(pubsta, struct sta_info, sta);
+
+		if (!acked)
+			sta->status_stats.retry_failed++;
+		sta->status_stats.retry_count += retry_count;
+
+		if (acked) {
+			sta->status_stats.last_ack = jiffies;
+
+			if (sta->status_stats.lost_packets)
+				sta->status_stats.lost_packets = 0;
+
+			/* Track when last TDLS packet was ACKed */
+			if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
+				sta->status_stats.last_tdls_pkt_time = jiffies;
+		} else {
+			ieee80211_lost_packet(sta, info);
+		}
+
+		status.sta = pubsta;
+		status.info = info;
+		rate_control_tx_status(local, sband, &status);
+	}
+
+	if (acked || noack_success) {
+		I802_DEBUG_INC(local->dot11TransmittedFrameCount);
+		if (!pubsta)
+			I802_DEBUG_INC(local->dot11MulticastTransmittedFrameCount);
+		if (retry_count > 0)
+			I802_DEBUG_INC(local->dot11RetryCount);
+		if (retry_count > 1)
+			I802_DEBUG_INC(local->dot11MultipleRetryCount);
+	} else {
+		I802_DEBUG_INC(local->dot11FailedCount);
+	}
+}
+EXPORT_SYMBOL(ieee80211_tx_status_noskb);
 
 void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
 {
