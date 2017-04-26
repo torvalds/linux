@@ -70,11 +70,10 @@ struct zpci_fmb {
 } __packed __aligned(128);
 
 enum zpci_state {
-	ZPCI_FN_STATE_RESERVED,
-	ZPCI_FN_STATE_STANDBY,
-	ZPCI_FN_STATE_CONFIGURED,
-	ZPCI_FN_STATE_ONLINE,
-	NR_ZPCI_FN_STATES,
+	ZPCI_FN_STATE_STANDBY = 0,
+	ZPCI_FN_STATE_CONFIGURED = 1,
+	ZPCI_FN_STATE_RESERVED = 2,
+	ZPCI_FN_STATE_ONLINE = 3,
 };
 
 struct zpci_bar_struct {
@@ -172,6 +171,7 @@ int clp_rescan_pci_devices_simple(void);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
+int clp_get_state(u32 fid, enum zpci_state *state);
 
 #ifdef CONFIG_PCI
 /* Error handling and recovery */

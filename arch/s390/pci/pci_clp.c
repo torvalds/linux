@@ -295,8 +295,8 @@ int clp_disable_fh(struct zpci_dev *zdev)
 	return rc;
 }
 
-static int clp_list_pci(struct clp_req_rsp_list_pci *rrb,
-			void (*cb)(struct clp_fh_list_entry *entry))
+static int clp_list_pci(struct clp_req_rsp_list_pci *rrb, void *data,
+			void (*cb)(struct clp_fh_list_entry *, void *))
 {
 	u64 resume_token = 0;
 	int entries, i, rc;
@@ -327,13 +327,13 @@ static int clp_list_pci(struct clp_req_rsp_list_pci *rrb,
 
 		resume_token = rrb->response.resume_token;
 		for (i = 0; i < entries; i++)
-			cb(&rrb->response.fh_list[i]);
+			cb(&rrb->response.fh_list[i], data);
 	} while (resume_token);
 out:
 	return rc;
 }
 
-static void __clp_add(struct clp_fh_list_entry *entry)
+static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 {
 	if (!entry->vendor_id)
 		return;
@@ -341,7 +341,7 @@ static void __clp_add(struct clp_fh_list_entry *entry)
 	clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
 }
 
-static void __clp_rescan(struct clp_fh_list_entry *entry)
+static void __clp_rescan(struct clp_fh_list_entry *entry, void *data)
 {
 	struct zpci_dev *zdev;
 
@@ -364,7 +364,7 @@ static void __clp_rescan(struct clp_fh_list_entry *entry)
 	}
 }
 
-static void __clp_update(struct clp_fh_list_entry *entry)
+static void __clp_update(struct clp_fh_list_entry *entry, void *data)
 {
 	struct zpci_dev *zdev;
 
@@ -387,7 +387,7 @@ int clp_scan_pci_devices(void)
 	if (!rrb)
 		return -ENOMEM;
 
-	rc = clp_list_pci(rrb, __clp_add);
+	rc = clp_list_pci(rrb, NULL, __clp_add);
 
 	clp_free_block(rrb);
 	return rc;
@@ -402,7 +402,7 @@ int clp_rescan_pci_devices(void)
 	if (!rrb)
 		return -ENOMEM;
 
-	rc = clp_list_pci(rrb, __clp_rescan);
+	rc = clp_list_pci(rrb, NULL, __clp_rescan);
 
 	clp_free_block(rrb);
 	return rc;
@@ -417,7 +417,40 @@ int clp_rescan_pci_devices_simple(void)
 	if (!rrb)
 		return -ENOMEM;
 
-	rc = clp_list_pci(rrb, __clp_update);
+	rc = clp_list_pci(rrb, NULL, __clp_update);
+
+	clp_free_block(rrb);
+	return rc;
+}
+
+struct clp_state_data {
+	u32 fid;
+	enum zpci_state state;
+};
+
+static void __clp_get_state(struct clp_fh_list_entry *entry, void *data)
+{
+	struct clp_state_data *sd = data;
+
+	if (entry->fid != sd->fid)
+		return;
+
+	sd->state = entry->config_state;
+}
+
+int clp_get_state(u32 fid, enum zpci_state *state)
+{
+	struct clp_req_rsp_list_pci *rrb;
+	struct clp_state_data sd = {fid, ZPCI_FN_STATE_RESERVED};
+	int rc;
+
+	rrb = clp_alloc_block(GFP_KERNEL);
+	if (!rrb)
+		return -ENOMEM;
+
+	rc = clp_list_pci(rrb, &sd, __clp_get_state);
+	if (!rc)
+		*state = sd.state;
 
 	clp_free_block(rrb);
 	return rc;
