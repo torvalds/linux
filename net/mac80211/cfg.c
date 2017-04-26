@@ -739,11 +739,8 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 		return 0;
 
 	mutex_lock(&local->mtx);
-	mutex_lock(&local->iflist_mtx);
 	if (local->use_chanctx) {
-		sdata = rcu_dereference_protected(
-				local->monitor_sdata,
-				lockdep_is_held(&local->iflist_mtx));
+		sdata = rtnl_dereference(local->monitor_sdata);
 		if (sdata) {
 			ieee80211_vif_release_channel(sdata);
 			ret = ieee80211_vif_use_channel(sdata, chandef,
@@ -756,7 +753,6 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 
 	if (ret == 0)
 		local->monitor_chandef = *chandef;
-	mutex_unlock(&local->iflist_mtx);
 	mutex_unlock(&local->mtx);
 
 	return ret;

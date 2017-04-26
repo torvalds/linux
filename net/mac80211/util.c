@@ -2791,8 +2791,10 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	struct cfg80211_chan_def chandef;
 
+	/* for interface list, to avoid linking iflist_mtx and chanctx_mtx */
+	ASSERT_RTNL();
+
 	mutex_lock(&local->mtx);
-	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		/* it might be waiting for the local->mtx, but then
 		 * by the time it gets it, sdata->wdev.cac_started
@@ -2809,7 +2811,6 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 					   GFP_KERNEL);
 		}
 	}
-	mutex_unlock(&local->iflist_mtx);
 	mutex_unlock(&local->mtx);
 }
 
@@ -2831,7 +2832,9 @@ void ieee80211_dfs_radar_detected_work(struct work_struct *work)
 	}
 	mutex_unlock(&local->chanctx_mtx);
 
+	rtnl_lock();
 	ieee80211_dfs_cac_cancel(local);
+	rtnl_unlock();
 
 	if (num_chanctx > 1)
 		/* XXX: multi-channel is not supported yet */
@@ -2846,7 +2849,7 @@ void ieee80211_radar_detected(struct ieee80211_hw *hw)
 
 	trace_api_radar_detected(local);
 
-	ieee80211_queue_work(hw, &local->radar_detected_work);
+	schedule_work(&local->radar_detected_work);
 }
 EXPORT_SYMBOL(ieee80211_radar_detected);
 
