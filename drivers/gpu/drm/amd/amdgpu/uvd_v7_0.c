@@ -562,7 +562,13 @@ static int uvd_v7_0_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 
-	uvd_v7_0_stop(adev);
+	if (!amdgpu_sriov_vf(adev))
+		uvd_v7_0_stop(adev);
+	else {
+		/* full access mode, so don't touch any UVD register */
+		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
+	}
+
 	ring->ready = false;
 
 	return 0;

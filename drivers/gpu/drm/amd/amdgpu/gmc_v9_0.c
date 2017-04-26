@@ -781,6 +781,12 @@ static int gmc_v9_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (amdgpu_sriov_vf(adev)) {
+		/* full access mode, so don't touch any GMC register */
+		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
+		return 0;
+	}
+
 	amdgpu_irq_put(adev, &adev->mc.vm_fault, 0);
 	gmc_v9_0_gart_disable(adev);
 
