@@ -481,8 +481,7 @@ union bpf_attr {
  * u32 bpf_get_socket_uid(skb)
  *     Get the owner uid of the socket stored inside sk_buff.
  *     @skb: pointer to skb
- *     Return: uid of the socket owner on success or 0 if the socket pointer
- *     inside sk_buff is NULL
+ *     Return: uid of the socket owner on success or overflowuid if failed.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
