@@ -1707,6 +1707,9 @@ static int renesas_usb3_start(struct usb_gadget *gadget,
 	/* hook up the driver */
 	usb3->driver = driver;
 
+	pm_runtime_enable(usb3_to_dev(usb3));
+	pm_runtime_get_sync(usb3_to_dev(usb3));
+
 	renesas_usb3_init_controller(usb3);
 
 	return 0;
@@ -1723,6 +1726,9 @@ static int renesas_usb3_stop(struct usb_gadget *gadget)
 	usb3->driver = NULL;
 	renesas_usb3_stop_controller(usb3);
 	spin_unlock_irqrestore(&usb3->lock, flags);
+
+	pm_runtime_put(usb3_to_dev(usb3));
+	pm_runtime_disable(usb3_to_dev(usb3));
 
 	return 0;
 }
@@ -1760,9 +1766,6 @@ static const struct usb_gadget_ops renesas_usb3_gadget_ops = {
 static int renesas_usb3_remove(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3 = platform_get_drvdata(pdev);
-
-	pm_runtime_put(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 
 	usb_del_gadget_udc(&usb3->gadget);
 
@@ -1947,9 +1950,6 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 		goto err_add_udc;
 
 	usb3->workaround_for_vbus = priv->workaround_for_vbus;
-
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 
 	dev_info(&pdev->dev, "probed\n");
 
