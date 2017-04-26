@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/printk.h>
+#include <linux/vmalloc.h>
 #include <linux/spi/spi.h>
 
 #include "spi-test.h"
@@ -54,6 +55,18 @@ int run_only_test = -1;
 module_param(run_only_test, int, 0);
 MODULE_PARM_DESC(run_only_test,
 		 "only run the test with this number (0-based !)");
+
+/* use vmalloc'ed buffers */
+int use_vmalloc;
+module_param(use_vmalloc, int, 0644);
+MODULE_PARM_DESC(use_vmalloc,
+		 "use vmalloc'ed buffers instead of kmalloc'ed");
+
+/* check rx ranges */
+int check_ranges = 1;
+module_param(check_ranges, int, 0644);
+MODULE_PARM_DESC(check_ranges,
+		 "checks rx_buffer pattern are valid");
 
 /* the actual tests to execute */
 static struct spi_test spi_tests[] = {
@@ -492,9 +505,11 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 	int ret;
 
 	/* checks rx_buffer pattern are valid with loopback or without */
-	ret = spi_check_rx_ranges(spi, msg, rx);
-	if (ret)
-		return ret;
+	if (check_ranges) {
+		ret = spi_check_rx_ranges(spi, msg, rx);
+		if (ret)
+			return ret;
+	}
 
 	/* if we run without loopback, then return now */
 	if (!loopback)
@@ -965,13 +980,19 @@ int spi_test_run_tests(struct spi_device *spi,
 	/* allocate rx/tx buffers of 128kB size without devm
 	 * in the hope that is on a page boundary
 	 */
-	rx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
+	if (use_vmalloc)
+		rx = vmalloc(SPI_TEST_MAX_SIZE_PLUS);
+	else
+		rx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
 	if (!rx) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	tx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
+	if (use_vmalloc)
+		tx = vmalloc(SPI_TEST_MAX_SIZE_PLUS);
+	else
+		tx = kzalloc(SPI_TEST_MAX_SIZE_PLUS, GFP_KERNEL);
 	if (!tx) {
 		ret = -ENOMEM;
 		goto out;
@@ -999,8 +1020,8 @@ int spi_test_run_tests(struct spi_device *spi,
 	}
 
 out:
-	kfree(rx);
-	kfree(tx);
+	kvfree(rx);
+	kvfree(tx);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_test_run_tests);
