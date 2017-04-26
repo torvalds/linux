@@ -323,15 +323,23 @@ int __blk_mq_register_dev(struct device *dev, struct request_queue *q)
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_register_hctx(hctx);
 		if (ret)
-			break;
+			goto unreg;
 	}
 
-	if (ret)
-		__blk_mq_unregister_dev(dev, q);
-	else
-		q->mq_sysfs_init_done = true;
+	q->mq_sysfs_init_done = true;
 
 out:
+	return ret;
+
+unreg:
+	while (--i >= 0)
+		blk_mq_unregister_hctx(q->queue_hw_ctx[i]);
+
+	blk_mq_debugfs_unregister_mq(q);
+
+	kobject_uevent(&q->mq_kobj, KOBJ_REMOVE);
+	kobject_del(&q->mq_kobj);
+	kobject_put(&dev->kobj);
 	return ret;
 }
 
