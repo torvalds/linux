@@ -30,6 +30,8 @@ static void unwind_dump(struct unwind_state *state)
 	static bool dumped_before = false;
 	bool prev_zero, zero = false;
 	unsigned long word, *sp;
+	struct stack_info stack_info = {0};
+	unsigned long visit_mask = 0;
 
 	if (dumped_before)
 		return;
@@ -40,21 +42,27 @@ static void unwind_dump(struct unwind_state *state)
 			state->stack_info.type, state->stack_info.next_sp,
 			state->stack_mask, state->graph_idx);
 
-	for (sp = state->orig_sp; sp < state->stack_info.end; sp++) {
-		word = READ_ONCE_NOCHECK(*sp);
+	for (sp = state->orig_sp; sp; sp = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+		if (get_stack_info(sp, state->task, &stack_info, &visit_mask))
+			break;
 
-		prev_zero = zero;
-		zero = word == 0;
+		for (; sp < stack_info.end; sp++) {
 
-		if (zero) {
-			if (!prev_zero)
-				printk_deferred("%p: %0*x ...\n",
-						sp, BITS_PER_LONG/4, 0);
-			continue;
+			word = READ_ONCE_NOCHECK(*sp);
+
+			prev_zero = zero;
+			zero = word == 0;
+
+			if (zero) {
+				if (!prev_zero)
+					printk_deferred("%p: %0*x ...\n",
+							sp, BITS_PER_LONG/4, 0);
+				continue;
+			}
+
+			printk_deferred("%p: %0*lx (%pB)\n",
+					sp, BITS_PER_LONG/4, word, (void *)word);
 		}
-
-		printk_deferred("%p: %0*lx (%pB)\n",
-				sp, BITS_PER_LONG/4, word, (void *)word);
 	}
 }
 
@@ -216,7 +224,7 @@ static bool update_stack_state(struct unwind_state *state,
 	}
 
 	/* Save the original stack pointer for unwind_dump(): */
-	if (!state->orig_sp || info->type != prev_type)
+	if (!state->orig_sp)
 		state->orig_sp = frame;
 
 	return true;
