@@ -604,15 +604,6 @@ emit_cond_jmp:
 		const struct bpf_insn insn1 = insn[1];
 		u64 imm64;
 
-		if (insn1.code != 0 || insn1.src_reg != 0 ||
-		    insn1.dst_reg != 0 || insn1.off != 0) {
-			/* Note: verifier in BPF core must catch invalid
-			 * instructions.
-			 */
-			pr_err_once("Invalid BPF_LD_IMM64 instruction\n");
-			return -EINVAL;
-		}
-
 		imm64 = (u64)insn1.imm << 32 | (u32)imm;
 		emit_a64_mov_i64(dst, imm64, ctx);
 
