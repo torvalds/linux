@@ -38,9 +38,9 @@ static struct arm_smccc_res __invoke_sip_fn_smc(unsigned long function_id,
 	return res;
 }
 
-struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1, u32 arg2)
+struct arm_smccc_res sip_smc_dram(u32 arg0, u32 arg1, u32 arg2)
 {
-	return __invoke_sip_fn_smc(SIP_DDR_CFG, arg0, arg1, arg2);
+	return __invoke_sip_fn_smc(SIP_DRAM_CONFIG, arg0, arg1, arg2);
 }
 
 struct arm_smccc_res sip_smc_get_atf_version(void)

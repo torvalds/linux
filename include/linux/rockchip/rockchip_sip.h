@@ -26,7 +26,7 @@
 #define SIP_ACCESS_CHIP_STATE64		0xc2000006
 #define SIP_SECURE_MEM_CONFIG		0x82000007
 #define SIP_ACCESS_CHIP_EXTRA_STATE64	0xc2000007
-#define SIP_DDR_CFG			0x82000008
+#define SIP_DRAM_CONFIG			0x82000008
 #define SIP_SHARE_MEM			0x82000009
 #define SIP_SIP_VERSION			0x8200000a
 #define SIP_REMOTECTL_CFG		0x8200000b
@@ -96,7 +96,7 @@ typedef enum {
  */
 struct arm_smccc_res sip_smc_get_atf_version(void);
 struct arm_smccc_res sip_smc_get_sip_version(void);
-struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1, u32 arg2);
+struct arm_smccc_res sip_smc_dram(u32 arg0, u32 arg1, u32 arg2);
 struct arm_smccc_res sip_smc_request_share_mem(u32 page_num,
 					       share_page_type_t page_type);
 struct arm_smccc_res sip_smc_mcu_el3fiq(u32 arg0, u32 arg1, u32 arg2);
