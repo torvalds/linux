@@ -59,13 +59,6 @@ int hex2u64(const char *ptr, u64 *val);
 extern unsigned int page_size;
 extern int cacheline_size;
 
-struct parse_tag {
-	char tag;
-	int mult;
-};
-
-unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
-
 bool find_process(const char *name);
 
 int fetch_kernel_version(unsigned int *puint,

@@ -334,33 +334,6 @@ int hex2u64(const char *ptr, u64 *long_val)
 	return p - ptr;
 }
 
-unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
-{
-	struct parse_tag *i = tags;
-
-	while (i->tag) {
-		char *s;
-
-		s = strchr(str, i->tag);
-		if (s) {
-			unsigned long int value;
-			char *endptr;
-
-			value = strtoul(str, &endptr, 10);
-			if (s != endptr)
-				break;
-
-			if (value > ULONG_MAX / i->mult)
-				break;
-			value *= i->mult;
-			return value;
-		}
-		i++;
-	}
-
-	return (unsigned long) -1;
-}
-
 int perf_event_paranoid(void)
 {
 	int value;
