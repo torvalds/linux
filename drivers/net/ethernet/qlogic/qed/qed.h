@@ -474,6 +474,11 @@ struct qed_hwfn {
 	struct qed_ptt			*p_main_ptt;
 	struct qed_ptt			*p_dpc_ptt;
 
+	/* PTP will be used only by the leading function.
+	 * Usage of all PTP-apis should be synchronized as result.
+	 */
+	struct qed_ptt *p_ptp_ptt;
+
 	struct qed_sb_sp_info		*p_sp_sb;
 	struct qed_sb_attn_info		*p_sb_attn;
 
@@ -532,8 +537,6 @@ struct qed_hwfn {
 
 	struct qed_ptt *p_arfs_ptt;
 
-	/* p_ptp_ptt is valid for leading HWFN only */
-	struct qed_ptt *p_ptp_ptt;
 	struct qed_simd_fp_handler	simd_proto_handler[64];
 
 #ifdef CONFIG_QED_SRIOV

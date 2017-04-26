@@ -324,13 +324,23 @@ static int qed_ptp_hw_adjfreq(struct qed_dev *cdev, s32 ppb)
 static int qed_ptp_hw_enable(struct qed_dev *cdev)
 {
 	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
-	struct qed_ptt *p_ptt = p_hwfn->p_ptp_ptt;
+	struct qed_ptt *p_ptt;
 	int rc;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt) {
+		DP_NOTICE(p_hwfn, "Failed to acquire PTT for PTP\n");
+		return -EBUSY;
+	}
+
+	p_hwfn->p_ptp_ptt = p_ptt;
 
 	rc = qed_ptp_res_lock(p_hwfn, p_ptt);
 	if (rc) {
 		DP_INFO(p_hwfn,
 			"Couldn't acquire the resource lock, skip ptp enable for this PF\n");
+		qed_ptt_release(p_hwfn, p_ptt);
+		p_hwfn->p_ptp_ptt = NULL;
 		return rc;
 	}
 
@@ -401,6 +411,9 @@ static int qed_ptp_hw_disable(struct qed_dev *cdev)
 	/* Disable the PTP feature */
 	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_PTP_EN, 0x0);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_TX_PTP_EN, 0x0);
+
+	qed_ptt_release(p_hwfn, p_ptt);
+	p_hwfn->p_ptp_ptt = NULL;
 
 	return 0;
 }
