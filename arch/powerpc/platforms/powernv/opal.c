@@ -637,13 +637,14 @@ static void opal_export_attrs(void)
 		if (of_property_read_u64_array(np, prop->name, &vals[0], 2))
 			continue;
 
-		attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 
 		if (attr == NULL) {
 			pr_warn("Failed kmalloc for bin_attribute!");
 			continue;
 		}
 
+		sysfs_bin_attr_init(attr);
 		attr->attr.name = kstrdup(prop->name, GFP_KERNEL);
 		attr->attr.mode = 0400;
 		attr->read = export_attr_read;
