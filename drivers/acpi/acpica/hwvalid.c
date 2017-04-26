@@ -135,7 +135,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 	if ((bit_width != 8) && (bit_width != 16) && (bit_width != 32)) {
 		ACPI_ERROR((AE_INFO,
 			    "Bad BitWidth parameter: %8.8X", bit_width));
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return (AE_BAD_PARAMETER);
 	}
 
 	port_info = acpi_protected_ports;
@@ -153,13 +153,13 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 		ACPI_ERROR((AE_INFO,
 			    "Illegal I/O port address/length above 64K: %8.8X%8.8X/0x%X",
 			    ACPI_FORMAT_UINT64(address), byte_width));
-		return_ACPI_STATUS(AE_LIMIT);
+		return (AE_LIMIT);
 	}
 
 	/* Exit if requested address is not within the protected port table */
 
 	if (address > acpi_protected_ports[ACPI_PORT_INFO_ENTRIES - 1].end) {
-		return_ACPI_STATUS(AE_OK);
+		return (AE_OK);
 	}
 
 	/* Check request against the list of protected I/O ports */
@@ -198,7 +198,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 		}
 	}
 
-	return_ACPI_STATUS(AE_OK);
+	return (AE_OK);
 }
 
 /******************************************************************************
