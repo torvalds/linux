@@ -183,9 +183,6 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		kvm_make_request(req, vcpu);
 		cpu = vcpu->cpu;
 
-		/* Set ->requests bit before we read ->mode. */
-		smp_mb__after_atomic();
-
 		if (!(req & KVM_REQUEST_NO_WAKEUP))
 			kvm_vcpu_wake_up(vcpu);
 
