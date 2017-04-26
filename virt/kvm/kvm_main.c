@@ -186,6 +186,9 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		/* Set ->requests bit before we read ->mode. */
 		smp_mb__after_atomic();
 
+		if (!(req & KVM_REQUEST_NO_WAKEUP))
+			kvm_vcpu_wake_up(vcpu);
+
 		if (cpus != NULL && cpu != -1 && cpu != me &&
 		      kvm_vcpu_exiting_guest_mode(vcpu) != OUTSIDE_GUEST_MODE)
 			cpumask_set_cpu(cpu, cpus);
