@@ -16,6 +16,7 @@
  */
 
 #define EFX_WORKAROUND_SIENA(efx) (efx_nic_rev(efx) == EFX_REV_SIENA_A0)
+#define EFX_WORKAROUND_EF10(efx) (efx_nic_rev(efx) >= EFX_REV_HUNT_A0)
 #define EFX_WORKAROUND_10G(efx) 1
 
 /* Bit-bashed I2C reads cause performance drop */
