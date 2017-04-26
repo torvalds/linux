@@ -2972,20 +2972,12 @@ static void dwc3_process_event_entry(struct dwc3 *dwc,
 {
 	trace_dwc3_event(event->raw, dwc);
 
-	/* Endpoint IRQ, handle it and return early */
-	if (event->type.is_devspec == 0) {
-		/* depevt */
-		return dwc3_endpoint_interrupt(dwc, &event->depevt);
-	}
-
-	switch (event->type.type) {
-	case DWC3_EVENT_TYPE_DEV:
+	if (!event->type.is_devspec)
+		dwc3_endpoint_interrupt(dwc, &event->depevt);
+	else if (event->type.type == DWC3_EVENT_TYPE_DEV)
 		dwc3_gadget_interrupt(dwc, &event->devt);
-		break;
-	/* REVISIT what to do with Carkit and I2C events ? */
-	default:
+	else
 		dev_err(dwc->dev, "UNKNOWN IRQ type %d\n", event->raw);
-	}
 }
 
 static irqreturn_t dwc3_process_event_buf(struct dwc3_event_buffer *evt)
