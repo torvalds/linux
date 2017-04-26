@@ -1122,7 +1122,7 @@ void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
 			 * current mode
 			 */
 			calc_freesync_range(core_freesync, *streams, state,
-				core_freesync->map[stream_index].caps->
+				core_freesync->map[map_index].caps->
 				min_refresh_in_micro_hz,
 				state->nominal_refresh_rate_in_micro_hz);
 		}
