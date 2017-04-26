@@ -91,16 +91,26 @@ static bool in_entry_code(unsigned long ip)
 	return false;
 }
 
+static inline unsigned long *last_frame(struct unwind_state *state)
+{
+	return (unsigned long *)task_pt_regs(state->task) - 2;
+}
+
 #ifdef CONFIG_X86_32
 #define GCC_REALIGN_WORDS 3
 #else
 #define GCC_REALIGN_WORDS 1
 #endif
 
+static inline unsigned long *last_aligned_frame(struct unwind_state *state)
+{
+	return last_frame(state) - GCC_REALIGN_WORDS;
+}
+
 static bool is_last_task_frame(struct unwind_state *state)
 {
-	unsigned long *last_bp = (unsigned long *)task_pt_regs(state->task) - 2;
-	unsigned long *aligned_bp = last_bp - GCC_REALIGN_WORDS;
+	unsigned long *last_bp = last_frame(state);
+	unsigned long *aligned_bp = last_aligned_frame(state);
 
 	/*
 	 * We have to check for the last task frame at two different locations
@@ -277,9 +287,13 @@ bad_address:
 
 	/*
 	 * Don't warn if the unwinder got lost due to an interrupt in entry
-	 * code before the stack was set up:
+	 * code or in the C handler before the first frame pointer got set up:
 	 */
 	if (state->got_irq && in_entry_code(state->ip))
+		goto the_end;
+	if (state->regs &&
+	    state->regs->sp >= (unsigned long)last_aligned_frame(state) &&
+	    state->regs->sp < (unsigned long)task_pt_regs(state->task))
 		goto the_end;
 
 	if (state->regs) {
