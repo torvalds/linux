@@ -3574,7 +3574,7 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	u8 *bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
-	int multicast = is_multicast_ether_addr(hdr->addr1);
+	bool multicast = is_multicast_ether_addr(hdr->addr1);
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
