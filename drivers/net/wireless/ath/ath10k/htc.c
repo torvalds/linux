@@ -231,11 +231,78 @@ ath10k_htc_process_credit_report(struct ath10k_htc *htc,
 	spin_unlock_bh(&htc->tx_lock);
 }
 
+static int
+ath10k_htc_process_lookahead(struct ath10k_htc *htc,
+			     const struct ath10k_htc_lookahead_report *report,
+			     int len,
+			     enum ath10k_htc_ep_id eid,
+			     void *next_lookaheads,
+			     int *next_lookaheads_len)
+{
+	struct ath10k *ar = htc->ar;
+
+	/* Invalid lookahead flags are actually transmitted by
+	 * the target in the HTC control message.
+	 * Since this will happen at every boot we silently ignore
+	 * the lookahead in this case
+	 */
+	if (report->pre_valid != ((~report->post_valid) & 0xFF))
+		return 0;
+
+	if (next_lookaheads && next_lookaheads_len) {
+		ath10k_dbg(ar, ATH10K_DBG_HTC,
+			   "htc rx lookahead found pre_valid 0x%x post_valid 0x%x\n",
+			   report->pre_valid, report->post_valid);
+
+		/* look ahead bytes are valid, copy them over */
+		memcpy((u8 *)next_lookaheads, report->lookahead, 4);
+
+		*next_lookaheads_len = 1;
+	}
+
+	return 0;
+}
+
+static int
+ath10k_htc_process_lookahead_bundle(struct ath10k_htc *htc,
+				    const struct ath10k_htc_lookahead_bundle *report,
+				    int len,
+				    enum ath10k_htc_ep_id eid,
+				    void *next_lookaheads,
+				    int *next_lookaheads_len)
+{
+	struct ath10k *ar = htc->ar;
+	int bundle_cnt = len / sizeof(*report);
+
+	if (!bundle_cnt || (bundle_cnt > HTC_HOST_MAX_MSG_PER_BUNDLE)) {
+		ath10k_warn(ar, "Invalid lookahead bundle count: %d\n",
+			    bundle_cnt);
+		return -EINVAL;
+	}
+
+	if (next_lookaheads && next_lookaheads_len) {
+		int i;
+
+		for (i = 0; i < bundle_cnt; i++) {
+			memcpy(((u8 *)next_lookaheads) + 4 * i,
+			       report->lookahead, 4);
+			report++;
+		}
+
+		*next_lookaheads_len = bundle_cnt;
+	}
+
+	return 0;
+}
+
 int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 			       u8 *buffer,
 			       int length,
-			       enum ath10k_htc_ep_id src_eid)
+			       enum ath10k_htc_ep_id src_eid,
+			       void *next_lookaheads,
+			       int *next_lookaheads_len)
 {
+	struct ath10k_htc_lookahead_bundle *bundle;
 	struct ath10k *ar = htc->ar;
 	int status = 0;
 	struct ath10k_htc_record *record;
@@ -274,6 +341,29 @@ int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 							 record->credit_report,
 							 record->hdr.len,
 							 src_eid);
+			break;
+		case ATH10K_HTC_RECORD_LOOKAHEAD:
+			len = sizeof(struct ath10k_htc_lookahead_report);
+			if (record->hdr.len < len) {
+				ath10k_warn(ar, "Lookahead report too long\n");
+				status = -EINVAL;
+				break;
+			}
+			status = ath10k_htc_process_lookahead(htc,
+							      record->lookahead_report,
+							      record->hdr.len,
+							      src_eid,
+							      next_lookaheads,
+							      next_lookaheads_len);
+			break;
+		case ATH10K_HTC_RECORD_LOOKAHEAD_BUNDLE:
+			bundle = record->lookahead_bundle;
+			status = ath10k_htc_process_lookahead_bundle(htc,
+								     bundle,
+								     record->hdr.len,
+								     src_eid,
+								     next_lookaheads,
+								     next_lookaheads_len);
 			break;
 		default:
 			ath10k_warn(ar, "Unhandled record: id:%d length:%d\n",
@@ -362,7 +452,8 @@ void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 		trailer += payload_len;
 		trailer -= trailer_len;
 		status = ath10k_htc_process_trailer(htc, trailer,
-						    trailer_len, hdr->eid);
+						    trailer_len, hdr->eid,
+						    NULL, NULL);
 		if (status)
 			goto out;
 
