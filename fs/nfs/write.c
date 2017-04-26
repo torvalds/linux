@@ -586,8 +586,7 @@ nfs_error_is_fatal_on_server(int err)
  * May return an error if the user signalled nfs_wait_on_request().
  */
 static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
-				struct page *page, bool nonblock,
-				bool launder)
+				struct page *page, bool nonblock)
 {
 	struct nfs_page *req;
 	int ret = 0;
@@ -610,13 +609,11 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 	if (!nfs_pageio_add_request(pgio, req)) {
 		ret = pgio->pg_error;
 		/*
-		 * Remove the problematic req upon fatal errors
-		 * in launder case, while other dirty pages can
-		 * still be around until they get flushed.
+		 * Remove the problematic req upon fatal errors on the server
 		 */
 		if (nfs_error_is_fatal(ret)) {
 			nfs_context_set_write_error(req->wb_context, ret);
-			if (launder)
+			if (nfs_error_is_fatal_on_server(ret))
 				goto out_launder;
 		}
 		nfs_redirty_request(req);
@@ -632,13 +629,12 @@ out_launder:
 }
 
 static int nfs_do_writepage(struct page *page, struct writeback_control *wbc,
-			    struct nfs_pageio_descriptor *pgio, bool launder)
+			    struct nfs_pageio_descriptor *pgio)
 {
 	int ret;
 
 	nfs_pageio_cond_complete(pgio, page_index(page));
-	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE,
-				   launder);
+	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE);
 	if (ret == -EAGAIN) {
 		redirty_page_for_writepage(wbc, page);
 		ret = 0;
@@ -650,8 +646,7 @@ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc,
  * Write an mmapped page to the server.
  */
 static int nfs_writepage_locked(struct page *page,
-				struct writeback_control *wbc,
-				bool launder)
+				struct writeback_control *wbc)
 {
 	struct nfs_pageio_descriptor pgio;
 	struct inode *inode = page_file_mapping(page)->host;
@@ -660,7 +655,7 @@ static int nfs_writepage_locked(struct page *page,
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
 	nfs_pageio_init_write(&pgio, inode, 0,
 				false, &nfs_async_write_completion_ops);
-	err = nfs_do_writepage(page, wbc, &pgio, launder);
+	err = nfs_do_writepage(page, wbc, &pgio);
 	nfs_pageio_complete(&pgio);
 	if (err < 0)
 		return err;
@@ -673,7 +668,7 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int ret;
 
-	ret = nfs_writepage_locked(page, wbc, false);
+	ret = nfs_writepage_locked(page, wbc);
 	unlock_page(page);
 	return ret;
 }
@@ -682,7 +677,7 @@ static int nfs_writepages_callback(struct page *page, struct writeback_control *
 {
 	int ret;
 
-	ret = nfs_do_writepage(page, wbc, data, false);
+	ret = nfs_do_writepage(page, wbc, data);
 	unlock_page(page);
 	return ret;
 }
@@ -2013,7 +2008,7 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 /*
  * Write back all requests on one page - we do this before reading it.
  */
-int nfs_wb_single_page(struct inode *inode, struct page *page, bool launder)
+int nfs_wb_page(struct inode *inode, struct page *page)
 {
 	loff_t range_start = page_file_offset(page);
 	loff_t range_end = range_start + (loff_t)(PAGE_SIZE - 1);
@@ -2030,7 +2025,7 @@ int nfs_wb_single_page(struct inode *inode, struct page *page, bool launder)
 	for (;;) {
 		wait_on_page_writeback(page);
 		if (clear_page_dirty_for_io(page)) {
-			ret = nfs_writepage_locked(page, &wbc, launder);
+			ret = nfs_writepage_locked(page, &wbc);
 			if (ret < 0)
 				goto out_error;
 			continue;
