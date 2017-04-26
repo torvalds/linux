@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
+#include <linux/sched/task_stack.h>
 #include <linux/workqueue.h>
 
 #include <linux/usb/ch9.h>
@@ -798,6 +799,14 @@ int usb_gadget_map_request_by_dev(struct device *dev,
 
 		req->num_mapped_sgs = mapped;
 	} else {
+		if (is_vmalloc_addr(req->buf)) {
+			dev_err(dev, "buffer is not dma capable\n");
+			return -EFAULT;
+		} else if (object_is_on_stack(req->buf)) {
+			dev_err(dev, "buffer is on stack\n");
+			return -EFAULT;
+		}
+
 		req->dma = dma_map_single(dev, req->buf, req->length,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
