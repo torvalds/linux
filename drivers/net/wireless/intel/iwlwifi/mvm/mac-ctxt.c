@@ -467,6 +467,11 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 			queue = IWL_MVM_DQA_GCAST_QUEUE;
 		}
 
+		/*
+		 * For TVQM this will be overwritten later with the FW assigned
+		 * queue value (when queue is enabled).
+		 */
+		mvmvif->cab_queue = queue;
 		vif->cab_queue = queue;
 	} else {
 		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
@@ -902,7 +907,7 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 
 	/* Allocate sniffer station */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->snif_sta, tfd_queue_msk,
-				       vif->type);
+				       vif->type, IWL_STA_GENERAL_PURPOSE);
 	if (ret)
 		return ret;
 
@@ -1223,7 +1228,9 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int *
 					       vif->bss_conf.dtim_period));
 
-	ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_STA_TYPE))
+		ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
 
 	/*
 	 * Only set the beacon time when the MAC is being added, when we

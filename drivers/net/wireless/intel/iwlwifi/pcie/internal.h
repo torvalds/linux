@@ -414,9 +414,9 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr kw;
 
 	struct iwl_txq *txq_memory;
-	struct iwl_txq *txq[IWL_MAX_HW_QUEUES];
-	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
-	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
+	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
+	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
+	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
 
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
@@ -778,6 +778,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans,
 int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 			   struct iwl_dma_ptr *ptr, size_t size);
 void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
+void iwl_pcie_apply_destination(struct iwl_trans *trans);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,

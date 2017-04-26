@@ -86,6 +86,8 @@ static int iwl_mvm_binding_cmd(struct iwl_mvm *mvm, u32 action,
 	u32 status;
 	int size;
 
+	memset(&cmd, 0, sizeof(cmd));
+
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT)) {
 		size = sizeof(cmd);
@@ -97,8 +99,6 @@ static int iwl_mvm_binding_cmd(struct iwl_mvm *mvm, u32 action,
 	} else {
 		size = IWL_BINDING_CMD_SIZE_V1;
 	}
-
-	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(phyctxt->id,
 							   phyctxt->color));

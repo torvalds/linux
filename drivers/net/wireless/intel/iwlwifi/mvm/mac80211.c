@@ -1358,7 +1358,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			 * which shouldn't be in TFD mask anyway
 			 */
 			ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->mcast_sta,
-						       0, vif->type);
+						       0, vif->type,
+						       IWL_STA_MULTICAST);
 			if (ret)
 				goto out_release;
 		}
@@ -1477,7 +1478,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * already marked as draining, so to complete the draining, we
 		 * just need to wait until the transport is empty.
 		 */
-		iwl_trans_wait_tx_queue_empty(mvm->trans, tfd_msk);
+		iwl_trans_wait_tx_queues_empty(mvm->trans, tfd_msk);
 	}
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
@@ -2111,15 +2112,15 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_remove;
 
+	ret = iwl_mvm_add_mcast_sta(mvm, vif);
+	if (ret)
+		goto out_unbind;
+
 	/* Send the bcast station. At this stage the TBTT and DTIM time events
 	 * are added and applied to the scheduler */
 	ret = iwl_mvm_send_add_bcast_sta(mvm, vif);
 	if (ret)
-		goto out_unbind;
-
-	ret = iwl_mvm_add_mcast_sta(mvm, vif);
-	if (ret)
-		goto out_rm_bcast;
+		goto out_rm_mcast;
 
 	/* must be set before quota calculations */
 	mvmvif->ap_ibss_active = true;
@@ -2148,9 +2149,9 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 out_quota_failed:
 	iwl_mvm_power_update_mac(mvm);
 	mvmvif->ap_ibss_active = false;
-	iwl_mvm_rm_mcast_sta(mvm, vif);
-out_rm_bcast:
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);
+out_rm_mcast:
+	iwl_mvm_rm_mcast_sta(mvm, vif);
 out_unbind:
 	iwl_mvm_binding_remove_vif(mvm, vif);
 out_remove:
@@ -2196,8 +2197,20 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false, NULL);
 
 	iwl_mvm_update_quotas(mvm, false, NULL);
-	iwl_mvm_rm_mcast_sta(mvm, vif);
+
+	/*
+	 * This is not very nice, but the simplest:
+	 * For older FWs removing the mcast sta before the bcast station may
+	 * cause assert 0x2b00.
+	 * This is fixed in later FW (which will stop beaconing when removing
+	 * bcast station).
+	 * So make the order of removal depend on the TLV
+	 */
+	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_STA_TYPE))
+		iwl_mvm_rm_mcast_sta(mvm, vif);
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);
+	if (fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_STA_TYPE))
+		iwl_mvm_rm_mcast_sta(mvm, vif);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
 	iwl_mvm_power_update_mac(mvm);
@@ -2363,7 +2376,7 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
 			continue;
 
-		if (tid_data->txq_id == IEEE80211_INVAL_HW_QUEUE)
+		if (tid_data->txq_id == IWL_MVM_INVALID_QUEUE)
 			continue;
 
 		__set_bit(tid_data->txq_id, &txqs);
@@ -3988,7 +4001,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		/* this can take a while, and we may need/want other operations
 		 * to succeed while doing this, so do it without the mutex held
 		 */
-		iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
+		iwl_trans_wait_tx_queues_empty(mvm->trans, msk);
 	}
 }
 

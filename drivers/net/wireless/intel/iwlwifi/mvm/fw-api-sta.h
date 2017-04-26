@@ -214,20 +214,6 @@ enum iwl_sta_sleep_flag {
 	STA_SLEEP_STATE_MOREDATA	= BIT(2),
 };
 
-/* STA ID and color bits definitions */
-#define STA_ID_SEED		(0x0f)
-#define STA_ID_POS		(0)
-#define STA_ID_MSK		(STA_ID_SEED << STA_ID_POS)
-
-#define STA_COLOR_SEED		(0x7)
-#define STA_COLOR_POS		(4)
-#define STA_COLOR_MSK		(STA_COLOR_SEED << STA_COLOR_POS)
-
-#define STA_ID_N_COLOR_GET_COLOR(id_n_color) \
-	(((id_n_color) & STA_COLOR_MSK) >> STA_COLOR_POS)
-#define STA_ID_N_COLOR_GET_ID(id_n_color)    \
-	(((id_n_color) & STA_ID_MSK) >> STA_ID_POS)
-
 #define STA_KEY_MAX_NUM (16)
 #define STA_KEY_IDX_INVALID (0xff)
 #define STA_KEY_MAX_DATA_KEY_NUM (4)
@@ -324,6 +310,24 @@ struct iwl_mvm_add_sta_cmd_v7 {
 } __packed; /* ADD_STA_CMD_API_S_VER_7 */
 
 /**
+ * enum iwl_sta_type - FW station types
+ * ( REPLY_ADD_STA = 0x18 )
+ * @IWL_STA_LINK: Link station - normal RX and TX traffic.
+ * @IWL_STA_GENERAL_PURPOSE: General purpose. In AP mode used for beacons
+ *	and probe responses.
+ * @IWL_STA_MULTICAST: multicast traffic,
+ * @IWL_STA_TDLS_LINK: TDLS link station
+ * @IWL_STA_AUX_ACTIVITY: auxilary station (scan, ROC and so on).
+ */
+enum iwl_sta_type {
+	IWL_STA_LINK,
+	IWL_STA_GENERAL_PURPOSE,
+	IWL_STA_MULTICAST,
+	IWL_STA_TDLS_LINK,
+	IWL_STA_AUX_ACTIVITY,
+};
+
+/**
  * struct iwl_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
  * @add_modify: 1: modify existing, 0: add new station
@@ -347,6 +351,7 @@ struct iwl_mvm_add_sta_cmd_v7 {
  * @sleep_tx_count: number of packets to transmit to station even though it is
  *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
  *	keeps track of STA sleep state.
+ * @station_type: type of this station. See &enum iwl_sta_type.
  * @sleep_state_flags: Look at %iwl_sta_sleep_flag.
  * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
  *	mac-addr.
@@ -381,14 +386,15 @@ struct iwl_mvm_add_sta_cmd {
 	u8 remove_immediate_ba_tid;
 	__le16 add_immediate_ba_ssn;
 	__le16 sleep_tx_count;
-	__le16 sleep_state_flags;
+	u8 sleep_state_flags;
+	u8 station_type;
 	__le16 assoc_id;
 	__le16 beamform_flags;
 	__le32 tfd_queue_msk;
 	__le16 rx_ba_window;
 	u8 sp_length;
 	u8 uapsd_acs;
-} __packed; /* ADD_STA_CMD_API_S_VER_9 */
+} __packed; /* ADD_STA_CMD_API_S_VER_10 */
 
 /**
  * struct iwl_mvm_add_sta_key_common - add/modify sta key common part
