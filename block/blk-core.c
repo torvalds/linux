@@ -563,9 +563,13 @@ void blk_cleanup_queue(struct request_queue *q)
 	 * prevent that q->request_fn() gets invoked after draining finished.
 	 */
 	blk_freeze_queue(q);
-	spin_lock_irq(lock);
-	if (!q->mq_ops)
+	if (!q->mq_ops) {
+		spin_lock_irq(lock);
 		__blk_drain_queue(q, true);
+	} else {
+		blk_mq_debugfs_unregister_mq(q);
+		spin_lock_irq(lock);
+	}
 	queue_flag_set(QUEUE_FLAG_DEAD, q);
 	spin_unlock_irq(lock);
 
