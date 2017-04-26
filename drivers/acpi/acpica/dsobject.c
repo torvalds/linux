@@ -114,7 +114,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 				    ((op->common.parent->common.aml_opcode ==
 				      AML_PACKAGE_OP)
 				     || (op->common.parent->common.aml_opcode ==
-					 AML_VAR_PACKAGE_OP))) {
+					 AML_VARIABLE_PACKAGE_OP))) {
 					/*
 					 * We didn't find the target and we are populating elements
 					 * of a package - ignore if slack enabled. Some ASL code
@@ -144,7 +144,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 
 		if ((op->common.parent->common.aml_opcode == AML_PACKAGE_OP) ||
 		    (op->common.parent->common.aml_opcode ==
-		     AML_VAR_PACKAGE_OP)) {
+		     AML_VARIABLE_PACKAGE_OP)) {
 			/*
 			 * Attempt to resolve the node to a value before we insert it into
 			 * the package. If this is a reference to a common data type,
@@ -398,7 +398,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 
 	parent = op->common.parent;
 	while ((parent->common.aml_opcode == AML_PACKAGE_OP) ||
-	       (parent->common.aml_opcode == AML_VAR_PACKAGE_OP)) {
+	       (parent->common.aml_opcode == AML_VARIABLE_PACKAGE_OP)) {
 		parent = parent->common.parent;
 	}
 
@@ -769,10 +769,10 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		switch (op_info->type) {
 		case AML_TYPE_LOCAL_VARIABLE:
 
-			/* Local ID (0-7) is (AML opcode - base AML_LOCAL_OP) */
+			/* Local ID (0-7) is (AML opcode - base AML_FIRST_LOCAL_OP) */
 
 			obj_desc->reference.value =
-			    ((u32)opcode) - AML_LOCAL_OP;
+			    ((u32)opcode) - AML_FIRST_LOCAL_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
 #ifndef ACPI_NO_METHOD_EXECUTION
@@ -790,9 +790,10 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 		case AML_TYPE_METHOD_ARGUMENT:
 
-			/* Arg ID (0-6) is (AML opcode - base AML_ARG_OP) */
+			/* Arg ID (0-6) is (AML opcode - base AML_FIRST_ARG_OP) */
 
-			obj_desc->reference.value = ((u32)opcode) - AML_ARG_OP;
+			obj_desc->reference.value =
+			    ((u32)opcode) - AML_FIRST_ARG_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
 #ifndef ACPI_NO_METHOD_EXECUTION

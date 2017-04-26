@@ -296,7 +296,7 @@ union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op)
 		child = acpi_ps_get_arg(op, 1);
 		break;
 
-	case AML_POWER_RES_OP:
+	case AML_POWER_RESOURCE_OP:
 	case AML_INDEX_FIELD_OP:
 
 		child = acpi_ps_get_arg(op, 2);

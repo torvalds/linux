@@ -186,7 +186,7 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
 		end += 1 + (2 * ACPI_NAME_SIZE);
 		break;
 
-	case AML_MULTI_NAME_PREFIX_OP:
+	case AML_MULTI_NAME_PREFIX:
 
 		/* Multiple name segments, 4 chars each, count in next byte */
 
@@ -339,7 +339,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		/* 2) not_found during a cond_ref_of(x) is ok by definition */
 
 		else if (walk_state->op->common.aml_opcode ==
-			 AML_COND_REF_OF_OP) {
+			 AML_CONDITIONAL_REF_OF_OP) {
 			status = AE_OK;
 		}
 
@@ -352,7 +352,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 			 ((arg->common.parent->common.aml_opcode ==
 			   AML_PACKAGE_OP)
 			  || (arg->common.parent->common.aml_opcode ==
-			      AML_VAR_PACKAGE_OP))) {
+			      AML_VARIABLE_PACKAGE_OP))) {
 			status = AE_OK;
 		}
 	}

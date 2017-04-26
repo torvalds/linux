@@ -126,7 +126,7 @@ error_exit:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Called for AML_BREAK_POINT_OP
+ * DESCRIPTION: Called for AML_BREAKPOINT_OP
  *
  ******************************************************************************/
 

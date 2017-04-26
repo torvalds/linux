@@ -254,7 +254,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 		case AML_BUFFER_OP:
 		case AML_PACKAGE_OP:
-		case AML_VAR_PACKAGE_OP:
+		case AML_VARIABLE_PACKAGE_OP:
 
 			if ((op->common.parent) &&
 			    (op->common.parent->common.aml_opcode ==

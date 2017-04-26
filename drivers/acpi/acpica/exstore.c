@@ -416,7 +416,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 
 	/* Only limited target types possible for everything except copy_object */
 
-	if (walk_state->opcode != AML_COPY_OP) {
+	if (walk_state->opcode != AML_COPY_OBJECT_OP) {
 		/*
 		 * Only copy_object allows all object types to be overwritten. For
 		 * target_ref(s), there are restrictions on the object types that
@@ -499,7 +499,8 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	case ACPI_TYPE_STRING:
 	case ACPI_TYPE_BUFFER:
 
-		if ((walk_state->opcode == AML_COPY_OP) || !implicit_conversion) {
+		if ((walk_state->opcode == AML_COPY_OBJECT_OP) ||
+		    !implicit_conversion) {
 			/*
 			 * However, copy_object and Stores to arg_x do not perform
 			 * an implicit conversion, as per the ACPI specification.

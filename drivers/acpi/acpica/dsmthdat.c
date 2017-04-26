@@ -672,7 +672,8 @@ acpi_ds_store_object_to_local(u8 type,
  *
  * FUNCTION:    acpi_ds_method_data_get_type
  *
- * PARAMETERS:  opcode              - Either AML_LOCAL_OP or AML_ARG_OP
+ * PARAMETERS:  opcode              - Either AML_FIRST LOCAL_OP or
+ *                                    AML_FIRST_ARG_OP
  *              index               - Which Local or Arg whose type to get
  *              walk_state          - Current walk state object
  *

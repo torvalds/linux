@@ -528,7 +528,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			status = acpi_ex_create_processor(walk_state);
 			break;
 
-		case AML_POWER_RES_OP:
+		case AML_POWER_RESOURCE_OP:
 
 			status = acpi_ex_create_power_resource(walk_state);
 			break;
