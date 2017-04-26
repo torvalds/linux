@@ -187,6 +187,6 @@ ide_startstop_t ide_do_devset(ide_drive_t *drive, struct request *rq)
 	err = setfunc(drive, *(int *)&scsi_req(rq)->cmd[1]);
 	if (err)
 		scsi_req(rq)->result = err;
-	ide_complete_rq(drive, err, blk_rq_bytes(rq));
+	ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 	return ide_stopped;
 }
