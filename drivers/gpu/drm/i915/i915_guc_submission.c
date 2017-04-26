@@ -649,7 +649,7 @@ static void nested_enable_signaling(struct drm_i915_gem_request *rq)
 	trace_dma_fence_enable_signal(&rq->fence);
 
 	spin_lock_nested(&rq->lock, SINGLE_DEPTH_NESTING);
-	intel_engine_enable_signaling(rq);
+	intel_engine_enable_signaling(rq, true);
 	spin_unlock(&rq->lock);
 }
 

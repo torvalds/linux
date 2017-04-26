@@ -667,12 +667,13 @@ static int intel_breadcrumbs_signaler(void *arg)
 	return 0;
 }
 
-void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
+void intel_engine_enable_signaling(struct drm_i915_gem_request *request,
+				   bool wakeup)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	struct rb_node *parent, **p;
-	bool first, wakeup;
+	bool first;
 	u32 seqno;
 
 	/* Note that we may be called from an interrupt handler on another
@@ -705,7 +706,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	 * If we are the oldest waiter, enable the irq (after which we
 	 * must double check that the seqno did not complete).
 	 */
-	wakeup = __intel_engine_add_wait(engine, &request->signaling.wait);
+	wakeup &= __intel_engine_add_wait(engine, &request->signaling.wait);
 
 	/* Now insert ourselves into the retirement ordered list of signals
 	 * on this engine. We track the oldest seqno as that will be the

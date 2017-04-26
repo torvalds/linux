@@ -61,7 +61,7 @@ static bool i915_fence_enable_signaling(struct dma_fence *fence)
 	if (i915_fence_signaled(fence))
 		return false;
 
-	intel_engine_enable_signaling(to_request(fence));
+	intel_engine_enable_signaling(to_request(fence), true);
 	return true;
 }
 
@@ -437,7 +437,7 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 	request->global_seqno = seqno;
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
-		intel_engine_enable_signaling(request);
+		intel_engine_enable_signaling(request, false);
 	spin_unlock(&request->lock);
 
 	engine->emit_breadcrumb(request,
