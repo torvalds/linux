@@ -368,6 +368,10 @@ Required properties:
 				  see below for detail.
 - #sound-dai-cells		: it must be 0 if your system is using single DAI
 				  it must be 1 if your system is using multi  DAI
+- clocks			: References to SSI/SRC/MIX/CTU/DVC/AUDIO_CLK clocks.
+- clock-names			: List of necessary clock names.
+				  "ssi-all", "ssi.X", "src.X", "mix.X", "ctu.X",
+				  "dvc.X", "clk_a", "clk_b", "clk_c", "clk_i"
 
 Optional properties:
 - #clock-cells			: it must be 0 if your system has audio_clkout
