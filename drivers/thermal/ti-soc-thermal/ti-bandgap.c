@@ -1010,7 +1010,7 @@ ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 }
 
 /**
- * ti_bandgap_set_continous_mode() - One time enabling of continuous mode
+ * ti_bandgap_set_continuous_mode() - One time enabling of continuous mode
  * @bgp: pointer to struct ti_bandgap
  *
  * Call this function only if HAS(MODE_CONFIG) is set. As this driver may
