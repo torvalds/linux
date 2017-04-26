@@ -85,6 +85,7 @@ DECLARE_EVENT_CLASS(dwc3_log_ctrl,
 		__field(__u16, wValue)
 		__field(__u16, wIndex)
 		__field(__u16, wLength)
+		__dynamic_array(char, str, DWC3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->bRequestType = ctrl->bRequestType;
@@ -93,10 +94,9 @@ DECLARE_EVENT_CLASS(dwc3_log_ctrl,
 		__entry->wIndex = le16_to_cpu(ctrl->wIndex);
 		__entry->wLength = le16_to_cpu(ctrl->wLength);
 	),
-	TP_printk("bRequestType %02x bRequest %02x wValue %04x wIndex %04x wLength %d",
-		__entry->bRequestType, __entry->bRequest,
-		__entry->wValue, __entry->wIndex,
-		__entry->wLength
+	TP_printk("%s", dwc3_decode_ctrl(__get_str(str), __entry->bRequestType,
+					__entry->bRequest, __entry->wValue,
+					__entry->wIndex, __entry->wLength)
 	)
 );
 
