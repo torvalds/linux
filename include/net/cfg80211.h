@@ -2686,8 +2686,7 @@ struct cfg80211_nan_func {
  *	indication of requesting reassociation.
  *	In both the driver-initiated and new connect() call initiated roaming
  *	cases, the result of roaming is indicated with a call to
- *	cfg80211_roamed() or cfg80211_roamed_bss().
- *	(invoked with the wireless_dev mutex held)
+ *	cfg80211_roamed(). (invoked with the wireless_dev mutex held)
  * @update_connect_params: Update the connect parameters while connected to a
  *	BSS. The updated parameters can be used by driver/firmware for
  *	subsequent BSS selection (roaming) decisions and to form the
@@ -5390,51 +5389,46 @@ cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
 }
 
 /**
+ * struct cfg80211_roam_info - driver initiated roaming information
+ *
+ * @channel: the channel of the new AP
+ * @bss: entry of bss to which STA got roamed (may be %NULL if %bssid is set)
+ * @bssid: the BSSID of the new AP (may be %NULL if %bss is set)
+ * @req_ie: association request IEs (maybe be %NULL)
+ * @req_ie_len: association request IEs length
+ * @resp_ie: association response IEs (may be %NULL)
+ * @resp_ie_len: assoc response IEs length
+ */
+struct cfg80211_roam_info {
+	struct ieee80211_channel *channel;
+	struct cfg80211_bss *bss;
+	const u8 *bssid;
+	const u8 *req_ie;
+	size_t req_ie_len;
+	const u8 *resp_ie;
+	size_t resp_ie_len;
+};
+
+/**
  * cfg80211_roamed - notify cfg80211 of roaming
  *
  * @dev: network device
- * @channel: the channel of the new AP
- * @bssid: the BSSID of the new AP
- * @req_ie: association request IEs (maybe be %NULL)
- * @req_ie_len: association request IEs length
- * @resp_ie: association response IEs (may be %NULL)
- * @resp_ie_len: assoc response IEs length
+ * @info: information about the new BSS. struct &cfg80211_roam_info.
  * @gfp: allocation flags
  *
- * It should be called by the underlying driver whenever it roamed
- * from one AP to another while connected.
- */
-void cfg80211_roamed(struct net_device *dev,
-		     struct ieee80211_channel *channel,
-		     const u8 *bssid,
-		     const u8 *req_ie, size_t req_ie_len,
-		     const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp);
-
-/**
- * cfg80211_roamed_bss - notify cfg80211 of roaming
- *
- * @dev: network device
- * @bss: entry of bss to which STA got roamed
- * @req_ie: association request IEs (maybe be %NULL)
- * @req_ie_len: association request IEs length
- * @resp_ie: association response IEs (may be %NULL)
- * @resp_ie_len: assoc response IEs length
- * @gfp: allocation flags
- *
- * This is just a wrapper to notify cfg80211 of roaming event with driver
- * passing bss to avoid a race in timeout of the bss entry. It should be
- * called by the underlying driver whenever it roamed from one AP to another
- * while connected. Drivers which have roaming implemented in firmware
- * may use this function to avoid a race in bss entry timeout where the bss
- * entry of the new AP is seen in the driver, but gets timed out by the time
- * it is accessed in __cfg80211_roamed() due to delay in scheduling
+ * This function may be called with the driver passing either the BSSID of the
+ * new AP or passing the bss entry to avoid a race in timeout of the bss entry.
+ * It should be called by the underlying driver whenever it roamed from one AP
+ * to another while connected. Drivers which have roaming implemented in
+ * firmware should pass the bss entry to avoid a race in bss entry timeout where
+ * the bss entry of the new AP is seen in the driver, but gets timed out by the
+ * time it is accessed in __cfg80211_roamed() due to delay in scheduling
  * rdev->event_work. In case of any failures, the reference is released
- * either in cfg80211_roamed_bss() or in __cfg80211_romed(), Otherwise,
- * it will be released while diconneting from the current bss.
+ * either in cfg80211_roamed() or in __cfg80211_romed(), Otherwise, it will be
+ * released while diconneting from the current bss.
  */
-void cfg80211_roamed_bss(struct net_device *dev, struct cfg80211_bss *bss,
-			 const u8 *req_ie, size_t req_ie_len,
-			 const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp);
+void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
+		     gfp_t gfp);
 
 /**
  * cfg80211_disconnected - notify cfg80211 that connection was dropped

@@ -5,6 +5,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright (C) 2009   Intel Corporation. All rights reserved.
+ * Copyright 2017	Intel Deutschland GmbH
  */
 
 #include <linux/etherdevice.h>
@@ -870,9 +871,7 @@ EXPORT_SYMBOL(cfg80211_connect_done);
 
 /* Consumes bss object one way or another */
 void __cfg80211_roamed(struct wireless_dev *wdev,
-		       struct cfg80211_bss *bss,
-		       const u8 *req_ie, size_t req_ie_len,
-		       const u8 *resp_ie, size_t resp_ie_len)
+		       struct cfg80211_roam_info *info)
 {
 #ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
@@ -890,97 +889,84 @@ void __cfg80211_roamed(struct wireless_dev *wdev,
 	cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
 	wdev->current_bss = NULL;
 
-	cfg80211_hold_bss(bss_from_pub(bss));
-	wdev->current_bss = bss_from_pub(bss);
+	if (WARN_ON(!info->bss))
+		return;
+
+	cfg80211_hold_bss(bss_from_pub(info->bss));
+	wdev->current_bss = bss_from_pub(info->bss);
 
 	nl80211_send_roamed(wiphy_to_rdev(wdev->wiphy),
-			    wdev->netdev, bss->bssid,
-			    req_ie, req_ie_len, resp_ie, resp_ie_len,
-			    GFP_KERNEL);
+			    wdev->netdev, info, GFP_KERNEL);
 
 #ifdef CONFIG_CFG80211_WEXT
-	if (req_ie) {
+	if (info->req_ie) {
 		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = req_ie_len;
+		wrqu.data.length = info->req_ie_len;
 		wireless_send_event(wdev->netdev, IWEVASSOCREQIE,
-				    &wrqu, req_ie);
+				    &wrqu, info->req_ie);
 	}
 
-	if (resp_ie) {
+	if (info->resp_ie) {
 		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = resp_ie_len;
+		wrqu.data.length = info->resp_ie_len;
 		wireless_send_event(wdev->netdev, IWEVASSOCRESPIE,
-				    &wrqu, resp_ie);
+				    &wrqu, info->resp_ie);
 	}
 
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(wrqu.ap_addr.sa_data, bss->bssid, ETH_ALEN);
-	memcpy(wdev->wext.prev_bssid, bss->bssid, ETH_ALEN);
+	memcpy(wrqu.ap_addr.sa_data, info->bss->bssid, ETH_ALEN);
+	memcpy(wdev->wext.prev_bssid, info->bss->bssid, ETH_ALEN);
 	wdev->wext.prev_bssid_valid = true;
 	wireless_send_event(wdev->netdev, SIOCGIWAP, &wrqu, NULL);
 #endif
 
 	return;
 out:
-	cfg80211_put_bss(wdev->wiphy, bss);
+	cfg80211_put_bss(wdev->wiphy, info->bss);
 }
 
-void cfg80211_roamed(struct net_device *dev,
-		     struct ieee80211_channel *channel,
-		     const u8 *bssid,
-		     const u8 *req_ie, size_t req_ie_len,
-		     const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_bss *bss;
-
-	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid, wdev->ssid,
-			       wdev->ssid_len,
-			       wdev->conn_bss_type, IEEE80211_PRIVACY_ANY);
-	if (WARN_ON(!bss))
-		return;
-
-	cfg80211_roamed_bss(dev, bss, req_ie, req_ie_len, resp_ie,
-			    resp_ie_len, gfp);
-}
-EXPORT_SYMBOL(cfg80211_roamed);
-
-/* Consumes bss object one way or another */
-void cfg80211_roamed_bss(struct net_device *dev,
-			 struct cfg80211_bss *bss, const u8 *req_ie,
-			 size_t req_ie_len, const u8 *resp_ie,
-			 size_t resp_ie_len, gfp_t gfp)
+/* Consumes info->bss object one way or another */
+void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
+		     gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
-	if (WARN_ON(!bss))
+	if (!info->bss) {
+		info->bss = cfg80211_get_bss(wdev->wiphy, info->channel,
+					     info->bssid, wdev->ssid,
+					     wdev->ssid_len,
+					     wdev->conn_bss_type,
+					     IEEE80211_PRIVACY_ANY);
+	}
+
+	if (WARN_ON(!info->bss))
 		return;
 
-	ev = kzalloc(sizeof(*ev) + req_ie_len + resp_ie_len, gfp);
+	ev = kzalloc(sizeof(*ev) + info->req_ie_len + info->resp_ie_len, gfp);
 	if (!ev) {
-		cfg80211_put_bss(wdev->wiphy, bss);
+		cfg80211_put_bss(wdev->wiphy, info->bss);
 		return;
 	}
 
 	ev->type = EVENT_ROAMED;
 	ev->rm.req_ie = ((u8 *)ev) + sizeof(*ev);
-	ev->rm.req_ie_len = req_ie_len;
-	memcpy((void *)ev->rm.req_ie, req_ie, req_ie_len);
-	ev->rm.resp_ie = ((u8 *)ev) + sizeof(*ev) + req_ie_len;
-	ev->rm.resp_ie_len = resp_ie_len;
-	memcpy((void *)ev->rm.resp_ie, resp_ie, resp_ie_len);
-	ev->rm.bss = bss;
+	ev->rm.req_ie_len = info->req_ie_len;
+	memcpy((void *)ev->rm.req_ie, info->req_ie, info->req_ie_len);
+	ev->rm.resp_ie = ((u8 *)ev) + sizeof(*ev) + info->req_ie_len;
+	ev->rm.resp_ie_len = info->resp_ie_len;
+	memcpy((void *)ev->rm.resp_ie, info->resp_ie, info->resp_ie_len);
+	ev->rm.bss = info->bss;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
 	queue_work(cfg80211_wq, &rdev->event_work);
 }
-EXPORT_SYMBOL(cfg80211_roamed_bss);
+EXPORT_SYMBOL(cfg80211_roamed);
 
 void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap)

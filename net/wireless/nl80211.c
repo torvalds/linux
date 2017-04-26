@@ -13646,14 +13646,14 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 }
 
 void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
-			 struct net_device *netdev, const u8 *bssid,
-			 const u8 *req_ie, size_t req_ie_len,
-			 const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp)
+			 struct net_device *netdev,
+			 struct cfg80211_roam_info *info, gfp_t gfp)
 {
 	struct sk_buff *msg;
 	void *hdr;
+	const u8 *bssid = info->bss ? info->bss->bssid : info->bssid;
 
-	msg = nlmsg_new(100 + req_ie_len + resp_ie_len, gfp);
+	msg = nlmsg_new(100 + info->req_ie_len + info->resp_ie_len, gfp);
 	if (!msg)
 		return;
 
@@ -13666,10 +13666,12 @@ void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex) ||
 	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, bssid) ||
-	    (req_ie &&
-	     nla_put(msg, NL80211_ATTR_REQ_IE, req_ie_len, req_ie)) ||
-	    (resp_ie &&
-	     nla_put(msg, NL80211_ATTR_RESP_IE, resp_ie_len, resp_ie)))
+	    (info->req_ie &&
+	     nla_put(msg, NL80211_ATTR_REQ_IE, info->req_ie_len,
+		     info->req_ie)) ||
+	    (info->resp_ie &&
+	     nla_put(msg, NL80211_ATTR_RESP_IE, info->resp_ie_len,
+		     info->resp_ie)))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);

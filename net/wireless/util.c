@@ -946,9 +946,7 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 				ev->cr.status == WLAN_STATUS_SUCCESS);
 			break;
 		case EVENT_ROAMED:
-			__cfg80211_roamed(wdev, ev->rm.bss, ev->rm.req_ie,
-					  ev->rm.req_ie_len, ev->rm.resp_ie,
-					  ev->rm.resp_ie_len);
+			__cfg80211_roamed(wdev, &ev->rm);
 			break;
 		case EVENT_DISCONNECTED:
 			__cfg80211_disconnected(wdev->netdev,

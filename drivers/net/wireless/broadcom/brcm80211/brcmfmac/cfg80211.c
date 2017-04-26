@@ -5359,6 +5359,7 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 	struct ieee80211_supported_band *band;
 	struct brcmf_bss_info_le *bi;
 	struct brcmu_chan ch;
+	struct cfg80211_roam_info roam_info = {};
 	u32 freq;
 	s32 err = 0;
 	u8 *buf;
@@ -5397,9 +5398,15 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 
 done:
 	kfree(buf);
-	cfg80211_roamed(ndev, notify_channel, (u8 *)profile->bssid,
-			conn_info->req_ie, conn_info->req_ie_len,
-			conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
+
+	roam_info.channel = notify_channel;
+	roam_info.bssid = profile->bssid;
+	roam_info.req_ie = conn_info->req_ie;
+	roam_info.req_ie_len = conn_info->req_ie_len;
+	roam_info.resp_ie = conn_info->resp_ie;
+	roam_info.resp_ie_len = conn_info->resp_ie_len;
+
+	cfg80211_roamed(ndev, &roam_info, GFP_KERNEL);
 	brcmf_dbg(CONN, "Report roaming result\n");
 
 	set_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);

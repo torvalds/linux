@@ -666,8 +666,11 @@ void prism2_disconnected(struct wlandevice *wlandev)
 
 void prism2_roamed(struct wlandevice *wlandev)
 {
-	cfg80211_roamed(wlandev->netdev, NULL, wlandev->bssid,
-			NULL, 0, NULL, 0, GFP_KERNEL);
+	struct cfg80211_roam_info roam_info = {
+		.bssid = wlandev->bssid,
+	};
+
+	cfg80211_roamed(wlandev->netdev, &roam_info, GFP_KERNEL);
 }
 
 /* Structures for declaring wiphy interface */

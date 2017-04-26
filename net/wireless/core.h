@@ -224,13 +224,7 @@ struct cfg80211_event {
 
 	union {
 		struct cfg80211_connect_resp_params cr;
-		struct {
-			const u8 *req_ie;
-			const u8 *resp_ie;
-			size_t req_ie_len;
-			size_t resp_ie_len;
-			struct cfg80211_bss *bss;
-		} rm;
+		struct cfg80211_roam_info rm;
 		struct {
 			const u8 *ie;
 			size_t ie_len;
@@ -390,9 +384,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason,
 			bool wextev);
 void __cfg80211_roamed(struct wireless_dev *wdev,
-		       struct cfg80211_bss *bss,
-		       const u8 *req_ie, size_t req_ie_len,
-		       const u8 *resp_ie, size_t resp_ie_len);
+		       struct cfg80211_roam_info *info);
 int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);
 void cfg80211_autodisconnect_wk(struct work_struct *work);
