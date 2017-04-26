@@ -1023,6 +1023,10 @@ struct sched_group_capacity {
 	unsigned long next_update;
 	int imbalance; /* XXX unrelated to capacity but shared group state */
 
+#ifdef CONFIG_SCHED_DEBUG
+	int id;
+#endif
+
 	unsigned long cpumask[0]; /* iteration mask */
 };
 
