@@ -102,7 +102,7 @@ static const struct acpi_port_info acpi_protected_ports[] = {
 	{"PCI", 0x0CF8, 0x0CFF, ACPI_OSI_WIN_XP}
 };
 
-#define ACPI_PORT_INFO_ENTRIES  ACPI_ARRAY_LENGTH (acpi_protected_ports)
+#define ACPI_PORT_INFO_ENTRIES      ACPI_ARRAY_LENGTH (acpi_protected_ports)
 
 /******************************************************************************
  *
@@ -128,14 +128,14 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 	acpi_io_address last_address;
 	const struct acpi_port_info *port_info;
 
-	ACPI_FUNCTION_TRACE(hw_validate_io_request);
+	ACPI_FUNCTION_NAME(hw_validate_io_request);
 
 	/* Supported widths are 8/16/32 */
 
 	if ((bit_width != 8) && (bit_width != 16) && (bit_width != 32)) {
 		ACPI_ERROR((AE_INFO,
 			    "Bad BitWidth parameter: %8.8X", bit_width));
-		return (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	port_info = acpi_protected_ports;
@@ -167,7 +167,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 	for (i = 0; i < ACPI_PORT_INFO_ENTRIES; i++, port_info++) {
 		/*
 		 * Check if the requested address range will write to a reserved
-		 * port. Four cases to consider:
+		 * port. There are four cases to consider:
 		 *
 		 * 1) Address range is contained completely in the port address range
 		 * 2) Address range overlaps port range at the port range start
@@ -206,7 +206,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
  * FUNCTION:    acpi_hw_read_port
  *
  * PARAMETERS:  Address             Address of I/O port/register to read
- *              Value               Where value is placed
+ *              Value               Where value (data) is returned
  *              Width               Number of bits
  *
  * RETURN:      Status and value read from port
@@ -244,7 +244,7 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 	/*
 	 * There has been a protection violation within the request. Fall
 	 * back to byte granularity port I/O and ignore the failing bytes.
-	 * This provides Windows compatibility.
+	 * This provides compatibility with other ACPI implementations.
 	 */
 	for (i = 0, *value = 0; i < width; i += 8) {
 
@@ -307,7 +307,7 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 	/*
 	 * There has been a protection violation within the request. Fall
 	 * back to byte granularity port I/O and ignore the failing bytes.
-	 * This provides Windows compatibility.
+	 * This provides compatibility with other ACPI implementations.
 	 */
 	for (i = 0; i < width; i += 8) {
 
