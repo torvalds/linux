@@ -19,11 +19,13 @@
 #ifndef __LINUX_IOMMU_H
 #define __LINUX_IOMMU_H
 
+#include <linux/scatterlist.h>
+#include <linux/device.h>
+#include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/types.h>
-#include <linux/scatterlist.h>
+
 #include <trace/events/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
