@@ -1708,7 +1708,7 @@ void rga2_test_0(void)
 }
 #endif
 
-module_init(rga2_init);
+late_initcall(rga2_init);
 module_exit(rga2_exit);
 
 /* Module information */
