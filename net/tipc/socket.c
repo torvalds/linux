@@ -1259,7 +1259,10 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 	struct sock *sk = sock->sk;
 	DEFINE_WAIT(wait);
 	long timeo = *timeop;
-	int err;
+	int err = sock_error(sk);
+
+	if (err)
+		return err;
 
 	for (;;) {
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
@@ -1280,6 +1283,10 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 			break;
 		err = sock_intr_errno(timeo);
 		if (signal_pending(current))
+			break;
+
+		err = sock_error(sk);
+		if (err)
 			break;
 	}
 	finish_wait(sk_sleep(sk), &wait);
@@ -1551,6 +1558,8 @@ static bool filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
 	struct sock *sk = &tsk->sk;
 	struct net *net = sock_net(sk);
 	struct tipc_msg *hdr = buf_msg(skb);
+	u32 pport = msg_origport(hdr);
+	u32 pnode = msg_orignode(hdr);
 
 	if (unlikely(msg_mcast(hdr)))
 		return false;
@@ -1558,18 +1567,28 @@ static bool filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
 	switch (sk->sk_state) {
 	case TIPC_CONNECTING:
 		/* Accept only ACK or NACK message */
-		if (unlikely(!msg_connected(hdr)))
-			return false;
+		if (unlikely(!msg_connected(hdr))) {
+			if (pport != tsk_peer_port(tsk) ||
+			    pnode != tsk_peer_node(tsk))
+				return false;
+
+			tipc_set_sk_state(sk, TIPC_DISCONNECTING);
+			sk->sk_err = ECONNREFUSED;
+			sk->sk_state_change(sk);
+			return true;
+		}
 
 		if (unlikely(msg_errcode(hdr))) {
 			tipc_set_sk_state(sk, TIPC_DISCONNECTING);
 			sk->sk_err = ECONNREFUSED;
+			sk->sk_state_change(sk);
 			return true;
 		}
 
 		if (unlikely(!msg_isdata(hdr))) {
 			tipc_set_sk_state(sk, TIPC_DISCONNECTING);
 			sk->sk_err = EINVAL;
+			sk->sk_state_change(sk);
 			return true;
 		}
 
