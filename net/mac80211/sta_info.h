@@ -747,7 +747,7 @@ static inline u16 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 
 	switch (s->encoding) {
 	case RX_ENC_VHT:
-		r |= STA_STATS_RATE_TYPE_VHT | (s->vht_nss << 4);
+		r |= STA_STATS_RATE_TYPE_VHT | (s->nss << 4);
 		break;
 	case RX_ENC_HT:
 		r |= STA_STATS_RATE_TYPE_HT;

@@ -479,7 +479,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			*pos++ = 0;
 		}
 		/* MCS/NSS */
-		*pos = (status->rate_idx << 4) | status->vht_nss;
+		*pos = (status->rate_idx << 4) | status->nss;
 		pos += 4;
 		/* coding field */
 		if (status->enc_flags & RX_ENC_FLAG_LDPC)
@@ -4308,10 +4308,10 @@ void ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 			break;
 		case RX_ENC_VHT:
 			if (WARN_ONCE(status->rate_idx > 9 ||
-				      !status->vht_nss ||
-				      status->vht_nss > 8,
+				      !status->nss ||
+				      status->nss > 8,
 				      "Rate marked as a VHT rate but data is invalid: MCS: %d, NSS: %d\n",
-				      status->rate_idx, status->vht_nss))
+				      status->rate_idx, status->nss))
 				goto drop;
 			break;
 		default:

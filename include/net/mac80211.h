@@ -1171,7 +1171,7 @@ enum mac80211_rx_encoding {
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
- * @vht_nss: number of streams (VHT only)
+ * @nss: number of streams (VHT and HE only)
  * @flag: %RX_FLAG_\*
  * @encoding: &enum mac80211_rx_encoding
  * @bw: &enum rate_info_bw
@@ -1191,7 +1191,7 @@ struct ieee80211_rx_status {
 	u8 enc_flags;
 	u8 encoding:2, bw:3;
 	u8 rate_idx;
-	u8 vht_nss;
+	u8 nss;
 	u8 rx_flags;
 	u8 band;
 	u8 antenna;

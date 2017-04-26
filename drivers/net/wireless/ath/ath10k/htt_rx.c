@@ -689,7 +689,7 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 		}
 
 		status->rate_idx = mcs;
-		status->vht_nss = nss;
+		status->nss = nss;
 
 		if (sgi)
 			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
@@ -874,7 +874,7 @@ static void ath10k_htt_rx_h_ppdu(struct ath10k *ar,
 		/* New PPDU starts so clear out the old per-PPDU status. */
 		status->freq = 0;
 		status->rate_idx = 0;
-		status->vht_nss = 0;
+		status->nss = 0;
 		status->encoding = RX_ENC_LEGACY;
 		status->bw = RATE_INFO_BW_20;
 		status->flag &= ~RX_FLAG_MACTIME_END;
@@ -946,7 +946,7 @@ static void ath10k_process_rx(struct ath10k *ar,
 		   (status->bw == RATE_INFO_BW_160) ? "160" : "",
 		   status->enc_flags & RX_ENC_FLAG_SHORT_GI ? "sgi " : "",
 		   status->rate_idx,
-		   status->vht_nss,
+		   status->nss,
 		   status->freq,
 		   status->band, status->flag,
 		   !!(status->flag & RX_FLAG_FAILED_FCS_CRC),

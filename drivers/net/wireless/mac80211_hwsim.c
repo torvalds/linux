@@ -1192,7 +1192,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_VHT_MCS) {
 		rx_status.rate_idx =
 			ieee80211_rate_get_vht_mcs(&info->control.rates[0]);
-		rx_status.vht_nss =
+		rx_status.nss =
 			ieee80211_rate_get_vht_nss(&info->control.rates[0]);
 		rx_status.encoding = RX_ENC_VHT;
 	} else {

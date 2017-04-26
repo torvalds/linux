@@ -2726,7 +2726,7 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 	case RX_ENC_VHT:
 		ri.flags |= RATE_INFO_FLAGS_VHT_MCS;
 		ri.mcs = status->rate_idx;
-		ri.nss = status->vht_nss;
+		ri.nss = status->nss;
 		ri.bw = status->bw;
 		if (status->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
@@ -2773,7 +2773,7 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 	if (WARN_ONCE(!rate,
 		      "Invalid bitrate: flags=0x%llx, idx=%d, vht_nss=%d\n",
 		      (unsigned long long)status->flag, status->rate_idx,
-		      status->vht_nss))
+		      status->nss))
 		return 0;
 
 	/* rewind from end of MPDU */
