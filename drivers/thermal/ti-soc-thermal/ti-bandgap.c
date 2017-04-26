@@ -1214,10 +1214,8 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	}
 
 	bgp = devm_kzalloc(&pdev->dev, sizeof(*bgp), GFP_KERNEL);
-	if (!bgp) {
-		dev_err(&pdev->dev, "Unable to allocate mem for driver ref\n");
+	if (!bgp)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	of_id = of_match_device(of_ti_bandgap_match, &pdev->dev);
 	if (of_id)
@@ -1226,10 +1224,8 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	/* register shadow for context save and restore */
 	bgp->regval = devm_kcalloc(&pdev->dev, bgp->conf->sensor_count,
 				   sizeof(*bgp->regval), GFP_KERNEL);
-	if (!bgp->regval) {
-		dev_err(&pdev->dev, "Unable to allocate mem for driver ref\n");
+	if (!bgp->regval)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	i = 0;
 	do {
