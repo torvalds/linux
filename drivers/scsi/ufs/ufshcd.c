@@ -673,16 +673,7 @@ static inline void ufshcd_outstanding_req_clear(struct ufs_hba *hba, int tag)
  */
 static inline int ufshcd_get_lists_status(u32 reg)
 {
-	/*
-	 * The mask 0xFF is for the following HCS register bits
-	 * Bit		Description
-	 *  0		Device Present
-	 *  1		UTRLRDY
-	 *  2		UTMRLRDY
-	 *  3		UCRDY
-	 * 4-7		reserved
-	 */
-	return ((reg & 0xFF) >> 1) ^ 0x07;
+	return !((reg & UFSHCD_STATUS_READY) == UFSHCD_STATUS_READY);
 }
 
 /**
