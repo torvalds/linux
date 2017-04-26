@@ -633,6 +633,24 @@ static void intel_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	}
 }
 
+static int intel_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
+	void __iomem *reg;
+
+	reg = intel_get_padcfg(pctrl, offset, PADCFG0);
+	if (reg) {
+		u32 v = readl(reg);
+
+		if ((v & PADCFG0_GPIOTXDIS) && !(v & PADCFG0_GPIORXDIS))
+			return 1;
+		else if ((v & PADCFG0_GPIORXDIS) && !(v & PADCFG0_GPIOTXDIS))
+			return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int intel_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	return pinctrl_gpio_direction_input(chip->base + offset);
@@ -649,6 +667,7 @@ static const struct gpio_chip intel_gpio_chip = {
 	.owner = THIS_MODULE,
 	.request = gpiochip_generic_request,
 	.free = gpiochip_generic_free,
+	.get_direction = intel_gpio_get_direction,
 	.direction_input = intel_gpio_direction_input,
 	.direction_output = intel_gpio_direction_output,
 	.get = intel_gpio_get,
