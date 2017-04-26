@@ -14,7 +14,6 @@
 #include <linux/rbtree.h>
 #include <linux/delay.h>
 #include <linux/random.h>
-#include <linux/log2.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/async_tx.h>
@@ -2369,7 +2368,7 @@ static void dm_integrity_set(struct dm_target *ti, struct dm_integrity_c *ic)
 	bi.profile = &dm_integrity_profile;
 	bi.tuple_size = ic->tag_size;
 	bi.tag_size = bi.tuple_size;
-	bi.interval_exp = ilog2(ic->sectors_per_block << SECTOR_SHIFT);
+	bi.interval_exp = ic->sb->log2_sectors_per_block + SECTOR_SHIFT;
 
 	blk_integrity_register(disk, &bi);
 	blk_queue_max_integrity_segments(disk->queue, UINT_MAX);
