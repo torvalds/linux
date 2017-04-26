@@ -34,6 +34,7 @@
 
 #include <trace/events/scsi.h>
 
+#include "scsi_debugfs.h"
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
@@ -2157,6 +2158,9 @@ static const struct blk_mq_ops scsi_mq_ops = {
 	.queue_rq	= scsi_queue_rq,
 	.complete	= scsi_softirq_done,
 	.timeout	= scsi_timeout,
+#ifdef CONFIG_BLK_DEBUG_FS
+	.show_rq	= scsi_show_rq,
+#endif
 	.init_request	= scsi_init_request,
 	.exit_request	= scsi_exit_request,
 	.map_queues	= scsi_map_queues,
