@@ -688,16 +688,16 @@ void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 	dev_kfree_skb(skb);
 }
 
-void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void __ieee80211_tx_status(struct ieee80211_hw *hw,
+				  struct ieee80211_tx_status *status)
 {
+	struct sk_buff *skb = status->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_status status = {};
+	struct ieee80211_tx_info *info = status->info;
+	struct sta_info *sta;
 	__le16 fc;
 	struct ieee80211_supported_band *sband;
-	struct rhlist_head *tmp;
-	struct sta_info *sta;
 	int retry_count;
 	int rates_idx;
 	bool send_to_cooked;
@@ -708,16 +708,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
 
-	rcu_read_lock();
-
 	sband = local->hw.wiphy->bands[info->band];
 	fc = hdr->frame_control;
 
-	for_each_sta_info(local, hdr->addr1, sta, tmp) {
-		/* skip wrong virtual interface */
-		if (!ether_addr_equal(hdr->addr2, sta->sdata->vif.addr))
-			continue;
-
+	if (status->sta) {
+		sta = container_of(status->sta, struct sta_info, sta);
 		shift = ieee80211_vif_get_shift(&sta->sdata->vif);
 
 		if (info->flags & IEEE80211_TX_STATUS_EOSP)
@@ -737,7 +732,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			 * that this TX packet failed because of that.
 			 */
 			ieee80211_handle_filtered_frame(local, sta, skb);
-			rcu_read_unlock();
 			return;
 		}
 
@@ -787,7 +781,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 		if (info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
 			ieee80211_handle_filtered_frame(local, sta, skb);
-			rcu_read_unlock();
 			return;
 		} else {
 			if (!acked)
@@ -803,10 +796,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			}
 		}
 
-		status.sta = &sta->sta;
-		status.skb = skb;
-		status.info = info;
-		rate_control_tx_status(local, sband, &status);
+		rate_control_tx_status(local, sband, status);
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
 			ieee80211s_update_metric(local, sta, skb);
 
@@ -832,8 +822,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			}
 		}
 	}
-
-	rcu_read_unlock();
 
 	ieee80211_led_tx(local);
 
@@ -899,17 +887,49 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	/* send to monitor interfaces */
 	ieee80211_tx_monitor(local, skb, sband, retry_count, shift, send_to_cooked);
 }
+
+void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_tx_status status = {
+		.skb = skb,
+		.info = IEEE80211_SKB_CB(skb),
+	};
+	struct rhlist_head *tmp;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+
+	for_each_sta_info(local, hdr->addr1, sta, tmp) {
+		/* skip wrong virtual interface */
+		if (!ether_addr_equal(hdr->addr2, sta->sdata->vif.addr))
+			continue;
+
+		status.sta = &sta->sta;
+		break;
+	}
+
+	__ieee80211_tx_status(hw, &status);
+	rcu_read_unlock();
+}
 EXPORT_SYMBOL(ieee80211_tx_status);
 
-void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
-			       struct ieee80211_sta *pubsta,
-			       struct ieee80211_tx_info *info)
+void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
+			     struct ieee80211_tx_status *status)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_tx_info *info = status->info;
+	struct ieee80211_sta *pubsta = status->sta;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_tx_status status = {};
 	int retry_count;
 	bool acked, noack_success;
+
+	if (status->skb)
+		return __ieee80211_tx_status(hw, status);
+
+	if (!status->sta)
+		return;
 
 	ieee80211_tx_get_rates(hw, info, &retry_count);
 
@@ -940,9 +960,7 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 			ieee80211_lost_packet(sta, info);
 		}
 
-		status.sta = pubsta;
-		status.info = info;
-		rate_control_tx_status(local, sband, &status);
+		rate_control_tx_status(local, sband, status);
 	}
 
 	if (acked || noack_success) {
@@ -957,7 +975,7 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 		I802_DEBUG_INC(local->dot11FailedCount);
 	}
 }
-EXPORT_SYMBOL(ieee80211_tx_status_noskb);
+EXPORT_SYMBOL(ieee80211_tx_status_ext);
 
 void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
 {
