@@ -642,7 +642,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	if (of_property_read_u32(node, "fsl,ave-ctrl", &adapt)) {
 		ts->over_sample_cnt = 4;
 	} else {
-		if (adapt >= 1 || adapt <= 32) {
+		if (adapt >= 1 && adapt <= 32) {
 			ts->over_sample_cnt = adapt;
 		} else {
 			dev_err(ts->dev, "Invalid sample count (%u)\n",
@@ -654,7 +654,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	if (of_property_read_u32(node, "fsl,ave-delay", &adapt)) {
 		ts->over_sample_delay = 2;
 	} else {
-		if (adapt >= 2 || adapt <= LRADC_DELAY_DELAY_MASK + 1) {
+		if (adapt >= 2 && adapt <= LRADC_DELAY_DELAY_MASK + 1) {
 			ts->over_sample_delay = adapt;
 		} else {
 			dev_err(ts->dev, "Invalid sample delay (%u)\n",
@@ -666,7 +666,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	if (of_property_read_u32(node, "fsl,settling", &adapt)) {
 		ts->settling_delay = 10;
 	} else {
-		if (adapt >= 1 || adapt <= LRADC_DELAY_DELAY_MASK) {
+		if (adapt >= 1 && adapt <= LRADC_DELAY_DELAY_MASK) {
 			ts->settling_delay = adapt;
 		} else {
 			dev_err(ts->dev, "Invalid settling delay (%u)\n",
