@@ -466,12 +466,10 @@ error:
 	return r;
 }
 
-static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
-				bool evict, bool interruptible,
-				bool no_wait_gpu,
+static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
+				struct ttm_operation_ctx *ctx,
 				struct ttm_mem_reg *new_mem)
 {
-	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	struct amdgpu_device *adev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
@@ -489,7 +487,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
 	placements.fpfn = 0;
 	placements.lpfn = 0;
 	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
-	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, &ctx);
+	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, ctx);
 	if (unlikely(r)) {
 		return r;
 	}
@@ -503,22 +501,20 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = amdgpu_move_blit(bo, true, no_wait_gpu, &tmp_mem, old_mem);
+	r = amdgpu_move_blit(bo, true, ctx->no_wait_gpu, &tmp_mem, old_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = ttm_bo_move_ttm(bo, interruptible, no_wait_gpu, new_mem);
+	r = ttm_bo_move_ttm(bo, ctx->interruptible, ctx->no_wait_gpu, new_mem);
 out_cleanup:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return r;
 }
 
-static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo,
-				bool evict, bool interruptible,
-				bool no_wait_gpu,
+static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo, bool evict,
+				struct ttm_operation_ctx *ctx,
 				struct ttm_mem_reg *new_mem)
 {
-	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	struct amdgpu_device *adev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
@@ -536,15 +532,15 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo,
 	placements.fpfn = 0;
 	placements.lpfn = 0;
 	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
-	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, &ctx);
+	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, ctx);
 	if (unlikely(r)) {
 		return r;
 	}
-	r = ttm_bo_move_ttm(bo, interruptible, no_wait_gpu, &tmp_mem);
+	r = ttm_bo_move_ttm(bo, ctx->interruptible, ctx->no_wait_gpu, &tmp_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
-	r = amdgpu_move_blit(bo, true, no_wait_gpu, new_mem, old_mem);
+	r = amdgpu_move_blit(bo, true, ctx->no_wait_gpu, new_mem, old_mem);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -590,12 +586,10 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	if (old_mem->mem_type == TTM_PL_VRAM &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
-		r = amdgpu_move_vram_ram(bo, evict, ctx->interruptible,
-					ctx->no_wait_gpu, new_mem);
+		r = amdgpu_move_vram_ram(bo, evict, ctx, new_mem);
 	} else if (old_mem->mem_type == TTM_PL_SYSTEM &&
 		   new_mem->mem_type == TTM_PL_VRAM) {
-		r = amdgpu_move_ram_vram(bo, evict, ctx->interruptible,
-					    ctx->no_wait_gpu, new_mem);
+		r = amdgpu_move_ram_vram(bo, evict, ctx, new_mem);
 	} else {
 		r = amdgpu_move_blit(bo, evict, ctx->no_wait_gpu,
 				     new_mem, old_mem);
