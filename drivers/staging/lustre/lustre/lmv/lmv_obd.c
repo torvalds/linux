@@ -373,7 +373,6 @@ static void lmv_del_target(struct lmv_obd *lmv, int index)
 
 	kfree(lmv->tgts[index]);
 	lmv->tgts[index] = NULL;
-	return;
 }
 
 static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
