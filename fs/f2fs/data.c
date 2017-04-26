@@ -1368,12 +1368,17 @@ int do_write_data_page(struct f2fs_io_info *fio)
 
 		if (valid_ipu_blkaddr(fio)) {
 			ipu_force = true;
+			fio->need_lock = false;
 			goto got_it;
 		}
 	}
+
+	if (fio->need_lock)
+		f2fs_lock_op(fio->sbi);
+
 	err = get_dnode_of_data(&dn, page->index, LOOKUP_NODE);
 	if (err)
-		return err;
+		goto out;
 
 	fio->old_blkaddr = dn.data_blkaddr;
 
@@ -1394,22 +1399,26 @@ got_it:
 	 * it had better in-place writes for updated data.
 	 */
 	if (ipu_force || (valid_ipu_blkaddr(fio) && need_inplace_update(fio))) {
-		f2fs_bug_on(fio->sbi, !fio->cp_rwsem_locked);
-		f2fs_unlock_op(fio->sbi);
-		fio->cp_rwsem_locked = false;
-
+		f2fs_put_dnode(&dn);
+		if (fio->need_lock)
+			f2fs_unlock_op(fio->sbi);
 		err = rewrite_data_page(fio);
 		trace_f2fs_do_write_data_page(fio->page, IPU);
 		set_inode_flag(inode, FI_UPDATE_WRITE);
-	} else {
-		write_data_page(&dn, fio);
-		trace_f2fs_do_write_data_page(page, OPU);
-		set_inode_flag(inode, FI_APPEND_WRITE);
-		if (page->index == 0)
-			set_inode_flag(inode, FI_FIRST_BLOCK_WRITTEN);
+		return err;
 	}
+
+	/* LFS mode write path */
+	write_data_page(&dn, fio);
+	trace_f2fs_do_write_data_page(page, OPU);
+	set_inode_flag(inode, FI_APPEND_WRITE);
+	if (page->index == 0)
+		set_inode_flag(inode, FI_FIRST_BLOCK_WRITTEN);
 out_writepage:
 	f2fs_put_dnode(&dn);
+out:
+	if (fio->need_lock)
+		f2fs_unlock_op(fio->sbi);
 	return err;
 }
 
@@ -1434,7 +1443,7 @@ static int __write_data_page(struct page *page, bool *submitted,
 		.page = page,
 		.encrypted_page = NULL,
 		.submitted = false,
-		.cp_rwsem_locked = true,
+		.need_lock = true,
 	};
 
 	trace_f2fs_writepage(page, DATA);
@@ -1470,6 +1479,7 @@ write:
 
 	/* Dentry blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode)) {
+		fio.need_lock = false;
 		err = do_write_data_page(&fio);
 		goto done;
 	}
@@ -1487,13 +1497,12 @@ write:
 		if (!err)
 			goto out;
 	}
-	f2fs_lock_op(sbi);
+
 	if (err == -EAGAIN)
 		err = do_write_data_page(&fio);
 	if (F2FS_I(inode)->last_disk_size < psize)
 		F2FS_I(inode)->last_disk_size = psize;
-	if (fio.cp_rwsem_locked)
-		f2fs_unlock_op(sbi);
+
 done:
 	if (err && err != -ENOENT)
 		goto redirty_out;
