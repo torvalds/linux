@@ -26,136 +26,140 @@
 #include <lantiq_soc.h>
 #endif
 
-#define SPI_RX_IRQ_NAME		"spi_rx"
-#define SPI_TX_IRQ_NAME		"spi_tx"
-#define SPI_ERR_IRQ_NAME	"spi_err"
-#define SPI_FRM_IRQ_NAME	"spi_frm"
+#define LTQ_SPI_RX_IRQ_NAME	"spi_rx"
+#define LTQ_SPI_TX_IRQ_NAME	"spi_tx"
+#define LTQ_SPI_ERR_IRQ_NAME	"spi_err"
+#define LTQ_SPI_FRM_IRQ_NAME	"spi_frm"
 
-#define SPI_CLC			0x00
-#define SPI_PISEL		0x04
-#define SPI_ID			0x08
-#define SPI_CON			0x10
-#define SPI_STAT		0x14
-#define SPI_WHBSTATE		0x18
-#define SPI_TB			0x20
-#define SPI_RB			0x24
-#define SPI_RXFCON		0x30
-#define SPI_TXFCON		0x34
-#define SPI_FSTAT		0x38
-#define SPI_BRT			0x40
-#define SPI_BRSTAT		0x44
-#define SPI_SFCON		0x60
-#define SPI_SFSTAT		0x64
-#define SPI_GPOCON		0x70
-#define SPI_GPOSTAT		0x74
-#define SPI_FPGO		0x78
-#define SPI_RXREQ		0x80
-#define SPI_RXCNT		0x84
-#define SPI_DMACON		0xec
-#define SPI_IRNEN		0xf4
-#define SPI_IRNICR		0xf8
-#define SPI_IRNCR		0xfc
+#define LTQ_SPI_CLC		0x00
+#define LTQ_SPI_PISEL		0x04
+#define LTQ_SPI_ID		0x08
+#define LTQ_SPI_CON		0x10
+#define LTQ_SPI_STAT		0x14
+#define LTQ_SPI_WHBSTATE	0x18
+#define LTQ_SPI_TB		0x20
+#define LTQ_SPI_RB		0x24
+#define LTQ_SPI_RXFCON		0x30
+#define LTQ_SPI_TXFCON		0x34
+#define LTQ_SPI_FSTAT		0x38
+#define LTQ_SPI_BRT		0x40
+#define LTQ_SPI_BRSTAT		0x44
+#define LTQ_SPI_SFCON		0x60
+#define LTQ_SPI_SFSTAT		0x64
+#define LTQ_SPI_GPOCON		0x70
+#define LTQ_SPI_GPOSTAT		0x74
+#define LTQ_SPI_FPGO		0x78
+#define LTQ_SPI_RXREQ		0x80
+#define LTQ_SPI_RXCNT		0x84
+#define LTQ_SPI_DMACON		0xec
+#define LTQ_SPI_IRNEN		0xf4
+#define LTQ_SPI_IRNICR		0xf8
+#define LTQ_SPI_IRNCR		0xfc
 
-#define SPI_CLC_SMC_S		16	/* Clock divider for sleep mode */
-#define SPI_CLC_SMC_M		(0xFF << SPI_CLC_SMC_S)
-#define SPI_CLC_RMC_S		8	/* Clock divider for normal run mode */
-#define SPI_CLC_RMC_M		(0xFF << SPI_CLC_RMC_S)
-#define SPI_CLC_DISS		BIT(1)	/* Disable status bit */
-#define SPI_CLC_DISR		BIT(0)	/* Disable request bit */
+#define LTQ_SPI_CLC_SMC_S	16	/* Clock divider for sleep mode */
+#define LTQ_SPI_CLC_SMC_M	(0xFF << LTQ_SPI_CLC_SMC_S)
+#define LTQ_SPI_CLC_RMC_S	8	/* Clock divider for normal run mode */
+#define LTQ_SPI_CLC_RMC_M	(0xFF << LTQ_SPI_CLC_RMC_S)
+#define LTQ_SPI_CLC_DISS	BIT(1)	/* Disable status bit */
+#define LTQ_SPI_CLC_DISR	BIT(0)	/* Disable request bit */
 
-#define SPI_ID_TXFS_S		24	/* Implemented TX FIFO size */
-#define SPI_ID_TXFS_M		(0x3F << SPI_ID_TXFS_S)
-#define SPI_ID_RXFS_S		16	/* Implemented RX FIFO size */
-#define SPI_ID_RXFS_M		(0x3F << SPI_ID_RXFS_S)
-#define SPI_ID_MOD_S		8	/* Module ID */
-#define SPI_ID_MOD_M		(0xff << SPI_ID_MOD_S)
-#define SPI_ID_CFG_S		5	/* DMA interface support */
-#define SPI_ID_CFG_M		(1 << SPI_ID_CFG_S)
-#define SPI_ID_REV_M		0x1F	/* Hardware revision number */
+#define LTQ_SPI_ID_TXFS_S	24	/* Implemented TX FIFO size */
+#define LTQ_SPI_ID_TXFS_M	(0x3F << LTQ_SPI_ID_TXFS_S)
+#define LTQ_SPI_ID_RXFS_S	16	/* Implemented RX FIFO size */
+#define LTQ_SPI_ID_RXFS_M	(0x3F << LTQ_SPI_ID_RXFS_S)
+#define LTQ_SPI_ID_MOD_S	8	/* Module ID */
+#define LTQ_SPI_ID_MOD_M	(0xff << LTQ_SPI_ID_MOD_S)
+#define LTQ_SPI_ID_CFG_S	5	/* DMA interface support */
+#define LTQ_SPI_ID_CFG_M	(1 << LTQ_SPI_ID_CFG_S)
+#define LTQ_SPI_ID_REV_M	0x1F	/* Hardware revision number */
 
-#define SPI_CON_BM_S		16	/* Data width selection */
-#define SPI_CON_BM_M		(0x1F << SPI_CON_BM_S)
-#define SPI_CON_EM		BIT(24)	/* Echo mode */
-#define SPI_CON_IDLE		BIT(23)	/* Idle bit value */
-#define SPI_CON_ENBV		BIT(22)	/* Enable byte valid control */
-#define SPI_CON_RUEN		BIT(12)	/* Receive underflow error enable */
-#define SPI_CON_TUEN		BIT(11)	/* Transmit underflow error enable */
-#define SPI_CON_AEN		BIT(10)	/* Abort error enable */
-#define SPI_CON_REN		BIT(9)	/* Receive overflow error enable */
-#define SPI_CON_TEN		BIT(8)	/* Transmit overflow error enable */
-#define SPI_CON_LB		BIT(7)	/* Loopback control */
-#define SPI_CON_PO		BIT(6)	/* Clock polarity control */
-#define SPI_CON_PH		BIT(5)	/* Clock phase control */
-#define SPI_CON_HB		BIT(4)	/* Heading control */
-#define SPI_CON_RXOFF		BIT(1)	/* Switch receiver off */
-#define SPI_CON_TXOFF		BIT(0)	/* Switch transmitter off */
+#define LTQ_SPI_CON_BM_S	16	/* Data width selection */
+#define LTQ_SPI_CON_BM_M	(0x1F << LTQ_SPI_CON_BM_S)
+#define LTQ_SPI_CON_EM		BIT(24)	/* Echo mode */
+#define LTQ_SPI_CON_IDLE	BIT(23)	/* Idle bit value */
+#define LTQ_SPI_CON_ENBV	BIT(22)	/* Enable byte valid control */
+#define LTQ_SPI_CON_RUEN	BIT(12)	/* Receive underflow error enable */
+#define LTQ_SPI_CON_TUEN	BIT(11)	/* Transmit underflow error enable */
+#define LTQ_SPI_CON_AEN		BIT(10)	/* Abort error enable */
+#define LTQ_SPI_CON_REN		BIT(9)	/* Receive overflow error enable */
+#define LTQ_SPI_CON_TEN		BIT(8)	/* Transmit overflow error enable */
+#define LTQ_SPI_CON_LB		BIT(7)	/* Loopback control */
+#define LTQ_SPI_CON_PO		BIT(6)	/* Clock polarity control */
+#define LTQ_SPI_CON_PH		BIT(5)	/* Clock phase control */
+#define LTQ_SPI_CON_HB		BIT(4)	/* Heading control */
+#define LTQ_SPI_CON_RXOFF	BIT(1)	/* Switch receiver off */
+#define LTQ_SPI_CON_TXOFF	BIT(0)	/* Switch transmitter off */
 
-#define SPI_STAT_RXBV_S		28
-#define SPI_STAT_RXBV_M		(0x7 << SPI_STAT_RXBV_S)
-#define SPI_STAT_BSY		BIT(13)	/* Busy flag */
-#define SPI_STAT_RUE		BIT(12)	/* Receive underflow error flag */
-#define SPI_STAT_TUE		BIT(11)	/* Transmit underflow error flag */
-#define SPI_STAT_AE		BIT(10)	/* Abort error flag */
-#define SPI_STAT_RE		BIT(9)	/* Receive error flag */
-#define SPI_STAT_TE		BIT(8)	/* Transmit error flag */
-#define SPI_STAT_ME		BIT(7)	/* Mode error flag */
-#define SPI_STAT_MS		BIT(1)	/* Master/slave select bit */
-#define SPI_STAT_EN		BIT(0)	/* Enable bit */
-#define SPI_STAT_ERRORS		(SPI_STAT_ME | SPI_STAT_TE | SPI_STAT_RE | \
-				 SPI_STAT_AE | SPI_STAT_TUE | SPI_STAT_RUE)
+#define LTQ_SPI_STAT_RXBV_S	28
+#define LTQ_SPI_STAT_RXBV_M	(0x7 << LTQ_SPI_STAT_RXBV_S)
+#define LTQ_SPI_STAT_BSY	BIT(13)	/* Busy flag */
+#define LTQ_SPI_STAT_RUE	BIT(12)	/* Receive underflow error flag */
+#define LTQ_SPI_STAT_TUE	BIT(11)	/* Transmit underflow error flag */
+#define LTQ_SPI_STAT_AE		BIT(10)	/* Abort error flag */
+#define LTQ_SPI_STAT_RE		BIT(9)	/* Receive error flag */
+#define LTQ_SPI_STAT_TE		BIT(8)	/* Transmit error flag */
+#define LTQ_SPI_STAT_ME		BIT(7)	/* Mode error flag */
+#define LTQ_SPI_STAT_MS		BIT(1)	/* Master/slave select bit */
+#define LTQ_SPI_STAT_EN		BIT(0)	/* Enable bit */
+#define LTQ_SPI_STAT_ERRORS	(LTQ_SPI_STAT_ME | LTQ_SPI_STAT_TE | \
+				 LTQ_SPI_STAT_RE | LTQ_SPI_STAT_AE | \
+				 LTQ_SPI_STAT_TUE | LTQ_SPI_STAT_RUE)
 
-#define SPI_WHBSTATE_SETTUE	BIT(15)	/* Set transmit underflow error flag */
-#define SPI_WHBSTATE_SETAE	BIT(14)	/* Set abort error flag */
-#define SPI_WHBSTATE_SETRE	BIT(13)	/* Set receive error flag */
-#define SPI_WHBSTATE_SETTE	BIT(12)	/* Set transmit error flag */
-#define SPI_WHBSTATE_CLRTUE	BIT(11)	/* Clear transmit underflow error flag */
-#define SPI_WHBSTATE_CLRAE	BIT(10)	/* Clear abort error flag */
-#define SPI_WHBSTATE_CLRRE	BIT(9)	/* Clear receive error flag */
-#define SPI_WHBSTATE_CLRTE	BIT(8)	/* Clear transmit error flag */
-#define SPI_WHBSTATE_SETME	BIT(7)	/* Set mode error flag */
-#define SPI_WHBSTATE_CLRME	BIT(6)	/* Clear mode error flag */
-#define SPI_WHBSTATE_SETRUE	BIT(5)	/* Set receive underflow error flag */
-#define SPI_WHBSTATE_CLRRUE	BIT(4)	/* Clear receive underflow error flag */
-#define SPI_WHBSTATE_SETMS	BIT(3)	/* Set master select bit */
-#define SPI_WHBSTATE_CLRMS	BIT(2)	/* Clear master select bit */
-#define SPI_WHBSTATE_SETEN	BIT(1)	/* Set enable bit (operational mode) */
-#define SPI_WHBSTATE_CLREN	BIT(0)	/* Clear enable bit (config mode */
-#define SPI_WHBSTATE_CLR_ERRORS	(SPI_WHBSTATE_CLRRUE | SPI_WHBSTATE_CLRME | \
-				 SPI_WHBSTATE_CLRTE | SPI_WHBSTATE_CLRRE | \
-				 SPI_WHBSTATE_CLRAE | SPI_WHBSTATE_CLRTUE)
+#define LTQ_SPI_WHBSTATE_SETTUE	BIT(15)	/* Set transmit underflow error flag */
+#define LTQ_SPI_WHBSTATE_SETAE	BIT(14)	/* Set abort error flag */
+#define LTQ_SPI_WHBSTATE_SETRE	BIT(13)	/* Set receive error flag */
+#define LTQ_SPI_WHBSTATE_SETTE	BIT(12)	/* Set transmit error flag */
+#define LTQ_SPI_WHBSTATE_CLRTUE	BIT(11)	/* Clear transmit underflow error flag */
+#define LTQ_SPI_WHBSTATE_CLRAE	BIT(10)	/* Clear abort error flag */
+#define LTQ_SPI_WHBSTATE_CLRRE	BIT(9)	/* Clear receive error flag */
+#define LTQ_SPI_WHBSTATE_CLRTE	BIT(8)	/* Clear transmit error flag */
+#define LTQ_SPI_WHBSTATE_SETME	BIT(7)	/* Set mode error flag */
+#define LTQ_SPI_WHBSTATE_CLRME	BIT(6)	/* Clear mode error flag */
+#define LTQ_SPI_WHBSTATE_SETRUE	BIT(5)	/* Set receive underflow error flag */
+#define LTQ_SPI_WHBSTATE_CLRRUE	BIT(4)	/* Clear receive underflow error flag */
+#define LTQ_SPI_WHBSTATE_SETMS	BIT(3)	/* Set master select bit */
+#define LTQ_SPI_WHBSTATE_CLRMS	BIT(2)	/* Clear master select bit */
+#define LTQ_SPI_WHBSTATE_SETEN	BIT(1)	/* Set enable bit (operational mode) */
+#define LTQ_SPI_WHBSTATE_CLREN	BIT(0)	/* Clear enable bit (config mode */
+#define LTQ_SPI_WHBSTATE_CLR_ERRORS	(LTQ_SPI_WHBSTATE_CLRRUE | \
+					 LTQ_SPI_WHBSTATE_CLRME | \
+					 LTQ_SPI_WHBSTATE_CLRTE | \
+					 LTQ_SPI_WHBSTATE_CLRRE | \
+					 LTQ_SPI_WHBSTATE_CLRAE | \
+					 LTQ_SPI_WHBSTATE_CLRTUE)
 
-#define SPI_RXFCON_RXFITL_S	8	/* FIFO interrupt trigger level */
-#define SPI_RXFCON_RXFITL_M	(0x3F << SPI_RXFCON_RXFITL_S)
-#define SPI_RXFCON_RXFLU	BIT(1)	/* FIFO flush */
-#define SPI_RXFCON_RXFEN	BIT(0)	/* FIFO enable */
+#define LTQ_SPI_RXFCON_RXFITL_S	8	/* FIFO interrupt trigger level */
+#define LTQ_SPI_RXFCON_RXFITL_M	(0x3F << LTQ_SPI_RXFCON_RXFITL_S)
+#define LTQ_SPI_RXFCON_RXFLU	BIT(1)	/* FIFO flush */
+#define LTQ_SPI_RXFCON_RXFEN	BIT(0)	/* FIFO enable */
 
-#define SPI_TXFCON_TXFITL_S	8	/* FIFO interrupt trigger level */
-#define SPI_TXFCON_TXFITL_M	(0x3F << SPI_TXFCON_TXFITL_S)
-#define SPI_TXFCON_TXFLU	BIT(1)	/* FIFO flush */
-#define SPI_TXFCON_TXFEN	BIT(0)	/* FIFO enable */
+#define LTQ_SPI_TXFCON_TXFITL_S	8	/* FIFO interrupt trigger level */
+#define LTQ_SPI_TXFCON_TXFITL_M	(0x3F << LTQ_SPI_TXFCON_TXFITL_S)
+#define LTQ_SPI_TXFCON_TXFLU	BIT(1)	/* FIFO flush */
+#define LTQ_SPI_TXFCON_TXFEN	BIT(0)	/* FIFO enable */
 
-#define SPI_FSTAT_RXFFL_S	0
-#define SPI_FSTAT_RXFFL_M	(0x3f << SPI_FSTAT_RXFFL_S)
-#define SPI_FSTAT_TXFFL_S	8
-#define SPI_FSTAT_TXFFL_M	(0x3f << SPI_FSTAT_TXFFL_S)
+#define LTQ_SPI_FSTAT_RXFFL_S	0
+#define LTQ_SPI_FSTAT_RXFFL_M	(0x3f << LTQ_SPI_FSTAT_RXFFL_S)
+#define LTQ_SPI_FSTAT_TXFFL_S	8
+#define LTQ_SPI_FSTAT_TXFFL_M	(0x3f << LTQ_SPI_FSTAT_TXFFL_S)
 
-#define SPI_GPOCON_ISCSBN_S	8
-#define SPI_GPOCON_INVOUTN_S	0
+#define LTQ_SPI_GPOCON_ISCSBN_S	8
+#define LTQ_SPI_GPOCON_INVOUTN_S	0
 
-#define SPI_FGPO_SETOUTN_S	8
-#define SPI_FGPO_CLROUTN_S	0
+#define LTQ_SPI_FGPO_SETOUTN_S	8
+#define LTQ_SPI_FGPO_CLROUTN_S	0
 
-#define SPI_RXREQ_RXCNT_M	0xFFFF	/* Receive count value */
-#define SPI_RXCNT_TODO_M	0xFFFF	/* Recevie to-do value */
+#define LTQ_SPI_RXREQ_RXCNT_M	0xFFFF	/* Receive count value */
+#define LTQ_SPI_RXCNT_TODO_M	0xFFFF	/* Recevie to-do value */
 
-#define SPI_IRNEN_TFI		BIT(4)	/* TX finished interrupt */
-#define SPI_IRNEN_F		BIT(3)	/* Frame end interrupt request */
-#define SPI_IRNEN_E		BIT(2)	/* Error end interrupt request */
-#define SPI_IRNEN_T_XWAY	BIT(1)	/* Transmit end interrupt request */
-#define SPI_IRNEN_R_XWAY	BIT(0)	/* Receive end interrupt request */
-#define SPI_IRNEN_R_XRX		BIT(1)	/* Transmit end interrupt request */
-#define SPI_IRNEN_T_XRX		BIT(0)	/* Receive end interrupt request */
-#define SPI_IRNEN_ALL		0x1F
+#define LTQ_SPI_IRNEN_TFI	BIT(4)	/* TX finished interrupt */
+#define LTQ_SPI_IRNEN_F		BIT(3)	/* Frame end interrupt request */
+#define LTQ_SPI_IRNEN_E		BIT(2)	/* Error end interrupt request */
+#define LTQ_SPI_IRNEN_T_XWAY	BIT(1)	/* Transmit end interrupt request */
+#define LTQ_SPI_IRNEN_R_XWAY	BIT(0)	/* Receive end interrupt request */
+#define LTQ_SPI_IRNEN_R_XRX	BIT(1)	/* Transmit end interrupt request */
+#define LTQ_SPI_IRNEN_T_XRX	BIT(0)	/* Receive end interrupt request */
+#define LTQ_SPI_IRNEN_ALL	0x1F
 
 struct lantiq_ssc_hwcfg {
 	unsigned int irnen_r;
@@ -208,16 +212,16 @@ static void lantiq_ssc_maskl(const struct lantiq_ssc_spi *spi, u32 clr,
 
 static unsigned int tx_fifo_level(const struct lantiq_ssc_spi *spi)
 {
-	u32 fstat = lantiq_ssc_readl(spi, SPI_FSTAT);
+	u32 fstat = lantiq_ssc_readl(spi, LTQ_SPI_FSTAT);
 
-	return (fstat & SPI_FSTAT_TXFFL_M) >> SPI_FSTAT_TXFFL_S;
+	return (fstat & LTQ_SPI_FSTAT_TXFFL_M) >> LTQ_SPI_FSTAT_TXFFL_S;
 }
 
 static unsigned int rx_fifo_level(const struct lantiq_ssc_spi *spi)
 {
-	u32 fstat = lantiq_ssc_readl(spi, SPI_FSTAT);
+	u32 fstat = lantiq_ssc_readl(spi, LTQ_SPI_FSTAT);
 
-	return fstat & SPI_FSTAT_RXFFL_M;
+	return fstat & LTQ_SPI_FSTAT_RXFFL_M;
 }
 
 static unsigned int tx_fifo_free(const struct lantiq_ssc_spi *spi)
@@ -227,38 +231,38 @@ static unsigned int tx_fifo_free(const struct lantiq_ssc_spi *spi)
 
 static void rx_fifo_reset(const struct lantiq_ssc_spi *spi)
 {
-	u32 val = spi->rx_fifo_size << SPI_RXFCON_RXFITL_S;
+	u32 val = spi->rx_fifo_size << LTQ_SPI_RXFCON_RXFITL_S;
 
-	val |= SPI_RXFCON_RXFEN | SPI_RXFCON_RXFLU;
-	lantiq_ssc_writel(spi, val, SPI_RXFCON);
+	val |= LTQ_SPI_RXFCON_RXFEN | LTQ_SPI_RXFCON_RXFLU;
+	lantiq_ssc_writel(spi, val, LTQ_SPI_RXFCON);
 }
 
 static void tx_fifo_reset(const struct lantiq_ssc_spi *spi)
 {
-	u32 val = 1 << SPI_TXFCON_TXFITL_S;
+	u32 val = 1 << LTQ_SPI_TXFCON_TXFITL_S;
 
-	val |= SPI_TXFCON_TXFEN | SPI_TXFCON_TXFLU;
-	lantiq_ssc_writel(spi, val, SPI_TXFCON);
+	val |= LTQ_SPI_TXFCON_TXFEN | LTQ_SPI_TXFCON_TXFLU;
+	lantiq_ssc_writel(spi, val, LTQ_SPI_TXFCON);
 }
 
 static void rx_fifo_flush(const struct lantiq_ssc_spi *spi)
 {
-	lantiq_ssc_maskl(spi, 0, SPI_RXFCON_RXFLU, SPI_RXFCON);
+	lantiq_ssc_maskl(spi, 0, LTQ_SPI_RXFCON_RXFLU, LTQ_SPI_RXFCON);
 }
 
 static void tx_fifo_flush(const struct lantiq_ssc_spi *spi)
 {
-	lantiq_ssc_maskl(spi, 0, SPI_TXFCON_TXFLU, SPI_TXFCON);
+	lantiq_ssc_maskl(spi, 0, LTQ_SPI_TXFCON_TXFLU, LTQ_SPI_TXFCON);
 }
 
 static void hw_enter_config_mode(const struct lantiq_ssc_spi *spi)
 {
-	lantiq_ssc_writel(spi, SPI_WHBSTATE_CLREN, SPI_WHBSTATE);
+	lantiq_ssc_writel(spi, LTQ_SPI_WHBSTATE_CLREN, LTQ_SPI_WHBSTATE);
 }
 
 static void hw_enter_active_mode(const struct lantiq_ssc_spi *spi)
 {
-	lantiq_ssc_writel(spi, SPI_WHBSTATE_SETEN, SPI_WHBSTATE);
+	lantiq_ssc_writel(spi, LTQ_SPI_WHBSTATE_SETEN, LTQ_SPI_WHBSTATE);
 }
 
 static void hw_setup_speed_hz(const struct lantiq_ssc_spi *spi,
@@ -287,7 +291,7 @@ static void hw_setup_speed_hz(const struct lantiq_ssc_spi *spi,
 	dev_dbg(spi->dev, "spi_clk %u, max_speed_hz %u, brt %u\n",
 		spi_clk, max_speed_hz, brt);
 
-	lantiq_ssc_writel(spi, brt, SPI_BRT);
+	lantiq_ssc_writel(spi, brt, LTQ_SPI_BRT);
 }
 
 static void hw_setup_bits_per_word(const struct lantiq_ssc_spi *spi,
@@ -296,9 +300,9 @@ static void hw_setup_bits_per_word(const struct lantiq_ssc_spi *spi,
 	u32 bm;
 
 	/* CON.BM value = bits_per_word - 1 */
-	bm = (bits_per_word - 1) << SPI_CON_BM_S;
+	bm = (bits_per_word - 1) << LTQ_SPI_CON_BM_S;
 
-	lantiq_ssc_maskl(spi, SPI_CON_BM_M, bm, SPI_CON);
+	lantiq_ssc_maskl(spi, LTQ_SPI_CON_BM_M, bm, LTQ_SPI_CON);
 }
 
 static void hw_setup_clock_mode(const struct lantiq_ssc_spi *spi,
@@ -315,28 +319,28 @@ static void hw_setup_clock_mode(const struct lantiq_ssc_spi *spi,
 	 *  3    1    1      1      0
 	 */
 	if (mode & SPI_CPHA)
-		con_clr |= SPI_CON_PH;
+		con_clr |= LTQ_SPI_CON_PH;
 	else
-		con_set |= SPI_CON_PH;
+		con_set |= LTQ_SPI_CON_PH;
 
 	if (mode & SPI_CPOL)
-		con_set |= SPI_CON_PO | SPI_CON_IDLE;
+		con_set |= LTQ_SPI_CON_PO | LTQ_SPI_CON_IDLE;
 	else
-		con_clr |= SPI_CON_PO | SPI_CON_IDLE;
+		con_clr |= LTQ_SPI_CON_PO | LTQ_SPI_CON_IDLE;
 
 	/* Set heading control */
 	if (mode & SPI_LSB_FIRST)
-		con_clr |= SPI_CON_HB;
+		con_clr |= LTQ_SPI_CON_HB;
 	else
-		con_set |= SPI_CON_HB;
+		con_set |= LTQ_SPI_CON_HB;
 
 	/* Set loopback mode */
 	if (mode & SPI_LOOP)
-		con_set |= SPI_CON_LB;
+		con_set |= LTQ_SPI_CON_LB;
 	else
-		con_clr |= SPI_CON_LB;
+		con_clr |= LTQ_SPI_CON_LB;
 
-	lantiq_ssc_maskl(spi, con_clr, con_set, SPI_CON);
+	lantiq_ssc_maskl(spi, con_clr, con_set, LTQ_SPI_CON);
 }
 
 static void lantiq_ssc_hw_init(const struct lantiq_ssc_spi *spi)
@@ -347,37 +351,39 @@ static void lantiq_ssc_hw_init(const struct lantiq_ssc_spi *spi)
 	 * Set clock divider for run mode to 1 to
 	 * run at same frequency as FPI bus
 	 */
-	lantiq_ssc_writel(spi, 1 << SPI_CLC_RMC_S, SPI_CLC);
+	lantiq_ssc_writel(spi, 1 << LTQ_SPI_CLC_RMC_S, LTQ_SPI_CLC);
 
 	/* Put controller into config mode */
 	hw_enter_config_mode(spi);
 
 	/* Clear error flags */
-	lantiq_ssc_maskl(spi, 0, SPI_WHBSTATE_CLR_ERRORS, SPI_WHBSTATE);
+	lantiq_ssc_maskl(spi, 0, LTQ_SPI_WHBSTATE_CLR_ERRORS, LTQ_SPI_WHBSTATE);
 
 	/* Enable error checking, disable TX/RX */
-	lantiq_ssc_writel(spi, SPI_CON_RUEN | SPI_CON_AEN | SPI_CON_TEN |
-		SPI_CON_REN | SPI_CON_TXOFF | SPI_CON_RXOFF, SPI_CON);
+	lantiq_ssc_writel(spi, LTQ_SPI_CON_RUEN | LTQ_SPI_CON_AEN |
+		LTQ_SPI_CON_TEN | LTQ_SPI_CON_REN | LTQ_SPI_CON_TXOFF |
+		LTQ_SPI_CON_RXOFF, LTQ_SPI_CON);
 
 	/* Setup default SPI mode */
 	hw_setup_bits_per_word(spi, spi->bits_per_word);
 	hw_setup_clock_mode(spi, SPI_MODE_0);
 
 	/* Enable master mode and clear error flags */
-	lantiq_ssc_writel(spi, SPI_WHBSTATE_SETMS | SPI_WHBSTATE_CLR_ERRORS,
-			       SPI_WHBSTATE);
+	lantiq_ssc_writel(spi, LTQ_SPI_WHBSTATE_SETMS |
+			       LTQ_SPI_WHBSTATE_CLR_ERRORS,
+			       LTQ_SPI_WHBSTATE);
 
 	/* Reset GPIO/CS registers */
-	lantiq_ssc_writel(spi, 0, SPI_GPOCON);
-	lantiq_ssc_writel(spi, 0xFF00, SPI_FPGO);
+	lantiq_ssc_writel(spi, 0, LTQ_SPI_GPOCON);
+	lantiq_ssc_writel(spi, 0xFF00, LTQ_SPI_FPGO);
 
 	/* Enable and flush FIFOs */
 	rx_fifo_reset(spi);
 	tx_fifo_reset(spi);
 
 	/* Enable interrupts */
-	lantiq_ssc_writel(spi, hwcfg->irnen_t | hwcfg->irnen_r | SPI_IRNEN_E,
-			  SPI_IRNEN);
+	lantiq_ssc_writel(spi, hwcfg->irnen_t | hwcfg->irnen_r |
+			  LTQ_SPI_IRNEN_E, LTQ_SPI_IRNEN);
 }
 
 static int lantiq_ssc_setup(struct spi_device *spidev)
@@ -400,13 +406,13 @@ static int lantiq_ssc_setup(struct spi_device *spidev)
 	}
 
 	/* set GPO pin to CS mode */
-	gpocon = 1 << ((cs - spi->base_cs) + SPI_GPOCON_ISCSBN_S);
+	gpocon = 1 << ((cs - spi->base_cs) + LTQ_SPI_GPOCON_ISCSBN_S);
 
 	/* invert GPO pin */
 	if (spidev->mode & SPI_CS_HIGH)
 		gpocon |= 1 << (cs - spi->base_cs);
 
-	lantiq_ssc_maskl(spi, 0, gpocon, SPI_GPOCON);
+	lantiq_ssc_maskl(spi, 0, gpocon, LTQ_SPI_GPOCON);
 
 	return 0;
 }
@@ -442,18 +448,18 @@ static void hw_setup_transfer(struct lantiq_ssc_spi *spi,
 	}
 
 	/* Configure transmitter and receiver */
-	con = lantiq_ssc_readl(spi, SPI_CON);
+	con = lantiq_ssc_readl(spi, LTQ_SPI_CON);
 	if (t->tx_buf)
-		con &= ~SPI_CON_TXOFF;
+		con &= ~LTQ_SPI_CON_TXOFF;
 	else
-		con |= SPI_CON_TXOFF;
+		con |= LTQ_SPI_CON_TXOFF;
 
 	if (t->rx_buf)
-		con &= ~SPI_CON_RXOFF;
+		con &= ~LTQ_SPI_CON_RXOFF;
 	else
-		con |= SPI_CON_RXOFF;
+		con |= LTQ_SPI_CON_RXOFF;
 
-	lantiq_ssc_writel(spi, con, SPI_CON);
+	lantiq_ssc_writel(spi, con, LTQ_SPI_CON);
 }
 
 static int lantiq_ssc_unprepare_message(struct spi_master *master,
@@ -464,7 +470,8 @@ static int lantiq_ssc_unprepare_message(struct spi_master *master,
 	flush_workqueue(spi->wq);
 
 	/* Disable transmitter and receiver while idle */
-	lantiq_ssc_maskl(spi, 0, SPI_CON_TXOFF | SPI_CON_RXOFF, SPI_CON);
+	lantiq_ssc_maskl(spi, 0, LTQ_SPI_CON_TXOFF | LTQ_SPI_CON_RXOFF,
+			 LTQ_SPI_CON);
 
 	return 0;
 }
@@ -503,7 +510,7 @@ static void tx_fifo_write(struct lantiq_ssc_spi *spi)
 			break;
 		}
 
-		lantiq_ssc_writel(spi, data, SPI_TB);
+		lantiq_ssc_writel(spi, data, LTQ_SPI_TB);
 		tx_free--;
 	}
 }
@@ -517,7 +524,7 @@ static void rx_fifo_read_full_duplex(struct lantiq_ssc_spi *spi)
 	unsigned int rx_fill = rx_fifo_level(spi);
 
 	while (rx_fill) {
-		data = lantiq_ssc_readl(spi, SPI_RB);
+		data = lantiq_ssc_readl(spi, LTQ_SPI_RB);
 
 		switch (spi->bits_per_word) {
 		case 2 ... 8:
@@ -563,9 +570,9 @@ static void rx_fifo_read_half_duplex(struct lantiq_ssc_spi *spi)
 	 */
 	while (rx_fill) {
 		if (spi->rx_todo < 4)  {
-			rxbv = (lantiq_ssc_readl(spi, SPI_STAT) &
-				SPI_STAT_RXBV_M) >> SPI_STAT_RXBV_S;
-			data = lantiq_ssc_readl(spi, SPI_RB);
+			rxbv = (lantiq_ssc_readl(spi, LTQ_SPI_STAT) &
+				LTQ_SPI_STAT_RXBV_M) >> LTQ_SPI_STAT_RXBV_S;
+			data = lantiq_ssc_readl(spi, LTQ_SPI_RB);
 
 			shift = (rxbv - 1) * 8;
 			rx8 = spi->rx;
@@ -578,7 +585,7 @@ static void rx_fifo_read_half_duplex(struct lantiq_ssc_spi *spi)
 				spi->rx++;
 			}
 		} else {
-			data = lantiq_ssc_readl(spi, SPI_RB);
+			data = lantiq_ssc_readl(spi, LTQ_SPI_RB);
 			rx32 = (u32 *) spi->rx;
 
 			*rx32++ = data;
@@ -603,7 +610,7 @@ static void rx_request(struct lantiq_ssc_spi *spi)
 	if (rxreq > rxreq_max)
 		rxreq = rxreq_max;
 
-	lantiq_ssc_writel(spi, rxreq, SPI_RXREQ);
+	lantiq_ssc_writel(spi, rxreq, LTQ_SPI_RXREQ);
 }
 
 static irqreturn_t lantiq_ssc_xmit_interrupt(int irq, void *data)
@@ -642,26 +649,26 @@ completed:
 static irqreturn_t lantiq_ssc_err_interrupt(int irq, void *data)
 {
 	struct lantiq_ssc_spi *spi = data;
-	u32 stat = lantiq_ssc_readl(spi, SPI_STAT);
+	u32 stat = lantiq_ssc_readl(spi, LTQ_SPI_STAT);
 
-	if (!(stat & SPI_STAT_ERRORS))
+	if (!(stat & LTQ_SPI_STAT_ERRORS))
 		return IRQ_NONE;
 
-	if (stat & SPI_STAT_RUE)
+	if (stat & LTQ_SPI_STAT_RUE)
 		dev_err(spi->dev, "receive underflow error\n");
-	if (stat & SPI_STAT_TUE)
+	if (stat & LTQ_SPI_STAT_TUE)
 		dev_err(spi->dev, "transmit underflow error\n");
-	if (stat & SPI_STAT_AE)
+	if (stat & LTQ_SPI_STAT_AE)
 		dev_err(spi->dev, "abort error\n");
-	if (stat & SPI_STAT_RE)
+	if (stat & LTQ_SPI_STAT_RE)
 		dev_err(spi->dev, "receive overflow error\n");
-	if (stat & SPI_STAT_TE)
+	if (stat & LTQ_SPI_STAT_TE)
 		dev_err(spi->dev, "transmit overflow error\n");
-	if (stat & SPI_STAT_ME)
+	if (stat & LTQ_SPI_STAT_ME)
 		dev_err(spi->dev, "mode error\n");
 
 	/* Clear error flags */
-	lantiq_ssc_maskl(spi, 0, SPI_WHBSTATE_CLR_ERRORS, SPI_WHBSTATE);
+	lantiq_ssc_maskl(spi, 0, LTQ_SPI_WHBSTATE_CLR_ERRORS, LTQ_SPI_WHBSTATE);
 
 	/* set bad status so it can be retried */
 	if (spi->master->cur_msg)
@@ -721,9 +728,9 @@ static void lantiq_ssc_bussy_work(struct work_struct *work)
 
 	end = jiffies + msecs_to_jiffies(timeout);
 	do {
-		u32 stat = lantiq_ssc_readl(spi, SPI_STAT);
+		u32 stat = lantiq_ssc_readl(spi, LTQ_SPI_STAT);
 
-		if (!(stat & SPI_STAT_BSY)) {
+		if (!(stat & LTQ_SPI_STAT_BSY)) {
 			spi_finalize_current_transfer(spi->master);
 			return;
 		}
@@ -755,9 +762,9 @@ static void lantiq_ssc_set_cs(struct spi_device *spidev, bool enable)
 	if (!!(spidev->mode & SPI_CS_HIGH) == enable)
 		fgpo = (1 << (cs - spi->base_cs));
 	else
-		fgpo = (1 << (cs - spi->base_cs + SPI_FGPO_SETOUTN_S));
+		fgpo = (1 << (cs - spi->base_cs + LTQ_SPI_FGPO_SETOUTN_S));
 
-	lantiq_ssc_writel(spi, fgpo, SPI_FPGO);
+	lantiq_ssc_writel(spi, fgpo, LTQ_SPI_FPGO);
 }
 
 static int lantiq_ssc_transfer_one(struct spi_master *master,
@@ -772,13 +779,13 @@ static int lantiq_ssc_transfer_one(struct spi_master *master,
 }
 
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xway = {
-	.irnen_r = SPI_IRNEN_R_XWAY,
-	.irnen_t = SPI_IRNEN_T_XWAY,
+	.irnen_r = LTQ_SPI_IRNEN_R_XWAY,
+	.irnen_t = LTQ_SPI_IRNEN_T_XWAY,
 };
 
 static const struct lantiq_ssc_hwcfg lantiq_ssc_xrx = {
-	.irnen_r = SPI_IRNEN_R_XRX,
-	.irnen_t = SPI_IRNEN_T_XRX,
+	.irnen_r = LTQ_SPI_IRNEN_R_XRX,
+	.irnen_t = LTQ_SPI_IRNEN_T_XRX,
 };
 
 static const struct of_device_id lantiq_ssc_match[] = {
@@ -814,21 +821,21 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	rx_irq = platform_get_irq_byname(pdev, SPI_RX_IRQ_NAME);
+	rx_irq = platform_get_irq_byname(pdev, LTQ_SPI_RX_IRQ_NAME);
 	if (rx_irq < 0) {
-		dev_err(dev, "failed to get %s\n", SPI_RX_IRQ_NAME);
+		dev_err(dev, "failed to get %s\n", LTQ_SPI_RX_IRQ_NAME);
 		return -ENXIO;
 	}
 
-	tx_irq = platform_get_irq_byname(pdev, SPI_TX_IRQ_NAME);
+	tx_irq = platform_get_irq_byname(pdev, LTQ_SPI_TX_IRQ_NAME);
 	if (tx_irq < 0) {
-		dev_err(dev, "failed to get %s\n", SPI_TX_IRQ_NAME);
+		dev_err(dev, "failed to get %s\n", LTQ_SPI_TX_IRQ_NAME);
 		return -ENXIO;
 	}
 
-	err_irq = platform_get_irq_byname(pdev, SPI_ERR_IRQ_NAME);
+	err_irq = platform_get_irq_byname(pdev, LTQ_SPI_ERR_IRQ_NAME);
 	if (err_irq < 0) {
-		dev_err(dev, "failed to get %s\n", SPI_ERR_IRQ_NAME);
+		dev_err(dev, "failed to get %s\n", LTQ_SPI_ERR_IRQ_NAME);
 		return -ENXIO;
 	}
 
@@ -849,17 +856,17 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	}
 
 	err = devm_request_irq(dev, rx_irq, lantiq_ssc_xmit_interrupt,
-			       0, SPI_RX_IRQ_NAME, spi);
+			       0, LTQ_SPI_RX_IRQ_NAME, spi);
 	if (err)
 		goto err_master_put;
 
 	err = devm_request_irq(dev, tx_irq, lantiq_ssc_xmit_interrupt,
-			       0, SPI_TX_IRQ_NAME, spi);
+			       0, LTQ_SPI_TX_IRQ_NAME, spi);
 	if (err)
 		goto err_master_put;
 
 	err = devm_request_irq(dev, err_irq, lantiq_ssc_err_interrupt,
-			       0, SPI_ERR_IRQ_NAME, spi);
+			       0, LTQ_SPI_ERR_IRQ_NAME, spi);
 	if (err)
 		goto err_master_put;
 
@@ -916,11 +923,11 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	}
 	INIT_WORK(&spi->work, lantiq_ssc_bussy_work);
 
-	id = lantiq_ssc_readl(spi, SPI_ID);
-	spi->tx_fifo_size = (id & SPI_ID_TXFS_M) >> SPI_ID_TXFS_S;
-	spi->rx_fifo_size = (id & SPI_ID_RXFS_M) >> SPI_ID_RXFS_S;
-	supports_dma = (id & SPI_ID_CFG_M) >> SPI_ID_CFG_S;
-	revision = id & SPI_ID_REV_M;
+	id = lantiq_ssc_readl(spi, LTQ_SPI_ID);
+	spi->tx_fifo_size = (id & LTQ_SPI_ID_TXFS_M) >> LTQ_SPI_ID_TXFS_S;
+	spi->rx_fifo_size = (id & LTQ_SPI_ID_RXFS_M) >> LTQ_SPI_ID_RXFS_S;
+	supports_dma = (id & LTQ_SPI_ID_CFG_M) >> LTQ_SPI_ID_CFG_S;
+	revision = id & LTQ_SPI_ID_REV_M;
 
 	lantiq_ssc_hw_init(spi);
 
@@ -952,8 +959,8 @@ static int lantiq_ssc_remove(struct platform_device *pdev)
 {
 	struct lantiq_ssc_spi *spi = platform_get_drvdata(pdev);
 
-	lantiq_ssc_writel(spi, 0, SPI_IRNEN);
-	lantiq_ssc_writel(spi, 0, SPI_CLC);
+	lantiq_ssc_writel(spi, 0, LTQ_SPI_IRNEN);
+	lantiq_ssc_writel(spi, 0, LTQ_SPI_CLC);
 	rx_fifo_flush(spi);
 	tx_fifo_flush(spi);
 	hw_enter_config_mode(spi);
