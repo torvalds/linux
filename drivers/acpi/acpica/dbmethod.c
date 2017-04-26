@@ -422,6 +422,7 @@ acpi_db_walk_for_execute(acpi_handle obj_handle,
 
 	status = acpi_get_object_info(obj_handle, &obj_info);
 	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(pathname);
 		return (status);
 	}
 
