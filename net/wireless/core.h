@@ -91,10 +91,7 @@ struct cfg80211_registered_device {
 
 	struct cfg80211_coalesce *coalesce;
 
-	spinlock_t destroy_list_lock;
-	struct list_head destroy_list;
 	struct work_struct destroy_work;
-
 	struct work_struct sched_scan_stop_wk;
 
 	struct cfg80211_chan_def radar_chandef;
@@ -260,11 +257,6 @@ enum cfg80211_chan_mode {
 };
 
 struct cfg80211_beacon_registration {
-	struct list_head list;
-	u32 nlportid;
-};
-
-struct cfg80211_iface_destroy {
 	struct list_head list;
 	u32 nlportid;
 };

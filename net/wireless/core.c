@@ -305,30 +305,14 @@ static void cfg80211_event_work(struct work_struct *work)
 
 void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev)
 {
-	struct cfg80211_iface_destroy *item;
+	struct wireless_dev *wdev, *tmp;
 
 	ASSERT_RTNL();
 
-	spin_lock_irq(&rdev->destroy_list_lock);
-	while ((item = list_first_entry_or_null(&rdev->destroy_list,
-						struct cfg80211_iface_destroy,
-						list))) {
-		struct wireless_dev *wdev, *tmp;
-		u32 nlportid = item->nlportid;
-
-		list_del(&item->list);
-		kfree(item);
-		spin_unlock_irq(&rdev->destroy_list_lock);
-
-		list_for_each_entry_safe(wdev, tmp,
-					 &rdev->wiphy.wdev_list, list) {
-			if (nlportid == wdev->owner_nlportid)
-				rdev_del_virtual_intf(rdev, wdev);
-		}
-
-		spin_lock_irq(&rdev->destroy_list_lock);
+	list_for_each_entry_safe(wdev, tmp, &rdev->wiphy.wdev_list, list) {
+		if (wdev->nl_owner_dead)
+			rdev_del_virtual_intf(rdev, wdev);
 	}
-	spin_unlock_irq(&rdev->destroy_list_lock);
 }
 
 static void cfg80211_destroy_iface_wk(struct work_struct *work)
@@ -484,8 +468,6 @@ use_default_name:
 	rdev->wiphy.dev.platform_data = rdev;
 	device_enable_async_suspend(&rdev->wiphy.dev);
 
-	INIT_LIST_HEAD(&rdev->destroy_list);
-	spin_lock_init(&rdev->destroy_list_lock);
 	INIT_WORK(&rdev->destroy_work, cfg80211_destroy_iface_wk);
 	INIT_WORK(&rdev->sched_scan_stop_wk, cfg80211_sched_scan_stop_wk);
 	INIT_WORK(&rdev->propagate_radar_detect_wk,

@@ -3988,6 +3988,7 @@ struct cfg80211_cqm_config;
  * @event_list: (private) list for internal event processing
  * @event_lock: (private) lock for event list
  * @owner_nlportid: (private) owner socket port ID
+ * @nl_owner_dead: (private) owner socket went away
  * @cqm_config: (private) nl80211 RSSI monitor state
  */
 struct wireless_dev {
@@ -4037,11 +4038,12 @@ struct wireless_dev {
 
 	u32 ap_unexpected_nlportid;
 
+	u32 owner_nlportid;
+	bool nl_owner_dead;
+
 	bool cac_started;
 	unsigned long cac_start_time;
 	unsigned int cac_time_ms;
-
-	u32 owner_nlportid;
 
 #ifdef CONFIG_CFG80211_WEXT
 	/* wext data */
