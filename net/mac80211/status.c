@@ -637,6 +637,7 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_tx_status status = {};
 	int retry_count;
 	bool acked, noack_success;
 
@@ -669,7 +670,9 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 			ieee80211_lost_packet(sta, info);
 		}
 
-		rate_control_tx_status_noskb(local, sband, sta, info);
+		status.sta = pubsta;
+		status.info = info;
+		rate_control_tx_status(local, sband, &status);
 	}
 
 	if (acked || noack_success) {
@@ -748,6 +751,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_status status = {};
 	__le16 fc;
 	struct ieee80211_supported_band *sband;
 	struct rhlist_head *tmp;
@@ -857,7 +861,10 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			}
 		}
 
-		rate_control_tx_status(local, sband, sta, skb);
+		status.sta = &sta->sta;
+		status.skb = skb;
+		status.info = info;
+		rate_control_tx_status(local, sband, &status);
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
 			ieee80211s_update_metric(local, sta, skb);
 
