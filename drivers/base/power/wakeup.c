@@ -28,8 +28,8 @@ bool events_check_enabled __read_mostly;
 /* First wakeup IRQ seen by the kernel in the last cycle. */
 unsigned int pm_wakeup_irq __read_mostly;
 
-/* If set and the system is suspending, terminate the suspend. */
-static bool pm_abort_suspend __read_mostly;
+/* If greater than 0 and the system is suspending, terminate the suspend. */
+static atomic_t pm_abort_suspend __read_mostly;
 
 /*
  * Combined counters of registered wakeup events and wakeup events in progress.
@@ -856,20 +856,26 @@ bool pm_wakeup_pending(void)
 		pm_print_active_wakeup_sources();
 	}
 
-	return ret || pm_abort_suspend;
+	return ret || atomic_read(&pm_abort_suspend) > 0;
 }
 
 void pm_system_wakeup(void)
 {
-	pm_abort_suspend = true;
+	atomic_inc(&pm_abort_suspend);
 	freeze_wake();
 }
 EXPORT_SYMBOL_GPL(pm_system_wakeup);
 
-void pm_wakeup_clear(void)
+void pm_system_cancel_wakeup(void)
 {
-	pm_abort_suspend = false;
+	atomic_dec(&pm_abort_suspend);
+}
+
+void pm_wakeup_clear(bool reset)
+{
 	pm_wakeup_irq = 0;
+	if (reset)
+		atomic_set(&pm_abort_suspend, 0);
 }
 
 void pm_system_irq_wakeup(unsigned int irq_number)
