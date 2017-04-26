@@ -287,7 +287,7 @@ struct discard_cmd {
 	struct completion wait;		/* compleation */
 	struct block_device *bdev;	/* bdev */
 	unsigned short ref;		/* reference count */
-	int state;			/* state */
+	unsigned char state;		/* state */
 	int error;			/* bio error */
 };
 
