@@ -1475,7 +1475,13 @@ static void usb3_request_done_pipen(struct renesas_usb3 *usb3,
 				    struct renesas_usb3_request *usb3_req,
 				    int status)
 {
-	usb3_pn_stop(usb3);
+	unsigned long flags;
+
+	spin_lock_irqsave(&usb3->lock, flags);
+	if (usb3_pn_change(usb3, usb3_ep->num))
+		usb3_pn_stop(usb3);
+	spin_unlock_irqrestore(&usb3->lock, flags);
+
 	usb3_disable_pipe_irq(usb3, usb3_ep->num);
 	usb3_request_done(usb3_ep, usb3_req, status);
 
@@ -1504,9 +1510,14 @@ static void usb3_irq_epc_pipen_bfrdy(struct renesas_usb3 *usb3, int num)
 {
 	struct renesas_usb3_ep *usb3_ep = usb3_get_ep(usb3, num);
 	struct renesas_usb3_request *usb3_req = usb3_get_request(usb3_ep);
+	bool done = false;
 
 	if (!usb3_req)
 		return;
+
+	spin_lock(&usb3->lock);
+	if (usb3_pn_change(usb3, num))
+		goto out;
 
 	if (usb3_ep->dir_in) {
 		/* Do not stop the IN pipe here to detect LSTTR interrupt */
@@ -1514,20 +1525,31 @@ static void usb3_irq_epc_pipen_bfrdy(struct renesas_usb3 *usb3, int num)
 			usb3_clear_bit(usb3, PN_INT_BFRDY, USB3_PN_INT_ENA);
 	} else {
 		if (!usb3_read_pipe(usb3_ep, usb3_req, USB3_PN_READ))
-			usb3_request_done_pipen(usb3, usb3_ep, usb3_req, 0);
+			done = true;
 	}
+
+out:
+	/* need to unlock because usb3_request_done_pipen() locks it */
+	spin_unlock(&usb3->lock);
+
+	if (done)
+		usb3_request_done_pipen(usb3, usb3_ep, usb3_req, 0);
 }
 
 static void usb3_irq_epc_pipen(struct renesas_usb3 *usb3, int num)
 {
 	u32 pn_int_sta;
 
-	if (usb3_pn_change(usb3, num) < 0)
+	spin_lock(&usb3->lock);
+	if (usb3_pn_change(usb3, num) < 0) {
+		spin_unlock(&usb3->lock);
 		return;
+	}
 
 	pn_int_sta = usb3_read(usb3, USB3_PN_INT_STA);
 	pn_int_sta &= usb3_read(usb3, USB3_PN_INT_ENA);
 	usb3_write(usb3, pn_int_sta, USB3_PN_INT_STA);
+	spin_unlock(&usb3->lock);
 	if (pn_int_sta & PN_INT_LSTTR)
 		usb3_irq_epc_pipen_lsttr(usb3, num);
 	if (pn_int_sta & PN_INT_BFRDY)
