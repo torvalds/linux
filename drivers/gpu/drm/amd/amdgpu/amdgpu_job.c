@@ -38,7 +38,7 @@ static void amdgpu_job_timedout(struct amd_sched_job *s_job)
 		  job->ring->fence_drv.sync_seq);
 
 	if (amdgpu_sriov_vf(job->adev))
-		amdgpu_sriov_gpu_reset(job->adev, true);
+		amdgpu_sriov_gpu_reset(job->adev, job);
 	else
 		amdgpu_gpu_reset(job->adev);
 }

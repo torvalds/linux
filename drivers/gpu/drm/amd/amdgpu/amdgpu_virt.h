@@ -96,7 +96,7 @@ void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
 int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_reset_gpu(struct amdgpu_device *adev);
-int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, bool voluntary);
+int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job);
 int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev);
 void amdgpu_virt_free_mm_table(struct amdgpu_device *adev);
 

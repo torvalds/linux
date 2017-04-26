@@ -2609,14 +2609,13 @@ err:
  * amdgpu_sriov_gpu_reset - reset the asic
  *
  * @adev: amdgpu device pointer
- * @voluntary: if this reset is requested by guest.
- *             (true means by guest and false means by HYPERVISOR )
+ * @job: which job trigger hang
  *
  * Attempt the reset the GPU if it has hung (all asics).
  * for SRIOV case.
  * Returns 0 for success or an error on failure.
  */
-int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, bool voluntary)
+int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, struct amdgpu_job *job)
 {
 	int i, r = 0;
 	int resched;
@@ -2646,7 +2645,7 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, bool voluntary)
 	amdgpu_fence_driver_force_completion(adev);
 
 	/* request to take full control of GPU before re-initialization  */
-	if (voluntary)
+	if (job)
 		amdgpu_virt_reset_gpu(adev);
 	else
 		amdgpu_virt_request_full_gpu(adev, true);
