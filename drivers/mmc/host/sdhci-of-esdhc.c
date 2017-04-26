@@ -445,7 +445,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	int pre_div = 1;
 	int div = 1;
-	u32 timeout;
+	ktime_t timeout;
 	u32 temp;
 
 	host->mmc->actual_clock = 0;
@@ -489,15 +489,14 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 
 	/* Wait max 20 ms */
-	timeout = 20;
+	timeout = ktime_add_ms(ktime_get(), 20);
 	while (!(sdhci_readl(host, ESDHC_PRSSTAT) & ESDHC_CLOCK_STABLE)) {
-		if (timeout == 0) {
+		if (ktime_after(ktime_get(), timeout)) {
 			pr_err("%s: Internal clock never stabilised.\n",
 				mmc_hostname(host->mmc));
 			return;
 		}
-		timeout--;
-		mdelay(1);
+		udelay(10);
 	}
 
 	temp |= ESDHC_CLOCK_SDCLKEN;
