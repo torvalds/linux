@@ -91,7 +91,7 @@ ACPI_EXPORT_SYMBOL(acpi_error)
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              status              - Status to be formatted
+ *              status              - Status value to be decoded/formatted
  *              format              - Printf format string + additional args
  *
  * RETURN:      None
@@ -132,8 +132,8 @@ ACPI_EXPORT_SYMBOL(acpi_exception)
  *
  * FUNCTION:    acpi_warning
  *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
+ * PARAMETERS:  module_name         - Caller's module name (for warning output)
+ *              line_number         - Caller's line number (for warning output)
  *              format              - Printf format string + additional args
  *
  * RETURN:      None
@@ -163,16 +163,12 @@ ACPI_EXPORT_SYMBOL(acpi_warning)
  *
  * FUNCTION:    acpi_info
  *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
- *              format              - Printf format string + additional args
+ * PARAMETERS:  format              - Printf format string + additional args
  *
  * RETURN:      None
  *
  * DESCRIPTION: Print generic "ACPI:" information message. There is no
  *              module/line/version info in order to keep the message simple.
- *
- * TBD: module_name and line_number args are not needed, should be removed.
  *
  ******************************************************************************/
 void ACPI_INTERNAL_VAR_XFACE acpi_info(const char *format, ...)
@@ -229,8 +225,8 @@ ACPI_EXPORT_SYMBOL(acpi_bios_error)
  *
  * FUNCTION:    acpi_bios_warning
  *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
+ * PARAMETERS:  module_name         - Caller's module name (for warning output)
+ *              line_number         - Caller's line number (for warning output)
  *              format              - Printf format string + additional args
  *
  * RETURN:      None
