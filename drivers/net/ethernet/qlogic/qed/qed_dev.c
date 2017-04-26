@@ -4064,3 +4064,17 @@ int qed_device_num_engines(struct qed_dev *cdev)
 {
 	return QED_IS_BB(cdev) ? 2 : 1;
 }
+
+static int qed_device_num_ports(struct qed_dev *cdev)
+{
+	/* in CMT always only one port */
+	if (cdev->num_hwfns > 1)
+		return 1;
+
+	return cdev->num_ports_in_engines * qed_device_num_engines(cdev);
+}
+
+int qed_device_get_port_id(struct qed_dev *cdev)
+{
+	return (QED_LEADING_HWFN(cdev)->abs_pf_id) % qed_device_num_ports(cdev);
+}
