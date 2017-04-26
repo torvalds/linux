@@ -2203,8 +2203,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			bool tmp = (msr == MSR_KVM_SYSTEM_TIME);
 
 			if (ka->boot_vcpu_runs_old_kvmclock != tmp)
-				set_bit(KVM_REQ_MASTERCLOCK_UPDATE,
-					&vcpu->requests);
+				kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
 
 			ka->boot_vcpu_runs_old_kvmclock = tmp;
 		}
@@ -2802,11 +2801,6 @@ static bool need_emulate_wbinvd(struct kvm_vcpu *vcpu)
 	return kvm_arch_has_noncoherent_dma(vcpu->kvm);
 }
 
-static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)
-{
-	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
-}
-
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	/* Address WBINVD may be executed by guest */
@@ -2850,7 +2844,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		if (!vcpu->kvm->arch.use_master_clock || vcpu->cpu == -1)
 			kvm_make_request(KVM_REQ_GLOBAL_CLOCK_UPDATE, vcpu);
 		if (vcpu->cpu != cpu)
-			kvm_migrate_timers(vcpu);
+			kvm_make_request(KVM_REQ_MIGRATE_TIMER, vcpu);
 		vcpu->cpu = cpu;
 	}
 
