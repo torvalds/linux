@@ -112,6 +112,10 @@ enum ath10k_htc_conn_svc_status {
 	ATH10K_HTC_CONN_SVC_STATUS_NO_MORE_EP   = 4
 };
 
+enum ath10k_htc_setup_complete_flags {
+	ATH10K_HTC_SETUP_COMPLETE_FLAGS_RX_BNDL_EN = 1
+};
+
 struct ath10k_ath10k_htc_msg_hdr {
 	__le16 message_id; /* @enum htc_message_id */
 } __packed;
@@ -360,6 +364,7 @@ struct ath10k_htc {
 
 	int total_transmit_credits;
 	int target_credit_size;
+	u8 max_msgs_per_htc_bundle;
 };
 
 int ath10k_htc_init(struct ath10k *ar);
