@@ -115,12 +115,14 @@ static inline bool is_error_page(struct page *page)
 	return IS_ERR(page);
 }
 
+#define KVM_REQUEST_MASK           GENMASK(7,0)
+#define KVM_REQUEST_NO_WAKEUP      BIT(8)
 /*
  * Architecture-independent vcpu->requests bit members
  * Bits 4-7 are reserved for more arch-independent bits.
  */
-#define KVM_REQ_TLB_FLUSH          0
-#define KVM_REQ_MMU_RELOAD         1
+#define KVM_REQ_TLB_FLUSH          (0 | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_MMU_RELOAD         (1 | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_PENDING_TIMER      2
 #define KVM_REQ_UNHALT             3
 
@@ -1076,17 +1078,17 @@ static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 	 * caller.  Paired with the smp_mb__after_atomic in kvm_check_request.
 	 */
 	smp_wmb();
-	set_bit(req, &vcpu->requests);
+	set_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
 }
 
 static inline bool kvm_test_request(int req, struct kvm_vcpu *vcpu)
 {
-	return test_bit(req, &vcpu->requests);
+	return test_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
 }
 
 static inline void kvm_clear_request(int req, struct kvm_vcpu *vcpu)
 {
-	clear_bit(req, &vcpu->requests);
+	clear_bit(req & KVM_REQUEST_MASK, &vcpu->requests);
 }
 
 static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
