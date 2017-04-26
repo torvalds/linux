@@ -46,9 +46,20 @@ static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 	int set;
 
 	asm volatile("ptesync": : :"memory");
-	for (set = 0; set < POWER9_TLB_SETS_RADIX ; set++) {
+
+	/*
+	 * Flush the first set of the TLB, and if we're doing a RIC_FLUSH_ALL,
+	 * also flush the entire Page Walk Cache.
+	 */
+	__tlbiel_pid(pid, 0, ric);
+
+	if (ric == RIC_FLUSH_ALL)
+		/* For the remaining sets, just flush the TLB */
+		ric = RIC_FLUSH_TLB;
+
+	for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
 		__tlbiel_pid(pid, set, ric);
-	}
+
 	asm volatile("ptesync": : :"memory");
 	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
