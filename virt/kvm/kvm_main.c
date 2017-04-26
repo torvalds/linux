@@ -183,8 +183,8 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		kvm_make_request(req, vcpu);
 		cpu = vcpu->cpu;
 
-		if (!(req & KVM_REQUEST_NO_WAKEUP))
-			kvm_vcpu_wake_up(vcpu);
+		if (!(req & KVM_REQUEST_NO_WAKEUP) && kvm_vcpu_wake_up(vcpu))
+			continue;
 
 		if (cpus != NULL && cpu != -1 && cpu != me &&
 		      kvm_vcpu_exiting_guest_mode(vcpu) != OUTSIDE_GUEST_MODE)
@@ -2195,7 +2195,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 
-void kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
+bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 {
 	struct swait_queue_head *wqp;
 
@@ -2203,8 +2203,10 @@ void kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	if (swait_active(wqp)) {
 		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
+		return true;
 	}
 
+	return false;
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
 
@@ -2216,7 +2218,9 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 	int me;
 	int cpu = vcpu->cpu;
 
-	kvm_vcpu_wake_up(vcpu);
+	if (kvm_vcpu_wake_up(vcpu))
+		return;
+
 	me = get_cpu();
 	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
 		if (kvm_arch_vcpu_should_kick(vcpu))
