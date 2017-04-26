@@ -828,6 +828,7 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		case WLAN_EID_EXT_CAPABILITY:
 		case WLAN_EID_CHAN_SWITCH_TIMING:
 		case WLAN_EID_LINK_ID:
+		case WLAN_EID_BSS_MAX_IDLE_PERIOD:
 		/*
 		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
 		 * that if the content gets bigger it might be needed more than once
@@ -1088,6 +1089,10 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 				elems->timeout_int = (void *)pos;
 			else
 				elem_parse_failed = true;
+			break;
+		case WLAN_EID_BSS_MAX_IDLE_PERIOD:
+			if (elen >= sizeof(*elems->max_idle_period_ie))
+				elems->max_idle_period_ie = (void *)pos;
 			break;
 		default:
 			break;
@@ -1982,6 +1987,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			/* Re-send beacon info report to the driver */
 			if (sdata->u.mgd.have_beacon)
 				changed |= BSS_CHANGED_BEACON_INFO;
+
+			if (sdata->vif.bss_conf.max_idle_period ||
+			    sdata->vif.bss_conf.protected_keep_alive)
+				changed |= BSS_CHANGED_KEEP_ALIVE;
 
 			sdata_lock(sdata);
 			ieee80211_bss_info_change_notify(sdata, changed);

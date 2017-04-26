@@ -7,7 +7,7 @@
  * Copyright (c) 2005, Devicescape Software, Inc.
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright (c) 2016 Intel Deutschland GmbH
+ * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2314,6 +2314,32 @@ enum ieee80211_timeout_interval_type {
 struct ieee80211_timeout_interval_ie {
 	u8 type;
 	__le32 value;
+} __packed;
+
+/**
+ * enum ieee80211_idle_options - BSS idle options
+ * @WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE: the station should send an RSN
+ *	protected frame to the AP to reset the idle timer at the AP for
+ *	the station.
+ */
+enum ieee80211_idle_options {
+	WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE = BIT(0),
+};
+
+/**
+ * struct ieee80211_bss_max_idle_period_ie
+ *
+ * This structure refers to "BSS Max idle period element"
+ *
+ * @max_idle_period: indicates the time period during which a station can
+ *	refrain from transmitting frames to its associated AP without being
+ *	disassociated. In units of 1000 TUs.
+ * @idle_options: indicates the options associated with the BSS idle capability
+ *	as specified in &enum ieee80211_idle_options.
+ */
+struct ieee80211_bss_max_idle_period_ie {
+	__le16 max_idle_period;
+	u8 idle_options;
 } __packed;
 
 /* BACK action code */

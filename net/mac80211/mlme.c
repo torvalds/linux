@@ -6,7 +6,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -3097,6 +3097,18 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags |= IEEE80211_STA_DISABLE_WMM;
 	}
 	changed |= BSS_CHANGED_QOS;
+
+	if (elems.max_idle_period_ie) {
+		bss_conf->max_idle_period =
+			le16_to_cpu(elems.max_idle_period_ie->max_idle_period);
+		bss_conf->protected_keep_alive =
+			!!(elems.max_idle_period_ie->idle_options &
+			   WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE);
+		changed |= BSS_CHANGED_KEEP_ALIVE;
+	} else {
+		bss_conf->max_idle_period = 0;
+		bss_conf->protected_keep_alive = false;
+	}
 
 	/* set AID and assoc capability,
 	 * ieee80211_set_associated() will tell the driver */
