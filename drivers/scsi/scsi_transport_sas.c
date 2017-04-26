@@ -186,7 +186,7 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 		ret = handler(shost, rphy, req);
 		scsi_req(req)->result = ret;
 
-		blk_end_request_all(req, ret);
+		blk_end_request_all(req, 0);
 
 		spin_lock_irq(q->queue_lock);
 	}
