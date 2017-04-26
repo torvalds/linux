@@ -34,5 +34,5 @@ obj-y += acctype_ptrace.o
 #obj-$(CONFIG_MEDUSA_SYSCALL) += acctype_syscall.o
 obj-y += acctype_syscall.o
 # event types
-obj-y += evtype_getprocess.o evtype_getfile.o
+obj-y += evtype_getprocess.o evtype_getfile.o evtype_fuck.o
 

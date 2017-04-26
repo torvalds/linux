@@ -8,15 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/medusa/l3/registry.h>
-
-struct fuck_kobject {	
-	MEDUSA_KOBJECT_HEADER;
-	char path[PATH_MAX];
-	unsigned long i_ino;
-	MEDUSA_OBJECT_VARS;
-};
-extern MED_DECLARE_KCLASSOF(fuck_kobject);
-
+#include "kobject_fuck.h"
 MED_ATTRS(fuck_kobject) {
 	MED_ATTR_KEY	(fuck_kobject, path, "path", MED_STRING),
 	MED_ATTR		(fuck_kobject, i_ino, "i_ino", MED_UNSIGNED),
