@@ -266,12 +266,15 @@ static int xgpu_ai_mailbox_rcv_irq(struct amdgpu_device *adev,
 {
 	int r;
 
-	/* see what event we get */
-	r = xgpu_ai_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
+	/* trigger gpu-reset by hypervisor only if TDR disbaled */
+	if (amdgpu_lockup_timeout == 0) {
+		/* see what event we get */
+		r = xgpu_ai_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
 
-	/* only handle FLR_NOTIFY now */
-	if (!r)
-		schedule_work(&adev->virt.flr_work);
+		/* only handle FLR_NOTIFY now */
+		if (!r)
+			schedule_work(&adev->virt.flr_work);
+	}
 
 	return 0;
 }
