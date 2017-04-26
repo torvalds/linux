@@ -398,6 +398,7 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 	case f71889a:
 		data->nr_bank = ARRAY_SIZE(f71889a_gpio_bank);
 		data->bank = f71889a_gpio_bank;
+		break;
 	case f71889f:
 		data->nr_bank = ARRAY_SIZE(f71889_gpio_bank);
 		data->bank = f71889_gpio_bank;
