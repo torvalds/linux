@@ -201,7 +201,7 @@ static struct dwc_otg_driver_module_params dwc_otg_module_params = {
 			     /* 15 */
 			     },
 	.thr_ctl = -1,
-	.tx_thr_length = -1,
+	.tx_thr_length = 16,
 	.rx_thr_length = -1,
 	.pti_enable = -1,
 	.mpi_enable = -1,
