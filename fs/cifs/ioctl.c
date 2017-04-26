@@ -74,7 +74,8 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 
 	rc = cifs_file_copychunk_range(xid, src_file.file, 0, dst_file, 0,
 					src_inode->i_size, 0);
-
+	if (rc > 0)
+		rc = 0;
 out_fput:
 	fdput(src_file);
 out_drop_write:
