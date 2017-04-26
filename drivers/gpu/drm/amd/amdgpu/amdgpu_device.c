@@ -1815,19 +1815,27 @@ static int amdgpu_sriov_reinit_early(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.valid)
-			continue;
+	static enum amd_ip_block_type ip_order[] = {
+		AMD_IP_BLOCK_TYPE_GMC,
+		AMD_IP_BLOCK_TYPE_COMMON,
+		AMD_IP_BLOCK_TYPE_GFXHUB,
+		AMD_IP_BLOCK_TYPE_MMHUB,
+		AMD_IP_BLOCK_TYPE_IH,
+	};
 
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
-				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC ||
-				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH)
-			r = adev->ip_blocks[i].version->funcs->hw_init(adev);
+	for (i = 0; i < ARRAY_SIZE(ip_order); i++) {
+		int j;
+		struct amdgpu_ip_block *block;
 
-		if (r) {
-			DRM_ERROR("resume of IP block <%s> failed %d\n",
-				  adev->ip_blocks[i].version->funcs->name, r);
-			return r;
+		for (j = 0; j < adev->num_ip_blocks; j++) {
+			block = &adev->ip_blocks[j];
+
+			if (block->version->type != ip_order[i] ||
+				!block->status.valid)
+				continue;
+
+			r = block->version->funcs->hw_init(adev);
+			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"successed");
 		}
 	}
 
@@ -1838,20 +1846,27 @@ static int amdgpu_sriov_reinit_late(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.valid)
-			continue;
+	static enum amd_ip_block_type ip_order[] = {
+		AMD_IP_BLOCK_TYPE_SMC,
+		AMD_IP_BLOCK_TYPE_DCE,
+		AMD_IP_BLOCK_TYPE_GFX,
+		AMD_IP_BLOCK_TYPE_SDMA,
+		AMD_IP_BLOCK_TYPE_VCE,
+	};
 
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
-				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC ||
-				adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH )
-			continue;
+	for (i = 0; i < ARRAY_SIZE(ip_order); i++) {
+		int j;
+		struct amdgpu_ip_block *block;
 
-		r = adev->ip_blocks[i].version->funcs->hw_init(adev);
-		if (r) {
-			DRM_ERROR("resume of IP block <%s> failed %d\n",
-				  adev->ip_blocks[i].version->funcs->name, r);
-			return r;
+		for (j = 0; j < adev->num_ip_blocks; j++) {
+			block = &adev->ip_blocks[j];
+
+			if (block->version->type != ip_order[i] ||
+				!block->status.valid)
+				continue;
+
+			r = block->version->funcs->hw_init(adev);
+			DRM_INFO("RE-INIT: %s %s\n", block->version->funcs->name, r?"failed":"successed");
 		}
 	}
 
