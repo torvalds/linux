@@ -385,7 +385,7 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 	unsigned long last_page, unsigned int last_page_size,
 	s32 *consumed_size, int *status)
 {
-	struct page *pages[MAX_BUFFERS_PER_COMMAND];
+	static struct page *pages[MAX_BUFFERS_PER_COMMAND];
 	unsigned long first_page = address & PAGE_MASK;
 	unsigned int iter_last_page_size;
 	int pages_count = pin_user_pages(first_page, last_page,
@@ -409,9 +409,9 @@ static int transfer_max_buffers(struct goldfish_pipe *pipe,
 
 	*consumed_size = pipe->command_buffer->rw_params.consumed_size;
 
-	mutex_unlock(&pipe->lock);
-
 	release_user_pages(pages, pages_count, is_write, *consumed_size);
+
+	mutex_unlock(&pipe->lock);
 
 	return 0;
 }
