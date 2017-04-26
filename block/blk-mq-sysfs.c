@@ -318,7 +318,7 @@ int __blk_mq_register_dev(struct device *dev, struct request_queue *q)
 
 	kobject_uevent(&q->mq_kobj, KOBJ_ADD);
 
-	blk_mq_debugfs_register(q, kobject_name(&dev->kobj));
+	blk_mq_debugfs_register(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_register_hctx(hctx);

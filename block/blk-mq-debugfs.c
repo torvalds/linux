@@ -785,12 +785,13 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 	{},
 };
 
-int blk_mq_debugfs_register(struct request_queue *q, const char *name)
+int blk_mq_debugfs_register(struct request_queue *q)
 {
 	if (!blk_debugfs_root)
 		return -ENOENT;
 
-	q->debugfs_dir = debugfs_create_dir(name, blk_debugfs_root);
+	q->debugfs_dir = debugfs_create_dir(kobject_name(q->kobj.parent),
+					    blk_debugfs_root);
 	if (!q->debugfs_dir)
 		goto err;
 

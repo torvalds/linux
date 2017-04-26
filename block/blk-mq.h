@@ -87,13 +87,12 @@ extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
  * debugfs helpers
  */
 #ifdef CONFIG_BLK_DEBUG_FS
-int blk_mq_debugfs_register(struct request_queue *q, const char *name);
+int blk_mq_debugfs_register(struct request_queue *q);
 void blk_mq_debugfs_unregister(struct request_queue *q);
 int blk_mq_debugfs_register_hctxs(struct request_queue *q);
 void blk_mq_debugfs_unregister_hctxs(struct request_queue *q);
 #else
-static inline int blk_mq_debugfs_register(struct request_queue *q,
-					  const char *name)
+static inline int blk_mq_debugfs_register(struct request_queue *q)
 {
 	return 0;
 }
