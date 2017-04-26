@@ -1098,12 +1098,20 @@ int elevator_change(struct request_queue *q, const char *name)
 }
 EXPORT_SYMBOL(elevator_change);
 
+static inline bool elv_support_iosched(struct request_queue *q)
+{
+	if (q->mq_ops && q->tag_set && (q->tag_set->flags &
+				BLK_MQ_F_NO_SCHED))
+		return false;
+	return true;
+}
+
 ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 			  size_t count)
 {
 	int ret;
 
-	if (!(q->mq_ops || q->request_fn))
+	if (!(q->mq_ops || q->request_fn) || !elv_support_iosched(q))
 		return count;
 
 	ret = __elevator_change(q, name);
@@ -1135,7 +1143,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 			len += sprintf(name+len, "[%s] ", elv->elevator_name);
 			continue;
 		}
-		if (__e->uses_mq && q->mq_ops)
+		if (__e->uses_mq && q->mq_ops && elv_support_iosched(q))
 			len += sprintf(name+len, "%s ", __e->elevator_name);
 		else if (!__e->uses_mq && !q->mq_ops)
 			len += sprintf(name+len, "%s ", __e->elevator_name);

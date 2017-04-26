@@ -803,18 +803,12 @@ static netdev_tx_t kaweth_start_xmit(struct sk_buff *skb,
 	}
 
 	/* We now decide whether we can put our special header into the sk_buff */
-	if (skb_cloned(skb) || skb_headroom(skb) < 2) {
-		/* no such luck - we make our own */
-		struct sk_buff *copied_skb;
-		copied_skb = skb_copy_expand(skb, 2, 0, GFP_ATOMIC);
-		dev_kfree_skb_irq(skb);
-		skb = copied_skb;
-		if (!copied_skb) {
-			kaweth->stats.tx_errors++;
-			netif_start_queue(net);
-			spin_unlock_irq(&kaweth->device_lock);
-			return NETDEV_TX_OK;
-		}
+	if (skb_cow_head(skb, 2)) {
+		kaweth->stats.tx_errors++;
+		netif_start_queue(net);
+		spin_unlock_irq(&kaweth->device_lock);
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
 	}
 
 	private_header = (__le16 *)__skb_push(skb, 2);
