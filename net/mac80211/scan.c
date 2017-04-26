@@ -79,9 +79,9 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss_meta.signal = (rx_status->signal * 100) / local->hw.max_signal;
 
 	bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_20;
-	if (rx_status->flag & RX_FLAG_5MHZ)
+	if (rx_status->enc_flags & RX_ENC_FLAG_5MHZ)
 		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_5;
-	if (rx_status->flag & RX_FLAG_10MHZ)
+	if (rx_status->enc_flags & RX_ENC_FLAG_10MHZ)
 		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_10;
 
 	bss_meta.chan = channel;
@@ -174,8 +174,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	if (beacon) {
 		struct ieee80211_supported_band *sband =
 			local->hw.wiphy->bands[rx_status->band];
-		if (!(rx_status->flag & RX_FLAG_HT) &&
-		    !(rx_status->flag & RX_FLAG_VHT))
+		if (!(rx_status->enc_flags & RX_ENC_FLAG_HT) &&
+		    !(rx_status->enc_flags & RX_ENC_FLAG_VHT))
 			bss->beacon_rate =
 				&sband->bitrates[rx_status->rate_idx];
 	}

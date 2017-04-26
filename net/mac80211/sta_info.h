@@ -740,25 +740,25 @@ static inline u16 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 {
 	u16 r = s->rate_idx;
 
-	if (s->vht_flag & RX_VHT_FLAG_80MHZ)
+	if (s->enc_flags & RX_ENC_FLAG_80MHZ)
 		r |= RATE_INFO_BW_80 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->vht_flag & RX_VHT_FLAG_160MHZ)
+	else if (s->enc_flags & RX_ENC_FLAG_160MHZ)
 		r |= RATE_INFO_BW_160 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_40MHZ)
+	else if (s->enc_flags & RX_ENC_FLAG_40MHZ)
 		r |= RATE_INFO_BW_40 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_10MHZ)
+	else if (s->enc_flags & RX_ENC_FLAG_10MHZ)
 		r |= RATE_INFO_BW_10 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_5MHZ)
+	else if (s->enc_flags & RX_ENC_FLAG_5MHZ)
 		r |= RATE_INFO_BW_5 << STA_STATS_RATE_BW_SHIFT;
 	else
 		r |= RATE_INFO_BW_20 << STA_STATS_RATE_BW_SHIFT;
 
-	if (s->flag & RX_FLAG_SHORT_GI)
+	if (s->enc_flags & RX_ENC_FLAG_SHORT_GI)
 		r |= STA_STATS_RATE_SGI;
 
-	if (s->flag & RX_FLAG_VHT)
+	if (s->enc_flags & RX_ENC_FLAG_VHT)
 		r |= STA_STATS_RATE_TYPE_VHT | (s->vht_nss << 4);
-	else if (s->flag & RX_FLAG_HT)
+	else if (s->enc_flags & RX_ENC_FLAG_HT)
 		r |= STA_STATS_RATE_TYPE_HT;
 	else
 		r |= STA_STATS_RATE_TYPE_LEGACY | (s->band << 4);

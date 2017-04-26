@@ -632,11 +632,11 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 		sgi = (info3 >> 7) & 1;
 
 		status->rate_idx = mcs;
-		status->flag |= RX_FLAG_HT;
+		status->enc_flags |= RX_ENC_FLAG_HT;
 		if (sgi)
-			status->flag |= RX_FLAG_SHORT_GI;
+			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 		if (bw)
-			status->flag |= RX_FLAG_40MHZ;
+			status->enc_flags |= RX_ENC_FLAG_40MHZ;
 		break;
 	case HTT_RX_VHT:
 	case HTT_RX_VHT_WITH_TXBF:
@@ -692,7 +692,7 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 		status->vht_nss = nss;
 
 		if (sgi)
-			status->flag |= RX_FLAG_SHORT_GI;
+			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 		switch (bw) {
 		/* 20MHZ */
@@ -700,18 +700,18 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 			break;
 		/* 40MHZ */
 		case 1:
-			status->flag |= RX_FLAG_40MHZ;
+			status->enc_flags |= RX_ENC_FLAG_40MHZ;
 			break;
 		/* 80MHZ */
 		case 2:
-			status->vht_flag |= RX_VHT_FLAG_80MHZ;
+			status->enc_flags |= RX_ENC_FLAG_80MHZ;
 			break;
 		case 3:
-			status->vht_flag |= RX_VHT_FLAG_160MHZ;
+			status->enc_flags |= RX_ENC_FLAG_160MHZ;
 			break;
 		}
 
-		status->flag |= RX_FLAG_VHT;
+		status->enc_flags |= RX_ENC_FLAG_VHT;
 		break;
 	default:
 		break;
@@ -875,12 +875,12 @@ static void ath10k_htt_rx_h_ppdu(struct ath10k *ar,
 		status->freq = 0;
 		status->rate_idx = 0;
 		status->vht_nss = 0;
-		status->vht_flag &= ~RX_VHT_FLAG_80MHZ;
-		status->flag &= ~(RX_FLAG_HT |
-				  RX_FLAG_VHT |
-				  RX_FLAG_SHORT_GI |
-				  RX_FLAG_40MHZ |
-				  RX_FLAG_MACTIME_END);
+		status->enc_flags &= ~(RX_ENC_FLAG_HT |
+				       RX_ENC_FLAG_VHT |
+				       RX_ENC_FLAG_SHORT_GI |
+				       RX_ENC_FLAG_40MHZ |
+				       RX_ENC_FLAG_80MHZ);
+		status->flag &= ~RX_FLAG_MACTIME_END;
 		status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 		ath10k_htt_rx_h_signal(ar, status, rxd);
@@ -933,7 +933,7 @@ static void ath10k_process_rx(struct ath10k *ar,
 	*status = *rx_status;
 
 	ath10k_dbg(ar, ATH10K_DBG_DATA,
-		   "rx skb %pK len %u peer %pM %s %s sn %u %s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%llx fcs-err %i mic-err %i amsdu-more %i\n",
+		   "rx skb %pK len %u peer %pM %s %s sn %u %s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   skb,
 		   skb->len,
 		   ieee80211_get_SA(hdr),
@@ -941,14 +941,14 @@ static void ath10k_process_rx(struct ath10k *ar,
 		   is_multicast_ether_addr(ieee80211_get_DA(hdr)) ?
 							"mcast" : "ucast",
 		   (__le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4,
-		   (status->flag & (RX_FLAG_HT | RX_FLAG_VHT)) == 0 ?
-							"legacy" : "",
-		   status->flag & RX_FLAG_HT ? "ht" : "",
-		   status->flag & RX_FLAG_VHT ? "vht" : "",
-		   status->flag & RX_FLAG_40MHZ ? "40" : "",
-		   status->vht_flag & RX_VHT_FLAG_80MHZ ? "80" : "",
-		   status->vht_flag & RX_VHT_FLAG_160MHZ ? "160" : "",
-		   status->flag & RX_FLAG_SHORT_GI ? "sgi " : "",
+		   (status->enc_flags & (RX_ENC_FLAG_HT | RX_ENC_FLAG_VHT)) == 0 ?
+		   "legacy" : "",
+		   status->enc_flags & RX_ENC_FLAG_HT ? "ht" : "",
+		   status->enc_flags & RX_ENC_FLAG_VHT ? "vht" : "",
+		   status->enc_flags & RX_ENC_FLAG_40MHZ ? "40" : "",
+		   status->enc_flags & RX_ENC_FLAG_80MHZ ? "80" : "",
+		   status->enc_flags & RX_ENC_FLAG_160MHZ ? "160" : "",
+		   status->enc_flags & RX_ENC_FLAG_SHORT_GI ? "sgi " : "",
 		   status->rate_idx,
 		   status->vht_nss,
 		   status->freq,

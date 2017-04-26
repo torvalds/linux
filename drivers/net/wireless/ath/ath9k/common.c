@@ -181,14 +181,13 @@ int ath9k_cmn_process_rate(struct ath_common *common,
 	sband = hw->wiphy->bands[band];
 
 	if (IS_CHAN_QUARTER_RATE(ah->curchan))
-		rxs->flag |= RX_FLAG_5MHZ;
+		rxs->enc_flags |= RX_ENC_FLAG_5MHZ;
 	else if (IS_CHAN_HALF_RATE(ah->curchan))
-		rxs->flag |= RX_FLAG_10MHZ;
+		rxs->enc_flags |= RX_ENC_FLAG_10MHZ;
 
 	if (rx_stats->rs_rate & 0x80) {
 		/* HT rate */
-		rxs->flag |= RX_FLAG_HT;
-		rxs->flag |= rx_stats->flag;
+		rxs->enc_flags |= RX_ENC_FLAG_HT | rx_stats->enc_flags;
 		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
 		return 0;
 	}
@@ -199,7 +198,7 @@ int ath9k_cmn_process_rate(struct ath_common *common,
 			return 0;
 		}
 		if (sband->bitrates[i].hw_value_short == rx_stats->rs_rate) {
-			rxs->flag |= RX_FLAG_SHORTPRE;
+			rxs->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 			rxs->rate_idx = i;
 			return 0;
 		}

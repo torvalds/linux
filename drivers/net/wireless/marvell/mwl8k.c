@@ -994,9 +994,9 @@ mwl8k_rxd_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 	*noise = -rxd->noise_floor;
 
 	if (rxd->rate & MWL8K_AP_RATE_INFO_MCS_FORMAT) {
-		status->flag |= RX_FLAG_HT;
+		status->enc_flags |= RX_ENC_FLAG_HT;
 		if (rxd->rate & MWL8K_AP_RATE_INFO_40MHZ)
-			status->flag |= RX_FLAG_40MHZ;
+			status->enc_flags |= RX_ENC_FLAG_40MHZ;
 		status->rate_idx = MWL8K_AP_RATE_INFO_RATEID(rxd->rate);
 	} else {
 		int i;
@@ -1011,7 +1011,7 @@ mwl8k_rxd_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 
 	if (rxd->channel > 14) {
 		status->band = NL80211_BAND_5GHZ;
-		if (!(status->flag & RX_FLAG_HT))
+		if (!(status->enc_flags & RX_ENC_FLAG_HT))
 			status->rate_idx -= 5;
 	} else {
 		status->band = NL80211_BAND_2GHZ;
@@ -1109,17 +1109,17 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 	status->rate_idx = MWL8K_STA_RATE_INFO_RATEID(rate_info);
 
 	if (rate_info & MWL8K_STA_RATE_INFO_SHORTPRE)
-		status->flag |= RX_FLAG_SHORTPRE;
+		status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 	if (rate_info & MWL8K_STA_RATE_INFO_40MHZ)
-		status->flag |= RX_FLAG_40MHZ;
+		status->enc_flags |= RX_ENC_FLAG_40MHZ;
 	if (rate_info & MWL8K_STA_RATE_INFO_SHORTGI)
-		status->flag |= RX_FLAG_SHORT_GI;
+		status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 	if (rate_info & MWL8K_STA_RATE_INFO_MCS_FORMAT)
-		status->flag |= RX_FLAG_HT;
+		status->enc_flags |= RX_ENC_FLAG_HT;
 
 	if (rxd->channel > 14) {
 		status->band = NL80211_BAND_5GHZ;
-		if (!(status->flag & RX_FLAG_HT))
+		if (!(status->enc_flags & RX_ENC_FLAG_HT))
 			status->rate_idx -= 5;
 	} else {
 		status->band = NL80211_BAND_2GHZ;

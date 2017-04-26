@@ -1014,9 +1014,9 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 			prev_rates = sta->sta.supp_rates[band];
 			/* make sure mandatory rates are always added */
 			scan_width = NL80211_BSS_CHAN_WIDTH_20;
-			if (rx_status->flag & RX_FLAG_5MHZ)
+			if (rx_status->enc_flags & RX_ENC_FLAG_5MHZ)
 				scan_width = NL80211_BSS_CHAN_WIDTH_5;
-			if (rx_status->flag & RX_FLAG_10MHZ)
+			if (rx_status->enc_flags & RX_ENC_FLAG_10MHZ)
 				scan_width = NL80211_BSS_CHAN_WIDTH_10;
 
 			sta->sta.supp_rates[band] = supp_rates |

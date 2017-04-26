@@ -315,7 +315,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.mactime = tsft;
 			rx_status.flag |= RX_FLAG_MACTIME_START;
 			if (flags & RTL818X_RX_DESC_FLAG_SPLCP)
-				rx_status.flag |= RX_FLAG_SHORTPRE;
+				rx_status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 				rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 

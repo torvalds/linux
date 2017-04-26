@@ -929,11 +929,11 @@ void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 static inline void convert_htc_flag(struct ath_rx_status *rx_stats,
 				   struct ath_htc_rx_status *rxstatus)
 {
-	rx_stats->flag = 0;
+	rx_stats->enc_flags = 0;
 	if (rxstatus->rs_flags & ATH9K_RX_2040)
-		rx_stats->flag |= RX_FLAG_40MHZ;
+		rx_stats->enc_flags |= RX_ENC_FLAG_40MHZ;
 	if (rxstatus->rs_flags & ATH9K_RX_GI)
-		rx_stats->flag |= RX_FLAG_SHORT_GI;
+		rx_stats->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 }
 
 static void rx_status_htc_to_ath(struct ath_rx_status *rx_stats,

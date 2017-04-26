@@ -1194,16 +1194,16 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 			ieee80211_rate_get_vht_mcs(&info->control.rates[0]);
 		rx_status.vht_nss =
 			ieee80211_rate_get_vht_nss(&info->control.rates[0]);
-		rx_status.flag |= RX_FLAG_VHT;
+		rx_status.enc_flags |= RX_ENC_FLAG_VHT;
 	} else {
 		rx_status.rate_idx = info->control.rates[0].idx;
 		if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
-			rx_status.flag |= RX_FLAG_HT;
+			rx_status.enc_flags |= RX_ENC_FLAG_HT;
 	}
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-		rx_status.flag |= RX_FLAG_40MHZ;
+		rx_status.enc_flags |= RX_ENC_FLAG_40MHZ;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
-		rx_status.flag |= RX_FLAG_SHORT_GI;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
 	/* TODO: simulate real signal strength (and optional packet loss) */
 	rx_status.signal = -50;
 	if (info->control.vif)

@@ -184,6 +184,7 @@ struct rxdone_entry_desc {
 	int flags;
 	int dev_flags;
 	u16 rate_mode;
+	u16 enc_flags;
 	u8 cipher;
 	u8 cipher_status;
 

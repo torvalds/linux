@@ -1532,7 +1532,7 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 		return true;
 	/* can't handle HT/VHT preamble yet */
 	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
-	    !(status->flag & (RX_FLAG_HT | RX_FLAG_VHT)))
+	    !(status->enc_flags & (RX_ENC_FLAG_HT | RX_ENC_FLAG_VHT)))
 		return true;
 	return false;
 }

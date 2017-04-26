@@ -728,15 +728,15 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 	/* set the preamble flag if appropriate */
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
-		rx_status.flag |= RX_FLAG_SHORTPRE;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	/* Set up the HT phy flags */
 	if (rate_n_flags & RATE_MCS_HT_MSK)
-		rx_status.flag |= RX_FLAG_HT;
+		rx_status.enc_flags |= RX_ENC_FLAG_HT;
 	if (rate_n_flags & RATE_MCS_HT40_MSK)
-		rx_status.flag |= RX_FLAG_40MHZ;
+		rx_status.enc_flags |= RX_ENC_FLAG_40MHZ;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
-		rx_status.flag |= RX_FLAG_SHORT_GI;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_AGG_MSK) {
 		/* We know which subframes of an A-MPDU belong

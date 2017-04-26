@@ -1414,10 +1414,10 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 	rxs->flag |= ath5k_rx_decrypted(ah, skb, rs);
 	switch (ah->ah_bwmode) {
 	case AR5K_BWMODE_5MHZ:
-		rxs->flag |= RX_FLAG_5MHZ;
+		rxs->enc_flags |= RX_ENC_FLAG_5MHZ;
 		break;
 	case AR5K_BWMODE_10MHZ:
-		rxs->flag |= RX_FLAG_10MHZ;
+		rxs->enc_flags |= RX_ENC_FLAG_10MHZ;
 		break;
 	default:
 		break;
@@ -1425,7 +1425,7 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 
 	if (rs->rs_rate ==
 	    ah->sbands[ah->curchan->band].bitrates[rxs->rate_idx].hw_value_short)
-		rxs->flag |= RX_FLAG_SHORTPRE;
+		rxs->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	trace_ath5k_rx(ah, skb);
 
