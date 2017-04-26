@@ -544,6 +544,11 @@ sfrbu_fail:
 securam_fail:
 	iounmap(pm_data.sfrbu);
 	pm_data.sfrbu = NULL;
+
+	if (pm_data.standby_mode == AT91_PM_BACKUP)
+		pm_data.standby_mode = AT91_PM_SLOW_CLOCK;
+	if (pm_data.suspend_mode == AT91_PM_BACKUP)
+		pm_data.suspend_mode = AT91_PM_SLOW_CLOCK;
 }
 
 struct pmc_info {
