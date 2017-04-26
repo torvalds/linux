@@ -575,10 +575,11 @@ static int sctp_v4_is_ce(const struct sk_buff *skb)
 
 /* Create and initialize a new sk for the socket returned by accept(). */
 static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
-					     struct sctp_association *asoc)
+					     struct sctp_association *asoc,
+					     bool kern)
 {
 	struct sock *newsk = sk_alloc(sock_net(sk), PF_INET, GFP_KERNEL,
-			sk->sk_prot, 0);
+			sk->sk_prot, kern);
 	struct inet_sock *newinet;
 
 	if (!newsk)

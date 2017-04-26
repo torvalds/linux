@@ -495,26 +495,26 @@ static void backend_disconnect(struct backend_info *be)
 	struct xenvif *vif = be->vif;
 
 	if (vif) {
+		unsigned int num_queues = vif->num_queues;
 		unsigned int queue_index;
-		struct xenvif_queue *queues;
 
 		xen_unregister_watchers(vif);
 #ifdef CONFIG_DEBUG_FS
 		xenvif_debugfs_delif(vif);
 #endif /* CONFIG_DEBUG_FS */
 		xenvif_disconnect_data(vif);
-		for (queue_index = 0;
-		     queue_index < vif->num_queues;
-		     ++queue_index)
+
+		/* At this point some of the handlers may still be active
+		 * so we need to have additional synchronization here.
+		 */
+		vif->num_queues = 0;
+		synchronize_net();
+
+		for (queue_index = 0; queue_index < num_queues; ++queue_index)
 			xenvif_deinit_queue(&vif->queues[queue_index]);
 
-		spin_lock(&vif->lock);
-		queues = vif->queues;
-		vif->num_queues = 0;
+		vfree(vif->queues);
 		vif->queues = NULL;
-		spin_unlock(&vif->lock);
-
-		vfree(queues);
 
 		xenvif_disconnect_ctrl(vif);
 	}

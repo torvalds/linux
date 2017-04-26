@@ -868,7 +868,7 @@ static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
-	/* disble usb3 ports Wake bits*/
+	/* disable usb3 ports Wake bits */
 	port_index = xhci->num_usb3_ports;
 	port_array = xhci->usb3_ports;
 	while (port_index--) {
@@ -879,7 +879,7 @@ static void xhci_disable_port_wake_on_bits(struct xhci_hcd *xhci)
 			writel(t2, port_array[port_index]);
 	}
 
-	/* disble usb2 ports Wake bits*/
+	/* disable usb2 ports Wake bits */
 	port_index = xhci->num_usb2_ports;
 	port_array = xhci->usb2_ports;
 	while (port_index--) {

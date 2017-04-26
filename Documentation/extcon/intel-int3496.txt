@@ -20,3 +20,8 @@ Index 1: The output gpio for enabling Vbus output from the device to the otg
 Index 2: The output gpio for muxing of the data pins between the USB host and
          the USB peripheral controller, write 1 to mux to the peripheral
          controller
+
+There is a mapping between indices and GPIO connection IDs as follows
+	id	index 0
+	vbus	index 1
+	mux	index 2

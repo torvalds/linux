@@ -1695,7 +1695,7 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	DRM_DEBUG_KMS("id[%d]ippdrv[%p]\n", ctx->id, ippdrv);
+	DRM_DEBUG_KMS("id[%d]ippdrv[%pK]\n", ctx->id, ippdrv);
 
 	spin_lock_init(&ctx->lock);
 	platform_set_drvdata(pdev, ctx);

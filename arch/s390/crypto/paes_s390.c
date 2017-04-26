@@ -474,8 +474,11 @@ static int ctr_paes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 			ret = blkcipher_walk_done(desc, walk, nbytes - n);
 		}
 		if (k < n) {
-			if (__ctr_paes_set_key(ctx) != 0)
+			if (__ctr_paes_set_key(ctx) != 0) {
+				if (locked)
+					spin_unlock(&ctrblk_lock);
 				return blkcipher_walk_done(desc, walk, -EIO);
+			}
 		}
 	}
 	if (locked)

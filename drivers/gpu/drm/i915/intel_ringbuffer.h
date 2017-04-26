@@ -403,6 +403,9 @@ struct intel_engine_cs {
 	 */
 	struct i915_gem_context *legacy_active_context;
 
+	/* status_notifier: list of callbacks for context-switch changes */
+	struct atomic_notifier_head context_status_notifier;
+
 	struct intel_engine_hangcheck hangcheck;
 
 	bool needs_cmd_parser;

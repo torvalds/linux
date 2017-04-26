@@ -181,7 +181,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 unsigned int nf_conntrack_max __read_mostly;
 seqcount_t nf_conntrack_generation __read_mostly;
 
-DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
+/* nf_conn must be 8 bytes aligned, as the 3 LSB bits are used
+ * for the nfctinfo. We cheat by (ab)using the PER CPU cache line
+ * alignment to enforce this.
+ */
+DEFINE_PER_CPU_ALIGNED(struct nf_conn, nf_conntrack_untracked);
 EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
 
 static unsigned int nf_conntrack_hash_rnd __read_mostly;

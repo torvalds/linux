@@ -788,7 +788,7 @@ static int sdma_v3_0_start(struct amdgpu_device *adev)
 		}
 	}
 
-	/* disble sdma engine before programing it */
+	/* disable sdma engine before programing it */
 	sdma_v3_0_ctx_switch_enable(adev, false);
 	sdma_v3_0_enable(adev, false);
 

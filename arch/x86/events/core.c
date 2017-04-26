@@ -2101,14 +2101,26 @@ static int x86_pmu_event_init(struct perf_event *event)
 
 static void refresh_pce(void *ignored)
 {
-	if (current->mm)
-		load_mm_cr4(current->mm);
+	if (current->active_mm)
+		load_mm_cr4(current->active_mm);
 }
 
 static void x86_pmu_event_mapped(struct perf_event *event)
 {
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return;
+
+	/*
+	 * This function relies on not being called concurrently in two
+	 * tasks in the same mm.  Otherwise one task could observe
+	 * perf_rdpmc_allowed > 1 and return all the way back to
+	 * userspace with CR4.PCE clear while another task is still
+	 * doing on_each_cpu_mask() to propagate CR4.PCE.
+	 *
+	 * For now, this can't happen because all callers hold mmap_sem
+	 * for write.  If this changes, we'll need a different solution.
+	 */
+	lockdep_assert_held_exclusive(&current->mm->mmap_sem);
 
 	if (atomic_inc_return(&current->mm->context.perf_rdpmc_allowed) == 1)
 		on_each_cpu_mask(mm_cpumask(current->mm), refresh_pce, NULL, 1);

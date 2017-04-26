@@ -31,31 +31,26 @@ static inline int device_reset_optional(struct device *dev)
 
 static inline int reset_control_reset(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline int reset_control_assert(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline int reset_control_deassert(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline int reset_control_status(struct reset_control *rstc)
 {
-	WARN_ON(1);
 	return 0;
 }
 
 static inline void reset_control_put(struct reset_control *rstc)
 {
-	WARN_ON(1);
 }
 
 static inline int __must_check device_reset(struct device *dev)
@@ -74,14 +69,14 @@ static inline struct reset_control *__of_reset_control_get(
 					const char *id, int index, bool shared,
 					bool optional)
 {
-	return ERR_PTR(-ENOTSUPP);
+	return optional ? NULL : ERR_PTR(-ENOTSUPP);
 }
 
 static inline struct reset_control *__devm_reset_control_get(
 					struct device *dev, const char *id,
 					int index, bool shared, bool optional)
 {
-	return ERR_PTR(-ENOTSUPP);
+	return optional ? NULL : ERR_PTR(-ENOTSUPP);
 }
 
 #endif /* CONFIG_RESET_CONTROLLER */

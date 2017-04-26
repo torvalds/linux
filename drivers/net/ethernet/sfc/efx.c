@@ -2404,7 +2404,7 @@ static void efx_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *t
 	tnl.type = (u16)efx_tunnel_type;
 	tnl.port = ti->port;
 
-	if (efx->type->udp_tnl_add_port)
+	if (efx->type->udp_tnl_del_port)
 		(void)efx->type->udp_tnl_del_port(efx, tnl);
 }
 

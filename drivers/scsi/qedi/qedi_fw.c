@@ -1461,9 +1461,9 @@ static void qedi_tmf_work(struct work_struct *work)
 		  get_itt(tmf_hdr->rtt), get_itt(ctask->itt), cmd->task_id,
 		  qedi_conn->iscsi_conn_id);
 
-	if (do_not_recover) {
+	if (qedi_do_not_recover) {
 		QEDI_ERR(&qedi->dbg_ctx, "DONT SEND CLEANUP/ABORT %d\n",
-			 do_not_recover);
+			 qedi_do_not_recover);
 		goto abort_ret;
 	}
 

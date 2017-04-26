@@ -303,11 +303,11 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, mlxsw_sp_port->dev,
 					   ingress,
 					   MLXSW_SP_ACL_PROFILE_FLOWER);
-	if (WARN_ON(IS_ERR(ruleset)))
+	if (IS_ERR(ruleset))
 		return;
 
 	rule = mlxsw_sp_acl_rule_lookup(mlxsw_sp, ruleset, f->cookie);
-	if (!WARN_ON(!rule)) {
+	if (rule) {
 		mlxsw_sp_acl_rule_del(mlxsw_sp, rule);
 		mlxsw_sp_acl_rule_destroy(mlxsw_sp, rule);
 	}

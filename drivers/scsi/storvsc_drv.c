@@ -400,8 +400,6 @@ MODULE_PARM_DESC(storvsc_vcpus_per_sub_channel, "Ratio of VCPUs to subchannels")
  */
 static int storvsc_timeout = 180;
 
-static int msft_blist_flags = BLIST_TRY_VPD_PAGES;
-
 #if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
 static struct scsi_transport_template *fc_transport_template;
 #endif
@@ -1383,6 +1381,22 @@ static int storvsc_do_io(struct hv_device *device,
 	return ret;
 }
 
+static int storvsc_device_alloc(struct scsi_device *sdevice)
+{
+	/*
+	 * Set blist flag to permit the reading of the VPD pages even when
+	 * the target may claim SPC-2 compliance. MSFT targets currently
+	 * claim SPC-2 compliance while they implement post SPC-2 features.
+	 * With this flag we can correctly handle WRITE_SAME_16 issues.
+	 *
+	 * Hypervisor reports SCSI_UNKNOWN type for DVD ROM device but
+	 * still supports REPORT LUN.
+	 */
+	sdevice->sdev_bflags = BLIST_REPORTLUN2 | BLIST_TRY_VPD_PAGES;
+
+	return 0;
+}
+
 static int storvsc_device_configure(struct scsi_device *sdevice)
 {
 
@@ -1394,14 +1408,6 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	blk_queue_virt_boundary(sdevice->request_queue, PAGE_SIZE - 1);
 
 	sdevice->no_write_same = 1;
-
-	/*
-	 * Add blist flags to permit the reading of the VPD pages even when
-	 * the target may claim SPC-2 compliance. MSFT targets currently
-	 * claim SPC-2 compliance while they implement post SPC-2 features.
-	 * With this patch we can correctly handle WRITE_SAME_16 issues.
-	 */
-	sdevice->sdev_bflags |= msft_blist_flags;
 
 	/*
 	 * If the host is WIN8 or WIN8 R2, claim conformance to SPC-3
@@ -1661,6 +1667,7 @@ static struct scsi_host_template scsi_driver = {
 	.eh_host_reset_handler =	storvsc_host_reset_handler,
 	.proc_name =		"storvsc_host",
 	.eh_timed_out =		storvsc_eh_timed_out,
+	.slave_alloc =		storvsc_device_alloc,
 	.slave_configure =	storvsc_device_configure,
 	.cmd_per_lun =		255,
 	.this_id =		-1,

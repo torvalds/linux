@@ -133,7 +133,7 @@ int rds_tcp_accept_one(struct socket *sock)
 
 	new_sock->type = sock->type;
 	new_sock->ops = sock->ops;
-	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK);
+	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK, true);
 	if (ret < 0)
 		goto out;
 
@@ -223,6 +223,9 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 	 * before it has been accepted and the accepter has set up their
 	 * data_ready.. we only want to queue listen work for our listening
 	 * socket
+	 *
+	 * (*ready)() may be null if we are racing with netns delete, and
+	 * the listen socket is being torn down.
 	 */
 	if (sk->sk_state == TCP_LISTEN)
 		rds_tcp_accept_work(sk);
@@ -231,7 +234,8 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 
 out:
 	read_unlock_bh(&sk->sk_callback_lock);
-	ready(sk);
+	if (ready)
+		ready(sk);
 }
 
 struct socket *rds_tcp_listen_init(struct net *net)
@@ -271,7 +275,7 @@ out:
 	return NULL;
 }
 
-void rds_tcp_listen_stop(struct socket *sock)
+void rds_tcp_listen_stop(struct socket *sock, struct work_struct *acceptor)
 {
 	struct sock *sk;
 
@@ -292,5 +296,6 @@ void rds_tcp_listen_stop(struct socket *sock)
 
 	/* wait for accepts to stop and close the socket */
 	flush_workqueue(rds_wq);
+	flush_work(acceptor);
 	sock_release(sock);
 }

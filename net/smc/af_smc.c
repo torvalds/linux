@@ -944,7 +944,7 @@ out:
 }
 
 static int smc_accept(struct socket *sock, struct socket *new_sock,
-		      int flags)
+		      int flags, bool kern)
 {
 	struct sock *sk = sock->sk, *nsk;
 	DECLARE_WAITQUEUE(wait, current);

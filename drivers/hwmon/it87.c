@@ -3198,7 +3198,7 @@ static int __init sm_it87_init(void)
 {
 	int sioaddr[2] = { REG_2E, REG_4E };
 	struct it87_sio_data sio_data;
-	unsigned short isa_address;
+	unsigned short isa_address[2];
 	bool found = false;
 	int i, err;
 
@@ -3208,15 +3208,29 @@ static int __init sm_it87_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(sioaddr); i++) {
 		memset(&sio_data, 0, sizeof(struct it87_sio_data));
-		isa_address = 0;
-		err = it87_find(sioaddr[i], &isa_address, &sio_data);
-		if (err || isa_address == 0)
+		isa_address[i] = 0;
+		err = it87_find(sioaddr[i], &isa_address[i], &sio_data);
+		if (err || isa_address[i] == 0)
 			continue;
+		/*
+		 * Don't register second chip if its ISA address matches
+		 * the first chip's ISA address.
+		 */
+		if (i && isa_address[i] == isa_address[0])
+			break;
 
-		err = it87_device_add(i, isa_address, &sio_data);
+		err = it87_device_add(i, isa_address[i], &sio_data);
 		if (err)
 			goto exit_dev_unregister;
+
 		found = true;
+
+		/*
+		 * IT8705F may respond on both SIO addresses.
+		 * Stop probing after finding one.
+		 */
+		if (sio_data.type == it87)
+			break;
 	}
 
 	if (!found) {

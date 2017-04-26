@@ -772,7 +772,8 @@ static void pep_sock_close(struct sock *sk, long timeout)
 	sock_put(sk);
 }
 
-static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp)
+static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
+				    bool kern)
 {
 	struct pep_sock *pn = pep_sk(sk), *newpn;
 	struct sock *newsk = NULL;
@@ -846,7 +847,8 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp)
 	}
 
 	/* Create a new to-be-accepted sock */
-	newsk = sk_alloc(sock_net(sk), PF_PHONET, GFP_KERNEL, sk->sk_prot, 0);
+	newsk = sk_alloc(sock_net(sk), PF_PHONET, GFP_KERNEL, sk->sk_prot,
+			 kern);
 	if (!newsk) {
 		pep_reject_conn(sk, skb, PN_PIPE_ERR_OVERLOAD, GFP_KERNEL);
 		err = -ENOBUFS;

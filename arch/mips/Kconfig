@@ -69,6 +69,7 @@ config MIPS
 	select HAVE_EXIT_THREAD
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_ARCH_HARDENED_USERCOPY
+	select ARCH_HAS_RAW_COPY_USER
 
 menu "Machine selection"
 

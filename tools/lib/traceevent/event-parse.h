@@ -140,7 +140,7 @@ struct pevent_plugin_option {
  *   struct pevent_plugin_option PEVENT_PLUGIN_OPTIONS[] = {
  *	{
  *		.name = "option-name",
- *		.plugin_alias = "overide-file-name", (optional)
+ *		.plugin_alias = "override-file-name", (optional)
  *		.description = "description of option to show users",
  *	},
  *	{

@@ -2389,9 +2389,8 @@ qed_chain_alloc_sanity_check(struct qed_dev *cdev,
 	 * size/capacity fields are of a u32 type.
 	 */
 	if ((cnt_type == QED_CHAIN_CNT_TYPE_U16 &&
-	     chain_size > 0x10000) ||
-	    (cnt_type == QED_CHAIN_CNT_TYPE_U32 &&
-	     chain_size > 0x100000000ULL)) {
+	     chain_size > ((u32)U16_MAX + 1)) ||
+	    (cnt_type == QED_CHAIN_CNT_TYPE_U32 && chain_size > U32_MAX)) {
 		DP_NOTICE(cdev,
 			  "The actual chain size (0x%llx) is larger than the maximal possible value\n",
 			  chain_size);

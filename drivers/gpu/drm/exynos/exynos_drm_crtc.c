@@ -85,24 +85,9 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_crtc_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_pending_vblank_event *event;
-	unsigned long flags;
 
 	if (exynos_crtc->ops->atomic_flush)
 		exynos_crtc->ops->atomic_flush(exynos_crtc);
-
-	event = crtc->state->event;
-	if (event) {
-		crtc->state->event = NULL;
-
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		if (drm_crtc_vblank_get(crtc) == 0)
-			drm_crtc_arm_vblank_event(crtc, event);
-		else
-			drm_crtc_send_vblank_event(crtc, event);
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	}
-
 }
 
 static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
@@ -113,6 +98,24 @@ static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,
 };
+
+void exynos_crtc_handle_event(struct exynos_drm_crtc *exynos_crtc)
+{
+	struct drm_crtc *crtc = &exynos_crtc->base;
+	struct drm_pending_vblank_event *event = crtc->state->event;
+	unsigned long flags;
+
+	if (event) {
+		crtc->state->event = NULL;
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+	}
+
+}
 
 static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
 {

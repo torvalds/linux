@@ -106,7 +106,7 @@ static struct net_bridge_fdb_entry *br_fdb_find(struct net_bridge *br,
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
 	struct net_bridge_fdb_entry *fdb;
 
-	WARN_ON_ONCE(!br_hash_lock_held(br));
+	lockdep_assert_held_once(&br->hash_lock);
 
 	rcu_read_lock();
 	fdb = fdb_find_rcu(head, addr, vid);

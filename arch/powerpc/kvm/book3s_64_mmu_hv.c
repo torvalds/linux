@@ -601,7 +601,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 							 hva, NULL, NULL);
 			if (ptep) {
 				pte = kvmppc_read_update_linux_pte(ptep, 1);
-				if (pte_write(pte))
+				if (__pte_write(pte))
 					write_ok = 1;
 			}
 			local_irq_restore(flags);

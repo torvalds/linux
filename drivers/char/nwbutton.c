@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/timer.h>

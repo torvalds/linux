@@ -1401,7 +1401,8 @@ static int set_syndrome_sources(struct page **srcs,
 		     (test_bit(R5_Wantdrain, &dev->flags) ||
 		      test_bit(R5_InJournal, &dev->flags))) ||
 		    (srctype == SYNDROME_SRC_WRITTEN &&
-		     dev->written)) {
+		     (dev->written ||
+		      test_bit(R5_InJournal, &dev->flags)))) {
 			if (test_bit(R5_InJournal, &dev->flags))
 				srcs[slot] = sh->dev[i].orig_page;
 			else
@@ -7605,8 +7606,6 @@ static int raid5_resize(struct mddev *mddev, sector_t sectors)
 			return ret;
 	}
 	md_set_array_sectors(mddev, newsize);
-	set_capacity(mddev->gendisk, mddev->array_sectors);
-	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp > mddev->dev_sectors) {
 		mddev->recovery_cp = mddev->dev_sectors;

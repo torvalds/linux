@@ -144,7 +144,7 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 
 		new->ns = ns;
 		new->uid = uid;
-		atomic_set(&new->count, 0);
+		new->count = 0;
 
 		spin_lock_irq(&ucounts_lock);
 		ucounts = find_ucounts(ns, uid, hashent);
@@ -155,8 +155,10 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 			ucounts = new;
 		}
 	}
-	if (!atomic_add_unless(&ucounts->count, 1, INT_MAX))
+	if (ucounts->count == INT_MAX)
 		ucounts = NULL;
+	else
+		ucounts->count += 1;
 	spin_unlock_irq(&ucounts_lock);
 	return ucounts;
 }
@@ -165,13 +167,15 @@ static void put_ucounts(struct ucounts *ucounts)
 {
 	unsigned long flags;
 
-	if (atomic_dec_and_test(&ucounts->count)) {
-		spin_lock_irqsave(&ucounts_lock, flags);
+	spin_lock_irqsave(&ucounts_lock, flags);
+	ucounts->count -= 1;
+	if (!ucounts->count)
 		hlist_del_init(&ucounts->node);
-		spin_unlock_irqrestore(&ucounts_lock, flags);
+	else
+		ucounts = NULL;
+	spin_unlock_irqrestore(&ucounts_lock, flags);
 
-		kfree(ucounts);
-	}
+	kfree(ucounts);
 }
 
 static inline bool atomic_inc_below(atomic_t *v, int u)

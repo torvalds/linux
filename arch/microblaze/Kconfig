@@ -34,6 +34,7 @@ config MICROBLAZE
 	select TRACING_SUPPORT
 	select VIRT_TO_BUS
 	select CPU_NO_EFFICIENT_FFS
+	select ARCH_HAS_RAW_COPY_USER
 
 config SWAP
 	def_bool n

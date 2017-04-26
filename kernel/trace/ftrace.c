@@ -4416,16 +4416,24 @@ static int __init set_graph_notrace_function(char *str)
 }
 __setup("ftrace_graph_notrace=", set_graph_notrace_function);
 
+static int __init set_graph_max_depth_function(char *str)
+{
+	if (!str)
+		return 0;
+	fgraph_max_depth = simple_strtoul(str, NULL, 0);
+	return 1;
+}
+__setup("ftrace_graph_max_depth=", set_graph_max_depth_function);
+
 static void __init set_ftrace_early_graph(char *buf, int enable)
 {
 	int ret;
 	char *func;
 	struct ftrace_hash *hash;
 
-	if (enable)
-		hash = ftrace_graph_hash;
-	else
-		hash = ftrace_graph_notrace_hash;
+	hash = alloc_ftrace_hash(FTRACE_HASH_DEFAULT_BITS);
+	if (WARN_ON(!hash))
+		return;
 
 	while (buf) {
 		func = strsep(&buf, ",");
@@ -4435,6 +4443,11 @@ static void __init set_ftrace_early_graph(char *buf, int enable)
 			printk(KERN_DEBUG "ftrace: function %s not "
 					  "traceable\n", func);
 	}
+
+	if (enable)
+		ftrace_graph_hash = hash;
+	else
+		ftrace_graph_notrace_hash = hash;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
@@ -5488,7 +5501,7 @@ static void ftrace_ops_assist_func(unsigned long ip, unsigned long parent_ip,
  * Normally the mcount trampoline will call the ops->func, but there
  * are times that it should not. For example, if the ops does not
  * have its own recursion protection, then it should call the
- * ftrace_ops_recurs_func() instead.
+ * ftrace_ops_assist_func() instead.
  *
  * Returns the function that the trampoline should call for @ops.
  */

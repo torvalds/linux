@@ -28,6 +28,7 @@
 #include <linux/stringify.h>
 #include <linux/bitops.h>
 #include <linux/highmem.h>
+#include <linux/configfs.h>
 #include <net/genetlink.h>
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
@@ -112,6 +113,7 @@ struct tcmu_dev {
 	spinlock_t commands_lock;
 
 	struct timer_list timeout;
+	unsigned int cmd_time_out;
 
 	char dev_config[TCMU_CONFIG_LEN];
 };
@@ -172,7 +174,9 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 
 	tcmu_cmd->se_cmd = se_cmd;
 	tcmu_cmd->tcmu_dev = udev;
-	tcmu_cmd->deadline = jiffies + msecs_to_jiffies(TCMU_TIME_OUT);
+	if (udev->cmd_time_out)
+		tcmu_cmd->deadline = jiffies +
+					msecs_to_jiffies(udev->cmd_time_out);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock_irq(&udev->commands_lock);
@@ -451,7 +455,11 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 		pr_debug("sleeping for ring space\n");
 		spin_unlock_irq(&udev->cmdr_lock);
-		ret = schedule_timeout(msecs_to_jiffies(TCMU_TIME_OUT));
+		if (udev->cmd_time_out)
+			ret = schedule_timeout(
+					msecs_to_jiffies(udev->cmd_time_out));
+		else
+			ret = schedule_timeout(msecs_to_jiffies(TCMU_TIME_OUT));
 		finish_wait(&udev->wait_cmdr, &__wait);
 		if (!ret) {
 			pr_warn("tcmu: command timed out\n");
@@ -526,8 +534,9 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	/* TODO: only if FLUSH and FUA? */
 	uio_event_notify(&udev->uio_info);
 
-	mod_timer(&udev->timeout,
-		round_jiffies_up(jiffies + msecs_to_jiffies(TCMU_TIME_OUT)));
+	if (udev->cmd_time_out)
+		mod_timer(&udev->timeout, round_jiffies_up(jiffies +
+			  msecs_to_jiffies(udev->cmd_time_out)));
 
 	return TCM_NO_SENSE;
 }
@@ -742,6 +751,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	}
 
 	udev->hba = hba;
+	udev->cmd_time_out = TCMU_TIME_OUT;
 
 	init_waitqueue_head(&udev->wait_cmdr);
 	spin_lock_init(&udev->cmdr_lock);
@@ -960,7 +970,8 @@ static int tcmu_configure_device(struct se_device *dev)
 	if (dev->dev_attrib.hw_block_size == 0)
 		dev->dev_attrib.hw_block_size = 512;
 	/* Other attributes can be configured in userspace */
-	dev->dev_attrib.hw_max_sectors = 128;
+	if (!dev->dev_attrib.hw_max_sectors)
+		dev->dev_attrib.hw_max_sectors = 128;
 	dev->dev_attrib.hw_queue_depth = 128;
 
 	ret = tcmu_netlink_event(TCMU_CMD_ADDED_DEVICE, udev->uio_info.name,
@@ -997,6 +1008,11 @@ static void tcmu_dev_call_rcu(struct rcu_head *p)
 	kfree(udev);
 }
 
+static bool tcmu_dev_configured(struct tcmu_dev *udev)
+{
+	return udev->uio_info.uio_dev ? true : false;
+}
+
 static void tcmu_free_device(struct se_device *dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(dev);
@@ -1018,8 +1034,7 @@ static void tcmu_free_device(struct se_device *dev)
 	spin_unlock_irq(&udev->commands_lock);
 	WARN_ON(!all_expired);
 
-	/* Device was configured */
-	if (udev->uio_info.uio_dev) {
+	if (tcmu_dev_configured(udev)) {
 		tcmu_netlink_event(TCMU_CMD_REMOVED_DEVICE, udev->uio_info.name,
 				   udev->uio_info.uio_dev->minor);
 
@@ -1031,15 +1046,41 @@ static void tcmu_free_device(struct se_device *dev)
 }
 
 enum {
-	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_err,
+	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_hw_max_sectors,
+	Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_dev_config, "dev_config=%s"},
 	{Opt_dev_size, "dev_size=%u"},
 	{Opt_hw_block_size, "hw_block_size=%u"},
+	{Opt_hw_max_sectors, "hw_max_sectors=%u"},
 	{Opt_err, NULL}
 };
+
+static int tcmu_set_dev_attrib(substring_t *arg, u32 *dev_attrib)
+{
+	unsigned long tmp_ul;
+	char *arg_p;
+	int ret;
+
+	arg_p = match_strdup(arg);
+	if (!arg_p)
+		return -ENOMEM;
+
+	ret = kstrtoul(arg_p, 0, &tmp_ul);
+	kfree(arg_p);
+	if (ret < 0) {
+		pr_err("kstrtoul() failed for dev attrib\n");
+		return ret;
+	}
+	if (!tmp_ul) {
+		pr_err("dev attrib must be nonzero\n");
+		return -EINVAL;
+	}
+	*dev_attrib = tmp_ul;
+	return 0;
+}
 
 static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 		const char *page, ssize_t count)
@@ -1048,7 +1089,6 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 	char *orig, *ptr, *opts, *arg_p;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, token;
-	unsigned long tmp_ul;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -1082,26 +1122,19 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 				pr_err("kstrtoul() failed for dev_size=\n");
 			break;
 		case Opt_hw_block_size:
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
-				break;
-			}
-			ret = kstrtoul(arg_p, 0, &tmp_ul);
-			kfree(arg_p);
-			if (ret < 0) {
-				pr_err("kstrtoul() failed for hw_block_size=\n");
-				break;
-			}
-			if (!tmp_ul) {
-				pr_err("hw_block_size must be nonzero\n");
-				break;
-			}
-			dev->dev_attrib.hw_block_size = tmp_ul;
+			ret = tcmu_set_dev_attrib(&args[0],
+					&(dev->dev_attrib.hw_block_size));
+			break;
+		case Opt_hw_max_sectors:
+			ret = tcmu_set_dev_attrib(&args[0],
+					&(dev->dev_attrib.hw_max_sectors));
 			break;
 		default:
 			break;
 		}
+
+		if (ret)
+			break;
 	}
 
 	kfree(orig);
@@ -1134,7 +1167,48 @@ tcmu_parse_cdb(struct se_cmd *cmd)
 	return passthrough_parse_cdb(cmd, tcmu_queue_cmd);
 }
 
-static const struct target_backend_ops tcmu_ops = {
+static ssize_t tcmu_cmd_time_out_show(struct config_item *item, char *page)
+{
+	struct se_dev_attrib *da = container_of(to_config_group(item),
+					struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = container_of(da->da_dev,
+					struct tcmu_dev, se_dev);
+
+	return snprintf(page, PAGE_SIZE, "%lu\n", udev->cmd_time_out / MSEC_PER_SEC);
+}
+
+static ssize_t tcmu_cmd_time_out_store(struct config_item *item, const char *page,
+				       size_t count)
+{
+	struct se_dev_attrib *da = container_of(to_config_group(item),
+					struct se_dev_attrib, da_group);
+	struct tcmu_dev *udev = container_of(da->da_dev,
+					struct tcmu_dev, se_dev);
+	u32 val;
+	int ret;
+
+	if (da->da_dev->export_count) {
+		pr_err("Unable to set tcmu cmd_time_out while exports exist\n");
+		return -EINVAL;
+	}
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (!val) {
+		pr_err("Illegal value for cmd_time_out\n");
+		return -EINVAL;
+	}
+
+	udev->cmd_time_out = val * MSEC_PER_SEC;
+	return count;
+}
+CONFIGFS_ATTR(tcmu_, cmd_time_out);
+
+static struct configfs_attribute **tcmu_attrs;
+
+static struct target_backend_ops tcmu_ops = {
 	.name			= "user",
 	.owner			= THIS_MODULE,
 	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH,
@@ -1148,12 +1222,12 @@ static const struct target_backend_ops tcmu_ops = {
 	.show_configfs_dev_params = tcmu_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= tcmu_get_blocks,
-	.tb_dev_attrib_attrs	= passthrough_attrib_attrs,
+	.tb_dev_attrib_attrs	= NULL,
 };
 
 static int __init tcmu_module_init(void)
 {
-	int ret;
+	int ret, i, len = 0;
 
 	BUILD_BUG_ON((sizeof(struct tcmu_cmd_entry) % TCMU_OP_ALIGN_SIZE) != 0);
 
@@ -1175,12 +1249,31 @@ static int __init tcmu_module_init(void)
 		goto out_unreg_device;
 	}
 
+	for (i = 0; passthrough_attrib_attrs[i] != NULL; i++) {
+		len += sizeof(struct configfs_attribute *);
+	}
+	len += sizeof(struct configfs_attribute *) * 2;
+
+	tcmu_attrs = kzalloc(len, GFP_KERNEL);
+	if (!tcmu_attrs) {
+		ret = -ENOMEM;
+		goto out_unreg_genl;
+	}
+
+	for (i = 0; passthrough_attrib_attrs[i] != NULL; i++) {
+		tcmu_attrs[i] = passthrough_attrib_attrs[i];
+	}
+	tcmu_attrs[i] = &tcmu_attr_cmd_time_out;
+	tcmu_ops.tb_dev_attrib_attrs = tcmu_attrs;
+
 	ret = transport_backend_register(&tcmu_ops);
 	if (ret)
-		goto out_unreg_genl;
+		goto out_attrs;
 
 	return 0;
 
+out_attrs:
+	kfree(tcmu_attrs);
 out_unreg_genl:
 	genl_unregister_family(&tcmu_genl_family);
 out_unreg_device:
@@ -1194,6 +1287,7 @@ out_free_cache:
 static void __exit tcmu_module_exit(void)
 {
 	target_backend_unregister(&tcmu_ops);
+	kfree(tcmu_attrs);
 	genl_unregister_family(&tcmu_genl_family);
 	root_device_unregister(tcmu_root_device);
 	kmem_cache_destroy(tcmu_cmd_cache);

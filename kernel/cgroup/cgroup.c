@@ -2669,7 +2669,7 @@ static bool css_visible(struct cgroup_subsys_state *css)
  *
  * Returns 0 on success, -errno on failure.  On failure, csses which have
  * been processed already aren't cleaned up.  The caller is responsible for
- * cleaning up with cgroup_apply_control_disble().
+ * cleaning up with cgroup_apply_control_disable().
  */
 static int cgroup_apply_control_enable(struct cgroup *cgrp)
 {

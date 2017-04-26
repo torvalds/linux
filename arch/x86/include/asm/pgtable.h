@@ -62,7 +62,7 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
 # define set_pud(pudp, pud)		native_set_pud(pudp, pud)
 #endif
 
-#ifndef __PAGETABLE_PMD_FOLDED
+#ifndef __PAGETABLE_PUD_FOLDED
 #define pud_clear(pud)			native_pud_clear(pud)
 #endif
 

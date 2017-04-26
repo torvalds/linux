@@ -33,6 +33,7 @@ config TILE
 	select USER_STACKTRACE_SUPPORT
 	select USE_PMC if PERF_EVENTS
 	select VIRT_TO_BUS
+	select ARCH_HAS_RAW_COPY_USER
 
 config MMU
 	def_bool y

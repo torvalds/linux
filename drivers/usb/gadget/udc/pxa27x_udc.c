@@ -2534,9 +2534,10 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	usb_del_gadget_udc(&udc->gadget);
 	pxa_cleanup_debugfs(udc);
 
-	if (!IS_ERR_OR_NULL(udc->transceiver))
+	if (!IS_ERR_OR_NULL(udc->transceiver)) {
 		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);
-	usb_put_phy(udc->transceiver);
+		usb_put_phy(udc->transceiver);
+	}
 
 	udc->transceiver = NULL;
 	the_controller = NULL;

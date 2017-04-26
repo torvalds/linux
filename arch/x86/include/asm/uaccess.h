@@ -3,18 +3,13 @@
 /*
  * User space memory access functions
  */
-#include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/kasan-checks.h>
-#include <linux/thread_info.h>
 #include <linux/string.h>
 #include <asm/asm.h>
 #include <asm/page.h>
 #include <asm/smap.h>
 #include <asm/extable.h>
-
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -384,6 +379,18 @@ do {									\
 		     : "=r" (err), ltype(x)				\
 		     : "m" (__m(addr)), "i" (errret), "0" (err))
 
+#define __get_user_asm_nozero(x, addr, err, itype, rtype, ltype, errret)	\
+	asm volatile("\n"						\
+		     "1:	mov"itype" %2,%"rtype"1\n"		\
+		     "2:\n"						\
+		     ".section .fixup,\"ax\"\n"				\
+		     "3:	mov %3,%0\n"				\
+		     "	jmp 2b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE(1b, 3b)				\
+		     : "=r" (err), ltype(x)				\
+		     : "m" (__m(addr)), "i" (errret), "0" (err))
+
 /*
  * This doesn't do __uaccess_begin/end - the exception handling
  * around it must do that.
@@ -674,59 +681,6 @@ extern struct movsl_mask {
 #else
 # include <asm/uaccess_64.h>
 #endif
-
-unsigned long __must_check _copy_from_user(void *to, const void __user *from,
-					   unsigned n);
-unsigned long __must_check _copy_to_user(void __user *to, const void *from,
-					 unsigned n);
-
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-static __always_inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-
-	might_fault();
-
-	kasan_check_write(to, n);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(to, n, false);
-		n = _copy_from_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
-
-static __always_inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(from);
-
-	kasan_check_read(from, n);
-
-	might_fault();
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(from, n, true);
-		n = _copy_to_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
 
 /*
  * We rely on the nested NMI work to allow atomic faults from the NMI path; the

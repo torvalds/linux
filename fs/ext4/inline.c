@@ -1169,10 +1169,9 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 	set_buffer_uptodate(dir_block);
 	err = ext4_handle_dirty_dirent_node(handle, inode, dir_block);
 	if (err)
-		goto out;
+		return err;
 	set_buffer_verified(dir_block);
-out:
-	return err;
+	return ext4_mark_inode_dirty(handle, inode);
 }
 
 static int ext4_convert_inline_data_nolock(handle_t *handle,

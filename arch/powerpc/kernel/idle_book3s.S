@@ -276,19 +276,21 @@ power_enter_stop:
  */
 	andis.   r4,r3,PSSCR_EC_ESL_MASK_SHIFTED
 	clrldi   r3,r3,60 /* r3 = Bits[60:63] = Requested Level (RL) */
-	bne	 1f
+	bne	 .Lhandle_esl_ec_set
 	IDLE_STATE_ENTER_SEQ(PPC_STOP)
 	li	r3,0  /* Since we didn't lose state, return 0 */
 	b 	pnv_wakeup_noloss
+
+.Lhandle_esl_ec_set:
 /*
  * Check if the requested state is a deep idle state.
  */
-1:	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
+	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 	cmpd	r3,r4
-	bge	2f
+	bge	.Lhandle_deep_stop
 	IDLE_STATE_ENTER_SEQ_NORET(PPC_STOP)
-2:
+.Lhandle_deep_stop:
 /*
  * Entering deep idle state.
  * Clear thread bit in PACA_CORE_IDLE_STATE, save SPRs to
@@ -447,9 +449,23 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 _GLOBAL(pnv_wakeup_tb_loss)
 	ld	r1,PACAR1(r13)
 	/*
-	 * Before entering any idle state, the NVGPRs are saved in the stack
-	 * and they are restored before switching to the process context. Hence
-	 * until they are restored, they are free to be used.
+	 * Before entering any idle state, the NVGPRs are saved in the stack.
+	 * If there was a state loss, or PACA_NAPSTATELOST was set, then the
+	 * NVGPRs are restored. If we are here, it is likely that state is lost,
+	 * but not guaranteed -- neither ISA207 nor ISA300 tests to reach
+	 * here are the same as the test to restore NVGPRS:
+	 * PACA_THREAD_IDLE_STATE test for ISA207, PSSCR test for ISA300,
+	 * and SRR1 test for restoring NVGPRs.
+	 *
+	 * We are about to clobber NVGPRs now, so set NAPSTATELOST to
+	 * guarantee they will always be restored. This might be tightened
+	 * with careful reading of specs (particularly for ISA300) but this
+	 * is already a slow wakeup path and it's simpler to be safe.
+	 */
+	li	r0,1
+	stb	r0,PACA_NAPSTATELOST(r13)
+
+	/*
 	 *
 	 * Save SRR1 and LR in NVGPRs as they might be clobbered in
 	 * opal_call() (called in CHECK_HMI_INTERRUPT). SRR1 is required

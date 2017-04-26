@@ -667,11 +667,11 @@ static const char * const uart_ao_b_groups[] = {
 };
 
 static const char * const i2c_ao_groups[] = {
-	"i2c_sdk_ao", "i2c_sda_ao",
+	"i2c_sck_ao", "i2c_sda_ao",
 };
 
 static const char * const i2c_slave_ao_groups[] = {
-	"i2c_slave_sdk_ao", "i2c_slave_sda_ao",
+	"i2c_slave_sck_ao", "i2c_slave_sda_ao",
 };
 
 static const char * const remote_input_ao_groups[] = {

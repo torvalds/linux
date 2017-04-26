@@ -28,6 +28,7 @@ config OPENRISC
 	select OR1K_PIC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
 	select NO_BOOTMEM
+	select ARCH_HAS_RAW_COPY_USER
 
 config MMU
 	def_bool y

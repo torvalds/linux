@@ -1342,7 +1342,7 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 		} else {
 			refcount = kref_read(&io_req->refcount);
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO,
-			    "%d:0:%d:%d xid=0x%0x op=0x%02x "
+			    "%d:0:%d:%lld xid=0x%0x op=0x%02x "
 			    "lba=%02x%02x%02x%02x cdb_status=%d "
 			    "fcp_resid=0x%x refcount=%d.\n",
 			    qedf->lport->host->host_no, sc_cmd->device->id,
@@ -1426,7 +1426,7 @@ void qedf_scsi_done(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 
 	sc_cmd->result = result << 16;
 	refcount = kref_read(&io_req->refcount);
-	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO, "%d:0:%d:%d: Completing "
+	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO, "%d:0:%d:%lld: Completing "
 	    "sc_cmd=%p result=0x%08x op=0x%02x lba=0x%02x%02x%02x%02x, "
 	    "allowed=%d retries=%d refcount=%d.\n",
 	    qedf->lport->host->host_no, sc_cmd->device->id,

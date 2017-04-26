@@ -636,8 +636,7 @@ static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 	 * Fabric modules are expected to return '1' here if the se_cmd being
 	 * passed is released at this point, or zero if not being released.
 	 */
-	return cmd->se_tfo->check_stop_free ? cmd->se_tfo->check_stop_free(cmd)
-		: 0;
+	return cmd->se_tfo->check_stop_free(cmd);
 }
 
 static void transport_lun_remove_cmd(struct se_cmd *cmd)

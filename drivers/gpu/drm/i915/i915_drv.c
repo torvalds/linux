@@ -248,6 +248,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_IRQ_ACTIVE:
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 	case I915_PARAM_LAST_DISPATCH:
+	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		/* Reject all old ums/dri params. */
 		return -ENODEV;
 	case I915_PARAM_CHIPSET_ID:
@@ -273,9 +274,6 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_BSD2:
 		value = !!dev_priv->engine[VCS2];
-		break;
-	case I915_PARAM_HAS_EXEC_CONSTANTS:
-		value = INTEL_GEN(dev_priv) >= 4;
 		break;
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev_priv);
@@ -1788,7 +1786,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
-	i915_gem_reset_finish(dev_priv);
+	i915_gem_reset(dev_priv);
 	intel_overlay_reset(dev_priv);
 
 	/* Ok, now get things going again... */
@@ -1814,6 +1812,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	i915_queue_hangcheck(dev_priv);
 
 wakeup:
+	i915_gem_reset_finish(dev_priv);
 	enable_irq(dev_priv->drm.irq);
 	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
 	return;

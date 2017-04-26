@@ -232,12 +232,12 @@ static struct svc_serv_ops nfs41_cb_sv_ops = {
 	.svo_module		= THIS_MODULE,
 };
 
-struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = &nfs41_cb_sv_ops,
 };
 #else
-struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = NULL,
 };

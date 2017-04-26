@@ -684,6 +684,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd = NULL;
 	pmd_t pmde;
@@ -692,7 +693,11 @@ pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
 	if (!pgd_present(*pgd))
 		goto out;
 
-	pud = pud_offset(pgd, address);
+	p4d = p4d_offset(pgd, address);
+	if (!p4d_present(*p4d))
+		goto out;
+
+	pud = pud_offset(p4d, address);
 	if (!pud_present(*pud))
 		goto out;
 
@@ -1316,12 +1321,6 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	}
 
 	while (page_vma_mapped_walk(&pvmw)) {
-		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
-		address = pvmw.address;
-
-		/* Unexpected PMD-mapped THP? */
-		VM_BUG_ON_PAGE(!pvmw.pte, page);
-
 		/*
 		 * If the page is mlock()d, we cannot swap it out.
 		 * If it's recently referenced (perhaps page_referenced
@@ -1344,6 +1343,13 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			if (flags & TTU_MUNLOCK)
 				continue;
 		}
+
+		/* Unexpected PMD-mapped THP? */
+		VM_BUG_ON_PAGE(!pvmw.pte, page);
+
+		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+		address = pvmw.address;
+
 
 		if (!(flags & TTU_IGNORE_ACCESS)) {
 			if (ptep_clear_flush_young_notify(vma, address,

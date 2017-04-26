@@ -80,7 +80,7 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 	int ret;
 
 	size = sizeof(*h) + info->mmio_size + info->cfg_space_size - 1;
-	firmware = vmalloc(size);
+	firmware = vzalloc(size);
 	if (!firmware)
 		return -ENOMEM;
 

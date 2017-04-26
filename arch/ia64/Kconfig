@@ -53,6 +53,7 @@ config IA64
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_HARDENED_USERCOPY
+	select ARCH_HAS_RAW_COPY_USER
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to

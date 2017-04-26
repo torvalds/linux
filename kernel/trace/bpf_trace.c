@@ -96,7 +96,7 @@ BPF_CALL_3(bpf_probe_write_user, void *, unsafe_ptr, const void *, src,
 	if (unlikely(in_interrupt() ||
 		     current->flags & (PF_KTHREAD | PF_EXITING)))
 		return -EPERM;
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS)))
+	if (unlikely(uaccess_kernel()))
 		return -EPERM;
 	if (!access_ok(VERIFY_WRITE, unsafe_ptr, size))
 		return -EPERM;

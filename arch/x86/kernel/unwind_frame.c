@@ -82,19 +82,43 @@ static size_t regs_size(struct pt_regs *regs)
 	return sizeof(*regs);
 }
 
+#ifdef CONFIG_X86_32
+#define GCC_REALIGN_WORDS 3
+#else
+#define GCC_REALIGN_WORDS 1
+#endif
+
 static bool is_last_task_frame(struct unwind_state *state)
 {
-	unsigned long bp = (unsigned long)state->bp;
-	unsigned long regs = (unsigned long)task_pt_regs(state->task);
+	unsigned long *last_bp = (unsigned long *)task_pt_regs(state->task) - 2;
+	unsigned long *aligned_bp = last_bp - GCC_REALIGN_WORDS;
 
 	/*
 	 * We have to check for the last task frame at two different locations
 	 * because gcc can occasionally decide to realign the stack pointer and
-	 * change the offset of the stack frame by a word in the prologue of a
-	 * function called by head/entry code.
+	 * change the offset of the stack frame in the prologue of a function
+	 * called by head/entry code.  Examples:
+	 *
+	 * <start_secondary>:
+	 *      push   %edi
+	 *      lea    0x8(%esp),%edi
+	 *      and    $0xfffffff8,%esp
+	 *      pushl  -0x4(%edi)
+	 *      push   %ebp
+	 *      mov    %esp,%ebp
+	 *
+	 * <x86_64_start_kernel>:
+	 *      lea    0x8(%rsp),%r10
+	 *      and    $0xfffffffffffffff0,%rsp
+	 *      pushq  -0x8(%r10)
+	 *      push   %rbp
+	 *      mov    %rsp,%rbp
+	 *
+	 * Note that after aligning the stack, it pushes a duplicate copy of
+	 * the return address before pushing the frame pointer.
 	 */
-	return bp == regs - FRAME_HEADER_SIZE ||
-	       bp == regs - FRAME_HEADER_SIZE - sizeof(long);
+	return (state->bp == last_bp ||
+		(state->bp == aligned_bp && *(aligned_bp+1) == *(last_bp+1)));
 }
 
 /*

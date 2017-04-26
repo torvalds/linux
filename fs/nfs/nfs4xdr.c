@@ -3942,7 +3942,7 @@ static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
 		if (len <= 0)
 			goto out;
 		dprintk("%s: name=%s\n", __func__, group_name->data);
-		return NFS_ATTR_FATTR_OWNER_NAME;
+		return NFS_ATTR_FATTR_GROUP_NAME;
 	} else {
 		len = xdr_stream_decode_opaque_inline(xdr, (void **)&p,
 				XDR_MAX_NETOBJ);

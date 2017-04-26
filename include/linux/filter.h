@@ -409,6 +409,7 @@ struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	kmemcheck_bitfield_begin(meta);
 	u16			jited:1,	/* Is our filter JIT'ed? */
+				locked:1,	/* Program image locked? */
 				gpl_compatible:1, /* Is filter GPL compatible? */
 				cb_access:1,	/* Is control block accessed? */
 				dst_needed:1,	/* Do we need dst entry? */
@@ -554,22 +555,29 @@ static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
 #ifdef CONFIG_ARCH_HAS_SET_MEMORY
 static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
 {
-	set_memory_ro((unsigned long)fp, fp->pages);
+	fp->locked = 1;
+	WARN_ON_ONCE(set_memory_ro((unsigned long)fp, fp->pages));
 }
 
 static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 {
-	set_memory_rw((unsigned long)fp, fp->pages);
+	if (fp->locked) {
+		WARN_ON_ONCE(set_memory_rw((unsigned long)fp, fp->pages));
+		/* In case set_memory_rw() fails, we want to be the first
+		 * to crash here instead of some random place later on.
+		 */
+		fp->locked = 0;
+	}
 }
 
 static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
 {
-	set_memory_ro((unsigned long)hdr, hdr->pages);
+	WARN_ON_ONCE(set_memory_ro((unsigned long)hdr, hdr->pages));
 }
 
 static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
 {
-	set_memory_rw((unsigned long)hdr, hdr->pages);
+	WARN_ON_ONCE(set_memory_rw((unsigned long)hdr, hdr->pages));
 }
 #else
 static inline void bpf_prog_lock_ro(struct bpf_prog *fp)

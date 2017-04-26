@@ -2129,8 +2129,8 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
 		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
 		if (!bitmap)
 			return 0;
-		bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
-		kfree(bitmap);
+		if (this_cpu_cmpxchg(ida_bitmap, NULL, bitmap))
+			kfree(bitmap);
 	}
 
 	return 1;

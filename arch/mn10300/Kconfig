@@ -16,6 +16,7 @@ config MN10300
 	select OLD_SIGACTION
 	select HAVE_DEBUG_STACKOVERFLOW
 	select ARCH_NO_COHERENT_DMA_MMAP
+	select ARCH_HAS_RAW_COPY_USER
 
 config AM33_2
 	def_bool n

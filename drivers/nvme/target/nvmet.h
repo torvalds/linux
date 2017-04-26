@@ -73,6 +73,7 @@ struct nvmet_sq {
 	u16			qid;
 	u16			size;
 	struct completion	free_done;
+	struct completion	confirm_done;
 };
 
 /**

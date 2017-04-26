@@ -1001,7 +1001,7 @@ struct eq_delay_info {
 	uint32_t phase;
 	uint32_t delay_multi;
 };
-#define	LPFC_MAX_EQ_DELAY	8
+#define	LPFC_MAX_EQ_DELAY_EQID_CNT	8
 
 struct sgl_page_pairs {
 	uint32_t sgl_pg0_addr_lo;
@@ -1070,7 +1070,7 @@ struct lpfc_mbx_modify_eq_delay {
 	union {
 		struct {
 			uint32_t num_eq;
-			struct eq_delay_info eq[LPFC_MAX_EQ_DELAY];
+			struct eq_delay_info eq[LPFC_MAX_EQ_DELAY_EQID_CNT];
 		} request;
 		struct {
 			uint32_t word0;

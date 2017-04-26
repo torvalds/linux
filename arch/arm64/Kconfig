@@ -115,6 +115,7 @@ config ARM64
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
+	select ARCH_HAS_RAW_COPY_USER
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
@@ -505,6 +506,16 @@ config QCOM_FALKOR_ERRATUM_1009
 	  On Falkor v1, the CPU may prematurely complete a DSB following a
 	  TLBI xxIS invalidate maintenance operation. Repeat the TLBI operation
 	  one more time to fix the issue.
+
+	  If unsure, say Y.
+
+config QCOM_QDF2400_ERRATUM_0065
+	bool "QDF2400 E0065: Incorrect GITS_TYPER.ITT_Entry_size"
+	default y
+	help
+	  On Qualcomm Datacenter Technologies QDF2400 SoC, ITS hardware reports
+	  ITE size incorrectly. The GITS_TYPER.ITT_Entry_size field should have
+	  been indicated as 16Bytes (0xf), not 8Bytes (0x7).
 
 	  If unsure, say Y.
 
@@ -1062,6 +1073,10 @@ config COMPAT
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
+
+config KEYS_COMPAT
+	def_bool y
+	depends on COMPAT && KEYS
 
 endmenu
 

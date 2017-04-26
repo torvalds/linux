@@ -1387,7 +1387,7 @@ static bool pci_data_iowrite(u16 port, u32 mask, u32 val)
 		/* Allow writing to any other BAR, or expansion ROM */
 		iowrite(portoff, val, mask, &d->config_words[reg]);
 		return true;
-		/* We let them overide latency timer and cacheline size */
+		/* We let them override latency timer and cacheline size */
 	} else if (&d->config_words[reg] == (void *)&d->config.cacheline_size) {
 		/* Only let them change the first two fields. */
 		if (mask == 0xFFFFFFFF)
