@@ -2177,37 +2177,37 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
 
 /**
- * enum - mesh synchronization method identifier
+ * enum ieee80211_mesh_sync_method - mesh synchronization method identifier
  *
  * @IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET: the default synchronization method
  * @IEEE80211_SYNC_METHOD_VENDOR: a vendor specific synchronization method
  *	that will be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_sync_method {
 	IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET = 1,
 	IEEE80211_SYNC_METHOD_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection protocol identifier
+ * enum ieee80211_mesh_path_protocol - mesh path selection protocol identifier
  *
  * @IEEE80211_PATH_PROTOCOL_HWMP: the default path selection protocol
  * @IEEE80211_PATH_PROTOCOL_VENDOR: a vendor specific protocol that will
  *	be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_protocol {
 	IEEE80211_PATH_PROTOCOL_HWMP = 1,
 	IEEE80211_PATH_PROTOCOL_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection metric identifier
+ * enum ieee80211_mesh_path_metric - mesh path selection metric identifier
  *
  * @IEEE80211_PATH_METRIC_AIRTIME: the default path selection metric
  * @IEEE80211_PATH_METRIC_VENDOR: a vendor specific metric that will be
  *	specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_metric {
 	IEEE80211_PATH_METRIC_AIRTIME = 1,
 	IEEE80211_PATH_METRIC_VENDOR = 255,
 };
