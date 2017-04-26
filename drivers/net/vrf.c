@@ -877,6 +877,12 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
 	int ret;
 
+	/* do not allow loopback device to be enslaved to a VRF.
+	 * The vrf device acts as the loopback for the vrf.
+	 */
+	if (port_dev == dev_net(dev)->loopback_dev)
+		return -EOPNOTSUPP;
+
 	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
 	ret = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL);
 	if (ret < 0)
