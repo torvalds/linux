@@ -35,6 +35,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <linux/netdevice.h>
 #include <linux/iommu.h>
+#include <linux/pci.h>
 #include <net/addrconf.h>
 #include <linux/qed/qede_roce.h>
 #include <linux/qed/qed_chain.h>
