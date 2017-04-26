@@ -795,7 +795,8 @@ int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
 
 enum qed_resc_lock {
 	QED_RESC_LOCK_DBG_DUMP = QED_MCP_RESC_LOCK_MIN_VAL,
-	QED_RESC_LOCK_RESC_ALLOC = QED_MCP_RESC_LOCK_MAX_VAL
+	QED_RESC_LOCK_RESC_ALLOC = QED_MCP_RESC_LOCK_MAX_VAL,
+	QED_RESC_LOCK_RESC_INVALID
 };
 
 /**
@@ -818,9 +819,11 @@ struct qed_resc_lock_params {
 
 	/* Number of times to retry locking */
 	u8 retry_num;
+#define QED_MCP_RESC_LOCK_RETRY_CNT_DFLT        10
 
 	/* The interval in usec between retries */
 	u16 retry_interval;
+#define QED_MCP_RESC_LOCK_RETRY_VAL_DFLT        10000
 
 	/* Use sleep or delay between retries */
 	bool sleep_b4_retry;
@@ -871,5 +874,18 @@ int
 qed_mcp_resc_unlock(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    struct qed_resc_unlock_params *p_params);
+
+/**
+ * @brief - default initialization for lock/unlock resource structs
+ *
+ * @param p_lock - lock params struct to be initialized; Can be NULL
+ * @param p_unlock - unlock params struct to be initialized; Can be NULL
+ * @param resource - the requested resource
+ * @paral b_is_permanent - disable retries & aging when set
+ */
+void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
+				    struct qed_resc_unlock_params *p_unlock,
+				    enum qed_resc_lock
+				    resource, bool b_is_permanent);
 
 #endif

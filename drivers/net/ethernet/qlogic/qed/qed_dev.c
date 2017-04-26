@@ -2347,9 +2347,6 @@ static int qed_hw_set_resc_info(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-#define QED_RESC_ALLOC_LOCK_RETRY_CNT           10
-#define QED_RESC_ALLOC_LOCK_RETRY_INTVL_US      10000	/* 10 msec */
-
 static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_resc_unlock_params resc_unlock_params;
@@ -2366,13 +2363,8 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	 * needed, and proceed to the queries. Other failures, including a
 	 * failure to acquire the lock, will cause this function to fail.
 	 */
-	memset(&resc_lock_params, 0, sizeof(resc_lock_params));
-	resc_lock_params.resource = QED_RESC_LOCK_RESC_ALLOC;
-	resc_lock_params.retry_num = QED_RESC_ALLOC_LOCK_RETRY_CNT;
-	resc_lock_params.retry_interval = QED_RESC_ALLOC_LOCK_RETRY_INTVL_US;
-	resc_lock_params.sleep_b4_retry = true;
-	memset(&resc_unlock_params, 0, sizeof(resc_unlock_params));
-	resc_unlock_params.resource = QED_RESC_LOCK_RESC_ALLOC;
+	qed_mcp_resc_lock_default_init(&resc_lock_params, &resc_unlock_params,
+				       QED_RESC_LOCK_RESC_ALLOC, false);
 
 	rc = qed_mcp_resc_lock(p_hwfn, p_ptt, &resc_lock_params);
 	if (rc && rc != -EINVAL) {
