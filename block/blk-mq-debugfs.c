@@ -311,6 +311,7 @@ static const char *const rqf_name[] = {
 static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 {
 	struct request *rq = list_entry_rq(v);
+	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
 	const unsigned int op = rq->cmd_flags & REQ_OP_MASK;
 
 	seq_printf(m, "%p {.op=", rq);
@@ -324,8 +325,11 @@ static int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 	seq_puts(m, ", .rq_flags=");
 	blk_flags_show(m, (__force unsigned int)rq->rq_flags, rqf_name,
 		       ARRAY_SIZE(rqf_name));
-	seq_printf(m, ", .tag=%d, .internal_tag=%d}\n", rq->tag,
+	seq_printf(m, ", .tag=%d, .internal_tag=%d", rq->tag,
 		   rq->internal_tag);
+	if (mq_ops->show_rq)
+		mq_ops->show_rq(m, rq);
+	seq_puts(m, "}\n");
 	return 0;
 }
 
