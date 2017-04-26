@@ -363,6 +363,21 @@ static void calc_freesync_range(struct core_freesync *core_freesync,
 	unsigned int index = map_index_from_stream(core_freesync, stream);
 	uint32_t vtotal = stream->timing.v_total;
 
+	if ((min_refresh_in_uhz == 0) || (max_refresh_in_uhz == 0)) {
+		state->freesync_range.min_refresh =
+				state->nominal_refresh_rate_in_micro_hz;
+		state->freesync_range.max_refresh =
+				state->nominal_refresh_rate_in_micro_hz;
+
+		state->freesync_range.max_frame_duration = 0;
+		state->freesync_range.min_frame_duration = 0;
+
+		state->freesync_range.vmax = vtotal;
+		state->freesync_range.vmin = vtotal;
+
+		return;
+	}
+
 	min_frame_duration_in_ns = ((unsigned int) (div64_u64(
 					(1000000000ULL * 1000000),
 					max_refresh_in_uhz)));
