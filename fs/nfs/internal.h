@@ -123,6 +123,7 @@ struct nfs_parsed_mount_data {
 		char			*export_path;
 		int			port;
 		unsigned short		protocol;
+		unsigned short		nconnect;
 	} nfs_server;
 
 	void			*lsm_opts;
