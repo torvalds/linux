@@ -535,6 +535,13 @@ static int dmatest_func(void *data)
 
 		total_tests++;
 
+		/* Check if buffer count fits into map count variable (u8) */
+		if ((src_cnt + dst_cnt) >= 255) {
+			pr_err("too many buffers (%d of 255 supported)\n",
+			       src_cnt + dst_cnt);
+			break;
+		}
+
 		if (1 << align > params->buf_size) {
 			pr_err("%u-byte buffer too small for %d-byte alignment\n",
 			       params->buf_size, 1 << align);
