@@ -417,10 +417,68 @@ static int stm32_counter_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int stm32_counter_validate_trigger(struct iio_dev *indio_dev,
+					  struct iio_trigger *trig)
+{
+	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	const char * const *cur = priv->valids;
+	unsigned int i = 0;
+
+	if (!is_stm32_timer_trigger(trig))
+		return -EINVAL;
+
+	while (cur && *cur) {
+		if (!strncmp(trig->name, *cur, strlen(trig->name))) {
+			regmap_update_bits(priv->regmap,
+					   TIM_SMCR, TIM_SMCR_TS,
+					   i << TIM_SMCR_TS_SHIFT);
+			return 0;
+		}
+		cur++;
+		i++;
+	}
+
+	return -EINVAL;
+}
+
 static const struct iio_info stm32_trigger_info = {
 	.driver_module = THIS_MODULE,
+	.validate_trigger = stm32_counter_validate_trigger,
 	.read_raw = stm32_counter_read_raw,
 	.write_raw = stm32_counter_write_raw
+};
+
+static const char *const stm32_trigger_modes[] = {
+	"trigger",
+};
+
+static int stm32_set_trigger_mode(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan,
+				  unsigned int mode)
+{
+	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+
+	regmap_update_bits(priv->regmap, TIM_SMCR, TIM_SMCR_SMS, TIM_SMCR_SMS);
+
+	return 0;
+}
+
+static int stm32_get_trigger_mode(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan)
+{
+	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 smcr;
+
+	regmap_read(priv->regmap, TIM_SMCR, &smcr);
+
+	return smcr == TIM_SMCR_SMS ? 0 : -EINVAL;
+}
+
+static const struct iio_enum stm32_trigger_mode_enum = {
+	.items = stm32_trigger_modes,
+	.num_items = ARRAY_SIZE(stm32_trigger_modes),
+	.set = stm32_set_trigger_mode,
+	.get = stm32_get_trigger_mode
 };
 
 static const char *const stm32_enable_modes[] = {
@@ -606,6 +664,8 @@ static const struct iio_chan_spec_ext_info stm32_trigger_count_info[] = {
 	IIO_ENUM_AVAILABLE("quadrature_mode", &stm32_quadrature_mode_enum),
 	IIO_ENUM("enable_mode", IIO_SEPARATE, &stm32_enable_mode_enum),
 	IIO_ENUM_AVAILABLE("enable_mode", &stm32_enable_mode_enum),
+	IIO_ENUM("trigger_mode", IIO_SEPARATE, &stm32_trigger_mode_enum),
+	IIO_ENUM_AVAILABLE("trigger_mode", &stm32_trigger_mode_enum),
 	{}
 };
 
@@ -630,6 +690,7 @@ static struct stm32_timer_trigger *stm32_setup_counter_device(struct device *dev
 	indio_dev->name = dev_name(dev);
 	indio_dev->dev.parent = dev;
 	indio_dev->info = &stm32_trigger_info;
+	indio_dev->modes = INDIO_HARDWARE_TRIGGERED;
 	indio_dev->num_channels = 1;
 	indio_dev->channels = &stm32_trigger_channel;
 	indio_dev->dev.of_node = dev->of_node;

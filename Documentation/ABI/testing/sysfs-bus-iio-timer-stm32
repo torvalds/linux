@@ -138,3 +138,18 @@ Description:
 			Counting is enabled on rising edge of the connected
 			trigger, and remains enabled for the duration of this
 			selected mode.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_trigger_mode_available
+KernelVersion:	4.13
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the list possible trigger modes.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_trigger_mode
+KernelVersion:	4.13
+Contact:	benjamin.gaignard@st.com
+Description:
+		Configure the device counter trigger mode
+		counting direction is set by in_count0_count_direction
+		attribute and the counter is clocked by the connected trigger
+		rising edges.
