@@ -8,5 +8,8 @@ tcpm:
 - Add support for USB PD 3.0. While not mandatory, at least fast role swap
   as well as authentication support would be very desirable.
 
+tcpci:
+- Test with real hardware
+
 Please send patches to Guenter Roeck <linux@roeck-us.net> and copy
 Heikki Krogerus <heikki.krogerus@linux.intel.com>.
