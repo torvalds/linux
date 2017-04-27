@@ -825,13 +825,13 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 	if (priv->scan_ind_count) {
 		for (i = 0; i < priv->aplist.size; i++) {	/* bssid check */
 			if (memcmp(ap_info->bssid,
-				   priv->aplist.ap[i].bssid, ETH_ALEN) == 0) {
-				if (ap_info->frame_type ==
-				    FRAME_TYPE_PROBE_RESP)
-					get_ap_information(priv, ap_info,
-							   &priv->aplist.ap[i]);
-				return;
-			}
+				   priv->aplist.ap[i].bssid, ETH_ALEN) != 0)
+				continue;
+
+			if (ap_info->frame_type == FRAME_TYPE_PROBE_RESP)
+				get_ap_information(priv, ap_info,
+						   &priv->aplist.ap[i]);
+			return;
 		}
 	}
 	priv->scan_ind_count++;
