@@ -1437,6 +1437,44 @@ static int context_pin(struct i915_gem_context *ctx)
 			    PIN_GLOBAL | PIN_HIGH);
 }
 
+static struct i915_vma *
+alloc_context_vma(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+
+	obj = i915_gem_object_create(i915, i915->hw_context_size);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	/*
+	 * Try to make the context utilize L3 as well as LLC.
+	 *
+	 * On VLV we don't have L3 controls in the PTEs so we
+	 * shouldn't touch the cache level, especially as that
+	 * would make the object snooped which might have a
+	 * negative performance impact.
+	 *
+	 * Snooping is required on non-llc platforms in execlist
+	 * mode, but since all GGTT accesses use PAT entry 0 we
+	 * get snooping anyway regardless of cache_level.
+	 *
+	 * This is only applicable for Ivy Bridge devices since
+	 * later platforms don't have L3 control bits in the PTE.
+	 */
+	if (IS_IVYBRIDGE(i915)) {
+		/* Ignore any error, regard it as a simple optimisation */
+		i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
+	}
+
+	vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);
+	if (IS_ERR(vma))
+		i915_gem_object_put(obj);
+
+	return vma;
+}
+
 static int intel_ring_context_pin(struct intel_engine_cs *engine,
 				  struct i915_gem_context *ctx)
 {
@@ -1448,6 +1486,18 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 	if (ce->pin_count++)
 		return 0;
 	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
+
+	if (engine->id == RCS && !ce->state && engine->i915->hw_context_size) {
+		struct i915_vma *vma;
+
+		vma = alloc_context_vma(engine);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
+			goto error;
+		}
+
+		ce->state = vma;
+	}
 
 	if (ce->state) {
 		ret = context_pin(ctx);

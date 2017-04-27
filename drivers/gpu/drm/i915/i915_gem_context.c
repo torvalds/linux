@@ -151,45 +151,6 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	kfree(ctx);
 }
 
-static struct drm_i915_gem_object *
-alloc_context_obj(struct drm_i915_private *dev_priv, u64 size)
-{
-	struct drm_i915_gem_object *obj;
-	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	obj = i915_gem_object_create(dev_priv, size);
-	if (IS_ERR(obj))
-		return obj;
-
-	/*
-	 * Try to make the context utilize L3 as well as LLC.
-	 *
-	 * On VLV we don't have L3 controls in the PTEs so we
-	 * shouldn't touch the cache level, especially as that
-	 * would make the object snooped which might have a
-	 * negative performance impact.
-	 *
-	 * Snooping is required on non-llc platforms in execlist
-	 * mode, but since all GGTT accesses use PAT entry 0 we
-	 * get snooping anyway regardless of cache_level.
-	 *
-	 * This is only applicable for Ivy Bridge devices since
-	 * later platforms don't have L3 control bits in the PTE.
-	 */
-	if (IS_IVYBRIDGE(dev_priv)) {
-		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
-		/* Failure shouldn't ever happen this early */
-		if (WARN_ON(ret)) {
-			i915_gem_object_put(obj);
-			return ERR_PTR(ret);
-		}
-	}
-
-	return obj;
-}
-
 static void context_close(struct i915_gem_context *ctx)
 {
 	i915_gem_context_set_closed(ctx);
@@ -265,26 +226,6 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 	ctx->i915 = dev_priv;
-
-	if (dev_priv->hw_context_size) {
-		struct drm_i915_gem_object *obj;
-		struct i915_vma *vma;
-
-		obj = alloc_context_obj(dev_priv, dev_priv->hw_context_size);
-		if (IS_ERR(obj)) {
-			ret = PTR_ERR(obj);
-			goto err_out;
-		}
-
-		vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
-		if (IS_ERR(vma)) {
-			i915_gem_object_put(obj);
-			ret = PTR_ERR(vma);
-			goto err_out;
-		}
-
-		ctx->engine[RCS].state = vma;
-	}
 
 	/* Default context will never have a file_priv */
 	ret = DEFAULT_CONTEXT_HANDLE;
