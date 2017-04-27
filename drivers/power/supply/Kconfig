@@ -250,6 +250,14 @@ config BATTERY_AXP20X
 	  This driver can also be built as a module. If so, the module will be
 	  called axp20x_battery.
 
+config AXP20X_POWER
+	tristate "AXP20x power supply driver"
+	depends on MFD_AXP20X
+	depends on IIO
+	help
+	  This driver provides support for the power supply features of
+	  AXP20x PMIC.
+
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
 	depends on MFD_AXP20X && EXTCON_AXP288
@@ -552,12 +560,5 @@ config CHARGER_RT9455
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
-
-config AXP20X_POWER
-	tristate "AXP20x power supply driver"
-	depends on MFD_AXP20X
-	help
-	  This driver provides support for the power supply features of
-	  AXP20x PMIC.
 
 endif # POWER_SUPPLY
