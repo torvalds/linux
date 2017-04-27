@@ -1269,7 +1269,7 @@ static void set_td_timer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 			time = 30;
 			break;
 		default:
-			time = 300;
+			time = 50;
 			break;
 		}
 
