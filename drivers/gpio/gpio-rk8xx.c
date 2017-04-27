@@ -221,8 +221,13 @@ static int rk8xx_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gi);
 
 	ret = gpiochip_add(&gi->gpio_chip);
-	if (ret)
+	if (ret) {
 		dev_err(&pdev->dev, "register rk8xx gpiochip fail: %d\n", ret);
+		return ret;
+	}
+
+	dev_info(&pdev->dev, "register rk%lx gpio successful\n",
+		 rk8xx->variant);
 
 	return ret;
 }
