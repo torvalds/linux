@@ -1143,7 +1143,7 @@ static enum surface_update_type  get_scaling_info_update_type(
 		return UPDATE_TYPE_FULL;
 
 	/* Check Clip rectangles if not equal
-	 * difference is in offsets == > UPDATE_TYPE_FAST
+	 * difference is in offsets == > UPDATE_TYPE_MED
 	 * difference is in dimensions == > UPDATE_TYPE_FULL
 	 */
 	if (memcmp(&u->scaling_info->clip_rect,
@@ -1152,7 +1152,7 @@ static enum surface_update_type  get_scaling_info_update_type(
 			u->surface->clip_rect.height) &&
 			(u->scaling_info->clip_rect.width ==
 			u->surface->clip_rect.width)) {
-			return UPDATE_TYPE_FAST;
+			return UPDATE_TYPE_MED;
 		} else {
 			return UPDATE_TYPE_FULL;
 		}
@@ -1326,8 +1326,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 					srf_updates[i].plane_info->dcc;
 		}
 
-		/* not sure if we still need this */
-		if (update_type == UPDATE_TYPE_FULL) {
+		if (update_type >= UPDATE_TYPE_MED) {
 			for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
