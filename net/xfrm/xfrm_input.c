@@ -395,7 +395,7 @@ resume:
 		if (xo)
 			xfrm_gro = xo->flags & XFRM_GRO;
 
-		err = x->inner_mode->afinfo->transport_finish(skb, async);
+		err = x->inner_mode->afinfo->transport_finish(skb, xfrm_gro || async);
 		if (xfrm_gro) {
 			skb_dst_drop(skb);
 			gro_cells_receive(&gro_cells, skb);
