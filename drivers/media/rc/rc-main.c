@@ -15,7 +15,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <media/rc-core.h>
-#include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -934,8 +933,8 @@ static bool lirc_is_present(void)
  * It returns the protocol names of supported protocols.
  * Enabled protocols are printed in brackets.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_protocols and show_protocols.
  */
 static ssize_t show_protocols(struct device *device,
 			      struct device_attribute *mattr, char *buf)
@@ -944,13 +943,6 @@ static ssize_t show_protocols(struct device *device,
 	u64 allowed, enabled;
 	char *tmp = buf;
 	int i;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1106,8 +1098,8 @@ static void ir_raw_load_modules(u64 *protocols)
  * See parse_protocol_change() for the valid commands.
  * Returns @len on success or a negative error code.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_protocols and show_protocols.
  */
 static ssize_t store_protocols(struct device *device,
 			       struct device_attribute *mattr,
@@ -1118,13 +1110,6 @@ static ssize_t store_protocols(struct device *device,
 	struct rc_scancode_filter *filter;
 	u64 old_protocols, new_protocols;
 	ssize_t rc;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	IR_dprintk(1, "Normal protocol change requested\n");
 	current_protocols = &dev->enabled_protocols;
@@ -1200,7 +1185,7 @@ out:
  * Bits of the filter value corresponding to set bits in the filter mask are
  * compared against input scancodes and non-matching scancodes are discarded.
  *
- * dev->lock is taken to guard against races between device registration,
+ * dev->lock is taken to guard against races between
  * store_filter and show_filter.
  */
 static ssize_t show_filter(struct device *device,
@@ -1211,13 +1196,6 @@ static ssize_t show_filter(struct device *device,
 	struct rc_filter_attribute *fattr = to_rc_filter_attr(attr);
 	struct rc_scancode_filter *filter;
 	u32 val;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1251,7 +1229,7 @@ static ssize_t show_filter(struct device *device,
  * Bits of the filter value corresponding to set bits in the filter mask are
  * compared against input scancodes and non-matching scancodes are discarded.
  *
- * dev->lock is taken to guard against races between device registration,
+ * dev->lock is taken to guard against races between
  * store_filter and show_filter.
  */
 static ssize_t store_filter(struct device *device,
@@ -1264,13 +1242,6 @@ static ssize_t store_filter(struct device *device,
 	int ret;
 	unsigned long val;
 	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
@@ -1372,8 +1343,8 @@ static const char * const proto_variant_names[] = {
  * It returns the protocol names of supported protocols.
  * The enabled protocols are printed in brackets.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_wakeup_protocols and show_wakeup_protocols.
  */
 static ssize_t show_wakeup_protocols(struct device *device,
 				     struct device_attribute *mattr,
@@ -1384,13 +1355,6 @@ static ssize_t show_wakeup_protocols(struct device *device,
 	enum rc_type enabled;
 	char *tmp = buf;
 	int i;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1431,8 +1395,8 @@ static ssize_t show_wakeup_protocols(struct device *device,
  * It is trigged by writing to /sys/class/rc/rc?/wakeup_protocols.
  * Returns @len on success or a negative error code.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_wakeup_protocols and show_wakeup_protocols.
  */
 static ssize_t store_wakeup_protocols(struct device *device,
 				      struct device_attribute *mattr,
@@ -1443,13 +1407,6 @@ static ssize_t store_wakeup_protocols(struct device *device,
 	ssize_t rc;
 	u64 allowed;
 	int i;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1773,7 +1730,6 @@ int rc_register_device(struct rc_dev *dev)
 	dev->minor = minor;
 	dev_set_name(&dev->dev, "rc%u", dev->minor);
 	dev_set_drvdata(&dev->dev, dev);
-	atomic_set(&dev->initialized, 0);
 
 	dev->dev.groups = dev->sysfs_groups;
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
@@ -1818,9 +1774,6 @@ int rc_register_device(struct rc_dev *dev)
 		if (rc < 0)
 			goto out_rx;
 	}
-
-	/* Allow the RC sysfs nodes to be accessible */
-	atomic_set(&dev->initialized, 1);
 
 	IR_dprintk(1, "Registered rc%u (driver: %s)\n",
 		   dev->minor,
