@@ -567,8 +567,6 @@ SYSCALL_DEFINE5(statx,
 		return -EINVAL;
 	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
 		return -EINVAL;
-	if (!filename)
-		return -EINVAL;
 
 	error = vfs_statx(dfd, filename, flags, &stat, mask);
 	if (error)
