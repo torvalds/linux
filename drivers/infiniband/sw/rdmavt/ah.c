@@ -119,7 +119,7 @@ struct ib_ah *rvt_create_ah(struct ib_pd *pd,
 
 	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	if (dev->n_ahs_allocated == dev->dparms.props.max_ah) {
-		spin_unlock(&dev->n_ahs_lock);
+		spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 		kfree(ah);
 		return ERR_PTR(-ENOMEM);
 	}
