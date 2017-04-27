@@ -322,13 +322,16 @@ static int __pg_init_all_paths(struct multipath *m)
 	return atomic_read(&m->pg_init_in_progress);
 }
 
-static void pg_init_all_paths(struct multipath *m)
+static int pg_init_all_paths(struct multipath *m)
 {
+	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
-	__pg_init_all_paths(m);
+	ret = __pg_init_all_paths(m);
 	spin_unlock_irqrestore(&m->lock, flags);
+
+	return ret;
 }
 
 static void __switch_pg(struct multipath *m, struct priority_group *pg)
@@ -503,7 +506,8 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 		return -EIO;	/* Failed */
 	} else if (test_bit(MPATHF_QUEUE_IO, &m->flags) ||
 		   test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
-		pg_init_all_paths(m);
+		if (pg_init_all_paths(m))
+			return DM_MAPIO_DELAY_REQUEUE;
 		return DM_MAPIO_REQUEUE;
 	}
 
