@@ -210,16 +210,16 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 	seq_printf(file,
 		   "GID: %s\n"
 		   "  complete: %6s\n",
-		   gid_buf, path.pathrec.dlid ? "yes" : "no");
+		   gid_buf, sa_path_get_dlid(&path.pathrec) ? "yes" : "no");
 
-	if (path.pathrec.dlid) {
+	if (sa_path_get_dlid(&path.pathrec)) {
 		rate = ib_rate_to_mbps(path.pathrec.rate);
 
 		seq_printf(file,
 			   "  DLID:     0x%04x\n"
 			   "  SL: %12d\n"
 			   "  rate: %8d.%d Gb/sec\n",
-			   be16_to_cpu(path.pathrec.dlid),
+			   be16_to_cpu(sa_path_get_dlid(&path.pathrec)),
 			   path.pathrec.sl,
 			   rate / 1000, rate % 1000);
 	}

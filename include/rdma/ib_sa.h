@@ -43,6 +43,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_mad.h>
+#include <rdma/ib_addr.h>
 
 enum {
 	IB_SA_CLASS_VERSION		= 2,	/* IB spec version 1.1/1.2 */
@@ -147,19 +148,32 @@ enum ib_sa_mc_join_states {
 #define IB_SA_PATH_REC_PACKET_LIFE_TIME_SELECTOR	IB_SA_COMP_MASK(20)
 #define IB_SA_PATH_REC_PACKET_LIFE_TIME			IB_SA_COMP_MASK(21)
 #define IB_SA_PATH_REC_PREFERENCE			IB_SA_COMP_MASK(22)
+
 enum sa_path_rec_type {
 	SA_PATH_REC_TYPE_IB,
 	SA_PATH_REC_TYPE_ROCE_V1,
 	SA_PATH_REC_TYPE_ROCE_V2
 };
 
-struct sa_path_rec {
+struct sa_path_rec_ib {
 	__be64       service_id;
-	union ib_gid dgid;
-	union ib_gid sgid;
 	__be16       dlid;
 	__be16       slid;
 	u8           raw_traffic;
+};
+
+struct sa_path_rec_roce {
+	u8           dmac[ETH_ALEN];
+	/* ignored in IB */
+	int	     ifindex;
+	/* ignored in IB */
+	struct net  *net;
+
+};
+
+struct sa_path_rec {
+	union ib_gid dgid;
+	union ib_gid sgid;
 	/* reserved */
 	__be32       flow_label;
 	u8           hop_limit;
@@ -176,18 +190,12 @@ struct sa_path_rec {
 	u8           packet_life_time_selector;
 	u8           packet_life_time;
 	u8           preference;
-	u8           dmac[ETH_ALEN];
-	/* ignored in IB */
-	int	     ifindex;
-	/* ignored in IB */
-	struct net  *net;
+	union {
+		struct sa_path_rec_ib ib;
+		struct sa_path_rec_roce roce;
+	};
 	enum sa_path_rec_type rec_type;
 };
-
-static inline struct net_device *ib_get_ndev_from_path(struct sa_path_rec *rec)
-{
-	return rec->net ? dev_get_by_index(rec->net, rec->ifindex) : NULL;
-}
 
 static inline enum ib_gid_type
 		sa_conv_pathrec_to_gid_type(struct sa_path_rec *rec)
@@ -489,5 +497,118 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 bool ib_sa_sendonly_fullmem_support(struct ib_sa_client *client,
 				    struct ib_device *device,
 				    u8 port_num);
+
+static inline bool sa_path_is_roce(struct sa_path_rec *rec)
+{
+	return ((rec->rec_type == SA_PATH_REC_TYPE_ROCE_V1) ||
+		(rec->rec_type == SA_PATH_REC_TYPE_ROCE_V2));
+}
+
+static inline void sa_path_set_service_id(struct sa_path_rec *rec,
+					  __be64 service_id)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		rec->ib.service_id = service_id;
+}
+
+static inline void sa_path_set_slid(struct sa_path_rec *rec, __be16 slid)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		rec->ib.slid = slid;
+}
+
+static inline void sa_path_set_dlid(struct sa_path_rec *rec, __be16 dlid)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		rec->ib.dlid = dlid;
+}
+
+static inline void sa_path_set_raw_traffic(struct sa_path_rec *rec,
+					   u8 raw_traffic)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		rec->ib.raw_traffic = raw_traffic;
+}
+
+static inline __be64 sa_path_get_service_id(struct sa_path_rec *rec)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		return rec->ib.service_id;
+	return 0;
+}
+
+static inline __be16 sa_path_get_slid(struct sa_path_rec *rec)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		return rec->ib.slid;
+	return 0;
+}
+
+static inline __be16 sa_path_get_dlid(struct sa_path_rec *rec)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		return rec->ib.dlid;
+	return 0;
+}
+
+static inline u8 sa_path_get_raw_traffic(struct sa_path_rec *rec)
+{
+	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
+		return rec->ib.raw_traffic;
+	return 0;
+}
+
+static inline void sa_path_set_dmac(struct sa_path_rec *rec, u8 *dmac)
+{
+	if (sa_path_is_roce(rec))
+		memcpy(rec->roce.dmac, dmac, ETH_ALEN);
+}
+
+static inline void sa_path_set_dmac_zero(struct sa_path_rec *rec)
+{
+	if (sa_path_is_roce(rec))
+		eth_zero_addr(rec->roce.dmac);
+}
+
+static inline void sa_path_set_ifindex(struct sa_path_rec *rec, int ifindex)
+{
+	if (sa_path_is_roce(rec))
+		rec->roce.ifindex = ifindex;
+}
+
+static inline void sa_path_set_ndev(struct sa_path_rec *rec, struct net *net)
+{
+	if (sa_path_is_roce(rec))
+		rec->roce.net = net;
+}
+
+static inline u8 *sa_path_get_dmac(struct sa_path_rec *rec)
+{
+	if (sa_path_is_roce(rec))
+		return rec->roce.dmac;
+	return NULL;
+}
+
+static inline int sa_path_get_ifindex(struct sa_path_rec *rec)
+{
+	if (sa_path_is_roce(rec))
+		return rec->roce.ifindex;
+	return 0;
+}
+
+static inline struct net *sa_path_get_ndev(struct sa_path_rec *rec)
+{
+	if (sa_path_is_roce(rec))
+		return rec->roce.net;
+	return NULL;
+}
+
+static inline struct net_device *ib_get_ndev_from_path(struct sa_path_rec *rec)
+{
+	return sa_path_get_ndev(rec) ?
+		dev_get_by_index(sa_path_get_ndev(rec),
+				 sa_path_get_ifindex(rec))
+		: NULL;
+}
 
 #endif /* IB_SA_H */

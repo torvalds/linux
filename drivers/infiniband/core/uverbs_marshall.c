@@ -102,9 +102,9 @@ void ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
 	memcpy(dst->dgid, src->dgid.raw, sizeof src->dgid);
 	memcpy(dst->sgid, src->sgid.raw, sizeof src->sgid);
 
-	dst->dlid		= src->dlid;
-	dst->slid		= src->slid;
-	dst->raw_traffic	= src->raw_traffic;
+	dst->dlid		= sa_path_get_dlid(src);
+	dst->slid		= sa_path_get_slid(src);
+	dst->raw_traffic	= sa_path_get_raw_traffic(src);
 	dst->flow_label		= src->flow_label;
 	dst->hop_limit		= src->hop_limit;
 	dst->traffic_class	= src->traffic_class;
@@ -128,9 +128,10 @@ void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 	memcpy(dst->dgid.raw, src->dgid, sizeof dst->dgid);
 	memcpy(dst->sgid.raw, src->sgid, sizeof dst->sgid);
 
-	dst->dlid		= src->dlid;
-	dst->slid		= src->slid;
-	dst->raw_traffic	= src->raw_traffic;
+	dst->rec_type = SA_PATH_REC_TYPE_IB;
+	sa_path_set_dlid(dst, src->dlid);
+	sa_path_set_slid(dst, src->slid);
+	sa_path_set_raw_traffic(dst, src->raw_traffic);
 	dst->flow_label		= src->flow_label;
 	dst->hop_limit		= src->hop_limit;
 	dst->traffic_class	= src->traffic_class;
@@ -146,9 +147,8 @@ void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 	dst->preference		= src->preference;
 	dst->packet_life_time_selector = src->packet_life_time_selector;
 
-	memset(dst->dmac, 0, sizeof(dst->dmac));
-	dst->net = NULL;
-	dst->ifindex = 0;
-	dst->rec_type = SA_PATH_REC_TYPE_IB;
+	sa_path_set_dmac_zero(dst);
+	sa_path_set_ndev(dst, NULL);
+	sa_path_set_ifindex(dst, 0);
 }
 EXPORT_SYMBOL(ib_copy_path_rec_from_user);

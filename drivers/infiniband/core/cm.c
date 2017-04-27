@@ -1203,8 +1203,8 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 	}
 
 	if (pri_path->hop_limit <= 1) {
-		req_msg->primary_local_lid = pri_path->slid;
-		req_msg->primary_remote_lid = pri_path->dlid;
+		req_msg->primary_local_lid = sa_path_get_slid(pri_path);
+		req_msg->primary_remote_lid = sa_path_get_dlid(pri_path);
 	} else {
 		/* Work-around until there's a way to obtain remote LID info */
 		req_msg->primary_local_lid = IB_LID_PERMISSIVE;
@@ -1224,8 +1224,8 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 
 	if (alt_path) {
 		if (alt_path->hop_limit <= 1) {
-			req_msg->alt_local_lid = alt_path->slid;
-			req_msg->alt_remote_lid = alt_path->dlid;
+			req_msg->alt_local_lid = sa_path_get_slid(alt_path);
+			req_msg->alt_remote_lid = sa_path_get_dlid(alt_path);
 		} else {
 			req_msg->alt_local_lid = IB_LID_PERMISSIVE;
 			req_msg->alt_remote_lid = IB_LID_PERMISSIVE;
@@ -1405,11 +1405,10 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 				     struct sa_path_rec *primary_path,
 				     struct sa_path_rec *alt_path)
 {
-	memset(primary_path, 0, sizeof(*primary_path));
 	primary_path->dgid = req_msg->primary_local_gid;
 	primary_path->sgid = req_msg->primary_remote_gid;
-	primary_path->dlid = req_msg->primary_local_lid;
-	primary_path->slid = req_msg->primary_remote_lid;
+	sa_path_set_dlid(primary_path, req_msg->primary_local_lid);
+	sa_path_set_slid(primary_path, req_msg->primary_remote_lid);
 	primary_path->flow_label = cm_req_get_primary_flow_label(req_msg);
 	primary_path->hop_limit = req_msg->primary_hop_limit;
 	primary_path->traffic_class = req_msg->primary_traffic_class;
@@ -1424,14 +1423,13 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 	primary_path->packet_life_time =
 		cm_req_get_primary_local_ack_timeout(req_msg);
 	primary_path->packet_life_time -= (primary_path->packet_life_time > 0);
-	primary_path->service_id = req_msg->service_id;
+	sa_path_set_service_id(primary_path, req_msg->service_id);
 
 	if (req_msg->alt_local_lid) {
-		memset(alt_path, 0, sizeof(*alt_path));
 		alt_path->dgid = req_msg->alt_local_gid;
 		alt_path->sgid = req_msg->alt_remote_gid;
-		alt_path->dlid = req_msg->alt_local_lid;
-		alt_path->slid = req_msg->alt_remote_lid;
+		sa_path_set_dlid(alt_path, req_msg->alt_local_lid);
+		sa_path_set_slid(alt_path, req_msg->alt_remote_lid);
 		alt_path->flow_label = cm_req_get_alt_flow_label(req_msg);
 		alt_path->hop_limit = req_msg->alt_hop_limit;
 		alt_path->traffic_class = req_msg->alt_traffic_class;
@@ -1446,7 +1444,7 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 		alt_path->packet_life_time =
 			cm_req_get_alt_local_ack_timeout(req_msg);
 		alt_path->packet_life_time -= (alt_path->packet_life_time > 0);
-		alt_path->service_id = req_msg->service_id;
+		sa_path_set_service_id(alt_path, req_msg->service_id);
 	}
 }
 
@@ -1760,27 +1758,34 @@ static int cm_req_handler(struct cm_work *work)
 	cm_id_priv->id.service_mask = ~cpu_to_be64(0);
 
 	cm_process_routed_req(req_msg, work->mad_recv_wc->wc);
-	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 
-	if (cm_id_priv->av.ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE)
-		memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.roce.dmac,
-		       ETH_ALEN);
+	memset(&work->path[0], 0, sizeof(work->path[0]));
+	memset(&work->path[1], 0, sizeof(work->path[1]));
 	grh = rdma_ah_read_grh(&cm_id_priv->av.ah_attr);
-	work->path[0].hop_limit = grh->hop_limit;
 	ret = ib_get_cached_gid(work->port->cm_dev->ib_device,
 				work->port->port_num,
 				grh->sgid_index,
 				&gid, &gid_attr);
 	if (!ret) {
 		if (gid_attr.ndev) {
-			work->path[0].ifindex = gid_attr.ndev->ifindex;
-			work->path[0].net = dev_net(gid_attr.ndev);
-			dev_put(gid_attr.ndev);
 			work->path[0].rec_type =
 				sa_conv_gid_to_pathrec_type(gid_attr.gid_type);
+			sa_path_set_ifindex(&work->path[0],
+					    gid_attr.ndev->ifindex);
+			sa_path_set_ndev(&work->path[0],
+					 dev_net(gid_attr.ndev));
+			dev_put(gid_attr.ndev);
 		} else {
 			work->path[0].rec_type = SA_PATH_REC_TYPE_IB;
 		}
+		if (req_msg->alt_local_lid)
+			work->path[1].rec_type = work->path[0].rec_type;
+		cm_format_paths_from_req(req_msg, &work->path[0],
+					 &work->path[1]);
+		if (cm_id_priv->av.ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE)
+			sa_path_set_dmac(&work->path[0],
+					 cm_id_priv->av.ah_attr.roce.dmac);
+		work->path[0].hop_limit = grh->hop_limit;
 		ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av,
 					 cm_id_priv);
 	}
@@ -1790,11 +1795,13 @@ static int cm_req_handler(struct cm_work *work)
 					    &work->path[0].sgid,
 					    &gid_attr);
 		if (!err && gid_attr.ndev) {
-			work->path[0].ifindex = gid_attr.ndev->ifindex;
-			work->path[0].net = dev_net(gid_attr.ndev);
-			dev_put(gid_attr.ndev);
 			work->path[0].rec_type =
 				sa_conv_gid_to_pathrec_type(gid_attr.gid_type);
+			sa_path_set_ifindex(&work->path[0],
+					    gid_attr.ndev->ifindex);
+			sa_path_set_ndev(&work->path[0],
+					 dev_net(gid_attr.ndev));
+			dev_put(gid_attr.ndev);
 		} else {
 			work->path[0].rec_type = SA_PATH_REC_TYPE_IB;
 		}
@@ -2835,8 +2842,8 @@ static void cm_format_lap(struct cm_lap_msg *lap_msg,
 	cm_lap_set_remote_qpn(lap_msg, cm_id_priv->remote_qpn);
 	/* todo: need remote CM response timeout */
 	cm_lap_set_remote_resp_timeout(lap_msg, 0x1F);
-	lap_msg->alt_local_lid = alternate_path->slid;
-	lap_msg->alt_remote_lid = alternate_path->dlid;
+	lap_msg->alt_local_lid = sa_path_get_slid(alternate_path);
+	lap_msg->alt_remote_lid = sa_path_get_dlid(alternate_path);
 	lap_msg->alt_local_gid = alternate_path->sgid;
 	lap_msg->alt_remote_gid = alternate_path->dgid;
 	cm_lap_set_flow_label(lap_msg, alternate_path->flow_label);
@@ -2912,10 +2919,11 @@ static void cm_format_path_from_lap(struct cm_id_private *cm_id_priv,
 				    struct cm_lap_msg *lap_msg)
 {
 	memset(path, 0, sizeof *path);
+	path->rec_type = SA_PATH_REC_TYPE_IB;
 	path->dgid = lap_msg->alt_local_gid;
 	path->sgid = lap_msg->alt_remote_gid;
-	path->dlid = lap_msg->alt_local_lid;
-	path->slid = lap_msg->alt_remote_lid;
+	sa_path_set_dlid(path, lap_msg->alt_local_lid);
+	sa_path_set_slid(path, lap_msg->alt_remote_lid);
 	path->flow_label = cm_lap_get_flow_label(lap_msg);
 	path->hop_limit = lap_msg->alt_hop_limit;
 	path->traffic_class = cm_lap_get_traffic_class(lap_msg);

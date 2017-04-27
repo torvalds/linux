@@ -1140,7 +1140,7 @@ static void cma_save_ib_info(struct sockaddr *src_addr,
 			ib->sib_pkey = path->pkey;
 			ib->sib_flowinfo = path->flow_label;
 			memcpy(&ib->sib_addr, &path->sgid, 16);
-			ib->sib_sid = path->service_id;
+			ib->sib_sid = sa_path_get_service_id(path);
 			ib->sib_scope_id = 0;
 		} else {
 			ib->sib_pkey = listen_ib->sib_pkey;
@@ -1274,7 +1274,8 @@ static int cma_save_req_info(const struct ib_cm_event *ib_event,
 		memcpy(&req->local_gid, &req_param->primary_path->sgid,
 		       sizeof(req->local_gid));
 		req->has_gid	= true;
-		req->service_id	= req_param->primary_path->service_id;
+		req->service_id	=
+			sa_path_get_service_id(req_param->primary_path);
 		req->pkey	= be16_to_cpu(req_param->primary_path->pkey);
 		if (req->pkey != req_param->bth_pkey)
 			pr_warn_ratelimited("RDMA CMA: got different BTH P_Key (0x%x) and primary path P_Key (0x%x)\n"
@@ -1825,8 +1826,8 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 	struct rdma_cm_id *id;
 	struct rdma_route *rt;
 	const sa_family_t ss_family = listen_id->route.addr.src_addr.ss_family;
-	const __be64 service_id =
-		      ib_event->param.req_rcvd.primary_path->service_id;
+	struct sa_path_rec *path = ib_event->param.req_rcvd.primary_path;
+	const __be64 service_id = sa_path_get_service_id(path);
 	int ret;
 
 	id = rdma_create_id(listen_id->route.addr.dev_addr.net,
@@ -1848,7 +1849,7 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 	if (!rt->path_rec)
 		goto err;
 
-	rt->path_rec[0] = *ib_event->param.req_rcvd.primary_path;
+	rt->path_rec[0] = *path;
 	if (rt->num_paths == 2)
 		rt->path_rec[1] = *ib_event->param.req_rcvd.alternate_path;
 
@@ -2334,12 +2335,15 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	struct sockaddr_ib *sib;
 
 	memset(&path_rec, 0, sizeof path_rec);
+	path_rec.rec_type = SA_PATH_REC_TYPE_IB;
 	rdma_addr_get_sgid(dev_addr, &path_rec.sgid);
 	rdma_addr_get_dgid(dev_addr, &path_rec.dgid);
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
 	path_rec.numb_path = 1;
 	path_rec.reversible = 1;
-	path_rec.service_id = rdma_get_service_id(&id_priv->id, cma_dst_addr(id_priv));
+	sa_path_set_service_id(&path_rec,
+			       rdma_get_service_id(&id_priv->id,
+						   cma_dst_addr(id_priv)));
 
 	comp_mask = IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
 		    IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH |
@@ -2577,8 +2581,6 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 			}
 		}
 
-		route->path_rec->net = &init_net;
-		route->path_rec->ifindex = ndev->ifindex;
 		supported_gids = roce_gid_type_mask_support(id_priv->id.device,
 							    id_priv->id.port_num);
 		gid_type = cma_route_gid_type(addr->dev_addr.network,
@@ -2586,13 +2588,15 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 					      id_priv->gid_type);
 		route->path_rec->rec_type =
 			sa_conv_gid_to_pathrec_type(gid_type);
+		sa_path_set_ndev(route->path_rec, &init_net);
+		sa_path_set_ifindex(route->path_rec, ndev->ifindex);
 	}
 	if (!ndev) {
 		ret = -ENODEV;
 		goto err2;
 	}
 
-	memcpy(route->path_rec->dmac, addr->dev_addr.dst_dev_addr, ETH_ALEN);
+	sa_path_set_dmac(route->path_rec, addr->dev_addr.dst_dev_addr);
 
 	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.src_addr,
 		    &route->path_rec->sgid);
