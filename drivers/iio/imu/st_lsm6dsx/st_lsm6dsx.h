@@ -144,5 +144,8 @@ int st_lsm6dsx_write_with_mask(struct st_lsm6dsx_hw *hw, u8 addr, u8 mask,
 			       u8 val);
 int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor,
 				u16 watermark);
+int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw);
+int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
+			     enum st_lsm6dsx_fifo_mode fifo_mode);
 
 #endif /* ST_LSM6DSX_H */

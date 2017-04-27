@@ -130,8 +130,8 @@ static int st_lsm6dsx_update_decimators(struct st_lsm6dsx_hw *hw)
 	return 0;
 }
 
-static int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
-				    enum st_lsm6dsx_fifo_mode fifo_mode)
+int st_lsm6dsx_set_fifo_mode(struct st_lsm6dsx_hw *hw,
+			     enum st_lsm6dsx_fifo_mode fifo_mode)
 {
 	u8 data;
 	int err;
@@ -303,7 +303,7 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 	return read_len;
 }
 
-static int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
+int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
 {
 	int err;
 
