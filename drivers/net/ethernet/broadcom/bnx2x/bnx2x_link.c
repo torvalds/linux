@@ -6163,94 +6163,33 @@ static void bnx2x_link_int_ack(struct link_params *params,
 
 static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
 {
-	u8 *str_ptr = str;
-	u32 mask = 0xf0000000;
-	u8 shift = 8*4;
-	u8 digit;
-	u8 remove_leading_zeros = 1;
+	u16 ret;
+
 	if (*len < 10) {
 		/* Need more than 10chars for this format */
-		*str_ptr = '\0';
+		*str = '\0';
 		(*len)--;
 		return -EINVAL;
 	}
-	while (shift > 0) {
 
-		shift -= 4;
-		digit = ((num & mask) >> shift);
-		if (digit == 0 && remove_leading_zeros) {
-			*str_ptr = '0';
-		} else {
-			if (digit < 0xa)
-				*str_ptr = digit + '0';
-			else
-				*str_ptr = digit - 0xa + 'a';
-
-			remove_leading_zeros = 0;
-			str_ptr++;
-			(*len)--;
-		}
-		mask = mask >> 4;
-		if (shift == 4*4) {
-			if (remove_leading_zeros) {
-				str_ptr++;
-				(*len)--;
-			}
-			*str_ptr = '.';
-			str_ptr++;
-			(*len)--;
-			remove_leading_zeros = 1;
-		}
-	}
-	if (remove_leading_zeros)
-		(*len)--;
+	ret = scnprintf(str, *len, "%hx.%hx", num >> 16, num);
+	*len -= ret;
 	return 0;
 }
 
 static int bnx2x_3_seq_format_ver(u32 num, u8 *str, u16 *len)
 {
-	u8 *str_ptr = str;
-	u32 mask = 0x00f00000;
-	u8 shift = 8*3;
-	u8 digit;
-	u8 remove_leading_zeros = 1;
+	u16 ret;
 
 	if (*len < 10) {
 		/* Need more than 10chars for this format */
-		*str_ptr = '\0';
+		*str = '\0';
 		(*len)--;
 		return -EINVAL;
 	}
 
-	while (shift > 0) {
-		shift -= 4;
-		digit = ((num & mask) >> shift);
-		if (digit == 0 && remove_leading_zeros) {
-			*str_ptr = '0';
-		} else {
-			if (digit < 0xa)
-				*str_ptr = digit + '0';
-			else
-				*str_ptr = digit - 0xa + 'a';
-
-			remove_leading_zeros = 0;
-			str_ptr++;
-			(*len)--;
-		}
-		mask = mask >> 4;
-		if ((shift == 4*4) || (shift == 4*2)) {
-			if (remove_leading_zeros) {
-				str_ptr++;
-				(*len)--;
-			}
-			*str_ptr = '.';
-			str_ptr++;
-			(*len)--;
-			remove_leading_zeros = 1;
-		}
-	}
-	if (remove_leading_zeros)
-		(*len)--;
+	ret = scnprintf(str, *len, "%hhx.%hhx.%hhx", num >> 16, num >> 8, num);
+	*len -= ret;
 	return 0;
 }
 
