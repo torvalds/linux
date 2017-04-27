@@ -776,7 +776,7 @@ int bdev_dax_supported(struct super_block *sb, int blocksize)
 
 	if (len < 1) {
 		vfs_msg(sb, KERN_ERR,
-				"error: dax access failed (%d)", len);
+				"error: dax access failed (%ld)", len);
 		return len < 0 ? len : -EIO;
 	}
 
