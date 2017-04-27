@@ -9,6 +9,8 @@
 #define ETH_ALEN 6
 #endif
 
+#define ETHER_HDR_SIZE 20
+
 struct ether_hdr {
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr */
 	unsigned char h_source[ETH_ALEN];	/* source ether addr    */

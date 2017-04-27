@@ -399,6 +399,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	struct ether_hdr *eth_hdr;
 	unsigned short eth_proto;
 	struct ieee802_1x_hdr *aa1x_hdr;
+	size_t size;
 	int ret;
 
 	DPRINTK(3, "\n");
@@ -452,12 +453,15 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		}
 		DPRINTK(4, "SNAP, rx_ind_size = %d\n", rx_ind_size);
 
-		memcpy(skb_put(skb, 12), priv->rxp, 12);	/* 8802/FDDI MAC copy */
-		/* (SNAP+UI..) skip */
-		memcpy(skb_put(skb, rx_ind_size - 12), priv->rxp + 18,
-		       rx_ind_size - 12);	/* copy after Type */
+		size = ETH_ALEN * 2;
+		memcpy(skb_put(skb, size), priv->rxp, size);
 
-		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 20);
+		/* (SNAP+UI..) skip */
+
+		size = rx_ind_size - (ETH_ALEN * 2);
+		memcpy(skb_put(skb, size), &eth_hdr->h_proto, size);
+
+		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + ETHER_HDR_SIZE);
 		if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
 		    priv->wpa.rsn_enabled)
 			atomic_set(&priv->psstatus.snooze_guard, 1);
@@ -1113,6 +1117,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	struct ieee802_1x_hdr *aa1x_hdr;
 	struct wpa_eapol_key *eap_key;
 	struct ethhdr *eth;
+	size_t size;
 	int ret;
 
 	skb_len = skb->len;
@@ -1164,11 +1169,13 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		goto err_kfree;
 	}
 
-	/* MAC address copy */
-	memcpy(p, buffer, 12);	/* DST/SRC MAC address */
-	p += 12;
-	buffer += 12;
-	length -= 12;
+	/* dest and src MAC address copy */
+	size = ETH_ALEN * 2;
+	memcpy(p, buffer, size);
+	p += size;
+	buffer += size;
+	length -= size;
+
 	/* EtherType/Length check */
 	if (*(buffer + 1) + (*buffer << 8) > 1500) {
 		/* ProtocolEAP = *(buffer+1) + (*buffer << 8); */
