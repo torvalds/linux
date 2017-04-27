@@ -40,9 +40,11 @@ struct intel_hdmi_lpe_audio_port_pdata {
 };
 
 struct intel_hdmi_lpe_audio_pdata {
-	struct intel_hdmi_lpe_audio_port_pdata port;
+	struct intel_hdmi_lpe_audio_port_pdata port[3]; /* for ports B,C,D */
+	int num_ports;
+	int num_pipes;
 
-	void (*notify_audio_lpe)(struct platform_device *pdev);
+	void (*notify_audio_lpe)(struct platform_device *pdev, int port); /* port: 0==B,1==C,2==D */
 	spinlock_t lpe_audio_slock;
 };
 

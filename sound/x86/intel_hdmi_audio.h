@@ -32,7 +32,6 @@
 
 #include "intel_hdmi_lpe_audio.h"
 
-#define PCM_INDEX		0
 #define MAX_PB_STREAMS		1
 #define MAX_CAP_STREAMS		0
 #define BYTES_PER_WORD		0x4
@@ -112,6 +111,8 @@ struct snd_intelhad {
 	struct snd_pcm_chmap *chmap;
 	int tmds_clock_speed;
 	int link_rate;
+	int port; /* fixed */
+	int pipe; /* can change dynamically */
 
 	/* ring buffer (BD) position index */
 	unsigned int bd_head;
@@ -123,7 +124,6 @@ struct snd_intelhad {
 	unsigned int period_bytes;	/* PCM period size in bytes */
 
 	/* internal stuff */
-	unsigned int had_config_offset;
 	union aud_cfg aud_config;	/* AUD_CONFIG reg value cache */
 	struct work_struct hdmi_audio_wq;
 	struct mutex mutex; /* for protecting chmap and eld */
@@ -138,8 +138,9 @@ struct snd_intelhad_card {
 	/* internal stuff */
 	int irq;
 	void __iomem *mmio_start;
+	int num_pipes;
 	int num_ports;
-	struct snd_intelhad pcm_ctx[3];
+	struct snd_intelhad pcm_ctx[3]; /* one for each port */
 };
 
 #endif /* _INTEL_HDMI_AUDIO_ */
