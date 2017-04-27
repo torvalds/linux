@@ -563,7 +563,7 @@ struct ksym *ksym_search(long key)
 	return &syms[0];
 }
 
-int set_link_xdp_fd(int ifindex, int fd)
+int set_link_xdp_fd(int ifindex, int fd, int flags)
 {
 	struct sockaddr_nl sa;
 	int sock, seq = 0, len, ret = -1;
@@ -599,15 +599,28 @@ int set_link_xdp_fd(int ifindex, int fd)
 	req.nh.nlmsg_seq = ++seq;
 	req.ifinfo.ifi_family = AF_UNSPEC;
 	req.ifinfo.ifi_index = ifindex;
+
+	/* started nested attribute for XDP */
 	nla = (struct nlattr *)(((char *)&req)
 				+ NLMSG_ALIGN(req.nh.nlmsg_len));
 	nla->nla_type = NLA_F_NESTED | 43/*IFLA_XDP*/;
+	nla->nla_len = NLA_HDRLEN;
 
-	nla_xdp = (struct nlattr *)((char *)nla + NLA_HDRLEN);
+	/* add XDP fd */
+	nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
 	nla_xdp->nla_type = 1/*IFLA_XDP_FD*/;
 	nla_xdp->nla_len = NLA_HDRLEN + sizeof(int);
 	memcpy((char *)nla_xdp + NLA_HDRLEN, &fd, sizeof(fd));
-	nla->nla_len = NLA_HDRLEN + nla_xdp->nla_len;
+	nla->nla_len += nla_xdp->nla_len;
+
+	/* if user passed in any flags, add those too */
+	if (flags) {
+		nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
+		nla_xdp->nla_type = 3/*IFLA_XDP_FLAGS*/;
+		nla_xdp->nla_len = NLA_HDRLEN + sizeof(flags);
+		memcpy((char *)nla_xdp + NLA_HDRLEN, &flags, sizeof(flags));
+		nla->nla_len += nla_xdp->nla_len;
+	}
 
 	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
