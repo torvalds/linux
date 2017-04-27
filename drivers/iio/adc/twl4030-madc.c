@@ -72,6 +72,8 @@ struct twl4030_madc_data {
 	u8 isr;
 };
 
+static int twl4030_madc_conversion(struct twl4030_madc_request *req);
+
 static int twl4030_madc_read(struct iio_dev *iio_dev,
 			     const struct iio_chan_spec *chan,
 			     int *val, int *val2, long mask)
@@ -568,7 +570,7 @@ static int twl4030_madc_wait_conversion_ready(struct twl4030_madc_data *madc,
  * be a negative error value in the corresponding array element.
  * returns 0 if succeeds else error value
  */
-int twl4030_madc_conversion(struct twl4030_madc_request *req)
+static int twl4030_madc_conversion(struct twl4030_madc_request *req)
 {
 	const struct twl4030_madc_conversion_method *method;
 	int ret;
@@ -640,7 +642,6 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(twl4030_madc_conversion);
 
 /**
  * twl4030_madc_set_current_generator() - setup bias current

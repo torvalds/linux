@@ -141,6 +141,4 @@ struct twl4030_madc_user_parms {
 	int status;
 	u16 result;
 };
-
-int twl4030_madc_conversion(struct twl4030_madc_request *conv);
 #endif
