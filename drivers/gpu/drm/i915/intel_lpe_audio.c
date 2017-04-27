@@ -111,6 +111,7 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 	pinfo.size_data = sizeof(*pdata);
 	pinfo.dma_mask = DMA_BIT_MASK(32);
 
+	pdata->pipe = -1;
 	spin_lock_init(&pdata->lpe_audio_slock);
 
 	platdev = platform_device_register_full(&pinfo);
@@ -332,12 +333,12 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 
 	audio_enable = I915_READ(VLV_AUD_PORT_EN_DBG(port));
 
+	pdata->eld.port_id = port;
+
 	if (eld != NULL) {
 		memcpy(pdata->eld.eld_data, eld,
 			HDMI_MAX_ELD_BYTES);
-		pdata->eld.port_id = port;
-		pdata->eld.pipe_id = pipe;
-		pdata->hdmi_connected = true;
+		pdata->pipe = pipe;
 		pdata->ls_clock = ls_clock;
 		pdata->dp_output = dp_output;
 
@@ -348,7 +349,7 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 	} else {
 		memset(pdata->eld.eld_data, 0,
 			HDMI_MAX_ELD_BYTES);
-		pdata->hdmi_connected = false;
+		pdata->pipe = -1;
 		pdata->ls_clock = 0;
 		pdata->dp_output = false;
 

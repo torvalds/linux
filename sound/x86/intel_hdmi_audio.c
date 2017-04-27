@@ -1559,7 +1559,7 @@ static void had_audio_wq(struct work_struct *work)
 
 	pm_runtime_get_sync(ctx->dev);
 	mutex_lock(&ctx->mutex);
-	if (!pdata->hdmi_connected) {
+	if (pdata->pipe < 0) {
 		dev_dbg(ctx->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG\n",
 			__func__);
 		memset(ctx->eld, 0, sizeof(ctx->eld)); /* clear the old ELD */
@@ -1568,9 +1568,9 @@ static void had_audio_wq(struct work_struct *work)
 		struct intel_hdmi_lpe_audio_eld *eld = &pdata->eld;
 
 		dev_dbg(ctx->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
-			__func__, eld->port_id,	pdata->ls_clock);
+			__func__, eld->port_id, pdata->ls_clock);
 
-		switch (eld->pipe_id) {
+		switch (pdata->pipe) {
 		case 0:
 			ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
 			break;
@@ -1582,7 +1582,7 @@ static void had_audio_wq(struct work_struct *work)
 			break;
 		default:
 			dev_dbg(ctx->dev, "Invalid pipe %d\n",
-				eld->pipe_id);
+				pdata->pipe);
 			break;
 		}
 
