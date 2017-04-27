@@ -462,9 +462,6 @@ static void fill_plane_attributes_from_fb(
 		&tiling_flags,
 		addReq == true ? &fb_location:NULL);
 
-	surface->address.type                = PLN_ADDR_TYPE_GRAPHICS;
-	surface->address.grph.addr.low_part  = lower_32_bits(fb_location);
-	surface->address.grph.addr.high_part = upper_32_bits(fb_location);
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_C8:
@@ -485,10 +482,53 @@ static void fill_plane_attributes_from_fb(
 	case DRM_FORMAT_ABGR2101010:
 		surface->format = SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010;
 		break;
+	case DRM_FORMAT_YUV420:
+		surface->format = SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr;
+		break;
+	case DRM_FORMAT_YVU420:
+		surface->format = SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb;
+		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
 		          drm_get_format_name(fb->format->format, &format_name));
 		return;
+	}
+
+	if (surface->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
+		surface->address.type = PLN_ADDR_TYPE_GRAPHICS;
+		surface->address.grph.addr.low_part = lower_32_bits(fb_location);
+		surface->address.grph.addr.high_part = upper_32_bits(fb_location);
+		surface->plane_size.grph.surface_size.x = 0;
+		surface->plane_size.grph.surface_size.y = 0;
+		surface->plane_size.grph.surface_size.width = fb->width;
+		surface->plane_size.grph.surface_size.height = fb->height;
+		surface->plane_size.grph.surface_pitch =
+				fb->pitches[0] / fb->format->cpp[0];
+		/* TODO: unhardcode */
+		surface->color_space = COLOR_SPACE_SRGB;
+
+	} else {
+		surface->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
+		surface->address.video_progressive.luma_addr.low_part
+						= lower_32_bits(fb_location);
+		surface->address.video_progressive.chroma_addr.high_part
+						= upper_32_bits(fb_location);
+		surface->plane_size.video.luma_size.x = 0;
+		surface->plane_size.video.luma_size.y = 0;
+		surface->plane_size.video.luma_size.width = fb->width;
+		surface->plane_size.video.luma_size.height = fb->height;
+		/* TODO: unhardcode */
+		surface->plane_size.video.luma_pitch = fb->pitches[0] / 4;
+
+		surface->plane_size.video.chroma_size.x = 0;
+		surface->plane_size.video.chroma_size.y = 0;
+		surface->plane_size.video.chroma_size.width = fb->width;
+		surface->plane_size.video.chroma_size.height = fb->height;
+		surface->plane_size.video.chroma_pitch =
+			fb->pitches[0] / 4;
+
+		/* TODO: unhardcode */
+		surface->color_space = COLOR_SPACE_YCBCR709;
 	}
 
 	memset(&surface->tiling_info, 0, sizeof(surface->tiling_info));
@@ -541,20 +581,10 @@ static void fill_plane_attributes_from_fb(
 		surface->tiling_info.gfx9.shaderEnable = 1;
 	}
 
-
-	surface->plane_size.grph.surface_size.x = 0;
-	surface->plane_size.grph.surface_size.y = 0;
-	surface->plane_size.grph.surface_size.width = fb->width;
-	surface->plane_size.grph.surface_size.height = fb->height;
-	surface->plane_size.grph.surface_pitch =
-		fb->pitches[0] / fb->format->cpp[0];
-
 	surface->visible = true;
 	surface->scaling_quality.h_taps_c = 0;
 	surface->scaling_quality.v_taps_c = 0;
 
-	/* TODO: unhardcode */
-	surface->color_space = COLOR_SPACE_SRGB;
 	/* is this needed? is surface zeroed at allocation? */
 	surface->scaling_quality.h_taps = 0;
 	surface->scaling_quality.v_taps = 0;
@@ -1670,10 +1700,8 @@ static uint32_t rgb_formats[] = {
 };
 
 static uint32_t yuv_formats[] = {
-	DRM_FORMAT_YUYV,
-	DRM_FORMAT_YVYU,
-	DRM_FORMAT_UYVY,
-	DRM_FORMAT_VYUY,
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YVU420,
 };
 
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
