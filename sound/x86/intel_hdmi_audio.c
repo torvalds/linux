@@ -1665,6 +1665,11 @@ static int __maybe_unused hdmi_lpe_audio_resume(struct device *dev)
 static void hdmi_lpe_audio_free(struct snd_card *card)
 {
 	struct snd_intelhad *ctx = card->private_data;
+	struct intel_hdmi_lpe_audio_pdata *pdata = ctx->dev->platform_data;
+
+	spin_lock_irq(&pdata->lpe_audio_slock);
+	pdata->notify_audio_lpe = NULL;
+	spin_unlock_irq(&pdata->lpe_audio_slock);
 
 	cancel_work_sync(&ctx->hdmi_audio_wq);
 
