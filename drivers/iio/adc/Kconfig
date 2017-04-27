@@ -229,6 +229,19 @@ config EXYNOS_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called exynos_adc.
 
+config MXS_LRADC_ADC
+	tristate "Freescale i.MX23/i.MX28 LRADC ADC"
+	depends on MFD_MXS_LRADC
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the ADC functions of the
+	  i.MX23/i.MX28 LRADC. This includes general-purpose ADC readings,
+	  battery voltage measurement, and die temperature measurement.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mxs-lradc-adc.
+
 config FSL_MX25_ADC
 	tristate "Freescale MX25 ADC driver"
 	depends on MFD_MX25_TSADC
@@ -410,20 +423,6 @@ config MESON_SARADC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called meson_saradc.
-
-config MXS_LRADC
-        tristate "Freescale i.MX23/i.MX28 LRADC"
-        depends on (ARCH_MXS || COMPILE_TEST) && HAS_IOMEM
-        depends on INPUT
-        select STMP_DEVICE
-        select IIO_BUFFER
-        select IIO_TRIGGERED_BUFFER
-        help
-          Say yes here to build support for i.MX23/i.MX28 LRADC convertor
-          built into these chips.
-
-          To compile this driver as a module, choose M here: the
-          module will be called mxs-lradc.
 
 config NAU7802
 	tristate "Nuvoton NAU7802 ADC driver"

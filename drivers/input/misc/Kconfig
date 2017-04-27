@@ -316,6 +316,16 @@ config INPUT_COBALT_BTNS
 	  To compile this driver as a module, choose M here: the
 	  module will be called cobalt_btns.
 
+config INPUT_CPCAP_PWRBUTTON
+	tristate "CPCAP OnKey"
+	depends on MFD_CPCAP
+	help
+	  Say Y here if you want to enable power key reporting via the
+	  Motorola CPCAP chip.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called cpcap-pwrbutton.
+
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86_32
