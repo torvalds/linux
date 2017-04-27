@@ -331,7 +331,6 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	struct amdgpu_bo *bo;
 	enum ttm_bo_type type;
 	unsigned long page_align;
-	u64 initial_bytes_moved, bytes_moved;
 	size_t acc_size;
 	int r;
 
@@ -406,22 +405,19 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	bo->tbo.bdev = &adev->mman.bdev;
 	amdgpu_ttm_placement_from_domain(bo, domain);
 
-	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
-	/* Kernel allocation are uninterruptible */
 	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, type,
 				 &bo->placement, page_align, &ctx, NULL,
 				 acc_size, sg, resv, &amdgpu_ttm_bo_destroy);
 	if (unlikely(r != 0))
 		return r;
 
-	bytes_moved = atomic64_read(&adev->num_bytes_moved) -
-		      initial_bytes_moved;
 	if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
 	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 	    bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT)
-		amdgpu_cs_report_moved_bytes(adev, bytes_moved, bytes_moved);
+		amdgpu_cs_report_moved_bytes(adev, ctx.bytes_moved,
+					     ctx.bytes_moved);
 	else
-		amdgpu_cs_report_moved_bytes(adev, bytes_moved, 0);
+		amdgpu_cs_report_moved_bytes(adev, ctx.bytes_moved, 0);
 
 	if (kernel)
 		bo->tbo.priority = 1;

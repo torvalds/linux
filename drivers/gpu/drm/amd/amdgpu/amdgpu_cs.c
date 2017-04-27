@@ -344,7 +344,6 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_operation_ctx ctx = { true, false };
-	u64 initial_bytes_moved, bytes_moved;
 	uint32_t domain;
 	int r;
 
@@ -374,15 +373,13 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 
 retry:
 	amdgpu_ttm_placement_from_domain(bo, domain);
-	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	bytes_moved = atomic64_read(&adev->num_bytes_moved) -
-		      initial_bytes_moved;
-	p->bytes_moved += bytes_moved;
+
+	p->bytes_moved += ctx.bytes_moved;
 	if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
 	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 	    bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT)
-		p->bytes_moved_vis += bytes_moved;
+		p->bytes_moved_vis += ctx.bytes_moved;
 
 	if (unlikely(r == -ENOMEM) && domain != bo->allowed_domains) {
 		domain = bo->allowed_domains;
