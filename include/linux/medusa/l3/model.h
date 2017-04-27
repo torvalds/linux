@@ -22,7 +22,7 @@ typedef struct { /* this is at each subject */
 	u_int32_t data[4];
 } s_cinfo_t;
 typedef struct { /* this is at each object */
-	u_int32_t data[1];
+	u_int64_t data[1];
 } o_cinfo_t;
 typedef void* cinfo_t; /* this is at kclass; must be able to hold pointer */
 
