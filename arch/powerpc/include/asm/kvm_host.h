@@ -210,6 +210,12 @@ struct kvmppc_spapr_tce_table {
 /* XICS components, defined in book3s_xics.c */
 struct kvmppc_xics;
 struct kvmppc_icp;
+extern struct kvm_device_ops kvm_xics_ops;
+
+/* XIVE components, defined in book3s_xive.c */
+struct kvmppc_xive;
+struct kvmppc_xive_vcpu;
+extern struct kvm_device_ops kvm_xive_ops;
 
 struct kvmppc_passthru_irqmap;
 
@@ -298,6 +304,7 @@ struct kvm_arch {
 #endif
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_xics *xics;
+	struct kvmppc_xive *xive;
 	struct kvmppc_passthru_irqmap *pimap;
 #endif
 	struct kvmppc_ops *kvm_ops;
@@ -427,7 +434,7 @@ struct kvmppc_passthru_irqmap {
 
 #define KVMPPC_IRQ_DEFAULT	0
 #define KVMPPC_IRQ_MPIC		1
-#define KVMPPC_IRQ_XICS		2
+#define KVMPPC_IRQ_XICS		2 /* Includes a XIVE option */
 
 #define MMIO_HPTE_CACHE_SIZE	4
 
@@ -453,6 +460,21 @@ struct mmio_hpte_cache {
 #define KVMPPC_VSX_COPY_DWORD_LOAD_DUMP	3
 
 struct openpic;
+
+/* W0 and W1 of a XIVE thread management context */
+union xive_tma_w01 {
+	struct {
+		u8	nsr;
+		u8	cppr;
+		u8	ipb;
+		u8	lsmfb;
+		u8	ack;
+		u8	inc;
+		u8	age;
+		u8	pipr;
+	};
+	__be64 w01;
+};
 
 struct kvm_vcpu_arch {
 	ulong host_stack;
@@ -714,6 +736,10 @@ struct kvm_vcpu_arch {
 	struct openpic *mpic;	/* KVM_IRQ_MPIC */
 #ifdef CONFIG_KVM_XICS
 	struct kvmppc_icp *icp; /* XICS presentation controller */
+	struct kvmppc_xive_vcpu *xive_vcpu; /* XIVE virtual CPU data */
+	__be32 xive_cam_word;    /* Cooked W2 in proper endian with valid bit */
+	u32 xive_pushed;	 /* Is the VP pushed on the physical CPU ? */
+	union xive_tma_w01 xive_saved_state; /* W0..1 of XIVE thread state */
 #endif
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE

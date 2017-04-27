@@ -373,6 +373,7 @@ config PPC_PERF_CTRS
 
 config SMP
 	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE || PPC_47x
+	select GENERIC_IRQ_MIGRATION
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have
