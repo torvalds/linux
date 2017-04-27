@@ -1807,13 +1807,13 @@ void dm_unlock_md_type(struct mapped_device *md)
 	mutex_unlock(&md->type_lock);
 }
 
-void dm_set_md_type(struct mapped_device *md, unsigned type)
+void dm_set_md_type(struct mapped_device *md, enum dm_queue_mode type)
 {
 	BUG_ON(!mutex_is_locked(&md->type_lock));
 	md->type = type;
 }
 
-unsigned dm_get_md_type(struct mapped_device *md)
+enum dm_queue_mode dm_get_md_type(struct mapped_device *md)
 {
 	return md->type;
 }
@@ -1840,7 +1840,7 @@ EXPORT_SYMBOL_GPL(dm_get_queue_limits);
 int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 {
 	int r;
-	unsigned type = dm_get_md_type(md);
+	enum dm_queue_mode type = dm_get_md_type(md);
 
 	switch (type) {
 	case DM_TYPE_REQUEST_BASED:
@@ -1870,6 +1870,9 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 
 		if (type == DM_TYPE_DAX_BIO_BASED)
 			queue_flag_set_unlocked(QUEUE_FLAG_DAX, md->queue);
+		break;
+	case DM_TYPE_NONE:
+		WARN_ON_ONCE(true);
 		break;
 	}
 
@@ -2556,7 +2559,7 @@ int dm_noflush_suspending(struct dm_target *ti)
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
-struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
+struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_queue_mode type,
 					    unsigned integrity, unsigned per_io_data_size)
 {
 	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);

@@ -30,7 +30,7 @@
 
 struct dm_table {
 	struct mapped_device *md;
-	unsigned type;
+	enum dm_queue_mode type;
 
 	/* btree table */
 	unsigned int depth;
@@ -825,19 +825,19 @@ void dm_consume_args(struct dm_arg_set *as, unsigned num_args)
 }
 EXPORT_SYMBOL(dm_consume_args);
 
-static bool __table_type_bio_based(unsigned table_type)
+static bool __table_type_bio_based(enum dm_queue_mode table_type)
 {
 	return (table_type == DM_TYPE_BIO_BASED ||
 		table_type == DM_TYPE_DAX_BIO_BASED);
 }
 
-static bool __table_type_request_based(unsigned table_type)
+static bool __table_type_request_based(enum dm_queue_mode table_type)
 {
 	return (table_type == DM_TYPE_REQUEST_BASED ||
 		table_type == DM_TYPE_MQ_REQUEST_BASED);
 }
 
-void dm_table_set_type(struct dm_table *t, unsigned type)
+void dm_table_set_type(struct dm_table *t, enum dm_queue_mode type)
 {
 	t->type = type;
 }
@@ -879,7 +879,7 @@ static int dm_table_determine_type(struct dm_table *t)
 	struct dm_target *tgt;
 	struct dm_dev_internal *dd;
 	struct list_head *devices = dm_table_get_devices(t);
-	unsigned live_md_type = dm_get_md_type(t->md);
+	enum dm_queue_mode live_md_type = dm_get_md_type(t->md);
 
 	if (t->type != DM_TYPE_NONE) {
 		/* target already set the table's type */
@@ -988,7 +988,7 @@ verify_rq_based:
 	return 0;
 }
 
-unsigned dm_table_get_type(struct dm_table *t)
+enum dm_queue_mode dm_table_get_type(struct dm_table *t)
 {
 	return t->type;
 }
@@ -1039,7 +1039,7 @@ bool dm_table_all_blk_mq_devices(struct dm_table *t)
 
 static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
 {
-	unsigned type = dm_table_get_type(t);
+	enum dm_queue_mode type = dm_table_get_type(t);
 	unsigned per_io_data_size = 0;
 	struct dm_target *tgt;
 	unsigned i;

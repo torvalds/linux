@@ -47,7 +47,7 @@ struct mapped_device {
 	struct request_queue *queue;
 	int numa_node_id;
 
-	unsigned type;
+	enum dm_queue_mode type;
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
 

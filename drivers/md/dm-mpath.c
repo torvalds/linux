@@ -90,7 +90,7 @@ struct multipath {
 	atomic_t pg_init_in_progress;	/* Only one pg_init allowed at once */
 	atomic_t pg_init_count;		/* Number of times pg_init called */
 
-	unsigned queue_mode;
+	enum dm_queue_mode queue_mode;
 
 	struct mutex work_mutex;
 	struct work_struct trigger_event;
@@ -1699,6 +1699,9 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 				break;
 			case DM_TYPE_MQ_REQUEST_BASED:
 				DMEMIT("queue_mode mq ");
+				break;
+			default:
+				WARN_ON_ONCE(true);
 				break;
 			}
 		}
