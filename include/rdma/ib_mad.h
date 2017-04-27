@@ -262,6 +262,8 @@ struct ib_class_port_info {
 	__be32			trap_qkey;
 };
 
+#define OPA_CLASS_PORT_INFO_PR_SUPPORT BIT(26)
+
 struct opa_class_port_info {
 	u8 base_version;
 	u8 class_version;
@@ -338,6 +340,17 @@ static inline void ib_set_cpi_capmask2(struct ib_class_port_info *cpi,
 		 cpu_to_be32(IB_CLASS_PORT_INFO_RESP_TIME_MASK)) |
 		cpu_to_be32(capmask2 <<
 			    IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
+}
+
+/**
+ * opa_get_cpi_capmask2 - Returns the capmask2 value from
+ * cap_mask2_resp_time in ib_class_port_info.
+ * @cpi: A struct opa_class_port_info mad.
+ */
+static inline u32 opa_get_cpi_capmask2(struct opa_class_port_info *cpi)
+{
+	return (be32_to_cpu(cpi->cap_mask2_resp_time) >>
+		IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
 }
 
 struct ib_mad_notice_attr {

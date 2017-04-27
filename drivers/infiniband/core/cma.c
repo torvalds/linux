@@ -2335,7 +2335,11 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	struct sockaddr_ib *sib;
 
 	memset(&path_rec, 0, sizeof path_rec);
-	path_rec.rec_type = SA_PATH_REC_TYPE_IB;
+
+	if (rdma_cap_opa_ah(id_priv->id.device, id_priv->id.port_num))
+		path_rec.rec_type = SA_PATH_REC_TYPE_OPA;
+	else
+		path_rec.rec_type = SA_PATH_REC_TYPE_IB;
 	rdma_addr_get_sgid(dev_addr, &path_rec.sgid);
 	rdma_addr_get_dgid(dev_addr, &path_rec.dgid);
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));

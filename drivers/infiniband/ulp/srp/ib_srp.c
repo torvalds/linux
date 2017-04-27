@@ -312,7 +312,11 @@ static int srp_new_cm_id(struct srp_rdma_ch *ch)
 	if (ch->cm_id)
 		ib_destroy_cm_id(ch->cm_id);
 	ch->cm_id = new_cm_id;
-	ch->path.rec_type = SA_PATH_REC_TYPE_IB;
+	if (rdma_cap_opa_ah(target->srp_host->srp_dev->dev,
+			    target->srp_host->port))
+		ch->path.rec_type = SA_PATH_REC_TYPE_OPA;
+	else
+		ch->path.rec_type = SA_PATH_REC_TYPE_IB;
 	ch->path.sgid = target->sgid;
 	ch->path.dgid = target->orig_dgid;
 	ch->path.pkey = target->pkey;
