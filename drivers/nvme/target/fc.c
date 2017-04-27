@@ -119,7 +119,7 @@ struct nvmet_fc_tgt_queue {
 	u16				qid;
 	u16				sqsize;
 	u16				ersp_ratio;
-	u16				sqhd;
+	__le16				sqhd;
 	int				cpu;
 	atomic_t			connected;
 	atomic_t			sqtail;
@@ -1058,7 +1058,7 @@ EXPORT_SYMBOL_GPL(nvmet_fc_unregister_targetport);
 
 
 static void
-nvmet_fc_format_rsp_hdr(void *buf, u8 ls_cmd, u32 desc_len, u8 rqst_ls_cmd)
+nvmet_fc_format_rsp_hdr(void *buf, u8 ls_cmd, __be32 desc_len, u8 rqst_ls_cmd)
 {
 	struct fcnvme_ls_acc_hdr *acc = buf;
 
@@ -1700,7 +1700,7 @@ nvmet_fc_prep_fcp_rsp(struct nvmet_fc_tgtport *tgtport,
 	    xfr_length != fod->total_length ||
 	    (le16_to_cpu(cqe->status) & 0xFFFE) || cqewd[0] || cqewd[1] ||
 	    (sqe->flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND)) ||
-	    queue_90percent_full(fod->queue, cqe->sq_head))
+	    queue_90percent_full(fod->queue, le16_to_cpu(cqe->sq_head)))
 		send_ersp = true;
 
 	/* re-set the fields */
@@ -2055,7 +2055,7 @@ nvmet_fc_fcp_nvme_cmd_done(struct nvmet_req *nvme_req)
 /*
  * Actual processing routine for received FC-NVME LS Requests from the LLD
  */
-void
+static void
 nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_fcp_iod *fod)
 {
