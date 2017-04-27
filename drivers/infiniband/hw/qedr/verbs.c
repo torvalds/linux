@@ -3331,57 +3331,81 @@ static int qedr_poll_cq_req(struct qedr_dev *dev,
 	return cnt;
 }
 
+static inline int qedr_cqe_resp_status_to_ib(u8 status)
+{
+	switch (status) {
+	case RDMA_CQE_RESP_STS_LOCAL_ACCESS_ERR:
+		return IB_WC_LOC_ACCESS_ERR;
+	case RDMA_CQE_RESP_STS_LOCAL_LENGTH_ERR:
+		return IB_WC_LOC_LEN_ERR;
+	case RDMA_CQE_RESP_STS_LOCAL_QP_OPERATION_ERR:
+		return IB_WC_LOC_QP_OP_ERR;
+	case RDMA_CQE_RESP_STS_LOCAL_PROTECTION_ERR:
+		return IB_WC_LOC_PROT_ERR;
+	case RDMA_CQE_RESP_STS_MEMORY_MGT_OPERATION_ERR:
+		return IB_WC_MW_BIND_ERR;
+	case RDMA_CQE_RESP_STS_REMOTE_INVALID_REQUEST_ERR:
+		return IB_WC_REM_INV_RD_REQ_ERR;
+	case RDMA_CQE_RESP_STS_OK:
+		return IB_WC_SUCCESS;
+	default:
+		return IB_WC_GENERAL_ERR;
+	}
+}
+
+static inline int qedr_set_ok_cqe_resp_wc(struct rdma_cqe_responder *resp,
+					  struct ib_wc *wc)
+{
+	wc->status = IB_WC_SUCCESS;
+	wc->byte_len = le32_to_cpu(resp->length);
+
+	if (resp->flags & QEDR_RESP_IMM) {
+		wc->ex.imm_data = le32_to_cpu(resp->imm_data_or_inv_r_Key);
+		wc->wc_flags |= IB_WC_WITH_IMM;
+
+		if (resp->flags & QEDR_RESP_RDMA)
+			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
+
+		if (resp->flags & QEDR_RESP_INV)
+			return -EINVAL;
+
+	} else if (resp->flags & QEDR_RESP_INV) {
+		wc->ex.imm_data = le32_to_cpu(resp->imm_data_or_inv_r_Key);
+		wc->wc_flags |= IB_WC_WITH_INVALIDATE;
+
+		if (resp->flags & QEDR_RESP_RDMA)
+			return -EINVAL;
+
+	} else if (resp->flags & QEDR_RESP_RDMA) {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void __process_resp_one(struct qedr_dev *dev, struct qedr_qp *qp,
 			       struct qedr_cq *cq, struct ib_wc *wc,
 			       struct rdma_cqe_responder *resp, u64 wr_id)
 {
-	enum ib_wc_status wc_status = IB_WC_SUCCESS;
-	u8 flags;
-
+	/* Must fill fields before qedr_set_ok_cqe_resp_wc() */
 	wc->opcode = IB_WC_RECV;
 	wc->wc_flags = 0;
 
-	switch (resp->status) {
-	case RDMA_CQE_RESP_STS_LOCAL_ACCESS_ERR:
-		wc_status = IB_WC_LOC_ACCESS_ERR;
-		break;
-	case RDMA_CQE_RESP_STS_LOCAL_LENGTH_ERR:
-		wc_status = IB_WC_LOC_LEN_ERR;
-		break;
-	case RDMA_CQE_RESP_STS_LOCAL_QP_OPERATION_ERR:
-		wc_status = IB_WC_LOC_QP_OP_ERR;
-		break;
-	case RDMA_CQE_RESP_STS_LOCAL_PROTECTION_ERR:
-		wc_status = IB_WC_LOC_PROT_ERR;
-		break;
-	case RDMA_CQE_RESP_STS_MEMORY_MGT_OPERATION_ERR:
-		wc_status = IB_WC_MW_BIND_ERR;
-		break;
-	case RDMA_CQE_RESP_STS_REMOTE_INVALID_REQUEST_ERR:
-		wc_status = IB_WC_REM_INV_RD_REQ_ERR;
-		break;
-	case RDMA_CQE_RESP_STS_OK:
-		wc_status = IB_WC_SUCCESS;
-		wc->byte_len = le32_to_cpu(resp->length);
+	if (likely(resp->status == RDMA_CQE_RESP_STS_OK)) {
+		if (qedr_set_ok_cqe_resp_wc(resp, wc))
+			DP_ERR(dev,
+			       "CQ %p (icid=%d) has invalid CQE responder flags=0x%x\n",
+			       cq, cq->icid, resp->flags);
 
-		flags = resp->flags & QEDR_RESP_RDMA_IMM;
-
-		if (flags == QEDR_RESP_RDMA_IMM)
-			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
-
-		if (flags == QEDR_RESP_RDMA_IMM || flags == QEDR_RESP_IMM) {
-			wc->ex.imm_data =
-				le32_to_cpu(resp->imm_data_or_inv_r_Key);
-			wc->wc_flags |= IB_WC_WITH_IMM;
-		}
-		break;
-	default:
-		wc->status = IB_WC_GENERAL_ERR;
-		DP_ERR(dev, "Invalid CQE status detected\n");
+	} else {
+		wc->status = qedr_cqe_resp_status_to_ib(resp->status);
+		if (wc->status == IB_WC_GENERAL_ERR)
+			DP_ERR(dev,
+			       "CQ %p (icid=%d) contains an invalid CQE status %d\n",
+			       cq, cq->icid, resp->status);
 	}
 
-	/* fill WC */
-	wc->status = wc_status;
+	/* Fill the rest of the WC */
 	wc->vendor_err = 0;
 	wc->src_qp = qp->id;
 	wc->qp = &qp->ibqp;

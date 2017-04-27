@@ -431,7 +431,8 @@ struct qedr_mr {
 			 RDMA_CQE_RESPONDER_IMM_FLG_SHIFT)
 #define QEDR_RESP_RDMA	(RDMA_CQE_RESPONDER_RDMA_FLG_MASK << \
 			 RDMA_CQE_RESPONDER_RDMA_FLG_SHIFT)
-#define QEDR_RESP_RDMA_IMM (QEDR_RESP_IMM | QEDR_RESP_RDMA)
+#define QEDR_RESP_INV	(RDMA_CQE_RESPONDER_INV_FLG_MASK << \
+			 RDMA_CQE_RESPONDER_INV_FLG_SHIFT)
 
 static inline void qedr_inc_sw_cons(struct qedr_qp_hwq_info *info)
 {
