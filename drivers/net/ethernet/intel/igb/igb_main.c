@@ -191,10 +191,7 @@ static int igb_disable_sriov(struct pci_dev *dev);
 static int igb_pci_disable_sriov(struct pci_dev *dev);
 #endif
 
-#ifdef CONFIG_PM
-#ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *);
-#endif
 static int igb_resume(struct device *);
 static int igb_runtime_suspend(struct device *dev);
 static int igb_runtime_resume(struct device *dev);
@@ -204,7 +201,6 @@ static const struct dev_pm_ops igb_pm_ops = {
 	SET_RUNTIME_PM_OPS(igb_runtime_suspend, igb_runtime_resume,
 			igb_runtime_idle)
 };
-#endif
 static void igb_shutdown(struct pci_dev *);
 static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 #ifdef CONFIG_IGB_DCA
@@ -8015,9 +8011,7 @@ static void igb_deliver_wake_packet(struct net_device *netdev)
 	netif_rx(skb);
 }
 
-#ifdef CONFIG_PM
-#ifdef CONFIG_PM_SLEEP
-static int igb_suspend(struct device *dev)
+static int __maybe_unused igb_suspend(struct device *dev)
 {
 	int retval;
 	bool wake;
@@ -8036,9 +8030,8 @@ static int igb_suspend(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static int igb_resume(struct device *dev)
+static int __maybe_unused igb_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -8092,7 +8085,7 @@ static int igb_resume(struct device *dev)
 	return err;
 }
 
-static int igb_runtime_idle(struct device *dev)
+static int __maybe_unused igb_runtime_idle(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -8104,7 +8097,7 @@ static int igb_runtime_idle(struct device *dev)
 	return -EBUSY;
 }
 
-static int igb_runtime_suspend(struct device *dev)
+static int __maybe_unused igb_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int retval;
@@ -8124,11 +8117,10 @@ static int igb_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int igb_runtime_resume(struct device *dev)
+static int __maybe_unused igb_runtime_resume(struct device *dev)
 {
 	return igb_resume(dev);
 }
-#endif /* CONFIG_PM */
 
 static void igb_shutdown(struct pci_dev *pdev)
 {
