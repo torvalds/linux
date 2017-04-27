@@ -51,7 +51,6 @@ struct twl4030_madc_request {
 	bool result_pending;
 	bool raw;
 	int rbuf[TWL4030_MADC_MAX_CHANNELS];
-	void (*func_cb)(int len, int channels, int *buf);
 };
 
 enum conversion_methods {

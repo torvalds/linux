@@ -86,7 +86,6 @@ static int twl4030_madc_read(struct iio_dev *iio_dev,
 
 	req.channels = BIT(chan->channel);
 	req.active = false;
-	req.func_cb = NULL;
 	req.type = TWL4030_MADC_WAIT;
 	req.raw = !(mask == IIO_CHAN_INFO_PROCESSED);
 	req.do_avg = (mask == IIO_CHAN_INFO_AVERAGE_RAW);
@@ -343,37 +342,6 @@ static int twl4030_madc_read_channels(struct twl4030_madc_data *madc,
 }
 
 /*
- * Enables irq.
- * @madc - pointer to twl4030_madc_data struct
- * @id - irq number to be enabled
- * can take one of TWL4030_MADC_RT, TWL4030_MADC_SW1, TWL4030_MADC_SW2
- * corresponding to RT, SW1, SW2 conversion requests.
- * If the i2c read fails it returns an error else returns 0.
- */
-static int twl4030_madc_enable_irq(struct twl4030_madc_data *madc, u8 id)
-{
-	u8 val;
-	int ret;
-
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MADC, &val, madc->imr);
-	if (ret) {
-		dev_err(madc->dev, "unable to read imr register 0x%X\n",
-			madc->imr);
-		return ret;
-	}
-
-	val &= ~(1 << id);
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MADC, val, madc->imr);
-	if (ret) {
-		dev_err(madc->dev,
-			"unable to write imr register 0x%X\n", madc->imr);
-		return ret;
-	}
-
-	return 0;
-}
-
-/*
  * Disables irq.
  * @madc - pointer to twl4030_madc_data struct
  * @id - irq number to be disabled
@@ -442,11 +410,6 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
 						 r->channels, r->rbuf, r->raw);
-		/* Return results to caller */
-		if (r->func_cb != NULL) {
-			r->func_cb(len, r->channels, r->rbuf);
-			r->func_cb = NULL;
-		}
 		/* Free request */
 		r->result_pending = 0;
 		r->active = 0;
@@ -468,11 +431,6 @@ err_i2c:
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
 						 r->channels, r->rbuf, r->raw);
-		/* Return results to caller */
-		if (r->func_cb != NULL) {
-			r->func_cb(len, r->channels, r->rbuf);
-			r->func_cb = NULL;
-		}
 		/* Free request */
 		r->result_pending = 0;
 		r->active = 0;
@@ -480,23 +438,6 @@ err_i2c:
 	mutex_unlock(&madc->lock);
 
 	return IRQ_HANDLED;
-}
-
-static int twl4030_madc_set_irq(struct twl4030_madc_data *madc,
-				struct twl4030_madc_request *req)
-{
-	struct twl4030_madc_request *p;
-	int ret;
-
-	p = &madc->requests[req->method];
-	memcpy(p, req, sizeof(*req));
-	ret = twl4030_madc_enable_irq(madc, req->method);
-	if (ret < 0) {
-		dev_err(madc->dev, "enable irq failed!!\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 /*
@@ -606,17 +547,6 @@ static int twl4030_madc_conversion(struct twl4030_madc_request *req)
 				method->avg);
 			goto out;
 		}
-	}
-	if (req->type == TWL4030_MADC_IRQ_ONESHOT && req->func_cb != NULL) {
-		ret = twl4030_madc_set_irq(twl4030_madc, req);
-		if (ret < 0)
-			goto out;
-		ret = twl4030_madc_start_conversion(twl4030_madc, req->method);
-		if (ret < 0)
-			goto out;
-		twl4030_madc->requests[req->method].active = 1;
-		ret = 0;
-		goto out;
 	}
 	/* With RT method we should not be here anymore */
 	if (req->method == TWL4030_MADC_RT) {
