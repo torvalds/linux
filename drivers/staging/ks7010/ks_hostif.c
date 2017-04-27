@@ -326,10 +326,6 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 	eth_hdr = (struct ether_hdr *)(priv->rxp);
 	eth_proto = ntohs(eth_hdr->h_proto);
 
-	/* source address check */
-	if (memcmp(&eth_hdr->h_source[0], &priv->eth_addr[0], ETH_ALEN) == 0)
-		return 0;
-
 	if (eth_hdr->h_dest_snap != eth_hdr->h_source_snap) {
 		DPRINTK(1, "invalid data format\n");
 		priv->nstats.rx_errors++;
