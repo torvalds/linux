@@ -224,7 +224,6 @@ struct ttm_buffer_object {
 	 */
 
 	uint64_t offset; /* GPU address space is independent of CPU word size */
-	uint32_t cur_placement;
 
 	struct sg_table *sg;
 

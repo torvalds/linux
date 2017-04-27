@@ -355,11 +355,10 @@ moved:
 		bo->evicted = false;
 	}
 
-	if (bo->mem.mm_node) {
+	if (bo->mem.mm_node)
 		bo->offset = (bo->mem.start << PAGE_SHIFT) +
 		    bdev->man[bo->mem.mem_type].gpu_offset;
-		bo->cur_placement = bo->mem.placement;
-	} else
+	else
 		bo->offset = 0;
 
 	return 0;
