@@ -1197,7 +1197,7 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 static int ucma_set_ib_path(struct ucma_context *ctx,
 			    struct ib_path_rec_data *path_data, size_t optlen)
 {
-	struct ib_sa_path_rec sa_path;
+	struct sa_path_rec sa_path;
 	struct rdma_cm_event event;
 	int ret;
 

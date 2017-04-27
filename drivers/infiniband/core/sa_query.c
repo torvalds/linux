@@ -129,7 +129,7 @@ struct ib_sa_service_query {
 };
 
 struct ib_sa_path_query {
-	void (*callback)(int, struct ib_sa_path_rec *, void *);
+	void (*callback)(int, struct sa_path_rec *, void *);
 	void *context;
 	struct ib_sa_query sa_query;
 };
@@ -188,8 +188,8 @@ static DEFINE_SPINLOCK(tid_lock);
 static u32 tid;
 
 #define PATH_REC_FIELD(field) \
-	.struct_offset_bytes = offsetof(struct ib_sa_path_rec, field),		\
-	.struct_size_bytes   = sizeof ((struct ib_sa_path_rec *) 0)->field,	\
+	.struct_offset_bytes = offsetof(struct sa_path_rec, field),	\
+	.struct_size_bytes   = sizeof((struct sa_path_rec *)0)->field,	\
 	.field_name          = "sa_path_rec:" #field
 
 static const struct ib_field path_rec_table[] = {
@@ -618,7 +618,7 @@ static inline int ib_sa_query_cancelled(struct ib_sa_query *query)
 static void ib_nl_set_path_rec_attrs(struct sk_buff *skb,
 				     struct ib_sa_query *query)
 {
-	struct ib_sa_path_rec *sa_rec = query->mad_buf->context[1];
+	struct sa_path_rec *sa_rec = query->mad_buf->context[1];
 	struct ib_sa_mad *mad = query->mad_buf->mad;
 	ib_sa_comp_mask comp_mask = mad->sa_hdr.comp_mask;
 	u16 val16;
@@ -1099,7 +1099,7 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 }
 
 int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
-			 struct ib_sa_path_rec *rec,
+			 struct sa_path_rec *rec,
 			 struct rdma_ah_attr *ah_attr)
 {
 	int ret;
@@ -1301,13 +1301,13 @@ static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 	return ret ? ret : id;
 }
 
-void ib_sa_unpack_path(void *attribute, struct ib_sa_path_rec *rec)
+void ib_sa_unpack_path(void *attribute, struct sa_path_rec *rec)
 {
 	ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table), attribute, rec);
 }
 EXPORT_SYMBOL(ib_sa_unpack_path);
 
-void ib_sa_pack_path(struct ib_sa_path_rec *rec, void *attribute)
+void ib_sa_pack_path(struct sa_path_rec *rec, void *attribute)
 {
 	ib_pack(path_rec_table, ARRAY_SIZE(path_rec_table), rec, attribute);
 }
@@ -1321,7 +1321,7 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 		container_of(sa_query, struct ib_sa_path_query, sa_query);
 
 	if (mad) {
-		struct ib_sa_path_rec rec;
+		struct sa_path_rec rec;
 
 		ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table),
 			  mad->data, &rec);
@@ -1366,11 +1366,11 @@ static void ib_sa_path_rec_release(struct ib_sa_query *sa_query)
  */
 int ib_sa_path_rec_get(struct ib_sa_client *client,
 		       struct ib_device *device, u8 port_num,
-		       struct ib_sa_path_rec *rec,
+		       struct sa_path_rec *rec,
 		       ib_sa_comp_mask comp_mask,
 		       int timeout_ms, gfp_t gfp_mask,
 		       void (*callback)(int status,
-					struct ib_sa_path_rec *resp,
+					struct sa_path_rec *resp,
 					void *context),
 		       void *context,
 		       struct ib_sa_query **sa_query)

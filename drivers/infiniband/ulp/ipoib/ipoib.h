@@ -423,7 +423,7 @@ struct ipoib_ah {
 
 struct ipoib_path {
 	struct net_device    *dev;
-	struct ib_sa_path_rec pathrec;
+	struct sa_path_rec pathrec;
 	struct ipoib_ah      *ah;
 	struct sk_buff_head   queue;
 

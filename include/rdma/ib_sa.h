@@ -148,7 +148,7 @@ enum ib_sa_mc_join_states {
 #define IB_SA_PATH_REC_PACKET_LIFE_TIME			IB_SA_COMP_MASK(21)
 #define IB_SA_PATH_REC_PREFERENCE			IB_SA_COMP_MASK(22)
 
-struct ib_sa_path_rec {
+struct sa_path_rec {
 	__be64       service_id;
 	union ib_gid dgid;
 	union ib_gid sgid;
@@ -179,7 +179,7 @@ struct ib_sa_path_rec {
 	enum ib_gid_type gid_type;
 };
 
-static inline struct net_device *ib_get_ndev_from_path(struct ib_sa_path_rec *rec)
+static inline struct net_device *ib_get_ndev_from_path(struct sa_path_rec *rec)
 {
 	return rec->net ? dev_get_by_index(rec->net, rec->ifindex) : NULL;
 }
@@ -323,11 +323,11 @@ void ib_sa_cancel_query(int id, struct ib_sa_query *query);
 
 int ib_sa_path_rec_get(struct ib_sa_client *client,
 		       struct ib_device *device, u8 port_num,
-		       struct ib_sa_path_rec *rec,
+		       struct sa_path_rec *rec,
 		       ib_sa_comp_mask comp_mask,
 		       int timeout_ms, gfp_t gfp_mask,
 		       void (*callback)(int status,
-					struct ib_sa_path_rec *resp,
+					struct sa_path_rec *resp,
 					void *context),
 		       void *context,
 		       struct ib_sa_query **query);
@@ -428,20 +428,20 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
  *   path record.
  */
 int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
-			 struct ib_sa_path_rec *rec,
+			 struct sa_path_rec *rec,
 			 struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_sa_pack_path - Conert a path record from struct ib_sa_path_rec
  * to IB MAD wire format.
  */
-void ib_sa_pack_path(struct ib_sa_path_rec *rec, void *attribute);
+void ib_sa_pack_path(struct sa_path_rec *rec, void *attribute);
 
 /**
  * ib_sa_unpack_path - Convert a path record from MAD format to struct
  * ib_sa_path_rec.
  */
-void ib_sa_unpack_path(void *attribute, struct ib_sa_path_rec *rec);
+void ib_sa_unpack_path(void *attribute, struct sa_path_rec *rec);
 
 /* Support GuidInfoRecord */
 int ib_sa_guid_info_rec_query(struct ib_sa_client *client,

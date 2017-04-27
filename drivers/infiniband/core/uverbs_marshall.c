@@ -97,7 +97,7 @@ void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
 EXPORT_SYMBOL(ib_copy_qp_attr_to_user);
 
 void ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
-			      struct ib_sa_path_rec *src)
+			      struct sa_path_rec *src)
 {
 	memcpy(dst->dgid, src->dgid.raw, sizeof src->dgid);
 	memcpy(dst->sgid, src->sgid.raw, sizeof src->sgid);
@@ -122,7 +122,7 @@ void ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
 }
 EXPORT_SYMBOL(ib_copy_path_rec_to_user);
 
-void ib_copy_path_rec_from_user(struct ib_sa_path_rec *dst,
+void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 				struct ib_user_path_rec *src)
 {
 	memcpy(dst->dgid.raw, src->dgid, sizeof dst->dgid);

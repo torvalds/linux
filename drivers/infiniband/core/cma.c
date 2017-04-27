@@ -1128,7 +1128,7 @@ static inline int cma_any_port(struct sockaddr *addr)
 static void cma_save_ib_info(struct sockaddr *src_addr,
 			     struct sockaddr *dst_addr,
 			     struct rdma_cm_id *listen_id,
-			     struct ib_sa_path_rec *path)
+			     struct sa_path_rec *path)
 {
 	struct sockaddr_ib *listen_ib, *ib;
 
@@ -2301,7 +2301,7 @@ void rdma_set_service_type(struct rdma_cm_id *id, int tos)
 }
 EXPORT_SYMBOL(rdma_set_service_type);
 
-static void cma_query_handler(int status, struct ib_sa_path_rec *path_rec,
+static void cma_query_handler(int status, struct sa_path_rec *path_rec,
 			      void *context)
 {
 	struct cma_work *work = context;
@@ -2328,7 +2328,7 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 			      struct cma_work *work)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
-	struct ib_sa_path_rec path_rec;
+	struct sa_path_rec path_rec;
 	ib_sa_comp_mask comp_mask;
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_ib *sib;
@@ -2453,7 +2453,7 @@ err1:
 }
 
 int rdma_set_ib_paths(struct rdma_cm_id *id,
-		      struct ib_sa_path_rec *path_rec, int num_paths)
+		      struct sa_path_rec *path_rec, int num_paths)
 {
 	struct rdma_id_private *id_priv;
 	int ret;

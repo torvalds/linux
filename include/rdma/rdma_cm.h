@@ -85,7 +85,7 @@ struct rdma_addr {
 
 struct rdma_route {
 	struct rdma_addr addr;
-	struct ib_sa_path_rec *path_rec;
+	struct sa_path_rec *path_rec;
 	int num_paths;
 };
 
