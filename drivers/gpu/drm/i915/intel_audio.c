@@ -632,7 +632,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder,
 						 (int) port, (int) pipe);
 	}
 
-	intel_lpe_audio_notify(dev_priv, connector->eld, port, pipe,
+	intel_lpe_audio_notify(dev_priv, pipe, port, connector->eld,
 			       crtc_state->port_clock,
 			       intel_encoder->type == INTEL_OUTPUT_DP);
 }
@@ -669,7 +669,7 @@ void intel_audio_codec_disable(struct intel_encoder *intel_encoder)
 						 (int) port, (int) pipe);
 	}
 
-	intel_lpe_audio_notify(dev_priv, NULL, port, pipe, 0, false);
+	intel_lpe_audio_notify(dev_priv, pipe, port, NULL, 0, false);
 }
 
 /**

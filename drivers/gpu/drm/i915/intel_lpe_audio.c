@@ -307,17 +307,17 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
  * intel_lpe_audio_notify() - notify lpe audio event
  * audio driver and i915
  * @dev_priv: the i915 drm device private data
+ * @pipe: pipe
+ * @port: port
  * @eld : ELD data
- * @pipe: pipe id
- * @port: port id
  * @ls_clock: Link symbol clock in kHz
  * @dp_output: Driving a DP output?
  *
  * Notify lpe audio driver of eld change.
  */
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			    void *eld, int port, int pipe, int ls_clock,
-			    bool dp_output)
+			    enum pipe pipe, enum port port,
+			    const void *eld, int ls_clock, bool dp_output)
 {
 	unsigned long irq_flags;
 	struct intel_hdmi_lpe_audio_pdata *pdata = NULL;
