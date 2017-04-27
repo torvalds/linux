@@ -1703,6 +1703,16 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	if (dev->close)
 		dev->input_dev->close = ir_close;
 
+	dev->input_dev->dev.parent = &dev->dev;
+	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
+	dev->input_dev->phys = dev->input_phys;
+	dev->input_dev->name = dev->input_name;
+
+	/* rc_open will be called here */
+	rc = input_register_device(dev->input_dev);
+	if (rc)
+		goto out_table;
+
 	/*
 	 * Default delay of 250ms is too short for some protocols, especially
 	 * since the timeout is currently set to 250ms. Increase it to 500ms,
@@ -1717,16 +1727,6 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	 * to do.
 	 */
 	dev->input_dev->rep[REP_PERIOD] = 125;
-
-	dev->input_dev->dev.parent = &dev->dev;
-	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
-	dev->input_dev->phys = dev->input_phys;
-	dev->input_dev->name = dev->input_name;
-
-	/* rc_open will be called here */
-	rc = input_register_device(dev->input_dev);
-	if (rc)
-		goto out_table;
 
 	return 0;
 
