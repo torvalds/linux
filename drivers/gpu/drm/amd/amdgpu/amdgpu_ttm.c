@@ -765,7 +765,7 @@ int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
 {
 	struct amdgpu_ttm_tt *gtt, *tmp;
 	struct ttm_mem_reg bo_mem;
-	uint32_t flags;
+	uint64_t flags;
 	int r;
 
 	bo_mem.mem_type = TTM_PL_TT;
