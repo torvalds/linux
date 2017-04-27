@@ -336,11 +336,17 @@ int __init linux_main(int argc, char **argv)
 	return start_uml();
 }
 
+int __init __weak read_initrd(void)
+{
+	return 0;
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	stack_protections((unsigned long) &init_thread_info);
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
 	mem_total_pages(physmem_size, iomem_size, highmem);
+	read_initrd();
 
 	paging_init();
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
