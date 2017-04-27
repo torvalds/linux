@@ -113,6 +113,29 @@ int vega10_enable_power_containment(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+int vega10_disable_power_containment(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_PowerContainment)) {
+		if (data->smu_features[GNLD_PPT].supported)
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+					false, data->smu_features[GNLD_PPT].smu_feature_bitmap),
+					"Attempt to disable PPT feature Failed!",
+					data->smu_features[GNLD_PPT].supported = false);
+
+		if (data->smu_features[GNLD_TDC].supported)
+			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+					false, data->smu_features[GNLD_TDC].smu_feature_bitmap),
+					"Attempt to disable PPT feature Failed!",
+					data->smu_features[GNLD_TDC].supported = false);
+	}
+
+	return 0;
+}
+
 static int vega10_set_overdrive_target_percentage(struct pp_hwmgr *hwmgr,
 		uint32_t adjust_percent)
 {

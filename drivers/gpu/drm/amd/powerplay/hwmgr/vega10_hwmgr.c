@@ -2420,6 +2420,26 @@ static int vega10_enable_thermal_protection(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega10_disable_thermal_protection(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+
+	if (data->smu_features[GNLD_THERMAL].supported) {
+		if (!data->smu_features[GNLD_THERMAL].enabled)
+			pr_info("THERMAL Feature Already disabled!");
+
+		PP_ASSERT_WITH_CODE(
+				!vega10_enable_smc_features(hwmgr->smumgr,
+				false,
+				data->smu_features[GNLD_THERMAL].smu_feature_bitmap),
+				"disable THERMAL Feature Failed!",
+				return -1);
+		data->smu_features[GNLD_THERMAL].enabled = false;
+	}
+
+	return 0;
+}
+
 static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data =
@@ -2494,6 +2514,37 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 				return -1);
 		data->smu_features[GNLD_DS_LCLK].enabled = true;
 	}
+
+	return 0;
+}
+
+static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
+{
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t i, feature_mask = 0;
+
+
+	if(data->smu_features[GNLD_LED_DISPLAY].supported == true){
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
+				true, data->smu_features[GNLD_LED_DISPLAY].smu_feature_bitmap),
+		"Attempt to Enable LED DPM feature Failed!", return -EINVAL);
+		data->smu_features[GNLD_LED_DISPLAY].enabled = true;
+	}
+
+	for (i = 0; i < GNLD_DPM_MAX; i++) {
+		if (data->smu_features[i].smu_feature_bitmap & bitmap) {
+			if (data->smu_features[i].supported) {
+				if (data->smu_features[i].enabled) {
+					feature_mask |= data->smu_features[i].
+							smu_feature_bitmap;
+					data->smu_features[i].enabled = false;
+				}
+			}
+		}
+	}
+
+	vega10_enable_smc_features(hwmgr->smumgr, false, feature_mask);
 
 	return 0;
 }
@@ -4356,11 +4407,55 @@ vega10_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmg
 	return is_update_required;
 }
 
+static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
+{
+	int tmp_result, result = 0;
+
+	tmp_result = (vega10_is_dpm_running(hwmgr)) ? 0 : -1;
+	PP_ASSERT_WITH_CODE(tmp_result == 0,
+			"DPM is not running right now, no need to disable DPM!",
+			return 0);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ThermalController))
+		vega10_disable_thermal_protection(hwmgr);
+
+	tmp_result = vega10_disable_power_containment(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable power containment!", result = tmp_result);
+
+	tmp_result = vega10_avfs_enable(hwmgr, false);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable AVFS!", result = tmp_result);
+
+	tmp_result = vega10_stop_dpm(hwmgr, SMC_DPM_FEATURES);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to stop DPM!", result = tmp_result);
+
+	return result;
+}
+
+static int vega10_power_off_asic(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	int result;
+
+	result = vega10_disable_dpm_tasks(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == result),
+			"[disable_dpm_tasks] Failed to disable DPM!",
+			);
+	data->water_marks_bitmap &= ~(WaterMarksLoaded);
+
+	return result;
+}
+
+
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
 	.backend_fini = vega10_hwmgr_backend_fini,
 	.asic_setup = vega10_setup_asic_task,
 	.dynamic_state_management_enable = vega10_enable_dpm_tasks,
+	.dynamic_state_management_disable = vega10_disable_dpm_tasks,
 	.get_num_of_pp_table_entries =
 			vega10_get_number_of_powerplay_table_entries,
 	.get_power_state_size = vega10_get_power_state_size,
@@ -4400,6 +4495,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.check_states_equal = vega10_check_states_equal,
 	.check_smc_update_required_for_display_configuration =
 			vega10_check_smc_update_required_for_display_configuration,
+	.power_off_asic = vega10_power_off_asic,
+	.disable_smc_firmware_ctf = vega10_thermal_disable_alert,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)

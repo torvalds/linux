@@ -501,7 +501,7 @@ static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 * Disable thermal alerts on the RV770 thermal controller.
 * @param    hwmgr The address of the hardware manager.
 */
-static int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
+int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 

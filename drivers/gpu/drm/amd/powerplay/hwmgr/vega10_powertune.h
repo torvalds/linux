@@ -60,6 +60,7 @@ int vega10_enable_smc_cac(struct pp_hwmgr *hwmgr);
 int vega10_enable_power_containment(struct pp_hwmgr *hwmgr);
 int vega10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
 int vega10_power_control_set_level(struct pp_hwmgr *hwmgr);
+int vega10_disable_power_containment(struct pp_hwmgr *hwmgr);
 
 #endif  /* _VEGA10_POWERTUNE_H_ */
 
