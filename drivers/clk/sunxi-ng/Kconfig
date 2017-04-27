@@ -16,7 +16,7 @@ config SUNXI_CCU_FRAC
 	bool
 
 config SUNXI_CCU_GATE
-	bool
+	def_bool y
 
 config SUNXI_CCU_MUX
 	bool
