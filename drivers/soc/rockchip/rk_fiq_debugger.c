@@ -194,12 +194,6 @@ static void debug_flush(struct platform_device *pdev)
 		cpu_relax();
 }
 
-static int uart_dev_resume(struct platform_device *pdev)
-{
-	debug_port_init(pdev);
-	return 0;
-}
-
 #ifdef CONFIG_RK_CONSOLE_THREAD
 #define FIFO_SIZE SZ_64K
 static DEFINE_KFIFO(fifo, unsigned char, FIFO_SIZE);
@@ -442,7 +436,6 @@ void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
 	t->pdata.uart_init = debug_port_init;
 	t->pdata.uart_getc = debug_getc;
 	t->pdata.uart_putc = debug_putc;
-	t->pdata.uart_dev_resume = uart_dev_resume;
 #ifndef CONFIG_RK_CONSOLE_THREAD
 	t->pdata.uart_flush = debug_flush;
 #endif
