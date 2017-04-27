@@ -109,11 +109,16 @@ struct freesync_entity {
 	struct mod_freesync_user_enable user_enable;
 };
 
+struct freesync_registry_options {
+	unsigned int min_refresh_from_edid;
+};
+
 struct core_freesync {
 	struct mod_freesync public;
 	struct dc *dc;
 	struct freesync_entity *map;
 	int num_entities;
+	struct freesync_registry_options opts;
 };
 
 #define MOD_FREESYNC_TO_CORE(mod_freesync)\
@@ -136,7 +141,7 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 
 	struct persistent_data_flag flag;
 
-	int i = 0;
+	int i, data = 0;
 
 	if (core_freesync == NULL)
 		goto fail_alloc_context;
@@ -165,6 +170,12 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 	flag.save_per_link = false;
 	dm_write_persistent_data(core_dc->ctx, NULL, FREESYNC_REGISTRY_NAME, NULL, NULL,
 					0, &flag);
+	flag.save_per_edid = false;
+	flag.save_per_link = false;
+	if (dm_read_persistent_data(core_dc->ctx, NULL, NULL,
+			"DalDrrSupport", &data, sizeof(data), &flag)) {
+		core_freesync->opts.min_refresh_from_edid = data;
+	}
 
 	return &core_freesync->public;
 
@@ -219,7 +230,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 	struct core_stream *core_stream = NULL;
 	struct core_dc *core_dc = NULL;
 	struct core_freesync *core_freesync = NULL;
-	int persistent_freesync_enable = 0;
+	int persistent_freesync_enable, stream_index = 0;
 	struct persistent_data_flag flag;
 	unsigned int nom_refresh_rate_micro_hz;
 	unsigned long long temp;
@@ -237,6 +248,26 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 	if (core_freesync->num_entities < MOD_FREESYNC_MAX_CONCURRENT_STREAMS) {
 
 		dc_stream_retain(stream);
+
+		stream_index = map_index_from_stream(core_freesync, stream);
+
+		temp = stream->timing.pix_clk_khz;
+		temp *= 1000ULL * 1000ULL * 1000ULL;
+		temp = div_u64(temp, stream->timing.h_total);
+		temp = div_u64(temp, stream->timing.v_total);
+
+		nom_refresh_rate_micro_hz = (unsigned int) temp;
+
+		if (core_freesync->opts.min_refresh_from_edid != 0 &&
+				dc_is_embedded_signal(
+					stream[stream_index].sink->sink_signal)) {
+			caps->supported = true;
+			caps->min_refresh_in_micro_hz =
+				core_freesync->opts.min_refresh_from_edid *
+					1000000;
+			caps->max_refresh_in_micro_hz =
+					nom_refresh_rate_micro_hz;
+		}
 
 		core_freesync->map[core_freesync->num_entities].stream = stream;
 		core_freesync->map[core_freesync->num_entities].caps = caps;
@@ -274,13 +305,6 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 			core_freesync->map[core_freesync->num_entities].user_enable.
 					enable_for_video = false;
 		}
-
-		temp = stream->timing.pix_clk_khz;
-		temp *= 1000ULL * 1000ULL * 1000ULL;
-		temp = div_u64(temp, stream->timing.h_total);
-		temp = div_u64(temp, stream->timing.v_total);
-
-		nom_refresh_rate_micro_hz = (unsigned int) temp;
 
 		if (caps->supported &&
 		    nom_refresh_rate_micro_hz >= caps->min_refresh_in_micro_hz &&
