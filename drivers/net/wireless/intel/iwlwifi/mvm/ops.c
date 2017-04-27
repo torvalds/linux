@@ -746,10 +746,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
-	if (iwl_mvm_has_new_tx_api(mvm))
-		err = iwl_run_unified_mvm_ucode(mvm, true);
-	else
-		err = iwl_run_init_mvm_ucode(mvm, true);
+	err = iwl_run_init_mvm_ucode(mvm, true);
 	if (!err || !iwlmvm_mod_params.init_dbg)
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
@@ -1047,7 +1044,7 @@ static void iwl_mvm_stop_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 	unsigned long mq;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	mq = mvm->queue_info[hw_queue].hw_queue_to_mac80211;
+	mq = mvm->hw_queue_to_mac80211[hw_queue];
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	iwl_mvm_stop_mac_queues(mvm, mq);
@@ -1077,7 +1074,7 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 	unsigned long mq;
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	mq = mvm->queue_info[hw_queue].hw_queue_to_mac80211;
+	mq = mvm->hw_queue_to_mac80211[hw_queue];
 	spin_unlock_bh(&mvm->queue_info_lock);
 
 	iwl_mvm_start_mac_queues(mvm, mq);

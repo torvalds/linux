@@ -630,6 +630,8 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			if (queue < 0)
 				return -1;
 
+			if (queue == info.control.vif->cab_queue)
+				queue = mvmvif->cab_queue;
 		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
 			   is_multicast_ether_addr(hdr->addr1)) {
 			u8 ap_sta_id = ACCESS_ONCE(mvmvif->ap_sta_id);
@@ -918,7 +920,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	__le16 fc;
 	u16 seq_number = 0;
 	u8 tid = IWL_MAX_TID_COUNT;
-	u8 txq_id = info->hw_queue;
+	u16 txq_id = info->hw_queue;
 	bool is_ampdu = false;
 	int hdrlen;
 
@@ -988,11 +990,11 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
 	/* Check if TXQ needs to be allocated or re-activated */
-	if (unlikely(txq_id == IEEE80211_INVAL_HW_QUEUE ||
+	if (unlikely(txq_id == IWL_MVM_INVALID_QUEUE ||
 		     !mvmsta->tid_data[tid].is_tid_active) &&
 	    iwl_mvm_is_dqa_supported(mvm)) {
 		/* If TXQ needs to be allocated... */
-		if (txq_id == IEEE80211_INVAL_HW_QUEUE) {
+		if (txq_id == IWL_MVM_INVALID_QUEUE) {
 			iwl_mvm_tx_add_stream(mvm, mvmsta, tid, skb);
 
 			/*
@@ -1004,6 +1006,9 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			return 0;
 		}
 
+		/* queue should always be active in new TX path */
+		WARN_ON(iwl_mvm_has_new_tx_api(mvm));
+
 		/* If we are here - TXQ exists and needs to be re-activated */
 		spin_lock(&mvm->queue_info_lock);
 		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_READY;
@@ -1014,7 +1019,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 				    txq_id);
 	}
 
-	if (iwl_mvm_is_dqa_supported(mvm)) {
+	if (iwl_mvm_is_dqa_supported(mvm) && !iwl_mvm_has_new_tx_api(mvm)) {
 		/* Keep track of the time of the last frame for this RA/TID */
 		mvm->queue_info[txq_id].last_frame_time[tid] = jiffies;
 

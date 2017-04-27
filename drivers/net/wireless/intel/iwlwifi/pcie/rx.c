@@ -1147,7 +1147,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
 		 *   but apparently a few don't get set; catch them here. */
 		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME);
-		if (reclaim) {
+		if (reclaim && !pkt->hdr.group_id) {
 			int i;
 
 			for (i = 0; i < trans_pcie->n_no_reclaim_cmds; i++) {

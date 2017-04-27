@@ -1282,7 +1282,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
-		return;
+		goto out_free_fw;
 
 	if (!ucode_raw)
 		goto try_again;
@@ -1494,7 +1494,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * or hangs loading.
 	 */
 	if (load_module) {
-		err = request_module("%s", op->name);
+		request_module("%s", op->name);
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
 		if (err)
 			IWL_ERR(drv,
@@ -1512,17 +1512,18 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	goto free;
 
  out_free_fw:
-	IWL_ERR(drv, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode(drv);
 	release_firmware(ucode_raw);
  out_unbind:
 	complete(&drv->request_firmware_complete);
 	device_release_driver(drv->trans->dev);
  free:
-	for (i = 0; i < ARRAY_SIZE(pieces->img); i++)
-		kfree(pieces->img[i].sec);
-	kfree(pieces->dbg_mem_tlv);
-	kfree(pieces);
+	if (pieces) {
+		for (i = 0; i < ARRAY_SIZE(pieces->img); i++)
+			kfree(pieces->img[i].sec);
+		kfree(pieces->dbg_mem_tlv);
+		kfree(pieces);
+	}
 }
 
 struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)

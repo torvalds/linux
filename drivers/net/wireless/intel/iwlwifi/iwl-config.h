@@ -170,7 +170,7 @@ struct iwl_base_params {
 	   apmg_wake_up_wa:1,
 	   scd_chain_ext_wa:1;
 
-	u8 num_of_queues;	/* def: HW dependent */
+	u16 num_of_queues;	/* def: HW dependent */
 
 	u8 max_ll_items;
 	u8 led_compensation;

@@ -380,6 +380,8 @@ struct iwl_mvm_vif {
 	bool associated;
 	u8 ap_assoc_sta_count;
 
+	u16 cab_queue;
+
 	bool uploaded;
 	bool ap_ibss_active;
 	bool pm_enabled;
@@ -715,6 +717,8 @@ enum iwl_mvm_queue_status {
 };
 
 #define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)
+#define IWL_MVM_INVALID_QUEUE		0xFFFF
+
 #define IWL_MVM_NUM_CIPHERS             10
 
 #ifdef CONFIG_ACPI
@@ -784,9 +788,9 @@ struct iwl_mvm {
 		u64 on_time_scan;
 	} radio_stats, accu_radio_stats;
 
+	u8 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
+
 	struct {
-		/* Map to HW queue */
-		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
 		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 		bool reserved; /* Is this the TXQ reserved for a STA */
@@ -1312,7 +1316,6 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm);
  ******************/
 /* uCode */
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm);
-int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm);
 
 /* Utils */
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
@@ -1828,6 +1831,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     u32 size);
 void iwl_mvm_reorder_timer_expired(unsigned long data);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
+bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
 void iwl_mvm_inactivity_check(struct iwl_mvm *mvm);
 

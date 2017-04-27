@@ -157,7 +157,8 @@ enum iwl_tsf_id {
  * @bi_reciprocal: 2^32 / bi
  * @dtim_interval: dtim transmit time in TU
  * @dtim_reciprocal: 2^32 / dtim_interval
- * @mcast_qid: queue ID for multicast traffic
+ * @mcast_qid: queue ID for multicast traffic.
+ *	NOTE: obsolete from VER2 and on
  * @beacon_template: beacon template ID
  */
 struct iwl_mac_data_ap {
@@ -169,7 +170,7 @@ struct iwl_mac_data_ap {
 	__le32 dtim_reciprocal;
 	__le32 mcast_qid;
 	__le32 beacon_template;
-} __packed; /* AP_MAC_DATA_API_S_VER_1 */
+} __packed; /* AP_MAC_DATA_API_S_VER_2 */
 
 /**
  * struct iwl_mac_data_ibss - configuration data for IBSS MAC context
