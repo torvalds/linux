@@ -276,6 +276,10 @@ static void kvm_s390_cpu_feat_init(void)
 		__cpacf_query(CPACF_PPNO, (cpacf_mask_t *)
 			      kvm_s390_available_subfunc.ppno);
 
+	if (test_facility(146)) /* MSA8 */
+		__cpacf_query(CPACF_KMA, (cpacf_mask_t *)
+			      kvm_s390_available_subfunc.kma);
+
 	if (MACHINE_HAS_ESOP)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
 	/*

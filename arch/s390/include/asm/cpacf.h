@@ -26,6 +26,7 @@
 #define CPACF_PCC		0xb92c		/* MSA4 */
 #define CPACF_KMCTR		0xb92d		/* MSA4 */
 #define CPACF_PPNO		0xb93c		/* MSA5 */
+#define CPACF_KMA		0xb929		/* MSA8 */
 
 /*
  * En/decryption modifier bits
@@ -149,8 +150,8 @@ static inline void __cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
 
 	asm volatile(
 		"	spm 0\n" /* pckmo doesn't change the cc */
-		/* Parameter registers are ignored, but may not be 0 */
-		"0:	.insn	rrf,%[opc] << 16,2,2,2,0\n"
+		/* Parameter regs are ignored, but must be nonzero and unique */
+		"0:	.insn	rrf,%[opc] << 16,2,4,6,0\n"
 		"	brc	1,0b\n"	/* handle partial completion */
 		: "=m" (*mask)
 		: [fc] "d" (r0), [pba] "a" (r1), [opc] "i" (opcode)
