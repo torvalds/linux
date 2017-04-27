@@ -125,13 +125,11 @@ enum {
 	SIT_BITMAP
 };
 
-enum {
-	CP_UMOUNT,
-	CP_FASTBOOT,
-	CP_SYNC,
-	CP_RECOVERY,
-	CP_DISCARD,
-};
+#define	CP_UMOUNT	0x00000001
+#define	CP_FASTBOOT	0x00000002
+#define	CP_SYNC		0x00000004
+#define	CP_RECOVERY	0x00000008
+#define	CP_DISCARD	0x00000010
 
 #define DEF_BATCHED_TRIM_SECTIONS	2048
 #define BATCHED_TRIM_SEGMENTS(sbi)	\
@@ -1265,7 +1263,7 @@ static inline bool enabled_nat_bits(struct f2fs_sb_info *sbi,
 {
 	bool set = is_set_ckpt_flags(sbi, CP_NAT_BITS_FLAG);
 
-	return (cpc) ? (cpc->reason == CP_UMOUNT) && set : set;
+	return (cpc) ? (cpc->reason & CP_UMOUNT) && set : set;
 }
 
 static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
@@ -1301,7 +1299,7 @@ static inline int __get_cp_reason(struct f2fs_sb_info *sbi)
 
 static inline bool __remain_node_summaries(int reason)
 {
-	return (reason == CP_UMOUNT || reason == CP_FASTBOOT);
+	return (reason & (CP_UMOUNT | CP_FASTBOOT));
 }
 
 static inline bool __exist_node_summaries(struct f2fs_sb_info *sbi)

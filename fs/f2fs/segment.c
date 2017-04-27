@@ -1183,7 +1183,7 @@ static bool add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc,
 	unsigned long *discard_map = (unsigned long *)se->discard_map;
 	unsigned long *dmap = SIT_I(sbi)->tmp_map;
 	unsigned int start = 0, end = -1;
-	bool force = (cpc->reason == CP_DISCARD);
+	bool force = (cpc->reason & CP_DISCARD);
 	struct discard_entry *de = NULL;
 	struct list_head *head = &SM_I(sbi)->dcc_info->entry_list;
 	int i;
@@ -1266,7 +1266,7 @@ void clear_prefree_segments(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	unsigned long *prefree_map = dirty_i->dirty_segmap[PRE];
 	unsigned int start = 0, end = -1;
 	unsigned int secno, start_segno;
-	bool force = (cpc->reason == CP_DISCARD);
+	bool force = (cpc->reason & CP_DISCARD);
 
 	mutex_lock(&dirty_i->seglist_lock);
 
@@ -2770,7 +2770,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			se = get_seg_entry(sbi, segno);
 
 			/* add discard candidates */
-			if (cpc->reason != CP_DISCARD) {
+			if (!(cpc->reason & CP_DISCARD)) {
 				cpc->trim_start = segno;
 				add_discard_addrs(sbi, cpc, false);
 			}
@@ -2806,7 +2806,7 @@ void flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	f2fs_bug_on(sbi, !list_empty(head));
 	f2fs_bug_on(sbi, sit_i->dirty_sentries);
 out:
-	if (cpc->reason == CP_DISCARD) {
+	if (cpc->reason & CP_DISCARD) {
 		__u64 trim_start = cpc->trim_start;
 
 		for (; cpc->trim_start <= cpc->trim_end; cpc->trim_start++)
