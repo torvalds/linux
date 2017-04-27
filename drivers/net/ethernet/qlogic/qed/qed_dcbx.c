@@ -64,11 +64,11 @@
 	((u32)(prio_tc_tbl >> ((7 - prio) * 4)) & 0x7)
 
 static const struct qed_dcbx_app_metadata qed_dcbx_app_update[] = {
-	{DCBX_PROTOCOL_ISCSI, "ISCSI", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_FCOE, "FCOE", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ROCE, "ROCE", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ROCE_V2, "ROCE_V2", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ETH, "ETH", QED_PCI_ETH}
+	{DCBX_PROTOCOL_ISCSI, "ISCSI", QED_PCI_ISCSI},
+	{DCBX_PROTOCOL_FCOE, "FCOE", QED_PCI_FCOE},
+	{DCBX_PROTOCOL_ROCE, "ROCE", QED_PCI_ETH_ROCE},
+	{DCBX_PROTOCOL_ROCE_V2, "ROCE_V2", QED_PCI_ETH_ROCE},
+	{DCBX_PROTOCOL_ETH, "ETH", QED_PCI_ETH},
 };
 
 static bool qed_dcbx_app_ethtype(u32 app_info_bitmap)

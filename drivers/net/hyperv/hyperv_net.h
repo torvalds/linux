@@ -751,7 +751,6 @@ struct netvsc_device {
 	u32 send_section_cnt;
 	u32 send_section_size;
 	unsigned long *send_section_map;
-	int map_words;
 
 	/* Used for NetVSP initialization protocol */
 	struct completion channel_init_wait;

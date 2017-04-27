@@ -489,7 +489,7 @@ $(generic_defconfigs):
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
 		-m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/generic_defconfig $^ \
 		$(foreach board,$(BOARDS),$(generic_config_dir)/board-$(board).config)
-	$(Q)$(MAKE) olddefconfig
+	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 
 #
 # Prevent generic merge_config rules attempting to merge single fragments
@@ -503,8 +503,8 @@ $(generic_config_dir)/%.config: ;
 #
 .PHONY: sead3_defconfig
 sead3_defconfig:
-	$(Q)$(MAKE) 32r2el_defconfig BOARDS=sead-3
+	$(Q)$(MAKE) -f $(srctree)/Makefile 32r2el_defconfig BOARDS=sead-3
 
 .PHONY: sead3micro_defconfig
 sead3micro_defconfig:
-	$(Q)$(MAKE) micro32r2el_defconfig BOARDS=sead-3
+	$(Q)$(MAKE) -f $(srctree)/Makefile micro32r2el_defconfig BOARDS=sead-3
