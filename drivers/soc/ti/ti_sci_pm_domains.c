@@ -1,7 +1,7 @@
 /*
  * TI SCI Generic Power Domain Driver
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://urldefense.proofpoint.com/v2/url?u=http-3A__www.ti.com_&d=DwIBAg&c=RoP1YumCXCgaWHvlZYR8PQcxBKCX5YTpkKY057SbK10&r=XBn1JQGPwR8CsE7xpP3wPlG6DQU7qw8ym65xieNZ4hY&m=R6qGiR9DbG1C3EF_0mL-m-qkmSO64GklbFWpUzqt8fY&s=YTWcQCWi5lnIf4XHDLq1XDd4JbZv9xpqOwdPD8xEdZE&e=
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
  *	J Keerthy <j-keerthy@ti.com>
  *	Dave Gerlach <d-gerlach@ti.com>
  *

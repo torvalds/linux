@@ -1,7 +1,7 @@
 /*
  * TI K2G SoC Device definitions
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://urldefense.proofpoint.com/v2/url?u=http-3A__www.ti.com_&d=DwIBAg&c=RoP1YumCXCgaWHvlZYR8PQcxBKCX5YTpkKY057SbK10&r=XBn1JQGPwR8CsE7xpP3wPlG6DQU7qw8ym65xieNZ4hY&m=K-anSnBVCpVU_mSaI7FWz6dwIAPBePhk6w9rCref6SI&s=UvxGRJAJRKjDVjwUuXloC2gH4uWNkMelLuW2oG01DPM&e=
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #ifndef _DT_BINDINGS_GENPD_K2G_H
 #define _DT_BINDINGS_GENPD_K2G_H
 
-/* Documented in https://urldefense.proofpoint.com/v2/url?u=http-3A__processors.wiki.ti.com_index.php_TISCI&d=DwIBAg&c=RoP1YumCXCgaWHvlZYR8PQcxBKCX5YTpkKY057SbK10&r=XBn1JQGPwR8CsE7xpP3wPlG6DQU7qw8ym65xieNZ4hY&m=K-anSnBVCpVU_mSaI7FWz6dwIAPBePhk6w9rCref6SI&s=OUR-PBKiUWN0Bhs-J9hzlER8kpqh_V70s09xc8Zo1iA&e=  */
+/* Documented in http://processors.wiki.ti.com/index.php/TISCI */
 
 #define K2G_DEV_PMMC0			0x0000
 #define K2G_DEV_MLB0			0x0001
