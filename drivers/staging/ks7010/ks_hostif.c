@@ -399,7 +399,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	struct ether_hdr *eth_hdr;
 	unsigned short eth_proto;
 	struct ieee802_1x_hdr *aa1x_hdr;
-	struct wpa_eapol_key *eap_key;
 	int ret;
 
 	DPRINTK(3, "\n");
@@ -456,10 +455,8 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 
 			aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 20);
 			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
-			    priv->wpa.rsn_enabled) {
-				eap_key = (struct wpa_eapol_key *)(aa1x_hdr + 1);
+			    priv->wpa.rsn_enabled)
 				atomic_set(&priv->psstatus.snooze_guard, 1);
-			}
 
 			/* rx indication */
 			skb->dev = priv->net_dev;
@@ -487,10 +484,8 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 
 			aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
 			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
-			    priv->wpa.rsn_enabled) {
-				eap_key = (struct wpa_eapol_key *)(aa1x_hdr + 1);
+			    priv->wpa.rsn_enabled)
 				atomic_set(&priv->psstatus.snooze_guard, 1);
-			}
 
 			/* rx indication */
 			skb->dev = priv->net_dev;
