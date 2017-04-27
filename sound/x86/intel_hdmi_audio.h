@@ -101,7 +101,7 @@ struct pcm_stream_info {
  * @chmap: holds channel map info
  */
 struct snd_intelhad {
-	struct snd_card	*card;
+	struct snd_intelhad_card *card_ctx;
 	bool		connected;
 	struct		pcm_stream_info stream_info;
 	unsigned char	eld[HDMI_MAX_ELD_BYTES];
@@ -123,14 +123,23 @@ struct snd_intelhad {
 	unsigned int period_bytes;	/* PCM period size in bytes */
 
 	/* internal stuff */
-	int irq;
-	void __iomem *mmio_start;
 	unsigned int had_config_offset;
 	union aud_cfg aud_config;	/* AUD_CONFIG reg value cache */
 	struct work_struct hdmi_audio_wq;
 	struct mutex mutex; /* for protecting chmap and eld */
 	bool need_reset;
 	struct snd_jack *jack;
+};
+
+struct snd_intelhad_card {
+	struct snd_card	*card;
+	struct device *dev;
+
+	/* internal stuff */
+	int irq;
+	void __iomem *mmio_start;
+	int num_ports;
+	struct snd_intelhad pcm_ctx[3];
 };
 
 #endif /* _INTEL_HDMI_AUDIO_ */

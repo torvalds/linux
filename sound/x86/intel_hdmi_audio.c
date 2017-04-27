@@ -42,6 +42,9 @@
 #include <drm/intel_lpe_audio.h>
 #include "intel_hdmi_audio.h"
 
+#define for_each_port(card_ctx, port) \
+	for ((port) = 0; (port) < (card_ctx)->num_ports; (port)++)
+
 /*standard module options for ALSA. This module supports only one card*/
 static int hdmi_card_index = SNDRV_DEFAULT_IDX1;
 static char *hdmi_card_id = SNDRV_DEFAULT_STR1;
@@ -192,12 +195,12 @@ static void had_substream_put(struct snd_intelhad *intelhaddata)
 /* Register access functions */
 static u32 had_read_register_raw(struct snd_intelhad *ctx, u32 reg)
 {
-	return ioread32(ctx->mmio_start + ctx->had_config_offset + reg);
+	return ioread32(ctx->card_ctx->mmio_start + ctx->had_config_offset + reg);
 }
 
 static void had_write_register_raw(struct snd_intelhad *ctx, u32 reg, u32 val)
 {
-	iowrite32(val, ctx->mmio_start + ctx->had_config_offset + reg);
+	iowrite32(val, ctx->card_ctx->mmio_start + ctx->had_config_offset + reg);
 }
 
 static void had_read_register(struct snd_intelhad *ctx, u32 reg, u32 *val)
@@ -1519,22 +1522,27 @@ static const struct snd_kcontrol_new had_controls[] = {
  */
 static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 {
-	struct snd_intelhad *ctx = dev_id;
-	u32 audio_stat;
+	struct snd_intelhad_card *card_ctx = dev_id;
+	int port;
 
-	/* use raw register access to ack IRQs even while disconnected */
-	audio_stat = had_read_register_raw(ctx, AUD_HDMI_STATUS);
+	for_each_port(card_ctx, port) {
+		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
+		u32 audio_stat;
 
-	if (audio_stat & HDMI_AUDIO_UNDERRUN) {
-		had_write_register_raw(ctx, AUD_HDMI_STATUS,
-				       HDMI_AUDIO_UNDERRUN);
-		had_process_buffer_underrun(ctx);
-	}
+		/* use raw register access to ack IRQs even while disconnected */
+		audio_stat = had_read_register_raw(ctx, AUD_HDMI_STATUS);
 
-	if (audio_stat & HDMI_AUDIO_BUFFER_DONE) {
-		had_write_register_raw(ctx, AUD_HDMI_STATUS,
-				       HDMI_AUDIO_BUFFER_DONE);
-		had_process_buffer_done(ctx);
+		if (audio_stat & HDMI_AUDIO_UNDERRUN) {
+			had_write_register_raw(ctx, AUD_HDMI_STATUS,
+					       HDMI_AUDIO_UNDERRUN);
+			had_process_buffer_underrun(ctx);
+		}
+
+		if (audio_stat & HDMI_AUDIO_BUFFER_DONE) {
+			had_write_register_raw(ctx, AUD_HDMI_STATUS,
+					       HDMI_AUDIO_BUFFER_DONE);
+			had_process_buffer_done(ctx);
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -1545,9 +1553,14 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
  */
 static void notify_audio_lpe(struct platform_device *pdev)
 {
-	struct snd_intelhad *ctx = platform_get_drvdata(pdev);
+	struct snd_intelhad_card *card_ctx = platform_get_drvdata(pdev);
+	int port;
 
-	schedule_work(&ctx->hdmi_audio_wq);
+	for_each_port(card_ctx, port) {
+		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
+
+		schedule_work(&ctx->hdmi_audio_wq);
+	}
 }
 
 /* the work to handle monitor hot plug/unplug */
@@ -1618,7 +1631,8 @@ static int had_create_jack(struct snd_intelhad *ctx,
 	snprintf(hdmi_str, sizeof(hdmi_str),
 		 "HDMI/DP,pcm=%d", pcm->device);
 
-	err = snd_jack_new(ctx->card, hdmi_str, SND_JACK_AVOUT, &ctx->jack,
+	err = snd_jack_new(ctx->card_ctx->card, hdmi_str,
+			   SND_JACK_AVOUT, &ctx->jack,
 			   true, false);
 	if (err < 0)
 		return err;
@@ -1632,13 +1646,18 @@ static int had_create_jack(struct snd_intelhad *ctx,
 
 static int hdmi_lpe_audio_runtime_suspend(struct device *dev)
 {
-	struct snd_intelhad *ctx = dev_get_drvdata(dev);
-	struct snd_pcm_substream *substream;
+	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
+	int port;
 
-	substream = had_substream_get(ctx);
-	if (substream) {
-		snd_pcm_suspend(substream);
-		had_substream_put(ctx);
+	for_each_port(card_ctx, port) {
+		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
+		struct snd_pcm_substream *substream;
+
+		substream = had_substream_get(ctx);
+		if (substream) {
+			snd_pcm_suspend(substream);
+			had_substream_put(ctx);
+		}
 	}
 
 	return 0;
@@ -1646,12 +1665,12 @@ static int hdmi_lpe_audio_runtime_suspend(struct device *dev)
 
 static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
 {
-	struct snd_intelhad *ctx = dev_get_drvdata(dev);
+	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
 	int err;
 
 	err = hdmi_lpe_audio_runtime_suspend(dev);
 	if (!err)
-		snd_power_change_state(ctx->card, SNDRV_CTL_POWER_D3hot);
+		snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D3hot);
 	return err;
 }
 
@@ -1663,29 +1682,34 @@ static int hdmi_lpe_audio_runtime_resume(struct device *dev)
 
 static int __maybe_unused hdmi_lpe_audio_resume(struct device *dev)
 {
-	struct snd_intelhad *ctx = dev_get_drvdata(dev);
+	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
 
 	hdmi_lpe_audio_runtime_resume(dev);
-	snd_power_change_state(ctx->card, SNDRV_CTL_POWER_D0);
+	snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 
 /* release resources */
 static void hdmi_lpe_audio_free(struct snd_card *card)
 {
-	struct snd_intelhad *ctx = card->private_data;
-	struct intel_hdmi_lpe_audio_pdata *pdata = ctx->dev->platform_data;
+	struct snd_intelhad_card *card_ctx = card->private_data;
+	struct intel_hdmi_lpe_audio_pdata *pdata = card_ctx->dev->platform_data;
+	int port;
 
 	spin_lock_irq(&pdata->lpe_audio_slock);
 	pdata->notify_audio_lpe = NULL;
 	spin_unlock_irq(&pdata->lpe_audio_slock);
 
-	cancel_work_sync(&ctx->hdmi_audio_wq);
+	for_each_port(card_ctx, port) {
+		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
 
-	if (ctx->mmio_start)
-		iounmap(ctx->mmio_start);
-	if (ctx->irq >= 0)
-		free_irq(ctx->irq, ctx);
+		cancel_work_sync(&ctx->hdmi_audio_wq);
+	}
+
+	if (card_ctx->mmio_start)
+		iounmap(card_ctx->mmio_start);
+	if (card_ctx->irq >= 0)
+		free_irq(card_ctx->irq, card_ctx);
 }
 
 /*
@@ -1697,12 +1721,12 @@ static void hdmi_lpe_audio_free(struct snd_card *card)
 static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 {
 	struct snd_card *card;
-	struct snd_intelhad *ctx;
+	struct snd_intelhad_card *card_ctx;
 	struct snd_pcm *pcm;
 	struct intel_hdmi_lpe_audio_pdata *pdata;
 	int irq;
 	struct resource *res_mmio;
-	int i, ret;
+	int port, ret;
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
@@ -1725,39 +1749,30 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	/* create a card instance with ALSA framework */
 	ret = snd_card_new(&pdev->dev, hdmi_card_index, hdmi_card_id,
-			   THIS_MODULE, sizeof(*ctx), &card);
+			   THIS_MODULE, sizeof(*card_ctx), &card);
 	if (ret)
 		return ret;
 
-	ctx = card->private_data;
-	spin_lock_init(&ctx->had_spinlock);
-	mutex_init(&ctx->mutex);
-	ctx->connected = false;
-	ctx->dev = &pdev->dev;
-	ctx->card = card;
-	ctx->aes_bits = SNDRV_PCM_DEFAULT_CON_SPDIF;
+	card_ctx = card->private_data;
+	card_ctx->dev = &pdev->dev;
+	card_ctx->card = card;
 	strcpy(card->driver, INTEL_HAD);
 	strcpy(card->shortname, "Intel HDMI/DP LPE Audio");
 	strcpy(card->longname, "Intel HDMI/DP LPE Audio");
 
-	ctx->irq = -1;
-	ctx->tmds_clock_speed = DIS_SAMPLE_RATE_148_5;
-	INIT_WORK(&ctx->hdmi_audio_wq, had_audio_wq);
+	card_ctx->irq = -1;
 
 	card->private_free = hdmi_lpe_audio_free;
 
-	/* assume pipe A as default */
-	ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
-
-	platform_set_drvdata(pdev, ctx);
+	platform_set_drvdata(pdev, card_ctx);
 
 	dev_dbg(&pdev->dev, "%s: mmio_start = 0x%x, mmio_end = 0x%x\n",
 		__func__, (unsigned int)res_mmio->start,
 		(unsigned int)res_mmio->end);
 
-	ctx->mmio_start = ioremap_nocache(res_mmio->start,
-					  (size_t)(resource_size(res_mmio)));
-	if (!ctx->mmio_start) {
+	card_ctx->mmio_start = ioremap_nocache(res_mmio->start,
+					       (size_t)(resource_size(res_mmio)));
+	if (!card_ctx->mmio_start) {
 		dev_err(&pdev->dev, "Could not get ioremap\n");
 		ret = -EACCES;
 		goto err;
@@ -1765,64 +1780,78 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	/* setup interrupt handler */
 	ret = request_irq(irq, display_pipe_interrupt_handler, 0,
-			  pdev->name, ctx);
+			  pdev->name, card_ctx);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request_irq failed\n");
 		goto err;
 	}
 
-	ctx->irq = irq;
-
-	ret = snd_pcm_new(card, INTEL_HAD, PCM_INDEX, MAX_PB_STREAMS,
-			  MAX_CAP_STREAMS, &pcm);
-	if (ret)
-		goto err;
-
-	/* setup private data which can be retrieved when required */
-	pcm->private_data = ctx;
-	pcm->info_flags = 0;
-	strncpy(pcm->name, card->shortname, strlen(card->shortname));
-	/* setup the ops for playabck */
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &had_pcm_ops);
+	card_ctx->irq = irq;
 
 	/* only 32bit addressable */
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 
-	/* allocate dma pages;
-	 * try to allocate 600k buffer as default which is large enough
-	 */
-	snd_pcm_lib_preallocate_pages_for_all(pcm,
-			SNDRV_DMA_TYPE_DEV, NULL,
-			HAD_DEFAULT_BUFFER, HAD_MAX_BUFFER);
+	init_channel_allocations();
 
-	/* create controls */
-	for (i = 0; i < ARRAY_SIZE(had_controls); i++) {
-		struct snd_kcontrol *kctl;
+	card_ctx->num_ports = 1;
 
-		kctl = snd_ctl_new1(&had_controls[i], ctx);
-		if (!kctl) {
-			ret = -ENOMEM;
+	for_each_port(card_ctx, port) {
+		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
+		int i;
+
+		ctx->card_ctx = card_ctx;
+		ctx->dev = card_ctx->dev;
+
+		INIT_WORK(&ctx->hdmi_audio_wq, had_audio_wq);
+
+		ctx->had_config_offset = AUDIO_HDMI_CONFIG_A;
+
+		ret = snd_pcm_new(card, INTEL_HAD, PCM_INDEX, MAX_PB_STREAMS,
+				  MAX_CAP_STREAMS, &pcm);
+		if (ret)
 			goto err;
+
+		/* setup private data which can be retrieved when required */
+		pcm->private_data = ctx;
+		pcm->info_flags = 0;
+		strncpy(pcm->name, card->shortname, strlen(card->shortname));
+		/* setup the ops for playabck */
+		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &had_pcm_ops);
+
+		/* allocate dma pages;
+		 * try to allocate 600k buffer as default which is large enough
+		 */
+		snd_pcm_lib_preallocate_pages_for_all(pcm,
+						      SNDRV_DMA_TYPE_DEV, NULL,
+						      HAD_DEFAULT_BUFFER, HAD_MAX_BUFFER);
+
+		/* create controls */
+		for (i = 0; i < ARRAY_SIZE(had_controls); i++) {
+			struct snd_kcontrol *kctl;
+
+			kctl = snd_ctl_new1(&had_controls[i], ctx);
+			if (!kctl) {
+				ret = -ENOMEM;
+				goto err;
+			}
+
+			kctl->id.device = pcm->device;
+
+			ret = snd_ctl_add(card, kctl);
+			if (ret < 0)
+				goto err;
 		}
 
-		kctl->id.device = pcm->device;
+		/* Register channel map controls */
+		ret = had_register_chmap_ctls(ctx, pcm);
+		if (ret < 0)
+			goto err;
 
-		ret = snd_ctl_add(card, kctl);
+		ret = had_create_jack(ctx, pcm);
 		if (ret < 0)
 			goto err;
 	}
-
-	init_channel_allocations();
-
-	/* Register channel map controls */
-	ret = had_register_chmap_ctls(ctx, pcm);
-	if (ret < 0)
-		goto err;
-
-	ret = had_create_jack(ctx, pcm);
-	if (ret < 0)
-		goto err;
 
 	ret = snd_card_register(card);
 	if (ret)
@@ -1837,7 +1866,11 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
-	schedule_work(&ctx->hdmi_audio_wq);
+	for_each_port(card_ctx, port) {
+		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
+
+		schedule_work(&ctx->hdmi_audio_wq);
+	}
 
 	return 0;
 
@@ -1853,9 +1886,9 @@ err:
  */
 static int hdmi_lpe_audio_remove(struct platform_device *pdev)
 {
-	struct snd_intelhad *ctx = platform_get_drvdata(pdev);
+	struct snd_intelhad_card *card_ctx = platform_get_drvdata(pdev);
 
-	snd_card_free(ctx->card);
+	snd_card_free(card_ctx->card);
 	return 0;
 }
 
