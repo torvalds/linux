@@ -1665,11 +1665,12 @@ void hostif_power_mngmt_request(struct ks_wlan_private *priv,
 }
 
 static
-void hostif_sleep_request(struct ks_wlan_private *priv, unsigned long mode)
+void hostif_sleep_request(struct ks_wlan_private *priv,
+			  enum sleep_mode_type mode)
 {
 	struct hostif_sleep_request_t *pp;
 
-	DPRINTK(3, "mode=%lu\n", mode);
+	DPRINTK(3, "mode=%lu\n", (long)mode);
 
 	if (mode == SLP_SLEEP) {
 		pp = hostif_generic_request(sizeof(*pp), HIF_SLEEP_REQ);
@@ -1684,7 +1685,7 @@ void hostif_sleep_request(struct ks_wlan_private *priv, unsigned long mode)
 		atomic_set(&priv->sleepstatus.wakeup_request, 1);
 		queue_delayed_work(priv->wq, &priv->rw_dwork, 1);
 	} else {
-		DPRINTK(3, "invalid mode %ld\n", mode);
+		DPRINTK(3, "invalid mode %ld\n", (long)mode);
 		return;
 	}
 }

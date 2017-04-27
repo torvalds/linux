@@ -542,9 +542,11 @@ struct hostif_phy_information_confirm_t {
 	u32 rx_error;
 } __packed;
 
-/* sleep mode */
-#define SLP_ACTIVE  0
-#define SLP_SLEEP   1
+enum sleep_mode_type {
+	SLP_ACTIVE,
+	SLP_SLEEP
+};
+
 struct hostif_sleep_request_t {
 	struct hostif_hdr header;
 } __packed;
