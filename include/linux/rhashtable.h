@@ -155,6 +155,7 @@ struct rhashtable_params {
  * @nelems: Number of elements in table
  * @key_len: Key length for hashfn
  * @p: Configuration parameters
+ * @max_elems: Maximum number of elements in table
  * @rhlist: True if this is an rhltable
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
@@ -165,6 +166,7 @@ struct rhashtable {
 	atomic_t			nelems;
 	unsigned int			key_len;
 	struct rhashtable_params	p;
+	unsigned int			max_elems;
 	bool				rhlist;
 	struct work_struct		run_work;
 	struct mutex                    mutex;
@@ -327,8 +329,7 @@ static inline bool rht_grow_above_100(const struct rhashtable *ht,
 static inline bool rht_grow_above_max(const struct rhashtable *ht,
 				      const struct bucket_table *tbl)
 {
-	return ht->p.max_size &&
-	       (atomic_read(&ht->nelems) / 2u) >= ht->p.max_size;
+	return atomic_read(&ht->nelems) >= ht->max_elems;
 }
 
 /* The bucket lock is selected based on the hash and protects mutations

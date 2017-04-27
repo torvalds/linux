@@ -961,6 +961,11 @@ int rhashtable_init(struct rhashtable *ht,
 	if (params->max_size)
 		ht->p.max_size = rounddown_pow_of_two(params->max_size);
 
+	/* Cap total entries at 2^31 to avoid nelems overflow. */
+	ht->max_elems = 1u << 31;
+	if (ht->p.max_size < ht->max_elems / 2)
+		ht->max_elems = ht->p.max_size * 2;
+
 	ht->p.min_size = max(ht->p.min_size, HASH_MIN_SIZE);
 
 	if (params->nelem_hint)
