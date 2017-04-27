@@ -992,7 +992,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_band band = rx_status->band;
 	enum nl80211_bss_scan_width scan_width;
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
+	struct ieee80211_supported_band *sband;
 	bool rates_updated = false;
 	u32 supp_rates = 0;
 
@@ -1000,6 +1000,10 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (!ether_addr_equal(mgmt->bssid, sdata->u.ibss.bssid))
+		return;
+
+	sband = local->hw.wiphy->bands[band];
+	if (WARN_ON(!sband))
 		return;
 
 	rcu_read_lock();

@@ -926,7 +926,9 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 	struct ieee80211_sta_rates *old;
 	struct ieee80211_supported_band *sband;
 
-	sband = hw->wiphy->bands[ieee80211_get_sdata_band(sta->sdata)];
+	sband = ieee80211_get_sband(sta->sdata);
+	if (!sband)
+		return -EINVAL;
 	rate_control_apply_mask_ratetbl(sta, sband, rates);
 	/*
 	 * mac80211 guarantees that this function will not be called

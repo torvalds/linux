@@ -660,10 +660,11 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 		int shift = ieee80211_vif_get_shift(&sta->sdata->vif);
 		u16 brate;
 
-		sband = sta->local->hw.wiphy->bands[
-				ieee80211_get_sdata_band(sta->sdata)];
-		brate = sband->bitrates[rate->idx].bitrate;
-		rinfo->legacy = DIV_ROUND_UP(brate, 1 << shift);
+		sband = ieee80211_get_sband(sta->sdata);
+		if (sband) {
+			brate = sband->bitrates[rate->idx].bitrate;
+			rinfo->legacy = DIV_ROUND_UP(brate, 1 << shift);
+		}
 	}
 	if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		rinfo->bw = RATE_INFO_BW_40;
@@ -1253,10 +1254,11 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	int ret = 0;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	u32 mask, set;
 
-	sband = local->hw.wiphy->bands[band];
+	sband = ieee80211_get_sband(sdata);
+	if (!sband)
+		return -EINVAL;
 
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
@@ -1389,7 +1391,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		ieee80211_parse_bitrates(&sdata->vif.bss_conf.chandef,
 					 sband, params->supported_rates,
 					 params->supported_rates_len,
-					 &sta->sta.supp_rates[band]);
+					 &sta->sta.supp_rates[sband->band]);
 	}
 
 	if (params->ht_capa)
@@ -1405,8 +1407,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		/* returned value is only needed for rc update, but the
 		 * rc isn't initialized here yet, so ignore it
 		 */
-		__ieee80211_vht_handle_opmode(sdata, sta,
-					      params->opmode_notif, band);
+		__ieee80211_vht_handle_opmode(sdata, sta, params->opmode_notif,
+					      sband->band);
 	}
 
 	if (params->support_p2p_ps >= 0)
@@ -2044,13 +2046,15 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 				struct bss_parameters *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	enum nl80211_band band;
+	struct ieee80211_supported_band *sband;
 	u32 changed = 0;
 
 	if (!sdata_dereference(sdata->u.ap.beacon, sdata))
 		return -ENOENT;
 
-	band = ieee80211_get_sdata_band(sdata);
+	sband = ieee80211_get_sband(sdata);
+	if (!sband)
+		return -EINVAL;
 
 	if (params->use_cts_prot >= 0) {
 		sdata->vif.bss_conf.use_cts_prot = params->use_cts_prot;
@@ -2063,7 +2067,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (!sdata->vif.bss_conf.use_short_slot &&
-	    band == NL80211_BAND_5GHZ) {
+	    sband->band == NL80211_BAND_5GHZ) {
 		sdata->vif.bss_conf.use_short_slot = true;
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}
@@ -2076,7 +2080,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 
 	if (params->basic_rates) {
 		ieee80211_parse_bitrates(&sdata->vif.bss_conf.chandef,
-					 wiphy->bands[band],
+					 wiphy->bands[sband->band],
 					 params->basic_rates,
 					 params->basic_rates_len,
 					 &sdata->vif.bss_conf.basic_rates);
