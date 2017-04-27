@@ -442,6 +442,23 @@ failed:
 }
 
 /*
+ * dm_report_EIO() is a macro instead of a function to make pr_debug()
+ * report the function name and line number of the function from which
+ * it has been invoked.
+ */
+#define dm_report_EIO(m)						\
+({									\
+	struct mapped_device *md = dm_table_get_md((m)->ti->table);	\
+									\
+	pr_debug("%s: returning EIO; QIFNP = %d; SQIFNP = %d; DNFS = %d\n", \
+		 dm_device_name(md),					\
+		 test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
+		 test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags),	\
+		 dm_noflush_suspending((m)->ti));			\
+	-EIO;								\
+})
+
+/*
  * Map cloned requests (request-based multipath)
  */
 static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
@@ -464,7 +481,7 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 	if (!pgpath) {
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 			return DM_MAPIO_DELAY_REQUEUE;
-		return -EIO;	/* Failed */
+		return dm_report_EIO(m);	/* Failed */
 	} else if (test_bit(MPATHF_QUEUE_IO, &m->flags) ||
 		   test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
 		if (pg_init_all_paths(m))
@@ -541,7 +558,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 	if (!pgpath) {
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 			return DM_MAPIO_REQUEUE;
-		return -EIO;
+		return dm_report_EIO(m);
 	}
 
 	mpio->pgpath = pgpath;
@@ -1476,7 +1493,7 @@ static int do_end_io(struct multipath *m, struct request *clone,
 
 	if (atomic_read(&m->nr_valid_paths) == 0 &&
 	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
-		r = -EIO;
+		r = dm_report_EIO(m);
 
 	return r;
 }
@@ -1519,7 +1536,7 @@ static int do_end_io_bio(struct multipath *m, struct bio *clone,
 
 	if (atomic_read(&m->nr_valid_paths) == 0 &&
 	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
-		return -EIO;
+		return dm_report_EIO(m);
 
 	/* Queue for the daemon to resubmit */
 	dm_bio_restore(get_bio_details_from_bio(clone), clone);

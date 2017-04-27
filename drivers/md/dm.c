@@ -2169,6 +2169,8 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	 */
 	if (noflush)
 		set_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
+	else
+		pr_debug("%s: suspending with flush\n", dm_device_name(md));
 
 	/*
 	 * This gets reverted if there's an error later and the targets
