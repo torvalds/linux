@@ -1785,6 +1785,7 @@ static void r8a66597_td_timer(unsigned long _r8a66597)
 		pipe = td->pipe;
 		pipe_stop(r8a66597, pipe);
 
+		/* Select a different address or endpoint */
 		new_td = td;
 		do {
 			list_move_tail(&new_td->queue,
@@ -1794,7 +1795,8 @@ static void r8a66597_td_timer(unsigned long _r8a66597)
 				new_td = td;
 				break;
 			}
-		} while (td != new_td && td->address == new_td->address);
+		} while (td != new_td && td->address == new_td->address &&
+			td->pipe->info.epnum == new_td->pipe->info.epnum);
 
 		start_transfer(r8a66597, new_td);
 
