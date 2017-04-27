@@ -166,7 +166,7 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 	unsigned char byte;
 	int ret;
 
-	if (priv->reg.powermgt == POWMGT_ACTIVE_MODE)
+	if (priv->reg.power_mgmt == POWER_MGMT_ACTIVE)
 		return;
 
 	if (priv->reg.operation_mode != MODE_INFRASTRUCTURE)
@@ -800,7 +800,7 @@ static void ks7010_init_defaults(struct ks_wlan_private *priv)
 {
 	priv->reg.tx_rate = TX_RATE_AUTO;
 	priv->reg.preamble = LONG_PREAMBLE;
-	priv->reg.powermgt = POWMGT_ACTIVE_MODE;
+	priv->reg.power_mgmt = POWER_MGMT_ACTIVE;
 	priv->reg.scan_type = ACTIVE_SCAN;
 	priv->reg.beacon_lost_count = 20;
 	priv->reg.rts = 2347UL;

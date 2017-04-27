@@ -712,11 +712,11 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 }
 
 static
-void hostif_power_mngmt_confirm(struct ks_wlan_private *priv)
+void hostif_power_mgmt_confirm(struct ks_wlan_private *priv)
 {
 	DPRINTK(3, "\n");
 
-	if (priv->reg.powermgt > POWMGT_ACTIVE_MODE &&
+	if (priv->reg.power_mgmt > POWER_MGMT_ACTIVE &&
 	    priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 		atomic_set(&priv->psstatus.confirm_wait, 0);
 		priv->dev_state = DEVICE_STATE_SLEEP;
@@ -1035,8 +1035,8 @@ void hostif_event_check(struct ks_wlan_private *priv)
 	case HIF_MIB_SET_CONF:
 		hostif_mib_set_confirm(priv);
 		break;
-	case HIF_POWERMGT_CONF:
-		hostif_power_mngmt_confirm(priv);
+	case HIF_POWER_MGMT_CONF:
+		hostif_power_mgmt_confirm(priv);
 		break;
 	case HIF_SLEEP_CONF:
 		hostif_sleep_confirm(priv);
@@ -1641,16 +1641,16 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 }
 
 static
-void hostif_power_mngmt_request(struct ks_wlan_private *priv,
-				unsigned long mode, unsigned long wake_up,
-				unsigned long receiveDTIMs)
+void hostif_power_mgmt_request(struct ks_wlan_private *priv,
+			       unsigned long mode, unsigned long wake_up,
+			       unsigned long receiveDTIMs)
 {
-	struct hostif_power_mngmt_request_t *pp;
+	struct hostif_power_mgmt_request_t *pp;
 
 	DPRINTK(3, "mode=%lu wake_up=%lu receiveDTIMs=%lu\n", mode, wake_up,
 		receiveDTIMs);
 
-	pp = hostif_generic_request(sizeof(*pp), HIF_POWERMGT_REQ);
+	pp = hostif_generic_request(sizeof(*pp), HIF_POWER_MGMT_REQ);
 	if (!pp)
 		return;
 
@@ -2198,18 +2198,18 @@ spin_unlock:
 }
 
 static
-void hostif_sme_powermgt_set(struct ks_wlan_private *priv)
+void hostif_sme_power_mgmt_set(struct ks_wlan_private *priv)
 {
 	unsigned long mode, wake_up, receiveDTIMs;
 
 	DPRINTK(3, "\n");
-	switch (priv->reg.powermgt) {
-	case POWMGT_ACTIVE_MODE:
+	switch (priv->reg.power_mgmt) {
+	case POWER_MGMT_ACTIVE:
 		mode = POWER_ACTIVE;
 		wake_up = 0;
 		receiveDTIMs = 0;
 		break;
-	case POWMGT_SAVE1_MODE:
+	case POWER_MGMT_SAVE1:
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 			mode = POWER_SAVE;
 			wake_up = 0;
@@ -2220,7 +2220,7 @@ void hostif_sme_powermgt_set(struct ks_wlan_private *priv)
 			receiveDTIMs = 0;
 		}
 		break;
-	case POWMGT_SAVE2_MODE:
+	case POWER_MGMT_SAVE2:
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
 			mode = POWER_SAVE;
 			wake_up = 0;
@@ -2237,7 +2237,7 @@ void hostif_sme_powermgt_set(struct ks_wlan_private *priv)
 		receiveDTIMs = 0;
 		break;
 	}
-	hostif_power_mngmt_request(priv, mode, wake_up, receiveDTIMs);
+	hostif_power_mgmt_request(priv, mode, wake_up, receiveDTIMs);
 }
 
 static
@@ -2370,7 +2370,7 @@ void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 					priv->scan_ssid, priv->scan_ssid_len);
 		break;
 	case SME_POW_MNGMT_REQUEST:
-		hostif_sme_powermgt_set(priv);
+		hostif_sme_power_mgmt_set(priv);
 		break;
 	case SME_PHY_INFO_REQUEST:
 		hostif_phy_information_request(priv);

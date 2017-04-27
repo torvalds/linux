@@ -23,8 +23,8 @@
 #define HIF_MIB_GET_CONF	0xE802
 #define HIF_MIB_SET_REQ		0xE003
 #define HIF_MIB_SET_CONF	0xE803
-#define HIF_POWERMGT_REQ	0xE004
-#define HIF_POWERMGT_CONF	0xE804
+#define HIF_POWER_MGMT_REQ	0xE004
+#define HIF_POWER_MGMT_CONF	0xE804
 #define HIF_START_REQ		0xE005
 #define HIF_START_CONF		0xE805
 #define HIF_CONNECT_IND		0xE806
@@ -180,7 +180,7 @@ struct hostif_mib_set_confirm_t {
 	u32 mib_attribute;
 } __packed;
 
-struct hostif_power_mngmt_request_t {
+struct hostif_power_mgmt_request_t {
 	struct hostif_hdr header;
 	u32 mode;
 #define POWER_ACTIVE  1
@@ -193,11 +193,10 @@ struct hostif_power_mngmt_request_t {
 #define DTIM_TRUE  1
 } __packed;
 
-/* power management mode */
-enum {
-	POWMGT_ACTIVE_MODE = 0,
-	POWMGT_SAVE1_MODE,
-	POWMGT_SAVE2_MODE
+enum power_mgmt_mode_type {
+	POWER_MGMT_ACTIVE,
+	POWER_MGMT_SAVE1,
+	POWER_MGMT_SAVE2
 };
 
 #define	RESULT_SUCCESS            0
@@ -206,7 +205,7 @@ enum {
 /* #define	RESULT_ALREADY_RUNNING    3 */
 #define	RESULT_ALREADY_RUNNING    7
 
-struct hostif_power_mngmt_confirm_t {
+struct hostif_power_mgmt_confirm_t {
 	struct hostif_hdr header;
 	u16 result_code;
 } __packed;

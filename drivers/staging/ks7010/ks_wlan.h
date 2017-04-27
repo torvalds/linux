@@ -58,7 +58,7 @@ struct ks_wlan_parameter {
 		u8 body[32 + 1];
 	} ssid;	/*  SSID */
 	u8 preamble;	/*  Preamble */
-	u8 powermgt;	/*  PowerManagementMode */
+	u8 power_mgmt;
 	u32 scan_type;	/*  AP List Scan Type */
 #define BEACON_LOST_COUNT_MIN 0
 #define BEACON_LOST_COUNT_MAX 65535

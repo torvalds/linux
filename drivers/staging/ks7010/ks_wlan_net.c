@@ -1204,10 +1204,10 @@ static int ks_wlan_set_power(struct net_device *dev,
 		return -EPERM;
 
 	if (vwrq->disabled) {
-		priv->reg.powermgt = POWMGT_ACTIVE_MODE;
+		priv->reg.power_mgmt = POWER_MGMT_ACTIVE;
 	} else {
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE1_MODE;
+			priv->reg.power_mgmt = POWER_MGMT_SAVE1;
 		else
 			return -EINVAL;
 	}
@@ -1227,7 +1227,7 @@ static int ks_wlan_get_power(struct net_device *dev,
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 	/* for SLEEP MODE */
-	if (priv->reg.powermgt > 0)
+	if (priv->reg.power_mgmt > 0)
 		vwrq->disabled = 0;
 	else
 		vwrq->disabled = 1;
@@ -2102,9 +2102,9 @@ static int ks_wlan_get_preamble(struct net_device *dev,
 	return 0;
 }
 
-static int ks_wlan_set_powermgt(struct net_device *dev,
-				struct iw_request_info *info, __u32 *uwrq,
-				char *extra)
+static int ks_wlan_set_power_mgmt(struct net_device *dev,
+				  struct iw_request_info *info, __u32 *uwrq,
+				  char *extra)
 {
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
@@ -2113,16 +2113,16 @@ static int ks_wlan_set_powermgt(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	if (*uwrq == POWMGT_ACTIVE_MODE) {	/* 0 */
-		priv->reg.powermgt = POWMGT_ACTIVE_MODE;
-	} else if (*uwrq == POWMGT_SAVE1_MODE) {	/* 1 */
+	if (*uwrq == POWER_MGMT_ACTIVE) {	/* 0 */
+		priv->reg.power_mgmt = POWER_MGMT_ACTIVE;
+	} else if (*uwrq == POWER_MGMT_SAVE1) {	/* 1 */
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE1_MODE;
+			priv->reg.power_mgmt = POWER_MGMT_SAVE1;
 		else
 			return -EINVAL;
-	} else if (*uwrq == POWMGT_SAVE2_MODE) {	/* 2 */
+	} else if (*uwrq == POWER_MGMT_SAVE2) {	/* 2 */
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE2_MODE;
+			priv->reg.power_mgmt = POWER_MGMT_SAVE2;
 		else
 			return -EINVAL;
 	} else {
@@ -2134,9 +2134,9 @@ static int ks_wlan_set_powermgt(struct net_device *dev,
 	return 0;
 }
 
-static int ks_wlan_get_powermgt(struct net_device *dev,
-				struct iw_request_info *info, __u32 *uwrq,
-				char *extra)
+static int ks_wlan_get_power_mgmt(struct net_device *dev,
+				  struct iw_request_info *info, __u32 *uwrq,
+				  char *extra)
 {
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
@@ -2145,7 +2145,7 @@ static int ks_wlan_get_powermgt(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	*uwrq = priv->reg.powermgt;
+	*uwrq = priv->reg.power_mgmt;
 	return 0;
 }
 
@@ -2528,11 +2528,11 @@ static void print_hif_event(struct net_device *dev, int event)
 	case HIF_MIB_SET_CONF:
 		netdev_info(dev, "HIF_MIB_SET_CONF\n");
 		break;
-	case HIF_POWERMGT_REQ:
-		netdev_info(dev, "HIF_POWERMGT_REQ\n");
+	case HIF_POWER_MGMT_REQ:
+		netdev_info(dev, "HIF_POWER_MGMT_REQ\n");
 		break;
-	case HIF_POWERMGT_CONF:
-		netdev_info(dev, "HIF_POWERMGT_CONF\n");
+	case HIF_POWER_MGMT_CONF:
+		netdev_info(dev, "HIF_POWER_MGMT_CONF\n");
 		break;
 	case HIF_START_REQ:
 		netdev_info(dev, "HIF_START_REQ\n");
@@ -2785,8 +2785,8 @@ static const iw_handler ks_wlan_private_handler[] = {
 	(iw_handler)ks_wlan_get_eeprom_cksum,	/*  7 KS_WLAN_GET_CONNECT */
 	(iw_handler)ks_wlan_set_preamble,	/*  8 KS_WLAN_SET_PREAMBLE */
 	(iw_handler)ks_wlan_get_preamble,	/*  9 KS_WLAN_GET_PREAMBLE */
-	(iw_handler)ks_wlan_set_powermgt,	/* 10 KS_WLAN_SET_POWER_SAVE */
-	(iw_handler)ks_wlan_get_powermgt,	/* 11 KS_WLAN_GET_POWER_SAVE */
+	(iw_handler)ks_wlan_set_power_mgmt,	/* 10 KS_WLAN_SET_POWER_SAVE */
+	(iw_handler)ks_wlan_get_power_mgmt,	/* 11 KS_WLAN_GET_POWER_SAVE */
 	(iw_handler)ks_wlan_set_scan_type,	/* 12 KS_WLAN_SET_SCAN_TYPE */
 	(iw_handler)ks_wlan_get_scan_type,	/* 13 KS_WLAN_GET_SCAN_TYPE */
 	(iw_handler)ks_wlan_set_rx_gain,	/* 14 KS_WLAN_SET_RX_GAIN */
