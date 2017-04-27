@@ -54,6 +54,8 @@
 #include <linux/pci.h>
 #include <linux/firmware.h>
 
+MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
+
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
 
@@ -1392,6 +1394,98 @@ static void amdgpu_device_enable_virtual_display(struct amdgpu_device *adev)
 	}
 }
 
+static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
+{
+	const struct firmware *fw;
+	const char *chip_name;
+	char fw_name[30];
+	int err;
+	const struct gpu_info_firmware_header_v1_0 *hdr;
+
+	switch (adev->asic_type) {
+	case CHIP_TOPAZ:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_VERDE:
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_OLAND:
+	case CHIP_HAINAN:
+#endif
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+#endif
+	default:
+		return 0;
+	case CHIP_VEGA10:
+		chip_name = "vega10";
+		break;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_gpu_info.bin", chip_name);
+	err = request_firmware(&fw, fw_name, adev->dev);
+	if (err) {
+		dev_err(adev->dev,
+			"Failed to load gpu_info firmware \"%s\"\n",
+			fw_name);
+		goto out;
+	}
+	err = amdgpu_ucode_validate(fw);
+	if (err) {
+		dev_err(adev->dev,
+			"Failed to validate gpu_info firmware \"%s\"\n",
+			fw_name);
+		goto out;
+	}
+
+	hdr = (const struct gpu_info_firmware_header_v1_0 *)fw->data;
+	amdgpu_ucode_print_gpu_info_hdr(&hdr->header);
+
+	switch (hdr->version_major) {
+	case 1:
+	{
+		const struct gpu_info_firmware_v1_0 *gpu_info_fw =
+			(const struct gpu_info_firmware_v1_0 *)(fw->data +
+								le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+
+		adev->gfx.config.max_shader_engines = gpu_info_fw->gc_num_se;
+		adev->gfx.config.max_cu_per_sh = gpu_info_fw->gc_num_cu_per_sh;
+		adev->gfx.config.max_sh_per_se = gpu_info_fw->gc_num_sh_per_se;
+		adev->gfx.config.max_backends_per_se = gpu_info_fw->gc_num_rb_per_se;
+		adev->gfx.config.max_texture_channel_caches =
+			gpu_info_fw->gc_num_tccs;
+		adev->gfx.config.max_gprs = gpu_info_fw->gc_num_gprs;
+		adev->gfx.config.max_gs_threads = gpu_info_fw->gc_num_max_gs_thds;
+		adev->gfx.config.gs_vgt_table_depth = gpu_info_fw->gc_gs_table_depth;
+		adev->gfx.config.gs_prim_buffer_depth = gpu_info_fw->gc_gsprim_buff_depth;
+		adev->gfx.config.double_offchip_lds_buf =
+			gpu_info_fw->gc_double_offchip_lds_buffer;
+		adev->gfx.cu_info.wave_front_size = gpu_info_fw->gc_wave_size;
+		break;
+	}
+	default:
+		dev_err(adev->dev,
+			"Unsupported gpu_info table %d\n", hdr->header.ucode_version);
+		err = -EINVAL;
+		goto out;
+	}
+out:
+	release_firmware(fw);
+	fw = NULL;
+
+	return err;
+}
+
 static int amdgpu_early_init(struct amdgpu_device *adev)
 {
 	int i, r;
@@ -1455,6 +1549,10 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	r = amdgpu_device_parse_gpu_info_fw(adev);
+	if (r)
+		return r;
 
 	if (amdgpu_sriov_vf(adev)) {
 		r = amdgpu_virt_request_full_gpu(adev, true);
