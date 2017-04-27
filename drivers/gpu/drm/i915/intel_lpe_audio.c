@@ -63,6 +63,7 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 
 #include "i915_drv.h"
 #include <linux/delay.h>
@@ -120,6 +121,10 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 	}
 
 	kfree(rsc);
+
+	pm_runtime_forbid(&platdev->dev);
+	pm_runtime_set_active(&platdev->dev);
+	pm_runtime_enable(&platdev->dev);
 
 	return platdev;
 
