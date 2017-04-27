@@ -438,14 +438,21 @@ static irqreturn_t qedr_irq_handler(int irq, void *handle)
 
 		cq->arm_flags = 0;
 
-		if (cq->ibcq.comp_handler)
+		if (!cq->destroyed && cq->ibcq.comp_handler)
 			(*cq->ibcq.comp_handler)
 				(&cq->ibcq, cq->ibcq.cq_context);
+
+		/* The CQ's CNQ notification counter is checked before
+		 * destroying the CQ in a busy-wait loop that waits for all of
+		 * the CQ's CNQ interrupts to be processed. It is increased
+		 * here, only after the completion handler, to ensure that the
+		 * the handler is not running when the CQ is destroyed.
+		 */
+		cq->cnq_notif++;
 
 		sw_comp_cons = qed_chain_get_cons_idx(&cnq->pbl);
 
 		cnq->n_comp++;
-
 	}
 
 	qed_ops->rdma_cnq_prod_update(cnq->dev->rdma_ctx, cnq->index,

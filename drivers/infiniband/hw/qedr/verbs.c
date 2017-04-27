@@ -822,6 +822,17 @@ int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct qedr_cq *cq = get_qedr_cq(ibcq);
 	unsigned long sflags;
+	struct qedr_dev *dev;
+
+	dev = get_qedr_dev(ibcq->device);
+
+	if (cq->destroyed) {
+		DP_ERR(dev,
+		       "warning: arm was invoked after destroy for cq %p (icid=%d)\n",
+		       cq, cq->icid);
+		return -EINVAL;
+	}
+
 
 	if (cq->cq_type == QEDR_CQ_TYPE_GSI)
 		return 0;
@@ -987,15 +998,21 @@ int qedr_resize_cq(struct ib_cq *ibcq, int new_cnt, struct ib_udata *udata)
 	return 0;
 }
 
+#define QEDR_DESTROY_CQ_MAX_ITERATIONS		(10)
+#define QEDR_DESTROY_CQ_ITER_DURATION		(10)
+
 int qedr_destroy_cq(struct ib_cq *ibcq)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibcq->device);
 	struct qed_rdma_destroy_cq_out_params oparams;
 	struct qed_rdma_destroy_cq_in_params iparams;
 	struct qedr_cq *cq = get_qedr_cq(ibcq);
+	int iter;
 	int rc;
 
 	DP_DEBUG(dev, QEDR_MSG_CQ, "destroy cq %p (icid=%d)\n", cq, cq->icid);
+
+	cq->destroyed = 1;
 
 	/* GSIs CQs are handled by driver, so they don't exist in the FW */
 	if (cq->cq_type == QEDR_CQ_TYPE_GSI)
@@ -1013,10 +1030,50 @@ int qedr_destroy_cq(struct ib_cq *ibcq)
 		ib_umem_release(cq->q.umem);
 	}
 
+	/* We don't want the IRQ handler to handle a non-existing CQ so we
+	 * wait until all CNQ interrupts, if any, are received. This will always
+	 * happen and will always happen very fast. If not, then a serious error
+	 * has occured. That is why we can use a long delay.
+	 * We spin for a short time so we don’t lose time on context switching
+	 * in case all the completions are handled in that span. Otherwise
+	 * we sleep for a while and check again. Since the CNQ may be
+	 * associated with (only) the current CPU we use msleep to allow the
+	 * current CPU to be freed.
+	 * The CNQ notification is increased in qedr_irq_handler().
+	 */
+	iter = QEDR_DESTROY_CQ_MAX_ITERATIONS;
+	while (oparams.num_cq_notif != READ_ONCE(cq->cnq_notif) && iter) {
+		udelay(QEDR_DESTROY_CQ_ITER_DURATION);
+		iter--;
+	}
+
+	iter = QEDR_DESTROY_CQ_MAX_ITERATIONS;
+	while (oparams.num_cq_notif != READ_ONCE(cq->cnq_notif) && iter) {
+		msleep(QEDR_DESTROY_CQ_ITER_DURATION);
+		iter--;
+	}
+
+	if (oparams.num_cq_notif != cq->cnq_notif)
+		goto err;
+
+	/* Note that we don't need to have explicit code to wait for the
+	 * completion of the event handler because it is invoked from the EQ.
+	 * Since the destroy CQ ramrod has also been received on the EQ we can
+	 * be certain that there's no event handler in process.
+	 */
 done:
+	cq->sig = ~cq->sig;
+
 	kfree(cq);
 
 	return 0;
+
+err:
+	DP_ERR(dev,
+	       "CQ %p (icid=%d) not freed, expecting %d ints but got %d ints\n",
+	       cq, cq->icid, oparams.num_cq_notif, cq->cnq_notif);
+
+	return -EINVAL;
 }
 
 static inline int get_gid_info_from_table(struct ib_qp *ibqp,
@@ -3418,6 +3475,13 @@ int qedr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	unsigned long flags;
 	int update = 0;
 	int done = 0;
+
+	if (cq->destroyed) {
+		DP_ERR(dev,
+		       "warning: poll was invoked after destroy for cq %p (icid=%d)\n",
+		       cq, cq->icid);
+		return 0;
+	}
 
 	if (cq->cq_type == QEDR_CQ_TYPE_GSI)
 		return qedr_gsi_poll_cq(ibcq, num_entries, wc);

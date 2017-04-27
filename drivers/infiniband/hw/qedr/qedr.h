@@ -272,6 +272,8 @@ struct qedr_cq {
 	u32 cq_cons;
 
 	struct qedr_userq q;
+	u8 destroyed;
+	u16 cnq_notif;
 };
 
 struct qedr_pd {
