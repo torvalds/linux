@@ -1,0 +1,36 @@
+ROCKCHIP HDMI PHY WITH INNO IP BLOCK
+
+Required properties:
+ - compatible : should be "rockchip,rk3228-hdmi-phy";
+ - reg : the address offset of register for hdmi phy configuration.
+ - #phy-cells : must be 0. See ./phy-bindings.txt for details.
+ - clocks and clock-names:
+	- the "sysclk" clock is required by the phy module, used to system
+	  control and register configuration
+	- the "refclk" clock is reference crystal oscillator clock input
+	  to PLL
+ - #clock-cells: should be 0.
+ - clock-output-names : shall be the corresponding names of the outputs.
+
+Example:
+
+	hdmi_phy: hdmi-phy@12030000 {
+		compatible = "rockchip,rk3228-hdmi-phy";
+		reg = <0x12030000 0x10000>;
+		#phy-cells = <0>;
+		clocks = <&cru PCLK_HDMI_PHY>, <&xin24m>;
+		clock-names = "sysclk", "refclk";
+		#clock-cells = <0>;
+		clock-output-names = "hdmiphy_phy";
+		status = "disabled";
+	};
+
+Then the PHY can be used in other nodes such as:
+
+	hdmi: hdmi@200a0000 {
+		compatible = "rockchip,rk3228-dw-hdmi";
+		...
+		phys = <&hdmi_phy>;
+		phy-names = "hdmi_phy";
+		...
+	};

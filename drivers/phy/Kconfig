@@ -359,6 +359,13 @@ config PHY_ROCKCHIP_INNO_MIPI_DPHY
 	help
 	  Enable this to support the Rockchip MIPI D-PHY with Innosilicon IP block.
 
+config PHY_ROCKCHIP_INNO_HDMI_PHY
+	tristate "Rockchip INNO HDMI PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip HDMI PHY with Innosilicon IP block.
+
 config PHY_ROCKCHIP_TYPEC
 	tristate "Rockchip TYPEC PHY Driver"
 	depends on ARCH_ROCKCHIP && OF
