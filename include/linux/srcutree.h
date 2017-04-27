@@ -43,10 +43,13 @@ struct srcu_data {
 	spinlock_t lock ____cacheline_internodealigned_in_smp;
 	struct rcu_segcblist srcu_cblist;	/* List of callbacks.*/
 	unsigned long srcu_gp_seq_needed;	/* Furthest future GP needed. */
+	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	bool srcu_cblist_invoking;		/* Invoking these CBs? */
 	struct delayed_work work;		/* Context for CB invoking. */
 	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
 	struct srcu_node *mynode;		/* Leaf srcu_node. */
+	unsigned long grpmask;			/* Mask for leaf srcu_node */
+						/*  ->srcu_data_have_cbs[]. */
 	int cpu;
 	struct srcu_struct *sp;
 };
@@ -59,6 +62,9 @@ struct srcu_node {
 	unsigned long srcu_have_cbs[4];		/* GP seq for children */
 						/*  having CBs, but only */
 						/*  is > ->srcu_gq_seq. */
+	unsigned long srcu_data_have_cbs[4];	/* Which srcu_data structs */
+						/*  have CBs for given GP? */
+	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
 	struct srcu_node *srcu_parent;		/* Next up in tree. */
 	int grplo;				/* Least CPU for node. */
 	int grphi;				/* Biggest CPU for node. */
@@ -77,7 +83,8 @@ struct srcu_struct {
 	unsigned int srcu_idx;			/* Current rdr array element. */
 	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
 	unsigned long srcu_gp_seq_needed;	/* Latest gp_seq needed. */
-	atomic_t srcu_exp_cnt;			/* # ongoing expedited GPs. */
+	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
+	unsigned long srcu_last_gp_end;		/* Last GP end timestamp (ns) */
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
 	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
 	struct mutex srcu_barrier_mutex;	/* Serialize barrier ops. */
@@ -135,5 +142,9 @@ void process_srcu(struct work_struct *work);
 void synchronize_srcu_expedited(struct srcu_struct *sp);
 void srcu_barrier(struct srcu_struct *sp);
 unsigned long srcu_batches_completed(struct srcu_struct *sp);
+
+void srcutorture_get_gp_data(enum rcutorture_type test_type,
+			     struct srcu_struct *sp, int *flags,
+			     unsigned long *gpnum, unsigned long *completed);
 
 #endif

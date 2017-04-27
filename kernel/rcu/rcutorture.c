@@ -1360,12 +1360,14 @@ rcu_torture_stats_print(void)
 		cur_ops->stats();
 	if (rtcv_snap == rcu_torture_current_version &&
 	    rcu_torture_current != NULL) {
-		int __maybe_unused flags;
-		unsigned long __maybe_unused gpnum;
-		unsigned long __maybe_unused completed;
+		int __maybe_unused flags = 0;
+		unsigned long __maybe_unused gpnum = 0;
+		unsigned long __maybe_unused completed = 0;
 
 		rcutorture_get_gp_data(cur_ops->ttype,
 				       &flags, &gpnum, &completed);
+		srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
+					&flags, &gpnum, &completed);
 		wtp = READ_ONCE(writer_task);
 		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx\n",
 			 rcu_torture_writer_state_getname(),
