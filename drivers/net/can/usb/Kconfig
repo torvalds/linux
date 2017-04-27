@@ -72,6 +72,8 @@ config CAN_PEAK_USB
 	  PCAN-USB Pro         dual CAN 2.0b channels USB adapter
 	  PCAN-USB FD          single CAN-FD channel USB adapter
 	  PCAN-USB Pro FD      dual CAN-FD channels USB adapter
+	  PCAN-Chip USB        CAN-FD to USB stamp module
+	  PCAN-USB X6          6 CAN-FD channels USB adapter
 
 	  (see also http://www.peak-system.com).
 

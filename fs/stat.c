@@ -547,13 +547,13 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 /**
  * sys_statx - System call to get enhanced stats
  * @dfd: Base directory to pathwalk from *or* fd to stat.
- * @filename: File to stat *or* NULL.
+ * @filename: File to stat or "" with AT_EMPTY_PATH
  * @flags: AT_* flags to control pathwalk.
  * @mask: Parts of statx struct actually required.
  * @buffer: Result buffer.
  *
- * Note that if filename is NULL, then it does the equivalent of fstat() using
- * dfd to indicate the file of interest.
+ * Note that fstat() can be emulated by setting dfd to the fd of interest,
+ * supplying "" as the filename and setting AT_EMPTY_PATH in the flags.
  */
 SYSCALL_DEFINE5(statx,
 		int, dfd, const char __user *, filename, unsigned, flags,
@@ -568,10 +568,7 @@ SYSCALL_DEFINE5(statx,
 	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
 		return -EINVAL;
 
-	if (filename)
-		error = vfs_statx(dfd, filename, flags, &stat, mask);
-	else
-		error = vfs_statx_fd(dfd, &stat, mask, flags);
+	error = vfs_statx(dfd, filename, flags, &stat, mask);
 	if (error)
 		return error;
 
