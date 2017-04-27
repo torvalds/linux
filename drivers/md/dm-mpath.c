@@ -119,7 +119,8 @@ static struct kmem_cache *_mpio_cache;
 
 static struct workqueue_struct *kmultipathd, *kmpath_handlerd;
 static void trigger_event(struct work_struct *work);
-static void activate_path(struct work_struct *work);
+static void activate_or_offline_path(struct pgpath *pgpath);
+static void activate_path_work(struct work_struct *work);
 static void process_queued_bios(struct work_struct *work);
 
 /*-----------------------------------------------
@@ -144,7 +145,7 @@ static struct pgpath *alloc_pgpath(void)
 
 	if (pgpath) {
 		pgpath->is_active = true;
-		INIT_DELAYED_WORK(&pgpath->activate_path, activate_path);
+		INIT_DELAYED_WORK(&pgpath->activate_path, activate_path_work);
 	}
 
 	return pgpath;
@@ -1515,16 +1516,22 @@ out:
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
-static void activate_path(struct work_struct *work)
+static void activate_or_offline_path(struct pgpath *pgpath)
 {
-	struct pgpath *pgpath =
-		container_of(work, struct pgpath, activate_path.work);
 	struct request_queue *q = bdev_get_queue(pgpath->path.dev->bdev);
 
 	if (pgpath->is_active && !blk_queue_dying(q))
 		scsi_dh_activate(q, pg_init_done, pgpath);
 	else
 		pg_init_done(pgpath, SCSI_DH_DEV_OFFLINED);
+}
+
+static void activate_path_work(struct work_struct *work)
+{
+	struct pgpath *pgpath =
+		container_of(work, struct pgpath, activate_path.work);
+
+	activate_or_offline_path(pgpath);
 }
 
 static int noretry_error(int error)
