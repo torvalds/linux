@@ -1404,7 +1404,7 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 					    struct ib_sa_path_rec *primary_path,
 					    struct ib_sa_path_rec *alt_path)
 {
-	memset(primary_path, 0, sizeof *primary_path);
+	memset(primary_path, 0, sizeof(*primary_path));
 	primary_path->dgid = req_msg->primary_local_gid;
 	primary_path->sgid = req_msg->primary_remote_gid;
 	primary_path->dlid = req_msg->primary_local_lid;
@@ -1426,7 +1426,7 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 	primary_path->service_id = req_msg->service_id;
 
 	if (req_msg->alt_local_lid) {
-		memset(alt_path, 0, sizeof *alt_path);
+		memset(alt_path, 0, sizeof(*alt_path));
 		alt_path->dgid = req_msg->alt_local_gid;
 		alt_path->sgid = req_msg->alt_remote_gid;
 		alt_path->dlid = req_msg->alt_local_lid;
@@ -3712,7 +3712,7 @@ static void cm_recv_handler(struct ib_mad_agent *mad_agent,
 	atomic_long_inc(&port->counter_group[CM_RECV].
 			counter[attr_id - CM_ATTR_ID_OFFSET]);
 
-	work = kmalloc(sizeof *work + sizeof(struct ib_sa_path_rec) * paths,
+	work = kmalloc(sizeof(*work) + sizeof(struct ib_sa_path_rec) * paths,
 		       GFP_KERNEL);
 	if (!work) {
 		ib_free_recv_mad(mad_recv_wc);
