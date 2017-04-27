@@ -1568,7 +1568,7 @@ static void had_audio_wq(struct work_struct *work)
 		struct intel_hdmi_lpe_audio_eld *eld = &pdata->eld;
 
 		dev_dbg(ctx->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
-			__func__, eld->port_id,	pdata->tmds_clock_speed);
+			__func__, eld->port_id,	pdata->ls_clock);
 
 		switch (eld->pipe_id) {
 		case 0:
@@ -1589,8 +1589,13 @@ static void had_audio_wq(struct work_struct *work)
 		memcpy(ctx->eld, eld->eld_data, sizeof(ctx->eld));
 
 		ctx->dp_output = pdata->dp_output;
-		ctx->tmds_clock_speed = pdata->tmds_clock_speed;
-		ctx->link_rate = pdata->link_rate;
+		if (ctx->dp_output) {
+			ctx->tmds_clock_speed = 0;
+			ctx->link_rate = pdata->ls_clock;
+		} else {
+			ctx->tmds_clock_speed = pdata->ls_clock;
+			ctx->link_rate = 0;
+		}
 
 		had_process_hot_plug(ctx);
 

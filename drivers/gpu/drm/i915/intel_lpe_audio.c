@@ -309,13 +309,14 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
  * @eld : ELD data
  * @pipe: pipe id
  * @port: port id
- * @tmds_clk_speed: tmds clock frequency in Hz
+ * @ls_clock: Link symbol clock in kHz
+ * @dp_output: Driving a DP output?
  *
  * Notify lpe audio driver of eld change.
  */
 void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
-			    void *eld, int port, int pipe, int tmds_clk_speed,
-			    bool dp_output, int link_rate)
+			    void *eld, int port, int pipe, int ls_clock,
+			    bool dp_output)
 {
 	unsigned long irq_flags;
 	struct intel_hdmi_lpe_audio_pdata *pdata = NULL;
@@ -337,12 +338,8 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 		pdata->eld.port_id = port;
 		pdata->eld.pipe_id = pipe;
 		pdata->hdmi_connected = true;
-
+		pdata->ls_clock = ls_clock;
 		pdata->dp_output = dp_output;
-		if (tmds_clk_speed)
-			pdata->tmds_clock_speed = tmds_clk_speed;
-		if (link_rate)
-			pdata->link_rate = link_rate;
 
 		/* Unmute the amp for both DP and HDMI */
 		I915_WRITE(VLV_AUD_PORT_EN_DBG(port),
@@ -352,6 +349,7 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 		memset(pdata->eld.eld_data, 0,
 			HDMI_MAX_ELD_BYTES);
 		pdata->hdmi_connected = false;
+		pdata->ls_clock = 0;
 		pdata->dp_output = false;
 
 		/* Mute the amp for both DP and HDMI */

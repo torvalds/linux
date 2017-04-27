@@ -38,10 +38,9 @@ struct intel_hdmi_lpe_audio_eld {
 };
 
 struct intel_hdmi_lpe_audio_pdata {
-	int tmds_clock_speed;
+	int ls_clock;
 	bool hdmi_connected;
 	bool dp_output;
-	int link_rate;
 	struct intel_hdmi_lpe_audio_eld eld;
 	void (*notify_audio_lpe)(struct platform_device *pdev);
 	spinlock_t lpe_audio_slock;
