@@ -31,16 +31,17 @@ struct platform_device;
 
 #define HDMI_MAX_ELD_BYTES	128
 
-struct intel_hdmi_lpe_audio_eld {
-	int port_id;
-	unsigned char eld_data[HDMI_MAX_ELD_BYTES];
-};
-
-struct intel_hdmi_lpe_audio_pdata {
+struct intel_hdmi_lpe_audio_port_pdata {
+	u8 eld[HDMI_MAX_ELD_BYTES];
+	int port;
 	int pipe;
 	int ls_clock;
 	bool dp_output;
-	struct intel_hdmi_lpe_audio_eld eld;
+};
+
+struct intel_hdmi_lpe_audio_pdata {
+	struct intel_hdmi_lpe_audio_port_pdata port;
+
 	void (*notify_audio_lpe)(struct platform_device *pdev);
 	spinlock_t lpe_audio_slock;
 };

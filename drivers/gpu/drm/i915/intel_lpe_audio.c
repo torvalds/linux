@@ -111,7 +111,7 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 	pinfo.size_data = sizeof(*pdata);
 	pinfo.dma_mask = DMA_BIT_MASK(32);
 
-	pdata->pipe = -1;
+	pdata->port.pipe = -1;
 	spin_lock_init(&pdata->lpe_audio_slock);
 
 	platdev = platform_device_register_full(&pinfo);
@@ -320,38 +320,36 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 			    const void *eld, int ls_clock, bool dp_output)
 {
 	unsigned long irq_flags;
-	struct intel_hdmi_lpe_audio_pdata *pdata = NULL;
+	struct intel_hdmi_lpe_audio_pdata *pdata;
+	struct intel_hdmi_lpe_audio_port_pdata *ppdata;
 	u32 audio_enable;
 
 	if (!HAS_LPE_AUDIO(dev_priv))
 		return;
 
-	pdata = dev_get_platdata(
-		&(dev_priv->lpe_audio.platdev->dev));
+	pdata = dev_get_platdata(&dev_priv->lpe_audio.platdev->dev);
+	ppdata = &pdata->port;
 
 	spin_lock_irqsave(&pdata->lpe_audio_slock, irq_flags);
 
 	audio_enable = I915_READ(VLV_AUD_PORT_EN_DBG(port));
 
-	pdata->eld.port_id = port;
+	ppdata->port = port;
 
 	if (eld != NULL) {
-		memcpy(pdata->eld.eld_data, eld,
-			HDMI_MAX_ELD_BYTES);
-		pdata->pipe = pipe;
-		pdata->ls_clock = ls_clock;
-		pdata->dp_output = dp_output;
+		memcpy(ppdata->eld, eld, HDMI_MAX_ELD_BYTES);
+		ppdata->pipe = pipe;
+		ppdata->ls_clock = ls_clock;
+		ppdata->dp_output = dp_output;
 
 		/* Unmute the amp for both DP and HDMI */
 		I915_WRITE(VLV_AUD_PORT_EN_DBG(port),
 			   audio_enable & ~VLV_AMP_MUTE);
-
 	} else {
-		memset(pdata->eld.eld_data, 0,
-			HDMI_MAX_ELD_BYTES);
-		pdata->pipe = -1;
-		pdata->ls_clock = 0;
-		pdata->dp_output = false;
+		memset(ppdata->eld, 0, HDMI_MAX_ELD_BYTES);
+		ppdata->pipe = -1;
+		ppdata->ls_clock = 0;
+		ppdata->dp_output = false;
 
 		/* Mute the amp for both DP and HDMI */
 		I915_WRITE(VLV_AUD_PORT_EN_DBG(port),
