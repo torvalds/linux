@@ -10618,22 +10618,19 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 
 static int bnx2x_8485x_format_ver(u32 raw_ver, u8 *str, u16 *len)
 {
-	int status = 0;
 	u32 num;
 
 	num = ((raw_ver & 0xF80) >> 7) << 16 | ((raw_ver & 0x7F) << 8) |
 	      ((raw_ver & 0xF000) >> 12);
-	status = bnx2x_3_seq_format_ver(num, str, len);
-	return status;
+	return bnx2x_3_seq_format_ver(num, str, len);
 }
 
 static int bnx2x_848xx_format_ver(u32 raw_ver, u8 *str, u16 *len)
 {
-	int status = 0;
 	u32 spirom_ver;
+
 	spirom_ver = ((raw_ver & 0xF80) >> 7) << 16 | (raw_ver & 0x7F);
-	status = bnx2x_format_ver(spirom_ver, str, len);
-	return status;
+	return bnx2x_format_ver(spirom_ver, str, len);
 }
 
 static void bnx2x_8481_hw_reset(struct bnx2x_phy *phy,
@@ -12484,13 +12481,12 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 static int bnx2x_populate_phy(struct bnx2x *bp, u8 phy_index, u32 shmem_base,
 			      u32 shmem2_base, u8 port, struct bnx2x_phy *phy)
 {
-	int status = 0;
 	phy->type = PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN;
 	if (phy_index == INT_PHY)
 		return bnx2x_populate_int_phy(bp, shmem_base, port, phy);
-	status = bnx2x_populate_ext_phy(bp, phy_index, shmem_base, shmem2_base,
+
+	return bnx2x_populate_ext_phy(bp, phy_index, shmem_base, shmem2_base,
 					port, phy);
-	return status;
 }
 
 static void bnx2x_phy_def_cfg(struct link_params *params,
