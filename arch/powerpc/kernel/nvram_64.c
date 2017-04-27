@@ -547,6 +547,7 @@ static ssize_t nvram_pstore_read(struct pstore_record *record)
 static struct pstore_info nvram_pstore_info = {
 	.owner = THIS_MODULE,
 	.name = "nvram",
+	.flags = PSTORE_FLAGS_DMESG,
 	.open = nvram_pstore_open,
 	.read = nvram_pstore_read,
 	.write = nvram_pstore_write,
