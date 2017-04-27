@@ -613,14 +613,13 @@ struct hostif_mic_failure_confirm_t {
 			     ((A & RATE_MASK) == TX_RATE_36M) || ((A & RATE_MASK) == TX_RATE_48M) || \
 			     ((A & RATE_MASK) == TX_RATE_54M))
 
-enum {
-	CONNECT_STATUS = 0,
+enum connect_status_type {
+	CONNECT_STATUS,
 	DISCONNECT_STATUS
 };
 
-/* preamble type */
-enum {
-	LONG_PREAMBLE = 0,
+enum preamble_type {
+	LONG_PREAMBLE,
 	SHORT_PREAMBLE
 };
 
