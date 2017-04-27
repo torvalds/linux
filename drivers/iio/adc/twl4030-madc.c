@@ -642,27 +642,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(twl4030_madc_conversion);
 
-int twl4030_get_madc_conversion(int channel_no)
-{
-	struct twl4030_madc_request req;
-	int temp = 0;
-	int ret;
-
-	req.channels = (1 << channel_no);
-	req.method = TWL4030_MADC_SW2;
-	req.active = 0;
-	req.raw = 0;
-	req.func_cb = NULL;
-	ret = twl4030_madc_conversion(&req);
-	if (ret < 0)
-		return ret;
-	if (req.rbuf[channel_no] > 0)
-		temp = req.rbuf[channel_no];
-
-	return temp;
-}
-EXPORT_SYMBOL_GPL(twl4030_get_madc_conversion);
-
 /**
  * twl4030_madc_set_current_generator() - setup bias current
  *
