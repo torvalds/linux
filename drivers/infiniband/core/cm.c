@@ -1203,8 +1203,10 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 	}
 
 	if (pri_path->hop_limit <= 1) {
-		req_msg->primary_local_lid = sa_path_get_slid(pri_path);
-		req_msg->primary_remote_lid = sa_path_get_dlid(pri_path);
+		req_msg->primary_local_lid =
+			htons(ntohl(sa_path_get_slid(pri_path)));
+		req_msg->primary_remote_lid =
+			htons(ntohl(sa_path_get_dlid(pri_path)));
 	} else {
 		/* Work-around until there's a way to obtain remote LID info */
 		req_msg->primary_local_lid = IB_LID_PERMISSIVE;
@@ -1224,8 +1226,10 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 
 	if (alt_path) {
 		if (alt_path->hop_limit <= 1) {
-			req_msg->alt_local_lid = sa_path_get_slid(alt_path);
-			req_msg->alt_remote_lid = sa_path_get_dlid(alt_path);
+			req_msg->alt_local_lid =
+				htons(ntohl(sa_path_get_slid(alt_path)));
+			req_msg->alt_remote_lid =
+				htons(ntohl(sa_path_get_dlid(alt_path)));
 		} else {
 			req_msg->alt_local_lid = IB_LID_PERMISSIVE;
 			req_msg->alt_remote_lid = IB_LID_PERMISSIVE;
@@ -1407,8 +1411,10 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 {
 	primary_path->dgid = req_msg->primary_local_gid;
 	primary_path->sgid = req_msg->primary_remote_gid;
-	sa_path_set_dlid(primary_path, req_msg->primary_local_lid);
-	sa_path_set_slid(primary_path, req_msg->primary_remote_lid);
+	sa_path_set_dlid(primary_path,
+			 htonl(ntohs(req_msg->primary_local_lid)));
+	sa_path_set_slid(primary_path,
+			 htonl(ntohs(req_msg->primary_remote_lid)));
 	primary_path->flow_label = cm_req_get_primary_flow_label(req_msg);
 	primary_path->hop_limit = req_msg->primary_hop_limit;
 	primary_path->traffic_class = req_msg->primary_traffic_class;
@@ -1428,8 +1434,10 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 	if (req_msg->alt_local_lid) {
 		alt_path->dgid = req_msg->alt_local_gid;
 		alt_path->sgid = req_msg->alt_remote_gid;
-		sa_path_set_dlid(alt_path, req_msg->alt_local_lid);
-		sa_path_set_slid(alt_path, req_msg->alt_remote_lid);
+		sa_path_set_dlid(alt_path,
+				 htonl(ntohs(req_msg->alt_local_lid)));
+		sa_path_set_slid(alt_path,
+				 htonl(ntohs(req_msg->alt_remote_lid)));
 		alt_path->flow_label = cm_req_get_alt_flow_label(req_msg);
 		alt_path->hop_limit = req_msg->alt_hop_limit;
 		alt_path->traffic_class = req_msg->alt_traffic_class;
@@ -2842,8 +2850,10 @@ static void cm_format_lap(struct cm_lap_msg *lap_msg,
 	cm_lap_set_remote_qpn(lap_msg, cm_id_priv->remote_qpn);
 	/* todo: need remote CM response timeout */
 	cm_lap_set_remote_resp_timeout(lap_msg, 0x1F);
-	lap_msg->alt_local_lid = sa_path_get_slid(alternate_path);
-	lap_msg->alt_remote_lid = sa_path_get_dlid(alternate_path);
+	lap_msg->alt_local_lid =
+		htons(ntohl(sa_path_get_slid(alternate_path)));
+	lap_msg->alt_remote_lid =
+		htons(ntohl(sa_path_get_dlid(alternate_path)));
 	lap_msg->alt_local_gid = alternate_path->sgid;
 	lap_msg->alt_remote_gid = alternate_path->dgid;
 	cm_lap_set_flow_label(lap_msg, alternate_path->flow_label);
@@ -2922,8 +2932,8 @@ static void cm_format_path_from_lap(struct cm_id_private *cm_id_priv,
 	path->rec_type = SA_PATH_REC_TYPE_IB;
 	path->dgid = lap_msg->alt_local_gid;
 	path->sgid = lap_msg->alt_remote_gid;
-	sa_path_set_dlid(path, lap_msg->alt_local_lid);
-	sa_path_set_slid(path, lap_msg->alt_remote_lid);
+	sa_path_set_dlid(path, htonl(ntohs(lap_msg->alt_local_lid)));
+	sa_path_set_slid(path, htonl(ntohs(lap_msg->alt_remote_lid)));
 	path->flow_label = cm_lap_get_flow_label(lap_msg);
 	path->hop_limit = lap_msg->alt_hop_limit;
 	path->traffic_class = cm_lap_get_traffic_class(lap_msg);

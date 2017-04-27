@@ -44,6 +44,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_addr.h>
+#include <rdma/opa_addr.h>
 
 enum {
 	IB_SA_CLASS_VERSION		= 2,	/* IB spec version 1.1/1.2 */
@@ -152,7 +153,8 @@ enum ib_sa_mc_join_states {
 enum sa_path_rec_type {
 	SA_PATH_REC_TYPE_IB,
 	SA_PATH_REC_TYPE_ROCE_V1,
-	SA_PATH_REC_TYPE_ROCE_V2
+	SA_PATH_REC_TYPE_ROCE_V2,
+	SA_PATH_REC_TYPE_OPA
 };
 
 struct sa_path_rec_ib {
@@ -169,6 +171,19 @@ struct sa_path_rec_roce {
 	/* ignored in IB */
 	struct net  *net;
 
+};
+
+struct sa_path_rec_opa {
+	__be64       service_id;
+	__be32       dlid;
+	__be32       slid;
+	u8           raw_traffic;
+	u8	     l2_8B;
+	u8	     l2_10B;
+	u8	     l2_9B;
+	u8	     l2_16B;
+	u8	     qos_type;
+	u8	     qos_priority;
 };
 
 struct sa_path_rec {
@@ -193,6 +208,7 @@ struct sa_path_rec {
 	union {
 		struct sa_path_rec_ib ib;
 		struct sa_path_rec_roce roce;
+		struct sa_path_rec_opa opa;
 	};
 	enum sa_path_rec_type rec_type;
 };
@@ -221,6 +237,77 @@ static inline enum sa_path_rec_type
 	default:
 		return SA_PATH_REC_TYPE_IB;
 	}
+}
+
+static inline void path_conv_opa_to_ib(struct sa_path_rec *ib,
+				       struct sa_path_rec *opa)
+{
+	if ((be32_to_cpu(opa->opa.dlid) >=
+	     be16_to_cpu(IB_MULTICAST_LID_BASE)) ||
+	    (be32_to_cpu(opa->opa.slid) >=
+	     be16_to_cpu(IB_MULTICAST_LID_BASE))) {
+		/* Create OPA GID and zero out the LID */
+		ib->dgid.global.interface_id
+				= OPA_MAKE_ID(be32_to_cpu(opa->opa.dlid));
+		ib->dgid.global.subnet_prefix
+				= opa->dgid.global.subnet_prefix;
+		ib->sgid.global.interface_id
+				= OPA_MAKE_ID(be32_to_cpu(opa->opa.slid));
+		ib->dgid.global.subnet_prefix
+				= opa->dgid.global.subnet_prefix;
+		ib->ib.dlid	= 0;
+
+		ib->ib.slid	= 0;
+	} else {
+		ib->ib.dlid	= htons(ntohl(opa->opa.dlid));
+		ib->ib.slid	= htons(ntohl(opa->opa.slid));
+	}
+	ib->ib.service_id	= opa->opa.service_id;
+	ib->ib.raw_traffic	= opa->opa.raw_traffic;
+}
+
+static inline void path_conv_ib_to_opa(struct sa_path_rec *opa,
+				       struct sa_path_rec *ib)
+{
+	__be32 slid, dlid;
+
+	if ((ib_is_opa_gid(&ib->sgid)) ||
+	    (ib_is_opa_gid(&ib->dgid))) {
+		slid = htonl(opa_get_lid_from_gid(&ib->sgid));
+		dlid = htonl(opa_get_lid_from_gid(&ib->dgid));
+	} else {
+		slid = htonl(ntohs(ib->ib.slid));
+		dlid = htonl(ntohs(ib->ib.dlid));
+	}
+	opa->opa.slid		= slid;
+	opa->opa.dlid		= dlid;
+	opa->opa.service_id	= ib->ib.service_id;
+	opa->opa.raw_traffic	= ib->ib.raw_traffic;
+}
+
+/* Convert from OPA to IB path record */
+static inline void sa_convert_path_opa_to_ib(struct sa_path_rec *dest,
+					     struct sa_path_rec *src)
+{
+	if (src->rec_type != SA_PATH_REC_TYPE_OPA)
+		return;
+
+	*dest = *src;
+	dest->rec_type = SA_PATH_REC_TYPE_IB;
+	path_conv_opa_to_ib(dest, src);
+}
+
+/* Convert from IB to OPA path record */
+static inline void sa_convert_path_ib_to_opa(struct sa_path_rec *dest,
+					     struct sa_path_rec *src)
+{
+	if (src->rec_type != SA_PATH_REC_TYPE_IB)
+		return;
+
+	/* Do a structure copy and overwrite the relevant fields */
+	*dest = *src;
+	dest->rec_type = SA_PATH_REC_TYPE_OPA;
+	path_conv_ib_to_opa(dest, src);
 }
 
 #define IB_SA_MCMEMBER_REC_MGID				IB_SA_COMP_MASK( 0)
@@ -509,18 +596,24 @@ static inline void sa_path_set_service_id(struct sa_path_rec *rec,
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
 		rec->ib.service_id = service_id;
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		rec->opa.service_id = service_id;
 }
 
-static inline void sa_path_set_slid(struct sa_path_rec *rec, __be16 slid)
+static inline void sa_path_set_slid(struct sa_path_rec *rec, __be32 slid)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
-		rec->ib.slid = slid;
+		rec->ib.slid = htons(ntohl(slid));
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		rec->opa.slid = slid;
 }
 
-static inline void sa_path_set_dlid(struct sa_path_rec *rec, __be16 dlid)
+static inline void sa_path_set_dlid(struct sa_path_rec *rec, __be32 dlid)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
-		rec->ib.dlid = dlid;
+		rec->ib.dlid = htons(ntohl(dlid));
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		rec->opa.dlid = dlid;
 }
 
 static inline void sa_path_set_raw_traffic(struct sa_path_rec *rec,
@@ -528,26 +621,34 @@ static inline void sa_path_set_raw_traffic(struct sa_path_rec *rec,
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
 		rec->ib.raw_traffic = raw_traffic;
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		rec->opa.raw_traffic = raw_traffic;
 }
 
 static inline __be64 sa_path_get_service_id(struct sa_path_rec *rec)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
 		return rec->ib.service_id;
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		return rec->opa.service_id;
 	return 0;
 }
 
-static inline __be16 sa_path_get_slid(struct sa_path_rec *rec)
+static inline __be32 sa_path_get_slid(struct sa_path_rec *rec)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
-		return rec->ib.slid;
+		return htonl(ntohs(rec->ib.slid));
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		return rec->opa.slid;
 	return 0;
 }
 
-static inline __be16 sa_path_get_dlid(struct sa_path_rec *rec)
+static inline __be32 sa_path_get_dlid(struct sa_path_rec *rec)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
-		return rec->ib.dlid;
+		return htonl(ntohs(rec->ib.dlid));
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		return rec->opa.dlid;
 	return 0;
 }
 
@@ -555,6 +656,8 @@ static inline u8 sa_path_get_raw_traffic(struct sa_path_rec *rec)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
 		return rec->ib.raw_traffic;
+	else if (rec->rec_type == SA_PATH_REC_TYPE_OPA)
+		return rec->opa.raw_traffic;
 	return 0;
 }
 

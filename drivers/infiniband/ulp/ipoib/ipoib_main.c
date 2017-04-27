@@ -668,9 +668,9 @@ void ipoib_mark_paths_invalid(struct net_device *dev)
 	spin_lock_irq(&priv->lock);
 
 	list_for_each_entry_safe(path, tp, &priv->path_list, list) {
-		ipoib_dbg(priv, "mark path LID 0x%04x GID %pI6 invalid\n",
-			be16_to_cpu(sa_path_get_dlid(&path->pathrec)),
-			path->pathrec.dgid.raw);
+		ipoib_dbg(priv, "mark path LID 0x%08x GID %pI6 invalid\n",
+			  be32_to_cpu(sa_path_get_dlid(&path->pathrec)),
+			  path->pathrec.dgid.raw);
 		path->valid =  0;
 	}
 
@@ -731,7 +731,7 @@ static void path_rec_completion(int status,
 
 	if (!status)
 		ipoib_dbg(priv, "PathRec LID 0x%04x for GID %pI6\n",
-			  be16_to_cpu(sa_path_get_dlid(pathrec)),
+			  be32_to_cpu(sa_path_get_dlid(pathrec)),
 			  pathrec->dgid.raw);
 	else
 		ipoib_dbg(priv, "PathRec status %d for GID %pI6\n",
@@ -755,7 +755,7 @@ static void path_rec_completion(int status,
 		path->ah = ah;
 
 		ipoib_dbg(priv, "created address handle %p for LID 0x%04x, SL %d\n",
-			  ah, be16_to_cpu(sa_path_get_dlid(pathrec)),
+			  ah, be32_to_cpu(sa_path_get_dlid(pathrec)),
 			  pathrec->sl);
 
 		while ((skb = __skb_dequeue(&path->queue)))
@@ -1000,8 +1000,8 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (path->ah) {
-		ipoib_dbg(priv, "Send unicast ARP to %04x\n",
-			  be16_to_cpu(sa_path_get_dlid(&path->pathrec)));
+		ipoib_dbg(priv, "Send unicast ARP to %08x\n",
+			  be32_to_cpu(sa_path_get_dlid(&path->pathrec)));
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 		path->ah->last_send = rn->send(dev, skb, path->ah->ah,

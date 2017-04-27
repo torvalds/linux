@@ -1110,9 +1110,9 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	memset(ah_attr, 0, sizeof *ah_attr);
 	ah_attr->type = rdma_ah_find_type(device, port_num);
 
-	rdma_ah_set_dlid(ah_attr, be16_to_cpu(sa_path_get_dlid(rec)));
+	rdma_ah_set_dlid(ah_attr, be32_to_cpu(sa_path_get_dlid(rec)));
 	rdma_ah_set_sl(ah_attr, rec->sl);
-	rdma_ah_set_path_bits(ah_attr, be16_to_cpu(sa_path_get_slid(rec)) &
+	rdma_ah_set_path_bits(ah_attr, be32_to_cpu(sa_path_get_slid(rec)) &
 			      get_src_path_mask(device, port_num));
 	rdma_ah_set_port_num(ah_attr, port_num);
 	rdma_ah_set_static_rate(ah_attr, rec->rate);

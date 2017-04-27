@@ -2400,7 +2400,7 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 	switch (event->param.rej_rcvd.reason) {
 	case IB_CM_REJ_PORT_CM_REDIRECT:
 		cpi = event->param.rej_rcvd.ari;
-		sa_path_set_dlid(&ch->path, cpi->redirect_lid);
+		sa_path_set_dlid(&ch->path, htonl(ntohs(cpi->redirect_lid)));
 		ch->path.pkey = cpi->redirect_pkey;
 		cm_id->remote_cm_qpn = be32_to_cpu(cpi->redirect_qp) & 0x00ffffff;
 		memcpy(ch->path.dgid.raw, cpi->redirect_gid, 16);
