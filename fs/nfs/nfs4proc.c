@@ -4807,8 +4807,10 @@ static int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred, 
 	if (!atomic_inc_not_zero(&clp->cl_count))
 		return -EIO;
 	data = kmalloc(sizeof(*data), GFP_NOFS);
-	if (data == NULL)
+	if (data == NULL) {
+		nfs_put_client(clp);
 		return -ENOMEM;
+	}
 	data->client = clp;
 	data->timestamp = jiffies;
 	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT,
@@ -7454,8 +7456,10 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 		return -EIO;
 
 	calldata = kzalloc(sizeof(*calldata), GFP_NOFS);
-	if (!calldata)
+	if (!calldata) {
+		nfs_put_client(clp);
 		return -ENOMEM;
+	}
 
 	if (!xprt)
 		nfs4_init_boot_verifier(clp, &verifier);
