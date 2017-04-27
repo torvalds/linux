@@ -4695,6 +4695,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.release_firmware = smu7_release_firmware,
 	.set_power_profile_state = smu7_set_power_profile_state,
 	.avfs_control = smu7_avfs_control,
+	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

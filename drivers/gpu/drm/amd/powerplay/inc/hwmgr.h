@@ -373,6 +373,7 @@ struct pp_hwmgr_func {
 	int (*set_power_profile_state)(struct pp_hwmgr *hwmgr,
 			struct amd_pp_profile *request);
 	int (*avfs_control)(struct pp_hwmgr *hwmgr, bool enable);
+	int (*disable_smc_firmware_ctf)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
