@@ -1811,7 +1811,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	spin_lock_irq(&pdata->lpe_audio_slock);
 	pdata->notify_audio_lpe = notify_audio_lpe;
-	pdata->notify_pending = false;
 	spin_unlock_irq(&pdata->lpe_audio_slock);
 
 	pm_runtime_use_autosuspend(&pdev->dev);

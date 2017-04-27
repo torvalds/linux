@@ -38,7 +38,6 @@ struct intel_hdmi_lpe_audio_eld {
 };
 
 struct intel_hdmi_lpe_audio_pdata {
-	bool notify_pending;
 	int tmds_clock_speed;
 	bool hdmi_connected;
 	bool dp_output;
