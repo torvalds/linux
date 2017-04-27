@@ -2625,6 +2625,8 @@ static int qedr_prepare_reg(struct qedr_qp *qp,
 	fwqe1->addr.lo = lower_32_bits(mr->ibmr.iova);
 	fwqe1->l_key = wr->key;
 
+	fwqe2->access_ctrl = 0;
+
 	SET_FIELD2(fwqe2->access_ctrl, RDMA_SQ_FMR_WQE_2ND_REMOTE_READ,
 		   !!(wr->access & IB_ACCESS_REMOTE_READ));
 	SET_FIELD2(fwqe2->access_ctrl, RDMA_SQ_FMR_WQE_2ND_REMOTE_WRITE,
