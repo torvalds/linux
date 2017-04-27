@@ -1070,8 +1070,8 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
  *
  * Note that @pre_swap is needed since the point where we block for fences moves
  * around depending upon whether an atomic commit is blocking or
- * non-blocking. For async commit all waiting needs to happen after
- * drm_atomic_helper_swap_state() is called, but for synchronous commits we want
+ * non-blocking. For non-blocking commit all waiting needs to happen after
+ * drm_atomic_helper_swap_state() is called, but for blocking commits we want
  * to wait **before** we do anything that can't be easily rolled back. That is
  * before we call drm_atomic_helper_swap_state().
  *
