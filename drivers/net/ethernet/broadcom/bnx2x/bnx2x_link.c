@@ -6161,14 +6161,20 @@ static void bnx2x_link_int_ack(struct link_params *params,
 	}
 }
 
+static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
+{
+	str[0] = '\0';
+	(*len)--;
+	return 0;
+}
+
 static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
 {
 	u16 ret;
 
 	if (*len < 10) {
 		/* Need more than 10chars for this format */
-		*str = '\0';
-		(*len)--;
+		bnx2x_null_format_ver(num, str, len);
 		return -EINVAL;
 	}
 
@@ -6183,20 +6189,12 @@ static int bnx2x_3_seq_format_ver(u32 num, u8 *str, u16 *len)
 
 	if (*len < 10) {
 		/* Need more than 10chars for this format */
-		*str = '\0';
-		(*len)--;
+		bnx2x_null_format_ver(num, str, len);
 		return -EINVAL;
 	}
 
 	ret = scnprintf(str, *len, "%hhx.%hhx.%hhx", num >> 16, num >> 8, num);
 	*len -= ret;
-	return 0;
-}
-
-static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
-{
-	str[0] = '\0';
-	(*len)--;
 	return 0;
 }
 
