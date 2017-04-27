@@ -1711,7 +1711,7 @@ static int skl_tplg_add_pipe(struct device *dev,
 	list_for_each_entry(ppl, &skl->ppl_list, node) {
 		if (ppl->pipe->ppl_id == tkn_elem->value) {
 			mconfig->pipe = ppl->pipe;
-			return EEXIST;
+			return -EEXIST;
 		}
 	}
 
@@ -2003,11 +2003,13 @@ static int skl_tplg_get_token(struct device *dev,
 		ret = skl_tplg_add_pipe(dev,
 				mconfig, skl, tkn_elem);
 
-		if (ret < 0)
+		if (ret < 0) {
+			if (ret == -EEXIST) {
+				is_pipe_exists = 1;
+				break;
+			}
 			return is_pipe_exists;
-
-		if (ret == EEXIST)
-			is_pipe_exists = 1;
+		}
 
 		break;
 
