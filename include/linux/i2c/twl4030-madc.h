@@ -135,10 +135,4 @@ enum sample_type {
 #define TWL4030_REG_GPBR1		0x0c
 #define TWL4030_GPBR1_MADC_HFCLK_EN	(1 << 7)
 
-struct twl4030_madc_user_parms {
-	int channel;
-	int average;
-	int status;
-	u16 result;
-};
 #endif
