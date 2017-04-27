@@ -1135,12 +1135,9 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 			netif_stop_queue(priv->net_dev);
 	}
 
-	DPRINTK(4, "skb_buff length=%d\n", skb_len);
-	pp = kmalloc(hif_align_size(sizeof(*pp) + 6 + skb_len + 8),
-		     KS_WLAN_MEM_FLAG);
-
+	size = sizeof(*pp) + 6 + skb_len + 8;
+	pp = kmalloc(hif_align_size(size), KS_WLAN_MEM_FLAG);
 	if (!pp) {
-		DPRINTK(3, "allocate memory failed..\n");
 		ret = -ENOMEM;
 		goto err_kfree_skb;
 	}
