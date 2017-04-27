@@ -1652,16 +1652,6 @@ config SENSORS_TMP421
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp421.
 
-config SENSORS_TWL4030_MADC
-	tristate "Texas Instruments TWL4030 MADC Hwmon"
-	depends on TWL4030_MADC
-	help
-	If you say yes here you get hwmon support for triton
-	TWL4030-MADC.
-
-	This driver can also be built as a module. If so it will be called
-	twl4030-madc-hwmon.
-
 config SENSORS_VEXPRESS
 	tristate "Versatile Express"
 	depends on VEXPRESS_CONFIG
