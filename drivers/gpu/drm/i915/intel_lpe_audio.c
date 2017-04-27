@@ -149,44 +149,10 @@ static void lpe_audio_platdev_destroy(struct drm_i915_private *dev_priv)
 
 static void lpe_audio_irq_unmask(struct irq_data *d)
 {
-	struct drm_i915_private *dev_priv = d->chip_data;
-	unsigned long irqflags;
-	u32 val = (I915_LPE_PIPE_A_INTERRUPT |
-		I915_LPE_PIPE_B_INTERRUPT);
-
-	if (IS_CHERRYVIEW(dev_priv))
-		val |= I915_LPE_PIPE_C_INTERRUPT;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-
-	dev_priv->irq_mask &= ~val;
-	I915_WRITE(VLV_IIR, val);
-	I915_WRITE(VLV_IIR, val);
-	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	POSTING_READ(VLV_IMR);
-
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
 static void lpe_audio_irq_mask(struct irq_data *d)
 {
-	struct drm_i915_private *dev_priv = d->chip_data;
-	unsigned long irqflags;
-	u32 val = (I915_LPE_PIPE_A_INTERRUPT |
-		I915_LPE_PIPE_B_INTERRUPT);
-
-	if (IS_CHERRYVIEW(dev_priv))
-		val |= I915_LPE_PIPE_C_INTERRUPT;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-
-	dev_priv->irq_mask |= val;
-	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	I915_WRITE(VLV_IIR, val);
-	I915_WRITE(VLV_IIR, val);
-	POSTING_READ(VLV_IIR);
-
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
 static struct irq_chip lpe_audio_irqchip = {
@@ -329,8 +295,6 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
 		return;
 
 	desc = irq_to_desc(dev_priv->lpe_audio.irq);
-
-	lpe_audio_irq_mask(&desc->irq_data);
 
 	lpe_audio_platdev_destroy(dev_priv);
 
