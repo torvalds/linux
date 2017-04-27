@@ -1680,6 +1680,8 @@ static void suspend_targets(struct dm_table *t, enum suspend_mode mode)
 	int i = t->num_targets;
 	struct dm_target *ti = t->targets;
 
+	lockdep_assert_held(&t->md->suspend_lock);
+
 	while (i--) {
 		switch (mode) {
 		case PRESUSPEND:
@@ -1726,6 +1728,8 @@ void dm_table_postsuspend_targets(struct dm_table *t)
 int dm_table_resume_targets(struct dm_table *t)
 {
 	int i, r = 0;
+
+	lockdep_assert_held(&t->md->suspend_lock);
 
 	for (i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = t->targets + i;
