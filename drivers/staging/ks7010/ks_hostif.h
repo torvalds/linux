@@ -624,10 +624,11 @@ enum {
 	SHORT_PREAMBLE
 };
 
-/* multicast filter */
-#define MCAST_FILTER_MCAST    0
-#define MCAST_FILTER_MCASTALL 1
-#define MCAST_FILTER_PROMISC  2
+enum multicast_filter_type {
+	MCAST_FILTER_MCAST,
+	MCAST_FILTER_MCASTALL,
+	MCAST_FILTER_PROMISC,
+};
 
 #define NIC_MAX_MCAST_LIST 32
 
