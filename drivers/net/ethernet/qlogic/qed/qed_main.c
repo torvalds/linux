@@ -956,13 +956,6 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			}
 		}
 #endif
-		p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
-		if (p_ptt) {
-			QED_LEADING_HWFN(cdev)->p_ptp_ptt = p_ptt;
-		} else {
-			DP_NOTICE(cdev, "Failed to acquire PTT for PTP\n");
-			goto err;
-		}
 	}
 
 	cdev->rx_coalesce_usecs = QED_DEFAULT_RX_USECS;
@@ -1076,9 +1069,6 @@ err:
 		qed_ptt_release(QED_LEADING_HWFN(cdev),
 				QED_LEADING_HWFN(cdev)->p_arfs_ptt);
 #endif
-	if (IS_PF(cdev) && QED_LEADING_HWFN(cdev)->p_ptp_ptt)
-		qed_ptt_release(QED_LEADING_HWFN(cdev),
-				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
 
 	qed_iov_wq_stop(cdev, false);
 
@@ -1098,8 +1088,6 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 			qed_ptt_release(QED_LEADING_HWFN(cdev),
 					QED_LEADING_HWFN(cdev)->p_arfs_ptt);
 #endif
-		qed_ptt_release(QED_LEADING_HWFN(cdev),
-				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
 		qed_free_stream_mem(cdev);
 		if (IS_QED_ETH_IF(cdev))
 			qed_sriov_disable(cdev, true);
