@@ -84,6 +84,7 @@ struct r1conf {
 	 */
 	wait_queue_head_t	wait_barrier;
 	spinlock_t		resync_lock;
+	atomic_t		nr_sync_pending;
 	atomic_t		*nr_pending;
 	atomic_t		*nr_waiting;
 	atomic_t		*nr_queued;

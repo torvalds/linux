@@ -885,7 +885,7 @@ static void raise_barrier(struct r1conf *conf, sector_t sector_nr)
 			     atomic_read(&conf->barrier[idx]) < RESYNC_DEPTH,
 			    conf->resync_lock);
 
-	atomic_inc(&conf->nr_pending[idx]);
+	atomic_inc(&conf->nr_sync_pending);
 	spin_unlock_irq(&conf->resync_lock);
 }
 
@@ -896,7 +896,7 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr)
 	BUG_ON(atomic_read(&conf->barrier[idx]) <= 0);
 
 	atomic_dec(&conf->barrier[idx]);
-	atomic_dec(&conf->nr_pending[idx]);
+	atomic_dec(&conf->nr_sync_pending);
 	wake_up(&conf->wait_barrier);
 }
 
@@ -1033,7 +1033,8 @@ static int get_unqueued_pending(struct r1conf *conf)
 {
 	int idx, ret;
 
-	for (ret = 0, idx = 0; idx < BARRIER_BUCKETS_NR; idx++)
+	ret = atomic_read(&conf->nr_sync_pending);
+	for (idx = 0; idx < BARRIER_BUCKETS_NR; idx++)
 		ret += atomic_read(&conf->nr_pending[idx]) -
 			atomic_read(&conf->nr_queued[idx]);
 
