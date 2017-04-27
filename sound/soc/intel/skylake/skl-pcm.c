@@ -951,14 +951,12 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 
 static int skl_platform_open(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 
 	dev_dbg(rtd->cpu_dai->dev, "In %s:%s\n", __func__,
 					dai_link->cpu_dai_name);
 
-	runtime = substream->runtime;
 	snd_soc_set_runtime_hwparams(substream, &azx_pcm_hw);
 
 	return 0;
