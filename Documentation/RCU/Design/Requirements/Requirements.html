@@ -2936,6 +2936,20 @@ to whether or not a CPU is online, which means that <tt>srcu_barrier()</tt>
 need not exclude CPU-hotplug operations.
 
 <p>
+SRCU also differs from other RCU flavors in that SRCU's expedited and
+non-expedited grace periods are implemented by the same mechanism.
+This means that in the current SRCU implementation, expediting a
+future grace period has the side effect of expediting all prior
+grace periods that have not yet completed.
+(But please note that this is a property of the current implementation,
+not necessarily of future implementations.)
+In addition, if SRCU has been idle for longer than the interval
+specified by the <tt>srcutree.exp_holdoff</tt> kernel boot parameter
+(25&nbsp;microseconds by default),
+and if a <tt>synchronize_srcu()</tt> invocation ends this idle period,
+that invocation will be automatically expedited.
+
+<p>
 As of v4.12, SRCU's callbacks are maintained per-CPU, eliminating
 a locking bottleneck present in prior kernel versions.
 Although this will allow users to put much heavier stress on
