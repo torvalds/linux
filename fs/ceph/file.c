@@ -13,6 +13,38 @@
 #include "mds_client.h"
 #include "cache.h"
 
+static __le32 ceph_flags_sys2wire(u32 flags)
+{
+	u32 wire_flags = 0;
+
+	switch (flags & O_ACCMODE) {
+	case O_RDONLY:
+		wire_flags |= CEPH_O_RDONLY;
+		break;
+	case O_WRONLY:
+		wire_flags |= CEPH_O_WRONLY;
+		break;
+	case O_RDWR:
+		wire_flags |= CEPH_O_RDWR;
+		break;
+	}
+
+#define ceph_sys2wire(a) if (flags & a) { wire_flags |= CEPH_##a; flags &= ~a; }
+
+	ceph_sys2wire(O_CREAT);
+	ceph_sys2wire(O_EXCL);
+	ceph_sys2wire(O_TRUNC);
+	ceph_sys2wire(O_DIRECTORY);
+	ceph_sys2wire(O_NOFOLLOW);
+
+#undef ceph_sys2wire
+
+	if (flags)
+		dout("unused open flags: %x", flags);
+
+	return cpu_to_le32(wire_flags);
+}
+
 /*
  * Ceph file operations
  *
@@ -123,7 +155,7 @@ prepare_open_request(struct super_block *sb, int flags, int create_mode)
 	if (IS_ERR(req))
 		goto out;
 	req->r_fmode = ceph_flags_to_mode(flags);
-	req->r_args.open.flags = cpu_to_le32(flags);
+	req->r_args.open.flags = ceph_flags_sys2wire(flags);
 	req->r_args.open.mode = cpu_to_le32(create_mode);
 out:
 	return req;
