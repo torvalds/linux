@@ -1626,12 +1626,6 @@ static void nau8824_init_regs(struct nau8824 *nau8824)
 	regmap_update_bits(regmap, NAU8824_REG_DAC_FILTER_CTRL_1,
 		NAU8824_DAC_CICCLP_OFF | NAU8824_DAC_OVERSAMPLE_MASK,
 		NAU8824_DAC_CICCLP_OFF | NAU8824_DAC_OVERSAMPLE_64);
-	/* Class D gain 9db for 1R and 2L */
-	regmap_update_bits(regmap, NAU8824_REG_CLASSD_GAIN_1,
-		NAU8824_CLASSD_GAIN_1R_MASK,
-		(0xa << NAU8824_CLASSD_GAIN_1R_SFT));
-	regmap_update_bits(regmap, NAU8824_REG_CLASSD_GAIN_2,
-		NAU8824_CLASSD_GAIN_2L_MASK, 0xa);
 	/* DAC clock delay 2ns, VREF */
 	regmap_update_bits(regmap, NAU8824_REG_RDAC,
 		NAU8824_RDAC_CLK_DELAY_MASK | NAU8824_RDAC_VREF_MASK,
