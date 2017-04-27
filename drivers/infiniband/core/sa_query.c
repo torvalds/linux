@@ -1144,7 +1144,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 
 		if ((dev_addr.network == RDMA_NETWORK_IPV4 ||
 		     dev_addr.network == RDMA_NETWORK_IPV6) &&
-		    rec->gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP)
+		    rec->rec_type != SA_PATH_REC_TYPE_ROCE_V2)
 			return -EINVAL;
 
 		idev = device->get_netdev(device, port_num);
@@ -1175,9 +1175,10 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	}
 
 	if (rec->hop_limit > 0 || use_roce) {
-		ret = ib_find_cached_gid_by_port(device, &rec->sgid,
-						 rec->gid_type, port_num, ndev,
-						 &gid_index);
+		enum ib_gid_type type = sa_conv_pathrec_to_gid_type(rec);
+
+		ret = ib_find_cached_gid_by_port(device, &rec->sgid, type,
+						 port_num, ndev, &gid_index);
 		if (ret) {
 			if (ndev)
 				dev_put(ndev);
@@ -1327,7 +1328,7 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 			  mad->data, &rec);
 		rec.net = NULL;
 		rec.ifindex = 0;
-		rec.gid_type = IB_GID_TYPE_IB;
+		rec.rec_type = SA_PATH_REC_TYPE_IB;
 		eth_zero_addr(rec.dmac);
 		query->callback(status, &rec, query->context);
 	} else
@@ -1384,6 +1385,9 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 
 	if (!sa_dev)
 		return -ENODEV;
+
+	if (rec->rec_type != SA_PATH_REC_TYPE_IB)
+		return -EINVAL;
 
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;

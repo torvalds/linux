@@ -147,6 +147,11 @@ enum ib_sa_mc_join_states {
 #define IB_SA_PATH_REC_PACKET_LIFE_TIME_SELECTOR	IB_SA_COMP_MASK(20)
 #define IB_SA_PATH_REC_PACKET_LIFE_TIME			IB_SA_COMP_MASK(21)
 #define IB_SA_PATH_REC_PREFERENCE			IB_SA_COMP_MASK(22)
+enum sa_path_rec_type {
+	SA_PATH_REC_TYPE_IB,
+	SA_PATH_REC_TYPE_ROCE_V1,
+	SA_PATH_REC_TYPE_ROCE_V2
+};
 
 struct sa_path_rec {
 	__be64       service_id;
@@ -176,12 +181,38 @@ struct sa_path_rec {
 	int	     ifindex;
 	/* ignored in IB */
 	struct net  *net;
-	enum ib_gid_type gid_type;
+	enum sa_path_rec_type rec_type;
 };
 
 static inline struct net_device *ib_get_ndev_from_path(struct sa_path_rec *rec)
 {
 	return rec->net ? dev_get_by_index(rec->net, rec->ifindex) : NULL;
+}
+
+static inline enum ib_gid_type
+		sa_conv_pathrec_to_gid_type(struct sa_path_rec *rec)
+{
+	switch (rec->rec_type) {
+	case SA_PATH_REC_TYPE_ROCE_V1:
+		return IB_GID_TYPE_ROCE;
+	case SA_PATH_REC_TYPE_ROCE_V2:
+		return IB_GID_TYPE_ROCE_UDP_ENCAP;
+	default:
+		return IB_GID_TYPE_IB;
+	}
+}
+
+static inline enum sa_path_rec_type
+		sa_conv_gid_to_pathrec_type(enum ib_gid_type type)
+{
+	switch (type) {
+	case IB_GID_TYPE_ROCE:
+		return SA_PATH_REC_TYPE_ROCE_V1;
+	case IB_GID_TYPE_ROCE_UDP_ENCAP:
+		return SA_PATH_REC_TYPE_ROCE_V2;
+	default:
+		return SA_PATH_REC_TYPE_IB;
+	}
 }
 
 #define IB_SA_MCMEMBER_REC_MGID				IB_SA_COMP_MASK( 0)

@@ -149,6 +149,6 @@ void ib_copy_path_rec_from_user(struct sa_path_rec *dst,
 	memset(dst->dmac, 0, sizeof(dst->dmac));
 	dst->net = NULL;
 	dst->ifindex = 0;
-	dst->gid_type = IB_GID_TYPE_IB;
+	dst->rec_type = SA_PATH_REC_TYPE_IB;
 }
 EXPORT_SYMBOL(ib_copy_path_rec_from_user);
