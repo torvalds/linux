@@ -340,43 +340,58 @@ static void qedr_remove_sysfiles(struct qedr_dev *dev)
 static void qedr_pci_set_atomic(struct qedr_dev *dev, struct pci_dev *pdev)
 {
 	struct pci_dev *bridge;
-	u32 val;
-
-	dev->atomic_cap = IB_ATOMIC_NONE;
+	u32 ctl2, cap2;
+	u16 flags;
+	int rc;
 
 	bridge = pdev->bus->self;
 	if (!bridge)
-		return;
+		goto disable;
 
-	/* Check whether we are connected directly or via a switch */
-	while (bridge && bridge->bus->parent) {
-		DP_DEBUG(dev, QEDR_MSG_INIT,
-			 "Device is not connected directly to root. bridge->bus->number=%d primary=%d\n",
-			 bridge->bus->number, bridge->bus->primary);
-		/* Need to check Atomic Op Routing Supported all the way to
-		 * root complex.
-		 */
-		pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &val);
-		if (!(val & PCI_EXP_DEVCAP2_ATOMIC_ROUTE)) {
-			pcie_capability_clear_word(pdev,
-						   PCI_EXP_DEVCTL2,
-						   PCI_EXP_DEVCTL2_ATOMIC_REQ);
-			return;
-		}
+	/* Check atomic routing support all the way to root complex */
+	while (bridge->bus->parent) {
+		rc = pcie_capability_read_word(bridge, PCI_EXP_FLAGS, &flags);
+		if (rc || ((flags & PCI_EXP_FLAGS_VERS) < 2))
+			goto disable;
+
+		rc = pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &cap2);
+		if (rc)
+			goto disable;
+
+		rc = pcie_capability_read_dword(bridge, PCI_EXP_DEVCTL2, &ctl2);
+		if (rc)
+			goto disable;
+
+		if (!(cap2 & PCI_EXP_DEVCAP2_ATOMIC_ROUTE) ||
+		    (ctl2 & PCI_EXP_DEVCTL2_ATOMIC_EGRESS_BLOCK))
+			goto disable;
 		bridge = bridge->bus->parent->self;
 	}
-	bridge = pdev->bus->self;
 
-	/* according to bridge capability */
-	pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &val);
-	if (val & PCI_EXP_DEVCAP2_ATOMIC_COMP64) {
-		pcie_capability_set_word(pdev, PCI_EXP_DEVCTL2,
-					 PCI_EXP_DEVCTL2_ATOMIC_REQ);
-		dev->atomic_cap = IB_ATOMIC_GLOB;
-	} else {
-		pcie_capability_clear_word(pdev, PCI_EXP_DEVCTL2,
-					   PCI_EXP_DEVCTL2_ATOMIC_REQ);
-	}
+	rc = pcie_capability_read_word(bridge, PCI_EXP_FLAGS, &flags);
+	if (rc || ((flags & PCI_EXP_FLAGS_VERS) < 2))
+		goto disable;
+
+	rc = pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &cap2);
+	if (rc || !(cap2 & PCI_EXP_DEVCAP2_ATOMIC_COMP64))
+		goto disable;
+
+	/* Set atomic operations */
+	pcie_capability_set_word(pdev, PCI_EXP_DEVCTL2,
+				 PCI_EXP_DEVCTL2_ATOMIC_REQ);
+	dev->atomic_cap = IB_ATOMIC_GLOB;
+
+	DP_DEBUG(dev, QEDR_MSG_INIT, "Atomic capability enabled\n");
+
+	return;
+
+disable:
+	pcie_capability_clear_word(pdev, PCI_EXP_DEVCTL2,
+				   PCI_EXP_DEVCTL2_ATOMIC_REQ);
+	dev->atomic_cap = IB_ATOMIC_NONE;
+
+	DP_DEBUG(dev, QEDR_MSG_INIT, "Atomic capability disabled\n");
+
 }
 
 static const struct qed_rdma_ops *qed_ops;
