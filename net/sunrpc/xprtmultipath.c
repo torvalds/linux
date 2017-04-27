@@ -52,8 +52,7 @@ void rpc_xprt_switch_add_xprt(struct rpc_xprt_switch *xps,
 	if (xprt == NULL)
 		return;
 	spin_lock(&xps->xps_lock);
-	if ((xps->xps_net == xprt->xprt_net || xps->xps_net == NULL) &&
-	    !rpc_xprt_switch_has_addr(xps, (struct sockaddr *)&xprt->addr))
+	if (xps->xps_net == xprt->xprt_net || xps->xps_net == NULL)
 		xprt_switch_add_xprt_locked(xps, xprt);
 	spin_unlock(&xps->xps_lock);
 }

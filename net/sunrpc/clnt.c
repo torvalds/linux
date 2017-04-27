@@ -528,6 +528,8 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.bc_xprt = args->bc_xprt,
 	};
 	char servername[48];
+	struct rpc_clnt *clnt;
+	int i;
 
 	if (args->bc_xprt) {
 		WARN_ON_ONCE(!(args->protocol & XPRT_TRANSPORT_BC));
@@ -590,7 +592,15 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
 		xprt->resvport = 0;
 
-	return rpc_create_xprt(args, xprt);
+	clnt = rpc_create_xprt(args, xprt);
+	if (IS_ERR(clnt) || args->nconnect <= 1)
+		return clnt;
+
+	for (i = 0; i < args->nconnect - 1; i++) {
+		if (rpc_clnt_add_xprt(clnt, &xprtargs, NULL, NULL) < 0)
+			break;
+	}
+	return clnt;
 }
 EXPORT_SYMBOL_GPL(rpc_create);
 
@@ -2730,6 +2740,10 @@ int rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
 		return -ENOMEM;
 	data->xps = xprt_switch_get(xps);
 	data->xprt = xprt_get(xprt);
+	if (rpc_xprt_switch_has_addr(data->xps, (struct sockaddr *)&xprt->addr)) {
+		rpc_cb_add_xprt_release(data);
+		goto success;
+	}
 
 	task = rpc_call_null_helper(clnt, xprt, NULL,
 			RPC_TASK_SOFT|RPC_TASK_SOFTCONN|RPC_TASK_ASYNC|RPC_TASK_NULLCREDS,
@@ -2737,6 +2751,7 @@ int rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	rpc_put_task(task);
+success:
 	return 1;
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_test_and_add_xprt);
