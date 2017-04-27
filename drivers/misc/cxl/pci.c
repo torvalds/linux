@@ -1496,8 +1496,6 @@ static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 	if ((rc = cxl_native_register_psl_err_irq(adapter)))
 		goto err;
 
-	/* Release the context lock as adapter is configured */
-	cxl_adapter_context_unlock(adapter);
 	return 0;
 
 err:
@@ -1595,6 +1593,9 @@ static struct cxl *cxl_pci_init_adapter(struct pci_dev *dev)
 
 	if ((rc = cxl_sysfs_adapter_add(adapter)))
 		goto err_put1;
+
+	/* Release the context lock as adapter is configured */
+	cxl_adapter_context_unlock(adapter);
 
 	return adapter;
 
@@ -1893,6 +1894,13 @@ static pci_ers_result_t cxl_pci_error_detected(struct pci_dev *pdev,
 		cxl_ops->afu_deactivate_mode(afu, afu->current_mode);
 		pci_deconfigure_afu(afu);
 	}
+
+	/* should take the context lock here */
+	if (cxl_adapter_context_lock(adapter) != 0)
+		dev_warn(&adapter->dev,
+			 "Couldn't take context lock with %d active-contexts\n",
+			 atomic_read(&adapter->contexts_num));
+
 	cxl_deconfigure_adapter(adapter);
 
 	return result;
@@ -1910,6 +1918,13 @@ static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
 
 	if (cxl_configure_adapter(adapter, pdev))
 		goto err;
+
+	/*
+	 * Unlock context activation for the adapter. Ideally this should be
+	 * done in cxl_pci_resume but cxlflash module tries to activate the
+	 * master context as part of slot_reset callback.
+	 */
+	cxl_adapter_context_unlock(adapter);
 
 	for (i = 0; i < adapter->slices; i++) {
 		afu = adapter->afu[i];
