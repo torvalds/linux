@@ -2049,6 +2049,10 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 	bool return_now = false;
 
 	spin_lock(&inode->i_lock);
+	if (!pnfs_layout_is_valid(lo)) {
+		spin_unlock(&inode->i_lock);
+		return;
+	}
 	pnfs_set_plh_return_info(lo, range.iomode, 0);
 	/* Block LAYOUTGET */
 	set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags);
