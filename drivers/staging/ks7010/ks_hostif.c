@@ -462,17 +462,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		memcpy(skb_put(skb, size), &eth_hdr->h_proto, size);
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + ETHER_HDR_SIZE);
-		if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
-		    priv->wpa.rsn_enabled)
-			atomic_set(&priv->psstatus.snooze_guard, 1);
-
-		/* rx indication */
-		skb->dev = priv->net_dev;
-		skb->protocol = eth_type_trans(skb, skb->dev);
-		priv->nstats.rx_packets++;
-		priv->nstats.rx_bytes += rx_ind_size;
-		netif_rx(skb);
-
 		break;
 	case 0xF0:	/* NETBEUI/NetBIOS */
 		rx_ind_size = (priv->rx_size + 2);
@@ -493,22 +482,23 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		       rx_ind_size - 14);	/* copy after Type */
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
-		if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
-		    priv->wpa.rsn_enabled)
-			atomic_set(&priv->psstatus.snooze_guard, 1);
-
-		/* rx indication */
-		skb->dev = priv->net_dev;
-		skb->protocol = eth_type_trans(skb, skb->dev);
-		priv->nstats.rx_packets++;
-		priv->nstats.rx_bytes += rx_ind_size;
-		netif_rx(skb);
-
 		break;
 	default:	/* other rx data */
 		DPRINTK(2, "invalid data format\n");
 		priv->nstats.rx_errors++;
+		return;
 	}
+
+	if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
+	    priv->wpa.rsn_enabled)
+		atomic_set(&priv->psstatus.snooze_guard, 1);
+
+	/* rx indication */
+	skb->dev = priv->net_dev;
+	skb->protocol = eth_type_trans(skb, skb->dev);
+	priv->nstats.rx_packets++;
+	priv->nstats.rx_bytes += rx_ind_size;
+	netif_rx(skb);
 }
 
 static
