@@ -2758,8 +2758,6 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 
 	sock = vxlan_create_sock(net, ipv6, port, flags);
 	if (IS_ERR(sock)) {
-		pr_info("Cannot bind port %d, err=%ld\n", ntohs(port),
-			PTR_ERR(sock));
 		kfree(vs);
 		return ERR_CAST(sock);
 	}
