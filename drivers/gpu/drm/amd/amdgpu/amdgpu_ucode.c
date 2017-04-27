@@ -197,6 +197,27 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 	}
 }
 
+void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr)
+{
+	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
+	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+
+	DRM_DEBUG("GPU_INFO\n");
+	amdgpu_ucode_print_common_hdr(hdr);
+
+	if (version_major == 1) {
+		const struct gpu_info_firmware_header_v1_0 *gpu_info_hdr =
+			container_of(hdr, struct gpu_info_firmware_header_v1_0, header);
+
+		DRM_DEBUG("version_major: %u\n",
+			  le16_to_cpu(gpu_info_hdr->version_major));
+		DRM_DEBUG("version_minor: %u\n",
+			  le16_to_cpu(gpu_info_hdr->version_minor));
+	} else {
+		DRM_ERROR("Unknown gpu_info ucode version: %u.%u\n", version_major, version_minor);
+	}
+}
+
 int amdgpu_ucode_validate(const struct firmware *fw)
 {
 	const struct common_firmware_header *hdr =
