@@ -1609,11 +1609,16 @@ static void had_audio_wq(struct work_struct *work)
 /*
  * Jack interface
  */
-static int had_create_jack(struct snd_intelhad *ctx)
+static int had_create_jack(struct snd_intelhad *ctx,
+			   struct snd_pcm *pcm)
 {
+	char hdmi_str[32];
 	int err;
 
-	err = snd_jack_new(ctx->card, "HDMI/DP", SND_JACK_AVOUT, &ctx->jack,
+	snprintf(hdmi_str, sizeof(hdmi_str),
+		 "HDMI/DP,pcm=%d", pcm->device);
+
+	err = snd_jack_new(ctx->card, hdmi_str, SND_JACK_AVOUT, &ctx->jack,
 			   true, false);
 	if (err < 0)
 		return err;
@@ -1793,7 +1798,17 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	/* create controls */
 	for (i = 0; i < ARRAY_SIZE(had_controls); i++) {
-		ret = snd_ctl_add(card, snd_ctl_new1(&had_controls[i], ctx));
+		struct snd_kcontrol *kctl;
+
+		kctl = snd_ctl_new1(&had_controls[i], ctx);
+		if (!kctl) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		kctl->id.device = pcm->device;
+
+		ret = snd_ctl_add(card, kctl);
 		if (ret < 0)
 			goto err;
 	}
@@ -1805,7 +1820,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err;
 
-	ret = had_create_jack(ctx);
+	ret = had_create_jack(ctx, pcm);
 	if (ret < 0)
 		goto err;
 
