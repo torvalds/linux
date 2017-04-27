@@ -446,56 +446,60 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	case 0xAA:	/* SNAP */
 		rx_ind_size = priv->rx_size - 6;
 		skb = dev_alloc_skb(rx_ind_size);
+		if (!skb) {
+			priv->nstats.rx_dropped++;
+			return;
+		}
 		DPRINTK(4, "SNAP, rx_ind_size = %d\n", rx_ind_size);
 
-		if (skb) {
-			memcpy(skb_put(skb, 12), priv->rxp, 12);	/* 8802/FDDI MAC copy */
-			/* (SNAP+UI..) skip */
-			memcpy(skb_put(skb, rx_ind_size - 12), priv->rxp + 18, rx_ind_size - 12);	/* copy after Type */
+		memcpy(skb_put(skb, 12), priv->rxp, 12);	/* 8802/FDDI MAC copy */
+		/* (SNAP+UI..) skip */
+		memcpy(skb_put(skb, rx_ind_size - 12), priv->rxp + 18,
+		       rx_ind_size - 12);	/* copy after Type */
 
-			aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 20);
-			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
-			    priv->wpa.rsn_enabled)
-				atomic_set(&priv->psstatus.snooze_guard, 1);
+		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 20);
+		if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
+		    priv->wpa.rsn_enabled)
+			atomic_set(&priv->psstatus.snooze_guard, 1);
 
-			/* rx indication */
-			skb->dev = priv->net_dev;
-			skb->protocol = eth_type_trans(skb, skb->dev);
-			priv->nstats.rx_packets++;
-			priv->nstats.rx_bytes += rx_ind_size;
-			netif_rx(skb);
-		} else {
-			priv->nstats.rx_dropped++;
-		}
+		/* rx indication */
+		skb->dev = priv->net_dev;
+		skb->protocol = eth_type_trans(skb, skb->dev);
+		priv->nstats.rx_packets++;
+		priv->nstats.rx_bytes += rx_ind_size;
+		netif_rx(skb);
+
 		break;
 	case 0xF0:	/* NETBEUI/NetBIOS */
 		rx_ind_size = (priv->rx_size + 2);
 		skb = dev_alloc_skb(rx_ind_size);
+		if (!skb) {
+			priv->nstats.rx_dropped++;
+			return;
+		}
 		DPRINTK(3, "NETBEUI/NetBIOS rx_ind_size=%d\n", rx_ind_size);
 
-		if (skb) {
-			memcpy(skb_put(skb, 12), priv->rxp, 12);	/* 8802/FDDI MAC copy */
+		memcpy(skb_put(skb, 12), priv->rxp, 12);	/* 8802/FDDI MAC copy */
 
-			temp[0] = (((rx_ind_size - 12) >> 8) & 0xff);	/* NETBEUI size add */
-			temp[1] = ((rx_ind_size - 12) & 0xff);
-			memcpy(skb_put(skb, 2), temp, 2);
+		temp[0] = (((rx_ind_size - 12) >> 8) & 0xff);	/* NETBEUI size add */
+		temp[1] = ((rx_ind_size - 12) & 0xff);
+		memcpy(skb_put(skb, 2), temp, 2);
 
-			memcpy(skb_put(skb, rx_ind_size - 14), priv->rxp + 12, rx_ind_size - 14);	/* copy after Type */
+		memcpy(skb_put(skb, rx_ind_size - 14), priv->rxp + 12,
+		       rx_ind_size - 14);	/* copy after Type */
 
-			aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
-			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
-			    priv->wpa.rsn_enabled)
-				atomic_set(&priv->psstatus.snooze_guard, 1);
+		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
+		if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
+		    priv->wpa.rsn_enabled)
+			atomic_set(&priv->psstatus.snooze_guard, 1);
 
-			/* rx indication */
-			skb->dev = priv->net_dev;
-			skb->protocol = eth_type_trans(skb, skb->dev);
-			priv->nstats.rx_packets++;
-			priv->nstats.rx_bytes += rx_ind_size;
-			netif_rx(skb);
-		} else {
-			priv->nstats.rx_dropped++;
-		}
+		/* rx indication */
+		skb->dev = priv->net_dev;
+		skb->protocol = eth_type_trans(skb, skb->dev);
+		priv->nstats.rx_packets++;
+		priv->nstats.rx_bytes += rx_ind_size;
+		netif_rx(skb);
+
 		break;
 	default:	/* other rx data */
 		DPRINTK(2, "invalid data format\n");
