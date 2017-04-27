@@ -1,7 +1,7 @@
 /*
  * Device Tree file for Freescale LS2080a software Simulator model
  *
- * Copyright (C) 2014-2015, Freescale Semiconductor
+ * Copyright 2014-2015 Freescale Semiconductor, Inc.
  *
  * Bhupesh Sharma <bhupesh.sharma@freescale.com>
  *
