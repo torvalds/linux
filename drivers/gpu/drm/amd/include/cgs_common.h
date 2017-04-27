@@ -54,20 +54,6 @@ enum cgs_ind_reg {
 };
 
 /**
- * enum cgs_clock - Clocks controlled by the SMU
- */
-enum cgs_clock {
-	CGS_CLOCK__SCLK,
-	CGS_CLOCK__MCLK,
-	CGS_CLOCK__VCLK,
-	CGS_CLOCK__DCLK,
-	CGS_CLOCK__ECLK,
-	CGS_CLOCK__ACLK,
-	CGS_CLOCK__ICLK,
-	/* ... */
-};
-
-/**
  * enum cgs_engine - Engines that can be statically power-gated
  */
 enum cgs_engine {
@@ -78,15 +64,6 @@ enum cgs_engine {
 	CGS_ENGINE__ACP_DSP0,
 	CGS_ENGINE__ACP_DSP1,
 	CGS_ENGINE__ISP,
-	/* ... */
-};
-
-/**
- * enum cgs_voltage_planes - Voltage planes for external camera HW
- */
-enum cgs_voltage_planes {
-	CGS_VOLTAGE_PLANE__SENSOR0,
-	CGS_VOLTAGE_PLANE__SENSOR1,
 	/* ... */
 };
 
@@ -144,17 +121,6 @@ enum cgs_resource_type {
 	CGS_RESOURCE_TYPE_IO,
 	CGS_RESOURCE_TYPE_DOORBELL,
 	CGS_RESOURCE_TYPE_ROM,
-};
-
-/**
- * struct cgs_clock_limits - Clock limits
- *
- * Clocks are specified in 10KHz units.
- */
-struct cgs_clock_limits {
-	unsigned min;		/**< Minimum supported frequency */
-	unsigned max;		/**< Maxumim supported frequency */
-	unsigned sustainable;	/**< Thermally sustainable frequency */
 };
 
 /**
@@ -219,54 +185,6 @@ struct cgs_acpi_method_info {
 	struct cgs_acpi_method_argument *poutput_argument;
 	uint32_t padding[9];
 };
-
-/**
- * cgs_gpu_mem_info() - Return information about memory heaps
- * @cgs_device: opaque device handle
- * @type:	memory type
- * @mc_start:	Start MC address of the heap (output)
- * @mc_size:	MC address space size (output)
- * @mem_size:	maximum amount of memory available for allocation (output)
- *
- * This function returns information about memory heaps. The type
- * parameter is used to select the memory heap. The mc_start and
- * mc_size for GART heaps may be bigger than the memory available for
- * allocation.
- *
- * mc_start and mc_size are undefined for non-contiguous FB memory
- * types, since buffers allocated with these types may or may not be
- * GART mapped.
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_gpu_mem_info_t)(struct cgs_device *cgs_device, enum cgs_gpu_mem_type type,
-				  uint64_t *mc_start, uint64_t *mc_size,
-				  uint64_t *mem_size);
-
-/**
- * cgs_gmap_kmem() - map kernel memory to GART aperture
- * @cgs_device:	opaque device handle
- * @kmem:	pointer to kernel memory
- * @size:	size to map
- * @min_offset: minimum offset from start of GART aperture
- * @max_offset: maximum offset from start of GART aperture
- * @kmem_handle: kernel memory handle (output)
- * @mcaddr:	MC address (output)
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_gmap_kmem_t)(struct cgs_device *cgs_device, void *kmem, uint64_t size,
-			       uint64_t min_offset, uint64_t max_offset,
-			       cgs_handle_t *kmem_handle, uint64_t *mcaddr);
-
-/**
- * cgs_gunmap_kmem() - unmap kernel memory
- * @cgs_device:	opaque device handle
- * @kmem_handle: kernel memory handle returned by gmap_kmem
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_gunmap_kmem_t)(struct cgs_device *cgs_device, cgs_handle_t kmem_handle);
 
 /**
  * cgs_alloc_gpu_mem() - Allocate GPU memory
@@ -392,62 +310,6 @@ typedef void (*cgs_write_ind_register_t)(struct cgs_device *cgs_device, enum cgs
 					 unsigned index, uint32_t value);
 
 /**
- * cgs_read_pci_config_byte() - Read byte from PCI configuration space
- * @cgs_device:	opaque device handle
- * @addr:	address
- *
- * Return:  Value read
- */
-typedef uint8_t (*cgs_read_pci_config_byte_t)(struct cgs_device *cgs_device, unsigned addr);
-
-/**
- * cgs_read_pci_config_word() - Read word from PCI configuration space
- * @cgs_device:	opaque device handle
- * @addr:	address, must be word-aligned
- *
- * Return:  Value read
- */
-typedef uint16_t (*cgs_read_pci_config_word_t)(struct cgs_device *cgs_device, unsigned addr);
-
-/**
- * cgs_read_pci_config_dword() - Read dword from PCI configuration space
- * @cgs_device:	opaque device handle
- * @addr:	address, must be dword-aligned
- *
- * Return:  Value read
- */
-typedef uint32_t (*cgs_read_pci_config_dword_t)(struct cgs_device *cgs_device,
-						unsigned addr);
-
-/**
- * cgs_write_pci_config_byte() - Write byte to PCI configuration space
- * @cgs_device:	opaque device handle
- * @addr:	address
- * @value:	value to write
- */
-typedef void (*cgs_write_pci_config_byte_t)(struct cgs_device *cgs_device, unsigned addr,
-					    uint8_t value);
-
-/**
- * cgs_write_pci_config_word() - Write byte to PCI configuration space
- * @cgs_device:	opaque device handle
- * @addr:	address, must be word-aligned
- * @value:	value to write
- */
-typedef void (*cgs_write_pci_config_word_t)(struct cgs_device *cgs_device, unsigned addr,
-					    uint16_t value);
-
-/**
- * cgs_write_pci_config_dword() - Write byte to PCI configuration space
- * @cgs_device:	opaque device handle
- * @addr:	address, must be dword-aligned
- * @value:	value to write
- */
-typedef void (*cgs_write_pci_config_dword_t)(struct cgs_device *cgs_device, unsigned addr,
-					     uint32_t value);
-
-
-/**
  * cgs_get_pci_resource() - provide access to a device resource (PCI BAR)
  * @cgs_device:	opaque device handle
  * @resource_type:	Type of Resource (MMIO, IO, ROM, FB, DOORBELL)
@@ -501,87 +363,6 @@ typedef int (*cgs_atom_exec_cmd_table_t)(struct cgs_device *cgs_device,
 					 unsigned table, void *args);
 
 /**
- * cgs_create_pm_request() - Create a power management request
- * @cgs_device:	opaque device handle
- * @request:	handle of created PM request (output)
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_create_pm_request_t)(struct cgs_device *cgs_device, cgs_handle_t *request);
-
-/**
- * cgs_destroy_pm_request() - Destroy a power management request
- * @cgs_device:	opaque device handle
- * @request:	handle of created PM request
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_destroy_pm_request_t)(struct cgs_device *cgs_device, cgs_handle_t request);
-
-/**
- * cgs_set_pm_request() - Activate or deactiveate a PM request
- * @cgs_device:	opaque device handle
- * @request:	PM request handle
- * @active:	0 = deactivate, non-0 = activate
- *
- * While a PM request is active, its minimum clock requests are taken
- * into account as the requested engines are powered up. When the
- * request is inactive, the engines may be powered down and clocks may
- * be lower, depending on other PM requests by other driver
- * components.
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_set_pm_request_t)(struct cgs_device *cgs_device, cgs_handle_t request,
-				    int active);
-
-/**
- * cgs_pm_request_clock() - Request a minimum frequency for a specific clock
- * @cgs_device:	opaque device handle
- * @request:	PM request handle
- * @clock:	which clock?
- * @freq:	requested min. frequency in 10KHz units (0 to clear request)
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_pm_request_clock_t)(struct cgs_device *cgs_device, cgs_handle_t request,
-				      enum cgs_clock clock, unsigned freq);
-
-/**
- * cgs_pm_request_engine() - Request an engine to be powered up
- * @cgs_device:	opaque device handle
- * @request:	PM request handle
- * @engine:	which engine?
- * @powered:	0 = powered down, non-0 = powered up
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_pm_request_engine_t)(struct cgs_device *cgs_device, cgs_handle_t request,
-				       enum cgs_engine engine, int powered);
-
-/**
- * cgs_pm_query_clock_limits() - Query clock frequency limits
- * @cgs_device:	opaque device handle
- * @clock:	which clock?
- * @limits:	clock limits
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_pm_query_clock_limits_t)(struct cgs_device *cgs_device,
-					   enum cgs_clock clock,
-					   struct cgs_clock_limits *limits);
-
-/**
- * cgs_set_camera_voltages() - Apply specific voltages to PMIC voltage planes
- * @cgs_device:	opaque device handle
- * @mask:	bitmask of voltages to change (1<<CGS_VOLTAGE_PLANE__xyz|...)
- * @voltages:	pointer to array of voltage values in 1mV units
- *
- * Return: 0 on success, -errno otherwise
- */
-typedef int (*cgs_set_camera_voltages_t)(struct cgs_device *cgs_device, uint32_t mask,
-					 const uint32_t *voltages);
-/**
  * cgs_get_firmware_info - Get the firmware information from core driver
  * @cgs_device: opaque device handle
  * @type: the firmware type
@@ -627,9 +408,6 @@ typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
 
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
-	cgs_gpu_mem_info_t gpu_mem_info;
-	cgs_gmap_kmem_t gmap_kmem;
-	cgs_gunmap_kmem_t gunmap_kmem;
 	cgs_alloc_gpu_mem_t alloc_gpu_mem;
 	cgs_free_gpu_mem_t free_gpu_mem;
 	cgs_gmap_gpu_mem_t gmap_gpu_mem;
@@ -641,27 +419,12 @@ struct cgs_ops {
 	cgs_write_register_t write_register;
 	cgs_read_ind_register_t read_ind_register;
 	cgs_write_ind_register_t write_ind_register;
-	/* PCI configuration space access */
-	cgs_read_pci_config_byte_t read_pci_config_byte;
-	cgs_read_pci_config_word_t read_pci_config_word;
-	cgs_read_pci_config_dword_t read_pci_config_dword;
-	cgs_write_pci_config_byte_t write_pci_config_byte;
-	cgs_write_pci_config_word_t write_pci_config_word;
-	cgs_write_pci_config_dword_t write_pci_config_dword;
 	/* PCI resources */
 	cgs_get_pci_resource_t get_pci_resource;
 	/* ATOM BIOS */
 	cgs_atom_get_data_table_t atom_get_data_table;
 	cgs_atom_get_cmd_table_revs_t atom_get_cmd_table_revs;
 	cgs_atom_exec_cmd_table_t atom_exec_cmd_table;
-	/* Power management */
-	cgs_create_pm_request_t create_pm_request;
-	cgs_destroy_pm_request_t destroy_pm_request;
-	cgs_set_pm_request_t set_pm_request;
-	cgs_pm_request_clock_t pm_request_clock;
-	cgs_pm_request_engine_t pm_request_engine;
-	cgs_pm_query_clock_limits_t pm_query_clock_limits;
-	cgs_set_camera_voltages_t set_camera_voltages;
 	/* Firmware Info */
 	cgs_get_firmware_info get_firmware_info;
 	cgs_rel_firmware rel_firmware;
@@ -696,12 +459,6 @@ struct cgs_device
 #define CGS_OS_CALL(func,dev,...) \
 	(((struct cgs_device *)dev)->os_ops->func(dev, ##__VA_ARGS__))
 
-#define cgs_gpu_mem_info(dev,type,mc_start,mc_size,mem_size)		\
-	CGS_CALL(gpu_mem_info,dev,type,mc_start,mc_size,mem_size)
-#define cgs_gmap_kmem(dev,kmem,size,min_off,max_off,kmem_handle,mcaddr)	\
-	CGS_CALL(gmap_kmem,dev,kmem,size,min_off,max_off,kmem_handle,mcaddr)
-#define cgs_gunmap_kmem(dev,kmem_handle)	\
-	CGS_CALL(gunmap_kmem,dev,keme_handle)
 #define cgs_alloc_gpu_mem(dev,type,size,align,min_off,max_off,handle)	\
 	CGS_CALL(alloc_gpu_mem,dev,type,size,align,min_off,max_off,handle)
 #define cgs_free_gpu_mem(dev,handle)		\
@@ -724,19 +481,6 @@ struct cgs_device
 #define cgs_write_ind_register(dev,space,index,value)		\
 	CGS_CALL(write_ind_register,dev,space,index,value)
 
-#define cgs_read_pci_config_byte(dev,addr)	\
-	CGS_CALL(read_pci_config_byte,dev,addr)
-#define cgs_read_pci_config_word(dev,addr)	\
-	CGS_CALL(read_pci_config_word,dev,addr)
-#define cgs_read_pci_config_dword(dev,addr)		\
-	CGS_CALL(read_pci_config_dword,dev,addr)
-#define cgs_write_pci_config_byte(dev,addr,value)	\
-	CGS_CALL(write_pci_config_byte,dev,addr,value)
-#define cgs_write_pci_config_word(dev,addr,value)	\
-	CGS_CALL(write_pci_config_word,dev,addr,value)
-#define cgs_write_pci_config_dword(dev,addr,value)	\
-	CGS_CALL(write_pci_config_dword,dev,addr,value)
-
 #define cgs_atom_get_data_table(dev,table,size,frev,crev)	\
 	CGS_CALL(atom_get_data_table,dev,table,size,frev,crev)
 #define cgs_atom_get_cmd_table_revs(dev,table,frev,crev)	\
@@ -744,20 +488,6 @@ struct cgs_device
 #define cgs_atom_exec_cmd_table(dev,table,args)		\
 	CGS_CALL(atom_exec_cmd_table,dev,table,args)
 
-#define cgs_create_pm_request(dev,request)	\
-	CGS_CALL(create_pm_request,dev,request)
-#define cgs_destroy_pm_request(dev,request)		\
-	CGS_CALL(destroy_pm_request,dev,request)
-#define cgs_set_pm_request(dev,request,active)		\
-	CGS_CALL(set_pm_request,dev,request,active)
-#define cgs_pm_request_clock(dev,request,clock,freq)		\
-	CGS_CALL(pm_request_clock,dev,request,clock,freq)
-#define cgs_pm_request_engine(dev,request,engine,powered)	\
-	CGS_CALL(pm_request_engine,dev,request,engine,powered)
-#define cgs_pm_query_clock_limits(dev,clock,limits)		\
-	CGS_CALL(pm_query_clock_limits,dev,clock,limits)
-#define cgs_set_camera_voltages(dev,mask,voltages)	\
-	CGS_CALL(set_camera_voltages,dev,mask,voltages)
 #define cgs_get_firmware_info(dev, type, info)	\
 	CGS_CALL(get_firmware_info, dev, type, info)
 #define cgs_rel_firmware(dev, type)	\
