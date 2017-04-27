@@ -827,8 +827,8 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 	return 1;
 }
 
-static unsigned char snmp_request_decode(struct asn1_ctx *ctx,
-					 struct snmp_request *request)
+static unsigned char noinline_for_stack
+snmp_request_decode(struct asn1_ctx *ctx, struct snmp_request *request)
 {
 	unsigned int cls, con, tag;
 	unsigned char *end;
@@ -920,10 +920,10 @@ static inline void mangle_address(unsigned char *begin,
 	}
 }
 
-static unsigned char snmp_trap_decode(struct asn1_ctx *ctx,
-				      struct snmp_v1_trap *trap,
-				      const struct oct1_map *map,
-				      __sum16 *check)
+static unsigned char noinline_for_stack
+snmp_trap_decode(struct asn1_ctx *ctx, struct snmp_v1_trap *trap,
+		 const struct oct1_map *map,
+		 __sum16 *check)
 {
 	unsigned int cls, con, tag, len;
 	unsigned char *end;
