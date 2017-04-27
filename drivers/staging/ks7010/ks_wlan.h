@@ -508,5 +508,7 @@ struct ks_wlan_private {
 
 int ks_wlan_net_start(struct net_device *dev);
 int ks_wlan_net_stop(struct net_device *dev);
+bool is_connect_status(u32 status);
+bool is_disconnect_status(u32 status);
 
 #endif /* _KS_WLAN_H */

@@ -172,7 +172,7 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 	if (priv->reg.operation_mode != MODE_INFRASTRUCTURE)
 		return;
 
-	if ((priv->connect_status & CONNECT_STATUS_MASK) != CONNECT_STATUS)
+	if (!is_connect_status(priv->connect_status))
 		return;
 
 	if (priv->dev_state != DEVICE_STATE_SLEEP)

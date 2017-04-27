@@ -99,7 +99,7 @@ int ks_wlan_do_power_save(struct ks_wlan_private *priv)
 {
 	DPRINTK(4, "psstatus.status=%d\n", atomic_read(&priv->psstatus.status));
 
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS)
+	if (is_connect_status(priv->connect_status))
 		hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 	else
 		priv->dev_state = DEVICE_STATE_READY;
@@ -116,7 +116,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	DPRINTK(3, "\n");
 	ap = &priv->current_ap;
 
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS) {
+	if (is_disconnect_status(priv->connect_status)) {
 		memset(ap, 0, sizeof(struct local_ap_t));
 		return -EPERM;
 	}
@@ -183,7 +183,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	wrqu.data.length = 0;
 	wrqu.data.flags = 0;
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
+	if (is_connect_status(priv->connect_status)) {
 		memcpy(wrqu.ap_addr.sa_data,
 		       priv->current_ap.bssid, ETH_ALEN);
 		DPRINTK(3,
@@ -744,7 +744,7 @@ void hostif_start_confirm(struct ks_wlan_private *priv)
 	wrqu.data.length = 0;
 	wrqu.data.flags = 0;
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
+	if (is_connect_status(priv->connect_status)) {
 		eth_zero_addr(wrqu.ap_addr.sa_data);
 		DPRINTK(3, "IWEVENT: disconnect\n");
 		wireless_send_event(priv->net_dev, SIOCGIWAP, &wrqu, NULL);
@@ -791,8 +791,8 @@ void hostif_connect_indication(struct ks_wlan_private *priv)
 	}
 
 	get_current_ap(priv, (struct link_ap_info_t *)priv->rxp);
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS &&
-	    (old_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS) {
+	if (is_connect_status(priv->connect_status) &&
+	    is_disconnect_status(old_status)) {
 		/* for power save */
 		atomic_set(&priv->psstatus.snooze_guard, 0);
 		atomic_set(&priv->psstatus.confirm_wait, 0);
@@ -802,8 +802,8 @@ void hostif_connect_indication(struct ks_wlan_private *priv)
 	wrqu0.data.length = 0;
 	wrqu0.data.flags = 0;
 	wrqu0.ap_addr.sa_family = ARPHRD_ETHER;
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS &&
-	    (old_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
+	if (is_disconnect_status(priv->connect_status) &&
+	    is_connect_status(old_status)) {
 		eth_zero_addr(wrqu0.ap_addr.sa_data);
 		DPRINTK(3, "IWEVENT: disconnect\n");
 		DPRINTK(3, "disconnect :: scan_ind_count=%d\n",
@@ -860,7 +860,7 @@ void hostif_stop_confirm(struct ks_wlan_private *priv)
 		priv->dev_state = DEVICE_STATE_READY;
 
 	/* disconnect indication */
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
+	if (is_connect_status(priv->connect_status)) {
 		netif_carrier_off(netdev);
 		tmp = FORCE_DISCONNECT & priv->connect_status;
 		priv->connect_status = tmp | DISCONNECT_STATUS;
@@ -869,8 +869,8 @@ void hostif_stop_confirm(struct ks_wlan_private *priv)
 		wrqu0.data.length = 0;
 		wrqu0.data.flags = 0;
 		wrqu0.ap_addr.sa_family = ARPHRD_ETHER;
-		if ((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS &&
-		    (old_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
+		if (is_disconnect_status(priv->connect_status) &&
+		    is_connect_status(old_status)) {
 			eth_zero_addr(wrqu0.ap_addr.sa_data);
 			DPRINTK(3, "IWEVENT: disconnect\n");
 			netdev_info(netdev, "IWEVENT: disconnect\n");
@@ -1132,7 +1132,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		goto err_kfree_skb;
 	}
 
-	if (((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS) ||
+	if (is_disconnect_status(priv->connect_status) ||
 	    (priv->connect_status & FORCE_DISCONNECT) ||
 	    priv->wpa.mic_failure.stop) {
 		DPRINTK(3, " DISCONNECT\n");

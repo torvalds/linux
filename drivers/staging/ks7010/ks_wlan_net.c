@@ -253,10 +253,11 @@ static int ks_wlan_get_freq(struct net_device *dev,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS)
+	if (is_connect_status(priv->connect_status))
 		f = (int)priv->current_ap.channel;
-		else
+	else
 		f = (int)priv->reg.channel;
+
 	fwrq->m = frequency_list[f - 1] * 100000;
 	fwrq->e = 1;
 
@@ -395,7 +396,7 @@ static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 		return -EPERM;
 
 	/* for SLEEP MODE */
-	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS)
+	if (is_connect_status(priv->connect_status))
 		memcpy(awrq->sa_data, priv->current_ap.bssid, ETH_ALEN);
 	else
 		eth_zero_addr(awrq->sa_data);
@@ -3031,4 +3032,24 @@ int ks_wlan_net_stop(struct net_device *dev)
 		netif_stop_queue(dev);
 
 	return 0;
+}
+
+/**
+ * is_connect_status() - return true if status is 'connected'
+ * @status: high bit is used as FORCE_DISCONNECT, low bits used for
+ * 	connect status.
+ */
+bool is_connect_status(u32 status)
+{
+	return (status & CONNECT_STATUS_MASK) == CONNECT_STATUS;
+}
+
+/**
+ * is_disconnect_status() - return true if status is 'disconnected'
+ * @status: high bit is used as FORCE_DISCONNECT, low bits used for
+ * 	disconnect status.
+ */
+bool is_disconnect_status(u32 status)
+{
+	return (status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS;
 }
