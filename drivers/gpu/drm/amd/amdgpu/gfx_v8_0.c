@@ -941,12 +941,6 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
 	adev->gfx.me_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 
-	/* chain ib ucode isn't formal released, just disable it by far
-	 * TODO: when ucod ready we should use ucode version to judge if
-	 * chain-ib support or not.
-	 */
-	adev->virt.chained_ib_support = false;
-
 	adev->gfx.me_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce.bin", chip_name);
@@ -959,6 +953,17 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	cp_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
 	adev->gfx.ce_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.ce_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
+
+	/*
+	 * Support for MCBP/Virtualization in combination with chained IBs is
+	 * formal released on feature version #46
+	 */
+	if (adev->gfx.ce_feature_version >= 46 &&
+	    adev->gfx.pfp_feature_version >= 46) {
+		adev->virt.chained_ib_support = true;
+		DRM_INFO("Chained IB support enabled!\n");
+	} else
+		adev->virt.chained_ib_support = false;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
 	err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
