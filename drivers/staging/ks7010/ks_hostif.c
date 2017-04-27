@@ -1217,7 +1217,6 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		}
 	}
 
-
 	if (priv->wpa.rsn_enabled && priv->wpa.key[0].key_len) {
 		if (eth_proto == ETHER_PROTOCOL_TYPE_EAP &&
 		    priv->wpa.key[1].key_len == 0 &&
