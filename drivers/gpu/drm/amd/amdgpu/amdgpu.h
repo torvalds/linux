@@ -967,6 +967,9 @@ struct amdgpu_gfx_config {
 	unsigned mc_arb_ramcfg;
 	unsigned gb_addr_config;
 	unsigned num_rbs;
+	unsigned gs_vgt_table_depth;
+	unsigned gs_prim_buffer_depth;
+	unsigned max_gs_waves_per_vgt;
 
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
@@ -981,6 +984,7 @@ struct amdgpu_gfx_config {
 struct amdgpu_cu_info {
 	uint32_t number; /* total active CU number */
 	uint32_t ao_cu_mask;
+	uint32_t wave_front_size;
 	uint32_t bitmap[4][4];
 };
 
