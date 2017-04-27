@@ -1055,17 +1055,17 @@ static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	spin_lock(&sbi->cp_lock);
 
-	if (cpc->reason == CP_UMOUNT &&
+	if ((cpc->reason & CP_UMOUNT) &&
 			le32_to_cpu(ckpt->cp_pack_total_block_count) >
 			sbi->blocks_per_seg - NM_I(sbi)->nat_bits_blocks)
 		disable_nat_bits(sbi, false);
 
-	if (cpc->reason == CP_UMOUNT)
+	if (cpc->reason & CP_UMOUNT)
 		__set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
 	else
 		__clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
 
-	if (cpc->reason == CP_FASTBOOT)
+	if (cpc->reason & CP_FASTBOOT)
 		__set_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
 	else
 		__clear_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
@@ -1273,8 +1273,8 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	mutex_lock(&sbi->cp_mutex);
 
 	if (!is_sbi_flag_set(sbi, SBI_IS_DIRTY) &&
-		(cpc->reason == CP_FASTBOOT || cpc->reason == CP_SYNC ||
-		(cpc->reason == CP_DISCARD && !sbi->discard_blks)))
+		((cpc->reason & CP_FASTBOOT) || (cpc->reason & CP_SYNC) ||
+		((cpc->reason & CP_DISCARD) && !sbi->discard_blks)))
 		goto out;
 	if (unlikely(f2fs_cp_error(sbi))) {
 		err = -EIO;
@@ -1296,7 +1296,7 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	f2fs_flush_merged_bios(sbi);
 
 	/* this is the case of multiple fstrims without any changes */
-	if (cpc->reason == CP_DISCARD) {
+	if (cpc->reason & CP_DISCARD) {
 		if (!exist_trim_candidates(sbi, cpc)) {
 			unblock_operations(sbi);
 			goto out;
@@ -1334,7 +1334,7 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	unblock_operations(sbi);
 	stat_inc_cp_count(sbi->stat_info);
 
-	if (cpc->reason == CP_RECOVERY)
+	if (cpc->reason & CP_RECOVERY)
 		f2fs_msg(sbi->sb, KERN_NOTICE,
 			"checkpoint: version = %llx", ckpt_ver);
 
