@@ -270,6 +270,7 @@ struct ttm_bo_kmap_obj {
 struct ttm_operation_ctx {
 	bool interruptible;
 	bool no_wait_gpu;
+	uint64_t bytes_moved;
 };
 
 /**
