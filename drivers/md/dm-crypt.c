@@ -1814,30 +1814,6 @@ static void kcryptd_queue_crypt(struct dm_crypt_io *io)
 	queue_work(cc->crypt_queue, &io->work);
 }
 
-/*
- * Decode key from its hex representation
- */
-static int crypt_decode_key(u8 *key, char *hex, unsigned int size)
-{
-	char buffer[3];
-	unsigned int i;
-
-	buffer[2] = '\0';
-
-	for (i = 0; i < size; i++) {
-		buffer[0] = *hex++;
-		buffer[1] = *hex++;
-
-		if (kstrtou8(buffer, 16, &key[i]))
-			return -EINVAL;
-	}
-
-	if (*hex != '\0')
-		return -EINVAL;
-
-	return 0;
-}
-
 static void crypt_free_tfms_aead(struct crypt_config *cc)
 {
 	if (!cc->cipher_tfm.tfms_aead)
@@ -2136,7 +2112,8 @@ static int crypt_set_key(struct crypt_config *cc, char *key)
 	kzfree(cc->key_string);
 	cc->key_string = NULL;
 
-	if (cc->key_size && crypt_decode_key(cc->key, key, cc->key_size) < 0)
+	/* Decode key from its hex representation. */
+	if (cc->key_size && hex2bin(cc->key, key, cc->key_size) < 0)
 		goto out;
 
 	r = crypt_setkey(cc);
