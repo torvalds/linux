@@ -135,6 +135,8 @@ struct st_lsm6dsx_hw {
 #endif /* CONFIG_SPI_MASTER */
 };
 
+extern const struct dev_pm_ops st_lsm6dsx_pm_ops;
+
 int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 		     const struct st_lsm6dsx_transfer_function *tf_ops);
 int st_lsm6dsx_sensor_enable(struct st_lsm6dsx_sensor *sensor);
