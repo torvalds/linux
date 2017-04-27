@@ -1849,7 +1849,8 @@ mass storage, or user patience, whichever comes first.
 If the nesting is not visible to the compiler, as is the case with
 mutually recursive functions each in its own translation unit,
 stack overflow will result.
-If the nesting takes the form of loops, either the control variable
+If the nesting takes the form of loops, perhaps in the guise of tail
+recursion, either the control variable
 will overflow or (in the Linux kernel) you will get an RCU CPU stall warning.
 Nevertheless, this class of RCU implementations is one
 of the most composable constructs in existence.
