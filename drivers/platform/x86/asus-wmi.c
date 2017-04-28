@@ -1105,6 +1105,15 @@ static void asus_wmi_set_xusb2pr(struct asus_wmi *asus)
 }
 
 /*
+ * Some devices dont support or have borcken get_als method
+ * but still support set method.
+ */
+static void asus_wmi_set_als(void)
+{
+	asus_wmi_set_devstate(ASUS_WMI_DEVID_ALS_ENABLE, 1, NULL);
+}
+
+/*
  * Hwmon device
  */
 static int asus_hwmon_agfn_fan_speed_read(struct asus_wmi *asus, int fan,
@@ -2112,6 +2121,9 @@ static int asus_wmi_add(struct platform_device *pdev)
 		if (err)
 			goto fail_rfkill;
 	}
+
+	if (asus->driver->quirks->wmi_force_als_set)
+		asus_wmi_set_als();
 
 	/* Some Asus desktop boards export an acpi-video backlight interface,
 	   stop this from showing up */
