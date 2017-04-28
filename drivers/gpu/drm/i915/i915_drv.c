@@ -852,7 +852,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_init_audio_hooks(dev_priv);
 	ret = i915_gem_load_init(dev_priv);
 	if (ret < 0)
-		goto err_workqueues;
+		goto err_irq;
 
 	intel_display_crc_init(dev_priv);
 
@@ -864,7 +864,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	return 0;
 
-err_workqueues:
+err_irq:
+	intel_irq_fini(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 err_engines:
 	i915_engines_cleanup(dev_priv);
@@ -879,6 +880,7 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
 	i915_perf_fini(dev_priv);
 	i915_gem_load_cleanup(dev_priv);
+	intel_irq_fini(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 	i915_engines_cleanup(dev_priv);
 }
