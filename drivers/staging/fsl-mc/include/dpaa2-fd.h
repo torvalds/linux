@@ -81,6 +81,7 @@ struct dpaa2_fd {
 #define FD_OFFSET_MASK		0x0FFF
 #define FD_FORMAT_MASK		0x3
 #define FD_FORMAT_SHIFT		12
+#define FD_BPID_MASK		0x3FFF
 #define SG_SHORT_LEN_FLAG_MASK	0x1
 #define SG_SHORT_LEN_FLAG_SHIFT	14
 #define SG_SHORT_LEN_MASK	0x1FFFF
@@ -105,7 +106,7 @@ enum dpaa2_fd_format {
  */
 static inline dma_addr_t dpaa2_fd_get_addr(const struct dpaa2_fd *fd)
 {
-	return (dma_addr_t)fd->simple.addr;
+	return (dma_addr_t)le64_to_cpu(fd->simple.addr);
 }
 
 /**
@@ -115,7 +116,7 @@ static inline dma_addr_t dpaa2_fd_get_addr(const struct dpaa2_fd *fd)
  */
 static inline void dpaa2_fd_set_addr(struct dpaa2_fd *fd, dma_addr_t addr)
 {
-	fd->simple.addr = addr;
+	fd->simple.addr = cpu_to_le64(addr);
 }
 
 /**
@@ -126,7 +127,7 @@ static inline void dpaa2_fd_set_addr(struct dpaa2_fd *fd, dma_addr_t addr)
  */
 static inline u32 dpaa2_fd_get_frc(const struct dpaa2_fd *fd)
 {
-	return fd->simple.frc;
+	return le32_to_cpu(fd->simple.frc);
 }
 
 /**
@@ -136,7 +137,7 @@ static inline u32 dpaa2_fd_get_frc(const struct dpaa2_fd *fd)
  */
 static inline void dpaa2_fd_set_frc(struct dpaa2_fd *fd, u32 frc)
 {
-	fd->simple.frc = frc;
+	fd->simple.frc = cpu_to_le32(frc);
 }
 
 /**
@@ -147,7 +148,7 @@ static inline void dpaa2_fd_set_frc(struct dpaa2_fd *fd, u32 frc)
  */
 static inline u32 dpaa2_fd_get_ctrl(const struct dpaa2_fd *fd)
 {
-	return fd->simple.ctrl;
+	return le32_to_cpu(fd->simple.ctrl);
 }
 
 /**
@@ -157,7 +158,7 @@ static inline u32 dpaa2_fd_get_ctrl(const struct dpaa2_fd *fd)
  */
 static inline void dpaa2_fd_set_ctrl(struct dpaa2_fd *fd, u32 ctrl)
 {
-	fd->simple.ctrl = ctrl;
+	fd->simple.ctrl = cpu_to_le32(ctrl);
 }
 
 /**
@@ -168,7 +169,7 @@ static inline void dpaa2_fd_set_ctrl(struct dpaa2_fd *fd, u32 ctrl)
  */
 static inline dma_addr_t dpaa2_fd_get_flc(const struct dpaa2_fd *fd)
 {
-	return (dma_addr_t)fd->simple.flc;
+	return (dma_addr_t)le64_to_cpu(fd->simple.flc);
 }
 
 /**
@@ -178,13 +179,13 @@ static inline dma_addr_t dpaa2_fd_get_flc(const struct dpaa2_fd *fd)
  */
 static inline void dpaa2_fd_set_flc(struct dpaa2_fd *fd,  dma_addr_t flc_addr)
 {
-	fd->simple.flc = flc_addr;
+	fd->simple.flc = cpu_to_le64(flc_addr);
 }
 
 static inline bool dpaa2_fd_short_len(const struct dpaa2_fd *fd)
 {
-	return !!((fd->simple.format_offset >> FD_SHORT_LEN_FLAG_SHIFT)
-		& FD_SHORT_LEN_FLAG_MASK);
+	return !!((le16_to_cpu(fd->simple.format_offset) >>
+		  FD_SHORT_LEN_FLAG_SHIFT) & FD_SHORT_LEN_FLAG_MASK);
 }
 
 /**
@@ -196,9 +197,9 @@ static inline bool dpaa2_fd_short_len(const struct dpaa2_fd *fd)
 static inline u32 dpaa2_fd_get_len(const struct dpaa2_fd *fd)
 {
 	if (dpaa2_fd_short_len(fd))
-		return fd->simple.len & FD_SHORT_LEN_MASK;
+		return le32_to_cpu(fd->simple.len) & FD_SHORT_LEN_MASK;
 
-	return fd->simple.len;
+	return le32_to_cpu(fd->simple.len);
 }
 
 /**
@@ -208,7 +209,7 @@ static inline u32 dpaa2_fd_get_len(const struct dpaa2_fd *fd)
  */
 static inline void dpaa2_fd_set_len(struct dpaa2_fd *fd, u32 len)
 {
-	fd->simple.len = len;
+	fd->simple.len = cpu_to_le32(len);
 }
 
 /**
@@ -219,7 +220,7 @@ static inline void dpaa2_fd_set_len(struct dpaa2_fd *fd, u32 len)
  */
 static inline uint16_t dpaa2_fd_get_offset(const struct dpaa2_fd *fd)
 {
-	return fd->simple.format_offset & FD_OFFSET_MASK;
+	return le16_to_cpu(fd->simple.format_offset) & FD_OFFSET_MASK;
 }
 
 /**
@@ -229,8 +230,8 @@ static inline uint16_t dpaa2_fd_get_offset(const struct dpaa2_fd *fd)
  */
 static inline void dpaa2_fd_set_offset(struct dpaa2_fd *fd, uint16_t offset)
 {
-	fd->simple.format_offset &= ~FD_OFFSET_MASK;
-	fd->simple.format_offset |= offset;
+	fd->simple.format_offset &= cpu_to_le16(~FD_OFFSET_MASK);
+	fd->simple.format_offset |= cpu_to_le16(offset);
 }
 
 /**
@@ -242,7 +243,7 @@ static inline void dpaa2_fd_set_offset(struct dpaa2_fd *fd, uint16_t offset)
 static inline enum dpaa2_fd_format dpaa2_fd_get_format(
 						const struct dpaa2_fd *fd)
 {
-	return (enum dpaa2_fd_format)((fd->simple.format_offset
+	return (enum dpaa2_fd_format)((le16_to_cpu(fd->simple.format_offset)
 				      >> FD_FORMAT_SHIFT) & FD_FORMAT_MASK);
 }
 
@@ -254,8 +255,9 @@ static inline enum dpaa2_fd_format dpaa2_fd_get_format(
 static inline void dpaa2_fd_set_format(struct dpaa2_fd *fd,
 				       enum dpaa2_fd_format format)
 {
-	fd->simple.format_offset &= ~(FD_FORMAT_MASK << FD_FORMAT_SHIFT);
-	fd->simple.format_offset |= format << FD_FORMAT_SHIFT;
+	fd->simple.format_offset &=
+		cpu_to_le16(~(FD_FORMAT_MASK << FD_FORMAT_SHIFT));
+	fd->simple.format_offset |= cpu_to_le16(format << FD_FORMAT_SHIFT);
 }
 
 /**
@@ -266,7 +268,7 @@ static inline void dpaa2_fd_set_format(struct dpaa2_fd *fd,
  */
 static inline uint16_t dpaa2_fd_get_bpid(const struct dpaa2_fd *fd)
 {
-	return fd->simple.bpid;
+	return le16_to_cpu(fd->simple.bpid) & FD_BPID_MASK;
 }
 
 /**
@@ -276,7 +278,8 @@ static inline uint16_t dpaa2_fd_get_bpid(const struct dpaa2_fd *fd)
  */
 static inline void dpaa2_fd_set_bpid(struct dpaa2_fd *fd, uint16_t bpid)
 {
-	fd->simple.bpid = bpid;
+	fd->simple.bpid &= cpu_to_le16(~(FD_BPID_MASK));
+	fd->simple.bpid |= cpu_to_le16(bpid);
 }
 
 /**
