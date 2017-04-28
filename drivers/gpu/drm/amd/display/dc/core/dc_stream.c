@@ -250,6 +250,10 @@ bool dc_stream_set_cursor_position(
 				!pipe_ctx->ipp || !pipe_ctx->surface)
 			continue;
 
+		if (pipe_ctx->surface->public.address.type
+				== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+			pos_cpy.enable = false;
+
 		if (pipe_ctx->top_pipe && pipe_ctx->surface != pipe_ctx->top_pipe->surface)
 			pos_cpy.enable = false;
 
