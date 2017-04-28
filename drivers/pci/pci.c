@@ -5036,6 +5036,11 @@ void pci_ignore_hotplug(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_ignore_hotplug);
 
+resource_size_t __weak pcibios_default_alignment(void)
+{
+	return 0;
+}
+
 #define RESOURCE_ALIGNMENT_PARAM_SIZE COMMAND_LINE_SIZE
 static char resource_alignment_param[RESOURCE_ALIGNMENT_PARAM_SIZE] = {0};
 static DEFINE_SPINLOCK(resource_alignment_lock);
@@ -5043,22 +5048,25 @@ static DEFINE_SPINLOCK(resource_alignment_lock);
 /**
  * pci_specified_resource_alignment - get resource alignment specified by user.
  * @dev: the PCI device to get
+ * @resize: whether or not to change resources' size when reassigning alignment
  *
  * RETURNS: Resource alignment if it is specified.
  *          Zero if it is not specified.
  */
-static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
+static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev,
+							bool *resize)
 {
 	int seg, bus, slot, func, align_order, count;
 	unsigned short vendor, device, subsystem_vendor, subsystem_device;
-	resource_size_t align = 0;
+	resource_size_t align = pcibios_default_alignment();
 	char *p;
 
 	spin_lock(&resource_alignment_lock);
 	p = resource_alignment_param;
-	if (!*p)
+	if (!*p && !align)
 		goto out;
 	if (pci_has_flag(PCI_PROBE_ONLY)) {
+		align = 0;
 		pr_info_once("PCI: Ignoring requested alignments (PCI_PROBE_ONLY)\n");
 		goto out;
 	}
@@ -5088,6 +5096,7 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 				(!device || (device == dev->device)) &&
 				(!subsystem_vendor || (subsystem_vendor == dev->subsystem_vendor)) &&
 				(!subsystem_device || (subsystem_device == dev->subsystem_device))) {
+				*resize = true;
 				if (align_order == -1)
 					align = PAGE_SIZE;
 				else
@@ -5113,6 +5122,7 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 				bus == dev->bus->number &&
 				slot == PCI_SLOT(dev->devfn) &&
 				func == PCI_FUNC(dev->devfn)) {
+				*resize = true;
 				if (align_order == -1)
 					align = PAGE_SIZE;
 				else
@@ -5132,6 +5142,68 @@ out:
 	return align;
 }
 
+static void pci_request_resource_alignment(struct pci_dev *dev, int bar,
+					   resource_size_t align, bool resize)
+{
+	struct resource *r = &dev->resource[bar];
+	resource_size_t size;
+
+	if (!(r->flags & IORESOURCE_MEM))
+		return;
+
+	if (r->flags & IORESOURCE_PCI_FIXED) {
+		dev_info(&dev->dev, "BAR%d %pR: ignoring requested alignment %#llx\n",
+			 bar, r, (unsigned long long)align);
+		return;
+	}
+
+	size = resource_size(r);
+	if (size >= align)
+		return;
+
+	/*
+	 * Increase the alignment of the resource.  There are two ways we
+	 * can do this:
+	 *
+	 * 1) Increase the size of the resource.  BARs are aligned on their
+	 *    size, so when we reallocate space for this resource, we'll
+	 *    allocate it with the larger alignment.  This also prevents
+	 *    assignment of any other BARs inside the alignment region, so
+	 *    if we're requesting page alignment, this means no other BARs
+	 *    will share the page.
+	 *
+	 *    The disadvantage is that this makes the resource larger than
+	 *    the hardware BAR, which may break drivers that compute things
+	 *    based on the resource size, e.g., to find registers at a
+	 *    fixed offset before the end of the BAR.
+	 *
+	 * 2) Retain the resource size, but use IORESOURCE_STARTALIGN and
+	 *    set r->start to the desired alignment.  By itself this
+	 *    doesn't prevent other BARs being put inside the alignment
+	 *    region, but if we realign *every* resource of every device in
+	 *    the system, none of them will share an alignment region.
+	 *
+	 * When the user has requested alignment for only some devices via
+	 * the "pci=resource_alignment" argument, "resize" is true and we
+	 * use the first method.  Otherwise we assume we're aligning all
+	 * devices and we use the second.
+	 */
+
+	dev_info(&dev->dev, "BAR%d %pR: requesting alignment to %#llx\n",
+		 bar, r, (unsigned long long)align);
+
+	if (resize) {
+		r->start = 0;
+		r->end = align - 1;
+	} else {
+		r->flags &= ~IORESOURCE_SIZEALIGN;
+		r->flags |= IORESOURCE_STARTALIGN;
+		r->start = align;
+		r->end = r->start + size - 1;
+	}
+	r->flags |= IORESOURCE_UNSET;
+}
+
 /*
  * This function disables memory decoding and releases memory resources
  * of the device specified by kernel's boot parameter 'pci=resource_alignment='.
@@ -5143,8 +5215,9 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 {
 	int i;
 	struct resource *r;
-	resource_size_t align, size;
+	resource_size_t align;
 	u16 command;
+	bool resize = false;
 
 	/*
 	 * VF BARs are read-only zero according to SR-IOV spec r1.1, sec
@@ -5156,7 +5229,7 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		return;
 
 	/* check if specified PCI is target device to reassign */
-	align = pci_specified_resource_alignment(dev);
+	align = pci_specified_resource_alignment(dev, &resize);
 	if (!align)
 		return;
 
@@ -5173,28 +5246,11 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	command &= ~PCI_COMMAND_MEMORY;
 	pci_write_config_word(dev, PCI_COMMAND, command);
 
-	for (i = 0; i < PCI_BRIDGE_RESOURCES; i++) {
-		r = &dev->resource[i];
-		if (!(r->flags & IORESOURCE_MEM))
-			continue;
-		if (r->flags & IORESOURCE_PCI_FIXED) {
-			dev_info(&dev->dev, "Ignoring requested alignment for BAR%d: %pR\n",
-				i, r);
-			continue;
-		}
+	for (i = 0; i <= PCI_ROM_RESOURCE; i++)
+		pci_request_resource_alignment(dev, i, align, resize);
 
-		size = resource_size(r);
-		if (size < align) {
-			size = align;
-			dev_info(&dev->dev,
-				"Rounding up size of resource #%d to %#llx.\n",
-				i, (unsigned long long)size);
-		}
-		r->flags |= IORESOURCE_UNSET;
-		r->end = size - 1;
-		r->start = 0;
-	}
-	/* Need to disable bridge's resource window,
+	/*
+	 * Need to disable bridge's resource window,
 	 * to enable the kernel to reassign new resource
 	 * window later on.
 	 */
