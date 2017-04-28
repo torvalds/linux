@@ -218,11 +218,11 @@ static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)
 	 (should not be case with CIK) then SW should program all rates
 	 generated according to average value (case as with previous ASICs)
 	  */
-	if (clk_dce->ss_on_gpu_pll && clk_dce->gpu_pll_ss_divider != 0) {
+	if (clk_dce->ss_on_dprefclk && clk_dce->dprefclk_ss_divider != 0) {
 		struct fixed32_32 ss_percentage = dal_fixed32_32_div_int(
 				dal_fixed32_32_from_fraction(
-						clk_dce->gpu_pll_ss_percentage,
-						clk_dce->gpu_pll_ss_divider), 200);
+						clk_dce->dprefclk_ss_percentage,
+						clk_dce->dprefclk_ss_divider), 200);
 		struct fixed32_32 adj_dp_ref_clk_khz;
 
 		ss_percentage = dal_fixed32_32_sub(dal_fixed32_32_one,
@@ -480,21 +480,43 @@ static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
 		 */
 		if (result == BP_RESULT_OK &&
 				info.spread_spectrum_percentage != 0) {
-			clk_dce->ss_on_gpu_pll = true;
-			clk_dce->gpu_pll_ss_divider = info.spread_percentage_divider;
+			clk_dce->ss_on_dprefclk = true;
+			clk_dce->dprefclk_ss_divider = info.spread_percentage_divider;
+
+			if (info.type.CENTER_MODE == 0) {
+				/* TODO: Currently for DP Reference clock we
+				 * need only SS percentage for
+				 * downspread */
+				clk_dce->dprefclk_ss_percentage =
+						info.spread_spectrum_percentage;
+			}
+
+			return;
+		}
+
+		result = bp->funcs->get_spread_spectrum_info(
+				bp, AS_SIGNAL_TYPE_DISPLAY_PORT, 0, &info);
+
+		/* Based on VBIOS, VBIOS will keep entry for DPREFCLK SS
+		 * even if SS not enabled and in that case
+		 * SSInfo.spreadSpectrumPercentage !=0 would be sign
+		 * that SS is enabled
+		 */
+		if (result == BP_RESULT_OK &&
+				info.spread_spectrum_percentage != 0) {
+			clk_dce->ss_on_dprefclk = true;
+			clk_dce->dprefclk_ss_divider = info.spread_percentage_divider;
 
 			if (info.type.CENTER_MODE == 0) {
 				/* Currently for DP Reference clock we
 				 * need only SS percentage for
 				 * downspread */
-				clk_dce->gpu_pll_ss_percentage =
+				clk_dce->dprefclk_ss_percentage =
 						info.spread_spectrum_percentage;
 			}
 		}
-
 	}
 }
-
 
 static bool dce_apply_clock_voltage_request(
 	struct display_clock *clk,
@@ -629,9 +651,11 @@ static void dce_disp_clk_construct(
 	clk_dce->clk_mask = clk_mask;
 
 	clk_dce->dfs_bypass_disp_clk = 0;
-	clk_dce->gpu_pll_ss_percentage = 0;
-	clk_dce->gpu_pll_ss_divider = 1000;
-	clk_dce->ss_on_gpu_pll = false;
+
+	clk_dce->dprefclk_ss_percentage = 0;
+	clk_dce->dprefclk_ss_divider = 1000;
+	clk_dce->ss_on_dprefclk = false;
+
 	base->max_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 	base->cur_min_clks_state = DM_PP_CLOCKS_STATE_INVALID;
 

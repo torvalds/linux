@@ -116,13 +116,12 @@ struct dce_disp_clk {
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency */
 	int dfs_bypass_disp_clk;
 
-	/* Flag for Enabled SS on GPU PLL */
-	bool ss_on_gpu_pll;
-	/* GPU PLL SS percentage (if down-spread enabled) */
-	int gpu_pll_ss_percentage;
-	/* GPU PLL SS percentage Divider (100 or 1000) */
-	int gpu_pll_ss_divider;
-
+	/* Flag for Enabled SS on DPREFCLK */
+	bool ss_on_dprefclk;
+	/* DPREFCLK SS percentage (if down-spread enabled) */
+	int dprefclk_ss_percentage;
+	/* DPREFCLK SS percentage Divider (100 or 1000) */
+	int dprefclk_ss_divider;
 
 	/* max disp_clk from PPLIB for max validation display clock*/
 	int max_displ_clk_in_khz;
