@@ -111,7 +111,7 @@ static inline int irqchip_in_kernel(struct kvm *kvm)
 
 	/* Matches smp_wmb() when setting irqchip_mode */
 	smp_rmb();
-	return mode > KVM_IRQCHIP_INIT_IN_PROGRESS;
+	return mode != KVM_IRQCHIP_NONE;
 }
 
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu);

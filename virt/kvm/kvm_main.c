@@ -3075,6 +3075,8 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&routing, argp, sizeof(routing)))
 			goto out;
 		r = -EINVAL;
+		if (!kvm_arch_can_set_irq_routing(kvm))
+			goto out;
 		if (routing.nr > KVM_MAX_IRQ_ROUTES)
 			goto out;
 		if (routing.flags)
@@ -3090,11 +3092,8 @@ static long kvm_vm_ioctl(struct file *filp,
 					   routing.nr * sizeof(*entries)))
 				goto out_free_irq_routing;
 		}
-		/* avoid races with KVM_CREATE_IRQCHIP on x86 */
-		mutex_lock(&kvm->lock);
 		r = kvm_set_irq_routing(kvm, entries, routing.nr,
 					routing.flags);
-		mutex_unlock(&kvm->lock);
 out_free_irq_routing:
 		vfree(entries);
 		break;

@@ -274,16 +274,19 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
+bool kvm_arch_can_set_irq_routing(struct kvm *kvm)
+{
+	return irqchip_in_kernel(kvm);
+}
+
 int kvm_set_routing_entry(struct kvm *kvm,
 			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
-	/* also allow creation of routes during KVM_IRQCHIP_INIT_IN_PROGRESS */
-	if (kvm->arch.irqchip_mode == KVM_IRQCHIP_NONE)
-		return -EINVAL;
-
-	/* Matches smp_wmb() when setting irqchip_mode */
-	smp_rmb();
+	/* We can't check irqchip_in_kernel() here as some callers are
+	 * currently inititalizing the irqchip. Other callers should therefore
+	 * check kvm_arch_can_set_irq_routing() before calling this function.
+	 */
 	switch (ue->type) {
 	case KVM_IRQ_ROUTING_IRQCHIP:
 		if (irqchip_split(kvm))
