@@ -333,15 +333,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data, unsigned int byte
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		src = (char *)kmap(bo->page_obj[idx].page);
-		if (!src) {
-			dev_err(atomisp_dev,
-				    "kmap buffer object page failed: "
-				    "pg_idx = %d\n", idx);
-			return -EINVAL;
-		}
-
-		src += offset;
+		src = (char *)kmap(bo->page_obj[idx].page) + offset;
 
 		if ((bytes + offset) >= PAGE_SIZE) {
 			len = PAGE_SIZE - offset;
@@ -538,14 +530,7 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		des = (char *)kmap(bo->page_obj[idx].page);
-		if (!des) {
-			dev_err(atomisp_dev,
-				    "kmap buffer object page failed: "
-				    "pg_idx = %d\n", idx);
-			return -EINVAL;
-		}
-		des += offset;
+		des = (char *)kmap(bo->page_obj[idx].page) + offset;
 
 		if ((bytes + offset) >= PAGE_SIZE) {
 			len = PAGE_SIZE - offset;
