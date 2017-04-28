@@ -1343,6 +1343,9 @@ struct sk_buff **inet_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	if (*(u8 *)iph != 0x45)
 		goto out_unlock;
 
+	if (ip_is_fragment(iph))
+		goto out_unlock;
+
 	if (unlikely(ip_fast_csum((u8 *)iph, 5)))
 		goto out_unlock;
 

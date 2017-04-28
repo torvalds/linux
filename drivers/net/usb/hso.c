@@ -2534,13 +2534,6 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 	SET_NETDEV_DEV(net, &interface->dev);
 	SET_NETDEV_DEVTYPE(net, &hso_type);
 
-	/* registering our net device */
-	result = register_netdev(net);
-	if (result) {
-		dev_err(&interface->dev, "Failed to register device\n");
-		goto exit;
-	}
-
 	/* start allocating */
 	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
 		hso_net->mux_bulk_rx_urb_pool[i] = usb_alloc_urb(0, GFP_KERNEL);
@@ -2559,6 +2552,13 @@ static struct hso_device *hso_create_net_device(struct usb_interface *interface,
 		goto exit;
 
 	add_net_device(hso_dev);
+
+	/* registering our net device */
+	result = register_netdev(net);
+	if (result) {
+		dev_err(&interface->dev, "Failed to register device\n");
+		goto exit;
+	}
 
 	hso_log_port(hso_dev);
 
