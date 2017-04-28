@@ -536,6 +536,33 @@ static inline bool iort_iommu_driver_enabled(u8 type)
 	}
 }
 
+#ifdef CONFIG_IOMMU_API
+static inline
+const struct iommu_ops *iort_fwspec_iommu_ops(struct iommu_fwspec *fwspec)
+{
+	return (fwspec && fwspec->ops) ? fwspec->ops : NULL;
+}
+
+static inline
+int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
+{
+	int err = 0;
+
+	if (!IS_ERR_OR_NULL(ops) && ops->add_device && dev->bus &&
+	    !dev->iommu_group)
+		err = ops->add_device(dev);
+
+	return err;
+}
+#else
+static inline
+const struct iommu_ops *iort_fwspec_iommu_ops(struct iommu_fwspec *fwspec)
+{ return NULL; }
+static inline
+int iort_add_device_replay(const struct iommu_ops *ops, struct device *dev)
+{ return 0; }
+#endif
+
 static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 					struct acpi_iort_node *node,
 					u32 streamid)
@@ -543,14 +570,14 @@ static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 	const struct iommu_ops *ops = NULL;
 	int ret = -ENODEV;
 	struct fwnode_handle *iort_fwnode;
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 
 	/*
 	 * If we already translated the fwspec there
 	 * is nothing left to do, return the iommu_ops.
 	 */
-	if (fwspec && fwspec->ops)
-		return fwspec->ops;
+	ops = iort_fwspec_iommu_ops(dev->iommu_fwspec);
+	if (ops)
+		return ops;
 
 	if (node) {
 		iort_fwnode = iort_get_fwnode(node);
@@ -611,6 +638,7 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 	struct acpi_iort_node *node, *parent;
 	const struct iommu_ops *ops = NULL;
 	u32 streamid = 0;
+	int err;
 
 	if (dev_is_pci(dev)) {
 		struct pci_bus *bus = to_pci_dev(dev)->bus;
@@ -654,13 +682,9 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * add_device callback for dev, replay it to get things in order.
 	 */
-	if (!IS_ERR_OR_NULL(ops) && ops->add_device &&
-	    dev->bus && !dev->iommu_group) {
-		int err = ops->add_device(dev);
-
-		if (err)
-			ops = ERR_PTR(err);
-	}
+	err = iort_add_device_replay(ops, dev);
+	if (err)
+		ops = ERR_PTR(err);
 
 	return ops;
 }
