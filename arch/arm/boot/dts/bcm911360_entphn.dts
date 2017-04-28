@@ -57,6 +57,18 @@
 	};
 };
 
+&eth0 {
+	status = "okay";
+};
+
+&mdio {
+	status = "okay";
+};
+
+&switch {
+	status = "okay";
+};
+
 &v3d {
 	assigned-clocks =
 		<&mipipll BCM_CYGNUS_MIPIPLL>,
