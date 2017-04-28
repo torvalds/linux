@@ -45,6 +45,35 @@ static void rga_dma_flush_range(void *pstart, void *pend)
 #endif
 }
 
+static void rga_dma_flush_page(struct page *page)
+{
+	phys_addr_t paddr;
+	void *virt;
+
+	paddr = page_to_phys(page);
+#ifdef CONFIG_ARM
+	if (PageHighMem(page)) {
+		if (cache_is_vipt_nonaliasing()) {
+			virt = kmap_atomic(page);
+			dmac_flush_range(virt, virt + PAGE_SIZE);
+			kunmap_atomic(virt);
+		} else {
+			virt = kmap_high_get(page);
+			dmac_flush_range(virt, virt + PAGE_SIZE);
+			kunmap_high(page);
+		}
+	} else {
+		virt = page_address(page);
+		dmac_flush_range(virt, virt + PAGE_SIZE);
+	}
+
+	outer_flush_range(paddr, paddr + PAGE_SIZE);
+#elif defined(CONFIG_ARM64)
+	virt = page_address(page);
+	__dma_flush_range(virt, virt + PAGE_SIZE);
+#endif
+}
+
 #if 0
 static unsigned int armv7_va_to_pa(unsigned int v_addr)
 {
@@ -270,7 +299,6 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	unsigned long Address;
 	unsigned long pfn;
 	struct page __maybe_unused *page;
-	void *virt;
 	spinlock_t * ptl;
 	pte_t * pte;
 	pgd_t * pgd;
@@ -293,8 +321,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 		for (i = 0; i < pageCount; i++) {
 			/* Get the physical address from page struct. */
 			pageTable[i] = page_to_phys(pages[i]);
-			virt = phys_to_virt(pageTable[i]);
-			rga_dma_flush_range(virt, virt + 4 * 1024);
+			rga_dma_flush_page(pages[i]);
 		}
 		for (i = 0; i < result; i++)
 			put_page(pages[i]);
@@ -340,29 +367,7 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 		pte_unmap_unlock(pte, ptl);
 		pageTable[i] = (uint32_t)Address;
 
-#ifdef CONFIG_ARM
-		page = pfn_to_page(pfn);
-		if (PageHighMem(page)) {
-			if (cache_is_vipt_nonaliasing()) {
-				virt = kmap_atomic(page);
-				dmac_flush_range(virt, virt + PAGE_SIZE);
-				kunmap_atomic(virt);
-			} else {
-				virt = kmap_high_get(page);
-				if (virt) {
-					dmac_flush_range(virt,
-							 virt + PAGE_SIZE);
-					kunmap_high(page);
-				}
-			}
-			outer_flush_range(pageTable[i],
-					  pageTable[i] + PAGE_SIZE);
-		} else
-#endif
-		{
-			virt = phys_to_virt(pageTable[i]);
-			rga_dma_flush_range(virt, virt + 4 * 1024);
-		}
+		rga_dma_flush_page(pages[i]);
 	}
 	up_read(&current->mm->mmap_sem);
 	return status;
