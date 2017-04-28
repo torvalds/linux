@@ -825,7 +825,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	rate_idx = rt2x00lib_rxdone_read_signal(rt2x00dev, &rxdesc);
 	if (rxdesc.rate_mode == RATE_MODE_HT_MIX ||
 	    rxdesc.rate_mode == RATE_MODE_HT_GREENFIELD)
-		rxdesc.flags |= RX_FLAG_HT;
+		rxdesc.encoding = RX_ENC_HT;
 
 	/*
 	 * Check if this is a beacon, and more frames have been
@@ -865,6 +865,9 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	rx_status->rate_idx = rate_idx;
 	rx_status->signal = rxdesc.rssi;
 	rx_status->flag = rxdesc.flags;
+	rx_status->enc_flags = rxdesc.enc_flags;
+	rx_status->encoding = rxdesc.encoding;
+	rx_status->bw = rxdesc.bw;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
 	ieee80211_rx_ni(rt2x00dev->hw, entry->skb);

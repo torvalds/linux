@@ -889,10 +889,10 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 	rt2x00_desc_read(rxwi, 1, &word);
 
 	if (rt2x00_get_field32(word, RXWI_W1_SHORT_GI))
-		rxdesc->flags |= RX_FLAG_SHORT_GI;
+		rxdesc->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (rt2x00_get_field32(word, RXWI_W1_BW))
-		rxdesc->flags |= RX_FLAG_40MHZ;
+		rxdesc->bw = RATE_INFO_BW_40;
 
 	/*
 	 * Detect RX rate, always use MCS as signal type.

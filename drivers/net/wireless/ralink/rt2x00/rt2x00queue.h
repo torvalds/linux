@@ -184,6 +184,9 @@ struct rxdone_entry_desc {
 	int flags;
 	int dev_flags;
 	u16 rate_mode;
+	u16 enc_flags;
+	enum mac80211_rx_encoding encoding;
+	enum rate_info_bw bw;
 	u8 cipher;
 	u8 cipher_status;
 

@@ -7,7 +7,7 @@
  * Copyright (c) 2005, Devicescape Software, Inc.
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright (c) 2016 Intel Deutschland GmbH
+ * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2177,37 +2177,37 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
 
 /**
- * enum - mesh synchronization method identifier
+ * enum ieee80211_mesh_sync_method - mesh synchronization method identifier
  *
  * @IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET: the default synchronization method
  * @IEEE80211_SYNC_METHOD_VENDOR: a vendor specific synchronization method
  *	that will be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_sync_method {
 	IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET = 1,
 	IEEE80211_SYNC_METHOD_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection protocol identifier
+ * enum ieee80211_mesh_path_protocol - mesh path selection protocol identifier
  *
  * @IEEE80211_PATH_PROTOCOL_HWMP: the default path selection protocol
  * @IEEE80211_PATH_PROTOCOL_VENDOR: a vendor specific protocol that will
  *	be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_protocol {
 	IEEE80211_PATH_PROTOCOL_HWMP = 1,
 	IEEE80211_PATH_PROTOCOL_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection metric identifier
+ * enum ieee80211_mesh_path_metric - mesh path selection metric identifier
  *
  * @IEEE80211_PATH_METRIC_AIRTIME: the default path selection metric
  * @IEEE80211_PATH_METRIC_VENDOR: a vendor specific metric that will be
  *	specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_metric {
 	IEEE80211_PATH_METRIC_AIRTIME = 1,
 	IEEE80211_PATH_METRIC_VENDOR = 255,
 };
@@ -2316,6 +2316,32 @@ struct ieee80211_timeout_interval_ie {
 	__le32 value;
 } __packed;
 
+/**
+ * enum ieee80211_idle_options - BSS idle options
+ * @WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE: the station should send an RSN
+ *	protected frame to the AP to reset the idle timer at the AP for
+ *	the station.
+ */
+enum ieee80211_idle_options {
+	WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE = BIT(0),
+};
+
+/**
+ * struct ieee80211_bss_max_idle_period_ie
+ *
+ * This structure refers to "BSS Max idle period element"
+ *
+ * @max_idle_period: indicates the time period during which a station can
+ *	refrain from transmitting frames to its associated AP without being
+ *	disassociated. In units of 1000 TUs.
+ * @idle_options: indicates the options associated with the BSS idle capability
+ *	as specified in &enum ieee80211_idle_options.
+ */
+struct ieee80211_bss_max_idle_period_ie {
+	__le16 max_idle_period;
+	u8 idle_options;
+} __packed;
+
 /* BACK action code */
 enum ieee80211_back_actioncode {
 	WLAN_ACTION_ADDBA_REQ = 0,
@@ -2356,18 +2382,21 @@ enum ieee80211_sa_query_action {
 #define WLAN_CIPHER_SUITE_SMS4		SUITE(0x001472, 1)
 
 /* AKM suite selectors */
-#define WLAN_AKM_SUITE_8021X		SUITE(0x000FAC, 1)
-#define WLAN_AKM_SUITE_PSK		SUITE(0x000FAC, 2)
-#define WLAN_AKM_SUITE_FT_PSK		SUITE(0x000FAC, 4)
-#define WLAN_AKM_SUITE_8021X_SHA256	SUITE(0x000FAC, 5)
-#define WLAN_AKM_SUITE_PSK_SHA256	SUITE(0x000FAC, 6)
-#define WLAN_AKM_SUITE_TDLS		SUITE(0x000FAC, 7)
-#define WLAN_AKM_SUITE_SAE		SUITE(0x000FAC, 8)
-#define WLAN_AKM_SUITE_FT_OVER_SAE	SUITE(0x000FAC, 9)
-#define WLAN_AKM_SUITE_FILS_SHA256	SUITE(0x000FAC, 14)
-#define WLAN_AKM_SUITE_FILS_SHA384	SUITE(0x000FAC, 15)
-#define WLAN_AKM_SUITE_FT_FILS_SHA256	SUITE(0x000FAC, 16)
-#define WLAN_AKM_SUITE_FT_FILS_SHA384	SUITE(0x000FAC, 17)
+#define WLAN_AKM_SUITE_8021X			SUITE(0x000FAC, 1)
+#define WLAN_AKM_SUITE_PSK			SUITE(0x000FAC, 2)
+#define WLAN_AKM_SUITE_FT_8021X			SUITE(0x000FAC, 3)
+#define WLAN_AKM_SUITE_FT_PSK			SUITE(0x000FAC, 4)
+#define WLAN_AKM_SUITE_8021X_SHA256		SUITE(0x000FAC, 5)
+#define WLAN_AKM_SUITE_PSK_SHA256		SUITE(0x000FAC, 6)
+#define WLAN_AKM_SUITE_TDLS			SUITE(0x000FAC, 7)
+#define WLAN_AKM_SUITE_SAE			SUITE(0x000FAC, 8)
+#define WLAN_AKM_SUITE_FT_OVER_SAE		SUITE(0x000FAC, 9)
+#define WLAN_AKM_SUITE_8021X_SUITE_B		SUITE(0x000FAC, 11)
+#define WLAN_AKM_SUITE_8021X_SUITE_B_192	SUITE(0x000FAC, 12)
+#define WLAN_AKM_SUITE_FILS_SHA256		SUITE(0x000FAC, 14)
+#define WLAN_AKM_SUITE_FILS_SHA384		SUITE(0x000FAC, 15)
+#define WLAN_AKM_SUITE_FT_FILS_SHA256		SUITE(0x000FAC, 16)
+#define WLAN_AKM_SUITE_FT_FILS_SHA384		SUITE(0x000FAC, 17)
 
 #define WLAN_MAX_KEY_LEN		32
 

@@ -3244,9 +3244,6 @@ void regulatory_propagate_dfs_state(struct wiphy *wiphy,
 	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
 		return;
 
-	if (WARN_ON(!(chandef->chan->flags & IEEE80211_CHAN_RADAR)))
-		return;
-
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		if (wiphy == &rdev->wiphy)
 			continue;
