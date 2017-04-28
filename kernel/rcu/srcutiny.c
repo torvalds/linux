@@ -96,22 +96,6 @@ void cleanup_srcu_struct(struct srcu_struct *sp)
 EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
 /*
- * Counts the new reader in the appropriate per-CPU element of the
- * srcu_struct.  Can be invoked from irq/bh handlers, but the matching
- * __srcu_read_unlock() must be in the same handler instance.  Returns an
- * index that must be passed to the matching srcu_read_unlock().
- */
-int __srcu_read_lock(struct srcu_struct *sp)
-{
-	int idx;
-
-	idx = READ_ONCE(sp->srcu_idx);
-	WRITE_ONCE(sp->srcu_lock_nesting[idx], sp->srcu_lock_nesting[idx] + 1);
-	return idx;
-}
-EXPORT_SYMBOL_GPL(__srcu_read_lock);
-
-/*
  * Removes the count for the old reader from the appropriate element of
  * the srcu_struct.
  */
