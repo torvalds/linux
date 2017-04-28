@@ -768,15 +768,16 @@ static int find_symbol_cb(void *arg, const char *name, char type,
 	return 1;
 }
 
-u64 kallsyms__get_function_start(const char *kallsyms_filename,
-				 const char *symbol_name)
+int kallsyms__get_function_start(const char *kallsyms_filename,
+				 const char *symbol_name, u64 *addr)
 {
 	struct process_symbol_args args = { .name = symbol_name, };
 
 	if (kallsyms__parse(kallsyms_filename, &args, find_symbol_cb) <= 0)
-		return 0;
+		return -1;
 
-	return args.start;
+	*addr = args.start;
+	return 0;
 }
 
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,

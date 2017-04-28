@@ -675,8 +675,8 @@ size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_namespaces(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 
-u64 kallsyms__get_function_start(const char *kallsyms_filename,
-				 const char *symbol_name);
+int kallsyms__get_function_start(const char *kallsyms_filename,
+				 const char *symbol_name, u64 *addr);
 
 void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max);
 void  cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,

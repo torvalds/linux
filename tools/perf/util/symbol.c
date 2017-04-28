@@ -466,7 +466,7 @@ void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
 struct symbol *dso__find_symbol(struct dso *dso,
 				enum map_type type, u64 addr)
 {
-	if (dso->last_find_result[type].addr != addr) {
+	if (dso->last_find_result[type].addr != addr || dso->last_find_result[type].symbol == NULL) {
 		dso->last_find_result[type].addr   = addr;
 		dso->last_find_result[type].symbol = symbols__find(&dso->symbols[type], addr);
 	}
@@ -1075,8 +1075,9 @@ static int validate_kcore_addresses(const char *kallsyms_filename,
 	if (kmap->ref_reloc_sym && kmap->ref_reloc_sym->name) {
 		u64 start;
 
-		start = kallsyms__get_function_start(kallsyms_filename,
-						     kmap->ref_reloc_sym->name);
+		if (kallsyms__get_function_start(kallsyms_filename,
+						 kmap->ref_reloc_sym->name, &start))
+			return -ENOENT;
 		if (start != kmap->ref_reloc_sym->addr)
 			return -EINVAL;
 	}
@@ -1248,9 +1249,7 @@ static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
 	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->name)
 		return 0;
 
-	addr = kallsyms__get_function_start(filename,
-					    kmap->ref_reloc_sym->name);
-	if (!addr)
+	if (kallsyms__get_function_start(filename, kmap->ref_reloc_sym->name, &addr))
 		return -1;
 
 	*delta = addr - kmap->ref_reloc_sym->addr;
