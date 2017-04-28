@@ -44,6 +44,7 @@ TRACE_DEFINE_ENUM(CP_FASTBOOT);
 TRACE_DEFINE_ENUM(CP_SYNC);
 TRACE_DEFINE_ENUM(CP_RECOVERY);
 TRACE_DEFINE_ENUM(CP_DISCARD);
+TRACE_DEFINE_ENUM(CP_TRIMMED);
 
 #define show_block_type(type)						\
 	__print_symbolic(type,						\
@@ -125,7 +126,8 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ CP_FASTBOOT,	"Fastboot" },				\
 		{ CP_SYNC,	"Sync" },				\
 		{ CP_RECOVERY,	"Recovery" },				\
-		{ CP_DISCARD,	"Discard" })
+		{ CP_DISCARD,	"Discard" },				\
+		{ CP_UMOUNT | CP_TRIMMED,	"Umount,Trimmed" })
 
 struct victim_sel_policy;
 struct f2fs_map_blocks;
