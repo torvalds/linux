@@ -281,6 +281,9 @@ struct dpaa2_eth_priv {
 	struct dpni_link_state link_state;
 	bool do_link_poll;
 	struct task_struct *poll_thread;
+
+	/* enabled ethtool hashing bits */
+	u64 rx_hash_fields;
 };
 
 /* default Rx hash options, set during probing */
@@ -293,6 +296,9 @@ struct dpaa2_eth_priv {
 
 /* Required by struct dpni_rx_tc_dist_cfg::key_cfg_iova */
 #define DPAA2_CLASSIFIER_DMA_SIZE 256
+
+extern const struct ethtool_ops dpaa2_ethtool_ops;
+extern const char dpaa2_eth_drv_version[];
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
 

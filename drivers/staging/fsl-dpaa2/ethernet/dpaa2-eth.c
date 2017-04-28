@@ -46,6 +46,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Freescale DPAA2 Ethernet Driver");
 
+const char dpaa2_eth_drv_version[] = "0.1";
+
 static void validate_rx_csum(struct dpaa2_eth_priv *priv,
 			     u32 fd_status,
 			     struct sk_buff *skb)
@@ -1929,6 +1931,8 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 		key->extract.from_hdr.type = DPKG_FULL_FIELD;
 		key->extract.from_hdr.field = hash_fields[i].cls_field;
 		cls_cfg.num_extracts++;
+
+		priv->rx_hash_fields |= hash_fields[i].rxnfc_field;
 	}
 
 	dma_mem = kzalloc(DPAA2_CLASSIFIER_DMA_SIZE, GFP_DMA | GFP_KERNEL);
@@ -2359,6 +2363,8 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	err = alloc_rings(priv);
 	if (err)
 		goto err_alloc_rings;
+
+	net_dev->ethtool_ops = &dpaa2_ethtool_ops;
 
 	err = setup_irqs(dpni_dev);
 	if (err) {
