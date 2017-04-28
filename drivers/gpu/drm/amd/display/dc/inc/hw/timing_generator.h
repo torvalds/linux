@@ -40,6 +40,13 @@ struct dcp_gsl_params {
 	int gsl_master;
 };
 
+/* define the structure of Dynamic Refresh Mode */
+struct drr_params {
+	uint32_t vertical_total_min;
+	uint32_t vertical_total_max;
+	bool immediate_flip;
+};
+
 #define LEFT_EYE_3D_PRIMARY_SURFACE 1
 #define RIGHT_EYE_3D_PRIMARY_SURFACE 0
 

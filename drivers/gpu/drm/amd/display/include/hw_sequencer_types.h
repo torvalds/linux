@@ -30,15 +30,4 @@
 #include "grph_object_defs.h"
 #include "link_service_types.h"
 
-/* define the structure of Dynamic Refresh Mode */
-struct drr_params {
-	/* defines the minimum possible vertical dimension of display timing
-	 * for CRTC as supported by the panel */
-	uint32_t vertical_total_min;
-	/* defines the maximum possible vertical dimension of display timing
-	 * for CRTC as supported by the panel */
-	uint32_t vertical_total_max;
-    bool immediate_flip;
-};
-
 #endif
