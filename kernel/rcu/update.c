@@ -379,6 +379,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		   struct rcu_synchronize *rs_array)
 {
 	int i;
+	int j;
 
 	/* Initialize and register callbacks for each flavor specified. */
 	for (i = 0; i < n; i++) {
@@ -390,7 +391,11 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		}
 		init_rcu_head_on_stack(&rs_array[i].head);
 		init_completion(&rs_array[i].completion);
-		(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
+		for (j = 0; j < i; j++)
+			if (crcu_array[j] == crcu_array[i])
+				break;
+		if (j == i)
+			(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
 	}
 
 	/* Wait for all callbacks to be invoked. */
@@ -399,7 +404,11 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		    (crcu_array[i] == call_rcu ||
 		     crcu_array[i] == call_rcu_bh))
 			continue;
-		wait_for_completion(&rs_array[i].completion);
+		for (j = 0; j < i; j++)
+			if (crcu_array[j] == crcu_array[i])
+				break;
+		if (j == i)
+			wait_for_completion(&rs_array[i].completion);
 		destroy_rcu_head_on_stack(&rs_array[i].head);
 	}
 }
