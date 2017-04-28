@@ -652,7 +652,10 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 
 	/* 81 */ ACPI_OP("External", ARGP_EXTERNAL_OP, ARGI_EXTERNAL_OP,
 			 ACPI_TYPE_ANY, AML_CLASS_EXECUTE, /* ? */
-			 AML_TYPE_EXEC_3A_0T_0R, AML_FLAGS_EXEC_3A_0T_0R)
+			 AML_TYPE_EXEC_3A_0T_0R, AML_FLAGS_EXEC_3A_0T_0R),
+/* 82 */ ACPI_OP("Comment", ARGP_COMMENT_OP, ARGI_COMMENT_OP,
+			 ACPI_TYPE_STRING, AML_CLASS_ARGUMENT,
+			 AML_TYPE_LITERAL, AML_CONSTANT)
 
 /*! [End] no source code translation !*/
 };

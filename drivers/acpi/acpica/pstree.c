@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("pstree")
@@ -216,6 +217,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 
 	next = acpi_ps_get_arg(op, 0);
 	if (next) {
+		ASL_CV_LABEL_FILENODE(next);
 		return (next);
 	}
 
@@ -223,6 +225,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 
 	next = op->common.next;
 	if (next) {
+		ASL_CV_LABEL_FILENODE(next);
 		return (next);
 	}
 
@@ -233,6 +236,8 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 	while (parent) {
 		arg = acpi_ps_get_arg(parent, 0);
 		while (arg && (arg != origin) && (arg != op)) {
+
+			ASL_CV_LABEL_FILENODE(arg);
 			arg = arg->common.next;
 		}
 
@@ -247,6 +252,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 
 			/* Found sibling of parent */
 
+			ASL_CV_LABEL_FILENODE(parent->common.next);
 			return (parent->common.next);
 		}
 
@@ -254,6 +260,7 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 		parent = parent->common.parent;
 	}
 
+	ASL_CV_LABEL_FILENODE(next);
 	return (next);
 }
 

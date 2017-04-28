@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psobject")
@@ -190,6 +191,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	 */
 	while (GET_CURRENT_ARG_TYPE(walk_state->arg_types) &&
 	       (GET_CURRENT_ARG_TYPE(walk_state->arg_types) != ARGP_NAME)) {
+		ASL_CV_CAPTURE_COMMENTS(walk_state);
 		status =
 		    acpi_ps_get_next_arg(walk_state,
 					 &(walk_state->parser_state),
@@ -202,6 +204,18 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 		acpi_ps_append_arg(unnamed_op, arg);
 		INCREMENT_ARG_LIST(walk_state->arg_types);
 	}
+
+	/* are there any inline comments associated with the name_seg?? If so, save this. */
+
+	ASL_CV_CAPTURE_COMMENTS(walk_state);
+
+#ifdef ACPI_ASL_COMPILER
+	if (acpi_gbl_current_inline_comment != NULL) {
+		unnamed_op->common.name_comment =
+		    acpi_gbl_current_inline_comment;
+		acpi_gbl_current_inline_comment = NULL;
+	}
+#endif
 
 	/*
 	 * Make sure that we found a NAME and didn't run out of arguments
@@ -242,6 +256,30 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	}
 
 	acpi_ps_append_arg(*op, unnamed_op->common.value.arg);
+
+#ifdef ACPI_ASL_COMPILER
+
+	/* save any comments that might be associated with unnamed_op. */
+
+	(*op)->common.inline_comment = unnamed_op->common.inline_comment;
+	(*op)->common.end_node_comment = unnamed_op->common.end_node_comment;
+	(*op)->common.close_brace_comment =
+	    unnamed_op->common.close_brace_comment;
+	(*op)->common.name_comment = unnamed_op->common.name_comment;
+	(*op)->common.comment_list = unnamed_op->common.comment_list;
+	(*op)->common.end_blk_comment = unnamed_op->common.end_blk_comment;
+	(*op)->common.cv_filename = unnamed_op->common.cv_filename;
+	(*op)->common.cv_parent_filename =
+	    unnamed_op->common.cv_parent_filename;
+	(*op)->named.aml = unnamed_op->common.aml;
+
+	unnamed_op->common.inline_comment = NULL;
+	unnamed_op->common.end_node_comment = NULL;
+	unnamed_op->common.close_brace_comment = NULL;
+	unnamed_op->common.name_comment = NULL;
+	unnamed_op->common.comment_list = NULL;
+	unnamed_op->common.end_blk_comment = NULL;
+#endif
 
 	if ((*op)->common.aml_opcode == AML_REGION_OP ||
 	    (*op)->common.aml_opcode == AML_DATA_REGION_OP) {
