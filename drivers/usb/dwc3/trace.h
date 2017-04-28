@@ -107,7 +107,7 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 	TP_PROTO(struct dwc3_request *req),
 	TP_ARGS(req),
 	TP_STRUCT__entry(
-		__dynamic_array(char, name, DWC3_MSG_MAX)
+		__string(name, req->dep->name)
 		__field(struct dwc3_request *, req)
 		__field(unsigned, actual)
 		__field(unsigned, length)
@@ -117,7 +117,7 @@ DECLARE_EVENT_CLASS(dwc3_log_request,
 		__field(int, no_interrupt)
 	),
 	TP_fast_assign(
-		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", req->dep->name);
+		__assign_str(name, req->dep->name);
 		__entry->req = req;
 		__entry->actual = req->request.actual;
 		__entry->length = req->request.length;
@@ -190,7 +190,7 @@ DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 		struct dwc3_gadget_ep_cmd_params *params, int cmd_status),
 	TP_ARGS(dep, cmd, params, cmd_status),
 	TP_STRUCT__entry(
-		__dynamic_array(char, name, DWC3_MSG_MAX)
+		__string(name, dep->name)
 		__field(unsigned int, cmd)
 		__field(u32, param0)
 		__field(u32, param1)
@@ -198,7 +198,7 @@ DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 		__field(int, cmd_status)
 	),
 	TP_fast_assign(
-		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
+		__assign_str(name, dep->name);
 		__entry->cmd = cmd;
 		__entry->param0 = params->param0;
 		__entry->param1 = params->param1;
@@ -223,7 +223,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_PROTO(struct dwc3_ep *dep, struct dwc3_trb *trb),
 	TP_ARGS(dep, trb),
 	TP_STRUCT__entry(
-		__dynamic_array(char, name, DWC3_MSG_MAX)
+		__string(name, dep->name)
 		__field(struct dwc3_trb *, trb)
 		__field(u32, allocated)
 		__field(u32, queued)
@@ -234,7 +234,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__field(u32, type)
 	),
 	TP_fast_assign(
-		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
+		__assign_str(name, dep->name);
 		__entry->trb = trb;
 		__entry->allocated = dep->allocated_requests;
 		__entry->queued = dep->queued_requests;
@@ -291,7 +291,7 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 	TP_PROTO(struct dwc3_ep *dep),
 	TP_ARGS(dep),
 	TP_STRUCT__entry(
-		__dynamic_array(char, name, DWC3_MSG_MAX)
+		__string(name, dep->name)
 		__field(unsigned, maxpacket)
 		__field(unsigned, maxpacket_limit)
 		__field(unsigned, max_streams)
@@ -302,7 +302,7 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 		__field(u8, trb_dequeue)
 	),
 	TP_fast_assign(
-		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
+		__assign_str(name, dep->name);
 		__entry->maxpacket = dep->endpoint.maxpacket;
 		__entry->maxpacket_limit = dep->endpoint.maxpacket_limit;
 		__entry->max_streams = dep->endpoint.max_streams;
