@@ -494,7 +494,7 @@ extern void slb_set_size(u16 size);
  *
  * For user processes max context id is limited to MAX_USER_CONTEXT.
 
- * For kernel space, we use context ids 1-5 to map address as below:
+ * For kernel space, we use context ids 1-4 to map addresses as below:
  * NOTE: each context only support 64TB now.
  * 0x00001 -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
  * 0x00002 -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
