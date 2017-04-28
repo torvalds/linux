@@ -92,7 +92,7 @@ static irqreturn_t dpc_irq(int irq, void *context)
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_STATUS, &status);
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_SOURCE_ID,
 			     &source);
-	if (!status)
+	if (!status || status == (u16)(~0))
 		return IRQ_NONE;
 
 	dev_info(&dpc->dev->device, "DPC containment event, status:%#06x source:%#06x\n",
