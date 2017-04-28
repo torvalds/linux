@@ -750,10 +750,10 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 		} else if (output_color == COLOR_YCBCR_BT2020) {
 			if (!(IS_YUV(win->area[0].fmt_cfg) ||
 			      win->area[0].yuyv_fmt)) {
+				LOAD_CSC(vop_dev, R2R, csc_r2r_bt709to2020, i);
 				val |= V_WIN0_YUV2YUV_R2Y_EN(1) |
 					V_WIN0_YUV2YUV_EN(1);
 				if ((win->id == 0) || (win->id == 1)) {
-					LOAD_CSC(vop_dev, R2R, csc_r2r_bt709to2020, i);
 					LOAD_CSC(vop_dev, R2Y, csc_r2y_bt2020, i);
 				} else {
 					val |= V_WIN0_YUV2YUV_R2Y_MODE(VOP_R2Y_CSC_BT2020);
