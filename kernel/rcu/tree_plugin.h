@@ -181,6 +181,8 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 			 (rnp->expmask & rdp->grpmask ? RCU_EXP_BLKD : 0);
 	struct task_struct *t = current;
 
+	lockdep_assert_held(&rnp->lock);
+
 	/*
 	 * Decide where to queue the newly blocked task.  In theory,
 	 * this could be an if-statement.  In practice, when I tried
@@ -289,6 +291,7 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
  */
 static void rcu_preempt_qs(void)
 {
+	RCU_LOCKDEP_WARN(preemptible(), "rcu_preempt_qs() invoked with preemption enabled!!!\n");
 	if (__this_cpu_read(rcu_data_p->cpu_no_qs.s)) {
 		trace_rcu_grace_period(TPS("rcu_preempt"),
 				       __this_cpu_read(rcu_data_p->gpnum),
@@ -318,6 +321,7 @@ static void rcu_preempt_note_context_switch(bool preempt)
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_preempt_note_context_switch() invoked with interrupts enabled!!!\n");
 	WARN_ON_ONCE(!preempt && t->rcu_read_lock_nesting > 0);
 	if (t->rcu_read_lock_nesting > 0 &&
 	    !t->rcu_read_unlock_special.b.blocked) {
@@ -634,6 +638,7 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
  */
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 {
+	RCU_LOCKDEP_WARN(preemptible(), "rcu_preempt_check_blocked_tasks() invoked with preemption enabled!!!\n");
 	WARN_ON_ONCE(rcu_preempt_blocked_readers_cgp(rnp));
 	if (rcu_preempt_has_tasks(rnp))
 		rnp->gp_tasks = rnp->blkd_tasks.next;
@@ -1024,6 +1029,7 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 {
 	struct task_struct *t;
 
+	lockdep_assert_held(&rnp->lock);
 	if (!rcu_preempt_blocked_readers_cgp(rnp) && rnp->exp_tasks == NULL) {
 		rnp->n_balk_exp_gp_tasks++;
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -1404,6 +1410,7 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 	unsigned long dj;
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_needs_cpu() invoked with irqs enabled!!!");
 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL)) {
 		*nextevt = KTIME_MAX;
 		return 0;
@@ -1456,6 +1463,7 @@ static void rcu_prepare_for_idle(void)
 	struct rcu_state *rsp;
 	int tne;
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_prepare_for_idle() invoked with irqs enabled!!!");
 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL) ||
 	    rcu_is_nocb_cpu(smp_processor_id()))
 		return;
@@ -1511,6 +1519,7 @@ static void rcu_prepare_for_idle(void)
  */
 static void rcu_cleanup_after_idle(void)
 {
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_cleanup_after_idle() invoked with irqs enabled!!!");
 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_ALL) ||
 	    rcu_is_nocb_cpu(smp_processor_id()))
 		return;
@@ -2544,6 +2553,8 @@ static void rcu_sysidle_enter(int irq)
 	unsigned long j;
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_sysidle_enter() invoked with irqs enabled!!!");
+
 	/* If there are no nohz_full= CPUs, no need to track this. */
 	if (!tick_nohz_full_enabled())
 		return;
@@ -2615,6 +2626,8 @@ static void rcu_sysidle_exit(int irq)
 {
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_sysidle_exit() invoked with irqs enabled!!!");
+
 	/* If there are no nohz_full= CPUs, no need to track this. */
 	if (!tick_nohz_full_enabled())
 		return;
@@ -2673,6 +2686,8 @@ static void rcu_sysidle_check_cpu(struct rcu_data *rdp, bool *isidle,
 	int cur;
 	unsigned long j;
 	struct rcu_dynticks *rdtp = rdp->dynticks;
+
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_sysidle_check_cpu() invoked with irqs enabled!!!");
 
 	/* If there are no nohz_full= CPUs, don't check system-wide idleness. */
 	if (!tick_nohz_full_enabled())
@@ -2841,6 +2856,8 @@ bool rcu_sys_is_idle(void)
 {
 	static struct rcu_sysidle_head rsh;
 	int rss = READ_ONCE(full_sysidle_state);
+
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_sys_is_idle() invoked with irqs enabled!!!");
 
 	if (WARN_ON_ONCE(smp_processor_id() != tick_do_timer_cpu))
 		return false;
