@@ -1811,6 +1811,7 @@ static void wacom_wac_pad_battery_event(struct hid_device *hdev, struct hid_fiel
 
 	switch (equivalent_usage) {
 	case WACOM_HID_WD_BATTERY_LEVEL:
+		value = value * 100 / (field->logical_maximum - field->logical_minimum);
 		wacom_wac->hid_data.battery_capacity = value;
 		wacom_wac->hid_data.bat_connected = 1;
 		break;
@@ -2035,6 +2036,7 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 			wacom_wac->hid_data.sense_state = value;
 		return;
 	case HID_DG_BATTERYSTRENGTH:
+		value = value * 100 / (field->logical_maximum - field->logical_minimum);
 		wacom_wac->hid_data.battery_capacity = value;
 		wacom_wac->hid_data.bat_connected = 1;
 		break;
