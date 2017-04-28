@@ -157,17 +157,6 @@ atomisp-objs += \
 	hrt/hive_isp_css_mm_hrt.o \
 	atomisp_v4l2.o
 	
-extra= \
-	hrt/hive_isp_css_mm_hrt.o \
-	hrt/memory_access.o \
-	hrt/device_access.o \
-	hmm/hmm_dynamic_pool.o \
-	hmm/hmm_vm.o \
-	hmm/hmm_reserved_pool.o \
-	hmm/hmm_bo_dev.o \
-	hmm/hmm.o \
-	hmm/hmm_bo.o
-
 # These will be needed when clean merge CHT support nicely into the driver
 # Keep them here handy for when we get to that point
 #
