@@ -91,7 +91,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	if (sizeof(hrt_vaddress) > sizeof(hrt_data)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "size of hrt_vaddress can not be greater than hrt_data\n");
-		mmgr_free(code_addr);
+		hmm_free(code_addr);
 		code_addr = mmgr_NULL;
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
@@ -100,7 +100,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	if ((init_dmem_cfg->ddr_data_addr % HIVE_ISP_DDR_WORD_BYTES) != 0) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
 				    "DDR address pointer is not properly aligned for DMA transfer\n");
-		mmgr_free(code_addr);
+		hmm_free(code_addr);
 		code_addr = mmgr_NULL;
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
@@ -143,7 +143,7 @@ enum ia_css_err ia_css_spctrl_unload_fw(sp_ID_t sp_id)
 
 	/*  freeup the resource */
 	if (spctrl_cofig_info[sp_id].code_addr)
-		mmgr_free(spctrl_cofig_info[sp_id].code_addr);
+		hmm_free(spctrl_cofig_info[sp_id].code_addr);
 	spctrl_loaded[sp_id] = false;
 	return IA_CSS_SUCCESS;
 }

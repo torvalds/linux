@@ -17,7 +17,7 @@
 #include <type_support.h>
 #include <assert_support.h>
 #include <platform_support.h> /* memset */
-#include <memory_access.h>    /* mmmgr_malloc, mmmgr_free */
+#include <memory_access.h>    /* mmmgr_malloc, mhmm_free */
 #include <ia_css_debug.h>
 
 /**
@@ -185,7 +185,7 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 				      pool->handles[i]->vptr,
 				      pool->handles[i]->count);
 				/* free memory */
-				mmgr_free(pool->handles[i]->vptr);
+				hmm_free(pool->handles[i]->vptr);
 				/* remove from refcount admin */
 				ia_css_rmgr_refcount_release_vbuf(
 					&pool->handles[i]);
@@ -319,7 +319,7 @@ void ia_css_rmgr_rel_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 	if ((*handle)->count == 1) {
 		if (!pool->recycle) {
 			/* non recycling pool, free mem */
-			mmgr_free((*handle)->vptr);
+			hmm_free((*handle)->vptr);
 		} else {
 			/* recycle to pool */
 			rmgr_push_handle(pool, handle);

@@ -345,7 +345,7 @@ void ia_css_frame_free(struct ia_css_frame *frame)
 	IA_CSS_ENTER_PRIVATE("frame = %p", frame);
 
 	if (frame != NULL) {
-		mmgr_free(frame->data);
+		hmm_free(frame->data);
 		sh_css_free(frame);
 	}
 

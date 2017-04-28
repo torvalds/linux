@@ -990,7 +990,7 @@ ia_css_binary_uninit(void)
 	for (i = 0; i < IA_CSS_BINARY_NUM_MODES; i++) {
 		for (b = binary_infos[i]; b; b = b->next) {
 			if (b->xmem_addr)
-				mmgr_free(b->xmem_addr);
+				hmm_free(b->xmem_addr);
 			b->xmem_addr = mmgr_NULL;
 		}
 		binary_infos[i] = NULL;

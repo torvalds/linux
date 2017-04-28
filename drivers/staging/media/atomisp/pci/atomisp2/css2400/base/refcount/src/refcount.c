@@ -108,7 +108,7 @@ void ia_css_refcount_uninit(void)
 			/*	ia_css_debug_dtrace(IA_CSS_DBG_TRACE,
 				"ia_css_refcount_uninit: freeing (%x)\n",
 				entry->data);*/
-			mmgr_free(entry->data);
+			hmm_free(entry->data);
 			entry->data = mmgr_NULL;
 			entry->count = 0;
 			entry->id = 0;
@@ -181,7 +181,7 @@ bool ia_css_refcount_decrement(int32_t id, hrt_vaddress ptr)
 			if (entry->count == 0) {
 				/* ia_css_debug_dtrace(IA_CSS_DBEUG_TRACE,
 				   "ia_css_refcount_decrement: freeing\n");*/
-				mmgr_free(ptr);
+				hmm_free(ptr);
 				entry->data = mmgr_NULL;
 				entry->id = 0;
 			}
@@ -244,9 +244,9 @@ void ia_css_refcount_clear(int32_t id, clear_func clear_func_ptr)
 			} else {
 				ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 						    "ia_css_refcount_clear: "
-						    "using mmgr_free: "
+						    "using hmm_free: "
 						    "no clear_func\n");
-				mmgr_free(entry->data);
+				hmm_free(entry->data);
 			}
 #ifndef ISP2401
 

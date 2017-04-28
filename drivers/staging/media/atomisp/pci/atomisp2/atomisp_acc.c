@@ -136,7 +136,7 @@ void atomisp_acc_release(struct atomisp_sub_device *asd)
 	/* Free all mapped memory blocks */
 	list_for_each_entry_safe(atomisp_map, tm, &asd->acc.memory_maps, list) {
 		list_del(&atomisp_map->list);
-		mmgr_free(atomisp_map->ptr);
+		hmm_free(atomisp_map->ptr);
 		kfree(atomisp_map);
 	}
 }
@@ -374,7 +374,7 @@ int atomisp_acc_map(struct atomisp_sub_device *asd, struct atomisp_acc_map *map)
 
 	atomisp_map = kmalloc(sizeof(*atomisp_map), GFP_KERNEL);
 	if (!atomisp_map) {
-		mmgr_free(cssptr);
+		hmm_free(cssptr);
 		return -ENOMEM;
 	}
 	atomisp_map->ptr = cssptr;
@@ -399,7 +399,7 @@ int atomisp_acc_unmap(struct atomisp_sub_device *asd, struct atomisp_acc_map *ma
 		return -EINVAL;
 
 	list_del(&atomisp_map->list);
-	mmgr_free(atomisp_map->ptr);
+	hmm_free(atomisp_map->ptr);
 	kfree(atomisp_map);
 	return 0;
 }

@@ -2613,7 +2613,7 @@ ia_css_pipe_destroy(struct ia_css_pipe *pipe)
 
 #ifndef ISP2401
 	if (pipe->scaler_pp_lut != mmgr_NULL) {
-		mmgr_free(pipe->scaler_pp_lut);
+		hmm_free(pipe->scaler_pp_lut);
 		pipe->scaler_pp_lut = mmgr_NULL;
 	}
 #else
@@ -8692,7 +8692,7 @@ acc_unload_extension(struct ia_css_fw_info *firmware)
 	while (hd){
 		hdn = (hd->next) ? &(*hd->next) : NULL;
 		if (hd->info.isp.xmem_addr) {
-			mmgr_free(hd->info.isp.xmem_addr);
+			hmm_free(hd->info.isp.xmem_addr);
 			hd->info.isp.xmem_addr = mmgr_NULL;
 		}
 		hd->isp_code = NULL;

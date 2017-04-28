@@ -2825,7 +2825,7 @@ void
 ia_css_isp_3a_statistics_free(struct ia_css_isp_3a_statistics *me)
 {
 	if (me != NULL) {
-		mmgr_free(me->data_ptr);
+		hmm_free(me->data_ptr);
 		sh_css_free(me);
 	}
 }
@@ -2874,7 +2874,7 @@ ia_css_metadata_free(struct ia_css_metadata *me)
 		 * We found this to be confusing during development
 		 * and debugging. */
 		IA_CSS_ENTER("me=%p", me);
-		mmgr_free(me->address);
+		hmm_free(me->address);
 		sh_css_free(me);
 		IA_CSS_LEAVE("void");
 	}
@@ -3320,7 +3320,7 @@ inline hrt_vaddress sh_css_params_alloc_gdc_lut(void)
 inline void sh_css_params_free_gdc_lut(hrt_vaddress addr)
 {
 	if (addr != mmgr_NULL)
-		mmgr_free(addr);
+		hmm_free(addr);
 }
 
 enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
@@ -3358,7 +3358,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	/* Free any existing tables. */
 #ifndef ISP2401
 	if (pipe->scaler_pp_lut != mmgr_NULL) {
-		mmgr_free(pipe->scaler_pp_lut);
+		hmm_free(pipe->scaler_pp_lut);
 		pipe->scaler_pp_lut = mmgr_NULL;
 	}
 #else
@@ -3447,7 +3447,7 @@ void sh_css_params_free_default_gdc_lut(void)
 
 #ifndef ISP2401
 	if (default_gdc_lut != mmgr_NULL) {
-		mmgr_free(default_gdc_lut);
+		hmm_free(default_gdc_lut);
 		default_gdc_lut = mmgr_NULL;
 	}
 #else
@@ -3479,7 +3479,7 @@ static void free_buffer_callback(
 {
 	IA_CSS_ENTER_PRIVATE("void");
 
-	mmgr_free(ptr);
+	hmm_free(ptr);
 
 	IA_CSS_LEAVE_PRIVATE("void");
 }
@@ -3495,8 +3495,8 @@ sh_css_param_clear_param_sets(void)
 }
 
 /*
- * MW: we can define mmgr_free() to return a NULL
- * then you can write ptr = mmgr_free(ptr);
+ * MW: we can define hmm_free() to return a NULL
+ * then you can write ptr = hmm_free(ptr);
  */
 #define safe_free(id, x)      \
 	do {                  \

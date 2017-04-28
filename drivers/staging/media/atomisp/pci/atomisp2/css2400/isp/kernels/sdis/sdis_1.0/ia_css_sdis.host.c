@@ -390,7 +390,7 @@ void
 ia_css_isp_dvs_statistics_free(struct ia_css_isp_dvs_statistics *me)
 {
 	if (me != NULL) {
-		mmgr_free(me->data_ptr);
+		hmm_free(me->data_ptr);
 		sh_css_free(me);
 	}
 }

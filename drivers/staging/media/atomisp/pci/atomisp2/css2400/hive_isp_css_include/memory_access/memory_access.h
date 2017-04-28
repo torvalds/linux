@@ -59,6 +59,8 @@
  */
 #include "device_access.h"
 
+#include "hmm/hmm.h"
+
 /*!
  * \brief
  * Bit masks for specialised allocation functions
@@ -105,14 +107,6 @@ extern hrt_vaddress mmgr_malloc(const size_t size);
  \return vaddress
  */
 extern hrt_vaddress mmgr_calloc(const size_t N, const size_t size);
-
-/*! Free the memory allocation identified by the address
-
- \param	vaddr[in]		Address of the allocation
-
- \return vaddress
- */
-extern void mmgr_free(hrt_vaddress vaddr);
 
 /*! Return the address of an allocation in memory
 

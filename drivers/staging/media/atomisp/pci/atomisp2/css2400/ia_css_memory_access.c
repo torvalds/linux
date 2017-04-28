@@ -53,12 +53,6 @@ mmgr_calloc(const size_t N, const size_t size)
 }
 
 void
-mmgr_free(hrt_vaddress vaddr)
-{
-	hmm_free(vaddr);
-}
-
-void
 mmgr_clear(hrt_vaddress vaddr, const size_t size)
 {
 	hrt_isp_css_mm_set(vaddr, 0, size);
