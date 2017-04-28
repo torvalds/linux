@@ -2651,9 +2651,9 @@ nfp_net_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	if (proto != htons(ETH_P_ALL))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (tc->type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn)) {
 		if (!nn->dp.bpf_offload_xdp)
