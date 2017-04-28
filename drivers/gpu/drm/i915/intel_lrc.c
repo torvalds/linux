@@ -138,10 +138,6 @@
 #include "i915_drv.h"
 #include "intel_mocs.h"
 
-#define GEN9_LR_CONTEXT_RENDER_SIZE (22 * PAGE_SIZE)
-#define GEN8_LR_CONTEXT_RENDER_SIZE (20 * PAGE_SIZE)
-#define GEN8_LR_CONTEXT_OTHER_SIZE (2 * PAGE_SIZE)
-
 #define RING_EXECLIST_QFULL		(1 << 0x2)
 #define RING_EXECLIST1_VALID		(1 << 0x3)
 #define RING_EXECLIST0_VALID		(1 << 0x4)
@@ -1918,53 +1914,6 @@ populate_lr_context(struct i915_gem_context *ctx,
 	return 0;
 }
 
-/**
- * intel_lr_context_size() - return the size of the context for an engine
- * @engine: which engine to find the context size for
- *
- * Each engine may require a different amount of space for a context image,
- * so when allocating (or copying) an image, this function can be used to
- * find the right size for the specific engine.
- *
- * Return: size (in bytes) of an engine-specific context image
- *
- * Note: this size includes the HWSP, which is part of the context image
- * in LRC mode, but does not include the "shared data page" used with
- * GuC submission. The caller should account for this if using the GuC.
- */
-uint32_t intel_lr_context_size(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
-
-	WARN_ON(INTEL_GEN(dev_priv) < 8);
-
-	switch (engine->class) {
-	case RENDER_CLASS:
-		switch (INTEL_GEN(dev_priv)) {
-		default:
-			MISSING_CASE(INTEL_GEN(dev_priv));
-		case 9:
-			ret = GEN9_LR_CONTEXT_RENDER_SIZE;
-			break;
-		case 8:
-			ret = GEN8_LR_CONTEXT_RENDER_SIZE;
-			break;
-		}
-		break;
-
-	default:
-		MISSING_CASE(engine->class);
-	case VIDEO_DECODE_CLASS:
-	case VIDEO_ENHANCEMENT_CLASS:
-	case COPY_ENGINE_CLASS:
-		ret = GEN8_LR_CONTEXT_OTHER_SIZE;
-		break;
-	}
-
-	return ret;
-}
-
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine)
 {
@@ -1977,8 +1926,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	WARN_ON(ce->state);
 
-	context_size = round_up(intel_lr_context_size(engine),
-				I915_GTT_PAGE_SIZE);
+	context_size = round_up(engine->context_size, I915_GTT_PAGE_SIZE);
 
 	/* One extra page as the sharing data between driver and GuC */
 	context_size += PAGE_SIZE * LRC_PPHWSP_PN;

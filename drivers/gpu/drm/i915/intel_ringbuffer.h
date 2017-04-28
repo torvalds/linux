@@ -196,13 +196,14 @@ struct intel_engine_cs {
 	enum intel_engine_id id;
 	unsigned int uabi_id;
 	unsigned int hw_id;
+	unsigned int guc_id;
 
 	u8 class;
 	u8 instance;
-
-	unsigned int guc_id;
-	u32		mmio_base;
+	u32 context_size;
+	u32 mmio_base;
 	unsigned int irq_shift;
+
 	struct intel_ring *buffer;
 	struct intel_timeline *timeline;
 

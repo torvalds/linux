@@ -1444,7 +1444,7 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 
-	obj = i915_gem_object_create(i915, i915->hw_context_size);
+	obj = i915_gem_object_create(i915, engine->context_size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
@@ -1487,7 +1487,7 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 		return 0;
 	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
-	if (engine->id == RCS && !ce->state && engine->i915->hw_context_size) {
+	if (!ce->state && engine->context_size) {
 		struct i915_vma *vma;
 
 		vma = alloc_context_vma(engine);

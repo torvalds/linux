@@ -69,8 +69,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	gvt_dbg_sched("ring id %d workload lrca %x", ring_id,
 			workload->ctx_desc.lrca);
 
-	context_page_num = intel_lr_context_size(
-			gvt->dev_priv->engine[ring_id]);
+	context_page_num = gvt->dev_priv->engine[ring_id]->context_size;
 
 	context_page_num = context_page_num >> PAGE_SHIFT;
 
@@ -333,8 +332,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 	gvt_dbg_sched("ring id %d workload lrca %x\n", ring_id,
 			workload->ctx_desc.lrca);
 
-	context_page_num = intel_lr_context_size(
-			gvt->dev_priv->engine[ring_id]);
+	context_page_num = gvt->dev_priv->engine[ring_id]->context_size;
 
 	context_page_num = context_page_num >> PAGE_SHIFT;
 

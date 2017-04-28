@@ -26,6 +26,22 @@
 #include "intel_ringbuffer.h"
 #include "intel_lrc.h"
 
+/* Haswell does have the CXT_SIZE register however it does not appear to be
+ * valid. Now, docs explain in dwords what is in the context object. The full
+ * size is 70720 bytes, however, the power context and execlist context will
+ * never be saved (power context is stored elsewhere, and execlists don't work
+ * on HSW) - so the final size, including the extra state required for the
+ * Resource Streamer, is 66944 bytes, which rounds to 17 pages.
+ */
+#define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
+/* Same as Haswell, but 72064 bytes now. */
+#define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
+
+#define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
+#define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
+
+#define GEN8_LR_CONTEXT_OTHER_SIZE	( 2 * PAGE_SIZE)
+
 struct engine_class_info {
 	const char *name;
 	int (*init_legacy)(struct intel_engine_cs *engine);
@@ -107,6 +123,69 @@ static const struct engine_info intel_engines[] = {
 	},
 };
 
+/**
+ * ___intel_engine_context_size() - return the size of the context for an engine
+ * @dev_priv: i915 device private
+ * @class: engine class
+ *
+ * Each engine class may require a different amount of space for a context
+ * image.
+ *
+ * Return: size (in bytes) of an engine class specific context image
+ *
+ * Note: this size includes the HWSP, which is part of the context image
+ * in LRC mode, but does not include the "shared data page" used with
+ * GuC submission. The caller should account for this if using the GuC.
+ */
+static u32
+__intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
+{
+	u32 cxt_size;
+
+	BUILD_BUG_ON(I915_GTT_PAGE_SIZE != PAGE_SIZE);
+
+	switch (class) {
+	case RENDER_CLASS:
+		switch (INTEL_GEN(dev_priv)) {
+		default:
+			MISSING_CASE(INTEL_GEN(dev_priv));
+		case 9:
+			return GEN9_LR_CONTEXT_RENDER_SIZE;
+		case 8:
+			return i915.enable_execlists ?
+			       GEN8_LR_CONTEXT_RENDER_SIZE :
+			       GEN8_CXT_TOTAL_SIZE;
+		case 7:
+			if (IS_HASWELL(dev_priv))
+				return HSW_CXT_TOTAL_SIZE;
+
+			cxt_size = I915_READ(GEN7_CXT_SIZE);
+			return round_up(GEN7_CXT_TOTAL_SIZE(cxt_size) * 64,
+					PAGE_SIZE);
+		case 6:
+			cxt_size = I915_READ(CXT_SIZE);
+			return round_up(GEN6_CXT_TOTAL_SIZE(cxt_size) * 64,
+					PAGE_SIZE);
+		case 5:
+		case 4:
+		case 3:
+		case 2:
+		/* For the special day when i810 gets merged. */
+		case 1:
+			return 0;
+		}
+		break;
+	default:
+		MISSING_CASE(class);
+	case VIDEO_DECODE_CLASS:
+	case VIDEO_ENHANCEMENT_CLASS:
+	case COPY_ENGINE_CLASS:
+		if (INTEL_GEN(dev_priv) < 8)
+			return 0;
+		return GEN8_LR_CONTEXT_OTHER_SIZE;
+	}
+}
+
 static int
 intel_engine_setup(struct drm_i915_private *dev_priv,
 		   enum intel_engine_id id)
@@ -135,6 +214,11 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->class = info->class;
 	engine->instance = info->instance;
 
+	engine->context_size = __intel_engine_context_size(dev_priv,
+							   engine->class);
+	if (WARN_ON(engine->context_size > BIT(20)))
+		engine->context_size = 0;
+
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
 
@@ -145,12 +229,12 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_engines_init_early() - allocate the Engine Command Streamers
+ * intel_engines_init_mmio() - allocate and prepare the Engine Command Streamers
  * @dev_priv: i915 device private
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init_early(struct drm_i915_private *dev_priv)
+int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
 	const unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
@@ -200,7 +284,7 @@ cleanup:
 }
 
 /**
- * intel_engines_init() - allocate, populate and init the Engine Command Streamers
+ * intel_engines_init() - init the Engine Command Streamers
  * @dev_priv: i915 device private
  *
  * Return: non-zero if the initialization failed.

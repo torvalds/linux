@@ -1051,8 +1051,7 @@ static int guc_ads_create(struct intel_guc *guc)
 		dev_priv->engine[RCS]->status_page.ggtt_offset;
 
 	for_each_engine(engine, dev_priv, id)
-		blob->ads.eng_state_size[engine->guc_id] =
-			intel_lr_context_size(engine);
+		blob->ads.eng_state_size[engine->guc_id] = engine->context_size;
 
 	base = guc_ggtt_offset(vma);
 	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
