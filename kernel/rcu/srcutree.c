@@ -762,6 +762,13 @@ static bool srcu_might_be_idle(struct srcu_struct *sp)
 }
 
 /*
+ * SRCU callback function to leak a callback.
+ */
+static void srcu_leak_callback(struct rcu_head *rhp)
+{
+}
+
+/*
  * Enqueue an SRCU callback on the srcu_data structure associated with
  * the current CPU and the specified srcu_struct structure, initiating
  * grace-period processing if it is not already running.
@@ -799,6 +806,12 @@ void __call_srcu(struct srcu_struct *sp, struct rcu_head *rhp,
 	struct srcu_data *sdp;
 
 	check_init_srcu_struct(sp);
+	if (debug_rcu_head_queue(rhp)) {
+		/* Probable double call_srcu(), so leak the callback. */
+		WRITE_ONCE(rhp->func, srcu_leak_callback);
+		WARN_ONCE(1, "call_srcu(): Leaked duplicate callback\n");
+		return;
+	}
 	rhp->func = func;
 	local_irq_save(flags);
 	sdp = this_cpu_ptr(sp->sda);
@@ -973,9 +986,12 @@ void srcu_barrier(struct srcu_struct *sp)
 		spin_lock_irq(&sdp->lock);
 		atomic_inc(&sp->srcu_barrier_cpu_cnt);
 		sdp->srcu_barrier_head.func = srcu_barrier_cb;
+		debug_rcu_head_queue(&sdp->srcu_barrier_head);
 		if (!rcu_segcblist_entrain(&sdp->srcu_cblist,
-					   &sdp->srcu_barrier_head, 0))
+					   &sdp->srcu_barrier_head, 0)) {
+			debug_rcu_head_unqueue(&sdp->srcu_barrier_head);
 			atomic_dec(&sp->srcu_barrier_cpu_cnt);
+		}
 		spin_unlock_irq(&sdp->lock);
 	}
 
@@ -1100,6 +1116,7 @@ static void srcu_invoke_callbacks(struct work_struct *work)
 	spin_unlock_irq(&sdp->lock);
 	rhp = rcu_cblist_dequeue(&ready_cbs);
 	for (; rhp != NULL; rhp = rcu_cblist_dequeue(&ready_cbs)) {
+		debug_rcu_head_unqueue(rhp);
 		local_bh_disable();
 		rhp->func(rhp);
 		local_bh_enable();
