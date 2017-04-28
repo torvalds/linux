@@ -2544,6 +2544,14 @@ F:	block/
 F:	kernel/trace/blktrace.c
 F:	lib/sbitmap.c
 
+BFQ I/O SCHEDULER
+M:	Paolo Valente <paolo.valente@linaro.org>
+M:	Jens Axboe <axboe@kernel.dk>
+L:	linux-block@vger.kernel.org
+S:	Maintained
+F:	block/bfq-*
+F:	Documentation/block/bfq-iosched.txt
+
 BLOCK2MTD DRIVER
 M:	Joern Engel <joern@lazybastard.org>
 L:	linux-mtd@lists.infradead.org
