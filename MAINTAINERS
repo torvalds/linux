@@ -9664,6 +9664,17 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/aardvark-pci.txt
 F:	drivers/pci/host/pci-aardvark.c
 
+PCI DRIVER FOR MICROSEMI SWITCHTEC
+M:	Kurt Schwemmer <kurt.schwemmer@microsemi.com>
+M:	Stephen Bates <stephen.bates@microsemi.com>
+M:	Logan Gunthorpe <logang@deltatee.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/switchtec.txt
+F:	Documentation/ABI/testing/sysfs-class-switchtec
+F:	drivers/pci/switch/switchtec*
+F:	include/uapi/linux/switchtec_ioctl.h
+
 PCI DRIVER FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
 L:	linux-tegra@vger.kernel.org
