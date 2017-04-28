@@ -48,8 +48,8 @@ void vega10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 	table->Tliquid1Limit = cpu_to_le16(tdp_table->usTemperatureLimitLiquid1);
 	table->Tliquid2Limit = cpu_to_le16(tdp_table->usTemperatureLimitLiquid2);
 	table->TplxLimit = cpu_to_le16(tdp_table->usTemperatureLimitPlx);
-	table->LoadLineResistance = cpu_to_le16(
-			hwmgr->platform_descriptor.LoadLineSlope);
+	table->LoadLineResistance =
+			hwmgr->platform_descriptor.LoadLineSlope * 256;
 	table->FitLimit = 0; /* Not used for Vega10 */
 
 	table->Liquid1_I2C_address = tdp_table->ucLiquid1_I2C_address;
