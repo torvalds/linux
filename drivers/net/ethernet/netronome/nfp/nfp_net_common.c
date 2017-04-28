@@ -1153,16 +1153,13 @@ nfp_net_free_frag(void *frag, bool xdp)
 /**
  * nfp_net_rx_alloc_one() - Allocate and map page frag for RX
  * @dp:		NFP Net data path struct
- * @rx_ring:	RX ring structure of the skb
  * @dma_addr:	Pointer to storage for DMA address (output param)
  *
  * This function will allcate a new page frag, map it for DMA.
  *
  * Return: allocated page frag or NULL on failure.
  */
-static void *
-nfp_net_rx_alloc_one(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
-		     dma_addr_t *dma_addr)
+static void *nfp_net_rx_alloc_one(struct nfp_net_dp *dp, dma_addr_t *dma_addr)
 {
 	void *frag;
 
@@ -1317,8 +1314,7 @@ nfp_net_rx_ring_bufs_alloc(struct nfp_net_dp *dp,
 	rxbufs = rx_ring->rxbufs;
 
 	for (i = 0; i < rx_ring->cnt - 1; i++) {
-		rxbufs[i].frag =
-			nfp_net_rx_alloc_one(dp, rx_ring, &rxbufs[i].dma_addr);
+		rxbufs[i].frag = nfp_net_rx_alloc_one(dp, &rxbufs[i].dma_addr);
 		if (!rxbufs[i].frag) {
 			nfp_net_rx_ring_bufs_free(dp, rx_ring);
 			return -ENOMEM;
