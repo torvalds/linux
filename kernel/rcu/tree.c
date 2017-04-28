@@ -762,6 +762,7 @@ static int rcu_future_needs_gp(struct rcu_state *rsp)
 	int idx = (READ_ONCE(rnp->completed) + 1) & 0x1;
 	int *fp = &rnp->need_future_gp[idx];
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_future_needs_gp() invoked with irqs enabled!!!");
 	return READ_ONCE(*fp);
 }
 
@@ -773,6 +774,7 @@ static int rcu_future_needs_gp(struct rcu_state *rsp)
 static bool
 cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 {
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "cpu_needs_another_gp() invoked with irqs enabled!!!");
 	if (rcu_gp_in_progress(rsp))
 		return false;  /* No, a grace period is already in progress. */
 	if (rcu_future_needs_gp(rsp))
@@ -799,6 +801,7 @@ static void rcu_eqs_enter_common(bool user)
 	struct rcu_data *rdp;
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_eqs_enter_common() invoked with irqs enabled!!!");
 	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 	    !user && !is_idle_task(current)) {
@@ -972,6 +975,7 @@ static void rcu_eqs_exit(bool user)
 	struct rcu_dynticks *rdtp;
 	long long oldval;
 
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_eqs_exit() invoked with irqs enabled!!!");
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 	oldval = rdtp->dynticks_nesting;
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && oldval < 0);
@@ -1679,6 +1683,8 @@ void rcu_cpu_stall_reset(void)
 static unsigned long rcu_cbs_completed(struct rcu_state *rsp,
 				       struct rcu_node *rnp)
 {
+	lockdep_assert_held(&rnp->lock);
+
 	/*
 	 * If RCU is idle, we just wait for the next grace period.
 	 * But we can only be sure that RCU is idle if we are looking
@@ -1723,6 +1729,8 @@ rcu_start_future_gp(struct rcu_node *rnp, struct rcu_data *rdp,
 	unsigned long c;
 	bool ret = false;
 	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
+
+	lockdep_assert_held(&rnp->lock);
 
 	/*
 	 * Pick up grace-period number for new callbacks.  If this
@@ -1850,6 +1858,8 @@ static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 {
 	bool ret = false;
 
+	lockdep_assert_held(&rnp->lock);
+
 	/* If no pending (not yet ready to invoke) callbacks, nothing to do. */
 	if (!rcu_segcblist_pend_cbs(&rdp->cblist))
 		return false;
@@ -1888,6 +1898,8 @@ static bool rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 static bool rcu_advance_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 			    struct rcu_data *rdp)
 {
+	lockdep_assert_held(&rnp->lock);
+
 	/* If no pending (not yet ready to invoke) callbacks, nothing to do. */
 	if (!rcu_segcblist_pend_cbs(&rdp->cblist))
 		return false;
@@ -1913,6 +1925,8 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 {
 	bool ret;
 	bool need_gp;
+
+	lockdep_assert_held(&rnp->lock);
 
 	/* Handle the ends of any preceding grace periods first. */
 	if (rdp->completed == rnp->completed &&
@@ -2346,6 +2360,7 @@ static bool
 rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
 		      struct rcu_data *rdp)
 {
+	lockdep_assert_held(&rnp->lock);
 	if (!rsp->gp_kthread || !cpu_needs_another_gp(rsp, rdp)) {
 		/*
 		 * Either we have not yet spawned the grace-period
@@ -2407,6 +2422,7 @@ static bool rcu_start_gp(struct rcu_state *rsp)
 static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	__releases(rcu_get_root(rsp)->lock)
 {
+	lockdep_assert_held(&rcu_get_root(rsp)->lock);
 	WARN_ON_ONCE(!rcu_gp_in_progress(rsp));
 	WRITE_ONCE(rsp->gp_flags, READ_ONCE(rsp->gp_flags) | RCU_GP_FLAG_FQS);
 	raw_spin_unlock_irqrestore_rcu_node(rcu_get_root(rsp), flags);
@@ -2430,6 +2446,8 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 {
 	unsigned long oldmask = 0;
 	struct rcu_node *rnp_c;
+
+	lockdep_assert_held(&rnp->lock);
 
 	/* Walk up the rcu_node hierarchy. */
 	for (;;) {
@@ -2491,6 +2509,7 @@ static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 	unsigned long mask;
 	struct rcu_node *rnp_p;
 
+	lockdep_assert_held(&rnp->lock);
 	if (rcu_state_p == &rcu_sched_state || rsp != rcu_state_p ||
 	    rnp->qsmask != 0 || rcu_preempt_blocked_readers_cgp(rnp)) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -2604,6 +2623,8 @@ static void
 rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 			  struct rcu_node *rnp, struct rcu_data *rdp)
 {
+	lockdep_assert_held(&rsp->orphan_lock);
+
 	/* No-CBs CPUs do not have orphanable callbacks. */
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) || rcu_is_nocb_cpu(rdp->cpu))
 		return;
@@ -2643,6 +2664,8 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 {
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
+
+	lockdep_assert_held(&rsp->orphan_lock);
 
 	/* No-CBs CPUs are handled specially. */
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
@@ -2710,6 +2733,7 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 	long mask;
 	struct rcu_node *rnp = rnp_leaf;
 
+	lockdep_assert_held(&rnp->lock);
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
 	    rnp->qsmaskinit || rcu_preempt_has_tasks(rnp))
 		return;
@@ -3703,6 +3727,7 @@ static void rcu_init_new_rnp(struct rcu_node *rnp_leaf)
 	long mask;
 	struct rcu_node *rnp = rnp_leaf;
 
+	lockdep_assert_held(&rnp->lock);
 	for (;;) {
 		mask = rnp->grpmask;
 		rnp = rnp->parent;
