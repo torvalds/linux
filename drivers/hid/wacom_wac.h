@@ -153,6 +153,10 @@
 #define WACOM_HID_WT_X                  (WACOM_HID_UP_WACOMTOUCH | 0x130)
 #define WACOM_HID_WT_Y                  (WACOM_HID_UP_WACOMTOUCH | 0x131)
 
+#define WACOM_BATTERY_USAGE(f)	(((f)->hid == HID_DG_BATTERYSTRENGTH) || \
+				 ((f)->hid == WACOM_HID_WD_BATTERY_CHARGING) || \
+				 ((f)->hid == WACOM_HID_WD_BATTERY_LEVEL))
+
 #define WACOM_PAD_FIELD(f)	(((f)->physical == HID_DG_TABLETFUNCTIONKEY) || \
 				 ((f)->physical == WACOM_HID_WD_DIGITIZERFNKEYS) || \
 				 ((f)->physical == WACOM_HID_WD_DIGITIZERINFO))
