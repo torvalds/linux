@@ -43,6 +43,8 @@
 #include "dpni.h"
 #include "dpni-cmd.h"
 
+#include "dpaa2-eth-trace.h"
+
 #define DPAA2_ETH_STORE_SIZE		16
 
 /* Maximum number of scatter-gather entries in an ingress frame,

@@ -42,6 +42,12 @@
 #include "../../fsl-mc/include/mc-sys.h"
 #include "dpaa2-eth.h"
 
+/* CREATE_TRACE_POINTS only needs to be defined once. Other dpa files
+ * using trace events only need to #include <trace/events/sched.h>
+ */
+#define CREATE_TRACE_POINTS
+#include "dpaa2-eth-trace.h"
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Freescale DPAA2 Ethernet Driver");
@@ -212,6 +218,9 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	struct device *dev = priv->net_dev->dev.parent;
 	struct dpaa2_fas *fas;
 	u32 status = 0;
+
+	/* Tracing point */
+	trace_dpaa2_rx_fd(priv->net_dev, fd);
 
 	dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE, DMA_FROM_DEVICE);
 	vaddr = phys_to_virt(addr);
@@ -583,6 +592,9 @@ static int dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 		goto err_build_fd;
 	}
 
+	/* Tracing point */
+	trace_dpaa2_tx_fd(net_dev, &fd);
+
 	/* TxConf FQ selection primarily based on cpu affinity; this is
 	 * non-migratable context, so it's safe to call smp_processor_id().
 	 */
@@ -622,6 +634,9 @@ static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
 	struct rtnl_link_stats64 *percpu_stats;
 	struct dpaa2_eth_drv_stats *percpu_extras;
 	u32 status = 0;
+
+	/* Tracing point */
+	trace_dpaa2_tx_conf_fd(priv->net_dev, fd);
 
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 	percpu_extras->tx_conf_frames++;
@@ -707,6 +722,12 @@ static int add_bufs(struct dpaa2_eth_priv *priv, u16 bpid)
 			goto err_map;
 
 		buf_array[i] = addr;
+
+		/* tracing point */
+		trace_dpaa2_eth_buf_seed(priv->net_dev,
+					 buf, DPAA2_ETH_BUF_RAW_SIZE,
+					 addr, DPAA2_ETH_RX_BUF_SIZE,
+					 bpid);
 	}
 
 release_bufs:
