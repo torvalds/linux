@@ -36,6 +36,7 @@ static void xprt_switch_add_xprt_locked(struct rpc_xprt_switch *xps,
 	if (xps->xps_nxprts == 0)
 		xps->xps_net = xprt->xprt_net;
 	xps->xps_nxprts++;
+	xps->xps_nactive++;
 }
 
 /**
@@ -62,6 +63,7 @@ static void xprt_switch_remove_xprt_locked(struct rpc_xprt_switch *xps,
 {
 	if (unlikely(xprt == NULL))
 		return;
+	xps->xps_nactive--;
 	xps->xps_nxprts--;
 	if (xps->xps_nxprts == 0)
 		xps->xps_net = NULL;
@@ -317,8 +319,24 @@ struct rpc_xprt *xprt_switch_find_next_entry_roundrobin(struct list_head *head,
 static
 struct rpc_xprt *xprt_iter_next_entry_roundrobin(struct rpc_xprt_iter *xpi)
 {
-	return xprt_iter_next_entry_multiple(xpi,
+	struct rpc_xprt_switch *xps = rcu_dereference(xpi->xpi_xpswitch);
+	struct rpc_xprt *xprt;
+	unsigned long xprt_queuelen;
+	unsigned long xps_queuelen;
+	unsigned long xps_avglen;
+
+	do {
+		xprt = xprt_iter_next_entry_multiple(xpi,
 			xprt_switch_find_next_entry_roundrobin);
+		if (xprt == NULL)
+			break;
+		xprt_queuelen = atomic_long_read(&xprt->queuelen);
+		if (xprt_queuelen <= 2)
+			break;
+		xps_queuelen = atomic_long_read(&xps->xps_queuelen);
+		xps_avglen = DIV_ROUND_UP(xps_queuelen, xps->xps_nactive);
+	} while (xprt_queuelen > xps_avglen);
+	return xprt;
 }
 
 static

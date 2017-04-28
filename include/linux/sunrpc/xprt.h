@@ -238,6 +238,7 @@ struct rpc_xprt {
 	/*
 	 * Send stuff
 	 */
+	atomic_long_t		queuelen;
 	spinlock_t		transport_lock;	/* lock transport info */
 	spinlock_t		reserve_lock;	/* lock slot table */
 	spinlock_t		queue_lock;	/* send/receive queue lock */
