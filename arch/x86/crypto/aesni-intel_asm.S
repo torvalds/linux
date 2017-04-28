@@ -1549,18 +1549,35 @@ _return_T_decrypt:
 	mov	arg10, %r11               # %r11 = auth_tag_len
 	cmp	$16, %r11
 	je	_T_16_decrypt
-	cmp	$12, %r11
-	je	_T_12_decrypt
+	cmp	$8, %r11
+	jl	_T_4_decrypt
 _T_8_decrypt:
 	MOVQ_R64_XMM	%xmm0, %rax
 	mov	%rax, (%r10)
-	jmp	_return_T_done_decrypt
-_T_12_decrypt:
-	MOVQ_R64_XMM	%xmm0, %rax
-	mov	%rax, (%r10)
+	add	$8, %r10
+	sub	$8, %r11
 	psrldq	$8, %xmm0
+	cmp	$0, %r11
+	je	_return_T_done_decrypt
+_T_4_decrypt:
 	movd	%xmm0, %eax
-	mov	%eax, 8(%r10)
+	mov	%eax, (%r10)
+	add	$4, %r10
+	sub	$4, %r11
+	psrldq	$4, %xmm0
+	cmp	$0, %r11
+	je	_return_T_done_decrypt
+_T_123_decrypt:
+	movd	%xmm0, %eax
+	cmp	$2, %r11
+	jl	_T_1_decrypt
+	mov	%ax, (%r10)
+	cmp	$2, %r11
+	je	_return_T_done_decrypt
+	add	$2, %r10
+	sar	$16, %eax
+_T_1_decrypt:
+	mov	%al, (%r10)
 	jmp	_return_T_done_decrypt
 _T_16_decrypt:
 	movdqu	%xmm0, (%r10)
@@ -1813,18 +1830,35 @@ _return_T_encrypt:
 	mov	arg10, %r11                    # %r11 = auth_tag_len
 	cmp	$16, %r11
 	je	_T_16_encrypt
-	cmp	$12, %r11
-	je	_T_12_encrypt
+	cmp	$8, %r11
+	jl	_T_4_encrypt
 _T_8_encrypt:
 	MOVQ_R64_XMM	%xmm0, %rax
 	mov	%rax, (%r10)
-	jmp	_return_T_done_encrypt
-_T_12_encrypt:
-	MOVQ_R64_XMM	%xmm0, %rax
-	mov	%rax, (%r10)
+	add	$8, %r10
+	sub	$8, %r11
 	psrldq	$8, %xmm0
+	cmp	$0, %r11
+	je	_return_T_done_encrypt
+_T_4_encrypt:
 	movd	%xmm0, %eax
-	mov	%eax, 8(%r10)
+	mov	%eax, (%r10)
+	add	$4, %r10
+	sub	$4, %r11
+	psrldq	$4, %xmm0
+	cmp	$0, %r11
+	je	_return_T_done_encrypt
+_T_123_encrypt:
+	movd	%xmm0, %eax
+	cmp	$2, %r11
+	jl	_T_1_encrypt
+	mov	%ax, (%r10)
+	cmp	$2, %r11
+	je	_return_T_done_encrypt
+	add	$2, %r10
+	sar	$16, %eax
+_T_1_encrypt:
+	mov	%al, (%r10)
 	jmp	_return_T_done_encrypt
 _T_16_encrypt:
 	movdqu	%xmm0, (%r10)
