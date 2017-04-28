@@ -1481,19 +1481,36 @@ _return_T\@:
         cmp     $16, %r11
         je      _T_16\@
 
-        cmp     $12, %r11
-        je      _T_12\@
+        cmp     $8, %r11
+        jl      _T_4\@
 
 _T_8\@:
         vmovq   %xmm9, %rax
         mov     %rax, (%r10)
-        jmp     _return_T_done\@
-_T_12\@:
-        vmovq   %xmm9, %rax
-        mov     %rax, (%r10)
+        add     $8, %r10
+        sub     $8, %r11
         vpsrldq $8, %xmm9, %xmm9
+        cmp     $0, %r11
+        je     _return_T_done\@
+_T_4\@:
         vmovd   %xmm9, %eax
-        mov     %eax, 8(%r10)
+        mov     %eax, (%r10)
+        add     $4, %r10
+        sub     $4, %r11
+        vpsrldq     $4, %xmm9, %xmm9
+        cmp     $0, %r11
+        je     _return_T_done\@
+_T_123\@:
+        vmovd     %xmm9, %eax
+        cmp     $2, %r11
+        jl     _T_1\@
+        mov     %ax, (%r10)
+        cmp     $2, %r11
+        je     _return_T_done\@
+        add     $2, %r10
+        sar     $16, %eax
+_T_1\@:
+        mov     %al, (%r10)
         jmp     _return_T_done\@
 
 _T_16\@:
