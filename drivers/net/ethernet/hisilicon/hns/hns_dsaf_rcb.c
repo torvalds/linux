@@ -492,7 +492,7 @@ static int hns_rcb_get_base_irq_idx(struct rcb_common_cb *rcb_common)
  *hns_rcb_get_cfg - get rcb config
  *@rcb_common: rcb common device
  */
-void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common)
+int hns_rcb_get_cfg(struct rcb_common_cb *rcb_common)
 {
 	struct ring_pair_cb *ring_pair_cb;
 	u32 i;
@@ -517,10 +517,16 @@ void hns_rcb_get_cfg(struct rcb_common_cb *rcb_common)
 		ring_pair_cb->virq[HNS_RCB_IRQ_IDX_RX] =
 		is_ver1 ? platform_get_irq(pdev, base_irq_idx + i * 2 + 1) :
 			  platform_get_irq(pdev, base_irq_idx + i * 3);
+		if ((ring_pair_cb->virq[HNS_RCB_IRQ_IDX_TX] == -EPROBE_DEFER) ||
+		    (ring_pair_cb->virq[HNS_RCB_IRQ_IDX_RX] == -EPROBE_DEFER))
+			return -EPROBE_DEFER;
+
 		ring_pair_cb->q.phy_base =
 			RCB_COMM_BASE_TO_RING_BASE(rcb_common->phy_base, i);
 		hns_rcb_ring_pair_get_cfg(ring_pair_cb);
 	}
+
+	return 0;
 }
 
 /**
