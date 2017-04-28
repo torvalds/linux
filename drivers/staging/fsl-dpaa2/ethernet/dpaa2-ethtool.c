@@ -56,6 +56,23 @@ char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
 
 #define DPAA2_ETH_NUM_STATS	ARRAY_SIZE(dpaa2_ethtool_stats)
 
+char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
+	/* per-cpu stats */
+	"tx conf frames",
+	"tx conf bytes",
+	"tx sg frames",
+	"tx sg bytes",
+	"rx sg frames",
+	"rx sg bytes",
+	"enqueue portal busy",
+	/* Channel stats */
+	"dequeue portal busy",
+	"channel pull errors",
+	"cdan",
+};
+
+#define DPAA2_ETH_NUM_EXTRA_STATS	ARRAY_SIZE(dpaa2_ethtool_extras)
+
 static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
@@ -147,6 +164,10 @@ static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 			strlcpy(p, dpaa2_ethtool_stats[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+		for (i = 0; i < DPAA2_ETH_NUM_EXTRA_STATS; i++) {
+			strlcpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
 		break;
 	}
 }
@@ -155,7 +176,7 @@ static int dpaa2_eth_get_sset_count(struct net_device *net_dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS: /* ethtool_get_stats(), ethtool_get_drvinfo() */
-		return DPAA2_ETH_NUM_STATS;
+		return DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -171,9 +192,14 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	int j, k, err;
 	int num_cnt;
 	union dpni_statistics dpni_stats;
+	u64 cdan = 0;
+	u64 portal_busy = 0, pull_err = 0;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	struct dpaa2_eth_drv_stats *extras;
+	struct dpaa2_eth_ch_stats *ch_stats;
 
-	memset(data, 0, sizeof(u64) * DPAA2_ETH_NUM_STATS);
+	memset(data, 0,
+	       sizeof(u64) * (DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS));
 
 	/* Print standard counters, from DPNI statistics */
 	for (j = 0; j <= 2; j++) {
@@ -197,6 +223,25 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 		for (k = 0; k < num_cnt; k++)
 			*(data + i++) = dpni_stats.raw.counter[k];
 	}
+
+	/* Print per-cpu extra stats */
+	for_each_online_cpu(k) {
+		extras = per_cpu_ptr(priv->percpu_extras, k);
+		for (j = 0; j < sizeof(*extras) / sizeof(__u64); j++)
+			*((__u64 *)data + i + j) += *((__u64 *)extras + j);
+	}
+	i += j;
+
+	for (j = 0; j < priv->num_channels; j++) {
+		ch_stats = &priv->channel[j]->stats;
+		cdan += ch_stats->cdan;
+		portal_busy += ch_stats->dequeue_portal_busy;
+		pull_err += ch_stats->pull_err;
+	}
+
+	*(data + i++) = portal_busy;
+	*(data + i++) = pull_err;
+	*(data + i++) = cdan;
 }
 
 static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,

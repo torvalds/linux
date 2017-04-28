@@ -197,6 +197,38 @@ struct dpaa2_fas {
  */
 #define DPAA2_ETH_ENQUEUE_RETRIES	10
 
+/* Driver statistics, other than those in struct rtnl_link_stats64.
+ * These are usually collected per-CPU and aggregated by ethtool.
+ */
+struct dpaa2_eth_drv_stats {
+	__u64	tx_conf_frames;
+	__u64	tx_conf_bytes;
+	__u64	tx_sg_frames;
+	__u64	tx_sg_bytes;
+	__u64	rx_sg_frames;
+	__u64	rx_sg_bytes;
+	/* Enqueues retried due to portal busy */
+	__u64	tx_portal_busy;
+};
+
+/* Per-FQ statistics */
+struct dpaa2_eth_fq_stats {
+	/* Number of frames received on this queue */
+	__u64 frames;
+};
+
+/* Per-channel statistics */
+struct dpaa2_eth_ch_stats {
+	/* Volatile dequeues retried due to portal busy */
+	__u64 dequeue_portal_busy;
+	/* Number of CDANs; useful to estimate avg NAPI len */
+	__u64 cdan;
+	/* Number of frames received on queues from this channel */
+	__u64 frames;
+	/* Pull errors */
+	__u64 pull_err;
+};
+
 /* Maximum number of queues associated with a DPNI */
 #define DPAA2_ETH_MAX_RX_QUEUES		16
 #define DPAA2_ETH_MAX_TX_QUEUES		NR_CPUS
@@ -224,6 +256,7 @@ struct dpaa2_eth_fq {
 			struct dpaa2_eth_channel *,
 			const struct dpaa2_fd *,
 			struct napi_struct *);
+	struct dpaa2_eth_fq_stats stats;
 };
 
 struct dpaa2_eth_channel {
@@ -236,6 +269,7 @@ struct dpaa2_eth_channel {
 	struct dpaa2_io_store *store;
 	struct dpaa2_eth_priv *priv;
 	int buf_count;
+	struct dpaa2_eth_ch_stats stats;
 };
 
 struct dpaa2_eth_hash_fields {
@@ -275,6 +309,8 @@ struct dpaa2_eth_priv {
 
 	/* Standard statistics */
 	struct rtnl_link_stats64 __percpu *percpu_stats;
+	/* Extra stats, in addition to the ones known by the kernel */
+	struct dpaa2_eth_drv_stats __percpu *percpu_extras;
 
 	u16 mc_token;
 
