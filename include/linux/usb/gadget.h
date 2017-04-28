@@ -352,6 +352,8 @@ struct usb_gadget_ops {
  * @deactivated: True if gadget is deactivated - in deactivated state it cannot
  *	be connected.
  * @connected: True if gadget is connected.
+ * @lpm_capable: If the gadget max_speed is FULL or HIGH, this flag
+ *	indicates that it supports LPM as per the LPM ECN & errata.
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -404,6 +406,7 @@ struct usb_gadget {
 	unsigned			is_selfpowered:1;
 	unsigned			deactivated:1;
 	unsigned			connected:1;
+	unsigned			lpm_capable:1;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
