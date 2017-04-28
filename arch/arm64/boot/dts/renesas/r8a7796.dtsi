@@ -961,6 +961,38 @@
 			dma-channels = <16>;
 		};
 
+		hsusb: usb@e6590000 {
+			/* placeholder */
+		};
+
+		xhci0: usb@ee000000 {
+			/* placeholder */
+		};
+
+		ohci0: usb@ee080000 {
+			/* placeholder */
+		};
+
+		ehci0: usb@ee080100 {
+			/* placeholder */
+		};
+
+		usb2_phy0: usb-phy@ee080200 {
+			/* placeholder */
+		};
+
+		ohci1: usb@ee0a0000 {
+			/* placeholder */
+		};
+
+		ehci1: usb@ee0a0100 {
+			/* placeholder */
+		};
+
+		usb2_phy1: usb-phy@ee0a0200 {
+			/* placeholder */
+		};
+
 		sdhi0: sd@ee100000 {
 			compatible = "renesas,sdhi-r8a7796";
 			reg = <0 0xee100000 0 0x2000>;
@@ -1059,6 +1091,56 @@
 						temperature = <120000>;
 						hysteresis = <2000>;
 						type = "critical";
+					};
+				};
+			};
+		};
+
+		rcar_sound: sound@ec500000 {
+			/* placeholder */
+
+			rcar_sound,dvc {
+				dvc0: dvc-0 {
+				};
+
+				dvc1: dvc-1 {
+				};
+			};
+
+			rcar_sound,src {
+				src0: src-0 {
+				};
+				src1: src-1 {
+				};
+			};
+
+			rcar_sound,ssi {
+				ssi0: ssi-0 {
+				};
+
+				ssi1: ssi-1 {
+				};
+			};
+		};
+
+		pciec0: pcie@fe000000 {
+			/* placeholder */
+		};
+
+		pciec1: pcie@ee800000 {
+			/* placeholder */
+		};
+
+		du: display@feb00000 {
+			/* placeholder */
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					du_out_rgb: endpoint {
 					};
 				};
 			};
