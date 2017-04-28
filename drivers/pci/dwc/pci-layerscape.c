@@ -305,6 +305,7 @@ static struct platform_driver ls_pcie_driver = {
 	.driver = {
 		.name = "layerscape-pcie",
 		.of_match_table = ls_pcie_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver_probe(ls_pcie_driver, ls_pcie_probe);

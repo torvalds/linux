@@ -697,6 +697,7 @@ static struct platform_driver xgene_pcie_driver = {
 	.driver = {
 		   .name = "xgene-pcie",
 		   .of_match_table = of_match_ptr(xgene_pcie_match_table),
+		   .suppress_bind_attrs = true,
 	},
 	.probe = xgene_pcie_probe_bridge,
 };

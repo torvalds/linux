@@ -333,6 +333,7 @@ static struct platform_driver hisi_pcie_driver = {
 	.driver = {
 		   .name = "hisi-pcie",
 		   .of_match_table = hisi_pcie_of_match,
+		   .suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver(hisi_pcie_driver);
@@ -390,6 +391,7 @@ static struct platform_driver hisi_pcie_almost_ecam_driver = {
 	.driver = {
 		   .name = "hisi-pcie-almost-ecam",
 		   .of_match_table = hisi_pcie_almost_ecam_of_match,
+		   .suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver(hisi_pcie_almost_ecam_driver);

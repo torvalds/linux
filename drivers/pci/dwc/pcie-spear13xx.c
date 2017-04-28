@@ -308,6 +308,7 @@ static struct platform_driver spear13xx_pcie_driver = {
 	.driver = {
 		.name	= "spear-pcie",
 		.of_match_table = of_match_ptr(spear13xx_pcie_of_match),
+		.suppress_bind_attrs = true,
 	},
 };
 

@@ -295,6 +295,7 @@ static struct platform_driver artpec6_pcie_driver = {
 	.driver = {
 		.name	= "artpec6-pcie",
 		.of_match_table = artpec6_pcie_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver(artpec6_pcie_driver);
