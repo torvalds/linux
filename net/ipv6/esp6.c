@@ -330,11 +330,8 @@ int esp6_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 	ivlen = crypto_aead_ivsize(aead);
 
 	tmp = esp_alloc_tmp(aead, esp->nfrags + 2, seqhilen);
-	if (!tmp) {
-		spin_unlock_bh(&x->lock);
-		err = -ENOMEM;
+	if (!tmp)
 		goto error;
-	}
 
 	seqhi = esp_tmp_seqhi(tmp);
 	iv = esp_tmp_iv(aead, tmp, seqhilen);
@@ -362,7 +359,6 @@ int esp6_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 		spin_lock_bh(&x->lock);
 		if (unlikely(!skb_page_frag_refill(allocsize, pfrag, GFP_ATOMIC))) {
 			spin_unlock_bh(&x->lock);
-			err = -ENOMEM;
 			goto error;
 		}
 
