@@ -4488,7 +4488,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * of the reset, so we only reset recent machines with logical
 	 * context support (that must be reset to remove any stray contexts).
 	 */
-	if (HAS_HW_CONTEXTS(i915)) {
+	if (INTEL_GEN(i915) >= 6) {
 		int reset = intel_gpu_reset(i915, ALL_ENGINES);
 		WARN_ON(reset && reset != -ENODEV);
 	}

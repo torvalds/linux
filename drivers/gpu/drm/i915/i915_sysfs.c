@@ -185,9 +185,6 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
-	if (!HAS_HW_CONTEXTS(dev_priv))
-		return -ENXIO;
-
 	ret = l3_access_valid(dev_priv, offset);
 	if (ret)
 		return ret;

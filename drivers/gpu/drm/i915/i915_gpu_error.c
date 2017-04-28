@@ -1598,6 +1598,9 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 		error->done_reg = I915_READ(DONE_REG);
 	}
 
+	if (INTEL_GEN(dev_priv) >= 6)
+		error->ccid = I915_READ(CCID);
+
 	/* 3: Feature specific registers */
 	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv)) {
 		error->gam_ecochk = I915_READ(GAM_ECOCHK);
@@ -1605,9 +1608,6 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	}
 
 	/* 4: Everything else */
-	if (HAS_HW_CONTEXTS(dev_priv))
-		error->ccid = I915_READ(CCID);
-
 	if (INTEL_GEN(dev_priv) >= 8) {
 		error->ier = I915_READ(GEN8_DE_MISC_IER);
 		for (i = 0; i < 4; i++)
