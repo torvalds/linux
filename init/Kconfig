@@ -521,7 +521,6 @@ config RCU_EXPERT
 
 config SRCU
 	bool
-	default y
 	help
 	  This option selects the sleepable version of RCU. This version
 	  permits arbitrary sleeping or blocking within RCU read-side critical
