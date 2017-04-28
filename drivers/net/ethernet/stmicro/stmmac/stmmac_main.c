@@ -3110,8 +3110,6 @@ int stmmac_resume(struct net_device *ndev)
 			stmmac_mdio_reset(priv->mii);
 	}
 
-	netif_device_attach(ndev);
-
 	spin_lock_irqsave(&priv->lock, flags);
 
 	priv->cur_rx = 0;
@@ -3127,6 +3125,8 @@ int stmmac_resume(struct net_device *ndev)
 	napi_enable(&priv->napi);
 
 	netif_start_queue(ndev);
+
+	netif_device_attach(ndev);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
