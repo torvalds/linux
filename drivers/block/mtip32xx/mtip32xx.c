@@ -1030,6 +1030,22 @@ static bool mtip_pause_ncq(struct mtip_port *port,
 	return false;
 }
 
+static bool mtip_commands_active(struct mtip_port *port)
+{
+	unsigned int active;
+	unsigned int n;
+
+	/*
+	 * Ignore s_active bit 0 of array element 0.
+	 * This bit will always be set
+	 */
+	active = readl(port->s_active[0]) & 0xFFFFFFFE;
+	for (n = 1; n < port->dd->slot_groups; n++)
+		active |= readl(port->s_active[n]);
+
+	return active != 0;
+}
+
 /*
  * Wait for port to quiesce
  *
@@ -1043,8 +1059,7 @@ static bool mtip_pause_ncq(struct mtip_port *port,
 static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 {
 	unsigned long to;
-	unsigned int n;
-	unsigned int active = 1;
+	bool active = true;
 
 	blk_mq_stop_hw_queues(port->dd->queue);
 
@@ -1061,14 +1076,7 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 		if (mtip_check_surprise_removal(port->dd->pdev))
 			goto err_fault;
 
-		/*
-		 * Ignore s_active bit 0 of array element 0.
-		 * This bit will always be set
-		 */
-		active = readl(port->s_active[0]) & 0xFFFFFFFE;
-		for (n = 1; n < port->dd->slot_groups; n++)
-			active |= readl(port->s_active[n]);
-
+		active = mtip_commands_active(port);
 		if (!active)
 			break;
 	} while (time_before(jiffies, to));
