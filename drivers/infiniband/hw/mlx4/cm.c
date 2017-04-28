@@ -279,14 +279,14 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 }
 
 static struct id_map_entry *
-id_map_get(struct ib_device *ibdev, int *pv_cm_id, int sl_cm_id, int slave_id)
+id_map_get(struct ib_device *ibdev, int *pv_cm_id, int slave_id, int sl_cm_id)
 {
 	struct id_map_entry *ent;
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
 	spin_lock(&sriov->id_map_lock);
 	if (*pv_cm_id == -1) {
-		ent = id_map_find_by_sl_id(ibdev, sl_cm_id, slave_id);
+		ent = id_map_find_by_sl_id(ibdev, slave_id, sl_cm_id);
 		if (ent)
 			*pv_cm_id = (int) ent->pv_cm_id;
 	} else
