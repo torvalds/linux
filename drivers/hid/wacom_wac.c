@@ -2177,6 +2177,8 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		input_sync(input);
 	}
 
+	wacom_wac_pad_battery_report(hdev, report);
+
 	if (!prox) {
 		wacom_wac->tool[0] = 0;
 		wacom_wac->id[0] = 0;
