@@ -82,11 +82,7 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 	if (likely(!data->hctx))
 		data->hctx = blk_mq_map_queue(q, data->ctx->cpu);
 
-	/*
-	 * For a reserved tag, allocate a normal request since we might
-	 * have driver dependencies on the value of the internal tag.
-	 */
-	if (e && !(data->flags & BLK_MQ_REQ_RESERVED)) {
+	if (e) {
 		data->flags |= BLK_MQ_REQ_INTERNAL;
 
 		/*
