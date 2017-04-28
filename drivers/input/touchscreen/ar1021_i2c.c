@@ -18,6 +18,10 @@
 #define AR1021_MAX_X	4095
 #define AR1021_MAX_Y	4095
 
+#define AR1021_CMD	0x55
+
+#define AR1021_CMD_ENABLE_TOUCH		0x12
+
 struct ar1021_i2c {
 	struct i2c_client *client;
 	struct input_dev *input;
@@ -56,8 +60,19 @@ out:
 
 static int ar1021_i2c_open(struct input_dev *dev)
 {
+	static const u8 cmd_enable_touch[] = {
+		AR1021_CMD,
+		0x01, /* number of bytes after this */
+		AR1021_CMD_ENABLE_TOUCH
+	};
 	struct ar1021_i2c *ar1021 = input_get_drvdata(dev);
 	struct i2c_client *client = ar1021->client;
+	int error;
+
+	error = i2c_master_send(ar1021->client, cmd_enable_touch,
+				sizeof(cmd_enable_touch));
+	if (error < 0)
+		return error;
 
 	enable_irq(client->irq);
 
