@@ -921,7 +921,7 @@ void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
 static ssize_t force_remove_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", !!acpi_force_hot_remove);
+	return sprintf(buf, "%d\n", 0);
 }
 
 static ssize_t force_remove_store(struct kobject *kobj,
@@ -935,9 +935,10 @@ static ssize_t force_remove_store(struct kobject *kobj,
 	if (ret < 0)
 		return ret;
 
-	lock_device_hotplug();
-	acpi_force_hot_remove = val;
-	unlock_device_hotplug();
+	if (val) {
+		pr_err("Enabling force_remove is not supported anymore. Please report to linux-acpi@vger.kernel.org if you depend on this functionality\n");
+		return -EINVAL;
+	}
 	return size;
 }
 

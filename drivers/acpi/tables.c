@@ -311,22 +311,6 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 }
 
 int __init
-acpi_parse_entries(char *id,
-			unsigned long table_size,
-			acpi_tbl_entry_handler handler,
-			struct acpi_table_header *table_header,
-			int entry_id, unsigned int max_entries)
-{
-	struct acpi_subtable_proc proc = {
-		.id		= entry_id,
-		.handler	= handler,
-	};
-
-	return acpi_parse_entries_array(id, table_size, table_header,
-			&proc, 1, max_entries);
-}
-
-int __init
 acpi_table_parse_entries_array(char *id,
 			 unsigned long table_size,
 			 struct acpi_subtable_proc *proc, int proc_num,
