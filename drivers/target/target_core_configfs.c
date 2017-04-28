@@ -2677,13 +2677,13 @@ static ssize_t target_tg_pt_gp_tg_pt_gp_id_store(struct config_item *item,
 
 	ret = kstrtoul(page, 0, &tg_pt_gp_id);
 	if (ret < 0) {
-		pr_err("kstrtoul() returned %d for"
-			" tg_pt_gp_id\n", ret);
+		pr_err("ALUA tg_pt_gp_id: invalid value '%s' for tg_pt_gp_id\n",
+		       page);
 		return ret;
 	}
 	if (tg_pt_gp_id > 0x0000ffff) {
-		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum:"
-			" 0x0000ffff\n", tg_pt_gp_id);
+		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum: 0x0000ffff\n",
+		       tg_pt_gp_id);
 		return -EINVAL;
 	}
 
