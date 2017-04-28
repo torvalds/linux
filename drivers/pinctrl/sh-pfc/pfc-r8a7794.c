@@ -1660,30 +1660,6 @@ static const unsigned int avb_gmii_mux[] = {
 	AVB_TX_EN_MARK, AVB_TX_ER_MARK, AVB_TX_CLK_MARK,
 	AVB_COL_MARK,
 };
-static const unsigned int avb_avtp_capture_pins[] = {
-	RCAR_GP_PIN(5, 11),
-};
-static const unsigned int avb_avtp_capture_mux[] = {
-	AVB_AVTP_CAPTURE_MARK,
-};
-static const unsigned int avb_avtp_match_pins[] = {
-	RCAR_GP_PIN(5, 12),
-};
-static const unsigned int avb_avtp_match_mux[] = {
-	AVB_AVTP_MATCH_MARK,
-};
-static const unsigned int avb_avtp_capture_b_pins[] = {
-	RCAR_GP_PIN(1, 1),
-};
-static const unsigned int avb_avtp_capture_b_mux[] = {
-	AVB_AVTP_CAPTURE_B_MARK,
-};
-static const unsigned int avb_avtp_match_b_pins[] = {
-	RCAR_GP_PIN(1, 2),
-};
-static const unsigned int avb_avtp_match_b_mux[] = {
-	AVB_AVTP_MATCH_B_MARK,
-};
 /* - DU --------------------------------------------------------------------- */
 static const unsigned int du0_rgb666_pins[] = {
 	/* R[7:2], G[7:2], B[7:2] */
@@ -3535,10 +3511,6 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb_mdio),
 	SH_PFC_PIN_GROUP(avb_mii),
 	SH_PFC_PIN_GROUP(avb_gmii),
-	SH_PFC_PIN_GROUP(avb_avtp_capture),
-	SH_PFC_PIN_GROUP(avb_avtp_match),
-	SH_PFC_PIN_GROUP(avb_avtp_capture_b),
-	SH_PFC_PIN_GROUP(avb_avtp_match_b),
 	SH_PFC_PIN_GROUP(du0_rgb666),
 	SH_PFC_PIN_GROUP(du0_rgb888),
 	SH_PFC_PIN_GROUP(du0_clk0_out),
@@ -3809,10 +3781,6 @@ static const char * const avb_groups[] = {
 	"avb_mdio",
 	"avb_mii",
 	"avb_gmii",
-	"avb_avtp_capture",
-	"avb_avtp_match",
-	"avb_avtp_capture_b",
-	"avb_avtp_match_b",
 };
 
 static const char * const du0_groups[] = {
