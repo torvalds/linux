@@ -2922,7 +2922,7 @@ int atomisp_get_metadata(struct atomisp_sub_device *asd, int flag,
 				   md_buf->md_vptr,
 				   stream_info->metadata_info.size);
 	} else {
-		hrt_isp_css_mm_load(md_buf->metadata->address,
+		hmm_load(md_buf->metadata->address,
 				    asd->params.metadata_user[md_type],
 				    stream_info->metadata_info.size);
 
@@ -3005,7 +3005,7 @@ int atomisp_get_metadata_by_type(struct atomisp_sub_device *asd, int flag,
 				   md_buf->md_vptr,
 				   stream_info->metadata_info.size);
 	} else {
-		hrt_isp_css_mm_load(md_buf->metadata->address,
+		hmm_load(md_buf->metadata->address,
 				    asd->params.metadata_user[md_type],
 				    stream_info->metadata_info.size);
 

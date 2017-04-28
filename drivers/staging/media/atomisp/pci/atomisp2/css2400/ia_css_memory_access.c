@@ -52,22 +52,23 @@ mmgr_calloc(const size_t N, const size_t size)
 	return mmgr_alloc_attr(size * N, MMGR_ATTRIBUTE_CLEARED);
 }
 
-void
-mmgr_clear(hrt_vaddress vaddr, const size_t size)
+void mmgr_clear(hrt_vaddress vaddr, const size_t size)
 {
-	hrt_isp_css_mm_set(vaddr, 0, size);
+	if (vaddr)
+		hmm_set(vaddr, 0, size);
 }
 
-void
-mmgr_load(const hrt_vaddress vaddr, void *data, const size_t size)
+void mmgr_load(const hrt_vaddress vaddr, void *data, const size_t size)
 {
-	hrt_isp_css_mm_load(vaddr, data, size);
+	if (vaddr && data)
+		hmm_load(vaddr, data, size);
 }
 
 void
 mmgr_store(const hrt_vaddress vaddr, const void *data, const size_t size)
 {
-	hrt_isp_css_mm_store(vaddr, data, size);
+	if (vaddr && data)
+		hmm_store(vaddr, data, size);
 }
 
 hrt_vaddress

@@ -1144,11 +1144,11 @@ static int remove_pad_from_frame(struct atomisp_device *isp,
 
 	load += ISP_LEFT_PAD;
 	for (i = 0; i < height; i++) {
-		ret = hrt_isp_css_mm_load(load, buffer, width*sizeof(load));
+		ret = hmm_load(load, buffer, width*sizeof(load));
 		if (ret < 0)
 			goto remove_pad_error;
 
-		ret = hrt_isp_css_mm_store(store, buffer, width*sizeof(store));
+		ret = hmm_store(store, buffer, width*sizeof(store));
 		if (ret < 0)
 			goto remove_pad_error;
 

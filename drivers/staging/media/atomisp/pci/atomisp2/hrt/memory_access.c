@@ -89,15 +89,15 @@ void mmgr_clear(
 	ia_css_ptr			vaddr,
 	const size_t			size)
 {
-	hrt_isp_css_mm_set(vaddr, 0, size);
+	hmm_set(vaddr, 0, size);
 }
 
 void mmgr_load(const ia_css_ptr	vaddr, void *data, const size_t size)
 {
-	hrt_isp_css_mm_load(vaddr, data, size);
+	hmm_load(vaddr, data, size);
 }
 
 void mmgr_store(const ia_css_ptr vaddr,	const void *data, const size_t size)
 {
-	hrt_isp_css_mm_store(vaddr, data, size);
+	hmm_store(vaddr, data, size);
 }
