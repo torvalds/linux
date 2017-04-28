@@ -64,8 +64,7 @@ static int twl4030_pwrbutton_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	pwr->evbit[0] = BIT_MASK(EV_KEY);
-	pwr->keybit[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER);
+	input_set_capability(pwr, EV_KEY, KEY_POWER);
 	pwr->name = "twl4030_pwrbutton";
 	pwr->phys = "twl4030_pwrbutton/input0";
 	pwr->dev.parent = &pdev->dev;
