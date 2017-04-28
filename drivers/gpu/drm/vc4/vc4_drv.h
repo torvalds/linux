@@ -200,6 +200,7 @@ struct vc4_v3d {
 	struct vc4_dev *vc4;
 	struct platform_device *pdev;
 	void __iomem *regs;
+	struct clk *clk;
 };
 
 struct vc4_hvs {
