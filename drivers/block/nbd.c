@@ -2090,7 +2090,6 @@ static int nbd_exit_cb(int id, void *ptr, void *data)
 	struct list_head *list = (struct list_head *)data;
 	struct nbd_device *nbd = ptr;
 
-	refcount_inc(&nbd->refs);
 	list_add_tail(&nbd->list, list);
 	return 0;
 }
@@ -2106,10 +2105,11 @@ static void __exit nbd_cleanup(void)
 	idr_for_each(&nbd_index_idr, &nbd_exit_cb, &del_list);
 	mutex_unlock(&nbd_index_mutex);
 
-	list_for_each_entry(nbd, &del_list, list) {
-		if (refcount_read(&nbd->refs) != 2)
+	while (!list_empty(&del_list)) {
+		nbd = list_first_entry(&del_list, struct nbd_device, list);
+		list_del_init(&nbd->list);
+		if (refcount_read(&nbd->refs) != 1)
 			printk(KERN_ERR "nbd: possibly leaking a device\n");
-		nbd_put(nbd);
 		nbd_put(nbd);
 	}
 
