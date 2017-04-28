@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pcieport_if.h>
+#include "../pci.h"
 
 struct dpc_dev {
 	struct pcie_device	*dev;
@@ -66,6 +67,10 @@ static void interrupt_event_handler(struct work_struct *work)
 	list_for_each_entry_safe_reverse(dev, temp, &parent->devices,
 					 bus_list) {
 		pci_dev_get(dev);
+		pci_dev_set_disconnected(dev, NULL);
+		if (pci_has_subordinate(dev))
+			pci_walk_bus(dev->subordinate,
+				     pci_dev_set_disconnected, NULL);
 		pci_stop_and_remove_bus_device(dev);
 		pci_dev_put(dev);
 	}
