@@ -512,9 +512,9 @@ static int xenon_remove(struct platform_device *pdev)
 
 	xenon_clean_phy(host);
 
-	xenon_sdhc_unprepare(host);
-
 	sdhci_remove_host(host, 0);
+
+	xenon_sdhc_unprepare(host);
 
 	clk_disable_unprepare(pltfm_host->clk);
 
