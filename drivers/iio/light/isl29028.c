@@ -16,6 +16,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Datasheets:
+ *  - http://www.intersil.com/content/dam/Intersil/documents/isl2/isl29028.pdf
+ *  - http://www.intersil.com/content/dam/Intersil/documents/isl2/isl29030.pdf
  */
 
 #include <linux/module.h>
@@ -694,6 +698,7 @@ static const struct dev_pm_ops isl29028_pm_ops = {
 
 static const struct i2c_device_id isl29028_id[] = {
 	{"isl29028", 0},
+	{"isl29030", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, isl29028_id);
@@ -701,6 +706,7 @@ MODULE_DEVICE_TABLE(i2c, isl29028_id);
 static const struct of_device_id isl29028_of_match[] = {
 	{ .compatible = "isl,isl29028", }, /* for backward compat., don't use */
 	{ .compatible = "isil,isl29028", },
+	{ .compatible = "isil,isl29030", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, isl29028_of_match);
