@@ -535,7 +535,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	}
 	clk_prepare_enable(plat->stmmac_clk);
 
-	plat->pclk = devm_clk_get(&pdev->dev, "pclk");
+	plat->pclk = devm_clk_get(&pdev->dev, "pclk_mac");
 	if (IS_ERR(plat->pclk)) {
 		if (PTR_ERR(plat->pclk) == -EPROBE_DEFER)
 			goto error_pclk_get;
