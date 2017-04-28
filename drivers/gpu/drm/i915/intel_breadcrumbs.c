@@ -580,6 +580,8 @@ static int intel_breadcrumbs_signaler(void *arg)
 	signaler_set_rtpriority();
 
 	do {
+		bool do_schedule = true;
+
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		/* We are either woken up by the interrupt bottom-half,
@@ -626,8 +628,22 @@ static int intel_breadcrumbs_signaler(void *arg)
 			spin_unlock_irq(&b->rb_lock);
 
 			i915_gem_request_put(request);
-		} else {
+
+			/* If the engine is saturated we may be continually
+			 * processing completed requests. This angers the
+			 * NMI watchdog if we never let anything else
+			 * have access to the CPU. Let's pretend to be nice
+			 * and relinquish the CPU if we burn through the
+			 * entire RT timeslice!
+			 */
+			do_schedule = need_resched();
+		}
+
+		if (unlikely(do_schedule)) {
 			DEFINE_WAIT(exec);
+
+			if (kthread_should_park())
+				kthread_parkme();
 
 			if (kthread_should_stop()) {
 				GEM_BUG_ON(request);
@@ -641,9 +657,6 @@ static int intel_breadcrumbs_signaler(void *arg)
 
 			if (request)
 				remove_wait_queue(&request->execute, &exec);
-
-			if (kthread_should_park())
-				kthread_parkme();
 		}
 		i915_gem_request_put(request);
 	} while (1);

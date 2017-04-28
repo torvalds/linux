@@ -189,17 +189,44 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
-		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTB_HOTPLUG_CPT;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIB_DETECTED;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_B << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) &= ~DDI_BUF_IS_IDLE;
+		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTB_HOTPLUG_CPT;
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTC_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_C << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIC_DETECTED;
 	}
 
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_D)) {
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTD_HOTPLUG_CPT;
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &=
+			~(TRANS_DDI_BPC_MASK | TRANS_DDI_MODE_SELECT_MASK |
+			TRANS_DDI_PORT_MASK);
+		vgpu_vreg(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) |=
+			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
+			(PORT_D << TRANS_DDI_PORT_SHIFT) |
+			TRANS_DDI_FUNC_ENABLE);
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) |= DDI_BUF_CTL_ENABLE;
+		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDID_DETECTED;
 	}
 

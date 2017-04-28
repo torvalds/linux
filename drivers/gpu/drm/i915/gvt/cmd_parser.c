@@ -616,9 +616,6 @@ static inline u32 get_opcode(u32 cmd, int ring_id)
 {
 	struct decode_info *d_info;
 
-	if (ring_id >= I915_NUM_ENGINES)
-		return INVALID_OP;
-
 	d_info = ring_decode_info[ring_id][CMD_TYPE(cmd)];
 	if (d_info == NULL)
 		return INVALID_OP;
@@ -660,9 +657,6 @@ static inline void print_opcode(u32 cmd, int ring_id)
 {
 	struct decode_info *d_info;
 	int i;
-
-	if (ring_id >= I915_NUM_ENGINES)
-		return;
 
 	d_info = ring_decode_info[ring_id][CMD_TYPE(cmd)];
 	if (d_info == NULL)
@@ -2483,7 +2477,7 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	t1 = get_cycles();
 
-	memcpy(&s_before_advance_custom, s, sizeof(struct parser_exec_state));
+	s_before_advance_custom = *s;
 
 	if (info->handler) {
 		ret = info->handler(s);

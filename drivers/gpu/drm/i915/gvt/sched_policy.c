@@ -133,9 +133,6 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	if (!scheduler->next_vgpu)
 		return;
 
-	gvt_dbg_sched("try to schedule next vgpu %d\n",
-			scheduler->next_vgpu->id);
-
 	/*
 	 * after the flag is set, workload dispatch thread will
 	 * stop dispatching workload for current vgpu
@@ -144,14 +141,9 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 
 	/* still have uncompleted workload? */
 	for_each_engine(engine, gvt->dev_priv, i) {
-		if (scheduler->current_workload[i]) {
-			gvt_dbg_sched("still have running workload\n");
+		if (scheduler->current_workload[i])
 			return;
-		}
 	}
-
-	gvt_dbg_sched("switch to next vgpu %d\n",
-			scheduler->next_vgpu->id);
 
 	cur_time = ktime_get();
 	if (scheduler->current_vgpu) {
@@ -224,17 +216,12 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 		list_del_init(&vgpu_data->lru_list);
 		list_add_tail(&vgpu_data->lru_list,
 				&sched_data->lru_runq_head);
-
-		gvt_dbg_sched("pick next vgpu %d\n", vgpu->id);
 	} else {
 		scheduler->next_vgpu = gvt->idle_vgpu;
 	}
 out:
-	if (scheduler->next_vgpu) {
-		gvt_dbg_sched("try to schedule next vgpu %d\n",
-				scheduler->next_vgpu->id);
+	if (scheduler->next_vgpu)
 		try_to_schedule_next_vgpu(gvt);
-	}
 }
 
 void intel_gvt_schedule(struct intel_gvt *gvt)
