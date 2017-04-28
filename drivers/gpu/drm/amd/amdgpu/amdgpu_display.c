@@ -123,7 +123,7 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 	int r;
 
 	/* unpin of the old buffer */
-	r = amdgpu_bo_reserve(work->old_abo, false);
+	r = amdgpu_bo_reserve(work->old_abo, true);
 	if (likely(r == 0)) {
 		r = amdgpu_bo_unpin(work->old_abo);
 		if (unlikely(r != 0)) {

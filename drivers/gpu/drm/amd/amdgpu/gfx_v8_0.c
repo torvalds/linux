@@ -1239,7 +1239,7 @@ static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 
 	/* clear state block */
 	if (adev->gfx.rlc.clear_state_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC cbs bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
@@ -1250,7 +1250,7 @@ static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 
 	/* jump table block */
 	if (adev->gfx.rlc.cp_table_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
@@ -1363,7 +1363,7 @@ static void gfx_v8_0_mec_fini(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->gfx.mec.hpd_eop_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, false);
+		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, true);
 		if (unlikely(r != 0))
 			dev_warn(adev->dev, "(%d) reserve HPD EOP bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.mec.hpd_eop_obj);
@@ -1490,7 +1490,7 @@ static int gfx_v8_0_kiq_init(struct amdgpu_device *adev)
 
 	memset(hpd, 0, MEC_HPD_SIZE);
 
-	r = amdgpu_bo_reserve(kiq->eop_obj, false);
+	r = amdgpu_bo_reserve(kiq->eop_obj, true);
 	if (unlikely(r != 0))
 		dev_warn(adev->dev, "(%d) reserve kiq eop bo failed\n", r);
 	amdgpu_bo_kunmap(kiq->eop_obj);

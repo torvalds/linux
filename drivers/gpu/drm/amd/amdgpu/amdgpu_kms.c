@@ -821,7 +821,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	if (amdgpu_sriov_vf(adev)) {
 		/* TODO: how to handle reserve failure */
-		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, false));
+		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
 		amdgpu_vm_bo_rmv(adev, fpriv->vm.csa_bo_va);
 		fpriv->vm.csa_bo_va = NULL;
 		amdgpu_bo_unreserve(adev->virt.csa_obj);

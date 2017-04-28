@@ -1198,7 +1198,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		return;
 	amdgpu_ttm_debugfs_fini(adev);
 	if (adev->stollen_vga_memory) {
-		r = amdgpu_bo_reserve(adev->stollen_vga_memory, false);
+		r = amdgpu_bo_reserve(adev->stollen_vga_memory, true);
 		if (r == 0) {
 			amdgpu_bo_unpin(adev->stollen_vga_memory);
 			amdgpu_bo_unreserve(adev->stollen_vga_memory);
