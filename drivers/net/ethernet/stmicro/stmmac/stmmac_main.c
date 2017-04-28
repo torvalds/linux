@@ -165,7 +165,7 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 {
 	u32 clk_rate;
 
-	clk_rate = clk_get_rate(priv->stmmac_clk);
+	clk_rate = clk_get_rate(priv->pclk);
 
 	/* Platform provided default clk_csr would be assumed valid
 	 * for all other cases except for the below mentioned ones.
@@ -2886,7 +2886,7 @@ int stmmac_dvr_probe(struct device *device,
 	}
 	clk_prepare_enable(priv->stmmac_clk);
 
-	priv->pclk = devm_clk_get(priv->device, "pclk");
+	priv->pclk = devm_clk_get(priv->device, "pclk_mac");
 	if (IS_ERR(priv->pclk)) {
 		if (PTR_ERR(priv->pclk) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
