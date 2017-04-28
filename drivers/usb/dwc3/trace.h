@@ -60,13 +60,15 @@ DECLARE_EVENT_CLASS(dwc3_log_event,
 	TP_STRUCT__entry(
 		__field(u32, event)
 		__field(u32, ep0state)
+		__dynamic_array(char, str, DWC3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->event = event;
 		__entry->ep0state = dwc->ep0state;
 	),
 	TP_printk("event (%08x): %s", __entry->event,
-			dwc3_decode_event(__entry->event, __entry->ep0state))
+			dwc3_decode_event(__get_str(str), __entry->event,
+					  __entry->ep0state))
 );
 
 DEFINE_EVENT(dwc3_log_event, dwc3_event,

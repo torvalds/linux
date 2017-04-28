@@ -173,9 +173,8 @@ static inline const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
  * @event: the event code
  */
 static inline const char *
-dwc3_gadget_event_string(const struct dwc3_event_devt *event)
+dwc3_gadget_event_string(char *str, const struct dwc3_event_devt *event)
 {
-	static char str[256];
 	enum dwc3_link_state state = event->event_info & DWC3_LINK_STATE_MASK;
 
 	switch (event->type) {
@@ -228,10 +227,10 @@ dwc3_gadget_event_string(const struct dwc3_event_devt *event)
  * @event: then event code
  */
 static inline const char *
-dwc3_ep_event_string(const struct dwc3_event_depevt *event, u32 ep0state)
+dwc3_ep_event_string(char *str, const struct dwc3_event_depevt *event,
+		     u32 ep0state)
 {
 	u8 epnum = event->endpoint_number;
-	static char str[256];
 	size_t len;
 	int status;
 	int ret;
@@ -332,14 +331,14 @@ static inline const char *dwc3_gadget_event_type_string(u8 event)
 	}
 }
 
-static inline const char *dwc3_decode_event(u32 event, u32 ep0state)
+static inline const char *dwc3_decode_event(char *str, u32 event, u32 ep0state)
 {
 	const union dwc3_event evt = (union dwc3_event) event;
 
 	if (evt.type.is_devspec)
-		return dwc3_gadget_event_string(&evt.devt);
+		return dwc3_gadget_event_string(str, &evt.devt);
 	else
-		return dwc3_ep_event_string(&evt.depevt, ep0state);
+		return dwc3_ep_event_string(str, &evt.depevt, ep0state);
 }
 
 static inline const char *dwc3_ep_cmd_status_string(int status)
