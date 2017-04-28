@@ -92,6 +92,7 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU restricting CPUs from NR_CPUS=%d to nr_cpu_ids=%d.\n", NR_CPUS, nr_cpu_ids);
 	if (IS_ENABLED(CONFIG_RCU_BOOST))
 		pr_info("\tRCU kthread priority: %d.\n", kthread_prio);
+	rcupdate_announce_bootup_oddness();
 }
 
 #ifdef CONFIG_PREEMPT_RCU

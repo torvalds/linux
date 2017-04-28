@@ -76,6 +76,7 @@ bool rcu_gp_is_normal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
+void rcupdate_announce_bootup_oddness(void);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 enum rcutorture_type {
