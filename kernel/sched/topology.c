@@ -495,11 +495,127 @@ enum s_alloc {
 };
 
 /*
+ * Return the canonical balance CPU for this group, this is the first CPU
+ * of this group that's also in the iteration mask.
+ *
+ * The iteration mask are all those CPUs that could actually end up at this
+ * group. See build_group_mask().
+ *
+ * Also see should_we_balance().
+ */
+int group_balance_cpu(struct sched_group *sg)
+{
+	return cpumask_first_and(sched_group_cpus(sg), sched_group_mask(sg));
+}
+
+
+/*
+ * NUMA topology (first read the regular topology blurb below)
+ *
+ * Given a node-distance table, for example:
+ *
+ *   node   0   1   2   3
+ *     0:  10  20  30  20
+ *     1:  20  10  20  30
+ *     2:  30  20  10  20
+ *     3:  20  30  20  10
+ *
+ * which represents a 4 node ring topology like:
+ *
+ *   0 ----- 1
+ *   |       |
+ *   |       |
+ *   |       |
+ *   3 ----- 2
+ *
+ * We want to construct domains and groups to represent this. The way we go
+ * about doing this is to build the domains on 'hops'. For each NUMA level we
+ * construct the mask of all nodes reachable in @level hops.
+ *
+ * For the above NUMA topology that gives 3 levels:
+ *
+ * NUMA-2	0-3		0-3		0-3		0-3
+ *  groups:	{0-1,3},{1-3}	{0-2},{0,2-3}	{1-3},{0-1,3}	{0,2-3},{0-2}
+ *
+ * NUMA-1	0-1,3		0-2		1-3		0,2-3
+ *  groups:	{0},{1},{3}	{0},{1},{2}	{1},{2},{3}	{0},{2},{3}
+ *
+ * NUMA-0	0		1		2		3
+ *
+ *
+ * As can be seen; things don't nicely line up as with the regular topology.
+ * When we iterate a domain in child domain chunks some nodes can be
+ * represented multiple times -- hence the "overlap" naming for this part of
+ * the topology.
+ *
+ * In order to minimize this overlap, we only build enough groups to cover the
+ * domain. For instance Node-0 NUMA-2 would only get groups: 0-1,3 and 1-3.
+ *
+ * Because:
+ *
+ *  - the first group of each domain is its child domain; this
+ *    gets us the first 0-1,3
+ *  - the only uncovered node is 2, who's child domain is 1-3.
+ *
+ * However, because of the overlap, computing a unique CPU for each group is
+ * more complicated. Consider for instance the groups of NODE-1 NUMA-2, both
+ * groups include the CPUs of Node-0, while those CPUs would not in fact ever
+ * end up at those groups (they would end up in group: 0-1,3).
+ *
+ * To correct this we have to introduce the group iteration mask. This mask
+ * will contain those CPUs in the group that can reach this group given the
+ * (child) domain tree.
+ *
+ * With this we can once again compute balance_cpu and sched_group_capacity
+ * relations.
+ *
+ * XXX include words on how balance_cpu is unique and therefore can be
+ * used for sched_group_capacity links.
+ *
+ *
+ * Another 'interesting' topology is:
+ *
+ *   node   0   1   2   3
+ *     0:  10  20  20  30
+ *     1:  20  10  20  20
+ *     2:  20  20  10  20
+ *     3:  30  20  20  10
+ *
+ * Which looks a little like:
+ *
+ *   0 ----- 1
+ *   |     / |
+ *   |   /   |
+ *   | /     |
+ *   2 ----- 3
+ *
+ * This topology is asymmetric, nodes 1,2 are fully connected, but nodes 0,3
+ * are not.
+ *
+ * This leads to a few particularly weird cases where the sched_domain's are
+ * not of the same number for each cpu. Consider:
+ *
+ * NUMA-2	0-3						0-3
+ *  groups:	{0-2},{1-3}					{1-3},{0-2}
+ *
+ * NUMA-1	0-2		0-3		0-3		1-3
+ *
+ * NUMA-0	0		1		2		3
+ *
+ */
+
+
+/*
  * Build an iteration mask that can exclude certain CPUs from the upwards
  * domain traversal.
  *
  * Only CPUs that can arrive at this group should be considered to continue
  * balancing.
+ *
+ * We do this during the group creation pass, therefore the group information
+ * isn't complete yet, however since each group represents a (child) domain we
+ * can fully construct this using the sched_domain bits (which are already
+ * complete).
  */
 static void
 build_group_mask(struct sched_domain *sd, struct sched_group *sg, struct cpumask *mask)
@@ -534,14 +650,10 @@ build_group_mask(struct sched_domain *sd, struct sched_group *sg, struct cpumask
 }
 
 /*
- * Return the canonical balance CPU for this group, this is the first CPU
- * of this group that's also in the iteration mask.
+ * XXX: This creates per-node group entries; since the load-balancer will
+ * immediately access remote memory to construct this group's load-balance
+ * statistics having the groups node local is of dubious benefit.
  */
-int group_balance_cpu(struct sched_group *sg)
-{
-	return cpumask_first_and(sched_group_cpus(sg), sched_group_mask(sg));
-}
-
 static struct sched_group *
 build_group_from_child_sched_domain(struct sched_domain *sd, int cpu)
 {
@@ -577,6 +689,8 @@ static void init_overlap_sched_group(struct sched_domain *sd,
 	sg->sgc = *per_cpu_ptr(sdd->sgc, cpu);
 	if (atomic_inc_return(&sg->sgc->ref) == 1)
 		cpumask_copy(sched_group_mask(sg), mask);
+	else
+		WARN_ON_ONCE(!cpumask_equal(sched_group_mask(sg), mask));
 
 	/*
 	 * Initialize sgc->capacity such that even if we mess up the
@@ -646,6 +760,78 @@ fail:
 
 	return -ENOMEM;
 }
+
+
+/*
+ * Package topology (also see the load-balance blurb in fair.c)
+ *
+ * The scheduler builds a tree structure to represent a number of important
+ * topology features. By default (default_topology[]) these include:
+ *
+ *  - Simultaneous multithreading (SMT)
+ *  - Multi-Core Cache (MC)
+ *  - Package (DIE)
+ *
+ * Where the last one more or less denotes everything up to a NUMA node.
+ *
+ * The tree consists of 3 primary data structures:
+ *
+ *	sched_domain -> sched_group -> sched_group_capacity
+ *	    ^ ^             ^ ^
+ *          `-'             `-'
+ *
+ * The sched_domains are per-cpu and have a two way link (parent & child) and
+ * denote the ever growing mask of CPUs belonging to that level of topology.
+ *
+ * Each sched_domain has a circular (double) linked list of sched_group's, each
+ * denoting the domains of the level below (or individual CPUs in case of the
+ * first domain level). The sched_group linked by a sched_domain includes the
+ * CPU of that sched_domain [*].
+ *
+ * Take for instance a 2 threaded, 2 core, 2 cache cluster part:
+ *
+ * CPU   0   1   2   3   4   5   6   7
+ *
+ * DIE  [                             ]
+ * MC   [             ] [             ]
+ * SMT  [     ] [     ] [     ] [     ]
+ *
+ *  - or -
+ *
+ * DIE  0-7 0-7 0-7 0-7 0-7 0-7 0-7 0-7
+ * MC	0-3 0-3 0-3 0-3 4-7 4-7 4-7 4-7
+ * SMT  0-1 0-1 2-3 2-3 4-5 4-5 6-7 6-7
+ *
+ * CPU   0   1   2   3   4   5   6   7
+ *
+ * One way to think about it is: sched_domain moves you up and down among these
+ * topology levels, while sched_group moves you sideways through it, at child
+ * domain granularity.
+ *
+ * sched_group_capacity ensures each unique sched_group has shared storage.
+ *
+ * There are two related construction problems, both require a CPU that
+ * uniquely identify each group (for a given domain):
+ *
+ *  - The first is the balance_cpu (see should_we_balance() and the
+ *    load-balance blub in fair.c); for each group we only want 1 CPU to
+ *    continue balancing at a higher domain.
+ *
+ *  - The second is the sched_group_capacity; we want all identical groups
+ *    to share a single sched_group_capacity.
+ *
+ * Since these topologies are exclusive by construction. That is, its
+ * impossible for an SMT thread to belong to multiple cores, and cores to
+ * be part of multiple caches. There is a very clear and unique location
+ * for each CPU in the hierarchy.
+ *
+ * Therefore computing a unique CPU for each group is trivial (the iteration
+ * mask is redundant and set all 1s; all CPUs in a group will end up at _that_
+ * group), we can simply pick the first CPU in each group.
+ *
+ *
+ * [*] in other words, the first group of each domain is its child domain.
+ */
 
 static int get_group(int cpu, struct sd_data *sdd, struct sched_group **sg)
 {
