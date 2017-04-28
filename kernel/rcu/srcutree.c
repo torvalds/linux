@@ -40,7 +40,7 @@
 #include "rcu.h"
 #include "rcu_segcblist.h"
 
-ulong exp_holdoff = 25 * 1000; /* Holdoff (ns) for auto-expediting. */
+static ulong exp_holdoff = 25 * 1000; /* Holdoff (ns) for auto-expediting. */
 module_param(exp_holdoff, ulong, 0444);
 
 static void srcu_invoke_callbacks(struct work_struct *work);
