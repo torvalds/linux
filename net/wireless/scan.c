@@ -328,7 +328,7 @@ cfg80211_find_sched_scan_req(struct cfg80211_registered_device *rdev, u64 reqid)
 		if (pos->reqid == reqid)
 			return pos;
 	}
-	return ERR_PTR(-ENOENT);
+	return NULL;
 }
 
 /*
@@ -364,67 +364,66 @@ int cfg80211_sched_scan_req_possible(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
-void __cfg80211_sched_scan_results(struct work_struct *wk)
+void cfg80211_sched_scan_results_wk(struct work_struct *work)
 {
 	struct cfg80211_registered_device *rdev;
-	struct cfg80211_sched_scan_request *request;
+	struct cfg80211_sched_scan_request *req, *tmp;
 
-	rdev = container_of(wk, struct cfg80211_registered_device,
-			    sched_scan_results_wk);
+	rdev = container_of(work, struct cfg80211_registered_device,
+			   sched_scan_res_wk);
 
 	rtnl_lock();
-
-	request = cfg80211_find_sched_scan_req(rdev, 0);
-
-	/* we don't have sched_scan_req anymore if the scan is stopping */
-	if (!IS_ERR(request)) {
-		if (request->flags & NL80211_SCAN_FLAG_FLUSH) {
-			/* flush entries from previous scans */
-			spin_lock_bh(&rdev->bss_lock);
-			__cfg80211_bss_expire(rdev, request->scan_start);
-			spin_unlock_bh(&rdev->bss_lock);
-			request->scan_start = jiffies;
+	list_for_each_entry_safe(req, tmp, &rdev->sched_scan_req_list, list) {
+		if (req->report_results) {
+			req->report_results = false;
+			if (req->flags & NL80211_SCAN_FLAG_FLUSH) {
+				/* flush entries from previous scans */
+				spin_lock_bh(&rdev->bss_lock);
+				__cfg80211_bss_expire(rdev, req->scan_start);
+				spin_unlock_bh(&rdev->bss_lock);
+				req->scan_start = jiffies;
+			}
+			nl80211_send_sched_scan(req,
+						NL80211_CMD_SCHED_SCAN_RESULTS);
 		}
-		nl80211_send_sched_scan(request, NL80211_CMD_SCHED_SCAN_RESULTS);
 	}
-
 	rtnl_unlock();
 }
 
-void cfg80211_sched_scan_results(struct wiphy *wiphy)
+void cfg80211_sched_scan_results(struct wiphy *wiphy, u64 reqid)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_sched_scan_request *request;
 
-	trace_cfg80211_sched_scan_results(wiphy);
+	trace_cfg80211_sched_scan_results(wiphy, reqid);
 	/* ignore if we're not scanning */
 
 	rtnl_lock();
-	request = cfg80211_find_sched_scan_req(rdev, 0);
+	request = cfg80211_find_sched_scan_req(rdev, reqid);
+	if (request) {
+		request->report_results = true;
+		queue_work(cfg80211_wq, &rdev->sched_scan_res_wk);
+	}
 	rtnl_unlock();
-
-	if (!IS_ERR(request))
-		queue_work(cfg80211_wq,
-			   &wiphy_to_rdev(wiphy)->sched_scan_results_wk);
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_results);
 
-void cfg80211_sched_scan_stopped_rtnl(struct wiphy *wiphy)
+void cfg80211_sched_scan_stopped_rtnl(struct wiphy *wiphy, u64 reqid)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	ASSERT_RTNL();
 
-	trace_cfg80211_sched_scan_stopped(wiphy);
+	trace_cfg80211_sched_scan_stopped(wiphy, reqid);
 
-	__cfg80211_stop_sched_scan(rdev, 0, true);
+	__cfg80211_stop_sched_scan(rdev, reqid, true);
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped_rtnl);
 
-void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
+void cfg80211_sched_scan_stopped(struct wiphy *wiphy, u64 reqid)
 {
 	rtnl_lock();
-	cfg80211_sched_scan_stopped_rtnl(wiphy);
+	cfg80211_sched_scan_stopped_rtnl(wiphy, reqid);
 	rtnl_unlock();
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
@@ -456,8 +455,8 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 	ASSERT_RTNL();
 
 	sched_scan_req = cfg80211_find_sched_scan_req(rdev, reqid);
-	if (IS_ERR(sched_scan_req))
-		return PTR_ERR(sched_scan_req);
+	if (!sched_scan_req)
+		return -ENOENT;
 
 	return cfg80211_stop_sched_scan_req(rdev, sched_scan_req,
 					    driver_initiated);

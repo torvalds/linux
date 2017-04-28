@@ -77,7 +77,6 @@ struct cfg80211_registered_device {
 	struct list_head sched_scan_req_list;
 	unsigned long suspend_at;
 	struct work_struct scan_done_wk;
-	struct work_struct sched_scan_results_wk;
 
 	struct genl_info *cur_cmd_info;
 
@@ -93,6 +92,7 @@ struct cfg80211_registered_device {
 
 	struct work_struct destroy_work;
 	struct work_struct sched_scan_stop_wk;
+	struct work_struct sched_scan_res_wk;
 
 	struct cfg80211_chan_def radar_chandef;
 	struct work_struct propagate_radar_detect_wk;
@@ -412,7 +412,7 @@ void cfg80211_add_sched_scan_req(struct cfg80211_registered_device *rdev,
 				 struct cfg80211_sched_scan_request *req);
 int cfg80211_sched_scan_req_possible(struct cfg80211_registered_device *rdev,
 				     bool want_multi);
-void __cfg80211_sched_scan_results(struct work_struct *wk);
+void cfg80211_sched_scan_results_wk(struct work_struct *work);
 int cfg80211_stop_sched_scan_req(struct cfg80211_registered_device *rdev,
 				 struct cfg80211_sched_scan_request *req,
 				 bool driver_initiated);
