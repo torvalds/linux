@@ -191,6 +191,86 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
+		"test6 ld_imm64",
+		.insns = {
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, 0, 0, 0),
+			BPF_RAW_INSN(0, 0, 0, 0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"test7 ld_imm64",
+		.insns = {
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, 0, 0, 1),
+			BPF_RAW_INSN(0, 0, 0, 0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"test8 ld_imm64",
+		.insns = {
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, 0, 1, 1),
+			BPF_RAW_INSN(0, 0, 0, 0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "uses reserved fields",
+		.result = REJECT,
+	},
+	{
+		"test9 ld_imm64",
+		.insns = {
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, 0, 0, 1),
+			BPF_RAW_INSN(0, 0, 0, 1, 1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_ld_imm64 insn",
+		.result = REJECT,
+	},
+	{
+		"test10 ld_imm64",
+		.insns = {
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, 0, 0, 1),
+			BPF_RAW_INSN(0, BPF_REG_1, 0, 0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_ld_imm64 insn",
+		.result = REJECT,
+	},
+	{
+		"test11 ld_imm64",
+		.insns = {
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, 0, 0, 1),
+			BPF_RAW_INSN(0, 0, BPF_REG_1, 0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_ld_imm64 insn",
+		.result = REJECT,
+	},
+	{
+		"test12 ld_imm64",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, BPF_REG_1, 0, 1),
+			BPF_RAW_INSN(0, 0, 0, 0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "not pointing to valid bpf_map",
+		.result = REJECT,
+	},
+	{
+		"test13 ld_imm64",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW, 0, BPF_REG_1, 0, 1),
+			BPF_RAW_INSN(0, 0, BPF_REG_1, 0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_ld_imm64 insn",
+		.result = REJECT,
+	},
+	{
 		"no bpf_exit",
 		.insns = {
 			BPF_ALU64_REG(BPF_MOV, BPF_REG_0, BPF_REG_2),
@@ -329,6 +409,30 @@ static struct bpf_test tests[] = {
 		},
 		.errstr = "invalid read from stack",
 		.result = REJECT,
+	},
+	{
+		"invalid fp arithmetic",
+		/* If this gets ever changed, make sure JITs can deal with it. */
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.errstr_unpriv = "R1 pointer arithmetic",
+		.result_unpriv = REJECT,
+		.errstr = "R1 invalid mem access",
+		.result = REJECT,
+	},
+	{
+		"non-invalid fp arithmetic",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
 	},
 	{
 		"invalid argument register",
@@ -1801,6 +1905,20 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
+		"unpriv: adding of fp",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_1, 0),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_1, BPF_REG_10),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0, -8),
+			BPF_EXIT_INSN(),
+		},
+		.errstr_unpriv = "pointer arithmetic prohibited",
+		.result_unpriv = REJECT,
+		.errstr = "R1 invalid mem access",
+		.result = REJECT,
+	},
+	{
 		"unpriv: cmp of stack pointer",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
@@ -2468,6 +2586,25 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "R2 invalid mem access 'inv'",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"direct packet access: test16 (arith on data_end)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, 16),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_B, BPF_REG_2, BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid access to packet",
 		.result = REJECT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	},

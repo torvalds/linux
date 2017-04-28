@@ -19,9 +19,8 @@
 #include <linux/udp.h>
 #include "bpf_helpers.h"
 #include "test_iptunnel_common.h"
+#include "bpf_util.h"
 
-#define htons __builtin_bswap16
-#define ntohs __builtin_bswap16
 int _version SEC("version") = 1;
 
 static inline __u32 rol32(__u32 word, unsigned int shift)
@@ -355,7 +354,7 @@ static __always_inline int process_packet(void *data, __u64 off, void *data_end,
 		iph_len = sizeof(struct ipv6hdr);
 		protocol = ip6h->nexthdr;
 		pckt.proto = protocol;
-		pkt_bytes = ntohs(ip6h->payload_len);
+		pkt_bytes = bpf_ntohs(ip6h->payload_len);
 		off += iph_len;
 		if (protocol == IPPROTO_FRAGMENT) {
 			return TC_ACT_SHOT;
@@ -377,7 +376,7 @@ static __always_inline int process_packet(void *data, __u64 off, void *data_end,
 
 		protocol = iph->protocol;
 		pckt.proto = protocol;
-		pkt_bytes = ntohs(iph->tot_len);
+		pkt_bytes = bpf_ntohs(iph->tot_len);
 		off += IPV4_HDR_LEN_NO_OPT;
 
 		if (iph->frag_off & PCKT_FRAGMENTED)
@@ -464,9 +463,9 @@ int balancer_ingress(struct __sk_buff *ctx)
 	if (data + nh_off > data_end)
 		return TC_ACT_SHOT;
 	eth_proto = eth->eth_proto;
-	if (eth_proto == htons(ETH_P_IP))
+	if (eth_proto == bpf_htons(ETH_P_IP))
 		return process_packet(data, nh_off, data_end, false, ctx);
-	else if (eth_proto == htons(ETH_P_IPV6))
+	else if (eth_proto == bpf_htons(ETH_P_IPV6))
 		return process_packet(data, nh_off, data_end, true, ctx);
 	else
 		return TC_ACT_SHOT;
