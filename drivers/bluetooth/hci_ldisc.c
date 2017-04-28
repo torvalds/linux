@@ -256,6 +256,9 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s: type %d len %d", hdev->name, hci_skb_pkt_type(skb),
 	       skb->len);
 
+	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
+		return -EUNATCH;
+
 	hu->proto->enqueue(hu, skb);
 
 	hci_uart_tx_wakeup(hu);
