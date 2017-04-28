@@ -907,6 +907,7 @@ struct amdgpu_mec {
 struct amdgpu_kiq {
 	u64			eop_gpu_addr;
 	struct amdgpu_bo	*eop_obj;
+	struct mutex		ring_mutex;
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 };
