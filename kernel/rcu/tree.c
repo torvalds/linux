@@ -536,9 +536,12 @@ void rcu_all_qs(void)
 }
 EXPORT_SYMBOL_GPL(rcu_all_qs);
 
-static long blimit = 10;	/* Maximum callbacks per rcu_do_batch. */
-static long qhimark = 10000;	/* If this many pending, ignore blimit. */
-static long qlowmark = 100;	/* Once only this many pending, use blimit. */
+#define DEFAULT_RCU_BLIMIT 10     /* Maximum callbacks per rcu_do_batch. */
+static long blimit = DEFAULT_RCU_BLIMIT;
+#define DEFAULT_RCU_QHIMARK 10000 /* If this many pending, ignore blimit. */
+static long qhimark = DEFAULT_RCU_QHIMARK;
+#define DEFAULT_RCU_QLOMARK 100   /* Once only this many pending, use blimit. */
+static long qlowmark = DEFAULT_RCU_QLOMARK;
 
 module_param(blimit, long, 0444);
 module_param(qhimark, long, 0444);

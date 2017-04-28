@@ -79,7 +79,9 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tHierarchical RCU autobalancing is disabled.\n");
 	if (IS_ENABLED(CONFIG_RCU_FAST_NO_HZ))
 		pr_info("\tRCU dyntick-idle grace-period acceleration is enabled.\n");
-	if (IS_ENABLED(CONFIG_PROVE_RCU))
+	if (IS_ENABLED(CONFIG_PROVE_RCU_REPEATEDLY))
+		pr_info("\tRCU lockdep checking is permanently enabled.\n");
+	else if (IS_ENABLED(CONFIG_PROVE_RCU))
 		pr_info("\tRCU lockdep checking is enabled.\n");
 	if (RCU_NUM_LVLS >= 4)
 		pr_info("\tFour(or more)-level hierarchy is enabled.\n");
@@ -90,8 +92,31 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tBoot-time adjustment of leaf fanout to %d.\n", rcu_fanout_leaf);
 	if (nr_cpu_ids != NR_CPUS)
 		pr_info("\tRCU restricting CPUs from NR_CPUS=%d to nr_cpu_ids=%d.\n", NR_CPUS, nr_cpu_ids);
-	if (IS_ENABLED(CONFIG_RCU_BOOST))
-		pr_info("\tRCU kthread priority: %d.\n", kthread_prio);
+#ifdef CONFIG_RCU_BOOST
+	pr_info("\tRCU priority boosting: priority %d delay %d ms.\n", kthread_prio, CONFIG_RCU_BOOST_DELAY);
+#endif
+	if (blimit != DEFAULT_RCU_BLIMIT)
+		pr_info("\tBoot-time adjustment of callback invocation limit to %ld.\n", blimit);
+	if (qhimark != DEFAULT_RCU_QHIMARK)
+		pr_info("\tBoot-time adjustment of callback high-water mark to %ld.\n", qhimark);
+	if (qlowmark != DEFAULT_RCU_QLOMARK)
+		pr_info("\tBoot-time adjustment of callback low-water mark to %ld.\n", qlowmark);
+	if (jiffies_till_first_fqs != ULONG_MAX)
+		pr_info("\tBoot-time adjustment of first FQS scan delay to %ld jiffies.\n", jiffies_till_first_fqs);
+	if (jiffies_till_next_fqs != ULONG_MAX)
+		pr_info("\tBoot-time adjustment of subsequent FQS scan delay to %ld jiffies.\n", jiffies_till_next_fqs);
+	if (rcu_kick_kthreads)
+		pr_info("\tKick kthreads if too-long grace period.\n");
+	if (IS_ENABLED(CONFIG_DEBUG_OBJECTS_RCU_HEAD))
+		pr_info("\tRCU callback double-/use-after-free debug enabled.\n");
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT))
+		pr_info("\tRCU debug GP pre-init slowdown %d jiffies.\n", gp_preinit_delay);
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_INIT))
+		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP))
+		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_cleanup_delay);
+	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))
+		pr_info("\tRCU debug extended QS entry/exit.\n");
 	rcupdate_announce_bootup_oddness();
 }
 
