@@ -185,12 +185,16 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	return 0;
 }
 
-static int load_maps(struct bpf_map_def *maps, int len,
+static int load_maps(struct bpf_map_def *maps, int nr_maps,
 		     const char **map_names, fixup_map_cb fixup_map)
 {
 	int i;
-
-	for (i = 0; i < len / sizeof(struct bpf_map_def); i++) {
+	/*
+	 * Warning: Using "maps" pointing to ELF data_maps->d_buf as
+	 * an array of struct bpf_map_def is a wrong assumption about
+	 * the ELF maps section format.
+	 */
+	for (i = 0; i < nr_maps; i++) {
 		if (fixup_map)
 			fixup_map(&maps[i], map_names[i], i);
 
@@ -269,6 +273,10 @@ static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
 			return 1;
 		}
 		insn[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
+		/*
+		 * Warning: Using sizeof(struct bpf_map_def) here is a
+		 * wrong assumption about ELF maps section format
+		 */
 		insn[insn_idx].imm = map_fd[sym.st_value / sizeof(struct bpf_map_def)];
 	}
 
@@ -311,18 +319,18 @@ static int get_sorted_map_names(Elf *elf, Elf_Data *symbols, int maps_shndx,
 		map_name = elf_strptr(elf, strtabidx, map_symbols[i].st_name);
 		if (!map_name) {
 			printf("cannot get map symbol\n");
-			return 1;
+			return -1;
 		}
 
 		map_names[i] = strdup(map_name);
 		if (!map_names[i]) {
 			printf("strdup(%s): %s(%d)\n", map_name,
 			       strerror(errno), errno);
-			return 1;
+			return -1;
 		}
 	}
 
-	return 0;
+	return nr_maps;
 }
 
 static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
@@ -396,11 +404,25 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 	}
 
 	if (data_maps) {
-		if (get_sorted_map_names(elf, symbols, maps_shndx, strtabidx,
-					 map_names))
+		int nr_maps;
+		int prog_elf_map_sz;
+
+		nr_maps = get_sorted_map_names(elf, symbols, maps_shndx,
+					       strtabidx, map_names);
+		if (nr_maps < 0)
 			goto done;
 
-		if (load_maps(data_maps->d_buf, data_maps->d_size,
+		/* Deduce map struct size stored in ELF maps section */
+		prog_elf_map_sz = data_maps->d_size / nr_maps;
+		if (prog_elf_map_sz != sizeof(struct bpf_map_def)) {
+			printf("Error: ELF maps sec wrong size (%d/%lu),"
+			       " old kern.o file?\n",
+			       prog_elf_map_sz, sizeof(struct bpf_map_def));
+			ret = 1;
+			goto done;
+		}
+
+		if (load_maps(data_maps->d_buf, nr_maps,
 			      (const char **)map_names, fixup_map))
 			goto done;
 
