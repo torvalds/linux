@@ -305,9 +305,10 @@ void hv_cleanup(bool crash)
 
 		hypercall_msr.as_uint64 = 0;
 		wrmsrl(HV_X64_MSR_REFERENCE_TSC, hypercall_msr.as_uint64);
-		if (!crash)
+		if (!crash) {
 			vfree(hv_context.tsc_page);
-		hv_context.tsc_page = NULL;
+			hv_context.tsc_page = NULL;
+		}
 	}
 #endif
 }
