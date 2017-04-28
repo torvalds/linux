@@ -28,13 +28,6 @@
 
 #define __page_align(size)	(((size) + (PAGE_SIZE-1)) & (~(PAGE_SIZE-1)))
 
-static unsigned init_done;
-void hrt_isp_css_mm_init(void)
-{
-	hmm_init();
-	init_done = 1;
-}
-
 int hrt_isp_css_mm_set(ia_css_ptr virt_addr, int c, size_t bytes)
 {
 	if (virt_addr)
@@ -57,20 +50,6 @@ int hrt_isp_css_mm_store(ia_css_ptr virt_addr, const void *data, size_t bytes)
 	return -EFAULT;
 }
 
-void hrt_isp_css_mm_free(ia_css_ptr virt_addr)
-{
-	if (virt_addr)
-		hmm_free(virt_addr);
-}
-
-void hrt_isp_css_mm_clear(void)
-{
-	if (init_done) {
-		hmm_cleanup();
-		init_done = 0;
-	}
-}
-
 static void *my_userptr;
 static unsigned my_num_pages;
 static enum hrt_userptr_type my_usr_type;
@@ -89,8 +68,6 @@ static ia_css_ptr __hrt_isp_css_mm_alloc(size_t bytes, void *userptr,
 				    enum hrt_userptr_type type,
 				    bool cached)
 {
-	if (!init_done)
-		hrt_isp_css_mm_init();
 #ifdef CONFIG_ION
 	if (type == HRT_USR_ION)
 		return hmm_alloc(bytes, HMM_BO_ION, 0,
@@ -138,9 +115,6 @@ ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes, void *userptr,
 
 ia_css_ptr hrt_isp_css_mm_alloc_cached(size_t bytes)
 {
-	if (!init_done)
-		hrt_isp_css_mm_init();
-
 	if (my_userptr == NULL)
 		return hmm_alloc(bytes, HMM_BO_PRIVATE, 0, 0,
 						HMM_CACHED);

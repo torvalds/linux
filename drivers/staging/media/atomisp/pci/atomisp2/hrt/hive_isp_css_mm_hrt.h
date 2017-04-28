@@ -41,7 +41,6 @@ struct hrt_userbuffer_attr {
 	unsigned int		pgnr;
 };
 
-void hrt_isp_css_mm_init(void);
 void hrt_isp_css_mm_set_user_ptr(void *userptr,
 				unsigned int num_pages, enum hrt_userptr_type);
 
@@ -59,9 +58,6 @@ ia_css_ptr hrt_isp_css_mm_alloc_cached(size_t bytes);
    returns a virtual address */
 ia_css_ptr hrt_isp_css_mm_calloc(size_t bytes);
 ia_css_ptr hrt_isp_css_mm_calloc_cached(size_t bytes);
-
-/* Free memory, given a virtual address */
-void hrt_isp_css_mm_free(ia_css_ptr virt_addr);
 
 /* Store data to a virtual address */
 int hrt_isp_css_mm_load(ia_css_ptr virt_addr, void *data, size_t bytes);
@@ -81,5 +77,4 @@ int hrt_isp_css_mm_store_int(ia_css_ptr virt_addr, int data);
    the display driver on  the FPGA system */
 phys_addr_t hrt_isp_css_virt_to_phys(ia_css_ptr virt_addr);
 
-void hrt_isp_css_mm_clear(void);
 #endif /* _hive_isp_css_mm_hrt_h_ */

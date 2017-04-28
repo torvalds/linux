@@ -47,9 +47,9 @@ ia_css_ptr mmgr_calloc(const size_t N, const size_t size)
 
 void mmgr_free(ia_css_ptr vaddr)
 {
-/* "free()" should accept NULL, "hrt_isp_css_mm_free()" may not */
+/* "free()" should accept NULL, "hmm_free()" may not */
 	if (vaddr)
-		hrt_isp_css_mm_free(vaddr);
+		hmm_free(vaddr);
 }
 
 ia_css_ptr mmgr_alloc_attr(const size_t	size, const uint16_t attribute)

@@ -1454,7 +1454,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	}
 
 	/* Init ISP memory management */
-	hrt_isp_css_mm_init();
+	hmm_init();
 
 	err = devm_request_threaded_irq(&dev->dev, dev->irq,
 					atomisp_isr, atomisp_isr_thread,
@@ -1486,7 +1486,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 css_init_fail:
 	devm_free_irq(&dev->dev, dev->irq, isp);
 request_irq_fail:
-	hrt_isp_css_mm_clear();
+	hmm_cleanup();
 	hmm_pool_unregister(HMM_POOL_TYPE_RESERVED);
 hmm_pool_fail:
 	destroy_workqueue(isp->wdt_work_queue);
@@ -1538,7 +1538,7 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 	atomisp_acc_cleanup(isp);
 
 	atomisp_css_unload_firmware(isp);
-	hrt_isp_css_mm_clear();
+	hmm_cleanup();
 
 	pm_runtime_forbid(&dev->dev);
 	pm_runtime_get_noresume(&dev->dev);

@@ -272,6 +272,8 @@ void hmm_free(ia_css_ptr virt)
 {
 	struct hmm_buffer_object *bo;
 
+	WARN_ON(!virt);
+
 	bo = hmm_bo_device_search_start(&bo_device, (unsigned int)virt);
 
 	if (!bo) {
@@ -284,9 +286,7 @@ void hmm_free(ia_css_ptr virt)
 	hmm_mem_stat.tol_cnt -= bo->pgnr;
 
 	hmm_bo_unbind(bo);
-
 	hmm_bo_free_pages(bo);
-
 	hmm_bo_unref(bo);
 }
 

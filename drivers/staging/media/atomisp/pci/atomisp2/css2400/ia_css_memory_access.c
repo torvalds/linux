@@ -55,7 +55,7 @@ mmgr_calloc(const size_t N, const size_t size)
 void
 mmgr_free(hrt_vaddress vaddr)
 {
-	hrt_isp_css_mm_free(vaddr);
+	hmm_free(vaddr);
 }
 
 void
