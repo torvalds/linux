@@ -410,11 +410,10 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 		val |= (ULPS_STATE_ENTER | DEVICE_READY);
 		I915_WRITE(MIPI_DEVICE_READY(port), val);
 
-		/* Wait for ULPS Not active */
+		/* Wait for ULPS active */
 		if (intel_wait_for_register(dev_priv,
-				MIPI_CTRL(port), GLK_ULPS_NOT_ACTIVE,
-				GLK_ULPS_NOT_ACTIVE, 20))
-			DRM_ERROR("ULPS is still active\n");
+				MIPI_CTRL(port), GLK_ULPS_NOT_ACTIVE, 0, 20))
+			DRM_ERROR("ULPS not active\n");
 
 		/* Exit ULPS */
 		val = I915_READ(MIPI_DEVICE_READY(port));
