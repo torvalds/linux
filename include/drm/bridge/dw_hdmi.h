@@ -92,18 +92,6 @@ struct dw_hdmi_plat_data {
 			     unsigned long mpixelclock);
 };
 
-static inline bool is_rockchip(enum dw_hdmi_devtype dev_type)
-{
-	switch (dev_type) {
-	case RK3288_HDMI:
-	case RK3368_HDMI:
-	case RK3399_HDMI:
-		return true;
-	default:
-		return false;
-	}
-}
-
 void dw_hdmi_unbind(struct device *dev, struct device *master, void *data);
 int dw_hdmi_bind(struct device *dev, struct device *master,
 		 void *data, struct drm_encoder *encoder,
