@@ -191,9 +191,21 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 		wireless_send_event(netdev, SIOCGIWAP, &wrqu, NULL);
 	}
 	DPRINTK(4, "\n    Link AP\n");
-	DPRINTK(4, "    bssid=%02X:%02X:%02X:%02X:%02X:%02X\n \
-   essid=%s\n    rate_set=%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X\n    channel=%d\n \
-   rssi=%d\n    sq=%d\n    capability=%04X\n", ap->bssid[0], ap->bssid[1], ap->bssid[2], ap->bssid[3], ap->bssid[4], ap->bssid[5], &(ap->ssid.body[0]), ap->rate_set.body[0], ap->rate_set.body[1], ap->rate_set.body[2], ap->rate_set.body[3], ap->rate_set.body[4], ap->rate_set.body[5], ap->rate_set.body[6], ap->rate_set.body[7], ap->channel, ap->rssi, ap->sq, ap->capability);
+	DPRINTK(4, "    bssid=%02X:%02X:%02X:%02X:%02X:%02X\n"
+		   "    essid=%s\n"
+		   "    rate_set=%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X\n"
+		   "    channel=%d\n"
+		   "    rssi=%d\n"
+		   "    sq=%d\n"
+		   "    capability=%04X\n",
+		ap->bssid[0], ap->bssid[1], ap->bssid[2],
+		ap->bssid[3], ap->bssid[4], ap->bssid[5],
+		&(ap->ssid.body[0]),
+		ap->rate_set.body[0], ap->rate_set.body[1],
+		ap->rate_set.body[2], ap->rate_set.body[3],
+		ap->rate_set.body[4], ap->rate_set.body[5],
+		ap->rate_set.body[6], ap->rate_set.body[7],
+		ap->channel, ap->rssi, ap->sq, ap->capability);
 	DPRINTK(4, "\n    Link AP\n    rsn.mode=%d\n    rsn.size=%d\n",
 		ap_info->rsn_mode, ap_info->rsn.size);
 	DPRINTK(4, "\n    ext_rate_set_size=%d\n    rate_set_size=%d\n",
@@ -1003,9 +1015,15 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 	wstats->qual.noise = 0;	/* invalid noise value */
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 
-	DPRINTK(3, "\n    rssi=%u\n    signal=%u\n    LinkSpeed=%ux500Kbps\n \
-   TransmittedFrameCount=%u\n    ReceivedFragmentCount=%u\n    FailedCount=%u\n \
-   FCSErrorCount=%u\n", rssi, signal, LinkSpeed, TransmittedFrameCount, ReceivedFragmentCount, FailedCount, FCSErrorCount);
+	DPRINTK(3, "\n    rssi=%u\n"
+		   "    signal=%u\n"
+		   "    LinkSpeed=%ux500Kbps\n"
+		   "    TransmittedFrameCount=%u\n"
+		   "    ReceivedFragmentCount=%u\n"
+		   "    FailedCount=%u\n"
+		   "    FCSErrorCount=%u\n",
+		rssi, signal, LinkSpeed, TransmittedFrameCount,
+		ReceivedFragmentCount, FailedCount, FCSErrorCount);
 
 	/* wake_up_interruptible_all(&priv->confirm_wait); */
 	complete(&priv->confirm_wait);
