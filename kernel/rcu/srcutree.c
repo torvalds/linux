@@ -40,7 +40,9 @@
 #include "rcu.h"
 #include "rcu_segcblist.h"
 
-static ulong exp_holdoff = 25 * 1000; /* Holdoff (ns) for auto-expediting. */
+/* Holdoff in nanoseconds for auto-expediting. */
+#define DEFAULT_SRCU_EXP_HOLDOFF (25 * 1000)
+static ulong exp_holdoff = DEFAULT_SRCU_EXP_HOLDOFF;
 module_param(exp_holdoff, ulong, 0444);
 
 static void srcu_invoke_callbacks(struct work_struct *work);
@@ -1171,6 +1173,8 @@ EXPORT_SYMBOL_GPL(srcutorture_get_gp_data);
 static int __init srcu_bootup_announce(void)
 {
 	pr_info("Hierarchical SRCU implementation.\n");
+	if (exp_holdoff != DEFAULT_SRCU_EXP_HOLDOFF)
+		pr_info("\tNon-default auto-expedite holdoff of %lu ns.\n", exp_holdoff);
 	return 0;
 }
 early_initcall(srcu_bootup_announce);
