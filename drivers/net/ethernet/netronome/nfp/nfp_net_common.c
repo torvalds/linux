@@ -2966,11 +2966,7 @@ static int nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog)
 	dp->xdp_prog = prog;
 	dp->num_tx_rings += prog ? nn->dp.num_rx_rings : -nn->dp.num_rx_rings;
 	dp->rx_dma_dir = prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
-	if (prog)
-		dp->rx_dma_off = XDP_PACKET_HEADROOM -
-			(nn->dp.rx_offset ?: NFP_NET_MAX_PREPEND);
-	else
-		dp->rx_dma_off = 0;
+	dp->rx_dma_off = prog ? XDP_PACKET_HEADROOM - nn->dp.rx_offset : 0;
 
 	/* We need RX reconfig to remap the buffers (BIDIR vs FROM_DEV) */
 	err = nfp_net_ring_reconfig(nn, dp);
@@ -3197,13 +3193,6 @@ int nfp_net_netdev_init(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int err;
-
-	/* XDP calls for 256 byte packet headroom which wouldn't fit in a u8.
-	 * We, however, reuse the metadata prepend space for XDP buffers which
-	 * is at least 1 byte long and as long as XDP headroom doesn't increase
-	 * above 256 the *extra* XDP headroom will fit on 8 bits.
-	 */
-	BUILD_BUG_ON(XDP_PACKET_HEADROOM > 256);
 
 	nn->dp.chained_metadata_format = nn->fw_ver.major > 3;
 

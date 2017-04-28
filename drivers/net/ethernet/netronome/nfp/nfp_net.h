@@ -470,9 +470,9 @@ struct nfp_net_dp {
 	u8 chained_metadata_format:1;
 
 	u8 rx_dma_dir;
-	u8 rx_dma_off;
-
 	u8 rx_offset;
+
+	u32 rx_dma_off;
 
 	u32 ctrl;
 	u32 fl_bufsz;
