@@ -4566,8 +4566,6 @@ int stmmac_resume(struct device *dev)
 			stmmac_mdio_reset(priv->mii);
 	}
 
-	netif_device_attach(ndev);
-
 	mutex_lock(&priv->lock);
 
 	stmmac_reset_queues_param(priv);
@@ -4581,6 +4579,8 @@ int stmmac_resume(struct device *dev)
 	stmmac_enable_all_queues(priv);
 
 	stmmac_start_all_queues(priv);
+
+	netif_device_attach(ndev);
 
 	mutex_unlock(&priv->lock);
 
