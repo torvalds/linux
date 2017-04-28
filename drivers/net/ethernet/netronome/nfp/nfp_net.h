@@ -201,6 +201,7 @@ struct nfp_net_tx_buf {
  * @txds:       Virtual address of TX ring in host memory
  * @dma:        DMA address of the TX ring
  * @size:       Size, in bytes, of the TX ring (needed to free)
+ * @is_xdp:	Is this a XDP TX ring?
  */
 struct nfp_net_tx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -221,6 +222,7 @@ struct nfp_net_tx_ring {
 
 	dma_addr_t dma;
 	unsigned int size;
+	bool is_xdp;
 } ____cacheline_aligned;
 
 /* RX and freelist descriptor format */
