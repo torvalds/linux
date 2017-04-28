@@ -55,7 +55,7 @@ static inline int of_property_notify(int action, struct device_node *np,
 }
 #endif /* CONFIG_OF_DYNAMIC */
 
-#ifdef CONFIG_OF_UNITTEST
+#if defined(CONFIG_OF_UNITTEST) && defined(CONFIG_OF_OVERLAY)
 extern void __init unittest_unflatten_overlay_base(void);
 #else
 static inline void unittest_unflatten_overlay_base(void) {};
