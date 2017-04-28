@@ -927,6 +927,9 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 	int fidx;
 	int idx;
 
+	if (tx_ring->wr_p == tx_ring->rd_p)
+		return;
+
 	/* Work out how many descriptors have been transmitted */
 	qcp_rd_p = nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
 
@@ -1000,6 +1003,9 @@ static void nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
 	u32 done_pkts = 0, done_bytes = 0;
 	int idx, todo;
 	u32 qcp_rd_p;
+
+	if (tx_ring->wr_p == tx_ring->rd_p)
+		return;
 
 	/* Work out how many descriptors have been transmitted */
 	qcp_rd_p = nfp_qcp_rd_ptr_read(tx_ring->qcp_q);
