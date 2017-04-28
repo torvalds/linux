@@ -484,7 +484,7 @@ struct rvt_sge_state;
 #define HFI1_PART_ENFORCE_OUT	0x2
 
 /* how often we check for synthetic counter wrap around */
-#define SYNTH_CNT_TIME 2
+#define SYNTH_CNT_TIME 3
 
 /* Counter flags */
 #define CNTR_NORMAL		0x0 /* Normal counters, just read register */
@@ -962,8 +962,9 @@ struct hfi1_devdata {
 	spinlock_t rcvctrl_lock; /* protect changes to RcvCtrl */
 	/* around rcd and (user ctxts) ctxt_cnt use (intr vs free) */
 	spinlock_t uctxt_lock; /* rcd and user context changes */
-	/* exclusive access to 8051 */
-	spinlock_t dc8051_lock;
+	struct mutex dc8051_lock; /* exclusive access to 8051 */
+	struct workqueue_struct *update_cntr_wq;
+	struct work_struct update_cntr_work;
 	/* exclusive access to 8051 memory */
 	spinlock_t dc8051_memlock;
 	int dc8051_timed_out;	/* remember if the 8051 timed out */
