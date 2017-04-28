@@ -78,7 +78,7 @@
 
 #define NSP_MAGIC		0xab10
 #define NSP_MAJOR		0
-#define NSP_MINOR		(__MAX_SPCODE - 1)
+#define NSP_MINOR		8
 
 #define NSP_CODE_MAJOR		GENMASK(15, 12)
 #define NSP_CODE_MINOR		GENMASK(11, 0)
@@ -94,8 +94,6 @@ enum nfp_nsp_cmd {
 	SPCODE_ETH_RESCAN	= 7, /* Rescan ETHs, write ETH_TABLE to buf */
 	SPCODE_ETH_CONTROL	= 8, /* Update media config from buffer */
 	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
-
-	__MAX_SPCODE,
 };
 
 static const struct {
