@@ -25,6 +25,7 @@
 #include <linux/badblocks.h>
 #include <linux/memremap.h>
 #include <linux/vmalloc.h>
+#include <linux/blk-mq.h>
 #include <linux/pfn_t.h>
 #include <linux/slab.h>
 #include <linux/pmem.h>
@@ -231,6 +232,11 @@ static void pmem_release_queue(void *q)
 	blk_cleanup_queue(q);
 }
 
+static void pmem_freeze_queue(void *q)
+{
+	blk_mq_freeze_queue_start(q);
+}
+
 static void pmem_release_disk(void *disk)
 {
 	del_gendisk(disk);
@@ -284,6 +290,9 @@ static int pmem_attach_disk(struct device *dev,
 	if (!q)
 		return -ENOMEM;
 
+	if (devm_add_action_or_reset(dev, pmem_release_queue, q))
+		return -ENOMEM;
+
 	pmem->pfn_flags = PFN_DEV;
 	if (is_nd_pfn(dev)) {
 		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
@@ -303,10 +312,10 @@ static int pmem_attach_disk(struct device *dev,
 				pmem->size, ARCH_MEMREMAP_PMEM);
 
 	/*
-	 * At release time the queue must be dead before
+	 * At release time the queue must be frozen before
 	 * devm_memremap_pages is unwound
 	 */
-	if (devm_add_action_or_reset(dev, pmem_release_queue, q))
+	if (devm_add_action_or_reset(dev, pmem_freeze_queue, q))
 		return -ENOMEM;
 
 	if (IS_ERR(addr))
