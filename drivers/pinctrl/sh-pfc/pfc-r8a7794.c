@@ -1,9 +1,9 @@
 /*
- * r8a7794 processor support - PFC hardware block.
+ * r8a7794/r8a7745 processor support - PFC hardware block.
  *
  * Copyright (C) 2014-2015 Renesas Electronics Corporation
  * Copyright (C) 2015 Renesas Solutions Corp.
- * Copyright (C) 2015-2016 Cogent Embedded, Inc., <source@cogentembedded.com>
+ * Copyright (C) 2015-2017 Cogent Embedded, Inc. <source@cogentembedded.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2
@@ -5094,6 +5094,28 @@ static const struct sh_pfc_soc_operations r8a7794_pinmux_ops = {
 	.pin_to_pocctrl = r8a7794_pin_to_pocctrl,
 };
 
+#ifdef CONFIG_PINCTRL_PFC_R8A7745
+const struct sh_pfc_soc_info r8a7745_pinmux_info = {
+	.name = "r8a77450_pfc",
+	.unlock_reg = 0xe6060000, /* PMMR */
+
+	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
+
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.groups = pinmux_groups,
+	.nr_groups = ARRAY_SIZE(pinmux_groups),
+	.functions = pinmux_functions,
+	.nr_functions = ARRAY_SIZE(pinmux_functions),
+
+	.cfg_regs = pinmux_config_regs,
+
+	.pinmux_data = pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
+};
+#endif
+
+#ifdef CONFIG_PINCTRL_PFC_R8A7794
 const struct sh_pfc_soc_info r8a7794_pinmux_info = {
 	.name = "r8a77940_pfc",
 	.ops = &r8a7794_pinmux_ops,
@@ -5113,3 +5135,4 @@ const struct sh_pfc_soc_info r8a7794_pinmux_info = {
 	.pinmux_data = pinmux_data,
 	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
 };
+#endif
