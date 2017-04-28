@@ -2192,7 +2192,7 @@ static __init void of_unittest_overlay_high_level(void)
 
 	mutex_lock(&of_mutex);
 
-	for (np = of_root->child; np; np = np->sibling)
+	for (last_sibling = np = of_root->child; np; np = np->sibling)
 		last_sibling = np;
 
 	if (last_sibling)
