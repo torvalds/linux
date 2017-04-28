@@ -2228,8 +2228,8 @@ static int virtnet_alloc_queues(struct virtnet_info *vi)
 		vi->rq[i].pages = NULL;
 		netif_napi_add(vi->dev, &vi->rq[i].napi, virtnet_poll,
 			       napi_weight);
-		netif_napi_add(vi->dev, &vi->sq[i].napi, virtnet_poll_tx,
-			       napi_tx ? napi_weight : 0);
+		netif_tx_napi_add(vi->dev, &vi->sq[i].napi, virtnet_poll_tx,
+				  napi_tx ? napi_weight : 0);
 
 		sg_init_table(vi->rq[i].sg, ARRAY_SIZE(vi->rq[i].sg));
 		ewma_pkt_len_init(&vi->rq[i].mrg_avg_pkt_len);
