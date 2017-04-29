@@ -481,7 +481,7 @@ struct association_request_t {
 	u16 capability;
 	u16 listen_interval;
 	u8 ap_address[6];
-	u16 reqIEs_size;
+	u16 req_ies_size;
 } __packed;
 
 struct association_response_t {
@@ -492,14 +492,14 @@ struct association_response_t {
 	u16 capability;
 	u16 status;
 	u16 association_id;
-	u16 respIEs_size;
+	u16 resp_ies_size;
 } __packed;
 
 struct hostif_associate_indication_t {
 	struct hostif_hdr header;
 	struct association_request_t assoc_req;
 	struct association_response_t assoc_resp;
-	/* followed by (reqIEs_size + respIEs_size) octets of data */
+	/* followed by (req_ies_size + resp_ies_size) octets of data */
 	/* reqIEs data *//* respIEs data */
 } __packed;
 

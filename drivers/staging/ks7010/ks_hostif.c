@@ -948,18 +948,18 @@ void hostif_associate_indication(struct ks_wlan_private *priv)
 	wrqu.data.length += sizeof(associnfo_leader0) - 1;
 	pbuf += sizeof(associnfo_leader0) - 1;
 
-	for (i = 0; i < assoc_req->reqIEs_size; i++)
+	for (i = 0; i < assoc_req->req_ies_size; i++)
 		pbuf += sprintf(pbuf, "%02x", *(pb + i));
-	wrqu.data.length += (assoc_req->reqIEs_size) * 2;
+	wrqu.data.length += (assoc_req->req_ies_size) * 2;
 
 	memcpy(pbuf, associnfo_leader1, sizeof(associnfo_leader1) - 1);
 	wrqu.data.length += sizeof(associnfo_leader1) - 1;
 	pbuf += sizeof(associnfo_leader1) - 1;
 
-	pb += assoc_req->reqIEs_size;
-	for (i = 0; i < assoc_resp->respIEs_size; i++)
+	pb += assoc_req->req_ies_size;
+	for (i = 0; i < assoc_resp->resp_ies_size; i++)
 		pbuf += sprintf(pbuf, "%02x", *(pb + i));
-	wrqu.data.length += (assoc_resp->respIEs_size) * 2;
+	wrqu.data.length += (assoc_resp->resp_ies_size) * 2;
 
 	pbuf += sprintf(pbuf, ")");
 	wrqu.data.length += 1;
