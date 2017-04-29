@@ -302,11 +302,13 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
  * This routine initializes timing parameters related to NAND memory access in
  * FSMC registers
  */
-static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
-			   uint32_t busw, struct fsmc_nand_timings *timings)
+static void fsmc_nand_setup(struct fsmc_nand_data *host,
+			    struct fsmc_nand_timings *timings)
 {
 	uint32_t value = FSMC_DEVTYPE_NAND | FSMC_ENABLE | FSMC_WAITON;
 	uint32_t tclr, tar, thiz, thold, twait, tset;
+	unsigned int bank = host->bank;
+	void __iomem *regs = host->regs_va;
 	struct fsmc_nand_timings *tims;
 	struct fsmc_nand_timings default_timings = {
 		.tclr	= FSMC_TCLR_1,
@@ -318,7 +320,7 @@ static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
 	};
 
 	if (timings)
-		tims = timings;
+		tims = host->dev_timings;
 	else
 		tims = &default_timings;
 
@@ -329,7 +331,7 @@ static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
 	twait = (tims->twait & FSMC_TWAIT_MASK) << FSMC_TWAIT_SHIFT;
 	tset = (tims->tset & FSMC_TSET_MASK) << FSMC_TSET_SHIFT;
 
-	if (busw)
+	if (host->nand.options & NAND_BUSWIDTH_16)
 		writel_relaxed(value | FSMC_DEVWID_16,
 				FSMC_NAND_REG(regs, bank, PC));
 	else
@@ -933,9 +935,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		break;
 	}
 
-	fsmc_nand_setup(host->regs_va, host->bank,
-			nand->options & NAND_BUSWIDTH_16,
-			host->dev_timings);
+	fsmc_nand_setup(host, host->dev_timings);
 
 	if (AMBA_REV_BITS(host->pid) >= 8) {
 		nand->ecc.read_page = fsmc_read_page_hwecc;
@@ -1073,9 +1073,7 @@ static int fsmc_nand_resume(struct device *dev)
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
 	if (host) {
 		clk_prepare_enable(host->clk);
-		fsmc_nand_setup(host->regs_va, host->bank,
-				host->nand.options & NAND_BUSWIDTH_16,
-				host->dev_timings);
+		fsmc_nand_setup(host, host->dev_timings);
 	}
 	return 0;
 }
