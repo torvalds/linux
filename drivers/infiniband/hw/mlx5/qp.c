@@ -4249,9 +4249,9 @@ static int to_ib_qp_access_flags(int mlx5_flags)
 	return ib_flags;
 }
 
-static void to_ib_ah_attr(struct mlx5_ib_dev *ibdev,
-			  struct rdma_ah_attr *ib_ah_attr,
-			  struct mlx5_qp_path *path)
+static void to_rdma_ah_attr(struct mlx5_ib_dev *ibdev,
+			    struct rdma_ah_attr *ib_ah_attr,
+			    struct mlx5_qp_path *path)
 {
 	struct mlx5_core_dev *dev = ibdev->mdev;
 
@@ -4441,8 +4441,8 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		to_ib_qp_access_flags(be32_to_cpu(context->params2));
 
 	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
-		to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
-		to_ib_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
+		to_rdma_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
+		to_rdma_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
 		qp_attr->alt_pkey_index =
 			be16_to_cpu(context->alt_path.pkey_index);
 		qp_attr->alt_port_num	= qp_attr->alt_ah_attr.port_num;
