@@ -36,17 +36,19 @@
 void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
 			     struct ib_ah_attr *src)
 {
-	memcpy(dst->grh.dgid, src->grh.dgid.raw, sizeof(src->grh.dgid));
-	dst->grh.flow_label        = src->grh.flow_label;
-	dst->grh.sgid_index        = src->grh.sgid_index;
-	dst->grh.hop_limit         = src->grh.hop_limit;
-	dst->grh.traffic_class     = src->grh.traffic_class;
 	memset(&dst->grh.reserved, 0, sizeof(dst->grh.reserved));
 	dst->dlid 	    	   = src->dlid;
 	dst->sl   	    	   = src->sl;
 	dst->src_path_bits 	   = src->src_path_bits;
 	dst->static_rate   	   = src->static_rate;
 	dst->is_global             = src->ah_flags & IB_AH_GRH ? 1 : 0;
+	if (dst->is_global) {
+		memcpy(dst->grh.dgid, src->grh.dgid.raw, sizeof(src->grh.dgid));
+		dst->grh.flow_label        = src->grh.flow_label;
+		dst->grh.sgid_index        = src->grh.sgid_index;
+		dst->grh.hop_limit         = src->grh.hop_limit;
+		dst->grh.traffic_class     = src->grh.traffic_class;
+	}
 	dst->port_num 	    	   = src->port_num;
 	dst->reserved 		   = 0;
 }
