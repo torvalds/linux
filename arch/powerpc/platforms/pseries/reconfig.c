@@ -367,16 +367,9 @@ static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t coun
 	char *kbuf;
 	char *tmp;
 
-	if (!(kbuf = kmalloc(count + 1, GFP_KERNEL))) {
-		rv = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(kbuf, buf, count)) {
-		rv = -EFAULT;
-		goto out;
-	}
-
-	kbuf[count] = '\0';
+	kbuf = memdup_user_nul(buf, count);
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
 
 	tmp = strchr(kbuf, ' ');
 	if (!tmp) {
