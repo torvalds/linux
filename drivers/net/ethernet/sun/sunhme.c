@@ -1857,7 +1857,7 @@ static int happy_meal_is_not_so_happy(struct happy_meal *hp, u32 status)
 		if (status & GREG_STAT_TXLERR)
 			printk("LateError ");
 		if (status & GREG_STAT_TXPERR)
-			printk("ParityErro ");
+			printk("ParityError ");
 		if (status & GREG_STAT_TXTERR)
 			printk("TagBotch ");
 		printk("]\n");
