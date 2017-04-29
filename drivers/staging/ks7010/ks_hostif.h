@@ -252,8 +252,8 @@ struct ds_parms_t {
 struct cf_parms_t {
 	u8 count;
 	u8 period;
-	u16 maxDuration;
-	u16 durRemaining;
+	u16 max_duration;
+	u16 dur_remaining;
 } __packed;
 
 struct ibss_parms_t {
