@@ -62,8 +62,8 @@
  */
 
 struct hostif_hdr {
-	u16 size;
-	u16 event;
+	__le16 size;
+	__le16 event;
 } __packed;
 
 struct hostif_data_request_t {
