@@ -36,7 +36,7 @@
 void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
 			     struct ib_ah_attr *src)
 {
-	memcpy(dst->grh.dgid, src->grh.dgid.raw, sizeof src->grh.dgid);
+	memcpy(dst->grh.dgid, src->grh.dgid.raw, sizeof(src->grh.dgid));
 	dst->grh.flow_label        = src->grh.flow_label;
 	dst->grh.sgid_index        = src->grh.sgid_index;
 	dst->grh.hop_limit         = src->grh.hop_limit;
