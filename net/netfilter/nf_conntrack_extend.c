@@ -20,16 +20,12 @@ static struct nf_ct_ext_type __rcu *nf_ct_ext_types[NF_CT_EXT_NUM];
 static DEFINE_MUTEX(nf_ct_ext_type_mutex);
 #define NF_CT_EXT_PREALLOC	128u /* conntrack events are on by default */
 
-void __nf_ct_ext_destroy(struct nf_conn *ct)
+void nf_ct_ext_destroy(struct nf_conn *ct)
 {
 	unsigned int i;
 	struct nf_ct_ext_type *t;
-	struct nf_ct_ext *ext = ct->ext;
 
 	for (i = 0; i < NF_CT_EXT_NUM; i++) {
-		if (!__nf_ct_ext_exist(ext, i))
-			continue;
-
 		rcu_read_lock();
 		t = rcu_dereference(nf_ct_ext_types[i]);
 
@@ -42,7 +38,7 @@ void __nf_ct_ext_destroy(struct nf_conn *ct)
 		rcu_read_unlock();
 	}
 }
-EXPORT_SYMBOL(__nf_ct_ext_destroy);
+EXPORT_SYMBOL(nf_ct_ext_destroy);
 
 void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 {

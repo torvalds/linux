@@ -69,12 +69,7 @@ static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)
 	((id##_TYPE *)__nf_ct_ext_find((ext), (id)))
 
 /* Destroy all relationships */
-void __nf_ct_ext_destroy(struct nf_conn *ct);
-static inline void nf_ct_ext_destroy(struct nf_conn *ct)
-{
-	if (ct->ext)
-		__nf_ct_ext_destroy(ct);
-}
+void nf_ct_ext_destroy(struct nf_conn *ct);
 
 /* Free operation. If you want to free a object referred from private area,
  * please implement __nf_ct_ext_free() and call it.
