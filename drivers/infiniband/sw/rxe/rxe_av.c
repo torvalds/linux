@@ -69,6 +69,7 @@ int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
 		   struct ib_ah_attr *attr)
 {
 	memcpy(&attr->grh, &av->grh, sizeof(av->grh));
+	attr->ah_flags = IB_AH_GRH;
 	attr->port_num = av->port_num;
 	return 0;
 }
