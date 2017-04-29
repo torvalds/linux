@@ -393,9 +393,9 @@ static int to_ib_qp_access_flags(int mthca_flags)
 	return ib_flags;
 }
 
-static void to_ib_ah_attr(struct mthca_dev *dev,
-			  struct rdma_ah_attr *ib_ah_attr,
-			  struct mthca_qp_path *path)
+static void to_rdma_ah_attr(struct mthca_dev *dev,
+			    struct rdma_ah_attr *ib_ah_attr,
+			    struct mthca_qp_path *path)
 {
 	memset(ib_ah_attr, 0, sizeof *ib_ah_attr);
 	ib_ah_attr->port_num 	  = (be32_to_cpu(path->port_pkey) >> 24) & 0x3;
@@ -469,8 +469,8 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 		to_ib_qp_access_flags(be32_to_cpu(context->params2));
 
 	if (qp->transport == RC || qp->transport == UC) {
-		to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
-		to_ib_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
+		to_rdma_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
+		to_rdma_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
 		qp_attr->alt_pkey_index =
 			be32_to_cpu(context->alt_path.port_pkey) & 0x7f;
 		qp_attr->alt_port_num 	= qp_attr->alt_ah_attr.port_num;
