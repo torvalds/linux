@@ -484,7 +484,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	dev_dbg(dev, "%s: pfn: %s\n", __func__,
 			rc == 0 ? dev_name(pfn_dev) : "<none>");
 	if (rc < 0) {
-		__nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
+		nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
 		put_device(pfn_dev);
 	} else
 		__nd_device_register(pfn_dev);

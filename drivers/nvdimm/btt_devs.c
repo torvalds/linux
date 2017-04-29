@@ -314,7 +314,7 @@ int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns)
 	if (rc < 0) {
 		struct nd_btt *nd_btt = to_nd_btt(btt_dev);
 
-		__nd_detach_ndns(btt_dev, &nd_btt->ndns);
+		nd_detach_ndns(btt_dev, &nd_btt->ndns);
 		put_device(btt_dev);
 	}
 

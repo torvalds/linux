@@ -21,8 +21,13 @@
 void __nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns)
 {
 	struct nd_namespace_common *ndns = *_ndns;
+	struct nvdimm_bus *nvdimm_bus;
 
-	lockdep_assert_held(&ndns->dev.mutex);
+	if (!ndns)
+		return;
+
+	nvdimm_bus = walk_to_nvdimm_bus(&ndns->dev);
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
 	dev_WARN_ONCE(dev, ndns->claim != dev, "%s: invalid claim\n", __func__);
 	ndns->claim = NULL;
 	*_ndns = NULL;
@@ -37,18 +42,20 @@ void nd_detach_ndns(struct device *dev,
 	if (!ndns)
 		return;
 	get_device(&ndns->dev);
-	device_lock(&ndns->dev);
+	nvdimm_bus_lock(&ndns->dev);
 	__nd_detach_ndns(dev, _ndns);
-	device_unlock(&ndns->dev);
+	nvdimm_bus_unlock(&ndns->dev);
 	put_device(&ndns->dev);
 }
 
 bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 		struct nd_namespace_common **_ndns)
 {
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&attach->dev);
+
 	if (attach->claim)
 		return false;
-	lockdep_assert_held(&attach->dev.mutex);
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
 	dev_WARN_ONCE(dev, *_ndns, "%s: invalid claim\n", __func__);
 	attach->claim = dev;
 	*_ndns = attach;
@@ -61,9 +68,9 @@ bool nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 {
 	bool claimed;
 
-	device_lock(&attach->dev);
+	nvdimm_bus_lock(&attach->dev);
 	claimed = __nd_attach_ndns(dev, attach, _ndns);
-	device_unlock(&attach->dev);
+	nvdimm_bus_unlock(&attach->dev);
 	return claimed;
 }
 
@@ -114,7 +121,7 @@ static void nd_detach_and_reset(struct device *dev,
 		struct nd_namespace_common **_ndns)
 {
 	/* detach the namespace and destroy / reset the device */
-	nd_detach_ndns(dev, _ndns);
+	__nd_detach_ndns(dev, _ndns);
 	if (is_idle(dev, *_ndns)) {
 		nd_device_unregister(dev, ND_ASYNC);
 	} else if (is_nd_btt(dev)) {
@@ -184,7 +191,7 @@ ssize_t nd_namespace_store(struct device *dev,
 	}
 
 	WARN_ON_ONCE(!is_nvdimm_bus_locked(dev));
-	if (!nd_attach_ndns(dev, ndns, _ndns)) {
+	if (!__nd_attach_ndns(dev, ndns, _ndns)) {
 		dev_dbg(dev, "%s already claimed\n",
 				dev_name(&ndns->dev));
 		len = -EBUSY;
