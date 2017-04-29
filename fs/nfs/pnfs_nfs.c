@@ -217,6 +217,13 @@ pnfs_generic_alloc_ds_commits(struct nfs_commit_info *cinfo,
 	for (i = 0; i < fl_cinfo->nbuckets; i++, bucket++) {
 		if (list_empty(&bucket->committing))
 			continue;
+		/*
+		 * If the layout segment is invalid, then let
+		 * pnfs_generic_retry_commit() clean up the bucket.
+		 */
+		if (!pnfs_is_valid_lseg(bucket->clseg) &&
+		    !test_bit(NFS_LSEG_LAYOUTRETURN, &bucket->clseg->pls_flags))
+			continue;
 		data = nfs_commitdata_alloc(false);
 		if (!data)
 			break;
