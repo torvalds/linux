@@ -303,26 +303,12 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
  * FSMC registers
  */
 static void fsmc_nand_setup(struct fsmc_nand_data *host,
-			    struct fsmc_nand_timings *timings)
+			    struct fsmc_nand_timings *tims)
 {
 	uint32_t value = FSMC_DEVTYPE_NAND | FSMC_ENABLE | FSMC_WAITON;
 	uint32_t tclr, tar, thiz, thold, twait, tset;
 	unsigned int bank = host->bank;
 	void __iomem *regs = host->regs_va;
-	struct fsmc_nand_timings *tims;
-	struct fsmc_nand_timings default_timings = {
-		.tclr	= FSMC_TCLR_1,
-		.tar	= FSMC_TAR_1,
-		.thiz	= FSMC_THIZ_1,
-		.thold	= FSMC_THOLD_4,
-		.twait	= FSMC_TWAIT_6,
-		.tset	= FSMC_TSET_0,
-	};
-
-	if (timings)
-		tims = host->dev_timings;
-	else
-		tims = &default_timings;
 
 	tclr = (tims->tclr & FSMC_TCLR_MASK) << FSMC_TCLR_SHIFT;
 	tar = (tims->tar & FSMC_TAR_MASK) << FSMC_TAR_SHIFT;
