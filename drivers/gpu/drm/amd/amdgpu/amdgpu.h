@@ -1035,6 +1035,10 @@ struct amdgpu_gfx {
 	bool                            in_suspend;
 	/* NGG */
 	struct amdgpu_ngg		ngg;
+
+	/* pipe reservation */
+	struct mutex			pipe_reserve_mutex;
+	DECLARE_BITMAP			(pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 };
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
