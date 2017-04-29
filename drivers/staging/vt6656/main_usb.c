@@ -529,6 +529,9 @@ static int vnt_start(struct ieee80211_hw *hw)
 		goto free_all;
 	}
 
+	if (vnt_key_init_table(priv))
+		goto free_all;
+
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
 	vnt_int_start_interrupt(priv);
