@@ -277,8 +277,8 @@ void ib_global_route_to_pvrdma(struct pvrdma_global_route *dst,
 	dst->traffic_class = src->traffic_class;
 }
 
-void pvrdma_ah_attr_to_ib(struct rdma_ah_attr *dst,
-			  const struct pvrdma_ah_attr *src)
+void pvrdma_ah_attr_to_rdma(struct rdma_ah_attr *dst,
+			    const struct pvrdma_ah_attr *src)
 {
 	pvrdma_global_route_to_ib(&dst->grh, &src->grh);
 	dst->dlid = src->dlid;
@@ -290,8 +290,8 @@ void pvrdma_ah_attr_to_ib(struct rdma_ah_attr *dst,
 	memcpy(&dst->dmac, &src->dmac, sizeof(dst->dmac));
 }
 
-void ib_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
-			  const struct rdma_ah_attr *src)
+void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
+			    const struct rdma_ah_attr *src)
 {
 	ib_global_route_to_pvrdma(&dst->grh, &src->grh);
 	dst->dlid = src->dlid;
