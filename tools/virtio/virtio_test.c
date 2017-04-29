@@ -202,7 +202,7 @@ static void run_test(struct vdev_info *dev, struct vq_info *vq,
 	test = 0;
 	r = ioctl(dev->control, VHOST_TEST_RUN, &test);
 	assert(r >= 0);
-	fprintf(stderr, "spurious wakeus: 0x%llx\n", spurious);
+	fprintf(stderr, "spurious wakeups: 0x%llx\n", spurious);
 }
 
 const char optstring[] = "h";
