@@ -1798,6 +1798,7 @@ ssize_t ib_uverbs_query_qp(struct ib_uverbs_file *file,
 	struct ib_qp                   *qp;
 	struct ib_qp_attr              *attr;
 	struct ib_qp_init_attr         *init_attr;
+	const struct ib_global_route   *grh;
 	int                            ret;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1847,34 +1848,39 @@ ssize_t ib_uverbs_query_qp(struct ib_uverbs_file *file,
 	resp.alt_port_num           = attr->alt_port_num;
 	resp.alt_timeout            = attr->alt_timeout;
 
-	resp.dest.dlid              = attr->ah_attr.dlid;
-	resp.dest.sl                = attr->ah_attr.sl;
-	resp.dest.src_path_bits     = attr->ah_attr.src_path_bits;
-	resp.dest.static_rate       = attr->ah_attr.static_rate;
-	resp.dest.is_global         = !!(attr->ah_attr.ah_flags & IB_AH_GRH);
+	resp.dest.dlid              = rdma_ah_get_dlid(&attr->ah_attr);
+	resp.dest.sl                = rdma_ah_get_sl(&attr->ah_attr);
+	resp.dest.src_path_bits     = rdma_ah_get_path_bits(&attr->ah_attr);
+	resp.dest.static_rate       = rdma_ah_get_static_rate(&attr->ah_attr);
+	resp.dest.is_global         = !!(rdma_ah_get_ah_flags(&attr->ah_attr) &
+					 IB_AH_GRH);
 	if (resp.dest.is_global) {
-		memcpy(resp.dest.dgid, attr->ah_attr.grh.dgid.raw, 16);
-		resp.dest.flow_label        = attr->ah_attr.grh.flow_label;
-		resp.dest.sgid_index        = attr->ah_attr.grh.sgid_index;
-		resp.dest.hop_limit         = attr->ah_attr.grh.hop_limit;
-		resp.dest.traffic_class     = attr->ah_attr.grh.traffic_class;
+		grh = rdma_ah_read_grh(&attr->ah_attr);
+		memcpy(resp.dest.dgid, grh->dgid.raw, 16);
+		resp.dest.flow_label        = grh->flow_label;
+		resp.dest.sgid_index        = grh->sgid_index;
+		resp.dest.hop_limit         = grh->hop_limit;
+		resp.dest.traffic_class     = grh->traffic_class;
 	}
-	resp.dest.port_num          = attr->ah_attr.port_num;
+	resp.dest.port_num          = rdma_ah_get_port_num(&attr->ah_attr);
 
-	resp.alt_dest.dlid          = attr->alt_ah_attr.dlid;
-	resp.alt_dest.sl            = attr->alt_ah_attr.sl;
-	resp.alt_dest.src_path_bits = attr->alt_ah_attr.src_path_bits;
-	resp.alt_dest.static_rate   = attr->alt_ah_attr.static_rate;
-	resp.alt_dest.is_global     = !!(attr->alt_ah_attr.ah_flags & IB_AH_GRH);
+	resp.alt_dest.dlid          = rdma_ah_get_dlid(&attr->alt_ah_attr);
+	resp.alt_dest.sl            = rdma_ah_get_sl(&attr->alt_ah_attr);
+	resp.alt_dest.src_path_bits = rdma_ah_get_path_bits(&attr->alt_ah_attr);
+	resp.alt_dest.static_rate
+			= rdma_ah_get_static_rate(&attr->alt_ah_attr);
+	resp.alt_dest.is_global
+			= !!(rdma_ah_get_ah_flags(&attr->alt_ah_attr) &
+						  IB_AH_GRH);
 	if (resp.alt_dest.is_global) {
-		memcpy(resp.alt_dest.dgid, attr->alt_ah_attr.grh.dgid.raw, 16);
-		resp.alt_dest.flow_label    = attr->alt_ah_attr.grh.flow_label;
-		resp.alt_dest.sgid_index    = attr->alt_ah_attr.grh.sgid_index;
-		resp.alt_dest.hop_limit     = attr->alt_ah_attr.grh.hop_limit;
-		resp.alt_dest.traffic_class =
-				attr->alt_ah_attr.grh.traffic_class;
+		grh = rdma_ah_read_grh(&attr->alt_ah_attr);
+		memcpy(resp.alt_dest.dgid, grh->dgid.raw, 16);
+		resp.alt_dest.flow_label    = grh->flow_label;
+		resp.alt_dest.sgid_index    = grh->sgid_index;
+		resp.alt_dest.hop_limit     = grh->hop_limit;
+		resp.alt_dest.traffic_class = grh->traffic_class;
 	}
-	resp.alt_dest.port_num      = attr->alt_ah_attr.port_num;
+	resp.alt_dest.port_num      = rdma_ah_get_port_num(&attr->alt_ah_attr);
 
 	resp.max_send_wr            = init_attr->cap.max_send_wr;
 	resp.max_recv_wr            = init_attr->cap.max_recv_wr;
@@ -1949,41 +1955,42 @@ static int modify_qp(struct ib_uverbs_file *file,
 	attr->rate_limit	  = cmd->rate_limit;
 
 	if (cmd->base.dest.is_global) {
-		memcpy(attr->ah_attr.grh.dgid.raw, cmd->base.dest.dgid, 16);
-		attr->ah_attr.grh.flow_label	= cmd->base.dest.flow_label;
-		attr->ah_attr.grh.sgid_index	= cmd->base.dest.sgid_index;
-		attr->ah_attr.grh.hop_limit	= cmd->base.dest.hop_limit;
-		attr->ah_attr.grh.traffic_class	= cmd->base.dest.traffic_class;
-		attr->ah_attr.ah_flags		= IB_AH_GRH;
+		rdma_ah_set_grh(&attr->ah_attr, NULL,
+				cmd->base.dest.flow_label,
+				cmd->base.dest.sgid_index,
+				cmd->base.dest.hop_limit,
+				cmd->base.dest.traffic_class);
+		rdma_ah_set_dgid_raw(&attr->ah_attr, cmd->base.dest.dgid);
 	} else {
-		attr->ah_attr.ah_flags = 0;
+		rdma_ah_set_ah_flags(&attr->ah_attr, 0);
 	}
-	attr->ah_attr.dlid		= cmd->base.dest.dlid;
-	attr->ah_attr.sl		= cmd->base.dest.sl;
-	attr->ah_attr.src_path_bits	= cmd->base.dest.src_path_bits;
-	attr->ah_attr.static_rate	= cmd->base.dest.static_rate;
-	attr->ah_attr.port_num		= cmd->base.dest.port_num;
+	rdma_ah_set_dlid(&attr->ah_attr, cmd->base.dest.dlid);
+	rdma_ah_set_sl(&attr->ah_attr, cmd->base.dest.sl);
+	rdma_ah_set_path_bits(&attr->ah_attr, cmd->base.dest.src_path_bits);
+	rdma_ah_set_static_rate(&attr->ah_attr, cmd->base.dest.static_rate);
+	rdma_ah_set_port_num(&attr->ah_attr,
+			     cmd->base.dest.port_num);
 
 	if (cmd->base.alt_dest.is_global) {
-		memcpy(attr->alt_ah_attr.grh.dgid.raw,
-		       cmd->base.alt_dest.dgid, 16);
-		attr->alt_ah_attr.grh.flow_label =
-				cmd->base.alt_dest.flow_label;
-		attr->alt_ah_attr.grh.sgid_index =
-				cmd->base.alt_dest.sgid_index;
-		attr->alt_ah_attr.grh.hop_limit =
-				cmd->base.alt_dest.hop_limit;
-		attr->alt_ah_attr.grh.traffic_class =
-				cmd->base.alt_dest.traffic_class;
-		attr->alt_ah_attr.ah_flags = IB_AH_GRH;
+		rdma_ah_set_grh(&attr->alt_ah_attr, NULL,
+				cmd->base.alt_dest.flow_label,
+				cmd->base.alt_dest.sgid_index,
+				cmd->base.alt_dest.hop_limit,
+				cmd->base.alt_dest.traffic_class);
+		rdma_ah_set_dgid_raw(&attr->alt_ah_attr,
+				     cmd->base.alt_dest.dgid);
 	} else {
-		attr->alt_ah_attr.ah_flags = 0;
+		rdma_ah_set_ah_flags(&attr->alt_ah_attr, 0);
 	}
-	attr->alt_ah_attr.dlid		    = cmd->base.alt_dest.dlid;
-	attr->alt_ah_attr.sl		    = cmd->base.alt_dest.sl;
-	attr->alt_ah_attr.src_path_bits	    = cmd->base.alt_dest.src_path_bits;
-	attr->alt_ah_attr.static_rate	    = cmd->base.alt_dest.static_rate;
-	attr->alt_ah_attr.port_num	    = cmd->base.alt_dest.port_num;
+
+	rdma_ah_set_dlid(&attr->alt_ah_attr, cmd->base.alt_dest.dlid);
+	rdma_ah_set_sl(&attr->alt_ah_attr, cmd->base.alt_dest.sl);
+	rdma_ah_set_path_bits(&attr->alt_ah_attr,
+			      cmd->base.alt_dest.src_path_bits);
+	rdma_ah_set_static_rate(&attr->alt_ah_attr,
+				cmd->base.alt_dest.static_rate);
+	rdma_ah_set_port_num(&attr->alt_ah_attr,
+			     cmd->base.alt_dest.port_num);
 
 	if (qp->real_qp == qp) {
 		if (cmd->base.attr_mask & IB_QP_AV) {
@@ -2522,6 +2529,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	struct rdma_ah_attr		attr;
 	int ret;
 	struct ib_udata                   udata;
+	u8				*dmac;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -2543,22 +2551,24 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 		goto err;
 	}
 
-	attr.dlid 	       = cmd.attr.dlid;
-	attr.sl 	       = cmd.attr.sl;
-	attr.src_path_bits     = cmd.attr.src_path_bits;
-	attr.static_rate       = cmd.attr.static_rate;
-	attr.port_num 	       = cmd.attr.port_num;
-	memset(&attr.dmac, 0, sizeof(attr.dmac));
+	rdma_ah_set_dlid(&attr, cmd.attr.dlid);
+	rdma_ah_set_sl(&attr, cmd.attr.sl);
+	rdma_ah_set_path_bits(&attr, cmd.attr.src_path_bits);
+	rdma_ah_set_static_rate(&attr, cmd.attr.static_rate);
+	rdma_ah_set_port_num(&attr, cmd.attr.port_num);
+
 	if (cmd.attr.is_global) {
-		attr.ah_flags          = IB_AH_GRH;
-		attr.grh.flow_label    = cmd.attr.grh.flow_label;
-		attr.grh.sgid_index    = cmd.attr.grh.sgid_index;
-		attr.grh.hop_limit     = cmd.attr.grh.hop_limit;
-		attr.grh.traffic_class = cmd.attr.grh.traffic_class;
-		memcpy(attr.grh.dgid.raw, cmd.attr.grh.dgid, 16);
+		rdma_ah_set_grh(&attr, NULL, cmd.attr.grh.flow_label,
+				cmd.attr.grh.sgid_index,
+				cmd.attr.grh.hop_limit,
+				cmd.attr.grh.traffic_class);
+		rdma_ah_set_dgid_raw(&attr, cmd.attr.grh.dgid);
 	} else {
-		attr.ah_flags = 0;
+		rdma_ah_set_ah_flags(&attr, 0);
 	}
+	dmac = rdma_ah_retrieve_dmac(&attr);
+	if (dmac)
+		memset(dmac, 0, ETH_ALEN);
 
 	ah = pd->device->create_ah(pd, &attr, &udata);
 

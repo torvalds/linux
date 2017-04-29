@@ -38,17 +38,18 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 {
 	struct rxe_port *port;
 
-	if (attr->port_num != 1) {
-		pr_info("invalid port_num = %d\n", attr->port_num);
+	if (rdma_ah_get_port_num(attr) != 1) {
+		pr_info("invalid port_num = %d\n", rdma_ah_get_port_num(attr));
 		return -EINVAL;
 	}
 
 	port = &rxe->port;
 
-	if (attr->ah_flags & IB_AH_GRH) {
-		if (attr->grh.sgid_index > port->attr.gid_tbl_len) {
-			pr_info("invalid sgid index = %d\n",
-				attr->grh.sgid_index);
+	if (rdma_ah_get_ah_flags(attr) & IB_AH_GRH) {
+		u8 sgid_index = rdma_ah_read_grh(attr)->sgid_index;
+
+		if (sgid_index > port->attr.gid_tbl_len) {
+			pr_info("invalid sgid index = %d\n", sgid_index);
 			return -EINVAL;
 		}
 	}
@@ -60,7 +61,8 @@ int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
 		     struct rxe_av *av, struct rdma_ah_attr *attr)
 {
 	memset(av, 0, sizeof(*av));
-	memcpy(&av->grh, &attr->grh, sizeof(attr->grh));
+	memcpy(&av->grh, rdma_ah_read_grh(attr),
+	       sizeof(*rdma_ah_read_grh(attr)));
 	av->port_num = port_num;
 	return 0;
 }
@@ -68,9 +70,9 @@ int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
 int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
 		   struct rdma_ah_attr *attr)
 {
-	memcpy(&attr->grh, &av->grh, sizeof(av->grh));
-	attr->ah_flags = IB_AH_GRH;
-	attr->port_num = av->port_num;
+	memcpy(rdma_ah_retrieve_grh(attr), &av->grh, sizeof(av->grh));
+	rdma_ah_set_ah_flags(attr, IB_AH_GRH);
+	rdma_ah_set_port_num(attr, av->port_num);
 	return 0;
 }
 
@@ -81,7 +83,7 @@ int rxe_av_fill_ip_info(struct rxe_dev *rxe,
 			union ib_gid *sgid)
 {
 	rdma_gid2ip(&av->sgid_addr._sockaddr, sgid);
-	rdma_gid2ip(&av->dgid_addr._sockaddr, &attr->grh.dgid);
+	rdma_gid2ip(&av->dgid_addr._sockaddr, &rdma_ah_read_grh(attr)->dgid);
 	av->network_type = ib_gid_to_network_type(sgid_attr->gid_type, sgid);
 
 	return 0;

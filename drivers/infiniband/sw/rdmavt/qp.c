@@ -1104,14 +1104,15 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto inval;
 
 	if (attr_mask & IB_QP_AV) {
-		if (attr->ah_attr.dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
+		if (rdma_ah_get_dlid(&attr->ah_attr) >=
+		    be16_to_cpu(IB_MULTICAST_LID_BASE))
 			goto inval;
 		if (rvt_check_ah(qp->ibqp.device, &attr->ah_attr))
 			goto inval;
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
-		if (attr->alt_ah_attr.dlid >=
+		if (rdma_ah_get_dlid(&attr->alt_ah_attr) >=
 		    be16_to_cpu(IB_MULTICAST_LID_BASE))
 			goto inval;
 		if (rvt_check_ah(qp->ibqp.device, &attr->alt_ah_attr))
@@ -1240,7 +1241,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_AV) {
 		qp->remote_ah_attr = attr->ah_attr;
-		qp->s_srate = attr->ah_attr.static_rate;
+		qp->s_srate = rdma_ah_get_static_rate(&attr->ah_attr);
 		qp->srate_mbps = ib_rate_to_mbps(qp->s_srate);
 	}
 
@@ -1253,7 +1254,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->s_mig_state = attr->path_mig_state;
 		if (mig) {
 			qp->remote_ah_attr = qp->alt_ah_attr;
-			qp->port_num = qp->alt_ah_attr.port_num;
+			qp->port_num = rdma_ah_get_port_num(&qp->alt_ah_attr);
 			qp->s_pkey_index = qp->s_alt_pkey_index;
 		}
 	}
@@ -1424,7 +1425,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->timeout = qp->timeout;
 	attr->retry_cnt = qp->s_retry_cnt;
 	attr->rnr_retry = qp->s_rnr_retry_cnt;
-	attr->alt_port_num = qp->alt_ah_attr.port_num;
+	attr->alt_port_num =
+		rdma_ah_get_port_num(&qp->alt_ah_attr);
 	attr->alt_timeout = qp->alt_timeout;
 
 	init_attr->event_handler = qp->ibqp.event_handler;

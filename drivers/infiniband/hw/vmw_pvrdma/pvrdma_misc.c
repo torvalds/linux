@@ -280,25 +280,25 @@ void ib_global_route_to_pvrdma(struct pvrdma_global_route *dst,
 void pvrdma_ah_attr_to_rdma(struct rdma_ah_attr *dst,
 			    const struct pvrdma_ah_attr *src)
 {
-	pvrdma_global_route_to_ib(&dst->grh, &src->grh);
-	dst->dlid = src->dlid;
-	dst->sl = src->sl;
-	dst->src_path_bits = src->src_path_bits;
-	dst->static_rate = src->static_rate;
-	dst->ah_flags = src->ah_flags;
-	dst->port_num = src->port_num;
-	memcpy(&dst->dmac, &src->dmac, sizeof(dst->dmac));
+	pvrdma_global_route_to_ib(rdma_ah_retrieve_grh(dst), &src->grh);
+	rdma_ah_set_dlid(dst, src->dlid);
+	rdma_ah_set_sl(dst, src->sl);
+	rdma_ah_set_path_bits(dst, src->src_path_bits);
+	rdma_ah_set_static_rate(dst, src->static_rate);
+	rdma_ah_set_ah_flags(dst, src->ah_flags);
+	rdma_ah_set_port_num(dst, src->port_num);
+	memcpy(dst->dmac, &src->dmac, ETH_ALEN);
 }
 
 void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
 			    const struct rdma_ah_attr *src)
 {
-	ib_global_route_to_pvrdma(&dst->grh, &src->grh);
-	dst->dlid = src->dlid;
-	dst->sl = src->sl;
-	dst->src_path_bits = src->src_path_bits;
-	dst->static_rate = src->static_rate;
-	dst->ah_flags = src->ah_flags;
-	dst->port_num = src->port_num;
-	memcpy(&dst->dmac, &src->dmac, sizeof(dst->dmac));
+	ib_global_route_to_pvrdma(&dst->grh, rdma_ah_read_grh(src));
+	dst->dlid = rdma_ah_get_dlid(src);
+	dst->sl = rdma_ah_get_sl(src);
+	dst->src_path_bits = rdma_ah_get_path_bits(src);
+	dst->static_rate = rdma_ah_get_static_rate(src);
+	dst->ah_flags = rdma_ah_get_ah_flags(src);
+	dst->port_num = rdma_ah_get_port_num(src);
+	memcpy(&dst->dmac, src->dmac, sizeof(dst->dmac));
 }

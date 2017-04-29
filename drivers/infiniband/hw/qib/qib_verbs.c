@@ -1338,7 +1338,7 @@ static int qib_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 
 int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 {
-	if (ah_attr->sl > 15)
+	if (rdma_ah_get_sl(ah_attr) > 15)
 		return -EINVAL;
 
 	return 0;
@@ -1356,9 +1356,9 @@ static void qib_notify_new_ah(struct ib_device *ibdev,
 	 * done being setup. We can however modify things which we need to set.
 	 */
 
-	ibp = to_iport(ibdev, ah_attr->port_num);
+	ibp = to_iport(ibdev, rdma_ah_get_port_num(ah_attr));
 	ppd = ppd_from_ibp(ibp);
-	ah->vl = ibp->sl_to_vl[ah->attr.sl];
+	ah->vl = ibp->sl_to_vl[rdma_ah_get_sl(&ah->attr)];
 	ah->log_pmtu = ilog2(ppd->ibmtu);
 }
 
@@ -1367,10 +1367,12 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 	struct rdma_ah_attr attr;
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
 	struct rvt_qp *qp0;
+	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	u8 port_num = ppd->port;
 
 	memset(&attr, 0, sizeof(attr));
-	attr.dlid = dlid;
-	attr.port_num = ppd_from_ibp(ibp)->port;
+	rdma_ah_set_dlid(&attr, dlid);
+	rdma_ah_set_port_num(&attr, port_num);
 	rcu_read_lock();
 	qp0 = rcu_dereference(ibp->rvp.qp[0]);
 	if (qp0)

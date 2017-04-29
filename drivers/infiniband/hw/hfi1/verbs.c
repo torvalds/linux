@@ -1461,9 +1461,9 @@ static int hfi1_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
  */
 u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah)
 {
-	struct hfi1_ibport *ibp = to_iport(ibdev, ah->port_num);
+	struct hfi1_ibport *ibp = to_iport(ibdev, rdma_ah_get_port_num(ah));
 
-	return ibp->sl_to_sc[ah->sl];
+	return ibp->sl_to_sc[rdma_ah_get_sl(ah)];
 }
 
 static int hfi1_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
@@ -1474,9 +1474,9 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 	u8 sc5;
 
 	/* test the mapping for validity */
-	ibp = to_iport(ibdev, ah_attr->port_num);
+	ibp = to_iport(ibdev, rdma_ah_get_port_num(ah_attr));
 	ppd = ppd_from_ibp(ibp);
-	sc5 = ibp->sl_to_sc[ah_attr->sl];
+	sc5 = ibp->sl_to_sc[rdma_ah_get_sl(ah_attr)];
 	dd = dd_from_ppd(ppd);
 	if (sc_to_vlt(dd, sc5) > num_vls && sc_to_vlt(dd, sc5) != 0xf)
 		return -EINVAL;
@@ -1497,9 +1497,9 @@ static void hfi1_notify_new_ah(struct ib_device *ibdev,
 	 * done being setup. We can however modify things which we need to set.
 	 */
 
-	ibp = to_iport(ibdev, ah_attr->port_num);
+	ibp = to_iport(ibdev, rdma_ah_get_port_num(ah_attr));
 	ppd = ppd_from_ibp(ibp);
-	sc5 = ibp->sl_to_sc[ah->attr.sl];
+	sc5 = ibp->sl_to_sc[rdma_ah_get_sl(&ah->attr)];
 	dd = dd_from_ppd(ppd);
 	ah->vl = sc_to_vlt(dd, sc5);
 	if (ah->vl < num_vls || ah->vl == 15)
@@ -1513,8 +1513,8 @@ struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid)
 	struct rvt_qp *qp0;
 
 	memset(&attr, 0, sizeof(attr));
-	attr.dlid = dlid;
-	attr.port_num = ppd_from_ibp(ibp)->port;
+	rdma_ah_set_dlid(&attr, dlid);
+	rdma_ah_set_port_num(&attr, ppd_from_ibp(ibp)->port);
 	rcu_read_lock();
 	qp0 = rcu_dereference(ibp->rvp.qp[0]);
 	if (qp0)
@@ -1913,12 +1913,12 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 
 	switch (packet->qp->ibqp.qp_type) {
 	case IB_QPT_UC:
-		rlid = qp->remote_ah_attr.dlid;
+		rlid = rdma_ah_get_dlid(&qp->remote_ah_attr);
 		rqpn = qp->remote_qpn;
 		svc_type = IB_CC_SVCTYPE_UC;
 		break;
 	case IB_QPT_RC:
-		rlid = qp->remote_ah_attr.dlid;
+		rlid = rdma_ah_get_dlid(&qp->remote_ah_attr);
 		rqpn = qp->remote_qpn;
 		svc_type = IB_CC_SVCTYPE_RC;
 		break;

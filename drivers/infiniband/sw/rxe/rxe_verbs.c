@@ -304,15 +304,15 @@ static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 	union ib_gid sgid;
 	struct ib_gid_attr sgid_attr;
 
-	err = ib_get_cached_gid(&rxe->ib_dev, attr->port_num,
-				attr->grh.sgid_index, &sgid,
+	err = ib_get_cached_gid(&rxe->ib_dev, rdma_ah_get_port_num(attr),
+				rdma_ah_read_grh(attr)->sgid_index, &sgid,
 				&sgid_attr);
 	if (err) {
 		pr_err("Failed to query sgid. err = %d\n", err);
 		return err;
 	}
 
-	err = rxe_av_from_attr(rxe, attr->port_num, av, attr);
+	err = rxe_av_from_attr(rxe, rdma_ah_get_port_num(attr), av, attr);
 	if (!err)
 		err = rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
 

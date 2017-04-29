@@ -82,9 +82,9 @@ static void update_sm_ah(struct mthca_dev *dev,
 		return;
 
 	memset(&ah_attr, 0, sizeof ah_attr);
-	ah_attr.dlid     = lid;
-	ah_attr.sl       = sl;
-	ah_attr.port_num = port_num;
+	rdma_ah_set_dlid(&ah_attr, lid);
+	rdma_ah_set_sl(&ah_attr, sl);
+	rdma_ah_set_port_num(&ah_attr, port_num);
 
 	new_ah = rdma_create_ah(dev->send_agent[port_num - 1][0]->qp->pd,
 				&ah_attr);

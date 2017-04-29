@@ -870,7 +870,7 @@ static int init_newwin(struct ib_mad_send_wr_private *mad_send_wr)
 		if (rdma_query_ah(mad_send_wr->send_buf.ah, &ah_attr))
 			continue;
 
-		if (rmpp_recv->slid == ah_attr.dlid) {
+		if (rmpp_recv->slid == rdma_ah_get_dlid(&ah_attr)) {
 			newwin = rmpp_recv->repwin;
 			break;
 		}

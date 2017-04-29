@@ -37,19 +37,22 @@ void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
 			     struct rdma_ah_attr *src)
 {
 	memset(&dst->grh.reserved, 0, sizeof(dst->grh.reserved));
-	dst->dlid 	    	   = src->dlid;
-	dst->sl   	    	   = src->sl;
-	dst->src_path_bits 	   = src->src_path_bits;
-	dst->static_rate   	   = src->static_rate;
-	dst->is_global             = src->ah_flags & IB_AH_GRH ? 1 : 0;
+	dst->dlid		   = rdma_ah_get_dlid(src);
+	dst->sl			   = rdma_ah_get_sl(src);
+	dst->src_path_bits	   = rdma_ah_get_path_bits(src);
+	dst->static_rate	   = rdma_ah_get_static_rate(src);
+	dst->is_global             = rdma_ah_get_ah_flags(src) &
+					IB_AH_GRH ? 1 : 0;
 	if (dst->is_global) {
-		memcpy(dst->grh.dgid, src->grh.dgid.raw, sizeof(src->grh.dgid));
-		dst->grh.flow_label        = src->grh.flow_label;
-		dst->grh.sgid_index        = src->grh.sgid_index;
-		dst->grh.hop_limit         = src->grh.hop_limit;
-		dst->grh.traffic_class     = src->grh.traffic_class;
+		const struct ib_global_route *grh = rdma_ah_read_grh(src);
+
+		memcpy(dst->grh.dgid, grh->dgid.raw, sizeof(grh->dgid));
+		dst->grh.flow_label        = grh->flow_label;
+		dst->grh.sgid_index        = grh->sgid_index;
+		dst->grh.hop_limit         = grh->hop_limit;
+		dst->grh.traffic_class     = grh->traffic_class;
 	}
-	dst->port_num 	    	   = src->port_num;
+	dst->port_num		   = rdma_ah_get_port_num(src);
 	dst->reserved 		   = 0;
 }
 EXPORT_SYMBOL(ib_copy_ah_attr_to_user);

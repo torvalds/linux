@@ -219,23 +219,28 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 {
 	__be64 guid;
 	unsigned long flags;
-	u8 sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
+	u8 sc5 = ibp->sl_to_sc[rdma_ah_get_sl(&qp->remote_ah_attr)];
 
 	if (qp->s_mig_state == IB_MIG_ARMED && (bth0 & IB_BTH_MIG_REQ)) {
 		if (!has_grh) {
-			if (qp->alt_ah_attr.ah_flags & IB_AH_GRH)
+			if (rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
+			    IB_AH_GRH)
 				goto err;
 		} else {
-			if (!(qp->alt_ah_attr.ah_flags & IB_AH_GRH))
+			const struct ib_global_route *grh;
+
+			if (!(rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
+			      IB_AH_GRH))
 				goto err;
-			guid = get_sguid(ibp, qp->alt_ah_attr.grh.sgid_index);
+			grh = rdma_ah_read_grh(&qp->alt_ah_attr);
+			guid = get_sguid(ibp, grh->sgid_index);
 			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
 				    guid))
 				goto err;
 			if (!gid_ok(
 				&hdr->u.l.grh.sgid,
-				qp->alt_ah_attr.grh.dgid.global.subnet_prefix,
-				qp->alt_ah_attr.grh.dgid.global.interface_id))
+				grh->dgid.global.subnet_prefix,
+				grh->dgid.global.interface_id))
 				goto err;
 		}
 		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
@@ -249,28 +254,34 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
-		if (ib_get_slid(hdr) != qp->alt_ah_attr.dlid ||
-		    ppd_from_ibp(ibp)->port != qp->alt_ah_attr.port_num)
+		if (ib_get_slid(hdr) !=
+			rdma_ah_get_dlid(&qp->alt_ah_attr) ||
+		    ppd_from_ibp(ibp)->port !=
+			rdma_ah_get_port_num(&qp->alt_ah_attr))
 			goto err;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		hfi1_migrate_qp(qp);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else {
 		if (!has_grh) {
-			if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
+			if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+						 IB_AH_GRH)
 				goto err;
 		} else {
-			if (!(qp->remote_ah_attr.ah_flags & IB_AH_GRH))
+			const struct ib_global_route *grh;
+
+			if (!(rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+						   IB_AH_GRH))
 				goto err;
-			guid = get_sguid(ibp,
-					 qp->remote_ah_attr.grh.sgid_index);
+			grh = rdma_ah_read_grh(&qp->remote_ah_attr);
+			guid = get_sguid(ibp, grh->sgid_index);
 			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
 				    guid))
 				goto err;
 			if (!gid_ok(
 			     &hdr->u.l.grh.sgid,
-			     qp->remote_ah_attr.grh.dgid.global.subnet_prefix,
-			     qp->remote_ah_attr.grh.dgid.global.interface_id))
+			     grh->dgid.global.subnet_prefix,
+			     grh->dgid.global.interface_id))
 				goto err;
 		}
 		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
@@ -284,7 +295,8 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */
-		if (ib_get_slid(hdr) != qp->remote_ah_attr.dlid ||
+		if (ib_get_slid(hdr) !=
+			rdma_ah_get_dlid(&qp->remote_ah_attr) ||
 		    ppd_from_ibp(ibp)->port != qp->port_num)
 			goto err;
 		if (qp->s_mig_state == IB_MIG_REARM &&
@@ -542,8 +554,8 @@ do_write:
 	wc.byte_len = wqe->length;
 	wc.qp = &qp->ibqp;
 	wc.src_qp = qp->remote_qpn;
-	wc.slid = qp->remote_ah_attr.dlid;
-	wc.sl = qp->remote_ah_attr.sl;
+	wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+	wc.sl = rdma_ah_get_sl(&qp->remote_ah_attr);
 	wc.port_num = 1;
 	/* Signal completion event if the solicited bit is set. */
 	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
@@ -637,7 +649,7 @@ done:
  * Return the size of the header in 32 bit words.
  */
 u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
-		  struct ib_global_route *grh, u32 hwords, u32 nwords)
+		  const struct ib_global_route *grh, u32 hwords, u32 nwords)
 {
 	hdr->version_tclass_flow =
 		cpu_to_be32((IB_GRH_VERSION << IB_GRH_VERSION_SHIFT) |
@@ -731,15 +743,17 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	extra_bytes = -ps->s_txreq->s_cur_size & 3;
 	nwords = (ps->s_txreq->s_cur_size + extra_bytes) >> 2;
 	lrh0 = HFI1_LRH_BTH;
-	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		qp->s_hdrwords += hfi1_make_grh(ibp,
-						&ps->s_txreq->phdr.hdr.u.l.grh,
-						&qp->remote_ah_attr.grh,
-						qp->s_hdrwords, nwords);
+	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
+		qp->s_hdrwords +=
+			hfi1_make_grh(ibp,
+				      &ps->s_txreq->phdr.hdr.u.l.grh,
+				      rdma_ah_read_grh(&qp->remote_ah_attr),
+				      qp->s_hdrwords, nwords);
 		lrh0 = HFI1_LRH_GRH;
 		middle = 0;
 	}
-	lrh0 |= (priv->s_sc & 0xf) << 12 | (qp->remote_ah_attr.sl & 0xf) << 4;
+	lrh0 |= (priv->s_sc & 0xf) << 12 |
+		(rdma_ah_get_sl(&qp->remote_ah_attr) & 0xf) << 4;
 	/*
 	 * reset s_ahg/AHG fields
 	 *
@@ -763,11 +777,13 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	else
 		qp->s_flags &= ~RVT_S_AHG_VALID;
 	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
-	ps->s_txreq->phdr.hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	ps->s_txreq->phdr.hdr.lrh[1] =
+		cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
 	ps->s_txreq->phdr.hdr.lrh[2] =
 		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	ps->s_txreq->phdr.hdr.lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
-				       qp->remote_ah_attr.src_path_bits);
+	ps->s_txreq->phdr.hdr.lrh[3] =
+		cpu_to_be16(ppd_from_ibp(ibp)->lid |
+			    rdma_ah_get_path_bits(&qp->remote_ah_attr));
 	bth0 |= hfi1_get_pkey(ibp, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
 	ohdr->bth[0] = cpu_to_be32(bth0);
@@ -821,9 +837,9 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
-		if (!loopback && ((qp->remote_ah_attr.dlid & ~((1 << ps.ppd->lmc
-								) - 1)) ==
-				 ps.ppd->lid)) {
+		if (!loopback && ((rdma_ah_get_dlid(&qp->remote_ah_attr) &
+				   ~((1 << ps.ppd->lmc) - 1)) ==
+				  ps.ppd->lid)) {
 			ruc_loopback(qp);
 			return;
 		}
@@ -831,9 +847,9 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 		timeout_int = (qp->timeout_jiffies);
 		break;
 	case IB_QPT_UC:
-		if (!loopback && ((qp->remote_ah_attr.dlid & ~((1 << ps.ppd->lmc
-								) - 1)) ==
-				 ps.ppd->lid)) {
+		if (!loopback && ((rdma_ah_get_dlid(&qp->remote_ah_attr) &
+				   ~((1 << ps.ppd->lmc) - 1)) ==
+				  ps.ppd->lid)) {
 			ruc_loopback(qp);
 			return;
 		}

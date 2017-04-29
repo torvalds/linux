@@ -929,7 +929,8 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 		goto out;
 
 	ret = ib_query_gid(id_priv->id.device, id_priv->id.port_num,
-			   qp_attr.ah_attr.grh.sgid_index, &sgid, NULL);
+			   rdma_ah_read_grh(&qp_attr.ah_attr)->sgid_index,
+			   &sgid, NULL);
 	if (ret)
 		goto out;
 

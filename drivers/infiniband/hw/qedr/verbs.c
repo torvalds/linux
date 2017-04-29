@@ -1084,13 +1084,15 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 {
 	enum rdma_network_type nw_type;
 	struct ib_gid_attr gid_attr;
+	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 	union ib_gid gid;
 	u32 ipv4_addr;
 	int rc = 0;
 	int i;
 
-	rc = ib_get_cached_gid(ibqp->device, attr->ah_attr.port_num,
-			       attr->ah_attr.grh.sgid_index, &gid, &gid_attr);
+	rc = ib_get_cached_gid(ibqp->device,
+			       rdma_ah_get_port_num(&attr->ah_attr),
+			       grh->sgid_index, &gid, &gid_attr);
 	if (rc)
 		return rc;
 
@@ -1107,7 +1109,7 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 			memcpy(&qp_params->sgid.bytes[0], &gid.raw[0],
 			       sizeof(qp_params->sgid));
 			memcpy(&qp_params->dgid.bytes[0],
-			       &attr->ah_attr.grh.dgid,
+			       &grh->dgid,
 			       sizeof(qp_params->dgid));
 			qp_params->roce_mode = ROCE_V2_IPV6;
 			SET_FIELD(qp_params->modify_flags,
@@ -1117,7 +1119,7 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 			memcpy(&qp_params->sgid.bytes[0], &gid.raw[0],
 			       sizeof(qp_params->sgid));
 			memcpy(&qp_params->dgid.bytes[0],
-			       &attr->ah_attr.grh.dgid,
+			       &grh->dgid,
 			       sizeof(qp_params->dgid));
 			qp_params->roce_mode = ROCE_V1;
 			break;
@@ -1127,7 +1129,7 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 			ipv4_addr = qedr_get_ipv4_from_gid(gid.raw);
 			qp_params->sgid.ipv4_addr = ipv4_addr;
 			ipv4_addr =
-			    qedr_get_ipv4_from_gid(attr->ah_attr.grh.dgid.raw);
+			    qedr_get_ipv4_from_gid(grh->dgid.raw);
 			qp_params->dgid.ipv4_addr = ipv4_addr;
 			SET_FIELD(qp_params->modify_flags,
 				  QED_ROCE_MODIFY_QP_VALID_ROCE_MODE, 1);
@@ -1749,6 +1751,7 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 	struct qed_rdma_modify_qp_in_params qp_params = { 0 };
 	struct qedr_dev *dev = get_qedr_dev(&qp->dev->ibdev);
+	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 	enum ib_qp_state old_qp_state, new_qp_state;
 	int rc = 0;
 
@@ -1831,17 +1834,17 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		SET_FIELD(qp_params.modify_flags,
 			  QED_ROCE_MODIFY_QP_VALID_ADDRESS_VECTOR, 1);
 
-		qp_params.traffic_class_tos = attr->ah_attr.grh.traffic_class;
-		qp_params.flow_label = attr->ah_attr.grh.flow_label;
-		qp_params.hop_limit_ttl = attr->ah_attr.grh.hop_limit;
+		qp_params.traffic_class_tos = grh->traffic_class;
+		qp_params.flow_label = grh->flow_label;
+		qp_params.hop_limit_ttl = grh->hop_limit;
 
-		qp->sgid_idx = attr->ah_attr.grh.sgid_index;
+		qp->sgid_idx = grh->sgid_index;
 
 		rc = get_gid_info_from_table(ibqp, attr, attr_mask, &qp_params);
 		if (rc) {
 			DP_ERR(dev,
 			       "modify qp: problems with GID index %d (rc=%d)\n",
-			       attr->ah_attr.grh.sgid_index, rc);
+			       grh->sgid_index, rc);
 			return rc;
 		}
 
@@ -2026,25 +2029,20 @@ int qedr_query_qp(struct ib_qp *ibqp,
 	qp_attr->cap.max_inline_data = ROCE_REQ_MAX_INLINE_DATA_SIZE;
 	qp_init_attr->cap = qp_attr->cap;
 
-	memcpy(&qp_attr->ah_attr.grh.dgid.raw[0], &params.dgid.bytes[0],
-	       sizeof(qp_attr->ah_attr.grh.dgid.raw));
-
-	qp_attr->ah_attr.grh.flow_label = params.flow_label;
-	qp_attr->ah_attr.grh.sgid_index = qp->sgid_idx;
-	qp_attr->ah_attr.grh.hop_limit = params.hop_limit_ttl;
-	qp_attr->ah_attr.grh.traffic_class = params.traffic_class_tos;
-
-	qp_attr->ah_attr.ah_flags = IB_AH_GRH;
-	qp_attr->ah_attr.port_num = 1;
-	qp_attr->ah_attr.sl = 0;
+	rdma_ah_set_grh(&qp_attr->ah_attr, NULL,
+			params.flow_label, qp->sgid_idx,
+			params.hop_limit_ttl, params.traffic_class_tos);
+	rdma_ah_set_dgid_raw(&qp_attr->ah_attr, &params.dgid.bytes[0]);
+	rdma_ah_set_port_num(&qp_attr->ah_attr, 1);
+	rdma_ah_set_sl(&qp_attr->ah_attr, 0);
 	qp_attr->timeout = params.timeout;
 	qp_attr->rnr_retry = params.rnr_retry;
 	qp_attr->retry_cnt = params.retry_cnt;
 	qp_attr->min_rnr_timer = params.min_rnr_nak_timer;
 	qp_attr->pkey_index = params.pkey_index;
 	qp_attr->port_num = 1;
-	qp_attr->ah_attr.src_path_bits = 0;
-	qp_attr->ah_attr.static_rate = 0;
+	rdma_ah_set_path_bits(&qp_attr->ah_attr, 0);
+	rdma_ah_set_static_rate(&qp_attr->ah_attr, 0);
 	qp_attr->alt_pkey_index = 0;
 	qp_attr->alt_port_num = 0;
 	qp_attr->alt_timeout = 0;

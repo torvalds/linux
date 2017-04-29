@@ -215,6 +215,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct rdma_netdev *rn = netdev_priv(dev);
 	struct ipoib_ah *ah;
+	struct rdma_ah_attr av;
 	int ret;
 	int set_qkey = 0;
 
@@ -273,39 +274,33 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		}
 	}
 
-	{
-		struct rdma_ah_attr av = {
-			.dlid	       = be16_to_cpu(mcast->mcmember.mlid),
-			.port_num      = priv->port,
-			.sl	       = mcast->mcmember.sl,
-			.ah_flags      = IB_AH_GRH,
-			.static_rate   = mcast->mcmember.rate,
-			.grh	       = {
-				.flow_label    = be32_to_cpu(mcast->mcmember.flow_label),
-				.hop_limit     = mcast->mcmember.hop_limit,
-				.sgid_index    = 0,
-				.traffic_class = mcast->mcmember.traffic_class
-			}
-		};
-		av.grh.dgid = mcast->mcmember.mgid;
+	memset(&av, 0, sizeof(av));
+	rdma_ah_set_dlid(&av, be16_to_cpu(mcast->mcmember.mlid)),
+	rdma_ah_set_port_num(&av, priv->port);
+	rdma_ah_set_sl(&av, mcast->mcmember.sl);
+	rdma_ah_set_static_rate(&av, mcast->mcmember.rate);
 
-		ah = ipoib_create_ah(dev, priv->pd, &av);
-		if (IS_ERR(ah)) {
-			ipoib_warn(priv, "ib_address_create failed %ld\n",
-				-PTR_ERR(ah));
-			/* use original error */
-			return PTR_ERR(ah);
-		}
-		spin_lock_irq(&priv->lock);
-		mcast->ah = ah;
-		spin_unlock_irq(&priv->lock);
+	rdma_ah_set_grh(&av, &mcast->mcmember.mgid,
+			be32_to_cpu(mcast->mcmember.flow_label),
+			0, mcast->mcmember.hop_limit,
+			mcast->mcmember.traffic_class);
 
-		ipoib_dbg_mcast(priv, "MGID %pI6 AV %p, LID 0x%04x, SL %d\n",
-				mcast->mcmember.mgid.raw,
-				mcast->ah->ah,
-				be16_to_cpu(mcast->mcmember.mlid),
-				mcast->mcmember.sl);
+	ah = ipoib_create_ah(dev, priv->pd, &av);
+	if (IS_ERR(ah)) {
+		ipoib_warn(priv, "ib_address_create failed %ld\n",
+			   -PTR_ERR(ah));
+		/* use original error */
+		return PTR_ERR(ah);
 	}
+	spin_lock_irq(&priv->lock);
+	mcast->ah = ah;
+	spin_unlock_irq(&priv->lock);
+
+	ipoib_dbg_mcast(priv, "MGID %pI6 AV %p, LID 0x%04x, SL %d\n",
+			mcast->mcmember.mgid.raw,
+			mcast->ah->ah,
+			be16_to_cpu(mcast->mcmember.mlid),
+			mcast->mcmember.sl);
 
 	/* actually send any queued packets */
 	netif_tx_lock_bh(dev);

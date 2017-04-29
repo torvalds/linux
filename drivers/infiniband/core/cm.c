@@ -1722,6 +1722,7 @@ static int cm_req_handler(struct cm_work *work)
 	struct cm_req_msg *req_msg;
 	union ib_gid gid;
 	struct ib_gid_attr gid_attr;
+	const struct ib_global_route *grh;
 	int ret;
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
@@ -1761,10 +1762,11 @@ static int cm_req_handler(struct cm_work *work)
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 
 	memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.dmac, ETH_ALEN);
-	work->path[0].hop_limit = cm_id_priv->av.ah_attr.grh.hop_limit;
+	grh = rdma_ah_read_grh(&cm_id_priv->av.ah_attr);
+	work->path[0].hop_limit = grh->hop_limit;
 	ret = ib_get_cached_gid(work->port->cm_dev->ib_device,
 				work->port->port_num,
-				cm_id_priv->av.ah_attr.grh.sgid_index,
+				grh->sgid_index,
 				&gid, &gid_attr);
 	if (!ret) {
 		if (gid_attr.ndev) {
@@ -3800,7 +3802,7 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 					cm_id_priv->responder_resources;
 			qp_attr->min_rnr_timer = 0;
 		}
-		if (cm_id_priv->alt_av.ah_attr.dlid) {
+		if (rdma_ah_get_dlid(&cm_id_priv->alt_av.ah_attr)) {
 			*qp_attr_mask |= IB_QP_ALT_PATH;
 			qp_attr->alt_port_num = cm_id_priv->alt_av.port->port_num;
 			qp_attr->alt_pkey_index = cm_id_priv->alt_av.pkey_index;
@@ -3854,7 +3856,7 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 			default:
 				break;
 			}
-			if (cm_id_priv->alt_av.ah_attr.dlid) {
+			if (rdma_ah_get_dlid(&cm_id_priv->alt_av.ah_attr)) {
 				*qp_attr_mask |= IB_QP_PATH_MIG_STATE;
 				qp_attr->path_mig_state = IB_MIG_REARM;
 			}

@@ -530,13 +530,14 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_re_ah *ah;
+	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	int rc;
 	u16 vlan_tag;
 	u8 nw_type;
 
 	struct ib_gid_attr sgid_attr;
 
-	if (!(ah_attr->ah_flags & IB_AH_GRH)) {
+	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH)) {
 		dev_err(rdev_to_dev(rdev), "Failed to alloc AH: GRH not set");
 		return ERR_PTR(-EINVAL);
 	}
@@ -548,33 +549,33 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	ah->qplib_ah.pd = &pd->qplib_pd;
 
 	/* Supply the configuration for the HW */
-	memcpy(ah->qplib_ah.dgid.data, ah_attr->grh.dgid.raw,
+	memcpy(ah->qplib_ah.dgid.data, grh->dgid.raw,
 	       sizeof(union ib_gid));
 	/*
 	 * If RoCE V2 is enabled, stack will have two entries for
 	 * each GID entry. Avoiding this duplicte entry in HW. Dividing
 	 * the GID index by 2 for RoCE V2
 	 */
-	ah->qplib_ah.sgid_index = ah_attr->grh.sgid_index / 2;
-	ah->qplib_ah.host_sgid_index = ah_attr->grh.sgid_index;
-	ah->qplib_ah.traffic_class = ah_attr->grh.traffic_class;
-	ah->qplib_ah.flow_label = ah_attr->grh.flow_label;
-	ah->qplib_ah.hop_limit = ah_attr->grh.hop_limit;
-	ah->qplib_ah.sl = ah_attr->sl;
+	ah->qplib_ah.sgid_index = grh->sgid_index / 2;
+	ah->qplib_ah.host_sgid_index = grh->sgid_index;
+	ah->qplib_ah.traffic_class = grh->traffic_class;
+	ah->qplib_ah.flow_label = grh->flow_label;
+	ah->qplib_ah.hop_limit = grh->hop_limit;
+	ah->qplib_ah.sl = rdma_ah_get_sl(ah_attr);
 	if (ib_pd->uobject &&
 	    !rdma_is_multicast_addr((struct in6_addr *)
-				    ah_attr->grh.dgid.raw) &&
+				    grh->dgid.raw) &&
 	    !rdma_link_local_addr((struct in6_addr *)
-				  ah_attr->grh.dgid.raw)) {
+				  grh->dgid.raw)) {
 		union ib_gid sgid;
 
 		rc = ib_get_cached_gid(&rdev->ibdev, 1,
-				       ah_attr->grh.sgid_index, &sgid,
+				       grh->sgid_index, &sgid,
 				       &sgid_attr);
 		if (rc) {
 			dev_err(rdev_to_dev(rdev),
 				"Failed to query gid at index %d",
-				ah_attr->grh.sgid_index);
+				grh->sgid_index);
 			goto fail;
 		}
 		if (sgid_attr.ndev) {
@@ -595,7 +596,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 			ah->qplib_ah.nw_type = CMDQ_CREATE_AH_TYPE_V1;
 			break;
 		}
-		rc = rdma_addr_find_l2_eth_by_grh(&sgid, &ah_attr->grh.dgid,
+		rc = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
 						  ah_attr->dmac, &vlan_tag,
 						  &sgid_attr.ndev->ifindex,
 						  NULL);
@@ -643,15 +644,14 @@ int bnxt_re_query_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 {
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 
-	memcpy(ah_attr->grh.dgid.raw, ah->qplib_ah.dgid.data,
-	       sizeof(union ib_gid));
-	ah_attr->grh.sgid_index = ah->qplib_ah.host_sgid_index;
-	ah_attr->grh.traffic_class = ah->qplib_ah.traffic_class;
-	ah_attr->sl = ah->qplib_ah.sl;
+	rdma_ah_set_sl(ah_attr, ah->qplib_ah.sl);
 	memcpy(ah_attr->dmac, ah->qplib_ah.dmac, ETH_ALEN);
-	ah_attr->ah_flags = IB_AH_GRH;
-	ah_attr->port_num = 1;
-	ah_attr->static_rate = 0;
+	rdma_ah_set_grh(ah_attr, NULL, 0,
+			ah->qplib_ah.host_sgid_index,
+			0, ah->qplib_ah.traffic_class);
+	rdma_ah_set_dgid_raw(ah_attr, ah->qplib_ah.dgid.data);
+	rdma_ah_set_port_num(ah_attr, 1);
+	rdma_ah_set_static_rate(ah_attr, 0);
 	return 0;
 }
 
@@ -1258,6 +1258,9 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		qp->qplib_qp.qkey = qp_attr->qkey;
 	}
 	if (qp_attr_mask & IB_QP_AV) {
+		const struct ib_global_route *grh =
+			rdma_ah_read_grh(&qp_attr->ah_attr);
+
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_DGID |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_FLOW_LABEL |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_SGID_INDEX |
@@ -1265,25 +1268,22 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 				     CMDQ_MODIFY_QP_MODIFY_MASK_TRAFFIC_CLASS |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_DEST_MAC |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_VLAN_ID;
-		memcpy(qp->qplib_qp.ah.dgid.data, qp_attr->ah_attr.grh.dgid.raw,
+		memcpy(qp->qplib_qp.ah.dgid.data, grh->dgid.raw,
 		       sizeof(qp->qplib_qp.ah.dgid.data));
-		qp->qplib_qp.ah.flow_label = qp_attr->ah_attr.grh.flow_label;
+		qp->qplib_qp.ah.flow_label = grh->flow_label;
 		/* If RoCE V2 is enabled, stack will have two entries for
 		 * each GID entry. Avoiding this duplicte entry in HW. Dividing
 		 * the GID index by 2 for RoCE V2
 		 */
-		qp->qplib_qp.ah.sgid_index =
-					qp_attr->ah_attr.grh.sgid_index / 2;
-		qp->qplib_qp.ah.host_sgid_index =
-					qp_attr->ah_attr.grh.sgid_index;
-		qp->qplib_qp.ah.hop_limit = qp_attr->ah_attr.grh.hop_limit;
-		qp->qplib_qp.ah.traffic_class =
-					qp_attr->ah_attr.grh.traffic_class;
-		qp->qplib_qp.ah.sl = qp_attr->ah_attr.sl;
+		qp->qplib_qp.ah.sgid_index = grh->sgid_index / 2;
+		qp->qplib_qp.ah.host_sgid_index = grh->sgid_index;
+		qp->qplib_qp.ah.hop_limit = grh->hop_limit;
+		qp->qplib_qp.ah.traffic_class = grh->traffic_class;
+		qp->qplib_qp.ah.sl = rdma_ah_get_sl(&qp_attr->ah_attr);
 		ether_addr_copy(qp->qplib_qp.ah.dmac, qp_attr->ah_attr.dmac);
 
 		status = ib_get_cached_gid(&rdev->ibdev, 1,
-					   qp_attr->ah_attr.grh.sgid_index,
+					   grh->sgid_index,
 					   &sgid, &sgid_attr);
 		if (!status && sgid_attr.ndev) {
 			memcpy(qp->qplib_qp.smac, sgid_attr.ndev->dev_addr,
@@ -1423,13 +1423,12 @@ int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	qp_attr->qp_access_flags = __to_ib_access_flags(qplib_qp.access);
 	qp_attr->pkey_index = qplib_qp.pkey_index;
 	qp_attr->qkey = qplib_qp.qkey;
-	memcpy(qp_attr->ah_attr.grh.dgid.raw, qplib_qp.ah.dgid.data,
-	       sizeof(qplib_qp.ah.dgid.data));
-	qp_attr->ah_attr.grh.flow_label = qplib_qp.ah.flow_label;
-	qp_attr->ah_attr.grh.sgid_index = qplib_qp.ah.host_sgid_index;
-	qp_attr->ah_attr.grh.hop_limit = qplib_qp.ah.hop_limit;
-	qp_attr->ah_attr.grh.traffic_class = qplib_qp.ah.traffic_class;
-	qp_attr->ah_attr.sl = qplib_qp.ah.sl;
+	rdma_ah_set_grh(&qp_attr->ah_attr, NULL, qplib_qp.ah.flow_label,
+			qplib_qp.ah.host_sgid_index,
+			qplib_qp.ah.hop_limit,
+			qplib_qp.ah.traffic_class);
+	rdma_ah_set_dgid_raw(&qp_attr->ah_attr, qplib_qp.ah.dgid.data);
+	rdma_ah_set_sl(&qp_attr->ah_attr, qplib_qp.ah.sl);
 	ether_addr_copy(qp_attr->ah_attr.dmac, qplib_qp.ah.dmac);
 	qp_attr->path_mtu = __to_ib_mtu(qplib_qp.path_mtu);
 	qp_attr->timeout = qplib_qp.timeout;

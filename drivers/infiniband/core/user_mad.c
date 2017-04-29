@@ -236,16 +236,18 @@ static void recv_handler(struct ib_mad_agent *agent,
 	packet->mad.hdr.grh_present = !!(mad_recv_wc->wc->wc_flags & IB_WC_GRH);
 	if (packet->mad.hdr.grh_present) {
 		struct rdma_ah_attr ah_attr;
+		const struct ib_global_route *grh;
 
 		ib_init_ah_from_wc(agent->device, agent->port_num,
 				   mad_recv_wc->wc, mad_recv_wc->recv_buf.grh,
 				   &ah_attr);
 
-		packet->mad.hdr.gid_index = ah_attr.grh.sgid_index;
-		packet->mad.hdr.hop_limit = ah_attr.grh.hop_limit;
-		packet->mad.hdr.traffic_class = ah_attr.grh.traffic_class;
-		memcpy(packet->mad.hdr.gid, &ah_attr.grh.dgid, 16);
-		packet->mad.hdr.flow_label = cpu_to_be32(ah_attr.grh.flow_label);
+		grh = rdma_ah_read_grh(&ah_attr);
+		packet->mad.hdr.gid_index = grh->sgid_index;
+		packet->mad.hdr.hop_limit = grh->hop_limit;
+		packet->mad.hdr.traffic_class = grh->traffic_class;
+		memcpy(packet->mad.hdr.gid, &grh->dgid, 16);
+		packet->mad.hdr.flow_label = cpu_to_be32(grh->flow_label);
 	}
 
 	if (queue_packet(file, agent, packet))
@@ -489,17 +491,17 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	memset(&ah_attr, 0, sizeof ah_attr);
-	ah_attr.dlid          = be16_to_cpu(packet->mad.hdr.lid);
-	ah_attr.sl            = packet->mad.hdr.sl;
-	ah_attr.src_path_bits = packet->mad.hdr.path_bits;
-	ah_attr.port_num      = file->port->port_num;
+	rdma_ah_set_dlid(&ah_attr, be16_to_cpu(packet->mad.hdr.lid));
+	rdma_ah_set_sl(&ah_attr, packet->mad.hdr.sl);
+	rdma_ah_set_path_bits(&ah_attr, packet->mad.hdr.path_bits);
+	rdma_ah_set_port_num(&ah_attr, file->port->port_num);
 	if (packet->mad.hdr.grh_present) {
-		ah_attr.ah_flags = IB_AH_GRH;
-		memcpy(ah_attr.grh.dgid.raw, packet->mad.hdr.gid, 16);
-		ah_attr.grh.sgid_index	   = packet->mad.hdr.gid_index;
-		ah_attr.grh.flow_label	   = be32_to_cpu(packet->mad.hdr.flow_label);
-		ah_attr.grh.hop_limit	   = packet->mad.hdr.hop_limit;
-		ah_attr.grh.traffic_class  = packet->mad.hdr.traffic_class;
+		rdma_ah_set_grh(&ah_attr, NULL,
+				be32_to_cpu(packet->mad.hdr.flow_label),
+				packet->mad.hdr.gid_index,
+				packet->mad.hdr.hop_limit,
+				packet->mad.hdr.traffic_class);
+		rdma_ah_set_dgid_raw(&ah_attr, packet->mad.hdr.gid);
 	}
 
 	ah = rdma_create_ah(agent->qp->pd, &ah_attr);

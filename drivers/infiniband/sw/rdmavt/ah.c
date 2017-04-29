@@ -63,29 +63,32 @@ int rvt_check_ah(struct ib_device *ibdev,
 		 struct rdma_ah_attr *ah_attr)
 {
 	int err;
+	int port_num = rdma_ah_get_port_num(ah_attr);
 	struct ib_port_attr port_attr;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
-	enum rdma_link_layer link = rdma_port_get_link_layer(ibdev,
-							     ah_attr->port_num);
+	enum rdma_link_layer link = rdma_port_get_link_layer(ibdev, port_num);
+	u32 dlid = rdma_ah_get_dlid(ah_attr);
+	u8 ah_flags = rdma_ah_get_ah_flags(ah_attr);
+	u8 static_rate = rdma_ah_get_static_rate(ah_attr);
 
-	err = ib_query_port(ibdev, ah_attr->port_num, &port_attr);
+	err = ib_query_port(ibdev, port_num, &port_attr);
 	if (err)
 		return -EINVAL;
-	if (ah_attr->port_num < 1 ||
-	    ah_attr->port_num > ibdev->phys_port_cnt)
+	if (port_num < 1 ||
+	    port_num > ibdev->phys_port_cnt)
 		return -EINVAL;
-	if (ah_attr->static_rate != IB_RATE_PORT_CURRENT &&
-	    ib_rate_to_mbps(ah_attr->static_rate) < 0)
+	if (static_rate != IB_RATE_PORT_CURRENT &&
+	    ib_rate_to_mbps(static_rate) < 0)
 		return -EINVAL;
-	if ((ah_attr->ah_flags & IB_AH_GRH) &&
-	    ah_attr->grh.sgid_index >= port_attr.gid_tbl_len)
+	if ((ah_flags & IB_AH_GRH) &&
+	    rdma_ah_read_grh(ah_attr)->sgid_index >= port_attr.gid_tbl_len)
 		return -EINVAL;
 	if (link != IB_LINK_LAYER_ETHERNET) {
-		if (ah_attr->dlid == 0)
+		if (dlid == 0)
 			return -EINVAL;
-		if (ah_attr->dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE) &&
-		    ah_attr->dlid != be16_to_cpu(IB_LID_PERMISSIVE) &&
-		    !(ah_attr->ah_flags & IB_AH_GRH))
+		if (dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE) &&
+		    dlid != be16_to_cpu(IB_LID_PERMISSIVE) &&
+		    !(ah_flags & IB_AH_GRH))
 			return -EINVAL;
 	}
 	if (rdi->driver_f.check_ah)

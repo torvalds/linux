@@ -1108,13 +1108,13 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	struct net_device *ndev = NULL;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
-	ah_attr->dlid = be16_to_cpu(rec->dlid);
-	ah_attr->sl = rec->sl;
-	ah_attr->src_path_bits = be16_to_cpu(rec->slid) &
-				 get_src_path_mask(device, port_num);
-	ah_attr->port_num = port_num;
-	ah_attr->static_rate = rec->rate;
 
+	rdma_ah_set_dlid(ah_attr, be16_to_cpu(rec->dlid));
+	rdma_ah_set_sl(ah_attr, rec->sl);
+	rdma_ah_set_path_bits(ah_attr, be16_to_cpu(rec->slid) &
+			      get_src_path_mask(device, port_num));
+	rdma_ah_set_port_num(ah_attr, port_num);
+	rdma_ah_set_static_rate(ah_attr, rec->rate);
 	use_roce = rdma_cap_eth_ah(device, port_num);
 
 	if (use_roce) {
@@ -1174,9 +1174,6 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	}
 
 	if (rec->hop_limit > 0 || use_roce) {
-		ah_attr->ah_flags = IB_AH_GRH;
-		ah_attr->grh.dgid = rec->dgid;
-
 		ret = ib_find_cached_gid_by_port(device, &rec->sgid,
 						 rec->gid_type, port_num, ndev,
 						 &gid_index);
@@ -1186,10 +1183,10 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 			return ret;
 		}
 
-		ah_attr->grh.sgid_index    = gid_index;
-		ah_attr->grh.flow_label    = be32_to_cpu(rec->flow_label);
-		ah_attr->grh.hop_limit     = rec->hop_limit;
-		ah_attr->grh.traffic_class = rec->traffic_class;
+		rdma_ah_set_grh(ah_attr, &rec->dgid,
+				be32_to_cpu(rec->flow_label),
+				gid_index, rec->hop_limit,
+				rec->traffic_class);
 		if (ndev)
 			dev_put(ndev);
 	}
@@ -2032,15 +2029,16 @@ static void update_sm_ah(struct work_struct *work)
 		pr_err("Couldn't find index for default PKey\n");
 
 	memset(&ah_attr, 0, sizeof(ah_attr));
-	ah_attr.dlid     = port_attr.sm_lid;
-	ah_attr.sl       = port_attr.sm_sl;
-	ah_attr.port_num = port->port_num;
+	rdma_ah_set_dlid(&ah_attr, port_attr.sm_lid);
+	rdma_ah_set_sl(&ah_attr, port_attr.sm_sl);
+	rdma_ah_set_port_num(&ah_attr, port->port_num);
 	if (port_attr.grh_required) {
-		ah_attr.ah_flags = IB_AH_GRH;
-		ah_attr.grh.dgid.global.subnet_prefix =
-			cpu_to_be64(port_attr.subnet_prefix);
-		ah_attr.grh.dgid.global.interface_id =
-			cpu_to_be64(IB_SA_WELL_KNOWN_GUID);
+		rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
+
+		rdma_ah_set_subnet_prefix(&ah_attr,
+					  cpu_to_be64(port_attr.subnet_prefix));
+		rdma_ah_set_interface_id(&ah_attr,
+					 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
 	}
 
 	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr);

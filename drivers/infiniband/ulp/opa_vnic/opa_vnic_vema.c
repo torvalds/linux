@@ -757,8 +757,9 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	class = &port->class_port_info;
 	/* Set up address handle */
 	memset(&ah_attr, 0, sizeof(ah_attr));
-	ah_attr.sl = GET_TRAP_SL_FROM_CLASS_PORT_INFO(class->trap_sl_rsvd);
-	ah_attr.port_num = port->port_num;
+	rdma_ah_set_sl(&ah_attr,
+		       GET_TRAP_SL_FROM_CLASS_PORT_INFO(class->trap_sl_rsvd));
+	rdma_ah_set_port_num(&ah_attr, port->port_num);
 	trap_lid = be32_to_cpu(class->trap_lid);
 	/*
 	 * check for trap lid validity, must not be zero
@@ -771,12 +772,13 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 		goto err_exit;
 	}
 
-	ah_attr.dlid = trap_lid;
+	rdma_ah_set_dlid(&ah_attr, trap_lid);
 	ah = rdma_create_ah(port->mad_agent->qp->pd, &ah_attr);
 	if (IS_ERR(ah)) {
 		c_err("%s:Couldn't create new AH = %p\n", __func__, ah);
 		c_err("%s:dlid = %d, sl = %d, port = %d\n", __func__,
-		      ah_attr.dlid, ah_attr.sl, ah_attr.port_num);
+		      rdma_ah_get_dlid(&ah_attr), rdma_ah_get_sl(&ah_attr),
+		      rdma_ah_get_port_num(&ah_attr));
 		goto err_exit;
 	}
 

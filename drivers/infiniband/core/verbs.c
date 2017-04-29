@@ -525,15 +525,12 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 			return ret;
 	}
 
-	ah_attr->dlid = wc->slid;
-	ah_attr->sl = wc->sl;
-	ah_attr->src_path_bits = wc->dlid_path_bits;
-	ah_attr->port_num = port_num;
+	rdma_ah_set_dlid(ah_attr, wc->slid);
+	rdma_ah_set_sl(ah_attr, wc->sl);
+	rdma_ah_set_path_bits(ah_attr, wc->dlid_path_bits);
+	rdma_ah_set_port_num(ah_attr, port_num);
 
 	if (wc->wc_flags & IB_WC_GRH) {
-		ah_attr->ah_flags = IB_AH_GRH;
-		ah_attr->grh.dgid = sgid;
-
 		if (!rdma_cap_eth_ah(device, port_num)) {
 			if (dgid.global.interface_id != cpu_to_be64(IB_SA_WELL_KNOWN_GUID)) {
 				ret = ib_find_cached_gid_by_port(device, &dgid,
@@ -547,11 +544,12 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 			}
 		}
 
-		ah_attr->grh.sgid_index = (u8) gid_index;
 		flow_class = be32_to_cpu(grh->version_tclass_flow);
-		ah_attr->grh.flow_label = flow_class & 0xFFFFF;
-		ah_attr->grh.hop_limit = hoplimit;
-		ah_attr->grh.traffic_class = (flow_class >> 20) & 0xFF;
+		rdma_ah_set_grh(ah_attr, &sgid,
+				flow_class & 0xFFFFF,
+				(u8)gid_index, hoplimit,
+				(flow_class >> 20) & 0xFF);
+
 	}
 	return 0;
 }
@@ -1204,15 +1202,18 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 			struct rdma_ah_attr *ah_attr)
 {
 	int           ret = 0;
+	struct ib_global_route *grh;
 
-	if (!rdma_is_port_valid(device, ah_attr->port_num))
+	if (!rdma_is_port_valid(device, rdma_ah_get_port_num(ah_attr)))
 		return -EINVAL;
 
-	if (!rdma_cap_eth_ah(device, ah_attr->port_num))
+	if (!rdma_cap_eth_ah(device, rdma_ah_get_port_num(ah_attr)))
 		return 0;
 
-	if (rdma_link_local_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
-		rdma_get_ll_mac((struct in6_addr *)ah_attr->grh.dgid.raw,
+	grh = rdma_ah_retrieve_grh(ah_attr);
+
+	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw)) {
+		rdma_get_ll_mac((struct in6_addr *)grh->dgid.raw,
 				ah_attr->dmac);
 	} else {
 		union ib_gid		sgid;
@@ -1221,8 +1222,8 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 		int			hop_limit;
 
 		ret = ib_query_gid(device,
-				   ah_attr->port_num,
-				   ah_attr->grh.sgid_index,
+				   rdma_ah_get_port_num(ah_attr),
+				   grh->sgid_index,
 				   &sgid, &sgid_attr);
 
 		if (ret || !sgid_attr.ndev) {
@@ -1233,14 +1234,14 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 
 		ifindex = sgid_attr.ndev->ifindex;
 
-		ret = rdma_addr_find_l2_eth_by_grh(&sgid,
-						   &ah_attr->grh.dgid,
-						   ah_attr->dmac,
-						   NULL, &ifindex, &hop_limit);
+		ret =
+		rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
+					     ah_attr->dmac,
+					     NULL, &ifindex, &hop_limit);
 
 		dev_put(sgid_attr.ndev);
 
-		ah_attr->grh.hop_limit = hop_limit;
+		grh->hop_limit = hop_limit;
 	}
 out:
 	return ret;

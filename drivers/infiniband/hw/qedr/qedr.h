@@ -450,15 +450,20 @@ static inline int qedr_get_dmac(struct qedr_dev *dev,
 {
 	union ib_gid zero_sgid = { { 0 } };
 	struct in6_addr in6;
+	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
+	u8 *dmac;
 
-	if (!memcmp(&ah_attr->grh.dgid, &zero_sgid, sizeof(union ib_gid))) {
+	if (!memcmp(&grh->dgid, &zero_sgid, sizeof(union ib_gid))) {
 		DP_ERR(dev, "Local port GID not supported\n");
 		eth_zero_addr(mac_addr);
 		return -EINVAL;
 	}
 
-	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
-	ether_addr_copy(mac_addr, ah_attr->dmac);
+	memcpy(&in6, grh->dgid.raw, sizeof(in6));
+	dmac = rdma_ah_retrieve_dmac(ah_attr);
+	if (!dmac)
+		return -EINVAL;
+	ether_addr_copy(mac_addr, dmac);
 
 	return 0;
 }
