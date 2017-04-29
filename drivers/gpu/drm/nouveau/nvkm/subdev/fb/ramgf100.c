@@ -589,7 +589,7 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 			nvkm_debug(subdev, "FBP %d: %4d MiB, %d LTC(s)\n",
 				   fbp, size, ltcs);
 			lcomm  = min(lcomm, (u64)(size / ltcs) << 20);
-			total += size << 20;
+			total += (u64) size << 20;
 			ltcn  += ltcs;
 		} else {
 			nvkm_debug(subdev, "FBP %d: disabled\n", fbp);
