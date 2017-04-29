@@ -30,20 +30,16 @@
 #define DRV_VERSION "2.14"
 #define SYNTH_CLEAR 0x03
 #define PROCSPEECH 0x0b
-static unsigned char last_char;
+static volatile unsigned char last_char;
 
-static inline u_char get_last_char(void)
+static void read_buff_add(u_char ch)
 {
-	u_char avail = inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR;
-
-	if (avail)
-		last_char = inb_p(speakup_info.port_tts + UART_RX);
-	return last_char;
+	last_char = ch;
 }
 
 static inline bool synth_full(void)
 {
-	return get_last_char() == 0x13;
+	return last_char == 0x13;
 }
 
 static void do_catch_up(struct spk_synth *synth);
@@ -135,7 +131,7 @@ static struct spk_synth synth_decext = {
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
 	.synth_adjust = NULL,
-	.read_buff_add = NULL,
+	.read_buff_add = read_buff_add,
 	.get_index = NULL,
 	.indexing = {
 		.command = NULL,

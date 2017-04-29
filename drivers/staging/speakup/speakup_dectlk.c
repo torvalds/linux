@@ -42,7 +42,7 @@ static inline int synth_full(void)
 static void do_catch_up(struct spk_synth *synth);
 static void synth_flush(struct spk_synth *synth);
 static void read_buff_add(u_char c);
-static unsigned char get_index(void);
+static unsigned char get_index(struct spk_synth *synth);
 
 static int in_escape;
 static int is_flushing;
@@ -163,7 +163,7 @@ static int is_indnum(u_char *ch)
 
 static u_char lastind;
 
-static unsigned char get_index(void)
+static unsigned char get_index(struct spk_synth *synth)
 {
 	u_char rv;
 

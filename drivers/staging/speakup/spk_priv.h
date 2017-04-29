@@ -43,8 +43,6 @@
 const struct old_serial_port *spk_serial_init(int index);
 void spk_stop_serial_interrupt(void);
 int spk_wait_for_xmitr(struct spk_synth *in_synth);
-unsigned char spk_serial_in(void);
-unsigned char spk_serial_in_nowait(void);
 void spk_serial_release(void);
 
 void synth_buffer_skip_nonlatin1(void);
@@ -61,6 +59,7 @@ int spk_serial_synth_probe(struct spk_synth *synth);
 const char *spk_serial_synth_immediate(struct spk_synth *synth, const char *buff);
 void spk_do_catch_up(struct spk_synth *synth);
 void spk_synth_flush(struct spk_synth *synth);
+unsigned char spk_synth_get_index(struct spk_synth *synth);
 int spk_synth_is_alive_nop(struct spk_synth *synth);
 int spk_synth_is_alive_restart(struct spk_synth *synth);
 __printf(1, 2)

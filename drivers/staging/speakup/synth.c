@@ -124,6 +124,12 @@ void spk_synth_flush(struct spk_synth *synth)
 }
 EXPORT_SYMBOL_GPL(spk_synth_flush);
 
+unsigned char spk_synth_get_index(struct spk_synth *synth)
+{
+	return synth->io_ops->synth_in_nowait();
+}
+EXPORT_SYMBOL_GPL(spk_synth_get_index);
+
 int spk_synth_is_alive_nop(struct spk_synth *synth)
 {
 	synth->alive = 1;
@@ -249,7 +255,7 @@ void spk_reset_index_count(int sc)
 	if (first)
 		first = 0;
 	else
-		synth->get_index();
+		synth->get_index(synth);
 	index_count = 0;
 	sentence_count = sc;
 }
@@ -282,7 +288,7 @@ void synth_insert_next_index(int sent_num)
 
 void spk_get_index_count(int *linecount, int *sentcount)
 {
-	int ind = synth->get_index();
+	int ind = synth->get_index(synth);
 
 	if (ind) {
 		sentence_count = ind % 10;

@@ -120,7 +120,7 @@ static struct spk_synth synth_ltlk = {
 	.is_alive = spk_synth_is_alive_restart,
 	.synth_adjust = NULL,
 	.read_buff_add = NULL,
-	.get_index = spk_serial_in_nowait,
+	.get_index = spk_synth_get_index,
 	.indexing = {
 		.command = "\x01%di",
 		.lowindex = 1,
@@ -141,7 +141,7 @@ static void synth_interrogate(struct spk_synth *synth)
 
 	synth->synth_immediate(synth, "\x18\x01?");
 	for (i = 0; i < 50; i++) {
-		buf[i] = spk_serial_in();
+		buf[i] = synth->io_ops->synth_in();
 		if (i > 2 && buf[i] == 0x7f)
 			break;
 	}

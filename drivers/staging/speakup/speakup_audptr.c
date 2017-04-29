@@ -138,11 +138,11 @@ static void synth_version(struct spk_synth *synth)
 	char synth_id[40] = "";
 
 	synth->synth_immediate(synth, "\x05[Q]");
-	synth_id[test] = spk_serial_in();
+	synth_id[test] = synth->io_ops->synth_in();
 	if (synth_id[test] == 'A') {
 		do {
 			/* read version string from synth */
-			synth_id[++test] = spk_serial_in();
+			synth_id[++test] = synth->io_ops->synth_in();
 		} while (synth_id[test] != '\n' && test < 32);
 		synth_id[++test] = 0x00;
 	}

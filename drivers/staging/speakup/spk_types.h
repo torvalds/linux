@@ -152,6 +152,8 @@ struct spk_io_ops {
 	int (*synth_out)(struct spk_synth *synth, const char ch);
 	void (*send_xchar)(char ch);
 	void (*tiocmset)(unsigned int set, unsigned int clear);
+	unsigned char (*synth_in)(void);
+	unsigned char (*synth_in_nowait)(void);
 };
 
 struct spk_synth {
@@ -182,7 +184,7 @@ struct spk_synth {
 	int (*is_alive)(struct spk_synth *synth);
 	int (*synth_adjust)(struct st_var_header *var);
 	void (*read_buff_add)(u_char);
-	unsigned char (*get_index)(void);
+	unsigned char (*get_index)(struct spk_synth *synth);
 	struct synth_indexing indexing;
 	int alive;
 	struct attribute_group attributes;
