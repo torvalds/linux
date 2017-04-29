@@ -238,25 +238,25 @@ struct rate_set8_t {
 	u8 rate_pad;
 } __packed;
 
-struct FhParms_t {
+struct fh_parms_t {
 	u16 dwell_time;
 	u8 hop_set;
 	u8 hop_pattern;
 	u8 hop_index;
 } __packed;
 
-struct DsParms_t {
+struct ds_parms_t {
 	u8 channel;
 } __packed;
 
-struct CfParms_t {
+struct cf_parms_t {
 	u8 count;
 	u8 period;
 	u16 maxDuration;
 	u16 durRemaining;
 } __packed;
 
-struct IbssParms_t {
+struct ibss_parms_t {
 	u16 atimWindow;
 } __packed;
 
@@ -266,7 +266,7 @@ struct rsn_t {
 	u8 body[RSN_BODY_SIZE];
 } __packed;
 
-struct ErpParams_t {
+struct erp_params_t {
 	u8 erp_info;
 } __packed;
 
@@ -312,11 +312,11 @@ struct link_ap_info_t {
 	u16 beacon_period;	/* +10 */
 	u16 capability;	/* +12 */
 	struct rate_set8_t rate_set;	/* +14 */
-	struct FhParms_t fh_parameter;	/* +24 */
-	struct DsParms_t ds_parameter;	/* +29 */
-	struct CfParms_t cf_parameter;	/* +30 */
-	struct IbssParms_t ibss_parameter;	/* +36 */
-	struct ErpParams_t erp_parameter;	/* +38 */
+	struct fh_parms_t fh_parameter;	/* +24 */
+	struct ds_parms_t ds_parameter;	/* +29 */
+	struct cf_parms_t cf_parameter;	/* +30 */
+	struct ibss_parms_t ibss_parameter;	/* +36 */
+	struct erp_params_t erp_parameter;	/* +38 */
 	u8 pad1;	/* +39 */
 	struct rate_set8_t ext_rate_set;	/* +40 */
 	u8 DTIM_period;	/* +50 */
