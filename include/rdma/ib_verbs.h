@@ -843,6 +843,7 @@ __attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 enum rdma_ah_attr_type {
 	RDMA_AH_ATTR_TYPE_IB,
 	RDMA_AH_ATTR_TYPE_ROCE,
+	RDMA_AH_ATTR_TYPE_OPA,
 };
 
 struct ib_ah_attr {
@@ -852,6 +853,11 @@ struct ib_ah_attr {
 
 struct roce_ah_attr {
 	u8			dmac[ETH_ALEN];
+};
+
+struct opa_ah_attr {
+	u32			dlid;
+	u8			src_path_bits;
 };
 
 struct rdma_ah_attr {
@@ -864,6 +870,7 @@ struct rdma_ah_attr {
 	union {
 		struct ib_ah_attr ib;
 		struct roce_ah_attr roce;
+		struct opa_ah_attr opa;
 	};
 };
 
@@ -3490,16 +3497,20 @@ static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
 	return NULL;
 }
 
-static inline void rdma_ah_set_dlid(struct rdma_ah_attr *attr, u16 dlid)
+static inline void rdma_ah_set_dlid(struct rdma_ah_attr *attr, u32 dlid)
 {
 	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
-		attr->ib.dlid = dlid;
+		attr->ib.dlid = (u16)dlid;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		attr->opa.dlid = dlid;
 }
 
-static inline u16 rdma_ah_get_dlid(const struct rdma_ah_attr *attr)
+static inline u32 rdma_ah_get_dlid(const struct rdma_ah_attr *attr)
 {
 	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
 		return attr->ib.dlid;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		return attr->opa.dlid;
 	return 0;
 }
 
@@ -3518,12 +3529,16 @@ static inline void rdma_ah_set_path_bits(struct rdma_ah_attr *attr,
 {
 	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
 		attr->ib.src_path_bits = src_path_bits;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		attr->opa.src_path_bits = src_path_bits;
 }
 
 static inline u8 rdma_ah_get_path_bits(const struct rdma_ah_attr *attr)
 {
 	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
 		return attr->ib.src_path_bits;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		return attr->opa.src_path_bits;
 	return 0;
 }
 
@@ -3619,6 +3634,9 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 	if ((rdma_protocol_roce(dev, port_num)) ||
 	    (rdma_protocol_iwarp(dev, port_num)))
 		return RDMA_AH_ATTR_TYPE_ROCE;
+	else if ((rdma_protocol_ib(dev, port_num)) &&
+		 (rdma_cap_opa_ah(dev, port_num)))
+		return RDMA_AH_ATTR_TYPE_OPA;
 	else
 		return RDMA_AH_ATTR_TYPE_IB;
 }
