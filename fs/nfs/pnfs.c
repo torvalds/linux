@@ -2292,8 +2292,20 @@ pnfs_do_write(struct nfs_pageio_descriptor *desc,
 	enum pnfs_try_status trypnfs;
 
 	trypnfs = pnfs_try_to_write_data(hdr, call_ops, lseg, how);
-	if (trypnfs == PNFS_NOT_ATTEMPTED)
+	switch (trypnfs) {
+	case PNFS_NOT_ATTEMPTED:
 		pnfs_write_through_mds(desc, hdr);
+	case PNFS_ATTEMPTED:
+		break;
+	case PNFS_TRY_AGAIN:
+		/* cleanup hdr and prepare to redo pnfs */
+		if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
+			struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
+			list_splice_init(&hdr->pages, &mirror->pg_list);
+			mirror->pg_recoalesce = 1;
+		}
+		hdr->mds_ops->rpc_release(hdr);
+	}
 }
 
 static void pnfs_writehdr_free(struct nfs_pgio_header *hdr)
