@@ -727,6 +727,7 @@ pnfs_destroy_layout(struct nfs_inode *nfsi)
 		pnfs_layout_clear_fail_bit(lo, NFS_LAYOUT_RW_FAILED);
 		spin_unlock(&nfsi->vfs_inode.i_lock);
 		pnfs_free_lseg_list(&tmp_list);
+		nfs_commit_inode(&nfsi->vfs_inode, 0);
 		pnfs_put_layout_hdr(lo);
 	} else
 		spin_unlock(&nfsi->vfs_inode.i_lock);
@@ -1989,6 +1990,8 @@ out_forget:
 	spin_unlock(&ino->i_lock);
 	lseg->pls_layout = lo;
 	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
+	if (!pnfs_layout_is_valid(lo))
+		nfs_commit_inode(ino, 0);
 	return ERR_PTR(-EAGAIN);
 }
 

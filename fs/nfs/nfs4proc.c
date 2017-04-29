@@ -8330,6 +8330,7 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		 */
 		pnfs_mark_layout_stateid_invalid(lo, &head);
 		spin_unlock(&inode->i_lock);
+		nfs_commit_inode(inode, 0);
 		pnfs_free_lseg_list(&head);
 		status = -EAGAIN;
 		goto out;
