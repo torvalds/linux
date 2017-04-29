@@ -2588,7 +2588,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	return in_len;
 
 err_copy:
-	ib_destroy_ah(ah);
+	rdma_destroy_ah(ah);
 
 err_put:
 	uobj_put_obj_read(pd);

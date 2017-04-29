@@ -355,7 +355,7 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 			       GFP_ATOMIC,
 			       IB_MGMT_BASE_VERSION);
 	if (IS_ERR(m)) {
-		ib_destroy_ah(ah);
+		rdma_destroy_ah(ah);
 		ret = PTR_ERR(m);
 		goto out;
 	}
@@ -390,7 +390,7 @@ static int cm_alloc_response_msg(struct cm_port *port,
 			       GFP_ATOMIC,
 			       IB_MGMT_BASE_VERSION);
 	if (IS_ERR(m)) {
-		ib_destroy_ah(ah);
+		rdma_destroy_ah(ah);
 		return PTR_ERR(m);
 	}
 	m->ah = ah;
@@ -400,7 +400,7 @@ static int cm_alloc_response_msg(struct cm_port *port,
 
 static void cm_free_msg(struct ib_mad_send_buf *msg)
 {
-	ib_destroy_ah(msg->ah);
+	rdma_destroy_ah(msg->ah);
 	if (msg->context[0])
 		cm_deref_id(msg->context[0]);
 	ib_free_send_mad(msg);

@@ -587,7 +587,7 @@ int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(rdma_query_ah);
 
-int ib_destroy_ah(struct ib_ah *ah)
+int rdma_destroy_ah(struct ib_ah *ah)
 {
 	struct ib_pd *pd;
 	int ret;
@@ -599,7 +599,7 @@ int ib_destroy_ah(struct ib_ah *ah)
 
 	return ret;
 }
-EXPORT_SYMBOL(ib_destroy_ah);
+EXPORT_SYMBOL(rdma_destroy_ah);
 
 /* Shared receive queues */
 

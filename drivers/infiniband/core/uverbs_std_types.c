@@ -41,7 +41,7 @@
 static int uverbs_free_ah(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	return ib_destroy_ah((struct ib_ah *)uobject->object);
+	return rdma_destroy_ah((struct ib_ah *)uobject->object);
 }
 
 static int uverbs_free_flow(struct ib_uobject *uobject,

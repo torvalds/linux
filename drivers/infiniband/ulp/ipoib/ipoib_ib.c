@@ -658,7 +658,7 @@ static void __ipoib_reap_ah(struct net_device *dev)
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
 		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
-			ib_destroy_ah(ah->ah);
+			rdma_destroy_ah(ah->ah);
 			kfree(ah);
 		}
 

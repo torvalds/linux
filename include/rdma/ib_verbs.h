@@ -2796,10 +2796,10 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 /**
- * ib_destroy_ah - Destroys an address handle.
+ * rdma_destroy_ah - Destroys an address handle.
  * @ah: The address handle to destroy.
  */
-int ib_destroy_ah(struct ib_ah *ah);
+int rdma_destroy_ah(struct ib_ah *ah);
 
 /**
  * ib_create_srq - Creates a SRQ associated with the specified protection
