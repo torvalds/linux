@@ -1,6 +1,6 @@
 #ifndef HOST_INT_H
 #define HOST_INT_H
-
+#include <linux/ieee80211.h>
 #include "coreconfigurator.h"
 
 #define IP_ALEN  4
@@ -47,7 +47,6 @@
 #define ETH_ALEN				6
 #define PMKID_LEN				16
 #define WILC_MAX_NUM_PMKIDS			16
-#define WILC_SUPP_MCS_SET_SIZE			16
 #define WILC_ADD_STA_LENGTH			40
 #define SCAN_EVENT_DONE_ABORTED
 #define NUM_CONCURRENT_IFC			2
@@ -289,12 +288,7 @@ struct add_sta_param {
 	u8 rates_len;
 	const u8 *rates;
 	bool ht_supported;
-	u16 ht_capa_info;
-	u8 ht_ampdu_params;
-	u8 ht_supp_mcs_set[16];
-	u16 ht_ext_params;
-	u32 ht_tx_bf_cap;
-	u8 ht_ante_sel;
+	struct ieee80211_ht_cap ht_capa;
 	u16 flags_mask;
 	u16 flags_set;
 };
