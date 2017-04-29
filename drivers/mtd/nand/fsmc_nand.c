@@ -1055,6 +1055,9 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 				break;
 			}
 
+		case NAND_ECC_ON_DIE:
+			break;
+
 		default:
 			dev_err(&pdev->dev, "Unsupported ECC mode!\n");
 			goto err_probe;
