@@ -257,7 +257,7 @@ struct cf_parms_t {
 } __packed;
 
 struct ibss_parms_t {
-	u16 atimWindow;
+	u16 atim_window;
 } __packed;
 
 struct rsn_t {
