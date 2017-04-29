@@ -1108,6 +1108,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	struct net_device *ndev = NULL;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
+	ah_attr->type = rdma_ah_find_type(device, port_num);
 
 	rdma_ah_set_dlid(ah_attr, be16_to_cpu(rec->dlid));
 	rdma_ah_set_sl(ah_attr, rec->sl);
@@ -1192,7 +1193,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	}
 
 	if (use_roce)
-		memcpy(ah_attr->dmac, rec->dmac, ETH_ALEN);
+		memcpy(ah_attr->roce.dmac, rec->dmac, ETH_ALEN);
 
 	return 0;
 }
@@ -2029,6 +2030,8 @@ static void update_sm_ah(struct work_struct *work)
 		pr_err("Couldn't find index for default PKey\n");
 
 	memset(&ah_attr, 0, sizeof(ah_attr));
+	ah_attr.type = rdma_ah_find_type(port->agent->device,
+					 port->port_num);
 	rdma_ah_set_dlid(&ah_attr, port_attr.sm_lid);
 	rdma_ah_set_sl(&ah_attr, port_attr.sm_sl);
 	rdma_ah_set_port_num(&ah_attr, port->port_num);

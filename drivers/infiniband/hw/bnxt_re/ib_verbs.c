@@ -597,7 +597,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 			break;
 		}
 		rc = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
-						  ah_attr->dmac, &vlan_tag,
+						  ah_attr->roce.dmac, &vlan_tag,
 						  &sgid_attr.ndev->ifindex,
 						  NULL);
 		if (rc) {
@@ -606,7 +606,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 		}
 	}
 
-	memcpy(ah->qplib_ah.dmac, ah_attr->dmac, ETH_ALEN);
+	memcpy(ah->qplib_ah.dmac, ah_attr->roce.dmac, ETH_ALEN);
 	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to allocate HW AH");
@@ -644,8 +644,9 @@ int bnxt_re_query_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 {
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 
+	ah_attr->type = ib_ah->type;
 	rdma_ah_set_sl(ah_attr, ah->qplib_ah.sl);
-	memcpy(ah_attr->dmac, ah->qplib_ah.dmac, ETH_ALEN);
+	memcpy(ah_attr->roce.dmac, ah->qplib_ah.dmac, ETH_ALEN);
 	rdma_ah_set_grh(ah_attr, NULL, 0,
 			ah->qplib_ah.host_sgid_index,
 			0, ah->qplib_ah.traffic_class);
@@ -1280,7 +1281,8 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		qp->qplib_qp.ah.hop_limit = grh->hop_limit;
 		qp->qplib_qp.ah.traffic_class = grh->traffic_class;
 		qp->qplib_qp.ah.sl = rdma_ah_get_sl(&qp_attr->ah_attr);
-		ether_addr_copy(qp->qplib_qp.ah.dmac, qp_attr->ah_attr.dmac);
+		ether_addr_copy(qp->qplib_qp.ah.dmac,
+				qp_attr->ah_attr.roce.dmac);
 
 		status = ib_get_cached_gid(&rdev->ibdev, 1,
 					   grh->sgid_index,
@@ -1423,13 +1425,14 @@ int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	qp_attr->qp_access_flags = __to_ib_access_flags(qplib_qp.access);
 	qp_attr->pkey_index = qplib_qp.pkey_index;
 	qp_attr->qkey = qplib_qp.qkey;
+	qp_attr->ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
 	rdma_ah_set_grh(&qp_attr->ah_attr, NULL, qplib_qp.ah.flow_label,
 			qplib_qp.ah.host_sgid_index,
 			qplib_qp.ah.hop_limit,
 			qplib_qp.ah.traffic_class);
 	rdma_ah_set_dgid_raw(&qp_attr->ah_attr, qplib_qp.ah.dgid.data);
 	rdma_ah_set_sl(&qp_attr->ah_attr, qplib_qp.ah.sl);
-	ether_addr_copy(qp_attr->ah_attr.dmac, qplib_qp.ah.dmac);
+	ether_addr_copy(qp_attr->ah_attr.roce.dmac, qplib_qp.ah.dmac);
 	qp_attr->path_mtu = __to_ib_mtu(qplib_qp.path_mtu);
 	qp_attr->timeout = qplib_qp.timeout;
 	qp_attr->retry_cnt = qplib_qp.retry_cnt;

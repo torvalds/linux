@@ -1954,6 +1954,8 @@ static int modify_qp(struct ib_uverbs_file *file,
 	attr->alt_timeout	  = cmd->base.alt_timeout;
 	attr->rate_limit	  = cmd->rate_limit;
 
+	attr->ah_attr.type = rdma_ah_find_type(qp->device,
+					       cmd->base.dest.port_num);
 	if (cmd->base.dest.is_global) {
 		rdma_ah_set_grh(&attr->ah_attr, NULL,
 				cmd->base.dest.flow_label,
@@ -1971,6 +1973,8 @@ static int modify_qp(struct ib_uverbs_file *file,
 	rdma_ah_set_port_num(&attr->ah_attr,
 			     cmd->base.dest.port_num);
 
+	attr->alt_ah_attr.type = rdma_ah_find_type(qp->device,
+						   cmd->base.dest.port_num);
 	if (cmd->base.alt_dest.is_global) {
 		rdma_ah_set_grh(&attr->alt_ah_attr, NULL,
 				cmd->base.alt_dest.flow_label,
@@ -2551,6 +2555,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 		goto err;
 	}
 
+	attr.type = rdma_ah_find_type(ib_dev, cmd.attr.port_num);
 	rdma_ah_set_dlid(&attr, cmd.attr.dlid);
 	rdma_ah_set_sl(&attr, cmd.attr.sl);
 	rdma_ah_set_path_bits(&attr, cmd.attr.src_path_bits);

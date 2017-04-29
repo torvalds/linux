@@ -82,6 +82,7 @@ static void update_sm_ah(struct mthca_dev *dev,
 		return;
 
 	memset(&ah_attr, 0, sizeof ah_attr);
+	ah_attr.type = rdma_ah_find_type(&dev->ib_dev, port_num);
 	rdma_ah_set_dlid(&ah_attr, lid);
 	rdma_ah_set_sl(&ah_attr, sl);
 	rdma_ah_set_port_num(&ah_attr, port_num);

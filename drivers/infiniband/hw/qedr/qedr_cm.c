@@ -308,7 +308,7 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 	}
 
 	/* ENET + VLAN headers */
-	ether_addr_copy(udh->eth.dmac_h, ah_attr->dmac);
+	ether_addr_copy(udh->eth.dmac_h, ah_attr->roce.dmac);
 	ether_addr_copy(udh->eth.smac_h, dev->ndev->dev_addr);
 	if (has_vlan) {
 		udh->eth.type = htons(ETH_P_8021Q);

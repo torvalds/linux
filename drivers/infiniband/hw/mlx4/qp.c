@@ -1388,8 +1388,6 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev,
 			  u64 smac, u16 vlan_tag, struct mlx4_qp_path *path,
 			  struct mlx4_roce_smac_vlan_info *smac_info, u8 port)
 {
-	int is_eth = rdma_port_get_link_layer(&dev->ib_dev, port) ==
-		IB_LINK_LAYER_ETHERNET;
 	int vidx;
 	int smac_index;
 	int err;
@@ -1426,7 +1424,7 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev,
 		memcpy(path->rgid, grh->dgid.raw, 16);
 	}
 
-	if (is_eth) {
+	if (ah->type == RDMA_AH_ATTR_TYPE_ROCE) {
 		if (!(rdma_ah_get_ah_flags(ah) & IB_AH_GRH))
 			return -1;
 
@@ -1490,7 +1488,7 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev,
 		} else {
 			smac_index = smac_info->smac_index;
 		}
-		memcpy(path->dmac, ah->dmac, 6);
+		memcpy(path->dmac, ah->roce.dmac, 6);
 		path->ackto = MLX4_IB_LINK_TYPE_ETH;
 		/* put MAC table smac index for IBoE */
 		path->grh_mylmc = (u8) (smac_index) | 0x80;
@@ -3402,23 +3400,19 @@ static void to_rdma_ah_attr(struct mlx4_ib_dev *ibdev,
 			    struct mlx4_qp_path *path)
 {
 	struct mlx4_dev *dev = ibdev->dev;
-	int is_eth;
 	u8 port_num = path->sched_queue & 0x40 ? 2 : 1;
 
 	memset(ah_attr, 0, sizeof(*ah_attr));
-	rdma_ah_set_port_num(ah_attr, port_num);
-
+	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, port_num);
 	if (port_num == 0 || port_num > dev->caps.num_ports)
 		return;
 
-	is_eth = rdma_port_get_link_layer(&ibdev->ib_dev,
-					  rdma_ah_get_port_num(ah_attr)) ==
-			IB_LINK_LAYER_ETHERNET;
-	if (is_eth)
+	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE)
 		rdma_ah_set_sl(ah_attr, ((path->sched_queue >> 3) & 0x7) |
 			       ((path->sched_queue & 4) << 1));
 	else
 		rdma_ah_set_sl(ah_attr, (path->sched_queue >> 2) & 0xf);
+	rdma_ah_set_port_num(ah_attr, port_num);
 
 	rdma_ah_set_dlid(ah_attr, be16_to_cpu(path->rlid));
 	rdma_ah_set_path_bits(ah_attr, path->grh_mylmc & 0x7f);

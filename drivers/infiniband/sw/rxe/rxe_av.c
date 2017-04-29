@@ -70,6 +70,7 @@ int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
 int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
 		   struct rdma_ah_attr *attr)
 {
+	attr->type = RDMA_AH_ATTR_TYPE_ROCE;
 	memcpy(rdma_ah_retrieve_grh(attr), &av->grh, sizeof(av->grh));
 	rdma_ah_set_ah_flags(attr, IB_AH_GRH);
 	rdma_ah_set_port_num(attr, av->port_num);

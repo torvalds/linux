@@ -303,6 +303,7 @@ int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 		return -ENOSYS;
 
 	memset(attr, 0, sizeof *attr);
+	attr->type = ibah->type;
 	rdma_ah_set_dlid(attr, be16_to_cpu(ah->av->dlid));
 	rdma_ah_set_sl(attr, be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 28);
 	rdma_ah_set_port_num(attr, port_num);

@@ -403,6 +403,7 @@ static void to_rdma_ah_attr(struct mthca_dev *dev,
 
 	if (port_num == 0 || port_num > dev->limits.num_ports)
 		return;
+	ah_attr->type = rdma_ah_find_type(&dev->ib_dev, port_num);
 	rdma_ah_set_port_num(ah_attr, port_num);
 
 	rdma_ah_set_dlid(ah_attr, be16_to_cpu(path->rlid));

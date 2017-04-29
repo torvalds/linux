@@ -1761,7 +1761,9 @@ static int cm_req_handler(struct cm_work *work)
 	cm_process_routed_req(req_msg, work->mad_recv_wc->wc);
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 
-	memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.dmac, ETH_ALEN);
+	if (cm_id_priv->av.ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE)
+		memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.roce.dmac,
+		       ETH_ALEN);
 	grh = rdma_ah_read_grh(&cm_id_priv->av.ah_attr);
 	work->path[0].hop_limit = grh->hop_limit;
 	ret = ib_get_cached_gid(work->port->cm_dev->ib_device,

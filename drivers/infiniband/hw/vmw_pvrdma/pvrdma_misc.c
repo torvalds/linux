@@ -280,6 +280,7 @@ void ib_global_route_to_pvrdma(struct pvrdma_global_route *dst,
 void pvrdma_ah_attr_to_rdma(struct rdma_ah_attr *dst,
 			    const struct pvrdma_ah_attr *src)
 {
+	dst->type = RDMA_AH_ATTR_TYPE_ROCE;
 	pvrdma_global_route_to_ib(rdma_ah_retrieve_grh(dst), &src->grh);
 	rdma_ah_set_dlid(dst, src->dlid);
 	rdma_ah_set_sl(dst, src->sl);
@@ -287,7 +288,7 @@ void pvrdma_ah_attr_to_rdma(struct rdma_ah_attr *dst,
 	rdma_ah_set_static_rate(dst, src->static_rate);
 	rdma_ah_set_ah_flags(dst, src->ah_flags);
 	rdma_ah_set_port_num(dst, src->port_num);
-	memcpy(dst->dmac, &src->dmac, ETH_ALEN);
+	memcpy(dst->roce.dmac, &src->dmac, ETH_ALEN);
 }
 
 void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
@@ -300,5 +301,5 @@ void rdma_ah_attr_to_pvrdma(struct pvrdma_ah_attr *dst,
 	dst->static_rate = rdma_ah_get_static_rate(src);
 	dst->ah_flags = rdma_ah_get_ah_flags(src);
 	dst->port_num = rdma_ah_get_port_num(src);
-	memcpy(&dst->dmac, src->dmac, sizeof(dst->dmac));
+	memcpy(&dst->dmac, src->roce.dmac, sizeof(dst->dmac));
 }

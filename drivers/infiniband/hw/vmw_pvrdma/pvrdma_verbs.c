@@ -525,17 +525,14 @@ struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
 	struct pvrdma_ah *ah;
-	enum rdma_link_layer ll;
 	const struct ib_global_route *grh;
 	u8 port_num = rdma_ah_get_port_num(ah_attr);
 
 	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
 		return ERR_PTR(-EINVAL);
-	ll = rdma_port_get_link_layer(pd->device,
-				      rdma_ah_get_port_num(ah_attr));
-	grh = rdma_ah_read_grh(ah_attr);
 
-	if (ll != IB_LINK_LAYER_ETHERNET ||
+	grh = rdma_ah_read_grh(ah_attr);
+	if ((ah_attr->type != RDMA_AH_ATTR_TYPE_ROCE)  ||
 	    rdma_is_multicast_addr((struct in6_addr *)grh->dgid.raw))
 		return ERR_PTR(-EINVAL);
 
@@ -556,7 +553,7 @@ struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 	ah->av.sl_tclass_flowlabel = (grh->traffic_class << 20) |
 				      grh->flow_label;
 	memcpy(ah->av.dgid, grh->dgid.raw, 16);
-	memcpy(ah->av.dmac, ah_attr->dmac, ETH_ALEN);
+	memcpy(ah->av.dmac, ah_attr->roce.dmac, ETH_ALEN);
 
 	ah->ibah.device = pd->device;
 	ah->ibah.pd = pd;

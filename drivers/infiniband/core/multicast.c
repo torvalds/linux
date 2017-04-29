@@ -743,6 +743,7 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 		return ret;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
+	ah_attr->type = rdma_ah_find_type(device, port_num);
 
 	rdma_ah_set_dlid(ah_attr, be16_to_cpu(rec->mlid));
 	rdma_ah_set_sl(ah_attr, rec->sl);

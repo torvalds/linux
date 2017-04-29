@@ -537,7 +537,7 @@ static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
 	else if (rdma_link_local_addr(&in6))
 		rdma_get_ll_mac(&in6, mac_addr);
 	else
-		memcpy(mac_addr, ah_attr->dmac, ETH_ALEN);
+		memcpy(mac_addr, ah_attr->roce.dmac, ETH_ALEN);
 	return 0;
 }
 

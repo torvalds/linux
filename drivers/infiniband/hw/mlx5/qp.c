@@ -2212,7 +2212,6 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			 bool alt)
 {
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah);
-	enum rdma_link_layer ll = rdma_port_get_link_layer(&dev->ib_dev, port);
 	int err;
 	enum ib_gid_type gid_type;
 	u8 ah_flags = rdma_ah_get_ah_flags(ah);
@@ -2231,14 +2230,15 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			return -EINVAL;
 		}
 	}
-	if (ll == IB_LINK_LAYER_ETHERNET) {
+
+	if (ah->type == RDMA_AH_ATTR_TYPE_ROCE) {
 		if (!(ah_flags & IB_AH_GRH))
 			return -EINVAL;
 		err = mlx5_get_roce_gid_type(dev, port, grh->sgid_index,
 					     &gid_type);
 		if (err)
 			return err;
-		memcpy(path->rmac, ah->dmac, sizeof(ah->dmac));
+		memcpy(path->rmac, ah->roce.dmac, sizeof(ah->roce.dmac));
 		path->udp_sport = mlx5_get_roce_udp_sport(dev, port,
 							  grh->sgid_index);
 		path->dci_cfi_prio_sl = (sl & 0x7) << 4;
@@ -4259,6 +4259,7 @@ static void to_rdma_ah_attr(struct mlx5_ib_dev *ibdev,
 
 	memset(ah_attr, 0, sizeof(*ah_attr));
 
+	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, path->port);
 	rdma_ah_set_port_num(ah_attr, path->port);
 	if (rdma_ah_get_port_num(ah_attr) == 0 ||
 	    rdma_ah_get_port_num(ah_attr) > MLX5_CAP_GEN(dev, num_ports))

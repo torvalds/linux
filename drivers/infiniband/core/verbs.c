@@ -321,6 +321,7 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 		ah->device  = pd->device;
 		ah->pd      = pd;
 		ah->uobject = NULL;
+		ah->type    = ah_attr->type;
 		atomic_inc(&pd->usecnt);
 	}
 
@@ -464,6 +465,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 	union ib_gid sgid;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
+	ah_attr->type = rdma_ah_find_type(device, port_num);
 	if (rdma_cap_eth_ah(device, port_num)) {
 		if (wc->wc_flags & IB_WC_WITH_NETWORK_HDR_TYPE)
 			net_type = wc->network_hdr_type;
@@ -494,7 +496,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 			return -ENODEV;
 
 		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid,
-						   ah_attr->dmac,
+						   ah_attr->roce.dmac,
 						   wc->wc_flags & IB_WC_WITH_VLAN ?
 						   NULL : &vlan_id,
 						   &if_index, &hoplimit);
@@ -571,6 +573,9 @@ EXPORT_SYMBOL(ib_create_ah_from_wc);
 
 int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 {
+	if (ah->type != ah_attr->type)
+		return -EINVAL;
+
 	return ah->device->modify_ah ?
 		ah->device->modify_ah(ah, ah_attr) :
 		-ENOSYS;
@@ -1207,14 +1212,14 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 	if (!rdma_is_port_valid(device, rdma_ah_get_port_num(ah_attr)))
 		return -EINVAL;
 
-	if (!rdma_cap_eth_ah(device, rdma_ah_get_port_num(ah_attr)))
+	if (ah_attr->type != RDMA_AH_ATTR_TYPE_ROCE)
 		return 0;
 
 	grh = rdma_ah_retrieve_grh(ah_attr);
 
 	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw)) {
 		rdma_get_ll_mac((struct in6_addr *)grh->dgid.raw,
-				ah_attr->dmac);
+				ah_attr->roce.dmac);
 	} else {
 		union ib_gid		sgid;
 		struct ib_gid_attr	sgid_attr;
@@ -1236,7 +1241,7 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 
 		ret =
 		rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
-					     ah_attr->dmac,
+					     ah_attr->roce.dmac,
 					     NULL, &ifindex, &hop_limit);
 
 		dev_put(sgid_attr.ndev);

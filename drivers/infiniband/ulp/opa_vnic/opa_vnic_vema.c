@@ -757,6 +757,7 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	class = &port->class_port_info;
 	/* Set up address handle */
 	memset(&ah_attr, 0, sizeof(ah_attr));
+	ah_attr.type = rdma_ah_find_type(ibp, port->port_num);
 	rdma_ah_set_sl(&ah_attr,
 		       GET_TRAP_SL_FROM_CLASS_PORT_INFO(class->trap_sl_rsvd));
 	rdma_ah_set_port_num(&ah_attr, port->port_num);

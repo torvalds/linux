@@ -196,6 +196,7 @@ static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
 		return;
 
 	memset(&ah_attr, 0, sizeof ah_attr);
+	ah_attr.type = rdma_ah_find_type(&dev->ib_dev, port_num);
 	rdma_ah_set_dlid(&ah_attr, lid);
 	rdma_ah_set_sl(&ah_attr, sl);
 	rdma_ah_set_port_num(&ah_attr, port_num);
@@ -555,6 +556,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	/* create ah. Just need an empty one with the port num for the post send.
 	 * The driver will set the force loopback bit in post_send */
 	memset(&attr, 0, sizeof attr);
+	attr.type = rdma_ah_find_type(&dev->ib_dev, port);
 
 	rdma_ah_set_port_num(&attr, port);
 	if (is_eth) {

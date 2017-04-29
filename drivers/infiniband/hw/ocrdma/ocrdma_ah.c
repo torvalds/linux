@@ -170,7 +170,8 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	const struct ib_global_route *grh;
 	union ib_gid sgid;
 
-	if (!(rdma_ah_get_ah_flags(attr) & IB_AH_GRH))
+	if ((attr->type != RDMA_AH_ATTR_TYPE_ROCE) ||
+	    !(rdma_ah_get_ah_flags(attr) & IB_AH_GRH))
 		return ERR_PTR(-EINVAL);
 
 	grh = rdma_ah_read_grh(attr);
@@ -204,7 +205,7 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	    (!rdma_is_multicast_addr((struct in6_addr *)grh->dgid.raw)) &&
 	    (!rdma_link_local_addr((struct in6_addr *)grh->dgid.raw))) {
 		status = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
-						      attr->dmac,
+						      attr->roce.dmac,
 						      &vlan_tag,
 						      &sgid_attr.ndev->ifindex,
 						      NULL);
@@ -259,6 +260,7 @@ int ocrdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	struct ocrdma_av *av = ah->av;
 	struct ocrdma_grh *grh;
 
+	attr->type = ibah->type;
 	if (ah->av->valid & OCRDMA_AV_VALID) {
 		grh = (struct ocrdma_grh *)((u8 *)ah->av +
 				sizeof(struct ocrdma_eth_vlan));

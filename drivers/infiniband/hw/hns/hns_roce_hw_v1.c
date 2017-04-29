@@ -2738,7 +2738,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			goto out;
 		}
 
-		dmac = (u8 *)attr->ah_attr.dmac;
+		dmac = (u8 *)attr->ah_attr.roce.dmac;
 
 		context->sq_rq_bt_l = (u32)(dma_handle);
 		roce_set_field(context->qpc_bytes_24,

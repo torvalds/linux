@@ -1511,8 +1511,12 @@ struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid)
 	struct rdma_ah_attr attr;
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
 	struct rvt_qp *qp0;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	struct hfi1_devdata *dd = dd_from_ppd(ppd);
+	u8 port_num = ppd->port;
 
 	memset(&attr, 0, sizeof(attr));
+	attr.type = rdma_ah_find_type(&dd->verbs_dev.rdi.ibdev, port_num);
 	rdma_ah_set_dlid(&attr, dlid);
 	rdma_ah_set_port_num(&attr, ppd_from_ibp(ibp)->port);
 	rcu_read_lock();

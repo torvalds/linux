@@ -2029,6 +2029,7 @@ int qedr_query_qp(struct ib_qp *ibqp,
 	qp_attr->cap.max_inline_data = ROCE_REQ_MAX_INLINE_DATA_SIZE;
 	qp_init_attr->cap = qp_attr->cap;
 
+	qp_attr->ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
 	rdma_ah_set_grh(&qp_attr->ah_attr, NULL,
 			params.flow_label, qp->sgid_idx,
 			params.hop_limit_ttl, params.traffic_class_tos);

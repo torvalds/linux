@@ -1368,9 +1368,11 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
 	struct rvt_qp *qp0;
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
+	struct qib_devdata *dd = dd_from_ppd(ppd);
 	u8 port_num = ppd->port;
 
 	memset(&attr, 0, sizeof(attr));
+	attr.type = rdma_ah_find_type(&dd->verbs_dev.rdi.ibdev, port_num);
 	rdma_ah_set_dlid(&attr, dlid);
 	rdma_ah_set_port_num(&attr, port_num);
 	rcu_read_lock();

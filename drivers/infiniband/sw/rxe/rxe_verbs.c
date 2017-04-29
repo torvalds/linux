@@ -380,6 +380,7 @@ static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	struct rxe_ah *ah = to_rah(ibah);
 
 	memset(attr, 0, sizeof(*attr));
+	attr->type = ibah->type;
 	rxe_av_to_attr(rxe, &ah->av, attr);
 	return 0;
 }

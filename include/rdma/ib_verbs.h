@@ -840,15 +840,31 @@ struct ib_mr_status {
  */
 __attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 
+enum rdma_ah_attr_type {
+	RDMA_AH_ATTR_TYPE_IB,
+	RDMA_AH_ATTR_TYPE_ROCE,
+};
+
+struct ib_ah_attr {
+	u16			dlid;
+	u8			src_path_bits;
+};
+
+struct roce_ah_attr {
+	u8			dmac[ETH_ALEN];
+};
+
 struct rdma_ah_attr {
 	struct ib_global_route	grh;
-	u16			dlid;
 	u8			sl;
-	u8			src_path_bits;
 	u8			static_rate;
-	u8			ah_flags;
 	u8			port_num;
-	u8			dmac[ETH_ALEN];
+	u8			ah_flags;
+	enum rdma_ah_attr_type type;
+	union {
+		struct ib_ah_attr ib;
+		struct roce_ah_attr roce;
+	};
 };
 
 enum ib_wc_status {
@@ -1467,6 +1483,7 @@ struct ib_ah {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
 	struct ib_uobject	*uobject;
+	enum rdma_ah_attr_type	type;
 };
 
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
@@ -3468,17 +3485,22 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 
 static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
 {
-	return attr->dmac;
+	if (attr->type == RDMA_AH_ATTR_TYPE_ROCE)
+		return attr->roce.dmac;
+	return NULL;
 }
 
-static inline void rdma_ah_set_dlid(struct rdma_ah_attr *attr, u32 dlid)
+static inline void rdma_ah_set_dlid(struct rdma_ah_attr *attr, u16 dlid)
 {
-	attr->dlid = (u16)dlid;
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		attr->ib.dlid = dlid;
 }
 
-static inline u32 rdma_ah_get_dlid(const struct rdma_ah_attr *attr)
+static inline u16 rdma_ah_get_dlid(const struct rdma_ah_attr *attr)
 {
-	return attr->dlid;
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		return attr->ib.dlid;
+	return 0;
 }
 
 static inline void rdma_ah_set_sl(struct rdma_ah_attr *attr, u8 sl)
@@ -3494,12 +3516,15 @@ static inline u8 rdma_ah_get_sl(const struct rdma_ah_attr *attr)
 static inline void rdma_ah_set_path_bits(struct rdma_ah_attr *attr,
 					 u8 src_path_bits)
 {
-	attr->src_path_bits = src_path_bits;
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		attr->ib.src_path_bits = src_path_bits;
 }
 
 static inline u8 rdma_ah_get_path_bits(const struct rdma_ah_attr *attr)
 {
-	return attr->src_path_bits;
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		return attr->ib.src_path_bits;
+	return 0;
 }
 
 static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u8 port_num)
@@ -3585,5 +3610,16 @@ static inline void rdma_ah_set_grh(struct rdma_ah_attr *attr,
 	grh->sgid_index = sgid_index;
 	grh->hop_limit = hop_limit;
 	grh->traffic_class = traffic_class;
+}
+
+/*Get AH type */
+static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
+						       u32 port_num)
+{
+	if ((rdma_protocol_roce(dev, port_num)) ||
+	    (rdma_protocol_iwarp(dev, port_num)))
+		return RDMA_AH_ATTR_TYPE_ROCE;
+	else
+		return RDMA_AH_ATTR_TYPE_IB;
 }
 #endif /* IB_VERBS_H */

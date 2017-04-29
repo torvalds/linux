@@ -96,7 +96,7 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 		is_mcast = 1;
 		rdma_get_mcast_mac(&in6, ah->av.eth.mac);
 	} else {
-		memcpy(ah->av.eth.mac, ah_attr->dmac, ETH_ALEN);
+		memcpy(ah->av.eth.mac, ah_attr->roce.dmac, ETH_ALEN);
 	}
 	ret = ib_get_cached_gid(pd->device, rdma_ah_get_port_num(ah_attr),
 				grh->sgid_index, &sgid, &gid_attr);
@@ -154,9 +154,7 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
-	if (rdma_port_get_link_layer(pd->device,
-				     rdma_ah_get_port_num(ah_attr)) ==
-	    IB_LINK_LAYER_ETHERNET) {
+	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
 		if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH)) {
 			ret = ERR_PTR(-EINVAL);
 		} else {
@@ -182,30 +180,29 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 {
 	struct mlx4_ib_ah *ah = to_mah(ibah);
-	enum rdma_link_layer ll;
+	int port_num = be32_to_cpu(ah->av.ib.port_pd) >> 24;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
-	rdma_ah_set_port_num(ah_attr,
-			     be32_to_cpu(ah->av.ib.port_pd) >> 24);
-	ll = rdma_port_get_link_layer(ibah->device,
-				      rdma_ah_get_port_num(ah_attr));
-	if (ll == IB_LINK_LAYER_ETHERNET)
+	ah_attr->type = ibah->type;
+
+	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
+		rdma_ah_set_dlid(ah_attr, 0);
 		rdma_ah_set_sl(ah_attr,
 			       be32_to_cpu(ah->av.eth.sl_tclass_flowlabel)
 			       >> 29);
-	else
+	} else {
+		rdma_ah_set_dlid(ah_attr, be16_to_cpu(ah->av.ib.dlid));
 		rdma_ah_set_sl(ah_attr,
 			       be32_to_cpu(ah->av.ib.sl_tclass_flowlabel)
 			       >> 28);
+	}
 
-	rdma_ah_set_dlid(ah_attr, (ll == IB_LINK_LAYER_INFINIBAND) ?
-			 be16_to_cpu(ah->av.ib.dlid) : 0);
+	rdma_ah_set_port_num(ah_attr, port_num);
 	if (ah->av.ib.stat_rate)
 		rdma_ah_set_static_rate(ah_attr,
 					ah->av.ib.stat_rate -
 					MLX4_STAT_RATE_OFFSET);
 	rdma_ah_set_path_bits(ah_attr, ah->av.ib.g_slid & 0x7F);
-
 	if (mlx4_ib_ah_grh_present(ah)) {
 		u32 tc_fl = be32_to_cpu(ah->av.ib.sl_tclass_flowlabel);
 
