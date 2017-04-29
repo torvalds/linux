@@ -567,9 +567,9 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		break;
 	case LOCAL_GAIN:
 		memcpy(&priv->gain, priv->rxp, sizeof(priv->gain));
-		DPRINTK(3, "TxMode=%d, RxMode=%d, TxGain=%d, RxGain=%d\n",
-			priv->gain.TxMode, priv->gain.RxMode, priv->gain.TxGain,
-			priv->gain.RxGain);
+		DPRINTK(3, "tx_mode=%d, rx_mode=%d, tx_gain=%d, rx_gain=%d\n",
+			priv->gain.tx_mode, priv->gain.rx_mode,
+			priv->gain.tx_gain, priv->gain.rx_gain);
 		break;
 	case LOCAL_EEPROM_SUM:
 		memcpy(&priv->eeprom_sum, priv->rxp, sizeof(priv->eeprom_sum));
