@@ -867,7 +867,7 @@ static int init_newwin(struct ib_mad_send_wr_private *mad_send_wr)
 		    (rmpp_recv->method & IB_MGMT_METHOD_RESP))
 			continue;
 
-		if (ib_query_ah(mad_send_wr->send_buf.ah, &ah_attr))
+		if (rdma_query_ah(mad_send_wr->send_buf.ah, &ah_attr))
 			continue;
 
 		if (rmpp_recv->slid == ah_attr.dlid) {
