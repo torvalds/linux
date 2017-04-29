@@ -239,10 +239,10 @@ struct rate_set8_t {
 } __packed;
 
 struct FhParms_t {
-	u16 dwellTime;
-	u8 hopSet;
-	u8 hopPattern;
-	u8 hopIndex;
+	u16 dwell_time;
+	u8 hop_set;
+	u8 hop_pattern;
+	u8 hop_index;
 } __packed;
 
 struct DsParms_t {
