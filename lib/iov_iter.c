@@ -798,7 +798,7 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 		while (1) {
 			size_t n = off - pipe->bufs[idx].offset;
 			if (unroll < n) {
-				off -= (n - unroll);
+				off -= unroll;
 				break;
 			}
 			unroll -= n;
