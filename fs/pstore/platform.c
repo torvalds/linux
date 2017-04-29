@@ -653,19 +653,16 @@ static int pstore_write_user_compat(struct pstore_record *record,
 	if (record->buf)
 		return -EINVAL;
 
-	record->buf = kmalloc(record->size, GFP_KERNEL);
-	if (!record->buf)
-		return -ENOMEM;
-
-	if (unlikely(copy_from_user(record->buf, buf, record->size))) {
-		ret = -EFAULT;
+	record->buf = memdup_user(buf, record->size);
+	if (unlikely(IS_ERR(record->buf))) {
+		ret = PTR_ERR(record->buf);
 		goto out;
 	}
 
 	ret = record->psi->write(record);
 
-out:
 	kfree(record->buf);
+out:
 	record->buf = NULL;
 
 	return unlikely(ret < 0) ? ret : record->size;
