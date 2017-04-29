@@ -772,7 +772,7 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	}
 
 	ah_attr.dlid = trap_lid;
-	ah = ib_create_ah(port->mad_agent->qp->pd, &ah_attr);
+	ah = rdma_create_ah(port->mad_agent->qp->pd, &ah_attr);
 	if (IS_ERR(ah)) {
 		c_err("%s:Couldn't create new AH = %p\n", __func__, ah);
 		c_err("%s:dlid = %d, sl = %d, port = %d\n", __func__,

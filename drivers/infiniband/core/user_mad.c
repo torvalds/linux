@@ -502,7 +502,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		ah_attr.grh.traffic_class  = packet->mad.hdr.traffic_class;
 	}
 
-	ah = ib_create_ah(agent->qp->pd, &ah_attr);
+	ah = rdma_create_ah(agent->qp->pd, &ah_attr);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_up;

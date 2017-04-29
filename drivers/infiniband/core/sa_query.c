@@ -2043,7 +2043,7 @@ static void update_sm_ah(struct work_struct *work)
 			cpu_to_be64(IB_SA_WELL_KNOWN_GUID);
 	}
 
-	new_ah->ah = ib_create_ah(port->agent->qp->pd, &ah_attr);
+	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr);
 	if (IS_ERR(new_ah->ah)) {
 		pr_warn("Couldn't create new SM AH\n");
 		kfree(new_ah);

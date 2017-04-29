@@ -2720,14 +2720,14 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 void ib_dealloc_pd(struct ib_pd *pd);
 
 /**
- * ib_create_ah - Creates an address handle for the given address vector.
+ * rdma_create_ah - Creates an address handle for the given address vector.
  * @pd: The protection domain associated with the address handle.
  * @ah_attr: The attributes of the address vector.
  *
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
+struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_get_gids_from_rdma_hdr - Get sgid and dgid from GRH or IPv4 header

@@ -86,8 +86,8 @@ static void update_sm_ah(struct mthca_dev *dev,
 	ah_attr.sl       = sl;
 	ah_attr.port_num = port_num;
 
-	new_ah = ib_create_ah(dev->send_agent[port_num - 1][0]->qp->pd,
-			      &ah_attr);
+	new_ah = rdma_create_ah(dev->send_agent[port_num - 1][0]->qp->pd,
+				&ah_attr);
 	if (IS_ERR(new_ah))
 		return;
 
