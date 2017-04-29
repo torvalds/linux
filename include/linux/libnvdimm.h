@@ -162,7 +162,4 @@ void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane);
 u64 nd_fletcher64(void *addr, size_t len, bool le);
 void nvdimm_flush(struct nd_region *nd_region);
 int nvdimm_has_flush(struct nd_region *nd_region);
-int nvdimm_region_badblocks_clear(struct device *dev, void *data);
-void __nvdimm_bus_badblocks_clear(struct nvdimm_bus *nvdimm_bus,
-		struct resource *res);
 #endif /* __LIBNVDIMM_H__ */

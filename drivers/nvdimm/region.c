@@ -131,31 +131,6 @@ static void nd_region_notify(struct device *dev, enum nvdimm_event event)
 	device_for_each_child(dev, &event, child_notify);
 }
 
-int nvdimm_region_badblocks_clear(struct device *dev, void *data)
-{
-	struct resource *res = (struct resource *)data;
-	struct nd_region *nd_region;
-	resource_size_t ndr_end;
-	sector_t sector;
-
-	/* make sure device is a region */
-	if (!is_nd_pmem(dev))
-		return 0;
-
-	nd_region = to_nd_region(dev);
-	ndr_end = nd_region->ndr_start + nd_region->ndr_size - 1;
-
-	/* make sure we are in the region */
-	if (res->start < nd_region->ndr_start || res->end > ndr_end)
-		return 0;
-
-	sector = (res->start - nd_region->ndr_start) >> 9;
-	badblocks_clear(&nd_region->bb, sector, resource_size(res) >> 9);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nvdimm_region_badblocks_clear);
-
 static struct nd_device_driver nd_region_driver = {
 	.probe = nd_region_probe,
 	.remove = nd_region_remove,

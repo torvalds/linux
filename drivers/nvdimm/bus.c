@@ -172,6 +172,57 @@ void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event)
 }
 EXPORT_SYMBOL_GPL(nvdimm_region_notify);
 
+struct clear_badblocks_context {
+	resource_size_t phys, cleared;
+};
+
+static int nvdimm_clear_badblocks_region(struct device *dev, void *data)
+{
+	struct clear_badblocks_context *ctx = data;
+	struct nd_region *nd_region;
+	resource_size_t ndr_end;
+	sector_t sector;
+
+	/* make sure device is a region */
+	if (!is_nd_pmem(dev))
+		return 0;
+
+	nd_region = to_nd_region(dev);
+	ndr_end = nd_region->ndr_start + nd_region->ndr_size - 1;
+
+	/* make sure we are in the region */
+	if (ctx->phys < nd_region->ndr_start
+			|| (ctx->phys + ctx->cleared) > ndr_end)
+		return 0;
+
+	sector = (ctx->phys - nd_region->ndr_start) / 512;
+	badblocks_clear(&nd_region->bb, sector, ctx->cleared / 512);
+
+	return 0;
+}
+
+static void nvdimm_clear_badblocks_regions(struct nvdimm_bus *nvdimm_bus,
+		phys_addr_t phys, u64 cleared)
+{
+	struct clear_badblocks_context ctx = {
+		.phys = phys,
+		.cleared = cleared,
+	};
+
+	device_for_each_child(&nvdimm_bus->dev, &ctx,
+			nvdimm_clear_badblocks_region);
+}
+
+static void nvdimm_account_cleared_poison(struct nvdimm_bus *nvdimm_bus,
+		phys_addr_t phys, u64 cleared)
+{
+	if (cleared > 0)
+		nvdimm_forget_poison(nvdimm_bus, phys, cleared);
+
+	if (cleared > 0 && cleared / 512)
+		nvdimm_clear_badblocks_regions(nvdimm_bus, phys, cleared);
+}
+
 long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 		unsigned int len)
 {
@@ -219,21 +270,11 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 	if (cmd_rc < 0)
 		return cmd_rc;
 
-	if (clear_err.cleared > 0)
-		nvdimm_forget_poison(nvdimm_bus, phys, clear_err.cleared);
+	nvdimm_account_cleared_poison(nvdimm_bus, phys, clear_err.cleared);
 
 	return clear_err.cleared;
 }
 EXPORT_SYMBOL_GPL(nvdimm_clear_poison);
-
-void __nvdimm_bus_badblocks_clear(struct nvdimm_bus *nvdimm_bus,
-		struct resource *res)
-{
-	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
-	device_for_each_child(&nvdimm_bus->dev, (void *)res,
-			nvdimm_region_badblocks_clear);
-}
-EXPORT_SYMBOL_GPL(__nvdimm_bus_badblocks_clear);
 
 static int nvdimm_bus_match(struct device *dev, struct device_driver *drv);
 
@@ -989,18 +1030,9 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 
 	if (!nvdimm && cmd == ND_CMD_CLEAR_ERROR && cmd_rc >= 0) {
 		struct nd_cmd_clear_error *clear_err = buf;
-		struct resource res;
 
-		if (clear_err->cleared) {
-			/* clearing the poison list we keep track of */
-			nvdimm_forget_poison(nvdimm_bus, clear_err->address,
-					clear_err->cleared);
-
-			/* now sync the badblocks lists */
-			res.start = clear_err->address;
-			res.end = clear_err->address + clear_err->cleared - 1;
-			__nvdimm_bus_badblocks_clear(nvdimm_bus, &res);
-		}
+		nvdimm_account_cleared_poison(nvdimm_bus, clear_err->address,
+				clear_err->cleared);
 	}
 	nvdimm_bus_unlock(&nvdimm_bus->dev);
 
