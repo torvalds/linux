@@ -2499,7 +2499,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 				int attr_mask)
 {
 	int status;
-	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
+	struct rdma_ah_attr *ah_attr = &attrs->ah_attr;
 	union ib_gid sgid, zgid;
 	struct ib_gid_attr sgid_attr;
 	u32 vlan_id = 0xFFFF;

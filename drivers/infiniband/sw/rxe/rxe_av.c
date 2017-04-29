@@ -34,7 +34,7 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
-int rxe_av_chk_attr(struct rxe_dev *rxe, struct ib_ah_attr *attr)
+int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 {
 	struct rxe_port *port;
 
@@ -57,7 +57,7 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct ib_ah_attr *attr)
 }
 
 int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
-		     struct rxe_av *av, struct ib_ah_attr *attr)
+		     struct rxe_av *av, struct rdma_ah_attr *attr)
 {
 	memset(av, 0, sizeof(*av));
 	memcpy(&av->grh, &attr->grh, sizeof(attr->grh));
@@ -66,7 +66,7 @@ int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
 }
 
 int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
-		   struct ib_ah_attr *attr)
+		   struct rdma_ah_attr *attr)
 {
 	memcpy(&attr->grh, &av->grh, sizeof(av->grh));
 	attr->ah_flags = IB_AH_GRH;
@@ -76,7 +76,7 @@ int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
 
 int rxe_av_fill_ip_info(struct rxe_dev *rxe,
 			struct rxe_av *av,
-			struct ib_ah_attr *attr,
+			struct rdma_ah_attr *attr,
 			struct ib_gid_attr *sgid_attr,
 			union ib_gid *sgid)
 {

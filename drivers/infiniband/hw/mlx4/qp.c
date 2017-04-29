@@ -1383,7 +1383,8 @@ static void mlx4_set_sched(struct mlx4_qp_path *path, u8 port)
 	path->sched_queue = (path->sched_queue & 0xbf) | ((port - 1) << 6);
 }
 
-static int _mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
+static int _mlx4_set_path(struct mlx4_ib_dev *dev,
+			  const struct rdma_ah_attr *ah,
 			  u64 smac, u16 vlan_tag, struct mlx4_qp_path *path,
 			  struct mlx4_roce_smac_vlan_info *smac_info, u8 port)
 {
@@ -3394,8 +3395,9 @@ static int to_ib_qp_access_flags(int mlx4_flags)
 	return ib_flags;
 }
 
-static void to_ib_ah_attr(struct mlx4_ib_dev *ibdev, struct ib_ah_attr *ib_ah_attr,
-				struct mlx4_qp_path *path)
+static void to_ib_ah_attr(struct mlx4_ib_dev *ibdev,
+			  struct rdma_ah_attr *ib_ah_attr,
+			  struct mlx4_qp_path *path)
 {
 	struct mlx4_dev *dev = ibdev->dev;
 	int is_eth;

@@ -730,7 +730,7 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	struct ib_device *ibp;
 	struct opa_vnic_vema_mad_trap *trap_mad;
 	struct opa_class_port_info *class;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	struct ib_ah *ah;
 	struct opa_veswport_trap *trap;
 	u32 trap_lid;

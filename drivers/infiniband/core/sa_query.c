@@ -1099,7 +1099,8 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 }
 
 int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
-			 struct ib_sa_path_rec *rec, struct ib_ah_attr *ah_attr)
+			 struct ib_sa_path_rec *rec,
+			 struct rdma_ah_attr *ah_attr)
 {
 	int ret;
 	u16 gid_index;
@@ -2011,7 +2012,7 @@ static void update_sm_ah(struct work_struct *work)
 		container_of(work, struct ib_sa_port, update_task);
 	struct ib_sa_sm_ah *new_ah;
 	struct ib_port_attr port_attr;
-	struct ib_ah_attr   ah_attr;
+	struct rdma_ah_attr   ah_attr;
 
 	if (ib_query_port(port->agent->device, port->port_num, &port_attr)) {
 		pr_warn("Couldn't query port\n");

@@ -189,7 +189,7 @@ int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int mad_ifc_flags,
 static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
 {
 	struct ib_ah *new_ah;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	unsigned long flags;
 
 	if (!dev->send_agent[port_num - 1][0])
@@ -509,7 +509,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	struct mlx4_ib_demux_pv_ctx *tun_ctx;
 	struct mlx4_ib_demux_pv_qp *tun_qp;
 	struct mlx4_rcv_tunnel_mad *tun_mad;
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 	struct ib_ah *ah;
 	struct ib_qp *src_qp = NULL;
 	unsigned tun_tx_ix = 0;
@@ -1352,7 +1352,7 @@ static int is_proxy_qp0(struct mlx4_ib_dev *dev, int qpn, int slave)
 
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index,
-			 u32 remote_qpn, u32 qkey, struct ib_ah_attr *attr,
+			 u32 remote_qpn, u32 qkey, struct rdma_ah_attr *attr,
 			 u8 *s_mac, u16 vlan_id, struct ib_mad *mad)
 {
 	struct ib_sge list;
@@ -1467,7 +1467,7 @@ static int get_slave_base_gid_ix(struct mlx4_ib_dev *dev, int slave, int port)
 }
 
 static void fill_in_real_sgid_index(struct mlx4_ib_dev *dev, int slave, int port,
-				    struct ib_ah_attr *ah_attr)
+				    struct rdma_ah_attr *ah_attr)
 {
 	if (rdma_port_get_link_layer(&dev->ib_dev, port) == IB_LINK_LAYER_INFINIBAND)
 		ah_attr->grh.sgid_index = slave;
@@ -1482,7 +1482,7 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	int wr_ix = wc->wr_id & (MLX4_NUM_TUNNEL_BUFS - 1);
 	struct mlx4_tunnel_mad *tunnel = tun_qp->ring[wr_ix].addr;
 	struct mlx4_ib_ah ah;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	u8 *slave_id;
 	int slave;
 	int port;

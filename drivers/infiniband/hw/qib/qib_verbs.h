@@ -310,7 +310,7 @@ void qib_uc_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
-int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
 int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 

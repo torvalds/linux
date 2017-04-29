@@ -54,7 +54,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	struct qib_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 	struct rvt_qp *qp;
-	struct ib_ah_attr *ah_attr;
+	struct rdma_ah_attr *ah_attr;
 	unsigned long flags;
 	struct rvt_sge_state ssge;
 	struct rvt_sge *sge;
@@ -246,7 +246,7 @@ int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct ib_other_headers *ohdr;
-	struct ib_ah_attr *ah_attr;
+	struct rdma_ah_attr *ah_attr;
 	struct qib_pportdata *ppd;
 	struct qib_ibport *ibp;
 	struct rvt_swqe *wqe;

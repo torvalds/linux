@@ -520,7 +520,7 @@ int pvrdma_dealloc_pd(struct ib_pd *pd)
  *
  * @return: the ib_ah pointer on success, otherwise errno.
  */
-struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 			       struct ib_udata *udata)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);

@@ -1336,7 +1336,7 @@ static int qib_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 	return 0;
 }
 
-int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
+int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 {
 	if (ah_attr->sl > 15)
 		return -EINVAL;
@@ -1345,7 +1345,7 @@ int qib_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 }
 
 static void qib_notify_new_ah(struct ib_device *ibdev,
-			      struct ib_ah_attr *ah_attr,
+			      struct rdma_ah_attr *ah_attr,
 			      struct rvt_ah *ah)
 {
 	struct qib_ibport *ibp;
@@ -1364,7 +1364,7 @@ static void qib_notify_new_ah(struct ib_device *ibdev,
 
 struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 {
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
 	struct rvt_qp *qp0;
 

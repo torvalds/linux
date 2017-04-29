@@ -60,7 +60,7 @@
  * Return: 0 on success
  */
 int rvt_check_ah(struct ib_device *ibdev,
-		 struct ib_ah_attr *ah_attr)
+		 struct rdma_ah_attr *ah_attr)
 {
 	int err;
 	struct ib_port_attr port_attr;
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(rvt_check_ah);
  * Return: newly allocated ah
  */
 struct ib_ah *rvt_create_ah(struct ib_pd *pd,
-			    struct ib_ah_attr *ah_attr)
+			    struct rdma_ah_attr *ah_attr)
 {
 	struct rvt_ah *ah;
 	struct rvt_dev_info *dev = ib_to_rvt(pd->device);
@@ -167,7 +167,7 @@ int rvt_destroy_ah(struct ib_ah *ibah)
  *
  * Return: 0 on success
  */
-int rvt_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+int rvt_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 {
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);
 
@@ -186,7 +186,7 @@ int rvt_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
  *
  * Return: always 0
  */
-int rvt_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+int rvt_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 {
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);
 

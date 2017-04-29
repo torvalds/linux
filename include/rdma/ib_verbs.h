@@ -840,7 +840,7 @@ struct ib_mr_status {
  */
 __attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 
-struct ib_ah_attr {
+struct rdma_ah_attr {
 	struct ib_global_route	grh;
 	u16			dlid;
 	u8			sl;
@@ -1167,8 +1167,8 @@ struct ib_qp_attr {
 	u32			dest_qp_num;
 	int			qp_access_flags;
 	struct ib_qp_cap	cap;
-	struct ib_ah_attr	ah_attr;
-	struct ib_ah_attr	alt_ah_attr;
+	struct rdma_ah_attr	ah_attr;
+	struct rdma_ah_attr	alt_ah_attr;
 	u16			pkey_index;
 	u16			alt_pkey_index;
 	u8			en_sqd_async_notify;
@@ -2032,12 +2032,12 @@ struct ib_device {
 					       struct ib_udata *udata);
 	int                        (*dealloc_pd)(struct ib_pd *pd);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,
-						struct ib_ah_attr *ah_attr,
+						struct rdma_ah_attr *ah_attr,
 						struct ib_udata *udata);
 	int                        (*modify_ah)(struct ib_ah *ah,
-						struct ib_ah_attr *ah_attr);
+						struct rdma_ah_attr *ah_attr);
 	int                        (*query_ah)(struct ib_ah *ah,
-					       struct ib_ah_attr *ah_attr);
+					       struct rdma_ah_attr *ah_attr);
 	int                        (*destroy_ah)(struct ib_ah *ah);
 	struct ib_srq *            (*create_srq)(struct ib_pd *pd,
 						 struct ib_srq_init_attr *srq_init_attr,
@@ -2727,7 +2727,7 @@ void ib_dealloc_pd(struct ib_pd *pd);
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
+struct ib_ah *ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_get_gids_from_rdma_hdr - Get sgid and dgid from GRH or IPv4 header
@@ -2760,7 +2760,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  */
 int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       const struct ib_wc *wc, const struct ib_grh *grh,
-		       struct ib_ah_attr *ah_attr);
+		       struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_create_ah_from_wc - Creates an address handle associated with the
@@ -2784,7 +2784,7 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
  * @ah_attr: The new address vector attributes to associate with the
  *   address handle.
  */
-int ib_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
+int ib_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_query_ah - Queries the address vector associated with an address
@@ -2793,7 +2793,7 @@ int ib_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
  * @ah_attr: The address vector attributes associated with the address
  *   handle.
  */
-int ib_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
+int ib_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_destroy_ah - Destroys an address handle.
@@ -3464,5 +3464,5 @@ void ib_drain_sq(struct ib_qp *qp);
 void ib_drain_qp(struct ib_qp *qp);
 
 int ib_resolve_eth_dmac(struct ib_device *device,
-			struct ib_ah_attr *ah_attr);
+			struct rdma_ah_attr *ah_attr);
 #endif /* IB_VERBS_H */

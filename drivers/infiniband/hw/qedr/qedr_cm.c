@@ -243,7 +243,7 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 					int *roce_mode)
 {
 	bool has_vlan = false, has_grh_ipv6 = true;
-	struct ib_ah_attr *ah_attr = &get_qedr_ah(ud_wr(swr)->ah)->attr;
+	struct rdma_ah_attr *ah_attr = &get_qedr_ah(ud_wr(swr)->ah)->attr;
 	struct ib_global_route *grh = &ah_attr->grh;
 	union ib_gid sgid;
 	int send_size = 0;

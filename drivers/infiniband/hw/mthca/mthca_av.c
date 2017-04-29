@@ -152,7 +152,7 @@ u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port)
 
 int mthca_create_ah(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
-		    struct ib_ah_attr *ah_attr,
+		    struct rdma_ah_attr *ah_attr,
 		    struct mthca_ah *ah)
 {
 	u32 index = -1;
@@ -287,7 +287,7 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 	return 0;
 }
 
-int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr)
+int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct mthca_ah *ah   = to_mah(ibah);
 	struct mthca_dev *dev = to_mdev(ibah->device);

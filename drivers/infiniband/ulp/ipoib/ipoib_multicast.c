@@ -274,7 +274,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	}
 
 	{
-		struct ib_ah_attr av = {
+		struct rdma_ah_attr av = {
 			.dlid	       = be16_to_cpu(mcast->mcmember.mlid),
 			.port_num      = priv->port,
 			.sl	       = mcast->mcmember.sl,

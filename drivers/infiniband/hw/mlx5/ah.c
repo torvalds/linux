@@ -34,7 +34,7 @@
 
 static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 				  struct mlx5_ib_ah *ah,
-				  struct ib_ah_attr *ah_attr,
+				  struct rdma_ah_attr *ah_attr,
 				  enum rdma_link_layer ll)
 {
 	if (ah_attr->ah_flags & IB_AH_GRH) {
@@ -64,7 +64,7 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 	return &ah->ibah;
 }
 
-struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 				struct ib_udata *udata)
 
 {
@@ -105,7 +105,7 @@ struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 	return create_ib_ah(dev, ah, ah_attr, ll); /* never fails */
 }
 
-int mlx5_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 {
 	struct mlx5_ib_ah *ah = to_mah(ibah);
 	u32 tmp;

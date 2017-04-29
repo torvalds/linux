@@ -52,7 +52,7 @@ MODULE_PARM_DESC(data_debug_level,
 #endif
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
-				 struct ib_pd *pd, struct ib_ah_attr *attr)
+				 struct ib_pd *pd, struct rdma_ah_attr *attr)
 {
 	struct ipoib_ah *ah;
 	struct ib_ah *vah;

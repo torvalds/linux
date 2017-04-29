@@ -269,8 +269,8 @@ struct rvt_qp {
 	struct ib_qp ibqp;
 	void *priv; /* Driver private data */
 	/* read mostly fields above and below */
-	struct ib_ah_attr remote_ah_attr;
-	struct ib_ah_attr alt_ah_attr;
+	struct rdma_ah_attr remote_ah_attr;
+	struct rdma_ah_attr alt_ah_attr;
 	struct rvt_qp __rcu *next;           /* link list for QPN hash table */
 	struct rvt_swqe *s_wq;  /* send work queue */
 	struct rvt_mmap_info *ip;

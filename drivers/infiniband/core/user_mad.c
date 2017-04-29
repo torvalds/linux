@@ -235,7 +235,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 	packet->mad.hdr.pkey_index = mad_recv_wc->wc->pkey_index;
 	packet->mad.hdr.grh_present = !!(mad_recv_wc->wc->wc_flags & IB_WC_GRH);
 	if (packet->mad.hdr.grh_present) {
-		struct ib_ah_attr ah_attr;
+		struct rdma_ah_attr ah_attr;
 
 		ib_init_ah_from_wc(agent->device, agent->port_num,
 				   mad_recv_wc->wc, mad_recv_wc->recv_buf.grh,
@@ -449,7 +449,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct ib_umad_file *file = filp->private_data;
 	struct ib_umad_packet *packet;
 	struct ib_mad_agent *agent;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	struct ib_ah *ah;
 	struct ib_rmpp_mad *rmpp_mad;
 	__be64 *tid;

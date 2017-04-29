@@ -39,7 +39,8 @@
 #define HNS_ROCE_VLAN_SL_BIT_MASK	7
 #define HNS_ROCE_VLAN_SL_SHIFT		13
 
-struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *ah_attr,
+struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
+				 struct rdma_ah_attr *ah_attr,
 				 struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibpd->device);
@@ -98,7 +99,7 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *ah_attr,
 	return &ah->ibah;
 }
 
-int hns_roce_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 {
 	struct hns_roce_ah *ah = to_hr_ah(ibah);
 

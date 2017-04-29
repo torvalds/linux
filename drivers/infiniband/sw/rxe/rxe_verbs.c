@@ -297,7 +297,7 @@ static int rxe_dealloc_pd(struct ib_pd *ibpd)
 	return 0;
 }
 
-static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
+static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 		       struct rxe_av *av)
 {
 	int err;
@@ -321,7 +321,8 @@ static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
 	return err;
 }
 
-static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
+				   struct rdma_ah_attr *attr,
 				   struct ib_udata *udata)
 
 {
@@ -356,7 +357,7 @@ err1:
 	return ERR_PTR(err);
 }
 
-static int rxe_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibah->device);
@@ -373,7 +374,7 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	return 0;
 }
 
-static int rxe_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(ibah->device);
 	struct rxe_ah *ah = to_rah(ibah);

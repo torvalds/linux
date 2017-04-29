@@ -59,7 +59,7 @@ module_param(fastreg_support, int, 0644);
 MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
 static struct ib_ah *c4iw_ah_create(struct ib_pd *pd,
-				    struct ib_ah_attr *ah_attr,
+				    struct rdma_ah_attr *ah_attr,
 				    struct ib_udata *udata)
 
 {

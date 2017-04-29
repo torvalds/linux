@@ -228,7 +228,7 @@ struct cm_device {
 struct cm_av {
 	struct cm_port *port;
 	union ib_gid dgid;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	u16 pkey_index;
 	u8 timeout;
 };

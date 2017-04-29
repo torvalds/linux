@@ -524,7 +524,7 @@ int bnxt_re_destroy_ah(struct ib_ah *ib_ah)
 }
 
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
-				struct ib_ah_attr *ah_attr,
+				struct rdma_ah_attr *ah_attr,
 				struct ib_udata *udata)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
@@ -634,12 +634,12 @@ fail:
 	return ERR_PTR(rc);
 }
 
-int bnxt_re_modify_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr)
+int bnxt_re_modify_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 {
 	return 0;
 }
 
-int bnxt_re_query_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr)
+int bnxt_re_query_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 {
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 

@@ -2206,7 +2206,7 @@ static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
 }
 
 static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
-			 const struct ib_ah_attr *ah,
+			 const struct rdma_ah_attr *ah,
 			 struct mlx5_qp_path *path, u8 port, int attr_mask,
 			 u32 path_flags, const struct ib_qp_attr *attr,
 			 bool alt)
@@ -4249,8 +4249,9 @@ static int to_ib_qp_access_flags(int mlx5_flags)
 	return ib_flags;
 }
 
-static void to_ib_ah_attr(struct mlx5_ib_dev *ibdev, struct ib_ah_attr *ib_ah_attr,
-				struct mlx5_qp_path *path)
+static void to_ib_ah_attr(struct mlx5_ib_dev *ibdev,
+			  struct rdma_ah_attr *ib_ah_attr,
+			  struct mlx5_qp_path *path)
 {
 	struct mlx5_core_dev *dev = ibdev->mdev;
 

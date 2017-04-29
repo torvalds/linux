@@ -40,7 +40,8 @@
 
 #include "mlx4_ib.h"
 
-static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+static struct ib_ah *create_ib_ah(struct ib_pd *pd,
+				  struct rdma_ah_attr *ah_attr,
 				  struct mlx4_ib_ah *ah)
 {
 	struct mlx4_dev *dev = to_mdev(pd->device)->dev;
@@ -69,7 +70,8 @@ static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 	return &ah->ibah;
 }
 
-static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
+				    struct rdma_ah_attr *ah_attr,
 				    struct mlx4_ib_ah *ah)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(pd->device);
@@ -129,7 +131,7 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	return &ah->ibah;
 }
 
-struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 				struct ib_udata *udata)
 
 {
@@ -163,7 +165,7 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 		return create_ib_ah(pd, ah_attr, ah); /* never fails */
 }
 
-int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 {
 	struct mlx4_ib_ah *ah = to_mah(ibah);
 	enum rdma_link_layer ll;

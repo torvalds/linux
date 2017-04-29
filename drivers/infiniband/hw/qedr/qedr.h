@@ -392,7 +392,7 @@ struct qedr_qp {
 
 struct qedr_ah {
 	struct ib_ah ibah;
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 };
 
 enum qedr_mr_type {
@@ -446,7 +446,7 @@ static inline void qedr_inc_sw_prod(struct qedr_qp_hwq_info *info)
 }
 
 static inline int qedr_get_dmac(struct qedr_dev *dev,
-				struct ib_ah_attr *ah_attr, u8 *mac_addr)
+				struct rdma_ah_attr *ah_attr, u8 *mac_addr)
 {
 	union ib_gid zero_sgid = { { 0 } };
 	struct in6_addr in6;

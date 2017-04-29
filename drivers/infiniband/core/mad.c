@@ -1833,7 +1833,7 @@ static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_
 				   const struct ib_mad_send_wr_private *wr,
 				   const struct ib_mad_recv_wc *rwc )
 {
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 	u8 send_resp, rcv_resp;
 	union ib_gid sgid;
 	struct ib_device *device = mad_agent_priv->agent.device;

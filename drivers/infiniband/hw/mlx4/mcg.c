@@ -209,7 +209,7 @@ static struct mcast_group *mcast_insert(struct mlx4_ib_demux_ctx *ctx,
 static int send_mad_to_wire(struct mlx4_ib_demux_ctx *ctx, struct ib_mad *mad)
 {
 	struct mlx4_ib_dev *dev = ctx->dev;
-	struct ib_ah_attr	ah_attr;
+	struct rdma_ah_attr	ah_attr;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->sm_lock, flags);
@@ -231,7 +231,7 @@ static int send_mad_to_slave(int slave, struct mlx4_ib_demux_ctx *ctx,
 	struct mlx4_ib_dev *dev = ctx->dev;
 	struct ib_mad_agent *agent = dev->send_agent[ctx->port - 1][1];
 	struct ib_wc wc;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 
 	/* Our agent might not yet be registered when mads start to arrive */
 	if (!agent)

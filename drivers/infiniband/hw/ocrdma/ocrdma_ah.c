@@ -71,7 +71,7 @@ static u16 ocrdma_hdr_type_to_proto_num(int devid, u8 hdr_type)
 }
 
 static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
-			struct ib_ah_attr *attr, union ib_gid *sgid,
+			struct rdma_ah_attr *attr, union ib_gid *sgid,
 			int pdid, bool *isvlan, u16 vlan_tag)
 {
 	int status;
@@ -154,7 +154,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	return status;
 }
 
-struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 			       struct ib_udata *udata)
 {
 	u32 *ahid_addr;
@@ -248,7 +248,7 @@ int ocrdma_destroy_ah(struct ib_ah *ibah)
 	return 0;
 }
 
-int ocrdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+int ocrdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct ocrdma_ah *ah = get_ocrdma_ah(ibah);
 	struct ocrdma_av *av = ah->av;
@@ -271,7 +271,7 @@ int ocrdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	return 0;
 }
 
-int ocrdma_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+int ocrdma_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	/* modify_ah is unsupported */
 	return -ENOSYS;

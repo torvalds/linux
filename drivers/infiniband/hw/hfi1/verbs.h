@@ -308,7 +308,7 @@ void hfi1_rc_hdrerr(
 	u32 rcv_flags,
 	struct rvt_qp *qp);
 
-u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
 

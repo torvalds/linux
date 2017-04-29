@@ -527,7 +527,7 @@ static inline int is_cqe_wr_imm(struct ocrdma_cqe *cqe)
 }
 
 static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
-		struct ib_ah_attr *ah_attr, u8 *mac_addr)
+		struct rdma_ah_attr *ah_attr, u8 *mac_addr)
 {
 	struct in6_addr in6;
 

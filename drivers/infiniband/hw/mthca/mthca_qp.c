@@ -393,8 +393,9 @@ static int to_ib_qp_access_flags(int mthca_flags)
 	return ib_flags;
 }
 
-static void to_ib_ah_attr(struct mthca_dev *dev, struct ib_ah_attr *ib_ah_attr,
-				struct mthca_qp_path *path)
+static void to_ib_ah_attr(struct mthca_dev *dev,
+			  struct rdma_ah_attr *ib_ah_attr,
+			  struct mthca_qp_path *path)
 {
 	memset(ib_ah_attr, 0, sizeof *ib_ah_attr);
 	ib_ah_attr->port_num 	  = (be32_to_cpu(path->port_pkey) >> 24) & 0x3;
@@ -512,7 +513,7 @@ out:
 	return err;
 }
 
-static int mthca_path_set(struct mthca_dev *dev, const struct ib_ah_attr *ah,
+static int mthca_path_set(struct mthca_dev *dev, const struct rdma_ah_attr *ah,
 			  struct mthca_qp_path *path, u8 port)
 {
 	path->g_mylmc     = ah->src_path_bits & 0x7f;

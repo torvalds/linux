@@ -34,7 +34,7 @@
 #include <rdma/ib_marshall.h>
 
 void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
-			     struct ib_ah_attr *src)
+			     struct rdma_ah_attr *src)
 {
 	memset(&dst->grh.reserved, 0, sizeof(dst->grh.reserved));
 	dst->dlid 	    	   = src->dlid;

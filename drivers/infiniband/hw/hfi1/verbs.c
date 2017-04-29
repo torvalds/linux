@@ -1459,14 +1459,14 @@ static int hfi1_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 /*
  * convert ah port,sl to sc
  */
-u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah)
+u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah)
 {
 	struct hfi1_ibport *ibp = to_iport(ibdev, ah->port_num);
 
 	return ibp->sl_to_sc[ah->sl];
 }
 
-static int hfi1_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
+static int hfi1_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 {
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
@@ -1484,7 +1484,7 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr)
 }
 
 static void hfi1_notify_new_ah(struct ib_device *ibdev,
-			       struct ib_ah_attr *ah_attr,
+			       struct rdma_ah_attr *ah_attr,
 			       struct rvt_ah *ah)
 {
 	struct hfi1_ibport *ibp;
@@ -1508,7 +1508,7 @@ static void hfi1_notify_new_ah(struct ib_device *ibdev,
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid)
 {
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
 	struct rvt_qp *qp0;
 

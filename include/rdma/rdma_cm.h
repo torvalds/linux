@@ -106,7 +106,7 @@ struct rdma_conn_param {
 struct rdma_ud_param {
 	const void *private_data;
 	u8 private_data_len;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	u32 qp_num;
 	u32 qkey;
 };

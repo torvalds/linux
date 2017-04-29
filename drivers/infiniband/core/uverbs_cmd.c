@@ -2519,7 +2519,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	struct ib_uobject		*uobj;
 	struct ib_pd			*pd;
 	struct ib_ah			*ah;
-	struct ib_ah_attr		attr;
+	struct rdma_ah_attr		attr;
 	int ret;
 	struct ib_udata                   udata;
 

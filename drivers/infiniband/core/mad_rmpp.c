@@ -852,7 +852,7 @@ static int init_newwin(struct ib_mad_send_wr_private *mad_send_wr)
 	struct ib_mad_agent_private *agent = mad_send_wr->mad_agent_priv;
 	struct ib_mad_hdr *mad_hdr = mad_send_wr->send_buf.mad;
 	struct mad_rmpp_recv *rmpp_recv;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	unsigned long flags;
 	int newwin = 1;
 
