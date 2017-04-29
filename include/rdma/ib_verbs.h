@@ -3465,4 +3465,125 @@ void ib_drain_qp(struct ib_qp *qp);
 
 int ib_resolve_eth_dmac(struct ib_device *device,
 			struct rdma_ah_attr *ah_attr);
+
+static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
+{
+	return attr->dmac;
+}
+
+static inline void rdma_ah_set_dlid(struct rdma_ah_attr *attr, u32 dlid)
+{
+	attr->dlid = (u16)dlid;
+}
+
+static inline u32 rdma_ah_get_dlid(const struct rdma_ah_attr *attr)
+{
+	return attr->dlid;
+}
+
+static inline void rdma_ah_set_sl(struct rdma_ah_attr *attr, u8 sl)
+{
+	attr->sl = sl;
+}
+
+static inline u8 rdma_ah_get_sl(const struct rdma_ah_attr *attr)
+{
+	return attr->sl;
+}
+
+static inline void rdma_ah_set_path_bits(struct rdma_ah_attr *attr,
+					 u8 src_path_bits)
+{
+	attr->src_path_bits = src_path_bits;
+}
+
+static inline u8 rdma_ah_get_path_bits(const struct rdma_ah_attr *attr)
+{
+	return attr->src_path_bits;
+}
+
+static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u8 port_num)
+{
+	attr->port_num = port_num;
+}
+
+static inline u8 rdma_ah_get_port_num(const struct rdma_ah_attr *attr)
+{
+	return attr->port_num;
+}
+
+static inline void rdma_ah_set_static_rate(struct rdma_ah_attr *attr,
+					   u8 static_rate)
+{
+	attr->static_rate = static_rate;
+}
+
+static inline u8 rdma_ah_get_static_rate(const struct rdma_ah_attr *attr)
+{
+	return attr->static_rate;
+}
+
+static inline void rdma_ah_set_ah_flags(struct rdma_ah_attr *attr,
+					enum ib_ah_flags flag)
+{
+	attr->ah_flags = flag;
+}
+
+static inline enum ib_ah_flags
+		rdma_ah_get_ah_flags(const struct rdma_ah_attr *attr)
+{
+	return attr->ah_flags;
+}
+
+static inline const struct ib_global_route
+		*rdma_ah_read_grh(const struct rdma_ah_attr *attr)
+{
+	return &attr->grh;
+}
+
+/*To retrieve and modify the grh */
+static inline struct ib_global_route
+		*rdma_ah_retrieve_grh(struct rdma_ah_attr *attr)
+{
+	return &attr->grh;
+}
+
+static inline void rdma_ah_set_dgid_raw(struct rdma_ah_attr *attr, void *dgid)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	memcpy(grh->dgid.raw, dgid, sizeof(grh->dgid));
+}
+
+static inline void rdma_ah_set_subnet_prefix(struct rdma_ah_attr *attr,
+					     __be64 prefix)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	grh->dgid.global.subnet_prefix = prefix;
+}
+
+static inline void rdma_ah_set_interface_id(struct rdma_ah_attr *attr,
+					    __be64 if_id)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	grh->dgid.global.interface_id = if_id;
+}
+
+static inline void rdma_ah_set_grh(struct rdma_ah_attr *attr,
+				   union ib_gid *dgid, u32 flow_label,
+				   u8 sgid_index, u8 hop_limit,
+				   u8 traffic_class)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	attr->ah_flags = IB_AH_GRH;
+	if (dgid)
+		grh->dgid = *dgid;
+	grh->flow_label = flow_label;
+	grh->sgid_index = sgid_index;
+	grh->hop_limit = hop_limit;
+	grh->traffic_class = traffic_class;
+}
 #endif /* IB_VERBS_H */
