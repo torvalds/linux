@@ -750,6 +750,8 @@ static struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
 
 	p_port->link_speed = p_hwfn->mcp_info->link_output.speed;
 
+	p_port->max_msg_size = RDMA_MAX_DATA_SIZE_IN_WQE;
+
 	return p_port;
 }
 
