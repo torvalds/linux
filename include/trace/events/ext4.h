@@ -15,6 +15,7 @@ struct ext4_inode_info;
 struct mpage_da_data;
 struct ext4_map_blocks;
 struct extent_status;
+struct ext4_fsmap;
 
 #define EXT4_I(inode) (container_of(inode, struct ext4_inode_info, vfs_inode))
 
@@ -2528,6 +2529,79 @@ TRACE_EVENT(ext4_es_shrink,
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->nr_shrunk,
 		  __entry->scan_time, __entry->nr_skipped, __entry->retried)
 );
+
+/* fsmap traces */
+DECLARE_EVENT_CLASS(ext4_fsmap_class,
+	TP_PROTO(struct super_block *sb, u32 keydev, u32 agno, u64 bno, u64 len,
+		 u64 owner),
+	TP_ARGS(sb, keydev, agno, bno, len, owner),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, keydev)
+		__field(u32, agno)
+		__field(u64, bno)
+		__field(u64, len)
+		__field(u64, owner)
+	),
+	TP_fast_assign(
+		__entry->dev = sb->s_bdev->bd_dev;
+		__entry->keydev = new_decode_dev(keydev);
+		__entry->agno = agno;
+		__entry->bno = bno;
+		__entry->len = len;
+		__entry->owner = owner;
+	),
+	TP_printk("dev %d:%d keydev %d:%d agno %u bno %llu len %llu owner %lld\n",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
+		  __entry->agno,
+		  __entry->bno,
+		  __entry->len,
+		  __entry->owner)
+)
+#define DEFINE_FSMAP_EVENT(name) \
+DEFINE_EVENT(ext4_fsmap_class, name, \
+	TP_PROTO(struct super_block *sb, u32 keydev, u32 agno, u64 bno, u64 len, \
+		 u64 owner), \
+	TP_ARGS(sb, keydev, agno, bno, len, owner))
+DEFINE_FSMAP_EVENT(ext4_fsmap_low_key);
+DEFINE_FSMAP_EVENT(ext4_fsmap_high_key);
+DEFINE_FSMAP_EVENT(ext4_fsmap_mapping);
+
+DECLARE_EVENT_CLASS(ext4_getfsmap_class,
+	TP_PROTO(struct super_block *sb, struct ext4_fsmap *fsmap),
+	TP_ARGS(sb, fsmap),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, keydev)
+		__field(u64, block)
+		__field(u64, len)
+		__field(u64, owner)
+		__field(u64, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = sb->s_bdev->bd_dev;
+		__entry->keydev = new_decode_dev(fsmap->fmr_device);
+		__entry->block = fsmap->fmr_physical;
+		__entry->len = fsmap->fmr_length;
+		__entry->owner = fsmap->fmr_owner;
+		__entry->flags = fsmap->fmr_flags;
+	),
+	TP_printk("dev %d:%d keydev %d:%d block %llu len %llu owner %lld flags 0x%llx\n",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
+		  __entry->block,
+		  __entry->len,
+		  __entry->owner,
+		  __entry->flags)
+)
+#define DEFINE_GETFSMAP_EVENT(name) \
+DEFINE_EVENT(ext4_getfsmap_class, name, \
+	TP_PROTO(struct super_block *sb, struct ext4_fsmap *fsmap), \
+	TP_ARGS(sb, fsmap))
+DEFINE_GETFSMAP_EVENT(ext4_getfsmap_low_key);
+DEFINE_GETFSMAP_EVENT(ext4_getfsmap_high_key);
+DEFINE_GETFSMAP_EVENT(ext4_getfsmap_mapping);
 
 #endif /* _TRACE_EXT4_H */
 
