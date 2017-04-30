@@ -791,9 +791,16 @@ static const struct i2c_device_id uda1380_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, uda1380_i2c_id);
 
+static const struct of_device_id uda1380_of_match[] = {
+	{ .compatible = "nxp,uda1380", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, uda1380_of_match);
+
 static struct i2c_driver uda1380_i2c_driver = {
 	.driver = {
 		.name =  "uda1380-codec",
+		.of_match_table = uda1380_of_match,
 	},
 	.probe =    uda1380_i2c_probe,
 	.remove =   uda1380_i2c_remove,
