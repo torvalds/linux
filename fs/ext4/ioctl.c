@@ -446,7 +446,7 @@ static inline unsigned long ext4_xflags_to_iflags(__u32 xflags)
 	return iflags;
 }
 
-int ext4_shutdown(struct super_block *sb, unsigned long arg)
+static int ext4_shutdown(struct super_block *sb, unsigned long arg)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	__u32 flags;
