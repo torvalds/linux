@@ -3128,6 +3128,7 @@ enum ixgbe_phy_type {
 	ixgbe_phy_x550em_kx4,
 	ixgbe_phy_x550em_xfi,
 	ixgbe_phy_x550em_ext_t,
+	ixgbe_phy_ext_1g_t,
 	ixgbe_phy_cu_unknown,
 	ixgbe_phy_qt,
 	ixgbe_phy_xaui,
