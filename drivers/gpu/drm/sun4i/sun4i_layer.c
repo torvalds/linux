@@ -20,10 +20,10 @@
 #include "sunxi_engine.h"
 
 struct sun4i_plane_desc {
-	       enum drm_plane_type     type;
-	       u8                      pipe;
-	       const uint32_t          *formats;
-	       uint32_t                nformats;
+	enum drm_plane_type     type;
+	u8                      pipe;
+	const uint32_t          *formats;
+	uint32_t                nformats;
 };
 
 static void sun4i_backend_layer_reset(struct drm_plane *plane)
