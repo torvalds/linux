@@ -691,8 +691,21 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 {
 	int err = 0;
 
-	jbd2_might_wait_for_commit(journal);
 	read_lock(&journal->j_state_lock);
+#ifdef CONFIG_PROVE_LOCKING
+	/*
+	 * Some callers make sure transaction is already committing and in that
+	 * case we cannot block on open handles anymore. So don't warn in that
+	 * case.
+	 */
+	if (tid_gt(tid, journal->j_commit_sequence) &&
+	    (!journal->j_committing_transaction ||
+	     journal->j_committing_transaction->t_tid != tid)) {
+		read_unlock(&journal->j_state_lock);
+		jbd2_might_wait_for_commit(journal);
+		read_lock(&journal->j_state_lock);
+	}
+#endif
 #ifdef CONFIG_JBD2_DEBUG
 	if (!tid_geq(journal->j_commit_request, tid)) {
 		printk(KERN_ERR
