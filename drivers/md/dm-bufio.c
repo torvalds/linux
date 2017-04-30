@@ -218,7 +218,7 @@ static DEFINE_SPINLOCK(param_spinlock);
  * Buffers are freed after this timeout
  */
 static unsigned dm_bufio_max_age = DM_BUFIO_DEFAULT_AGE_SECS;
-static unsigned dm_bufio_retain_bytes = DM_BUFIO_DEFAULT_RETAIN_BYTES;
+static unsigned long dm_bufio_retain_bytes = DM_BUFIO_DEFAULT_RETAIN_BYTES;
 
 static unsigned long dm_bufio_peak_allocated;
 static unsigned long dm_bufio_allocated_kmem_cache;
@@ -1558,10 +1558,10 @@ static bool __try_evict_buffer(struct dm_buffer *b, gfp_t gfp)
 	return true;
 }
 
-static unsigned get_retain_buffers(struct dm_bufio_client *c)
+static unsigned long get_retain_buffers(struct dm_bufio_client *c)
 {
-        unsigned retain_bytes = ACCESS_ONCE(dm_bufio_retain_bytes);
-        return retain_bytes / c->block_size;
+        unsigned long retain_bytes = ACCESS_ONCE(dm_bufio_retain_bytes);
+        return retain_bytes >> (c->sectors_per_block_bits + SECTOR_SHIFT);
 }
 
 static unsigned long __scan(struct dm_bufio_client *c, unsigned long nr_to_scan,
@@ -1571,7 +1571,7 @@ static unsigned long __scan(struct dm_bufio_client *c, unsigned long nr_to_scan,
 	struct dm_buffer *b, *tmp;
 	unsigned long freed = 0;
 	unsigned long count = nr_to_scan;
-	unsigned retain_target = get_retain_buffers(c);
+	unsigned long retain_target = get_retain_buffers(c);
 
 	for (l = 0; l < LIST_SIZE; l++) {
 		list_for_each_entry_safe_reverse(b, tmp, &c->lru[l], lru_list) {
@@ -1794,8 +1794,8 @@ static bool older_than(struct dm_buffer *b, unsigned long age_hz)
 static void __evict_old_buffers(struct dm_bufio_client *c, unsigned long age_hz)
 {
 	struct dm_buffer *b, *tmp;
-	unsigned retain_target = get_retain_buffers(c);
-	unsigned count;
+	unsigned long retain_target = get_retain_buffers(c);
+	unsigned long count;
 	LIST_HEAD(write_list);
 
 	dm_bufio_lock(c);
@@ -1955,7 +1955,7 @@ MODULE_PARM_DESC(max_cache_size_bytes, "Size of metadata cache");
 module_param_named(max_age_seconds, dm_bufio_max_age, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_age_seconds, "Max age of a buffer in seconds");
 
-module_param_named(retain_bytes, dm_bufio_retain_bytes, uint, S_IRUGO | S_IWUSR);
+module_param_named(retain_bytes, dm_bufio_retain_bytes, ulong, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(retain_bytes, "Try to keep at least this many bytes cached in memory");
 
 module_param_named(peak_allocated_bytes, dm_bufio_peak_allocated, ulong, S_IRUGO | S_IWUSR);
