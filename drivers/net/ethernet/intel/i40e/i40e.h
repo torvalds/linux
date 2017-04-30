@@ -125,7 +125,6 @@ enum i40e_state_t {
 	__I40E_CONFIG_BUSY,
 	__I40E_CONFIG_DONE,
 	__I40E_DOWN,
-	__I40E_NEEDS_RESTART,
 	__I40E_SERVICE_SCHED,
 	__I40E_ADMINQ_EVENT_PENDING,
 	__I40E_MDD_EVENT_PENDING,
@@ -138,7 +137,6 @@ enum i40e_state_t {
 	__I40E_GLOBAL_RESET_REQUESTED,
 	__I40E_EMP_RESET_REQUESTED,
 	__I40E_EMP_RESET_INTR_RECEIVED,
-	__I40E_FILTER_OVERFLOW_PROMISC,
 	__I40E_SUSPENDED,
 	__I40E_PTP_TX_IN_PROGRESS,
 	__I40E_BAD_EEPROM,
@@ -147,6 +145,20 @@ enum i40e_state_t {
 	__I40E_RESET_FAILED,
 	__I40E_PORT_SUSPENDED,
 	__I40E_VF_DISABLE,
+	/* This must be last as it determines the size of the BITMAP */
+	__I40E_STATE_SIZE__,
+};
+
+/* VSI state flags */
+enum i40e_vsi_state_t {
+	__I40E_VSI_DOWN,
+	__I40E_VSI_NEEDS_RESTART,
+	__I40E_VSI_SYNCING_FILTERS,
+	__I40E_VSI_OVERFLOW_PROMISC,
+	__I40E_VSI_REINIT_REQUESTED,
+	__I40E_VSI_DOWN_REQUESTED,
+	/* This must be last as it determines the size of the BITMAP */
+	__I40E_VSI_STATE_SIZE__,
 };
 
 enum i40e_interrupt_policy {
@@ -245,7 +257,7 @@ struct i40e_tc_configuration {
 
 struct i40e_udp_port_config {
 	/* AdminQ command interface expects port number in Host byte order */
-	u16 index;
+	u16 port;
 	u8 type;
 };
 
@@ -322,7 +334,7 @@ struct i40e_flex_pit {
 struct i40e_pf {
 	struct pci_dev *pdev;
 	struct i40e_hw hw;
-	unsigned long state;
+	DECLARE_BITMAP(state, __I40E_STATE_SIZE__);
 	struct msix_entry *msix_entries;
 	bool fc_autoneg_status;
 
@@ -396,6 +408,8 @@ struct i40e_pf {
 #define I40E_FLAG_DCB_ENABLED			BIT_ULL(20)
 #define I40E_FLAG_FD_SB_ENABLED			BIT_ULL(21)
 #define I40E_FLAG_FD_ATR_ENABLED		BIT_ULL(22)
+#define I40E_FLAG_FD_SB_AUTO_DISABLED		BIT_ULL(23)
+#define I40E_FLAG_FD_ATR_AUTO_DISABLED		BIT_ULL(24)
 #define I40E_FLAG_PTP				BIT_ULL(25)
 #define I40E_FLAG_MFP_ENABLED			BIT_ULL(26)
 #define I40E_FLAG_UDP_FILTER_SYNC		BIT_ULL(27)
@@ -427,13 +441,6 @@ struct i40e_pf {
 #define I40E_FLAG_CLIENT_L2_CHANGE		BIT_ULL(56)
 #define I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE		BIT_ULL(57)
 #define I40E_FLAG_LEGACY_RX			BIT_ULL(58)
-
-	/* Tracks features that are disabled due to hw limitations.
-	 * If a bit is set here, it means that the corresponding
-	 * bit in the 'flags' field is cleared i.e that feature
-	 * is disabled
-	 */
-	u64 hw_disabled_flags;
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
@@ -593,7 +600,7 @@ struct i40e_vsi {
 	bool stat_offsets_loaded;
 
 	u32 current_netdev_flags;
-	unsigned long state;
+	DECLARE_BITMAP(state, __I40E_VSI_STATE_SIZE__);
 #define I40E_VSI_FLAG_FILTER_CHANGED	BIT(0)
 #define I40E_VSI_FLAG_VEB_OWNER		BIT(1)
 	unsigned long flags;

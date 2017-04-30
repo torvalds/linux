@@ -50,8 +50,8 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 	for (i = 0; i < pf->num_alloc_vfs; i++, vf++) {
 		int abs_vf_id = vf->vf_id + (int)hw->func_caps.vf_base_id;
 		/* Not all vfs are enabled so skip the ones that are not */
-		if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
-		    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
+		if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states) &&
+		    !test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states))
 			continue;
 
 		/* Ignore return value on purpose - a given VF may fail, but
@@ -137,8 +137,8 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
 		return;
 
 	/* verify if the VF is in either init or active before proceeding */
-	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states) &&
-	    !test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
+	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states) &&
+	    !test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states))
 		return;
 
 	abs_vf_id = vf->vf_id + (int)vf->pf->hw.func_caps.vf_base_id;
@@ -812,7 +812,7 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 	/* Start by disabling VF's configuration API to prevent the OS from
 	 * accessing the VF's VSI after it's freed / invalidated.
 	 */
-	clear_bit(I40E_VF_STAT_INIT, &vf->vf_states);
+	clear_bit(I40E_VF_STATE_INIT, &vf->vf_states);
 
 	/* free vsi & disconnect it from the parent uplink */
 	if (vf->lan_vsi_idx) {
@@ -884,7 +884,7 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 	vf->num_queue_pairs = total_queue_pairs;
 
 	/* VF is now completely initialized */
-	set_bit(I40E_VF_STAT_INIT, &vf->vf_states);
+	set_bit(I40E_VF_STATE_INIT, &vf->vf_states);
 
 error_alloc:
 	if (ret)
@@ -938,7 +938,7 @@ static void i40e_trigger_vf_reset(struct i40e_vf *vf, bool flr)
 	u32 reg, reg_idx, bit_idx;
 
 	/* warn the VF */
-	clear_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
+	clear_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states);
 
 	/* Disable VF's configuration API during reset. The flag is re-enabled
 	 * in i40e_alloc_vf_res(), when it's safe again to access VF's VSI.
@@ -946,7 +946,7 @@ static void i40e_trigger_vf_reset(struct i40e_vf *vf, bool flr)
 	 * to do it earlier to give some time to finish to any VF config
 	 * functions that may still be running at this point.
 	 */
-	clear_bit(I40E_VF_STAT_INIT, &vf->vf_states);
+	clear_bit(I40E_VF_STATE_INIT, &vf->vf_states);
 
 	/* In the case of a VFLR, the HW has already reset the VF and we
 	 * just need to clean up, so don't hit the VFRTRIG register.
@@ -1004,10 +1004,11 @@ static void i40e_cleanup_reset_vf(struct i40e_vf *vf)
 	if (!i40e_alloc_vf_res(vf)) {
 		int abs_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 		i40e_enable_vf_mappings(vf);
-		set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
-		clear_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
+		set_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states);
+		clear_bit(I40E_VF_STATE_DISABLED, &vf->vf_states);
 		/* Do not notify the client during VF init */
-		if (vf->pf->num_alloc_vfs)
+		if (test_and_clear_bit(I40E_VF_STATE_PRE_ENABLE,
+				       &vf->vf_states))
 			i40e_notify_client_of_vf_reset(pf, abs_vf_id);
 		vf->num_vlan = 0;
 	}
@@ -1035,7 +1036,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	int i;
 
 	/* If VFs have been disabled, there is no need to reset */
-	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+	if (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		return;
 
 	i40e_trigger_vf_reset(vf, flr);
@@ -1072,7 +1073,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	i40e_cleanup_reset_vf(vf);
 
 	i40e_flush(hw);
-	clear_bit(__I40E_VF_DISABLE, &pf->state);
+	clear_bit(__I40E_VF_DISABLE, pf->state);
 }
 
 /**
@@ -1097,7 +1098,7 @@ void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 		return;
 
 	/* If VFs have been disabled, there is no need to reset */
-	if (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+	if (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		return;
 
 	/* Begin reset on all VFs at once */
@@ -1172,7 +1173,7 @@ void i40e_reset_all_vfs(struct i40e_pf *pf, bool flr)
 		i40e_cleanup_reset_vf(&pf->vf[v]);
 
 	i40e_flush(hw);
-	clear_bit(__I40E_VF_DISABLE, &pf->state);
+	clear_bit(__I40E_VF_DISABLE, pf->state);
 }
 
 /**
@@ -1189,13 +1190,25 @@ void i40e_free_vfs(struct i40e_pf *pf)
 
 	if (!pf->vf)
 		return;
-	while (test_and_set_bit(__I40E_VF_DISABLE, &pf->state))
+	while (test_and_set_bit(__I40E_VF_DISABLE, pf->state))
 		usleep_range(1000, 2000);
 
 	i40e_notify_client_of_vf_enable(pf, 0);
-	for (i = 0; i < pf->num_alloc_vfs; i++)
-		if (test_bit(I40E_VF_STAT_INIT, &pf->vf[i].vf_states))
-			i40e_vsi_stop_rings(pf->vsi[pf->vf[i].lan_vsi_idx]);
+
+	/* Amortize wait time by stopping all VFs at the same time */
+	for (i = 0; i < pf->num_alloc_vfs; i++) {
+		if (test_bit(I40E_VF_STATE_INIT, &pf->vf[i].vf_states))
+			continue;
+
+		i40e_vsi_stop_rings_no_wait(pf->vsi[pf->vf[i].lan_vsi_idx]);
+	}
+
+	for (i = 0; i < pf->num_alloc_vfs; i++) {
+		if (test_bit(I40E_VF_STATE_INIT, &pf->vf[i].vf_states))
+			continue;
+
+		i40e_vsi_wait_queues_disabled(pf->vsi[pf->vf[i].lan_vsi_idx]);
+	}
 
 	/* Disable IOV before freeing resources. This lets any VF drivers
 	 * running in the host get themselves cleaned up before we yank
@@ -1206,13 +1219,11 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	else
 		dev_warn(&pf->pdev->dev, "VFs are assigned - not disabling SR-IOV\n");
 
-	msleep(20); /* let any messages in transit get finished up */
-
 	/* free up VF resources */
 	tmp = pf->num_alloc_vfs;
 	pf->num_alloc_vfs = 0;
 	for (i = 0; i < tmp; i++) {
-		if (test_bit(I40E_VF_STAT_INIT, &pf->vf[i].vf_states))
+		if (test_bit(I40E_VF_STATE_INIT, &pf->vf[i].vf_states))
 			i40e_free_vf_res(&pf->vf[i]);
 		/* disable qp mappings */
 		i40e_disable_vf_mappings(&pf->vf[i]);
@@ -1235,7 +1246,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 			wr32(hw, I40E_GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
 		}
 	}
-	clear_bit(__I40E_VF_DISABLE, &pf->state);
+	clear_bit(__I40E_VF_DISABLE, pf->state);
 }
 
 #ifdef CONFIG_PCI_IOV
@@ -1280,11 +1291,14 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		/* assign default capabilities */
 		set_bit(I40E_VIRTCHNL_VF_CAP_L2, &vfs[i].vf_caps);
 		vfs[i].spoofchk = true;
-		/* VF resources get allocated during reset */
-		i40e_reset_vf(&vfs[i], false);
+
+		set_bit(I40E_VF_STATE_PRE_ENABLE, &vfs[i].vf_states);
 
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
+
+	/* VF resources get allocated during reset */
+	i40e_reset_all_vfs(pf, false);
 
 	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
 
@@ -1312,7 +1326,7 @@ static int i40e_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	int pre_existing_vfs = pci_num_vf(pdev);
 	int err = 0;
 
-	if (test_bit(__I40E_TESTING, &pf->state)) {
+	if (test_bit(__I40E_TESTING, pf->state)) {
 		dev_warn(&pdev->dev,
 			 "Cannot enable SR-IOV virtual functions while the device is undergoing diagnostic testing\n");
 		err = -EPERM;
@@ -1418,7 +1432,7 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 				"Number of invalid messages exceeded for VF %d\n",
 				vf->vf_id);
 			dev_err(&pf->pdev->dev, "Use PF Control I/F to enable the VF\n");
-			set_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
+			set_bit(I40E_VF_STATE_DISABLED, &vf->vf_states);
 		}
 	} else {
 		vf->num_valid_msgs++;
@@ -1493,7 +1507,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	int len = 0;
 	int ret;
 
-	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
@@ -1522,7 +1536,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	if (i40e_vf_client_capable(pf, vf->vf_id) &&
 	    (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_IWARP)) {
 		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_IWARP;
-		set_bit(I40E_VF_STAT_IWARPENA, &vf->vf_states);
+		set_bit(I40E_VF_STATE_IWARPENA, &vf->vf_states);
 	}
 
 	if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF) {
@@ -1583,7 +1597,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 		ether_addr_copy(vfres->vsi_res[0].default_mac_addr,
 				vf->default_lan_addr.addr);
 	}
-	set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
+	set_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states);
 
 err:
 	/* send the response back to the VF */
@@ -1606,7 +1620,7 @@ err:
  **/
 static void i40e_vc_reset_vf_msg(struct i40e_vf *vf)
 {
-	if (test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states))
+	if (test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states))
 		i40e_reset_vf(vf, false);
 }
 
@@ -1654,7 +1668,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 	int bkt;
 
 	vsi = i40e_find_vsi_from_id(pf, info->vsi_id);
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
 	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id) ||
 	    !vsi) {
 		aq_ret = I40E_ERR_PARAM;
@@ -1715,9 +1729,9 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 			 "VF %d successfully set multicast promiscuous mode\n",
 			 vf->vf_id);
 		if (allmulti)
-			set_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states);
+			set_bit(I40E_VF_STATE_MC_PROMISC, &vf->vf_states);
 		else
-			clear_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states);
+			clear_bit(I40E_VF_STATE_MC_PROMISC, &vf->vf_states);
 	}
 
 	if (info->flags & I40E_FLAG_VF_UNICAST_PROMISC)
@@ -1766,9 +1780,9 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 			 "VF %d successfully set unicast promiscuous mode\n",
 			 vf->vf_id);
 		if (alluni)
-			set_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states);
+			set_bit(I40E_VF_STATE_UC_PROMISC, &vf->vf_states);
 		else
-			clear_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states);
+			clear_bit(I40E_VF_STATE_UC_PROMISC, &vf->vf_states);
 	}
 
 error_param:
@@ -1797,7 +1811,7 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	i40e_status aq_ret = 0;
 	int i;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -1854,7 +1868,7 @@ static int i40e_vc_config_irq_map_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	unsigned long tempmap;
 	int i;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -1914,7 +1928,7 @@ static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	u16 vsi_id = vqs->vsi_id;
 	i40e_status aq_ret = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -1953,7 +1967,7 @@ static int i40e_vc_disable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	struct i40e_pf *pf = vf->pf;
 	i40e_status aq_ret = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -1995,7 +2009,7 @@ static int i40e_vc_get_stats_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 	memset(&stats, 0, sizeof(struct i40e_eth_stats));
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2082,7 +2096,7 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	i40e_status ret = 0;
 	int i;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
 		ret = I40E_ERR_PARAM;
 		goto error_param;
@@ -2151,7 +2165,7 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	i40e_status ret = 0;
 	int i;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
 		ret = I40E_ERR_PARAM;
 		goto error_param;
@@ -2217,7 +2231,7 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 			"VF is not trusted, switch the VF to trusted to add more VLAN addresses\n");
 		goto error_param;
 	}
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
@@ -2244,12 +2258,12 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		if (!ret)
 			vf->num_vlan++;
 
-		if (test_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states))
+		if (test_bit(I40E_VF_STATE_UC_PROMISC, &vf->vf_states))
 			i40e_aq_set_vsi_uc_promisc_on_vlan(&pf->hw, vsi->seid,
 							   true,
 							   vfl->vlan_id[i],
 							   NULL);
-		if (test_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states))
+		if (test_bit(I40E_VF_STATE_MC_PROMISC, &vf->vf_states))
 			i40e_aq_set_vsi_mc_promisc_on_vlan(&pf->hw, vsi->seid,
 							   true,
 							   vfl->vlan_id[i],
@@ -2284,7 +2298,7 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	i40e_status aq_ret = 0;
 	int i;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
@@ -2307,12 +2321,12 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		i40e_vsi_kill_vlan(vsi, vfl->vlan_id[i]);
 		vf->num_vlan--;
 
-		if (test_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states))
+		if (test_bit(I40E_VF_STATE_UC_PROMISC, &vf->vf_states))
 			i40e_aq_set_vsi_uc_promisc_on_vlan(&pf->hw, vsi->seid,
 							   false,
 							   vfl->vlan_id[i],
 							   NULL);
-		if (test_bit(I40E_VF_STAT_MC_PROMISC, &vf->vf_states))
+		if (test_bit(I40E_VF_STATE_MC_PROMISC, &vf->vf_states))
 			i40e_aq_set_vsi_mc_promisc_on_vlan(&pf->hw, vsi->seid,
 							   false,
 							   vfl->vlan_id[i],
@@ -2338,8 +2352,8 @@ static int i40e_vc_iwarp_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	int abs_vf_id = vf->vf_id + pf->hw.func_caps.vf_base_id;
 	i40e_status aq_ret = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !test_bit(I40E_VF_STAT_IWARPENA, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VF_STATE_IWARPENA, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2369,8 +2383,8 @@ static int i40e_vc_iwarp_qvmap_msg(struct i40e_vf *vf, u8 *msg, u16 msglen,
 				(struct i40e_virtchnl_iwarp_qvlist_info *)msg;
 	i40e_status aq_ret = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !test_bit(I40E_VF_STAT_IWARPENA, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
+	    !test_bit(I40E_VF_STATE_IWARPENA, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2407,7 +2421,7 @@ static int i40e_vc_config_rss_key(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	u16 vsi_id = vrk->vsi_id;
 	i40e_status aq_ret = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id) ||
 	    (vrk->key_len != I40E_HKEY_ARRAY_SIZE)) {
 		aq_ret = I40E_ERR_PARAM;
@@ -2439,7 +2453,7 @@ static int i40e_vc_config_rss_lut(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	u16 vsi_id = vrl->vsi_id;
 	i40e_status aq_ret = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
 	    !i40e_vc_isvalid_vsi_id(vf, vsi_id) ||
 	    (vrl->lut_entries != I40E_VF_HLUT_ARRAY_SIZE)) {
 		aq_ret = I40E_ERR_PARAM;
@@ -2469,7 +2483,7 @@ static int i40e_vc_get_rss_hena(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	i40e_status aq_ret = 0;
 	int len = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
@@ -2506,7 +2520,7 @@ static int i40e_vc_set_rss_hena(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status aq_ret = 0;
 
-	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
@@ -2536,7 +2550,7 @@ static int i40e_vc_validate_vf_msg(struct i40e_vf *vf, u32 v_opcode,
 	int valid_len = 0;
 
 	/* Check if VF is disabled. */
-	if (test_bit(I40E_VF_STAT_DISABLED, &vf->vf_states))
+	if (test_bit(I40E_VF_STATE_DISABLED, &vf->vf_states))
 		return I40E_ERR_PARAM;
 
 	/* Validate message length. */
@@ -2804,7 +2818,7 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 	struct i40e_vf *vf;
 	int vf_id;
 
-	if (!test_bit(__I40E_VFLR_EVENT_PENDING, &pf->state))
+	if (!test_bit(__I40E_VFLR_EVENT_PENDING, pf->state))
 		return 0;
 
 	/* Re-enable the VFLR interrupt cause here, before looking for which
@@ -2817,7 +2831,7 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
 	i40e_flush(hw);
 
-	clear_bit(__I40E_VFLR_EVENT_PENDING, &pf->state);
+	clear_bit(__I40E_VFLR_EVENT_PENDING, pf->state);
 	for (vf_id = 0; vf_id < pf->num_alloc_vfs; vf_id++) {
 		reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
 		bit_idx = (hw->func_caps.vf_base_id + vf_id) % 32;
@@ -2860,7 +2874,7 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 
 	vf = &(pf->vf[vf_id]);
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
 			vf_id);
 		ret = -EAGAIN;
@@ -2949,7 +2963,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 
 	vf = &(pf->vf[vf_id]);
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
 			vf_id);
 		ret = -EAGAIN;
@@ -3081,7 +3095,7 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 
 	vf = &(pf->vf[vf_id]);
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
 			vf_id);
 		ret = -EAGAIN;
@@ -3162,7 +3176,7 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	vf = &(pf->vf[vf_id]);
 	/* first vsi is always the LAN vsi */
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
 			vf_id);
 		ret = -EAGAIN;
@@ -3281,7 +3295,7 @@ int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable)
 	}
 
 	vf = &(pf->vf[vf_id]);
-	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
+	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
 		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
 			vf_id);
 		ret = -EAGAIN;
