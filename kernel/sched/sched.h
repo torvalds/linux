@@ -1869,6 +1869,7 @@ static inline void nohz_balance_exit_idle(unsigned int cpu) { }
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 struct irqtime {
+	u64			total;
 	u64			tick_delta;
 	u64			irq_start_time;
 	struct u64_stats_sync	sync;
@@ -1876,16 +1877,20 @@ struct irqtime {
 
 DECLARE_PER_CPU(struct irqtime, cpu_irqtime);
 
+/*
+ * Returns the irqtime minus the softirq time computed by ksoftirqd.
+ * Otherwise ksoftirqd's sum_exec_runtime is substracted its own runtime
+ * and never move forward.
+ */
 static inline u64 irq_time_read(int cpu)
 {
 	struct irqtime *irqtime = &per_cpu(cpu_irqtime, cpu);
-	u64 *cpustat = kcpustat_cpu(cpu).cpustat;
 	unsigned int seq;
 	u64 total;
 
 	do {
 		seq = __u64_stats_fetch_begin(&irqtime->sync);
-		total = cpustat[CPUTIME_SOFTIRQ] + cpustat[CPUTIME_IRQ];
+		total = irqtime->total;
 	} while (__u64_stats_fetch_retry(&irqtime->sync, seq));
 
 	return total;
