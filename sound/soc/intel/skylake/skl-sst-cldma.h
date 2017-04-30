@@ -213,7 +213,7 @@ struct skl_cl_dev_ops {
 	void (*cl_trigger)(struct sst_dsp  *ctx, bool enable);
 	void (*cl_cleanup_controller)(struct sst_dsp  *ctx);
 	int (*cl_copy_to_dmabuf)(struct sst_dsp *ctx,
-			const void *bin, u32 size);
+			const void *bin, u32 size, bool wait);
 	void (*cl_stop_dma)(struct sst_dsp *ctx);
 };
 
