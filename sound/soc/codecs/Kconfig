@@ -49,6 +49,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
 	select SND_SOC_CS35L34 if I2C
+	select SND_SOC_CS35L35 if I2C
 	select SND_SOC_CS42L42 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
@@ -69,6 +70,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
+	select SND_SOC_DIO2125
 	select SND_SOC_DMIC
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
@@ -410,6 +412,10 @@ config SND_SOC_CS35L34
 	tristate "Cirrus Logic CS35L34 CODEC"
 	depends on I2C
 
+config SND_SOC_CS35L35
+	tristate "Cirrus Logic CS35L35 CODEC"
+	depends on I2C
+
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC"
 	depends on I2C
@@ -517,6 +523,10 @@ config SND_SOC_DA732X
 
 config SND_SOC_DA9055
 	tristate
+
+config SND_SOC_DIO2125
+	tristate "Dioo DIO2125 Amplifier"
+	select GPIOLIB
 
 config SND_SOC_DMIC
 	tristate

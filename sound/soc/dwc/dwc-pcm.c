@@ -129,13 +129,11 @@ void dw_pcm_push_tx(struct dw_i2s_dev *dev)
 {
 	dw_pcm_transfer(dev, true);
 }
-EXPORT_SYMBOL_GPL(dw_pcm_push_tx);
 
 void dw_pcm_pop_rx(struct dw_i2s_dev *dev)
 {
 	dw_pcm_transfer(dev, false);
 }
-EXPORT_SYMBOL_GPL(dw_pcm_pop_rx);
 
 static int dw_pcm_open(struct snd_pcm_substream *substream)
 {
@@ -281,4 +279,3 @@ int dw_pcm_register(struct platform_device *pdev)
 {
 	return devm_snd_soc_register_platform(&pdev->dev, &dw_pcm_platform);
 }
-EXPORT_SYMBOL_GPL(dw_pcm_register);
