@@ -154,6 +154,14 @@ ifdef CONFIG_FUNCTION_GRAPH_TRACER
   else
     ifeq ($(call cc-option-yn, -mfentry), n)
 	ACCUMULATE_OUTGOING_ARGS := 1
+
+	# GCC ignores '-maccumulate-outgoing-args' when used with '-Os'.
+	# If '-Os' is enabled, disable it and print a warning.
+        ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+          undefine CONFIG_CC_OPTIMIZE_FOR_SIZE
+	  $(warning Disabling CONFIG_CC_OPTIMIZE_FOR_SIZE.  Your compiler does not have -mfentry so you cannot optimize for size with CONFIG_FUNCTION_GRAPH_TRACER.)
+        endif
+
     endif
   endif
 endif
