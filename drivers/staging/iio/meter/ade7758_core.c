@@ -301,103 +301,103 @@ static int ade7758_reset(struct device *dev)
 	return ret;
 }
 
-static IIO_DEV_ATTR_VPEAK(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_VPEAK(0644,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
 		ADE7758_VPEAK);
-static IIO_DEV_ATTR_IPEAK(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_IPEAK(0644,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
 		ADE7758_VPEAK);
-static IIO_DEV_ATTR_APHCAL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_APHCAL(0644,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
 		ADE7758_APHCAL);
-static IIO_DEV_ATTR_BPHCAL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BPHCAL(0644,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
 		ADE7758_BPHCAL);
-static IIO_DEV_ATTR_CPHCAL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CPHCAL(0644,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
 		ADE7758_CPHCAL);
-static IIO_DEV_ATTR_WDIV(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_WDIV(0644,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
 		ADE7758_WDIV);
-static IIO_DEV_ATTR_VADIV(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_VADIV(0644,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
 		ADE7758_VADIV);
-static IIO_DEV_ATTR_AIRMS(S_IRUGO,
+static IIO_DEV_ATTR_AIRMS(0444,
 		ade7758_read_24bit,
 		NULL,
 		ADE7758_AIRMS);
-static IIO_DEV_ATTR_BIRMS(S_IRUGO,
+static IIO_DEV_ATTR_BIRMS(0444,
 		ade7758_read_24bit,
 		NULL,
 		ADE7758_BIRMS);
-static IIO_DEV_ATTR_CIRMS(S_IRUGO,
+static IIO_DEV_ATTR_CIRMS(0444,
 		ade7758_read_24bit,
 		NULL,
 		ADE7758_CIRMS);
-static IIO_DEV_ATTR_AVRMS(S_IRUGO,
+static IIO_DEV_ATTR_AVRMS(0444,
 		ade7758_read_24bit,
 		NULL,
 		ADE7758_AVRMS);
-static IIO_DEV_ATTR_BVRMS(S_IRUGO,
+static IIO_DEV_ATTR_BVRMS(0444,
 		ade7758_read_24bit,
 		NULL,
 		ADE7758_BVRMS);
-static IIO_DEV_ATTR_CVRMS(S_IRUGO,
+static IIO_DEV_ATTR_CVRMS(0444,
 		ade7758_read_24bit,
 		NULL,
 		ADE7758_CVRMS);
-static IIO_DEV_ATTR_AIRMSOS(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_AIRMSOS(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_AIRMSOS);
-static IIO_DEV_ATTR_BIRMSOS(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BIRMSOS(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_BIRMSOS);
-static IIO_DEV_ATTR_CIRMSOS(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CIRMSOS(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_CIRMSOS);
-static IIO_DEV_ATTR_AVRMSOS(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_AVRMSOS(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_AVRMSOS);
-static IIO_DEV_ATTR_BVRMSOS(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BVRMSOS(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_BVRMSOS);
-static IIO_DEV_ATTR_CVRMSOS(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CVRMSOS(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_CVRMSOS);
-static IIO_DEV_ATTR_AIGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_AIGAIN(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_AIGAIN);
-static IIO_DEV_ATTR_BIGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BIGAIN(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_BIGAIN);
-static IIO_DEV_ATTR_CIGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CIGAIN(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_CIGAIN);
-static IIO_DEV_ATTR_AVRMSGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_AVRMSGAIN(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_AVRMSGAIN);
-static IIO_DEV_ATTR_BVRMSGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BVRMSGAIN(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_BVRMSGAIN);
-static IIO_DEV_ATTR_CVRMSGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CVRMSGAIN(0644,
 		ade7758_read_16bit,
 		ade7758_write_16bit,
 		ADE7758_CVRMSGAIN);
