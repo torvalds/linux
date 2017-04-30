@@ -191,6 +191,7 @@ bool generate_ecdh_keys(u8 public_key[64], u8 private_key[32])
 			goto free_all;
 
 		sg_init_one(&dst, tmp, 64);
+		kpp_request_set_input(req, NULL, 0);
 		kpp_request_set_output(req, &dst, 64);
 		kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 					 ecdh_complete, &result);
