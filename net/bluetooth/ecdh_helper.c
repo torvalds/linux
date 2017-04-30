@@ -22,7 +22,6 @@
  */
 #include "ecdh_helper.h"
 
-#include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <crypto/kpp.h>
 #include <crypto/ecdh.h>
@@ -180,8 +179,6 @@ bool generate_ecdh_keys(u8 public_key[64], u8 private_key[32])
 	do {
 		if (tries++ >= max_tries)
 			goto free_all;
-
-		get_random_bytes(private_key, 32);
 
 		/* Set private Key */
 		p.key = (char *)private_key;
