@@ -76,7 +76,7 @@ static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream)
 			pair->dma_chan[!dir], runtime->dma_addr,
 			snd_pcm_lib_buffer_bytes(substream),
 			snd_pcm_lib_period_bytes(substream),
-			dir == OUT ? DMA_TO_DEVICE : DMA_FROM_DEVICE, flags);
+			dir == OUT ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM, flags);
 	if (!pair->desc[!dir]) {
 		dev_err(dev, "failed to prepare slave DMA for Front-End\n");
 		return -ENOMEM;
