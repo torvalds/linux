@@ -2191,8 +2191,7 @@ static int qed_roce_modify_qp(struct qed_hwfn *p_hwfn,
 						  params->modify_flags);
 
 		return rc;
-	} else if (qp->cur_state == QED_ROCE_QP_STATE_ERR ||
-		   qp->cur_state == QED_ROCE_QP_STATE_SQE) {
+	} else if (qp->cur_state == QED_ROCE_QP_STATE_ERR) {
 		/* ->ERR */
 		rc = qed_roce_sp_modify_responder(p_hwfn, qp, true,
 						  params->modify_flags);
