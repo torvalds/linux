@@ -93,10 +93,13 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	 * all the CPUs. This is needed for kexec to work correctly where
 	 * the CPU attempting to connect may not be CPU 0.
 	 */
-	if (version >= VERSION_WIN8_1)
+	if (version >= VERSION_WIN8_1) {
 		msg->target_vcpu = hv_context.vp_index[smp_processor_id()];
-	else
+		vmbus_connection.connect_cpu = smp_processor_id();
+	} else {
 		msg->target_vcpu = 0;
+		vmbus_connection.connect_cpu = 0;
+	}
 
 	/*
 	 * Add to list before we send the request since we may

@@ -303,6 +303,13 @@ enum vmbus_connect_state {
 #define MAX_SIZE_CHANNEL_MESSAGE	HV_MESSAGE_PAYLOAD_BYTE_COUNT
 
 struct vmbus_connection {
+	/*
+	 * CPU on which the initial host contact was made.
+	 */
+	int connect_cpu;
+
+	atomic_t offer_in_progress;
+
 	enum vmbus_connect_state conn_state;
 
 	atomic_t next_gpadl_handle;
