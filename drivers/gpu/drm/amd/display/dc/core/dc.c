@@ -1525,13 +1525,6 @@ const struct graphics_object_id dc_get_link_id_at_index(
 	return core_dc->links[link_index]->link_id;
 }
 
-const struct ddc_service *dc_get_ddc_at_index(
-	struct dc *dc, uint32_t link_index)
-{
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	return core_dc->links[link_index]->ddc;
-}
-
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 	struct dc *dc, uint32_t link_index)
 {
@@ -1639,7 +1632,7 @@ bool dc_read_aux_dpcd(
 
 	struct core_link *link = core_dc->links[link_index];
 	enum ddc_result r = dal_ddc_service_read_dpcd_data(
-			link->ddc,
+			link->public.ddc,
 			false,
 			I2C_MOT_UNDEF,
 			address,
@@ -1659,7 +1652,7 @@ bool dc_write_aux_dpcd(
 	struct core_link *link = core_dc->links[link_index];
 
 	enum ddc_result r = dal_ddc_service_write_dpcd_data(
-			link->ddc,
+			link->public.ddc,
 			false,
 			I2C_MOT_UNDEF,
 			address,
@@ -1680,7 +1673,7 @@ bool dc_read_aux_i2c(
 
 		struct core_link *link = core_dc->links[link_index];
 		enum ddc_result r = dal_ddc_service_read_dpcd_data(
-			link->ddc,
+			link->public.ddc,
 			true,
 			mot,
 			address,
@@ -1701,7 +1694,7 @@ bool dc_write_aux_i2c(
 	struct core_link *link = core_dc->links[link_index];
 
 	enum ddc_result r = dal_ddc_service_write_dpcd_data(
-			link->ddc,
+			link->public.ddc,
 			true,
 			mot,
 			address,
@@ -1724,7 +1717,7 @@ bool dc_query_ddc_data(
 	struct core_link *link = core_dc->links[link_index];
 
 	bool result = dal_ddc_service_query_ddc_data(
-			link->ddc,
+			link->public.ddc,
 			address,
 			write_buf,
 			write_size,
@@ -1742,7 +1735,7 @@ bool dc_submit_i2c(
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
 	struct core_link *link = core_dc->links[link_index];
-	struct ddc_service *ddc = link->ddc;
+	struct ddc_service *ddc = link->public.ddc;
 
 	return dal_i2caux_submit_i2c_command(
 		ddc->ctx->i2caux,

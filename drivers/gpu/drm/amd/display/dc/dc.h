@@ -646,6 +646,8 @@ struct dc_link {
 
 	void *priv;
 	bool aux_mode;
+
+	struct ddc_service *ddc;
 };
 
 struct dpcd_caps {
@@ -828,13 +830,6 @@ void dc_set_power_state(
 		struct dc *dc,
 		enum dc_acpi_cm_power_state power_state);
 void dc_resume(const struct dc *dc);
-
-/*******************************************************************************
- * DDC Interfaces
- ******************************************************************************/
-
-const struct ddc_service *dc_get_ddc_at_index(
-		struct dc *dc, uint32_t link_index);
 
 /*
  * DPCD access interfaces

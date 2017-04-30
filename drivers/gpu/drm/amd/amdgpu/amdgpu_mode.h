@@ -546,13 +546,13 @@ enum amdgpu_connector_dither {
 
 struct amdgpu_dm_dp_aux {
 	struct drm_dp_aux aux;
-	uint32_t link_index;
+	struct ddc_service *ddc_service;
 };
 
 struct amdgpu_i2c_adapter {
 	struct i2c_adapter base;
-	struct amdgpu_display_manager *dm;
-	uint32_t link_index;
+
+	struct ddc_service *ddc_service;
 };
 
 #define TO_DM_AUX(x) container_of((x), struct amdgpu_dm_dp_aux, aux)

@@ -33,6 +33,8 @@
 #include "dc.h"
 #include "dm_helpers.h"
 
+#include "dc_link_ddc.h"
+
 /* #define TRACE_DPCD */
 
 #ifdef TRACE_DPCD
@@ -77,43 +79,41 @@ void log_dpcd(uint8_t type,
 
 static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
-	struct pci_dev *pdev = to_pci_dev(aux->dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct amdgpu_device *adev = drm_dev->dev_private;
-	struct dc *dc = adev->dm.dc;
 	enum i2c_mot_mode mot = (msg->request & DP_AUX_I2C_MOT) ? I2C_MOT_TRUE : I2C_MOT_FALSE;
-	bool res;
+	enum ddc_result res;
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_READ:
-		res = dc_read_aux_dpcd(
-				dc,
-				TO_DM_AUX(aux)->link_index,
+		res = dal_ddc_service_read_dpcd_data(
+				TO_DM_AUX(aux)->ddc_service,
+				false,
+				I2C_MOT_UNDEF,
 				msg->address,
 				msg->buffer,
 				msg->size);
 		break;
 	case DP_AUX_NATIVE_WRITE:
-		res = dc_write_aux_dpcd(
-				dc,
-				TO_DM_AUX(aux)->link_index,
+		res = dal_ddc_service_write_dpcd_data(
+				TO_DM_AUX(aux)->ddc_service,
+				false,
+				I2C_MOT_UNDEF,
 				msg->address,
 				msg->buffer,
 				msg->size);
 		break;
 	case DP_AUX_I2C_READ:
-		res = dc_read_aux_i2c(
-				dc,
-				TO_DM_AUX(aux)->link_index,
+		res = dal_ddc_service_read_dpcd_data(
+				TO_DM_AUX(aux)->ddc_service,
+				true,
 				mot,
 				msg->address,
 				msg->buffer,
 				msg->size);
 		break;
 	case DP_AUX_I2C_WRITE:
-		res = dc_write_aux_i2c(
-				dc,
-				TO_DM_AUX(aux)->link_index,
+		res = dal_ddc_service_write_dpcd_data(
+				TO_DM_AUX(aux)->ddc_service,
+				true,
 				mot,
 				msg->address,
 				msg->buffer,
@@ -128,7 +128,7 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg 
 			msg->address,
 			msg->buffer,
 			msg->size,
-			res);
+			r == DDC_RESULT_SUCESSFULL);
 #endif
 
 	return msg->size;
@@ -444,7 +444,7 @@ void amdgpu_dm_initialize_dp_connector(
 	aconnector->dm_dp_aux.aux.name = "dmdc";
 	aconnector->dm_dp_aux.aux.dev = dm->adev->dev;
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
-	aconnector->dm_dp_aux.link_index = aconnector->connector_id;
+	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 
 	drm_dp_aux_register(&aconnector->dm_dp_aux.aux);
 	aconnector->mst_mgr.cbs = &dm_mst_cbs;

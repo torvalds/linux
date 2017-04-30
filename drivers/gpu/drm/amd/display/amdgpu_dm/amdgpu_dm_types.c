@@ -50,6 +50,8 @@
 
 #include "modules/inc/mod_freesync.h"
 
+#include "i2caux_interface.h"
+
 struct dm_connector_state {
 	struct drm_connector_state base;
 
@@ -1999,6 +2001,7 @@ int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 		      struct i2c_msg *msgs, int num)
 {
 	struct amdgpu_i2c_adapter *i2c = i2c_get_adapdata(i2c_adap);
+	struct ddc_service *ddc_service = i2c->ddc_service;
 	struct i2c_command cmd;
 	int i;
 	int result = -EIO;
@@ -2019,11 +2022,13 @@ int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 		cmd.payloads[i].data = msgs[i].buf;
 	}
 
-	if (dc_submit_i2c(i2c->dm->dc, i2c->link_index, &cmd))
+	if (dal_i2caux_submit_i2c_command(
+			ddc_service->ctx->i2caux,
+			ddc_service->ddc_pin,
+			&cmd))
 		result = num;
 
 	kfree(cmd.payloads);
-
 	return result;
 }
 
@@ -2037,19 +2042,22 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
 	.functionality = amdgpu_dm_i2c_func,
 };
 
-struct amdgpu_i2c_adapter *create_i2c(unsigned int link_index, struct amdgpu_display_manager *dm, int *res)
+static struct amdgpu_i2c_adapter *create_i2c(
+		struct ddc_service *ddc_service,
+		int link_index,
+		int *res)
 {
+	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
 	struct amdgpu_i2c_adapter *i2c;
 
 	i2c = kzalloc(sizeof (struct amdgpu_i2c_adapter), GFP_KERNEL);
-	i2c->dm = dm;
 	i2c->base.owner = THIS_MODULE;
 	i2c->base.class = I2C_CLASS_DDC;
-	i2c->base.dev.parent = &dm->adev->pdev->dev;
+	i2c->base.dev.parent = &adev->pdev->dev;
 	i2c->base.algo = &amdgpu_dm_i2c_algo;
 	snprintf(i2c->base.name, sizeof (i2c->base.name), "AMDGPU DM i2c hw bus %d", link_index);
-	i2c->link_index = link_index;
 	i2c_set_adapdata(&i2c->base, i2c);
+	i2c->ddc_service = ddc_service;
 
 	return i2c;
 }
@@ -2071,7 +2079,7 @@ int amdgpu_dm_connector_init(
 
 	DRM_DEBUG_KMS("%s()\n", __func__);
 
-	i2c = create_i2c(link->link_index, dm, &res);
+	i2c = create_i2c(link->ddc, link->link_index, &res);
 	aconnector->i2c = i2c;
 	res = i2c_add_adapter(&i2c->base);
 

@@ -151,7 +151,6 @@ struct core_link {
 	struct dc_context *ctx; /* TODO: AUTO remove 'dal' when DC is complete*/
 
 	struct link_encoder *link_enc;
-	struct ddc_service *ddc;
 	struct graphics_object_id link_id;
 	union ddi_channel_mapping ddi_channel_mapping;
 	struct connector_device_tag_info device_tag;

@@ -1913,7 +1913,7 @@ static void get_active_converter_info(
 	/* decode converter info*/
 	if (!ds_port.fields.PORT_PRESENT) {
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_NONE;
-		ddc_service_set_dongle_type(link->ddc,
+		ddc_service_set_dongle_type(link->public.ddc,
 				link->dpcd_caps.dongle_type);
 		return;
 	}
@@ -1983,7 +1983,7 @@ static void get_active_converter_info(
 		}
 	}
 
-	ddc_service_set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
+	ddc_service_set_dongle_type(link->public.ddc, link->dpcd_caps.dongle_type);
 
 	{
 		struct dp_device_vendor_id dp_id;

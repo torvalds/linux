@@ -66,8 +66,8 @@ static void destruct(struct core_link *link)
 {
 	int i;
 
-	if (link->ddc)
-		dal_ddc_service_destroy(&link->ddc);
+	if (link->public.ddc)
+		dal_ddc_service_destroy(&link->public.ddc);
 
 	if(link->link_enc)
 		link->link_enc->funcs->destroy(&link->link_enc);
@@ -320,7 +320,7 @@ static bool is_dp_sink_present(struct core_link *link)
 		((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
 		(connector_id == CONNECTOR_ID_EDP));
 
-	ddc = dal_ddc_service_get_ddc_pin(link->ddc);
+	ddc = dal_ddc_service_get_ddc_pin(link->public.ddc);
 
 	if (!ddc) {
 		BREAK_TO_DEBUGGER();
@@ -526,7 +526,7 @@ static void detect_dp(
 		}
 	} else {
 		/* DP passive dongles */
-		sink_caps->signal = dp_passive_dongle_detection(link->ddc,
+		sink_caps->signal = dp_passive_dongle_detection(link->public.ddc,
 				sink_caps,
 				audio_support);
 	}
@@ -629,11 +629,11 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 				link->dpcd_sink_count = 1;
 
 		dal_ddc_service_set_transaction_type(
-						link->ddc,
+						link->public.ddc,
 						sink_caps.transaction_type);
 
 		link->public.aux_mode = dal_ddc_service_is_in_aux_transaction_mode(
-				link->ddc);
+				link->public.ddc);
 
 		sink_init_data.link = &link->public;
 		sink_init_data.sink_signal = sink_caps.signal;
@@ -784,7 +784,7 @@ static enum channel_id get_ddc_line(struct core_link *link)
 	struct ddc *ddc;
 	enum channel_id channel = CHANNEL_ID_UNKNOWN;
 
-	ddc = dal_ddc_service_get_ddc_pin(link->ddc);
+	ddc = dal_ddc_service_get_ddc_pin(link->public.ddc);
 
 	if (ddc) {
 		switch (dal_ddc_get_line(ddc)) {
@@ -971,16 +971,16 @@ static bool construct(
 	ddc_service_init_data.ctx = link->ctx;
 	ddc_service_init_data.id = link->link_id;
 	ddc_service_init_data.link = link;
-	link->ddc = dal_ddc_service_create(&ddc_service_init_data);
+	link->public.ddc = dal_ddc_service_create(&ddc_service_init_data);
 
-	if (NULL == link->ddc) {
+	if (link->public.ddc == NULL) {
 		DC_ERROR("Failed to create ddc_service!\n");
 		goto ddc_create_fail;
 	}
 
 	link->public.ddc_hw_inst =
 		dal_ddc_get_line(
-			dal_ddc_service_get_ddc_pin(link->ddc));
+			dal_ddc_service_get_ddc_pin(link->public.ddc));
 
 	enc_init_data.ctx = dc_ctx;
 	bp_funcs->get_src_obj(dc_ctx->dc_bios, link->link_id, 0, &enc_init_data.encoder);
@@ -1049,7 +1049,7 @@ static bool construct(
 device_tag_fail:
 	link->link_enc->funcs->destroy(&link->link_enc);
 link_enc_create_fail:
-	dal_ddc_service_destroy(&link->ddc);
+	dal_ddc_service_destroy(&link->public.ddc);
 ddc_create_fail:
 create_fail:
 
@@ -1256,7 +1256,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		dal_ddc_service_write_scdc_data(
-			stream->sink->link->ddc,
+			stream->sink->link->public.ddc,
 			stream->phy_pix_clk,
 			stream->public.timing.flags.LTE_340MCSC_SCRAMBLE);
 
@@ -1276,7 +1276,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 			stream->phy_pix_clk);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
-		dal_ddc_service_read_scdc_data(link->ddc);
+		dal_ddc_service_read_scdc_data(link->public.ddc);
 }
 
 /****************************enable_link***********************************/
@@ -1474,7 +1474,7 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 			&psr_configuration.raw,
 			sizeof(psr_configuration.raw));
 
-		psr_context.channel = link->ddc->ddc_pin->hw_info.ddc_channel;
+		psr_context.channel = link->public.ddc->ddc_pin->hw_info.ddc_channel;
 		psr_context.transmitterId = link->link_enc->transmitter;
 		psr_context.engineId = link->link_enc->preferred_engine;
 
