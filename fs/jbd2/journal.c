@@ -1361,7 +1361,7 @@ static int jbd2_write_superblock(journal_t *journal, int write_flags)
 	jbd2_superblock_csum_set(journal, sb);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_write_sync;
-	ret = submit_bh(REQ_OP_WRITE, write_flags, bh);
+	ret = submit_bh(REQ_OP_WRITE, write_flags | REQ_SYNC, bh);
 	wait_on_buffer(bh);
 	if (buffer_write_io_error(bh)) {
 		clear_buffer_write_io_error(bh);
