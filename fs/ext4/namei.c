@@ -1869,11 +1869,10 @@ return_result:
 	return res;
 }
 
-int ext4_insert_dentry(struct inode *dir,
-		       struct inode *inode,
-		       struct ext4_dir_entry_2 *de,
-		       int buf_size,
-		       struct ext4_filename *fname)
+void ext4_insert_dentry(struct inode *inode,
+			struct ext4_dir_entry_2 *de,
+			int buf_size,
+			struct ext4_filename *fname)
 {
 
 	int nlen, rlen;
@@ -1892,7 +1891,6 @@ int ext4_insert_dentry(struct inode *dir,
 	ext4_set_de_type(inode->i_sb, de, inode->i_mode);
 	de->name_len = fname_len(fname);
 	memcpy(de->name, fname_name(fname), fname_len(fname));
-	return 0;
 }
 
 /*
@@ -1928,11 +1926,8 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
 		return err;
 	}
 
-	/* By now the buffer is marked for journaling. Due to crypto operations,
-	 * the following function call may fail */
-	err = ext4_insert_dentry(dir, inode, de, blocksize, fname);
-	if (err < 0)
-		return err;
+	/* By now the buffer is marked for journaling */
+	ext4_insert_dentry(inode, de, blocksize, fname);
 
 	/*
 	 * XXX shouldn't update any times until successful
