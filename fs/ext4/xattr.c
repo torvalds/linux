@@ -162,8 +162,8 @@ ext4_xattr_handler(int name_index)
 }
 
 static int
-ext4_xattr_check_names(struct ext4_xattr_entry *entry, void *end,
-		       void *value_start)
+ext4_xattr_check_entries(struct ext4_xattr_entry *entry, void *end,
+			 void *value_start)
 {
 	struct ext4_xattr_entry *e = entry;
 
@@ -217,8 +217,8 @@ ext4_xattr_check_block(struct inode *inode, struct buffer_head *bh)
 		return -EFSCORRUPTED;
 	if (!ext4_xattr_block_csum_verify(inode, bh))
 		return -EFSBADCRC;
-	error = ext4_xattr_check_names(BFIRST(bh), bh->b_data + bh->b_size,
-				       bh->b_data);
+	error = ext4_xattr_check_entries(BFIRST(bh), bh->b_data + bh->b_size,
+					 bh->b_data);
 	if (!error)
 		set_buffer_verified(bh);
 	return error;
@@ -233,7 +233,7 @@ __xattr_check_inode(struct inode *inode, struct ext4_xattr_ibody_header *header,
 	if (end - (void *)header < sizeof(*header) + sizeof(u32) ||
 	    (header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)))
 		goto errout;
-	error = ext4_xattr_check_names(IFIRST(header), end, IFIRST(header));
+	error = ext4_xattr_check_entries(IFIRST(header), end, IFIRST(header));
 errout:
 	if (error)
 		__ext4_error_inode(inode, function, line, 0,
