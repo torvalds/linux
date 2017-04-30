@@ -537,16 +537,14 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 			clk = clk_register_fixed_rate(dev, clkout_name[i],
 						      parent_clk_name, 0,
 						      req_rate);
-			if (!IS_ERR(clk)) {
-				adg->onecell.clks	= adg->clkout;
-				adg->onecell.clk_num	= CLKOUTMAX;
-
+			adg->clkout[i] = ERR_PTR(-ENOENT);
+			if (!IS_ERR(clk))
 				adg->clkout[i] = clk;
-
-				of_clk_add_provider(np, of_clk_src_onecell_get,
-						    &adg->onecell);
-			}
 		}
+		adg->onecell.clks	= adg->clkout;
+		adg->onecell.clk_num	= CLKOUTMAX;
+		of_clk_add_provider(np, of_clk_src_onecell_get,
+				    &adg->onecell);
 	}
 
 	adg->ckr = ckr;
@@ -589,5 +587,10 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 void rsnd_adg_remove(struct rsnd_priv *priv)
 {
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *np = dev->of_node;
+
+	of_clk_del_provider(np);
+
 	rsnd_adg_clk_disable(priv);
 }
