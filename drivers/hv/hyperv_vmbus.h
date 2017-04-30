@@ -411,6 +411,10 @@ static inline void hv_poll_channel(struct vmbus_channel *channel,
 	if (!channel)
 		return;
 
+	if (in_interrupt() && (channel->target_cpu == smp_processor_id())) {
+		cb(channel);
+		return;
+	}
 	smp_call_function_single(channel->target_cpu, cb, channel, true);
 }
 
