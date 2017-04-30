@@ -78,8 +78,6 @@ static struct buffer_head *ext4_xattr_cache_find(struct inode *,
 						 struct mb_cache_entry **);
 static void ext4_xattr_rehash(struct ext4_xattr_header *,
 			      struct ext4_xattr_entry *);
-static int ext4_xattr_list(struct dentry *dentry, char *buffer,
-			   size_t buffer_size);
 
 static const struct xattr_handler * const ext4_xattr_handler_map[] = {
 	[EXT4_XATTR_INDEX_USER]		     = &ext4_xattr_user_handler,
@@ -161,17 +159,6 @@ ext4_xattr_handler(int name_index)
 	if (name_index > 0 && name_index < ARRAY_SIZE(ext4_xattr_handler_map))
 		handler = ext4_xattr_handler_map[name_index];
 	return handler;
-}
-
-/*
- * Inode operation listxattr()
- *
- * d_inode(dentry)->i_mutex: don't care
- */
-ssize_t
-ext4_listxattr(struct dentry *dentry, char *buffer, size_t size)
-{
-	return ext4_xattr_list(dentry, buffer, size);
 }
 
 static int
@@ -519,7 +506,9 @@ cleanup:
 }
 
 /*
- * ext4_xattr_list()
+ * Inode operation listxattr()
+ *
+ * d_inode(dentry)->i_rwsem: don't care
  *
  * Copy a list of attribute names into the buffer
  * provided, or compute the buffer size required.
@@ -528,8 +517,8 @@ cleanup:
  * Returns a negative error number on failure, or the number of bytes
  * used / required on success.
  */
-static int
-ext4_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
+ssize_t
+ext4_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	int ret, ret2;
 
