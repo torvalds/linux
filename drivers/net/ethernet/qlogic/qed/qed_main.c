@@ -928,7 +928,9 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	struct qed_tunnel_info tunn_info;
 	const u8 *data = NULL;
 	struct qed_hwfn *hwfn;
+#ifdef CONFIG_RFS_ACCEL
 	struct qed_ptt *p_ptt;
+#endif
 	int rc = -EINVAL;
 
 	if (qed_iov_wq_start(cdev))
