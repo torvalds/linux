@@ -2457,6 +2457,8 @@ qed_rdma_register_tid(void *rdma_cxt,
 	}
 
 	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
+	if (rc)
+		return rc;
 
 	if (fw_return_code != RDMA_RETURN_OK) {
 		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
