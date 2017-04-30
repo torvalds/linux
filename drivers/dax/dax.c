@@ -36,36 +36,27 @@ static struct kmem_cache *dax_cache __read_mostly;
 static struct super_block *dax_superblock __read_mostly;
 MODULE_PARM_DESC(nr_dax, "max number of device-dax instances");
 
+/*
+ * Rely on the fact that drvdata is set before the attributes are
+ * registered, and that the attributes are unregistered before drvdata
+ * is cleared to assume that drvdata is always valid.
+ */
 static ssize_t id_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct dax_region *dax_region;
-	ssize_t rc = -ENXIO;
+	struct dax_region *dax_region = dev_get_drvdata(dev);
 
-	device_lock(dev);
-	dax_region = dev_get_drvdata(dev);
-	if (dax_region)
-		rc = sprintf(buf, "%d\n", dax_region->id);
-	device_unlock(dev);
-
-	return rc;
+	return sprintf(buf, "%d\n", dax_region->id);
 }
 static DEVICE_ATTR_RO(id);
 
 static ssize_t region_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct dax_region *dax_region;
-	ssize_t rc = -ENXIO;
+	struct dax_region *dax_region = dev_get_drvdata(dev);
 
-	device_lock(dev);
-	dax_region = dev_get_drvdata(dev);
-	if (dax_region)
-		rc = sprintf(buf, "%llu\n", (unsigned long long)
-				resource_size(&dax_region->res));
-	device_unlock(dev);
-
-	return rc;
+	return sprintf(buf, "%llu\n", (unsigned long long)
+			resource_size(&dax_region->res));
 }
 static struct device_attribute dev_attr_region_size = __ATTR(size, 0444,
 		region_size_show, NULL);
@@ -73,16 +64,9 @@ static struct device_attribute dev_attr_region_size = __ATTR(size, 0444,
 static ssize_t align_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct dax_region *dax_region;
-	ssize_t rc = -ENXIO;
+	struct dax_region *dax_region = dev_get_drvdata(dev);
 
-	device_lock(dev);
-	dax_region = dev_get_drvdata(dev);
-	if (dax_region)
-		rc = sprintf(buf, "%u\n", dax_region->align);
-	device_unlock(dev);
-
-	return rc;
+	return sprintf(buf, "%u\n", dax_region->align);
 }
 static DEVICE_ATTR_RO(align);
 
