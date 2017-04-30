@@ -81,7 +81,7 @@ static void ext4_xattr_rehash(struct ext4_xattr_header *,
 static int ext4_xattr_list(struct dentry *dentry, char *buffer,
 			   size_t buffer_size);
 
-static const struct xattr_handler *ext4_xattr_handler_map[] = {
+static const struct xattr_handler * const ext4_xattr_handler_map[] = {
 	[EXT4_XATTR_INDEX_USER]		     = &ext4_xattr_user_handler,
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	[EXT4_XATTR_INDEX_POSIX_ACL_ACCESS]  = &posix_acl_access_xattr_handler,
