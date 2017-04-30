@@ -3345,6 +3345,21 @@ static int mlxsw_sp_inetaddr_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
+static int __mlxsw_sp_inetaddr_event(struct net_device *dev,
+				     unsigned long event)
+{
+	if (mlxsw_sp_port_dev_check(dev))
+		return mlxsw_sp_inetaddr_port_event(dev, event);
+	else if (netif_is_lag_master(dev))
+		return mlxsw_sp_inetaddr_lag_event(dev, event);
+	else if (netif_is_bridge_master(dev))
+		return mlxsw_sp_inetaddr_bridge_event(dev, dev, event);
+	else if (is_vlan_dev(dev))
+		return mlxsw_sp_inetaddr_vlan_event(dev, event);
+	else
+		return 0;
+}
+
 int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 			    unsigned long event, void *ptr)
 {
@@ -3362,15 +3377,7 @@ int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 	if (!mlxsw_sp_rif_should_config(rif, ifa->ifa_dev, event))
 		goto out;
 
-	if (mlxsw_sp_port_dev_check(dev))
-		err = mlxsw_sp_inetaddr_port_event(dev, event);
-	else if (netif_is_lag_master(dev))
-		err = mlxsw_sp_inetaddr_lag_event(dev, event);
-	else if (netif_is_bridge_master(dev))
-		err = mlxsw_sp_inetaddr_bridge_event(dev, dev, event);
-	else if (is_vlan_dev(dev))
-		err = mlxsw_sp_inetaddr_vlan_event(dev, event);
-
+	err = __mlxsw_sp_inetaddr_event(dev, event);
 out:
 	return notifier_from_errno(err);
 }
@@ -3433,71 +3440,53 @@ err_rif_edit:
 	return err;
 }
 
-int mlxsw_sp_vport_vrf_join(struct mlxsw_sp_port *mlxsw_sp_vport)
+static int mlxsw_sp_port_vrf_join(struct mlxsw_sp *mlxsw_sp,
+				  struct net_device *l3_dev)
 {
-	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
-	struct net_device *dev = mlxsw_sp_vport->dev;
+	struct mlxsw_sp_rif *rif;
 
-	/* In case vPort already has a RIF, then we need to drop it.
-	 * A new one will be created using the VRF's VR.
+	/* If netdev is already associated with a RIF, then we need to
+	 * destroy it and create a new one with the new virtual router ID.
 	 */
-	if (f && f->rif)
-		mlxsw_sp_vport_rif_sp_leave(mlxsw_sp_vport);
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev);
+	if (rif)
+		__mlxsw_sp_inetaddr_event(l3_dev, NETDEV_DOWN);
 
-	return mlxsw_sp_vport_rif_sp_join(mlxsw_sp_vport, dev);
+	return __mlxsw_sp_inetaddr_event(l3_dev, NETDEV_UP);
 }
 
-void mlxsw_sp_vport_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+static void mlxsw_sp_port_vrf_leave(struct mlxsw_sp *mlxsw_sp,
+				    struct net_device *l3_dev)
 {
-	mlxsw_sp_vport_rif_sp_leave(mlxsw_sp_vport);
-}
+	struct mlxsw_sp_rif *rif;
 
-int mlxsw_sp_port_vrf_join(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	struct mlxsw_sp_port *mlxsw_sp_vport;
-
-	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, 1);
-	if (WARN_ON(!mlxsw_sp_vport))
-		return -EINVAL;
-
-	return mlxsw_sp_vport_vrf_join(mlxsw_sp_vport);
-}
-
-void mlxsw_sp_port_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_port)
-{
-	struct mlxsw_sp_port *mlxsw_sp_vport;
-
-	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, 1);
-	if (WARN_ON(!mlxsw_sp_vport))
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, l3_dev);
+	if (!rif)
 		return;
-
-	mlxsw_sp_vport_vrf_leave(mlxsw_sp_vport);
+	__mlxsw_sp_inetaddr_event(l3_dev, NETDEV_DOWN);
 }
 
-int mlxsw_sp_bridge_vrf_join(struct mlxsw_sp *mlxsw_sp,
-			     struct net_device *l3_dev)
+int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
+				 struct netdev_notifier_changeupper_info *info)
 {
-	struct mlxsw_sp_fid *f;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(l3_dev);
+	int err = 0;
 
-	f = mlxsw_sp_bridge_fid_get(mlxsw_sp, l3_dev);
-	if (WARN_ON(!f))
-		return -EINVAL;
+	if (!mlxsw_sp)
+		return 0;
 
-	if (f->rif)
-		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->rif);
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		return 0;
+	case NETDEV_CHANGEUPPER:
+		if (info->linking)
+			err = mlxsw_sp_port_vrf_join(mlxsw_sp, l3_dev);
+		else
+			mlxsw_sp_port_vrf_leave(mlxsw_sp, l3_dev);
+		break;
+	}
 
-	return mlxsw_sp_rif_bridge_create(mlxsw_sp, l3_dev, f);
-}
-
-void mlxsw_sp_bridge_vrf_leave(struct mlxsw_sp *mlxsw_sp,
-			       struct net_device *l3_dev)
-{
-	struct mlxsw_sp_fid *f;
-
-	f = mlxsw_sp_bridge_fid_get(mlxsw_sp, l3_dev);
-	if (WARN_ON(!f))
-		return;
-	mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->rif);
+	return err;
 }
 
 static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)

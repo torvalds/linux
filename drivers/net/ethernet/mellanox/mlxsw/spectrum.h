@@ -576,14 +576,8 @@ int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 			    unsigned long event, void *ptr);
 void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_rif *rif);
-int mlxsw_sp_vport_vrf_join(struct mlxsw_sp_port *mlxsw_sp_vport);
-void mlxsw_sp_vport_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
-int mlxsw_sp_port_vrf_join(struct mlxsw_sp_port *mlxsw_sp_port);
-void mlxsw_sp_port_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_port);
-int mlxsw_sp_bridge_vrf_join(struct mlxsw_sp *mlxsw_sp,
-			     struct net_device *l3_dev);
-void mlxsw_sp_bridge_vrf_leave(struct mlxsw_sp *mlxsw_sp,
-			       struct net_device *l3_dev);
+int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
+				 struct netdev_notifier_changeupper_info *info);
 
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
 			u32 *p_entry_index);
