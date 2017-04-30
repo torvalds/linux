@@ -784,6 +784,7 @@ static int qed_rdma_add_user(void *rdma_cxt,
 				    ((out_params->dpi) * p_hwfn->dpi_size);
 
 	out_params->dpi_size = p_hwfn->dpi_size;
+	out_params->wid_count = p_hwfn->wid_count;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Adding user - done, rc = %d\n", rc);
 	return rc;
@@ -856,9 +857,12 @@ static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
 static int qed_fill_rdma_dev_info(struct qed_dev *cdev,
 				  struct qed_dev_rdma_info *info)
 {
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+
 	memset(info, 0, sizeof(*info));
 
 	info->rdma_type = QED_RDMA_TYPE_ROCE;
+	info->user_dpm_enabled = (p_hwfn->db_bar_no_edpm == 0);
 
 	qed_fill_dev_info(cdev, &info->common);
 

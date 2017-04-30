@@ -1354,7 +1354,7 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 pwm_regsize, norm_regsize;
 	u32 non_pwm_conn, min_addr_reg1;
-	u32 db_bar_size, n_cpus;
+	u32 db_bar_size, n_cpus = 1;
 	u32 roce_edpm_mode;
 	u32 pf_dems_shift;
 	int rc = 0;
@@ -1414,6 +1414,8 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		if (cond)
 			qed_rdma_dpm_bar(p_hwfn, p_ptt);
 	}
+
+	p_hwfn->wid_count = (u16) n_cpus;
 
 	DP_INFO(p_hwfn,
 		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s\n",

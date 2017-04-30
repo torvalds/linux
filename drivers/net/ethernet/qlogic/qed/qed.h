@@ -526,6 +526,7 @@ struct qed_hwfn {
 	struct dbg_tools_data		dbg_info;
 
 	/* PWM region specific data */
+	u16				wid_count;
 	u32				dpi_size;
 	u32				dpi_count;
 
