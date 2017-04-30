@@ -49,7 +49,7 @@ static int am3517evm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops am3517evm_ops = {
+static const struct snd_soc_ops am3517evm_ops = {
 	.hw_params = am3517evm_hw_params,
 };
 
