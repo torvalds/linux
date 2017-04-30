@@ -303,12 +303,14 @@ config SND_SOC_ADAU1761
 	select SND_SOC_ADAU17X1
 
 config SND_SOC_ADAU1761_I2C
-	tristate
+	tristate "Analog Devices AU1761 CODEC - I2C"
+	depends on I2C
 	select SND_SOC_ADAU1761
 	select REGMAP_I2C
 
 config SND_SOC_ADAU1761_SPI
-	tristate
+	tristate "Analog Devices AU1761 CODEC - SPI"
+	depends on SPI
 	select SND_SOC_ADAU1761
 	select REGMAP_SPI
 
