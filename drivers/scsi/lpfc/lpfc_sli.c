@@ -6338,7 +6338,7 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 }
 
 /**
- * lpfc_sli4_repost_sgl_list - Repsot the buffers sgl pages as block
+ * lpfc_sli4_repost_sgl_list - Repost the buffers sgl pages as block
  * @phba: pointer to lpfc hba data structure.
  * @pring: Pointer to driver SLI ring object.
  * @sgl_list: linked link of sgl buffers to post
@@ -13758,7 +13758,10 @@ lpfc_sli4_queue_free(struct lpfc_queue *queue)
 		lpfc_free_rq_buffer(queue->phba, queue);
 		kfree(queue->rqbp);
 	}
-	kfree(queue->pring);
+
+	if (!list_empty(&queue->wq_list))
+		list_del(&queue->wq_list);
+
 	kfree(queue);
 	return;
 }
@@ -14738,6 +14741,9 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	case LPFC_Q_CREATE_VERSION_1:
 		bf_set(lpfc_mbx_wq_create_wqe_count, &wq_create->u.request_1,
 		       wq->entry_count);
+		bf_set(lpfc_mbox_hdr_version, &shdr->request,
+		       LPFC_Q_CREATE_VERSION_1);
+
 		switch (wq->entry_size) {
 		default:
 		case 64:
@@ -15561,6 +15567,8 @@ lpfc_wq_destroy(struct lpfc_hba *phba, struct lpfc_queue *wq)
 	}
 	/* Remove wq from any list */
 	list_del_init(&wq->list);
+	kfree(wq->pring);
+	wq->pring = NULL;
 	mempool_free(mbox, wq->phba->mbox_mem_pool);
 	return status;
 }
@@ -16513,7 +16521,7 @@ lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
  * This function sends a basic response to a previous unsol sequence abort
  * event after aborting the sequence handling.
  **/
-static void
+void
 lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 			struct fc_frame_header *fc_hdr, bool aborted)
 {
@@ -16534,14 +16542,13 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 
 	ndlp = lpfc_findnode_did(vport, sid);
 	if (!ndlp) {
-		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		ndlp = lpfc_nlp_init(vport, sid);
 		if (!ndlp) {
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
 					 "1268 Failed to allocate ndlp for "
 					 "oxid:x%x SID:x%x\n", oxid, sid);
 			return;
 		}
-		lpfc_nlp_init(vport, ndlp, sid);
 		/* Put ndlp onto pport node list */
 		lpfc_enqueue_node(vport, ndlp);
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
@@ -16689,6 +16696,11 @@ lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 			aborted = lpfc_sli4_abort_ulp_seq(vport, dmabuf);
 	}
 	lpfc_in_buf_free(phba, &dmabuf->dbuf);
+
+	if (phba->nvmet_support) {
+		lpfc_nvmet_rcv_unsol_abort(vport, &fc_hdr);
+		return;
+	}
 
 	/* Respond with BA_ACC or BA_RJT accordingly */
 	lpfc_sli4_seq_abort_rsp(vport, &fc_hdr, aborted);

@@ -666,7 +666,7 @@ fcloop_targetport_delete(struct nvmet_fc_target_port *targetport)
 #define	FCLOOP_SGL_SEGS			256
 #define FCLOOP_DMABOUND_4G		0xFFFFFFFF
 
-struct nvme_fc_port_template fctemplate = {
+static struct nvme_fc_port_template fctemplate = {
 	.localport_delete	= fcloop_localport_delete,
 	.remoteport_delete	= fcloop_remoteport_delete,
 	.create_queue		= fcloop_create_queue,
@@ -686,7 +686,7 @@ struct nvme_fc_port_template fctemplate = {
 	.fcprqst_priv_sz	= sizeof(struct fcloop_ini_fcpreq),
 };
 
-struct nvmet_fc_target_template tgttemplate = {
+static struct nvmet_fc_target_template tgttemplate = {
 	.targetport_delete	= fcloop_targetport_delete,
 	.xmt_ls_rsp		= fcloop_xmt_ls_rsp,
 	.fcp_op			= fcloop_fcp_op,

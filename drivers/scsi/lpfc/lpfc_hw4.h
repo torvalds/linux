@@ -2720,6 +2720,9 @@ struct lpfc_mbx_request_features {
 #define lpfc_mbx_rq_ftr_rq_ifip_SHIFT		7
 #define lpfc_mbx_rq_ftr_rq_ifip_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rq_ifip_WORD		word2
+#define lpfc_mbx_rq_ftr_rq_iaar_SHIFT		9
+#define lpfc_mbx_rq_ftr_rq_iaar_MASK		0x00000001
+#define lpfc_mbx_rq_ftr_rq_iaar_WORD		word2
 #define lpfc_mbx_rq_ftr_rq_perfh_SHIFT		11
 #define lpfc_mbx_rq_ftr_rq_perfh_MASK		0x00000001
 #define lpfc_mbx_rq_ftr_rq_perfh_WORD		word2
@@ -3853,6 +3856,7 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_TYPE_NO_HARD_ALPA	0x3
 #define LPFC_FC_LA_TYPE_MDS_LINK_DOWN	0x4
 #define LPFC_FC_LA_TYPE_MDS_LOOPBACK	0x5
+#define LPFC_FC_LA_TYPE_UNEXP_WWPN	0x6
 #define lpfc_acqe_fc_la_port_type_SHIFT		6
 #define lpfc_acqe_fc_la_port_type_MASK		0x00000003
 #define lpfc_acqe_fc_la_port_type_WORD		word0
