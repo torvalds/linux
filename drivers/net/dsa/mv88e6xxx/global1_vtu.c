@@ -16,8 +16,8 @@
 
 /* Offset 0x02: VTU FID Register */
 
-int mv88e6xxx_g1_vtu_fid_read(struct mv88e6xxx_chip *chip,
-			      struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_fid_read(struct mv88e6xxx_chip *chip,
+				     struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val;
 	int err;
@@ -31,8 +31,8 @@ int mv88e6xxx_g1_vtu_fid_read(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-int mv88e6xxx_g1_vtu_fid_write(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_fid_write(struct mv88e6xxx_chip *chip,
+				      struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val = entry->fid & GLOBAL_VTU_FID_MASK;
 
@@ -41,8 +41,8 @@ int mv88e6xxx_g1_vtu_fid_write(struct mv88e6xxx_chip *chip,
 
 /* Offset 0x03: VTU SID Register */
 
-int mv88e6xxx_g1_vtu_sid_read(struct mv88e6xxx_chip *chip,
-			      struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_sid_read(struct mv88e6xxx_chip *chip,
+				     struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val;
 	int err;
@@ -56,8 +56,8 @@ int mv88e6xxx_g1_vtu_sid_read(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-int mv88e6xxx_g1_vtu_sid_write(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_sid_write(struct mv88e6xxx_chip *chip,
+				      struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val = entry->sid & GLOBAL_VTU_SID_MASK;
 
@@ -66,12 +66,12 @@ int mv88e6xxx_g1_vtu_sid_write(struct mv88e6xxx_chip *chip,
 
 /* Offset 0x05: VTU Operation Register */
 
-int mv88e6xxx_g1_vtu_op_wait(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_g1_vtu_op_wait(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_g1_wait(chip, GLOBAL_VTU_OP, GLOBAL_VTU_OP_BUSY);
 }
 
-int mv88e6xxx_g1_vtu_op(struct mv88e6xxx_chip *chip, u16 op)
+static int mv88e6xxx_g1_vtu_op(struct mv88e6xxx_chip *chip, u16 op)
 {
 	int err;
 
@@ -84,8 +84,8 @@ int mv88e6xxx_g1_vtu_op(struct mv88e6xxx_chip *chip, u16 op)
 
 /* Offset 0x06: VTU VID Register */
 
-int mv88e6xxx_g1_vtu_vid_read(struct mv88e6xxx_chip *chip,
-			      struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_vid_read(struct mv88e6xxx_chip *chip,
+				     struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val;
 	int err;
@@ -100,8 +100,8 @@ int mv88e6xxx_g1_vtu_vid_read(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
+				      struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val = entry->vid & 0xfff;
 
@@ -116,8 +116,8 @@ int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
  * Offset 0x09: VTU/STU Data Register 3
  */
 
-int mv88e6185_g1_vtu_data_read(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6185_g1_vtu_data_read(struct mv88e6xxx_chip *chip,
+				      struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 regs[3];
 	int i;
@@ -144,8 +144,8 @@ int mv88e6185_g1_vtu_data_read(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
-				struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
+				       struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 regs[3] = { 0 };
 	int i;
@@ -174,8 +174,8 @@ int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
 
 /* VLAN Translation Unit Operations */
 
-int mv88e6xxx_g1_vtu_stu_getnext(struct mv88e6xxx_chip *chip,
-				 struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_stu_getnext(struct mv88e6xxx_chip *chip,
+					struct mv88e6xxx_vtu_entry *entry)
 {
 	int err;
 
@@ -194,8 +194,8 @@ int mv88e6xxx_g1_vtu_stu_getnext(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g1_vtu_vid_read(chip, entry);
 }
 
-int mv88e6xxx_g1_vtu_stu_get(struct mv88e6xxx_chip *chip,
-			     struct mv88e6xxx_vtu_entry *vtu)
+static int mv88e6xxx_g1_vtu_stu_get(struct mv88e6xxx_chip *chip,
+				    struct mv88e6xxx_vtu_entry *vtu)
 {
 	struct mv88e6xxx_vtu_entry stu;
 	int err;
@@ -216,8 +216,8 @@ int mv88e6xxx_g1_vtu_stu_get(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
-			     struct mv88e6xxx_vtu_entry *entry)
+static int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+				    struct mv88e6xxx_vtu_entry *entry)
 {
 	int err;
 

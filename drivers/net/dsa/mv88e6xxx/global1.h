@@ -50,30 +50,6 @@ int mv88e6xxx_g1_atu_flush(struct mv88e6xxx_chip *chip, u16 fid, bool all);
 int mv88e6xxx_g1_atu_remove(struct mv88e6xxx_chip *chip, u16 fid, int port,
 			    bool all);
 
-int mv88e6xxx_g1_vtu_fid_read(struct mv88e6xxx_chip *chip,
-			      struct mv88e6xxx_vtu_entry *entry);
-int mv88e6xxx_g1_vtu_fid_write(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry);
-int mv88e6xxx_g1_vtu_sid_read(struct mv88e6xxx_chip *chip,
-			      struct mv88e6xxx_vtu_entry *entry);
-int mv88e6xxx_g1_vtu_sid_write(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry);
-int mv88e6xxx_g1_vtu_vid_read(struct mv88e6xxx_chip *chip,
-			      struct mv88e6xxx_vtu_entry *entry);
-int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry);
-int mv88e6185_g1_vtu_data_read(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry);
-int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
-				struct mv88e6xxx_vtu_entry *entry);
-int mv88e6xxx_g1_vtu_op_wait(struct mv88e6xxx_chip *chip);
-int mv88e6xxx_g1_vtu_op(struct mv88e6xxx_chip *chip, u16 op);
-int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
-			     struct mv88e6xxx_vtu_entry *entry);
-int mv88e6xxx_g1_vtu_stu_getnext(struct mv88e6xxx_chip *chip,
-				 struct mv88e6xxx_vtu_entry *vtu);
-int mv88e6xxx_g1_vtu_stu_get(struct mv88e6xxx_chip *chip,
-			     struct mv88e6xxx_vtu_entry *vtu);
 int mv88e6185_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
 int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
