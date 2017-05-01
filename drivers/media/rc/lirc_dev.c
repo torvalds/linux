@@ -238,16 +238,16 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 
 	ir->d = *d;
 
+	device_initialize(&ir->dev);
 	ir->dev.devt = MKDEV(MAJOR(lirc_base_dev), ir->d.minor);
 	ir->dev.class = lirc_class;
 	ir->dev.parent = d->dev;
 	ir->dev.release = lirc_release;
 	dev_set_name(&ir->dev, "lirc%d", ir->d.minor);
-	device_initialize(&ir->dev);
 
 	err = lirc_cdev_add(ir);
 	if (err)
-		goto out_sysfs;
+		goto out_free_dev;
 
 	ir->attached = 1;
 
@@ -264,7 +264,7 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 	return minor;
 out_cdev:
 	cdev_del(&ir->cdev);
-out_sysfs:
+out_free_dev:
 	put_device(&ir->dev);
 out_lock:
 	mutex_unlock(&lirc_dev_lock);
