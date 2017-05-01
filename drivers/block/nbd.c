@@ -1396,12 +1396,11 @@ static void nbd_dbg_close(void)
 
 #endif
 
-static int nbd_init_request(void *data, struct request *rq,
-			    unsigned int hctx_idx, unsigned int request_idx,
-			    unsigned int numa_node)
+static int nbd_init_request(struct blk_mq_tag_set *set, struct request *rq,
+			    unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(rq);
-	cmd->nbd = data;
+	cmd->nbd = set->driver_data;
 	return 0;
 }
 

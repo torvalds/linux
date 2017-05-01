@@ -356,11 +356,11 @@ static void nvme_admin_exit_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_i
 	nvmeq->tags = NULL;
 }
 
-static int nvme_admin_init_request(void *data, struct request *req,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+static int nvme_admin_init_request(struct blk_mq_tag_set *set,
+		struct request *req, unsigned int hctx_idx,
+		unsigned int numa_node)
 {
-	struct nvme_dev *dev = data;
+	struct nvme_dev *dev = set->driver_data;
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = dev->queues[0];
 
@@ -383,11 +383,10 @@ static int nvme_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	return 0;
 }
 
-static int nvme_init_request(void *data, struct request *req,
-				unsigned int hctx_idx, unsigned int rq_idx,
-				unsigned int numa_node)
+static int nvme_init_request(struct blk_mq_tag_set *set, struct request *req,
+		unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct nvme_dev *dev = data;
+	struct nvme_dev *dev = set->driver_data;
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = dev->queues[hctx_idx + 1];
 

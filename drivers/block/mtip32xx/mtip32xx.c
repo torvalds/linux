@@ -3818,10 +3818,10 @@ static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_MQ_RQ_QUEUE_ERROR;
 }
 
-static void mtip_free_cmd(void *data, struct request *rq,
-			  unsigned int hctx_idx, unsigned int request_idx)
+static void mtip_free_cmd(struct blk_mq_tag_set *set, struct request *rq,
+			  unsigned int hctx_idx)
 {
-	struct driver_data *dd = data;
+	struct driver_data *dd = set->driver_data;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
 	if (!cmd->command)
@@ -3831,19 +3831,11 @@ static void mtip_free_cmd(void *data, struct request *rq,
 				cmd->command, cmd->command_dma);
 }
 
-static int mtip_init_cmd(void *data, struct request *rq, unsigned int hctx_idx,
-			 unsigned int request_idx, unsigned int numa_node)
+static int mtip_init_cmd(struct blk_mq_tag_set *set, struct request *rq,
+			 unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct driver_data *dd = data;
+	struct driver_data *dd = set->driver_data;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-
-	/*
-	 * For flush requests, request_idx starts at the end of the
-	 * tag space.  Since we don't support FLUSH/FUA, simply return
-	 * 0 as there's nothing to be done.
-	 */
-	if (request_idx >= MTIP_MAX_COMMAND_SLOTS)
-		return 0;
 
 	cmd->command = dmam_alloc_coherent(&dd->pdev->dev, CMD_DMA_ALLOC_SZ,
 			&cmd->command_dma, GFP_KERNEL);
