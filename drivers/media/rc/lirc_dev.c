@@ -36,8 +36,6 @@
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
-static bool debug;
-
 #define IRCTL_DEV_NAME	"BaseRemoteCtl"
 #define NOPLUG		-1
 #define LOGHEAD		"lirc_dev (%s[%d]): "
@@ -623,6 +621,3 @@ module_exit(lirc_dev_exit);
 MODULE_DESCRIPTION("LIRC base driver module");
 MODULE_AUTHOR("Artur Lipowski");
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging messages");
