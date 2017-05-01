@@ -29,6 +29,10 @@ static int sun4i_de_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
 	return drm_atomic_helper_check_planes(dev, state);
 }
 

@@ -115,6 +115,7 @@ static void sun4i_backend_layer_atomic_update(struct drm_plane *plane,
 	}
 
 	sun4i_backend_update_layer_coord(backend, layer->id, plane);
+	sun4i_backend_update_layer_zpos(backend, layer->id, plane);
 	sun4i_backend_layer_enable(backend, layer->id, true);
 }
 
@@ -236,6 +237,8 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 				i ? "overlay" : "primary");
 			return ERR_CAST(layer);
 		};
+
+		drm_plane_create_zpos_immutable_property(&layer->plane, i);
 
 		DRM_DEBUG_DRIVER("Assigning %s plane to pipe %d\n",
 				 i ? "overlay" : "primary", plane->pipe);

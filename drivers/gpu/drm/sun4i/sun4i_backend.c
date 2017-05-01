@@ -271,6 +271,21 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	return 0;
 }
 
+int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend, int layer,
+				    struct drm_plane *plane)
+{
+	struct drm_plane_state *state = plane->state;
+	unsigned int priority = state->normalized_zpos;
+
+	DRM_DEBUG_DRIVER("Setting layer %d's priority to %d\n", layer, priority);
+
+	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_ATTCTL_REG0(layer),
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL_MASK,
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL(priority));
+
+	return 0;
+}
+
 static bool sun4i_backend_plane_uses_scaler(struct drm_plane_state *state)
 {
 	u16 src_h = state->src_h >> 16;
