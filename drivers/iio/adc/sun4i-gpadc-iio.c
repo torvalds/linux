@@ -700,6 +700,7 @@ static const struct platform_device_id sun4i_gpadc_id[] = {
 	{ "sun6i-a31-gpadc-iio", (kernel_ulong_t)&sun6i_gpadc_data },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(platform, sun4i_gpadc_id);
 
 static struct platform_driver sun4i_gpadc_driver = {
 	.driver = {
