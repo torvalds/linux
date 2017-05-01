@@ -223,7 +223,7 @@ pnfs_generic_alloc_ds_commits(struct nfs_commit_info *cinfo,
 		 */
 		if (!pnfs_is_valid_lseg(bucket->clseg) &&
 		    !test_bit(NFS_LSEG_LAYOUTRETURN, &bucket->clseg->pls_flags))
-			continue;
+			break;
 		data = nfs_commitdata_alloc(false);
 		if (!data)
 			break;
