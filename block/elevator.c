@@ -950,7 +950,6 @@ static int elevator_switch_mq(struct request_queue *q,
 	int ret;
 
 	blk_mq_freeze_queue(q);
-	blk_mq_quiesce_queue(q);
 
 	if (q->elevator) {
 		if (q->elevator->registered)
@@ -978,9 +977,7 @@ static int elevator_switch_mq(struct request_queue *q,
 
 out:
 	blk_mq_unfreeze_queue(q);
-	blk_mq_start_stopped_hw_queues(q, true);
 	return ret;
-
 }
 
 /*
