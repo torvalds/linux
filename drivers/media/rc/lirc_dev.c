@@ -372,7 +372,7 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 	}
 
 	if (!ir->attached)
-		return POLLERR;
+		return POLLHUP | POLLERR;
 
 	if (ir->buf) {
 		poll_wait(file, &ir->buf->wait_poll, wait);
