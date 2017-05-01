@@ -165,10 +165,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *			have to write to the buffer by other means, like irq's
  *			(see also lirc_serial.c).
  *
- * @set_use_inc:	set_use_inc will be called after device is opened
- *
- * @set_use_dec:	set_use_dec will be called after device is closed
- *
  * @rdev:		Pointed to struct rc_dev associated with the LIRC
  *			device.
  *
@@ -198,8 +194,6 @@ struct lirc_driver {
 	int max_timeout;
 	int (*add_to_buf)(void *data, struct lirc_buffer *buf);
 	struct lirc_buffer *rbuf;
-	int (*set_use_inc)(void *data);
-	void (*set_use_dec)(void *data);
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
 	struct device *dev;
