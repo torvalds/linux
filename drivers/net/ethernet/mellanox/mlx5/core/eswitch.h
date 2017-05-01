@@ -36,7 +36,6 @@
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
 #include <net/devlink.h>
-#include <net/ip_tunnels.h>
 #include <linux/mlx5/device.h>
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
@@ -213,6 +212,13 @@ struct mlx5_esw_offload {
 	u8 encap;
 };
 
+/* E-Switch MC FDB table hash node */
+struct esw_mc_addr { /* SRIOV only */
+	struct l2addr_node     node;
+	struct mlx5_flow_handle *uplink_rule; /* Forward to uplink rule */
+	u32                    refcnt;
+};
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_l2_table    l2_table;
@@ -226,7 +232,7 @@ struct mlx5_eswitch {
 	 * and async SRIOV admin state changes
 	 */
 	struct mutex            state_lock;
-	struct esw_mc_addr      *mc_promisc;
+	struct esw_mc_addr	mc_promisc;
 
 	struct {
 		bool            enabled;
@@ -289,18 +295,6 @@ enum {
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x4000
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x8000
 
-struct mlx5_encap_entry {
-	struct hlist_node encap_hlist;
-	struct list_head flows;
-	u32 encap_id;
-	struct neighbour *n;
-	struct ip_tunnel_info tun_info;
-	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
-
-	struct net_device *out_dev;
-	int tunnel_type;
-};
-
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
 	struct mlx5_eswitch_rep *out_rep;
@@ -308,8 +302,9 @@ struct mlx5_esw_flow_attr {
 	int	action;
 	u16	vlan;
 	bool	vlan_handled;
-	struct mlx5_encap_entry *encap;
+	u32	encap_id;
 	u32	mod_hdr_id;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 
 int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
