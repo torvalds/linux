@@ -345,6 +345,36 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
 }, {
+	.code = MEDIA_BUS_FMT_SGBRG8_1X8,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGBRG8,
+		.name			= "Bayer 8 GBRG",
+		.bits_per_sample	= 8,
+		.packing		= PXA_MBUS_PACKING_NONE,
+		.order			= PXA_MBUS_ORDER_LE,
+		.layout			= PXA_MBUS_LAYOUT_PACKED,
+	},
+}, {
+	.code = MEDIA_BUS_FMT_SGRBG8_1X8,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SGRBG8,
+		.name			= "Bayer 8 GRBG",
+		.bits_per_sample	= 8,
+		.packing		= PXA_MBUS_PACKING_NONE,
+		.order			= PXA_MBUS_ORDER_LE,
+		.layout			= PXA_MBUS_LAYOUT_PACKED,
+	},
+}, {
+	.code = MEDIA_BUS_FMT_SRGGB8_1X8,
+	.fmt = {
+		.fourcc			= V4L2_PIX_FMT_SRGGB8,
+		.name			= "Bayer 8 RGGB",
+		.bits_per_sample	= 8,
+		.packing		= PXA_MBUS_PACKING_NONE,
+		.order			= PXA_MBUS_ORDER_LE,
+		.layout			= PXA_MBUS_LAYOUT_PACKED,
+	},
+}, {
 	.code = MEDIA_BUS_FMT_SBGGR10_1X10,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR10,
@@ -441,16 +471,6 @@ static const struct pxa_mbus_lookup mbus_fmt[] = {
 		.name			= "YVYU 16bit",
 		.bits_per_sample	= 16,
 		.packing		= PXA_MBUS_PACKING_EXTEND16,
-		.order			= PXA_MBUS_ORDER_LE,
-		.layout			= PXA_MBUS_LAYOUT_PACKED,
-	},
-}, {
-	.code = MEDIA_BUS_FMT_SGRBG8_1X8,
-	.fmt = {
-		.fourcc			= V4L2_PIX_FMT_SGRBG8,
-		.name			= "Bayer 8 GRBG",
-		.bits_per_sample	= 8,
-		.packing		= PXA_MBUS_PACKING_NONE,
 		.order			= PXA_MBUS_ORDER_LE,
 		.layout			= PXA_MBUS_LAYOUT_PACKED,
 	},
