@@ -25,11 +25,12 @@
 #define STATS_INTERVAL_S 2U
 
 static int ifindex = -1;
+static __u32 xdp_flags = 0;
 
 static void int_exit(int sig)
 {
 	if (ifindex > -1)
-		set_link_xdp_fd(ifindex, -1, 0);
+		set_link_xdp_fd(ifindex, -1, xdp_flags);
 	exit(0);
 }
 
@@ -142,7 +143,6 @@ int main(int argc, char **argv)
 	struct iptnl_info tnl = {};
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct vip vip = {};
-	__u32 xdp_flags = 0;
 	char filename[256];
 	int opt;
 	int i;
