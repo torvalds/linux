@@ -1292,7 +1292,7 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 		}
 
 		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_STU)) {
-			err = mv88e6xxx_g1_vtu_sid_read(chip, &next);
+			err = mv88e6xxx_g1_vtu_stu_get(chip, &next);
 			if (err)
 				return err;
 		}

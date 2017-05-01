@@ -194,6 +194,28 @@ int mv88e6xxx_g1_vtu_stu_getnext(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g1_vtu_vid_read(chip, entry);
 }
 
+int mv88e6xxx_g1_vtu_stu_get(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *vtu)
+{
+	struct mv88e6xxx_vtu_entry stu;
+	int err;
+
+	err = mv88e6xxx_g1_vtu_sid_read(chip, vtu);
+	if (err)
+		return err;
+
+	stu.sid = vtu->sid - 1;
+
+	err = mv88e6xxx_g1_vtu_stu_getnext(chip, &stu);
+	if (err)
+		return err;
+
+	if (stu.sid != vtu->sid || !stu.valid)
+		return -EINVAL;
+
+	return 0;
+}
+
 int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry)
 {
