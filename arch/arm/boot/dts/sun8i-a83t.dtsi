@@ -162,7 +162,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		pio: pinctrl@01c20800 {
+		pio: pinctrl@1c20800 {
 			compatible = "allwinner,sun8i-a83t-pinctrl";
 			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
@@ -193,7 +193,7 @@
 			};
 		};
 
-		timer@01c20c00 {
+		timer@1c20c00 {
 			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x01c20c00 0xa0>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
@@ -201,7 +201,7 @@
 			clocks = <&osc24M>;
 		};
 
-		watchdog@01c20ca0 {
+		watchdog@1c20ca0 {
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x01c20ca0 0x20>;
 			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
@@ -218,7 +218,7 @@
 			status = "disabled";
 		};
 
-		gic: interrupt-controller@01c81000 {
+		gic: interrupt-controller@1c81000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
 			      <0x01c82000 0x2000>,
