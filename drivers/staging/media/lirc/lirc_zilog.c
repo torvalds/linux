@@ -1385,7 +1385,6 @@ static struct lirc_driver lirc_template = {
 	.minor		= -1,
 	.code_length	= 13,
 	.buffer_size	= BUFLEN / 2,
-	.sample_rate	= 0, /* tell lirc_dev to not start its own kthread */
 	.chunk_size	= 2,
 	.fops		= &lirc_fops,
 	.owner		= THIS_MODULE,
