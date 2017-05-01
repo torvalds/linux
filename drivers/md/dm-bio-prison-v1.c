@@ -5,7 +5,8 @@
  */
 
 #include "dm.h"
-#include "dm-bio-prison.h"
+#include "dm-bio-prison-v1.h"
+#include "dm-bio-prison-v2.h"
 
 #include <linux/spinlock.h>
 #include <linux/mempool.h>
@@ -398,7 +399,7 @@ EXPORT_SYMBOL_GPL(dm_deferred_set_add_work);
 
 /*----------------------------------------------------------------*/
 
-static int __init dm_bio_prison_init(void)
+static int __init dm_bio_prison_init_v1(void)
 {
 	_cell_cache = KMEM_CACHE(dm_bio_prison_cell, 0);
 	if (!_cell_cache)
@@ -407,10 +408,49 @@ static int __init dm_bio_prison_init(void)
 	return 0;
 }
 
-static void __exit dm_bio_prison_exit(void)
+static void dm_bio_prison_exit_v1(void)
 {
 	kmem_cache_destroy(_cell_cache);
 	_cell_cache = NULL;
+}
+
+static int (*_inits[])(void) __initdata = {
+	dm_bio_prison_init_v1,
+	dm_bio_prison_init_v2,
+};
+
+static void (*_exits[])(void) = {
+	dm_bio_prison_exit_v1,
+	dm_bio_prison_exit_v2,
+};
+
+static int __init dm_bio_prison_init(void)
+{
+	const int count = ARRAY_SIZE(_inits);
+
+	int r, i;
+
+	for (i = 0; i < count; i++) {
+		r = _inits[i]();
+		if (r)
+			goto bad;
+	}
+
+	return 0;
+
+      bad:
+	while (i--)
+		_exits[i]();
+
+	return r;
+}
+
+static void __exit dm_bio_prison_exit(void)
+{
+	int i = ARRAY_SIZE(_exits);
+
+	while (i--)
+		_exits[i]();
 }
 
 /*
