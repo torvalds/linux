@@ -118,6 +118,7 @@ static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
                                  struct amdgpu_cu_info *cu_info);
 static uint64_t gfx_v9_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 static void gfx_v9_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num, u32 instance);
+static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring);
 
 static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -2963,8 +2964,12 @@ static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 
 	control |= ib->length_dw | (vm_id << 24);
 
-	if (amdgpu_sriov_vf(ring->adev) && (ib->flags & AMDGPU_IB_FLAG_PREEMPT))
+	if (amdgpu_sriov_vf(ring->adev) && (ib->flags & AMDGPU_IB_FLAG_PREEMPT)) {
 		control |= INDIRECT_BUFFER_PRE_ENB(1);
+
+		if (!(ib->flags & AMDGPU_IB_FLAG_CE))
+			gfx_v9_0_ring_emit_de_meta(ring);
+	}
 
 	amdgpu_ring_write(ring, header);
 BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
@@ -3205,9 +3210,6 @@ static void gfx_v9_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 	amdgpu_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
 	amdgpu_ring_write(ring, dw2);
 	amdgpu_ring_write(ring, 0);
-
-	if (amdgpu_sriov_vf(ring->adev))
-		gfx_v9_0_ring_emit_de_meta(ring);
 }
 
 static unsigned gfx_v9_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring)

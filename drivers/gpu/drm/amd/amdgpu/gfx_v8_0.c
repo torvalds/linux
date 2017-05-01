@@ -6420,8 +6420,12 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 
 	control |= ib->length_dw | (vm_id << 24);
 
-	if (amdgpu_sriov_vf(ring->adev) && ib->flags & AMDGPU_IB_FLAG_PREEMPT)
+	if (amdgpu_sriov_vf(ring->adev) && (ib->flags & AMDGPU_IB_FLAG_PREEMPT)) {
 		control |= INDIRECT_BUFFER_PRE_ENB(1);
+
+		if (!(ib->flags & AMDGPU_IB_FLAG_CE))
+			gfx_v8_0_ring_emit_de_meta(ring);
+	}
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -6631,9 +6635,6 @@ static void gfx_v8_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 	amdgpu_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
 	amdgpu_ring_write(ring, dw2);
 	amdgpu_ring_write(ring, 0);
-
-	if (amdgpu_sriov_vf(ring->adev))
-		gfx_v8_0_ring_emit_de_meta(ring);
 }
 
 static unsigned gfx_v8_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring)
