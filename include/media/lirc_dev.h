@@ -210,7 +210,4 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait);
 long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 ssize_t lirc_dev_fop_read(struct file *file, char __user *buffer, size_t length,
 			  loff_t *ppos);
-ssize_t lirc_dev_fop_write(struct file *file, const char __user *buffer,
-			   size_t length, loff_t *ppos);
-
 #endif
