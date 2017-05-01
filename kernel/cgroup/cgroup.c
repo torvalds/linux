@@ -436,7 +436,7 @@ out_unlock:
 	return css;
 }
 
-static void cgroup_get(struct cgroup *cgrp)
+static void __maybe_unused cgroup_get(struct cgroup *cgrp)
 {
 	css_get(&cgrp->self);
 }
