@@ -1359,33 +1359,8 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 	return mv88e6xxx_g1_atu_flush(chip, *fid, true);
 }
 
-static int _mv88e6xxx_vtu_new(struct mv88e6xxx_chip *chip, u16 vid,
-			      struct mv88e6xxx_vtu_entry *entry)
-{
-	struct dsa_switch *ds = chip->ds;
-	struct mv88e6xxx_vtu_entry vlan = {
-		.valid = true,
-		.vid = vid,
-	};
-	int i, err;
-
-	err = mv88e6xxx_atu_new(chip, &vlan.fid);
-	if (err)
-		return err;
-
-	/* exclude all ports except the CPU and DSA ports */
-	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
-		vlan.member[i] = dsa_is_cpu_port(ds, i) ||
-			dsa_is_dsa_port(ds, i)
-			? GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED
-			: GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
-
-	*entry = vlan;
-	return 0;
-}
-
-static int _mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
-			      struct mv88e6xxx_vtu_entry *entry, bool creat)
+static int mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
+			     struct mv88e6xxx_vtu_entry *entry, bool new)
 {
 	int err;
 
@@ -1399,17 +1374,28 @@ static int _mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
 	if (err)
 		return err;
 
-	if (entry->vid != vid || !entry->valid) {
-		if (!creat)
-			return -EOPNOTSUPP;
-		/* -ENOENT would've been more appropriate, but switchdev expects
-		 * -EOPNOTSUPP to inform bridge about an eventual software VLAN.
-		 */
+	if (entry->vid == vid && entry->valid)
+		return 0;
 
-		err = _mv88e6xxx_vtu_new(chip, vid, entry);
+	if (new) {
+		int i;
+
+		/* Initialize a fresh VLAN entry */
+		memset(entry, 0, sizeof(*entry));
+		entry->valid = true;
+		entry->vid = vid;
+
+		/* Include only CPU and DSA ports */
+		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
+			entry->member[i] = dsa_is_normal_port(chip->ds, i) ?
+				GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER :
+				GLOBAL_VTU_DATA_MEMBER_TAG_UNMODIFIED;
+
+		return mv88e6xxx_atu_new(chip, &entry->fid);
 	}
 
-	return err;
+	/* switchdev expects -EOPNOTSUPP to honor software VLANs */
+	return -EOPNOTSUPP;
 }
 
 static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
@@ -1519,7 +1505,7 @@ static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
 	struct mv88e6xxx_vtu_entry vlan;
 	int err;
 
-	err = _mv88e6xxx_vtu_get(chip, vid, &vlan, true);
+	err = mv88e6xxx_vtu_get(chip, vid, &vlan, true);
 	if (err)
 		return err;
 
@@ -1564,7 +1550,7 @@ static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_chip *chip,
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
 
-	err = _mv88e6xxx_vtu_get(chip, vid, &vlan, false);
+	err = mv88e6xxx_vtu_get(chip, vid, &vlan, false);
 	if (err)
 		return err;
 
@@ -1639,7 +1625,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 	if (vid == 0)
 		err = mv88e6xxx_port_get_fid(chip, port, &vlan.fid);
 	else
-		err = _mv88e6xxx_vtu_get(chip, vid, &vlan, false);
+		err = mv88e6xxx_vtu_get(chip, vid, &vlan, false);
 	if (err)
 		return err;
 
