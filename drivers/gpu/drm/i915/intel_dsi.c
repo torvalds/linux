@@ -320,10 +320,10 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 
 		if (HAS_GMCH_DISPLAY(dev_priv))
 			intel_gmch_panel_fitting(crtc, pipe_config,
-						 intel_connector->panel.fitting_mode);
+						 conn_state->scaling_mode);
 		else
 			intel_pch_panel_fitting(crtc, pipe_config,
-						intel_connector->panel.fitting_mode);
+						conn_state->scaling_mode);
 	}
 
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
@@ -1592,7 +1592,6 @@ static int intel_dsi_set_property(struct drm_connector *connector,
 				  uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
-	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_crtc *crtc;
 	int ret;
 
@@ -1611,10 +1610,10 @@ static int intel_dsi_set_property(struct drm_connector *connector,
 			return -EINVAL;
 		}
 
-		if (intel_connector->panel.fitting_mode == val)
+		if (connector->state->scaling_mode == val)
 			return 0;
 
-		intel_connector->panel.fitting_mode = val;
+		connector->state->scaling_mode = val;
 	}
 
 	crtc = connector->state->crtc;
@@ -1680,7 +1679,7 @@ static void intel_dsi_add_properties(struct intel_connector *connector)
 		drm_object_attach_property(&connector->base.base,
 					   dev->mode_config.scaling_mode_property,
 					   DRM_MODE_SCALE_ASPECT);
-		connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
+		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 	}
 }
 

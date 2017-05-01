@@ -433,10 +433,10 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		pipe_config->has_pch_encoder = true;
 
 		intel_pch_panel_fitting(intel_crtc, pipe_config,
-					intel_connector->panel.fitting_mode);
+					conn_state->scaling_mode);
 	} else {
 		intel_gmch_panel_fitting(intel_crtc, pipe_config,
-					 intel_connector->panel.fitting_mode);
+					 conn_state->scaling_mode);
 
 	}
 
@@ -602,7 +602,6 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
 
 	if (property == dev->mode_config.scaling_mode_property) {
@@ -613,11 +612,11 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 			return -EINVAL;
 		}
 
-		if (intel_connector->panel.fitting_mode == value) {
+		if (connector->state->scaling_mode == value) {
 			/* the LVDS scaling property is not changed */
 			return 0;
 		}
-		intel_connector->panel.fitting_mode = value;
+		connector->state->scaling_mode = value;
 
 		crtc = intel_attached_encoder(connector)->base.crtc;
 		if (crtc && crtc->state->enable) {
@@ -1087,7 +1086,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	drm_object_attach_property(&connector->base,
 				      dev->mode_config.scaling_mode_property,
 				      DRM_MODE_SCALE_ASPECT);
-	intel_connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
+	connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
 	intel_lvds_pps_get_hw_state(dev_priv, &lvds_encoder->init_pps);
 	lvds_encoder->init_lvds_val = lvds;

@@ -266,7 +266,6 @@ struct intel_encoder {
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
 	struct drm_display_mode *downclock_mode;
-	int fitting_mode;
 
 	/* backlight */
 	struct {
