@@ -86,9 +86,9 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 				cpumask_pr_args(sched_group_cpus(group)));
 
 		if ((sd->flags & SD_OVERLAP) &&
-		    !cpumask_equal(sched_group_mask(group), sched_group_cpus(group))) {
+		    !cpumask_equal(group_balance_mask(group), sched_group_cpus(group))) {
 			printk(KERN_CONT " mask=%*pbl",
-				cpumask_pr_args(sched_group_mask(group)));
+				cpumask_pr_args(group_balance_mask(group)));
 		}
 
 		if (group->sgc->capacity != SCHED_CAPACITY_SCALE)
@@ -497,16 +497,16 @@ enum s_alloc {
 
 /*
  * Return the canonical balance CPU for this group, this is the first CPU
- * of this group that's also in the iteration mask.
+ * of this group that's also in the balance mask.
  *
- * The iteration mask are all those CPUs that could actually end up at this
- * group. See build_group_mask().
+ * The balance mask are all those CPUs that could actually end up at this
+ * group. See build_balance_mask().
  *
  * Also see should_we_balance().
  */
 int group_balance_cpu(struct sched_group *sg)
 {
-	return cpumask_first(sched_group_mask(sg));
+	return cpumask_first(group_balance_mask(sg));
 }
 
 
@@ -563,7 +563,7 @@ int group_balance_cpu(struct sched_group *sg)
  * groups include the CPUs of Node-0, while those CPUs would not in fact ever
  * end up at those groups (they would end up in group: 0-1,3).
  *
- * To correct this we have to introduce the group iteration mask. This mask
+ * To correct this we have to introduce the group balance mask. This mask
  * will contain those CPUs in the group that can reach this group given the
  * (child) domain tree.
  *
@@ -607,11 +607,8 @@ int group_balance_cpu(struct sched_group *sg)
 
 
 /*
- * Build an iteration mask that can exclude certain CPUs from the upwards
- * domain traversal.
- *
- * Only CPUs that can arrive at this group should be considered to continue
- * balancing.
+ * Build the balance mask; it contains only those CPUs that can arrive at this
+ * group and should be considered to continue balancing.
  *
  * We do this during the group creation pass, therefore the group information
  * isn't complete yet, however since each group represents a (child) domain we
@@ -619,7 +616,7 @@ int group_balance_cpu(struct sched_group *sg)
  * complete).
  */
 static void
-build_group_mask(struct sched_domain *sd, struct sched_group *sg, struct cpumask *mask)
+build_balance_mask(struct sched_domain *sd, struct sched_group *sg, struct cpumask *mask)
 {
 	const struct cpumask *sg_span = sched_group_cpus(sg);
 	struct sd_data *sdd = sd->private;
@@ -684,14 +681,14 @@ static void init_overlap_sched_group(struct sched_domain *sd,
 	struct cpumask *sg_span;
 	int cpu;
 
-	build_group_mask(sd, sg, mask);
+	build_balance_mask(sd, sg, mask);
 	cpu = cpumask_first_and(sched_group_cpus(sg), mask);
 
 	sg->sgc = *per_cpu_ptr(sdd->sgc, cpu);
 	if (atomic_inc_return(&sg->sgc->ref) == 1)
-		cpumask_copy(sched_group_mask(sg), mask);
+		cpumask_copy(group_balance_mask(sg), mask);
 	else
-		WARN_ON_ONCE(!cpumask_equal(sched_group_mask(sg), mask));
+		WARN_ON_ONCE(!cpumask_equal(group_balance_mask(sg), mask));
 
 	/*
 	 * Initialize sgc->capacity such that even if we mess up the
@@ -852,10 +849,10 @@ static struct sched_group *get_group(int cpu, struct sd_data *sdd)
 
 	if (child) {
 		cpumask_copy(sched_group_cpus(sg), sched_domain_span(child));
-		cpumask_copy(sched_group_mask(sg), sched_group_cpus(sg));
+		cpumask_copy(group_balance_mask(sg), sched_group_cpus(sg));
 	} else {
 		cpumask_set_cpu(cpu, sched_group_cpus(sg));
-		cpumask_set_cpu(cpu, sched_group_mask(sg));
+		cpumask_set_cpu(cpu, group_balance_mask(sg));
 	}
 
 	sg->sgc->capacity = SCHED_CAPACITY_SCALE * cpumask_weight(sched_group_cpus(sg));
