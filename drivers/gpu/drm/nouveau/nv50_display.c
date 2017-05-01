@@ -1119,9 +1119,13 @@ static void
 nv50_curs_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
 		  struct nv50_wndw_atom *asyw)
 {
-	asyh->curs.handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
-	asyh->curs.offset = asyw->image.offset;
-	asyh->set.curs = asyh->curs.visible;
+	u32 handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
+	u32 offset = asyw->image.offset;
+	if (asyh->curs.handle != handle || asyh->curs.offset != offset) {
+		asyh->curs.handle = handle;
+		asyh->curs.offset = offset;
+		asyh->set.curs = asyh->curs.visible;
+	}
 }
 
 static void
