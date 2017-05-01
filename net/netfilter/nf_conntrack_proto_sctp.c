@@ -535,6 +535,20 @@ out_invalid:
 	return -NF_ACCEPT;
 }
 
+static bool sctp_can_early_drop(const struct nf_conn *ct)
+{
+	switch (ct->proto.sctp.state) {
+	case SCTP_CONNTRACK_SHUTDOWN_SENT:
+	case SCTP_CONNTRACK_SHUTDOWN_RECD:
+	case SCTP_CONNTRACK_SHUTDOWN_ACK_SENT:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -781,6 +795,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
 	.error			= sctp_error,
+	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= sctp_to_nlattr,
@@ -816,6 +831,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
 	.error			= sctp_error,
+	.can_early_drop		= sctp_can_early_drop,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= sctp_to_nlattr,

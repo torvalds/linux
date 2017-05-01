@@ -503,7 +503,7 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 	if (nlh->nlmsg_type == NFNL_MSG_BATCH_BEGIN)
 		nfnetlink_rcv_skb_batch(skb, nlh);
 	else
-		netlink_rcv_skb(skb, &nfnetlink_rcv_msg);
+		netlink_rcv_skb(skb, nfnetlink_rcv_msg);
 }
 
 #ifdef CONFIG_MODULES

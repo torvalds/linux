@@ -184,6 +184,8 @@ static int __init nf_conntrack_sane_init(void)
 {
 	int i, ret = 0;
 
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sane_master));
+
 	sane_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!sane_buffer)
 		return -ENOMEM;
@@ -196,13 +198,11 @@ static int __init nf_conntrack_sane_init(void)
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&sane[2 * i], AF_INET, IPPROTO_TCP, "sane",
 				  SANE_PORT, ports[i], ports[i],
-				  &sane_exp_policy, 0,
-				  sizeof(struct nf_ct_sane_master), help, NULL,
+				  &sane_exp_policy, 0, help, NULL,
 				  THIS_MODULE);
 		nf_ct_helper_init(&sane[2 * i + 1], AF_INET6, IPPROTO_TCP, "sane",
 				  SANE_PORT, ports[i], ports[i],
-				  &sane_exp_policy, 0,
-				  sizeof(struct nf_ct_sane_master), help, NULL,
+				  &sane_exp_policy, 0, help, NULL,
 				  THIS_MODULE);
 	}
 

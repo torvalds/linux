@@ -232,7 +232,7 @@ nft_exthdr_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_exthdr_type __read_mostly = {
 	.name		= "exthdr",
-	.select_ops	= &nft_exthdr_select_ops,
+	.select_ops	= nft_exthdr_select_ops,
 	.policy		= nft_exthdr_policy,
 	.maxattr	= NFTA_EXTHDR_MAX,
 	.owner		= THIS_MODULE,

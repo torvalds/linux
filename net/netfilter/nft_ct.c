@@ -72,12 +72,12 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 
 	switch (priv->key) {
 	case NFT_CT_STATE:
-		if (ct == NULL)
-			state = NF_CT_STATE_INVALID_BIT;
-		else if (nf_ct_is_untracked(ct))
+		if (ct)
+			state = NF_CT_STATE_BIT(ctinfo);
+		else if (ctinfo == IP_CT_UNTRACKED)
 			state = NF_CT_STATE_UNTRACKED_BIT;
 		else
-			state = NF_CT_STATE_BIT(ctinfo);
+			state = NF_CT_STATE_INVALID_BIT;
 		*dest = state;
 		return;
 	default:
@@ -264,7 +264,7 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 	struct nf_conn *ct;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct == NULL)
+	if (ct == NULL || nf_ct_is_template(ct))
 		return;
 
 	switch (priv->key) {
@@ -283,6 +283,22 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 				      &regs->data[priv->sreg],
 				      NF_CT_LABELS_MAX_SIZE / sizeof(u32));
 		break;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	case NFT_CT_EVENTMASK: {
+		struct nf_conntrack_ecache *e = nf_ct_ecache_find(ct);
+		u32 ctmask = regs->data[priv->sreg];
+
+		if (e) {
+			if (e->ctmask != ctmask)
+				e->ctmask = ctmask;
+			break;
+		}
+
+		if (ctmask && !nf_ct_is_confirmed(ct))
+			nf_ct_ecache_ext_add(ct, ctmask, 0, GFP_ATOMIC);
+		break;
+	}
 #endif
 	default:
 		break;
@@ -539,6 +555,13 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 		len = sizeof(u16);
 		break;
 #endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	case NFT_CT_EVENTMASK:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
+		len = sizeof(u32);
+		break;
+#endif
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -702,7 +725,7 @@ nft_ct_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_ct_type __read_mostly = {
 	.name		= "ct",
-	.select_ops	= &nft_ct_select_ops,
+	.select_ops	= nft_ct_select_ops,
 	.policy		= nft_ct_policy,
 	.maxattr	= NFTA_CT_MAX,
 	.owner		= THIS_MODULE,
@@ -718,12 +741,10 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 
 	ct = nf_ct_get(pkt->skb, &ctinfo);
 	/* Previously seen (loopback or untracked)?  Ignore. */
-	if (ct)
+	if (ct || ctinfo == IP_CT_UNTRACKED)
 		return;
 
-	ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
-	nf_ct_set(skb, ct, IP_CT_NEW);
+	nf_ct_set(skb, ct, IP_CT_UNTRACKED);
 }
 
 static struct nft_expr_type nft_notrack_type;

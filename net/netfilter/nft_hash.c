@@ -228,7 +228,7 @@ nft_hash_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_hash_type __read_mostly = {
 	.name		= "hash",
-	.select_ops	= &nft_hash_select_ops,
+	.select_ops	= nft_hash_select_ops,
 	.policy		= nft_hash_policy,
 	.maxattr	= NFTA_HASH_MAX,
 	.owner		= THIS_MODULE,

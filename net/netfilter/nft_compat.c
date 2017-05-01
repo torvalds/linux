@@ -42,7 +42,8 @@ static int nft_compat_chain_validate_dependency(const char *tablename,
 {
 	const struct nft_base_chain *basechain;
 
-	if (!tablename || !(chain->flags & NFT_BASE_CHAIN))
+	if (!tablename ||
+	    !nft_is_base_chain(chain))
 		return 0;
 
 	basechain = nft_base_chain(chain);
@@ -165,7 +166,7 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 	par->entryinfo	= entry;
 	par->target	= target;
 	par->targinfo	= info;
-	if (ctx->chain->flags & NFT_BASE_CHAIN) {
+	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
 		const struct nf_hook_ops *ops = &basechain->ops[0];
@@ -298,7 +299,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 	unsigned int hook_mask = 0;
 	int ret;
 
-	if (ctx->chain->flags & NFT_BASE_CHAIN) {
+	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
 		const struct nf_hook_ops *ops = &basechain->ops[0];
@@ -379,7 +380,7 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 	par->entryinfo	= entry;
 	par->match	= match;
 	par->matchinfo	= info;
-	if (ctx->chain->flags & NFT_BASE_CHAIN) {
+	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
 		const struct nf_hook_ops *ops = &basechain->ops[0];
@@ -477,7 +478,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 	unsigned int hook_mask = 0;
 	int ret;
 
-	if (ctx->chain->flags & NFT_BASE_CHAIN) {
+	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
 		const struct nf_hook_ops *ops = &basechain->ops[0];
@@ -503,7 +504,7 @@ nfnl_compat_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
 
-	event |= NFNL_SUBSYS_NFT_COMPAT << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_NFT_COMPAT, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
 	if (nlh == NULL)
 		goto nlmsg_failure;

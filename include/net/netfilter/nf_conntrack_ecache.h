@@ -20,11 +20,11 @@ enum nf_ct_ecache_state {
 
 struct nf_conntrack_ecache {
 	unsigned long cache;		/* bitops want long */
-	unsigned long missed;		/* missed events */
+	u16 missed;			/* missed events */
 	u16 ctmask;			/* bitmask of ct events to be delivered */
 	u16 expmask;			/* bitmask of expect events to be delivered */
+	enum nf_ct_ecache_state state:8;/* ecache state */
 	u32 portid;			/* netlink portid of destroyer */
-	enum nf_ct_ecache_state state;	/* ecache state */
 };
 
 static inline struct nf_conntrack_ecache *

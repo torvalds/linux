@@ -1349,8 +1349,6 @@ int ip_vs_protocol_init(void);
 void ip_vs_protocol_cleanup(void);
 void ip_vs_protocol_timeout_change(struct netns_ipvs *ipvs, int flags);
 int *ip_vs_create_timeout_table(int *table, int size);
-int ip_vs_set_state_timeout(int *table, int num, const char *const *names,
-			    const char *name, int to);
 void ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
 			       const struct sk_buff *skb, int offset,
 			       const char *msg);
@@ -1555,13 +1553,9 @@ static inline void ip_vs_notrack(struct sk_buff *skb)
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-	if (!ct || !nf_ct_is_untracked(ct)) {
-		struct nf_conn *untracked;
-
+	if (ct) {
 		nf_conntrack_put(&ct->ct_general);
-		untracked = nf_ct_untracked_get();
-		nf_conntrack_get(&untracked->ct_general);
-		nf_ct_set(skb, untracked, IP_CT_NEW);
+		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 	}
 #endif
 }
@@ -1620,7 +1614,7 @@ static inline bool ip_vs_conn_uses_conntrack(struct ip_vs_conn *cp,
 	if (!(cp->flags & IP_VS_CONN_F_NFCT))
 		return false;
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct && !nf_ct_is_untracked(ct))
+	if (ct)
 		return true;
 #endif
 	return false;
