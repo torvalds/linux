@@ -1340,19 +1340,11 @@ static int mv88e6xxx_stu_data_write(struct mv88e6xxx_chip *chip,
 static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 				  struct mv88e6xxx_vtu_entry *entry)
 {
-	struct mv88e6xxx_vtu_entry next = { 0 };
+	struct mv88e6xxx_vtu_entry next = *entry;
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g1_vtu_op_wait(chip);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_VTU_GET_NEXT);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_vtu_vid_read(chip, &next);
+	err = mv88e6xxx_g1_vtu_getnext(chip, &next);
 	if (err)
 		return err;
 
@@ -1413,10 +1405,6 @@ static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
 	mutex_lock(&chip->reg_lock);
 
 	err = mv88e6xxx_port_get_pvid(chip, port, &pvid);
-	if (err)
-		goto unlock;
-
-	err = mv88e6xxx_g1_vtu_vid_write(chip, &next);
 	if (err)
 		goto unlock;
 
@@ -1582,10 +1570,6 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 	}
 
 	/* Set every FID bit used by the VLAN entries */
-	err = mv88e6xxx_g1_vtu_vid_write(chip, &vlan);
-	if (err)
-		return err;
-
 	do {
 		err = _mv88e6xxx_vtu_getnext(chip, &vlan);
 		if (err)
@@ -1668,9 +1652,6 @@ static int _mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
 
 	entry->vid = vid - 1;
 	entry->valid = false;
-	err = mv88e6xxx_g1_vtu_vid_write(chip, entry);
-	if (err)
-		return err;
 
 	err = _mv88e6xxx_vtu_getnext(chip, entry);
 	if (err)
@@ -1702,10 +1683,6 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 		return -EOPNOTSUPP;
 
 	mutex_lock(&chip->reg_lock);
-
-	err = mv88e6xxx_g1_vtu_vid_write(chip, &vlan);
-	if (err)
-		goto unlock;
 
 	do {
 		err = _mv88e6xxx_vtu_getnext(chip, &vlan);
@@ -2065,10 +2042,6 @@ static int mv88e6xxx_port_db_dump(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	/* Dump VLANs' Filtering Information Databases */
-	err = mv88e6xxx_g1_vtu_vid_write(chip, &vlan);
-	if (err)
-		return err;
-
 	do {
 		err = _mv88e6xxx_vtu_getnext(chip, &vlan);
 		if (err)
