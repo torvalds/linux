@@ -2522,6 +2522,7 @@ int amdgpu_sriov_gpu_reset(struct amdgpu_device *adev, bool voluntary)
 	ring = adev->mman.buffer_funcs_ring;
 	mutex_lock(&adev->shadow_list_lock);
 	list_for_each_entry_safe(bo, tmp, &adev->shadow_list, shadow_list) {
+		next = NULL;
 		amdgpu_recover_vram_from_shadow(adev, ring, bo, &next);
 		if (fence) {
 			r = dma_fence_wait(fence, false);
@@ -2668,6 +2669,7 @@ retry:
 			DRM_INFO("recover vram bo from shadow\n");
 			mutex_lock(&adev->shadow_list_lock);
 			list_for_each_entry_safe(bo, tmp, &adev->shadow_list, shadow_list) {
+				next = NULL;
 				amdgpu_recover_vram_from_shadow(adev, ring, bo, &next);
 				if (fence) {
 					r = dma_fence_wait(fence, false);
