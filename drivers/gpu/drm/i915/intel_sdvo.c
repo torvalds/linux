@@ -107,11 +107,6 @@ struct intel_sdvo {
 	bool color_range_auto;
 
 	/**
-	 * HDMI user specified aspect ratio
-	 */
-	enum hdmi_picture_aspect aspect_ratio;
-
-	/**
 	 * This is set if we're going to treat the device as TV-out.
 	 *
 	 * While we have these nice friendly flags for output types that ought
@@ -1186,7 +1181,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 
 	/* Set user selected PAR to incoming mode's member */
 	if (intel_sdvo->is_hdmi)
-		adjusted_mode->picture_aspect_ratio = intel_sdvo->aspect_ratio;
+		adjusted_mode->picture_aspect_ratio = conn_state->picture_aspect_ratio;
 
 	return true;
 }
@@ -2067,19 +2062,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	}
 
 	if (property == connector->dev->mode_config.aspect_ratio_property) {
-		switch (val) {
-		case DRM_MODE_PICTURE_ASPECT_NONE:
-			intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
-			break;
-		case DRM_MODE_PICTURE_ASPECT_4_3:
-			intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
-			break;
-		case DRM_MODE_PICTURE_ASPECT_16_9:
-			intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
-			break;
-		default:
-			return -EINVAL;
-		}
+		connector->state->picture_aspect_ratio = val;
 		goto done;
 	}
 
@@ -2418,7 +2401,7 @@ intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
 		intel_sdvo->color_range_auto = true;
 	}
 	intel_attach_aspect_ratio_property(&connector->base.base);
-	intel_sdvo->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+	connector->base.base.state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
 static struct intel_sdvo_connector *intel_sdvo_connector_alloc(void)

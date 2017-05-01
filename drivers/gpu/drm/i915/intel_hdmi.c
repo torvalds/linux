@@ -1403,7 +1403,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	}
 
 	/* Set user selected PAR to incoming mode's member */
-	adjusted_mode->picture_aspect_ratio = intel_hdmi->aspect_ratio;
+	adjusted_mode->picture_aspect_ratio = conn_state->picture_aspect_ratio;
 
 	pipe_config->lane_count = 4;
 
@@ -1649,19 +1649,7 @@ intel_hdmi_set_property(struct drm_connector *connector,
 	}
 
 	if (property == connector->dev->mode_config.aspect_ratio_property) {
-		switch (val) {
-		case DRM_MODE_PICTURE_ASPECT_NONE:
-			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
-			break;
-		case DRM_MODE_PICTURE_ASPECT_4_3:
-			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
-			break;
-		case DRM_MODE_PICTURE_ASPECT_16_9:
-			intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
-			break;
-		default:
-			return -EINVAL;
-		}
+		connector->state->picture_aspect_ratio = val;
 		goto done;
 	}
 
@@ -1823,7 +1811,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_attach_broadcast_rgb_property(connector);
 	intel_hdmi->color_range_auto = true;
 	intel_attach_aspect_ratio_property(connector);
-	intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+	connector->state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
 /*

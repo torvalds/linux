@@ -1188,6 +1188,8 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 */
 		if (state->link_status != DRM_LINK_STATUS_GOOD)
 			state->link_status = val;
+	} else if (property == config->aspect_ratio_property) {
+		state->picture_aspect_ratio = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -1264,6 +1266,8 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->tv.hue;
 	} else if (property == config->link_status_property) {
 		*val = state->link_status;
+	} else if (property == config->aspect_ratio_property) {
+		*val = state->picture_aspect_ratio;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);

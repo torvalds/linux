@@ -25,6 +25,7 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/hdmi.h>
 #include <drm/drm_mode_object.h>
 
 #include <uapi/drm/drm_mode.h>
@@ -326,6 +327,15 @@ struct drm_connector_state {
 	struct drm_atomic_state *state;
 
 	struct drm_tv_connector_state tv;
+
+	/**
+	 * @picture_aspect_ratio: Connector property to control the
+	 * HDMI infoframe aspect ratio setting.
+	 *
+	 * The DRM_MODE_PICTURE_ASPECT_\* values much match the
+	 * values for &enum hdmi_picture_aspect
+	 */
+	enum hdmi_picture_aspect picture_aspect_ratio;
 };
 
 /**
