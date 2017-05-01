@@ -904,11 +904,8 @@ struct intel_hdmi {
 		enum drm_dp_dual_mode_type type;
 		int max_tmds_clock;
 	} dp_dual_mode;
-	bool limited_color_range;
-	bool color_range_auto;
 	bool has_hdmi_sink;
 	bool has_audio;
-	enum hdmi_force_audio force_audio;
 	bool rgb_quant_range_selectable;
 	struct intel_connector *attached_connector;
 	void (*write_infoframe)(struct drm_encoder *encoder,

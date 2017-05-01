@@ -1218,7 +1218,8 @@ static int intel_hdmi_source_max_tmds_clock(struct drm_i915_private *dev_priv)
 }
 
 static int hdmi_port_clock_limit(struct intel_hdmi *hdmi,
-				 bool respect_downstream_limits)
+				 bool respect_downstream_limits,
+				 bool force_dvi)
 {
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 	int max_tmds_clock = intel_hdmi_source_max_tmds_clock(to_i915(dev));
@@ -1234,7 +1235,7 @@ static int hdmi_port_clock_limit(struct intel_hdmi *hdmi,
 		if (info->max_tmds_clock)
 			max_tmds_clock = min(max_tmds_clock,
 					     info->max_tmds_clock);
-		else if (!hdmi->has_hdmi_sink)
+		else if (!hdmi->has_hdmi_sink || force_dvi)
 			max_tmds_clock = min(max_tmds_clock, 165000);
 	}
 
@@ -1243,13 +1244,14 @@ static int hdmi_port_clock_limit(struct intel_hdmi *hdmi,
 
 static enum drm_mode_status
 hdmi_port_clock_valid(struct intel_hdmi *hdmi,
-		      int clock, bool respect_downstream_limits)
+		      int clock, bool respect_downstream_limits,
+		      bool force_dvi)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_hdmi_to_dev(hdmi));
 
 	if (clock < 25000)
 		return MODE_CLOCK_LOW;
-	if (clock > hdmi_port_clock_limit(hdmi, respect_downstream_limits))
+	if (clock > hdmi_port_clock_limit(hdmi, respect_downstream_limits, force_dvi))
 		return MODE_CLOCK_HIGH;
 
 	/* BXT DPLL can't generate 223-240 MHz */
@@ -1273,6 +1275,8 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	enum drm_mode_status status;
 	int clock;
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	bool force_dvi =
+		READ_ONCE(to_intel_digital_connector_state(connector->state)->force_audio) == HDMI_AUDIO_OFF_DVI;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -1289,11 +1293,11 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 		clock *= 2;
 
 	/* check if we can do 8bpc */
-	status = hdmi_port_clock_valid(hdmi, clock, true);
+	status = hdmi_port_clock_valid(hdmi, clock, true, force_dvi);
 
 	/* if we can't do 8bpc we may still be able to do 12bpc */
-	if (!HAS_GMCH_DISPLAY(dev_priv) && status != MODE_OK)
-		status = hdmi_port_clock_valid(hdmi, clock * 3 / 2, true);
+	if (!HAS_GMCH_DISPLAY(dev_priv) && status != MODE_OK && hdmi->has_hdmi_sink && !force_dvi)
+		status = hdmi_port_clock_valid(hdmi, clock * 3 / 2, true, force_dvi);
 
 	return status;
 }
@@ -1343,16 +1347,19 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct drm_scdc *scdc = &conn_state->connector->display_info.hdmi.scdc;
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
 	int clock_8bpc = pipe_config->base.adjusted_mode.crtc_clock;
 	int clock_12bpc = clock_8bpc * 3 / 2;
 	int desired_bpp;
+	bool force_dvi = intel_conn_state->force_audio == HDMI_AUDIO_OFF_DVI;
 
-	pipe_config->has_hdmi_sink = intel_hdmi->has_hdmi_sink;
+	pipe_config->has_hdmi_sink = !force_dvi && intel_hdmi->has_hdmi_sink;
 
 	if (pipe_config->has_hdmi_sink)
 		pipe_config->has_infoframe = true;
 
-	if (intel_hdmi->color_range_auto) {
+	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		pipe_config->limited_color_range =
 			pipe_config->has_hdmi_sink &&
@@ -1360,7 +1367,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			HDMI_QUANTIZATION_RANGE_LIMITED;
 	} else {
 		pipe_config->limited_color_range =
-			intel_hdmi->limited_color_range;
+			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK) {
@@ -1372,8 +1379,13 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv))
 		pipe_config->has_pch_encoder = true;
 
-	if (pipe_config->has_hdmi_sink && intel_hdmi->has_audio)
-		pipe_config->has_audio = true;
+	if (pipe_config->has_hdmi_sink) {
+		if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
+			pipe_config->has_audio = intel_hdmi->has_audio;
+		else
+			pipe_config->has_audio =
+				intel_conn_state->force_audio == HDMI_AUDIO_ON;
+	}
 
 	/*
 	 * HDMI is either 12 or 8, so if the display lets 10bpc sneak
@@ -1381,8 +1393,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * outputs. We also need to check that the higher clock still fits
 	 * within limits.
 	 */
-	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink &&
-	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc, true) == MODE_OK &&
+	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink && !force_dvi &&
+	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc, true, force_dvi) == MODE_OK &&
 	    hdmi_12bpc_possible(pipe_config)) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
@@ -1402,7 +1414,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (hdmi_port_clock_valid(intel_hdmi, pipe_config->port_clock,
-				  false) != MODE_OK) {
+				  false, force_dvi) != MODE_OK) {
 		DRM_DEBUG_KMS("unsupported HDMI clock, rejecting mode\n");
 		return false;
 	}
@@ -1509,13 +1521,7 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 			drm_rgb_quant_range_selectable(edid);
 
 		intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
-		if (intel_hdmi->force_audio != HDMI_AUDIO_AUTO)
-			intel_hdmi->has_audio =
-				intel_hdmi->force_audio == HDMI_AUDIO_ON;
-
-		if (intel_hdmi->force_audio != HDMI_AUDIO_OFF_DVI)
-			intel_hdmi->has_hdmi_sink =
-				drm_detect_hdmi_monitor(edid);
+		intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
 
 		connected = true;
 	}
@@ -1575,96 +1581,6 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 		return 0;
 
 	return intel_connector_update_modes(connector, edid);
-}
-
-static bool
-intel_hdmi_detect_audio(struct drm_connector *connector)
-{
-	bool has_audio = false;
-	struct edid *edid;
-
-	edid = to_intel_connector(connector)->detect_edid;
-	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL)
-		has_audio = drm_detect_monitor_audio(edid);
-
-	return has_audio;
-}
-
-static int
-intel_hdmi_set_property(struct drm_connector *connector,
-			struct drm_property *property,
-			uint64_t val)
-{
-	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
-	struct intel_digital_port *intel_dig_port =
-		hdmi_to_dig_port(intel_hdmi);
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	int ret;
-
-	ret = drm_object_property_set_value(&connector->base, property, val);
-	if (ret)
-		return ret;
-
-	if (property == dev_priv->force_audio_property) {
-		enum hdmi_force_audio i = val;
-		bool has_audio;
-
-		if (i == intel_hdmi->force_audio)
-			return 0;
-
-		intel_hdmi->force_audio = i;
-
-		if (i == HDMI_AUDIO_AUTO)
-			has_audio = intel_hdmi_detect_audio(connector);
-		else
-			has_audio = (i == HDMI_AUDIO_ON);
-
-		if (i == HDMI_AUDIO_OFF_DVI)
-			intel_hdmi->has_hdmi_sink = 0;
-
-		intel_hdmi->has_audio = has_audio;
-		goto done;
-	}
-
-	if (property == dev_priv->broadcast_rgb_property) {
-		bool old_auto = intel_hdmi->color_range_auto;
-		bool old_range = intel_hdmi->limited_color_range;
-
-		switch (val) {
-		case INTEL_BROADCAST_RGB_AUTO:
-			intel_hdmi->color_range_auto = true;
-			break;
-		case INTEL_BROADCAST_RGB_FULL:
-			intel_hdmi->color_range_auto = false;
-			intel_hdmi->limited_color_range = false;
-			break;
-		case INTEL_BROADCAST_RGB_LIMITED:
-			intel_hdmi->color_range_auto = false;
-			intel_hdmi->limited_color_range = true;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		if (old_auto == intel_hdmi->color_range_auto &&
-		    old_range == intel_hdmi->limited_color_range)
-			return 0;
-
-		goto done;
-	}
-
-	if (property == connector->dev->mode_config.aspect_ratio_property) {
-		connector->state->picture_aspect_ratio = val;
-		goto done;
-	}
-
-	return -EINVAL;
-
-done:
-	if (intel_dig_port->base.base.crtc)
-		intel_crtc_restore_mode(intel_dig_port->base.base.crtc);
-
-	return 0;
 }
 
 static void intel_hdmi_pre_enable(struct intel_encoder *encoder,
@@ -1791,18 +1707,20 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.detect = intel_hdmi_detect,
 	.force = intel_hdmi_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_hdmi_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
+	.atomic_get_property = intel_digital_connector_atomic_get_property,
+	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_hdmi_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
 static const struct drm_connector_helper_funcs intel_hdmi_connector_helper_funcs = {
 	.get_modes = intel_hdmi_get_modes,
 	.mode_valid = intel_hdmi_mode_valid,
+	.atomic_check = intel_digital_connector_atomic_check,
 };
 
 static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
@@ -1814,7 +1732,6 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 {
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
-	intel_hdmi->color_range_auto = true;
 	intel_attach_aspect_ratio_property(connector);
 	connector->state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
