@@ -967,7 +967,7 @@ int rhashtable_init(struct rhashtable *ht,
 			ht->max_elems = ht->p.max_size * 2;
 	}
 
-	ht->p.min_size = max(ht->p.min_size, HASH_MIN_SIZE);
+	ht->p.min_size = max_t(u16, ht->p.min_size, HASH_MIN_SIZE);
 
 	if (params->nelem_hint)
 		size = rounded_hashtable_size(&ht->p);

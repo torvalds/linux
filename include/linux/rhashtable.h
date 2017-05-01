@@ -127,23 +127,23 @@ struct rhashtable;
  * @head_offset: Offset of rhash_head in struct to be hashed
  * @max_size: Maximum size while expanding
  * @min_size: Minimum size while shrinking
- * @nulls_base: Base value to generate nulls marker
- * @automatic_shrinking: Enable automatic shrinking of tables
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
+ * @automatic_shrinking: Enable automatic shrinking of tables
+ * @nulls_base: Base value to generate nulls marker
  * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
  * @obj_hashfn: Function to hash object
  * @obj_cmpfn: Function to compare key with object
  */
 struct rhashtable_params {
-	size_t			nelem_hint;
-	size_t			key_len;
-	size_t			key_offset;
-	size_t			head_offset;
+	u16			nelem_hint;
+	u16			key_len;
+	u16			key_offset;
+	u16			head_offset;
 	unsigned int		max_size;
-	unsigned int		min_size;
-	u32			nulls_base;
+	u16			min_size;
 	bool			automatic_shrinking;
-	size_t			locks_mul;
+	u8			locks_mul;
+	u32			nulls_base;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
 	rht_obj_cmpfn_t		obj_cmpfn;
