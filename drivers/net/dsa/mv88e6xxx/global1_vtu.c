@@ -174,6 +174,26 @@ int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
 
 /* VLAN Translation Unit Operations */
 
+int mv88e6xxx_g1_vtu_stu_getnext(struct mv88e6xxx_chip *chip,
+				 struct mv88e6xxx_vtu_entry *entry)
+{
+	int err;
+
+	err = mv88e6xxx_g1_vtu_sid_write(chip, entry);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_STU_GET_NEXT);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_vtu_sid_read(chip, entry);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g1_vtu_vid_read(chip, entry);
+}
+
 int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry)
 {

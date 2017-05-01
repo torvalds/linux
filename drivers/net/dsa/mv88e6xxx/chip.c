@@ -1422,19 +1422,7 @@ static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_vtu_sid_write(chip, &next);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_STU_GET_NEXT);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_vtu_sid_read(chip, &next);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_vtu_vid_read(chip, &next);
+	err = mv88e6xxx_g1_vtu_stu_getnext(chip, &next);
 	if (err)
 		return err;
 
