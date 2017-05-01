@@ -85,7 +85,8 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 				group->sgc->id,
 				cpumask_pr_args(sched_group_cpus(group)));
 
-		if ((sd->flags & SD_OVERLAP) && !cpumask_full(sched_group_mask(group))) {
+		if ((sd->flags & SD_OVERLAP) &&
+		    !cpumask_equal(sched_group_mask(group), sched_group_cpus(group))) {
 			printk(KERN_CONT " mask=%*pbl",
 				cpumask_pr_args(sched_group_mask(group)));
 		}
@@ -505,7 +506,7 @@ enum s_alloc {
  */
 int group_balance_cpu(struct sched_group *sg)
 {
-	return cpumask_first_and(sched_group_cpus(sg), sched_group_mask(sg));
+	return cpumask_first(sched_group_mask(sg));
 }
 
 
