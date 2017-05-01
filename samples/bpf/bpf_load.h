@@ -47,5 +47,5 @@ struct ksym {
 
 int load_kallsyms(void);
 struct ksym *ksym_search(long key);
-int set_link_xdp_fd(int ifindex, int fd, int flags);
+int set_link_xdp_fd(int ifindex, int fd, __u32 flags);
 #endif

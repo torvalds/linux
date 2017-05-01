@@ -142,8 +142,8 @@ int main(int argc, char **argv)
 	struct iptnl_info tnl = {};
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct vip vip = {};
+	__u32 xdp_flags = 0;
 	char filename[256];
-	int flags = 0;
 	int opt;
 	int i;
 
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 			kill_after_s = atoi(optarg);
 			break;
 		case 'S':
-			flags |= XDP_FLAGS_SKB_MODE;
+			xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
 		default:
 			usage(argv[0]);
@@ -248,14 +248,14 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (set_link_xdp_fd(ifindex, prog_fd[0], flags) < 0) {
+	if (set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
 
 	poll_stats(kill_after_s);
 
-	set_link_xdp_fd(ifindex, -1, flags);
+	set_link_xdp_fd(ifindex, -1, xdp_flags);
 
 	return 0;
 }
