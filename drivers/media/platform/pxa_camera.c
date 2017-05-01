@@ -575,6 +575,9 @@ static s32 pxa_mbus_bytes_per_line(u32 width, const struct pxa_mbus_pixelfmt *mf
 static s32 pxa_mbus_image_size(const struct pxa_mbus_pixelfmt *mf,
 			u32 bytes_per_line, u32 height)
 {
+	if (mf->layout == PXA_MBUS_LAYOUT_PACKED)
+		return bytes_per_line * height;
+
 	switch (mf->packing) {
 	case PXA_MBUS_PACKING_2X8_PADHI:
 		return bytes_per_line * height * 2;
