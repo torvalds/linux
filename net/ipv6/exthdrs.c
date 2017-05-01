@@ -946,13 +946,13 @@ void ipv6_push_nfrag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt,
 	if (opt->hopopt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_HOP, opt->hopopt);
 }
-EXPORT_SYMBOL(ipv6_push_nfrag_opts);
 
 void ipv6_push_frag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt, u8 *proto)
 {
 	if (opt->dst1opt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_DEST, opt->dst1opt);
 }
+EXPORT_SYMBOL(ipv6_push_frag_opts);
 
 struct ipv6_txoptions *
 ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
