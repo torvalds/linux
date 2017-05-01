@@ -179,6 +179,56 @@ static int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
+static int mv88e6390_g1_vtu_data_read(struct mv88e6xxx_chip *chip, u8 *data)
+{
+	u16 regs[2];
+	int i;
+
+	/* Read the 2 VTU/STU Data registers */
+	for (i = 0; i < 2; ++i) {
+		u16 *reg = &regs[i];
+		int err;
+
+		err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_DATA_0_3 + i, reg);
+		if (err)
+			return err;
+	}
+
+	/* Extract data */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
+		unsigned int offset = (i % 8) * 2;
+
+		data[i] = (regs[i / 8] >> offset) & 0x3;
+	}
+
+	return 0;
+}
+
+static int mv88e6390_g1_vtu_data_write(struct mv88e6xxx_chip *chip, u8 *data)
+{
+	u16 regs[2] = { 0 };
+	int i;
+
+	/* Insert data */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
+		unsigned int offset = (i % 8) * 2;
+
+		regs[i / 8] |= (data[i] & 0x3) << offset;
+	}
+
+	/* Write the 2 VTU/STU Data registers */
+	for (i = 0; i < 2; ++i) {
+		u16 reg = regs[i];
+		int err;
+
+		err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_DATA_0_3 + i, reg);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /* VLAN Translation Unit Operations */
 
 static int mv88e6xxx_g1_vtu_stu_getnext(struct mv88e6xxx_chip *chip,
@@ -309,6 +359,38 @@ int mv88e6352_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
+int mv88e6390_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry)
+{
+	int err;
+
+	/* Fetch VLAN MemberTag data from the VTU */
+	err = mv88e6xxx_g1_vtu_getnext(chip, entry);
+	if (err)
+		return err;
+
+	if (entry->valid) {
+		err = mv88e6390_g1_vtu_data_read(chip, entry->member);
+		if (err)
+			return err;
+
+		/* Fetch VLAN PortState data from the STU */
+		err = mv88e6xxx_g1_vtu_stu_get(chip, entry);
+		if (err)
+			return err;
+
+		err = mv88e6390_g1_vtu_data_read(chip, entry->state);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_vtu_fid_read(chip, entry);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 			       struct mv88e6xxx_vtu_entry *entry)
 {
@@ -363,6 +445,48 @@ int mv88e6352_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 
 		/* Load STU entry */
 		err = mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_STU_LOAD_PURGE);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_vtu_fid_write(chip, entry);
+		if (err)
+			return err;
+	}
+
+	/* Load/Purge VTU entry */
+	return mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_VTU_LOAD_PURGE);
+}
+
+int mv88e6390_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_vtu_entry *entry)
+{
+	int err;
+
+	err = mv88e6xxx_g1_vtu_op_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_vtu_vid_write(chip, entry);
+	if (err)
+		return err;
+
+	if (entry->valid) {
+		/* Write PortState data */
+		err = mv88e6390_g1_vtu_data_write(chip, entry->state);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_vtu_sid_write(chip, entry);
+		if (err)
+			return err;
+
+		/* Load STU entry */
+		err = mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_STU_LOAD_PURGE);
+		if (err)
+			return err;
+
+		/* Write MemberTag data */
+		err = mv88e6390_g1_vtu_data_write(chip, entry->member);
 		if (err)
 			return err;
 
