@@ -6054,6 +6054,7 @@ static int tracing_clock_open(struct inode *inode, struct file *file)
 struct ftrace_buffer_info {
 	struct trace_iterator	iter;
 	void			*spare;
+	unsigned int		spare_cpu;
 	unsigned int		read;
 };
 
@@ -6383,9 +6384,11 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 		return -EBUSY;
 #endif
 
-	if (!info->spare)
+	if (!info->spare) {
 		info->spare = ring_buffer_alloc_read_page(iter->trace_buffer->buffer,
 							  iter->cpu_file);
+		info->spare_cpu = iter->cpu_file;
+	}
 	if (!info->spare)
 		return -ENOMEM;
 
@@ -6445,7 +6448,8 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 	__trace_array_put(iter->tr);
 
 	if (info->spare)
-		ring_buffer_free_read_page(iter->trace_buffer->buffer, info->spare);
+		ring_buffer_free_read_page(iter->trace_buffer->buffer,
+					   info->spare_cpu, info->spare);
 	kfree(info);
 
 	mutex_unlock(&trace_types_lock);
@@ -6456,6 +6460,7 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 struct buffer_ref {
 	struct ring_buffer	*buffer;
 	void			*page;
+	int			cpu;
 	int			ref;
 };
 
@@ -6467,7 +6472,7 @@ static void buffer_pipe_buf_release(struct pipe_inode_info *pipe,
 	if (--ref->ref)
 		return;
 
-	ring_buffer_free_read_page(ref->buffer, ref->page);
+	ring_buffer_free_read_page(ref->buffer, ref->cpu, ref->page);
 	kfree(ref);
 	buf->private = 0;
 }
@@ -6501,7 +6506,7 @@ static void buffer_spd_release(struct splice_pipe_desc *spd, unsigned int i)
 	if (--ref->ref)
 		return;
 
-	ring_buffer_free_read_page(ref->buffer, ref->page);
+	ring_buffer_free_read_page(ref->buffer, ref->cpu, ref->page);
 	kfree(ref);
 	spd->partial[i].private = 0;
 }
@@ -6566,11 +6571,13 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 			kfree(ref);
 			break;
 		}
+		ref->cpu = iter->cpu_file;
 
 		r = ring_buffer_read_page(ref->buffer, &ref->page,
 					  len, iter->cpu_file, 1);
 		if (r < 0) {
-			ring_buffer_free_read_page(ref->buffer, ref->page);
+			ring_buffer_free_read_page(ref->buffer, ref->cpu,
+						   ref->page);
 			kfree(ref);
 			break;
 		}
