@@ -82,6 +82,35 @@ int mv88e6xxx_g1_vtu_op(struct mv88e6xxx_chip *chip, u16 op)
 	return mv88e6xxx_g1_vtu_op_wait(chip);
 }
 
+/* Offset 0x06: VTU VID Register */
+
+int mv88e6xxx_g1_vtu_vid_read(struct mv88e6xxx_chip *chip,
+			      struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_VID, &val);
+	if (err)
+		return err;
+
+	entry->vid = val & 0xfff;
+	entry->valid = !!(val & GLOBAL_VTU_VID_VALID);
+
+	return 0;
+}
+
+int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val = entry->vid & 0xfff;
+
+	if (entry->valid)
+		val |= GLOBAL_VTU_VID_VALID;
+
+	return mv88e6xxx_g1_write(chip, GLOBAL_VTU_VID, val);
+}
+
 /* VLAN Translation Unit Operations */
 
 int mv88e6xxx_g1_vtu_flush(struct mv88e6xxx_chip *chip)
