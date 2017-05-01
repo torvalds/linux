@@ -39,7 +39,6 @@
 
 #define GFX9_NUM_GFX_RINGS     1
 #define GFX9_NUM_COMPUTE_RINGS 8
-#define GFX9_NUM_SE		4
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x2000
 
 MODULE_FIRMWARE("amdgpu/vega10_ce.bin");
@@ -842,7 +841,7 @@ static int gfx_v9_0_ngg_create_buf(struct amdgpu_device *adev,
 	}
 	size_se = size_se ? size_se : default_size_se;
 
-	ngg_buf->size = size_se * GFX9_NUM_SE;
+	ngg_buf->size = size_se * adev->gfx.config.max_shader_engines;
 	r = amdgpu_bo_create_kernel(adev, ngg_buf->size,
 				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
 				    &ngg_buf->bo,
