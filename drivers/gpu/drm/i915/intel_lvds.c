@@ -598,49 +598,24 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static int intel_lvds_set_property(struct drm_connector *connector,
-				   struct drm_property *property,
-				   uint64_t value)
-{
-
-	if (property == connector->scaling_mode_property) {
-		struct drm_crtc *crtc;
-
-		if (connector->state->scaling_mode == value) {
-			/* the LVDS scaling property is not changed */
-			return 0;
-		}
-		connector->state->scaling_mode = value;
-
-		crtc = intel_attached_encoder(connector)->base.crtc;
-		if (crtc && crtc->state->enable) {
-			/*
-			 * If the CRTC is enabled, the display will be changed
-			 * according to the new panel fitting mode.
-			 */
-			intel_crtc_restore_mode(crtc);
-		}
-	}
-
-	return 0;
-}
-
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
 	.get_modes = intel_lvds_get_modes,
 	.mode_valid = intel_lvds_mode_valid,
+	.atomic_check = intel_digital_connector_atomic_check,
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_lvds_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
+	.atomic_get_property = intel_digital_connector_atomic_get_property,
+	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_lvds_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
 static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
