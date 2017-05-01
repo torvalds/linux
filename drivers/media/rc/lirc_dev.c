@@ -28,7 +28,6 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/unistd.h>
-#include <linux/kthread.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
@@ -57,9 +56,6 @@ struct irctl {
 
 	struct device dev;
 	struct cdev cdev;
-
-	struct task_struct *task;
-	long jiffies_to_wait;
 };
 
 static DEFINE_MUTEX(lirc_dev_lock);
@@ -94,59 +90,6 @@ static void lirc_release(struct device *ld)
 	mutex_unlock(&lirc_dev_lock);
 	kfree(ir);
 }
-
-/*  helper function
- *  reads key codes from driver and puts them into buffer
- *  returns 0 on success
- */
-static int lirc_add_to_buf(struct irctl *ir)
-{
-	int res;
-	int got_data = -1;
-
-	if (!ir->d.add_to_buf)
-		return 0;
-
-	/*
-	 * service the device as long as it is returning
-	 * data and we have space
-	 */
-	do {
-		got_data++;
-		res = ir->d.add_to_buf(ir->d.data, ir->buf);
-	} while (!res);
-
-	if (res == -ENODEV)
-		kthread_stop(ir->task);
-
-	return got_data ? 0 : res;
-}
-
-/* main function of the polling thread
- */
-static int lirc_thread(void *irctl)
-{
-	struct irctl *ir = irctl;
-
-	do {
-		if (ir->open) {
-			if (ir->jiffies_to_wait) {
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule_timeout(ir->jiffies_to_wait);
-			}
-			if (kthread_should_stop())
-				break;
-			if (!lirc_add_to_buf(ir))
-				wake_up_interruptible(&ir->buf->wait_poll);
-		} else {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-		}
-	} while (!kthread_should_stop());
-
-	return 0;
-}
-
 
 static const struct file_operations lirc_dev_fops = {
 	.owner		= THIS_MODULE,
@@ -252,18 +195,8 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 		return -EBADRQC;
 	}
 
-	if (d->sample_rate) {
-		if (2 > d->sample_rate || HZ < d->sample_rate) {
-			dev_err(d->dev, "invalid %d sample rate\n",
-							d->sample_rate);
-			return -EBADRQC;
-		}
-		if (!d->add_to_buf) {
-			dev_err(d->dev, "add_to_buf not set\n");
-			return -EBADRQC;
-		}
-	} else if (!d->rbuf && !(d->fops && d->fops->read &&
-				d->fops->poll && d->fops->unlocked_ioctl)) {
+	if (!d->rbuf && !(d->fops && d->fops->read &&
+			  d->fops->poll && d->fops->unlocked_ioctl)) {
 		dev_err(d->dev, "undefined read, poll, ioctl\n");
 		return -EBADRQC;
 	}
@@ -311,22 +244,6 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 	ir->dev.release = lirc_release;
 	dev_set_name(&ir->dev, "lirc%d", ir->d.minor);
 	device_initialize(&ir->dev);
-
-	if (d->sample_rate) {
-		ir->jiffies_to_wait = HZ / d->sample_rate;
-
-		/* try to fire up polling thread */
-		ir->task = kthread_run(lirc_thread, (void *)ir, "lirc_dev");
-		if (IS_ERR(ir->task)) {
-			dev_err(d->dev, "cannot run thread for minor = %d\n",
-								d->minor);
-			err = -ECHILD;
-			goto out_sysfs;
-		}
-	} else {
-		/* it means - wait for external event in task queue */
-		ir->jiffies_to_wait = 0;
-	}
 
 	err = lirc_cdev_add(ir);
 	if (err)
@@ -404,10 +321,6 @@ int lirc_unregister_driver(int minor)
 		return -ENOENT;
 	}
 
-	/* end up polling thread */
-	if (ir->task)
-		kthread_stop(ir->task);
-
 	dev_dbg(ir->d.dev, "lirc_dev: driver %s unregistered from minor = %d\n",
 		ir->d.name, ir->d.minor);
 
@@ -469,9 +382,6 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 
 	if (ir->buf)
 		lirc_buffer_clear(ir->buf);
-
-	if (ir->task)
-		wake_up_process(ir->task);
 
 	ir->open++;
 
