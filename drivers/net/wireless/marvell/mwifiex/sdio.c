@@ -2533,12 +2533,8 @@ static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
 
-	if (test_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags))
-		return;
-
-	set_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
-
-	schedule_work(&card->work);
+	if (!test_and_set_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags))
+		schedule_work(&card->work);
 }
 
 /* This function dumps FW information */
@@ -2546,11 +2542,9 @@ static void mwifiex_sdio_device_dump(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
 
-	if (test_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags))
-		return;
-
-	set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
-	schedule_work(&card->work);
+	if (!test_and_set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP,
+			      &card->work_flags))
+		schedule_work(&card->work);
 }
 
 /* Function to dump SDIO function registers and SDIO scratch registers in case

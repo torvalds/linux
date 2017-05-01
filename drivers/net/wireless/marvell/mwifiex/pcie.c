@@ -2837,12 +2837,9 @@ static void mwifiex_pcie_device_dump(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 
-	if (test_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags))
-		return;
-
-	set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
-
-	schedule_work(&card->work);
+	if (!test_and_set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP,
+			      &card->work_flags))
+		schedule_work(&card->work);
 }
 
 static void mwifiex_pcie_free_buffers(struct mwifiex_adapter *adapter)
