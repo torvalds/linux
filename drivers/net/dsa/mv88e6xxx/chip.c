@@ -1387,11 +1387,9 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 		}
 
 		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_STU)) {
-			err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_SID, &val);
+			err = mv88e6xxx_g1_vtu_sid_read(chip, &next);
 			if (err)
 				return err;
-
-			next.sid = val & GLOBAL_VTU_SID_MASK;
 		}
 	}
 
@@ -1482,8 +1480,7 @@ static int _mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 		return err;
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_STU)) {
-		reg = entry->sid & GLOBAL_VTU_SID_MASK;
-		err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_SID, reg);
+		err = mv88e6xxx_g1_vtu_sid_write(chip, entry);
 		if (err)
 			return err;
 	}
@@ -1513,7 +1510,9 @@ loadpurge:
 static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
 				  struct mv88e6xxx_vtu_entry *entry)
 {
-	struct mv88e6xxx_vtu_entry next = { 0 };
+	struct mv88e6xxx_vtu_entry next = {
+		.sid = sid,
+	};
 	u16 val;
 	int err;
 
@@ -1521,8 +1520,7 @@ static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_SID,
-				 sid & GLOBAL_VTU_SID_MASK);
+	err = mv88e6xxx_g1_vtu_sid_write(chip, &next);
 	if (err)
 		return err;
 
@@ -1530,11 +1528,9 @@ static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_SID, &val);
+	err = mv88e6xxx_g1_vtu_sid_read(chip, &next);
 	if (err)
 		return err;
-
-	next.sid = val & GLOBAL_VTU_SID_MASK;
 
 	err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_VID, &val);
 	if (err)
@@ -1576,8 +1572,7 @@ loadpurge:
 	if (err)
 		return err;
 
-	reg = entry->sid & GLOBAL_VTU_SID_MASK;
-	err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_SID, reg);
+	err = mv88e6xxx_g1_vtu_sid_write(chip, entry);
 	if (err)
 		return err;
 

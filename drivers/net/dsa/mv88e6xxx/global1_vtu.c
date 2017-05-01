@@ -39,6 +39,31 @@ int mv88e6xxx_g1_vtu_fid_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g1_write(chip, GLOBAL_VTU_FID, val);
 }
 
+/* Offset 0x03: VTU SID Register */
+
+int mv88e6xxx_g1_vtu_sid_read(struct mv88e6xxx_chip *chip,
+			      struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_SID, &val);
+	if (err)
+		return err;
+
+	entry->sid = val & GLOBAL_VTU_SID_MASK;
+
+	return 0;
+}
+
+int mv88e6xxx_g1_vtu_sid_write(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val = entry->sid & GLOBAL_VTU_SID_MASK;
+
+	return mv88e6xxx_g1_write(chip, GLOBAL_VTU_SID, val);
+}
+
 /* Offset 0x05: VTU Operation Register */
 
 int mv88e6xxx_g1_vtu_op_wait(struct mv88e6xxx_chip *chip)
