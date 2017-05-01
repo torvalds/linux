@@ -14,6 +14,31 @@
 #include "mv88e6xxx.h"
 #include "global1.h"
 
+/* Offset 0x02: VTU FID Register */
+
+int mv88e6xxx_g1_vtu_fid_read(struct mv88e6xxx_chip *chip,
+			      struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_FID, &val);
+	if (err)
+		return err;
+
+	entry->fid = val & GLOBAL_VTU_FID_MASK;
+
+	return 0;
+}
+
+int mv88e6xxx_g1_vtu_fid_write(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val = entry->fid & GLOBAL_VTU_FID_MASK;
+
+	return mv88e6xxx_g1_write(chip, GLOBAL_VTU_FID, val);
+}
+
 /* Offset 0x05: VTU Operation Register */
 
 int mv88e6xxx_g1_vtu_op_wait(struct mv88e6xxx_chip *chip)

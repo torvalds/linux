@@ -1371,11 +1371,9 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 			return err;
 
 		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G1_VTU_FID)) {
-			err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_FID, &val);
+			err = mv88e6xxx_g1_vtu_fid_read(chip, &next);
 			if (err)
 				return err;
-
-			next.fid = val & GLOBAL_VTU_FID_MASK;
 		} else if (mv88e6xxx_num_databases(chip) == 256) {
 			/* VTU DBNum[7:4] are located in VTU Operation 11:8, and
 			 * VTU DBNum[3:0] are located in VTU Operation 3:0
@@ -1491,8 +1489,7 @@ static int _mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 	}
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G1_VTU_FID)) {
-		reg = entry->fid & GLOBAL_VTU_FID_MASK;
-		err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_FID, reg);
+		err = mv88e6xxx_g1_vtu_fid_write(chip, entry);
 		if (err)
 			return err;
 	} else if (mv88e6xxx_num_databases(chip) == 256) {
