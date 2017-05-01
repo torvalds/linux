@@ -1122,6 +1122,8 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
+	struct intel_sdvo_connector *intel_sdvo_connector =
+		to_intel_sdvo_connector(conn_state->connector);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct drm_display_mode *mode = &pipe_config->base.mode;
 
@@ -1160,7 +1162,12 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	pipe_config->pixel_multiplier =
 		intel_sdvo_get_pixel_multiplier(adjusted_mode);
 
-	pipe_config->has_hdmi_sink = intel_sdvo->has_hdmi_monitor;
+	if (intel_sdvo_connector->force_audio != HDMI_AUDIO_OFF_DVI)
+		pipe_config->has_hdmi_sink = intel_sdvo->has_hdmi_monitor;
+
+	if (intel_sdvo_connector->force_audio == HDMI_AUDIO_ON ||
+	    (intel_sdvo_connector->force_audio == HDMI_AUDIO_AUTO && intel_sdvo->has_hdmi_audio))
+		pipe_config->has_audio = true;
 
 	if (intel_sdvo->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
@@ -1285,7 +1292,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	else
 		sdvox |= SDVO_PIPE_SEL(crtc->pipe);
 
-	if (intel_sdvo->has_hdmi_audio)
+	if (crtc_state->has_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
 	if (INTEL_GEN(dev_priv) >= 4) {
@@ -1694,12 +1701,6 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 		kfree(edid);
 	}
 
-	if (status == connector_status_connected) {
-		struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
-		if (intel_sdvo_connector->force_audio != HDMI_AUDIO_AUTO)
-			intel_sdvo->has_hdmi_audio = (intel_sdvo_connector->force_audio == HDMI_AUDIO_ON);
-	}
-
 	return status;
 }
 
@@ -1978,23 +1979,6 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 	kfree(intel_sdvo_connector);
 }
 
-static bool intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
-{
-	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
-	struct edid *edid;
-	bool has_audio = false;
-
-	if (!intel_sdvo->is_hdmi)
-		return false;
-
-	edid = intel_sdvo_get_edid(connector);
-	if (edid != NULL && edid->input & DRM_EDID_INPUT_DIGITAL)
-		has_audio = drm_detect_monitor_audio(edid);
-	kfree(edid);
-
-	return has_audio;
-}
-
 static int
 intel_sdvo_set_property(struct drm_connector *connector,
 			struct drm_property *property,
@@ -2013,22 +1997,23 @@ intel_sdvo_set_property(struct drm_connector *connector,
 
 	if (property == dev_priv->force_audio_property) {
 		int i = val;
-		bool has_audio;
+		bool has_audio, old_audio;
 
-		if (i == intel_sdvo_connector->force_audio)
-			return 0;
-
-		intel_sdvo_connector->force_audio = i;
+		if (intel_sdvo_connector->force_audio == HDMI_AUDIO_AUTO)
+			old_audio = intel_sdvo->has_hdmi_audio;
+		else
+			old_audio = intel_sdvo_connector->force_audio == HDMI_AUDIO_ON;
 
 		if (i == HDMI_AUDIO_AUTO)
-			has_audio = intel_sdvo_detect_hdmi_audio(connector);
+			has_audio = intel_sdvo->has_hdmi_audio;
 		else
 			has_audio = (i == HDMI_AUDIO_ON);
 
-		if (has_audio == intel_sdvo->has_hdmi_audio)
+		intel_sdvo_connector->force_audio = i;
+
+		if (has_audio == old_audio)
 			return 0;
 
-		intel_sdvo->has_hdmi_audio = has_audio;
 		goto done;
 	}
 
