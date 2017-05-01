@@ -901,7 +901,7 @@ static int parse_weakpages(void)
 		zero_ok = (*w == '0' ? 1 : 0);
 		page_no = simple_strtoul(w, &w, 0);
 		if (!zero_ok && !page_no) {
-			NS_ERR("invalid weakpagess.\n");
+			NS_ERR("invalid weakpages.\n");
 			return -EINVAL;
 		}
 		max_writes = 3;
