@@ -116,9 +116,9 @@ static void prog_load(void)
 		 * is set by directly place a IMM value 1 into the stack.
 		 */
 		BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0,
-				-32 + offsetof(struct stats, uid)),
+			    -32 + (__s16)offsetof(struct stats, uid)),
 		BPF_ST_MEM(BPF_DW, BPF_REG_10,
-				-32 + offsetof(struct stats, packets), 1),
+			   -32 + (__s16)offsetof(struct stats, packets), 1),
 		/*
 		 * __sk_buff is a special struct used for eBPF program to
 		 * directly access some sk_buff field.
@@ -126,7 +126,7 @@ static void prog_load(void)
 		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_6,
 				offsetof(struct __sk_buff, len)),
 		BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_1,
-				-32 + offsetof(struct stats, bytes)),
+			    -32 + (__s16)offsetof(struct stats, bytes)),
 		/*
 		 * add new map entry using BPF_FUNC_map_update_elem, it takes
 		 * 4 parameters (R1: map_fd, R2: &socket_cookie, R3: &stats,
