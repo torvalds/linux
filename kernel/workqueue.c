@@ -3209,9 +3209,8 @@ static int init_worker_pool(struct worker_pool *pool)
 	INIT_LIST_HEAD(&pool->idle_list);
 	hash_init(pool->busy_hash);
 
-	init_timer_deferrable(&pool->idle_timer);
-	pool->idle_timer.function = idle_worker_timeout;
-	pool->idle_timer.data = (unsigned long)pool;
+	setup_deferrable_timer(&pool->idle_timer, idle_worker_timeout,
+			       (unsigned long)pool);
 
 	setup_timer(&pool->mayday_timer, pool_mayday_timeout,
 		    (unsigned long)pool);
