@@ -1,5 +1,11 @@
-/*
- * Completely Fair Scheduling (CFS) Class (SCHED_NORMAL/SCHED_BATCH)
+/**
+ * @file fair.c
+ *
+ * @author Ingo Molnar
+ *
+ * @brief The linux chicken fried steak. Wait, I meant to say the linux completely fair scheduler.
+ *
+ *  Completely Fair Scheduling (CFS) Class (SCHED_NORMAL/SCHED_BATCH)
  *
  *  Copyright (C) 2007 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  *
@@ -19,10 +25,7 @@
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  */
-
-#include <linux/sched/mm.h>
-#include <linux/sched/topology.h>
-
+#include <linux/sched.h>
 #include <linux/latencytop.h>
 #include <linux/cpumask.h>
 #include <linux/cpuidle.h>
@@ -37,71 +40,115 @@
 
 #include "sched.h"
 
-/*
- * Targeted preemption latency for CPU-bound tasks:
+
+ /**
+ * @brief Targeted preemption latency for CPU-bound tasks.
  *
- * NOTE: this latency value is not the same as the concept of
+ * This latency value is not the same as the concept of
  * 'timeslice length' - timeslices in CFS are of variable length
  * and have no persistent notion like in traditional, time-slice
  * based scheduling concepts.
  *
  * (to see the precise effective timeslice length of your workload,
  *  run vmstat and monitor the context-switches (cs) field)
- *
- * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
+ * 
+ * @code default: 6ms * (1 + ilog(ncpus)), units: nanoseconds @endcode
+ * @see normalized_sysctl_sched_latency
  */
 unsigned int sysctl_sched_latency			= 6000000ULL;
+/**
+ * @brief Targeted preemption latency for CPU-bound tasks.
+ *
+ * This latency value is not the same as the concept of
+ * 'timeslice length' - timeslices in CFS are of variable length
+ * and have no persistent notion like in traditional, time-slice
+ * based scheduling concepts.
+ *
+ * (to see the precise effective timeslice length of your workload,
+ *  run vmstat and monitor the context-switches (cs) field)
+ * 
+ * @code default: 6ms * (1 + ilog(ncpus)), units: nanoseconds @endcode
+ * @see sysctl_sched_latency
+ */
 unsigned int normalized_sysctl_sched_latency		= 6000000ULL;
 
-/*
+/**
+ * @brief Determines how tunables are scaled.
+ *
  * The initial- and re-scaling of tunables is configurable
  *
  * Options are:
  *
- *   SCHED_TUNABLESCALING_NONE - unscaled, always *1
- *   SCHED_TUNABLESCALING_LOG - scaled logarithmical, *1+ilog(ncpus)
- *   SCHED_TUNABLESCALING_LINEAR - scaled linear, *ncpus
+ * SCHED_TUNABLESCALING_NONE - unscaled, always *1
  *
- * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
+ * SCHED_TUNABLESCALING_LOG - scaled logarithmical, *1+ilog(ncpus)
+ *
+ * SCHED_TUNABLESCALING_LINEAR - scaled linear, *ncpus
+ *
+ * @code default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus)) @endcode
  */
+
 enum sched_tunable_scaling sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
 
-/*
- * Minimal preemption granularity for CPU-bound tasks:
+/**
+ * @brief Minimal preemption granularity for CPU-bound tasks:
  *
- * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
+ * @code default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds @endcode
+ * @see normalized_sysctl_sched_min_granularity
  */
 unsigned int sysctl_sched_min_granularity		= 750000ULL;
+/**
+ * @brief Minimal preemption granularity for CPU-bound tasks:
+ *
+ * @code default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds @endcode
+ * @see sysctl_sched_min_granularity
+ */
 unsigned int normalized_sysctl_sched_min_granularity	= 750000ULL;
 
-/*
- * This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity
+/**
+ * @brief This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity.
  */
 static unsigned int sched_nr_latency = 8;
 
-/*
- * After fork, child runs first. If set to 0 (default) then
+/**
+ * @brief After fork, child runs first. If set to 0 (default) then
  * parent will (try to) run first.
  */
 unsigned int sysctl_sched_child_runs_first __read_mostly;
 
-/*
- * SCHED_OTHER wake-up granularity.
+/**
+ * @brief SCHED_OTHER wake-up granularity.
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  *
- * (default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds)
+ * @code default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds @endcode
+ * @see normalized_sysctl_sched_wakeup_granularity
  */
 unsigned int sysctl_sched_wakeup_granularity		= 1000000UL;
+/**
+ * @brief SCHED_OTHER wake-up granularity.
+ *
+ * This option delays the preemption effects of decoupled workloads
+ * and reduces their over-scheduling. Synchronous workloads will still
+ * have immediate wakeup/sleep latencies.
+ *
+ * @code default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds @endcode
+ * @see sysctl_sched_wakeup_granularity
+ */
 unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
-
+/**
+ * @brief The cost to migrate.
+ */
 const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
 
 #ifdef CONFIG_SMP
-/*
- * For asym packing, by default the lower numbered cpu has higher priority.
+/**
+ * @brief For asym packing, by default the lower numbered cpu has higher priority.
+ * 
+ * @return the priority of the given cpu
+ * @param cpu the cpu to be used
  */
 int __weak arch_asym_cpu_priority(int cpu)
 {
@@ -123,40 +170,60 @@ int __weak arch_asym_cpu_priority(int cpu)
 unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
 #endif
 
-/*
- * The margin used when comparing utilization with CPU capacity:
- * util * margin < capacity * 1024
+/**
+ * @brief The margin used when comparing utilization with CPU capacity:
  *
- * (default: ~20%)
+ * @code util * margin < capacity * 1024 @endcode
+ *
+ * @code default: ~20% @endcode
+ * 
  */
 unsigned int capacity_margin				= 1280;
 
+/**
+ * @brief Increments a given <tt>struct load_weight</tt>'s @c weight member and sets its @c inv_weight member to 0
+ * @param lw A <tt>struct load_weight</tt> will have its @c weight member incremented.
+ * @param inc An <tt>unsigned long</tt> that is to be added to @c weight.
+ * @return @c void
+ */
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
 	lw->weight += inc;
 	lw->inv_weight = 0;
 }
-
+/**
+ * @brief Decrements a given <tt>struct load_weight</tt>'s @c weight member and sets its @c inv_weight member to 0
+ * @param lw A <tt>struct load_weight</tt> will have its @c weight member decremented.
+ * @param dec An <tt>unsigned long</tt> that is to be assigned to @c weight.
+ * @return @c void
+ */
 static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
 {
 	lw->weight -= dec;
 	lw->inv_weight = 0;
 }
-
+/**
+ * @brief Changes a given <tt>struct load_weight</tt>'s @c weight member and sets its @c inv_weight member to 0
+ * @param lw A <tt>struct load_weight</tt> will have its @c weight member chagned.
+ * @param w An <tt>unsigned long</tt> that is to be subtracted from @c weight.
+ * @return @c void
+ */
 static inline void update_load_set(struct load_weight *lw, unsigned long w)
 {
 	lw->weight = w;
 	lw->inv_weight = 0;
 }
 
-/*
- * Increase the granularity value when there are more CPUs,
- * because with more CPUs the 'effective latency' as visible
+/**
+ * @brief Increase the granularity value when there are more CPUs.
+ *
+ * With more CPUs the 'effective latency' as visible
  * to users decreases. But the relationship is not linear,
  * so pick a second-best guess by going with the log2 of the
  * number of CPUs.
  *
- * This idea comes from the SD scheduler of Con Kolivas:
+ * This idea comes from the SD scheduler of Con Kolivas.
+ * @return The updated factor as an @c unsigned @c int
  */
 static unsigned int get_update_sysctl_factor(void)
 {
@@ -178,7 +245,13 @@ static unsigned int get_update_sysctl_factor(void)
 
 	return factor;
 }
-
+/**
+ * @brief Updates sysctl values.
+ *
+ * @return @c void
+ * @see SET_SYSCTL()
+ * @see get_update_sysctl_factor()
+ */
 static void update_sysctl(void)
 {
 	unsigned int factor = get_update_sysctl_factor();
@@ -190,7 +263,12 @@ static void update_sysctl(void)
 	SET_SYSCTL(sched_wakeup_granularity);
 #undef SET_SYSCTL
 }
-
+/**
+ * @brief Initializes the granularity via a call to update_sysctl().
+ *
+ * @return @c void
+ * @see update_sysctl()
+ */
 void sched_init_granularity(void)
 {
 	update_sysctl();
@@ -198,7 +276,12 @@ void sched_init_granularity(void)
 
 #define WMULT_CONST	(~0U)
 #define WMULT_SHIFT	32
-
+/**
+ * @brief Updates the weight of a process
+ *
+ * @return @c void
+ * @param lw The @c struct @c load_weight of a process to be updated
+ */
 static void __update_inv_weight(struct load_weight *lw)
 {
 	unsigned long w;
@@ -216,17 +299,24 @@ static void __update_inv_weight(struct load_weight *lw)
 		lw->inv_weight = WMULT_CONST / w;
 }
 
-/*
- * delta_exec * weight / lw.weight
- *   OR
- * (delta_exec * (weight * lw->inv_weight)) >> WMULT_SHIFT
+/**
+ * @brief Calculates the virtual runtime of a task based off of its weight.
  *
- * Either weight := NICE_0_LOAD and lw \e sched_prio_to_wmult[], in which case
+ * @code delta_exec * weight / lw.weight @endcode
+ *   OR
+ * @code (delta_exec * (weight * lw->inv_weight)) >> WMULT_SHIFT @endcode
+ *
+ * Either weight = NICE_0_LOAD and lw \e sched_prio_to_wmult[], in which case
  * we're guaranteed shift stays positive because inv_weight is guaranteed to
  * fit 32 bits, and NICE_0_LOAD gives another 10 bits; therefore shift >= 22.
  *
- * Or, weight =< lw.weight (because lw.weight is the runqueue weight), thus
+ * Or, weight <= lw.weight (because lw.weight is the runqueue weight), thus
  * weight/lw.weight <= 1, and therefore our shift will also be positive.
+ * @return The adjusted vruntime (derived from the physical runtime and the priority)
+ * @param delta_exec The time interval (in nanoseconds) that a task was run for
+ * @param weight The weight of @p delta_exec
+ * @param lw The @c struct @c load_weight of a process
+ * @see __update_inv_weight()
  */
 static u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
 {
@@ -253,22 +343,25 @@ static u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight
 	return mul_u64_u32_shr(delta_exec, fact, shift);
 }
 
-
+/**
+ * @brief wHAT IS THIS PLEASE HELP (Please document me later).
+ *
+ */
 const struct sched_class fair_sched_class;
 
-/**************************************************************
- * CFS operations on generic schedulable entities:
- */
+
+// CFS operations on generic schedulable entities:
+
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
-/* cpu runqueue to which this cfs_rq is attached */
+// cpu runqueue to which this cfs_rq is attached 
 static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 {
 	return cfs_rq->rq;
 }
 
-/* An entity is a task if it doesn't "own" a runqueue */
+// An entity is a task if it doesn't "own" a runqueue 
 #define entity_is_task(se)	(!se->my_q)
 
 static inline struct task_struct *task_of(struct sched_entity *se)
@@ -287,6 +380,7 @@ static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
 }
 
 /* runqueue on which this entity is (to be) queued */
+
 static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
 {
 	return se->cfs_rq;
@@ -372,7 +466,13 @@ static inline void list_del_leaf_cfs_rq(struct cfs_rq *cfs_rq)
 #define for_each_leaf_cfs_rq(rq, cfs_rq) \
 	list_for_each_entry_rcu(cfs_rq, &rq->leaf_cfs_rq_list, leaf_cfs_rq_list)
 
-/* Do the two (enqueued) entities belong to the same group ? */
+/**
+ * @brief Check if two entities are in the same group
+ * 
+ * @return The run queue of the tasks if they are in the same group, otherwise @c NULL
+ * @param se the first entity to check
+ * @param pse the second entity to check 
+ */
 static inline struct cfs_rq *
 is_same_group(struct sched_entity *se, struct sched_entity *pse)
 {
@@ -386,6 +486,7 @@ static inline struct sched_entity *parent_entity(struct sched_entity *se)
 {
 	return se->parent;
 }
+
 
 static void
 find_matching_se(struct sched_entity **se, struct sched_entity **pse)
@@ -420,12 +521,23 @@ find_matching_se(struct sched_entity **se, struct sched_entity **pse)
 }
 
 #else	/* !CONFIG_FAIR_GROUP_SCHED */
-
+/**
+ * @brief Get the parent of an entity (task).
+ *
+ * @return The container (i.e. the parent) of an input entity
+ * @param se A @c struct @c sched_entity to find the parent of
+ */
 static inline struct task_struct *task_of(struct sched_entity *se)
 {
 	return container_of(se, struct task_struct, se);
 }
 
+/**
+ * @brief Get the cpu runqueue to which this cfs_rq is attached .
+ *
+ * @return The container (i.e. the parent) of an input rq
+ * @param cfs_rq A @c struct @c rq to find the parent of
+ */
 static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 {
 	return container_of(cfs_rq, struct rq, cfs);
@@ -436,11 +548,23 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 #define for_each_sched_entity(se) \
 		for (; se; se = NULL)
 
+/**
+ * @brief Find the run queue associated with a given task
+ *
+ * @return A @c struct @c cfs_rq associated with the input task
+ * @param p A task to find the run queue of
+ */
 static inline struct cfs_rq *task_cfs_rq(struct task_struct *p)
 {
 	return &task_rq(p)->cfs;
 }
 
+/**
+ * @brief Find the run queue on which this entity is (to be) queued.
+ *
+ * @return A @c struct @c cfs_rq associated with the given entity
+ * @param se An entity to find the run queue of
+ */
 static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
 {
 	struct task_struct *p = task_of(se);
@@ -449,16 +573,33 @@ static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
 	return &rq->cfs;
 }
 
-/* runqueue "owned" by this group */
+/**
+ * @brief Finds the run queue owned by the given group.
+ *
+ * @return A @c struct @c cfs_rq owned by the input group
+ * @param grp A group to find the associated run queue of
+ */
 static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
 {
 	return NULL;
 }
 
+/**
+ * @brief Enqueue a given run queue
+ * 
+ * @return @c NULL
+ * @param cfs_rq A run queue to be enqueued
+ */
 static inline void list_add_leaf_cfs_rq(struct cfs_rq *cfs_rq)
 {
 }
 
+/**
+ * @brief Dequeue a given run queue
+ * 
+ * @return @c NULL
+ * @param cfs_rq A run queue to be dequeued
+ */
 static inline void list_del_leaf_cfs_rq(struct cfs_rq *cfs_rq)
 {
 }
@@ -466,11 +607,24 @@ static inline void list_del_leaf_cfs_rq(struct cfs_rq *cfs_rq)
 #define for_each_leaf_cfs_rq(rq, cfs_rq) \
 		for (cfs_rq = &rq->cfs; cfs_rq; cfs_rq = NULL)
 
+/**
+ * @brief Find the parent of an entity
+ * 
+ * @return The @c struct @c sched_entity that is the parent of the input
+ * @param se An entity to find the parent of
+ */
 static inline struct sched_entity *parent_entity(struct sched_entity *se)
 {
 	return NULL;
 }
 
+/**
+ * @brief Sift two entities up until they are in the same group.
+ *
+ * @return NULL
+ * @param se An entity to be sifted up
+ * @param pse An entity to be sifted up
+ */
 static inline void
 find_matching_se(struct sched_entity **se, struct sched_entity **pse)
 {
@@ -478,13 +632,22 @@ find_matching_se(struct sched_entity **se, struct sched_entity **pse)
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 
+/**
+ * @brief asd
+ */
 static __always_inline
 void account_cfs_rq_runtime(struct cfs_rq *cfs_rq, u64 delta_exec);
 
-/**************************************************************
- * Scheduling class tree data structure manipulation methods:
- */
 
+// Scheduling class tree data structure manipulation methods:
+/**
+ * @brief Calculate the maximum time a task should be run for.
+ * 
+ * @code max_vruntime = MAX(max_vruntime, vruntime) @endcode
+ * @return The maximum vruntime in nanoseconds
+ * @param max_vruntime The max vruntime of the leftmost task
+ * @param vruntime the vruntime of the current task
+ */
 static inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - max_vruntime);
@@ -493,7 +656,14 @@ static inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
 
 	return max_vruntime;
 }
-
+/**
+ * @brief Calculate the minimum time a task should be run for.
+ * 
+ * @code min_vruntime = MIN(min_vruntime, vruntime) @endcode
+ * @return The minimum vruntime in nanoseconds
+ * @param min_vruntime The max vruntime of the leftmost task
+ * @param vruntime The vruntime of the current task
+ */
 static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - min_vruntime);
@@ -503,12 +673,27 @@ static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 	return min_vruntime;
 }
 
+/**
+ * @brief Compare the vruntime of two entities.
+ * 
+ * @return 1 if a's vruntime less that b's vruntime, otherwise 0
+ * @param a an entity to be compared
+ * @param b an entity to be compared
+ */
 static inline int entity_before(struct sched_entity *a,
 				struct sched_entity *b)
 {
 	return (s64)(a->vruntime - b->vruntime) < 0;
 }
 
+/**
+ * @brief Update the value of min_vruntime.
+ *
+ * @return @c NULL
+ * @param cfs_rq A run queue to use for hte computation of the new min_vruntime
+ * @see min_vruntime()
+ * @see max_vruntime()
+ */
 static void update_min_vruntime(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *curr = cfs_rq->curr;
@@ -541,8 +726,13 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 #endif
 }
 
-/*
- * Enqueue an entity into the rb-tree:
+/**
+ * @brief Enqueue an entity into a rb-tree. 
+ * 
+ * @return @c NULL
+ * @param cfs_rq The run queue containing a rb-tree
+ * @param se The entity to be enqueued
+ * @see entity_before()
  */
 static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -579,7 +769,13 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
 }
-
+/**
+ * @brief Dequeue an entity from a rb-tree. 
+ * 
+ * @return @c NULL
+ * @param cfs_rq The run queue containing a rb-tree
+ * @param se The entity to be dequeued
+ */
 static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->rb_leftmost == &se->run_node) {
@@ -591,7 +787,12 @@ static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
-
+/**
+ * @brief Pick the leftmost entity from a rb-tree.
+ * 
+ * @return A @c struct @c sched_entity that is also the leftmost entry in a rb-tree
+ * @param cfs_rq A run queue that contains a rb_tree
+ */
 struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *left = cfs_rq->rb_leftmost;
@@ -601,7 +802,12 @@ struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
 
 	return rb_entry(left, struct sched_entity, run_node);
 }
-
+/**
+ * @brief Pick the next entity after the input one
+ * 
+ * @return A @c struct @c sched_entity that is after the input entity
+ * @param se A scheduled entity
+ */
 static struct sched_entity *__pick_next_entity(struct sched_entity *se)
 {
 	struct rb_node *next = rb_next(&se->run_node);
@@ -613,6 +819,12 @@ static struct sched_entity *__pick_next_entity(struct sched_entity *se)
 }
 
 #ifdef CONFIG_SCHED_DEBUG
+/**
+ * @brief Get the last entry in the tree
+ *
+ * @return the entity picked, NULL if no entity was picked
+ * @param cfs_rq the run queue to pick from
+ */
 struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline);
@@ -627,6 +839,16 @@ struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
  * Scheduling class statistics methods:
  */
 
+/**
+ * @brief Update the scheduler statistics
+ *
+ * @return the value returned by  proc_dointvec_minmax()
+ * @param table the ctl table to use
+ * @param write value used to determine if a write is to be used
+ * @param buffer a buffer to use
+ * @param lenp the length of the buffer
+ * @param ppos the offset to use
+ */
 int sched_proc_update_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
@@ -651,8 +873,13 @@ int sched_proc_update_handler(struct ctl_table *table, int write,
 }
 #endif
 
-/*
- * delta /= w
+/**
+ * @brief Calculates a fair delta.
+ *
+ * delta /= weight
+ * @return An unsigned int
+ * @param delta The original delta value
+ * @param se The scheduled entity used for calculating the new delta value
  */
 static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 {
@@ -662,13 +889,15 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 	return delta;
 }
 
-/*
- * The idea is to set a period in which each task runs once.
+/**
+ * @brief Set a period in which each task runs once.
  *
  * When there are too many tasks (sched_nr_latency) we have to stretch
  * this period because otherwise the slices get too small.
  *
- * p = (nr <= nl) ? l : l*nr/nl
+ * @code p = (nr <= nl) ? l : l*nr/nl @endcode
+ * @return An unsigned integer
+ * @param nr_running The number of running tasks
  */
 static u64 __sched_period(unsigned long nr_running)
 {
@@ -678,11 +907,14 @@ static u64 __sched_period(unsigned long nr_running)
 		return sysctl_sched_latency;
 }
 
-/*
- * We calculate the wall-time slice from the period by taking a part
+/**
+ * @brief Calculate the wall-time slice from the period by taking a part
  * proportional to the weight.
  *
- * s = p*P[w/rw]
+ * @code s = p*P[w/rw] @endcode
+ * @return An unsigned integer
+ * @param cfs_rq The run queue associated with the entity
+ * @param se An entity used to calculate the slice. 
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -706,10 +938,13 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	return slice;
 }
 
-/*
- * We calculate the vruntime slice of a to-be-inserted task.
+/**
+ * @brief Calculate the vruntime slice of a to-be-inserted task.
  *
- * vs = s/w
+ * @code vs = s/w @endcode
+ * @return An unsigned integer
+ * @param cfs_rq The run queue associated with the entity
+ * @param se An entity used to calculate the slice. 
  */
 static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -717,7 +952,21 @@ static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 #ifdef CONFIG_SMP
+/**
+ * @brief Try and locate an idle core/thread in the LLC cache domain.
+ *
+ * @return the number of hte sibling picked
+ * @param p the task to migrate
+ * @param prev_cpu the previous cpu the task was on
+ * @param cpu the target cpu
+ */
 static int select_idle_sibling(struct task_struct *p, int prev_cpu, int cpu);
+
+/**
+ * @brief Calculate the load of a task
+ *
+ * @param p the task being used
+ */
 static unsigned long task_h_load(struct task_struct *p);
 
 /*
@@ -729,7 +978,7 @@ static unsigned long task_h_load(struct task_struct *p);
 #define LOAD_AVG_MAX 47742 /* maximum possible load avg */
 #define LOAD_AVG_MAX_N 345 /* number of full periods to produce LOAD_AVG_MAX */
 
-/* Give new sched_entity start runnable values to heavy its load in infant time */
+
 void init_entity_runnable_average(struct sched_entity *se)
 {
 	struct sched_avg *sa = &se->avg;
@@ -759,33 +1008,16 @@ void init_entity_runnable_average(struct sched_entity *se)
 }
 
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
+
+/**
+ * @brief attach an entity to a run queue and update the load averages
+ *
+ * @return @c NULL
+ * @param se the entity to use
+ */
 static void attach_entity_cfs_rq(struct sched_entity *se);
 
-/*
- * With new tasks being created, their initial util_avgs are extrapolated
- * based on the cfs_rq's current util_avg:
- *
- *   util_avg = cfs_rq->util_avg / (cfs_rq->load_avg + 1) * se.load.weight
- *
- * However, in many cases, the above util_avg does not give a desired
- * value. Moreover, the sum of the util_avgs may be divergent, such
- * as when the series is a harmonic series.
- *
- * To solve this problem, we also cap the util_avg of successive tasks to
- * only 1/2 of the left utilization budget:
- *
- *   util_avg_cap = (1024 - cfs_rq->avg.util_avg) / 2^n
- *
- * where n denotes the nth task.
- *
- * For example, a simplest series from the beginning would be like:
- *
- *  task  util_avg: 512, 256, 128,  64,  32,   16,    8, ...
- * cfs_rq util_avg: 512, 768, 896, 960, 992, 1008, 1016, ...
- *
- * Finally, that extrapolated util_avg is clamped to the cap (util_avg_cap)
- * if util_avg > util_avg_cap.
- */
+
 void post_init_entity_util_avg(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
@@ -827,19 +1059,74 @@ void post_init_entity_util_avg(struct sched_entity *se)
 }
 
 #else /* !CONFIG_SMP */
+/**
+ * @brief Give new sched_entity start runnable values to heavy its load in infant time 
+ *
+ * @return @c NULL
+ * @param se A new entity
+ */
 void init_entity_runnable_average(struct sched_entity *se)
 {
 }
+/**
+ * @brief Initialize the util_avgs for a new task
+ *
+ * With new tasks being created, their initial util_avgs are extrapolated
+ * based on the cfs_rq's current util_avg:
+ *
+ *   util_avg = cfs_rq->util_avg / (cfs_rq->load_avg + 1) * se.load.weight
+ *
+ * However, in many cases, the above util_avg does not give a desired
+ * value. Moreover, the sum of the util_avgs may be divergent, such
+ * as when the series is a harmonic series.
+ *
+ * To solve this problem, we also cap the util_avg of successive tasks to
+ * only 1/2 of the left utilization budget:
+ *
+ *   util_avg_cap = (1024 - cfs_rq->avg.util_avg) / 2^n
+ *
+ * where n denotes the nth task.
+ *
+ * For example, a simplest series from the beginning would be like:
+ *
+ *  task  util_avg: 512, 256, 128,  64,  32,   16,    8, ...
+ * cfs_rq util_avg: 512, 768, 896, 960, 992, 1008, 1016, ...
+ *
+ * Finally, that extrapolated util_avg is clamped to the cap (util_avg_cap)
+ * if util_avg > util_avg_cap.
+ * @return @c NULL
+ * @param se A new entity
+ */
 void post_init_entity_util_avg(struct sched_entity *se)
 {
 }
+/**
+ * @brief Update the tg's load avg
+ *
+ * This function 'ensures': tg->load_avg := Sum tg->cfs_rq[]->avg.load.
+ * However, because tg->load_avg is a global value there are performance
+ * considerations.
+ *
+ * In order to avoid having to look at the other cfs_rq's, we use a
+ * differential update where we store the last value we propagated. This in
+ * turn allows skipping updates if the differential is 'small'.
+ *
+ * Updating tg's load_avg is necessary before update_cfs_share() (which is
+ * done) and effective_load() (which is not done because it is too costly).
+ * @return @c NULL
+ * @param cfs_rq The cfs_rq whose avg changed
+ * @param force Update regardless of how small the difference
+ */
 static void update_tg_load_avg(struct cfs_rq *cfs_rq, int force)
 {
 }
 #endif /* CONFIG_SMP */
 
-/*
- * Update the current task's runtime statistics.
+/**
+ * @brief Update the current task's runtime statistics.
+ * 
+ * @return @c NULL
+ * @param cfs_rq The run queue containing the current task to be updated
  */
 static void update_curr(struct cfs_rq *cfs_rq)
 {
@@ -876,11 +1163,25 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	account_cfs_rq_runtime(cfs_rq, delta_exec);
 }
 
+/**
+ * @brief Update the current task's runtime statistics.
+ * 
+ * @return @c NULL
+ * @param rq The run queue containing the current task to be updated
+ * @see update_curr()
+ */
 static void update_curr_fair(struct rq *rq)
 {
 	update_curr(cfs_rq_of(&rq->curr->se));
 }
 
+/**
+ * @brief Updates the wait_start value if statistics are enabled
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue being used to calculate the wait_start value
+ * @param se The scheduled entity being used to calculate the wait_start value
+ */
 static inline void
 update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -899,6 +1200,13 @@ update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_set(se->statistics.wait_start, wait_start);
 }
 
+/**
+ * @brief Updates the wait_end value if statistics are enabled
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue being used to calculate the wait_end value
+ * @param se The scheduled entity being used to calculate the wait_end value
+ */
 static inline void
 update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -930,7 +1238,13 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_add(se->statistics.wait_sum, delta);
 	schedstat_set(se->statistics.wait_start, 0);
 }
-
+/**
+ * @brief Enqueue a sleeping task and update the sleep_start value and the block_start value if statistics are enabled
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue being used to calculate the sleep_start value and the block_start value
+ * @param se The scheduled entity being used to calculate the sleep_start value and the block_start value
+ */
 static inline void
 update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -999,8 +1313,15 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	}
 }
 
-/*
- * Task is being enqueued - update stats:
+/**
+ * @brief Update the stats for a task that is being enqueued if statistics are enabled.
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue associated with the task
+ * @param se The scheduled entity associated with the task
+ * @param flags The flag used to determine if a sleeping task is to be waken up
+ * @see update_stats_wait_start()
+ * @see update_stats_enqueue_sleeper()
  */
 static inline void
 update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
@@ -1019,6 +1340,14 @@ update_stats_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 		update_stats_enqueue_sleeper(cfs_rq, se);
 }
 
+/**
+ * @brief Update the stats for a task that is being dequeued if statistics are enabled.
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue associated with the task
+ * @param se The scheduled entity associated with the task
+ * @param flags The flag used to determine if a sleeping task is to be waken up
+ */
 static inline void
 update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
@@ -1045,8 +1374,12 @@ update_stats_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	}
 }
 
-/*
- * We are picking a new current task - update its stats:
+/**
+ * @brief Picks a new current task and updates its stats
+ * 
+ * @return @c NULL
+ * @param cfs_rq The run queue of the new task
+ * @param se the scheduled entity of the new task
  */
 static inline void
 update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -1076,6 +1409,12 @@ unsigned int sysctl_numa_balancing_scan_size = 256;
 /* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
 unsigned int sysctl_numa_balancing_scan_delay = 1000;
 
+/**
+ * @brief Check how many windows contain a task
+ *
+ * @return the number of windows containing a task 
+ * @param p the task to use
+ */
 static unsigned int task_nr_scan_windows(struct task_struct *p)
 {
 	unsigned long rss = 0;
@@ -1098,6 +1437,12 @@ static unsigned int task_nr_scan_windows(struct task_struct *p)
 /* For sanitys sake, never scan more PTEs than MAX_SCAN_WINDOW MB/sec. */
 #define MAX_SCAN_WINDOW 2560
 
+/**
+ * @brief Get the min scan period for a task
+ * 
+ * @return the min scan period
+ * @param p the task to use
+ */
 static unsigned int task_scan_min(struct task_struct *p)
 {
 	unsigned int scan_size = READ_ONCE(sysctl_numa_balancing_scan_size);
@@ -1112,6 +1457,12 @@ static unsigned int task_scan_min(struct task_struct *p)
 	return max_t(unsigned int, floor, scan);
 }
 
+/**
+ * @brief Get the max scan period for a task
+ * 
+ * @return the max scan period
+ * @param p the task to use
+ */
 static unsigned int task_scan_max(struct task_struct *p)
 {
 	unsigned int smin = task_scan_min(p);
@@ -1163,22 +1514,42 @@ struct numa_group {
 /* Averaged statistics, and temporary buffers. */
 #define NR_NUMA_HINT_FAULT_BUCKETS (NR_NUMA_HINT_FAULT_STATS * 2)
 
+/**
+ * @brief Get the group id of a task
+ *
+ * @return the @c pid_t of group
+ * @param p the task to check
+ */
 pid_t task_numa_group_id(struct task_struct *p)
 {
 	return p->numa_group ? p->numa_group->gid : 0;
 }
 
-/*
+/**
+ * @brief Get the number of task faults by id
+ *
  * The averaged statistics, shared & private, memory & cpu,
  * occupy the first half of the array. The second half of the
  * array is for current counters, which are averaged into the
  * first set by task_numa_placement.
+ *
+ * @return the number of faults
+ * @param s the statistics to use
+ * @param nid the node id
+ * @param priv the number of private statistics
  */
 static inline int task_faults_idx(enum numa_faults_stats s, int nid, int priv)
 {
 	return NR_NUMA_HINT_FAULT_TYPES * (s * nr_node_ids + nid) + priv;
 }
 
+/**
+ * @brief Get the number of task faults
+ *
+ * @return the number of faults
+ * @param p the task being used
+ * @param nid the node id
+ */
 static inline unsigned long task_faults(struct task_struct *p, int nid)
 {
 	if (!p->numa_faults)
@@ -1188,6 +1559,13 @@ static inline unsigned long task_faults(struct task_struct *p, int nid)
 		p->numa_faults[task_faults_idx(NUMA_MEM, nid, 1)];
 }
 
+/**
+ * @brief Get the number of faults in a group
+ * 
+ * @return the number of faults
+ * @param p the task used
+ * @param nid the node id
+ */
 static inline unsigned long group_faults(struct task_struct *p, int nid)
 {
 	if (!p->numa_group)
@@ -1197,6 +1575,13 @@ static inline unsigned long group_faults(struct task_struct *p, int nid)
 		p->numa_group->faults[task_faults_idx(NUMA_MEM, nid, 1)];
 }
 
+/**
+ * @brief get the number of faults in group on a cpu
+ *
+ * @return the numebr of faults
+ * @param group the group to check
+ * @param nid the node id
+ */
 static inline unsigned long group_faults_cpu(struct numa_group *group, int nid)
 {
 	return group->faults_cpu[task_faults_idx(NUMA_MEM, nid, 0)] +
@@ -1210,12 +1595,27 @@ static inline unsigned long group_faults_cpu(struct numa_group *group, int nid)
  */
 #define ACTIVE_NODE_FRACTION 3
 
+/**
+ * @brief Check if a numa group node is active
+ *
+ * @return true if the node is active
+ * @param nid the node id
+ * @param ng the group to check
+ */
 static bool numa_is_active_node(int nid, struct numa_group *ng)
 {
 	return group_faults_cpu(ng, nid) * ACTIVE_NODE_FRACTION > ng->max_faults_cpu;
 }
 
-/* Handle placement on systems where not all nodes are directly connected. */
+/**
+ * @brief Handle placement on systems where not all nodes are directly connected. 
+ *
+ * @return the combined score of all nearby nodes
+ * @param p the task to use
+ * @param nid the node id
+ * @param maxdist the maximum distance
+ * @param task used if checking a task
+ */
 static unsigned long score_nearby_nodes(struct task_struct *p, int nid,
 					int maxdist, bool task)
 {
@@ -1280,11 +1680,18 @@ static unsigned long score_nearby_nodes(struct task_struct *p, int nid,
 	return score;
 }
 
-/*
+/**
+ * @brief The task weight done by a task on a given node
+ *
  * These return the fraction of accesses done by a particular task, or
  * task group, on a particular numa node.  The group weight is given a
  * larger multiplier, in order to group tasks together that are almost
  * evenly spread out between numa nodes.
+ *
+ * @return the weight of a task
+ * @param p the task to check
+ * @param nid the node id
+ * @param dist the distance of a node
  */
 static inline unsigned long task_weight(struct task_struct *p, int nid,
 					int dist)
@@ -1305,6 +1712,14 @@ static inline unsigned long task_weight(struct task_struct *p, int nid,
 	return 1000 * faults / total_faults;
 }
 
+/**
+ * @brief Get the weight of a group
+ * 
+ * @return the weight of the given group
+ * @param p the task being used
+ * @param nid the nod id
+ * @param dist the distance of a node
+ */
 static inline unsigned long group_weight(struct task_struct *p, int nid,
 					 int dist)
 {
@@ -1324,6 +1739,15 @@ static inline unsigned long group_weight(struct task_struct *p, int nid,
 	return 1000 * faults / total_faults;
 }
 
+/**
+ * @brief Determine if a node should migrate
+ *
+ * @return true if a migration should happen
+ * @param p the task being used
+ * @param page the current page the node is on
+ * @param src_nid the source node id
+ * @param dst_cpu the destination cpu
+ */
 bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
 				int src_nid, int dst_cpu)
 {
@@ -1383,10 +1807,103 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
 	       group_faults_cpu(ng, src_nid) * group_faults(p, dst_nid) * 4;
 }
 
+/**
+ * @brief Get the weighted load of a cpu
+ *
+ * @return the load of the given cpu
+ * @param cpu the cpu to check
+ */
 static unsigned long weighted_cpuload(const int cpu);
+/**
+ * @brief Get a low guess load from a source cpu
+ *
+ * Return a low guess at the load of a migration-source cpu weighted
+ * according to the scheduling class and "nice" value.
+ *
+ * We want to under-estimate the load of migration sources, to
+ * balance conservatively.
+ *
+ * @return the load of the source
+ * @param cpu the cpu to check
+ * @param type the nice value
+ */
 static unsigned long source_load(int cpu, int type);
+/**
+ * @brief Get a high guess load from a source cpu
+ *
+ * Return a high guess at the load of a migration-target cpu weighted
+ * according to the scheduling class and "nice" value.
+ *
+ * @return the load
+ * @param cpu the cpu to check
+ * @param type the nice value
+ */
 static unsigned long target_load(int cpu, int type);
+/**
+ * @brief Get the capacity of a cpu
+ * 
+ * @return the capacity of the given cpu
+ * @param cpu the cpu to check
+ */
 static unsigned long capacity_of(int cpu);
+/**
+ * @brief Calculate the load change
+ *
+ * effective_load() calculates the load change as seen from the root_task_group
+ *
+ * Adding load to a group doesn't make a group heavier, but can cause movement
+ * of group shares between cpus. Assuming the shares were perfectly aligned one
+ * can calculate the shift in shares.
+ *
+ * Calculate the effective load difference if wl is added (subtracted) to tg
+ * on this cpu and results in a total addition (subtraction) of wg to the
+ * total group weight.
+ *
+ * Given a runqueue weight distribution (rw_i) we can compute a shares
+ * distribution (s_i) using:
+ *
+ *   s_i = rw_i / Sum: rw_j						(1)
+ *
+ * Suppose we have 4 CPUs and our tg is a direct child of the root group and
+ * has 7 equal weight tasks, distributed as below (rw_i), with the resulting
+ * shares distribution (s_i):
+ *
+ *   rw_i = {   2,   4,   1,   0 }
+ *   s_i  = { 2/7, 4/7, 1/7,   0 }
+ *
+ * As per wake_affine() we're interested in the load of two CPUs (the CPU the
+ * task used to run on and the CPU the waker is running on), we need to
+ * compute the effect of waking a task on either CPU and, in case of a sync
+ * wakeup, compute the effect of the current task going to sleep.
+ *
+ * So for a change of wl to the local cpu with an overall group weight change
+ * of wl we can compute the new shares distribution (s'_i) using:
+ *
+ *   s'_i = (rw_i + wl) / (wg + Sum: rw_j)				(2)
+ *
+ * Suppose we're interested in CPUs 0 and 1, and want to compute the load
+ * differences in waking a task to CPU 0. The additional task changes the
+ * weight and shares distributions like:
+ *
+ *   rw'_i = {   3,   4,   1,   0 }
+ *   s'_i  = { 3/8, 4/8, 1/8,   0 }
+ *
+ * We can then compute the difference in effective weight by using:
+ *
+ *   dw_i = S * (s'_i - s_i)						(3)
+ *
+ * Where 'S' is the group weight as seen by its parent.
+ *
+ * Therefore the effective change in loads on CPU 0 would be 5/56 (3/8 - 2/7)
+ * times the weight of the group. The effect on CPU 1 would be -4/56 (4/8 -
+ * 4/7) times the weight of the group.
+ *
+ * @return the calculated effective load
+ * @param tg the task group being used
+ * @param cpu the cpu being used
+ * @param wl the load weight being used
+ * @param wg the group weight being used
+ */
 static long effective_load(struct task_group *tg, int cpu, long wl, long wg);
 
 /* Cached statistics for all CPUs within a node */
@@ -1402,8 +1919,14 @@ struct numa_stats {
 	int has_free_capacity;
 };
 
-/*
- * XXX borrowed from update_sg_lb_stats
+/**
+ * @brief Update the numa stats.
+ * 
+ * Borrowed from update_sg_lb_stats()
+ *
+ * @return @c NULL
+ * @param ns the numa stats to be updated
+ * @param nid the node id
  */
 static void update_numa_stats(struct numa_stats *ns, int nid)
 {
@@ -1457,6 +1980,14 @@ struct task_numa_env {
 	int best_cpu;
 };
 
+/**
+ * @brief Assigns a given numa task
+ *
+ * @return @c NULL
+ * @param env the env to assign the task on
+ * @param p the task to assign
+ * @param imp the imp value to assign
+ */
 static void task_numa_assign(struct task_numa_env *env,
 			     struct task_struct *p, long imp)
 {
@@ -1469,7 +2000,14 @@ static void task_numa_assign(struct task_numa_env *env,
 	env->best_imp = imp;
 	env->best_cpu = env->dst_cpu;
 }
-
+/**
+ * @brief Check if the load is too imbalanced
+ *
+ * @return true if the load is too imbalanced
+ * @param src_load the source load to use
+ * @param dst_load the destination load to use
+ * @param env the env to use
+ */
 static bool load_too_imbalanced(long src_load, long dst_load,
 				struct task_numa_env *env)
 {
@@ -1514,11 +2052,18 @@ static bool load_too_imbalanced(long src_load, long dst_load,
 	return (imb > old_imb);
 }
 
-/*
+/**
+ * @brief See if tasks would be perform better if they were migrated.
+ *
  * This checks if the overall compute and NUMA accesses of the system would
  * be improved if the source tasks was migrated to the target dst_cpu taking
  * into account that it might be best if task running on the dst_cpu should
  * be exchanged with the source task
+ *
+ * @return @c NULL
+ * @param env the env to use
+ * @param taskimp the task's imp
+ * @param groupimp the group's imp
  */
 static void task_numa_compare(struct task_numa_env *env,
 			      long taskimp, long groupimp)
@@ -1553,7 +2098,7 @@ static void task_numa_compare(struct task_numa_env *env,
 	 */
 	if (cur) {
 		/* Skip this swap candidate if cannot move to the source cpu */
-		if (!cpumask_test_cpu(env->src_cpu, &cur->cpus_allowed))
+		if (!cpumask_test_cpu(env->src_cpu, tsk_cpus_allowed(cur)))
 			goto unlock;
 
 		/*
@@ -1656,6 +2201,15 @@ unlock:
 	rcu_read_unlock();
 }
 
+
+/**
+ * @brief Find a cpu to migrate a task to
+ *
+ * @return @c NULL
+ * @param env the env to use
+ * @param taskimp the task's imp
+ * @param groupimp the group's imp
+ */
 static void task_numa_find_cpu(struct task_numa_env *env,
 				long taskimp, long groupimp)
 {
@@ -1663,7 +2217,7 @@ static void task_numa_find_cpu(struct task_numa_env *env,
 
 	for_each_cpu(cpu, cpumask_of_node(env->dst_nid)) {
 		/* Skip this CPU if the source task cannot migrate */
-		if (!cpumask_test_cpu(cpu, &env->p->cpus_allowed))
+		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(env->p)))
 			continue;
 
 		env->dst_cpu = cpu;
@@ -1671,7 +2225,14 @@ static void task_numa_find_cpu(struct task_numa_env *env,
 	}
 }
 
-/* Only move tasks to a NUMA node less busy than the current node. */
+/**
+ * @brief Check if a numa node can accept more tasks
+ *
+ * Only move tasks to a NUMA node less busy than the current node. 
+ *
+ * @return true if the node can accept more tasks
+ * @param env the env to use
+ */
 static bool numa_has_capacity(struct task_numa_env *env)
 {
 	struct numa_stats *src = &env->src_stats;
@@ -1696,6 +2257,12 @@ static bool numa_has_capacity(struct task_numa_env *env)
 	return false;
 }
 
+/**
+ * @brief Migrate a numa task
+ *
+ * @return
+ * @param p the task to migrate
+ */
 static int task_numa_migrate(struct task_struct *p)
 {
 	struct task_numa_env env = {
@@ -1830,7 +2397,12 @@ static int task_numa_migrate(struct task_struct *p)
 	return ret;
 }
 
-/* Attempt to migrate a task to a CPU on the preferred node. */
+/**
+ * @brief Attempt to migrate a task to a CPU on the preferred node. 
+ *
+ * @return @c NULL
+ * @param p the task to migrate
+ */
 static void numa_migrate_preferred(struct task_struct *p)
 {
 	unsigned long interval = HZ;
@@ -1851,11 +2423,15 @@ static void numa_migrate_preferred(struct task_struct *p)
 	task_numa_migrate(p);
 }
 
-/*
- * Find out how many nodes on the workload is actively running on. Do this by
- * tracking the nodes from which NUMA hinting faults are triggered. This can
- * be different from the set of nodes where the workload's memory is currently
- * located.
+/**
+ * @brief Find out how many nodes on the workload is actively running on.
+ *
+ * Do this by tracking the nodes from which NUMA hinting 
+ * faults are triggered. This can be different from the 
+ * set of nodes where the workload's memory is currently located.
+ * 
+ * @return @c NULL
+ * @param numa_group the group to use
  */
 static void numa_group_count_active_nodes(struct numa_group *numa_group)
 {
@@ -1888,11 +2464,18 @@ static void numa_group_count_active_nodes(struct numa_group *numa_group)
 #define NUMA_PERIOD_SLOTS 10
 #define NUMA_PERIOD_THRESHOLD 7
 
-/*
+/**
+ * @brief Change a task's scan period.
+ *
  * Increase the scan period (slow down scanning) if the majority of
  * our memory is already on our local node, or if the majority of
  * the page accesses are shared with other processes.
  * Otherwise, decrease the scan period.
+ *
+ * @return @c NULL
+ * @param p the task to use
+ * @param shared the number shared faults
+ * @param private the number of private faults
  */
 static void update_task_scan_period(struct task_struct *p,
 			unsigned long shared, unsigned long private)
@@ -1954,12 +2537,18 @@ static void update_task_scan_period(struct task_struct *p,
 	memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
 }
 
-/*
+/**
+ * @brief Get the average runtime ofa task over a given period
+ *
  * Get the fraction of time the task has been running since the last
  * NUMA placement cycle. The scheduler keeps similar statistics, but
  * decays those on a 32ms period, which is orders of magnitude off
  * from the dozens-of-seconds NUMA balancing period. Use the scheduler
  * stats only if the task is so new there are no NUMA statistics yet.
+ *
+ * @return the average runtime
+ * @param p the task to use
+ * @param period the time period to check
  */
 static u64 numa_get_avg_runtime(struct task_struct *p, u64 *period)
 {
@@ -1982,10 +2571,15 @@ static u64 numa_get_avg_runtime(struct task_struct *p, u64 *period)
 	return delta;
 }
 
-/*
- * Determine the preferred nid for a task in a numa_group. This needs to
- * be done in a way that produces consistent results with group_weight,
- * otherwise workloads might not converge.
+/**
+ * @brief Determine the preferred nid for a task in a group.
+ *
+ * This needs to be done in a way that produces consistent results
+ * with group_weight, otherwise workloads might not converge.
+ * 
+ * @return the nid chosen
+ * @param p the task being used
+ * @param nid the current nid
  */
 static int preferred_group_nid(struct task_struct *p, int nid)
 {
@@ -2069,7 +2663,12 @@ static int preferred_group_nid(struct task_struct *p, int nid)
 	}
 	return nid;
 }
-
+/**
+ * @brief Place a numa task.
+ *
+ * @return @c NULL
+ * @param p the task to place
+ */
 static void task_numa_placement(struct task_struct *p)
 {
 	int seq, nid, max_nid = -1, max_group_nid = -1;
@@ -2180,18 +2779,37 @@ static void task_numa_placement(struct task_struct *p)
 			numa_migrate_preferred(p);
 	}
 }
-
+/**
+ * @brief Get a numa group.
+ *
+ * @return the refcount of the given group
+ * @param grp the group to use
+ */
 static inline int get_numa_group(struct numa_group *grp)
 {
 	return atomic_inc_not_zero(&grp->refcount);
 }
 
+/**
+ * @brief Put a numa group.
+ *
+ * @return @c NULL
+ * @param grp the group to use
+ */
 static inline void put_numa_group(struct numa_group *grp)
 {
 	if (atomic_dec_and_test(&grp->refcount))
 		kfree_rcu(grp, rcu);
 }
-
+/**
+ * @brief Put a task into a numa group
+ *
+ * @return @c NULL
+ * @param p the task to use
+ * @param cpupid the cpu's pid
+ * @param flags used to avoid false positives 
+ * @param priv The priv value to update
+ */
 static void task_numa_group(struct task_struct *p, int cpupid, int flags,
 			int *priv)
 {
@@ -2298,7 +2916,12 @@ no_join:
 	rcu_read_unlock();
 	return;
 }
-
+/**
+ * @brief Free a numa task
+ * 
+ * @return @c NULL
+ * @param p the task to free
+ */
 void task_numa_free(struct task_struct *p)
 {
 	struct numa_group *grp = p->numa_group;
@@ -2322,8 +2945,16 @@ void task_numa_free(struct task_struct *p)
 	kfree(numa_faults);
 }
 
-/*
- * Got a PROT_NONE fault for a page on @node.
+/**
+ * @brief Check for faults in a numa task on a given node.
+ *
+ * Got a PROT_NONE fault for a page on a node.
+ *
+ * @return @c NULL
+ * @param last_cpupid the last cpu's pid
+ * @param mem_node the memory node used
+ * @param pages the number of pages used
+ * @param flags determines if the task was migrated or not
  */
 void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
 {
@@ -2396,7 +3027,12 @@ void task_numa_fault(int last_cpupid, int mem_node, int pages, int flags)
 	p->numa_faults[task_faults_idx(NUMA_CPUBUF, cpu_node, priv)] += pages;
 	p->numa_faults_locality[local] += pages;
 }
-
+/**
+ * @brief Reset the pte numa scan
+ *
+ * @return @c NULL
+ * @param p the task to use
+ */
 static void reset_ptenuma_scan(struct task_struct *p)
 {
 	/*
@@ -2411,9 +3047,14 @@ static void reset_ptenuma_scan(struct task_struct *p)
 	p->mm->numa_scan_offset = 0;
 }
 
-/*
+/**
+ * @brief Does the expensive parts of numa migration
+ *
  * The expensive part of numa migration is done from task_work context.
  * Triggered from task_tick_numa().
+ *
+ * @return @c NULL
+ * @param work the work to be done
  */
 void task_numa_work(struct callback_head *work)
 {
@@ -2556,8 +3197,8 @@ out:
 	}
 }
 
-/*
- * Drive the periodic memory faults..
+/**
+ * @brief Drive the periodic memory faults..
  */
 void task_tick_numa(struct rq *rq, struct task_struct *curr)
 {
@@ -2591,19 +3232,47 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
 	}
 }
 #else
+/**
+ * @brief Drive the periodic memory faults caused by non-uniform memory access.
+ * 
+ * @return @c NULL
+ * @param rq The run queue currently beung used
+ * @param curr The current task
+ */
 static void task_tick_numa(struct rq *rq, struct task_struct *curr)
 {
 }
 
+/**
+ * @brief Enqueue a task and account for non-uniform memory access
+ *
+ * @return @c NULL
+ * @param rq The run queue to queue the task in
+ * @param p The task to queue
+ */
 static inline void account_numa_enqueue(struct rq *rq, struct task_struct *p)
 {
 }
 
+/**
+ * @brief Denqueue a task and account for non-uniform memory access
+ *
+ * @return @c NULL
+ * @param rq The run queue containing the task to dequeue
+ * @param p The task to dequeue
+ */
 static inline void account_numa_dequeue(struct rq *rq, struct task_struct *p)
 {
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
+/**
+ * @brief Enqueue a task and update the load value
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue to enqueue the task in
+ * @param se The task to enqueue
+ */
 static void
 account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -2621,6 +3290,13 @@ account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	cfs_rq->nr_running++;
 }
 
+/**
+ * @brief Dequeue a task and update the load value
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue containing the task to dequeue
+ * @param se The task to dequeue
+ */
 static void
 account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -2638,6 +3314,13 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 # ifdef CONFIG_SMP
+/**
+ * @brief Calculate the number of cfs shares
+ *
+ * @return the number of shares
+ * @param cfs_rq the run queue to use
+ * @param tg the corresponding task group
+ */
 static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 {
 	long tg_weight, load, shares;
@@ -2659,18 +3342,6 @@ static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 	if (tg_weight)
 		shares /= tg_weight;
 
-	/*
-	 * MIN_SHARES has to be unscaled here to support per-CPU partitioning
-	 * of a group with small tg->shares value. It is a floor value which is
-	 * assigned as a minimum load.weight to the sched_entity representing
-	 * the group on a CPU.
-	 *
-	 * E.g. on 64-bit for a group with tg->shares of scale_load(15)=15*1024
-	 * on an 8-core system with 8 tasks each runnable on one CPU shares has
-	 * to be 15*1024*1/8=1920 instead of scale_load(MIN_SHARES)=2*1024. In
-	 * case no task is runnable on a CPU MIN_SHARES=2 should be returned
-	 * instead of 0.
-	 */
 	if (shares < MIN_SHARES)
 		shares = MIN_SHARES;
 	if (shares > tg->shares)
@@ -2684,7 +3355,14 @@ static inline long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 	return tg->shares;
 }
 # endif /* CONFIG_SMP */
-
+/**
+ * @brief Reassign the weight of an entity
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ * @param se the entity to use
+ * @param weight the new weight
+ */
 static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			    unsigned long weight)
 {
@@ -2703,20 +3381,16 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 
 static inline int throttled_hierarchy(struct cfs_rq *cfs_rq);
 
-static void update_cfs_shares(struct sched_entity *se)
+static void update_cfs_shares(struct cfs_rq *cfs_rq)
 {
-	struct cfs_rq *cfs_rq = group_cfs_rq(se);
 	struct task_group *tg;
+	struct sched_entity *se;
 	long shares;
 
-	if (!cfs_rq)
-		return;
-
-	if (throttled_hierarchy(cfs_rq))
-		return;
-
 	tg = cfs_rq->tg;
-
+	se = tg->se[cpu_of(rq_of(cfs_rq))];
+	if (!se || throttled_hierarchy(cfs_rq))
+		return;
 #ifndef CONFIG_SMP
 	if (likely(se->load.weight == tg->shares))
 		return;
@@ -2725,9 +3399,14 @@ static void update_cfs_shares(struct sched_entity *se)
 
 	reweight_entity(cfs_rq_of(se), se, shares);
 }
-
 #else /* CONFIG_FAIR_GROUP_SCHED */
-static inline void update_cfs_shares(struct sched_entity *se)
+/**
+ * @brief Updates the shares value of a run queue
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue that will have its value updated
+ */
+static inline void update_cfs_shares(struct cfs_rq *cfs_rq)
 {
 }
 #endif /* CONFIG_FAIR_GROUP_SCHED */
@@ -2763,9 +3442,15 @@ static const u32 __accumulated_sum_N32[] = {
 	46011, 46376, 46559, 46650, 46696, 46719,
 };
 
-/*
+/**
+ * @brief Decay the load of a scheduling period
+ *
  * Approximate:
  *   val * y^n,    where y^32 ~= 0.5 (~1 scheduling period)
+ *
+ * @return the new load value
+ * @param val the value to decay the load by
+ * @param n number of periods
  */
 static __always_inline u64 decay_load(u64 val, u64 n)
 {
@@ -2795,12 +3480,16 @@ static __always_inline u64 decay_load(u64 val, u64 n)
 	return val;
 }
 
-/*
+/** 
+ * @brief Calculate the contribution of updates.
+ *
  * For updates fully spanning n periods, the contribution to runnable
- * average will be: \Sum 1024*y^n
+ * average will be: Sum: 1024*y^n
  *
  * We can compute this reasonably efficiently by combining:
- *   y^PERIOD = 1/2 with precomputed \Sum 1024*y^n {for  n <PERIOD}
+ *   y^PERIOD = 1/2 with precomputed Sum: 1024*y^n {for  n <PERIOD}
+ * @return the total contribution
+ * @param n the number of periods
  */
 static u32 __compute_runnable_contrib(u64 n)
 {
@@ -2820,7 +3509,9 @@ static u32 __compute_runnable_contrib(u64 n)
 
 #define cap_scale(v, s) ((v)*(s) >> SCHED_CAPACITY_SHIFT)
 
-/*
+/**
+ * @brief Update the average load value.
+ *
  * We can represent the historical contribution to runnable average as the
  * coefficients of a geometric series.  To do this we sub-divide our runnable
  * history into segments of approximately 1ms (1024us); label the segment that
@@ -2847,6 +3538,13 @@ static u32 __compute_runnable_contrib(u64 n)
  * sum again by y is sufficient to update:
  *   load_avg = u_0` + y*(u_0 + u_1*y + u_2*y^2 + ... )
  *            = u_0 + u_1*y + u_2*y^2 + ... [re-labeling u_i --> u_{i+1}]
+ * @return the updated value
+ * @param now the current time
+ * @param cpu the current cpu
+ * @param sa the current average
+ * @param weight the weight to use
+ * @param running the number of tasks running
+ * @param cfs_rq the run queue being used
  */
 static __always_inline int
 __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
@@ -2974,22 +3672,8 @@ __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 } while (0)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-/**
- * update_tg_load_avg - update the tg's load avg
- * @cfs_rq: the cfs_rq whose avg changed
- * @force: update regardless of how small the difference
- *
- * This function 'ensures': tg->load_avg := \Sum tg->cfs_rq[]->avg.load.
- * However, because tg->load_avg is a global value there are performance
- * considerations.
- *
- * In order to avoid having to look at the other cfs_rq's, we use a
- * differential update where we store the last value we propagated. This in
- * turn allows skipping updates if the differential is 'small'.
- *
- * Updating tg's load_avg is necessary before update_cfs_share() (which is
- * done) and effective_load() (which is not done because it is too costly).
- */
+
+
 static inline void update_tg_load_avg(struct cfs_rq *cfs_rq, int force)
 {
 	long delta = cfs_rq->avg.load_avg - cfs_rq->tg_load_avg_contrib;
@@ -3006,10 +3690,16 @@ static inline void update_tg_load_avg(struct cfs_rq *cfs_rq, int force)
 	}
 }
 
-/*
+/**
+ * @brief Set the run queue of a task.
+ *
  * Called within set_task_rq() right before setting a task's cpu. The
  * caller only guarantees p->pi_lock is held; no other assumptions,
  * including the state of rq->lock, should be made.
+ * @return @c NULL
+ * @param se the entity to move
+ * @param prev the previous run queue
+ * @param next the next run queue
  */
 void set_task_rq_fair(struct sched_entity *se,
 		      struct cfs_rq *prev, struct cfs_rq *next)
@@ -3053,7 +3743,13 @@ void set_task_rq_fair(struct sched_entity *se,
 	}
 }
 
-/* Take into account change of utilization of a child task group */
+/**
+ * @brief Take into account change of utilization of a child task group 
+ * 
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ * @param se the entity to use
+ */
 static inline void
 update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -3073,7 +3769,13 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	cfs_rq->avg.util_sum = cfs_rq->avg.util_avg * LOAD_AVG_MAX;
 }
 
-/* Take into account change of load of a child task group */
+/**
+ * @brief Take into account change of load of a child task group.
+ * 
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ * @param se the entity being used
+ */
 static inline void
 update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -3136,11 +3838,22 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	}
 }
 
+/**
+ * @brief Set the @c propagate_avg value of a run queue to 1
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to use
+ */
 static inline void set_tg_cfs_propagate(struct cfs_rq *cfs_rq)
 {
 	cfs_rq->propagate_avg = 1;
 }
-
+/**
+ * @brief Check the @c propagate_avg value and set it to 0 if not already 0
+ *
+ * @return 1 if the value was changed, otherwise 0
+ * @param se the entity to use
+ */
 static inline int test_and_clear_tg_cfs_propagate(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = group_cfs_rq(se);
@@ -3152,7 +3865,12 @@ static inline int test_and_clear_tg_cfs_propagate(struct sched_entity *se)
 	return 1;
 }
 
-/* Update task and its cfs_rq load average */
+/**
+ * @brief Update task and its cfs_rq load average. 
+ *
+ * @return 0 if the entity is a task or the @c propagate_avg value is 0
+ * @param se the entity to use
+ */
 static inline int propagate_entity_load_avg(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq;
@@ -3185,7 +3903,12 @@ static inline int propagate_entity_load_avg(struct sched_entity *se)
 static inline void set_tg_cfs_propagate(struct cfs_rq *cfs_rq) {}
 
 #endif /* CONFIG_FAIR_GROUP_SCHED */
-
+/**
+ * @brief Change the util of a run queue.
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to use
+ */
 static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
 {
 	if (&this_rq()->cfs == cfs_rq) {
@@ -3226,23 +3949,7 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
 	WRITE_ONCE(*ptr, res);					\
 } while (0)
 
-/**
- * update_cfs_rq_load_avg - update the cfs_rq's load/util averages
- * @now: current time, as per cfs_rq_clock_task()
- * @cfs_rq: cfs_rq to update
- * @update_freq: should we call cfs_rq_util_change() or will the call do so
- *
- * The cfs_rq avg is the direct sum of all its entities (blocked and runnable)
- * avg. The immediate corollary is that all (fair) tasks must be attached, see
- * post_init_entity_util_avg().
- *
- * cfs_rq->avg is used for task_h_load() and update_cfs_share() for example.
- *
- * Returns true if the load decayed or we removed load.
- *
- * Since both these conditions indicate a changed cfs_rq->avg.load we should
- * call update_tg_load_avg() when this function returns true.
- */
+
 static inline int
 update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
 {
@@ -3311,14 +4018,7 @@ static inline void update_load_avg(struct sched_entity *se, int flags)
 		update_tg_load_avg(cfs_rq, 0);
 }
 
-/**
- * attach_entity_load_avg - attach this entity to its cfs_rq load avg
- * @cfs_rq: cfs_rq to attach to
- * @se: sched_entity to attach
- *
- * Must call update_cfs_rq_load_avg() before this, since we rely on
- * cfs_rq->avg.last_update_time being current.
- */
+
 static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	se->avg.last_update_time = cfs_rq->avg.last_update_time;
@@ -3331,14 +4031,7 @@ static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
 	cfs_rq_util_change(cfs_rq);
 }
 
-/**
- * detach_entity_load_avg - detach this entity from its cfs_rq load avg
- * @cfs_rq: cfs_rq to detach from
- * @se: sched_entity to detach
- *
- * Must call update_cfs_rq_load_avg() before this, since we rely on
- * cfs_rq->avg.last_update_time being current.
- */
+
 static void detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 
@@ -3377,6 +4070,12 @@ dequeue_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 #ifndef CONFIG_64BIT
+/**
+ * @brief Get the last update time of a run queue
+ * 
+ * @return the last update time
+ * @param cfs_rq the run queue to check
+ */
 static inline u64 cfs_rq_last_update_time(struct cfs_rq *cfs_rq)
 {
 	u64 last_update_time_copy;
@@ -3397,9 +4096,11 @@ static inline u64 cfs_rq_last_update_time(struct cfs_rq *cfs_rq)
 }
 #endif
 
-/*
- * Synchronize entity load avg of dequeued entity without locking
- * the previous rq.
+/** 
+ * @brief Synchronize entity load avg of dequeued entity without locking the previous rq.
+ * 
+ * @return @c NULL
+ * @param se the entity to use
  */
 void sync_entity_load_avg(struct sched_entity *se)
 {
@@ -3432,21 +4133,48 @@ void remove_entity_load_avg(struct sched_entity *se)
 	atomic_long_add(se->avg.load_avg, &cfs_rq->removed_load_avg);
 	atomic_long_add(se->avg.util_avg, &cfs_rq->removed_util_avg);
 }
-
+/**
+ * @brief Get the runnable load average of a run queue
+ *
+ * @return the runnaable load average of the given run queue
+ * @param cfs_rq the run queue being used
+ */
 static inline unsigned long cfs_rq_runnable_load_avg(struct cfs_rq *cfs_rq)
 {
 	return cfs_rq->runnable_load_avg;
 }
-
+/**
+ * @brief Get the load average of a run queue
+ *
+ * @return @c the load average of the given run queue
+ * @param cfs_rq the run queue to use
+ */
 static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq)
 {
 	return cfs_rq->avg.load_avg;
 }
 
-static int idle_balance(struct rq *this_rq, struct rq_flags *rf);
+static int idle_balance(struct rq *this_rq);
 
 #else /* CONFIG_SMP */
 
+/**
+ * @brief Update the cfs_rq's load/util averages
+ *
+ * The cfs_rq avg is the direct sum of all its entities (blocked and runnable)
+ * avg. The immediate corollary is that all (fair) tasks must be attached, see
+ * post_init_entity_util_avg().
+ *
+ * cfs_rq->avg is used for task_h_load() and update_cfs_share() for example.
+ *
+ * Since both these conditions indicate a changed cfs_rq->avg.load we should
+ * call update_tg_load_avg() when this function returns true.
+ *
+ * @return true if the load decayed or was removed
+ * @param now current time, as per cfs_rq_clock_task()
+ * @param cfs_rq @c cfs_rq to update
+ * @param update_freq should we call cfs_rq_util_change() or will the call do so
+ */
 static inline int
 update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
 {
@@ -3456,29 +4184,96 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
 #define UPDATE_TG	0x0
 #define SKIP_AGE_LOAD	0x0
 
-static inline void update_load_avg(struct sched_entity *se, int not_used1)
+/**
+ * @brief Update task and its cfs_rq load average
+ *
+ * @return @c NULL
+ * @param se The scheduled entity to be updated
+ * @param flags determines the behaviour of the update
+ */
+static inline void update_load_avg(struct sched_entity *se, int flags)
 {
 	cpufreq_update_util(rq_of(cfs_rq_of(se)), 0);
 }
 
+/**
+ * @brief Add the load generated by se into cfs_rq's load average
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue being updated
+ * @param se The entity generating a load
+ */
 static inline void
 enqueue_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
+
+/**
+ * @brief Remove the runnable load generated by se from cfs_rq's runnable load average
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue being updated
+ * @param se The entity generating a load
+ */
 static inline void
 dequeue_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
+
+/**
+ * @brief Task first catches up with cfs_rq, and then subtracts
+ * itself from the cfs_rq (task must be off the queue now).
+ *
+ * @return @c NULL
+ * @param se The entity to be removed
+ */
 static inline void remove_entity_load_avg(struct sched_entity *se) {}
 
+/**
+ * @brief Attach this entity to its cfs_rq load avg
+ *
+ * Must call update_cfs_rq_load_avg() before this, since we rely on
+ * cfs_rq->avg.last_update_time being current.
+ *
+ * @return @c NULL
+ * @param cfs_rq cfs_rq to attach to
+ * @param se sched_entity to attach
+ */
 static inline void
 attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
+
+/**
+ * @brief Detach this entity from its cfs_rq load avg
+ *
+ * Must call update_cfs_rq_load_avg() before this, since we rely on
+ * cfs_rq->avg.last_update_time being current.
+ *
+ * @return @c NULL
+ * @param cfs_rq cfs_rq to detach from
+ * @param se sched_entity to detach
+ */
 static inline void
 detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
 
-static inline int idle_balance(struct rq *rq, struct rq_flags *rf)
+/**
+ * @brief Attempts to pull tasks form other CPUs.
+ *
+ * Called by schedule() if this_cpu is about to become
+ * idle. Attempts to pull tasks from other CPUs.
+ *
+ * @return The number of pulled tasks
+ * @param rq the run queue to pull tasks into
+ */
+static inline int idle_balance(struct rq *rq)
 {
 	return 0;
 }
 
 #endif /* CONFIG_SMP */
 
+/**
+ * @brief Check the spread of the processes and put it into the stats
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to check
+ * @param se the entity to check
+ */
 static void check_spread(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 #ifdef CONFIG_SCHED_DEBUG
@@ -3492,6 +4287,14 @@ static void check_spread(struct cfs_rq *cfs_rq, struct sched_entity *se)
 #endif
 }
 
+/**
+ * @brief Places an entity at the end of the current period
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to place the entity in
+ * @param se the entity to be placed
+ * @param initial determines the behaviour of the the placing
+ */
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
@@ -3524,9 +4327,24 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	se->vruntime = max_vruntime(se->vruntime, vruntime);
 }
 
+/**
+ * @brief Check whether to throttle or not
+ *
+ * When a group wakes up we want to make sure that its quota is not already
+ * expired/exceeded, otherwise it may be allowed to steal additional ticks of
+ * runtime as update_curr() throttling can not not trigger until it's on-rq.
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue to check
+ */
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
 
-static inline void check_schedstat_required(void)
+/**
+ * @brief Checks if scheduler stats are enabled
+ *
+ * @return @c static
+ */
+NULL inline void check_schedstat_required(void)
 {
 #ifdef CONFIG_SCHEDSTATS
 	if (schedstat_enabled())
@@ -3577,6 +4395,18 @@ static inline void check_schedstat_required(void)
  * CPU and an up-to-date min_vruntime on the destination CPU.
  */
 
+/**
+ * @brief Enqueue an entity
+ *
+ * update_curr()
+ *   update_min_vruntime()
+ * vruntime += min_vruntime
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ * @param se the entity to enqueue
+ * @param flags the flags determining the behaviour of the enqueue
+ */
 static void
 enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
@@ -3601,18 +4431,10 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	if (renorm && !curr)
 		se->vruntime += cfs_rq->min_vruntime;
 
-	/*
-	 * When enqueuing a sched_entity, we must:
-	 *   - Update loads to have both entity and cfs_rq synced with now.
-	 *   - Add its load to cfs_rq->runnable_avg
-	 *   - For group_entity, update its weight to reflect the new share of
-	 *     its group cfs_rq
-	 *   - Add its new weight to cfs_rq->load.weight
-	 */
 	update_load_avg(se, UPDATE_TG);
 	enqueue_entity_load_avg(cfs_rq, se);
-	update_cfs_shares(se);
 	account_entity_enqueue(cfs_rq, se);
+	update_cfs_shares(cfs_rq);
 
 	if (flags & ENQUEUE_WAKEUP)
 		place_entity(cfs_rq, se, 0);
@@ -3630,6 +4452,12 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	}
 }
 
+/**
+ * @brief Clear the last buddies of an entity
+ *
+ * @return @c NULL
+ * @param se the entity that will have the last buddies cleared
+ */
 static void __clear_buddies_last(struct sched_entity *se)
 {
 	for_each_sched_entity(se) {
@@ -3641,6 +4469,12 @@ static void __clear_buddies_last(struct sched_entity *se)
 	}
 }
 
+/**
+ * @brief Clear the next buddies of an entity
+ *
+ * @return @c NULL
+ * @param se the entity that will have the next buddies cleared
+ */
 static void __clear_buddies_next(struct sched_entity *se)
 {
 	for_each_sched_entity(se) {
@@ -3652,6 +4486,12 @@ static void __clear_buddies_next(struct sched_entity *se)
 	}
 }
 
+/**
+ * @brief Clear the skipped buddies of an entity
+ *
+ * @return @c NULL
+ * @param se the entity that will have the skipped buddies cleared
+ */
 static void __clear_buddies_skip(struct sched_entity *se)
 {
 	for_each_sched_entity(se) {
@@ -3663,6 +4503,13 @@ static void __clear_buddies_skip(struct sched_entity *se)
 	}
 }
 
+/**
+ * @brief Clear the buddies of an entity in a run queue
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue to be cleared
+ * @param se the entity that will have its buddies cleared
+ */
 static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->last == se)
@@ -3675,8 +4522,26 @@ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		__clear_buddies_skip(se);
 }
 
+/**
+ * @brief Gets the runtime of a run queue 
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to check
+ */
 static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq);
 
+/**
+ * @brief Dequeue an entity
+ *
+ * update_curr()
+ *   update_min_vruntime()
+ * vruntime -= min_vruntime
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ * @param se the entity to dequeue
+ * @param flags the flags determining the behaviour of the dequeue
+ */
 static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
@@ -3684,15 +4549,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
-
-	/*
-	 * When dequeuing a sched_entity, we must:
-	 *   - Update loads to have both entity and cfs_rq synced with now.
-	 *   - Substract its load from the cfs_rq->runnable_avg.
-	 *   - Substract its previous weight from cfs_rq->load.weight.
-	 *   - For group entity, update its weight to reflect the new share
-	 *     of its group cfs_rq.
-	 */
 	update_load_avg(se, UPDATE_TG);
 	dequeue_entity_load_avg(cfs_rq, se);
 
@@ -3717,7 +4573,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	/* return excess runtime on last dequeue */
 	return_cfs_rq_runtime(cfs_rq);
 
-	update_cfs_shares(se);
+	update_cfs_shares(cfs_rq);
 
 	/*
 	 * Now advance min_vruntime if @se was the entity holding it back,
@@ -3729,8 +4585,12 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 		update_min_vruntime(cfs_rq);
 }
 
-/*
- * Preempt the current task with a newly woken task if needed:
+/**
+ * @brief Preempt the current task with a newly woken task if needed
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ * @param curr the current entity
  */
 static void
 check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
@@ -3769,6 +4629,13 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 		resched_curr(rq_of(cfs_rq));
 }
 
+/**
+ *@brief Set the next entity
+ *
+ * @return @c NULL
+ * @param cfs_rq The current run queue
+ * @param se the entity to set as next
+ */
 static void
 set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -3801,15 +4668,40 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
+/**
+ * @brief  Wake up a preempted entity
+ *
+ * Should 'se' preempt 'curr'.
+ *
+ *             |s1
+ *        |s2
+ *   |s3
+ *         g
+ *      |<--->|c
+ *
+ *  w(c, s1) = -1
+ *  w(c, s2) =  0
+ *  w(c, s3) =  1
+ *
+ * @return -1, 0, or 1
+ * @param curr the current entity
+ * @param se the entity to check
+ */
 static int
 wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se);
 
-/*
+/**
+ * @brief Pick the next process to run
+ *
  * Pick the next process, keeping these things in mind, in this order:
  * 1) keep things fair between processes/task groups
  * 2) pick the "next" process, since someone really wants that to run
  * 3) pick the "last" process, for cache locality
  * 4) do not run the "skip" process, if something else is available
+ *
+ * @return the next entity to be run
+ * @param cfs_rq the run queue to run the entity on
+ * @param curr the current entity
  */
 static struct sched_entity *
 pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
@@ -3862,8 +4754,21 @@ pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	return se;
 }
 
+/**
+ * @brief Conditionally throttle active cfs_rq's from put_prev_entity()
+ *
+ * @return @c true if the run queue is throttled
+ * @param cfs_rq the run queue to check
+ */
 static bool check_cfs_rq_runtime(struct cfs_rq *cfs_rq);
 
+/**
+ * @brief Put a previously run entity back into the tree
+ *
+ * @return @c NULL
+ * @param cfs_rq The run queue being used
+ * @param prev the entity to be run again
+ */
 static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 {
 	/*
@@ -3888,6 +4793,14 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 	cfs_rq->curr = NULL;
 }
 
+/**
+ * @brief Update an entity
+ * 
+ * @return @c NULL
+ * @param cfs_rq The run queue being used
+ * @param curr the current entity
+ * @param queued used if ticks are queued
+ */
 static void
 entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 {
@@ -3900,7 +4813,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 	 * Ensure that runnable average is periodically updated.
 	 */
 	update_load_avg(curr, UPDATE_TG);
-	update_cfs_shares(curr);
+	update_cfs_shares(cfs_rq);
 
 #ifdef CONFIG_SCHED_HRTICK
 	/*
@@ -3932,17 +4845,29 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 
 #ifdef HAVE_JUMP_LABEL
 static struct static_key __cfs_bandwidth_used;
-
+/**
+ * @brief Check if all of the bandwidth is being used
+ *
+ * @return 1 if the bandwidth is being used, otherwise 0
+ */
 static inline bool cfs_bandwidth_used(void)
 {
 	return static_key_false(&__cfs_bandwidth_used);
 }
-
+/**
+ * @brief Increment the bandwidth usage value
+ *
+ * @return @c NULL
+ */
 void cfs_bandwidth_usage_inc(void)
 {
 	static_key_slow_inc(&__cfs_bandwidth_used);
 }
-
+/**
+ * @brief Decrement the bandwidth usage value
+ *
+ * @return @c NULL
+ */
 void cfs_bandwidth_usage_dec(void)
 {
 	static_key_slow_dec(&__cfs_bandwidth_used);
@@ -3957,26 +4882,35 @@ void cfs_bandwidth_usage_inc(void) {}
 void cfs_bandwidth_usage_dec(void) {}
 #endif /* HAVE_JUMP_LABEL */
 
-/*
- * default period for cfs group bandwidth.
+/**
+ * @brief Get the default period for cfs group bandwidth.
+ *
  * default: 0.1s, units: nanoseconds
+ * @return @c 100000000ULL
  */
 static inline u64 default_cfs_period(void)
 {
 	return 100000000ULL;
 }
-
+/**
+ * @brief Get a bandwidth time slice
+ *
+ * @return the time slice in nanoseconds
+ */
 static inline u64 sched_cfs_bandwidth_slice(void)
 {
 	return (u64)sysctl_sched_cfs_bandwidth_slice * NSEC_PER_USEC;
 }
 
-/*
- * Replenish runtime according to assigned quota and update expiration time.
+/**
+ * @brief Replenish runtime according to assigned quota and update expiration time.
+ * 
  * We use sched_clock_cpu directly instead of rq->clock to avoid adding
  * additional synchronization around rq->lock.
  *
  * requires cfs_b->lock
+ * @return @c NULL
+ * @param cfs_b the bandwidth to use
  */
 void __refill_cfs_bandwidth_runtime(struct cfs_bandwidth *cfs_b)
 {
@@ -4004,7 +4938,12 @@ static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq)
 	return rq_clock_task(rq_of(cfs_rq)) - cfs_rq->throttled_clock_task_time;
 }
 
-/* returns 0 on failure to allocate runtime */
+/**
+ * @brief Allocate runtime for a given run queue
+ *
+ * @return 0 on failure to allocate runtime 
+ * @param cfs_rq the run queue to use
+ */
 static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 {
 	struct task_group *tg = cfs_rq->tg;
@@ -4041,9 +4980,13 @@ static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	return cfs_rq->runtime_remaining > 0;
 }
 
-/*
+/**
+ * @brief End the runtime of a given run queue
+ *
  * Note: This depends on the synchronization provided by sched_clock and the
  * fact that rq->clock snapshots this value.
+ * @return @c NULL
+ * @param cfs_rq the run queue to use 
  */
 static void expire_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 {
@@ -4076,6 +5019,13 @@ static void expire_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	}
 }
 
+/**
+ * @brief Attempt to extend runtime.
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ * @param delta_exec the execution time to dock the the remaining runtime by
+ */
 static void __account_cfs_rq_runtime(struct cfs_rq *cfs_rq, u64 delta_exec)
 {
 	/* dock delta_exec before expiring quota (as it could span periods) */
@@ -4130,7 +5080,15 @@ static inline int throttled_lb_pair(struct task_group *tg,
 	       throttled_hierarchy(dest_cfs_rq);
 }
 
-/* updated child weight may affect parent so we have to do this bottom up */
+/**
+ * @brief Unthrottle a task group from the bottom up
+ * 
+ * Updated child weight may affect parent so we have to do this bottom up 
+ *
+ * @return @c 0
+ * @param tg the task group to unthrottle
+ * @param data the data being used to adjust the throttled clock task time
+ */
 static int tg_unthrottle_up(struct task_group *tg, void *data)
 {
 	struct rq *rq = data;
@@ -4145,7 +5103,13 @@ static int tg_unthrottle_up(struct task_group *tg, void *data)
 
 	return 0;
 }
-
+/**
+ * @brief Throttle a task group from the top down
+ * 
+ * @return @c 0
+ * @param tg the task group to throttle
+ * @param data the data being used to adjust the throttled clock task time
+ */
 static int tg_throttle_down(struct task_group *tg, void *data)
 {
 	struct rq *rq = data;
@@ -4159,6 +5123,12 @@ static int tg_throttle_down(struct task_group *tg, void *data)
 	return 0;
 }
 
+/**
+ * @brief Throttle a given run queue
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to throttle
+ */
 static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	struct rq *rq = rq_of(cfs_rq);
@@ -4212,7 +5182,12 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 
 	raw_spin_unlock(&cfs_b->lock);
 }
-
+/**
+ * @brief Unthrottle a given run queue.
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to unthrottle
+ */
 void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	struct rq *rq = rq_of(cfs_rq);
@@ -4259,7 +5234,14 @@ void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 	if (rq->curr == rq->idle && rq->cfs.nr_running)
 		resched_curr(rq);
 }
-
+/**
+ * @brief distribute the runtime evenly across the run queue's bandwidth
+ *
+ * @return the leftover time
+ * @param cfs_b the bandwidth to use
+ * @param remaining the remaining runtime 
+ * @param expires the time the run queue expires
+ */
 static u64 distribute_cfs_runtime(struct cfs_bandwidth *cfs_b,
 		u64 remaining, u64 expires)
 {
@@ -4299,11 +5281,15 @@ next:
 	return starting_runtime - remaining;
 }
 
-/*
- * Responsible for refilling a task_group's bandwidth and unthrottling its
- * cfs_rqs as appropriate. If there has been no activity within the last
+/**
+ * @brief Refill a task group's bandwidth and unthrottle its run queues as appropriate.
+ *
+ * If there has been no activity within the last
  * period the timer is deactivated until scheduling resumes; cfs_b->idle is
  * used to track this state.
+ * @return 1 if the bandwidth should be deactivated, otherwise 0
+ * @param cfs_b the bandwidth to use
+ * @param overrun the number of overrun queues
  */
 static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 {
@@ -4378,12 +5364,16 @@ static const u64 min_bandwidth_expiration = 2 * NSEC_PER_MSEC;
 /* how long we wait to gather additional slack before distributing */
 static const u64 cfs_bandwidth_slack_period = 5 * NSEC_PER_MSEC;
 
-/*
- * Are we near the end of the current quota period?
+/**
+ * @brief Check if near the end of the current quota period.
  *
  * Requires cfs_b->lock for hrtimer_expires_remaining to be safe against the
  * hrtimer base being cleared by hrtimer_start. In the case of
  * migrate_hrtimers, base is never cleared, so we are fine.
+ *
+ * @return 1 if the quota is about to refresh, otherwise 0
+ * @param cfs_b the bandwidth to check on
+ * @param min_expire minutes until the quota expires
  */
 static int runtime_refresh_within(struct cfs_bandwidth *cfs_b, u64 min_expire)
 {
@@ -4402,6 +5392,12 @@ static int runtime_refresh_within(struct cfs_bandwidth *cfs_b, u64 min_expire)
 	return 0;
 }
 
+/**
+ * @brief Slack the given bandwidth
+ *
+ * @return @c NULL
+ * @param cfs_b the bandwidth being used
+ */
 static void start_cfs_slack_bandwidth(struct cfs_bandwidth *cfs_b)
 {
 	u64 min_left = cfs_bandwidth_slack_period + min_bandwidth_expiration;
@@ -4415,7 +5411,13 @@ static void start_cfs_slack_bandwidth(struct cfs_bandwidth *cfs_b)
 			HRTIMER_MODE_REL);
 }
 
-/* we know any runtime found here is valid as update_curr() precedes return */
+/**
+ * @brief Attempt to slack a given run queue
+ *
+ * we know any runtime found here is valid as update_curr() precedes return 
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ */
 static void __return_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 {
 	struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(cfs_rq->tg);
@@ -4439,7 +5441,13 @@ static void __return_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	/* even if it's not valid for return we don't want to try again */
 	cfs_rq->runtime_remaining -= slack_runtime;
 }
-
+/**
+ * @brief Attempt to slack a given run queue
+ *
+ * we know any runtime found here is valid as update_curr() precedes return 
+ * @return @c NULL
+ * @param cfs_rq the run queue being used
+ */
 static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 {
 	if (!cfs_bandwidth_used())
@@ -4451,9 +5459,13 @@ static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	__return_cfs_rq_runtime(cfs_rq);
 }
 
-/*
+/**
+ * @brief Slack a given bandwidth using a timer
+ *
  * This is done with a timer (instead of inline with bandwidth return) since
  * it's necessary to juggle rq->locks to unthrottle their respective cfs_rqs.
+ * @return @c NULL
+ * @param cfs_b the bandwidth to use
  */
 static void do_sched_cfs_slack_timer(struct cfs_bandwidth *cfs_b)
 {
@@ -4545,6 +5557,14 @@ static bool check_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	return true;
 }
 
+/**
+ * @brief Slack a bandwidth using a given timer
+ *
+ * This is done with a timer (instead of inline with bandwidth return) since
+ * it's necessary to juggle rq->locks to unthrottle their respective cfs_rqs.
+ * @return the macro @c HRTIMER_NORESTART
+ * @param timer the timer to use
+ */
 static enum hrtimer_restart sched_cfs_slack_timer(struct hrtimer *timer)
 {
 	struct cfs_bandwidth *cfs_b =
@@ -4555,6 +5575,12 @@ static enum hrtimer_restart sched_cfs_slack_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+/**
+ * @brief Check if a task group is idle using a given timer.
+ *
+ * @return the macro @c HRTIMER_NORESTART if idle, @c HRTIMER_RESTART otherwise
+ * @param timer the timer to use
+ */
 static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 {
 	struct cfs_bandwidth *cfs_b =
@@ -4591,12 +5617,24 @@ void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 	cfs_b->slack_timer.function = sched_cfs_slack_timer;
 }
 
+/**
+ * @brief Initialize a run queue's runtime
+ *
+ * @return @c NULL
+ * @param cfs_rq the run queue to initialize
+ */
 static void init_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 {
 	cfs_rq->runtime_enabled = 0;
 	INIT_LIST_HEAD(&cfs_rq->throttled_list);
 }
 
+/**
+ * @brief Start a given @c cfs_bandwidth object
+ *
+ * @return @c NULL
+ * @param cfs_b the bandwidth object to start
+ */
 void start_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 {
 	lockdep_assert_held(&cfs_b->lock);
@@ -4656,6 +5694,13 @@ static void __maybe_unused unthrottle_offline_cfs_rqs(struct rq *rq)
 }
 
 #else /* CONFIG_CFS_BANDWIDTH */
+/**
+ * @brief Clock a run queue's task
+ *
+ * rq->task_clock normalized against any time this cfs_rq has spent throttled
+ * @return the time the task was clocked for
+ * @param cfs_rq the run queue being used
+ */
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq)
 {
 	return rq_clock_task(rq_of(cfs_rq));
@@ -4664,37 +5709,101 @@ static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq)
 static void account_cfs_rq_runtime(struct cfs_rq *cfs_rq, u64 delta_exec) {}
 static bool check_cfs_rq_runtime(struct cfs_rq *cfs_rq) { return false; }
 static void check_enqueue_throttle(struct cfs_rq *cfs_rq) {}
+/**
+ * @brief Syncs the throttling between a task group and its parent
+ *
+ * @return @c NULL
+ * @param tg the task group group to sync
+ * @param cpu the cpu that the task group is using
+ */
 static inline void sync_throttle(struct task_group *tg, int cpu) {}
 static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq) {}
 
+/**
+ * @brief Check if a run queue is throttled
+ *
+ * @return 0 if the run queue is not throttled
+ * @param cfs_rq the run queue to check
+ */
 static inline int cfs_rq_throttled(struct cfs_rq *cfs_rq)
 {
 	return 0;
 }
 
+/**
+ * @brief Check whether a run queue, or any parent, is throttled
+ *
+ * @return 0 if nothing is throttled
+ * @param cfs_rq the run queue to check
+ */
 static inline int throttled_hierarchy(struct cfs_rq *cfs_rq)
 {
 	return 0;
 }
 
+/**
+ * @brief Check if two run queues in a load-balance pair are throttled
+ *
+ * Ensure that neither of the group entities corresponding to src_cpu or
+ * dest_cpu are members of a throttled hierarchy when performing group
+ * load-balance operations.
+ *
+ * @return 0 if neither run queue is throttled
+ * @param tg The task group being checked
+ * @param src_cpu the source cpu
+ * @param dest_cpu the destination cpu
+ */
 static inline int throttled_lb_pair(struct task_group *tg,
 				    int src_cpu, int dest_cpu)
 {
 	return 0;
 }
 
+/**
+ * @brief Initialize a @c struct @c cfs_bandwidth object
+ *
+ * @return @c NULL
+ * @param cfs_b the object being initialized
+ */
 void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b) {}
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static void init_cfs_rq_runtime(struct cfs_rq *cfs_rq) {}
 #endif
 
+/**
+ * @brief Get the @c cfs_bandwidth object associated with a given task group
+ *
+ * @return the @c struct @c scf_bandwidth belonging to the task group
+ * @param tg the task group to use
+ */
 static inline struct cfs_bandwidth *tg_cfs_bandwidth(struct task_group *tg)
 {
 	return NULL;
 }
+
+/**
+ * @brief Destroy a @c cfs_bandwidth object
+ *
+ * @return @c NULL
+ * @param cfs_b the object to destroy
+ */
 static inline void destroy_cfs_bandwidth(struct cfs_bandwidth *cfs_b) {}
+
+/**
+ * @brief Update the @c runtime_enabled value of all cfs_rqs in a run queue
+ *
+ * @return @c NULL
+ * @param rq the run queue to use
+ */
 static inline void update_runtime_enabled(struct rq *rq) {}
+
+/**
+ * @brief Unthrottle all unused cfs_rqs
+ * 
+ * @return @c NULL
+ * @param rq the run queue to use
+ */
 static inline void unthrottle_offline_cfs_rqs(struct rq *rq) {}
 
 #endif /* CONFIG_CFS_BANDWIDTH */
@@ -4704,6 +5813,7 @@ static inline void unthrottle_offline_cfs_rqs(struct rq *rq) {}
  */
 
 #ifdef CONFIG_SCHED_HRTICK
+
 static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
@@ -4741,20 +5851,44 @@ static void hrtick_update(struct rq *rq)
 		hrtick_start_fair(rq, curr);
 }
 #else /* !CONFIG_SCHED_HRTICK */
+ /**
+  * @brief Start the high resolution timer
+  *
+  * @return @c NULL
+  * @param rq the run queue being timed
+  * @param p the task struct being timed
+  */
 static inline void
 hrtick_start_fair(struct rq *rq, struct task_struct *p)
 {
 }
 
+/**
+ * @brief Update the high resolution timer
+ *
+ * Called from enqueue/dequeue and updates the hrtick when the
+ * current task is from our class and nr_running is low enough
+ * to matter.
+ *
+ * @return @c NULL
+ * @param rq the run queue being used
+ */
 static inline void hrtick_update(struct rq *rq)
 {
 }
 #endif
 
-/*
+/**
+ * @brief Enqueue a task
+ *
  * The enqueue_task method is called before nr_running is
  * increased. Here we update the fair scheduling stats and
- * then put the task into the rbtree:
+ * then put the task into the rbtree
+ *
+ * @return @c NULL
+ * @param rq The run queue to enqueue the task into
+ * @param p the task to enqueue
+ * @param flags defines the details of the enqueue
  */
 static void
 enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
@@ -4797,7 +5931,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 			break;
 
 		update_load_avg(se, UPDATE_TG);
-		update_cfs_shares(se);
+		update_cfs_shares(cfs_rq);
 	}
 
 	if (!se)
@@ -4806,12 +5940,25 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	hrtick_update(rq);
 }
 
+/**
+ * @brief Set the next buddy task
+ *
+ * @return @c NULL
+ * @param se the entity to use
+ */
 static void set_next_buddy(struct sched_entity *se);
 
-/*
+/**
+ * @brief Dequeue a task
+ *
  * The dequeue_task method is called before nr_running is
  * decreased. We remove the task from the rbtree and
- * update the fair scheduling stats:
+ * update the fair scheduling stats
+ *
+ * @return @c NULL
+ * @param rq the run queue that the task is running on
+ * @param p the task being dequeued
+ * @param flags defines the details of the dequeue
  */
 static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
@@ -4856,7 +6003,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 			break;
 
 		update_load_avg(se, UPDATE_TG);
-		update_cfs_shares(se);
+		update_cfs_shares(cfs_rq);
 	}
 
 	if (!se)
@@ -4909,10 +6056,15 @@ static const u8 degrade_factor[CPU_LOAD_IDX_MAX][DEGRADE_SHIFT + 1] = {
 	{ 120, 112, 98, 76, 45, 16, 2, 0 }
 };
 
-/*
- * Update cpu_load for any missed ticks, due to tickless idle. The backlog
- * would be when CPU is idle and so we just decay the old load without
+/**
+ * @brief Update cpu_load for any missed ticks, due to tickless idle. 
+ *
+ * The backlog would be when CPU is idle and so we just decay the old load without
  * adding any new load.
+ * @return the decayed load
+ * @param load the current load
+ * @param missed_updates the number of missed ticks
+ * @param idx the id to use
  */
 static unsigned long
 decay_load_missed(unsigned long load, unsigned long missed_updates, int idx)
@@ -4940,10 +6092,7 @@ decay_load_missed(unsigned long load, unsigned long missed_updates, int idx)
 #endif /* CONFIG_NO_HZ_COMMON */
 
 /**
- * __cpu_load_update - update the rq->cpu_load[] statistics
- * @this_rq: The rq to update statistics for
- * @this_load: The current load
- * @pending_updates: The number of missed updates
+ * @brief Update the rq->cpu_load[] statistics.
  *
  * Update rq->cpu_load[] statistics. This function is usually called every
  * scheduler tick (TICK_NSEC).
@@ -4953,7 +6102,7 @@ decay_load_missed(unsigned long load, unsigned long missed_updates, int idx)
  *   load[i]' = (1 - 1/2^i) * load[i] + (1/2^i) * load
  *
  * Because of NOHZ it might not get called on every tick which gives need for
- * the @pending_updates argument.
+ * the pending_updates argument.
  *
  *   load[i]_n = (1 - 1/2^i) * load[i]_n-1 + (1/2^i) * load_n-1
  *             = A * load[i]_n-1 + B ; A := (1 - 1/2^i), B := (1/2^i) * load
@@ -4973,6 +6122,9 @@ decay_load_missed(unsigned long load, unsigned long missed_updates, int idx)
  *
  * see decay_load_misses(). For NOHZ_FULL we get to subtract and add the extra
  * term.
+ * @param this_rq The rq to update statistics for
+ * @param this_load The current load
+ * @param pending_updates The number of missed updates
  */
 static void cpu_load_update(struct rq *this_rq, unsigned long this_load,
 			    unsigned long pending_updates)
@@ -5024,7 +6176,10 @@ static unsigned long weighted_cpuload(const int cpu)
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
-/*
+
+/**
+ * @brief Update loads when nohz is enabled
+ *
  * There is no sane way to deal with nohz on smp when using jiffies because the
  * cpu doing the jiffies update might drift wrt the cpu doing the jiffy reading
  * causing off-by-one errors in observed deltas; {0,2} instead of {1,1}.
@@ -5036,8 +6191,11 @@ static unsigned long weighted_cpuload(const int cpu)
  * loop exit, nohz_idle_balance, nohz full exit...)
  *
  * This means we might still be one tick off for nohz periods.
+ * @return @c NULL
+ * @param this_rq the run queue being used
+ * @param curr_jiffies the curent jiffies
+ * @param load the current load
  */
-
 static void cpu_load_update_nohz(struct rq *this_rq,
 				 unsigned long curr_jiffies,
 				 unsigned long load)
@@ -5056,9 +6214,13 @@ static void cpu_load_update_nohz(struct rq *this_rq,
 	}
 }
 
-/*
+/**
+ * @brief Update the load of an idle cpu
+ * 
  * Called from nohz_idle_balance() to update the load ratings before doing the
  * idle balance.
+ * @return @c NULL
+ * @param this_rq the run queue being used
  */
 static void cpu_load_update_idle(struct rq *this_rq)
 {
@@ -5071,11 +6233,14 @@ static void cpu_load_update_idle(struct rq *this_rq)
 	cpu_load_update_nohz(this_rq, READ_ONCE(jiffies), 0);
 }
 
-/*
- * Record CPU load on nohz entry so we know the tickless load to account
- * on nohz exit. cpu_load[0] happens then to be updated more frequently
+/**
+ * @brief Record CPU load on nohz entry so we know the tickless load to account
+ * on nohz exit.
+ *
+ * cpu_load[0] happens then to be updated more frequently
  * than other cpu_load[idx] but it should be fine as cpu_load readers
  * shouldn't rely into synchronized cpu_load[*] updates.
+ * @return @c NULL
  */
 void cpu_load_update_nohz_start(void)
 {
@@ -5089,8 +6254,10 @@ void cpu_load_update_nohz_start(void)
 	this_rq->cpu_load[0] = weighted_cpuload(cpu_of(this_rq));
 }
 
-/*
- * Account the tickless load in the end of a nohz frame.
+/** 
+ * @brief Account the tickless load in the end of a nohz frame.
+ * 
+ * @return @c NULL
  */
 void cpu_load_update_nohz_stop(void)
 {
@@ -5113,6 +6280,13 @@ static inline void cpu_load_update_nohz(struct rq *this_rq,
 					unsigned long load) { }
 #endif /* CONFIG_NO_HZ_COMMON */
 
+/**
+ * @brief Periodically update the load.
+ * 
+ * @return @c NULL
+ * @param this_rq the run queue to use
+ * @param load the current load
+ */
 static void cpu_load_update_periodic(struct rq *this_rq, unsigned long load)
 {
 #ifdef CONFIG_NO_HZ_COMMON
@@ -5122,8 +6296,11 @@ static void cpu_load_update_periodic(struct rq *this_rq, unsigned long load)
 	cpu_load_update(this_rq, load, 1);
 }
 
-/*
- * Called from scheduler_tick()
+/**
+ * @brief Update the load of an active CPUs.
+ * 
+ * @return @c NULl
+ * @param this_rq the run queue being used
  */
 void cpu_load_update_active(struct rq *this_rq)
 {
@@ -5172,12 +6349,23 @@ static unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
 }
-
+/**
+ * @brief Get the original capacity of the given cpu.
+ * 
+ * @return the capacity of the given cpu
+ * @param cpu the cpu to use
+ */
 static unsigned long capacity_orig_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity_orig;
 }
 
+/**
+ * @brief Get the average load per task
+ *
+ * @return the average load per task
+ * @param cpu the cpu to use
+ */
 static unsigned long cpu_avg_load_per_task(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -5310,6 +6498,12 @@ static long effective_load(struct task_group *tg, int cpu, long wl, long wg)
 
 #endif
 
+/**
+ * @brief Wake up and record a task
+ *
+ * @return *c NULL
+ * @param p the task to be woken up
+ */
 static void record_wakee(struct task_struct *p)
 {
 	/*
@@ -5327,8 +6521,8 @@ static void record_wakee(struct task_struct *p)
 	}
 }
 
-/*
- * Detect M:N waker/wakee relationships via a switching-frequency heuristic.
+/**
+ * @brief Detect M:N waker/wakee relationships via a switching-frequency heuristic.
  *
  * A waker of many should wake a different task than the one last awakened
  * at a frequency roughly N times higher than one of its wakees.
@@ -5343,6 +6537,8 @@ static void record_wakee(struct task_struct *p)
  * Waker/wakee being client/server, worker/dispatcher, interrupt source or
  * whatever is irrelevant, spread criteria is apparent partner count exceeds
  * socket size.
+ * @return 0 if the given task's flips are less than the cpu's read factor OR if the current task's flips are less than the given task's flips * the read factor, otherwise 1
+ * @param p the task to use
  */
 static int wake_wide(struct task_struct *p)
 {
@@ -5357,6 +6553,15 @@ static int wake_wide(struct task_struct *p)
 	return 1;
 }
 
+/**
+ * @brief Wake idle parallel tasks
+ *
+ * @return 1 if the load is balanced, otherwise 0
+ * @param sd the domain to be used
+ * @param p the task to be used
+ * @param prev_cpu the previous cpu
+ * @param sync determined if the wakeup is synced
+ */
 static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 		       int prev_cpu, int sync)
 {
@@ -5423,17 +6628,44 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 	return 1;
 }
 
+/**
+ * @brief Gets the @c util_avg of a task
+ *
+ * @return the util average of the given task
+ * @param p the task to use
+ */
 static inline int task_util(struct task_struct *p);
+
+/**
+ * @brief Compute cpu utilization with any contributions from
+ * the waking task p removed.
+ *
+ * @return the computed cpu utilization
+ * @param cpu the cpu to use
+ * @param p the task to use
+ */
 static int cpu_util_wake(int cpu, struct task_struct *p);
 
+/**
+ * @brief Compute the remaining capacity of a cpu after the contributions from a given task
+ *
+ * @return the remaining capacity
+ * @param cpu the cpu to use
+ * @param p the task to use
+ */
 static unsigned long capacity_spare_wake(int cpu, struct task_struct *p)
 {
 	return capacity_orig_of(cpu) - cpu_util_wake(cpu, p);
 }
 
-/*
- * find_idlest_group finds and returns the least busy CPU group within the
- * domain.
+/**
+ * @brief Find and return the least busy CPU group within the domain.
+ *
+ * @return the least busy scheduling group
+ * @param sd the domain to use
+ * @param p the task to use
+ * @param this_cpu the current cpu
+ * @param sd_flag the flags for hte schedule domain
  */
 static struct sched_group *
 find_idlest_group(struct sched_domain *sd, struct task_struct *p,
@@ -5460,7 +6692,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 
 		/* Skip over this group if it has no CPUs allowed */
 		if (!cpumask_intersects(sched_group_cpus(group),
-					&p->cpus_allowed))
+					tsk_cpus_allowed(p)))
 			continue;
 
 		local_group = cpumask_test_cpu(this_cpu,
@@ -5562,8 +6794,13 @@ skip_spare:
 	return idlest;
 }
 
-/*
- * find_idlest_cpu - find the idlest cpu among the cpus in group.
+/**
+ * @brief Find the idlest cpu among the cpus in group.
+ *
+ * @return the idlest cpu
+ * @param group the group to use
+ * @param p the task to use
+ * @param this_cpu the current cpu
  */
 static int
 find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
@@ -5580,7 +6817,7 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 		return cpumask_first(sched_group_cpus(group));
 
 	/* Traverse only the allowed CPUs */
-	for_each_cpu_and(i, sched_group_cpus(group), &p->cpus_allowed) {
+	for_each_cpu_and(i, sched_group_cpus(group), tsk_cpus_allowed(p)) {
 		if (idle_cpu(i)) {
 			struct rq *rq = cpu_rq(i);
 			struct cpuidle_state *idle = idle_get_state(rq);
@@ -5615,15 +6852,23 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 	return shallowest_idle_cpu != -1 ? shallowest_idle_cpu : least_loaded_cpu;
 }
 
-/*
- * Implement a for_each_cpu() variant that starts the scan at a given cpu
- * (@start), and wraps around.
+/**
+ * @brief Scan for idle cpus.
  *
- * This is used to scan for idle CPUs; such that not all CPUs looking for an
+ * Implement a for_each_cpu() variant that starts the scan at a given cpu
+ * (start), and wraps around.
+ *
+ * This is used to scan for idle CPUs such that not all CPUs looking for an
  * idle CPU find the same CPU. The down-side is that tasks tend to cycle
  * through the LLC domain.
  *
  * Especially tbench is found sensitive to this.
+ *
+ * @return the next idle cpu
+ * @param n the number to scan
+ * @param mask the bit mask to use
+ * @param start the cpu to start at
+ * @param wrapped used to store the number of wrapped cpus
  */
 
 static int cpumask_next_wrap(int n, const struct cpumask *mask, int start, int *wrapped)
@@ -5654,6 +6899,13 @@ again:
 
 #ifdef CONFIG_SCHED_SMT
 
+/**
+ * @brief Set the value of hte idle cores on a given cpu.
+ *
+ * @return @c NULL
+ * @param cpu the current cpu
+ * @param val the value to set the idle cores to
+ */
 static inline void set_idle_cores(int cpu, int val)
 {
 	struct sched_domain_shared *sds;
@@ -5662,7 +6914,13 @@ static inline void set_idle_cores(int cpu, int val)
 	if (sds)
 		WRITE_ONCE(sds->has_idle_cores, val);
 }
-
+/**
+ * @brief Test a cpu for idle cores.
+ *
+ * @return @c true if there are idle cores, otherwise false
+ * @param cpu the cpu to test
+ * @param def value to return if there are no idle cores
+ */
 static inline bool test_idle_cores(int cpu, bool def)
 {
 	struct sched_domain_shared *sds;
@@ -5674,12 +6932,16 @@ static inline bool test_idle_cores(int cpu, bool def)
 	return def;
 }
 
-/*
+/**
+ * @brief Scan for and record idle cores.
+ *
  * Scans the local SMT mask to see if the entire core is idle, and records this
  * information in sd_llc_shared->has_idle_cores.
  *
  * Since SMT siblings share all cache levels, inspecting this limited remote
  * state should be fairly cheap.
+ * @return @c NULL
+ * @param rq the run queue to scan
  */
 void __update_idle_core(struct rq *rq)
 {
@@ -5703,10 +6965,17 @@ unlock:
 	rcu_read_unlock();
 }
 
-/*
+/**
+ * @brief Serach for and return an idle core.
+ *
  * Scan the entire LLC domain for idle cores; this dynamically switches off if
  * there are no idle cores left in the system; tracked through
  * sd_llc->shared->has_idle_cores and enabled through update_idle_core() above.
+ *
+ * @return the idle core
+ * @param p the task to use
+ * @param sd teh domain to use
+ * @param target the target cpu
  */
 static int select_idle_core(struct task_struct *p, struct sched_domain *sd, int target)
 {
@@ -5719,7 +6988,7 @@ static int select_idle_core(struct task_struct *p, struct sched_domain *sd, int 
 	if (!test_idle_cores(target, false))
 		return -1;
 
-	cpumask_and(cpus, sched_domain_span(sd), &p->cpus_allowed);
+	cpumask_and(cpus, sched_domain_span(sd), tsk_cpus_allowed(p));
 
 	for_each_cpu_wrap(core, cpus, target, wrap) {
 		bool idle = true;
@@ -5742,8 +7011,13 @@ static int select_idle_core(struct task_struct *p, struct sched_domain *sd, int 
 	return -1;
 }
 
-/*
- * Scan the local SMT mask for idle CPUs.
+/**
+ * @brief Scan the local SMT mask for idle CPUs.
+ *
+ * @return the idle cpu
+ * @param p the task to use
+ * @param sd the domain to use
+ * @param target the target cpu
  */
 static int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
 {
@@ -5753,7 +7027,7 @@ static int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int t
 		return -1;
 
 	for_each_cpu(cpu, cpu_smt_mask(target)) {
-		if (!cpumask_test_cpu(cpu, &p->cpus_allowed))
+		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
 			continue;
 		if (idle_cpu(cpu))
 			return cpu;
@@ -5776,10 +7050,16 @@ static inline int select_idle_smt(struct task_struct *p, struct sched_domain *sd
 
 #endif /* CONFIG_SCHED_SMT */
 
-/*
- * Scan the LLC domain for idle CPUs; this is dynamically regulated by
- * comparing the average scan cost (tracked in sd->avg_scan_cost) against the
- * average idle time for this rq (as found in rq->avg_idle).
+/**
+ * @brief Scan the LLC domain for idle CPUs.
+ *
+ * This is dynamically regulated by comparing the average scan cost
+ * (tracked in sd->avg_scan_cost) against the average idle time 
+ * for this rq (as found in rq->avg_idle).
+ * @return the idle cpu
+ * @param p the task to use
+ * @param sd the domain to use
+ * @param target the target cpu
  */
 static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int target)
 {
@@ -5799,13 +7079,13 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int t
 	 * Due to large variance we need a large fuzz factor; hackbench in
 	 * particularly is sensitive here.
 	 */
-	if (sched_feat(SIS_AVG_CPU) && (avg_idle / 512) < avg_cost)
+	if ((avg_idle / 512) < avg_cost)
 		return -1;
 
 	time = local_clock();
 
 	for_each_cpu_wrap(cpu, sched_domain_span(sd), target, wrap) {
-		if (!cpumask_test_cpu(cpu, &p->cpus_allowed))
+		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
 			continue;
 		if (idle_cpu(cpu))
 			break;
@@ -5819,9 +7099,6 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int t
 	return cpu;
 }
 
-/*
- * Try and locate an idle core/thread in the LLC cache domain.
- */
 static int select_idle_sibling(struct task_struct *p, int prev, int target)
 {
 	struct sched_domain *sd;
@@ -5855,9 +7132,10 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 	return target;
 }
 
-/*
- * cpu_util returns the amount of capacity of a CPU that is used by CFS
- * tasks. The unit of the return value must be the one of capacity so we can
+/**
+ * @brief Get the amount of capacity of a CPU that is used by CFS tasks.
+ * 
+ * The unit of the return value must be the one of capacity so we can
  * compare the utilization with the capacity of the CPU that is available for
  * CFS task (ie cpu_capacity).
  *
@@ -5880,6 +7158,8 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  * available capacity. We allow utilization to overshoot capacity_curr (but not
  * capacity_orig) as it useful for predicting the capacity required after task
  * migrations (scheduler-driven DVFS).
+ * @return the capacity of a cpu
+ * @param cpu the cpu to use
  */
 static int cpu_util(int cpu)
 {
@@ -5912,12 +7192,16 @@ static int cpu_util_wake(int cpu, struct task_struct *p)
 	return (util >= capacity) ? capacity : util;
 }
 
-/*
- * Disable WAKE_AFFINE in the case where task @p doesn't fit in the
- * capacity of either the waking CPU @cpu or the previous CPU @prev_cpu.
+/**
+ * @brief Disable WAKE_AFFINE in the case where task p doesn't fit in the
+ * capacity of either the waking CPU cpu or the previous CPU prev_cpu.
  *
  * In that case WAKE_AFFINE doesn't make sense and we'll let
  * BALANCE_WAKE sort things out.
+ * @return 
+ * @param p the task to use
+ * @param cpu the cpu to use
+ * @param prev_cpu the previous cpu to use
  */
 static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
 {
@@ -5936,17 +7220,22 @@ static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
 	return min_cap * 1024 < task_util(p) * capacity_margin;
 }
 
-/*
- * select_task_rq_fair: Select target runqueue for the waking task in domains
- * that have the 'sd_flag' flag set. In practice, this is SD_BALANCE_WAKE,
+/**
+ * @brief Select target runqueue for the waking task in domains
+ * that have the 'sd_flag' flag set.
+ *
+ * In practice, this is SD_BALANCE_WAKE,
  * SD_BALANCE_FORK, or SD_BALANCE_EXEC.
  *
  * Balances load by selecting the idlest cpu in the idlest group, or under
  * certain conditions an idle sibling cpu if the domain has SD_WAKE_AFFINE set.
+ * Preempt must be disabled.
  *
- * Returns the target cpu number.
- *
- * preempt must be disabled.
+ * @return the target cpu number
+ * @param p the task to use
+ * @param prev_cpu the previous cpu to use
+ * @param sd_flag the sd flag to check for
+ * @param wake_flags the flags for waking a task
  */
 static int
 select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags)
@@ -5960,7 +7249,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	if (sd_flag & SD_BALANCE_WAKE) {
 		record_wakee(p);
 		want_affine = !wake_wide(p) && !wake_cap(p, cpu, prev_cpu)
-			      && cpumask_test_cpu(cpu, &p->cpus_allowed);
+			      && cpumask_test_cpu(cpu, tsk_cpus_allowed(p));
 	}
 
 	rcu_read_lock();
@@ -6033,10 +7322,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	return new_cpu;
 }
 
-/*
- * Called immediately before a task is migrated to a new cpu; task_cpu(p) and
- * cfs_rq_of(p) references at time of call are still valid and identify the
- * previous cpu. The caller guarantees p->pi_lock or task_rq(p)->lock is held.
+/**
+ * @brief Called immediately before a task is migrated to a new cpu.
+ *
+ * task_cpu(p) and cfs_rq_of(p) references at time of call are still
+ * valid and identify the previous cpu. The caller guarantees
+ * p->pi_lock or task_rq(p)->lock is held.
+ * @return @c NULL
+ * @param p the task to migrate
  */
 static void migrate_task_rq_fair(struct task_struct *p)
 {
@@ -6082,19 +7375,44 @@ static void migrate_task_rq_fair(struct task_struct *p)
 	p->se.exec_start = 0;
 }
 
+/**
+ * @brief Remove the entity from a task strcuture
+ *
+ * @return @c NULL
+ * @param p the task to use
+ */
 static void task_dead_fair(struct task_struct *p)
 {
 	remove_entity_load_avg(&p->se);
 }
 #endif /* CONFIG_SMP */
 
+/**
+ * @brief Convert the grannularity from real-time to virtual-time
+ *
+ * Since it's curr running now, convert the gran from real-time
+ * to virtual-time in his units.
+ *
+ * By using 'se' instead of 'curr' we penalize light tasks, so
+ * they get preempted easier. That is, if 'se' < 'curr' then
+ * the resulting gran will be larger, therefore penalizing the
+ * lighter, if otoh 'se' > 'curr' then the resulting gran will
+ * be smaller, again penalizing the lighter task.
+ *
+ * This is especially important for buddies when the leftmost
+ * task is higher priority than the buddy.
+ *
+ * @return the converted value
+ * @param curr the current entity
+ * @param se the entity used for delta calculation
+ */
 static unsigned long
 wakeup_gran(struct sched_entity *curr, struct sched_entity *se)
 {
 	unsigned long gran = sysctl_sched_wakeup_granularity;
 
 	/*
-	 * Since its curr running now, convert the gran from real-time
+	 * Since it's curr running now, convert the gran from real-time
 	 * to virtual-time in his units.
 	 *
 	 * By using 'se' instead of 'curr' we penalize light tasks, so
@@ -6138,6 +7456,12 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	return 0;
 }
 
+/**
+ * @brief Set the last buddy task
+ *
+ * @return @c NULL
+ * @param se the entity to use
+ */
 static void set_last_buddy(struct sched_entity *se)
 {
 	if (entity_is_task(se) && unlikely(task_of(se)->policy == SCHED_IDLE))
@@ -6155,15 +7479,25 @@ static void set_next_buddy(struct sched_entity *se)
 	for_each_sched_entity(se)
 		cfs_rq_of(se)->next = se;
 }
-
+/**
+ * @brief Set the skip buddy task
+ *
+ * @return @c NULL
+ * @param se the entity to use
+ */
 static void set_skip_buddy(struct sched_entity *se)
 {
 	for_each_sched_entity(se)
 		cfs_rq_of(se)->skip = se;
 }
 
-/*
- * Preempt the current task with a newly woken task if needed:
+/**
+ * @brief Preempt the current task with a newly woken task if needed.
+ *
+ * @return @c NULL
+ * @param rq the run queue being used
+ * @param p the task to use
+ * @param wake_flags define the behavior of the wakeup
  */
 static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_flags)
 {
@@ -6248,8 +7582,16 @@ preempt:
 		set_last_buddy(se);
 }
 
+/**
+ * @brief Get the next task to run
+ *
+ * @return the task picked
+ * @param rq the run queue being used
+ * @param prev the previous task run
+ * @param cookie used to pin and unpin the lock
+ */
 static struct task_struct *
-pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
 {
 	struct cfs_rq *cfs_rq = &rq->cfs;
 	struct sched_entity *se;
@@ -6356,8 +7698,15 @@ simple:
 	return p;
 
 idle:
-	new_tasks = idle_balance(rq, rf);
-
+	/*
+	 * This is OK, because current is on_cpu, which avoids it being picked
+	 * for load-balance and preemption/IRQs are still disabled avoiding
+	 * further scheduler activity on it and we're being very careful to
+	 * re-start the picking loop.
+	 */
+	lockdep_unpin_lock(&rq->lock, cookie);
+	new_tasks = idle_balance(rq);
+	lockdep_repin_lock(&rq->lock, cookie);
 	/*
 	 * Because idle_balance() releases (and re-acquires) rq->lock, it is
 	 * possible for any higher priority task to appear. In that case we
@@ -6372,8 +7721,12 @@ idle:
 	return NULL;
 }
 
-/*
- * Account for a descheduled task:
+/**
+ * @brief Put the previously run task back into the run queue
+ * 
+ * @return @c NULL
+ * @param rq the run queue being used
+ * @param prev the previously run task
  */
 static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 {
@@ -6386,10 +7739,15 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 	}
 }
 
-/*
+/**
+ * @brief Yield the remaining time slice
+ *
  * sched_yield() is very simple
  *
  * The magic of dealing with the ->skip buddy is in pick_next_entity.
+ * 
+ * @return NULL
+ * @param rq the run queue being used
  */
 static void yield_task_fair(struct rq *rq)
 {
@@ -6422,6 +7780,14 @@ static void yield_task_fair(struct rq *rq)
 	set_skip_buddy(se);
 }
 
+/**
+ * @brief Set the next buddy and yield the remaining time slice
+ *
+ * @return @c true if successful
+ * @param rq the run queue being used
+ * @param p the task we want to run
+ * @param preempt unused
+ */
 static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preempt)
 {
 	struct sched_entity *se = &p->se;
@@ -6592,8 +7958,12 @@ struct lb_env {
 	struct list_head	tasks;
 };
 
-/*
- * Is this task likely cache-hot:
+/**
+ * @brief Check if a task likely cache-hot.
+ *
+ * @return 1 if the task is hot, 0 if the task is cold
+ * @param p the task to check
+ * @param env the environment to use
  */
 static int task_hot(struct task_struct *p, struct lb_env *env)
 {
@@ -6626,10 +7996,12 @@ static int task_hot(struct task_struct *p, struct lb_env *env)
 }
 
 #ifdef CONFIG_NUMA_BALANCING
-/*
- * Returns 1, if task migration degrades locality
- * Returns 0, if task migration improves locality i.e migration preferred.
- * Returns -1, if task migration is not affected by locality.
+/**
+ * @brief Check if the migration of a task degrades the locality.
+ *
+ * @return 1 if task migration degrades locality, 0 if task migration preferred, -1 if task migration is not affected by locality
+ * @param p the task to check
+ * @param env the environment to use
  */
 static int migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
 {
@@ -6680,8 +8052,12 @@ static inline int migrate_degrades_locality(struct task_struct *p,
 }
 #endif
 
-/*
- * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
+/**
+ * @brief Check if a task from a runqueue can be migrated to this cpu.
+ *
+ * @return 0 if no, otherwise 1
+ * @param p the task to check
+ * @param env the environment to use
  */
 static
 int can_migrate_task(struct task_struct *p, struct lb_env *env)
@@ -6700,7 +8076,7 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
 		return 0;
 
-	if (!cpumask_test_cpu(env->dst_cpu, &p->cpus_allowed)) {
+	if (!cpumask_test_cpu(env->dst_cpu, tsk_cpus_allowed(p))) {
 		int cpu;
 
 		schedstat_inc(p->se.statistics.nr_failed_migrations_affine);
@@ -6720,7 +8096,7 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 
 		/* Prevent to re-select dst_cpu via env's cpus */
 		for_each_cpu_and(cpu, env->dst_grpmask, env->cpus) {
-			if (cpumask_test_cpu(cpu, &p->cpus_allowed)) {
+			if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) {
 				env->flags |= LBF_DST_PINNED;
 				env->new_dst_cpu = cpu;
 				break;
@@ -6761,8 +8137,12 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	return 0;
 }
 
-/*
- * detach_task() -- detach the task for the migration specified in env
+/**
+ * @brief Detach the task for the migration specified in @p env
+ *
+ * @return @c NULL
+ * @param p the task to detach
+ * @param env the environment ot use
  */
 static void detach_task(struct task_struct *p, struct lb_env *env)
 {
@@ -6773,11 +8153,12 @@ static void detach_task(struct task_struct *p, struct lb_env *env)
 	set_task_cpu(p, env->dst_cpu);
 }
 
-/*
- * detach_one_task() -- tries to dequeue exactly one task from env->src_rq, as
+/**
+ * @brief Try to dequeue exactly one task from env->src_rq, as
  * part of active balancing operations within "domain".
  *
- * Returns a task if successful and NULL otherwise.
+ * @return a task if successful and @c NULL otherwise.
+ * @param env the environment to use
  */
 static struct task_struct *detach_one_task(struct lb_env *env)
 {
@@ -6805,11 +8186,12 @@ static struct task_struct *detach_one_task(struct lb_env *env)
 
 static const unsigned int sched_nr_migrate_break = 32;
 
-/*
- * detach_tasks() -- tries to detach up to imbalance weighted load from
+/**
+ * @brief Try to detach up to imbalance weighted load from
  * busiest_rq, as part of a balancing operation within domain "sd".
  *
- * Returns number of detached tasks if successful and 0 otherwise.
+ * @return the number of detached tasks if successful and 0 otherwise.
+ * @param env the environment to use
  */
 static int detach_tasks(struct lb_env *env)
 {
@@ -6894,8 +8276,12 @@ next:
 	return detached;
 }
 
-/*
- * attach_task() -- attach the task detached by detach_task() to its new rq.
+/**
+ * @brief Attach the task detached by detach_task() to its new rq.
+ *
+ * @return @c NULL
+ * @param rq the run queue to use
+ * @param p the task to attach
  */
 static void attach_task(struct rq *rq, struct task_struct *p)
 {
@@ -6907,9 +8293,12 @@ static void attach_task(struct rq *rq, struct task_struct *p)
 	check_preempt_curr(rq, p, 0);
 }
 
-/*
- * attach_one_task() -- attaches the task returned from detach_one_task() to
- * its new rq.
+/**
+ * @brief Attach the task returned from detach_one_task() to its new rq.
+ *
+ * @return @c NULL
+ * @param rq the run queue to use
+ * @param p the task to attach
  */
 static void attach_one_task(struct rq *rq, struct task_struct *p)
 {
@@ -6918,9 +8307,11 @@ static void attach_one_task(struct rq *rq, struct task_struct *p)
 	raw_spin_unlock(&rq->lock);
 }
 
-/*
- * attach_tasks() -- attaches all tasks detached by detach_tasks() to their
- * new rq.
+/**
+ * @brief Attach all tasks detached by detach_tasks() to their new rq.
+ *
+ * @return @c NULL
+ * @param env the environment to use
  */
 static void attach_tasks(struct lb_env *env)
 {
@@ -6940,6 +8331,13 @@ static void attach_tasks(struct lb_env *env)
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
+
+/**
+ * @brief Update each leaf in the cpu's run queue
+ *
+ * @return @c NULL
+ * @param cpu the cpu to use
+ */
 static void update_blocked_averages(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -6968,10 +8366,13 @@ static void update_blocked_averages(int cpu)
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
 }
 
-/*
- * Compute the hierarchical load factor for cfs_rq and all its ascendants.
+/**
+ * @brief Compute the hierarchical load factor for cfs_rq and all its ascendants.
+ *
  * This needs to be done in a top-down fashion because the load of a child
  * group is a fraction of its parents load.
+ * @return @c NULL
+ * @param cfs_rq the run queue to use
  */
 static void update_cfs_rq_h_load(struct cfs_rq *cfs_rq)
 {
@@ -7006,6 +8407,12 @@ static void update_cfs_rq_h_load(struct cfs_rq *cfs_rq)
 	}
 }
 
+/**
+ * @brief Calculate the h_load of a task
+ *
+ * @return the calculated load
+ * @param p the task to use
+ */
 static unsigned long task_h_load(struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
@@ -7077,6 +8484,12 @@ struct sd_lb_stats {
 	struct sg_lb_stats local_stat;	/* Statistics of the local group */
 };
 
+/**
+ * @brief Initialize a @c struct @c sd_lb_stats object
+ *
+ * @return @c NULL
+ * @param sds the object to initialize
+ */
 static inline void init_sd_lb_stats(struct sd_lb_stats *sds)
 {
 	/*
@@ -7099,11 +8512,11 @@ static inline void init_sd_lb_stats(struct sd_lb_stats *sds)
 }
 
 /**
- * get_sd_load_idx - Obtain the load index for a given sched domain.
- * @sd: The sched_domain whose load_idx is to be obtained.
- * @idle: The idle status of the CPU for whose sd load_idx is obtained.
+ * @brief Obtain the load index for a given sched domain.
  *
- * Return: The load index.
+ * @return The load index.
+ * @param sd The sched_domain whose load_idx is to be obtained.
+ * @param idle The idle status of the CPU for whose sd load_idx is obtained.
  */
 static inline int get_sd_load_idx(struct sched_domain *sd,
 					enum cpu_idle_type idle)
@@ -7126,6 +8539,12 @@ static inline int get_sd_load_idx(struct sched_domain *sd,
 	return load_idx;
 }
 
+/**
+ * @brief Get the remaining capacity on a cpu.
+ *
+ * @return 1 if the the capacity is used up, otherwise the remaining capacity is returned
+ * @param cpu the cpu to use
+ */
 static unsigned long scale_rt_capacity(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -7153,6 +8572,13 @@ static unsigned long scale_rt_capacity(int cpu)
 	return 1;
 }
 
+/**
+ * @brief Update the capacity of a cpu.
+ *
+ * @return @c NULL
+ * @param sd the domain to use
+ * @param cpu the cpu to update
+ */
 static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 {
 	unsigned long capacity = arch_scale_cpu_capacity(sd, cpu);
@@ -7170,7 +8596,13 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 	sdg->sgc->capacity = capacity;
 	sdg->sgc->min_capacity = capacity;
 }
-
+/**
+ * @brief Update the group capacity on a cpu.
+ *
+ * @return @c NULL
+ * @param sd the domain to use
+ * @param cpu the cpu tp use
+ */
 void update_group_capacity(struct sched_domain *sd, int cpu)
 {
 	struct sched_domain *child = sd->child;
@@ -7240,10 +8672,13 @@ void update_group_capacity(struct sched_domain *sd, int cpu)
 	sdg->sgc->min_capacity = min_capacity;
 }
 
-/*
- * Check whether the capacity of the rq has been noticeably reduced by side
- * activity. The imbalance_pct is used for the threshold.
- * Return true is the capacity is reduced
+/**
+ * @brief Check whether the capacity of the rq has been noticeably reduced by side activity. 
+ *
+ * The imbalance_pct is used for the threshold.
+ * @return 1 if the capacity is reduced, otherwise 0
+ * @param rq the run queue to use
+ * @param sd the domain to use
  */
 static inline int
 check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
@@ -7252,9 +8687,11 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
 				(rq->cpu_capacity_orig * 100));
 }
 
-/*
+/**
+ * @brief Check if a group is imbalanced.
+ *
  * Group imbalance indicates (and tries to solve) the problem where balancing
- * groups is inadequate due to ->cpus_allowed constraints.
+ * groups is inadequate due to tsk_cpus_allowed() constraints.
  *
  * Imagine a situation of two groups of 4 cpus each and 4 tasks each with a
  * cpumask covering 1 cpu of the first group and 3 cpus of the second group.
@@ -7279,6 +8716,8 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
  * This is a somewhat tricky proposition since the next run might not find the
  * group imbalance and decide the groups need to be balanced again. A most
  * subtle and fragile situation.
+ * @return the imbalance value of the group
+ * @param group the group to check
  */
 
 static inline int sg_imbalanced(struct sched_group *group)
@@ -7286,10 +8725,10 @@ static inline int sg_imbalanced(struct sched_group *group)
 	return group->sgc->imbalance;
 }
 
-/*
- * group_has_capacity returns true if the group has spare capacity that could
- * be used by some tasks.
- * We consider that a group has spare capacity if the  * number of task is
+/**
+ * @brief Check if a group has spare capacity
+ *
+ * We consider that a group has spare capacity if the  * number of tasks is
  * smaller than the number of CPUs or if the utilization is lower than the
  * available capacity for CFS tasks.
  * For the latter, we use a threshold to stabilize the state, to take into
@@ -7297,6 +8736,9 @@ static inline int sg_imbalanced(struct sched_group *group)
  * capacity in meaningful for the load balancer.
  * As an example, an available capacity of 1% can appear but it doesn't make
  * any benefit for the load balance.
+ * @return true if the group has spare capacity that could be used by some tasks
+ * @param env the environment to use
+ * @param sgs the statistics object to use
  */
 static inline bool
 group_has_capacity(struct lb_env *env, struct sg_lb_stats *sgs)
@@ -7311,13 +8753,16 @@ group_has_capacity(struct lb_env *env, struct sg_lb_stats *sgs)
 	return false;
 }
 
-/*
- *  group_is_overloaded returns true if the group has more tasks than it can
- *  handle.
- *  group_is_overloaded is not equals to !group_has_capacity because a group
- *  with the exact right number of tasks, has no more spare capacity but is not
- *  overloaded so both group_has_capacity and group_is_overloaded return
- *  false.
+/**
+ * @brief Check if a group is overloaded.
+ *
+ * group_is_overloaded is not equals to !group_has_capacity because a group
+ * with the exact right number of tasks, has no more spare capacity but is not
+ * overloaded so both group_has_capacity and group_is_overloaded return
+ * false.
+ * @return true if the group has more tasks than it can handle
+ * @param env the environment to use
+ * @param sgs the statistics object to use
  */
 static inline bool
 group_is_overloaded(struct lb_env *env, struct sg_lb_stats *sgs)
@@ -7332,9 +8777,12 @@ group_is_overloaded(struct lb_env *env, struct sg_lb_stats *sgs)
 	return false;
 }
 
-/*
- * group_smaller_cpu_capacity: Returns true if sched_group sg has smaller
- * per-CPU capacity than sched_group ref.
+/**
+ * @brief Compare the per-cpu capacity of two groups
+ *
+ * @return true if sched_group @p sg has smaller per-CPU capacity than sched_group @p ref
+ * @param sg the group to compare
+ * @param ref the reference group
  */
 static inline bool
 group_smaller_cpu_capacity(struct sched_group *sg, struct sched_group *ref)
@@ -7342,7 +8790,13 @@ group_smaller_cpu_capacity(struct sched_group *sg, struct sched_group *ref)
 	return sg->sgc->min_capacity * capacity_margin <
 						ref->sgc->min_capacity * 1024;
 }
-
+/**
+ * @brief Get the status of a group
+ *
+ * @return an @c enum @c group_type that describes the current state of the group
+ * @param group the group to use
+ * @param sgs the statistics object to use
+ */
 static inline enum
 group_type group_classify(struct sched_group *group,
 			  struct sg_lb_stats *sgs)
@@ -7357,13 +8811,14 @@ group_type group_classify(struct sched_group *group,
 }
 
 /**
- * update_sg_lb_stats - Update sched_group's statistics for load balancing.
- * @env: The load balancing environment.
- * @group: sched_group whose statistics are to be updated.
- * @load_idx: Load index of sched_domain of this_cpu for load calc.
- * @local_group: Does group contain this_cpu.
- * @sgs: variable to hold the statistics for this group.
- * @overload: Indicate more than one runnable task for any CPU.
+ * @brief Update sched_group's statistics for load balancing.
+ *
+ * @param env The load balancing environment.
+ * @param group sched_group whose statistics are to be updated.
+ * @param load_idx Load index of sched_domain of this_cpu for load calc.
+ * @param local_group Does group contain this_cpu.
+ * @param sgs variable to hold the statistics for this group.
+ * @param overload Indicate more than one runnable task for any CPU.
  */
 static inline void update_sg_lb_stats(struct lb_env *env,
 			struct sched_group *group, int load_idx,
@@ -7418,17 +8873,16 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 }
 
 /**
- * update_sd_pick_busiest - return 1 on busiest group
- * @env: The load balancing environment.
- * @sds: sched_domain statistics
- * @sg: sched_group candidate to be checked for being the busiest
- * @sgs: sched_group statistics
+ * @brief Return 1 on busiest group
  *
- * Determine if @sg is a busier group than the previously selected
+ * Determine if sg is a busier group than the previously selected
  * busiest group.
  *
- * Return: %true if @sg is a busier group than the previously selected
- * busiest group. %false otherwise.
+ * @return true if sg is a busier group than the previously selected busiest group, false otherwise.
+ * @param env The load balancing environment.
+ * @param sds sched_domain statistics
+ * @param sg sched_group candidate to be checked for being the busiest
+ * @param sgs sched_group statistics
  */
 static bool update_sd_pick_busiest(struct lb_env *env,
 				   struct sd_lb_stats *sds,
@@ -7487,6 +8941,12 @@ asym_packing:
 }
 
 #ifdef CONFIG_NUMA_BALANCING
+/**
+ * @brief Determine the type of group running.
+ *
+ * @return an @c enum @c fbq_type that describes the type of group
+ * @param sgs the statistics object to use
+ */
 static inline enum fbq_type fbq_classify_group(struct sg_lb_stats *sgs)
 {
 	if (sgs->sum_nr_running > sgs->nr_numa_running)
@@ -7495,7 +8955,12 @@ static inline enum fbq_type fbq_classify_group(struct sg_lb_stats *sgs)
 		return remote;
 	return all;
 }
-
+/**
+ * @brief Determine the type of run queue.
+ *
+ * @return an @c enum @c fbq_type that describes the type of run queue
+ * @param rq the run queue to use
+ */
 static inline enum fbq_type fbq_classify_rq(struct rq *rq)
 {
 	if (rq->nr_running > rq->nr_numa_running)
@@ -7517,9 +8982,10 @@ static inline enum fbq_type fbq_classify_rq(struct rq *rq)
 #endif /* CONFIG_NUMA_BALANCING */
 
 /**
- * update_sd_lb_stats - Update sched_domain's statistics for load balancing.
- * @env: The load balancing environment.
- * @sds: variable to hold the statistics for this sched_domain.
+ * @brief Update sched_domain's statistics for load balancing.
+ *
+ * @param env The load balancing environment.
+ * @param sds variable to hold the statistics for this sched_domain.
  */
 static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sds)
 {
@@ -7596,7 +9062,7 @@ next_group:
 }
 
 /**
- * check_asym_packing - Check to see if the group is packed into the
+ * @brief Check to see if the group is packed into the
  *			sched doman.
  *
  * This is primarily intended to used at the sibling level.  Some
@@ -7615,8 +9081,8 @@ next_group:
  * Return: 1 when packing is required and a task should be moved to
  * this CPU.  The amount of the imbalance is returned in *imbalance.
  *
- * @env: The load balancing environment.
- * @sds: Statistics of the sched_domain which is to be packed
+ * @param env The load balancing environment.
+ * @param sds Statistics of the sched_domain which is to be packed
  */
 static int check_asym_packing(struct lb_env *env, struct sd_lb_stats *sds)
 {
@@ -7643,11 +9109,11 @@ static int check_asym_packing(struct lb_env *env, struct sd_lb_stats *sds)
 }
 
 /**
- * fix_small_imbalance - Calculate the minor imbalance that exists
- *			amongst the groups of a sched_domain, during
- *			load balancing.
- * @env: The load balancing environment.
- * @sds: Statistics of the sched_domain whose imbalance is to be calculated.
+ * @brief Calculate the minor imbalance that exists amongst the groups of a sched_domain, during
+ * load balancing.
+ *
+ * @param env The load balancing environment.
+ * @param sds Statistics of the sched_domain whose imbalance is to be calculated.
  */
 static inline
 void fix_small_imbalance(struct lb_env *env, struct sd_lb_stats *sds)
@@ -7713,10 +9179,11 @@ void fix_small_imbalance(struct lb_env *env, struct sd_lb_stats *sds)
 }
 
 /**
- * calculate_imbalance - Calculate the amount of imbalance present within the
+ * @brief Calculate the amount of imbalance present within the
  *			 groups of a given sched_domain during load balance.
- * @env: load balance environment
- * @sds: statistics of the sched_domain whose imbalance is to be calculated.
+ *
+ * @param env load balance environment
+ * @param sds statistics of the sched_domain whose imbalance is to be calculated.
  */
 static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *sds)
 {
@@ -7789,15 +9256,14 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 /******* find_busiest_group() helpers end here *********************/
 
 /**
- * find_busiest_group - Returns the busiest group within the sched_domain
+ * @brief Returns the busiest group within the sched_domain
  * if there is an imbalance.
  *
  * Also calculates the amount of weighted load which should be moved
  * to restore balance.
  *
- * @env: The load balancing environment.
- *
- * Return:	- The busiest group if imbalance exists.
+ * @return the busiest group if imbalance exists
+ * @param env The load balancing environment.
  */
 static struct sched_group *find_busiest_group(struct lb_env *env)
 {
@@ -7883,8 +9349,12 @@ out_balanced:
 	return NULL;
 }
 
-/*
- * find_busiest_queue - find the busiest runqueue among the cpus in group.
+/**
+ * @brief Find the busiest runqueue among the cpus in group.
+ *
+ * @return the bussiest queue
+ * @param env the environment to use
+ * @param group the group to use
  */
 static struct rq *find_busiest_queue(struct lb_env *env,
 				     struct sched_group *group)
@@ -7962,6 +9432,12 @@ static struct rq *find_busiest_queue(struct lb_env *env,
  */
 #define MAX_PINNED_INTERVAL	512
 
+/**
+ * @brief Check if an environment needs to be balanced
+ * 
+ * @return 1 if yes, otherwise 0
+ * @param env the environment to use
+ */
 static int need_active_balance(struct lb_env *env)
 {
 	struct sched_domain *sd = env->sd;
@@ -7993,9 +9469,22 @@ static int need_active_balance(struct lb_env *env)
 
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries+2);
 }
-
+/**
+ * @brief Push running tasks off the busiest CPU onto idle CPUs. 
+ *
+ * Requires at least 1 task to be running on each physical CPU where possible,
+ * and avoids physical / logical imbalances.
+ * @return @c 0
+ * @param data the @c struct @c rq @c * used (cast to a @c void @c *)
+ */
 static int active_load_balance_cpu_stop(void *data);
 
+/**
+ * @brief Check if we should balance a given environment
+ *
+ * @return 1 if yes, otherwise 0
+ * @param env the environment to use
+ */
 static int should_we_balance(struct lb_env *env)
 {
 	struct sched_group *sg = env->sd->groups;
@@ -8030,9 +9519,16 @@ static int should_we_balance(struct lb_env *env)
 	return balance_cpu == env->dst_cpu;
 }
 
-/*
- * Check this_cpu to ensure it is balanced within domain. Attempt to move
+/**
+ * @brief Check this_cpu to ensure it is balanced within domain and attempt to move
  * tasks if there is an imbalance.
+ *
+ * @return the load that was moved
+ * @param this_cpu the current cpu
+ * @param this_rq the current run queue
+ * @param sd the domain being used
+ * @param idle the cpu's idle type
+ * @param continue_balancing value used to determine if further balancing is needed
  */
 static int load_balance(int this_cpu, struct rq *this_rq,
 			struct sched_domain *sd, enum cpu_idle_type idle,
@@ -8106,7 +9602,6 @@ redo:
 
 more_balance:
 		raw_spin_lock_irqsave(&busiest->lock, flags);
-		update_rq_clock(busiest);
 
 		/*
 		 * cur_ld_moved - load moved in current iteration
@@ -8213,7 +9708,8 @@ more_balance:
 			 * if the curr task on busiest cpu can't be
 			 * moved to this_cpu
 			 */
-			if (!cpumask_test_cpu(this_cpu, &busiest->curr->cpus_allowed)) {
+			if (!cpumask_test_cpu(this_cpu,
+					tsk_cpus_allowed(busiest->curr))) {
 				raw_spin_unlock_irqrestore(&busiest->lock,
 							    flags);
 				env.flags |= LBF_ALL_PINNED;
@@ -8293,7 +9789,13 @@ out_one_pinned:
 out:
 	return ld_moved;
 }
-
+/**
+ * @brief Get the balance interval of a given domain
+ *
+ * @return the balance interval
+ * @param sd the domain to use
+ * @param cpu_busy should be used if the current cpu is busy
+ */
 static inline unsigned long
 get_sd_balance_interval(struct sched_domain *sd, int cpu_busy)
 {
@@ -8308,7 +9810,13 @@ get_sd_balance_interval(struct sched_domain *sd, int cpu_busy)
 
 	return interval;
 }
-
+/**
+ * @brief Update the the value of @p next_balance
+ *
+ * @return @c NULL
+ * @param sd the domain to use
+ * @param next_balance the value to update
+ */
 static inline void
 update_next_balance(struct sched_domain *sd, unsigned long *next_balance)
 {
@@ -8322,11 +9830,7 @@ update_next_balance(struct sched_domain *sd, unsigned long *next_balance)
 		*next_balance = next;
 }
 
-/*
- * idle_balance is called by schedule() if this_cpu is about to become
- * idle. Attempts to pull tasks from other CPUs.
- */
-static int idle_balance(struct rq *this_rq, struct rq_flags *rf)
+static int idle_balance(struct rq *this_rq)
 {
 	unsigned long next_balance = jiffies + HZ;
 	int this_cpu = this_rq->cpu;
@@ -8339,14 +9843,6 @@ static int idle_balance(struct rq *this_rq, struct rq_flags *rf)
 	 * measure the duration of idle_balance() as idle time.
 	 */
 	this_rq->idle_stamp = rq_clock(this_rq);
-
-	/*
-	 * This is OK, because current is on_cpu, which avoids it being picked
-	 * for load-balance and preemption/IRQs are still disabled avoiding
-	 * further scheduler activity on it and we're being very careful to
-	 * re-start the picking loop.
-	 */
-	rq_unpin_lock(this_rq, rf);
 
 	if (this_rq->avg_idle < sysctl_sched_migration_cost ||
 	    !this_rq->rd->overload) {
@@ -8425,17 +9921,10 @@ out:
 	if (pulled_task)
 		this_rq->idle_stamp = 0;
 
-	rq_repin_lock(this_rq, rf);
-
 	return pulled_task;
 }
 
-/*
- * active_load_balance_cpu_stop is run by cpu stopper. It pushes
- * running tasks off the busiest CPU onto idle CPUs. It requires at
- * least 1 task to be running on each physical CPU where possible, and
- * avoids physical / logical imbalances.
- */
+
 static int active_load_balance_cpu_stop(void *data)
 {
 	struct rq *busiest_rq = data;
@@ -8482,7 +9971,6 @@ static int active_load_balance_cpu_stop(void *data)
 		};
 
 		schedstat_inc(sd->alb_count);
-		update_rq_clock(busiest_rq);
 
 		p = detach_one_task(&env);
 		if (p) {
@@ -8505,7 +9993,12 @@ out_unlock:
 
 	return 0;
 }
-
+/**
+ * @brief Check if a run queue is on a null domain
+ *
+ * @return 1 if yes, otherwise 0
+ * @param rq the run queue to use
+ */
 static inline int on_null_domain(struct rq *rq)
 {
 	return unlikely(!rcu_dereference_sched(rq->sd));
@@ -8523,7 +10016,11 @@ static struct {
 	atomic_t nr_cpus;
 	unsigned long next_balance;     /* in jiffy units */
 } nohz ____cacheline_aligned;
-
+/**
+ * @brief Find a new load balancing cpu
+ *
+ * @return the number of the new cpu to use
+ */
 static inline int find_new_ilb(void)
 {
 	int ilb = cpumask_first(nohz.idle_cpus_mask);
@@ -8534,10 +10031,12 @@ static inline int find_new_ilb(void)
 	return nr_cpu_ids;
 }
 
-/*
- * Kick a CPU to do the nohz balancing, if it is time for it. We pick the
- * nohz_load_balancer CPU (if there is one) otherwise fallback to any idle
- * CPU (if there is one).
+/**
+ * @brief Kick a CPU to do the nohz balancing, if it is time for it.
+ *
+ * We pick the nohz_load_balancer CPU (if there is one) otherwise fallback
+ * to any idle CPU (if there is one).
+ * @return @c NULL
  */
 static void nohz_balancer_kick(void)
 {
@@ -8562,6 +10061,12 @@ static void nohz_balancer_kick(void)
 	return;
 }
 
+/**
+ * @brief Have a cpu quit being idle.
+ *
+ * @return @c NULL
+ * @param cpu the cpu to wake
+ */
 void nohz_balance_exit_idle(unsigned int cpu)
 {
 	if (unlikely(test_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu)))) {
@@ -8575,7 +10080,11 @@ void nohz_balance_exit_idle(unsigned int cpu)
 		clear_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu));
 	}
 }
-
+/**
+ * @brief The state of the domain to be busy.
+ *
+ * @return @c NULL
+ */
 static inline void set_cpu_sd_state_busy(void)
 {
 	struct sched_domain *sd;
@@ -8592,7 +10101,11 @@ static inline void set_cpu_sd_state_busy(void)
 unlock:
 	rcu_read_unlock();
 }
-
+/**
+ * @brief The state of the domain to be idle.
+ *
+ * @return @c NULL
+ */
 void set_cpu_sd_state_idle(void)
 {
 	struct sched_domain *sd;
@@ -8610,9 +10123,11 @@ unlock:
 	rcu_read_unlock();
 }
 
-/*
- * This routine will record that the cpu is going idle with tick stopped.
+/**
+ * @brief Record that the cpu is going idle with tick stopped.
+ * 
  * This info will be used in performing idle load balancing in the future.
+ * @return @c NULL
  */
 void nohz_balance_enter_idle(int cpu)
 {
@@ -8639,20 +10154,25 @@ void nohz_balance_enter_idle(int cpu)
 
 static DEFINE_SPINLOCK(balancing);
 
-/*
- * Scale the max load_balance interval with the number of CPUs in the system.
+/**
+ * @brief Scale the max load_balance interval with the number of CPUs in the system.
+ *
  * This trades load-balance latency on larger machines for less cross talk.
+ * @return @c NULL
  */
 void update_max_interval(void)
 {
 	max_load_balance_interval = HZ*num_online_cpus()/10;
 }
 
-/*
- * It checks each scheduling domain to see if it is due to be balanced,
- * and initiates a balancing operation if so.
+/**
+ * @brief Check each scheduling domain to see if it is due to be balanced
+ * and initiate a balancing operation if so.
  *
  * Balancing parameters are set up in init_sched_domains.
+ * @return @c NULL
+ * @param rq the run queue being used
+ * @param idle the idle status of the cpu
  */
 static void rebalance_domains(struct rq *rq, enum cpu_idle_type idle)
 {
@@ -8758,9 +10278,14 @@ out:
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
-/*
+/**
+ * @brief Idle balance without omitting ticks.
+ *
  * In CONFIG_NO_HZ_COMMON case, the idle balance kickee will do the
  * rebalancing for all the cpus for whom scheduler ticks are stopped.
+ * @return @c NULL
+ * @param this_rq the current run queue
+ * @param idle the idle status of the cpu
  */
 static void nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 {
@@ -8818,7 +10343,9 @@ end:
 	clear_bit(NOHZ_BALANCE_KICK, nohz_flags(this_cpu));
 }
 
-/*
+/**
+ * @brief Kick the idle load balancer if there is an idle cpu.
+ *
  * Current heuristic for kicking the idle load balancer in the presence
  * of an idle cpu in the system.
  *   - This rq has more than one task.
@@ -8828,6 +10355,8 @@ end:
  *     multiple busy cpu.
  *   - For SD_ASYM_PACKING, if the lower numbered cpu's in the scheduler
  *     domain span are idle.
+ * @return true if the kick was performed
+ * @param rq the run queue being used
  */
 static inline bool nohz_kick_needed(struct rq *rq)
 {
@@ -8905,9 +10434,13 @@ unlock:
 static void nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle) { }
 #endif
 
-/*
+/**
+ * @brief Rebalance the domains.
+ *
  * run_rebalance_domains is triggered when needed from the scheduler tick.
  * Also triggered for nohz idle balancing (with nohz_balancing_kick set).
+ * @return @c NULL
+ * @param h this appears to be unused
  */
 static __latent_entropy void run_rebalance_domains(struct softirq_action *h)
 {
@@ -8927,8 +10460,11 @@ static __latent_entropy void run_rebalance_domains(struct softirq_action *h)
 	rebalance_domains(this_rq, idle);
 }
 
-/*
- * Trigger the SCHED_SOFTIRQ if it is time to do periodic load balancing.
+/**
+ * @brief Trigger the SCHED_SOFTIRQ if it is time to do periodic load balancing.
+ *
+ * @return @c NULL
+ * @param rq the run queue to use
  */
 void trigger_load_balance(struct rq *rq)
 {
@@ -8943,14 +10479,24 @@ void trigger_load_balance(struct rq *rq)
 		nohz_balancer_kick();
 #endif
 }
-
+/**
+ * @brief Update a run queue
+ * 
+ * @return @c NULL
+ * @param rq the run queue to update
+ */
 static void rq_online_fair(struct rq *rq)
 {
 	update_sysctl();
 
 	update_runtime_enabled(rq);
 }
-
+/**
+ * @brief Update and unthrottle a run queue
+ * 
+ * @return @c NULL
+ * @param rq the run queue to update
+ */
 static void rq_offline_fair(struct rq *rq)
 {
 	update_sysctl();
@@ -8961,8 +10507,15 @@ static void rq_offline_fair(struct rq *rq)
 
 #endif /* CONFIG_SMP */
 
-/*
- * scheduler tick hitting a task of our scheduling class:
+/** 
+ * @brief Tick a task
+ *
+ * Scheduler tick hitting a task of our scheduling class
+ *
+ * @return @c NULL
+ * @param rq the run queue being used
+ * @param curr the current task
+ * @param queued the number of queued tasks
  */
 static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 {
@@ -8978,10 +10531,15 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 		task_tick_numa(rq, curr);
 }
 
-/*
- * called on fork with the child task as argument from the parent's context
+/** 
+ * @brief Fork a task
+ *
+ * Called on fork with the child task as argument from the parent's context
  *  - child not yet on the tasklist
  *  - preemption disabled
+ *
+ * @return @c NULL
+ * @param p the task struct being forked
  */
 static void task_fork_fair(struct task_struct *p)
 {
@@ -9013,9 +10571,14 @@ static void task_fork_fair(struct task_struct *p)
 	raw_spin_unlock(&rq->lock);
 }
 
-/*
- * Priority of the task has changed. Check to see if we preempt
+/**
+ * @brief Priority of the task has changed. Check to see if we preempt
  * the current task.
+ *
+ * @return @c NULL
+ * @param rq the run queue to use
+ * @param p the task to use
+ * @param oldprio the old priority of the task
  */
 static void
 prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
@@ -9035,6 +10598,12 @@ prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
 		check_preempt_curr(rq, p, 0);
 }
 
+/**
+ * @brief Check if the vruntime has been normalized for a task.
+ *
+ * @return trust if yes, otherwise false
+ * @param p the task to check
+ */
 static inline bool vruntime_normalized(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
@@ -9063,9 +10632,12 @@ static inline bool vruntime_normalized(struct task_struct *p)
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-/*
- * Propagate the changes of the sched_entity across the tg tree to make it
- * visible to the root
+/**
+ * @brief Propagate the changes of the sched_entity across the tg tree to make it
+ * visible to the root.
+ *
+ * @return @c NULL
+ * @param se the entity to use
  */
 static void propagate_entity_cfs_rq(struct sched_entity *se)
 {
@@ -9086,7 +10658,12 @@ static void propagate_entity_cfs_rq(struct sched_entity *se)
 #else
 static void propagate_entity_cfs_rq(struct sched_entity *se) { }
 #endif
-
+/**
+ * @brief Detach an entity from the run queue.
+ * 
+ * @return @c NULL
+ * @param se the entity to detach
+ */
 static void detach_entity_cfs_rq(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
@@ -9116,7 +10693,12 @@ static void attach_entity_cfs_rq(struct sched_entity *se)
 	update_tg_load_avg(cfs_rq, false);
 	propagate_entity_cfs_rq(se);
 }
-
+/**
+ * @brief Detach a task from the run queue.
+ * 
+ * @return @c NULL
+ * @param p the task to detach
+ */
 static void detach_task_cfs_rq(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
@@ -9133,7 +10715,12 @@ static void detach_task_cfs_rq(struct task_struct *p)
 
 	detach_entity_cfs_rq(se);
 }
-
+/**
+ * @brief Attach a task to the run queue.
+ * 
+ * @return @c NULL
+ * @param p the task to attach
+ */
 static void attach_task_cfs_rq(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
@@ -9145,11 +10732,26 @@ static void attach_task_cfs_rq(struct task_struct *p)
 		se->vruntime += cfs_rq->min_vruntime;
 }
 
+/**
+ * @brief Detach a task from the run queue.
+ *
+ * @return @c NULL
+ * @param rq the run queue to use
+ * @param p the task to detach
+ * @see detach_task_cfs_rq()
+ */
 static void switched_from_fair(struct rq *rq, struct task_struct *p)
 {
 	detach_task_cfs_rq(p);
 }
-
+/**
+ * @brief Attach a task to the run queue.
+ *
+ * @return @c NULL
+ * @param rq the run queue to use
+ * @param p the task to attach
+ * @see attach_task_cfs_rq()
+ */
 static void switched_to_fair(struct rq *rq, struct task_struct *p)
 {
 	attach_task_cfs_rq(p);
@@ -9167,10 +10769,13 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
 	}
 }
 
-/* Account for a task changing its policy or group.
+/** 
+ * @brief Account for a task changing its policy or group.
  *
  * This routine is mostly called to set cfs_rq->curr field when a task
  * migrates between groups/classes.
+ * @return @c NULL
+ * @param rq the run queue to use
  */
 static void set_curr_task_fair(struct rq *rq)
 {
@@ -9185,6 +10790,12 @@ static void set_curr_task_fair(struct rq *rq)
 	}
 }
 
+/**
+ * @brief Initialize a @c struct @c cfs_rq object.
+ *
+ * @return @c NULL
+ * @param cfs_rq the object to initialize
+ */
 void init_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	cfs_rq->tasks_timeline = RB_ROOT;
@@ -9202,6 +10813,12 @@ void init_cfs_rq(struct cfs_rq *cfs_rq)
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
+/**
+ * @brief Set the group for a given task.
+ *
+ * @return @c NULL
+ * @param p the task to use
+ */
 static void task_set_group_fair(struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
@@ -9209,7 +10826,12 @@ static void task_set_group_fair(struct task_struct *p)
 	set_task_rq(p, task_cpu(p));
 	se->depth = se->parent ? se->parent->depth + 1 : 0;
 }
-
+/**
+ * @brief Move a task to another group.
+ *
+ * @return @c NULL
+ * @param p the task to use
+ */
 static void task_move_group_fair(struct task_struct *p)
 {
 	detach_task_cfs_rq(p);
@@ -9221,7 +10843,13 @@ static void task_move_group_fair(struct task_struct *p)
 #endif
 	attach_task_cfs_rq(p);
 }
-
+/**
+ * @brief Set or move the group for a given task.
+ *
+ * @return @c NULL
+ * @param p the task to use
+ * @param type either TASK_SET_GROUP or TASK_MOVE_GROUP
+ */
 static void task_change_group_fair(struct task_struct *p, int type)
 {
 	switch (type) {
@@ -9234,7 +10862,12 @@ static void task_change_group_fair(struct task_struct *p, int type)
 		break;
 	}
 }
-
+/**
+ * @brief Free the memory used for a given group.
+ *
+ * @return @c NULL
+ * @param tg the group to free
+ */
 void free_fair_sched_group(struct task_group *tg)
 {
 	int i;
@@ -9251,7 +10884,13 @@ void free_fair_sched_group(struct task_group *tg)
 	kfree(tg->cfs_rq);
 	kfree(tg->se);
 }
-
+/**
+ * @brief Allocate the memory used for a group.
+ *
+ * @return @c NULL
+ * @param tg the group to allocate memory to
+ * @param parent the parent group
+ */
 int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 {
 	struct sched_entity *se;
@@ -9292,7 +10931,12 @@ err_free_rq:
 err:
 	return 0;
 }
-
+/**
+ * @brief Set a group to be online.
+ *
+ * @return @c NULL
+ * @param tg the group to use
+ */
 void online_fair_sched_group(struct task_group *tg)
 {
 	struct sched_entity *se;
@@ -9304,13 +10948,17 @@ void online_fair_sched_group(struct task_group *tg)
 		se = tg->se[i];
 
 		raw_spin_lock_irq(&rq->lock);
-		update_rq_clock(rq);
 		attach_entity_cfs_rq(se);
 		sync_throttle(tg, i);
 		raw_spin_unlock_irq(&rq->lock);
 	}
 }
-
+/**
+ * @brief Unregister the given group.
+ *
+ * @return @c NULL
+ * @param tg the group to use
+ */
 void unregister_fair_sched_group(struct task_group *tg)
 {
 	unsigned long flags;
@@ -9335,7 +10983,16 @@ void unregister_fair_sched_group(struct task_group *tg)
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 	}
 }
-
+/**
+ * @brief Initialize the task group entry in a run queue.
+ *
+ * @return @c NULL
+ * @param tg the group to use
+ * @param cfs_rq the run queue to use
+ * @param se the entity to use
+ * @param cpu the current cpu
+ * @param parent the parent entity
+ */
 void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 			struct sched_entity *se, int cpu,
 			struct sched_entity *parent)
@@ -9368,7 +11025,13 @@ void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 }
 
 static DEFINE_MUTEX(shares_mutex);
-
+/**
+ * @brief Se thet shares for a given group
+ *
+ * @return 0 if successful, otherise -EINVAL
+ * @param tg the group to use
+ * @param shares the shares value
+ */
 int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
@@ -9397,10 +11060,8 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 
 		/* Possible calls to update_curr() need rq clock */
 		update_rq_clock(rq);
-		for_each_sched_entity(se) {
-			update_load_avg(se, UPDATE_TG);
-			update_cfs_shares(se);
-		}
+		for_each_sched_entity(se)
+			update_cfs_shares(group_cfs_rq(se));
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 	}
 
@@ -9423,7 +11084,13 @@ void unregister_fair_sched_group(struct task_group *tg) { }
 
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 
-
+/**
+ * @brief Get the rr interval ofa task (in jiffies).
+ *
+ * @return the rr interval
+ * @param rq the run queue to use
+ * @param task the task to use
+ */
 static unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task)
 {
 	struct sched_entity *se = &task->se;
@@ -9483,6 +11150,13 @@ const struct sched_class fair_sched_class = {
 };
 
 #ifdef CONFIG_SCHED_DEBUG
+/**
+ * @brief Print the cfs statistics.
+ *
+ * @return @c NULL
+ * @param m the file to print to
+ * @param cpu the current cpu
+ */
 void print_cfs_stats(struct seq_file *m, int cpu)
 {
 	struct cfs_rq *cfs_rq;
@@ -9494,6 +11168,13 @@ void print_cfs_stats(struct seq_file *m, int cpu)
 }
 
 #ifdef CONFIG_NUMA_BALANCING
+/**
+ * @brief Print non-uniform memory access statistics.
+ *
+ * @return @c NULL
+ * @param m the file to print to
+ * @param p the task to use
+ */
 void show_numa_stats(struct task_struct *p, struct seq_file *m)
 {
 	int node;
@@ -9514,6 +11195,11 @@ void show_numa_stats(struct task_struct *p, struct seq_file *m)
 #endif /* CONFIG_NUMA_BALANCING */
 #endif /* CONFIG_SCHED_DEBUG */
 
+/**
+ * @brief Initialize the scheduler.
+ *
+ * @return @c NULL
+ */
 __init void init_sched_fair_class(void)
 {
 #ifdef CONFIG_SMP
