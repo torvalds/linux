@@ -904,9 +904,6 @@ static int ati_remote_probe(struct usb_interface *interface,
 	if (err)
 		goto exit_kill_urbs;
 
-	/* use our delay for rc_dev */
-	ati_remote->rdev->input_dev->rep[REP_DELAY] = repeat_delay;
-
 	/* Set up and register mouse input device */
 	if (mouse) {
 		input_dev = input_allocate_device();
