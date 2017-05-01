@@ -701,19 +701,28 @@ done:
 	return 0;
 }
 
-static irqreturn_t sbs_irq(int irq, void *devid)
+static void sbs_supply_changed(struct sbs_info *chip)
 {
-	struct sbs_info *chip = devid;
 	struct power_supply *battery = chip->power_supply;
 	int ret;
 
 	ret = gpiod_get_value_cansleep(chip->gpio_detect);
 	if (ret < 0)
-		return ret;
+		return;
 	chip->is_present = ret;
 	power_supply_changed(battery);
+}
 
+static irqreturn_t sbs_irq(int irq, void *devid)
+{
+	sbs_supply_changed(devid);
 	return IRQ_HANDLED;
+}
+
+static void sbs_alert(struct i2c_client *client, enum i2c_alert_protocol prot,
+	unsigned int data)
+{
+	sbs_supply_changed(i2c_get_clientdata(client));
 }
 
 static void sbs_external_power_changed(struct power_supply *psy)
@@ -936,6 +945,7 @@ MODULE_DEVICE_TABLE(of, sbs_dt_ids);
 static struct i2c_driver sbs_battery_driver = {
 	.probe		= sbs_probe,
 	.remove		= sbs_remove,
+	.alert		= sbs_alert,
 	.id_table	= sbs_id,
 	.driver = {
 		.name	= "sbs-battery",
