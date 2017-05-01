@@ -6854,12 +6854,14 @@ EXPORT_SYMBOL(dev_change_proto_down);
 /**
  *	dev_change_xdp_fd - set or clear a bpf program for a device rx path
  *	@dev: device
+ *	@extact: netlink extended ack
  *	@fd: new program fd or negative value to clear
  *	@flags: xdp-related flags
  *
  *	Set or clear a bpf program for a device
  */
-int dev_change_xdp_fd(struct net_device *dev, int fd, u32 flags)
+int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
+		      int fd, u32 flags)
 {
 	int (*xdp_op)(struct net_device *dev, struct netdev_xdp *xdp);
 	const struct net_device_ops *ops = dev->netdev_ops;
@@ -6892,6 +6894,7 @@ int dev_change_xdp_fd(struct net_device *dev, int fd, u32 flags)
 
 	memset(&xdp, 0, sizeof(xdp));
 	xdp.command = XDP_SETUP_PROG;
+	xdp.extack = extack;
 	xdp.prog = prog;
 
 	err = xdp_op(dev, &xdp);

@@ -2524,24 +2524,27 @@ struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn)
 	return new;
 }
 
-static int nfp_net_check_config(struct nfp_net *nn, struct nfp_net_dp *dp)
+static int
+nfp_net_check_config(struct nfp_net *nn, struct nfp_net_dp *dp,
+		     struct netlink_ext_ack *extack)
 {
 	/* XDP-enabled tests */
 	if (!dp->xdp_prog)
 		return 0;
 	if (dp->fl_bufsz > PAGE_SIZE) {
-		nn_warn(nn, "MTU too large w/ XDP enabled\n");
+		NL_MOD_TRY_SET_ERR_MSG(extack, "MTU too large w/ XDP enabled");
 		return -EINVAL;
 	}
 	if (dp->num_tx_rings > nn->max_tx_rings) {
-		nn_warn(nn, "Insufficient number of TX rings w/ XDP enabled\n");
+		NL_MOD_TRY_SET_ERR_MSG(extack, "Insufficient number of TX rings w/ XDP enabled");
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *dp)
+int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *dp,
+			  struct netlink_ext_ack *extack)
 {
 	int r, err;
 
@@ -2553,7 +2556,7 @@ int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *dp)
 
 	dp->num_r_vecs = max(dp->num_rx_rings, dp->num_stack_tx_rings);
 
-	err = nfp_net_check_config(nn, dp);
+	err = nfp_net_check_config(nn, dp, extack);
 	if (err)
 		goto exit_free_dp;
 
@@ -2628,7 +2631,7 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 
 	dp->mtu = new_mtu;
 
-	return nfp_net_ring_reconfig(nn, dp);
+	return nfp_net_ring_reconfig(nn, dp, NULL);
 }
 
 static void nfp_net_stat64(struct net_device *netdev,
@@ -2944,9 +2947,10 @@ static int nfp_net_xdp_offload(struct nfp_net *nn, struct bpf_prog *prog)
 	return ret;
 }
 
-static int nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog)
+static int nfp_net_xdp_setup(struct nfp_net *nn, struct netdev_xdp *xdp)
 {
 	struct bpf_prog *old_prog = nn->dp.xdp_prog;
+	struct bpf_prog *prog = xdp->prog;
 	struct nfp_net_dp *dp;
 	int err;
 
@@ -2969,7 +2973,7 @@ static int nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog)
 	dp->rx_dma_off = prog ? XDP_PACKET_HEADROOM - nn->dp.rx_offset : 0;
 
 	/* We need RX reconfig to remap the buffers (BIDIR vs FROM_DEV) */
-	err = nfp_net_ring_reconfig(nn, dp);
+	err = nfp_net_ring_reconfig(nn, dp, xdp->extack);
 	if (err)
 		return err;
 
@@ -2987,7 +2991,7 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_xdp *xdp)
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
-		return nfp_net_xdp_setup(nn, xdp->prog);
+		return nfp_net_xdp_setup(nn, xdp);
 	case XDP_QUERY_PROG:
 		xdp->prog_attached = !!nn->dp.xdp_prog;
 		return 0;

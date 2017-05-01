@@ -92,6 +92,14 @@ struct netlink_ext_ack {
 	(extack)->_msg = _msg;			\
 } while (0)
 
+#define NL_MOD_TRY_SET_ERR_MSG(extack, msg) do {		\
+	static const char _msg[] = KBUILD_MODNAME ": " msg;	\
+	struct netlink_ext_ack *_extack = (extack);		\
+								\
+	if (_extack)						\
+		_extack->_msg = _msg;				\
+} while (0)
+
 extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
