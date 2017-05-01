@@ -120,8 +120,6 @@ static int lirc_allocate_buffer(struct irctl *ir)
 	unsigned int buffer_size;
 	struct lirc_driver *d = &ir->d;
 
-	mutex_lock(&lirc_dev_lock);
-
 	bytes_in_key = BITS_TO_LONGS(d->code_length) +
 						(d->code_length % 8 ? 1 : 0);
 	buffer_size = d->buffer_size ? d->buffer_size : BUFLEN / bytes_in_key;
@@ -145,16 +143,15 @@ static int lirc_allocate_buffer(struct irctl *ir)
 		}
 
 		ir->buf_internal = true;
+		d->rbuf = ir->buf;
 	}
 	ir->chunk_size = ir->buf->chunk_size;
 
 out:
-	mutex_unlock(&lirc_dev_lock);
-
 	return err;
 }
 
-static int lirc_allocate_driver(struct lirc_driver *d)
+int lirc_register_driver(struct lirc_driver *d)
 {
 	struct irctl *ir;
 	int minor;
@@ -225,6 +222,15 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 
 	ir->d = *d;
 
+	if (LIRC_CAN_REC(d->features)) {
+		err = lirc_allocate_buffer(irctls[minor]);
+		if (err) {
+			kfree(ir);
+			goto out_lock;
+		}
+		d->rbuf = ir->buf;
+	}
+
 	device_initialize(&ir->dev);
 	ir->dev.devt = MKDEV(MAJOR(lirc_base_dev), ir->d.minor);
 	ir->dev.class = lirc_class;
@@ -248,7 +254,9 @@ static int lirc_allocate_driver(struct lirc_driver *d)
 
 	dev_info(ir->d.dev, "lirc_dev: driver %s registered at minor = %d\n",
 		 ir->d.name, ir->d.minor);
+
 	return minor;
+
 out_cdev:
 	cdev_del(&ir->cdev);
 out_free_dev:
@@ -257,29 +265,6 @@ out_lock:
 	mutex_unlock(&lirc_dev_lock);
 
 	return err;
-}
-
-int lirc_register_driver(struct lirc_driver *d)
-{
-	int minor, err = 0;
-
-	minor = lirc_allocate_driver(d);
-	if (minor < 0)
-		return minor;
-
-	if (LIRC_CAN_REC(d->features)) {
-		err = lirc_allocate_buffer(irctls[minor]);
-		if (err)
-			lirc_unregister_driver(minor);
-		else
-			/*
-			 * This is kind of a hack but ir-lirc-codec needs
-			 * access to the buffer that lirc_dev allocated.
-			 */
-			d->rbuf = irctls[minor]->buf;
-	}
-
-	return err ? err : minor;
 }
 EXPORT_SYMBOL(lirc_register_driver);
 
