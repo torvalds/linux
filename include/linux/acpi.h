@@ -233,10 +233,6 @@ int acpi_numa_init (void);
 
 int acpi_table_init (void);
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
-int __init acpi_parse_entries(char *id, unsigned long table_size,
-			      acpi_tbl_entry_handler handler,
-			      struct acpi_table_header *table_header,
-			      int entry_id, unsigned int max_entries);
 int __init acpi_table_parse_entries(char *id, unsigned long table_size,
 			      int entry_id,
 			      acpi_tbl_entry_handler handler,
@@ -607,6 +603,11 @@ int acpi_reconfig_notifier_unregister(struct notifier_block *nb);
 struct fwnode_handle;
 
 static inline bool acpi_dev_found(const char *hid)
+{
+	return false;
+}
+
+static inline bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
 {
 	return false;
 }

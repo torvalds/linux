@@ -88,6 +88,7 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
 	}
 
 bool acpi_dev_found(const char *hid);
+bool acpi_dev_present(const char *hid, const char *uid, s64 hrv);
 
 #ifdef CONFIG_ACPI
 
