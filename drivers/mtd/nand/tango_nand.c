@@ -663,6 +663,7 @@ static const struct of_device_id tango_nand_ids[] = {
 	{ .compatible = "sigma,smp8758-nand" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, tango_nand_ids);
 
 static struct platform_driver tango_nand_driver = {
 	.probe	= tango_nand_probe,
