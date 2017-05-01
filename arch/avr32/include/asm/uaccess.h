@@ -8,12 +8,6 @@
 #ifndef __ASM_AVR32_UACCESS_H
 #define __ASM_AVR32_UACCESS_H
 
-#include <linux/errno.h>
-#include <linux/sched.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 typedef struct {
 	unsigned int is_user_space;
 } mm_segment_t;
@@ -72,34 +66,18 @@ static inline void set_fs(mm_segment_t s)
 extern __kernel_size_t __copy_user(void *to, const void *from,
 				   __kernel_size_t n);
 
-extern __kernel_size_t copy_to_user(void __user *to, const void *from,
-				    __kernel_size_t n);
-extern __kernel_size_t ___copy_from_user(void *to, const void __user *from,
-				      __kernel_size_t n);
-
-static inline __kernel_size_t __copy_to_user(void __user *to, const void *from,
-					     __kernel_size_t n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	return __copy_user((void __force *)to, from, n);
 }
-static inline __kernel_size_t __copy_from_user(void *to,
-					       const void __user *from,
-					       __kernel_size_t n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	return __copy_user(to, (const void __force *)from, n);
 }
-static inline __kernel_size_t copy_from_user(void *to,
-					       const void __user *from,
-					       __kernel_size_t n)
-{
-	size_t res = ___copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
-}
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * put_user: - Write a simple value into user space.
@@ -329,9 +307,6 @@ extern long __strnlen_user(const char __user *__s, long __n);
 
 #define strlen_user(s) strnlen_user(s, ~0UL >> 1)
 
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
+#include <asm/extable.h>
 
 #endif /* __ASM_AVR32_UACCESS_H */

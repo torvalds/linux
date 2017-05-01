@@ -23,7 +23,7 @@ int _access_ok(unsigned long addr, unsigned long size)
 	if (!addr || addr > (0xffffffffUL - (size - 1)))
 		goto _bad_access;
 
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (uaccess_kernel())
 		return 1;
 
 	if (memory_start <= addr && (addr + size - 1) < memory_end)

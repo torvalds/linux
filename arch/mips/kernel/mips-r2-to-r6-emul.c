@@ -1200,7 +1200,7 @@ fpu_emul:
 	case lwl_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 4)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1273,7 +1273,7 @@ fpu_emul:
 	case lwr_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 4)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1347,7 +1347,7 @@ fpu_emul:
 	case swl_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 4)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1417,7 +1417,7 @@ fpu_emul:
 	case swr_op:
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 4)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1492,7 +1492,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 8)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1611,7 +1611,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_READ, vaddr, 8)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1730,7 +1730,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 8)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1848,7 +1848,7 @@ fpu_emul:
 
 		rt = regs->regs[MIPSInst_RT(inst)];
 		vaddr = regs->regs[MIPSInst_RS(inst)] + MIPSInst_SIMM(inst);
-		if (!access_ok(VERIFY_WRITE, vaddr, 8)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGSEGV;
 			break;
@@ -1965,7 +1965,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_READ, vaddr, 4)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;
@@ -2021,7 +2021,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_WRITE, vaddr, 4)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 4)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;
@@ -2084,7 +2084,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_READ, vaddr, 8)) {
+		if (!access_ok(VERIFY_READ, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;
@@ -2145,7 +2145,7 @@ fpu_emul:
 			err = SIGBUS;
 			break;
 		}
-		if (!access_ok(VERIFY_WRITE, vaddr, 8)) {
+		if (!access_ok(VERIFY_WRITE, (void __user *)vaddr, 8)) {
 			current->thread.cp0_baduaddr = vaddr;
 			err = SIGBUS;
 			break;

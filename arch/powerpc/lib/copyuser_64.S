@@ -319,32 +319,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	blr
 
 /*
- * here we have trapped again, need to clear ctr bytes starting at r3
+ * here we have trapped again, amount remaining is in ctr.
  */
-143:	mfctr	r5
-	li	r0,0
-	mr	r4,r3
-	mr	r3,r5		/* return the number of bytes not copied */
-1:	andi.	r9,r4,7
-	beq	3f
-90:	stb	r0,0(r4)
-	addic.	r5,r5,-1
-	addi	r4,r4,1
-	bne	1b
-	blr
-3:	cmpldi	cr1,r5,8
-	srdi	r9,r5,3
-	andi.	r5,r5,7
-	blt	cr1,93f
-	mtctr	r9
-91:	std	r0,0(r4)
-	addi	r4,r4,8
-	bdnz	91b
-93:	beqlr
-	mtctr	r5	
-92:	stb	r0,0(r4)
-	addi	r4,r4,1
-	bdnz	92b
+143:	mfctr	r3
 	blr
 
 /*
@@ -389,10 +366,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	ld	r5,-8(r1)
 	add	r6,r6,r5
 	subf	r3,r3,r6	/* #bytes not copied */
-190:
-191:
-192:
-	blr			/* #bytes not copied in r3 */
+	blr
 
 	EX_TABLE(20b,120b)
 	EX_TABLE(220b,320b)
@@ -451,9 +425,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	EX_TABLE(88b,188b)
 	EX_TABLE(43b,143b)
 	EX_TABLE(89b,189b)
-	EX_TABLE(90b,190b)
-	EX_TABLE(91b,191b)
-	EX_TABLE(92b,192b)
 
 /*
  * Routine to copy a whole page of data, optimized for POWER4.

@@ -11,21 +11,14 @@
 #ifndef _ASM_MICROBLAZE_UACCESS_H
 #define _ASM_MICROBLAZE_UACCESS_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/sched.h> /* RLIMIT_FSIZE */
 #include <linux/mm.h>
 
 #include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/extable.h>
 #include <linux/string.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 /*
  * On Microblaze the fs value is actually the top of the corresponding
@@ -54,22 +47,6 @@
 # define set_fs(val)	(current_thread_info()->addr_limit = (val))
 
 # define segment_eq(a, b)	((a).seg == (b).seg)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue. No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path. This means when everything is well,
- * we don't even have to jump over them. Further, they do not intrude
- * on our cache or tlb entries.
- */
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
 
 #ifndef CONFIG_MMU
 
@@ -359,39 +336,19 @@ extern long __user_bad(void);
 	__gu_err;							\
 })
 
-
-/* copy_to_from_user */
-#define __copy_from_user(to, from, n)	\
-	__copy_tofrom_user((__force void __user *)(to), \
-				(void __user *)(from), (n))
-#define __copy_from_user_inatomic(to, from, n) \
-		__copy_from_user((to), (from), (n))
-
-static inline long copy_from_user(void *to,
-		const void __user *from, unsigned long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	unsigned long res = n;
-	might_fault();
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	return __copy_tofrom_user((__force void __user *)to, from, n);
 }
 
-#define __copy_to_user(to, from, n)	\
-		__copy_tofrom_user((void __user *)(to), \
-			(__force const void __user *)(from), (n))
-#define __copy_to_user_inatomic(to, from, n) __copy_to_user((to), (from), (n))
-
-static inline long copy_to_user(void __user *to,
-		const void *from, unsigned long n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	might_fault();
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_to_user(to, from, n);
-	return n;
+	return __copy_tofrom_user(to, (__force const void __user *)from, n);
 }
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * Copy a null terminated string from userspace.
@@ -421,8 +378,5 @@ static inline long strnlen_user(const char __user *src, long n)
 		return 0;
 	return __strnlen_user(src, n);
 }
-
-#endif  /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_MICROBLAZE_UACCESS_H */
