@@ -19,7 +19,7 @@
 #include <linux/udp.h>
 #include "bpf_helpers.h"
 #include "test_iptunnel_common.h"
-#include "bpf_util.h"
+#include "bpf_endian.h"
 
 int _version SEC("version") = 1;
 

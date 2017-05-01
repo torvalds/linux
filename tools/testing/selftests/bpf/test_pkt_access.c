@@ -14,7 +14,7 @@
 #include <linux/tcp.h>
 #include <linux/pkt_cls.h>
 #include "bpf_helpers.h"
-#include "bpf_util.h"
+#include "bpf_endian.h"
 
 #define barrier() __asm__ __volatile__("": : :"memory")
 int _version SEC("version") = 1;
