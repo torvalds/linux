@@ -912,11 +912,9 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
 			asyw->set.point = true;
 
-		if (!varm || asym || armw->state.fb != asyw->state.fb) {
-			ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
-			if (ret)
-				return ret;
-		}
+		ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
+		if (ret)
+			return ret;
 	} else
 	if (varm) {
 		nv50_wndw_atomic_check_release(wndw, asyw, harm);
