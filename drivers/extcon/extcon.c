@@ -448,7 +448,18 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 	spin_lock_irqsave(&edev->lock, flags);
 
 	state = !!(edev->state & BIT(index));
+
+	/*
+	 * Call functions in a raw notifier chain for the specific one
+	 * external connector.
+	 */
 	raw_notifier_call_chain(&edev->nh[index], state, edev);
+
+	/*
+	 * Call functions in a raw notifier chain for the all supported
+	 * external connectors.
+	 */
+	raw_notifier_call_chain(&edev->nh_all, state, edev);
 
 	/* This could be in interrupt handler */
 	prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
@@ -954,6 +965,59 @@ int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 }
 EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
 
+/**
+ * extcon_register_notifier_all() - Register a notifier block for all connectors
+ * @edev:	the extcon device that has the external connecotr.
+ * @nb:		a notifier block to be registered.
+ *
+ * This fucntion registers a notifier block in order to receive the state
+ * change of all supported external connectors from extcon device.
+ * And The second parameter given to the callback of nb (val) is
+ * the current state and third parameter is the edev pointer.
+ *
+ * Returns 0 if success or error number if fail
+ */
+int extcon_register_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb)
+{
+	unsigned long flags;
+	int ret;
+
+	if (!edev || !nb)
+		return -EINVAL;
+
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = raw_notifier_chain_register(&edev->nh_all, nb);
+	spin_unlock_irqrestore(&edev->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(extcon_register_notifier_all);
+
+/**
+ * extcon_unregister_notifier_all() - Unregister a notifier block from extcon.
+ * @edev:	the extcon device that has the external connecotr.
+ * @nb:		a notifier block to be registered.
+ *
+ * Returns 0 if success or error number if fail
+ */
+int extcon_unregister_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb)
+{
+	unsigned long flags;
+	int ret;
+
+	if (!edev || !nb)
+		return -EINVAL;
+
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = raw_notifier_chain_unregister(&edev->nh_all, nb);
+	spin_unlock_irqrestore(&edev->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(extcon_unregister_notifier_all);
+
 static struct attribute *extcon_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_name.attr,
@@ -1211,6 +1275,8 @@ int extcon_dev_register(struct extcon_dev *edev)
 
 	for (index = 0; index < edev->max_supported; index++)
 		RAW_INIT_NOTIFIER_HEAD(&edev->nh[index]);
+
+	RAW_INIT_NOTIFIER_HEAD(&edev->nh_all);
 
 	dev_set_drvdata(&edev->dev, edev);
 	edev->state = 0;
