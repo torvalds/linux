@@ -91,17 +91,6 @@ static void lirc_release(struct device *ld)
 	kfree(ir);
 }
 
-static const struct file_operations lirc_dev_fops = {
-	.owner		= THIS_MODULE,
-	.read		= lirc_dev_fop_read,
-	.write		= lirc_dev_fop_write,
-	.poll		= lirc_dev_fop_poll,
-	.unlocked_ioctl	= lirc_dev_fop_ioctl,
-	.open		= lirc_dev_fop_open,
-	.release	= lirc_dev_fop_close,
-	.llseek		= noop_llseek,
-};
-
 static int lirc_cdev_add(struct irctl *ir)
 {
 	struct lirc_driver *d = &ir->d;
@@ -110,13 +99,11 @@ static int lirc_cdev_add(struct irctl *ir)
 
 	cdev = &ir->cdev;
 
-	if (d->fops) {
-		cdev_init(cdev, d->fops);
-		cdev->owner = d->owner;
-	} else {
-		cdev_init(cdev, &lirc_dev_fops);
-		cdev->owner = THIS_MODULE;
-	}
+	if (!d->fops)
+		return -EINVAL;
+
+	cdev_init(cdev, d->fops);
+	cdev->owner = d->owner;
 	retval = kobject_set_name(&cdev->kobj, "lirc%d", d->minor);
 	if (retval)
 		return retval;
@@ -636,24 +623,6 @@ void *lirc_get_pdata(struct file *file)
 	return irctls[iminor(file_inode(file))]->d.data;
 }
 EXPORT_SYMBOL(lirc_get_pdata);
-
-
-ssize_t lirc_dev_fop_write(struct file *file, const char __user *buffer,
-			   size_t length, loff_t *ppos)
-{
-	struct irctl *ir = irctls[iminor(file_inode(file))];
-
-	if (!ir) {
-		pr_err("called with invalid irctl\n");
-		return -ENODEV;
-	}
-
-	if (!ir->attached)
-		return -ENODEV;
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL(lirc_dev_fop_write);
 
 
 static int __init lirc_dev_init(void)
