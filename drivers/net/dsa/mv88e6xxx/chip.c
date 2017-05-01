@@ -3,9 +3,6 @@
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
- * Copyright (c) 2015 CMC Electronics, Inc.
- *	Added support for VLAN Table Unit operations
- *
  * Copyright (c) 2016 Andrew Lunn <andrew@lunn.ch>
  *
  * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
@@ -1266,31 +1263,15 @@ static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
 		netdev_err(ds->ports[port].netdev, "failed to flush ATU\n");
 }
 
-static int _mv88e6xxx_vtu_wait(struct mv88e6xxx_chip *chip)
-{
-	return mv88e6xxx_g1_wait(chip, GLOBAL_VTU_OP, GLOBAL_VTU_OP_BUSY);
-}
-
-static int _mv88e6xxx_vtu_cmd(struct mv88e6xxx_chip *chip, u16 op)
-{
-	int err;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_OP, op);
-	if (err)
-		return err;
-
-	return _mv88e6xxx_vtu_wait(chip);
-}
-
 static int _mv88e6xxx_vtu_stu_flush(struct mv88e6xxx_chip *chip)
 {
 	int ret;
 
-	ret = _mv88e6xxx_vtu_wait(chip);
+	ret = mv88e6xxx_g1_vtu_op_wait(chip);
 	if (ret < 0)
 		return ret;
 
-	return _mv88e6xxx_vtu_cmd(chip, GLOBAL_VTU_OP_FLUSH_ALL);
+	return mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_FLUSH_ALL);
 }
 
 static int _mv88e6xxx_vtu_stu_data_read(struct mv88e6xxx_chip *chip,
@@ -1380,11 +1361,11 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 	u16 val;
 	int err;
 
-	err = _mv88e6xxx_vtu_wait(chip);
+	err = mv88e6xxx_g1_vtu_op_wait(chip);
 	if (err)
 		return err;
 
-	err = _mv88e6xxx_vtu_cmd(chip, GLOBAL_VTU_OP_VTU_GET_NEXT);
+	err = mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_VTU_GET_NEXT);
 	if (err)
 		return err;
 
@@ -1493,7 +1474,7 @@ static int _mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 	u16 reg = 0;
 	int err;
 
-	err = _mv88e6xxx_vtu_wait(chip);
+	err = mv88e6xxx_g1_vtu_op_wait(chip);
 	if (err)
 		return err;
 
@@ -1532,7 +1513,7 @@ loadpurge:
 	if (err)
 		return err;
 
-	return _mv88e6xxx_vtu_cmd(chip, op);
+	return mv88e6xxx_g1_vtu_op(chip, op);
 }
 
 static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
@@ -1542,7 +1523,7 @@ static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
 	u16 val;
 	int err;
 
-	err = _mv88e6xxx_vtu_wait(chip);
+	err = mv88e6xxx_g1_vtu_op_wait(chip);
 	if (err)
 		return err;
 
@@ -1551,7 +1532,7 @@ static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
 	if (err)
 		return err;
 
-	err = _mv88e6xxx_vtu_cmd(chip, GLOBAL_VTU_OP_STU_GET_NEXT);
+	err = mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_STU_GET_NEXT);
 	if (err)
 		return err;
 
@@ -1583,7 +1564,7 @@ static int _mv88e6xxx_stu_loadpurge(struct mv88e6xxx_chip *chip,
 	u16 reg = 0;
 	int err;
 
-	err = _mv88e6xxx_vtu_wait(chip);
+	err = mv88e6xxx_g1_vtu_op_wait(chip);
 	if (err)
 		return err;
 
@@ -1606,7 +1587,7 @@ loadpurge:
 	if (err)
 		return err;
 
-	return _mv88e6xxx_vtu_cmd(chip, GLOBAL_VTU_OP_STU_LOAD_PURGE);
+	return mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_STU_LOAD_PURGE);
 }
 
 static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
