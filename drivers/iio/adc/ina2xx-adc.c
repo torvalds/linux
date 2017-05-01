@@ -42,8 +42,8 @@
 #define INA2XX_CURRENT                  0x04	/* readonly */
 #define INA2XX_CALIBRATION              0x05
 
-#define INA226_ALERT_MASK		GENMASK(2, 1)
-#define INA266_CVRF			BIT(3)
+#define INA226_MASK_ENABLE		0x06
+#define INA226_CVRF			BIT(3)
 
 #define INA2XX_MAX_REGISTERS            8
 
@@ -417,8 +417,8 @@ static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
 	.address = (_address), \
 	.indexed = 1, \
 	.channel = (_index), \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) \
-	| BIT(IIO_CHAN_INFO_SCALE), \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+			      BIT(IIO_CHAN_INFO_SCALE), \
 	.info_mask_shared_by_dir = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
 				   BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO), \
 	.scan_index = (_index), \
@@ -481,12 +481,12 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	 */
 	if (!chip->allow_async_readout)
 		do {
-			ret = regmap_read(chip->regmap, INA226_ALERT_MASK,
+			ret = regmap_read(chip->regmap, INA226_MASK_ENABLE,
 					  &alert);
 			if (ret < 0)
 				return ret;
 
-			alert &= INA266_CVRF;
+			alert &= INA226_CVRF;
 		} while (!alert);
 
 	/*
