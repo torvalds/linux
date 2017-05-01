@@ -56,6 +56,7 @@ struct irctl {
 
 	struct mutex irctl_lock;
 	struct lirc_buffer *buf;
+	bool buf_internal;
 	unsigned int chunk_size;
 
 	struct device dev;
@@ -87,7 +88,7 @@ static void lirc_release(struct device *ld)
 
 	put_device(ir->dev.parent);
 
-	if (ir->buf != ir->d.rbuf) {
+	if (ir->buf_internal) {
 		lirc_buffer_free(ir->buf);
 		kfree(ir->buf);
 	}
@@ -202,6 +203,7 @@ static int lirc_allocate_buffer(struct irctl *ir)
 
 	if (d->rbuf) {
 		ir->buf = d->rbuf;
+		ir->buf_internal = false;
 	} else {
 		ir->buf = kmalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
 		if (!ir->buf) {
@@ -212,8 +214,11 @@ static int lirc_allocate_buffer(struct irctl *ir)
 		err = lirc_buffer_init(ir->buf, chunk_size, buffer_size);
 		if (err) {
 			kfree(ir->buf);
+			ir->buf = NULL;
 			goto out;
 		}
+
+		ir->buf_internal = true;
 	}
 	ir->chunk_size = ir->buf->chunk_size;
 
@@ -366,6 +371,12 @@ int lirc_register_driver(struct lirc_driver *d)
 		err = lirc_allocate_buffer(irctls[minor]);
 		if (err)
 			lirc_unregister_driver(minor);
+		else
+			/*
+			 * This is kind of a hack but ir-lirc-codec needs
+			 * access to the buffer that lirc_dev allocated.
+			 */
+			d->rbuf = irctls[minor]->buf;
 	}
 
 	return err ? err : minor;
