@@ -6,6 +6,7 @@
  * License: GPLv2 as published by the FSF.
  */
 
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/of.h>
@@ -42,7 +43,7 @@ static irqreturn_t ar1021_i2c_irq(int irq, void *dev_id)
 		goto out;
 
 	/* sync bit set ? */
-	if ((data[0] & 0x80) == 0)
+	if (!(data[0] & BIT(7)))
 		goto out;
 
 	button = data[0] & BIT(0);
