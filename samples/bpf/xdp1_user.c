@@ -20,11 +20,11 @@
 #include "libbpf.h"
 
 static int ifindex;
-static int flags;
+static __u32 xdp_flags;
 
 static void int_exit(int sig)
 {
-	set_link_xdp_fd(ifindex, -1, flags);
+	set_link_xdp_fd(ifindex, -1, xdp_flags);
 	exit(0);
 }
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
 		switch (opt) {
 		case 'S':
-			flags |= XDP_FLAGS_SKB_MODE;
+			xdp_flags |= XDP_FLAGS_SKB_MODE;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 
 	signal(SIGINT, int_exit);
 
-	if (set_link_xdp_fd(ifindex, prog_fd[0], flags) < 0) {
+	if (set_link_xdp_fd(ifindex, prog_fd[0], xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
