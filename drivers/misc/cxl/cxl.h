@@ -228,6 +228,24 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_SERR_An_llcmdto	(1ull << (63-6))
 #define CXL_PSL_SERR_An_afupar	(1ull << (63-7))
 #define CXL_PSL_SERR_An_afudup	(1ull << (63-8))
+#define CXL_PSL_SERR_An_IRQS	( \
+	CXL_PSL_SERR_An_afuto | CXL_PSL_SERR_An_afudis | CXL_PSL_SERR_An_afuov | \
+	CXL_PSL_SERR_An_badsrc | CXL_PSL_SERR_An_badctx | CXL_PSL_SERR_An_llcmdis | \
+	CXL_PSL_SERR_An_llcmdto | CXL_PSL_SERR_An_afupar | CXL_PSL_SERR_An_afudup)
+#define CXL_PSL_SERR_An_afuto_mask	(1ull << (63-32))
+#define CXL_PSL_SERR_An_afudis_mask	(1ull << (63-33))
+#define CXL_PSL_SERR_An_afuov_mask	(1ull << (63-34))
+#define CXL_PSL_SERR_An_badsrc_mask	(1ull << (63-35))
+#define CXL_PSL_SERR_An_badctx_mask	(1ull << (63-36))
+#define CXL_PSL_SERR_An_llcmdis_mask	(1ull << (63-37))
+#define CXL_PSL_SERR_An_llcmdto_mask	(1ull << (63-38))
+#define CXL_PSL_SERR_An_afupar_mask	(1ull << (63-39))
+#define CXL_PSL_SERR_An_afudup_mask	(1ull << (63-40))
+#define CXL_PSL_SERR_An_IRQ_MASKS	( \
+	CXL_PSL_SERR_An_afuto_mask | CXL_PSL_SERR_An_afudis_mask | CXL_PSL_SERR_An_afuov_mask | \
+	CXL_PSL_SERR_An_badsrc_mask | CXL_PSL_SERR_An_badctx_mask | CXL_PSL_SERR_An_llcmdis_mask | \
+	CXL_PSL_SERR_An_llcmdto_mask | CXL_PSL_SERR_An_afupar_mask | CXL_PSL_SERR_An_afudup_mask)
+
 #define CXL_PSL_SERR_An_AE	(1ull << (63-30))
 
 /****** CXL_PSL_SCNTL_An ****************************************************/

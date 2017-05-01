@@ -95,12 +95,23 @@ int cxl_afu_disable(struct cxl_afu *afu)
 /* This will disable as well as reset */
 static int native_afu_reset(struct cxl_afu *afu)
 {
+	int rc;
+	u64 serr;
+
 	pr_devel("AFU reset request\n");
 
-	return afu_control(afu, CXL_AFU_Cntl_An_RA, 0,
+	rc = afu_control(afu, CXL_AFU_Cntl_An_RA, 0,
 			   CXL_AFU_Cntl_An_RS_Complete | CXL_AFU_Cntl_An_ES_Disabled,
 			   CXL_AFU_Cntl_An_RS_MASK | CXL_AFU_Cntl_An_ES_MASK,
 			   false);
+
+	/* Re-enable any masked interrupts */
+	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
+	serr &= ~CXL_PSL_SERR_An_IRQ_MASKS;
+	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
+
+
+	return rc;
 }
 
 static int native_afu_check_and_enable(struct cxl_afu *afu)
@@ -1205,7 +1216,7 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	u64 errstat, serr, afu_error, dsisr;
-	u64 fir_slice, afu_debug;
+	u64 fir_slice, afu_debug, irq_mask;
 
 	/*
 	 * slice err interrupt is only used with full PSL (no XSL)
@@ -1226,7 +1237,11 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 	dev_crit(&afu->dev, "AFU_ERR_An: 0x%.16llx\n", afu_error);
 	dev_crit(&afu->dev, "PSL_DSISR_An: 0x%.16llx\n", dsisr);
 
+	/* mask off the IRQ so it won't retrigger until the AFU is reset */
+	irq_mask = (serr & CXL_PSL_SERR_An_IRQS) >> 32;
+	serr |= irq_mask;
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
+	dev_info(&afu->dev, "Further such interrupts will be masked until the AFU is reset\n");
 
 	return IRQ_HANDLED;
 }
