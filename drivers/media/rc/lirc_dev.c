@@ -18,17 +18,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
 #include <linux/ioctl.h>
-#include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/completion.h>
 #include <linux/mutex.h>
-#include <linux/wait.h>
-#include <linux/unistd.h>
-#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
 
@@ -36,7 +29,6 @@
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
-#define IRCTL_DEV_NAME	"BaseRemoteCtl"
 #define NOPLUG		-1
 #define LOGHEAD		"lirc_dev (%s[%d]): "
 
@@ -595,7 +587,7 @@ static int __init lirc_dev_init(void)
 	}
 
 	retval = alloc_chrdev_region(&lirc_base_dev, 0, MAX_IRCTL_DEVICES,
-				     IRCTL_DEV_NAME);
+				     "BaseRemoteCtl");
 	if (retval) {
 		class_destroy(lirc_class);
 		pr_err("alloc_chrdev_region failed\n");
