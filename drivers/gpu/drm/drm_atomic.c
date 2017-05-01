@@ -1190,6 +1190,8 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 			state->link_status = val;
 	} else if (property == config->aspect_ratio_property) {
 		state->picture_aspect_ratio = val;
+	} else if (property == connector->scaling_mode_property) {
+		state->scaling_mode = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -1268,6 +1270,8 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->link_status;
 	} else if (property == config->aspect_ratio_property) {
 		*val = state->picture_aspect_ratio;
+	} else if (property == connector->scaling_mode_property) {
+		*val = state->scaling_mode;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
