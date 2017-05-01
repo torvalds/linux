@@ -2321,6 +2321,7 @@ static void dm_check_edca_turbo(
 			u1bAIFS  <<= AC_PARAM_AIFS_OFFSET;
 
 			u4bAcParam = op_limit | cw_max | cw_min | u1bAIFS;
+			cpu_to_le32s(&u4bAcParam);
 
 			write_nic_dword(dev, EDCAPARA_BE, u4bAcParam);
 
