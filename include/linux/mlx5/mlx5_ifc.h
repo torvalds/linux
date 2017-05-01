@@ -1456,7 +1456,9 @@ struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits {
 
 	u8         vl_15_dropped[0x10];
 
-	u8	   reserved_at_a0[0xa0];
+	u8	   reserved_at_a0[0x80];
+
+	u8         port_xmit_wait[0x20];
 };
 
 struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits {
