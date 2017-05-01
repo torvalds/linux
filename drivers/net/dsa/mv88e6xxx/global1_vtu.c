@@ -95,6 +95,10 @@ static int mv88e6xxx_g1_vtu_vid_read(struct mv88e6xxx_chip *chip,
 		return err;
 
 	entry->vid = val & 0xfff;
+
+	if (val & GLOBAL_VTU_VID_PAGE)
+		entry->vid |= 0x1000;
+
 	entry->valid = !!(val & GLOBAL_VTU_VID_VALID);
 
 	return 0;
@@ -104,6 +108,9 @@ static int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
 				      struct mv88e6xxx_vtu_entry *entry)
 {
 	u16 val = entry->vid & 0xfff;
+
+	if (entry->vid & 0x1000)
+		val |= GLOBAL_VTU_VID_PAGE;
 
 	if (entry->valid)
 		val |= GLOBAL_VTU_VID_VALID;
