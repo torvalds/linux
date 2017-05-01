@@ -37,7 +37,9 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-of.h>
 
@@ -2090,6 +2092,8 @@ static const struct v4l2_ioctl_ops pxa_camera_ioctl_ops = {
 	.vidioc_g_register		= pxac_vidioc_g_register,
 	.vidioc_s_register		= pxac_vidioc_s_register,
 #endif
+	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
 static struct v4l2_clk_ops pxa_camera_mclk_ops = {
