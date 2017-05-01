@@ -327,16 +327,6 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	return ret;
 }
 
-static int ir_lirc_open(void *data)
-{
-	return 0;
-}
-
-static void ir_lirc_close(void *data)
-{
-	return;
-}
-
 static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ir_lirc_transmit_ir,
@@ -396,8 +386,8 @@ static int ir_lirc_register(struct rc_dev *dev)
 	drv->features = features;
 	drv->data = &dev->raw->lirc;
 	drv->rbuf = NULL;
-	drv->set_use_inc = &ir_lirc_open;
-	drv->set_use_dec = &ir_lirc_close;
+	drv->set_use_inc = NULL;
+	drv->set_use_dec = NULL;
 	drv->code_length = sizeof(struct ir_raw_event) * 8;
 	drv->chunk_size = sizeof(int);
 	drv->buffer_size = LIRCBUF_SIZE;
