@@ -174,7 +174,7 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			mmc0_pins: mmc0_pins {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
@@ -182,12 +182,12 @@
 				bias-pull-up;
 			};
 
-			uart0_pb_pins: uart0_pb_pins {
+			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB9", "PB10";
 				function = "uart0";
 			};
 
-			uart0_pf_pins: uart0_pf_pins {
+			uart0_pf_pins: uart0-pf-pins {
 				pins = "PF2", "PF4";
 				function = "uart0";
 			};
