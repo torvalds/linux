@@ -4079,8 +4079,8 @@ static int raid10_start_reshape(struct mddev *mddev)
 				diff = 0;
 			if (first || diff < min_offset_diff)
 				min_offset_diff = diff;
+			first = 0;
 		}
-		first = 0;
 	}
 
 	if (max(before_length, after_length) > min_offset_diff)
