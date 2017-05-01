@@ -13262,43 +13262,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	return 0;
 }
 
-void intel_crtc_restore_mode(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_atomic_state *state;
-	struct drm_crtc_state *crtc_state;
-	int ret;
-
-	state = drm_atomic_state_alloc(dev);
-	if (!state) {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] crtc restore failed, out of memory",
-			      crtc->base.id, crtc->name);
-		return;
-	}
-
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
-
-retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	ret = PTR_ERR_OR_ZERO(crtc_state);
-	if (!ret) {
-		if (!crtc_state->active)
-			goto out;
-
-		crtc_state->mode_changed = true;
-		ret = drm_atomic_commit(state);
-	}
-
-	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
-		drm_modeset_backoff(state->acquire_ctx);
-		goto retry;
-	}
-
-out:
-	drm_atomic_state_put(state);
-}
-
 static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,

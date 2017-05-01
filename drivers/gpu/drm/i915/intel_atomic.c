@@ -36,46 +36,6 @@
 #include "intel_drv.h"
 
 /**
- * intel_connector_atomic_get_property - fetch legacy connector property value
- * @connector: connector to fetch property for
- * @state: state containing the property value
- * @property: property to look up
- * @val: pointer to write property value into
- *
- * The DRM core does not store shadow copies of properties for
- * atomic-capable drivers.  This entrypoint is used to fetch
- * the current value of a driver-specific connector property.
- *
- * This is a intermediary solution until all connectors are
- * converted to support full atomic properties.
- */
-int intel_connector_atomic_get_property(struct drm_connector *connector,
-					const struct drm_connector_state *state,
-					struct drm_property *property,
-					uint64_t *val)
-{
-	int i;
-
-	/*
-	 * TODO: We only have atomic modeset for planes at the moment, so the
-	 * crtc/connector code isn't quite ready yet.  Until it's ready,
-	 * continue to look up all property values in the DRM's shadow copy
-	 * in obj->properties->values[].
-	 *
-	 * When the crtc/connector state work matures, this function should
-	 * be updated to read the values out of the state structure instead.
-	 */
-	for (i = 0; i < connector->base.properties->count; i++) {
-		if (connector->base.properties->properties[i] == property) {
-			*val = connector->base.properties->values[i];
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
-/**
  * intel_digital_connector_atomic_get_property - hook for connector->atomic_get_property.
  * @connector: Connector to get the property for.
  * @state: Connector state to retrieve the property from.

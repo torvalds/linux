@@ -100,13 +100,6 @@ struct intel_sdvo {
 	uint16_t hotplug_active;
 
 	/**
-	 * This is used to select the color range of RBG outputs in HDMI mode.
-	 * It is only valid when using TMDS encoding and 8 bit per color mode.
-	 */
-	uint32_t color_range;
-	bool color_range_auto;
-
-	/**
 	 * This is set if we're going to treat the device as TV-out.
 	 *
 	 * While we have these nice friendly flags for output types that ought
@@ -116,9 +109,6 @@ struct intel_sdvo {
 	bool is_tv;
 
 	enum port port;
-
-	/* This is for current tv format name */
-	int tv_format_index;
 
 	/**
 	 * This is set if we treat the device as HDMI, instead of DVI.
@@ -154,8 +144,6 @@ struct intel_sdvo_connector {
 	/* Mark the type of connector */
 	uint16_t output_flag;
 
-	enum hdmi_force_audio force_audio;
-
 	/* This contains all current supported TV format */
 	u8 tv_format_supported[TV_FORMAT_NUM];
 	int   format_supported_num;
@@ -182,24 +170,19 @@ struct intel_sdvo_connector {
 	/* add the property for the SDVO-TV/LVDS */
 	struct drm_property *brightness;
 
-	/* Add variable to record current setting for the above property */
-	u32	left_margin, right_margin, top_margin, bottom_margin;
-
 	/* this is to get the range of margin.*/
-	u32	max_hscan,  max_vscan;
-	u32	max_hpos, cur_hpos;
-	u32	max_vpos, cur_vpos;
-	u32	cur_brightness, max_brightness;
-	u32	cur_contrast,	max_contrast;
-	u32	cur_saturation, max_saturation;
-	u32	cur_hue,	max_hue;
-	u32	cur_sharpness,	max_sharpness;
-	u32	cur_flicker_filter,		max_flicker_filter;
-	u32	cur_flicker_filter_adaptive,	max_flicker_filter_adaptive;
-	u32	cur_flicker_filter_2d,		max_flicker_filter_2d;
-	u32	cur_tv_chroma_filter,	max_tv_chroma_filter;
-	u32	cur_tv_luma_filter,	max_tv_luma_filter;
-	u32	cur_dot_crawl,	max_dot_crawl;
+	u32 max_hscan, max_vscan;
+};
+
+struct intel_sdvo_connector_state {
+	/* base.base: tv.saturation/contrast/hue/brightness */
+	struct intel_digital_connector_state base;
+
+	struct {
+		unsigned overscan_h, overscan_v, hpos, vpos, sharpness;
+		unsigned flicker_filter, flicker_filter_2d, flicker_filter_adaptive;
+		unsigned chroma_filter, luma_filter, dot_crawl;
+	} tv;
 };
 
 static struct intel_sdvo *to_sdvo(struct intel_encoder *encoder)
@@ -212,9 +195,16 @@ static struct intel_sdvo *intel_attached_sdvo(struct drm_connector *connector)
 	return to_sdvo(intel_attached_encoder(connector));
 }
 
-static struct intel_sdvo_connector *to_intel_sdvo_connector(struct drm_connector *connector)
+static struct intel_sdvo_connector *
+to_intel_sdvo_connector(struct drm_connector *connector)
 {
-	return container_of(to_intel_connector(connector), struct intel_sdvo_connector, base);
+	return container_of(connector, struct intel_sdvo_connector, base.base);
+}
+
+static struct intel_sdvo_connector_state *
+to_intel_sdvo_connector_state(struct drm_connector_state *conn_state)
+{
+	return container_of(conn_state, struct intel_sdvo_connector_state, base.base);
 }
 
 static bool
@@ -1030,12 +1020,13 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 					  sdvo_data, sizeof(sdvo_data));
 }
 
-static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo)
+static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo,
+				     struct drm_connector_state *conn_state)
 {
 	struct intel_sdvo_tv_format format;
 	uint32_t format_map;
 
-	format_map = 1 << intel_sdvo->tv_format_index;
+	format_map = 1 << conn_state->tv.mode;
 	memset(&format, 0, sizeof(format));
 	memcpy(&format, &format_map, min(sizeof(format), sizeof(format_map)));
 
@@ -1122,8 +1113,8 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
-	struct intel_sdvo_connector *intel_sdvo_connector =
-		to_intel_sdvo_connector(conn_state->connector);
+	struct intel_sdvo_connector_state *intel_sdvo_state =
+		to_intel_sdvo_connector_state(conn_state);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct drm_display_mode *mode = &pipe_config->base.mode;
 
@@ -1162,14 +1153,14 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	pipe_config->pixel_multiplier =
 		intel_sdvo_get_pixel_multiplier(adjusted_mode);
 
-	if (intel_sdvo_connector->force_audio != HDMI_AUDIO_OFF_DVI)
+	if (intel_sdvo_state->base.force_audio != HDMI_AUDIO_OFF_DVI)
 		pipe_config->has_hdmi_sink = intel_sdvo->has_hdmi_monitor;
 
-	if (intel_sdvo_connector->force_audio == HDMI_AUDIO_ON ||
-	    (intel_sdvo_connector->force_audio == HDMI_AUDIO_AUTO && intel_sdvo->has_hdmi_audio))
+	if (intel_sdvo_state->base.force_audio == HDMI_AUDIO_ON ||
+	    (intel_sdvo_state->base.force_audio == HDMI_AUDIO_AUTO && intel_sdvo->has_hdmi_audio))
 		pipe_config->has_audio = true;
 
-	if (intel_sdvo->color_range_auto) {
+	if (intel_sdvo_state->base.broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		/* FIXME: This bit is only valid when using TMDS encoding and 8
 		 * bit per color mode. */
@@ -1178,7 +1169,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 			pipe_config->limited_color_range = true;
 	} else {
 		if (pipe_config->has_hdmi_sink &&
-		    intel_sdvo->color_range == HDMI_COLOR_RANGE_16_235)
+		    intel_sdvo_state->base.broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED)
 			pipe_config->limited_color_range = true;
 	}
 
@@ -1193,6 +1184,68 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
+#define UPDATE_PROPERTY(input, NAME) \
+	do { \
+		val = input; \
+		intel_sdvo_set_value(intel_sdvo, SDVO_CMD_SET_##NAME, &val, sizeof(val)); \
+	} while (0)
+
+static void intel_sdvo_update_props(struct intel_sdvo *intel_sdvo,
+				    struct intel_sdvo_connector_state *sdvo_state)
+{
+	struct drm_connector_state *conn_state = &sdvo_state->base.base;
+	struct intel_sdvo_connector *intel_sdvo_conn =
+		to_intel_sdvo_connector(conn_state->connector);
+	uint16_t val;
+
+	if (intel_sdvo_conn->left)
+		UPDATE_PROPERTY(sdvo_state->tv.overscan_h, OVERSCAN_H);
+
+	if (intel_sdvo_conn->top)
+		UPDATE_PROPERTY(sdvo_state->tv.overscan_v, OVERSCAN_V);
+
+	if (intel_sdvo_conn->hpos)
+		UPDATE_PROPERTY(sdvo_state->tv.hpos, HPOS);
+
+	if (intel_sdvo_conn->vpos)
+		UPDATE_PROPERTY(sdvo_state->tv.vpos, VPOS);
+
+	if (intel_sdvo_conn->saturation)
+		UPDATE_PROPERTY(conn_state->tv.saturation, SATURATION);
+
+	if (intel_sdvo_conn->contrast)
+		UPDATE_PROPERTY(conn_state->tv.contrast, CONTRAST);
+
+	if (intel_sdvo_conn->hue)
+		UPDATE_PROPERTY(conn_state->tv.hue, HUE);
+
+	if (intel_sdvo_conn->brightness)
+		UPDATE_PROPERTY(conn_state->tv.brightness, BRIGHTNESS);
+
+	if (intel_sdvo_conn->sharpness)
+		UPDATE_PROPERTY(sdvo_state->tv.sharpness, SHARPNESS);
+
+	if (intel_sdvo_conn->flicker_filter)
+		UPDATE_PROPERTY(sdvo_state->tv.flicker_filter, FLICKER_FILTER);
+
+	if (intel_sdvo_conn->flicker_filter_2d)
+		UPDATE_PROPERTY(sdvo_state->tv.flicker_filter_2d, FLICKER_FILTER_2D);
+
+	if (intel_sdvo_conn->flicker_filter_adaptive)
+		UPDATE_PROPERTY(sdvo_state->tv.flicker_filter_adaptive, FLICKER_FILTER_ADAPTIVE);
+
+	if (intel_sdvo_conn->tv_chroma_filter)
+		UPDATE_PROPERTY(sdvo_state->tv.chroma_filter, TV_CHROMA_FILTER);
+
+	if (intel_sdvo_conn->tv_luma_filter)
+		UPDATE_PROPERTY(sdvo_state->tv.luma_filter, TV_LUMA_FILTER);
+
+	if (intel_sdvo_conn->dot_crawl)
+		UPDATE_PROPERTY(sdvo_state->tv.dot_crawl, DOT_CRAWL);
+
+#undef UPDATE_PROPERTY
+}
+
 static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 				  struct intel_crtc_state *crtc_state,
 				  struct drm_connector_state *conn_state)
@@ -1200,12 +1253,15 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
+	struct intel_sdvo_connector_state *sdvo_state = to_intel_sdvo_connector_state(conn_state);
 	struct drm_display_mode *mode = &crtc_state->base.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
 	struct intel_sdvo_dtd input_dtd, output_dtd;
 	int rate;
+
+	intel_sdvo_update_props(intel_sdvo, sdvo_state);
 
 	/* First, set the input mapping for the first input to our controlled
 	 * output. This is only correct if we're a single-input device, in
@@ -1248,7 +1304,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
 	if (intel_sdvo->is_tv &&
-	    !intel_sdvo_set_tv_format(intel_sdvo))
+	    !intel_sdvo_set_tv_format(intel_sdvo, conn_state))
 		return;
 
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
@@ -1880,6 +1936,7 @@ static const struct drm_display_mode sdvo_tv_modes[] = {
 static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
+	const struct drm_connector_state *conn_state = connector->state;
 	struct intel_sdvo_sdtv_resolution_request tv_res;
 	uint32_t reply = 0, format_map = 0;
 	int i;
@@ -1890,7 +1947,7 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	/* Read the list of supported input resolutions for the selected TV
 	 * format.
 	 */
-	format_map = 1 << intel_sdvo->tv_format_index;
+	format_map = 1 << conn_state->tv.mode;
 	memcpy(&tv_res, &format_map,
 	       min(sizeof(format_map), sizeof(struct intel_sdvo_sdtv_resolution_request)));
 
@@ -1980,175 +2037,120 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 }
 
 static int
-intel_sdvo_set_property(struct drm_connector *connector,
-			struct drm_property *property,
-			uint64_t val)
+intel_sdvo_connector_atomic_get_property(struct drm_connector *connector,
+					 const struct drm_connector_state *state,
+					 struct drm_property *property,
+					 uint64_t *val)
 {
-	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	uint16_t temp_value;
-	uint8_t cmd;
-	int ret;
-
-	ret = drm_object_property_set_value(&connector->base, property, val);
-	if (ret)
-		return ret;
-
-	if (property == dev_priv->force_audio_property) {
-		int i = val;
-		bool has_audio, old_audio;
-
-		if (intel_sdvo_connector->force_audio == HDMI_AUDIO_AUTO)
-			old_audio = intel_sdvo->has_hdmi_audio;
-		else
-			old_audio = intel_sdvo_connector->force_audio == HDMI_AUDIO_ON;
-
-		if (i == HDMI_AUDIO_AUTO)
-			has_audio = intel_sdvo->has_hdmi_audio;
-		else
-			has_audio = (i == HDMI_AUDIO_ON);
-
-		intel_sdvo_connector->force_audio = i;
-
-		if (has_audio == old_audio)
-			return 0;
-
-		goto done;
-	}
-
-	if (property == dev_priv->broadcast_rgb_property) {
-		bool old_auto = intel_sdvo->color_range_auto;
-		uint32_t old_range = intel_sdvo->color_range;
-
-		switch (val) {
-		case INTEL_BROADCAST_RGB_AUTO:
-			intel_sdvo->color_range_auto = true;
-			break;
-		case INTEL_BROADCAST_RGB_FULL:
-			intel_sdvo->color_range_auto = false;
-			intel_sdvo->color_range = 0;
-			break;
-		case INTEL_BROADCAST_RGB_LIMITED:
-			intel_sdvo->color_range_auto = false;
-			/* FIXME: this bit is only valid when using TMDS
-			 * encoding and 8 bit per color mode. */
-			intel_sdvo->color_range = HDMI_COLOR_RANGE_16_235;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		if (old_auto == intel_sdvo->color_range_auto &&
-		    old_range == intel_sdvo->color_range)
-			return 0;
-
-		goto done;
-	}
-
-	if (property == connector->dev->mode_config.aspect_ratio_property) {
-		connector->state->picture_aspect_ratio = val;
-		goto done;
-	}
-
-#define CHECK_PROPERTY(name, NAME) \
-	if (intel_sdvo_connector->name == property) { \
-		if (intel_sdvo_connector->cur_##name == temp_value) return 0; \
-		if (intel_sdvo_connector->max_##name < temp_value) return -EINVAL; \
-		cmd = SDVO_CMD_SET_##NAME; \
-		intel_sdvo_connector->cur_##name = temp_value; \
-		goto set_value; \
-	}
+	const struct intel_sdvo_connector_state *sdvo_state = to_intel_sdvo_connector_state((void *)state);
 
 	if (property == intel_sdvo_connector->tv_format) {
-		if (val >= TV_FORMAT_NUM)
-			return -EINVAL;
+		int i;
 
-		if (intel_sdvo->tv_format_index ==
-		    intel_sdvo_connector->tv_format_supported[val])
-			return 0;
+		for (i = 0; i < intel_sdvo_connector->format_supported_num; i++)
+			if (state->tv.mode == intel_sdvo_connector->tv_format_supported[i]) {
+				*val = i;
 
-		intel_sdvo->tv_format_index = intel_sdvo_connector->tv_format_supported[val];
-		goto done;
-	} else if (IS_TV_OR_LVDS(intel_sdvo_connector)) {
-		temp_value = val;
-		if (intel_sdvo_connector->left == property) {
-			drm_object_property_set_value(&connector->base,
-							 intel_sdvo_connector->right, val);
-			if (intel_sdvo_connector->left_margin == temp_value)
 				return 0;
+			}
 
-			intel_sdvo_connector->left_margin = temp_value;
-			intel_sdvo_connector->right_margin = temp_value;
-			temp_value = intel_sdvo_connector->max_hscan -
-				intel_sdvo_connector->left_margin;
-			cmd = SDVO_CMD_SET_OVERSCAN_H;
-			goto set_value;
-		} else if (intel_sdvo_connector->right == property) {
-			drm_object_property_set_value(&connector->base,
-							 intel_sdvo_connector->left, val);
-			if (intel_sdvo_connector->right_margin == temp_value)
-				return 0;
-
-			intel_sdvo_connector->left_margin = temp_value;
-			intel_sdvo_connector->right_margin = temp_value;
-			temp_value = intel_sdvo_connector->max_hscan -
-				intel_sdvo_connector->left_margin;
-			cmd = SDVO_CMD_SET_OVERSCAN_H;
-			goto set_value;
-		} else if (intel_sdvo_connector->top == property) {
-			drm_object_property_set_value(&connector->base,
-							 intel_sdvo_connector->bottom, val);
-			if (intel_sdvo_connector->top_margin == temp_value)
-				return 0;
-
-			intel_sdvo_connector->top_margin = temp_value;
-			intel_sdvo_connector->bottom_margin = temp_value;
-			temp_value = intel_sdvo_connector->max_vscan -
-				intel_sdvo_connector->top_margin;
-			cmd = SDVO_CMD_SET_OVERSCAN_V;
-			goto set_value;
-		} else if (intel_sdvo_connector->bottom == property) {
-			drm_object_property_set_value(&connector->base,
-							 intel_sdvo_connector->top, val);
-			if (intel_sdvo_connector->bottom_margin == temp_value)
-				return 0;
-
-			intel_sdvo_connector->top_margin = temp_value;
-			intel_sdvo_connector->bottom_margin = temp_value;
-			temp_value = intel_sdvo_connector->max_vscan -
-				intel_sdvo_connector->top_margin;
-			cmd = SDVO_CMD_SET_OVERSCAN_V;
-			goto set_value;
-		}
-		CHECK_PROPERTY(hpos, HPOS)
-		CHECK_PROPERTY(vpos, VPOS)
-		CHECK_PROPERTY(saturation, SATURATION)
-		CHECK_PROPERTY(contrast, CONTRAST)
-		CHECK_PROPERTY(hue, HUE)
-		CHECK_PROPERTY(brightness, BRIGHTNESS)
-		CHECK_PROPERTY(sharpness, SHARPNESS)
-		CHECK_PROPERTY(flicker_filter, FLICKER_FILTER)
-		CHECK_PROPERTY(flicker_filter_2d, FLICKER_FILTER_2D)
-		CHECK_PROPERTY(flicker_filter_adaptive, FLICKER_FILTER_ADAPTIVE)
-		CHECK_PROPERTY(tv_chroma_filter, TV_CHROMA_FILTER)
-		CHECK_PROPERTY(tv_luma_filter, TV_LUMA_FILTER)
-		CHECK_PROPERTY(dot_crawl, DOT_CRAWL)
-	}
-
-	return -EINVAL; /* unknown property */
-
-set_value:
-	if (!intel_sdvo_set_value(intel_sdvo, cmd, &temp_value, 2))
-		return -EIO;
-
-
-done:
-	if (intel_sdvo->base.base.crtc)
-		intel_crtc_restore_mode(intel_sdvo->base.base.crtc);
+		WARN_ON(1);
+		*val = 0;
+	} else if (property == intel_sdvo_connector->top ||
+		   property == intel_sdvo_connector->bottom)
+		*val = intel_sdvo_connector->max_vscan - sdvo_state->tv.overscan_v;
+	else if (property == intel_sdvo_connector->left ||
+		 property == intel_sdvo_connector->right)
+		*val = intel_sdvo_connector->max_hscan - sdvo_state->tv.overscan_h;
+	else if (property == intel_sdvo_connector->hpos)
+		*val = sdvo_state->tv.hpos;
+	else if (property == intel_sdvo_connector->vpos)
+		*val = sdvo_state->tv.vpos;
+	else if (property == intel_sdvo_connector->saturation)
+		*val = state->tv.saturation;
+	else if (property == intel_sdvo_connector->contrast)
+		*val = state->tv.contrast;
+	else if (property == intel_sdvo_connector->hue)
+		*val = state->tv.hue;
+	else if (property == intel_sdvo_connector->brightness)
+		*val = state->tv.brightness;
+	else if (property == intel_sdvo_connector->sharpness)
+		*val = sdvo_state->tv.sharpness;
+	else if (property == intel_sdvo_connector->flicker_filter)
+		*val = sdvo_state->tv.flicker_filter;
+	else if (property == intel_sdvo_connector->flicker_filter_2d)
+		*val = sdvo_state->tv.flicker_filter_2d;
+	else if (property == intel_sdvo_connector->flicker_filter_adaptive)
+		*val = sdvo_state->tv.flicker_filter_adaptive;
+	else if (property == intel_sdvo_connector->tv_chroma_filter)
+		*val = sdvo_state->tv.chroma_filter;
+	else if (property == intel_sdvo_connector->tv_luma_filter)
+		*val = sdvo_state->tv.luma_filter;
+	else if (property == intel_sdvo_connector->dot_crawl)
+		*val = sdvo_state->tv.dot_crawl;
+	else
+		return intel_digital_connector_atomic_get_property(connector, state, property, val);
 
 	return 0;
-#undef CHECK_PROPERTY
+}
+
+static int
+intel_sdvo_connector_atomic_set_property(struct drm_connector *connector,
+					 struct drm_connector_state *state,
+					 struct drm_property *property,
+					 uint64_t val)
+{
+	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
+	struct intel_sdvo_connector_state *sdvo_state = to_intel_sdvo_connector_state(state);
+
+	if (property == intel_sdvo_connector->tv_format) {
+		state->tv.mode = intel_sdvo_connector->tv_format_supported[val];
+
+		if (state->crtc) {
+			struct drm_crtc_state *crtc_state =
+				drm_atomic_get_new_crtc_state(state->state, state->crtc);
+
+			crtc_state->connectors_changed = true;
+		}
+	} else if (property == intel_sdvo_connector->top ||
+		   property == intel_sdvo_connector->bottom)
+		/* Cannot set these independent from each other */
+		sdvo_state->tv.overscan_v = intel_sdvo_connector->max_vscan - val;
+	else if (property == intel_sdvo_connector->left ||
+		 property == intel_sdvo_connector->right)
+		/* Cannot set these independent from each other */
+		sdvo_state->tv.overscan_h = intel_sdvo_connector->max_hscan - val;
+	else if (property == intel_sdvo_connector->hpos)
+		sdvo_state->tv.hpos = val;
+	else if (property == intel_sdvo_connector->vpos)
+		sdvo_state->tv.vpos = val;
+	else if (property == intel_sdvo_connector->saturation)
+		state->tv.saturation = val;
+	else if (property == intel_sdvo_connector->contrast)
+		state->tv.contrast = val;
+	else if (property == intel_sdvo_connector->hue)
+		state->tv.hue = val;
+	else if (property == intel_sdvo_connector->brightness)
+		state->tv.brightness = val;
+	else if (property == intel_sdvo_connector->sharpness)
+		sdvo_state->tv.sharpness = val;
+	else if (property == intel_sdvo_connector->flicker_filter)
+		sdvo_state->tv.flicker_filter = val;
+	else if (property == intel_sdvo_connector->flicker_filter_2d)
+		sdvo_state->tv.flicker_filter_2d = val;
+	else if (property == intel_sdvo_connector->flicker_filter_adaptive)
+		sdvo_state->tv.flicker_filter_adaptive = val;
+	else if (property == intel_sdvo_connector->tv_chroma_filter)
+		sdvo_state->tv.chroma_filter = val;
+	else if (property == intel_sdvo_connector->tv_luma_filter)
+		sdvo_state->tv.luma_filter = val;
+	else if (property == intel_sdvo_connector->dot_crawl)
+		sdvo_state->tv.dot_crawl = val;
+	else
+		return intel_digital_connector_atomic_set_property(connector, state, property, val);
+
+	return 0;
 }
 
 static int
@@ -2176,22 +2178,61 @@ intel_sdvo_connector_unregister(struct drm_connector *connector)
 	intel_connector_unregister(connector);
 }
 
+static struct drm_connector_state *
+intel_sdvo_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct intel_sdvo_connector_state *state;
+
+	state = kmemdup(connector->state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, &state->base.base);
+	return &state->base.base;
+}
+
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_sdvo_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
+	.atomic_get_property = intel_sdvo_connector_atomic_get_property,
+	.atomic_set_property = intel_sdvo_connector_atomic_set_property,
 	.late_register = intel_sdvo_connector_register,
 	.early_unregister = intel_sdvo_connector_unregister,
 	.destroy = intel_sdvo_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_sdvo_connector_duplicate_state,
 };
+
+static int intel_sdvo_atomic_check(struct drm_connector *conn,
+				   struct drm_connector_state *new_conn_state)
+{
+	struct drm_atomic_state *state = new_conn_state->state;
+	struct drm_connector_state *old_conn_state =
+		drm_atomic_get_old_connector_state(state, conn);
+	struct intel_sdvo_connector_state *old_state =
+		to_intel_sdvo_connector_state(old_conn_state);
+	struct intel_sdvo_connector_state *new_state =
+		to_intel_sdvo_connector_state(new_conn_state);
+
+	if (new_conn_state->crtc &&
+	    (memcmp(&old_state->tv, &new_state->tv, sizeof(old_state->tv)) ||
+	     memcmp(&old_conn_state->tv, &new_conn_state->tv, sizeof(old_conn_state->tv)))) {
+		struct drm_crtc_state *crtc_state =
+			drm_atomic_get_new_crtc_state(new_conn_state->state,
+						      new_conn_state->crtc);
+
+		crtc_state->connectors_changed = true;
+	}
+
+	return intel_digital_connector_atomic_check(conn, new_conn_state);
+}
 
 static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs = {
 	.get_modes = intel_sdvo_get_modes,
 	.mode_valid = intel_sdvo_mode_valid,
+	.atomic_check = intel_sdvo_atomic_check,
 };
 
 static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
@@ -2383,7 +2424,6 @@ intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
 	intel_attach_force_audio_property(&connector->base.base);
 	if (INTEL_GEN(dev_priv) >= 4 && IS_MOBILE(dev_priv)) {
 		intel_attach_broadcast_rgb_property(&connector->base.base);
-		intel_sdvo->color_range_auto = true;
 	}
 	intel_attach_aspect_ratio_property(&connector->base.base);
 	connector->base.base.state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
@@ -2392,15 +2432,20 @@ intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
 static struct intel_sdvo_connector *intel_sdvo_connector_alloc(void)
 {
 	struct intel_sdvo_connector *sdvo_connector;
+	struct intel_sdvo_connector_state *conn_state;
 
 	sdvo_connector = kzalloc(sizeof(*sdvo_connector), GFP_KERNEL);
 	if (!sdvo_connector)
 		return NULL;
 
-	if (intel_connector_init(&sdvo_connector->base) < 0) {
+	conn_state = kzalloc(sizeof(*conn_state), GFP_KERNEL);
+	if (!conn_state) {
 		kfree(sdvo_connector);
 		return NULL;
 	}
+
+	__drm_atomic_helper_connector_reset(&sdvo_connector->base.base,
+					    &conn_state->base.base);
 
 	return sdvo_connector;
 }
@@ -2693,30 +2738,29 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 				intel_sdvo_connector->tv_format, i,
 				i, tv_format_names[intel_sdvo_connector->tv_format_supported[i]]);
 
-	intel_sdvo->tv_format_index = intel_sdvo_connector->tv_format_supported[0];
-	drm_object_attach_property(&intel_sdvo_connector->base.base.base,
-				      intel_sdvo_connector->tv_format, 0);
+	intel_sdvo_connector->base.base.state->tv.mode = intel_sdvo_connector->tv_format_supported[0];
+	drm_object_attach_property(&intel_sdvo_connector->base.base.base, 0, 0);
 	return true;
 
 }
 
-#define ENHANCEMENT(name, NAME) do { \
+#define _ENHANCEMENT(state_assignment, name, NAME) do { \
 	if (enhancements.name) { \
 		if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_MAX_##NAME, &data_value, 4) || \
 		    !intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_##NAME, &response, 2)) \
 			return false; \
-		intel_sdvo_connector->max_##name = data_value[0]; \
-		intel_sdvo_connector->cur_##name = response; \
 		intel_sdvo_connector->name = \
 			drm_property_create_range(dev, 0, #name, 0, data_value[0]); \
 		if (!intel_sdvo_connector->name) return false; \
+		state_assignment = response; \
 		drm_object_attach_property(&connector->base, \
-					      intel_sdvo_connector->name, \
-					      intel_sdvo_connector->cur_##name); \
+					   intel_sdvo_connector->name, 0); \
 		DRM_DEBUG_KMS(#name ": max %d, default %d, current %d\n", \
 			      data_value[0], data_value[1], response); \
 	} \
 } while (0)
+
+#define ENHANCEMENT(state, name, NAME) _ENHANCEMENT((state)->name, name, NAME)
 
 static bool
 intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
@@ -2725,6 +2769,9 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 {
 	struct drm_device *dev = intel_sdvo->base.base.dev;
 	struct drm_connector *connector = &intel_sdvo_connector->base.base;
+	struct drm_connector_state *conn_state = connector->state;
+	struct intel_sdvo_connector_state *sdvo_state =
+		to_intel_sdvo_connector_state(conn_state);
 	uint16_t response, data_value[2];
 
 	/* when horizontal overscan is supported, Add the left/right  property */
@@ -2739,17 +2786,16 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 					  &response, 2))
 			return false;
 
+		sdvo_state->tv.overscan_h = response;
+
 		intel_sdvo_connector->max_hscan = data_value[0];
-		intel_sdvo_connector->left_margin = data_value[0] - response;
-		intel_sdvo_connector->right_margin = intel_sdvo_connector->left_margin;
 		intel_sdvo_connector->left =
 			drm_property_create_range(dev, 0, "left_margin", 0, data_value[0]);
 		if (!intel_sdvo_connector->left)
 			return false;
 
 		drm_object_attach_property(&connector->base,
-					      intel_sdvo_connector->left,
-					      intel_sdvo_connector->left_margin);
+					   intel_sdvo_connector->left, 0);
 
 		intel_sdvo_connector->right =
 			drm_property_create_range(dev, 0, "right_margin", 0, data_value[0]);
@@ -2757,8 +2803,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 			return false;
 
 		drm_object_attach_property(&connector->base,
-					      intel_sdvo_connector->right,
-					      intel_sdvo_connector->right_margin);
+					      intel_sdvo_connector->right, 0);
 		DRM_DEBUG_KMS("h_overscan: max %d, "
 			      "default %d, current %d\n",
 			      data_value[0], data_value[1], response);
@@ -2775,9 +2820,9 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 					  &response, 2))
 			return false;
 
+		sdvo_state->tv.overscan_v = response;
+
 		intel_sdvo_connector->max_vscan = data_value[0];
-		intel_sdvo_connector->top_margin = data_value[0] - response;
-		intel_sdvo_connector->bottom_margin = intel_sdvo_connector->top_margin;
 		intel_sdvo_connector->top =
 			drm_property_create_range(dev, 0,
 					    "top_margin", 0, data_value[0]);
@@ -2785,8 +2830,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 			return false;
 
 		drm_object_attach_property(&connector->base,
-					      intel_sdvo_connector->top,
-					      intel_sdvo_connector->top_margin);
+					   intel_sdvo_connector->top, 0);
 
 		intel_sdvo_connector->bottom =
 			drm_property_create_range(dev, 0,
@@ -2795,40 +2839,37 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 			return false;
 
 		drm_object_attach_property(&connector->base,
-					      intel_sdvo_connector->bottom,
-					      intel_sdvo_connector->bottom_margin);
+					      intel_sdvo_connector->bottom, 0);
 		DRM_DEBUG_KMS("v_overscan: max %d, "
 			      "default %d, current %d\n",
 			      data_value[0], data_value[1], response);
 	}
 
-	ENHANCEMENT(hpos, HPOS);
-	ENHANCEMENT(vpos, VPOS);
-	ENHANCEMENT(saturation, SATURATION);
-	ENHANCEMENT(contrast, CONTRAST);
-	ENHANCEMENT(hue, HUE);
-	ENHANCEMENT(sharpness, SHARPNESS);
-	ENHANCEMENT(brightness, BRIGHTNESS);
-	ENHANCEMENT(flicker_filter, FLICKER_FILTER);
-	ENHANCEMENT(flicker_filter_adaptive, FLICKER_FILTER_ADAPTIVE);
-	ENHANCEMENT(flicker_filter_2d, FLICKER_FILTER_2D);
-	ENHANCEMENT(tv_chroma_filter, TV_CHROMA_FILTER);
-	ENHANCEMENT(tv_luma_filter, TV_LUMA_FILTER);
+	ENHANCEMENT(&sdvo_state->tv, hpos, HPOS);
+	ENHANCEMENT(&sdvo_state->tv, vpos, VPOS);
+	ENHANCEMENT(&conn_state->tv, saturation, SATURATION);
+	ENHANCEMENT(&conn_state->tv, contrast, CONTRAST);
+	ENHANCEMENT(&conn_state->tv, hue, HUE);
+	ENHANCEMENT(&conn_state->tv, brightness, BRIGHTNESS);
+	ENHANCEMENT(&sdvo_state->tv, sharpness, SHARPNESS);
+	ENHANCEMENT(&sdvo_state->tv, flicker_filter, FLICKER_FILTER);
+	ENHANCEMENT(&sdvo_state->tv, flicker_filter_adaptive, FLICKER_FILTER_ADAPTIVE);
+	ENHANCEMENT(&sdvo_state->tv, flicker_filter_2d, FLICKER_FILTER_2D);
+	_ENHANCEMENT(sdvo_state->tv.chroma_filter, tv_chroma_filter, TV_CHROMA_FILTER);
+	_ENHANCEMENT(sdvo_state->tv.luma_filter, tv_luma_filter, TV_LUMA_FILTER);
 
 	if (enhancements.dot_crawl) {
 		if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_DOT_CRAWL, &response, 2))
 			return false;
 
-		intel_sdvo_connector->max_dot_crawl = 1;
-		intel_sdvo_connector->cur_dot_crawl = response & 0x1;
+		sdvo_state->tv.dot_crawl = response & 0x1;
 		intel_sdvo_connector->dot_crawl =
 			drm_property_create_range(dev, 0, "dot_crawl", 0, 1);
 		if (!intel_sdvo_connector->dot_crawl)
 			return false;
 
 		drm_object_attach_property(&connector->base,
-					      intel_sdvo_connector->dot_crawl,
-					      intel_sdvo_connector->cur_dot_crawl);
+					   intel_sdvo_connector->dot_crawl, 0);
 		DRM_DEBUG_KMS("dot crawl: current %d\n", response);
 	}
 
@@ -2844,11 +2885,12 @@ intel_sdvo_create_enhance_property_lvds(struct intel_sdvo *intel_sdvo,
 	struct drm_connector *connector = &intel_sdvo_connector->base.base;
 	uint16_t response, data_value[2];
 
-	ENHANCEMENT(brightness, BRIGHTNESS);
+	ENHANCEMENT(&connector->state->tv, brightness, BRIGHTNESS);
 
 	return true;
 }
 #undef ENHANCEMENT
+#undef _ENHANCEMENT
 
 static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 					       struct intel_sdvo_connector *intel_sdvo_connector)
