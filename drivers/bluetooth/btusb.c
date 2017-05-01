@@ -336,6 +336,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x8087, 0x0a2a), .driver_info = BTUSB_INTEL },
 	{ USB_DEVICE(0x8087, 0x0a2b), .driver_info = BTUSB_INTEL_NEW },
 	{ USB_DEVICE(0x8087, 0x0aa7), .driver_info = BTUSB_INTEL },
+	{ USB_DEVICE(0x8087, 0x0aaa), .driver_info = BTUSB_INTEL_NEW },
 
 	/* Other Intel Bluetooth devices */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x8087, 0xe0, 0x01, 0x01),
@@ -2036,6 +2037,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	switch (ver.hw_variant) {
 	case 0x0b:	/* SfP */
 	case 0x0c:	/* WsP */
+	case 0x11:	/* JfP */
 	case 0x12:	/* ThP */
 		break;
 	default:
@@ -2138,6 +2140,8 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	 * Currently the supported hardware variants are:
 	 *   11 (0x0b) for iBT3.0 (LnP/SfP)
 	 *   12 (0x0c) for iBT3.5 (WsP)
+	 *   17 (0x11) for iBT3.5 (JfP)
+	 *   18 (0x12) for iBT3.5 (ThP)
 	 */
 	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
 		 le16_to_cpu(ver.hw_variant),
