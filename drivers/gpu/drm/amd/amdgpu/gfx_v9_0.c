@@ -1272,7 +1272,7 @@ static void gfx_v9_0_init_compute_vmid(struct amdgpu_device *adev)
 
 	sh_mem_config = SH_MEM_ADDRESS_MODE_64 |
 			SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
-			SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT; 
+			SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
 
 	mutex_lock(&adev->srbm_mutex);
 	for (i = FIRST_COMPUTE_VMID; i < LAST_COMPUTE_VMID; i++) {
@@ -1425,7 +1425,7 @@ static void gfx_v9_0_rlc_start(struct amdgpu_device *adev)
 		 * default is 0x9C4 to create a 100us interval */
 		WREG32_SOC15(GC, 0, mmRLC_GPM_TIMER_INT_3, 0x9C4);
 		/* RLC_GPM_GENERAL_12 : Minimum gap between wptr and rptr
-		 * to disable the page fault retry interrupts, default is 
+		 * to disable the page fault retry interrupts, default is
 		 * 0x100 (256) */
 		WREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_12, 0x100);
 	}
@@ -1764,7 +1764,7 @@ static int gfx_v9_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 		adev->gfx.mec.mec_fw_gpu_addr & 0xFFFFF000);
 	WREG32_SOC15(GC, 0, mmCP_CPC_IC_BASE_HI,
 		upper_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
- 
+
 	/* MEC1 */
 	WREG32_SOC15(GC, 0, mmCP_MEC_ME1_UCODE_ADDR,
 			 mec_hdr->jt_offset);
@@ -2954,27 +2954,27 @@ static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
                                       struct amdgpu_ib *ib,
                                       unsigned vm_id, bool ctx_switch)
 {
-        u32 header, control = 0;
+	u32 header, control = 0;
 
-        if (ib->flags & AMDGPU_IB_FLAG_CE)
-                header = PACKET3(PACKET3_INDIRECT_BUFFER_CONST, 2);
-        else
-                header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
+	if (ib->flags & AMDGPU_IB_FLAG_CE)
+		header = PACKET3(PACKET3_INDIRECT_BUFFER_CONST, 2);
+	else
+		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-        control |= ib->length_dw | (vm_id << 24);
+	control |= ib->length_dw | (vm_id << 24);
 
-		if (amdgpu_sriov_vf(ring->adev) && (ib->flags & AMDGPU_IB_FLAG_PREEMPT))
-			control |= INDIRECT_BUFFER_PRE_ENB(1);
+	if (amdgpu_sriov_vf(ring->adev) && (ib->flags & AMDGPU_IB_FLAG_PREEMPT))
+		control |= INDIRECT_BUFFER_PRE_ENB(1);
 
-        amdgpu_ring_write(ring, header);
-	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
-        amdgpu_ring_write(ring,
+	amdgpu_ring_write(ring, header);
+BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
+	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
-                          (2 << 0) |
+		(2 << 0) |
 #endif
-                          lower_32_bits(ib->gpu_addr));
-        amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
-        amdgpu_ring_write(ring, control);
+		lower_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, control);
 }
 
 #define	INDIRECT_BUFFER_VALID                   (1 << 23)
