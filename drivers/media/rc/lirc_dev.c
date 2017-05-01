@@ -65,15 +65,6 @@ static struct irctl *irctls[MAX_IRCTL_DEVICES];
 /* Only used for sysfs but defined to void otherwise */
 static struct class *lirc_class;
 
-/*  helper function
- *  initializes the irctl structure
- */
-static void lirc_irctl_init(struct irctl *ir)
-{
-	mutex_init(&ir->irctl_lock);
-	ir->d.minor = NOPLUG;
-}
-
 static void lirc_release(struct device *ld)
 {
 	struct irctl *ir = container_of(ld, struct irctl, dev);
@@ -89,27 +80,6 @@ static void lirc_release(struct device *ld)
 	irctls[ir->d.minor] = NULL;
 	mutex_unlock(&lirc_dev_lock);
 	kfree(ir);
-}
-
-static int lirc_cdev_add(struct irctl *ir)
-{
-	struct lirc_driver *d = &ir->d;
-	struct cdev *cdev;
-	int retval;
-
-	cdev = &ir->cdev;
-
-	if (!d->fops)
-		return -EINVAL;
-
-	cdev_init(cdev, d->fops);
-	cdev->owner = d->owner;
-	retval = kobject_set_name(&cdev->kobj, "lirc%d", d->minor);
-	if (retval)
-		return retval;
-
-	cdev->kobj.parent = &ir->dev.kobj;
-	return cdev_add(cdev, ir->dev.devt, 1);
 }
 
 static int lirc_allocate_buffer(struct irctl *ir)
@@ -167,6 +137,11 @@ int lirc_register_driver(struct lirc_driver *d)
 		return -EINVAL;
 	}
 
+	if (!d->fops) {
+		pr_err("fops pointer not filled in!\n");
+		return -EINVAL;
+	}
+
 	if (d->minor >= MAX_IRCTL_DEVICES) {
 		dev_err(d->dev, "minor must be between 0 and %d!\n",
 						MAX_IRCTL_DEVICES - 1);
@@ -210,7 +185,8 @@ int lirc_register_driver(struct lirc_driver *d)
 		err = -ENOMEM;
 		goto out_lock;
 	}
-	lirc_irctl_init(ir);
+
+	mutex_init(&ir->irctl_lock);
 	irctls[minor] = ir;
 	d->minor = minor;
 
@@ -238,7 +214,11 @@ int lirc_register_driver(struct lirc_driver *d)
 	ir->dev.release = lirc_release;
 	dev_set_name(&ir->dev, "lirc%d", ir->d.minor);
 
-	err = lirc_cdev_add(ir);
+	cdev_init(&ir->cdev, d->fops);
+	ir->cdev.owner = ir->d.owner;
+	ir->cdev.kobj.parent = &ir->dev.kobj;
+
+	err = cdev_add(&ir->cdev, ir->dev.devt, 1);
 	if (err)
 		goto out_free_dev;
 
