@@ -1648,6 +1648,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
 	int lane_count, clock;
 	int min_lane_count = 1;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
@@ -1673,10 +1675,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->has_drrs = false;
 	if (port == PORT_A)
 		pipe_config->has_audio = false;
-	else if (intel_dp->force_audio == HDMI_AUDIO_AUTO)
+	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
 		pipe_config->has_audio = intel_dp->has_audio;
 	else
-		pipe_config->has_audio = intel_dp->force_audio == HDMI_AUDIO_ON;
+		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
 
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
@@ -1763,7 +1765,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	return false;
 
 found:
-	if (intel_dp->color_range_auto) {
+	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
 		/*
 		 * See:
 		 * CEA-861-E - 5.1 Default Encoding Parameters
@@ -1775,7 +1777,7 @@ found:
 			HDMI_QUANTIZATION_RANGE_LIMITED;
 	} else {
 		pipe_config->limited_color_range =
-			intel_dp->limited_color_range;
+			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
 	}
 
 	pipe_config->lane_count = lane_count;
@@ -4816,92 +4818,6 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 }
 
 static int
-intel_dp_set_property(struct drm_connector *connector,
-		      struct drm_property *property,
-		      uint64_t val)
-{
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
-	int ret;
-
-	ret = drm_object_property_set_value(&connector->base, property, val);
-	if (ret)
-		return ret;
-
-	if (property == dev_priv->force_audio_property) {
-		int i = val;
-		bool has_audio, old_has_audio;
-		int old_force_audio = intel_dp->force_audio;
-
-		if (i == intel_dp->force_audio)
-			return 0;
-
-		if (old_force_audio == HDMI_AUDIO_AUTO)
-			old_has_audio = intel_dp->has_audio;
-		else
-			old_has_audio = old_force_audio;
-
-		intel_dp->force_audio = i;
-
-		if (i == HDMI_AUDIO_AUTO)
-			has_audio = intel_dp->has_audio;
-		else
-			has_audio = (i == HDMI_AUDIO_ON);
-
-		if (has_audio == old_has_audio)
-			return 0;
-
-		goto done;
-	}
-
-	if (property == dev_priv->broadcast_rgb_property) {
-		bool old_auto = intel_dp->color_range_auto;
-		bool old_range = intel_dp->limited_color_range;
-
-		switch (val) {
-		case INTEL_BROADCAST_RGB_AUTO:
-			intel_dp->color_range_auto = true;
-			break;
-		case INTEL_BROADCAST_RGB_FULL:
-			intel_dp->color_range_auto = false;
-			intel_dp->limited_color_range = false;
-			break;
-		case INTEL_BROADCAST_RGB_LIMITED:
-			intel_dp->color_range_auto = false;
-			intel_dp->limited_color_range = true;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		if (old_auto == intel_dp->color_range_auto &&
-		    old_range == intel_dp->limited_color_range)
-			return 0;
-
-		goto done;
-	}
-
-	if (property == connector->scaling_mode_property) {
-		if (connector->state->scaling_mode == val) {
-			/* the eDP scaling property is not changed */
-			return 0;
-		}
-		connector->state->scaling_mode = val;
-
-		goto done;
-	}
-
-	return -EINVAL;
-
-done:
-	if (intel_encoder->base.crtc)
-		intel_crtc_restore_mode(intel_encoder->base.crtc);
-
-	return 0;
-}
-
-static int
 intel_dp_connector_register(struct drm_connector *connector)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
@@ -5059,19 +4975,21 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.force = intel_dp_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_dp_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
+	.atomic_get_property = intel_digital_connector_atomic_get_property,
+	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_dp_connector_register,
 	.early_unregister = intel_dp_connector_unregister,
 	.destroy = intel_dp_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
 static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs = {
 	.detect_ctx = intel_dp_detect,
 	.get_modes = intel_dp_get_modes,
 	.mode_valid = intel_dp_mode_valid,
+	.atomic_check = intel_digital_connector_atomic_check,
 };
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
@@ -5169,7 +5087,6 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
-	intel_dp->color_range_auto = true;
 
 	if (is_edp(intel_dp)) {
 		u32 allowed_scalers;

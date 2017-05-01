@@ -982,9 +982,6 @@ struct intel_dp {
 	bool detect_done;
 	bool channel_eq_status;
 	bool reset_link_params;
-	enum hdmi_force_audio force_audio;
-	bool limited_color_range;
-	bool color_range_auto;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
