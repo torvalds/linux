@@ -602,15 +602,9 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
-	struct drm_device *dev = connector->dev;
 
-	if (property == dev->mode_config.scaling_mode_property) {
+	if (property == connector->scaling_mode_property) {
 		struct drm_crtc *crtc;
-
-		if (value == DRM_MODE_SCALE_NONE) {
-			DRM_DEBUG_KMS("no scaling not supported\n");
-			return -EINVAL;
-		}
 
 		if (connector->state->scaling_mode == value) {
 			/* the LVDS scaling property is not changed */
@@ -987,6 +981,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	u32 lvds;
 	int pipe;
 	u8 pin;
+	u32 allowed_scalers;
 
 	if (!intel_lvds_supported(dev_priv))
 		return;
@@ -1082,10 +1077,10 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	lvds_encoder->reg = lvds_reg;
 
 	/* create the scaling mode property */
-	drm_mode_create_scaling_mode_property(dev);
-	drm_object_attach_property(&connector->base,
-				      dev->mode_config.scaling_mode_property,
-				      DRM_MODE_SCALE_ASPECT);
+	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT);
+	allowed_scalers |= BIT(DRM_MODE_SCALE_FULLSCREEN);
+	allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+	drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
 	connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
 	intel_lvds_pps_get_hw_state(dev_priv, &lvds_encoder->init_pps);

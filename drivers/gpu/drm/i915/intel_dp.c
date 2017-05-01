@@ -4888,18 +4888,7 @@ intel_dp_set_property(struct drm_connector *connector,
 		goto done;
 	}
 
-	if (is_edp(intel_dp) &&
-	    property == connector->dev->mode_config.scaling_mode_property) {
-		if (val == DRM_MODE_SCALE_NONE) {
-			DRM_DEBUG_KMS("no scaling not supported\n");
-			return -EINVAL;
-		}
-		if (HAS_GMCH_DISPLAY(dev_priv) &&
-		    val == DRM_MODE_SCALE_CENTER) {
-			DRM_DEBUG_KMS("centering not supported\n");
-			return -EINVAL;
-		}
-
+	if (property == connector->scaling_mode_property) {
 		if (connector->state->scaling_mode == val) {
 			/* the eDP scaling property is not changed */
 			return 0;
@@ -5182,17 +5171,23 @@ bool intel_dp_is_edp(struct drm_i915_private *dev_priv, enum port port)
 static void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 	intel_dp->color_range_auto = true;
 
 	if (is_edp(intel_dp)) {
-		drm_mode_create_scaling_mode_property(connector->dev);
-		drm_object_attach_property(
-			&connector->base,
-			connector->dev->mode_config.scaling_mode_property,
-			DRM_MODE_SCALE_ASPECT);
+		u32 allowed_scalers;
+
+		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
+		if (!HAS_GMCH_DISPLAY(dev_priv))
+			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+
+		drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
+
 		connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+
 	}
 }
 

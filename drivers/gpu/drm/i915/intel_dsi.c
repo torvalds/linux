@@ -1591,7 +1591,6 @@ static int intel_dsi_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t val)
 {
-	struct drm_device *dev = connector->dev;
 	struct drm_crtc *crtc;
 	int ret;
 
@@ -1599,17 +1598,7 @@ static int intel_dsi_set_property(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	if (property == dev->mode_config.scaling_mode_property) {
-		if (val == DRM_MODE_SCALE_NONE) {
-			DRM_DEBUG_KMS("no scaling not supported\n");
-			return -EINVAL;
-		}
-		if (HAS_GMCH_DISPLAY(to_i915(dev)) &&
-		    val == DRM_MODE_SCALE_CENTER) {
-			DRM_DEBUG_KMS("centering not supported\n");
-			return -EINVAL;
-		}
-
+	if (property == connector->scaling_mode_property) {
 		if (connector->state->scaling_mode == val)
 			return 0;
 
@@ -1672,13 +1661,18 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 
 static void intel_dsi_add_properties(struct intel_connector *connector)
 {
-	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 
 	if (connector->panel.fixed_mode) {
-		drm_mode_create_scaling_mode_property(dev);
-		drm_object_attach_property(&connector->base.base,
-					   dev->mode_config.scaling_mode_property,
-					   DRM_MODE_SCALE_ASPECT);
+		u32 allowed_scalers;
+
+		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
+		if (!HAS_GMCH_DISPLAY(dev_priv))
+			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+
+		drm_connector_attach_scaling_mode_property(&connector->base,
+								allowed_scalers);
+
 		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 	}
 }
