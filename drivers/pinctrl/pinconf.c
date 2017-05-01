@@ -232,7 +232,7 @@ static void pinconf_show_config(struct seq_file *s, struct pinctrl_dev *pctldev,
 							    configs[i]);
 		else
 			seq_printf(s, "%08lx", configs[i]);
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 	}
 }
 
@@ -325,8 +325,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 		seq_printf(s, "pin %d (%s): ", pin, desc->name);
 
 		pinconf_dump_pin(pctldev, s, pin);
-
-		seq_printf(s, "\n");
+		seq_putc(s, '\n');
 	}
 
 	mutex_unlock(&pctldev->mutex);
@@ -361,8 +360,7 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 
 		seq_printf(s, "%u (%s): ", selector, gname);
 		pinconf_dump_group(pctldev, s, selector, gname);
-		seq_printf(s, "\n");
-
+		seq_putc(s, '\n');
 		selector++;
 	}
 
