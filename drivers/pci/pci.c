@@ -2241,10 +2241,13 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 			return false;
 
 		/*
-		 * Hotplug ports handled by firmware in System Management Mode
+		 * Hotplug interrupts cannot be delivered if the link is down,
+		 * so parents of a hotplug port must stay awake. In addition,
+		 * hotplug ports handled by firmware in System Management Mode
 		 * may not be put into D3 by the OS (Thunderbolt on non-Macs).
+		 * For simplicity, disallow in general for now.
 		 */
-		if (bridge->is_hotplug_bridge && !pciehp_is_native(bridge))
+		if (bridge->is_hotplug_bridge)
 			return false;
 
 		if (pci_bridge_d3_force)
@@ -2276,10 +2279,7 @@ static int pci_dev_check_d3cold(struct pci_dev *dev, void *data)
 	     !pci_pme_capable(dev, PCI_D3cold)) ||
 
 	    /* If it is a bridge it must be allowed to go to D3. */
-	    !pci_power_manageable(dev) ||
-
-	    /* Hotplug interrupts cannot be delivered if the link is down. */
-	    dev->is_hotplug_bridge)
+	    !pci_power_manageable(dev))
 
 		*d3cold_ok = false;
 

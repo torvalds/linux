@@ -44,7 +44,6 @@ struct i915_params {
 	int disable_power_well;
 	int enable_ips;
 	int invert_brightness;
-	int enable_cmd_parser;
 	int enable_guc_loading;
 	int enable_guc_submission;
 	int guc_log_level;
@@ -53,6 +52,7 @@ struct i915_params {
 	int edp_vswing;
 	unsigned int inject_load_failure;
 	/* leave bools at the end to not create holes */
+	bool enable_cmd_parser;
 	bool enable_hangcheck;
 	bool fastboot;
 	bool prefault_disable;

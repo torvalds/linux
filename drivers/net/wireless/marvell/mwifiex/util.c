@@ -146,21 +146,6 @@ int mwifiex_init_fw_complete(struct mwifiex_adapter *adapter)
 }
 
 /*
- * Firmware shutdown complete callback handler.
- *
- * This function sets the hardware status to not ready and wakes up
- * the function waiting on the init wait queue for the firmware
- * shutdown to complete.
- */
-int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter)
-{
-	adapter->hw_status = MWIFIEX_HW_STATUS_NOT_READY;
-	adapter->init_wait_q_woken = true;
-	wake_up_interruptible(&adapter->init_wait_q);
-	return 0;
-}
-
-/*
  * This function sends init/shutdown command
  * to firmware.
  */

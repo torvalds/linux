@@ -1567,6 +1567,7 @@ static const struct of_device_id max1363_of_match[] = {
 	MAX1363_COMPATIBLE("maxim,max11647", max11647),
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, max1363_of_match);
 #endif
 
 static int max1363_probe(struct i2c_client *client,

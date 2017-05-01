@@ -47,6 +47,7 @@ extern int smu7_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode);
 extern int smu7_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr, uint32_t speed);
 extern int smu7_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr);
 extern int pp_smu7_thermal_initialize(struct pp_hwmgr *hwmgr);
+extern void pp_smu7_thermal_fini(struct pp_hwmgr *hwmgr);
 extern int smu7_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int smu7_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed);
 extern int smu7_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed);

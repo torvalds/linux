@@ -6,7 +6,8 @@
  * Adaptec aacraid device driver for Linux.
  *
  * Copyright (c) 2000-2010 Adaptec, Inc.
- *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -477,20 +478,24 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	struct fib* srbfib;
 	int status;
 	struct aac_srb *srbcmd = NULL;
+	struct aac_hba_cmd_req *hbacmd = NULL;
 	struct user_aac_srb *user_srbcmd = NULL;
 	struct user_aac_srb __user *user_srb = arg;
 	struct aac_srb_reply __user *user_reply;
-	struct aac_srb_reply* reply;
+	u32 chn;
 	u32 fibsize = 0;
 	u32 flags = 0;
 	s32 rcode = 0;
 	u32 data_dir;
-	void __user *sg_user[32];
-	void *sg_list[32];
+	void __user *sg_user[HBA_MAX_SG_EMBEDDED];
+	void *sg_list[HBA_MAX_SG_EMBEDDED];
+	u32 sg_count[HBA_MAX_SG_EMBEDDED];
 	u32 sg_indx = 0;
 	u32 byte_count = 0;
 	u32 actual_fibsize64, actual_fibsize = 0;
 	int i;
+	int is_native_device;
+	u64 address;
 
 
 	if (dev->in_reset) {
@@ -507,11 +512,6 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	if (!(srbfib = aac_fib_alloc(dev))) {
 		return -ENOMEM;
 	}
-	aac_fib_init(srbfib);
-	/* raw_srb FIB is not FastResponseCapable */
-	srbfib->hw_fib_va->header.XferState &= ~cpu_to_le32(FastResponseCapable);
-
-	srbcmd = (struct aac_srb*) fib_data(srbfib);
 
 	memset(sg_list, 0, sizeof(sg_list)); /* cleanup may take issue */
 	if(copy_from_user(&fibsize, &user_srb->count,sizeof(u32))){
@@ -538,21 +538,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		goto cleanup;
 	}
 
-	user_reply = arg+fibsize;
-
 	flags = user_srbcmd->flags; /* from user in cpu order */
-	// Fix up srb for endian and force some values
-
-	srbcmd->function = cpu_to_le32(SRBF_ExecuteScsi);	// Force this
-	srbcmd->channel	 = cpu_to_le32(user_srbcmd->channel);
-	srbcmd->id	 = cpu_to_le32(user_srbcmd->id);
-	srbcmd->lun	 = cpu_to_le32(user_srbcmd->lun);
-	srbcmd->timeout	 = cpu_to_le32(user_srbcmd->timeout);
-	srbcmd->flags	 = cpu_to_le32(flags);
-	srbcmd->retry_limit = 0; // Obsolete parameter
-	srbcmd->cdb_size = cpu_to_le32(user_srbcmd->cdb_size);
-	memcpy(srbcmd->cdb, user_srbcmd->cdb, sizeof(srbcmd->cdb));
-
 	switch (flags & (SRB_DataIn | SRB_DataOut)) {
 	case SRB_DataOut:
 		data_dir = DMA_TO_DEVICE;
@@ -568,7 +554,12 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	}
 	if (user_srbcmd->sg.count > ARRAY_SIZE(sg_list)) {
 		dprintk((KERN_DEBUG"aacraid: too many sg entries %d\n",
-		  le32_to_cpu(srbcmd->sg.count)));
+			user_srbcmd->sg.count));
+		rcode = -EINVAL;
+		goto cleanup;
+	}
+	if ((data_dir == DMA_NONE) && user_srbcmd->sg.count) {
+		dprintk((KERN_DEBUG"aacraid:SG with no direction specified\n"));
 		rcode = -EINVAL;
 		goto cleanup;
 	}
@@ -588,13 +579,136 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		rcode = -EINVAL;
 		goto cleanup;
 	}
-	if ((data_dir == DMA_NONE) && user_srbcmd->sg.count) {
-		dprintk((KERN_DEBUG"aacraid: SG with no direction specified in Raw SRB command\n"));
-		rcode = -EINVAL;
-		goto cleanup;
+
+	chn = user_srbcmd->channel;
+	if (chn < AAC_MAX_BUSES && user_srbcmd->id < AAC_MAX_TARGETS &&
+		dev->hba_map[chn][user_srbcmd->id].devtype ==
+		AAC_DEVTYPE_NATIVE_RAW) {
+		is_native_device = 1;
+		hbacmd = (struct aac_hba_cmd_req *)srbfib->hw_fib_va;
+		memset(hbacmd, 0, 96);	/* sizeof(*hbacmd) is not necessary */
+
+		/* iu_type is a parameter of aac_hba_send */
+		switch (data_dir) {
+		case DMA_TO_DEVICE:
+			hbacmd->byte1 = 2;
+			break;
+		case DMA_FROM_DEVICE:
+		case DMA_BIDIRECTIONAL:
+			hbacmd->byte1 = 1;
+			break;
+		case DMA_NONE:
+		default:
+			break;
+		}
+		hbacmd->lun[1] = cpu_to_le32(user_srbcmd->lun);
+		hbacmd->it_nexus = dev->hba_map[chn][user_srbcmd->id].rmw_nexus;
+
+		/*
+		 * we fill in reply_qid later in aac_src_deliver_message
+		 * we fill in iu_type, request_id later in aac_hba_send
+		 * we fill in emb_data_desc_count, data_length later
+		 * in sg list build
+		 */
+
+		memcpy(hbacmd->cdb, user_srbcmd->cdb, sizeof(hbacmd->cdb));
+
+		address = (u64)srbfib->hw_error_pa;
+		hbacmd->error_ptr_hi = cpu_to_le32((u32)(address >> 32));
+		hbacmd->error_ptr_lo = cpu_to_le32((u32)(address & 0xffffffff));
+		hbacmd->error_length = cpu_to_le32(FW_ERROR_BUFFER_SIZE);
+		hbacmd->emb_data_desc_count =
+					cpu_to_le32(user_srbcmd->sg.count);
+		srbfib->hbacmd_size = 64 +
+			user_srbcmd->sg.count * sizeof(struct aac_hba_sgl);
+
+	} else {
+		is_native_device = 0;
+		aac_fib_init(srbfib);
+
+		/* raw_srb FIB is not FastResponseCapable */
+		srbfib->hw_fib_va->header.XferState &=
+			~cpu_to_le32(FastResponseCapable);
+
+		srbcmd = (struct aac_srb *) fib_data(srbfib);
+
+		// Fix up srb for endian and force some values
+
+		srbcmd->function = cpu_to_le32(SRBF_ExecuteScsi); // Force this
+		srbcmd->channel	 = cpu_to_le32(user_srbcmd->channel);
+		srbcmd->id	 = cpu_to_le32(user_srbcmd->id);
+		srbcmd->lun	 = cpu_to_le32(user_srbcmd->lun);
+		srbcmd->timeout	 = cpu_to_le32(user_srbcmd->timeout);
+		srbcmd->flags	 = cpu_to_le32(flags);
+		srbcmd->retry_limit = 0; // Obsolete parameter
+		srbcmd->cdb_size = cpu_to_le32(user_srbcmd->cdb_size);
+		memcpy(srbcmd->cdb, user_srbcmd->cdb, sizeof(srbcmd->cdb));
 	}
+
 	byte_count = 0;
-	if (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64) {
+	if (is_native_device) {
+		struct user_sgmap *usg32 = &user_srbcmd->sg;
+		struct user_sgmap64 *usg64 =
+			(struct user_sgmap64 *)&user_srbcmd->sg;
+
+		for (i = 0; i < usg32->count; i++) {
+			void *p;
+			u64 addr;
+
+			sg_count[i] = (actual_fibsize64 == fibsize) ?
+				usg64->sg[i].count : usg32->sg[i].count;
+			if (sg_count[i] >
+				(dev->scsi_host_ptr->max_sectors << 9)) {
+				pr_err("aacraid: upsg->sg[%d].count=%u>%u\n",
+					i, sg_count[i],
+					dev->scsi_host_ptr->max_sectors << 9);
+				rcode = -EINVAL;
+				goto cleanup;
+			}
+
+			p = kmalloc(sg_count[i], GFP_KERNEL|__GFP_DMA);
+			if (!p) {
+				rcode = -ENOMEM;
+				goto cleanup;
+			}
+
+			if (actual_fibsize64 == fibsize) {
+				addr = (u64)usg64->sg[i].addr[0];
+				addr += ((u64)usg64->sg[i].addr[1]) << 32;
+			} else {
+				addr = (u64)usg32->sg[i].addr;
+			}
+
+			sg_user[i] = (void __user *)(uintptr_t)addr;
+			sg_list[i] = p; // save so we can clean up later
+			sg_indx = i;
+
+			if (flags & SRB_DataOut) {
+				if (copy_from_user(p, sg_user[i],
+					sg_count[i])) {
+					rcode = -EFAULT;
+					goto cleanup;
+				}
+			}
+			addr = pci_map_single(dev->pdev, p, sg_count[i],
+						data_dir);
+			hbacmd->sge[i].addr_hi = cpu_to_le32((u32)(addr>>32));
+			hbacmd->sge[i].addr_lo = cpu_to_le32(
+						(u32)(addr & 0xffffffff));
+			hbacmd->sge[i].len = cpu_to_le32(sg_count[i]);
+			hbacmd->sge[i].flags = 0;
+			byte_count += sg_count[i];
+		}
+
+		if (usg32->count > 0)	/* embedded sglist */
+			hbacmd->sge[usg32->count-1].flags =
+				cpu_to_le32(0x40000000);
+		hbacmd->data_length = cpu_to_le32(byte_count);
+
+		status = aac_hba_send(HBA_IU_TYPE_SCSI_CMD_REQ, srbfib,
+					NULL, NULL);
+
+	} else if (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64) {
 		struct user_sgmap64* upsg = (struct user_sgmap64*)&user_srbcmd->sg;
 		struct sgmap64* psg = (struct sgmap64*)&srbcmd->sg;
 
@@ -606,7 +720,9 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			for (i = 0; i < upsg->count; i++) {
 				u64 addr;
 				void* p;
-				if (upsg->sg[i].count >
+
+				sg_count[i] = upsg->sg[i].count;
+				if (sg_count[i] >
 				    ((dev->adapter_info.options &
 				     AAC_OPT_NEW_COMM) ?
 				      (dev->scsi_host_ptr->max_sectors << 9) :
@@ -615,10 +731,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					goto cleanup;
 				}
 				/* Does this really need to be GFP_DMA? */
-				p = kmalloc(upsg->sg[i].count,GFP_KERNEL|__GFP_DMA);
+				p = kmalloc(sg_count[i], GFP_KERNEL|__GFP_DMA);
 				if(!p) {
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
-					  upsg->sg[i].count,i,upsg->count));
+					  sg_count[i], i, upsg->count));
 					rcode = -ENOMEM;
 					goto cleanup;
 				}
@@ -629,18 +745,20 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_indx = i;
 
 				if (flags & SRB_DataOut) {
-					if(copy_from_user(p,sg_user[i],upsg->sg[i].count)){
+					if (copy_from_user(p, sg_user[i],
+						sg_count[i])){
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p, upsg->sg[i].count, data_dir);
+				addr = pci_map_single(dev->pdev, p,
+							sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
-				byte_count += upsg->sg[i].count;
-				psg->sg[i].count = cpu_to_le32(upsg->sg[i].count);
+				byte_count += sg_count[i];
+				psg->sg[i].count = cpu_to_le32(sg_count[i]);
 			}
 		} else {
 			struct user_sgmap* usg;
@@ -657,7 +775,9 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			for (i = 0; i < usg->count; i++) {
 				u64 addr;
 				void* p;
-				if (usg->sg[i].count >
+
+				sg_count[i] = usg->sg[i].count;
+				if (sg_count[i] >
 				    ((dev->adapter_info.options &
 				     AAC_OPT_NEW_COMM) ?
 				      (dev->scsi_host_ptr->max_sectors << 9) :
@@ -667,10 +787,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					goto cleanup;
 				}
 				/* Does this really need to be GFP_DMA? */
-				p = kmalloc(usg->sg[i].count,GFP_KERNEL|__GFP_DMA);
+				p = kmalloc(sg_count[i], GFP_KERNEL|__GFP_DMA);
 				if(!p) {
 					dprintk((KERN_DEBUG "aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
-					  usg->sg[i].count,i,usg->count));
+						sg_count[i], i, usg->count));
 					kfree(usg);
 					rcode = -ENOMEM;
 					goto cleanup;
@@ -680,19 +800,21 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_indx = i;
 
 				if (flags & SRB_DataOut) {
-					if(copy_from_user(p,sg_user[i],upsg->sg[i].count)){
+					if (copy_from_user(p, sg_user[i],
+						sg_count[i])) {
 						kfree (usg);
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p, usg->sg[i].count, data_dir);
+				addr = pci_map_single(dev->pdev, p,
+							sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
-				byte_count += usg->sg[i].count;
-				psg->sg[i].count = cpu_to_le32(usg->sg[i].count);
+				byte_count += sg_count[i];
+				psg->sg[i].count = cpu_to_le32(sg_count[i]);
 			}
 			kfree (usg);
 		}
@@ -711,7 +833,9 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			for (i = 0; i < upsg->count; i++) {
 				uintptr_t addr;
 				void* p;
-				if (usg->sg[i].count >
+
+				sg_count[i] = usg->sg[i].count;
+				if (sg_count[i] >
 				    ((dev->adapter_info.options &
 				     AAC_OPT_NEW_COMM) ?
 				      (dev->scsi_host_ptr->max_sectors << 9) :
@@ -720,10 +844,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					goto cleanup;
 				}
 				/* Does this really need to be GFP_DMA? */
-				p = kmalloc(usg->sg[i].count,GFP_KERNEL|__GFP_DMA);
-				if(!p) {
+				p = kmalloc(sg_count[i], GFP_KERNEL|__GFP_DMA);
+				if (!p) {
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
-					  usg->sg[i].count,i,usg->count));
+						sg_count[i], i, usg->count));
 					rcode = -ENOMEM;
 					goto cleanup;
 				}
@@ -734,7 +858,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_indx = i;
 
 				if (flags & SRB_DataOut) {
-					if(copy_from_user(p,sg_user[i],usg->sg[i].count)){
+					if (copy_from_user(p, sg_user[i],
+						sg_count[i])){
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
@@ -744,13 +869,15 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 				psg->sg[i].addr = cpu_to_le32(addr & 0xffffffff);
 				byte_count += usg->sg[i].count;
-				psg->sg[i].count = cpu_to_le32(usg->sg[i].count);
+				psg->sg[i].count = cpu_to_le32(sg_count[i]);
 			}
 		} else {
 			for (i = 0; i < upsg->count; i++) {
 				dma_addr_t addr;
 				void* p;
-				if (upsg->sg[i].count >
+
+				sg_count[i] = upsg->sg[i].count;
+				if (sg_count[i] >
 				    ((dev->adapter_info.options &
 				     AAC_OPT_NEW_COMM) ?
 				      (dev->scsi_host_ptr->max_sectors << 9) :
@@ -758,10 +885,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					rcode = -EINVAL;
 					goto cleanup;
 				}
-				p = kmalloc(upsg->sg[i].count, GFP_KERNEL);
+				p = kmalloc(sg_count[i], GFP_KERNEL);
 				if (!p) {
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
-					  upsg->sg[i].count, i, upsg->count));
+					  sg_count[i], i, upsg->count));
 					rcode = -ENOMEM;
 					goto cleanup;
 				}
@@ -770,19 +897,19 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_indx = i;
 
 				if (flags & SRB_DataOut) {
-					if(copy_from_user(p, sg_user[i],
-							upsg->sg[i].count)) {
+					if (copy_from_user(p, sg_user[i],
+						sg_count[i])) {
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
 					}
 				}
 				addr = pci_map_single(dev->pdev, p,
-					upsg->sg[i].count, data_dir);
+					sg_count[i], data_dir);
 
 				psg->sg[i].addr = cpu_to_le32(addr);
-				byte_count += upsg->sg[i].count;
-				psg->sg[i].count = cpu_to_le32(upsg->sg[i].count);
+				byte_count += sg_count[i];
+				psg->sg[i].count = cpu_to_le32(sg_count[i]);
 			}
 		}
 		srbcmd->count = cpu_to_le32(byte_count);
@@ -792,12 +919,13 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			psg->count = 0;
 		status = aac_fib_send(ScsiPortCommand, srbfib, actual_fibsize, FsaNormal, 1, 1, NULL, NULL);
 	}
+
 	if (status == -ERESTARTSYS) {
 		rcode = -ERESTARTSYS;
 		goto cleanup;
 	}
 
-	if (status != 0){
+	if (status != 0) {
 		dprintk((KERN_DEBUG"aacraid: Could not send raw srb fib to hba\n"));
 		rcode = -ENXIO;
 		goto cleanup;
@@ -805,11 +933,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 	if (flags & SRB_DataIn) {
 		for(i = 0 ; i <= sg_indx; i++){
-			byte_count = le32_to_cpu(
-			  (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64)
-			      ? ((struct sgmap64*)&srbcmd->sg)->sg[i].count
-			      : srbcmd->sg.sg[i].count);
-			if(copy_to_user(sg_user[i], sg_list[i], byte_count)){
+			if (copy_to_user(sg_user[i], sg_list[i], sg_count[i])) {
 				dprintk((KERN_DEBUG"aacraid: Could not copy sg data to user\n"));
 				rcode = -EFAULT;
 				goto cleanup;
@@ -818,19 +942,50 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		}
 	}
 
-	reply = (struct aac_srb_reply *) fib_data(srbfib);
-	if(copy_to_user(user_reply,reply,sizeof(struct aac_srb_reply))){
-		dprintk((KERN_DEBUG"aacraid: Could not copy reply to user\n"));
-		rcode = -EFAULT;
-		goto cleanup;
+	user_reply = arg + fibsize;
+	if (is_native_device) {
+		struct aac_hba_resp *err =
+			&((struct aac_native_hba *)srbfib->hw_fib_va)->resp.err;
+		struct aac_srb_reply reply;
+
+		reply.status = ST_OK;
+		if (srbfib->flags & FIB_CONTEXT_FLAG_FASTRESP) {
+			/* fast response */
+			reply.srb_status = SRB_STATUS_SUCCESS;
+			reply.scsi_status = 0;
+			reply.data_xfer_length = byte_count;
+		} else {
+			reply.srb_status = err->service_response;
+			reply.scsi_status = err->status;
+			reply.data_xfer_length = byte_count -
+				le32_to_cpu(err->residual_count);
+			reply.sense_data_size = err->sense_response_data_len;
+			memcpy(reply.sense_data, err->sense_response_buf,
+				AAC_SENSE_BUFFERSIZE);
+		}
+		if (copy_to_user(user_reply, &reply,
+			sizeof(struct aac_srb_reply))) {
+			dprintk((KERN_DEBUG"aacraid: Copy to user failed\n"));
+			rcode = -EFAULT;
+			goto cleanup;
+		}
+	} else {
+		struct aac_srb_reply *reply;
+
+		reply = (struct aac_srb_reply *) fib_data(srbfib);
+		if (copy_to_user(user_reply, reply,
+			sizeof(struct aac_srb_reply))) {
+			dprintk((KERN_DEBUG"aacraid: Copy to user failed\n"));
+			rcode = -EFAULT;
+			goto cleanup;
+		}
 	}
 
 cleanup:
 	kfree(user_srbcmd);
-	for(i=0; i <= sg_indx; i++){
-		kfree(sg_list[i]);
-	}
 	if (rcode != -ERESTARTSYS) {
+		for (i = 0; i <= sg_indx; i++)
+			kfree(sg_list[i]);
 		aac_fib_complete(srbfib);
 		aac_fib_free(srbfib);
 	}
@@ -858,6 +1013,44 @@ static int aac_get_pci_info(struct aac_dev* dev, void __user *arg)
 	return 0;
 }
 
+static int aac_get_hba_info(struct aac_dev *dev, void __user *arg)
+{
+	struct aac_hba_info hbainfo;
+
+	hbainfo.adapter_number		= (u8) dev->id;
+	hbainfo.system_io_bus_number	= dev->pdev->bus->number;
+	hbainfo.device_number		= (dev->pdev->devfn >> 3);
+	hbainfo.function_number		= (dev->pdev->devfn & 0x0007);
+
+	hbainfo.vendor_id		= dev->pdev->vendor;
+	hbainfo.device_id		= dev->pdev->device;
+	hbainfo.sub_vendor_id		= dev->pdev->subsystem_vendor;
+	hbainfo.sub_system_id		= dev->pdev->subsystem_device;
+
+	if (copy_to_user(arg, &hbainfo, sizeof(struct aac_hba_info))) {
+		dprintk((KERN_DEBUG "aacraid: Could not copy hba info\n"));
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+struct aac_reset_iop {
+	u8	reset_type;
+};
+
+static int aac_send_reset_adapter(struct aac_dev *dev, void __user *arg)
+{
+	struct aac_reset_iop reset;
+	int retval;
+
+	if (copy_from_user((void *)&reset, arg, sizeof(struct aac_reset_iop)))
+		return -EFAULT;
+
+	retval = aac_reset_adapter(dev, 0, reset.reset_type);
+	return retval;
+
+}
 
 int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg)
 {
@@ -901,6 +1094,13 @@ int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg)
 	case FSACTL_GET_PCI_INFO:
 		status = aac_get_pci_info(dev,arg);
 		break;
+	case FSACTL_GET_HBA_INFO:
+		status = aac_get_hba_info(dev, arg);
+		break;
+	case FSACTL_RESET_IOP:
+		status = aac_send_reset_adapter(dev, arg);
+		break;
+
 	default:
 		status = -ENOTTY;
 		break;

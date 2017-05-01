@@ -531,7 +531,7 @@ retry:
 		i++;
 		if (file->f_flags & O_NONBLOCK) {
 			if (!test_bit(WDM_READ, &desc->flags)) {
-				rv = cntr ? cntr : -EAGAIN;
+				rv = -EAGAIN;
 				goto err;
 			}
 			rv = 0;

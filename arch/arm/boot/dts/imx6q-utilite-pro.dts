@@ -59,6 +59,33 @@
 		rtc1 = &snvs_rtc;
 	};
 
+	encoder {
+		compatible = "ti,tfp410";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint {
+					remote-endpoint = <&parallel_display_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -69,6 +96,19 @@
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			wakeup-source;
+		};
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+
+		type = "a";
+		ddc-i2c-bus = <&i2c_dvi_ddc>;
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
 		};
 	};
 
@@ -105,7 +145,45 @@
 			#size-cells = <0>;
 		};
 	};
+
+	parallel-display {
+		compatible = "fsl,imx-parallel-display";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu1>;
+
+		interface-pix-fmt = "rgb24";
+
+		port@0 {
+			reg = <0>;
+
+			parallel_display_in: endpoint {
+				remote-endpoint = <&ipu1_di0_disp0>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			parallel_display_out: endpoint {
+				remote-endpoint = <&tfp410_in>;
+			};
+		};
+	};
 };
+
+/*
+ * A single IPU is not able to drive both display interfaces available on the
+ * Utilite Pro at high resolution due to its bandwidth limitation. Since the
+ * tfp410 encoder is wired up to IPU1, sever the link between IPU1 and the
+ * SoC-internal Designware HDMI encoder forcing the latter to be connected to
+ * IPU2 instead of IPU1.
+ */
+/delete-node/&ipu1_di0_hdmi;
+/delete-node/&hdmi_mux_0;
+/delete-node/&ipu1_di1_hdmi;
+/delete-node/&hdmi_mux_1;
 
 &hdmi {
 	ddc-i2c-bus = <&i2c2>;
@@ -151,6 +229,39 @@
 		>;
 	};
 
+	pinctrl_ipu1: ipu1grp {
+		fsl,pins = <
+			MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x38
+			MX6QDL_PAD_DI0_PIN15__IPU1_DI0_PIN15       0x38
+			MX6QDL_PAD_DI0_PIN2__IPU1_DI0_PIN02        0x38
+			MX6QDL_PAD_DI0_PIN3__IPU1_DI0_PIN03        0x38
+			MX6QDL_PAD_DISP0_DAT0__IPU1_DISP0_DATA00   0x38
+			MX6QDL_PAD_DISP0_DAT1__IPU1_DISP0_DATA01   0x38
+			MX6QDL_PAD_DISP0_DAT2__IPU1_DISP0_DATA02   0x38
+			MX6QDL_PAD_DISP0_DAT3__IPU1_DISP0_DATA03   0x38
+			MX6QDL_PAD_DISP0_DAT4__IPU1_DISP0_DATA04   0x38
+			MX6QDL_PAD_DISP0_DAT5__IPU1_DISP0_DATA05   0x38
+			MX6QDL_PAD_DISP0_DAT6__IPU1_DISP0_DATA06   0x38
+			MX6QDL_PAD_DISP0_DAT7__IPU1_DISP0_DATA07   0x38
+			MX6QDL_PAD_DISP0_DAT8__IPU1_DISP0_DATA08   0x38
+			MX6QDL_PAD_DISP0_DAT9__IPU1_DISP0_DATA09   0x38
+			MX6QDL_PAD_DISP0_DAT10__IPU1_DISP0_DATA10  0x38
+			MX6QDL_PAD_DISP0_DAT11__IPU1_DISP0_DATA11  0x38
+			MX6QDL_PAD_DISP0_DAT12__IPU1_DISP0_DATA12  0x38
+			MX6QDL_PAD_DISP0_DAT13__IPU1_DISP0_DATA13  0x38
+			MX6QDL_PAD_DISP0_DAT14__IPU1_DISP0_DATA14  0x38
+			MX6QDL_PAD_DISP0_DAT15__IPU1_DISP0_DATA15  0x38
+			MX6QDL_PAD_DISP0_DAT16__IPU1_DISP0_DATA16  0x38
+			MX6QDL_PAD_DISP0_DAT17__IPU1_DISP0_DATA17  0x38
+			MX6QDL_PAD_DISP0_DAT18__IPU1_DISP0_DATA18  0x38
+			MX6QDL_PAD_DISP0_DAT19__IPU1_DISP0_DATA19  0x38
+			MX6QDL_PAD_DISP0_DAT20__IPU1_DISP0_DATA20  0x38
+			MX6QDL_PAD_DISP0_DAT21__IPU1_DISP0_DATA21  0x38
+			MX6QDL_PAD_DISP0_DAT22__IPU1_DISP0_DATA22  0x38
+			MX6QDL_PAD_DISP0_DAT23__IPU1_DISP0_DATA23  0x38
+		>;
+	};
+
 	pinctrl_uart2: uart2grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_7__UART2_TX_DATA 0x1b0b1
@@ -192,6 +303,10 @@
 			MX6QDL_PAD_SD3_DAT3__SD3_DATA3	0x170F9
 		>;
 	};
+};
+
+&ipu1_di0_disp0 {
+	remote-endpoint = <&parallel_display_in>;
 };
 
 &pcie {

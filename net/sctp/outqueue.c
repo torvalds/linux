@@ -382,17 +382,18 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 }
 
 static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
-				    struct sctp_sndrcvinfo *sinfo,
-				    struct list_head *queue, int msg_len)
+				    struct sctp_sndrcvinfo *sinfo, int msg_len)
 {
+	struct sctp_outq *q = &asoc->outqueue;
 	struct sctp_chunk *chk, *temp;
 
-	list_for_each_entry_safe(chk, temp, queue, list) {
+	list_for_each_entry_safe(chk, temp, &q->out_chunk_list, list) {
 		if (!SCTP_PR_PRIO_ENABLED(chk->sinfo.sinfo_flags) ||
 		    chk->sinfo.sinfo_timetolive <= sinfo->sinfo_timetolive)
 			continue;
 
 		list_del_init(&chk->list);
+		q->out_qlen -= chk->skb->len;
 		asoc->sent_cnt_removable--;
 		asoc->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 
@@ -431,9 +432,7 @@ void sctp_prsctp_prune(struct sctp_association *asoc,
 			return;
 	}
 
-	sctp_prsctp_prune_unsent(asoc, sinfo,
-				 &asoc->outqueue.out_chunk_list,
-				 msg_len);
+	sctp_prsctp_prune_unsent(asoc, sinfo, msg_len);
 }
 
 /* Mark all the eligible packets on a transport for retransmission.  */
@@ -915,22 +914,28 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		case SCTP_CID_ECN_ECNE:
 		case SCTP_CID_ASCONF:
 		case SCTP_CID_FWD_TSN:
+		case SCTP_CID_RECONF:
 			status = sctp_packet_transmit_chunk(packet, chunk,
 							    one_packet, gfp);
 			if (status  != SCTP_XMIT_OK) {
 				/* put the chunk back */
 				list_add(&chunk->list, &q->control_chunk_list);
-			} else {
-				asoc->stats.octrlchunks++;
-				/* PR-SCTP C5) If a FORWARD TSN is sent, the
-				 * sender MUST assure that at least one T3-rtx
-				 * timer is running.
-				 */
-				if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN) {
-					sctp_transport_reset_t3_rtx(transport);
-					transport->last_time_sent = jiffies;
-				}
+				break;
 			}
+
+			asoc->stats.octrlchunks++;
+			/* PR-SCTP C5) If a FORWARD TSN is sent, the
+			 * sender MUST assure that at least one T3-rtx
+			 * timer is running.
+			 */
+			if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN) {
+				sctp_transport_reset_t3_rtx(transport);
+				transport->last_time_sent = jiffies;
+			}
+
+			if (chunk == asoc->strreset_chunk)
+				sctp_transport_reset_reconf_timer(transport);
+
 			break;
 
 		default:
@@ -1016,11 +1021,12 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 
 		/* Finally, transmit new packets.  */
 		while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
+			__u32 sid = ntohs(chunk->subh.data_hdr->stream);
+
 			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
 			 * stream identifier.
 			 */
-			if (chunk->sinfo.sinfo_stream >=
-			    asoc->c.sinit_num_ostreams) {
+			if (chunk->sinfo.sinfo_stream >= asoc->stream->outcnt) {
 
 				/* Mark as failed send. */
 				sctp_chunk_fail(chunk, SCTP_ERROR_INV_STRM);
@@ -1036,6 +1042,11 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				sctp_chunk_fail(chunk, 0);
 				sctp_chunk_free(chunk);
 				continue;
+			}
+
+			if (asoc->stream->out[sid].state == SCTP_STREAM_CLOSED) {
+				sctp_outq_head_data(q, chunk);
+				goto sctp_flush_out;
 			}
 
 			/* If there is a specified transport, use it.
@@ -1641,7 +1652,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 
 		if (forward_progress) {
 			if (transport->dst)
-				dst_confirm(transport->dst);
+				sctp_transport_dst_confirm(transport);
 		}
 	}
 

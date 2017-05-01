@@ -15,6 +15,8 @@
 #include <linux/gfp.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
@@ -59,9 +61,12 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 		}
 
 		trace_rxrpc_transmit(call, rxrpc_transmit_wait);
-		release_sock(&rx->sk);
+		mutex_unlock(&call->user_mutex);
 		*timeo = schedule_timeout(*timeo);
-		lock_sock(&rx->sk);
+		if (mutex_lock_interruptible(&call->user_mutex) < 0) {
+			ret = sock_intr_errno(*timeo);
+			break;
+		}
 	}
 
 	remove_wait_queue(&call->waitq, &myself);
@@ -171,7 +176,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 /*
  * send data through a socket
  * - must be called in process context
- * - caller holds the socket locked
+ * - The caller holds the call user access mutex, but not the socket lock.
  */
 static int rxrpc_send_data(struct rxrpc_sock *rx,
 			   struct rxrpc_call *call,
@@ -376,7 +381,7 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 		if (!CMSG_OK(msg, cmsg))
 			return -EINVAL;
 
-		len = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
+		len = cmsg->cmsg_len - sizeof(struct cmsghdr);
 		_debug("CMSG %d, %d, %d",
 		       cmsg->cmsg_level, cmsg->cmsg_type, len);
 
@@ -437,10 +442,13 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 
 /*
  * Create a new client call for sendmsg().
+ * - Called with the socket lock held, which it must release.
+ * - If it returns a call, the call's lock will need releasing by the caller.
  */
 static struct rxrpc_call *
 rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 				  unsigned long user_call_ID, bool exclusive)
+	__releases(&rx->sk.sk_lock.slock)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
@@ -450,8 +458,10 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 
 	_enter("");
 
-	if (!msg->msg_name)
+	if (!msg->msg_name) {
+		release_sock(&rx->sk);
 		return ERR_PTR(-EDESTADDRREQ);
+	}
 
 	key = rx->key;
 	if (key && !rx->key->payload.data[0])
@@ -464,6 +474,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.exclusive		= rx->exclusive | exclusive;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, GFP_KERNEL);
+	/* The socket is now unlocked */
 
 	_leave(" = %p\n", call);
 	return call;
@@ -475,7 +486,9 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
  * - the socket may be either a client socket or a server socket
  */
 int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
+	__releases(&rx->sk.sk_lock.slock)
 {
+	enum rxrpc_call_state state;
 	enum rxrpc_command cmd;
 	struct rxrpc_call *call;
 	unsigned long user_call_ID = 0;
@@ -488,12 +501,14 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code,
 				 &exclusive);
 	if (ret < 0)
-		return ret;
+		goto error_release_sock;
 
 	if (cmd == RXRPC_CMD_ACCEPT) {
+		ret = -EINVAL;
 		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
-			return -EINVAL;
+			goto error_release_sock;
 		call = rxrpc_accept_call(rx, user_call_ID, NULL);
+		/* The socket is now unlocked. */
 		if (IS_ERR(call))
 			return PTR_ERR(call);
 		rxrpc_put_call(call, rxrpc_call_put);
@@ -502,18 +517,41 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 
 	call = rxrpc_find_call_by_user_ID(rx, user_call_ID);
 	if (!call) {
+		ret = -EBADSLT;
 		if (cmd != RXRPC_CMD_SEND_DATA)
-			return -EBADSLT;
+			goto error_release_sock;
 		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
 							 exclusive);
+		/* The socket is now unlocked... */
 		if (IS_ERR(call))
 			return PTR_ERR(call);
+		/* ... and we have the call lock. */
+	} else {
+		switch (READ_ONCE(call->state)) {
+		case RXRPC_CALL_UNINITIALISED:
+		case RXRPC_CALL_CLIENT_AWAIT_CONN:
+		case RXRPC_CALL_SERVER_PREALLOC:
+		case RXRPC_CALL_SERVER_SECURING:
+		case RXRPC_CALL_SERVER_ACCEPTING:
+			ret = -EBUSY;
+			goto error_release_sock;
+		default:
+			break;
+		}
+
+		ret = mutex_lock_interruptible(&call->user_mutex);
+		release_sock(&rx->sk);
+		if (ret < 0) {
+			ret = -ERESTARTSYS;
+			goto error_put;
+		}
 	}
 
+	state = READ_ONCE(call->state);
 	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
+	       call->debug_id, call->user_call_ID, state, call->conn);
 
-	if (call->state >= RXRPC_CALL_COMPLETE) {
+	if (state >= RXRPC_CALL_COMPLETE) {
 		/* it's too late for this call */
 		ret = -ESHUTDOWN;
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
@@ -523,20 +561,26 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
 	} else if (rxrpc_is_client_call(call) &&
-		   call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
+		   state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
 		/* request phase complete for this client call */
 		ret = -EPROTO;
 	} else if (rxrpc_is_service_call(call) &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
+		   state != RXRPC_CALL_SERVER_ACK_REQUEST &&
+		   state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		/* Reply phase not begun or not complete for service call. */
 		ret = -EPROTO;
 	} else {
 		ret = rxrpc_send_data(rx, call, msg, len);
 	}
 
+	mutex_unlock(&call->user_mutex);
+error_put:
 	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = %d", ret);
+	return ret;
+
+error_release_sock:
+	release_sock(&rx->sk);
 	return ret;
 }
 
@@ -562,22 +606,29 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 	ASSERTCMP(msg->msg_name, ==, NULL);
 	ASSERTCMP(msg->msg_control, ==, NULL);
 
-	lock_sock(sock->sk);
+	mutex_lock(&call->user_mutex);
 
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, call->state, call->conn);
 
-	if (call->state >= RXRPC_CALL_COMPLETE) {
-		ret = -ESHUTDOWN; /* it's too late for this call */
-	} else if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
-		ret = -EPROTO; /* request phase complete for this client call */
-	} else {
+	switch (READ_ONCE(call->state)) {
+	case RXRPC_CALL_CLIENT_SEND_REQUEST:
+	case RXRPC_CALL_SERVER_ACK_REQUEST:
+	case RXRPC_CALL_SERVER_SEND_REPLY:
 		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len);
+		break;
+	case RXRPC_CALL_COMPLETE:
+		read_lock_bh(&call->state_lock);
+		ret = -call->error;
+		read_unlock_bh(&call->state_lock);
+		break;
+	default:
+		 /* Request phase complete for this client call */
+		ret = -EPROTO;
+		break;
 	}
 
-	release_sock(sock->sk);
+	mutex_unlock(&call->user_mutex);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -598,12 +649,12 @@ void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 {
 	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
 
-	lock_sock(sock->sk);
+	mutex_lock(&call->user_mutex);
 
 	if (rxrpc_abort_call(why, call, 0, abort_code, error))
 		rxrpc_send_abort_packet(call);
 
-	release_sock(sock->sk);
+	mutex_unlock(&call->user_mutex);
 	_leave("");
 }
 

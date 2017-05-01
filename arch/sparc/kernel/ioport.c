@@ -401,7 +401,7 @@ static void sbus_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 	BUG();
 }
 
-static struct dma_map_ops sbus_dma_ops = {
+static const struct dma_map_ops sbus_dma_ops = {
 	.alloc			= sbus_alloc_coherent,
 	.free			= sbus_free_coherent,
 	.map_page		= sbus_map_page,
@@ -637,7 +637,7 @@ static void pci32_sync_sg_for_device(struct device *device, struct scatterlist *
 	}
 }
 
-struct dma_map_ops pci32_dma_ops = {
+const struct dma_map_ops pci32_dma_ops = {
 	.alloc			= pci32_alloc_coherent,
 	.free			= pci32_free_coherent,
 	.map_page		= pci32_map_page,
@@ -652,10 +652,10 @@ struct dma_map_ops pci32_dma_ops = {
 EXPORT_SYMBOL(pci32_dma_ops);
 
 /* leon re-uses pci32_dma_ops */
-struct dma_map_ops *leon_dma_ops = &pci32_dma_ops;
+const struct dma_map_ops *leon_dma_ops = &pci32_dma_ops;
 EXPORT_SYMBOL(leon_dma_ops);
 
-struct dma_map_ops *dma_ops = &sbus_dma_ops;
+const struct dma_map_ops *dma_ops = &sbus_dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 

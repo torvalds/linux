@@ -85,6 +85,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		cpu5: cpu@101 {
@@ -93,6 +94,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		cpu6: cpu@102 {
@@ -101,6 +103,7 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 
 		cpu7: cpu@103 {
@@ -109,10 +112,21 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
+			clocks = <&scpi_dvfs 1>;
 		};
 	};
+};
+
+&saradc {
+	compatible = "amlogic,meson-gxm-saradc", "amlogic,meson-saradc";
+};
+
+&scpi_dvfs {
+	clock-indices = <0 1>;
+	clock-output-names = "vbig", "vlittle";
 };
 
 &vpu {
 	compatible = "amlogic,meson-gxm-vpu", "amlogic,meson-gx-vpu";
 };
+

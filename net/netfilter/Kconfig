@@ -162,6 +162,7 @@ config NF_CT_PROTO_SCTP
 	bool 'SCTP protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
 	default y
+	select LIBCRC32C
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on SCTP connections.
@@ -397,7 +398,6 @@ config NF_NAT_PROTO_SCTP
 	bool
 	default NF_NAT && NF_CT_PROTO_SCTP
 	depends on NF_NAT && NF_CT_PROTO_SCTP
-	select LIBCRC32C
 
 config NF_NAT_AMANDA
 	tristate
@@ -467,10 +467,10 @@ config NF_TABLES_NETDEV
 	  This option enables support for the "netdev" table.
 
 config NFT_EXTHDR
-	tristate "Netfilter nf_tables IPv6 exthdr module"
+	tristate "Netfilter nf_tables exthdr module"
 	help
 	  This option adds the "exthdr" expression that you can use to match
-	  IPv6 extension headers.
+	  IPv6 extension headers and tcp options.
 
 config NFT_META
 	tristate "Netfilter nf_tables meta module"
@@ -508,6 +508,12 @@ config NFT_SET_HASH
 	help
 	  This option adds the "hash" set type that is used to build one-way
 	  mappings between matchings and actions.
+
+config NFT_SET_BITMAP
+	tristate "Netfilter nf_tables bitmap set module"
+	help
+	  This option adds the "bitmap" set type that is used to build sets
+	  whose keys are smaller or equal to 16 bits.
 
 config NFT_COUNTER
 	tristate "Netfilter nf_tables counter module"

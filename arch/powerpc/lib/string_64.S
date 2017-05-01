@@ -152,9 +152,9 @@ err2;	std	r0,0(r3)
 	addi	r3,r3,8
 	addi	r4,r4,-8
 
-	/* Destination is 16 byte aligned, need to get it cacheline aligned */
-11:	lwz	r7,DCACHEL1LOGLINESIZE(r5)
-	lwz	r9,DCACHEL1LINESIZE(r5)
+	/* Destination is 16 byte aligned, need to get it cache block aligned */
+11:	lwz	r7,DCACHEL1LOGBLOCKSIZE(r5)
+	lwz	r9,DCACHEL1BLOCKSIZE(r5)
 
 	/*
 	 * With worst case alignment the long clear loop takes a minimum

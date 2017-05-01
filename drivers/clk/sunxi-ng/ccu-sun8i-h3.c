@@ -803,6 +803,13 @@ static const struct sunxi_ccu_desc sun8i_h3_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_h3_ccu_resets),
 };
 
+static struct ccu_mux_nb sun8i_h3_cpu_nb = {
+	.common		= &cpux_clk.common,
+	.cm		= &cpux_clk.mux,
+	.delay_us	= 1, /* > 8 clock cycles at 24 MHz */
+	.bypass_index	= 1, /* index of 24 MHz oscillator */
+};
+
 static void __init sun8i_h3_ccu_setup(struct device_node *node)
 {
 	void __iomem *reg;
@@ -821,6 +828,9 @@ static void __init sun8i_h3_ccu_setup(struct device_node *node)
 	writel(val | (3 << 16), reg + SUN8I_H3_PLL_AUDIO_REG);
 
 	sunxi_ccu_probe(node, reg, &sun8i_h3_ccu_desc);
+
+	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
+				  &sun8i_h3_cpu_nb);
 }
 CLK_OF_DECLARE(sun8i_h3_ccu, "allwinner,sun8i-h3-ccu",
 	       sun8i_h3_ccu_setup);

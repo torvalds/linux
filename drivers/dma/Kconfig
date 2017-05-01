@@ -157,7 +157,7 @@ config DMA_SUN4I
 
 config DMA_SUN6I
 	tristate "Allwinner A31 SoCs DMA support"
-	depends on MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
+	depends on MACH_SUN6I || MACH_SUN8I || (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 	depends on RESET_CONTROLLER
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
@@ -458,7 +458,7 @@ config STM32_DMA
 	help
 	  Enable support for the on-chip DMA controller on STMicroelectronics
 	  STM32 MCUs.
-	  If you have a board based on such a MCU and wish to use DMA say Y or M
+	  If you have a board based on such a MCU and wish to use DMA say Y
 	  here.
 
 config S3C24XX_DMAC
@@ -571,12 +571,12 @@ config XILINX_ZYNQMP_DMA
 	  Enable support for Xilinx ZynqMP DMA controller.
 
 config ZX_DMA
-	tristate "ZTE ZX296702 DMA support"
+	tristate "ZTE ZX DMA support"
 	depends on ARCH_ZX || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Support the DMA engine for ZTE ZX296702 platform devices.
+	  Support the DMA engine for ZTE ZX family platform devices.
 
 
 # driver files

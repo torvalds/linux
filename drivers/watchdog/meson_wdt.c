@@ -201,11 +201,10 @@ static int meson_wdt_probe(struct platform_device *pdev)
 
 	meson_wdt_stop(&meson_wdt->wdt_dev);
 
-	err = watchdog_register_device(&meson_wdt->wdt_dev);
+	watchdog_stop_on_reboot(&meson_wdt->wdt_dev);
+	err = devm_watchdog_register_device(&pdev->dev, &meson_wdt->wdt_dev);
 	if (err)
 		return err;
-
-	platform_set_drvdata(pdev, meson_wdt);
 
 	dev_info(&pdev->dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
 		 meson_wdt->wdt_dev.timeout, nowayout);
@@ -213,26 +212,8 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meson_wdt_remove(struct platform_device *pdev)
-{
-	struct meson_wdt_dev *meson_wdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&meson_wdt->wdt_dev);
-
-	return 0;
-}
-
-static void meson_wdt_shutdown(struct platform_device *pdev)
-{
-	struct meson_wdt_dev *meson_wdt = platform_get_drvdata(pdev);
-
-	meson_wdt_stop(&meson_wdt->wdt_dev);
-}
-
 static struct platform_driver meson_wdt_driver = {
 	.probe		= meson_wdt_probe,
-	.remove		= meson_wdt_remove,
-	.shutdown	= meson_wdt_shutdown,
 	.driver		= {
 		.name		= DRV_NAME,
 		.of_match_table	= meson_wdt_dt_ids,

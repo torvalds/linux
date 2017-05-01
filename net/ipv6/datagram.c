@@ -167,18 +167,22 @@ int __ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (np->sndflow)
 		fl6_flowlabel = usin->sin6_flowinfo & IPV6_FLOWINFO_MASK;
 
-	addr_type = ipv6_addr_type(&usin->sin6_addr);
-
-	if (addr_type == IPV6_ADDR_ANY) {
+	if (ipv6_addr_any(&usin->sin6_addr)) {
 		/*
 		 *	connect to self
 		 */
-		usin->sin6_addr.s6_addr[15] = 0x01;
+		if (ipv6_addr_v4mapped(&sk->sk_v6_rcv_saddr))
+			ipv6_addr_set_v4mapped(htonl(INADDR_LOOPBACK),
+					       &usin->sin6_addr);
+		else
+			usin->sin6_addr = in6addr_loopback;
 	}
+
+	addr_type = ipv6_addr_type(&usin->sin6_addr);
 
 	daddr = &usin->sin6_addr;
 
-	if (addr_type == IPV6_ADDR_MAPPED) {
+	if (addr_type & IPV6_ADDR_MAPPED) {
 		struct sockaddr_in sin;
 
 		if (__ipv6_only_sock(sk)) {
@@ -401,9 +405,6 @@ static inline bool ipv6_datagram_support_addr(struct sock_exterr_skb *serr)
  * At one point, excluding local errors was a quick test to identify icmp/icmp6
  * errors. This is no longer true, but the test remained, so the v6 stack,
  * unlike v4, also honors cmsg requests on all wifi and timestamp errors.
- *
- * Timestamp code paths do not initialize the fields expected by cmsg:
- * the PKTINFO fields in skb->cb[]. Fill those in here.
  */
 static bool ip6_datagram_support_cmsg(struct sk_buff *skb,
 				      struct sock_exterr_skb *serr)
@@ -415,13 +416,8 @@ static bool ip6_datagram_support_cmsg(struct sk_buff *skb,
 	if (serr->ee.ee_origin == SO_EE_ORIGIN_LOCAL)
 		return false;
 
-	if (!skb->dev)
+	if (!IP6CB(skb)->iif)
 		return false;
-
-	if (skb->protocol == htons(ETH_P_IPV6))
-		IP6CB(skb)->iif = skb->dev->ifindex;
-	else
-		PKTINFO_SKB_CB(skb)->ipi_ifindex = skb->dev->ifindex;
 
 	return true;
 }

@@ -509,6 +509,7 @@ static struct em28xx_reg_seq plex_px_bcud[] = {
 
 /*
  * 2040:0265 Hauppauge WinTV-dualHD DVB
+ * 2040:026d Hauppauge WinTV-dualHD ATSC/QAM
  * reg 0x80/0x84:
  * GPIO_0: Yellow LED tuner 1, 0=on, 1=off
  * GPIO_1: Green LED tuner 1, 0=on, 1=off
@@ -2389,6 +2390,21 @@ struct em28xx_board em28xx_boards[] = {
 		.ir_codes      = RC_MAP_HAUPPAUGE,
 		.leds          = hauppauge_dualhd_leds,
 	},
+	/*
+	 * 2040:026d Hauppauge WinTV-dualHD (model 01595 - ATSC/QAM).
+	 * Empia EM28274, 2x LG LGDT3306A, 2x Silicon Labs Si2157
+	 */
+	[EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595] = {
+		.name          = "Hauppauge WinTV-dualHD 01595 ATSC/QAM",
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = hauppauge_dualhd_dvb,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_HAUPPAUGE,
+		.leds          = hauppauge_dualhd_leds,
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2514,6 +2530,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850 },
 	{ USB_DEVICE(0x2040, 0x0265),
 			.driver_info = EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB },
+	{ USB_DEVICE(0x2040, 0x026d),
+			.driver_info = EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
 	{ USB_DEVICE(0x2001, 0xf112),
@@ -2945,6 +2963,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
 	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595:
 	{
 		struct tveeprom tv;
 

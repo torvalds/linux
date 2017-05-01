@@ -24,11 +24,51 @@
 
 #include "i915_drv.h"
 
+#define PLATFORM_NAME(x) [INTEL_##x] = #x
+static const char * const platform_names[] = {
+	PLATFORM_NAME(I830),
+	PLATFORM_NAME(I845G),
+	PLATFORM_NAME(I85X),
+	PLATFORM_NAME(I865G),
+	PLATFORM_NAME(I915G),
+	PLATFORM_NAME(I915GM),
+	PLATFORM_NAME(I945G),
+	PLATFORM_NAME(I945GM),
+	PLATFORM_NAME(G33),
+	PLATFORM_NAME(PINEVIEW),
+	PLATFORM_NAME(I965G),
+	PLATFORM_NAME(I965GM),
+	PLATFORM_NAME(G45),
+	PLATFORM_NAME(GM45),
+	PLATFORM_NAME(IRONLAKE),
+	PLATFORM_NAME(SANDYBRIDGE),
+	PLATFORM_NAME(IVYBRIDGE),
+	PLATFORM_NAME(VALLEYVIEW),
+	PLATFORM_NAME(HASWELL),
+	PLATFORM_NAME(BROADWELL),
+	PLATFORM_NAME(CHERRYVIEW),
+	PLATFORM_NAME(SKYLAKE),
+	PLATFORM_NAME(BROXTON),
+	PLATFORM_NAME(KABYLAKE),
+	PLATFORM_NAME(GEMINILAKE),
+};
+#undef PLATFORM_NAME
+
+const char *intel_platform_name(enum intel_platform platform)
+{
+	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
+			 platform_names[platform] == NULL))
+		return "<unknown>";
+
+	return platform_names[platform];
+}
+
 void intel_device_info_dump(struct drm_i915_private *dev_priv)
 {
 	const struct intel_device_info *info = &dev_priv->info;
 
-	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x rev=0x%02x",
+	DRM_DEBUG_DRIVER("i915 device info: platform=%s gen=%i pciid=0x%04x rev=0x%02x",
+			 intel_platform_name(info->platform),
 			 info->gen,
 			 dev_priv->drm.pdev->device,
 			 dev_priv->drm.pdev->revision);
@@ -152,7 +192,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
 		hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg =
-		IS_BROXTON(dev_priv) && sseu_subslice_total(sseu) > 1;
+		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
 
 	if (IS_BROXTON(dev_priv)) {
@@ -270,6 +310,12 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	enum pipe pipe;
 
+	if (INTEL_GEN(dev_priv) >= 9) {
+		info->num_scalers[PIPE_A] = 2;
+		info->num_scalers[PIPE_B] = 2;
+		info->num_scalers[PIPE_C] = 1;
+	}
+
 	/*
 	 * Skylake and Broxton currently don't expose the topmost plane as its
 	 * use is exclusive with the legacy cursor and we only want to expose
@@ -278,7 +324,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	 * we don't expose the topmost plane at all to prevent ABI breakage
 	 * down the line.
 	 */
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv))
+		for_each_pipe(dev_priv, pipe)
+			info->num_sprites[pipe] = 3;
+	else if (IS_BROXTON(dev_priv)) {
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;

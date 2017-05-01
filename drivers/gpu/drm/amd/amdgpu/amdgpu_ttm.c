@@ -466,10 +466,6 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 
 	adev = amdgpu_ttm_adev(bo->bdev);
 
-	/* remember the eviction */
-	if (evict)
-		atomic64_inc(&adev->num_evictions);
-
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		amdgpu_move_null(bo, new_mem);
 		return 0;
@@ -533,6 +529,9 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 	case TTM_PL_TT:
 		break;
 	case TTM_PL_VRAM:
+		if (mem->start == AMDGPU_BO_INVALID_OFFSET)
+			return -EINVAL;
+
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 		/* check if it's visible */
 		if ((mem->bus.offset + mem->bus.size) > adev->mc.visible_vram_size)
@@ -552,6 +551,8 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 			mem->bus.addr =
 				ioremap_nocache(mem->bus.base + mem->bus.offset,
 						mem->bus.size);
+		if (!mem->bus.addr)
+			return -ENOMEM;
 
 		/*
 		 * Alpha: Use just the bus offset plus
@@ -1052,56 +1053,6 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 	return flags;
 }
 
-static void amdgpu_ttm_lru_removal(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
-	unsigned i, j;
-
-	for (i = 0; i < AMDGPU_TTM_LRU_SIZE; ++i) {
-		struct amdgpu_mman_lru *lru = &adev->mman.log2_size[i];
-
-		for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-			if (&tbo->lru == lru->lru[j])
-				lru->lru[j] = tbo->lru.prev;
-
-		if (&tbo->swap == lru->swap_lru)
-			lru->swap_lru = tbo->swap.prev;
-	}
-}
-
-static struct amdgpu_mman_lru *amdgpu_ttm_lru(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
-	unsigned log2_size = min(ilog2(tbo->num_pages),
-				 AMDGPU_TTM_LRU_SIZE - 1);
-
-	return &adev->mman.log2_size[log2_size];
-}
-
-static struct list_head *amdgpu_ttm_lru_tail(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_mman_lru *lru = amdgpu_ttm_lru(tbo);
-	struct list_head *res = lru->lru[tbo->mem.mem_type];
-
-	lru->lru[tbo->mem.mem_type] = &tbo->lru;
-	while ((++lru)->lru[tbo->mem.mem_type] == res)
-		lru->lru[tbo->mem.mem_type] = &tbo->lru;
-
-	return res;
-}
-
-static struct list_head *amdgpu_ttm_swap_lru_tail(struct ttm_buffer_object *tbo)
-{
-	struct amdgpu_mman_lru *lru = amdgpu_ttm_lru(tbo);
-	struct list_head *res = lru->swap_lru;
-
-	lru->swap_lru = &tbo->swap;
-	while ((++lru)->swap_lru == res)
-		lru->swap_lru = &tbo->swap;
-
-	return res;
-}
-
 static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 					    const struct ttm_place *place)
 {
@@ -1140,14 +1091,10 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.fault_reserve_notify = &amdgpu_bo_fault_reserve_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_free = &amdgpu_ttm_io_mem_free,
-	.lru_removal = &amdgpu_ttm_lru_removal,
-	.lru_tail = &amdgpu_ttm_lru_tail,
-	.swap_lru_tail = &amdgpu_ttm_swap_lru_tail,
 };
 
 int amdgpu_ttm_init(struct amdgpu_device *adev)
 {
-	unsigned i, j;
 	int r;
 
 	r = amdgpu_ttm_global_init(adev);
@@ -1165,19 +1112,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
-
-	for (i = 0; i < AMDGPU_TTM_LRU_SIZE; ++i) {
-		struct amdgpu_mman_lru *lru = &adev->mman.log2_size[i];
-
-		for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-			lru->lru[j] = &adev->mman.bdev.man[j].lru;
-		lru->swap_lru = &adev->mman.bdev.glob->swap_lru;
-	}
-
-	for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-		adev->mman.guard.lru[j] = NULL;
-	adev->mman.guard.swap_lru = NULL;
-
 	adev->mman.initialized = true;
 	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_VRAM,
 				adev->mc.real_vram_size >> PAGE_SHIFT);
@@ -1365,7 +1299,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	WARN_ON(job->ibs[0].length_dw > num_dw);
 	if (direct_submit) {
 		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs,
-				       NULL, NULL, fence);
+				       NULL, fence);
 		job->fence = dma_fence_get(*fence);
 		if (r)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);
@@ -1482,18 +1416,18 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_mm *mm = (struct drm_mm *)adev->mman.bdev.man[ttm_pl].priv;
-	int ret;
 	struct ttm_bo_global *glob = adev->mman.bdev.glob;
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	spin_lock(&glob->lru_lock);
-	ret = drm_mm_dump_table(m, mm);
+	drm_mm_print(mm, &p);
 	spin_unlock(&glob->lru_lock);
 	if (ttm_pl == TTM_PL_VRAM)
 		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
 			   adev->mman.bdev.man[ttm_pl].size,
 			   (u64)atomic64_read(&adev->vram_usage) >> 20,
 			   (u64)atomic64_read(&adev->vram_vis_usage) >> 20);
-	return ret;
+	return 0;
 }
 
 static int ttm_pl_vram = TTM_PL_VRAM;

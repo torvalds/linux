@@ -1,0 +1,307 @@
+/*
+ * Device Tree include file for SolidRun Clearfog 88F6828 based boards
+ *
+ *  Copyright (C) 2015 Russell King
+ *
+ * This board is in development; the contents of this file work with
+ * the A1 rev 2.0 of the board, which does not represent final
+ * production board.  Things will change, don't expect this file to
+ * remain compatible info the future.
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include "armada-388.dtsi"
+#include "armada-38x-solidrun-microsom.dtsi"
+
+/ {
+	aliases {
+		/* So that mvebu u-boot can update the MAC addresses */
+		ethernet1 = &eth0;
+		ethernet2 = &eth1;
+		ethernet3 = &eth2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	soc {
+		internal-regs {
+			sata@a8000 {
+				/* pinctrl? */
+				status = "okay";
+			};
+
+			sata@e0000 {
+				/* pinctrl? */
+				status = "okay";
+			};
+
+			sdhci@d8000 {
+				bus-width = <4>;
+				cd-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+				no-1-8-v;
+				pinctrl-0 = <&microsom_sdhci_pins
+					     &clearfog_sdhci_cd_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				vmmc = <&reg_3p3v>;
+				wp-inverted;
+			};
+
+			usb@58000 {
+				/* CON3, nearest  power. */
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				/* CON7 */
+				status = "okay";
+			};
+		};
+
+		pcie-controller {
+			status = "okay";
+			/*
+			 * The two PCIe units are accessible through
+			 * the mini-PCIe connectors on the board.
+			 */
+			pcie@2,0 {
+				/* Port 1, Lane 0. CON3, nearest power. */
+				reset-gpios = <&expander0 1 GPIO_ACTIVE_LOW>;
+				status = "okay";
+			};
+		};
+	};
+};
+
+&eth1 {
+	/* ethernet@30000 */
+	bm,pool-long = <2>;
+	bm,pool-short = <1>;
+	buffer-manager = <&bm>;
+	phy-mode = "sgmii";
+	status = "okay";
+};
+
+&eth2 {
+	/* ethernet@34000 */
+	bm,pool-long = <3>;
+	bm,pool-short = <1>;
+	buffer-manager = <&bm>;
+	phy-mode = "sgmii";
+	status = "okay";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+&i2c0 {
+	/* Is there anything on this? */
+	clock-frequency = <100000>;
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	/*
+	 * PCA9655 GPIO expander, up to 1MHz clock.
+	 *  0-CON3 CLKREQ#
+	 *  1-CON3 PERST#
+	 *  2-
+	 *  3-CON3 W_DISABLE
+	 *  4-
+	 *  5-USB3 overcurrent
+	 *  6-USB3 power
+	 *  7-
+	 *  8-JP4 P1
+	 *  9-JP4 P4
+	 * 10-JP4 P5
+	 * 11-m.2 DEVSLP
+	 * 12-SFP_LOS
+	 * 13-SFP_TX_FAULT
+	 * 14-SFP_TX_DISABLE
+	 * 15-SFP_MOD_DEF0
+	 */
+	expander0: gpio-expander@20 {
+		/*
+		 * This is how it should be:
+		 * compatible = "onnn,pca9655", "nxp,pca9555";
+		 * but you can't do this because of the way I2C works.
+		 */
+		compatible = "nxp,pca9555";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x20>;
+
+		pcie1_0_clkreq {
+			gpio-hog;
+			gpios = <0 GPIO_ACTIVE_LOW>;
+			input;
+			line-name = "pcie1.0-clkreq";
+		};
+		pcie1_0_w_disable {
+			gpio-hog;
+			gpios = <3 GPIO_ACTIVE_LOW>;
+			output-low;
+			line-name = "pcie1.0-w-disable";
+		};
+		usb3_ilimit {
+			gpio-hog;
+			gpios = <5 GPIO_ACTIVE_LOW>;
+			input;
+			line-name = "usb3-current-limit";
+		};
+		usb3_power {
+			gpio-hog;
+			gpios = <6 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "usb3-power";
+		};
+		m2_devslp {
+			gpio-hog;
+			gpios = <11 GPIO_ACTIVE_HIGH>;
+			output-low;
+			line-name = "m.2 devslp";
+		};
+		sfp_los {
+			/* SFP loss of signal */
+			gpio-hog;
+			gpios = <12 GPIO_ACTIVE_HIGH>;
+			input;
+			line-name = "sfp-los";
+		};
+		sfp_tx_fault {
+			/* SFP laser fault */
+			gpio-hog;
+			gpios = <13 GPIO_ACTIVE_HIGH>;
+			input;
+			line-name = "sfp-tx-fault";
+		};
+		sfp_tx_disable {
+			/* SFP transmit disable */
+			gpio-hog;
+			gpios = <14 GPIO_ACTIVE_HIGH>;
+			output-low;
+			line-name = "sfp-tx-disable";
+		};
+		sfp_mod_def0 {
+			/* SFP module present */
+			gpio-hog;
+			gpios = <15 GPIO_ACTIVE_LOW>;
+			input;
+			line-name = "sfp-mod-def0";
+		};
+	};
+
+	/* The MCP3021 is 100kHz clock only */
+	mikrobus_adc: mcp3021@4c {
+		compatible = "microchip,mcp3021";
+		reg = <0x4c>;
+	};
+
+	/* Also something at 0x64 */
+};
+
+&i2c1 {
+	/*
+	 * Routed to SFP, mikrobus, and PCIe.
+	 * SFP limits this to 100kHz, and requires an AT24C01A/02/04 with
+	 *  address pins tied low, which takes addresses 0x50 and 0x51.
+	 * Mikrobus doesn't specify beyond an I2C bus being present.
+	 * PCIe uses ARP to assign addresses, or 0x63-0x64.
+	 */
+	clock-frequency = <100000>;
+	pinctrl-0 = <&clearfog_i2c1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&pinctrl {
+	clearfog_i2c1_pins: i2c1-pins {
+		/* SFP, PCIe, mSATA, mikrobus */
+		marvell,pins = "mpp26", "mpp27";
+		marvell,function = "i2c1";
+	};
+	clearfog_sdhci_cd_pins: clearfog-sdhci-cd-pins {
+		marvell,pins = "mpp20";
+		marvell,function = "gpio";
+	};
+	mikro_pins: mikro-pins {
+		/* int: mpp22 rst: mpp29 */
+		marvell,pins = "mpp22", "mpp29";
+		marvell,function = "gpio";
+	};
+	mikro_spi_pins: mikro-spi-pins {
+		marvell,pins = "mpp43";
+		marvell,function = "spi1";
+	};
+	mikro_uart_pins: mikro-uart-pins {
+		marvell,pins = "mpp24", "mpp25";
+		marvell,function = "ua1";
+	};
+};
+
+&spi1 {
+	/*
+	 * Add SPI CS pins for clearfog:
+	 * CS0: W25Q32 (not populated on uSOM)
+	 * CS1: PIC microcontroller (Pro models)
+	 * CS2: mikrobus
+	 */
+	pinctrl-0 = <&spi1_pins &mikro_spi_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&uart1 {
+	/* mikrobus uart */
+	pinctrl-0 = <&mikro_uart_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};

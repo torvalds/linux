@@ -136,7 +136,7 @@ brw_client_init(struct sfw_test_instance *tsi)
 	return 0;
 }
 
-int brw_inject_one_error(void)
+static int brw_inject_one_error(void)
 {
 	struct timespec64 ts;
 

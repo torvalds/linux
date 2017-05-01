@@ -934,8 +934,14 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	rc = nd_desc->ndctl(nd_desc, nvdimm, cmd, buf, buf_len, NULL);
 	if (rc < 0)
 		goto out_unlock;
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+
 	if (copy_to_user(p, buf, buf_len))
 		rc = -EFAULT;
+
+	vfree(buf);
+	return rc;
+
  out_unlock:
 	nvdimm_bus_unlock(&nvdimm_bus->dev);
  out:

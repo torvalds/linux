@@ -265,7 +265,7 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 		           function, line, errstr);
 		return;
 	}
-	ACCESS_ONCE(trans->transaction->aborted) = errno;
+	WRITE_ONCE(trans->transaction->aborted, errno);
 	/* Wake up anybody who may be waiting on this transaction */
 	wake_up(&fs_info->transaction_wait);
 	wake_up(&fs_info->transaction_blocked_wait);
@@ -549,16 +549,19 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_ssd:
 			btrfs_set_and_info(info, SSD,
 					   "use ssd allocation scheme");
+			btrfs_clear_opt(info->mount_opt, NOSSD);
 			break;
 		case Opt_ssd_spread:
 			btrfs_set_and_info(info, SSD_SPREAD,
 					   "use spread ssd allocation scheme");
 			btrfs_set_opt(info->mount_opt, SSD);
+			btrfs_clear_opt(info->mount_opt, NOSSD);
 			break;
 		case Opt_nossd:
 			btrfs_set_and_info(info, NOSSD,
 					     "not using ssd allocation scheme");
 			btrfs_clear_opt(info->mount_opt, SSD);
+			btrfs_clear_opt(info->mount_opt, SSD_SPREAD);
 			break;
 		case Opt_barrier:
 			btrfs_clear_and_info(info, NOBARRIER,
@@ -1114,7 +1117,7 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 
 static int btrfs_fill_super(struct super_block *sb,
 			    struct btrfs_fs_devices *fs_devices,
-			    void *data, int silent)
+			    void *data)
 {
 	struct inode *inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
@@ -1611,8 +1614,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
 		btrfs_sb(s)->bdev_holder = fs_type;
-		error = btrfs_fill_super(s, fs_devices, data,
-					 flags & MS_SILENT ? 1 : 0);
+		error = btrfs_fill_super(s, fs_devices, data);
 	}
 	if (error) {
 		deactivate_locked_super(s);

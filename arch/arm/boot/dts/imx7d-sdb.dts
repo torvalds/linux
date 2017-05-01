@@ -111,7 +111,6 @@
 };
 
 &ecspi3 {
-	fsl,spi-num-chipselects = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	cs-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
@@ -502,12 +501,6 @@
 			>;
 		};
 
-		pinctrl_pwm1: pwm1grp {
-			fsl,pins = <
-				MX7D_PAD_GPIO1_IO01__PWM1_OUT		0x110b0
-			>;
-		};
-
 		pinctrl_tsc2046_pendown: tsc2046_pendown {
 			fsl,pins = <
 				MX7D_PAD_EPDC_BDR1__GPIO2_IO29		0x59
@@ -635,11 +628,19 @@
 				MX7D_PAD_SD3_STROBE__SD3_STROBE		0x1b
 			>;
 		};
+	};
+};
 
-		pinctrl_wdog: wdoggrp {
-			fsl,pins = <
-				MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B	0x74
-			>;
-		};
+&iomuxc_lpsr {
+	pinctrl_wdog: wdoggrp {
+		fsl,pins = <
+			MX7D_PAD_LPSR_GPIO1_IO00__WDOD1_WDOG_B		0x74
+		>;
+	};
+
+	pinctrl_pwm1: pwm1grp {
+		fsl,pins = <
+			MX7D_PAD_LPSR_GPIO1_IO01__PWM1_OUT		0x110b0
+		>;
 	};
 };

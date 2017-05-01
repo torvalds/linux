@@ -71,17 +71,17 @@
 #define   CN23XX_MAX_RINGS_PER_VF          8
 
 #define   CN23XX_MAX_INPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
-#define   CN23XX_MAX_IQ_DESCRIPTORS	2048
+#define   CN23XX_MAX_IQ_DESCRIPTORS	512
 #define   CN23XX_DB_MIN                 1
 #define   CN23XX_DB_MAX                 8
 #define   CN23XX_DB_TIMEOUT             1
 
 #define   CN23XX_MAX_OUTPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
-#define   CN23XX_MAX_OQ_DESCRIPTORS	2048
+#define   CN23XX_MAX_OQ_DESCRIPTORS	512
 #define   CN23XX_OQ_BUF_SIZE		1536
 #define   CN23XX_OQ_PKTSPER_INTR	128
 /*#define CAVIUM_ONLY_CN23XX_RX_PERF*/
-#define   CN23XX_OQ_REFIL_THRESHOLD	128
+#define   CN23XX_OQ_REFIL_THRESHOLD	16
 
 #define   CN23XX_OQ_INTR_PKT		64
 #define   CN23XX_OQ_INTR_TIME		100
@@ -429,15 +429,11 @@ struct octeon_config {
 
 /* The following config values are fixed and should not be modified. */
 
-/* Maximum address space to be mapped for Octeon's BAR1 index-based access. */
-#define  MAX_BAR1_MAP_INDEX                     2
+#define  BAR1_INDEX_DYNAMIC_MAP          2
+#define  BAR1_INDEX_STATIC_MAP          15
 #define  OCTEON_BAR1_ENTRY_SIZE         (4 * 1024 * 1024)
 
-/* BAR1 Index 0 to (MAX_BAR1_MAP_INDEX - 1) for normal mapped memory access.
- * Bar1 register at MAX_BAR1_MAP_INDEX used by driver for dynamic access.
- */
-#define  MAX_BAR1_IOREMAP_SIZE  ((MAX_BAR1_MAP_INDEX + 1) * \
-				 OCTEON_BAR1_ENTRY_SIZE)
+#define  MAX_BAR1_IOREMAP_SIZE  (16 * OCTEON_BAR1_ENTRY_SIZE)
 
 /* Response lists - 1 ordered, 1 unordered-blocking, 1 unordered-nonblocking
  * NoResponse Lists are now maintained with each IQ. (Dec' 2007).

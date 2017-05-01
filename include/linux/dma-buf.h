@@ -39,23 +39,6 @@ struct dma_buf_attachment;
 
 /**
  * struct dma_buf_ops - operations possible on struct dma_buf
- * @attach: [optional] allows different devices to 'attach' themselves to the
- *	    given buffer. It might return -EBUSY to signal that backing storage
- *	    is already allocated and incompatible with the requirements
- *	    of requesting device.
- * @detach: [optional] detach a given device from this buffer.
- * @map_dma_buf: returns list of scatter pages allocated, increases usecount
- *		 of the buffer. Requires atleast one attach to be called
- *		 before. Returned sg list should already be mapped into
- *		 _device_ address space. This call may sleep. May also return
- *		 -EINTR. Should return -EINVAL if attach hasn't been called yet.
- * @unmap_dma_buf: decreases usecount of buffer, might deallocate scatter
- *		   pages.
- * @release: release this buffer; to be called after the last dma_buf_put.
- * @begin_cpu_access: [optional] called before cpu access to invalidate cpu
- * 		      caches and allocate backing storage (if not yet done)
- * 		      respectively pin the object into memory.
- * @end_cpu_access: [optional] called after cpu access to flush caches.
  * @kmap_atomic: maps a page from the buffer into kernel address
  * 		 space, users may not block until the subsequent unmap call.
  * 		 This callback must not sleep.
@@ -63,43 +46,206 @@ struct dma_buf_attachment;
  * 		   This Callback must not sleep.
  * @kmap: maps a page from the buffer into kernel address space.
  * @kunmap: [optional] unmaps a page from the buffer.
- * @mmap: used to expose the backing storage to userspace. Note that the
- * 	  mapping needs to be coherent - if the exporter doesn't directly
- * 	  support this, it needs to fake coherency by shooting down any ptes
- * 	  when transitioning away from the cpu domain.
  * @vmap: [optional] creates a virtual mapping for the buffer into kernel
  *	  address space. Same restrictions as for vmap and friends apply.
  * @vunmap: [optional] unmaps a vmap from the buffer
  */
 struct dma_buf_ops {
+	/**
+	 * @attach:
+	 *
+	 * This is called from dma_buf_attach() to make sure that a given
+	 * &device can access the provided &dma_buf. Exporters which support
+	 * buffer objects in special locations like VRAM or device-specific
+	 * carveout areas should check whether the buffer could be move to
+	 * system memory (or directly accessed by the provided device), and
+	 * otherwise need to fail the attach operation.
+	 *
+	 * The exporter should also in general check whether the current
+	 * allocation fullfills the DMA constraints of the new device. If this
+	 * is not the case, and the allocation cannot be moved, it should also
+	 * fail the attach operation.
+	 *
+	 * Any exporter-private housekeeping data can be stored in the
+	 * &dma_buf_attachment.priv pointer.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, negative error code on failure. It might return -EBUSY
+	 * to signal that backing storage is already allocated and incompatible
+	 * with the requirements of requesting device.
+	 */
 	int (*attach)(struct dma_buf *, struct device *,
-			struct dma_buf_attachment *);
+		      struct dma_buf_attachment *);
 
+	/**
+	 * @detach:
+	 *
+	 * This is called by dma_buf_detach() to release a &dma_buf_attachment.
+	 * Provided so that exporters can clean up any housekeeping for an
+	 * &dma_buf_attachment.
+	 *
+	 * This callback is optional.
+	 */
 	void (*detach)(struct dma_buf *, struct dma_buf_attachment *);
 
-	/* For {map,unmap}_dma_buf below, any specific buffer attributes
-	 * required should get added to device_dma_parameters accessible
-	 * via dev->dma_params.
+	/**
+	 * @map_dma_buf:
+	 *
+	 * This is called by dma_buf_map_attachment() and is used to map a
+	 * shared &dma_buf into device address space, and it is mandatory. It
+	 * can only be called if @attach has been called successfully. This
+	 * essentially pins the DMA buffer into place, and it cannot be moved
+	 * any more
+	 *
+	 * This call may sleep, e.g. when the backing storage first needs to be
+	 * allocated, or moved to a location suitable for all currently attached
+	 * devices.
+	 *
+	 * Note that any specific buffer attributes required for this function
+	 * should get added to device_dma_parameters accessible via
+	 * &device.dma_params from the &dma_buf_attachment. The @attach callback
+	 * should also check these constraints.
+	 *
+	 * If this is being called for the first time, the exporter can now
+	 * choose to scan through the list of attachments for this buffer,
+	 * collate the requirements of the attached devices, and choose an
+	 * appropriate backing storage for the buffer.
+	 *
+	 * Based on enum dma_data_direction, it might be possible to have
+	 * multiple users accessing at the same time (for reading, maybe), or
+	 * any other kind of sharing that the exporter might wish to make
+	 * available to buffer-users.
+	 *
+	 * Returns:
+	 *
+	 * A &sg_table scatter list of or the backing storage of the DMA buffer,
+	 * already mapped into the device address space of the &device attached
+	 * with the provided &dma_buf_attachment.
+	 *
+	 * On failure, returns a negative error value wrapped into a pointer.
+	 * May also return -EINTR when a signal was received while being
+	 * blocked.
 	 */
 	struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
-						enum dma_data_direction);
+					 enum dma_data_direction);
+	/**
+	 * @unmap_dma_buf:
+	 *
+	 * This is called by dma_buf_unmap_attachment() and should unmap and
+	 * release the &sg_table allocated in @map_dma_buf, and it is mandatory.
+	 * It should also unpin the backing storage if this is the last mapping
+	 * of the DMA buffer, it the exporter supports backing storage
+	 * migration.
+	 */
 	void (*unmap_dma_buf)(struct dma_buf_attachment *,
-						struct sg_table *,
-						enum dma_data_direction);
+			      struct sg_table *,
+			      enum dma_data_direction);
+
 	/* TODO: Add try_map_dma_buf version, to return immed with -EBUSY
 	 * if the call would block.
 	 */
 
-	/* after final dma_buf_put() */
+	/**
+	 * @release:
+	 *
+	 * Called after the last dma_buf_put to release the &dma_buf, and
+	 * mandatory.
+	 */
 	void (*release)(struct dma_buf *);
 
+	/**
+	 * @begin_cpu_access:
+	 *
+	 * This is called from dma_buf_begin_cpu_access() and allows the
+	 * exporter to ensure that the memory is actually available for cpu
+	 * access - the exporter might need to allocate or swap-in and pin the
+	 * backing storage. The exporter also needs to ensure that cpu access is
+	 * coherent for the access direction. The direction can be used by the
+	 * exporter to optimize the cache flushing, i.e. access with a different
+	 * direction (read instead of write) might return stale or even bogus
+	 * data (e.g. when the exporter needs to copy the data to temporary
+	 * storage).
+	 *
+	 * This callback is optional.
+	 *
+	 * FIXME: This is both called through the DMA_BUF_IOCTL_SYNC command
+	 * from userspace (where storage shouldn't be pinned to avoid handing
+	 * de-factor mlock rights to userspace) and for the kernel-internal
+	 * users of the various kmap interfaces, where the backing storage must
+	 * be pinned to guarantee that the atomic kmap calls can succeed. Since
+	 * there's no in-kernel users of the kmap interfaces yet this isn't a
+	 * real problem.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. This can for
+	 * example fail when the backing storage can't be allocated. Can also
+	 * return -ERESTARTSYS or -EINTR when the call has been interrupted and
+	 * needs to be restarted.
+	 */
 	int (*begin_cpu_access)(struct dma_buf *, enum dma_data_direction);
+
+	/**
+	 * @end_cpu_access:
+	 *
+	 * This is called from dma_buf_end_cpu_access() when the importer is
+	 * done accessing the CPU. The exporter can use this to flush caches and
+	 * unpin any resources pinned in @begin_cpu_access.
+	 * The result of any dma_buf kmap calls after end_cpu_access is
+	 * undefined.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. Can return
+	 * -ERESTARTSYS or -EINTR when the call has been interrupted and needs
+	 * to be restarted.
+	 */
 	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
 	void *(*kmap_atomic)(struct dma_buf *, unsigned long);
 	void (*kunmap_atomic)(struct dma_buf *, unsigned long, void *);
 	void *(*kmap)(struct dma_buf *, unsigned long);
 	void (*kunmap)(struct dma_buf *, unsigned long, void *);
 
+	/**
+	 * @mmap:
+	 *
+	 * This callback is used by the dma_buf_mmap() function
+	 *
+	 * Note that the mapping needs to be incoherent, userspace is expected
+	 * to braket CPU access using the DMA_BUF_IOCTL_SYNC interface.
+	 *
+	 * Because dma-buf buffers have invariant size over their lifetime, the
+	 * dma-buf core checks whether a vma is too large and rejects such
+	 * mappings. The exporter hence does not need to duplicate this check.
+	 * Drivers do not need to check this themselves.
+	 *
+	 * If an exporter needs to manually flush caches and hence needs to fake
+	 * coherency for mmap support, it needs to be able to zap all the ptes
+	 * pointing at the backing storage. Now linux mm needs a struct
+	 * address_space associated with the struct file stored in vma->vm_file
+	 * to do that with the function unmap_mapping_range. But the dma_buf
+	 * framework only backs every dma_buf fd with the anon_file struct file,
+	 * i.e. all dma_bufs share the same file.
+	 *
+	 * Hence exporters need to setup their own file (and address_space)
+	 * association by setting vma->vm_file and adjusting vma->vm_pgoff in
+	 * the dma_buf mmap callback. In the specific case of a gem driver the
+	 * exporter could use the shmem file already provided by gem (and set
+	 * vm_pgoff = 0). Exporters can then zap ptes by unmapping the
+	 * corresponding range of the struct address_space associated with their
+	 * own file.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 
 	void *(*vmap)(struct dma_buf *);
@@ -124,6 +270,15 @@ struct dma_buf_ops {
  * @poll: for userspace poll support
  * @cb_excl: for userspace poll support
  * @cb_shared: for userspace poll support
+ *
+ * This represents a shared buffer, created by calling dma_buf_export(). The
+ * userspace representation is a normal file descriptor, which can be created by
+ * calling dma_buf_fd().
+ *
+ * Shared dma buffers are reference counted using dma_buf_put() and
+ * get_dma_buf().
+ *
+ * Device DMA access is handled by the separate &struct dma_buf_attachment.
  */
 struct dma_buf {
 	size_t size;
@@ -160,6 +315,11 @@ struct dma_buf {
  * This structure holds the attachment information between the dma_buf buffer
  * and its user device(s). The list contains one attachment struct per device
  * attached to the buffer.
+ *
+ * An attachment is created by calling dma_buf_attach(), and released again by
+ * calling dma_buf_detach(). The DMA mapping itself needed to initiate a
+ * transfer is created by dma_buf_map_attachment() and freed again by calling
+ * dma_buf_unmap_attachment().
  */
 struct dma_buf_attachment {
 	struct dma_buf *dmabuf;
@@ -192,9 +352,11 @@ struct dma_buf_export_info {
 };
 
 /**
- * helper macro for exporters; zeros and fills in most common values
- *
+ * DEFINE_DMA_BUF_EXPORT_INFO - helper macro for exporters
  * @name: export-info name
+ *
+ * DEFINE_DMA_BUF_EXPORT_INFO macro defines the &struct dma_buf_export_info,
+ * zeroes it out and pre-populates exp_name in it.
  */
 #define DEFINE_DMA_BUF_EXPORT_INFO(name)	\
 	struct dma_buf_export_info name = { .exp_name = KBUILD_MODNAME, \

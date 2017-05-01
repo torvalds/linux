@@ -24,6 +24,9 @@
 #include <linux/efi.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
@@ -339,7 +342,7 @@ static void entry_task_switch(struct task_struct *next)
 /*
  * Thread switching.
  */
-struct task_struct *__switch_to(struct task_struct *prev,
+__notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next)
 {
 	struct task_struct *last;
@@ -407,7 +410,7 @@ unsigned long arch_align_stack(unsigned long sp)
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
 	if (is_compat_task())
-		return randomize_page(mm->brk, 0x02000000);
+		return randomize_page(mm->brk, SZ_32M);
 	else
-		return randomize_page(mm->brk, 0x40000000);
+		return randomize_page(mm->brk, SZ_1G);
 }

@@ -211,7 +211,7 @@ do {									\
 	case 1: __get_user_asm(x, ptr, retval, "l.lbz"); break;		\
 	case 2: __get_user_asm(x, ptr, retval, "l.lhz"); break;		\
 	case 4: __get_user_asm(x, ptr, retval, "l.lwz"); break;		\
-	case 8: __get_user_asm2(x, ptr, retval);			\
+	case 8: __get_user_asm2(x, ptr, retval); break;			\
 	default: (x) = __get_user_bad();				\
 	}								\
 } while (0)

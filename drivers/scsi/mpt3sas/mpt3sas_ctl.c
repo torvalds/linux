@@ -826,16 +826,18 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 			"TASK_MGMT: handle(0x%04x), task_type(0x%02x)\n",
 			ioc->name,
 		    le16_to_cpu(tm_request->DevHandle), tm_request->TaskType));
-
+		ioc->got_task_abort_from_ioctl = 1;
 		if (tm_request->TaskType ==
 		    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK ||
 		    tm_request->TaskType ==
 		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK) {
 			if (_ctl_set_task_mid(ioc, &karg, tm_request)) {
 				mpt3sas_base_free_smid(ioc, smid);
+				ioc->got_task_abort_from_ioctl = 0;
 				goto out;
 			}
 		}
+		ioc->got_task_abort_from_ioctl = 0;
 
 		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
 			dtmprintk(ioc, pr_info(MPT3SAS_FMT
@@ -1923,7 +1925,7 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
  *
  * This allows ownership of the specified buffer to returned to the driver,
  * allowing an application to read the buffer without fear that firmware is
- * overwritting information in the buffer.
+ * overwriting information in the buffer.
  */
 static long
 _ctl_diag_release(struct MPT3SAS_ADAPTER *ioc, void __user *arg)

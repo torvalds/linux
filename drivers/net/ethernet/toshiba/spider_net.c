@@ -1270,7 +1270,7 @@ static int spider_net_poll(struct napi_struct *napi, int budget)
 	/* if all packets are in the stack, enable interrupts and return 0 */
 	/* if not, return 1 */
 	if (packets_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, packets_done);
 		spider_net_rx_irq_on(card);
 		card->ignore_rx_ramfull = 0;
 	}

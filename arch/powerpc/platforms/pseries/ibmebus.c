@@ -136,7 +136,7 @@ static u64 ibmebus_dma_get_required_mask(struct device *dev)
 	return DMA_BIT_MASK(64);
 }
 
-static struct dma_map_ops ibmebus_dma_ops = {
+static const struct dma_map_ops ibmebus_dma_ops = {
 	.alloc              = ibmebus_alloc_coherent,
 	.free               = ibmebus_free_coherent,
 	.map_sg             = ibmebus_map_sg,
@@ -169,7 +169,7 @@ static int ibmebus_create_device(struct device_node *dn)
 		return -ENOMEM;
 
 	dev->dev.bus = &ibmebus_bus_type;
-	dev->dev.archdata.dma_ops = &ibmebus_dma_ops;
+	dev->dev.dma_ops = &ibmebus_dma_ops;
 
 	ret = of_device_add(dev);
 	if (ret)

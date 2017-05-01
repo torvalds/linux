@@ -531,8 +531,10 @@ static int max14577_parse_irq(struct max14577_muic_info *info, int irq_type)
 	case MAX14577_IRQ_INT1_ADC:
 	case MAX14577_IRQ_INT1_ADCLOW:
 	case MAX14577_IRQ_INT1_ADCERR:
-		/* Handle all of accessory except for
-		   type of charger accessory */
+		/*
+		 * Handle all of accessory except for
+		 * type of charger accessory.
+		 */
 		info->irq_adc = true;
 		return 1;
 	case MAX14577_IRQ_INT2_CHGTYP:

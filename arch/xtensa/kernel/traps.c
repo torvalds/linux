@@ -24,7 +24,9 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -481,10 +483,8 @@ void show_regs(struct pt_regs * regs)
 
 static int show_trace_cb(struct stackframe *frame, void *data)
 {
-	if (kernel_text_address(frame->pc)) {
-		pr_cont(" [<%08lx>]", frame->pc);
-		print_symbol(" %s\n", frame->pc);
-	}
+	if (kernel_text_address(frame->pc))
+		pr_cont(" [<%08lx>] %pB\n", frame->pc, (void *)frame->pc);
 	return 0;
 }
 

@@ -1,7 +1,10 @@
 /*
- * Power button driver for Medfield.
+ * Power button driver for Intel MID platforms.
  *
- * Copyright (C) 2010 Intel Corp
+ * Copyright (C) 2010,2017 Intel Corp
+ *
+ * Author: Hong Liu <hong.liu@intel.com>
+ * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,20 +14,20 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/slab.h>
-#include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/interrupt.h>
 #include <linux/mfd/intel_msic.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/slab.h>
+
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
+#include <asm/intel_scu_ipc.h>
 
 #define DRIVER_NAME "msic_power_btn"
 
@@ -36,37 +39,113 @@
  */
 #define MSIC_PWRBTNM    (1 << 0)
 
-static irqreturn_t mfld_pb_isr(int irq, void *dev_id)
+/* Intel Tangier */
+#define BCOVE_PB_LEVEL		(1 << 4)	/* 1 - release, 0 - press */
+
+/* Basin Cove PMIC */
+#define BCOVE_PBIRQ		0x02
+#define BCOVE_IRQLVL1MSK	0x0c
+#define BCOVE_PBIRQMASK		0x0d
+#define BCOVE_PBSTATUS		0x27
+
+struct mid_pb_ddata {
+	struct device *dev;
+	int irq;
+	struct input_dev *input;
+	unsigned short mirqlvl1_addr;
+	unsigned short pbstat_addr;
+	u8 pbstat_mask;
+	int (*setup)(struct mid_pb_ddata *ddata);
+};
+
+static int mid_pbstat(struct mid_pb_ddata *ddata, int *value)
 {
-	struct input_dev *input = dev_id;
+	struct input_dev *input = ddata->input;
 	int ret;
 	u8 pbstat;
 
-	ret = intel_msic_reg_read(INTEL_MSIC_PBSTATUS, &pbstat);
+	ret = intel_scu_ipc_ioread8(ddata->pbstat_addr, &pbstat);
+	if (ret)
+		return ret;
+
 	dev_dbg(input->dev.parent, "PB_INT status= %d\n", pbstat);
 
+	*value = !(pbstat & ddata->pbstat_mask);
+	return 0;
+}
+
+static int mid_irq_ack(struct mid_pb_ddata *ddata)
+{
+	return intel_scu_ipc_update_register(ddata->mirqlvl1_addr, 0, MSIC_PWRBTNM);
+}
+
+static int mrfld_setup(struct mid_pb_ddata *ddata)
+{
+	/* Unmask the PBIRQ and MPBIRQ on Tangier */
+	intel_scu_ipc_update_register(BCOVE_PBIRQ, 0, MSIC_PWRBTNM);
+	intel_scu_ipc_update_register(BCOVE_PBIRQMASK, 0, MSIC_PWRBTNM);
+
+	return 0;
+}
+
+static irqreturn_t mid_pb_isr(int irq, void *dev_id)
+{
+	struct mid_pb_ddata *ddata = dev_id;
+	struct input_dev *input = ddata->input;
+	int value = 0;
+	int ret;
+
+	ret = mid_pbstat(ddata, &value);
 	if (ret < 0) {
-		dev_err(input->dev.parent, "Read error %d while reading"
-			       " MSIC_PB_STATUS\n", ret);
+		dev_err(input->dev.parent,
+			"Read error %d while reading MSIC_PB_STATUS\n", ret);
 	} else {
-		input_event(input, EV_KEY, KEY_POWER,
-			       !(pbstat & MSIC_PB_LEVEL));
+		input_event(input, EV_KEY, KEY_POWER, value);
 		input_sync(input);
 	}
 
+	mid_irq_ack(ddata);
 	return IRQ_HANDLED;
 }
 
-static int mfld_pb_probe(struct platform_device *pdev)
+static struct mid_pb_ddata mfld_ddata = {
+	.mirqlvl1_addr	= INTEL_MSIC_IRQLVL1MSK,
+	.pbstat_addr	= INTEL_MSIC_PBSTATUS,
+	.pbstat_mask	= MSIC_PB_LEVEL,
+};
+
+static struct mid_pb_ddata mrfld_ddata = {
+	.mirqlvl1_addr	= BCOVE_IRQLVL1MSK,
+	.pbstat_addr	= BCOVE_PBSTATUS,
+	.pbstat_mask	= BCOVE_PB_LEVEL,
+	.setup	= mrfld_setup,
+};
+
+#define ICPU(model, ddata)	\
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (kernel_ulong_t)&ddata }
+
+static const struct x86_cpu_id mid_pb_cpu_ids[] = {
+	ICPU(INTEL_FAM6_ATOM_PENWELL,		mfld_ddata),
+	ICPU(INTEL_FAM6_ATOM_MERRIFIELD,	mrfld_ddata),
+	{}
+};
+
+static int mid_pb_probe(struct platform_device *pdev)
 {
+	const struct x86_cpu_id *id;
+	struct mid_pb_ddata *ddata;
 	struct input_dev *input;
 	int irq = platform_get_irq(pdev, 0);
 	int error;
 
+	id = x86_match_cpu(mid_pb_cpu_ids);
+	if (!id)
+		return -ENODEV;
+
 	if (irq < 0)
 		return -EINVAL;
 
-	input = input_allocate_device();
+	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
 		return -ENOMEM;
 
@@ -77,25 +156,36 @@ static int mfld_pb_probe(struct platform_device *pdev)
 
 	input_set_capability(input, EV_KEY, KEY_POWER);
 
-	error = request_threaded_irq(irq, NULL, mfld_pb_isr, IRQF_ONESHOT,
-				     DRIVER_NAME, input);
-	if (error) {
-		dev_err(&pdev->dev, "Unable to request irq %d for mfld power"
-				"button\n", irq);
-		goto err_free_input;
+	ddata = (struct mid_pb_ddata *)id->driver_data;
+	if (!ddata)
+		return -ENODATA;
+
+	ddata->dev = &pdev->dev;
+	ddata->irq = irq;
+	ddata->input = input;
+
+	if (ddata->setup) {
+		error = ddata->setup(ddata);
+		if (error)
+			return error;
 	}
 
-	device_init_wakeup(&pdev->dev, true);
-	dev_pm_set_wake_irq(&pdev->dev, irq);
+	error = devm_request_threaded_irq(&pdev->dev, irq, NULL, mid_pb_isr,
+					  IRQF_ONESHOT, DRIVER_NAME, ddata);
+	if (error) {
+		dev_err(&pdev->dev,
+			"Unable to request irq %d for MID power button\n", irq);
+		return error;
+	}
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(&pdev->dev, "Unable to register input dev, error "
-				"%d\n", error);
-		goto err_free_irq;
+		dev_err(&pdev->dev,
+			"Unable to register input dev, error %d\n", error);
+		return error;
 	}
 
-	platform_set_drvdata(pdev, input);
+	platform_set_drvdata(pdev, ddata);
 
 	/*
 	 * SCU firmware might send power button interrupts to IA core before
@@ -107,46 +197,39 @@ static int mfld_pb_probe(struct platform_device *pdev)
 	 * initialization. The race happens rarely. So we needn't worry
 	 * about it.
 	 */
-	error = intel_msic_reg_update(INTEL_MSIC_IRQLVL1MSK, 0, MSIC_PWRBTNM);
+	error = mid_irq_ack(ddata);
 	if (error) {
-		dev_err(&pdev->dev, "Unable to clear power button interrupt, "
-				"error: %d\n", error);
-		goto err_free_irq;
+		dev_err(&pdev->dev,
+			"Unable to clear power button interrupt, error: %d\n",
+			error);
+		return error;
 	}
 
-	return 0;
+	device_init_wakeup(&pdev->dev, true);
+	dev_pm_set_wake_irq(&pdev->dev, irq);
 
-err_free_irq:
-	free_irq(irq, input);
-err_free_input:
-	input_free_device(input);
-	return error;
+	return 0;
 }
 
-static int mfld_pb_remove(struct platform_device *pdev)
+static int mid_pb_remove(struct platform_device *pdev)
 {
-	struct input_dev *input = platform_get_drvdata(pdev);
-	int irq = platform_get_irq(pdev, 0);
-
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
-	free_irq(irq, input);
-	input_unregister_device(input);
 
 	return 0;
 }
 
-static struct platform_driver mfld_pb_driver = {
+static struct platform_driver mid_pb_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 	},
-	.probe	= mfld_pb_probe,
-	.remove	= mfld_pb_remove,
+	.probe	= mid_pb_probe,
+	.remove	= mid_pb_remove,
 };
 
-module_platform_driver(mfld_pb_driver);
+module_platform_driver(mid_pb_driver);
 
 MODULE_AUTHOR("Hong Liu <hong.liu@intel.com>");
-MODULE_DESCRIPTION("Intel Medfield Power Button Driver");
+MODULE_DESCRIPTION("Intel MID Power Button Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);

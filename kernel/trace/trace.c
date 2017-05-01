@@ -260,16 +260,8 @@ unsigned long long ns2usecs(u64 nsec)
 	TRACE_ITER_EVENT_FORK
 
 /*
- * The global_trace is the descriptor that holds the tracing
- * buffers for the live tracing. For each CPU, it contains
- * a link list of pages that will store trace entries. The
- * page descriptor of the pages in the memory is used to hold
- * the link list by linking the lru item in the page descriptor
- * to each of the pages in the buffer per CPU.
- *
- * For each active CPU there is a data field that holds the
- * pages for the buffer for that CPU. Each CPU has the same number
- * of pages allocated for its buffer.
+ * The global_trace is the descriptor that holds the top-level tracing
+ * buffers for the live tracing.
  */
 static struct trace_array global_trace = {
 	.trace_flags = TRACE_DEFAULT_FLAGS,
@@ -1193,6 +1185,7 @@ int trace_parser_get_init(struct trace_parser *parser, int size)
 void trace_parser_put(struct trace_parser *parser)
 {
 	kfree(parser->buffer);
+	parser->buffer = NULL;
 }
 
 /*
@@ -4348,22 +4341,22 @@ static const char readme_msg[] =
 	"\t\t\t  traces\n"
 #endif
 #endif /* CONFIG_STACK_TRACER */
-#ifdef CONFIG_KPROBE_EVENT
+#ifdef CONFIG_KPROBE_EVENTS
 	"  kprobe_events\t\t- Add/remove/show the kernel dynamic events\n"
 	"\t\t\t  Write into this file to define/undefine new trace events.\n"
 #endif
-#ifdef CONFIG_UPROBE_EVENT
+#ifdef CONFIG_UPROBE_EVENTS
 	"  uprobe_events\t\t- Add/remove/show the userspace dynamic events\n"
 	"\t\t\t  Write into this file to define/undefine new trace events.\n"
 #endif
-#if defined(CONFIG_KPROBE_EVENT) || defined(CONFIG_UPROBE_EVENT)
+#if defined(CONFIG_KPROBE_EVENTS) || defined(CONFIG_UPROBE_EVENTS)
 	"\t  accepts: event-definitions (one definition per line)\n"
 	"\t   Format: p|r[:[<group>/]<event>] <place> [<args>]\n"
 	"\t           -:[<group>/]<event>\n"
-#ifdef CONFIG_KPROBE_EVENT
+#ifdef CONFIG_KPROBE_EVENTS
 	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
 #endif
-#ifdef CONFIG_UPROBE_EVENT
+#ifdef CONFIG_UPROBE_EVENTS
 	"\t    place: <path>:<offset>\n"
 #endif
 	"\t     args: <name>=fetcharg[:type]\n"
@@ -6740,11 +6733,13 @@ ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
 		return ret;
 
  out_reg:
+	ret = alloc_snapshot(&global_trace);
+	if (ret < 0)
+		goto out;
+
 	ret = register_ftrace_function_probe(glob, ops, count);
 
-	if (ret >= 0)
-		alloc_snapshot(&global_trace);
-
+ out:
 	return ret < 0 ? ret : 0;
 }
 
@@ -7409,6 +7404,7 @@ static int instance_rmdir(const char *name)
 
 	tracing_set_nop(tr);
 	event_trace_del_tracer(tr);
+	ftrace_clear_pids(tr);
 	ftrace_destroy_function_files(tr);
 	tracefs_remove_recursive(tr->dir);
 	free_trace_buffers(tr);
@@ -7503,7 +7499,7 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 	ftrace_init_tracefs(tr, d_tracer);
 }
 
-static struct vfsmount *trace_automount(void *ingore)
+static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
 {
 	struct vfsmount *mnt;
 	struct file_system_type *type;
@@ -7516,7 +7512,7 @@ static struct vfsmount *trace_automount(void *ingore)
 	type = get_fs_type("tracefs");
 	if (!type)
 		return NULL;
-	mnt = vfs_kern_mount(type, 0, "tracefs", NULL);
+	mnt = vfs_submount(mntpt, type, "tracefs", NULL);
 	put_filesystem(type);
 	if (IS_ERR(mnt))
 		return NULL;

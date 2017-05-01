@@ -314,9 +314,11 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		netif_tx_unlock_bh(dev);
 
 		skb->dev = dev;
-		if (dev_queue_xmit(skb))
-			ipoib_warn(priv, "dev_queue_xmit failed to requeue packet\n");
 
+		ret = dev_queue_xmit(skb);
+		if (ret)
+			ipoib_warn(priv, "%s:dev_queue_xmit failed to re-queue packet, ret:%d\n",
+				   __func__, ret);
 		netif_tx_lock_bh(dev);
 	}
 	netif_tx_unlock_bh(dev);
@@ -674,7 +676,7 @@ out:
 	spin_unlock_irq(&priv->lock);
 }
 
-int ipoib_mcast_start_thread(struct net_device *dev)
+void ipoib_mcast_start_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
@@ -684,8 +686,6 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	spin_lock_irqsave(&priv->lock, flags);
 	__ipoib_mcast_schedule_join_thread(priv, NULL, 0);
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
 }
 
 int ipoib_mcast_stop_thread(struct net_device *dev)

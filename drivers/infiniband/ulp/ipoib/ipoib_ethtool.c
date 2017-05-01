@@ -65,7 +65,7 @@ static void ipoib_get_drvinfo(struct net_device *netdev,
 	ib_get_device_fw_str(priv->ca, drvinfo->fw_version,
 			     sizeof(drvinfo->fw_version));
 
-	strlcpy(drvinfo->bus_info, dev_name(priv->ca->dma_device),
+	strlcpy(drvinfo->bus_info, dev_name(priv->ca->dev.parent),
 		sizeof(drvinfo->bus_info));
 
 	strlcpy(drvinfo->version, ipoib_driver_version,

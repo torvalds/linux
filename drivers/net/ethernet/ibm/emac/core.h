@@ -199,6 +199,10 @@ struct emac_instance {
 	struct emac_instance		*mdio_instance;
 	struct mutex			mdio_lock;
 
+	/* Device-tree based phy configuration */
+	struct mii_bus			*mii_bus;
+	struct phy_device		*phy_dev;
+
 	/* ZMII infos if any */
 	u32				zmii_ph;
 	u32				zmii_port;

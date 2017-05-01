@@ -26,7 +26,7 @@
 #include "amdgpu_pm.h"
 #include "amdgpu_dpm.h"
 #include "amdgpu_atombios.h"
-#include "si/sid.h"
+#include "sid.h"
 #include "r600_dpm.h"
 #include "si_dpm.h"
 #include "atom.h"
@@ -3009,29 +3009,6 @@ static int si_init_smc_spll_table(struct amdgpu_device *adev)
 	return ret;
 }
 
-struct si_dpm_quirk {
-	u32 chip_vendor;
-	u32 chip_device;
-	u32 subsys_vendor;
-	u32 subsys_device;
-	u32 max_sclk;
-	u32 max_mclk;
-};
-
-/* cards with dpm stability problems */
-static struct si_dpm_quirk si_dpm_quirk_list[] = {
-	/* PITCAIRN - https://bugs.freedesktop.org/show_bug.cgi?id=76490 */
-	{ PCI_VENDOR_ID_ATI, 0x6810, 0x1462, 0x3036, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x174b, 0xe271, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x174b, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6810, 0x174b, 0xe271, 85000, 90000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x1462, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x1043, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6811, 0x148c, 0x2015, 0, 120000 },
-	{ PCI_VENDOR_ID_ATI, 0x6810, 0x1682, 0x9275, 0, 120000 },
-	{ 0, 0, 0, 0 },
-};
-
 static u16 si_get_lower_of_leakage_and_vce_voltage(struct amdgpu_device *adev,
 						   u16 vce_voltage)
 {
@@ -3477,18 +3454,8 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	u32 max_sclk = 0, max_mclk = 0;
 	int i;
-	struct si_dpm_quirk *p = si_dpm_quirk_list;
 
-	/* limit all SI kickers */
-	if (adev->asic_type == CHIP_PITCAIRN) {
-		if ((adev->pdev->revision == 0x81) ||
-		    (adev->pdev->device == 0x6810) ||
-		    (adev->pdev->device == 0x6811) ||
-		    (adev->pdev->device == 0x6816) ||
-		    (adev->pdev->device == 0x6817) ||
-		    (adev->pdev->device == 0x6806))
-			max_mclk = 120000;
-	} else if (adev->asic_type == CHIP_HAINAN) {
+	if (adev->asic_type == CHIP_HAINAN) {
 		if ((adev->pdev->revision == 0x81) ||
 		    (adev->pdev->revision == 0x83) ||
 		    (adev->pdev->revision == 0xC3) ||
@@ -3497,18 +3464,16 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		    (adev->pdev->device == 0x6667)) {
 			max_sclk = 75000;
 		}
-	}
-	/* Apply dpm quirks */
-	while (p && p->chip_device != 0) {
-		if (adev->pdev->vendor == p->chip_vendor &&
-		    adev->pdev->device == p->chip_device &&
-		    adev->pdev->subsystem_vendor == p->subsys_vendor &&
-		    adev->pdev->subsystem_device == p->subsys_device) {
-			max_sclk = p->max_sclk;
-			max_mclk = p->max_mclk;
-			break;
+	} else if (adev->asic_type == CHIP_OLAND) {
+		if ((adev->pdev->revision == 0xC7) ||
+		    (adev->pdev->revision == 0x80) ||
+		    (adev->pdev->revision == 0x81) ||
+		    (adev->pdev->revision == 0x83) ||
+		    (adev->pdev->revision == 0x87) ||
+		    (adev->pdev->device == 0x6604) ||
+		    (adev->pdev->device == 0x6605)) {
+			max_sclk = 75000;
 		}
-		++p;
 	}
 
 	if (rps->vce_active) {
@@ -3906,25 +3871,25 @@ static int si_restrict_performance_levels_before_switch(struct amdgpu_device *ad
 }
 
 static int si_dpm_force_performance_level(struct amdgpu_device *adev,
-				   enum amdgpu_dpm_forced_level level)
+				   enum amd_dpm_forced_level level)
 {
 	struct amdgpu_ps *rps = adev->pm.dpm.current_ps;
 	struct  si_ps *ps = si_get_ps(rps);
 	u32 levels = ps->performance_level_count;
 
-	if (level == AMDGPU_DPM_FORCED_LEVEL_HIGH) {
+	if (level == AMD_DPM_FORCED_LEVEL_HIGH) {
 		if (si_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
 			return -EINVAL;
 
 		if (si_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_SetForcedLevels, 1) != PPSMC_Result_OK)
 			return -EINVAL;
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_LOW) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_LOW) {
 		if (si_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
 
 		if (si_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_SetEnabledLevels, 1) != PPSMC_Result_OK)
 			return -EINVAL;
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_AUTO) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_AUTO) {
 		if (si_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
 
@@ -7746,7 +7711,7 @@ static int si_dpm_sw_init(void *handle)
 	/* default to balanced state */
 	adev->pm.dpm.state = POWER_STATE_TYPE_BALANCED;
 	adev->pm.dpm.user_state = POWER_STATE_TYPE_BALANCED;
-	adev->pm.dpm.forced_level = AMDGPU_DPM_FORCED_LEVEL_AUTO;
+	adev->pm.dpm.forced_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	adev->pm.default_sclk = adev->clock.default_sclk;
 	adev->pm.default_mclk = adev->clock.default_mclk;
 	adev->pm.current_sclk = adev->clock.default_sclk;
@@ -8072,11 +8037,3 @@ static void si_dpm_set_irq_funcs(struct amdgpu_device *adev)
 	adev->pm.dpm.thermal.irq.funcs = &si_dpm_irq_funcs;
 }
 
-const struct amdgpu_ip_block_version si_dpm_ip_block =
-{
-	.type = AMD_IP_BLOCK_TYPE_SMC,
-	.major = 6,
-	.minor = 0,
-	.rev = 0,
-	.funcs = &si_dpm_ip_funcs,
-};

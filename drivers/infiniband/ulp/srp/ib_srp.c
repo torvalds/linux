@@ -40,6 +40,7 @@
 #include <linux/parser.h>
 #include <linux/random.h>
 #include <linux/jiffies.h>
+#include <linux/lockdep.h>
 #include <rdma/ib_cache.h>
 
 #include <linux/atomic.h>
@@ -371,7 +372,6 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	struct srp_fr_desc *d;
 	struct ib_mr *mr;
 	int i, ret = -EINVAL;
-	enum ib_mr_type mr_type;
 
 	if (pool_size <= 0)
 		goto err;
@@ -385,13 +385,9 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	spin_lock_init(&pool->lock);
 	INIT_LIST_HEAD(&pool->free_list);
 
-	if (device->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
-		mr_type = IB_MR_TYPE_SG_GAPS;
-	else
-		mr_type = IB_MR_TYPE_MEM_REG;
-
 	for (i = 0, d = &pool->desc[0]; i < pool->size; i++, d++) {
-		mr = ib_alloc_mr(pd, mr_type, max_page_list_len);
+		mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
+				 max_page_list_len);
 		if (IS_ERR(mr)) {
 			ret = PTR_ERR(mr);
 			if (ret == -ENOMEM)
@@ -470,9 +466,13 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
  * completion handler can access the queue pair while it is
  * being destroyed.
  */
-static void srp_destroy_qp(struct ib_qp *qp)
+static void srp_destroy_qp(struct srp_rdma_ch *ch, struct ib_qp *qp)
 {
-	ib_drain_rq(qp);
+	spin_lock_irq(&ch->lock);
+	ib_process_cq_direct(ch->send_cq, -1);
+	spin_unlock_irq(&ch->lock);
+
+	ib_drain_qp(qp);
 	ib_destroy_qp(qp);
 }
 
@@ -546,7 +546,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	}
 
 	if (ch->qp)
-		srp_destroy_qp(ch->qp);
+		srp_destroy_qp(ch, ch->qp);
 	if (ch->recv_cq)
 		ib_free_cq(ch->recv_cq);
 	if (ch->send_cq)
@@ -570,7 +570,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	return 0;
 
 err_qp:
-	srp_destroy_qp(qp);
+	srp_destroy_qp(ch, qp);
 
 err_send_cq:
 	ib_free_cq(send_cq);
@@ -613,7 +613,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 			ib_destroy_fmr_pool(ch->fmr_pool);
 	}
 
-	srp_destroy_qp(ch->qp);
+	srp_destroy_qp(ch, ch->qp);
 	ib_free_cq(ch->send_cq);
 	ib_free_cq(ch->recv_cq);
 
@@ -1804,6 +1804,8 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 	s32 rsv = (iu_type == SRP_IU_TSK_MGMT) ? 0 : SRP_TSK_MGMT_SQ_SIZE;
 	struct srp_iu *iu;
 
+	lockdep_assert_held(&ch->lock);
+
 	ib_process_cq_direct(ch->send_cq, -1);
 
 	if (list_empty(&ch->free_tx))
@@ -1824,6 +1826,11 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 	return iu;
 }
 
+/*
+ * Note: if this function is called from inside ib_drain_sq() then it will
+ * be called without ch->lock being held. If ib_drain_sq() dequeues a WQE
+ * with status IB_WC_SUCCESS then that's a bug.
+ */
 static void srp_send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct srp_iu *iu = container_of(wc->wr_cqe, struct srp_iu, cqe);
@@ -1833,6 +1840,8 @@ static void srp_send_done(struct ib_cq *cq, struct ib_wc *wc)
 		srp_handle_qp_err(cq, wc, "SEND");
 		return;
 	}
+
+	lockdep_assert_held(&ch->lock);
 
 	list_add(&iu->list, &ch->free_tx);
 }
@@ -1889,17 +1898,24 @@ static void srp_process_rsp(struct srp_rdma_ch *ch, struct srp_rsp *rsp)
 	if (unlikely(rsp->tag & SRP_TAG_TSK_MGMT)) {
 		spin_lock_irqsave(&ch->lock, flags);
 		ch->req_lim += be32_to_cpu(rsp->req_lim_delta);
+		if (rsp->tag == ch->tsk_mgmt_tag) {
+			ch->tsk_mgmt_status = -1;
+			if (be32_to_cpu(rsp->resp_data_len) >= 4)
+				ch->tsk_mgmt_status = rsp->data[3];
+			complete(&ch->tsk_mgmt_done);
+		} else {
+			shost_printk(KERN_ERR, target->scsi_host,
+				     "Received tsk mgmt response too late for tag %#llx\n",
+				     rsp->tag);
+		}
 		spin_unlock_irqrestore(&ch->lock, flags);
-
-		ch->tsk_mgmt_status = -1;
-		if (be32_to_cpu(rsp->resp_data_len) >= 4)
-			ch->tsk_mgmt_status = rsp->data[3];
-		complete(&ch->tsk_mgmt_done);
 	} else {
 		scmnd = scsi_host_find_tag(target->scsi_host, rsp->tag);
-		if (scmnd) {
+		if (scmnd && scmnd->host_scribble) {
 			req = (void *)scmnd->host_scribble;
 			scmnd = srp_claim_req(ch, req, NULL, scmnd);
+		} else {
+			scmnd = NULL;
 		}
 		if (!scmnd) {
 			shost_printk(KERN_ERR, target->scsi_host,
@@ -2531,18 +2547,17 @@ srp_change_queue_depth(struct scsi_device *sdev, int qdepth)
 }
 
 static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag, u64 lun,
-			     u8 func)
+			     u8 func, u8 *status)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_rport *rport = target->rport;
 	struct ib_device *dev = target->srp_host->srp_dev->dev;
 	struct srp_iu *iu;
 	struct srp_tsk_mgmt *tsk_mgmt;
+	int res;
 
 	if (!ch->connected || target->qp_in_error)
 		return -1;
-
-	init_completion(&ch->tsk_mgmt_done);
 
 	/*
 	 * Lock the rport mutex to avoid that srp_create_ch_ib() is
@@ -2566,9 +2581,15 @@ static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag, u64 lun,
 
 	tsk_mgmt->opcode 	= SRP_TSK_MGMT;
 	int_to_scsilun(lun, &tsk_mgmt->lun);
-	tsk_mgmt->tag		= req_tag | SRP_TAG_TSK_MGMT;
 	tsk_mgmt->tsk_mgmt_func = func;
 	tsk_mgmt->task_tag	= req_tag;
+
+	spin_lock_irq(&ch->lock);
+	ch->tsk_mgmt_tag = (ch->tsk_mgmt_tag + 1) | SRP_TAG_TSK_MGMT;
+	tsk_mgmt->tag = ch->tsk_mgmt_tag;
+	spin_unlock_irq(&ch->lock);
+
+	init_completion(&ch->tsk_mgmt_done);
 
 	ib_dma_sync_single_for_device(dev, iu->dma, sizeof *tsk_mgmt,
 				      DMA_TO_DEVICE);
@@ -2578,13 +2599,15 @@ static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag, u64 lun,
 
 		return -1;
 	}
+	res = wait_for_completion_timeout(&ch->tsk_mgmt_done,
+					msecs_to_jiffies(SRP_ABORT_TIMEOUT_MS));
+	if (res > 0 && status)
+		*status = ch->tsk_mgmt_status;
 	mutex_unlock(&rport->mutex);
 
-	if (!wait_for_completion_timeout(&ch->tsk_mgmt_done,
-					 msecs_to_jiffies(SRP_ABORT_TIMEOUT_MS)))
-		return -1;
+	WARN_ON_ONCE(res < 0);
 
-	return 0;
+	return res > 0 ? 0 : -1;
 }
 
 static int srp_abort(struct scsi_cmnd *scmnd)
@@ -2610,7 +2633,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 	shost_printk(KERN_ERR, target->scsi_host,
 		     "Sending SRP abort for tag %#x\n", tag);
 	if (srp_send_tsk_mgmt(ch, tag, scmnd->device->lun,
-			      SRP_TSK_ABORT_TASK) == 0)
+			      SRP_TSK_ABORT_TASK, NULL) == 0)
 		ret = SUCCESS;
 	else if (target->rport->state == SRP_RPORT_LOST)
 		ret = FAST_IO_FAIL;
@@ -2628,14 +2651,15 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
 	struct srp_rdma_ch *ch;
 	int i;
+	u8 status;
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP reset_device called\n");
 
 	ch = &target->ch[0];
 	if (srp_send_tsk_mgmt(ch, SRP_TAG_NO_REQ, scmnd->device->lun,
-			      SRP_TSK_LUN_RESET))
+			      SRP_TSK_LUN_RESET, &status))
 		return FAILED;
-	if (ch->tsk_mgmt_status)
+	if (status)
 		return FAILED;
 
 	for (i = 0; i < target->ch_count; i++) {
@@ -2664,9 +2688,8 @@ static int srp_slave_alloc(struct scsi_device *sdev)
 	struct Scsi_Host *shost = sdev->host;
 	struct srp_target_port *target = host_to_target(shost);
 	struct srp_device *srp_dev = target->srp_host->srp_dev;
-	struct ib_device *ibdev = srp_dev->dev;
 
-	if (!(ibdev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+	if (true)
 		blk_queue_virt_boundary(sdev->request_queue,
 					~srp_dev->mr_page_mask);
 
@@ -2869,6 +2892,7 @@ static struct scsi_host_template srp_template = {
 	.info				= srp_target_info,
 	.queuecommand			= srp_queuecommand,
 	.change_queue_depth             = srp_change_queue_depth,
+	.eh_timed_out			= srp_timed_out,
 	.eh_abort_handler		= srp_abort,
 	.eh_device_reset_handler	= srp_reset_device,
 	.eh_host_reset_handler		= srp_reset_host,
@@ -2909,7 +2933,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	sprintf(target->target_name, "SRP.T10:%016llX",
 		be64_to_cpu(target->id_ext));
 
-	if (scsi_add_host(target->scsi_host, host->srp_dev->dev->dma_device))
+	if (scsi_add_host(target->scsi_host, host->srp_dev->dev->dev.parent))
 		return -ENODEV;
 
 	memcpy(ids.port_id, &target->id_ext, 8);
@@ -3421,11 +3445,12 @@ static ssize_t srp_create_target(struct device *dev,
 			ret = srp_connect_ch(ch, multich);
 			if (ret) {
 				shost_printk(KERN_ERR, target->scsi_host,
-					     PFX "Connection %d/%d failed\n",
+					     PFX "Connection %d/%d to %pI6 failed\n",
 					     ch_start + cpu_idx,
-					     target->ch_count);
+					     target->ch_count,
+					     ch->target->orig_dgid.raw);
 				if (node_idx == 0 && cpu_idx == 0) {
-					goto err_disconnect;
+					goto free_ch;
 				} else {
 					srp_free_ch_ib(target, ch);
 					srp_free_req_data(target, ch);
@@ -3472,6 +3497,7 @@ put:
 err_disconnect:
 	srp_disconnect_target(target);
 
+free_ch:
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
 		srp_free_ch_ib(target, ch);
@@ -3520,7 +3546,7 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 	host->port = port;
 
 	host->dev.class = &srp_class;
-	host->dev.parent = device->dev->dma_device;
+	host->dev.parent = device->dev->dev.parent;
 	dev_set_name(&host->dev, "srp-%s-%d", device->dev->name, port);
 
 	if (device_register(&host->dev))

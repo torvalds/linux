@@ -421,6 +421,10 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->aborted_task()\n");
 		return -EINVAL;
 	}
+	if (!tfo->check_stop_free) {
+		pr_err("Missing tfo->check_stop_free()\n");
+		return -EINVAL;
+	}
 	/*
 	 * We at least require tfo->fabric_make_wwn(), tfo->fabric_drop_wwn()
 	 * tfo->fabric_make_tpg() and tfo->fabric_drop_tpg() in
@@ -2388,7 +2392,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_show(struct config_item *item,
 		char *page)
 {
 	return sprintf(page, "%d\n",
-		atomic_read(&to_tg_pt_gp(item)->tg_pt_gp_alua_access_state));
+		       to_tg_pt_gp(item)->tg_pt_gp_alua_access_state);
 }
 
 static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,

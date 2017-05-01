@@ -13,10 +13,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -24,13 +20,14 @@
   Maintainer: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mii.h>
-#include <linux/phy.h>
-#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
-#include <asm/io.h>
+#include <linux/phy.h>
+#include <linux/slab.h>
 
 #include "stmmac.h"
 
@@ -41,22 +38,6 @@
 #define MII_GMAC4_GOC_SHIFT		2
 #define MII_GMAC4_WRITE			(1 << MII_GMAC4_GOC_SHIFT)
 #define MII_GMAC4_READ			(3 << MII_GMAC4_GOC_SHIFT)
-
-static int stmmac_mdio_busy_wait(void __iomem *ioaddr, unsigned int mii_addr)
-{
-	unsigned long curr;
-	unsigned long finish = jiffies + 3 * HZ;
-
-	do {
-		curr = jiffies;
-		if (readl(ioaddr + mii_addr) & MII_BUSY)
-			cpu_relax();
-		else
-			return 0;
-	} while (!time_after_eq(curr, finish));
-
-	return -EBUSY;
-}
 
 /**
  * stmmac_mdio_read
@@ -74,7 +55,7 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned int mii_address = priv->hw->mii.addr;
 	unsigned int mii_data = priv->hw->mii.data;
-
+	u32 v;
 	int data;
 	u32 value = MII_BUSY;
 
@@ -86,12 +67,14 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	if (priv->plat->has_gmac4)
 		value |= MII_GMAC4_READ;
 
-	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
+	if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+			       100, 10000))
 		return -EBUSY;
 
 	writel(value, priv->ioaddr + mii_address);
 
-	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
+	if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+			       100, 10000))
 		return -EBUSY;
 
 	/* Read the data from the MII data register */
@@ -115,7 +98,7 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned int mii_address = priv->hw->mii.addr;
 	unsigned int mii_data = priv->hw->mii.data;
-
+	u32 v;
 	u32 value = MII_BUSY;
 
 	value |= (phyaddr << priv->hw->mii.addr_shift)
@@ -130,7 +113,8 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 		value |= MII_WRITE;
 
 	/* Wait until any existing MII operation is complete */
-	if (stmmac_mdio_busy_wait(priv->ioaddr, mii_address))
+	if (readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+			       100, 10000))
 		return -EBUSY;
 
 	/* Set the MII address register to write */
@@ -138,7 +122,8 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	writel(value, priv->ioaddr + mii_address);
 
 	/* Wait until any existing MII operation is complete */
-	return stmmac_mdio_busy_wait(priv->ioaddr, mii_address);
+	return readl_poll_timeout(priv->ioaddr + mii_address, v, !(v & MII_BUSY),
+				  100, 10000);
 }
 
 /**
@@ -156,9 +141,9 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node) {
-
 		if (data->reset_gpio < 0) {
 			struct device_node *np = priv->device->of_node;
+
 			if (!np)
 				return 0;
 
@@ -198,7 +183,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 
 	/* This is a workaround for problems with the STE101P PHY.
 	 * It doesn't complete its reset until at least one clock cycle
-	 * on MDC, so perform a dummy mdio read. To be upadted for GMAC4
+	 * on MDC, so perform a dummy mdio read. To be updated for GMAC4
 	 * if needed.
 	 */
 	if (!priv->plat->has_gmac4)
@@ -225,7 +210,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		return 0;
 
 	new_bus = mdiobus_alloc();
-	if (new_bus == NULL)
+	if (!new_bus)
 		return -ENOMEM;
 
 	if (mdio_bus_data->irqs)
@@ -262,49 +247,48 @@ int stmmac_mdio_register(struct net_device *ndev)
 	found = 0;
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
-		if (phydev) {
-			int act = 0;
-			char irq_num[4];
-			char *irq_str;
+		int act = 0;
+		char irq_num[4];
+		char *irq_str;
 
-			/*
-			 * If an IRQ was provided to be assigned after
-			 * the bus probe, do it here.
-			 */
-			if ((mdio_bus_data->irqs == NULL) &&
-			    (mdio_bus_data->probed_phy_irq > 0)) {
-				new_bus->irq[addr] =
-					mdio_bus_data->probed_phy_irq;
-				phydev->irq = mdio_bus_data->probed_phy_irq;
-			}
+		if (!phydev)
+			continue;
 
-			/*
-			 * If we're going to bind the MAC to this PHY bus,
-			 * and no PHY number was provided to the MAC,
-			 * use the one probed here.
-			 */
-			if (priv->plat->phy_addr == -1)
-				priv->plat->phy_addr = addr;
-
-			act = (priv->plat->phy_addr == addr);
-			switch (phydev->irq) {
-			case PHY_POLL:
-				irq_str = "POLL";
-				break;
-			case PHY_IGNORE_INTERRUPT:
-				irq_str = "IGNORE";
-				break;
-			default:
-				sprintf(irq_num, "%d", phydev->irq);
-				irq_str = irq_num;
-				break;
-			}
-			netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
-				    phydev->phy_id, addr,
-				    irq_str, phydev_name(phydev),
-				    act ? " active" : "");
-			found = 1;
+		/*
+		 * If an IRQ was provided to be assigned after
+		 * the bus probe, do it here.
+		 */
+		if (!mdio_bus_data->irqs &&
+		    (mdio_bus_data->probed_phy_irq > 0)) {
+			new_bus->irq[addr] = mdio_bus_data->probed_phy_irq;
+			phydev->irq = mdio_bus_data->probed_phy_irq;
 		}
+
+		/*
+		 * If we're going to bind the MAC to this PHY bus,
+		 * and no PHY number was provided to the MAC,
+		 * use the one probed here.
+		 */
+		if (priv->plat->phy_addr == -1)
+			priv->plat->phy_addr = addr;
+
+		act = (priv->plat->phy_addr == addr);
+		switch (phydev->irq) {
+		case PHY_POLL:
+			irq_str = "POLL";
+			break;
+		case PHY_IGNORE_INTERRUPT:
+			irq_str = "IGNORE";
+			break;
+		default:
+			sprintf(irq_num, "%d", phydev->irq);
+			irq_str = irq_num;
+			break;
+		}
+		netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
+			    phydev->phy_id, addr, irq_str, phydev_name(phydev),
+			    act ? " active" : "");
+		found = 1;
 	}
 
 	if (!found && !mdio_node) {

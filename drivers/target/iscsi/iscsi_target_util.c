@@ -417,6 +417,7 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
 
 	return NULL;
 }
+EXPORT_SYMBOL(iscsit_find_cmd_from_itt_or_dump);
 
 struct iscsi_cmd *iscsit_find_cmd_from_ttt(
 	struct iscsi_conn *conn,
@@ -566,7 +567,7 @@ static void iscsit_remove_cmd_from_immediate_queue(
 	}
 }
 
-void iscsit_add_cmd_to_response_queue(
+int iscsit_add_cmd_to_response_queue(
 	struct iscsi_cmd *cmd,
 	struct iscsi_conn *conn,
 	u8 state)
@@ -577,7 +578,7 @@ void iscsit_add_cmd_to_response_queue(
 	if (!qr) {
 		pr_err("Unable to allocate memory for"
 			" struct iscsi_queue_req\n");
-		return;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&qr->qr_list);
 	qr->cmd = cmd;
@@ -589,6 +590,7 @@ void iscsit_add_cmd_to_response_queue(
 	spin_unlock_bh(&conn->response_queue_lock);
 
 	wake_up(&conn->queues_wq);
+	return 0;
 }
 
 struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *conn)
@@ -736,21 +738,23 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = NULL;
 	int rc;
+	bool op_scsi = false;
 	/*
 	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		se_cmd = &cmd->se_cmd;
-		__iscsit_free_cmd(cmd, true, shutdown);
+		op_scsi = true;
 		/*
 		 * Fallthrough
 		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
-		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
-			__iscsit_free_cmd(cmd, true, shutdown);
+		se_cmd = &cmd->se_cmd;
+		__iscsit_free_cmd(cmd, op_scsi, shutdown);
+		rc = transport_generic_free_cmd(se_cmd, shutdown);
+		if (!rc && shutdown && se_cmd->se_sess) {
+			__iscsit_free_cmd(cmd, op_scsi, shutdown);
 			target_put_sess_cmd(se_cmd);
 		}
 		break;
@@ -1304,39 +1308,6 @@ static int iscsit_do_rx_data(
 	return total_rx;
 }
 
-static int iscsit_do_tx_data(
-	struct iscsi_conn *conn,
-	struct iscsi_data_count *count)
-{
-	int ret, iov_len;
-	struct kvec *iov_p;
-	struct msghdr msg;
-
-	if (!conn || !conn->sock || !conn->conn_ops)
-		return -1;
-
-	if (count->data_length <= 0) {
-		pr_err("Data length is: %d\n", count->data_length);
-		return -1;
-	}
-
-	memset(&msg, 0, sizeof(struct msghdr));
-
-	iov_p = count->iov;
-	iov_len = count->iov_count;
-
-	ret = kernel_sendmsg(conn->sock, &msg, iov_p, iov_len,
-			     count->data_length);
-	if (ret != count->data_length) {
-		pr_err("Unexpected ret: %d send data %d\n",
-		       ret, count->data_length);
-		return -EPIPE;
-	}
-	pr_debug("ret: %d, sent data: %d\n", ret, count->data_length);
-
-	return ret;
-}
-
 int rx_data(
 	struct iscsi_conn *conn,
 	struct kvec *iov,
@@ -1363,45 +1334,35 @@ int tx_data(
 	int iov_count,
 	int data)
 {
-	struct iscsi_data_count c;
+	struct msghdr msg;
+	int total_tx = 0;
 
 	if (!conn || !conn->sock || !conn->conn_ops)
 		return -1;
 
-	memset(&c, 0, sizeof(struct iscsi_data_count));
-	c.iov = iov;
-	c.iov_count = iov_count;
-	c.data_length = data;
-	c.type = ISCSI_TX_DATA;
+	if (data <= 0) {
+		pr_err("Data length is: %d\n", data);
+		return -1;
+	}
 
-	return iscsit_do_tx_data(conn, &c);
-}
+	memset(&msg, 0, sizeof(struct msghdr));
 
-static bool sockaddr_equal(struct sockaddr_storage *x, struct sockaddr_storage *y)
-{
-	switch (x->ss_family) {
-	case AF_INET: {
-		struct sockaddr_in *sinx = (struct sockaddr_in *)x;
-		struct sockaddr_in *siny = (struct sockaddr_in *)y;
-		if (sinx->sin_addr.s_addr != siny->sin_addr.s_addr)
-			return false;
-		if (sinx->sin_port != siny->sin_port)
-			return false;
-		break;
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC,
+		      iov, iov_count, data);
+
+	while (msg_data_left(&msg)) {
+		int tx_loop = sock_sendmsg(conn->sock, &msg);
+		if (tx_loop <= 0) {
+			pr_debug("tx_loop: %d total_tx %d\n",
+				tx_loop, total_tx);
+			return tx_loop;
+		}
+		total_tx += tx_loop;
+		pr_debug("tx_loop: %d, total_tx: %d, data: %d\n",
+					tx_loop, total_tx, data);
 	}
-	case AF_INET6: {
-		struct sockaddr_in6 *sinx = (struct sockaddr_in6 *)x;
-		struct sockaddr_in6 *siny = (struct sockaddr_in6 *)y;
-		if (!ipv6_addr_equal(&sinx->sin6_addr, &siny->sin6_addr))
-			return false;
-		if (sinx->sin6_port != siny->sin6_port)
-			return false;
-		break;
-	}
-	default:
-		return false;
-	}
-	return true;
+
+	return total_tx;
 }
 
 void iscsit_collect_login_stats(
@@ -1420,13 +1381,6 @@ void iscsit_collect_login_stats(
 	ls = &tiqn->login_stats;
 
 	spin_lock(&ls->lock);
-	if (sockaddr_equal(&conn->login_sockaddr, &ls->last_intr_fail_sockaddr) &&
-	    ((get_jiffies_64() - ls->last_fail_time) < 10)) {
-		/* We already have the failure info for this login */
-		spin_unlock(&ls->lock);
-		return;
-	}
-
 	if (status_class == ISCSI_STATUS_CLS_SUCCESS)
 		ls->accepts++;
 	else if (status_class == ISCSI_STATUS_CLS_REDIRECT) {
@@ -1471,10 +1425,10 @@ struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsi_conn *conn)
 {
 	struct iscsi_portal_group *tpg;
 
-	if (!conn || !conn->sess)
+	if (!conn)
 		return NULL;
 
-	tpg = conn->sess->tpg;
+	tpg = conn->tpg;
 	if (!tpg)
 		return NULL;
 

@@ -24,7 +24,7 @@
 #include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/swap.h>
 #include <linux/uio.h>
 #include <linux/writeback.h>

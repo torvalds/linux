@@ -233,6 +233,15 @@ config USB_EZUSB_FX2
 	  Say Y here if you need EZUSB device support.
 	  (Cypress FX/FX2/FX2LP microcontrollers)
 
+config USB_HUB_USB251XB
+	tristate "USB251XB Hub Controller Configuration Driver"
+	depends on I2C
+	help
+	  This option enables support for configuration via SMBus of the
+	  Microchip USB251xB/xBi USB 2.0 Hub Controller series.
+	  Configuration parameters may be set in devicetree or platform data.
+	  Say Y or M here if you need to configure such a device via SMBus.
+
 config USB_HSIC_USB3503
        tristate "USB3503 HSIC to USB20 Driver"
        depends on I2C

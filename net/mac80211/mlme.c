@@ -1486,10 +1486,6 @@ void ieee80211_recalc_ps(struct ieee80211_local *local)
 
 	if (count == 1 && ieee80211_powersave_allowed(found)) {
 		u8 dtimper = found->u.mgd.dtim_period;
-		s32 beaconint_us;
-
-		beaconint_us = ieee80211_tu_to_usec(
-					found->vif.bss_conf.beacon_int);
 
 		timeout = local->dynamic_ps_forced_timeout;
 		if (timeout < 0)
@@ -3423,14 +3419,14 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			ieee80211_cqm_rssi_notify(
 				&sdata->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
-				GFP_KERNEL);
+				sig, GFP_KERNEL);
 		} else if (sig > thold &&
 			   (last_event == 0 || sig > last_event + hyst)) {
 			ifmgd->last_cqm_event_signal = sig;
 			ieee80211_cqm_rssi_notify(
 				&sdata->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
-				GFP_KERNEL);
+				sig, GFP_KERNEL);
 		}
 	}
 
@@ -5045,13 +5041,14 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       enum nl80211_cqm_rssi_threshold_event rssi_event,
+			       s32 rssi_level,
 			       gfp_t gfp)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
-	trace_api_cqm_rssi_notify(sdata, rssi_event);
+	trace_api_cqm_rssi_notify(sdata, rssi_event, rssi_level);
 
-	cfg80211_cqm_rssi_notify(sdata->dev, rssi_event, gfp);
+	cfg80211_cqm_rssi_notify(sdata->dev, rssi_event, rssi_level, gfp);
 }
 EXPORT_SYMBOL(ieee80211_cqm_rssi_notify);
 

@@ -122,12 +122,11 @@ static int usb_internal_control_msg(struct usb_device *usb_dev,
  * This function sends a simple control message to a specified endpoint and
  * waits for the message to complete, or timeout.
  *
- * Don't use this function from within an interrupt context, like a bottom half
- * handler.  If you need an asynchronous message, or need to send a message
- * from within interrupt context, use usb_submit_urb().
- * If a thread in your driver uses this call, make sure your disconnect()
- * method can wait for it to complete.  Since you don't have a handle on the
- * URB used, you can't cancel the request.
+ * Don't use this function from within an interrupt context. If you need
+ * an asynchronous message, or need to send a message from within interrupt
+ * context, use usb_submit_urb(). If a thread in your driver uses this call,
+ * make sure your disconnect() method can wait for it to complete. Since you
+ * don't have a handle on the URB used, you can't cancel the request.
  *
  * Return: If successful, the number of bytes transferred. Otherwise, a negative
  * error number.
@@ -173,12 +172,11 @@ EXPORT_SYMBOL_GPL(usb_control_msg);
  * This function sends a simple interrupt message to a specified endpoint and
  * waits for the message to complete, or timeout.
  *
- * Don't use this function from within an interrupt context, like a bottom half
- * handler.  If you need an asynchronous message, or need to send a message
- * from within interrupt context, use usb_submit_urb() If a thread in your
- * driver uses this call, make sure your disconnect() method can wait for it to
- * complete.  Since you don't have a handle on the URB used, you can't cancel
- * the request.
+ * Don't use this function from within an interrupt context. If you need
+ * an asynchronous message, or need to send a message from within interrupt
+ * context, use usb_submit_urb() If a thread in your driver uses this call,
+ * make sure your disconnect() method can wait for it to complete. Since you
+ * don't have a handle on the URB used, you can't cancel the request.
  *
  * Return:
  * If successful, 0. Otherwise a negative error number. The number of actual
@@ -207,12 +205,11 @@ EXPORT_SYMBOL_GPL(usb_interrupt_msg);
  * This function sends a simple bulk message to a specified endpoint
  * and waits for the message to complete, or timeout.
  *
- * Don't use this function from within an interrupt context, like a bottom half
- * handler.  If you need an asynchronous message, or need to send a message
- * from within interrupt context, use usb_submit_urb() If a thread in your
- * driver uses this call, make sure your disconnect() method can wait for it to
- * complete.  Since you don't have a handle on the URB used, you can't cancel
- * the request.
+ * Don't use this function from within an interrupt context. If you need
+ * an asynchronous message, or need to send a message from within interrupt
+ * context, use usb_submit_urb() If a thread in your driver uses this call,
+ * make sure your disconnect() method can wait for it to complete. Since you
+ * don't have a handle on the URB used, you can't cancel the request.
  *
  * Because there is no usb_interrupt_msg() and no USBDEVFS_INTERRUPT ioctl,
  * users are forced to abuse this routine by using it to submit URBs for

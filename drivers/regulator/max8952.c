@@ -113,7 +113,7 @@ static int max8952_set_voltage_sel(struct regulator_dev *rdev,
 	return 0;
 }
 
-static struct regulator_ops max8952_ops = {
+static const struct regulator_ops max8952_ops = {
 	.list_voltage		= max8952_list_voltage,
 	.get_voltage_sel	= max8952_get_voltage_sel,
 	.set_voltage_sel	= max8952_set_voltage_sel,

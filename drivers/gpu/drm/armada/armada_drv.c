@@ -203,12 +203,6 @@ static int armada_drm_bind(struct device *dev)
 	armada_drm_debugfs_init(priv->drm.primary);
 #endif
 
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
-		 armada_drm_driver.name, armada_drm_driver.major,
-		 armada_drm_driver.minor, armada_drm_driver.patchlevel,
-		 armada_drm_driver.date, dev_name(dev),
-		 priv->drm.primary->index);
-
 	return 0;
 
  err_poll:

@@ -351,9 +351,6 @@ static int tenxpress_phy_reconfigure(struct ef4_nic *efx)
 	return 0;
 }
 
-static void
-tenxpress_get_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd);
-
 /* Poll for link state changes */
 static bool tenxpress_phy_poll(struct ef4_nic *efx)
 {
@@ -443,7 +440,8 @@ sfx7101_run_tests(struct ef4_nic *efx, int *results, unsigned flags)
 }
 
 static void
-tenxpress_get_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd)
+tenxpress_get_link_ksettings(struct ef4_nic *efx,
+			     struct ethtool_link_ksettings *cmd)
 {
 	u32 adv = 0, lpa = 0;
 	int reg;
@@ -455,20 +453,22 @@ tenxpress_get_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd)
 	if (reg & MDIO_AN_10GBT_STAT_LP10G)
 		lpa |= ADVERTISED_10000baseT_Full;
 
-	mdio45_ethtool_gset_npage(&efx->mdio, ecmd, adv, lpa);
+	mdio45_ethtool_ksettings_get_npage(&efx->mdio, cmd, adv, lpa);
 
 	/* In loopback, the PHY automatically brings up the correct interface,
 	 * but doesn't advertise the correct speed. So override it */
 	if (LOOPBACK_EXTERNAL(efx))
-		ethtool_cmd_speed_set(ecmd, SPEED_10000);
+		cmd->base.speed = SPEED_10000;
 }
 
-static int tenxpress_set_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd)
+static int
+tenxpress_set_link_ksettings(struct ef4_nic *efx,
+			     const struct ethtool_link_ksettings *cmd)
 {
-	if (!ecmd->autoneg)
+	if (!cmd->base.autoneg)
 		return -EINVAL;
 
-	return ef4_mdio_set_settings(efx, ecmd);
+	return ef4_mdio_set_link_ksettings(efx, cmd);
 }
 
 static void sfx7101_set_npage_adv(struct ef4_nic *efx, u32 advertising)
@@ -485,8 +485,8 @@ const struct ef4_phy_operations falcon_sfx7101_phy_ops = {
 	.poll             = tenxpress_phy_poll,
 	.fini             = sfx7101_phy_fini,
 	.remove		  = tenxpress_phy_remove,
-	.get_settings	  = tenxpress_get_settings,
-	.set_settings	  = tenxpress_set_settings,
+	.get_link_ksettings = tenxpress_get_link_ksettings,
+	.set_link_ksettings = tenxpress_set_link_ksettings,
 	.set_npage_adv    = sfx7101_set_npage_adv,
 	.test_alive	  = ef4_mdio_test_alive,
 	.test_name	  = sfx7101_test_name,

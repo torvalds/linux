@@ -362,6 +362,7 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 	int i, ret;
 
 	INIT_LIST_HEAD(&fr_pool->list);
+	INIT_LIST_HEAD(&fr_pool->all_list);
 	spin_lock_init(&fr_pool->lock);
 	fr_pool->size = 0;
 	for (i = 0; i < cmds_max; i++) {
@@ -373,6 +374,7 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 		}
 
 		list_add_tail(&desc->list, &fr_pool->list);
+		list_add_tail(&desc->all_list, &fr_pool->all_list);
 		fr_pool->size++;
 	}
 
@@ -392,13 +394,13 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 	struct iser_fr_desc *desc, *tmp;
 	int i = 0;
 
-	if (list_empty(&fr_pool->list))
+	if (list_empty(&fr_pool->all_list))
 		return;
 
 	iser_info("freeing conn %p fr pool\n", ib_conn);
 
-	list_for_each_entry_safe(desc, tmp, &fr_pool->list, list) {
-		list_del(&desc->list);
+	list_for_each_entry_safe(desc, tmp, &fr_pool->all_list, all_list) {
+		list_del(&desc->all_list);
 		iser_free_reg_res(&desc->rsc);
 		if (desc->pi_ctx)
 			iser_free_pi_ctx(desc->pi_ctx);
@@ -597,7 +599,9 @@ static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
 		  iser_conn, ib_conn->cma_id, ib_conn->qp);
 
 	if (ib_conn->qp != NULL) {
+		mutex_lock(&ig.connlist_mutex);
 		ib_conn->comp->active_qps--;
+		mutex_unlock(&ig.connlist_mutex);
 		rdma_destroy_qp(ib_conn->cma_id);
 		ib_conn->qp = NULL;
 	}

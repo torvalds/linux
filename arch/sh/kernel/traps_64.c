@@ -10,6 +10,7 @@
  * for more details.
  */
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>

@@ -82,9 +82,12 @@ void hns_mac_get_link_status(struct hns_mac_cb *mac_cb, u32 *link_status)
 	else
 		*link_status = 0;
 
-	ret = mac_cb->dsaf_dev->misc_op->get_sfp_prsnt(mac_cb, &sfp_prsnt);
-	if (!ret)
-		*link_status = *link_status && sfp_prsnt;
+	if (mac_cb->media_type == HNAE_MEDIA_TYPE_FIBER) {
+		ret = mac_cb->dsaf_dev->misc_op->get_sfp_prsnt(mac_cb,
+							       &sfp_prsnt);
+		if (!ret)
+			*link_status = *link_status && sfp_prsnt;
+	}
 
 	mac_cb->link = *link_status;
 }
@@ -855,7 +858,7 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 		of_node_put(np);
 
 		np = of_parse_phandle(to_of_node(mac_cb->fw_port),
-					"serdes-syscon", 0);
+				      "serdes-syscon", 0);
 		syscon = syscon_node_to_regmap(np);
 		of_node_put(np);
 		if (IS_ERR_OR_NULL(syscon)) {

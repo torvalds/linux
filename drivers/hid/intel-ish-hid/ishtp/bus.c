@@ -358,7 +358,7 @@ static void ishtp_cl_dev_release(struct device *dev)
 	kfree(to_ishtp_cl_device(dev));
 }
 
-static struct device_type ishtp_cl_device_type = {
+static const struct device_type ishtp_cl_device_type = {
 	.release	= ishtp_cl_dev_release,
 };
 

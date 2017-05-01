@@ -152,6 +152,8 @@ fill_fixup_dax:
 	call	sun4v_data_access_exception
 	 nop
 	ba,a,pt	%xcc, rtrap
+	 nop
 1:	call	spitfire_data_access_exception
 	 nop
 	ba,a,pt	%xcc, rtrap
+	 nop

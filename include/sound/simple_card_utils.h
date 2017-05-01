@@ -34,11 +34,12 @@ int asoc_simple_card_set_dailink_name(struct device *dev,
 int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 				     char *prefix);
 
-#define asoc_simple_card_parse_clk_cpu(node, dai_link, simple_dai)		\
-	asoc_simple_card_parse_clk(node, dai_link->cpu_of_node, simple_dai)
-#define asoc_simple_card_parse_clk_codec(node, dai_link, simple_dai)		\
-	asoc_simple_card_parse_clk(node, dai_link->codec_of_node, simple_dai)
-int asoc_simple_card_parse_clk(struct device_node *node,
+#define asoc_simple_card_parse_clk_cpu(dev, node, dai_link, simple_dai)		\
+	asoc_simple_card_parse_clk(dev, node, dai_link->cpu_of_node, simple_dai)
+#define asoc_simple_card_parse_clk_codec(dev, node, dai_link, simple_dai)	\
+	asoc_simple_card_parse_clk(dev, node, dai_link->codec_of_node, simple_dai)
+int asoc_simple_card_parse_clk(struct device *dev,
+			       struct device_node *node,
 			       struct device_node *dai_of_node,
 			       struct asoc_simple_dai *simple_dai);
 

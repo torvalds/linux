@@ -132,10 +132,6 @@ static inline u64 xgene_enet_get_field_value(int pos, int len, u64 src)
 #define GET_BIT(field, src) \
 		xgene_enet_get_field_value(field ## _POS, 1, src)
 
-static const struct of_device_id xgene_mdio_of_match[];
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id xgene_mdio_acpi_match[];
-#endif
 int xgene_mdio_rgmii_read(struct mii_bus *bus, int phy_id, int reg);
 int xgene_mdio_rgmii_write(struct mii_bus *bus, int phy_id, int reg, u16 data);
 struct phy_device *xgene_enet_phy_register(struct mii_bus *bus, int phy_addr);

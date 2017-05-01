@@ -116,7 +116,7 @@ static int blank(struct fbtft_par *par, bool on)
  * 0 = Setting of GS1 < Setting of GS2 < Setting of GS3.....<
  * Setting of GS14 < Setting of GS15
  */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i;
 

@@ -15,7 +15,9 @@
 
 #include <linux/compiler.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 #include <linux/preempt.h>
+
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
 #include <asm/proc-fns.h>

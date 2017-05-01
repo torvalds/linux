@@ -32,6 +32,10 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 {
 	const struct drm_display_mode *mode = &crtc->crtc.state->adjusted_mode;
 	struct rcar_du_device *rcdu = crtc->group->dev;
+	struct vsp1_du_lif_config cfg = {
+		.width = mode->hdisplay,
+		.height = mode->vdisplay,
+	};
 	struct rcar_du_plane_state state = {
 		.state = {
 			.crtc = &crtc->crtc,
@@ -66,12 +70,12 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 	 */
 	crtc->group->need_restart = true;
 
-	vsp1_du_setup_lif(crtc->vsp->vsp, mode->hdisplay, mode->vdisplay);
+	vsp1_du_setup_lif(crtc->vsp->vsp, &cfg);
 }
 
 void rcar_du_vsp_disable(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_setup_lif(crtc->vsp->vsp, 0, 0);
+	vsp1_du_setup_lif(crtc->vsp->vsp, NULL);
 }
 
 void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc)
@@ -201,10 +205,10 @@ static int rcar_du_vsp_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	rstate->format = rcar_du_format_info(state->fb->pixel_format);
+	rstate->format = rcar_du_format_info(state->fb->format->format);
 	if (rstate->format == NULL) {
 		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n", __func__,
-			state->fb->pixel_format);
+			state->fb->format->format);
 		return -EINVAL;
 	}
 

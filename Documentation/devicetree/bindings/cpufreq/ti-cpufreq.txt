@@ -1,0 +1,128 @@
+TI CPUFreq and OPP bindings
+================================
+
+Certain TI SoCs, like those in the am335x, am437x, am57xx, and dra7xx
+families support different OPPs depending on the silicon variant in use.
+The ti-cpufreq driver can use revision and an efuse value from the SoC to
+provide the OPP framework with supported hardware information. This is
+used to determine which OPPs from the operating-points-v2 table get enabled
+when it is parsed by the OPP framework.
+
+Required properties:
+--------------------
+In 'cpus' nodes:
+- operating-points-v2: Phandle to the operating-points-v2 table to use.
+
+In 'operating-points-v2' table:
+- compatible: Should be
+	- 'operating-points-v2-ti-cpu' for am335x, am43xx, and dra7xx/am57xx SoCs
+- syscon: A phandle pointing to a syscon node representing the control module
+	  register space of the SoC.
+
+Optional properties:
+--------------------
+For each opp entry in 'operating-points-v2' table:
+- opp-supported-hw: Two bitfields indicating:
+	1. Which revision of the SoC the OPP is supported by
+	2. Which eFuse bits indicate this OPP is available
+
+	A bitwise AND is performed against these values and if any bit
+	matches, the OPP gets enabled.
+
+Example:
+--------
+
+/* From arch/arm/boot/dts/am33xx.dtsi */
+cpus {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cpu@0 {
+		compatible = "arm,cortex-a8";
+		device_type = "cpu";
+		reg = <0>;
+
+		operating-points-v2 = <&cpu0_opp_table>;
+
+		clocks = <&dpll_mpu_ck>;
+		clock-names = "cpu";
+
+		clock-latency = <300000>; /* From omap-cpufreq driver */
+	};
+};
+
+/*
+ * cpu0 has different OPPs depending on SoC revision and some on revisions
+ * 0x2 and 0x4 have eFuse bits that indicate if they are available or not
+ */
+cpu0_opp_table: opp-table {
+	compatible = "operating-points-v2-ti-cpu";
+	syscon = <&scm_conf>;
+
+	/*
+	 * The three following nodes are marked with opp-suspend
+	 * because they can not be enabled simultaneously on a
+	 * single SoC.
+	 */
+	opp50@300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <950000 931000 969000>;
+		opp-supported-hw = <0x06 0x0010>;
+		opp-suspend;
+	};
+
+	opp100@275000000 {
+		opp-hz = /bits/ 64 <275000000>;
+		opp-microvolt = <1100000 1078000 1122000>;
+		opp-supported-hw = <0x01 0x00FF>;
+		opp-suspend;
+	};
+
+	opp100@300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <1100000 1078000 1122000>;
+		opp-supported-hw = <0x06 0x0020>;
+		opp-suspend;
+	};
+
+	opp100@500000000 {
+		opp-hz = /bits/ 64 <500000000>;
+		opp-microvolt = <1100000 1078000 1122000>;
+		opp-supported-hw = <0x01 0xFFFF>;
+	};
+
+	opp100@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <1100000 1078000 1122000>;
+		opp-supported-hw = <0x06 0x0040>;
+	};
+
+	opp120@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <1200000 1176000 1224000>;
+		opp-supported-hw = <0x01 0xFFFF>;
+	};
+
+	opp120@720000000 {
+		opp-hz = /bits/ 64 <720000000>;
+		opp-microvolt = <1200000 1176000 1224000>;
+		opp-supported-hw = <0x06 0x0080>;
+	};
+
+	oppturbo@720000000 {
+		opp-hz = /bits/ 64 <720000000>;
+		opp-microvolt = <1260000 1234800 1285200>;
+		opp-supported-hw = <0x01 0xFFFF>;
+	};
+
+	oppturbo@800000000 {
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <1260000 1234800 1285200>;
+		opp-supported-hw = <0x06 0x0100>;
+	};
+
+	oppnitro@1000000000 {
+		opp-hz = /bits/ 64 <1000000000>;
+		opp-microvolt = <1325000 1298500 1351500>;
+		opp-supported-hw = <0x04 0x0200>;
+	};
+};

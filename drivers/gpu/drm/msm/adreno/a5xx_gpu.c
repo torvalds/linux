@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -12,6 +12,7 @@
  */
 
 #include "msm_gem.h"
+#include "msm_mmu.h"
 #include "a5xx_gpu.h"
 
 extern bool hang_debug;
@@ -327,7 +328,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Enable RBBM error reporting bits */
 	gpu_write(gpu, REG_A5XX_RBBM_AHB_CNTL0, 0x00000001);
 
-	if (adreno_gpu->quirks & ADRENO_QUIRK_FAULT_DETECT_MASK) {
+	if (adreno_gpu->info->quirks & ADRENO_QUIRK_FAULT_DETECT_MASK) {
 		/*
 		 * Mask out the activity signals from RB1-3 to avoid false
 		 * positives
@@ -381,7 +382,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 
 	gpu_write(gpu, REG_A5XX_PC_DBG_ECO_CNTL, (0x400 << 11 | 0x300 << 22));
 
-	if (adreno_gpu->quirks & ADRENO_QUIRK_TWO_PASS_USE_WFI)
+	if (adreno_gpu->info->quirks & ADRENO_QUIRK_TWO_PASS_USE_WFI)
 		gpu_rmw(gpu, REG_A5XX_PC_DBG_ECO_CNTL, 0, (1 << 8));
 
 	gpu_write(gpu, REG_A5XX_PC_DBG_ECO_CNTL, 0xc0200100);
@@ -533,7 +534,7 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 	}
 
 	if (a5xx_gpu->gpmu_bo) {
-		if (a5xx_gpu->gpmu_bo)
+		if (a5xx_gpu->gpmu_iova)
 			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->id);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->gpmu_bo);
 	}
@@ -571,6 +572,19 @@ static bool a5xx_idle(struct msm_gpu *gpu)
 	}
 
 	return true;
+}
+
+static int a5xx_fault_handler(void *arg, unsigned long iova, int flags)
+{
+	struct msm_gpu *gpu = arg;
+	pr_warn_ratelimited("*** gpu fault: iova=%08lx, flags=%d (%u,%u,%u,%u)\n",
+			iova, flags,
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(4)),
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(5)),
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(6)),
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(7)));
+
+	return -EFAULT;
 }
 
 static void a5xx_cp_err_irq(struct msm_gpu *gpu)
@@ -846,7 +860,9 @@ static const struct adreno_gpu_funcs funcs = {
 		.idle = a5xx_idle,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
+#ifdef CONFIG_DEBUG_FS
 		.show = a5xx_show,
+#endif
 	},
 	.get_timestamp = a5xx_get_timestamp,
 };
@@ -883,6 +899,9 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 		a5xx_destroy(&(a5xx_gpu->base.base));
 		return ERR_PTR(ret);
 	}
+
+	if (gpu->aspace)
+		msm_mmu_set_fault_handler(gpu->aspace->mmu, gpu, a5xx_fault_handler);
 
 	return gpu;
 }

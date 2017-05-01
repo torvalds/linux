@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -314,6 +314,28 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 {
 
 	return (AE_SUPPORT);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_os_enter_sleep
+ *
+ * PARAMETERS:  sleep_state         - Which sleep state to enter
+ *              rega_value          - Register A value
+ *              regb_value          - Register B value
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: A hook before writing sleep registers to enter the sleep
+ *              state. Return AE_CTRL_TERMINATE to skip further sleep register
+ *              writes.
+ *
+ *****************************************************************************/
+
+acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value)
+{
+
+	return (AE_OK);
 }
 
 /******************************************************************************

@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
-#include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/idr.h>
@@ -314,7 +313,6 @@ static int of_build_overlay_info(struct of_overlay *ov,
 
 	cnt = 0;
 	for_each_child_of_node(tree, node) {
-		memset(&ovinfo[cnt], 0, sizeof(*ovinfo));
 		err = of_fill_overlay_info(ov, node, &ovinfo[cnt]);
 		if (err == 0)
 			cnt++;

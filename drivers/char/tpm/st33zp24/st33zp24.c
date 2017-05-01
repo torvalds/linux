@@ -18,7 +18,6 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/wait.h>

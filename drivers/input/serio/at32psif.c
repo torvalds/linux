@@ -159,13 +159,12 @@ static int psif_open(struct serio *io)
 
 	retval = clk_enable(psif->pclk);
 	if (retval)
-		goto out;
+		return retval;
 
 	psif_writel(psif, CR, PSIF_BIT(CR_TXEN) | PSIF_BIT(CR_RXEN));
 	psif_writel(psif, IER, PSIF_BIT(RXRDY));
 
 	psif->open = true;
-out:
 	return retval;
 }
 
@@ -210,16 +209,12 @@ static int __init psif_probe(struct platform_device *pdev)
 	int ret;
 
 	psif = kzalloc(sizeof(struct psif), GFP_KERNEL);
-	if (!psif) {
-		dev_dbg(&pdev->dev, "out of memory\n");
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!psif)
+		return -ENOMEM;
 	psif->pdev = pdev;
 
 	io = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!io) {
-		dev_dbg(&pdev->dev, "out of memory\n");
 		ret = -ENOMEM;
 		goto out_free_psif;
 	}
@@ -297,7 +292,6 @@ out_free_io:
 	kfree(io);
 out_free_psif:
 	kfree(psif);
-out:
 	return ret;
 }
 

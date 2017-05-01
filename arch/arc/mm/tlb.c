@@ -53,6 +53,8 @@
 
 #include <linux/module.h>
 #include <linux/bug.h>
+#include <linux/mm_types.h>
+
 #include <asm/arcregs.h>
 #include <asm/setup.h>
 #include <asm/mmu_context.h>

@@ -112,4 +112,10 @@ config SAMPLE_VFIO_MDEV_MTTY
 	  Build a virtual tty sample driver for use as a VFIO
 	  mediated device
 
+config SAMPLE_STATX
+	bool "Build example extended-stat using code"
+	depends on BROKEN
+	help
+	  Build example userspace program to use the new extended-stat syscall.
+
 endif # SAMPLES

@@ -391,7 +391,7 @@ struct vvp_pgcache_id {
 
 static void vvp_pgcache_id_unpack(loff_t pos, struct vvp_pgcache_id *id)
 {
-	CLASSERT(sizeof(pos) == sizeof(__u64));
+	BUILD_BUG_ON(sizeof(pos) != sizeof(__u64));
 
 	id->vpi_index  = pos & 0xffffffff;
 	id->vpi_depth  = (pos >> PGC_DEPTH_SHIFT) & 0xf;

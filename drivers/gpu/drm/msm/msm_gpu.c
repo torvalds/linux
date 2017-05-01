@@ -560,8 +560,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 }
 
 static const char *clk_names[] = {
-		"core_clk", "iface_clk", "rbbmtimer_clk", "mem_clk",
-		"mem_iface_clk", "alt_mem_iface_clk",
+	"core", "iface", "rbbmtimer", "mem", "mem_iface", "alt_mem_iface",
 };
 
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
@@ -625,13 +624,13 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	/* Acquire clocks: */
 	for (i = 0; i < ARRAY_SIZE(clk_names); i++) {
-		gpu->grp_clks[i] = devm_clk_get(&pdev->dev, clk_names[i]);
+		gpu->grp_clks[i] = msm_clk_get(pdev, clk_names[i]);
 		DBG("grp_clks[%s]: %p", clk_names[i], gpu->grp_clks[i]);
 		if (IS_ERR(gpu->grp_clks[i]))
 			gpu->grp_clks[i] = NULL;
 	}
 
-	gpu->ebi1_clk = devm_clk_get(&pdev->dev, "bus_clk");
+	gpu->ebi1_clk = msm_clk_get(pdev, "bus");
 	DBG("ebi1_clk: %p", gpu->ebi1_clk);
 	if (IS_ERR(gpu->ebi1_clk))
 		gpu->ebi1_clk = NULL;
@@ -706,9 +705,6 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 			msm_gem_put_iova(gpu->rb->bo, gpu->id);
 		msm_ringbuffer_destroy(gpu->rb);
 	}
-
-	if (gpu->aspace)
-		msm_gem_address_space_destroy(gpu->aspace);
 
 	if (gpu->fctx)
 		msm_fence_context_free(gpu->fctx);

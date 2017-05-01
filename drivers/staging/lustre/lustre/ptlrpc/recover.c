@@ -78,27 +78,10 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	imp->imp_last_transno_checked = 0;
 	ptlrpc_free_committed(imp);
 	last_transno = imp->imp_last_replay_transno;
-	spin_unlock(&imp->imp_lock);
 
 	CDEBUG(D_HA, "import %p from %s committed %llu last %llu\n",
 	       imp, obd2cli_tgt(imp->imp_obd),
 	       imp->imp_peer_committed_transno, last_transno);
-
-	/* Do I need to hold a lock across this iteration?  We shouldn't be
-	 * racing with any additions to the list, because we're in recovery
-	 * and are therefore not processing additional requests to add.  Calls
-	 * to ptlrpc_free_committed might commit requests, but nothing "newer"
-	 * than the one we're replaying (it can't be committed until it's
-	 * replayed, and we're doing that here).  l_f_e_safe protects against
-	 * problems with the current request being committed, in the unlikely
-	 * event of that race.  So, in conclusion, I think that it's safe to
-	 * perform this list-walk without the imp_lock held.
-	 *
-	 * But, the {mdc,osc}_replay_open callbacks both iterate
-	 * request lists, and have comments saying they assume the
-	 * imp_lock is being held by ptlrpc_replay, but it's not. it's
-	 * just a little race...
-	 */
 
 	/* Replay all the committed open requests on committed_list first */
 	if (!list_empty(&imp->imp_committed_list)) {
@@ -107,10 +90,6 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 
 		/* The last request on committed_list hasn't been replayed */
 		if (req->rq_transno > last_transno) {
-			/* Since the imp_committed_list is immutable before
-			 * all of it's requests being replayed, it's safe to
-			 * use a cursor to accelerate the search
-			 */
 			if (!imp->imp_resend_replay ||
 			    imp->imp_replay_cursor == &imp->imp_committed_list)
 				imp->imp_replay_cursor = imp->imp_replay_cursor->next;
@@ -124,6 +103,7 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 					break;
 
 				req = NULL;
+				LASSERT(!list_empty(imp->imp_replay_cursor));
 				imp->imp_replay_cursor =
 					imp->imp_replay_cursor->next;
 			}
@@ -156,7 +136,6 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	if (req && imp->imp_resend_replay)
 		lustre_msg_add_flags(req->rq_reqmsg, MSG_RESENT);
 
-	spin_lock(&imp->imp_lock);
 	/* The resend replay request may have been removed from the
 	 * unreplied list.
 	 */
@@ -221,6 +200,7 @@ int ptlrpc_resend(struct obd_import *imp)
 	}
 	spin_unlock(&imp->imp_lock);
 
+	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_ENQUEUE_OLD_EXPORT, 2);
 	return 0;
 }
 

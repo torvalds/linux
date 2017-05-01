@@ -344,9 +344,6 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 			continue;
 		}
 
-		if (!lov->lov_tgts[i]->ltd_active)
-			lov_check_and_wait_active(lov, i);
-
 		/* skip targets that have been explicitly disabled by the
 		 * administrator
 		 */
@@ -354,6 +351,9 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 			CDEBUG(D_HA, "lov idx %d administratively disabled\n", i);
 			continue;
 		}
+
+		if (!lov->lov_tgts[i]->ltd_active)
+			lov_check_and_wait_active(lov, i);
 
 		req = kzalloc(sizeof(*req), GFP_NOFS);
 		if (!req) {

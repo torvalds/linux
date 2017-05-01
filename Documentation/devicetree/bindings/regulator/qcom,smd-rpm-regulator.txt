@@ -22,6 +22,7 @@ Regulator nodes are identified by their compatible:
 		    "qcom,rpm-pm8841-regulators"
 		    "qcom,rpm-pm8916-regulators"
 		    "qcom,rpm-pm8941-regulators"
+		    "qcom,rpm-pm8994-regulators"
 		    "qcom,rpm-pma8084-regulators"
 
 - vdd_s1-supply:
@@ -80,6 +81,56 @@ Regulator nodes are identified by their compatible:
 - vdd_s10-supply:
 - vdd_s11-supply:
 - vdd_s12-supply:
+- vdd_l1-supply:
+- vdd_l2_l26_l28-supply:
+- vdd_l3_l11-supply:
+- vdd_l4_l27_l31-supply:
+- vdd_l5_l7-supply:
+- vdd_l6_l12_l32-supply:
+- vdd_l5_l7-supply:
+- vdd_l8_l16_l30-supply:
+- vdd_l9_l10_l18_l22-supply:
+- vdd_l9_l10_l18_l22-supply:
+- vdd_l3_l11-supply:
+- vdd_l6_l12_l32-supply:
+- vdd_l13_l19_l23_l24-supply:
+- vdd_l14_l15-supply:
+- vdd_l14_l15-supply:
+- vdd_l8_l16_l30-supply:
+- vdd_l17_l29-supply:
+- vdd_l9_l10_l18_l22-supply:
+- vdd_l13_l19_l23_l24-supply:
+- vdd_l20_l21-supply:
+- vdd_l20_l21-supply:
+- vdd_l9_l10_l18_l22-supply:
+- vdd_l13_l19_l23_l24-supply:
+- vdd_l13_l19_l23_l24-supply:
+- vdd_l25-supply:
+- vdd_l2_l26_l28-supply:
+- vdd_l4_l27_l31-supply:
+- vdd_l2_l26_l28-supply:
+- vdd_l17_l29-supply:
+- vdd_l8_l16_l30-supply:
+- vdd_l4_l27_l31-supply:
+- vdd_l6_l12_l32-supply:
+- vdd_lvs1_2-supply:
+	Usage: optional (pm8994 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_s5-supply:
+- vdd_s6-supply:
+- vdd_s7-supply:
+- vdd_s8-supply:
+- vdd_s9-supply:
+- vdd_s10-supply:
+- vdd_s11-supply:
+- vdd_s12-supply:
 - vdd_l1_l11-supply:
 - vdd_l2_l3_l4_l27-supply:
 - vdd_l5_l7-supply:
@@ -112,6 +163,11 @@ pm8941:
 	s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13,
 	l14, l15, l16, l17, l18, l19, l20, l21, l22, l23, l24, lvs1, lvs2,
 	lvs3, 5vs1, 5vs2
+
+pm8994:
+	s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3, l4, l5,
+	l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19, l20,
+	l21, l22, l23, l24, l25, l26, l27, l28, l29, l30, l31, l32, lvs1, lvs2
 
 pma8084:
 	s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3, l4, l5,

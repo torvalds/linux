@@ -145,7 +145,9 @@ int pci_host_common_probe(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
+#ifdef CONFIG_ARM
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+#endif
 
 	/*
 	 * We insert PCI resources into the iomem_resource and

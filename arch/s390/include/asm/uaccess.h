@@ -14,6 +14,7 @@
  */
 #include <linux/sched.h>
 #include <linux/errno.h>
+#include <asm/processor.h>
 #include <asm/ctl_reg.h>
 
 #define VERIFY_READ     0
@@ -36,17 +37,19 @@
 
 #define get_ds()        (KERNEL_DS)
 #define get_fs()        (current->thread.mm_segment)
-
-#define set_fs(x)							\
-{									\
-	unsigned long __pto;						\
-	current->thread.mm_segment = (x);				\
-	__pto = current->thread.mm_segment.ar4 ?			\
-		S390_lowcore.user_asce : S390_lowcore.kernel_asce;	\
-	__ctl_load(__pto, 7, 7);					\
-}
-
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
+
+static inline void set_fs(mm_segment_t fs)
+{
+	current->thread.mm_segment = fs;
+	if (segment_eq(fs, KERNEL_DS)) {
+		set_cpu_flag(CIF_ASCE_SECONDARY);
+		__ctl_load(S390_lowcore.kernel_asce, 7, 7);
+	} else {
+		clear_cpu_flag(CIF_ASCE_SECONDARY);
+		__ctl_load(S390_lowcore.user_asce, 7, 7);
+	}
+}
 
 static inline int __range_ok(unsigned long addr, unsigned long size)
 {
@@ -144,7 +147,7 @@ unsigned long __must_check __copy_to_user(void __user *to, const void *from,
 		"	jg	2b\n"				\
 		".popsection\n"					\
 		EX_TABLE(0b,3b) EX_TABLE(1b,3b)			\
-		: "=d" (__rc), "=Q" (*(to))			\
+		: "=d" (__rc), "+Q" (*(to))			\
 		: "d" (size), "Q" (*(from)),			\
 		  "d" (__reg0), "K" (-EFAULT)			\
 		: "cc");					\
@@ -177,7 +180,7 @@ static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 					(unsigned long *)x,
 					size, spec);
 		break;
-	};
+	}
 	return rc;
 }
 
@@ -207,7 +210,7 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 					(unsigned long __user *)ptr,
 					size, spec);
 		break;
-	};
+	}
 	return rc;
 }
 

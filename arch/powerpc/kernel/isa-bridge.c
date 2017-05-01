@@ -29,6 +29,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
+#include <asm/isa-bridge.h>
 
 unsigned long isa_io_base;	/* NULL if no ISA bus */
 EXPORT_SYMBOL(isa_io_base);
@@ -164,6 +165,97 @@ void __init isa_bridge_find_early(struct pci_controller *hose)
 	isa_io_base = ISA_IO_BASE;
 
 	pr_debug("ISA bridge (early) is %s\n", np->full_name);
+}
+
+/**
+ * isa_bridge_find_early - Find and map the ISA IO space early before
+ *                         main PCI discovery. This is optionally called by
+ *                         the arch code when adding PCI PHBs to get early
+ *                         access to ISA IO ports
+ */
+void __init isa_bridge_init_non_pci(struct device_node *np)
+{
+	const __be32 *ranges, *pbasep = NULL;
+	int rlen, i, rs;
+	u32 na, ns, pna;
+	u64 cbase, pbase, size = 0;
+
+	/* If we already have an ISA bridge, bail off */
+	if (isa_bridge_devnode != NULL)
+		return;
+
+	pna = of_n_addr_cells(np);
+	if (of_property_read_u32(np, "#address-cells", &na) ||
+	    of_property_read_u32(np, "#size-cells", &ns)) {
+		pr_warn("ISA: Non-PCI bridge %s is missing address format\n",
+			np->full_name);
+		return;
+	}
+
+	/* Check it's a supported address format */
+	if (na != 2 || ns != 1) {
+		pr_warn("ISA: Non-PCI bridge %s has unsupported address format\n",
+			np->full_name);
+		return;
+	}
+	rs = na + ns + pna;
+
+	/* Grab the ranges property */
+	ranges = of_get_property(np, "ranges", &rlen);
+	if (ranges == NULL || rlen < rs) {
+		pr_warn("ISA: Non-PCI bridge %s has absent or invalid ranges\n",
+			np->full_name);
+		return;
+	}
+
+	/* Parse it. We are only looking for IO space */
+	for (i = 0; (i + rs - 1) < rlen; i += rs) {
+		if (be32_to_cpup(ranges + i) != 1)
+			continue;
+		cbase = be32_to_cpup(ranges + i + 1);
+		size = of_read_number(ranges + i + na + pna, ns);
+		pbasep = ranges + i + na;
+		break;
+	}
+
+	/* Got something ? */
+	if (!size || !pbasep) {
+		pr_warn("ISA: Non-PCI bridge %s has no usable IO range\n",
+			np->full_name);
+		return;
+	}
+
+	/* Align size and make sure it's cropped to 64K */
+	size = PAGE_ALIGN(size);
+	if (size > 0x10000)
+		size = 0x10000;
+
+	/* Map pbase */
+	pbase = of_translate_address(np, pbasep);
+	if (pbase == OF_BAD_ADDR) {
+		pr_warn("ISA: Non-PCI bridge %s failed to translate IO base\n",
+			np->full_name);
+		return;
+	}
+
+	/* We need page alignment */
+	if ((cbase & ~PAGE_MASK) || (pbase & ~PAGE_MASK)) {
+		pr_warn("ISA: Non-PCI bridge %s has non aligned IO range\n",
+			np->full_name);
+		return;
+	}
+
+	/* Got it */
+	isa_bridge_devnode = np;
+
+	/* Set the global ISA io base to indicate we have an ISA bridge
+	 * and map it
+	 */
+	isa_io_base = ISA_IO_BASE;
+	__ioremap_at(pbase, (void *)ISA_IO_BASE,
+		     size, pgprot_val(pgprot_noncached(__pgprot(0))));
+
+	pr_debug("ISA: Non-PCI bridge is %s\n", np->full_name);
 }
 
 /**

@@ -10,10 +10,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -21,6 +17,7 @@
 *******************************************************************************/
 
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include "common.h"
 #include "dwmac_dma.h"
 
@@ -29,19 +26,16 @@
 int dwmac_dma_reset(void __iomem *ioaddr)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
-	int limit;
+	int err;
 
 	/* DMA SW reset */
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
-	limit = 10;
-	while (limit--) {
-		if (!(readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET))
-			break;
-		mdelay(10);
-	}
 
-	if (limit < 0)
+	err = readl_poll_timeout(ioaddr + DMA_BUS_MODE, value,
+				 !(value & DMA_BUS_MODE_SFT_RESET),
+				 100000, 10000);
+	if (err)
 		return -EBUSY;
 
 	return 0;
@@ -102,7 +96,7 @@ static void show_tx_process_state(unsigned int status)
 		pr_debug("- TX (Stopped): Reset or Stop command\n");
 		break;
 	case 1:
-		pr_debug("- TX (Running):Fetching the Tx desc\n");
+		pr_debug("- TX (Running): Fetching the Tx desc\n");
 		break;
 	case 2:
 		pr_debug("- TX (Running): Waiting for end of tx\n");
@@ -136,7 +130,7 @@ static void show_rx_process_state(unsigned int status)
 		pr_debug("- RX (Running): Fetching the Rx desc\n");
 		break;
 	case 2:
-		pr_debug("- RX (Running):Checking for end of pkt\n");
+		pr_debug("- RX (Running): Checking for end of pkt\n");
 		break;
 	case 3:
 		pr_debug("- RX (Running): Waiting for Rx pkt\n");
@@ -246,7 +240,7 @@ void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 	unsigned long data;
 
 	data = (addr[5] << 8) | addr[4];
-	/* For MAC Addr registers se have to set the Address Enable (AE)
+	/* For MAC Addr registers we have to set the Address Enable (AE)
 	 * bit that has no effect on the High Reg 0 where the bit 31 (MO)
 	 * is RO.
 	 */
@@ -261,9 +255,9 @@ void stmmac_set_mac(void __iomem *ioaddr, bool enable)
 	u32 value = readl(ioaddr + MAC_CTRL_REG);
 
 	if (enable)
-		value |= MAC_RNABLE_RX | MAC_ENABLE_TX;
+		value |= MAC_ENABLE_RX | MAC_ENABLE_TX;
 	else
-		value &= ~(MAC_ENABLE_TX | MAC_RNABLE_RX);
+		value &= ~(MAC_ENABLE_TX | MAC_ENABLE_RX);
 
 	writel(value, ioaddr + MAC_CTRL_REG);
 }

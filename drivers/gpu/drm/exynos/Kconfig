@@ -19,7 +19,6 @@ comment "CRTCs"
 config DRM_EXYNOS_FIMD
 	bool "FIMD"
 	depends on !FB_S3C
-	select FB_MODE_HELPERS
 	select MFD_SYSCON
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
@@ -32,7 +31,6 @@ config DRM_EXYNOS5433_DECON
 config DRM_EXYNOS7_DECON
 	bool "DECON on Exynos7"
 	depends on !FB_S3C
-	select FB_MODE_HELPERS
 	help
 	  Choose this option if you want to use Exynos DECON for DRM.
 

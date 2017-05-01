@@ -42,7 +42,7 @@ thresholds can be configured thanks to the following HWMON attributes:
  * Critical: temp1_crit and temp1_crit_hyst;
  * Shutdown: temp1_emergency and temp1_emergency_hyst.
 
-NOTE: Remember that the values are stored as milli degrees Celcius. Don't forget
+NOTE: Remember that the values are stored as milli degrees Celsius. Don't forget
 to multiply!
 
 Fan management

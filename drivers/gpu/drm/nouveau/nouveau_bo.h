@@ -26,6 +26,8 @@ struct nouveau_bo {
 	struct list_head vma_list;
 	unsigned page_shift;
 
+	struct nouveau_cli *cli;
+
 	u32 tile_mode;
 	u32 tile_flags;
 	struct nouveau_drm_tile *tile;
@@ -69,7 +71,7 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 extern struct ttm_bo_driver nouveau_bo_driver;
 
 void nouveau_bo_move_init(struct nouveau_drm *);
-int  nouveau_bo_new(struct drm_device *, int size, int align, u32 flags,
+int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 flags,
 		    u32 tile_mode, u32 tile_flags, struct sg_table *sg,
 		    struct reservation_object *robj,
 		    struct nouveau_bo **);

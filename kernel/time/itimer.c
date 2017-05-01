@@ -10,6 +10,8 @@
 #include <linux/interrupt.h>
 #include <linux/syscalls.h>
 #include <linux/time.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/cputime.h>
 #include <linux/posix-timers.h>
 #include <linux/hrtimer.h>
 #include <trace/events/timer.h>
@@ -45,16 +47,16 @@ static struct timeval itimer_get_remtime(struct hrtimer *timer)
 static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 			   struct itimerval *const value)
 {
-	cputime_t cval, cinterval;
+	u64 val, interval;
 	struct cpu_itimer *it = &tsk->signal->it[clock_id];
 
 	spin_lock_irq(&tsk->sighand->siglock);
 
-	cval = it->expires;
-	cinterval = it->incr;
-	if (cval) {
+	val = it->expires;
+	interval = it->incr;
+	if (val) {
 		struct task_cputime cputime;
-		cputime_t t;
+		u64 t;
 
 		thread_group_cputimer(tsk, &cputime);
 		if (clock_id == CPUCLOCK_PROF)
@@ -63,17 +65,17 @@ static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 			/* CPUCLOCK_VIRT */
 			t = cputime.utime;
 
-		if (cval < t)
+		if (val < t)
 			/* about to fire */
-			cval = cputime_one_jiffy;
+			val = TICK_NSEC;
 		else
-			cval = cval - t;
+			val -= t;
 	}
 
 	spin_unlock_irq(&tsk->sighand->siglock);
 
-	cputime_to_timeval(cval, &value->it_value);
-	cputime_to_timeval(cinterval, &value->it_interval);
+	value->it_value = ns_to_timeval(val);
+	value->it_interval = ns_to_timeval(interval);
 }
 
 int do_getitimer(int which, struct itimerval *value)
@@ -129,55 +131,35 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static inline u32 cputime_sub_ns(cputime_t ct, s64 real_ns)
-{
-	struct timespec ts;
-	s64 cpu_ns;
-
-	cputime_to_timespec(ct, &ts);
-	cpu_ns = timespec_to_ns(&ts);
-
-	return (cpu_ns <= real_ns) ? 0 : cpu_ns - real_ns;
-}
-
 static void set_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 			   const struct itimerval *const value,
 			   struct itimerval *const ovalue)
 {
-	cputime_t cval, nval, cinterval, ninterval;
-	s64 ns_ninterval, ns_nval;
-	u32 error, incr_error;
+	u64 oval, nval, ointerval, ninterval;
 	struct cpu_itimer *it = &tsk->signal->it[clock_id];
 
-	nval = timeval_to_cputime(&value->it_value);
-	ns_nval = timeval_to_ns(&value->it_value);
-	ninterval = timeval_to_cputime(&value->it_interval);
-	ns_ninterval = timeval_to_ns(&value->it_interval);
-
-	error = cputime_sub_ns(nval, ns_nval);
-	incr_error = cputime_sub_ns(ninterval, ns_ninterval);
+	nval = timeval_to_ns(&value->it_value);
+	ninterval = timeval_to_ns(&value->it_interval);
 
 	spin_lock_irq(&tsk->sighand->siglock);
 
-	cval = it->expires;
-	cinterval = it->incr;
-	if (cval || nval) {
+	oval = it->expires;
+	ointerval = it->incr;
+	if (oval || nval) {
 		if (nval > 0)
-			nval += cputime_one_jiffy;
-		set_process_cpu_timer(tsk, clock_id, &nval, &cval);
+			nval += TICK_NSEC;
+		set_process_cpu_timer(tsk, clock_id, &nval, &oval);
 	}
 	it->expires = nval;
 	it->incr = ninterval;
-	it->error = error;
-	it->incr_error = incr_error;
 	trace_itimer_state(clock_id == CPUCLOCK_VIRT ?
 			   ITIMER_VIRTUAL : ITIMER_PROF, value, nval);
 
 	spin_unlock_irq(&tsk->sighand->siglock);
 
 	if (ovalue) {
-		cputime_to_timeval(cval, &ovalue->it_value);
-		cputime_to_timeval(cinterval, &ovalue->it_interval);
+		ovalue->it_value = ns_to_timeval(oval);
+		ovalue->it_interval = ns_to_timeval(ointerval);
 	}
 }
 

@@ -872,7 +872,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 			goto out;
 		csk->mtu = ndev->mtu;
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = (cxgb4_port_viid(ndev) & 0x7F) << 1;
+		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
+						 cxgb4_port_viid(ndev));
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nchan;
 		csk->txq_idx = cxgb4_port_idx(ndev) * step;
@@ -907,7 +908,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 		port_id = cxgb4_port_idx(ndev);
 		csk->mtu = dst_mtu(dst);
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = (cxgb4_port_viid(ndev) & 0x7F) << 1;
+		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
+						 cxgb4_port_viid(ndev));
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nports;
 		csk->txq_idx = (port_id * step) +
@@ -1066,6 +1068,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	struct sk_buff *skb;
 	const struct tcphdr *tcph;
 	struct cpl_t5_pass_accept_rpl *rpl5;
+	struct cxgb4_lld_info *lldi = &csk->com.cdev->lldi;
 	unsigned int len = roundup(sizeof(*rpl5), 16);
 	unsigned int mtu_idx;
 	u64 opt0;
@@ -1111,6 +1114,9 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	opt2 = RX_CHANNEL_V(0) |
 		RSS_QUEUE_VALID_F | RSS_QUEUE_V(csk->rss_qid);
 
+	if (!is_t5(lldi->adapter_type))
+		opt2 |= RX_FC_DISABLE_F;
+
 	if (req->tcpopt.tstamp)
 		opt2 |= TSTAMPS_EN_F;
 	if (req->tcpopt.sack)
@@ -1119,8 +1125,13 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 		opt2 |= WND_SCALE_EN_F;
 
 	hlen = ntohl(req->hdr_len);
-	tcph = (const void *)(req + 1) + ETH_HDR_LEN_G(hlen) +
-		IP_HDR_LEN_G(hlen);
+
+	if (is_t5(lldi->adapter_type))
+		tcph = (struct tcphdr *)((u8 *)(req + 1) +
+		       ETH_HDR_LEN_G(hlen) + IP_HDR_LEN_G(hlen));
+	else
+		tcph = (struct tcphdr *)((u8 *)(req + 1) +
+		       T6_ETH_HDR_LEN_G(hlen) + T6_IP_HDR_LEN_G(hlen));
 
 	if (tcph->ece && tcph->cwr)
 		opt2 |= CCTRL_ECN_V(1);
@@ -1726,7 +1737,7 @@ static bool cxgbit_credit_err(const struct cxgbit_sock *csk)
 	}
 
 	while (skb) {
-		credit += skb->csum;
+		credit += (__force u32)skb->csum;
 		skb = cxgbit_skcb_tx_wr_next(skb);
 	}
 
@@ -1753,6 +1764,7 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 
 	while (credits) {
 		struct sk_buff *p = cxgbit_sock_peek_wr(csk);
+		const u32 csum = (__force u32)p->csum;
 
 		if (unlikely(!p)) {
 			pr_err("csk 0x%p,%u, cr %u,%u+%u, empty.\n",
@@ -1761,17 +1773,17 @@ static void cxgbit_fw4_ack(struct cxgbit_sock *csk, struct sk_buff *skb)
 			break;
 		}
 
-		if (unlikely(credits < p->csum)) {
+		if (unlikely(credits < csum)) {
 			pr_warn("csk 0x%p,%u, cr %u,%u+%u, < %u.\n",
 				csk,  csk->tid,
 				credits, csk->wr_cred, csk->wr_una_cred,
-				p->csum);
-			p->csum -= credits;
+				csum);
+			p->csum = (__force __wsum)(csum - credits);
 			break;
 		}
 
 		cxgbit_sock_dequeue_wr(csk);
-		credits -= p->csum;
+		credits -= csum;
 		kfree_skb(p);
 	}
 

@@ -55,37 +55,28 @@
 		reg = <0x10000000 0x20000000>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_1p0v: regulator-1p0v {
+		compatible = "regulator-fixed";
+		regulator-name = "1P0V";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-always-on;
+	};
 
-		reg_1p0v: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "1P0V";
-			regulator-min-microvolt = <1000000>;
-			regulator-max-microvolt = <1000000>;
-			regulator-always-on;
-		};
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 
-		reg_3p3v: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "3P3V";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-
-		reg_5p0v: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "5P0V";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
+	reg_5p0v: regulator-5p0v {
+		compatible = "regulator-fixed";
+		regulator-name = "5P0V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
 	};
 };
 
@@ -148,6 +139,81 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
+
+	ltc3676: pmic@3c {
+		compatible = "lltc,ltc3676";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+
+		regulators {
+			/* VDD_SOC (1+R1/R2 = 1.635) */
+			reg_vdd_soc: sw1 {
+				regulator-name = "vddsoc";
+				regulator-min-microvolt = <674400>;
+				regulator-max-microvolt = <1308000>;
+				lltc,fb-voltage-divider = <127000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* VDD_1P8 (1+R1/R2 = 2.505): ENET-PHY */
+			reg_1p8v: sw2 {
+				regulator-name = "vdd1p8";
+				regulator-min-microvolt = <1033310>;
+				regulator-max-microvolt = <2004000>;
+				lltc,fb-voltage-divider = <301000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* VDD_ARM (1+R1/R2 = 1.635) */
+			reg_vdd_arm: sw3 {
+				regulator-name = "vddarm";
+				regulator-min-microvolt = <674400>;
+				regulator-max-microvolt = <1308000>;
+				lltc,fb-voltage-divider = <127000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* VDD_DDR (1+R1/R2 = 2.105) */
+			reg_vdd_ddr: sw4 {
+				regulator-name = "vddddr";
+				regulator-min-microvolt = <868310>;
+				regulator-max-microvolt = <1684000>;
+				lltc,fb-voltage-divider = <221000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* VDD_2P5 (1+R1/R2 = 3.435): PCIe/ENET-PHY */
+			reg_2p5v: ldo2 {
+				regulator-name = "vdd2p5";
+				regulator-min-microvolt = <2490375>;
+				regulator-max-microvolt = <2490375>;
+				lltc,fb-voltage-divider = <487000 200000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* VDD_HIGH (1+R1/R2 = 4.17) */
+			reg_3p0v: ldo4 {
+				regulator-name = "vdd3p0";
+				regulator-min-microvolt = <3023250>;
+				regulator-max-microvolt = <3023250>;
+				lltc,fb-voltage-divider = <634000 200000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
 };
 
 &i2c3 {
@@ -257,6 +323,12 @@
 		pinctrl_pcie: pciegrp {
 			fsl,pins = <
 				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29	0x1b0b0
+			>;
+		};
+
+		pinctrl_pmic: pmicgrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_8__GPIO1_IO08		0x0001b0b0 /* PMIC_IRQ# */
 			>;
 		};
 

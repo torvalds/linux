@@ -1,6 +1,10 @@
+#include "juno-clocks.dtsi"
+
+/ {
 	/*
 	 *  Devices shared by all Juno boards
 	 */
+	dma-ranges = <0 0 0 0 0x100 0>;
 
 	memtimer: timer@2a810000 {
 		compatible = "arm,armv7-timer-mem";
@@ -48,6 +52,7 @@
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
 		dma-coherent;
+		power-domains = <&scpi_devpd 0>;
 		status = "disabled";
 	};
 
@@ -83,7 +88,7 @@
 	 * The actual size is just 4K though 64K is reserved. Access to the
 	 * unmapped reserved region results in a DECERR response.
 	 */
-	etf@20010000 {
+	etf@20010000 { /* etf0 */
 		compatible = "arm,coresight-tmc", "arm,primecell";
 		reg = <0 0x20010000 0 0x1000>;
 
@@ -97,7 +102,7 @@
 			/* input port */
 			port@0 {
 				reg = <0>;
-				etf_in_port: endpoint {
+				etf0_in_port: endpoint {
 					slave-mode;
 					remote-endpoint = <&main_funnel_out_port>;
 				};
@@ -106,8 +111,7 @@
 			/* output port */
 			port@1 {
 				reg = <0>;
-				etf_out_port: endpoint {
-					remote-endpoint = <&replicator_in_port0>;
+				etf0_out_port: endpoint {
 				};
 			};
 		};
@@ -128,7 +132,8 @@
 		};
 	};
 
-	main-funnel@20040000 {
+	/* main funnel on Juno r0, cssys0 funnel on Juno r1/r2 as per TRM*/
+	main_funnel: funnel@20040000 {
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x20040000 0 0x1000>;
 
@@ -139,13 +144,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			/* output port */
 			port@0 {
 				reg = <0>;
 				main_funnel_out_port: endpoint {
-					remote-endpoint = <&etf_in_port>;
+					remote-endpoint = <&etf0_in_port>;
 				};
 			};
 
+			/* input ports */
 			port@1 {
 				reg = <0>;
 				main_funnel_in_port0: endpoint {
@@ -161,7 +168,6 @@
 					remote-endpoint = <&cluster1_funnel_out_port>;
 				};
 			};
-
 		};
 	};
 
@@ -181,6 +187,21 @@
 		};
 	};
 
+	stm@20100000 {
+		compatible = "arm,coresight-stm", "arm,primecell";
+		reg = <0 0x20100000 0 0x1000>,
+		      <0 0x28000000 0 0x1000000>;
+		reg-names = "stm-base", "stm-stimulus-base";
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			stm_out_port: endpoint {
+			};
+		};
+	};
+
 	etm0: etm@22040000 {
 		compatible = "arm,coresight-etm4x", "arm,primecell";
 		reg = <0 0x22040000 0 0x1000>;
@@ -195,7 +216,7 @@
 		};
 	};
 
-	cluster0-funnel@220c0000 {
+	funnel@220c0000 { /* cluster0 funnel */
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x220c0000 0 0x1000>;
 
@@ -259,7 +280,7 @@
 		};
 	};
 
-	cluster1-funnel@230c0000 {
+	funnel@230c0000 { /* cluster1 funnel */
 		compatible = "arm,coresight-funnel", "arm,primecell";
 		reg = <0 0x230c0000 0 0x1000>;
 
@@ -351,12 +372,13 @@
 		};
 	};
 
-	coresight-replicator {
-		/*
-		 * Non-configurable replicators don't show up on the
-		 * AMBA bus.  As such no need to add "arm,primecell".
-		 */
-		compatible = "arm,coresight-replicator";
+	replicator@20120000 {
+		compatible = "qcom,coresight-replicator1x", "arm,primecell";
+		reg = <0 0x20120000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 
 		ports {
 			#address-cells = <1>;
@@ -382,7 +404,6 @@
 				reg = <0>;
 				replicator_in_port0: endpoint {
 					slave-mode;
-					remote-endpoint = <&etf_out_port>;
 				};
 			};
 		};
@@ -506,8 +527,6 @@
 			status = "disabled";
 		};
 	};
-
-	/include/ "juno-clocks.dtsi"
 
 	smmu_dma: iommu@7fb00000 {
 		compatible = "arm,mmu-401", "arm,smmu-v1";
@@ -719,3 +738,4 @@
 		interrupt-map-mask = <0 0>;
 		interrupt-map = <0 0 &gic 0 0 0 168 IRQ_TYPE_LEVEL_HIGH>;
 	};
+};

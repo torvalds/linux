@@ -21,13 +21,13 @@
  *
  */
 
+#include "pp_debug.h"
 #include "tonga_smc.h"
 #include "smu7_dyn_defaults.h"
 
 #include "smu7_hwmgr.h"
 #include "hardwaremanager.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "atombios.h"
 #include "tonga_smumgr.h"
@@ -656,7 +656,7 @@ int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 		}
 	} else {
 		if (0 == data->dpm_level_enable_mask.pcie_dpm_enable_mask)
-			printk(KERN_ERR "[ powerplay ] Pcie Dpm Enablemask is 0 !");
+			pr_err("Pcie Dpm Enablemask is 0 !");
 
 		while (data->dpm_level_enable_mask.pcie_dpm_enable_mask &&
 				((data->dpm_level_enable_mask.pcie_dpm_enable_mask &
@@ -1503,7 +1503,7 @@ static int tonga_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (result != 0) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		printk(KERN_ERR "[powerplay] VBIOS did not find boot engine "
+		pr_err("[powerplay] VBIOS did not find boot engine "
 				"clock value in dependency table. "
 				"Using Graphics DPM level 0 !");
 		result = 0;
@@ -1515,7 +1515,7 @@ static int tonga_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (result != 0) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		printk(KERN_ERR "[powerplay] VBIOS did not find boot "
+		pr_err("[powerplay] VBIOS did not find boot "
 				"engine clock value in dependency table."
 				"Using Memory DPM level 0 !");
 		result = 0;
@@ -1739,7 +1739,7 @@ static int tonga_populate_vr_config(struct pp_hwmgr *hwmgr,
 			config = VR_SVI2_PLANE_2;
 			table->VRConfig |= config;
 		} else {
-			printk(KERN_ERR "[ powerplay ] VDDC and VDDGFX should "
+			pr_err("VDDC and VDDGFX should "
 				"be both on SVI2 control in splitted mode !\n");
 		}
 	} else {
@@ -1752,7 +1752,7 @@ static int tonga_populate_vr_config(struct pp_hwmgr *hwmgr,
 			config = VR_SVI2_PLANE_1;
 			table->VRConfig |= config;
 		} else {
-			printk(KERN_ERR "[ powerplay ] VDDC should be on "
+			pr_err("VDDC should be on "
 					"SVI2 control in merged mode !\n");
 		}
 	}
@@ -2657,7 +2657,7 @@ uint32_t tonga_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU72_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
+	pr_warning("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2681,7 +2681,7 @@ uint32_t tonga_get_mac_definition(uint32_t value)
 	case SMU_MAX_LEVELS_MVDD:
 		return SMU72_MAX_LEVELS_MVDD;
 	}
-	printk(KERN_WARNING "can't get the mac value %x\n", value);
+	pr_warning("can't get the mac value %x\n", value);
 
 	return 0;
 }

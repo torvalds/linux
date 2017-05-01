@@ -471,10 +471,44 @@ static void nicvf_get_ringparam(struct net_device *netdev,
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
 
-	ring->rx_max_pending = MAX_RCV_BUF_COUNT;
-	ring->rx_pending = qs->rbdr_len;
+	ring->rx_max_pending = MAX_CMP_QUEUE_LEN;
+	ring->rx_pending = qs->cq_len;
 	ring->tx_max_pending = MAX_SND_QUEUE_LEN;
 	ring->tx_pending = qs->sq_len;
+}
+
+static int nicvf_set_ringparam(struct net_device *netdev,
+			       struct ethtool_ringparam *ring)
+{
+	struct nicvf *nic = netdev_priv(netdev);
+	struct queue_set *qs = nic->qs;
+	u32 rx_count, tx_count;
+
+	/* Due to HW errata this is not supported on T88 pass 1.x silicon */
+	if (pass1_silicon(nic->pdev))
+		return -EINVAL;
+
+	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
+		return -EINVAL;
+
+	tx_count = clamp_t(u32, ring->tx_pending,
+			   MIN_SND_QUEUE_LEN, MAX_SND_QUEUE_LEN);
+	rx_count = clamp_t(u32, ring->rx_pending,
+			   MIN_CMP_QUEUE_LEN, MAX_CMP_QUEUE_LEN);
+
+	if ((tx_count == qs->sq_len) && (rx_count == qs->cq_len))
+		return 0;
+
+	/* Permitted lengths are 1K, 2K, 4K, 8K, 16K, 32K, 64K */
+	qs->sq_len = rounddown_pow_of_two(tx_count);
+	qs->cq_len = rounddown_pow_of_two(rx_count);
+
+	if (netif_running(netdev)) {
+		nicvf_stop(netdev);
+		nicvf_open(netdev);
+	}
+
+	return 0;
 }
 
 static int nicvf_get_rss_hash_opts(struct nicvf *nic,
@@ -635,7 +669,7 @@ static int nicvf_get_rxfh(struct net_device *dev, u32 *indir, u8 *hkey,
 }
 
 static int nicvf_set_rxfh(struct net_device *dev, const u32 *indir,
-			  const u8 *hkey, u8 hfunc)
+			  const u8 *hkey, const u8 hfunc)
 {
 	struct nicvf *nic = netdev_priv(dev);
 	struct nicvf_rss_info *rss = &nic->rss_info;
@@ -787,6 +821,7 @@ static const struct ethtool_ops nicvf_ethtool_ops = {
 	.get_regs		= nicvf_get_regs,
 	.get_coalesce		= nicvf_get_coalesce,
 	.get_ringparam		= nicvf_get_ringparam,
+	.set_ringparam		= nicvf_set_ringparam,
 	.get_rxnfc		= nicvf_get_rxnfc,
 	.set_rxnfc		= nicvf_set_rxnfc,
 	.get_rxfh_key_size	= nicvf_get_rxfh_key_size,

@@ -211,7 +211,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	unsigned int bpw;
+	unsigned int bpw, i;
 
 	if (!master->dma_rx)
 		return false;
@@ -228,11 +228,15 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 	if (bpw != 1 && bpw != 2 && bpw != 4)
 		return false;
 
-	if (transfer->len < spi_imx->wml * bpw)
+	for (i = spi_imx_get_fifosize(spi_imx) / 2; i > 0; i--) {
+		if (!(transfer->len % (i * bpw)))
+			break;
+	}
+
+	if (i == 0)
 		return false;
 
-	if (transfer->len % (spi_imx->wml * bpw))
-		return false;
+	spi_imx->wml = i;
 
 	return true;
 }
@@ -836,10 +840,6 @@ static int spi_imx_dma_configure(struct spi_master *master,
 	enum dma_slave_buswidth buswidth;
 	struct dma_slave_config rx = {}, tx = {};
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-
-	if (bytes_per_word == spi_imx->bytes_per_word)
-		/* Same as last time */
-		return 0;
 
 	switch (bytes_per_word) {
 	case 4:

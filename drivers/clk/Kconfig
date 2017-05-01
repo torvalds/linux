@@ -95,16 +95,17 @@ config COMMON_CLK_CDCE706
 	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
 
 config COMMON_CLK_CDCE925
-	tristate "Clock driver for TI CDCE925 devices"
+	tristate "Clock driver for TI CDCE913/925/937/949 devices"
 	depends on I2C
 	depends on OF
 	select REGMAP_I2C
 	help
 	---help---
-	  This driver supports the TI CDCE925 programmable clock synthesizer.
-	  The chip contains two PLLs with spread-spectrum clocking support and
-	  five output dividers. The driver only supports the following setup,
-	  and uses a fixed setting for the output muxes.
+	  This driver supports the TI CDCE913/925/937/949 programmable clock
+	  synthesizer. Each chip has different number of PLLs and outputs.
+	  For example, the CDCE925 contains two PLLs with spread-spectrum
+	  clocking support and five output dividers. The driver only supports
+	  the following setup, and uses a fixed setting for the output muxes.
 	  Y1 is derived from the input clock
 	  Y2 and Y3 derive from PLL1
 	  Y4 and Y5 derive from PLL2
@@ -197,6 +198,16 @@ config COMMON_CLK_OXNAS
 	select MFD_SYSCON
 	---help---
 	  Support for the OXNAS SoC Family clocks.
+
+config COMMON_CLK_VC5
+	tristate "Clock driver for IDT VersaClock5 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	---help---
+	  This driver supports the IDT VersaClock5 programmable clock
+	  generator.
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"

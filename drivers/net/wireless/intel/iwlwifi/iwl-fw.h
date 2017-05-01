@@ -132,7 +132,8 @@ struct fw_desc {
 };
 
 struct fw_img {
-	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
+	struct fw_desc *sec;
+	int num_sec;
 	bool is_dual_cpus;
 	u32 paging_mem_size;
 };
@@ -295,8 +296,8 @@ struct iwl_fw {
 	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
-	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv[FW_DBG_MEM_MAX];
-	bool dbg_dynamic_mem;
+	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv;
+	size_t n_dbg_mem_tlv;
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 	u8 dbg_dest_reg_num;
 	struct iwl_gscan_capabilities gscan_capa;

@@ -216,10 +216,14 @@ static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
 		goto out;
 
 	/* Go from generic option to ETMv4 specifics */
-	if (attr->config & BIT(ETM_OPT_CYCACC))
-		config->cfg |= ETMv4_MODE_CYCACC;
+	if (attr->config & BIT(ETM_OPT_CYCACC)) {
+		config->cfg |= BIT(4);
+		/* TRM: Must program this for cycacc to work */
+		config->ccctlr = ETM_CYC_THRESHOLD_DEFAULT;
+	}
 	if (attr->config & BIT(ETM_OPT_TS))
-		config->cfg |= ETMv4_MODE_TIMESTAMP;
+		/* bit[11], Global timestamp tracing bit */
+		config->cfg |= BIT(11);
 
 out:
 	return ret;

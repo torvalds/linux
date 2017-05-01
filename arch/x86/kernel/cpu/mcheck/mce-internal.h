@@ -13,7 +13,7 @@ enum severity_level {
 	MCE_PANIC_SEVERITY,
 };
 
-extern struct atomic_notifier_head x86_mce_decoder_chain;
+extern struct blocking_notifier_head x86_mce_decoder_chain;
 
 #define ATTR_LEN		16
 #define INITIAL_CHECK_INTERVAL	5 * 60 /* 5 minutes */
@@ -31,7 +31,7 @@ struct mce_evt_llist {
 	struct mce mce;
 };
 
-void mce_gen_pool_process(void);
+void mce_gen_pool_process(struct work_struct *__unused);
 bool mce_gen_pool_empty(void);
 int mce_gen_pool_add(struct mce *mce);
 int mce_gen_pool_init(void);

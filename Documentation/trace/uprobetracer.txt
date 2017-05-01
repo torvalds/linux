@@ -7,7 +7,7 @@
 Overview
 --------
 Uprobe based trace events are similar to kprobe based trace events.
-To enable this feature, build your kernel with CONFIG_UPROBE_EVENT=y.
+To enable this feature, build your kernel with CONFIG_UPROBE_EVENTS=y.
 
 Similar to the kprobe-event tracer, this doesn't need to be activated via
 current_tracer. Instead of that, add probe points via

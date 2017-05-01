@@ -50,10 +50,10 @@
 #define VNT_RF_MAX_POWER    0x3f
 #define	VNT_RF_REG_LEN      0x17 /* 24 bit length */
 
-int vnt_rf_write_embedded(struct vnt_private *, u32);
-int vnt_rf_setpower(struct vnt_private *, u32, u32);
-int vnt_rf_set_txpower(struct vnt_private *, u8, u32);
-void vnt_rf_rssi_to_dbm(struct vnt_private *, u8, long *);
-void vnt_rf_table_download(struct vnt_private *);
+int vnt_rf_write_embedded(struct vnt_private *priv, u32 data);
+int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel);
+int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate);
+void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm);
+void vnt_rf_table_download(struct vnt_private *priv);
 
 #endif /* __RF_H__ */

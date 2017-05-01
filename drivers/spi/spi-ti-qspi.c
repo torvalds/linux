@@ -652,7 +652,8 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (r == NULL) {
 			dev_err(&pdev->dev, "missing platform data\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto free_master;
 		}
 	}
 
@@ -669,7 +670,8 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
-		return irq;
+		ret = irq;
+		goto free_master;
 	}
 
 	mutex_init(&qspi->list_lock);
@@ -685,15 +687,17 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		qspi->ctrl_base =
 		syscon_regmap_lookup_by_phandle(np,
 						"syscon-chipselects");
-		if (IS_ERR(qspi->ctrl_base))
-			return PTR_ERR(qspi->ctrl_base);
+		if (IS_ERR(qspi->ctrl_base)) {
+			ret = PTR_ERR(qspi->ctrl_base);
+			goto free_master;
+		}
 		ret = of_property_read_u32_index(np,
 						 "syscon-chipselects",
 						 1, &qspi->ctrl_reg);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"couldn't get ctrl_mod reg index\n");
-			return ret;
+			goto free_master;
 		}
 	}
 
@@ -714,9 +718,10 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, mask);
 
 	qspi->rx_chan = dma_request_chan_by_mask(&mask);
-	if (!qspi->rx_chan) {
+	if (IS_ERR(qspi->rx_chan)) {
 		dev_err(qspi->dev,
 			"No Rx DMA available, trying mmap mode\n");
+		qspi->rx_chan = NULL;
 		ret = 0;
 		goto no_dma;
 	}
@@ -742,6 +747,7 @@ no_dma:
 	if (!ret)
 		return 0;
 
+	pm_runtime_disable(&pdev->dev);
 free_master:
 	spi_master_put(master);
 	return ret;

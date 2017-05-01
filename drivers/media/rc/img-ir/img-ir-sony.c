@@ -68,19 +68,29 @@ static int img_ir_sony_filter(const struct rc_scancode_filter *in,
 	func     = (in->data >> 0)  & 0x7f;
 	func_m   = (in->mask >> 0)  & 0x7f;
 
-	if (subdev & subdev_m) {
+	protocols &= RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20;
+
+	/*
+	 * If only one bit is set, we were requested to do an exact
+	 * protocol. This should be the case for wakeup filters; for
+	 * normal filters, guess the protocol from the scancode.
+	 */
+	if (!is_power_of_2(protocols)) {
+		if (subdev & subdev_m)
+			protocols = RC_BIT_SONY20;
+		else if (dev & dev_m & 0xe0)
+			protocols = RC_BIT_SONY15;
+		else
+			protocols = RC_BIT_SONY12;
+	}
+
+	if (protocols == RC_BIT_SONY20) {
 		/* can't encode subdev and higher device bits */
 		if (dev & dev_m & 0xe0)
 			return -EINVAL;
-		/* subdevice (extended) bits only in 20 bit encoding */
-		if (!(protocols & RC_BIT_SONY20))
-			return -EINVAL;
 		len = 20;
 		dev_m &= 0x1f;
-	} else if (dev & dev_m & 0xe0) {
-		/* upper device bits only in 15 bit encoding */
-		if (!(protocols & RC_BIT_SONY15))
-			return -EINVAL;
+	} else if (protocols == RC_BIT_SONY15) {
 		len = 15;
 		subdev_m = 0;
 	} else {

@@ -43,6 +43,9 @@
 #include <linux/personality.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
@@ -139,6 +142,10 @@ void machine_power_off(void)
 
 	printk(KERN_EMERG "System shut down completed.\n"
 	       "Please power this system off now.");
+
+	/* prevent soft lockup/stalled CPU messages for endless loop. */
+	rcu_sysrq_start();
+	for (;;);
 }
 
 void (*pm_power_off)(void) = machine_power_off;

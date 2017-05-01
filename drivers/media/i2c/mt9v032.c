@@ -266,8 +266,7 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 	struct regmap *map = mt9v032->regmap;
 	int ret;
 
-	if (mt9v032->reset_gpio)
-		gpiod_set_value_cansleep(mt9v032->reset_gpio, 1);
+	gpiod_set_value_cansleep(mt9v032->reset_gpio, 1);
 
 	ret = clk_set_rate(mt9v032->clk, mt9v032->sysclk);
 	if (ret < 0)
@@ -936,15 +935,15 @@ static int mt9v032_close(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	return mt9v032_set_power(subdev, 0);
 }
 
-static struct v4l2_subdev_core_ops mt9v032_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9v032_subdev_core_ops = {
 	.s_power	= mt9v032_set_power,
 };
 
-static struct v4l2_subdev_video_ops mt9v032_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9v032_subdev_video_ops = {
 	.s_stream	= mt9v032_s_stream,
 };
 
-static struct v4l2_subdev_pad_ops mt9v032_subdev_pad_ops = {
+static const struct v4l2_subdev_pad_ops mt9v032_subdev_pad_ops = {
 	.enum_mbus_code = mt9v032_enum_mbus_code,
 	.enum_frame_size = mt9v032_enum_frame_size,
 	.get_fmt = mt9v032_get_format,
@@ -953,7 +952,7 @@ static struct v4l2_subdev_pad_ops mt9v032_subdev_pad_ops = {
 	.set_selection = mt9v032_set_selection,
 };
 
-static struct v4l2_subdev_ops mt9v032_subdev_ops = {
+static const struct v4l2_subdev_ops mt9v032_subdev_ops = {
 	.core	= &mt9v032_subdev_core_ops,
 	.video	= &mt9v032_subdev_video_ops,
 	.pad	= &mt9v032_subdev_pad_ops,

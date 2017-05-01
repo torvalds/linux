@@ -197,66 +197,55 @@ EXPORT_SYMBOL(sk_net_capable);
 
 /*
  * Each address family might have different locking rules, so we have
- * one slock key per address family:
+ * one slock key per address family and separate keys for internal and
+ * userspace sockets.
  */
 static struct lock_class_key af_family_keys[AF_MAX];
+static struct lock_class_key af_family_kern_keys[AF_MAX];
 static struct lock_class_key af_family_slock_keys[AF_MAX];
+static struct lock_class_key af_family_kern_slock_keys[AF_MAX];
 
 /*
  * Make lock validator output more readable. (we pre-construct these
  * strings build-time, so that runtime initialization of socket
  * locks is fast):
  */
+
+#define _sock_locks(x)						  \
+  x "AF_UNSPEC",	x "AF_UNIX"     ,	x "AF_INET"     , \
+  x "AF_AX25"  ,	x "AF_IPX"      ,	x "AF_APPLETALK", \
+  x "AF_NETROM",	x "AF_BRIDGE"   ,	x "AF_ATMPVC"   , \
+  x "AF_X25"   ,	x "AF_INET6"    ,	x "AF_ROSE"     , \
+  x "AF_DECnet",	x "AF_NETBEUI"  ,	x "AF_SECURITY" , \
+  x "AF_KEY"   ,	x "AF_NETLINK"  ,	x "AF_PACKET"   , \
+  x "AF_ASH"   ,	x "AF_ECONET"   ,	x "AF_ATMSVC"   , \
+  x "AF_RDS"   ,	x "AF_SNA"      ,	x "AF_IRDA"     , \
+  x "AF_PPPOX" ,	x "AF_WANPIPE"  ,	x "AF_LLC"      , \
+  x "27"       ,	x "28"          ,	x "AF_CAN"      , \
+  x "AF_TIPC"  ,	x "AF_BLUETOOTH",	x "IUCV"        , \
+  x "AF_RXRPC" ,	x "AF_ISDN"     ,	x "AF_PHONET"   , \
+  x "AF_IEEE802154",	x "AF_CAIF"	,	x "AF_ALG"      , \
+  x "AF_NFC"   ,	x "AF_VSOCK"    ,	x "AF_KCM"      , \
+  x "AF_QIPCRTR",	x "AF_SMC"	,	x "AF_MAX"
+
 static const char *const af_family_key_strings[AF_MAX+1] = {
-  "sk_lock-AF_UNSPEC", "sk_lock-AF_UNIX"     , "sk_lock-AF_INET"     ,
-  "sk_lock-AF_AX25"  , "sk_lock-AF_IPX"      , "sk_lock-AF_APPLETALK",
-  "sk_lock-AF_NETROM", "sk_lock-AF_BRIDGE"   , "sk_lock-AF_ATMPVC"   ,
-  "sk_lock-AF_X25"   , "sk_lock-AF_INET6"    , "sk_lock-AF_ROSE"     ,
-  "sk_lock-AF_DECnet", "sk_lock-AF_NETBEUI"  , "sk_lock-AF_SECURITY" ,
-  "sk_lock-AF_KEY"   , "sk_lock-AF_NETLINK"  , "sk_lock-AF_PACKET"   ,
-  "sk_lock-AF_ASH"   , "sk_lock-AF_ECONET"   , "sk_lock-AF_ATMSVC"   ,
-  "sk_lock-AF_RDS"   , "sk_lock-AF_SNA"      , "sk_lock-AF_IRDA"     ,
-  "sk_lock-AF_PPPOX" , "sk_lock-AF_WANPIPE"  , "sk_lock-AF_LLC"      ,
-  "sk_lock-27"       , "sk_lock-28"          , "sk_lock-AF_CAN"      ,
-  "sk_lock-AF_TIPC"  , "sk_lock-AF_BLUETOOTH", "sk_lock-IUCV"        ,
-  "sk_lock-AF_RXRPC" , "sk_lock-AF_ISDN"     , "sk_lock-AF_PHONET"   ,
-  "sk_lock-AF_IEEE802154", "sk_lock-AF_CAIF" , "sk_lock-AF_ALG"      ,
-  "sk_lock-AF_NFC"   , "sk_lock-AF_VSOCK"    , "sk_lock-AF_KCM"      ,
-  "sk_lock-AF_QIPCRTR", "sk_lock-AF_MAX"
+	_sock_locks("sk_lock-")
 };
 static const char *const af_family_slock_key_strings[AF_MAX+1] = {
-  "slock-AF_UNSPEC", "slock-AF_UNIX"     , "slock-AF_INET"     ,
-  "slock-AF_AX25"  , "slock-AF_IPX"      , "slock-AF_APPLETALK",
-  "slock-AF_NETROM", "slock-AF_BRIDGE"   , "slock-AF_ATMPVC"   ,
-  "slock-AF_X25"   , "slock-AF_INET6"    , "slock-AF_ROSE"     ,
-  "slock-AF_DECnet", "slock-AF_NETBEUI"  , "slock-AF_SECURITY" ,
-  "slock-AF_KEY"   , "slock-AF_NETLINK"  , "slock-AF_PACKET"   ,
-  "slock-AF_ASH"   , "slock-AF_ECONET"   , "slock-AF_ATMSVC"   ,
-  "slock-AF_RDS"   , "slock-AF_SNA"      , "slock-AF_IRDA"     ,
-  "slock-AF_PPPOX" , "slock-AF_WANPIPE"  , "slock-AF_LLC"      ,
-  "slock-27"       , "slock-28"          , "slock-AF_CAN"      ,
-  "slock-AF_TIPC"  , "slock-AF_BLUETOOTH", "slock-AF_IUCV"     ,
-  "slock-AF_RXRPC" , "slock-AF_ISDN"     , "slock-AF_PHONET"   ,
-  "slock-AF_IEEE802154", "slock-AF_CAIF" , "slock-AF_ALG"      ,
-  "slock-AF_NFC"   , "slock-AF_VSOCK"    ,"slock-AF_KCM"       ,
-  "slock-AF_QIPCRTR", "slock-AF_MAX"
+	_sock_locks("slock-")
 };
 static const char *const af_family_clock_key_strings[AF_MAX+1] = {
-  "clock-AF_UNSPEC", "clock-AF_UNIX"     , "clock-AF_INET"     ,
-  "clock-AF_AX25"  , "clock-AF_IPX"      , "clock-AF_APPLETALK",
-  "clock-AF_NETROM", "clock-AF_BRIDGE"   , "clock-AF_ATMPVC"   ,
-  "clock-AF_X25"   , "clock-AF_INET6"    , "clock-AF_ROSE"     ,
-  "clock-AF_DECnet", "clock-AF_NETBEUI"  , "clock-AF_SECURITY" ,
-  "clock-AF_KEY"   , "clock-AF_NETLINK"  , "clock-AF_PACKET"   ,
-  "clock-AF_ASH"   , "clock-AF_ECONET"   , "clock-AF_ATMSVC"   ,
-  "clock-AF_RDS"   , "clock-AF_SNA"      , "clock-AF_IRDA"     ,
-  "clock-AF_PPPOX" , "clock-AF_WANPIPE"  , "clock-AF_LLC"      ,
-  "clock-27"       , "clock-28"          , "clock-AF_CAN"      ,
-  "clock-AF_TIPC"  , "clock-AF_BLUETOOTH", "clock-AF_IUCV"     ,
-  "clock-AF_RXRPC" , "clock-AF_ISDN"     , "clock-AF_PHONET"   ,
-  "clock-AF_IEEE802154", "clock-AF_CAIF" , "clock-AF_ALG"      ,
-  "clock-AF_NFC"   , "clock-AF_VSOCK"    , "clock-AF_KCM"      ,
-  "clock-AF_QIPCRTR", "clock-AF_MAX"
+	_sock_locks("clock-")
+};
+
+static const char *const af_family_kern_key_strings[AF_MAX+1] = {
+	_sock_locks("k-sk_lock-")
+};
+static const char *const af_family_kern_slock_key_strings[AF_MAX+1] = {
+	_sock_locks("k-slock-")
+};
+static const char *const af_family_kern_clock_key_strings[AF_MAX+1] = {
+	_sock_locks("k-clock-")
 };
 
 /*
@@ -264,6 +253,7 @@ static const char *const af_family_clock_key_strings[AF_MAX+1] = {
  * so split the lock classes by using a per-AF key:
  */
 static struct lock_class_key af_callback_keys[AF_MAX];
+static struct lock_class_key af_kern_callback_keys[AF_MAX];
 
 /* Take into consideration the size of the struct sk_buff overhead in the
  * determination of these values, since that is non-constant across
@@ -367,7 +357,7 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 	if (tv.tv_sec == 0 && tv.tv_usec == 0)
 		return 0;
 	if (tv.tv_sec < (MAX_SCHEDULE_TIMEOUT/HZ - 1))
-		*timeo_p = tv.tv_sec*HZ + (tv.tv_usec+(1000000/HZ-1))/(1000000/HZ);
+		*timeo_p = tv.tv_sec * HZ + DIV_ROUND_UP(tv.tv_usec, USEC_PER_SEC / HZ);
 	return 0;
 }
 
@@ -502,6 +492,7 @@ struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie)
 
 	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
 		sk_tx_queue_clear(sk);
+		sk->sk_dst_pending_confirm = 0;
 		RCU_INIT_POINTER(sk->sk_dst_cache, NULL);
 		dst_release(dst);
 		return NULL;
@@ -762,11 +753,8 @@ set_rcvbuf:
 		goto set_rcvbuf;
 
 	case SO_KEEPALIVE:
-#ifdef CONFIG_INET
-		if (sk->sk_protocol == IPPROTO_TCP &&
-		    sk->sk_type == SOCK_STREAM)
-			tcp_set_keepalive(sk, valbool);
-#endif
+		if (sk->sk_prot->keepalive)
+			sk->sk_prot->keepalive(sk, valbool);
 		sock_valbool_flag(sk, SOCK_KEEPOPEN, valbool);
 		break;
 
@@ -1148,7 +1136,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			v.tm.tv_usec = 0;
 		} else {
 			v.tm.tv_sec = sk->sk_rcvtimeo / HZ;
-			v.tm.tv_usec = ((sk->sk_rcvtimeo % HZ) * 1000000) / HZ;
+			v.tm.tv_usec = ((sk->sk_rcvtimeo % HZ) * USEC_PER_SEC) / HZ;
 		}
 		break;
 
@@ -1159,7 +1147,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			v.tm.tv_usec = 0;
 		} else {
 			v.tm.tv_sec = sk->sk_sndtimeo / HZ;
-			v.tm.tv_usec = ((sk->sk_sndtimeo % HZ) * 1000000) / HZ;
+			v.tm.tv_usec = ((sk->sk_sndtimeo % HZ) * USEC_PER_SEC) / HZ;
 		}
 		break;
 
@@ -1295,7 +1283,16 @@ lenout:
  */
 static inline void sock_lock_init(struct sock *sk)
 {
-	sock_lock_init_class_and_name(sk,
+	if (sk->sk_kern_sock)
+		sock_lock_init_class_and_name(
+			sk,
+			af_family_kern_slock_key_strings[sk->sk_family],
+			af_family_kern_slock_keys + sk->sk_family,
+			af_family_kern_key_strings[sk->sk_family],
+			af_family_kern_keys + sk->sk_family);
+	else
+		sock_lock_init_class_and_name(
+			sk,
 			af_family_slock_key_strings[sk->sk_family],
 			af_family_slock_keys + sk->sk_family,
 			af_family_key_strings[sk->sk_family],
@@ -1401,6 +1398,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		 * why we need sk_prot_creator -acme
 		 */
 		sk->sk_prot = sk->sk_prot_creator = prot;
+		sk->sk_kern_sock = kern;
 		sock_lock_init(sk);
 		sk->sk_net_refcnt = kern ? 0 : 1;
 		if (likely(sk->sk_net_refcnt))
@@ -1443,6 +1441,11 @@ static void __sk_destruct(struct rcu_head *head)
 	if (atomic_read(&sk->sk_omem_alloc))
 		pr_debug("%s: optmem leakage (%d bytes) detected\n",
 			 __func__, atomic_read(&sk->sk_omem_alloc));
+
+	if (sk->sk_frag.page) {
+		put_page(sk->sk_frag.page);
+		sk->sk_frag.page = NULL;
+	}
 
 	if (sk->sk_peer_cred)
 		put_cred(sk->sk_peer_cred);
@@ -1522,6 +1525,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 				af_family_clock_key_strings[newsk->sk_family]);
 
 		newsk->sk_dst_cache	= NULL;
+		newsk->sk_dst_pending_confirm = 0;
 		newsk->sk_wmem_queued	= 0;
 		newsk->sk_forward_alloc = 0;
 		atomic_set(&newsk->sk_drops, 0);
@@ -1540,11 +1544,13 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 			is_charged = sk_filter_charge(newsk, filter);
 
 		if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk, sk))) {
-			/* It is still raw copy of parent, so invalidate
-			 * destructor and make plain sk_free() */
-			newsk->sk_destruct = NULL;
-			bh_unlock_sock(newsk);
-			sk_free(newsk);
+			/* We need to make sure that we don't uncharge the new
+			 * socket if we couldn't charge it in the first place
+			 * as otherwise we uncharge the parent's filter.
+			 */
+			if (!is_charged)
+				RCU_INIT_POINTER(newsk->sk_filter, NULL);
+			sk_free_unlock_clone(newsk);
 			newsk = NULL;
 			goto out;
 		}
@@ -1592,6 +1598,16 @@ out:
 	return newsk;
 }
 EXPORT_SYMBOL_GPL(sk_clone_lock);
+
+void sk_free_unlock_clone(struct sock *sk)
+{
+	/* It is still raw copy of parent, so invalidate
+	 * destructor and make plain sk_free() */
+	sk->sk_destruct = NULL;
+	bh_unlock_sock(sk);
+	sk_free(sk);
+}
+EXPORT_SYMBOL_GPL(sk_free_unlock_clone);
 
 void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
@@ -2272,7 +2288,8 @@ int sock_no_socketpair(struct socket *sock1, struct socket *sock2)
 }
 EXPORT_SYMBOL(sock_no_socketpair);
 
-int sock_no_accept(struct socket *sock, struct socket *newsock, int flags)
+int sock_no_accept(struct socket *sock, struct socket *newsock, int flags,
+		   bool kern)
 {
 	return -EOPNOTSUPP;
 }
@@ -2476,7 +2493,14 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	}
 
 	rwlock_init(&sk->sk_callback_lock);
-	lockdep_set_class_and_name(&sk->sk_callback_lock,
+	if (sk->sk_kern_sock)
+		lockdep_set_class_and_name(
+			&sk->sk_callback_lock,
+			af_kern_callback_keys + sk->sk_family,
+			af_family_kern_clock_key_strings[sk->sk_family]);
+	else
+		lockdep_set_class_and_name(
+			&sk->sk_callback_lock,
 			af_callback_keys + sk->sk_family,
 			af_family_clock_key_strings[sk->sk_family]);
 
@@ -2773,11 +2797,6 @@ void sk_common_release(struct sock *sk)
 	xfrm_sk_free_policy(sk);
 
 	sk_refcnt_debug_release(sk);
-
-	if (sk->sk_frag.page) {
-		put_page(sk->sk_frag.page);
-		sk->sk_frag.page = NULL;
-	}
 
 	sock_put(sk);
 }

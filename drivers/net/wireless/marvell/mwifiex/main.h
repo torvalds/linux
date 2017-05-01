@@ -248,7 +248,6 @@ enum MWIFIEX_HARDWARE_STATUS {
 	MWIFIEX_HW_STATUS_INITIALIZING,
 	MWIFIEX_HW_STATUS_INIT_DONE,
 	MWIFIEX_HW_STATUS_RESET,
-	MWIFIEX_HW_STATUS_CLOSING,
 	MWIFIEX_HW_STATUS_NOT_READY
 };
 
@@ -530,7 +529,7 @@ struct mwifiex_private {
 	u8 tx_timeout_cnt;
 	struct net_device *netdev;
 	struct net_device_stats stats;
-	u16 curr_pkt_filter;
+	u32 curr_pkt_filter;
 	u32 bss_mode;
 	u32 pkt_tx_ctrl;
 	u16 tx_power_level;
@@ -995,8 +994,6 @@ struct mwifiex_adapter {
 	u8 key_api_major_ver, key_api_minor_ver;
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
-	void *drv_info_dump;
-	u32 drv_info_size;
 	bool scan_chan_gap_enabled;
 	struct sk_buff_head rx_data_q;
 	bool mfg_mode;
@@ -1041,9 +1038,7 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter);
 
 int mwifiex_init_fw_complete(struct mwifiex_adapter *adapter);
 
-int mwifiex_shutdown_drv(struct mwifiex_adapter *adapter);
-
-int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
+void mwifiex_shutdown_drv(struct mwifiex_adapter *adapter);
 
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
 
@@ -1644,8 +1639,9 @@ void mwifiex_hist_data_add(struct mwifiex_private *priv,
 u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
 			    u8 rx_rate, u8 ht_info);
 
-void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter);
-void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter);
+int mwifiex_drv_info_dump(struct mwifiex_adapter *adapter, void **drv_info);
+void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter, void *drv_info,
+				int drv_info_size);
 void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
 int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
@@ -1670,5 +1666,6 @@ void mwifiex_debugfs_remove(void);
 void mwifiex_dev_debugfs_init(struct mwifiex_private *priv);
 void mwifiex_dev_debugfs_remove(struct mwifiex_private *priv);
 #endif
-void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare);
+int mwifiex_reinit_sw(struct mwifiex_adapter *adapter);
+int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter);
 #endif /* !_MWIFIEX_MAIN_H_ */

@@ -29,7 +29,6 @@ Optional properties:
 - vdda-pll-max-microamp : specifies max. load that can be drawn from pll supply
 - vddp-ref-clk-supply   : phandle to UFS device ref_clk pad power supply
 - vddp-ref-clk-max-microamp : specifies max. load that can be drawn from this supply
-- vddp-ref-clk-always-on : specifies if this supply needs to be kept always on
 
 Example:
 

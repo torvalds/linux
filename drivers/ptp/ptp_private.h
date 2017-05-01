@@ -54,6 +54,8 @@ struct ptp_clock {
 	struct device_attribute *pin_dev_attr;
 	struct attribute **pin_attr;
 	struct attribute_group pin_attr_group;
+	/* 1st entry is a pointer to the real group, 2nd is NULL terminator */
+	const struct attribute_group *pin_attr_groups[2];
 };
 
 /*
@@ -94,8 +96,7 @@ uint ptp_poll(struct posix_clock *pc,
 
 extern const struct attribute_group *ptp_groups[];
 
-int ptp_cleanup_sysfs(struct ptp_clock *ptp);
-
-int ptp_populate_sysfs(struct ptp_clock *ptp);
+int ptp_populate_pin_groups(struct ptp_clock *ptp);
+void ptp_cleanup_pin_groups(struct ptp_clock *ptp);
 
 #endif

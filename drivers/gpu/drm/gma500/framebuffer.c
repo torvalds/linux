@@ -77,7 +77,7 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	    (transp << info->var.transp.offset);
 
 	if (regno < 16) {
-		switch (fb->bits_per_pixel) {
+		switch (fb->format->cpp[0] * 8) {
 		case 16:
 			((uint32_t *) info->pseudo_palette)[regno] = v;
 			break;
@@ -111,8 +111,9 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
         return 0;
 }
 
-static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int psbfb_vm_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -244,7 +245,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
 
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
 	fb->gtt = gt;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
 	if (ret) {
@@ -407,7 +408,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	fbdev->psb_fb_helper.fb = fb;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	strcpy(info->fix.id, "psbdrmfb");
 
 	info->flags = FBINFO_DEFAULT;
@@ -564,7 +565,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	drm_fb_helper_prepare(dev, &fbdev->psb_fb_helper, &psb_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &fbdev->psb_fb_helper,
-				 dev_priv->ops->crtcs, INTELFB_CONN_LIMIT);
+				 INTELFB_CONN_LIMIT);
 	if (ret)
 		goto free;
 

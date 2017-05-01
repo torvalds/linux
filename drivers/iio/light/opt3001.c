@@ -840,6 +840,7 @@ static const struct of_device_id opt3001_of_match[] = {
 	{ .compatible = "ti,opt3001" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, opt3001_of_match);
 
 static struct i2c_driver opt3001_driver = {
 	.probe = opt3001_probe,

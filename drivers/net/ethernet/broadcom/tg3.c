@@ -20,6 +20,7 @@
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/slab.h>
@@ -14145,8 +14146,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.set_link_ksettings	= tg3_set_link_ksettings,
 };
 
-static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *stats)
+static void tg3_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *stats)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
@@ -14154,13 +14155,11 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 	if (!tp->hw_stats) {
 		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
-		return stats;
+		return;
 	}
 
 	tg3_get_nstats(tp, stats);
 	spin_unlock_bh(&tp->lock);
-
-	return stats;
 }
 
 static void tg3_set_rx_mode(struct net_device *dev)

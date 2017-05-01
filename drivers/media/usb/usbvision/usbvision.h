@@ -21,10 +21,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -370,7 +366,6 @@ struct usb_usbvision {
 	unsigned char ctrl_urb_buffer[8];
 	int ctrl_urb_busy;
 	struct usb_ctrlrequest ctrl_urb_setup;
-	wait_queue_head_t ctrl_urb_wq;					/* Processes waiting */
 
 	/* configuration part */
 	int have_tuner;

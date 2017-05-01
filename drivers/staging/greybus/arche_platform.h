@@ -10,8 +10,6 @@
 #ifndef __ARCHE_PLATFORM_H
 #define __ARCHE_PLATFORM_H
 
-#include "timesync.h"
-
 enum arche_platform_state {
 	ARCHE_PLATFORM_STATE_OFF,
 	ARCHE_PLATFORM_STATE_ACTIVE,

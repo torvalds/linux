@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -499,6 +499,25 @@ out:
 EXPORT_SYMBOL_GPL(mei_cldev_enable);
 
 /**
+ * mei_cldev_unregister_callbacks - internal wrapper for unregistering
+ *  callbacks.
+ *
+ * @cldev: client device
+ */
+static void mei_cldev_unregister_callbacks(struct mei_cl_device *cldev)
+{
+	if (cldev->rx_cb) {
+		cancel_work_sync(&cldev->rx_work);
+		cldev->rx_cb = NULL;
+	}
+
+	if (cldev->notif_cb) {
+		cancel_work_sync(&cldev->notif_work);
+		cldev->notif_cb = NULL;
+	}
+}
+
+/**
  * mei_cldev_disable - disable me client device
  *     disconnect form the me client
  *
@@ -518,6 +537,8 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	cl = cldev->cl;
 
 	bus = cldev->bus;
+
+	mei_cldev_unregister_callbacks(cldev);
 
 	mutex_lock(&bus->device_lock);
 
@@ -540,6 +561,37 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(mei_cldev_disable);
+
+/**
+ * mei_cl_bus_module_get - acquire module of the underlying
+ *    hw module.
+ *
+ * @cl: host client
+ *
+ * Return: true on success; false if the module was removed.
+ */
+bool mei_cl_bus_module_get(struct mei_cl *cl)
+{
+	struct mei_cl_device *cldev = cl->cldev;
+
+	if (!cldev)
+		return true;
+
+	return try_module_get(cldev->bus->dev->driver->owner);
+}
+
+/**
+ * mei_cl_bus_module_put -  release the underlying hw module.
+ *
+ * @cl: host client
+ */
+void mei_cl_bus_module_put(struct mei_cl *cl)
+{
+	struct mei_cl_device *cldev = cl->cldev;
+
+	if (cldev)
+		module_put(cldev->bus->dev->driver->owner);
+}
 
 /**
  * mei_cl_device_find - find matching entry in the driver id table
@@ -665,18 +717,11 @@ static int mei_cl_device_remove(struct device *dev)
 	if (!cldev || !dev->driver)
 		return 0;
 
-	if (cldev->rx_cb) {
-		cancel_work_sync(&cldev->rx_work);
-		cldev->rx_cb = NULL;
-	}
-	if (cldev->notif_cb) {
-		cancel_work_sync(&cldev->notif_work);
-		cldev->notif_cb = NULL;
-	}
-
 	cldrv = to_mei_cl_driver(dev->driver);
 	if (cldrv->remove)
 		ret = cldrv->remove(cldev);
+
+	mei_cldev_unregister_callbacks(cldev);
 
 	module_put(THIS_MODULE);
 	dev->driver = NULL;

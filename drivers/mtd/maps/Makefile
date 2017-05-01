@@ -17,10 +17,13 @@ obj-$(CONFIG_MTD_CK804XROM)	+= ck804xrom.o
 obj-$(CONFIG_MTD_TSUNAMI)	+= tsunami_flash.o
 obj-$(CONFIG_MTD_PXA2XX)	+= pxa2xx-flash.o
 obj-$(CONFIG_MTD_PHYSMAP)	+= physmap.o
-obj-$(CONFIG_MTD_PHYSMAP_OF)	+= physmap_of.o
 ifdef CONFIG_MTD_PHYSMAP_OF_VERSATILE
-obj-$(CONFIG_MTD_PHYSMAP_OF)	+= physmap_of_versatile.o
+physmap_of-objs += physmap_of_versatile.o
 endif
+ifdef CONFIG_MTD_PHYSMAP_OF_GEMINI
+physmap_of-objs += physmap_of_gemini.o
+endif
+obj-$(CONFIG_MTD_PHYSMAP_OF)	+= physmap_of.o
 obj-$(CONFIG_MTD_PISMO)		+= pismo.o
 obj-$(CONFIG_MTD_PMC_MSP_EVM)   += pmcmsp-flash.o
 obj-$(CONFIG_MTD_PCMCIA)	+= pcmciamtd.o

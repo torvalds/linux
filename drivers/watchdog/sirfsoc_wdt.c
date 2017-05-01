@@ -127,7 +127,7 @@ static const struct watchdog_info sirfsoc_wdt_ident = {
 	.identity         =	"SiRFSOC Watchdog",
 };
 
-static struct watchdog_ops sirfsoc_wdt_ops = {
+static const struct watchdog_ops sirfsoc_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = sirfsoc_wdt_enable,
 	.stop = sirfsoc_wdt_disable,

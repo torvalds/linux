@@ -1204,10 +1204,11 @@ static void skd_complete_special(struct skd_device *skdev,
 static int skd_bdev_ioctl(struct block_device *bdev, fmode_t mode,
 			  uint cmd_in, ulong arg)
 {
-	int rc = 0;
+	static const int sg_version_num = 30527;
+	int rc = 0, timeout;
 	struct gendisk *disk = bdev->bd_disk;
 	struct skd_device *skdev = disk->private_data;
-	void __user *p = (void *)arg;
+	int __user *p = (int __user *)arg;
 
 	pr_debug("%s:%s:%d %s: CMD[%s] ioctl  mode 0x%x, cmd 0x%x arg %0lx\n",
 		 skdev->name, __func__, __LINE__,
@@ -1218,12 +1219,18 @@ static int skd_bdev_ioctl(struct block_device *bdev, fmode_t mode,
 
 	switch (cmd_in) {
 	case SG_SET_TIMEOUT:
+		rc = get_user(timeout, p);
+		if (!rc)
+			disk->queue->sg_timeout = clock_t_to_jiffies(timeout);
+		break;
 	case SG_GET_TIMEOUT:
+		rc = jiffies_to_clock_t(disk->queue->sg_timeout);
+		break;
 	case SG_GET_VERSION_NUM:
-		rc = scsi_cmd_ioctl(disk->queue, disk, mode, cmd_in, p);
+		rc = put_user(sg_version_num, p);
 		break;
 	case SG_IO:
-		rc = skd_ioctl_sg_io(skdev, mode, p);
+		rc = skd_ioctl_sg_io(skdev, mode, (void __user *)arg);
 		break;
 
 	default:

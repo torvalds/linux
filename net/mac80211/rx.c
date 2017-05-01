@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -206,6 +206,51 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 	}
 
 	return len;
+}
+
+static void ieee80211_handle_mu_mimo_mon(struct ieee80211_sub_if_data *sdata,
+					 struct sk_buff *skb,
+					 int rtap_vendor_space)
+{
+	struct {
+		struct ieee80211_hdr_3addr hdr;
+		u8 category;
+		u8 action_code;
+	} __packed action;
+
+	if (!sdata)
+		return;
+
+	BUILD_BUG_ON(sizeof(action) != IEEE80211_MIN_ACTION_SIZE + 1);
+
+	if (skb->len < rtap_vendor_space + sizeof(action) +
+		       VHT_MUMIMO_GROUPS_DATA_LEN)
+		return;
+
+	if (!is_valid_ether_addr(sdata->u.mntr.mu_follow_addr))
+		return;
+
+	skb_copy_bits(skb, rtap_vendor_space, &action, sizeof(action));
+
+	if (!ieee80211_is_action(action.hdr.frame_control))
+		return;
+
+	if (action.category != WLAN_CATEGORY_VHT)
+		return;
+
+	if (action.action_code != WLAN_VHT_ACTION_GROUPID_MGMT)
+		return;
+
+	if (!ether_addr_equal(action.hdr.addr1, sdata->u.mntr.mu_follow_addr))
+		return;
+
+	skb = skb_copy(skb, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
+	skb_queue_tail(&sdata->skb_queue, skb);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
 
 /*
@@ -515,7 +560,6 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	struct net_device *prev_dev = NULL;
 	int present_fcs_len = 0;
 	unsigned int rtap_vendor_space = 0;
-	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_sub_if_data *monitor_sdata =
 		rcu_dereference(local->monitor_sdata);
 
@@ -552,6 +596,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 		return remove_monitor_info(local, origskb, rtap_vendor_space);
 	}
+
+	ieee80211_handle_mu_mimo_mon(monitor_sdata, origskb, rtap_vendor_space);
 
 	/* room for the radiotap header based on driver features */
 	rt_hdrlen = ieee80211_rx_radiotap_hdrlen(local, status, origskb);
@@ -616,23 +662,6 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 		prev_dev = sdata->dev;
 		ieee80211_rx_stats(sdata->dev, skb->len);
-	}
-
-	mgmt = (void *)skb->data;
-	if (monitor_sdata &&
-	    skb->len >= IEEE80211_MIN_ACTION_SIZE + 1 + VHT_MUMIMO_GROUPS_DATA_LEN &&
-	    ieee80211_is_action(mgmt->frame_control) &&
-	    mgmt->u.action.category == WLAN_CATEGORY_VHT &&
-	    mgmt->u.action.u.vht_group_notif.action_code == WLAN_VHT_ACTION_GROUPID_MGMT &&
-	    is_valid_ether_addr(monitor_sdata->u.mntr.mu_follow_addr) &&
-	    ether_addr_equal(mgmt->da, monitor_sdata->u.mntr.mu_follow_addr)) {
-		struct sk_buff *mu_skb = skb_copy(skb, GFP_ATOMIC);
-
-		if (mu_skb) {
-			mu_skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
-			skb_queue_tail(&monitor_sdata->skb_queue, mu_skb);
-			ieee80211_queue_work(&local->hw, &monitor_sdata->work);
-		}
 	}
 
 	if (prev_dev) {
@@ -1034,6 +1063,18 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 	buf_size = tid_agg_rx->buf_size;
 	head_seq_num = tid_agg_rx->head_seq_num;
 
+	/*
+	 * If the current MPDU's SN is smaller than the SSN, it shouldn't
+	 * be reordered.
+	 */
+	if (unlikely(!tid_agg_rx->started)) {
+		if (ieee80211_sn_less(mpdu_seq_num, head_seq_num)) {
+			ret = false;
+			goto out;
+		}
+		tid_agg_rx->started = true;
+	}
+
 	/* frame with out of date sequence number */
 	if (ieee80211_sn_less(mpdu_seq_num, head_seq_num)) {
 		dev_kfree_skb(skb);
@@ -1391,7 +1432,7 @@ EXPORT_SYMBOL(ieee80211_sta_pspoll);
 void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *pubsta, u8 tid)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
-	u8 ac = ieee802_1d_to_ac[tid & 7];
+	int ac = ieee80211_ac_from_tid(tid);
 
 	/*
 	 * If this AC is not trigger-enabled do nothing unless the
@@ -1908,7 +1949,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	unsigned int frag, seq;
 	struct ieee80211_fragment_entry *entry;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status *status;
 
 	hdr = (struct ieee80211_hdr *)rx->skb->data;
 	fc = hdr->frame_control;
@@ -2033,9 +2073,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		memcpy(skb_put(rx->skb, skb->len), skb->data, skb->len);
 		dev_kfree_skb(skb);
 	}
-
-	/* Complete frame has been reassembled - process it now */
-	status = IEEE80211_SKB_RXCB(rx->skb);
 
  out:
 	ieee80211_led_rx(rx->local);
@@ -3602,6 +3639,27 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 			    !ether_addr_equal(bssid, hdr->addr1))
 				return false;
 		}
+
+		/*
+		 * 802.11-2016 Table 9-26 says that for data frames, A1 must be
+		 * the BSSID - we've checked that already but may have accepted
+		 * the wildcard (ff:ff:ff:ff:ff:ff).
+		 *
+		 * It also says:
+		 *	The BSSID of the Data frame is determined as follows:
+		 *	a) If the STA is contained within an AP or is associated
+		 *	   with an AP, the BSSID is the address currently in use
+		 *	   by the STA contained in the AP.
+		 *
+		 * So we should not accept data frames with an address that's
+		 * multicast.
+		 *
+		 * Accepting it also opens a security problem because stations
+		 * could encrypt it with the GTK and inject traffic that way.
+		 */
+		if (ieee80211_is_data(hdr->frame_control) && multicast)
+			return false;
+
 		return true;
 	case NL80211_IFTYPE_WDS:
 		if (bssid || !ieee80211_is_data(hdr->frame_control))
@@ -3884,6 +3942,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	stats->last_rate = sta_stats_encode_rate(status);
 
 	stats->fragments++;
+	stats->packets++;
 
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		stats->last_signal = status->signal;
@@ -4077,14 +4136,16 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		     ieee80211_is_beacon(hdr->frame_control)))
 		ieee80211_scan_rx(local, skb);
 
-	if (pubsta) {
-		rx.sta = container_of(pubsta, struct sta_info, sta);
-		rx.sdata = rx.sta->sdata;
-		if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
-			return;
-		goto out;
-	} else if (ieee80211_is_data(fc)) {
+	if (ieee80211_is_data(fc)) {
 		struct sta_info *sta, *prev_sta;
+
+		if (pubsta) {
+			rx.sta = container_of(pubsta, struct sta_info, sta);
+			rx.sdata = rx.sta->sdata;
+			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
+				return;
+			goto out;
+		}
 
 		prev_sta = NULL;
 

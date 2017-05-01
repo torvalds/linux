@@ -990,7 +990,7 @@ static void team_port_disable(struct team *team,
 #define TEAM_ENC_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_SG | \
 				 NETIF_F_RXCSUM | NETIF_F_ALL_TSO)
 
-static void ___team_compute_features(struct team *team)
+static void __team_compute_features(struct team *team)
 {
 	struct team_port *port;
 	u32 vlan_features = TEAM_VLAN_FEATURES & NETIF_F_ALL_FOR_ALL;
@@ -1023,16 +1023,10 @@ static void ___team_compute_features(struct team *team)
 		team->dev->priv_flags |= IFF_XMIT_DST_RELEASE;
 }
 
-static void __team_compute_features(struct team *team)
-{
-	___team_compute_features(team);
-	netdev_change_features(team->dev);
-}
-
 static void team_compute_features(struct team *team)
 {
 	mutex_lock(&team->lock);
-	___team_compute_features(team);
+	__team_compute_features(team);
 	mutex_unlock(&team->lock);
 	netdev_change_features(team->dev);
 }
@@ -1641,6 +1635,7 @@ static void team_uninit(struct net_device *dev)
 	team_notify_peers_fini(team);
 	team_queue_override_fini(team);
 	mutex_unlock(&team->lock);
+	netdev_change_features(dev);
 }
 
 static void team_destructor(struct net_device *dev)
@@ -1798,7 +1793,7 @@ unwind:
 	return err;
 }
 
-static struct rtnl_link_stats64 *
+static void
 team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct team *team = netdev_priv(dev);
@@ -1835,7 +1830,6 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->rx_dropped	= rx_dropped;
 	stats->tx_dropped	= tx_dropped;
 	stats->rx_nohandler	= rx_nohandler;
-	return stats;
 }
 
 static int team_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
@@ -1929,6 +1923,10 @@ static int team_add_slave(struct net_device *dev, struct net_device *port_dev)
 	mutex_lock(&team->lock);
 	err = team_port_add(team, port_dev);
 	mutex_unlock(&team->lock);
+
+	if (!err)
+		netdev_change_features(dev);
+
 	return err;
 }
 
@@ -1940,6 +1938,10 @@ static int team_del_slave(struct net_device *dev, struct net_device *port_dev)
 	mutex_lock(&team->lock);
 	err = team_port_del(team, port_dev);
 	mutex_unlock(&team->lock);
+
+	if (!err)
+		netdev_change_features(dev);
+
 	return err;
 }
 
@@ -2002,8 +2004,6 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_add_slave		= team_add_slave,
 	.ndo_del_slave		= team_del_slave,
 	.ndo_fix_features	= team_fix_features,
-	.ndo_neigh_construct	= netdev_default_l2upper_neigh_construct,
-	.ndo_neigh_destroy	= netdev_default_l2upper_neigh_destroy,
 	.ndo_change_carrier     = team_change_carrier,
 	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
 	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,
@@ -2075,6 +2075,7 @@ static int team_dev_type_check_change(struct net_device *dev,
 static void team_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->max_mtu = ETH_MAX_MTU;
 
 	dev->netdev_ops = &team_netdev_ops;
 	dev->ethtool_ops = &team_ethtool_ops;
@@ -2360,8 +2361,10 @@ start_again:
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_OPTIONS_GET);
-	if (!hdr)
+	if (!hdr) {
+		nlmsg_free(skb);
 		return -EMSGSIZE;
+	}
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
@@ -2633,8 +2636,10 @@ start_again:
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_PORT_LIST_GET);
-	if (!hdr)
+	if (!hdr) {
+		nlmsg_free(skb);
 		return -EMSGSIZE;
+	}
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;

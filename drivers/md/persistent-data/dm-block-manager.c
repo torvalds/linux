@@ -13,6 +13,7 @@
 #include <linux/rwsem.h>
 #include <linux/device-mapper.h>
 #include <linux/stacktrace.h>
+#include <linux/sched/task.h>
 
 #define DM_MSG_PREFIX "block manager"
 
@@ -120,7 +121,7 @@ static int __check_holder(struct block_lock *lock)
 static void __wait(struct waiter *w)
 {
 	for (;;) {
-		set_task_state(current, TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 
 		if (!w->task)
 			break;
@@ -128,7 +129,7 @@ static void __wait(struct waiter *w)
 		schedule();
 	}
 
-	set_task_state(current, TASK_RUNNING);
+	set_current_state(TASK_RUNNING);
 }
 
 static void __wake_waiter(struct waiter *w)
@@ -462,7 +463,7 @@ int dm_bm_read_lock(struct dm_block_manager *bm, dm_block_t b,
 	int r;
 
 	p = dm_bufio_read(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 
 	aux = dm_bufio_get_aux_data(to_buffer(*result));
@@ -498,7 +499,7 @@ int dm_bm_write_lock(struct dm_block_manager *bm,
 		return -EPERM;
 
 	p = dm_bufio_read(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 
 	aux = dm_bufio_get_aux_data(to_buffer(*result));
@@ -531,7 +532,7 @@ int dm_bm_read_try_lock(struct dm_block_manager *bm,
 	int r;
 
 	p = dm_bufio_get(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 	if (unlikely(!p))
 		return -EWOULDBLOCK;
@@ -567,7 +568,7 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm,
 		return -EPERM;
 
 	p = dm_bufio_new(bm->bufio, b, (struct dm_buffer **) result);
-	if (IS_ERR(p))
+	if (unlikely(IS_ERR(p)))
 		return PTR_ERR(p);
 
 	memset(p, 0, dm_bm_block_size(bm));

@@ -40,9 +40,7 @@
 #define _WORC	GPR11
 #define _PTCR	GPR12
 
-#define PSSCR_HV_TEMPLATE	PSSCR_ESL | PSSCR_EC | \
-				PSSCR_PSLL_MASK | PSSCR_TR_MASK | \
-				PSSCR_MTL_MASK
+#define PSSCR_EC_ESL_MASK_SHIFTED          (PSSCR_EC | PSSCR_ESL) >> 16
 
 	.text
 
@@ -205,7 +203,7 @@ pnv_enter_arch207_idle_mode:
 	stb	r3,PACA_THREAD_IDLE_STATE(r13)
 	cmpwi	cr3,r3,PNV_THREAD_SLEEP
 	bge	cr3,2f
-	IDLE_STATE_ENTER_SEQ(PPC_NAP)
+	IDLE_STATE_ENTER_SEQ_NORET(PPC_NAP)
 	/* No return */
 2:
 	/* Sleep or winkle */
@@ -239,7 +237,7 @@ pnv_fastsleep_workaround_at_entry:
 
 common_enter: /* common code for all the threads entering sleep or winkle */
 	bgt	cr3,enter_winkle
-	IDLE_STATE_ENTER_SEQ(PPC_SLEEP)
+	IDLE_STATE_ENTER_SEQ_NORET(PPC_SLEEP)
 
 fastsleep_workaround_at_entry:
 	ori	r15,r15,PNV_CORE_IDLE_LOCK_BIT
@@ -250,7 +248,7 @@ fastsleep_workaround_at_entry:
 	/* Fast sleep workaround */
 	li	r3,1
 	li	r4,1
-	bl	opal_rm_config_cpu_idle_state
+	bl	opal_config_cpu_idle_state
 
 	/* Clear Lock bit */
 	li	r0,0
@@ -261,10 +259,10 @@ fastsleep_workaround_at_entry:
 enter_winkle:
 	bl	save_sprs_to_stack
 
-	IDLE_STATE_ENTER_SEQ(PPC_WINKLE)
+	IDLE_STATE_ENTER_SEQ_NORET(PPC_WINKLE)
 
 /*
- * r3 - requested stop state
+ * r3 - PSSCR value corresponding to the requested stop state.
  */
 power_enter_stop:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -274,14 +272,25 @@ power_enter_stop:
 	stb	r4,HSTATE_HWTHREAD_STATE(r13)
 #endif
 /*
+ * Check if we are executing the lite variant with ESL=EC=0
+ */
+	andis.   r4,r3,PSSCR_EC_ESL_MASK_SHIFTED
+	clrldi   r3,r3,60 /* r3 = Bits[60:63] = Requested Level (RL) */
+	bne	 .Lhandle_esl_ec_set
+	IDLE_STATE_ENTER_SEQ(PPC_STOP)
+	li	r3,0  /* Since we didn't lose state, return 0 */
+	b 	pnv_wakeup_noloss
+
+.Lhandle_esl_ec_set:
+/*
  * Check if the requested state is a deep idle state.
  */
 	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
 	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
 	cmpd	r3,r4
-	bge	2f
-	IDLE_STATE_ENTER_SEQ(PPC_STOP)
-2:
+	bge	.Lhandle_deep_stop
+	IDLE_STATE_ENTER_SEQ_NORET(PPC_STOP)
+.Lhandle_deep_stop:
 /*
  * Entering deep idle state.
  * Clear thread bit in PACA_CORE_IDLE_STATE, save SPRs to
@@ -302,7 +311,7 @@ lwarx_loop_stop:
 
 	bl	save_sprs_to_stack
 
-	IDLE_STATE_ENTER_SEQ(PPC_STOP)
+	IDLE_STATE_ENTER_SEQ_NORET(PPC_STOP)
 
 _GLOBAL(power7_idle)
 	/* Now check if user or arch enabled NAP mode */
@@ -353,16 +362,17 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 	ld	r3,ORIG_GPR3(r1);	/* Restore original r3 */	\
 20:	nop;
 
-
 /*
- * r3 - requested stop state
+ * r3 - The PSSCR value corresponding to the stop state.
+ * r4 - The PSSCR mask corrresonding to the stop state.
  */
 _GLOBAL(power9_idle_stop)
-	LOAD_REG_IMMEDIATE(r4, PSSCR_HV_TEMPLATE)
-	or	r4,r4,r3
-	mtspr	SPRN_PSSCR, r4
-	li	r4, 1
+	mfspr   r5,SPRN_PSSCR
+	andc    r5,r5,r4
+	or      r3,r3,r5
+	mtspr 	SPRN_PSSCR,r3
 	LOAD_REG_ADDR(r5,power_enter_stop)
+	li	r4,1
 	b	pnv_powersave_common
 	/* No return */
 /*
@@ -439,9 +449,23 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 _GLOBAL(pnv_wakeup_tb_loss)
 	ld	r1,PACAR1(r13)
 	/*
-	 * Before entering any idle state, the NVGPRs are saved in the stack
-	 * and they are restored before switching to the process context. Hence
-	 * until they are restored, they are free to be used.
+	 * Before entering any idle state, the NVGPRs are saved in the stack.
+	 * If there was a state loss, or PACA_NAPSTATELOST was set, then the
+	 * NVGPRs are restored. If we are here, it is likely that state is lost,
+	 * but not guaranteed -- neither ISA207 nor ISA300 tests to reach
+	 * here are the same as the test to restore NVGPRS:
+	 * PACA_THREAD_IDLE_STATE test for ISA207, PSSCR test for ISA300,
+	 * and SRR1 test for restoring NVGPRs.
+	 *
+	 * We are about to clobber NVGPRs now, so set NAPSTATELOST to
+	 * guarantee they will always be restored. This might be tightened
+	 * with careful reading of specs (particularly for ISA300) but this
+	 * is already a slow wakeup path and it's simpler to be safe.
+	 */
+	li	r0,1
+	stb	r0,PACA_NAPSTATELOST(r13)
+
+	/*
 	 *
 	 * Save SRR1 and LR in NVGPRs as they might be clobbered in
 	 * opal_call() (called in CHECK_HMI_INTERRUPT). SRR1 is required
@@ -544,7 +568,7 @@ timebase_resync:
 	 */
 	ble	cr3,clear_lock
 	/* Time base re-sync */
-	bl	opal_rm_resync_timebase;
+	bl	opal_resync_timebase;
 	/*
 	 * If waking up from sleep, per core state is not lost, skip to
 	 * clear_lock.
@@ -633,7 +657,7 @@ hypervisor_state_restored:
 fastsleep_workaround_at_exit:
 	li	r3,1
 	li	r4,0
-	bl	opal_rm_config_cpu_idle_state
+	bl	opal_config_cpu_idle_state
 	b	timebase_resync
 
 /*

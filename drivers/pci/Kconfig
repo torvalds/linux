@@ -132,4 +132,5 @@ config PCI_HYPERV
           PCI devices from a PCI backend to support PCI driver domains.
 
 source "drivers/pci/hotplug/Kconfig"
+source "drivers/pci/dwc/Kconfig"
 source "drivers/pci/host/Kconfig"

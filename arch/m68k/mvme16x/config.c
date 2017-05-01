@@ -72,8 +72,8 @@ int __init mvme16x_parse_bootinfo(const struct bi_record *bi)
 
 void mvme16x_reset(void)
 {
-	printk ("\r\n\nCalled mvme16x_reset\r\n"
-			"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r");
+	pr_info("\r\n\nCalled mvme16x_reset\r\n"
+		"\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r\r");
 	/* The string of returns is to delay the reset until the whole
 	 * message is output.  Assert reset bit in GCSR */
 	*(volatile char *)0xfff40107 = 0x80;
@@ -289,7 +289,7 @@ void __init config_mvme16x(void)
 
     if (strncmp("BDID", p->bdid, 4))
     {
-	printk ("\n\nBug call .BRD_ID returned garbage - giving up\n\n");
+	pr_crit("Bug call .BRD_ID returned garbage - giving up\n");
 	while (1)
 		;
     }
@@ -298,25 +298,25 @@ void __init config_mvme16x(void)
 	vme_brdtype = brdno;
 
     mvme16x_get_model(id);
-    printk ("\nBRD_ID: %s   BUG %x.%x %02x/%02x/%02x\n", id, p->rev>>4,
-					p->rev&0xf, p->yr, p->mth, p->day);
+    pr_info("BRD_ID: %s   BUG %x.%x %02x/%02x/%02x\n", id, p->rev >> 4,
+	    p->rev & 0xf, p->yr, p->mth, p->day);
     if (brdno == 0x0162 || brdno == 0x172)
     {
 	unsigned char rev = *(unsigned char *)MVME162_VERSION_REG;
 
 	mvme16x_config = rev | MVME16x_CONFIG_GOT_SCCA;
 
-	printk ("MVME%x Hardware status:\n", brdno);
-	printk ("    CPU Type           68%s040\n",
-			rev & MVME16x_CONFIG_GOT_FPU ? "" : "LC");
-	printk ("    CPU clock          %dMHz\n",
-			rev & MVME16x_CONFIG_SPEED_32 ? 32 : 25);
-	printk ("    VMEchip2           %spresent\n",
-			rev & MVME16x_CONFIG_NO_VMECHIP2 ? "NOT " : "");
-	printk ("    SCSI interface     %spresent\n",
-			rev & MVME16x_CONFIG_NO_SCSICHIP ? "NOT " : "");
-	printk ("    Ethernet interface %spresent\n",
-			rev & MVME16x_CONFIG_NO_ETHERNET ? "NOT " : "");
+	pr_info("MVME%x Hardware status:\n", brdno);
+	pr_info("    CPU Type           68%s040\n",
+		rev & MVME16x_CONFIG_GOT_FPU ? "" : "LC");
+	pr_info("    CPU clock          %dMHz\n",
+		rev & MVME16x_CONFIG_SPEED_32 ? 32 : 25);
+	pr_info("    VMEchip2           %spresent\n",
+		rev & MVME16x_CONFIG_NO_VMECHIP2 ? "NOT " : "");
+	pr_info("    SCSI interface     %spresent\n",
+		rev & MVME16x_CONFIG_NO_SCSICHIP ? "NOT " : "");
+	pr_info("    Ethernet interface %spresent\n",
+		rev & MVME16x_CONFIG_NO_ETHERNET ? "NOT " : "");
     }
     else
     {

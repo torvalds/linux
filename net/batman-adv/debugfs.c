@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -19,7 +19,7 @@
 #include "main.h"
 
 #include <linux/debugfs.h>
-#include <linux/device.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/fs.h>

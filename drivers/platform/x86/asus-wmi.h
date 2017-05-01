@@ -39,7 +39,6 @@ struct key_entry;
 struct asus_wmi;
 
 struct quirk_entry {
-	bool no_rfkill;
 	bool hotplug_wireless;
 	bool scalar_panel_brightness;
 	bool store_backlight_power;

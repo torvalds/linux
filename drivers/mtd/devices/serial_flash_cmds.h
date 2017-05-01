@@ -18,18 +18,11 @@
 #define SPINOR_OP_RDVCR		0x85
 
 /* JEDEC Standard - Serial Flash Discoverable Parmeters (SFDP) Commands */
-#define SPINOR_OP_READ_1_2_2	0xbb	/* DUAL I/O READ */
-#define SPINOR_OP_READ_1_4_4	0xeb	/* QUAD I/O READ */
-
 #define SPINOR_OP_WRITE		0x02	/* PAGE PROGRAM */
 #define SPINOR_OP_WRITE_1_1_2	0xa2	/* DUAL INPUT PROGRAM */
 #define SPINOR_OP_WRITE_1_2_2	0xd2	/* DUAL INPUT EXT PROGRAM */
 #define SPINOR_OP_WRITE_1_1_4	0x32	/* QUAD INPUT PROGRAM */
 #define SPINOR_OP_WRITE_1_4_4	0x12	/* QUAD INPUT EXT PROGRAM */
-
-/* READ commands with 32-bit addressing */
-#define SPINOR_OP_READ4_1_2_2	0xbc
-#define SPINOR_OP_READ4_1_4_4	0xec
 
 /* Configuration flags */
 #define FLASH_FLAG_SINGLE	0x000000ff

@@ -100,7 +100,6 @@ enum i40e_debug_mask {
  */
 enum i40e_mac_type {
 	I40E_MAC_UNKNOWN = 0,
-	I40E_MAC_X710,
 	I40E_MAC_XL710,
 	I40E_MAC_VF,
 	I40E_MAC_X722,
@@ -159,6 +158,7 @@ struct i40e_link_status {
 	enum i40e_aq_link_speed link_speed;
 	u8 link_info;
 	u8 an_info;
+	u8 fec_info;
 	u8 ext_info;
 	u8 loopback;
 	/* is Link Status Event notification to SW enabled */
@@ -443,6 +443,7 @@ struct i40e_bus_info {
 	u16 func;
 	u16 device;
 	u16 lan_id;
+	u16 bus_id;
 };
 
 /* Flow control (FC) parameters */

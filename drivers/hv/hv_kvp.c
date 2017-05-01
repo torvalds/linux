@@ -46,6 +46,19 @@
 #define WIN8_SRV_MINOR   0
 #define WIN8_SRV_VERSION     (WIN8_SRV_MAJOR << 16 | WIN8_SRV_MINOR)
 
+#define KVP_VER_COUNT 3
+static const int kvp_versions[] = {
+	WIN8_SRV_VERSION,
+	WIN7_SRV_VERSION,
+	WS2008_SRV_VERSION
+};
+
+#define FW_VER_COUNT 2
+static const int fw_versions[] = {
+	UTIL_FW_VERSION,
+	UTIL_WS2K8_FW_VERSION
+};
+
 /*
  * Global state maintained for transaction that is being processed. For a class
  * of integration services, including the "KVP service", the specified protocol
@@ -609,8 +622,6 @@ void hv_kvp_onchannelcallback(void *context)
 	struct hv_kvp_msg *kvp_msg;
 
 	struct icmsg_hdr *icmsghdrp;
-	struct icmsg_negotiate *negop = NULL;
-	int util_fw_version;
 	int kvp_srv_version;
 	static enum {NEGO_NOT_STARTED,
 		     NEGO_IN_PROGRESS,
@@ -639,28 +650,14 @@ void hv_kvp_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			/*
-			 * Based on the host, select appropriate
-			 * framework and service versions we will
-			 * negotiate.
-			 */
-			switch (vmbus_proto_version) {
-			case (VERSION_WS2008):
-				util_fw_version = UTIL_WS2K8_FW_VERSION;
-				kvp_srv_version = WS2008_SRV_VERSION;
-				break;
-			case (VERSION_WIN7):
-				util_fw_version = UTIL_FW_VERSION;
-				kvp_srv_version = WIN7_SRV_VERSION;
-				break;
-			default:
-				util_fw_version = UTIL_FW_VERSION;
-				kvp_srv_version = WIN8_SRV_VERSION;
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
+				 recv_buffer, fw_versions, FW_VER_COUNT,
+				 kvp_versions, KVP_VER_COUNT,
+				 NULL, &kvp_srv_version)) {
+				pr_info("KVP IC version %d.%d\n",
+					kvp_srv_version >> 16,
+					kvp_srv_version & 0xFFFF);
 			}
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, util_fw_version,
-				 kvp_srv_version);
-
 		} else {
 			kvp_msg = (struct hv_kvp_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +

@@ -50,8 +50,9 @@ static void vgem_gem_free_object(struct drm_gem_object *obj)
 	kfree(vgem_obj);
 }
 
-static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int vgem_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_vgem_gem_object *obj = vma->vm_private_data;
 	/* We don't use vmf->pgoff since that has the fake offset */
 	unsigned long vaddr = vmf->address;
@@ -287,7 +288,7 @@ static int vgem_prime_mmap(struct drm_gem_object *obj,
 	if (!obj->filp)
 		return -ENODEV;
 
-	ret = obj->filp->f_op->mmap(obj->filp, vma);
+	ret = call_mmap(obj->filp, vma);
 	if (ret)
 		return ret;
 

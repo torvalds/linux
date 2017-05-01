@@ -43,6 +43,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_debug.h"
+#include "../include/lustre_obdo.h"
 #include "../include/lustre_param.h"
 #include "../include/lustre_fid.h"
 #include "../include/obd_class.h"
@@ -250,7 +251,7 @@ int osc_setattr_async(struct obd_export *exp, struct obdo *oa,
 		req->rq_interpret_reply =
 			(ptlrpc_interpterer_t)osc_setattr_interpret;
 
-		CLASSERT(sizeof(*sa) <= sizeof(req->rq_async_args));
+		BUILD_BUG_ON(sizeof(*sa) > sizeof(req->rq_async_args));
 		sa = ptlrpc_req_async_args(req);
 		sa->sa_oa = oa;
 		sa->sa_upcall = upcall;
@@ -348,7 +349,7 @@ int osc_punch_base(struct obd_export *exp, struct obdo *oa,
 	ptlrpc_request_set_replen(req);
 
 	req->rq_interpret_reply = (ptlrpc_interpterer_t)osc_setattr_interpret;
-	CLASSERT(sizeof(*sa) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*sa) > sizeof(req->rq_async_args));
 	sa = ptlrpc_req_async_args(req);
 	sa->sa_oa = oa;
 	sa->sa_upcall = upcall;
@@ -429,7 +430,7 @@ int osc_sync_base(struct osc_object *obj, struct obdo *oa,
 	ptlrpc_request_set_replen(req);
 	req->rq_interpret_reply = osc_sync_interpret;
 
-	CLASSERT(sizeof(*fa) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*fa) > sizeof(req->rq_async_args));
 	fa = ptlrpc_req_async_args(req);
 	fa->fa_obj = obj;
 	fa->fa_oa = oa;
@@ -1170,7 +1171,7 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,
 	}
 	ptlrpc_request_set_replen(req);
 
-	CLASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*aa) > sizeof(req->rq_async_args));
 	aa = ptlrpc_req_async_args(req);
 	aa->aa_oa = oa;
 	aa->aa_requested_nob = requested_nob;
@@ -1757,7 +1758,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	cl_req_attr_set(env, osc2cl(obj), crattr);
 	lustre_msg_set_jobid(req->rq_reqmsg, crattr->cra_jobid);
 
-	CLASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*aa) > sizeof(req->rq_async_args));
 	aa = ptlrpc_req_async_args(req);
 	INIT_LIST_HEAD(&aa->aa_oaps);
 	list_splice_init(&rpc_list, &aa->aa_oaps);
@@ -2038,7 +2039,7 @@ no_match:
 		if (!rc) {
 			struct osc_enqueue_args *aa;
 
-			CLASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));
+			BUILD_BUG_ON(sizeof(*aa) > sizeof(req->rq_async_args));
 			aa = ptlrpc_req_async_args(req);
 			aa->oa_exp = exp;
 			aa->oa_mode = einfo->ei_mode;
@@ -2080,9 +2081,9 @@ no_match:
 }
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
-		   __u32 type, union ldlm_policy_data *policy, __u32 mode,
-		   __u64 *flags, void *data, struct lustre_handle *lockh,
-		   int unref)
+		   enum ldlm_type type, union ldlm_policy_data *policy,
+		   enum ldlm_mode mode, __u64 *flags, void *data,
+		   struct lustre_handle *lockh, int unref)
 {
 	struct obd_device *obd = exp->exp_obd;
 	__u64 lflags = *flags;
@@ -2195,7 +2196,7 @@ static int osc_statfs_async(struct obd_export *exp,
 	}
 
 	req->rq_interpret_reply = (ptlrpc_interpterer_t)osc_statfs_interpret;
-	CLASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*aa) > sizeof(req->rq_async_args));
 	aa = ptlrpc_req_async_args(req);
 	aa->aa_oi = oinfo;
 
@@ -2400,7 +2401,7 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		struct osc_brw_async_args *aa;
 		struct obdo *oa;
 
-		CLASSERT(sizeof(*aa) <= sizeof(req->rq_async_args));
+		BUILD_BUG_ON(sizeof(*aa) > sizeof(req->rq_async_args));
 		aa = ptlrpc_req_async_args(req);
 		oa = kmem_cache_zalloc(obdo_cachep, GFP_NOFS);
 		if (!oa) {
@@ -2479,6 +2480,33 @@ static int osc_disconnect(struct obd_export *exp)
 	return rc;
 }
 
+static int osc_ldlm_resource_invalidate(struct cfs_hash *hs,
+					struct cfs_hash_bd *bd,
+					struct hlist_node *hnode, void *arg)
+{
+	struct ldlm_resource *res = cfs_hash_object(hs, hnode);
+	struct osc_object *osc = NULL;
+	struct lu_env *env = arg;
+	struct ldlm_lock *lock;
+
+	lock_res(res);
+	list_for_each_entry(lock, &res->lr_granted, l_res_link) {
+		if (lock->l_ast_data && !osc) {
+			osc = lock->l_ast_data;
+			cl_object_get(osc2cl(osc));
+		}
+		lock->l_ast_data = NULL;
+	}
+	unlock_res(res);
+
+	if (osc) {
+		osc_object_invalidate(env, osc);
+		cl_object_put(env, osc2cl(osc));
+	}
+
+	return 0;
+}
+
 static int osc_import_event(struct obd_device *obd,
 			    struct obd_import *imp,
 			    enum obd_import_event event)
@@ -2506,17 +2534,18 @@ static int osc_import_event(struct obd_device *obd,
 		struct lu_env *env;
 		int refcheck;
 
+		ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
+
 		env = cl_env_get(&refcheck);
 		if (!IS_ERR(env)) {
-			/* Reset grants */
-			cli = &obd->u.cli;
-			/* all pages go to failing rpcs due to the invalid
-			 * import
-			 */
-			osc_io_unplug(env, cli, NULL);
+			osc_io_unplug(env, &obd->u.cli, NULL);
+
+			cfs_hash_for_each_nolock(ns->ns_rs_hash,
+						 osc_ldlm_resource_invalidate,
+						 env, 0);
+			cl_env_put(env, &refcheck);
 
 			ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
-			cl_env_put(env, &refcheck);
 		} else {
 			rc = PTR_ERR(env);
 		}
@@ -2646,6 +2675,11 @@ int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	INIT_LIST_HEAD(&cli->cl_grant_shrink_list);
 	ns_register_cancel(obd->obd_namespace, osc_cancel_weight);
+
+	spin_lock(&osc_shrink_lock);
+	list_add_tail(&cli->cl_shrink_list, &osc_shrink_list);
+	spin_unlock(&osc_shrink_lock);
+
 	return rc;
 
 out_ptlrpcd_work:
@@ -2698,6 +2732,10 @@ static int osc_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 	int rc;
+
+	spin_lock(&osc_shrink_lock);
+	list_del(&cli->cl_shrink_list);
+	spin_unlock(&osc_shrink_lock);
 
 	/* lru cleanup */
 	if (cli->cl_cache) {
@@ -2766,7 +2804,14 @@ static struct obd_ops osc_obd_ops = {
 	.quotactl       = osc_quotactl,
 };
 
-extern struct lu_kmem_descr osc_caches[];
+struct list_head osc_shrink_list = LIST_HEAD_INIT(osc_shrink_list);
+DEFINE_SPINLOCK(osc_shrink_lock);
+
+static struct shrinker osc_cache_shrinker = {
+	.count_objects	= osc_cache_shrink_count,
+	.scan_objects	= osc_cache_shrink_scan,
+	.seeks		= DEFAULT_SEEKS,
+};
 
 static int __init osc_init(void)
 {
@@ -2791,6 +2836,8 @@ static int __init osc_init(void)
 				 LUSTRE_OSC_NAME, &osc_device_type);
 	if (rc)
 		goto out_kmem;
+
+	register_shrinker(&osc_cache_shrinker);
 
 	/* This is obviously too much memory, only prevent overflow here */
 	if (osc_reqpool_mem_max >= 1 << 12 || osc_reqpool_mem_max == 0) {
@@ -2830,6 +2877,7 @@ out_kmem:
 
 static void /*__exit*/ osc_exit(void)
 {
+	unregister_shrinker(&osc_cache_shrinker);
 	class_unregister_type(LUSTRE_OSC_NAME);
 	lu_kmem_fini(osc_caches);
 	ptlrpc_free_rq_pool(osc_rq_pool);

@@ -145,9 +145,9 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	 * important and we should probably use that space with FBC or other
 	 * features. */
 	if (size * 2 < ggtt->stolen_usable_size)
-		obj = i915_gem_object_create_stolen(dev, size);
+		obj = i915_gem_object_create_stolen(dev_priv, size);
 	if (obj == NULL)
-		obj = i915_gem_object_create(dev, size);
+		obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = PTR_ERR(obj);
@@ -261,7 +261,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	/* This driver doesn't need a VT switch to restore the mode on resume */
 	info->skip_vt_switch = true;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* If the object is shmemfs backed, it will have given us zeroed pages.
@@ -357,14 +357,13 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 				    bool *enabled, int width, int height)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb_helper->dev);
-	unsigned long conn_configured, mask;
+	unsigned long conn_configured, conn_seq, mask;
 	unsigned int count = min(fb_helper->connector_count, BITS_PER_LONG);
 	int i, j;
 	bool *save_enabled;
 	bool fallback = true;
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
-	int pass = 0;
 
 	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
 	if (!save_enabled)
@@ -374,6 +373,7 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	mask = BIT(count) - 1;
 	conn_configured = 0;
 retry:
+	conn_seq = conn_configured;
 	for (i = 0; i < count; i++) {
 		struct drm_fb_helper_connector *fb_conn;
 		struct drm_connector *connector;
@@ -387,7 +387,7 @@ retry:
 		if (conn_configured & BIT(i))
 			continue;
 
-		if (pass == 0 && !connector->has_tile)
+		if (conn_seq == 0 && !connector->has_tile)
 			continue;
 
 		if (connector->status == connector_status_connected)
@@ -447,7 +447,7 @@ retry:
 			      connector->name);
 
 		/* go for command line mode first */
-		modes[i] = drm_pick_cmdline_mode(fb_conn, width, height);
+		modes[i] = drm_pick_cmdline_mode(fb_conn);
 
 		/* try for preferred next */
 		if (!modes[i]) {
@@ -498,10 +498,8 @@ retry:
 		conn_configured |= BIT(i);
 	}
 
-	if ((conn_configured & mask) != mask) {
-		pass++;
+	if ((conn_configured & mask) != mask && conn_configured != conn_seq)
 		goto retry;
-	}
 
 	/*
 	 * If the BIOS didn't enable everything it could, fall back to have the
@@ -621,7 +619,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		 * rather than the current pipe's, since they differ.
 		 */
 		cur_size = intel_crtc->config->base.adjusted_mode.crtc_hdisplay;
-		cur_size = cur_size * fb->base.bits_per_pixel / 8;
+		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
 			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
@@ -632,14 +630,14 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		cur_size = intel_crtc->config->base.adjusted_mode.crtc_vdisplay;
 		cur_size = intel_fb_align_height(dev, cur_size,
-						 fb->base.pixel_format,
+						 fb->base.format->format,
 						 fb->base.modifier);
 		cur_size *= fb->base.pitches[0];
 		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
 			      pipe_name(intel_crtc->pipe),
 			      intel_crtc->config->base.adjusted_mode.crtc_hdisplay,
 			      intel_crtc->config->base.adjusted_mode.crtc_vdisplay,
-			      fb->base.bits_per_pixel,
+			      fb->base.format->cpp[0] * 8,
 			      cur_size);
 
 		if (cur_size > max_size) {
@@ -660,7 +658,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		goto out;
 	}
 
-	ifbdev->preferred_bpp = fb->base.bits_per_pixel;
+	ifbdev->preferred_bpp = fb->base.format->cpp[0] * 8;
 	ifbdev->fb = fb;
 
 	drm_framebuffer_reference(&ifbdev->fb->base);
@@ -713,8 +711,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	if (!intel_fbdev_init_bios(dev, ifbdev))
 		ifbdev->preferred_bpp = 32;
 
-	ret = drm_fb_helper_init(dev, &ifbdev->helper,
-				 INTEL_INFO(dev_priv)->num_pipes, 4);
+	ret = drm_fb_helper_init(dev, &ifbdev->helper, 4);
 	if (ret) {
 		kfree(ifbdev);
 		return ret;

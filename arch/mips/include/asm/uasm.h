@@ -9,6 +9,9 @@
  * Copyright (C) 2012, 2013  MIPS Technologies, Inc.  All rights reserved.
  */
 
+#ifndef __ASM_UASM_H
+#define __ASM_UASM_H
+
 #include <linux/types.h>
 
 #ifdef CONFIG_EXPORT_UASM
@@ -309,3 +312,5 @@ void uasm_il_bltz(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
 void uasm_il_bne(u32 **p, struct uasm_reloc **r, unsigned int reg1,
 		 unsigned int reg2, int lid);
 void uasm_il_bnez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+
+#endif /* __ASM_UASM_H */

@@ -34,7 +34,8 @@
 
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/export.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
@@ -98,9 +99,6 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	if (dmasync)
 		dma_attrs |= DMA_ATTR_WRITE_BARRIER;
-
-	if (!size)
-		return ERR_PTR(-EINVAL);
 
 	/*
 	 * If the combination of the addr and size requested for this memory

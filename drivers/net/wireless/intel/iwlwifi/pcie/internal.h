@@ -279,7 +279,7 @@ struct iwl_txq {
 	bool frozen;
 	u8 active;
 	bool ampdu;
-	bool block;
+	int block;
 	unsigned long wd_timeout;
 	struct sk_buff_head overflow_q;
 
@@ -670,6 +670,8 @@ static inline u8 get_cmd_index(struct iwl_txq *q, u32 index)
 
 static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 {
+	lockdep_assert_held(&IWL_TRANS_GET_PCIE_TRANS(trans)->mutex);
+
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 }

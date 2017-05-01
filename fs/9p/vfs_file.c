@@ -534,11 +534,11 @@ v9fs_mmap_file_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 static int
-v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
 	struct v9fs_inode *v9inode;
 	struct page *page = vmf->page;
-	struct file *filp = vma->vm_file;
+	struct file *filp = vmf->vma->vm_file;
 	struct inode *inode = file_inode(filp);
 
 

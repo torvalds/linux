@@ -134,19 +134,6 @@
 /* default to trying for four seconds */
 #define I40E_TRY_LINK_TIMEOUT	(4 * HZ)
 
-/**
- * i40e_is_mac_710 - Return true if MAC is X710/XL710
- * @hw: ptr to the hardware info
- **/
-static inline bool i40e_is_mac_710(struct i40e_hw *hw)
-{
-	if ((hw->mac.type == I40E_MAC_X710) ||
-	    (hw->mac.type == I40E_MAC_XL710))
-		return true;
-
-	return false;
-}
-
 /* driver state flags */
 enum i40e_state_t {
 	__I40E_TESTING,
@@ -361,6 +348,8 @@ struct i40e_pf {
 #define I40E_FLAG_TRUE_PROMISC_SUPPORT		BIT_ULL(51)
 #define I40E_FLAG_HAVE_CRT_RETIMER		BIT_ULL(52)
 #define I40E_FLAG_PTP_L4_CAPABLE		BIT_ULL(53)
+#define I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE		BIT_ULL(54)
+#define I40E_FLAG_TEMP_LINK_POLLING		BIT_ULL(55)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;
@@ -477,6 +466,22 @@ struct i40e_mac_filter {
 	u8 macaddr[ETH_ALEN];
 #define I40E_VLAN_ANY -1
 	s16 vlan;
+	enum i40e_filter_state state;
+};
+
+/* Wrapper structure to keep track of filters while we are preparing to send
+ * firmware commands. We cannot send firmware commands while holding a
+ * spinlock, since it might sleep. To avoid this, we wrap the added filters in
+ * a separate structure, which will track the state change and update the real
+ * filter while under lock. We can't simply hold the filters in a separate
+ * list, as this opens a window for a race condition when adding new MAC
+ * addresses to all VLANs, or when adding new VLANs to all MAC addresses.
+ */
+struct i40e_new_mac_filter {
+	struct hlist_node hlist;
+	struct i40e_mac_filter *f;
+
+	/* Track future changes to state separately */
 	enum i40e_filter_state state;
 };
 
@@ -762,6 +767,7 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features);
 void i40e_set_ethtool_ops(struct net_device *netdev);
 struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 					const u8 *macaddr, s16 vlan);
+void __i40e_del_filter(struct i40e_vsi *vsi, struct i40e_mac_filter *f);
 void i40e_del_filter(struct i40e_vsi *vsi, const u8 *macaddr, s16 vlan);
 int i40e_sync_vsi_filters(struct i40e_vsi *vsi);
 struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
@@ -804,7 +810,6 @@ int i40e_lan_add_device(struct i40e_pf *pf);
 int i40e_lan_del_device(struct i40e_pf *pf);
 void i40e_client_subtask(struct i40e_pf *pf);
 void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi);
-void i40e_notify_client_of_netdev_open(struct i40e_vsi *vsi);
 void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset);
 void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs);
 void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id);
@@ -834,9 +839,8 @@ static inline void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector)
 void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf);
 void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf, bool clearpba);
 #ifdef I40E_FCOE
-struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
-					     struct net_device *netdev,
-					     struct rtnl_link_stats64 *storage);
+void i40e_get_netdev_stats_struct(struct net_device *netdev,
+				  struct rtnl_link_stats64 *storage);
 int i40e_set_mac(struct net_device *netdev, void *p);
 void i40e_set_rx_mode(struct net_device *netdev);
 #endif
@@ -853,12 +857,12 @@ int i40e_close(struct net_device *netdev);
 int i40e_vsi_open(struct i40e_vsi *vsi);
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi);
 int i40e_add_vlan_all_mac(struct i40e_vsi *vsi, s16 vid);
-int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid);
+int i40e_vsi_add_vlan(struct i40e_vsi *vsi, u16 vid);
 void i40e_rm_vlan_all_mac(struct i40e_vsi *vsi, s16 vid);
-void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);
-struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
-					     const u8 *macaddr);
-int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, const u8 *macaddr);
+void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, u16 vid);
+struct i40e_mac_filter *i40e_add_mac_filter(struct i40e_vsi *vsi,
+					    const u8 *macaddr);
+int i40e_del_mac_filter(struct i40e_vsi *vsi, const u8 *macaddr);
 bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi);
 struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, const u8 *macaddr);
 #ifdef I40E_FCOE

@@ -26,7 +26,7 @@ static int v4l2_of_parse_csi_bus(const struct device_node *node,
 	struct v4l2_of_bus_mipi_csi2 *bus = &endpoint->bus.mipi_csi2;
 	struct property *prop;
 	bool have_clk_lane = false;
-	unsigned int flags = 0;
+	unsigned int flags = 0, lanes_used = 0;
 	u32 v;
 
 	prop = of_find_property(node, "data-lanes", NULL);
@@ -38,6 +38,12 @@ static int v4l2_of_parse_csi_bus(const struct device_node *node,
 			lane = of_prop_next_u32(prop, lane, &v);
 			if (!lane)
 				break;
+
+			if (lanes_used & BIT(v))
+				pr_warn("%s: duplicated lane %u in data-lanes\n",
+					node->full_name, v);
+			lanes_used |= BIT(v);
+
 			bus->data_lanes[i] = v;
 		}
 		bus->num_data_lanes = i;
@@ -63,6 +69,11 @@ static int v4l2_of_parse_csi_bus(const struct device_node *node,
 	}
 
 	if (!of_property_read_u32(node, "clock-lanes", &v)) {
+		if (lanes_used & BIT(v))
+			pr_warn("%s: duplicated lane %u in clock-lanes\n",
+				node->full_name, v);
+		lanes_used |= BIT(v);
+
 		bus->clock_lane = v;
 		have_clk_lane = true;
 	}

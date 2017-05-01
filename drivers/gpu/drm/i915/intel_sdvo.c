@@ -1296,7 +1296,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	if (INTEL_GEN(dev_priv) >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
-		   IS_G33(dev_priv)) {
+		   IS_G33(dev_priv) || IS_PINEVIEW(dev_priv)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
 		sdvox |= (crtc_state->pixel_multiplier - 1)
@@ -2342,9 +2342,9 @@ intel_sdvo_is_hdmi_connector(struct intel_sdvo *intel_sdvo, int device)
 }
 
 static u8
-intel_sdvo_get_slave_addr(struct drm_device *dev, struct intel_sdvo *sdvo)
+intel_sdvo_get_slave_addr(struct drm_i915_private *dev_priv,
+			  struct intel_sdvo *sdvo)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
 	if (sdvo->port == PORT_B) {
@@ -2934,9 +2934,9 @@ static const struct i2c_algorithm intel_sdvo_ddc_proxy = {
 
 static bool
 intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
-			  struct drm_device *dev)
+			  struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 
 	sdvo->ddc.owner = THIS_MODULE;
 	sdvo->ddc.class = I2C_CLASS_DDC;
@@ -2957,10 +2957,9 @@ static void assert_sdvo_port_valid(const struct drm_i915_private *dev_priv,
 		WARN_ON(port != PORT_B && port != PORT_C);
 }
 
-bool intel_sdvo_init(struct drm_device *dev,
+bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 		     i915_reg_t sdvo_reg, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *intel_encoder;
 	struct intel_sdvo *intel_sdvo;
 	int i;
@@ -2973,16 +2972,18 @@ bool intel_sdvo_init(struct drm_device *dev,
 
 	intel_sdvo->sdvo_reg = sdvo_reg;
 	intel_sdvo->port = port;
-	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, intel_sdvo) >> 1;
+	intel_sdvo->slave_addr =
+		intel_sdvo_get_slave_addr(dev_priv, intel_sdvo) >> 1;
 	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo);
-	if (!intel_sdvo_init_ddc_proxy(intel_sdvo, dev))
+	if (!intel_sdvo_init_ddc_proxy(intel_sdvo, dev_priv))
 		goto err_i2c_bus;
 
 	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
 	intel_encoder->port = port;
-	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0,
+	drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
+			 &intel_sdvo_enc_funcs, 0,
 			 "SDVO %c", port_name(port));
 
 	/* Read the regs to test if we can talk to the device */

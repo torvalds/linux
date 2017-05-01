@@ -397,9 +397,6 @@ static struct sched_class *t4_sched_class_lookup(struct port_info *pi,
 		struct ch_sched_params info;
 		struct ch_sched_params tp;
 
-		memset(&info, 0, sizeof(info));
-		memset(&tp, 0, sizeof(tp));
-
 		memcpy(&tp, p, sizeof(tp));
 		/* Don't try to match class parameter */
 		tp.u.params.class = SCHED_CLS_NONE;
@@ -409,7 +406,6 @@ static struct sched_class *t4_sched_class_lookup(struct port_info *pi,
 			if (e->state == SCHED_STATE_UNUSED)
 				continue;
 
-			memset(&info, 0, sizeof(info));
 			memcpy(&info, &e->info, sizeof(info));
 			/* Don't try to match class parameter */
 			info.u.params.class = SCHED_CLS_NONE;
@@ -458,7 +454,6 @@ static struct sched_class *t4_sched_class_alloc(struct port_info *pi,
 		if (!e)
 			goto out;
 
-		memset(&np, 0, sizeof(np));
 		memcpy(&np, p, sizeof(np));
 		np.u.params.class = e->idx;
 

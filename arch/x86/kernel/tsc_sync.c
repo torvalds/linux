@@ -286,13 +286,6 @@ void check_tsc_sync_source(int cpu)
 	if (unsynchronized_tsc())
 		return;
 
-	if (tsc_clocksource_reliable) {
-		if (cpu == (nr_cpu_ids-1) || system_state != SYSTEM_BOOTING)
-			pr_info(
-			"Skipped synchronization checks as TSC is reliable.\n");
-		return;
-	}
-
 	/*
 	 * Set the maximum number of test runs to
 	 *  1 if the CPU does not provide the TSC_ADJUST MSR
@@ -380,14 +373,19 @@ void check_tsc_sync_target(void)
 	int cpus = 2;
 
 	/* Also aborts if there is no TSC. */
-	if (unsynchronized_tsc() || tsc_clocksource_reliable)
+	if (unsynchronized_tsc())
 		return;
 
 	/*
 	 * Store, verify and sanitize the TSC adjust register. If
 	 * successful skip the test.
+	 *
+	 * The test is also skipped when the TSC is marked reliable. This
+	 * is true for SoCs which have no fallback clocksource. On these
+	 * SoCs the TSC is frequency synchronized, but still the TSC ADJUST
+	 * register might have been wreckaged by the BIOS..
 	 */
-	if (tsc_store_and_check_tsc_adjust(false)) {
+	if (tsc_store_and_check_tsc_adjust(false) || tsc_clocksource_reliable) {
 		atomic_inc(&skip_test);
 		return;
 	}

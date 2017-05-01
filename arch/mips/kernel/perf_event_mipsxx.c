@@ -101,40 +101,31 @@ struct mips_pmu {
 
 static struct mips_pmu mipspmu;
 
-#define M_PERFCTL_EXL			(1	<<  0)
-#define M_PERFCTL_KERNEL		(1	<<  1)
-#define M_PERFCTL_SUPERVISOR		(1	<<  2)
-#define M_PERFCTL_USER			(1	<<  3)
-#define M_PERFCTL_INTERRUPT_ENABLE	(1	<<  4)
-#define M_PERFCTL_EVENT(event)		(((event) & 0x3ff)  << 5)
-#define M_PERFCTL_VPEID(vpe)		((vpe)	  << 16)
+#define M_PERFCTL_EVENT(event)		(((event) << MIPS_PERFCTRL_EVENT_S) & \
+					 MIPS_PERFCTRL_EVENT)
+#define M_PERFCTL_VPEID(vpe)		((vpe)	  << MIPS_PERFCTRL_VPEID_S)
 
 #ifdef CONFIG_CPU_BMIPS5000
 #define M_PERFCTL_MT_EN(filter)		0
 #else /* !CONFIG_CPU_BMIPS5000 */
-#define M_PERFCTL_MT_EN(filter)		((filter) << 20)
+#define M_PERFCTL_MT_EN(filter)		(filter)
 #endif /* CONFIG_CPU_BMIPS5000 */
 
-#define	   M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
-#define	   M_TC_EN_VPE			M_PERFCTL_MT_EN(1)
-#define	   M_TC_EN_TC			M_PERFCTL_MT_EN(2)
-#define M_PERFCTL_TCID(tcid)		((tcid)	  << 22)
-#define M_PERFCTL_WIDE			(1	<< 30)
-#define M_PERFCTL_MORE			(1	<< 31)
-#define M_PERFCTL_TC			(1	<< 30)
+#define	   M_TC_EN_ALL			M_PERFCTL_MT_EN(MIPS_PERFCTRL_MT_EN_ALL)
+#define	   M_TC_EN_VPE			M_PERFCTL_MT_EN(MIPS_PERFCTRL_MT_EN_VPE)
+#define	   M_TC_EN_TC			M_PERFCTL_MT_EN(MIPS_PERFCTRL_MT_EN_TC)
 
-#define M_PERFCTL_COUNT_EVENT_WHENEVER	(M_PERFCTL_EXL |		\
-					M_PERFCTL_KERNEL |		\
-					M_PERFCTL_USER |		\
-					M_PERFCTL_SUPERVISOR |		\
-					M_PERFCTL_INTERRUPT_ENABLE)
+#define M_PERFCTL_COUNT_EVENT_WHENEVER	(MIPS_PERFCTRL_EXL |		\
+					 MIPS_PERFCTRL_K |		\
+					 MIPS_PERFCTRL_U |		\
+					 MIPS_PERFCTRL_S |		\
+					 MIPS_PERFCTRL_IE)
 
 #ifdef CONFIG_MIPS_MT_SMP
 #define M_PERFCTL_CONFIG_MASK		0x3fff801f
 #else
 #define M_PERFCTL_CONFIG_MASK		0x1f
 #endif
-#define M_PERFCTL_EVENT_MASK		0xfe0
 
 
 #ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
@@ -345,11 +336,11 @@ static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 	cpuc->saved_ctrl[idx] = M_PERFCTL_EVENT(evt->event_base & 0xff) |
 		(evt->config_base & M_PERFCTL_CONFIG_MASK) |
 		/* Make sure interrupt enabled. */
-		M_PERFCTL_INTERRUPT_ENABLE;
+		MIPS_PERFCTRL_IE;
 	if (IS_ENABLED(CONFIG_CPU_BMIPS5000))
 		/* enable the counter for the calling thread */
 		cpuc->saved_ctrl[idx] |=
-			(1 << (12 + vpe_id())) | M_PERFCTL_TC;
+			(1 << (12 + vpe_id())) | BRCM_PERFCTRL_TC;
 
 	/*
 	 * We do not actually let the counter run. Leave it until start().
@@ -754,11 +745,11 @@ static int __n_counters(void)
 {
 	if (!cpu_has_perf)
 		return 0;
-	if (!(read_c0_perfctrl0() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl0() & MIPS_PERFCTRL_M))
 		return 1;
-	if (!(read_c0_perfctrl1() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl1() & MIPS_PERFCTRL_M))
 		return 2;
-	if (!(read_c0_perfctrl2() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl2() & MIPS_PERFCTRL_M))
 		return 3;
 
 	return 4;
@@ -1339,7 +1330,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 * We allow max flexibility on how each individual counter shared
 	 * by the single CPU operates (the mode exclusion and the range).
 	 */
-	hwc->config_base = M_PERFCTL_INTERRUPT_ENABLE;
+	hwc->config_base = MIPS_PERFCTRL_IE;
 
 	/* Calculate range bits and validate it. */
 	if (num_possible_cpus() > 1)
@@ -1350,14 +1341,14 @@ static int __hw_perf_event_init(struct perf_event *event)
 		mutex_unlock(&raw_event_mutex);
 
 	if (!attr->exclude_user)
-		hwc->config_base |= M_PERFCTL_USER;
+		hwc->config_base |= MIPS_PERFCTRL_U;
 	if (!attr->exclude_kernel) {
-		hwc->config_base |= M_PERFCTL_KERNEL;
+		hwc->config_base |= MIPS_PERFCTRL_K;
 		/* MIPS kernel mode: KSU == 00b || EXL == 1 || ERL == 1 */
-		hwc->config_base |= M_PERFCTL_EXL;
+		hwc->config_base |= MIPS_PERFCTRL_EXL;
 	}
 	if (!attr->exclude_hv)
-		hwc->config_base |= M_PERFCTL_SUPERVISOR;
+		hwc->config_base |= MIPS_PERFCTRL_S;
 
 	hwc->config_base &= M_PERFCTL_CONFIG_MASK;
 	/*
@@ -1455,6 +1446,11 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	HANDLE_COUNTER(0)
 	}
 
+#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
+	read_unlock(&pmuint_rwlock);
+#endif
+	resume_local_counters();
+
 	/*
 	 * Do all the work for the pending perf events. We can do this
 	 * in here because the performance counter interrupt is a regular
@@ -1463,10 +1459,6 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	if (handled == IRQ_HANDLED)
 		irq_work_run();
 
-#ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
-	read_unlock(&pmuint_rwlock);
-#endif
-	resume_local_counters();
 	return handled;
 }
 
@@ -1830,7 +1822,7 @@ init_hw_perf_events(void)
 	mipspmu.num_counters = counters;
 	mipspmu.irq = irq;
 
-	if (read_c0_perfctrl0() & M_PERFCTL_WIDE) {
+	if (read_c0_perfctrl0() & MIPS_PERFCTRL_W) {
 		mipspmu.max_period = (1ULL << 63) - 1;
 		mipspmu.valid_count = (1ULL << 63) - 1;
 		mipspmu.overflow = 1ULL << 63;

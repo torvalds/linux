@@ -28,13 +28,6 @@ static inline int klp_check_compiler_support(void)
 	return 0;
 }
 
-static inline int klp_write_module_reloc(struct module *mod, unsigned long
-		type, unsigned long loc, unsigned long value)
-{
-	/* This requires infrastructure changes; we need the loadinfos. */
-	return -ENOSYS;
-}
-
 static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 {
 	regs->nip = ip;

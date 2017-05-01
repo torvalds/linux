@@ -1,0 +1,16 @@
+NAU85L40 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+  - compatible : "nuvoton,nau8540"
+
+  - reg : the I2C address of the device.
+
+Example:
+
+codec: nau8540@1c {
+       compatible = "nuvoton,nau8540";
+       reg = <0x1c>;
+};

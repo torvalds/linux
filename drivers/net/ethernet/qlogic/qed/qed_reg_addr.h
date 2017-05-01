@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef REG_ADDR_H
@@ -86,6 +110,8 @@
 	0x1e80000UL
 #define  NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF \
 	0x5011f4UL
+#define PRS_REG_SEARCH_RESP_INITIATOR_TYPE \
+	0x1f0164UL
 #define  PRS_REG_SEARCH_TCP \
 	0x1f0400UL
 #define  PRS_REG_SEARCH_UDP \
@@ -96,6 +122,12 @@
 	0x1f040cUL
 #define  PRS_REG_SEARCH_OPENFLOW	\
 	0x1f0434UL
+#define PRS_REG_SEARCH_TAG1 \
+	0x1f0444UL
+#define PRS_REG_PKT_LEN_STAT_TAGS_NOT_COUNTED_FIRST \
+	0x1f0a0cUL
+#define PRS_REG_SEARCH_TCP_FIRST_FRAG \
+	0x1f0410UL
 #define  TM_REG_PF_ENABLE_CONN \
 	0x2c043cUL
 #define  TM_REG_PF_ENABLE_TASK \
@@ -1457,4 +1489,35 @@
 #define DORQ_REG_PF_ICID_BIT_SHIFT_NORM	0x100448UL
 #define DORQ_REG_PF_MIN_ADDR_REG1 0x100400UL
 #define DORQ_REG_PF_DPI_BIT_SHIFT 0x100450UL
+#define NIG_REG_RX_PTP_EN 0x501900UL
+#define NIG_REG_TX_PTP_EN 0x501904UL
+#define NIG_REG_LLH_PTP_TO_HOST	0x501908UL
+#define NIG_REG_LLH_PTP_TO_MCP 0x50190cUL
+#define NIG_REG_PTP_SW_TXTSEN 0x501910UL
+#define NIG_REG_LLH_PTP_ETHERTYPE_1 0x501914UL
+#define NIG_REG_LLH_PTP_MAC_DA_2_LSB 0x501918UL
+#define NIG_REG_LLH_PTP_MAC_DA_2_MSB 0x50191cUL
+#define NIG_REG_LLH_PTP_PARAM_MASK 0x501920UL
+#define NIG_REG_LLH_PTP_RULE_MASK 0x501924UL
+#define NIG_REG_TX_LLH_PTP_PARAM_MASK 0x501928UL
+#define NIG_REG_TX_LLH_PTP_RULE_MASK 0x50192cUL
+#define NIG_REG_LLH_PTP_HOST_BUF_SEQID 0x501930UL
+#define NIG_REG_LLH_PTP_HOST_BUF_TS_LSB 0x501934UL
+#define NIG_REG_LLH_PTP_HOST_BUF_TS_MSB	0x501938UL
+#define NIG_REG_LLH_PTP_MCP_BUF_SEQID 0x50193cUL
+#define NIG_REG_LLH_PTP_MCP_BUF_TS_LSB 0x501940UL
+#define NIG_REG_LLH_PTP_MCP_BUF_TS_MSB 0x501944UL
+#define NIG_REG_TX_LLH_PTP_BUF_SEQID 0x501948UL
+#define NIG_REG_TX_LLH_PTP_BUF_TS_LSB 0x50194cUL
+#define NIG_REG_TX_LLH_PTP_BUF_TS_MSB 0x501950UL
+#define NIG_REG_RX_PTP_TS_MSB_ERR 0x501954UL
+#define NIG_REG_TX_PTP_TS_MSB_ERR 0x501958UL
+#define NIG_REG_TSGEN_SYNC_TIME_LSB 0x5088c0UL
+#define NIG_REG_TSGEN_SYNC_TIME_MSB 0x5088c4UL
+#define NIG_REG_TSGEN_RST_DRIFT_CNTR 0x5088d8UL
+#define NIG_REG_TSGEN_DRIFT_CNTR_CONF 0x5088dcUL
+#define NIG_REG_TS_OUTPUT_ENABLE_PDA 0x508870UL
+#define NIG_REG_TIMESYNC_GEN_REG_BB 0x500d00UL
+#define NIG_REG_TSGEN_FREE_CNT_VALUE_LSB 0x5088a8UL
+#define NIG_REG_TSGEN_FREE_CNT_VALUE_MSB 0x5088acUL
 #endif

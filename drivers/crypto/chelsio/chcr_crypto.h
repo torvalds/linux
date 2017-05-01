@@ -48,7 +48,7 @@
  * giving the processed data
  */
 
-#define CHCR_CRA_PRIORITY 300
+#define CHCR_CRA_PRIORITY 3000
 
 #define CHCR_AES_MAX_KEY_LEN  (2 * (AES_MAX_KEY_SIZE)) /* consider xts */
 #define CHCR_MAX_CRYPTO_IV_LEN 16 /* AES IV len */

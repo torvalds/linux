@@ -16,6 +16,31 @@
 struct emac_adapter;
 struct platform_device;
 
+typedef int (*emac_sgmii_function)(struct emac_adapter *adpt);
+
+/** emac_sgmii - internal emac phy
+ * @base base address
+ * @digital per-lane digital block
+ * @irq the interrupt number
+ * @decode_error_count reference count of consecutive decode errors
+ * @initialize initialization function
+ * @open called when the driver is opened
+ * @close called when the driver is closed
+ * @link_up called when the link comes up
+ * @link_down called when the link comes down
+ */
+struct emac_sgmii {
+	void __iomem		*base;
+	void __iomem		*digital;
+	unsigned int		irq;
+	atomic_t		decode_error_count;
+	emac_sgmii_function	initialize;
+	emac_sgmii_function	open;
+	emac_sgmii_function	close;
+	emac_sgmii_function	link_up;
+	emac_sgmii_function	link_down;
+};
+
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt);
 void emac_sgmii_reset(struct emac_adapter *adpt);
 

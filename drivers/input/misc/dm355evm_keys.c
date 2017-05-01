@@ -195,8 +195,6 @@ static int dm355evm_keys_probe(struct platform_device *pdev)
 		goto fail1;
 	keys->irq = status;
 
-	input_set_drvdata(input, keys);
-
 	input->name = "DM355 EVM Controls";
 	input->phys = "dm355evm/input0";
 	input->dev.parent = &pdev->dev;

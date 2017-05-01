@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <linux/kexec.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bug.h>
@@ -254,7 +255,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 		pr_info("%s[%d] trap %s ip:%lx sp:%lx error:%lx",
 			tsk->comm, tsk->pid, str,
 			regs->ip, regs->sp, error_code);
-		print_vma_addr(" in ", regs->ip);
+		print_vma_addr(KERN_CONT " in ", regs->ip);
 		pr_cont("\n");
 	}
 
@@ -518,7 +519,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 		pr_info("%s[%d] general protection ip:%lx sp:%lx error:%lx",
 			tsk->comm, task_pid_nr(tsk),
 			regs->ip, regs->sp, error_code);
-		print_vma_addr(" in ", regs->ip);
+		print_vma_addr(KERN_CONT " in ", regs->ip);
 		pr_cont("\n");
 	}
 
@@ -563,11 +564,9 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	 * as we may switch to the interrupt stack.
 	 */
 	debug_stack_usage_inc();
-	preempt_disable();
 	cond_local_irq_enable(regs);
 	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, error_code, NULL);
 	cond_local_irq_disable(regs);
-	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 exit:
 	ist_exit(regs);
@@ -742,14 +741,12 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_inc();
 
 	/* It's safe to allow irq's after DR6 has been saved */
-	preempt_disable();
 	cond_local_irq_enable(regs);
 
 	if (v8086_mode(regs)) {
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
 					X86_TRAP_DB);
 		cond_local_irq_disable(regs);
-		preempt_enable_no_resched();
 		debug_stack_usage_dec();
 		goto exit;
 	}
@@ -769,7 +766,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
 		send_sigtrap(tsk, regs, error_code, si_code);
 	cond_local_irq_disable(regs);
-	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 
 exit:

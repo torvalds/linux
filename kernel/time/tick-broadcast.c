@@ -29,11 +29,12 @@
  */
 
 static struct tick_device tick_broadcast_device;
-static cpumask_var_t tick_broadcast_mask;
-static cpumask_var_t tick_broadcast_on;
-static cpumask_var_t tmpmask;
-static DEFINE_RAW_SPINLOCK(tick_broadcast_lock);
+static cpumask_var_t tick_broadcast_mask __cpumask_var_read_mostly;
+static cpumask_var_t tick_broadcast_on __cpumask_var_read_mostly;
+static cpumask_var_t tmpmask __cpumask_var_read_mostly;
 static int tick_broadcast_forced;
+
+static __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(tick_broadcast_lock);
 
 #ifdef CONFIG_TICK_ONESHOT
 static void tick_broadcast_clear_oneshot(int cpu);
@@ -347,17 +348,16 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
  *
  * Called when the system enters a state where affected tick devices
  * might stop. Note: TICK_BROADCAST_FORCE cannot be undone.
- *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
- * under us.
  */
 void tick_broadcast_control(enum tick_broadcast_mode mode)
 {
 	struct clock_event_device *bc, *dev;
 	struct tick_device *td;
 	int cpu, bc_stopped;
+	unsigned long flags;
 
+	/* Protects also the local clockevent device. */
+	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
 	td = this_cpu_ptr(&tick_cpu_device);
 	dev = td->evtdev;
 
@@ -365,12 +365,11 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 	 * Is the device not affected by the powerstate ?
 	 */
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_C3STOP))
-		return;
+		goto out;
 
 	if (!tick_device_is_functional(dev))
-		return;
+		goto out;
 
-	raw_spin_lock(&tick_broadcast_lock);
 	cpu = smp_processor_id();
 	bc = tick_broadcast_device.evtdev;
 	bc_stopped = cpumask_empty(tick_broadcast_mask);
@@ -420,7 +419,8 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 				tick_broadcast_setup_oneshot(bc);
 		}
 	}
-	raw_spin_unlock(&tick_broadcast_lock);
+out:
+	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 EXPORT_SYMBOL_GPL(tick_broadcast_control);
 
@@ -517,9 +517,9 @@ void tick_resume_broadcast(void)
 
 #ifdef CONFIG_TICK_ONESHOT
 
-static cpumask_var_t tick_broadcast_oneshot_mask;
-static cpumask_var_t tick_broadcast_pending_mask;
-static cpumask_var_t tick_broadcast_force_mask;
+static cpumask_var_t tick_broadcast_oneshot_mask __cpumask_var_read_mostly;
+static cpumask_var_t tick_broadcast_pending_mask __cpumask_var_read_mostly;
+static cpumask_var_t tick_broadcast_force_mask __cpumask_var_read_mostly;
 
 /*
  * Exposed for debugging: see timer_list.c

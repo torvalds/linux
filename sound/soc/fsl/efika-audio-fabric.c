@@ -26,7 +26,6 @@
 #include <sound/soc.h>
 
 #include "mpc5200_dma.h"
-#include "mpc5200_psc_ac97.h"
 
 #define DRV_NAME "efika-audio-fabric"
 

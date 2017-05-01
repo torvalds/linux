@@ -786,6 +786,68 @@ void iov_iter_advance(struct iov_iter *i, size_t size)
 }
 EXPORT_SYMBOL(iov_iter_advance);
 
+void iov_iter_revert(struct iov_iter *i, size_t unroll)
+{
+	if (!unroll)
+		return;
+	i->count += unroll;
+	if (unlikely(i->type & ITER_PIPE)) {
+		struct pipe_inode_info *pipe = i->pipe;
+		int idx = i->idx;
+		size_t off = i->iov_offset;
+		while (1) {
+			size_t n = off - pipe->bufs[idx].offset;
+			if (unroll < n) {
+				off -= unroll;
+				break;
+			}
+			unroll -= n;
+			if (!unroll && idx == i->start_idx) {
+				off = 0;
+				break;
+			}
+			if (!idx--)
+				idx = pipe->buffers - 1;
+			off = pipe->bufs[idx].offset + pipe->bufs[idx].len;
+		}
+		i->iov_offset = off;
+		i->idx = idx;
+		pipe_truncate(i);
+		return;
+	}
+	if (unroll <= i->iov_offset) {
+		i->iov_offset -= unroll;
+		return;
+	}
+	unroll -= i->iov_offset;
+	if (i->type & ITER_BVEC) {
+		const struct bio_vec *bvec = i->bvec;
+		while (1) {
+			size_t n = (--bvec)->bv_len;
+			i->nr_segs++;
+			if (unroll <= n) {
+				i->bvec = bvec;
+				i->iov_offset = n - unroll;
+				return;
+			}
+			unroll -= n;
+		}
+	} else { /* same logics for iovec and kvec */
+		const struct iovec *iov = i->iov;
+		while (1) {
+			size_t n = (--iov)->iov_len;
+			i->nr_segs++;
+			if (unroll <= n) {
+				i->iov = iov;
+				i->iov_offset = n - unroll;
+				return;
+			}
+			unroll -= n;
+		}
+	}
+}
+EXPORT_SYMBOL(iov_iter_revert);
+
 /*
  * Return the count of just the current iov_iter segment.
  */
@@ -839,6 +901,7 @@ void iov_iter_pipe(struct iov_iter *i, int direction,
 	i->idx = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
 	i->iov_offset = 0;
 	i->count = count;
+	i->start_idx = i->idx;
 }
 EXPORT_SYMBOL(iov_iter_pipe);
 

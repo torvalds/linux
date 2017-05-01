@@ -1625,7 +1625,7 @@ mISDNipac_init(struct ipac_hw *ipac, void *hw)
 		ipac->hscx[i].bch.hw = hw;
 		ipac->hscx[i].ip = ipac;
 		/* default values for IOM time slots
-		 * can be overwriten by card */
+		 * can be overwritten by card */
 		ipac->hscx[i].slot = (i == 0) ? 0x2f : 0x03;
 	}
 

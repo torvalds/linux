@@ -26,6 +26,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/extdev.h>
 #include <subdev/bios/iccsense.h>
+#include <subdev/bios/power_budget.h>
 #include <subdev/i2c.h>
 
 static bool
@@ -216,10 +217,25 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_iccsense *iccsense = nvkm_iccsense(subdev);
 	struct nvkm_bios *bios = subdev->device->bios;
+	struct nvbios_power_budget budget;
 	struct nvbios_iccsense stbl;
-	int i;
+	int i, ret;
 
-	if (!bios || nvbios_iccsense_parse(bios, &stbl) || !stbl.nr_entry)
+	if (!bios)
+		return 0;
+
+	ret = nvbios_power_budget_header(bios, &budget);
+	if (!ret && budget.cap_entry != 0xff) {
+		struct nvbios_power_budget_entry entry;
+		ret = nvbios_power_budget_entry(bios, &budget,
+		                                budget.cap_entry, &entry);
+		if (!ret) {
+			iccsense->power_w_max  = entry.avg_w;
+			iccsense->power_w_crit = entry.max_w;
+		}
+	}
+
+	if (nvbios_iccsense_parse(bios, &stbl) || !stbl.nr_entry)
 		return 0;
 
 	iccsense->data_valid = true;

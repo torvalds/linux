@@ -31,6 +31,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/fixmap.h>
 #include <asm/insn.h>
+#include <asm/kprobes.h>
 
 #define AARCH64_INSN_SF_BIT	BIT(31)
 #define AARCH64_INSN_N_BIT	BIT(22)
@@ -93,10 +94,10 @@ static void __kprobes *patch_map(void *addr, int fixmap)
 	bool module = !core_kernel_text(uintaddr);
 	struct page *page;
 
-	if (module && IS_ENABLED(CONFIG_DEBUG_SET_MODULE_RONX))
+	if (module && IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
 		page = vmalloc_to_page(addr);
 	else if (!module)
-		page = pfn_to_page(PHYS_PFN(__pa(addr)));
+		page = phys_to_page(__pa_symbol(addr));
 	else
 		return addr;
 
@@ -415,6 +416,35 @@ u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 	insn |= (imm & mask) << shift;
 
 	return insn;
+}
+
+u32 aarch64_insn_decode_register(enum aarch64_insn_register_type type,
+					u32 insn)
+{
+	int shift;
+
+	switch (type) {
+	case AARCH64_INSN_REGTYPE_RT:
+	case AARCH64_INSN_REGTYPE_RD:
+		shift = 0;
+		break;
+	case AARCH64_INSN_REGTYPE_RN:
+		shift = 5;
+		break;
+	case AARCH64_INSN_REGTYPE_RT2:
+	case AARCH64_INSN_REGTYPE_RA:
+		shift = 10;
+		break;
+	case AARCH64_INSN_REGTYPE_RM:
+		shift = 16;
+		break;
+	default:
+		pr_err("%s: unknown register type encoding %d\n", __func__,
+		       type);
+		return 0;
+	}
+
+	return (insn >> shift) & GENMASK(4, 0);
 }
 
 static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,

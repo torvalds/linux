@@ -73,7 +73,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -1414,7 +1416,7 @@ static void kmemleak_scan(void)
 	/* data/bss scanning */
 	scan_large_block(_sdata, _edata);
 	scan_large_block(__bss_start, __bss_stop);
-	scan_large_block(__start_data_ro_after_init, __end_data_ro_after_init);
+	scan_large_block(__start_ro_after_init, __end_ro_after_init);
 
 #ifdef CONFIG_SMP
 	/* per-cpu sections scanning */

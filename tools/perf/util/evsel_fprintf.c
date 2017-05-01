@@ -168,7 +168,6 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 
 			if (symbol_conf.bt_stop_list &&
 			    node->sym &&
-			    node->sym->name &&
 			    strlist__has_entry(symbol_conf.bt_stop_list,
 					       node->sym->name)) {
 				break;

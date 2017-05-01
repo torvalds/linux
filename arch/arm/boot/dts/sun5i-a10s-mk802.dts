@@ -116,24 +116,19 @@
 
 &pio {
 	led_pins_mk802: led_pins@0 {
-		allwinner,pins = "PB2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB2";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_mk802: mmc0_cd_pin@0 {
-		allwinner,pins = "PG1";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PG1";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb1_vbus_pin_mk802: usb1_vbus_pin@0 {
-		allwinner,pins = "PB10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB10";
+		function = "gpio_out";
 	};
 };
 

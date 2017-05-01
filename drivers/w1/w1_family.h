@@ -1,8 +1,5 @@
 /*
- *	w1_family.h
- *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef __W1_FAMILY_H
@@ -30,6 +23,7 @@
 #define W1_FAMILY_BQ27000	0x01
 #define W1_FAMILY_SMEM_01	0x01
 #define W1_FAMILY_SMEM_81	0x81
+#define W1_FAMILY_DS2405	0x05
 #define W1_THERM_DS18S20 	0x10
 #define W1_FAMILY_DS28E04	0x1C
 #define W1_COUNTER_DS2423	0x1D

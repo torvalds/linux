@@ -138,7 +138,8 @@ netcp: netcp@24000000 {
 	/* NetCP address range */
 	ranges = <0 0x24000000 0x1000000>;
 
-	clocks = <&papllclk>, <&clkcpgmac>, <&chipclk12>;
+	clocks = <&clkpa>, <&clkcpgmac>, <&chipclk12>;
+	clock-names = "pa_clk", "ethss_clk", "cpts";
 	dma-coherent;
 
 	ti,navigator-dmas = <&dma_gbe 0>,

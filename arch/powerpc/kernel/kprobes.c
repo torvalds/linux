@@ -285,6 +285,7 @@ asm(".global kretprobe_trampoline\n"
 	".type kretprobe_trampoline, @function\n"
 	"kretprobe_trampoline:\n"
 	"nop\n"
+	"blr\n"
 	".size kretprobe_trampoline, .-kretprobe_trampoline\n");
 
 /*
@@ -337,6 +338,13 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 	regs->nip = orig_ret_address;
+	/*
+	 * Make LR point to the orig_ret_address.
+	 * When the 'nop' inside the kretprobe_trampoline
+	 * is optimized, we can do a 'blr' after executing the
+	 * detour buffer code.
+	 */
+	regs->link = orig_ret_address;
 
 	reset_current_kprobe();
 	kretprobe_hash_unlock(current, &flags);
@@ -465,15 +473,6 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		break;
 	}
 	return 0;
-}
-
-/*
- * Wrapper routine to for handling exceptions.
- */
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
-				       unsigned long val, void *data)
-{
-	return NOTIFY_DONE;
 }
 
 unsigned long arch_deref_entry_point(void *entry)

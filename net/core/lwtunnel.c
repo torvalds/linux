@@ -101,7 +101,7 @@ int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *ops,
 }
 EXPORT_SYMBOL(lwtunnel_encap_del_ops);
 
-int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
+int lwtunnel_build_state(u16 encap_type,
 			 struct nlattr *encap, unsigned int family,
 			 const void *cfg, struct lwtunnel_state **lws)
 {
@@ -116,7 +116,7 @@ int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[encap_type]);
 	if (likely(ops && ops->build_state && try_module_get(ops->owner))) {
-		ret = ops->build_state(dev, encap, family, cfg, lws);
+		ret = ops->build_state(encap, family, cfg, lws);
 		if (ret)
 			module_put(ops->owner);
 	}

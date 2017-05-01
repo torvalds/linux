@@ -92,7 +92,7 @@ static void noop_exit_queue(struct elevator_queue *e)
 }
 
 static struct elevator_type elevator_noop = {
-	.ops = {
+	.ops.sq = {
 		.elevator_merge_req_fn		= noop_merged_requests,
 		.elevator_dispatch_fn		= noop_dispatch,
 		.elevator_add_req_fn		= noop_add_request,

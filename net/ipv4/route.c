@@ -154,6 +154,7 @@ static u32 *ipv4_cow_metrics(struct dst_entry *dst, unsigned long old)
 static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 					   struct sk_buff *skb,
 					   const void *daddr);
+static void ipv4_confirm_neigh(const struct dst_entry *dst, const void *daddr);
 
 static struct dst_ops ipv4_dst_ops = {
 	.family =		AF_INET,
@@ -168,6 +169,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.redirect =		ip_do_redirect,
 	.local_out =		__ip_local_out,
 	.neigh_lookup =		ipv4_neigh_lookup,
+	.confirm_neigh =	ipv4_confirm_neigh,
 };
 
 #define ECN_OR_COST(class)	TC_PRIO_##class
@@ -459,6 +461,23 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst,
 	if (n)
 		return n;
 	return neigh_create(&arp_tbl, pkey, dev);
+}
+
+static void ipv4_confirm_neigh(const struct dst_entry *dst, const void *daddr)
+{
+	struct net_device *dev = dst->dev;
+	const __be32 *pkey = daddr;
+	const struct rtable *rt;
+
+	rt = (const struct rtable *)dst;
+	if (rt->rt_gateway)
+		pkey = (const __be32 *)&rt->rt_gateway;
+	else if (!daddr ||
+		 (rt->rt_flags &
+		  (RTCF_MULTICAST | RTCF_BROADCAST | RTCF_LOCAL)))
+		return;
+
+	__ipv4_confirm_neigh(dev, *(__force u32 *)pkey);
 }
 
 #define IP_IDENTS_SZ 2048u
@@ -1758,7 +1777,6 @@ standard_hash:
 
 static int ip_mkroute_input(struct sk_buff *skb,
 			    struct fib_result *res,
-			    const struct flowi4 *fl4,
 			    struct in_device *in_dev,
 			    __be32 daddr, __be32 saddr, u32 tos)
 {
@@ -1858,6 +1876,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	fl4.flowi4_flags = 0;
 	fl4.daddr = daddr;
 	fl4.saddr = saddr;
+	fl4.flowi4_uid = sock_net_uid(net, NULL);
 	err = fib_lookup(net, &fl4, &res, 0);
 	if (err != 0) {
 		if (!IN_DEV_FORWARD(in_dev))
@@ -1883,7 +1902,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (res.type != RTN_UNICAST)
 		goto martian_destination;
 
-	err = ip_mkroute_input(skb, &res, &fl4, in_dev, daddr, saddr, tos);
+	err = ip_mkroute_input(skb, &res, in_dev, daddr, saddr, tos);
 out:	return err;
 
 brd_input:
@@ -1990,6 +2009,7 @@ int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	int res;
 
+	tos &= IPTOS_RT_MASK;
 	rcu_read_lock();
 
 	/* Multicast recognition logic is moved from route cache to here.
@@ -2339,7 +2359,8 @@ struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 		}
 
 		/* L3 master device is the loopback for that domain */
-		dev_out = l3mdev_master_dev_rcu(dev_out) ? : net->loopback_dev;
+		dev_out = l3mdev_master_dev_rcu(FIB_RES_DEV(res)) ? :
+			net->loopback_dev;
 		fl4->flowi4_oif = dev_out->ifindex;
 		flags |= RTCF_LOCAL;
 		goto make_route;
@@ -2454,7 +2475,7 @@ EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
 static int rt_fill_info(struct net *net,  __be32 dst, __be32 src, u32 table_id,
 			struct flowi4 *fl4, struct sk_buff *skb, u32 portid,
-			u32 seq, int event, int nowait, unsigned int flags)
+			u32 seq, int event)
 {
 	struct rtable *rt = skb_rtable(skb);
 	struct rtmsg *r;
@@ -2463,7 +2484,7 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src, u32 table_id,
 	u32 error;
 	u32 metrics[RTAX_MAX];
 
-	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*r), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*r), 0);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -2541,18 +2562,12 @@ static int rt_fill_info(struct net *net,  __be32 dst, __be32 src, u32 table_id,
 		    IPV4_DEVCONF_ALL(net, MC_FORWARDING)) {
 			int err = ipmr_get_route(net, skb,
 						 fl4->saddr, fl4->daddr,
-						 r, nowait, portid);
+						 r, portid);
 
 			if (err <= 0) {
-				if (!nowait) {
-					if (err == 0)
-						return 0;
-					goto nla_put_failure;
-				} else {
-					if (err == -EMSGSIZE)
-						goto nla_put_failure;
-					error = err;
-				}
+				if (err == 0)
+					return 0;
+				goto nla_put_failure;
 			}
 		} else
 #endif
@@ -2606,7 +2621,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 	skb_reset_network_header(skb);
 
 	/* Bugfix: need to give ip_route_input enough of an IP header to not gag. */
-	ip_hdr(skb)->protocol = IPPROTO_ICMP;
+	ip_hdr(skb)->protocol = IPPROTO_UDP;
 	skb_reserve(skb, MAX_HEADER + sizeof(struct iphdr));
 
 	src = tb[RTA_SRC] ? nla_get_in_addr(tb[RTA_SRC]) : 0;
@@ -2638,9 +2653,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		skb->protocol	= htons(ETH_P_IP);
 		skb->dev	= dev;
 		skb->mark	= mark;
-		local_bh_disable();
 		err = ip_route_input(skb, dst, src, rtm->rtm_tos, dev);
-		local_bh_enable();
 
 		rt = skb_rtable(skb);
 		if (err == 0 && rt->dst.error)
@@ -2665,7 +2678,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 
 	err = rt_fill_info(net, dst, src, table_id, &fl4, skb,
 			   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
-			   RTM_NEWROUTE, 0, 0);
+			   RTM_NEWROUTE);
 	if (err < 0)
 		goto errout_free;
 

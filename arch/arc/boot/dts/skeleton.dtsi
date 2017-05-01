@@ -26,6 +26,7 @@
 			device_type = "cpu";
 			compatible = "snps,arc770d";
 			reg = <0>;
+			clocks = <&core_clk>;
 		};
 	};
 

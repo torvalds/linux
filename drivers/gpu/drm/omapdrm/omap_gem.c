@@ -518,7 +518,6 @@ static int fault_2d(struct drm_gem_object *obj,
 
 /**
  * omap_gem_fault		-	pagefault handler for GEM objects
- * @vma: the VMA of the GEM object
  * @vmf: fault detail
  *
  * Invoked when a fault occurs on an mmap of a GEM managed area. GEM
@@ -529,8 +528,9 @@ static int fault_2d(struct drm_gem_object *obj,
  * vma->vm_private_data points to the GEM object that is backing this
  * mapping.
  */
-int omap_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int omap_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	struct drm_device *dev = obj->dev;
@@ -1033,7 +1033,7 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%08x: %2d (%2d) %08llx %pad (%2d) %p %4d",
-			omap_obj->flags, obj->name, obj->refcount.refcount.counter,
+			omap_obj->flags, obj->name, kref_read(&obj->refcount),
 			off, &omap_obj->paddr, omap_obj->paddr_cnt,
 			omap_obj->vaddr, omap_obj->roll);
 

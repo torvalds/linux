@@ -140,6 +140,35 @@ static bool _is_valid_div(struct clk_divider *divider, unsigned int div)
 	return true;
 }
 
+static int _div_round_up(const struct clk_div_table *table,
+			 unsigned long parent_rate, unsigned long rate)
+{
+	const struct clk_div_table *clkt;
+	int up = INT_MAX;
+	int div = DIV_ROUND_UP_ULL((u64)parent_rate, rate);
+
+	for (clkt = table; clkt->div; clkt++) {
+		if (clkt->div == div)
+			return clkt->div;
+		else if (clkt->div < div)
+			continue;
+
+		if ((clkt->div - div) < (up - div))
+			up = clkt->div;
+	}
+
+	return up;
+}
+
+static int _div_round(const struct clk_div_table *table,
+		      unsigned long parent_rate, unsigned long rate)
+{
+	if (!table)
+		return DIV_ROUND_UP(parent_rate, rate);
+
+	return _div_round_up(table, parent_rate, rate);
+}
+
 static int ti_clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 				  unsigned long *best_parent_rate)
 {
@@ -155,7 +184,7 @@ static int ti_clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 
 	if (!(clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)) {
 		parent_rate = *best_parent_rate;
-		bestdiv = DIV_ROUND_UP(parent_rate, rate);
+		bestdiv = _div_round(divider->table, parent_rate, rate);
 		bestdiv = bestdiv == 0 ? 1 : bestdiv;
 		bestdiv = bestdiv > maxdiv ? maxdiv : bestdiv;
 		return bestdiv;

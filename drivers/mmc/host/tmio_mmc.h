@@ -24,6 +24,7 @@
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 
 #define CTL_SD_CMD 0x00
 #define CTL_ARG_REG 0x04
@@ -89,6 +90,8 @@
 #define TMIO_SDIO_STAT_EXPUB52	0x4000
 #define TMIO_SDIO_STAT_EXWT	0x8000
 #define TMIO_SDIO_MASK_ALL	0xc007
+
+#define TMIO_SDIO_SETBITS_MASK	0x0006
 
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */

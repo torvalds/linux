@@ -588,6 +588,7 @@ static int rmi_f34v7_check_ui_firmware_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.ui_firmware.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.ui_firmware) {
 		dev_err(&f34->fn->dev,
@@ -604,6 +605,7 @@ static int rmi_f34v7_check_ui_config_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.ui_config.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.ui_config) {
 		dev_err(&f34->fn->dev, "UI config size mismatch\n");
@@ -618,6 +620,7 @@ static int rmi_f34v7_check_dp_config_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.dp_config.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.dp_config) {
 		dev_err(&f34->fn->dev, "Display config size mismatch\n");
@@ -632,6 +635,8 @@ static int rmi_f34v7_check_guest_code_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.guest_code.size / f34->v7.block_size;
+	f34->update_size += block_count;
+
 	if (block_count != f34->v7.blkcount.guest_code) {
 		dev_err(&f34->fn->dev, "Guest code size mismatch\n");
 		return -EINVAL;
@@ -645,6 +650,7 @@ static int rmi_f34v7_check_bl_config_size(struct f34_data *f34)
 	u16 block_count;
 
 	block_count = f34->v7.img.bl_config.size / f34->v7.block_size;
+	f34->update_size += block_count;
 
 	if (block_count != f34->v7.blkcount.bl_config) {
 		dev_err(&f34->fn->dev, "Bootloader config size mismatch\n");
@@ -881,6 +887,9 @@ static int rmi_f34v7_write_f34v7_blocks(struct f34_data *f34,
 
 		block_ptr += (transfer * f34->v7.block_size);
 		remaining -= transfer;
+		f34->update_progress += transfer;
+		f34->update_status = (f34->update_progress * 100) /
+				     f34->update_size;
 	} while (remaining);
 
 	return 0;
@@ -1191,6 +1200,8 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 	rmi_f34v7_read_queries_bl_version(f34);
 
 	f34->v7.image = fw->data;
+	f34->update_progress = 0;
+	f34->update_size = 0;
 
 	ret = rmi_f34v7_parse_image_info(f34);
 	if (ret < 0)

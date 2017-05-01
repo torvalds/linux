@@ -662,7 +662,7 @@ static int hix5hd2_poll(struct napi_struct *napi, int budget)
 	} while (ints & DEF_INT_MASK);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		hix5hd2_irq_enable(priv);
 	}
 

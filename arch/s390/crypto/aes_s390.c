@@ -28,6 +28,7 @@
 #include <linux/cpufeature.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/fips.h>
 #include <crypto/xts.h>
 #include <asm/cpacf.h>
 
@@ -500,6 +501,12 @@ static int xts_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	err = xts_check_key(tfm, in_key, key_len);
 	if (err)
 		return err;
+
+	/* In fips mode only 128 bit or 256 bit keys are valid */
+	if (fips_enabled && key_len != 32 && key_len != 64) {
+		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+		return -EINVAL;
+	}
 
 	/* Pick the correct function code based on the key length */
 	fc = (key_len == 32) ? CPACF_KM_XTS_128 :

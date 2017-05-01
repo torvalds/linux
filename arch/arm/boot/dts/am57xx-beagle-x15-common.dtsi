@@ -22,6 +22,10 @@
 		display0 = &hdmi0;
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
@@ -421,19 +425,29 @@
 			      <&dra7_pmx_core 0x3f8>;
 };
 
+&davinci_mdio {
+	phy0: ethernet-phy@1 {
+		reg = <1>;
+	};
+
+	phy1: ethernet-phy@2 {
+		reg = <2>;
+	};
+};
+
 &mac {
 	status = "okay";
 	dual_emac;
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&phy0>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <2>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <2>;
 };

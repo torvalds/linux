@@ -59,6 +59,7 @@
 #ifndef __ASSEMBLY__
 
 /* We have no pud since we are a three-level page table. */
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
 
 /*

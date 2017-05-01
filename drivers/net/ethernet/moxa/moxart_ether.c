@@ -25,6 +25,7 @@
 #include <linux/of_irq.h>
 #include <linux/crc32.h>
 #include <linux/crc32c.h>
+#include <linux/circ_buf.h>
 
 #include "moxart_ether.h"
 
@@ -269,13 +270,20 @@ rx_next:
 	}
 
 	if (rx < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx);
 	}
 
 	priv->reg_imr |= RPKT_FINISH_M;
 	writel(priv->reg_imr, priv->base + REG_INTERRUPT_MASK);
 
 	return rx;
+}
+
+static int moxart_tx_queue_space(struct net_device *ndev)
+{
+	struct moxart_mac_priv_t *priv = netdev_priv(ndev);
+
+	return CIRC_SPACE(priv->tx_head, priv->tx_tail, TX_DESC_NUM);
 }
 
 static void moxart_tx_finished(struct net_device *ndev)
@@ -297,6 +305,9 @@ static void moxart_tx_finished(struct net_device *ndev)
 		tx_tail = TX_NEXT(tx_tail);
 	}
 	priv->tx_tail = tx_tail;
+	if (netif_queue_stopped(ndev) &&
+	    moxart_tx_queue_space(ndev) >= TX_WAKE_THRESHOLD)
+		netif_wake_queue(ndev);
 }
 
 static irqreturn_t moxart_mac_interrupt(int irq, void *dev_id)
@@ -324,13 +335,18 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct moxart_mac_priv_t *priv = netdev_priv(ndev);
 	void *desc;
 	unsigned int len;
-	unsigned int tx_head = priv->tx_head;
+	unsigned int tx_head;
 	u32 txdes1;
 	int ret = NETDEV_TX_BUSY;
 
+	spin_lock_irq(&priv->txlock);
+
+	tx_head = priv->tx_head;
 	desc = priv->tx_desc_base + (TX_REG_DESC_SIZE * tx_head);
 
-	spin_lock_irq(&priv->txlock);
+	if (moxart_tx_queue_space(ndev) == 1)
+		netif_stop_queue(ndev);
+
 	if (moxart_desc_read(desc + TX_REG_OFFSET_DESC0) & TX_DESC0_DMA_OWN) {
 		net_dbg_ratelimited("no TX space for packet\n");
 		priv->stats.tx_dropped++;
@@ -436,7 +452,7 @@ static void moxart_mac_set_rx_mode(struct net_device *ndev)
 	spin_unlock_irq(&priv->txlock);
 }
 
-static struct net_device_ops moxart_netdev_ops = {
+static const struct net_device_ops moxart_netdev_ops = {
 	.ndo_open		= moxart_mac_open,
 	.ndo_stop		= moxart_mac_stop,
 	.ndo_start_xmit		= moxart_mac_start_xmit,

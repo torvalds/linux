@@ -13,6 +13,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/dmi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -1059,7 +1060,7 @@ static int chv_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 }
 
 static int chv_config_set_pull(struct chv_pinctrl *pctrl, unsigned pin,
-			       enum pin_config_param param, u16 arg)
+			       enum pin_config_param param, u32 arg)
 {
 	void __iomem *reg = chv_padreg(pctrl, pin, CHV_PADCTRL0);
 	unsigned long flags;
@@ -1151,7 +1152,7 @@ static int chv_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
 	int i, ret;
-	u16 arg;
+	u32 arg;
 
 	if (chv_pad_locked(pctrl, pin))
 		return -EBUSY;
@@ -1524,10 +1525,31 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+/*
+ * Certain machines seem to hardcode Linux IRQ numbers in their ACPI
+ * tables. Since we leave GPIOs that are not capable of generating
+ * interrupts out of the irqdomain the numbering will be different and
+ * cause devices using the hardcoded IRQ numbers fail. In order not to
+ * break such machines we will only mask pins from irqdomain if the machine
+ * is not listed below.
+ */
+static const struct dmi_system_id chv_no_valid_mask[] = {
+	{
+		/* See https://bugzilla.kernel.org/show_bug.cgi?id=194945 */
+		.ident = "Acer Chromebook (CYAN)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Edgar"),
+			DMI_MATCH(DMI_BIOS_DATE, "05/21/2016"),
+		},
+	}
+};
+
 static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 {
 	const struct chv_gpio_pinrange *range;
 	struct gpio_chip *chip = &pctrl->chip;
+	bool need_valid_mask = !dmi_check_system(chv_no_valid_mask);
 	int ret, i, offset;
 
 	*chip = chv_gpio_chip;
@@ -1536,7 +1558,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->base = -1;
-	chip->irq_need_valid_mask = true;
+	chip->irq_need_valid_mask = need_valid_mask;
 
 	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
@@ -1567,7 +1589,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		intsel &= CHV_PADCTRL0_INTSEL_MASK;
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
-		if (intsel >= pctrl->community->nirqs)
+		if (need_valid_mask && intsel >= pctrl->community->nirqs)
 			clear_bit(i, chip->irq_valid_mask);
 	}
 

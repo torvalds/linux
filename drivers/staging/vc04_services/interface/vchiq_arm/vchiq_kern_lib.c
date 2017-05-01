@@ -75,23 +75,23 @@ VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *instance_out)
 	VCHIQ_STATUS_T status = VCHIQ_ERROR;
 	VCHIQ_STATE_T *state;
 	VCHIQ_INSTANCE_T instance = NULL;
-        int i;
+	int i;
 
 	vchiq_log_trace(vchiq_core_log_level, "%s called", __func__);
 
-        /* VideoCore may not be ready due to boot up timing.
-           It may never be ready if kernel and firmware are mismatched, so don't block forever. */
-        for (i=0; i<VCHIQ_INIT_RETRIES; i++) {
+	/* VideoCore may not be ready due to boot up timing.
+	   It may never be ready if kernel and firmware are mismatched, so don't block forever. */
+	for (i = 0; i < VCHIQ_INIT_RETRIES; i++) {
 		state = vchiq_get_state();
 		if (state)
 			break;
 		udelay(500);
 	}
-	if (i==VCHIQ_INIT_RETRIES) {
+	if (i == VCHIQ_INIT_RETRIES) {
 		vchiq_log_error(vchiq_core_log_level,
 			"%s: videocore not initialized\n", __func__);
 		goto failed;
-	} else if (i>0) {
+	} else if (i > 0) {
 		vchiq_log_warning(vchiq_core_log_level,
 			"%s: videocore initialized after %d retries\n", __func__, i);
 	}
@@ -172,7 +172,7 @@ EXPORT_SYMBOL(vchiq_shutdown);
 *
 ***************************************************************************/
 
-int vchiq_is_connected(VCHIQ_INSTANCE_T instance)
+static int vchiq_is_connected(VCHIQ_INSTANCE_T instance)
 {
 	return instance->connected;
 }

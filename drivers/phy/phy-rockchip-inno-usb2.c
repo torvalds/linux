@@ -595,9 +595,14 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		if (rport->vbus_attached != vbus_attach) {
 			rport->vbus_attached = vbus_attach;
 
-			if (notify_charger && rphy->edev)
+			if (notify_charger && rphy->edev) {
 				extcon_set_cable_state_(rphy->edev,
 							cable, vbus_attach);
+				if (cable == EXTCON_CHG_USB_SDP)
+					extcon_set_state_sync(rphy->edev,
+							      EXTCON_USB,
+							      vbus_attach);
+			}
 		}
 		break;
 	case OTG_STATE_B_PERIPHERAL:

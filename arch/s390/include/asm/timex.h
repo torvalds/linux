@@ -178,14 +178,6 @@ int get_phys_clock(unsigned long long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
 
-void tod_to_timeval(__u64 todval, struct timespec64 *xt);
-
-static inline
-void stck_to_timespec64(unsigned long long stck, struct timespec64 *ts)
-{
-	tod_to_timeval(stck - TOD_UNIX_EPOCH, ts);
-}
-
 extern u64 sched_clock_base_cc;
 
 /**
@@ -214,20 +206,16 @@ static inline unsigned long long get_tod_clock_monotonic(void)
  *    ns = (todval * 125) >> 9;
  *
  * In order to avoid an overflow with the multiplication we can rewrite this.
- * With a split todval == 2^32 * th + tl (th upper 32 bits, tl lower 32 bits)
+ * With a split todval == 2^9 * th + tl (th upper 55 bits, tl lower 9 bits)
  * we end up with
  *
- *    ns = ((2^32 * th + tl) * 125 ) >> 9;
- * -> ns = (2^23 * th * 125) + ((tl * 125) >> 9);
+ *    ns = ((2^9 * th + tl) * 125 ) >> 9;
+ * -> ns = (th * 125) + ((tl * 125) >> 9);
  *
  */
 static inline unsigned long long tod_to_ns(unsigned long long todval)
 {
-	unsigned long long ns;
-
-	ns = ((todval >> 32) << 23) * 125;
-	ns += ((todval & 0xffffffff) * 125) >> 9;
-	return ns;
+	return ((todval >> 9) * 125) + (((todval & 0x1ff) * 125) >> 9);
 }
 
 #endif

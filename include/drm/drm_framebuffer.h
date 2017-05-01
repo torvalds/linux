@@ -40,8 +40,8 @@ struct drm_framebuffer_funcs {
 	 *
 	 * Clean up framebuffer resources, specifically also unreference the
 	 * backing storage. The core guarantees to call this function for every
-	 * framebuffer successfully created by ->fb_create() in
-	 * &drm_mode_config_funcs. Drivers must also call
+	 * framebuffer successfully created by calling
+	 * &drm_mode_config_funcs.fb_create. Drivers must also call
 	 * drm_framebuffer_cleanup() to release DRM core resources for this
 	 * framebuffer.
 	 */
@@ -51,7 +51,7 @@ struct drm_framebuffer_funcs {
 	 * @create_handle:
 	 *
 	 * Create a buffer handle in the driver-specific buffer manager (either
-	 * GEM or TTM) valid for the passed-in struct &drm_file. This is used by
+	 * GEM or TTM) valid for the passed-in &struct drm_file. This is used by
 	 * the core to implement the GETFB IOCTL, which returns (for
 	 * sufficiently priviledged user) also a native buffer handle. This can
 	 * be used for seamless transitions between modesetting clients by
@@ -112,8 +112,8 @@ struct drm_framebuffer {
 	 */
 	struct drm_device *dev;
 	/**
-	 * @head: Place on the dev->mode_config.fb_list, access protected by
-	 * dev->mode_config.fb_lock.
+	 * @head: Place on the &drm_mode_config.fb_list, access protected by
+	 * &drm_mode_config.fb_lock.
 	 */
 	struct list_head head;
 
@@ -121,6 +121,10 @@ struct drm_framebuffer {
 	 * @base: base modeset object structure, contains the reference count.
 	 */
 	struct drm_mode_object base;
+	/**
+	 * @format: framebuffer format information
+	 */
+	const struct drm_format_info *format;
 	/**
 	 * @funcs: framebuffer vfunc table
 	 */
@@ -145,7 +149,7 @@ struct drm_framebuffer {
 	 *
 	 * This should not be used to specifiy x/y pixel offsets into the buffer
 	 * data (even for linear buffers). Specifying an x/y pixel offset is
-	 * instead done through the source rectangle in struct &drm_plane_state.
+	 * instead done through the source rectangle in &struct drm_plane_state.
 	 */
 	unsigned int offsets[4];
 	/**
@@ -166,27 +170,10 @@ struct drm_framebuffer {
 	 */
 	unsigned int height;
 	/**
-	 * @depth: Depth in bits per pixel for RGB formats. 0 for everything
-	 * else. Legacy information derived from @pixel_format, it's suggested to use
-	 * the DRM FOURCC codes and helper functions directly instead.
-	 */
-	unsigned int depth;
-	/**
-	 * @bits_per_pixel: Storage used bits per pixel for RGB formats. 0 for
-	 * everything else. Legacy information derived from @pixel_format, it's
-	 * suggested to use the DRM FOURCC codes and helper functions directly
-	 * instead.
-	 */
-	int bits_per_pixel;
-	/**
 	 * @flags: Framebuffer flags like DRM_MODE_FB_INTERLACED or
 	 * DRM_MODE_FB_MODIFIERS.
 	 */
 	int flags;
-	/**
-	 * @pixel_format: DRM FOURCC code describing the pixel format.
-	 */
-	uint32_t pixel_format; /* fourcc format */
 	/**
 	 * @hot_x: X coordinate of the cursor hotspot. Used by the legacy cursor
 	 * IOCTL when the driver supports cursor through a DRM_PLANE_TYPE_CURSOR
@@ -200,8 +187,7 @@ struct drm_framebuffer {
 	 */
 	int hot_y;
 	/**
-	 * @filp_head: Placed on struct &drm_file fbs list_head, protected by
-	 * fbs_lock in the same structure.
+	 * @filp_head: Placed on &drm_file.fbs, protected by &drm_file.fbs_lock.
 	 */
 	struct list_head filp_head;
 };
@@ -247,7 +233,7 @@ static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
  */
 static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
 {
-	return atomic_read(&fb->base.refcount.refcount);
+	return kref_read(&fb->base.refcount);
 }
 
 /**
@@ -273,8 +259,8 @@ static inline void drm_framebuffer_assign(struct drm_framebuffer **p,
  * @fb: the loop cursor
  * @dev: the DRM device
  *
- * Iterate over all framebuffers of @dev. User must hold the fb_lock from
- * &drm_mode_config.
+ * Iterate over all framebuffers of @dev. User must hold
+ * &drm_mode_config.fb_lock.
  */
 #define drm_for_each_fb(fb, dev) \
 	for (WARN_ON(!mutex_is_locked(&(dev)->mode_config.fb_lock)),		\
@@ -282,4 +268,10 @@ static inline void drm_framebuffer_assign(struct drm_framebuffer **p,
 					  struct drm_framebuffer, head);	\
 	     &fb->head != (&(dev)->mode_config.fb_list);			\
 	     fb = list_next_entry(fb, head))
+
+int drm_framebuffer_plane_width(int width,
+				const struct drm_framebuffer *fb, int plane);
+int drm_framebuffer_plane_height(int height,
+				 const struct drm_framebuffer *fb, int plane);
+
 #endif

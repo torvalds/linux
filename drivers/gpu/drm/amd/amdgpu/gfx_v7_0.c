@@ -1983,6 +1983,14 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	WREG32(mmPA_CL_ENHANCE, PA_CL_ENHANCE__CLIP_VTX_REORDER_ENA_MASK |
 			(3 << PA_CL_ENHANCE__NUM_CLIP_SEQ__SHIFT));
 	WREG32(mmPA_SC_ENHANCE, PA_SC_ENHANCE__ENABLE_PA_SC_OUT_OF_ORDER_MASK);
+
+	tmp = RREG32(mmSPI_ARB_PRIORITY);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS0, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS1, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS2, 2);
+	tmp = REG_SET_FIELD(tmp, SPI_ARB_PRIORITY, PIPE_ORDER_TS3, 2);
+	WREG32(mmSPI_ARB_PRIORITY, tmp);
+
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	udelay(50);
@@ -2003,14 +2011,9 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
  */
 static void gfx_v7_0_scratch_init(struct amdgpu_device *adev)
 {
-	int i;
-
 	adev->gfx.scratch.num_reg = 7;
 	adev->gfx.scratch.reg_base = mmSCRATCH_REG0;
-	for (i = 0; i < adev->gfx.scratch.num_reg; i++) {
-		adev->gfx.scratch.free[i] = true;
-		adev->gfx.scratch.reg[i] = adev->gfx.scratch.reg_base + i;
-	}
+	adev->gfx.scratch.free_mask = (1u << adev->gfx.scratch.num_reg) - 1;
 }
 
 /**
@@ -2321,7 +2324,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
 
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
 	if (r)
 		goto err2;
 

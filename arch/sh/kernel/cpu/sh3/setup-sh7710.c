@@ -98,9 +98,7 @@ static struct platform_device rtc_device = {
 };
 
 static struct plat_sci_port scif0_platform_data = {
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE |
-			  SCSCR_CKE1 | SCSCR_CKE0,
+	.scscr		= SCSCR_REIE | SCSCR_CKE1,
 	.type		= PORT_SCIF,
 };
 
@@ -120,9 +118,7 @@ static struct platform_device scif0_device = {
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE |
-			  SCSCR_CKE1 | SCSCR_CKE0,
+	.scscr		= SCSCR_REIE | SCSCR_CKE1,
 	.type		= PORT_SCIF,
 };
 

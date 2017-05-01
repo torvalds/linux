@@ -9,6 +9,7 @@
 #include "asm/bug.h"
 
 static int max_cpu_num;
+static int max_present_cpu_num;
 static int max_node_num;
 static int *cpunode_map;
 
@@ -442,6 +443,7 @@ static void set_max_cpu_num(void)
 
 	/* set up default */
 	max_cpu_num = 4096;
+	max_present_cpu_num = 4096;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
@@ -455,6 +457,17 @@ static void set_max_cpu_num(void)
 	}
 
 	ret = get_max_num(path, &max_cpu_num);
+	if (ret)
+		goto out;
+
+	/* get the highest present cpu number for a sparse allocation */
+	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/present", mnt);
+	if (ret == PATH_MAX) {
+		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
+		goto out;
+	}
+
+	ret = get_max_num(path, &max_present_cpu_num);
 
 out:
 	if (ret)
@@ -504,6 +517,15 @@ int cpu__max_cpu(void)
 
 	return max_cpu_num;
 }
+
+int cpu__max_present_cpu(void)
+{
+	if (unlikely(!max_present_cpu_num))
+		set_max_cpu_num();
+
+	return max_present_cpu_num;
+}
+
 
 int cpu__get_node(int cpu)
 {

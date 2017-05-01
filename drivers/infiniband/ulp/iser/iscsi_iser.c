@@ -652,7 +652,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 		}
 
 		if (iscsi_host_add(shost,
-				   ib_conn->device->ib_device->dma_device)) {
+				   ib_conn->device->ib_device->dev.parent)) {
 			mutex_unlock(&iser_conn->state_mutex);
 			goto free_host;
 		}
@@ -994,6 +994,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.change_queue_depth	= scsi_change_queue_depth,
 	.sg_tablesize           = ISCSI_ISER_DEF_SG_TABLESIZE,
 	.cmd_per_lun            = ISER_DEF_CMD_PER_LUN,
+	.eh_timed_out		= iscsi_eh_cmd_timed_out,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
