@@ -791,7 +791,7 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	    ec->tx_coalesce_usecs_high ||
 	    ec->tx_max_coalesced_frames_high ||
 	    ec->rate_sample_interval)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* Compute factor used to convert coalesce '_usecs' parameters to
 	 * ME timestamp ticks.  There are 16 ME clock cycles for each timestamp
