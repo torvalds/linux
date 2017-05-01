@@ -3749,6 +3749,11 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	err = set->ops->insert(ctx->net, set, &elem, &ext2);
 	if (err) {
 		if (err == -EEXIST) {
+			if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA) ^
+			    nft_set_ext_exists(ext2, NFT_SET_EXT_DATA) ||
+			    nft_set_ext_exists(ext, NFT_SET_EXT_OBJREF) ^
+			    nft_set_ext_exists(ext2, NFT_SET_EXT_OBJREF))
+				return -EBUSY;
 			if ((nft_set_ext_exists(ext, NFT_SET_EXT_DATA) &&
 			     nft_set_ext_exists(ext2, NFT_SET_EXT_DATA) &&
 			     memcmp(nft_set_ext_data(ext),
