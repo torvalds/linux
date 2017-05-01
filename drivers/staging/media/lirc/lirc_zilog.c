@@ -497,15 +497,6 @@ static int lirc_thread(void *arg)
 	return 0;
 }
 
-static int set_use_inc(void *data)
-{
-	return 0;
-}
-
-static void set_use_dec(void *data)
-{
-}
-
 /* safe read of a uint32 (always network byte order) */
 static int read_uint32(unsigned char **data,
 				     unsigned char *endp, unsigned int *val)
@@ -1396,8 +1387,6 @@ static struct lirc_driver lirc_template = {
 	.buffer_size	= BUFLEN / 2,
 	.sample_rate	= 0, /* tell lirc_dev to not start its own kthread */
 	.chunk_size	= 2,
-	.set_use_inc	= set_use_inc,
-	.set_use_dec	= set_use_dec,
 	.fops		= &lirc_fops,
 	.owner		= THIS_MODULE,
 };
