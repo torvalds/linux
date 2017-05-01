@@ -1263,17 +1263,6 @@ static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
 		netdev_err(ds->ports[port].netdev, "failed to flush ATU\n");
 }
 
-static int _mv88e6xxx_vtu_stu_flush(struct mv88e6xxx_chip *chip)
-{
-	int ret;
-
-	ret = mv88e6xxx_g1_vtu_op_wait(chip);
-	if (ret < 0)
-		return ret;
-
-	return mv88e6xxx_g1_vtu_op(chip, GLOBAL_VTU_OP_FLUSH_ALL);
-}
-
 static int _mv88e6xxx_vtu_stu_data_read(struct mv88e6xxx_chip *chip,
 					struct mv88e6xxx_vtu_entry *entry,
 					unsigned int nibble_offset)
@@ -1410,6 +1399,14 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 
 	*entry = next;
 	return 0;
+}
+
+static int mv88e6xxx_vtu_setup(struct mv88e6xxx_chip *chip)
+{
+	if (!chip->info->max_vid)
+		return 0;
+
+	return mv88e6xxx_g1_vtu_flush(chip);
 }
 
 static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
@@ -2599,11 +2596,6 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	/* Clear all the VTU and STU entries */
-	err = _mv88e6xxx_vtu_stu_flush(chip);
-	if (err < 0)
-		return err;
-
 	/* Configure the IP ToS mapping registers. */
 	err = mv88e6xxx_g1_write(chip, GLOBAL_IP_PRI_0, 0x0000);
 	if (err)
@@ -2683,6 +2675,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		if (err)
 			goto unlock;
 	}
+
+	err = mv88e6xxx_vtu_setup(chip);
+	if (err)
+		goto unlock;
 
 	err = mv88e6xxx_pvt_setup(chip);
 	if (err)
