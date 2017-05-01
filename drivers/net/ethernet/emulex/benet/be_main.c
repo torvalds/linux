@@ -5268,15 +5268,15 @@ static bool be_err_is_recoverable(struct be_adapter *adapter)
 	dev_err(&adapter->pdev->dev, "Recoverable HW error code: 0x%x\n",
 		ue_err_code);
 
-	if (jiffies - err_rec->probe_time <= initial_idle_time) {
+	if (time_before_eq(jiffies - err_rec->probe_time, initial_idle_time)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot recover within %lu sec from driver load\n",
 			jiffies_to_msecs(initial_idle_time) / MSEC_PER_SEC);
 		return false;
 	}
 
-	if (err_rec->last_recovery_time &&
-	    (jiffies - err_rec->last_recovery_time <= recovery_interval)) {
+	if (err_rec->last_recovery_time && time_before_eq(
+		jiffies - err_rec->last_recovery_time, recovery_interval)) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot recover within %lu sec from last recovery\n",
 			jiffies_to_msecs(recovery_interval) / MSEC_PER_SEC);
