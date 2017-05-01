@@ -1318,17 +1318,15 @@ static int
 qed_hw_init_dpi_size(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt, u32 pwm_region_size, u32 n_cpus)
 {
-	u32 dpi_page_size_1, dpi_page_size_2, dpi_page_size;
-	u32 dpi_bit_shift, dpi_count;
+	u32 dpi_bit_shift, dpi_count, dpi_page_size;
 	u32 min_dpis;
+	u32 n_wids;
 
 	/* Calculate DPI size */
-	dpi_page_size_1 = QED_WID_SIZE * n_cpus;
-	dpi_page_size_2 = max_t(u32, QED_WID_SIZE, PAGE_SIZE);
-	dpi_page_size = max_t(u32, dpi_page_size_1, dpi_page_size_2);
-	dpi_page_size = roundup_pow_of_two(dpi_page_size);
+	n_wids = max_t(u32, QED_MIN_WIDS, n_cpus);
+	dpi_page_size = QED_WID_SIZE * roundup_pow_of_two(n_wids);
+	dpi_page_size = (dpi_page_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	dpi_bit_shift = ilog2(dpi_page_size / 4096);
-
 	dpi_count = pwm_region_size / dpi_page_size;
 
 	min_dpis = p_hwfn->pf_params.rdma_pf_params.min_dpis;
@@ -1356,7 +1354,7 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 pwm_regsize, norm_regsize;
 	u32 non_pwm_conn, min_addr_reg1;
-	u32 db_bar_size, n_cpus;
+	u32 db_bar_size, n_cpus = 1;
 	u32 roce_edpm_mode;
 	u32 pf_dems_shift;
 	int rc = 0;
@@ -1416,6 +1414,8 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		if (cond)
 			qed_rdma_dpm_bar(p_hwfn, p_ptt);
 	}
+
+	p_hwfn->wid_count = (u16) n_cpus;
 
 	DP_INFO(p_hwfn,
 		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s\n",

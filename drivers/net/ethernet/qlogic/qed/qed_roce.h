@@ -67,9 +67,11 @@ enum qed_rdma_toggle_bit {
 	QED_RDMA_TOGGLE_BIT_SET = 1
 };
 
+#define QED_RDMA_MAX_BMAP_NAME	(10)
 struct qed_bmap {
 	unsigned long *bitmap;
 	u32 max_count;
+	char name[QED_RDMA_MAX_BMAP_NAME];
 };
 
 struct qed_rdma_info {

@@ -90,7 +90,7 @@ void qed_roce_async_event(struct qed_hwfn *p_hwfn,
 }
 
 static int qed_rdma_bmap_alloc(struct qed_hwfn *p_hwfn,
-			       struct qed_bmap *bmap, u32 max_count)
+			       struct qed_bmap *bmap, u32 max_count, char *name)
 {
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "max_count = %08x\n", max_count);
 
@@ -104,25 +104,23 @@ static int qed_rdma_bmap_alloc(struct qed_hwfn *p_hwfn,
 		return -ENOMEM;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocated bitmap %p\n",
-		   bmap->bitmap);
+	snprintf(bmap->name, QED_RDMA_MAX_BMAP_NAME, "%s", name);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "0\n");
 	return 0;
 }
 
 static int qed_rdma_bmap_alloc_id(struct qed_hwfn *p_hwfn,
 				  struct qed_bmap *bmap, u32 *id_num)
 {
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "bmap = %p\n", bmap);
-
 	*id_num = find_first_zero_bit(bmap->bitmap, bmap->max_count);
-
-	if (*id_num >= bmap->max_count) {
-		DP_NOTICE(p_hwfn, "no id available max_count=%d\n",
-			  bmap->max_count);
+	if (*id_num >= bmap->max_count)
 		return -EINVAL;
-	}
 
 	__set_bit(*id_num, bmap->bitmap);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "%s bitmap: allocated id %d\n",
+		   bmap->name, *id_num);
 
 	return 0;
 }
@@ -141,15 +139,18 @@ static void qed_bmap_release_id(struct qed_hwfn *p_hwfn,
 {
 	bool b_acquired;
 
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "id_num = %08x", id_num);
 	if (id_num >= bmap->max_count)
 		return;
 
 	b_acquired = test_and_clear_bit(id_num, bmap->bitmap);
 	if (!b_acquired) {
-		DP_NOTICE(p_hwfn, "ID %d already released\n", id_num);
+		DP_NOTICE(p_hwfn, "%s bitmap: id %d already released\n",
+			  bmap->name, id_num);
 		return;
 	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "%s bitmap: released id %d\n",
+		   bmap->name, id_num);
 }
 
 static int qed_bmap_test_id(struct qed_hwfn *p_hwfn,
@@ -224,7 +225,8 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Allocate bit map for pd's */
-	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->pd_map, RDMA_MAX_PDS);
+	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->pd_map, RDMA_MAX_PDS,
+				 "PD");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate pd_map, rc = %d\n",
@@ -234,7 +236,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 
 	/* Allocate DPI bitmap */
 	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->dpi_map,
-				 p_hwfn->dpi_count);
+				 p_hwfn->dpi_count, "DPI");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate DPI bitmap, rc = %d\n", rc);
@@ -245,7 +247,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	 * twice the number of QPs.
 	 */
 	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->cq_map,
-				 p_rdma_info->num_qps * 2);
+				 p_rdma_info->num_qps * 2, "CQ");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate cq bitmap, rc = %d\n", rc);
@@ -257,7 +259,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	 * The maximum number of CQs is bounded to  twice the number of QPs.
 	 */
 	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->toggle_bits,
-				 p_rdma_info->num_qps * 2);
+				 p_rdma_info->num_qps * 2, "Toggle");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate toogle bits, rc = %d\n", rc);
@@ -266,7 +268,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 
 	/* Allocate bitmap for itids */
 	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->tid_map,
-				 p_rdma_info->num_mrs);
+				 p_rdma_info->num_mrs, "MR");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate itids bitmaps, rc = %d\n", rc);
@@ -274,7 +276,8 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Allocate bitmap for cids used for qps. */
-	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->cid_map, num_cons);
+	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->cid_map, num_cons,
+				 "CID");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate cid bitmap, rc = %d\n", rc);
@@ -282,7 +285,8 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Allocate bitmap for cids used for responders/requesters. */
-	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->real_cid_map, num_cons);
+	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->real_cid_map, num_cons,
+				 "REAL_CID");
 	if (rc) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Failed to allocate real cid bitmap, rc = %d\n", rc);
@@ -313,6 +317,54 @@ free_rdma_info:
 	return rc;
 }
 
+static void qed_rdma_bmap_free(struct qed_hwfn *p_hwfn,
+			       struct qed_bmap *bmap, bool check)
+{
+	int weight = bitmap_weight(bmap->bitmap, bmap->max_count);
+	int last_line = bmap->max_count / (64 * 8);
+	int last_item = last_line * 8 +
+	    DIV_ROUND_UP(bmap->max_count % (64 * 8), 64);
+	u64 *pmap = (u64 *)bmap->bitmap;
+	int line, item, offset;
+	u8 str_last_line[200] = { 0 };
+
+	if (!weight || !check)
+		goto end;
+
+	DP_NOTICE(p_hwfn,
+		  "%s bitmap not free - size=%d, weight=%d, 512 bits per line\n",
+		  bmap->name, bmap->max_count, weight);
+
+	/* print aligned non-zero lines, if any */
+	for (item = 0, line = 0; line < last_line; line++, item += 8)
+		if (bitmap_weight((unsigned long *)&pmap[item], 64 * 8))
+			DP_NOTICE(p_hwfn,
+				  "line 0x%04x: 0x%016llx 0x%016llx 0x%016llx 0x%016llx 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n",
+				  line,
+				  pmap[item],
+				  pmap[item + 1],
+				  pmap[item + 2],
+				  pmap[item + 3],
+				  pmap[item + 4],
+				  pmap[item + 5],
+				  pmap[item + 6], pmap[item + 7]);
+
+	/* print last unaligned non-zero line, if any */
+	if ((bmap->max_count % (64 * 8)) &&
+	    (bitmap_weight((unsigned long *)&pmap[item],
+			   bmap->max_count - item * 64))) {
+		offset = sprintf(str_last_line, "line 0x%04x: ", line);
+		for (; item < last_item; item++)
+			offset += sprintf(str_last_line + offset,
+					  "0x%016llx ", pmap[item]);
+		DP_NOTICE(p_hwfn, "%s\n", str_last_line);
+	}
+
+end:
+	kfree(bmap->bitmap);
+	bmap->bitmap = NULL;
+}
+
 static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_bmap *rcid_map = &p_hwfn->p_rdma_info->real_cid_map;
@@ -332,12 +384,12 @@ static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 		}
 	}
 
-	kfree(p_rdma_info->cid_map.bitmap);
-	kfree(p_rdma_info->tid_map.bitmap);
-	kfree(p_rdma_info->toggle_bits.bitmap);
-	kfree(p_rdma_info->cq_map.bitmap);
-	kfree(p_rdma_info->dpi_map.bitmap);
-	kfree(p_rdma_info->pd_map.bitmap);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->cid_map, 1);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->pd_map, 1);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->dpi_map, 1);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->cq_map, 1);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->toggle_bits, 0);
+	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->tid_map, 1);
 
 	kfree(p_rdma_info->port);
 	kfree(p_rdma_info->dev);
@@ -732,6 +784,7 @@ static int qed_rdma_add_user(void *rdma_cxt,
 				    ((out_params->dpi) * p_hwfn->dpi_size);
 
 	out_params->dpi_size = p_hwfn->dpi_size;
+	out_params->wid_count = p_hwfn->wid_count;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Adding user - done, rc = %d\n", rc);
 	return rc;
@@ -749,6 +802,8 @@ static struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
 			     QED_RDMA_PORT_UP : QED_RDMA_PORT_DOWN;
 
 	p_port->link_speed = p_hwfn->mcp_info->link_output.speed;
+
+	p_port->max_msg_size = RDMA_MAX_DATA_SIZE_IN_WQE;
 
 	return p_port;
 }
@@ -802,9 +857,12 @@ static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
 static int qed_fill_rdma_dev_info(struct qed_dev *cdev,
 				  struct qed_dev_rdma_info *info)
 {
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+
 	memset(info, 0, sizeof(*info));
 
 	info->rdma_type = QED_RDMA_TYPE_ROCE;
+	info->user_dpm_enabled = (p_hwfn->db_bar_no_edpm == 0);
 
 	qed_fill_dev_info(cdev, &info->common);
 
@@ -952,8 +1010,7 @@ static int qed_rdma_create_cq(void *rdma_cxt,
 
 	/* Allocate icid */
 	spin_lock_bh(&p_info->lock);
-	rc = qed_rdma_bmap_alloc_id(p_hwfn,
-				    &p_info->cq_map, &returned_id);
+	rc = qed_rdma_bmap_alloc_id(p_hwfn, &p_info->cq_map, &returned_id);
 	spin_unlock_bh(&p_info->lock);
 
 	if (rc) {
@@ -2189,8 +2246,7 @@ static int qed_roce_modify_qp(struct qed_hwfn *p_hwfn,
 						  params->modify_flags);
 
 		return rc;
-	} else if (qp->cur_state == QED_ROCE_QP_STATE_ERR ||
-		   qp->cur_state == QED_ROCE_QP_STATE_SQE) {
+	} else if (qp->cur_state == QED_ROCE_QP_STATE_ERR) {
 		/* ->ERR */
 		rc = qed_roce_sp_modify_responder(p_hwfn, qp, true,
 						  params->modify_flags);
@@ -2456,6 +2512,8 @@ qed_rdma_register_tid(void *rdma_cxt,
 	}
 
 	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
+	if (rc)
+		return rc;
 
 	if (fw_return_code != RDMA_RETURN_OK) {
 		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);

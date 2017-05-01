@@ -72,6 +72,7 @@ extern const struct qed_common_ops qed_common_ops_pass;
 #define QED_WFQ_UNIT	100
 
 #define QED_WID_SIZE            (1024)
+#define QED_MIN_WIDS		(4)
 #define QED_PF_DEMS_SIZE        (4)
 
 /* cau states */
@@ -525,6 +526,7 @@ struct qed_hwfn {
 	struct dbg_tools_data		dbg_info;
 
 	/* PWM region specific data */
+	u16				wid_count;
 	u32				dpi_size;
 	u32				dpi_count;
 
