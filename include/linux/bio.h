@@ -183,7 +183,7 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
 
 #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
 
-static inline unsigned __bio_segments(struct bio *bio, struct bvec_iter *bvec)
+static inline unsigned bio_segments(struct bio *bio)
 {
 	unsigned segs = 0;
 	struct bio_vec bv;
@@ -205,15 +205,10 @@ static inline unsigned __bio_segments(struct bio *bio, struct bvec_iter *bvec)
 		break;
 	}
 
-	__bio_for_each_segment(bv, bio, iter, *bvec)
+	bio_for_each_segment(bv, bio, iter)
 		segs++;
 
 	return segs;
-}
-
-static inline unsigned bio_segments(struct bio *bio)
-{
-	return __bio_segments(bio, &bio->bi_iter);
 }
 
 /*
@@ -389,8 +384,6 @@ extern void bio_put(struct bio *);
 extern void __bio_clone_fast(struct bio *, struct bio *);
 extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
 extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
-extern struct bio *bio_clone_bioset_partial(struct bio *, gfp_t,
-					    struct bio_set *, int, int);
 
 extern struct bio_set *fs_bio_set;
 

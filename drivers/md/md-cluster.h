@@ -27,6 +27,7 @@ struct md_cluster_operations {
 	int (*gather_bitmaps)(struct md_rdev *rdev);
 	int (*lock_all_bitmaps)(struct mddev *mddev);
 	void (*unlock_all_bitmaps)(struct mddev *mddev);
+	void (*update_size)(struct mddev *mddev, sector_t old_dev_sectors);
 };
 
 #endif /* _MD_CLUSTER_H */

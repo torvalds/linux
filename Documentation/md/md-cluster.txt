@@ -321,4 +321,4 @@ The algorithm is:
 
 There are somethings which are not supported by cluster MD yet.
 
-- update size and change array_sectors.
+- change array_sectors.
