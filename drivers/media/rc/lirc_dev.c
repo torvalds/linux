@@ -418,12 +418,6 @@ int lirc_unregister_driver(int minor)
 		wake_up_interruptible(&ir->buf->wait_poll);
 	}
 
-	mutex_lock(&ir->irctl_lock);
-
-	if (ir->d.set_use_dec)
-		ir->d.set_use_dec(ir->d.data);
-
-	mutex_unlock(&ir->irctl_lock);
 	mutex_unlock(&lirc_dev_lock);
 
 	device_del(&ir->dev);
@@ -473,17 +467,13 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 			goto error;
 	}
 
+	if (ir->buf)
+		lirc_buffer_clear(ir->buf);
+
+	if (ir->task)
+		wake_up_process(ir->task);
+
 	ir->open++;
-	if (ir->d.set_use_inc)
-		retval = ir->d.set_use_inc(ir->d.data);
-	if (retval) {
-		ir->open--;
-	} else {
-		if (ir->buf)
-			lirc_buffer_clear(ir->buf);
-		if (ir->task)
-			wake_up_process(ir->task);
-	}
 
 error:
 	nonseekable_open(inode, file);
@@ -508,8 +498,6 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 	rc_close(ir->d.rdev);
 
 	ir->open--;
-	if (ir->d.set_use_dec)
-		ir->d.set_use_dec(ir->d.data);
 	if (!ret)
 		mutex_unlock(&lirc_dev_lock);
 

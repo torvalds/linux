@@ -386,8 +386,6 @@ static int ir_lirc_register(struct rc_dev *dev)
 	drv->features = features;
 	drv->data = &dev->raw->lirc;
 	drv->rbuf = NULL;
-	drv->set_use_inc = NULL;
-	drv->set_use_dec = NULL;
 	drv->code_length = sizeof(struct ir_raw_event) * 8;
 	drv->chunk_size = sizeof(int);
 	drv->buffer_size = LIRCBUF_SIZE;
