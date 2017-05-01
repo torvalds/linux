@@ -29,6 +29,7 @@ typedef __u16 __sum16;
 #include <bpf/libbpf.h>
 #include "test_iptunnel_common.h"
 #include "bpf_util.h"
+#include "bpf_endian.h"
 
 static int error_cnt, pass_cnt;
 
