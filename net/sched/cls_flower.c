@@ -439,29 +439,39 @@ static void fl_set_key_val(struct nlattr **tb,
 		memcpy(mask, nla_data(tb[mask_type]), len);
 }
 
-static void fl_set_key_mpls(struct nlattr **tb,
-			    struct flow_dissector_key_mpls *key_val,
-			    struct flow_dissector_key_mpls *key_mask)
+static int fl_set_key_mpls(struct nlattr **tb,
+			   struct flow_dissector_key_mpls *key_val,
+			   struct flow_dissector_key_mpls *key_mask)
 {
 	if (tb[TCA_FLOWER_KEY_MPLS_TTL]) {
 		key_val->mpls_ttl = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_TTL]);
 		key_mask->mpls_ttl = MPLS_TTL_MASK;
 	}
 	if (tb[TCA_FLOWER_KEY_MPLS_BOS]) {
-		key_val->mpls_bos = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_BOS]);
+		u8 bos = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_BOS]);
+
+		if (bos & ~MPLS_BOS_MASK)
+			return -EINVAL;
+		key_val->mpls_bos = bos;
 		key_mask->mpls_bos = MPLS_BOS_MASK;
 	}
 	if (tb[TCA_FLOWER_KEY_MPLS_TC]) {
-		key_val->mpls_tc =
-			nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_TC]) & MPLS_TC_MASK;
+		u8 tc = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_TC]);
+
+		if (tc & ~MPLS_TC_MASK)
+			return -EINVAL;
+		key_val->mpls_tc = tc;
 		key_mask->mpls_tc = MPLS_TC_MASK;
 	}
 	if (tb[TCA_FLOWER_KEY_MPLS_LABEL]) {
-		key_val->mpls_label =
-			nla_get_u32(tb[TCA_FLOWER_KEY_MPLS_LABEL]) &
-			MPLS_LABEL_MASK;
+		u32 label = nla_get_u32(tb[TCA_FLOWER_KEY_MPLS_LABEL]);
+
+		if (label & ~MPLS_LABEL_MASK)
+			return -EINVAL;
+		key_val->mpls_label = label;
 		key_mask->mpls_label = MPLS_LABEL_MASK;
 	}
+	return 0;
 }
 
 static void fl_set_key_vlan(struct nlattr **tb,
@@ -622,7 +632,9 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 			       sizeof(key->icmp.code));
 	} else if (key->basic.n_proto == htons(ETH_P_MPLS_UC) ||
 		   key->basic.n_proto == htons(ETH_P_MPLS_MC)) {
-		fl_set_key_mpls(tb, &key->mpls, &mask->mpls);
+		ret = fl_set_key_mpls(tb, &key->mpls, &mask->mpls);
+		if (ret)
+			return ret;
 	} else if (key->basic.n_proto == htons(ETH_P_ARP) ||
 		   key->basic.n_proto == htons(ETH_P_RARP)) {
 		fl_set_key_val(tb, &key->arp.sip, TCA_FLOWER_KEY_ARP_SIP,
