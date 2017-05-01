@@ -81,6 +81,7 @@ struct lpfc_nvmet_rcv_ctx {
 	struct lpfc_iocbq *wqeq;
 	struct lpfc_iocbq *abort_wqeq;
 	dma_addr_t txrdy_phys;
+	spinlock_t ctxlock; /* protect flag access */
 	uint32_t *txrdy;
 	uint32_t sid;
 	uint32_t offset;
@@ -97,8 +98,10 @@ struct lpfc_nvmet_rcv_ctx {
 #define LPFC_NVMET_STE_RSP		4
 #define LPFC_NVMET_STE_DONE		5
 	uint16_t flag;
-#define LPFC_NVMET_IO_INP		1
-#define LPFC_NVMET_ABORT_OP		2
+#define LPFC_NVMET_IO_INP		0x1
+#define LPFC_NVMET_ABORT_OP		0x2
+#define LPFC_NVMET_CTX_RLS		0x4
+
 	struct rqb_dmabuf *rqb_buffer;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS

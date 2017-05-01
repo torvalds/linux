@@ -851,7 +851,7 @@ bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
 	attrib->unmap_granularity = q->limits.discard_granularity / block_size;
 	attrib->unmap_granularity_alignment = q->limits.discard_alignment /
 								block_size;
-	attrib->unmap_zeroes_data = q->limits.discard_zeroes_data;
+	attrib->unmap_zeroes_data = 0;
 	return true;
 }
 EXPORT_SYMBOL(target_configure_unmap_from_queue);

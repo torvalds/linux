@@ -2813,7 +2813,9 @@ static void configure_discard_support(struct raid_set *rs)
 	/* Assume discards not supported until after checks below. */
 	ti->discards_supported = false;
 
-	/* RAID level 4,5,6 require discard_zeroes_data for data integrity! */
+	/*
+	 * XXX: RAID level 4,5,6 require zeroing for safety.
+	 */
 	raid456 = (rs->md.level == 4 || rs->md.level == 5 || rs->md.level == 6);
 
 	for (i = 0; i < rs->raid_disks; i++) {
@@ -2827,8 +2829,6 @@ static void configure_discard_support(struct raid_set *rs)
 			return;
 
 		if (raid456) {
-			if (!q->limits.discard_zeroes_data)
-				return;
 			if (!devices_handle_discard_safely) {
 				DMERR("raid456 discard support disabled due to discard_zeroes_data uncertainty.");
 				DMERR("Set dm-raid.devices_handle_discard_safely=Y to override.");

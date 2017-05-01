@@ -445,32 +445,27 @@ static int lo_req_flush(struct loop_device *lo, struct request *rq)
 	return ret;
 }
 
-static inline void handle_partial_read(struct loop_cmd *cmd, long bytes)
+static void lo_complete_rq(struct request *rq)
 {
-	if (bytes < 0 || op_is_write(req_op(cmd->rq)))
-		return;
+	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
-	if (unlikely(bytes < blk_rq_bytes(cmd->rq))) {
+	if (unlikely(req_op(cmd->rq) == REQ_OP_READ && cmd->use_aio &&
+		     cmd->ret >= 0 && cmd->ret < blk_rq_bytes(cmd->rq))) {
 		struct bio *bio = cmd->rq->bio;
 
-		bio_advance(bio, bytes);
+		bio_advance(bio, cmd->ret);
 		zero_fill_bio(bio);
 	}
+
+	blk_mq_end_request(rq, cmd->ret < 0 ? -EIO : 0);
 }
 
 static void lo_rw_aio_complete(struct kiocb *iocb, long ret, long ret2)
 {
 	struct loop_cmd *cmd = container_of(iocb, struct loop_cmd, iocb);
-	struct request *rq = cmd->rq;
 
-	handle_partial_read(cmd, ret);
-
-	if (ret > 0)
-		ret = 0;
-	else if (ret < 0)
-		ret = -EIO;
-
-	blk_mq_complete_request(rq, ret);
+	cmd->ret = ret;
+	blk_mq_complete_request(cmd->rq);
 }
 
 static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
@@ -528,6 +523,7 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
 	case REQ_OP_FLUSH:
 		return lo_req_flush(lo, rq);
 	case REQ_OP_DISCARD:
+	case REQ_OP_WRITE_ZEROES:
 		return lo_discard(lo, rq, pos);
 	case REQ_OP_WRITE:
 		if (lo->transfer)
@@ -826,7 +822,7 @@ static void loop_config_discard(struct loop_device *lo)
 		q->limits.discard_granularity = 0;
 		q->limits.discard_alignment = 0;
 		blk_queue_max_discard_sectors(q, 0);
-		q->limits.discard_zeroes_data = 0;
+		blk_queue_max_write_zeroes_sectors(q, 0);
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
 		return;
 	}
@@ -834,7 +830,7 @@ static void loop_config_discard(struct loop_device *lo)
 	q->limits.discard_granularity = inode->i_sb->s_blocksize;
 	q->limits.discard_alignment = 0;
 	blk_queue_max_discard_sectors(q, UINT_MAX >> 9);
-	q->limits.discard_zeroes_data = 1;
+	blk_queue_max_write_zeroes_sectors(q, UINT_MAX >> 9);
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 }
 
@@ -1660,6 +1656,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	switch (req_op(cmd->rq)) {
 	case REQ_OP_FLUSH:
 	case REQ_OP_DISCARD:
+	case REQ_OP_WRITE_ZEROES:
 		cmd->use_aio = false;
 		break;
 	default:
@@ -1686,8 +1683,10 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 	ret = do_req_filebacked(lo, cmd->rq);
  failed:
 	/* complete non-aio request */
-	if (!cmd->use_aio || ret)
-		blk_mq_complete_request(cmd->rq, ret ? -EIO : 0);
+	if (!cmd->use_aio || ret) {
+		cmd->ret = ret ? -EIO : 0;
+		blk_mq_complete_request(cmd->rq);
+	}
 }
 
 static void loop_queue_work(struct kthread_work *work)
@@ -1710,9 +1709,10 @@ static int loop_init_request(void *data, struct request *rq,
 	return 0;
 }
 
-static struct blk_mq_ops loop_mq_ops = {
+static const struct blk_mq_ops loop_mq_ops = {
 	.queue_rq       = loop_queue_rq,
 	.init_request	= loop_init_request,
+	.complete	= lo_complete_rq,
 };
 
 static int loop_add(struct loop_device **l, int i)

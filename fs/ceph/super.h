@@ -92,8 +92,6 @@ struct ceph_fs_client {
 	struct workqueue_struct *trunc_wq;
 	atomic_long_t writeback_count;
 
-	struct backing_dev_info backing_dev_info;
-
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dentry_lru, *debugfs_caps;
 	struct dentry *debugfs_congestion_kb;

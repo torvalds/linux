@@ -20,7 +20,6 @@ struct blk_mq_ctx {
 
 	/* incremented at completion time */
 	unsigned long		____cacheline_aligned_in_smp rq_completed[2];
-	struct blk_rq_stat	stat[2];
 
 	struct request_queue	*queue;
 	struct kobject		kobj;
@@ -79,6 +78,7 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
  */
 extern void blk_mq_sysfs_init(struct request_queue *q);
 extern void blk_mq_sysfs_deinit(struct request_queue *q);
+extern int __blk_mq_register_dev(struct device *dev, struct request_queue *q);
 extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
@@ -87,13 +87,12 @@ extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
  * debugfs helpers
  */
 #ifdef CONFIG_BLK_DEBUG_FS
-int blk_mq_debugfs_register(struct request_queue *q, const char *name);
+int blk_mq_debugfs_register(struct request_queue *q);
 void blk_mq_debugfs_unregister(struct request_queue *q);
-int blk_mq_debugfs_register_hctxs(struct request_queue *q);
-void blk_mq_debugfs_unregister_hctxs(struct request_queue *q);
+int blk_mq_debugfs_register_mq(struct request_queue *q);
+void blk_mq_debugfs_unregister_mq(struct request_queue *q);
 #else
-static inline int blk_mq_debugfs_register(struct request_queue *q,
-					  const char *name)
+static inline int blk_mq_debugfs_register(struct request_queue *q)
 {
 	return 0;
 }
@@ -102,12 +101,12 @@ static inline void blk_mq_debugfs_unregister(struct request_queue *q)
 {
 }
 
-static inline int blk_mq_debugfs_register_hctxs(struct request_queue *q)
+static inline int blk_mq_debugfs_register_mq(struct request_queue *q)
 {
 	return 0;
 }
 
-static inline void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
+static inline void blk_mq_debugfs_unregister_mq(struct request_queue *q)
 {
 }
 #endif
@@ -142,6 +141,7 @@ struct blk_mq_alloc_data {
 	/* input parameter */
 	struct request_queue *q;
 	unsigned int flags;
+	unsigned int shallow_depth;
 
 	/* input & output parameter */
 	struct blk_mq_ctx *ctx;

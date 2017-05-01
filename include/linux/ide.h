@@ -88,7 +88,7 @@ static inline bool ata_pm_request(struct request *rq)
 		 ide_req(rq)->type == ATA_PRIV_PM_RESUME);
 }
 
-/* Error codes returned in rq->errors to the higher part of the driver. */
+/* Error codes returned in result to the higher part of the driver. */
 enum {
 	IDE_DRV_ERROR_GENERAL	= 101,
 	IDE_DRV_ERROR_FILEMARK	= 102,

@@ -383,6 +383,7 @@ static int raid0_run(struct mddev *mddev)
 
 		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);
 		blk_queue_max_write_same_sectors(mddev->queue, mddev->chunk_sectors);
+		blk_queue_max_write_zeroes_sectors(mddev->queue, mddev->chunk_sectors);
 		blk_queue_max_discard_sectors(mddev->queue, mddev->chunk_sectors);
 
 		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
@@ -504,6 +505,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 						      split, disk_devt(mddev->gendisk),
 						      bio_sector);
 			mddev_check_writesame(mddev, split);
+			mddev_check_write_zeroes(mddev, split);
 			generic_make_request(split);
 		}
 	} while (split != bio);

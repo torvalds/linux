@@ -991,7 +991,7 @@ int __dax_zero_page_range(struct block_device *bdev, sector_t sector,
 		sector_t start_sector = dax.sector + (offset >> 9);
 
 		return blkdev_issue_zeroout(bdev, start_sector,
-				length >> 9, GFP_NOFS, true);
+				length >> 9, GFP_NOFS, 0);
 	} else {
 		if (dax_map_atomic(bdev, &dax) < 0)
 			return PTR_ERR(dax.addr);
