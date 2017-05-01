@@ -469,9 +469,8 @@ config ACPI_WATCHDOG
 
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
-	depends on X86_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC && EDAC
 	select UEFI_CPER
-	select RAS
 	default n
 	help
 	  Certain usages such as Predictive Failure Analysis (PFA) require
