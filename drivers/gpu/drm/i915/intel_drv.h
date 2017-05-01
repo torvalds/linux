@@ -330,6 +330,15 @@ struct intel_connector {
 	struct work_struct modeset_retry_work;
 };
 
+struct intel_digital_connector_state {
+	struct drm_connector_state base;
+
+	enum hdmi_force_audio force_audio;
+	int broadcast_rgb;
+};
+
+#define to_intel_digital_connector_state(x) container_of(x, struct intel_digital_connector_state, base)
+
 struct dpll {
 	/* given values */
 	int n;
@@ -1912,6 +1921,20 @@ int intel_connector_atomic_get_property(struct drm_connector *connector,
 					const struct drm_connector_state *state,
 					struct drm_property *property,
 					uint64_t *val);
+
+int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
+						const struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t *val);
+int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
+						struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t val);
+int intel_digital_connector_atomic_check(struct drm_connector *conn,
+					 struct drm_connector_state *new_state);
+struct drm_connector_state *
+intel_digital_connector_duplicate_state(struct drm_connector *connector);
+
 struct drm_crtc_state *intel_crtc_duplicate_state(struct drm_crtc *crtc);
 void intel_crtc_destroy_state(struct drm_crtc *crtc,
 			       struct drm_crtc_state *state);

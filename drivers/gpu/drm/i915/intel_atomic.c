@@ -36,7 +36,7 @@
 #include "intel_drv.h"
 
 /**
- * intel_connector_atomic_get_property - fetch connector property value
+ * intel_connector_atomic_get_property - fetch legacy connector property value
  * @connector: connector to fetch property for
  * @state: state containing the property value
  * @property: property to look up
@@ -45,12 +45,14 @@
  * The DRM core does not store shadow copies of properties for
  * atomic-capable drivers.  This entrypoint is used to fetch
  * the current value of a driver-specific connector property.
+ *
+ * This is a intermediary solution until all connectors are
+ * converted to support full atomic properties.
  */
-int
-intel_connector_atomic_get_property(struct drm_connector *connector,
-				    const struct drm_connector_state *state,
-				    struct drm_property *property,
-				    uint64_t *val)
+int intel_connector_atomic_get_property(struct drm_connector *connector,
+					const struct drm_connector_state *state,
+					struct drm_property *property,
+					uint64_t *val)
 {
 	int i;
 
@@ -73,7 +75,122 @@ intel_connector_atomic_get_property(struct drm_connector *connector,
 	return -EINVAL;
 }
 
-/*
+/**
+ * intel_digital_connector_atomic_get_property - hook for connector->atomic_get_property.
+ * @connector: Connector to get the property for.
+ * @state: Connector state to retrieve the property from.
+ * @property: Property to retrieve.
+ * @val: Return value for the property.
+ *
+ * Returns the atomic property value for a digital connector.
+ */
+int intel_digital_connector_atomic_get_property(struct drm_connector *connector,
+						const struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t *val)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(state);
+
+	if (property == dev_priv->force_audio_property)
+		*val = intel_conn_state->force_audio;
+	else if (property == dev_priv->broadcast_rgb_property)
+		*val = intel_conn_state->broadcast_rgb;
+	else {
+		DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * intel_digital_connector_atomic_set_property - hook for connector->atomic_set_property.
+ * @connector: Connector to set the property for.
+ * @state: Connector state to set the property on.
+ * @property: Property to set.
+ * @val: New value for the property.
+ *
+ * Sets the atomic property value for a digital connector.
+ */
+int intel_digital_connector_atomic_set_property(struct drm_connector *connector,
+						struct drm_connector_state *state,
+						struct drm_property *property,
+						uint64_t val)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(state);
+
+	if (property == dev_priv->force_audio_property) {
+		intel_conn_state->force_audio = val;
+		return 0;
+	}
+
+	if (property == dev_priv->broadcast_rgb_property) {
+		intel_conn_state->broadcast_rgb = val;
+		return 0;
+	}
+
+	DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
+	return -EINVAL;
+}
+
+int intel_digital_connector_atomic_check(struct drm_connector *conn,
+					 struct drm_connector_state *new_state)
+{
+	struct intel_digital_connector_state *new_conn_state =
+		to_intel_digital_connector_state(new_state);
+	struct drm_connector_state *old_state =
+		drm_atomic_get_old_connector_state(new_state->state, conn);
+	struct intel_digital_connector_state *old_conn_state =
+		to_intel_digital_connector_state(old_state);
+	struct drm_crtc_state *crtc_state;
+
+	if (!new_state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(new_state->state, new_state->crtc);
+
+	/*
+	 * These properties are handled by fastset, and might not end
+	 * up in a modeset.
+	 */
+	if (new_conn_state->force_audio != old_conn_state->force_audio ||
+	    new_conn_state->broadcast_rgb != old_conn_state->broadcast_rgb ||
+	    new_conn_state->base.picture_aspect_ratio != old_conn_state->base.picture_aspect_ratio ||
+	    new_conn_state->base.scaling_mode != old_conn_state->base.scaling_mode)
+		crtc_state->mode_changed = true;
+
+	return 0;
+}
+
+/**
+ * intel_digital_connector_duplicate_state - duplicate connector state
+ * @connector: digital connector
+ *
+ * Allocates and returns a copy of the connector state (both common and
+ * digital connector specific) for the specified connector.
+ *
+ * Returns: The newly allocated connector state, or NULL on failure.
+ */
+struct drm_connector_state *
+intel_digital_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct intel_digital_connector_state *state;
+
+	state = kmemdup(connector->state, sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, &state->base);
+	return &state->base;
+}
+
+/**
  * intel_crtc_duplicate_state - duplicate crtc state
  * @crtc: drm crtc
  *
