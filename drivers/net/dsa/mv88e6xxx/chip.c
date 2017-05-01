@@ -1263,80 +1263,6 @@ static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
 		netdev_err(ds->ports[port].netdev, "failed to flush ATU\n");
 }
 
-static int _mv88e6xxx_vtu_stu_data_read(struct mv88e6xxx_chip *chip,
-					struct mv88e6xxx_vtu_entry *entry,
-					unsigned int nibble_offset)
-{
-	u16 regs[3];
-	int i, err;
-
-	for (i = 0; i < 3; ++i) {
-		u16 *reg = &regs[i];
-
-		err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_DATA_0_3 + i, reg);
-		if (err)
-			return err;
-	}
-
-	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		unsigned int shift = (i % 4) * 4 + nibble_offset;
-		u16 reg = regs[i / 4];
-
-		entry->state[i] = (reg >> shift) & GLOBAL_VTU_STU_DATA_MASK;
-	}
-
-	return 0;
-}
-
-static int mv88e6xxx_vtu_data_read(struct mv88e6xxx_chip *chip,
-				   struct mv88e6xxx_vtu_entry *entry)
-{
-	return _mv88e6xxx_vtu_stu_data_read(chip, entry, 0);
-}
-
-static int mv88e6xxx_stu_data_read(struct mv88e6xxx_chip *chip,
-				   struct mv88e6xxx_vtu_entry *entry)
-{
-	return _mv88e6xxx_vtu_stu_data_read(chip, entry, 2);
-}
-
-static int _mv88e6xxx_vtu_stu_data_write(struct mv88e6xxx_chip *chip,
-					 struct mv88e6xxx_vtu_entry *entry,
-					 unsigned int nibble_offset)
-{
-	u16 regs[3] = { 0 };
-	int i, err;
-
-	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		unsigned int shift = (i % 4) * 4 + nibble_offset;
-		u8 data = entry->state[i];
-
-		regs[i / 4] |= (data & GLOBAL_VTU_STU_DATA_MASK) << shift;
-	}
-
-	for (i = 0; i < 3; ++i) {
-		u16 reg = regs[i];
-
-		err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_DATA_0_3 + i, reg);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static int mv88e6xxx_vtu_data_write(struct mv88e6xxx_chip *chip,
-				    struct mv88e6xxx_vtu_entry *entry)
-{
-	return _mv88e6xxx_vtu_stu_data_write(chip, entry, 0);
-}
-
-static int mv88e6xxx_stu_data_write(struct mv88e6xxx_chip *chip,
-				    struct mv88e6xxx_vtu_entry *entry)
-{
-	return _mv88e6xxx_vtu_stu_data_write(chip, entry, 2);
-}
-
 static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 				  struct mv88e6xxx_vtu_entry *entry)
 {
@@ -1349,10 +1275,6 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 		return err;
 
 	if (next.valid) {
-		err = mv88e6xxx_vtu_data_read(chip, &next);
-		if (err)
-			return err;
-
 		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G1_VTU_FID)) {
 			err = mv88e6xxx_g1_vtu_fid_read(chip, &next);
 			if (err)
@@ -1374,6 +1296,10 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_chip *chip,
 			if (err)
 				return err;
 		}
+
+		err = mv88e6185_g1_vtu_data_read(chip, &next);
+		if (err)
+			return err;
 	}
 
 	*entry = next;
@@ -1459,7 +1385,7 @@ static int _mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 		goto loadpurge;
 
 	/* Write port member tags */
-	err = mv88e6xxx_vtu_data_write(chip, entry);
+	err = mv88e6185_g1_vtu_data_write(chip, entry);
 	if (err)
 		return err;
 
@@ -1513,7 +1439,7 @@ static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_chip *chip, u8 sid,
 		return err;
 
 	if (next.valid) {
-		err = mv88e6xxx_stu_data_read(chip, &next);
+		err = mv88e6185_g1_vtu_data_read(chip, &next);
 		if (err)
 			return err;
 	}
@@ -1535,7 +1461,7 @@ static int _mv88e6xxx_stu_loadpurge(struct mv88e6xxx_chip *chip,
 		goto loadpurge;
 
 	/* Write port states */
-	err = mv88e6xxx_stu_data_write(chip, entry);
+	err = mv88e6185_g1_vtu_data_write(chip, entry);
 	if (err)
 		return err;
 loadpurge:

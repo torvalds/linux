@@ -111,6 +111,67 @@ int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g1_write(chip, GLOBAL_VTU_VID, val);
 }
 
+/* Offset 0x07: VTU/STU Data Register 1
+ * Offset 0x08: VTU/STU Data Register 2
+ * Offset 0x09: VTU/STU Data Register 3
+ */
+
+int mv88e6185_g1_vtu_data_read(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 regs[3];
+	int i;
+
+	/* Read all 3 VTU/STU Data registers */
+	for (i = 0; i < 3; ++i) {
+		u16 *reg = &regs[i];
+		int err;
+
+		err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_DATA_0_3 + i, reg);
+		if (err)
+			return err;
+	}
+
+	/* Extract MemberTag and PortState data */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
+		unsigned int member_offset = (i % 4) * 4;
+		unsigned int state_offset = member_offset + 2;
+
+		entry->member[i] = (regs[i / 4] >> member_offset) & 0x3;
+		entry->state[i] = (regs[i / 4] >> state_offset) & 0x3;
+	}
+
+	return 0;
+}
+
+int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
+				struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 regs[3] = { 0 };
+	int i;
+
+	/* Insert MemberTag and PortState data */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
+		unsigned int member_offset = (i % 4) * 4;
+		unsigned int state_offset = member_offset + 2;
+
+		regs[i / 4] |= (entry->member[i] & 0x3) << member_offset;
+		regs[i / 4] |= (entry->state[i] & 0x3) << state_offset;
+	}
+
+	/* Write all 3 VTU/STU Data registers */
+	for (i = 0; i < 3; ++i) {
+		u16 reg = regs[i];
+		int err;
+
+		err = mv88e6xxx_g1_write(chip, GLOBAL_VTU_DATA_0_3 + i, reg);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 /* VLAN Translation Unit Operations */
 
 int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,

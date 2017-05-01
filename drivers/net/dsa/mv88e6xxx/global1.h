@@ -62,6 +62,10 @@ int mv88e6xxx_g1_vtu_vid_read(struct mv88e6xxx_chip *chip,
 			      struct mv88e6xxx_vtu_entry *entry);
 int mv88e6xxx_g1_vtu_vid_write(struct mv88e6xxx_chip *chip,
 			       struct mv88e6xxx_vtu_entry *entry);
+int mv88e6185_g1_vtu_data_read(struct mv88e6xxx_chip *chip,
+			       struct mv88e6xxx_vtu_entry *entry);
+int mv88e6185_g1_vtu_data_write(struct mv88e6xxx_chip *chip,
+				struct mv88e6xxx_vtu_entry *entry);
 int mv88e6xxx_g1_vtu_op_wait(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g1_vtu_op(struct mv88e6xxx_chip *chip, u16 op);
 int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
