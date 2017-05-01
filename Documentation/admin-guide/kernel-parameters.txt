@@ -531,7 +531,6 @@
 			[ACPI] acpi_pm
 			[ARM] imx_timer1,OSTS,netx_timer,mpu_timer2,
 				pxa_timer,timer3,32k_counter,timer0_1
-			[AVR32] avr32
 			[X86-32] pit,hpet,tsc;
 				scx200_hrt on Geode; cyclone on IBM x440
 			[MIPS] MIPS
@@ -2425,7 +2424,7 @@
 			osd-targets. Please see:
 			Documentation/filesystems/pnfs.txt for more explanations
 
-	nmi_debug=	[KNL,AVR32,SH] Specify one or more actions to take
+	nmi_debug=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
 
