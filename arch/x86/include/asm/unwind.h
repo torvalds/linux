@@ -11,6 +11,7 @@ struct unwind_state {
 	unsigned long stack_mask;
 	struct task_struct *task;
 	int graph_idx;
+	bool error;
 #ifdef CONFIG_FRAME_POINTER
 	unsigned long *bp, *orig_sp;
 	struct pt_regs *regs;
@@ -38,6 +39,11 @@ void unwind_start(struct unwind_state *state, struct task_struct *task,
 	first_frame = first_frame ? : get_stack_pointer(task, regs);
 
 	__unwind_start(state, task, regs, first_frame);
+}
+
+static inline bool unwind_error(struct unwind_state *state)
+{
+	return state->error;
 }
 
 #ifdef CONFIG_FRAME_POINTER
