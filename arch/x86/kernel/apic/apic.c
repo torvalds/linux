@@ -731,8 +731,10 @@ static int __init calibrate_APIC_clock(void)
 					TICK_NSEC, lapic_clockevent.shift);
 		lapic_clockevent.max_delta_ns =
 			clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
+		lapic_clockevent.max_delta_ticks = 0x7FFFFF;
 		lapic_clockevent.min_delta_ns =
 			clockevent_delta2ns(0xF, &lapic_clockevent);
+		lapic_clockevent.min_delta_ticks = 0xF;
 		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
 		return 0;
 	}
@@ -778,8 +780,10 @@ static int __init calibrate_APIC_clock(void)
 				       lapic_clockevent.shift);
 	lapic_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7FFFFFFF, &lapic_clockevent);
+	lapic_clockevent.max_delta_ticks = 0x7FFFFFFF;
 	lapic_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &lapic_clockevent);
+	lapic_clockevent.min_delta_ticks = 0xF;
 
 	lapic_timer_frequency = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
 
