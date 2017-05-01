@@ -5,4 +5,3 @@ Description:
                 Reading returns either '1' or '0'. '1' means that the
                 battery level supplied to sensor is below 2.25V.
                 This ABI is available for tsys02d, htu21, ms8607
-		This ABI is available for htu21, ms8607
