@@ -245,6 +245,63 @@ int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g1_vtu_vid_read(chip, entry);
 }
 
+int mv88e6185_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_vtu_getnext(chip, entry);
+	if (err)
+		return err;
+
+	if (entry->valid) {
+		err = mv88e6185_g1_vtu_data_read(chip, entry);
+		if (err)
+			return err;
+
+		/* VTU DBNum[3:0] are located in VTU Operation 3:0
+		 * VTU DBNum[7:4] are located in VTU Operation 11:8
+		 */
+		err = mv88e6xxx_g1_read(chip, GLOBAL_VTU_OP, &val);
+		if (err)
+			return err;
+
+		entry->fid = val & 0x000f;
+		entry->fid |= (val & 0x0f00) >> 4;
+	}
+
+	return 0;
+}
+
+int mv88e6352_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry)
+{
+	int err;
+
+	/* Fetch VLAN MemberTag data from the VTU */
+	err = mv88e6xxx_g1_vtu_getnext(chip, entry);
+	if (err)
+		return err;
+
+	if (entry->valid) {
+		/* Fetch (and mask) VLAN PortState data from the STU */
+		err = mv88e6xxx_g1_vtu_stu_get(chip, entry);
+		if (err)
+			return err;
+
+		err = mv88e6185_g1_vtu_data_read(chip, entry);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_g1_vtu_fid_read(chip, entry);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 int mv88e6xxx_g1_vtu_flush(struct mv88e6xxx_chip *chip)
 {
 	int err;
