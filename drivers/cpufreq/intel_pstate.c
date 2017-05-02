@@ -716,6 +716,12 @@ static const char * const energy_perf_strings[] = {
 	"power",
 	NULL
 };
+static const unsigned int epp_values[] = {
+	HWP_EPP_PERFORMANCE,
+	HWP_EPP_BALANCE_PERFORMANCE,
+	HWP_EPP_BALANCE_POWERSAVE,
+	HWP_EPP_POWERSAVE
+};
 
 static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data)
 {
@@ -727,17 +733,14 @@ static int intel_pstate_get_energy_pref_index(struct cpudata *cpu_data)
 		return epp;
 
 	if (static_cpu_has(X86_FEATURE_HWP_EPP)) {
-		/*
-		 * Range:
-		 *	0x00-0x3F	:	Performance
-		 *	0x40-0x7F	:	Balance performance
-		 *	0x80-0xBF	:	Balance power
-		 *	0xC0-0xFF	:	Power
-		 * The EPP is a 8 bit value, but our ranges restrict the
-		 * value which can be set. Here only using top two bits
-		 * effectively.
-		 */
-		index = (epp >> 6) + 1;
+		if (epp == HWP_EPP_PERFORMANCE)
+			return 1;
+		if (epp <= HWP_EPP_BALANCE_PERFORMANCE)
+			return 2;
+		if (epp <= HWP_EPP_BALANCE_POWERSAVE)
+			return 3;
+		else
+			return 4;
 	} else if (static_cpu_has(X86_FEATURE_EPB)) {
 		/*
 		 * Range:
@@ -775,15 +778,8 @@ static int intel_pstate_set_energy_pref_index(struct cpudata *cpu_data,
 
 		value &= ~GENMASK_ULL(31, 24);
 
-		/*
-		 * If epp is not default, convert from index into
-		 * energy_perf_strings to epp value, by shifting 6
-		 * bits left to use only top two bits in epp.
-		 * The resultant epp need to shifted by 24 bits to
-		 * epp position in MSR_HWP_REQUEST.
-		 */
 		if (epp == -EINVAL)
-			epp = (pref_index - 1) << 6;
+			epp = epp_values[pref_index - 1];
 
 		value |= (u64)epp << 24;
 		ret = wrmsrl_on_cpu(cpu_data->cpu, MSR_HWP_REQUEST, value);
