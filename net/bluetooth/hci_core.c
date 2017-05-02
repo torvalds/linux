@@ -685,6 +685,12 @@ static int hci_init3_req(struct hci_request *req, unsigned long opt)
 		if (hdev->commands[34] & 0x04)
 			events[1] |= 0x01;	/* LE Generate DHKey Complete */
 
+		/* If the controller supports the LE Set Default PHY or
+		 * LE Set PHY commands, enable the corresponding event.
+		 */
+		if (hdev->commands[35] & (0x20 | 0x40))
+			events[1] |= 0x08;        /* LE PHY Update Complete */
+
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 
