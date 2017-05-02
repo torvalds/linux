@@ -106,9 +106,9 @@ allocate a new effect.
 
 Effects are file descriptor specific.
 
-See <linux/input.h> for a description of the ff_effect struct. You should also
-find help in a few sketches, contained in files shape.fig and interactive.fig.
-You need xfig to visualize these files.
+See <uapi/linux/input.h> for a description of the ff_effect struct. You should
+also find help in a few sketches, contained in files shape.fig and
+interactive.fig. You need xfig to visualize these files.
 
 3.3 Removing an effect from the device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

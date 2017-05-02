@@ -202,6 +202,7 @@ EOF
 # '&struct_name.member' - name of a structure member
 # '@parameter' - name of a parameter
 # '%CONST' - name of a constant.
+# '``LITERAL``' - literal string without any spaces on it.
 
 ## init lots of data
 
@@ -210,7 +211,8 @@ my $warnings = 0;
 my $anon_struct_union = 0;
 
 # match expressions used to find embedded type information
-my $type_constant = '\%([-_\w]+)';
+my $type_constant = '\b``([^\`]+)``\b';
+my $type_constant2 = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
 my $type_param = '\@(\w+(\.\.\.)?)';
 my $type_fp_param = '\@(\w+)\(\)';  # Special RST handling for func ptr params
@@ -235,6 +237,7 @@ my $type_member_func = $type_member . '\(\)';
 # these work fairly well
 my @highlights_html = (
                        [$type_constant, "<i>\$1</i>"],
+                       [$type_constant2, "<i>\$1</i>"],
                        [$type_func, "<b>\$1</b>"],
                        [$type_enum_xml, "<i>\$1</i>"],
                        [$type_struct_xml, "<i>\$1</i>"],
@@ -252,6 +255,7 @@ my $blankline_html = $local_lt . "p" . $local_gt;	# was "<p>"
 # html version 5
 my @highlights_html5 = (
                         [$type_constant, "<span class=\"const\">\$1</span>"],
+                        [$type_constant2, "<span class=\"const\">\$1</span>"],
                         [$type_func, "<span class=\"func\">\$1</span>"],
                         [$type_enum_xml, "<span class=\"enum\">\$1</span>"],
                         [$type_struct_xml, "<span class=\"struct\">\$1</span>"],
@@ -268,6 +272,7 @@ my $blankline_html5 = $local_lt . "br /" . $local_gt;
 my @highlights_xml = (
                       ["([^=])\\\"([^\\\"<]+)\\\"", "\$1<quote>\$2</quote>"],
                       [$type_constant, "<constant>\$1</constant>"],
+                      [$type_constant2, "<constant>\$1</constant>"],
                       [$type_enum_xml, "<type>\$1</type>"],
                       [$type_struct_xml, "<structname>\$1</structname>"],
                       [$type_typedef_xml, "<type>\$1</type>"],
@@ -283,6 +288,7 @@ my $blankline_xml = $local_lt . "/para" . $local_gt . $local_lt . "para" . $loca
 # gnome, docbook format
 my @highlights_gnome = (
                         [$type_constant, "<replaceable class=\"option\">\$1</replaceable>"],
+                        [$type_constant2, "<replaceable class=\"option\">\$1</replaceable>"],
                         [$type_func, "<function>\$1</function>"],
                         [$type_enum, "<type>\$1</type>"],
                         [$type_struct, "<structname>\$1</structname>"],
@@ -298,6 +304,7 @@ my $blankline_gnome = "</para><para>\n";
 # these are pretty rough
 my @highlights_man = (
                       [$type_constant, "\$1"],
+                      [$type_constant2, "\$1"],
                       [$type_func, "\\\\fB\$1\\\\fP"],
                       [$type_enum, "\\\\fI\$1\\\\fP"],
                       [$type_struct, "\\\\fI\$1\\\\fP"],
@@ -312,6 +319,7 @@ my $blankline_man = "";
 # text-mode
 my @highlights_text = (
                        [$type_constant, "\$1"],
+                       [$type_constant2, "\$1"],
                        [$type_func, "\$1"],
                        [$type_enum, "\$1"],
                        [$type_struct, "\$1"],
@@ -326,6 +334,7 @@ my $blankline_text = "";
 # rst-mode
 my @highlights_rst = (
                        [$type_constant, "``\$1``"],
+                       [$type_constant2, "``\$1``"],
                        # Note: need to escape () to avoid func matching later
                        [$type_member_func, "\\:c\\:type\\:`\$1\$2\$3\\\\(\\\\) <\$1>`"],
                        [$type_member, "\\:c\\:type\\:`\$1\$2\$3 <\$1>`"],
@@ -344,6 +353,7 @@ my $blankline_rst = "\n";
 # list mode
 my @highlights_list = (
                        [$type_constant, "\$1"],
+                       [$type_constant2, "\$1"],
                        [$type_func, "\$1"],
                        [$type_enum, "\$1"],
                        [$type_struct, "\$1"],
@@ -2392,8 +2402,7 @@ sub push_parameter($$$) {
 	}
 
 	$anon_struct_union = 0;
-	my $param_name = $param;
-	$param_name =~ s/\[.*//;
+	$param =~ s/[\[\)].*//;
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
@@ -2424,9 +2433,9 @@ sub push_parameter($$$) {
 	# but inline preprocessor statements);
 	# also ignore unnamed structs/unions;
 	if (!$anon_struct_union) {
-	if (!defined $parameterdescs{$param_name} && $param_name !~ /^#/) {
+	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
 
-	    $parameterdescs{$param_name} = $undescribed;
+	    $parameterdescs{$param} = $undescribed;
 
 	    if (($type eq 'function') || ($type eq 'enum')) {
 		print STDERR "${file}:$.: warning: Function parameter ".

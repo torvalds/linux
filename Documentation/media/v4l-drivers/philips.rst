@@ -1,8 +1,12 @@
+Philips webcams (pwc driver)
+============================
+
 This file contains some additional information for the Philips and OEM webcams.
 E-mail: webcam@smcc.demon.nl                        Last updated: 2004-01-19
 Site: http://www.smcc.demon.nl/webcam/
 
 As of this moment, the following cameras are supported:
+
  * Philips PCA645
  * Philips PCA646
  * Philips PCVC675
@@ -89,7 +93,8 @@ power_save
 compression (only useful with the plugin)
    With this option you can control the compression factor that the camera
    uses to squeeze the image through the USB bus. You can set the
-   parameter between 0 and 3:
+   parameter between 0 and 3::
+
      0 = prefer uncompressed images; if the requested mode is not available
 	 in an uncompressed format, the driver will silently switch to low
 	 compression.
@@ -109,11 +114,11 @@ compression (only useful with the plugin)
 leds
    This settings takes 2 integers, that define the on/off time for the LED
    (in milliseconds). One of the interesting things that you can do with
-   this is let the LED blink while the camera is in use. This:
+   this is let the LED blink while the camera is in use. This::
 
      leds=500,500
 
-   will blink the LED once every second. But with:
+   will blink the LED once every second. But with::
 
      leds=0,0
 
@@ -141,7 +146,7 @@ dev_hint
    A camera is specified by its type (the number from the camera model,
    like PCA645, PCVC750VC, etc) and optionally the serial number (visible
    in /proc/bus/usb/devices). A hint consists of a string with the following
-   format:
+   format::
 
       [type[.serialnumber]:]node
 
@@ -150,7 +155,7 @@ dev_hint
    would be rather pointless). The serialnumber is separated from the type
    by a '.'; the node number by a ':'.
 
-   This somewhat cryptic syntax is best explained by a few examples:
+   This somewhat cryptic syntax is best explained by a few examples::
 
      dev_hint=3,5              The first detected cam gets assigned
 			       /dev/video3, the second /dev/video5. Any
@@ -170,6 +175,7 @@ dev_hint
 				through /dev/video6.
 
    Some points worth knowing:
+
    - Serialnumbers are case sensitive and must be written full, including
      leading zeroes (it's treated as a string).
    - If a device node is already occupied, registration will fail and
@@ -189,8 +195,10 @@ trace
    If you want to trace something, look up the bit value(s) in the table
    below, add the values together and supply that to the trace variable.
 
+   ====== ======= ================================================ =======
    Value  Value   Description					   Default
    (dec)  (hex)
+   ====== ======= ================================================ =======
        1    0x1   Module initialization; this will log messages       On
 		  while loading and unloading the module
 
@@ -208,6 +216,7 @@ trace
       64   0x40   Show viewport and image sizes                       Off
 
      128   0x80   PWCX debugging                                      Off
+   ====== ======= ================================================ =======
 
    For example, to trace the open() & read() functions, sum 8 + 4 = 12,
    so you would supply trace=12 during insmod or modprobe. If
@@ -216,7 +225,7 @@ trace
 
 
 
-Example:
+Example::
 
      # modprobe pwc size=cif fps=15 power_save=1
 

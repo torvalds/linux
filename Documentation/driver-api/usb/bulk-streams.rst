@@ -1,3 +1,6 @@
+USB bulk streams
+~~~~~~~~~~~~~~~~
+
 Background
 ==========
 
@@ -25,7 +28,9 @@ time.
 Driver implications
 ===================
 
-int usb_alloc_streams(struct usb_interface *interface,
+::
+
+  int usb_alloc_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		unsigned int num_streams, gfp_t mem_flags);
 
@@ -53,7 +58,7 @@ controller driver, and may change in the future.
 
 
 Picking new Stream IDs to use
-============================
+=============================
 
 Stream ID 0 is reserved, and should not be used to communicate with devices.  If
 usb_alloc_streams() returns with a value of N, you may use streams 1 though N.
@@ -68,9 +73,9 @@ Clean up
 ========
 
 If a driver wishes to stop using streams to communicate with the device, it
-should call
+should call::
 
-void usb_free_streams(struct usb_interface *interface,
+  void usb_free_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		gfp_t mem_flags);
 

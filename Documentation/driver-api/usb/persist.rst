@@ -1,11 +1,14 @@
-		USB device persistence during system suspend
+.. _usb-persist:
 
-		   Alan Stern <stern@rowland.harvard.edu>
+USB device persistence during system suspend
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-		September 2, 2006 (Updated February 25, 2008)
+:Author: Alan Stern <stern@rowland.harvard.edu>
+:Date: September 2, 2006 (Updated February 25, 2008)
 
 
-	What is the problem?
+What is the problem?
+====================
 
 According to the USB specification, when a USB bus is suspended the
 bus must continue to supply suspend current (around 1-5 mA).  This
@@ -63,7 +66,8 @@ suspended -- but it will crash as soon as it wakes up, which isn't
 much better.)
 
 
-	What is the solution?
+What is the solution?
+=====================
 
 The kernel includes a feature called USB-persist.  It tries to work
 around these issues by allowing the core USB device data structures to
@@ -99,7 +103,7 @@ now a good and happy place.
 
 Note that the "USB-persist" feature will be applied only to those
 devices for which it is enabled.  You can enable the feature by doing
-(as root):
+(as root)::
 
 	echo 1 >/sys/bus/usb/devices/.../power/persist
 
@@ -110,7 +114,8 @@ doesn't even exist, so you only have to worry about setting it for
 devices where it really matters.
 
 
-	Is this the best solution?
+Is this the best solution?
+==========================
 
 Perhaps not.  Arguably, keeping track of mounted filesystems and
 memory mappings across device disconnects should be handled by a
@@ -130,7 +135,8 @@ just mass-storage devices.  It might turn out to be equally useful for
 other device types, such as network interfaces.
 
 
-	WARNING: USB-persist can be dangerous!!
+WARNING: USB-persist can be dangerous!!
+=======================================
 
 When recovering an interrupted power session the kernel does its best
 to make sure the USB device hasn't been changed; that is, the same

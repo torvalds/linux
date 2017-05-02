@@ -24,6 +24,18 @@ trying to get it to work optimally on a given system.
 
    admin-guide/index
 
+Application-developer documentation
+-----------------------------------
+
+The user-space API manual gathers together documents describing aspects of
+the kernel interface as seen by application developers.
+
+.. toctree::
+   :maxdepth: 2
+
+   userspace-api/index	      
+
+
 Introduction to kernel development
 ----------------------------------
 
@@ -75,6 +87,14 @@ Chinese translations
    :maxdepth: 1
 
    translations/zh_CN/index
+
+Japanese translations
+---------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/ja_JP/index
 
 Indices and tables
 ==================
