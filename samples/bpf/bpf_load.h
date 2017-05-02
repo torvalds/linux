@@ -24,11 +24,17 @@ struct bpf_map_data {
 
 typedef void (*fixup_map_cb)(struct bpf_map_data *map, int idx);
 
-extern int map_fd[MAX_MAPS];
 extern int prog_fd[MAX_PROGS];
 extern int event_fd[MAX_PROGS];
 extern char bpf_log_buf[BPF_LOG_BUF_SIZE];
 extern int prog_cnt;
+
+/* There is a one-to-one mapping between map_fd[] and map_data[].
+ * The map_data[] just contains more rich info on the given map.
+ */
+extern int map_fd[MAX_MAPS];
+extern struct bpf_map_data map_data[MAX_MAPS];
+extern int map_data_count;
 
 /* parses elf file compiled by llvm .c->.o
  * . parses 'maps' section and creates maps via BPF syscall
