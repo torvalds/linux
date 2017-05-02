@@ -194,11 +194,18 @@ static int fill_from_part(struct orangefs_dir_part *part,
 
 	/* The file offset from userspace is too large. */
 	if (i > part->len)
-		return -EIO;
+		return 1;
+
+	/*
+	 * If the seek pointer is positioned just before an entry it
+	 * should find the next entry.
+	 */
+	if (i % 8)
+		i = i + (8 - i%8)%8;
 
 	while (i < part->len) {
 		if (part->len < i + sizeof *len)
-			return -EIO;
+			break;
 		len = (void *)part + offset + i;
 		/*
 		 * len is the size of the string itself.  padlen is the
@@ -207,10 +214,10 @@ static int fill_from_part(struct orangefs_dir_part *part,
 		padlen = (sizeof *len + *len + 1) +
 		    (8 - (sizeof *len + *len + 1)%8)%8;
 		if (part->len < i + padlen + sizeof *khandle)
-			return -EIO;
+			goto next;
 		s = (void *)part + offset + i + sizeof *len;
 		if (s[*len] != 0)
-			return -EIO;
+			goto next;
 		khandle = (void *)part + offset + i + padlen;
 		if (!dir_emit(ctx, s, *len,
 		    orangefs_khandle_to_ino(khandle),
@@ -220,6 +227,9 @@ static int fill_from_part(struct orangefs_dir_part *part,
 		i = i + (8 - i%8)%8;
 		BUG_ON(i > part->len);
 		ctx->pos = (ctx->pos & PART_MASK) | i;
+		continue;
+next:
+		i += 8;
 	}
 	return 1;
 }
