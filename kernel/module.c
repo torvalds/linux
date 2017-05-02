@@ -947,6 +947,8 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 		return -EFAULT;
 	name[MODULE_NAME_LEN-1] = '\0';
 
+	audit_log_kern_module(name);
+
 	if (mutex_lock_interruptible(&module_mutex) != 0)
 		return -EINTR;
 
