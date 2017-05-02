@@ -1753,7 +1753,7 @@ typhoon_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		iowrite32(TYPHOON_INTR_NONE,
 				tp->ioaddr + TYPHOON_REG_INTR_MASK);
 		typhoon_post_pci_writes(tp->ioaddr);
@@ -2370,9 +2370,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 4) Get the hardware address.
 	 * 5) Put the card to sleep.
 	 */
-	if (typhoon_reset(ioaddr, WaitSleep) < 0) {
+	err = typhoon_reset(ioaddr, WaitSleep);
+	if (err < 0) {
 		err_msg = "could not reset 3XP";
-		err = -EIO;
 		goto error_out_dma;
 	}
 
@@ -2386,24 +2386,25 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	typhoon_init_interface(tp);
 	typhoon_init_rings(tp);
 
-	if(typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_HOST) < 0) {
+	err = typhoon_boot_3XP(tp, TYPHOON_STATUS_WAITING_FOR_HOST);
+	if (err < 0) {
 		err_msg = "cannot boot 3XP sleep image";
-		err = -EIO;
 		goto error_out_reset;
 	}
 
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_MAC_ADDRESS);
-	if(typhoon_issue_command(tp, 1, &xp_cmd, 1, xp_resp) < 0) {
+	err = typhoon_issue_command(tp, 1, &xp_cmd, 1, xp_resp);
+	if (err < 0) {
 		err_msg = "cannot read MAC address";
-		err = -EIO;
 		goto error_out_reset;
 	}
 
 	*(__be16 *)&dev->dev_addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
 	*(__be32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
 
-	if(!is_valid_ether_addr(dev->dev_addr)) {
+	if (!is_valid_ether_addr(dev->dev_addr)) {
 		err_msg = "Could not obtain valid ethernet address, aborting";
+		err = -EIO;
 		goto error_out_reset;
 	}
 
@@ -2411,7 +2412,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * later when we print out the version reported.
 	 */
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
-	if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
+	err = typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp);
+	if (err < 0) {
 		err_msg = "Could not get Sleep Image version";
 		goto error_out_reset;
 	}
@@ -2428,9 +2430,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(xp_resp[0].numDesc != 0)
 		tp->capabilities |= TYPHOON_WAKEUP_NEEDS_RESET;
 
-	if(typhoon_sleep(tp, PCI_D3hot, 0) < 0) {
+	err = typhoon_sleep(tp, PCI_D3hot, 0);
+	if (err < 0) {
 		err_msg = "cannot put adapter to sleep";
-		err = -EIO;
 		goto error_out_reset;
 	}
 
@@ -2453,7 +2455,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features = dev->hw_features |
 		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
 
-	if(register_netdev(dev) < 0) {
+	err = register_netdev(dev);
+	if (err < 0) {
 		err_msg = "unable to register netdev";
 		goto error_out_reset;
 	}

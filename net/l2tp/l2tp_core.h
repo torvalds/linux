@@ -263,6 +263,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb,
 int l2tp_nl_register_ops(enum l2tp_pwtype pw_type,
 			 const struct l2tp_nl_cmd_ops *ops);
 void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
+int l2tp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 
 /* Session reference counts. Incremented when code obtains a reference
  * to a session.

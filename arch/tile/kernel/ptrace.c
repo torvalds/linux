@@ -23,6 +23,8 @@
 #include <linux/elf.h>
 #include <linux/tracehook.h>
 #include <linux/context_tracking.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/traps.h>
 #include <arch/chip.h>
 
@@ -111,7 +113,7 @@ static int tile_gpr_set(struct task_struct *target,
 			  const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	struct pt_regs regs;
+	struct pt_regs regs = *task_pt_regs(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &regs, 0,
 				 sizeof(regs));

@@ -9,10 +9,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _VPIF_TYPES_H
 #define _VPIF_TYPES_H
@@ -82,6 +78,7 @@ struct vpif_capture_config {
 	struct vpif_capture_chan_config chan_config[VPIF_CAPTURE_MAX_CHANNELS];
 	struct vpif_subdev_info *subdev_info;
 	int subdev_count;
+	int i2c_adapter_id;
 	const char *card_name;
 	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
 	int *asd_sizes;		/* 0-terminated array of asd group sizes */

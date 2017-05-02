@@ -134,8 +134,7 @@ const int btrfs_raid_mindev_error[BTRFS_NR_RAID_TYPES] = {
 };
 
 static int init_first_rw_device(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info,
-				struct btrfs_device *device);
+				struct btrfs_fs_info *fs_info);
 static int btrfs_relocate_sys_chunks(struct btrfs_fs_info *fs_info);
 static void __btrfs_reset_dev_stats(struct btrfs_device *dev);
 static void btrfs_dev_stat_print_on_error(struct btrfs_device *dev);
@@ -366,7 +365,7 @@ static noinline void run_scheduled_bios(struct btrfs_device *device)
 	 */
 	blk_start_plug(&plug);
 
-	bdi = blk_get_backing_dev_info(device->bdev);
+	bdi = device->bdev->bd_bdi;
 	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
 
@@ -1726,7 +1725,7 @@ out:
  * Function to update ctime/mtime for a given device path.
  * Mainly used for ctime/mtime based probe like libblkid.
  */
-static void update_dev_time(char *path_name)
+static void update_dev_time(const char *path_name)
 {
 	struct file *filp;
 
@@ -1852,7 +1851,8 @@ void btrfs_assign_next_active_device(struct btrfs_fs_info *fs_info,
 		fs_info->fs_devices->latest_bdev = next_device->bdev;
 }
 
-int btrfs_rm_device(struct btrfs_fs_info *fs_info, char *device_path, u64 devid)
+int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
+		u64 devid)
 {
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *cur_devices;
@@ -2092,7 +2092,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 }
 
 static int btrfs_find_device_by_path(struct btrfs_fs_info *fs_info,
-				     char *device_path,
+				     const char *device_path,
 				     struct btrfs_device **device)
 {
 	int ret = 0;
@@ -2119,7 +2119,7 @@ static int btrfs_find_device_by_path(struct btrfs_fs_info *fs_info,
 }
 
 int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
-					 char *device_path,
+					 const char *device_path,
 					 struct btrfs_device **device)
 {
 	*device = NULL;
@@ -2152,7 +2152,8 @@ int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
  * Lookup a device given by device id, or the path if the id is 0.
  */
 int btrfs_find_device_by_devspec(struct btrfs_fs_info *fs_info, u64 devid,
-				 char *devpath, struct btrfs_device **device)
+				 const char *devpath,
+				 struct btrfs_device **device)
 {
 	int ret;
 
@@ -2308,7 +2309,7 @@ error:
 	return ret;
 }
 
-int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
+int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path)
 {
 	struct btrfs_root *root = fs_info->dev_root;
 	struct request_queue *q;
@@ -2440,7 +2441,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
 
 	if (seeding_dev) {
 		mutex_lock(&fs_info->chunk_mutex);
-		ret = init_first_rw_device(trans, fs_info, device);
+		ret = init_first_rw_device(trans, fs_info);
 		mutex_unlock(&fs_info->chunk_mutex);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -2516,7 +2517,7 @@ error:
 }
 
 int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
-				  char *device_path,
+				  const char *device_path,
 				  struct btrfs_device *srcdev,
 				  struct btrfs_device **device_out)
 {
@@ -4584,8 +4585,7 @@ static void check_raid56_incompat_flag(struct btrfs_fs_info *info, u64 type)
 				/ sizeof(struct btrfs_stripe) + 1)
 
 static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info, u64 start,
-			       u64 type)
+			       u64 start, u64 type)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_fs_devices *fs_devices = info->fs_devices;
@@ -5009,12 +5009,11 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	ASSERT(mutex_is_locked(&fs_info->chunk_mutex));
 	chunk_offset = find_next_chunk(fs_info);
-	return __btrfs_alloc_chunk(trans, fs_info, chunk_offset, type);
+	return __btrfs_alloc_chunk(trans, chunk_offset, type);
 }
 
 static noinline int init_first_rw_device(struct btrfs_trans_handle *trans,
-					 struct btrfs_fs_info *fs_info,
-					 struct btrfs_device *device)
+					 struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *extent_root = fs_info->extent_root;
 	u64 chunk_offset;
@@ -5024,14 +5023,13 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans,
 
 	chunk_offset = find_next_chunk(fs_info);
 	alloc_profile = btrfs_get_alloc_profile(extent_root, 0);
-	ret = __btrfs_alloc_chunk(trans, fs_info, chunk_offset, alloc_profile);
+	ret = __btrfs_alloc_chunk(trans, chunk_offset, alloc_profile);
 	if (ret)
 		return ret;
 
 	sys_chunk_offset = find_next_chunk(fs_info);
 	alloc_profile = btrfs_get_alloc_profile(fs_info->chunk_root, 0);
-	ret = __btrfs_alloc_chunk(trans, fs_info, sys_chunk_offset,
-				  alloc_profile);
+	ret = __btrfs_alloc_chunk(trans, sys_chunk_offset, alloc_profile);
 	return ret;
 }
 
@@ -6958,7 +6956,8 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 	key.offset = device->devid;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
 	if (ret < 0) {
 		btrfs_warn_in_rcu(fs_info,
@@ -7106,7 +7105,7 @@ int btrfs_get_dev_stats(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-void btrfs_scratch_superblocks(struct block_device *bdev, char *device_path)
+void btrfs_scratch_superblocks(struct block_device *bdev, const char *device_path)
 {
 	struct buffer_head *bh;
 	struct btrfs_super_block *disk_super;

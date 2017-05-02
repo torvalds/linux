@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -294,7 +295,7 @@ static void jz4740_rtc_power_off(void)
 			     JZ_REG_RTC_RESET_COUNTER, reset_counter_ticks);
 
 	jz4740_rtc_poweroff(dev_for_power_off);
-	machine_halt();
+	kernel_halt();
 }
 
 static const struct of_device_id jz4740_rtc_of_match[] = {
@@ -302,6 +303,7 @@ static const struct of_device_id jz4740_rtc_of_match[] = {
 	{ .compatible = "ingenic,jz4780-rtc", .data = (void *)ID_JZ4780 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, jz4740_rtc_of_match);
 
 static int jz4740_rtc_probe(struct platform_device *pdev)
 {
@@ -429,6 +431,7 @@ static const struct platform_device_id jz4740_rtc_ids[] = {
 	{ "jz4780-rtc", ID_JZ4780 },
 	{}
 };
+MODULE_DEVICE_TABLE(platform, jz4740_rtc_ids);
 
 static struct platform_driver jz4740_rtc_driver = {
 	.probe	 = jz4740_rtc_probe,
@@ -440,4 +443,9 @@ static struct platform_driver jz4740_rtc_driver = {
 	.id_table = jz4740_rtc_ids,
 };
 
-builtin_platform_driver(jz4740_rtc_driver);
+module_platform_driver(jz4740_rtc_driver);
+
+MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("RTC driver for the JZ4740 SoC\n");
+MODULE_ALIAS("platform:jz4740-rtc");

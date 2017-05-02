@@ -17,7 +17,6 @@ config PPC_PSERIES
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select PPC_DOORBELL
-	select HAVE_CONTEXT_TRACKING
 	select HOTPLUG_CPU if SMP
 	select ARCH_RANDOM
 	select PPC_DOORBELL

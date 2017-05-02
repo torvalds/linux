@@ -6,7 +6,8 @@
  *  1997-11-02  Modified for POSIX.1b signals by Richard Henderson
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/errno.h>

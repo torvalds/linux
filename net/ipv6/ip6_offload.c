@@ -253,7 +253,7 @@ out_unlock:
 	rcu_read_unlock();
 
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final(skb, pp, flush);
 
 	return pp;
 }
@@ -294,8 +294,10 @@ static int ipv6_gro_complete(struct sk_buff *skb, int nhoff)
 	struct ipv6hdr *iph = (struct ipv6hdr *)(skb->data + nhoff);
 	int err = -ENOSYS;
 
-	if (skb->encapsulation)
+	if (skb->encapsulation) {
+		skb_set_inner_protocol(skb, cpu_to_be16(ETH_P_IPV6));
 		skb_set_inner_network_header(skb, nhoff);
+	}
 
 	iph->payload_len = htons(skb->len - nhoff - sizeof(*iph));
 

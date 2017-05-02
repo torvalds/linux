@@ -21,7 +21,7 @@ size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 	unsigned long offset;
 	size_t length;
 
-	if (sym && sym->name) {
+	if (sym) {
 		length = fprintf(fp, "%s", sym->name);
 		if (al && print_offsets) {
 			if (al->addr < sym->end)

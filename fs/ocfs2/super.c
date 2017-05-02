@@ -42,6 +42,7 @@
 #include <linux/seq_file.h>
 #include <linux/quotaops.h>
 #include <linux/cleancache.h>
+#include <linux/signal.h>
 
 #define CREATE_TRACE_POINTS
 #include "ocfs2_trace.h"

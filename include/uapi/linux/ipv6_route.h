@@ -14,6 +14,7 @@
 #define _UAPI_LINUX_IPV6_ROUTE_H
 
 #include <linux/types.h>
+#include <linux/in6.h>			/* For struct in6_addr. */
 
 #define RTF_DEFAULT	0x00010000	/* default - learned via ND	*/
 #define RTF_ALLONLINK	0x00020000	/* (deprecated and will be removed)

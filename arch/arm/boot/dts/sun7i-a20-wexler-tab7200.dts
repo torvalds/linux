@@ -173,31 +173,24 @@
 
 &pio {
 	bl_enable_pin: bl_enable_pin@0 {
-		allwinner,pins = "PH7";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH7";
+		function = "gpio_out";
 	};
 
 	codec_pa_pin: codec_pa_pin@0 {
-		allwinner,pins = "PH15";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH15";
+		function = "gpio_out";
 	};
 
 	ts_reset_pin: ts_reset_pin@0 {
-		allwinner,pins = "PB13";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB13";
+		function = "gpio_out";
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH4";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 

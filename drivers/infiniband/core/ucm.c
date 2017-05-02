@@ -1290,7 +1290,7 @@ static void ib_ucm_add_one(struct ib_device *device)
 		goto err;
 
 	ucm_dev->dev.class = &cm_class;
-	ucm_dev->dev.parent = device->dma_device;
+	ucm_dev->dev.parent = device->dev.parent;
 	ucm_dev->dev.devt = ucm_dev->cdev.dev;
 	ucm_dev->dev.release = ib_ucm_release_dev;
 	dev_set_name(&ucm_dev->dev, "ucm%d", ucm_dev->devnum);

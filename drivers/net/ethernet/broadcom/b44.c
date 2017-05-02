@@ -902,7 +902,7 @@ static int b44_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		b44_enable_ints(bp);
 	}
 
@@ -1674,8 +1674,8 @@ static int b44_close(struct net_device *dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
-					struct rtnl_link_stats64 *nstat)
+static void b44_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *nstat)
 {
 	struct b44 *bp = netdev_priv(dev);
 	struct b44_hw_stats *hwstat = &bp->hw_stats;
@@ -1718,7 +1718,6 @@ static struct rtnl_link_stats64 *b44_get_stats64(struct net_device *dev,
 #endif
 	} while (u64_stats_fetch_retry_irq(&hwstat->syncp, start));
 
-	return nstat;
 }
 
 static int __b44_load_mcast(struct b44 *bp, struct net_device *dev)

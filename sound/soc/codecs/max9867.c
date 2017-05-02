@@ -309,7 +309,6 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct max9867_priv *max9867 = snd_soc_codec_get_drvdata(codec);
 	u8 iface1A = 0, iface1B = 0;
-	int ret;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -346,8 +345,8 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	ret = regmap_write(max9867->regmap, MAX9867_IFC1A, iface1A);
-	ret = regmap_write(max9867->regmap, MAX9867_IFC1B, iface1B);
+	regmap_write(max9867->regmap, MAX9867_IFC1A, iface1A);
+	regmap_write(max9867->regmap, MAX9867_IFC1B, iface1B);
 	return 0;
 }
 

@@ -931,7 +931,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	}
 
 	inode->i_data.a_ops = &udf_symlink_aops;
-	inode->i_op = &page_symlink_inode_operations;
+	inode->i_op = &udf_symlink_inode_operations;
 	inode_nohighmem(inode);
 
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {

@@ -158,6 +158,41 @@ config HARDENED_USERCOPY_PAGESPAN
 	  been removed. This config is intended to be used only while
 	  trying to find such users.
 
+config STATIC_USERMODEHELPER
+	bool "Force all usermode helper calls through a single binary"
+	help
+	  By default, the kernel can call many different userspace
+	  binary programs through the "usermode helper" kernel
+	  interface.  Some of these binaries are statically defined
+	  either in the kernel code itself, or as a kernel configuration
+	  option.  However, some of these are dynamically created at
+	  runtime, or can be modified after the kernel has started up.
+	  To provide an additional layer of security, route all of these
+	  calls through a single executable that can not have its name
+	  changed.
+
+	  Note, it is up to this single binary to then call the relevant
+	  "real" usermode helper binary, based on the first argument
+	  passed to it.  If desired, this program can filter and pick
+	  and choose what real programs are called.
+
+	  If you wish for all usermode helper programs are to be
+	  disabled, choose this option and then set
+	  STATIC_USERMODEHELPER_PATH to an empty string.
+
+config STATIC_USERMODEHELPER_PATH
+	string "Path to the static usermode helper binary"
+	depends on STATIC_USERMODEHELPER
+	default "/sbin/usermode-helper"
+	help
+	  The binary called by the kernel when any usermode helper
+	  program is wish to be run.  The "real" application's name will
+	  be in the first argument passed to this program on the command
+	  line.
+
+	  If you wish for all usermode helper programs to be disabled,
+	  specify an empty string here (i.e. "").
+
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig

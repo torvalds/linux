@@ -118,7 +118,7 @@ static void pxa_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	clk_disable_unprepare(pc->clk);
 }
 
-static struct pwm_ops pxa_pwm_ops = {
+static const struct pwm_ops pxa_pwm_ops = {
 	.config = pxa_pwm_config,
 	.enable = pxa_pwm_enable,
 	.disable = pxa_pwm_disable,

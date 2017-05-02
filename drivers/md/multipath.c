@@ -138,6 +138,7 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 	mp_bh->bio.bi_opf |= REQ_FAILFAST_TRANSPORT;
 	mp_bh->bio.bi_end_io = multipath_end_request;
 	mp_bh->bio.bi_private = mp_bh;
+	mddev_check_writesame(mddev, &mp_bh->bio);
 	generic_make_request(&mp_bh->bio);
 	return;
 }
@@ -169,7 +170,7 @@ static int multipath_congested(struct mddev *mddev, int bits)
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
 
-			ret |= bdi_congested(&q->backing_dev_info, bits);
+			ret |= bdi_congested(q->backing_dev_info, bits);
 			/* Just like multipath_map, we just check the
 			 * first available device
 			 */

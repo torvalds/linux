@@ -209,7 +209,7 @@ static inline int sane_case(int x, int high)
 }
 
 int mkdir_p(char *path, mode_t mode);
-int rm_rf(char *path);
+int rm_rf(const char *path);
 struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 int copyfile(const char *from, const char *to);
@@ -363,4 +363,5 @@ int is_printable_array(char *p, unsigned int len);
 
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
 
+int unit_number__scnprintf(char *buf, size_t size, u64 n);
 #endif /* GIT_COMPAT_UTIL_H */

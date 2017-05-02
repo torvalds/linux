@@ -46,7 +46,8 @@ union cvmx_gpio_bit_cfgx {
 	uint64_t u64;
 	struct cvmx_gpio_bit_cfgx_s {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved_17_63:47;
+		uint64_t reserved_21_63:42;
+		uint64_t output_sel:5;
 		uint64_t synce_sel:2;
 		uint64_t clk_gen:1;
 		uint64_t clk_sel:2;
@@ -66,7 +67,8 @@ union cvmx_gpio_bit_cfgx {
 		uint64_t clk_sel:2;
 		uint64_t clk_gen:1;
 		uint64_t synce_sel:2;
-		uint64_t reserved_17_63:47;
+		uint64_t output_sel:5;
+		uint64_t reserved_21_63:42;
 #endif
 	} s;
 	struct cvmx_gpio_bit_cfgx_cn30xx {
@@ -126,6 +128,8 @@ union cvmx_gpio_bit_cfgx {
 	struct cvmx_gpio_bit_cfgx_s cn66xx;
 	struct cvmx_gpio_bit_cfgx_s cn68xx;
 	struct cvmx_gpio_bit_cfgx_s cn68xxp1;
+	struct cvmx_gpio_bit_cfgx_s cn70xx;
+	struct cvmx_gpio_bit_cfgx_s cn73xx;
 	struct cvmx_gpio_bit_cfgx_s cnf71xx;
 };
 

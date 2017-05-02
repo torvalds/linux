@@ -40,6 +40,7 @@
 
 #include "../include/obd_class.h"
 #include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_obdo.h"
 
 void obdo_set_parent_fid(struct obdo *dst, const struct lu_fid *parent)
 {
@@ -124,3 +125,56 @@ void obdo_to_ioobj(const struct obdo *oa, struct obd_ioobj *ioobj)
 	ioobj->ioo_max_brw = 0;
 }
 EXPORT_SYMBOL(obdo_to_ioobj);
+
+/**
+ * Create an obdo to send over the wire
+ */
+void lustre_set_wire_obdo(const struct obd_connect_data *ocd,
+			  struct obdo *wobdo, const struct obdo *lobdo)
+{
+	*wobdo = *lobdo;
+	wobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
+	if (!ocd)
+		return;
+
+	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
+	    fid_seq_is_echo(ostid_seq(&lobdo->o_oi))) {
+		/*
+		 * Currently OBD_FL_OSTID will only be used when 2.4 echo
+		 * client communicate with pre-2.4 server
+		 */
+		wobdo->o_oi.oi.oi_id = fid_oid(&lobdo->o_oi.oi_fid);
+		wobdo->o_oi.oi.oi_seq = fid_seq(&lobdo->o_oi.oi_fid);
+	}
+}
+EXPORT_SYMBOL(lustre_set_wire_obdo);
+
+/**
+ * Create a local obdo from a wire based odbo
+ */
+void lustre_get_wire_obdo(const struct obd_connect_data *ocd,
+			  struct obdo *lobdo, const struct obdo *wobdo)
+{
+	u32 local_flags = 0;
+
+	if (lobdo->o_valid & OBD_MD_FLFLAGS)
+		local_flags = lobdo->o_flags & OBD_FL_LOCAL_MASK;
+
+	*lobdo = *wobdo;
+	if (local_flags) {
+		lobdo->o_valid |= OBD_MD_FLFLAGS;
+		lobdo->o_flags &= ~OBD_FL_LOCAL_MASK;
+		lobdo->o_flags |= local_flags;
+	}
+	if (!ocd)
+		return;
+
+	if (unlikely(!(ocd->ocd_connect_flags & OBD_CONNECT_FID)) &&
+	    fid_seq_is_echo(wobdo->o_oi.oi.oi_seq)) {
+		/* see above */
+		lobdo->o_oi.oi_fid.f_seq = wobdo->o_oi.oi.oi_seq;
+		lobdo->o_oi.oi_fid.f_oid = wobdo->o_oi.oi.oi_id;
+		lobdo->o_oi.oi_fid.f_ver = 0;
+	}
+}
+EXPORT_SYMBOL(lustre_get_wire_obdo);

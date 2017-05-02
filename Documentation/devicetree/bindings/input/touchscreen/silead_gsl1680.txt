@@ -1,7 +1,12 @@
 * GSL 1680 touchscreen controller
 
 Required properties:
-- compatible		  : "silead,gsl1680"
+- compatible		  : Must be one of the following, depending on the model:
+			    "silead,gsl1680"
+			    "silead,gsl1688"
+			    "silead,gsl3670"
+			    "silead,gsl3675"
+			    "silead,gsl3692"
 - reg			  : I2C slave address of the chip (0x40)
 - interrupt-parent	  : a phandle pointing to the interrupt controller
 			    serving the interrupt for this chip

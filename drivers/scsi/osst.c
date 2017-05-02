@@ -35,7 +35,7 @@ static const char * osst_version = "0.99.4";
 
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -322,6 +322,7 @@ static int osst_chk_result(struct osst_tape * STp, struct osst_request * SRpnt)
 /* Wakeup from interrupt */
 static void osst_end_async(struct request *req, int update)
 {
+	struct scsi_request *rq = scsi_req(req);
 	struct osst_request *SRpnt = req->end_io_data;
 	struct osst_tape *STp = SRpnt->stp;
 	struct rq_map_data *mdata = &SRpnt->stp->buffer->map_data;
@@ -330,6 +331,8 @@ static void osst_end_async(struct request *req, int update)
 #if DEBUG
 	STp->write_pending = 0;
 #endif
+	if (rq->sense_len)
+		memcpy(SRpnt->sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
 	if (SRpnt->waiting)
 		complete(SRpnt->waiting);
 
@@ -357,17 +360,20 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 			int use_sg, int timeout, int retries)
 {
 	struct request *req;
+	struct scsi_request *rq;
 	struct page **pages = NULL;
 	struct rq_map_data *mdata = &SRpnt->stp->buffer->map_data;
 
 	int err = 0;
 	int write = (data_direction == DMA_TO_DEVICE);
 
-	req = blk_get_request(SRpnt->stp->device->request_queue, write, GFP_KERNEL);
+	req = blk_get_request(SRpnt->stp->device->request_queue,
+			write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, GFP_KERNEL);
 	if (IS_ERR(req))
 		return DRIVER_ERROR << 24;
 
-	blk_rq_set_block_pc(req);
+	rq = scsi_req(req);
+	scsi_req_init(req);
 	req->rq_flags |= RQF_QUIET;
 
 	SRpnt->bio = NULL;
@@ -404,11 +410,9 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 			goto free_req;
 	}
 
-	req->cmd_len = cmd_len;
-	memset(req->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
-	memcpy(req->cmd, cmd, req->cmd_len);
-	req->sense = SRpnt->sense;
-	req->sense_len = 0;
+	rq->cmd_len = cmd_len;
+	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
+	memcpy(rq->cmd, cmd, rq->cmd_len);
 	req->timeout = timeout;
 	req->retries = retries;
 	req->end_io_data = SRpnt;
@@ -3431,7 +3435,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 
 	/* Write must be integral number of blocks */
 	if (STp->block_size != 0 && (count % STp->block_size) != 0) {
-		printk(KERN_ERR "%s:E: Write (%Zd bytes) not multiple of tape block size (%d%c).\n",
+		printk(KERN_ERR "%s:E: Write (%zd bytes) not multiple of tape block size (%d%c).\n",
 				       name, count, STp->block_size<1024?
 				       STp->block_size:STp->block_size/1024, STp->block_size<1024?'b':'k');
 		retval = (-EINVAL);
@@ -3752,7 +3756,7 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 
 	if ((count % STp->block_size) != 0) {
 		printk(KERN_WARNING
-		    "%s:W: Read (%Zd bytes) not multiple of tape block size (%d%c).\n", name, count,
+		    "%s:W: Read (%zd bytes) not multiple of tape block size (%d%c).\n", name, count,
 		    STp->block_size<1024?STp->block_size:STp->block_size/1024, STp->block_size<1024?'b':'k');
 	}
 
@@ -3811,7 +3815,7 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 
 			if (transfer == 0) {
 				printk(KERN_WARNING
-				  "%s:W: Nothing can be transferred, requested %Zd, tape block size (%d%c).\n",
+				  "%s:W: Nothing can be transferred, requested %zd, tape block size (%d%c).\n",
 			   		name, count, STp->block_size < 1024?
 					STp->block_size:STp->block_size/1024,
 				       	STp->block_size<1024?'b':'k');

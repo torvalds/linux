@@ -1,10 +1,8 @@
 CFLAGS += -I../../../../usr/include/
 
-all: kcmp_test
+TEST_GEN_PROGS := kcmp_test
 
-TEST_PROGS := kcmp_test
+EXTRA_CLEAN := $(OUTPUT)/kcmp-test-file
 
 include ../lib.mk
 
-clean:
-	$(RM) kcmp_test kcmp-test-file

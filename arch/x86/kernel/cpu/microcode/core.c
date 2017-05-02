@@ -46,6 +46,8 @@
 static struct microcode_ops	*microcode_ops;
 static bool dis_ucode_ldr = true;
 
+bool initrd_gone;
+
 LIST_HEAD(microcode_cache);
 
 /*
@@ -64,19 +66,50 @@ static DEFINE_MUTEX(microcode_mutex);
 
 struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 
-/*
- * Operations that are run on a target cpu:
- */
-
 struct cpu_info_ctx {
 	struct cpu_signature	*cpu_sig;
 	int			err;
 };
 
+/*
+ * Those patch levels cannot be updated to newer ones and thus should be final.
+ */
+static u32 final_levels[] = {
+	0x01000098,
+	0x0100009f,
+	0x010000af,
+	0, /* T-101 terminator */
+};
+
+/*
+ * Check the current patch level on this CPU.
+ *
+ * Returns:
+ *  - true: if update should stop
+ *  - false: otherwise
+ */
+static bool amd_check_current_patch_level(void)
+{
+	u32 lvl, dummy, i;
+	u32 *levels;
+
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, lvl, dummy);
+
+	if (IS_ENABLED(CONFIG_X86_32))
+		levels = (u32 *)__pa_nodebug(&final_levels);
+	else
+		levels = final_levels;
+
+	for (i = 0; levels[i]; i++) {
+		if (lvl == levels[i])
+			return true;
+	}
+	return false;
+}
+
 static bool __init check_loader_disabled_bsp(void)
 {
 	static const char *__dis_opt_str = "dis_ucode_ldr";
-	u32 a, b, c, d;
 
 #ifdef CONFIG_X86_32
 	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
@@ -92,17 +125,18 @@ static bool __init check_loader_disabled_bsp(void)
 	if (!have_cpuid_p())
 		return *res;
 
-	a = 1;
-	c = 0;
-	native_cpuid(&a, &b, &c, &d);
-
 	/*
 	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
 	 * completely accurate as xen pv guests don't see that CPUID bit set but
 	 * that's good enough as they don't land on the BSP path anyway.
 	 */
-	if (c & BIT(31))
+	if (native_cpuid_ecx(1) & BIT(31))
 		return *res;
+
+	if (x86_cpuid_vendor() == X86_VENDOR_AMD) {
+		if (amd_check_current_patch_level())
+			return *res;
+	}
 
 	if (cmdline_find_option_bool(cmdline, option) <= 0)
 		*res = false;
@@ -131,23 +165,21 @@ bool get_builtin_firmware(struct cpio_data *cd, const char *name)
 
 void __init load_ucode_bsp(void)
 {
-	int vendor;
-	unsigned int family;
+	unsigned int cpuid_1_eax;
 
 	if (check_loader_disabled_bsp())
 		return;
 
-	vendor = x86_cpuid_vendor();
-	family = x86_cpuid_family();
+	cpuid_1_eax = native_cpuid_eax(1);
 
-	switch (vendor) {
+	switch (x86_cpuid_vendor()) {
 	case X86_VENDOR_INTEL:
-		if (family >= 6)
+		if (x86_family(cpuid_1_eax) >= 6)
 			load_ucode_intel_bsp();
 		break;
 	case X86_VENDOR_AMD:
-		if (family >= 0x10)
-			load_ucode_amd_bsp(family);
+		if (x86_family(cpuid_1_eax) >= 0x10)
+			load_ucode_amd_bsp(cpuid_1_eax);
 		break;
 	default:
 		break;
@@ -165,22 +197,21 @@ static bool check_loader_disabled_ap(void)
 
 void load_ucode_ap(void)
 {
-	int vendor, family;
+	unsigned int cpuid_1_eax;
 
 	if (check_loader_disabled_ap())
 		return;
 
-	vendor = x86_cpuid_vendor();
-	family = x86_cpuid_family();
+	cpuid_1_eax = native_cpuid_eax(1);
 
-	switch (vendor) {
+	switch (x86_cpuid_vendor()) {
 	case X86_VENDOR_INTEL:
-		if (family >= 6)
+		if (x86_family(cpuid_1_eax) >= 6)
 			load_ucode_intel_ap();
 		break;
 	case X86_VENDOR_AMD:
-		if (family >= 0x10)
-			load_ucode_amd_ap(family);
+		if (x86_family(cpuid_1_eax) >= 0x10)
+			load_ucode_amd_ap(cpuid_1_eax);
 		break;
 	default:
 		break;
@@ -190,21 +221,24 @@ void load_ucode_ap(void)
 static int __init save_microcode_in_initrd(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
+	int ret = -EINVAL;
 
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
 		if (c->x86 >= 6)
-			return save_microcode_in_initrd_intel();
+			ret = save_microcode_in_initrd_intel();
 		break;
 	case X86_VENDOR_AMD:
 		if (c->x86 >= 0x10)
-			return save_microcode_in_initrd_amd(c->x86);
+			return save_microcode_in_initrd_amd(cpuid_eax(1));
 		break;
 	default:
 		break;
 	}
 
-	return -EINVAL;
+	initrd_gone = true;
+
+	return ret;
 }
 
 struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
@@ -247,9 +281,16 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 	 * has the virtual address of the beginning of the initrd. It also
 	 * possibly relocates the ramdisk. In either case, initrd_start contains
 	 * the updated address so use that instead.
+	 *
+	 * initrd_gone is for the hotplug case where we've thrown out initrd
+	 * already.
 	 */
-	if (!use_pa && initrd_start)
-		start = initrd_start;
+	if (!use_pa) {
+		if (initrd_gone)
+			return (struct cpio_data){ NULL, 0, "" };
+		if (initrd_start)
+			start = initrd_start;
+	}
 
 	return find_cpio_data(path, (void *)start, size, NULL);
 #else /* !CONFIG_BLK_DEV_INITRD */

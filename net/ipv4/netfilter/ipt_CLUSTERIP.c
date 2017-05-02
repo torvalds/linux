@@ -144,7 +144,12 @@ clusterip_config_find_get(struct net *net, __be32 clusterip, int entry)
 	rcu_read_lock_bh();
 	c = __clusterip_config_find(net, clusterip);
 	if (c) {
-		if (!c->pde || unlikely(!atomic_inc_not_zero(&c->refcount)))
+#ifdef CONFIG_PROC_FS
+		if (!c->pde)
+			c = NULL;
+		else
+#endif
+		if (unlikely(!atomic_inc_not_zero(&c->refcount)))
 			c = NULL;
 		else if (entry)
 			atomic_inc(&c->entries);
@@ -480,6 +485,7 @@ static struct xt_target clusterip_tg_reg __read_mostly = {
 	.checkentry	= clusterip_tg_check,
 	.destroy	= clusterip_tg_destroy,
 	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
+	.usersize	= offsetof(struct ipt_clusterip_tgt_info, config),
 #ifdef CONFIG_COMPAT
 	.compatsize	= sizeof(struct compat_ipt_clusterip_tgt_info),
 #endif /* CONFIG_COMPAT */

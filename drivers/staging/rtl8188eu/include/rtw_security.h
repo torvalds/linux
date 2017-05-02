@@ -255,42 +255,6 @@ static inline u32 rotr(u32 val, int bits)
 #define TE2(i) rotr(Te0[((i) >> 8) & 0xff], 16)
 #define TE3(i) rotr(Te0[(i) & 0xff], 24)
 
-#define GETU32(pt) (((u32)(pt)[0] << 24) ^ ((u32)(pt)[1] << 16) ^ \
-			((u32)(pt)[2] <<  8) ^ ((u32)(pt)[3]))
-
-#define PUTU32(ct, st) { \
-(ct)[0] = (u8)((st) >> 24); (ct)[1] = (u8)((st) >> 16); \
-(ct)[2] = (u8)((st) >>  8); (ct)[3] = (u8)(st); }
-
-#define WPA_GET_BE32(a) ((((u32)(a)[0]) << 24) | (((u32)(a)[1]) << 16) | \
-			 (((u32)(a)[2]) << 8) | ((u32)(a)[3]))
-
-#define WPA_PUT_LE16(a, val)			\
-	do {					\
-		(a)[1] = ((u16)(val)) >> 8;	\
-		(a)[0] = ((u16)(val)) & 0xff;	\
-	} while (0)
-
-#define WPA_PUT_BE32(a, val)					\
-	do {							\
-		(a)[0] = (u8)((((u32)(val)) >> 24) & 0xff);	\
-		(a)[1] = (u8)((((u32)(val)) >> 16) & 0xff);	\
-		(a)[2] = (u8)((((u32)(val)) >> 8) & 0xff);	\
-		(a)[3] = (u8)(((u32)(val)) & 0xff);		\
-	} while (0)
-
-#define WPA_PUT_BE64(a, val)				\
-	do {						\
-		(a)[0] = (u8)(((u64)(val)) >> 56);	\
-		(a)[1] = (u8)(((u64)(val)) >> 48);	\
-		(a)[2] = (u8)(((u64)(val)) >> 40);	\
-		(a)[3] = (u8)(((u64)(val)) >> 32);	\
-		(a)[4] = (u8)(((u64)(val)) >> 24);	\
-		(a)[5] = (u8)(((u64)(val)) >> 16);	\
-		(a)[6] = (u8)(((u64)(val)) >> 8);	\
-		(a)[7] = (u8)(((u64)(val)) & 0xff);	\
-	} while (0)
-
 /* ===== start - public domain SHA256 implementation ===== */
 
 /* This is based on SHA256 implementation in LibTomCrypt that was released into

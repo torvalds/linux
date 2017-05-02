@@ -273,6 +273,17 @@
 			reg = <0x59801000 0x400>;
 		};
 
+		sdctrl@59810000 {
+			compatible = "socionext,uniphier-ld11-sdctrl",
+				     "simple-mfd", "syscon";
+			reg = <0x59810000 0x400>;
+
+			sd_rst: reset {
+				compatible = "socionext,uniphier-ld11-sd-reset";
+				#reset-cells = <1>;
+			};
+		};
+
 		perictrl@59820000 {
 			compatible = "socionext,uniphier-ld11-perictrl",
 				     "simple-mfd", "syscon";
@@ -287,6 +298,16 @@
 				compatible = "socionext,uniphier-ld11-peri-reset";
 				#reset-cells = <1>;
 			};
+		};
+
+		emmc: sdhc@5a000000 {
+			compatible = "socionext,uniphier-sd4hc", "cdns,sd4hc";
+			reg = <0x5a000000 0x400>;
+			interrupts = <0 78 4>;
+			clocks = <&sys_clk 4>;
+			bus-width = <8>;
+			mmc-ddr-1_8v;
+			mmc-hs200-1_8v;
 		};
 
 		usb0: usb@5a800100 {

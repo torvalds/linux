@@ -18,6 +18,8 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>
@@ -636,6 +638,8 @@ static void __init reserve_crashkernel(void)
 static void __init reserve_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
+	if (!INITRD_START || !INITRD_SIZE)
+		return;
 	initrd_start = INITRD_START;
 	initrd_end = initrd_start + INITRD_SIZE;
 	memblock_reserve(INITRD_START, INITRD_SIZE);
@@ -747,7 +751,7 @@ static int __init setup_hwcaps(void)
 	/*
 	 * Huge page support HWCAP_S390_HPAGE is bit 7.
 	 */
-	if (MACHINE_HAS_HPAGE)
+	if (MACHINE_HAS_EDAT1)
 		elf_hwcap |= HWCAP_S390_HPAGE;
 
 	/*
@@ -767,8 +771,14 @@ static int __init setup_hwcaps(void)
 	 * can be disabled with the "novx" parameter. Use MACHINE_HAS_VX
 	 * instead of facility bit 129.
 	 */
-	if (MACHINE_HAS_VX)
+	if (MACHINE_HAS_VX) {
 		elf_hwcap |= HWCAP_S390_VXRS;
+		if (test_facility(134))
+			elf_hwcap |= HWCAP_S390_VXRS_EXT;
+		if (test_facility(135))
+			elf_hwcap |= HWCAP_S390_VXRS_BCD;
+	}
+
 	get_cpu_id(&cpu_id);
 	add_device_randomness(&cpu_id, sizeof(cpu_id));
 	switch (cpu_id.machine) {
@@ -820,10 +830,10 @@ static void __init setup_randomness(void)
 {
 	struct sysinfo_3_2_2 *vmms;
 
-	vmms = (struct sysinfo_3_2_2 *) alloc_page(GFP_KERNEL);
-	if (vmms && stsi(vmms, 3, 2, 2) == 0 && vmms->count)
-		add_device_randomness(&vmms, vmms->count);
-	free_page((unsigned long) vmms);
+	vmms = (struct sysinfo_3_2_2 *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
+		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
+	memblock_free((unsigned long) vmms, PAGE_SIZE);
 }
 
 /*

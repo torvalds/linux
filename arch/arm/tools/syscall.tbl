@@ -411,3 +411,4 @@
 394	common	pkey_mprotect		sys_pkey_mprotect
 395	common	pkey_alloc		sys_pkey_alloc
 396	common	pkey_free		sys_pkey_free
+397	common	statx			sys_statx

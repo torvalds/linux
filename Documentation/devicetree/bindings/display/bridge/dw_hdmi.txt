@@ -1,52 +1,33 @@
-DesignWare HDMI bridge bindings
+Synopsys DesignWare HDMI TX Encoder
+===================================
 
-Required properties:
-- compatible: platform specific such as:
-   * "snps,dw-hdmi-tx"
-   * "fsl,imx6q-hdmi"
-   * "fsl,imx6dl-hdmi"
-   * "rockchip,rk3288-dw-hdmi"
-- reg: Physical base address and length of the controller's registers.
-- interrupts: The HDMI interrupt number
-- clocks, clock-names : must have the phandles to the HDMI iahb and isfr clocks,
-  as described in Documentation/devicetree/bindings/clock/clock-bindings.txt,
-  the clocks are soc specific, the clock-names should be "iahb", "isfr"
--port@[X]: SoC specific port nodes with endpoint definitions as defined
-   in Documentation/devicetree/bindings/media/video-interfaces.txt,
-   please refer to the SoC specific binding document:
-    * Documentation/devicetree/bindings/display/imx/hdmi.txt
-    * Documentation/devicetree/bindings/display/rockchip/dw_hdmi-rockchip.txt
+This document defines device tree properties for the Synopsys DesignWare HDMI
+TX Encoder (DWC HDMI TX). It doesn't constitue a device tree binding
+specification by itself but is meant to be referenced by platform-specific
+device tree bindings.
 
-Optional properties
-- reg-io-width: the width of the reg:1,4, default set to 1 if not present
-- ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing,
-  if the property is omitted, a functionally reduced I2C bus
-  controller on DW HDMI is probed
-- clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec"
+When referenced from platform device tree bindings the properties defined in
+this document are defined as follows. The platform device tree bindings are
+responsible for defining whether each property is required or optional.
 
-Example:
-	hdmi: hdmi@0120000 {
-		compatible = "fsl,imx6q-hdmi";
-		reg = <0x00120000 0x9000>;
-		interrupts = <0 115 0x04>;
-		gpr = <&gpr>;
-		clocks = <&clks 123>, <&clks 124>;
-		clock-names = "iahb", "isfr";
-		ddc-i2c-bus = <&i2c2>;
+- reg: Memory mapped base address and length of the DWC HDMI TX registers.
 
-		port@0 {
-			reg = <0>;
+- reg-io-width: Width of the registers specified by the reg property. The
+  value is expressed in bytes and must be equal to 1 or 4 if specified. The
+  register width defaults to 1 if the property is not present.
 
-			hdmi_mux_0: endpoint {
-				remote-endpoint = <&ipu1_di0_hdmi>;
-			};
-		};
+- interrupts: Reference to the DWC HDMI TX interrupt.
 
-		port@1 {
-			reg = <1>;
+- clocks: References to all the clocks specified in the clock-names property
+  as specified in Documentation/devicetree/bindings/clock/clock-bindings.txt.
 
-			hdmi_mux_1: endpoint {
-				remote-endpoint = <&ipu1_di1_hdmi>;
-			};
-		};
-	};
+- clock-names: The DWC HDMI TX uses the following clocks.
+
+  - "iahb" is the bus clock for either AHB and APB (mandatory).
+  - "isfr" is the internal register configuration clock (mandatory).
+  - "cec" is the HDMI CEC controller main clock (optional).
+
+- ports: The connectivity of the DWC HDMI TX with the rest of the system is
+  expressed in using ports as specified in the device graph bindings defined
+  in Documentation/devicetree/bindings/graph.txt. The numbering of the ports
+  is platform-specific.

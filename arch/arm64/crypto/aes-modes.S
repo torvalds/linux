@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm64/crypto/aes-modes.S - chaining mode wrappers for AES
  *
- * Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -193,15 +193,16 @@ AES_ENTRY(aes_cbc_encrypt)
 	cbz		w6, .Lcbcencloop
 
 	ld1		{v0.16b}, [x5]			/* get iv */
-	enc_prepare	w3, x2, x5
+	enc_prepare	w3, x2, x6
 
 .Lcbcencloop:
 	ld1		{v1.16b}, [x1], #16		/* get next pt block */
 	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with iv */
-	encrypt_block	v0, w3, x2, x5, w6
+	encrypt_block	v0, w3, x2, x6, w7
 	st1		{v0.16b}, [x0], #16
 	subs		w4, w4, #1
 	bne		.Lcbcencloop
+	st1		{v0.16b}, [x5]			/* return iv */
 	ret
 AES_ENDPROC(aes_cbc_encrypt)
 
@@ -211,7 +212,7 @@ AES_ENTRY(aes_cbc_decrypt)
 	cbz		w6, .LcbcdecloopNx
 
 	ld1		{v7.16b}, [x5]			/* get iv */
-	dec_prepare	w3, x2, x5
+	dec_prepare	w3, x2, x6
 
 .LcbcdecloopNx:
 #if INTERLEAVE >= 2
@@ -248,7 +249,7 @@ AES_ENTRY(aes_cbc_decrypt)
 .Lcbcdecloop:
 	ld1		{v1.16b}, [x1], #16		/* get next ct block */
 	mov		v0.16b, v1.16b			/* ...and copy to v0 */
-	decrypt_block	v0, w3, x2, x5, w6
+	decrypt_block	v0, w3, x2, x6, w7
 	eor		v0.16b, v0.16b, v7.16b		/* xor with iv => pt */
 	mov		v7.16b, v1.16b			/* ct is next iv */
 	st1		{v0.16b}, [x0], #16
@@ -256,6 +257,7 @@ AES_ENTRY(aes_cbc_decrypt)
 	bne		.Lcbcdecloop
 .Lcbcdecout:
 	FRAME_POP
+	st1		{v7.16b}, [x5]			/* return iv */
 	ret
 AES_ENDPROC(aes_cbc_decrypt)
 
@@ -267,24 +269,15 @@ AES_ENDPROC(aes_cbc_decrypt)
 
 AES_ENTRY(aes_ctr_encrypt)
 	FRAME_PUSH
-	cbnz		w6, .Lctrfirst		/* 1st time around? */
-	umov		x5, v4.d[1]		/* keep swabbed ctr in reg */
-	rev		x5, x5
-#if INTERLEAVE >= 2
-	cmn		w5, w4			/* 32 bit overflow? */
-	bcs		.Lctrinc
-	add		x5, x5, #1		/* increment BE ctr */
-	b		.LctrincNx
-#else
-	b		.Lctrinc
-#endif
-.Lctrfirst:
+	cbz		w6, .Lctrnotfirst	/* 1st time around? */
 	enc_prepare	w3, x2, x6
 	ld1		{v4.16b}, [x5]
-	umov		x5, v4.d[1]		/* keep swabbed ctr in reg */
-	rev		x5, x5
+
+.Lctrnotfirst:
+	umov		x8, v4.d[1]		/* keep swabbed ctr in reg */
+	rev		x8, x8
 #if INTERLEAVE >= 2
-	cmn		w5, w4			/* 32 bit overflow? */
+	cmn		w8, w4			/* 32 bit overflow? */
 	bcs		.Lctrloop
 .LctrloopNx:
 	subs		w4, w4, #INTERLEAVE
@@ -292,11 +285,11 @@ AES_ENTRY(aes_ctr_encrypt)
 #if INTERLEAVE == 2
 	mov		v0.8b, v4.8b
 	mov		v1.8b, v4.8b
-	rev		x7, x5
-	add		x5, x5, #1
+	rev		x7, x8
+	add		x8, x8, #1
 	ins		v0.d[1], x7
-	rev		x7, x5
-	add		x5, x5, #1
+	rev		x7, x8
+	add		x8, x8, #1
 	ins		v1.d[1], x7
 	ld1		{v2.16b-v3.16b}, [x1], #32	/* get 2 input blocks */
 	do_encrypt_block2x
@@ -305,7 +298,7 @@ AES_ENTRY(aes_ctr_encrypt)
 	st1		{v0.16b-v1.16b}, [x0], #32
 #else
 	ldr		q8, =0x30000000200000001	/* addends 1,2,3[,0] */
-	dup		v7.4s, w5
+	dup		v7.4s, w8
 	mov		v0.16b, v4.16b
 	add		v7.4s, v7.4s, v8.4s
 	mov		v1.16b, v4.16b
@@ -323,18 +316,12 @@ AES_ENTRY(aes_ctr_encrypt)
 	eor		v2.16b, v7.16b, v2.16b
 	eor		v3.16b, v5.16b, v3.16b
 	st1		{v0.16b-v3.16b}, [x0], #64
-	add		x5, x5, #INTERLEAVE
+	add		x8, x8, #INTERLEAVE
 #endif
-	cbz		w4, .LctroutNx
-.LctrincNx:
-	rev		x7, x5
+	rev		x7, x8
 	ins		v4.d[1], x7
+	cbz		w4, .Lctrout
 	b		.LctrloopNx
-.LctroutNx:
-	sub		x5, x5, #1
-	rev		x7, x5
-	ins		v4.d[1], x7
-	b		.Lctrout
 .Lctr1x:
 	adds		w4, w4, #INTERLEAVE
 	beq		.Lctrout
@@ -342,30 +329,37 @@ AES_ENTRY(aes_ctr_encrypt)
 .Lctrloop:
 	mov		v0.16b, v4.16b
 	encrypt_block	v0, w3, x2, x6, w7
+
+	adds		x8, x8, #1		/* increment BE ctr */
+	rev		x7, x8
+	ins		v4.d[1], x7
+	bcs		.Lctrcarry		/* overflow? */
+
+.Lctrcarrydone:
 	subs		w4, w4, #1
-	bmi		.Lctrhalfblock		/* blocks < 0 means 1/2 block */
+	bmi		.Lctrtailblock		/* blocks <0 means tail block */
 	ld1		{v3.16b}, [x1], #16
 	eor		v3.16b, v0.16b, v3.16b
 	st1		{v3.16b}, [x0], #16
-	beq		.Lctrout
-.Lctrinc:
-	adds		x5, x5, #1		/* increment BE ctr */
-	rev		x7, x5
-	ins		v4.d[1], x7
-	bcc		.Lctrloop		/* no overflow? */
+	bne		.Lctrloop
+
+.Lctrout:
+	st1		{v4.16b}, [x5]		/* return next CTR value */
+	FRAME_POP
+	ret
+
+.Lctrtailblock:
+	st1		{v0.16b}, [x0]
+	FRAME_POP
+	ret
+
+.Lctrcarry:
 	umov		x7, v4.d[0]		/* load upper word of ctr  */
 	rev		x7, x7			/* ... to handle the carry */
 	add		x7, x7, #1
 	rev		x7, x7
 	ins		v4.d[0], x7
-	b		.Lctrloop
-.Lctrhalfblock:
-	ld1		{v3.8b}, [x1]
-	eor		v3.8b, v0.8b, v3.8b
-	st1		{v3.8b}, [x0]
-.Lctrout:
-	FRAME_POP
-	ret
+	b		.Lctrcarrydone
 AES_ENDPROC(aes_ctr_encrypt)
 	.ltorg
 
@@ -531,3 +525,30 @@ AES_ENTRY(aes_xts_decrypt)
 	FRAME_POP
 	ret
 AES_ENDPROC(aes_xts_decrypt)
+
+	/*
+	 * aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+	 *		  int blocks, u8 dg[], int enc_before, int enc_after)
+	 */
+AES_ENTRY(aes_mac_update)
+	ld1		{v0.16b}, [x4]			/* get dg */
+	enc_prepare	w2, x1, x7
+	cbnz		w5, .Lmacenc
+
+.Lmacloop:
+	cbz		w3, .Lmacout
+	ld1		{v1.16b}, [x0], #16		/* get next pt block */
+	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
+
+	subs		w3, w3, #1
+	csinv		x5, x6, xzr, eq
+	cbz		w5, .Lmacout
+
+.Lmacenc:
+	encrypt_block	v0, w2, x1, x7, w8
+	b		.Lmacloop
+
+.Lmacout:
+	st1		{v0.16b}, [x4]			/* return dg */
+	ret
+AES_ENDPROC(aes_mac_update)

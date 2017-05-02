@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/sched_clock.h>
 #include <linux/clk.h>
 #include <linux/clockchips.h>

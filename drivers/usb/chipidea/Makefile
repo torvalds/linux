@@ -4,6 +4,7 @@ ci_hdrc-y				:= core.o otg.o debug.o
 ci_hdrc-$(CONFIG_USB_CHIPIDEA_UDC)	+= udc.o
 ci_hdrc-$(CONFIG_USB_CHIPIDEA_HOST)	+= host.o
 ci_hdrc-$(CONFIG_USB_OTG_FSM)		+= otg_fsm.o
+ci_hdrc-$(CONFIG_USB_CHIPIDEA_ULPI)	+= ulpi.o
 
 # Glue/Bridge layers go here
 

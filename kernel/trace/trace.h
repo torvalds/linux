@@ -753,6 +753,21 @@ enum print_line_t print_trace_line(struct trace_iterator *iter);
 
 extern char trace_find_mark(unsigned long long duration);
 
+struct ftrace_hash {
+	unsigned long		size_bits;
+	struct hlist_head	*buckets;
+	unsigned long		count;
+	struct rcu_head		rcu;
+};
+
+struct ftrace_func_entry *
+ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip);
+
+static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
+{
+	return !hash || !hash->count;
+}
+
 /* Standard output formatting function used for function return traces */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
@@ -787,53 +802,50 @@ extern void __trace_graph_return(struct trace_array *tr,
 				 struct ftrace_graph_ret *trace,
 				 unsigned long flags, int pc);
 
-
 #ifdef CONFIG_DYNAMIC_FTRACE
-/* TODO: make this variable */
-#define FTRACE_GRAPH_MAX_FUNCS		32
-extern int ftrace_graph_count;
-extern unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS];
-extern int ftrace_graph_notrace_count;
-extern unsigned long ftrace_graph_notrace_funcs[FTRACE_GRAPH_MAX_FUNCS];
+extern struct ftrace_hash *ftrace_graph_hash;
+extern struct ftrace_hash *ftrace_graph_notrace_hash;
 
 static inline int ftrace_graph_addr(unsigned long addr)
 {
-	int i;
+	int ret = 0;
 
-	if (!ftrace_graph_count)
-		return 1;
+	preempt_disable_notrace();
 
-	for (i = 0; i < ftrace_graph_count; i++) {
-		if (addr == ftrace_graph_funcs[i]) {
-			/*
-			 * If no irqs are to be traced, but a set_graph_function
-			 * is set, and called by an interrupt handler, we still
-			 * want to trace it.
-			 */
-			if (in_irq())
-				trace_recursion_set(TRACE_IRQ_BIT);
-			else
-				trace_recursion_clear(TRACE_IRQ_BIT);
-			return 1;
-		}
+	if (ftrace_hash_empty(ftrace_graph_hash)) {
+		ret = 1;
+		goto out;
 	}
 
-	return 0;
+	if (ftrace_lookup_ip(ftrace_graph_hash, addr)) {
+		/*
+		 * If no irqs are to be traced, but a set_graph_function
+		 * is set, and called by an interrupt handler, we still
+		 * want to trace it.
+		 */
+		if (in_irq())
+			trace_recursion_set(TRACE_IRQ_BIT);
+		else
+			trace_recursion_clear(TRACE_IRQ_BIT);
+		ret = 1;
+	}
+
+out:
+	preempt_enable_notrace();
+	return ret;
 }
 
 static inline int ftrace_graph_notrace_addr(unsigned long addr)
 {
-	int i;
+	int ret = 0;
 
-	if (!ftrace_graph_notrace_count)
-		return 0;
+	preempt_disable_notrace();
 
-	for (i = 0; i < ftrace_graph_notrace_count; i++) {
-		if (addr == ftrace_graph_notrace_funcs[i])
-			return 1;
-	}
+	if (ftrace_lookup_ip(ftrace_graph_notrace_hash, addr))
+		ret = 1;
 
-	return 0;
+	preempt_enable_notrace();
+	return ret;
 }
 #else
 static inline int ftrace_graph_addr(unsigned long addr)
@@ -1300,7 +1312,8 @@ static inline bool is_string_field(struct ftrace_event_field *field)
 {
 	return field->filter_type == FILTER_DYN_STRING ||
 	       field->filter_type == FILTER_STATIC_STRING ||
-	       field->filter_type == FILTER_PTR_STRING;
+	       field->filter_type == FILTER_PTR_STRING ||
+	       field->filter_type == FILTER_COMM;
 }
 
 static inline bool is_function_field(struct ftrace_event_field *field)

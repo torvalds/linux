@@ -316,7 +316,9 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	/* Validate device and port */
 	port_priv = ib_get_mad_port(device, port_num);
 	if (!port_priv) {
-		dev_notice(&device->dev, "ib_register_mad_agent: Invalid port\n");
+		dev_notice(&device->dev,
+			   "ib_register_mad_agent: Invalid port %d\n",
+			   port_num);
 		ret = ERR_PTR(-ENODEV);
 		goto error1;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -69,7 +69,7 @@ void wil_p2p_discovery_timer_fn(ulong x)
 {
 	struct wil6210_priv *wil = (void *)x;
 
-	wil_dbg_misc(wil, "%s\n", __func__);
+	wil_dbg_misc(wil, "p2p_discovery_timer_fn\n");
 
 	schedule_work(&wil->p2p.discovery_expired_work);
 }
@@ -80,27 +80,25 @@ int wil_p2p_search(struct wil6210_priv *wil,
 	int rc;
 	struct wil_p2p_info *p2p = &wil->p2p;
 
-	wil_dbg_misc(wil, "%s: channel %d\n",
-		     __func__, P2P_DMG_SOCIAL_CHANNEL);
+	wil_dbg_misc(wil, "p2p_search: channel %d\n", P2P_DMG_SOCIAL_CHANNEL);
 
 	lockdep_assert_held(&wil->mutex);
 
 	if (p2p->discovery_started) {
-		wil_err(wil, "%s: search failed. discovery already ongoing\n",
-			__func__);
+		wil_err(wil, "search failed. discovery already ongoing\n");
 		rc = -EBUSY;
 		goto out;
 	}
 
 	rc = wmi_p2p_cfg(wil, P2P_DMG_SOCIAL_CHANNEL, P2P_DEFAULT_BI);
 	if (rc) {
-		wil_err(wil, "%s: wmi_p2p_cfg failed\n", __func__);
+		wil_err(wil, "wmi_p2p_cfg failed\n");
 		goto out;
 	}
 
 	rc = wmi_set_ssid(wil, strlen(P2P_WILDCARD_SSID), P2P_WILDCARD_SSID);
 	if (rc) {
-		wil_err(wil, "%s: wmi_set_ssid failed\n", __func__);
+		wil_err(wil, "wmi_set_ssid failed\n");
 		goto out_stop;
 	}
 
@@ -108,8 +106,7 @@ int wil_p2p_search(struct wil6210_priv *wil,
 	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_REQ,
 			request->ie_len, request->ie);
 	if (rc) {
-		wil_err(wil, "%s: wmi_set_ie(WMI_FRAME_PROBE_REQ) failed\n",
-			__func__);
+		wil_err(wil, "wmi_set_ie(WMI_FRAME_PROBE_REQ) failed\n");
 		goto out_stop;
 	}
 
@@ -119,14 +116,13 @@ int wil_p2p_search(struct wil6210_priv *wil,
 	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_RESP,
 			request->ie_len, request->ie);
 	if (rc) {
-		wil_err(wil, "%s: wmi_set_ie(WMI_FRAME_PROBE_RESP) failed\n",
-			__func__);
+		wil_err(wil, "wmi_set_ie(WMI_FRAME_PROBE_RESP) failed\n");
 		goto out_stop;
 	}
 
 	rc = wmi_start_search(wil);
 	if (rc) {
-		wil_err(wil, "%s: wmi_start_search failed\n", __func__);
+		wil_err(wil, "wmi_start_search failed\n");
 		goto out_stop;
 	}
 
@@ -153,12 +149,12 @@ int wil_p2p_listen(struct wil6210_priv *wil, struct wireless_dev *wdev,
 	if (!chan)
 		return -EINVAL;
 
-	wil_dbg_misc(wil, "%s: duration %d\n", __func__, duration);
+	wil_dbg_misc(wil, "p2p_listen: duration %d\n", duration);
 
 	mutex_lock(&wil->mutex);
 
 	if (p2p->discovery_started) {
-		wil_err(wil, "%s: discovery already ongoing\n", __func__);
+		wil_err(wil, "discovery already ongoing\n");
 		rc = -EBUSY;
 		goto out;
 	}
@@ -220,8 +216,8 @@ int wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie)
 	mutex_lock(&wil->mutex);
 
 	if (cookie != p2p->cookie) {
-		wil_info(wil, "%s: Cookie mismatch: 0x%016llx vs. 0x%016llx\n",
-			 __func__, p2p->cookie, cookie);
+		wil_info(wil, "Cookie mismatch: 0x%016llx vs. 0x%016llx\n",
+			 p2p->cookie, cookie);
 		mutex_unlock(&wil->mutex);
 		return -ENOENT;
 	}
@@ -231,7 +227,7 @@ int wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie)
 	mutex_unlock(&wil->mutex);
 
 	if (!started) {
-		wil_err(wil, "%s: listen not started\n", __func__);
+		wil_err(wil, "listen not started\n");
 		return -ENOENT;
 	}
 
@@ -253,7 +249,7 @@ void wil_p2p_listen_expired(struct work_struct *work)
 			struct wil6210_priv, p2p);
 	u8 started;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "p2p_listen_expired\n");
 
 	mutex_lock(&wil->mutex);
 	started = wil_p2p_stop_discovery(wil);
@@ -279,7 +275,7 @@ void wil_p2p_search_expired(struct work_struct *work)
 			struct wil6210_priv, p2p);
 	u8 started;
 
-	wil_dbg_misc(wil, "%s()\n", __func__);
+	wil_dbg_misc(wil, "p2p_search_expired\n");
 
 	mutex_lock(&wil->mutex);
 	started = wil_p2p_stop_discovery(wil);

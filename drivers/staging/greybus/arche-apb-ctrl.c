@@ -168,7 +168,10 @@ static int standby_boot_seq(struct platform_device *pdev)
 	if (apb->init_disabled)
 		return 0;
 
-	/* Even if it is in OFF state, then we do not want to change the state */
+	/*
+	 * Even if it is in OFF state,
+	 * then we do not want to change the state
+	 */
 	if (apb->state == ARCHE_PLATFORM_STATE_STANDBY ||
 			apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return 0;
@@ -461,7 +464,7 @@ static int arche_apb_ctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int arche_apb_ctrl_suspend(struct device *dev)
+static int __maybe_unused arche_apb_ctrl_suspend(struct device *dev)
 {
 	/*
 	 * If timing profile permits, we may shutdown bridge
@@ -475,7 +478,7 @@ static int arche_apb_ctrl_suspend(struct device *dev)
 	return 0;
 }
 
-static int arche_apb_ctrl_resume(struct device *dev)
+static int __maybe_unused arche_apb_ctrl_resume(struct device *dev)
 {
 	/*
 	 * Atleast for ES2 we have to meet the delay requirement between

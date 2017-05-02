@@ -183,7 +183,7 @@
 
 &mmc3_pins_a {
 	/* AP6210 requires pull-up */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &ohci0 {
@@ -200,31 +200,24 @@
 
 &pio {
 	gmac_power_pin_bpi_m1p: gmac_power_pin@0 {
-		allwinner,pins = "PH23";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH23";
+		function = "gpio_out";
 	};
 
 	led_pins_bpi_m1p: led_pins@0 {
-		allwinner,pins = "PH24", "PH25";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH24", "PH25";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_bpi_m1p: mmc0_cd_pin@0 {
-		allwinner,pins = "PH10";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH10";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	mmc3_pwrseq_pin_bpi_m1p: mmc3_pwrseq_pin@0 {
-		allwinner,pins = "PH22";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH22";
+		function = "gpio_out";
 	};
 };
 

@@ -23,6 +23,23 @@ Description:
 		If the LED does not support different brightness levels, this
 		should be 1.
 
+What:		/sys/class/leds/<led>/brightness_hw_changed
+Date:		January 2017
+KernelVersion:	4.11
+Description:
+		Last hardware set brightness level for this LED. Some LEDs
+		may be changed autonomously by hardware/firmware. Only LEDs
+		where this happens and the driver can detect this, will have
+		this file.
+
+		This file supports poll() to detect when the hardware changes
+		the brightness.
+
+		Reading this file will return the last brightness level set
+		by the hardware, this may be different from the current
+		brightness. Reading this file when no hw brightness change
+		event has happened will return an ENODATA error.
+
 What:		/sys/class/leds/<led>/trigger
 Date:		March 2006
 KernelVersion:	2.6.17

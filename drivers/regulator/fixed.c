@@ -30,9 +30,6 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
-#include <linux/acpi.h>
-#include <linux/property.h>
-#include <linux/gpio/consumer.h>
 
 struct fixed_voltage_data {
 	struct regulator_desc desc;
@@ -97,44 +94,6 @@ of_get_fixed_voltage_config(struct device *dev,
 	return config;
 }
 
-/**
- * acpi_get_fixed_voltage_config - extract fixed_voltage_config structure info
- * @dev: device requesting for fixed_voltage_config
- * @desc: regulator description
- *
- * Populates fixed_voltage_config structure by extracting data through ACPI
- * interface, returns a pointer to the populated structure of NULL if memory
- * alloc fails.
- */
-static struct fixed_voltage_config *
-acpi_get_fixed_voltage_config(struct device *dev,
-			      const struct regulator_desc *desc)
-{
-	struct fixed_voltage_config *config;
-	const char *supply_name;
-	struct gpio_desc *gpiod;
-	int ret;
-
-	config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
-	if (!config)
-		return ERR_PTR(-ENOMEM);
-
-	ret = device_property_read_string(dev, "supply-name", &supply_name);
-	if (!ret)
-		config->supply_name = supply_name;
-
-	gpiod = gpiod_get(dev, "gpio", GPIOD_ASIS);
-	if (IS_ERR(gpiod))
-		return ERR_PTR(-ENODEV);
-
-	config->gpio = desc_to_gpio(gpiod);
-	config->enable_high = device_property_read_bool(dev,
-							"enable-active-high");
-	gpiod_put(gpiod);
-
-	return config;
-}
-
 static struct regulator_ops fixed_voltage_ops = {
 };
 
@@ -153,11 +112,6 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		config = of_get_fixed_voltage_config(&pdev->dev,
 						     &drvdata->desc);
-		if (IS_ERR(config))
-			return PTR_ERR(config);
-	} else if (ACPI_HANDLE(&pdev->dev)) {
-		config = acpi_get_fixed_voltage_config(&pdev->dev,
-						       &drvdata->desc);
 		if (IS_ERR(config))
 			return PTR_ERR(config);
 	} else {

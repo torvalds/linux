@@ -76,7 +76,9 @@ config PWM_ATMEL_TCB
 
 config PWM_BCM_IPROC
 	tristate "iProc PWM support"
-	depends on ARCH_BCM_IPROC
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on COMMON_CLK
+	default ARCH_BCM_IPROC
 	help
 	  Generic PWM framework driver for Broadcom iProc PWM block. This
 	  block is used in Broadcom iProc SoC's.
@@ -396,6 +398,15 @@ config PWM_STI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-sti.
+
+config PWM_STM32
+	tristate "STMicroelectronics STM32 PWM"
+	depends on MFD_STM32_TIMERS || COMPILE_TEST
+	help
+	  Generic PWM framework driver for STM32 SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-stm32.
 
 config PWM_STMPE
 	bool "STMPE expander PWM export"

@@ -1231,7 +1231,7 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val_len = 0, osr;
+	unsigned int val_len = 0, osr, ctrl_val, bclk_fs, bclk_div;
 
 	nau8825_sema_acquire(nau8825, 3 * HZ);
 
@@ -1259,6 +1259,24 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_ADC_SRC_MASK,
 			osr_adc_sel[osr].clk_src << NAU8825_CLK_ADC_SRC_SFT);
+	}
+
+	/* make BCLK and LRC divde configuration if the codec as master. */
+	regmap_read(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2, &ctrl_val);
+	if (ctrl_val & NAU8825_I2S_MS_MASTER) {
+		/* get the bclk and fs ratio */
+		bclk_fs = snd_soc_params_to_bclk(params) / params_rate(params);
+		if (bclk_fs <= 32)
+			bclk_div = 2;
+		else if (bclk_fs <= 64)
+			bclk_div = 1;
+		else if (bclk_fs <= 128)
+			bclk_div = 0;
+		else
+			return -EINVAL;
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
+			NAU8825_I2S_LRC_DIV_MASK | NAU8825_I2S_BLK_DIV_MASK,
+			((bclk_div + 1) << NAU8825_I2S_LRC_DIV_SFT) | bclk_div);
 	}
 
 	switch (params_width(params)) {

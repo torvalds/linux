@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -536,4 +536,23 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 out:
 	release_firmware(fw);
 	return rc;
+}
+
+/**
+ * wil_fw_verify_file_exists - checks if firmware file exist
+ *
+ * @wil: driver context
+ * @name: firmware file name
+ *
+ * return value - boolean, true for success, false for failure
+ */
+bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name)
+{
+	const struct firmware *fw;
+	int rc;
+
+	rc = request_firmware(&fw, name, wil_to_dev(wil));
+	if (!rc)
+		release_firmware(fw);
+	return rc != -ENOENT;
 }

@@ -43,24 +43,6 @@ const char *const rxrpc_call_completions[NR__RXRPC_CALL_COMPLETIONS] = {
 	[RXRPC_CALL_NETWORK_ERROR]		= "NetError",
 };
 
-const char rxrpc_call_traces[rxrpc_call__nr_trace][4] = {
-	[rxrpc_call_new_client]		= "NWc",
-	[rxrpc_call_new_service]	= "NWs",
-	[rxrpc_call_queued]		= "QUE",
-	[rxrpc_call_queued_ref]		= "QUR",
-	[rxrpc_call_connected]		= "CON",
-	[rxrpc_call_release]		= "RLS",
-	[rxrpc_call_seen]		= "SEE",
-	[rxrpc_call_got]		= "GOT",
-	[rxrpc_call_got_userid]		= "Gus",
-	[rxrpc_call_got_kernel]		= "Gke",
-	[rxrpc_call_put]		= "PUT",
-	[rxrpc_call_put_userid]		= "Pus",
-	[rxrpc_call_put_kernel]		= "Pke",
-	[rxrpc_call_put_noqueue]	= "PNQ",
-	[rxrpc_call_error]		= "*E*",
-};
-
 struct kmem_cache *rxrpc_call_jar;
 LIST_HEAD(rxrpc_calls);
 DEFINE_RWLOCK(rxrpc_call_lock);
@@ -133,6 +115,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	if (!call->rxtx_annotations)
 		goto nomem_2;
 
+	mutex_init(&call->user_mutex);
 	setup_timer(&call->timer, rxrpc_call_timer_expired,
 		    (unsigned long)call);
 	INIT_WORK(&call->processor, &rxrpc_process_call);
@@ -212,14 +195,16 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 }
 
 /*
- * set up a call for the given data
- * - called in process context with IRQs enabled
+ * Set up a call for the given parameters.
+ * - Called with the socket lock held, which it must release.
+ * - If it returns a call, the call's lock will need releasing by the caller.
  */
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_conn_parameters *cp,
 					 struct sockaddr_rxrpc *srx,
 					 unsigned long user_call_ID,
 					 gfp_t gfp)
+	__releases(&rx->sk.sk_lock.slock)
 {
 	struct rxrpc_call *call, *xcall;
 	struct rb_node *parent, **pp;
@@ -230,12 +215,18 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	call = rxrpc_alloc_client_call(srx, gfp);
 	if (IS_ERR(call)) {
+		release_sock(&rx->sk);
 		_leave(" = %ld", PTR_ERR(call));
 		return call;
 	}
 
 	trace_rxrpc_call(call, rxrpc_call_new_client, atomic_read(&call->usage),
 			 here, (const void *)user_call_ID);
+
+	/* We need to protect a partially set up call against the user as we
+	 * will be acting outside the socket lock.
+	 */
+	mutex_lock(&call->user_mutex);
 
 	/* Publish the call, even though it is incompletely set up as yet */
 	write_lock(&rx->call_lock);
@@ -268,6 +259,9 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	list_add_tail(&call->link, &rxrpc_calls);
 	write_unlock(&rxrpc_call_lock);
 
+	/* From this point on, the call is protected by its own lock. */
+	release_sock(&rx->sk);
+
 	/* Set up or get a connection record and set the protocol parameters,
 	 * including channel number and call ID.
 	 */
@@ -297,6 +291,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	 */
 error_dup_user_ID:
 	write_unlock(&rx->call_lock);
+	release_sock(&rx->sk);
 	ret = -EEXIST;
 
 error:
@@ -305,6 +300,7 @@ error:
 	trace_rxrpc_call(call, rxrpc_call_error, atomic_read(&call->usage),
 			 here, ERR_PTR(ret));
 	rxrpc_release_call(rx, call);
+	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);

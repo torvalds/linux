@@ -2456,7 +2456,7 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	if (err) {
 		micbias = M98090_MBVSEL_2V8;
 		dev_info(codec->dev, "use default 2.8v micbias\n");
-	} else if (micbias < M98090_MBVSEL_2V2 || micbias > M98090_MBVSEL_2V8) {
+	} else if (micbias > M98090_MBVSEL_2V8) {
 		dev_err(codec->dev, "micbias out of range 0x%x\n", micbias);
 		micbias = M98090_MBVSEL_2V8;
 	}

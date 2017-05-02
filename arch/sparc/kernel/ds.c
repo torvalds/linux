@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>

@@ -93,15 +93,16 @@ static int ocrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 	int err;
 
 	dev = get_ocrdma_dev(ibdev);
-	err = ocrdma_query_port(ibdev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+	if (ocrdma_is_udp_encap_supported(dev))
+		immutable->core_cap_flags |= RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
+
+	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
-	if (ocrdma_is_udp_encap_supported(dev))
-		immutable->core_cap_flags |= RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
 	return 0;
@@ -198,7 +199,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.alloc_ucontext = ocrdma_alloc_ucontext;
 	dev->ibdev.dealloc_ucontext = ocrdma_dealloc_ucontext;
 	dev->ibdev.mmap = ocrdma_mmap;
-	dev->ibdev.dma_device = &dev->nic_info.pdev->dev;
+	dev->ibdev.dev.parent = &dev->nic_info.pdev->dev;
 
 	dev->ibdev.process_mad = ocrdma_process_mad;
 	dev->ibdev.get_port_immutable = ocrdma_port_immutable;

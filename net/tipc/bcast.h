@@ -42,8 +42,34 @@
 struct tipc_node;
 struct tipc_msg;
 struct tipc_nl_msg;
-struct tipc_node_map;
+struct tipc_nlist;
+struct tipc_nitem;
 extern const char tipc_bclink_name[];
+
+#define TIPC_METHOD_EXPIRE msecs_to_jiffies(5000)
+
+struct tipc_nlist {
+	struct list_head list;
+	u32 self;
+	u16 remote;
+	bool local;
+};
+
+void tipc_nlist_init(struct tipc_nlist *nl, u32 self);
+void tipc_nlist_purge(struct tipc_nlist *nl);
+void tipc_nlist_add(struct tipc_nlist *nl, u32 node);
+void tipc_nlist_del(struct tipc_nlist *nl, u32 node);
+
+/* Cookie to be used between socket and broadcast layer
+ * @rcast: replicast (instead of broadcast) was used at previous xmit
+ * @mandatory: broadcast/replicast indication was set by user
+ * @expires: re-evaluate non-mandatory transmit method if we are past this
+ */
+struct tipc_mc_method {
+	bool rcast;
+	bool mandatory;
+	unsigned long expires;
+};
 
 int tipc_bcast_init(struct net *net);
 void tipc_bcast_stop(struct net *net);
@@ -53,7 +79,10 @@ void tipc_bcast_remove_peer(struct net *net, struct tipc_link *rcv_bcl);
 void tipc_bcast_inc_bearer_dst_cnt(struct net *net, int bearer_id);
 void tipc_bcast_dec_bearer_dst_cnt(struct net *net, int bearer_id);
 int  tipc_bcast_get_mtu(struct net *net);
-int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list);
+void tipc_bcast_disable_rcast(struct net *net);
+int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
+		    struct tipc_mc_method *method, struct tipc_nlist *dests,
+		    u16 *cong_link_cnt);
 int tipc_bcast_rcv(struct net *net, struct tipc_link *l, struct sk_buff *skb);
 void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l,
 			struct tipc_msg *hdr);

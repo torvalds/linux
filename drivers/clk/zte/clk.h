@@ -153,6 +153,25 @@ struct zx_clk_div {
 	.id = _id,							\
 }
 
+struct clk_zx_audio_divider {
+	struct clk_hw				hw;
+	void __iomem				*reg_base;
+	unsigned int				rate_count;
+	spinlock_t				*lock;
+	u16					id;
+};
+
+#define AUDIO_DIV(_id, _name, _parent, _reg)				\
+{									\
+	.reg_base	= (void __iomem *) _reg,			\
+	.lock		= &clk_lock,					\
+	.hw.init	= CLK_HW_INIT(_name,				\
+				      _parent,				\
+				      &zx_audio_div_ops,		\
+				      0),				\
+	.id = _id,							\
+}
+
 struct clk *clk_register_zx_pll(const char *name, const char *parent_name,
 	unsigned long flags, void __iomem *reg_base,
 	const struct zx_pll_config *lookup_table, int count, spinlock_t *lock);
@@ -167,4 +186,6 @@ struct clk *clk_register_zx_audio(const char *name,
 				  unsigned long flags, void __iomem *reg_base);
 
 extern const struct clk_ops zx_pll_ops;
+extern const struct clk_ops zx_audio_div_ops;
+
 #endif

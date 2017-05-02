@@ -79,11 +79,15 @@ struct ib_umem_odp {
 
 	struct completion	notifier_completion;
 	int			dying;
+	struct work_struct	work;
 };
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 
 int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem);
+struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
+				  unsigned long addr,
+				  size_t size);
 
 void ib_umem_odp_release(struct ib_umem *umem);
 
@@ -117,10 +121,12 @@ typedef int (*umem_call_back)(struct ib_umem *item, u64 start, u64 end,
 int rbt_ib_umem_for_each_in_range(struct rb_root *root, u64 start, u64 end,
 				  umem_call_back cb, void *cookie);
 
-struct umem_odp_node *rbt_ib_umem_iter_first(struct rb_root *root,
-					     u64 start, u64 last);
-struct umem_odp_node *rbt_ib_umem_iter_next(struct umem_odp_node *node,
-					    u64 start, u64 last);
+/*
+ * Find first region intersecting with address range.
+ * Return NULL if not found
+ */
+struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root *root,
+				       u64 addr, u64 length);
 
 static inline int ib_umem_mmu_notifier_retry(struct ib_umem *item,
 					     unsigned long mmu_seq)
@@ -151,6 +157,13 @@ static inline int ib_umem_odp_get(struct ib_ucontext *context,
 				  struct ib_umem *umem)
 {
 	return -EINVAL;
+}
+
+static inline struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
+						unsigned long addr,
+						size_t size)
+{
+	return ERR_PTR(-EINVAL);
 }
 
 static inline void ib_umem_odp_release(struct ib_umem *umem) {}

@@ -52,6 +52,25 @@ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
 }
 
+extern int dup_userfaultfd(struct vm_area_struct *, struct list_head *);
+extern void dup_userfaultfd_complete(struct list_head *);
+
+extern void mremap_userfaultfd_prep(struct vm_area_struct *,
+				    struct vm_userfaultfd_ctx *);
+extern void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *,
+					unsigned long from, unsigned long to,
+					unsigned long len);
+
+extern bool userfaultfd_remove(struct vm_area_struct *vma,
+			       unsigned long start,
+			       unsigned long end);
+
+extern int userfaultfd_unmap_prep(struct vm_area_struct *vma,
+				  unsigned long start, unsigned long end,
+				  struct list_head *uf);
+extern void userfaultfd_unmap_complete(struct mm_struct *mm,
+				       struct list_head *uf);
+
 #else /* CONFIG_USERFAULTFD */
 
 /* mm helpers */
@@ -74,6 +93,47 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
 static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 {
 	return false;
+}
+
+static inline int dup_userfaultfd(struct vm_area_struct *vma,
+				  struct list_head *l)
+{
+	return 0;
+}
+
+static inline void dup_userfaultfd_complete(struct list_head *l)
+{
+}
+
+static inline void mremap_userfaultfd_prep(struct vm_area_struct *vma,
+					   struct vm_userfaultfd_ctx *ctx)
+{
+}
+
+static inline void mremap_userfaultfd_complete(struct vm_userfaultfd_ctx *ctx,
+					       unsigned long from,
+					       unsigned long to,
+					       unsigned long len)
+{
+}
+
+static inline bool userfaultfd_remove(struct vm_area_struct *vma,
+				      unsigned long start,
+				      unsigned long end)
+{
+	return true;
+}
+
+static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
+					 unsigned long start, unsigned long end,
+					 struct list_head *uf)
+{
+	return 0;
+}
+
+static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
+					      struct list_head *uf)
+{
 }
 
 #endif /* CONFIG_USERFAULTFD */

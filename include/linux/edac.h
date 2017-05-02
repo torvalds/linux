@@ -190,8 +190,8 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  *			part of the memory details to the memory controller.
  * @MEM_RMBS:		Rambus DRAM, used on a few Pentium III/IV controllers.
  * @MEM_DDR2:		DDR2 RAM, as described at JEDEC JESD79-2F.
- *			Those memories are labed as "PC2-" instead of "PC" to
- *			differenciate from DDR.
+ *			Those memories are labeled as "PC2-" instead of "PC" to
+ *			differentiate from DDR.
  * @MEM_FB_DDR2:	Fully-Buffered DDR2, as described at JEDEC Std No. 205
  *			and JESD206.
  *			Those memories are accessed per DIMM slot, and not by

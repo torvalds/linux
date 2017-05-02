@@ -31,35 +31,9 @@
 #include <linux/mfd/syscon.h>
 #include <soc/at91/atmel-secumod.h>
 
+#include "sram.h"
+
 #define SRAM_GRANULARITY	32
-
-struct sram_partition {
-	void __iomem *base;
-
-	struct gen_pool *pool;
-	struct bin_attribute battr;
-	struct mutex lock;
-};
-
-struct sram_dev {
-	struct device *dev;
-	void __iomem *virt_base;
-
-	struct gen_pool *pool;
-	struct clk *clk;
-
-	struct sram_partition *partition;
-	u32 partitions;
-};
-
-struct sram_reserve {
-	struct list_head list;
-	u32 start;
-	u32 size;
-	bool export;
-	bool pool;
-	const char *label;
-};
 
 static ssize_t sram_read(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr,
@@ -148,6 +122,18 @@ static int sram_add_partition(struct sram_dev *sram, struct sram_reserve *block,
 		if (ret)
 			return ret;
 	}
+	if (block->protect_exec) {
+		ret = sram_check_protect_exec(sram, block, part);
+		if (ret)
+			return ret;
+
+		ret = sram_add_pool(sram, block, start, part);
+		if (ret)
+			return ret;
+
+		sram_add_protect_exec(part);
+	}
+
 	sram->partitions++;
 
 	return 0;
@@ -233,7 +219,11 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		if (of_find_property(child, "pool", NULL))
 			block->pool = true;
 
-		if ((block->export || block->pool) && block->size) {
+		if (of_find_property(child, "protect-exec", NULL))
+			block->protect_exec = true;
+
+		if ((block->export || block->pool || block->protect_exec) &&
+		    block->size) {
 			exports++;
 
 			label = NULL;
@@ -249,8 +239,10 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 
 			block->label = devm_kstrdup(sram->dev,
 						    label, GFP_KERNEL);
-			if (!block->label)
+			if (!block->label) {
+				ret = -ENOMEM;
 				goto err_chunks;
+			}
 
 			dev_dbg(sram->dev, "found %sblock '%s' 0x%x-0x%x\n",
 				block->export ? "exported " : "", block->label,
@@ -293,7 +285,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 			goto err_chunks;
 		}
 
-		if ((block->export || block->pool) && block->size) {
+		if ((block->export || block->pool || block->protect_exec) &&
+		    block->size) {
 			ret = sram_add_partition(sram, block,
 						 res->start + block->start);
 			if (ret) {

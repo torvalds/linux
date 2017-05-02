@@ -269,6 +269,22 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	efi_scratch.use_pgd = true;
 
 	/*
+	 * Certain firmware versions are way too sentimential and still believe
+	 * they are exclusive and unquestionable owners of the first physical page,
+	 * even though they explicitly mark it as EFI_CONVENTIONAL_MEMORY
+	 * (but then write-access it later during SetVirtualAddressMap()).
+	 *
+	 * Create a 1:1 mapping for this page, to avoid triple faults during early
+	 * boot with such firmware. We are free to hand this page to the BIOS,
+	 * as trim_bios_range() will reserve the first page and isolate it away
+	 * from memory allocators anyway.
+	 */
+	if (kernel_map_pages_in_pgd(pgd, 0x0, 0x0, 1, _PAGE_RW)) {
+		pr_err("Failed to create 1:1 mapping for the first page!\n");
+		return 1;
+	}
+
+	/*
 	 * When making calls to the firmware everything needs to be 1:1
 	 * mapped and addressable with 32-bit pointers. Map the kernel
 	 * text and allocate a new stack because we can't rely on the
@@ -398,10 +414,44 @@ void __init parse_efi_setup(u64 phys_addr, u32 data_len)
 	efi_setup = phys_addr + sizeof(struct setup_data);
 }
 
-void __init efi_runtime_update_mappings(void)
+static int __init efi_update_mappings(efi_memory_desc_t *md, unsigned long pf)
 {
 	unsigned long pfn;
 	pgd_t *pgd = efi_pgd;
+	int err1, err2;
+
+	/* Update the 1:1 mapping */
+	pfn = md->phys_addr >> PAGE_SHIFT;
+	err1 = kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, md->num_pages, pf);
+	if (err1) {
+		pr_err("Error while updating 1:1 mapping PA 0x%llx -> VA 0x%llx!\n",
+			   md->phys_addr, md->virt_addr);
+	}
+
+	err2 = kernel_map_pages_in_pgd(pgd, pfn, md->virt_addr, md->num_pages, pf);
+	if (err2) {
+		pr_err("Error while updating VA mapping PA 0x%llx -> VA 0x%llx!\n",
+			   md->phys_addr, md->virt_addr);
+	}
+
+	return err1 || err2;
+}
+
+static int __init efi_update_mem_attr(struct mm_struct *mm, efi_memory_desc_t *md)
+{
+	unsigned long pf = 0;
+
+	if (md->attribute & EFI_MEMORY_XP)
+		pf |= _PAGE_NX;
+
+	if (!(md->attribute & EFI_MEMORY_RO))
+		pf |= _PAGE_RW;
+
+	return efi_update_mappings(md, pf);
+}
+
+void __init efi_runtime_update_mappings(void)
+{
 	efi_memory_desc_t *md;
 
 	if (efi_enabled(EFI_OLD_MEMMAP)) {
@@ -409,6 +459,24 @@ void __init efi_runtime_update_mappings(void)
 			runtime_code_page_mkexec();
 		return;
 	}
+
+	/*
+	 * Use the EFI Memory Attribute Table for mapping permissions if it
+	 * exists, since it is intended to supersede EFI_PROPERTIES_TABLE.
+	 */
+	if (efi_enabled(EFI_MEM_ATTR)) {
+		efi_memattr_apply_permissions(NULL, efi_update_mem_attr);
+		return;
+	}
+
+	/*
+	 * EFI_MEMORY_ATTRIBUTES_TABLE is intended to replace
+	 * EFI_PROPERTIES_TABLE. So, use EFI_PROPERTIES_TABLE to update
+	 * permissions only if EFI_MEMORY_ATTRIBUTES_TABLE is not
+	 * published by the firmware. Even if we find a buggy implementation of
+	 * EFI_MEMORY_ATTRIBUTES_TABLE, don't fall back to
+	 * EFI_PROPERTIES_TABLE, because of the same reason.
+	 */
 
 	if (!efi_enabled(EFI_NX_PE_DATA))
 		return;
@@ -430,15 +498,7 @@ void __init efi_runtime_update_mappings(void)
 			(md->type != EFI_RUNTIME_SERVICES_CODE))
 			pf |= _PAGE_RW;
 
-		/* Update the 1:1 mapping */
-		pfn = md->phys_addr >> PAGE_SHIFT;
-		if (kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, md->num_pages, pf))
-			pr_warn("Error mapping PA 0x%llx -> VA 0x%llx!\n",
-				   md->phys_addr, md->virt_addr);
-
-		if (kernel_map_pages_in_pgd(pgd, pfn, md->virt_addr, md->num_pages, pf))
-			pr_warn("Error mapping PA 0x%llx -> VA 0x%llx!\n",
-				   md->phys_addr, md->virt_addr);
+		efi_update_mappings(md, pf);
 	}
 }
 

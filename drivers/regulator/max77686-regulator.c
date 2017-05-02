@@ -289,7 +289,7 @@ static int max77686_of_parse_cb(struct device_node *np,
 	return 0;
 }
 
-static struct regulator_ops max77686_ops = {
+static const struct regulator_ops max77686_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -301,7 +301,7 @@ static struct regulator_ops max77686_ops = {
 	.set_suspend_mode	= max77686_set_suspend_mode,
 };
 
-static struct regulator_ops max77686_ldo_ops = {
+static const struct regulator_ops max77686_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -314,7 +314,7 @@ static struct regulator_ops max77686_ldo_ops = {
 	.set_suspend_disable	= max77686_set_suspend_disable,
 };
 
-static struct regulator_ops max77686_buck1_ops = {
+static const struct regulator_ops max77686_buck1_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -326,7 +326,7 @@ static struct regulator_ops max77686_buck1_ops = {
 	.set_suspend_disable	= max77686_set_suspend_disable,
 };
 
-static struct regulator_ops max77686_buck_dvs_ops = {
+static const struct regulator_ops max77686_buck_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,

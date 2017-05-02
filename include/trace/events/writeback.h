@@ -31,7 +31,7 @@
 
 #define WB_WORK_REASON							\
 	EM( WB_REASON_BACKGROUND,		"background")		\
-	EM( WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages")	\
+	EM( WB_REASON_VMSCAN,			"vmscan")		\
 	EM( WB_REASON_SYNC,			"sync")			\
 	EM( WB_REASON_PERIODIC,			"periodic")		\
 	EM( WB_REASON_LAPTOP_TIMER,		"laptop_timer")		\

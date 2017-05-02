@@ -52,7 +52,7 @@ struct gb_sdio_host {
 
 static inline bool single_op(struct mmc_command *cmd)
 {
-	uint32_t opcode = cmd->opcode;
+	u32 opcode = cmd->opcode;
 
 	return opcode == MMC_WRITE_BLOCK ||
 	       opcode == MMC_READ_SINGLE_BLOCK;

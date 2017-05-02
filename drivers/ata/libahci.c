@@ -1519,8 +1519,8 @@ static int ahci_pmp_retry_softreset(struct ata_link *link, unsigned int *class,
 	return rc;
 }
 
-static int ahci_hardreset(struct ata_link *link, unsigned int *class,
-			  unsigned long deadline)
+int ahci_do_hardreset(struct ata_link *link, unsigned int *class,
+		      unsigned long deadline, bool *online)
 {
 	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
 	struct ata_port *ap = link->ap;
@@ -1528,7 +1528,6 @@ static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
-	bool online;
 	int rc;
 
 	DPRINTK("ENTER\n");
@@ -1540,16 +1539,25 @@ static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 	tf.command = ATA_BUSY;
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
-	rc = sata_link_hardreset(link, timing, deadline, &online,
+	rc = sata_link_hardreset(link, timing, deadline, online,
 				 ahci_check_ready);
 
 	hpriv->start_engine(ap);
 
-	if (online)
+	if (*online)
 		*class = ahci_dev_classify(ap);
 
 	DPRINTK("EXIT, rc=%d, class=%u\n", rc, *class);
 	return rc;
+}
+EXPORT_SYMBOL_GPL(ahci_do_hardreset);
+
+static int ahci_hardreset(struct ata_link *link, unsigned int *class,
+			  unsigned long deadline)
+{
+	bool online;
+
+	return ahci_do_hardreset(link, class, deadline, &online);
 }
 
 static void ahci_postreset(struct ata_link *link, unsigned int *class)

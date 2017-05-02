@@ -36,7 +36,7 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/workqueue.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/skbuff.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>

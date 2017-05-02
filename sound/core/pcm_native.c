@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/file.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/time.h>
 #include <linux/pm_qos.h>
 #include <linux/io.h>
@@ -3245,10 +3246,9 @@ static unsigned int snd_pcm_capture_poll(struct file *file, poll_table * wait)
 /*
  * mmap status record
  */
-static int snd_pcm_mmap_status_fault(struct vm_area_struct *area,
-						struct vm_fault *vmf)
+static int snd_pcm_mmap_status_fault(struct vm_fault *vmf)
 {
-	struct snd_pcm_substream *substream = area->vm_private_data;
+	struct snd_pcm_substream *substream = vmf->vma->vm_private_data;
 	struct snd_pcm_runtime *runtime;
 	
 	if (substream == NULL)
@@ -3282,10 +3282,9 @@ static int snd_pcm_mmap_status(struct snd_pcm_substream *substream, struct file 
 /*
  * mmap control record
  */
-static int snd_pcm_mmap_control_fault(struct vm_area_struct *area,
-						struct vm_fault *vmf)
+static int snd_pcm_mmap_control_fault(struct vm_fault *vmf)
 {
-	struct snd_pcm_substream *substream = area->vm_private_data;
+	struct snd_pcm_substream *substream = vmf->vma->vm_private_data;
 	struct snd_pcm_runtime *runtime;
 	
 	if (substream == NULL)
@@ -3341,10 +3340,9 @@ snd_pcm_default_page_ops(struct snd_pcm_substream *substream, unsigned long ofs)
 /*
  * fault callback for mmapping a RAM page
  */
-static int snd_pcm_mmap_data_fault(struct vm_area_struct *area,
-						struct vm_fault *vmf)
+static int snd_pcm_mmap_data_fault(struct vm_fault *vmf)
 {
-	struct snd_pcm_substream *substream = area->vm_private_data;
+	struct snd_pcm_substream *substream = vmf->vma->vm_private_data;
 	struct snd_pcm_runtime *runtime;
 	unsigned long offset;
 	struct page * page;

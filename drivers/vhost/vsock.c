@@ -223,6 +223,46 @@ vhost_transport_send_pkt(struct virtio_vsock_pkt *pkt)
 	return len;
 }
 
+static int
+vhost_transport_cancel_pkt(struct vsock_sock *vsk)
+{
+	struct vhost_vsock *vsock;
+	struct virtio_vsock_pkt *pkt, *n;
+	int cnt = 0;
+	LIST_HEAD(freeme);
+
+	/* Find the vhost_vsock according to guest context id  */
+	vsock = vhost_vsock_get(vsk->remote_addr.svm_cid);
+	if (!vsock)
+		return -ENODEV;
+
+	spin_lock_bh(&vsock->send_pkt_list_lock);
+	list_for_each_entry_safe(pkt, n, &vsock->send_pkt_list, list) {
+		if (pkt->vsk != vsk)
+			continue;
+		list_move(&pkt->list, &freeme);
+	}
+	spin_unlock_bh(&vsock->send_pkt_list_lock);
+
+	list_for_each_entry_safe(pkt, n, &freeme, list) {
+		if (pkt->reply)
+			cnt++;
+		list_del(&pkt->list);
+		virtio_transport_free_pkt(pkt);
+	}
+
+	if (cnt) {
+		struct vhost_virtqueue *tx_vq = &vsock->vqs[VSOCK_VQ_TX];
+		int new_cnt;
+
+		new_cnt = atomic_sub_return(cnt, &vsock->queued_replies);
+		if (new_cnt + cnt >= tx_vq->num && new_cnt < tx_vq->num)
+			vhost_poll_queue(&tx_vq->poll);
+	}
+
+	return 0;
+}
+
 static struct virtio_vsock_pkt *
 vhost_vsock_alloc_pkt(struct vhost_virtqueue *vq,
 		      unsigned int out, unsigned int in)
@@ -373,6 +413,7 @@ static void vhost_vsock_handle_rx_kick(struct vhost_work *work)
 
 static int vhost_vsock_start(struct vhost_vsock *vsock)
 {
+	struct vhost_virtqueue *vq;
 	size_t i;
 	int ret;
 
@@ -383,19 +424,20 @@ static int vhost_vsock_start(struct vhost_vsock *vsock)
 		goto err;
 
 	for (i = 0; i < ARRAY_SIZE(vsock->vqs); i++) {
-		struct vhost_virtqueue *vq = &vsock->vqs[i];
+		vq = &vsock->vqs[i];
 
 		mutex_lock(&vq->mutex);
 
 		if (!vhost_vq_access_ok(vq)) {
 			ret = -EFAULT;
-			mutex_unlock(&vq->mutex);
 			goto err_vq;
 		}
 
 		if (!vq->private_data) {
 			vq->private_data = vsock;
-			vhost_vq_init_access(vq);
+			ret = vhost_vq_init_access(vq);
+			if (ret)
+				goto err_vq;
 		}
 
 		mutex_unlock(&vq->mutex);
@@ -405,8 +447,11 @@ static int vhost_vsock_start(struct vhost_vsock *vsock)
 	return 0;
 
 err_vq:
+	vq->private_data = NULL;
+	mutex_unlock(&vq->mutex);
+
 	for (i = 0; i < ARRAY_SIZE(vsock->vqs); i++) {
-		struct vhost_virtqueue *vq = &vsock->vqs[i];
+		vq = &vsock->vqs[i];
 
 		mutex_lock(&vq->mutex);
 		vq->private_data = NULL;
@@ -670,6 +715,7 @@ static struct virtio_transport vhost_transport = {
 		.release                  = virtio_transport_release,
 		.connect                  = virtio_transport_connect,
 		.shutdown                 = virtio_transport_shutdown,
+		.cancel_pkt               = vhost_transport_cancel_pkt,
 
 		.dgram_enqueue            = virtio_transport_dgram_enqueue,
 		.dgram_dequeue            = virtio_transport_dgram_dequeue,

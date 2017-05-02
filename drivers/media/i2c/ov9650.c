@@ -522,7 +522,7 @@ static void __ov965x_set_power(struct ov965x *ov965x, int on)
 	if (on) {
 		ov965x_gpio_set(ov965x->gpios[GPIO_PWDN], 0);
 		ov965x_gpio_set(ov965x->gpios[GPIO_RST], 0);
-		usleep_range(25000, 26000);
+		msleep(25);
 	} else {
 		ov965x_gpio_set(ov965x->gpios[GPIO_RST], 1);
 		ov965x_gpio_set(ov965x->gpios[GPIO_PWDN], 1);
@@ -1438,7 +1438,7 @@ static int ov965x_detect_sensor(struct v4l2_subdev *sd)
 
 	mutex_lock(&ov965x->lock);
 	__ov965x_set_power(ov965x, 1);
-	usleep_range(25000, 26000);
+	msleep(25);
 
 	/* Check sensor revision */
 	ret = ov965x_read(client, REG_PID, &pid);

@@ -188,7 +188,6 @@ EXPORT_SYMBOL(first_ec);
 static bool boot_ec_is_ecdt = false;
 static struct workqueue_struct *ec_query_wq;
 
-static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
 static int EC_FLAGS_CORRECT_ECDT; /* Needs ECDT port address correction */
 
@@ -492,26 +491,6 @@ static inline void __acpi_ec_disable_event(struct acpi_ec *ec)
 		ec_log_drv("event blocked");
 }
 
-/*
- * Process _Q events that might have accumulated in the EC.
- * Run with locked ec mutex.
- */
-static void acpi_ec_clear(struct acpi_ec *ec)
-{
-	int i, status;
-	u8 value = 0;
-
-	for (i = 0; i < ACPI_EC_CLEAR_MAX; i++) {
-		status = acpi_ec_query(ec, &value);
-		if (status || !value)
-			break;
-	}
-	if (unlikely(i == ACPI_EC_CLEAR_MAX))
-		pr_warn("Warning: Maximum of %d stale EC events cleared\n", i);
-	else
-		pr_info("%d stale EC events cleared\n", i);
-}
-
 static void acpi_ec_enable_event(struct acpi_ec *ec)
 {
 	unsigned long flags;
@@ -520,10 +499,6 @@ static void acpi_ec_enable_event(struct acpi_ec *ec)
 	if (acpi_ec_started(ec))
 		__acpi_ec_enable_event(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
-
-	/* Drain additional events if hardware requires that */
-	if (EC_FLAGS_CLEAR_ON_RESUME)
-		acpi_ec_clear(ec);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -729,12 +704,12 @@ static void start_transaction(struct acpi_ec *ec)
 
 static int ec_guard(struct acpi_ec *ec)
 {
-	unsigned long guard = usecs_to_jiffies(ec_polling_guard);
+	unsigned long guard = usecs_to_jiffies(ec->polling_guard);
 	unsigned long timeout = ec->timestamp + guard;
 
 	/* Ensure guarding period before polling EC status */
 	do {
-		if (ec_busy_polling) {
+		if (ec->busy_polling) {
 			/* Perform busy polling */
 			if (ec_transaction_completed(ec))
 				return 0;
@@ -995,6 +970,28 @@ static void acpi_ec_stop(struct acpi_ec *ec, bool suspending)
 		clear_bit(EC_FLAGS_STOPPED, &ec->flags);
 		ec_log_drv("EC stopped");
 	}
+	spin_unlock_irqrestore(&ec->lock, flags);
+}
+
+static void acpi_ec_enter_noirq(struct acpi_ec *ec)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	ec->busy_polling = true;
+	ec->polling_guard = 0;
+	ec_log_drv("interrupt blocked");
+	spin_unlock_irqrestore(&ec->lock, flags);
+}
+
+static void acpi_ec_leave_noirq(struct acpi_ec *ec)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	ec->busy_polling = ec_busy_polling;
+	ec->polling_guard = ec_polling_guard;
+	ec_log_drv("interrupt unblocked");
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
 
@@ -1278,7 +1275,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 	if (function != ACPI_READ && function != ACPI_WRITE)
 		return AE_BAD_PARAMETER;
 
-	if (ec_busy_polling || bits > 8)
+	if (ec->busy_polling || bits > 8)
 		acpi_ec_burst_enable(ec);
 
 	for (i = 0; i < bytes; ++i, ++address, ++value)
@@ -1286,7 +1283,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 			acpi_ec_read(ec, address, value) :
 			acpi_ec_write(ec, address, *value);
 
-	if (ec_busy_polling || bits > 8)
+	if (ec->busy_polling || bits > 8)
 		acpi_ec_burst_disable(ec);
 
 	switch (result) {
@@ -1329,6 +1326,8 @@ static struct acpi_ec *acpi_ec_alloc(void)
 	spin_lock_init(&ec->lock);
 	INIT_WORK(&ec->work, acpi_ec_event_handler);
 	ec->timestamp = jiffies;
+	ec->busy_polling = true;
+	ec->polling_guard = 0;
 	return ec;
 }
 
@@ -1390,6 +1389,7 @@ static int ec_install_handlers(struct acpi_ec *ec, bool handle_events)
 	acpi_ec_start(ec, false);
 
 	if (!test_bit(EC_FLAGS_EC_HANDLER_INSTALLED, &ec->flags)) {
+		acpi_ec_enter_noirq(ec);
 		status = acpi_install_address_space_handler(ec->handle,
 							    ACPI_ADR_SPACE_EC,
 							    &acpi_ec_space_handler,
@@ -1429,6 +1429,7 @@ static int ec_install_handlers(struct acpi_ec *ec, bool handle_events)
 		/* This is not fatal as we can poll EC events */
 		if (ACPI_SUCCESS(status)) {
 			set_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags);
+			acpi_ec_leave_noirq(ec);
 			if (test_bit(EC_FLAGS_STARTED, &ec->flags) &&
 			    ec->reference_count >= 1)
 				acpi_ec_enable_gpe(ec, true);
@@ -1741,31 +1742,6 @@ static int ec_flag_query_handshake(const struct dmi_system_id *id)
 #endif
 
 /*
- * On some hardware it is necessary to clear events accumulated by the EC during
- * sleep. These ECs stop reporting GPEs until they are manually polled, if too
- * many events are accumulated. (e.g. Samsung Series 5/9 notebooks)
- *
- * https://bugzilla.kernel.org/show_bug.cgi?id=44161
- *
- * Ideally, the EC should also be instructed NOT to accumulate events during
- * sleep (which Windows seems to do somehow), but the interface to control this
- * behaviour is not known at this time.
- *
- * Models known to be affected are Samsung 530Uxx/535Uxx/540Uxx/550Pxx/900Xxx,
- * however it is very likely that other Samsung models are affected.
- *
- * On systems which don't accumulate _Q events during sleep, this extra check
- * should be harmless.
- */
-static int ec_clear_on_resume(const struct dmi_system_id *id)
-{
-	pr_debug("Detected system needing EC poll on resume.\n");
-	EC_FLAGS_CLEAR_ON_RESUME = 1;
-	ec_event_clearing = ACPI_EC_EVT_TIMING_STATUS;
-	return 0;
-}
-
-/*
  * Some ECDTs contain wrong register addresses.
  * MSI MS-171F
  * https://bugzilla.kernel.org/show_bug.cgi?id=12461
@@ -1782,9 +1758,6 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	ec_correct_ecdt, "MSI MS-171F", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
 	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
-	{
-	ec_clear_on_resume, "Samsung hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD.")}, NULL},
 	{},
 };
 
@@ -1839,34 +1812,6 @@ error:
 }
 
 #ifdef CONFIG_PM_SLEEP
-static void acpi_ec_enter_noirq(struct acpi_ec *ec)
-{
-	unsigned long flags;
-
-	if (ec == first_ec) {
-		spin_lock_irqsave(&ec->lock, flags);
-		ec->saved_busy_polling = ec_busy_polling;
-		ec->saved_polling_guard = ec_polling_guard;
-		ec_busy_polling = true;
-		ec_polling_guard = 0;
-		ec_log_drv("interrupt blocked");
-		spin_unlock_irqrestore(&ec->lock, flags);
-	}
-}
-
-static void acpi_ec_leave_noirq(struct acpi_ec *ec)
-{
-	unsigned long flags;
-
-	if (ec == first_ec) {
-		spin_lock_irqsave(&ec->lock, flags);
-		ec_busy_polling = ec->saved_busy_polling;
-		ec_polling_guard = ec->saved_polling_guard;
-		ec_log_drv("interrupt unblocked");
-		spin_unlock_irqrestore(&ec->lock, flags);
-	}
-}
-
 static int acpi_ec_suspend_noirq(struct device *dev)
 {
 	struct acpi_ec *ec =

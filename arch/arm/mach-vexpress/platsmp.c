@@ -79,7 +79,7 @@ static void __init vexpress_smp_dt_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	vexpress_flags_set(virt_to_phys(versatile_secondary_startup));
+	vexpress_flags_set(__pa_symbol(versatile_secondary_startup));
 }
 
 const struct smp_operations vexpress_smp_dt_ops __initconst = {

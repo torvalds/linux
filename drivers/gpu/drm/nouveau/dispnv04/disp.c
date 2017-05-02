@@ -35,7 +35,7 @@ int
 nv04_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
+	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
@@ -48,7 +48,7 @@ nv04_display_create(struct drm_device *dev)
 	if (!disp)
 		return -ENOMEM;
 
-	nvif_object_map(&drm->device.object);
+	nvif_object_map(&drm->client.device.object);
 
 	nouveau_display(dev)->priv = disp;
 	nouveau_display(dev)->dtor = nv04_display_destroy;
@@ -139,7 +139,7 @@ nv04_display_destroy(struct drm_device *dev)
 	nouveau_display(dev)->priv = NULL;
 	kfree(disp);
 
-	nvif_object_unmap(&drm->device.object);
+	nvif_object_unmap(&drm->client.device.object);
 }
 
 int

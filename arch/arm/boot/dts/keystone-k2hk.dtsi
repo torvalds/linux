@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <dt-bindings/reset/ti-syscon.h>
+
 / {
 	compatible = "ti,k2hk", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Kepler/Hawking SoC";
@@ -45,6 +47,36 @@
 
 	soc {
 		/include/ "keystone-k2hk-clocks.dtsi"
+
+		msm_ram: msmram@0c000000 {
+			compatible = "mmio-sram";
+			reg = <0x0c000000 0x600000>;
+			ranges = <0x0 0x0c000000 0x600000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			sram-bm@5f0000 {
+				reg = <0x5f0000 0x8000>;
+			};
+		};
+
+		psc: power-sleep-controller@02350000 {
+			pscrst: reset-controller {
+				compatible = "ti,k2hk-pscrst", "ti,syscon-reset";
+				#reset-cells = <1>;
+
+				ti,reset-bits = <
+					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 0: dsp0 */
+					0xa40 8 0xa40 8 0x840 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 1: dsp1 */
+					0xa44 8 0xa44 8 0x844 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 2: dsp2 */
+					0xa48 8 0xa48 8 0x848 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 3: dsp3 */
+					0xa4c 8 0xa4c 8 0x84c 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 4: dsp4 */
+					0xa50 8 0xa50 8 0x850 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 5: dsp5 */
+					0xa54 8 0xa54 8 0x854 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 6: dsp6 */
+					0xa58 8 0xa58 8 0x858 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 7: dsp7 */
+				>;
+			};
+		};
 
 		dspgpio0: keystone_dsp_gpio@02620240 {
 			compatible = "ti,keystone-dsp-gpio";

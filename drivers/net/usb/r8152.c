@@ -32,7 +32,7 @@
 #define NETNEXT_VERSION		"08"
 
 /* Information for net */
-#define NET_VERSION		"6"
+#define NET_VERSION		"9"
 
 #define DRIVER_VERSION		"v1." NETNEXT_VERSION "." NET_VERSION
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
@@ -501,6 +501,8 @@ enum rtl_register_content {
 #define RTL8153_RMS		RTL8153_MAX_PACKET
 #define RTL8152_TX_TIMEOUT	(5 * HZ)
 #define RTL8152_NAPI_WEIGHT	64
+#define rx_reserved_size(x)	((x) + VLAN_ETH_HLEN + CRC_SIZE + \
+				 sizeof(struct rx_desc) + RX_ALIGN)
 
 /* rtl8152 flags */
 enum rtl8152_flags {
@@ -1362,6 +1364,7 @@ static int alloc_all_mem(struct r8152 *tp)
 	spin_lock_init(&tp->rx_lock);
 	spin_lock_init(&tp->tx_lock);
 	INIT_LIST_HEAD(&tp->tx_free);
+	INIT_LIST_HEAD(&tp->rx_done);
 	skb_queue_head_init(&tp->tx_queue);
 	skb_queue_head_init(&tp->rx_queue);
 
@@ -1936,6 +1939,9 @@ static int r8152_poll(struct napi_struct *napi, int budget)
 		napi_complete(napi);
 		if (!list_empty(&tp->rx_done))
 			napi_schedule(napi);
+		else if (!skb_queue_empty(&tp->tx_queue) &&
+			 !list_empty(&tp->tx_free))
+			napi_schedule(napi);
 	}
 
 	return work_done;
@@ -2249,8 +2255,7 @@ static void r8153_set_rx_early_timeout(struct r8152 *tp)
 
 static void r8153_set_rx_early_size(struct r8152 *tp)
 {
-	u32 mtu = tp->netdev->mtu;
-	u32 ocp_data = (agg_buf_sz - mtu - VLAN_ETH_HLEN - VLAN_HLEN) / 8;
+	u32 ocp_data = (agg_buf_sz - rx_reserved_size(tp->netdev->mtu)) / 4;
 
 	ocp_write_word(tp, MCU_TYPE_USB, USB_RX_EARLY_SIZE, ocp_data);
 }
@@ -2895,7 +2900,8 @@ static void r8153_first_init(struct r8152 *tp)
 
 	rtl_rx_vlan_en(tp, tp->netdev->features & NETIF_F_HW_VLAN_CTAG_RX);
 
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8153_RMS);
+	ocp_data = tp->netdev->mtu + VLAN_ETH_HLEN + CRC_SIZE;
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, ocp_data);
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_MTPS, MTPS_JUMBO);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TCR0);
@@ -2947,7 +2953,8 @@ static void r8153_enter_oob(struct r8152 *tp)
 		usleep_range(1000, 2000);
 	}
 
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, RTL8153_RMS);
+	ocp_data = tp->netdev->mtu + VLAN_ETH_HLEN + CRC_SIZE;
+	ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, ocp_data);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_TEREDO_CFG);
 	ocp_data &= ~TEREDO_WAKE_MASK;
@@ -3155,10 +3162,13 @@ static void set_carrier(struct r8152 *tp)
 		if (!netif_carrier_ok(netdev)) {
 			tp->rtl_ops.enable(tp);
 			set_bit(RTL8152_SET_RX_MODE, &tp->flags);
+			netif_stop_queue(netdev);
 			napi_disable(&tp->napi);
 			netif_carrier_on(netdev);
 			rtl_start_rx(tp);
 			napi_enable(&tp->napi);
+			netif_wake_queue(netdev);
+			netif_info(tp, link, netdev, "carrier on\n");
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
@@ -3166,6 +3176,7 @@ static void set_carrier(struct r8152 *tp)
 			napi_disable(&tp->napi);
 			tp->rtl_ops.disable(tp);
 			napi_enable(&tp->napi);
+			netif_info(tp, link, netdev, "carrier off\n");
 		}
 	}
 }
@@ -3515,12 +3526,12 @@ static int rtl8152_pre_reset(struct usb_interface *intf)
 	if (!netif_running(netdev))
 		return 0;
 
+	netif_stop_queue(netdev);
 	napi_disable(&tp->napi);
 	clear_bit(WORK_ENABLE, &tp->flags);
 	usb_kill_urb(tp->intr_urb);
 	cancel_delayed_work_sync(&tp->schedule);
 	if (netif_carrier_ok(netdev)) {
-		netif_stop_queue(netdev);
 		mutex_lock(&tp->control);
 		tp->rtl_ops.disable(tp);
 		mutex_unlock(&tp->control);
@@ -3545,12 +3556,17 @@ static int rtl8152_post_reset(struct usb_interface *intf)
 	if (netif_carrier_ok(netdev)) {
 		mutex_lock(&tp->control);
 		tp->rtl_ops.enable(tp);
+		rtl_start_rx(tp);
 		rtl8152_set_rx_mode(netdev);
 		mutex_unlock(&tp->control);
-		netif_wake_queue(netdev);
 	}
 
 	napi_enable(&tp->napi);
+	netif_wake_queue(netdev);
+	usb_submit_urb(tp->intr_urb, GFP_KERNEL);
+
+	if (!list_empty(&tp->rx_done))
+		napi_schedule(&tp->napi);
 
 	return 0;
 }
@@ -3572,19 +3588,26 @@ static bool delay_autosuspend(struct r8152 *tp)
 	 */
 	if (!sw_linking && tp->rtl_ops.in_nway(tp))
 		return true;
+	else if (!skb_queue_empty(&tp->tx_queue))
+		return true;
 	else
 		return false;
 }
 
-static int rtl8152_rumtime_suspend(struct r8152 *tp)
+static int rtl8152_runtime_suspend(struct r8152 *tp)
 {
 	struct net_device *netdev = tp->netdev;
 	int ret = 0;
+
+	set_bit(SELECTIVE_SUSPEND, &tp->flags);
+	smp_mb__after_atomic();
 
 	if (netif_running(netdev) && test_bit(WORK_ENABLE, &tp->flags)) {
 		u32 rcr = 0;
 
 		if (delay_autosuspend(tp)) {
+			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+			smp_mb__after_atomic();
 			ret = -EBUSY;
 			goto out1;
 		}
@@ -3601,6 +3624,8 @@ static int rtl8152_rumtime_suspend(struct r8152 *tp)
 			if (!(ocp_data & RXFIFO_EMPTY)) {
 				rxdy_gated_en(tp, false);
 				ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, rcr);
+				clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+				smp_mb__after_atomic();
 				ret = -EBUSY;
 				goto out1;
 			}
@@ -3619,8 +3644,6 @@ static int rtl8152_rumtime_suspend(struct r8152 *tp)
 			napi_enable(&tp->napi);
 		}
 	}
-
-	set_bit(SELECTIVE_SUSPEND, &tp->flags);
 
 out1:
 	return ret;
@@ -3653,7 +3676,7 @@ static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 	mutex_lock(&tp->control);
 
 	if (PMSG_IS_AUTO(message))
-		ret = rtl8152_rumtime_suspend(tp);
+		ret = rtl8152_runtime_suspend(tp);
 	else
 		ret = rtl8152_system_suspend(tp);
 
@@ -3677,12 +3700,15 @@ static int rtl8152_resume(struct usb_interface *intf)
 	if (netif_running(tp->netdev) && tp->netdev->flags & IFF_UP) {
 		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
 			tp->rtl_ops.autosuspend_en(tp, false);
-			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
 			napi_disable(&tp->napi);
 			set_bit(WORK_ENABLE, &tp->flags);
 			if (netif_carrier_ok(tp->netdev))
 				rtl_start_rx(tp);
 			napi_enable(&tp->napi);
+			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+			smp_mb__after_atomic();
+			if (!list_empty(&tp->rx_done))
+				napi_schedule(&tp->napi);
 		} else {
 			tp->rtl_ops.up(tp);
 			netif_carrier_off(tp->netdev);
@@ -4178,8 +4204,14 @@ static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
 
 	dev->mtu = new_mtu;
 
-	if (netif_running(dev) && netif_carrier_ok(dev))
-		r8153_set_rx_early_size(tp);
+	if (netif_running(dev)) {
+		u32 rms = new_mtu + VLAN_ETH_HLEN + CRC_SIZE;
+
+		ocp_write_word(tp, MCU_TYPE_PLA, PLA_RMS, rms);
+
+		if (netif_carrier_ok(dev))
+			r8153_set_rx_early_size(tp);
+	}
 
 	mutex_unlock(&tp->control);
 

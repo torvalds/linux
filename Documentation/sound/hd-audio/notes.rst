@@ -697,7 +697,7 @@ If it's a regression, at best, send alsa-info outputs of both working
 and non-working kernels.  This is really helpful because we can
 compare the codec registers directly.
 
-Send a bug report either the followings:
+Send a bug report either the following:
 
 kernel-bugzilla
     https://bugzilla.kernel.org/

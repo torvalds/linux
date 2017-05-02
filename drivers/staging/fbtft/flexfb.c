@@ -27,40 +27,40 @@
 #define DRVNAME	    "flexfb"
 
 static char *chip;
-module_param(chip, charp, 0);
+module_param(chip, charp, 0000);
 MODULE_PARM_DESC(chip, "LCD controller");
 
 static unsigned int width;
-module_param(width, uint, 0);
+module_param(width, uint, 0000);
 MODULE_PARM_DESC(width, "Display width");
 
 static unsigned int height;
-module_param(height, uint, 0);
+module_param(height, uint, 0000);
 MODULE_PARM_DESC(height, "Display height");
 
 static s16 init[512];
 static int init_num;
-module_param_array(init, short, &init_num, 0);
+module_param_array(init, short, &init_num, 0000);
 MODULE_PARM_DESC(init, "Init sequence");
 
 static unsigned int setaddrwin;
-module_param(setaddrwin, uint, 0);
+module_param(setaddrwin, uint, 0000);
 MODULE_PARM_DESC(setaddrwin, "Which set_addr_win() implementation to use");
 
 static unsigned int buswidth = 8;
-module_param(buswidth, uint, 0);
+module_param(buswidth, uint, 0000);
 MODULE_PARM_DESC(buswidth, "Width of databus (default: 8)");
 
 static unsigned int regwidth = 8;
-module_param(regwidth, uint, 0);
+module_param(regwidth, uint, 0000);
 MODULE_PARM_DESC(regwidth, "Width of controller register (default: 8)");
 
 static bool nobacklight;
-module_param(nobacklight, bool, 0);
+module_param(nobacklight, bool, 0000);
 MODULE_PARM_DESC(nobacklight, "Turn off backlight functionality.");
 
 static bool latched;
-module_param(latched, bool, 0);
+module_param(latched, bool, 0000);
 MODULE_PARM_DESC(latched, "Use with latched 16-bit databus");
 
 static s16 *initp;
@@ -408,22 +408,6 @@ static const struct flexfb_lcd_controller flexfb_chip_table[] = {
 		.height = 220,
 		.init_seq = hx8340bn_init,
 		.init_seq_sz = ARRAY_SIZE(hx8340bn_init),
-	},
-	{
-		.name = "ili9225",
-		.width = 176,
-		.height = 220,
-		.regwidth = 16,
-		.init_seq = ili9225_init,
-		.init_seq_sz = ARRAY_SIZE(ili9225_init),
-	},
-	{
-		.name = "ili9225",
-		.width = 176,
-		.height = 220,
-		.regwidth = 16,
-		.init_seq = ili9225_init,
-		.init_seq_sz = ARRAY_SIZE(ili9225_init),
 	},
 	{
 		.name = "ili9225",

@@ -42,6 +42,16 @@ config BMP280_SPI
 	depends on SPI_MASTER
 	select REGMAP
 
+config IIO_CROS_EC_BARO
+	tristate "ChromeOS EC Barometer Sensor"
+	depends on IIO_CROS_EC_SENSORS_CORE
+	help
+	  Say yes here to build support for the Barometer sensor when
+	  presented by the ChromeOS EC Sensor hub.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cros_ec_baro.
+
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER

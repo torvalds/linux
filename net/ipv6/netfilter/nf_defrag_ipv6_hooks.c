@@ -37,7 +37,7 @@ static enum ip6_defrag_users nf_ct6_defrag_user(unsigned int hooknum,
 {
 	u16 zone_id = NF_CT_DEFAULT_ZONE_ID;
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	if (skb->nfct) {
+	if (skb_nfct(skb)) {
 		enum ip_conntrack_info ctinfo;
 		const struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
@@ -61,7 +61,7 @@ static unsigned int ipv6_defrag(void *priv,
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	/* Previously seen (loopback)?	*/
-	if (skb->nfct && !nf_ct_is_template((struct nf_conn *)skb->nfct))
+	if (skb_nfct(skb) && !nf_ct_is_template((struct nf_conn *)skb_nfct(skb)))
 		return NF_ACCEPT;
 #endif
 

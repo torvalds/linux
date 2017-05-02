@@ -16,12 +16,15 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
+
 #include <asm/fpu.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 
 #include <linux/kvm_host.h>
@@ -63,18 +66,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{NULL}
 };
 
-static int kvm_mips_reset_vcpu(struct kvm_vcpu *vcpu)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		vcpu->arch.guest_kernel_asid[i] = 0;
-		vcpu->arch.guest_user_asid[i] = 0;
-	}
-
-	return 0;
-}
-
 /*
  * XXXKYMA: We are simulatoring a processor that has the WII bit set in
  * Config7, so we are "runnable" if interrupts are pending
@@ -104,39 +95,12 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
-static void kvm_mips_init_tlbs(struct kvm *kvm)
-{
-	unsigned long wired;
-
-	/*
-	 * Add a wired entry to the TLB, it is used to map the commpage to
-	 * the Guest kernel
-	 */
-	wired = read_c0_wired();
-	write_c0_wired(wired + 1);
-	mtc0_tlbw_hazard();
-	kvm->arch.commpage_tlb = wired;
-
-	kvm_debug("[%d] commpage TLB: %d\n", smp_processor_id(),
-		  kvm->arch.commpage_tlb);
-}
-
-static void kvm_mips_init_vm_percpu(void *arg)
-{
-	struct kvm *kvm = (struct kvm *)arg;
-
-	kvm_mips_init_tlbs(kvm);
-	kvm_mips_callbacks->vm_init(kvm);
-
-}
-
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
-	if (atomic_inc_return(&kvm_mips_instance) == 1) {
-		kvm_debug("%s: 1st KVM instance, setup host TLB parameters\n",
-			  __func__);
-		on_each_cpu(kvm_mips_init_vm_percpu, kvm, 1);
-	}
+	/* Allocate page table to map GPA -> RPA */
+	kvm->arch.gpa_mm.pgd = kvm_pgd_alloc();
+	if (!kvm->arch.gpa_mm.pgd)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -156,13 +120,6 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 	unsigned int i;
 	struct kvm_vcpu *vcpu;
 
-	/* Put the pages we reserved for the guest pmap */
-	for (i = 0; i < kvm->arch.guest_pmap_npages; i++) {
-		if (kvm->arch.guest_pmap[i] != KVM_INVALID_PAGE)
-			kvm_release_pfn_clean(kvm->arch.guest_pmap[i]);
-	}
-	kfree(kvm->arch.guest_pmap);
-
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		kvm_arch_vcpu_free(vcpu);
 	}
@@ -177,25 +134,17 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 }
 
-static void kvm_mips_uninit_tlbs(void *arg)
+static void kvm_mips_free_gpa_pt(struct kvm *kvm)
 {
-	/* Restore wired count */
-	write_c0_wired(0);
-	mtc0_tlbw_hazard();
-	/* Clear out all the TLBs */
-	kvm_local_flush_tlb_all();
+	/* It should always be safe to remove after flushing the whole range */
+	WARN_ON(!kvm_mips_flush_gpa_pt(kvm, 0, ~0));
+	pgd_free(NULL, kvm->arch.gpa_mm.pgd);
 }
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_mips_free_vcpus(kvm);
-
-	/* If this is the last instance, restore wired count */
-	if (atomic_dec_return(&kvm_mips_instance) == 0) {
-		kvm_debug("%s: last KVM instance, restoring TLB parameters\n",
-			  __func__);
-		on_each_cpu(kvm_mips_uninit_tlbs, NULL, 1);
-	}
+	kvm_mips_free_gpa_pt(kvm);
 }
 
 long kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl,
@@ -208,6 +157,32 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 			    unsigned long npages)
 {
 	return 0;
+}
+
+void kvm_arch_flush_shadow_all(struct kvm *kvm)
+{
+	/* Flush whole GPA */
+	kvm_mips_flush_gpa_pt(kvm, 0, ~0);
+
+	/* Let implementation do the rest */
+	kvm_mips_callbacks->flush_shadow_all(kvm);
+}
+
+void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+				   struct kvm_memory_slot *slot)
+{
+	/*
+	 * The slot has been made invalid (ready for moving or deletion), so we
+	 * need to ensure that it can no longer be accessed by any guest VCPUs.
+	 */
+
+	spin_lock(&kvm->mmu_lock);
+	/* Flush slot from GPA */
+	kvm_mips_flush_gpa_pt(kvm, slot->base_gfn,
+			      slot->base_gfn + slot->npages - 1);
+	/* Let implementation do the rest */
+	kvm_mips_callbacks->flush_shadow_memslot(kvm, slot);
+	spin_unlock(&kvm->mmu_lock);
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -224,35 +199,32 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   const struct kvm_memory_slot *new,
 				   enum kvm_mr_change change)
 {
-	unsigned long npages = 0;
-	int i;
+	int needs_flush;
 
 	kvm_debug("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
 		  __func__, kvm, mem->slot, mem->guest_phys_addr,
 		  mem->memory_size, mem->userspace_addr);
 
-	/* Setup Guest PMAP table */
-	if (!kvm->arch.guest_pmap) {
-		if (mem->slot == 0)
-			npages = mem->memory_size >> PAGE_SHIFT;
-
-		if (npages) {
-			kvm->arch.guest_pmap_npages = npages;
-			kvm->arch.guest_pmap =
-			    kzalloc(npages * sizeof(unsigned long), GFP_KERNEL);
-
-			if (!kvm->arch.guest_pmap) {
-				kvm_err("Failed to allocate guest PMAP\n");
-				return;
-			}
-
-			kvm_debug("Allocated space for Guest PMAP Table (%ld pages) @ %p\n",
-				  npages, kvm->arch.guest_pmap);
-
-			/* Now setup the page table */
-			for (i = 0; i < npages; i++)
-				kvm->arch.guest_pmap[i] = KVM_INVALID_PAGE;
-		}
+	/*
+	 * If dirty page logging is enabled, write protect all pages in the slot
+	 * ready for dirty logging.
+	 *
+	 * There is no need to do this in any of the following cases:
+	 * CREATE:	No dirty mappings will already exist.
+	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
+	 *		kvm_arch_flush_shadow_memslot()
+	 */
+	if (change == KVM_MR_FLAGS_ONLY &&
+	    (!(old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
+	     new->flags & KVM_MEM_LOG_DIRTY_PAGES)) {
+		spin_lock(&kvm->mmu_lock);
+		/* Write protect GPA page table entries */
+		needs_flush = kvm_mips_mkclean_gpa_pt(kvm, new->base_gfn,
+					new->base_gfn + new->npages - 1);
+		/* Let implementation do the rest */
+		if (needs_flush)
+			kvm_mips_callbacks->flush_shadow_memslot(kvm, new);
+		spin_unlock(&kvm->mmu_lock);
 	}
 }
 
@@ -276,7 +248,7 @@ static inline void dump_handler(const char *symbol, void *start, void *end)
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 {
 	int err, size;
-	void *gebase, *p, *handler;
+	void *gebase, *p, *handler, *refill_start, *refill_end;
 	int i;
 
 	struct kvm_vcpu *vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
@@ -329,8 +301,9 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	/* Build guest exception vectors dynamically in unmapped memory */
 	handler = gebase + 0x2000;
 
-	/* TLB Refill, EXL = 0 */
-	kvm_mips_build_exception(gebase, handler);
+	/* TLB refill */
+	refill_start = gebase;
+	refill_end = kvm_mips_build_tlb_refill_exception(refill_start, handler);
 
 	/* General Exception Entry point */
 	kvm_mips_build_exception(gebase + 0x180, handler);
@@ -356,6 +329,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	pr_debug("#include <asm/regdef.h>\n");
 	pr_debug("\n");
 	dump_handler("kvm_vcpu_run", vcpu->arch.vcpu_run, p);
+	dump_handler("kvm_tlb_refill", refill_start, refill_end);
 	dump_handler("kvm_gen_exc", gebase + 0x180, gebase + 0x200);
 	dump_handler("kvm_exit", gebase + 0x2000, vcpu->arch.vcpu_run);
 
@@ -406,6 +380,7 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 
 	kvm_mips_dump_stats(vcpu);
 
+	kvm_mmu_free_memory_caches(vcpu);
 	kfree(vcpu->arch.guest_ebase);
 	kfree(vcpu->arch.kseg0_commpage);
 	kfree(vcpu);
@@ -422,37 +397,9 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	return -ENOIOCTLCMD;
 }
 
-/* Must be called with preemption disabled, just before entering guest */
-static void kvm_mips_check_asids(struct kvm_vcpu *vcpu)
-{
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	int i, cpu = smp_processor_id();
-	unsigned int gasid;
-
-	/*
-	 * Lazy host ASID regeneration for guest user mode.
-	 * If the guest ASID has changed since the last guest usermode
-	 * execution, regenerate the host ASID so as to invalidate stale TLB
-	 * entries.
-	 */
-	if (!KVM_GUEST_KERNEL_MODE(vcpu)) {
-		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
-		if (gasid != vcpu->arch.last_user_gasid) {
-			kvm_get_new_mmu_context(&vcpu->arch.guest_user_mm, cpu,
-						vcpu);
-			vcpu->arch.guest_user_asid[cpu] =
-				vcpu->arch.guest_user_mm.context.asid[cpu];
-			for_each_possible_cpu(i)
-				if (i != cpu)
-					vcpu->arch.guest_user_asid[cpu] = 0;
-			vcpu->arch.last_user_gasid = gasid;
-		}
-	}
-}
-
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	int r = 0;
+	int r = -EINTR;
 	sigset_t sigsaved;
 
 	if (vcpu->sigset_active)
@@ -464,31 +411,30 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		vcpu->mmio_needed = 0;
 	}
 
+	if (run->immediate_exit)
+		goto out;
+
 	lose_fpu(1);
 
 	local_irq_disable();
-	/* Check if we have any exceptions/interrupts pending */
-	kvm_mips_deliver_interrupts(vcpu,
-				    kvm_read_c0_guest_cause(vcpu->arch.cop0));
-
 	guest_enter_irqoff();
-
-	/* Disable hardware page table walking while in guest */
-	htw_stop();
-
 	trace_kvm_enter(vcpu);
 
-	kvm_mips_check_asids(vcpu);
+	/*
+	 * Make sure the read of VCPU requests in vcpu_run() callback is not
+	 * reordered ahead of the write to vcpu->mode, or we could miss a TLB
+	 * flush request while the requester sees the VCPU as outside of guest
+	 * mode and not needing an IPI.
+	 */
+	smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
-	r = vcpu->arch.vcpu_run(run, vcpu);
+	r = kvm_mips_callbacks->vcpu_run(run, vcpu);
+
 	trace_kvm_out(vcpu);
-
-	/* Re-enable HTW before enabling interrupts */
-	htw_start();
-
 	guest_exit_irqoff();
 	local_irq_enable();
 
+out:
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
@@ -580,33 +526,6 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_LO,
 #endif
 	KVM_REG_MIPS_PC,
-
-	KVM_REG_MIPS_CP0_INDEX,
-	KVM_REG_MIPS_CP0_CONTEXT,
-	KVM_REG_MIPS_CP0_USERLOCAL,
-	KVM_REG_MIPS_CP0_PAGEMASK,
-	KVM_REG_MIPS_CP0_WIRED,
-	KVM_REG_MIPS_CP0_HWRENA,
-	KVM_REG_MIPS_CP0_BADVADDR,
-	KVM_REG_MIPS_CP0_COUNT,
-	KVM_REG_MIPS_CP0_ENTRYHI,
-	KVM_REG_MIPS_CP0_COMPARE,
-	KVM_REG_MIPS_CP0_STATUS,
-	KVM_REG_MIPS_CP0_CAUSE,
-	KVM_REG_MIPS_CP0_EPC,
-	KVM_REG_MIPS_CP0_PRID,
-	KVM_REG_MIPS_CP0_CONFIG,
-	KVM_REG_MIPS_CP0_CONFIG1,
-	KVM_REG_MIPS_CP0_CONFIG2,
-	KVM_REG_MIPS_CP0_CONFIG3,
-	KVM_REG_MIPS_CP0_CONFIG4,
-	KVM_REG_MIPS_CP0_CONFIG5,
-	KVM_REG_MIPS_CP0_CONFIG7,
-	KVM_REG_MIPS_CP0_ERROREPC,
-
-	KVM_REG_MIPS_COUNT_CTL,
-	KVM_REG_MIPS_COUNT_RESUME,
-	KVM_REG_MIPS_COUNT_HZ,
 };
 
 static u64 kvm_mips_get_one_regs_fpu[] = {
@@ -617,15 +536,6 @@ static u64 kvm_mips_get_one_regs_fpu[] = {
 static u64 kvm_mips_get_one_regs_msa[] = {
 	KVM_REG_MIPS_MSA_IR,
 	KVM_REG_MIPS_MSA_CSR,
-};
-
-static u64 kvm_mips_get_one_regs_kscratch[] = {
-	KVM_REG_MIPS_CP0_KSCRATCH1,
-	KVM_REG_MIPS_CP0_KSCRATCH2,
-	KVM_REG_MIPS_CP0_KSCRATCH3,
-	KVM_REG_MIPS_CP0_KSCRATCH4,
-	KVM_REG_MIPS_CP0_KSCRATCH5,
-	KVM_REG_MIPS_CP0_KSCRATCH6,
 };
 
 static unsigned long kvm_mips_num_regs(struct kvm_vcpu *vcpu)
@@ -641,7 +551,6 @@ static unsigned long kvm_mips_num_regs(struct kvm_vcpu *vcpu)
 	}
 	if (kvm_mips_guest_can_have_msa(&vcpu->arch))
 		ret += ARRAY_SIZE(kvm_mips_get_one_regs_msa) + 32;
-	ret += __arch_hweight8(vcpu->arch.kscratch_enabled);
 	ret += kvm_mips_callbacks->num_regs(vcpu);
 
 	return ret;
@@ -692,16 +601,6 @@ static int kvm_mips_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 				return -EFAULT;
 			++indices;
 		}
-	}
-
-	for (i = 0; i < 6; ++i) {
-		if (!(vcpu->arch.kscratch_enabled & BIT(i + 2)))
-			continue;
-
-		if (copy_to_user(indices, &kvm_mips_get_one_regs_kscratch[i],
-				 sizeof(kvm_mips_get_one_regs_kscratch[i])))
-			return -EFAULT;
-		++indices;
 	}
 
 	return kvm_mips_callbacks->copy_reg_indices(vcpu, indices);
@@ -794,95 +693,6 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		v = fpu->msacsr;
 		break;
 
-	/* Co-processor 0 registers */
-	case KVM_REG_MIPS_CP0_INDEX:
-		v = (long)kvm_read_c0_guest_index(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONTEXT:
-		v = (long)kvm_read_c0_guest_context(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_USERLOCAL:
-		v = (long)kvm_read_c0_guest_userlocal(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_PAGEMASK:
-		v = (long)kvm_read_c0_guest_pagemask(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_WIRED:
-		v = (long)kvm_read_c0_guest_wired(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_HWRENA:
-		v = (long)kvm_read_c0_guest_hwrena(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_BADVADDR:
-		v = (long)kvm_read_c0_guest_badvaddr(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_ENTRYHI:
-		v = (long)kvm_read_c0_guest_entryhi(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_COMPARE:
-		v = (long)kvm_read_c0_guest_compare(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_STATUS:
-		v = (long)kvm_read_c0_guest_status(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CAUSE:
-		v = (long)kvm_read_c0_guest_cause(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_EPC:
-		v = (long)kvm_read_c0_guest_epc(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_PRID:
-		v = (long)kvm_read_c0_guest_prid(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONFIG:
-		v = (long)kvm_read_c0_guest_config(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONFIG1:
-		v = (long)kvm_read_c0_guest_config1(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONFIG2:
-		v = (long)kvm_read_c0_guest_config2(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONFIG3:
-		v = (long)kvm_read_c0_guest_config3(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONFIG4:
-		v = (long)kvm_read_c0_guest_config4(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONFIG5:
-		v = (long)kvm_read_c0_guest_config5(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_CONFIG7:
-		v = (long)kvm_read_c0_guest_config7(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_ERROREPC:
-		v = (long)kvm_read_c0_guest_errorepc(cop0);
-		break;
-	case KVM_REG_MIPS_CP0_KSCRATCH1 ... KVM_REG_MIPS_CP0_KSCRATCH6:
-		idx = reg->id - KVM_REG_MIPS_CP0_KSCRATCH1 + 2;
-		if (!(vcpu->arch.kscratch_enabled & BIT(idx)))
-			return -EINVAL;
-		switch (idx) {
-		case 2:
-			v = (long)kvm_read_c0_guest_kscratch1(cop0);
-			break;
-		case 3:
-			v = (long)kvm_read_c0_guest_kscratch2(cop0);
-			break;
-		case 4:
-			v = (long)kvm_read_c0_guest_kscratch3(cop0);
-			break;
-		case 5:
-			v = (long)kvm_read_c0_guest_kscratch4(cop0);
-			break;
-		case 6:
-			v = (long)kvm_read_c0_guest_kscratch5(cop0);
-			break;
-		case 7:
-			v = (long)kvm_read_c0_guest_kscratch6(cop0);
-			break;
-		}
-		break;
 	/* registers to be handled specially */
 	default:
 		ret = kvm_mips_callbacks->get_one_reg(vcpu, reg, &v);
@@ -1014,68 +824,6 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		fpu->msacsr = v;
 		break;
 
-	/* Co-processor 0 registers */
-	case KVM_REG_MIPS_CP0_INDEX:
-		kvm_write_c0_guest_index(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_CONTEXT:
-		kvm_write_c0_guest_context(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_USERLOCAL:
-		kvm_write_c0_guest_userlocal(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_PAGEMASK:
-		kvm_write_c0_guest_pagemask(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_WIRED:
-		kvm_write_c0_guest_wired(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_HWRENA:
-		kvm_write_c0_guest_hwrena(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_BADVADDR:
-		kvm_write_c0_guest_badvaddr(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_ENTRYHI:
-		kvm_write_c0_guest_entryhi(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_STATUS:
-		kvm_write_c0_guest_status(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_EPC:
-		kvm_write_c0_guest_epc(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_PRID:
-		kvm_write_c0_guest_prid(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_ERROREPC:
-		kvm_write_c0_guest_errorepc(cop0, v);
-		break;
-	case KVM_REG_MIPS_CP0_KSCRATCH1 ... KVM_REG_MIPS_CP0_KSCRATCH6:
-		idx = reg->id - KVM_REG_MIPS_CP0_KSCRATCH1 + 2;
-		if (!(vcpu->arch.kscratch_enabled & BIT(idx)))
-			return -EINVAL;
-		switch (idx) {
-		case 2:
-			kvm_write_c0_guest_kscratch1(cop0, v);
-			break;
-		case 3:
-			kvm_write_c0_guest_kscratch2(cop0, v);
-			break;
-		case 4:
-			kvm_write_c0_guest_kscratch3(cop0, v);
-			break;
-		case 5:
-			kvm_write_c0_guest_kscratch4(cop0, v);
-			break;
-		case 6:
-			kvm_write_c0_guest_kscratch5(cop0, v);
-			break;
-		case 7:
-			kvm_write_c0_guest_kscratch6(cop0, v);
-			break;
-		}
-		break;
 	/* registers to be handled specially */
 	default:
 		return kvm_mips_callbacks->set_one_reg(vcpu, reg, v);
@@ -1144,18 +892,12 @@ long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
 			return -E2BIG;
 		return kvm_mips_copy_reg_indices(vcpu, user_list->reg);
 	}
-	case KVM_NMI:
-		/* Treat the NMI as a CPU reset */
-		r = kvm_mips_reset_vcpu(vcpu);
-		break;
 	case KVM_INTERRUPT:
 		{
 			struct kvm_mips_interrupt irq;
 
-			r = -EFAULT;
 			if (copy_from_user(&irq, argp, sizeof(irq)))
-				goto out;
-
+				return -EFAULT;
 			kvm_debug("[%d] %s: irq: %d\n", vcpu->vcpu_id, __func__,
 				  irq.irq);
 
@@ -1165,56 +907,57 @@ long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
 	case KVM_ENABLE_CAP: {
 		struct kvm_enable_cap cap;
 
-		r = -EFAULT;
 		if (copy_from_user(&cap, argp, sizeof(cap)))
-			goto out;
+			return -EFAULT;
 		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
 		break;
 	}
 	default:
 		r = -ENOIOCTLCMD;
 	}
-
-out:
 	return r;
 }
 
-/* Get (and clear) the dirty memory log for a memory slot. */
+/**
+ * kvm_vm_ioctl_get_dirty_log - get and clear the log of dirty pages in a slot
+ * @kvm: kvm instance
+ * @log: slot id and address to which we copy the log
+ *
+ * Steps 1-4 below provide general overview of dirty page logging. See
+ * kvm_get_dirty_log_protect() function description for additional details.
+ *
+ * We call kvm_get_dirty_log_protect() to handle steps 1-3, upon return we
+ * always flush the TLB (step 4) even if previous step failed  and the dirty
+ * bitmap may be corrupt. Regardless of previous outcome the KVM logging API
+ * does not preclude user space subsequent dirty log read. Flushing TLB ensures
+ * writes will be marked dirty for next log read.
+ *
+ *   1. Take a snapshot of the bit and clear it if needed.
+ *   2. Write protect the corresponding page.
+ *   3. Copy the snapshot to the userspace.
+ *   4. Flush TLB's if needed.
+ */
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-	unsigned long ga, ga_end;
-	int is_dirty = 0;
+	bool is_dirty = false;
 	int r;
-	unsigned long n;
 
 	mutex_lock(&kvm->slots_lock);
 
-	r = kvm_get_dirty_log(kvm, log, &is_dirty);
-	if (r)
-		goto out;
+	r = kvm_get_dirty_log_protect(kvm, log, &is_dirty);
 
-	/* If nothing is dirty, don't bother messing with page tables. */
 	if (is_dirty) {
 		slots = kvm_memslots(kvm);
 		memslot = id_to_memslot(slots, log->slot);
 
-		ga = memslot->base_gfn << PAGE_SHIFT;
-		ga_end = ga + (memslot->npages << PAGE_SHIFT);
-
-		kvm_info("%s: dirty, ga: %#lx, ga_end %#lx\n", __func__, ga,
-			 ga_end);
-
-		n = kvm_dirty_bitmap_bytes(memslot);
-		memset(memslot->dirty_bitmap, 0, n);
+		/* Let implementation handle TLB/GVA invalidation */
+		kvm_mips_callbacks->flush_shadow_memslot(kvm, memslot);
 	}
 
-	r = 0;
-out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
-
 }
 
 long kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
@@ -1282,10 +1025,19 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	switch (ext) {
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_ENABLE_CAP:
+	case KVM_CAP_READONLY_MEM:
+	case KVM_CAP_SYNC_MMU:
+	case KVM_CAP_IMMEDIATE_EXIT:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
+		break;
+	case KVM_CAP_NR_VCPUS:
+		r = num_online_cpus();
+		break;
+	case KVM_CAP_MAX_VCPUS:
+		r = KVM_MAX_VCPUS;
 		break;
 	case KVM_CAP_MIPS_FPU:
 		/* We don't handle systems with inconsistent cpu_has_fpu */
@@ -1400,11 +1152,21 @@ static enum hrtimer_restart kvm_mips_comparecount_wakeup(struct hrtimer *timer)
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	kvm_mips_callbacks->vcpu_init(vcpu);
+	int err;
+
+	err = kvm_mips_callbacks->vcpu_init(vcpu);
+	if (err)
+		return err;
+
 	hrtimer_init(&vcpu->arch.comparecount_timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_REL);
 	vcpu->arch.comparecount_timer.function = kvm_mips_comparecount_wakeup;
 	return 0;
+}
+
+void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	kvm_mips_callbacks->vcpu_uninit(vcpu);
 }
 
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
@@ -1440,7 +1202,10 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	enum emulation_result er = EMULATE_DONE;
+	u32 inst;
 	int ret = RESUME_GUEST;
+
+	vcpu->mode = OUTSIDE_GUEST_MODE;
 
 	/* re-enable HTW before enabling interrupts */
 	htw_start();
@@ -1564,8 +1329,12 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	default:
+		if (cause & CAUSEF_BD)
+			opc += 1;
+		inst = 0;
+		kvm_get_badinstr(opc, vcpu, &inst);
 		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#lx\n",
-			exccode, opc, kvm_get_inst(opc, vcpu), badvaddr,
+			exccode, opc, inst, badvaddr,
 			kvm_read_c0_guest_status(vcpu->arch.cop0));
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -1593,7 +1362,15 @@ skip_emul:
 	if (ret == RESUME_GUEST) {
 		trace_kvm_reenter(vcpu);
 
-		kvm_mips_check_asids(vcpu);
+		/*
+		 * Make sure the read of VCPU requests in vcpu_reenter()
+		 * callback is not reordered ahead of the write to vcpu->mode,
+		 * or we could miss a TLB flush request while the requester sees
+		 * the VCPU as outside of guest mode and not needing an IPI.
+		 */
+		smp_store_mb(vcpu->mode, IN_GUEST_MODE);
+
+		kvm_mips_callbacks->vcpu_reenter(run, vcpu);
 
 		/*
 		 * If FPU / MSA are enabled (i.e. the guest's FPU / MSA context

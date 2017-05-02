@@ -75,11 +75,9 @@ void rtl92se_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HAL_DEF_WOWLAN:
 		break;
-	default: {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
-			break;
-		}
+	default:
+		pr_err("switch case %#x not processed\n", variable);
+		break;
 	}
 }
 
@@ -294,9 +292,8 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					acm_ctrl &= (~AcmHw_VoqEn);
 					break;
 				default:
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case %#x not processed\n",
-						 e_aci);
+					pr_err("switch case %#x not processed\n",
+					       e_aci);
 					break;
 				}
 			}
@@ -431,8 +428,7 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 		break; }
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
+		pr_err("switch case %#x not processed\n", variable);
 		break;
 	}
 
@@ -745,9 +741,8 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	} while (pollingcnt--);
 
 	if (pollingcnt <= 0) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Polling TXDMA_INIT_VALUE timeout!! Current TCR(%#x)\n",
-			 tmpu1b);
+		pr_err("Polling TXDMA_INIT_VALUE timeout!! Current TCR(%#x)\n",
+		       tmpu1b);
 		tmpu1b = rtl_read_byte(rtlpriv, CMDR);
 		rtl_write_byte(rtlpriv, CMDR, tmpu1b & (~TXDMA_EN));
 		udelay(2);
@@ -758,13 +753,12 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	/* After MACIO reset,we must refresh LED state. */
 	if ((ppsc->rfoff_reason == RF_CHANGE_BY_IPS) ||
 	   (ppsc->rfoff_reason == 0)) {
-		struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-		struct rtl_led *pLed0 = &(pcipriv->ledctl.sw_led0);
+		struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 		enum rf_pwrstate rfpwr_state_toset;
 		rfpwr_state_toset = _rtl92se_rf_onoff_detect(hw);
 
 		if (rfpwr_state_toset == ERFON)
-			rtl92se_sw_led_on(hw, pLed0);
+			rtl92se_sw_led_on(hw, pled0);
 	}
 }
 
@@ -1004,7 +998,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 
 	/* 3. Initialize MAC/PHY Config by MACPHY_reg.txt */
 	if (!rtl92s_phy_mac_config(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "MAC Config failed\n");
+		pr_err("MAC Config failed\n");
 		err = rtstatus;
 		goto exit;
 	}
@@ -1024,7 +1018,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 
 	/* 4. Initialize BB After MAC Config PHY_reg.txt, AGC_Tab.txt */
 	if (!rtl92s_phy_bb_config(hw)) {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "BB Config failed\n");
+		pr_err("BB Config failed\n");
 		err = rtstatus;
 		goto exit;
 	}
@@ -1194,8 +1188,7 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Network type %d not supported!\n", type);
+		pr_err("Network type %d not supported!\n", type);
 		return 1;
 
 	}
@@ -1251,7 +1244,7 @@ void rtl92se_set_qos(struct ieee80211_hw *hw, int aci)
 		rtl_write_dword(rtlpriv, EDCAPARA_VO, 0x2f3222);
 		break;
 	default:
-		RT_ASSERT(false, "invalid aci: %d !\n", aci);
+		WARN_ONCE(true, "rtl8192se: invalid aci: %d !\n", aci);
 		break;
 	}
 }
@@ -1401,16 +1394,15 @@ static void _rtl92se_gen_refreshledstate(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-	struct rtl_led *pLed0 = &(pcipriv->ledctl.sw_led0);
+	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 
 	if (rtlpci->up_first_time == 1)
 		return;
 
 	if (rtlpriv->psc.rfoff_reason == RF_CHANGE_BY_IPS)
-		rtl92se_sw_led_on(hw, pLed0);
+		rtl92se_sw_led_on(hw, pled0);
 	else
-		rtl92se_sw_led_off(hw, pLed0);
+		rtl92se_sw_led_off(hw, pled0);
 }
 
 
@@ -1685,8 +1677,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 		break;
 
 	case EEPROM_93C46:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL819X Not boot from eeprom, check it !!\n");
+		pr_err("RTL819X Not boot from eeprom, check it !!\n");
 		return;
 
 	default:
@@ -2030,7 +2021,7 @@ void rtl92se_read_eeprom_info(struct ieee80211_hw *hw)
 		rtlefuse->autoload_failflag = false;
 		_rtl92se_read_adapter_info(hw);
 	} else {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Autoload ERR!!\n");
+		pr_err("Autoload ERR!!\n");
 		rtlefuse->autoload_failflag = true;
 	}
 }
@@ -2463,8 +2454,8 @@ void rtl92se_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *p_macaddr,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case %#x not processed\n", enc_algo);
+			pr_err("switch case %#x not processed\n",
+			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -2481,9 +2472,7 @@ void rtl92se_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *p_macaddr,
 					entry_id = rtl_cam_get_free_entry(hw,
 								 p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						RT_TRACE(rtlpriv,
-							 COMP_SEC, DBG_EMERG,
-							 "Can not find free hw security cam entry\n");
+						pr_err("Can not find free hw security cam entry\n");
 						return;
 					}
 				} else {

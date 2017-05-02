@@ -14,6 +14,8 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/rculist.h>
+
 #include <asm/kvm_host.h>
 #include <asm/kvm_page_track.h>
 
@@ -156,6 +158,14 @@ bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 
 	index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
 	return !!ACCESS_ONCE(slot->arch.gfn_track[mode][index]);
+}
+
+void kvm_page_track_cleanup(struct kvm *kvm)
+{
+	struct kvm_page_track_notifier_head *head;
+
+	head = &kvm->arch.track_notifier_head;
+	cleanup_srcu_struct(&head->track_srcu);
 }
 
 void kvm_page_track_init(struct kvm *kvm)

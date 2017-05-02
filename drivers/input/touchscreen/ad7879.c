@@ -26,9 +26,9 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/spi/spi.h>
-#include <linux/i2c.h>
 #include <linux/gpio.h>
 
 #include <linux/input/touchscreen.h>
@@ -106,8 +106,7 @@ enum {
 #define	TS_PEN_UP_TIMEOUT		msecs_to_jiffies(50)
 
 struct ad7879 {
-	const struct ad7879_bus_ops *bops;
-
+	struct regmap		*regmap;
 	struct device		*dev;
 	struct input_dev	*input;
 	struct timer_list	timer;
@@ -137,17 +136,32 @@ struct ad7879 {
 
 static int ad7879_read(struct ad7879 *ts, u8 reg)
 {
-	return ts->bops->read(ts->dev, reg);
-}
+	unsigned int val;
+	int error;
 
-static int ad7879_multi_read(struct ad7879 *ts, u8 first_reg, u8 count, u16 *buf)
-{
-	return ts->bops->multi_read(ts->dev, first_reg, count, buf);
+	error = regmap_read(ts->regmap, reg, &val);
+	if (error) {
+		dev_err(ts->dev, "failed to read register %#02x: %d\n",
+			reg, error);
+		return error;
+	}
+
+	return val;
 }
 
 static int ad7879_write(struct ad7879 *ts, u8 reg, u16 val)
 {
-	return ts->bops->write(ts->dev, reg, val);
+	int error;
+
+	error = regmap_write(ts->regmap, reg, val);
+	if (error) {
+		dev_err(ts->dev,
+			"failed to write %#04x to register %#02x: %d\n",
+			val, reg, error);
+		return error;
+	}
+
+	return 0;
 }
 
 static int ad7879_report(struct ad7879 *ts)
@@ -234,7 +248,8 @@ static irqreturn_t ad7879_irq(int irq, void *handle)
 {
 	struct ad7879 *ts = handle;
 
-	ad7879_multi_read(ts, AD7879_REG_XPLUS, AD7879_NR_SENSE, ts->conversion_data);
+	regmap_bulk_read(ts->regmap, AD7879_REG_XPLUS,
+			 ts->conversion_data, AD7879_NR_SENSE);
 
 	if (!ad7879_report(ts))
 		mod_timer(&ts->timer, jiffies + TS_PEN_UP_TIMEOUT);
@@ -440,23 +455,34 @@ static void ad7879_gpio_set_value(struct gpio_chip *chip,
 static int ad7879_gpio_add(struct ad7879 *ts,
 			   const struct ad7879_platform_data *pdata)
 {
+	bool gpio_export;
+	int gpio_base;
 	int ret = 0;
+
+	if (pdata) {
+		gpio_export = pdata->gpio_export;
+		gpio_base = pdata->gpio_base;
+	} else {
+		gpio_export = device_property_read_bool(ts->dev,
+							"gpio-controller");
+		gpio_base = -1;
+	}
 
 	mutex_init(&ts->mutex);
 
-	if (pdata->gpio_export) {
+	if (gpio_export) {
 		ts->gc.direction_input = ad7879_gpio_direction_input;
 		ts->gc.direction_output = ad7879_gpio_direction_output;
 		ts->gc.get = ad7879_gpio_get_value;
 		ts->gc.set = ad7879_gpio_set_value;
 		ts->gc.can_sleep = 1;
-		ts->gc.base = pdata->gpio_base;
+		ts->gc.base = gpio_base;
 		ts->gc.ngpio = 1;
 		ts->gc.label = "AD7879-GPIO";
 		ts->gc.owner = THIS_MODULE;
 		ts->gc.parent = ts->dev;
 
-		ret = gpiochip_add_data(&ts->gc, ts);
+		ret = devm_gpiochip_add_data(ts->dev, &ts->gc, ts);
 		if (ret)
 			dev_err(ts->dev, "failed to register gpio %d\n",
 				ts->gc.base);
@@ -464,24 +490,11 @@ static int ad7879_gpio_add(struct ad7879 *ts,
 
 	return ret;
 }
-
-static void ad7879_gpio_remove(struct ad7879 *ts)
-{
-	const struct ad7879_platform_data *pdata = dev_get_platdata(ts->dev);
-
-	if (pdata && pdata->gpio_export)
-		gpiochip_remove(&ts->gc);
-
-}
 #else
-static inline int ad7879_gpio_add(struct ad7879 *ts,
-				  const struct ad7879_platform_data *pdata)
+static int ad7879_gpio_add(struct ad7879 *ts,
+			   const struct ad7879_platform_data *pdata)
 {
 	return 0;
-}
-
-static inline void ad7879_gpio_remove(struct ad7879 *ts)
-{
 }
 #endif
 
@@ -511,8 +524,15 @@ static int ad7879_parse_dt(struct device *dev, struct ad7879 *ts)
 	return 0;
 }
 
-struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
-			    const struct ad7879_bus_ops *bops)
+static void ad7879_cleanup_sysfs(void *_ts)
+{
+	struct ad7879 *ts = _ts;
+
+	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
+}
+
+int ad7879_probe(struct device *dev, struct regmap *regmap,
+		 int irq, u16 bustype, u8 devid)
 {
 	struct ad7879_platform_data *pdata = dev_get_platdata(dev);
 	struct ad7879 *ts;
@@ -520,14 +540,14 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	int err;
 	u16 revid;
 
-	if (!irq) {
+	if (irq <= 0) {
 		dev_err(dev, "No IRQ specified\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	if (pdata) {
 		/* Platform data use swapped axis (backward compatibility) */
@@ -540,23 +560,22 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 		ts->averaging = pdata->averaging;
 		ts->pen_down_acc_interval = pdata->pen_down_acc_interval;
 		ts->median = pdata->median;
-	} else if (dev->of_node) {
-		ad7879_parse_dt(dev, ts);
 	} else {
-		dev_err(dev, "No platform data\n");
-		return ERR_PTR(-EINVAL);
+		err = ad7879_parse_dt(dev, ts);
+		if (err)
+			return err;
 	}
 
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
 		dev_err(dev, "Failed to allocate input device\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
-	ts->bops = bops;
 	ts->dev = dev;
 	ts->input = input_dev;
 	ts->irq = irq;
+	ts->regmap = regmap;
 
 	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
@@ -564,20 +583,14 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	input_dev->name = "AD7879 Touchscreen";
 	input_dev->phys = ts->phys;
 	input_dev->dev.parent = dev;
-	input_dev->id.bustype = bops->bustype;
+	input_dev->id.bustype = bustype;
 
 	input_dev->open = ad7879_open;
 	input_dev->close = ad7879_close;
 
 	input_set_drvdata(input_dev, ts);
 
-	__set_bit(EV_ABS, input_dev->evbit);
-	__set_bit(ABS_X, input_dev->absbit);
-	__set_bit(ABS_Y, input_dev->absbit);
-	__set_bit(ABS_PRESSURE, input_dev->absbit);
-
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(BTN_TOUCH, input_dev->keybit);
+	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
 	if (pdata) {
 		input_set_abs_params(input_dev, ABS_X,
@@ -595,17 +608,18 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	} else {
 		input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, 0, 0);
 		input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
+		input_set_capability(input_dev, EV_ABS, ABS_PRESSURE);
 		touchscreen_parse_properties(input_dev, false, NULL);
 		if (!input_abs_get_max(input_dev, ABS_PRESSURE)) {
 			dev_err(dev, "Touchscreen pressure is not specified\n");
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		}
 	}
 
 	err = ad7879_write(ts, AD7879_REG_CTRL2, AD7879_RESET);
 	if (err < 0) {
 		dev_err(dev, "Failed to write %s\n", input_dev->name);
-		return ERR_PTR(err);
+		return err;
 	}
 
 	revid = ad7879_read(ts, AD7879_REG_REVID);
@@ -614,7 +628,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	if (input_dev->id.product != devid) {
 		dev_err(dev, "Failed to probe %s (%x vs %x)\n",
 			input_dev->name, devid, revid);
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
 	ts->cmd_crtl3 = AD7879_YPLUS_BIT |
@@ -639,43 +653,33 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 					dev_name(dev), ts);
 	if (err) {
 		dev_err(dev, "Failed to request IRQ: %d\n", err);
-		return ERR_PTR(err);
+		return err;
 	}
 
 	__ad7879_disable(ts);
 
 	err = sysfs_create_group(&dev->kobj, &ad7879_attr_group);
 	if (err)
-		goto err_out;
+		return err;
 
-	if (pdata) {
-		err = ad7879_gpio_add(ts, pdata);
-		if (err)
-			goto err_remove_attr;
-	}
+	err = devm_add_action_or_reset(dev, ad7879_cleanup_sysfs, ts);
+	if (err)
+		return err;
+
+	err = ad7879_gpio_add(ts, pdata);
+	if (err)
+		return err;
 
 	err = input_register_device(input_dev);
 	if (err)
-		goto err_remove_gpio;
+		return err;
 
-	return ts;
+	dev_set_drvdata(dev, ts);
 
-err_remove_gpio:
-	ad7879_gpio_remove(ts);
-err_remove_attr:
-	sysfs_remove_group(&dev->kobj, &ad7879_attr_group);
-err_out:
-	return ERR_PTR(err);
+	return 0;
 }
 EXPORT_SYMBOL(ad7879_probe);
 
-void ad7879_remove(struct ad7879 *ts)
-{
-	ad7879_gpio_remove(ts);
-	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
-}
-EXPORT_SYMBOL(ad7879_remove);
-
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen Driver");
 MODULE_LICENSE("GPL");

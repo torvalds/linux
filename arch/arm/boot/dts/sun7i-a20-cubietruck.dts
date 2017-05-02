@@ -207,7 +207,7 @@
 
 &mmc3_pins_a {
 	/* AP6210 requires pull-up */
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &ohci0 {
@@ -224,45 +224,33 @@
 
 &pio {
 	ahci_pwr_pin_cubietruck: ahci_pwr_pin@1 {
-		allwinner,pins = "PH12";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH12";
+		function = "gpio_out";
 	};
 
 	led_pins_cubietruck: led_pins@0 {
-		allwinner,pins = "PH7", "PH11", "PH20", "PH21";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH7", "PH11", "PH20", "PH21";
+		function = "gpio_out";
 	};
 
 	mmc3_pwrseq_pin_cubietruck: mmc3_pwrseq_pin@0 {
-		allwinner,pins = "PH9";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH9";
+		function = "gpio_out";
 	};
 
 	usb0_vbus_pin_a: usb0_vbus_pin@0 {
-		allwinner,pins = "PH17";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH17";
+		function = "gpio_out";
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH19";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH19";
+		function = "gpio_in";
 	};
 
 	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		allwinner,pins = "PH22";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH22";
+		function = "gpio_in";
 	};
 };
 

@@ -107,8 +107,10 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 	struct nv84_fence_chan *fctx = chan->fence;
 
 	nouveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
+	mutex_lock(&priv->mutex);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma_gart);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma);
+	mutex_unlock(&priv->mutex);
 	nouveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
 	nouveau_fence_context_free(&fctx->base);
@@ -134,11 +136,13 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sync32 = nv84_fence_sync32;
 	fctx->base.sequence = nv84_fence_read(chan);
 
+	mutex_lock(&priv->mutex);
 	ret = nouveau_bo_vma_add(priv->bo, cli->vm, &fctx->vma);
 	if (ret == 0) {
 		ret = nouveau_bo_vma_add(priv->bo_gart, cli->vm,
 					&fctx->vma_gart);
 	}
+	mutex_unlock(&priv->mutex);
 
 	if (ret)
 		nv84_fence_context_del(chan);
@@ -193,7 +197,7 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nvkm_fifo *fifo = nvxx_fifo(&drm->device);
+	struct nvkm_fifo *fifo = nvxx_fifo(&drm->client.device);
 	struct nv84_fence_priv *priv;
 	u32 domain;
 	int ret;
@@ -212,15 +216,17 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_base = dma_fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
 
+	mutex_init(&priv->mutex);
+
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	domain = drm->device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
+	domain = drm->client.device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
 			 /*
 			  * fences created in sysmem must be non-cached or we
 			  * will lose CPU/GPU coherency!
 			  */
 			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
-	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0, domain, 0,
-			     0, NULL, NULL, &priv->bo);
+	ret = nouveau_bo_new(&drm->client, 16 * priv->base.contexts, 0,
+			     domain, 0, 0, NULL, NULL, &priv->bo);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(priv->bo, domain, false);
 		if (ret == 0) {
@@ -233,7 +239,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	}
 
 	if (ret == 0)
-		ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
+		ret = nouveau_bo_new(&drm->client, 16 * priv->base.contexts, 0,
 				     TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED, 0,
 				     0, NULL, NULL, &priv->bo_gart);
 	if (ret == 0) {

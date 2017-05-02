@@ -692,6 +692,10 @@ static int send_connect(struct c4iw_ep *ep)
 	int ret;
 	enum chip_type adapter_type = ep->com.dev->rdev.lldi.adapter_type;
 	u32 isn = (prandom_u32() & ~7UL) - 1;
+	struct net_device *netdev;
+	u64 params;
+
+	netdev = ep->com.dev->rdev.lldi.ports[0];
 
 	switch (CHELSIO_CHIP_VERSION(adapter_type)) {
 	case CHELSIO_T4:
@@ -768,6 +772,8 @@ static int send_connect(struct c4iw_ep *ep)
 		opt2 |= T5_ISS_F;
 	}
 
+	params = cxgb4_select_ntuple(netdev, ep->l2t);
+
 	if (ep->com.remote_addr.ss_family == AF_INET6)
 		cxgb4_clip_get(ep->com.dev->rdev.lldi.ports[0],
 			       (const u32 *)&la6->sin6_addr.s6_addr, 1);
@@ -809,18 +815,22 @@ static int send_connect(struct c4iw_ep *ep)
 		req->opt0 = cpu_to_be64(opt0);
 
 		if (is_t4(ep->com.dev->rdev.lldi.adapter_type)) {
-			req->params = cpu_to_be32(cxgb4_select_ntuple(
-						ep->com.dev->rdev.lldi.ports[0],
-						ep->l2t));
+			req->params = cpu_to_be32(params);
 			req->opt2 = cpu_to_be32(opt2);
 		} else {
-			t5req->params = cpu_to_be64(FILTER_TUPLE_V(
-						cxgb4_select_ntuple(
-						ep->com.dev->rdev.lldi.ports[0],
-						ep->l2t)));
-			t5req->rsvd = cpu_to_be32(isn);
-			PDBG("%s snd_isn %u\n", __func__, t5req->rsvd);
-			t5req->opt2 = cpu_to_be32(opt2);
+			if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+				t5req->params =
+					  cpu_to_be64(FILTER_TUPLE_V(params));
+				t5req->rsvd = cpu_to_be32(isn);
+				PDBG("%s snd_isn %u\n", __func__, t5req->rsvd);
+				t5req->opt2 = cpu_to_be32(opt2);
+			} else {
+				t6req->params =
+					  cpu_to_be64(FILTER_TUPLE_V(params));
+				t6req->rsvd = cpu_to_be32(isn);
+				PDBG("%s snd_isn %u\n", __func__, t6req->rsvd);
+				t6req->opt2 = cpu_to_be32(opt2);
+			}
 		}
 	} else {
 		switch (CHELSIO_CHIP_VERSION(adapter_type)) {
@@ -859,18 +869,24 @@ static int send_connect(struct c4iw_ep *ep)
 		req6->opt0 = cpu_to_be64(opt0);
 
 		if (is_t4(ep->com.dev->rdev.lldi.adapter_type)) {
-			req6->params = cpu_to_be32(cxgb4_select_ntuple(
-						ep->com.dev->rdev.lldi.ports[0],
-						ep->l2t));
+			req6->params = cpu_to_be32(cxgb4_select_ntuple(netdev,
+								      ep->l2t));
 			req6->opt2 = cpu_to_be32(opt2);
 		} else {
-			t5req6->params = cpu_to_be64(FILTER_TUPLE_V(
-						cxgb4_select_ntuple(
-						ep->com.dev->rdev.lldi.ports[0],
-						ep->l2t)));
-			t5req6->rsvd = cpu_to_be32(isn);
-			PDBG("%s snd_isn %u\n", __func__, t5req6->rsvd);
-			t5req6->opt2 = cpu_to_be32(opt2);
+			if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+				t5req6->params =
+					    cpu_to_be64(FILTER_TUPLE_V(params));
+				t5req6->rsvd = cpu_to_be32(isn);
+				PDBG("%s snd_isn %u\n", __func__, t5req6->rsvd);
+				t5req6->opt2 = cpu_to_be32(opt2);
+			} else {
+				t6req6->params =
+					    cpu_to_be64(FILTER_TUPLE_V(params));
+				t6req6->rsvd = cpu_to_be32(isn);
+				PDBG("%s snd_isn %u\n", __func__, t6req6->rsvd);
+				t6req6->opt2 = cpu_to_be32(opt2);
+			}
+
 		}
 	}
 
@@ -1804,20 +1820,21 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	skb_trim(skb, dlen);
 	mutex_lock(&ep->com.mutex);
 
-	/* update RX credits */
-	update_rx_credits(ep, dlen);
-
 	switch (ep->com.state) {
 	case MPA_REQ_SENT:
+		update_rx_credits(ep, dlen);
 		ep->rcv_seq += dlen;
 		disconnect = process_mpa_reply(ep, skb);
 		break;
 	case MPA_REQ_WAIT:
+		update_rx_credits(ep, dlen);
 		ep->rcv_seq += dlen;
 		disconnect = process_mpa_request(ep, skb);
 		break;
 	case FPDU_MODE: {
 		struct c4iw_qp_attributes attrs;
+
+		update_rx_credits(ep, dlen);
 		BUG_ON(!ep->com.qp);
 		if (status)
 			pr_err("%s Unexpected streaming data." \
@@ -2516,18 +2533,18 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		struct sockaddr_in *sin = (struct sockaddr_in *)
 			&child_ep->com.local_addr;
 
-		sin->sin_family = PF_INET;
+		sin->sin_family = AF_INET;
 		sin->sin_port = local_port;
 		sin->sin_addr.s_addr = *(__be32 *)local_ip;
 
 		sin = (struct sockaddr_in *)&child_ep->com.local_addr;
-		sin->sin_family = PF_INET;
+		sin->sin_family = AF_INET;
 		sin->sin_port = ((struct sockaddr_in *)
 				 &parent_ep->com.local_addr)->sin_port;
 		sin->sin_addr.s_addr = *(__be32 *)local_ip;
 
 		sin = (struct sockaddr_in *)&child_ep->com.remote_addr;
-		sin->sin_family = PF_INET;
+		sin->sin_family = AF_INET;
 		sin->sin_port = peer_port;
 		sin->sin_addr.s_addr = *(__be32 *)peer_ip;
 	} else {

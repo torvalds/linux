@@ -98,7 +98,7 @@ static void vgic_mmio_write_sgir(struct kvm_vcpu *source_vcpu,
 		irq = vgic_get_irq(source_vcpu->kvm, vcpu, intid);
 
 		spin_lock(&irq->irq_lock);
-		irq->pending = true;
+		irq->pending_latch = true;
 		irq->source |= 1U << source_vcpu->vcpu_id;
 
 		vgic_queue_irq_unlock(source_vcpu->kvm, irq);
@@ -182,7 +182,7 @@ static void vgic_mmio_write_sgipendc(struct kvm_vcpu *vcpu,
 
 		irq->source &= ~((val >> (i * 8)) & 0xff);
 		if (!irq->source)
-			irq->pending = false;
+			irq->pending_latch = false;
 
 		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -204,29 +204,13 @@ static void vgic_mmio_write_sgipends(struct kvm_vcpu *vcpu,
 		irq->source |= (val >> (i * 8)) & 0xff;
 
 		if (irq->source) {
-			irq->pending = true;
+			irq->pending_latch = true;
 			vgic_queue_irq_unlock(vcpu->kvm, irq);
 		} else {
 			spin_unlock(&irq->irq_lock);
 		}
 		vgic_put_irq(vcpu->kvm, irq);
 	}
-}
-
-static void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
-{
-	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_set_vmcr(vcpu, vmcr);
-	else
-		vgic_v3_set_vmcr(vcpu, vmcr);
-}
-
-static void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
-{
-	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_get_vmcr(vcpu, vmcr);
-	else
-		vgic_v3_get_vmcr(vcpu, vmcr);
 }
 
 #define GICC_ARCH_VERSION_V2	0x2
@@ -369,21 +353,30 @@ unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev)
 
 int vgic_v2_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
-	int nr_irqs = dev->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
-	const struct vgic_register_region *regions;
+	const struct vgic_register_region *region;
+	struct vgic_io_device iodev;
+	struct vgic_reg_attr reg_attr;
+	struct kvm_vcpu *vcpu;
 	gpa_t addr;
-	int nr_regions, i, len;
+	int ret;
 
-	addr = attr->attr & KVM_DEV_ARM_VGIC_OFFSET_MASK;
+	ret = vgic_v2_parse_attr(dev, attr, &reg_attr);
+	if (ret)
+		return ret;
+
+	vcpu = reg_attr.vcpu;
+	addr = reg_attr.addr;
 
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
-		regions = vgic_v2_dist_registers;
-		nr_regions = ARRAY_SIZE(vgic_v2_dist_registers);
+		iodev.regions = vgic_v2_dist_registers;
+		iodev.nr_regions = ARRAY_SIZE(vgic_v2_dist_registers);
+		iodev.base_addr = 0;
 		break;
 	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
-		regions = vgic_v2_cpu_registers;
-		nr_regions = ARRAY_SIZE(vgic_v2_cpu_registers);
+		iodev.regions = vgic_v2_cpu_registers;
+		iodev.nr_regions = ARRAY_SIZE(vgic_v2_cpu_registers);
+		iodev.base_addr = 0;
 		break;
 	default:
 		return -ENXIO;
@@ -393,43 +386,11 @@ int vgic_v2_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)
 	if (addr & 3)
 		return -ENXIO;
 
-	for (i = 0; i < nr_regions; i++) {
-		if (regions[i].bits_per_irq)
-			len = (regions[i].bits_per_irq * nr_irqs) / 8;
-		else
-			len = regions[i].len;
+	region = vgic_get_mmio_region(vcpu, &iodev, addr, sizeof(u32));
+	if (!region)
+		return -ENXIO;
 
-		if (regions[i].reg_offset <= addr &&
-		    regions[i].reg_offset + len > addr)
-			return 0;
-	}
-
-	return -ENXIO;
-}
-
-/*
- * When userland tries to access the VGIC register handlers, we need to
- * create a usable struct vgic_io_device to be passed to the handlers and we
- * have to set up a buffer similar to what would have happened if a guest MMIO
- * access occurred, including doing endian conversions on BE systems.
- */
-static int vgic_uaccess(struct kvm_vcpu *vcpu, struct vgic_io_device *dev,
-			bool is_write, int offset, u32 *val)
-{
-	unsigned int len = 4;
-	u8 buf[4];
-	int ret;
-
-	if (is_write) {
-		vgic_data_host_to_mmio_bus(buf, len, *val);
-		ret = kvm_io_gic_ops.write(vcpu, &dev->dev, offset, len, buf);
-	} else {
-		ret = kvm_io_gic_ops.read(vcpu, &dev->dev, offset, len, buf);
-		if (!ret)
-			*val = vgic_data_mmio_bus_to_host(buf, len);
-	}
-
-	return ret;
+	return 0;
 }
 
 int vgic_v2_cpuif_uaccess(struct kvm_vcpu *vcpu, bool is_write,

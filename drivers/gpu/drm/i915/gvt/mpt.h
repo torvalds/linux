@@ -44,18 +44,6 @@
  */
 
 /**
- * intel_gvt_hypervisor_detect_host - check if GVT-g is running within
- * hypervisor host/privilged domain
- *
- * Returns:
- * Zero on success, -ENODEV if current kernel is running inside a VM
- */
-static inline int intel_gvt_hypervisor_detect_host(void)
-{
-	return intel_gvt_host.mpt->detect_host();
-}
-
-/**
  * intel_gvt_hypervisor_host_init - init GVT-g host side
  *
  * Returns:

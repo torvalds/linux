@@ -1,5 +1,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/init_task.h>
 #include <linux/fs.h>
 

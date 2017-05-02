@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 
 /*
  * Extract data using a pointer. Any more than a byte and we
- * get into potential aligment issues -- see the STORE macros below.
+ * get into potential alignment issues -- see the STORE macros below.
  * Use with care.
  */
 #define ACPI_CAST8(ptr)                 ACPI_CAST_PTR (u8, (ptr))
@@ -63,7 +63,7 @@
 #define ACPI_SET64(ptr, val)            (*ACPI_CAST64 (ptr) = (u64) (val))
 
 /*
- * printf() format helper. This macros is a workaround for the difficulties
+ * printf() format helper. This macro is a workaround for the difficulties
  * with emitting 64-bit integers and 64-bit pointers with the same code
  * for both 32-bit and 64-bit hosts.
  */
@@ -260,8 +260,70 @@
 
 #define ACPI_IS_MISALIGNED(value)           (((acpi_size) value) & (sizeof(acpi_size)-1))
 
+/* Generic bit manipulation */
+
+#ifndef ACPI_USE_NATIVE_BIT_FINDER
+
+#define __ACPI_FIND_LAST_BIT_2(a, r)        ((((u8)  (a)) & 0x02) ? (r)+1 : (r))
+#define __ACPI_FIND_LAST_BIT_4(a, r)        ((((u8)  (a)) & 0x0C) ? \
+											 __ACPI_FIND_LAST_BIT_2  ((a)>>2,  (r)+2) : \
+											 __ACPI_FIND_LAST_BIT_2  ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_8(a, r)        ((((u8)  (a)) & 0xF0) ? \
+											 __ACPI_FIND_LAST_BIT_4  ((a)>>4,  (r)+4) : \
+											 __ACPI_FIND_LAST_BIT_4  ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_16(a, r)       ((((u16) (a)) & 0xFF00) ? \
+											 __ACPI_FIND_LAST_BIT_8  ((a)>>8,  (r)+8) : \
+											 __ACPI_FIND_LAST_BIT_8  ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_32(a, r)       ((((u32) (a)) & 0xFFFF0000) ? \
+											 __ACPI_FIND_LAST_BIT_16 ((a)>>16, (r)+16) : \
+											 __ACPI_FIND_LAST_BIT_16 ((a), (r)))
+#define __ACPI_FIND_LAST_BIT_64(a, r)       ((((u64) (a)) & 0xFFFFFFFF00000000) ? \
+											 __ACPI_FIND_LAST_BIT_32 ((a)>>32, (r)+32) : \
+											 __ACPI_FIND_LAST_BIT_32 ((a), (r)))
+
+#define ACPI_FIND_LAST_BIT_8(a)             ((a) ? __ACPI_FIND_LAST_BIT_8 (a, 1) : 0)
+#define ACPI_FIND_LAST_BIT_16(a)            ((a) ? __ACPI_FIND_LAST_BIT_16 (a, 1) : 0)
+#define ACPI_FIND_LAST_BIT_32(a)            ((a) ? __ACPI_FIND_LAST_BIT_32 (a, 1) : 0)
+#define ACPI_FIND_LAST_BIT_64(a)            ((a) ? __ACPI_FIND_LAST_BIT_64 (a, 1) : 0)
+
+#define __ACPI_FIND_FIRST_BIT_2(a, r)       ((((u8) (a)) & 0x01) ? (r) : (r)+1)
+#define __ACPI_FIND_FIRST_BIT_4(a, r)       ((((u8) (a)) & 0x03) ? \
+											 __ACPI_FIND_FIRST_BIT_2  ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_2  ((a)>>2, (r)+2))
+#define __ACPI_FIND_FIRST_BIT_8(a, r)       ((((u8) (a)) & 0x0F) ? \
+											 __ACPI_FIND_FIRST_BIT_4  ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_4  ((a)>>4, (r)+4))
+#define __ACPI_FIND_FIRST_BIT_16(a, r)      ((((u16) (a)) & 0x00FF) ? \
+											 __ACPI_FIND_FIRST_BIT_8  ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_8  ((a)>>8, (r)+8))
+#define __ACPI_FIND_FIRST_BIT_32(a, r)      ((((u32) (a)) & 0x0000FFFF) ? \
+											 __ACPI_FIND_FIRST_BIT_16 ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_16 ((a)>>16, (r)+16))
+#define __ACPI_FIND_FIRST_BIT_64(a, r)      ((((u64) (a)) & 0x00000000FFFFFFFF) ? \
+											 __ACPI_FIND_FIRST_BIT_32 ((a), (r)) : \
+											 __ACPI_FIND_FIRST_BIT_32 ((a)>>32, (r)+32))
+
+#define ACPI_FIND_FIRST_BIT_8(a)            ((a) ? __ACPI_FIND_FIRST_BIT_8 (a, 1) : 0)
+#define ACPI_FIND_FIRST_BIT_16(a)           ((a) ? __ACPI_FIND_FIRST_BIT_16 (a, 1) : 0)
+#define ACPI_FIND_FIRST_BIT_32(a)           ((a) ? __ACPI_FIND_FIRST_BIT_32 (a, 1) : 0)
+#define ACPI_FIND_FIRST_BIT_64(a)           ((a) ? __ACPI_FIND_FIRST_BIT_64 (a, 1) : 0)
+
+#endif				/* ACPI_USE_NATIVE_BIT_FINDER */
+
 /* Generic (power-of-two) rounding */
 
+#define ACPI_ROUND_UP_POWER_OF_TWO_8(a)     ((u8) \
+											(((u16) 1) <<  ACPI_FIND_LAST_BIT_8  ((a)  - 1)))
+#define ACPI_ROUND_DOWN_POWER_OF_TWO_8(a)   ((u8) \
+											(((u16) 1) << (ACPI_FIND_LAST_BIT_8  ((a)) - 1)))
+#define ACPI_ROUND_UP_POWER_OF_TWO_16(a)    ((u16) \
+											(((u32) 1) <<  ACPI_FIND_LAST_BIT_16 ((a)  - 1)))
+#define ACPI_ROUND_DOWN_POWER_OF_TWO_16(a)  ((u16) \
+											(((u32) 1) << (ACPI_FIND_LAST_BIT_16 ((a)) - 1)))
+#define ACPI_ROUND_UP_POWER_OF_TWO_32(a)    ((u32) \
+											(((u64) 1) <<  ACPI_FIND_LAST_BIT_32 ((a)  - 1)))
+#define ACPI_ROUND_DOWN_POWER_OF_TWO_32(a)  ((u32) \
+											(((u64) 1) << (ACPI_FIND_LAST_BIT_32 ((a)) - 1)))
 #define ACPI_IS_ALIGNED(a, s)               (((a) & ((s) - 1)) == 0)
 #define ACPI_IS_POWER_OF_TWO(a)             ACPI_IS_ALIGNED(a, a)
 
@@ -270,8 +332,8 @@
  * Bit positions start at zero.
  * MASK_BITS_ABOVE creates a mask starting AT the position and above
  * MASK_BITS_BELOW creates a mask starting one bit BELOW the position
- * MASK_BITS_ABOVE/BELOW accpets a bit offset to create a mask
- * MASK_BITS_ABOVE/BELOW_32/64 accpets a bit width to create a mask
+ * MASK_BITS_ABOVE/BELOW accepts a bit offset to create a mask
+ * MASK_BITS_ABOVE/BELOW_32/64 accepts a bit width to create a mask
  * Note: The ACPI_INTEGER_BIT_SIZE check is used to bypass compiler
  * differences with the shift operator
  */
@@ -389,7 +451,7 @@
  */
 #ifndef ACPI_NO_ERROR_MESSAGES
 /*
- * Error reporting. Callers module and line number are inserted by AE_INFO,
+ * Error reporting. The callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
  * These macros are used for both the debug and non-debug versions of the code.
  */

@@ -34,6 +34,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdev_features.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <net/flow_dissector.h>
 #include <linux/splice.h>
 #include <linux/in6.h>
@@ -585,20 +586,22 @@ static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
  *	@cloned: Head may be cloned (check refcnt to be sure)
  *	@ip_summed: Driver fed us an IP checksum
  *	@nohdr: Payload reference only, must not modify header
- *	@nfctinfo: Relationship of this skb to the connection
  *	@pkt_type: Packet class
  *	@fclone: skbuff clone status
  *	@ipvs_property: skbuff is owned by ipvs
+ *	@tc_skip_classify: do not classify packet. set by IFB device
+ *	@tc_at_ingress: used within tc_classify to distinguish in/egress
+ *	@tc_redirected: packet was redirected by a tc action
+ *	@tc_from_ingress: if tc_redirected, tc_at_ingress at time of redirect
  *	@peeked: this packet has been seen already, so stats have been
  *		done for it, don't do them again
  *	@nf_trace: netfilter packet trace flag
  *	@protocol: Packet protocol from driver
  *	@destructor: Destruct function
- *	@nfct: Associated connection, if any
+ *	@_nfct: Associated connection, if any (with nfctinfo bits)
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@skb_iif: ifindex of device we arrived on
  *	@tc_index: Traffic control index
- *	@tc_verd: traffic control verdict
  *	@hash: the packet hash
  *	@queue_mapping: Queue mapping for multiqueue devices
  *	@xmit_more: More SKBs are pending for this queue
@@ -610,6 +613,7 @@ static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
  *	@wifi_acked_valid: wifi_acked was set
  *	@wifi_acked: whether frame was acked on wifi or not
  *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
+ *	@dst_pending_confirm: need to confirm neighbour
   *	@napi_id: id of the NAPI struct this skb came from
  *	@secmark: security marking
  *	@mark: Generic packet mark
@@ -668,7 +672,7 @@ struct sk_buff {
 	struct	sec_path	*sp;
 #endif
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-	struct nf_conntrack	*nfct;
+	unsigned long		 _nfct;
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	struct nf_bridge_info	*nf_bridge;
@@ -721,7 +725,6 @@ struct sk_buff {
 	__u8			pkt_type:3;
 	__u8			pfmemalloc:1;
 	__u8			ignore_df:1;
-	__u8			nfctinfo:3;
 
 	__u8			nf_trace:1;
 	__u8			ip_summed:2;
@@ -740,6 +743,7 @@ struct sk_buff {
 	__u8			csum_level:2;
 	__u8			csum_bad:1;
 
+	__u8			dst_pending_confirm:1;
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
@@ -749,13 +753,15 @@ struct sk_buff {
 #ifdef CONFIG_NET_SWITCHDEV
 	__u8			offload_fwd_mark:1;
 #endif
-	/* 2, 4 or 5 bit hole */
+#ifdef CONFIG_NET_CLS_ACT
+	__u8			tc_skip_classify:1;
+	__u8			tc_at_ingress:1;
+	__u8			tc_redirected:1;
+	__u8			tc_from_ingress:1;
+#endif
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
-#ifdef CONFIG_NET_CLS_ACT
-	__u16			tc_verd;	/* traffic control verdict */
-#endif
 #endif
 
 	union {
@@ -836,6 +842,7 @@ static inline bool skb_pfmemalloc(const struct sk_buff *skb)
 #define SKB_DST_NOREF	1UL
 #define SKB_DST_PTRMASK	~(SKB_DST_NOREF)
 
+#define SKB_NFCT_PTRMASK	~(7UL)
 /**
  * skb_dst - returns skb dst_entry
  * @skb: buffer
@@ -2176,6 +2183,11 @@ static inline void skb_set_network_header(struct sk_buff *skb, const int offset)
 static inline unsigned char *skb_mac_header(const struct sk_buff *skb)
 {
 	return skb->head + skb->mac_header;
+}
+
+static inline int skb_mac_offset(const struct sk_buff *skb)
+{
+	return skb_mac_header(skb) - skb->data;
 }
 
 static inline int skb_mac_header_was_set(const struct sk_buff *skb)
@@ -3553,6 +3565,15 @@ static inline void skb_remcsum_process(struct sk_buff *skb, void *ptr,
 	skb->csum = csum_add(skb->csum, delta);
 }
 
+static inline struct nf_conntrack *skb_nfct(const struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+	return (void *)(skb->_nfct & SKB_NFCT_PTRMASK);
+#else
+	return NULL;
+#endif
+}
+
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 void nf_conntrack_destroy(struct nf_conntrack *nfct);
 static inline void nf_conntrack_put(struct nf_conntrack *nfct)
@@ -3581,8 +3602,8 @@ static inline void nf_bridge_get(struct nf_bridge_info *nf_bridge)
 static inline void nf_reset(struct sk_buff *skb)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-	nf_conntrack_put(skb->nfct);
-	skb->nfct = NULL;
+	nf_conntrack_put(skb_nfct(skb));
+	skb->_nfct = 0;
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	nf_bridge_put(skb->nf_bridge);
@@ -3602,10 +3623,8 @@ static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src,
 			     bool copy)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-	dst->nfct = src->nfct;
-	nf_conntrack_get(src->nfct);
-	if (copy)
-		dst->nfctinfo = src->nfctinfo;
+	dst->_nfct = src->_nfct;
+	nf_conntrack_get(skb_nfct(src));
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	dst->nf_bridge  = src->nf_bridge;
@@ -3620,7 +3639,7 @@ static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src,
 static inline void nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-	nf_conntrack_put(dst->nfct);
+	nf_conntrack_put(skb_nfct(dst));
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	nf_bridge_put(dst->nf_bridge);
@@ -3652,9 +3671,7 @@ static inline bool skb_irq_freeable(const struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_XFRM)
 		!skb->sp &&
 #endif
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-		!skb->nfct &&
-#endif
+		!skb_nfct(skb) &&
 		!skb->_skb_refdst &&
 		!skb_has_frag_list(skb);
 }
@@ -3687,6 +3704,16 @@ static inline u16 skb_get_rx_queue(const struct sk_buff *skb)
 static inline bool skb_rx_queue_recorded(const struct sk_buff *skb)
 {
 	return skb->queue_mapping != 0;
+}
+
+static inline void skb_set_dst_pending_confirm(struct sk_buff *skb, u32 val)
+{
+	skb->dst_pending_confirm = val;
+}
+
+static inline bool skb_get_dst_pending_confirm(const struct sk_buff *skb)
+{
+	return skb->dst_pending_confirm != 0;
 }
 
 static inline struct sec_path *skb_sec_path(struct sk_buff *skb)

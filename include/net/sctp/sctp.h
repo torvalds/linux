@@ -141,6 +141,8 @@ int sctp_primitive_ABORT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_SEND(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_REQUESTHEARTBEAT(struct net *, struct sctp_association *, void *arg);
 int sctp_primitive_ASCONF(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_RECONF(struct net *net, struct sctp_association *asoc,
+			  void *arg);
 
 /*
  * sctp/input.c
@@ -190,6 +192,15 @@ void sctp_remaddr_proc_exit(struct net *net);
  * sctp/offload.c
  */
 int sctp_offload_init(void);
+
+/*
+ * sctp/stream.c
+ */
+int sctp_send_reset_streams(struct sctp_association *asoc,
+			    struct sctp_reset_streams *params);
+int sctp_send_reset_assoc(struct sctp_association *asoc);
+int sctp_send_add_streams(struct sctp_association *asoc,
+			  struct sctp_add_streams *params);
 
 /*
  * Module global variables
@@ -283,7 +294,6 @@ extern atomic_t sctp_dbg_objcnt_chunk;
 extern atomic_t sctp_dbg_objcnt_bind_addr;
 extern atomic_t sctp_dbg_objcnt_bind_bucket;
 extern atomic_t sctp_dbg_objcnt_addr;
-extern atomic_t sctp_dbg_objcnt_ssnmap;
 extern atomic_t sctp_dbg_objcnt_datamsg;
 extern atomic_t sctp_dbg_objcnt_keys;
 
@@ -586,10 +596,10 @@ static inline void sctp_v4_map_v6(union sctp_addr *addr)
  */
 static inline struct dst_entry *sctp_transport_dst_check(struct sctp_transport *t)
 {
-	if (t->dst && !dst_check(t->dst, t->dst_cookie)) {
-		dst_release(t->dst);
-		t->dst = NULL;
-	}
+	if (t->dst && (!dst_check(t->dst, t->dst_cookie) ||
+		       t->pathmtu != max_t(size_t, SCTP_TRUNC4(dst_mtu(t->dst)),
+					   SCTP_DEFAULT_MINSEGMENT)))
+		sctp_transport_dst_release(t);
 
 	return t->dst;
 }

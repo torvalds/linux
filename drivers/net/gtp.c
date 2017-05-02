@@ -69,7 +69,6 @@ struct gtp_dev {
 	struct socket		*sock0;
 	struct socket		*sock1u;
 
-	struct net		*net;
 	struct net_device	*dev;
 
 	unsigned int		hash_size;
@@ -184,7 +183,6 @@ static int gtp0_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb,
 			      sizeof(struct gtp0_header);
 	struct gtp0_header *gtp0;
 	struct pdp_ctx *pctx;
-	int ret = 0;
 
 	if (!pskb_may_pull(skb, hdrlen))
 		return -1;
@@ -197,26 +195,19 @@ static int gtp0_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb,
 	if (gtp0->type != GTP_TPDU)
 		return 1;
 
-	rcu_read_lock();
 	pctx = gtp0_pdp_find(gtp, be64_to_cpu(gtp0->tid));
 	if (!pctx) {
 		netdev_dbg(gtp->dev, "No PDP ctx to decap skb=%p\n", skb);
-		ret = -1;
-		goto out_rcu;
+		return 1;
 	}
 
 	if (!gtp_check_src_ms(skb, pctx, hdrlen)) {
 		netdev_dbg(gtp->dev, "No PDP ctx for this MS\n");
-		ret = -1;
-		goto out_rcu;
+		return 1;
 	}
-	rcu_read_unlock();
 
 	/* Get rid of the GTP + UDP headers. */
 	return iptunnel_pull_header(skb, hdrlen, skb->protocol, xnet);
-out_rcu:
-	rcu_read_unlock();
-	return ret;
 }
 
 static int gtp1u_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb,
@@ -226,7 +217,6 @@ static int gtp1u_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb,
 			      sizeof(struct gtp1_header);
 	struct gtp1_header *gtp1;
 	struct pdp_ctx *pctx;
-	int ret = 0;
 
 	if (!pskb_may_pull(skb, hdrlen))
 		return -1;
@@ -254,26 +244,19 @@ static int gtp1u_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb,
 
 	gtp1 = (struct gtp1_header *)(skb->data + sizeof(struct udphdr));
 
-	rcu_read_lock();
 	pctx = gtp1_pdp_find(gtp, ntohl(gtp1->tid));
 	if (!pctx) {
 		netdev_dbg(gtp->dev, "No PDP ctx to decap skb=%p\n", skb);
-		ret = -1;
-		goto out_rcu;
+		return 1;
 	}
 
 	if (!gtp_check_src_ms(skb, pctx, hdrlen)) {
 		netdev_dbg(gtp->dev, "No PDP ctx for this MS\n");
-		ret = -1;
-		goto out_rcu;
+		return 1;
 	}
-	rcu_read_unlock();
 
 	/* Get rid of the GTP + UDP headers. */
 	return iptunnel_pull_header(skb, hdrlen, skb->protocol, xnet);
-out_rcu:
-	rcu_read_unlock();
-	return ret;
 }
 
 static void gtp_encap_disable(struct gtp_dev *gtp)
@@ -316,7 +299,7 @@ static int gtp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	netdev_dbg(gtp->dev, "encap_recv sk=%p\n", sk);
 
-	xnet = !net_eq(gtp->net, dev_net(gtp->dev));
+	xnet = !net_eq(sock_net(sk), dev_net(gtp->dev));
 
 	switch (udp_sk(sk)->encap_type) {
 	case UDP_ENCAP_GTP0:
@@ -612,7 +595,7 @@ static netdev_tx_t gtp_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 				    pktinfo.fl4.saddr, pktinfo.fl4.daddr,
 				    pktinfo.iph->tos,
 				    ip4_dst_hoplimit(&pktinfo.rt->dst),
-				    htons(IP_DF),
+				    0,
 				    pktinfo.gtph_port, pktinfo.gtph_port,
 				    true, false);
 		break;
@@ -658,7 +641,7 @@ static void gtp_link_setup(struct net_device *dev)
 static int gtp_hashtable_new(struct gtp_dev *gtp, int hsize);
 static void gtp_hashtable_free(struct gtp_dev *gtp);
 static int gtp_encap_enable(struct net_device *dev, struct gtp_dev *gtp,
-			    int fd_gtp0, int fd_gtp1, struct net *src_net);
+			    int fd_gtp0, int fd_gtp1);
 
 static int gtp_newlink(struct net *src_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[])
@@ -675,7 +658,7 @@ static int gtp_newlink(struct net *src_net, struct net_device *dev,
 	fd0 = nla_get_u32(data[IFLA_GTP_FD0]);
 	fd1 = nla_get_u32(data[IFLA_GTP_FD1]);
 
-	err = gtp_encap_enable(dev, gtp, fd0, fd1, src_net);
+	err = gtp_encap_enable(dev, gtp, fd0, fd1);
 	if (err < 0)
 		goto out_err;
 
@@ -821,7 +804,7 @@ static void gtp_hashtable_free(struct gtp_dev *gtp)
 }
 
 static int gtp_encap_enable(struct net_device *dev, struct gtp_dev *gtp,
-			    int fd_gtp0, int fd_gtp1, struct net *src_net)
+			    int fd_gtp0, int fd_gtp1)
 {
 	struct udp_tunnel_sock_cfg tuncfg = {NULL};
 	struct socket *sock0, *sock1u;
@@ -858,7 +841,6 @@ static int gtp_encap_enable(struct net_device *dev, struct gtp_dev *gtp,
 
 	gtp->sock0 = sock0;
 	gtp->sock1u = sock1u;
-	gtp->net = src_net;
 
 	tuncfg.sk_user_data = gtp;
 	tuncfg.encap_rcv = gtp_encap_recv;
@@ -1348,7 +1330,7 @@ static int __init gtp_init(void)
 	if (err < 0)
 		goto unreg_genl_family;
 
-	pr_info("GTP module loaded (pdp ctx size %Zd bytes)\n",
+	pr_info("GTP module loaded (pdp ctx size %zd bytes)\n",
 		sizeof(struct pdp_ctx));
 	return 0;
 
@@ -1376,3 +1358,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <hwelte@sysmocom.de>");
 MODULE_DESCRIPTION("Interface driver for GTP encapsulated traffic");
 MODULE_ALIAS_RTNL_LINK("gtp");
+MODULE_ALIAS_GENL_FAMILY("gtp");

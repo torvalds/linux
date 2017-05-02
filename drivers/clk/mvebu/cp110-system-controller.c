@@ -64,8 +64,11 @@ enum {
 #define CP110_GATE_NAND			2
 #define CP110_GATE_PPV2			3
 #define CP110_GATE_SDIO			4
+#define CP110_GATE_MG			5
+#define CP110_GATE_MG_CORE		6
 #define CP110_GATE_XOR1			7
 #define CP110_GATE_XOR0			8
+#define CP110_GATE_GOP_DP		9
 #define CP110_GATE_PCIE_X1_0		11
 #define CP110_GATE_PCIE_X1_1		12
 #define CP110_GATE_PCIE_X4		13
@@ -73,7 +76,7 @@ enum {
 #define CP110_GATE_SATA			15
 #define CP110_GATE_SATA_USB		16
 #define CP110_GATE_MAIN			17
-#define CP110_GATE_SDMMC		18
+#define CP110_GATE_SDMMC_GOP		18
 #define CP110_GATE_SLOW_IO		21
 #define CP110_GATE_USB3H0		22
 #define CP110_GATE_USB3H1		23
@@ -296,6 +299,11 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 						      "gate-clock-output-names",
 						      CP110_GATE_MAIN, &parent);
 			break;
+		case CP110_GATE_MG:
+			of_property_read_string_index(np,
+						      "gate-clock-output-names",
+						      CP110_GATE_MG_CORE, &parent);
+			break;
 		case CP110_GATE_NAND:
 			parent = nand_name;
 			break;
@@ -303,9 +311,10 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 			parent = ppv2_name;
 			break;
 		case CP110_GATE_SDIO:
+		case CP110_GATE_GOP_DP:
 			of_property_read_string_index(np,
 						      "gate-clock-output-names",
-						      CP110_GATE_SDMMC, &parent);
+						      CP110_GATE_SDMMC_GOP, &parent);
 			break;
 		case CP110_GATE_XOR1:
 		case CP110_GATE_XOR0:

@@ -8,6 +8,7 @@ Required properties:
 
 Optional properties:
 - amp-supply: phandle to a regulator that acts as an amplifier for the beeper
+- beeper-hz:  bell frequency in Hz
 
 Example:
 

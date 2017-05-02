@@ -126,6 +126,8 @@ static int __init parse_tag_initrd(const bp_tag_t* tag)
 
 __tagtable(BP_TAG_INITRD, parse_tag_initrd);
 
+#endif /* CONFIG_BLK_DEV_INITRD */
+
 #ifdef CONFIG_OF
 
 static int __init parse_tag_fdt(const bp_tag_t *tag)
@@ -137,8 +139,6 @@ static int __init parse_tag_fdt(const bp_tag_t *tag)
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
 
 #endif /* CONFIG_OF */
-
-#endif /* CONFIG_BLK_DEV_INITRD */
 
 static int __init parse_tag_cmdline(const bp_tag_t* tag)
 {
@@ -334,6 +334,7 @@ void __init setup_arch(char **cmdline_p)
 
 	mem_reserve(__pa(&_stext), __pa(&_end));
 
+#ifdef CONFIG_VECTORS_OFFSET
 	mem_reserve(__pa(&_WindowVectors_text_start),
 		    __pa(&_WindowVectors_text_end));
 
@@ -369,6 +370,8 @@ void __init setup_arch(char **cmdline_p)
 	mem_reserve(__pa(&_Level6InterruptVector_text_start),
 		    __pa(&_Level6InterruptVector_text_end));
 #endif
+
+#endif /* CONFIG_VECTORS_OFFSET */
 
 #ifdef CONFIG_SMP
 	mem_reserve(__pa(&_SecondaryResetVector_text_start),
@@ -419,7 +422,7 @@ subsys_initcall(topology_init);
 
 void cpu_reset(void)
 {
-#if XCHAL_HAVE_PTP_MMU
+#if XCHAL_HAVE_PTP_MMU && IS_ENABLED(CONFIG_MMU)
 	local_irq_disable();
 	/*
 	 * We have full MMU: all autoload ways, ways 7, 8 and 9 of DTLB must

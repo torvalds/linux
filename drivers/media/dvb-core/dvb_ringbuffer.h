@@ -136,7 +136,7 @@ extern void dvb_ringbuffer_flush_spinlock_wakeup(struct dvb_ringbuffer *rbuf);
 }
 
 /**
- * dvb_ringbuffer_read_user - Reads a buffer into an user pointer
+ * dvb_ringbuffer_read_user - Reads a buffer into a user pointer
  *
  * @rbuf: pointer to struct dvb_ringbuffer
  * @buf: pointer to the buffer where the data will be stored
@@ -193,7 +193,7 @@ extern ssize_t dvb_ringbuffer_write(struct dvb_ringbuffer *rbuf, const u8 *buf,
 				    size_t len);
 
 /**
- * dvb_ringbuffer_write_user - Writes a buffer received via an user pointer
+ * dvb_ringbuffer_write_user - Writes a buffer received via a user pointer
  *
  * @rbuf: pointer to struct dvb_ringbuffer
  * @buf: pointer to the buffer where the data will be read

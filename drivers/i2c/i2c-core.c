@@ -74,7 +74,6 @@
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
-static struct device_type i2c_client_type;
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
@@ -221,7 +220,8 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	strlcpy(info->type, dev_name(&adev->dev), sizeof(info->type));
+	acpi_set_modalias(adev, dev_name(&adev->dev), info->type,
+			  sizeof(info->type));
 
 	return 0;
 }
@@ -1096,11 +1096,12 @@ struct bus_type i2c_bus_type = {
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
-static struct device_type i2c_client_type = {
+struct device_type i2c_client_type = {
 	.groups		= i2c_dev_groups,
 	.uevent		= i2c_device_uevent,
 	.release	= i2c_client_dev_release,
 };
+EXPORT_SYMBOL_GPL(i2c_client_type);
 
 
 /**
@@ -1277,6 +1278,32 @@ static void i2c_dev_set_name(struct i2c_adapter *adap,
 		     i2c_encode_flags_to_addr(client));
 }
 
+static int i2c_dev_irq_from_resources(const struct resource *resources,
+				      unsigned int num_resources)
+{
+	struct irq_data *irqd;
+	int i;
+
+	for (i = 0; i < num_resources; i++) {
+		const struct resource *r = &resources[i];
+
+		if (resource_type(r) != IORESOURCE_IRQ)
+			continue;
+
+		if (r->flags & IORESOURCE_BITS) {
+			irqd = irq_get_irq_data(r->start);
+			if (!irqd)
+				break;
+
+			irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
+		}
+
+		return r->start;
+	}
+
+	return 0;
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -1312,7 +1339,11 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 
 	client->flags = info->flags;
 	client->addr = info->addr;
+
 	client->irq = info->irq;
+	if (!client->irq)
+		client->irq = i2c_dev_irq_from_resources(info->resources,
+							 info->num_resources);
 
 	strlcpy(client->name, info->type, sizeof(client->name));
 
@@ -1335,15 +1366,29 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.fwnode = info->fwnode;
 
 	i2c_dev_set_name(adap, client);
+
+	if (info->properties) {
+		status = device_add_properties(&client->dev, info->properties);
+		if (status) {
+			dev_err(&adap->dev,
+				"Failed to add properties to client %s: %d\n",
+				client->name, status);
+			goto out_err;
+		}
+	}
+
 	status = device_register(&client->dev);
 	if (status)
-		goto out_err;
+		goto out_free_props;
 
 	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
 	return client;
 
+out_free_props:
+	if (info->properties)
+		device_remove_properties(&client->dev);
 out_err:
 	dev_err(&adap->dev,
 		"Failed to register i2c client %s at 0x%02x (%d)\n",
@@ -3690,6 +3735,39 @@ int i2c_slave_unregister(struct i2c_client *client)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i2c_slave_unregister);
+
+/**
+ * i2c_detect_slave_mode - detect operation mode
+ * @dev: The device owning the bus
+ *
+ * This checks the device nodes for an I2C slave by checking the address
+ * used in the reg property. If the address match the I2C_OWN_SLAVE_ADDRESS
+ * flag this means the device is configured to act as a I2C slave and it will
+ * be listening at that address.
+ *
+ * Returns true if an I2C own slave address is detected, otherwise returns
+ * false.
+ */
+bool i2c_detect_slave_mode(struct device *dev)
+{
+	if (IS_BUILTIN(CONFIG_OF) && dev->of_node) {
+		struct device_node *child;
+		u32 reg;
+
+		for_each_child_of_node(dev->of_node, child) {
+			of_property_read_u32(child, "reg", &reg);
+			if (reg & I2C_OWN_SLAVE_ADDRESS) {
+				of_node_put(child);
+				return true;
+			}
+		}
+	} else if (IS_BUILTIN(CONFIG_ACPI) && ACPI_HANDLE(dev)) {
+		dev_dbg(dev, "ACPI slave is not supported yet\n");
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(i2c_detect_slave_mode);
+
 #endif
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");

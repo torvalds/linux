@@ -95,11 +95,6 @@ config SOC_EXYNOS4412
 	default y
 	depends on ARCH_EXYNOS4
 
-config SOC_EXYNOS4415
-	bool "SAMSUNG EXYNOS4415"
-	default y
-	depends on ARCH_EXYNOS4
-
 config SOC_EXYNOS5250
 	bool "SAMSUNG EXYNOS5250"
 	default y

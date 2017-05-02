@@ -277,7 +277,7 @@ static void ptlrpc_req_add_history(struct ptlrpc_service_part *svcpt,
 		 * then we hope there will be less RPCs per bucket at some
 		 * point, and sequence will catch up again
 		 */
-		svcpt->scp_hist_seq += (1U << REQS_SEQ_SHIFT(svcpt));
+		svcpt->scp_hist_seq += (1ULL << REQS_SEQ_SHIFT(svcpt));
 		new_seq = svcpt->scp_hist_seq;
 	}
 
@@ -420,7 +420,8 @@ void reply_out_callback(lnet_event_t *ev)
 		rs->rs_on_net = 0;
 		if (!rs->rs_no_ack ||
 		    rs->rs_transno <=
-		    rs->rs_export->exp_obd->obd_last_committed)
+		    rs->rs_export->exp_obd->obd_last_committed ||
+		    list_empty(&rs->rs_obd_list))
 			ptlrpc_schedule_difficult_reply(rs);
 
 		spin_unlock(&rs->rs_lock);

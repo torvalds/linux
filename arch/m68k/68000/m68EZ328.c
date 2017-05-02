@@ -57,12 +57,12 @@ void __init config_BSP(char *command, int len)
 {
   unsigned char *p;
 
-  printk(KERN_INFO "\n68EZ328 DragonBallEZ support (C) 1999 Rt-Control, Inc\n");
+  pr_info("68EZ328 DragonBallEZ support (C) 1999 Rt-Control, Inc\n");
 
 #ifdef CONFIG_UCSIMM
-  printk(KERN_INFO "uCsimm serial string [%s]\n",getserialnum());
+  pr_info("uCsimm serial string [%s]\n", getserialnum());
   p = cs8900a_hwaddr = gethwaddr(0);
-  printk(KERN_INFO "uCsimm hwaddr %pM\n", p);
+  pr_info("uCsimm hwaddr %pM\n", p);
 
   p = getbenv("APPEND");
   if (p) strcpy(p,command);

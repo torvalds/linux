@@ -89,7 +89,7 @@ static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 	int i;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	ets->ets_cap = mlx5_max_tc(priv->mdev) + 1;
 	for (i = 0; i < ets->ets_cap; i++) {
@@ -236,7 +236,7 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	int err;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	err = mlx5e_dbcnl_validate_ets(netdev, ets);
 	if (err)
@@ -302,6 +302,9 @@ static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_dcbx *dcbx = &priv->dcbx;
 
+	if (mode & DCB_CAP_DCBX_LLD_MANAGED)
+		return 1;
+
 	if ((!mode) && MLX5_CAP_GEN(priv->mdev, dcbx)) {
 		if (dcbx->mode == MLX5E_DCBX_PARAM_VER_OPER_AUTO)
 			return 0;
@@ -315,13 +318,10 @@ static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 		return 1;
 	}
 
-	if (mlx5e_dcbnl_switch_to_host_mode(netdev_priv(dev)))
+	if (!(mode & DCB_CAP_DCBX_HOST))
 		return 1;
 
-	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
-	    !(mode & DCB_CAP_DCBX_VER_CEE) ||
-	    !(mode & DCB_CAP_DCBX_VER_IEEE) ||
-	    !(mode & DCB_CAP_DCBX_HOST))
+	if (mlx5e_dcbnl_switch_to_host_mode(netdev_priv(dev)))
 		return 1;
 
 	return 0;
@@ -402,7 +402,7 @@ static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct ieee_ets ets;
 	struct ieee_pfc pfc;
-	int err = -ENOTSUPP;
+	int err = -EOPNOTSUPP;
 	int i;
 
 	if (!MLX5_CAP_GEN(mdev, ets))
@@ -510,6 +510,11 @@ static void mlx5e_dcbnl_getpgtccfgtx(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (!MLX5_CAP_GEN(priv->mdev, ets)) {
+		netdev_err(netdev, "%s, ets is not supported\n", __func__);
+		return;
+	}
 
 	if (priority >= CEE_DCBX_MAX_PRIO) {
 		netdev_err(netdev,

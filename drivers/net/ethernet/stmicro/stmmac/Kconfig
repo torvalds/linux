@@ -1,5 +1,5 @@
 config STMMAC_ETH
-	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
+	tristate "STMicroelectronics 10/100/1000/EQOS Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
 	select MII
 	select PHYLIB
@@ -7,9 +7,8 @@ config STMMAC_ETH
 	imply PTP_1588_CLOCK
 	select RESET_CONTROLLER
 	---help---
-	  This is the driver for the Ethernet IPs are built around a
-	  Synopsys IP Core and only tested on the STMicroelectronics
-	  platforms.
+	  This is the driver for the Ethernet IPs built around a
+	  Synopsys IP Core.
 
 if STMMAC_ETH
 
@@ -28,6 +27,15 @@ config STMMAC_PLATFORM
 	  If unsure, say N.
 
 if STMMAC_PLATFORM
+
+config DWMAC_DWC_QOS_ETH
+	tristate "Support for snps,dwc-qos-ethernet.txt DT binding."
+	select PHYLIB
+	select CRC32
+	select MII
+	depends on OF && HAS_DMA
+	help
+	  Support for chips using the snps,dwc-qos-ethernet.txt DT binding.
 
 config DWMAC_GENERIC
 	tristate "Generic driver for DWMAC"
@@ -143,11 +151,11 @@ config STMMAC_PCI
 	tristate "STMMAC PCI bus support"
 	depends on STMMAC_ETH && PCI
 	---help---
-	  This is to select the Synopsys DWMAC available on PCI devices,
-	  if you have a controller with this interface, say Y or M here.
+	  This selects the platform specific bus support for the stmmac driver.
+	  This driver was tested on XLINX XC2V3000 FF1152AMT0221
+	  D1215994A VIRTEX FPGA board and SNPS QoS IPK Prototyping Kit.
 
-	  This PCI support is tested on XLINX XC2V3000 FF1152AMT0221
-	  D1215994A VIRTEX FPGA board.
+	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 endif

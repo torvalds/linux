@@ -90,13 +90,16 @@ config IWLWIFI_BCAST_FILTERING
 
 config IWLWIFI_PCIE_RTPM
        bool "Enable runtime power management mode for PCIe devices"
-       depends on IWLMVM && PM
+       depends on IWLMVM && PM && EXPERT
        default false
        help
          Say Y here to enable runtime power management for PCIe
          devices.  If enabled, the device will go into low power mode
          when idle for a short period of time, allowing for improved
-         power saving during runtime.
+         power saving during runtime. Note that this feature requires
+         a tight integration with the platform. It is not recommended
+         to enable this feature without proper validation with the
+         specific target platform.
 
 	 If unsure, say N.
 

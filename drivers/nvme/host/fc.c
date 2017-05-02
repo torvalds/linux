@@ -1663,13 +1663,13 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 		return 0;
 
 	freq->sg_table.sgl = freq->first_sgl;
-	ret = sg_alloc_table_chained(&freq->sg_table, rq->nr_phys_segments,
-			freq->sg_table.sgl);
+	ret = sg_alloc_table_chained(&freq->sg_table,
+			blk_rq_nr_phys_segments(rq), freq->sg_table.sgl);
 	if (ret)
 		return -ENOMEM;
 
 	op->nents = blk_rq_map_sg(rq->q, rq, freq->sg_table.sgl);
-	WARN_ON(op->nents > rq->nr_phys_segments);
+	WARN_ON(op->nents > blk_rq_nr_phys_segments(rq));
 	dir = (rq_data_dir(rq) == WRITE) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	freq->sg_cnt = fc_dma_map_sg(ctrl->lport->dev, freq->sg_table.sgl,
 				op->nents, dir);
@@ -1937,7 +1937,7 @@ nvme_fc_complete_rq(struct request *rq)
 			return;
 		}
 
-		if (rq->cmd_type == REQ_TYPE_DRV_PRIV)
+		if (blk_rq_is_passthrough(rq))
 			error = rq->errors;
 		else
 			error = nvme_error_status(rq->errors);
@@ -2353,18 +2353,6 @@ __nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	/* sanity checks */
 
-	/* FC-NVME supports 64-byte SQE only */
-	if (ctrl->ctrl.ioccsz != 4) {
-		dev_err(ctrl->ctrl.device, "ioccsz %d is not supported!\n",
-				ctrl->ctrl.ioccsz);
-		goto out_remove_admin_queue;
-	}
-	/* FC-NVME supports 16-byte CQE only */
-	if (ctrl->ctrl.iorcsz != 1) {
-		dev_err(ctrl->ctrl.device, "iorcsz %d is not supported!\n",
-				ctrl->ctrl.iorcsz);
-		goto out_remove_admin_queue;
-	}
 	/* FC-NVME does not have other data in the capsule */
 	if (ctrl->ctrl.icdoff) {
 		dev_err(ctrl->ctrl.device, "icdoff %d is not supported!\n",
@@ -2562,8 +2550,7 @@ static int __init nvme_fc_init_module(void)
 	if (!nvme_fc_wq)
 		return -ENOMEM;
 
-	nvmf_register_transport(&nvme_fc_transport);
-	return 0;
+	return nvmf_register_transport(&nvme_fc_transport);
 }
 
 static void __exit nvme_fc_exit_module(void)

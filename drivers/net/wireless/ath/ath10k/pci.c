@@ -840,29 +840,33 @@ void ath10k_pci_rx_replenish_retry(unsigned long ptr)
 	ath10k_pci_rx_post(ar);
 }
 
+static u32 ath10k_pci_qca988x_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
+{
+	u32 val = 0, region = addr & 0xfffff;
+
+	val = (ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS + CORE_CTRL_ADDRESS)
+				 & 0x7ff) << 21;
+	val |= 0x100000 | region;
+	return val;
+}
+
+static u32 ath10k_pci_qca99x0_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
+{
+	u32 val = 0, region = addr & 0xfffff;
+
+	val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
+	val |= 0x100000 | region;
+	return val;
+}
+
 static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 {
-	u32 val = 0;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
-	switch (ar->hw_rev) {
-	case ATH10K_HW_QCA988X:
-	case ATH10K_HW_QCA9887:
-	case ATH10K_HW_QCA6174:
-	case ATH10K_HW_QCA9377:
-		val = (ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-					  CORE_CTRL_ADDRESS) &
-		       0x7ff) << 21;
-		break;
-	case ATH10K_HW_QCA9888:
-	case ATH10K_HW_QCA99X0:
-	case ATH10K_HW_QCA9984:
-	case ATH10K_HW_QCA4019:
-		val = ath10k_pci_read32(ar, PCIE_BAR_REG_ADDRESS);
-		break;
-	}
+	if (WARN_ON_ONCE(!ar_pci->targ_cpu_to_ce_addr))
+		return -ENOTSUPP;
 
-	val |= 0x100000 | (addr & 0xfffff);
-	return val;
+	return ar_pci->targ_cpu_to_ce_addr(ar, addr);
 }
 
 /*
@@ -896,7 +900,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	 */
 	alloc_nbytes = min_t(unsigned int, nbytes, DIAG_TRANSFER_LIMIT);
 
-	data_buf = (unsigned char *)dma_alloc_coherent(ar->dev,
+	data_buf = (unsigned char *)dma_zalloc_coherent(ar->dev,
 						       alloc_nbytes,
 						       &ce_data_base,
 						       GFP_ATOMIC);
@@ -905,7 +909,6 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		ret = -ENOMEM;
 		goto done;
 	}
-	memset(data_buf, 0, alloc_nbytes);
 
 	remaining_bytes = nbytes;
 	ce_data = ce_data_base;
@@ -1474,6 +1477,7 @@ static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 	ath10k_err(ar, "firmware crashed! (uuid %s)\n", uuid);
 	ath10k_print_driver_info(ar);
 	ath10k_pci_dump_registers(ar, crash_data);
+	ath10k_ce_dump_registers(ar, crash_data);
 
 	spin_unlock_bh(&ar->data_lock);
 
@@ -1590,7 +1594,7 @@ void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to mask irq/MSI.
 		 */
-		 break;
+		break;
 	}
 }
 
@@ -1646,6 +1650,8 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif start\n");
+
+	napi_enable(&ar->napi);
 
 	ath10k_pci_irq_enable(ar);
 	ath10k_pci_rx_post(ar);
@@ -1937,7 +1943,7 @@ static int ath10k_pci_wake_target_cpu(struct ath10k *ar)
 {
 	u32 addr, val;
 
-	addr = SOC_CORE_BASE_ADDRESS | CORE_CTRL_ADDRESS;
+	addr = SOC_CORE_BASE_ADDRESS + CORE_CTRL_ADDRESS;
 	val = ath10k_pci_read32(ar, addr);
 	val |= CORE_CTRL_CPU_INTR_MASK;
 	ath10k_pci_write32(ar, addr, val);
@@ -1973,7 +1979,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 		}
 		break;
 	case QCA9377_1_0_DEVICE_ID:
-		return 2;
+		return 4;
 	}
 
 	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
@@ -2531,7 +2537,6 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
 		goto err_ce;
 	}
-	napi_enable(&ar->napi);
 
 	return 0;
 
@@ -2799,7 +2804,7 @@ static int ath10k_pci_napi_poll(struct napi_struct *ctx, int budget)
 	done = ath10k_htt_txrx_compl_task(ar, budget);
 
 	if (done < budget) {
-		napi_complete(ctx);
+		napi_complete_done(ctx, done);
 		/* In case of MSI, it is possible that interrupts are received
 		 * while NAPI poll is inprogress. So pending interrupts that are
 		 * received after processing all copy engine pipes by NAPI poll
@@ -3132,7 +3137,7 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 	setup_timer(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry,
 		    (unsigned long)ar);
 
-	if (QCA_REV_6174(ar))
+	if (QCA_REV_6174(ar) || QCA_REV_9377(ar))
 		ath10k_pci_override_ce_config(ar);
 
 	ret = ath10k_pci_alloc_pipes(ar);
@@ -3170,6 +3175,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	bool pci_ps;
 	int (*pci_soft_reset)(struct ath10k *ar);
 	int (*pci_hard_reset)(struct ath10k *ar);
+	u32 (*targ_cpu_to_ce_addr)(struct ath10k *ar, u32 addr);
 
 	switch (pci_dev->device) {
 	case QCA988X_2_0_DEVICE_ID:
@@ -3177,12 +3183,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		pci_ps = false;
 		pci_soft_reset = ath10k_pci_warm_reset;
 		pci_hard_reset = ath10k_pci_qca988x_chip_reset;
+		targ_cpu_to_ce_addr = ath10k_pci_qca988x_targ_cpu_to_ce_addr;
 		break;
 	case QCA9887_1_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA9887;
 		pci_ps = false;
 		pci_soft_reset = ath10k_pci_warm_reset;
 		pci_hard_reset = ath10k_pci_qca988x_chip_reset;
+		targ_cpu_to_ce_addr = ath10k_pci_qca988x_targ_cpu_to_ce_addr;
 		break;
 	case QCA6164_2_1_DEVICE_ID:
 	case QCA6174_2_1_DEVICE_ID:
@@ -3190,30 +3198,35 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		pci_ps = true;
 		pci_soft_reset = ath10k_pci_warm_reset;
 		pci_hard_reset = ath10k_pci_qca6174_chip_reset;
+		targ_cpu_to_ce_addr = ath10k_pci_qca988x_targ_cpu_to_ce_addr;
 		break;
 	case QCA99X0_2_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA99X0;
 		pci_ps = false;
 		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
 		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;
+		targ_cpu_to_ce_addr = ath10k_pci_qca99x0_targ_cpu_to_ce_addr;
 		break;
 	case QCA9984_1_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA9984;
 		pci_ps = false;
 		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
 		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;
+		targ_cpu_to_ce_addr = ath10k_pci_qca99x0_targ_cpu_to_ce_addr;
 		break;
 	case QCA9888_2_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA9888;
 		pci_ps = false;
 		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
 		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;
+		targ_cpu_to_ce_addr = ath10k_pci_qca99x0_targ_cpu_to_ce_addr;
 		break;
 	case QCA9377_1_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA9377;
 		pci_ps = true;
 		pci_soft_reset = NULL;
 		pci_hard_reset = ath10k_pci_qca6174_chip_reset;
+		targ_cpu_to_ce_addr = ath10k_pci_qca988x_targ_cpu_to_ce_addr;
 		break;
 	default:
 		WARN_ON(1);
@@ -3240,6 +3253,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar_pci->bus_ops = &ath10k_pci_bus_ops;
 	ar_pci->pci_soft_reset = pci_soft_reset;
 	ar_pci->pci_hard_reset = pci_hard_reset;
+	ar_pci->targ_cpu_to_ce_addr = targ_cpu_to_ce_addr;
 
 	ar->id.vendor = pdev->vendor;
 	ar->id.device = pdev->device;

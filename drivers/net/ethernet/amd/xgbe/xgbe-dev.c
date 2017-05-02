@@ -1151,7 +1151,7 @@ static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
 
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS32_IOWRITE(pdata, PCS_V2_WINDOW_SELECT, index);
+	XPCS32_IOWRITE(pdata, pdata->xpcs_window_sel_reg, index);
 	mmd_data = XPCS16_IOREAD(pdata, offset);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 
@@ -1183,7 +1183,7 @@ static void xgbe_write_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
 
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS32_IOWRITE(pdata, PCS_V2_WINDOW_SELECT, index);
+	XPCS32_IOWRITE(pdata, pdata->xpcs_window_sel_reg, index);
 	XPCS16_IOWRITE(pdata, offset, mmd_data);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 }
@@ -1323,7 +1323,7 @@ static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
 static int xgbe_set_ext_mii_mode(struct xgbe_prv_data *pdata, unsigned int port,
 				 enum xgbe_mdio_mode mode)
 {
-	unsigned int reg_val = 0;
+	unsigned int reg_val = XGMAC_IOREAD(pdata, MAC_MDIOCL22R);
 
 	switch (mode) {
 	case XGBE_MDIO_MODE_CL22:
@@ -1896,10 +1896,15 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 
 	/* Get the header length */
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD)) {
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       FIRST, 1);
 		rdata->rx.hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
 						      RX_NORMAL_DESC2, HL);
 		if (rdata->rx.hdr_len)
 			pdata->ext_stats.rx_split_header_packets++;
+	} else {
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       FIRST, 0);
 	}
 
 	/* Get the RSS hash */
@@ -1922,19 +1927,16 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		}
 	}
 
-	/* Get the packet length */
-	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
-
-	if (!XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, LD)) {
-		/* Not all the data has been transferred for this packet */
-		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
-			       INCOMPLETE, 1);
+	/* Not all the data has been transferred for this packet */
+	if (!XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, LD))
 		return 0;
-	}
 
 	/* This is the last of the data for this packet */
 	XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
-		       INCOMPLETE, 0);
+		       LAST, 1);
+
+	/* Get the packet length */
+	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
 
 	/* Set checksum done indicator as appropriate */
 	if (netdev->features & NETIF_F_RXCSUM)
@@ -3407,8 +3409,10 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 
 	/* Flush Tx queues */
 	ret = xgbe_flush_tx_queues(pdata);
-	if (ret)
+	if (ret) {
+		netdev_err(pdata->netdev, "error flushing TX queues\n");
 		return ret;
+	}
 
 	/*
 	 * Initialize DMA related features

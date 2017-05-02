@@ -68,8 +68,6 @@ static const struct intel_gvt_ops intel_gvt_ops = {
  */
 int intel_gvt_init_host(void)
 {
-	int ret;
-
 	if (intel_gvt_host.initialized)
 		return 0;
 
@@ -95,11 +93,6 @@ int intel_gvt_init_host(void)
 	/* Fail to load MPT modules - bail out */
 	if (!intel_gvt_host.mpt)
 		return -EINVAL;
-
-	/* Try to detect if we're running in host instead of VM. */
-	ret = intel_gvt_hypervisor_detect_host();
-	if (ret)
-		return -ENODEV;
 
 	gvt_dbg_core("Running with hypervisor %s in host mode\n",
 			supported_hypervisors[intel_gvt_host.hypervisor_type]);
@@ -201,6 +194,8 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 
+	idr_destroy(&gvt->vgpu_idr);
+
 	kfree(dev_priv->gvt);
 	dev_priv->gvt = NULL;
 }
@@ -237,6 +232,8 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 
 	gvt_dbg_core("init gvt device\n");
 
+	idr_init(&gvt->vgpu_idr);
+
 	mutex_init(&gvt->lock);
 	gvt->dev_priv = dev_priv;
 
@@ -244,7 +241,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 
 	ret = intel_gvt_setup_mmio_info(gvt);
 	if (ret)
-		return ret;
+		goto out_clean_idr;
 
 	ret = intel_gvt_load_firmware(gvt);
 	if (ret)
@@ -313,6 +310,8 @@ out_free_firmware:
 	intel_gvt_free_firmware(gvt);
 out_clean_mmio_info:
 	intel_gvt_clean_mmio_info(gvt);
+out_clean_idr:
+	idr_destroy(&gvt->vgpu_idr);
 	kfree(gvt);
 	return ret;
 }

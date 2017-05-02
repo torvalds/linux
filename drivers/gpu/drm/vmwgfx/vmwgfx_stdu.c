@@ -424,7 +424,7 @@ static int vmw_stdu_bind_fb(struct vmw_private *dev_priv,
 		 */
 		if (new_content_type == SEPARATE_DMA) {
 
-			switch (new_fb->bits_per_pixel) {
+			switch (new_fb->format->cpp[0] * 8) {
 			case 32:
 				content_srf.format = SVGA3D_X8R8G8B8;
 				break;

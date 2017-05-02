@@ -150,7 +150,7 @@
 };
 
 &mmc1_pins {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &mmc2 {
@@ -165,7 +165,7 @@
 
 &mmc2_8bit_pins {
 	/* Increase drive strength for DDR modes */
-	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+	drive-strength = <40>;
 };
 
 &ohci0 {
@@ -183,31 +183,24 @@
 
 &pio {
 	led_pins_optimus: led-pins@0 {
-		allwinner,pins = "PH0", "PH1";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH0", "PH1";
+		function = "gpio_out";
 	};
 
 	mmc0_cd_pin_optimus: mmc0_cd_pin@0 {
-		allwinner,pins = "PH18";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH18";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb1_vbus_pin_optimus: usb1_vbus_pin@1 {
-		allwinner,pins = "PH4";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH4";
+		function = "gpio_out";
 	};
 
 	usb3_vbus_pin_optimus: usb3_vbus_pin@1 {
-		allwinner,pins = "PH5";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH5";
+		function = "gpio_out";
 	};
 };
 
@@ -217,17 +210,13 @@
 
 &r_pio {
 	led_r_pins_optimus: led-pins@1 {
-		allwinner,pins = "PM15";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PM15";
+		function = "gpio_out";
 	};
 
 	wifi_en_pin_optimus: wifi_en_pin@0 {
-		allwinner,pins = "PL2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL2";
+		function = "gpio_out";
 	};
 };
 

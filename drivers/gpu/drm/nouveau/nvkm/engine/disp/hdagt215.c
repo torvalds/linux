@@ -59,7 +59,7 @@ gt215_hda_eld(NV50_DISP_MTHD_V1)
 			);
 		}
 		for (i = 0; i < size; i++)
-			nvkm_wr32(device, 0x61c440 + soff, (i << 8) | args->v0.data[0]);
+			nvkm_wr32(device, 0x61c440 + soff, (i << 8) | args->v0.data[i]);
 		for (; i < 0x60; i++)
 			nvkm_wr32(device, 0x61c440 + soff, (i << 8));
 		nvkm_mask(device, 0x61c448 + soff, 0x80000003, 0x80000003);

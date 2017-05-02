@@ -31,6 +31,16 @@
 #define VSS_MINOR  0
 #define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MINOR)
 
+#define VSS_VER_COUNT 1
+static const int vss_versions[] = {
+	VSS_VERSION
+};
+
+#define FW_VER_COUNT 1
+static const int fw_versions[] = {
+	UTIL_FW_VERSION
+};
+
 /*
  * Timeout values are based on expecations from host
  */
@@ -293,10 +303,9 @@ void hv_vss_onchannelcallback(void *context)
 	u32 recvlen;
 	u64 requestid;
 	struct hv_vss_msg *vss_msg;
-
+	int vss_srv_version;
 
 	struct icmsg_hdr *icmsghdrp;
-	struct icmsg_negotiate *negop = NULL;
 
 	if (vss_transaction.state > HVUTIL_READY)
 		return;
@@ -309,9 +318,15 @@ void hv_vss_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, UTIL_FW_VERSION,
-				 VSS_VERSION);
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
+				 recv_buffer, fw_versions, FW_VER_COUNT,
+				 vss_versions, VSS_VER_COUNT,
+				 NULL, &vss_srv_version)) {
+
+				pr_info("VSS IC version %d.%d\n",
+					vss_srv_version >> 16,
+					vss_srv_version & 0xFFFF);
+			}
 		} else {
 			vss_msg = (struct hv_vss_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +

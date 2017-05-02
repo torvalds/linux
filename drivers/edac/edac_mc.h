@@ -149,6 +149,15 @@ extern int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 extern void edac_mc_free(struct mem_ctl_info *mci);
 
 /**
+ * edac_has_mcs() - Check if any MCs have been allocated.
+ *
+ * Returns:
+ *	True if MC instances have been registered successfully.
+ *	False otherwise.
+ */
+extern bool edac_has_mcs(void);
+
+/**
  * edac_mc_find() - Search for a mem_ctl_info structure whose index is @idx.
  *
  * @idx: index to be seek

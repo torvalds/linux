@@ -63,9 +63,9 @@ typedef pte_t *pte_addr_t;
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot)	__pgprot(0)
-#define pgprot_writecombine(prot) __pgprot(0)
-#define pgprot_dmacoherent(prot) __pgprot(0)
+#define pgprot_noncached(prot)	(prot)
+#define pgprot_writecombine(prot) (prot)
+#define pgprot_dmacoherent(prot) (prot)
 
 
 /*

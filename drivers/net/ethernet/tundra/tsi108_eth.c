@@ -887,7 +887,7 @@ static int tsi108_poll(struct napi_struct *napi, int budget)
 
 	if (num_received < budget) {
 		data->rxpending = 0;
-		napi_complete(napi);
+		napi_complete_done(napi, num_received);
 
 		TSI_WRITE(TSI108_EC_INTMASK,
 				     TSI_READ(TSI108_EC_INTMASK)

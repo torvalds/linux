@@ -1,5 +1,8 @@
+#include <dt-bindings/clock/tegra186-clock.h>
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/mailbox/tegra186-hsp.h>
+#include <dt-bindings/reset/tegra186-reset.h>
 
 / {
 	compatible = "nvidia,tegra186";
@@ -29,9 +32,9 @@
 		reg = <0x0 0x03100000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 55>;
+		clocks = <&bpmp TEGRA186_CLK_UARTA>;
 		clock-names = "serial";
-		resets = <&bpmp 47>;
+		resets = <&bpmp TEGRA186_RESET_UARTA>;
 		reset-names = "serial";
 		status = "disabled";
 	};
@@ -41,9 +44,9 @@
 		reg = <0x0 0x03110000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 56>;
+		clocks = <&bpmp TEGRA186_CLK_UARTB>;
 		clock-names = "serial";
-		resets = <&bpmp 48>;
+		resets = <&bpmp TEGRA186_RESET_UARTB>;
 		reset-names = "serial";
 		status = "disabled";
 	};
@@ -53,9 +56,9 @@
 		reg = <0x0 0x03130000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 77>;
+		clocks = <&bpmp TEGRA186_CLK_UARTD>;
 		clock-names = "serial";
-		resets = <&bpmp 50>;
+		resets = <&bpmp TEGRA186_RESET_UARTD>;
 		reset-names = "serial";
 		status = "disabled";
 	};
@@ -65,9 +68,9 @@
 		reg = <0x0 0x03140000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 194>;
+		clocks = <&bpmp TEGRA186_CLK_UARTE>;
 		clock-names = "serial";
-		resets = <&bpmp 132>;
+		resets = <&bpmp TEGRA186_RESET_UARTE>;
 		reset-names = "serial";
 		status = "disabled";
 	};
@@ -77,9 +80,9 @@
 		reg = <0x0 0x03150000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 195>;
+		clocks = <&bpmp TEGRA186_CLK_UARTF>;
 		clock-names = "serial";
-		resets = <&bpmp 111>;
+		resets = <&bpmp TEGRA186_RESET_UARTF>;
 		reset-names = "serial";
 		status = "disabled";
 	};
@@ -90,9 +93,9 @@
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 47>;
+		clocks = <&bpmp TEGRA186_CLK_I2C1>;
 		clock-names = "div-clk";
-		resets = <&bpmp 19>;
+		resets = <&bpmp TEGRA186_RESET_I2C1>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -103,9 +106,9 @@
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 75>;
+		clocks = <&bpmp TEGRA186_CLK_I2C3>;
 		clock-names = "div-clk";
-		resets = <&bpmp 21>;
+		resets = <&bpmp TEGRA186_RESET_I2C3>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -117,9 +120,9 @@
 		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 86>;
+		clocks = <&bpmp TEGRA186_CLK_I2C4>;
 		clock-names = "div-clk";
-		resets = <&bpmp 22>;
+		resets = <&bpmp TEGRA186_RESET_I2C4>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -131,9 +134,9 @@
 		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 48>;
+		clocks = <&bpmp TEGRA186_CLK_I2C5>;
 		clock-names = "div-clk";
-		resets = <&bpmp 23>;
+		resets = <&bpmp TEGRA186_RESET_I2C5>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -145,9 +148,9 @@
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 125>;
+		clocks = <&bpmp TEGRA186_CLK_I2C6>;
 		clock-names = "div-clk";
-		resets = <&bpmp 24>;
+		resets = <&bpmp TEGRA186_RESET_I2C6>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -158,9 +161,9 @@
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 182>;
+		clocks = <&bpmp TEGRA186_CLK_I2C7>;
 		clock-names = "div-clk";
-		resets = <&bpmp 81>;
+		resets = <&bpmp TEGRA186_RESET_I2C7>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -171,9 +174,9 @@
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 183>;
+		clocks = <&bpmp TEGRA186_CLK_I2C9>;
 		clock-names = "div-clk";
-		resets = <&bpmp 83>;
+		resets = <&bpmp TEGRA186_RESET_I2C9>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -182,9 +185,9 @@
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03400000 0x0 0x10000>;
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 52>;
+		clocks = <&bpmp TEGRA186_CLK_SDMMC1>;
 		clock-names = "sdhci";
-		resets = <&bpmp 33>;
+		resets = <&bpmp TEGRA186_RESET_SDMMC1>;
 		reset-names = "sdhci";
 		status = "disabled";
 	};
@@ -193,9 +196,9 @@
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03420000 0x0 0x10000>;
 		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 53>;
+		clocks = <&bpmp TEGRA186_CLK_SDMMC2>;
 		clock-names = "sdhci";
-		resets = <&bpmp 34>;
+		resets = <&bpmp TEGRA186_RESET_SDMMC2>;
 		reset-names = "sdhci";
 		status = "disabled";
 	};
@@ -204,9 +207,9 @@
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03440000 0x0 0x10000>;
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 76>;
+		clocks = <&bpmp TEGRA186_CLK_SDMMC3>;
 		clock-names = "sdhci";
-		resets = <&bpmp 35>;
+		resets = <&bpmp TEGRA186_RESET_SDMMC3>;
 		reset-names = "sdhci";
 		status = "disabled";
 	};
@@ -215,9 +218,9 @@
 		compatible = "nvidia,tegra186-sdhci";
 		reg = <0x0 0x03460000 0x0 0x10000>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 54>;
+		clocks = <&bpmp TEGRA186_CLK_SDMMC4>;
 		clock-names = "sdhci";
-		resets = <&bpmp 36>;
+		resets = <&bpmp TEGRA186_RESET_SDMMC4>;
 		reset-names = "sdhci";
 		status = "disabled";
 	};
@@ -248,9 +251,9 @@
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 218>;
+		clocks = <&bpmp TEGRA186_CLK_I2C2>;
 		clock-names = "div-clk";
-		resets = <&bpmp 20>;
+		resets = <&bpmp TEGRA186_RESET_I2C2>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -261,9 +264,9 @@
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&bpmp 219>;
+		clocks = <&bpmp TEGRA186_CLK_I2C8>;
 		clock-names = "div-clk";
-		resets = <&bpmp 82>;
+		resets = <&bpmp TEGRA186_RESET_I2C8>;
 		reset-names = "i2c";
 		status = "disabled";
 	};
@@ -273,9 +276,9 @@
 		reg = <0x0 0x0c280000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 215>;
+		clocks = <&bpmp TEGRA186_CLK_UARTC>;
 		clock-names = "serial";
-		resets = <&bpmp 49>;
+		resets = <&bpmp TEGRA186_RESET_UARTC>;
 		reset-names = "serial";
 		status = "disabled";
 	};
@@ -285,9 +288,9 @@
 		reg = <0x0 0x0c290000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&bpmp 216>;
+		clocks = <&bpmp TEGRA186_CLK_UARTG>;
 		clock-names = "serial";
-		resets = <&bpmp 112>;
+		resets = <&bpmp TEGRA186_RESET_UARTG>;
 		reset-names = "serial";
 		status = "disabled";
 	};
@@ -369,7 +372,8 @@
 
 	bpmp: bpmp {
 		compatible = "nvidia,tegra186-bpmp";
-		mboxes = <&hsp_top0 0 19>;
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
+				    TEGRA_HSP_DB_MASTER_BPMP>;
 		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;

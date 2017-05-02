@@ -53,7 +53,7 @@
 
 		power {
 			wakeup-source;
-			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
 			linux,code = <KEY_POWER>;
 			pinctrl-names = "default";
@@ -63,14 +63,14 @@
 
 	ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio7 RK_PA0 GPIO_ACTIVE_LOW>;
 	};
 
 	leds {
 		compatible = "gpio-leds";
 
 		power {
-			gpios = <&gpio8 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio8 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "firefly:blue:power";
 			pinctrl-names = "default";
 			pinctrl-0 = <&power_led>;
@@ -78,7 +78,7 @@
 		};
 
 		work {
-			gpios = <&gpio8 1 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio8 RK_PA1 GPIO_ACTIVE_LOW>;
 			label = "firefly:blue:user";
 			linux,default-trigger = "rc-feedback";
 			pinctrl-names = "default";
@@ -92,7 +92,7 @@
 		clock-names = "ext_clock";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_enable>;
-		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
 	};
 
 	sound {
@@ -112,7 +112,7 @@
 	vcc_host_5v: usb-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc_host_5v";
@@ -133,7 +133,7 @@
 
 	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio7 11 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_pwr>;
 		regulator-name = "vcc_sd";
@@ -146,7 +146,7 @@
 	vcc_otg_5v: usb-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&otg_vbus_drv>;
 		regulator-name = "vcc_otg_5v";
@@ -159,7 +159,7 @@
 	dovdd_1v8: dovdd-1v8-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dvp_pwr>;
 		regulator-name = "dovdd_1v8";
@@ -171,7 +171,7 @@
 	vcc28_dvp: vcc28-dvp-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dvp_pwr>;
 		regulator-name = "vcc28_dvp";
@@ -183,7 +183,7 @@
 	af_28: af_28-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dvp_pwr>;
 		regulator-name = "af_28";
@@ -195,7 +195,7 @@
 	dvdd_1v2: af_28-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio7 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cif_pwr>;
 		regulator-name = "dvdd_1v2";
@@ -221,7 +221,7 @@
 		clock-frequency = <32768>;
 		clock-output-names = "xin32k";
 		interrupt-parent = <&gpio7>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PA4 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&rtc_int>;
 	};

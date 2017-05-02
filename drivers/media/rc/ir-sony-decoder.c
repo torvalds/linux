@@ -169,9 +169,57 @@ finish_state_machine:
 	return 0;
 }
 
+static const struct ir_raw_timings_pl ir_sony_timings = {
+	.header_pulse  = SONY_HEADER_PULSE,
+	.bit_space     = SONY_BIT_SPACE,
+	.bit_pulse[0]  = SONY_BIT_0_PULSE,
+	.bit_pulse[1]  = SONY_BIT_1_PULSE,
+	.trailer_space = SONY_TRAILER_SPACE + SONY_BIT_SPACE,
+	.msb_first     = 0,
+};
+
+/**
+ * ir_sony_encode() - Encode a scancode as a stream of raw events
+ *
+ * @protocol:	protocol to encode
+ * @scancode:	scancode to encode
+ * @events:	array of raw ir events to write into
+ * @max:	maximum size of @events
+ *
+ * Returns:	The number of events written.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		encoding. In this case all @max events will have been written.
+ */
+static int ir_sony_encode(enum rc_type protocol, u32 scancode,
+			  struct ir_raw_event *events, unsigned int max)
+{
+	struct ir_raw_event *e = events;
+	u32 raw, len;
+	int ret;
+
+	if (protocol == RC_TYPE_SONY12) {
+		raw = (scancode & 0x7f) | ((scancode & 0x1f0000) >> 9);
+		len = 12;
+	} else if (protocol == RC_TYPE_SONY15) {
+		raw = (scancode & 0x7f) | ((scancode & 0xff0000) >> 9);
+		len = 15;
+	} else {
+		raw = (scancode & 0x7f) | ((scancode & 0x1f0000) >> 9) |
+		       ((scancode & 0xff00) << 4);
+		len = 20;
+	}
+
+	ret = ir_raw_gen_pl(&e, max, &ir_sony_timings, len, raw);
+	if (ret < 0)
+		return ret;
+
+	return e - events;
+}
+
 static struct ir_raw_handler sony_handler = {
 	.protocols	= RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20,
 	.decode		= ir_sony_decode,
+	.encode		= ir_sony_encode,
 };
 
 static int __init ir_sony_decode_init(void)

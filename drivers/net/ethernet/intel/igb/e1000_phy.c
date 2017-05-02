@@ -77,6 +77,10 @@ s32 igb_get_phy_id(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 phy_id;
 
+	/* ensure PHY page selection to fix misconfigured i210 */
+	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
+		phy->ops.write_reg(hw, I347AT4_PAGE_SELECT, 0);
+
 	ret_val = phy->ops.read_reg(hw, PHY_ID1, &phy_id);
 	if (ret_val)
 		goto out;
@@ -290,7 +294,7 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 	u32 i, i2ccmd = 0;
 	u16 phy_data_swapped;
 
-	/* Prevent overwritting SFP I2C EEPROM which is at A0 address.*/
+	/* Prevent overwriting SFP I2C EEPROM which is at A0 address.*/
 	if ((hw->phy.addr == 0) || (hw->phy.addr > 7)) {
 		hw_dbg("PHY I2C Address %d is out of range.\n",
 			  hw->phy.addr);

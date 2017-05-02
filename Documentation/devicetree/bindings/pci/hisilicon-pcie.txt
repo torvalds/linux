@@ -42,3 +42,40 @@ Hip05 Example (note that Hip06 is the same except compatible):
 				 0x0 0 0 4 &mbigen_pcie 4 13>;
 		status = "ok";
 	};
+
+HiSilicon Hip06/Hip07 PCIe host bridge DT (almost-ECAM) description.
+The properties and their meanings are identical to those described in
+host-generic-pci.txt except as listed below.
+
+Properties of the host controller node that differ from
+host-generic-pci.txt:
+
+- compatible     : Must be "hisilicon,pcie-almost-ecam"
+
+- reg            : Two entries: First the ECAM configuration space for any
+		   other bus underneath the root bus. Second, the base
+		   and size of the HiSilicon host bridge registers include
+		   the RC's own config space.
+
+Example:
+	pcie0: pcie@a0090000 {
+		compatible = "hisilicon,pcie-almost-ecam";
+		reg = <0 0xb0000000 0 0x2000000>,  /*  ECAM configuration space */
+		      <0 0xa0090000 0 0x10000>; /* host bridge registers */
+		bus-range = <0  31>;
+		msi-map = <0x0000 &its_dsa 0x0000 0x2000>;
+		msi-map-mask = <0xffff>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		dma-coherent;
+		ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0 0x5ff0000
+			  0x01000000 0 0 0 0xb7ff0000 0 0x10000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0x0 0 0 1 &mbigen_pcie0 650 4
+				 0x0 0 0 2 &mbigen_pcie0 650 4
+				 0x0 0 0 3 &mbigen_pcie0 650 4
+				 0x0 0 0 4 &mbigen_pcie0 650 4>;
+		status = "ok";
+	};

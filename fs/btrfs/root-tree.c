@@ -74,7 +74,7 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
  *
  * If we find something return 0, otherwise > 0, < 0 on error.
  */
-int btrfs_find_root(struct btrfs_root *root, struct btrfs_key *search_key,
+int btrfs_find_root(struct btrfs_root *root, const struct btrfs_key *search_key,
 		    struct btrfs_path *path, struct btrfs_root_item *root_item,
 		    struct btrfs_key *root_key)
 {
@@ -207,7 +207,7 @@ out:
 }
 
 int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		      struct btrfs_key *key, struct btrfs_root_item *item)
+		      const struct btrfs_key *key, struct btrfs_root_item *item)
 {
 	/*
 	 * Make sure generation v1 and v2 match. See update_root for details.
@@ -337,7 +337,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 
 /* drop the root item for 'key' from 'root' */
 int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		   struct btrfs_key *key)
+		   const struct btrfs_key *key)
 {
 	struct btrfs_path *path;
 	int ret;

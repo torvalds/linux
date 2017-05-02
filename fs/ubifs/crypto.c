@@ -26,15 +26,6 @@ static unsigned int ubifs_crypt_max_namelen(struct inode *inode)
 		return UBIFS_MAX_NLEN;
 }
 
-static int ubifs_key_prefix(struct inode *inode, u8 **key)
-{
-	static char prefix[] = "ubifs:";
-
-	*key = prefix;
-
-	return sizeof(prefix) - 1;
-}
-
 int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
 		  unsigned int in_len, unsigned int *out_len, int block)
 {
@@ -86,12 +77,12 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 	return 0;
 }
 
-struct fscrypt_operations ubifs_crypt_operations = {
+const struct fscrypt_operations ubifs_crypt_operations = {
 	.flags			= FS_CFLG_OWN_PAGES,
+	.key_prefix		= "ubifs:",
 	.get_context		= ubifs_crypt_get_context,
 	.set_context		= ubifs_crypt_set_context,
 	.is_encrypted		= __ubifs_crypt_is_encrypted,
 	.empty_dir		= ubifs_crypt_empty_dir,
 	.max_namelen		= ubifs_crypt_max_namelen,
-	.key_prefix		= ubifs_key_prefix,
 };

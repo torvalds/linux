@@ -38,7 +38,7 @@ static const char i40evf_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 6
-#define DRV_VERSION_BUILD 25
+#define DRV_VERSION_BUILD 27
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD) \
@@ -59,7 +59,6 @@ static const struct pci_device_id i40evf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_VF), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_VF_HV), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_X722_VF), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_X722_VF_HV), 0},
 	/* required last entry */
 	{0, }
 };
@@ -2154,6 +2153,11 @@ static int i40evf_close(struct net_device *netdev)
 	adapter->state = __I40EVF_DOWN_PENDING;
 	i40evf_free_traffic_irqs(adapter);
 
+	/* We explicitly don't free resources here because the hardware is
+	 * still active and can DMA into memory. Resources are cleared in
+	 * i40evf_virtchnl_completion() after we get confirmation from the PF
+	 * driver that the rings have been stopped.
+	 */
 	return 0;
 }
 
@@ -2727,6 +2731,7 @@ static int i40evf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->subsystem_device_id = pdev->subsystem_device;
 	hw->bus.device = PCI_SLOT(pdev->devfn);
 	hw->bus.func = PCI_FUNC(pdev->devfn);
+	hw->bus.bus_id = pdev->bus->number;
 
 	/* set up the locks for the AQ, do this only once in probe
 	 * and destroy them only once in remove
@@ -2871,7 +2876,8 @@ static void i40evf_remove(struct pci_dev *pdev)
 		i40evf_request_reset(adapter);
 		msleep(50);
 	}
-
+	i40evf_free_all_tx_resources(adapter);
+	i40evf_free_all_rx_resources(adapter);
 	i40evf_misc_irq_disable(adapter);
 	i40evf_free_misc_irq(adapter);
 	i40evf_reset_interrupt_capability(adapter);

@@ -7,10 +7,11 @@
  * the GNU General Public License.  See the file COPYING in the main
  * directory of this archive for more details.
  */
-#include <linux/module.h>
-#include <linux/spi/spi.h>
-#include <linux/regmap.h>
 #include <linux/acpi.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/regmap.h>
+#include <linux/spi/spi.h>
 
 #include "bmi160.h"
 
@@ -47,13 +48,22 @@ static const struct acpi_device_id bmi160_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, bmi160_acpi_match);
 
+#ifdef CONFIG_OF
+static const struct of_device_id bmi160_of_match[] = {
+	{ .compatible = "bosch,bmi160" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, bmi160_of_match);
+#endif
+
 static struct spi_driver bmi160_spi_driver = {
 	.probe		= bmi160_spi_probe,
 	.remove		= bmi160_spi_remove,
 	.id_table	= bmi160_spi_id,
 	.driver = {
-		.acpi_match_table = ACPI_PTR(bmi160_acpi_match),
-		.name	= "bmi160_spi",
+		.acpi_match_table	= ACPI_PTR(bmi160_acpi_match),
+		.of_match_table		= of_match_ptr(bmi160_of_match),
+		.name			= "bmi160_spi",
 	},
 };
 module_spi_driver(bmi160_spi_driver);

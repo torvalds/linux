@@ -76,7 +76,7 @@ static int quad8_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT;
 		}
 
-		flags = inb(base_offset);
+		flags = inb(base_offset + 1);
 		borrow = flags & BIT(0);
 		carry = !!(flags & BIT(1));
 

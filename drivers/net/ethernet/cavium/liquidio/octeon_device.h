@@ -477,6 +477,12 @@ struct octeon_device {
 	/* Console caches */
 	struct octeon_console console[MAX_OCTEON_MAPS];
 
+	/* Console named block info */
+	struct {
+		u64 dram_region_base;
+		int bar1_index;
+	} console_nb_info;
+
 	/* Coprocessor clock rate. */
 	u64 coproc_clock_rate;
 

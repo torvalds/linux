@@ -17,6 +17,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <linux/export.h>
+#include <linux/extable.h>
 #include <linux/moduleloader.h>
 #include <linux/trace_events.h>
 #include <linux/init.h>
@@ -61,6 +62,7 @@
 #include <linux/pfn.h>
 #include <linux/bsearch.h>
 #include <linux/dynamic_debug.h>
+#include <linux/audit.h>
 #include <uapi/linux/module.h>
 #include "module-internal.h"
 
@@ -74,9 +76,9 @@
 /*
  * Modules' sections will be aligned on page boundaries
  * to ensure complete separation of code and data, but
- * only when CONFIG_DEBUG_SET_MODULE_RONX=y
+ * only when CONFIG_STRICT_MODULE_RWX=y
  */
-#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+#ifdef CONFIG_STRICT_MODULE_RWX
 # define debug_align(X) ALIGN(X, PAGE_SIZE)
 #else
 # define debug_align(X) (X)
@@ -389,16 +391,16 @@ extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
 extern const struct kernel_symbol __start___ksymtab_gpl_future[];
 extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
-extern const unsigned long __start___kcrctab[];
-extern const unsigned long __start___kcrctab_gpl[];
-extern const unsigned long __start___kcrctab_gpl_future[];
+extern const s32 __start___kcrctab[];
+extern const s32 __start___kcrctab_gpl[];
+extern const s32 __start___kcrctab_gpl_future[];
 #ifdef CONFIG_UNUSED_SYMBOLS
 extern const struct kernel_symbol __start___ksymtab_unused[];
 extern const struct kernel_symbol __stop___ksymtab_unused[];
 extern const struct kernel_symbol __start___ksymtab_unused_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_unused_gpl[];
-extern const unsigned long __start___kcrctab_unused[];
-extern const unsigned long __start___kcrctab_unused_gpl[];
+extern const s32 __start___kcrctab_unused[];
+extern const s32 __start___kcrctab_unused_gpl[];
 #endif
 
 #ifndef CONFIG_MODVERSIONS
@@ -497,7 +499,7 @@ struct find_symbol_arg {
 
 	/* Output */
 	struct module *owner;
-	const unsigned long *crc;
+	const s32 *crc;
 	const struct kernel_symbol *sym;
 };
 
@@ -563,7 +565,7 @@ static bool find_symbol_in_section(const struct symsearch *syms,
  * (optional) module which owns it.  Needs preempt disabled or module_mutex. */
 const struct kernel_symbol *find_symbol(const char *name,
 					struct module **owner,
-					const unsigned long **crc,
+					const s32 **crc,
 					bool gplok,
 					bool warn)
 {
@@ -1249,23 +1251,17 @@ static int try_to_force_load(struct module *mod, const char *reason)
 }
 
 #ifdef CONFIG_MODVERSIONS
-/* If the arch applies (non-zero) relocations to kernel kcrctab, unapply it. */
-static unsigned long maybe_relocated(unsigned long crc,
-				     const struct module *crc_owner)
+
+static u32 resolve_rel_crc(const s32 *crc)
 {
-#ifdef ARCH_RELOCATES_KCRCTAB
-	if (crc_owner == NULL)
-		return crc - (unsigned long)reloc_start;
-#endif
-	return crc;
+	return *(u32 *)((void *)crc + *crc);
 }
 
 static int check_version(Elf_Shdr *sechdrs,
 			 unsigned int versindex,
 			 const char *symname,
 			 struct module *mod,
-			 const unsigned long *crc,
-			 const struct module *crc_owner)
+			 const s32 *crc)
 {
 	unsigned int i, num_versions;
 	struct modversion_info *versions;
@@ -1283,13 +1279,19 @@ static int check_version(Elf_Shdr *sechdrs,
 		/ sizeof(struct modversion_info);
 
 	for (i = 0; i < num_versions; i++) {
+		u32 crcval;
+
 		if (strcmp(versions[i].name, symname) != 0)
 			continue;
 
-		if (versions[i].crc == maybe_relocated(*crc, crc_owner))
+		if (IS_ENABLED(CONFIG_MODULE_REL_CRCS))
+			crcval = resolve_rel_crc(crc);
+		else
+			crcval = *crc;
+		if (versions[i].crc == crcval)
 			return 1;
-		pr_debug("Found checksum %lX vs module %lX\n",
-		       maybe_relocated(*crc, crc_owner), versions[i].crc);
+		pr_debug("Found checksum %X vs module %lX\n",
+			 crcval, versions[i].crc);
 		goto bad_version;
 	}
 
@@ -1307,7 +1309,7 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 					  unsigned int versindex,
 					  struct module *mod)
 {
-	const unsigned long *crc;
+	const s32 *crc;
 
 	/*
 	 * Since this should be found in kernel (which can't be removed), no
@@ -1321,8 +1323,7 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	}
 	preempt_enable();
 	return check_version(sechdrs, versindex,
-			     VMLINUX_SYMBOL_STR(module_layout), mod, crc,
-			     NULL);
+			     VMLINUX_SYMBOL_STR(module_layout), mod, crc);
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
@@ -1340,8 +1341,7 @@ static inline int check_version(Elf_Shdr *sechdrs,
 				unsigned int versindex,
 				const char *symname,
 				struct module *mod,
-				const unsigned long *crc,
-				const struct module *crc_owner)
+				const s32 *crc)
 {
 	return 1;
 }
@@ -1368,7 +1368,7 @@ static const struct kernel_symbol *resolve_symbol(struct module *mod,
 {
 	struct module *owner;
 	const struct kernel_symbol *sym;
-	const unsigned long *crc;
+	const s32 *crc;
 	int err;
 
 	/*
@@ -1383,8 +1383,7 @@ static const struct kernel_symbol *resolve_symbol(struct module *mod,
 	if (!sym)
 		goto unlock;
 
-	if (!check_version(info->sechdrs, info->index.vers, name, mod, crc,
-			   owner)) {
+	if (!check_version(info->sechdrs, info->index.vers, name, mod, crc)) {
 		sym = ERR_PTR(-EINVAL);
 		goto getname;
 	}
@@ -1847,7 +1846,7 @@ static void mod_sysfs_teardown(struct module *mod)
 	mod_sysfs_fini(mod);
 }
 
-#ifdef CONFIG_DEBUG_SET_MODULE_RONX
+#ifdef CONFIG_STRICT_MODULE_RWX
 /*
  * LKM RO/NX protection: protect module's text/ro-data
  * from modification and any data from execution.
@@ -2812,6 +2811,8 @@ static int check_modinfo_livepatch(struct module *mod, struct load_info *info)
 	if (get_modinfo(info, "livepatch")) {
 		mod->klp = true;
 		add_taint_module(mod, TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
+		pr_notice_once("%s: tainting kernel with TAINT_LIVEPATCH\n",
+			       mod->name);
 	}
 
 	return 0;
@@ -3611,6 +3612,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_copy;
 	}
 
+	audit_log_kern_module(mod->name);
+
 	/* Reserve our place in the list. */
 	err = add_unformed_module(mod);
 	if (err)
@@ -3699,7 +3702,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		       mod->name, after_dashes);
 	}
 
-	/* Link in to syfs. */
+	/* Link in to sysfs. */
 	err = mod_sysfs_setup(mod, info, mod->kp, mod->num_kp);
 	if (err < 0)
 		goto coming_cleanup;
@@ -3722,6 +3725,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mod_sysfs_teardown(mod);
  coming_cleanup:
 	mod->state = MODULE_STATE_GOING;
+	destroy_params(mod->kp, mod->num_kp);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
 	klp_module_going(mod);
@@ -4168,22 +4172,23 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
 	struct module *mod;
 
 	preempt_disable();
-	list_for_each_entry_rcu(mod, &modules, list) {
-		if (mod->state == MODULE_STATE_UNFORMED)
-			continue;
-		if (mod->num_exentries == 0)
-			continue;
+	mod = __module_address(addr);
+	if (!mod)
+		goto out;
 
-		e = search_extable(mod->extable,
-				   mod->extable + mod->num_exentries - 1,
-				   addr);
-		if (e)
-			break;
-	}
+	if (!mod->num_exentries)
+		goto out;
+
+	e = search_extable(mod->extable,
+			   mod->extable + mod->num_exentries - 1,
+			   addr);
+out:
 	preempt_enable();
 
-	/* Now, if we found one, we are running inside it now, hence
-	   we cannot unload the module, hence no refcnt needed. */
+	/*
+	 * Now, if we found one, we are running inside it now, hence
+	 * we cannot unload the module, hence no refcnt needed.
+	 */
 	return e;
 }
 

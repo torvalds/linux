@@ -1434,9 +1434,10 @@ config RTC_DRV_SUN4V
 	  based RTC on SUN4V systems.
 
 config RTC_DRV_SUN6I
-	tristate "Allwinner A31 RTC"
-	default MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
-	depends on ARCH_SUNXI
+	bool "Allwinner A31 RTC"
+	default MACH_SUN6I || MACH_SUN8I
+	depends on COMMON_CLK
+	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  If you say Y here you will get support for the RTC found in
 	  some Allwinner SoCs like the A31 or the A64.
@@ -1551,11 +1552,14 @@ config RTC_DRV_MPC5121
 	  will be called rtc-mpc5121.
 
 config RTC_DRV_JZ4740
-	bool "Ingenic JZ4740 SoC"
+	tristate "Ingenic JZ4740 SoC"
 	depends on MACH_INGENIC || COMPILE_TEST
 	help
 	  If you say yes here you get support for the Ingenic JZ47xx SoCs RTC
 	  controllers.
+
+	  This driver can also be buillt as a module. If so, the module
+	  will be called rtc-jz4740.
 
 config RTC_DRV_LPC24XX
 	tristate "NXP RTC for LPC178x/18xx/408x/43xx"
@@ -1715,6 +1719,17 @@ config RTC_DRV_R7301
 
 	   This driver can also be built as a module. If so, the module
 	   will be called rtc-r7301.
+
+config RTC_DRV_STM32
+	tristate "STM32 RTC"
+	select REGMAP_MMIO
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	   If you say yes here you get support for the STM32 On-Chip
+	   Real Time Clock.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-stm32".
 
 comment "HID Sensor RTC drivers"
 

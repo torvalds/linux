@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/ioctl.h>
 #include <linux/uaccess.h>
 #include <linux/pm_qos.h>
@@ -1098,9 +1098,9 @@ static void cs_hsi_stop(struct cs_hsi_iface *hi)
 	kfree(hi);
 }
 
-static int cs_char_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int cs_char_vma_fault(struct vm_fault *vmf)
 {
-	struct cs_char *csdata = vma->vm_private_data;
+	struct cs_char *csdata = vmf->vma->vm_private_data;
 	struct page *page;
 
 	page = virt_to_page(csdata->mmap_base);

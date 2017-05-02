@@ -114,18 +114,17 @@ static void virtio_gpu_ttm_global_fini(struct virtio_gpu_device *vgdev)
 static struct vm_operations_struct virtio_gpu_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops;
 
-static int virtio_gpu_ttm_fault(struct vm_area_struct *vma,
-				struct vm_fault *vmf)
+static int virtio_gpu_ttm_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
 	struct virtio_gpu_device *vgdev;
 	int r;
 
-	bo = (struct ttm_buffer_object *)vma->vm_private_data;
+	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
 	if (bo == NULL)
 		return VM_FAULT_NOPAGE;
 	vgdev = virtio_gpu_get_vgdev(bo->bdev);
-	r = ttm_vm_ops->fault(vma, vmf);
+	r = ttm_vm_ops->fault(vmf);
 	return r;
 }
 #endif
@@ -198,11 +197,11 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 }
 
 static const struct ttm_mem_type_manager_func virtio_gpu_bo_manager_func = {
-	ttm_bo_man_init,
-	ttm_bo_man_takedown,
-	ttm_bo_man_get_node,
-	ttm_bo_man_put_node,
-	ttm_bo_man_debug
+	.init = ttm_bo_man_init,
+	.takedown = ttm_bo_man_takedown,
+	.get_node = ttm_bo_man_get_node,
+	.put_node = ttm_bo_man_put_node,
+	.debug = ttm_bo_man_debug
 };
 
 static int virtio_gpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
@@ -386,6 +385,7 @@ static int virtio_gpu_bo_move(struct ttm_buffer_object *bo,
 }
 
 static void virtio_gpu_bo_move_notify(struct ttm_buffer_object *tbo,
+				      bool evict,
 				      struct ttm_mem_reg *new_mem)
 {
 	struct virtio_gpu_object *bo;
@@ -433,8 +433,6 @@ static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.io_mem_free = &virtio_gpu_ttm_io_mem_free,
 	.move_notify = &virtio_gpu_bo_move_notify,
 	.swap_notify = &virtio_gpu_bo_swap_notify,
-	.lru_tail = &ttm_bo_default_lru_tail,
-	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int virtio_gpu_ttm_init(struct virtio_gpu_device *vgdev)

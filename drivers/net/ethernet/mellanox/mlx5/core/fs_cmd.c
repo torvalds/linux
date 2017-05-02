@@ -322,7 +322,7 @@ int mlx5_cmd_update_fte(struct mlx5_core_dev *dev,
 						flow_table_properties_nic_receive.
 						flow_modify_en);
 	if (!atomic_mod_cap)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	opmod = 1;
 
 	return	mlx5_cmd_set_fte(dev, opmod, modify_mask, ft, group_id, fte);
@@ -473,10 +473,13 @@ int mlx5_encap_alloc(struct mlx5_core_dev *dev,
 	int err;
 	u32 *in;
 
-	if (size > MLX5_CAP_ESW(dev, max_encap_header_size))
+	if (size > max_encap_size) {
+		mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",
+			       size, max_encap_size);
 		return -EINVAL;
+	}
 
-	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_encap_header_in) + max_encap_size,
+	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_encap_header_in) + size,
 		     GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;

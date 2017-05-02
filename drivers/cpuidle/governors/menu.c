@@ -18,7 +18,10 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
+#include <linux/sched/stat.h>
 #include <linux/math64.h>
+#include <linux/cpu.h>
 
 /*
  * Please note when changing the tuning values:
@@ -280,16 +283,22 @@ again:
 static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
 	struct menu_device *data = this_cpu_ptr(&menu_devices);
+	struct device *device = get_cpu_device(dev->cpu);
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	int i;
 	unsigned int interactivity_req;
 	unsigned int expected_interval;
 	unsigned long nr_iowaiters, cpu_load;
+	int resume_latency = dev_pm_qos_raw_read_value(device);
 
 	if (data->needs_update) {
 		menu_update(drv, dev);
 		data->needs_update = 0;
 	}
+
+	/* resume_latency is 0 means no restriction */
+	if (resume_latency && resume_latency < latency_req)
+		latency_req = resume_latency;
 
 	/* Special case when user has set very strict latency requirement */
 	if (unlikely(latency_req == 0))
@@ -357,9 +366,9 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		if (s->disabled || su->disable)
 			continue;
 		if (s->target_residency > data->predicted_us)
-			continue;
+			break;
 		if (s->exit_latency > latency_req)
-			continue;
+			break;
 
 		data->last_state_idx = i;
 	}

@@ -224,4 +224,13 @@ static inline void tick_setup_hrtimer_broadcast(void) { }
 
 #endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
+#define CLOCKEVENT_OF_DECLARE(name, compat, fn) \
+	OF_DECLARE_1_RET(clkevt, name, compat, fn)
+
+#ifdef CONFIG_CLKEVT_PROBE
+extern int clockevent_probe(void);
+#else
+static inline int clockevent_probe(void) { return 0; }
+#endif
+
 #endif /* _LINUX_CLOCKCHIPS_H */

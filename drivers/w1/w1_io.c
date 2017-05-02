@@ -1,8 +1,5 @@
 /*
- *	w1_io.c
- *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <asm/io.h>
@@ -233,6 +226,7 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
 		return retval;
 	}
 }
+EXPORT_SYMBOL_GPL(w1_triplet);
 
 /**
  * w1_read_8() - Reads 8 bits.

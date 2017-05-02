@@ -86,8 +86,9 @@ given driver if the chip has the feature.
 
 name		The chip name.
 		This should be a short, lowercase string, not containing
-		spaces nor dashes, representing the chip name. This is
-		the only mandatory attribute.
+		whitespace, dashes, or the wildcard character '*'.
+		This attribute represents the chip name. It is the only
+		mandatory attribute.
 		I2C devices get this attribute created automatically.
 		RO
 

@@ -117,7 +117,7 @@ ID	Clock	Peripheral
 25	tdm	Time Division Mplx
 28	xor1	XOR DMA 1
 29	sata1lnk
-30	sata1	SATA Host 0
+30	sata1	SATA Host 1
 
 The following is a list of provided IDs for Dove:
 ID	Clock	Peripheral

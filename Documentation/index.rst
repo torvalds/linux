@@ -47,7 +47,7 @@ These books get into the details of how specific kernel subsystems work
 from the point of view of a kernel developer.  Much of the information here
 is taken directly from the kernel source, with supplemental material added
 as needed (or at least as we managed to add it — probably *not* all that is
-needed). 
+needed).
 
 .. toctree::
    :maxdepth: 2
@@ -67,6 +67,14 @@ Korean translations
    :maxdepth: 1
 
    translations/ko_KR/index
+
+Chinese translations
+--------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/zh_CN/index
 
 Indices and tables
 ==================

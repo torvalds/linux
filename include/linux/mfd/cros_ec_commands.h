@@ -1441,7 +1441,8 @@ enum motionsensor_type {
 	MOTIONSENSE_TYPE_PROX = 3,
 	MOTIONSENSE_TYPE_LIGHT = 4,
 	MOTIONSENSE_TYPE_ACTIVITY = 5,
-	MOTIONSENSE_TYPE_MAX
+	MOTIONSENSE_TYPE_BARO = 6,
+	MOTIONSENSE_TYPE_MAX,
 };
 
 /* List of motion sensor locations. */
@@ -2040,6 +2041,9 @@ enum ec_mkbp_event {
 	/* The state of the switches have changed. */
 	EC_MKBP_EVENT_SWITCH = 4,
 
+	/* EC sent a sysrq command */
+	EC_MKBP_EVENT_SYSRQ = 6,
+
 	/* Number of MKBP events */
 	EC_MKBP_EVENT_COUNT,
 };
@@ -2052,6 +2056,7 @@ union ec_response_get_next_data {
 
 	uint32_t   buttons;
 	uint32_t   switches;
+	uint32_t   sysrq;
 } __packed;
 
 struct ec_response_get_next_event {
@@ -2545,6 +2550,20 @@ struct ec_params_current_limit {
 
 struct ec_params_ext_power_current_limit {
 	uint32_t limit; /* in mA */
+} __packed;
+
+/* Inform the EC when entering a sleep state */
+#define EC_CMD_HOST_SLEEP_EVENT 0xa9
+
+enum host_sleep_event {
+	HOST_SLEEP_EVENT_S3_SUSPEND   = 1,
+	HOST_SLEEP_EVENT_S3_RESUME    = 2,
+	HOST_SLEEP_EVENT_S0IX_SUSPEND = 3,
+	HOST_SLEEP_EVENT_S0IX_RESUME  = 4
+};
+
+struct ec_params_host_sleep_event {
+	uint8_t sleep_event;
 } __packed;
 
 /*****************************************************************************/

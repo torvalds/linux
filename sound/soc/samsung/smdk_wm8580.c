@@ -32,14 +32,11 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	unsigned int pll_out;
-	int bfs, rfs, ret;
+	int rfs, ret;
 
 	switch (params_width(params)) {
 	case 8:
-		bfs = 16;
-		break;
 	case 16:
-		bfs = 32;
 		break;
 	default:
 		return -EINVAL;

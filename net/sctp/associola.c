@@ -71,9 +71,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 {
 	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
-	int i;
 	sctp_paramhdr_t *p;
-	int err;
+	int i;
 
 	/* Retrieve the SCTP per socket area.  */
 	sp = sctp_sk((struct sock *)sk);
@@ -207,6 +206,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * association to the same value as the initial TSN.
 	 */
 	asoc->addip_serial = asoc->c.initial_tsn;
+	asoc->strreset_outseq = asoc->c.initial_tsn;
 
 	INIT_LIST_HEAD(&asoc->addip_chunk_list);
 	INIT_LIST_HEAD(&asoc->asconf_ack_list);
@@ -263,12 +263,13 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* AUTH related initializations */
 	INIT_LIST_HEAD(&asoc->endpoint_shared_keys);
-	err = sctp_auth_asoc_copy_shkeys(ep, asoc, gfp);
-	if (err)
+	if (sctp_auth_asoc_copy_shkeys(ep, asoc, gfp))
 		goto fail_init;
 
 	asoc->active_key_id = ep->active_key_id;
 	asoc->prsctp_enable = ep->prsctp_enable;
+	asoc->reconf_enable = ep->reconf_enable;
+	asoc->strreset_enable = ep->strreset_enable;
 
 	/* Save the hmacs and chunks list into this association */
 	if (ep->auth_hmacs_list)
@@ -358,8 +359,11 @@ void sctp_association_free(struct sctp_association *asoc)
 
 	sctp_tsnmap_free(&asoc->peer.tsn_map);
 
-	/* Free ssnmap storage. */
-	sctp_ssnmap_free(asoc->ssnmap);
+	/* Free stream information. */
+	sctp_stream_free(asoc->stream);
+
+	if (asoc->strreset_chunk)
+		sctp_chunk_free(asoc->strreset_chunk);
 
 	/* Clean up the bound address list. */
 	sctp_bind_addr_free(&asoc->base.bind_addr);
@@ -518,6 +522,12 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 		asoc->peer.retran_path = transport;
 	if (asoc->peer.last_data_from == peer)
 		asoc->peer.last_data_from = transport;
+
+	if (asoc->strreset_chunk &&
+	    asoc->strreset_chunk->transport == peer) {
+		asoc->strreset_chunk->transport = transport;
+		sctp_transport_reset_reconf_timer(transport);
+	}
 
 	/* If we remove the transport an INIT was last sent to, set it to
 	 * NULL. Combined with the update of the retran path above, this
@@ -820,8 +830,7 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		if (transport->state != SCTP_UNCONFIRMED)
 			transport->state = SCTP_INACTIVE;
 		else {
-			dst_release(transport->dst);
-			transport->dst = NULL;
+			sctp_transport_dst_release(transport);
 			ulp_notify = false;
 		}
 
@@ -1137,7 +1146,7 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		/* Reinitialize SSN for both local streams
 		 * and peer's streams.
 		 */
-		sctp_ssnmap_clear(asoc->ssnmap);
+		sctp_stream_clear(asoc->stream);
 
 		/* Flush the ULP reassembly and ordered queue.
 		 * Any data there will now be stale and will
@@ -1162,10 +1171,9 @@ void sctp_assoc_update(struct sctp_association *asoc,
 
 		asoc->ctsn_ack_point = asoc->next_tsn - 1;
 		asoc->adv_peer_ack_point = asoc->ctsn_ack_point;
-		if (!asoc->ssnmap) {
-			/* Move the ssnmap. */
-			asoc->ssnmap = new->ssnmap;
-			new->ssnmap = NULL;
+		if (!asoc->stream) {
+			asoc->stream = new->stream;
+			new->stream = NULL;
 		}
 
 		if (!asoc->assoc_id) {

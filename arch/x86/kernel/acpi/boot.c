@@ -35,6 +35,7 @@
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/efi-bgrt.h>
 
 #include <asm/irqdomain.h>
 #include <asm/pci_x86.h>
@@ -178,10 +179,15 @@ static int acpi_register_lapic(int id, u32 acpiid, u8 enabled)
 		return -EINVAL;
 	}
 
+	if (!enabled) {
+		++disabled_cpus;
+		return -EINVAL;
+	}
+
 	if (boot_cpu_physical_apicid != -1U)
 		ver = boot_cpu_apic_version;
 
-	cpu = __generic_processor_info(id, ver, enabled);
+	cpu = generic_processor_info(id, ver);
 	if (cpu >= 0)
 		early_per_cpu(x86_cpu_to_acpiid, cpu) = acpiid;
 
@@ -709,7 +715,7 @@ static void __init acpi_set_irq_model_ioapic(void)
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 #include <acpi/processor.h>
 
-int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	int nid;
@@ -723,11 +729,12 @@ int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 	return 0;
 }
 
-int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
+int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
+		 int *pcpu)
 {
 	int cpu;
 
-	cpu = acpi_register_lapic(physid, U32_MAX, ACPI_MADT_ENABLED);
+	cpu = acpi_register_lapic(physid, acpi_id, ACPI_MADT_ENABLED);
 	if (cpu < 0) {
 		pr_info(PREFIX "Unable to map lapic to logical cpu number\n");
 		return cpu;
@@ -1557,6 +1564,12 @@ int __init early_acpi_boot_init(void)
 	return 0;
 }
 
+static int __init acpi_parse_bgrt(struct acpi_table_header *table)
+{
+	efi_bgrt_init(table);
+	return 0;
+}
+
 int __init acpi_boot_init(void)
 {
 	/* those are executed after early-quirks are executed */
@@ -1581,6 +1594,8 @@ int __init acpi_boot_init(void)
 	acpi_process_madt();
 
 	acpi_table_parse(ACPI_SIG_HPET, acpi_parse_hpet);
+	if (IS_ENABLED(CONFIG_ACPI_BGRT))
+		acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 
 	if (!acpi_noirq)
 		x86_init.pci.init = pci_acpi_init;

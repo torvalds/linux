@@ -631,6 +631,7 @@ static void nvmet_subsys_release(struct config_item *item)
 {
 	struct nvmet_subsys *subsys = to_subsys(item);
 
+	nvmet_subsys_del_ctrls(subsys);
 	nvmet_subsys_put(subsys);
 }
 

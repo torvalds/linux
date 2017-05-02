@@ -24,7 +24,7 @@ TRACE_EVENT(amdgpu_mm_rreg,
 			   __entry->reg = reg;
 			   __entry->value = value;
 			   ),
-	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+	    TP_printk("0x%04lx, 0x%08lx, 0x%08lx",
 		      (unsigned long)__entry->did,
 		      (unsigned long)__entry->reg,
 		      (unsigned long)__entry->value)
@@ -43,7 +43,7 @@ TRACE_EVENT(amdgpu_mm_wreg,
 			   __entry->reg = reg;
 			   __entry->value = value;
 			   ),
-	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+	    TP_printk("0x%04lx, 0x%08lx, 0x%08lx",
 		      (unsigned long)__entry->did,
 		      (unsigned long)__entry->reg,
 		      (unsigned long)__entry->value)

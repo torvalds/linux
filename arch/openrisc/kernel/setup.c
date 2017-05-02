@@ -117,13 +117,15 @@ static void print_cpuinfo(void)
 	if (upr & SPR_UPR_DCP)
 		printk(KERN_INFO
 		       "-- dcache: %4d bytes total, %2d bytes/line, %d way(s)\n",
-		       cpuinfo.dcache_size, cpuinfo.dcache_block_size, 1);
+		       cpuinfo.dcache_size, cpuinfo.dcache_block_size,
+		       cpuinfo.dcache_ways);
 	else
 		printk(KERN_INFO "-- dcache disabled\n");
 	if (upr & SPR_UPR_ICP)
 		printk(KERN_INFO
 		       "-- icache: %4d bytes total, %2d bytes/line, %d way(s)\n",
-		       cpuinfo.icache_size, cpuinfo.icache_block_size, 1);
+		       cpuinfo.icache_size, cpuinfo.icache_block_size,
+		       cpuinfo.icache_ways);
 	else
 		printk(KERN_INFO "-- icache disabled\n");
 
@@ -155,25 +157,25 @@ void __init setup_cpuinfo(void)
 {
 	struct device_node *cpu;
 	unsigned long iccfgr, dccfgr;
-	unsigned long cache_set_size, cache_ways;
+	unsigned long cache_set_size;
 
 	cpu = of_find_compatible_node(NULL, NULL, "opencores,or1200-rtlsvn481");
 	if (!cpu)
 		panic("No compatible CPU found in device tree...\n");
 
 	iccfgr = mfspr(SPR_ICCFGR);
-	cache_ways = 1 << (iccfgr & SPR_ICCFGR_NCW);
+	cpuinfo.icache_ways = 1 << (iccfgr & SPR_ICCFGR_NCW);
 	cache_set_size = 1 << ((iccfgr & SPR_ICCFGR_NCS) >> 3);
 	cpuinfo.icache_block_size = 16 << ((iccfgr & SPR_ICCFGR_CBS) >> 7);
 	cpuinfo.icache_size =
-	    cache_set_size * cache_ways * cpuinfo.icache_block_size;
+	    cache_set_size * cpuinfo.icache_ways * cpuinfo.icache_block_size;
 
 	dccfgr = mfspr(SPR_DCCFGR);
-	cache_ways = 1 << (dccfgr & SPR_DCCFGR_NCW);
+	cpuinfo.dcache_ways = 1 << (dccfgr & SPR_DCCFGR_NCW);
 	cache_set_size = 1 << ((dccfgr & SPR_DCCFGR_NCS) >> 3);
 	cpuinfo.dcache_block_size = 16 << ((dccfgr & SPR_DCCFGR_CBS) >> 7);
 	cpuinfo.dcache_size =
-	    cache_set_size * cache_ways * cpuinfo.dcache_block_size;
+	    cache_set_size * cpuinfo.dcache_ways * cpuinfo.dcache_block_size;
 
 	if (of_property_read_u32(cpu, "clock-frequency",
 				 &cpuinfo.clock_frequency)) {
@@ -308,30 +310,33 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	revision = vr & SPR_VR_REV;
 
 	seq_printf(m,
-		   "cpu\t\t: OpenRISC-%x\n"
-		   "revision\t: %d\n"
-		   "frequency\t: %ld\n"
-		   "dcache size\t: %d bytes\n"
-		   "dcache block size\t: %d bytes\n"
-		   "icache size\t: %d bytes\n"
-		   "icache block size\t: %d bytes\n"
-		   "immu\t\t: %d entries, %lu ways\n"
-		   "dmmu\t\t: %d entries, %lu ways\n"
-		   "bogomips\t: %lu.%02lu\n",
-		   version,
-		   revision,
-		   loops_per_jiffy * HZ,
-		   cpuinfo.dcache_size,
-		   cpuinfo.dcache_block_size,
-		   cpuinfo.icache_size,
-		   cpuinfo.icache_block_size,
-		   1 << ((mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTS) >> 2),
-		   1 + (mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTW),
-		   1 << ((mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTS) >> 2),
-		   1 + (mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTW),
-		   (loops_per_jiffy * HZ) / 500000,
-		   ((loops_per_jiffy * HZ) / 5000) % 100);
-
+		  "cpu\t\t: OpenRISC-%x\n"
+		  "revision\t: %d\n"
+		  "frequency\t: %ld\n"
+		  "dcache size\t: %d bytes\n"
+		  "dcache block size\t: %d bytes\n"
+		  "dcache ways\t: %d\n"
+		  "icache size\t: %d bytes\n"
+		  "icache block size\t: %d bytes\n"
+		  "icache ways\t: %d\n"
+		  "immu\t\t: %d entries, %lu ways\n"
+		  "dmmu\t\t: %d entries, %lu ways\n"
+		  "bogomips\t: %lu.%02lu\n",
+		  version,
+		  revision,
+		  loops_per_jiffy * HZ,
+		  cpuinfo.dcache_size,
+		  cpuinfo.dcache_block_size,
+		  cpuinfo.dcache_ways,
+		  cpuinfo.icache_size,
+		  cpuinfo.icache_block_size,
+		  cpuinfo.icache_ways,
+		  1 << ((mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTS) >> 2),
+		  1 + (mfspr(SPR_DMMUCFGR) & SPR_DMMUCFGR_NTW),
+		  1 << ((mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTS) >> 2),
+		  1 + (mfspr(SPR_IMMUCFGR) & SPR_IMMUCFGR_NTW),
+		  (loops_per_jiffy * HZ) / 500000,
+		  ((loops_per_jiffy * HZ) / 5000) % 100);
 	return 0;
 }
 

@@ -82,14 +82,23 @@ static unsigned long ccu_nkm_recalc_rate(struct clk_hw *hw,
 
 	n = reg >> nkm->n.shift;
 	n &= (1 << nkm->n.width) - 1;
+	n += nkm->n.offset;
+	if (!n)
+		n++;
 
 	k = reg >> nkm->k.shift;
 	k &= (1 << nkm->k.width) - 1;
+	k += nkm->k.offset;
+	if (!k)
+		k++;
 
 	m = reg >> nkm->m.shift;
 	m &= (1 << nkm->m.width) - 1;
+	m += nkm->m.offset;
+	if (!m)
+		m++;
 
-	return parent_rate * (n + 1) * (k + 1) / (m + 1);
+	return parent_rate * n  * k / m;
 }
 
 static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
@@ -101,9 +110,9 @@ static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
 	struct _ccu_nkm _nkm;
 
 	_nkm.min_n = nkm->n.min;
-	_nkm.max_n = 1 << nkm->n.width;
+	_nkm.max_n = nkm->n.max ?: 1 << nkm->n.width;
 	_nkm.min_k = nkm->k.min;
-	_nkm.max_k = 1 << nkm->k.width;
+	_nkm.max_k = nkm->k.max ?: 1 << nkm->k.width;
 	_nkm.min_m = 1;
 	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
@@ -130,9 +139,9 @@ static int ccu_nkm_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 reg;
 
 	_nkm.min_n = nkm->n.min;
-	_nkm.max_n = 1 << nkm->n.width;
+	_nkm.max_n = nkm->n.max ?: 1 << nkm->n.width;
 	_nkm.min_k = nkm->k.min;
-	_nkm.max_k = 1 << nkm->k.width;
+	_nkm.max_k = nkm->k.max ?: 1 << nkm->k.width;
 	_nkm.min_m = 1;
 	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
@@ -145,10 +154,9 @@ static int ccu_nkm_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg &= ~GENMASK(nkm->k.width + nkm->k.shift - 1, nkm->k.shift);
 	reg &= ~GENMASK(nkm->m.width + nkm->m.shift - 1, nkm->m.shift);
 
-	reg |= (_nkm.n - 1) << nkm->n.shift;
-	reg |= (_nkm.k - 1) << nkm->k.shift;
-	reg |= (_nkm.m - 1) << nkm->m.shift;
-
+	reg |= (_nkm.n - nkm->n.offset) << nkm->n.shift;
+	reg |= (_nkm.k - nkm->k.offset) << nkm->k.shift;
+	reg |= (_nkm.m - nkm->m.offset) << nkm->m.shift;
 	writel(reg, nkm->common.base + nkm->common.reg);
 
 	spin_unlock_irqrestore(nkm->common.lock, flags);

@@ -10,6 +10,7 @@
 #include <linux/flex_proportions.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/kref.h>
 
 struct page;
 struct device;
@@ -144,6 +145,7 @@ struct backing_dev_info {
 
 	char *name;
 
+	struct kref refcnt;	/* Reference counter for the structure */
 	unsigned int capabilities; /* Device capabilities */
 	unsigned int min_ratio;
 	unsigned int max_ratio, max_prop_frac;

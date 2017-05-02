@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/dmi.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -979,7 +980,7 @@ EXPORT_SYMBOL_GPL(snd_soc_find_dai);
  * @card: soc card
  * @id: DAI link ID to match
  * @name: DAI link name to match, optional
- * @stream name: DAI link stream name to match, optional
+ * @stream_name: DAI link stream name to match, optional
  *
  * This function will search all existing DAI links of the soc card to
  * find the link of the same ID. Since DAI links may not have their
@@ -1593,6 +1594,27 @@ static int soc_probe_dai(struct snd_soc_dai *dai, int order)
 	return 0;
 }
 
+static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
+				struct snd_soc_pcm_runtime *rtd)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < num_dais; ++i) {
+		struct snd_soc_dai_driver *drv = dais[i]->driver;
+
+		if (!rtd->dai_link->no_pcm && drv->pcm_new)
+			ret = drv->pcm_new(rtd, dais[i]);
+		if (ret < 0) {
+			dev_err(dais[i]->dev,
+				"ASoC: Failed to bind %s with pcm device\n",
+				dais[i]->name);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int soc_link_dai_widgets(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link,
 				struct snd_soc_pcm_runtime *rtd)
@@ -1704,6 +1726,13 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 				       dai_link->stream_name, ret);
 				return ret;
 			}
+			ret = soc_link_dai_pcm_new(&cpu_dai, 1, rtd);
+			if (ret < 0)
+				return ret;
+			ret = soc_link_dai_pcm_new(rtd->codec_dais,
+						   rtd->num_codecs, rtd);
+			if (ret < 0)
+				return ret;
 		} else {
 			INIT_DELAYED_WORK(&rtd->delayed_work,
 						codec2codec_close_delayed_work);
@@ -1887,6 +1916,139 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_runtime_set_dai_fmt);
+
+
+/* Trim special characters, and replace '-' with '_' since '-' is used to
+ * separate different DMI fields in the card long name. Only number and
+ * alphabet characters and a few separator characters are kept.
+ */
+static void cleanup_dmi_name(char *name)
+{
+	int i, j = 0;
+
+	for (i = 0; name[i]; i++) {
+		if (isalnum(name[i]) || (name[i] == '.')
+		    || (name[i] == '_'))
+			name[j++] = name[i];
+		else if (name[i] == '-')
+			name[j++] = '_';
+	}
+
+	name[j] = '\0';
+}
+
+/**
+ * snd_soc_set_dmi_name() - Register DMI names to card
+ * @card: The card to register DMI names
+ * @flavour: The flavour "differentiator" for the card amongst its peers.
+ *
+ * An Intel machine driver may be used by many different devices but are
+ * difficult for userspace to differentiate, since machine drivers ususally
+ * use their own name as the card short name and leave the card long name
+ * blank. To differentiate such devices and fix bugs due to lack of
+ * device-specific configurations, this function allows DMI info to be used
+ * as the sound card long name, in the format of
+ * "vendor-product-version-board"
+ * (Character '-' is used to separate different DMI fields here).
+ * This will help the user space to load the device-specific Use Case Manager
+ * (UCM) configurations for the card.
+ *
+ * Possible card long names may be:
+ * DellInc.-XPS139343-01-0310JH
+ * ASUSTeKCOMPUTERINC.-T100TA-1.0-T100TA
+ * Circuitco-MinnowboardMaxD0PLATFORM-D0-MinnowBoardMAX
+ *
+ * This function also supports flavoring the card longname to provide
+ * the extra differentiation, like "vendor-product-version-board-flavor".
+ *
+ * We only keep number and alphabet characters and a few separator characters
+ * in the card long name since UCM in the user space uses the card long names
+ * as card configuration directory names and AudoConf cannot support special
+ * charactors like SPACE.
+ *
+ * Returns 0 on success, otherwise a negative error code.
+ */
+int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
+{
+	const char *vendor, *product, *product_version, *board;
+	size_t longname_buf_size = sizeof(card->snd_card->longname);
+	size_t len;
+
+	if (card->long_name)
+		return 0; /* long name already set by driver or from DMI */
+
+	/* make up dmi long name as: vendor.product.version.board */
+	vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
+	if (!vendor) {
+		dev_warn(card->dev, "ASoC: no DMI vendor name!\n");
+		return 0;
+	}
+
+	snprintf(card->dmi_longname, sizeof(card->snd_card->longname),
+			 "%s", vendor);
+	cleanup_dmi_name(card->dmi_longname);
+
+	product = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (product) {
+		len = strlen(card->dmi_longname);
+		snprintf(card->dmi_longname + len,
+			 longname_buf_size - len,
+			 "-%s", product);
+
+		len++;	/* skip the separator "-" */
+		if (len < longname_buf_size)
+			cleanup_dmi_name(card->dmi_longname + len);
+
+		/* some vendors like Lenovo may only put a self-explanatory
+		 * name in the product version field
+		 */
+		product_version = dmi_get_system_info(DMI_PRODUCT_VERSION);
+		if (product_version) {
+			len = strlen(card->dmi_longname);
+			snprintf(card->dmi_longname + len,
+				 longname_buf_size - len,
+				 "-%s", product_version);
+
+			len++;
+			if (len < longname_buf_size)
+				cleanup_dmi_name(card->dmi_longname + len);
+		}
+	}
+
+	board = dmi_get_system_info(DMI_BOARD_NAME);
+	if (board) {
+		len = strlen(card->dmi_longname);
+		snprintf(card->dmi_longname + len,
+			 longname_buf_size - len,
+			 "-%s", board);
+
+		len++;
+		if (len < longname_buf_size)
+			cleanup_dmi_name(card->dmi_longname + len);
+	} else if (!product) {
+		/* fall back to using legacy name */
+		dev_warn(card->dev, "ASoC: no DMI board/product name!\n");
+		return 0;
+	}
+
+	/* Add flavour to dmi long name */
+	if (flavour) {
+		len = strlen(card->dmi_longname);
+		snprintf(card->dmi_longname + len,
+			 longname_buf_size - len,
+			 "-%s", flavour);
+
+		len++;
+		if (len < longname_buf_size)
+			cleanup_dmi_name(card->dmi_longname + len);
+	}
+
+	/* set the card long name */
+	card->long_name = card->dmi_longname;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_set_dmi_name);
 
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
@@ -2879,7 +3041,7 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 	unsigned int i;
 	int ret;
 
-	dev_dbg(dev, "ASoC: dai register %s #%Zu\n", dev_name(dev), count);
+	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
 
 	component->dai_drv = dai_drv;
 
@@ -2976,6 +3138,8 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->remove = component->driver->remove;
 	component->suspend = component->driver->suspend;
 	component->resume = component->driver->resume;
+	component->pcm_new = component->driver->pcm_new;
+	component->pcm_free= component->driver->pcm_free;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
@@ -3158,6 +3322,25 @@ static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
 	platform->driver->remove(platform);
 }
 
+static int snd_soc_platform_drv_pcm_new(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_platform *platform = rtd->platform;
+
+	if (platform->driver->pcm_new)
+		return platform->driver->pcm_new(rtd);
+	else
+		return 0;
+}
+
+static void snd_soc_platform_drv_pcm_free(struct snd_pcm *pcm)
+{
+	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+	struct snd_soc_platform *platform = rtd->platform;
+
+	if (platform->driver->pcm_free)
+		platform->driver->pcm_free(pcm);
+}
+
 /**
  * snd_soc_add_platform - Add a platform to the ASoC core
  * @dev: The parent device for the platform
@@ -3181,6 +3364,10 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		platform->component.probe = snd_soc_platform_drv_probe;
 	if (platform_drv->remove)
 		platform->component.remove = snd_soc_platform_drv_remove;
+	if (platform_drv->pcm_new)
+		platform->component.pcm_new = snd_soc_platform_drv_pcm_new;
+	if (platform_drv->pcm_free)
+		platform->component.pcm_free = snd_soc_platform_drv_pcm_free;
 
 #ifdef CONFIG_DEBUG_FS
 	platform->component.debugfs_prefix = "platform";
@@ -3492,10 +3679,10 @@ found:
 EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);
 
 /* Retrieve a card's name from device tree */
-int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
-					 struct device_node *np,
-					 const char *propname)
+int snd_soc_of_parse_card_name(struct snd_soc_card *card,
+			       const char *propname)
 {
+	struct device_node *np;
 	int ret;
 
 	if (!card->dev) {
@@ -3503,8 +3690,7 @@ int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	if (!np)
-		np = card->dev->of_node;
+	np = card->dev->of_node;
 
 	ret = of_property_read_string_index(np, propname, 0, &card->name);
 	/*
@@ -3521,7 +3707,7 @@ int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_card_name_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_card_name);
 
 static const struct snd_soc_dapm_widget simple_widgets[] = {
 	SND_SOC_DAPM_MIC("Microphone", NULL),
@@ -3530,16 +3716,13 @@ static const struct snd_soc_dapm_widget simple_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
-int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
-					  struct device_node *np,
+int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 					  const char *propname)
 {
+	struct device_node *np = card->dev->of_node;
 	struct snd_soc_dapm_widget *widgets;
 	const char *template, *wname;
 	int i, j, num_widgets, ret;
-
-	if (!np)
-		np = card->dev->of_node;
 
 	num_widgets = of_property_count_strings(np, propname);
 	if (num_widgets < 0) {
@@ -3611,7 +3794,7 @@ int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_simple_widgets_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_simple_widgets);
 
 static int snd_soc_of_get_slot_mask(struct device_node *np,
 				    const char *prop_name,
@@ -3667,17 +3850,14 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_tdm_slot);
 
-void snd_soc_of_parse_audio_prefix_from_node(struct snd_soc_card *card,
-				   struct device_node *np,
+void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
 				   struct snd_soc_codec_conf *codec_conf,
 				   struct device_node *of_node,
 				   const char *propname)
 {
+	struct device_node *np = card->dev->of_node;
 	const char *str;
 	int ret;
-
-	if (!np)
-		np = card->dev->of_node;
 
 	ret = of_property_read_string(np, propname, &str);
 	if (ret < 0) {
@@ -3688,18 +3868,15 @@ void snd_soc_of_parse_audio_prefix_from_node(struct snd_soc_card *card,
 	codec_conf->of_node	= of_node;
 	codec_conf->name_prefix	= str;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_prefix_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_prefix);
 
-int snd_soc_of_parse_audio_routing_from_node(struct snd_soc_card *card,
-				   struct device_node *np,
+int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname)
 {
+	struct device_node *np = card->dev->of_node;
 	int num_routes;
 	struct snd_soc_dapm_route *routes;
 	int i, ret;
-
-	if (!np)
-		np = card->dev->of_node;
 
 	num_routes = of_property_count_strings(np, propname);
 	if (num_routes < 0 || num_routes & 1) {
@@ -3747,7 +3924,7 @@ int snd_soc_of_parse_audio_routing_from_node(struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_routing_from_node);
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_routing);
 
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     const char *prefix,
@@ -4020,8 +4197,6 @@ static void __exit snd_soc_exit(void)
 	snd_soc_util_exit();
 	snd_soc_debugfs_exit();
 
-#ifdef CONFIG_DEBUG_FS
-#endif
 	platform_driver_unregister(&soc_driver);
 }
 module_exit(snd_soc_exit);

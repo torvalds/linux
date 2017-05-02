@@ -1702,6 +1702,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 		if (qc->err_mask & ~AC_ERR_OTHER)
 			qc->err_mask &= ~AC_ERR_OTHER;
+	} else if (qc->tf.command == ATA_CMD_REQ_SENSE_DATA) {
+		qc->result_tf.command |= ATA_SENSE;
 	}
 
 	/* finish up */
@@ -4356,10 +4358,10 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "ST380013AS",		"3.20",		ATA_HORKAGE_MAX_SEC_1024 },
 
 	/*
-	 * Device times out with higher max sects.
+	 * These devices time out with higher max sects.
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=121671
 	 */
-	{ "LITEON CX1-JB256-HP", NULL,		ATA_HORKAGE_MAX_SEC_1024 },
+	{ "LITEON CX1-JB*-HP",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
 
 	/* Devices we expect to fail diagnostics */
 
@@ -4814,32 +4816,6 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 }
 
 /**
- *	ata_sg_clean - Unmap DMA memory associated with command
- *	@qc: Command containing DMA memory to be released
- *
- *	Unmap all mapped DMA memory associated with this command.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_sg_clean(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg = qc->sg;
-	int dir = qc->dma_dir;
-
-	WARN_ON_ONCE(sg == NULL);
-
-	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
-
-	if (qc->n_elem)
-		dma_unmap_sg(ap->dev, sg, qc->orig_n_elem, dir);
-
-	qc->flags &= ~ATA_QCFLAG_DMAMAP;
-	qc->sg = NULL;
-}
-
-/**
  *	atapi_check_dma - Check whether ATAPI DMA can be supported
  *	@qc: Metadata associated with taskfile to check
  *
@@ -4923,6 +4899,34 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 	qc->cursg = qc->sg;
 }
 
+#ifdef CONFIG_HAS_DMA
+
+/**
+ *	ata_sg_clean - Unmap DMA memory associated with command
+ *	@qc: Command containing DMA memory to be released
+ *
+ *	Unmap all mapped DMA memory associated with this command.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_sg_clean(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct scatterlist *sg = qc->sg;
+	int dir = qc->dma_dir;
+
+	WARN_ON_ONCE(sg == NULL);
+
+	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
+
+	if (qc->n_elem)
+		dma_unmap_sg(ap->dev, sg, qc->orig_n_elem, dir);
+
+	qc->flags &= ~ATA_QCFLAG_DMAMAP;
+	qc->sg = NULL;
+}
+
 /**
  *	ata_sg_setup - DMA-map the scatter-gather table associated with a command.
  *	@qc: Command with scatter-gather table to be mapped.
@@ -4954,6 +4958,13 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 
 	return 0;
 }
+
+#else /* !CONFIG_HAS_DMA */
+
+static inline void ata_sg_clean(struct ata_queued_cmd *qc) {}
+static inline int ata_sg_setup(struct ata_queued_cmd *qc) { return -1; }
+
+#endif /* !CONFIG_HAS_DMA */
 
 /**
  *	swap_buf_le16 - swap halves of 16-bit words in place

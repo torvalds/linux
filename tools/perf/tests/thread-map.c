@@ -109,7 +109,7 @@ int test__thread_map_remove(int subtest __maybe_unused)
 	TEST_ASSERT_VAL("failed to allocate thread_map",
 			threads);
 
-	if (verbose)
+	if (verbose > 0)
 		thread_map__fprintf(threads, stderr);
 
 	TEST_ASSERT_VAL("failed to remove thread",
@@ -117,7 +117,7 @@ int test__thread_map_remove(int subtest __maybe_unused)
 
 	TEST_ASSERT_VAL("thread_map count != 1", threads->nr == 1);
 
-	if (verbose)
+	if (verbose > 0)
 		thread_map__fprintf(threads, stderr);
 
 	TEST_ASSERT_VAL("failed to remove thread",
@@ -125,7 +125,7 @@ int test__thread_map_remove(int subtest __maybe_unused)
 
 	TEST_ASSERT_VAL("thread_map count != 0", threads->nr == 0);
 
-	if (verbose)
+	if (verbose > 0)
 		thread_map__fprintf(threads, stderr);
 
 	TEST_ASSERT_VAL("failed to not remove thread",

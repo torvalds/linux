@@ -26,12 +26,15 @@
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_inode_item.h"
+#include "xfs_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_attr_sf.h"
 #include "xfs_da_format.h"
+#include "xfs_da_btree.h"
+#include "xfs_dir2_priv.h"
 
 kmem_zone_t *xfs_ifork_zone;
 
@@ -319,6 +322,7 @@ xfs_iformat_local(
 	int		whichfork,
 	int		size)
 {
+	int		error;
 
 	/*
 	 * If the size is unreasonable, then something
@@ -333,6 +337,14 @@ xfs_iformat_local(
 		XFS_CORRUPTION_ERROR("xfs_iformat_local", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
 		return -EFSCORRUPTED;
+	}
+
+	if (S_ISDIR(VFS_I(ip)->i_mode) && whichfork == XFS_DATA_FORK) {
+		error = xfs_dir2_sf_verify(ip->i_mount,
+				(struct xfs_dir2_sf_hdr *)XFS_DFORK_DPTR(dip),
+				size);
+		if (error)
+			return error;
 	}
 
 	xfs_init_local_fork(ip, whichfork, XFS_DFORK_PTR(dip, whichfork), size);
@@ -429,11 +441,13 @@ xfs_iformat_btree(
 	/* REFERENCED */
 	int			nrecs;
 	int			size;
+	int			level;
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	dfp = (xfs_bmdr_block_t *)XFS_DFORK_PTR(dip, whichfork);
 	size = XFS_BMAP_BROOT_SPACE(mp, dfp);
 	nrecs = be16_to_cpu(dfp->bb_numrecs);
+	level = be16_to_cpu(dfp->bb_level);
 
 	/*
 	 * blow out if -- fork has less extents than can fit in
@@ -446,7 +460,8 @@ xfs_iformat_btree(
 					XFS_IFORK_MAXEXT(ip, whichfork) ||
 		     XFS_BMDR_SPACE_CALC(nrecs) >
 					XFS_DFORK_SIZE(dip, mp, whichfork) ||
-		     XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks)) {
+		     XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks) ||
+		     level == 0 || level > XFS_BTREE_MAXLEVELS) {
 		xfs_warn(mp, "corrupt inode %Lu (btree).",
 					(unsigned long long) ip->i_ino);
 		XFS_CORRUPTION_ERROR("xfs_iformat_btree", XFS_ERRLEVEL_LOW,
@@ -497,15 +512,14 @@ xfs_iread_extents(
 	 * We know that the size is valid (it's checked in iformat_btree)
 	 */
 	ifp->if_bytes = ifp->if_real_bytes = 0;
-	ifp->if_flags |= XFS_IFEXTENTS;
 	xfs_iext_add(ifp, 0, nextents);
 	error = xfs_bmap_read_extents(tp, ip, whichfork);
 	if (error) {
 		xfs_iext_destroy(ifp);
-		ifp->if_flags &= ~XFS_IFEXTENTS;
 		return error;
 	}
 	xfs_validate_extents(ifp, nextents, XFS_EXTFMT_INODE(ip));
+	ifp->if_flags |= XFS_IFEXTENTS;
 	return 0;
 }
 /*
@@ -853,7 +867,7 @@ xfs_iextents_copy(
  * In these cases, the format always takes precedence, because the
  * format indicates the current state of the fork.
  */
-void
+int
 xfs_iflush_fork(
 	xfs_inode_t		*ip,
 	xfs_dinode_t		*dip,
@@ -863,6 +877,7 @@ xfs_iflush_fork(
 	char			*cp;
 	xfs_ifork_t		*ifp;
 	xfs_mount_t		*mp;
+	int			error;
 	static const short	brootflag[2] =
 		{ XFS_ILOG_DBROOT, XFS_ILOG_ABROOT };
 	static const short	dataflag[2] =
@@ -871,7 +886,7 @@ xfs_iflush_fork(
 		{ XFS_ILOG_DEXT, XFS_ILOG_AEXT };
 
 	if (!iip)
-		return;
+		return 0;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	/*
 	 * This can happen if we gave up in iformat in an error path,
@@ -879,12 +894,19 @@ xfs_iflush_fork(
 	 */
 	if (!ifp) {
 		ASSERT(whichfork == XFS_ATTR_FORK);
-		return;
+		return 0;
 	}
 	cp = XFS_DFORK_PTR(dip, whichfork);
 	mp = ip->i_mount;
 	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
 	case XFS_DINODE_FMT_LOCAL:
+		if (S_ISDIR(VFS_I(ip)->i_mode) && whichfork == XFS_DATA_FORK) {
+			error = xfs_dir2_sf_verify(mp,
+					(struct xfs_dir2_sf_hdr *)ifp->if_u1.if_data,
+					ifp->if_bytes);
+			if (error)
+				return error;
+		}
 		if ((iip->ili_fields & dataflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
 			ASSERT(ifp->if_u1.if_data != NULL);
@@ -937,6 +959,7 @@ xfs_iflush_fork(
 		ASSERT(0);
 		break;
 	}
+	return 0;
 }
 
 /*

@@ -128,8 +128,8 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 	if (!bo->mm)
 		return -ENOMEM;
 
-	err = drm_mm_insert_node_generic(&tegra->mm, bo->mm, bo->gem.size,
-					 PAGE_SIZE, 0, 0, 0);
+	err = drm_mm_insert_node_generic(&tegra->mm,
+					 bo->mm, bo->gem.size, PAGE_SIZE, 0, 0);
 	if (err < 0) {
 		dev_err(tegra->drm->dev, "out of I/O virtual memory: %zd\n",
 			err);
@@ -441,8 +441,9 @@ int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,
 	return 0;
 }
 
-static int tegra_bo_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int tegra_bo_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *gem = vma->vm_private_data;
 	struct tegra_bo *bo = to_tegra_bo(gem);
 	struct page *page;

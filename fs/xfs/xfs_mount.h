@@ -140,6 +140,7 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
 	__uint64_t		m_flags;	/* global mount flags */
+	bool			m_inotbt_nores; /* no per-AG finobt resv. */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
 	int			m_ialloc_min_blks;/* min blocks in sparse inode
@@ -199,11 +200,12 @@ typedef struct xfs_mount {
 	/*
 	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
 	 * block killing in the event of failed writes. When enabled, all
-	 * buffered writes are forced to fail. All delalloc blocks in the range
-	 * of the write (including pre-existing delalloc blocks!) are tossed as
-	 * part of the write failure error handling sequence.
+	 * buffered writes are silenty dropped and handled as if they failed.
+	 * All delalloc blocks in the range of the write (including pre-existing
+	 * delalloc blocks!) are tossed as part of the write failure error
+	 * handling sequence.
 	 */
-	bool			m_fail_writes;
+	bool			m_drop_writes;
 #endif
 } xfs_mount_t;
 
@@ -324,13 +326,13 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 
 #ifdef DEBUG
 static inline bool
-xfs_mp_fail_writes(struct xfs_mount *mp)
+xfs_mp_drop_writes(struct xfs_mount *mp)
 {
-	return mp->m_fail_writes;
+	return mp->m_drop_writes;
 }
 #else
 static inline bool
-xfs_mp_fail_writes(struct xfs_mount *mp)
+xfs_mp_drop_writes(struct xfs_mount *mp)
 {
 	return 0;
 }
@@ -383,6 +385,8 @@ typedef struct xfs_perag {
 	xfs_agino_t	pagl_rightrec;
 	spinlock_t	pagb_lock;	/* lock for pagb_tree */
 	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
+	unsigned int	pagb_gen;	/* generation count for pagb_tree */
+	wait_queue_head_t pagb_wait;	/* woken when pagb_gen changes */
 
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 

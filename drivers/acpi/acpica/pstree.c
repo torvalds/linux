@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,10 +129,10 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 	union acpi_parse_object *prev_arg;
 	const struct acpi_opcode_info *op_info;
 
-	ACPI_FUNCTION_ENTRY();
+	ACPI_FUNCTION_TRACE(ps_append_arg);
 
 	if (!op) {
-		return;
+		return_VOID;
 	}
 
 	/* Get the info structure for this opcode */
@@ -144,7 +144,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 
 		ACPI_ERROR((AE_INFO, "Invalid AML Opcode: 0x%2.2X",
 			    op->common.aml_opcode));
-		return;
+		return_VOID;
 	}
 
 	/* Check if this opcode requires argument sub-objects */
@@ -153,7 +153,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 
 		/* Has no linked argument objects */
 
-		return;
+		return_VOID;
 	}
 
 	/* Append the argument to the linked argument list */
@@ -181,6 +181,8 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 
 		op->common.arg_list_length++;
 	}
+
+	return_VOID;
 }
 
 /*******************************************************************************

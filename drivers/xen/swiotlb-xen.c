@@ -414,9 +414,9 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	if (map == SWIOTLB_MAP_ERROR)
 		return DMA_ERROR_CODE;
 
+	dev_addr = xen_phys_to_bus(map);
 	xen_dma_map_page(dev, pfn_to_page(map >> PAGE_SHIFT),
 					dev_addr, map & ~PAGE_MASK, size, dir, attrs);
-	dev_addr = xen_phys_to_bus(map);
 
 	/*
 	 * Ensure that the address returned is DMA'ble
@@ -575,13 +575,14 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 				sg_dma_len(sgl) = 0;
 				return 0;
 			}
+			dev_addr = xen_phys_to_bus(map);
 			xen_dma_map_page(hwdev, pfn_to_page(map >> PAGE_SHIFT),
 						dev_addr,
 						map & ~PAGE_MASK,
 						sg->length,
 						dir,
 						attrs);
-			sg->dma_address = xen_phys_to_bus(map);
+			sg->dma_address = dev_addr;
 		} else {
 			/* we are not interested in the dma_addr returned by
 			 * xen_dma_map_page, only in the potential cache flushes executed
@@ -680,3 +681,50 @@ xen_swiotlb_set_dma_mask(struct device *dev, u64 dma_mask)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_set_dma_mask);
+
+/*
+ * Create userspace mapping for the DMA-coherent memory.
+ * This function should be called with the pages from the current domain only,
+ * passing pages mapped from other domains would lead to memory corruption.
+ */
+int
+xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+		     void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		     unsigned long attrs)
+{
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+	if (__generic_dma_ops(dev)->mmap)
+		return __generic_dma_ops(dev)->mmap(dev, vma, cpu_addr,
+						    dma_addr, size, attrs);
+#endif
+	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
+}
+EXPORT_SYMBOL_GPL(xen_swiotlb_dma_mmap);
+
+/*
+ * This function should be called with the pages from the current domain only,
+ * passing pages mapped from other domains would lead to memory corruption.
+ */
+int
+xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
+			void *cpu_addr, dma_addr_t handle, size_t size,
+			unsigned long attrs)
+{
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+	if (__generic_dma_ops(dev)->get_sgtable) {
+#if 0
+	/*
+	 * This check verifies that the page belongs to the current domain and
+	 * is not one mapped from another domain.
+	 * This check is for debug only, and should not go to production build
+	 */
+		unsigned long bfn = PHYS_PFN(dma_to_phys(dev, handle));
+		BUG_ON (!page_is_ram(bfn));
+#endif
+		return __generic_dma_ops(dev)->get_sgtable(dev, sgt, cpu_addr,
+							   handle, size, attrs);
+	}
+#endif
+	return dma_common_get_sgtable(dev, sgt, cpu_addr, handle, size);
+}
+EXPORT_SYMBOL_GPL(xen_swiotlb_get_sgtable);

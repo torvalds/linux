@@ -96,9 +96,10 @@ struct drm_bridge_funcs {
 	 * This callback should disable the bridge. It is called right before
 	 * the preceding element in the display pipe is disabled. If the
 	 * preceding element is a bridge this means it's called before that
-	 * bridge's ->disable() function. If the preceding element is a
-	 * &drm_encoder it's called right before the encoder's ->disable(),
-	 * ->prepare() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * bridge's @disable vfunc. If the preceding element is a &drm_encoder
+	 * it's called right before the &drm_encoder_helper_funcs.disable,
+	 * &drm_encoder_helper_funcs.prepare or &drm_encoder_helper_funcs.dpms
+	 * hook.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
@@ -110,12 +111,13 @@ struct drm_bridge_funcs {
 	/**
 	 * @post_disable:
 	 *
-	 * This callback should disable the bridge. It is called right after
-	 * the preceding element in the display pipe is disabled. If the
-	 * preceding element is a bridge this means it's called after that
-	 * bridge's ->post_disable() function. If the preceding element is a
-	 * &drm_encoder it's called right after the encoder's ->disable(),
-	 * ->prepare() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * This callback should disable the bridge. It is called right after the
+	 * preceding element in the display pipe is disabled. If the preceding
+	 * element is a bridge this means it's called after that bridge's
+	 * @post_disable function. If the preceding element is a &drm_encoder
+	 * it's called right after the encoder's
+	 * &drm_encoder_helper_funcs.disable, &drm_encoder_helper_funcs.prepare
+	 * or &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
 	 * singals) feeding it is no longer running when this callback is
@@ -129,9 +131,11 @@ struct drm_bridge_funcs {
 	 * @mode_set:
 	 *
 	 * This callback should set the given mode on the bridge. It is called
-	 * after the ->mode_set() callback for the preceding element in the
-	 * display pipeline has been called already. The display pipe (i.e.
-	 * clocks and timing signals) is off when this function is called.
+	 * after the @mode_set callback for the preceding element in the display
+	 * pipeline has been called already. If the bridge is the first element
+	 * then this would be &drm_encoder_helper_funcs.mode_set. The display
+	 * pipe (i.e.  clocks and timing signals) is off when this function is
+	 * called.
 	 */
 	void (*mode_set)(struct drm_bridge *bridge,
 			 struct drm_display_mode *mode,
@@ -142,9 +146,10 @@ struct drm_bridge_funcs {
 	 * This callback should enable the bridge. It is called right before
 	 * the preceding element in the display pipe is enabled. If the
 	 * preceding element is a bridge this means it's called before that
-	 * bridge's ->pre_enable() function. If the preceding element is a
-	 * &drm_encoder it's called right before the encoder's ->enable(),
-	 * ->commit() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * bridge's @pre_enable function. If the preceding element is a
+	 * &drm_encoder it's called right before the encoder's
+	 * &drm_encoder_helper_funcs.enable, &drm_encoder_helper_funcs.commit or
+	 * &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
 	 * will not yet be running when this callback is called. The bridge must
@@ -161,9 +166,10 @@ struct drm_bridge_funcs {
 	 * This callback should enable the bridge. It is called right after
 	 * the preceding element in the display pipe is enabled. If the
 	 * preceding element is a bridge this means it's called after that
-	 * bridge's ->enable() function. If the preceding element is a
-	 * &drm_encoder it's called right after the encoder's ->enable(),
-	 * ->commit() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * bridge's @enable function. If the preceding element is a
+	 * &drm_encoder it's called right after the encoder's
+	 * &drm_encoder_helper_funcs.enable, &drm_encoder_helper_funcs.commit or
+	 * &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is running when this callback is called. This
@@ -201,8 +207,8 @@ struct drm_bridge {
 int drm_bridge_add(struct drm_bridge *bridge);
 void drm_bridge_remove(struct drm_bridge *bridge);
 struct drm_bridge *of_drm_find_bridge(struct device_node *np);
-int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge);
-void drm_bridge_detach(struct drm_bridge *bridge);
+int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
+		      struct drm_bridge *previous);
 
 bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
 			const struct drm_display_mode *mode,

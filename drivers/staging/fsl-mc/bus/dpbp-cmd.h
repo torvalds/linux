@@ -45,8 +45,6 @@
 /* Command IDs */
 #define DPBP_CMDID_CLOSE		DPBP_CMD(0x800)
 #define DPBP_CMDID_OPEN			DPBP_CMD(0x804)
-#define DPBP_CMDID_CREATE		DPBP_CMD(0x904)
-#define DPBP_CMDID_DESTROY		DPBP_CMD(0x984)
 #define DPBP_CMDID_GET_API_VERSION	DPBP_CMD(0xa04)
 
 #define DPBP_CMDID_ENABLE		DPBP_CMD(0x002)
@@ -54,18 +52,6 @@
 #define DPBP_CMDID_GET_ATTR		DPBP_CMD(0x004)
 #define DPBP_CMDID_RESET		DPBP_CMD(0x005)
 #define DPBP_CMDID_IS_ENABLED		DPBP_CMD(0x006)
-
-#define DPBP_CMDID_SET_IRQ		DPBP_CMD(0x010)
-#define DPBP_CMDID_GET_IRQ		DPBP_CMD(0x011)
-#define DPBP_CMDID_SET_IRQ_ENABLE	DPBP_CMD(0x012)
-#define DPBP_CMDID_GET_IRQ_ENABLE	DPBP_CMD(0x013)
-#define DPBP_CMDID_SET_IRQ_MASK		DPBP_CMD(0x014)
-#define DPBP_CMDID_GET_IRQ_MASK		DPBP_CMD(0x015)
-#define DPBP_CMDID_GET_IRQ_STATUS	DPBP_CMD(0x016)
-#define DPBP_CMDID_CLEAR_IRQ_STATUS	DPBP_CMD(0x017)
-
-#define DPBP_CMDID_SET_NOTIFICATIONS	DPBP_CMD(0x01b0)
-#define DPBP_CMDID_GET_NOTIFICATIONS	DPBP_CMD(0x01b1)
 
 struct dpbp_cmd_open {
 	__le32 dpbp_id;
@@ -81,76 +67,6 @@ struct dpbp_rsp_is_enabled {
 	u8 enabled;
 };
 
-struct dpbp_cmd_set_irq {
-	/* cmd word 0 */
-	u8 irq_index;
-	u8 pad[3];
-	__le32 irq_val;
-	/* cmd word 1 */
-	__le64 irq_addr;
-	/* cmd word 2 */
-	__le32 irq_num;
-};
-
-struct dpbp_cmd_get_irq {
-	__le32 pad;
-	u8 irq_index;
-};
-
-struct dpbp_rsp_get_irq {
-	/* response word 0 */
-	__le32 irq_val;
-	__le32 pad;
-	/* response word 1 */
-	__le64 irq_addr;
-	/* response word 2 */
-	__le32 irq_num;
-	__le32 type;
-};
-
-struct dpbp_cmd_set_irq_enable {
-	u8 enable;
-	u8 pad[3];
-	u8 irq_index;
-};
-
-struct dpbp_cmd_get_irq_enable {
-	__le32 pad;
-	u8 irq_index;
-};
-
-struct dpbp_rsp_get_irq_enable {
-	u8 enabled;
-};
-
-struct dpbp_cmd_set_irq_mask {
-	__le32 mask;
-	u8 irq_index;
-};
-
-struct dpbp_cmd_get_irq_mask {
-	__le32 pad;
-	u8 irq_index;
-};
-
-struct dpbp_rsp_get_irq_mask {
-	__le32 mask;
-};
-
-struct dpbp_cmd_get_irq_status {
-	__le32 status;
-	u8 irq_index;
-};
-
-struct dpbp_rsp_get_irq_status {
-	__le32 status;
-};
-
-struct dpbp_cmd_clear_irq_status {
-	__le32 status;
-	u8 irq_index;
-};
-
 struct dpbp_rsp_get_attributes {
 	/* response word 0 */
 	__le16 pad;
@@ -159,38 +75,6 @@ struct dpbp_rsp_get_attributes {
 	/* response word 1 */
 	__le16 version_major;
 	__le16 version_minor;
-};
-
-struct dpbp_cmd_set_notifications {
-	/* cmd word 0 */
-	__le32 depletion_entry;
-	__le32 depletion_exit;
-	/* cmd word 1 */
-	__le32 surplus_entry;
-	__le32 surplus_exit;
-	/* cmd word 2 */
-	__le16 options;
-	__le16 pad[3];
-	/* cmd word 3 */
-	__le64 message_ctx;
-	/* cmd word 4 */
-	__le64 message_iova;
-};
-
-struct dpbp_rsp_get_notifications {
-	/* response word 0 */
-	__le32 depletion_entry;
-	__le32 depletion_exit;
-	/* response word 1 */
-	__le32 surplus_entry;
-	__le32 surplus_exit;
-	/* response word 2 */
-	__le16 options;
-	__le16 pad[3];
-	/* response word 3 */
-	__le64 message_ctx;
-	/* response word 4 */
-	__le64 message_iova;
 };
 
 #endif /* _FSL_DPBP_CMD_H */

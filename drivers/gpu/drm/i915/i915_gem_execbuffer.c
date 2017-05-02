@@ -184,7 +184,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 		 * from the (obj, vm) we don't run the risk of creating
 		 * duplicated vmas for the same vm.
 		 */
-		vma = i915_gem_obj_lookup_or_create_vma(obj, vm, NULL);
+		vma = i915_vma_instance(obj, vm, NULL);
 		if (unlikely(IS_ERR(vma))) {
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
@@ -274,6 +274,7 @@ static void eb_destroy(struct eb_vmas *eb)
 				       exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
+		vma->exec_entry = NULL;
 		i915_vma_put(vma);
 	}
 	kfree(eb);
@@ -435,12 +436,11 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 					       PIN_MAPPABLE | PIN_NONBLOCK);
 		if (IS_ERR(vma)) {
 			memset(&cache->node, 0, sizeof(cache->node));
-			ret = drm_mm_insert_node_in_range_generic
+			ret = drm_mm_insert_node_in_range
 				(&ggtt->base.mm, &cache->node,
-				 4096, 0, 0,
+				 PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
-				 DRM_MM_SEARCH_DEFAULT,
-				 DRM_MM_CREATE_DEFAULT);
+				 DRM_MM_INSERT_LOW);
 			if (ret) /* no inactive aperture space, use cpu reloc */
 				return NULL;
 		} else {
@@ -850,8 +850,7 @@ eb_vma_misplaced(struct i915_vma *vma)
 	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
 		!i915_vma_is_ggtt(vma));
 
-	if (entry->alignment &&
-	    vma->node.start & (entry->alignment - 1))
+	if (entry->alignment && !IS_ALIGNED(vma->node.start, entry->alignment))
 		return true;
 
 	if (vma->node.size < entry->pad_to_size)
@@ -1181,13 +1180,13 @@ validate_exec_list(struct drm_device *dev,
 			if (exec[i].offset !=
 			    gen8_canonical_addr(exec[i].offset & PAGE_MASK))
 				return -EINVAL;
-
-			/* From drm_mm perspective address space is continuous,
-			 * so from this point we're always using non-canonical
-			 * form internally.
-			 */
-			exec[i].offset = gen8_noncanonical_addr(exec[i].offset);
 		}
+
+		/* From drm_mm perspective address space is continuous,
+		 * so from this point we're always using non-canonical
+		 * form internally.
+		 */
+		exec[i].offset = gen8_noncanonical_addr(exec[i].offset);
 
 		if (exec[i].alignment && !is_power_of_2(exec[i].alignment))
 			return -EINVAL;
@@ -1232,14 +1231,12 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 			  struct intel_engine_cs *engine, const u32 ctx_id)
 {
 	struct i915_gem_context *ctx;
-	struct i915_ctx_hang_stats *hs;
 
 	ctx = i915_gem_context_lookup(file->driver_priv, ctx_id);
 	if (IS_ERR(ctx))
 		return ctx;
 
-	hs = &ctx->hang_stats;
-	if (hs->banned) {
+	if (i915_gem_context_is_banned(ctx)) {
 		DRM_DEBUG("Context %u tried to submit while banned\n", ctx_id);
 		return ERR_PTR(-EIO);
 	}
@@ -1260,6 +1257,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	const unsigned int idx = req->engine->id;
 
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	/* Add a reference if we're newly entering the active list.
@@ -1410,10 +1408,7 @@ execbuf_submit(struct i915_execbuffer_params *params,
 	       struct drm_i915_gem_execbuffer2 *args,
 	       struct list_head *vmas)
 {
-	struct drm_i915_private *dev_priv = params->request->i915;
 	u64 exec_start, exec_len;
-	int instp_mode;
-	u32 instp_mask;
 	int ret;
 
 	ret = i915_gem_execbuffer_move_to_gpu(params->request, vmas);
@@ -1424,54 +1419,9 @@ execbuf_submit(struct i915_execbuffer_params *params,
 	if (ret)
 		return ret;
 
-	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
-	instp_mask = I915_EXEC_CONSTANTS_MASK;
-	switch (instp_mode) {
-	case I915_EXEC_CONSTANTS_REL_GENERAL:
-	case I915_EXEC_CONSTANTS_ABSOLUTE:
-	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (instp_mode != 0 && params->engine->id != RCS) {
-			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
-			return -EINVAL;
-		}
-
-		if (instp_mode != dev_priv->relative_constants_mode) {
-			if (INTEL_INFO(dev_priv)->gen < 4) {
-				DRM_DEBUG("no rel constants on pre-gen4\n");
-				return -EINVAL;
-			}
-
-			if (INTEL_INFO(dev_priv)->gen > 5 &&
-			    instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
-				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
-				return -EINVAL;
-			}
-
-			/* The HW changed the meaning on this bit on gen6 */
-			if (INTEL_INFO(dev_priv)->gen >= 6)
-				instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
-		}
-		break;
-	default:
-		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
+	if (args->flags & I915_EXEC_CONSTANTS_MASK) {
+		DRM_DEBUG("I915_EXEC_CONSTANTS_* unsupported\n");
 		return -EINVAL;
-	}
-
-	if (params->engine->id == RCS &&
-	    instp_mode != dev_priv->relative_constants_mode) {
-		struct intel_ring *ring = params->request->ring;
-
-		ret = intel_ring_begin(params->request, 4);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(ring, INSTPM);
-		intel_ring_emit(ring, instp_mask << 16 | instp_mode);
-		intel_ring_advance(ring);
-
-		dev_priv->relative_constants_mode = instp_mode;
 	}
 
 	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
@@ -1715,7 +1665,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	params->args_batch_start_offset = args->batch_start_offset;
-	if (intel_engine_needs_cmd_parser(engine) && args->batch_len) {
+	if (engine->needs_cmd_parser && args->batch_len) {
 		struct i915_vma *vma;
 
 		vma = i915_gem_execbuffer_parse(engine, &shadow_exec_entry,

@@ -57,7 +57,7 @@ void my_usr1(int sig, siginfo_t *si, void *u)
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags != SS_DISABLE)
-		printf("[FAIL]\tss_flags=%i, should be SS_DISABLE\n",
+		printf("[FAIL]\tss_flags=%x, should be SS_DISABLE\n",
 				stk.ss_flags);
 	else
 		printf("[OK]\tsigaltstack is disabled in sighandler\n");
@@ -122,7 +122,8 @@ int main(void)
 	if (stk.ss_flags == SS_DISABLE) {
 		printf("[OK]\tInitial sigaltstack state was SS_DISABLE\n");
 	} else {
-		printf("[FAIL]\tInitial sigaltstack state was %i; should have been SS_DISABLE\n", stk.ss_flags);
+		printf("[FAIL]\tInitial sigaltstack state was %x; "
+		       "should have been SS_DISABLE\n", stk.ss_flags);
 		return EXIT_FAILURE;
 	}
 
@@ -165,7 +166,7 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags != SS_AUTODISARM) {
-		printf("[FAIL]\tss_flags=%i, should be SS_AUTODISARM\n",
+		printf("[FAIL]\tss_flags=%x, should be SS_AUTODISARM\n",
 				stk.ss_flags);
 		exit(EXIT_FAILURE);
 	}

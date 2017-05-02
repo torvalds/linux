@@ -953,7 +953,7 @@ xfs_fs_destroy_inode(
 	XFS_STATS_INC(ip->i_mount, vn_remove);
 
 	if (xfs_is_reflink_inode(ip)) {
-		error = xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF);
+		error = xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, true);
 		if (error && !XFS_FORCED_SHUTDOWN(ip->i_mount))
 			xfs_warn(ip->i_mount,
 "Error %d while evicting CoW blocks for inode %llu.",
@@ -1956,12 +1956,20 @@ xfs_init_workqueues(void)
 	if (!xfs_alloc_wq)
 		return -ENOMEM;
 
+	xfs_discard_wq = alloc_workqueue("xfsdiscard", WQ_UNBOUND, 0);
+	if (!xfs_discard_wq)
+		goto out_free_alloc_wq;
+
 	return 0;
+out_free_alloc_wq:
+	destroy_workqueue(xfs_alloc_wq);
+	return -ENOMEM;
 }
 
 STATIC void
 xfs_destroy_workqueues(void)
 {
+	destroy_workqueue(xfs_discard_wq);
 	destroy_workqueue(xfs_alloc_wq);
 }
 

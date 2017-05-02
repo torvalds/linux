@@ -16,6 +16,14 @@ config W1_SLAVE_SMEM
 	  Say Y here if you want to connect 1-wire
 	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to your wire.
 
+config W1_SLAVE_DS2405
+	tristate "DS2405 Addressable Switch"
+	help
+	  Say Y or M here if you want to use a DS2405 1-wire
+	  single-channel addressable switch.
+	  This device can also work as a single-channel
+	  binary remote sensor.
+
 config W1_SLAVE_DS2408
 	tristate "8-Channel Addressable Switch (IO Expander) 0x29 family support (DS2408)"
 	help

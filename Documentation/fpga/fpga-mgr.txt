@@ -22,7 +22,16 @@ To program the FPGA from a file or from a buffer:
 			      struct fpga_image_info *info,
 		              const char *buf, size_t count);
 
-Load the FPGA from an image which exists as a buffer in memory.
+Load the FPGA from an image which exists as a contiguous buffer in
+memory. Allocating contiguous kernel memory for the buffer should be avoided,
+users are encouraged to use the _sg interface instead of this.
+
+        int fpga_mgr_buf_load_sg(struct fpga_manager *mgr,
+				 struct fpga_image_info *info,
+				 struct sg_table *sgt);
+
+Load the FPGA from an image from non-contiguous in memory. Callers can
+construct a sg_table using alloc_page backed memory.
 
 	int fpga_mgr_firmware_load(struct fpga_manager *mgr,
 				   struct fpga_image_info *info,
@@ -166,7 +175,7 @@ success or negative error codes otherwise.
 
 The programming sequence is:
  1. .write_init
- 2. .write (may be called once or multiple times)
+ 2. .write or .write_sg (may be called once or multiple times)
  3. .write_complete
 
 The .write_init function will prepare the FPGA to receive the image data.  The
@@ -176,7 +185,11 @@ buffer up at least this much before starting.
 
 The .write function writes a buffer to the FPGA. The buffer may be contain the
 whole FPGA image or may be a smaller chunk of an FPGA image.  In the latter
-case, this function is called multiple times for successive chunks.
+case, this function is called multiple times for successive chunks. This interface
+is suitable for drivers which use PIO.
+
+The .write_sg version behaves the same as .write except the input is a sg_table
+scatter list. This interface is suitable for drivers which use DMA.
 
 The .write_complete function is called after all the image has been written
 to put the FPGA into operating mode.

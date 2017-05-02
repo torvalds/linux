@@ -38,6 +38,9 @@ static void user_reader_timeout(unsigned long ptr)
 {
 	struct file_priv *priv = (struct file_priv *)ptr;
 
+	pr_warn("TPM user space timeout is deprecated (pid=%d)\n",
+		task_tgid_nr(current));
+
 	schedule_work(&priv->work);
 }
 
@@ -157,7 +160,7 @@ static ssize_t tpm_write(struct file *file, const char __user *buf,
 	mutex_unlock(&priv->buffer_mutex);
 
 	/* Set a timeout by which the reader must come claim the result */
-	mod_timer(&priv->user_read_timer, jiffies + (60 * HZ));
+	mod_timer(&priv->user_read_timer, jiffies + (120 * HZ));
 
 	return in_size;
 }

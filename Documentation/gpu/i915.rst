@@ -144,6 +144,15 @@ High Definition Audio
 .. kernel-doc:: include/drm/i915_component.h
    :internal:
 
+Intel HDMI LPE Audio Support
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+   :doc: LPE Audio integration for HDMI or DP playback
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+   :internal:
+
 Panel Self Refresh PSR (PSR/SRD)
 --------------------------------
 
@@ -211,6 +220,18 @@ Video BIOS Table (VBT)
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_vbt_defs.h
+   :internal:
+
+Display PLLs
+------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+   :doc: Display PLLs
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.h
    :internal:
 
 Memory Management and Command Submission
@@ -355,5 +376,96 @@ switch_mm
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
    :doc: switch_mm tracepoint
+
+Perf
+====
+
+Overview
+--------
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :doc: i915 Perf Overview
+
+Comparison with Core Perf
+-------------------------
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :doc: i915 Perf History and Comparison with Core Perf
+
+i915 Driver Entry Points
+------------------------
+
+This section covers the entrypoints exported outside of i915_perf.c to
+integrate with drm/i915 and to handle the `DRM_I915_PERF_OPEN` ioctl.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_init
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_fini
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_register
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_unregister
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_open_ioctl
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_release
+
+i915 Perf Stream
+----------------
+
+This section covers the stream-semantics-agnostic structures and functions
+for representing an i915 perf stream FD and associated file operations.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+   :functions: i915_perf_stream
+.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+   :functions: i915_perf_stream_ops
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: read_properties_unlocked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_open_ioctl_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_destroy_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_read
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_ioctl
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_enable_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_disable_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_poll
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_poll_locked
+
+i915 Perf Observation Architecture Stream
+-----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+   :functions: i915_oa_ops
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_stream_init
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_read
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_stream_enable
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_stream_disable
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_wait_unlocked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_poll_wait
+
+All i915 Perf Internals
+-----------------------
+
+This section simply includes all currently documented i915 perf internals, in
+no particular order, but may include some more minor utilities or platform
+specific details than found in the more high-level sections.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :internal:
 
 .. WARNING: DOCPROC directive not supported: !Cdrivers/gpu/drm/i915/i915_irq.c

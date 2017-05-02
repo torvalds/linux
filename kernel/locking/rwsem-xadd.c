@@ -10,10 +10,12 @@
  * and Davidlohr Bueso <davidlohr@hp.com>. Based on mutexes.
  */
 #include <linux/rwsem.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/wake_q.h>
+#include <linux/sched/debug.h>
 #include <linux/osq_lock.h>
 
 #include "rwsem.h"
@@ -224,10 +226,9 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 {
 	long count, adjustment = -RWSEM_ACTIVE_READ_BIAS;
 	struct rwsem_waiter waiter;
-	struct task_struct *tsk = current;
 	DEFINE_WAKE_Q(wake_q);
 
-	waiter.task = tsk;
+	waiter.task = current;
 	waiter.type = RWSEM_WAITING_FOR_READ;
 
 	raw_spin_lock_irq(&sem->wait_lock);
@@ -254,13 +255,13 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 
 	/* wait to be given the lock */
 	while (true) {
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (!waiter.task)
 			break;
 		schedule();
 	}
 
-	__set_task_state(tsk, TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	return sem;
 }
 EXPORT_SYMBOL(rwsem_down_read_failed);
@@ -503,8 +504,6 @@ __rwsem_down_write_failed_common(struct rw_semaphore *sem, int state)
 		 * wake any read locks that were queued ahead of us.
 		 */
 		if (count > RWSEM_WAITING_BIAS) {
-			DEFINE_WAKE_Q(wake_q);
-
 			__rwsem_mark_wake(sem, RWSEM_WAKE_READERS, &wake_q);
 			/*
 			 * The wakeup is normally called _after_ the wait_lock
@@ -514,6 +513,11 @@ __rwsem_down_write_failed_common(struct rw_semaphore *sem, int state)
 			 * for attempting rwsem_try_write_lock().
 			 */
 			wake_up_q(&wake_q);
+
+			/*
+			 * Reinitialize wake_q after use.
+			 */
+			wake_q_init(&wake_q);
 		}
 
 	} else

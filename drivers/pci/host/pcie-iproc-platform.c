@@ -47,24 +47,19 @@ MODULE_DEVICE_TABLE(of, iproc_pcie_of_match_table);
 static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct iproc_pcie *pcie;
 	struct device_node *np = dev->of_node;
 	struct resource reg;
 	resource_size_t iobase = 0;
-	LIST_HEAD(res);
+	LIST_HEAD(resources);
 	int ret;
-
-	of_id = of_match_device(iproc_pcie_of_match_table, dev);
-	if (!of_id)
-		return -EINVAL;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
 	pcie->dev = dev;
-	pcie->type = (enum iproc_pcie_type)of_id->data;
+	pcie->type = (enum iproc_pcie_type) of_device_get_match_data(dev);
 
 	ret = of_address_to_resource(np, 0, &reg);
 	if (ret < 0) {
@@ -101,10 +96,10 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		pcie->phy = NULL;
 	}
 
-	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &res, &iobase);
+	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &resources,
+					       &iobase);
 	if (ret) {
-		dev_err(dev,
-			"unable to get PCI host bridge resources\n");
+		dev_err(dev, "unable to get PCI host bridge resources\n");
 		return ret;
 	}
 
@@ -117,14 +112,15 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		pcie->map_irq = of_irq_parse_and_map_pci;
 	}
 
-	ret = iproc_pcie_setup(pcie, &res);
-	if (ret)
+	ret = iproc_pcie_setup(pcie, &resources);
+	if (ret) {
 		dev_err(dev, "PCIe controller setup failed\n");
-
-	pci_free_resource_list(&res);
+		pci_free_resource_list(&resources);
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, pcie);
-	return ret;
+	return 0;
 }
 
 static int iproc_pcie_pltfm_remove(struct platform_device *pdev)

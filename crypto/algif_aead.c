@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/net.h>
@@ -661,9 +662,9 @@ static int aead_recvmsg_sync(struct socket *sock, struct msghdr *msg, int flags)
 unlock:
 	list_for_each_entry_safe(rsgl, tmp, &ctx->list, list) {
 		af_alg_free_sg(&rsgl->sgl);
+		list_del(&rsgl->list);
 		if (rsgl != &ctx->first_rsgl)
 			sock_kfree_s(sk, rsgl, sizeof(*rsgl));
-		list_del(&rsgl->list);
 	}
 	INIT_LIST_HEAD(&ctx->list);
 	aead_wmem_wakeup(sk);

@@ -1125,7 +1125,6 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rcar_pcie *pcie;
 	unsigned int data;
-	const struct of_device_id *of_id;
 	int err;
 	int (*hw_init_fn)(struct rcar_pcie *);
 
@@ -1149,11 +1148,6 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	of_id = of_match_device(rcar_pcie_of_match, dev);
-	if (!of_id || !of_id->data)
-		return -EINVAL;
-	hw_init_fn = of_id->data;
-
 	pm_runtime_enable(dev);
 	err = pm_runtime_get_sync(dev);
 	if (err < 0) {
@@ -1162,10 +1156,11 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	}
 
 	/* Failure to get a link might just be that no cards are inserted */
+	hw_init_fn = of_device_get_match_data(dev);
 	err = hw_init_fn(pcie);
 	if (err) {
 		dev_info(dev, "PCIe link down\n");
-		err = 0;
+		err = -ENODEV;
 		goto err_pm_put;
 	}
 

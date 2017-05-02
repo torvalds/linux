@@ -13,12 +13,21 @@ static char syscalls_ia32[] = {
 #include <asm/syscalls_32.h>
 };
 
+#if defined(CONFIG_KVM_GUEST) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+#include <asm/kvm_para.h>
+#endif
+
 int main(void)
 {
 #ifdef CONFIG_PARAVIRT
 	OFFSET(PV_IRQ_adjust_exception_frame, pv_irq_ops, adjust_exception_frame);
 	OFFSET(PV_CPU_usergs_sysret64, pv_cpu_ops, usergs_sysret64);
 	OFFSET(PV_CPU_swapgs, pv_cpu_ops, swapgs);
+	BLANK();
+#endif
+
+#if defined(CONFIG_KVM_GUEST) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+	OFFSET(KVM_STEAL_TIME_preempted, kvm_steal_time, preempted);
 	BLANK();
 #endif
 

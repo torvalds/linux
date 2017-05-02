@@ -173,7 +173,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	if (IS_I945GM(dev_priv))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
 	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
-	fbc_ctl |= params->fb.fence_reg;
+	fbc_ctl |= params->vma->fence->id;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 }
 
@@ -188,13 +188,13 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	u32 dpfc_ctl;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane) | DPFC_SR_EN;
-	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
+	if (params->fb.format->cpp[0] == 2)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
 	else
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 
-	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
-		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->fb.fence_reg;
+	if (params->vma->fence) {
+		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->vma->fence->id;
 		I915_WRITE(DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
 	} else {
 		I915_WRITE(DPFC_FENCE_YOFF, 0);
@@ -235,7 +235,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	int threshold = dev_priv->fbc.threshold;
 
 	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane);
-	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
+	if (params->fb.format->cpp[0] == 2)
 		threshold++;
 
 	switch (threshold) {
@@ -251,13 +251,14 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+	if (params->vma->fence) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN;
 		if (IS_GEN5(dev_priv))
-			dpfc_ctl |= params->fb.fence_reg;
+			dpfc_ctl |= params->vma->fence->id;
 		if (IS_GEN6(dev_priv)) {
 			I915_WRITE(SNB_DPFC_CTL_SA,
-				   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
+				   SNB_CPU_FENCE_ENABLE |
+				   params->vma->fence->id);
 			I915_WRITE(DPFC_CPU_FENCE_OFFSET,
 				   params->crtc.fence_y_offset);
 		}
@@ -269,7 +270,8 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	}
 
 	I915_WRITE(ILK_DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
-	I915_WRITE(ILK_FBC_RT_BASE, params->fb.ggtt_offset | ILK_FBC_RT_VALID);
+	I915_WRITE(ILK_FBC_RT_BASE,
+		   i915_ggtt_offset(params->vma) | ILK_FBC_RT_VALID);
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
@@ -303,7 +305,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	if (IS_IVYBRIDGE(dev_priv))
 		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.plane);
 
-	if (drm_format_plane_cpp(params->fb.pixel_format, 0) == 2)
+	if (params->fb.format->cpp[0] == 2)
 		threshold++;
 
 	switch (threshold) {
@@ -319,10 +321,11 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	if (params->fb.fence_reg != I915_FENCE_REG_NONE) {
+	if (params->vma->fence) {
 		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
 		I915_WRITE(SNB_DPFC_CTL_SA,
-			   SNB_CPU_FENCE_ENABLE | params->fb.fence_reg);
+			   SNB_CPU_FENCE_ENABLE |
+			   params->vma->fence->id);
 		I915_WRITE(DPFC_CPU_FENCE_OFFSET, params->crtc.fence_y_offset);
 	} else {
 		I915_WRITE(SNB_DPFC_CTL_SA,0);
@@ -538,7 +541,7 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	    IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		end = ggtt->stolen_size - 8 * 1024 * 1024;
 	else
-		end = ggtt->stolen_usable_size;
+		end = U64_MAX;
 
 	/* HACK: This code depends on what we will do in *_enable_fbc. If that
 	 * code changes, this code needs to change as well.
@@ -581,7 +584,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 	WARN_ON(drm_mm_node_allocated(&fbc->compressed_fb));
 
 	size = intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache);
-	fb_cpp = drm_format_plane_cpp(fbc->state_cache.fb.pixel_format, 0);
+	fb_cpp = fbc->state_cache.fb.format->cpp[0];
 
 	ret = find_compression_threshold(dev_priv, &fbc->compressed_fb,
 					 size, fb_cpp);
@@ -727,14 +730,6 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
-/* XXX replace me when we have VMA tracking for intel_plane_state */
-static int get_fence_id(struct drm_framebuffer *fb)
-{
-	struct i915_vma *vma = i915_gem_object_to_ggtt(intel_fb_obj(fb), NULL);
-
-	return vma && vma->fence ? vma->fence->id : I915_FENCE_REG_NONE;
-}
-
 static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 					 struct intel_crtc_state *crtc_state,
 					 struct intel_plane_state *plane_state)
@@ -743,7 +738,8 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 	struct drm_framebuffer *fb = plane_state->base.fb;
-	struct drm_i915_gem_object *obj;
+
+	cache->vma = NULL;
 
 	cache->crtc.mode_flags = crtc_state->base.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
@@ -758,16 +754,10 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	if (!cache->plane.visible)
 		return;
 
-	obj = intel_fb_obj(fb);
-
-	/* FIXME: We lack the proper locking here, so only run this on the
-	 * platforms that need. */
-	if (IS_GEN(dev_priv, 5, 6))
-		cache->fb.ilk_ggtt_offset = i915_gem_object_ggtt_offset(obj, NULL);
-	cache->fb.pixel_format = fb->pixel_format;
+	cache->fb.format = fb->format;
 	cache->fb.stride = fb->pitches[0];
-	cache->fb.fence_reg = get_fence_id(fb);
-	cache->fb.tiling_mode = i915_gem_object_get_tiling(obj);
+
+	cache->vma = plane_state->vma;
 }
 
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
@@ -784,7 +774,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
-	if (!cache->plane.visible) {
+	if (!cache->vma) {
 		fbc->no_fbc_reason = "primary plane not visible";
 		return false;
 	}
@@ -807,8 +797,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * so have no fence associated with it) due to aperture constaints
 	 * at the time of pinning.
 	 */
-	if (cache->fb.tiling_mode != I915_TILING_X ||
-	    cache->fb.fence_reg == I915_FENCE_REG_NONE) {
+	if (!cache->vma->fence) {
 		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
 		return false;
 	}
@@ -823,7 +812,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
-	if (!pixel_format_is_valid(dev_priv, cache->fb.pixel_format)) {
+	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
 		fbc->no_fbc_reason = "pixel format is invalid";
 		return false;
 	}
@@ -888,17 +877,16 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	 * zero. */
 	memset(params, 0, sizeof(*params));
 
+	params->vma = cache->vma;
+
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.plane = crtc->plane;
 	params->crtc.fence_y_offset = get_crtc_fence_y_offset(crtc);
 
-	params->fb.pixel_format = cache->fb.pixel_format;
+	params->fb.format = cache->fb.format;
 	params->fb.stride = cache->fb.stride;
-	params->fb.fence_reg = cache->fb.fence_reg;
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
-
-	params->fb.ggtt_offset = cache->fb.ilk_ggtt_offset;
 }
 
 static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
@@ -1296,7 +1284,7 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 
 	for_each_intel_crtc(&dev_priv->drm, crtc)
 		if (intel_crtc_active(crtc) &&
-		    to_intel_plane_state(crtc->base.primary->state)->base.visible)
+		    crtc->base.primary->state->visible)
 			dev_priv->fbc.visible_pipes_mask |= (1 << crtc->pipe);
 }
 
@@ -1317,7 +1305,7 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 	if (!HAS_FBC(dev_priv))
 		return 0;
 
-	if (IS_BROADWELL(dev_priv))
+	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9)
 		return 1;
 
 	return 0;

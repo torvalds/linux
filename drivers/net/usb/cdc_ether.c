@@ -466,7 +466,7 @@ static int usbnet_cdc_zte_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
  * connected. This causes the link state to be incorrect. Work around this by
  * always setting the state to off, then on.
  */
-void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
+static void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
 {
 	struct usb_cdc_notification *event;
 
@@ -531,6 +531,7 @@ static const struct driver_info wwan_info = {
 #define SAMSUNG_VENDOR_ID	0x04e8
 #define LENOVO_VENDOR_ID	0x17ef
 #define NVIDIA_VENDOR_ID	0x0955
+#define HP_VENDOR_ID		0x03f0
 
 static const struct usb_device_id	products[] = {
 /* BLACKLIST !!
@@ -674,6 +675,13 @@ static const struct usb_device_id	products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(NOVATEL_VENDOR_ID, 0x9011, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* HP lt2523 (Novatel E371) - handled by qmi_wwan */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(HP_VENDOR_ID, 0x421d, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
 	.driver_info = 0,
 },
 

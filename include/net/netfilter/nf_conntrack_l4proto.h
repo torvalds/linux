@@ -55,7 +55,7 @@ struct nf_conntrack_l4proto {
 	void (*destroy)(struct nf_conn *ct);
 
 	int (*error)(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
-		     unsigned int dataoff, enum ip_conntrack_info *ctinfo,
+		     unsigned int dataoff,
 		     u_int8_t pf, unsigned int hooknum);
 
 	/* Print out the per-protocol part of the tuple. Return like seq_* */

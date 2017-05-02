@@ -16,7 +16,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/device.h>
 #include <linux/poll.h>
 #include <linux/init.h>

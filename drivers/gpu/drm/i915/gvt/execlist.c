@@ -172,6 +172,7 @@ static int emulate_execlist_ctx_schedule_out(
 		struct intel_vgpu_execlist *execlist,
 		struct execlist_ctx_descriptor_format *ctx)
 {
+	struct intel_vgpu *vgpu = execlist->vgpu;
 	struct intel_vgpu_execlist_slot *running = execlist->running_slot;
 	struct intel_vgpu_execlist_slot *pending = execlist->pending_slot;
 	struct execlist_ctx_descriptor_format *ctx0 = &running->ctx[0];
@@ -183,7 +184,7 @@ static int emulate_execlist_ctx_schedule_out(
 	gvt_dbg_el("schedule out context id %x\n", ctx->context_id);
 
 	if (WARN_ON(!same_context(ctx, execlist->running_context))) {
-		gvt_err("schedule out context is not running context,"
+		gvt_vgpu_err("schedule out context is not running context,"
 				"ctx id %x running ctx id %x\n",
 				ctx->context_id,
 				execlist->running_context->context_id);
@@ -254,7 +255,7 @@ static struct intel_vgpu_execlist_slot *get_next_execlist_slot(
 	status.udw = vgpu_vreg(vgpu, status_reg + 4);
 
 	if (status.execlist_queue_full) {
-		gvt_err("virtual execlist slots are full\n");
+		gvt_vgpu_err("virtual execlist slots are full\n");
 		return NULL;
 	}
 
@@ -270,11 +271,12 @@ static int emulate_execlist_schedule_in(struct intel_vgpu_execlist *execlist,
 
 	struct execlist_ctx_descriptor_format *ctx0, *ctx1;
 	struct execlist_context_status_format status;
+	struct intel_vgpu *vgpu = execlist->vgpu;
 
 	gvt_dbg_el("emulate schedule-in\n");
 
 	if (!slot) {
-		gvt_err("no available execlist slot\n");
+		gvt_vgpu_err("no available execlist slot\n");
 		return -EINVAL;
 	}
 
@@ -364,58 +366,29 @@ static void free_workload(struct intel_vgpu_workload *workload)
 #define get_desc_from_elsp_dwords(ed, i) \
 	((struct execlist_ctx_descriptor_format *)&((ed)->data[i * 2]))
 
-
-#define BATCH_BUFFER_ADDR_MASK ((1UL << 32) - (1U << 2))
-#define BATCH_BUFFER_ADDR_HIGH_MASK ((1UL << 16) - (1U))
-static int set_gma_to_bb_cmd(struct intel_shadow_bb_entry *entry_obj,
-			     unsigned long add, int gmadr_bytes)
-{
-	if (WARN_ON(gmadr_bytes != 4 && gmadr_bytes != 8))
-		return -1;
-
-	*((u32 *)(entry_obj->bb_start_cmd_va + (1 << 2))) = add &
-		BATCH_BUFFER_ADDR_MASK;
-	if (gmadr_bytes == 8) {
-		*((u32 *)(entry_obj->bb_start_cmd_va + (2 << 2))) =
-			add & BATCH_BUFFER_ADDR_HIGH_MASK;
-	}
-
-	return 0;
-}
-
 static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
-	int gmadr_bytes = workload->vgpu->gvt->device_info.gmadr_bytes_in_cmd;
+	const int gmadr_bytes = workload->vgpu->gvt->device_info.gmadr_bytes_in_cmd;
+	struct intel_shadow_bb_entry *entry_obj;
 
 	/* pin the gem object to ggtt */
-	if (!list_empty(&workload->shadow_bb)) {
-		struct intel_shadow_bb_entry *entry_obj =
-			list_first_entry(&workload->shadow_bb,
-					 struct intel_shadow_bb_entry,
-					 list);
-		struct intel_shadow_bb_entry *temp;
+	list_for_each_entry(entry_obj, &workload->shadow_bb, list) {
+		struct i915_vma *vma;
 
-		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
-				list) {
-			struct i915_vma *vma;
-
-			vma = i915_gem_object_ggtt_pin(entry_obj->obj, NULL, 0,
-						       4, 0);
-			if (IS_ERR(vma)) {
-				gvt_err("Cannot pin\n");
-				return;
-			}
-
-			/* FIXME: we are not tracking our pinned VMA leaving it
-			 * up to the core to fix up the stray pin_count upon
-			 * free.
-			 */
-
-			/* update the relocate gma with shadow batch buffer*/
-			set_gma_to_bb_cmd(entry_obj,
-					  i915_ggtt_offset(vma),
-					  gmadr_bytes);
+		vma = i915_gem_object_ggtt_pin(entry_obj->obj, NULL, 0, 4, 0);
+		if (IS_ERR(vma)) {
+			return;
 		}
+
+		/* FIXME: we are not tracking our pinned VMA leaving it
+		 * up to the core to fix up the stray pin_count upon
+		 * free.
+		 */
+
+		/* update the relocate gma with shadow batch buffer*/
+		entry_obj->bb_start_cmd_va[1] = i915_ggtt_offset(vma);
+		if (gmadr_bytes == 8)
+			entry_obj->bb_start_cmd_va[2] = 0;
 	}
 }
 
@@ -456,7 +429,6 @@ static void prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	vma = i915_gem_object_ggtt_pin(wa_ctx->indirect_ctx.obj, NULL,
 				       0, CACHELINE_BYTES, 0);
 	if (IS_ERR(vma)) {
-		gvt_err("Cannot pin indirect ctx obj\n");
 		return;
 	}
 
@@ -515,7 +487,7 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
-	if (wa_ctx->indirect_ctx.size == 0)
+	if (!wa_ctx->indirect_ctx.obj)
 		return;
 
 	i915_gem_object_unpin_map(wa_ctx->indirect_ctx.obj);
@@ -589,6 +561,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 {
 	struct execlist_ctx_descriptor_format *desc = &workload->ctx_desc;
 	struct intel_vgpu_mm *mm;
+	struct intel_vgpu *vgpu = workload->vgpu;
 	int page_table_level;
 	u32 pdp[8];
 
@@ -597,7 +570,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 	} else if (desc->addressing_mode == 3) { /* legacy 64 bit */
 		page_table_level = 4;
 	} else {
-		gvt_err("Advanced Context mode(SVM) is not supported!\n");
+		gvt_vgpu_err("Advanced Context mode(SVM) is not supported!\n");
 		return -EINVAL;
 	}
 
@@ -611,7 +584,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 		mm = intel_vgpu_create_mm(workload->vgpu, INTEL_GVT_MM_PPGTT,
 				pdp, page_table_level, 0);
 		if (IS_ERR(mm)) {
-			gvt_err("fail to create mm object.\n");
+			gvt_vgpu_err("fail to create mm object.\n");
 			return PTR_ERR(mm);
 		}
 	}
@@ -637,7 +610,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	ring_context_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm,
 			(u32)((desc->lrca + 1) << GTT_PAGE_SHIFT));
 	if (ring_context_gpa == INTEL_GVT_INVALID_ADDR) {
-		gvt_err("invalid guest context LRCA: %x\n", desc->lrca);
+		gvt_vgpu_err("invalid guest context LRCA: %x\n", desc->lrca);
 		return -EINVAL;
 	}
 
@@ -752,8 +725,7 @@ int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id)
 			continue;
 
 		if (!desc[i]->privilege_access) {
-			gvt_err("vgpu%d: unexpected GGTT elsp submission\n",
-					vgpu->id);
+			gvt_vgpu_err("unexpected GGTT elsp submission\n");
 			return -EINVAL;
 		}
 
@@ -763,15 +735,13 @@ int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id)
 	}
 
 	if (!valid_desc_bitmap) {
-		gvt_err("vgpu%d: no valid desc in a elsp submission\n",
-				vgpu->id);
+		gvt_vgpu_err("no valid desc in a elsp submission\n");
 		return -EINVAL;
 	}
 
 	if (!test_bit(0, (void *)&valid_desc_bitmap) &&
 			test_bit(1, (void *)&valid_desc_bitmap)) {
-		gvt_err("vgpu%d: weird elsp submission, desc 0 is not valid\n",
-				vgpu->id);
+		gvt_vgpu_err("weird elsp submission, desc 0 is not valid\n");
 		return -EINVAL;
 	}
 
@@ -780,8 +750,7 @@ int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id)
 		ret = submit_context(vgpu, ring_id, &valid_desc[i],
 				emulate_schedule_in);
 		if (ret) {
-			gvt_err("vgpu%d: fail to schedule workload\n",
-					vgpu->id);
+			gvt_vgpu_err("fail to schedule workload\n");
 			return ret;
 		}
 		emulate_schedule_in = false;
@@ -826,7 +795,7 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
 	}
 
-	vgpu->workloads = kmem_cache_create("gvt-g vgpu workload",
+	vgpu->workloads = kmem_cache_create("gvt-g_vgpu_workload",
 			sizeof(struct intel_vgpu_workload), 0,
 			SLAB_HWCACHE_ALIGN,
 			NULL);

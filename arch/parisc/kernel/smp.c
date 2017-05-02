@@ -21,7 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -279,7 +279,7 @@ smp_cpu_init(int cpunum)
 	set_cpu_online(cpunum, true);
 
 	/* Initialise the idle task for this CPU */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);

@@ -1051,9 +1051,9 @@ int arc_unwind(struct unwind_frame_info *frame)
 		++ptr;
 	}
 	if (cie != NULL) {
-		/* get code aligment factor */
+		/* get code alignment factor */
 		state.codeAlign = get_uleb128(&ptr, end);
-		/* get data aligment factor */
+		/* get data alignment factor */
 		state.dataAlign = get_sleb128(&ptr, end);
 		if (state.codeAlign == 0 || state.dataAlign == 0 || ptr >= end)
 			cie = NULL;

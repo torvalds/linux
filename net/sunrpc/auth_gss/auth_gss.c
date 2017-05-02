@@ -763,7 +763,7 @@ err_put_ctx:
 err:
 	kfree(buf);
 out:
-	dprintk("RPC:       %s returning %Zd\n", __func__, err);
+	dprintk("RPC:       %s returning %zd\n", __func__, err);
 	return err;
 }
 

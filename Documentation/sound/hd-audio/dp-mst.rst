@@ -19,6 +19,23 @@ PCM
 ===
 To be added
 
+Pin Initialization
+==================
+Each pin may have several device entries (virtual pins). On Intel platform,
+the device entries number is dynamically changed. If DP MST hub is connected,
+it is in DP MST mode, and the device entries number is 3. Otherwise, the
+device entries number is 1.
+
+To simplify the implementation, all the device entries will be initialized
+when bootup no matter whether it is in DP MST mode or not.
+
+Connection list
+===============
+DP MST reuses connection list code. The code can be reused because
+device entries on the same pin have the same connection list.
+
+This means DP MST gets the device entry connection list without the
+device entry setting.
 
 Jack
 ====

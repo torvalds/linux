@@ -1200,10 +1200,10 @@ _pnfs_return_layout(struct inode *ino)
 
 	send = pnfs_prepare_layoutreturn(lo, &stateid, NULL);
 	spin_unlock(&ino->i_lock);
-	pnfs_free_lseg_list(&tmp_list);
 	if (send)
 		status = pnfs_send_layoutreturn(lo, &stateid, IOMODE_ANY, true);
 out_put_layout_hdr:
+	pnfs_free_lseg_list(&tmp_list);
 	pnfs_put_layout_hdr(lo);
 out:
 	dprintk("<-- %s status: %d\n", __func__, status);

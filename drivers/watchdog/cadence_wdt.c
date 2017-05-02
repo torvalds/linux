@@ -262,7 +262,7 @@ static irqreturn_t cdns_wdt_irq_handler(int irq, void *dev_id)
  * Info structure used to indicate the features supported by the device
  * to the upper layers. This is defined in watchdog.h header file.
  */
-static struct watchdog_info cdns_wdt_info = {
+static const struct watchdog_info cdns_wdt_info = {
 	.identity	= "cdns_wdt watchdog",
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
 			  WDIOF_MAGICCLOSE,

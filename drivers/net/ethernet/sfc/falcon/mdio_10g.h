@@ -83,7 +83,8 @@ void ef4_mdio_set_mmds_lpower(struct ef4_nic *efx, int low_power,
 			      unsigned int mmd_mask);
 
 /* Set (some of) the PHY settings over MDIO */
-int ef4_mdio_set_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd);
+int ef4_mdio_set_link_ksettings(struct ef4_nic *efx,
+				const struct ethtool_link_ksettings *cmd);
 
 /* Push advertising flags and restart autonegotiation */
 void ef4_mdio_an_reconfigure(struct ef4_nic *efx);

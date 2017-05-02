@@ -118,9 +118,6 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			 op2 == 0x35)
 			/* sysenter, sysret */
 			*type = INSN_CONTEXT_SWITCH;
-		else if (op2 == 0x0b || op2 == 0xb9)
-			/* ud2 */
-			*type = INSN_BUG;
 		else if (op2 == 0x0d || op2 == 0x1f)
 			/* nopl/nopw */
 			*type = INSN_NOP;
@@ -150,9 +147,9 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		*type = INSN_RETURN;
 		break;
 
-	case 0xc5: /* iret */
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
+	case 0xcf: /* iret */
 		*type = INSN_CONTEXT_SWITCH;
 		break;
 

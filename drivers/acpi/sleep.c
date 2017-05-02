@@ -130,6 +130,12 @@ void __init acpi_nvs_nosave_s3(void)
 	nvs_nosave_s3 = true;
 }
 
+static int __init init_nvs_save_s3(const struct dmi_system_id *d)
+{
+	nvs_nosave_s3 = false;
+	return 0;
+}
+
 /*
  * ACPI 1.0 wants us to execute _PTS before suspending devices, so we allow the
  * user to request that behavior by using the 'acpi_old_suspend_ordering'
@@ -322,6 +328,19 @@ static struct dmi_system_id acpisleep_dmi_table[] __initdata = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "K54HR"),
+		},
+	},
+	/*
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=189431
+	 * Lenovo G50-45 is a platform later than 2012, but needs nvs memory
+	 * saving during S3.
+	 */
+	{
+	.callback = init_nvs_save_s3,
+	.ident = "Lenovo G50-45",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "80E3"),
 		},
 	},
 	{},
@@ -673,14 +692,6 @@ static void acpi_sleep_suspend_setup(void)
 	for (i = ACPI_STATE_S1; i < ACPI_STATE_S4; i++)
 		if (acpi_sleep_state_supported(i))
 			sleep_states[i] = 1;
-
-	/*
-	 * Use suspend-to-idle by default if ACPI_FADT_LOW_POWER_S0 is set and
-	 * the default suspend mode was not selected from the command line.
-	 */
-	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0 &&
-	    mem_sleep_default > PM_SUSPEND_MEM)
-		mem_sleep_default = PM_SUSPEND_FREEZE;
 
 	suspend_set_ops(old_suspend_ordering ?
 		&acpi_suspend_ops_old : &acpi_suspend_ops);

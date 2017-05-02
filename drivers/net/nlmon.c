@@ -58,7 +58,7 @@ static int nlmon_close(struct net_device *dev)
 	return netlink_remove_tap(&nlmon->nt);
 }
 
-static struct rtnl_link_stats64 *
+static void
 nlmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	int i;
@@ -86,8 +86,6 @@ nlmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 	stats->rx_bytes = bytes;
 	stats->tx_bytes = 0;
-
-	return stats;
 }
 
 static u32 always_on(struct net_device *dev)

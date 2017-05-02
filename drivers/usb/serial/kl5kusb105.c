@@ -89,7 +89,6 @@ static struct usb_serial_driver kl5kusb105d_device = {
 	.open =			klsi_105_open,
 	.close =		klsi_105_close,
 	.set_termios =		klsi_105_set_termios,
-	/*.break_ctl =		klsi_105_break_ctl,*/
 	.tiocmget =		klsi_105_tiocmget,
 	.port_probe =		klsi_105_port_probe,
 	.port_remove =		klsi_105_port_remove,
@@ -104,16 +103,15 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 struct klsi_105_port_settings {
-	__u8	pktlen;		/* always 5, it seems */
-	__u8	baudrate;
-	__u8	databits;
-	__u8	unknown1;
-	__u8	unknown2;
-} __attribute__ ((packed));
+	u8	pktlen;		/* always 5, it seems */
+	u8	baudrate;
+	u8	databits;
+	u8	unknown1;
+	u8	unknown2;
+};
 
 struct klsi_105_private {
 	struct klsi_105_port_settings	cfg;
-	struct ktermios			termios;
 	unsigned long			line_state; /* modem line settings */
 	spinlock_t			lock;
 };
@@ -143,10 +141,12 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 	if (rc < 0)
 		dev_err(&port->dev,
 			"Change port settings failed (error = %d)\n", rc);
-	dev_info(&port->serial->dev->dev,
-		 "%d byte block, baudrate %x, databits %d, u1 %d, u2 %d\n",
-		 settings->pktlen, settings->baudrate, settings->databits,
-		 settings->unknown1, settings->unknown2);
+
+	dev_dbg(&port->dev,
+		"pktlen %u, baudrate 0x%02x, databits %u, u1 %u, u2 %u\n",
+		settings->pktlen, settings->baudrate, settings->databits,
+		settings->unknown1, settings->unknown2);
+
 	return rc;
 }
 
@@ -175,8 +175,6 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	u8 *status_buf;
 	__u16 status;
 
-	dev_info(&port->serial->dev->dev, "sending SIO Poll request\n");
-
 	status_buf = kmalloc(KLSI_STATUSBUF_LEN, GFP_KERNEL);
 	if (!status_buf)
 		return -ENOMEM;
@@ -199,8 +197,8 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	} else {
 		status = get_unaligned_le16(status_buf);
 
-		dev_info(&port->serial->dev->dev, "read status %x %x\n",
-			 status_buf[0], status_buf[1]);
+		dev_dbg(&port->dev, "read status %02x %02x\n",
+			status_buf[0], status_buf[1]);
 
 		*line_state_p = klsi_105_status2linestate(status);
 	}
@@ -233,8 +231,6 @@ static int klsi_105_port_probe(struct usb_serial_port *port)
 
 	spin_lock_init(&priv->lock);
 
-	/* priv->termios is left uninitialized until port opening */
-
 	usb_set_serial_port_data(port, priv);
 
 	return 0;
@@ -255,7 +251,6 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	int retval = 0;
 	int rc;
-	int i;
 	unsigned long line_state;
 	struct klsi_105_port_settings *cfg;
 	unsigned long flags;
@@ -278,14 +273,7 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	cfg->unknown2 = 1;
 	klsi_105_chg_port_settings(port, cfg);
 
-	/* set up termios structure */
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->termios.c_iflag = tty->termios.c_iflag;
-	priv->termios.c_oflag = tty->termios.c_oflag;
-	priv->termios.c_cflag = tty->termios.c_cflag;
-	priv->termios.c_lflag = tty->termios.c_lflag;
-	for (i = 0; i < NCCS; i++)
-		priv->termios.c_cc[i] = tty->termios.c_cc[i];
 	priv->cfg.pktlen   = cfg->pktlen;
 	priv->cfg.baudrate = cfg->baudrate;
 	priv->cfg.databits = cfg->databits;
@@ -438,19 +426,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	 */
 	baud = tty_get_baud_rate(tty);
 
-	if ((cflag & CBAUD) != (old_cflag & CBAUD)) {
-		/* reassert DTR and (maybe) RTS on transition from B0 */
-		if ((old_cflag & CBAUD) == B0) {
-			dev_dbg(dev, "%s: baud was B0\n", __func__);
-#if 0
-			priv->control_state |= TIOCM_DTR;
-			/* don't set RTS if using hardware flow control */
-			if (!(old_cflag & CRTSCTS))
-				priv->control_state |= TIOCM_RTS;
-			mct_u232_set_modem_ctrl(serial, priv->control_state);
-#endif
-		}
-	}
 	switch (baud) {
 	case 0: /* handled below */
 		break;
@@ -484,17 +459,14 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 		baud = 9600;
 		break;
 	}
-	if ((cflag & CBAUD) == B0) {
-		dev_dbg(dev, "%s: baud is B0\n", __func__);
-		/* Drop RTS and DTR */
-		/* maybe this should be simulated by sending read
-		 * disable and read enable messages?
-		 */
-#if 0
-		priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-		mct_u232_set_modem_ctrl(serial, priv->control_state);
-#endif
-	}
+
+	/*
+	 * FIXME: implement B0 handling
+	 *
+	 * Maybe this should be simulated by sending read disable and read
+	 * enable messages?
+	 */
+
 	tty_encode_baud_rate(tty, baud, baud);
 
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
@@ -528,22 +500,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	    || (cflag & CSTOPB) != (old_cflag & CSTOPB)) {
 		/* Not currently supported */
 		tty->termios.c_cflag &= ~(PARENB|PARODD|CSTOPB);
-#if 0
-		priv->last_lcr = 0;
-
-		/* set the parity */
-		if (cflag & PARENB)
-			priv->last_lcr |= (cflag & PARODD) ?
-				MCT_U232_PARITY_ODD : MCT_U232_PARITY_EVEN;
-		else
-			priv->last_lcr |= MCT_U232_PARITY_NONE;
-
-		/* set the number of stop bits */
-		priv->last_lcr |= (cflag & CSTOPB) ?
-			MCT_U232_STOP_BITS_2 : MCT_U232_STOP_BITS_1;
-
-		mct_u232_set_line_ctrl(serial, priv->last_lcr);
-#endif
 	}
 	/*
 	 * Set flow control: well, I do not really now how to handle DTR/RTS.
@@ -554,14 +510,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	    ||  (cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
 		/* Not currently supported */
 		tty->termios.c_cflag &= ~CRTSCTS;
-		/* Drop DTR/RTS if no flow control otherwise assert */
-#if 0
-		if ((iflag & IXOFF) || (iflag & IXON) || (cflag & CRTSCTS))
-			priv->control_state |= TIOCM_DTR | TIOCM_RTS;
-		else
-			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-		mct_u232_set_modem_ctrl(serial, priv->control_state);
-#endif
 	}
 	memcpy(cfg, &priv->cfg, sizeof(*cfg));
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -571,25 +519,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 err:
 	kfree(cfg);
 }
-
-#if 0
-static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial = port->serial;
-	struct mct_u232_private *priv =
-				(struct mct_u232_private *)port->private;
-	unsigned char lcr = priv->last_lcr;
-
-	dev_dbg(&port->dev, "%s - state=%d\n", __func__, break_state);
-
-	/* LOCKING */
-	if (break_state)
-		lcr |= MCT_U232_SET_BREAK;
-
-	mct_u232_set_line_ctrl(serial, lcr);
-}
-#endif
 
 static int klsi_105_tiocmget(struct tty_struct *tty)
 {

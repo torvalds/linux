@@ -615,7 +615,7 @@ to allocate a page of memory for that task.
 
 If a cpuset has its 'cpuset.cpus' modified, then each task in that cpuset
 will have its allowed CPU placement changed immediately.  Similarly,
-if a task's pid is written to another cpusets 'cpuset.tasks' file, then its
+if a task's pid is written to another cpuset's 'tasks' file, then its
 allowed CPU placement is changed immediately.  If such a task had been
 bound to some subset of its cpuset using the sched_setaffinity() call,
 the task will be allowed to run on any CPU allowed in its new cpuset,

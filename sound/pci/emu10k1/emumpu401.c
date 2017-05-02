@@ -308,14 +308,14 @@ static void snd_emu10k1_midi_output_trigger(struct snd_rawmidi_substream *substr
 
  */
 
-static struct snd_rawmidi_ops snd_emu10k1_midi_output =
+static const struct snd_rawmidi_ops snd_emu10k1_midi_output =
 {
 	.open =		snd_emu10k1_midi_output_open,
 	.close =	snd_emu10k1_midi_output_close,
 	.trigger =	snd_emu10k1_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_emu10k1_midi_input =
+static const struct snd_rawmidi_ops snd_emu10k1_midi_input =
 {
 	.open =		snd_emu10k1_midi_input_open,
 	.close =	snd_emu10k1_midi_input_close,

@@ -182,6 +182,9 @@ static inline int pm_genpd_remove(struct generic_pm_domain *genpd)
 {
 	return -ENOTSUPP;
 }
+
+#define simple_qos_governor		(*(struct dev_power_governor *)(NULL))
+#define pm_domain_always_on_gov		(*(struct dev_power_governor *)(NULL))
 #endif
 
 static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,

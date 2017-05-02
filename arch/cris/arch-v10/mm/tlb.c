@@ -10,6 +10,8 @@
  *
  */
 
+#include <linux/mm_types.h>
+
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
 #include <arch/svinto.h>

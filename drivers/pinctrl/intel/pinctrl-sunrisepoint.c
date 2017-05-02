@@ -574,7 +574,6 @@ static const struct dev_pm_ops spt_pinctrl_pm_ops = {
 
 static struct platform_driver spt_pinctrl_driver = {
 	.probe = spt_pinctrl_probe,
-	.remove = intel_pinctrl_remove,
 	.driver = {
 		.name = "sunrisepoint-pinctrl",
 		.acpi_match_table = spt_pinctrl_acpi_match,

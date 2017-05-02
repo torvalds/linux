@@ -23,6 +23,7 @@
 #endif /* CONFIG_XFRM */
 
 #include <linux/atomic.h>
+#include <net/sch_generic.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -369,9 +370,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef CONFIG_NET_SCHED
 	skb->tc_index = 0;
-#ifdef CONFIG_NET_CLS_ACT
-	skb->tc_verd = 0;
-#endif /* CONFIG_NET_CLS_ACT */
+	skb_reset_tc(skb);
 #endif /* CONFIG_NET_SCHED */
 #endif /* REUSE_SKBUFFS_WITHOUT_FREE */
 
@@ -460,7 +459,7 @@ skip_xmit:
 	case QUEUE_DROP:
 		skb->next = to_free_list;
 		to_free_list = skb;
-		priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		break;
 	case QUEUE_HW:
 		cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, -1);
@@ -535,7 +534,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!work)) {
 		printk_ratelimited("%s: Failed to allocate a work queue entry\n",
 				   dev->name);
-		priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -546,7 +545,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
 				   dev->name);
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
-		priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -663,8 +662,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Submit the packet to the POW */
 	cvmx_pow_work_submit(work, work->word1.tag, work->word1.tag_type,
 			     cvmx_wqe_get_qos(work), cvmx_wqe_get_grp(work));
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 	dev_consume_skb_any(skb);
 	return 0;
 }

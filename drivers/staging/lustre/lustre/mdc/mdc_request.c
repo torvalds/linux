@@ -295,7 +295,7 @@ static int mdc_xattr_common(struct obd_export *exp,
 	if (opcode == MDS_REINT) {
 		struct mdt_rec_setxattr *rec;
 
-		CLASSERT(sizeof(struct mdt_rec_setxattr) ==
+		BUILD_BUG_ON(sizeof(struct mdt_rec_setxattr) !=
 			 sizeof(struct mdt_rec_reint));
 		rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 		rec->sx_opcode = REINT_SETXATTR;
@@ -762,6 +762,7 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_CLOSE);
 	if (rc) {
 		ptlrpc_request_free(req);
+		req = NULL;
 		goto out;
 	}
 
@@ -2465,13 +2466,6 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 	LASSERT(imp->imp_obd == obd);
 
 	switch (event) {
-	case IMP_EVENT_DISCON: {
-#if 0
-		/* XXX Pass event up to OBDs stack. used only for FLD now */
-		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_DISCON, NULL);
-#endif
-		break;
-	}
 	case IMP_EVENT_INACTIVE: {
 		struct client_obd *cli = &obd->u.cli;
 		/*
@@ -2503,6 +2497,7 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 	case IMP_EVENT_OCD:
 		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_OCD, NULL);
 		break;
+	case IMP_EVENT_DISCON:
 	case IMP_EVENT_DEACTIVATE:
 	case IMP_EVENT_ACTIVATE:
 		break;

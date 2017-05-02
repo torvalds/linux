@@ -14,6 +14,7 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define NR_CPU_IRQS	32	/* number of irq lines coming in */
 #define TIMER0_IRQ	3	/* Fixed by ISA */
 
 /*

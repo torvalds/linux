@@ -132,7 +132,7 @@ enum pvrdma_pci_resource {
 
 enum pvrdma_device_ctl {
 	PVRDMA_DEVICE_CTL_ACTIVATE,	/* Activate device. */
-	PVRDMA_DEVICE_CTL_QUIESCE,	/* Quiesce device. */
+	PVRDMA_DEVICE_CTL_UNQUIESCE,	/* Unquiesce device. */
 	PVRDMA_DEVICE_CTL_RESET,	/* Reset device. */
 };
 
@@ -147,12 +147,6 @@ enum pvrdma_intr_cause {
 	PVRDMA_INTR_CAUSE_RESPONSE	= (1 << PVRDMA_INTR_VECTOR_RESPONSE),
 	PVRDMA_INTR_CAUSE_ASYNC		= (1 << PVRDMA_INTR_VECTOR_ASYNC),
 	PVRDMA_INTR_CAUSE_CQ		= (1 << PVRDMA_INTR_VECTOR_CQ),
-};
-
-enum pvrdma_intr_type {
-	PVRDMA_INTR_TYPE_INTX,		/* Legacy. */
-	PVRDMA_INTR_TYPE_MSI,		/* MSI. */
-	PVRDMA_INTR_TYPE_MSIX,		/* MSI-X. */
 };
 
 enum pvrdma_gos_bits {
