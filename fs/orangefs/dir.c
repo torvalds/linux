@@ -275,6 +275,28 @@ static int orangefs_dir_fill(struct orangefs_inode_s *oi,
 	return 0;
 }
 
+static loff_t orangefs_dir_llseek(struct file *file, loff_t offset,
+    int whence)
+{
+	struct orangefs_dir *od = file->private_data;
+	/*
+	 * Delete the stored data so userspace sees new directory
+	 * entries.
+	 */
+	if (!whence && offset < od->end) {
+		struct orangefs_dir_part *part = od->part;
+		while (part) {
+			struct orangefs_dir_part *next = part->next;
+			vfree(part);
+			part = next;
+		}
+		od->token = ORANGEFS_ITERATE_START;
+		od->part = NULL;
+		od->end = 1 << PART_SHIFT;
+	}
+	return default_llseek(file, offset, whence);
+}
+
 static int orangefs_dir_iterate(struct file *file,
     struct dir_context *ctx)
 {
@@ -371,7 +393,7 @@ static int orangefs_dir_release(struct inode *inode, struct file *file)
 }
 
 const struct file_operations orangefs_dir_operations = {
-	.llseek = default_llseek,
+	.llseek = orangefs_dir_llseek,
 	.read = generic_read_dir,
 	.iterate = orangefs_dir_iterate,
 	.open = orangefs_dir_open,
