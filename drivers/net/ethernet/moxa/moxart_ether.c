@@ -228,8 +228,8 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		if (desc0 & (RX_DESC0_ERR | RX_DESC0_CRC_ERR | RX_DESC0_FTL |
 			     RX_DESC0_RUNT | RX_DESC0_ODD_NB)) {
 			net_dbg_ratelimited("packet error\n");
-			priv->stats.rx_dropped++;
-			priv->stats.rx_errors++;
+			ndev->stats.rx_dropped++;
+			ndev->stats.rx_errors++;
 			goto rx_next;
 		}
 
@@ -245,8 +245,8 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 
 		if (unlikely(!skb)) {
 			net_dbg_ratelimited("netdev_alloc_skb_ip_align failed\n");
-			priv->stats.rx_dropped++;
-			priv->stats.rx_errors++;
+			ndev->stats.rx_dropped++;
+			ndev->stats.rx_errors++;
 			goto rx_next;
 		}
 
@@ -256,10 +256,10 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		napi_gro_receive(&priv->napi, skb);
 		rx++;
 
-		priv->stats.rx_packets++;
-		priv->stats.rx_bytes += len;
+		ndev->stats.rx_packets++;
+		ndev->stats.rx_bytes += len;
 		if (desc0 & RX_DESC0_MULTICAST)
-			priv->stats.multicast++;
+			ndev->stats.multicast++;
 
 rx_next:
 		wmb(); /* prevent setting ownership back too early */
@@ -296,8 +296,8 @@ static void moxart_tx_finished(struct net_device *ndev)
 		dma_unmap_single(&ndev->dev, priv->tx_mapping[tx_tail],
 				 priv->tx_len[tx_tail], DMA_TO_DEVICE);
 
-		priv->stats.tx_packets++;
-		priv->stats.tx_bytes += priv->tx_skb[tx_tail]->len;
+		ndev->stats.tx_packets++;
+		ndev->stats.tx_bytes += priv->tx_skb[tx_tail]->len;
 
 		dev_kfree_skb_irq(priv->tx_skb[tx_tail]);
 		priv->tx_skb[tx_tail] = NULL;
@@ -349,7 +349,7 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	if (moxart_desc_read(desc + TX_REG_OFFSET_DESC0) & TX_DESC0_DMA_OWN) {
 		net_dbg_ratelimited("no TX space for packet\n");
-		priv->stats.tx_dropped++;
+		ndev->stats.tx_dropped++;
 		goto out_unlock;
 	}
 	rmb(); /* ensure data is only read that had TX_DESC0_DMA_OWN cleared */
@@ -398,13 +398,6 @@ out_unlock:
 	spin_unlock_irq(&priv->txlock);
 
 	return ret;
-}
-
-static struct net_device_stats *moxart_mac_get_stats(struct net_device *ndev)
-{
-	struct moxart_mac_priv_t *priv = netdev_priv(ndev);
-
-	return &priv->stats;
 }
 
 static void moxart_mac_setmulticast(struct net_device *ndev)
@@ -456,7 +449,6 @@ static const struct net_device_ops moxart_netdev_ops = {
 	.ndo_open		= moxart_mac_open,
 	.ndo_stop		= moxart_mac_stop,
 	.ndo_start_xmit		= moxart_mac_start_xmit,
-	.ndo_get_stats		= moxart_mac_get_stats,
 	.ndo_set_rx_mode	= moxart_mac_set_rx_mode,
 	.ndo_set_mac_address	= moxart_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,

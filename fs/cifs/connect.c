@@ -35,6 +35,7 @@
 #include <linux/pagevec.h>
 #include <linux/freezer.h>
 #include <linux/namei.h>
+#include <linux/uuid.h>
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/inet.h>

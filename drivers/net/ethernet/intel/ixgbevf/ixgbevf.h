@@ -319,7 +319,7 @@ struct ixgbevf_adapter {
 	spinlock_t mbx_lock;
 	unsigned long last_reset;
 
-	u32 rss_key[IXGBEVF_VFRSSRK_REGS];
+	u32 *rss_key;
 	u8 rss_indir_tbl[IXGBEVF_X550_VFRETA_SIZE];
 };
 

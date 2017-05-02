@@ -976,9 +976,8 @@ static int setup_diva_common(struct IsdnCardState *cs)
 		printk(KERN_INFO "Diva: IPACX Design Id: %x\n",
 		       MemReadISAC_IPACX(cs, IPACX_ID) & 0x3F);
 	} else { /* DIVA 2.0 */
-		cs->hw.diva.tl.function = (void *) diva_led_handler;
-		cs->hw.diva.tl.data = (long) cs;
-		init_timer(&cs->hw.diva.tl);
+		setup_timer(&cs->hw.diva.tl, (void *)diva_led_handler,
+			    (long)cs);
 		cs->readisac  = &ReadISAC;
 		cs->writeisac = &WriteISAC;
 		cs->readisacfifo  = &ReadISACfifo;

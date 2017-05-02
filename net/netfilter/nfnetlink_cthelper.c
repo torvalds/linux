@@ -77,7 +77,8 @@ nfnl_cthelper_parse_tuple(struct nf_conntrack_tuple *tuple,
 	int err;
 	struct nlattr *tb[NFCTH_TUPLE_MAX+1];
 
-	err = nla_parse_nested(tb, NFCTH_TUPLE_MAX, attr, nfnl_cthelper_tuple_pol);
+	err = nla_parse_nested(tb, NFCTH_TUPLE_MAX, attr,
+			       nfnl_cthelper_tuple_pol, NULL);
 	if (err < 0)
 		return err;
 
@@ -104,7 +105,7 @@ nfnl_cthelper_from_nlattr(struct nlattr *attr, struct nf_conn *ct)
 	if (help->helper->data_len == 0)
 		return -EINVAL;
 
-	memcpy(help->data, nla_data(attr), help->helper->data_len);
+	nla_memcpy(help->data, nla_data(attr), sizeof(help->data));
 	return 0;
 }
 
@@ -137,7 +138,8 @@ nfnl_cthelper_expect_policy(struct nf_conntrack_expect_policy *expect_policy,
 	int err;
 	struct nlattr *tb[NFCTH_POLICY_MAX+1];
 
-	err = nla_parse_nested(tb, NFCTH_POLICY_MAX, attr, nfnl_cthelper_expect_pol);
+	err = nla_parse_nested(tb, NFCTH_POLICY_MAX, attr,
+			       nfnl_cthelper_expect_pol, NULL);
 	if (err < 0)
 		return err;
 
@@ -150,6 +152,9 @@ nfnl_cthelper_expect_policy(struct nf_conntrack_expect_policy *expect_policy,
 		nla_data(tb[NFCTH_POLICY_NAME]), NF_CT_HELPER_NAME_LEN);
 	expect_policy->max_expected =
 		ntohl(nla_get_be32(tb[NFCTH_POLICY_EXPECT_MAX]));
+	if (expect_policy->max_expected > NF_CT_EXPECT_MAX_CNT)
+		return -EINVAL;
+
 	expect_policy->timeout =
 		ntohl(nla_get_be32(tb[NFCTH_POLICY_EXPECT_TIMEOUT]));
 
@@ -171,7 +176,7 @@ nfnl_cthelper_parse_expect_policy(struct nf_conntrack_helper *helper,
 	unsigned int class_max;
 
 	ret = nla_parse_nested(tb, NFCTH_POLICY_SET_MAX, attr,
-			       nfnl_cthelper_expect_policy_set);
+			       nfnl_cthelper_expect_policy_set, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -213,6 +218,7 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 {
 	struct nf_conntrack_helper *helper;
 	struct nfnl_cthelper *nfcth;
+	unsigned int size;
 	int ret;
 
 	if (!tb[NFCTH_TUPLE] || !tb[NFCTH_POLICY] || !tb[NFCTH_PRIV_DATA_LEN])
@@ -228,7 +234,12 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 		goto err1;
 
 	strncpy(helper->name, nla_data(tb[NFCTH_NAME]), NF_CT_HELPER_NAME_LEN);
-	helper->data_len = ntohl(nla_get_be32(tb[NFCTH_PRIV_DATA_LEN]));
+	size = ntohl(nla_get_be32(tb[NFCTH_PRIV_DATA_LEN]));
+	if (size > FIELD_SIZEOF(struct nf_conn_help, data)) {
+		ret = -ENOMEM;
+		goto err2;
+	}
+
 	helper->flags |= NF_CT_HELPER_F_USERSPACE;
 	memcpy(&helper->tuple, tuple, sizeof(struct nf_conntrack_tuple));
 
@@ -276,7 +287,7 @@ nfnl_cthelper_update_policy_one(const struct nf_conntrack_expect_policy *policy,
 	int err;
 
 	err = nla_parse_nested(tb, NFCTH_POLICY_MAX, attr,
-			       nfnl_cthelper_expect_pol);
+			       nfnl_cthelper_expect_pol, NULL);
 	if (err < 0)
 		return err;
 
@@ -290,6 +301,9 @@ nfnl_cthelper_update_policy_one(const struct nf_conntrack_expect_policy *policy,
 
 	new_policy->max_expected =
 		ntohl(nla_get_be32(tb[NFCTH_POLICY_EXPECT_MAX]));
+	if (new_policy->max_expected > NF_CT_EXPECT_MAX_CNT)
+		return -EINVAL;
+
 	new_policy->timeout =
 		ntohl(nla_get_be32(tb[NFCTH_POLICY_EXPECT_TIMEOUT]));
 
@@ -336,7 +350,7 @@ static int nfnl_cthelper_update_policy(struct nf_conntrack_helper *helper,
 	int err;
 
 	err = nla_parse_nested(tb, NFCTH_POLICY_SET_MAX, attr,
-			       nfnl_cthelper_expect_policy_set);
+			       nfnl_cthelper_expect_policy_set, NULL);
 	if (err < 0)
 		return err;
 
@@ -501,7 +515,7 @@ nfnl_cthelper_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
 	int status;
 
-	event |= NFNL_SUBSYS_CTHELPER << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_CTHELPER, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
 	if (nlh == NULL)
 		goto nlmsg_failure;

@@ -1017,7 +1017,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_HTB_MAX, opt, htb_policy);
+	err = nla_parse_nested(tb, TCA_HTB_MAX, opt, htb_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -1342,7 +1342,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	if (!opt)
 		goto failure;
 
-	err = nla_parse_nested(tb, TCA_HTB_MAX, opt, htb_policy);
+	err = nla_parse_nested(tb, TCA_HTB_MAX, opt, htb_policy, NULL);
 	if (err < 0)
 		goto failure;
 
@@ -1460,6 +1460,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		qdisc_class_hash_insert(&q->clhash, &cl->common);
 		if (parent)
 			parent->children++;
+		if (cl->un.leaf.q != &noop_qdisc)
+			qdisc_hash_add(cl->un.leaf.q, true);
 	} else {
 		if (tca[TCA_RATE]) {
 			err = gen_replace_estimator(&cl->bstats, NULL,

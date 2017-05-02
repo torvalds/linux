@@ -3872,9 +3872,18 @@ sctp_disposition_t sctp_sf_do_reconf(struct net *net,
 		else if (param.p->type == SCTP_PARAM_RESET_IN_REQUEST)
 			reply = sctp_process_strreset_inreq(
 				(struct sctp_association *)asoc, param, &ev);
-		/* More handles for other types will be added here, by now it
-		 * just ignores other types.
-		 */
+		else if (param.p->type == SCTP_PARAM_RESET_TSN_REQUEST)
+			reply = sctp_process_strreset_tsnreq(
+				(struct sctp_association *)asoc, param, &ev);
+		else if (param.p->type == SCTP_PARAM_RESET_ADD_OUT_STREAMS)
+			reply = sctp_process_strreset_addstrm_out(
+				(struct sctp_association *)asoc, param, &ev);
+		else if (param.p->type == SCTP_PARAM_RESET_ADD_IN_STREAMS)
+			reply = sctp_process_strreset_addstrm_in(
+				(struct sctp_association *)asoc, param, &ev);
+		else if (param.p->type == SCTP_PARAM_RESET_RESPONSE)
+			reply = sctp_process_strreset_resp(
+				(struct sctp_association *)asoc, param, &ev);
 
 		if (ev)
 			sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,

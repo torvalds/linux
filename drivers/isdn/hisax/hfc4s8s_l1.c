@@ -1396,9 +1396,8 @@ setup_instance(hfc4s8s_hw *hw)
 		l1p = hw->l1 + i;
 		spin_lock_init(&l1p->lock);
 		l1p->hw = hw;
-		l1p->l1_timer.function = (void *) hfc_l1_timer;
-		l1p->l1_timer.data = (long) (l1p);
-		init_timer(&l1p->l1_timer);
+		setup_timer(&l1p->l1_timer, (void *)hfc_l1_timer,
+			    (long)(l1p));
 		l1p->st_num = i;
 		skb_queue_head_init(&l1p->d_tx_queue);
 		l1p->d_if.ifc.priv = hw->l1 + i;

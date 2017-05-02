@@ -2338,6 +2338,10 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 	f->locked = 1;
 	f->fs.rpttid = 1;
 
+	/* Save the actual tid. We need this to get the corresponding
+	 * filter entry structure in filter_rpl.
+	 */
+	f->tid = stid + adap->tids.ftid_base;
 	ret = set_filter_wr(adap, stid);
 	if (ret) {
 		clear_filter(adap, f);

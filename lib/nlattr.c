@@ -112,6 +112,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
  * @len: length of attribute stream
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
+ * @extack: extended ACK report struct
  *
  * Validates all attributes in the specified attribute stream against the
  * specified policy. Attributes with a type exceeding maxtype will be
@@ -120,20 +121,23 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
  * Returns 0 on success or a negative error code.
  */
 int nla_validate(const struct nlattr *head, int len, int maxtype,
-		 const struct nla_policy *policy)
+		 const struct nla_policy *policy,
+		 struct netlink_ext_ack *extack)
 {
 	const struct nlattr *nla;
-	int rem, err;
+	int rem;
 
 	nla_for_each_attr(nla, head, len, rem) {
-		err = validate_nla(nla, maxtype, policy);
-		if (err < 0)
-			goto errout;
+		int err = validate_nla(nla, maxtype, policy);
+
+		if (err < 0) {
+			if (extack)
+				extack->bad_attr = nla;
+			return err;
+		}
 	}
 
-	err = 0;
-errout:
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(nla_validate);
 
@@ -180,7 +184,8 @@ EXPORT_SYMBOL(nla_policy_len);
  * Returns 0 on success or a negative error code.
  */
 int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
-	      int len, const struct nla_policy *policy)
+	      int len, const struct nla_policy *policy,
+	      struct netlink_ext_ack *extack)
 {
 	const struct nlattr *nla;
 	int rem, err;
@@ -193,8 +198,11 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 		if (type > 0 && type <= maxtype) {
 			if (policy) {
 				err = validate_nla(nla, maxtype, policy);
-				if (err < 0)
+				if (err < 0) {
+					if (extack)
+						extack->bad_attr = nla;
 					goto errout;
+				}
 			}
 
 			tb[type] = (struct nlattr *)nla;

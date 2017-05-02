@@ -106,7 +106,7 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			priv->stats.rx_frame_errors++;
 			return;
 		}
-		pskb->protocol = ntohs(header->type);
+		pskb->protocol = cpu_to_be16(header->type);
 		if ((header->length <= LL_HEADER_LENGTH) ||
 		    (len <= LL_HEADER_LENGTH)) {
 			if (!(ch->logflags & LOG_FLAG_ILLEGALSIZE)) {
@@ -125,7 +125,7 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		header->length -= LL_HEADER_LENGTH;
 		len -= LL_HEADER_LENGTH;
 		if ((header->length > skb_tailroom(pskb)) ||
-			(header->length > len)) {
+		    (header->length > len)) {
 			if (!(ch->logflags & LOG_FLAG_OVERRUN)) {
 				CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 					"%s(%s): Packet size %d (overrun)"
@@ -485,7 +485,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		} else {
 			atomic_inc(&skb->users);
 			header.length = l;
-			header.type = skb->protocol;
+			header.type = be16_to_cpu(skb->protocol);
 			header.unused = 0;
 			memcpy(skb_push(skb, LL_HEADER_LENGTH), &header,
 			       LL_HEADER_LENGTH);
@@ -503,7 +503,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	atomic_inc(&skb->users);
 	ch->prof.txlen += skb->len;
 	header.length = skb->len + LL_HEADER_LENGTH;
-	header.type = skb->protocol;
+	header.type = be16_to_cpu(skb->protocol);
 	header.unused = 0;
 	memcpy(skb_push(skb, LL_HEADER_LENGTH), &header, LL_HEADER_LENGTH);
 	block_len = skb->len + 2;
@@ -690,7 +690,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		p_header->pdu_offset = skb->len;
 		p_header->pdu_proto = 0x01;
 		p_header->pdu_flag = 0x00;
-		if (skb->protocol == ntohs(ETH_P_SNAP)) {
+		if (be16_to_cpu(skb->protocol) == ETH_P_SNAP) {
 			p_header->pdu_flag |= PDU_FIRST | PDU_CNTL;
 		} else {
 			p_header->pdu_flag |= PDU_FIRST;
@@ -745,7 +745,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	p_header->pdu_proto = 0x01;
 	p_header->pdu_flag = 0x00;
 	p_header->pdu_seq = 0;
-	if (skb->protocol == ntohs(ETH_P_SNAP)) {
+	if (be16_to_cpu(skb->protocol) == ETH_P_SNAP) {
 		p_header->pdu_flag |= PDU_FIRST | PDU_CNTL;
 	} else {
 		p_header->pdu_flag |= PDU_FIRST;

@@ -96,7 +96,7 @@ void qedf_cmd_mgr_free(struct qedf_cmd_mgr *cmgr)
 	if (!cmgr->io_bdt_pool)
 		goto free_cmd_pool;
 
-	bd_tbl_sz = QEDF_MAX_BDS_PER_CMD * sizeof(struct fcoe_sge);
+	bd_tbl_sz = QEDF_MAX_BDS_PER_CMD * sizeof(struct scsi_sge);
 	for (i = 0; i < num_ios; i++) {
 		bdt_info = cmgr->io_bdt_pool[i];
 		if (bdt_info->bd_tbl) {
@@ -119,6 +119,8 @@ free_cmd_pool:
 
 	for (i = 0; i < num_ios; i++) {
 		io_req = &cmgr->cmds[i];
+		kfree(io_req->sgl_task_params);
+		kfree(io_req->task_params);
 		/* Make sure we free per command sense buffer */
 		if (io_req->sense_buffer)
 			dma_free_coherent(&qedf->pdev->dev,
@@ -178,7 +180,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 	spin_lock_init(&cmgr->lock);
 
 	/*
-	 * Initialize list of qedf_ioreq.
+	 * Initialize I/O request fields.
 	 */
 	xid = QEDF_MIN_XID;
 
@@ -196,6 +198,29 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 		    GFP_KERNEL);
 		if (!io_req->sense_buffer)
 			goto mem_err;
+
+		/* Allocate task parameters to pass to f/w init funcions */
+		io_req->task_params = kzalloc(sizeof(*io_req->task_params),
+					      GFP_KERNEL);
+		if (!io_req->task_params) {
+			QEDF_ERR(&(qedf->dbg_ctx),
+				 "Failed to allocate task_params for xid=0x%x\n",
+				 i);
+			goto mem_err;
+		}
+
+		/*
+		 * Allocate scatter/gather list info to pass to f/w init
+		 * functions.
+		 */
+		io_req->sgl_task_params = kzalloc(
+		    sizeof(struct scsi_sgl_task_params), GFP_KERNEL);
+		if (!io_req->sgl_task_params) {
+			QEDF_ERR(&(qedf->dbg_ctx),
+				 "Failed to allocate sgl_task_params for xid=0x%x\n",
+				 i);
+			goto mem_err;
+		}
 	}
 
 	/* Allocate pool of io_bdts - one for each qedf_ioreq */
@@ -211,8 +236,8 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 		cmgr->io_bdt_pool[i] = kmalloc(sizeof(struct io_bdt),
 		    GFP_KERNEL);
 		if (!cmgr->io_bdt_pool[i]) {
-			QEDF_WARN(&(qedf->dbg_ctx), "Failed to alloc "
-				   "io_bdt_pool[%d].\n", i);
+			QEDF_WARN(&(qedf->dbg_ctx),
+				  "Failed to alloc io_bdt_pool[%d].\n", i);
 			goto mem_err;
 		}
 	}
@@ -220,11 +245,11 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 	for (i = 0; i < num_ios; i++) {
 		bdt_info = cmgr->io_bdt_pool[i];
 		bdt_info->bd_tbl = dma_alloc_coherent(&qedf->pdev->dev,
-		    QEDF_MAX_BDS_PER_CMD * sizeof(struct fcoe_sge),
+		    QEDF_MAX_BDS_PER_CMD * sizeof(struct scsi_sge),
 		    &bdt_info->bd_tbl_dma, GFP_KERNEL);
 		if (!bdt_info->bd_tbl) {
-			QEDF_WARN(&(qedf->dbg_ctx), "Failed to alloc "
-				   "bdt_tbl[%d].\n", i);
+			QEDF_WARN(&(qedf->dbg_ctx),
+				  "Failed to alloc bdt_tbl[%d].\n", i);
 			goto mem_err;
 		}
 	}
@@ -318,6 +343,7 @@ struct qedf_ioreq *qedf_alloc_cmd(struct qedf_rport *fcport, u8 cmd_type)
 	}
 	bd_tbl->io_req = io_req;
 	io_req->cmd_type = cmd_type;
+	io_req->tm_flags = 0;
 
 	/* Reset sequence offset data */
 	io_req->rx_buf_off = 0;
@@ -336,10 +362,9 @@ static void qedf_free_mp_resc(struct qedf_ioreq *io_req)
 {
 	struct qedf_mp_req *mp_req = &(io_req->mp_req);
 	struct qedf_ctx *qedf = io_req->fcport->qedf;
-	uint64_t sz = sizeof(struct fcoe_sge);
+	uint64_t sz = sizeof(struct scsi_sge);
 
 	/* clear tm flags */
-	mp_req->tm_flags = 0;
 	if (mp_req->mp_req_bd) {
 		dma_free_coherent(&qedf->pdev->dev, sz,
 		    mp_req->mp_req_bd, mp_req->mp_req_bd_dma);
@@ -387,7 +412,7 @@ void qedf_release_cmd(struct kref *ref)
 static int qedf_split_bd(struct qedf_ioreq *io_req, u64 addr, int sg_len,
 	int bd_index)
 {
-	struct fcoe_sge *bd = io_req->bd_tbl->bd_tbl;
+	struct scsi_sge *bd = io_req->bd_tbl->bd_tbl;
 	int frag_size, sg_frags;
 
 	sg_frags = 0;
@@ -398,7 +423,7 @@ static int qedf_split_bd(struct qedf_ioreq *io_req, u64 addr, int sg_len,
 			frag_size = sg_len;
 		bd[bd_index + sg_frags].sge_addr.lo = U64_LO(addr);
 		bd[bd_index + sg_frags].sge_addr.hi = U64_HI(addr);
-		bd[bd_index + sg_frags].size = (uint16_t)frag_size;
+		bd[bd_index + sg_frags].sge_len = (uint16_t)frag_size;
 
 		addr += (u64)frag_size;
 		sg_frags++;
@@ -413,7 +438,7 @@ static int qedf_map_sg(struct qedf_ioreq *io_req)
 	struct Scsi_Host *host = sc->device->host;
 	struct fc_lport *lport = shost_priv(host);
 	struct qedf_ctx *qedf = lport_priv(lport);
-	struct fcoe_sge *bd = io_req->bd_tbl->bd_tbl;
+	struct scsi_sge *bd = io_req->bd_tbl->bd_tbl;
 	struct scatterlist *sg;
 	int byte_count = 0;
 	int sg_count = 0;
@@ -439,7 +464,7 @@ static int qedf_map_sg(struct qedf_ioreq *io_req)
 
 		bd[bd_count].sge_addr.lo = (addr & 0xffffffff);
 		bd[bd_count].sge_addr.hi = (addr >> 32);
-		bd[bd_count].size = (u16)sg_len;
+		bd[bd_count].sge_len = (u16)sg_len;
 
 		return ++bd_count;
 	}
@@ -480,7 +505,7 @@ static int qedf_map_sg(struct qedf_ioreq *io_req)
 			sg_frags = 1;
 			bd[bd_count].sge_addr.lo = U64_LO(addr);
 			bd[bd_count].sge_addr.hi  = U64_HI(addr);
-			bd[bd_count].size = (uint16_t)sg_len;
+			bd[bd_count].sge_len = (uint16_t)sg_len;
 		}
 
 		bd_count += sg_frags;
@@ -498,7 +523,7 @@ static int qedf_map_sg(struct qedf_ioreq *io_req)
 static int qedf_build_bd_list_from_sg(struct qedf_ioreq *io_req)
 {
 	struct scsi_cmnd *sc = io_req->sc_cmd;
-	struct fcoe_sge *bd = io_req->bd_tbl->bd_tbl;
+	struct scsi_sge *bd = io_req->bd_tbl->bd_tbl;
 	int bd_count;
 
 	if (scsi_sg_count(sc)) {
@@ -508,7 +533,7 @@ static int qedf_build_bd_list_from_sg(struct qedf_ioreq *io_req)
 	} else {
 		bd_count = 0;
 		bd[0].sge_addr.lo = bd[0].sge_addr.hi = 0;
-		bd[0].size = 0;
+		bd[0].sge_len = 0;
 	}
 	io_req->bd_tbl->bd_valid = bd_count;
 
@@ -529,430 +554,223 @@ static void qedf_build_fcp_cmnd(struct qedf_ioreq *io_req,
 
 	/* 4 bytes: flag info */
 	fcp_cmnd->fc_pri_ta = 0;
-	fcp_cmnd->fc_tm_flags = io_req->mp_req.tm_flags;
+	fcp_cmnd->fc_tm_flags = io_req->tm_flags;
 	fcp_cmnd->fc_flags = io_req->io_req_flags;
 	fcp_cmnd->fc_cmdref = 0;
 
 	/* Populate data direction */
-	if (sc_cmd->sc_data_direction == DMA_TO_DEVICE)
-		fcp_cmnd->fc_flags |= FCP_CFL_WRDATA;
-	else if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE)
+	if (io_req->cmd_type == QEDF_TASK_MGMT_CMD) {
 		fcp_cmnd->fc_flags |= FCP_CFL_RDDATA;
+	} else {
+		if (sc_cmd->sc_data_direction == DMA_TO_DEVICE)
+			fcp_cmnd->fc_flags |= FCP_CFL_WRDATA;
+		else if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE)
+			fcp_cmnd->fc_flags |= FCP_CFL_RDDATA;
+	}
 
 	fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
 
 	/* 16 bytes: CDB information */
-	memcpy(fcp_cmnd->fc_cdb, sc_cmd->cmnd, sc_cmd->cmd_len);
+	if (io_req->cmd_type != QEDF_TASK_MGMT_CMD)
+		memcpy(fcp_cmnd->fc_cdb, sc_cmd->cmnd, sc_cmd->cmd_len);
 
 	/* 4 bytes: FCP data length */
 	fcp_cmnd->fc_dl = htonl(io_req->data_xfer_len);
-
 }
 
 static void  qedf_init_task(struct qedf_rport *fcport, struct fc_lport *lport,
-	struct qedf_ioreq *io_req, u32 *ptu_invalidate,
-	struct fcoe_task_context *task_ctx)
+	struct qedf_ioreq *io_req, struct fcoe_task_context *task_ctx,
+	struct fcoe_wqe *sqe)
 {
 	enum fcoe_task_type task_type;
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
 	struct io_bdt *bd_tbl = io_req->bd_tbl;
-	union fcoe_data_desc_ctx *data_desc;
-	u32 *fcp_cmnd;
+	u8 fcp_cmnd[32];
 	u32 tmp_fcp_cmnd[8];
-	int cnt, i;
-	int bd_count;
+	int bd_count = 0;
 	struct qedf_ctx *qedf = fcport->qedf;
 	uint16_t cq_idx = smp_processor_id() % qedf->num_queues;
-	u8 tmp_sgl_mode = 0;
-	u8 mst_sgl_mode = 0;
+	struct regpair sense_data_buffer_phys_addr;
+	u32 tx_io_size = 0;
+	u32 rx_io_size = 0;
+	int i, cnt;
 
-	memset(task_ctx, 0, sizeof(struct fcoe_task_context));
+	/* Note init_initiator_rw_fcoe_task memsets the task context */
 	io_req->task = task_ctx;
+	memset(task_ctx, 0, sizeof(struct fcoe_task_context));
+	memset(io_req->task_params, 0, sizeof(struct fcoe_task_params));
+	memset(io_req->sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
 
-	if (sc_cmd->sc_data_direction == DMA_TO_DEVICE)
-		task_type = FCOE_TASK_TYPE_WRITE_INITIATOR;
-	else
+	/* Set task type bassed on DMA directio of command */
+	if (io_req->cmd_type == QEDF_TASK_MGMT_CMD) {
 		task_type = FCOE_TASK_TYPE_READ_INITIATOR;
-
-	/* Y Storm context */
-	task_ctx->ystorm_st_context.expect_first_xfer = 1;
-	task_ctx->ystorm_st_context.data_2_trns_rem = io_req->data_xfer_len;
-	/* Check if this is required */
-	task_ctx->ystorm_st_context.ox_id = io_req->xid;
-	task_ctx->ystorm_st_context.task_rety_identifier =
-	    io_req->task_retry_identifier;
-
-	/* T Storm ag context */
-	SET_FIELD(task_ctx->tstorm_ag_context.flags0,
-	    TSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE, PROTOCOLID_FCOE);
-	task_ctx->tstorm_ag_context.icid = (u16)fcport->fw_cid;
-
-	/* T Storm st context */
-	SET_FIELD(task_ctx->tstorm_st_context.read_write.flags,
-	    FCOE_TSTORM_FCOE_TASK_ST_CTX_READ_WRITE_EXP_FIRST_FRAME,
-	    1);
-	task_ctx->tstorm_st_context.read_write.rx_id = 0xffff;
-
-	task_ctx->tstorm_st_context.read_only.dev_type =
-	    FCOE_TASK_DEV_TYPE_DISK;
-	task_ctx->tstorm_st_context.read_only.conf_supported = 0;
-	task_ctx->tstorm_st_context.read_only.cid = fcport->fw_cid;
-
-	/* Completion queue for response. */
-	task_ctx->tstorm_st_context.read_only.glbl_q_num = cq_idx;
-	task_ctx->tstorm_st_context.read_only.fcp_cmd_trns_size =
-	    io_req->data_xfer_len;
-	task_ctx->tstorm_st_context.read_write.e_d_tov_exp_timeout_val =
-	    lport->e_d_tov;
-
-	task_ctx->ustorm_ag_context.global_cq_num = cq_idx;
-	io_req->fp_idx = cq_idx;
-
-	bd_count = bd_tbl->bd_valid;
-	if (task_type == FCOE_TASK_TYPE_WRITE_INITIATOR) {
-		/* Setup WRITE task */
-		struct fcoe_sge *fcoe_bd_tbl = bd_tbl->bd_tbl;
-
-		task_ctx->ystorm_st_context.task_type =
-		    FCOE_TASK_TYPE_WRITE_INITIATOR;
-		data_desc = &task_ctx->ystorm_st_context.data_desc;
-
-		if (io_req->use_slowpath) {
-			SET_FIELD(task_ctx->ystorm_st_context.sgl_mode,
-			    YSTORM_FCOE_TASK_ST_CTX_TX_SGL_MODE,
-			    FCOE_SLOW_SGL);
-			data_desc->slow.base_sgl_addr.lo =
-			    U64_LO(bd_tbl->bd_tbl_dma);
-			data_desc->slow.base_sgl_addr.hi =
-			    U64_HI(bd_tbl->bd_tbl_dma);
-			data_desc->slow.remainder_num_sges = bd_count;
-			data_desc->slow.curr_sge_off = 0;
-			data_desc->slow.curr_sgl_index = 0;
-			qedf->slow_sge_ios++;
-			io_req->sge_type = QEDF_IOREQ_SLOW_SGE;
-		} else {
-			SET_FIELD(task_ctx->ystorm_st_context.sgl_mode,
-			    YSTORM_FCOE_TASK_ST_CTX_TX_SGL_MODE,
-			    (bd_count <= 4) ? (enum fcoe_sgl_mode)bd_count :
-			    FCOE_MUL_FAST_SGES);
-
-			if (bd_count == 1) {
-				data_desc->single_sge.sge_addr.lo =
-				    fcoe_bd_tbl->sge_addr.lo;
-				data_desc->single_sge.sge_addr.hi =
-				    fcoe_bd_tbl->sge_addr.hi;
-				data_desc->single_sge.size =
-				    fcoe_bd_tbl->size;
-				data_desc->single_sge.is_valid_sge = 0;
-				qedf->single_sge_ios++;
-				io_req->sge_type = QEDF_IOREQ_SINGLE_SGE;
-			} else {
-				data_desc->fast.sgl_start_addr.lo =
-				    U64_LO(bd_tbl->bd_tbl_dma);
-				data_desc->fast.sgl_start_addr.hi =
-				    U64_HI(bd_tbl->bd_tbl_dma);
-				data_desc->fast.sgl_byte_offset =
-				    data_desc->fast.sgl_start_addr.lo &
-				    (QEDF_PAGE_SIZE - 1);
-				if (data_desc->fast.sgl_byte_offset > 0)
-					QEDF_ERR(&(qedf->dbg_ctx),
-					    "byte_offset=%u for xid=0x%x.\n",
-					    io_req->xid,
-					    data_desc->fast.sgl_byte_offset);
-				data_desc->fast.task_reuse_cnt =
-				    io_req->reuse_count;
-				io_req->reuse_count++;
-				if (io_req->reuse_count == QEDF_MAX_REUSE) {
-					*ptu_invalidate = 1;
-					io_req->reuse_count = 0;
-				}
-				qedf->fast_sge_ios++;
-				io_req->sge_type = QEDF_IOREQ_FAST_SGE;
-			}
-		}
-
-		/* T Storm context */
-		task_ctx->tstorm_st_context.read_only.task_type =
-		    FCOE_TASK_TYPE_WRITE_INITIATOR;
-
-		/* M Storm context */
-		tmp_sgl_mode = GET_FIELD(task_ctx->ystorm_st_context.sgl_mode,
-		    YSTORM_FCOE_TASK_ST_CTX_TX_SGL_MODE);
-		SET_FIELD(task_ctx->mstorm_st_context.non_fp.tx_rx_sgl_mode,
-		    FCOE_MSTORM_FCOE_TASK_ST_CTX_NON_FP_TX_SGL_MODE,
-		    tmp_sgl_mode);
-
 	} else {
-		/* Setup READ task */
-
-		/* M Storm context */
-		struct fcoe_sge *fcoe_bd_tbl = bd_tbl->bd_tbl;
-
-		data_desc = &task_ctx->mstorm_st_context.fp.data_desc;
-		task_ctx->mstorm_st_context.fp.data_2_trns_rem =
-		    io_req->data_xfer_len;
-
-		if (io_req->use_slowpath) {
-			SET_FIELD(
-			    task_ctx->mstorm_st_context.non_fp.tx_rx_sgl_mode,
-			    FCOE_MSTORM_FCOE_TASK_ST_CTX_NON_FP_RX_SGL_MODE,
-			    FCOE_SLOW_SGL);
-			data_desc->slow.base_sgl_addr.lo =
-			    U64_LO(bd_tbl->bd_tbl_dma);
-			data_desc->slow.base_sgl_addr.hi =
-			    U64_HI(bd_tbl->bd_tbl_dma);
-			data_desc->slow.remainder_num_sges =
-			    bd_count;
-			data_desc->slow.curr_sge_off = 0;
-			data_desc->slow.curr_sgl_index = 0;
-			qedf->slow_sge_ios++;
-			io_req->sge_type = QEDF_IOREQ_SLOW_SGE;
+		if (sc_cmd->sc_data_direction == DMA_TO_DEVICE) {
+			task_type = FCOE_TASK_TYPE_WRITE_INITIATOR;
+			tx_io_size = io_req->data_xfer_len;
 		} else {
-			SET_FIELD(
-			    task_ctx->mstorm_st_context.non_fp.tx_rx_sgl_mode,
-			    FCOE_MSTORM_FCOE_TASK_ST_CTX_NON_FP_RX_SGL_MODE,
-			    (bd_count <= 4) ? (enum fcoe_sgl_mode)bd_count :
-			    FCOE_MUL_FAST_SGES);
-
-			if (bd_count == 1) {
-				data_desc->single_sge.sge_addr.lo =
-				    fcoe_bd_tbl->sge_addr.lo;
-				data_desc->single_sge.sge_addr.hi =
-				    fcoe_bd_tbl->sge_addr.hi;
-				data_desc->single_sge.size =
-				    fcoe_bd_tbl->size;
-				data_desc->single_sge.is_valid_sge = 0;
-				qedf->single_sge_ios++;
-				io_req->sge_type = QEDF_IOREQ_SINGLE_SGE;
-			} else {
-				data_desc->fast.sgl_start_addr.lo =
-				    U64_LO(bd_tbl->bd_tbl_dma);
-				data_desc->fast.sgl_start_addr.hi =
-				    U64_HI(bd_tbl->bd_tbl_dma);
-				data_desc->fast.sgl_byte_offset = 0;
-				data_desc->fast.task_reuse_cnt =
-				    io_req->reuse_count;
-				io_req->reuse_count++;
-				if (io_req->reuse_count == QEDF_MAX_REUSE) {
-					*ptu_invalidate = 1;
-					io_req->reuse_count = 0;
-				}
-				qedf->fast_sge_ios++;
-				io_req->sge_type = QEDF_IOREQ_FAST_SGE;
-			}
+			task_type = FCOE_TASK_TYPE_READ_INITIATOR;
+			rx_io_size = io_req->data_xfer_len;
 		}
-
-		/* Y Storm context */
-		task_ctx->ystorm_st_context.expect_first_xfer = 0;
-		task_ctx->ystorm_st_context.task_type =
-		    FCOE_TASK_TYPE_READ_INITIATOR;
-
-		/* T Storm context */
-		task_ctx->tstorm_st_context.read_only.task_type =
-		    FCOE_TASK_TYPE_READ_INITIATOR;
-		mst_sgl_mode = GET_FIELD(
-		    task_ctx->mstorm_st_context.non_fp.tx_rx_sgl_mode,
-		    FCOE_MSTORM_FCOE_TASK_ST_CTX_NON_FP_RX_SGL_MODE);
-		SET_FIELD(task_ctx->tstorm_st_context.read_write.flags,
-		    FCOE_TSTORM_FCOE_TASK_ST_CTX_READ_WRITE_RX_SGL_MODE,
-		    mst_sgl_mode);
 	}
 
+	/* Setup the fields for fcoe_task_params */
+	io_req->task_params->context = task_ctx;
+	io_req->task_params->sqe = sqe;
+	io_req->task_params->task_type = task_type;
+	io_req->task_params->tx_io_size = tx_io_size;
+	io_req->task_params->rx_io_size = rx_io_size;
+	io_req->task_params->conn_cid = fcport->fw_cid;
+	io_req->task_params->itid = io_req->xid;
+	io_req->task_params->cq_rss_number = cq_idx;
+	io_req->task_params->is_tape_device = fcport->dev_type;
+
+	/* Fill in information for scatter/gather list */
+	if (io_req->cmd_type != QEDF_TASK_MGMT_CMD) {
+		bd_count = bd_tbl->bd_valid;
+		io_req->sgl_task_params->sgl = bd_tbl->bd_tbl;
+		io_req->sgl_task_params->sgl_phys_addr.lo =
+			U64_LO(bd_tbl->bd_tbl_dma);
+		io_req->sgl_task_params->sgl_phys_addr.hi =
+			U64_HI(bd_tbl->bd_tbl_dma);
+		io_req->sgl_task_params->num_sges = bd_count;
+		io_req->sgl_task_params->total_buffer_size =
+		    scsi_bufflen(io_req->sc_cmd);
+		io_req->sgl_task_params->small_mid_sge =
+			io_req->use_slowpath;
+	}
+
+	/* Fill in physical address of sense buffer */
+	sense_data_buffer_phys_addr.lo = U64_LO(io_req->sense_buffer_dma);
+	sense_data_buffer_phys_addr.hi = U64_HI(io_req->sense_buffer_dma);
+
 	/* fill FCP_CMND IU */
-	fcp_cmnd = (u32 *)task_ctx->ystorm_st_context.tx_info_union.fcp_cmd_payload.opaque;
-	qedf_build_fcp_cmnd(io_req, (struct fcp_cmnd *)&tmp_fcp_cmnd);
+	qedf_build_fcp_cmnd(io_req, (struct fcp_cmnd *)tmp_fcp_cmnd);
 
 	/* Swap fcp_cmnd since FC is big endian */
 	cnt = sizeof(struct fcp_cmnd) / sizeof(u32);
-
 	for (i = 0; i < cnt; i++) {
-		*fcp_cmnd = cpu_to_be32(tmp_fcp_cmnd[i]);
-		fcp_cmnd++;
+		tmp_fcp_cmnd[i] = cpu_to_be32(tmp_fcp_cmnd[i]);
 	}
+	memcpy(fcp_cmnd, tmp_fcp_cmnd, sizeof(struct fcp_cmnd));
 
-	/* M Storm context - Sense buffer */
-	task_ctx->mstorm_st_context.non_fp.rsp_buf_addr.lo =
-		U64_LO(io_req->sense_buffer_dma);
-	task_ctx->mstorm_st_context.non_fp.rsp_buf_addr.hi =
-		U64_HI(io_req->sense_buffer_dma);
+	init_initiator_rw_fcoe_task(io_req->task_params,
+				    io_req->sgl_task_params,
+				    sense_data_buffer_phys_addr,
+				    io_req->task_retry_identifier, fcp_cmnd);
+
+	/* Increment SGL type counters */
+	if (bd_count == 1) {
+		qedf->single_sge_ios++;
+		io_req->sge_type = QEDF_IOREQ_SINGLE_SGE;
+	} else if (io_req->use_slowpath) {
+		qedf->slow_sge_ios++;
+		io_req->sge_type = QEDF_IOREQ_SLOW_SGE;
+	} else {
+		qedf->fast_sge_ios++;
+		io_req->sge_type = QEDF_IOREQ_FAST_SGE;
+	}
 }
 
 void qedf_init_mp_task(struct qedf_ioreq *io_req,
-	struct fcoe_task_context *task_ctx)
+	struct fcoe_task_context *task_ctx, struct fcoe_wqe *sqe)
 {
 	struct qedf_mp_req *mp_req = &(io_req->mp_req);
 	struct qedf_rport *fcport = io_req->fcport;
 	struct qedf_ctx *qedf = io_req->fcport->qedf;
 	struct fc_frame_header *fc_hdr;
-	enum fcoe_task_type task_type = 0;
-	union fcoe_data_desc_ctx *data_desc;
+	struct fcoe_tx_mid_path_params task_fc_hdr;
+	struct scsi_sgl_task_params tx_sgl_task_params;
+	struct scsi_sgl_task_params rx_sgl_task_params;
 
-	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Initializing MP task "
-		   "for cmd_type = %d\n", io_req->cmd_type);
+	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
+		  "Initializing MP task for cmd_type=%d\n",
+		  io_req->cmd_type);
 
 	qedf->control_requests++;
 
-	/* Obtain task_type */
-	if ((io_req->cmd_type == QEDF_TASK_MGMT_CMD) ||
-	    (io_req->cmd_type == QEDF_ELS)) {
-		task_type = FCOE_TASK_TYPE_MIDPATH;
-	} else if (io_req->cmd_type == QEDF_ABTS) {
-		task_type = FCOE_TASK_TYPE_ABTS;
-	}
-
+	memset(&tx_sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
+	memset(&rx_sgl_task_params, 0, sizeof(struct scsi_sgl_task_params));
 	memset(task_ctx, 0, sizeof(struct fcoe_task_context));
+	memset(&task_fc_hdr, 0, sizeof(struct fcoe_tx_mid_path_params));
 
 	/* Setup the task from io_req for easy reference */
 	io_req->task = task_ctx;
 
-	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "task type = %d\n",
-		   task_type);
+	/* Setup the fields for fcoe_task_params */
+	io_req->task_params->context = task_ctx;
+	io_req->task_params->sqe = sqe;
+	io_req->task_params->task_type = FCOE_TASK_TYPE_MIDPATH;
+	io_req->task_params->tx_io_size = io_req->data_xfer_len;
+	/* rx_io_size tells the f/w how large a response buffer we have */
+	io_req->task_params->rx_io_size = PAGE_SIZE;
+	io_req->task_params->conn_cid = fcport->fw_cid;
+	io_req->task_params->itid = io_req->xid;
+	/* Return middle path commands on CQ 0 */
+	io_req->task_params->cq_rss_number = 0;
+	io_req->task_params->is_tape_device = fcport->dev_type;
 
-	/* YSTORM only */
-	{
-		/* Initialize YSTORM task context */
-		struct fcoe_tx_mid_path_params *task_fc_hdr =
-		    &task_ctx->ystorm_st_context.tx_info_union.tx_params.mid_path;
-		memset(task_fc_hdr, 0, sizeof(struct fcoe_tx_mid_path_params));
-		task_ctx->ystorm_st_context.task_rety_identifier =
-		    io_req->task_retry_identifier;
+	fc_hdr = &(mp_req->req_fc_hdr);
+	/* Set OX_ID and RX_ID based on driver task id */
+	fc_hdr->fh_ox_id = io_req->xid;
+	fc_hdr->fh_rx_id = htons(0xffff);
 
-		/* Init SGL parameters */
-		if ((task_type == FCOE_TASK_TYPE_MIDPATH) ||
-		    (task_type == FCOE_TASK_TYPE_UNSOLICITED)) {
-			data_desc = &task_ctx->ystorm_st_context.data_desc;
-			data_desc->slow.base_sgl_addr.lo =
-			    U64_LO(mp_req->mp_req_bd_dma);
-			data_desc->slow.base_sgl_addr.hi =
-			    U64_HI(mp_req->mp_req_bd_dma);
-			data_desc->slow.remainder_num_sges = 1;
-			data_desc->slow.curr_sge_off = 0;
-			data_desc->slow.curr_sgl_index = 0;
-		}
+	/* Set up FC header information */
+	task_fc_hdr.parameter = fc_hdr->fh_parm_offset;
+	task_fc_hdr.r_ctl = fc_hdr->fh_r_ctl;
+	task_fc_hdr.type = fc_hdr->fh_type;
+	task_fc_hdr.cs_ctl = fc_hdr->fh_cs_ctl;
+	task_fc_hdr.df_ctl = fc_hdr->fh_df_ctl;
+	task_fc_hdr.rx_id = fc_hdr->fh_rx_id;
+	task_fc_hdr.ox_id = fc_hdr->fh_ox_id;
 
-		fc_hdr = &(mp_req->req_fc_hdr);
-		if (task_type == FCOE_TASK_TYPE_MIDPATH) {
-			fc_hdr->fh_ox_id = io_req->xid;
-			fc_hdr->fh_rx_id = htons(0xffff);
-		} else if (task_type == FCOE_TASK_TYPE_UNSOLICITED) {
-			fc_hdr->fh_rx_id = io_req->xid;
-		}
+	/* Set up s/g list parameters for request buffer */
+	tx_sgl_task_params.sgl = mp_req->mp_req_bd;
+	tx_sgl_task_params.sgl_phys_addr.lo = U64_LO(mp_req->mp_req_bd_dma);
+	tx_sgl_task_params.sgl_phys_addr.hi = U64_HI(mp_req->mp_req_bd_dma);
+	tx_sgl_task_params.num_sges = 1;
+	/* Set PAGE_SIZE for now since sg element is that size ??? */
+	tx_sgl_task_params.total_buffer_size = io_req->data_xfer_len;
+	tx_sgl_task_params.small_mid_sge = 0;
 
-		/* Fill FC Header into middle path buffer */
-		task_fc_hdr->parameter = fc_hdr->fh_parm_offset;
-		task_fc_hdr->r_ctl = fc_hdr->fh_r_ctl;
-		task_fc_hdr->type = fc_hdr->fh_type;
-		task_fc_hdr->cs_ctl = fc_hdr->fh_cs_ctl;
-		task_fc_hdr->df_ctl = fc_hdr->fh_df_ctl;
-		task_fc_hdr->rx_id = fc_hdr->fh_rx_id;
-		task_fc_hdr->ox_id = fc_hdr->fh_ox_id;
+	/* Set up s/g list parameters for request buffer */
+	rx_sgl_task_params.sgl = mp_req->mp_resp_bd;
+	rx_sgl_task_params.sgl_phys_addr.lo = U64_LO(mp_req->mp_resp_bd_dma);
+	rx_sgl_task_params.sgl_phys_addr.hi = U64_HI(mp_req->mp_resp_bd_dma);
+	rx_sgl_task_params.num_sges = 1;
+	/* Set PAGE_SIZE for now since sg element is that size ??? */
+	rx_sgl_task_params.total_buffer_size = PAGE_SIZE;
+	rx_sgl_task_params.small_mid_sge = 0;
 
-		task_ctx->ystorm_st_context.data_2_trns_rem =
-		    io_req->data_xfer_len;
-		task_ctx->ystorm_st_context.task_type = task_type;
-	}
 
-	/* TSTORM ONLY */
-	{
-		task_ctx->tstorm_ag_context.icid = (u16)fcport->fw_cid;
-		task_ctx->tstorm_st_context.read_only.cid = fcport->fw_cid;
-		/* Always send middle-path repsonses on CQ #0 */
-		task_ctx->tstorm_st_context.read_only.glbl_q_num = 0;
-		io_req->fp_idx = 0;
-		SET_FIELD(task_ctx->tstorm_ag_context.flags0,
-		    TSTORM_FCOE_TASK_AG_CTX_CONNECTION_TYPE,
-		    PROTOCOLID_FCOE);
-		task_ctx->tstorm_st_context.read_only.task_type = task_type;
-		SET_FIELD(task_ctx->tstorm_st_context.read_write.flags,
-		    FCOE_TSTORM_FCOE_TASK_ST_CTX_READ_WRITE_EXP_FIRST_FRAME,
-		    1);
-		task_ctx->tstorm_st_context.read_write.rx_id = 0xffff;
-	}
+	/*
+	 * Last arg is 0 as previous code did not set that we wanted the
+	 * fc header information.
+	 */
+	init_initiator_midpath_unsolicited_fcoe_task(io_req->task_params,
+						     &task_fc_hdr,
+						     &tx_sgl_task_params,
+						     &rx_sgl_task_params, 0);
 
-	/* MSTORM only */
-	{
-		if (task_type == FCOE_TASK_TYPE_MIDPATH) {
-			/* Initialize task context */
-			data_desc = &task_ctx->mstorm_st_context.fp.data_desc;
-
-			/* Set cache sges address and length */
-			data_desc->slow.base_sgl_addr.lo =
-			    U64_LO(mp_req->mp_resp_bd_dma);
-			data_desc->slow.base_sgl_addr.hi =
-			    U64_HI(mp_req->mp_resp_bd_dma);
-			data_desc->slow.remainder_num_sges = 1;
-			data_desc->slow.curr_sge_off = 0;
-			data_desc->slow.curr_sgl_index = 0;
-
-			/*
-			 * Also need to fil in non-fastpath response address
-			 * for middle path commands.
-			 */
-			task_ctx->mstorm_st_context.non_fp.rsp_buf_addr.lo =
-			    U64_LO(mp_req->mp_resp_bd_dma);
-			task_ctx->mstorm_st_context.non_fp.rsp_buf_addr.hi =
-			    U64_HI(mp_req->mp_resp_bd_dma);
-		}
-	}
-
-	/* USTORM ONLY */
-	{
-		task_ctx->ustorm_ag_context.global_cq_num = 0;
-	}
-
-	/* I/O stats. Middle path commands always use slow SGEs */
-	qedf->slow_sge_ios++;
-	io_req->sge_type = QEDF_IOREQ_SLOW_SGE;
+	/* Midpath requests always consume 1 SGE */
+	qedf->single_sge_ios++;
 }
 
-void qedf_add_to_sq(struct qedf_rport *fcport, u16 xid, u32 ptu_invalidate,
-	enum fcoe_task_type req_type, u32 offset)
+/* Presumed that fcport->rport_lock is held */
+u16 qedf_get_sqe_idx(struct qedf_rport *fcport)
 {
-	struct fcoe_wqe *sqe;
 	uint16_t total_sqe = (fcport->sq_mem_size)/(sizeof(struct fcoe_wqe));
+	u16 rval;
 
-	sqe = &fcport->sq[fcport->sq_prod_idx];
+	rval = fcport->sq_prod_idx;
 
+	/* Adjust ring index */
 	fcport->sq_prod_idx++;
 	fcport->fw_sq_prod_idx++;
 	if (fcport->sq_prod_idx == total_sqe)
 		fcport->sq_prod_idx = 0;
 
-	switch (req_type) {
-	case FCOE_TASK_TYPE_WRITE_INITIATOR:
-	case FCOE_TASK_TYPE_READ_INITIATOR:
-		SET_FIELD(sqe->flags, FCOE_WQE_REQ_TYPE, SEND_FCOE_CMD);
-		if (ptu_invalidate)
-			SET_FIELD(sqe->flags, FCOE_WQE_INVALIDATE_PTU, 1);
-		break;
-	case FCOE_TASK_TYPE_MIDPATH:
-		SET_FIELD(sqe->flags, FCOE_WQE_REQ_TYPE, SEND_FCOE_MIDPATH);
-		break;
-	case FCOE_TASK_TYPE_ABTS:
-		SET_FIELD(sqe->flags, FCOE_WQE_REQ_TYPE,
-		    SEND_FCOE_ABTS_REQUEST);
-		break;
-	case FCOE_TASK_TYPE_EXCHANGE_CLEANUP:
-		SET_FIELD(sqe->flags, FCOE_WQE_REQ_TYPE,
-		     FCOE_EXCHANGE_CLEANUP);
-		break;
-	case FCOE_TASK_TYPE_SEQUENCE_CLEANUP:
-		SET_FIELD(sqe->flags, FCOE_WQE_REQ_TYPE,
-		    FCOE_SEQUENCE_RECOVERY);
-		/* NOTE: offset param only used for sequence recovery */
-		sqe->additional_info_union.seq_rec_updated_offset = offset;
-		break;
-	case FCOE_TASK_TYPE_UNSOLICITED:
-		break;
-	default:
-		break;
-	}
-
-	sqe->task_id = xid;
-
-	/* Make sure SQ data is coherent */
-	wmb();
-
+	return rval;
 }
 
 void qedf_ring_doorbell(struct qedf_rport *fcport)
@@ -1029,7 +847,8 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 	struct fcoe_task_context *task_ctx;
 	u16 xid;
 	enum fcoe_task_type req_type = 0;
-	u32 ptu_invalidate = 0;
+	struct fcoe_wqe *sqe;
+	u16 sqe_idx;
 
 	/* Initialize rest of io_req fileds */
 	io_req->data_xfer_len = scsi_bufflen(sc_cmd);
@@ -1061,6 +880,16 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 		return -EAGAIN;
 	}
 
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
+		QEDF_ERR(&(qedf->dbg_ctx), "Session not offloaded yet.\n");
+		kref_put(&io_req->refcount, qedf_release_cmd);
+	}
+
+	/* Obtain free SQE */
+	sqe_idx = qedf_get_sqe_idx(fcport);
+	sqe = &fcport->sq[sqe_idx];
+	memset(sqe, 0, sizeof(struct fcoe_wqe));
+
 	/* Get the task context */
 	task_ctx = qedf_get_task_mem(&qedf->tasks, xid);
 	if (!task_ctx) {
@@ -1070,15 +899,7 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 		return -EINVAL;
 	}
 
-	qedf_init_task(fcport, lport, io_req, &ptu_invalidate, task_ctx);
-
-	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Session not offloaded yet.\n");
-		kref_put(&io_req->refcount, qedf_release_cmd);
-	}
-
-	/* Obtain free SQ entry */
-	qedf_add_to_sq(fcport, xid, ptu_invalidate, req_type, 0);
+	qedf_init_task(fcport, lport, io_req, task_ctx, sqe);
 
 	/* Ring doorbell */
 	qedf_ring_doorbell(fcport);
@@ -1661,6 +1482,8 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 	u32 r_a_tov = 0;
 	int rc = 0;
 	unsigned long flags;
+	struct fcoe_wqe *sqe;
+	u16 sqe_idx;
 
 	r_a_tov = rdata->r_a_tov;
 	lport = qedf->lport;
@@ -1712,10 +1535,12 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 
 	spin_lock_irqsave(&fcport->rport_lock, flags);
 
-	/* Add ABTS to send queue */
-	qedf_add_to_sq(fcport, xid, 0, FCOE_TASK_TYPE_ABTS, 0);
+	sqe_idx = qedf_get_sqe_idx(fcport);
+	sqe = &fcport->sq[sqe_idx];
+	memset(sqe, 0, sizeof(struct fcoe_wqe));
+	io_req->task_params->sqe = sqe;
 
-	/* Ring doorbell */
+	init_initiator_abort_fcoe_task(io_req->task_params);
 	qedf_ring_doorbell(fcport);
 
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
@@ -1784,8 +1609,8 @@ void qedf_process_abts_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 int qedf_init_mp_req(struct qedf_ioreq *io_req)
 {
 	struct qedf_mp_req *mp_req;
-	struct fcoe_sge *mp_req_bd;
-	struct fcoe_sge *mp_resp_bd;
+	struct scsi_sge *mp_req_bd;
+	struct scsi_sge *mp_resp_bd;
 	struct qedf_ctx *qedf = io_req->fcport->qedf;
 	dma_addr_t addr;
 	uint64_t sz;
@@ -1819,7 +1644,7 @@ int qedf_init_mp_req(struct qedf_ioreq *io_req)
 	}
 
 	/* Allocate and map mp_req_bd and mp_resp_bd */
-	sz = sizeof(struct fcoe_sge);
+	sz = sizeof(struct scsi_sge);
 	mp_req->mp_req_bd = dma_alloc_coherent(&qedf->pdev->dev, sz,
 	    &mp_req->mp_req_bd_dma, GFP_KERNEL);
 	if (!mp_req->mp_req_bd) {
@@ -1841,7 +1666,7 @@ int qedf_init_mp_req(struct qedf_ioreq *io_req)
 	mp_req_bd = mp_req->mp_req_bd;
 	mp_req_bd->sge_addr.lo = U64_LO(addr);
 	mp_req_bd->sge_addr.hi = U64_HI(addr);
-	mp_req_bd->size = QEDF_PAGE_SIZE;
+	mp_req_bd->sge_len = QEDF_PAGE_SIZE;
 
 	/*
 	 * MP buffer is either a task mgmt command or an ELS.
@@ -1852,7 +1677,7 @@ int qedf_init_mp_req(struct qedf_ioreq *io_req)
 	addr = mp_req->resp_buf_dma;
 	mp_resp_bd->sge_addr.lo = U64_LO(addr);
 	mp_resp_bd->sge_addr.hi = U64_HI(addr);
-	mp_resp_bd->size = QEDF_PAGE_SIZE;
+	mp_resp_bd->sge_len = QEDF_PAGE_SIZE;
 
 	return 0;
 }
@@ -1895,6 +1720,8 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 	int tmo = 0;
 	int rc = SUCCESS;
 	unsigned long flags;
+	struct fcoe_wqe *sqe;
+	u16 sqe_idx;
 
 	fcport = io_req->fcport;
 	if (!fcport) {
@@ -1940,12 +1767,16 @@ int qedf_initiate_cleanup(struct qedf_ioreq *io_req,
 
 	init_completion(&io_req->tm_done);
 
-	/* Obtain free SQ entry */
 	spin_lock_irqsave(&fcport->rport_lock, flags);
-	qedf_add_to_sq(fcport, xid, 0, FCOE_TASK_TYPE_EXCHANGE_CLEANUP, 0);
 
-	/* Ring doorbell */
+	sqe_idx = qedf_get_sqe_idx(fcport);
+	sqe = &fcport->sq[sqe_idx];
+	memset(sqe, 0, sizeof(struct fcoe_wqe));
+	io_req->task_params->sqe = sqe;
+
+	init_initiator_cleanup_fcoe_task(io_req->task_params);
 	qedf_ring_doorbell(fcport);
+
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
 	tmo = wait_for_completion_timeout(&io_req->tm_done,
@@ -1991,16 +1822,15 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 	uint8_t tm_flags)
 {
 	struct qedf_ioreq *io_req;
-	struct qedf_mp_req *tm_req;
 	struct fcoe_task_context *task;
-	struct fc_frame_header *fc_hdr;
-	struct fcp_cmnd *fcp_cmnd;
 	struct qedf_ctx *qedf = fcport->qedf;
+	struct fc_lport *lport = qedf->lport;
 	int rc = 0;
 	uint16_t xid;
-	uint32_t sid, did;
 	int tmo = 0;
 	unsigned long flags;
+	struct fcoe_wqe *sqe;
+	u16 sqe_idx;
 
 	if (!sc_cmd) {
 		QEDF_ERR(&(qedf->dbg_ctx), "invalid arg\n");
@@ -2031,36 +1861,14 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 	/* Set the return CPU to be the same as the request one */
 	io_req->cpu = smp_processor_id();
 
-	tm_req = (struct qedf_mp_req *)&(io_req->mp_req);
-
-	rc = qedf_init_mp_req(io_req);
-	if (rc == FAILED) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Task mgmt MP request init "
-			  "failed\n");
-		kref_put(&io_req->refcount, qedf_release_cmd);
-		goto reset_tmf_err;
-	}
-
 	/* Set TM flags */
-	io_req->io_req_flags = 0;
-	tm_req->tm_flags = tm_flags;
+	io_req->io_req_flags = QEDF_READ;
+	io_req->data_xfer_len = 0;
+	io_req->tm_flags = tm_flags;
 
 	/* Default is to return a SCSI command when an error occurs */
 	io_req->return_scsi_cmd_on_abts = true;
 
-	/* Fill FCP_CMND */
-	qedf_build_fcp_cmnd(io_req, (struct fcp_cmnd *)tm_req->req_buf);
-	fcp_cmnd = (struct fcp_cmnd *)tm_req->req_buf;
-	memset(fcp_cmnd->fc_cdb, 0, FCP_CMND_LEN);
-	fcp_cmnd->fc_dl = 0;
-
-	/* Fill FC header */
-	fc_hdr = &(tm_req->req_fc_hdr);
-	sid = fcport->sid;
-	did = fcport->rdata->ids.port_id;
-	__fc_fill_fc_hdr(fc_hdr, FC_RCTL_DD_UNSOL_CMD, sid, did,
-			   FC_TYPE_FCP, FC_FC_FIRST_SEQ | FC_FC_END_SEQ |
-			   FC_FC_SEQ_INIT, 0);
 	/* Obtain exchange id */
 	xid = io_req->xid;
 
@@ -2069,16 +1877,18 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 
 	/* Initialize task context for this IO request */
 	task = qedf_get_task_mem(&qedf->tasks, xid);
-	qedf_init_mp_task(io_req, task);
 
 	init_completion(&io_req->tm_done);
 
-	/* Obtain free SQ entry */
 	spin_lock_irqsave(&fcport->rport_lock, flags);
-	qedf_add_to_sq(fcport, xid, 0, FCOE_TASK_TYPE_MIDPATH, 0);
 
-	/* Ring doorbell */
+	sqe_idx = qedf_get_sqe_idx(fcport);
+	sqe = &fcport->sq[sqe_idx];
+	memset(sqe, 0, sizeof(struct fcoe_wqe));
+
+	qedf_init_task(fcport, lport, io_req, task, sqe);
 	qedf_ring_doorbell(fcport);
+
 	spin_unlock_irqrestore(&fcport->rport_lock, flags);
 
 	tmo = wait_for_completion_timeout(&io_req->tm_done,
@@ -2162,14 +1972,6 @@ void qedf_process_tmf_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 	struct qedf_ioreq *io_req)
 {
 	struct fcoe_cqe_rsp_info *fcp_rsp;
-	struct fcoe_cqe_midpath_info *mp_info;
-
-
-	/* Get TMF response length from CQE */
-	mp_info = &cqe->cqe_info.midpath_info;
-	io_req->mp_req.resp_len = mp_info->data_placement_size;
-	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_SCSI_TM,
-	    "Response len is %d.\n", io_req->mp_req.resp_len);
 
 	fcp_rsp = &cqe->cqe_info.rsp_info;
 	qedf_parse_fcp_rsp(io_req, fcp_rsp);

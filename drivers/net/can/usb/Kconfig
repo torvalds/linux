@@ -83,4 +83,10 @@ config CAN_8DEV_USB
 	  This driver supports the USB2CAN interface
 	  from 8 devices (http://www.8devices.com).
 
+config CAN_MCBA_USB
+	tristate "Microchip CAN BUS Analyzer interface"
+	---help---
+	  This driver supports the CAN BUS Analyzer interface
+	  from Microchip (http://www.microchip.com/development-tools/).
+
 endmenu

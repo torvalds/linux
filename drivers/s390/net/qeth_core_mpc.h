@@ -29,7 +29,6 @@ extern unsigned char IPA_PDU_HEADER[];
 #define QETH_TIMEOUT		(10 * HZ)
 #define QETH_IPA_TIMEOUT	(45 * HZ)
 #define QETH_IDX_COMMAND_SEQNO	0xffff0000
-#define SR_INFO_LEN		16
 
 #define QETH_CLEAR_CHANNEL_PARM	-10
 #define QETH_HALT_CHANNEL_PARM	-11
@@ -65,7 +64,6 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_LANE_TR      = 0x82,
 	QETH_LINK_TYPE_LANE_ETH1000 = 0x83,
 	QETH_LINK_TYPE_LANE         = 0x88,
-	QETH_LINK_TYPE_ATM_NATIVE   = 0x90,
 };
 
 /*
@@ -185,8 +183,6 @@ enum qeth_ipa_return_codes {
 	IPA_RC_ENOMEM			= 0xfffe,
 	IPA_RC_FFFF			= 0xffff
 };
-/* for DELIP */
-#define IPA_RC_IP_ADDRESS_NOT_DEFINED	IPA_RC_PRIMARY_ALREADY_DEFINED
 /* for SET_DIAGNOSTIC_ASSIST */
 #define IPA_RC_INVALID_SUBCMD		IPA_RC_IP_TABLE_FULL
 #define IPA_RC_HARDWARE_AUTH_ERROR	IPA_RC_UNKNOWN_ERROR
@@ -631,14 +627,6 @@ enum qeth_ipa_addr_change_code {
 	IPA_ADDR_CHANGE_CODE_MACADDR		= 0x02,
 	IPA_ADDR_CHANGE_CODE_REMOVAL		= 0x80,	/* else addition */
 };
-enum qeth_ipa_addr_change_retcode {
-	IPA_ADDR_CHANGE_RETCODE_OK		= 0x0000,
-	IPA_ADDR_CHANGE_RETCODE_LOSTEVENTS	= 0x0010,
-};
-enum qeth_ipa_addr_change_lostmask {
-	IPA_ADDR_CHANGE_MASK_OVERFLOW		= 0x01,
-	IPA_ADDR_CHANGE_MASK_STATECHANGE	= 0x02,
-};
 
 struct qeth_ipacmd_addr_change_entry {
 	struct net_if_token token;
@@ -816,10 +804,5 @@ extern unsigned char IDX_ACTIVATE_WRITE[];
 #define IS_IPA(buffer) \
 	((buffer) && \
 	 (*(buffer + ((*(buffer + 0x0b)) + 4)) == 0xc1))
-
-#define ADDR_FRAME_TYPE_DIX 1
-#define ADDR_FRAME_TYPE_802_3 2
-#define ADDR_FRAME_TYPE_TR_WITHOUT_SR 0x10
-#define ADDR_FRAME_TYPE_TR_WITH_SR 0x20
 
 #endif

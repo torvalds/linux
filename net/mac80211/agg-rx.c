@@ -357,14 +357,14 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	spin_lock_init(&tid_agg_rx->reorder_lock);
 
 	/* rx timer */
-	tid_agg_rx->session_timer.function = sta_rx_agg_session_timer_expired;
-	tid_agg_rx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer_deferrable(&tid_agg_rx->session_timer);
+	setup_deferrable_timer(&tid_agg_rx->session_timer,
+			       sta_rx_agg_session_timer_expired,
+			       (unsigned long)&sta->timer_to_tid[tid]);
 
 	/* rx reorder timer */
-	tid_agg_rx->reorder_timer.function = sta_rx_agg_reorder_timer_expired;
-	tid_agg_rx->reorder_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer(&tid_agg_rx->reorder_timer);
+	setup_timer(&tid_agg_rx->reorder_timer,
+		    sta_rx_agg_reorder_timer_expired,
+		    (unsigned long)&sta->timer_to_tid[tid]);
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =

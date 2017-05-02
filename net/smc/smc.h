@@ -164,6 +164,7 @@ struct smc_connection {
 #ifndef KERNEL_HAS_ATOMIC64
 	spinlock_t		acurs_lock;	/* protect cursors */
 #endif
+	struct work_struct	close_work;	/* peer sent some closing */
 };
 
 struct smc_sock {				/* smc sock container */

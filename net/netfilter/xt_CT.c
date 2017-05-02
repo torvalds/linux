@@ -26,11 +26,12 @@ static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
-	/* special case the untracked ct : we want the percpu object */
-	if (!ct)
-		ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
-	nf_ct_set(skb, ct, IP_CT_NEW);
+	if (ct) {
+		atomic_inc(&ct->ct_general.use);
+		nf_ct_set(skb, ct, IP_CT_NEW);
+	} else {
+		nf_ct_set(skb, ct, IP_CT_UNTRACKED);
+	}
 
 	return XT_CONTINUE;
 }
@@ -335,7 +336,7 @@ static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par,
 	struct nf_conn *ct = info->ct;
 	struct nf_conn_help *help;
 
-	if (ct && !nf_ct_is_untracked(ct)) {
+	if (ct) {
 		help = nfct_help(ct);
 		if (help)
 			module_put(help->helper->me);
@@ -412,8 +413,7 @@ notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
-	nf_ct_set(skb, nf_ct_untracked_get(), IP_CT_NEW);
-	nf_conntrack_get(skb_nfct(skb));
+	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 
 	return XT_CONTINUE;
 }

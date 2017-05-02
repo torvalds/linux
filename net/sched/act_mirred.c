@@ -87,7 +87,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 
 	if (nla == NULL)
 		return -EINVAL;
-	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy);
+	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy, NULL);
 	if (ret < 0)
 		return ret;
 	if (tb[TCA_MIRRED_PARMS] == NULL)

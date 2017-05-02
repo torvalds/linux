@@ -729,16 +729,6 @@ static inline struct mlx5_ib_mw *to_mmw(struct ib_mw *ibmw)
 	return container_of(ibmw, struct mlx5_ib_mw, ibmw);
 }
 
-struct mlx5_ib_ah {
-	struct ib_ah		ibah;
-	struct mlx5_av		av;
-};
-
-static inline struct mlx5_ib_ah *to_mah(struct ib_ah *ibah)
-{
-	return container_of(ibah, struct mlx5_ib_ah, ibah);
-}
-
 int mlx5_ib_db_map_user(struct mlx5_ib_ucontext *context, unsigned long virt,
 			struct mlx5_db *db);
 void mlx5_ib_db_unmap_user(struct mlx5_ib_ucontext *context, struct mlx5_db *db);

@@ -262,8 +262,8 @@ int register_inet6addr_notifier(struct notifier_block *nb);
 int unregister_inet6addr_notifier(struct notifier_block *nb);
 int inet6addr_notifier_call_chain(unsigned long val, void *v);
 
-void inet6_netconf_notify_devconf(struct net *net, int type, int ifindex,
-				  struct ipv6_devconf *devconf);
+void inet6_netconf_notify_devconf(struct net *net, int event, int type,
+				  int ifindex, struct ipv6_devconf *devconf);
 
 /**
  * __in6_dev_get - get inet6_dev pointer from netdevice

@@ -775,7 +775,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG_RL_PKT(10, AF_INET, pp, skb, ipvsh->off,
 					 "ip_vs_nat_xmit(): "
 					 "stopping DNAT to local address");
@@ -866,7 +866,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG_RL_PKT(10, AF_INET6, pp, skb, ipvsh->off,
 					 "ip_vs_nat_xmit_v6(): "
 					 "stopping DNAT to local address");
@@ -1338,7 +1338,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG(10, "%s(): "
 				  "stopping DNAT to local address %pI4\n",
 				  __func__, &cp->daddr.ip);
@@ -1429,7 +1429,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG(10, "%s(): "
 				  "stopping DNAT to local address %pI6\n",
 				  __func__, &cp->daddr.in6);

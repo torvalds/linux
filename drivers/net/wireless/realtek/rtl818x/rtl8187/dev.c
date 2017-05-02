@@ -389,7 +389,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.band = dev->conf.chandef.chan->band;
 	rx_status.flag |= RX_FLAG_MACTIME_START;
 	if (flags & RTL818X_RX_DESC_FLAG_SPLCP)
-		rx_status.flag |= RX_FLAG_SHORTPRE;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 	if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -946,8 +946,7 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 		      (7 << 13 /* RX FIFO threshold NONE */) |
 		      (7 << 10 /* MAX RX DMA */) |
 		      RTL818X_RX_CONF_RX_AUTORESETPHY |
-		      RTL818X_RX_CONF_ONLYERLPKT |
-		      RTL818X_RX_CONF_MULTICAST;
+		      RTL818X_RX_CONF_ONLYERLPKT;
 		priv->rx_conf = reg;
 		rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
@@ -1319,12 +1318,11 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 		priv->rx_conf ^= RTL818X_RX_CONF_FCS;
 	if (changed_flags & FIF_CONTROL)
 		priv->rx_conf ^= RTL818X_RX_CONF_CTRL;
-	if (changed_flags & FIF_OTHER_BSS)
-		priv->rx_conf ^= RTL818X_RX_CONF_MONITOR;
-	if (*total_flags & FIF_ALLMULTI || multicast > 0)
-		priv->rx_conf |= RTL818X_RX_CONF_MULTICAST;
+	if (*total_flags & FIF_OTHER_BSS ||
+	    *total_flags & FIF_ALLMULTI || multicast > 0)
+		priv->rx_conf |= RTL818X_RX_CONF_MONITOR;
 	else
-		priv->rx_conf &= ~RTL818X_RX_CONF_MULTICAST;
+		priv->rx_conf &= ~RTL818X_RX_CONF_MONITOR;
 
 	*total_flags = 0;
 
@@ -1332,10 +1330,10 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 		*total_flags |= FIF_FCSFAIL;
 	if (priv->rx_conf & RTL818X_RX_CONF_CTRL)
 		*total_flags |= FIF_CONTROL;
-	if (priv->rx_conf & RTL818X_RX_CONF_MONITOR)
+	if (priv->rx_conf & RTL818X_RX_CONF_MONITOR) {
 		*total_flags |= FIF_OTHER_BSS;
-	if (priv->rx_conf & RTL818X_RX_CONF_MULTICAST)
 		*total_flags |= FIF_ALLMULTI;
+	}
 
 	rtl818x_iowrite32_async(priv, &priv->map->RX_CONF, priv->rx_conf);
 }
@@ -1608,6 +1606,8 @@ static int rtl8187_probe(struct usb_interface *intf,
 	dev->vif_data_size = sizeof(struct rtl8187_vif);
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				      BIT(NL80211_IFTYPE_ADHOC) ;
+
+	wiphy_ext_feature_set(dev->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	if ((id->driver_info == DEVICE_RTL8187) && priv->is_rtl8187b)
 		printk(KERN_INFO "rtl8187: inconsistency between id with OEM"

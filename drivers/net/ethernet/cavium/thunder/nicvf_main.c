@@ -17,6 +17,9 @@
 #include <linux/prefetch.h>
 #include <linux/irq.h>
 #include <linux/iommu.h>
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
+#include <linux/filter.h>
 
 #include "nic_reg.h"
 #include "nic.h"
@@ -397,8 +400,10 @@ static void nicvf_request_sqs(struct nicvf *nic)
 
 	if (nic->rx_queues > MAX_RCV_QUEUES_PER_QS)
 		rx_queues = nic->rx_queues - MAX_RCV_QUEUES_PER_QS;
-	if (nic->tx_queues > MAX_SND_QUEUES_PER_QS)
-		tx_queues = nic->tx_queues - MAX_SND_QUEUES_PER_QS;
+
+	tx_queues = nic->tx_queues + nic->xdp_tx_queues;
+	if (tx_queues > MAX_SND_QUEUES_PER_QS)
+		tx_queues = tx_queues - MAX_SND_QUEUES_PER_QS;
 
 	/* Set no of Rx/Tx queues in each of the SQsets */
 	for (sqs = 0; sqs < nic->sqs_count; sqs++) {
@@ -496,12 +501,99 @@ static int nicvf_init_resources(struct nicvf *nic)
 	return 0;
 }
 
+static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
+				struct cqe_rx_t *cqe_rx, struct snd_queue *sq,
+				struct sk_buff **skb)
+{
+	struct xdp_buff xdp;
+	struct page *page;
+	u32 action;
+	u16 len, offset = 0;
+	u64 dma_addr, cpu_addr;
+	void *orig_data;
+
+	/* Retrieve packet buffer's DMA address and length */
+	len = *((u16 *)((void *)cqe_rx + (3 * sizeof(u64))));
+	dma_addr = *((u64 *)((void *)cqe_rx + (7 * sizeof(u64))));
+
+	cpu_addr = nicvf_iova_to_phys(nic, dma_addr);
+	if (!cpu_addr)
+		return false;
+	cpu_addr = (u64)phys_to_virt(cpu_addr);
+	page = virt_to_page((void *)cpu_addr);
+
+	xdp.data_hard_start = page_address(page);
+	xdp.data = (void *)cpu_addr;
+	xdp.data_end = xdp.data + len;
+	orig_data = xdp.data;
+
+	rcu_read_lock();
+	action = bpf_prog_run_xdp(prog, &xdp);
+	rcu_read_unlock();
+
+	/* Check if XDP program has changed headers */
+	if (orig_data != xdp.data) {
+		len = xdp.data_end - xdp.data;
+		offset = orig_data - xdp.data;
+		dma_addr -= offset;
+	}
+
+	switch (action) {
+	case XDP_PASS:
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) == 1) {
+			dma_addr &= PAGE_MASK;
+			dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
+					     RCV_FRAG_LEN + XDP_PACKET_HEADROOM,
+					     DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
+		}
+
+		/* Build SKB and pass on packet to network stack */
+		*skb = build_skb(xdp.data,
+				 RCV_FRAG_LEN - cqe_rx->align_pad + offset);
+		if (!*skb)
+			put_page(page);
+		else
+			skb_put(*skb, len);
+		return false;
+	case XDP_TX:
+		nicvf_xdp_sq_append_pkt(nic, sq, (u64)xdp.data, dma_addr, len);
+		return true;
+	default:
+		bpf_warn_invalid_xdp_action(action);
+	case XDP_ABORTED:
+		trace_xdp_exception(nic->netdev, prog, action);
+	case XDP_DROP:
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) == 1) {
+			dma_addr &= PAGE_MASK;
+			dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
+					     RCV_FRAG_LEN + XDP_PACKET_HEADROOM,
+					     DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
+		}
+		put_page(page);
+		return true;
+	}
+	return false;
+}
+
 static void nicvf_snd_pkt_handler(struct net_device *netdev,
 				  struct cqe_send_t *cqe_tx,
-				  int cqe_type, int budget,
+				  int budget, int *subdesc_cnt,
 				  unsigned int *tx_pkts, unsigned int *tx_bytes)
 {
 	struct sk_buff *skb = NULL;
+	struct page *page;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct snd_queue *sq;
 	struct sq_hdr_subdesc *hdr;
@@ -513,12 +605,26 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 	if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER)
 		return;
 
-	netdev_dbg(nic->netdev,
-		   "%s Qset #%d SQ #%d SQ ptr #%d subdesc count %d\n",
-		   __func__, cqe_tx->sq_qs, cqe_tx->sq_idx,
-		   cqe_tx->sqe_ptr, hdr->subdesc_cnt);
+	/* Check for errors */
+	if (cqe_tx->send_status)
+		nicvf_check_cqe_tx_errs(nic->pnicvf, cqe_tx);
 
-	nicvf_check_cqe_tx_errs(nic, cqe_tx);
+	/* Is this a XDP designated Tx queue */
+	if (sq->is_xdp) {
+		page = (struct page *)sq->xdp_page[cqe_tx->sqe_ptr];
+		/* Check if it's recycled page or else unmap DMA mapping */
+		if (page && (page_ref_count(page) == 1))
+			nicvf_unmap_sndq_buffers(nic, sq, cqe_tx->sqe_ptr,
+						 hdr->subdesc_cnt);
+
+		/* Release page reference for recycling */
+		if (page)
+			put_page(page);
+		sq->xdp_page[cqe_tx->sqe_ptr] = (u64)NULL;
+		*subdesc_cnt += hdr->subdesc_cnt + 1;
+		return;
+	}
+
 	skb = (struct sk_buff *)sq->skbuff[cqe_tx->sqe_ptr];
 	if (skb) {
 		/* Check for dummy descriptor used for HW TSO offload on 88xx */
@@ -528,12 +634,12 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 			 (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, hdr->rsvd2);
 			nicvf_unmap_sndq_buffers(nic, sq, hdr->rsvd2,
 						 tso_sqe->subdesc_cnt);
-			nicvf_put_sq_desc(sq, tso_sqe->subdesc_cnt + 1);
+			*subdesc_cnt += tso_sqe->subdesc_cnt + 1;
 		} else {
 			nicvf_unmap_sndq_buffers(nic, sq, cqe_tx->sqe_ptr,
 						 hdr->subdesc_cnt);
 		}
-		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
+		*subdesc_cnt += hdr->subdesc_cnt + 1;
 		prefetch(skb);
 		(*tx_pkts)++;
 		*tx_bytes += skb->len;
@@ -544,7 +650,7 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 		 * a SKB attached, so just free SQEs here.
 		 */
 		if (!nic->hw_tso)
-			nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
+			*subdesc_cnt += hdr->subdesc_cnt + 1;
 	}
 }
 
@@ -578,9 +684,9 @@ static inline void nicvf_set_rxhash(struct net_device *netdev,
 
 static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 				  struct napi_struct *napi,
-				  struct cqe_rx_t *cqe_rx)
+				  struct cqe_rx_t *cqe_rx, struct snd_queue *sq)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct nicvf *snic = nic;
 	int err = 0;
@@ -595,15 +701,24 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	}
 
 	/* Check for errors */
-	err = nicvf_check_cqe_rx_errs(nic, cqe_rx);
-	if (err && !cqe_rx->rb_cnt)
-		return;
-
-	skb = nicvf_get_rcv_skb(snic, cqe_rx);
-	if (!skb) {
-		netdev_dbg(nic->netdev, "Packet not received\n");
-		return;
+	if (cqe_rx->err_level || cqe_rx->err_opcode) {
+		err = nicvf_check_cqe_rx_errs(nic, cqe_rx);
+		if (err && !cqe_rx->rb_cnt)
+			return;
 	}
+
+	/* For XDP, ignore pkts spanning multiple pages */
+	if (nic->xdp_prog && (cqe_rx->rb_cnt == 1)) {
+		/* Packet consumed by XDP */
+		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx, sq, &skb))
+			return;
+	} else {
+		skb = nicvf_get_rcv_skb(snic, cqe_rx,
+					nic->xdp_prog ? true : false);
+	}
+
+	if (!skb)
+		return;
 
 	if (netif_msg_pktdata(nic)) {
 		netdev_info(nic->netdev, "%s: skb 0x%p, len=%d\n", netdev->name,
@@ -646,13 +761,14 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 {
 	int processed_cqe, work_done = 0, tx_done = 0;
 	int cqe_count, cqe_head;
+	int subdesc_cnt = 0;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
 	struct cqe_rx_t *cq_desc;
 	struct netdev_queue *txq;
-	struct snd_queue *sq;
-	unsigned int tx_pkts = 0, tx_bytes = 0;
+	struct snd_queue *sq = &qs->sq[cq_idx];
+	unsigned int tx_pkts = 0, tx_bytes = 0, txq_idx;
 
 	spin_lock_bh(&cq->lock);
 loop:
@@ -667,8 +783,6 @@ loop:
 	cqe_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD, cq_idx) >> 9;
 	cqe_head &= 0xFFFF;
 
-	netdev_dbg(nic->netdev, "%s CQ%d cqe_count %d cqe_head %d\n",
-		   __func__, cq_idx, cqe_count, cqe_head);
 	while (processed_cqe < cqe_count) {
 		/* Get the CQ descriptor */
 		cq_desc = (struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head);
@@ -682,17 +796,15 @@ loop:
 			break;
 		}
 
-		netdev_dbg(nic->netdev, "CQ%d cq_desc->cqe_type %d\n",
-			   cq_idx, cq_desc->cqe_type);
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
-			nicvf_rcv_pkt_handler(netdev, napi, cq_desc);
+			nicvf_rcv_pkt_handler(netdev, napi, cq_desc, sq);
 			work_done++;
 		break;
 		case CQE_TYPE_SEND:
-			nicvf_snd_pkt_handler(netdev,
-					      (void *)cq_desc, CQE_TYPE_SEND,
-					      budget, &tx_pkts, &tx_bytes);
+			nicvf_snd_pkt_handler(netdev, (void *)cq_desc,
+					      budget, &subdesc_cnt,
+					      &tx_pkts, &tx_bytes);
 			tx_done++;
 		break;
 		case CQE_TYPE_INVALID:
@@ -704,9 +816,6 @@ loop:
 		}
 		processed_cqe++;
 	}
-	netdev_dbg(nic->netdev,
-		   "%s CQ%d processed_cqe %d work_done %d budget %d\n",
-		   __func__, cq_idx, processed_cqe, work_done, budget);
 
 	/* Ring doorbell to inform H/W to reuse processed CQEs */
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_DOOR,
@@ -716,13 +825,26 @@ loop:
 		goto loop;
 
 done:
+	/* Update SQ's descriptor free count */
+	if (subdesc_cnt)
+		nicvf_put_sq_desc(sq, subdesc_cnt);
+
+	txq_idx = nicvf_netdev_qidx(nic, cq_idx);
+	/* Handle XDP TX queues */
+	if (nic->pnicvf->xdp_prog) {
+		if (txq_idx < nic->pnicvf->xdp_tx_queues) {
+			nicvf_xdp_sq_doorbell(nic, sq, cq_idx);
+			goto out;
+		}
+		nic = nic->pnicvf;
+		txq_idx -= nic->pnicvf->xdp_tx_queues;
+	}
+
 	/* Wakeup TXQ if its stopped earlier due to SQ full */
-	sq = &nic->qs->sq[cq_idx];
 	if (tx_done ||
 	    (atomic_read(&sq->free_cnt) >= MIN_SQ_DESC_PER_PKT_XMIT)) {
 		netdev = nic->pnicvf->netdev;
-		txq = netdev_get_tx_queue(netdev,
-					  nicvf_netdev_qidx(nic, cq_idx));
+		txq = netdev_get_tx_queue(netdev, txq_idx);
 		if (tx_pkts)
 			netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 
@@ -735,10 +857,11 @@ done:
 			if (netif_msg_tx_err(nic))
 				netdev_warn(netdev,
 					    "%s: Transmit queue wakeup SQ%d\n",
-					    netdev->name, cq_idx);
+					    netdev->name, txq_idx);
 		}
 	}
 
+out:
 	spin_unlock_bh(&cq->lock);
 	return work_done;
 }
@@ -882,38 +1005,9 @@ static irqreturn_t nicvf_qs_err_intr_handler(int irq, void *nicvf_irq)
 	return IRQ_HANDLED;
 }
 
-static int nicvf_enable_msix(struct nicvf *nic)
-{
-	int ret, vec;
-
-	nic->num_vec = NIC_VF_MSIX_VECTORS;
-
-	for (vec = 0; vec < nic->num_vec; vec++)
-		nic->msix_entries[vec].entry = vec;
-
-	ret = pci_enable_msix(nic->pdev, nic->msix_entries, nic->num_vec);
-	if (ret) {
-		netdev_err(nic->netdev,
-			   "Req for #%d msix vectors failed\n", nic->num_vec);
-		return 0;
-	}
-	nic->msix_enabled = 1;
-	return 1;
-}
-
-static void nicvf_disable_msix(struct nicvf *nic)
-{
-	if (nic->msix_enabled) {
-		pci_disable_msix(nic->pdev);
-		nic->msix_enabled = 0;
-		nic->num_vec = 0;
-	}
-}
-
 static void nicvf_set_irq_affinity(struct nicvf *nic)
 {
 	int vec, cpu;
-	int irqnum;
 
 	for (vec = 0; vec < nic->num_vec; vec++) {
 		if (!nic->irq_allocated[vec])
@@ -930,15 +1024,14 @@ static void nicvf_set_irq_affinity(struct nicvf *nic)
 
 		cpumask_set_cpu(cpumask_local_spread(cpu, nic->node),
 				nic->affinity_mask[vec]);
-		irqnum = nic->msix_entries[vec].vector;
-		irq_set_affinity_hint(irqnum, nic->affinity_mask[vec]);
+		irq_set_affinity_hint(pci_irq_vector(nic->pdev, vec),
+				      nic->affinity_mask[vec]);
 	}
 }
 
 static int nicvf_register_interrupts(struct nicvf *nic)
 {
 	int irq, ret = 0;
-	int vector;
 
 	for_each_cq_irq(irq)
 		sprintf(nic->irq_name[irq], "%s-rxtx-%d",
@@ -957,8 +1050,8 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 
 	/* Register CQ interrupts */
 	for (irq = 0; irq < nic->qs->cq_cnt; irq++) {
-		vector = nic->msix_entries[irq].vector;
-		ret = request_irq(vector, nicvf_intr_handler,
+		ret = request_irq(pci_irq_vector(nic->pdev, irq),
+				  nicvf_intr_handler,
 				  0, nic->irq_name[irq], nic->napi[irq]);
 		if (ret)
 			goto err;
@@ -968,8 +1061,8 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 	/* Register RBDR interrupt */
 	for (irq = NICVF_INTR_ID_RBDR;
 	     irq < (NICVF_INTR_ID_RBDR + nic->qs->rbdr_cnt); irq++) {
-		vector = nic->msix_entries[irq].vector;
-		ret = request_irq(vector, nicvf_rbdr_intr_handler,
+		ret = request_irq(pci_irq_vector(nic->pdev, irq),
+				  nicvf_rbdr_intr_handler,
 				  0, nic->irq_name[irq], nic);
 		if (ret)
 			goto err;
@@ -981,7 +1074,7 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 		nic->pnicvf->netdev->name,
 		nic->sqs_mode ? (nic->sqs_id + 1) : 0);
 	irq = NICVF_INTR_ID_QS_ERR;
-	ret = request_irq(nic->msix_entries[irq].vector,
+	ret = request_irq(pci_irq_vector(nic->pdev, irq),
 			  nicvf_qs_err_intr_handler,
 			  0, nic->irq_name[irq], nic);
 	if (ret)
@@ -1001,6 +1094,7 @@ err:
 
 static void nicvf_unregister_interrupts(struct nicvf *nic)
 {
+	struct pci_dev *pdev = nic->pdev;
 	int irq;
 
 	/* Free registered interrupts */
@@ -1008,19 +1102,20 @@ static void nicvf_unregister_interrupts(struct nicvf *nic)
 		if (!nic->irq_allocated[irq])
 			continue;
 
-		irq_set_affinity_hint(nic->msix_entries[irq].vector, NULL);
+		irq_set_affinity_hint(pci_irq_vector(pdev, irq), NULL);
 		free_cpumask_var(nic->affinity_mask[irq]);
 
 		if (irq < NICVF_INTR_ID_SQ)
-			free_irq(nic->msix_entries[irq].vector, nic->napi[irq]);
+			free_irq(pci_irq_vector(pdev, irq), nic->napi[irq]);
 		else
-			free_irq(nic->msix_entries[irq].vector, nic);
+			free_irq(pci_irq_vector(pdev, irq), nic);
 
 		nic->irq_allocated[irq] = false;
 	}
 
 	/* Disable MSI-X */
-	nicvf_disable_msix(nic);
+	pci_free_irq_vectors(pdev);
+	nic->num_vec = 0;
 }
 
 /* Initialize MSIX vectors and register MISC interrupt.
@@ -1032,16 +1127,22 @@ static int nicvf_register_misc_interrupt(struct nicvf *nic)
 	int irq = NICVF_INTR_ID_MISC;
 
 	/* Return if mailbox interrupt is already registered */
-	if (nic->msix_enabled)
+	if (nic->pdev->msix_enabled)
 		return 0;
 
 	/* Enable MSI-X */
-	if (!nicvf_enable_msix(nic))
+	nic->num_vec = pci_msix_vec_count(nic->pdev);
+	ret = pci_alloc_irq_vectors(nic->pdev, nic->num_vec, nic->num_vec,
+				    PCI_IRQ_MSIX);
+	if (ret < 0) {
+		netdev_err(nic->netdev,
+			   "Req for #%d msix vectors failed\n", nic->num_vec);
 		return 1;
+	}
 
 	sprintf(nic->irq_name[irq], "%s Mbox", "NICVF");
 	/* Register Misc interrupt */
-	ret = request_irq(nic->msix_entries[irq].vector,
+	ret = request_irq(pci_irq_vector(nic->pdev, irq),
 			  nicvf_misc_intr_handler, 0, nic->irq_name[irq], nic);
 
 	if (ret)
@@ -1075,6 +1176,13 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
+
+	/* In XDP case, initial HW tx queues are used for XDP,
+	 * but stack's queue mapping starts at '0', so skip the
+	 * Tx queues attached to Rx queues for XDP.
+	 */
+	if (nic->xdp_prog)
+		qid += nic->xdp_tx_queues;
 
 	snic = nic;
 	/* Get secondary Qset's SQ structure */
@@ -1164,7 +1272,7 @@ int nicvf_stop(struct net_device *netdev)
 
 	/* Wait for pending IRQ handlers to finish */
 	for (irq = 0; irq < nic->num_vec; irq++)
-		synchronize_irq(nic->msix_entries[irq].vector);
+		synchronize_irq(pci_irq_vector(nic->pdev, irq));
 
 	tasklet_kill(&nic->rbdr_task);
 	tasklet_kill(&nic->qs_err_task);
@@ -1365,7 +1473,7 @@ static int nicvf_set_mac_address(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
-	if (nic->msix_enabled) {
+	if (nic->pdev->msix_enabled) {
 		if (nicvf_hw_set_mac_addr(nic, netdev))
 			return -EBUSY;
 	} else {
@@ -1553,6 +1661,114 @@ static int nicvf_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static void nicvf_set_xdp_queues(struct nicvf *nic, bool bpf_attached)
+{
+	u8 cq_count, txq_count;
+
+	/* Set XDP Tx queue count same as Rx queue count */
+	if (!bpf_attached)
+		nic->xdp_tx_queues = 0;
+	else
+		nic->xdp_tx_queues = nic->rx_queues;
+
+	/* If queue count > MAX_CMP_QUEUES_PER_QS, then additional qsets
+	 * needs to be allocated, check how many.
+	 */
+	txq_count = nic->xdp_tx_queues + nic->tx_queues;
+	cq_count = max(nic->rx_queues, txq_count);
+	if (cq_count > MAX_CMP_QUEUES_PER_QS) {
+		nic->sqs_count = roundup(cq_count, MAX_CMP_QUEUES_PER_QS);
+		nic->sqs_count = (nic->sqs_count / MAX_CMP_QUEUES_PER_QS) - 1;
+	} else {
+		nic->sqs_count = 0;
+	}
+
+	/* Set primary Qset's resources */
+	nic->qs->rq_cnt = min_t(u8, nic->rx_queues, MAX_RCV_QUEUES_PER_QS);
+	nic->qs->sq_cnt = min_t(u8, txq_count, MAX_SND_QUEUES_PER_QS);
+	nic->qs->cq_cnt = max_t(u8, nic->qs->rq_cnt, nic->qs->sq_cnt);
+
+	/* Update stack */
+	nicvf_set_real_num_queues(nic->netdev, nic->tx_queues, nic->rx_queues);
+}
+
+static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
+{
+	struct net_device *dev = nic->netdev;
+	bool if_up = netif_running(nic->netdev);
+	struct bpf_prog *old_prog;
+	bool bpf_attached = false;
+
+	/* For now just support only the usual MTU sized frames */
+	if (prog && (dev->mtu > 1500)) {
+		netdev_warn(dev, "Jumbo frames not yet supported with XDP, current MTU %d.\n",
+			    dev->mtu);
+		return -EOPNOTSUPP;
+	}
+
+	/* ALL SQs attached to CQs i.e same as RQs, are treated as
+	 * XDP Tx queues and more Tx queues are allocated for
+	 * network stack to send pkts out.
+	 *
+	 * No of Tx queues are either same as Rx queues or whatever
+	 * is left in max no of queues possible.
+	 */
+	if ((nic->rx_queues + nic->tx_queues) > nic->max_queues) {
+		netdev_warn(dev,
+			    "Failed to attach BPF prog, RXQs + TXQs > Max %d\n",
+			    nic->max_queues);
+		return -ENOMEM;
+	}
+
+	if (if_up)
+		nicvf_stop(nic->netdev);
+
+	old_prog = xchg(&nic->xdp_prog, prog);
+	/* Detach old prog, if any */
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	if (nic->xdp_prog) {
+		/* Attach BPF program */
+		nic->xdp_prog = bpf_prog_add(nic->xdp_prog, nic->rx_queues - 1);
+		if (!IS_ERR(nic->xdp_prog))
+			bpf_attached = true;
+	}
+
+	/* Calculate Tx queues needed for XDP and network stack */
+	nicvf_set_xdp_queues(nic, bpf_attached);
+
+	if (if_up) {
+		/* Reinitialize interface, clean slate */
+		nicvf_open(nic->netdev);
+		netif_trans_update(nic->netdev);
+	}
+
+	return 0;
+}
+
+static int nicvf_xdp(struct net_device *netdev, struct netdev_xdp *xdp)
+{
+	struct nicvf *nic = netdev_priv(netdev);
+
+	/* To avoid checks while retrieving buffer address from CQE_RX,
+	 * do not support XDP for T88 pass1.x silicons which are anyway
+	 * not in use widely.
+	 */
+	if (pass1_silicon(nic->pdev))
+		return -EOPNOTSUPP;
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return nicvf_xdp_setup(nic, xdp->prog);
+	case XDP_QUERY_PROG:
+		xdp->prog_attached = !!nic->xdp_prog;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_open		= nicvf_open,
 	.ndo_stop		= nicvf_stop,
@@ -1563,6 +1779,7 @@ static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_tx_timeout         = nicvf_tx_timeout,
 	.ndo_fix_features       = nicvf_fix_features,
 	.ndo_set_features       = nicvf_set_features,
+	.ndo_xdp		= nicvf_xdp,
 };
 
 static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1665,8 +1882,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_unregister_interrupts;
 
-	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_SG |
-			       NETIF_F_TSO | NETIF_F_GRO |
+	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_SG |
+			       NETIF_F_TSO | NETIF_F_GRO | NETIF_F_TSO6 |
+			       NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			       NETIF_F_HW_VLAN_CTAG_RX);
 
 	netdev->hw_features |= NETIF_F_RXHASH;
@@ -1674,7 +1892,8 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->features |= netdev->hw_features;
 	netdev->hw_features |= NETIF_F_LOOPBACK;
 
-	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
+	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+				NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6;
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;

@@ -1283,7 +1283,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		p_header = (struct pdu *)
 			(skb_tail_pointer(ch->trans_skb) - skb->len);
 		p_header->pdu_flag = 0x00;
-		if (skb->protocol == ntohs(ETH_P_SNAP))
+		if (be16_to_cpu(skb->protocol) == ETH_P_SNAP)
 			p_header->pdu_flag |= 0x60;
 		else
 			p_header->pdu_flag |= 0x20;

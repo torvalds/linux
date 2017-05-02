@@ -293,7 +293,6 @@
 
 struct moxart_mac_priv_t {
 	void __iomem *base;
-	struct net_device_stats stats;
 	unsigned int reg_maccr;
 	unsigned int reg_imr;
 	struct napi_struct napi;

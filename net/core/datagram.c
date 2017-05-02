@@ -256,8 +256,12 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 		}
 
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
-	} while (sk_can_busy_loop(sk) &&
-		 sk_busy_loop(sk, flags & MSG_DONTWAIT));
+
+		if (!sk_can_busy_loop(sk))
+			break;
+
+		sk_busy_loop(sk, flags & MSG_DONTWAIT);
+	} while (!skb_queue_empty(&sk->sk_receive_queue));
 
 	error = -EAGAIN;
 

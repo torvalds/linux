@@ -92,7 +92,9 @@ static int __mlx4_en_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
-	return mlx4_en_setup_tc(dev, tc->tc);
+	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+	return mlx4_en_setup_tc(dev, tc->mqprio->num_tc);
 }
 
 #ifdef CONFIG_RFS_ACCEL

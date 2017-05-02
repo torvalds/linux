@@ -50,14 +50,14 @@
 
 #include "nfp_net_ctrl.h"
 
-#define nn_err(nn, fmt, args...)  netdev_err((nn)->netdev, fmt, ## args)
-#define nn_warn(nn, fmt, args...) netdev_warn((nn)->netdev, fmt, ## args)
-#define nn_info(nn, fmt, args...) netdev_info((nn)->netdev, fmt, ## args)
-#define nn_dbg(nn, fmt, args...)  netdev_dbg((nn)->netdev, fmt, ## args)
-#define nn_warn_ratelimit(nn, fmt, args...)				\
+#define nn_err(nn, fmt, args...)  netdev_err((nn)->dp.netdev, fmt, ## args)
+#define nn_warn(nn, fmt, args...) netdev_warn((nn)->dp.netdev, fmt, ## args)
+#define nn_info(nn, fmt, args...) netdev_info((nn)->dp.netdev, fmt, ## args)
+#define nn_dbg(nn, fmt, args...)  netdev_dbg((nn)->dp.netdev, fmt, ## args)
+#define nn_dp_warn(dp, fmt, args...)					\
 	do {								\
 		if (unlikely(net_ratelimit()))				\
-			netdev_warn((nn)->netdev, fmt, ## args);	\
+			netdev_warn((dp)->netdev, fmt, ## args);	\
 	} while (0)
 
 /* Max time to wait for NFP to respond on updates (in seconds) */
@@ -112,6 +112,7 @@
 
 /* Forward declarations */
 struct nfp_cpp;
+struct nfp_eth_table_port;
 struct nfp_net;
 struct nfp_net_r_vector;
 
@@ -200,6 +201,7 @@ struct nfp_net_tx_buf {
  * @txds:       Virtual address of TX ring in host memory
  * @dma:        DMA address of the TX ring
  * @size:       Size, in bytes, of the TX ring (needed to free)
+ * @is_xdp:	Is this a XDP TX ring?
  */
 struct nfp_net_tx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -220,6 +222,7 @@ struct nfp_net_tx_ring {
 
 	dma_addr_t dma;
 	unsigned int size;
+	bool is_xdp;
 } ____cacheline_aligned;
 
 /* RX and freelist descriptor format */
@@ -283,6 +286,12 @@ struct nfp_net_rx_desc {
 
 #define NFP_NET_META_FIELD_MASK GENMASK(NFP_NET_META_FIELD_SIZE - 1, 0)
 
+struct nfp_meta_parsed {
+	u32 hash_type;
+	u32 hash;
+	u32 mark;
+};
+
 struct nfp_net_rx_hash {
 	__be32 hash_type;
 	__be32 hash;
@@ -306,17 +315,13 @@ struct nfp_net_rx_buf {
  * @rd_p:       FL/RX ring read pointer (free running)
  * @idx:        Ring index from Linux's perspective
  * @fl_qcidx:   Queue Controller Peripheral (QCP) queue index for the freelist
- * @rx_qcidx:   Queue Controller Peripheral (QCP) queue index for the RX queue
  * @qcp_fl:     Pointer to base of the QCP freelist queue
- * @qcp_rx:     Pointer to base of the QCP RX queue
  * @wr_ptr_add: Accumulated number of buffers to add to QCP write pointer
  *              (used for free list batching)
  * @rxbufs:     Array of transmitted FL/RX buffers
  * @rxds:       Virtual address of FL/RX ring in host memory
  * @dma:        DMA address of the FL/RX ring
  * @size:       Size, in bytes, of the FL/RX ring (needed to free)
- * @bufsz:	Buffer allocation size for convenience of management routines
- *		(NOTE: this is in second cache line, do not use on fast path!)
  */
 struct nfp_net_rx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -325,20 +330,17 @@ struct nfp_net_rx_ring {
 	u32 wr_p;
 	u32 rd_p;
 
-	u16 idx;
-	u16 wr_ptr_add;
+	u32 idx;
+	u32 wr_ptr_add;
 
 	int fl_qcidx;
-	int rx_qcidx;
 	u8 __iomem *qcp_fl;
-	u8 __iomem *qcp_rx;
 
 	struct nfp_net_rx_buf *rxbufs;
 	struct nfp_net_rx_desc *rxds;
 
 	dma_addr_t dma;
 	unsigned int size;
-	unsigned int bufsz;
 } ____cacheline_aligned;
 
 /**
@@ -433,19 +435,76 @@ struct nfp_stat_pair {
 };
 
 /**
- * struct nfp_net - NFP network device structure
- * @pdev:               Backpointer to PCI device
- * @netdev:             Backpointer to net_device structure
- * @is_vf:              Is the driver attached to a VF?
+ * struct nfp_net_dp - NFP network device datapath data structure
+ * @dev:		Backpointer to struct device
+ * @netdev:		Backpointer to net_device structure
+ * @is_vf:		Is the driver attached to a VF?
  * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @bpf_offload_xdp:	Offloaded BPF program is XDP
- * @ctrl:               Local copy of the control register/word.
- * @fl_bufsz:           Currently configured size of the freelist buffers
+ * @chained_metadata_format:  Firemware will use new metadata format
+ * @rx_dma_dir:		Mapping direction for RX buffers
+ * @rx_dma_off:		Offset at which DMA packets (for XDP headroom)
  * @rx_offset:		Offset in the RX buffers where packet data starts
+ * @ctrl:		Local copy of the control register/word.
+ * @fl_bufsz:		Currently configured size of the freelist buffers
  * @xdp_prog:		Installed XDP program
- * @fw_ver:             Firmware version
+ * @tx_rings:		Array of pre-allocated TX ring structures
+ * @rx_rings:		Array of pre-allocated RX ring structures
+ * @ctrl_bar:		Pointer to mapped control BAR
+ *
+ * @txd_cnt:		Size of the TX ring in number of descriptors
+ * @rxd_cnt:		Size of the RX ring in number of descriptors
+ * @num_r_vecs:		Number of used ring vectors
+ * @num_tx_rings:	Currently configured number of TX rings
+ * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
+ * @num_rx_rings:	Currently configured number of RX rings
+ * @mtu:		Device MTU
+ */
+struct nfp_net_dp {
+	struct device *dev;
+	struct net_device *netdev;
+
+	u8 is_vf:1;
+	u8 bpf_offload_skip_sw:1;
+	u8 bpf_offload_xdp:1;
+	u8 chained_metadata_format:1;
+
+	u8 rx_dma_dir;
+	u8 rx_offset;
+
+	u32 rx_dma_off;
+
+	u32 ctrl;
+	u32 fl_bufsz;
+
+	struct bpf_prog *xdp_prog;
+
+	struct nfp_net_tx_ring *tx_rings;
+	struct nfp_net_rx_ring *rx_rings;
+
+	u8 __iomem *ctrl_bar;
+
+	/* Cold data follows */
+
+	unsigned int txd_cnt;
+	unsigned int rxd_cnt;
+
+	unsigned int num_r_vecs;
+
+	unsigned int num_tx_rings;
+	unsigned int num_stack_tx_rings;
+	unsigned int num_rx_rings;
+
+	unsigned int mtu;
+};
+
+/**
+ * struct nfp_net - NFP network device structure
+ * @dp:			Datapath structure
+ * @fw_ver:		Firmware version
  * @cap:                Capabilities advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
+ * @rss_hfunc:		RSS selected hash function
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
@@ -454,17 +513,9 @@ struct nfp_stat_pair {
  * @rx_filter_change:	Jiffies when statistics last changed
  * @rx_filter_stats_timer:  Timer for polling filter offload statistics
  * @rx_filter_lock:	Lock protecting timer state changes (teardown)
+ * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
- * @num_tx_rings:       Currently configured number of TX rings
- * @num_stack_tx_rings:	Number of TX rings used by the stack (not XDP)
- * @num_rx_rings:       Currently configured number of RX rings
- * @txd_cnt:            Size of the TX ring in number of descriptors
- * @rxd_cnt:            Size of the RX ring in number of descriptors
- * @tx_rings:           Array of pre-allocated TX ring structures
- * @rx_rings:           Array of pre-allocated RX ring structures
- * @max_r_vecs:	        Number of allocated interrupt vectors for RX/TX
- * @num_r_vecs:         Number of used ring vectors
  * @r_vecs:             Pre-allocated array of ring vectors
  * @irq_entries:        Pre-allocated array of MSI-X entries
  * @lsc_handler:        Handler for Link State Change interrupt
@@ -480,7 +531,8 @@ struct nfp_stat_pair {
  * @reconfig_sync_present:  Some thread is performing synchronous reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
  * @link_up:            Is the link up?
- * @link_status_lock:	Protects @link_up and ensures atomicity with BAR reading
+ * @link_changed:	Has link state changes since last port refresh?
+ * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
  * @rx_coalesce_max_frames: RX interrupt moderation frame count parameter
  * @tx_coalesce_usecs:      TX interrupt moderation usecs delay parameter
@@ -488,36 +540,24 @@ struct nfp_stat_pair {
  * @vxlan_ports:	VXLAN ports for RX inner csum offload communicated to HW
  * @vxlan_usecnt:	IPv4/IPv6 VXLAN port use counts
  * @qcp_cfg:            Pointer to QCP queue used for configuration notification
- * @ctrl_bar:           Pointer to mapped control BAR
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
  * @ethtool_dump_flag:	Ethtool dump flag
  * @port_list:		Entry on device port list
+ * @pdev:		Backpointer to PCI device
  * @cpp:		CPP device handle if available
+ * @eth_port:		Translated ETH Table port entry
  */
 struct nfp_net {
-	struct pci_dev *pdev;
-	struct net_device *netdev;
-
-	unsigned is_vf:1;
-	unsigned bpf_offload_skip_sw:1;
-	unsigned bpf_offload_xdp:1;
-
-	u32 ctrl;
-	u32 fl_bufsz;
-
-	u32 rx_offset;
-
-	struct bpf_prog *xdp_prog;
-
-	struct nfp_net_tx_ring *tx_rings;
-	struct nfp_net_rx_ring *rx_rings;
+	struct nfp_net_dp dp;
 
 	struct nfp_net_fw_version fw_ver;
+
 	u32 cap;
 	u32 max_mtu;
 
+	u8 rss_hfunc;
 	u32 rss_cfg;
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
@@ -530,18 +570,10 @@ struct nfp_net {
 	unsigned int max_tx_rings;
 	unsigned int max_rx_rings;
 
-	unsigned int num_tx_rings;
-	unsigned int num_stack_tx_rings;
-	unsigned int num_rx_rings;
-
 	int stride_tx;
 	int stride_rx;
 
-	int txd_cnt;
-	int rxd_cnt;
-
 	unsigned int max_r_vecs;
-	unsigned int num_r_vecs;
 	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_R_VECS];
 	struct msix_entry irq_entries[NFP_NET_MAX_IRQS];
 
@@ -557,6 +589,7 @@ struct nfp_net {
 	u32 me_freq_mhz;
 
 	bool link_up;
+	bool link_changed;
 	spinlock_t link_status_lock;
 
 	spinlock_t reconfig_lock;
@@ -575,7 +608,6 @@ struct nfp_net {
 
 	u8 __iomem *qcp_cfg;
 
-	u8 __iomem *ctrl_bar;
 	u8 __iomem *tx_bar;
 	u8 __iomem *rx_bar;
 
@@ -584,14 +616,10 @@ struct nfp_net {
 
 	struct list_head port_list;
 
+	struct pci_dev *pdev;
 	struct nfp_cpp *cpp;
-};
 
-struct nfp_net_ring_set {
-	unsigned int n_rings;
-	unsigned int mtu;
-	unsigned int dcnt;
-	void *rings;
+	struct nfp_eth_table_port *eth_port;
 };
 
 /* Functions to read/write from/to a BAR
@@ -599,42 +627,42 @@ struct nfp_net_ring_set {
  */
 static inline u16 nn_readb(struct nfp_net *nn, int off)
 {
-	return readb(nn->ctrl_bar + off);
+	return readb(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writeb(struct nfp_net *nn, int off, u8 val)
 {
-	writeb(val, nn->ctrl_bar + off);
+	writeb(val, nn->dp.ctrl_bar + off);
 }
 
 static inline u16 nn_readw(struct nfp_net *nn, int off)
 {
-	return readw(nn->ctrl_bar + off);
+	return readw(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writew(struct nfp_net *nn, int off, u16 val)
 {
-	writew(val, nn->ctrl_bar + off);
+	writew(val, nn->dp.ctrl_bar + off);
 }
 
 static inline u32 nn_readl(struct nfp_net *nn, int off)
 {
-	return readl(nn->ctrl_bar + off);
+	return readl(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writel(struct nfp_net *nn, int off, u32 val)
 {
-	writel(val, nn->ctrl_bar + off);
+	writel(val, nn->dp.ctrl_bar + off);
 }
 
 static inline u64 nn_readq(struct nfp_net *nn, int off)
 {
-	return readq(nn->ctrl_bar + off);
+	return readq(nn->dp.ctrl_bar + off);
 }
 
 static inline void nn_writeq(struct nfp_net *nn, int off, u64 val)
 {
-	writeq(val, nn->ctrl_bar + off);
+	writeq(val, nn->dp.ctrl_bar + off);
 }
 
 /* Flush posted PCI writes by reading something without side effects */
@@ -776,6 +804,7 @@ void nfp_net_netdev_clean(struct net_device *netdev);
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);
 int nfp_net_reconfig(struct nfp_net *nn, u32 update);
+unsigned int nfp_net_rss_key_sz(struct nfp_net *nn);
 void nfp_net_rss_write_itbl(struct nfp_net *nn);
 void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
@@ -787,9 +816,14 @@ void nfp_net_irqs_disable(struct pci_dev *pdev);
 void
 nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
 		    unsigned int n);
-int
-nfp_net_ring_reconfig(struct nfp_net *nn, struct bpf_prog **xdp_prog,
-		      struct nfp_net_ring_set *rx, struct nfp_net_ring_set *tx);
+
+struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
+int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
+			  struct netlink_ext_ack *extack);
+
+bool nfp_net_link_changed_read_clear(struct nfp_net *nn);
+int nfp_net_refresh_eth_port(struct nfp_net *nn);
+void nfp_net_refresh_port_table(struct nfp_net *nn);
 
 #ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);

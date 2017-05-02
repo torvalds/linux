@@ -1443,9 +1443,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	hc->keep_tl.expires = jiffies + 2 * HZ; /* two seconds first time */
 	add_timer(&hc->keep_tl);
 
-	hc->timeout_tl.function = (void *)l1oip_timeout;
-	hc->timeout_tl.data = (ulong)hc;
-	init_timer(&hc->timeout_tl);
+	setup_timer(&hc->timeout_tl, (void *)l1oip_timeout, (ulong)hc);
 	hc->timeout_on = 0; /* state that we have timer off */
 
 	return 0;

@@ -135,7 +135,8 @@ enum e1000_boards {
 	board_pchlan,
 	board_pch2lan,
 	board_pch_lpt,
-	board_pch_spt
+	board_pch_spt,
+	board_pch_cnp
 };
 
 struct e1000_ps_page {
@@ -378,18 +379,22 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
  * INCVALUE_n into the TIMINCA register allowing 32+8+(24-INCVALUE_SHIFT_n)
  * bits to count nanoseconds leaving the rest for fractional nonseconds.
  */
-#define INCVALUE_96MHz		125
-#define INCVALUE_SHIFT_96MHz	17
-#define INCPERIOD_SHIFT_96MHz	2
-#define INCPERIOD_96MHz		(12 >> INCPERIOD_SHIFT_96MHz)
+#define INCVALUE_96MHZ		125
+#define INCVALUE_SHIFT_96MHZ	17
+#define INCPERIOD_SHIFT_96MHZ	2
+#define INCPERIOD_96MHZ		(12 >> INCPERIOD_SHIFT_96MHZ)
 
-#define INCVALUE_25MHz		40
-#define INCVALUE_SHIFT_25MHz	18
-#define INCPERIOD_25MHz		1
+#define INCVALUE_25MHZ		40
+#define INCVALUE_SHIFT_25MHZ	18
+#define INCPERIOD_25MHZ		1
 
-#define INCVALUE_24MHz		125
-#define INCVALUE_SHIFT_24MHz	14
-#define INCPERIOD_24MHz		3
+#define INCVALUE_24MHZ		125
+#define INCVALUE_SHIFT_24MHZ	14
+#define INCPERIOD_24MHZ		3
+
+#define INCVALUE_38400KHZ	26
+#define INCVALUE_SHIFT_38400KHZ	19
+#define INCPERIOD_38400KHZ	1
 
 /* Another drawback of scaling the incvalue by a large factor is the
  * 64-bit SYSTIM register overflows more quickly.  This is dealt with
@@ -515,6 +520,7 @@ extern const struct e1000_info e1000_pch_info;
 extern const struct e1000_info e1000_pch2_info;
 extern const struct e1000_info e1000_pch_lpt_info;
 extern const struct e1000_info e1000_pch_spt_info;
+extern const struct e1000_info e1000_pch_cnp_info;
 extern const struct e1000_info e1000_es2_info;
 
 void e1000e_ptp_init(struct e1000_adapter *adapter);

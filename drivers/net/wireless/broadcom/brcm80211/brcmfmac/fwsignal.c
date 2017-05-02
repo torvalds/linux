@@ -36,6 +36,7 @@
 #include "p2p.h"
 #include "cfg80211.h"
 #include "proto.h"
+#include "bcdc.h"
 #include "common.h"
 
 /**
@@ -1586,7 +1587,7 @@ static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
 				       const struct brcmf_event_msg *e,
 				       void *data)
 {
-	struct brcmf_fws_info *fws = ifp->drvr->fws;
+	struct brcmf_fws_info *fws = drvr_to_fws(ifp->drvr);
 	int i;
 	u8 *credits = data;
 
@@ -1617,7 +1618,7 @@ static int brcmf_fws_notify_bcmc_credit_support(struct brcmf_if *ifp,
 						const struct brcmf_event_msg *e,
 						void *data)
 {
-	struct brcmf_fws_info *fws = ifp->drvr->fws;
+	struct brcmf_fws_info *fws = drvr_to_fws(ifp->drvr);
 
 	if (fws) {
 		brcmf_fws_lock(fws);
@@ -1826,7 +1827,7 @@ netif_rx:
 void brcmf_fws_hdrpull(struct brcmf_if *ifp, s16 siglen, struct sk_buff *skb)
 {
 	struct brcmf_skb_reorder_data *rd;
-	struct brcmf_fws_info *fws = ifp->drvr->fws;
+	struct brcmf_fws_info *fws = drvr_to_fws(ifp->drvr);
 	u8 *signal_data;
 	s16 data_len;
 	u8 type;
@@ -2091,8 +2092,7 @@ static int brcmf_fws_assign_htod(struct brcmf_fws_info *fws, struct sk_buff *p,
 
 int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 {
-	struct brcmf_pub *drvr = ifp->drvr;
-	struct brcmf_fws_info *fws = drvr->fws;
+	struct brcmf_fws_info *fws = drvr_to_fws(ifp->drvr);
 	struct brcmf_skbuff_cb *skcb = brcmf_skbcb(skb);
 	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 	int fifo = BRCMF_FWS_FIFO_BCMC;
@@ -2142,10 +2142,10 @@ void brcmf_fws_reset_interface(struct brcmf_if *ifp)
 
 void brcmf_fws_add_interface(struct brcmf_if *ifp)
 {
-	struct brcmf_fws_info *fws = ifp->drvr->fws;
+	struct brcmf_fws_info *fws = drvr_to_fws(ifp->drvr);
 	struct brcmf_fws_mac_descriptor *entry;
 
-	if (!ifp->ndev)
+	if (!ifp->ndev || fws->fcmode == BRCMF_FWS_FCMODE_NONE)
 		return;
 
 	entry = &fws->desc.iface[ifp->ifidx];
@@ -2160,16 +2160,17 @@ void brcmf_fws_add_interface(struct brcmf_if *ifp)
 void brcmf_fws_del_interface(struct brcmf_if *ifp)
 {
 	struct brcmf_fws_mac_descriptor *entry = ifp->fws_desc;
+	struct brcmf_fws_info *fws = drvr_to_fws(ifp->drvr);
 
 	if (!entry)
 		return;
 
-	brcmf_fws_lock(ifp->drvr->fws);
+	brcmf_fws_lock(fws);
 	ifp->fws_desc = NULL;
 	brcmf_dbg(TRACE, "deleting %s\n", entry->name);
 	brcmf_fws_macdesc_deinit(entry);
-	brcmf_fws_cleanup(ifp->drvr->fws, ifp->ifidx);
-	brcmf_fws_unlock(ifp->drvr->fws);
+	brcmf_fws_cleanup(fws, ifp->ifidx);
+	brcmf_fws_unlock(fws);
 }
 
 static void brcmf_fws_dequeue_worker(struct work_struct *worker)
@@ -2243,7 +2244,7 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 static int brcmf_debugfs_fws_stats_read(struct seq_file *seq, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
-	struct brcmf_fws_stats *fwstats = &bus_if->drvr->fws->stats;
+	struct brcmf_fws_stats *fwstats = &(drvr_to_fws(bus_if->drvr)->stats);
 
 	seq_printf(seq,
 		   "header_pulls:      %u\n"
@@ -2308,7 +2309,7 @@ static int brcmf_debugfs_fws_stats_read(struct seq_file *seq, void *data)
 }
 #endif
 
-int brcmf_fws_init(struct brcmf_pub *drvr)
+struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_fws_info *fws;
 	struct brcmf_if *ifp;
@@ -2316,17 +2317,15 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	int rc;
 	u32 mode;
 
-	drvr->fws = kzalloc(sizeof(*(drvr->fws)), GFP_KERNEL);
-	if (!drvr->fws) {
+	fws = kzalloc(sizeof(*fws), GFP_KERNEL);
+	if (!fws) {
 		rc = -ENOMEM;
 		goto fail;
 	}
 
-	fws = drvr->fws;
-
 	spin_lock_init(&fws->spinlock);
 
-	/* set linkage back */
+	/* store drvr reference */
 	fws->drvr = drvr;
 	fws->fcmode = drvr->settings->fcmode;
 
@@ -2334,7 +2333,7 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	    (fws->fcmode == BRCMF_FWS_FCMODE_NONE)) {
 		fws->avoid_queueing = true;
 		brcmf_dbg(INFO, "FWS queueing will be avoided\n");
-		return 0;
+		return fws;
 	}
 
 	fws->fws_wq = create_singlethread_workqueue("brcmf_fws_wq");
@@ -2396,6 +2395,7 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	brcmf_fws_hanger_init(&fws->hanger);
 	brcmf_fws_macdesc_init(&fws->desc.other, NULL, 0);
 	brcmf_fws_macdesc_set_name(fws, &fws->desc.other);
+	brcmf_dbg(INFO, "added %s\n", fws->desc.other.name);
 	brcmu_pktq_init(&fws->desc.other.psq, BRCMF_FWS_PSQ_PREC_COUNT,
 			BRCMF_FWS_PSQ_LEN);
 
@@ -2405,27 +2405,24 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 
 	brcmf_dbg(INFO, "%s bdcv2 tlv signaling [%x]\n",
 		  fws->fw_signals ? "enabled" : "disabled", tlv);
-	return 0;
+	return fws;
 
 fail:
-	brcmf_fws_deinit(drvr);
-	return rc;
+	brcmf_fws_detach(fws);
+	return ERR_PTR(rc);
 }
 
-void brcmf_fws_deinit(struct brcmf_pub *drvr)
+void brcmf_fws_detach(struct brcmf_fws_info *fws)
 {
-	struct brcmf_fws_info *fws = drvr->fws;
-
 	if (!fws)
 		return;
 
-	if (drvr->fws->fws_wq)
-		destroy_workqueue(drvr->fws->fws_wq);
+	if (fws->fws_wq)
+		destroy_workqueue(fws->fws_wq);
 
 	/* cleanup */
 	brcmf_fws_lock(fws);
 	brcmf_fws_cleanup(fws, -1);
-	drvr->fws = NULL;
 	brcmf_fws_unlock(fws);
 
 	/* free top structure */
@@ -2461,7 +2458,7 @@ void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb)
 
 void brcmf_fws_bus_blocked(struct brcmf_pub *drvr, bool flow_blocked)
 {
-	struct brcmf_fws_info *fws = drvr->fws;
+	struct brcmf_fws_info *fws = drvr_to_fws(drvr);
 	struct brcmf_if *ifp;
 	int i;
 

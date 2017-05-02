@@ -221,8 +221,7 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	type = icmp6h->icmp6_type - 130;
 	if (type >= 0 && type < sizeof(noct_valid_new) &&
 	    noct_valid_new[type]) {
-		nf_ct_set(skb, nf_ct_untracked_get(), IP_CT_NEW);
-		nf_conntrack_get(skb_nfct(skb));
+		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		return NF_ACCEPT;
 	}
 

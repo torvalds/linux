@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2016 Intel Deutschland GmbH
+ * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2016 Intel Deutschland GmbH
+ * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,16 +89,6 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_7000,
 	IWL_DEVICE_FAMILY_8000,
 };
-
-static inline bool iwl_has_secure_boot(u32 hw_rev,
-				       enum iwl_device_family family)
-{
-	/* return 1 only for family 8000 B0 */
-	if ((family == IWL_DEVICE_FAMILY_8000) && (hw_rev & 0xC))
-		return true;
-
-	return false;
-}
 
 /*
  * LED mode
@@ -180,7 +170,7 @@ struct iwl_base_params {
 	   apmg_wake_up_wa:1,
 	   scd_chain_ext_wa:1;
 
-	u8 num_of_queues;	/* def: HW dependent */
+	u16 num_of_queues;	/* def: HW dependent */
 
 	u8 max_ll_items;
 	u8 led_compensation;
@@ -283,6 +273,8 @@ struct iwl_pwr_tx_backoff {
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
+ * @fw_name_pre_next_step: same as @fw_name_pre, only for next step
+ *	(if supported)
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section
@@ -321,6 +313,8 @@ struct iwl_pwr_tx_backoff {
  * @vht_mu_mimo_supported: VHT MU-MIMO support
  * @rf_id: need to read rf_id to determine the firmware image
  * @integrated: discrete or integrated
+ * @gen2: a000 and on transport operation
+ * @cdb: CDB support
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -330,6 +324,7 @@ struct iwl_cfg {
 	/* params specific to an individual device within a device family */
 	const char *name;
 	const char *fw_name_pre;
+	const char *fw_name_pre_next_step;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
@@ -365,7 +360,9 @@ struct iwl_cfg {
 	    vht_mu_mimo_supported:1,
 	    rf_id:1,
 	    integrated:1,
-	    use_tfh:1;
+	    use_tfh:1,
+	    gen2:1,
+	    cdb:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
@@ -449,13 +446,13 @@ extern const struct iwl_cfg iwl4165_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
-extern const struct iwl_cfg iwl9000lc_2ac_cfg;
 extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
 extern const struct iwl_cfg iwl9270_2ac_cfg;
 extern const struct iwl_cfg iwl9460_2ac_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg;
 extern const struct iwl_cfg iwla000_2ac_cfg_hr;
+extern const struct iwl_cfg iwla000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwla000_2ac_cfg_jf;
 #endif /* CONFIG_IWLMVM */
 

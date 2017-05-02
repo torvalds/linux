@@ -236,12 +236,9 @@ static int mlx5e_test_loopback_setup(struct mlx5e_priv *priv,
 {
 	int err = 0;
 
-	err = mlx5e_refresh_tirs_self_loopback(priv->mdev, true);
-	if (err) {
-		netdev_err(priv->netdev,
-			   "\tFailed to enable UC loopback err(%d)\n", err);
+	err = mlx5e_refresh_tirs(priv, true);
+	if (err)
 		return err;
-	}
 
 	lbtp->loopback_ok = false;
 	init_completion(&lbtp->comp);
@@ -258,7 +255,7 @@ static void mlx5e_test_loopback_cleanup(struct mlx5e_priv *priv,
 					struct mlx5e_lbt_priv *lbtp)
 {
 	dev_remove_pack(&lbtp->pt);
-	mlx5e_refresh_tirs_self_loopback(priv->mdev, false);
+	mlx5e_refresh_tirs(priv, false);
 }
 
 #define MLX5E_LB_VERIFY_TIMEOUT (msecs_to_jiffies(200))

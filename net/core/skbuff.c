@@ -3101,7 +3101,7 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 			skb_walk_frags(head_skb, iter) {
 				if (frag_len != iter->len && iter->next)
 					goto normal;
-				if (skb_headlen(iter))
+				if (skb_headlen(iter) && !iter->head_frag)
 					goto normal;
 
 				len -= iter->len;

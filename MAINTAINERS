@@ -896,11 +896,18 @@ F:	arch/arm64/boot/dts/apm/
 APPLIED MICRO (APM) X-GENE SOC ETHERNET DRIVER
 M:	Iyappan Subramanian <isubramanian@apm.com>
 M:	Keyur Chudgar <kchudgar@apm.com>
+M:	Quan Nguyen <qnguyen@apm.com>
 S:	Supported
 F:	drivers/net/ethernet/apm/xgene/
 F:	drivers/net/phy/mdio-xgene.c
 F:	Documentation/devicetree/bindings/net/apm-xgene-enet.txt
 F:	Documentation/devicetree/bindings/net/apm-xgene-mdio.txt
+
+APPLIED MICRO (APM) X-GENE SOC ETHERNET (V2) DRIVER
+M:	Iyappan Subramanian <isubramanian@apm.com>
+M:	Keyur Chudgar <kchudgar@apm.com>
+S:	Supported
+F:	drivers/net/ethernet/apm/xgene-v2/
 
 APPLIED MICRO (APM) X-GENE SOC PMU
 M:	Tai Nguyen <ttnguyen@apm.com>
@@ -2943,6 +2950,15 @@ L:	linux-c6x-dev@linux-c6x.org
 W:	http://www.linux-c6x.org/wiki/index.php/Main_Page
 S:	Maintained
 F:	arch/c6x/
+
+CA8210 IEEE-802.15.4 RADIO DRIVER
+M:	Harry Morris <h.morris@cascoda.com>
+M:	linuxdev@cascoda.com
+L:	linux-wpan@vger.kernel.org
+W:	https://github.com/Cascoda/ca8210-linux.git
+S:	Maintained
+F:	drivers/net/ieee802154/ca8210.c
+F:	Documentation/devicetree/bindings/net/ieee802154/ca8210.txt
 
 CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
@@ -7884,7 +7900,7 @@ S:	Maintained
 F:	drivers/net/ethernet/marvell/mvneta.*
 
 MARVELL MWIFIEX WIRELESS DRIVER
-M:	Amitkumar Karwar <akarwar@marvell.com>
+M:	Amitkumar Karwar <amitkarwar@gmail.com>
 M:	Nishant Sarmukadam <nishants@marvell.com>
 M:	Ganapathi Bhat <gbhat@marvell.com>
 M:	Xinming Hu <huxm@marvell.com>
@@ -8829,12 +8845,12 @@ F:	net/core/flow.c
 F:	net/xfrm/
 F:	net/key/
 F:	net/ipv4/xfrm*
-F:	net/ipv4/esp4.c
+F:	net/ipv4/esp4*
 F:	net/ipv4/ah4.c
 F:	net/ipv4/ipcomp.c
 F:	net/ipv4/ip_vti.c
 F:	net/ipv6/xfrm*
-F:	net/ipv6/esp6.c
+F:	net/ipv6/esp6*
 F:	net/ipv6/ah6.c
 F:	net/ipv6/ipcomp6.c
 F:	net/ipv6/ip6_vti.c
@@ -8888,8 +8904,6 @@ S:	Supported
 F:	drivers/net/ethernet/qlogic/netxen/
 
 NFC SUBSYSTEM
-M:	Lauro Ramos Venancio <lauro.venancio@openbossa.org>
-M:	Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
 M:	Samuel Ortiz <sameo@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 L:	linux-nfc@lists.01.org (subscribers-only)
@@ -11125,6 +11139,12 @@ F:	include/linux/dma/dw.h
 F:	include/linux/platform_data/dma-dw.h
 F:	drivers/dma/dw/
 
+SYNOPSYS DESIGNWARE ENTERPRISE ETHERNET DRIVER
+M:	Jie Deng <jiedeng@synopsys.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/synopsys/
+
 SYNOPSYS DESIGNWARE I2C DRIVER
 M:	Jarkko Nikula <jarkko.nikula@linux.intel.com>
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -12229,12 +12249,19 @@ F:	Documentation/accounting/taskstats*
 F:	include/linux/taskstats*
 F:	kernel/taskstats.c
 
-TC CLASSIFIER
+TC subsystem
 M:	Jamal Hadi Salim <jhs@mojatatu.com>
+M:	Cong Wang <xiyou.wangcong@gmail.com>
+M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/net/pkt_cls.h
+F:	include/net/pkt_sched.h
+F:	include/net/tc_act/
 F:	include/uapi/linux/pkt_cls.h
+F:	include/uapi/linux/pkt_sched.h
+F:	include/uapi/linux/tc_act/
+F:	include/uapi/linux/tc_ematch/
 F:	net/sched/
 
 TCP LOW PRIORITY MODULE
@@ -13330,8 +13357,11 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/virtio_vsock.h
 F:	include/uapi/linux/virtio_vsock.h
+F:	include/uapi/linux/vsockmon.h
+F:	net/vmw_vsock/af_vsock_tap.c
 F:	net/vmw_vsock/virtio_transport_common.c
 F:	net/vmw_vsock/virtio_transport.c
+F:	drivers/net/vsockmon.c
 F:	drivers/vhost/vsock.c
 F:	drivers/vhost/vsock.h
 

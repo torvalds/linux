@@ -165,7 +165,8 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	list_splice_tail_init(&fc_stats->addlist, &tmplist);
 
 	if (!list_empty(&tmplist) || !RB_EMPTY_ROOT(&fc_stats->counters))
-		queue_delayed_work(fc_stats->wq, &fc_stats->work, MLX5_FC_STATS_PERIOD);
+		queue_delayed_work(fc_stats->wq, &fc_stats->work,
+				   fc_stats->sampling_interval);
 
 	spin_unlock(&fc_stats->addlist_lock);
 
@@ -200,7 +201,7 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 		node = mlx5_fc_stats_query(dev, counter, last->id);
 	}
 
-	fc_stats->next_query = now + MLX5_FC_STATS_PERIOD;
+	fc_stats->next_query = now + fc_stats->sampling_interval;
 }
 
 struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
@@ -265,6 +266,7 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 	if (!fc_stats->wq)
 		return -ENOMEM;
 
+	fc_stats->sampling_interval = MLX5_FC_STATS_PERIOD;
 	INIT_DELAYED_WORK(&fc_stats->work, mlx5_fc_stats_work);
 
 	return 0;
@@ -316,4 +318,22 @@ void mlx5_fc_query_cached(struct mlx5_fc *counter,
 
 	counter->lastbytes = c.bytes;
 	counter->lastpackets = c.packets;
+}
+
+void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
+			      struct delayed_work *dwork,
+			      unsigned long delay)
+{
+	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+
+	queue_delayed_work(fc_stats->wq, dwork, delay);
+}
+
+void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
+				      unsigned long interval)
+{
+	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
+
+	fc_stats->sampling_interval = min_t(unsigned long, interval,
+					    fc_stats->sampling_interval);
 }
