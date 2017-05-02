@@ -45,7 +45,8 @@ static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf,
 	if (*ppos > 0)
 		return 0;
 
-	res = scnprintf(buf, sizeof(buf), "Debug Level: %x\n", atomic_read(&WILC_DEBUG_LEVEL));
+	res = scnprintf(buf, sizeof(buf), "Debug Level: %x\n",
+			atomic_read(&WILC_DEBUG_LEVEL));
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
@@ -62,7 +63,8 @@ static ssize_t wilc_debug_level_write(struct file *filp,
 		return ret;
 
 	if (flag > DBG_LEVEL_ALL) {
-		pr_info("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&WILC_DEBUG_LEVEL));
+		pr_info("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n",
+			__func__, flag, atomic_read(&WILC_DEBUG_LEVEL));
 		return -EINVAL;
 	}
 
