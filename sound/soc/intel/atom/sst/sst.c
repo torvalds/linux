@@ -258,7 +258,7 @@ static ssize_t firmware_version_show(struct device *dev,
 
 }
 
-DEVICE_ATTR_RO(firmware_version);
+static DEVICE_ATTR_RO(firmware_version);
 
 static const struct attribute *sst_fw_version_attrs[] = {
 	&dev_attr_firmware_version.attr,
