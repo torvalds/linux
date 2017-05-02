@@ -3278,7 +3278,8 @@ static int fixup_permanent_addr(struct inet6_dev *idev,
 				      idev->dev, 0, 0);
 	}
 
-	addrconf_dad_start(ifp);
+	if (ifp->state == INET6_IFADDR_STATE_PREDAD)
+		addrconf_dad_start(ifp);
 
 	return 0;
 }
@@ -3627,7 +3628,7 @@ restart:
 		if (keep) {
 			/* set state to skip the notifier below */
 			state = INET6_IFADDR_STATE_DEAD;
-			ifa->state = 0;
+			ifa->state = INET6_IFADDR_STATE_PREDAD;
 			if (!(ifa->flags & IFA_F_NODAD))
 				ifa->flags |= IFA_F_TENTATIVE;
 
