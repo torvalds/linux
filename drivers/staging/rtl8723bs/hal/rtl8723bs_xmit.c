@@ -610,7 +610,8 @@ s32	rtl8723bs_hal_xmitframe_enqueue(
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	s32 err;
 
-	if ((err = rtw_xmitframe_enqueue(padapter, pxmitframe)) != _SUCCESS) {
+	err = rtw_xmitframe_enqueue(padapter, pxmitframe);
+	if (err != _SUCCESS) {
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 
 		pxmitpriv->tx_drop++;
