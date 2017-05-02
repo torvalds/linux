@@ -12,9 +12,10 @@
 #define CLKID_FCLK_DIV4		6
 #define CLKID_CLK81		12
 #define CLKID_MPLL2		15
-#define CLKID_SPI		34
 #define CLKID_I2C		22
 #define CLKID_SAR_ADC		23
+#define CLKID_RNG0		25
+#define CLKID_SPI		34
 #define CLKID_ETH		36
 #define CLKID_USB0		50
 #define CLKID_USB1		51

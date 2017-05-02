@@ -12,6 +12,9 @@
 #define DESC_AEAD_ENC_LEN		(DESC_AEAD_BASE + 11 * CAAM_CMD_SZ)
 #define DESC_AEAD_DEC_LEN		(DESC_AEAD_BASE + 15 * CAAM_CMD_SZ)
 #define DESC_AEAD_GIVENC_LEN		(DESC_AEAD_ENC_LEN + 7 * CAAM_CMD_SZ)
+#define DESC_QI_AEAD_ENC_LEN		(DESC_AEAD_ENC_LEN + 3 * CAAM_CMD_SZ)
+#define DESC_QI_AEAD_DEC_LEN		(DESC_AEAD_DEC_LEN + 3 * CAAM_CMD_SZ)
+#define DESC_QI_AEAD_GIVENC_LEN		(DESC_AEAD_GIVENC_LEN + 3 * CAAM_CMD_SZ)
 
 /* Note: Nonce is counted in cdata.keylen */
 #define DESC_AEAD_CTR_RFC3686_LEN	(4 * CAAM_CMD_SZ)
@@ -45,20 +48,22 @@ void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
 				 unsigned int icvsize);
 
 void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
-			    struct alginfo *adata, unsigned int icvsize,
-			    const bool is_rfc3686, u32 *nonce,
-			    const u32 ctx1_iv_off);
+			    struct alginfo *adata, unsigned int ivsize,
+			    unsigned int icvsize, const bool is_rfc3686,
+			    u32 *nonce, const u32 ctx1_iv_off,
+			    const bool is_qi);
 
 void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 			    struct alginfo *adata, unsigned int ivsize,
 			    unsigned int icvsize, const bool geniv,
 			    const bool is_rfc3686, u32 *nonce,
-			    const u32 ctx1_iv_off);
+			    const u32 ctx1_iv_off, const bool is_qi);
 
 void cnstr_shdsc_aead_givencap(u32 * const desc, struct alginfo *cdata,
 			       struct alginfo *adata, unsigned int ivsize,
 			       unsigned int icvsize, const bool is_rfc3686,
-			       u32 *nonce, const u32 ctx1_iv_off);
+			       u32 *nonce, const u32 ctx1_iv_off,
+			       const bool is_qi);
 
 void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 			   unsigned int icvsize);

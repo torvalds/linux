@@ -33,9 +33,14 @@ static unsigned int sha_disable;
 module_param(sha_disable, uint, 0444);
 MODULE_PARM_DESC(sha_disable, "Disable use of SHA - any non-zero value");
 
+static unsigned int des3_disable;
+module_param(des3_disable, uint, 0444);
+MODULE_PARM_DESC(des3_disable, "Disable use of 3DES - any non-zero value");
+
 /* List heads for the supported algorithms */
 static LIST_HEAD(hash_algs);
 static LIST_HEAD(cipher_algs);
+static LIST_HEAD(aead_algs);
 
 /* For any tfm, requests for that tfm must be returned on the order
  * received.  With multiple queues available, the CCP can process more
@@ -335,6 +340,16 @@ static int ccp_register_algs(void)
 		ret = ccp_register_aes_xts_algs(&cipher_algs);
 		if (ret)
 			return ret;
+
+		ret = ccp_register_aes_aeads(&aead_algs);
+		if (ret)
+			return ret;
+	}
+
+	if (!des3_disable) {
+		ret = ccp_register_des3_algs(&cipher_algs);
+		if (ret)
+			return ret;
 	}
 
 	if (!sha_disable) {
@@ -350,6 +365,7 @@ static void ccp_unregister_algs(void)
 {
 	struct ccp_crypto_ahash_alg *ahash_alg, *ahash_tmp;
 	struct ccp_crypto_ablkcipher_alg *ablk_alg, *ablk_tmp;
+	struct ccp_crypto_aead *aead_alg, *aead_tmp;
 
 	list_for_each_entry_safe(ahash_alg, ahash_tmp, &hash_algs, entry) {
 		crypto_unregister_ahash(&ahash_alg->alg);
@@ -361,6 +377,12 @@ static void ccp_unregister_algs(void)
 		crypto_unregister_alg(&ablk_alg->alg);
 		list_del(&ablk_alg->entry);
 		kfree(ablk_alg);
+	}
+
+	list_for_each_entry_safe(aead_alg, aead_tmp, &aead_algs, entry) {
+		crypto_unregister_aead(&aead_alg->alg);
+		list_del(&aead_alg->entry);
+		kfree(aead_alg);
 	}
 }
 
