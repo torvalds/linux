@@ -771,7 +771,6 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		adev->gfx.config.max_shader_engines = 4;
-		adev->gfx.config.max_tile_pipes = 8; //??
 		adev->gfx.config.max_cu_per_sh = 16;
 		adev->gfx.config.max_sh_per_se = 1;
 		adev->gfx.config.max_backends_per_se = 4;
@@ -800,6 +799,10 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 					adev->gfx.config.gb_addr_config,
 					GB_ADDR_CONFIG,
 					NUM_PIPES);
+
+	adev->gfx.config.max_tile_pipes =
+		adev->gfx.config.gb_addr_config_fields.num_pipes;
+
 	adev->gfx.config.gb_addr_config_fields.num_banks = 1 <<
 			REG_GET_FIELD(
 					adev->gfx.config.gb_addr_config,
