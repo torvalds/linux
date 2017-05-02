@@ -1030,11 +1030,19 @@ static void rk_fix_speed(void *priv, unsigned int speed)
 		dev_err(dev, "unsupported interface %d", bsp_priv->phy_iface);
 }
 
-void rk_get_eth_addr_vendor(void *priv, unsigned char *addr)
+void __weak rk_devinfo_get_eth_mac(u8 *mac)
+{
+}
+
+void rk_get_eth_addr(void *priv, unsigned char *addr)
 {
 	int ret;
 	struct rk_priv_data *bsp_priv = priv;
 	struct device *dev = &bsp_priv->pdev->dev;
+
+	rk_devinfo_get_eth_mac(addr);
+	if (is_valid_ether_addr(addr))
+		goto out;
 
 	ret = rk_vendor_read(LAN_MAC_ID, addr, 6);
 	if (ret != 6 || is_zero_ether_addr(addr)) {
@@ -1048,11 +1056,12 @@ void rk_get_eth_addr_vendor(void *priv, unsigned char *addr)
 		if (ret != 0)
 			dev_err(dev, "%s: rk_vendor_write eth mac address failed (%d)",
 					__func__, ret);
-	} else {
-		dev_err(dev, "%s: rk_vendor_read eth mac address: %02x:%02x:%02x:%02x:%02x:%02x",
-					__func__, addr[0], addr[1], addr[2],
-					addr[3], addr[4], addr[5]);
 	}
+
+out:
+	dev_err(dev, "%s: mac address: %02x:%02x:%02x:%02x:%02x:%02x",
+				__func__, addr[0], addr[1], addr[2],
+				addr[3], addr[4], addr[5]);
 }
 
 static int rk_gmac_probe(struct platform_device *pdev)
@@ -1080,7 +1089,7 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	plat_dat->init = rk_gmac_init;
 	plat_dat->exit = rk_gmac_exit;
 	plat_dat->fix_mac_speed = rk_fix_speed;
-	plat_dat->get_eth_addr = rk_get_eth_addr_vendor;
+	plat_dat->get_eth_addr = rk_get_eth_addr;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, data);
 	if (IS_ERR(plat_dat->bsp_priv))
