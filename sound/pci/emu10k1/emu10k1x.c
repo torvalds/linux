@@ -1112,7 +1112,7 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
+static const struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Analog/Digital Output Jack",
@@ -1171,7 +1171,7 @@ static int snd_emu10k1x_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
+static const struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1181,7 +1181,7 @@ static struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
 	.get =          snd_emu10k1x_spdif_get_mask
 };
 
-static struct snd_kcontrol_new snd_emu10k1x_spdif_control =
+static const struct snd_kcontrol_new snd_emu10k1x_spdif_control =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),

@@ -52,6 +52,12 @@ struct conexant_spec {
 	bool dc_enable;
 	unsigned int dc_input_bias; /* offset into olpc_xo_dc_bias */
 	struct nid_path *dc_mode_path;
+
+	int mute_led_polarity;
+	unsigned int gpio_led;
+	unsigned int gpio_mute_led_mask;
+	unsigned int gpio_mic_led_mask;
+
 };
 
 
@@ -264,6 +270,7 @@ enum {
 	CXT_FIXUP_HP_DOCK,
 	CXT_FIXUP_HP_SPECTRE,
 	CXT_FIXUP_HP_GATE_MIC,
+	CXT_FIXUP_MUTE_LED_GPIO,
 };
 
 /* for hda_fixup_thinkpad_acpi() */
@@ -646,6 +653,74 @@ static void cxt_fixup_hp_gate_mic_jack(struct hda_codec *codec,
 		snd_hda_jack_set_gating_jack(codec, 0x19, 0x16);
 }
 
+/* update LED status via GPIO */
+static void cxt_update_gpio_led(struct hda_codec *codec, unsigned int mask,
+				bool enabled)
+{
+	struct conexant_spec *spec = codec->spec;
+	unsigned int oldval = spec->gpio_led;
+
+	if (spec->mute_led_polarity)
+		enabled = !enabled;
+
+	if (enabled)
+		spec->gpio_led &= ~mask;
+	else
+		spec->gpio_led |= mask;
+	if (spec->gpio_led != oldval)
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_led);
+}
+
+/* turn on/off mute LED via GPIO per vmaster hook */
+static void cxt_fixup_gpio_mute_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct conexant_spec *spec = codec->spec;
+
+	cxt_update_gpio_led(codec, spec->gpio_mute_led_mask, enabled);
+}
+
+/* turn on/off mic-mute LED via GPIO per capture hook */
+static void cxt_fixup_gpio_mic_mute_hook(struct hda_codec *codec,
+					 struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct conexant_spec *spec = codec->spec;
+
+	if (ucontrol)
+		cxt_update_gpio_led(codec, spec->gpio_mic_led_mask,
+				    ucontrol->value.integer.value[0] ||
+				    ucontrol->value.integer.value[1]);
+}
+
+
+static void cxt_fixup_mute_led_gpio(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	struct conexant_spec *spec = codec->spec;
+	static const struct hda_verb gpio_init[] = {
+		{ 0x01, AC_VERB_SET_GPIO_MASK, 0x03 },
+		{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03 },
+		{}
+	};
+	codec_info(codec, "action: %d gpio_led: %d\n", action, spec->gpio_led);
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gen.vmaster_mute.hook = cxt_fixup_gpio_mute_hook;
+		spec->gen.cap_sync_hook = cxt_fixup_gpio_mic_mute_hook;
+		spec->gpio_led = 0;
+		spec->mute_led_polarity = 0;
+		spec->gpio_mute_led_mask = 0x01;
+		spec->gpio_mic_led_mask = 0x02;
+	}
+	snd_hda_add_verbs(codec, gpio_init);
+	if (spec->gpio_led)
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_led);
+}
+
+
 /* ThinkPad X200 & co with cxt5051 */
 static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
@@ -799,6 +874,10 @@ static const struct hda_fixup cxt_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt_fixup_hp_gate_mic_jack,
 	},
+	[CXT_FIXUP_MUTE_LED_GPIO] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_mute_led_gpio,
+	},
 };
 
 static const struct snd_pci_quirk cxt5045_fixups[] = {
@@ -851,6 +930,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x8079, "HP EliteBook 840 G3", CXT_FIXUP_HP_DOCK),
 	SND_PCI_QUIRK(0x103c, 0x8174, "HP Spectre x360", CXT_FIXUP_HP_SPECTRE),
 	SND_PCI_QUIRK(0x103c, 0x8115, "HP Z1 Gen3", CXT_FIXUP_HP_GATE_MIC),
+	SND_PCI_QUIRK(0x103c, 0x814f, "HP ZBook 15u G3", CXT_FIXUP_MUTE_LED_GPIO),
 	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT_FIXUP_OLPC_XO),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
@@ -882,6 +962,7 @@ static const struct hda_model_fixup cxt5066_fixup_models[] = {
 	{ .id = CXT_FIXUP_OLPC_XO, .name = "olpc-xo" },
 	{ .id = CXT_FIXUP_MUTE_LED_EAPD, .name = "mute-led-eapd" },
 	{ .id = CXT_FIXUP_HP_DOCK, .name = "hp-dock" },
+	{ .id = CXT_FIXUP_MUTE_LED_GPIO, .name = "mute-led-gpio" },
 	{}
 };
 
