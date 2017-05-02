@@ -847,16 +847,15 @@ static inline void mtip_process_legacy(struct driver_data *dd, u32 port_stat)
 	struct mtip_port *port = dd->port;
 	struct mtip_cmd *cmd = mtip_cmd_from_tag(dd, MTIP_TAG_INTERNAL);
 
-	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) &&
-	    (cmd != NULL) && !(readl(port->cmd_issue[MTIP_TAG_INTERNAL])
-		& (1 << MTIP_TAG_INTERNAL))) {
-		if (cmd->comp_func) {
-			cmd->comp_func(port, MTIP_TAG_INTERNAL, cmd, 0);
-			return;
+	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) && cmd) {
+		int group = MTIP_TAG_INDEX(MTIP_TAG_INTERNAL);
+		int status = readl(port->cmd_issue[group]);
+
+		if (!(status & (1 << MTIP_TAG_BIT(MTIP_TAG_INTERNAL)))) {
+			if (cmd->comp_func)
+				cmd->comp_func(port, MTIP_TAG_INTERNAL, cmd, 0);
 		}
 	}
-
-	return;
 }
 
 /*
@@ -1213,8 +1212,8 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		goto exec_ic_exit;
 	}
 
-	if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
-			& (1 << MTIP_TAG_INTERNAL)) {
+	if (readl(port->cmd_issue[MTIP_TAG_INDEX(MTIP_TAG_INTERNAL)])
+			& (1 << MTIP_TAG_BIT(MTIP_TAG_INTERNAL))) {
 		rv = -ENXIO;
 		if (!test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag)) {
 			mtip_device_reset(dd);
