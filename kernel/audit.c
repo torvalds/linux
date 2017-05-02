@@ -1378,11 +1378,14 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return err < 0 ? err : 0;
 }
 
-/*
- * Get message from skb.  Each message is processed by audit_receive_msg.
- * Malformed skbs with wrong length are discarded silently.
+/**
+ * audit_receive - receive messages from a netlink control socket
+ * @skb: the message buffer
+ *
+ * Parse the provided skb and deal with any messages that may be present,
+ * malformed skbs are discarded.
  */
-static void audit_receive_skb(struct sk_buff *skb)
+static void audit_receive(struct sk_buff  *skb)
 {
 	struct nlmsghdr *nlh;
 	/*
@@ -1395,6 +1398,7 @@ static void audit_receive_skb(struct sk_buff *skb)
 	nlh = nlmsg_hdr(skb);
 	len = skb->len;
 
+	mutex_lock(&audit_cmd_mutex);
 	while (nlmsg_ok(nlh, len)) {
 		err = audit_receive_msg(skb, nlh);
 		/* if err or if this message says it wants a response */
@@ -1403,13 +1407,6 @@ static void audit_receive_skb(struct sk_buff *skb)
 
 		nlh = nlmsg_next(nlh, &len);
 	}
-}
-
-/* Receive messages from netlink socket. */
-static void audit_receive(struct sk_buff  *skb)
-{
-	mutex_lock(&audit_cmd_mutex);
-	audit_receive_skb(skb);
 	mutex_unlock(&audit_cmd_mutex);
 }
 
