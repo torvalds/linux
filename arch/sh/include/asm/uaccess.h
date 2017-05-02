@@ -192,7 +192,6 @@ struct exception_table_entry {
 #endif
 
 int fixup_exception(struct pt_regs *regs);
-const struct exception_table_entry *search_exception_tables(unsigned long addr);
 
 extern void *set_exception_table_vec(unsigned int vec, void *handler);
 

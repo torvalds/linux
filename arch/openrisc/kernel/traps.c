@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/kmod.h>
 #include <linux/string.h>
 #include <linux/errno.h>

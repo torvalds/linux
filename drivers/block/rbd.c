@@ -4099,19 +4099,21 @@ static void rbd_queue_workfn(struct work_struct *work)
 	bool must_be_locked;
 	int result;
 
-	if (rq->cmd_type != REQ_TYPE_FS) {
-		dout("%s: non-fs request type %d\n", __func__,
-			(int) rq->cmd_type);
+	switch (req_op(rq)) {
+	case REQ_OP_DISCARD:
+		op_type = OBJ_OP_DISCARD;
+		break;
+	case REQ_OP_WRITE:
+		op_type = OBJ_OP_WRITE;
+		break;
+	case REQ_OP_READ:
+		op_type = OBJ_OP_READ;
+		break;
+	default:
+		dout("%s: non-fs request type %d\n", __func__, req_op(rq));
 		result = -EIO;
 		goto err;
 	}
-
-	if (req_op(rq) == REQ_OP_DISCARD)
-		op_type = OBJ_OP_DISCARD;
-	else if (req_op(rq) == REQ_OP_WRITE)
-		op_type = OBJ_OP_WRITE;
-	else
-		op_type = OBJ_OP_READ;
 
 	/* Ignore/skip any zero-length requests */
 
@@ -4524,7 +4526,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	q->limits.discard_zeroes_data = 1;
 
 	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
-		q->backing_dev_info.capabilities |= BDI_CAP_STABLE_WRITES;
+		q->backing_dev_info->capabilities |= BDI_CAP_STABLE_WRITES;
 
 	disk->queue = q;
 

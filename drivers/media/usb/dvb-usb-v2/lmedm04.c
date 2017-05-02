@@ -48,10 +48,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *
  * see Documentation/dvb/README.dvb-usb for more information
  *
@@ -99,9 +95,7 @@ static int dvb_usb_lme2510_debug;
 } while (0)
 #define deb_info(level, args...) lme_debug(dvb_usb_lme2510_debug, level, args)
 #define debug_data_snipet(level, name, p) \
-	 deb_info(level, name" (%02x%02x%02x%02x%02x%02x%02x%02x)", \
-		*p, *(p+1), *(p+2), *(p+3), *(p+4), \
-			*(p+5), *(p+6), *(p+7));
+	 deb_info(level, name" (%8phN)", p);
 #define info(args...) pr_info(DVB_USB_LOG_PREFIX": "args)
 
 module_param_named(debug, dvb_usb_lme2510_debug, int, 0644);
@@ -315,7 +309,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 {
 	struct dvb_usb_adapter *adap = lme_urb->context;
 	struct lme2510_state *st = adap_to_priv(adap);
-	static u8 *ibuf, *rbuf;
+	u8 *ibuf, *rbuf;
 	int i = 0, offset;
 	u32 key;
 	u8 signal_lock = 0;
@@ -1002,8 +996,9 @@ static int lme_name(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct lme2510_state *st = adap_to_priv(adap);
 	const char *desc = d->name;
-	char *fe_name[] = {"", " LG TDQY-P001F", " SHARP:BS2F7HZ7395",
-				" SHARP:BS2F7HZ0194", " RS2000"};
+	static const char * const fe_name[] = {
+		"", " LG TDQY-P001F", " SHARP:BS2F7HZ7395",
+		" SHARP:BS2F7HZ0194", " RS2000"};
 	char *name = adap->fe[0]->ops.info.name;
 
 	strlcpy(name, desc, 128);
@@ -1124,7 +1119,7 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct lme2510_state *st = adap_to_priv(adap);
-	char *tun_msg[] = {"", "TDA8263", "IX2505V", "DVB_PLL_OPERA", "RS2000"};
+	static const char * const tun_msg[] = {"", "TDA8263", "IX2505V", "DVB_PLL_OPERA", "RS2000"};
 	int ret = 0;
 
 	switch (st->tuner_config) {
@@ -1178,10 +1173,7 @@ static int lme2510_powerup(struct dvb_usb_device *d, int onoff)
 
 	mutex_lock(&d->i2c_mutex);
 
-	if (onoff)
-		ret = lme2510_usb_talk(d, lnb_on, len, rbuf, rlen);
-	else
-		ret = lme2510_usb_talk(d, lnb_off, len, rbuf, rlen);
+	ret = lme2510_usb_talk(d, onoff ? lnb_on : lnb_off, len, rbuf, rlen);
 
 	st->i2c_talk_onoff = 1;
 

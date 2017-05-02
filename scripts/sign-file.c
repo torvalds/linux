@@ -41,7 +41,9 @@
  * signing with anything other than SHA1 - so we're stuck with that if such is
  * the case.
  */
-#if OPENSSL_VERSION_NUMBER < 0x10000000L || defined(OPENSSL_NO_CMS)
+#if defined(LIBRESSL_VERSION_NUMBER) || \
+	OPENSSL_VERSION_NUMBER < 0x10000000L || \
+	defined(OPENSSL_NO_CMS)
 #define USE_PKCS7
 #endif
 #ifndef USE_PKCS7

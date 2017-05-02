@@ -146,10 +146,11 @@ a pull-up resistor is needed on the outgoing rail to complete the circuit, and
 in the second case, a pull-down resistor is needed on the rail.
 
 Hardware that supports open drain or open source or both, can implement a
-special callback in the gpio_chip: .set_single_ended() that takes an enum flag
-telling whether to configure the line as open drain, open source or push-pull.
-This will happen in response to the GPIO_OPEN_DRAIN or GPIO_OPEN_SOURCE flag
-set in the machine file, or coming from other hardware descriptions.
+special callback in the gpio_chip: .set_config() that takes a generic
+pinconf packed value telling whether to configure the line as open drain,
+open source or push-pull. This will happen in response to the
+GPIO_OPEN_DRAIN or GPIO_OPEN_SOURCE flag set in the machine file, or coming
+from other hardware descriptions.
 
 If this state can not be configured in hardware, i.e. if the GPIO hardware does
 not support open drain/open source in hardware, the GPIO library will instead

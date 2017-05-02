@@ -22,6 +22,7 @@
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
 #include <linux/miscdevice.h>
+#include <linux/moduleparam.h>
 
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -32,6 +33,7 @@
 #include <xen/xen.h>
 #include <xen/privcmd.h>
 #include <xen/interface/xen.h>
+#include <xen/interface/hvm/dm_op.h>
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/xen-ops.h>
@@ -43,15 +45,35 @@ MODULE_LICENSE("GPL");
 
 #define PRIV_VMA_LOCKED ((void *)1)
 
+static unsigned int privcmd_dm_op_max_num = 16;
+module_param_named(dm_op_max_nr_bufs, privcmd_dm_op_max_num, uint, 0644);
+MODULE_PARM_DESC(dm_op_max_nr_bufs,
+		 "Maximum number of buffers per dm_op hypercall");
+
+static unsigned int privcmd_dm_op_buf_max_size = 4096;
+module_param_named(dm_op_buf_max_size, privcmd_dm_op_buf_max_size, uint,
+		   0644);
+MODULE_PARM_DESC(dm_op_buf_max_size,
+		 "Maximum size of a dm_op hypercall buffer");
+
+struct privcmd_data {
+	domid_t domid;
+};
+
 static int privcmd_vma_range_is_mapped(
                struct vm_area_struct *vma,
                unsigned long addr,
                unsigned long nr_pages);
 
-static long privcmd_ioctl_hypercall(void __user *udata)
+static long privcmd_ioctl_hypercall(struct file *file, void __user *udata)
 {
+	struct privcmd_data *data = file->private_data;
 	struct privcmd_hypercall hypercall;
 	long ret;
+
+	/* Disallow arbitrary hypercalls if restricted */
+	if (data->domid != DOMID_INVALID)
+		return -EPERM;
 
 	if (copy_from_user(&hypercall, udata, sizeof(hypercall)))
 		return -EFAULT;
@@ -229,8 +251,9 @@ static int mmap_gfn_range(void *data, void *state)
 	return 0;
 }
 
-static long privcmd_ioctl_mmap(void __user *udata)
+static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
 {
+	struct privcmd_data *data = file->private_data;
 	struct privcmd_mmap mmapcmd;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
@@ -244,6 +267,10 @@ static long privcmd_ioctl_mmap(void __user *udata)
 
 	if (copy_from_user(&mmapcmd, udata, sizeof(mmapcmd)))
 		return -EFAULT;
+
+	/* If restriction is in place, check the domid matches */
+	if (data->domid != DOMID_INVALID && data->domid != mmapcmd.dom)
+		return -EPERM;
 
 	rc = gather_array(&pagelist,
 			  mmapcmd.num, sizeof(struct privcmd_mmap_entry),
@@ -416,8 +443,10 @@ static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 
 static const struct vm_operations_struct privcmd_vm_ops;
 
-static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
+static long privcmd_ioctl_mmap_batch(
+	struct file *file, void __user *udata, int version)
 {
+	struct privcmd_data *data = file->private_data;
 	int ret;
 	struct privcmd_mmapbatch_v2 m;
 	struct mm_struct *mm = current->mm;
@@ -445,6 +474,10 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 	default:
 		return -EINVAL;
 	}
+
+	/* If restriction is in place, check the domid matches */
+	if (data->domid != DOMID_INVALID && data->domid != m.dom)
+		return -EPERM;
 
 	nr_pages = DIV_ROUND_UP(m.num, XEN_PFN_PER_PAGE);
 	if ((m.num <= 0) || (nr_pages > (LONG_MAX >> PAGE_SHIFT)))
@@ -548,35 +581,208 @@ out_unlock:
 	goto out;
 }
 
+static int lock_pages(
+	struct privcmd_dm_op_buf kbufs[], unsigned int num,
+	struct page *pages[], unsigned int nr_pages)
+{
+	unsigned int i;
+
+	for (i = 0; i < num; i++) {
+		unsigned int requested;
+		int pinned;
+
+		requested = DIV_ROUND_UP(
+			offset_in_page(kbufs[i].uptr) + kbufs[i].size,
+			PAGE_SIZE);
+		if (requested > nr_pages)
+			return -ENOSPC;
+
+		pinned = get_user_pages_fast(
+			(unsigned long) kbufs[i].uptr,
+			requested, FOLL_WRITE, pages);
+		if (pinned < 0)
+			return pinned;
+
+		nr_pages -= pinned;
+		pages += pinned;
+	}
+
+	return 0;
+}
+
+static void unlock_pages(struct page *pages[], unsigned int nr_pages)
+{
+	unsigned int i;
+
+	if (!pages)
+		return;
+
+	for (i = 0; i < nr_pages; i++) {
+		if (pages[i])
+			put_page(pages[i]);
+	}
+}
+
+static long privcmd_ioctl_dm_op(struct file *file, void __user *udata)
+{
+	struct privcmd_data *data = file->private_data;
+	struct privcmd_dm_op kdata;
+	struct privcmd_dm_op_buf *kbufs;
+	unsigned int nr_pages = 0;
+	struct page **pages = NULL;
+	struct xen_dm_op_buf *xbufs = NULL;
+	unsigned int i;
+	long rc;
+
+	if (copy_from_user(&kdata, udata, sizeof(kdata)))
+		return -EFAULT;
+
+	/* If restriction is in place, check the domid matches */
+	if (data->domid != DOMID_INVALID && data->domid != kdata.dom)
+		return -EPERM;
+
+	if (kdata.num == 0)
+		return 0;
+
+	if (kdata.num > privcmd_dm_op_max_num)
+		return -E2BIG;
+
+	kbufs = kcalloc(kdata.num, sizeof(*kbufs), GFP_KERNEL);
+	if (!kbufs)
+		return -ENOMEM;
+
+	if (copy_from_user(kbufs, kdata.ubufs,
+			   sizeof(*kbufs) * kdata.num)) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	for (i = 0; i < kdata.num; i++) {
+		if (kbufs[i].size > privcmd_dm_op_buf_max_size) {
+			rc = -E2BIG;
+			goto out;
+		}
+
+		if (!access_ok(VERIFY_WRITE, kbufs[i].uptr,
+			       kbufs[i].size)) {
+			rc = -EFAULT;
+			goto out;
+		}
+
+		nr_pages += DIV_ROUND_UP(
+			offset_in_page(kbufs[i].uptr) + kbufs[i].size,
+			PAGE_SIZE);
+	}
+
+	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
+	if (!pages) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	xbufs = kcalloc(kdata.num, sizeof(*xbufs), GFP_KERNEL);
+	if (!xbufs) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = lock_pages(kbufs, kdata.num, pages, nr_pages);
+	if (rc)
+		goto out;
+
+	for (i = 0; i < kdata.num; i++) {
+		set_xen_guest_handle(xbufs[i].h, kbufs[i].uptr);
+		xbufs[i].size = kbufs[i].size;
+	}
+
+	xen_preemptible_hcall_begin();
+	rc = HYPERVISOR_dm_op(kdata.dom, kdata.num, xbufs);
+	xen_preemptible_hcall_end();
+
+out:
+	unlock_pages(pages, nr_pages);
+	kfree(xbufs);
+	kfree(pages);
+	kfree(kbufs);
+
+	return rc;
+}
+
+static long privcmd_ioctl_restrict(struct file *file, void __user *udata)
+{
+	struct privcmd_data *data = file->private_data;
+	domid_t dom;
+
+	if (copy_from_user(&dom, udata, sizeof(dom)))
+		return -EFAULT;
+
+	/* Set restriction to the specified domain, or check it matches */
+	if (data->domid == DOMID_INVALID)
+		data->domid = dom;
+	else if (data->domid != dom)
+		return -EINVAL;
+
+	return 0;
+}
+
 static long privcmd_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long data)
 {
-	int ret = -ENOSYS;
+	int ret = -ENOTTY;
 	void __user *udata = (void __user *) data;
 
 	switch (cmd) {
 	case IOCTL_PRIVCMD_HYPERCALL:
-		ret = privcmd_ioctl_hypercall(udata);
+		ret = privcmd_ioctl_hypercall(file, udata);
 		break;
 
 	case IOCTL_PRIVCMD_MMAP:
-		ret = privcmd_ioctl_mmap(udata);
+		ret = privcmd_ioctl_mmap(file, udata);
 		break;
 
 	case IOCTL_PRIVCMD_MMAPBATCH:
-		ret = privcmd_ioctl_mmap_batch(udata, 1);
+		ret = privcmd_ioctl_mmap_batch(file, udata, 1);
 		break;
 
 	case IOCTL_PRIVCMD_MMAPBATCH_V2:
-		ret = privcmd_ioctl_mmap_batch(udata, 2);
+		ret = privcmd_ioctl_mmap_batch(file, udata, 2);
+		break;
+
+	case IOCTL_PRIVCMD_DM_OP:
+		ret = privcmd_ioctl_dm_op(file, udata);
+		break;
+
+	case IOCTL_PRIVCMD_RESTRICT:
+		ret = privcmd_ioctl_restrict(file, udata);
 		break;
 
 	default:
-		ret = -EINVAL;
 		break;
 	}
 
 	return ret;
+}
+
+static int privcmd_open(struct inode *ino, struct file *file)
+{
+	struct privcmd_data *data = kzalloc(sizeof(*data), GFP_KERNEL);
+
+	if (!data)
+		return -ENOMEM;
+
+	/* DOMID_INVALID implies no restriction */
+	data->domid = DOMID_INVALID;
+
+	file->private_data = data;
+	return 0;
+}
+
+static int privcmd_release(struct inode *ino, struct file *file)
+{
+	struct privcmd_data *data = file->private_data;
+
+	kfree(data);
+	return 0;
 }
 
 static void privcmd_close(struct vm_area_struct *vma)
@@ -647,6 +853,8 @@ static int privcmd_vma_range_is_mapped(
 const struct file_operations xen_privcmd_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = privcmd_ioctl,
+	.open = privcmd_open,
+	.release = privcmd_release,
 	.mmap = privcmd_mmap,
 };
 EXPORT_SYMBOL_GPL(xen_privcmd_fops);

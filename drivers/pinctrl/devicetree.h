@@ -20,8 +20,10 @@ struct of_phandle_args;
 
 #ifdef CONFIG_OF
 
+bool pinctrl_dt_has_hogs(struct pinctrl_dev *pctldev);
+
 void pinctrl_dt_free_maps(struct pinctrl *p);
-int pinctrl_dt_to_map(struct pinctrl *p);
+int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev);
 
 int pinctrl_count_index_with_args(const struct device_node *np,
 				  const char *list_name);
@@ -32,7 +34,13 @@ int pinctrl_parse_index_with_args(const struct device_node *np,
 
 #else
 
-static inline int pinctrl_dt_to_map(struct pinctrl *p)
+static inline bool pinctrl_dt_has_hogs(struct pinctrl_dev *pctldev)
+{
+	return false;
+}
+
+static inline int pinctrl_dt_to_map(struct pinctrl *p,
+				    struct pinctrl_dev *pctldev)
 {
 	return 0;
 }

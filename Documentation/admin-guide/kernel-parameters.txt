@@ -4085,6 +4085,9 @@
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
+	usbhid.jspoll=
+			[USBHID] The interval which joysticks are to be polled at.
+
 	usb-storage.delay_use=
 			[UMS] The delay in seconds before a new device is
 			scanned for Logical Units (default 1).

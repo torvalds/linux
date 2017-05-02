@@ -137,6 +137,7 @@ struct serial_ir {
 	ktime_t lastkt;
 	struct rc_dev *rcdev;
 	struct platform_device *pdev;
+	struct timer_list timeout_timer;
 
 	unsigned int freq;
 	unsigned int duty_cycle;
@@ -395,9 +396,14 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 			frbwrite(data, !(dcd ^ sense));
 			serial_ir.lastkt = kt;
 			last_dcd = dcd;
-			ir_raw_event_handle(serial_ir.rcdev);
 		}
 	} while (!(sinp(UART_IIR) & UART_IIR_NO_INT)); /* still pending ? */
+
+	mod_timer(&serial_ir.timeout_timer,
+		  jiffies + nsecs_to_jiffies(serial_ir.rcdev->timeout));
+
+	ir_raw_event_handle(serial_ir.rcdev);
+
 	return IRQ_HANDLED;
 }
 
@@ -471,6 +477,16 @@ static int hardware_init_port(void)
 	return 0;
 }
 
+static void serial_ir_timeout(unsigned long arg)
+{
+	DEFINE_IR_RAW_EVENT(ev);
+
+	ev.timeout = true;
+	ev.duration = serial_ir.rcdev->timeout;
+	ir_raw_event_store_with_filter(serial_ir.rcdev, &ev);
+	ir_raw_event_handle(serial_ir.rcdev);
+}
+
 static int serial_ir_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
@@ -499,6 +515,9 @@ static int serial_ir_probe(struct platform_device *dev)
 		dev_warn(&dev->dev, "make sure this module is loaded first\n");
 		return -EBUSY;
 	}
+
+	setup_timer(&serial_ir.timeout_timer, serial_ir_timeout,
+		    (unsigned long)&serial_ir);
 
 	result = hardware_init_port();
 	if (result < 0)
@@ -738,7 +757,7 @@ static int __init serial_ir_init_module(void)
 	if (result)
 		return result;
 
-	rcdev = devm_rc_allocate_device(&serial_ir.pdev->dev);
+	rcdev = devm_rc_allocate_device(&serial_ir.pdev->dev, RC_DRIVER_IR_RAW);
 	if (!rcdev) {
 		result = -ENOMEM;
 		goto serial_cleanup;
@@ -777,11 +796,12 @@ static int __init serial_ir_init_module(void)
 	rcdev->open = serial_ir_open;
 	rcdev->close = serial_ir_close;
 	rcdev->dev.parent = &serial_ir.pdev->dev;
-	rcdev->driver_type = RC_DRIVER_IR_RAW;
-	rcdev->allowed_protocols = RC_BIT_ALL;
+	rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	rcdev->driver_name = KBUILD_MODNAME;
 	rcdev->map_name = RC_MAP_RC6_MCE;
+	rcdev->min_timeout = 1;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
+	rcdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	rcdev->rx_resolution = 250000;
 
 	serial_ir.rcdev = rcdev;
@@ -797,6 +817,7 @@ serial_cleanup:
 
 static void __exit serial_ir_exit_module(void)
 {
+	del_timer_sync(&serial_ir.timeout_timer);
 	rc_unregister_device(serial_ir.rcdev);
 	serial_ir_exit();
 }

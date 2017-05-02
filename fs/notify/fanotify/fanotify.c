@@ -31,7 +31,6 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 {
 	struct fsnotify_event *test_event;
-	bool do_merge = false;
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
 
@@ -47,16 +46,12 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 
 	list_for_each_entry_reverse(test_event, list, list) {
 		if (should_merge(test_event, event)) {
-			do_merge = true;
-			break;
+			test_event->mask |= event->mask;
+			return 1;
 		}
 	}
 
-	if (!do_merge)
-		return 0;
-
-	test_event->mask |= event->mask;
-	return 1;
+	return 0;
 }
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS

@@ -1121,7 +1121,6 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
-	mf->code = ov2659_formats[index].code;
 	mf->field = V4L2_FIELD_NONE;
 
 	mutex_lock(&ov2659->lock);

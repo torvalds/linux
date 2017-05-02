@@ -237,6 +237,7 @@ static __init int bdi_class_init(void)
 
 	bdi_class->dev_groups = bdi_dev_groups;
 	bdi_debug_init();
+
 	return 0;
 }
 postcore_initcall(bdi_class_init);
@@ -758,15 +759,20 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
 	if (!bdi->wb_congested)
 		return -ENOMEM;
 
+	atomic_set(&bdi->wb_congested->refcnt, 1);
+
 	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
 	if (err) {
-		kfree(bdi->wb_congested);
+		wb_congested_put(bdi->wb_congested);
 		return err;
 	}
 	return 0;
 }
 
-static void cgwb_bdi_destroy(struct backing_dev_info *bdi) { }
+static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
+{
+	wb_congested_put(bdi->wb_congested);
+}
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
@@ -776,6 +782,7 @@ int bdi_init(struct backing_dev_info *bdi)
 
 	bdi->dev = NULL;
 
+	kref_init(&bdi->refcnt);
 	bdi->min_ratio = 0;
 	bdi->max_ratio = 100;
 	bdi->max_prop_frac = FPROP_FRAC_BASE;
@@ -790,6 +797,22 @@ int bdi_init(struct backing_dev_info *bdi)
 	return ret;
 }
 EXPORT_SYMBOL(bdi_init);
+
+struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
+{
+	struct backing_dev_info *bdi;
+
+	bdi = kmalloc_node(sizeof(struct backing_dev_info),
+			   gfp_mask | __GFP_ZERO, node_id);
+	if (!bdi)
+		return NULL;
+
+	if (bdi_init(bdi)) {
+		kfree(bdi);
+		return NULL;
+	}
+	return bdi;
+}
 
 int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...)
@@ -871,10 +894,24 @@ void bdi_unregister(struct backing_dev_info *bdi)
 	}
 }
 
-void bdi_exit(struct backing_dev_info *bdi)
+static void bdi_exit(struct backing_dev_info *bdi)
 {
 	WARN_ON_ONCE(bdi->dev);
 	wb_exit(&bdi->wb);
+}
+
+static void release_bdi(struct kref *ref)
+{
+	struct backing_dev_info *bdi =
+			container_of(ref, struct backing_dev_info, refcnt);
+
+	bdi_exit(bdi);
+	kfree(bdi);
+}
+
+void bdi_put(struct backing_dev_info *bdi)
+{
+	kref_put(&bdi->refcnt, release_bdi);
 }
 
 void bdi_destroy(struct backing_dev_info *bdi)

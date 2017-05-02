@@ -1301,7 +1301,7 @@ int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
 	ioctl = kzalloc(sizeof(struct atto_express_ioctl), GFP_KERNEL);
 	if (ioctl == NULL) {
 		esas2r_log(ESAS2R_LOG_WARN,
-			   "ioctl_handler kzalloc failed for %d bytes",
+			   "ioctl_handler kzalloc failed for %zu bytes",
 			   sizeof(struct atto_express_ioctl));
 		return -ENOMEM;
 	}

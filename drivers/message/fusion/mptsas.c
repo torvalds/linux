@@ -1983,6 +1983,7 @@ static struct scsi_host_template mptsas_driver_template = {
 	.target_destroy			= mptsas_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
+	.eh_timed_out			= mptsas_eh_timed_out,
 	.eh_abort_handler		= mptscsih_abort,
 	.eh_device_reset_handler	= mptscsih_dev_reset,
 	.eh_host_reset_handler		= mptscsih_host_reset,
@@ -2320,10 +2321,10 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		SmpPassthroughReply_t *smprep;
 
 		smprep = (SmpPassthroughReply_t *)ioc->sas_mgmt.reply;
-		memcpy(req->sense, smprep, sizeof(*smprep));
-		req->sense_len = sizeof(*smprep);
-		req->resid_len = 0;
-		rsp->resid_len -= smprep->ResponseDataLength;
+		memcpy(scsi_req(req)->sense, smprep, sizeof(*smprep));
+		scsi_req(req)->sense_len = sizeof(*smprep);
+		scsi_req(req)->resid_len = 0;
+		scsi_req(rsp)->resid_len -= smprep->ResponseDataLength;
 	} else {
 		printk(MYIOC_s_ERR_FMT
 		    "%s: smp passthru reply failed to be returned\n",
@@ -5398,7 +5399,6 @@ mptsas_init(void)
 	    sas_attach_transport(&mptsas_transport_functions);
 	if (!mptsas_transport_template)
 		return -ENODEV;
-	mptsas_transport_template->eh_timed_out = mptsas_eh_timed_out;
 
 	mptsasDoneCtx = mpt_register(mptscsih_io_done, MPTSAS_DRIVER,
 	    "mptscsih_io_done");

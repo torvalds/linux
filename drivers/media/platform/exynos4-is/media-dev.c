@@ -402,8 +402,10 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		return ret;
 	}
 
-	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS)
+	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS) {
+		of_node_put(ep);
 		return -EINVAL;
+	}
 
 	pd->mux_id = (endpoint.base.port - 1) & 0x1;
 
@@ -1117,7 +1119,7 @@ static int __fimc_md_modify_pipeline(struct media_entity *entity, bool enable)
 
 /* Locking: called with entity->graph_obj.mdev->graph_mutex mutex held. */
 static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
-				      struct media_entity_graph *graph)
+				      struct media_graph *graph)
 {
 	struct media_entity *entity_err = entity;
 	int ret;
@@ -1128,9 +1130,9 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
 	 * through active links. This is needed as we cannot power on/off the
 	 * subdevs in random order.
 	 */
-	media_entity_graph_walk_start(graph, entity);
+	media_graph_walk_start(graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(graph))) {
+	while ((entity = media_graph_walk_next(graph))) {
 		if (!is_media_entity_v4l2_video_device(entity))
 			continue;
 
@@ -1143,9 +1145,9 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
 	return 0;
 
 err:
-	media_entity_graph_walk_start(graph, entity_err);
+	media_graph_walk_start(graph, entity_err);
 
-	while ((entity_err = media_entity_graph_walk_next(graph))) {
+	while ((entity_err = media_graph_walk_next(graph))) {
 		if (!is_media_entity_v4l2_video_device(entity_err))
 			continue;
 
@@ -1161,7 +1163,7 @@ err:
 static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 				unsigned int notification)
 {
-	struct media_entity_graph *graph =
+	struct media_graph *graph =
 		&container_of(link->graph_obj.mdev, struct fimc_md,
 			      media_dev)->link_setup_graph;
 	struct media_entity *sink = link->sink->entity;
@@ -1169,7 +1171,7 @@ static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 
 	/* Before link disconnection */
 	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH) {
-		ret = media_entity_graph_walk_init(graph,
+		ret = media_graph_walk_init(graph,
 						   link->graph_obj.mdev);
 		if (ret)
 			return ret;
@@ -1183,7 +1185,7 @@ static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH) {
 		if (link->flags & MEDIA_LNK_FL_ENABLED)
 			ret = __fimc_md_modify_pipelines(sink, true, graph);
-		media_entity_graph_walk_cleanup(graph);
+		media_graph_walk_cleanup(graph);
 	}
 
 	return ret ? -EPIPE : 0;

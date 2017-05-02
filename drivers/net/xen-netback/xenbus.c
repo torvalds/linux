@@ -734,7 +734,7 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 }
 
 static void xen_net_rate_changed(struct xenbus_watch *watch,
-				const char **vec, unsigned int len)
+				 const char *path, const char *token)
 {
 	struct xenvif *vif = container_of(watch, struct xenvif, credit_watch);
 	struct xenbus_device *dev = xenvif_to_xenbus_device(vif);
@@ -791,7 +791,7 @@ static void xen_unregister_credit_watch(struct xenvif *vif)
 }
 
 static void xen_mcast_ctrl_changed(struct xenbus_watch *watch,
-				   const char **vec, unsigned int len)
+				   const char *path, const char *token)
 {
 	struct xenvif *vif = container_of(watch, struct xenvif,
 					  mcast_ctrl_watch);
@@ -866,8 +866,8 @@ static void unregister_hotplug_status_watch(struct backend_info *be)
 }
 
 static void hotplug_status_changed(struct xenbus_watch *watch,
-				   const char **vec,
-				   unsigned int vec_size)
+				   const char *path,
+				   const char *token)
 {
 	struct backend_info *be = container_of(watch,
 					       struct backend_info,

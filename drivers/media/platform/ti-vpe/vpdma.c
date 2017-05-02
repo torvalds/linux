@@ -453,7 +453,7 @@ int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
 	if (ret)
 		return ret;
 
-	while (vpdma_list_busy(vpdma, list_num) && timeout--)
+	while (vpdma_list_busy(vpdma, list_num) && --timeout)
 		;
 
 	if (timeout == 0) {

@@ -17,6 +17,8 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/leds.h>
+#include <linux/interrupt.h>
 
 #include <linux/mmc/host.h>
 

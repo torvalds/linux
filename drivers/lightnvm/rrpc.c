@@ -779,7 +779,7 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 
 static void rrpc_end_io(struct nvm_rq *rqd)
 {
-	struct rrpc *rrpc = container_of(rqd->ins, struct rrpc, instance);
+	struct rrpc *rrpc = rqd->private;
 	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_rq *rrqd = nvm_rq_to_pdu(rqd);
 	uint8_t npages = rqd->nr_ppas;
@@ -972,8 +972,9 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 
 	bio_get(bio);
 	rqd->bio = bio;
-	rqd->ins = &rrpc->instance;
+	rqd->private = rrpc;
 	rqd->nr_ppas = nr_pages;
+	rqd->end_io = rrpc_end_io;
 	rrq->flags = flags;
 
 	err = nvm_submit_io(dev, rqd);
@@ -1532,7 +1533,6 @@ static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk)
 	if (!rrpc)
 		return ERR_PTR(-ENOMEM);
 
-	rrpc->instance.tt = &tt_rrpc;
 	rrpc->dev = dev;
 	rrpc->disk = tdisk;
 
@@ -1611,7 +1611,6 @@ static struct nvm_tgt_type tt_rrpc = {
 
 	.make_rq	= rrpc_make_rq,
 	.capacity	= rrpc_capacity,
-	.end_io		= rrpc_end_io,
 
 	.init		= rrpc_init,
 	.exit		= rrpc_exit,

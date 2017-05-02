@@ -360,6 +360,12 @@ struct csp {
  * Word 1 Bit 30 in PLOGI request is random offset
  */
 #define virtual_fabric_support randomOffset /* Word 1, bit 30 */
+/*
+ * Word 1 Bit 29 in common service parameter is overloaded.
+ * Word 1 Bit 29 in FLOGI response is multiple NPort assignment
+ * Word 1 Bit 29 in FLOGI/PLOGI request is Valid Vendor Version Level
+ */
+#define valid_vendor_ver_level response_multiple_NPort /* Word 1, bit 29 */
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
 	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */

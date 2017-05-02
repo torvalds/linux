@@ -286,10 +286,10 @@ static void pata_at91_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	set_smc_timing(ap->dev, adev, info, &timing);
 }
 
-static unsigned int pata_at91_data_xfer_noirq(struct ata_device *dev,
+static unsigned int pata_at91_data_xfer_noirq(struct ata_queued_cmd *qc,
 		unsigned char *buf, unsigned int buflen, int rw)
 {
-	struct at91_ide_info *info = dev->link->ap->host->private_data;
+	struct at91_ide_info *info = qc->dev->link->ap->host->private_data;
 	unsigned int consumed;
 	unsigned int mode;
 	unsigned long flags;
@@ -301,7 +301,7 @@ static unsigned int pata_at91_data_xfer_noirq(struct ata_device *dev,
 	regmap_fields_write(fields.mode, info->cs, (mode & ~AT91_SMC_DBW) |
 			    AT91_SMC_DBW_16);
 
-	consumed = ata_sff_data_xfer(dev, buf, buflen, rw);
+	consumed = ata_sff_data_xfer(qc, buf, buflen, rw);
 
 	/* restore 8bit mode after data is written */
 	regmap_fields_write(fields.mode, info->cs, (mode & ~AT91_SMC_DBW) |

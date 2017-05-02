@@ -33,6 +33,7 @@
 #include <linux/bsg.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_request.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
@@ -177,6 +178,10 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 	while ((req = blk_fetch_request(q)) != NULL) {
 		spin_unlock_irq(q->queue_lock);
 
+		scsi_req(req)->resid_len = blk_rq_bytes(req);
+		if (req->next_rq)
+			scsi_req(req->next_rq)->resid_len =
+				blk_rq_bytes(req->next_rq);
 		handler = to_sas_internal(shost->transportt)->f->smp_handler;
 		ret = handler(shost, rphy, req);
 		req->errors = ret;

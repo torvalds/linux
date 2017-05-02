@@ -572,6 +572,20 @@ exit:
 	disk_part_iter_exit(&piter);
 }
 
+void put_disk_devt(struct disk_devt *disk_devt)
+{
+	if (disk_devt && atomic_dec_and_test(&disk_devt->count))
+		disk_devt->release(disk_devt);
+}
+EXPORT_SYMBOL(put_disk_devt);
+
+void get_disk_devt(struct disk_devt *disk_devt)
+{
+	if (disk_devt)
+		atomic_inc(&disk_devt->count);
+}
+EXPORT_SYMBOL(get_disk_devt);
+
 /**
  * device_add_disk - add partitioning information to kernel list
  * @parent: parent device for the disk
@@ -612,8 +626,15 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 
 	disk_alloc_events(disk);
 
+	/*
+	 * Take a reference on the devt and assign it to queue since it
+	 * must not be reallocated while the bdi is registered
+	 */
+	disk->queue->disk_devt = disk->disk_devt;
+	get_disk_devt(disk->disk_devt);
+
 	/* Register BDI before referencing it from bdev */
-	bdi = &disk->queue->backing_dev_info;
+	bdi = disk->queue->backing_dev_info;
 	bdi_register_owner(bdi, disk_to_dev(disk));
 
 	blk_register_region(disk_devt(disk), disk->minors, NULL,
@@ -648,6 +669,8 @@ void del_gendisk(struct gendisk *disk)
 	disk_part_iter_init(&piter, disk,
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
 	while ((part = disk_part_iter_next(&piter))) {
+		bdev_unhash_inode(MKDEV(disk->major,
+					disk->first_minor + part->partno));
 		invalidate_partition(disk, part->partno);
 		delete_partition(disk, part->partno);
 	}

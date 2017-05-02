@@ -36,7 +36,6 @@
 #include <asm/sim.h>
 #include <asm/shmparam.h>
 #include <asm/sysmips.h>
-#include <linux/uaccess.h>
 #include <asm/switch_to.h>
 
 /*
@@ -60,16 +59,9 @@ SYSCALL_DEFINE6(mips_mmap, unsigned long, addr, unsigned long, len,
 	unsigned long, prot, unsigned long, flags, unsigned long,
 	fd, off_t, offset)
 {
-	unsigned long result;
-
-	result = -EINVAL;
 	if (offset & ~PAGE_MASK)
-		goto out;
-
-	result = sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
-
-out:
-	return result;
+		return -EINVAL;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 }
 
 SYSCALL_DEFINE6(mips_mmap2, unsigned long, addr, unsigned long, len,

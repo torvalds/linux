@@ -716,7 +716,6 @@ struct scsi_transport_template *ata_attach_transport(void)
 		return NULL;
 
 	i->t.eh_strategy_handler	= ata_scsi_error;
-	i->t.eh_timed_out		= ata_scsi_timed_out;
 	i->t.user_scan			= ata_scsi_user_scan;
 
 	i->t.host_attrs.ac.attrs = &i->port_attrs[0];

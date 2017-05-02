@@ -14,7 +14,7 @@ menuconfig ATA
 	tristate "Serial ATA and Parallel ATA drivers (libata)"
 	depends on HAS_IOMEM
 	depends on BLOCK
-	depends on !(M32R || M68K || S390) || BROKEN
+	depends on !(M32R || S390) || BROKEN
 	select SCSI
 	select GLOB
 	---help---
@@ -80,6 +80,8 @@ config SATA_PMP
 	  This option adds support for SATA Port Multipliers
 	  (the SATA version of an ethernet hub, or SAS expander).
 
+if HAS_DMA
+
 comment "Controllers with non-SFF native interface"
 
 config SATA_AHCI
@@ -127,6 +129,7 @@ config AHCI_ST
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
 	depends on MFD_SYSCON && (ARCH_MXC || COMPILE_TEST)
+	depends on (HWMON && (THERMAL || !THERMAL_OF)) || !HWMON
 	help
 	  This option enables support for the Freescale i.MX SoC's
 	  onboard AHCI SATA.
@@ -232,6 +235,8 @@ config SATA_SIL24
 
 	  If unsure, say N.
 
+endif # HAS_DMA
+
 config ATA_SFF
 	bool "ATA SFF support (for legacy IDE and PATA)"
 	default y
@@ -289,6 +294,7 @@ config SATA_SX4
 
 config ATA_BMDMA
 	bool "ATA BMDMA support"
+	depends on HAS_DMA
 	default y
 	help
 	  This option adds support for SFF ATA controllers with BMDMA
@@ -344,6 +350,7 @@ config SATA_DWC_VDEBUG
 
 config SATA_HIGHBANK
 	tristate "Calxeda Highbank SATA support"
+	depends on HAS_DMA
 	depends on ARCH_HIGHBANK || COMPILE_TEST
 	help
 	  This option enables support for the Calxeda Highbank SoC's
@@ -353,6 +360,7 @@ config SATA_HIGHBANK
 
 config SATA_MV
 	tristate "Marvell SATA support"
+	depends on HAS_DMA
 	depends on PCI || ARCH_DOVE || ARCH_MV78XX0 || \
 		   ARCH_MVEBU || ARCH_ORION5X || COMPILE_TEST
 	select GENERIC_PHY
@@ -892,6 +900,15 @@ config PATA_CMD640_PCI
 	  This option enables support for the CMD640 PCI IDE
 	  interface chip. Only the primary channel is currently
 	  supported.
+
+	  If unsure, say N.
+
+config PATA_FALCON
+	tristate "Atari Falcon PATA support"
+	depends on M68K && ATARI
+	help
+	  This option enables support for the on-board IDE
+	  interface on the Atari Falcon.
 
 	  If unsure, say N.
 

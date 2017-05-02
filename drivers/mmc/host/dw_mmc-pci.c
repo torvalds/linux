@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
-#include <linux/mmc/dw_mmc.h>
 #include "dw_mmc.h"
 
 #define PCI_BAR_NO 2

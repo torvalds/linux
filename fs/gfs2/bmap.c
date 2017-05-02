@@ -720,6 +720,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrp_list rlist;
+	struct gfs2_trans *tr;
 	u64 bn, bstart;
 	u32 blen, btotal;
 	__be64 *p;
@@ -728,6 +729,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	unsigned int revokes = 0;
 	int x;
 	int error;
+	int jblocks_rqsted;
 
 	error = gfs2_rindex_update(sdp);
 	if (error)
@@ -791,12 +793,17 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (gfs2_rs_active(&ip->i_res)) /* needs to be done with the rgrp glock held */
 		gfs2_rs_deltree(&ip->i_res);
 
-	error = gfs2_trans_begin(sdp, rg_blocks + RES_DINODE +
-				 RES_INDIRECT + RES_STATFS + RES_QUOTA,
-				 revokes);
+restart:
+	jblocks_rqsted = rg_blocks + RES_DINODE +
+		RES_INDIRECT + RES_STATFS + RES_QUOTA +
+		gfs2_struct2blk(sdp, revokes, sizeof(u64));
+	if (jblocks_rqsted > atomic_read(&sdp->sd_log_thresh2))
+		jblocks_rqsted = atomic_read(&sdp->sd_log_thresh2);
+	error = gfs2_trans_begin(sdp, jblocks_rqsted, revokes);
 	if (error)
 		goto out_rg_gunlock;
 
+	tr = current->journal_info;
 	down_write(&ip->i_rw_mutex);
 
 	gfs2_trans_add_meta(ip->i_gl, dibh);
@@ -809,6 +816,16 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	for (p = top; p < bottom; p++) {
 		if (!*p)
 			continue;
+
+		/* check for max reasonable journal transaction blocks */
+		if (tr->tr_num_buf_new + RES_STATFS +
+		    RES_QUOTA >= atomic_read(&sdp->sd_log_thresh2)) {
+			if (rg_blocks >= tr->tr_num_buf_new)
+				rg_blocks -= tr->tr_num_buf_new;
+			else
+				rg_blocks = 0;
+			break;
+		}
 
 		bn = be64_to_cpu(*p);
 
@@ -827,6 +844,9 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		*p = 0;
 		gfs2_add_inode_blocks(&ip->i_inode, -1);
 	}
+	if (p == bottom)
+		rg_blocks = 0;
+
 	if (bstart) {
 		__gfs2_free_blocks(ip, bstart, blen, metadata);
 		btotal += blen;
@@ -843,6 +863,9 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	up_write(&ip->i_rw_mutex);
 
 	gfs2_trans_end(sdp);
+
+	if (rg_blocks)
+		goto restart;
 
 out_rg_gunlock:
 	gfs2_glock_dq_m(rlist.rl_rgrps, rlist.rl_ghs);

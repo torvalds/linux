@@ -32,7 +32,31 @@ void blk_mq_free_queue(struct request_queue *q);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
 void blk_mq_wake_waiters(struct request_queue *q);
 bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *, struct list_head *);
+void blk_mq_flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list);
+bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx);
+bool blk_mq_get_driver_tag(struct request *rq, struct blk_mq_hw_ctx **hctx,
+				bool wait);
 
+/*
+ * Internal helpers for allocating/freeing the request map
+ */
+void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx);
+void blk_mq_free_rq_map(struct blk_mq_tags *tags);
+struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
+					unsigned int hctx_idx,
+					unsigned int nr_tags,
+					unsigned int reserved_tags);
+int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx, unsigned int depth);
+
+/*
+ * Internal helpers for request insertion into sw queues
+ */
+void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
+				bool at_head);
+void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
+				struct list_head *list);
 /*
  * CPU hotplug helpers
  */
@@ -56,6 +80,35 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
+
+/*
+ * debugfs helpers
+ */
+#ifdef CONFIG_BLK_DEBUG_FS
+int blk_mq_debugfs_register(struct request_queue *q, const char *name);
+void blk_mq_debugfs_unregister(struct request_queue *q);
+int blk_mq_debugfs_register_hctxs(struct request_queue *q);
+void blk_mq_debugfs_unregister_hctxs(struct request_queue *q);
+#else
+static inline int blk_mq_debugfs_register(struct request_queue *q,
+					  const char *name)
+{
+	return 0;
+}
+
+static inline void blk_mq_debugfs_unregister(struct request_queue *q)
+{
+}
+
+static inline int blk_mq_debugfs_register_hctxs(struct request_queue *q)
+{
+	return 0;
+}
+
+static inline void blk_mq_debugfs_unregister_hctxs(struct request_queue *q)
+{
+}
+#endif
 
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 
@@ -102,6 +155,25 @@ static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
 	data->ctx = ctx;
 	data->hctx = hctx;
 }
+
+static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
+{
+	if (data->flags & BLK_MQ_REQ_INTERNAL)
+		return data->hctx->sched_tags;
+
+	return data->hctx->tags;
+}
+
+/*
+ * Internal helpers for request allocation/init/free
+ */
+void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
+			struct request *rq, unsigned int op);
+void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
+				struct request *rq);
+void blk_mq_finish_request(struct request *rq);
+struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
+					unsigned int op);
 
 static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
 {

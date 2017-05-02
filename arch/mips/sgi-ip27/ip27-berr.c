@@ -9,11 +9,9 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/signal.h>	/* for SIGBUS */
 #include <linux/sched.h>	/* schow_regs(), force_sig() */
 
-#include <asm/module.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/sn0/hub.h>

@@ -12,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -20,18 +19,6 @@
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-mvebu.h"
-
-static void __iomem *mpp_base;
-
-static int kirkwood_mpp_ctrl_get(unsigned pid, unsigned long *config)
-{
-	return default_mpp_ctrl_get(mpp_base, pid, config);
-}
-
-static int kirkwood_mpp_ctrl_set(unsigned pid, unsigned long config)
-{
-	return default_mpp_ctrl_set(mpp_base, pid, config);
-}
 
 #define V(f6180, f6190, f6192, f6281, f6282, dx4122)	\
 	((f6180 << 0) | (f6190 << 1) | (f6192 << 2) |	\
@@ -370,8 +357,8 @@ static struct mvebu_mpp_mode mv88f6xxx_mpp_modes[] = {
 		MPP_VAR_FUNCTION(0xb, "lcd", "d17",      V(0, 0, 0, 0, 1, 0))),
 };
 
-static struct mvebu_mpp_ctrl mv88f6180_mpp_controls[] = {
-	MPP_FUNC_CTRL(0, 44, NULL, kirkwood_mpp_ctrl),
+static const struct mvebu_mpp_ctrl mv88f6180_mpp_controls[] = {
+	MPP_FUNC_CTRL(0, 44, NULL, mvebu_mmio_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f6180_gpio_ranges[] = {
@@ -379,8 +366,8 @@ static struct pinctrl_gpio_range mv88f6180_gpio_ranges[] = {
 	MPP_GPIO_RANGE(1, 35, 35, 10),
 };
 
-static struct mvebu_mpp_ctrl mv88f619x_mpp_controls[] = {
-	MPP_FUNC_CTRL(0, 35, NULL, kirkwood_mpp_ctrl),
+static const struct mvebu_mpp_ctrl mv88f619x_mpp_controls[] = {
+	MPP_FUNC_CTRL(0, 35, NULL, mvebu_mmio_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f619x_gpio_ranges[] = {
@@ -388,8 +375,8 @@ static struct pinctrl_gpio_range mv88f619x_gpio_ranges[] = {
 	MPP_GPIO_RANGE(1, 32, 32,  4),
 };
 
-static struct mvebu_mpp_ctrl mv88f628x_mpp_controls[] = {
-	MPP_FUNC_CTRL(0, 49, NULL, kirkwood_mpp_ctrl),
+static const struct mvebu_mpp_ctrl mv88f628x_mpp_controls[] = {
+	MPP_FUNC_CTRL(0, 49, NULL, mvebu_mmio_mpp_ctrl),
 };
 
 static struct pinctrl_gpio_range mv88f628x_gpio_ranges[] = {
@@ -469,17 +456,12 @@ static const struct of_device_id kirkwood_pinctrl_of_match[] = {
 
 static int kirkwood_pinctrl_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	const struct of_device_id *match =
 		of_match_device(kirkwood_pinctrl_of_match, &pdev->dev);
+
 	pdev->dev.platform_data = (void *)match->data;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mpp_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mpp_base))
-		return PTR_ERR(mpp_base);
-
-	return mvebu_pinctrl_probe(pdev);
+	return mvebu_pinctrl_simple_mmio_probe(pdev);
 }
 
 static struct platform_driver kirkwood_pinctrl_driver = {
@@ -489,9 +471,4 @@ static struct platform_driver kirkwood_pinctrl_driver = {
 	},
 	.probe = kirkwood_pinctrl_probe,
 };
-
-module_platform_driver(kirkwood_pinctrl_driver);
-
-MODULE_AUTHOR("Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>");
-MODULE_DESCRIPTION("Marvell Kirkwood pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(kirkwood_pinctrl_driver);

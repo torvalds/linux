@@ -210,6 +210,9 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
+void mips_dump_regs32(u32 *uregs, const struct pt_regs *regs);
+void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
+
 #ifdef CONFIG_32BIT
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -220,6 +223,9 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS32
+
+#define ELF_CORE_COPY_REGS(dest, regs) \
+	mips_dump_regs32((u32 *)&(dest), (regs));
 
 #endif /* CONFIG_32BIT */
 
@@ -233,6 +239,9 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS64
+
+#define ELF_CORE_COPY_REGS(dest, regs) \
+	mips_dump_regs64((u64 *)&(dest), (regs));
 
 #endif /* CONFIG_64BIT */
 

@@ -480,7 +480,7 @@ void lpfc_sli4_offline_eratt(struct lpfc_hba *);
 struct lpfc_device_data *lpfc_create_device_data(struct lpfc_hba *,
 						struct lpfc_name *,
 						struct lpfc_name *,
-						uint64_t, bool);
+						uint64_t, uint32_t,  bool);
 void lpfc_delete_device_data(struct lpfc_hba *, struct lpfc_device_data*);
 struct lpfc_device_data *__lpfc_get_device_data(struct lpfc_hba *,
 					struct list_head *list,
@@ -489,9 +489,10 @@ struct lpfc_device_data *__lpfc_get_device_data(struct lpfc_hba *,
 bool lpfc_enable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
 			 struct lpfc_name *, uint64_t, uint8_t);
 bool lpfc_disable_oas_lun(struct lpfc_hba *, struct lpfc_name *,
-			  struct lpfc_name *, uint64_t);
+			  struct lpfc_name *, uint64_t, uint8_t);
 bool lpfc_find_next_oas_lun(struct lpfc_hba *, struct lpfc_name *,
 			    struct lpfc_name *, uint64_t *, struct lpfc_name *,
-			    struct lpfc_name *, uint64_t *, uint32_t *);
+			    struct lpfc_name *, uint64_t *,
+			    uint32_t *, uint32_t *);
 int lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox);
 void lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb);

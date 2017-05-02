@@ -764,6 +764,9 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 	if (!dir || !dir->i_nlink)
 		return ERR_PTR(-EPERM);
 
+	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+		return ERR_PTR(-EIO);
+
 	if ((ext4_encrypted_inode(dir) ||
 	     DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb))) &&
 	    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))) {
@@ -771,7 +774,7 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 		if (err)
 			return ERR_PTR(err);
 		if (!fscrypt_has_encryption_key(dir))
-			return ERR_PTR(-EPERM);
+			return ERR_PTR(-ENOKEY);
 		if (!handle)
 			nblocks += EXT4_DATA_TRANS_BLOCKS(dir->i_sb);
 		encrypt = 1;

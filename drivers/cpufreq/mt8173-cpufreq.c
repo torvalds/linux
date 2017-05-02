@@ -232,16 +232,14 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	freq_hz = freq_table[index].frequency * 1000;
 
-	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		pr_err("cpu%d: failed to find OPP for %ld\n",
 		       policy->cpu, freq_hz);
 		return PTR_ERR(opp);
 	}
 	vproc = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	/*
 	 * If the new voltage or the intermediate voltage is higher than the
@@ -411,16 +409,14 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 
 	/* Search a safe voltage for intermediate frequency. */
 	rate = clk_get_rate(inter_clk);
-	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &rate);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		pr_err("failed to get intermediate opp for cpu%d\n", cpu);
 		ret = PTR_ERR(opp);
 		goto out_free_opp_table;
 	}
 	info->intermediate_voltage = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	info->cpu_dev = cpu_dev;
 	info->proc_reg = proc_reg;

@@ -3815,6 +3815,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_PCTV,      USB_PID_PCTV_2002E_SE) },
 	{ USB_DEVICE(USB_VID_PCTV,      USB_PID_DIBCOM_STK8096PVR) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK8096PVR) },
+	{ USB_DEVICE(USB_VID_HAMA,	USB_PID_HAMA_DVBT_HYBRID) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -4379,7 +4380,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 9,
+		.num_device_descs = 10,
 		.devices = {
 			{   "Terratec Cinergy HT USB XE",
 				{ &dib0700_usb_id_table[27], NULL },
@@ -4415,6 +4416,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "YUAN High-Tech STK7700D",
 				{ &dib0700_usb_id_table[54], NULL },
+				{ NULL },
+			},
+			{   "Hama DVB=T Hybrid USB Stick",
+				{ &dib0700_usb_id_table[85], NULL },
 				{ NULL },
 			},
 		},

@@ -37,8 +37,59 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
+static struct kmem_cache *scsi_sdb_cache;
+static struct kmem_cache *scsi_sense_cache;
+static struct kmem_cache *scsi_sense_isadma_cache;
+static DEFINE_MUTEX(scsi_sense_cache_mutex);
 
-struct kmem_cache *scsi_sdb_cache;
+static inline struct kmem_cache *
+scsi_select_sense_cache(struct Scsi_Host *shost)
+{
+	return shost->unchecked_isa_dma ?
+		scsi_sense_isadma_cache : scsi_sense_cache;
+}
+
+static void scsi_free_sense_buffer(struct Scsi_Host *shost,
+		unsigned char *sense_buffer)
+{
+	kmem_cache_free(scsi_select_sense_cache(shost), sense_buffer);
+}
+
+static unsigned char *scsi_alloc_sense_buffer(struct Scsi_Host *shost,
+	gfp_t gfp_mask, int numa_node)
+{
+	return kmem_cache_alloc_node(scsi_select_sense_cache(shost), gfp_mask,
+			numa_node);
+}
+
+int scsi_init_sense_cache(struct Scsi_Host *shost)
+{
+	struct kmem_cache *cache;
+	int ret = 0;
+
+	cache = scsi_select_sense_cache(shost);
+	if (cache)
+		return 0;
+
+	mutex_lock(&scsi_sense_cache_mutex);
+	if (shost->unchecked_isa_dma) {
+		scsi_sense_isadma_cache =
+			kmem_cache_create("scsi_sense_cache(DMA)",
+			SCSI_SENSE_BUFFERSIZE, 0,
+			SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA, NULL);
+		if (!scsi_sense_isadma_cache)
+			ret = -ENOMEM;
+	} else {
+		scsi_sense_cache =
+			kmem_cache_create("scsi_sense_cache",
+			SCSI_SENSE_BUFFERSIZE, 0, SLAB_HWCACHE_ALIGN, NULL);
+		if (!scsi_sense_cache)
+			ret = -ENOMEM;
+	}
+
+	mutex_unlock(&scsi_sense_cache_mutex);
+	return ret;
+}
 
 /*
  * When to reinvoke queueing after a resource shortage. It's 3 msecs to
@@ -168,22 +219,23 @@ static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 req_flags_t rq_flags, int *resid)
 {
 	struct request *req;
-	int write = (data_direction == DMA_TO_DEVICE);
+	struct scsi_request *rq;
 	int ret = DRIVER_ERROR << 24;
 
-	req = blk_get_request(sdev->request_queue, write, __GFP_RECLAIM);
+	req = blk_get_request(sdev->request_queue,
+			data_direction == DMA_TO_DEVICE ?
+			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, __GFP_RECLAIM);
 	if (IS_ERR(req))
 		return ret;
-	blk_rq_set_block_pc(req);
+	rq = scsi_req(req);
+	scsi_req_init(req);
 
 	if (bufflen &&	blk_rq_map_kern(sdev->request_queue, req,
 					buffer, bufflen, __GFP_RECLAIM))
 		goto out;
 
-	req->cmd_len = COMMAND_SIZE(cmd[0]);
-	memcpy(req->cmd, cmd, req->cmd_len);
-	req->sense = sense;
-	req->sense_len = 0;
+	rq->cmd_len = COMMAND_SIZE(cmd[0]);
+	memcpy(rq->cmd, cmd, rq->cmd_len);
 	req->retries = retries;
 	req->timeout = timeout;
 	req->cmd_flags |= flags;
@@ -200,11 +252,13 @@ static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	 * is invalid.  Prevent the garbage from being misinterpreted
 	 * and prevent security leaks by zeroing out the excess data.
 	 */
-	if (unlikely(req->resid_len > 0 && req->resid_len <= bufflen))
-		memset(buffer + (bufflen - req->resid_len), 0, req->resid_len);
+	if (unlikely(rq->resid_len > 0 && rq->resid_len <= bufflen))
+		memset(buffer + (bufflen - rq->resid_len), 0, rq->resid_len);
 
 	if (resid)
-		*resid = req->resid_len;
+		*resid = rq->resid_len;
+	if (sense && rq->sense_len)
+		memcpy(sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
 	ret = req->errors;
  out:
 	blk_put_request(req);
@@ -529,7 +583,7 @@ void scsi_run_host_queues(struct Scsi_Host *shost)
 
 static void scsi_uninit_cmd(struct scsi_cmnd *cmd)
 {
-	if (cmd->request->cmd_type == REQ_TYPE_FS) {
+	if (!blk_rq_is_passthrough(cmd->request)) {
 		struct scsi_driver *drv = scsi_cmd_to_driver(cmd);
 
 		if (drv->uninit_command)
@@ -645,14 +699,13 @@ static bool scsi_end_request(struct request *req, int error,
 
 		if (bidi_bytes)
 			scsi_release_bidi_buffers(cmd);
+		scsi_release_buffers(cmd);
+		scsi_put_command(cmd);
 
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_finish_request(req, error);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 
-		scsi_release_buffers(cmd);
-
-		scsi_put_command(cmd);
 		scsi_run_queue(q);
 	}
 
@@ -754,18 +807,15 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			sense_deferred = scsi_sense_is_deferred(&sshdr);
 	}
 
-	if (req->cmd_type == REQ_TYPE_BLOCK_PC) { /* SG_IO ioctl from block level */
+	if (blk_rq_is_passthrough(req)) {
 		if (result) {
-			if (sense_valid && req->sense) {
+			if (sense_valid) {
 				/*
 				 * SG_IO wants current and deferred errors
 				 */
-				int len = 8 + cmd->sense_buffer[7];
-
-				if (len > SCSI_SENSE_BUFFERSIZE)
-					len = SCSI_SENSE_BUFFERSIZE;
-				memcpy(req->sense, cmd->sense_buffer,  len);
-				req->sense_len = len;
+				scsi_req(req)->sense_len =
+					min(8 + cmd->sense_buffer[7],
+					    SCSI_SENSE_BUFFERSIZE);
 			}
 			if (!sense_deferred)
 				error = __scsi_error_from_host_byte(cmd, result);
@@ -775,14 +825,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 */
 		req->errors = cmd->result;
 
-		req->resid_len = scsi_get_resid(cmd);
+		scsi_req(req)->resid_len = scsi_get_resid(cmd);
 
 		if (scsi_bidi_cmnd(cmd)) {
 			/*
 			 * Bidi commands Must be complete as a whole,
 			 * both sides at once.
 			 */
-			req->next_rq->resid_len = scsi_in(cmd)->resid;
+			scsi_req(req->next_rq)->resid_len = scsi_in(cmd)->resid;
 			if (scsi_end_request(req, 0, blk_rq_bytes(req),
 					blk_rq_bytes(req->next_rq)))
 				BUG();
@@ -790,15 +840,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		}
 	} else if (blk_rq_bytes(req) == 0 && result && !sense_deferred) {
 		/*
-		 * Certain non BLOCK_PC requests are commands that don't
-		 * actually transfer anything (FLUSH), so cannot use
+		 * Flush commands do not transfers any data, and thus cannot use
 		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
 		 * This sets the error explicitly for the problem case.
 		 */
 		error = __scsi_error_from_host_byte(cmd, result);
 	}
 
-	/* no bidi support for !REQ_TYPE_BLOCK_PC yet */
+	/* no bidi support for !blk_rq_is_passthrough yet */
 	BUG_ON(blk_bidi_rq(req));
 
 	/*
@@ -810,8 +859,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		blk_rq_sectors(req), good_bytes));
 
 	/*
-	 * Recovered errors need reporting, but they're always treated
-	 * as success, so fiddle the result code here.  For BLOCK_PC
+	 * Recovered errors need reporting, but they're always treated as
+	 * success, so fiddle the result code here.  For passthrough requests
 	 * we already took a copy of the original into rq->errors which
 	 * is what gets returned to the user
 	 */
@@ -825,7 +874,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		else if (!(req->rq_flags & RQF_QUIET))
 			scsi_print_sense(cmd);
 		result = 0;
-		/* BLOCK_PC may have set error */
+		/* for passthrough error may be set */
 		error = 0;
 	}
 
@@ -1110,42 +1159,33 @@ err_exit:
 }
 EXPORT_SYMBOL(scsi_init_io);
 
-static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
-		struct request *req)
+void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 {
-	struct scsi_cmnd *cmd;
+	void *buf = cmd->sense_buffer;
+	void *prot = cmd->prot_sdb;
+	unsigned long flags;
 
-	if (!req->special) {
-		/* Bail if we can't get a reference to the device */
-		if (!get_device(&sdev->sdev_gendev))
-			return NULL;
+	/* zero out the cmd, except for the embedded scsi_request */
+	memset((char *)cmd + sizeof(cmd->req), 0,
+		sizeof(*cmd) - sizeof(cmd->req));
 
-		cmd = scsi_get_command(sdev, GFP_ATOMIC);
-		if (unlikely(!cmd)) {
-			put_device(&sdev->sdev_gendev);
-			return NULL;
-		}
-		req->special = cmd;
-	} else {
-		cmd = req->special;
-	}
+	cmd->device = dev;
+	cmd->sense_buffer = buf;
+	cmd->prot_sdb = prot;
+	INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
+	cmd->jiffies_at_alloc = jiffies;
 
-	/* pull a tag out of the request if we have one */
-	cmd->tag = req->tag;
-	cmd->request = req;
-
-	cmd->cmnd = req->cmd;
-	cmd->prot_op = SCSI_PROT_NORMAL;
-
-	return cmd;
+	spin_lock_irqsave(&dev->list_lock, flags);
+	list_add_tail(&cmd->list, &dev->cmd_list);
+	spin_unlock_irqrestore(&dev->list_lock, flags);
 }
 
-static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
+static int scsi_setup_scsi_cmnd(struct scsi_device *sdev, struct request *req)
 {
 	struct scsi_cmnd *cmd = req->special;
 
 	/*
-	 * BLOCK_PC requests may transfer data, in which case they must
+	 * Passthrough requests may transfer data, in which case they must
 	 * a bio attached to them.  Or they might contain a SCSI command
 	 * that does not transfer data, in which case they may optionally
 	 * submit a request without an attached bio.
@@ -1160,14 +1200,15 @@ static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 		memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 	}
 
-	cmd->cmd_len = req->cmd_len;
+	cmd->cmd_len = scsi_req(req)->cmd_len;
+	cmd->cmnd = scsi_req(req)->cmd;
 	cmd->transfersize = blk_rq_bytes(req);
 	cmd->allowed = req->retries;
 	return BLKPREP_OK;
 }
 
 /*
- * Setup a REQ_TYPE_FS command.  These are simple request from filesystems
+ * Setup a normal block command.  These are simple request from filesystems
  * that still need to be translated to SCSI CDBs from the ULD.
  */
 static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
@@ -1180,6 +1221,7 @@ static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 			return ret;
 	}
 
+	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
 	memset(cmd->cmnd, 0, BLK_MAX_CDB);
 	return scsi_cmd_to_driver(cmd)->init_command(cmd);
 }
@@ -1195,14 +1237,10 @@ static int scsi_setup_cmnd(struct scsi_device *sdev, struct request *req)
 	else
 		cmd->sc_data_direction = DMA_FROM_DEVICE;
 
-	switch (req->cmd_type) {
-	case REQ_TYPE_FS:
+	if (blk_rq_is_scsi(req))
+		return scsi_setup_scsi_cmnd(sdev, req);
+	else
 		return scsi_setup_fs_cmnd(sdev, req);
-	case REQ_TYPE_BLOCK_PC:
-		return scsi_setup_blk_pc_cmnd(sdev, req);
-	default:
-		return BLKPREP_KILL;
-	}
 }
 
 static int
@@ -1298,18 +1336,27 @@ scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 static int scsi_prep_fn(struct request_queue *q, struct request *req)
 {
 	struct scsi_device *sdev = q->queuedata;
-	struct scsi_cmnd *cmd;
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	int ret;
 
 	ret = scsi_prep_state_check(sdev, req);
 	if (ret != BLKPREP_OK)
 		goto out;
 
-	cmd = scsi_get_cmd_from_req(sdev, req);
-	if (unlikely(!cmd)) {
-		ret = BLKPREP_DEFER;
-		goto out;
+	if (!req->special) {
+		/* Bail if we can't get a reference to the device */
+		if (unlikely(!get_device(&sdev->sdev_gendev))) {
+			ret = BLKPREP_DEFER;
+			goto out;
+		}
+
+		scsi_init_command(sdev, cmd);
+		req->special = cmd;
 	}
+
+	cmd->tag = req->tag;
+	cmd->request = req;
+	cmd->prot_op = SCSI_PROT_NORMAL;
 
 	ret = scsi_setup_cmnd(sdev, req);
 out:
@@ -1827,7 +1874,9 @@ static int scsi_mq_prep_fn(struct request *req)
 	unsigned char *sense_buf = cmd->sense_buffer;
 	struct scatterlist *sg;
 
-	memset(cmd, 0, sizeof(struct scsi_cmnd));
+	/* zero out the cmd, except for the embedded scsi_request */
+	memset((char *)cmd + sizeof(cmd->req), 0,
+		sizeof(*cmd) - sizeof(cmd->req));
 
 	req->special = cmd;
 
@@ -1837,7 +1886,6 @@ static int scsi_mq_prep_fn(struct request *req)
 
 	cmd->tag = req->tag;
 
-	cmd->cmnd = req->cmd;
 	cmd->prot_op = SCSI_PROT_NORMAL;
 
 	INIT_LIST_HEAD(&cmd->list);
@@ -1912,7 +1960,6 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (!scsi_host_queue_ready(q, shost, sdev))
 		goto out_dec_target_busy;
 
-
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		ret = prep_to_mq(scsi_mq_prep_fn(req));
 		if (ret != BLK_MQ_RQ_QUEUE_OK)
@@ -1982,21 +2029,24 @@ static int scsi_init_request(void *data, struct request *rq,
 		unsigned int hctx_idx, unsigned int request_idx,
 		unsigned int numa_node)
 {
+	struct Scsi_Host *shost = data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
-	cmd->sense_buffer = kzalloc_node(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL,
-			numa_node);
+	cmd->sense_buffer =
+		scsi_alloc_sense_buffer(shost, GFP_KERNEL, numa_node);
 	if (!cmd->sense_buffer)
 		return -ENOMEM;
+	cmd->req.sense = cmd->sense_buffer;
 	return 0;
 }
 
 static void scsi_exit_request(void *data, struct request *rq,
 		unsigned int hctx_idx, unsigned int request_idx)
 {
+	struct Scsi_Host *shost = data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
-	kfree(cmd->sense_buffer);
+	scsi_free_sense_buffer(shost, cmd->sense_buffer);
 }
 
 static int scsi_map_queues(struct blk_mq_tag_set *set)
@@ -2029,7 +2079,7 @@ static u64 scsi_calculate_bounce_limit(struct Scsi_Host *shost)
 	return bounce_limit;
 }
 
-static void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
+void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 {
 	struct device *dev = shost->dma_dev;
 
@@ -2064,28 +2114,64 @@ static void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	 */
 	blk_queue_dma_alignment(q, 0x03);
 }
+EXPORT_SYMBOL_GPL(__scsi_init_queue);
 
-struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
-					 request_fn_proc *request_fn)
+static int scsi_init_rq(struct request_queue *q, struct request *rq, gfp_t gfp)
 {
-	struct request_queue *q;
+	struct Scsi_Host *shost = q->rq_alloc_data;
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
-	q = blk_init_queue(request_fn, NULL);
-	if (!q)
-		return NULL;
-	__scsi_init_queue(shost, q);
-	return q;
+	memset(cmd, 0, sizeof(*cmd));
+
+	cmd->sense_buffer = scsi_alloc_sense_buffer(shost, gfp, NUMA_NO_NODE);
+	if (!cmd->sense_buffer)
+		goto fail;
+	cmd->req.sense = cmd->sense_buffer;
+
+	if (scsi_host_get_prot(shost) >= SHOST_DIX_TYPE0_PROTECTION) {
+		cmd->prot_sdb = kmem_cache_zalloc(scsi_sdb_cache, gfp);
+		if (!cmd->prot_sdb)
+			goto fail_free_sense;
+	}
+
+	return 0;
+
+fail_free_sense:
+	scsi_free_sense_buffer(shost, cmd->sense_buffer);
+fail:
+	return -ENOMEM;
 }
-EXPORT_SYMBOL(__scsi_alloc_queue);
+
+static void scsi_exit_rq(struct request_queue *q, struct request *rq)
+{
+	struct Scsi_Host *shost = q->rq_alloc_data;
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+
+	if (cmd->prot_sdb)
+		kmem_cache_free(scsi_sdb_cache, cmd->prot_sdb);
+	scsi_free_sense_buffer(shost, cmd->sense_buffer);
+}
 
 struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 {
+	struct Scsi_Host *shost = sdev->host;
 	struct request_queue *q;
 
-	q = __scsi_alloc_queue(sdev->host, scsi_request_fn);
+	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
 	if (!q)
 		return NULL;
+	q->cmd_size = sizeof(struct scsi_cmnd) + shost->hostt->cmd_size;
+	q->rq_alloc_data = shost;
+	q->request_fn = scsi_request_fn;
+	q->init_rq_fn = scsi_init_rq;
+	q->exit_rq_fn = scsi_exit_rq;
 
+	if (blk_init_allocated_queue(q) < 0) {
+		blk_cleanup_queue(q);
+		return NULL;
+	}
+
+	__scsi_init_queue(shost, q);
 	blk_queue_prep_rq(q, scsi_prep_fn);
 	blk_queue_unprep_rq(q, scsi_unprep_fn);
 	blk_queue_softirq_done(q, scsi_softirq_done);
@@ -2209,6 +2295,8 @@ int __init scsi_init_queue(void)
 
 void scsi_exit_queue(void)
 {
+	kmem_cache_destroy(scsi_sense_cache);
+	kmem_cache_destroy(scsi_sense_isadma_cache);
 	kmem_cache_destroy(scsi_sdb_cache);
 }
 

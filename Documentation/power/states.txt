@@ -25,7 +25,7 @@ to be used subsequently to change to the one represented by that string.
 Consequently, there are two ways to cause the system to go into the
 Suspend-To-Idle sleep state.  The first one is to write "freeze" directly to
 /sys/power/state.  The second one is to write "s2idle" to /sys/power/mem_sleep
-and then to wrtie "mem" to /sys/power/state.  Similarly, there are two ways
+and then to write "mem" to /sys/power/state.  Similarly, there are two ways
 to cause the system to go into the Power-On Suspend sleep state (the strings to
 write to the control files in that case are "standby" or "shallow" and "mem",
 respectively) if that state is supported by the platform.  In turn, there is

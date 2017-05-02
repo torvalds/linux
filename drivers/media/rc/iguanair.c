@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/device.h>
@@ -431,7 +427,7 @@ static int iguanair_probe(struct usb_interface *intf,
 	struct usb_host_interface *idesc;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir || !rc) {
 		ret = -ENOMEM;
 		goto out;
@@ -494,8 +490,7 @@ static int iguanair_probe(struct usb_interface *intf,
 	rc->input_phys = ir->phys;
 	usb_to_input_id(ir->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
-	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protocols = RC_BIT_ALL;
+	rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	rc->priv = ir;
 	rc->open = iguanair_open;
 	rc->close = iguanair_close;
@@ -504,7 +499,9 @@ static int iguanair_probe(struct usb_interface *intf,
 	rc->tx_ir = iguanair_tx;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_RC6_MCE;
-	rc->timeout = MS_TO_NS(100);
+	rc->min_timeout = 1;
+	rc->timeout = IR_DEFAULT_TIMEOUT;
+	rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	rc->rx_resolution = RX_RESOLUTION;
 
 	iguanair_set_tx_carrier(rc, 38000);

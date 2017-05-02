@@ -101,11 +101,9 @@ static int wm831x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 				  WM831X_IRQ_GPIO_1 + offset);
 }
 
-static int wm831x_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
+static int wm831x_gpio_set_debounce(struct wm831x *wm831x, unsigned offset,
 				    unsigned debounce)
 {
-	struct wm831x_gpio *wm831x_gpio = gpiochip_get_data(chip);
-	struct wm831x *wm831x = wm831x_gpio->wm831x;
 	int reg = WM831X_GPIO1_CONTROL + offset;
 	int ret, fn;
 
@@ -132,21 +130,23 @@ static int wm831x_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 	return wm831x_set_bits(wm831x, reg, WM831X_GPN_FN_MASK, fn);
 }
 
-static int wm831x_set_single_ended(struct gpio_chip *chip,
-				   unsigned int offset,
-				   enum single_ended_mode mode)
+static int wm831x_set_config(struct gpio_chip *chip, unsigned int offset,
+			     unsigned long config)
 {
 	struct wm831x_gpio *wm831x_gpio = gpiochip_get_data(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
 	int reg = WM831X_GPIO1_CONTROL + offset;
 
-	switch (mode) {
-	case LINE_MODE_OPEN_DRAIN:
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		return wm831x_set_bits(wm831x, reg,
 				       WM831X_GPN_OD_MASK, WM831X_GPN_OD);
-	case LINE_MODE_PUSH_PULL:
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		return wm831x_set_bits(wm831x, reg,
 				       WM831X_GPN_OD_MASK, 0);
+	case PIN_CONFIG_INPUT_DEBOUNCE:
+		return wm831x_gpio_set_debounce(wm831x, offset,
+			pinconf_to_config_argument(config));
 	default:
 		break;
 	}
@@ -255,8 +255,7 @@ static const struct gpio_chip template_chip = {
 	.direction_output	= wm831x_gpio_direction_out,
 	.set			= wm831x_gpio_set,
 	.to_irq			= wm831x_gpio_to_irq,
-	.set_debounce		= wm831x_gpio_set_debounce,
-	.set_single_ended	= wm831x_set_single_ended,
+	.set_config		= wm831x_set_config,
 	.dbg_show		= wm831x_gpio_dbg_show,
 	.can_sleep		= true,
 };
