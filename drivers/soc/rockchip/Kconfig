@@ -13,6 +13,12 @@ config ROCKCHIP_CPUINFO
 
 	  If unsure, say N.
 
+config ROCKCHIP_DEVICEINFO
+	tristate "support deviceinfo partition"
+	default n
+	help
+	  Say y here if you have a deviceinfo partition.
+
 config ROCKCHIP_PM_TEST
 	bool "Rockchip pm_test support"
 	default n
