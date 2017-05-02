@@ -122,4 +122,3 @@ static void __exit wilc_debugfs_remove(void)
 module_exit(wilc_debugfs_remove);
 
 #endif
-
