@@ -828,7 +828,7 @@ static void reset_front_end_for_pipe(
 	/* TODO: build stream pipes group id. For now, use stream otg
 	 * id as pipe group id
 	 */
-	tree_cfg = &context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
+	tree_cfg = &dc->current_context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
 
 	if (pipe_ctx->top_pipe == NULL)
 		dcn10_delete_mpc_tree(mpc, tree_cfg);
@@ -1523,6 +1523,8 @@ static void update_dchubp_dpp(
 	struct tg_color black_color = {0};
 	struct dcn10_mpc *mpc = TO_DCN10_MPC(dc->res_pool->mpc);
 
+	struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
+
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	enable_dppclk(
 		dc->ctx,
@@ -1566,6 +1568,7 @@ static void update_dchubp_dpp(
 	 */
 	pipe_ctx->mpc_idx = pipe_ctx->tg->inst;
 	tree_cfg = &context->res_ctx.mpc_tree[pipe_ctx->mpc_idx];
+
 	/* enable when bottom pipe is present and
 	 * it does not share a surface with current pipe
 	 */
@@ -1576,20 +1579,28 @@ static void update_dchubp_dpp(
 		pipe_ctx->scl_data.lb_params.alpha_en = 0;
 		tree_cfg->mode = TOP_PASSTHRU;
 	}
-	if (!pipe_ctx->top_pipe) {
+	if (!pipe_ctx->top_pipe && !cur_pipe_ctx->bottom_pipe) {
 		/* primary pipe, set mpc tree index 0 only */
 		tree_cfg->num_pipes = 1;
 		tree_cfg->opp_id = pipe_ctx->tg->inst;
 		tree_cfg->dpp[0] = pipe_ctx->pipe_idx;
 		tree_cfg->mpcc[0] = pipe_ctx->pipe_idx;
-		dcn10_set_mpc_tree(mpc, tree_cfg);
-	} else {
-		/* TODO: add position is hard code to 1 for now
-		 * If more than 2 pipes are supported, calculate position
-		 */
+	}
+
+	if (!cur_pipe_ctx->top_pipe && !pipe_ctx->top_pipe) {
+
+		if (!cur_pipe_ctx->bottom_pipe)
+			dcn10_set_mpc_tree(mpc, tree_cfg);
+
+	} else if (!cur_pipe_ctx->top_pipe && pipe_ctx->top_pipe) {
+
 		dcn10_add_dpp(mpc, tree_cfg,
 			pipe_ctx->pipe_idx, pipe_ctx->pipe_idx, 1);
+	} else {
+		/* nothing to be done here */
+		ASSERT(cur_pipe_ctx->top_pipe && pipe_ctx->top_pipe);
 	}
+
 
 	color_space = pipe_ctx->stream->public.output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
@@ -1641,13 +1652,18 @@ static void program_all_pipe_in_tree(
 					pipe_ctx->mi, &context->watermarks, ref_clk_mhz);
 			lock_otg_master_update(dc->ctx, pipe_ctx->tg->inst);
 		}
+
 		pipe_ctx->tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
 		pipe_ctx->tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
 		pipe_ctx->tg->dlg_otg_param.vupdate_offset = pipe_ctx->pipe_dlg_param.vupdate_offset;
 		pipe_ctx->tg->dlg_otg_param.vupdate_width = pipe_ctx->pipe_dlg_param.vupdate_width;
 		pipe_ctx->tg->dlg_otg_param.signal =  pipe_ctx->stream->signal;
+
 		pipe_ctx->tg->funcs->program_global_sync(
 				pipe_ctx->tg);
+
+
+
 		update_dchubp_dpp(dc, pipe_ctx, context);
 	}
 
