@@ -221,7 +221,7 @@ pnfs_generic_alloc_ds_commits(struct nfs_commit_info *cinfo,
 		 * If the layout segment is invalid, then let
 		 * pnfs_generic_retry_commit() clean up the bucket.
 		 */
-		if (!pnfs_is_valid_lseg(bucket->clseg) &&
+		if (bucket->clseg && !pnfs_is_valid_lseg(bucket->clseg) &&
 		    !test_bit(NFS_LSEG_LAYOUTRETURN, &bucket->clseg->pls_flags))
 			break;
 		data = nfs_commitdata_alloc(false);
