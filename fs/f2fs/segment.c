@@ -419,7 +419,7 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 	else
 		build_free_nids(sbi, false, false);
 
-	if (!is_idle(sbi))
+	if (!is_idle(sbi) && !excess_dirty_nats(sbi))
 		return;
 
 	/* checkpoint is the only way to shrink partial cached entries */
