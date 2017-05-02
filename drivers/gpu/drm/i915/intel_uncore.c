@@ -29,6 +29,7 @@
 #include <linux/pm_runtime.h>
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
+#define GT_FIFO_TIMEOUT_MS	 10
 
 #define __raw_posting_read(dev_priv__, reg__) (void)__raw_i915_read32((dev_priv__), (reg__))
 
@@ -179,30 +180,27 @@ static inline u32 fifo_free_entries(struct drm_i915_private *dev_priv)
 	return count & GT_FIFO_FREE_ENTRIES_MASK;
 }
 
-static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+static void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
-	int ret = 0;
+	u32 n;
 
 	/* On VLV, FIFO will be shared by both SW and HW.
 	 * So, we need to read the FREE_ENTRIES everytime */
 	if (IS_VALLEYVIEW(dev_priv))
-		dev_priv->uncore.fifo_count = fifo_free_entries(dev_priv);
+		n = fifo_free_entries(dev_priv);
+	else
+		n = dev_priv->uncore.fifo_count;
 
-	if (dev_priv->uncore.fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
-		int loop = 500;
-		u32 fifo = fifo_free_entries(dev_priv);
-
-		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
-			udelay(10);
-			fifo = fifo_free_entries(dev_priv);
+	if (n <= GT_FIFO_NUM_RESERVED_ENTRIES) {
+		if (wait_for_atomic((n = fifo_free_entries(dev_priv)) >
+				    GT_FIFO_NUM_RESERVED_ENTRIES,
+				    GT_FIFO_TIMEOUT_MS)) {
+			DRM_DEBUG("GT_FIFO timeout, entries: %u\n", n);
+			return;
 		}
-		if (WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES))
-			++ret;
-		dev_priv->uncore.fifo_count = fifo;
 	}
-	dev_priv->uncore.fifo_count--;
 
-	return ret;
+	dev_priv->uncore.fifo_count = n - 1;
 }
 
 static enum hrtimer_restart
