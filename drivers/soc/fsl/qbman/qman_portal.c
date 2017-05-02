@@ -30,8 +30,6 @@
 
 #include "qman_priv.h"
 
-#include <linux/dma-mapping.h>
-
 struct qman_portal *qman_dma_portal;
 EXPORT_SYMBOL(qman_dma_portal);
 
