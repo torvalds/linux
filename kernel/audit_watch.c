@@ -492,7 +492,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 		BUG();
 		inode = NULL;
 		break;
-	};
+	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO) && inode)
 		audit_update_watch(parent, dname, inode->i_sb->s_dev, inode->i_ino, 0);
