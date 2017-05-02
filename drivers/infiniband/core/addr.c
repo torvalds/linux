@@ -446,7 +446,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 	ret = ipv6_stub->ipv6_dst_lookup(addr->net, NULL, &dst, &fl6);
 	if (ret < 0)
-		goto put;
+		return ret;
 
 	rt = (struct rt6_info *)dst;
 	if (ipv6_addr_any(&fl6.saddr)) {
