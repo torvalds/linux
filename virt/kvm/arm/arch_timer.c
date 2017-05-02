@@ -21,6 +21,7 @@
 #include <linux/kvm_host.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/uaccess.h>
 
 #include <clocksource/arm_arch_timer.h>
 #include <asm/arch_timer.h>
@@ -617,6 +618,28 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 	kvm_vgic_unmap_phys_irq(vcpu, vtimer->irq.irq);
 }
 
+static bool timer_irqs_are_valid(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu;
+	int vtimer_irq, ptimer_irq;
+	int i;
+
+	vcpu = kvm_get_vcpu(kvm, 0);
+	vtimer_irq = vcpu_vtimer(vcpu)->irq.irq;
+	ptimer_irq = vcpu_ptimer(vcpu)->irq.irq;
+
+	if (vtimer_irq == ptimer_irq)
+		return false;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (vcpu_vtimer(vcpu)->irq.irq != vtimer_irq ||
+		    vcpu_ptimer(vcpu)->irq.irq != ptimer_irq)
+			return false;
+	}
+
+	return true;
+}
+
 int kvm_timer_enable(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
@@ -635,6 +658,11 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 
 	if (!vgic_initialized(vcpu->kvm))
 		return -ENODEV;
+
+	if (!timer_irqs_are_valid(vcpu->kvm)) {
+		kvm_debug("incorrectly configured timer irqs\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Find the physical IRQ number corresponding to the host_vtimer_irq
@@ -684,4 +712,80 @@ void kvm_timer_init_vhe(void)
 	val &= ~(CNTHCTL_EL1PCEN << cnthctl_shift);
 	val |= (CNTHCTL_EL1PCTEN << cnthctl_shift);
 	write_sysreg(val, cnthctl_el2);
+}
+
+static void set_timer_irqs(struct kvm *kvm, int vtimer_irq, int ptimer_irq)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		vcpu_vtimer(vcpu)->irq.irq = vtimer_irq;
+		vcpu_ptimer(vcpu)->irq.irq = ptimer_irq;
+	}
+}
+
+int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
+{
+	int __user *uaddr = (int __user *)(long)attr->addr;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
+	int irq;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return -EINVAL;
+
+	if (get_user(irq, uaddr))
+		return -EFAULT;
+
+	if (!(irq_is_ppi(irq)))
+		return -EINVAL;
+
+	if (vcpu->arch.timer_cpu.enabled)
+		return -EBUSY;
+
+	switch (attr->attr) {
+	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
+		set_timer_irqs(vcpu->kvm, irq, ptimer->irq.irq);
+		break;
+	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
+		set_timer_irqs(vcpu->kvm, vtimer->irq.irq, irq);
+		break;
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+int kvm_arm_timer_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
+{
+	int __user *uaddr = (int __user *)(long)attr->addr;
+	struct arch_timer_context *timer;
+	int irq;
+
+	switch (attr->attr) {
+	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
+		timer = vcpu_vtimer(vcpu);
+		break;
+	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
+		timer = vcpu_ptimer(vcpu);
+		break;
+	default:
+		return -ENXIO;
+	}
+
+	irq = timer->irq.irq;
+	return put_user(irq, uaddr);
+}
+
+int kvm_arm_timer_has_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
+{
+	switch (attr->attr) {
+	case KVM_ARM_VCPU_TIMER_IRQ_VTIMER:
+	case KVM_ARM_VCPU_TIMER_IRQ_PTIMER:
+		return 0;
+	}
+
+	return -ENXIO;
 }
