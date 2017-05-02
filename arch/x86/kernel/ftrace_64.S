@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86_64/mcount_64.S
- *
  *  Copyright (C) 2014  Steven Rostedt, Red Hat Inc
  */
 
@@ -12,9 +10,6 @@
 
 	.code64
 	.section .entry.text, "ax"
-
-
-#ifdef CONFIG_FUNCTION_TRACER
 
 #ifdef CC_USING_FENTRY
 # define function_hook	__fentry__
@@ -297,7 +292,6 @@ trace:
 	jmp fgraph_trace
 END(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
-#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)

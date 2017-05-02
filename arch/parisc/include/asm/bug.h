@@ -46,7 +46,7 @@
 #endif
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#define __WARN_TAINT(taint)						\
+#define __WARN_FLAGS(flags)						\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
@@ -56,11 +56,11 @@
 			     "\t.org 2b+%c3\n"				\
 			     "\t.popsection"				\
 			     : : "i" (__FILE__), "i" (__LINE__),	\
-			     "i" (BUGFLAG_TAINT(taint)), 		\
+			     "i" (BUGFLAG_WARNING|(flags)),		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #else
-#define __WARN_TAINT(taint)						\
+#define __WARN_FLAGS(flags)						\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
@@ -69,7 +69,7 @@
 			     "\t.short %c0\n"				\
 			     "\t.org 2b+%c1\n"				\
 			     "\t.popsection"				\
-			     : : "i" (BUGFLAG_TAINT(taint)),		\
+			     : : "i" (BUGFLAG_WARNING|(flags)),		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #endif

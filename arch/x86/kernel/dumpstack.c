@@ -77,7 +77,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * - softirq stack
 	 * - hardirq stack
 	 */
-	for (regs = NULL; stack; stack = stack_info.next_sp) {
+	for (regs = NULL; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
 		const char *stack_name;
 
 		/*
@@ -288,9 +288,6 @@ void die(const char *str, struct pt_regs *regs, long err)
 {
 	unsigned long flags = oops_begin();
 	int sig = SIGSEGV;
-
-	if (!user_mode(regs))
-		report_bug(regs->ip, regs);
 
 	if (__die(str, regs, err))
 		sig = 0;
