@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
  * licensing only applies to this file, and not this project as a
@@ -41,6 +43,7 @@
 /dts-v1/;
 
 #include "rk322x.dtsi"
+#include "rk322x-android.dtsi"
 
 / {
 	model = "Rockchip RK3229 Evaluation board";
@@ -110,8 +113,4 @@
 
 &u2phy1_host {
 	phy-supply = <&vcc_host>;
-};
-
-&uart2 {
-	status = "okay";
 };

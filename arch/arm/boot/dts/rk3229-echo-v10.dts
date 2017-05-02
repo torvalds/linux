@@ -82,20 +82,6 @@
 	};
 };
 
-&emmc {
-	broken-cd;
-	bus-width = <8>;
-	cap-mmc-highspeed;
-	supports-emmc;
-	disable-wp;
-	non-removable;
-	num-slots = <1>;
-	/delete-property/ default-sample-phase;
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
-	status = "okay";
-};
-
 &i2c0 {
 	status = "okay";
 
