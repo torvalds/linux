@@ -98,7 +98,12 @@ struct wilc_debugfs_info_t {
 };
 
 static struct wilc_debugfs_info_t debugfs_info[] = {
-	{ "wilc_debug_level",	0666,	(DEBUG | ERR), FOPS(NULL, wilc_debug_level_read, wilc_debug_level_write, NULL), },
+	{
+		"wilc_debug_level",
+		0666,
+		(DEBUG | ERR),
+		FOPS(NULL, wilc_debug_level_read, wilc_debug_level_write, NULL),
+	},
 };
 
 static int __init wilc_debugfs_init(void)
