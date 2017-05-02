@@ -90,7 +90,7 @@
 #define MLX5E_VALID_NUM_MTTS(num_mtts) (MLX5_MTT_OCTW(num_mtts) - 1 <= U16_MAX)
 
 #define MLX5_UMR_ALIGN				(2048)
-#define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(128)
+#define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(256)
 
 #define MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 (64 * 1024)
 #define MLX5E_DEFAULT_LRO_TIMEOUT                       32

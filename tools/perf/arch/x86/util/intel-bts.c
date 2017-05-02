@@ -13,6 +13,7 @@
  *
  */
 
+#include <errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>

@@ -88,7 +88,7 @@ static inline int frame_extra_sizes(int f)
 	return frame_size_change[f];
 }
 
-int handle_kernel_fault(struct pt_regs *regs)
+int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 	struct pt_regs *tregs;

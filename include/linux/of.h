@@ -159,6 +159,8 @@ static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
 		container_of(fwnode, struct device_node, fwnode) : NULL;
 }
 
+#define of_fwnode_handle(node) (&(node)->fwnode)
+
 static inline bool of_have_populated_dt(void)
 {
 	return of_root != NULL;
@@ -601,6 +603,8 @@ static inline struct device_node *of_find_node_with_property(
 {
 	return NULL;
 }
+
+#define of_fwnode_handle(node) NULL
 
 static inline bool of_have_populated_dt(void)
 {

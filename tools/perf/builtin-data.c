@@ -6,7 +6,7 @@
 #include "data-convert.h"
 #include "data-convert-bt.h"
 
-typedef int (*data_cmd_fn_t)(int argc, const char **argv, const char *prefix);
+typedef int (*data_cmd_fn_t)(int argc, const char **argv);
 
 struct data_cmd {
 	const char	*name;
@@ -50,8 +50,7 @@ static const char * const data_convert_usage[] = {
 	NULL
 };
 
-static int cmd_data_convert(int argc, const char **argv,
-			    const char *prefix __maybe_unused)
+static int cmd_data_convert(int argc, const char **argv)
 {
 	const char *to_ctf     = NULL;
 	struct perf_data_convert_opts opts = {
@@ -98,7 +97,7 @@ static struct data_cmd data_cmds[] = {
 	{ .name = NULL, },
 };
 
-int cmd_data(int argc, const char **argv, const char *prefix)
+int cmd_data(int argc, const char **argv)
 {
 	struct data_cmd *cmd;
 	const char *cmdstr;
@@ -118,7 +117,7 @@ int cmd_data(int argc, const char **argv, const char *prefix)
 		if (strcmp(cmd->name, cmdstr))
 			continue;
 
-		return cmd->fn(argc, argv, prefix);
+		return cmd->fn(argc, argv);
 	}
 
 	pr_err("Unknown command: %s\n", cmdstr);

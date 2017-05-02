@@ -9,8 +9,10 @@ struct scsi_request {
 	unsigned char	__cmd[BLK_MAX_CDB];
 	unsigned char	*cmd;
 	unsigned short	cmd_len;
+	int		result;
 	unsigned int	sense_len;
 	unsigned int	resid_len;	/* residual count */
+	int		retries;
 	void		*sense;
 };
 

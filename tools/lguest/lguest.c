@@ -3339,7 +3339,7 @@ int main(int argc, char *argv[])
 	 * simple, single region.
 	 */
 	boot->e820_entries = 1;
-	boot->e820_map[0] = ((struct e820entry) { 0, mem, E820_RAM });
+	boot->e820_table[0] = ((struct e820_entry) { 0, mem, E820_TYPE_RAM });
 	/*
 	 * The boot header contains a command line pointer: we put the command
 	 * line after the boot header.

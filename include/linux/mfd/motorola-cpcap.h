@@ -14,6 +14,9 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/device.h>
+#include <linux/regmap.h>
+
 #define CPCAP_VENDOR_ST		0
 #define CPCAP_VENDOR_TI		1
 

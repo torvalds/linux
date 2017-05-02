@@ -18,6 +18,8 @@ int bpf__gen_prologue(struct probe_trace_arg *args, int nargs,
 		      struct bpf_insn *new_prog, size_t *new_cnt,
 		      size_t cnt_space);
 #else
+#include <errno.h>
+
 static inline int
 bpf__gen_prologue(struct probe_trace_arg *args __maybe_unused,
 		  int nargs __maybe_unused,

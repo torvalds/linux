@@ -1,8 +1,14 @@
+#include <errno.h>
+#include <inttypes.h>
 /* For the CPU_* macros */
 #include <pthread.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <api/fs/fs.h>
 #include <linux/err.h>
+#include <api/fs/tracing_path.h>
 #include "evsel.h"
 #include "tests.h"
 #include "thread_map.h"

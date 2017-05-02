@@ -325,7 +325,7 @@ int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 
 	current->flags |= PF_MEMALLOC;
 	ret = sk->sk_backlog_rcv(sk, skb);
-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+	current_restore_flags(pflags, PF_MEMALLOC);
 
 	return ret;
 }

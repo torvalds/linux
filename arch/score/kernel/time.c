@@ -81,8 +81,10 @@ void __init time_init(void)
 					score_clockevent.shift);
 	score_clockevent.max_delta_ns = clockevent_delta2ns((u32)~0,
 					&score_clockevent);
+	score_clockevent.max_delta_ticks = (u32)~0;
 	score_clockevent.min_delta_ns = clockevent_delta2ns(50,
 						&score_clockevent) + 1;
+	score_clockevent.min_delta_ticks = 50;
 	score_clockevent.cpumask = cpumask_of(0);
 	clockevents_register_device(&score_clockevent);
 }

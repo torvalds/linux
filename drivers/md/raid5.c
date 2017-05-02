@@ -5031,8 +5031,6 @@ static void raid5_align_endio(struct bio *bi)
 	rdev_dec_pending(rdev, conf->mddev);
 
 	if (!error) {
-		trace_block_bio_complete(bdev_get_queue(raid_bi->bi_bdev),
-					 raid_bi, 0);
 		bio_endio(raid_bi);
 		if (atomic_dec_and_test(&conf->active_aligned_reads))
 			wake_up(&conf->wait_for_quiescent);
@@ -7229,7 +7227,6 @@ static int raid5_run(struct mddev *mddev)
 
 	if (mddev->queue) {
 		int chunk_size;
-		bool discard_supported = true;
 		/* read-ahead size must cover two whole stripes, which
 		 * is 2 * (datadisks) * chunksize where 'n' is the
 		 * number of raid devices
@@ -7265,48 +7262,32 @@ static int raid5_run(struct mddev *mddev)
 		blk_queue_max_discard_sectors(mddev->queue,
 					      0xfffe * STRIPE_SECTORS);
 
-		/*
-		 * unaligned part of discard request will be ignored, so can't
-		 * guarantee discard_zeroes_data
-		 */
-		mddev->queue->limits.discard_zeroes_data = 0;
-
 		blk_queue_max_write_same_sectors(mddev->queue, 0);
+		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
 
 		rdev_for_each(rdev, mddev) {
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->new_data_offset << 9);
-			/*
-			 * discard_zeroes_data is required, otherwise data
-			 * could be lost. Consider a scenario: discard a stripe
-			 * (the stripe could be inconsistent if
-			 * discard_zeroes_data is 0); write one disk of the
-			 * stripe (the stripe could be inconsistent again
-			 * depending on which disks are used to calculate
-			 * parity); the disk is broken; The stripe data of this
-			 * disk is lost.
-			 */
-			if (!blk_queue_discard(bdev_get_queue(rdev->bdev)) ||
-			    !bdev_get_queue(rdev->bdev)->
-						limits.discard_zeroes_data)
-				discard_supported = false;
-			/* Unfortunately, discard_zeroes_data is not currently
-			 * a guarantee - just a hint.  So we only allow DISCARD
-			 * if the sysadmin has confirmed that only safe devices
-			 * are in use by setting a module parameter.
-			 */
-			if (!devices_handle_discard_safely) {
-				if (discard_supported) {
-					pr_info("md/raid456: discard support disabled due to uncertainty.\n");
-					pr_info("Set raid456.devices_handle_discard_safely=Y to override.\n");
-				}
-				discard_supported = false;
-			}
 		}
 
-		if (discard_supported &&
+		/*
+		 * zeroing is required, otherwise data
+		 * could be lost. Consider a scenario: discard a stripe
+		 * (the stripe could be inconsistent if
+		 * discard_zeroes_data is 0); write one disk of the
+		 * stripe (the stripe could be inconsistent again
+		 * depending on which disks are used to calculate
+		 * parity); the disk is broken; The stripe data of this
+		 * disk is lost.
+		 *
+		 * We only allow DISCARD if the sysadmin has confirmed that
+		 * only safe devices are in use by setting a module parameter.
+		 * A better idea might be to turn DISCARD into WRITE_ZEROES
+		 * requests, as that is required to be safe.
+		 */
+		if (devices_handle_discard_safely &&
 		    mddev->queue->limits.max_discard_sectors >= (stripe >> 9) &&
 		    mddev->queue->limits.discard_granularity >= stripe)
 			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,

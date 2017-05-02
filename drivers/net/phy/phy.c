@@ -591,16 +591,18 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 EXPORT_SYMBOL(phy_mii_ioctl);
 
 /**
- * phy_start_aneg - start auto-negotiation for this PHY device
+ * phy_start_aneg_priv - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
+ * @sync: indicate whether we should wait for the workqueue cancelation
  *
  * Description: Sanitizes the settings (if we're not autonegotiating
  *   them), and then calls the driver's config_aneg function.
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
  */
-int phy_start_aneg(struct phy_device *phydev)
+static int phy_start_aneg_priv(struct phy_device *phydev, bool sync)
 {
+	bool trigger = 0;
 	int err;
 
 	if (!phydev->drv)
@@ -628,9 +630,39 @@ int phy_start_aneg(struct phy_device *phydev)
 		}
 	}
 
+	/* Re-schedule a PHY state machine to check PHY status because
+	 * negotiation may already be done and aneg interrupt may not be
+	 * generated.
+	 */
+	if (phy_interrupt_is_valid(phydev) && (phydev->state == PHY_AN)) {
+		err = phy_aneg_done(phydev);
+		if (err > 0) {
+			trigger = true;
+			err = 0;
+		}
+	}
+
 out_unlock:
 	mutex_unlock(&phydev->lock);
+
+	if (trigger)
+		phy_trigger_machine(phydev, sync);
+
 	return err;
+}
+
+/**
+ * phy_start_aneg - start auto-negotiation for this PHY device
+ * @phydev: the phy_device struct
+ *
+ * Description: Sanitizes the settings (if we're not autonegotiating
+ *   them), and then calls the driver's config_aneg function.
+ *   If the PHYCONTROL Layer is operating, we change the state to
+ *   reflect the beginning of Auto-negotiation or forcing.
+ */
+int phy_start_aneg(struct phy_device *phydev)
+{
+	return phy_start_aneg_priv(phydev, true);
 }
 EXPORT_SYMBOL(phy_start_aneg);
 
@@ -659,7 +691,7 @@ void phy_start_machine(struct phy_device *phydev)
  *   state machine runs.
  */
 
-static void phy_trigger_machine(struct phy_device *phydev, bool sync)
+void phy_trigger_machine(struct phy_device *phydev, bool sync)
 {
 	if (sync)
 		cancel_delayed_work_sync(&phydev->state_queue);
@@ -1154,7 +1186,7 @@ void phy_state_machine(struct work_struct *work)
 	mutex_unlock(&phydev->lock);
 
 	if (needs_aneg)
-		err = phy_start_aneg(phydev);
+		err = phy_start_aneg_priv(phydev, false);
 	else if (do_suspend)
 		phy_suspend(phydev);
 

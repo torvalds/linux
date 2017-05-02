@@ -96,3 +96,11 @@ static inline bool mce_cmp(struct mce *m1, struct mce *m2)
 		m1->addr != m2->addr ||
 		m1->misc != m2->misc;
 }
+
+extern struct device_attribute dev_attr_trigger;
+
+#ifdef CONFIG_X86_MCELOG_LEGACY
+extern void mce_work_trigger(void);
+#else
+static inline void mce_work_trigger(void)	{ }
+#endif

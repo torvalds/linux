@@ -2450,6 +2450,9 @@ void __dev_kfree_skb_irq(struct sk_buff *skb, enum skb_free_reason reason)
 {
 	unsigned long flags;
 
+	if (unlikely(!skb))
+		return;
+
 	if (likely(atomic_read(&skb->users) == 1)) {
 		smp_rmb();
 		atomic_set(&skb->users, 0);
@@ -4240,7 +4243,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 		 */
 		current->flags |= PF_MEMALLOC;
 		ret = __netif_receive_skb_core(skb, true);
-		tsk_restore_flags(current, pflags, PF_MEMALLOC);
+		current_restore_flags(pflags, PF_MEMALLOC);
 	} else
 		ret = __netif_receive_skb_core(skb, false);
 

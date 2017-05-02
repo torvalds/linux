@@ -128,7 +128,7 @@
  * debugging tools.  Each entry is only valid when its finished flag
  * is set.
  */
-struct mce_log {
+struct mce_log_buffer {
 	char signature[12]; /* "MACHINECHECK" */
 	unsigned len;	    /* = MCE_LOG_LEN */
 	unsigned next;
@@ -191,10 +191,12 @@ extern struct mca_config mca_cfg;
 extern struct mca_msr_regs msr_ops;
 
 enum mce_notifier_prios {
-	MCE_PRIO_SRAO		= INT_MAX,
-	MCE_PRIO_EXTLOG		= INT_MAX - 1,
-	MCE_PRIO_NFIT		= INT_MAX - 2,
-	MCE_PRIO_EDAC		= INT_MAX - 3,
+	MCE_PRIO_FIRST		= INT_MAX,
+	MCE_PRIO_SRAO		= INT_MAX - 1,
+	MCE_PRIO_EXTLOG		= INT_MAX - 2,
+	MCE_PRIO_NFIT		= INT_MAX - 3,
+	MCE_PRIO_EDAC		= INT_MAX - 4,
+	MCE_PRIO_MCELOG		= 1,
 	MCE_PRIO_LOWEST		= 0,
 };
 

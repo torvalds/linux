@@ -3209,9 +3209,8 @@ static int init_worker_pool(struct worker_pool *pool)
 	INIT_LIST_HEAD(&pool->idle_list);
 	hash_init(pool->busy_hash);
 
-	init_timer_deferrable(&pool->idle_timer);
-	pool->idle_timer.function = idle_worker_timeout;
-	pool->idle_timer.data = (unsigned long)pool;
+	setup_deferrable_timer(&pool->idle_timer, idle_worker_timeout,
+			       (unsigned long)pool);
 
 	setup_timer(&pool->mayday_timer, pool_mayday_timeout,
 		    (unsigned long)pool);
@@ -4735,6 +4734,29 @@ long work_on_cpu(int cpu, long (*fn)(void *), void *arg)
 	return wfc.ret;
 }
 EXPORT_SYMBOL_GPL(work_on_cpu);
+
+/**
+ * work_on_cpu_safe - run a function in thread context on a particular cpu
+ * @cpu: the cpu to run on
+ * @fn:  the function to run
+ * @arg: the function argument
+ *
+ * Disables CPU hotplug and calls work_on_cpu(). The caller must not hold
+ * any locks which would prevent @fn from completing.
+ *
+ * Return: The value @fn returns.
+ */
+long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg)
+{
+	long ret = -ENODEV;
+
+	get_online_cpus();
+	if (cpu_online(cpu))
+		ret = work_on_cpu(cpu, fn, arg);
+	put_online_cpus();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(work_on_cpu_safe);
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FREEZER

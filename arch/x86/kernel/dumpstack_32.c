@@ -162,15 +162,3 @@ void show_regs(struct pt_regs *regs)
 	}
 	pr_cont("\n");
 }
-
-int is_valid_bugaddr(unsigned long ip)
-{
-	unsigned short ud2;
-
-	if (ip < PAGE_OFFSET)
-		return 0;
-	if (probe_kernel_address((unsigned short *)ip, ud2))
-		return 0;
-
-	return ud2 == 0x0b0f;
-}

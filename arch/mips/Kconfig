@@ -68,7 +68,6 @@ config MIPS
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_EXIT_THREAD
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_ARCH_HARDENED_USERCOPY
 
 menu "Machine selection"
 

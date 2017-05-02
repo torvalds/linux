@@ -4298,7 +4298,7 @@ void __might_fault(const char *file, int line)
 	 * get paged out, therefore we'll never actually fault, and the
 	 * below annotations will generate false positives.
 	 */
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (uaccess_kernel())
 		return;
 	if (pagefault_disabled())
 		return;

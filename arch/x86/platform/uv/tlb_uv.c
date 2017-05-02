@@ -23,28 +23,7 @@
 #include <asm/irq_vectors.h>
 #include <asm/timer.h>
 
-static struct bau_operations ops;
-
-static struct bau_operations uv123_bau_ops = {
-	.bau_gpa_to_offset       = uv_gpa_to_offset,
-	.read_l_sw_ack           = read_mmr_sw_ack,
-	.read_g_sw_ack           = read_gmmr_sw_ack,
-	.write_l_sw_ack          = write_mmr_sw_ack,
-	.write_g_sw_ack          = write_gmmr_sw_ack,
-	.write_payload_first     = write_mmr_payload_first,
-	.write_payload_last      = write_mmr_payload_last,
-};
-
-static struct bau_operations uv4_bau_ops = {
-	.bau_gpa_to_offset       = uv_gpa_to_soc_phys_ram,
-	.read_l_sw_ack           = read_mmr_proc_sw_ack,
-	.read_g_sw_ack           = read_gmmr_proc_sw_ack,
-	.write_l_sw_ack          = write_mmr_proc_sw_ack,
-	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
-	.write_payload_first     = write_mmr_proc_payload_first,
-	.write_payload_last      = write_mmr_proc_payload_last,
-};
-
+static struct bau_operations ops __ro_after_init;
 
 /* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
 static int timeout_base_ns[] = {
@@ -548,11 +527,12 @@ static unsigned long uv1_read_status(unsigned long mmr_offset, int right_shift)
  * return COMPLETE, RETRY(PLUGGED or TIMEOUT) or GIVEUP
  */
 static int uv1_wait_completion(struct bau_desc *bau_desc,
-				unsigned long mmr_offset, int right_shift,
 				struct bau_control *bcp, long try)
 {
 	unsigned long descriptor_status;
 	cycles_t ttm;
+	u64 mmr_offset = bcp->status_mmr;
+	int right_shift = bcp->status_index;
 	struct ptc_stats *stat = bcp->statp;
 
 	descriptor_status = uv1_read_status(mmr_offset, right_shift);
@@ -640,11 +620,12 @@ int handle_uv2_busy(struct bau_control *bcp)
 }
 
 static int uv2_3_wait_completion(struct bau_desc *bau_desc,
-				unsigned long mmr_offset, int right_shift,
 				struct bau_control *bcp, long try)
 {
 	unsigned long descriptor_stat;
 	cycles_t ttm;
+	u64 mmr_offset = bcp->status_mmr;
+	int right_shift = bcp->status_index;
 	int desc = bcp->uvhub_cpu;
 	long busy_reps = 0;
 	struct ptc_stats *stat = bcp->statp;
@@ -706,28 +687,59 @@ static int uv2_3_wait_completion(struct bau_desc *bau_desc,
 }
 
 /*
- * There are 2 status registers; each and array[32] of 2 bits. Set up for
- * which register to read and position in that register based on cpu in
- * current hub.
+ * Returns the status of current BAU message for cpu desc as a bit field
+ * [Error][Busy][Aux]
  */
-static int wait_completion(struct bau_desc *bau_desc, struct bau_control *bcp, long try)
+static u64 read_status(u64 status_mmr, int index, int desc)
 {
-	int right_shift;
-	unsigned long mmr_offset;
+	u64 stat;
+
+	stat = ((read_lmmr(status_mmr) >> index) & UV_ACT_STATUS_MASK) << 1;
+	stat |= (read_lmmr(UVH_LB_BAU_SB_ACTIVATION_STATUS_2) >> desc) & 0x1;
+
+	return stat;
+}
+
+static int uv4_wait_completion(struct bau_desc *bau_desc,
+				struct bau_control *bcp, long try)
+{
+	struct ptc_stats *stat = bcp->statp;
+	u64 descriptor_stat;
+	u64 mmr = bcp->status_mmr;
+	int index = bcp->status_index;
 	int desc = bcp->uvhub_cpu;
 
-	if (desc < UV_CPUS_PER_AS) {
-		mmr_offset = UVH_LB_BAU_SB_ACTIVATION_STATUS_0;
-		right_shift = desc * UV_ACT_STATUS_SIZE;
-	} else {
-		mmr_offset = UVH_LB_BAU_SB_ACTIVATION_STATUS_1;
-		right_shift = ((desc - UV_CPUS_PER_AS) * UV_ACT_STATUS_SIZE);
-	}
+	descriptor_stat = read_status(mmr, index, desc);
 
-	if (bcp->uvhub_version == 1)
-		return uv1_wait_completion(bau_desc, mmr_offset, right_shift, bcp, try);
-	else
-		return uv2_3_wait_completion(bau_desc, mmr_offset, right_shift, bcp, try);
+	/* spin on the status MMR, waiting for it to go idle */
+	while (descriptor_stat != UV2H_DESC_IDLE) {
+		switch (descriptor_stat) {
+		case UV2H_DESC_SOURCE_TIMEOUT:
+			stat->s_stimeout++;
+			return FLUSH_GIVEUP;
+
+		case UV2H_DESC_DEST_TIMEOUT:
+			stat->s_dtimeout++;
+			bcp->conseccompletes = 0;
+			return FLUSH_RETRY_TIMEOUT;
+
+		case UV2H_DESC_DEST_STRONG_NACK:
+			stat->s_plugged++;
+			bcp->conseccompletes = 0;
+			return FLUSH_RETRY_PLUGGED;
+
+		case UV2H_DESC_DEST_PUT_ERR:
+			bcp->conseccompletes = 0;
+			return FLUSH_GIVEUP;
+
+		default:
+			/* descriptor_stat is still BUSY */
+			cpu_relax();
+		}
+		descriptor_stat = read_status(mmr, index, desc);
+	}
+	bcp->conseccompletes++;
+	return FLUSH_COMPLETE;
 }
 
 /*
@@ -918,7 +930,7 @@ int uv_flush_send_and_wait(struct cpumask *flush_mask, struct bau_control *bcp,
 	struct uv1_bau_msg_header *uv1_hdr = NULL;
 	struct uv2_3_bau_msg_header *uv2_3_hdr = NULL;
 
-	if (bcp->uvhub_version == 1) {
+	if (bcp->uvhub_version == UV_BAU_V1) {
 		uv1 = 1;
 		uv1_throttle(hmaster, stat);
 	}
@@ -958,7 +970,7 @@ int uv_flush_send_and_wait(struct cpumask *flush_mask, struct bau_control *bcp,
 		write_mmr_activation(index);
 
 		try++;
-		completion_stat = wait_completion(bau_desc, bcp, try);
+		completion_stat = ops.wait_completion(bau_desc, bcp, try);
 
 		handle_cmplt(completion_stat, bau_desc, bcp, hmaster, stat);
 
@@ -1114,15 +1126,12 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 						unsigned long end,
 						unsigned int cpu)
 {
-	int locals = 0;
-	int remotes = 0;
-	int hubs = 0;
+	int locals = 0, remotes = 0, hubs = 0;
 	struct bau_desc *bau_desc;
 	struct cpumask *flush_mask;
 	struct ptc_stats *stat;
 	struct bau_control *bcp;
-	unsigned long descriptor_status;
-	unsigned long status;
+	unsigned long descriptor_status, status, address;
 
 	bcp = &per_cpu(bau_control, cpu);
 
@@ -1171,10 +1180,24 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 	record_send_statistics(stat, locals, hubs, remotes, bau_desc);
 
 	if (!end || (end - start) <= PAGE_SIZE)
-		bau_desc->payload.address = start;
+		address = start;
 	else
-		bau_desc->payload.address = TLB_FLUSH_ALL;
-	bau_desc->payload.sending_cpu = cpu;
+		address = TLB_FLUSH_ALL;
+
+	switch (bcp->uvhub_version) {
+	case UV_BAU_V1:
+	case UV_BAU_V2:
+	case UV_BAU_V3:
+		bau_desc->payload.uv1_2_3.address = address;
+		bau_desc->payload.uv1_2_3.sending_cpu = cpu;
+		break;
+	case UV_BAU_V4:
+		bau_desc->payload.uv4.address = address;
+		bau_desc->payload.uv4.sending_cpu = cpu;
+		bau_desc->payload.uv4.qualifier = BAU_DESC_QUALIFIER;
+		break;
+	}
+
 	/*
 	 * uv_flush_send_and_wait returns 0 if all cpu's were messaged,
 	 * or 1 if it gave up and the original cpumask should be returned.
@@ -1296,7 +1319,7 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 
 		msgdesc.msg_slot = msg - msgdesc.queue_first;
 		msgdesc.msg = msg;
-		if (bcp->uvhub_version == 2)
+		if (bcp->uvhub_version == UV_BAU_V2)
 			process_uv2_message(&msgdesc, bcp);
 		else
 			/* no error workaround for uv1 or uv3 */
@@ -1838,7 +1861,7 @@ static void pq_init(int node, int pnode)
 	 * and the payload queue tail must be maintained by the kernel.
 	 */
 	bcp = &per_cpu(bau_control, smp_processor_id());
-	if (bcp->uvhub_version <= 3) {
+	if (bcp->uvhub_version <= UV_BAU_V3) {
 		tail = first;
 		gnode = uv_gpa_to_gnode(uv_gpa(pqp));
 		first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
@@ -2034,8 +2057,7 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 			struct bau_control **smasterp,
 			struct bau_control **hmasterp)
 {
-	int i;
-	int cpu;
+	int i, cpu, uvhub_cpu;
 	struct bau_control *bcp;
 
 	for (i = 0; i < sdp->num_cpus; i++) {
@@ -2052,19 +2074,33 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 		bcp->socket_master = *smasterp;
 		bcp->uvhub = bdp->uvhub;
 		if (is_uv1_hub())
-			bcp->uvhub_version = 1;
+			bcp->uvhub_version = UV_BAU_V1;
 		else if (is_uv2_hub())
-			bcp->uvhub_version = 2;
+			bcp->uvhub_version = UV_BAU_V2;
 		else if (is_uv3_hub())
-			bcp->uvhub_version = 3;
+			bcp->uvhub_version = UV_BAU_V3;
 		else if (is_uv4_hub())
-			bcp->uvhub_version = 4;
+			bcp->uvhub_version = UV_BAU_V4;
 		else {
 			pr_emerg("uvhub version not 1, 2, 3, or 4\n");
 			return 1;
 		}
 		bcp->uvhub_master = *hmasterp;
-		bcp->uvhub_cpu = uv_cpu_blade_processor_id(cpu);
+		uvhub_cpu = uv_cpu_blade_processor_id(cpu);
+		bcp->uvhub_cpu = uvhub_cpu;
+
+		/*
+		 * The ERROR and BUSY status registers are located pairwise over
+		 * the STATUS_0 and STATUS_1 mmrs; each an array[32] of 2 bits.
+		 */
+		if (uvhub_cpu < UV_CPUS_PER_AS) {
+			bcp->status_mmr = UVH_LB_BAU_SB_ACTIVATION_STATUS_0;
+			bcp->status_index = uvhub_cpu * UV_ACT_STATUS_SIZE;
+		} else {
+			bcp->status_mmr = UVH_LB_BAU_SB_ACTIVATION_STATUS_1;
+			bcp->status_index = (uvhub_cpu - UV_CPUS_PER_AS)
+						* UV_ACT_STATUS_SIZE;
+		}
 
 		if (bcp->uvhub_cpu >= MAX_CPUS_PER_UVHUB) {
 			pr_emerg("%d cpus per uvhub invalid\n",
@@ -2147,6 +2183,39 @@ fail:
 	return 1;
 }
 
+static const struct bau_operations uv1_bau_ops __initconst = {
+	.bau_gpa_to_offset       = uv_gpa_to_offset,
+	.read_l_sw_ack           = read_mmr_sw_ack,
+	.read_g_sw_ack           = read_gmmr_sw_ack,
+	.write_l_sw_ack          = write_mmr_sw_ack,
+	.write_g_sw_ack          = write_gmmr_sw_ack,
+	.write_payload_first     = write_mmr_payload_first,
+	.write_payload_last      = write_mmr_payload_last,
+	.wait_completion	 = uv1_wait_completion,
+};
+
+static const struct bau_operations uv2_3_bau_ops __initconst = {
+	.bau_gpa_to_offset       = uv_gpa_to_offset,
+	.read_l_sw_ack           = read_mmr_sw_ack,
+	.read_g_sw_ack           = read_gmmr_sw_ack,
+	.write_l_sw_ack          = write_mmr_sw_ack,
+	.write_g_sw_ack          = write_gmmr_sw_ack,
+	.write_payload_first     = write_mmr_payload_first,
+	.write_payload_last      = write_mmr_payload_last,
+	.wait_completion	 = uv2_3_wait_completion,
+};
+
+static const struct bau_operations uv4_bau_ops __initconst = {
+	.bau_gpa_to_offset       = uv_gpa_to_soc_phys_ram,
+	.read_l_sw_ack           = read_mmr_proc_sw_ack,
+	.read_g_sw_ack           = read_gmmr_proc_sw_ack,
+	.write_l_sw_ack          = write_mmr_proc_sw_ack,
+	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
+	.write_payload_first     = write_mmr_proc_payload_first,
+	.write_payload_last      = write_mmr_proc_payload_last,
+	.wait_completion         = uv4_wait_completion,
+};
+
 /*
  * Initialization of BAU-related structures
  */
@@ -2166,11 +2235,11 @@ static int __init uv_bau_init(void)
 	if (is_uv4_hub())
 		ops = uv4_bau_ops;
 	else if (is_uv3_hub())
-		ops = uv123_bau_ops;
+		ops = uv2_3_bau_ops;
 	else if (is_uv2_hub())
-		ops = uv123_bau_ops;
+		ops = uv2_3_bau_ops;
 	else if (is_uv1_hub())
-		ops = uv123_bau_ops;
+		ops = uv1_bau_ops;
 
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);

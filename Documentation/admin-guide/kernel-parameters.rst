@@ -86,7 +86,6 @@ parameter is applicable::
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
 	ARM	ARM architecture is enabled.
-	AVR32	AVR32 architecture is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	BLACKFIN Blackfin architecture is enabled.
 	CLK	Common clock infrastructure is enabled.

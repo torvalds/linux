@@ -709,4 +709,11 @@ static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
 	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
 		mddev->queue->limits.max_write_same_sectors = 0;
 }
+
+static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
+{
+	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+		mddev->queue->limits.max_write_zeroes_sectors = 0;
+}
 #endif /* _MD_MD_H */

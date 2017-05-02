@@ -195,6 +195,7 @@ static struct map {
 	{ "CBO", "uncore_cbox" },
 	{ "QPI LL", "uncore_qpi" },
 	{ "SBO", "uncore_sbox" },
+	{ "iMPH-U", "uncore_arb" },
 	{}
 };
 
@@ -291,7 +292,9 @@ static void print_events_table_prefix(FILE *fp, const char *tblname)
 
 static int print_events_table_entry(void *data, char *name, char *event,
 				    char *desc, char *long_desc,
-				    char *pmu, char *unit, char *perpkg)
+				    char *pmu, char *unit, char *perpkg,
+				    char *metric_expr,
+				    char *metric_name)
 {
 	struct perf_entry_data *pd = data;
 	FILE *outfp = pd->outfp;
@@ -315,6 +318,10 @@ static int print_events_table_entry(void *data, char *name, char *event,
 		fprintf(outfp, "\t.unit = \"%s\",\n", unit);
 	if (perpkg)
 		fprintf(outfp, "\t.perpkg = \"%s\",\n", perpkg);
+	if (metric_expr)
+		fprintf(outfp, "\t.metric_expr = \"%s\",\n", metric_expr);
+	if (metric_name)
+		fprintf(outfp, "\t.metric_name = \"%s\",\n", metric_name);
 	fprintf(outfp, "},\n");
 
 	return 0;
@@ -362,7 +369,9 @@ static char *real_event(const char *name, char *event)
 int json_events(const char *fn,
 	  int (*func)(void *data, char *name, char *event, char *desc,
 		      char *long_desc,
-		      char *pmu, char *unit, char *perpkg),
+		      char *pmu, char *unit, char *perpkg,
+		      char *metric_expr,
+		      char *metric_name),
 	  void *data)
 {
 	int err = -EIO;
@@ -388,6 +397,8 @@ int json_events(const char *fn,
 		char *filter = NULL;
 		char *perpkg = NULL;
 		char *unit = NULL;
+		char *metric_expr = NULL;
+		char *metric_name = NULL;
 		unsigned long long eventcode = 0;
 		struct msrmap *msr = NULL;
 		jsmntok_t *msrval = NULL;
@@ -398,6 +409,7 @@ int json_events(const char *fn,
 		for (j = 0; j < obj->size; j += 2) {
 			jsmntok_t *field, *val;
 			int nz;
+			char *s;
 
 			field = tok + j;
 			EXPECT(field->type == JSMN_STRING, tok + j,
@@ -444,7 +456,6 @@ int json_events(const char *fn,
 					NULL);
 			} else if (json_streq(map, field, "Unit")) {
 				const char *ppmu;
-				char *s;
 
 				ppmu = field_to_perf(unit_to_pmu, map, val);
 				if (ppmu) {
@@ -458,12 +469,19 @@ int json_events(const char *fn,
 				}
 				addfield(map, &desc, ". ", "Unit: ", NULL);
 				addfield(map, &desc, "", pmu, NULL);
+				addfield(map, &desc, "", " ", NULL);
 			} else if (json_streq(map, field, "Filter")) {
 				addfield(map, &filter, "", "", val);
 			} else if (json_streq(map, field, "ScaleUnit")) {
 				addfield(map, &unit, "", "", val);
 			} else if (json_streq(map, field, "PerPkg")) {
 				addfield(map, &perpkg, "", "", val);
+			} else if (json_streq(map, field, "MetricName")) {
+				addfield(map, &metric_name, "", "", val);
+			} else if (json_streq(map, field, "MetricExpr")) {
+				addfield(map, &metric_expr, "", "", val);
+				for (s = metric_expr; *s; s++)
+					*s = tolower(*s);
 			}
 			/* ignore unknown fields */
 		}
@@ -488,7 +506,7 @@ int json_events(const char *fn,
 		fixname(name);
 
 		err = func(data, name, real_event(name, event), desc, long_desc,
-				pmu, unit, perpkg);
+				pmu, unit, perpkg, metric_expr, metric_name);
 		free(event);
 		free(desc);
 		free(name);
@@ -498,6 +516,8 @@ int json_events(const char *fn,
 		free(filter);
 		free(perpkg);
 		free(unit);
+		free(metric_expr);
+		free(metric_name);
 		if (err)
 			break;
 		tok += j;

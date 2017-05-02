@@ -247,13 +247,13 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 
 	timer_base = of_iomap(np, 0);
 	if (!timer_base) {
-		pr_err("Failed to iomap");
+		pr_err("Failed to iomap\n");
 		return -ENXIO;
 	}
 
 	local_base = of_iomap(np, 1);
 	if (!local_base) {
-		pr_err("Failed to iomap");
+		pr_err("Failed to iomap\n");
 		return -ENXIO;
 	}
 
@@ -298,7 +298,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 				    "armada_370_xp_clocksource",
 				    timer_clk, 300, 32, clocksource_mmio_readl_down);
 	if (res) {
-		pr_err("Failed to initialize clocksource mmio");
+		pr_err("Failed to initialize clocksource mmio\n");
 		return res;
 	}
 
@@ -315,7 +315,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 				armada_370_xp_evt);
 	/* Immediately configure the timer on the boot CPU */
 	if (res) {
-		pr_err("Failed to request percpu irq");
+		pr_err("Failed to request percpu irq\n");
 		return res;
 	}
 
@@ -324,7 +324,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 				armada_370_xp_timer_starting_cpu,
 				armada_370_xp_timer_dying_cpu);
 	if (res) {
-		pr_err("Failed to setup hotplug state and timer");
+		pr_err("Failed to setup hotplug state and timer\n");
 		return res;
 	}
 
@@ -339,7 +339,7 @@ static int __init armada_xp_timer_init(struct device_node *np)
 	int ret;
 
 	if (IS_ERR(clk)) {
-		pr_err("Failed to get clock");
+		pr_err("Failed to get clock\n");
 		return PTR_ERR(clk);
 	}
 
@@ -375,7 +375,7 @@ static int __init armada_375_timer_init(struct device_node *np)
 
 		/* Must have at least a clock */
 		if (IS_ERR(clk)) {
-			pr_err("Failed to get clock");
+			pr_err("Failed to get clock\n");
 			return PTR_ERR(clk);
 		}
 
@@ -399,7 +399,7 @@ static int __init armada_370_timer_init(struct device_node *np)
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
-		pr_err("Failed to get clock");
+		pr_err("Failed to get clock\n");
 		return PTR_ERR(clk);
 	}
 

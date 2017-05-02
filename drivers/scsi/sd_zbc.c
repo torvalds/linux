@@ -329,6 +329,7 @@ void sd_zbc_complete(struct scsi_cmnd *cmd,
 
 	switch (req_op(rq)) {
 	case REQ_OP_WRITE:
+	case REQ_OP_WRITE_ZEROES:
 	case REQ_OP_WRITE_SAME:
 	case REQ_OP_ZONE_RESET:
 

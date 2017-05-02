@@ -21,16 +21,6 @@
 #include <linux/lightnvm.h>
 #include <linux/sed-opal.h>
 
-enum {
-	/*
-	 * Driver internal status code for commands that were cancelled due
-	 * to timeouts or controller shutdown.  The value is negative so
-	 * that it a) doesn't overlap with the unsigned hardware error codes,
-	 * and b) can easily be tested for.
-	 */
-	NVME_SC_CANCELLED		= -EINTR,
-};
-
 extern unsigned char nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
@@ -42,8 +32,6 @@ extern unsigned char shutdown_timeout;
 
 #define NVME_DEFAULT_KATO	5
 #define NVME_KATO_GRACE		10
-
-extern unsigned int nvme_max_retries;
 
 enum {
 	NVME_NS_LBA		= 0,
@@ -68,10 +56,10 @@ enum nvme_quirks {
 	NVME_QUIRK_IDENTIFY_CNS			= (1 << 1),
 
 	/*
-	 * The controller deterministically returns O's on reads to discarded
-	 * logical blocks.
+	 * The controller deterministically returns O's on reads to
+	 * logical blocks that deallocate was called on.
 	 */
-	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
+	NVME_QUIRK_DEALLOCATE_ZEROES		= (1 << 2),
 
 	/*
 	 * The controller needs a delay before starts checking the device
@@ -97,6 +85,13 @@ enum nvme_quirks {
 struct nvme_request {
 	struct nvme_command	*cmd;
 	union nvme_result	result;
+	u8			retries;
+	u8			flags;
+	u16			status;
+};
+
+enum {
+	NVME_REQ_CANCELLED		= (1 << 0),
 };
 
 static inline struct nvme_request *nvme_req(struct request *req)
@@ -254,25 +249,17 @@ static inline void nvme_cleanup_cmd(struct request *req)
 	}
 }
 
-static inline int nvme_error_status(u16 status)
+static inline void nvme_end_request(struct request *req, __le16 status,
+		union nvme_result result)
 {
-	switch (status & 0x7ff) {
-	case NVME_SC_SUCCESS:
-		return 0;
-	case NVME_SC_CAP_EXCEEDED:
-		return -ENOSPC;
-	default:
-		return -EIO;
-	}
+	struct nvme_request *rq = nvme_req(req);
+
+	rq->status = le16_to_cpu(status) >> 1;
+	rq->result = result;
+	blk_mq_complete_request(req);
 }
 
-static inline bool nvme_req_needs_retry(struct request *req, u16 status)
-{
-	return !(status & NVME_SC_DNR || blk_noretry_request(req)) &&
-		(jiffies - req->start_time) < req->timeout &&
-		req->retries < nvme_max_retries;
-}
-
+void nvme_complete_rq(struct request *req);
 void nvme_cancel_request(struct request *req, void *data, bool reserved);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		enum nvme_ctrl_state new_state);
@@ -307,7 +294,6 @@ void nvme_start_freeze(struct nvme_ctrl *ctrl);
 #define NVME_QID_ANY -1
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags, int qid);
-void nvme_requeue_req(struct request *req);
 int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 		struct nvme_command *cmd);
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,

@@ -34,7 +34,7 @@ bool unwind_next_frame(struct unwind_state *state)
 				return true;
 		}
 
-		state->sp = info->next_sp;
+		state->sp = PTR_ALIGN(info->next_sp, sizeof(long));
 
 	} while (!get_stack_info(state->sp, state->task, info,
 				 &state->stack_mask));
@@ -49,7 +49,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	memset(state, 0, sizeof(*state));
 
 	state->task = task;
-	state->sp   = first_frame;
+	state->sp   = PTR_ALIGN(first_frame, sizeof(long));
 
 	get_stack_info(first_frame, state->task, &state->stack_info,
 		       &state->stack_mask);

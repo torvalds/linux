@@ -229,7 +229,7 @@ static int __init extlog_init(void)
 	if (!(cap & MCG_ELOG_P) || !extlog_get_l1addr())
 		return -ENODEV;
 
-	if (get_edac_report_status() == EDAC_REPORTING_FORCE) {
+	if (edac_get_report_status() == EDAC_REPORTING_FORCE) {
 		pr_warn("Not loading eMCA, error reporting force-enabled through EDAC.\n");
 		return -EPERM;
 	}
@@ -285,8 +285,8 @@ static int __init extlog_init(void)
 	 * eMCA event report method has higher priority than EDAC method,
 	 * unless EDAC event report method is mandatory.
 	 */
-	old_edac_report_status = get_edac_report_status();
-	set_edac_report_status(EDAC_REPORTING_DISABLED);
+	old_edac_report_status = edac_get_report_status();
+	edac_set_report_status(EDAC_REPORTING_DISABLED);
 	mce_register_decode_chain(&extlog_mce_dec);
 	/* enable OS to be involved to take over management from BIOS */
 	((struct extlog_l1_head *)extlog_l1_addr)->flags |= FLAG_OS_OPTIN;
@@ -308,7 +308,7 @@ err:
 
 static void __exit extlog_exit(void)
 {
-	set_edac_report_status(old_edac_report_status);
+	edac_set_report_status(old_edac_report_status);
 	mce_unregister_decode_chain(&extlog_mce_dec);
 	((struct extlog_l1_head *)extlog_l1_addr)->flags &= ~FLAG_OS_OPTIN;
 	if (extlog_l1_addr)

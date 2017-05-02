@@ -346,7 +346,7 @@ static int cgroup_task_count(const struct cgroup *cgrp)
 
 	spin_lock_irq(&css_set_lock);
 	list_for_each_entry(link, &cgrp->cset_links, cset_link)
-		count += atomic_read(&link->cset->refcount);
+		count += refcount_read(&link->cset->refcount);
 	spin_unlock_irq(&css_set_lock);
 	return count;
 }
@@ -1072,6 +1072,7 @@ struct dentry *cgroup1_mount(struct file_system_type *fs_type, int flags,
 	struct cgroup_subsys *ss;
 	struct dentry *dentry;
 	int i, ret;
+	bool new_root = false;
 
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
@@ -1181,10 +1182,11 @@ struct dentry *cgroup1_mount(struct file_system_type *fs_type, int flags,
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
+	new_root = true;
 
 	init_cgroup_root(root, &opts);
 
-	ret = cgroup_setup_root(root, opts.subsys_mask);
+	ret = cgroup_setup_root(root, opts.subsys_mask, PERCPU_REF_INIT_DEAD);
 	if (ret)
 		cgroup_free_root(root);
 
@@ -1199,6 +1201,18 @@ out_free:
 
 	dentry = cgroup_do_mount(&cgroup_fs_type, flags, root,
 				 CGROUP_SUPER_MAGIC, ns);
+
+	/*
+	 * There's a race window after we release cgroup_mutex and before
+	 * allocating a superblock. Make sure a concurrent process won't
+	 * be able to re-use the root during this window by delaying the
+	 * initialization of root refcnt.
+	 */
+	if (new_root) {
+		mutex_lock(&cgroup_mutex);
+		percpu_ref_reinit(&root->cgrp.self.refcnt);
+		mutex_unlock(&cgroup_mutex);
+	}
 
 	/*
 	 * If @pinned_sb, we're reusing an existing root and holding an
@@ -1286,7 +1300,7 @@ static u64 current_css_set_refcount_read(struct cgroup_subsys_state *css,
 	u64 count;
 
 	rcu_read_lock();
-	count = atomic_read(&task_css_set(current)->refcount);
+	count = refcount_read(&task_css_set(current)->refcount);
 	rcu_read_unlock();
 	return count;
 }

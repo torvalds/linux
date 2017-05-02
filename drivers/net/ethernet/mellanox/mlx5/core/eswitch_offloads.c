@@ -911,8 +911,7 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	int num_vports = esw->enabled_vports;
-	int err;
-	int vport;
+	int err, vport;
 	u8 mlx5_mode;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager))
@@ -921,9 +920,17 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
-	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
-	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
+	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
+	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
+		if (mode == DEVLINK_ESWITCH_INLINE_MODE_NONE)
+			return 0;
+		/* fall through */
+	case MLX5_CAP_INLINE_MODE_L2:
+		esw_warn(dev, "Inline mode can't be set\n");
 		return -EOPNOTSUPP;
+	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
+		break;
+	}
 
 	if (esw->offloads.num_flows > 0) {
 		esw_warn(dev, "Can't set inline mode when flows are configured\n");
@@ -966,18 +973,14 @@ int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode)
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
-	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
-	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
-		return -EOPNOTSUPP;
-
 	return esw_inline_mode_to_devlink(esw->offloads.inline_mode, mode);
 }
 
 int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 {
+	u8 prev_mlx5_mode, mlx5_mode = MLX5_INLINE_MODE_L2;
 	struct mlx5_core_dev *dev = esw->dev;
 	int vport;
-	u8 prev_mlx5_mode, mlx5_mode = MLX5_INLINE_MODE_L2;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager))
 		return -EOPNOTSUPP;
@@ -985,10 +988,18 @@ int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
-	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
-	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
-		return -EOPNOTSUPP;
+	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
+	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
+		mlx5_mode = MLX5_INLINE_MODE_NONE;
+		goto out;
+	case MLX5_CAP_INLINE_MODE_L2:
+		mlx5_mode = MLX5_INLINE_MODE_L2;
+		goto out;
+	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
+		goto query_vports;
+	}
 
+query_vports:
 	for (vport = 1; vport <= nvfs; vport++) {
 		mlx5_query_nic_vport_min_inline(dev, vport, &mlx5_mode);
 		if (vport > 1 && prev_mlx5_mode != mlx5_mode)
@@ -996,6 +1007,7 @@ int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
 		prev_mlx5_mode = mlx5_mode;
 	}
 
+out:
 	*mode = mlx5_mode;
 	return 0;
 }

@@ -31,10 +31,9 @@
 #include <stdlib.h>
 #include <subcmd/exec-cmd.h>
 #include <subcmd/pager.h>
+#include <linux/kernel.h>
 
 #include "builtin.h"
-
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 struct cmd_struct {
 	const char *name;

@@ -24,6 +24,15 @@
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
+extern int __pure nokaslr(void);
+extern int __pure is_quiet(void);
+
+#define pr_efi(sys_table, msg)		do {				\
+	if (!is_quiet()) efi_printk(sys_table, "EFI stub: "msg);	\
+} while (0)
+
+#define pr_efi_err(sys_table, msg) efi_printk(sys_table, "EFI stub: ERROR: "msg)
+
 void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
 
 efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg, void *__image,

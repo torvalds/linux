@@ -36,6 +36,7 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
 
 static void free_transition_pgtable(struct kimage *image)
 {
+	free_page((unsigned long)image->arch.p4d);
 	free_page((unsigned long)image->arch.pud);
 	free_page((unsigned long)image->arch.pmd);
 	free_page((unsigned long)image->arch.pte);
@@ -43,6 +44,7 @@ static void free_transition_pgtable(struct kimage *image)
 
 static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
 {
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -53,13 +55,21 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
 	paddr = __pa(page_address(image->control_code_page)+PAGE_SIZE);
 	pgd += pgd_index(vaddr);
 	if (!pgd_present(*pgd)) {
+		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL);
+		if (!p4d)
+			goto err;
+		image->arch.p4d = p4d;
+		set_pgd(pgd, __pgd(__pa(p4d) | _KERNPG_TABLE));
+	}
+	p4d = p4d_offset(pgd, vaddr);
+	if (!p4d_present(*p4d)) {
 		pud = (pud_t *)get_zeroed_page(GFP_KERNEL);
 		if (!pud)
 			goto err;
 		image->arch.pud = pud;
-		set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE));
+		set_p4d(p4d, __p4d(__pa(pud) | _KERNPG_TABLE));
 	}
-	pud = pud_offset(pgd, vaddr);
+	pud = pud_offset(p4d, vaddr);
 	if (!pud_present(*pud)) {
 		pmd = (pmd_t *)get_zeroed_page(GFP_KERNEL);
 		if (!pmd)

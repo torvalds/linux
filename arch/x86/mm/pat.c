@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
+#include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/pfn_t.h>
 #include <linux/slab.h>
@@ -23,7 +24,7 @@
 #include <asm/x86_init.h>
 #include <asm/pgtable.h>
 #include <asm/fcntl.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/page.h>
 #include <asm/msr.h>
