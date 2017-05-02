@@ -614,23 +614,49 @@ static void calc_wm_sets_and_perf_params(
 		context->watermarks.d = context->watermarks.a;
 }
 
-static void dcn_bw_apply_registry_override(struct core_dc *dc)
+static bool dcn_bw_apply_registry_override(struct core_dc *dc)
 {
+	bool updated = false;
+
 	kernel_fpu_begin();
-	if (dc->public.debug.sr_exit_time_ns)
+	if ((int)(dc->dcn_soc.sr_exit_time * 1000) != dc->public.debug.sr_exit_time_ns
+			&& dc->public.debug.sr_exit_time_ns) {
+		updated = true;
 		dc->dcn_soc.sr_exit_time = dc->public.debug.sr_exit_time_ns / 1000.0;
-	if (dc->public.debug.sr_enter_plus_exit_time_ns)
+	}
+
+	if ((int)(dc->dcn_soc.sr_enter_plus_exit_time * 1000)
+				!= dc->public.debug.sr_enter_plus_exit_time_ns
+			&& dc->public.debug.sr_enter_plus_exit_time_ns) {
+		updated = true;
 		dc->dcn_soc.sr_enter_plus_exit_time =
 				dc->public.debug.sr_enter_plus_exit_time_ns / 1000.0;
-	if (dc->public.debug.urgent_latency_ns)
+	}
+
+	if ((int)(dc->dcn_soc.urgent_latency * 1000) != dc->public.debug.urgent_latency_ns
+			&& dc->public.debug.urgent_latency_ns) {
+		updated = true;
 		dc->dcn_soc.urgent_latency = dc->public.debug.urgent_latency_ns / 1000.0;
-	if (dc->public.debug.percent_of_ideal_drambw)
+	}
+
+	if ((int)(dc->dcn_soc.percent_of_ideal_drambw_received_after_urg_latency * 1000)
+				!= dc->public.debug.percent_of_ideal_drambw
+			&& dc->public.debug.percent_of_ideal_drambw) {
+		updated = true;
 		dc->dcn_soc.percent_of_ideal_drambw_received_after_urg_latency =
 				dc->public.debug.percent_of_ideal_drambw;
-	if (dc->public.debug.dram_clock_change_latency_ns)
+	}
+
+	if ((int)(dc->dcn_soc.dram_clock_change_latency * 1000)
+				!= dc->public.debug.dram_clock_change_latency_ns
+			&& dc->public.debug.dram_clock_change_latency_ns) {
+		updated = true;
 		dc->dcn_soc.dram_clock_change_latency =
 				dc->public.debug.dram_clock_change_latency_ns / 1000.0;
+	}
 	kernel_fpu_end();
+
+	return updated;
 }
 
 bool dcn_validate_bandwidth(
@@ -642,7 +668,8 @@ bool dcn_validate_bandwidth(
 	int i, input_idx;
 	int vesa_sync_start, asic_blank_end, asic_blank_start;
 
-	dcn_bw_apply_registry_override(DC_TO_CORE(&dc->public));
+	if (dcn_bw_apply_registry_override(DC_TO_CORE(&dc->public)))
+		dcn_bw_sync_calcs_and_dml(DC_TO_CORE(&dc->public));
 
 	memset(v, 0, sizeof(*v));
 	kernel_fpu_begin();
