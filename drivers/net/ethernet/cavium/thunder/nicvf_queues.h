@@ -228,6 +228,7 @@ struct rbdr {
 	u32		head;
 	u32		tail;
 	struct q_desc_mem   dmem;
+	bool		is_xdp;
 
 	/* For page recycling */
 	int		pgidx;
@@ -339,7 +340,8 @@ void nicvf_sq_free_used_descs(struct net_device *netdev,
 int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 			struct sk_buff *skb, u8 sq_num);
 
-struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
+struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic,
+				  struct cqe_rx_t *cqe_rx, bool xdp);
 void nicvf_rbdr_task(unsigned long data);
 void nicvf_rbdr_work(struct work_struct *work);
 

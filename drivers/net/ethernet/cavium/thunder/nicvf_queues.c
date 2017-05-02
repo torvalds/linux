@@ -117,6 +117,7 @@ static struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 
 		/* Save the page in page cache */
 		pgcache->page = page;
+		pgcache->dma_addr = 0;
 		rbdr->pgalloc++;
 	}
 
@@ -144,7 +145,7 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
 	/* Check if request can be accomodated in previous allocated page.
 	 * But in XDP mode only one buffer per page is permitted.
 	 */
-	if (!nic->pnicvf->xdp_prog && nic->rb_page &&
+	if (!rbdr->is_xdp && nic->rb_page &&
 	    ((nic->rb_page_offset + buf_len) <= PAGE_SIZE)) {
 		nic->rb_pageref++;
 		goto ret;
@@ -165,18 +166,24 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
 	if (pgcache)
 		nic->rb_page = pgcache->page;
 ret:
-	/* HW will ensure data coherency, CPU sync not required */
-	*rbuf = (u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
-					nic->rb_page_offset, buf_len,
-					DMA_FROM_DEVICE,
-					DMA_ATTR_SKIP_CPU_SYNC);
-	if (dma_mapping_error(&nic->pdev->dev, (dma_addr_t)*rbuf)) {
-		if (!nic->rb_page_offset)
-			__free_pages(nic->rb_page, 0);
-		nic->rb_page = NULL;
-		return -ENOMEM;
+	if (rbdr->is_xdp && pgcache && pgcache->dma_addr) {
+		*rbuf = pgcache->dma_addr;
+	} else {
+		/* HW will ensure data coherency, CPU sync not required */
+		*rbuf = (u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
+						nic->rb_page_offset, buf_len,
+						DMA_FROM_DEVICE,
+						DMA_ATTR_SKIP_CPU_SYNC);
+		if (dma_mapping_error(&nic->pdev->dev, (dma_addr_t)*rbuf)) {
+			if (!nic->rb_page_offset)
+				__free_pages(nic->rb_page, 0);
+			nic->rb_page = NULL;
+			return -ENOMEM;
+		}
+		if (pgcache)
+			pgcache->dma_addr = *rbuf;
+		nic->rb_page_offset += buf_len;
 	}
-	nic->rb_page_offset += buf_len;
 
 	return 0;
 }
@@ -230,8 +237,16 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 	 * On embedded platforms i.e 81xx/83xx available memory itself
 	 * is low and minimum ring size of RBDR is 8K, that takes away
 	 * lots of memory.
+	 *
+	 * But for XDP it has to be a single buffer per page.
 	 */
-	rbdr->pgcnt = ring_len / (PAGE_SIZE / buf_size);
+	if (!nic->pnicvf->xdp_prog) {
+		rbdr->pgcnt = ring_len / (PAGE_SIZE / buf_size);
+		rbdr->is_xdp = false;
+	} else {
+		rbdr->pgcnt = ring_len;
+		rbdr->is_xdp = true;
+	}
 	rbdr->pgcnt = roundup_pow_of_two(rbdr->pgcnt);
 	rbdr->pgcache = kzalloc(sizeof(*rbdr->pgcache) *
 				rbdr->pgcnt, GFP_KERNEL);
@@ -1454,8 +1469,31 @@ static inline unsigned frag_num(unsigned i)
 #endif
 }
 
+static void nicvf_unmap_rcv_buffer(struct nicvf *nic, u64 dma_addr,
+				   u64 buf_addr, bool xdp)
+{
+	struct page *page = NULL;
+	int len = RCV_FRAG_LEN;
+
+	if (xdp) {
+		page = virt_to_page(phys_to_virt(buf_addr));
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) != 1)
+			return;
+		/* Receive buffers in XDP mode are mapped from page start */
+		dma_addr &= PAGE_MASK;
+	}
+	dma_unmap_page_attrs(&nic->pdev->dev, dma_addr, len,
+			     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+}
+
 /* Returns SKB for a received packet */
-struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
+struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic,
+				  struct cqe_rx_t *cqe_rx, bool xdp)
 {
 	int frag;
 	int payload_len = 0;
@@ -1490,10 +1528,9 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 
 		if (!frag) {
 			/* First fragment */
-			dma_unmap_page_attrs(&nic->pdev->dev,
-					     *rb_ptrs - cqe_rx->align_pad,
-					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
-					     DMA_ATTR_SKIP_CPU_SYNC);
+			nicvf_unmap_rcv_buffer(nic,
+					       *rb_ptrs - cqe_rx->align_pad,
+					       phys_addr, xdp);
 			skb = nicvf_rb_ptr_to_skb(nic,
 						  phys_addr - cqe_rx->align_pad,
 						  payload_len);
@@ -1503,9 +1540,7 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 			skb_put(skb, payload_len);
 		} else {
 			/* Add fragments */
-			dma_unmap_page_attrs(&nic->pdev->dev, *rb_ptrs,
-					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
-					     DMA_ATTR_SKIP_CPU_SYNC);
+			nicvf_unmap_rcv_buffer(nic, *rb_ptrs, phys_addr, xdp);
 			page = virt_to_page(phys_to_virt(phys_addr));
 			offset = phys_to_virt(phys_addr) - page_address(page);
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,

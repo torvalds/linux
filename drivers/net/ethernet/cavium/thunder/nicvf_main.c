@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/iommu.h>
 #include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 #include <linux/filter.h>
 
 #include "nic_reg.h"
@@ -505,6 +506,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic,
 				struct cqe_rx_t *cqe_rx)
 {
 	struct xdp_buff xdp;
+	struct page *page;
 	u32 action;
 	u16 len;
 	u64 dma_addr, cpu_addr;
@@ -527,12 +529,27 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic,
 	switch (action) {
 	case XDP_PASS:
 	case XDP_TX:
-	case XDP_ABORTED:
-	case XDP_DROP:
 		/* Pass on all packets to network stack */
 		return false;
 	default:
 		bpf_warn_invalid_xdp_action(action);
+	case XDP_ABORTED:
+		trace_xdp_exception(nic->netdev, prog, action);
+	case XDP_DROP:
+		page = virt_to_page(xdp.data);
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) == 1) {
+			dma_addr &= PAGE_MASK;
+			dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
+					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
+		}
+		put_page(page);
+		return true;
 	}
 	return false;
 }
@@ -645,7 +662,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx))
 			return;
 
-	skb = nicvf_get_rcv_skb(snic, cqe_rx);
+	skb = nicvf_get_rcv_skb(snic, cqe_rx, nic->xdp_prog ? true : false);
 	if (!skb) {
 		netdev_dbg(nic->netdev, "Packet not received\n");
 		return;
