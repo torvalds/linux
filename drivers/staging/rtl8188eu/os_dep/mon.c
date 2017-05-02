@@ -70,6 +70,8 @@ static void mon_recv_decrypted_recv(struct net_device *dev, const u8 *data,
 			       int data_len, int iv_len, int icv_len)
 {
 	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
+	int hdr_len;
 
 	skb = netdev_alloc_skb(dev, data_len);
 	if (!skb)
@@ -80,7 +82,19 @@ static void mon_recv_decrypted_recv(struct net_device *dev, const u8 *data,
 	 * Frame data is not encrypted. Strip off protection so
 	 * userspace doesn't think that it is.
 	 */
-	unprotect_frame(skb, iv_len, icv_len);
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	hdr_len = ieee80211_hdrlen(hdr->frame_control);
+
+	if (skb->len < hdr_len + iv_len + icv_len) {
+		if (ieee80211_has_protected(hdr->frame_control)) {
+			hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+
+			memmove(skb->data + iv_len, skb->data, hdr_len);
+			skb_pull(skb, iv_len);
+			skb_trim(skb, skb->len - icv_len);
+		}
+	}
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->protocol = eth_type_trans(skb, dev);
