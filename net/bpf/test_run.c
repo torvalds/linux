@@ -100,7 +100,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	void *data;
 	int ret;
 
-	data = bpf_test_init(kattr, size, NET_SKB_PAD,
+	data = bpf_test_init(kattr, size, NET_SKB_PAD + NET_IP_ALIGN,
 			     SKB_DATA_ALIGN(sizeof(struct skb_shared_info)));
 	if (IS_ERR(data))
 		return PTR_ERR(data);
@@ -125,7 +125,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 		return -ENOMEM;
 	}
 
-	skb_reserve(skb, NET_SKB_PAD);
+	skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
 	__skb_put(skb, size);
 	skb->protocol = eth_type_trans(skb, current->nsproxy->net_ns->loopback_dev);
 	skb_reset_network_header(skb);
@@ -156,16 +156,16 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 	void *data;
 	int ret;
 
-	data = bpf_test_init(kattr, size, XDP_PACKET_HEADROOM, 0);
+	data = bpf_test_init(kattr, size, XDP_PACKET_HEADROOM + NET_IP_ALIGN, 0);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
 	xdp.data_hard_start = data;
-	xdp.data = data + XDP_PACKET_HEADROOM;
+	xdp.data = data + XDP_PACKET_HEADROOM + NET_IP_ALIGN;
 	xdp.data_end = xdp.data + size;
 
 	retval = bpf_test_run(prog, &xdp, repeat, &duration);
-	if (xdp.data != data + XDP_PACKET_HEADROOM)
+	if (xdp.data != data + XDP_PACKET_HEADROOM + NET_IP_ALIGN)
 		size = xdp.data_end - xdp.data;
 	ret = bpf_test_finish(kattr, uattr, xdp.data, size, retval, duration);
 	kfree(data);
