@@ -244,10 +244,10 @@ void pinconf_show_map(struct seq_file *s, struct pinctrl_map const *map)
 
 	switch (map->type) {
 	case PIN_MAP_TYPE_CONFIGS_PIN:
-		seq_printf(s, "pin ");
+		seq_puts(s, "pin ");
 		break;
 	case PIN_MAP_TYPE_CONFIGS_GROUP:
-		seq_printf(s, "group ");
+		seq_puts(s, "group ");
 		break;
 	default:
 		break;
