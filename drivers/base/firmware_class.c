@@ -1102,23 +1102,51 @@ err_put_dev:
 
 static int fw_load_from_user_helper(struct firmware *firmware,
 				    const char *name, struct device *device,
-				    unsigned int opt_flags, long timeout)
+				    unsigned int opt_flags)
 {
 	struct firmware_priv *fw_priv;
+	long timeout;
+	int ret;
+
+	timeout = firmware_loading_timeout();
+	if (opt_flags & FW_OPT_NOWAIT) {
+		timeout = usermodehelper_read_lock_wait(timeout);
+		if (!timeout) {
+			dev_dbg(device, "firmware: %s loading timed out\n",
+				name);
+			return -EBUSY;
+		}
+	} else {
+		ret = usermodehelper_read_trylock();
+		if (WARN_ON(ret)) {
+			dev_err(device, "firmware: %s will not be loaded\n",
+				name);
+			return ret;
+		}
+	}
 
 	fw_priv = fw_create_instance(firmware, name, device, opt_flags);
-	if (IS_ERR(fw_priv))
-		return PTR_ERR(fw_priv);
+	if (IS_ERR(fw_priv)) {
+		ret = PTR_ERR(fw_priv);
+		goto out_unlock;
+	}
 
 	fw_priv->buf = firmware->priv;
-	return _request_firmware_load(fw_priv, opt_flags, timeout);
+	ret = _request_firmware_load(fw_priv, opt_flags, timeout);
+
+	if (!ret)
+		ret = assign_firmware_buf(firmware, device, opt_flags);
+
+out_unlock:
+	usermodehelper_read_unlock();
+
+	return ret;
 }
 
 #else /* CONFIG_FW_LOADER_USER_HELPER */
 static inline int
 fw_load_from_user_helper(struct firmware *firmware, const char *name,
-			 struct device *device, unsigned int opt_flags,
-			 long timeout)
+			 struct device *device, unsigned int opt_flags)
 {
 	return -ENOENT;
 }
@@ -1179,7 +1207,6 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		  unsigned int opt_flags)
 {
 	struct firmware *fw = NULL;
-	long timeout;
 	int ret;
 
 	if (!firmware_p)
@@ -1200,25 +1227,6 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		goto out;
 	}
 
-	ret = 0;
-	timeout = firmware_loading_timeout();
-	if (opt_flags & FW_OPT_NOWAIT) {
-		timeout = usermodehelper_read_lock_wait(timeout);
-		if (!timeout) {
-			dev_dbg(device, "firmware: %s loading timed out\n",
-				name);
-			ret = -EBUSY;
-			goto out;
-		}
-	} else {
-		ret = usermodehelper_read_trylock();
-		if (WARN_ON(ret)) {
-			dev_err(device, "firmware: %s will not be loaded\n",
-				name);
-			goto out;
-		}
-	}
-
 	ret = fw_get_filesystem_firmware(device, fw->priv);
 	if (ret) {
 		if (!(opt_flags & FW_OPT_NO_WARN))
@@ -1228,14 +1236,10 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		if (opt_flags & FW_OPT_USERHELPER) {
 			dev_warn(device, "Falling back to user helper\n");
 			ret = fw_load_from_user_helper(fw, name, device,
-						       opt_flags, timeout);
+						       opt_flags);
 		}
-	}
-
-	if (!ret)
+	} else
 		ret = assign_firmware_buf(fw, device, opt_flags);
-
-	usermodehelper_read_unlock();
 
  out:
 	if (ret < 0) {
