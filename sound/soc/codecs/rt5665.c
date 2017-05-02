@@ -2684,6 +2684,8 @@ static const struct snd_soc_dapm_widget rt5665_dapm_widgets[] = {
 		RT5665_DAC_MONO_R_ASRC_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("ADC STO1 ASRC", 1, RT5665_ASRC_1,
 		RT5665_ADC_STO1_ASRC_SFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("ADC STO2 ASRC", 1, RT5665_ASRC_1,
+		RT5665_ADC_STO2_ASRC_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("ADC Mono L ASRC", 1, RT5665_ASRC_1,
 		RT5665_ADC_MONO_L_ASRC_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("ADC Mono R ASRC", 1, RT5665_ASRC_1,
@@ -3227,6 +3229,7 @@ static const struct snd_soc_dapm_route rt5665_dapm_routes[] = {
 
 	/*ASRC*/
 	{"ADC Stereo1 Filter", NULL, "ADC STO1 ASRC", is_using_asrc},
+	{"ADC Stereo2 Filter", NULL, "ADC STO2 ASRC", is_using_asrc},
 	{"ADC Mono Left Filter", NULL, "ADC Mono L ASRC", is_using_asrc},
 	{"ADC Mono Right Filter", NULL, "ADC Mono R ASRC", is_using_asrc},
 	{"DAC Mono Left Filter", NULL, "DAC Mono L ASRC", is_using_asrc},
