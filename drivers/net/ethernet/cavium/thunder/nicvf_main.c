@@ -502,13 +502,15 @@ static int nicvf_init_resources(struct nicvf *nic)
 }
 
 static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
-				struct cqe_rx_t *cqe_rx, struct snd_queue *sq)
+				struct cqe_rx_t *cqe_rx, struct snd_queue *sq,
+				struct sk_buff **skb)
 {
 	struct xdp_buff xdp;
 	struct page *page;
 	u32 action;
-	u16 len;
+	u16 len, offset = 0;
 	u64 dma_addr, cpu_addr;
+	void *orig_data;
 
 	/* Retrieve packet buffer's DMA address and length */
 	len = *((u16 *)((void *)cqe_rx + (3 * sizeof(u64))));
@@ -517,17 +519,47 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 	cpu_addr = nicvf_iova_to_phys(nic, dma_addr);
 	if (!cpu_addr)
 		return false;
+	cpu_addr = (u64)phys_to_virt(cpu_addr);
+	page = virt_to_page((void *)cpu_addr);
 
-	xdp.data = phys_to_virt(cpu_addr);
+	xdp.data_hard_start = page_address(page);
+	xdp.data = (void *)cpu_addr;
 	xdp.data_end = xdp.data + len;
+	orig_data = xdp.data;
 
 	rcu_read_lock();
 	action = bpf_prog_run_xdp(prog, &xdp);
 	rcu_read_unlock();
 
+	/* Check if XDP program has changed headers */
+	if (orig_data != xdp.data) {
+		len = xdp.data_end - xdp.data;
+		offset = orig_data - xdp.data;
+		dma_addr -= offset;
+	}
+
 	switch (action) {
 	case XDP_PASS:
-		/* Pass on packet to network stack */
+		/* Check if it's a recycled page, if not
+		 * unmap the DMA mapping.
+		 *
+		 * Recycled page holds an extra reference.
+		 */
+		if (page_ref_count(page) == 1) {
+			dma_addr &= PAGE_MASK;
+			dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
+					     RCV_FRAG_LEN + XDP_PACKET_HEADROOM,
+					     DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
+		}
+
+		/* Build SKB and pass on packet to network stack */
+		*skb = build_skb(xdp.data,
+				 RCV_FRAG_LEN - cqe_rx->align_pad + offset);
+		if (!*skb)
+			put_page(page);
+		else
+			skb_put(*skb, len);
 		return false;
 	case XDP_TX:
 		nicvf_xdp_sq_append_pkt(nic, sq, (u64)xdp.data, dma_addr, len);
@@ -537,7 +569,6 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 	case XDP_ABORTED:
 		trace_xdp_exception(nic->netdev, prog, action);
 	case XDP_DROP:
-		page = virt_to_page(xdp.data);
 		/* Check if it's a recycled page, if not
 		 * unmap the DMA mapping.
 		 *
@@ -546,7 +577,8 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 		if (page_ref_count(page) == 1) {
 			dma_addr &= PAGE_MASK;
 			dma_unmap_page_attrs(&nic->pdev->dev, dma_addr,
-					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
+					     RCV_FRAG_LEN + XDP_PACKET_HEADROOM,
+					     DMA_FROM_DEVICE,
 					     DMA_ATTR_SKIP_CPU_SYNC);
 		}
 		put_page(page);
@@ -654,7 +686,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 				  struct napi_struct *napi,
 				  struct cqe_rx_t *cqe_rx, struct snd_queue *sq)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct nicvf *snic = nic;
 	int err = 0;
@@ -676,15 +708,17 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	}
 
 	/* For XDP, ignore pkts spanning multiple pages */
-	if (nic->xdp_prog && (cqe_rx->rb_cnt == 1))
-		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx, sq))
+	if (nic->xdp_prog && (cqe_rx->rb_cnt == 1)) {
+		/* Packet consumed by XDP */
+		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx, sq, &skb))
 			return;
-
-	skb = nicvf_get_rcv_skb(snic, cqe_rx, nic->xdp_prog ? true : false);
-	if (!skb) {
-		netdev_dbg(nic->netdev, "Packet not received\n");
-		return;
+	} else {
+		skb = nicvf_get_rcv_skb(snic, cqe_rx,
+					nic->xdp_prog ? true : false);
 	}
+
+	if (!skb)
+		return;
 
 	if (netif_msg_pktdata(nic)) {
 		netdev_info(nic->netdev, "%s: skb 0x%p, len=%d\n", netdev->name,
@@ -1671,9 +1705,6 @@ static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
 			    dev->mtu);
 		return -EOPNOTSUPP;
 	}
-
-	if (prog && prog->xdp_adjust_head)
-		return -EOPNOTSUPP;
 
 	/* ALL SQs attached to CQs i.e same as RQs, are treated as
 	 * XDP Tx queues and more Tx queues are allocated for

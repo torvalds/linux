@@ -164,6 +164,11 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
 	}
 
 	nic->rb_page_offset = 0;
+
+	/* Reserve space for header modifications by BPF program */
+	if (rbdr->is_xdp)
+		buf_len += XDP_PACKET_HEADROOM;
+
 	/* Check if it's recycled */
 	if (pgcache)
 		nic->rb_page = pgcache->page;
@@ -183,7 +188,7 @@ ret:
 			return -ENOMEM;
 		}
 		if (pgcache)
-			pgcache->dma_addr = *rbuf;
+			pgcache->dma_addr = *rbuf + XDP_PACKET_HEADROOM;
 		nic->rb_page_offset += buf_len;
 	}
 
@@ -1575,6 +1580,8 @@ static void nicvf_unmap_rcv_buffer(struct nicvf *nic, u64 dma_addr,
 		 */
 		if (page_ref_count(page) != 1)
 			return;
+
+		len += XDP_PACKET_HEADROOM;
 		/* Receive buffers in XDP mode are mapped from page start */
 		dma_addr &= PAGE_MASK;
 	}
