@@ -372,7 +372,7 @@ void odm_PauseDIG(
 {
 	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
-	static bool bPaused = false;
+	static bool bPaused;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_PauseDIG() =========>\n"));
 
