@@ -267,7 +267,7 @@ static void free_zlib(void)
 	big_oops_buf_sz = 0;
 }
 
-static struct pstore_zbackend backend_zlib = {
+static const struct pstore_zbackend backend_zlib = {
 	.compress	= compress_zlib,
 	.decompress	= decompress_zlib,
 	.allocate	= allocate_zlib,
@@ -328,7 +328,7 @@ static void free_lzo(void)
 	big_oops_buf_sz = 0;
 }
 
-static struct pstore_zbackend backend_lzo = {
+static const struct pstore_zbackend backend_lzo = {
 	.compress	= compress_lzo,
 	.decompress	= decompress_lzo,
 	.allocate	= allocate_lzo,
@@ -393,7 +393,7 @@ static void free_lz4(void)
 	big_oops_buf_sz = 0;
 }
 
-static struct pstore_zbackend backend_lz4 = {
+static const struct pstore_zbackend backend_lz4 = {
 	.compress	= compress_lz4,
 	.decompress	= decompress_lz4,
 	.allocate	= allocate_lz4,
@@ -402,7 +402,7 @@ static struct pstore_zbackend backend_lz4 = {
 };
 #endif
 
-static struct pstore_zbackend *zbackend =
+static const struct pstore_zbackend *zbackend =
 #if defined(CONFIG_PSTORE_ZLIB_COMPRESS)
 	&backend_zlib;
 #elif defined(CONFIG_PSTORE_LZO_COMPRESS)
@@ -484,7 +484,6 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 {
 	unsigned long	total = 0;
 	const char	*why;
-	u64		id;
 	unsigned int	part = 1;
 	unsigned long	flags = 0;
 	int		is_locked;
@@ -506,48 +505,59 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	oopscount++;
 	while (total < kmsg_bytes) {
 		char *dst;
-		unsigned long size;
-		int hsize;
+		size_t dst_size;
+		int header_size;
 		int zipped_len = -1;
-		size_t len;
-		bool compressed = false;
-		size_t total_len;
+		size_t dump_size;
+		struct pstore_record record = {
+			.type = PSTORE_TYPE_DMESG,
+			.count = oopscount,
+			.reason = reason,
+			.part = part,
+			.compressed = false,
+			.buf = psinfo->buf,
+			.psi = psinfo,
+		};
 
 		if (big_oops_buf && is_locked) {
 			dst = big_oops_buf;
-			size = big_oops_buf_sz;
+			dst_size = big_oops_buf_sz;
 		} else {
 			dst = psinfo->buf;
-			size = psinfo->bufsize;
+			dst_size = psinfo->bufsize;
 		}
 
-		hsize = sprintf(dst, "%s#%d Part%u\n", why, oopscount, part);
-		size -= hsize;
+		/* Write dump header. */
+		header_size = snprintf(dst, dst_size, "%s#%d Part%u\n", why,
+				 oopscount, part);
+		dst_size -= header_size;
 
-		if (!kmsg_dump_get_buffer(dumper, true, dst + hsize,
-					  size, &len))
+		/* Write dump contents. */
+		if (!kmsg_dump_get_buffer(dumper, true, dst + header_size,
+					  dst_size, &dump_size))
 			break;
 
 		if (big_oops_buf && is_locked) {
 			zipped_len = pstore_compress(dst, psinfo->buf,
-						hsize + len, psinfo->bufsize);
+						header_size + dump_size,
+						psinfo->bufsize);
 
 			if (zipped_len > 0) {
-				compressed = true;
-				total_len = zipped_len;
+				record.compressed = true;
+				record.size = zipped_len;
 			} else {
-				total_len = copy_kmsg_to_buffer(hsize, len);
+				record.size = copy_kmsg_to_buffer(header_size,
+								  dump_size);
 			}
 		} else {
-			total_len = hsize + len;
+			record.size = header_size + dump_size;
 		}
 
-		ret = psinfo->write(PSTORE_TYPE_DMESG, reason, &id, part,
-				    oopscount, compressed, total_len, psinfo);
+		ret = psinfo->write(&record);
 		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_new_entry = 1;
 
-		total += total_len;
+		total += record.size;
 		part++;
 	}
 	if (is_locked)
@@ -577,8 +587,11 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 	const char *e = s + c;
 
 	while (s < e) {
+		struct pstore_record record = {
+			.type = PSTORE_TYPE_CONSOLE,
+			.psi = psinfo,
+		};
 		unsigned long flags;
-		u64 id;
 
 		if (c > psinfo->bufsize)
 			c = psinfo->bufsize;
@@ -589,8 +602,9 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 		} else {
 			spin_lock_irqsave(&psinfo->buf_lock, flags);
 		}
-		psinfo->write_buf(PSTORE_TYPE_CONSOLE, 0, &id, 0,
-				  s, 0, c, psinfo);
+		record.buf = (char *)s;
+		record.size = c;
+		psinfo->write(&record);
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 		s += c;
 		c = e - s;
@@ -618,48 +632,30 @@ static void pstore_register_console(void) {}
 static void pstore_unregister_console(void) {}
 #endif
 
-static int pstore_write_compat(enum pstore_type_id type,
-			       enum kmsg_dump_reason reason,
-			       u64 *id, unsigned int part, int count,
-			       bool compressed, size_t size,
-			       struct pstore_info *psi)
+static int pstore_write_user_compat(struct pstore_record *record,
+				    const char __user *buf)
 {
-	return psi->write_buf(type, reason, id, part, psinfo->buf, compressed,
-			     size, psi);
-}
+	int ret = 0;
 
-static int pstore_write_buf_user_compat(enum pstore_type_id type,
-			       enum kmsg_dump_reason reason,
-			       u64 *id, unsigned int part,
-			       const char __user *buf,
-			       bool compressed, size_t size,
-			       struct pstore_info *psi)
-{
-	unsigned long flags = 0;
-	size_t i, bufsize = size;
-	long ret = 0;
+	if (record->buf)
+		return -EINVAL;
 
-	if (unlikely(!access_ok(VERIFY_READ, buf, size)))
-		return -EFAULT;
-	if (bufsize > psinfo->bufsize)
-		bufsize = psinfo->bufsize;
-	spin_lock_irqsave(&psinfo->buf_lock, flags);
-	for (i = 0; i < size; ) {
-		size_t c = min(size - i, bufsize);
+	record->buf = kmalloc(record->size, GFP_KERNEL);
+	if (!record->buf)
+		return -ENOMEM;
 
-		ret = __copy_from_user(psinfo->buf, buf + i, c);
-		if (unlikely(ret != 0)) {
-			ret = -EFAULT;
-			break;
-		}
-		ret = psi->write_buf(type, reason, id, part, psinfo->buf,
-				     compressed, c, psi);
-		if (unlikely(ret < 0))
-			break;
-		i += c;
+	if (unlikely(copy_from_user(record->buf, buf, record->size))) {
+		ret = -EFAULT;
+		goto out;
 	}
-	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
-	return unlikely(ret < 0) ? ret : size;
+
+	ret = record->psi->write(record);
+
+out:
+	kfree(record->buf);
+	record->buf = NULL;
+
+	return unlikely(ret < 0) ? ret : record->size;
 }
 
 /*
@@ -673,19 +669,35 @@ int pstore_register(struct pstore_info *psi)
 {
 	struct module *owner = psi->owner;
 
-	if (backend && strcmp(backend, psi->name))
+	if (backend && strcmp(backend, psi->name)) {
+		pr_warn("ignoring unexpected backend '%s'\n", psi->name);
 		return -EPERM;
+	}
+
+	/* Sanity check flags. */
+	if (!psi->flags) {
+		pr_warn("backend '%s' must support at least one frontend\n",
+			psi->name);
+		return -EINVAL;
+	}
+
+	/* Check for required functions. */
+	if (!psi->read || !psi->write) {
+		pr_warn("backend '%s' must implement read() and write()\n",
+			psi->name);
+		return -EINVAL;
+	}
 
 	spin_lock(&pstore_lock);
 	if (psinfo) {
+		pr_warn("backend '%s' already loaded: ignoring '%s'\n",
+			psinfo->name, psi->name);
 		spin_unlock(&pstore_lock);
 		return -EBUSY;
 	}
 
-	if (!psi->write)
-		psi->write = pstore_write_compat;
-	if (!psi->write_buf_user)
-		psi->write_buf_user = pstore_write_buf_user_compat;
+	if (!psi->write_user)
+		psi->write_user = pstore_write_user_compat;
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
 	spin_unlock(&pstore_lock);
@@ -709,6 +721,7 @@ int pstore_register(struct pstore_info *psi)
 	if (psi->flags & PSTORE_FLAGS_PMSG)
 		pstore_register_pmsg();
 
+	/* Start watching for new records, if desired. */
 	if (pstore_update_ms >= 0) {
 		pstore_timer.expires = jiffies +
 			msecs_to_jiffies(pstore_update_ms);
@@ -721,9 +734,9 @@ int pstore_register(struct pstore_info *psi)
 	 */
 	backend = psi->name;
 
-	module_put(owner);
-
 	pr_info("Registered %s as persistent store backend\n", psi->name);
+
+	module_put(owner);
 
 	return 0;
 }
@@ -731,6 +744,11 @@ EXPORT_SYMBOL_GPL(pstore_register);
 
 void pstore_unregister(struct pstore_info *psi)
 {
+	/* Stop timer and make sure all work has finished. */
+	pstore_update_ms = -1;
+	del_timer_sync(&pstore_timer);
+	flush_work(&pstore_work);
+
 	if (psi->flags & PSTORE_FLAGS_PMSG)
 		pstore_unregister_pmsg();
 	if (psi->flags & PSTORE_FLAGS_FTRACE)
@@ -747,66 +765,99 @@ void pstore_unregister(struct pstore_info *psi)
 }
 EXPORT_SYMBOL_GPL(pstore_unregister);
 
+static void decompress_record(struct pstore_record *record)
+{
+	int unzipped_len;
+	char *decompressed;
+
+	/* Only PSTORE_TYPE_DMESG support compression. */
+	if (!record->compressed || record->type != PSTORE_TYPE_DMESG) {
+		pr_warn("ignored compressed record type %d\n", record->type);
+		return;
+	}
+
+	/* No compression method has created the common buffer. */
+	if (!big_oops_buf) {
+		pr_warn("no decompression buffer allocated\n");
+		return;
+	}
+
+	unzipped_len = pstore_decompress(record->buf, big_oops_buf,
+					 record->size, big_oops_buf_sz);
+	if (unzipped_len <= 0) {
+		pr_err("decompression failed: %d\n", unzipped_len);
+		return;
+	}
+
+	/* Build new buffer for decompressed contents. */
+	decompressed = kmalloc(unzipped_len + record->ecc_notice_size,
+			       GFP_KERNEL);
+	if (!decompressed) {
+		pr_err("decompression ran out of memory\n");
+		return;
+	}
+	memcpy(decompressed, big_oops_buf, unzipped_len);
+
+	/* Append ECC notice to decompressed buffer. */
+	memcpy(decompressed + unzipped_len, record->buf + record->size,
+	       record->ecc_notice_size);
+
+	/* Swap out compresed contents with decompressed contents. */
+	kfree(record->buf);
+	record->buf = decompressed;
+	record->size = unzipped_len;
+	record->compressed = false;
+}
+
 /*
- * Read all the records from the persistent store. Create
+ * Read all the records from one persistent store backend. Create
  * files in our filesystem.  Don't warn about -EEXIST errors
  * when we are re-scanning the backing store looking to add new
  * error records.
  */
-void pstore_get_records(int quiet)
+void pstore_get_backend_records(struct pstore_info *psi,
+				struct dentry *root, int quiet)
 {
-	struct pstore_info *psi = psinfo;
-	char			*buf = NULL;
-	ssize_t			size;
-	u64			id;
-	int			count;
-	enum pstore_type_id	type;
-	struct timespec		time;
-	int			failed = 0, rc;
-	bool			compressed;
-	int			unzipped_len = -1;
-	ssize_t			ecc_notice_size = 0;
+	int failed = 0;
 
-	if (!psi)
+	if (!psi || !root)
 		return;
 
 	mutex_lock(&psi->read_mutex);
 	if (psi->open && psi->open(psi))
 		goto out;
 
-	while ((size = psi->read(&id, &type, &count, &time, &buf, &compressed,
-				 &ecc_notice_size, psi)) > 0) {
-		if (compressed && (type == PSTORE_TYPE_DMESG)) {
-			if (big_oops_buf)
-				unzipped_len = pstore_decompress(buf,
-							big_oops_buf, size,
-							big_oops_buf_sz);
+	/*
+	 * Backend callback read() allocates record.buf. decompress_record()
+	 * may reallocate record.buf. On success, pstore_mkfile() will keep
+	 * the record.buf, so free it only on failure.
+	 */
+	for (;;) {
+		struct pstore_record *record;
+		int rc;
 
-			if (unzipped_len > 0) {
-				if (ecc_notice_size)
-					memcpy(big_oops_buf + unzipped_len,
-					       buf + size, ecc_notice_size);
-				kfree(buf);
-				buf = big_oops_buf;
-				size = unzipped_len;
-				compressed = false;
-			} else {
-				pr_err("decompression failed;returned %d\n",
-				       unzipped_len);
-				compressed = true;
-			}
+		record = kzalloc(sizeof(*record), GFP_KERNEL);
+		if (!record) {
+			pr_err("out of memory creating record\n");
+			break;
 		}
-		rc = pstore_mkfile(type, psi->name, id, count, buf,
-				   compressed, size + ecc_notice_size,
-				   time, psi);
-		if (unzipped_len < 0) {
-			/* Free buffer other than big oops */
-			kfree(buf);
-			buf = NULL;
-		} else
-			unzipped_len = -1;
-		if (rc && (rc != -EEXIST || !quiet))
-			failed++;
+		record->psi = psi;
+
+		record->size = psi->read(record);
+
+		/* No more records left in backend? */
+		if (record->size <= 0)
+			break;
+
+		decompress_record(record);
+		rc = pstore_mkfile(root, record);
+		if (rc) {
+			/* pstore_mkfile() did not take record, so free it. */
+			kfree(record->buf);
+			kfree(record);
+			if (rc != -EEXIST || !quiet)
+				failed++;
+		}
 	}
 	if (psi->close)
 		psi->close(psi);
@@ -830,7 +881,9 @@ static void pstore_timefunc(unsigned long dummy)
 		schedule_work(&pstore_work);
 	}
 
-	mod_timer(&pstore_timer, jiffies + msecs_to_jiffies(pstore_update_ms));
+	if (pstore_update_ms >= 0)
+		mod_timer(&pstore_timer,
+			  jiffies + msecs_to_jiffies(pstore_update_ms));
 }
 
 module_param(backend, charp, 0444);
