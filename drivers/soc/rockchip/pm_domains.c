@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/devfreq.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/err.h>
@@ -76,8 +77,12 @@ struct rockchip_pmu {
 	const struct rockchip_pmu_info *info;
 	struct mutex mutex; /* mutex lock for pmu */
 	struct genpd_onecell_data genpd_data;
+	struct devfreq *devfreq;
+	struct notifier_block dmc_nb;
 	struct generic_pm_domain *domains[];
 };
+
+static struct rockchip_pmu *dmc_pmu;
 
 #define to_rockchip_pd(gpd) container_of(gpd, struct rockchip_pm_domain, genpd)
 
@@ -626,6 +631,30 @@ err_out:
 	return error;
 }
 
+static int dmc_notify(struct notifier_block *nb, unsigned long event,
+		      void *data)
+{
+	if (event == DEVFREQ_PRECHANGE)
+		mutex_lock(&dmc_pmu->mutex);
+	else if (event == DEVFREQ_POSTCHANGE)
+		mutex_unlock(&dmc_pmu->mutex);
+
+	return NOTIFY_OK;
+}
+
+int rockchip_pm_register_notify_to_dmc(struct devfreq *devfreq)
+{
+	if (!dmc_pmu)
+		return -ENOMEM;
+
+	dmc_pmu->devfreq = devfreq;
+	dmc_pmu->dmc_nb.notifier_call = dmc_notify;
+	devfreq_register_notifier(dmc_pmu->devfreq, &dmc_pmu->dmc_nb,
+				  DEVFREQ_TRANSITION_NOTIFIER);
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_pm_register_notify_to_dmc);
+
 static int rockchip_pm_domain_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -714,6 +743,8 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	}
 
 	of_genpd_add_provider_onecell(np, &pmu->genpd_data);
+
+	dmc_pmu = pmu;
 
 	return 0;
 
