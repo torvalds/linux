@@ -770,21 +770,11 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		adev->gfx.config.max_shader_engines = 4;
-		adev->gfx.config.max_cu_per_sh = 16;
-		adev->gfx.config.max_sh_per_se = 1;
-		adev->gfx.config.max_backends_per_se = 4;
-		adev->gfx.config.max_texture_channel_caches = 16;
-		adev->gfx.config.max_gprs = 256;
-		adev->gfx.config.max_gs_threads = 32;
 		adev->gfx.config.max_hw_contexts = 8;
-
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
 		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
-		adev->gfx.config.gs_vgt_table_depth = 32;
-		adev->gfx.config.gs_prim_buffer_depth = 1792;
 		gb_addr_config = VEGA10_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	default:
