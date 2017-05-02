@@ -336,7 +336,7 @@ unlock:
  * Convert a function address into the appropriate ftrace location.
  *
  * Usually this is just the address of the function, but on some architectures
- * it's more complicated so allow them to provide a custom behaviour.
+ * it's more complicated so allow them to provide a custom behavior.
  */
 #ifndef klp_get_ftrace_location
 static unsigned long klp_get_ftrace_location(unsigned long faddr)
