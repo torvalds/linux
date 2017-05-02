@@ -463,7 +463,7 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 			RK2928_CLKGATE_CON(2), 12, GFLAGS,
 			&rk3228_spdif_fracmux),
 
-	GATE(0, "jtag", "ext_jtag", 0,
+	GATE(0, "jtag", "ext_jtag", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(1), 3, GFLAGS),
 
 	GATE(SCLK_OTGPHY0, "sclk_otgphy0", "xin24m", 0,
@@ -662,9 +662,37 @@ static struct rockchip_clk_branch rk3228_clk_branches[] __initdata = {
 
 static const char *const rk3228_critical_clocks[] __initconst = {
 	"aclk_cpu",
+	"pclk_cpu",
+	"hclk_cpu",
 	"aclk_peri",
 	"hclk_peri",
 	"pclk_peri",
+	"aclk_rga_noc",
+	"aclk_iep_noc",
+	"aclk_vop_noc",
+	"aclk_hdcp_noc",
+	"hclk_vio_ahb_arbi",
+	"hclk_vio_noc",
+	"hclk_vop_noc",
+	"hclk_host0_arb",
+	"hclk_host1_arb",
+	"hclk_host2_arb",
+	"hclk_otg_pmu",
+	"aclk_gpu_noc",
+	"sclk_initmem_mbist",
+	"aclk_initmem",
+	"hclk_rom",
+	"pclk_ddrupctl",
+	"pclk_ddrmon",
+	"pclk_msch_noc",
+	"pclk_stimer",
+	"pclk_ddrphy",
+	"pclk_acodecphy",
+	"pclk_phy_noc",
+	"aclk_vpu_noc",
+	"aclk_rkvdec_noc",
+	"hclk_vpu_noc",
+	"hclk_rkvdec_noc",
 };
 
 static void __init rk3228_clk_init(struct device_node *np)
