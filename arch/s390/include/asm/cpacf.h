@@ -25,7 +25,8 @@
 #define CPACF_KMO		0xb92b		/* MSA4 */
 #define CPACF_PCC		0xb92c		/* MSA4 */
 #define CPACF_KMCTR		0xb92d		/* MSA4 */
-#define CPACF_PPNO		0xb93c		/* MSA5 */
+#define CPACF_PRNO		0xb93c		/* MSA5 */
+#define CPACF_KMA		0xb929		/* MSA8 */
 
 /*
  * En/decryption modifier bits
@@ -123,12 +124,14 @@
 #define CPACF_PCKMO_ENC_AES_256_KEY	0x14
 
 /*
- * Function codes for the PPNO (PERFORM PSEUDORANDOM NUMBER OPERATION)
+ * Function codes for the PRNO (PERFORM RANDOM NUMBER OPERATION)
  * instruction
  */
-#define CPACF_PPNO_QUERY		0x00
-#define CPACF_PPNO_SHA512_DRNG_GEN	0x03
-#define CPACF_PPNO_SHA512_DRNG_SEED	0x83
+#define CPACF_PRNO_QUERY		0x00
+#define CPACF_PRNO_SHA512_DRNG_GEN	0x03
+#define CPACF_PRNO_SHA512_DRNG_SEED	0x83
+#define CPACF_PRNO_TRNG_Q_R2C_RATIO	0x70
+#define CPACF_PRNO_TRNG			0x72
 
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 
@@ -149,8 +152,8 @@ static inline void __cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
 
 	asm volatile(
 		"	spm 0\n" /* pckmo doesn't change the cc */
-		/* Parameter registers are ignored, but may not be 0 */
-		"0:	.insn	rrf,%[opc] << 16,2,2,2,0\n"
+		/* Parameter regs are ignored, but must be nonzero and unique */
+		"0:	.insn	rrf,%[opc] << 16,2,4,6,0\n"
 		"	brc	1,0b\n"	/* handle partial completion */
 		: "=m" (*mask)
 		: [fc] "d" (r0), [pba] "a" (r1), [opc] "i" (opcode)
@@ -173,7 +176,7 @@ static inline int __cpacf_check_opcode(unsigned int opcode)
 	case CPACF_PCC:
 	case CPACF_KMCTR:
 		return test_facility(77);	/* check for MSA4 */
-	case CPACF_PPNO:
+	case CPACF_PRNO:
 		return test_facility(57);	/* check for MSA5 */
 	default:
 		BUG();
@@ -373,18 +376,18 @@ static inline int cpacf_kmctr(unsigned long func, void *param, u8 *dest,
 }
 
 /**
- * cpacf_ppno() - executes the PPNO (PERFORM PSEUDORANDOM NUMBER OPERATION)
+ * cpacf_prno() - executes the PRNO (PERFORM RANDOM NUMBER OPERATION)
  *		  instruction
- * @func: the function code passed to PPNO; see CPACF_PPNO_xxx defines
+ * @func: the function code passed to PRNO; see CPACF_PRNO_xxx defines
  * @param: address of parameter block; see POP for details on each func
  * @dest: address of destination memory area
  * @dest_len: size of destination memory area in bytes
  * @seed: address of seed data
  * @seed_len: size of seed data in bytes
  */
-static inline void cpacf_ppno(unsigned long func, void *param,
-			      u8 *dest, long dest_len,
-			      const u8 *seed, long seed_len)
+static inline void cpacf_prno(unsigned long func, void *param,
+			      u8 *dest, unsigned long dest_len,
+			      const u8 *seed, unsigned long seed_len)
 {
 	register unsigned long r0 asm("0") = (unsigned long) func;
 	register unsigned long r1 asm("1") = (unsigned long) param;
@@ -398,7 +401,32 @@ static inline void cpacf_ppno(unsigned long func, void *param,
 		"	brc	1,0b\n"	  /* handle partial completion */
 		: [dst] "+a" (r2), [dlen] "+d" (r3)
 		: [fc] "d" (r0), [pba] "a" (r1),
-		  [seed] "a" (r4), [slen] "d" (r5), [opc] "i" (CPACF_PPNO)
+		  [seed] "a" (r4), [slen] "d" (r5), [opc] "i" (CPACF_PRNO)
+		: "cc", "memory");
+}
+
+/**
+ * cpacf_trng() - executes the TRNG subfunction of the PRNO instruction
+ * @ucbuf: buffer for unconditioned data
+ * @ucbuf_len: amount of unconditioned data to fetch in bytes
+ * @cbuf: buffer for conditioned data
+ * @cbuf_len: amount of conditioned data to fetch in bytes
+ */
+static inline void cpacf_trng(u8 *ucbuf, unsigned long ucbuf_len,
+			      u8 *cbuf, unsigned long cbuf_len)
+{
+	register unsigned long r0 asm("0") = (unsigned long) CPACF_PRNO_TRNG;
+	register unsigned long r2 asm("2") = (unsigned long) ucbuf;
+	register unsigned long r3 asm("3") = (unsigned long) ucbuf_len;
+	register unsigned long r4 asm("4") = (unsigned long) cbuf;
+	register unsigned long r5 asm("5") = (unsigned long) cbuf_len;
+
+	asm volatile (
+		"0:	.insn	rre,%[opc] << 16,%[ucbuf],%[cbuf]\n"
+		"	brc	1,0b\n"	  /* handle partial completion */
+		: [ucbuf] "+a" (r2), [ucbuflen] "+d" (r3),
+		  [cbuf] "+a" (r4), [cbuflen] "+d" (r5)
+		: [fc] "d" (r0), [opc] "i" (CPACF_PRNO)
 		: "cc", "memory");
 }
 

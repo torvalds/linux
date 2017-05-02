@@ -47,7 +47,7 @@ STACK_SIZE  = 1 << STACK_SHIFT
 STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
 
 _TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		   _TIF_UPROBE)
+		   _TIF_UPROBE | _TIF_GUARDED_STORAGE)
 _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
 _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
@@ -189,8 +189,6 @@ ENTRY(__switch_to)
 	stg	%r3,__LC_CURRENT		# store task struct of next
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1)		# load kernel stack of next
-	/* c4 is used in guest detection: arch/s390/kernel/perf_cpum_sf.c */
-	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
 	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3) # store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
@@ -332,6 +330,8 @@ ENTRY(system_call)
 	TSTMSK	__TI_flags(%r12),_TIF_UPROBE
 	jo	.Lsysc_uprobe_notify
 #endif
+	TSTMSK	__TI_flags(%r12),_TIF_GUARDED_STORAGE
+	jo	.Lsysc_guarded_storage
 	TSTMSK	__PT_FLAGS(%r11),_PIF_PER_TRAP
 	jo	.Lsysc_singlestep
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
@@ -407,6 +407,14 @@ ENTRY(system_call)
 	larl	%r14,.Lsysc_return
 	jg	uprobe_notify_resume
 #endif
+
+#
+# _TIF_GUARDED_STORAGE is set, call guarded_storage_load
+#
+.Lsysc_guarded_storage:
+	lgr	%r2,%r11		# pass pointer to pt_regs
+	larl	%r14,.Lsysc_return
+	jg	gs_load_bc_cb
 
 #
 # _PIF_PER_TRAP is set, call do_per_trap
@@ -663,6 +671,8 @@ ENTRY(io_int_handler)
 	jo	.Lio_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
 	jo	.Lio_notify_resume
+	TSTMSK	__TI_flags(%r12),_TIF_GUARDED_STORAGE
+	jo	.Lio_guarded_storage
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lio_vxrs
 	TSTMSK	__LC_CPU_FLAGS,(_CIF_ASCE_PRIMARY|_CIF_ASCE_SECONDARY)
@@ -695,6 +705,18 @@ ENTRY(io_int_handler)
 .Lio_vxrs:
 	larl	%r14,.Lio_return
 	jg	load_fpu_regs
+
+#
+# _TIF_GUARDED_STORAGE is set, call guarded_storage_load
+#
+.Lio_guarded_storage:
+	# TRACE_IRQS_ON already done at .Lio_return
+	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
+	lgr	%r2,%r11		# pass pointer to pt_regs
+	brasl	%r14,gs_load_bc_cb
+	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
+	TRACE_IRQS_OFF
+	j	.Lio_return
 
 #
 # _TIF_NEED_RESCHED is set, call schedule

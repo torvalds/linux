@@ -94,7 +94,7 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 			new = pte_wrprotect(new);
 		else if (flags & SET_MEMORY_RW)
 			new = pte_mkwrite(pte_mkdirty(new));
-		if ((flags & SET_MEMORY_NX) && MACHINE_HAS_NX)
+		if (flags & SET_MEMORY_NX)
 			pte_val(new) |= _PAGE_NOEXEC;
 		else if (flags & SET_MEMORY_X)
 			pte_val(new) &= ~_PAGE_NOEXEC;
@@ -144,7 +144,7 @@ static void modify_pmd_page(pmd_t *pmdp, unsigned long addr,
 		new = pmd_wrprotect(new);
 	else if (flags & SET_MEMORY_RW)
 		new = pmd_mkwrite(pmd_mkdirty(new));
-	if ((flags & SET_MEMORY_NX) && MACHINE_HAS_NX)
+	if (flags & SET_MEMORY_NX)
 		pmd_val(new) |= _SEGMENT_ENTRY_NOEXEC;
 	else if (flags & SET_MEMORY_X)
 		pmd_val(new) &= ~_SEGMENT_ENTRY_NOEXEC;
@@ -221,7 +221,7 @@ static void modify_pud_page(pud_t *pudp, unsigned long addr,
 		new = pud_wrprotect(new);
 	else if (flags & SET_MEMORY_RW)
 		new = pud_mkwrite(pud_mkdirty(new));
-	if ((flags & SET_MEMORY_NX) && MACHINE_HAS_NX)
+	if (flags & SET_MEMORY_NX)
 		pud_val(new) |= _REGION_ENTRY_NOEXEC;
 	else if (flags & SET_MEMORY_X)
 		pud_val(new) &= ~_REGION_ENTRY_NOEXEC;
@@ -288,6 +288,10 @@ static int change_page_attr(unsigned long addr, unsigned long end,
 
 int __set_memory(unsigned long addr, int numpages, unsigned long flags)
 {
+	if (!MACHINE_HAS_NX)
+		flags &= ~(SET_MEMORY_NX | SET_MEMORY_X);
+	if (!flags)
+		return 0;
 	addr &= PAGE_MASK;
 	return change_page_attr(addr, addr + numpages * PAGE_SIZE, flags);
 }

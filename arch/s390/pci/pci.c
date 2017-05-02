@@ -60,16 +60,8 @@ static DEFINE_SPINLOCK(zpci_domain_lock);
 static struct airq_iv *zpci_aisb_iv;
 static struct airq_iv *zpci_aibv[ZPCI_NR_DEVICES];
 
-/* Adapter interrupt definitions */
-static void zpci_irq_handler(struct airq_struct *airq);
-
-static struct airq_struct zpci_airq = {
-	.handler = zpci_irq_handler,
-	.isc = PCI_ISC,
-};
-
 #define ZPCI_IOMAP_ENTRIES						\
-	min(((unsigned long) CONFIG_PCI_NR_FUNCTIONS * PCI_BAR_COUNT),	\
+	min(((unsigned long) ZPCI_NR_DEVICES * PCI_BAR_COUNT / 2),	\
 	    ZPCI_IOMAP_MAX_ENTRIES)
 
 static DEFINE_SPINLOCK(zpci_iomap_lock);
@@ -213,8 +205,6 @@ int zpci_fmb_disable_device(struct zpci_dev *zdev)
 	zdev->fmb = NULL;
 	return rc;
 }
-
-#define ZPCI_PCIAS_CFGSPC	15
 
 static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 {
@@ -506,6 +496,11 @@ static void zpci_unmap_resources(struct pci_dev *pdev)
 			    pdev->resource[i].start);
 	}
 }
+
+static struct airq_struct zpci_airq = {
+	.handler = zpci_irq_handler,
+	.isc = PCI_ISC,
+};
 
 static int __init zpci_irq_init(void)
 {
@@ -870,11 +865,6 @@ int zpci_report_error(struct pci_dev *pdev,
 	return sclp_pci_report(report, zdev->fh, zdev->fid);
 }
 EXPORT_SYMBOL(zpci_report_error);
-
-static inline int barsize(u8 size)
-{
-	return (size) ? (1 << size) >> 10 : 0;
-}
 
 static int zpci_mem_init(void)
 {
