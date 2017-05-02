@@ -70,6 +70,7 @@
 #include <linux/tboot.h>
 #include <linux/jiffies.h>
 
+#include <linux/usb/xhci-dbgp.h>
 #include <video/edid.h>
 
 #include <asm/mtrr.h>
@@ -811,6 +812,26 @@ dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
 	return 0;
 }
 
+static void __init simple_udelay_calibration(void)
+{
+	unsigned int tsc_khz, cpu_khz;
+	unsigned long lpj;
+
+	if (!boot_cpu_has(X86_FEATURE_TSC))
+		return;
+
+	cpu_khz = x86_platform.calibrate_cpu();
+	tsc_khz = x86_platform.calibrate_tsc();
+
+	tsc_khz = tsc_khz ? : cpu_khz;
+	if (!tsc_khz)
+		return;
+
+	lpj = tsc_khz * 1000;
+	do_div(lpj, HZ);
+	loops_per_jiffy = lpj;
+}
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -959,6 +980,8 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	x86_configure_nx();
 
+	simple_udelay_calibration();
+
 	parse_early_param();
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -1094,6 +1117,9 @@ void __init setup_arch(char **cmdline_p)
 
 	memblock_set_current_limit(ISA_END_ADDRESS);
 	e820__memblock_setup();
+
+	if (!early_xdbc_setup_hardware())
+		early_xdbc_register_console();
 
 	reserve_bios_regions();
 
