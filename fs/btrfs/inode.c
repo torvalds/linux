@@ -5868,7 +5868,6 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_item *item;
 	struct btrfs_dir_item *di;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
@@ -5919,7 +5918,6 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 			continue;
 		}
 
-		item = btrfs_item_nr(slot);
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
 		if (found_key.objectid != key.objectid)
