@@ -972,33 +972,6 @@ int ieee80211_is_empty_essid(const char *essid, int essid_len)
 	return 1;
 }
 
-int ieee80211_get_hdrlen(u16 fc)
-{
-	int hdrlen = 24;
-
-	switch (WLAN_FC_GET_TYPE(fc)) {
-	case RTW_IEEE80211_FTYPE_DATA:
-		if (fc & RTW_IEEE80211_STYPE_QOS_DATA)
-			hdrlen += 2;
-		if ((fc & RTW_IEEE80211_FCTL_FROMDS) && (fc & RTW_IEEE80211_FCTL_TODS))
-			hdrlen += 6; /* Addr4 */
-		break;
-	case RTW_IEEE80211_FTYPE_CTL:
-		switch (WLAN_FC_GET_STYPE(fc)) {
-		case RTW_IEEE80211_STYPE_CTS:
-		case RTW_IEEE80211_STYPE_ACK:
-			hdrlen = 10;
-			break;
-		default:
-			hdrlen = 16;
-			break;
-		}
-		break;
-	}
-
-	return hdrlen;
-}
-
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
 	uint wpa_ielen;

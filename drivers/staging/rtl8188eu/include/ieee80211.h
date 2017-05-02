@@ -308,10 +308,6 @@ enum eap_type {
 
 /* Frame control field constants */
 #define RTW_IEEE80211_FCTL_VERS		0x0003
-#define RTW_IEEE80211_FCTL_FTYPE	0x000c
-#define RTW_IEEE80211_FCTL_STYPE	0x00f0
-#define RTW_IEEE80211_FCTL_TODS		0x0100
-#define RTW_IEEE80211_FCTL_FROMDS	0x0200
 #define RTW_IEEE80211_FCTL_MOREFRAGS	0x0400
 #define RTW_IEEE80211_FCTL_RETRY	0x0800
 #define RTW_IEEE80211_FCTL_PM		0x1000
@@ -321,8 +317,6 @@ enum eap_type {
 #define RTW_IEEE80211_FCTL_CTL_EXT	0x0f00
 
 #define RTW_IEEE80211_FTYPE_MGMT	0x0000
-#define RTW_IEEE80211_FTYPE_CTL		0x0004
-#define RTW_IEEE80211_FTYPE_DATA	0x0008
 #define RTW_IEEE80211_FTYPE_EXT		0x000c
 
 /* management */
@@ -345,8 +339,6 @@ enum eap_type {
 #define RTW_IEEE80211_STYPE_BACK	0x0090
 #define RTW_IEEE80211_STYPE_PSPOLL	0x00A0
 #define RTW_IEEE80211_STYPE_RTS		0x00B0
-#define RTW_IEEE80211_STYPE_CTS		0x00C0
-#define RTW_IEEE80211_STYPE_ACK		0x00D0
 #define RTW_IEEE80211_STYPE_CFEND	0x00E0
 #define RTW_IEEE80211_STYPE_CFENDACK	0x00F0
 
@@ -359,7 +351,6 @@ enum eap_type {
 #define RTW_IEEE80211_STYPE_CFACK	0x0050
 #define RTW_IEEE80211_STYPE_CFPOLL	0x0060
 #define RTW_IEEE80211_STYPE_CFACKPOLL	0x0070
-#define RTW_IEEE80211_STYPE_QOS_DATA	0x0080
 #define RTW_IEEE80211_STYPE_QOS_DATA_CFACK	0x0090
 #define RTW_IEEE80211_STYPE_QOS_DATA_CFPOLL	0x00A0
 #define RTW_IEEE80211_STYPE_QOS_DATA_CFACKPOLL	0x00B0
@@ -407,9 +398,6 @@ struct ieee80211_snap_hdr {
 } __packed;
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
-
-#define WLAN_FC_GET_TYPE(fc) ((fc) & RTW_IEEE80211_FCTL_FTYPE)
-#define WLAN_FC_GET_STYPE(fc) ((fc) & RTW_IEEE80211_FCTL_STYPE)
 
 #define WLAN_QC_GET_TID(qc) ((qc) & 0x0f)
 
@@ -646,7 +634,6 @@ static inline int is_broadcast_mac_addr(const u8 *addr)
 
 /* Baron move to ieee80211.c */
 int ieee80211_is_empty_essid(const char *essid, int essid_len);
-int ieee80211_get_hdrlen(u16 fc);
 
 /* Action category code */
 enum rtw_ieee80211_category {
