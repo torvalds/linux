@@ -1137,7 +1137,7 @@ static void vega10_setup_default_single_dpm_table(struct pp_hwmgr *hwmgr,
 	int i;
 
 	for (i = 0; i < dep_table->count; i++) {
-		if (i == 0 || dpm_table->dpm_levels[dpm_table->count - 1].value !=
+		if (i == 0 || dpm_table->dpm_levels[dpm_table->count - 1].value <=
 				dep_table->entries[i].clk) {
 			dpm_table->dpm_levels[dpm_table->count].value =
 					dep_table->entries[i].clk;
@@ -1274,7 +1274,7 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	dpm_table = &(data->dpm_table.eclk_table);
 	for (i = 0; i < dep_mm_table->count; i++) {
 		if (i == 0 || dpm_table->dpm_levels
-				[dpm_table->count - 1].value !=
+				[dpm_table->count - 1].value <=
 						dep_mm_table->entries[i].eclk) {
 			dpm_table->dpm_levels[dpm_table->count].value =
 					dep_mm_table->entries[i].eclk;
@@ -1290,7 +1290,7 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	dpm_table = &(data->dpm_table.vclk_table);
 	for (i = 0; i < dep_mm_table->count; i++) {
 		if (i == 0 || dpm_table->dpm_levels
-				[dpm_table->count - 1].value !=
+				[dpm_table->count - 1].value <=
 						dep_mm_table->entries[i].vclk) {
 			dpm_table->dpm_levels[dpm_table->count].value =
 					dep_mm_table->entries[i].vclk;
@@ -1304,7 +1304,7 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	dpm_table = &(data->dpm_table.dclk_table);
 	for (i = 0; i < dep_mm_table->count; i++) {
 		if (i == 0 || dpm_table->dpm_levels
-				[dpm_table->count - 1].value !=
+				[dpm_table->count - 1].value <=
 						dep_mm_table->entries[i].dclk) {
 			dpm_table->dpm_levels[dpm_table->count].value =
 					dep_mm_table->entries[i].dclk;
