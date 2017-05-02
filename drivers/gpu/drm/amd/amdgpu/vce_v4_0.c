@@ -190,6 +190,7 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 		dev_err(adev->dev, "failed to init MMSCH, mmVCE_MMSCH_VF_MAILBOX_RESP = %x\n", data);
 		return -EBUSY;
 	}
+	WDOORBELL32(adev->vce.ring[0].doorbell_index, 0);
 
 	return 0;
 }
