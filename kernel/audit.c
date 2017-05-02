@@ -250,14 +250,6 @@ static struct sock *audit_get_sk(const struct net *net)
 	return aunet->sk;
 }
 
-static void audit_set_portid(struct audit_buffer *ab, __u32 portid)
-{
-	if (ab) {
-		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
-		nlh->nlmsg_pid = portid;
-	}
-}
-
 void audit_panic(const char *message)
 {
 	switch (audit_failure) {
@@ -816,7 +808,7 @@ int audit_send_list(void *_dest)
 	return 0;
 }
 
-struct sk_buff *audit_make_reply(__u32 portid, int seq, int type, int done,
+struct sk_buff *audit_make_reply(int seq, int type, int done,
 				 int multi, const void *payload, int size)
 {
 	struct sk_buff	*skb;
@@ -829,7 +821,7 @@ struct sk_buff *audit_make_reply(__u32 portid, int seq, int type, int done,
 	if (!skb)
 		return NULL;
 
-	nlh	= nlmsg_put(skb, portid, seq, t, size, flags);
+	nlh	= nlmsg_put(skb, 0, seq, t, size, flags);
 	if (!nlh)
 		goto out_kfree_skb;
 	data = nlmsg_data(nlh);
@@ -873,7 +865,6 @@ static int audit_send_reply_thread(void *arg)
 static void audit_send_reply(struct sk_buff *request_skb, int seq, int type, int done,
 			     int multi, const void *payload, int size)
 {
-	u32 portid = NETLINK_CB(request_skb).portid;
 	struct net *net = sock_net(NETLINK_CB(request_skb).sk);
 	struct sk_buff *skb;
 	struct task_struct *tsk;
@@ -883,12 +874,12 @@ static void audit_send_reply(struct sk_buff *request_skb, int seq, int type, int
 	if (!reply)
 		return;
 
-	skb = audit_make_reply(portid, seq, type, done, multi, payload, size);
+	skb = audit_make_reply(seq, type, done, multi, payload, size);
 	if (!skb)
 		goto out;
 
 	reply->net = get_net(net);
-	reply->portid = portid;
+	reply->portid = NETLINK_CB(request_skb).portid;
 	reply->skb = skb;
 
 	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
@@ -1072,7 +1063,7 @@ static int audit_replace(pid_t pid)
 {
 	struct sk_buff *skb;
 
-	skb = audit_make_reply(0, 0, AUDIT_REPLACE, 0, 0, &pid, sizeof(pid));
+	skb = audit_make_reply(0, AUDIT_REPLACE, 0, 0, &pid, sizeof(pid));
 	if (!skb)
 		return -ENOMEM;
 	return auditd_send_unicast_skb(skb);
@@ -1242,7 +1233,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 					size--;
 				audit_log_n_untrustedstring(ab, data, size);
 			}
-			audit_set_portid(ab, NETLINK_CB(skb).portid);
 			audit_log_end(ab);
 		}
 		break;
@@ -1256,8 +1246,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			audit_log_end(ab);
 			return -EPERM;
 		}
-		err = audit_rule_change(msg_type, NETLINK_CB(skb).portid,
-					   seq, data, nlmsg_len(nlh));
+		err = audit_rule_change(msg_type, seq, data, nlmsg_len(nlh));
 		break;
 	case AUDIT_LIST_RULES:
 		err = audit_list_rules_send(skb, seq);

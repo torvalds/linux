@@ -163,8 +163,7 @@ extern void audit_log_task_info(struct audit_buffer *ab,
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
-extern int audit_rule_change(int type, __u32 portid, int seq,
-				void *data, size_t datasz);
+extern int audit_rule_change(int type, int seq, void *data, size_t datasz);
 extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);
 
 extern u32 audit_enabled;
