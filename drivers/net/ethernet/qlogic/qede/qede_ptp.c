@@ -181,6 +181,7 @@ static void qede_ptp_task(struct work_struct *work)
 	skb_tstamp_tx(ptp->tx_skb, &shhwtstamps);
 	dev_kfree_skb_any(ptp->tx_skb);
 	ptp->tx_skb = NULL;
+	clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 
 	DP_VERBOSE(edev, QED_MSG_DEBUG,
 		   "Tx timestamp, timestamp cycles = %llu, ns = %llu\n",
@@ -483,6 +484,9 @@ void qede_ptp_tx_ts(struct qede_dev *edev, struct sk_buff *skb)
 
 	ptp = edev->ptp;
 	if (!ptp)
+		return;
+
+	if (test_and_set_bit_lock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags))
 		return;
 
 	if (unlikely(!(edev->flags & QEDE_TX_TIMESTAMPING_EN))) {

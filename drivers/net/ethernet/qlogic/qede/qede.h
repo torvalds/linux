@@ -167,10 +167,11 @@ struct qede_dev {
 	u32				dp_module;
 	u8				dp_level;
 
-	u32 flags;
-#define QEDE_FLAG_IS_VF	BIT(0)
+	unsigned long flags;
+#define QEDE_FLAG_IS_VF			BIT(0)
 #define IS_VF(edev)	(!!((edev)->flags & QEDE_FLAG_IS_VF))
 #define QEDE_TX_TIMESTAMPING_EN		BIT(1)
+#define QEDE_FLAGS_PTP_TX_IN_PRORGESS	BIT(2)
 
 	const struct qed_eth_ops	*ops;
 	struct qede_ptp			*ptp;
