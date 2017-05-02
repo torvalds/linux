@@ -348,6 +348,17 @@
 		interrupt-names = "irq", "wakeup";
 		wakeup-source;
 	};
+
+	isl29030@44 {
+		compatible = "isil,isl29030";
+		reg = <0x44>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&als_proximity_pins>;
+
+		interrupt-parent = <&gpio6>;
+		interrupts = <17 IRQ_TYPE_LEVEL_LOW>; /* gpio177 */
+	};
 };
 
 &omap4_pmx_core {
@@ -392,6 +403,12 @@
 	touchscreen_pins: pinmux_touchscreen_pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x1a0, PIN_INPUT_PULLUP | MUX_MODE3)
+		>;
+	};
+
+	als_proximity_pins: pinmux_als_proximity_pins {
+		pinctrl-single,pins = <
+		OMAP4_IOPAD(0x18c, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
