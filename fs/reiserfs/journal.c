@@ -1112,7 +1112,7 @@ static int flush_commit_list(struct super_block *s,
 		depth = reiserfs_write_unlock_nested(s);
 		if (reiserfs_barrier_flush(s))
 			__sync_dirty_buffer(jl->j_commit_bh,
-					REQ_PREFLUSH | REQ_FUA);
+					REQ_SYNC | REQ_PREFLUSH | REQ_FUA);
 		else
 			sync_dirty_buffer(jl->j_commit_bh);
 		reiserfs_write_lock_nested(s, depth);
@@ -1271,7 +1271,7 @@ static int _update_journal_header_block(struct super_block *sb,
 
 		if (reiserfs_barrier_flush(sb))
 			__sync_dirty_buffer(journal->j_header_bh,
-					REQ_PREFLUSH | REQ_FUA);
+					REQ_SYNC | REQ_PREFLUSH | REQ_FUA);
 		else
 			sync_dirty_buffer(journal->j_header_bh);
 
