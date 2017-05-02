@@ -17,7 +17,6 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
-static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
 #define RIC_FLUSH_TLB 0
 #define RIC_FLUSH_PWC 1
@@ -203,15 +202,9 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_thread_local(mm)) {
-		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-		if (lock_tlbie)
-			raw_spin_lock(&native_tlbie_lock);
+	if (!mm_is_thread_local(mm))
 		_tlbie_pid(pid, RIC_FLUSH_ALL);
-		if (lock_tlbie)
-			raw_spin_unlock(&native_tlbie_lock);
-	} else
+	else
 		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 no_context:
 	preempt_enable();
@@ -235,15 +228,9 @@ void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_thread_local(mm)) {
-		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-		if (lock_tlbie)
-			raw_spin_lock(&native_tlbie_lock);
+	if (!mm_is_thread_local(mm))
 		_tlbie_pid(pid, RIC_FLUSH_PWC);
-		if (lock_tlbie)
-			raw_spin_unlock(&native_tlbie_lock);
-	} else
+	else
 		tlbiel_pwc(pid);
 no_context:
 	preempt_enable();
@@ -260,15 +247,9 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 	pid = mm ? mm->context.id : 0;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto bail;
-	if (!mm_is_thread_local(mm)) {
-		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-		if (lock_tlbie)
-			raw_spin_lock(&native_tlbie_lock);
+	if (!mm_is_thread_local(mm))
 		_tlbie_va(vmaddr, pid, ap, RIC_FLUSH_TLB);
-		if (lock_tlbie)
-			raw_spin_unlock(&native_tlbie_lock);
-	} else
+	else
 		_tlbiel_va(vmaddr, pid, ap, RIC_FLUSH_TLB);
 bail:
 	preempt_enable();
@@ -289,13 +270,7 @@ EXPORT_SYMBOL(radix__flush_tlb_page);
 
 void radix__flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
-
-	if (lock_tlbie)
-		raw_spin_lock(&native_tlbie_lock);
 	_tlbie_pid(0, RIC_FLUSH_ALL);
-	if (lock_tlbie)
-		raw_spin_unlock(&native_tlbie_lock);
 }
 EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
 
@@ -357,7 +332,6 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 	unsigned long addr;
 	int local = mm_is_thread_local(mm);
 	unsigned long ap = mmu_get_ap(psize);
-	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long page_size = 1UL << mmu_psize_defs[psize].shift;
 
 
@@ -378,13 +352,8 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 
 		if (local)
 			_tlbiel_va(addr, pid, ap, RIC_FLUSH_TLB);
-		else {
-			if (lock_tlbie)
-				raw_spin_lock(&native_tlbie_lock);
+		else
 			_tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
-			if (lock_tlbie)
-				raw_spin_unlock(&native_tlbie_lock);
-		}
 	}
 err_out:
 	preempt_enable();
