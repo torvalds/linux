@@ -33,6 +33,14 @@ struct cbmem_cons {
 
 static struct cbmem_cons __iomem *cbmem_console;
 
+static ssize_t memconsole_coreboot_read(char *buf, loff_t pos, size_t count)
+{
+	return memory_read_from_buffer(buf, count, &pos,
+				       cbmem_console->buffer_body,
+				       min(cbmem_console->buffer_cursor,
+					   cbmem_console->buffer_size));
+}
+
 static int memconsole_coreboot_init(phys_addr_t physaddr)
 {
 	struct cbmem_cons __iomem *tmp_cbmc;
@@ -50,9 +58,7 @@ static int memconsole_coreboot_init(phys_addr_t physaddr)
 	if (!cbmem_console)
 		return -ENOMEM;
 
-	memconsole_setup(cbmem_console->buffer_body,
-		min(cbmem_console->buffer_cursor, cbmem_console->buffer_size));
-
+	memconsole_setup(memconsole_coreboot_read);
 	return 0;
 }
 
