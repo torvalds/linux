@@ -148,7 +148,7 @@ config HARDENED_USERCOPY
 	  copying memory to/from the kernel (via copy_to_user() and
 	  copy_from_user() functions) by rejecting memory ranges that
 	  are larger than the specified heap object, span multiple
-	  separately allocates pages, are not on the process stack,
+	  separately allocated pages, are not on the process stack,
 	  or are part of the kernel text. This kills entire classes
 	  of heap overflow exploits and similar kernel memory exposures.
 
