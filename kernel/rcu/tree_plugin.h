@@ -1934,7 +1934,7 @@ static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
 						     struct rcu_data *rdp,
 						     unsigned long flags)
 {
-	long ql = rcu_cblist_n_cbs(&rsp->orphan_done);
+	long ql = rsp->orphan_done.len;
 	long qll = rcu_cblist_n_lazy_cbs(&rsp->orphan_done);
 
 	/* If this is not a no-CBs CPU, tell the caller to do it the old way. */
