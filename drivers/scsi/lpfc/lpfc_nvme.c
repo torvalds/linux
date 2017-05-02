@@ -2149,7 +2149,7 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	/* localport is allocated from the stack, but the registration
 	 * call allocates heap memory as well as the private area.
 	 */
-#ifdef CONFIG_LPFC_NVME_INITIATOR
+#if (IS_ENABLED(CONFIG_NVME_FC))
 	ret = nvme_fc_register_localport(&nfcp_info, &lpfc_nvme_template,
 					 &vport->phba->pcidev->dev, &localport);
 #else
@@ -2190,7 +2190,7 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 void
 lpfc_nvme_destroy_localport(struct lpfc_vport *vport)
 {
-#ifdef CONFIG_LPFC_NVME_INITIATOR
+#if (IS_ENABLED(CONFIG_NVME_FC))
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_nvme_rport *rport = NULL, *rport_next = NULL;
@@ -2274,7 +2274,7 @@ lpfc_nvme_update_localport(struct lpfc_vport *vport)
 int
 lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
-#ifdef CONFIG_LPFC_NVME_INITIATOR
+#if (IS_ENABLED(CONFIG_NVME_FC))
 	int ret = 0;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;
@@ -2403,7 +2403,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 void
 lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
-#ifdef CONFIG_LPFC_NVME_INITIATOR
+#if (IS_ENABLED(CONFIG_NVME_FC))
 	int ret;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_nvme_lport *lport;

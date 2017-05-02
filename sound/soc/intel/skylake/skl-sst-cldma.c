@@ -164,7 +164,7 @@ static void skl_cldma_cleanup(struct sst_dsp  *ctx)
 	ctx->dsp_ops.free_dma_buf(ctx->dev, &ctx->cl_dev.dmab_bdl);
 }
 
-static int skl_cldma_wait_interruptible(struct sst_dsp *ctx)
+int skl_cldma_wait_interruptible(struct sst_dsp *ctx)
 {
 	int ret = 0;
 
@@ -243,9 +243,14 @@ static void skl_cldma_fill_buffer(struct sst_dsp *ctx, unsigned int size,
  * 2. Polling on fw register to identify if data left to transferred doesn't
  *    fill the ring buffer. Caller takes care of polling the required status
  *    register to identify the transfer status.
+ * 3. if wait flag is set, waits for DBL interrupt to copy the next chunk till
+ *    bytes_left is 0.
+ *    if wait flag is not set, doesn't wait for BDL interrupt. after ccopying
+ *    the first chunk return the no of bytes_left to be copied.
  */
 static int
-skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin, u32 total_size)
+skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin,
+			u32 total_size, bool wait)
 {
 	int ret = 0;
 	bool start = true;
@@ -272,13 +277,14 @@ skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin, u32 total_size)
 			size = ctx->cl_dev.bufsize;
 			skl_cldma_fill_buffer(ctx, size, curr_pos, true, start);
 
-			start = false;
-			ret = skl_cldma_wait_interruptible(ctx);
-			if (ret < 0) {
-				skl_cldma_stop(ctx);
-				return ret;
+			if (wait) {
+				start = false;
+				ret = skl_cldma_wait_interruptible(ctx);
+				if (ret < 0) {
+					skl_cldma_stop(ctx);
+					return ret;
+				}
 			}
-
 		} else {
 			skl_cldma_int_disable(ctx);
 
@@ -298,9 +304,11 @@ skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin, u32 total_size)
 		}
 		bytes_left -= size;
 		curr_pos = curr_pos + size;
+		if (!wait)
+			return bytes_left;
 	}
 
-	return ret;
+	return bytes_left;
 }
 
 void skl_cldma_process_intr(struct sst_dsp *ctx)

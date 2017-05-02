@@ -462,8 +462,10 @@ static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 	}
 
 	if (rt6_local) {
-		if (rt6_local->rt6i_idev)
+		if (rt6_local->rt6i_idev) {
 			in6_dev_put(rt6_local->rt6i_idev);
+			rt6_local->rt6i_idev = NULL;
+		}
 
 		dst = &rt6_local->dst;
 		dev_put(dst->dev);
@@ -1126,7 +1128,7 @@ static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
 		goto nla_put_failure;
 
 	/* rule only needs to appear once */
-	nlh->nlmsg_flags &= NLM_F_EXCL;
+	nlh->nlmsg_flags |= NLM_F_EXCL;
 
 	frh = nlmsg_data(nlh);
 	memset(frh, 0, sizeof(*frh));

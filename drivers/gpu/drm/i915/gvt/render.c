@@ -167,7 +167,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	I915_WRITE_FW(reg, 0x1);
 
 	if (wait_for_atomic((I915_READ_FW(reg) == 0), 50))
-		gvt_err("timeout in invalidate ring (%d) tlb\n", ring_id);
+		gvt_vgpu_err("timeout in invalidate ring (%d) tlb\n", ring_id);
 	else
 		vgpu_vreg(vgpu, regs[ring_id]) = 0;
 
@@ -207,7 +207,7 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 		l3_offset.reg = 0xb020;
 		for (i = 0; i < 32; i++) {
 			gen9_render_mocs_L3[i] = I915_READ(l3_offset);
-			I915_WRITE(l3_offset, vgpu_vreg(vgpu, offset));
+			I915_WRITE(l3_offset, vgpu_vreg(vgpu, l3_offset));
 			POSTING_READ(l3_offset);
 			l3_offset.reg += 4;
 		}

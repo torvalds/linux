@@ -1776,7 +1776,6 @@ static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 	}
 
 	component->init = aux_dev->init;
-	component->auxiliary = 1;
 	list_add(&component->card_aux_list, &card->aux_comp_list);
 
 	return 0;
@@ -1788,14 +1787,13 @@ err_defer:
 
 static int soc_probe_aux_devices(struct snd_soc_card *card)
 {
-	struct snd_soc_component *comp, *tmp;
+	struct snd_soc_component *comp;
 	int order;
 	int ret;
 
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 		order++) {
-		list_for_each_entry_safe(comp, tmp, &card->aux_comp_list,
-					 card_aux_list) {
+		list_for_each_entry(comp, &card->aux_comp_list, card_aux_list) {
 			if (comp->driver->probe_order == order) {
 				ret = soc_probe_component(card,	comp);
 				if (ret < 0) {
@@ -1804,7 +1802,6 @@ static int soc_probe_aux_devices(struct snd_soc_card *card)
 						comp->name, ret);
 					return ret;
 				}
-				list_del(&comp->card_aux_list);
 			}
 		}
 	}
@@ -1820,14 +1817,12 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 		order++) {
 		list_for_each_entry_safe(comp, _comp,
-			&card->component_dev_list, card_list) {
-
-			if (!comp->auxiliary)
-				continue;
+			&card->aux_comp_list, card_aux_list) {
 
 			if (comp->driver->remove_order == order) {
 				soc_remove_component(comp);
-				comp->auxiliary = 0;
+				/* remove it from the card's aux_comp_list */
+				list_del(&comp->card_aux_list);
 			}
 		}
 	}
@@ -1918,6 +1913,7 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 EXPORT_SYMBOL_GPL(snd_soc_runtime_set_dai_fmt);
 
 
+#ifdef CONFIG_DMI
 /* Trim special characters, and replace '-' with '_' since '-' is used to
  * separate different DMI fields in the card long name. Only number and
  * alphabet characters and a few separator characters are kept.
@@ -2049,6 +2045,7 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_set_dmi_name);
+#endif /* CONFIG_DMI */
 
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
@@ -2189,6 +2186,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	if (card->of_dapm_routes)
 		snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
 					card->num_of_dapm_routes);
+
+	/* try to set some sane longname if DMI is available */
+	snd_soc_set_dmi_name(card, NULL);
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
 		 "%s", card->name);
@@ -3139,7 +3139,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->suspend = component->driver->suspend;
 	component->resume = component->driver->resume;
 	component->pcm_new = component->driver->pcm_new;
-	component->pcm_free= component->driver->pcm_free;
+	component->pcm_free = component->driver->pcm_free;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
@@ -3240,6 +3240,11 @@ static void snd_soc_component_cleanup(struct snd_soc_component *component)
 
 static void snd_soc_component_del_unlocked(struct snd_soc_component *component)
 {
+	struct snd_soc_card *card = component->card;
+
+	if (card)
+		snd_soc_unregister_card(card);
+
 	list_del(&component->list);
 }
 

@@ -526,6 +526,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < WINDOWS_NR; i++)
 		decon_shadow_protect_win(ctx, i, false);
+	exynos_crtc_handle_event(crtc);
 }
 
 static void decon_init(struct decon_context *ctx)

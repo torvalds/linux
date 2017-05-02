@@ -370,10 +370,12 @@ static int hid_accel_3d_probe(struct platform_device *pdev)
 		name = "accel_3d";
 		channel_spec = accel_3d_channels;
 		channel_size = sizeof(accel_3d_channels);
+		indio_dev->num_channels = ARRAY_SIZE(accel_3d_channels);
 	} else {
 		name = "gravity";
 		channel_spec = gravity_channels;
 		channel_size = sizeof(gravity_channels);
+		indio_dev->num_channels = ARRAY_SIZE(gravity_channels);
 	}
 	ret = hid_sensor_parse_common_attributes(hsdev, hsdev->usage,
 					&accel_state->common_attributes);
@@ -395,7 +397,6 @@ static int hid_accel_3d_probe(struct platform_device *pdev)
 		goto error_free_dev_mem;
 	}
 
-	indio_dev->num_channels = ARRAY_SIZE(accel_3d_channels);
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &accel_3d_info;
 	indio_dev->name = name;

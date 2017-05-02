@@ -372,7 +372,7 @@ static int _ocrdma_pd_mgr_put_bitmap(struct ocrdma_dev *dev, u16 pd_id,
 	return 0;
 }
 
-static u8 ocrdma_put_pd_num(struct ocrdma_dev *dev, u16 pd_id,
+static int ocrdma_put_pd_num(struct ocrdma_dev *dev, u16 pd_id,
 				   bool dpp_pool)
 {
 	int status;

@@ -7068,7 +7068,7 @@ static void qib_7322_txchk_change(struct qib_devdata *dd, u32 start,
 	unsigned long flags;
 
 	while (wait) {
-		unsigned long shadow;
+		unsigned long shadow = 0;
 		int cstart, previ = -1;
 
 		/*

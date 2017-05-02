@@ -2165,6 +2165,14 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 
 	wacom_update_name(wacom, wireless ? " (WL)" : "");
 
+	/* pen only Bamboo neither support touch nor pad */
+	if ((features->type == BAMBOO_PEN) &&
+	    ((features->device_type & WACOM_DEVICETYPE_TOUCH) ||
+	    (features->device_type & WACOM_DEVICETYPE_PAD))) {
+		error = -ENODEV;
+		goto fail;
+	}
+
 	error = wacom_add_shared_data(hdev);
 	if (error)
 		goto fail;
@@ -2208,14 +2216,8 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	/* touch only Bamboo doesn't support pen */
 	if ((features->type == BAMBOO_TOUCH) &&
 	    (features->device_type & WACOM_DEVICETYPE_PEN)) {
-		error = -ENODEV;
-		goto fail_quirks;
-	}
-
-	/* pen only Bamboo neither support touch nor pad */
-	if ((features->type == BAMBOO_PEN) &&
-	    ((features->device_type & WACOM_DEVICETYPE_TOUCH) ||
-	    (features->device_type & WACOM_DEVICETYPE_PAD))) {
+		cancel_delayed_work_sync(&wacom->init_work);
+		_wacom_query_tablet_data(wacom);
 		error = -ENODEV;
 		goto fail_quirks;
 	}
@@ -2579,7 +2581,9 @@ static void wacom_remove(struct hid_device *hdev)
 
 	/* make sure we don't trigger the LEDs */
 	wacom_led_groups_release(wacom);
-	wacom_release_resources(wacom);
+
+	if (wacom->wacom_wac.features.type != REMOTE)
+		wacom_release_resources(wacom);
 
 	hid_set_drvdata(hdev, NULL);
 }

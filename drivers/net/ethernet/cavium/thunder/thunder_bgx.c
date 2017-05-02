@@ -134,6 +134,7 @@ static void set_max_bgx_per_node(struct pci_dev *pdev)
 	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &sdevid);
 	switch (sdevid) {
 	case PCI_SUBSYS_DEVID_81XX_BGX:
+	case PCI_SUBSYS_DEVID_81XX_RGX:
 		max_bgx_per_node = MAX_BGX_PER_CN81XX;
 		break;
 	case PCI_SUBSYS_DEVID_83XX_BGX:

@@ -1253,20 +1253,6 @@ config SCSI_LPFC_DEBUG_FS
 	  This makes debugging information from the lpfc driver
 	  available via the debugfs filesystem.
 
-config LPFC_NVME_INITIATOR
-	bool "Emulex LightPulse Fibre Channel NVME Initiator Support"
-	depends on SCSI_LPFC && NVME_FC
-	---help---
-	  This enables NVME Initiator support in the Emulex lpfc driver.
-
-config LPFC_NVME_TARGET
-	bool "Emulex LightPulse Fibre Channel NVME Initiator Support"
-	depends on SCSI_LPFC && NVME_TARGET_FC
-	---help---
-	  This enables NVME Target support in the Emulex lpfc driver.
-	  Target enablement must still be enabled on a per adapter
-	  basis by module parameters.
-
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"
 	depends on (EISA || MCA) && SCSI

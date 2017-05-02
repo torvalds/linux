@@ -502,12 +502,15 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 
 	wait_for_completion(&info->waitevent);
 
-	if (channel->rescind) {
-		ret = -ENODEV;
-		goto post_msg_err;
-	}
-
 post_msg_err:
+	/*
+	 * If the channel has been rescinded;
+	 * we will be awakened by the rescind
+	 * handler; set the error code to zero so we don't leak memory.
+	 */
+	if (channel->rescind)
+		ret = 0;
+
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&info->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
@@ -530,15 +533,13 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 	int ret;
 
 	/*
-	 * vmbus_on_event(), running in the tasklet, can race
+	 * vmbus_on_event(), running in the per-channel tasklet, can race
 	 * with vmbus_close_internal() in the case of SMP guest, e.g., when
 	 * the former is accessing channel->inbound.ring_buffer, the latter
-	 * could be freeing the ring_buffer pages.
-	 *
-	 * To resolve the race, we can serialize them by disabling the
-	 * tasklet when the latter is running here.
+	 * could be freeing the ring_buffer pages, so here we must stop it
+	 * first.
 	 */
-	hv_event_tasklet_disable(channel);
+	tasklet_disable(&channel->callback_event);
 
 	/*
 	 * In case a device driver's probe() fails (e.g.,
@@ -605,8 +606,6 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
 out:
-	hv_event_tasklet_enable(channel);
-
 	return ret;
 }
 

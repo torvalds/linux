@@ -849,7 +849,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * chaining we can not send long frag lists
 	 */
 	if ((card->info.type != QETH_CARD_TYPE_IQD) &&
-	    !qeth_get_elements_no(card, new_skb, 0)) {
+	    !qeth_get_elements_no(card, new_skb, 0, 0)) {
 		int lin_rc = skb_linearize(new_skb);
 
 		if (card->options.performance_stats) {
@@ -894,7 +894,8 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	elements = qeth_get_elements_no(card, new_skb, elements_needed);
+	elements = qeth_get_elements_no(card, new_skb, elements_needed,
+					(data_offset > 0) ? data_offset : 0);
 	if (!elements) {
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);

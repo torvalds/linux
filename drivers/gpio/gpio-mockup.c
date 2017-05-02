@@ -197,7 +197,7 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	struct seq_file *sfile;
 	struct gpio_desc *desc;
 	struct gpio_chip *gc;
-	int status, val;
+	int val;
 	char buf;
 
 	sfile = file->private_data;
@@ -206,9 +206,8 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	chip = priv->chip;
 	gc = &chip->gc;
 
-	status = copy_from_user(&buf, usr_buf, 1);
-	if (status)
-		return status;
+	if (copy_from_user(&buf, usr_buf, 1))
+		return -EFAULT;
 
 	if (buf == '0')
 		val = 0;

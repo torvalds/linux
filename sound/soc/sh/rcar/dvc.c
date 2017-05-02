@@ -218,21 +218,6 @@ static int rsnd_dvc_probe_(struct rsnd_mod *mod,
 	return rsnd_cmd_attach(io, rsnd_mod_id(mod));
 }
 
-static int rsnd_dvc_remove_(struct rsnd_mod *mod,
-			    struct rsnd_dai_stream *io,
-			    struct rsnd_priv *priv)
-{
-	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
-
-	rsnd_kctrl_remove(dvc->volume);
-	rsnd_kctrl_remove(dvc->mute);
-	rsnd_kctrl_remove(dvc->ren);
-	rsnd_kctrl_remove(dvc->rup);
-	rsnd_kctrl_remove(dvc->rdown);
-
-	return 0;
-}
-
 static int rsnd_dvc_init(struct rsnd_mod *mod,
 			 struct rsnd_dai_stream *io,
 			 struct rsnd_priv *priv)
@@ -300,18 +285,18 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	ret = rsnd_kctrl_new_e(mod, io, rtd,
 			is_play ?
 			"DVC Out Ramp Up Rate" : "DVC In Ramp Up Rate",
-			&dvc->rup,
 			rsnd_dvc_volume_update,
-			dvc_ramp_rate, ARRAY_SIZE(dvc_ramp_rate));
+			&dvc->rup,
+			dvc_ramp_rate);
 	if (ret < 0)
 		return ret;
 
 	ret = rsnd_kctrl_new_e(mod, io, rtd,
 			is_play ?
 			"DVC Out Ramp Down Rate" : "DVC In Ramp Down Rate",
-			&dvc->rdown,
 			rsnd_dvc_volume_update,
-			dvc_ramp_rate, ARRAY_SIZE(dvc_ramp_rate));
+			&dvc->rdown,
+			dvc_ramp_rate);
 
 	if (ret < 0)
 		return ret;
@@ -332,7 +317,6 @@ static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.name		= DVC_NAME,
 	.dma_req	= rsnd_dvc_dma_req,
 	.probe		= rsnd_dvc_probe_,
-	.remove		= rsnd_dvc_remove_,
 	.init		= rsnd_dvc_init,
 	.quit		= rsnd_dvc_quit,
 	.pcm_new	= rsnd_dvc_pcm_new,

@@ -1267,6 +1267,7 @@ static void soft_reset_slave(struct cpsw_slave *slave)
 static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
 	u32 slave_port;
+	struct phy_device *phy;
 	struct cpsw_common *cpsw = priv->cpsw;
 
 	soft_reset_slave(slave);
@@ -1300,26 +1301,27 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 				   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
 	if (slave->data->phy_node) {
-		slave->phy = of_phy_connect(priv->ndev, slave->data->phy_node,
+		phy = of_phy_connect(priv->ndev, slave->data->phy_node,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
-		if (!slave->phy) {
+		if (!phy) {
 			dev_err(priv->dev, "phy \"%s\" not found on slave %d\n",
 				slave->data->phy_node->full_name,
 				slave->slave_num);
 			return;
 		}
 	} else {
-		slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
+		phy = phy_connect(priv->ndev, slave->data->phy_id,
 				 &cpsw_adjust_link, slave->data->phy_if);
-		if (IS_ERR(slave->phy)) {
+		if (IS_ERR(phy)) {
 			dev_err(priv->dev,
 				"phy \"%s\" not found on slave %d, err %ld\n",
 				slave->data->phy_id, slave->slave_num,
-				PTR_ERR(slave->phy));
-			slave->phy = NULL;
+				PTR_ERR(phy));
 			return;
 		}
 	}
+
+	slave->phy = phy;
 
 	phy_attached_info(slave->phy);
 
@@ -1817,6 +1819,8 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	}
 
 	cpsw_intr_enable(cpsw);
+	netif_trans_update(ndev);
+	netif_tx_wake_all_queues(ndev);
 }
 
 static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
