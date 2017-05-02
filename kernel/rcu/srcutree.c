@@ -38,6 +38,7 @@
 #include <linux/srcu.h>
 
 #include "rcu.h"
+#include "rcu_segcblist.h"
 
 ulong exp_holdoff = 25 * 1000; /* Holdoff (ns) for auto-expediting. */
 module_param(exp_holdoff, ulong, 0444);
