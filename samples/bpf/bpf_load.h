@@ -15,8 +15,14 @@ struct bpf_map_def {
 	unsigned int inner_map_idx;
 };
 
-typedef void (*fixup_map_cb)(struct bpf_map_def *map, const char *map_name,
-			     int idx);
+struct bpf_map_data {
+	int fd;
+	char *name;
+	size_t elf_offset;
+	struct bpf_map_def def;
+};
+
+typedef void (*fixup_map_cb)(struct bpf_map_data *map, int idx);
 
 extern int map_fd[MAX_MAPS];
 extern int prog_fd[MAX_PROGS];

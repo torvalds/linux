@@ -39,13 +39,6 @@ int event_fd[MAX_PROGS];
 int prog_cnt;
 int prog_array_fd = -1;
 
-/* Keeping relevant info on maps */
-struct bpf_map_data {
-	int fd;
-	char *name;
-	size_t elf_offset;
-	struct bpf_map_def def;
-};
 struct bpf_map_data map_data[MAX_MAPS];
 int map_data_count = 0;
 
@@ -202,8 +195,14 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 	int i;
 
 	for (i = 0; i < nr_maps; i++) {
-		if (fixup_map)
-			fixup_map(&maps[i].def, maps[i].name, i);
+		if (fixup_map) {
+			fixup_map(&maps[i], i);
+			/* Allow userspace to assign map FD prior to creation */
+			if (maps[i].fd != -1) {
+				map_fd[i] = maps[i].fd;
+				continue;
+			}
+		}
 
 		if (maps[i].def.type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
 		    maps[i].def.type == BPF_MAP_TYPE_HASH_OF_MAPS) {
