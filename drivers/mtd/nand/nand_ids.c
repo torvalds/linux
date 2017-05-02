@@ -6,7 +6,6 @@
  * published by the Free Software Foundation.
  *
  */
-#include <linux/module.h>
 #include <linux/mtd/nand.h>
 #include <linux/sizes.h>
 
