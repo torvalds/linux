@@ -3113,7 +3113,7 @@ struct sk_buff *pskb_extract(struct sk_buff *skb, int off, int to_copy,
 
 static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 {
-	return copy_from_iter(data, len, &msg->msg_iter) == len ? 0 : -EFAULT;
+	return copy_from_iter_full(data, len, &msg->msg_iter) ? 0 : -EFAULT;
 }
 
 static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
