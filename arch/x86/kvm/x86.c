@@ -1785,7 +1785,7 @@ static void kvm_setup_pvclock_page(struct kvm_vcpu *v)
 	struct kvm_vcpu_arch *vcpu = &v->arch;
 	struct pvclock_vcpu_time_info guest_hv_clock;
 
-	if (unlikely(kvm_vcpu_read_guest_cached(v, &vcpu->pv_time,
+	if (unlikely(kvm_read_guest_cached(v->kvm, &vcpu->pv_time,
 		&guest_hv_clock, sizeof(guest_hv_clock))))
 		return;
 
@@ -1806,9 +1806,9 @@ static void kvm_setup_pvclock_page(struct kvm_vcpu *v)
 	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
 
 	vcpu->hv_clock.version = guest_hv_clock.version + 1;
-	kvm_vcpu_write_guest_cached(v, &vcpu->pv_time,
-				    &vcpu->hv_clock,
-				    sizeof(vcpu->hv_clock.version));
+	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
+				&vcpu->hv_clock,
+				sizeof(vcpu->hv_clock.version));
 
 	smp_wmb();
 
@@ -1822,16 +1822,16 @@ static void kvm_setup_pvclock_page(struct kvm_vcpu *v)
 
 	trace_kvm_pvclock_update(v->vcpu_id, &vcpu->hv_clock);
 
-	kvm_vcpu_write_guest_cached(v, &vcpu->pv_time,
-				    &vcpu->hv_clock,
-				    sizeof(vcpu->hv_clock));
+	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
+				&vcpu->hv_clock,
+				sizeof(vcpu->hv_clock));
 
 	smp_wmb();
 
 	vcpu->hv_clock.version++;
-	kvm_vcpu_write_guest_cached(v, &vcpu->pv_time,
-				    &vcpu->hv_clock,
-				    sizeof(vcpu->hv_clock.version));
+	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
+				&vcpu->hv_clock,
+				sizeof(vcpu->hv_clock.version));
 }
 
 static int kvm_guest_time_update(struct kvm_vcpu *v)
@@ -2064,7 +2064,7 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
 		return 0;
 	}
 
-	if (kvm_vcpu_gfn_to_hva_cache_init(vcpu, &vcpu->arch.apf.data, gpa,
+	if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.apf.data, gpa,
 					sizeof(u32)))
 		return 1;
 
@@ -2083,7 +2083,7 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 	if (!(vcpu->arch.st.msr_val & KVM_MSR_ENABLED))
 		return;
 
-	if (unlikely(kvm_vcpu_read_guest_cached(vcpu, &vcpu->arch.st.stime,
+	if (unlikely(kvm_read_guest_cached(vcpu->kvm, &vcpu->arch.st.stime,
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time))))
 		return;
 
@@ -2094,7 +2094,7 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.st.steal.version += 1;
 
-	kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.st.stime,
+	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.st.stime,
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
 
 	smp_wmb();
@@ -2103,14 +2103,14 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 		vcpu->arch.st.last_steal;
 	vcpu->arch.st.last_steal = current->sched_info.run_delay;
 
-	kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.st.stime,
+	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.st.stime,
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
 
 	smp_wmb();
 
 	vcpu->arch.st.steal.version += 1;
 
-	kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.st.stime,
+	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.st.stime,
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
 }
 
@@ -2215,7 +2215,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!(data & 1))
 			break;
 
-		if (kvm_vcpu_gfn_to_hva_cache_init(vcpu,
+		if (kvm_gfn_to_hva_cache_init(vcpu->kvm,
 		     &vcpu->arch.pv_time, data & ~1ULL,
 		     sizeof(struct pvclock_vcpu_time_info)))
 			vcpu->arch.pv_time_enabled = false;
@@ -2236,7 +2236,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (data & KVM_STEAL_RESERVED_MASK)
 			return 1;
 
-		if (kvm_vcpu_gfn_to_hva_cache_init(vcpu, &vcpu->arch.st.stime,
+		if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.st.stime,
 						data & KVM_STEAL_VALID_BITS,
 						sizeof(struct kvm_steal_time)))
 			return 1;
@@ -2858,7 +2858,7 @@ static void kvm_steal_time_set_preempted(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.st.steal.preempted = 1;
 
-	kvm_vcpu_write_guest_offset_cached(vcpu, &vcpu->arch.st.stime,
+	kvm_write_guest_offset_cached(vcpu->kvm, &vcpu->arch.st.stime,
 			&vcpu->arch.st.steal.preempted,
 			offsetof(struct kvm_steal_time, preempted),
 			sizeof(vcpu->arch.st.steal.preempted));
@@ -8527,8 +8527,9 @@ static void kvm_del_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 
 static int apf_put_user(struct kvm_vcpu *vcpu, u32 val)
 {
-	return kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.apf.data, &val,
-					   sizeof(val));
+
+	return kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.apf.data, &val,
+				      sizeof(val));
 }
 
 void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
