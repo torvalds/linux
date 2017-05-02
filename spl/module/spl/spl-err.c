@@ -65,7 +65,7 @@ spl_panic(const char *file, const char *func, int line, const char *fmt, ...) {
 	spl_dumpstack();
 
 	/* Halt the thread to facilitate further debugging */
-	set_task_state(current, TASK_UNINTERRUPTIBLE);
+	set_current_state(TASK_UNINTERRUPTIBLE);
 	while (1)
 		schedule();
 
@@ -98,7 +98,7 @@ vcmn_err(int ce, const char *fmt, va_list ap)
 		spl_dumpstack();
 
 		/* Halt the thread to facilitate further debugging */
-		set_task_state(current, TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		while (1)
 			schedule();
 	}

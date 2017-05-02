@@ -100,16 +100,15 @@ zpl_root_readdir(struct file *filp, void *dirent, filldir_t filldir)
  */
 /* ARGSUSED */
 static int
-zpl_root_getattr(struct vfsmount *mnt, struct dentry *dentry,
-    struct kstat *stat)
+zpl_root_getattr_impl(const struct path *path, struct kstat *stat,
+    u32 request_mask, unsigned int query_flags)
 {
-	int error;
-
-	error = simple_getattr(mnt, dentry, stat);
+	generic_fillattr(path->dentry->d_inode, stat);
 	stat->atime = CURRENT_TIME;
 
-	return (error);
+	return (0);
 }
+ZPL_GETATTR_WRAPPER(zpl_root_getattr);
 
 static struct dentry *
 #ifdef HAVE_LOOKUP_NAMEIDATA
@@ -375,21 +374,22 @@ zpl_snapdir_mkdir(struct inode *dip, struct dentry *dentry, zpl_umode_t mode)
  */
 /* ARGSUSED */
 static int
-zpl_snapdir_getattr(struct vfsmount *mnt, struct dentry *dentry,
-    struct kstat *stat)
+zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
+    u32 request_mask, unsigned int query_flags)
 {
-	zfs_sb_t *zsb = ITOZSB(dentry->d_inode);
-	int error;
+	zfs_sb_t *zsb = ITOZSB(path->dentry->d_inode);
 
 	ZFS_ENTER(zsb);
-	error = simple_getattr(mnt, dentry, stat);
+	generic_fillattr(path->dentry->d_inode, stat);
+
 	stat->nlink = stat->size = 2;
 	stat->ctime = stat->mtime = dmu_objset_snap_cmtime(zsb->z_os);
 	stat->atime = CURRENT_TIME;
 	ZFS_EXIT(zsb);
 
-	return (error);
+	return (0);
 }
+ZPL_GETATTR_WRAPPER(zpl_snapdir_getattr);
 
 /*
  * The '.zfs/snapshot' directory file operations.  These mainly control
@@ -509,10 +509,10 @@ zpl_shares_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 /* ARGSUSED */
 static int
-zpl_shares_getattr(struct vfsmount *mnt, struct dentry *dentry,
-    struct kstat *stat)
+zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
+    u32 request_mask, unsigned int query_flags)
 {
-	struct inode *ip = dentry->d_inode;
+	struct inode *ip = path->dentry->d_inode;
 	zfs_sb_t *zsb = ITOZSB(ip);
 	znode_t *dzp;
 	int error;
@@ -520,11 +520,11 @@ zpl_shares_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	ZFS_ENTER(zsb);
 
 	if (zsb->z_shares_dir == 0) {
-		error = simple_getattr(mnt, dentry, stat);
+		generic_fillattr(path->dentry->d_inode, stat);
 		stat->nlink = stat->size = 2;
 		stat->atime = CURRENT_TIME;
 		ZFS_EXIT(zsb);
-		return (error);
+		return (0);
 	}
 
 	error = -zfs_zget(zsb, zsb->z_shares_dir, &dzp);
@@ -538,6 +538,7 @@ zpl_shares_getattr(struct vfsmount *mnt, struct dentry *dentry,
 
 	return (error);
 }
+ZPL_GETATTR_WRAPPER(zpl_shares_getattr);
 
 /*
  * The '.zfs/shares' directory file operations.

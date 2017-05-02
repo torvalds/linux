@@ -19349,6 +19349,156 @@ fi
 
 
 
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether iops->getattr() takes a path" >&5
+$as_echo_n "checking whether iops->getattr() takes a path... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+		int test_getattr(
+		    const struct path *p, struct kstat *k,
+		    u32 request_mask, unsigned int query_flags)
+		    { return 0; }
+
+		static const struct inode_operations
+		    iops __attribute__ ((unused)) = {
+			.getattr = test_getattr,
+		};
+
+int
+main (void)
+{
+
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_PATH_IOPS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether iops->getattr() takes a vfsmount" >&5
+$as_echo_n "checking whether iops->getattr() takes a vfsmount... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+		int test_getattr(
+		    struct vfsmount *mnt, struct dentry *d,
+		    struct kstat *k)
+		    { return 0; }
+
+		static const struct inode_operations
+		    iops __attribute__ ((unused)) = {
+			.getattr = test_getattr,
+		};
+
+int
+main (void)
+{
+
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_VFSMOUNT_IOPS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether uncached_acl_sentinel() exists" >&5
 $as_echo_n "checking whether uncached_acl_sentinel() exists... " >&6; }
 
@@ -30219,6 +30369,156 @@ $as_echo "no" >&6; }
 
 fi
 	rm -Rf build
+
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether iops->getattr() takes a path" >&5
+$as_echo_n "checking whether iops->getattr() takes a path... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+		int test_getattr(
+		    const struct path *p, struct kstat *k,
+		    u32 request_mask, unsigned int query_flags)
+		    { return 0; }
+
+		static const struct inode_operations
+		    iops __attribute__ ((unused)) = {
+			.getattr = test_getattr,
+		};
+
+int
+main (void)
+{
+
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_PATH_IOPS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether iops->getattr() takes a vfsmount" >&5
+$as_echo_n "checking whether iops->getattr() takes a vfsmount... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+		int test_getattr(
+		    struct vfsmount *mnt, struct dentry *d,
+		    struct kstat *k)
+		    { return 0; }
+
+		static const struct inode_operations
+		    iops __attribute__ ((unused)) = {
+			.getattr = test_getattr,
+		};
+
+int
+main (void)
+{
+
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_VFSMOUNT_IOPS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
 
 
 

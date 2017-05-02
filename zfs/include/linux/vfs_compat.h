@@ -368,4 +368,47 @@ setattr_prepare(struct dentry *dentry, struct iattr *ia)
 }
 #endif
 
+/*
+ * 4.11 API change
+ * These macros are defined by kernel 4.11.  We define them so that the same
+ * code builds under kernels < 4.11 and >= 4.11.  The macros are set to 0 so
+ * that it will create obvious failures if they are accidentally used when built
+ * against a kernel >= 4.11.
+ */
+
+#ifndef STATX_BASIC_STATS
+#define	STATX_BASIC_STATS	0
+#endif
+
+#ifndef AT_STATX_SYNC_AS_STAT
+#define	AT_STATX_SYNC_AS_STAT	0
+#endif
+
+/*
+ * 4.11 API change
+ * 4.11 takes struct path *, < 4.11 takes vfsmount *
+ */
+
+#ifdef HAVE_VFSMOUNT_IOPS_GETATTR
+#define	ZPL_GETATTR_WRAPPER(func)					\
+static int								\
+func(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)	\
+{									\
+	struct path path = { .mnt = mnt, .dentry = dentry };		\
+	return func##_impl(&path, stat, STATX_BASIC_STATS,		\
+	    AT_STATX_SYNC_AS_STAT);					\
+}
+#elif defined(HAVE_PATH_IOPS_GETATTR)
+#define	ZPL_GETATTR_WRAPPER(func)					\
+static int								\
+func(const struct path *path, struct kstat *stat, u32 request_mask,	\
+    unsigned int query_flags)						\
+{									\
+	return (func##_impl(path, stat, request_mask, query_flags));	\
+}
+#else
+#error
+#endif
+
+
 #endif /* _ZFS_VFS_H */

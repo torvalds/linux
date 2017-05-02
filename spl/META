@@ -2,7 +2,7 @@ Meta:         1
 Name:         spl
 Branch:       1.0
 Version:      0.6.5.9
-Release:      1
+Release:      1ubuntu1
 Release-Tags: relext
 License:      GPL
 Author:       OpenZFS on Linux

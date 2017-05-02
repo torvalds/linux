@@ -291,6 +291,9 @@
 /* open_bdev_exclusive() is available */
 #undef HAVE_OPEN_BDEV_EXCLUSIVE
 
+/* iops->getattr() takes a path */
+#undef HAVE_PATH_IOPS_GETATTR
+
 /* iops->permission() exists */
 #undef HAVE_PERMISSION
 
@@ -386,6 +389,9 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* iops->getattr() takes a vfsmount */
+#undef HAVE_VFSMOUNT_IOPS_GETATTR
 
 /* fops->iterate() is available */
 #undef HAVE_VFS_ITERATE

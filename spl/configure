@@ -14018,104 +14018,6 @@ fi
 
 
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether __put_task_struct() is available" >&5
-$as_echo_n "checking whether __put_task_struct() is available... " >&6; }
-
-
-
-cat confdefs.h - <<_ACEOF >conftest.c
-
-
-		#include <linux/sched.h>
-
-int
-main (void)
-{
-
-		__put_task_struct(NULL);
-
-  ;
-  return 0;
-}
-
-_ACEOF
-
-
-	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
-	echo "obj-m := conftest.o" >build/Makefile
-	modpost_flag=''
-	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
-	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; }; then :
-  rc=0
-else
-  $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
- rc=1
-
-
-fi
-	rm -Rf build
-
-
-	if test $rc -ne 0; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-	else
-		if test "x$enable_linux_builtin" != xyes; then
-
-	grep -q -E '[[:space:]]__put_task_struct[[:space:]]' \
-		$LINUX_OBJ/Module*.symvers 2>/dev/null
-	rc=$?
-	if test $rc -ne 0; then
-		export=0
-		for file in ; do
-			grep -q -E "EXPORT_SYMBOL.*(__put_task_struct)" \
-				"$LINUX_OBJ/$file" 2>/dev/null
-			rc=$?
-			if test $rc -eq 0; then
-				export=1
-				break;
-			fi
-		done
-		if test $export -eq 0; then :
-			rc=1
-		else :
-			rc=0
-		fi
-	else :
-		rc=0
-	fi
-
-		fi
-		if test $rc -ne 0; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-		else :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define HAVE_PUT_TASK_STRUCT 1" >>confdefs.h
-
-
-		fi
-	fi
-
-
 
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether fops->fallocate() exists" >&5
@@ -14793,9 +14695,191 @@ fi
 
 
 
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether header linux/sched/signal.h exists" >&5
+$as_echo_n "checking whether header linux/sched/signal.h exists... " >&6; }
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants" >&5
-$as_echo_n "checking whether vfs_getattr() wants... " >&6; }
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/sched.h>
+		#include <linux/sched/signal.h>
+
+int
+main (void)
+{
+
+		return 0;
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+
+$as_echo "#define HAVE_SCHED_SIGNAL_HEADER 1" >>confdefs.h
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants 4 args" >&5
+$as_echo_n "checking whether vfs_getattr() wants 4 args... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+int
+main (void)
+{
+
+		vfs_getattr((const struct path *)NULL,
+			(struct kstat *)NULL,
+			(u32)0,
+			(unsigned int)0);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_4ARGS_VFS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants 3 args" >&5
+$as_echo_n "checking whether vfs_getattr() wants 3 args... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+int
+main (void)
+{
+
+		vfs_getattr((struct vfsmount *)NULL,
+			(struct dentry *)NULL,
+			(struct kstat *)NULL);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_VFS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants 2 args" >&5
+$as_echo_n "checking whether vfs_getattr() wants 2 args... " >&6; }
 
 
 cat confdefs.h - <<_ACEOF >conftest.c
@@ -14833,8 +14917,8 @@ _ACEOF
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; }; then :
 
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: 2 args" >&5
-$as_echo "2 args" >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_2ARGS_VFS_GETATTR 1" >>confdefs.h
 
@@ -14843,59 +14927,8 @@ else
   $as_echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-
-
-cat confdefs.h - <<_ACEOF >conftest.c
-
-
-			#include <linux/fs.h>
-
-int
-main (void)
-{
-
-			vfs_getattr((struct vfsmount *)NULL,
-				(struct dentry *)NULL,
-				(struct kstat *)NULL);
-
-  ;
-  return 0;
-}
-
-_ACEOF
-
-
-	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
-	echo "obj-m := conftest.o" >build/Makefile
-	modpost_flag=''
-	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
-	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; }; then :
-
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: 3 args" >&5
-$as_echo "3 args" >&6; }
-
-else
-  $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-			as_fn_error $? "unknown" "$LINENO" 5
-
-
-
-fi
-	rm -Rf build
-
-
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
 
 
@@ -16969,104 +17002,6 @@ fi
 
 
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether __put_task_struct() is available" >&5
-$as_echo_n "checking whether __put_task_struct() is available... " >&6; }
-
-
-
-cat confdefs.h - <<_ACEOF >conftest.c
-
-
-		#include <linux/sched.h>
-
-int
-main (void)
-{
-
-		__put_task_struct(NULL);
-
-  ;
-  return 0;
-}
-
-_ACEOF
-
-
-	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
-	echo "obj-m := conftest.o" >build/Makefile
-	modpost_flag=''
-	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
-	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; }; then :
-  rc=0
-else
-  $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
- rc=1
-
-
-fi
-	rm -Rf build
-
-
-	if test $rc -ne 0; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-	else
-		if test "x$enable_linux_builtin" != xyes; then
-
-	grep -q -E '[[:space:]]__put_task_struct[[:space:]]' \
-		$LINUX_OBJ/Module*.symvers 2>/dev/null
-	rc=$?
-	if test $rc -ne 0; then
-		export=0
-		for file in ; do
-			grep -q -E "EXPORT_SYMBOL.*(__put_task_struct)" \
-				"$LINUX_OBJ/$file" 2>/dev/null
-			rc=$?
-			if test $rc -eq 0; then
-				export=1
-				break;
-			fi
-		done
-		if test $export -eq 0; then :
-			rc=1
-		else :
-			rc=0
-		fi
-	else :
-		rc=0
-	fi
-
-		fi
-		if test $rc -ne 0; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-		else :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define HAVE_PUT_TASK_STRUCT 1" >>confdefs.h
-
-
-		fi
-	fi
-
-
 
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether fops->fallocate() exists" >&5
@@ -17744,9 +17679,191 @@ fi
 
 
 
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether header linux/sched/signal.h exists" >&5
+$as_echo_n "checking whether header linux/sched/signal.h exists... " >&6; }
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants" >&5
-$as_echo_n "checking whether vfs_getattr() wants... " >&6; }
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/sched.h>
+		#include <linux/sched/signal.h>
+
+int
+main (void)
+{
+
+		return 0;
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+
+$as_echo "#define HAVE_SCHED_SIGNAL_HEADER 1" >>confdefs.h
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants 4 args" >&5
+$as_echo_n "checking whether vfs_getattr() wants 4 args... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+int
+main (void)
+{
+
+		vfs_getattr((const struct path *)NULL,
+			(struct kstat *)NULL,
+			(u32)0,
+			(unsigned int)0);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_4ARGS_VFS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants 3 args" >&5
+$as_echo_n "checking whether vfs_getattr() wants 3 args... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/fs.h>
+
+int
+main (void)
+{
+
+		vfs_getattr((struct vfsmount *)NULL,
+			(struct dentry *)NULL,
+			(struct kstat *)NULL);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_3ARGS_VFS_GETATTR 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether vfs_getattr() wants 2 args" >&5
+$as_echo_n "checking whether vfs_getattr() wants 2 args... " >&6; }
 
 
 cat confdefs.h - <<_ACEOF >conftest.c
@@ -17784,8 +17901,8 @@ _ACEOF
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; }; then :
 
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: 2 args" >&5
-$as_echo "2 args" >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_2ARGS_VFS_GETATTR 1" >>confdefs.h
 
@@ -17794,59 +17911,8 @@ else
   $as_echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-
-
-cat confdefs.h - <<_ACEOF >conftest.c
-
-
-			#include <linux/fs.h>
-
-int
-main (void)
-{
-
-			vfs_getattr((struct vfsmount *)NULL,
-				(struct dentry *)NULL,
-				(struct kstat *)NULL);
-
-  ;
-  return 0;
-}
-
-_ACEOF
-
-
-	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
-	echo "obj-m := conftest.o" >build/Makefile
-	modpost_flag=''
-	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
-	if { ac_try='cp conftest.c build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror-implicit-function-declaration $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
-  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; }; then :
-
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: 3 args" >&5
-$as_echo "3 args" >&6; }
-
-else
-  $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-			as_fn_error $? "unknown" "$LINENO" 5
-
-
-
-fi
-	rm -Rf build
-
-
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
 
 

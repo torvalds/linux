@@ -302,18 +302,25 @@ zpl_rmdir(struct inode * dir, struct dentry *dentry)
 }
 
 static int
-zpl_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+zpl_getattr_impl(const struct path *path, struct kstat *stat, u32 request_mask,
+    unsigned int query_flags)
 {
 	int error;
 	fstrans_cookie_t cookie;
 
 	cookie = spl_fstrans_mark();
-	error = -zfs_getattr_fast(dentry->d_inode, stat);
+
+	/*
+	 * XXX request_mask and query_flags currently ignored.
+	 */
+
+	error = -zfs_getattr_fast(path->dentry->d_inode, stat);
 	spl_fstrans_unmark(cookie);
 	ASSERT3S(error, <=, 0);
 
 	return (error);
 }
+ZPL_GETATTR_WRAPPER(zpl_getattr);
 
 static int
 zpl_setattr(struct dentry *dentry, struct iattr *ia)

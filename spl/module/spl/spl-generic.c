@@ -351,22 +351,6 @@ ddi_copyout(const void *from, void *to, size_t len, int flags)
 }
 EXPORT_SYMBOL(ddi_copyout);
 
-#ifndef HAVE_PUT_TASK_STRUCT
-/*
- * This is only a stub function which should never be used.  The SPL should
- * never be putting away the last reference on a task structure so this will
- * not be called.  However, we still need to define it so the module does not
- * have undefined symbol at load time.  That all said if this impossible
- * thing does somehow happen PANIC immediately so we know about it.
- */
-void
-__put_task_struct(struct task_struct *t)
-{
-	PANIC("Unexpectly put last reference on task %d\n", (int)t->pid);
-}
-EXPORT_SYMBOL(__put_task_struct);
-#endif /* HAVE_PUT_TASK_STRUCT */
-
 /*
  * Read the unique system identifier from the /etc/hostid file.
  *

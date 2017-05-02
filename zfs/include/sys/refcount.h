@@ -40,6 +40,17 @@ extern "C" {
  */
 #define	FTAG ((char *)__func__)
 
+/*
+ * Starting with 4.11, torvalds/linux@f405df5, the linux kernel defines a
+ * refcount_t type of its own.  The macro below effectively changes references
+ * in the ZFS code from refcount_t to zfs_refcount_t at compile time, so that
+ * existing code need not be altered, reducing conflicts when landing openZFS
+ * patches.
+ */
+
+#define	refcount_t	zfs_refcount_t
+#define	refcount_add	zfs_refcount_add
+
 #ifdef	ZFS_DEBUG
 typedef struct reference {
 	list_node_t ref_link;
@@ -55,7 +66,7 @@ typedef struct refcount {
 	list_t rc_removed;
 	int64_t rc_count;
 	int64_t rc_removed_count;
-} refcount_t;
+} zfs_refcount_t;
 
 /* Note: refcount_t must be initialized with refcount_create[_untracked]() */
 
@@ -65,7 +76,7 @@ void refcount_destroy(refcount_t *rc);
 void refcount_destroy_many(refcount_t *rc, uint64_t number);
 int refcount_is_zero(refcount_t *rc);
 int64_t refcount_count(refcount_t *rc);
-int64_t refcount_add(refcount_t *rc, void *holder_tag);
+int64_t zfs_refcount_add(refcount_t *rc, void *holder_tag);
 int64_t refcount_remove(refcount_t *rc, void *holder_tag);
 int64_t refcount_add_many(refcount_t *rc, uint64_t number, void *holder_tag);
 int64_t refcount_remove_many(refcount_t *rc, uint64_t number, void *holder_tag);
@@ -86,7 +97,7 @@ typedef struct refcount {
 #define	refcount_destroy_many(rc, number) ((rc)->rc_count = 0)
 #define	refcount_is_zero(rc) ((rc)->rc_count == 0)
 #define	refcount_count(rc) ((rc)->rc_count)
-#define	refcount_add(rc, holder) atomic_add_64_nv(&(rc)->rc_count, 1)
+#define	zfs_refcount_add(rc, holder) atomic_add_64_nv(&(rc)->rc_count, 1)
 #define	refcount_remove(rc, holder) atomic_add_64_nv(&(rc)->rc_count, -1)
 #define	refcount_add_many(rc, number, holder) \
 	atomic_add_64_nv(&(rc)->rc_count, number)

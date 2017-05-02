@@ -30,8 +30,14 @@
 /* old shrinker callback wants 3 args */
 #undef HAVE_3ARGS_SHRINKER_CALLBACK
 
+/* vfs_getattr wants 3 args */
+#undef HAVE_3ARGS_VFS_GETATTR
+
 /* vfs_unlink() wants 3 args */
 #undef HAVE_3ARGS_VFS_UNLINK
+
+/* vfs_getattr wants 4 args */
+#undef HAVE_4ARGS_VFS_GETATTR
 
 /* vfs_rename() wants 4 args */
 #undef HAVE_4ARGS_VFS_RENAME
@@ -90,9 +96,6 @@
 /* yes */
 #undef HAVE_PDE_DATA
 
-/* __put_task_struct() is available */
-#undef HAVE_PUT_TASK_STRUCT
-
 /* struct rw_semaphore has member activity */
 #undef HAVE_RWSEM_ACTIVITY
 
@@ -101,6 +104,9 @@
 
 /* linux/sched/rt.h exists */
 #undef HAVE_SCHED_RT_HEADER
+
+/* linux/sched/signal.h exists */
+#undef HAVE_SCHED_SIGNAL_HEADER
 
 /* set_fs_pwd() needs const path * */
 #undef HAVE_SET_FS_PWD_WITH_CONST
