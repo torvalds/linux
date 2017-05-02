@@ -4,6 +4,7 @@
 
 #include <dt-bindings/input/input.h>
 #include "rk3229.dtsi"
+#include "rk322x-android.dtsi"
 
 / {
 	model = "Rockchip RK3229 Evaluation board";
@@ -135,13 +136,6 @@
 	cpu-supply = <&vdd_arm>;
 };
 
-&emmc {
-	cap-mmc-highspeed;
-	disable-wp;
-	non-removable;
-	status = "okay";
-};
-
 &gmac {
 	assigned-clocks = <&cru SCLK_MAC_EXTCLK>, <&cru SCLK_MAC>;
 	assigned-clock-parents = <&ext_gmac>, <&cru SCLK_MAC_EXTCLK>;
@@ -190,10 +184,6 @@
 
 &tsadc {
 	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
-	status = "okay";
-};
-
-&uart2 {
 	status = "okay";
 };
 
