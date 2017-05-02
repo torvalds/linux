@@ -20,11 +20,11 @@ static struct mipiphy_hsfreqrange_s mipiphy_hsfreqrange[] = {
 	{500, 600, 0x07},
 	{600, 700, 0x08},
 	{700, 800, 0x09},
-	{800, 1000, 0x10},
-	{1000, 1200, 0x11},
-	{1200, 1400, 0x12},
-	{1400, 1600, 0x13},
-	{1600, 1800, 0x14}
+	{800, 1000, 0xa},
+	{1000, 1100, 0xb},
+	{1100, 1250, 0xc},
+	{1250, 1350, 0xd},
+	{1350, 1500, 0xe}
 };
 
 #if 0
@@ -124,7 +124,23 @@ static int camsys_rk3368_mipihpy_cfg(camsys_mipiphy_soc_para_t *para)
 	write_grf_reg(GRF_SOC_CON6_OFFSET, ISP_MIPI_CSI_HOST_SEL_OFFSET_MASK
 				| (1 << ISP_MIPI_CSI_HOST_SEL_OFFSET_BIT));
 
-	/* phy start */
+		/* phy start */
+		write_csiphy_reg(MIPI_CSI_DPHY_CTRL_PWRCTL_OFFSET, 0xe4);
+
+		/* set data lane num and enable clock lane */
+		write_csiphy_reg(MIPI_CSI_DPHY_LANEX_THS_SETTLE_OFFSET,
+			((para->phy->data_en_bit << 2) | (0x1 << 6) | 0x1));
+		/* Reset dphy analog part */
+		write_csiphy_reg(MIPI_CSI_DPHY_CTRL_PWRCTL_OFFSET, 0xe0);
+		usleep_range(500, 1000);
+		/* Reset dphy digital part */
+		write_csiphy_reg(MIPI_CSI_DPHY_CTRL_DIG_RST_OFFSET, 0x1e);
+		write_csiphy_reg(MIPI_CSI_DPHY_CTRL_DIG_RST_OFFSET, 0x1f);
+
+		write_grf_reg(GRF_SOC_CON6_OFFSET,
+			MIPI_CSI_DPHY_RX_FORCERXMODE_MASK |
+			MIPI_CSI_DPHY_RX_FORCERXMODE_BIT);
+
 	write_csiphy_reg((MIPI_CSI_DPHY_LANEX_THS_SETTLE_OFFSET + 0x100),
 		hsfreqrange |
 		(read_csiphy_reg(MIPI_CSI_DPHY_LANEX_THS_SETTLE_OFFSET
@@ -152,11 +168,10 @@ static int camsys_rk3368_mipihpy_cfg(camsys_mipiphy_soc_para_t *para)
 			(read_csiphy_reg(MIPI_CSI_DPHY_LANEX_THS_SETTLE_OFFSET
 			+ 0x300) & (~0xf)));
 	}
-
-	/*set data lane num and enable clock lane */
-	write_csiphy_reg(0x00, ((para->phy->data_en_bit << 2)
-					| (0x1 << 6) | 0x1));
-
+		/*
+		 * MIPI CTRL bit8:11 SHUTDOWN_LANE are invert
+		 * connect to dphy pin_enable_x
+		 */
 	base = (unsigned long)para->camsys_dev->devmems.registermem->vir_base;
 	*((unsigned int *)(base + (MRV_MIPI_BASE + MRV_MIPI_CTRL)))
 							&= ~(0x0f << 8);

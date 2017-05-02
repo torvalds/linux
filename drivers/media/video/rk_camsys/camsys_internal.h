@@ -159,8 +159,11 @@
 	1) support rk3288.
 *v0.0x21.0xd:
 	1) modify mipiphy_hsfreqrange for 3368.
+*v0.0x21.0xe
+	1) correct mipiphy_hsfreqrange of 3368.
+	2) add csi-phy timing setting for 3368.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xd)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xe)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
