@@ -355,18 +355,12 @@ static int cache_add_dev(unsigned int cpu)
 	unsigned long i, j;
 	struct cache_info *this_object;
 	int retval = 0;
-	cpumask_t oldmask;
 
 	if (all_cpu_cache_info[cpu].kobj.parent)
 		return 0;
 
-	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed_ptr(current, cpumask_of(cpu));
-	if (unlikely(retval))
-		return retval;
 
 	retval = cpu_cache_sysfs_init(cpu);
-	set_cpus_allowed_ptr(current, &oldmask);
 	if (unlikely(retval < 0))
 		return retval;
 
