@@ -372,7 +372,7 @@ static void fiq_debugger_do_sysrq(struct fiq_debugger_state *state, char rq)
 		return;
 	}
 	fiq_debugger_begin_syslog_dump(state);
-	handle_sysrq(rq);
+	__handle_sysrq(rq, false);
 	fiq_debugger_end_syslog_dump(state);
 }
 
