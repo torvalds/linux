@@ -82,6 +82,8 @@ struct device_process_node {
  *
  * @restore_process_queues: Restore all evicted queues queues of a process
  *
+ * @get_wave_state: Retrieves context save state and optionally copies the
+ * control stack, if kept in the MQD, to the given userspace address.
  */
 
 struct device_queue_manager_ops {
@@ -137,6 +139,12 @@ struct device_queue_manager_ops {
 				    struct qcm_process_device *qpd);
 	int (*restore_process_queues)(struct device_queue_manager *dqm,
 				      struct qcm_process_device *qpd);
+
+	int	(*get_wave_state)(struct device_queue_manager *dqm,
+				  struct queue *q,
+				  void __user *ctl_stack,
+				  u32 *ctl_stack_used_size,
+				  u32 *save_area_used_size);
 };
 
 struct device_queue_manager_asic_ops {
