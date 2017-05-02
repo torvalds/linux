@@ -473,10 +473,13 @@ int mlx5_encap_alloc(struct mlx5_core_dev *dev,
 	int err;
 	u32 *in;
 
-	if (size > MLX5_CAP_ESW(dev, max_encap_header_size))
+	if (size > max_encap_size) {
+		mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",
+			       size, max_encap_size);
 		return -EINVAL;
+	}
 
-	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_encap_header_in) + max_encap_size,
+	in = kzalloc(MLX5_ST_SZ_BYTES(alloc_encap_header_in) + size,
 		     GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;

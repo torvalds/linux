@@ -218,17 +218,19 @@ static int elan_query_product(struct elan_tp_data *data)
 
 static int elan_check_ASUS_special_fw(struct elan_tp_data *data)
 {
-	if (data->ic_type != 0x0E)
-		return false;
-
-	switch (data->product_id) {
-	case 0x05 ... 0x07:
-	case 0x09:
-	case 0x13:
+	if (data->ic_type == 0x0E) {
+		switch (data->product_id) {
+		case 0x05 ... 0x07:
+		case 0x09:
+		case 0x13:
+			return true;
+		}
+	} else if (data->ic_type == 0x08 && data->product_id == 0x26) {
+		/* ASUS EeeBook X205TA */
 		return true;
-	default:
-		return false;
 	}
+
+	return false;
 }
 
 static int __elan_initialize(struct elan_tp_data *data)
@@ -1041,8 +1043,7 @@ static int elan_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	data = devm_kzalloc(&client->dev, sizeof(struct elan_tp_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct elan_tp_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1053,29 +1054,25 @@ static int elan_probe(struct i2c_client *client,
 	init_completion(&data->fw_completion);
 	mutex_init(&data->sysfs_mutex);
 
-	data->vcc = devm_regulator_get(&client->dev, "vcc");
+	data->vcc = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(data->vcc)) {
 		error = PTR_ERR(data->vcc);
 		if (error != -EPROBE_DEFER)
-			dev_err(&client->dev,
-				"Failed to get 'vcc' regulator: %d\n",
+			dev_err(dev, "Failed to get 'vcc' regulator: %d\n",
 				error);
 		return error;
 	}
 
 	error = regulator_enable(data->vcc);
 	if (error) {
-		dev_err(&client->dev,
-			"Failed to enable regulator: %d\n", error);
+		dev_err(dev, "Failed to enable regulator: %d\n", error);
 		return error;
 	}
 
-	error = devm_add_action(&client->dev,
-				elan_disable_regulator, data);
+	error = devm_add_action(dev, elan_disable_regulator, data);
 	if (error) {
 		regulator_disable(data->vcc);
-		dev_err(&client->dev,
-			"Failed to add disable regulator action: %d\n",
+		dev_err(dev, "Failed to add disable regulator action: %d\n",
 			error);
 		return error;
 	}
@@ -1093,14 +1090,14 @@ static int elan_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	dev_info(&client->dev,
+	dev_info(dev,
 		 "Elan Touchpad: Module ID: 0x%04x, Firmware: 0x%04x, Sample: 0x%04x, IAP: 0x%04x\n",
 		 data->product_id,
 		 data->fw_version,
 		 data->sm_version,
 		 data->iap_version);
 
-	dev_dbg(&client->dev,
+	dev_dbg(dev,
 		"Elan Touchpad Extra Information:\n"
 		"    Max ABS X,Y:   %d,%d\n"
 		"    Width X,Y:   %d,%d\n"
@@ -1118,38 +1115,33 @@ static int elan_probe(struct i2c_client *client,
 	 * Systems using device tree should set up interrupt via DTS,
 	 * the rest will use the default falling edge interrupts.
 	 */
-	irqflags = client->dev.of_node ? 0 : IRQF_TRIGGER_FALLING;
+	irqflags = dev->of_node ? 0 : IRQF_TRIGGER_FALLING;
 
-	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, elan_isr,
+	error = devm_request_threaded_irq(dev, client->irq, NULL, elan_isr,
 					  irqflags | IRQF_ONESHOT,
 					  client->name, data);
 	if (error) {
-		dev_err(&client->dev, "cannot register irq=%d\n", client->irq);
+		dev_err(dev, "cannot register irq=%d\n", client->irq);
 		return error;
 	}
 
-	error = sysfs_create_groups(&client->dev.kobj, elan_sysfs_groups);
+	error = sysfs_create_groups(&dev->kobj, elan_sysfs_groups);
 	if (error) {
-		dev_err(&client->dev, "failed to create sysfs attributes: %d\n",
-			error);
+		dev_err(dev, "failed to create sysfs attributes: %d\n", error);
 		return error;
 	}
 
-	error = devm_add_action(&client->dev,
-				elan_remove_sysfs_groups, data);
+	error = devm_add_action(dev, elan_remove_sysfs_groups, data);
 	if (error) {
 		elan_remove_sysfs_groups(data);
-		dev_err(&client->dev,
-			"Failed to add sysfs cleanup action: %d\n",
+		dev_err(dev, "Failed to add sysfs cleanup action: %d\n",
 			error);
 		return error;
 	}
 
 	error = input_register_device(data->input);
 	if (error) {
-		dev_err(&client->dev, "failed to register input device: %d\n",
-			error);
+		dev_err(dev, "failed to register input device: %d\n", error);
 		return error;
 	}
 
@@ -1157,8 +1149,8 @@ static int elan_probe(struct i2c_client *client,
 	 * Systems using device tree should set up wakeup via DTS,
 	 * the rest will configure device as wakeup source by default.
 	 */
-	if (!client->dev.of_node)
-		device_init_wakeup(&client->dev, true);
+	if (!dev->of_node)
+		device_init_wakeup(dev, true);
 
 	return 0;
 }

@@ -86,6 +86,12 @@ config RESET_UNIPHIER
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
 
+config RESET_ZX2967
+	bool "ZTE ZX2967 Reset Driver"
+	depends on ARCH_ZX || COMPILE_TEST
+	help
+	  This enables the reset controller driver for ZTE's zx2967 family.
+
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST
 	default ARCH_ZYNQ

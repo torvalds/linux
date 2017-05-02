@@ -42,6 +42,12 @@ Optional properties in the area nodes:
          and in use by another device or devices
 - export : indicates that the reserved SRAM area may be accessed outside
            of the kernel, e.g. by bootloader or userspace
+- protect-exec : Same as 'pool' above but with the additional
+		 constraint that code wil be run from the region and
+		 that the memory is maintained as read-only, executable
+		 during code execution. NOTE: This region must be page
+		 aligned on start and end in order to properly allow
+		 manipulation of the page attributes.
 - label : the name for the reserved partition, if omitted, the label
           is taken from the node name excluding the unit address.
 

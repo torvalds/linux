@@ -64,6 +64,20 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 	WARN_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 }
 
+static struct {
+	unsigned int low_mm;
+	unsigned int high_mm;
+	unsigned int fence;
+	enum intel_vgpu_edid edid;
+	char *name;
+} vgpu_types[] = {
+/* Fixed vGPU type table */
+	{ MB_TO_BYTES(64), MB_TO_BYTES(384), 4, GVT_EDID_1024_768, "8" },
+	{ MB_TO_BYTES(128), MB_TO_BYTES(512), 4, GVT_EDID_1920_1200, "4" },
+	{ MB_TO_BYTES(256), MB_TO_BYTES(1024), 4, GVT_EDID_1920_1200, "2" },
+	{ MB_TO_BYTES(512), MB_TO_BYTES(2048), 4, GVT_EDID_1920_1200, "1" },
+};
+
 /**
  * intel_gvt_init_vgpu_types - initialize vGPU type list
  * @gvt : GVT device
@@ -74,13 +88,12 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 {
 	unsigned int num_types;
-	unsigned int i, low_avail;
+	unsigned int i, low_avail, high_avail;
 	unsigned int min_low;
 
 	/* vGPU type name is defined as GVTg_Vx_y which contains
-	 * physical GPU generation type and 'y' means maximum vGPU
-	 * instances user can create on one physical GPU for this
-	 * type.
+	 * physical GPU generation type (e.g V4 as BDW server, V5 as
+	 * SKL server).
 	 *
 	 * Depend on physical SKU resource, might see vGPU types like
 	 * GVTg_V4_8, GVTg_V4_4, GVTg_V4_2, etc. We can create
@@ -89,10 +102,10 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	 * to indicate how many vGPU instance can be created for this
 	 * type.
 	 *
-	 * Currently use static size here as we init type earlier..
 	 */
-	low_avail = MB_TO_BYTES(256) - HOST_LOW_GM_SIZE;
-	num_types = 4;
+	low_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE;
+	high_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE;
+	num_types = sizeof(vgpu_types) / sizeof(vgpu_types[0]);
 
 	gvt->types = kzalloc(num_types * sizeof(struct intel_vgpu_type),
 			     GFP_KERNEL);
@@ -101,27 +114,29 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 
 	min_low = MB_TO_BYTES(32);
 	for (i = 0; i < num_types; ++i) {
-		if (low_avail / min_low == 0)
+		if (low_avail / vgpu_types[i].low_mm == 0)
 			break;
-		gvt->types[i].low_gm_size = min_low;
-		gvt->types[i].high_gm_size = max((min_low<<3), MB_TO_BYTES(384U));
-		gvt->types[i].fence = 4;
-		gvt->types[i].max_instance = low_avail / min_low;
-		gvt->types[i].avail_instance = gvt->types[i].max_instance;
+
+		gvt->types[i].low_gm_size = vgpu_types[i].low_mm;
+		gvt->types[i].high_gm_size = vgpu_types[i].high_mm;
+		gvt->types[i].fence = vgpu_types[i].fence;
+		gvt->types[i].resolution = vgpu_types[i].edid;
+		gvt->types[i].avail_instance = min(low_avail / vgpu_types[i].low_mm,
+						   high_avail / vgpu_types[i].high_mm);
 
 		if (IS_GEN8(gvt->dev_priv))
-			sprintf(gvt->types[i].name, "GVTg_V4_%u",
-						gvt->types[i].max_instance);
+			sprintf(gvt->types[i].name, "GVTg_V4_%s",
+						vgpu_types[i].name);
 		else if (IS_GEN9(gvt->dev_priv))
-			sprintf(gvt->types[i].name, "GVTg_V5_%u",
-						gvt->types[i].max_instance);
+			sprintf(gvt->types[i].name, "GVTg_V5_%s",
+						vgpu_types[i].name);
 
-		min_low <<= 1;
-		gvt_dbg_core("type[%d]: %s max %u avail %u low %u high %u fence %u\n",
-			     i, gvt->types[i].name, gvt->types[i].max_instance,
+		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u res %s\n",
+			     i, gvt->types[i].name,
 			     gvt->types[i].avail_instance,
 			     gvt->types[i].low_gm_size,
-			     gvt->types[i].high_gm_size, gvt->types[i].fence);
+			     gvt->types[i].high_gm_size, gvt->types[i].fence,
+			     vgpu_edid_str(gvt->types[i].resolution));
 	}
 
 	gvt->num_types = i;
@@ -137,14 +152,14 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 {
 	int i;
 	unsigned int low_gm_avail, high_gm_avail, fence_avail;
-	unsigned int low_gm_min, high_gm_min, fence_min, total_min;
+	unsigned int low_gm_min, high_gm_min, fence_min;
 
 	/* Need to depend on maxium hw resource size but keep on
 	 * static config for now.
 	 */
-	low_gm_avail = MB_TO_BYTES(256) - HOST_LOW_GM_SIZE -
+	low_gm_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE -
 		gvt->gm.vgpu_allocated_low_gm_size;
-	high_gm_avail = MB_TO_BYTES(256) * 8UL - HOST_HIGH_GM_SIZE -
+	high_gm_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE -
 		gvt->gm.vgpu_allocated_high_gm_size;
 	fence_avail = gvt_fence_sz(gvt) - HOST_FENCE -
 		gvt->fence.vgpu_allocated_fence_num;
@@ -153,15 +168,55 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 		low_gm_min = low_gm_avail / gvt->types[i].low_gm_size;
 		high_gm_min = high_gm_avail / gvt->types[i].high_gm_size;
 		fence_min = fence_avail / gvt->types[i].fence;
-		total_min = min(min(low_gm_min, high_gm_min), fence_min);
-		gvt->types[i].avail_instance = min(gvt->types[i].max_instance,
-						   total_min);
+		gvt->types[i].avail_instance = min(min(low_gm_min, high_gm_min),
+						   fence_min);
 
-		gvt_dbg_core("update type[%d]: %s max %u avail %u low %u high %u fence %u\n",
-		       i, gvt->types[i].name, gvt->types[i].max_instance,
+		gvt_dbg_core("update type[%d]: %s avail %u low %u high %u fence %u\n",
+		       i, gvt->types[i].name,
 		       gvt->types[i].avail_instance, gvt->types[i].low_gm_size,
 		       gvt->types[i].high_gm_size, gvt->types[i].fence);
 	}
+}
+
+/**
+ * intel_gvt_active_vgpu - activate a virtual GPU
+ * @vgpu: virtual GPU
+ *
+ * This function is called when user wants to activate a virtual GPU.
+ *
+ */
+void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu)
+{
+	mutex_lock(&vgpu->gvt->lock);
+	vgpu->active = true;
+	mutex_unlock(&vgpu->gvt->lock);
+}
+
+/**
+ * intel_gvt_deactive_vgpu - deactivate a virtual GPU
+ * @vgpu: virtual GPU
+ *
+ * This function is called when user wants to deactivate a virtual GPU.
+ * All virtual GPU runtime information will be destroyed.
+ *
+ */
+void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+
+	mutex_lock(&gvt->lock);
+
+	vgpu->active = false;
+
+	if (atomic_read(&vgpu->running_workload_num)) {
+		mutex_unlock(&gvt->lock);
+		intel_gvt_wait_vgpu_idle(vgpu);
+		mutex_lock(&gvt->lock);
+	}
+
+	intel_vgpu_stop_schedule(vgpu);
+
+	mutex_unlock(&gvt->lock);
 }
 
 /**
@@ -177,16 +232,9 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 
 	mutex_lock(&gvt->lock);
 
-	vgpu->active = false;
+	WARN(vgpu->active, "vGPU is still active!\n");
+
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
-
-	if (atomic_read(&vgpu->running_workload_num)) {
-		mutex_unlock(&gvt->lock);
-		intel_gvt_wait_vgpu_idle(vgpu);
-		mutex_lock(&gvt->lock);
-	}
-
-	intel_vgpu_stop_schedule(vgpu);
 	intel_vgpu_clean_sched_policy(vgpu);
 	intel_vgpu_clean_gvt_context(vgpu);
 	intel_vgpu_clean_execlist(vgpu);
@@ -247,7 +295,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_detach_hypervisor_vgpu;
 
-	ret = intel_vgpu_init_display(vgpu);
+	ret = intel_vgpu_init_display(vgpu, param->resolution);
 	if (ret)
 		goto out_clean_gtt;
 
@@ -263,7 +311,6 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_shadow_ctx;
 
-	vgpu->active = true;
 	mutex_unlock(&gvt->lock);
 
 	return vgpu;
@@ -311,6 +358,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	param.low_gm_sz = type->low_gm_size;
 	param.high_gm_sz = type->high_gm_size;
 	param.fence_sz = type->fence;
+	param.resolution = type->resolution;
 
 	/* XXX current param based on MB */
 	param.low_gm_sz = BYTES_TO_MB(param.low_gm_sz);
@@ -384,9 +432,14 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 		intel_vgpu_reset_resource(vgpu);
 		intel_vgpu_reset_mmio(vgpu);
 		populate_pvinfo_page(vgpu);
+		intel_vgpu_reset_display(vgpu);
 
-		if (dmlr)
+		if (dmlr) {
 			intel_vgpu_reset_cfg_space(vgpu);
+			/* only reset the failsafe mode when dmlr reset */
+			vgpu->failsafe = false;
+			vgpu->pv_notified = false;
+		}
 	}
 
 	vgpu->resetting = false;

@@ -326,18 +326,40 @@ fail5:
 	efx_nic_free_buffer(efx, &efx->irq_status);
 fail4:
 fail3:
+	efx_mcdi_detach(efx);
 	efx_mcdi_fini(efx);
 fail1:
 	kfree(efx->nic_data);
 	return rc;
 }
 
+static int siena_rx_pull_rss_config(struct efx_nic *efx)
+{
+	efx_oword_t temp;
+
+	/* Read from IPv6 RSS key as that's longer (the IPv4 key is just the
+	 * first 128 bits of the same key, assuming it's been set by
+	 * siena_rx_push_rss_config, below)
+	 */
+	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
+	memcpy(efx->rx_hash_key, &temp, sizeof(temp));
+	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
+	memcpy(efx->rx_hash_key + sizeof(temp), &temp, sizeof(temp));
+	efx_reado(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
+	memcpy(efx->rx_hash_key + 2 * sizeof(temp), &temp,
+	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
+	efx_farch_rx_pull_indir_table(efx);
+	return 0;
+}
+
 static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
-				    const u32 *rx_indir_table)
+				    const u32 *rx_indir_table, const u8 *key)
 {
 	efx_oword_t temp;
 
 	/* Set hash key for IPv4 */
+	if (key)
+		memcpy(efx->rx_hash_key, key, sizeof(temp));
 	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
 	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
 
@@ -402,7 +424,7 @@ static int siena_init_nic(struct efx_nic *efx)
 			    EFX_RX_USR_BUF_SIZE >> 5);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
-	siena_rx_push_rss_config(efx, false, efx->rx_indir_table);
+	siena_rx_push_rss_config(efx, false, efx->rx_indir_table, NULL);
 	efx->rss_active = true;
 
 	/* Enable event logging */
@@ -429,6 +451,7 @@ static void siena_remove_nic(struct efx_nic *efx)
 
 	efx_mcdi_reset(efx, RESET_TYPE_ALL);
 
+	efx_mcdi_detach(efx);
 	efx_mcdi_fini(efx);
 
 	/* Tear down the private nic state */
@@ -979,6 +1002,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.tx_write = efx_farch_tx_write,
 	.tx_limit_len = efx_farch_tx_limit_len,
 	.rx_push_rss_config = siena_rx_push_rss_config,
+	.rx_pull_rss_config = siena_rx_pull_rss_config,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,
 	.rx_remove = efx_farch_rx_remove,
@@ -1044,6 +1068,8 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.rx_hash_offset = FS_BZ_RX_PREFIX_HASH_OFST,
 	.rx_buffer_padding = 0,
 	.can_rx_scatter = true,
+	.option_descriptors = false,
+	.min_interrupt_mode = EFX_INT_MODE_LEGACY,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -1053,4 +1079,5 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.hwtstamp_filters = (1 << HWTSTAMP_FILTER_NONE |
 			     1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT |
 			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT),
+	.rx_hash_key_size = 16,
 };

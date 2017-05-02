@@ -330,6 +330,7 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 	.module			 = THIS_MODULE,
 	.name			 = "zfcp",
 	.queuecommand		 = zfcp_scsi_queuecommand,
+	.eh_timed_out		 = fc_eh_timed_out,
 	.eh_abort_handler	 = zfcp_scsi_eh_abort_handler,
 	.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
 	.eh_target_reset_handler = zfcp_scsi_eh_target_reset_handler,

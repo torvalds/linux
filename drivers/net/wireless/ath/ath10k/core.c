@@ -18,6 +18,8 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/of.h>
+#include <linux/dmi.h>
+#include <linux/ctype.h>
 #include <asm/byteorder.h>
 
 #include "core.h"
@@ -349,7 +351,7 @@ void ath10k_core_get_fw_features_str(struct ath10k *ar,
 				     char *buf,
 				     size_t buf_len)
 {
-	unsigned int len = 0;
+	size_t len = 0;
 	int i;
 
 	for (i = 0; i < ATH10K_FW_FEATURE_COUNT; i++) {
@@ -454,7 +456,10 @@ static const struct firmware *ath10k_fetch_fw_file(struct ath10k *ar,
 		dir = ".";
 
 	snprintf(filename, sizeof(filename), "%s/%s", dir, file);
-	ret = request_firmware(&fw, filename, ar->dev);
+	ret = request_firmware_direct(&fw, filename, ar->dev);
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot fw request '%s': %d\n",
+		   filename, ret);
+
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -694,12 +699,82 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 		   "boot get otp board id result 0x%08x board_id %d chip_id %d\n",
 		   result, board_id, chip_id);
 
-	if ((result & ATH10K_BMI_BOARD_ID_STATUS_MASK) != 0)
+	if ((result & ATH10K_BMI_BOARD_ID_STATUS_MASK) != 0 ||
+	    (board_id == 0)) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "board id does not exist in otp, ignore it\n");
 		return -EOPNOTSUPP;
+	}
 
 	ar->id.bmi_ids_valid = true;
 	ar->id.bmi_board_id = board_id;
 	ar->id.bmi_chip_id = chip_id;
+
+	return 0;
+}
+
+static void ath10k_core_check_bdfext(const struct dmi_header *hdr, void *data)
+{
+	struct ath10k *ar = data;
+	const char *bdf_ext;
+	const char *magic = ATH10K_SMBIOS_BDF_EXT_MAGIC;
+	u8 bdf_enabled;
+	int i;
+
+	if (hdr->type != ATH10K_SMBIOS_BDF_EXT_TYPE)
+		return;
+
+	if (hdr->length != ATH10K_SMBIOS_BDF_EXT_LENGTH) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "wrong smbios bdf ext type length (%d).\n",
+			   hdr->length);
+		return;
+	}
+
+	bdf_enabled = *((u8 *)hdr + ATH10K_SMBIOS_BDF_EXT_OFFSET);
+	if (!bdf_enabled) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "bdf variant name not found.\n");
+		return;
+	}
+
+	/* Only one string exists (per spec) */
+	bdf_ext = (char *)hdr + hdr->length;
+
+	if (memcmp(bdf_ext, magic, strlen(magic)) != 0) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "bdf variant magic does not match.\n");
+		return;
+	}
+
+	for (i = 0; i < strlen(bdf_ext); i++) {
+		if (!isascii(bdf_ext[i]) || !isprint(bdf_ext[i])) {
+			ath10k_dbg(ar, ATH10K_DBG_BOOT,
+				   "bdf variant name contains non ascii chars.\n");
+			return;
+		}
+	}
+
+	/* Copy extension name without magic suffix */
+	if (strscpy(ar->id.bdf_ext, bdf_ext + strlen(magic),
+		    sizeof(ar->id.bdf_ext)) < 0) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "bdf variant string is longer than the buffer can accommodate (variant: %s)\n",
+			    bdf_ext);
+		return;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "found and validated bdf variant smbios_type 0x%x bdf %s\n",
+		   ATH10K_SMBIOS_BDF_EXT_TYPE, bdf_ext);
+}
+
+static int ath10k_core_check_smbios(struct ath10k *ar)
+{
+	ar->id.bdf_ext[0] = '\0';
+	dmi_walk(ath10k_core_check_bdfext, ar);
+
+	if (ar->id.bdf_ext[0] == '\0')
+		return -ENODATA;
 
 	return 0;
 }
@@ -1013,6 +1088,23 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 		case ATH10K_BD_IE_BOARD:
 			ret = ath10k_core_parse_bd_ie_board(ar, data, ie_len,
 							    boardname);
+			if (ret == -ENOENT && ar->id.bdf_ext[0] != '\0') {
+				/* try default bdf if variant was not found */
+				char *s, *v = ",variant=";
+				char boardname2[100];
+
+				strlcpy(boardname2, boardname,
+					sizeof(boardname2));
+
+				s = strstr(boardname2, v);
+				if (s)
+					*s = '\0';  /* strip ",variant=%s" */
+
+				ret = ath10k_core_parse_bd_ie_board(ar, data,
+								    ie_len,
+								    boardname2);
+			}
+
 			if (ret == -ENOENT)
 				/* no match found, continue */
 				break;
@@ -1050,6 +1142,9 @@ err:
 static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 					 size_t name_len)
 {
+	/* strlen(',variant=') + strlen(ar->id.bdf_ext) */
+	char variant[9 + ATH10K_SMBIOS_BDF_EXT_STR_LENGTH] = { 0 };
+
 	if (ar->id.bmi_ids_valid) {
 		scnprintf(name, name_len,
 			  "bus=%s,bmi-chip-id=%d,bmi-board-id=%d",
@@ -1059,12 +1154,15 @@ static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 		goto out;
 	}
 
+	if (ar->id.bdf_ext[0] != '\0')
+		scnprintf(variant, sizeof(variant), ",variant=%s",
+			  ar->id.bdf_ext);
+
 	scnprintf(name, name_len,
-		  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x",
+		  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x%s",
 		  ath10k_bus_str(ar->hif.bus),
 		  ar->id.vendor, ar->id.device,
-		  ar->id.subsystem_vendor, ar->id.subsystem_device);
-
+		  ar->id.subsystem_vendor, ar->id.subsystem_device, variant);
 out:
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot using board name '%s'\n", name);
 
@@ -1091,7 +1189,8 @@ static int ath10k_core_fetch_board_file(struct ath10k *ar)
 	ar->bd_api = 1;
 	ret = ath10k_core_fetch_board_data_api_1(ar);
 	if (ret) {
-		ath10k_err(ar, "failed to fetch board data\n");
+		ath10k_err(ar, "failed to fetch board-2.bin or board.bin from %s\n",
+			   ar->hw_params.fw.dir);
 		return ret;
 	}
 
@@ -1112,12 +1211,8 @@ int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
 	/* first fetch the firmware file (firmware-*.bin) */
 	fw_file->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir,
 						 name);
-	if (IS_ERR(fw_file->firmware)) {
-		ath10k_err(ar, "could not fetch firmware file '%s/%s': %ld\n",
-			   ar->hw_params.fw.dir, name,
-			   PTR_ERR(fw_file->firmware));
+	if (IS_ERR(fw_file->firmware))
 		return PTR_ERR(fw_file->firmware);
-	}
 
 	data = fw_file->firmware->data;
 	len = fw_file->firmware->size;
@@ -1281,44 +1376,39 @@ err:
 	return ret;
 }
 
+static void ath10k_core_get_fw_name(struct ath10k *ar, char *fw_name,
+				    size_t fw_name_len, int fw_api)
+{
+	scnprintf(fw_name, fw_name_len, "%s-%d.bin", ATH10K_FW_FILE_BASE, fw_api);
+}
+
 static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 {
-	int ret;
+	int ret, i;
+	char fw_name[100];
 
 	/* calibration file is optional, don't check for any errors */
 	ath10k_fetch_cal_file(ar);
 
-	ar->fw_api = 5;
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
+	for (i = ATH10K_FW_API_MAX; i >= ATH10K_FW_API_MIN; i--) {
+		ar->fw_api = i;
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n",
+			   ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API5_FILE,
-					       &ar->normal_mode_fw.fw_file);
-	if (ret == 0)
-		goto success;
+		ath10k_core_get_fw_name(ar, fw_name, sizeof(fw_name), ar->fw_api);
+		ret = ath10k_core_fetch_firmware_api_n(ar, fw_name,
+						       &ar->normal_mode_fw.fw_file);
+		if (!ret)
+			goto success;
+	}
 
-	ar->fw_api = 4;
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
+	/* we end up here if we couldn't fetch any firmware */
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API4_FILE,
-					       &ar->normal_mode_fw.fw_file);
-	if (ret == 0)
-		goto success;
+	ath10k_err(ar, "Failed to find firmware-N.bin (N between %d and %d) from %s: %d",
+		   ATH10K_FW_API_MIN, ATH10K_FW_API_MAX, ar->hw_params.fw.dir,
+		   ret);
 
-	ar->fw_api = 3;
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
-
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API3_FILE,
-					       &ar->normal_mode_fw.fw_file);
-	if (ret == 0)
-		goto success;
-
-	ar->fw_api = 2;
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
-
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE,
-					       &ar->normal_mode_fw.fw_file);
-	if (ret)
-		return ret;
+	return ret;
 
 success:
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "using fw api %d\n", ar->fw_api);
@@ -1510,6 +1600,7 @@ static int ath10k_init_hw_params(struct ath10k *ar)
 static void ath10k_core_restart(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, restart_work);
+	int ret;
 
 	set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
 
@@ -1561,6 +1652,11 @@ static void ath10k_core_restart(struct work_struct *work)
 	}
 
 	mutex_unlock(&ar->conf_mutex);
+
+	ret = ath10k_debug_fw_devcoredump(ar);
+	if (ret)
+		ath10k_warn(ar, "failed to send firmware crash dump via devcoredump: %d",
+			    ret);
 }
 
 static void ath10k_core_set_coverage_class_work(struct work_struct *work)
@@ -1913,7 +2009,8 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "firmware %s booted\n",
 		   ar->hw->wiphy->fw_version);
 
-	if (test_bit(WMI_SERVICE_EXT_RES_CFG_SUPPORT, ar->wmi.svc_map)) {
+	if (test_bit(WMI_SERVICE_EXT_RES_CFG_SUPPORT, ar->wmi.svc_map) &&
+	    mode == ATH10K_FIRMWARE_MODE_NORMAL) {
 		val = 0;
 		if (ath10k_peer_stats_enabled(ar))
 			val = WMI_10_4_PEER_STATS;
@@ -1966,10 +2063,13 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	 * possible to implicitly make it correct by creating a dummy vdev and
 	 * then deleting it.
 	 */
-	status = ath10k_core_reset_rx_filter(ar);
-	if (status) {
-		ath10k_err(ar, "failed to reset rx filter: %d\n", status);
-		goto err_hif_stop;
+	if (mode == ATH10K_FIRMWARE_MODE_NORMAL) {
+		status = ath10k_core_reset_rx_filter(ar);
+		if (status) {
+			ath10k_err(ar,
+				   "failed to reset rx filter: %d\n", status);
+			goto err_hif_stop;
+		}
 	}
 
 	/* If firmware indicates Full Rx Reorder support it must be used in a
@@ -2118,6 +2218,10 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 			   ret);
 		goto err_free_firmware_files;
 	}
+
+	ret = ath10k_core_check_smbios(ar);
+	if (ret)
+		ath10k_dbg(ar, ATH10K_DBG_BOOT, "bdf variant name not set.\n");
 
 	ret = ath10k_core_fetch_board_file(ar);
 	if (ret) {

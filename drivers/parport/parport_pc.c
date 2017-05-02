@@ -44,7 +44,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -902,7 +902,7 @@ static size_t parport_pc_ecp_write_block_pio(struct parport *port,
  *	******************************************
  */
 
-/* GCC is not inlining extern inline function later overwriten to non-inline,
+/* GCC is not inlining extern inline function later overwritten to non-inline,
    so we use outlined_ variants here.  */
 static const struct parport_operations parport_pc_ops = {
 	.write_data	= parport_pc_write_data,

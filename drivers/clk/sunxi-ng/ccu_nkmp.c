@@ -88,17 +88,26 @@ static unsigned long ccu_nkmp_recalc_rate(struct clk_hw *hw,
 
 	n = reg >> nkmp->n.shift;
 	n &= (1 << nkmp->n.width) - 1;
+	n += nkmp->n.offset;
+	if (!n)
+		n++;
 
 	k = reg >> nkmp->k.shift;
 	k &= (1 << nkmp->k.width) - 1;
+	k += nkmp->k.offset;
+	if (!k)
+		k++;
 
 	m = reg >> nkmp->m.shift;
 	m &= (1 << nkmp->m.width) - 1;
+	m += nkmp->m.offset;
+	if (!m)
+		m++;
 
 	p = reg >> nkmp->p.shift;
 	p &= (1 << nkmp->p.width) - 1;
 
-	return (parent_rate * (n + 1) * (k + 1) >> p) / (m + 1);
+	return (parent_rate * n * k >> p) / m;
 }
 
 static long ccu_nkmp_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -108,9 +117,9 @@ static long ccu_nkmp_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct _ccu_nkmp _nkmp;
 
 	_nkmp.min_n = nkmp->n.min;
-	_nkmp.max_n = 1 << nkmp->n.width;
+	_nkmp.max_n = nkmp->n.max ?: 1 << nkmp->n.width;
 	_nkmp.min_k = nkmp->k.min;
-	_nkmp.max_k = 1 << nkmp->k.width;
+	_nkmp.max_k = nkmp->k.max ?: 1 << nkmp->k.width;
 	_nkmp.min_m = 1;
 	_nkmp.max_m = nkmp->m.max ?: 1 << nkmp->m.width;
 	_nkmp.min_p = 1;
@@ -130,9 +139,9 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 reg;
 
 	_nkmp.min_n = 1;
-	_nkmp.max_n = 1 << nkmp->n.width;
+	_nkmp.max_n = nkmp->n.max ?: 1 << nkmp->n.width;
 	_nkmp.min_k = 1;
-	_nkmp.max_k = 1 << nkmp->k.width;
+	_nkmp.max_k = nkmp->k.max ?: 1 << nkmp->k.width;
 	_nkmp.min_m = 1;
 	_nkmp.max_m = nkmp->m.max ?: 1 << nkmp->m.width;
 	_nkmp.min_p = 1;
@@ -148,9 +157,9 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg &= ~GENMASK(nkmp->m.width + nkmp->m.shift - 1, nkmp->m.shift);
 	reg &= ~GENMASK(nkmp->p.width + nkmp->p.shift - 1, nkmp->p.shift);
 
-	reg |= (_nkmp.n - 1) << nkmp->n.shift;
-	reg |= (_nkmp.k - 1) << nkmp->k.shift;
-	reg |= (_nkmp.m - 1) << nkmp->m.shift;
+	reg |= (_nkmp.n - nkmp->n.offset) << nkmp->n.shift;
+	reg |= (_nkmp.k - nkmp->k.offset) << nkmp->k.shift;
+	reg |= (_nkmp.m - nkmp->m.offset) << nkmp->m.shift;
 	reg |= ilog2(_nkmp.p) << nkmp->p.shift;
 
 	writel(reg, nkmp->common.base + nkmp->common.reg);

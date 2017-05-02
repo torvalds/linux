@@ -237,6 +237,7 @@ static int dumb_vga_remove(struct platform_device *pdev)
 
 static const struct of_device_id dumb_vga_match[] = {
 	{ .compatible = "dumb-vga-dac" },
+	{ .compatible = "ti,ths8135" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dumb_vga_match);

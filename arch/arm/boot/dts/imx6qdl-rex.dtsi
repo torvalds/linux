@@ -89,7 +89,6 @@
 };
 
 &ecspi2 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
@@ -97,7 +96,6 @@
 };
 
 &ecspi3 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;

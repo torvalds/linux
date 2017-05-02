@@ -66,7 +66,7 @@ struct skcipher_walk {
 
 	int flags;
 	unsigned int blocksize;
-	unsigned int chunksize;
+	unsigned int stride;
 	unsigned int alignmask;
 };
 

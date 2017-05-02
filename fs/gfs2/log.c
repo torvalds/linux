@@ -349,6 +349,7 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 	if (gfs2_assert_warn(sdp, blks) ||
 	    gfs2_assert_warn(sdp, blks <= sdp->sd_jdesc->jd_blocks))
 		return -EINVAL;
+	atomic_add(blks, &sdp->sd_log_blks_needed);
 retry:
 	free_blocks = atomic_read(&sdp->sd_log_blks_free);
 	if (unlikely(free_blocks <= wanted)) {
@@ -370,6 +371,7 @@ retry:
 			wake_up(&sdp->sd_reserving_log_wait);
 		goto retry;
 	}
+	atomic_sub(blks, &sdp->sd_log_blks_needed);
 	trace_gfs2_log_blocks(sdp, -blks);
 
 	/*
@@ -797,7 +799,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 
 static void gfs2_merge_trans(struct gfs2_trans *old, struct gfs2_trans *new)
 {
-	WARN_ON_ONCE(old->tr_attached != 1);
+	WARN_ON_ONCE(!test_bit(TR_ATTACHED, &old->tr_flags));
 
 	old->tr_num_buf_new	+= new->tr_num_buf_new;
 	old->tr_num_databuf_new	+= new->tr_num_databuf_new;
@@ -821,9 +823,9 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	if (sdp->sd_log_tr) {
 		gfs2_merge_trans(sdp->sd_log_tr, tr);
 	} else if (tr->tr_num_buf_new || tr->tr_num_databuf_new) {
-		gfs2_assert_withdraw(sdp, tr->tr_alloced);
+		gfs2_assert_withdraw(sdp, test_bit(TR_ALLOCED, &tr->tr_flags));
 		sdp->sd_log_tr = tr;
-		tr->tr_attached = 1;
+		set_bit(TR_ATTACHED, &tr->tr_flags);
 	}
 
 	sdp->sd_log_commited_revoke += tr->tr_num_revoke - tr->tr_num_revoke_rm;
@@ -891,13 +893,16 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 
 static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
 {
-	return (atomic_read(&sdp->sd_log_pinned) >= atomic_read(&sdp->sd_log_thresh1));
+	return (atomic_read(&sdp->sd_log_pinned) +
+		atomic_read(&sdp->sd_log_blks_needed) >=
+		atomic_read(&sdp->sd_log_thresh1));
 }
 
 static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
 {
 	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
-	return used_blocks >= atomic_read(&sdp->sd_log_thresh2);
+	return used_blocks + atomic_read(&sdp->sd_log_blks_needed) >=
+		atomic_read(&sdp->sd_log_thresh2);
 }
 
 /**
@@ -913,12 +918,15 @@ int gfs2_logd(void *data)
 	struct gfs2_sbd *sdp = data;
 	unsigned long t = 1;
 	DEFINE_WAIT(wait);
+	bool did_flush;
 
 	while (!kthread_should_stop()) {
 
+		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
 			gfs2_ail1_empty(sdp);
 			gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
+			did_flush = true;
 		}
 
 		if (gfs2_ail_flush_reqd(sdp)) {
@@ -926,9 +934,10 @@ int gfs2_logd(void *data)
 			gfs2_ail1_wait(sdp);
 			gfs2_ail1_empty(sdp);
 			gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
+			did_flush = true;
 		}
 
-		if (!gfs2_ail_flush_reqd(sdp))
+		if (!gfs2_ail_flush_reqd(sdp) || did_flush)
 			wake_up(&sdp->sd_log_waitq);
 
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;

@@ -309,7 +309,7 @@ static int helene_write_regs(struct helene_priv *priv,
 
 	if (len + 1 > sizeof(buf)) {
 		dev_warn(&priv->i2c->dev,
-				"wr reg=%04x: len=%d vs %Zu is too big!\n",
+				"wr reg=%04x: len=%d vs %zu is too big!\n",
 				reg, len + 1, sizeof(buf));
 		return -E2BIG;
 	}

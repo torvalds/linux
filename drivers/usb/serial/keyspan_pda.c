@@ -139,6 +139,7 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
+	unsigned int len = urb->actual_length;
 	int retval;
 	int status = urb->status;
 	struct keyspan_pda_private *priv;
@@ -159,18 +160,26 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		goto exit;
 	}
 
+	if (len < 1) {
+		dev_warn(&port->dev, "short message received\n");
+		goto exit;
+	}
+
 	/* see if the message is data or a status interrupt */
 	switch (data[0]) {
 	case 0:
 		 /* rest of message is rx data */
-		if (urb->actual_length) {
-			tty_insert_flip_string(&port->port, data + 1,
-						urb->actual_length - 1);
-			tty_flip_buffer_push(&port->port);
-		}
+		if (len < 2)
+			break;
+		tty_insert_flip_string(&port->port, data + 1, len - 1);
+		tty_flip_buffer_push(&port->port);
 		break;
 	case 1:
 		/* status interrupt */
+		if (len < 3) {
+			dev_warn(&port->dev, "short interrupt message received\n");
+			break;
+		}
 		dev_dbg(&port->dev, "rx int, d1=%d, d2=%d\n", data[1], data[2]);
 		switch (data[1]) {
 		case 1: /* modemline change */

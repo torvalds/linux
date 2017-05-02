@@ -285,7 +285,7 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 }
 
 /* mapping of interrupts to parts of the wakeup mask */
-static struct samsung_wakeup_mask wake_irqs[] = {
+static const struct samsung_wakeup_mask wake_irqs[] = {
 	{ .irq = IRQ_RTC_ALARM,	.bit = S3C64XX_PWRCFG_RTC_ALARM_DISABLE, },
 	{ .irq = IRQ_RTC_TIC,	.bit = S3C64XX_PWRCFG_RTC_TICK_DISABLE, },
 	{ .irq = IRQ_PENDN,	.bit = S3C64XX_PWRCFG_TS_DISABLE, },
@@ -304,7 +304,7 @@ static void s3c64xx_pm_prepare(void)
 			      wake_irqs, ARRAY_SIZE(wake_irqs));
 
 	/* store address of resume. */
-	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C64XX_INFORM0);
+	__raw_writel(__pa_symbol(s3c_cpu_resume), S3C64XX_INFORM0);
 
 	/* ensure previous wakeup state is cleared before sleeping */
 	__raw_writel(__raw_readl(S3C64XX_WAKEUP_STAT), S3C64XX_WAKEUP_STAT);

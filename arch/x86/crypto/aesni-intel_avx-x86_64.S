@@ -122,22 +122,38 @@
 #include <linux/linkage.h>
 #include <asm/inst.h>
 
-.data
+# constants in mergeable sections, linker can reorder and merge
+.section	.rodata.cst16.POLY, "aM", @progbits, 16
 .align 16
-
 POLY:            .octa     0xC2000000000000000000000000000001
+
+.section	.rodata.cst16.POLY2, "aM", @progbits, 16
+.align 16
 POLY2:           .octa     0xC20000000000000000000001C2000000
+
+.section	.rodata.cst16.TWOONE, "aM", @progbits, 16
+.align 16
 TWOONE:          .octa     0x00000001000000000000000000000001
 
-# order of these constants should not change.
-# more specifically, ALL_F should follow SHIFT_MASK, and ZERO should follow ALL_F
-
+.section	.rodata.cst16.SHUF_MASK, "aM", @progbits, 16
+.align 16
 SHUF_MASK:       .octa     0x000102030405060708090A0B0C0D0E0F
+
+.section	.rodata.cst16.ONE, "aM", @progbits, 16
+.align 16
+ONE:             .octa     0x00000000000000000000000000000001
+
+.section	.rodata.cst16.ONEf, "aM", @progbits, 16
+.align 16
+ONEf:            .octa     0x01000000000000000000000000000000
+
+# order of these constants should not change.
+# more specifically, ALL_F should follow SHIFT_MASK, and zero should follow ALL_F
+.section	.rodata, "a", @progbits
+.align 16
 SHIFT_MASK:      .octa     0x0f0e0d0c0b0a09080706050403020100
 ALL_F:           .octa     0xffffffffffffffffffffffffffffffff
-ZERO:            .octa     0x00000000000000000000000000000000
-ONE:             .octa     0x00000000000000000000000000000001
-ONEf:            .octa     0x01000000000000000000000000000000
+                 .octa     0x00000000000000000000000000000000
 
 .text
 

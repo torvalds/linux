@@ -80,7 +80,7 @@ enum tis_defaults {
 #define	TPM_RID(l)			(0x0F04 | ((l) << 12))
 
 enum tpm_tis_flags {
-	TPM_TIS_ITPM_POSSIBLE		= BIT(0),
+	TPM_TIS_ITPM_WORKAROUND		= BIT(0),
 };
 
 struct tpm_tis_data {

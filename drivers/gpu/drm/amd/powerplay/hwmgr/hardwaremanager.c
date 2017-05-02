@@ -20,11 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/errno.h>
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "power_state.h"
-#include "pp_debug.h"
 
 #define PHM_FUNC_CHECK(hw) \
 	do {							\

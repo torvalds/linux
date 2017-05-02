@@ -15,6 +15,7 @@
 #ifdef __KERNEL__
 
 #include <linux/user.h>
+#include <linux/mm_types.h>
 
 /*
  * Fill in the user structure for an ECOFF core dump.

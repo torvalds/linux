@@ -300,7 +300,7 @@ static const struct ide_port_ops palm_bk3710_ports_ops = {
 	.cable_detect		= palm_bk3710_cable_detect,
 };
 
-static struct ide_port_info palm_bk3710_port_info = {
+static struct ide_port_info palm_bk3710_port_info __initdata = {
 	.init_dma		= palm_bk3710_init_dma,
 	.port_ops		= &palm_bk3710_ports_ops,
 	.dma_ops		= &sff_dma_ops,

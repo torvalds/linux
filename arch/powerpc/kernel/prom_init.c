@@ -707,7 +707,7 @@ struct option_vector5 {
 	__be16 reserved3;
 	u8 subprocessors;
 	u8 byte22;
-	u8 xive;
+	u8 intarch;
 	u8 mmu;
 	u8 hash_ext;
 	u8 radix_ext;
@@ -855,7 +855,7 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		0,
 #endif
 		.associativity = OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
-		.bin_opts = 0,
+		.bin_opts = OV5_FEAT(OV5_RESIZE_HPT) | OV5_FEAT(OV5_HP_EVT),
 		.micro_checkpoint = 0,
 		.reserved0 = 0,
 		.max_cpus = cpu_to_be32(NR_CPUS),	/* number of cores supported */
@@ -865,7 +865,7 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		.reserved2 = 0,
 		.reserved3 = 0,
 		.subprocessors = 1,
-		.xive = 0,
+		.intarch = 0,
 		.mmu = 0,
 		.hash_ext = 0,
 		.radix_ext = 0,
@@ -1011,13 +1011,13 @@ static void __init prom_parse_mmu_model(u8 val,
 					struct platform_support *support)
 {
 	switch (val) {
-	case OV5_MMU_DYNAMIC:
-	case OV5_MMU_EITHER: /* Either Available */
+	case OV5_FEAT(OV5_MMU_DYNAMIC):
+	case OV5_FEAT(OV5_MMU_EITHER): /* Either Available */
 		prom_debug("MMU - either supported\n");
 		support->radix_mmu = !prom_radix_disable;
 		support->hash_mmu = true;
 		break;
-	case OV5_MMU_RADIX: /* Only Radix */
+	case OV5_FEAT(OV5_MMU_RADIX): /* Only Radix */
 		prom_debug("MMU - radix only\n");
 		if (prom_radix_disable) {
 			/*
@@ -1028,7 +1028,7 @@ static void __init prom_parse_mmu_model(u8 val,
 		}
 		support->radix_mmu = true;
 		break;
-	case OV5_MMU_HASH:
+	case OV5_FEAT(OV5_MMU_HASH):
 		prom_debug("MMU - hash only\n");
 		support->hash_mmu = true;
 		break;
@@ -1042,21 +1042,14 @@ static void __init prom_parse_platform_support(u8 index, u8 val,
 					       struct platform_support *support)
 {
 	switch (index) {
-	case OV5_INDX(OV5_XIVE_EXPLOIT): /* Unimplemented - Ignore */
-		break;
 	case OV5_INDX(OV5_MMU_SUPPORT): /* MMU Model */
 		prom_parse_mmu_model(val & OV5_FEAT(OV5_MMU_SUPPORT), support);
-		break;
-	case OV5_INDX(OV5_HASH_SEG_TBL): /* Unimplemented - Ignore */
 		break;
 	case OV5_INDX(OV5_RADIX_GTSE): /* Radix Extensions */
 		if (val & OV5_FEAT(OV5_RADIX_GTSE)) {
 			prom_debug("Radix - GTSE supported\n");
 			support->radix_gtse = true;
 		}
-		break;
-	default:
-		prom_debug("Unknown platform support option above\n");
 		break;
 	}
 }

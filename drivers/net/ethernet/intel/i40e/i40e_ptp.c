@@ -280,7 +280,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	int i;
+	unsigned int i, cleared = 0;
 
 	/* Since we cannot turn off the Rx timestamp logic if the device is
 	 * configured for Tx timestamping, we check if Rx timestamping is
@@ -306,14 +306,25 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 		    time_is_before_jiffies(pf->latch_events[i] + HZ)) {
 			rd32(hw, I40E_PRTTSYN_RXTIME_H(i));
 			pf->latch_event_flags &= ~BIT(i);
-			pf->rx_hwtstamp_cleared++;
-			dev_warn(&pf->pdev->dev,
-				 "Clearing a missed Rx timestamp event for RXTIME[%d]\n",
-				 i);
+			cleared++;
 		}
 	}
 
 	spin_unlock_bh(&pf->ptp_rx_lock);
+
+	/* Log a warning if more than 2 timestamps got dropped in the same
+	 * check. We don't want to warn about all drops because it can occur
+	 * in normal scenarios such as PTP frames on multicast addresses we
+	 * aren't listening to. However, administrator should know if this is
+	 * the reason packets aren't receiving timestamps.
+	 */
+	if (cleared > 2)
+		dev_dbg(&pf->pdev->dev,
+			"Dropped %d missed RXTIME timestamp events\n",
+			cleared);
+
+	/* Finally, update the rx_hwtstamp_cleared counter */
+	pf->rx_hwtstamp_cleared += cleared;
 }
 
 /**

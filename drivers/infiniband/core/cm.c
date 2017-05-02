@@ -3409,6 +3409,8 @@ static void cm_process_send_error(struct ib_mad_send_buf *msg,
 	if (msg != cm_id_priv->msg || state != cm_id_priv->id.state)
 		goto discard;
 
+	pr_debug_ratelimited("CM: failed sending MAD in state %d. (%s)\n",
+			     state, ib_wc_status_msg(wc_status));
 	switch (state) {
 	case IB_CM_REQ_SENT:
 	case IB_CM_MRA_REQ_RCVD:

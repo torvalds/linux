@@ -34,6 +34,7 @@
 #include <linux/random.h>
 #include <linux/highmem.h>
 #include <crypto/skcipher.h>
+#include <crypto/aead.h>
 
 static int
 cifs_crypto_shash_md5_allocate(struct TCP_Server_Info *server)
@@ -75,24 +76,20 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 	struct kvec *iov = rqst->rq_iov;
 	int n_vec = rqst->rq_nvec;
 
-	for (i = 0; i < n_vec; i++) {
+	if (n_vec < 2 || iov[0].iov_len != 4)
+		return -EIO;
+
+	for (i = 1; i < n_vec; i++) {
 		if (iov[i].iov_len == 0)
 			continue;
 		if (iov[i].iov_base == NULL) {
 			cifs_dbg(VFS, "null iovec entry\n");
 			return -EIO;
 		}
-		/* The first entry includes a length field (which does not get
-		   signed that occupies the first 4 bytes before the header */
-		if (i == 0) {
-			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
-				break; /* nothing to sign or corrupt header */
-			rc = crypto_shash_update(shash,
-				iov[i].iov_base + 4, iov[i].iov_len - 4);
-		} else {
-			rc = crypto_shash_update(shash,
-				iov[i].iov_base, iov[i].iov_len);
-		}
+		if (i == 1 && iov[1].iov_len <= 4)
+			break; /* nothing to sign or corrupt header */
+		rc = crypto_shash_update(shash,
+					 iov[i].iov_base, iov[i].iov_len);
 		if (rc) {
 			cifs_dbg(VFS, "%s: Could not update with payload\n",
 				 __func__);
@@ -168,6 +165,10 @@ int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	char smb_signature[20];
 	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 
+	if (rqst->rq_iov[0].iov_len != 4 ||
+	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
+		return -EIO;
+
 	if ((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
@@ -209,12 +210,14 @@ int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 		  __u32 *pexpected_response_sequence_number)
 {
-	struct kvec iov;
+	struct kvec iov[2];
 
-	iov.iov_base = cifs_pdu;
-	iov.iov_len = be32_to_cpu(cifs_pdu->smb_buf_length) + 4;
+	iov[0].iov_base = cifs_pdu;
+	iov[0].iov_len = 4;
+	iov[1].iov_base = (char *)cifs_pdu + 4;
+	iov[1].iov_len = be32_to_cpu(cifs_pdu->smb_buf_length);
 
-	return cifs_sign_smbv(&iov, 1, server,
+	return cifs_sign_smbv(iov, 2, server,
 			      pexpected_response_sequence_number);
 }
 
@@ -226,6 +229,10 @@ int cifs_verify_signature(struct smb_rqst *rqst,
 	char server_response_sig[8];
 	char what_we_think_sig_should_be[20];
 	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
+
+	if (rqst->rq_iov[0].iov_len != 4 ||
+	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
+		return -EIO;
 
 	if (cifs_pdu == NULL || server == NULL)
 		return -EINVAL;
@@ -868,7 +875,7 @@ out:
 }
 
 void
-cifs_crypto_shash_release(struct TCP_Server_Info *server)
+cifs_crypto_secmech_release(struct TCP_Server_Info *server)
 {
 	if (server->secmech.cmacaes) {
 		crypto_free_shash(server->secmech.cmacaes);
@@ -888,6 +895,16 @@ cifs_crypto_shash_release(struct TCP_Server_Info *server)
 	if (server->secmech.hmacmd5) {
 		crypto_free_shash(server->secmech.hmacmd5);
 		server->secmech.hmacmd5 = NULL;
+	}
+
+	if (server->secmech.ccmaesencrypt) {
+		crypto_free_aead(server->secmech.ccmaesencrypt);
+		server->secmech.ccmaesencrypt = NULL;
+	}
+
+	if (server->secmech.ccmaesdecrypt) {
+		crypto_free_aead(server->secmech.ccmaesdecrypt);
+		server->secmech.ccmaesdecrypt = NULL;
 	}
 
 	kfree(server->secmech.sdesccmacaes);

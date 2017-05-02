@@ -20,7 +20,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/bootmem.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/err.h>
@@ -31,6 +31,8 @@
 #include <linux/irqflags.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/crash_dump.h>
 #include <linux/memblock.h>
 #include <asm/asm-offsets.h>
@@ -907,13 +909,11 @@ void __init smp_prepare_boot_cpu(void)
 {
 	struct pcpu *pcpu = pcpu_devices;
 
+	WARN_ON(!cpu_present(0) || !cpu_online(0));
 	pcpu->state = CPU_STATE_CONFIGURED;
-	pcpu->address = stap();
 	pcpu->lowcore = (struct lowcore *)(unsigned long) store_prefix();
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
-	set_cpu_present(0, true);
-	set_cpu_online(0, true);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -922,6 +922,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void __init smp_setup_processor_id(void)
 {
+	pcpu_devices[0].address = stap();
 	S390_lowcore.cpu_nr = 0;
 	S390_lowcore.spinlock_lockval = arch_spin_lockval(0);
 }

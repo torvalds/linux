@@ -46,6 +46,7 @@ config MFD_SUN4I_GPADC
 	select REGMAP_MMIO
 	select REGMAP_IRQ
 	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on !TOUCHSCREEN_SUN4I
 	help
 	  Select this to get support for Allwinner SoCs (A10, A13 and A31) ADC.
 	  This driver will only map the hardware interrupt and registers, you
@@ -506,17 +507,22 @@ config MFD_KEMPLD
 	  device may provide functions like watchdog, GPIO, UART and I2C bus.
 
 	  The following modules are supported:
+		* COMe-bBD#
 		* COMe-bBL6
 		* COMe-bHL6
+		* COMe-bSL6
 		* COMe-bIP#
+		* COMe-bKL6
 		* COMe-bPC2 (ETXexpress-PC)
 		* COMe-bSC# (ETXexpress-SC T#)
+		* COMe-cAL6
 		* COMe-cBL6
 		* COMe-cBT6
 		* COMe-cBW6
 		* COMe-cCT6
 		* COMe-cDC2 (microETXexpress-DC)
 		* COMe-cHL6
+		* COMe-cKL6
 		* COMe-cPC2 (microETXexpress-PC)
 		* COMe-cSL6
 		* COMe-mAL10
@@ -713,6 +719,17 @@ config EZX_PCAP
 	help
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
+
+config MFD_CPCAP
+	tristate "Support for Motorola CPCAP"
+	depends on SPI
+	depends on OF || COMPILE_TEST
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	help
+	  Say yes here if you want to include driver for CPCAP.
+	  It is used on many Motorola phones and tablets as a PMIC.
+	  At least Motorola Droid 4 is known to use CPCAP.
 
 config MFD_VIPERBOARD
         tristate "Nano River Technologies Viperboard"
@@ -1620,6 +1637,17 @@ config MFD_STW481X
 	  Select this option to enable the STw481x chip driver used
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
+
+config MFD_STM32_TIMERS
+	tristate "Support for STM32 Timers"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  Select this option to enable STM32 timers driver used
+	  for PWM and IIO Timer. This driver allow to share the
+	  registers between the others drivers.
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100

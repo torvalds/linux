@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/utsname.h>
+#include <linux/sched/debug.h>
 #ifdef CONFIG_KALLSYMS
 #include <linux/kallsyms.h>
 #endif

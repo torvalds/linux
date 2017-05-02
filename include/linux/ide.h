@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 /* for request_sense */
 #include <linux/cdrom.h>
+#include <scsi/scsi_cmnd.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
@@ -39,18 +40,53 @@
 
 struct device;
 
-/* IDE-specific values for req->cmd_type */
-enum ata_cmd_type_bits {
-	REQ_TYPE_ATA_TASKFILE = REQ_TYPE_DRV_PRIV + 1,
-	REQ_TYPE_ATA_PC,
-	REQ_TYPE_ATA_SENSE,	/* sense request */
-	REQ_TYPE_ATA_PM_SUSPEND,/* suspend request */
-	REQ_TYPE_ATA_PM_RESUME,	/* resume request */
+/* values for ide_request.type */
+enum ata_priv_type {
+	ATA_PRIV_MISC,
+	ATA_PRIV_TASKFILE,
+	ATA_PRIV_PC,
+	ATA_PRIV_SENSE,		/* sense request */
+	ATA_PRIV_PM_SUSPEND,	/* suspend request */
+	ATA_PRIV_PM_RESUME,	/* resume request */
 };
 
-#define ata_pm_request(rq)	\
-	((rq)->cmd_type == REQ_TYPE_ATA_PM_SUSPEND || \
-	 (rq)->cmd_type == REQ_TYPE_ATA_PM_RESUME)
+struct ide_request {
+	struct scsi_request sreq;
+	u8 sense[SCSI_SENSE_BUFFERSIZE];
+	u8 type;
+};
+
+static inline struct ide_request *ide_req(struct request *rq)
+{
+	return blk_mq_rq_to_pdu(rq);
+}
+
+static inline bool ata_misc_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_MISC;
+}
+
+static inline bool ata_taskfile_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_TASKFILE;
+}
+
+static inline bool ata_pc_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_PC;
+}
+
+static inline bool ata_sense_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) && ide_req(rq)->type == ATA_PRIV_SENSE;
+}
+
+static inline bool ata_pm_request(struct request *rq)
+{
+	return blk_rq_is_private(rq) &&
+		(ide_req(rq)->type == ATA_PRIV_PM_SUSPEND ||
+		 ide_req(rq)->type == ATA_PRIV_PM_RESUME);
+}
 
 /* Error codes returned in rq->errors to the higher part of the driver. */
 enum {
@@ -579,7 +615,7 @@ struct ide_drive_s {
 
 	/* current sense rq and buffer */
 	bool sense_rq_armed;
-	struct request sense_rq;
+	struct request *sense_rq;
 	struct request_sense sense_data;
 };
 

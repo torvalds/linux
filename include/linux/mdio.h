@@ -10,6 +10,7 @@
 #define __LINUX_MDIO_H__
 
 #include <uapi/linux/mdio.h>
+#include <linux/mod_devicetable.h>
 
 struct mii_bus;
 
@@ -29,6 +30,7 @@ struct mdio_device {
 
 	const struct dev_pm_ops *pm_ops;
 	struct mii_bus *bus;
+	char modalias[MDIO_NAME_SIZE];
 
 	int (*bus_match)(struct device *dev, struct device_driver *drv);
 	void (*device_free)(struct mdio_device *mdiodev);
@@ -71,6 +73,7 @@ int mdio_device_register(struct mdio_device *mdiodev);
 void mdio_device_remove(struct mdio_device *mdiodev);
 int mdio_driver_register(struct mdio_driver *drv);
 void mdio_driver_unregister(struct mdio_driver *drv);
+int mdio_device_bus_match(struct device *dev, struct device_driver *drv);
 
 static inline bool mdio_phy_id_is_c45(int phy_id)
 {
@@ -130,6 +133,10 @@ extern int mdio45_nway_restart(const struct mdio_if_info *mdio);
 extern void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 				      struct ethtool_cmd *ecmd,
 				      u32 npage_adv, u32 npage_lpa);
+extern void
+mdio45_ethtool_ksettings_get_npage(const struct mdio_if_info *mdio,
+				   struct ethtool_link_ksettings *cmd,
+				   u32 npage_adv, u32 npage_lpa);
 
 /**
  * mdio45_ethtool_gset - get settings for ETHTOOL_GSET
@@ -145,6 +152,23 @@ static inline void mdio45_ethtool_gset(const struct mdio_if_info *mdio,
 				       struct ethtool_cmd *ecmd)
 {
 	mdio45_ethtool_gset_npage(mdio, ecmd, 0, 0);
+}
+
+/**
+ * mdio45_ethtool_ksettings_get - get settings for ETHTOOL_GLINKSETTINGS
+ * @mdio: MDIO interface
+ * @cmd: Ethtool request structure
+ *
+ * Since the CSRs for auto-negotiation using next pages are not fully
+ * standardised, this function does not attempt to decode them.  Use
+ * mdio45_ethtool_ksettings_get_npage() to specify advertisement bits
+ * from next pages.
+ */
+static inline void
+mdio45_ethtool_ksettings_get(const struct mdio_if_info *mdio,
+			     struct ethtool_link_ksettings *cmd)
+{
+	mdio45_ethtool_ksettings_get_npage(mdio, cmd, 0, 0);
 }
 
 extern int mdio_mii_ioctl(const struct mdio_if_info *mdio,
@@ -244,7 +268,7 @@ bool mdiobus_is_registered_device(struct mii_bus *bus, int addr);
 struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
 
 /**
- * module_mdio_driver() - Helper macro for registering mdio drivers
+ * mdio_module_driver() - Helper macro for registering mdio drivers
  *
  * Helper macro for MDIO drivers which do not do anything special in module
  * init/exit. Each module may only use this macro once, and calling it

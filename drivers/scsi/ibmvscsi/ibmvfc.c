@@ -3090,6 +3090,7 @@ static struct scsi_host_template driver_template = {
 	.name = "IBM POWER Virtual FC Adapter",
 	.proc_name = IBMVFC_NAME,
 	.queuecommand = ibmvfc_queuecommand,
+	.eh_timed_out = fc_eh_timed_out,
 	.eh_abort_handler = ibmvfc_eh_abort_handler,
 	.eh_device_reset_handler = ibmvfc_eh_device_reset_handler,
 	.eh_target_reset_handler = ibmvfc_eh_target_reset_handler,

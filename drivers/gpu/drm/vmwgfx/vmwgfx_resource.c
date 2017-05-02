@@ -589,7 +589,7 @@ static int vmw_user_dmabuf_synccpu_grab(struct vmw_user_dma_buffer *user_bo,
 		return ret;
 
 	ret = ttm_ref_object_add(tfile, &user_bo->prime.base,
-				 TTM_REF_SYNCCPU_WRITE, &existed);
+				 TTM_REF_SYNCCPU_WRITE, &existed, false);
 	if (ret != 0 || existed)
 		ttm_bo_synccpu_write_release(&user_bo->dma.base);
 
@@ -773,7 +773,7 @@ int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
 
 	*handle = user_bo->prime.base.hash.key;
 	return ttm_ref_object_add(tfile, &user_bo->prime.base,
-				  TTM_REF_USAGE, NULL);
+				  TTM_REF_USAGE, NULL, false);
 }
 
 /*
@@ -1760,7 +1760,7 @@ void vmw_resource_unpin(struct vmw_resource *res)
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
 
-	ttm_read_lock(&dev_priv->reservation_sem, false);
+	(void) ttm_read_lock(&dev_priv->reservation_sem, false);
 	mutex_lock(&dev_priv->cmdbuf_mutex);
 
 	ret = vmw_resource_reserve(res, false, true);
@@ -1770,7 +1770,7 @@ void vmw_resource_unpin(struct vmw_resource *res)
 	if (--res->pin_count == 0 && res->backup) {
 		struct vmw_dma_buffer *vbo = res->backup;
 
-		ttm_bo_reserve(&vbo->base, false, false, NULL);
+		(void) ttm_bo_reserve(&vbo->base, false, false, NULL);
 		vmw_bo_pin_reserved(vbo, false);
 		ttm_bo_unreserve(&vbo->base);
 	}

@@ -58,27 +58,30 @@ int
 nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == pipe) {
-			nvif_notify_get(&nv_crtc->vblank);
-			return 0;
-		}
-	}
-	return -EINVAL;
+	struct nouveau_crtc *nv_crtc;
+
+	crtc = drm_crtc_from_index(dev, pipe);
+	if (!crtc)
+		return -EINVAL;
+
+	nv_crtc = nouveau_crtc(crtc);
+	nvif_notify_get(&nv_crtc->vblank);
+
+	return 0;
 }
 
 void
 nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == pipe) {
-			nvif_notify_put(&nv_crtc->vblank);
-			return;
-		}
-	}
+	struct nouveau_crtc *nv_crtc;
+
+	crtc = drm_crtc_from_index(dev, pipe);
+	if (!crtc)
+		return;
+
+	nv_crtc = nouveau_crtc(crtc);
+	nvif_notify_put(&nv_crtc->vblank);
 }
 
 static inline int
@@ -162,7 +165,7 @@ nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (nouveau_crtc(crtc)->index == pipe) {
 			struct drm_display_mode *mode;
-			if (dev->mode_config.funcs->atomic_commit)
+			if (drm_drv_uses_atomic_modeset(dev))
 				mode = &crtc->state->adjusted_mode;
 			else
 				mode = &crtc->hwmode;
@@ -259,7 +262,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
 		return -ENOMEM;
 
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
 	fb->nvbo = nvbo;
 
 	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
@@ -493,7 +496,7 @@ int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_device *device = nvxx_device(&drm->device);
+	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_display *disp;
 	int ret;
 
@@ -510,15 +513,15 @@ nouveau_display_create(struct drm_device *dev)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_CELSIUS) {
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		dev->mode_config.max_width = 2048;
 		dev->mode_config.max_height = 2048;
 	} else
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
 	} else
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI) {
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI) {
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
 	} else {
@@ -529,7 +532,7 @@ nouveau_display_create(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
-	if (drm->device.info.chipset < 0x11)
+	if (drm->client.device.info.chipset < 0x11)
 		dev->mode_config.async_page_flip = false;
 	else
 		dev->mode_config.async_page_flip = true;
@@ -556,7 +559,7 @@ nouveau_display_create(struct drm_device *dev)
 		int i;
 
 		for (i = 0, ret = -ENODEV; ret && i < ARRAY_SIZE(oclass); i++) {
-			ret = nvif_object_init(&drm->device.object, 0,
+			ret = nvif_object_init(&drm->client.device.object, 0,
 					       oclass[i], NULL, 0, &disp->disp);
 		}
 
@@ -739,7 +742,7 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct drm_crtc *crtc;
 
-	if (dev->mode_config.funcs->atomic_commit) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		if (!runtime) {
 			disp->suspend = nouveau_atomic_suspend(dev);
 			if (IS_ERR(disp->suspend)) {
@@ -785,7 +788,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 	struct drm_crtc *crtc;
 	int ret;
 
-	if (dev->mode_config.funcs->atomic_commit) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		nouveau_display_init(dev);
 		if (disp->suspend) {
 			drm_atomic_helper_resume(dev, disp->suspend);
@@ -948,7 +951,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
-		{ { }, event, crtc, fb->bits_per_pixel, fb->pitches[0],
+		{ { }, event, crtc, fb->format->cpp[0] * 8, fb->pitches[0],
 		  new_bo->bo.offset };
 
 	/* Keep vblanks on during flip, for the target crtc of this flip */
@@ -1055,6 +1058,7 @@ int
 nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 			    struct drm_mode_create_dumb *args)
 {
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *bo;
 	uint32_t domain;
 	int ret;
@@ -1064,12 +1068,12 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	args->size = roundup(args->size, PAGE_SIZE);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	if (nouveau_drm(dev)->device.info.ram_size != 0)
+	if (nouveau_drm(dev)->client.device.info.ram_size != 0)
 		domain = NOUVEAU_GEM_DOMAIN_VRAM;
 	else
 		domain = NOUVEAU_GEM_DOMAIN_GART;
 
-	ret = nouveau_gem_new(dev, args->size, 0, domain, 0, 0, &bo);
+	ret = nouveau_gem_new(cli, args->size, 0, domain, 0, 0, &bo);
 	if (ret)
 		return ret;
 

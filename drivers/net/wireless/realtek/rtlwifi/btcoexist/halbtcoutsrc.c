@@ -141,9 +141,38 @@ static u8 halbtc_get_wifi_central_chnl(struct btc_coexist *btcoexist)
 
 	if (rtlphy->current_channel != 0)
 		chnl = rtlphy->current_channel;
-	btc_alg_dbg(ALGO_TRACE,
-		    "static halbtc_get_wifi_central_chnl:%d\n", chnl);
+	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		 "static halbtc_get_wifi_central_chnl:%d\n", chnl);
 	return chnl;
+}
+
+u8 rtl_get_hwpg_single_ant_path(struct rtl_priv *rtlpriv)
+{
+	return rtlpriv->btcoexist.btc_info.single_ant_path;
+}
+
+u8 rtl_get_hwpg_bt_type(struct rtl_priv *rtlpriv)
+{
+	return rtlpriv->btcoexist.btc_info.bt_type;
+}
+
+u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv)
+{
+	u8 num;
+
+	if (rtlpriv->btcoexist.btc_info.ant_num == ANT_X2)
+		num = 2;
+	else
+		num = 1;
+
+	return num;
+}
+
+u8 rtl_get_hwpg_package_type(struct rtl_priv *rtlpriv)
+{
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+
+	return rtlhal->package_type;
 }
 
 static void halbtc_leave_lps(struct btc_coexist *btcoexist)
@@ -334,6 +363,9 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 		break;
 	case BTC_GET_U4_BT_PATCH_VER:
 		*u32_tmp = halbtc_get_bt_patch_version(btcoexist);
+		break;
+	case BTC_GET_U4_VENDOR:
+		*u32_tmp = BTC_VENDOR_OTHER;
 		break;
 	case BTC_GET_U1_WIFI_DOT11_CHNL:
 		*u8_tmp = rtlphy->current_channel;

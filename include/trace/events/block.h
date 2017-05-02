@@ -73,19 +73,17 @@ DECLARE_EVENT_CLASS(block_rq_with_error,
 		__field(  unsigned int,	nr_sector		)
 		__field(  int,		errors			)
 		__array(  char,		rwbs,	RWBS_LEN	)
-		__dynamic_array( char,	cmd,	blk_cmd_buf_len(rq)	)
+		__dynamic_array( char,	cmd,	1		)
 	),
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
-					0 : blk_rq_pos(rq);
-		__entry->nr_sector = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
-					0 : blk_rq_sectors(rq);
+		__entry->sector    = blk_rq_trace_sector(rq);
+		__entry->nr_sector = blk_rq_trace_nr_sectors(rq);
 		__entry->errors    = rq->errors;
 
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
-		blk_dump_cmd(__get_str(cmd), rq);
+		__get_str(cmd)[0] = '\0';
 	),
 
 	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
@@ -153,7 +151,7 @@ TRACE_EVENT(block_rq_complete,
 		__field(  unsigned int,	nr_sector		)
 		__field(  int,		errors			)
 		__array(  char,		rwbs,	RWBS_LEN	)
-		__dynamic_array( char,	cmd,	blk_cmd_buf_len(rq)	)
+		__dynamic_array( char,	cmd,	1		)
 	),
 
 	TP_fast_assign(
@@ -163,7 +161,7 @@ TRACE_EVENT(block_rq_complete,
 		__entry->errors    = rq->errors;
 
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, nr_bytes);
-		blk_dump_cmd(__get_str(cmd), rq);
+		__get_str(cmd)[0] = '\0';
 	),
 
 	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
@@ -186,20 +184,17 @@ DECLARE_EVENT_CLASS(block_rq,
 		__field(  unsigned int,	bytes			)
 		__array(  char,		rwbs,	RWBS_LEN	)
 		__array(  char,         comm,   TASK_COMM_LEN   )
-		__dynamic_array( char,	cmd,	blk_cmd_buf_len(rq)	)
+		__dynamic_array( char,	cmd,	1		)
 	),
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
-					0 : blk_rq_pos(rq);
-		__entry->nr_sector = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
-					0 : blk_rq_sectors(rq);
-		__entry->bytes     = (rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
-					blk_rq_bytes(rq) : 0;
+		__entry->sector    = blk_rq_trace_sector(rq);
+		__entry->nr_sector = blk_rq_trace_nr_sectors(rq);
+		__entry->bytes     = blk_rq_bytes(rq);
 
 		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags, blk_rq_bytes(rq));
-		blk_dump_cmd(__get_str(cmd), rq);
+		__get_str(cmd)[0] = '\0';
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 	),
 

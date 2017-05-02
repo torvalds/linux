@@ -61,7 +61,7 @@
 		compatible = "mmc-pwrseq-emmc";
 		pinctrl-0 = <&emmc_reset>;
 		pinctrl-names = "default";
-		reset-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
 	};
 
 	ext_gmac: external-gmac-clock {
@@ -78,7 +78,7 @@
 
 		power {
 			wakeup-source;
-			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 			label = "GPIO Power";
 			linux,code = <KEY_POWER>;
 		};
@@ -88,7 +88,7 @@
 		compatible = "gpio-leds";
 
 		red {
-			gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 			label = "orion:red:led";
 			pinctrl-names = "default";
 			pinctrl-0 = <&led_ctl>;
@@ -96,7 +96,7 @@
 		};
 
 		blue {
-			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 			label = "orion:blue:led";
 			pinctrl-names = "default";
 			pinctrl-0 = <&stby_pwren>;
@@ -117,7 +117,7 @@
 	/* supplies both host and otg */
 	vcc_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio0 4 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc_host";
@@ -149,7 +149,7 @@
 	vcc_sd: vcc-sd-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sd";
-		gpio = <&gpio3 11 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_io>;
@@ -217,7 +217,7 @@
 	phy-mode = "rgmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins>;
-	snps,reset-gpio = <&gpio3 12 0>;
+	snps,reset-gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
 	tx_delay = <0x30>;

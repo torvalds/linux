@@ -41,6 +41,8 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
+#include <linux/sched/signal.h>
+
 #include <asm/irq.h>
 #include <asm/io.h>
 #include "sound_config.h"

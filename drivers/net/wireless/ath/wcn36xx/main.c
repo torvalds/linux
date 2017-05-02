@@ -21,6 +21,10 @@
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
+#include <linux/soc/qcom/smd.h>
+#include <linux/soc/qcom/smem_state.h>
+#include <linux/soc/qcom/wcnss_ctrl.h>
 #include "wcn36xx.h"
 
 unsigned int wcn36xx_dbg_mask;
@@ -564,23 +568,81 @@ out:
 	return ret;
 }
 
-static void wcn36xx_sw_scan_start(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif,
-				  const u8 *mac_addr)
+static void wcn36xx_hw_scan_worker(struct work_struct *work)
 {
-	struct wcn36xx *wcn = hw->priv;
+	struct wcn36xx *wcn = container_of(work, struct wcn36xx, scan_work);
+	struct cfg80211_scan_request *req = wcn->scan_req;
+	u8 channels[WCN36XX_HAL_PNO_MAX_NETW_CHANNELS_EX];
+	struct cfg80211_scan_info scan_info = {};
+	bool aborted = false;
+	int i;
+
+	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac80211 scan %d channels worker\n", req->n_channels);
+
+	for (i = 0; i < req->n_channels; i++)
+		channels[i] = req->channels[i]->hw_value;
+
+	wcn36xx_smd_update_scan_params(wcn, channels, req->n_channels);
 
 	wcn36xx_smd_init_scan(wcn, HAL_SYS_MODE_SCAN);
-	wcn36xx_smd_start_scan(wcn);
+	for (i = 0; i < req->n_channels; i++) {
+		mutex_lock(&wcn->scan_lock);
+		aborted = wcn->scan_aborted;
+		mutex_unlock(&wcn->scan_lock);
+
+		if (aborted)
+			break;
+
+		wcn->scan_freq = req->channels[i]->center_freq;
+		wcn->scan_band = req->channels[i]->band;
+
+		wcn36xx_smd_start_scan(wcn, req->channels[i]->hw_value);
+		msleep(30);
+		wcn36xx_smd_end_scan(wcn, req->channels[i]->hw_value);
+
+		wcn->scan_freq = 0;
+	}
+	wcn36xx_smd_finish_scan(wcn, HAL_SYS_MODE_SCAN);
+
+	scan_info.aborted = aborted;
+	ieee80211_scan_completed(wcn->hw, &scan_info);
+
+	mutex_lock(&wcn->scan_lock);
+	wcn->scan_req = NULL;
+	mutex_unlock(&wcn->scan_lock);
 }
 
-static void wcn36xx_sw_scan_complete(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
+static int wcn36xx_hw_scan(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_scan_request *hw_req)
 {
 	struct wcn36xx *wcn = hw->priv;
 
-	wcn36xx_smd_end_scan(wcn);
-	wcn36xx_smd_finish_scan(wcn, HAL_SYS_MODE_SCAN);
+	mutex_lock(&wcn->scan_lock);
+	if (wcn->scan_req) {
+		mutex_unlock(&wcn->scan_lock);
+		return -EBUSY;
+	}
+
+	wcn->scan_aborted = false;
+	wcn->scan_req = &hw_req->req;
+	mutex_unlock(&wcn->scan_lock);
+
+	schedule_work(&wcn->scan_work);
+
+	return 0;
+}
+
+static void wcn36xx_cancel_hw_scan(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
+{
+	struct wcn36xx *wcn = hw->priv;
+
+	mutex_lock(&wcn->scan_lock);
+	wcn->scan_aborted = true;
+	mutex_unlock(&wcn->scan_lock);
+
+	cancel_work_sync(&wcn->scan_work);
 }
 
 static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
@@ -993,8 +1055,8 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.configure_filter       = wcn36xx_configure_filter,
 	.tx			= wcn36xx_tx,
 	.set_key		= wcn36xx_set_key,
-	.sw_scan_start		= wcn36xx_sw_scan_start,
-	.sw_scan_complete	= wcn36xx_sw_scan_complete,
+	.hw_scan		= wcn36xx_hw_scan,
+	.cancel_hw_scan		= wcn36xx_cancel_hw_scan,
 	.bss_info_changed	= wcn36xx_bss_info_changed,
 	.set_rts_threshold	= wcn36xx_set_rts_threshold,
 	.sta_add		= wcn36xx_sta_add,
@@ -1019,6 +1081,7 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 	ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
 	ieee80211_hw_set(wcn->hw, SIGNAL_DBM);
 	ieee80211_hw_set(wcn->hw, HAS_RATE_CONTROL);
+	ieee80211_hw_set(wcn->hw, SINGLE_SCAN_ON_ALL_BANDS);
 
 	wcn->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_AP) |
@@ -1027,6 +1090,9 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 
 	wcn->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wcn_band_2ghz;
 	wcn->hw->wiphy->bands[NL80211_BAND_5GHZ] = &wcn_band_5ghz;
+
+	wcn->hw->wiphy->max_scan_ssids = WCN36XX_MAX_SCAN_SSIDS;
+	wcn->hw->wiphy->max_scan_ie_len = WCN36XX_MAX_SCAN_IE_LEN;
 
 	wcn->hw->wiphy->cipher_suites = cipher_suites;
 	wcn->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
@@ -1058,8 +1124,7 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	int ret;
 
 	/* Set TX IRQ */
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					   "wcnss_wlantx_irq");
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tx");
 	if (!res) {
 		wcn36xx_err("failed to get tx_irq\n");
 		return -ENOENT;
@@ -1067,13 +1132,28 @@ static int wcn36xx_platform_get_resources(struct wcn36xx *wcn,
 	wcn->tx_irq = res->start;
 
 	/* Set RX IRQ */
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					   "wcnss_wlanrx_irq");
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "rx");
 	if (!res) {
 		wcn36xx_err("failed to get rx_irq\n");
 		return -ENOENT;
 	}
 	wcn->rx_irq = res->start;
+
+	/* Acquire SMSM tx enable handle */
+	wcn->tx_enable_state = qcom_smem_state_get(&pdev->dev,
+			"tx-enable", &wcn->tx_enable_state_bit);
+	if (IS_ERR(wcn->tx_enable_state)) {
+		wcn36xx_err("failed to get tx-enable state\n");
+		return PTR_ERR(wcn->tx_enable_state);
+	}
+
+	/* Acquire SMSM tx rings empty handle */
+	wcn->tx_rings_empty_state = qcom_smem_state_get(&pdev->dev,
+			"tx-rings-empty", &wcn->tx_rings_empty_state_bit);
+	if (IS_ERR(wcn->tx_rings_empty_state)) {
+		wcn36xx_err("failed to get tx-rings-empty state\n");
+		return PTR_ERR(wcn->tx_rings_empty_state);
+	}
 
 	mmio_node = of_parse_phandle(pdev->dev.parent->of_node, "qcom,mmio", 0);
 	if (!mmio_node) {
@@ -1115,10 +1195,13 @@ static int wcn36xx_probe(struct platform_device *pdev)
 {
 	struct ieee80211_hw *hw;
 	struct wcn36xx *wcn;
+	void *wcnss;
 	int ret;
-	u8 addr[ETH_ALEN];
+	const u8 *addr;
 
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform probe\n");
+
+	wcnss = dev_get_drvdata(pdev->dev.parent);
 
 	hw = ieee80211_alloc_hw(sizeof(struct wcn36xx), &wcn36xx_ops);
 	if (!hw) {
@@ -1130,11 +1213,26 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	wcn = hw->priv;
 	wcn->hw = hw;
 	wcn->dev = &pdev->dev;
-	wcn->ctrl_ops = pdev->dev.platform_data;
-
 	mutex_init(&wcn->hal_mutex);
+	mutex_init(&wcn->scan_lock);
 
-	if (!wcn->ctrl_ops->get_hw_mac(addr)) {
+	INIT_WORK(&wcn->scan_work, wcn36xx_hw_scan_worker);
+
+	wcn->smd_channel = qcom_wcnss_open_channel(wcnss, "WLAN_CTRL", wcn36xx_smd_rsp_process);
+	if (IS_ERR(wcn->smd_channel)) {
+		wcn36xx_err("failed to open WLAN_CTRL channel\n");
+		ret = PTR_ERR(wcn->smd_channel);
+		goto out_wq;
+	}
+
+	qcom_smd_set_drvdata(wcn->smd_channel, hw);
+
+	addr = of_get_property(pdev->dev.of_node, "local-mac-address", &ret);
+	if (addr && ret != ETH_ALEN) {
+		wcn36xx_err("invalid local-mac-address\n");
+		ret = -EINVAL;
+		goto out_wq;
+	} else if (addr) {
 		wcn36xx_info("mac address: %pM\n", addr);
 		SET_IEEE80211_PERM_ADDR(wcn->hw, addr);
 	}
@@ -1158,6 +1256,7 @@ out_wq:
 out_err:
 	return ret;
 }
+
 static int wcn36xx_remove(struct platform_device *pdev)
 {
 	struct ieee80211_hw *hw = platform_get_drvdata(pdev);
@@ -1165,45 +1264,37 @@ static int wcn36xx_remove(struct platform_device *pdev)
 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform remove\n");
 
 	release_firmware(wcn->nv);
-	mutex_destroy(&wcn->hal_mutex);
 
 	ieee80211_unregister_hw(hw);
+
+	qcom_smem_state_put(wcn->tx_enable_state);
+	qcom_smem_state_put(wcn->tx_rings_empty_state);
+
 	iounmap(wcn->dxe_base);
 	iounmap(wcn->ccu_base);
+
+	mutex_destroy(&wcn->hal_mutex);
 	ieee80211_free_hw(hw);
 
 	return 0;
 }
-static const struct platform_device_id wcn36xx_platform_id_table[] = {
-	{
-		.name = "wcn36xx",
-		.driver_data = 0
-	},
+
+static const struct of_device_id wcn36xx_of_match[] = {
+	{ .compatible = "qcom,wcnss-wlan" },
 	{}
 };
-MODULE_DEVICE_TABLE(platform, wcn36xx_platform_id_table);
+MODULE_DEVICE_TABLE(of, wcn36xx_of_match);
 
 static struct platform_driver wcn36xx_driver = {
 	.probe      = wcn36xx_probe,
 	.remove     = wcn36xx_remove,
 	.driver         = {
 		.name   = "wcn36xx",
+		.of_match_table = wcn36xx_of_match,
 	},
-	.id_table    = wcn36xx_platform_id_table,
 };
 
-static int __init wcn36xx_init(void)
-{
-	platform_driver_register(&wcn36xx_driver);
-	return 0;
-}
-module_init(wcn36xx_init);
-
-static void __exit wcn36xx_exit(void)
-{
-	platform_driver_unregister(&wcn36xx_driver);
-}
-module_exit(wcn36xx_exit);
+module_platform_driver(wcn36xx_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Eugene Krasnikov k.eugene.e@gmail.com");

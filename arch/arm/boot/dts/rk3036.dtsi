@@ -189,7 +189,7 @@
 		#address-cells = <0>;
 
 		reg = <0x10139000 0x1000>,
-		      <0x1013a000 0x1000>,
+		      <0x1013a000 0x2000>,
 		      <0x1013c000 0x2000>,
 		      <0x1013e000 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;

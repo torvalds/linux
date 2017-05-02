@@ -15,6 +15,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <net/vxlan.h>
@@ -151,7 +152,7 @@ struct octnic_gather {
 	 */
 	struct octeon_sg_entry *sg;
 
-	u64 sg_dma_ptr;
+	dma_addr_t sg_dma_ptr;
 };
 
 struct handshake {
@@ -733,6 +734,9 @@ static void delete_glists(struct lio *lio)
 	struct octnic_gather *g;
 	int i;
 
+	kfree(lio->glist_lock);
+	lio->glist_lock = NULL;
+
 	if (!lio->glist)
 		return;
 
@@ -740,23 +744,26 @@ static void delete_glists(struct lio *lio)
 		do {
 			g = (struct octnic_gather *)
 				list_delete_head(&lio->glist[i]);
-			if (g) {
-				if (g->sg) {
-					dma_unmap_single(&lio->oct_dev->
-							 pci_dev->dev,
-							 g->sg_dma_ptr,
-							 g->sg_size,
-							 DMA_TO_DEVICE);
-					kfree((void *)((unsigned long)g->sg -
-						       g->adjust));
-				}
+			if (g)
 				kfree(g);
-			}
 		} while (g);
+
+		if (lio->glists_virt_base && lio->glists_virt_base[i]) {
+			lio_dma_free(lio->oct_dev,
+				     lio->glist_entry_size * lio->tx_qsize,
+				     lio->glists_virt_base[i],
+				     lio->glists_dma_base[i]);
+		}
 	}
 
-	kfree((void *)lio->glist);
-	kfree((void *)lio->glist_lock);
+	kfree(lio->glists_virt_base);
+	lio->glists_virt_base = NULL;
+
+	kfree(lio->glists_dma_base);
+	lio->glists_dma_base = NULL;
+
+	kfree(lio->glist);
+	lio->glist = NULL;
 }
 
 /**
@@ -771,13 +778,30 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	lio->glist_lock = kcalloc(num_iqs, sizeof(*lio->glist_lock),
 				  GFP_KERNEL);
 	if (!lio->glist_lock)
-		return 1;
+		return -ENOMEM;
 
 	lio->glist = kcalloc(num_iqs, sizeof(*lio->glist),
 			     GFP_KERNEL);
 	if (!lio->glist) {
-		kfree((void *)lio->glist_lock);
-		return 1;
+		kfree(lio->glist_lock);
+		lio->glist_lock = NULL;
+		return -ENOMEM;
+	}
+
+	lio->glist_entry_size =
+		ROUNDUP8((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);
+
+	/* allocate memory to store virtual and dma base address of
+	 * per glist consistent memory
+	 */
+	lio->glists_virt_base = kcalloc(num_iqs, sizeof(*lio->glists_virt_base),
+					GFP_KERNEL);
+	lio->glists_dma_base = kcalloc(num_iqs, sizeof(*lio->glists_dma_base),
+				       GFP_KERNEL);
+
+	if (!lio->glists_virt_base || !lio->glists_dma_base) {
+		delete_glists(lio);
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < num_iqs; i++) {
@@ -787,6 +811,16 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 
 		INIT_LIST_HEAD(&lio->glist[i]);
 
+		lio->glists_virt_base[i] =
+			lio_dma_alloc(oct,
+				      lio->glist_entry_size * lio->tx_qsize,
+				      &lio->glists_dma_base[i]);
+
+		if (!lio->glists_virt_base[i]) {
+			delete_glists(lio);
+			return -ENOMEM;
+		}
+
 		for (j = 0; j < lio->tx_qsize; j++) {
 			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
 					 numa_node);
@@ -795,43 +829,18 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 			if (!g)
 				break;
 
-			g->sg_size = ((ROUNDUP4(OCTNIC_MAX_SG) >> 2) *
-				      OCT_SG_ENTRY_SIZE);
+			g->sg = lio->glists_virt_base[i] +
+				(j * lio->glist_entry_size);
 
-			g->sg = kmalloc_node(g->sg_size + 8,
-					     GFP_KERNEL, numa_node);
-			if (!g->sg)
-				g->sg = kmalloc(g->sg_size + 8, GFP_KERNEL);
-			if (!g->sg) {
-				kfree(g);
-				break;
-			}
-
-			/* The gather component should be aligned on 64-bit
-			 * boundary
-			 */
-			if (((unsigned long)g->sg) & 7) {
-				g->adjust = 8 - (((unsigned long)g->sg) & 7);
-				g->sg = (struct octeon_sg_entry *)
-					((unsigned long)g->sg + g->adjust);
-			}
-			g->sg_dma_ptr = dma_map_single(&oct->pci_dev->dev,
-						       g->sg, g->sg_size,
-						       DMA_TO_DEVICE);
-			if (dma_mapping_error(&oct->pci_dev->dev,
-					      g->sg_dma_ptr)) {
-				kfree((void *)((unsigned long)g->sg -
-					       g->adjust));
-				kfree(g);
-				break;
-			}
+			g->sg_dma_ptr = lio->glists_dma_base[i] +
+					(j * lio->glist_entry_size);
 
 			list_add_tail(&g->list, &lio->glist[i]);
 		}
 
 		if (j != lio->tx_qsize) {
 			delete_glists(lio);
-			return 1;
+			return -ENOMEM;
 		}
 	}
 
@@ -1884,9 +1893,6 @@ static void free_netsgbuf(void *buf)
 		i++;
 	}
 
-	dma_sync_single_for_cpu(&lio->oct_dev->pci_dev->dev,
-				g->sg_dma_ptr, g->sg_size, DMA_TO_DEVICE);
-
 	iq = skb_iq(lio, skb);
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
@@ -1931,9 +1937,6 @@ static void free_netsgbuf_with_resp(void *buf)
 			       frag->size, DMA_TO_DEVICE);
 		i++;
 	}
-
-	dma_sync_single_for_cpu(&lio->oct_dev->pci_dev->dev,
-				g->sg_dma_ptr, g->sg_size, DMA_TO_DEVICE);
 
 	iq = skb_iq(lio, skb);
 
@@ -2223,25 +2226,6 @@ static void if_cfg_callback(struct octeon_device *oct,
 	wake_up_interruptible(&ctx->wc);
 }
 
-/**
- * \brief Select queue based on hash
- * @param dev Net device
- * @param skb sk_buff structure
- * @returns selected queue number
- */
-static u16 select_q(struct net_device *dev, struct sk_buff *skb,
-		    void *accel_priv __attribute__((unused)),
-		    select_queue_fallback_t fallback __attribute__((unused)))
-{
-	u32 qindex = 0;
-	struct lio *lio;
-
-	lio = GET_LIO(dev);
-	qindex = skb_tx_hash(dev, skb);
-
-	return (u16)(qindex % (lio->linfo.num_txpciq));
-}
-
 /** Routine to push packets arriving on Octeon interface upto network layer.
  * @param oct_id   - octeon device id.
  * @param skbuff   - skbuff struct to be passed to network layer.
@@ -2263,6 +2247,7 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 	struct skb_shared_hwtstamps *shhwtstamps;
 	u64 ns;
 	u16 vtag = 0;
+	u32 r_dh_off;
 	struct net_device *netdev = (struct net_device *)arg;
 	struct octeon_droq *droq = container_of(param, struct octeon_droq,
 						napi);
@@ -2308,6 +2293,8 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 			put_page(pg_info->page);
 		}
 
+		r_dh_off = (rh->r_dh.len - 1) * BYTES_PER_DHLEN_UNIT;
+
 		if (((oct->chip_id == OCTEON_CN66XX) ||
 		     (oct->chip_id == OCTEON_CN68XX)) &&
 		    ptp_enable) {
@@ -2320,15 +2307,26 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 					/* Nanoseconds are in the first 64-bits
 					 * of the packet.
 					 */
-					memcpy(&ns, (skb->data), sizeof(ns));
+					memcpy(&ns, (skb->data + r_dh_off),
+					       sizeof(ns));
+					r_dh_off -= BYTES_PER_DHLEN_UNIT;
 					shhwtstamps = skb_hwtstamps(skb);
 					shhwtstamps->hwtstamp =
 						ns_to_ktime(ns +
 							    lio->ptp_adjust);
 				}
-				skb_pull(skb, sizeof(ns));
 			}
 		}
+
+		if (rh->r_dh.has_hash) {
+			__be32 *hash_be = (__be32 *)(skb->data + r_dh_off);
+			u32 hash = be32_to_cpu(*hash_be);
+
+			skb_set_hash(skb, hash, PKT_HASH_TYPE_L4);
+			r_dh_off -= BYTES_PER_DHLEN_UNIT;
+		}
+
+		skb_pull(skb, rh->r_dh.len * BYTES_PER_DHLEN_UNIT);
 
 		skb->protocol = eth_type_trans(skb, skb->dev);
 		if ((netdev->features & NETIF_F_RXCSUM) &&
@@ -2365,7 +2363,6 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		if (packet_was_received) {
 			droq->stats.rx_bytes_received += len;
 			droq->stats.rx_pkts_received++;
-			netdev->last_rx = jiffies;
 		} else {
 			droq->stats.rx_dropped++;
 			netif_info(lio, rx_err, lio->netdev,
@@ -2441,7 +2438,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 	iq = oct->instr_queue[iq_no];
 	if (iq) {
 		/* Process iq buffers with in the budget limits */
-		tx_done = octeon_flush_iq(oct, iq, 1, budget);
+		tx_done = octeon_flush_iq(oct, iq, budget);
 		/* Update iq read-index rather than waiting for next interrupt.
 		 * Return back if tx_done is false.
 		 */
@@ -2451,8 +2448,12 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 			__func__, iq_no);
 	}
 
-	if ((work_done < budget) && (tx_done)) {
-		napi_complete(napi);
+	/* force enable interrupt if reg cnts are high to avoid wraparound */
+	if ((work_done < budget && tx_done) ||
+	    (iq && iq->pkt_in_done >= MAX_REG_CNT) ||
+	    (droq->pkt_count >= MAX_REG_CNT)) {
+		tx_done = 1;
+		napi_complete_done(napi, work_done);
 		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
 					     POLL_EVENT_ENABLE_INTR, 0);
 		return 0;
@@ -2629,7 +2630,9 @@ static int liquidio_open(struct net_device *netdev)
 			oct->droq[0]->ops.poll_mode = 1;
 	}
 
-	oct_ptp_open(netdev);
+	if ((oct->chip_id == OCTEON_CN66XX || oct->chip_id == OCTEON_CN68XX) &&
+	    ptp_enable)
+		oct_ptp_open(netdev);
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
 
@@ -2677,13 +2680,7 @@ static int liquidio_stop(struct net_device *netdev)
 	lio->linfo.link.s.link_up = 0;
 	lio->link_changes++;
 
-	/* Pause for a moment and wait for Octeon to flush out (to the wire) any
-	 * egress packets that are in-flight.
-	 */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(msecs_to_jiffies(100));
-
-	/* Now it should be safe to tell Octeon that nic interface is down. */
+	/* Tell Octeon that nic interface is down. */
 	send_rx_ctrl_cmd(lio, 0);
 
 	if (OCTEON_CN23XX_PF(oct)) {
@@ -2973,9 +2970,13 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
  */
 static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
+	struct lio *lio = GET_LIO(netdev);
+
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return hwtstamp_ioctl(netdev, ifr);
+		if ((lio->oct_dev->chip_id == OCTEON_CN66XX ||
+		     lio->oct_dev->chip_id == OCTEON_CN68XX) && ptp_enable)
+			return hwtstamp_ioctl(netdev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3274,8 +3275,6 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 			i++;
 		}
 
-		dma_sync_single_for_device(&oct->pci_dev->dev, g->sg_dma_ptr,
-					   g->sg_size, DMA_TO_DEVICE);
 		dptr = g->sg_dma_ptr;
 
 		if (OCTEON_CN23XX_PF(oct))
@@ -3322,11 +3321,11 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	netif_trans_update(netdev);
 
-	if (skb_shinfo(skb)->gso_size)
-		stats->tx_done += skb_shinfo(skb)->gso_segs;
+	if (tx_info->s.gso_segs)
+		stats->tx_done += tx_info->s.gso_segs;
 	else
 		stats->tx_done++;
-	stats->tx_tot_bytes += skb->len;
+	stats->tx_tot_bytes += ndata.datasize;
 
 	return NETDEV_TX_OK;
 
@@ -3741,7 +3740,6 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
 	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
-	.ndo_select_queue	= select_q
 };
 
 /** \brief Entry point for the liquidio module

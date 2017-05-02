@@ -200,14 +200,14 @@ static void line6_midi_input_trigger(struct snd_rawmidi_substream *substream,
 		line6->line6midi->substream_receive = NULL;
 }
 
-static struct snd_rawmidi_ops line6_midi_output_ops = {
+static const struct snd_rawmidi_ops line6_midi_output_ops = {
 	.open = line6_midi_output_open,
 	.close = line6_midi_output_close,
 	.trigger = line6_midi_output_trigger,
 	.drain = line6_midi_output_drain,
 };
 
-static struct snd_rawmidi_ops line6_midi_input_ops = {
+static const struct snd_rawmidi_ops line6_midi_input_ops = {
 	.open = line6_midi_input_open,
 	.close = line6_midi_input_close,
 	.trigger = line6_midi_input_trigger,

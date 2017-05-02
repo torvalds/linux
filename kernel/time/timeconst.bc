@@ -98,6 +98,12 @@ define timeconst(hz) {
 		print "#define HZ_TO_USEC_DEN\t\t", hz/cd, "\n"
 		print "#define USEC_TO_HZ_NUM\t\t", hz/cd, "\n"
 		print "#define USEC_TO_HZ_DEN\t\t", 1000000/cd, "\n"
+
+		cd=gcd(hz,1000000000)
+		print "#define HZ_TO_NSEC_NUM\t\t", 1000000000/cd, "\n"
+		print "#define HZ_TO_NSEC_DEN\t\t", hz/cd, "\n"
+		print "#define NSEC_TO_HZ_NUM\t\t", hz/cd, "\n"
+		print "#define NSEC_TO_HZ_DEN\t\t", 1000000000/cd, "\n"
 		print "\n"
 
 		print "#endif /* KERNEL_TIMECONST_H */\n"

@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -40,11 +64,11 @@
 	((u32)(prio_tc_tbl >> ((7 - prio) * 4)) & 0x7)
 
 static const struct qed_dcbx_app_metadata qed_dcbx_app_update[] = {
-	{DCBX_PROTOCOL_ISCSI, "ISCSI", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_FCOE, "FCOE", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ROCE, "ROCE", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ROCE_V2, "ROCE_V2", QED_PCI_DEFAULT},
-	{DCBX_PROTOCOL_ETH, "ETH", QED_PCI_ETH}
+	{DCBX_PROTOCOL_ISCSI, "ISCSI", QED_PCI_ISCSI},
+	{DCBX_PROTOCOL_FCOE, "FCOE", QED_PCI_FCOE},
+	{DCBX_PROTOCOL_ROCE, "ROCE", QED_PCI_ETH_ROCE},
+	{DCBX_PROTOCOL_ROCE_V2, "ROCE_V2", QED_PCI_ETH_ROCE},
+	{DCBX_PROTOCOL_ETH, "ETH", QED_PCI_ETH},
 };
 
 static bool qed_dcbx_app_ethtype(u32 app_info_bitmap)
@@ -408,7 +432,6 @@ qed_dcbx_copy_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-#ifdef CONFIG_DCB
 static void
 qed_dcbx_get_priority_info(struct qed_hwfn *p_hwfn,
 			   struct qed_dcbx_app_prio *p_prio,
@@ -559,6 +582,13 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 		   p_params->ets_willing,
 		   p_params->ets_cbs,
 		   p_ets->pri_tc_tbl[0], p_params->max_ets_tc);
+
+	if (p_params->ets_enabled && !p_params->max_ets_tc) {
+		p_params->max_ets_tc = QED_MAX_PFC_PRIORITIES;
+		DP_VERBOSE(p_hwfn, QED_MSG_DCB,
+			   "ETS params: max_ets_tc is forced to %d\n",
+		p_params->max_ets_tc);
+	}
 
 	/* 8 bit tsa and bw data corresponding to each of the 8 TC's are
 	 * encoded in a type u32 array of size 2.
@@ -725,7 +755,6 @@ qed_dcbx_get_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	return 0;
 }
-#endif
 
 static int
 qed_dcbx_read_local_lldp_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -840,6 +869,15 @@ static int qed_dcbx_read_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+void qed_dcbx_aen(struct qed_hwfn *hwfn, u32 mib_type)
+{
+	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
+	void *cookie = hwfn->cdev->ops_cookie;
+
+	if (cookie && op->dcbx_aen)
+		op->dcbx_aen(cookie, &hwfn->p_dcbx_info->get, mib_type);
+}
+
 /* Read updated MIB.
  * Reconfigure QM and invoke PF update ramrod command if operational MIB
  * change is detected.
@@ -866,6 +904,8 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 			qed_sp_pf_update(p_hwfn);
 		}
 	}
+	qed_dcbx_get_params(p_hwfn, p_ptt, &p_hwfn->p_dcbx_info->get, type);
+	qed_dcbx_aen(p_hwfn, type);
 
 	return rc;
 }
@@ -967,6 +1007,8 @@ qed_dcbx_set_pfc_data(struct qed_hwfn *p_hwfn,
 {
 	u8 pfc_map = 0;
 	int i;
+
+	*pfc &= ~DCBX_PFC_ERROR_MASK;
 
 	if (p_params->pfc.willing)
 		*pfc |= DCBX_PFC_WILLING_MASK;
@@ -1222,7 +1264,7 @@ static struct qed_dcbx_get *qed_dcbnl_get_dcbx(struct qed_hwfn *hwfn,
 {
 	struct qed_dcbx_get *dcbx_info;
 
-	dcbx_info = kzalloc(sizeof(*dcbx_info), GFP_KERNEL);
+	dcbx_info = kmalloc(sizeof(*dcbx_info), GFP_ATOMIC);
 	if (!dcbx_info)
 		return NULL;
 
@@ -2039,6 +2081,8 @@ static int qed_dcbnl_ieee_setpfc(struct qed_dev *cdev, struct ieee_pfc *pfc)
 	dcbx_set.override_flags |= QED_DCBX_OVERRIDE_PFC_CFG;
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++)
 		dcbx_set.config.params.pfc.prio[i] = !!(pfc->pfc_en & BIT(i));
+
+	dcbx_set.config.params.pfc.max_tc = pfc->pfc_cap;
 
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)

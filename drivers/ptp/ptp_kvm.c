@@ -176,20 +176,24 @@ static void __exit ptp_kvm_exit(void)
 
 static int __init ptp_kvm_init(void)
 {
+	long ret;
+
 	clock_pair_gpa = slow_virt_to_phys(&clock_pair);
 	hv_clock = pvclock_pvti_cpu0_va();
 
 	if (!hv_clock)
 		return -ENODEV;
 
+	ret = kvm_hypercall2(KVM_HC_CLOCK_PAIRING, clock_pair_gpa,
+			KVM_CLOCK_PAIRING_WALLCLOCK);
+	if (ret == -KVM_ENOSYS || ret == -KVM_EOPNOTSUPP)
+		return -ENODEV;
+
 	kvm_ptp_clock.caps = ptp_kvm_caps;
 
 	kvm_ptp_clock.ptp_clock = ptp_clock_register(&kvm_ptp_clock.caps, NULL);
 
-	if (IS_ERR(kvm_ptp_clock.ptp_clock))
-		return PTR_ERR(kvm_ptp_clock.ptp_clock);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(kvm_ptp_clock.ptp_clock);
 }
 
 module_init(ptp_kvm_init);

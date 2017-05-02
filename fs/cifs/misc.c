@@ -640,3 +640,108 @@ cifs_add_pending_open(struct cifs_fid *fid, struct tcon_link *tlink,
 	cifs_add_pending_open_locked(fid, tlink, open);
 	spin_unlock(&tlink_tcon(open->tlink)->open_file_lock);
 }
+
+/* parses DFS refferal V3 structure
+ * caller is responsible for freeing target_nodes
+ * returns:
+ * - on success - 0
+ * - on failure - errno
+ */
+int
+parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
+		    unsigned int *num_of_nodes,
+		    struct dfs_info3_param **target_nodes,
+		    const struct nls_table *nls_codepage, int remap,
+		    const char *searchName, bool is_unicode)
+{
+	int i, rc = 0;
+	char *data_end;
+	struct dfs_referral_level_3 *ref;
+
+	*num_of_nodes = le16_to_cpu(rsp->NumberOfReferrals);
+
+	if (*num_of_nodes < 1) {
+		cifs_dbg(VFS, "num_referrals: must be at least > 0, but we get num_referrals = %d\n",
+			 *num_of_nodes);
+		rc = -EINVAL;
+		goto parse_DFS_referrals_exit;
+	}
+
+	ref = (struct dfs_referral_level_3 *) &(rsp->referrals);
+	if (ref->VersionNumber != cpu_to_le16(3)) {
+		cifs_dbg(VFS, "Referrals of V%d version are not supported, should be V3\n",
+			 le16_to_cpu(ref->VersionNumber));
+		rc = -EINVAL;
+		goto parse_DFS_referrals_exit;
+	}
+
+	/* get the upper boundary of the resp buffer */
+	data_end = (char *)rsp + rsp_size;
+
+	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
+		 *num_of_nodes, le32_to_cpu(rsp->DFSFlags));
+
+	*target_nodes = kcalloc(*num_of_nodes, sizeof(struct dfs_info3_param),
+				GFP_KERNEL);
+	if (*target_nodes == NULL) {
+		rc = -ENOMEM;
+		goto parse_DFS_referrals_exit;
+	}
+
+	/* collect necessary data from referrals */
+	for (i = 0; i < *num_of_nodes; i++) {
+		char *temp;
+		int max_len;
+		struct dfs_info3_param *node = (*target_nodes)+i;
+
+		node->flags = le32_to_cpu(rsp->DFSFlags);
+		if (is_unicode) {
+			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
+						GFP_KERNEL);
+			if (tmp == NULL) {
+				rc = -ENOMEM;
+				goto parse_DFS_referrals_exit;
+			}
+			cifsConvertToUTF16((__le16 *) tmp, searchName,
+					   PATH_MAX, nls_codepage, remap);
+			node->path_consumed = cifs_utf16_bytes(tmp,
+					le16_to_cpu(rsp->PathConsumed),
+					nls_codepage);
+			kfree(tmp);
+		} else
+			node->path_consumed = le16_to_cpu(rsp->PathConsumed);
+
+		node->server_type = le16_to_cpu(ref->ServerType);
+		node->ref_flag = le16_to_cpu(ref->ReferralEntryFlags);
+
+		/* copy DfsPath */
+		temp = (char *)ref + le16_to_cpu(ref->DfsPathOffset);
+		max_len = data_end - temp;
+		node->path_name = cifs_strndup_from_utf16(temp, max_len,
+						is_unicode, nls_codepage);
+		if (!node->path_name) {
+			rc = -ENOMEM;
+			goto parse_DFS_referrals_exit;
+		}
+
+		/* copy link target UNC */
+		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
+		max_len = data_end - temp;
+		node->node_name = cifs_strndup_from_utf16(temp, max_len,
+						is_unicode, nls_codepage);
+		if (!node->node_name) {
+			rc = -ENOMEM;
+			goto parse_DFS_referrals_exit;
+		}
+
+		ref++;
+	}
+
+parse_DFS_referrals_exit:
+	if (rc) {
+		free_dfs_info_array(*target_nodes, *num_of_nodes);
+		*target_nodes = NULL;
+		*num_of_nodes = 0;
+	}
+	return rc;
+}

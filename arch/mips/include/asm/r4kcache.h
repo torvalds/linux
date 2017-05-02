@@ -154,7 +154,8 @@ static inline void flush_scache_line(unsigned long addr)
 	"	.set	noreorder		\n"		\
 	"	.set "MIPS_ISA_ARCH_LEVEL"	\n"		\
 	"1:	cache	%1, (%2)		\n"		\
-	"2:	.set	pop			\n"		\
+	"2:	.insn				\n"		\
+	"	.set	pop			\n"		\
 	"	.section .fixup,\"ax\"		\n"		\
 	"3:	li	%0, %3			\n"		\
 	"	j	2b			\n"		\
@@ -177,7 +178,8 @@ static inline void flush_scache_line(unsigned long addr)
 	"	.set	mips0			\n"		\
 	"	.set	eva			\n"		\
 	"1:	cachee	%1, (%2)		\n"		\
-	"2:	.set	pop			\n"		\
+	"2:	.insn				\n"		\
+	"	.set	pop			\n"		\
 	"	.section .fixup,\"ax\"		\n"		\
 	"3:	li	%0, %3			\n"		\
 	"	j	2b			\n"		\

@@ -6,7 +6,9 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/mm_types.h>
 #include <linux/err.h>
+
 #include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include "kvm-s390.h"
@@ -166,8 +168,7 @@ union page_table_entry {
 		unsigned long z  : 1; /* Zero Bit */
 		unsigned long i  : 1; /* Page-Invalid Bit */
 		unsigned long p  : 1; /* DAT-Protection Bit */
-		unsigned long co : 1; /* Change-Recording Override */
-		unsigned long	 : 8;
+		unsigned long	 : 9;
 	};
 };
 
@@ -743,8 +744,6 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 		return PGM_PAGE_TRANSLATION;
 	if (pte.z)
 		return PGM_TRANSLATION_SPEC;
-	if (pte.co && !edat1)
-		return PGM_TRANSLATION_SPEC;
 	dat_protection |= pte.p;
 	raddr.pfra = pte.pfra;
 real_address:
@@ -1180,7 +1179,7 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 		rc = gmap_read_table(sg->parent, pgt + vaddr.px * 8, &pte.val);
 	if (!rc && pte.i)
 		rc = PGM_PAGE_TRANSLATION;
-	if (!rc && (pte.z || (pte.co && sg->edat_level < 1)))
+	if (!rc && pte.z)
 		rc = PGM_TRANSLATION_SPEC;
 shadow_page:
 	pte.p |= dat_protection;

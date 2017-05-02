@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Broadcom Corporation
+ * Copyright (c) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -214,7 +214,9 @@ struct bcmgenet_mib_counters {
 #define  MDIO_REG_SHIFT			16
 #define  MDIO_REG_MASK			0x1F
 
-#define UMAC_RBUF_OVFL_CNT		0x61C
+#define UMAC_RBUF_OVFL_CNT_V1		0x61C
+#define RBUF_OVFL_CNT_V2		0x80
+#define RBUF_OVFL_CNT_V3PLUS		0x94
 
 #define UMAC_MPD_CTRL			0x620
 #define  MPD_EN				(1 << 0)
@@ -224,7 +226,9 @@ struct bcmgenet_mib_counters {
 
 #define UMAC_MPD_PW_MS			0x624
 #define UMAC_MPD_PW_LS			0x628
-#define UMAC_RBUF_ERR_CNT		0x634
+#define UMAC_RBUF_ERR_CNT_V1		0x634
+#define RBUF_ERR_CNT_V2			0x84
+#define RBUF_ERR_CNT_V3PLUS		0x98
 #define UMAC_MDF_ERR_CNT		0x638
 #define UMAC_MDF_CTRL			0x650
 #define UMAC_MDF_ADDR			0x654
@@ -619,10 +623,12 @@ struct bcmgenet_priv {
 	struct work_struct bcmgenet_irq_work;
 	int irq0;
 	int irq1;
-	unsigned int irq0_stat;
-	unsigned int irq1_stat;
 	int wol_irq;
 	bool wol_irq_disabled;
+
+	/* shared status */
+	spinlock_t lock;
+	unsigned int irq0_stat;
 
 	/* HW descriptors/checksum variables */
 	bool desc_64b_en;

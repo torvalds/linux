@@ -65,7 +65,6 @@ static int adau17x1_pll_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
-	int ret;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		adau->pll_regs[5] = 1;
@@ -78,7 +77,7 @@ static int adau17x1_pll_event(struct snd_soc_dapm_widget *w,
 	}
 
 	/* The PLL register is 6 bytes long and can only be written at once. */
-	ret = regmap_raw_write(adau->regmap, ADAU17X1_PLL_CONTROL,
+	regmap_raw_write(adau->regmap, ADAU17X1_PLL_CONTROL,
 			adau->pll_regs, ARRAY_SIZE(adau->pll_regs));
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {

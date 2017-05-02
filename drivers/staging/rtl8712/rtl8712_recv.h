@@ -50,12 +50,12 @@
 #define REORDER_WAIT_TIME	30 /* (ms)*/
 
 struct recv_stat {
-	unsigned int rxdw0;
-	unsigned int rxdw1;
-	unsigned int rxdw2;
-	unsigned int rxdw3;
-	unsigned int rxdw4;
-	unsigned int rxdw5;
+	__le32 rxdw0;
+	__le32 rxdw1;
+	__le32 rxdw2;
+	__le32 rxdw3;
+	__le32 rxdw4;
+	__le32 rxdw5;
 };
 
 struct phy_cck_rx_status {
@@ -69,14 +69,14 @@ struct phy_cck_rx_status {
 };
 
 struct phy_stat {
-	unsigned int phydw0;
-	unsigned int phydw1;
-	unsigned int phydw2;
-	unsigned int phydw3;
-	unsigned int phydw4;
-	unsigned int phydw5;
-	unsigned int phydw6;
-	unsigned int phydw7;
+	__le32 phydw0;
+	__le32 phydw1;
+	__le32 phydw2;
+	__le32 phydw3;
+	__le32 phydw4;
+	__le32 phydw5;
+	__le32 phydw6;
+	__le32 phydw7;
 };
 #define PHY_STAT_GAIN_TRSW_SHT 0
 #define PHY_STAT_PWDB_ALL_SHT 4

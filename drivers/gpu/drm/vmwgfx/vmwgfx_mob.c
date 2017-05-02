@@ -319,18 +319,17 @@ int vmw_otables_setup(struct vmw_private *dev_priv)
 	int ret;
 
 	if (dev_priv->has_dx) {
-		*otables = kmalloc(sizeof(dx_tables), GFP_KERNEL);
+		*otables = kmemdup(dx_tables, sizeof(dx_tables), GFP_KERNEL);
 		if (*otables == NULL)
 			return -ENOMEM;
 
-		memcpy(*otables, dx_tables, sizeof(dx_tables));
 		dev_priv->otable_batch.num_otables = ARRAY_SIZE(dx_tables);
 	} else {
-		*otables = kmalloc(sizeof(pre_dx_tables), GFP_KERNEL);
+		*otables = kmemdup(pre_dx_tables, sizeof(pre_dx_tables),
+				   GFP_KERNEL);
 		if (*otables == NULL)
 			return -ENOMEM;
 
-		memcpy(*otables, pre_dx_tables, sizeof(pre_dx_tables));
 		dev_priv->otable_batch.num_otables = ARRAY_SIZE(pre_dx_tables);
 	}
 

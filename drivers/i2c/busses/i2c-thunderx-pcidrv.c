@@ -188,11 +188,11 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	i2c->hlc_int_enable = thunder_i2c_hlc_int_enable;
 	i2c->hlc_int_disable = thunder_i2c_hlc_int_disable;
 
-	ret = pci_enable_msix(pdev, &i2c->i2c_msix, 1);
-	if (ret)
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSIX);
+	if (ret < 0)
 		goto error;
 
-	ret = devm_request_irq(dev, i2c->i2c_msix.vector, octeon_i2c_isr, 0,
+	ret = devm_request_irq(dev, pci_irq_vector(pdev, 0), octeon_i2c_isr, 0,
 			       DRV_NAME, i2c);
 	if (ret)
 		goto error;

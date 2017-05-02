@@ -160,10 +160,7 @@ static int fsl_dcu_attach_endpoint(struct fsl_dcu_drm_device *fsl_dev,
 	if (!bridge)
 		return -ENODEV;
 
-	fsl_dev->encoder.bridge = bridge;
-	bridge->encoder = &fsl_dev->encoder;
-
-	return drm_bridge_attach(fsl_dev->drm, bridge);
+	return drm_bridge_attach(&fsl_dev->encoder, bridge, NULL);
 }
 
 int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)

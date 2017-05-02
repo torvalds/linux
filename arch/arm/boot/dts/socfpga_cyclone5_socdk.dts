@@ -39,12 +39,39 @@
 		ethernet0 = &gmac1;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		hps0 {
+			label = "hps_led0";
+			gpios = <&portb 15 1>;
+		};
+
+		hps1 {
+			label = "hps_led1";
+			gpios = <&portb 14 1>;
+		};
+
+		hps2 {
+			label = "hps_led2";
+			gpios = <&portb 13 1>;
+		};
+
+		hps3 {
+			label = "hps_led3";
+			gpios = <&portb 12 1>;
+		};
+	};
+
 	regulator_3_3v: 3-3-v-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3.3V";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+};
+
+&can0 {
+	status = "okay";
 };
 
 &gmac1 {
@@ -61,12 +88,28 @@
 	rxc-skew-ps = <2000>;
 };
 
+&gpio0 {
+	status = "okay";
+};
+
 &gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
 	status = "okay";
 };
 
 &i2c0 {
 	status = "okay";
+	clock-frequency = <100000>;
+
+	/*
+	 * adjust the falling times to decrease the i2c frequency to 50Khz
+	 * because the LCD module does not work at the standard 100Khz
+	 */
+	i2c-sda-falling-time-ns = <5000>;
+	i2c-scl-falling-time-ns = <5000>;
 
 	eeprom@51 {
 		compatible = "atmel,24c32";
@@ -117,6 +160,16 @@
 			label = "Flash 0 jffs2 Filesystem";
 			reg = <0x800000 0x7800000>;
 		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spidev@0 {
+		compatible = "rohm,dh2228fv";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
 	};
 };
 

@@ -736,16 +736,14 @@ static int __init vdso_init(void)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = memblock_phys_mem_size();
-	vdso_data->dcache_size = ppc64_caches.dsize;
-	vdso_data->dcache_line_size = ppc64_caches.dline_size;
-	vdso_data->icache_size = ppc64_caches.isize;
-	vdso_data->icache_line_size = ppc64_caches.iline_size;
-
-	/* XXXOJN: Blocks should be added to ppc64_caches and used instead */
-	vdso_data->dcache_block_size = ppc64_caches.dline_size;
-	vdso_data->icache_block_size = ppc64_caches.iline_size;
-	vdso_data->dcache_log_block_size = ppc64_caches.log_dline_size;
-	vdso_data->icache_log_block_size = ppc64_caches.log_iline_size;
+	vdso_data->dcache_size = ppc64_caches.l1d.size;
+	vdso_data->dcache_line_size = ppc64_caches.l1d.line_size;
+	vdso_data->icache_size = ppc64_caches.l1i.size;
+	vdso_data->icache_line_size = ppc64_caches.l1i.line_size;
+	vdso_data->dcache_block_size = ppc64_caches.l1d.block_size;
+	vdso_data->icache_block_size = ppc64_caches.l1i.block_size;
+	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;
+	vdso_data->icache_log_block_size = ppc64_caches.l1i.log_block_size;
 
 	/*
 	 * Calculate the size of the 64 bits vDSO

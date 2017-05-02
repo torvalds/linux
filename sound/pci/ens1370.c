@@ -2317,14 +2317,14 @@ static void snd_ensoniq_midi_output_trigger(struct snd_rawmidi_substream *substr
 	spin_unlock_irqrestore(&ensoniq->reg_lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_ensoniq_midi_output =
+static const struct snd_rawmidi_ops snd_ensoniq_midi_output =
 {
 	.open =		snd_ensoniq_midi_output_open,
 	.close =	snd_ensoniq_midi_output_close,
 	.trigger =	snd_ensoniq_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_ensoniq_midi_input =
+static const struct snd_rawmidi_ops snd_ensoniq_midi_input =
 {
 	.open =		snd_ensoniq_midi_input_open,
 	.close =	snd_ensoniq_midi_input_close,

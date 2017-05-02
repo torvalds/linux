@@ -36,6 +36,7 @@
 #include <linux/compiler.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <linux/hash.h>
 #include <linux/kern_levels.h>
@@ -4102,7 +4103,7 @@ static void update_permission_bitmask(struct kvm_vcpu *vcpu,
 				 * as a SMAP violation if all of the following
 				 * conditions are ture:
 				 *   - X86_CR4_SMAP is set in CR4
-				 *   - An user page is accessed
+				 *   - A user page is accessed
 				 *   - Page fault in kernel mode
 				 *   - if CPL = 3 or X86_EFLAGS_AC is clear
 				 *

@@ -236,9 +236,9 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtctr	reg;							\
 	bctr
 
-#define BRANCH_LINK_TO_FAR(reg, label)					\
-	__LOAD_FAR_HANDLER(reg, label);					\
-	mtctr	reg;							\
+#define BRANCH_LINK_TO_FAR(label)					\
+	__LOAD_FAR_HANDLER(r12, label);					\
+	mtctr	r12;							\
 	bctrl
 
 /*
@@ -265,7 +265,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #define BRANCH_TO_COMMON(reg, label)					\
 	b	label
 
-#define BRANCH_LINK_TO_FAR(reg, label)					\
+#define BRANCH_LINK_TO_FAR(label)					\
 	bl	label
 
 #define BRANCH_TO_KVM(reg, label)					\

@@ -1,0 +1,23 @@
+* Texas Instruments ADS7950 family of A/DC chips
+
+Required properties:
+ - compatible: Must be one of "ti,ads7950", "ti,ads7951", "ti,ads7952",
+   "ti,ads7953", "ti,ads7954", "ti,ads7955", "ti,ads7956", "ti,ads7957",
+   "ti,ads7958", "ti,ads7959", "ti,ads7960", or "ti,ads7961"
+ - reg: SPI chip select number for the device
+ - #io-channel-cells: Must be 1 as per ../iio-bindings.txt
+ - vref-supply: phandle to a regulator node that supplies the 2.5V or 5V
+   reference voltage
+
+Recommended properties:
+ - spi-max-frequency: Definition as per
+		Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+adc@0 {
+	compatible = "ti,ads7957";
+	reg = <0>;
+	#io-channel-cells = <1>;
+	vref-supply = <&refin_supply>;
+	spi-max-frequency = <10000000>;
+};

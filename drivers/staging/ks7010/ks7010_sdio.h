@@ -81,11 +81,11 @@
 
 /* AHB Data Window  0x010000-0x01FFFF */
 #define DATA_WINDOW		0x010000
-#define WINDOW_SIZE		64*1024
+#define WINDOW_SIZE		(64 * 1024)
 
 #define KS7010_IRAM_ADDRESS	0x06000000
 
-/* 
+/*
  * struct define
  */
 struct hw_info_t {
@@ -142,6 +142,7 @@ struct rx_device {
 	unsigned int qtail;	/* rx buffer queue last pointer */
 	spinlock_t rx_dev_lock;
 };
+
 #define	ROM_FILE "ks7010sd.rom"
 
 #endif /* _KS7010_SDIO_H */

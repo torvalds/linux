@@ -174,8 +174,6 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 
 	if (!vsi)
 		return;
-	memset(&params, 0, sizeof(params));
-	i40e_client_get_params(vsi, &params);
 	mutex_lock(&i40e_client_instance_mutex);
 	list_for_each_entry(cdev, &i40e_client_instances, list) {
 		if (cdev->lan_info.pf == vsi->back) {
@@ -186,6 +184,8 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 					"Cannot locate client instance l2_param_change routine\n");
 				continue;
 			}
+	memset(&params, 0, sizeof(params));
+	i40e_client_get_params(vsi, &params);
 			if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
 				      &cdev->state)) {
 				dev_dbg(&vsi->back->pdev->dev, "Client is not open, abort l2 param change\n");
@@ -195,41 +195,6 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 			cdev->client->ops->l2_param_change(&cdev->lan_info,
 							   cdev->client,
 							   &params);
-		}
-	}
-	mutex_unlock(&i40e_client_instance_mutex);
-}
-
-/**
- * i40e_notify_client_of_netdev_open - call the client open callback
- * @vsi: the VSI with netdev opened
- *
- * If there is a client to this netdev, call the client with open
- **/
-void i40e_notify_client_of_netdev_open(struct i40e_vsi *vsi)
-{
-	struct i40e_client_instance *cdev;
-	int ret = 0;
-
-	if (!vsi)
-		return;
-	mutex_lock(&i40e_client_instance_mutex);
-	list_for_each_entry(cdev, &i40e_client_instances, list) {
-		if (cdev->lan_info.netdev == vsi->netdev) {
-			if (!cdev->client ||
-			    !cdev->client->ops || !cdev->client->ops->open) {
-				dev_dbg(&vsi->back->pdev->dev,
-					"Cannot locate client instance open routine\n");
-				continue;
-			}
-			if (!(test_bit(__I40E_CLIENT_INSTANCE_OPENED,
-				       &cdev->state))) {
-				ret = cdev->client->ops->open(&cdev->lan_info,
-							      cdev->client);
-				if (!ret)
-					set_bit(__I40E_CLIENT_INSTANCE_OPENED,
-						&cdev->state);
-			}
 		}
 	}
 	mutex_unlock(&i40e_client_instance_mutex);
@@ -545,9 +510,10 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			continue;
 
 		if (!existing) {
-			dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x func=0x%02x\n",
+			dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
 				 client->name, pf->hw.pf_id,
-				 pf->hw.bus.device, pf->hw.bus.func);
+				 pf->hw.bus.bus_id, pf->hw.bus.device,
+				 pf->hw.bus.func);
 		}
 
 		mutex_lock(&i40e_client_instance_mutex);
@@ -596,8 +562,9 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 	ldev->pf = pf;
 	INIT_LIST_HEAD(&ldev->list);
 	list_add(&ldev->list, &i40e_devices);
-	dev_info(&pf->pdev->dev, "Added LAN device PF%d bus=0x%02x func=0x%02x\n",
-		 pf->hw.pf_id, pf->hw.bus.device, pf->hw.bus.func);
+	dev_info(&pf->pdev->dev, "Added LAN device PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
+		 pf->hw.pf_id, pf->hw.bus.bus_id,
+		 pf->hw.bus.device, pf->hw.bus.func);
 
 	/* Since in some cases register may have happened before a device gets
 	 * added, we can schedule a subtask to go initiate the clients if
@@ -625,9 +592,9 @@ int i40e_lan_del_device(struct i40e_pf *pf)
 	mutex_lock(&i40e_device_mutex);
 	list_for_each_entry_safe(ldev, tmp, &i40e_devices, list) {
 		if (ldev->pf == pf) {
-			dev_info(&pf->pdev->dev, "Deleted LAN device PF%d bus=0x%02x func=0x%02x\n",
-				 pf->hw.pf_id, pf->hw.bus.device,
-				 pf->hw.bus.func);
+			dev_info(&pf->pdev->dev, "Deleted LAN device PF%d bus=0x%02x dev=0x%02x func=0x%02x\n",
+				 pf->hw.pf_id, pf->hw.bus.bus_id,
+				 pf->hw.bus.device, pf->hw.bus.func);
 			list_del(&ldev->list);
 			kfree(ldev);
 			ret = 0;
@@ -688,13 +655,11 @@ static int i40e_client_release(struct i40e_client *client)
  * i40e_client_prepare - prepare client specific resources
  * @client: pointer to the registered client
  *
- * Return 0 on success or < 0 on error
  **/
-static int i40e_client_prepare(struct i40e_client *client)
+static void i40e_client_prepare(struct i40e_client *client)
 {
 	struct i40e_device *ldev;
 	struct i40e_pf *pf;
-	int ret = 0;
 
 	mutex_lock(&i40e_device_mutex);
 	list_for_each_entry(ldev, &i40e_devices, list) {
@@ -704,7 +669,6 @@ static int i40e_client_prepare(struct i40e_client *client)
 		i40e_service_event_schedule(pf);
 	}
 	mutex_unlock(&i40e_device_mutex);
-	return ret;
 }
 
 /**
@@ -961,13 +925,9 @@ int i40e_register_client(struct i40e_client *client)
 	set_bit(__I40E_CLIENT_REGISTERED, &client->state);
 	mutex_unlock(&i40e_client_mutex);
 
-	if (i40e_client_prepare(client)) {
-		ret = -EIO;
-		goto out;
-	}
+	i40e_client_prepare(client);
 
-	pr_info("i40e: Registered client %s with return code %d\n",
-		client->name, ret);
+	pr_info("i40e: Registered client %s\n", client->name);
 out:
 	return ret;
 }

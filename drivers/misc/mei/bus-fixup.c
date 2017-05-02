@@ -112,11 +112,9 @@ struct mkhi_msg {
 
 static int mei_osver(struct mei_cl_device *cldev)
 {
-	int ret;
 	const size_t size = sizeof(struct mkhi_msg_hdr) +
 			    sizeof(struct mkhi_fwcaps) +
 			    sizeof(struct mei_os_ver);
-	size_t length = 8;
 	char buf[size];
 	struct mkhi_msg *req;
 	struct mkhi_fwcaps *fwcaps;
@@ -137,15 +135,7 @@ static int mei_osver(struct mei_cl_device *cldev)
 	os_ver = (struct mei_os_ver *)fwcaps->data;
 	os_ver->os_type = OSTYPE_LINUX;
 
-	ret = __mei_cl_send(cldev->cl, buf, size, mode);
-	if (ret < 0)
-		return ret;
-
-	ret = __mei_cl_recv(cldev->cl, buf, length, 0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return __mei_cl_send(cldev->cl, buf, size, mode);
 }
 
 static void mei_mkhi_fix(struct mei_cl_device *cldev)
@@ -160,7 +150,7 @@ static void mei_mkhi_fix(struct mei_cl_device *cldev)
 		return;
 
 	ret = mei_osver(cldev);
-	if (ret)
+	if (ret < 0)
 		dev_err(&cldev->dev, "OS version command failed %d\n", ret);
 
 	mei_cldev_disable(cldev);

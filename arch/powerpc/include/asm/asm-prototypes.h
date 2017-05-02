@@ -120,4 +120,6 @@ extern s64 __ashrdi3(s64, int);
 extern int __cmpdi2(s64, s64);
 extern int __ucmpdi2(u64, u64);
 
+void _mcount(void);
+
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */

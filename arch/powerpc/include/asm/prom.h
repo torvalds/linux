@@ -153,6 +153,8 @@ struct of_drconf_cell {
 #define OV5_XCMO		0x0440	/* Page Coalescing */
 #define OV5_TYPE1_AFFINITY	0x0580	/* Type 1 NUMA affinity */
 #define OV5_PRRN		0x0540	/* Platform Resource Reassignment */
+#define OV5_HP_EVT		0x0604	/* Hot Plug Event support */
+#define OV5_RESIZE_HPT		0x0601	/* Hash Page Table resizing */
 #define OV5_PFO_HW_RNG		0x1180	/* PFO Random Number Generator */
 #define OV5_PFO_HW_842		0x1140	/* PFO Compression Accelerator */
 #define OV5_PFO_HW_ENCR		0x1120	/* PFO Encryption Accelerator */
@@ -160,10 +162,10 @@ struct of_drconf_cell {
 #define OV5_XIVE_EXPLOIT	0x1701	/* XIVE exploitation supported */
 /* MMU Base Architecture */
 #define OV5_MMU_SUPPORT		0x18C0	/* MMU Mode Support Mask */
-#define OV5_MMU_HASH		0x00	/* Hash MMU Only */
-#define OV5_MMU_RADIX		0x40	/* Radix MMU Only */
-#define OV5_MMU_EITHER		0x80	/* Hash or Radix Supported */
-#define OV5_MMU_DYNAMIC		0xC0	/* Hash or Radix Can Switch Later */
+#define OV5_MMU_HASH		0x1800	/* Hash MMU Only */
+#define OV5_MMU_RADIX		0x1840	/* Radix MMU Only */
+#define OV5_MMU_EITHER		0x1880	/* Hash or Radix Supported */
+#define OV5_MMU_DYNAMIC		0x18C0	/* Hash or Radix Can Switch Later */
 #define OV5_NMMU		0x1820	/* Nest MMU Available */
 /* Hash Table Extensions */
 #define OV5_HASH_SEG_TBL	0x1980	/* In Memory Segment Tables Available */

@@ -63,7 +63,7 @@ static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lp)
 {
-	return ACCESS_ONCE(lp->lock) != 0;
+	return READ_ONCE(lp->lock) != 0;
 }
 
 static inline int arch_spin_trylock_once(arch_spinlock_t *lp)

@@ -100,7 +100,6 @@ static const struct fb_videomode lynx750_ext[] = {
 	 FB_VMODE_NONINTERLACED},
 };
 
-
 /* no hardware cursor supported under version 2.6.10, kernel bug */
 static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 {
@@ -974,10 +973,12 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 		else {
 			if (!g_fbmode[0]) {
 				g_fbmode[0] = opt;
-				dev_info(&sm750_dev->pdev->dev, "find fbmode0 : %s\n", g_fbmode[0]);
+				dev_info(&sm750_dev->pdev->dev,
+					 "find fbmode0 : %s\n", g_fbmode[0]);
 			} else if (!g_fbmode[1]) {
 				g_fbmode[1] = opt;
-				dev_info(&sm750_dev->pdev->dev, "find fbmode1 : %s\n", g_fbmode[1]);
+				dev_info(&sm750_dev->pdev->dev,
+					 "find fbmode1 : %s\n", g_fbmode[1]);
 			} else {
 				dev_warn(&sm750_dev->pdev->dev, "How many view you wann set?\n");
 			}
@@ -1228,7 +1229,7 @@ static void __exit lynxfb_exit(void)
 }
 module_exit(lynxfb_exit);
 
-module_param(g_option, charp, S_IRUGO);
+module_param(g_option, charp, 0444);
 
 MODULE_PARM_DESC(g_option,
 		 "\n\t\tCommon options:\n"

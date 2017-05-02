@@ -578,7 +578,7 @@ nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *data)
 	struct kvec	*vec = &rqstp->rq_res.head[0];
 
 	if (vec->iov_len + data->iov_len > PAGE_SIZE) {
-		printk(KERN_WARNING "nfsd: cached reply too large (%Zd).\n",
+		printk(KERN_WARNING "nfsd: cached reply too large (%zd).\n",
 				data->iov_len);
 		return 0;
 	}

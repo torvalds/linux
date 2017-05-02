@@ -580,23 +580,18 @@ static void __init update_e820_saved(void)
 }
 #define MAX_GAP_END 0x100000000ull
 /*
- * Search for a gap in the e820 memory space from start_addr to end_addr.
+ * Search for a gap in the e820 memory space from 0 to MAX_GAP_END.
  */
-__init int e820_search_gap(unsigned long *gapstart, unsigned long *gapsize,
-		unsigned long start_addr, unsigned long long end_addr)
+static int __init e820_search_gap(unsigned long *gapstart,
+		unsigned long *gapsize)
 {
-	unsigned long long last;
+	unsigned long long last = MAX_GAP_END;
 	int i = e820->nr_map;
 	int found = 0;
-
-	last = (end_addr && end_addr < MAX_GAP_END) ? end_addr : MAX_GAP_END;
 
 	while (--i >= 0) {
 		unsigned long long start = e820->map[i].addr;
 		unsigned long long end = start + e820->map[i].size;
-
-		if (end < start_addr)
-			continue;
 
 		/*
 		 * Since "last" is at most 4GB, we know we'll
@@ -628,18 +623,19 @@ __init void e820_setup_gap(void)
 	unsigned long gapstart, gapsize;
 	int found;
 
-	gapstart = 0x10000000;
 	gapsize = 0x400000;
-	found  = e820_search_gap(&gapstart, &gapsize, 0, MAX_GAP_END);
+	found  = e820_search_gap(&gapstart, &gapsize);
 
-#ifdef CONFIG_X86_64
 	if (!found) {
+#ifdef CONFIG_X86_64
 		gapstart = (max_pfn << PAGE_SHIFT) + 1024*1024;
 		printk(KERN_ERR
 	"e820: cannot find a gap in the 32bit address range\n"
 	"e820: PCI devices with unassigned 32bit BARs may break!\n");
-	}
+#else
+		gapstart = 0x10000000;
 #endif
+	}
 
 	/*
 	 * e820_reserve_resources_late protect stolen RAM already

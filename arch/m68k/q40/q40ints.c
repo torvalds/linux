@@ -48,7 +48,8 @@ static unsigned int q40_irq_startup(struct irq_data *data)
 	switch (irq) {
 	case 1: case 2: case 8: case 9:
 	case 11: case 12: case 13:
-		printk("%s: ISA IRQ %d not implemented by HW\n", __func__, irq);
+		pr_warn("%s: ISA IRQ %d not implemented by HW\n", __func__,
+			irq);
 		/* FIXME return -ENXIO; */
 	}
 	return 0;
@@ -250,7 +251,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 					disable_irq(irq);
 					disabled = 1;
 #else
-					/*printk("IRQ_INPROGRESS detected for irq %d, disabling - %s disabled\n",
+					/*pr_warn("IRQ_INPROGRESS detected for irq %d, disabling - %s disabled\n",
 						irq, disabled ? "already" : "not yet"); */
 					fp->sr = (((fp->sr) & (~0x700))+0x200);
 					disabled = 1;
@@ -273,7 +274,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 					}
 #else
 					disabled = 0;
-					/*printk("reenabling irq %d\n", irq); */
+					/*pr_info("reenabling irq %d\n", irq); */
 #endif
 				}
 // used to do 'goto repeat;' here, this delayed bh processing too long
@@ -281,7 +282,8 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 			}
 		}
 		if (mer && ccleirq > 0 && !aliased_irq) {
-			printk("ISA interrupt from unknown source? EIRQ_REG = %x\n",mer);
+			pr_warn("ISA interrupt from unknown source? EIRQ_REG = %x\n",
+				mer);
 			ccleirq--;
 		}
 	}
@@ -301,7 +303,7 @@ void q40_irq_enable(struct irq_data *data)
 	if (irq >= 5 && irq <= 15) {
 		mext_disabled--;
 		if (mext_disabled > 0)
-			printk("q40_irq_enable : nested disable/enable\n");
+			pr_warn("q40_irq_enable : nested disable/enable\n");
 		if (mext_disabled == 0)
 			master_outb(1, EXT_ENABLE_REG);
 	}
@@ -321,6 +323,7 @@ void q40_irq_disable(struct irq_data *data)
 		master_outb(0, EXT_ENABLE_REG);
 		mext_disabled++;
 		if (mext_disabled > 1)
-			printk("disable_irq nesting count %d\n",mext_disabled);
+			pr_info("disable_irq nesting count %d\n",
+				mext_disabled);
 	}
 }

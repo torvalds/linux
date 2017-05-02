@@ -77,7 +77,7 @@ drm_plane_state_to_eba(struct drm_plane_state *state)
 	BUG_ON(!cma_obj);
 
 	return cma_obj->paddr + fb->offsets[0] + fb->pitches[0] * y +
-	       drm_format_plane_cpp(fb->pixel_format, 0) * x;
+	       fb->format->cpp[0] * x;
 }
 
 static inline unsigned long
@@ -92,11 +92,11 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
 	BUG_ON(!cma_obj);
 
-	x /= drm_format_horz_chroma_subsampling(fb->pixel_format);
-	y /= drm_format_vert_chroma_subsampling(fb->pixel_format);
+	x /= drm_format_horz_chroma_subsampling(fb->format->format);
+	y /= drm_format_vert_chroma_subsampling(fb->format->format);
 
 	return cma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
-	       drm_format_plane_cpp(fb->pixel_format, 1) * x - eba;
+	       fb->format->cpp[1] * x - eba;
 }
 
 static inline unsigned long
@@ -111,11 +111,11 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
 	BUG_ON(!cma_obj);
 
-	x /= drm_format_horz_chroma_subsampling(fb->pixel_format);
-	y /= drm_format_vert_chroma_subsampling(fb->pixel_format);
+	x /= drm_format_horz_chroma_subsampling(fb->format->format);
+	y /= drm_format_vert_chroma_subsampling(fb->format->format);
 
 	return cma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
-	       drm_format_plane_cpp(fb->pixel_format, 2) * x - eba;
+	       fb->format->cpp[2] * x - eba;
 }
 
 void ipu_plane_put_resources(struct ipu_plane *ipu_plane)
@@ -281,7 +281,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (old_fb && (state->src_w != old_state->src_w ||
 			      state->src_h != old_state->src_h ||
-			      fb->pixel_format != old_fb->pixel_format))
+			      fb->format != old_fb->format))
 		crtc_state->mode_changed = true;
 
 	eba = drm_plane_state_to_eba(state);
@@ -295,7 +295,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	if (old_fb && fb->pitches[0] != old_fb->pitches[0])
 		crtc_state->mode_changed = true;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
 	case DRM_FORMAT_YUV422:
@@ -315,7 +315,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if (vbo & 0x7 || vbo > 0xfffff8)
 			return -EINVAL;
 
-		if (old_fb && (fb->pixel_format == old_fb->pixel_format)) {
+		if (old_fb && (fb->format == old_fb->format)) {
 			old_vbo = drm_plane_state_to_vbo(old_state);
 			if (vbo != old_vbo)
 				crtc_state->mode_changed = true;
@@ -332,7 +332,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if (ubo & 0x7 || ubo > 0xfffff8)
 			return -EINVAL;
 
-		if (old_fb && (fb->pixel_format == old_fb->pixel_format)) {
+		if (old_fb && (fb->format == old_fb->format)) {
 			old_ubo = drm_plane_state_to_ubo(old_state);
 			if (ubo != old_ubo)
 				crtc_state->mode_changed = true;
@@ -348,8 +348,8 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 * The x/y offsets must be even in case of horizontal/vertical
 		 * chroma subsampling.
 		 */
-		hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
-		vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
+		hsub = drm_format_horz_chroma_subsampling(fb->format->format);
+		vsub = drm_format_vert_chroma_subsampling(fb->format->format);
 		if (((state->src_x >> 16) & (hsub - 1)) ||
 		    ((state->src_y >> 16) & (vsub - 1)))
 			return -EINVAL;
@@ -392,13 +392,13 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
-		ics = ipu_drm_fourcc_to_colorspace(state->fb->pixel_format);
+		ics = ipu_drm_fourcc_to_colorspace(state->fb->format->format);
 		ipu_dp_setup_channel(ipu_plane->dp, ics,
 					IPUV3_COLORSPACE_UNKNOWN);
 		ipu_dp_set_window_pos(ipu_plane->dp, state->crtc_x,
 					state->crtc_y);
 		/* Enable local alpha on partial plane */
-		switch (state->fb->pixel_format) {
+		switch (state->fb->format->format) {
 		case DRM_FORMAT_ARGB1555:
 		case DRM_FORMAT_ABGR1555:
 		case DRM_FORMAT_RGBA5551:
@@ -421,11 +421,11 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_zero(ipu_plane->ipu_ch);
 	ipu_cpmem_set_resolution(ipu_plane->ipu_ch, state->src_w >> 16,
 					state->src_h >> 16);
-	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, state->fb->pixel_format);
+	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, state->fb->format->format);
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, state->fb->pitches[0]);
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
 	case DRM_FORMAT_YUV422:
@@ -434,9 +434,9 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	case DRM_FORMAT_YVU444:
 		ubo = drm_plane_state_to_ubo(state);
 		vbo = drm_plane_state_to_vbo(state);
-		if (fb->pixel_format == DRM_FORMAT_YVU420 ||
-		    fb->pixel_format == DRM_FORMAT_YVU422 ||
-		    fb->pixel_format == DRM_FORMAT_YVU444)
+		if (fb->format->format == DRM_FORMAT_YVU420 ||
+		    fb->format->format == DRM_FORMAT_YVU422 ||
+		    fb->format->format == DRM_FORMAT_YVU444)
 			swap(ubo, vbo);
 
 		ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,

@@ -386,3 +386,5 @@ SYSCALL(sys_mlock2,compat_sys_mlock2)
 SYSCALL(sys_copy_file_range,compat_sys_copy_file_range) /* 375 */
 SYSCALL(sys_preadv2,compat_sys_preadv2)
 SYSCALL(sys_pwritev2,compat_sys_pwritev2)
+NI_SYSCALL
+SYSCALL(sys_statx,compat_sys_statx)

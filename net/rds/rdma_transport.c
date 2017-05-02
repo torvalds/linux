@@ -206,18 +206,13 @@ static int rds_rdma_init(void)
 {
 	int ret;
 
-	ret = rds_rdma_listen_init();
+	ret = rds_ib_init();
 	if (ret)
 		goto out;
 
-	ret = rds_ib_init();
+	ret = rds_rdma_listen_init();
 	if (ret)
-		goto err_ib_init;
-
-	goto out;
-
-err_ib_init:
-	rds_rdma_listen_stop();
+		rds_ib_exit();
 out:
 	return ret;
 }

@@ -715,7 +715,7 @@ static int omap_hdq_probe(struct platform_device *pdev)
 	ret = _omap_hdq_reset(hdq_data);
 	if (ret) {
 		dev_dbg(&pdev->dev, "reset failed\n");
-		return -EINVAL;
+		goto err_irq;
 	}
 
 	rev = hdq_reg_in(hdq_data, OMAP_HDQ_REVISION);

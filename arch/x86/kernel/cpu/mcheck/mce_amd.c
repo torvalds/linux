@@ -60,7 +60,7 @@ static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
 	"combined_unit",
-	"",
+	"decode_unit",
 	"northbridge",
 	"execution_unit",
 };
@@ -192,6 +192,7 @@ static void get_smca_bank_info(unsigned int bank)
 
 			smca_banks[bank].hwid = s_hwid;
 			smca_banks[bank].id = instance_id;
+			smca_banks[bank].sysfs_id = s_hwid->count++;
 			break;
 		}
 	}
@@ -777,7 +778,8 @@ __log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 	mce_setup(&m);
 
 	m.status = status;
-	m.bank = bank;
+	m.bank   = bank;
+	m.tsc	 = rdtsc();
 
 	if (threshold_err)
 		m.misc = misc;
@@ -814,14 +816,14 @@ static inline void __smp_deferred_error_interrupt(void)
 	deferred_error_int_vector();
 }
 
-asmlinkage __visible void smp_deferred_error_interrupt(void)
+asmlinkage __visible void __irq_entry smp_deferred_error_interrupt(void)
 {
 	entering_irq();
 	__smp_deferred_error_interrupt();
 	exiting_ack_irq();
 }
 
-asmlinkage __visible void smp_trace_deferred_error_interrupt(void)
+asmlinkage __visible void __irq_entry smp_trace_deferred_error_interrupt(void)
 {
 	entering_irq();
 	trace_deferred_error_apic_entry(DEFERRED_ERROR_VECTOR);
@@ -1064,9 +1066,12 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 		return NULL;
 	}
 
+	if (smca_banks[bank].hwid->count == 1)
+		return smca_get_name(bank_type);
+
 	snprintf(buf_mcatype, MAX_MCATYPE_NAME_LEN,
 		 "%s_%x", smca_get_name(bank_type),
-			  smca_banks[bank].id);
+			  smca_banks[bank].sysfs_id);
 	return buf_mcatype;
 }
 

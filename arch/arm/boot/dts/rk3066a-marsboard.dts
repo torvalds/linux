@@ -69,7 +69,7 @@
 		regulator-name = "sdmmc-supply";
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
-		gpio = <&gpio3 7 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <100000>;
 		vin-supply = <&vcc_io>;
 	};
@@ -91,7 +91,7 @@
 		reg = <0x2d>;
 
 		interrupt-parent = <&gpio6>;
-		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 
 		vcc1-supply = <&vsys>;
 		vcc2-supply = <&vsys>;
@@ -186,7 +186,7 @@
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PD2 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 

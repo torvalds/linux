@@ -110,6 +110,15 @@ struct rpcrdma_msg {
 };
 
 /*
+ * XDR sizes, in quads
+ */
+enum {
+	rpcrdma_fixed_maxsz	= 4,
+	rpcrdma_segment_maxsz	= 4,
+	rpcrdma_readchunk_maxsz	= 2 + rpcrdma_segment_maxsz,
+};
+
+/*
  * Smallest RPC/RDMA header: rm_xid through rm_type, then rm_nochunks
  */
 #define RPCRDMA_HDRLEN_MIN	(sizeof(__be32) * 7)

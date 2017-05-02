@@ -182,6 +182,7 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(pll_clk->base))
 		return PTR_ERR(pll_clk->base);
 
+	memset(&init, 0, sizeof(init));
 	clk_name = node->name;
 	init.name = clk_name;
 	init.ops = &i2s_pll_ops;

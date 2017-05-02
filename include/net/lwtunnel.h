@@ -33,7 +33,7 @@ struct lwtunnel_state {
 };
 
 struct lwtunnel_encap_ops {
-	int (*build_state)(struct net_device *dev, struct nlattr *encap,
+	int (*build_state)(struct nlattr *encap,
 			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts);
 	void (*destroy_state)(struct lwtunnel_state *lws);
@@ -109,7 +109,7 @@ int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
 int lwtunnel_valid_encap_type(u16 encap_type);
 int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len);
-int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
+int lwtunnel_build_state(u16 encap_type,
 			 struct nlattr *encap,
 			 unsigned int family, const void *cfg,
 			 struct lwtunnel_state **lws);
@@ -184,7 +184,7 @@ static inline int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int len)
 	return 0;
 }
 
-static inline int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
+static inline int lwtunnel_build_state(u16 encap_type,
 				       struct nlattr *encap,
 				       unsigned int family, const void *cfg,
 				       struct lwtunnel_state **lws)

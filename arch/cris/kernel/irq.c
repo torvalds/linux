@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/irq.h>
+#include <linux/sched/debug.h>
 
 #include <linux/kernel_stat.h>
 #include <linux/signal.h>

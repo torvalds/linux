@@ -304,9 +304,6 @@ static int ef4_poll(struct napi_struct *napi, int budget)
 	struct ef4_nic *efx = channel->efx;
 	int spent;
 
-	if (!ef4_channel_lock_napi(channel))
-		return budget;
-
 	netif_vdbg(efx, intr, efx->net_dev,
 		   "channel %d NAPI poll executing on CPU %d\n",
 		   channel->channel, raw_smp_processor_id());
@@ -327,11 +324,10 @@ static int ef4_poll(struct napi_struct *napi, int budget)
 		 * since ef4_nic_eventq_read_ack() will have no effect if
 		 * interrupts have already been disabled.
 		 */
-		napi_complete(napi);
+		napi_complete_done(napi, spent);
 		ef4_nic_eventq_read_ack(channel);
 	}
 
-	ef4_channel_unlock_napi(channel);
 	return spent;
 }
 
@@ -387,7 +383,6 @@ void ef4_start_eventq(struct ef4_channel *channel)
 	channel->enabled = true;
 	smp_wmb();
 
-	ef4_channel_enable(channel);
 	napi_enable(&channel->napi_str);
 	ef4_nic_eventq_read_ack(channel);
 }
@@ -399,8 +394,6 @@ void ef4_stop_eventq(struct ef4_channel *channel)
 		return;
 
 	napi_disable(&channel->napi_str);
-	while (!ef4_channel_disable(channel))
-		usleep_range(1000, 20000);
 	channel->enabled = false;
 }
 
@@ -986,7 +979,7 @@ void ef4_mac_reconfigure(struct ef4_nic *efx)
 
 /* Push loopback/power/transmit disable settings to the PHY, and reconfigure
  * the MAC appropriately. All other PHY configuration changes are pushed
- * through phy_op->set_settings(), and pushed asynchronously to the MAC
+ * through phy_op->set_link_ksettings(), and pushed asynchronously to the MAC
  * through ef4_monitor().
  *
  * Callers must hold the mac_lock
@@ -1359,6 +1352,13 @@ static unsigned int ef4_wanted_parallelism(struct ef4_nic *efx)
 		}
 
 		free_cpumask_var(thread_mask);
+	}
+
+	if (count > EF4_MAX_RX_QUEUES) {
+		netif_cond_dbg(efx, probe, efx->net_dev, !rss_cpus, warn,
+			       "Reducing number of rx queues from %u to %u.\n",
+			       count, EF4_MAX_RX_QUEUES);
+		count = EF4_MAX_RX_QUEUES;
 	}
 
 	return count;
@@ -2029,7 +2029,6 @@ static void ef4_init_napi_channel(struct ef4_channel *channel)
 	channel->napi_dev = efx->net_dev;
 	netif_napi_add(channel->napi_dev, &channel->napi_str,
 		       ef4_poll, napi_weight);
-	ef4_channel_busy_poll_init(channel);
 }
 
 static void ef4_init_napi(struct ef4_nic *efx)
@@ -2077,37 +2076,6 @@ static void ef4_netpoll(struct net_device *net_dev)
 		ef4_schedule_channel(channel);
 }
 
-#endif
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static int ef4_busy_poll(struct napi_struct *napi)
-{
-	struct ef4_channel *channel =
-		container_of(napi, struct ef4_channel, napi_str);
-	struct ef4_nic *efx = channel->efx;
-	int budget = 4;
-	int old_rx_packets, rx_packets;
-
-	if (!netif_running(efx->net_dev))
-		return LL_FLUSH_FAILED;
-
-	if (!ef4_channel_try_lock_poll(channel))
-		return LL_FLUSH_BUSY;
-
-	old_rx_packets = channel->rx_queue.rx_packets;
-	ef4_process_channel(channel, budget);
-
-	rx_packets = channel->rx_queue.rx_packets - old_rx_packets;
-
-	/* There is no race condition with NAPI here.
-	 * NAPI will automatically be rescheduled if it yielded during busy
-	 * polling, because it was not able to take the lock and thus returned
-	 * the full budget.
-	 */
-	ef4_channel_unlock_poll(channel);
-
-	return rx_packets;
-}
 #endif
 
 /**************************************************************************
@@ -2158,16 +2126,14 @@ int ef4_net_stop(struct net_device *net_dev)
 }
 
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
-static struct rtnl_link_stats64 *ef4_net_stats(struct net_device *net_dev,
-					       struct rtnl_link_stats64 *stats)
+static void ef4_net_stats(struct net_device *net_dev,
+			  struct rtnl_link_stats64 *stats)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
 	spin_lock_bh(&efx->stats_lock);
 	efx->type->update_stats(efx, NULL, stats);
 	spin_unlock_bh(&efx->stats_lock);
-
-	return stats;
 }
 
 /* Context: netif_tx_lock held, BHs disabled. */
@@ -2291,9 +2257,6 @@ static const struct net_device_ops ef4_netdev_ops = {
 	.ndo_poll_controller = ef4_netpoll,
 #endif
 	.ndo_setup_tc		= ef4_setup_tc,
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= ef4_busy_poll,
-#endif
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= ef4_filter_rfs,
 #endif
@@ -3348,3 +3311,4 @@ MODULE_AUTHOR("Solarflare Communications and "
 MODULE_DESCRIPTION("Solarflare Falcon network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, ef4_pci_table);
+MODULE_VERSION(EF4_DRIVER_VERSION);

@@ -14,9 +14,12 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/rculist.h>
+
 #include "nvmet.h"
 
 static struct nvmet_fabrics_ops *nvmet_transports[NVMF_TRTYPE_MAX];
+static DEFINE_IDA(cntlid_ida);
 
 /*
  * This read/write semaphore is used to synchronize access to configuration
@@ -422,6 +425,13 @@ void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
 	ctrl->sqs[qid] = sq;
 }
 
+static void nvmet_confirm_sq(struct percpu_ref *ref)
+{
+	struct nvmet_sq *sq = container_of(ref, struct nvmet_sq, ref);
+
+	complete(&sq->confirm_done);
+}
+
 void nvmet_sq_destroy(struct nvmet_sq *sq)
 {
 	/*
@@ -430,7 +440,8 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 	 */
 	if (sq->ctrl && sq->ctrl->sqs && sq->ctrl->sqs[0] == sq)
 		nvmet_async_events_free(sq->ctrl);
-	percpu_ref_kill(&sq->ref);
+	percpu_ref_kill_and_confirm(&sq->ref, nvmet_confirm_sq);
+	wait_for_completion(&sq->confirm_done);
 	wait_for_completion(&sq->free_done);
 	percpu_ref_exit(&sq->ref);
 
@@ -458,6 +469,7 @@ int nvmet_sq_init(struct nvmet_sq *sq)
 		return ret;
 	}
 	init_completion(&sq->free_done);
+	init_completion(&sq->confirm_done);
 
 	return 0;
 }
@@ -749,7 +761,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!ctrl->sqs)
 		goto out_free_cqs;
 
-	ret = ida_simple_get(&subsys->cntlid_ida,
+	ret = ida_simple_get(&cntlid_ida,
 			     NVME_CNTLID_MIN, NVME_CNTLID_MAX,
 			     GFP_KERNEL);
 	if (ret < 0) {
@@ -819,7 +831,7 @@ static void nvmet_ctrl_free(struct kref *ref)
 	flush_work(&ctrl->async_event_work);
 	cancel_work_sync(&ctrl->fatal_err_work);
 
-	ida_simple_remove(&subsys->cntlid_ida, ctrl->cntlid);
+	ida_simple_remove(&cntlid_ida, ctrl->cntlid);
 	nvmet_subsys_put(subsys);
 
 	kfree(ctrl->sqs);
@@ -918,9 +930,6 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	mutex_init(&subsys->lock);
 	INIT_LIST_HEAD(&subsys->namespaces);
 	INIT_LIST_HEAD(&subsys->ctrls);
-
-	ida_init(&subsys->cntlid_ida);
-
 	INIT_LIST_HEAD(&subsys->hosts);
 
 	return subsys;
@@ -933,7 +942,6 @@ static void nvmet_subsys_free(struct kref *ref)
 
 	WARN_ON_ONCE(!list_empty(&subsys->namespaces));
 
-	ida_destroy(&subsys->cntlid_ida);
 	kfree(subsys->subsysnqn);
 	kfree(subsys);
 }
@@ -976,6 +984,7 @@ static void __exit nvmet_exit(void)
 {
 	nvmet_exit_configfs();
 	nvmet_exit_discovery();
+	ida_destroy(&cntlid_ida);
 
 	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_entry) != 1024);
 	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_hdr) != 1024);

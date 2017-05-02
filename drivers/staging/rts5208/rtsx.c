@@ -198,23 +198,21 @@ static int command_abort(struct scsi_cmnd *srb)
  */
 static int device_reset(struct scsi_cmnd *srb)
 {
-	int result = 0;
 	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
 
 	dev_info(&dev->pci->dev, "%s called\n", __func__);
 
-	return result < 0 ? FAILED : SUCCESS;
+	return SUCCESS;
 }
 
 /* Simulate a SCSI bus reset by resetting the device's USB port. */
 static int bus_reset(struct scsi_cmnd *srb)
 {
-	int result = 0;
 	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
 
 	dev_info(&dev->pci->dev, "%s called\n", __func__);
 
-	return result < 0 ? FAILED : SUCCESS;
+	return SUCCESS;
 }
 
 /*

@@ -851,7 +851,7 @@ static int hci_sock_release(struct socket *sock)
 
 	if (hdev) {
 		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
-			/* When releasing an user channel exclusive access,
+			/* When releasing a user channel exclusive access,
 			 * call hci_dev_do_close directly instead of calling
 			 * hci_dev_close to ensure the exclusive access will
 			 * be released and the controller brought back down.
@@ -1172,7 +1172,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 				/* In case the transport is already up and
 				 * running, clear the error here.
 				 *
-				 * This can happen when opening an user
+				 * This can happen when opening a user
 				 * channel and HCI_AUTO_OFF grace period
 				 * is still active.
 				 */
@@ -1190,7 +1190,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		if (!hci_sock_gen_cookie(sk)) {
 			/* In the case when a cookie has already been assigned,
 			 * this socket will transition from a raw socket into
-			 * an user channel socket. For a clean transition, send
+			 * a user channel socket. For a clean transition, send
 			 * the close notification first.
 			 */
 			skb = create_monitor_ctrl_close(sk);

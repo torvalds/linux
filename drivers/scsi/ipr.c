@@ -6293,7 +6293,12 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_IOASC_MED_DO_NOT_REALLOC: /* prevent retries */
 	case IPR_IOASA_IR_DUAL_IOA_DISABLED:
-		scsi_cmd->result |= (DID_PASSTHROUGH << 16);
+		/*
+		 * exception: do not set DID_PASSTHROUGH on CHECK CONDITION
+		 * so SCSI mid-layer and upper layers handle it accordingly.
+		 */
+		if (scsi_cmd->result != SAM_STAT_CHECK_CONDITION)
+			scsi_cmd->result |= (DID_PASSTHROUGH << 16);
 		break;
 	case IPR_IOASC_BUS_WAS_RESET:
 	case IPR_IOASC_BUS_WAS_RESET_BY_OTHER:
@@ -9330,7 +9335,7 @@ static pci_ers_result_t ipr_pci_error_detected(struct pci_dev *pdev,
  * ipr_probe_ioa_part2 - Initializes IOAs found in ipr_probe_ioa(..)
  * @ioa_cfg:	ioa cfg struct
  *
- * Description: This is the second phase of adapter intialization
+ * Description: This is the second phase of adapter initialization
  * This function takes care of initilizing the adapter to the point
  * where it can accept new commands.
 

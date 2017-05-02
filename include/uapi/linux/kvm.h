@@ -218,7 +218,8 @@ struct kvm_hyperv_exit {
 struct kvm_run {
 	/* in */
 	__u8 request_interrupt_window;
-	__u8 padding1[7];
+	__u8 immediate_exit;
+	__u8 padding1[6];
 
 	/* out */
 	__u32 exit_reason;
@@ -881,6 +882,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_SPAPR_RESIZE_HPT 133
 #define KVM_CAP_PPC_MMU_RADIX 134
 #define KVM_CAP_PPC_MMU_HASH_V3 135
+#define KVM_CAP_IMMEDIATE_EXIT 136
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

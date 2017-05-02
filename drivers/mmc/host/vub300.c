@@ -640,8 +640,6 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 		mutex_lock(&vub300->irq_mutex);
 		if (vub300->irq_enabled)
 			mmc_signal_sdio_irq(vub300->mmc);
-		else if (vub300->irqs_queued)
-			vub300->irqs_queued += 1;
 		else
 			vub300->irqs_queued += 1;
 		vub300->irq_disabled = 0;
@@ -728,8 +726,7 @@ static void vub300_deadwork_thread(struct work_struct *work)
 		 */
 	} else if (vub300->card_present) {
 		check_vub300_port_status(vub300);
-	} else if (vub300->mmc && vub300->mmc->card &&
-		   mmc_card_present(vub300->mmc->card)) {
+	} else if (vub300->mmc && vub300->mmc->card) {
 		/*
 		 * the MMC core must not have responded
 		 * to the previous indication - lets
@@ -1756,8 +1753,7 @@ static void vub300_cmndwork_thread(struct work_struct *work)
 		int data_length;
 		mutex_lock(&vub300->cmd_mutex);
 		init_completion(&vub300->command_complete);
-		if (likely(vub300->vub_name[0]) || !vub300->mmc->card ||
-		    !mmc_card_present(vub300->mmc->card)) {
+		if (likely(vub300->vub_name[0]) || !vub300->mmc->card) {
 			/*
 			 * the name of the EMPTY Pseudo firmware file
 			 * is used as a flag to indicate that the file

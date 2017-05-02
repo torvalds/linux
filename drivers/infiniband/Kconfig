@@ -92,4 +92,6 @@ source "drivers/infiniband/hw/hfi1/Kconfig"
 
 source "drivers/infiniband/hw/qedr/Kconfig"
 
+source "drivers/infiniband/hw/bnxt_re/Kconfig"
+
 endif # INFINIBAND

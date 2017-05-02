@@ -153,8 +153,8 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 		goto out;
 	}
 
-	pr_info("creating controller %d for NQN %s.\n",
-			ctrl->cntlid, ctrl->hostnqn);
+	pr_info("creating controller %d for subsystem %s for NQN %s.\n",
+		ctrl->cntlid, ctrl->subsys->subsysnqn, ctrl->hostnqn);
 	req->rsp->result.u16 = cpu_to_le16(ctrl->cntlid);
 
 out:
@@ -220,7 +220,7 @@ int nvmet_parse_connect_cmd(struct nvmet_req *req)
 
 	req->ns = NULL;
 
-	if (req->cmd->common.opcode != nvme_fabrics_command) {
+	if (cmd->common.opcode != nvme_fabrics_command) {
 		pr_err("invalid command 0x%x on unconnected queue.\n",
 			cmd->fabrics.opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;

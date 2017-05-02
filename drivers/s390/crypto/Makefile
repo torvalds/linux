@@ -10,3 +10,7 @@ zcrypt-objs += zcrypt_msgtype6.o zcrypt_msgtype50.o
 obj-$(CONFIG_ZCRYPT) += zcrypt.o
 # adapter drivers depend on ap.o and zcrypt.o
 obj-$(CONFIG_ZCRYPT) += zcrypt_pcixcc.o zcrypt_cex2a.o zcrypt_cex4.o
+
+# pkey kernel module
+pkey-objs := pkey_api.o
+obj-$(CONFIG_PKEY) += pkey.o

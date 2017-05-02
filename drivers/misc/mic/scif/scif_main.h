@@ -18,7 +18,7 @@
 #ifndef SCIF_MAIN_H
 #define SCIF_MAIN_H
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/pci.h>
 #include <linux/miscdevice.h>
 #include <linux/dmaengine.h>

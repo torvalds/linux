@@ -55,7 +55,7 @@
 
 			uart0: serial@f0024000 {
 				compatible = "atmel,at91sam9260-usart";
-				reg = <0xf0024000 0x200>;
+				reg = <0xf0024000 0x100>;
 				interrupts = <16 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart0>;
@@ -66,7 +66,7 @@
 
 			uart1: serial@f8028000 {
 				compatible = "atmel,at91sam9260-usart";
-				reg = <0xf8028000 0x200>;
+				reg = <0xf8028000 0x100>;
 				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart1>;

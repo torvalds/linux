@@ -266,6 +266,9 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 		goto fail_free_event;
 	}
 
+	if (agpio->wake_capable == ACPI_WAKE_CAPABLE)
+		enable_irq_wake(irq);
+
 	list_add_tail(&event->node, &acpi_gpio->events);
 	return AE_OK;
 
@@ -338,6 +341,9 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 
 	list_for_each_entry_safe_reverse(event, ep, &acpi_gpio->events, node) {
 		struct gpio_desc *desc;
+
+		if (irqd_is_wakeup_set(irq_get_irq_data(event->irq)))
+			disable_irq_wake(event->irq);
 
 		free_irq(event->irq, event);
 		desc = event->desc;
@@ -416,9 +422,8 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 			agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
 
 		/*
-		 * ActiveLow is only specified for GpioInt resource. If
-		 * GpioIo is used then the only way to set the flag is
-		 * to use _DSD "gpios" property.
+		 * Polarity and triggering are only specified for GpioInt
+		 * resource.
 		 * Note: we expect here:
 		 * - ACPI_ACTIVE_LOW == GPIO_ACTIVE_LOW
 		 * - ACPI_ACTIVE_HIGH == GPIO_ACTIVE_HIGH
@@ -572,8 +577,10 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 		}
 
 		desc = acpi_get_gpiod_by_index(adev, propname, idx, &info);
-		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
+		if (!IS_ERR(desc))
 			break;
+		if (PTR_ERR(desc) == -EPROBE_DEFER)
+			return ERR_CAST(desc);
 	}
 
 	/* Then from plain _CRS GPIOs */

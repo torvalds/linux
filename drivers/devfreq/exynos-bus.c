@@ -103,18 +103,17 @@ static int exynos_bus_target(struct device *dev, unsigned long *freq, u32 flags)
 	int ret = 0;
 
 	/* Get new opp-bus instance according to new bus clock */
-	rcu_read_lock();
 	new_opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(new_opp)) {
 		dev_err(dev, "failed to get recommended opp instance\n");
-		rcu_read_unlock();
 		return PTR_ERR(new_opp);
 	}
 
 	new_freq = dev_pm_opp_get_freq(new_opp);
 	new_volt = dev_pm_opp_get_voltage(new_opp);
+	dev_pm_opp_put(new_opp);
+
 	old_freq = bus->curr_freq;
-	rcu_read_unlock();
 
 	if (old_freq == new_freq)
 		return 0;
@@ -147,8 +146,8 @@ static int exynos_bus_target(struct device *dev, unsigned long *freq, u32 flags)
 	}
 	bus->curr_freq = new_freq;
 
-	dev_dbg(dev, "Set the frequency of bus (%lukHz -> %lukHz)\n",
-			old_freq/1000, new_freq/1000);
+	dev_dbg(dev, "Set the frequency of bus (%luHz -> %luHz, %luHz)\n",
+			old_freq, new_freq, clk_get_rate(bus->clk));
 out:
 	mutex_unlock(&bus->lock);
 
@@ -214,17 +213,16 @@ static int exynos_bus_passive_target(struct device *dev, unsigned long *freq,
 	int ret = 0;
 
 	/* Get new opp-bus instance according to new bus clock */
-	rcu_read_lock();
 	new_opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(new_opp)) {
 		dev_err(dev, "failed to get recommended opp instance\n");
-		rcu_read_unlock();
 		return PTR_ERR(new_opp);
 	}
 
 	new_freq = dev_pm_opp_get_freq(new_opp);
+	dev_pm_opp_put(new_opp);
+
 	old_freq = bus->curr_freq;
-	rcu_read_unlock();
 
 	if (old_freq == new_freq)
 		return 0;
@@ -241,8 +239,8 @@ static int exynos_bus_passive_target(struct device *dev, unsigned long *freq,
 	*freq = new_freq;
 	bus->curr_freq = new_freq;
 
-	dev_dbg(dev, "Set the frequency of bus (%lukHz -> %lukHz)\n",
-			old_freq/1000, new_freq/1000);
+	dev_dbg(dev, "Set the frequency of bus (%luHz -> %luHz, %luHz)\n",
+			old_freq, new_freq, clk_get_rate(bus->clk));
 out:
 	mutex_unlock(&bus->lock);
 
@@ -358,16 +356,14 @@ static int exynos_bus_parse_of(struct device_node *np,
 
 	rate = clk_get_rate(bus->clk);
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &rate, 0);
 	if (IS_ERR(opp)) {
 		dev_err(dev, "failed to find dev_pm_opp\n");
-		rcu_read_unlock();
 		ret = PTR_ERR(opp);
 		goto err_opp;
 	}
 	bus->curr_freq = dev_pm_opp_get_freq(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	return 0;
 

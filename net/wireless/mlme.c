@@ -48,7 +48,8 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 	/* update current_bss etc., consumes the bss reference */
 	__cfg80211_connect_result(dev, mgmt->bssid, NULL, 0, ie, len - ieoffs,
 				  status_code,
-				  status_code == WLAN_STATUS_SUCCESS, bss);
+				  status_code == WLAN_STATUS_SUCCESS, bss,
+				  NL80211_TIMEOUT_UNSPECIFIED);
 }
 EXPORT_SYMBOL(cfg80211_rx_assoc_resp);
 
@@ -344,6 +345,11 @@ int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 	    (!wdev->current_bss ||
 	     !ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
 		return 0;
+
+	if (ether_addr_equal(wdev->disconnect_bssid, bssid) ||
+	    (wdev->current_bss &&
+	     ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
+		wdev->conn_owner_nlportid = 0;
 
 	return rdev_deauth(rdev, dev, &req);
 }
@@ -657,8 +663,25 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			return err;
 	}
 
-	if (!ether_addr_equal(mgmt->sa, wdev_address(wdev)))
-		return -EINVAL;
+	if (!ether_addr_equal(mgmt->sa, wdev_address(wdev))) {
+		/* Allow random TA to be used with Public Action frames if the
+		 * driver has indicated support for this. Otherwise, only allow
+		 * the local address to be used.
+		 */
+		if (!ieee80211_is_action(mgmt->frame_control) ||
+		    mgmt->u.action.category != WLAN_CATEGORY_PUBLIC)
+			return -EINVAL;
+		if (!wdev->current_bss &&
+		    !wiphy_ext_feature_isset(
+			    &rdev->wiphy,
+			    NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA))
+			return -EINVAL;
+		if (wdev->current_bss &&
+		    !wiphy_ext_feature_isset(
+			    &rdev->wiphy,
+			    NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED))
+			return -EINVAL;
+	}
 
 	/* Transmit the Action frame as requested by user space */
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);

@@ -164,6 +164,12 @@ config BATTERY_SBS
 	  Say Y to include support for SBS battery driver for SBS-compliant
 	  gas gauges.
 
+config CHARGER_SBS
+        tristate "SBS Compliant charger"
+        depends on I2C
+        help
+	  Say Y to include support for SBS compilant battery chargers.
+
 config BATTERY_BQ27XXX
 	tristate "BQ27xxx battery driver"
 	help
@@ -213,6 +219,18 @@ config BATTERY_DA9150
 
 	  This driver can also be built as a module. If so, the module will be
 	  called da9150-fg.
+
+config CHARGER_AXP20X
+	tristate "X-Powers AXP20X and AXP22X AC power supply driver"
+	depends on MFD_AXP20X
+	depends on AXP20X_ADC
+	depends on IIO
+	help
+	  Say Y here to enable support for X-Powers AXP20X and AXP22X PMICs' AC
+	  power supply.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called axp20x_ac_power.
 
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
@@ -292,13 +310,6 @@ config BATTERY_JZ4740
 	  This driver can be build as a module. If so, the module will be
 	  called jz4740-battery.
 
-config BATTERY_INTEL_MID
-	tristate "Battery driver for Intel MID platforms"
-	depends on INTEL_SCU_IPC && SPI
-	help
-	  Say Y here to enable the battery driver on Intel MID
-	  platforms.
-
 config BATTERY_RX51
 	tristate "Nokia RX-51 (N900) battery driver"
 	depends on TWL4030_MADC
@@ -370,6 +381,16 @@ config CHARGER_MAX14577
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX14577/77836 MUICs.
 
+config CHARGER_DETECTOR_MAX14656
+	tristate "Maxim MAX14656 USB charger detector"
+	depends on I2C
+	depends on OF
+	help
+	  Say Y to enable support for the Maxim MAX14656 USB charger detector.
+	  The device is compliant with the USB Battery Charging Specification
+	  Revision 1.2 and can be found e.g. in Kindle 4/5th generation
+	  readers and certain LG devices.
+
 config CHARGER_MAX77693
 	tristate "Maxim MAX77693 battery charger driver"
 	depends on MFD_MAX77693
@@ -395,6 +416,7 @@ config CHARGER_QCOM_SMBB
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
 	depends on OF
 	depends on EXTCON
+	depends on REGULATOR
 	help
 	  Say Y to include support for the Switch-Mode Battery Charger and
 	  Boost (SMBB) hardware found in Qualcomm PM8941 PMICs.  The charger

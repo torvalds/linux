@@ -54,8 +54,7 @@ static struct page **get_pages_vram(struct drm_gem_object *obj,
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
-	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node,
-			npages, 0, DRM_MM_SEARCH_DEFAULT);
+	ret = drm_mm_insert_node(&priv->vram.mm, msm_obj->vram_node, npages);
 	if (ret) {
 		drm_free_large(p);
 		return ERR_PTR(ret);
@@ -192,8 +191,9 @@ int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return msm_gem_mmap_obj(vma->vm_private_data, vma);
 }
 
-int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int msm_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_device *dev = obj->dev;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -642,7 +642,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 
 	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p\t",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
-			obj->name, obj->refcount.refcount.counter,
+			obj->name, kref_read(&obj->refcount),
 			off, msm_obj->vaddr);
 
 	for (id = 0; id < priv->num_aspaces; id++)
@@ -811,6 +811,12 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	size = PAGE_ALIGN(size);
+
+	/* Disallow zero sized objects as they make the underlying
+	 * infrastructure grumpy
+	 */
+	if (size == 0)
+		return ERR_PTR(-EINVAL);
 
 	ret = msm_gem_new_impl(dev, size, flags, NULL, &obj);
 	if (ret)

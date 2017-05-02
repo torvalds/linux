@@ -36,10 +36,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
  * Hardware & software notes
@@ -764,7 +760,6 @@ static void ati_remote_rc_init(struct ati_remote *ati_remote)
 	struct rc_dev *rdev = ati_remote->rdev;
 
 	rdev->priv = ati_remote;
-	rdev->driver_type = RC_DRIVER_SCANCODE;
 	rdev->allowed_protocols = RC_BIT_OTHER;
 	rdev->driver_name = "ati_remote";
 
@@ -851,7 +846,7 @@ static int ati_remote_probe(struct usb_interface *interface,
 	}
 
 	ati_remote = kzalloc(sizeof (struct ati_remote), GFP_KERNEL);
-	rc_dev = rc_allocate_device();
+	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ati_remote || !rc_dev)
 		goto exit_free_dev_rdev;
 

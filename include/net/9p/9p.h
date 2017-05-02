@@ -402,10 +402,10 @@ struct p9_wstat {
 	u32 atime;
 	u32 mtime;
 	u64 length;
-	char *name;
-	char *uid;
-	char *gid;
-	char *muid;
+	const char *name;
+	const char *uid;
+	const char *gid;
+	const char *muid;
 	char *extension;	/* 9p2000.u extensions */
 	kuid_t n_uid;		/* 9p2000.u extensions */
 	kgid_t n_gid;		/* 9p2000.u extensions */

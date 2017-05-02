@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/acpi.h>
+#include <linux/pinctrl/consumer.h>
 
 #define USB_GPIO_DEBOUNCE_MS	20	/* ms */
 
@@ -245,6 +246,9 @@ static int usb_extcon_suspend(struct device *dev)
 	if (info->vbus_gpiod)
 		disable_irq(info->vbus_irq);
 
+	if (!device_may_wakeup(dev))
+		pinctrl_pm_select_sleep_state(dev);
+
 	return ret;
 }
 
@@ -252,6 +256,9 @@ static int usb_extcon_resume(struct device *dev)
 {
 	struct usb_extcon_info *info = dev_get_drvdata(dev);
 	int ret = 0;
+
+	if (!device_may_wakeup(dev))
+		pinctrl_pm_select_default_state(dev);
 
 	if (device_may_wakeup(dev)) {
 		if (info->id_gpiod) {

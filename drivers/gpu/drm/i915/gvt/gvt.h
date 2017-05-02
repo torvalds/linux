@@ -143,6 +143,8 @@ struct intel_vgpu {
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
+	bool pv_notified;
+	bool failsafe;
 	bool resetting;
 	void *sched_data;
 
@@ -160,7 +162,6 @@ struct intel_vgpu {
 	atomic_t running_workload_num;
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
-	struct notifier_block shadow_ctx_notifier_block;
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {
@@ -203,18 +204,18 @@ struct intel_gvt_firmware {
 };
 
 struct intel_gvt_opregion {
-	void __iomem *opregion_va;
+	void *opregion_va;
 	u32 opregion_pa;
 };
 
 #define NR_MAX_INTEL_VGPU_TYPES 20
 struct intel_vgpu_type {
 	char name[16];
-	unsigned int max_instance;
 	unsigned int avail_instance;
 	unsigned int low_gm_size;
 	unsigned int high_gm_size;
 	unsigned int fence;
+	enum intel_vgpu_edid resolution;
 };
 
 struct intel_gvt {
@@ -231,6 +232,7 @@ struct intel_gvt {
 	struct intel_gvt_gtt gtt;
 	struct intel_gvt_opregion opregion;
 	struct intel_gvt_workload_scheduler scheduler;
+	struct notifier_block shadow_ctx_notifier_block[I915_NUM_ENGINES];
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
 	struct intel_vgpu_type *types;
 	unsigned int num_types;
@@ -317,6 +319,7 @@ struct intel_vgpu_creation_params {
 	__u64 low_gm_sz;  /* in MB */
 	__u64 high_gm_sz; /* in MB */
 	__u64 fence_sz;
+	__u64 resolution;
 	__s32 primary;
 	__u64 vgpu_id;
 };
@@ -379,7 +382,8 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 				 unsigned int engine_mask);
 void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
-
+void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu);
 
 /* validating GM functions */
 #define vgpu_gmadr_is_aperture(vgpu, gmadr) \
@@ -446,8 +450,15 @@ struct intel_gvt_ops {
 				struct intel_vgpu_type *);
 	void (*vgpu_destroy)(struct intel_vgpu *);
 	void (*vgpu_reset)(struct intel_vgpu *);
+	void (*vgpu_activate)(struct intel_vgpu *);
+	void (*vgpu_deactivate)(struct intel_vgpu *);
 };
 
+
+enum {
+	GVT_FAILSAFE_UNSUPPORTED_GUEST,
+	GVT_FAILSAFE_INSUFFICIENT_RESOURCE,
+};
 
 #include "mpt.h"
 

@@ -72,7 +72,7 @@ struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_device *rpdev,
 					struct rpmsg_channel_info chinfo)
 {
 	if (WARN_ON(!rpdev))
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	return rpdev->ops->create_ept(rpdev, cb, priv, chinfo);
 }
@@ -238,6 +238,26 @@ int rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst)
 	return ept->ops->trysendto(ept, data, len, dst);
 }
 EXPORT_SYMBOL(rpmsg_trysendto);
+
+/**
+ * rpmsg_poll() - poll the endpoint's send buffers
+ * @ept:	the rpmsg endpoint
+ * @filp:	file for poll_wait()
+ * @wait:	poll_table for poll_wait()
+ *
+ * Returns mask representing the current state of the endpoint's send buffers
+ */
+unsigned int rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
+			poll_table *wait)
+{
+	if (WARN_ON(!ept))
+		return 0;
+	if (!ept->ops->poll)
+		return 0;
+
+	return ept->ops->poll(ept, filp, wait);
+}
+EXPORT_SYMBOL(rpmsg_poll);
 
 /**
  * rpmsg_send_offchannel() - send a message using explicit src/dst addresses

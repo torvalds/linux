@@ -33,10 +33,12 @@ extern int agg_wsize;
 extern u32 vring_idle_trsh;
 extern bool rx_align_2;
 extern bool debug_fw;
+extern bool disable_ap_sme;
 
 #define WIL_NAME "wil6210"
-#define WIL_FW_NAME "wil6210.fw" /* code */
-#define WIL_FW2_NAME "wil6210.brd" /* board & radio parameters */
+#define WIL_FW_NAME_DEFAULT "wil6210.fw" /* code Sparrow B0 */
+#define WIL_FW_NAME_SPARROW_PLUS "wil6210_sparrow_plus.fw" /* code Sparrow D0 */
+#define WIL_BOARD_FILE_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
@@ -98,6 +100,9 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 #define WIL6210_RX_HIGH_TRSH_INIT		(0)
 #define WIL6210_RX_HIGH_TRSH_DEFAULT \
 				(1 << (WIL_RX_RING_SIZE_ORDER_DEFAULT - 3))
+#define WIL_MAX_DMG_AID 254 /* for DMG only 1-254 allowed (see
+			     * 802.11REVmc/D5.0, section 9.4.1.8)
+			     */
 /* Hardware definitions begin */
 
 /*
@@ -249,7 +254,12 @@ struct RGF_ICR {
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
-	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
+	#define JTAG_DEV_ID_SPARROW	(0x2632072f)
+
+#define RGF_USER_REVISION_ID		(0x88afe4)
+#define RGF_USER_REVISION_ID_MASK	(3)
+	#define REVISION_ID_SPARROW_B0	(0x0)
+	#define REVISION_ID_SPARROW_D0	(0x3)
 
 /* crash codes for FW/Ucode stored here */
 #define RGF_FW_ASSERT_CODE		(0x91f020)
@@ -257,7 +267,8 @@ struct RGF_ICR {
 
 enum {
 	HW_VER_UNKNOWN,
-	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
+	HW_VER_SPARROW_B0, /* REVISION_ID_SPARROW_B0 */
+	HW_VER_SPARROW_D0, /* REVISION_ID_SPARROW_D0 */
 };
 
 /* popular locations */
@@ -512,6 +523,7 @@ struct wil_sta_info {
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 	struct wil_tid_crypto_rx tid_crypto_rx[WIL_STA_TID_NUM];
 	struct wil_tid_crypto_rx group_crypto_rx;
+	u8 aid; /* 1-254; 0 if unknown/not reported */
 };
 
 enum {
@@ -583,7 +595,9 @@ struct wil6210_priv {
 	DECLARE_BITMAP(status, wil_status_last);
 	u8 fw_version[ETHTOOL_FWVERS_LEN];
 	u32 hw_version;
+	u8 chip_revision;
 	const char *hw_name;
+	const char *wil_fw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
@@ -653,6 +667,7 @@ struct wil6210_priv {
 	struct dentry *debug;
 	struct wil_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
 	u8 discovery_mode;
+	u8 abft_len;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
@@ -816,8 +831,8 @@ int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
-int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason,
-		       bool full_disconnect);
+int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac,
+		       u16 reason, bool full_disconnect, bool del_sta);
 int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout);
 int wmi_delba_tx(struct wil6210_priv *wil, u8 ringid, u16 reason);
 int wmi_delba_rx(struct wil6210_priv *wil, u8 cidxtid, u16 reason);
@@ -827,6 +842,7 @@ int wmi_ps_dev_profile_cfg(struct wil6210_priv *wil,
 			   enum wmi_ps_profile_type ps_profile);
 int wmi_set_mgmt_retry(struct wil6210_priv *wil, u8 retry_short);
 int wmi_get_mgmt_retry(struct wil6210_priv *wil, u8 *retry_short);
+int wmi_new_sta(struct wil6210_priv *wil, const u8 *mac, u8 aid);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 			 u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
@@ -918,6 +934,7 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type);
 int wil_ioctl(struct wil6210_priv *wil, void __user *data, int cmd);
 int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 			 bool load);
+bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name);
 
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
 int wil_suspend(struct wil6210_priv *wil, bool is_runtime);

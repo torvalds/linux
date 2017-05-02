@@ -15,6 +15,7 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
+#include <linux/module.h>
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>	/* for boot_cpu_has below */
@@ -241,7 +242,7 @@ static __init void test_atomic64(void)
 	BUG_ON(v.counter != r);
 }
 
-static __init int test_atomics(void)
+static __init int test_atomics_init(void)
 {
 	test_atomic();
 	test_atomic64();
@@ -264,4 +265,9 @@ static __init int test_atomics(void)
 	return 0;
 }
 
-core_initcall(test_atomics);
+static __exit void test_atomics_exit(void) {}
+
+module_init(test_atomics_init);
+module_exit(test_atomics_exit);
+
+MODULE_LICENSE("GPL");

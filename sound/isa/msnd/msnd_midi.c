@@ -142,7 +142,7 @@ void snd_msndmidi_input_read(void *mpuv)
 }
 EXPORT_SYMBOL(snd_msndmidi_input_read);
 
-static struct snd_rawmidi_ops snd_msndmidi_input = {
+static const struct snd_rawmidi_ops snd_msndmidi_input = {
 	.open =		snd_msndmidi_input_open,
 	.close =	snd_msndmidi_input_close,
 	.trigger =	snd_msndmidi_input_trigger,

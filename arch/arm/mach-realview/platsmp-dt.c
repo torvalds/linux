@@ -76,7 +76,7 @@ static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 	}
 	/* Put the boot address in this magic register */
 	regmap_write(map, REALVIEW_SYS_FLAGSSET_OFFSET,
-		     virt_to_phys(versatile_secondary_startup));
+		     __pa_symbol(versatile_secondary_startup));
 }
 
 static const struct smp_operations realview_dt_smp_ops __initconst = {

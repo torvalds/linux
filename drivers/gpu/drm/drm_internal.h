@@ -31,6 +31,7 @@ void drm_lastclose(struct drm_device *dev);
 /* drm_pci.c */
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
+void drm_pci_agp_destroy(struct drm_device *dev);
 
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
@@ -58,10 +59,10 @@ extern unsigned int drm_timestamp_monotonic;
 /* IOCTLS */
 int drm_wait_vblank(struct drm_device *dev, void *data,
 		    struct drm_file *filp);
-int drm_control(struct drm_device *dev, void *data,
-		struct drm_file *file_priv);
-int drm_modeset_ctl(struct drm_device *dev, void *data,
-		    struct drm_file *file_priv);
+int drm_legacy_irq_control(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
+int drm_legacy_modeset_ctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 
 /* drm_auth.c */
 int drm_getmagic(struct drm_device *dev, void *data,

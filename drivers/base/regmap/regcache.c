@@ -224,7 +224,7 @@ void regcache_exit(struct regmap *map)
 }
 
 /**
- * regcache_read: Fetch the value of a given register from the cache.
+ * regcache_read - Fetch the value of a given register from the cache.
  *
  * @map: map to configure.
  * @reg: The register index.
@@ -255,7 +255,7 @@ int regcache_read(struct regmap *map,
 }
 
 /**
- * regcache_write: Set the value of a given register in the cache.
+ * regcache_write - Set the value of a given register in the cache.
  *
  * @map: map to configure.
  * @reg: The register index.
@@ -328,7 +328,7 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
 }
 
 /**
- * regcache_sync: Sync the register cache with the hardware.
+ * regcache_sync - Sync the register cache with the hardware.
  *
  * @map: map to configure.
  *
@@ -396,7 +396,7 @@ out:
 EXPORT_SYMBOL_GPL(regcache_sync);
 
 /**
- * regcache_sync_region: Sync part  of the register cache with the hardware.
+ * regcache_sync_region - Sync part  of the register cache with the hardware.
  *
  * @map: map to sync.
  * @min: first register to sync
@@ -452,7 +452,7 @@ out:
 EXPORT_SYMBOL_GPL(regcache_sync_region);
 
 /**
- * regcache_drop_region: Discard part of the register cache
+ * regcache_drop_region - Discard part of the register cache
  *
  * @map: map to operate on
  * @min: first register to discard
@@ -483,10 +483,10 @@ int regcache_drop_region(struct regmap *map, unsigned int min,
 EXPORT_SYMBOL_GPL(regcache_drop_region);
 
 /**
- * regcache_cache_only: Put a register map into cache only mode
+ * regcache_cache_only - Put a register map into cache only mode
  *
  * @map: map to configure
- * @cache_only: flag if changes should be written to the hardware
+ * @enable: flag if changes should be written to the hardware
  *
  * When a register map is marked as cache only writes to the register
  * map API will only update the register cache, they will not cause
@@ -505,7 +505,7 @@ void regcache_cache_only(struct regmap *map, bool enable)
 EXPORT_SYMBOL_GPL(regcache_cache_only);
 
 /**
- * regcache_mark_dirty: Indicate that HW registers were reset to default values
+ * regcache_mark_dirty - Indicate that HW registers were reset to default values
  *
  * @map: map to mark
  *
@@ -527,10 +527,10 @@ void regcache_mark_dirty(struct regmap *map)
 EXPORT_SYMBOL_GPL(regcache_mark_dirty);
 
 /**
- * regcache_cache_bypass: Put a register map into cache bypass mode
+ * regcache_cache_bypass - Put a register map into cache bypass mode
  *
  * @map: map to configure
- * @cache_bypass: flag if changes should not be written to the cache
+ * @enable: flag if changes should not be written to the cache
  *
  * When a register map is marked with the cache bypass option, writes
  * to the register map API will only update the hardware and not the

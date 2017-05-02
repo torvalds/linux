@@ -134,24 +134,20 @@
 
 &pio {
 	gt911_int_primo81: gt911_int_pin@0 {
-		allwinner,pins = "PA3";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PA3";
+		function = "gpio_in";
 	};
 
 	mma8452_int_primo81: mma8452_int_pin@0 {
-		allwinner,pins = "PA9";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA9";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	mmc0_cd_pin_primo81: mmc0_cd_pin@0 {
-		allwinner,pins = "PA8";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA8";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 

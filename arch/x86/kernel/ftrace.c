@@ -535,7 +535,7 @@ static void run_sync(void)
 {
 	int enable_irqs = irqs_disabled();
 
-	/* We may be called with interrupts disbled (on bootup). */
+	/* We may be called with interrupts disabled (on bootup). */
 	if (enable_irqs)
 		local_irq_enable();
 	on_each_cpu(do_sync_core, NULL, 1);
@@ -982,6 +982,18 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 				&return_to_handler;
+
+	/*
+	 * When resuming from suspend-to-ram, this function can be indirectly
+	 * called from early CPU startup code while the CPU is in real mode,
+	 * which would fail miserably.  Make sure the stack pointer is a
+	 * virtual address.
+	 *
+	 * This check isn't as accurate as virt_addr_valid(), but it should be
+	 * good enough for this purpose, and it's fast.
+	 */
+	if (unlikely((long)__builtin_frame_address(0) >= 0))
+		return;
 
 	if (unlikely(ftrace_graph_is_dead()))
 		return;

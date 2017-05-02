@@ -65,7 +65,7 @@ struct regulator_state {
 	int uV;	/* suspend voltage */
 	unsigned int mode; /* suspend regulator operating mode */
 	int enabled; /* is regulator enabled in this suspend state */
-	int disabled; /* is the regulator disbled in this suspend state */
+	int disabled; /* is the regulator disabled in this suspend state */
 };
 
 /**

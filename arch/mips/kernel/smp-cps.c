@@ -11,7 +11,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/irqchip/mips-gic.h>
-#include <linux/sched.h>
+#include <linux/sched/task_stack.h>
+#include <linux/sched/hotplug.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/types.h>
@@ -326,7 +327,11 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 			if (cpu_online(remote))
 				break;
 		}
-		BUG_ON(remote >= NR_CPUS);
+		if (remote >= NR_CPUS) {
+			pr_crit("No online CPU in core %u to start CPU%d\n",
+				core, cpu);
+			goto out;
+		}
 
 		err = smp_call_function_single(remote, remote_vpe_boot,
 					       NULL, 1);
@@ -399,7 +404,6 @@ static int cps_cpu_disable(void)
 	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
-	cpumask_clear_cpu(cpu, &cpu_callin_map);
 
 	return 0;
 }
@@ -418,13 +422,12 @@ void play_dead(void)
 	local_irq_disable();
 	idle_task_exit();
 	cpu = smp_processor_id();
+	core = cpu_data[cpu].core;
 	cpu_death = CPU_DEATH_POWER;
 
 	pr_debug("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
-		core = cpu_data[cpu].core;
-
 		/* Look for another online VPE within the core */
 		for_each_online_cpu(cpu_death_sibling) {
 			if (cpu_data[cpu_death_sibling].core != core)

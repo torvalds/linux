@@ -84,7 +84,6 @@ struct orinoco_private {
 
 	/* Net device stuff */
 	struct net_device *ndev;
-	struct net_device_stats stats;
 	struct iw_statistics wstats;
 
 	/* Hardware control variables */
@@ -206,7 +205,6 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 /* Common ndo functions exported for reuse by orinoco_usb */
 int orinoco_open(struct net_device *dev);
 int orinoco_stop(struct net_device *dev);
-struct net_device_stats *orinoco_get_stats(struct net_device *dev);
 void orinoco_set_multicast_list(struct net_device *dev);
 int orinoco_change_mtu(struct net_device *dev, int new_mtu);
 void orinoco_tx_timeout(struct net_device *dev);

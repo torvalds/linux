@@ -27,12 +27,22 @@
 #define DSI_1	1
 #define DSI_MAX	2
 
+struct msm_dsi_phy_shared_timings;
+struct msm_dsi_phy_clk_request;
+
 enum msm_dsi_phy_type {
 	MSM_DSI_PHY_28NM_HPM,
 	MSM_DSI_PHY_28NM_LP,
 	MSM_DSI_PHY_20NM,
 	MSM_DSI_PHY_28NM_8960,
+	MSM_DSI_PHY_14NM,
 	MSM_DSI_PHY_MAX
+};
+
+enum msm_dsi_phy_usecase {
+	MSM_DSI_PHY_STANDALONE,
+	MSM_DSI_PHY_MASTER,
+	MSM_DSI_PHY_SLAVE,
 };
 
 #define DSI_DEV_REGULATOR_MAX	8
@@ -73,8 +83,8 @@ struct msm_dsi {
 	struct device *phy_dev;
 	bool phy_enabled;
 
-	/* the encoders we are hooked to (outside of dsi block) */
-	struct drm_encoder *encoders[MSM_DSI_ENCODER_NUM];
+	/* the encoder we are hooked to (outside of dsi block) */
+	struct drm_encoder *encoder;
 
 	int id;
 };
@@ -84,12 +94,9 @@ struct drm_bridge *msm_dsi_manager_bridge_init(u8 id);
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge);
 struct drm_connector *msm_dsi_manager_connector_init(u8 id);
 struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id);
-int msm_dsi_manager_phy_enable(int id,
-		const unsigned long bit_rate, const unsigned long esc_rate,
-		u32 *clk_pre, u32 *clk_post);
-void msm_dsi_manager_phy_disable(int id);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
+void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 
@@ -111,6 +118,8 @@ int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
 	struct clk **byte_clk_provider, struct clk **pixel_clk_provider);
 void msm_dsi_pll_save_state(struct msm_dsi_pll *pll);
 int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll);
+int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
+			    enum msm_dsi_phy_usecase uc);
 #else
 static inline struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 			 enum msm_dsi_phy_type type, int id) {
@@ -131,6 +140,11 @@ static inline int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll)
 {
 	return 0;
 }
+static inline int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
+					  enum msm_dsi_phy_usecase uc)
+{
+	return -ENODEV;
+}
 #endif
 
 /* dsi host */
@@ -146,7 +160,8 @@ void msm_dsi_host_cmd_xfer_commit(struct mipi_dsi_host *host,
 					u32 dma_base, u32 len);
 int msm_dsi_host_enable(struct mipi_dsi_host *host);
 int msm_dsi_host_disable(struct mipi_dsi_host *host);
-int msm_dsi_host_power_on(struct mipi_dsi_host *host);
+int msm_dsi_host_power_on(struct mipi_dsi_host *host,
+			struct msm_dsi_phy_shared_timings *phy_shared_timings);
 int msm_dsi_host_power_off(struct mipi_dsi_host *host);
 int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 					struct drm_display_mode *mode);
@@ -157,6 +172,9 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer);
 void msm_dsi_host_unregister(struct mipi_dsi_host *host);
 int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 			struct msm_dsi_pll *src_pll);
+void msm_dsi_host_reset_phy(struct mipi_dsi_host *host);
+void msm_dsi_host_get_phy_clk_req(struct mipi_dsi_host *host,
+	struct msm_dsi_phy_clk_request *clk_req);
 void msm_dsi_host_destroy(struct mipi_dsi_host *host);
 int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 					struct drm_device *dev);
@@ -164,14 +182,27 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 
 /* dsi phy */
 struct msm_dsi_phy;
+struct msm_dsi_phy_shared_timings {
+	u32 clk_post;
+	u32 clk_pre;
+	bool clk_pre_inc_by_2;
+};
+
+struct msm_dsi_phy_clk_request {
+	unsigned long bitclk_rate;
+	unsigned long escclk_rate;
+};
+
 void msm_dsi_phy_driver_register(void);
 void msm_dsi_phy_driver_unregister(void);
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
-	const unsigned long bit_rate, const unsigned long esc_rate);
+			struct msm_dsi_phy_clk_request *clk_req);
 void msm_dsi_phy_disable(struct msm_dsi_phy *phy);
-void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
-					u32 *clk_pre, u32 *clk_post);
+void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,
+			struct msm_dsi_phy_shared_timings *shared_timing);
 struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);
+void msm_dsi_phy_set_usecase(struct msm_dsi_phy *phy,
+			     enum msm_dsi_phy_usecase uc);
 
 #endif /* __DSI_CONNECTOR_H__ */
 

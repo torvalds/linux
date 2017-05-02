@@ -48,31 +48,6 @@ struct gvt_firmware_header {
 	unsigned char data[1];
 };
 
-#define RD(offset) (readl(mmio + offset.reg))
-#define WR(v, offset) (writel(v, mmio + offset.reg))
-
-static void bdw_forcewake_get(void __iomem *mmio)
-{
-	WR(_MASKED_BIT_DISABLE(0xffff), FORCEWAKE_MT);
-
-	RD(ECOBUS);
-
-	if (wait_for((RD(FORCEWAKE_ACK_HSW) & FORCEWAKE_KERNEL) == 0, 50))
-		gvt_err("fail to wait forcewake idle\n");
-
-	WR(_MASKED_BIT_ENABLE(FORCEWAKE_KERNEL), FORCEWAKE_MT);
-
-	if (wait_for((RD(FORCEWAKE_ACK_HSW) & FORCEWAKE_KERNEL), 50))
-		gvt_err("fail to wait forcewake ack\n");
-
-	if (wait_for((RD(GEN6_GT_THREAD_STATUS_REG) &
-		      GEN6_GT_THREAD_STATUS_CORE_MASK) == 0, 50))
-		gvt_err("fail to wait c0 wake up\n");
-}
-
-#undef RD
-#undef WR
-
 #define dev_to_drm_minor(d) dev_get_drvdata((d))
 
 static ssize_t
@@ -91,21 +66,21 @@ static struct bin_attribute firmware_attr = {
 	.mmap = NULL,
 };
 
-static int expose_firmware_sysfs(struct intel_gvt *gvt,
-					void __iomem *mmio)
+static int expose_firmware_sysfs(struct intel_gvt *gvt)
 {
+	struct drm_i915_private *dev_priv = gvt->dev_priv;
 	struct intel_gvt_device_info *info = &gvt->device_info;
 	struct pci_dev *pdev = gvt->dev_priv->drm.pdev;
 	struct intel_gvt_mmio_info *e;
 	struct gvt_firmware_header *h;
 	void *firmware;
 	void *p;
-	unsigned long size;
+	unsigned long size, crc32_start;
 	int i;
 	int ret;
 
-	size = sizeof(*h) + info->mmio_size + info->cfg_space_size - 1;
-	firmware = vmalloc(size);
+	size = sizeof(*h) + info->mmio_size + info->cfg_space_size;
+	firmware = vzalloc(size);
 	if (!firmware)
 		return -ENOMEM;
 
@@ -132,10 +107,13 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt,
 
 		for (j = 0; j < e->length; j += 4)
 			*(u32 *)(p + e->offset + j) =
-				readl(mmio + e->offset + j);
+				I915_READ_NOTRACE(_MMIO(e->offset + j));
 	}
 
 	memcpy(gvt->firmware.mmio, p, info->mmio_size);
+
+	crc32_start = offsetof(struct gvt_firmware_header, crc32) + 4;
+	h->crc32 = crc32_le(0, firmware + crc32_start, size - crc32_start);
 
 	firmware_attr.size = size;
 	firmware_attr.private = firmware;
@@ -235,7 +213,6 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt)
 	struct gvt_firmware_header *h;
 	const struct firmware *fw;
 	char *path;
-	void __iomem *mmio;
 	void *mem;
 	int ret;
 
@@ -260,18 +237,7 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt)
 
 	firmware->mmio = mem;
 
-	mmio = pci_iomap(pdev, info->mmio_bar, info->mmio_size);
-	if (!mmio) {
-		kfree(path);
-		kfree(firmware->cfg_space);
-		kfree(firmware->mmio);
-		return -EINVAL;
-	}
-
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv))
-		bdw_forcewake_get(mmio);
-
-	sprintf(path, "%s/vid_0x%04x_did_0x%04x_rid_0x%04x.golden_hw_state",
+	sprintf(path, "%s/vid_0x%04x_did_0x%04x_rid_0x%02x.golden_hw_state",
 		 GVT_FIRMWARE_PATH, pdev->vendor, pdev->device,
 		 pdev->revision);
 
@@ -300,13 +266,11 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt)
 
 	release_firmware(fw);
 	firmware->firmware_loaded = true;
-	pci_iounmap(pdev, mmio);
 	return 0;
 
 out_free_fw:
 	release_firmware(fw);
 expose_firmware:
-	expose_firmware_sysfs(gvt, mmio);
-	pci_iounmap(pdev, mmio);
+	expose_firmware_sysfs(gvt);
 	return 0;
 }

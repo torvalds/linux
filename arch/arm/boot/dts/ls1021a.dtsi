@@ -110,11 +110,11 @@
 		ranges;
 
 		gic: interrupt-controller@1400000 {
-			compatible = "arm,cortex-a7-gic";
+			compatible = "arm,gic-400", "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			reg = <0x0 0x1401000 0x0 0x1000>,
-			      <0x0 0x1402000 0x0 0x1000>,
+			      <0x0 0x1402000 0x0 0x2000>,
 			      <0x0 0x1404000 0x0 0x2000>,
 			      <0x0 0x1406000 0x0 0x2000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;

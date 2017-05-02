@@ -266,7 +266,7 @@ static int bcm_kona_wdt_stop(struct watchdog_device *wdog)
 					    SECWDOG_SRSTEN_MASK, 0);
 }
 
-static struct watchdog_ops bcm_kona_wdt_ops = {
+static const struct watchdog_ops bcm_kona_wdt_ops = {
 	.owner =	THIS_MODULE,
 	.start =	bcm_kona_wdt_start,
 	.stop =		bcm_kona_wdt_stop,
@@ -274,7 +274,7 @@ static struct watchdog_ops bcm_kona_wdt_ops = {
 	.get_timeleft =	bcm_kona_wdt_get_timeleft,
 };
 
-static struct watchdog_info bcm_kona_wdt_info = {
+static const struct watchdog_info bcm_kona_wdt_info = {
 	.options =	WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE |
 			WDIOF_KEEPALIVEPING,
 	.identity =	"Broadcom Kona Watchdog Timer",

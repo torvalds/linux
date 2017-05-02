@@ -55,7 +55,7 @@ static int register_balloon(struct device *dev);
 
 /* React to a change in the target key */
 static void watch_target(struct xenbus_watch *watch,
-			 const char **vec, unsigned int len)
+			 const char *path, const char *token)
 {
 	unsigned long long new_target;
 	int err;

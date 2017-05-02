@@ -93,9 +93,9 @@ Command Language Reference
 At the lexical level, a command comprises a sequence of words separated
 by spaces or tabs.  So these are all equivalent::
 
-  nullarbor:~ # echo -c 'file svcsock.c line 1603 +p' >
+  nullarbor:~ # echo -n 'file svcsock.c line 1603 +p' >
 				<debugfs>/dynamic_debug/control
-  nullarbor:~ # echo -c '  file   svcsock.c     line  1603 +p  ' >
+  nullarbor:~ # echo -n '  file   svcsock.c     line  1603 +p  ' >
 				<debugfs>/dynamic_debug/control
   nullarbor:~ # echo -n 'file svcsock.c line 1603 +p' >
 				<debugfs>/dynamic_debug/control

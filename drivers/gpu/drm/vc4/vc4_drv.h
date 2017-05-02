@@ -9,14 +9,16 @@
 #include "drmP.h"
 #include "drm_gem_cma_helper.h"
 
+#include <drm/drm_encoder.h>
+
 struct vc4_dev {
 	struct drm_device *dev;
 
 	struct vc4_hdmi *hdmi;
 	struct vc4_hvs *hvs;
-	struct vc4_crtc *crtc[3];
 	struct vc4_v3d *v3d;
 	struct vc4_dpi *dpi;
+	struct vc4_dsi *dsi1;
 	struct vc4_vec *vec;
 
 	struct drm_fbdev_cma *fbdev;
@@ -456,7 +458,6 @@ int vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
-void vc4_debugfs_cleanup(struct drm_minor *minor);
 
 /* vc4_drv.c */
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
@@ -464,6 +465,10 @@ void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
 /* vc4_dpi.c */
 extern struct platform_driver vc4_dpi_driver;
 int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
+
+/* vc4_dsi.c */
+extern struct platform_driver vc4_dsi_driver;
+int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_gem.c */
 void vc4_gem_init(struct drm_device *dev);

@@ -18,6 +18,8 @@
 #include <linux/dma-fence.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
+
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_dump.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
@@ -546,6 +548,37 @@ void etnaviv_gpu_start_fe(struct etnaviv_gpu *gpu, u32 address, u16 prefetch)
 		  VIVS_FE_COMMAND_CONTROL_PREFETCH(prefetch));
 }
 
+static void etnaviv_gpu_setup_pulse_eater(struct etnaviv_gpu *gpu)
+{
+	/*
+	 * Base value for VIVS_PM_PULSE_EATER register on models where it
+	 * cannot be read, extracted from vivante kernel driver.
+	 */
+	u32 pulse_eater = 0x01590880;
+
+	if (etnaviv_is_model_rev(gpu, GC4000, 0x5208) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5222)) {
+		pulse_eater |= BIT(23);
+
+	}
+
+	if (etnaviv_is_model_rev(gpu, GC1000, 0x5039) ||
+	    etnaviv_is_model_rev(gpu, GC1000, 0x5040)) {
+		pulse_eater &= ~BIT(16);
+		pulse_eater |= BIT(17);
+	}
+
+	if ((gpu->identity.revision > 0x5420) &&
+	    (gpu->identity.features & chipFeatures_PIPE_3D))
+	{
+		/* Performance fix: disable internal DFS */
+		pulse_eater = gpu_read(gpu, VIVS_PM_PULSE_EATER);
+		pulse_eater |= BIT(18);
+	}
+
+	gpu_write(gpu, VIVS_PM_PULSE_EATER, pulse_eater);
+}
+
 static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 {
 	u16 prefetch;
@@ -586,6 +619,9 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 		gpu_write(gpu, VIVS_MC_BUS_CONFIG, bus_config);
 	}
 
+	/* setup the pulse eater */
+	etnaviv_gpu_setup_pulse_eater(gpu);
+
 	/* setup the MMU */
 	etnaviv_iommu_restore(gpu);
 
@@ -593,7 +629,7 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	prefetch = etnaviv_buffer_init(gpu);
 
 	gpu_write(gpu, VIVS_HI_INTR_ENBL, ~0U);
-	etnaviv_gpu_start_fe(gpu, etnaviv_iommu_get_cmdbuf_va(gpu, gpu->buffer),
+	etnaviv_gpu_start_fe(gpu, etnaviv_cmdbuf_get_va(gpu->buffer),
 			     prefetch);
 }
 
@@ -658,8 +694,15 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		goto fail;
 	}
 
+	gpu->cmdbuf_suballoc = etnaviv_cmdbuf_suballoc_new(gpu);
+	if (IS_ERR(gpu->cmdbuf_suballoc)) {
+		dev_err(gpu->dev, "Failed to create cmdbuf suballocator\n");
+		ret = PTR_ERR(gpu->cmdbuf_suballoc);
+		goto fail;
+	}
+
 	/* Create buffer: */
-	gpu->buffer = etnaviv_gpu_cmdbuf_new(gpu, PAGE_SIZE, 0);
+	gpu->buffer = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc, PAGE_SIZE, 0);
 	if (!gpu->buffer) {
 		ret = -ENOMEM;
 		dev_err(gpu->dev, "could not create command buffer\n");
@@ -667,7 +710,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	if (gpu->mmu->version == ETNAVIV_IOMMU_V1 &&
-	    gpu->buffer->paddr - gpu->memory_base > 0x80000000) {
+	    etnaviv_cmdbuf_get_va(gpu->buffer) > 0x80000000) {
 		ret = -EINVAL;
 		dev_err(gpu->dev,
 			"command buffer outside valid memory window\n");
@@ -694,7 +737,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	return 0;
 
 free_buffer:
-	etnaviv_gpu_cmdbuf_free(gpu->buffer);
+	etnaviv_cmdbuf_free(gpu->buffer);
 	gpu->buffer = NULL;
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
@@ -1117,41 +1160,6 @@ static void event_free(struct etnaviv_gpu *gpu, unsigned int event)
  * Cmdstream submission/retirement:
  */
 
-struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
-	size_t nr_bos)
-{
-	struct etnaviv_cmdbuf *cmdbuf;
-	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo_map[0]),
-				 sizeof(*cmdbuf));
-
-	cmdbuf = kzalloc(sz, GFP_KERNEL);
-	if (!cmdbuf)
-		return NULL;
-
-	if (gpu->mmu->version == ETNAVIV_IOMMU_V2)
-		size = ALIGN(size, SZ_4K);
-
-	cmdbuf->vaddr = dma_alloc_wc(gpu->dev, size, &cmdbuf->paddr,
-				     GFP_KERNEL);
-	if (!cmdbuf->vaddr) {
-		kfree(cmdbuf);
-		return NULL;
-	}
-
-	cmdbuf->gpu = gpu;
-	cmdbuf->size = size;
-
-	return cmdbuf;
-}
-
-void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
-{
-	etnaviv_iommu_put_cmdbuf_va(cmdbuf->gpu, cmdbuf);
-	dma_free_wc(cmdbuf->gpu->dev, cmdbuf->size, cmdbuf->vaddr,
-		    cmdbuf->paddr);
-	kfree(cmdbuf);
-}
-
 static void retire_worker(struct work_struct *work)
 {
 	struct etnaviv_gpu *gpu = container_of(work, struct etnaviv_gpu,
@@ -1177,7 +1185,7 @@ static void retire_worker(struct work_struct *work)
 			etnaviv_gem_mapping_unreference(mapping);
 		}
 
-		etnaviv_gpu_cmdbuf_free(cmdbuf);
+		etnaviv_cmdbuf_free(cmdbuf);
 		/*
 		 * We need to balance the runtime PM count caused by
 		 * each submission.  Upon submission, we increment
@@ -1303,14 +1311,14 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		goto out_pm_put;
 	}
 
+	mutex_lock(&gpu->lock);
+
 	fence = etnaviv_gpu_fence_alloc(gpu);
 	if (!fence) {
 		event_free(gpu, event);
 		ret = -ENOMEM;
-		goto out_pm_put;
+		goto out_unlock;
 	}
-
-	mutex_lock(&gpu->lock);
 
 	gpu->event[event].fence = fence;
 	submit->fence = fence->seqno;
@@ -1349,6 +1357,7 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	hangcheck_timer_reset(gpu);
 	ret = 0;
 
+out_unlock:
 	mutex_unlock(&gpu->lock);
 
 out_pm_put:
@@ -1593,8 +1602,13 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 #endif
 
 	if (gpu->buffer) {
-		etnaviv_gpu_cmdbuf_free(gpu->buffer);
+		etnaviv_cmdbuf_free(gpu->buffer);
 		gpu->buffer = NULL;
+	}
+
+	if (gpu->cmdbuf_suballoc) {
+		etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
+		gpu->cmdbuf_suballoc = NULL;
 	}
 
 	if (gpu->mmu) {

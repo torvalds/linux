@@ -976,6 +976,27 @@ int dm_array_cursor_next(struct dm_array_cursor *c)
 }
 EXPORT_SYMBOL_GPL(dm_array_cursor_next);
 
+int dm_array_cursor_skip(struct dm_array_cursor *c, uint32_t count)
+{
+	int r;
+
+	do {
+		uint32_t remaining = le32_to_cpu(c->ab->nr_entries) - c->index;
+
+		if (count < remaining) {
+			c->index += count;
+			return 0;
+		}
+
+		count -= remaining;
+		r = dm_array_cursor_next(c);
+
+	} while (!r);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_skip);
+
 void dm_array_cursor_get_value(struct dm_array_cursor *c, void **value_le)
 {
 	*value_le = element_at(c->info, c->ab, c->index);

@@ -72,10 +72,6 @@ force_reset:
 	fm10k_write_flush(hw);
 	udelay(FM10K_RESET_TIMEOUT);
 
-	/* Reset mailbox global interrupts */
-	reg = FM10K_MBX_GLOBAL_REQ_INTERRUPT | FM10K_MBX_GLOBAL_ACK_INTERRUPT;
-	fm10k_write_reg(hw, FM10K_GMBX, reg);
-
 	/* Verify we made it out of reset */
 	reg = fm10k_read_reg(hw, FM10K_IP);
 	if (!(reg & FM10K_IP_NOTINRESET))

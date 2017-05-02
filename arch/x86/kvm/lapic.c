@@ -341,7 +341,7 @@ static int find_highest_vector(void *bitmap)
 	     vec >= 0; vec -= APIC_VECTORS_PER_REG) {
 		reg = bitmap + REG_POS(vec);
 		if (*reg)
-			return fls(*reg) - 1 + vec;
+			return __fls(*reg) + vec;
 	}
 
 	return -1;
@@ -361,27 +361,32 @@ static u8 count_vectors(void *bitmap)
 	return count;
 }
 
-void __kvm_apic_update_irr(u32 *pir, void *regs)
+int __kvm_apic_update_irr(u32 *pir, void *regs)
 {
-	u32 i, pir_val;
+	u32 i, vec;
+	u32 pir_val, irr_val;
+	int max_irr = -1;
 
-	for (i = 0; i <= 7; i++) {
+	for (i = vec = 0; i <= 7; i++, vec += 32) {
 		pir_val = READ_ONCE(pir[i]);
+		irr_val = *((u32 *)(regs + APIC_IRR + i * 0x10));
 		if (pir_val) {
-			pir_val = xchg(&pir[i], 0);
-			*((u32 *)(regs + APIC_IRR + i * 0x10)) |= pir_val;
+			irr_val |= xchg(&pir[i], 0);
+			*((u32 *)(regs + APIC_IRR + i * 0x10)) = irr_val;
 		}
+		if (irr_val)
+			max_irr = __fls(irr_val) + vec;
 	}
+
+	return max_irr;
 }
 EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
 
-void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
+int kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	__kvm_apic_update_irr(pir, apic->regs);
-
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
+	return __kvm_apic_update_irr(pir, apic->regs);
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 
@@ -401,8 +406,6 @@ static inline int apic_find_highest_irr(struct kvm_lapic *apic)
 	if (!apic->irr_pending)
 		return -1;
 
-	if (apic->vcpu->arch.apicv_active)
-		kvm_x86_ops->sync_pir_to_irr(apic->vcpu);
 	result = apic_search_irr(apic);
 	ASSERT(result == -1 || result >= 16);
 
@@ -416,9 +419,10 @@ static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 	vcpu = apic->vcpu;
 
 	if (unlikely(vcpu->arch.apicv_active)) {
-		/* try to update RVI */
+		/* need to update RVI */
 		apic_clear_vector(vec, apic->regs + APIC_IRR);
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		kvm_x86_ops->hwapic_irr_update(vcpu,
+				apic_find_highest_irr(apic));
 	} else {
 		apic->irr_pending = false;
 		apic_clear_vector(vec, apic->regs + APIC_IRR);
@@ -508,6 +512,7 @@ int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
 	 */
 	return apic_find_highest_irr(vcpu->arch.apic);
 }
+EXPORT_SYMBOL_GPL(kvm_lapic_find_highest_irr);
 
 static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			     int vector, int level, int trig_mode,
@@ -524,16 +529,14 @@ int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
 
 static int pv_eoi_put_user(struct kvm_vcpu *vcpu, u8 val)
 {
-
-	return kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.pv_eoi.data, &val,
-				      sizeof(val));
+	return kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.pv_eoi.data, &val,
+					   sizeof(val));
 }
 
 static int pv_eoi_get_user(struct kvm_vcpu *vcpu, u8 *val)
 {
-
-	return kvm_read_guest_cached(vcpu->kvm, &vcpu->arch.pv_eoi.data, val,
-				      sizeof(*val));
+	return kvm_vcpu_read_guest_cached(vcpu, &vcpu->arch.pv_eoi.data, val,
+					  sizeof(*val));
 }
 
 static inline bool pv_eoi_enabled(struct kvm_vcpu *vcpu)
@@ -572,7 +575,11 @@ static void pv_eoi_clr_pending(struct kvm_vcpu *vcpu)
 
 static int apic_has_interrupt_for_ppr(struct kvm_lapic *apic, u32 ppr)
 {
-	int highest_irr = apic_find_highest_irr(apic);
+	int highest_irr;
+	if (kvm_x86_ops->sync_pir_to_irr && apic->vcpu->arch.apicv_active)
+		highest_irr = kvm_x86_ops->sync_pir_to_irr(apic->vcpu);
+	else
+		highest_irr = apic_find_highest_irr(apic);
 	if (highest_irr == -1 || (highest_irr & 0xF0) <= ppr)
 		return -1;
 	return highest_irr;
@@ -2204,8 +2211,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 				1 : count_vectors(apic->regs + APIC_ISR);
 	apic->highest_isr_cache = -1;
 	if (vcpu->arch.apicv_active) {
-		if (kvm_x86_ops->apicv_post_state_restore)
-			kvm_x86_ops->apicv_post_state_restore(vcpu);
+		kvm_x86_ops->apicv_post_state_restore(vcpu);
 		kvm_x86_ops->hwapic_irr_update(vcpu,
 				apic_find_highest_irr(apic));
 		kvm_x86_ops->hwapic_isr_update(vcpu,
@@ -2279,8 +2285,8 @@ void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu)
 	if (!test_bit(KVM_APIC_CHECK_VAPIC, &vcpu->arch.apic_attention))
 		return;
 
-	if (kvm_read_guest_cached(vcpu->kvm, &vcpu->arch.apic->vapic_cache, &data,
-				  sizeof(u32)))
+	if (kvm_vcpu_read_guest_cached(vcpu, &vcpu->arch.apic->vapic_cache, &data,
+				       sizeof(u32)))
 		return;
 
 	apic_set_tpr(vcpu->arch.apic, data & 0xff);
@@ -2332,14 +2338,14 @@ void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu)
 		max_isr = 0;
 	data = (tpr & 0xff) | ((max_isr & 0xf0) << 8) | (max_irr << 24);
 
-	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.apic->vapic_cache, &data,
-				sizeof(u32));
+	kvm_vcpu_write_guest_cached(vcpu, &vcpu->arch.apic->vapic_cache, &data,
+				    sizeof(u32));
 }
 
 int kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr)
 {
 	if (vapic_addr) {
-		if (kvm_gfn_to_hva_cache_init(vcpu->kvm,
+		if (kvm_vcpu_gfn_to_hva_cache_init(vcpu,
 					&vcpu->arch.apic->vapic_cache,
 					vapic_addr, sizeof(u32)))
 			return -EINVAL;
@@ -2433,7 +2439,7 @@ int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data)
 	vcpu->arch.pv_eoi.msr_val = data;
 	if (!pv_eoi_enabled(vcpu))
 		return 0;
-	return kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.pv_eoi.data,
+	return kvm_vcpu_gfn_to_hva_cache_init(vcpu, &vcpu->arch.pv_eoi.data,
 					 addr, sizeof(u8));
 }
 

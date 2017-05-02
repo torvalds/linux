@@ -24,6 +24,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/sch_generic.h>
+#include <net/pkt_cls.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
 
@@ -33,6 +34,12 @@ static void free_tcf(struct rcu_head *head)
 
 	free_percpu(p->cpu_bstats);
 	free_percpu(p->cpu_qstats);
+
+	if (p->act_cookie) {
+		kfree(p->act_cookie->data);
+		kfree(p->act_cookie);
+	}
+
 	kfree(p);
 }
 
@@ -426,11 +433,9 @@ int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
 {
 	int ret = -1, i;
 
-	if (skb->tc_verd & TC_NCLS) {
-		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
-		ret = TC_ACT_OK;
-		goto exec_done;
-	}
+	if (skb_skip_tc_classify(skb))
+		return TC_ACT_OK;
+
 	for (i = 0; i < nr_actions; i++) {
 		const struct tc_action *a = actions[i];
 
@@ -439,9 +444,8 @@ repeat:
 		if (ret == TC_ACT_REPEAT)
 			goto repeat;	/* we need a ttl - JHS */
 		if (ret != TC_ACT_PIPE)
-			goto exec_done;
+			break;
 	}
-exec_done:
 	return ret;
 }
 EXPORT_SYMBOL(tcf_action_exec);
@@ -478,6 +482,12 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		goto nla_put_failure;
 	if (tcf_action_copy_stats(skb, a, 0))
 		goto nla_put_failure;
+	if (a->act_cookie) {
+		if (nla_put(skb, TCA_ACT_COOKIE, a->act_cookie->len,
+			    a->act_cookie->data))
+			goto nla_put_failure;
+	}
+
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
@@ -519,12 +529,29 @@ errout:
 	return err;
 }
 
+static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
+{
+	struct tc_cookie *c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (!c)
+		return NULL;
+
+	c->data = nla_memdup(tb[TCA_ACT_COOKIE], GFP_KERNEL);
+	if (!c->data) {
+		kfree(c);
+		return NULL;
+	}
+	c->len = nla_len(tb[TCA_ACT_COOKIE]);
+
+	return c;
+}
+
 struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 				    struct nlattr *est, char *name, int ovr,
 				    int bind)
 {
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
+	struct tc_cookie *cookie = NULL;
 	char act_name[IFNAMSIZ];
 	struct nlattr *tb[TCA_ACT_MAX + 1];
 	struct nlattr *kind;
@@ -540,6 +567,18 @@ struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 			goto err_out;
 		if (nla_strlcpy(act_name, kind, IFNAMSIZ) >= IFNAMSIZ)
 			goto err_out;
+		if (tb[TCA_ACT_COOKIE]) {
+			int cklen = nla_len(tb[TCA_ACT_COOKIE]);
+
+			if (cklen > TC_COOKIE_MAX_SIZE)
+				goto err_out;
+
+			cookie = nla_memdup_cookie(tb);
+			if (!cookie) {
+				err = -ENOMEM;
+				goto err_out;
+			}
+		}
 	} else {
 		err = -EINVAL;
 		if (strlcpy(act_name, name, IFNAMSIZ) >= IFNAMSIZ)
@@ -578,6 +617,14 @@ struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 	if (err < 0)
 		goto err_mod;
 
+	if (name == NULL && tb[TCA_ACT_COOKIE]) {
+		if (a->act_cookie) {
+			kfree(a->act_cookie->data);
+			kfree(a->act_cookie);
+		}
+		a->act_cookie = cookie;
+	}
+
 	/* module count goes up only when brand new policy is created
 	 * if it exists and is only bound to in a_o->init() then
 	 * ACT_P_CREATED is not returned (a zero is).
@@ -590,6 +637,10 @@ struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 err_mod:
 	module_put(a_o->owner);
 err_out:
+	if (cookie) {
+		kfree(cookie->data);
+		kfree(cookie);
+	}
 	return ERR_PTR(err);
 }
 
@@ -817,10 +868,8 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 		goto out_module_put;
 
 	err = ops->walk(net, skb, &dcb, RTM_DELACTION, ops);
-	if (err < 0)
+	if (err <= 0)
 		goto out_module_put;
-	if (err == 0)
-		goto noflush_out;
 
 	nla_nest_end(skb, nest);
 
@@ -837,7 +886,6 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 out_module_put:
 	module_put(ops->owner);
 err_out:
-noflush_out:
 	kfree_skb(skb);
 	return err;
 }

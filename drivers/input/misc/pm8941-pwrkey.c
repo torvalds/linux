@@ -266,7 +266,6 @@ static int pm8941_pwrkey_remove(struct platform_device *pdev)
 {
 	struct pm8941_pwrkey *pwrkey = platform_get_drvdata(pdev);
 
-	device_init_wakeup(&pdev->dev, 0);
 	unregister_reboot_notifier(&pwrkey->reboot_notifier);
 
 	return 0;

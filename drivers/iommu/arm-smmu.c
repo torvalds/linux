@@ -24,6 +24,7 @@
  *	- v7/v8 long-descriptor format
  *	- Non-secure access to the SMMU
  *	- Context fault reporting
+ *	- Extended Stream ID (16 bit)
  */
 
 #define pr_fmt(fmt) "arm-smmu: " fmt
@@ -87,6 +88,7 @@
 #define sCR0_CLIENTPD			(1 << 0)
 #define sCR0_GFRE			(1 << 1)
 #define sCR0_GFIE			(1 << 2)
+#define sCR0_EXIDENABLE			(1 << 3)
 #define sCR0_GCFGFRE			(1 << 4)
 #define sCR0_GCFGFIE			(1 << 5)
 #define sCR0_USFCFG			(1 << 10)
@@ -126,6 +128,7 @@
 #define ID0_NUMIRPT_MASK		0xff
 #define ID0_NUMSIDB_SHIFT		9
 #define ID0_NUMSIDB_MASK		0xf
+#define ID0_EXIDS			(1 << 8)
 #define ID0_NUMSMRG_SHIFT		0
 #define ID0_NUMSMRG_MASK		0xff
 
@@ -169,6 +172,7 @@
 #define ARM_SMMU_GR0_S2CR(n)		(0xc00 + ((n) << 2))
 #define S2CR_CBNDX_SHIFT		0
 #define S2CR_CBNDX_MASK			0xff
+#define S2CR_EXIDVALID			(1 << 10)
 #define S2CR_TYPE_SHIFT			16
 #define S2CR_TYPE_MASK			0x3
 enum arm_smmu_s2cr_type {
@@ -260,6 +264,7 @@ enum arm_smmu_s2cr_privcfg {
 
 #define TTBCR2_SEP_SHIFT		15
 #define TTBCR2_SEP_UPSTREAM		(0x7 << TTBCR2_SEP_SHIFT)
+#define TTBCR2_AS			(1 << 4)
 
 #define TTBRn_ASID_SHIFT		48
 
@@ -280,6 +285,9 @@ enum arm_smmu_s2cr_privcfg {
 					 FSR_EF | FSR_PF | FSR_TF | FSR_IGN)
 
 #define FSYNR0_WNR			(1 << 4)
+
+#define MSI_IOVA_BASE			0x8000000
+#define MSI_IOVA_LENGTH			0x100000
 
 static int force_stage;
 module_param(force_stage, int, S_IRUGO);
@@ -351,6 +359,7 @@ struct arm_smmu_device {
 #define ARM_SMMU_FEAT_FMT_AARCH64_64K	(1 << 9)
 #define ARM_SMMU_FEAT_FMT_AARCH32_L	(1 << 10)
 #define ARM_SMMU_FEAT_FMT_AARCH32_S	(1 << 11)
+#define ARM_SMMU_FEAT_EXIDS		(1 << 12)
 	u32				features;
 
 #define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
@@ -380,6 +389,9 @@ struct arm_smmu_device {
 	unsigned int			*irqs;
 
 	u32				cavium_id_base; /* Specific to Cavium */
+
+	/* IOMMU core code handle */
+	struct iommu_device		iommu;
 };
 
 enum arm_smmu_context_fmt {
@@ -778,6 +790,8 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 			reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
 			reg2 = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
 			reg2 |= TTBCR2_SEP_UPSTREAM;
+			if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
+				reg2 |= TTBCR2_AS;
 		}
 		if (smmu->version > ARM_SMMU_V1)
 			writel_relaxed(reg2, cb_base + ARM_SMMU_CB_TTBCR2);
@@ -1048,7 +1062,7 @@ static void arm_smmu_write_smr(struct arm_smmu_device *smmu, int idx)
 	struct arm_smmu_smr *smr = smmu->smrs + idx;
 	u32 reg = smr->id << SMR_ID_SHIFT | smr->mask << SMR_MASK_SHIFT;
 
-	if (smr->valid)
+	if (!(smmu->features & ARM_SMMU_FEAT_EXIDS) && smr->valid)
 		reg |= SMR_VALID;
 	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_SMR(idx));
 }
@@ -1060,6 +1074,9 @@ static void arm_smmu_write_s2cr(struct arm_smmu_device *smmu, int idx)
 		  (s2cr->cbndx & S2CR_CBNDX_MASK) << S2CR_CBNDX_SHIFT |
 		  (s2cr->privcfg & S2CR_PRIVCFG_MASK) << S2CR_PRIVCFG_SHIFT;
 
+	if (smmu->features & ARM_SMMU_FEAT_EXIDS && smmu->smrs &&
+	    smmu->smrs[idx].valid)
+		reg |= S2CR_EXIDVALID;
 	writel_relaxed(reg, ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_S2CR(idx));
 }
 
@@ -1068,6 +1085,34 @@ static void arm_smmu_write_sme(struct arm_smmu_device *smmu, int idx)
 	arm_smmu_write_s2cr(smmu, idx);
 	if (smmu->smrs)
 		arm_smmu_write_smr(smmu, idx);
+}
+
+/*
+ * The width of SMR's mask field depends on sCR0_EXIDENABLE, so this function
+ * should be called after sCR0 is written.
+ */
+static void arm_smmu_test_smr_masks(struct arm_smmu_device *smmu)
+{
+	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
+	u32 smr;
+
+	if (!smmu->smrs)
+		return;
+
+	/*
+	 * SMR.ID bits may not be preserved if the corresponding MASK
+	 * bits are set, so check each one separately. We can reject
+	 * masters later if they try to claim IDs outside these masks.
+	 */
+	smr = smmu->streamid_mask << SMR_ID_SHIFT;
+	writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
+	smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
+	smmu->streamid_mask = smr >> SMR_ID_SHIFT;
+
+	smr = smmu->streamid_mask << SMR_MASK_SHIFT;
+	writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
+	smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
+	smmu->smr_mask_mask = smr >> SMR_MASK_SHIFT;
 }
 
 static int arm_smmu_find_sme(struct arm_smmu_device *smmu, u16 id, u16 mask)
@@ -1214,7 +1259,7 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 			continue;
 
 		s2cr[idx].type = type;
-		s2cr[idx].privcfg = S2CR_PRIVCFG_UNPRIV;
+		s2cr[idx].privcfg = S2CR_PRIVCFG_DEFAULT;
 		s2cr[idx].cbndx = cbndx;
 		arm_smmu_write_s2cr(smmu, idx);
 	}
@@ -1371,8 +1416,6 @@ static bool arm_smmu_capable(enum iommu_cap cap)
 		 * requests.
 		 */
 		return true;
-	case IOMMU_CAP_INTR_REMAP:
-		return true; /* MSIs are just memory writes */
 	case IOMMU_CAP_NOEXEC:
 		return true;
 	default:
@@ -1444,6 +1487,8 @@ static int arm_smmu_add_device(struct device *dev)
 	if (ret)
 		goto out_free;
 
+	iommu_device_link(&smmu->iommu, dev);
+
 	return 0;
 
 out_free:
@@ -1456,10 +1501,17 @@ out_free:
 static void arm_smmu_remove_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct arm_smmu_master_cfg *cfg;
+	struct arm_smmu_device *smmu;
+
 
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
 		return;
 
+	cfg  = fwspec->iommu_priv;
+	smmu = cfg->smmu;
+
+	iommu_device_unlink(&smmu->iommu, dev);
 	arm_smmu_master_free_smes(fwspec);
 	iommu_group_remove_device(dev);
 	kfree(fwspec->iommu_priv);
@@ -1549,6 +1601,29 @@ static int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	return iommu_fwspec_add_ids(dev, &fwid, 1);
 }
 
+static void arm_smmu_get_resv_regions(struct device *dev,
+				      struct list_head *head)
+{
+	struct iommu_resv_region *region;
+	int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
+
+	region = iommu_alloc_resv_region(MSI_IOVA_BASE, MSI_IOVA_LENGTH,
+					 prot, IOMMU_RESV_SW_MSI);
+	if (!region)
+		return;
+
+	list_add_tail(&region->list, head);
+}
+
+static void arm_smmu_put_resv_regions(struct device *dev,
+				      struct list_head *head)
+{
+	struct iommu_resv_region *entry, *next;
+
+	list_for_each_entry_safe(entry, next, head, list)
+		kfree(entry);
+}
+
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
 	.domain_alloc		= arm_smmu_domain_alloc,
@@ -1564,6 +1639,8 @@ static struct iommu_ops arm_smmu_ops = {
 	.domain_get_attr	= arm_smmu_domain_get_attr,
 	.domain_set_attr	= arm_smmu_domain_set_attr,
 	.of_xlate		= arm_smmu_of_xlate,
+	.get_resv_regions	= arm_smmu_get_resv_regions,
+	.put_resv_regions	= arm_smmu_put_resv_regions,
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
 };
 
@@ -1647,6 +1724,9 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	if (smmu->features & ARM_SMMU_FEAT_VMID16)
 		reg |= sCR0_VMID16EN;
+
+	if (smmu->features & ARM_SMMU_FEAT_EXIDS)
+		reg |= sCR0_EXIDENABLE;
 
 	/* Push the button */
 	__arm_smmu_tlb_sync(smmu);
@@ -1735,11 +1815,14 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 			   "\t(IDR0.CTTW overridden by FW configuration)\n");
 
 	/* Max. number of entries we have for stream matching/indexing */
-	size = 1 << ((id >> ID0_NUMSIDB_SHIFT) & ID0_NUMSIDB_MASK);
+	if (smmu->version == ARM_SMMU_V2 && id & ID0_EXIDS) {
+		smmu->features |= ARM_SMMU_FEAT_EXIDS;
+		size = 1 << 16;
+	} else {
+		size = 1 << ((id >> ID0_NUMSIDB_SHIFT) & ID0_NUMSIDB_MASK);
+	}
 	smmu->streamid_mask = size - 1;
 	if (id & ID0_SMS) {
-		u32 smr;
-
 		smmu->features |= ARM_SMMU_FEAT_STREAM_MATCH;
 		size = (id >> ID0_NUMSMRG_SHIFT) & ID0_NUMSMRG_MASK;
 		if (size == 0) {
@@ -1748,21 +1831,6 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 			return -ENODEV;
 		}
 
-		/*
-		 * SMR.ID bits may not be preserved if the corresponding MASK
-		 * bits are set, so check each one separately. We can reject
-		 * masters later if they try to claim IDs outside these masks.
-		 */
-		smr = smmu->streamid_mask << SMR_ID_SHIFT;
-		writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
-		smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
-		smmu->streamid_mask = smr >> SMR_ID_SHIFT;
-
-		smr = smmu->streamid_mask << SMR_MASK_SHIFT;
-		writel_relaxed(smr, gr0_base + ARM_SMMU_GR0_SMR(0));
-		smr = readl_relaxed(gr0_base + ARM_SMMU_GR0_SMR(0));
-		smmu->smr_mask_mask = smr >> SMR_MASK_SHIFT;
-
 		/* Zero-initialised to mark as invalid */
 		smmu->smrs = devm_kcalloc(smmu->dev, size, sizeof(*smmu->smrs),
 					  GFP_KERNEL);
@@ -1770,8 +1838,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 			return -ENOMEM;
 
 		dev_notice(smmu->dev,
-			   "\tstream matching with %lu register groups, mask 0x%x",
-			   size, smmu->smr_mask_mask);
+			   "\tstream matching with %lu register groups", size);
 	}
 	/* s2cr->type == 0 means translation, so initialise explicitly */
 	smmu->s2crs = devm_kmalloc_array(smmu->dev, size, sizeof(*smmu->s2crs),
@@ -2011,6 +2078,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	resource_size_t ioaddr;
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	int num_irqs, i, err;
@@ -2031,6 +2099,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ioaddr = res->start;
 	smmu->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
@@ -2091,9 +2160,25 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		}
 	}
 
-	iommu_register_instance(dev->fwnode, &arm_smmu_ops);
+	err = iommu_device_sysfs_add(&smmu->iommu, smmu->dev, NULL,
+				     "smmu.%pa", &ioaddr);
+	if (err) {
+		dev_err(dev, "Failed to register iommu in sysfs\n");
+		return err;
+	}
+
+	iommu_device_set_ops(&smmu->iommu, &arm_smmu_ops);
+	iommu_device_set_fwnode(&smmu->iommu, dev->fwnode);
+
+	err = iommu_device_register(&smmu->iommu);
+	if (err) {
+		dev_err(dev, "Failed to register iommu\n");
+		return err;
+	}
+
 	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
+	arm_smmu_test_smr_masks(smmu);
 
 	/* Oh, for a proper bus abstraction */
 	if (!iommu_present(&platform_bus_type))

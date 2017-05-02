@@ -71,6 +71,8 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			     struct hisi_sas_slot *slot)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
+	struct domain_device *device = task->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
 
 	if (!slot->task)
 		return;
@@ -97,6 +99,8 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 	slot->task = NULL;
 	slot->port = NULL;
 	hisi_sas_slot_index_free(hisi_hba, slot->idx);
+	if (sas_dev)
+		atomic64_dec(&sas_dev->running_req);
 	/* slot memory is fully zeroed when it is reused */
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
@@ -141,11 +145,10 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(task->dev);
 	struct scsi_cmnd *cmnd = task->uldd_task;
 	struct hisi_sas_tmf_task tmf_task;
-	struct domain_device *device = task->dev;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct scsi_lun lun;
 	struct device *dev = &hisi_hba->pdev->dev;
 	int tag = abort_slot->idx;
+	unsigned long flags;
 
 	if (!(task->task_proto & SAS_PROTOCOL_SSP)) {
 		dev_err(dev, "cannot abort slot for non-ssp task\n");
@@ -159,11 +162,11 @@ static void hisi_sas_slot_abort(struct work_struct *work)
 	hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
 out:
 	/* Do cleanup for this task */
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, abort_slot);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	if (task->task_done)
 		task->task_done(task);
-	if (sas_dev)
-		atomic64_dec(&sas_dev->running_req);
 }
 
 static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
@@ -1118,7 +1121,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	}
 
 exit:
-	dev_info(dev, "internal task abort: task to dev %016llx task=%p "
+	dev_dbg(dev, "internal task abort: task to dev %016llx task=%p "
 		"resp: 0x%x sts 0x%x\n",
 		SAS_ADDR(device->sas_addr),
 		task,
@@ -1450,7 +1453,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	refclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(refclk))
-		dev_info(dev, "no ref clk property\n");
+		dev_dbg(dev, "no ref clk property\n");
 	else
 		hisi_hba->refclk_frequency_mhz = clk_get_rate(refclk) / 1000000;
 
@@ -1549,15 +1552,15 @@ int hisi_sas_probe(struct platform_device *pdev,
 
 	hisi_sas_init_add(hisi_hba);
 
-	rc = hisi_hba->hw->hw_init(hisi_hba);
-	if (rc)
-		goto err_out_ha;
-
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha;
 
 	rc = sas_register_ha(sha);
+	if (rc)
+		goto err_out_register_ha;
+
+	rc = hisi_hba->hw->hw_init(hisi_hba);
 	if (rc)
 		goto err_out_register_ha;
 

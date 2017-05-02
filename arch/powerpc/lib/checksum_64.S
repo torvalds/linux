@@ -168,7 +168,7 @@ _GLOBAL(__csum_partial)
 	beq	.Lcsum_finish
 
 	lbz	r6,0(r3)
-#ifdef __BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
 #else
@@ -390,7 +390,7 @@ dstnr;	sth	r6,0(r4)
 	beq	.Lcopy_finish
 
 srcnr;	lbz	r6,0(r3)
-#ifdef __BIG_ENDIAN
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
 #else

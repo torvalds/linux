@@ -56,6 +56,9 @@ struct msm_kms_funcs {
 			struct drm_encoder *encoder,
 			struct drm_encoder *slave_encoder,
 			bool is_cmd_mode);
+	void (*set_encoder_mode)(struct msm_kms *kms,
+				 struct drm_encoder *encoder,
+				 bool cmd_mode);
 	/* cleanup: */
 	void (*destroy)(struct msm_kms *kms);
 #ifdef CONFIG_DEBUG_FS

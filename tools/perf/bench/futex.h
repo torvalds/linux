@@ -7,7 +7,6 @@
 #ifndef _FUTEX_H
 #define _FUTEX_H
 
-#include <stdlib.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -99,8 +98,5 @@ static inline int pthread_attr_setaffinity_np(pthread_attr_t *attr,
 	return 0;
 }
 #endif
-
-/* User input sanitation */
-#define futexbench_sanitize_numeric(__n) abs((__n))
 
 #endif /* _FUTEX_H */

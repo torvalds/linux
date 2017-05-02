@@ -170,8 +170,7 @@ static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	BUG_ON(amdgpu_sync_peek_fence(&job->sync, NULL));
 
 	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
-			       job->sync.last_vm_update, job, &fence);
+	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job, &fence);
 	if (r)
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 

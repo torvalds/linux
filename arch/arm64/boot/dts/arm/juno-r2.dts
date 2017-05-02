@@ -9,6 +9,8 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "juno-base.dtsi"
+#include "juno-cs-r1r2.dtsi"
 
 / {
 	model = "ARM Juno development board (r2)";
@@ -176,8 +178,6 @@
 				     <&A53_2>,
 				     <&A53_3>;
 	};
-
-	#include "juno-base.dtsi"
 };
 
 &memtimer {
@@ -226,4 +226,16 @@
 
 &gpu1_thermal_zone {
 	status = "okay";
+};
+
+&etf0_out_port {
+	remote-endpoint = <&csys2_funnel_in_port0>;
+};
+
+&replicator_in_port0 {
+	remote-endpoint = <&csys2_funnel_out_port>;
+};
+
+&stm_out_port {
+	remote-endpoint = <&csys1_funnel_in_port0>;
 };

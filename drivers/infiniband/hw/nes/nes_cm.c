@@ -135,17 +135,17 @@ static void record_ird_ord(struct nes_cm_node *, u16, u16);
 /* instance of function pointers for client API */
 /* set address of this instance to cm_core->cm_ops at cm_core alloc */
 static const struct nes_cm_ops nes_cm_api = {
-	mini_cm_accelerated,
-	mini_cm_listen,
-	mini_cm_del_listen,
-	mini_cm_connect,
-	mini_cm_close,
-	mini_cm_accept,
-	mini_cm_reject,
-	mini_cm_recv_pkt,
-	mini_cm_dealloc_core,
-	mini_cm_get,
-	mini_cm_set
+	.accelerated = mini_cm_accelerated,
+	.listen = mini_cm_listen,
+	.stop_listener = mini_cm_del_listen,
+	.connect = mini_cm_connect,
+	.close = mini_cm_close,
+	.accept = mini_cm_accept,
+	.reject = mini_cm_reject,
+	.recv_pkt = mini_cm_recv_pkt,
+	.destroy_cm_core = mini_cm_dealloc_core,
+	.get = mini_cm_get,
+	.set = mini_cm_set
 };
 
 static struct nes_cm_core *g_cm_core;

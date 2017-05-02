@@ -73,6 +73,7 @@ struct nvmet_sq {
 	u16			qid;
 	u16			size;
 	struct completion	free_done;
+	struct completion	confirm_done;
 };
 
 /**
@@ -142,7 +143,6 @@ struct nvmet_subsys {
 	unsigned int		max_nsid;
 
 	struct list_head	ctrls;
-	struct ida		cntlid_ida;
 
 	struct list_head	hosts;
 	bool			allow_any_host;

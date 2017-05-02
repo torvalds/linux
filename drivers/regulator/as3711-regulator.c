@@ -82,7 +82,7 @@ static unsigned int as3711_get_mode_sd(struct regulator_dev *rdev)
 	return -EINVAL;
 }
 
-static struct regulator_ops as3711_sd_ops = {
+static const struct regulator_ops as3711_sd_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -94,7 +94,7 @@ static struct regulator_ops as3711_sd_ops = {
 	.set_mode		= as3711_set_mode_sd,
 };
 
-static struct regulator_ops as3711_aldo_ops = {
+static const struct regulator_ops as3711_aldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -104,7 +104,7 @@ static struct regulator_ops as3711_aldo_ops = {
 	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
-static struct regulator_ops as3711_dldo_ops = {
+static const struct regulator_ops as3711_dldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,

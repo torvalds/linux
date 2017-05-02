@@ -22,6 +22,7 @@
 #include <net/pkt_sched.h>
 #include <linux/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_pedit.h>
+#include <uapi/linux/tc_act/tc_pedit.h>
 
 #define PEDIT_TAB_MASK	15
 
@@ -30,7 +31,104 @@ static struct tc_action_ops act_pedit_ops;
 
 static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
 	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tc_pedit) },
+	[TCA_PEDIT_KEYS_EX]   = { .type = NLA_NESTED },
 };
+
+static const struct nla_policy pedit_key_ex_policy[TCA_PEDIT_KEY_EX_MAX + 1] = {
+	[TCA_PEDIT_KEY_EX_HTYPE]  = { .type = NLA_U16 },
+	[TCA_PEDIT_KEY_EX_CMD]	  = { .type = NLA_U16 },
+};
+
+static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
+							u8 n)
+{
+	struct tcf_pedit_key_ex *keys_ex;
+	struct tcf_pedit_key_ex *k;
+	const struct nlattr *ka;
+	int err = -EINVAL;
+	int rem;
+
+	if (!nla || !n)
+		return NULL;
+
+	keys_ex = kcalloc(n, sizeof(*k), GFP_KERNEL);
+	if (!keys_ex)
+		return ERR_PTR(-ENOMEM);
+
+	k = keys_ex;
+
+	nla_for_each_nested(ka, nla, rem) {
+		struct nlattr *tb[TCA_PEDIT_KEY_EX_MAX + 1];
+
+		if (!n) {
+			err = -EINVAL;
+			goto err_out;
+		}
+		n--;
+
+		if (nla_type(ka) != TCA_PEDIT_KEY_EX) {
+			err = -EINVAL;
+			goto err_out;
+		}
+
+		err = nla_parse_nested(tb, TCA_PEDIT_KEY_EX_MAX, ka,
+				       pedit_key_ex_policy);
+		if (err)
+			goto err_out;
+
+		if (!tb[TCA_PEDIT_KEY_EX_HTYPE] ||
+		    !tb[TCA_PEDIT_KEY_EX_CMD]) {
+			err = -EINVAL;
+			goto err_out;
+		}
+
+		k->htype = nla_get_u16(tb[TCA_PEDIT_KEY_EX_HTYPE]);
+		k->cmd = nla_get_u16(tb[TCA_PEDIT_KEY_EX_CMD]);
+
+		if (k->htype > TCA_PEDIT_HDR_TYPE_MAX ||
+		    k->cmd > TCA_PEDIT_CMD_MAX) {
+			err = -EINVAL;
+			goto err_out;
+		}
+
+		k++;
+	}
+
+	if (n)
+		goto err_out;
+
+	return keys_ex;
+
+err_out:
+	kfree(keys_ex);
+	return ERR_PTR(err);
+}
+
+static int tcf_pedit_key_ex_dump(struct sk_buff *skb,
+				 struct tcf_pedit_key_ex *keys_ex, int n)
+{
+	struct nlattr *keys_start = nla_nest_start(skb, TCA_PEDIT_KEYS_EX);
+
+	for (; n > 0; n--) {
+		struct nlattr *key_start;
+
+		key_start = nla_nest_start(skb, TCA_PEDIT_KEY_EX);
+
+		if (nla_put_u16(skb, TCA_PEDIT_KEY_EX_HTYPE, keys_ex->htype) ||
+		    nla_put_u16(skb, TCA_PEDIT_KEY_EX_CMD, keys_ex->cmd)) {
+			nlmsg_trim(skb, keys_start);
+			return -EINVAL;
+		}
+
+		nla_nest_end(skb, key_start);
+
+		keys_ex++;
+	}
+
+	nla_nest_end(skb, keys_start);
+
+	return 0;
+}
 
 static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 			  struct nlattr *est, struct tc_action **a,
@@ -38,10 +136,12 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 	struct nlattr *tb[TCA_PEDIT_MAX + 1];
+	struct nlattr *pattr;
 	struct tc_pedit *parm;
 	int ret = 0, err;
 	struct tcf_pedit *p;
 	struct tc_pedit_key *keys = NULL;
+	struct tcf_pedit_key_ex *keys_ex;
 	int ksize;
 
 	if (nla == NULL)
@@ -51,12 +151,20 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_PEDIT_PARMS] == NULL)
+	pattr = tb[TCA_PEDIT_PARMS];
+	if (!pattr)
+		pattr = tb[TCA_PEDIT_PARMS_EX];
+	if (!pattr)
 		return -EINVAL;
-	parm = nla_data(tb[TCA_PEDIT_PARMS]);
+
+	parm = nla_data(pattr);
 	ksize = parm->nkeys * sizeof(struct tc_pedit_key);
-	if (nla_len(tb[TCA_PEDIT_PARMS]) < sizeof(*parm) + ksize)
+	if (nla_len(pattr) < sizeof(*parm) + ksize)
 		return -EINVAL;
+
+	keys_ex = tcf_pedit_keys_ex_parse(tb[TCA_PEDIT_KEYS_EX], parm->nkeys);
+	if (IS_ERR(keys_ex))
+		return PTR_ERR(keys_ex);
 
 	if (!tcf_hash_check(tn, parm->index, a, bind)) {
 		if (!parm->nkeys)
@@ -69,6 +177,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (keys == NULL) {
 			tcf_hash_cleanup(*a, est);
+			kfree(keys_ex);
 			return -ENOMEM;
 		}
 		ret = ACT_P_CREATED;
@@ -81,8 +190,10 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		p = to_pedit(*a);
 		if (p->tcfp_nkeys && p->tcfp_nkeys != parm->nkeys) {
 			keys = kmalloc(ksize, GFP_KERNEL);
-			if (keys == NULL)
+			if (!keys) {
+				kfree(keys_ex);
 				return -ENOMEM;
+			}
 		}
 	}
 
@@ -95,6 +206,10 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		p->tcfp_nkeys = parm->nkeys;
 	}
 	memcpy(p->tcfp_keys, parm->keys, ksize);
+
+	kfree(p->tcfp_keys_ex);
+	p->tcfp_keys_ex = keys_ex;
+
 	spin_unlock_bh(&p->tcf_lock);
 	if (ret == ACT_P_CREATED)
 		tcf_hash_insert(tn, *a);
@@ -106,6 +221,7 @@ static void tcf_pedit_cleanup(struct tc_action *a, int bind)
 	struct tcf_pedit *p = to_pedit(a);
 	struct tc_pedit_key *keys = p->tcfp_keys;
 	kfree(keys);
+	kfree(p->tcfp_keys_ex);
 }
 
 static bool offset_valid(struct sk_buff *skb, int offset)
@@ -119,17 +235,47 @@ static bool offset_valid(struct sk_buff *skb, int offset)
 	return true;
 }
 
+static int pedit_skb_hdr_offset(struct sk_buff *skb,
+				enum pedit_header_type htype, int *hoffset)
+{
+	int ret = -EINVAL;
+
+	switch (htype) {
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+		if (skb_mac_header_was_set(skb)) {
+			*hoffset = skb_mac_offset(skb);
+			ret = 0;
+		}
+		break;
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK:
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+		*hoffset = skb_network_offset(skb);
+		ret = 0;
+		break;
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+		if (skb_transport_header_was_set(skb)) {
+			*hoffset = skb_transport_offset(skb);
+			ret = 0;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	};
+
+	return ret;
+}
+
 static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 		     struct tcf_result *res)
 {
 	struct tcf_pedit *p = to_pedit(a);
 	int i;
-	unsigned int off;
 
 	if (skb_unclone(skb, GFP_ATOMIC))
 		return p->tcf_action;
-
-	off = skb_network_offset(skb);
 
 	spin_lock(&p->tcf_lock);
 
@@ -137,20 +283,40 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 
 	if (p->tcfp_nkeys > 0) {
 		struct tc_pedit_key *tkey = p->tcfp_keys;
+		struct tcf_pedit_key_ex *tkey_ex = p->tcfp_keys_ex;
+		enum pedit_header_type htype = TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK;
+		enum pedit_cmd cmd = TCA_PEDIT_KEY_EX_CMD_SET;
 
 		for (i = p->tcfp_nkeys; i > 0; i--, tkey++) {
 			u32 *ptr, _data;
 			int offset = tkey->off;
+			int hoffset;
+			u32 val;
+			int rc;
+
+			if (tkey_ex) {
+				htype = tkey_ex->htype;
+				cmd = tkey_ex->cmd;
+
+				tkey_ex++;
+			}
+
+			rc = pedit_skb_hdr_offset(skb, htype, &hoffset);
+			if (rc) {
+				pr_info("tc filter pedit bad header type specified (0x%x)\n",
+					htype);
+				goto bad;
+			}
 
 			if (tkey->offmask) {
 				char *d, _d;
 
-				if (!offset_valid(skb, off + tkey->at)) {
+				if (!offset_valid(skb, hoffset + tkey->at)) {
 					pr_info("tc filter pedit 'at' offset %d out of bounds\n",
-						off + tkey->at);
+						hoffset + tkey->at);
 					goto bad;
 				}
-				d = skb_header_pointer(skb, off + tkey->at, 1,
+				d = skb_header_pointer(skb, hoffset + tkey->at, 1,
 						       &_d);
 				if (!d)
 					goto bad;
@@ -163,19 +329,32 @@ static int tcf_pedit(struct sk_buff *skb, const struct tc_action *a,
 				goto bad;
 			}
 
-			if (!offset_valid(skb, off + offset)) {
+			if (!offset_valid(skb, hoffset + offset)) {
 				pr_info("tc filter pedit offset %d out of bounds\n",
-					offset);
+					hoffset + offset);
 				goto bad;
 			}
 
-			ptr = skb_header_pointer(skb, off + offset, 4, &_data);
+			ptr = skb_header_pointer(skb, hoffset + offset, 4, &_data);
 			if (!ptr)
 				goto bad;
 			/* just do it, baby */
-			*ptr = ((*ptr & tkey->mask) ^ tkey->val);
+			switch (cmd) {
+			case TCA_PEDIT_KEY_EX_CMD_SET:
+				val = tkey->val;
+				break;
+			case TCA_PEDIT_KEY_EX_CMD_ADD:
+				val = (*ptr + tkey->val) & ~tkey->mask;
+				break;
+			default:
+				pr_info("tc filter pedit bad command (%d)\n",
+					cmd);
+				goto bad;
+			}
+
+			*ptr = ((*ptr & tkey->mask) ^ val);
 			if (ptr == &_data)
-				skb_store_bits(skb, off + offset, ptr, 4);
+				skb_store_bits(skb, hoffset + offset, ptr, 4);
 		}
 
 		goto done;
@@ -215,8 +394,15 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->refcnt = p->tcf_refcnt - ref;
 	opt->bindcnt = p->tcf_bindcnt - bind;
 
-	if (nla_put(skb, TCA_PEDIT_PARMS, s, opt))
-		goto nla_put_failure;
+	if (p->tcfp_keys_ex) {
+		tcf_pedit_key_ex_dump(skb, p->tcfp_keys_ex, p->tcfp_nkeys);
+
+		if (nla_put(skb, TCA_PEDIT_PARMS_EX, s, opt))
+			goto nla_put_failure;
+	} else {
+		if (nla_put(skb, TCA_PEDIT_PARMS, s, opt))
+			goto nla_put_failure;
+	}
 
 	tcf_tm_dump(&t, &p->tcf_tm);
 	if (nla_put_64bit(skb, TCA_PEDIT_TM, sizeof(t), &t, TCA_PEDIT_PAD))

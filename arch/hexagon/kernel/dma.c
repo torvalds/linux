@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <asm/page.h>
 
-struct dma_map_ops *dma_ops;
+const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 int bad_dma_address;  /*  globals are automatically initialized to zero  */
@@ -203,7 +203,7 @@ static void hexagon_sync_single_for_device(struct device *dev,
 	dma_sync(dma_addr_to_virt(dma_handle), size, dir);
 }
 
-struct dma_map_ops hexagon_dma_ops = {
+const struct dma_map_ops hexagon_dma_ops = {
 	.alloc		= hexagon_dma_alloc_coherent,
 	.free		= hexagon_free_coherent,
 	.map_sg		= hexagon_map_sg,

@@ -486,7 +486,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	return status;
 }
 
-static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
+static int kfd_ioctl_dbg_unregister(struct file *filep,
 				struct kfd_process *p, void *data)
 {
 	struct kfd_ioctl_dbg_unregister_args *args = data;
@@ -498,7 +498,7 @@ static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
-		pr_debug("kfd_ioctl_dbg_unrgesiter not supported on CZ\n");
+		pr_debug("kfd_ioctl_dbg_unregister not supported on CZ\n");
 		return -EINVAL;
 	}
 
@@ -892,7 +892,7 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 			kfd_ioctl_dbg_register, 0),
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_UNREGISTER,
-			kfd_ioctl_dbg_unrgesiter, 0),
+			kfd_ioctl_dbg_unregister, 0),
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_ADDRESS_WATCH,
 			kfd_ioctl_dbg_address_watch, 0),

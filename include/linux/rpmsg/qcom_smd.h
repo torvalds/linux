@@ -18,14 +18,12 @@ static inline struct qcom_smd_edge *
 qcom_smd_register_edge(struct device *parent,
 		       struct device_node *node)
 {
-	return ERR_PTR(-ENXIO);
+	return NULL;
 }
 
 static inline int qcom_smd_unregister_edge(struct qcom_smd_edge *edge)
 {
-	/* This shouldn't be possible */
-	WARN_ON(1);
-	return -ENXIO;
+	return 0;
 }
 
 #endif

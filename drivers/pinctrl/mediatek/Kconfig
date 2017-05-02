@@ -10,25 +10,29 @@ config PINCTRL_MTK
 
 # For ARMv7 SoCs
 config PINCTRL_MT2701
-	bool "Mediatek MT2701 pin control" if COMPILE_TEST && !MACH_MT2701
+	bool "Mediatek MT2701 pin control"
+	depends on MACH_MT2701 || COMPILE_TEST
 	depends on OF
 	default MACH_MT2701
 	select PINCTRL_MTK
 
 config PINCTRL_MT7623
-	bool "Mediatek MT7623 pin control" if COMPILE_TEST && !MACH_MT7623
+	bool "Mediatek MT7623 pin control"
+	depends on MACH_MT7623 || COMPILE_TEST
 	depends on OF
 	default MACH_MT7623
 	select PINCTRL_MTK_COMMON
 
 config PINCTRL_MT8135
-	bool "Mediatek MT8135 pin control" if COMPILE_TEST && !MACH_MT8135
+	bool "Mediatek MT8135 pin control"
+	depends on MACH_MT8135 || COMPILE_TEST
 	depends on OF
 	default MACH_MT8135
 	select PINCTRL_MTK
 
 config PINCTRL_MT8127
-	bool "Mediatek MT8127 pin control" if COMPILE_TEST && !MACH_MT8127
+	bool "Mediatek MT8127 pin control"
+	depends on MACH_MT8127 || COMPILE_TEST
 	depends on OF
 	default MACH_MT8127
 	select PINCTRL_MTK
@@ -43,7 +47,8 @@ config PINCTRL_MT8173
 
 # For PMIC
 config PINCTRL_MT6397
-	bool "Mediatek MT6397 pin control" if COMPILE_TEST && !MFD_MT6397
+	bool "Mediatek MT6397 pin control"
+	depends on MFD_MT6397 || COMPILE_TEST
 	depends on OF
 	default MFD_MT6397
 	select PINCTRL_MTK

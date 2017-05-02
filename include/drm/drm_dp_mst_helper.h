@@ -414,7 +414,7 @@ struct drm_dp_mst_topology_mgr {
 	/**
 	 * @dev: device pointer for adding i2c devices etc.
 	 */
-	struct device *dev;
+	struct drm_device *dev;
 	/**
 	 * @cbs: callbacks for connector addition and destruction.
 	 */
@@ -493,8 +493,8 @@ struct drm_dp_mst_topology_mgr {
 	int total_pbn;
 
 	/**
-	 * @qlock: protects @tx_msg_downq, the tx_slots in struct
-	 * &drm_dp_mst_branch and txmsg->state once they are queued
+	 * @qlock: protects @tx_msg_downq, the &drm_dp_mst_branch.txslost and
+	 * &drm_dp_sideband_msg_tx.state once they are queued
 	 */
 	struct mutex qlock;
 	/**
@@ -508,8 +508,7 @@ struct drm_dp_mst_topology_mgr {
 	struct mutex payload_lock;
 	/**
 	 * @proposed_vcpis: Array of pointers for the new VCPI allocation. The
-	 * VCPI structure itself is embedded into the corresponding
-	 * &drm_dp_mst_port structure.
+	 * VCPI structure itself is &drm_dp_mst_port.vcpi.
 	 */
 	struct drm_dp_vcpi **proposed_vcpis;
 	/**
@@ -556,7 +555,10 @@ struct drm_dp_mst_topology_mgr {
 	struct work_struct destroy_connector_work;
 };
 
-int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr, struct device *dev, struct drm_dp_aux *aux, int max_dpcd_transaction_bytes, int max_payloads, int conn_base_id);
+int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_device *dev, struct drm_dp_aux *aux,
+				 int max_dpcd_transaction_bytes,
+				 int max_payloads, int conn_base_id);
 
 void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr);
 

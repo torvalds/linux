@@ -6,7 +6,8 @@
  * Adaptec aacraid device driver for Linux.
  *
  * Copyright (c) 2000-2010 Adaptec, Inc.
- *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -135,8 +136,16 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 
 	if (mode & AAC_INT_MODE_AIF) {
 		/* handle AIF */
-		if (dev->aif_thread && dev->fsa_dev)
-			aac_intr_normal(dev, 0, 2, 0, NULL);
+		if (dev->sa_firmware) {
+			u32 events = src_readl(dev, MUnit.SCR0);
+
+			aac_intr_normal(dev, events, 1, 0, NULL);
+			writel(events, &dev->IndexRegs->Mailbox[0]);
+			src_writel(dev, MUnit.IDR, 1 << 23);
+		} else {
+			if (dev->aif_thread && dev->fsa_dev)
+				aac_intr_normal(dev, 0, 2, 0, NULL);
+		}
 		if (dev->msi_enabled)
 			aac_src_access_devreg(dev, AAC_CLEAR_AIF_BIT);
 		mode = 0;
@@ -148,17 +157,19 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 		for (;;) {
 			isFastResponse = 0;
 			/* remove toggle bit (31) */
-			handle = (dev->host_rrq[index] & 0x7fffffff);
-			/* check fast response bit (30) */
+			handle = le32_to_cpu((dev->host_rrq[index])
+				& 0x7fffffff);
+			/* check fast response bits (30, 1) */
 			if (handle & 0x40000000)
 				isFastResponse = 1;
 			handle &= 0x0000ffff;
 			if (handle == 0)
 				break;
+			handle >>= 2;
 			if (dev->msi_enabled && dev->max_msix > 1)
 				atomic_dec(&dev->rrq_outstanding[vector_no]);
+			aac_intr_normal(dev, handle, 0, isFastResponse, NULL);
 			dev->host_rrq[index++] = 0;
-			aac_intr_normal(dev, handle-1, 0, isFastResponse, NULL);
 			if (index == (vector_no + 1) * dev->vector_cap)
 				index = vector_no * dev->vector_cap;
 			dev->host_rrq_idx[vector_no] = index;
@@ -384,7 +395,7 @@ static void aac_src_notify_adapter(struct aac_dev *dev, u32 event)
 
 static void aac_src_start_adapter(struct aac_dev *dev)
 {
-	struct aac_init *init;
+	union aac_init *init;
 	int i;
 
 	 /* reset host_rrq_idx first */
@@ -392,14 +403,26 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 		dev->host_rrq_idx[i] = i * dev->vector_cap;
 		atomic_set(&dev->rrq_outstanding[i], 0);
 	}
+	atomic_set(&dev->msix_counter, 0);
 	dev->fibs_pushed_no = 0;
 
 	init = dev->init;
-	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
+		init->r8.host_elapsed_seconds = cpu_to_le32(get_seconds());
+		src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
+			lower_32_bits(dev->init_pa),
+			upper_32_bits(dev->init_pa),
+			sizeof(struct _r8) +
+			(AAC_MAX_HRRQ - 1) * sizeof(struct _rrq),
+			0, 0, 0, NULL, NULL, NULL, NULL, NULL);
+	} else {
+		init->r7.host_elapsed_seconds = cpu_to_le32(get_seconds());
+		// We can only use a 32 bit address here
+		src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS,
+			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,
+			NULL, NULL, NULL, NULL, NULL);
+	}
 
-	/* We can only use a 32 bit address here */
-	src_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa,
-	  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -414,16 +437,23 @@ static int aac_src_check_health(struct aac_dev *dev)
 	u32 status = src_readl(dev, MUnit.OMR);
 
 	/*
-	 *	Check to see if the board failed any self tests.
-	 */
-	if (unlikely(status & SELF_TEST_FAILED))
-		return -1;
-
-	/*
 	 *	Check to see if the board panic'd.
 	 */
 	if (unlikely(status & KERNEL_PANIC))
-		return (status >> 16) & 0xFF;
+		goto err_blink;
+
+	/*
+	 *	Check to see if the board failed any self tests.
+	 */
+	if (unlikely(status & SELF_TEST_FAILED))
+		goto err_out;
+
+	/*
+	 *	Check to see if the board failed any self tests.
+	 */
+	if (unlikely(status & MONITOR_PANIC))
+		goto err_out;
+
 	/*
 	 *	Wait for the adapter to be up and running.
 	 */
@@ -433,6 +463,17 @@ static int aac_src_check_health(struct aac_dev *dev)
 	 *	Everything is OK
 	 */
 	return 0;
+
+err_out:
+	return -1;
+
+err_blink:
+	return (status >> 16) & 0xFF;
+}
+
+static inline u32 aac_get_vector(struct aac_dev *dev)
+{
+	return atomic_inc_return(&dev->msix_counter)%dev->max_msix;
 }
 
 /**
@@ -448,66 +489,125 @@ static int aac_src_deliver_message(struct fib *fib)
 	u32 fibsize;
 	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
+	int native_hba;
 #if !defined(writeq)
 	unsigned long flags;
 #endif
 
-	u16 hdr_size = le16_to_cpu(fib->hw_fib_va->header.Size);
 	u16 vector_no;
 
 	atomic_inc(&q->numpending);
 
-	if (dev->msi_enabled && fib->hw_fib_va->header.Command != AifRequest &&
-	    dev->max_msix > 1) {
-		vector_no = fib->vector_no;
-		fib->hw_fib_va->header.Handle += (vector_no << 16);
+	native_hba = (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA) ? 1 : 0;
+
+
+	if (dev->msi_enabled && dev->max_msix > 1 &&
+		(native_hba || fib->hw_fib_va->header.Command != AifRequest)) {
+
+		if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE3)
+			&& dev->sa_firmware)
+			vector_no = aac_get_vector(dev);
+		else
+			vector_no = fib->vector_no;
+
+		if (native_hba) {
+			if (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA_TMF) {
+				struct aac_hba_tm_req *tm_req;
+
+				tm_req = (struct aac_hba_tm_req *)
+						fib->hw_fib_va;
+				if (tm_req->iu_type ==
+					HBA_IU_TYPE_SCSI_TM_REQ) {
+					((struct aac_hba_tm_req *)
+						fib->hw_fib_va)->reply_qid
+							= vector_no;
+					((struct aac_hba_tm_req *)
+						fib->hw_fib_va)->request_id
+							+= (vector_no << 16);
+				} else {
+					((struct aac_hba_reset_req *)
+						fib->hw_fib_va)->reply_qid
+							= vector_no;
+					((struct aac_hba_reset_req *)
+						fib->hw_fib_va)->request_id
+							+= (vector_no << 16);
+				}
+			} else {
+				((struct aac_hba_cmd_req *)
+					fib->hw_fib_va)->reply_qid
+						= vector_no;
+				((struct aac_hba_cmd_req *)
+					fib->hw_fib_va)->request_id
+						+= (vector_no << 16);
+			}
+		} else {
+			fib->hw_fib_va->header.Handle += (vector_no << 16);
+		}
 	} else {
 		vector_no = 0;
 	}
 
 	atomic_inc(&dev->rrq_outstanding[vector_no]);
 
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
-		/* Calculate the amount to the fibsize bits */
-		fibsize = (hdr_size + 127) / 128 - 1;
-		if (fibsize > (ALIGN32 - 1))
-			return -EMSGSIZE;
-		/* New FIB header, 32-bit */
+	if (native_hba) {
 		address = fib->hw_fib_pa;
-		fib->hw_fib_va->header.StructType = FIB_MAGIC2;
-		fib->hw_fib_va->header.SenderFibAddress = (u32)address;
-		fib->hw_fib_va->header.u.TimeStamp = 0;
-		BUG_ON(upper_32_bits(address) != 0L);
+		fibsize = (fib->hbacmd_size + 127) / 128 - 1;
+		if (fibsize > 31)
+			fibsize = 31;
 		address |= fibsize;
-	} else {
-		/* Calculate the amount to the fibsize bits */
-		fibsize = (sizeof(struct aac_fib_xporthdr) + hdr_size + 127) / 128 - 1;
-		if (fibsize > (ALIGN32 - 1))
-			return -EMSGSIZE;
-
-		/* Fill XPORT header */
-		pFibX = (void *)fib->hw_fib_va - sizeof(struct aac_fib_xporthdr);
-		pFibX->Handle = cpu_to_le32(fib->hw_fib_va->header.Handle);
-		pFibX->HostAddress = cpu_to_le64(fib->hw_fib_pa);
-		pFibX->Size = cpu_to_le32(hdr_size);
-
-		/*
-		 * The xport header has been 32-byte aligned for us so that fibsize
-		 * can be masked out of this address by hardware. -- BenC
-		 */
-		address = fib->hw_fib_pa - sizeof(struct aac_fib_xporthdr);
-		if (address & (ALIGN32 - 1))
-			return -EINVAL;
-		address |= fibsize;
-	}
 #if defined(writeq)
-	src_writeq(dev, MUnit.IQ_L, (u64)address);
+		src_writeq(dev, MUnit.IQN_L, (u64)address);
 #else
-	spin_lock_irqsave(&fib->dev->iq_lock, flags);
-	src_writel(dev, MUnit.IQ_H, upper_32_bits(address) & 0xffffffff);
-	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
-	spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
+		spin_lock_irqsave(&fib->dev->iq_lock, flags);
+		src_writel(dev, MUnit.IQN_H,
+			upper_32_bits(address) & 0xffffffff);
+		src_writel(dev, MUnit.IQN_L, address & 0xffffffff);
+		spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
 #endif
+	} else {
+		if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2 ||
+			dev->comm_interface == AAC_COMM_MESSAGE_TYPE3) {
+			/* Calculate the amount to the fibsize bits */
+			fibsize = (le16_to_cpu(fib->hw_fib_va->header.Size)
+				+ 127) / 128 - 1;
+			/* New FIB header, 32-bit */
+			address = fib->hw_fib_pa;
+			fib->hw_fib_va->header.StructType = FIB_MAGIC2;
+			fib->hw_fib_va->header.SenderFibAddress =
+				cpu_to_le32((u32)address);
+			fib->hw_fib_va->header.u.TimeStamp = 0;
+			WARN_ON(upper_32_bits(address) != 0L);
+		} else {
+			/* Calculate the amount to the fibsize bits */
+			fibsize = (sizeof(struct aac_fib_xporthdr) +
+				le16_to_cpu(fib->hw_fib_va->header.Size)
+				+ 127) / 128 - 1;
+			/* Fill XPORT header */
+			pFibX = (struct aac_fib_xporthdr *)
+				((unsigned char *)fib->hw_fib_va -
+				sizeof(struct aac_fib_xporthdr));
+			pFibX->Handle = fib->hw_fib_va->header.Handle;
+			pFibX->HostAddress =
+				cpu_to_le64((u64)fib->hw_fib_pa);
+			pFibX->Size = cpu_to_le32(
+				le16_to_cpu(fib->hw_fib_va->header.Size));
+			address = fib->hw_fib_pa -
+				(u64)sizeof(struct aac_fib_xporthdr);
+		}
+		if (fibsize > 31)
+			fibsize = 31;
+		address |= fibsize;
+
+#if defined(writeq)
+		src_writeq(dev, MUnit.IQ_L, (u64)address);
+#else
+		spin_lock_irqsave(&fib->dev->iq_lock, flags);
+		src_writel(dev, MUnit.IQ_H,
+			upper_32_bits(address) & 0xffffffff);
+		src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
+		spin_unlock_irqrestore(&fib->dev->iq_lock, flags);
+#endif
+	}
 	return 0;
 }
 
@@ -553,51 +653,139 @@ static int aac_srcv_ioremap(struct aac_dev *dev, u32 size)
 		dev->base = dev->regs.src.bar0 = NULL;
 		return 0;
 	}
-	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
-	if (dev->base == NULL)
+
+	dev->regs.src.bar1 =
+	ioremap(pci_resource_start(dev->pdev, 2), AAC_MIN_SRCV_BAR1_SIZE);
+	dev->base = NULL;
+	if (dev->regs.src.bar1 == NULL)
 		return -1;
+	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
+	if (dev->base == NULL) {
+		iounmap(dev->regs.src.bar1);
+		dev->regs.src.bar1 = NULL;
+		return -1;
+	}
 	dev->IndexRegs = &((struct src_registers __iomem *)
 		dev->base)->u.denali.IndexRegs;
 	return 0;
 }
 
-static int aac_src_restart_adapter(struct aac_dev *dev, int bled)
+void aac_set_intx_mode(struct aac_dev *dev)
+{
+	if (dev->msi_enabled) {
+		aac_src_access_devreg(dev, AAC_ENABLE_INTX);
+		dev->msi_enabled = 0;
+		msleep(5000); /* Delay 5 seconds */
+	}
+}
+
+static void aac_dump_fw_fib_iop_reset(struct aac_dev *dev)
+{
+	__le32 supported_options3;
+
+	if (!aac_fib_dump)
+		return;
+
+	supported_options3  = dev->supplement_adapter_info.supported_options3;
+	if (!(supported_options3 & AAC_OPTION_SUPPORTED3_IOP_RESET_FIB_DUMP))
+		return;
+
+	aac_adapter_sync_cmd(dev, IOP_RESET_FW_FIB_DUMP,
+			0, 0, 0,  0, 0, 0, NULL, NULL, NULL, NULL, NULL);
+}
+
+static void aac_send_iop_reset(struct aac_dev *dev, int bled)
 {
 	u32 var, reset_mask;
 
-	if (bled >= 0) {
-		if (bled)
-			printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",
-				dev->name, dev->id, bled);
-		dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
-		bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
-			0, 0, 0, 0, 0, 0, &var, &reset_mask, NULL, NULL, NULL);
-		if ((bled || (var != 0x00000001)) &&
-		    !dev->doorbell_mask)
-			return -EINVAL;
-		else if (dev->doorbell_mask) {
-			reset_mask = dev->doorbell_mask;
-			bled = 0;
-			var = 0x00000001;
-		}
+	aac_dump_fw_fib_iop_reset(dev);
 
-		if ((dev->pdev->device == PMC_DEVICE_S7 ||
-		    dev->pdev->device == PMC_DEVICE_S8 ||
-		    dev->pdev->device == PMC_DEVICE_S9) && dev->msi_enabled) {
-			aac_src_access_devreg(dev, AAC_ENABLE_INTX);
-			dev->msi_enabled = 0;
-			msleep(5000); /* Delay 5 seconds */
-		}
+	bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
+				    0, 0, 0, 0, 0, 0, &var,
+				    &reset_mask, NULL, NULL, NULL);
 
-		if (!bled && (dev->supplement_adapter_info.SupportedOptions2 &
-		    AAC_OPTION_DOORBELL_RESET)) {
-			src_writel(dev, MUnit.IDR, reset_mask);
-			ssleep(45);
-		} else {
-			src_writel(dev, MUnit.IDR, 0x100);
-			ssleep(45);
-		}
+	if ((bled || var != 0x00000001) && !dev->doorbell_mask)
+		bled = -EINVAL;
+	else if (dev->doorbell_mask) {
+		reset_mask = dev->doorbell_mask;
+		bled = 0;
+		var = 0x00000001;
 	}
+
+	aac_set_intx_mode(dev);
+
+	if (!bled && (dev->supplement_adapter_info.supported_options2 &
+	    AAC_OPTION_DOORBELL_RESET)) {
+		src_writel(dev, MUnit.IDR, reset_mask);
+	} else {
+		src_writel(dev, MUnit.IDR, 0x100);
+	}
+	msleep(30000);
+}
+
+static void aac_send_hardware_soft_reset(struct aac_dev *dev)
+{
+	u_int32_t val;
+
+	val = readl(((char *)(dev->base) + IBW_SWR_OFFSET));
+	val |= 0x01;
+	writel(val, ((char *)(dev->base) + IBW_SWR_OFFSET));
+	msleep_interruptible(20000);
+}
+
+static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
+{
+	unsigned long status, start;
+
+	if (bled < 0)
+		goto invalid_out;
+
+	if (bled)
+		pr_err("%s%d: adapter kernel panic'd %x.\n",
+				dev->name, dev->id, bled);
+
+	/*
+	 * When there is a BlinkLED, IOP_RESET has not effect
+	 */
+	if (bled >= 2 && dev->sa_firmware && reset_type & HW_IOP_RESET)
+		reset_type &= ~HW_IOP_RESET;
+
+	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
+
+	switch (reset_type) {
+	case IOP_HWSOFT_RESET:
+		aac_send_iop_reset(dev, bled);
+		/*
+		 * Check to see if KERNEL_UP_AND_RUNNING
+		 * Wait for the adapter to be up and running.
+		 * If !KERNEL_UP_AND_RUNNING issue HW Soft Reset
+		 */
+		status = src_readl(dev, MUnit.OMR);
+		if (dev->sa_firmware
+		 && !(status & KERNEL_UP_AND_RUNNING)) {
+			start = jiffies;
+			do {
+				status = src_readl(dev, MUnit.OMR);
+				if (time_after(jiffies,
+				 start+HZ*SOFT_RESET_TIME)) {
+					aac_send_hardware_soft_reset(dev);
+					start = jiffies;
+				}
+			} while (!(status & KERNEL_UP_AND_RUNNING));
+		}
+		break;
+	case HW_SOFT_RESET:
+		if (dev->sa_firmware) {
+			aac_send_hardware_soft_reset(dev);
+			aac_set_intx_mode(dev);
+		}
+		break;
+	default:
+		aac_send_iop_reset(dev, bled);
+		break;
+	}
+
+invalid_out:
 
 	if (src_readl(dev, MUnit.OMR) & KERNEL_PANIC)
 		return -ENODEV;
@@ -653,14 +841,15 @@ int aac_src_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 	if ((aac_reset_devices || reset_devices) &&
-		!aac_src_restart_adapter(dev, 0))
+		!aac_src_restart_adapter(dev, 0, IOP_HWSOFT_RESET))
 		++restart;
 	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
 	status = src_readl(dev, MUnit.OMR);
 	if (status & KERNEL_PANIC) {
-		if (aac_src_restart_adapter(dev, aac_src_check_health(dev)))
+		if (aac_src_restart_adapter(dev,
+			aac_src_check_health(dev), IOP_HWSOFT_RESET))
 			goto error_iounmap;
 		++restart;
 	}
@@ -701,7 +890,7 @@ int aac_src_init(struct aac_dev *dev)
 		    ? (startup_timeout - 60)
 		    : (startup_timeout / 2))))) {
 			if (likely(!aac_src_restart_adapter(dev,
-			    aac_src_check_health(dev))))
+				aac_src_check_health(dev), IOP_HWSOFT_RESET)))
 				start = jiffies;
 			++restart;
 		}
@@ -798,7 +987,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	dev->a_ops.adapter_sync_cmd = src_sync_cmd;
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 	if ((aac_reset_devices || reset_devices) &&
-		!aac_src_restart_adapter(dev, 0))
+		!aac_src_restart_adapter(dev, 0, IOP_HWSOFT_RESET))
 		++restart;
 	/*
 	 *	Check to see if flash update is running.
@@ -827,7 +1016,8 @@ int aac_srcv_init(struct aac_dev *dev)
 	 */
 	status = src_readl(dev, MUnit.OMR);
 	if (status & KERNEL_PANIC) {
-		if (aac_src_restart_adapter(dev, aac_src_check_health(dev)))
+		if (aac_src_restart_adapter(dev,
+			aac_src_check_health(dev), IOP_HWSOFT_RESET))
 			goto error_iounmap;
 		++restart;
 	}
@@ -866,7 +1056,8 @@ int aac_srcv_init(struct aac_dev *dev)
 		  ((startup_timeout > 60)
 		    ? (startup_timeout - 60)
 		    : (startup_timeout / 2))))) {
-			if (likely(!aac_src_restart_adapter(dev, aac_src_check_health(dev))))
+			if (likely(!aac_src_restart_adapter(dev,
+				aac_src_check_health(dev), IOP_HWSOFT_RESET)))
 				start = jiffies;
 			++restart;
 		}
@@ -897,7 +1088,8 @@ int aac_srcv_init(struct aac_dev *dev)
 
 	if (aac_init_adapter(dev) == NULL)
 		goto error_iounmap;
-	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE2)
+	if ((dev->comm_interface != AAC_COMM_MESSAGE_TYPE2) &&
+		(dev->comm_interface != AAC_COMM_MESSAGE_TYPE3))
 		goto error_iounmap;
 	if (dev->msi_enabled)
 		aac_src_access_devreg(dev, AAC_ENABLE_MSIX);
@@ -905,9 +1097,9 @@ int aac_srcv_init(struct aac_dev *dev)
 	if (aac_acquire_irq(dev))
 		goto error_iounmap;
 
-	dev->dbg_base = dev->base_start;
-	dev->dbg_base_mapped = dev->base;
-	dev->dbg_size = dev->base_size;
+	dev->dbg_base = pci_resource_start(dev->pdev, 2);
+	dev->dbg_base_mapped = dev->regs.src.bar1;
+	dev->dbg_size = AAC_MIN_SRCV_BAR1_SIZE;
 	dev->a_ops.adapter_enable_int = aac_src_enable_interrupt_message;
 
 	aac_adapter_enable_int(dev);

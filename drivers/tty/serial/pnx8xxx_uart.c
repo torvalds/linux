@@ -631,7 +631,7 @@ pnx8xxx_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return ret;
 }
 
-static struct uart_ops pnx8xxx_pops = {
+static const struct uart_ops pnx8xxx_pops = {
 	.tx_empty	= pnx8xxx_tx_empty,
 	.set_mctrl	= pnx8xxx_set_mctrl,
 	.get_mctrl	= pnx8xxx_get_mctrl,

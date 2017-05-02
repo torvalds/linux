@@ -662,6 +662,10 @@ include/linux/rcupdate.h 의 rcu_assign_pointer() 와 rcu_dereference() 를
 컨트롤 의존성
 -------------
 
+현재의 컴파일러들은 컨트롤 의존성을 이해하고 있지 않기 때문에 컨트롤 의존성은
+약간 다루기 어려울 수 있습니다.  이 섹션의 목적은 여러분이 컴파일러의 무시로
+인해 여러분의 코드가 망가지는 걸 막을 수 있도록 돕는겁니다.
+
 로드-로드 컨트롤 의존성은 데이터 의존성 배리어만으로는 정확히 동작할 수가
 없어서 읽기 메모리 배리어를 필요로 합니다.  아래의 코드를 봅시다:
 
@@ -689,20 +693,21 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	if (q) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 	}
 
 컨트롤 의존성은 보통 다른 타입의 배리어들과 짝을 맞춰 사용됩니다.  그렇다곤
-하나, READ_ONCE() 는 반드시 사용해야 함을 부디 명심하세요!  READ_ONCE() 가
-없다면, 컴파일러가 'a' 로부터의 로드를 'a' 로부터의 또다른 로드와, 'b' 로의
-스토어를 'b' 로의 또다른 스토어와 조합해 버려 매우 비직관적인 결과를 초래할 수
-있습니다.
+하나, READ_ONCE() 도 WRITE_ONCE() 도 선택사항이 아니라 필수사항임을 부디
+명심하세요!  READ_ONCE() 가 없다면, 컴파일러는 'a' 로부터의 로드를 'a' 로부터의
+또다른 로드와 조합할 수 있습니다.  WRITE_ONCE() 가 없다면, 컴파일러는 'b' 로의
+스토어를 'b' 로의 또라느 스토어들과 조합할 수 있습니다.  두 경우 모두 순서에
+있어 상당히 비직관적인 결과를 초래할 수 있습니다.
 
 이걸로 끝이 아닌게, 컴파일러가 변수 'a' 의 값이 항상 0이 아니라고 증명할 수
 있다면, 앞의 예에서 "if" 문을 없애서 다음과 같이 최적화 할 수도 있습니다:
 
 	q = a;
-	b = p;  /* BUG: Compiler and CPU can both reorder!!! */
+	b = 1;  /* BUG: Compiler and CPU can both reorder!!! */
 
 그러니 READ_ONCE() 를 반드시 사용하세요.
 
@@ -712,11 +717,11 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 	q = READ_ONCE(a);
 	if (q) {
 		barrier();
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
 		barrier();
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something_else();
 	}
 
@@ -725,12 +730,12 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	barrier();
-	WRITE_ONCE(b, p);  /* BUG: No ordering vs. load from a!!! */
+	WRITE_ONCE(b, 1);  /* BUG: No ordering vs. load from a!!! */
 	if (q) {
-		/* WRITE_ONCE(b, p); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
 		do_something();
 	} else {
-		/* WRITE_ONCE(b, p); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
 		do_something_else();
 	}
 
@@ -742,10 +747,10 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	if (q) {
-		smp_store_release(&b, p);
+		smp_store_release(&b, 1);
 		do_something();
 	} else {
-		smp_store_release(&b, p);
+		smp_store_release(&b, 1);
 		do_something_else();
 	}
 
@@ -754,10 +759,10 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	if (q) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 		do_something_else();
 	}
 
@@ -770,10 +775,10 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	if (q % MAX) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 		do_something_else();
 	}
 
@@ -781,7 +786,7 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 위의 코드를 아래와 같이 바꿔버릴 수 있습니다:
 
 	q = READ_ONCE(a);
-	WRITE_ONCE(b, p);
+	WRITE_ONCE(b, 1);
 	do_something_else();
 
 이렇게 되면, CPU 는 변수 'a' 로부터의 로드와 변수 'b' 로의 스토어 사이의 순서를
@@ -793,10 +798,10 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 	q = READ_ONCE(a);
 	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
 	if (q % MAX) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 		do_something();
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 		do_something_else();
 	}
 
@@ -828,35 +833,33 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	if (q) {
-		WRITE_ONCE(b, p);
+		WRITE_ONCE(b, 1);
 	} else {
-		WRITE_ONCE(b, r);
+		WRITE_ONCE(b, 2);
 	}
-	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from "a". */
+	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from 'a'. */
 
-컴파일러는 volatile 타입에 대한 액세스를 재배치 할 수 없고 이 조건 하의 "b"
+컴파일러는 volatile 타입에 대한 액세스를 재배치 할 수 없고 이 조건 하의 'b'
 로의 쓰기를 재배치 할 수 없기 때문에 여기에 순서 규칙이 존재한다고 주장하고
 싶을 겁니다.  불행히도 이 경우에, 컴파일러는 다음의 가상의 pseudo-assembly 언어
-코드처럼 "b" 로의 두개의 쓰기 오퍼레이션을 conditional-move 인스트럭션으로
+코드처럼 'b' 로의 두개의 쓰기 오퍼레이션을 conditional-move 인스트럭션으로
 번역할 수 있습니다:
 
 	ld r1,a
-	ld r2,p
-	ld r3,r
 	cmp r1,$0
-	cmov,ne r4,r2
-	cmov,eq r4,r3
+	cmov,ne r4,$1
+	cmov,eq r4,$2
 	st r4,b
 	st $1,c
 
-완화된 순서 규칙의 CPU 는 "a" 로부터의 로드와 "c" 로의 스토어 사이에 어떤
+완화된 순서 규칙의 CPU 는 'a' 로부터의 로드와 'c' 로의 스토어 사이에 어떤
 종류의 의존성도 갖지 않을 겁니다.  이 컨트롤 의존성은 두개의 cmov 인스트럭션과
 거기에 의존하는 스토어 에게만 적용될 겁니다.  짧게 말하자면, 컨트롤 의존성은
 주어진 if 문의 then 절과 else 절에게만 (그리고 이 두 절 내에서 호출되는
 함수들에게까지) 적용되지, 이 if 문을 뒤따르는 코드에는 적용되지 않습니다.
 
 마지막으로, 컨트롤 의존성은 이행성 (transitivity) 을 제공하지 -않습니다-.  이건
-x 와 y 가 둘 다 0 이라는 초기값을 가졌다는 가정 하의 두개의 예제로
+'x' 와 'y' 가 둘 다 0 이라는 초기값을 가졌다는 가정 하의 두개의 예제로
 보이겠습니다:
 
 	CPU 0                     CPU 1
@@ -923,6 +926,9 @@ http://www.cl.cam.ac.uk/users/pes20/ppc-supplemental/test6.pdf 와
 
   (*) 컨트롤 의존성은 이행성을 제공하지 -않습니다-.  이행성이 필요하다면,
       smp_mb() 를 사용하세요.
+
+  (*) 컴파일러는 컨트롤 의존성을 이해하고 있지 않습니다.  따라서 컴파일러가
+      여러분의 코드를 망가뜨리지 않도록 하는건 여러분이 해야 하는 일입니다.
 
 
 SMP 배리어 짝맞추기

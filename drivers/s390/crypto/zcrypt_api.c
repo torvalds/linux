@@ -81,7 +81,6 @@ EXPORT_SYMBOL(zcrypt_rescan_req);
 static LIST_HEAD(zcrypt_ops_list);
 
 /* Zcrypt related debug feature stuff. */
-static struct dentry *zcrypt_dbf_root;
 debug_info_t *zcrypt_dbf_info;
 
 /**
@@ -201,7 +200,7 @@ static inline bool zcrypt_card_compare(struct zcrypt_card *zc,
 				       unsigned weight, unsigned pref_weight)
 {
 	if (!pref_zc)
-		return 0;
+		return false;
 	weight += atomic_read(&zc->load);
 	pref_weight += atomic_read(&pref_zc->load);
 	if (weight == pref_weight)
@@ -215,7 +214,7 @@ static inline bool zcrypt_queue_compare(struct zcrypt_queue *zq,
 					unsigned weight, unsigned pref_weight)
 {
 	if (!pref_zq)
-		return 0;
+		return false;
 	weight += atomic_read(&zq->load);
 	pref_weight += atomic_read(&pref_zq->load);
 	if (weight == pref_weight)
@@ -375,7 +374,7 @@ out:
 	return rc;
 }
 
-static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
+long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 {
 	struct zcrypt_card *zc, *pref_zc;
 	struct zcrypt_queue *zq, *pref_zq;
@@ -445,6 +444,7 @@ out:
 			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
+EXPORT_SYMBOL(zcrypt_send_cprb);
 
 static bool is_desired_ep11_card(unsigned int dev_id,
 				 unsigned short target_num,
@@ -620,7 +620,7 @@ out:
 	return rc;
 }
 
-static void zcrypt_device_status_mask(struct zcrypt_device_matrix *matrix)
+void zcrypt_device_status_mask(struct zcrypt_device_matrix *matrix)
 {
 	struct zcrypt_card *zc;
 	struct zcrypt_queue *zq;
@@ -668,6 +668,7 @@ static void zcrypt_qdepth_mask(char qdepth[AP_DEVICES])
 
 	memset(qdepth, 0, sizeof(char)	* AP_DEVICES);
 	spin_lock(&zcrypt_list_lock);
+	local_bh_disable();
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
 			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
@@ -679,6 +680,7 @@ static void zcrypt_qdepth_mask(char qdepth[AP_DEVICES])
 			spin_unlock(&zq->queue->lock);
 		}
 	}
+	local_bh_enable();
 	spin_unlock(&zcrypt_list_lock);
 }
 
@@ -689,6 +691,7 @@ static void zcrypt_perdev_reqcnt(int reqcnt[AP_DEVICES])
 
 	memset(reqcnt, 0, sizeof(int) * AP_DEVICES);
 	spin_lock(&zcrypt_list_lock);
+	local_bh_disable();
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
 			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
@@ -699,6 +702,7 @@ static void zcrypt_perdev_reqcnt(int reqcnt[AP_DEVICES])
 			spin_unlock(&zq->queue->lock);
 		}
 	}
+	local_bh_enable();
 	spin_unlock(&zcrypt_list_lock);
 }
 
@@ -710,6 +714,7 @@ static int zcrypt_pendingq_count(void)
 
 	pendingq_count = 0;
 	spin_lock(&zcrypt_list_lock);
+	local_bh_disable();
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
 			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
@@ -719,6 +724,7 @@ static int zcrypt_pendingq_count(void)
 			spin_unlock(&zq->queue->lock);
 		}
 	}
+	local_bh_enable();
 	spin_unlock(&zcrypt_list_lock);
 	return pendingq_count;
 }
@@ -731,6 +737,7 @@ static int zcrypt_requestq_count(void)
 
 	requestq_count = 0;
 	spin_lock(&zcrypt_list_lock);
+	local_bh_disable();
 	for_each_zcrypt_card(zc) {
 		for_each_zcrypt_queue(zq, zc) {
 			if (AP_QID_QUEUE(zq->queue->qid) != ap_domain_index)
@@ -740,6 +747,7 @@ static int zcrypt_requestq_count(void)
 			spin_unlock(&zq->queue->lock);
 		}
 	}
+	local_bh_enable();
 	spin_unlock(&zcrypt_list_lock);
 	return requestq_count;
 }
@@ -1419,7 +1427,6 @@ void zcrypt_rng_device_remove(void)
 
 int __init zcrypt_debug_init(void)
 {
-	zcrypt_dbf_root = debugfs_create_dir("zcrypt", NULL);
 	zcrypt_dbf_info = debug_register("zcrypt", 1, 1,
 					 DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(zcrypt_dbf_info, &debug_sprintf_view);
@@ -1430,7 +1437,6 @@ int __init zcrypt_debug_init(void)
 
 void zcrypt_debug_exit(void)
 {
-	debugfs_remove(zcrypt_dbf_root);
 	debug_unregister(zcrypt_dbf_info);
 }
 

@@ -4,6 +4,9 @@
  * Copyright (C) 2012 Ezequiel Garcia
  * <elezegarcia--a.t--gmail.com>
  *
+ * Copyright (C) 2016 Marcel Hasler
+ * <mahasler--a.t--gmail.com>
+ *
  * Based on Easycap driver by R.M. Thomas
  *	Copyright (C) 2010 R.M. Thomas
  *	<rmthomas--a.t--sciolus.org>
@@ -20,20 +23,32 @@
  *
  */
 
-#include <linux/module.h>
-#include <sound/core.h>
-#include <sound/initval.h>
-#include <sound/ac97_codec.h>
+#include <linux/delay.h>
 
 #include "stk1160.h"
 #include "stk1160-reg.h"
 
-static struct snd_ac97 *stk1160_ac97;
-
-static void stk1160_write_ac97(struct snd_ac97 *ac97, u16 reg, u16 value)
+static int stk1160_ac97_wait_transfer_complete(struct stk1160 *dev)
 {
-	struct stk1160 *dev = ac97->private_data;
+	unsigned long timeout = jiffies + msecs_to_jiffies(STK1160_AC97_TIMEOUT);
+	u8 value;
 
+	/* Wait for AC97 transfer to complete */
+	while (time_is_after_jiffies(timeout)) {
+		stk1160_read_reg(dev, STK1160_AC97CTL_0, &value);
+
+		if (!(value & (STK1160_AC97CTL_0_CR | STK1160_AC97CTL_0_CW)))
+			return 0;
+
+		usleep_range(50, 100);
+	}
+
+	stk1160_err("AC97 transfer took too long, this should never happen!");
+	return -EBUSY;
+}
+
+static void stk1160_write_ac97(struct stk1160 *dev, u16 reg, u16 value)
+{
 	/* Set codec register address */
 	stk1160_write_reg(dev, STK1160_AC97_ADDR, reg);
 
@@ -41,27 +56,29 @@ static void stk1160_write_ac97(struct snd_ac97 *ac97, u16 reg, u16 value)
 	stk1160_write_reg(dev, STK1160_AC97_CMD, value & 0xff);
 	stk1160_write_reg(dev, STK1160_AC97_CMD + 1, (value & 0xff00) >> 8);
 
-	/*
-	 * Set command write bit to initiate write operation.
-	 * The bit will be cleared when transfer is done.
-	 */
+	/* Set command write bit to initiate write operation */
 	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x8c);
+
+	/* Wait for command write bit to be cleared */
+	stk1160_ac97_wait_transfer_complete(dev);
 }
 
-static u16 stk1160_read_ac97(struct snd_ac97 *ac97, u16 reg)
+#ifdef DEBUG
+static u16 stk1160_read_ac97(struct stk1160 *dev, u16 reg)
 {
-	struct stk1160 *dev = ac97->private_data;
 	u8 vall = 0;
 	u8 valh = 0;
 
 	/* Set codec register address */
 	stk1160_write_reg(dev, STK1160_AC97_ADDR, reg);
 
-	/*
-	 * Set command read bit to initiate read operation.
-	 * The bit will be cleared when transfer is done.
-	 */
+	/* Set command read bit to initiate read operation */
 	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x8b);
+
+	/* Wait for command read bit to be cleared */
+	if (stk1160_ac97_wait_transfer_complete(dev) < 0)
+		return 0;
+
 
 	/* Retrieve register value */
 	stk1160_read_reg(dev, STK1160_AC97_CMD, &vall);
@@ -70,81 +87,79 @@ static u16 stk1160_read_ac97(struct snd_ac97 *ac97, u16 reg)
 	return (valh << 8) | vall;
 }
 
-static void stk1160_reset_ac97(struct snd_ac97 *ac97)
+void stk1160_ac97_dump_regs(struct stk1160 *dev)
 {
-	struct stk1160 *dev = ac97->private_data;
+	u16 value;
+
+	value = stk1160_read_ac97(dev, 0x12); /* CD volume */
+	stk1160_dbg("0x12 == 0x%04x", value);
+
+	value = stk1160_read_ac97(dev, 0x10); /* Line-in volume */
+	stk1160_dbg("0x10 == 0x%04x", value);
+
+	value = stk1160_read_ac97(dev, 0x0e); /* MIC volume (mono) */
+	stk1160_dbg("0x0e == 0x%04x", value);
+
+	value = stk1160_read_ac97(dev, 0x16); /* Aux volume */
+	stk1160_dbg("0x16 == 0x%04x", value);
+
+	value = stk1160_read_ac97(dev, 0x1a); /* Record select */
+	stk1160_dbg("0x1a == 0x%04x", value);
+
+	value = stk1160_read_ac97(dev, 0x02); /* Master volume */
+	stk1160_dbg("0x02 == 0x%04x", value);
+
+	value = stk1160_read_ac97(dev, 0x1c); /* Record gain */
+	stk1160_dbg("0x1c == 0x%04x", value);
+}
+#endif
+
+static int stk1160_has_audio(struct stk1160 *dev)
+{
+	u8 value;
+
+	stk1160_read_reg(dev, STK1160_POSV_L, &value);
+	return !(value & STK1160_POSV_L_ACDOUT);
+}
+
+static int stk1160_has_ac97(struct stk1160 *dev)
+{
+	u8 value;
+
+	stk1160_read_reg(dev, STK1160_POSV_L, &value);
+	return !(value & STK1160_POSV_L_ACSYNC);
+}
+
+void stk1160_ac97_setup(struct stk1160 *dev)
+{
+	if (!stk1160_has_audio(dev)) {
+		stk1160_info("Device doesn't support audio, skipping AC97 setup.");
+		return;
+	}
+
+	if (!stk1160_has_ac97(dev)) {
+		stk1160_info("Device uses internal 8-bit ADC, skipping AC97 setup.");
+		return;
+	}
+
 	/* Two-step reset AC97 interface and hardware codec */
 	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x94);
-	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x88);
+	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x8c);
 
 	/* Set 16-bit audio data and choose L&R channel*/
 	stk1160_write_reg(dev, STK1160_AC97CTL_1 + 2, 0x01);
-}
+	stk1160_write_reg(dev, STK1160_AC97CTL_1 + 3, 0x00);
 
-static struct snd_ac97_bus_ops stk1160_ac97_ops = {
-	.read	= stk1160_read_ac97,
-	.write	= stk1160_write_ac97,
-	.reset	= stk1160_reset_ac97,
-};
+	/* Setup channels */
+	stk1160_write_ac97(dev, 0x12, 0x8808); /* CD volume */
+	stk1160_write_ac97(dev, 0x10, 0x0808); /* Line-in volume */
+	stk1160_write_ac97(dev, 0x0e, 0x0008); /* MIC volume (mono) */
+	stk1160_write_ac97(dev, 0x16, 0x0808); /* Aux volume */
+	stk1160_write_ac97(dev, 0x1a, 0x0404); /* Record select */
+	stk1160_write_ac97(dev, 0x02, 0x0000); /* Master volume */
+	stk1160_write_ac97(dev, 0x1c, 0x0808); /* Record gain */
 
-int stk1160_ac97_register(struct stk1160 *dev)
-{
-	struct snd_card *card = NULL;
-	struct snd_ac97_bus *ac97_bus;
-	struct snd_ac97_template ac97_template;
-	int rc;
-
-	/*
-	 * Just want a card to access ac96 controls,
-	 * the actual capture interface will be handled by snd-usb-audio
-	 */
-	rc = snd_card_new(dev->dev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			  THIS_MODULE, 0, &card);
-	if (rc < 0)
-		return rc;
-
-	/* TODO: I'm not sure where should I get these names :-( */
-	snprintf(card->shortname, sizeof(card->shortname),
-		 "stk1160-mixer");
-	snprintf(card->longname, sizeof(card->longname),
-		 "stk1160 ac97 codec mixer control");
-	strlcpy(card->driver, dev->dev->driver->name, sizeof(card->driver));
-
-	rc = snd_ac97_bus(card, 0, &stk1160_ac97_ops, NULL, &ac97_bus);
-	if (rc)
-		goto err;
-
-	/* We must set private_data before calling snd_ac97_mixer */
-	memset(&ac97_template, 0, sizeof(ac97_template));
-	ac97_template.private_data = dev;
-	ac97_template.scaps = AC97_SCAP_SKIP_MODEM;
-	rc = snd_ac97_mixer(ac97_bus, &ac97_template, &stk1160_ac97);
-	if (rc)
-		goto err;
-
-	dev->snd_card = card;
-	rc = snd_card_register(card);
-	if (rc)
-		goto err;
-
-	return 0;
-
-err:
-	dev->snd_card = NULL;
-	snd_card_free(card);
-	return rc;
-}
-
-int stk1160_ac97_unregister(struct stk1160 *dev)
-{
-	struct snd_card *card = dev->snd_card;
-
-	/*
-	 * We need to check usb_device,
-	 * because ac97 release attempts to communicate with codec
-	 */
-	if (card && dev->udev)
-		snd_card_free(card);
-
-	return 0;
+#ifdef DEBUG
+	stk1160_ac97_dump_regs(dev);
+#endif
 }

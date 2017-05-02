@@ -14,6 +14,8 @@
 #include <linux/bug.h>
 #include <linux/list.h>
 #include <linux/bitmap.h>
+#include <linux/sched/signal.h>
+
 #include <asm/gmap.h>
 #include <asm/mmu_context.h>
 #include <asm/sclp.h>
@@ -902,7 +904,7 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (rc || scb_s->icptcode || signal_pending(current) ||
 		    kvm_s390_vcpu_has_irq(vcpu, 0))
 			break;
-	};
+	}
 
 	if (rc == -EFAULT) {
 		/*

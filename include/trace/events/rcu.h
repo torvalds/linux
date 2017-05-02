@@ -385,11 +385,11 @@ TRACE_EVENT(rcu_quiescent_state_report,
 
 /*
  * Tracepoint for quiescent states detected by force_quiescent_state().
- * These trace events include the type of RCU, the grace-period number
- * that was blocked by the CPU, the CPU itself, and the type of quiescent
- * state, which can be "dti" for dyntick-idle mode, "ofl" for CPU offline,
- * or "kick" when kicking a CPU that has been in dyntick-idle mode for
- * too long.
+ * These trace events include the type of RCU, the grace-period number that
+ * was blocked by the CPU, the CPU itself, and the type of quiescent state,
+ * which can be "dti" for dyntick-idle mode, "ofl" for CPU offline, "kick"
+ * when kicking a CPU that has been in dyntick-idle mode for too long, or
+ * "rqc" if the CPU got a quiescent state via its rcu_qs_ctr.
  */
 TRACE_EVENT(rcu_fqs,
 

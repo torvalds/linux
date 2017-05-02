@@ -1563,6 +1563,34 @@ static struct clk_branch rpm_msg_ram_h_clk = {
 	},
 };
 
+static struct clk_branch ebi2_clk = {
+	.hwcg_reg = 0x2664,
+	.hwcg_bit = 6,
+	.halt_reg = 0x2fcc,
+	.halt_bit = 24,
+	.clkr = {
+		.enable_reg = 0x2664,
+		.enable_mask = BIT(6) | BIT(4),
+		.hw.init = &(struct clk_init_data){
+			.name = "ebi2_clk",
+			.ops = &clk_branch_ops,
+		},
+	},
+};
+
+static struct clk_branch ebi2_aon_clk = {
+	.halt_reg = 0x2fcc,
+	.halt_bit = 23,
+	.clkr = {
+		.enable_reg = 0x2664,
+		.enable_mask = BIT(8),
+		.hw.init = &(struct clk_init_data){
+			.name = "ebi2_aon_clk",
+			.ops = &clk_branch_ops,
+		},
+	},
+};
+
 static struct clk_hw *gcc_mdm9615_hws[] = {
 	&cxo.hw,
 };
@@ -1637,6 +1665,8 @@ static struct clk_regmap *gcc_mdm9615_clks[] = {
 	[PMIC_ARB1_H_CLK] = &pmic_arb1_h_clk.clkr,
 	[PMIC_SSBI2_CLK] = &pmic_ssbi2_clk.clkr,
 	[RPM_MSG_RAM_H_CLK] = &rpm_msg_ram_h_clk.clkr,
+	[EBI2_CLK] = &ebi2_clk.clkr,
+	[EBI2_AON_CLK] = &ebi2_aon_clk.clkr,
 };
 
 static const struct qcom_reset_map gcc_mdm9615_resets[] = {

@@ -283,8 +283,6 @@ static int spear_kbd_remove(struct platform_device *pdev)
 	input_unregister_device(kbd->input);
 	clk_unprepare(kbd->clk);
 
-	device_init_wakeup(&pdev->dev, 0);
-
 	return 0;
 }
 

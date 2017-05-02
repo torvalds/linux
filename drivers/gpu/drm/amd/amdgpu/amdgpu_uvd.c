@@ -976,7 +976,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->length_dw = 16;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
 		job->fence = dma_fence_get(f);
 		if (r)
 			goto err_free;
@@ -1113,6 +1113,11 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 			amdgpu_dpm_enable_uvd(adev, false);
 		} else {
 			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
+			/* shutdown the UVD block */
+			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							    AMD_PG_STATE_GATE);
+			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							    AMD_CG_STATE_GATE);
 		}
 	} else {
 		schedule_delayed_work(&adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
@@ -1129,6 +1134,10 @@ void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 			amdgpu_dpm_enable_uvd(adev, true);
 		} else {
 			amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
+			amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							    AMD_CG_STATE_UNGATE);
+			amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							    AMD_PG_STATE_UNGATE);
 		}
 	}
 }
@@ -1177,4 +1186,29 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 error:
 	return r;
+}
+
+/**
+ * amdgpu_uvd_used_handles - returns used UVD handles
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns the number of UVD handles in use
+ */
+uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev)
+{
+	unsigned i;
+	uint32_t used_handles = 0;
+
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
+		/*
+		 * Handles can be freed in any order, and not
+		 * necessarily linear. So we need to count
+		 * all non-zero handles.
+		 */
+		if (atomic_read(&adev->uvd.handles[i]))
+			used_handles++;
+	}
+
+	return used_handles;
 }

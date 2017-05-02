@@ -620,6 +620,19 @@ u32 dispc_wb_get_framedone_irq(void)
 	return DISPC_IRQ_FRAMEDONEWB;
 }
 
+void dispc_mgr_enable(enum omap_channel channel, bool enable)
+{
+	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
+	/* flush posted write */
+	mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
+}
+EXPORT_SYMBOL(dispc_mgr_enable);
+
+static bool dispc_mgr_is_enabled(enum omap_channel channel)
+{
+	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
+}
+
 bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	return mgr_fld_read(channel, DISPC_MGR_FLD_GO) == 1;
@@ -2493,6 +2506,25 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 		return -EINVAL;
 	}
 
+	if (*decim_x > 4 && color_mode != OMAP_DSS_COLOR_NV12) {
+		/*
+		 * Let's disable all scaling that requires horizontal
+		 * decimation with higher factor than 4, until we have
+		 * better estimates of what we can and can not
+		 * do. However, NV12 color format appears to work Ok
+		 * with all decimation factors.
+		 *
+		 * When decimating horizontally by more that 4 the dss
+		 * is not able to fetch the data in burst mode. When
+		 * this happens it is hard to tell if there enough
+		 * bandwidth. Despite what theory says this appears to
+		 * be true also for 16-bit color formats.
+		 */
+		DSSERR("Not enough bandwidth, too much downscaling (x-decimation factor %d > 4)", *decim_x);
+
+		return -EINVAL;
+	}
+
 	*core_clk = dispc.feat->calc_core_clk(pclk, in_width, in_height,
 				out_width, out_height, mem_to_mem);
 	return 0;
@@ -2900,20 +2932,6 @@ enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channe
 	return dss_feat_get_supported_outputs(channel);
 }
 EXPORT_SYMBOL(dispc_mgr_get_supported_outputs);
-
-void dispc_mgr_enable(enum omap_channel channel, bool enable)
-{
-	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
-	/* flush posted write */
-	mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
-}
-EXPORT_SYMBOL(dispc_mgr_enable);
-
-bool dispc_mgr_is_enabled(enum omap_channel channel)
-{
-	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
-}
-EXPORT_SYMBOL(dispc_mgr_is_enabled);
 
 void dispc_wb_enable(bool enable)
 {

@@ -1131,11 +1131,11 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
 
+	phy_if->phy_stop(pdata);
+
 	xgbe_free_irqs(pdata);
 
 	xgbe_napi_disable(pdata, 1);
-
-	phy_if->phy_stop(pdata);
 
 	hw_if->exit(pdata);
 
@@ -1761,8 +1761,8 @@ static void xgbe_tx_timeout(struct net_device *netdev)
 	schedule_work(&pdata->restart_work);
 }
 
-static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
-						  struct rtnl_link_stats64 *s)
+static void xgbe_get_stats64(struct net_device *netdev,
+			     struct rtnl_link_stats64 *s)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_mmc_stats *pstats = &pdata->mmc_stats;
@@ -1788,8 +1788,6 @@ static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
 	s->tx_dropped = netdev->stats.tx_dropped;
 
 	DBGPR("<--%s\n", __func__);
-
-	return s;
 }
 
 static int xgbe_vlan_rx_add_vid(struct net_device *netdev, __be16 proto,
@@ -1973,13 +1971,12 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 {
 	struct sk_buff *skb;
 	u8 *packet;
-	unsigned int copy_len;
 
 	skb = napi_alloc_skb(napi, rdata->rx.hdr.dma_len);
 	if (!skb)
 		return NULL;
 
-	/* Start with the header buffer which may contain just the header
+	/* Pull in the header buffer which may contain just the header
 	 * or the header plus data
 	 */
 	dma_sync_single_range_for_cpu(pdata->dev, rdata->rx.hdr.dma_base,
@@ -1988,28 +1985,47 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 
 	packet = page_address(rdata->rx.hdr.pa.pages) +
 		 rdata->rx.hdr.pa.pages_offset;
-	copy_len = (rdata->rx.hdr_len) ? rdata->rx.hdr_len : len;
-	copy_len = min(rdata->rx.hdr.dma_len, copy_len);
-	skb_copy_to_linear_data(skb, packet, copy_len);
-	skb_put(skb, copy_len);
-
-	len -= copy_len;
-	if (len) {
-		/* Add the remaining data as a frag */
-		dma_sync_single_range_for_cpu(pdata->dev,
-					      rdata->rx.buf.dma_base,
-					      rdata->rx.buf.dma_off,
-					      rdata->rx.buf.dma_len,
-					      DMA_FROM_DEVICE);
-
-		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-				rdata->rx.buf.pa.pages,
-				rdata->rx.buf.pa.pages_offset,
-				len, rdata->rx.buf.dma_len);
-		rdata->rx.buf.pa.pages = NULL;
-	}
+	skb_copy_to_linear_data(skb, packet, len);
+	skb_put(skb, len);
 
 	return skb;
+}
+
+static unsigned int xgbe_rx_buf1_len(struct xgbe_ring_data *rdata,
+				     struct xgbe_packet_data *packet)
+{
+	/* Always zero if not the first descriptor */
+	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, FIRST))
+		return 0;
+
+	/* First descriptor with split header, return header length */
+	if (rdata->rx.hdr_len)
+		return rdata->rx.hdr_len;
+
+	/* First descriptor but not the last descriptor and no split header,
+	 * so the full buffer was used
+	 */
+	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, LAST))
+		return rdata->rx.hdr.dma_len;
+
+	/* First descriptor and last descriptor and no split header, so
+	 * calculate how much of the buffer was used
+	 */
+	return min_t(unsigned int, rdata->rx.hdr.dma_len, rdata->rx.len);
+}
+
+static unsigned int xgbe_rx_buf2_len(struct xgbe_ring_data *rdata,
+				     struct xgbe_packet_data *packet,
+				     unsigned int len)
+{
+	/* Always the full buffer if not the last descriptor */
+	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, LAST))
+		return rdata->rx.buf.dma_len;
+
+	/* Last descriptor so calculate how much of the buffer was used
+	 * for the last bit of data
+	 */
+	return rdata->rx.len - len;
 }
 
 static int xgbe_tx_poll(struct xgbe_channel *channel)
@@ -2094,8 +2110,8 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	struct napi_struct *napi;
 	struct sk_buff *skb;
 	struct skb_shared_hwtstamps *hwtstamps;
-	unsigned int incomplete, error, context_next, context;
-	unsigned int len, rdesc_len, max_len;
+	unsigned int last, error, context_next, context;
+	unsigned int len, buf1_len, buf2_len, max_len;
 	unsigned int received = 0;
 	int packet_count = 0;
 
@@ -2105,7 +2121,7 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	if (!ring)
 		return 0;
 
-	incomplete = 0;
+	last = 0;
 	context_next = 0;
 
 	napi = (pdata->per_channel_irq) ? &channel->napi : &pdata->napi;
@@ -2139,9 +2155,8 @@ read_again:
 		received++;
 		ring->cur++;
 
-		incomplete = XGMAC_GET_BITS(packet->attributes,
-					    RX_PACKET_ATTRIBUTES,
-					    INCOMPLETE);
+		last = XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				      LAST);
 		context_next = XGMAC_GET_BITS(packet->attributes,
 					      RX_PACKET_ATTRIBUTES,
 					      CONTEXT_NEXT);
@@ -2150,7 +2165,7 @@ read_again:
 					 CONTEXT);
 
 		/* Earlier error, just drain the remaining data */
-		if ((incomplete || context_next) && error)
+		if ((!last || context_next) && error)
 			goto read_again;
 
 		if (error || packet->errors) {
@@ -2162,16 +2177,22 @@ read_again:
 		}
 
 		if (!context) {
-			/* Length is cumulative, get this descriptor's length */
-			rdesc_len = rdata->rx.len - len;
-			len += rdesc_len;
+			/* Get the data length in the descriptor buffers */
+			buf1_len = xgbe_rx_buf1_len(rdata, packet);
+			len += buf1_len;
+			buf2_len = xgbe_rx_buf2_len(rdata, packet, len);
+			len += buf2_len;
 
-			if (rdesc_len && !skb) {
+			if (!skb) {
 				skb = xgbe_create_skb(pdata, napi, rdata,
-						      rdesc_len);
-				if (!skb)
+						      buf1_len);
+				if (!skb) {
 					error = 1;
-			} else if (rdesc_len) {
+					goto skip_data;
+				}
+			}
+
+			if (buf2_len) {
 				dma_sync_single_range_for_cpu(pdata->dev,
 							rdata->rx.buf.dma_base,
 							rdata->rx.buf.dma_off,
@@ -2181,13 +2202,14 @@ read_again:
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 						rdata->rx.buf.pa.pages,
 						rdata->rx.buf.pa.pages_offset,
-						rdesc_len,
+						buf2_len,
 						rdata->rx.buf.dma_len);
 				rdata->rx.buf.pa.pages = NULL;
 			}
 		}
 
-		if (incomplete || context_next)
+skip_data:
+		if (!last || context_next)
 			goto read_again;
 
 		if (!skb)
@@ -2245,7 +2267,7 @@ next_packet:
 	}
 
 	/* Check if we need to save state before leaving */
-	if (received && (incomplete || context_next)) {
+	if (received && (!last || context_next)) {
 		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 		rdata->state_saved = 1;
 		rdata->state.skb = skb;
@@ -2274,10 +2296,7 @@ static int xgbe_one_poll(struct napi_struct *napi, int budget)
 	processed = xgbe_rx_poll(channel, budget);
 
 	/* If we processed everything, we are done */
-	if (processed < budget) {
-		/* Turn off polling */
-		napi_complete_done(napi, processed);
-
+	if ((processed < budget) && napi_complete_done(napi, processed)) {
 		/* Enable Tx and Rx interrupts */
 		if (pdata->channel_irq_mode)
 			xgbe_enable_rx_tx_int(pdata, channel);
@@ -2319,10 +2338,7 @@ static int xgbe_all_poll(struct napi_struct *napi, int budget)
 	} while ((processed < budget) && (processed != last_processed));
 
 	/* If we processed everything, we are done */
-	if (processed < budget) {
-		/* Turn off polling */
-		napi_complete_done(napi, processed);
-
+	if ((processed < budget) && napi_complete_done(napi, processed)) {
 		/* Enable Tx and Rx interrupts */
 		xgbe_enable_rx_tx_ints(pdata);
 	}

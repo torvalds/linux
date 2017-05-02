@@ -358,7 +358,7 @@ get_anyway:
 		       server, ntohl(server->addr.s_addr));
 
 		ret = afs_fs_fetch_file_status(server, key, vnode, NULL,
-					       &afs_sync_call);
+					       false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -393,7 +393,7 @@ no_server:
  * - TODO implement caching
  */
 int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
-			 off_t offset, size_t length, struct page *page)
+			 struct afs_read *desc)
 {
 	struct afs_server *server;
 	int ret;
@@ -420,8 +420,8 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_fetch_data(server, key, vnode, offset, length,
-					page, &afs_sync_call);
+		ret = afs_fs_fetch_data(server, key, vnode, desc,
+					false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -477,7 +477,7 @@ int afs_vnode_create(struct afs_vnode *vnode, struct key *key,
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
 		ret = afs_fs_create(server, key, vnode, name, mode, newfid,
-				    newstatus, newcb, &afs_sync_call);
+				    newstatus, newcb, false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -533,7 +533,7 @@ int afs_vnode_remove(struct afs_vnode *vnode, struct key *key, const char *name,
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
 		ret = afs_fs_remove(server, key, vnode, name, isdir,
-				    &afs_sync_call);
+				    false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -595,7 +595,7 @@ int afs_vnode_link(struct afs_vnode *dvnode, struct afs_vnode *vnode,
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
 		ret = afs_fs_link(server, key, dvnode, vnode, name,
-				  &afs_sync_call);
+				  false);
 
 	} while (!afs_volume_release_fileserver(dvnode, server, ret));
 
@@ -659,7 +659,7 @@ int afs_vnode_symlink(struct afs_vnode *vnode, struct key *key,
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
 		ret = afs_fs_symlink(server, key, vnode, name, content,
-				     newfid, newstatus, &afs_sync_call);
+				     newfid, newstatus, false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -729,7 +729,7 @@ int afs_vnode_rename(struct afs_vnode *orig_dvnode,
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
 		ret = afs_fs_rename(server, key, orig_dvnode, orig_name,
-				    new_dvnode, new_name, &afs_sync_call);
+				    new_dvnode, new_name, false);
 
 	} while (!afs_volume_release_fileserver(orig_dvnode, server, ret));
 
@@ -795,7 +795,7 @@ int afs_vnode_store_data(struct afs_writeback *wb, pgoff_t first, pgoff_t last,
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
 		ret = afs_fs_store_data(server, wb, first, last, offset, to,
-					&afs_sync_call);
+					false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -847,7 +847,7 @@ int afs_vnode_setattr(struct afs_vnode *vnode, struct key *key,
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_setattr(server, key, vnode, attr, &afs_sync_call);
+		ret = afs_fs_setattr(server, key, vnode, attr, false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -894,7 +894,7 @@ int afs_vnode_get_volume_status(struct afs_vnode *vnode, struct key *key,
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_get_volume_status(server, key, vnode, vs, &afs_sync_call);
+		ret = afs_fs_get_volume_status(server, key, vnode, vs, false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -933,7 +933,7 @@ int afs_vnode_set_lock(struct afs_vnode *vnode, struct key *key,
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_set_lock(server, key, vnode, type, &afs_sync_call);
+		ret = afs_fs_set_lock(server, key, vnode, type, false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -971,7 +971,7 @@ int afs_vnode_extend_lock(struct afs_vnode *vnode, struct key *key)
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_extend_lock(server, key, vnode, &afs_sync_call);
+		ret = afs_fs_extend_lock(server, key, vnode, false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
@@ -1009,7 +1009,7 @@ int afs_vnode_release_lock(struct afs_vnode *vnode, struct key *key)
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_release_lock(server, key, vnode, &afs_sync_call);
+		ret = afs_fs_release_lock(server, key, vnode, false);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 

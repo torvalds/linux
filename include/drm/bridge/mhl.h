@@ -15,6 +15,8 @@
 #ifndef __MHL_H__
 #define __MHL_H__
 
+#include <linux/types.h>
+
 /* Device Capabilities Registers */
 enum {
 	MHL_DCAP_DEV_STATE,
@@ -287,5 +289,88 @@ enum {
 #define MHL_UCPE_STATUS_NO_ERROR		0x00
 /* Unsupported/unrecognized key code */
 #define MHL_UCPE_STATUS_INEFFECTIVE_KEY_CODE	0x01
+
+enum mhl_burst_id {
+	MHL_BURST_ID_3D_VIC = 0x10,
+	MHL_BURST_ID_3D_DTD = 0x11,
+	MHL_BURST_ID_HEV_VIC = 0x20,
+	MHL_BURST_ID_HEV_DTDA = 0x21,
+	MHL_BURST_ID_HEV_DTDB = 0x22,
+	MHL_BURST_ID_VC_ASSIGN = 0x38,
+	MHL_BURST_ID_VC_CONFIRM = 0x39,
+	MHL_BURST_ID_AUD_DELAY = 0x40,
+	MHL_BURST_ID_ADT_BURSTID = 0x41,
+	MHL_BURST_ID_BIST_SETUP = 0x51,
+	MHL_BURST_ID_BIST_RETURN_STAT = 0x52,
+	MHL_BURST_ID_EMSC_SUPPORT = 0x61,
+	MHL_BURST_ID_HID_PAYLOAD = 0x62,
+	MHL_BURST_ID_BLK_RCV_BUFFER_INFO = 0x63,
+	MHL_BURST_ID_BITS_PER_PIXEL_FMT = 0x64,
+};
+
+struct mhl_burst_blk_rcv_buffer_info {
+	__be16 id;
+	__le16 size;
+} __packed;
+
+struct mhl3_burst_header {
+	__be16 id;
+	u8 checksum;
+	u8 total_entries;
+	u8 sequence_index;
+} __packed;
+
+struct mhl_burst_bits_per_pixel_fmt {
+	struct mhl3_burst_header hdr;
+	u8 num_entries;
+	struct {
+		u8 stream_id;
+		u8 pixel_format;
+	} __packed desc[0];
+} __packed;
+
+struct mhl_burst_emsc_support {
+	struct mhl3_burst_header hdr;
+	u8 num_entries;
+	__be16 burst_id[0];
+} __packed;
+
+struct mhl_burst_audio_descr {
+	struct mhl3_burst_header hdr;
+	u8 flags;
+	u8 short_desc[9];
+} __packed;
+
+/*
+ * MHL3 infoframe related definitions
+ */
+
+#define MHL3_IEEE_OUI		0x7ca61d
+#define MHL3_INFOFRAME_SIZE	15
+
+enum mhl3_video_format {
+	MHL3_VIDEO_FORMAT_NONE,
+	MHL3_VIDEO_FORMAT_3D,
+	MHL3_VIDEO_FORMAT_MULTI_VIEW,
+	MHL3_VIDEO_FORMAT_DUAL_3D
+};
+
+enum mhl3_3d_format_type {
+	MHL3_3D_FORMAT_TYPE_FS, /* frame sequential */
+	MHL3_3D_FORMAT_TYPE_TB, /* top-bottom */
+	MHL3_3D_FORMAT_TYPE_LR, /* left-right */
+	MHL3_3D_FORMAT_TYPE_FS_TB, /* frame sequential, top-bottom */
+	MHL3_3D_FORMAT_TYPE_FS_LR, /* frame sequential, left-right */
+	MHL3_3D_FORMAT_TYPE_TB_LR /* top-bottom, left-right */
+};
+
+struct mhl3_infoframe {
+	unsigned char version;
+	enum mhl3_video_format video_format;
+	enum mhl3_3d_format_type format_type;
+	bool sep_audio;
+	int hev_format;
+	int av_delay;
+};
 
 #endif /* __MHL_H__ */

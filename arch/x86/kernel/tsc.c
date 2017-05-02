@@ -2,6 +2,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/timer.h>
@@ -326,9 +327,16 @@ unsigned long long sched_clock(void)
 {
 	return paravirt_sched_clock();
 }
+
+bool using_native_sched_clock(void)
+{
+	return pv_time_ops.sched_clock == native_sched_clock;
+}
 #else
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
+
+bool using_native_sched_clock(void) { return true; }
 #endif
 
 int check_tsc_unstable(void)
@@ -1107,6 +1115,18 @@ static u64 read_tsc(struct clocksource *cs)
 	return (u64)rdtsc_ordered();
 }
 
+static void tsc_cs_mark_unstable(struct clocksource *cs)
+{
+	if (tsc_unstable)
+		return;
+
+	tsc_unstable = 1;
+	if (using_native_sched_clock())
+		clear_sched_clock_stable();
+	disable_sched_clock_irqtime();
+	pr_info("Marking TSC unstable due to clocksource watchdog\n");
+}
+
 /*
  * .mask MUST be CLOCKSOURCE_MASK(64). See comment above read_tsc()
  */
@@ -1119,22 +1139,25 @@ static struct clocksource clocksource_tsc = {
 				  CLOCK_SOURCE_MUST_VERIFY,
 	.archdata               = { .vclock_mode = VCLOCK_TSC },
 	.resume			= tsc_resume,
+	.mark_unstable		= tsc_cs_mark_unstable,
 };
 
 void mark_tsc_unstable(char *reason)
 {
-	if (!tsc_unstable) {
-		tsc_unstable = 1;
+	if (tsc_unstable)
+		return;
+
+	tsc_unstable = 1;
+	if (using_native_sched_clock())
 		clear_sched_clock_stable();
-		disable_sched_clock_irqtime();
-		pr_info("Marking TSC unstable due to %s\n", reason);
-		/* Change only the rating, when not registered */
-		if (clocksource_tsc.mult)
-			clocksource_mark_unstable(&clocksource_tsc);
-		else {
-			clocksource_tsc.flags |= CLOCK_SOURCE_UNSTABLE;
-			clocksource_tsc.rating = 0;
-		}
+	disable_sched_clock_irqtime();
+	pr_info("Marking TSC unstable due to %s\n", reason);
+	/* Change only the rating, when not registered */
+	if (clocksource_tsc.mult) {
+		clocksource_mark_unstable(&clocksource_tsc);
+	} else {
+		clocksource_tsc.flags |= CLOCK_SOURCE_UNSTABLE;
+		clocksource_tsc.rating = 0;
 	}
 }
 
@@ -1310,6 +1333,8 @@ static int __init init_tsc_clocksource(void)
 	 * the refined calibration and directly register it as a clocksource.
 	 */
 	if (boot_cpu_has(X86_FEATURE_TSC_KNOWN_FREQ)) {
+		if (boot_cpu_has(X86_FEATURE_ART))
+			art_related_clocksource = &clocksource_tsc;
 		clocksource_register_khz(&clocksource_tsc, tsc_khz);
 		return 0;
 	}

@@ -12,6 +12,10 @@
 
 #include "bochs.h"
 
+static int bochs_modeset = -1;
+module_param_named(modeset, bochs_modeset, int, 0444);
+MODULE_PARM_DESC(modeset, "enable/disable kernel modesetting");
+
 static bool enable_fbdev = true;
 module_param_named(fbdev, enable_fbdev, bool, 0444);
 MODULE_PARM_DESC(fbdev, "register fbdev device");
@@ -19,7 +23,7 @@ MODULE_PARM_DESC(fbdev, "register fbdev device");
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
 
-static int bochs_unload(struct drm_device *dev)
+static void bochs_unload(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
 
@@ -29,7 +33,6 @@ static int bochs_unload(struct drm_device *dev)
 	bochs_hw_fini(dev);
 	kfree(bochs);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 static int bochs_load(struct drm_device *dev, unsigned long flags)
@@ -215,6 +218,12 @@ static struct pci_driver bochs_pci_driver = {
 
 static int __init bochs_init(void)
 {
+	if (vgacon_text_force() && bochs_modeset == -1)
+		return -EINVAL;
+
+	if (bochs_modeset == 0)
+		return -EINVAL;
+
 	return drm_pci_init(&bochs_driver, &bochs_pci_driver);
 }
 

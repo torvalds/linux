@@ -139,7 +139,7 @@ void vnt_run_command(struct work_struct *work)
 
 	case WLAN_CMD_CHANGE_ANTENNA_START:
 		dev_dbg(&priv->usb->dev, "Change from Antenna%d to",
-							priv->rx_antenna_sel);
+			priv->rx_antenna_sel);
 
 		if (priv->rx_antenna_sel == 0) {
 			priv->rx_antenna_sel = 1;

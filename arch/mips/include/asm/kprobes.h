@@ -22,6 +22,9 @@
 #ifndef _ASM_KPROBES_H
 #define _ASM_KPROBES_H
 
+#include <asm-generic/kprobes.h>
+
+#ifdef CONFIG_KPROBES
 #include <linux/ptrace.h>
 #include <linux/types.h>
 
@@ -94,4 +97,5 @@ struct kprobe_ctlblk {
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 
-#endif				/* _ASM_KPROBES_H */
+#endif /* CONFIG_KPROBES */
+#endif /* _ASM_KPROBES_H */

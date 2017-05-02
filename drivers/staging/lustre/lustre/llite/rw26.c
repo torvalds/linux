@@ -345,6 +345,10 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t tot_bytes = 0, result = 0;
 	long size = MAX_DIO_SIZE;
 
+	/* Check EOF by ourselves */
+	if (iov_iter_rw(iter) == READ && file_offset >= i_size_read(inode))
+		return 0;
+
 	/* FIXME: io smaller than PAGE_SIZE is broken on ia64 ??? */
 	if ((file_offset & ~PAGE_MASK) || (count & ~PAGE_MASK))
 		return -EINVAL;

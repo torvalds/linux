@@ -120,6 +120,8 @@ config HID_SENSOR_ACCEL_3D
 config IIO_ST_ACCEL_3AXIS
 	tristate "STMicroelectronics accelerometers 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
+	depends on !SENSORS_LIS3_I2C
+	depends on !SENSORS_LIS3_SPI
 	select IIO_ST_SENSORS_CORE
 	select IIO_ST_ACCEL_I2C_3AXIS if (I2C)
 	select IIO_ST_ACCEL_SPI_3AXIS if (SPI_MASTER)

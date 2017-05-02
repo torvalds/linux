@@ -680,7 +680,7 @@ lnet_ptl_attach_md(lnet_me_t *me, lnet_libmd_t *md,
  again:
 	list_for_each_entry_safe(msg, tmp, head, msg_list) {
 		struct lnet_match_info info;
-		lnet_hdr_t *hdr;
+		struct lnet_hdr *hdr;
 		int rc;
 
 		LASSERT(msg->msg_rx_delayed || head == &ptl->ptl_msg_stealing);

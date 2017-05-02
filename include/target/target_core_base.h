@@ -4,7 +4,9 @@
 #include <linux/configfs.h>      /* struct config_group */
 #include <linux/dma-direction.h> /* enum dma_data_direction */
 #include <linux/percpu_ida.h>    /* struct percpu_ida */
+#include <linux/percpu-refcount.h>
 #include <linux/semaphore.h>     /* struct semaphore */
+#include <linux/completion.h>
 
 #define TARGET_CORE_VERSION		"v5.0"
 
@@ -115,6 +117,7 @@ enum transport_state_table {
 	TRANSPORT_ISTATE_PROCESSING = 11,
 	TRANSPORT_COMPLETE_QF_WP = 18,
 	TRANSPORT_COMPLETE_QF_OK = 19,
+	TRANSPORT_COMPLETE_QF_ERR = 20,
 };
 
 /* Used for struct se_cmd->se_cmd_flags */
@@ -197,6 +200,7 @@ enum tcm_tmreq_table {
 	TMR_LUN_RESET		= 5,
 	TMR_TARGET_WARM_RESET	= 6,
 	TMR_TARGET_COLD_RESET	= 7,
+	TMR_UNKNOWN		= 0xff,
 };
 
 /* fabric independent task management response values */
@@ -276,8 +280,6 @@ struct t10_alua_tg_pt_gp {
 	u16	tg_pt_gp_id;
 	int	tg_pt_gp_valid_id;
 	int	tg_pt_gp_alua_supported_states;
-	int	tg_pt_gp_alua_pending_state;
-	int	tg_pt_gp_alua_previous_state;
 	int	tg_pt_gp_alua_access_status;
 	int	tg_pt_gp_alua_access_type;
 	int	tg_pt_gp_nonop_delay_msecs;
@@ -286,18 +288,16 @@ struct t10_alua_tg_pt_gp {
 	int	tg_pt_gp_pref;
 	int	tg_pt_gp_write_metadata;
 	u32	tg_pt_gp_members;
-	atomic_t tg_pt_gp_alua_access_state;
+	int	tg_pt_gp_alua_access_state;
 	atomic_t tg_pt_gp_ref_cnt;
 	spinlock_t tg_pt_gp_lock;
-	struct mutex tg_pt_gp_md_mutex;
+	struct mutex tg_pt_gp_transition_mutex;
 	struct se_device *tg_pt_gp_dev;
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
 	struct list_head tg_pt_gp_lun_list;
 	struct se_lun *tg_pt_gp_alua_lun;
 	struct se_node_acl *tg_pt_gp_alua_nacl;
-	struct delayed_work tg_pt_gp_transition_work;
-	struct completion *tg_pt_gp_transition_complete;
 };
 
 struct t10_vpd {
@@ -397,7 +397,6 @@ struct se_tmr_req {
 	void 			*fabric_tmr_ptr;
 	struct se_cmd		*task_cmd;
 	struct se_device	*tmr_dev;
-	struct se_lun		*tmr_lun;
 	struct list_head	tmr_list;
 };
 
@@ -488,8 +487,6 @@ struct se_cmd {
 #define CMD_T_COMPLETE		(1 << 2)
 #define CMD_T_SENT		(1 << 4)
 #define CMD_T_STOP		(1 << 5)
-#define CMD_T_DEV_ACTIVE	(1 << 7)
-#define CMD_T_BUSY		(1 << 9)
 #define CMD_T_TAS		(1 << 10)
 #define CMD_T_FABRIC_STOP	(1 << 11)
 	spinlock_t		t_state_lock;
@@ -705,6 +702,7 @@ struct se_lun {
 	u64			unpacked_lun;
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
+	bool			lun_shutdown;
 	bool			lun_access_ro;
 	u32			lun_index;
 
@@ -732,6 +730,7 @@ struct se_lun {
 	struct config_group	lun_group;
 	struct se_port_stat_grps port_stat_grps;
 	struct completion	lun_ref_comp;
+	struct completion	lun_shutdown_comp;
 	struct percpu_ref	lun_ref;
 	struct list_head	lun_dev_link;
 	struct hlist_node	link;
@@ -767,6 +766,8 @@ struct se_device {
 	u32			dev_index;
 	u64			creation_time;
 	atomic_long_t		num_resets;
+	atomic_long_t		aborts_complete;
+	atomic_long_t		aborts_no_task;
 	atomic_long_t		num_cmds;
 	atomic_long_t		read_bytes;
 	atomic_long_t		write_bytes;
@@ -914,6 +915,7 @@ static inline struct se_portal_group *param_to_tpg(struct config_item *item)
 
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
+	void			*priv;
 	struct config_group	wwn_group;
 	struct config_group	fabric_stat_group;
 };

@@ -105,9 +105,8 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 	u8 chip_id;
 
 	if (g_smsc_fdc37m81x_base)
-		printk(KERN_WARNING "%s: stepping on old base=0x%0*lx\n",
-		       __func__,
-		       field, g_smsc_fdc37m81x_base);
+		pr_warn("%s: stepping on old base=0x%0*lx\n", __func__, field,
+			g_smsc_fdc37m81x_base);
 
 	g_smsc_fdc37m81x_base = port;
 
@@ -117,8 +116,7 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 	if (chip_id == SMSC_FDC37M81X_CHIP_ID)
 		smsc_fdc37m81x_config_end();
 	else {
-		printk(KERN_WARNING "%s: unknown chip id 0x%02x\n", __func__,
-		       chip_id);
+		pr_warn("%s: unknown chip id 0x%02x\n", __func__, chip_id);
 		g_smsc_fdc37m81x_base = 0;
 	}
 
@@ -128,9 +126,8 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 #ifdef DEBUG
 static void smsc_fdc37m81x_config_dump_one(const char *key, u8 dev, u8 reg)
 {
-	printk(KERN_INFO "%s: dev=0x%02x reg=0x%02x val=0x%02x\n",
-	       key, dev, reg,
-	       smsc_fdc37m81x_rd(reg));
+	pr_info("%s: dev=0x%02x reg=0x%02x val=0x%02x\n", key, dev, reg,
+		smsc_fdc37m81x_rd(reg));
 }
 
 void smsc_fdc37m81x_config_dump(void)
@@ -142,7 +139,7 @@ void smsc_fdc37m81x_config_dump(void)
 
 	orig = smsc_fdc37m81x_rd(SMSC_FDC37M81X_DNUM);
 
-	printk(KERN_INFO "%s: common\n", fname);
+	pr_info("%s: common\n", fname);
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
 				       SMSC_FDC37M81X_DNUM);
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
@@ -154,7 +151,7 @@ void smsc_fdc37m81x_config_dump(void)
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_NONE,
 				       SMSC_FDC37M81X_PMGT);
 
-	printk(KERN_INFO "%s: keyboard\n", fname);
+	pr_info("%s: keyboard\n", fname);
 	smsc_dc37m81x_wr(SMSC_FDC37M81X_DNUM, SMSC_FDC37M81X_KBD);
 	smsc_fdc37m81x_config_dump_one(fname, SMSC_FDC37M81X_KBD,
 				       SMSC_FDC37M81X_ACTIVE);

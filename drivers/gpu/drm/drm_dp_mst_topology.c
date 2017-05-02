@@ -1086,7 +1086,7 @@ static void build_mst_prop_path(const struct drm_dp_mst_branch *mstb,
 }
 
 static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
-			    struct device *dev,
+			    struct drm_device *dev,
 			    struct drm_dp_link_addr_reply_port *port_msg)
 {
 	struct drm_dp_mst_port *port;
@@ -1104,7 +1104,7 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 		port->port_num = port_msg->port_number;
 		port->mgr = mstb->mgr;
 		port->aux.name = "DPMST";
-		port->aux.dev = dev;
+		port->aux.dev = dev->dev;
 		created = true;
 	} else {
 		old_pdt = port->pdt;
@@ -2949,7 +2949,7 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
  * Return 0 for success, or negative error code on failure
  */
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
-				 struct device *dev, struct drm_dp_aux *aux,
+				 struct drm_device *dev, struct drm_dp_aux *aux,
 				 int max_dpcd_transaction_bytes,
 				 int max_payloads, int conn_base_id)
 {

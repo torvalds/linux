@@ -342,7 +342,7 @@
 #define   LPCR_DPFD_SH		52
 #define   LPCR_DPFD		(ASM_CONST(7) << LPCR_DPFD_SH)
 #define   LPCR_VRMASD_SH	47
-#define   LPCR_VRMASD		(ASM_CONST(1) << LPCR_VRMASD_SH)
+#define   LPCR_VRMASD		(ASM_CONST(0x1f) << LPCR_VRMASD_SH)
 #define   LPCR_VRMA_L		ASM_CONST(0x0008000000000000)
 #define   LPCR_VRMA_LP0		ASM_CONST(0x0001000000000000)
 #define   LPCR_VRMA_LP1		ASM_CONST(0x0000800000000000)
@@ -552,7 +552,9 @@
 #define SPRN_IBAT7U	0x236		/* Instruction BAT 7 Upper Register */
 #define SPRN_ICMP	0x3D5		/* Instruction TLB Compare Register */
 #define SPRN_ICTC	0x3FB	/* Instruction Cache Throttling Control Reg */
+#ifndef SPRN_ICTRL
 #define SPRN_ICTRL	0x3F3	/* 1011 7450 icache and interrupt ctrl */
+#endif
 #define ICTRL_EICE	0x08000000	/* enable icache parity errs */
 #define ICTRL_EDC	0x04000000	/* enable dcache parity errs */
 #define ICTRL_EICP	0x00000100	/* enable icache par. check */

@@ -166,6 +166,7 @@ enum {
 	STAC_D965_VERBS,
 	STAC_DELL_3ST,
 	STAC_DELL_BIOS,
+	STAC_NEMO_DEFAULT,
 	STAC_DELL_BIOS_AMIC,
 	STAC_DELL_BIOS_SPDIF,
 	STAC_927X_DELL_DMIC,
@@ -1360,6 +1361,27 @@ static const struct hda_pintbl oqo9200_pin_configs[] = {
 	{}
 };
 
+/*
+ *  STAC 92HD700
+ *  18881000 Amigaone X1000
+ */
+static const struct hda_pintbl nemo_pin_configs[] = {
+	{ 0x0a, 0x02214020 },	/* Front panel HP socket */
+	{ 0x0b, 0x02a19080 },	/* Front Mic */
+	{ 0x0c, 0x0181304e },	/* Line in */
+	{ 0x0d, 0x01014010 },	/* Line out */
+	{ 0x0e, 0x01a19040 },	/* Rear Mic */
+	{ 0x0f, 0x01011012 },	/* Rear speakers */
+	{ 0x10, 0x01016011 },	/* Center speaker */
+	{ 0x11, 0x01012014 },	/* Side speakers (7.1) */
+	{ 0x12, 0x103301f0 },	/* Motherboard CD line in connector */
+	{ 0x13, 0x411111f0 },	/* Unused */
+	{ 0x14, 0x411111f0 },	/* Unused */
+	{ 0x21, 0x01442170 },	/* S/PDIF line out */
+	{ 0x22, 0x411111f0 },	/* Unused */
+	{ 0x23, 0x411111f0 },	/* Unused */
+	{}
+};
 
 static void stac9200_fixup_panasonic(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
@@ -3883,6 +3905,10 @@ static const struct hda_fixup stac927x_fixups[] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = d965_5st_no_fp_pin_configs,
 	},
+	[STAC_NEMO_DEFAULT] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = nemo_pin_configs,
+	},
 	[STAC_DELL_3ST] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = dell_3st_pin_configs,
@@ -3939,6 +3965,7 @@ static const struct hda_model_fixup stac927x_models[] = {
 	{ .id = STAC_D965_5ST_NO_FP, .name = "5stack-no-fp" },
 	{ .id = STAC_DELL_3ST, .name = "dell-3stack" },
 	{ .id = STAC_DELL_BIOS, .name = "dell-bios" },
+	{ .id = STAC_NEMO_DEFAULT, .name = "nemo-default" },
 	{ .id = STAC_DELL_BIOS_AMIC, .name = "dell-bios-amic" },
 	{ .id = STAC_927X_VOLKNOB, .name = "volknob" },
 	{}
@@ -3977,6 +4004,8 @@ static const struct snd_pci_quirk stac927x_fixup_tbl[] = {
 			   "Intel D965", STAC_D965_5ST),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_INTEL, 0xff00, 0x2500,
 			   "Intel D965", STAC_D965_5ST),
+	/* Nemo */
+	SND_PCI_QUIRK(0x1888, 0x1000, "AmigaOne X1000", STAC_NEMO_DEFAULT),
 	/* volume-knob fixes */
 	SND_PCI_QUIRK_VENDOR(0x10cf, "FSC", STAC_927X_VOLKNOB),
 	{} /* terminator */
@@ -5036,6 +5065,7 @@ static const struct hda_device_id snd_hda_id_sigmatel[] = {
 	HDA_CODEC_ENTRY(0x83847683, "STAC9221D A2", patch_stac922x),
 	HDA_CODEC_ENTRY(0x83847618, "STAC9227", patch_stac927x),
 	HDA_CODEC_ENTRY(0x83847619, "STAC9227", patch_stac927x),
+	HDA_CODEC_ENTRY(0x83847638, "STAC92HD700", patch_stac927x),
 	HDA_CODEC_ENTRY(0x83847616, "STAC9228", patch_stac927x),
 	HDA_CODEC_ENTRY(0x83847617, "STAC9228", patch_stac927x),
 	HDA_CODEC_ENTRY(0x83847614, "STAC9229", patch_stac927x),

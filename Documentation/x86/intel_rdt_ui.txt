@@ -212,3 +212,117 @@ Finally we move core 4-7 over to the new group and make sure that the
 kernel and the tasks running there get 50% of the cache.
 
 # echo C0 > p0/cpus
+
+4) Locking between applications
+
+Certain operations on the resctrl filesystem, composed of read/writes
+to/from multiple files, must be atomic.
+
+As an example, the allocation of an exclusive reservation of L3 cache
+involves:
+
+  1. Read the cbmmasks from each directory
+  2. Find a contiguous set of bits in the global CBM bitmask that is clear
+     in any of the directory cbmmasks
+  3. Create a new directory
+  4. Set the bits found in step 2 to the new directory "schemata" file
+
+If two applications attempt to allocate space concurrently then they can
+end up allocating the same bits so the reservations are shared instead of
+exclusive.
+
+To coordinate atomic operations on the resctrlfs and to avoid the problem
+above, the following locking procedure is recommended:
+
+Locking is based on flock, which is available in libc and also as a shell
+script command
+
+Write lock:
+
+ A) Take flock(LOCK_EX) on /sys/fs/resctrl
+ B) Read/write the directory structure.
+ C) funlock
+
+Read lock:
+
+ A) Take flock(LOCK_SH) on /sys/fs/resctrl
+ B) If success read the directory structure.
+ C) funlock
+
+Example with bash:
+
+# Atomically read directory structure
+$ flock -s /sys/fs/resctrl/ find /sys/fs/resctrl
+
+# Read directory contents and create new subdirectory
+
+$ cat create-dir.sh
+find /sys/fs/resctrl/ > output.txt
+mask = function-of(output.txt)
+mkdir /sys/fs/resctrl/newres/
+echo mask > /sys/fs/resctrl/newres/schemata
+
+$ flock /sys/fs/resctrl/ ./create-dir.sh
+
+Example with C:
+
+/*
+ * Example code do take advisory locks
+ * before accessing resctrl filesystem
+ */
+#include <sys/file.h>
+#include <stdlib.h>
+
+void resctrl_take_shared_lock(int fd)
+{
+	int ret;
+
+	/* take shared lock on resctrl filesystem */
+	ret = flock(fd, LOCK_SH);
+	if (ret) {
+		perror("flock");
+		exit(-1);
+	}
+}
+
+void resctrl_take_exclusive_lock(int fd)
+{
+	int ret;
+
+	/* release lock on resctrl filesystem */
+	ret = flock(fd, LOCK_EX);
+	if (ret) {
+		perror("flock");
+		exit(-1);
+	}
+}
+
+void resctrl_release_lock(int fd)
+{
+	int ret;
+
+	/* take shared lock on resctrl filesystem */
+	ret = flock(fd, LOCK_UN);
+	if (ret) {
+		perror("flock");
+		exit(-1);
+	}
+}
+
+void main(void)
+{
+	int fd, ret;
+
+	fd = open("/sys/fs/resctrl", O_DIRECTORY);
+	if (fd == -1) {
+		perror("open");
+		exit(-1);
+	}
+	resctrl_take_shared_lock(fd);
+	/* code to read directory contents */
+	resctrl_release_lock(fd);
+
+	resctrl_take_exclusive_lock(fd);
+	/* code to read and write directory contents */
+	resctrl_release_lock(fd);
+}

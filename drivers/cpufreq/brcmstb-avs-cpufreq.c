@@ -878,7 +878,6 @@ unmap_intr_base:
 	iounmap(priv->avs_intr_base);
 unmap_base:
 	iounmap(priv->base);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -1042,7 +1041,6 @@ static int brcm_avs_cpufreq_remove(struct platform_device *pdev)
 	priv = platform_get_drvdata(pdev);
 	iounmap(priv->base);
 	iounmap(priv->avs_intr_base);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

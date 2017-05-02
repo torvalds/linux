@@ -264,7 +264,6 @@ struct epic_private {
 	spinlock_t lock;				/* Group with Tx control cache line. */
 	spinlock_t napi_lock;
 	struct napi_struct napi;
-	unsigned int reschedule_in_poll;
 	unsigned int cur_tx, dirty_tx;
 
 	unsigned int cur_rx, dirty_rx;
@@ -400,7 +399,6 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	spin_lock_init(&ep->lock);
 	spin_lock_init(&ep->napi_lock);
-	ep->reschedule_in_poll = 0;
 
 	/* Bring the chip out of low-power mode. */
 	ew32(GENCTL, 0x4200);
@@ -1086,13 +1084,12 @@ static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 
 	handled = 1;
 
-	if ((status & EpicNapiEvent) && !ep->reschedule_in_poll) {
+	if (status & EpicNapiEvent) {
 		spin_lock(&ep->napi_lock);
 		if (napi_schedule_prep(&ep->napi)) {
 			epic_napi_irq_off(dev, ep);
 			__napi_schedule(&ep->napi);
-		} else
-			ep->reschedule_in_poll++;
+		}
 		spin_unlock(&ep->napi_lock);
 	}
 	status &= ~EpicNapiEvent;
@@ -1248,37 +1245,23 @@ static int epic_poll(struct napi_struct *napi, int budget)
 {
 	struct epic_private *ep = container_of(napi, struct epic_private, napi);
 	struct net_device *dev = ep->mii.dev;
-	int work_done = 0;
 	void __iomem *ioaddr = ep->ioaddr;
-
-rx_action:
+	int work_done;
 
 	epic_tx(dev, ep);
 
-	work_done += epic_rx(dev, budget);
+	work_done = epic_rx(dev, budget);
 
 	epic_rx_err(dev, ep);
 
-	if (work_done < budget) {
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		unsigned long flags;
-		int more;
-
-		/* A bit baroque but it avoids a (space hungry) spin_unlock */
 
 		spin_lock_irqsave(&ep->napi_lock, flags);
 
-		more = ep->reschedule_in_poll;
-		if (!more) {
-			__napi_complete(napi);
-			ew32(INTSTAT, EpicNapiEvent);
-			epic_napi_irq_on(dev, ep);
-		} else
-			ep->reschedule_in_poll--;
-
+		ew32(INTSTAT, EpicNapiEvent);
+		epic_napi_irq_on(dev, ep);
 		spin_unlock_irqrestore(&ep->napi_lock, flags);
-
-		if (more)
-			goto rx_action;
 	}
 
 	return work_done;

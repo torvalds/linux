@@ -199,7 +199,6 @@ static int max11801_ts_probe(struct i2c_client *client,
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	input_set_abs_params(input_dev, ABS_X, 0, MAX11801_MAX_X, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX11801_MAX_Y, 0, 0);
-	input_set_drvdata(input_dev, data);
 
 	max11801_ts_phy_init(data);
 
@@ -216,7 +215,6 @@ static int max11801_ts_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	i2c_set_clientdata(client, data);
 	return 0;
 }
 

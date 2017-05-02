@@ -762,7 +762,7 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	struct audit_entry *e;
 	enum audit_state state;
 
-	if (audit_pid && tsk->tgid == audit_pid)
+	if (auditd_test_task(tsk))
 		return AUDIT_DISABLED;
 
 	rcu_read_lock();
@@ -816,7 +816,7 @@ void audit_filter_inodes(struct task_struct *tsk, struct audit_context *ctx)
 {
 	struct audit_names *n;
 
-	if (audit_pid && tsk->tgid == audit_pid)
+	if (auditd_test_task(tsk))
 		return;
 
 	rcu_read_lock();
@@ -1221,7 +1221,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 				context->ipc.perm_mode);
 		}
 		break; }
-	case AUDIT_MQ_OPEN: {
+	case AUDIT_MQ_OPEN:
 		audit_log_format(ab,
 			"oflag=0x%x mode=%#ho mq_flags=0x%lx mq_maxmsg=%ld "
 			"mq_msgsize=%ld mq_curmsgs=%ld",
@@ -1230,8 +1230,8 @@ static void show_special(struct audit_context *context, int *call_panic)
 			context->mq_open.attr.mq_maxmsg,
 			context->mq_open.attr.mq_msgsize,
 			context->mq_open.attr.mq_curmsgs);
-		break; }
-	case AUDIT_MQ_SENDRECV: {
+		break;
+	case AUDIT_MQ_SENDRECV:
 		audit_log_format(ab,
 			"mqdes=%d msg_len=%zd msg_prio=%u "
 			"abs_timeout_sec=%ld abs_timeout_nsec=%ld",
@@ -1240,12 +1240,12 @@ static void show_special(struct audit_context *context, int *call_panic)
 			context->mq_sendrecv.msg_prio,
 			context->mq_sendrecv.abs_timeout.tv_sec,
 			context->mq_sendrecv.abs_timeout.tv_nsec);
-		break; }
-	case AUDIT_MQ_NOTIFY: {
+		break;
+	case AUDIT_MQ_NOTIFY:
 		audit_log_format(ab, "mqdes=%d sigev_signo=%d",
 				context->mq_notify.mqdes,
 				context->mq_notify.sigev_signo);
-		break; }
+		break;
 	case AUDIT_MQ_GETSETATTR: {
 		struct mq_attr *attr = &context->mq_getsetattr.mqstat;
 		audit_log_format(ab,
@@ -1255,19 +1255,24 @@ static void show_special(struct audit_context *context, int *call_panic)
 			attr->mq_flags, attr->mq_maxmsg,
 			attr->mq_msgsize, attr->mq_curmsgs);
 		break; }
-	case AUDIT_CAPSET: {
+	case AUDIT_CAPSET:
 		audit_log_format(ab, "pid=%d", context->capset.pid);
 		audit_log_cap(ab, "cap_pi", &context->capset.cap.inheritable);
 		audit_log_cap(ab, "cap_pp", &context->capset.cap.permitted);
 		audit_log_cap(ab, "cap_pe", &context->capset.cap.effective);
-		break; }
-	case AUDIT_MMAP: {
+		break;
+	case AUDIT_MMAP:
 		audit_log_format(ab, "fd=%d flags=0x%x", context->mmap.fd,
 				 context->mmap.flags);
-		break; }
-	case AUDIT_EXECVE: {
+		break;
+	case AUDIT_EXECVE:
 		audit_log_execve_info(context, &ab);
-		break; }
+		break;
+	case AUDIT_KERN_MODULE:
+		audit_log_format(ab, "name=");
+		audit_log_untrustedstring(ab, context->module.name);
+		kfree(context->module.name);
+		break;
 	}
 	audit_log_end(ab);
 }
@@ -2244,25 +2249,26 @@ void __audit_ptrace(struct task_struct *t)
  * If the audit subsystem is being terminated, record the task (pid)
  * and uid that is doing that.
  */
-int __audit_signal_info(int sig, struct task_struct *t)
+int audit_signal_info(int sig, struct task_struct *t)
 {
 	struct audit_aux_data_pids *axp;
 	struct task_struct *tsk = current;
 	struct audit_context *ctx = tsk->audit_context;
 	kuid_t uid = current_uid(), t_uid = task_uid(t);
 
-	if (audit_pid && t->tgid == audit_pid) {
-		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1 || sig == SIGUSR2) {
-			audit_sig_pid = task_tgid_nr(tsk);
-			if (uid_valid(tsk->loginuid))
-				audit_sig_uid = tsk->loginuid;
-			else
-				audit_sig_uid = uid;
-			security_task_getsecid(tsk, &audit_sig_sid);
-		}
-		if (!audit_signals || audit_dummy_context())
-			return 0;
+	if (auditd_test_task(t) &&
+	    (sig == SIGTERM || sig == SIGHUP ||
+	     sig == SIGUSR1 || sig == SIGUSR2)) {
+		audit_sig_pid = task_tgid_nr(tsk);
+		if (uid_valid(tsk->loginuid))
+			audit_sig_uid = tsk->loginuid;
+		else
+			audit_sig_uid = uid;
+		security_task_getsecid(tsk, &audit_sig_sid);
 	}
+
+	if (!audit_signals || audit_dummy_context())
+		return 0;
 
 	/* optimize the common case by putting first signal recipient directly
 	 * in audit_context */
@@ -2368,6 +2374,15 @@ void __audit_mmap_fd(int fd, int flags)
 	context->type = AUDIT_MMAP;
 }
 
+void __audit_log_kern_module(char *name)
+{
+	struct audit_context *context = current->audit_context;
+
+	context->module.name = kmalloc(strlen(name) + 1, GFP_KERNEL);
+	strcpy(context->module.name, name);
+	context->type = AUDIT_KERN_MODULE;
+}
+
 static void audit_log_task(struct audit_buffer *ab)
 {
 	kuid_t auid, uid;
@@ -2411,7 +2426,7 @@ void audit_core_dumps(long signr)
 	if (unlikely(!ab))
 		return;
 	audit_log_task(ab);
-	audit_log_format(ab, " sig=%ld", signr);
+	audit_log_format(ab, " sig=%ld res=1", signr);
 	audit_log_end(ab);
 }
 

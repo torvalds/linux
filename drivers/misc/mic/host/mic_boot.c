@@ -245,7 +245,7 @@ static void __mic_dma_unmap_sg(struct device *dev,
 	dma_unmap_sg(&mdev->pdev->dev, sg, nents, dir);
 }
 
-static struct dma_map_ops __mic_dma_ops = {
+static const struct dma_map_ops __mic_dma_ops = {
 	.alloc = __mic_dma_alloc,
 	.free = __mic_dma_free,
 	.map_page = __mic_dma_map_page,
@@ -344,7 +344,7 @@ mic_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	mic_unmap_single(mdev, dma_addr, size);
 }
 
-static struct dma_map_ops mic_dma_ops = {
+static const struct dma_map_ops mic_dma_ops = {
 	.map_page = mic_dma_map_page,
 	.unmap_page = mic_dma_unmap_page,
 };

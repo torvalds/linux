@@ -1368,7 +1368,7 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 	struct ldlm_lock *lock;
 	unsigned int granted = 0;
 
-	CLASSERT(RES_NAME_SIZE == 4);
+	BUILD_BUG_ON(RES_NAME_SIZE != 4);
 
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;
