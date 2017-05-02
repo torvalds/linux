@@ -10,6 +10,7 @@
 #define _STM32_TIMER_TRIGGER_H_
 
 #define TIM1_TRGO	"tim1_trgo"
+#define TIM1_TRGO2	"tim1_trgo2"
 #define TIM1_CH1	"tim1_ch1"
 #define TIM1_CH2	"tim1_ch2"
 #define TIM1_CH3	"tim1_ch3"
@@ -44,6 +45,7 @@
 #define TIM7_TRGO	"tim7_trgo"
 
 #define TIM8_TRGO	"tim8_trgo"
+#define TIM8_TRGO2	"tim8_trgo2"
 #define TIM8_CH1	"tim8_ch1"
 #define TIM8_CH2	"tim8_ch2"
 #define TIM8_CH3	"tim8_ch3"
