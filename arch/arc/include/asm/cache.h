@@ -88,7 +88,7 @@ extern unsigned long perip_base, perip_end;
 #define DC_CTRL_INV_MODE_FLUSH	0x040
 #define DC_CTRL_FLUSH_STATUS	0x100
 #define DC_CTRL_RGN_OP_INV	0x200
-#define DC_CTRL_RGN_OP_MSK	0xE00
+#define DC_CTRL_RGN_OP_MSK	0x200
 
 /*System-level cache (L2 cache) related Auxiliary registers */
 #define ARC_REG_SLC_CFG		0x901
