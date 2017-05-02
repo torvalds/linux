@@ -1732,7 +1732,7 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 			break;
 		}
 
-		seq_printf(s, "\n");
+		seq_putc(s, '\n');
 	}
 	mutex_unlock(&pinctrl_maps_mutex);
 
