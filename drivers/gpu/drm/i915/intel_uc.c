@@ -99,7 +99,7 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
 	struct intel_guc *guc = &dev_priv->guc;
 
 	mutex_init(&guc->send_mutex);
-	guc->send = intel_guc_send_mmio;
+	guc->send = intel_guc_send_nop;
 }
 
 static void fetch_uc_fw(struct drm_i915_private *dev_priv,
@@ -252,13 +252,27 @@ void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
 	__intel_uc_fw_fini(&dev_priv->huc.fw);
 }
 
+static int guc_enable_communication(struct intel_guc *guc)
+{
+	/* XXX: placeholder for alternate setup */
+	guc->send = intel_guc_send_mmio;
+	return 0;
+}
+
+static void guc_disable_communication(struct intel_guc *guc)
+{
+	guc->send = intel_guc_send_nop;
+}
+
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
+	struct intel_guc *guc = &dev_priv->guc;
 	int ret, attempts;
 
 	if (!i915.enable_guc_loading)
 		return 0;
 
+	guc_disable_communication(guc);
 	gen9_reset_guc_interrupts(dev_priv);
 
 	/* We need to notify the guc whenever we change the GGTT */
@@ -308,6 +322,10 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_submission;
 
+	ret = guc_enable_communication(guc);
+	if (ret)
+		goto err_submission;
+
 	intel_guc_auth_huc(dev_priv);
 	if (i915.enable_guc_submission) {
 		if (i915.guc_log_level >= 0)
@@ -330,6 +348,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	 * marks the GPU as wedged until reset).
 	 */
 err_interrupts:
+	guc_disable_communication(guc);
 	gen9_disable_guc_interrupts(dev_priv);
 err_submission:
 	if (i915.enable_guc_submission)
@@ -362,6 +381,12 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 		i915_guc_submission_fini(dev_priv);
 	}
 	i915_ggtt_disable_guc(dev_priv);
+}
+
+int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len)
+{
+	WARN(1, "Unexpected send: action=%#x\n", *action);
+	return -ENODEV;
 }
 
 /*
