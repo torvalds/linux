@@ -76,7 +76,7 @@ static void audit_ip4(struct audit_buffer *ab, struct sk_buff *skb)
 	struct iphdr _iph;
 	const struct iphdr *ih;
 
-	ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
+	ih = skb_header_pointer(skb, skb_network_offset(skb), sizeof(_iph), &_iph);
 	if (!ih) {
 		audit_log_format(ab, " truncated=1");
 		return;
