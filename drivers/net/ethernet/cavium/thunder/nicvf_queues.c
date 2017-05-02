@@ -19,14 +19,6 @@
 #include "q_struct.h"
 #include "nicvf_queues.h"
 
-static inline u64 nicvf_iova_to_phys(struct nicvf *nic, dma_addr_t dma_addr)
-{
-	/* Translation is installed only when IOMMU is present */
-	if (nic->iommu_domain)
-		return iommu_iova_to_phys(nic->iommu_domain, dma_addr);
-	return dma_addr;
-}
-
 static void nicvf_get_page(struct nicvf *nic)
 {
 	if (!nic->rb_pageref || !nic->rb_page)
@@ -149,8 +141,10 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
 {
 	struct pgcache *pgcache = NULL;
 
-	/* Check if request can be accomodated in previous allocated page */
-	if (nic->rb_page &&
+	/* Check if request can be accomodated in previous allocated page.
+	 * But in XDP mode only one buffer per page is permitted.
+	 */
+	if (!nic->pnicvf->xdp_prog && nic->rb_page &&
 	    ((nic->rb_page_offset + buf_len) <= PAGE_SIZE)) {
 		nic->rb_pageref++;
 		goto ret;
@@ -961,6 +955,7 @@ int nicvf_set_qset_resources(struct nicvf *nic)
 
 	nic->rx_queues = qs->rq_cnt;
 	nic->tx_queues = qs->sq_cnt;
+	nic->xdp_tx_queues = 0;
 
 	return 0;
 }

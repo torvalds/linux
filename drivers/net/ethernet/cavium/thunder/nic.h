@@ -268,9 +268,9 @@ struct nicvf {
 	struct net_device	*netdev;
 	struct pci_dev		*pdev;
 	void __iomem		*reg_base;
+	struct bpf_prog         *xdp_prog;
 #define	MAX_QUEUES_PER_QSET			8
 	struct queue_set	*qs;
-	struct nicvf_cq_poll	*napi[8];
 	void			*iommu_domain;
 	u8			vf_id;
 	u8			sqs_id;
@@ -296,6 +296,7 @@ struct nicvf {
 	/* Queue count */
 	u8			rx_queues;
 	u8			tx_queues;
+	u8			xdp_tx_queues;
 	u8			max_queues;
 
 	u8			node;
@@ -319,6 +320,9 @@ struct nicvf {
 	struct nicvf_hw_stats   hw_stats;
 	struct nicvf_drv_stats  __percpu *drv_stats;
 	struct bgx_stats	bgx_stats;
+
+	/* Napi */
+	struct nicvf_cq_poll	*napi[8];
 
 	/* MSI-X  */
 	u8			num_vec;

@@ -721,7 +721,7 @@ static int nicvf_set_channels(struct net_device *dev,
 	struct nicvf *nic = netdev_priv(dev);
 	int err = 0;
 	bool if_up = netif_running(dev);
-	int cqcount;
+	u8 cqcount, txq_count;
 
 	if (!channel->rx_count || !channel->tx_count)
 		return -EINVAL;
@@ -730,10 +730,26 @@ static int nicvf_set_channels(struct net_device *dev,
 	if (channel->tx_count > nic->max_queues)
 		return -EINVAL;
 
+	if (nic->xdp_prog &&
+	    ((channel->tx_count + channel->rx_count) > nic->max_queues)) {
+		netdev_err(nic->netdev,
+			   "XDP mode, RXQs + TXQs > Max %d\n",
+			   nic->max_queues);
+		return -EINVAL;
+	}
+
 	if (if_up)
 		nicvf_stop(dev);
 
-	cqcount = max(channel->rx_count, channel->tx_count);
+	nic->rx_queues = channel->rx_count;
+	nic->tx_queues = channel->tx_count;
+	if (!nic->xdp_prog)
+		nic->xdp_tx_queues = 0;
+	else
+		nic->xdp_tx_queues = channel->rx_count;
+
+	txq_count = nic->xdp_tx_queues + nic->tx_queues;
+	cqcount = max(nic->rx_queues, txq_count);
 
 	if (cqcount > MAX_CMP_QUEUES_PER_QS) {
 		nic->sqs_count = roundup(cqcount, MAX_CMP_QUEUES_PER_QS);
@@ -742,12 +758,10 @@ static int nicvf_set_channels(struct net_device *dev,
 		nic->sqs_count = 0;
 	}
 
-	nic->qs->rq_cnt = min_t(u32, channel->rx_count, MAX_RCV_QUEUES_PER_QS);
-	nic->qs->sq_cnt = min_t(u32, channel->tx_count, MAX_SND_QUEUES_PER_QS);
+	nic->qs->rq_cnt = min_t(u8, nic->rx_queues, MAX_RCV_QUEUES_PER_QS);
+	nic->qs->sq_cnt = min_t(u8, txq_count, MAX_SND_QUEUES_PER_QS);
 	nic->qs->cq_cnt = max(nic->qs->rq_cnt, nic->qs->sq_cnt);
 
-	nic->rx_queues = channel->rx_count;
-	nic->tx_queues = channel->tx_count;
 	err = nicvf_set_real_num_queues(dev, nic->tx_queues, nic->rx_queues);
 	if (err)
 		return err;

@@ -10,6 +10,7 @@
 #define NICVF_QUEUES_H
 
 #include <linux/netdevice.h>
+#include <linux/iommu.h>
 #include "q_struct.h"
 
 #define MAX_QUEUE_SET			128
@@ -311,6 +312,14 @@ struct queue_set {
 #define	CQ_CQE_COUNT	(0xFFFF << 0)
 
 #define	CQ_ERR_MASK	(CQ_WR_FULL | CQ_WR_DISABLE | CQ_WR_FAULT)
+
+static inline u64 nicvf_iova_to_phys(struct nicvf *nic, dma_addr_t dma_addr)
+{
+	/* Translation is installed only when IOMMU is present */
+	if (nic->iommu_domain)
+		return iommu_iova_to_phys(nic->iommu_domain, dma_addr);
+	return dma_addr;
+}
 
 void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
 			      int hdr_sqe, u8 subdesc_cnt);

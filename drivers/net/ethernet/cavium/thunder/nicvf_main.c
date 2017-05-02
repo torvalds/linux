@@ -17,6 +17,8 @@
 #include <linux/prefetch.h>
 #include <linux/irq.h>
 #include <linux/iommu.h>
+#include <linux/bpf.h>
+#include <linux/filter.h>
 
 #include "nic_reg.h"
 #include "nic.h"
@@ -397,8 +399,10 @@ static void nicvf_request_sqs(struct nicvf *nic)
 
 	if (nic->rx_queues > MAX_RCV_QUEUES_PER_QS)
 		rx_queues = nic->rx_queues - MAX_RCV_QUEUES_PER_QS;
-	if (nic->tx_queues > MAX_SND_QUEUES_PER_QS)
-		tx_queues = nic->tx_queues - MAX_SND_QUEUES_PER_QS;
+
+	tx_queues = nic->tx_queues + nic->xdp_tx_queues;
+	if (tx_queues > MAX_SND_QUEUES_PER_QS)
+		tx_queues = tx_queues - MAX_SND_QUEUES_PER_QS;
 
 	/* Set no of Rx/Tx queues in each of the SQsets */
 	for (sqs = 0; sqs < nic->sqs_count; sqs++) {
@@ -494,6 +498,43 @@ static int nicvf_init_resources(struct nicvf *nic)
 	}
 
 	return 0;
+}
+
+static inline bool nicvf_xdp_rx(struct nicvf *nic,
+				struct bpf_prog *prog,
+				struct cqe_rx_t *cqe_rx)
+{
+	struct xdp_buff xdp;
+	u32 action;
+	u16 len;
+	u64 dma_addr, cpu_addr;
+
+	/* Retrieve packet buffer's DMA address and length */
+	len = *((u16 *)((void *)cqe_rx + (3 * sizeof(u64))));
+	dma_addr = *((u64 *)((void *)cqe_rx + (7 * sizeof(u64))));
+
+	cpu_addr = nicvf_iova_to_phys(nic, dma_addr);
+	if (!cpu_addr)
+		return false;
+
+	xdp.data = phys_to_virt(cpu_addr);
+	xdp.data_end = xdp.data + len;
+
+	rcu_read_lock();
+	action = bpf_prog_run_xdp(prog, &xdp);
+	rcu_read_unlock();
+
+	switch (action) {
+	case XDP_PASS:
+	case XDP_TX:
+	case XDP_ABORTED:
+	case XDP_DROP:
+		/* Pass on all packets to network stack */
+		return false;
+	default:
+		bpf_warn_invalid_xdp_action(action);
+	}
+	return false;
 }
 
 static void nicvf_snd_pkt_handler(struct net_device *netdev,
@@ -598,6 +639,11 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 		if (err && !cqe_rx->rb_cnt)
 			return;
 	}
+
+	/* For XDP, ignore pkts spanning multiple pages */
+	if (nic->xdp_prog && (cqe_rx->rb_cnt == 1))
+		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx))
+			return;
 
 	skb = nicvf_get_rcv_skb(snic, cqe_rx);
 	if (!skb) {
@@ -1529,6 +1575,117 @@ static int nicvf_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static void nicvf_set_xdp_queues(struct nicvf *nic, bool bpf_attached)
+{
+	u8 cq_count, txq_count;
+
+	/* Set XDP Tx queue count same as Rx queue count */
+	if (!bpf_attached)
+		nic->xdp_tx_queues = 0;
+	else
+		nic->xdp_tx_queues = nic->rx_queues;
+
+	/* If queue count > MAX_CMP_QUEUES_PER_QS, then additional qsets
+	 * needs to be allocated, check how many.
+	 */
+	txq_count = nic->xdp_tx_queues + nic->tx_queues;
+	cq_count = max(nic->rx_queues, txq_count);
+	if (cq_count > MAX_CMP_QUEUES_PER_QS) {
+		nic->sqs_count = roundup(cq_count, MAX_CMP_QUEUES_PER_QS);
+		nic->sqs_count = (nic->sqs_count / MAX_CMP_QUEUES_PER_QS) - 1;
+	} else {
+		nic->sqs_count = 0;
+	}
+
+	/* Set primary Qset's resources */
+	nic->qs->rq_cnt = min_t(u8, nic->rx_queues, MAX_RCV_QUEUES_PER_QS);
+	nic->qs->sq_cnt = min_t(u8, txq_count, MAX_SND_QUEUES_PER_QS);
+	nic->qs->cq_cnt = max_t(u8, nic->qs->rq_cnt, nic->qs->sq_cnt);
+
+	/* Update stack */
+	nicvf_set_real_num_queues(nic->netdev, nic->tx_queues, nic->rx_queues);
+}
+
+static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
+{
+	struct net_device *dev = nic->netdev;
+	bool if_up = netif_running(nic->netdev);
+	struct bpf_prog *old_prog;
+	bool bpf_attached = false;
+
+	/* For now just support only the usual MTU sized frames */
+	if (prog && (dev->mtu > 1500)) {
+		netdev_warn(dev, "Jumbo frames not yet supported with XDP, current MTU %d.\n",
+			    dev->mtu);
+		return -EOPNOTSUPP;
+	}
+
+	if (prog && prog->xdp_adjust_head)
+		return -EOPNOTSUPP;
+
+	/* ALL SQs attached to CQs i.e same as RQs, are treated as
+	 * XDP Tx queues and more Tx queues are allocated for
+	 * network stack to send pkts out.
+	 *
+	 * No of Tx queues are either same as Rx queues or whatever
+	 * is left in max no of queues possible.
+	 */
+	if ((nic->rx_queues + nic->tx_queues) > nic->max_queues) {
+		netdev_warn(dev,
+			    "Failed to attach BPF prog, RXQs + TXQs > Max %d\n",
+			    nic->max_queues);
+		return -ENOMEM;
+	}
+
+	if (if_up)
+		nicvf_stop(nic->netdev);
+
+	old_prog = xchg(&nic->xdp_prog, prog);
+	/* Detach old prog, if any */
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	if (nic->xdp_prog) {
+		/* Attach BPF program */
+		nic->xdp_prog = bpf_prog_add(nic->xdp_prog, nic->rx_queues - 1);
+		if (!IS_ERR(nic->xdp_prog))
+			bpf_attached = true;
+	}
+
+	/* Calculate Tx queues needed for XDP and network stack */
+	nicvf_set_xdp_queues(nic, bpf_attached);
+
+	if (if_up) {
+		/* Reinitialize interface, clean slate */
+		nicvf_open(nic->netdev);
+		netif_trans_update(nic->netdev);
+	}
+
+	return 0;
+}
+
+static int nicvf_xdp(struct net_device *netdev, struct netdev_xdp *xdp)
+{
+	struct nicvf *nic = netdev_priv(netdev);
+
+	/* To avoid checks while retrieving buffer address from CQE_RX,
+	 * do not support XDP for T88 pass1.x silicons which are anyway
+	 * not in use widely.
+	 */
+	if (pass1_silicon(nic->pdev))
+		return -EOPNOTSUPP;
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return nicvf_xdp_setup(nic, xdp->prog);
+	case XDP_QUERY_PROG:
+		xdp->prog_attached = !!nic->xdp_prog;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_open		= nicvf_open,
 	.ndo_stop		= nicvf_stop,
@@ -1539,6 +1696,7 @@ static const struct net_device_ops nicvf_netdev_ops = {
 	.ndo_tx_timeout         = nicvf_tx_timeout,
 	.ndo_fix_features       = nicvf_fix_features,
 	.ndo_set_features       = nicvf_set_features,
+	.ndo_xdp		= nicvf_xdp,
 };
 
 static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
