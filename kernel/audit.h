@@ -218,7 +218,7 @@ extern void audit_log_name(struct audit_context *context,
 			   struct audit_names *n, const struct path *path,
 			   int record_num, int *call_panic);
 
-extern int auditd_test_task(const struct task_struct *task);
+extern int auditd_test_task(struct task_struct *task);
 
 #define AUDIT_INODE_BUCKETS	32
 extern struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];

@@ -58,6 +58,7 @@
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
+#include <linux/pid.h>
 
 #include <linux/audit.h>
 
@@ -117,7 +118,7 @@ struct audit_net {
  * or the included spinlock for writing.
  */
 static struct auditd_connection {
-	int pid;
+	struct pid *pid;
 	u32 portid;
 	struct net *net;
 	spinlock_t lock;
@@ -220,15 +221,38 @@ struct audit_reply {
  * Description:
  * Return 1 if the task is a registered audit daemon, 0 otherwise.
  */
-int auditd_test_task(const struct task_struct *task)
+int auditd_test_task(struct task_struct *task)
 {
 	int rc;
 
 	rcu_read_lock();
-	rc = (auditd_conn.pid && task->tgid == auditd_conn.pid ? 1 : 0);
+	rc = (auditd_conn.pid && auditd_conn.pid == task_tgid(task) ? 1 : 0);
 	rcu_read_unlock();
 
 	return rc;
+}
+
+/**
+ * auditd_pid_vnr - Return the auditd PID relative to the namespace
+ * @auditd: the auditd connection
+ *
+ * Description:
+ * Returns the PID in relation to the namespace, 0 on failure.  This function
+ * takes the RCU read lock internally, but if the caller needs to protect the
+ * auditd_connection pointer it should take the RCU read lock as well.
+ */
+static pid_t auditd_pid_vnr(const struct auditd_connection *auditd)
+{
+	pid_t pid;
+
+	rcu_read_lock();
+	if (!auditd || !auditd->pid)
+		pid = 0;
+	else
+		pid = pid_vnr(auditd->pid);
+	rcu_read_unlock();
+
+	return pid;
 }
 
 /**
@@ -428,12 +452,17 @@ static int audit_set_failure(u32 state)
  * This function will obtain and drop network namespace references as
  * necessary.
  */
-static void auditd_set(int pid, u32 portid, struct net *net)
+static void auditd_set(struct pid *pid, u32 portid, struct net *net)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&auditd_conn.lock, flags);
-	auditd_conn.pid = pid;
+	if (auditd_conn.pid)
+		put_pid(auditd_conn.pid);
+	if (pid)
+		auditd_conn.pid = get_pid(pid);
+	else
+		auditd_conn.pid = NULL;
 	auditd_conn.portid = portid;
 	if (auditd_conn.net)
 		put_net(auditd_conn.net);
@@ -1059,11 +1088,13 @@ static int audit_set_feature(struct sk_buff *skb)
 	return 0;
 }
 
-static int audit_replace(pid_t pid)
+static int audit_replace(struct pid *pid)
 {
+	pid_t pvnr;
 	struct sk_buff *skb;
 
-	skb = audit_make_reply(0, AUDIT_REPLACE, 0, 0, &pid, sizeof(pid));
+	pvnr = pid_vnr(pid);
+	skb = audit_make_reply(0, AUDIT_REPLACE, 0, 0, &pvnr, sizeof(pvnr));
 	if (!skb)
 		return -ENOMEM;
 	return auditd_send_unicast_skb(skb);
@@ -1093,9 +1124,9 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		memset(&s, 0, sizeof(s));
 		s.enabled		= audit_enabled;
 		s.failure		= audit_failure;
-		rcu_read_lock();
-		s.pid			= auditd_conn.pid;
-		rcu_read_unlock();
+		/* NOTE: use pid_vnr() so the PID is relative to the current
+		 *       namespace */
+		s.pid			= auditd_pid_vnr(&auditd_conn);
 		s.rate_limit		= audit_rate_limit;
 		s.backlog_limit		= audit_backlog_limit;
 		s.lost			= atomic_read(&audit_lost);
@@ -1121,36 +1152,36 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				return err;
 		}
 		if (s.mask & AUDIT_STATUS_PID) {
-			/* NOTE: we are using task_tgid_vnr() below because
-			 *       the s.pid value is relative to the namespace
-			 *       of the caller; at present this doesn't matter
-			 *       much since you can really only run auditd
-			 *       from the initial pid namespace, but something
-			 *       to keep in mind if this changes */
-			int new_pid = s.pid;
+			/* NOTE: we are using the vnr PID functions below
+			 *       because the s.pid value is relative to the
+			 *       namespace of the caller; at present this
+			 *       doesn't matter much since you can really only
+			 *       run auditd from the initial pid namespace, but
+			 *       something to keep in mind if this changes */
+			pid_t new_pid = s.pid;
 			pid_t auditd_pid;
-			pid_t requesting_pid = task_tgid_vnr(current);
+			struct pid *req_pid = task_tgid(current);
+
+			/* sanity check - PID values must match */
+			if (new_pid != pid_vnr(req_pid))
+				return -EINVAL;
 
 			/* test the auditd connection */
-			audit_replace(requesting_pid);
+			audit_replace(req_pid);
 
-			rcu_read_lock();
-			auditd_pid = auditd_conn.pid;
+			auditd_pid = auditd_pid_vnr(&auditd_conn);
 			/* only the current auditd can unregister itself */
-			if ((!new_pid) && (requesting_pid != auditd_pid)) {
-				rcu_read_unlock();
+			if ((!new_pid) && (new_pid != auditd_pid)) {
 				audit_log_config_change("audit_pid", new_pid,
 							auditd_pid, 0);
 				return -EACCES;
 			}
 			/* replacing a healthy auditd is not allowed */
 			if (auditd_pid && new_pid) {
-				rcu_read_unlock();
 				audit_log_config_change("audit_pid", new_pid,
 							auditd_pid, 0);
 				return -EEXIST;
 			}
-			rcu_read_unlock();
 
 			if (audit_enabled != AUDIT_OFF)
 				audit_log_config_change("audit_pid", new_pid,
@@ -1158,8 +1189,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 			if (new_pid) {
 				/* register a new auditd connection */
-				auditd_set(new_pid,
-					   NETLINK_CB(skb).portid,
+				auditd_set(req_pid, NETLINK_CB(skb).portid,
 					   sock_net(NETLINK_CB(skb).sk));
 				/* try to process any backlog */
 				wake_up_interruptible(&kauditd_wait);
