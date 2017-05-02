@@ -399,6 +399,7 @@ enum {
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
 #define HCI_LE_EXT_SCAN_POLICY		0x80
+#define HCI_LE_CHAN_SEL_ALG2		0x40
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
