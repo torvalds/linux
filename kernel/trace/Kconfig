@@ -455,7 +455,7 @@ config UPROBE_EVENTS
 	select UPROBES
 	select PROBE_EVENTS
 	select TRACING
-	default n
+	default y
 	help
 	  This allows the user to add tracing events on top of userspace
 	  dynamic events (similar to tracepoints) on the fly via the trace

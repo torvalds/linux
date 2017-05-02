@@ -66,7 +66,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	TEST_ASSERT_VAL("wrong nr",  map->nr == 2);
 	TEST_ASSERT_VAL("wrong cpu", map->map[0] == 1);
 	TEST_ASSERT_VAL("wrong cpu", map->map[1] == 256);
-	TEST_ASSERT_VAL("wrong refcnt", atomic_read(&map->refcnt) == 1);
+	TEST_ASSERT_VAL("wrong refcnt", refcount_read(&map->refcnt) == 1);
 	cpu_map__put(map);
 	return 0;
 }

@@ -1,9 +1,12 @@
+#include <errno.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
+#include <sys/param.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -15,6 +18,8 @@
 #include "thread.h"
 
 #include "tests.h"
+
+#include "sane_ctype.h"
 
 #define BUFSZ	1024
 #define READLEN	128

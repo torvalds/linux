@@ -1,5 +1,6 @@
 #include <sys/time.h>
 #include <sys/prctl.h>
+#include <errno.h>
 #include <time.h>
 #include <stdlib.h>
 

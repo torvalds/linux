@@ -1,13 +1,13 @@
 [
     {
-        "BriefDescription": "Uncore cache clock ticks. Derived from unc_c_clockticks",
+        "BriefDescription": "Uncore cache clock ticks",
         "Counter": "0,1,2,3",
         "EventName": "UNC_C_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "All LLC Misses (code+ data rd + data wr - including demand and prefetch). Derived from unc_c_llc_lookup.any",
+        "BriefDescription": "All LLC Misses (code+ data rd + data wr - including demand and prefetch)",
         "Counter": "0,1",
         "EventCode": "0x34",
         "EventName": "UNC_C_LLC_LOOKUP.ANY",
@@ -18,7 +18,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "M line evictions from LLC (writebacks to memory). Derived from unc_c_llc_victims.m_state",
+        "BriefDescription": "M line evictions from LLC (writebacks to memory)",
         "Counter": "0,1",
         "EventCode": "0x37",
         "EventName": "UNC_C_LLC_VICTIMS.M_STATE",
@@ -171,11 +171,12 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "Occupancy counter for all LLC misses; we divide this by UNC_C_CLOCKTICKS to get average Q depth. Derived from unc_c_tor_occupancy.miss_all",
+        "BriefDescription": "Occupancy counter for all LLC misses; we divide this by UNC_C_CLOCKTICKS to get average Q depth",
         "EventCode": "0x36",
         "EventName": "UNC_C_TOR_OCCUPANCY.MISS_ALL",
         "Filter": "filter_opc=0x182",
         "MetricExpr": "(UNC_C_TOR_OCCUPANCY.MISS_ALL / UNC_C_CLOCKTICKS) * 100.",
+        "MetricName": "tor_occupancy.miss_all %",
         "PerPkg": "1",
         "UMask": "0xa",
         "Unit": "CBO"
@@ -189,7 +190,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "read requests to home agent. Derived from unc_h_requests.reads",
+        "BriefDescription": "read requests to home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.READS",
@@ -198,7 +199,7 @@
         "Unit": "HA"
     },
     {
-        "BriefDescription": "write requests to home agent. Derived from unc_h_requests.writes",
+        "BriefDescription": "write requests to home agent",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
         "EventName": "UNC_H_REQUESTS.WRITES",

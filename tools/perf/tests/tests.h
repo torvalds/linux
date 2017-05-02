@@ -62,6 +62,7 @@ int test__sample_parsing(int subtest);
 int test__keep_tracking(int subtest);
 int test__parse_no_sample_id_all(int subtest);
 int test__dwarf_unwind(int subtest);
+int test__expr(int subtest);
 int test__hists_filter(int subtest);
 int test__mmap_thread_lookup(int subtest);
 int test__thread_mg_share(int subtest);
