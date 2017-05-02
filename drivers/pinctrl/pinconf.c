@@ -394,9 +394,9 @@ static const struct file_operations pinconf_groups_ops = {
 
 struct dbg_cfg {
 	enum pinctrl_map_type map_type;
-	char dev_name[MAX_NAME_LEN+1];
-	char state_name[MAX_NAME_LEN+1];
-	char pin_name[MAX_NAME_LEN+1];
+	char dev_name[MAX_NAME_LEN + 1];
+	char state_name[MAX_NAME_LEN + 1];
+	char pin_name[MAX_NAME_LEN + 1];
 };
 
 /*
@@ -482,7 +482,7 @@ static ssize_t pinconf_dbg_config_write(struct file *file,
 	const struct pinconf_ops *confops = NULL;
 	struct dbg_cfg *dbg = &pinconf_dbg_conf;
 	const struct pinctrl_map_configs *configs;
-	char config[MAX_NAME_LEN+1];
+	char config[MAX_NAME_LEN + 1];
 	char buf[128];
 	char *b = &buf[0];
 	int buf_size;
