@@ -786,7 +786,6 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		adev->gfx.config.gs_vgt_table_depth = 32;
 		adev->gfx.config.gs_prim_buffer_depth = 1792;
-		adev->gfx.config.max_gs_waves_per_vgt = 32;
 		gb_addr_config = VEGA10_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	default:

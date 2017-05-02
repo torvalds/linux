@@ -560,7 +560,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.num_tcc_blocks = adev->gfx.config.max_texture_channel_caches;
 		dev_info.gs_vgt_table_depth = adev->gfx.config.gs_vgt_table_depth;
 		dev_info.gs_prim_buffer_depth = adev->gfx.config.gs_prim_buffer_depth;
-		dev_info.max_gs_waves_per_vgt = adev->gfx.config.max_gs_waves_per_vgt;
+		dev_info.max_gs_waves_per_vgt = adev->gfx.config.max_gs_threads;
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;

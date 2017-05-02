@@ -969,7 +969,6 @@ struct amdgpu_gfx_config {
 	unsigned num_rbs;
 	unsigned gs_vgt_table_depth;
 	unsigned gs_prim_buffer_depth;
-	unsigned max_gs_waves_per_vgt;
 
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
