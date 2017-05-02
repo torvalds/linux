@@ -638,7 +638,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	GATE(SCLK_MAC_TX, "sclk_mac_tx", "mac_clk", 0,
 			RK3368_CLKGATE_CON(7), 5, GFLAGS),
 
-	GATE(0, "jtag", "ext_jtag", 0,
+	GATE(0, "jtag", "ext_jtag", CLK_IGNORE_UNUSED,
 			RK3368_CLKGATE_CON(7), 0, GFLAGS),
 
 	COMPOSITE_NODIV(0, "hsic_usbphy_480m", mux_hsic_usbphy480m_p, 0,
@@ -861,6 +861,9 @@ static const char *const rk3368_critical_clocks[] __initconst = {
 	"pclk_pd_alive",
 	"pclk_peri",
 	"hclk_peri",
+	"pclk_ddrphy",
+	"pclk_ddrupctl",
+	"pmu_hclk_otg0",
 };
 
 static void __init rk3368_clk_init(struct device_node *np)
