@@ -31,8 +31,8 @@
 #include "dcn_calcs.h"
 #include "ddc_service_types.h"
 #include "dc_bios_types.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mem_input.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mpc.h"
 #endif
 
@@ -312,7 +312,48 @@ struct resource_context {
 	bool is_audio_acquired[MAX_PIPES];
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];
 	uint8_t dp_clock_source_ref_count;
- };
+};
+
+struct dce_bw_output {
+	bool cpuc_state_change_enable;
+	bool cpup_state_change_enable;
+	bool stutter_mode_enable;
+	bool nbp_state_change_enable;
+	bool all_displays_in_sync;
+	struct dce_watermarks urgent_wm_ns[MAX_PIPES];
+	struct dce_watermarks stutter_exit_wm_ns[MAX_PIPES];
+	struct dce_watermarks nbp_state_change_wm_ns[MAX_PIPES];
+	int sclk_khz;
+	int sclk_deep_sleep_khz;
+	int yclk_khz;
+	int dispclk_khz;
+	int blackout_recovery_time_us;
+};
+
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+struct dcn_bw_clocks {
+	int dispclk_khz;
+	bool dppclk_div;
+	int dcfclk_khz;
+	int dcfclk_deep_sleep_khz;
+	int fclk_khz;
+	int dram_ccm_us;
+	int min_active_dram_ccm_us;
+};
+
+struct dcn_bw_output {
+	struct dcn_bw_clocks cur_clk;
+	struct dcn_bw_clocks calc_clk;
+	struct dcn_watermark_set watermarks;
+};
+#endif
+
+union bw_context {
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	struct dcn_bw_output dcn;
+#endif
+	struct dce_bw_output dce;
+};
 
 struct validate_context {
 	struct core_stream *streams[MAX_PIPES];
@@ -322,20 +363,11 @@ struct validate_context {
 	struct resource_context res_ctx;
 
 	/* The output from BW and WM calculations. */
-	struct bw_calcs_output bw_results;
+	union bw_context bw;
+
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
-	int dispclk_khz;
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	int dppclk_khz;
-	bool dppclk_div;
-	int dcfclk_khz;
-	int dcfclk_deep_sleep_khz;
-	int socclk_khz;
-	int fclk_khz;
-	int dram_ccm_us;
-	int min_active_dram_ccm_us;
-	struct dcn_watermark_set watermarks;
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 };

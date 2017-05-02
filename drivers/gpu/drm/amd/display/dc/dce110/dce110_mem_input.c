@@ -166,7 +166,7 @@ bool dce110_mem_input_program_surface_flip_and_addr(
 static void program_urgency_watermark(
 	const struct dc_context *ctx,
 	const uint32_t offset,
-	struct bw_watermarks marks_low,
+	struct dce_watermarks marks_low,
 	uint32_t total_dest_line_time_ns)
 {
 	/* register value */
@@ -224,7 +224,7 @@ static void program_urgency_watermark(
 static void program_stutter_watermark(
 	const struct dc_context *ctx,
 	const uint32_t offset,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	/* register value */
 	uint32_t stutter_cntl = 0;
@@ -289,7 +289,7 @@ static void program_stutter_watermark(
 static void program_nbp_watermark(
 	const struct dc_context *ctx,
 	const uint32_t offset,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	uint32_t value;
 	uint32_t addr;
@@ -372,9 +372,9 @@ static void program_nbp_watermark(
 
 void dce110_mem_input_program_display_marks(
 	struct mem_input *mem_input,
-	struct bw_watermarks nbp,
-	struct bw_watermarks stutter,
-	struct bw_watermarks urgent,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter,
+	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns)
 {
 	struct dce110_mem_input *bm_dce110 = TO_DCE110_MEM_INPUT(mem_input);

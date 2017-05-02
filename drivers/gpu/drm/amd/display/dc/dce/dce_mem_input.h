@@ -25,6 +25,10 @@
 #ifndef __DCE_MEM_INPUT_H__
 #define __DCE_MEM_INPUT_H__
 
+#include "dc_hw_types.h"
+struct dce_watermarks;
+struct mem_input;
+
 #define MI_DCE_BASE_REG_LIST(id)\
 	SRI(GRPH_ENABLE, DCP, id),\
 	SRI(GRPH_CONTROL, DCP, id),\
@@ -262,8 +266,6 @@ struct dce_mem_input_wa {
 	uint8_t single_head_rdreq_dmif_limit;
 };
 
-struct mem_input;
-
 void dce_mem_input_program_pte_vm(struct mem_input *mi,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
@@ -288,9 +290,9 @@ void dce_mem_input_free_dmif(struct mem_input *mi,
 	uint32_t total_stream_num);
 
 void dce_mem_input_program_display_marks(struct mem_input *mi,
-	struct bw_watermarks nbp,
-	struct bw_watermarks stutter,
-	struct bw_watermarks urgent,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter,
+	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns);
 
 #endif /*__DCE_MEM_INPUT_H__*/

@@ -679,7 +679,7 @@ static void program_urgency_watermark(
 	const struct dc_context *ctx,
 	const uint32_t urgency_addr,
 	const uint32_t wm_addr,
-	struct bw_watermarks marks_low,
+	struct dce_watermarks marks_low,
 	uint32_t total_dest_line_time_ns)
 {
 	/* register value */
@@ -734,7 +734,7 @@ static void program_urgency_watermark(
 
 static void program_urgency_watermark_l(
 	const struct dc_context *ctx,
-	struct bw_watermarks marks_low,
+	struct dce_watermarks marks_low,
 	uint32_t total_dest_line_time_ns)
 {
 	program_urgency_watermark(
@@ -747,7 +747,7 @@ static void program_urgency_watermark_l(
 
 static void program_urgency_watermark_c(
 	const struct dc_context *ctx,
-	struct bw_watermarks marks_low,
+	struct dce_watermarks marks_low,
 	uint32_t total_dest_line_time_ns)
 {
 	program_urgency_watermark(
@@ -762,7 +762,7 @@ static void program_stutter_watermark(
 	const struct dc_context *ctx,
 	const uint32_t stutter_addr,
 	const uint32_t wm_addr,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	/* register value */
 	uint32_t stutter_cntl = 0;
@@ -822,7 +822,7 @@ static void program_stutter_watermark(
 
 static void program_stutter_watermark_l(
 	const struct dc_context *ctx,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	program_stutter_watermark(ctx,
 			mmDPGV0_PIPE_STUTTER_CONTROL,
@@ -832,7 +832,7 @@ static void program_stutter_watermark_l(
 
 static void program_stutter_watermark_c(
 	const struct dc_context *ctx,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	program_stutter_watermark(ctx,
 			mmDPGV1_PIPE_STUTTER_CONTROL,
@@ -844,7 +844,7 @@ static void program_nbp_watermark(
 	const struct dc_context *ctx,
 	const uint32_t wm_mask_ctrl_addr,
 	const uint32_t nbp_pstate_ctrl_addr,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	uint32_t value;
 
@@ -926,7 +926,7 @@ static void program_nbp_watermark(
 
 static void program_nbp_watermark_l(
 	const struct dc_context *ctx,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	program_nbp_watermark(ctx,
 			mmDPGV0_WATERMARK_MASK_CONTROL,
@@ -936,7 +936,7 @@ static void program_nbp_watermark_l(
 
 static void program_nbp_watermark_c(
 	const struct dc_context *ctx,
-	struct bw_watermarks marks)
+	struct dce_watermarks marks)
 {
 	program_nbp_watermark(ctx,
 			mmDPGV1_WATERMARK_MASK_CONTROL,
@@ -946,9 +946,9 @@ static void program_nbp_watermark_c(
 
 void dce110_mem_input_v_program_display_marks(
 	struct mem_input *mem_input,
-	struct bw_watermarks nbp,
-	struct bw_watermarks stutter,
-	struct bw_watermarks urgent,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter,
+	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns)
 {
 	program_urgency_watermark_l(
@@ -968,9 +968,9 @@ void dce110_mem_input_v_program_display_marks(
 
 void dce110_mem_input_program_chroma_display_marks(
 	struct mem_input *mem_input,
-	struct bw_watermarks nbp,
-	struct bw_watermarks stutter,
-	struct bw_watermarks urgent,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter,
+	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns)
 {
 	program_urgency_watermark_c(

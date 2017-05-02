@@ -114,7 +114,7 @@ static void dce100_pplib_apply_display_requirements(
 
 	pp_display_cfg->avail_mclk_switch_time_us =
 						dce110_get_min_vblank_time_us(context);
-	pp_display_cfg->min_memory_clock_khz = context->bw_results.required_yclk
+	pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
 		/ MEMORY_TYPE_MULTIPLIER;
 
 	dce110_fill_display_configs(context, pp_display_cfg);
@@ -131,12 +131,11 @@ void dce100_set_bandwidth(
 		struct validate_context *context,
 		bool decrease_allowed)
 {
-	if (decrease_allowed || context->dispclk_khz > dc->current_context->dispclk_khz) {
+	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_context->bw.dce.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
-				context->dispclk_khz * 115 / 100);
-		dc->current_context->bw_results.dispclk_khz = context->dispclk_khz;
-		dc->current_context->dispclk_khz = context->dispclk_khz;
+				context->bw.dce.dispclk_khz * 115 / 100);
+		dc->current_context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
 	}
 	dce100_pplib_apply_display_requirements(dc, context);
 }

@@ -35,6 +35,7 @@
 struct pipe_ctx;
 struct core_dc;
 struct validate_context;
+struct dce_bw_output;
 
 enum bw_calcs_version {
 	BW_CALCS_VERSION_INVALID,
@@ -454,32 +455,6 @@ struct bw_calcs_data {
 	struct bw_fixed dmif_required_sclk_for_urgent_latency[6];
 };
 
-/*******************************************************************************
- * Output data structures.
- ******************************************************************************/
-struct bw_watermarks {
-	uint32_t a_mark;
-	uint32_t b_mark;
-	uint32_t c_mark;
-	uint32_t d_mark;
-};
-
-struct bw_calcs_output {
-	bool cpuc_state_change_enable;
-	bool cpup_state_change_enable;
-	bool stutter_mode_enable;
-	bool nbp_state_change_enable;
-	bool all_displays_in_sync;
-	struct bw_watermarks urgent_wm_ns[6];
-	struct bw_watermarks stutter_exit_wm_ns[6];
-	struct bw_watermarks nbp_state_change_wm_ns[6];
-	uint32_t required_sclk;
-	uint32_t required_sclk_deep_sleep;
-	uint32_t required_yclk;
-	uint32_t dispclk_khz;
-	int blackout_recovery_time_us;
-};
-
 /**
  * Initialize structures with data which will NOT change at runtime.
  */
@@ -500,7 +475,7 @@ bool bw_calcs(
 	const struct bw_calcs_vbios *vbios,
 	const struct pipe_ctx *pipe,
 	int pipe_count,
-	struct bw_calcs_output *calcs_output);
+	struct dce_bw_output *calcs_output);
 
 #endif /* __BANDWIDTH_CALCS_H__ */
 

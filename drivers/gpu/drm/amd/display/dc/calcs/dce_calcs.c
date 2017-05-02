@@ -2557,7 +2557,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
  */
 static bool is_display_configuration_supported(
 	const struct bw_calcs_vbios *vbios,
-	const struct bw_calcs_output *calcs_output)
+	const struct dce_bw_output *calcs_output)
 {
 	uint32_t int_max_clk;
 
@@ -2568,7 +2568,7 @@ static bool is_display_configuration_supported(
 
 	int_max_clk = bw_fixed_to_int(vbios->high_sclk);
 	int_max_clk *= 1000; /* MHz to kHz */
-	if (calcs_output->required_sclk > int_max_clk)
+	if (calcs_output->sclk_khz > int_max_clk)
 		return false;
 
 	return true;
@@ -2790,7 +2790,7 @@ bool bw_calcs(struct dc_context *ctx,
 	const struct bw_calcs_vbios *vbios,
 	const struct pipe_ctx pipe[],
 	int pipe_count,
-	struct bw_calcs_output *calcs_output)
+	struct dce_bw_output *calcs_output)
 {
 	struct bw_calcs_data *data = dm_alloc(sizeof(struct bw_calcs_data));
 
@@ -2831,20 +2831,20 @@ bool bw_calcs(struct dc_context *ctx,
 					bw_int_to_fixed(1000)));
 		calcs_output->blackout_recovery_time_us =
 			bw_fixed_to_int(data->blackout_recovery_time);
-		calcs_output->required_sclk =
+		calcs_output->sclk_khz =
 			bw_fixed_to_int(bw_mul(data->required_sclk,
 					bw_int_to_fixed(1000)));
-		calcs_output->required_sclk_deep_sleep =
+		calcs_output->sclk_deep_sleep_khz =
 			bw_fixed_to_int(bw_mul(data->sclk_deep_sleep,
 					bw_int_to_fixed(1000)));
 		if (yclk_lvl == 0)
-			calcs_output->required_yclk = bw_fixed_to_int(
+			calcs_output->yclk_khz = bw_fixed_to_int(
 				bw_mul(low_yclk, bw_int_to_fixed(1000)));
 		else if (yclk_lvl == 1)
-			calcs_output->required_yclk = bw_fixed_to_int(
+			calcs_output->yclk_khz = bw_fixed_to_int(
 				bw_mul(mid_yclk, bw_int_to_fixed(1000)));
 		else
-			calcs_output->required_yclk = bw_fixed_to_int(
+			calcs_output->yclk_khz = bw_fixed_to_int(
 				bw_mul(high_yclk, bw_int_to_fixed(1000)));
 
 		/* units: nanosecond, 16bit storage. */
@@ -3245,7 +3245,7 @@ bool bw_calcs(struct dc_context *ctx,
 		calcs_output->cpup_state_change_enable = true;
 		calcs_output->stutter_mode_enable = true;
 		calcs_output->dispclk_khz = 0;
-		calcs_output->required_sclk = 0;
+		calcs_output->sclk_khz = 0;
 	}
 
 	dm_free(data);

@@ -1252,17 +1252,17 @@ void dce110_set_displaymarks(
 			dc->bw_vbios.blackout_duration, pipe_ctx->stream);
 		pipe_ctx->mi->funcs->mem_input_program_display_marks(
 			pipe_ctx->mi,
-			context->bw_results.nbp_state_change_wm_ns[num_pipes],
-			context->bw_results.stutter_exit_wm_ns[num_pipes],
-			context->bw_results.urgent_wm_ns[num_pipes],
+			context->bw.dce.nbp_state_change_wm_ns[num_pipes],
+			context->bw.dce.stutter_exit_wm_ns[num_pipes],
+			context->bw.dce.urgent_wm_ns[num_pipes],
 			total_dest_line_time_ns);
 		if (i == underlay_idx) {
 			num_pipes++;
 			pipe_ctx->mi->funcs->mem_input_program_chroma_display_marks(
 				pipe_ctx->mi,
-				context->bw_results.nbp_state_change_wm_ns[num_pipes],
-				context->bw_results.stutter_exit_wm_ns[num_pipes],
-				context->bw_results.urgent_wm_ns[num_pipes],
+				context->bw.dce.nbp_state_change_wm_ns[num_pipes],
+				context->bw.dce.stutter_exit_wm_ns[num_pipes],
+				context->bw.dce.urgent_wm_ns[num_pipes],
 				total_dest_line_time_ns);
 		}
 		num_pipes++;
@@ -1275,9 +1275,9 @@ static void set_safe_displaymarks(
 {
 	int i;
 	int underlay_idx = pool->underlay_pipe_index;
-	struct bw_watermarks max_marks = {
+	struct dce_watermarks max_marks = {
 		MAX_WATERMARK, MAX_WATERMARK, MAX_WATERMARK, MAX_WATERMARK };
-	struct bw_watermarks nbp_marks = {
+	struct dce_watermarks nbp_marks = {
 		SAFE_NBP_MARK, SAFE_NBP_MARK, SAFE_NBP_MARK, SAFE_NBP_MARK };
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -1502,7 +1502,7 @@ static void apply_min_clocks(
 	/* get the required state based on state dependent clocks:
 	 * display clock and pixel clock
 	 */
-	req_clocks.display_clk_khz = context->dispclk_khz;
+	req_clocks.display_clk_khz = context->bw.dce.dispclk_khz;
 
 	req_clocks.pixel_clk_khz = get_max_pixel_clock_for_all_paths(
 			dc, context, true);
@@ -1647,30 +1647,30 @@ enum dc_status dce110_apply_ctx_to_hw(
 	apply_min_clocks(dc, context, &clocks_state, true);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (context->fclk_khz
-			> dc->current_context->fclk_khz) {
+	if (context->bw.dcn.calc_clk.fclk_khz
+			> dc->current_context->bw.dcn.calc_clk.fclk_khz) {
 		struct dm_pp_clock_for_voltage_req clock;
 
 		clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
-		clock.clocks_in_khz = context->fclk_khz;
+		clock.clocks_in_khz = context->bw.dcn.calc_clk.fclk_khz;
 		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-		dc->current_context->fclk_khz = clock.clocks_in_khz;
+		dc->current_context->bw.dcn.calc_clk.fclk_khz = clock.clocks_in_khz;
 	}
-	if (context->dcfclk_khz
-			> dc->current_context->dcfclk_khz) {
+	if (context->bw.dcn.calc_clk.dcfclk_khz
+			> dc->current_context->bw.dcn.calc_clk.dcfclk_khz) {
 		struct dm_pp_clock_for_voltage_req clock;
 
 		clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock.clocks_in_khz = context->dcfclk_khz;
+		clock.clocks_in_khz = context->bw.dcn.calc_clk.dcfclk_khz;
 		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-		dc->current_context->dcfclk_khz = clock.clocks_in_khz;
+		dc->current_context->bw.dcn.calc_clk.dcfclk_khz = clock.clocks_in_khz;
 	}
 #endif
-	if (context->dispclk_khz
-			> dc->current_context->dispclk_khz) {
+	if (context->bw.dce.dispclk_khz
+			> dc->current_context->bw.dce.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
-				context->dispclk_khz * 115 / 100);
+				context->bw.dce.dispclk_khz * 115 / 100);
 	}
 	/* program audio wall clock. use HDMI as clock source if HDMI
 	 * audio active. Otherwise, use DP as clock source
@@ -2275,32 +2275,32 @@ static void pplib_apply_display_requirements(
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
 
 	pp_display_cfg->all_displays_in_sync =
-		context->bw_results.all_displays_in_sync;
+		context->bw.dce.all_displays_in_sync;
 	pp_display_cfg->nb_pstate_switch_disable =
-			context->bw_results.nbp_state_change_enable == false;
+			context->bw.dce.nbp_state_change_enable == false;
 	pp_display_cfg->cpu_cc6_disable =
-			context->bw_results.cpuc_state_change_enable == false;
+			context->bw.dce.cpuc_state_change_enable == false;
 	pp_display_cfg->cpu_pstate_disable =
-			context->bw_results.cpup_state_change_enable == false;
+			context->bw.dce.cpup_state_change_enable == false;
 	pp_display_cfg->cpu_pstate_separation_time =
-			context->bw_results.blackout_recovery_time_us;
+			context->bw.dce.blackout_recovery_time_us;
 
-	pp_display_cfg->min_memory_clock_khz = context->bw_results.required_yclk
+	pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
 		/ MEMORY_TYPE_MULTIPLIER;
 
 	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
 			dc,
-			context->bw_results.required_sclk);
+			context->bw.dce.sclk_khz);
 
 	pp_display_cfg->min_engine_clock_deep_sleep_khz
-			= context->bw_results.required_sclk_deep_sleep;
+			= context->bw.dce.sclk_deep_sleep_khz;
 
 	pp_display_cfg->avail_mclk_switch_time_us =
 						dce110_get_min_vblank_time_us(context);
 	/* TODO: dce11.2*/
 	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
 
-	pp_display_cfg->disp_clk_khz = context->dispclk_khz;
+	pp_display_cfg->disp_clk_khz = context->bw.dce.dispclk_khz;
 
 	dce110_fill_display_configs(context, pp_display_cfg);
 
@@ -2329,12 +2329,11 @@ static void dce110_set_bandwidth(
 {
 	dce110_set_displaymarks(dc, context);
 
-	if (decrease_allowed || context->dispclk_khz > dc->current_context->dispclk_khz) {
+	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_context->bw.dce.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
-				context->dispclk_khz * 115 / 100);
-		dc->current_context->bw_results.dispclk_khz = context->dispclk_khz;
-		dc->current_context->dispclk_khz = context->dispclk_khz;
+				context->bw.dce.dispclk_khz * 115 / 100);
+		dc->current_context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
 	}
 
 	pplib_apply_display_requirements(dc, context);

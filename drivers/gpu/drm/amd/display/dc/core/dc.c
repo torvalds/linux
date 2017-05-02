@@ -970,13 +970,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 {
 	int i;
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct validate_context *context = dm_alloc(sizeof(struct validate_context));
-
-	if (!context) {
-		dm_error("%s: failed to create validate ctx\n", __func__);
-		return false;
-	}
-	dc_resource_validate_ctx_copy_construct(core_dc->current_context, context);
+	struct validate_context *context = core_dc->current_context;
 
 	post_surface_trace(dc);
 
@@ -986,20 +980,8 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 			core_dc->hwss.power_down_front_end(
 					core_dc, &context->res_ctx.pipe_ctx[i]);
 		}
-	if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
-		BREAK_TO_DEBUGGER();
-		dc_resource_validate_ctx_destruct(context);
-		dm_free(context);
-		return false;
-	}
 
 	core_dc->hwss.set_bandwidth(core_dc, context, true);
-
-	if (core_dc->current_context) {
-		dc_resource_validate_ctx_destruct(core_dc->current_context);
-		dm_free(core_dc->current_context);
-	}
-	core_dc->current_context = context;
 
 	return true;
 }

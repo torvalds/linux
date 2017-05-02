@@ -27,7 +27,6 @@
 
 #include "dc.h"
 #include "include/grph_object_id.h"
-#include "inc/dce_calcs.h"
 
 #include "dce/dce_mem_input.h" /* temporary */
 
@@ -54,6 +53,13 @@ struct dcn_watermark_set {
 };
 
 #endif
+
+struct dce_watermarks {
+	int a_mark;
+	int b_mark;
+	int c_mark;
+	int d_mark;
+};
 
 struct stutter_modes {
 	bool enhanced;
@@ -95,16 +101,16 @@ struct mem_input_funcs {
 
 	void (*mem_input_program_display_marks)(
 		struct mem_input *mem_input,
-		struct bw_watermarks nbp,
-		struct bw_watermarks stutter,
-		struct bw_watermarks urgent,
+		struct dce_watermarks nbp,
+		struct dce_watermarks stutter,
+		struct dce_watermarks urgent,
 		uint32_t total_dest_line_time_ns);
 
 	void (*mem_input_program_chroma_display_marks)(
 			struct mem_input *mem_input,
-			struct bw_watermarks nbp,
-			struct bw_watermarks stutter,
-			struct bw_watermarks urgent,
+			struct dce_watermarks nbp,
+			struct dce_watermarks stutter,
+			struct dce_watermarks urgent,
 			uint32_t total_dest_line_time_ns);
 
 	void (*allocate_mem_input)(

@@ -218,9 +218,9 @@ static void program_stutter_watermark(struct mem_input *mi,
 }
 
 void dce_mem_input_program_display_marks(struct mem_input *mi,
-	struct bw_watermarks nbp,
-	struct bw_watermarks stutter,
-	struct bw_watermarks urgent,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter,
+	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns)
 {
 	uint32_t stutter_en = mi->ctx->dc->debug.disable_stutter ? 0 : 1;

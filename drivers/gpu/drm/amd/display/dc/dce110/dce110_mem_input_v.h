@@ -38,9 +38,9 @@ bool dce110_mem_input_v_construct(
  */
 void dce110_mem_input_v_program_display_marks(
 	struct mem_input *mem_input,
-	struct bw_watermarks nbp,
-	struct bw_watermarks stutter,
-	struct bw_watermarks urgent,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter,
+	struct dce_watermarks urgent,
 	uint32_t total_dest_line_time_ns);
 
 /*

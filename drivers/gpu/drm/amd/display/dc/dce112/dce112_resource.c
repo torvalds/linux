@@ -845,17 +845,16 @@ bool dce112_validate_bandwidth(
 			&dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
 			dc->res_pool->pipe_count,
-			&context->bw_results))
+			&context->bw.dce))
 		result = true;
-	context->dispclk_khz = context->bw_results.dispclk_khz;
 
 	if (!result)
 		dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_VALIDATION,
 			"%s: Bandwidth validation failed!",
 			__func__);
 
-	if (memcmp(&dc->current_context->bw_results,
-			&context->bw_results, sizeof(context->bw_results))) {
+	if (memcmp(&dc->current_context->bw.dce,
+			&context->bw.dce, sizeof(context->bw.dce))) {
 		struct log_entry log_entry;
 		dm_logger_open(
 			dc->ctx->logger,
@@ -865,43 +864,43 @@ bool dce112_validate_bandwidth(
 			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
 			"stutMark_b: %d stutMark_a: %d\n",
 			__func__,
-			context->bw_results.nbp_state_change_wm_ns[0].b_mark,
-			context->bw_results.nbp_state_change_wm_ns[0].a_mark,
-			context->bw_results.urgent_wm_ns[0].b_mark,
-			context->bw_results.urgent_wm_ns[0].a_mark,
-			context->bw_results.stutter_exit_wm_ns[0].b_mark,
-			context->bw_results.stutter_exit_wm_ns[0].a_mark);
+			context->bw.dce.nbp_state_change_wm_ns[0].b_mark,
+			context->bw.dce.nbp_state_change_wm_ns[0].a_mark,
+			context->bw.dce.urgent_wm_ns[0].b_mark,
+			context->bw.dce.urgent_wm_ns[0].a_mark,
+			context->bw.dce.stutter_exit_wm_ns[0].b_mark,
+			context->bw.dce.stutter_exit_wm_ns[0].a_mark);
 		dm_logger_append(&log_entry,
 			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
 			"stutMark_b: %d stutMark_a: %d\n",
-			context->bw_results.nbp_state_change_wm_ns[1].b_mark,
-			context->bw_results.nbp_state_change_wm_ns[1].a_mark,
-			context->bw_results.urgent_wm_ns[1].b_mark,
-			context->bw_results.urgent_wm_ns[1].a_mark,
-			context->bw_results.stutter_exit_wm_ns[1].b_mark,
-			context->bw_results.stutter_exit_wm_ns[1].a_mark);
+			context->bw.dce.nbp_state_change_wm_ns[1].b_mark,
+			context->bw.dce.nbp_state_change_wm_ns[1].a_mark,
+			context->bw.dce.urgent_wm_ns[1].b_mark,
+			context->bw.dce.urgent_wm_ns[1].a_mark,
+			context->bw.dce.stutter_exit_wm_ns[1].b_mark,
+			context->bw.dce.stutter_exit_wm_ns[1].a_mark);
 		dm_logger_append(&log_entry,
 			"nbpMark_b: %d nbpMark_a: %d urgentMark_b: %d urgentMark_a: %d\n"
 			"stutMark_b: %d stutMark_a: %d stutter_mode_enable: %d\n",
-			context->bw_results.nbp_state_change_wm_ns[2].b_mark,
-			context->bw_results.nbp_state_change_wm_ns[2].a_mark,
-			context->bw_results.urgent_wm_ns[2].b_mark,
-			context->bw_results.urgent_wm_ns[2].a_mark,
-			context->bw_results.stutter_exit_wm_ns[2].b_mark,
-			context->bw_results.stutter_exit_wm_ns[2].a_mark,
-			context->bw_results.stutter_mode_enable);
+			context->bw.dce.nbp_state_change_wm_ns[2].b_mark,
+			context->bw.dce.nbp_state_change_wm_ns[2].a_mark,
+			context->bw.dce.urgent_wm_ns[2].b_mark,
+			context->bw.dce.urgent_wm_ns[2].a_mark,
+			context->bw.dce.stutter_exit_wm_ns[2].b_mark,
+			context->bw.dce.stutter_exit_wm_ns[2].a_mark,
+			context->bw.dce.stutter_mode_enable);
 		dm_logger_append(&log_entry,
 			"cstate: %d pstate: %d nbpstate: %d sync: %d dispclk: %d\n"
 			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n",
-			context->bw_results.cpuc_state_change_enable,
-			context->bw_results.cpup_state_change_enable,
-			context->bw_results.nbp_state_change_enable,
-			context->bw_results.all_displays_in_sync,
-			context->bw_results.dispclk_khz,
-			context->bw_results.required_sclk,
-			context->bw_results.required_sclk_deep_sleep,
-			context->bw_results.required_yclk,
-			context->bw_results.blackout_recovery_time_us);
+			context->bw.dce.cpuc_state_change_enable,
+			context->bw.dce.cpup_state_change_enable,
+			context->bw.dce.nbp_state_change_enable,
+			context->bw.dce.all_displays_in_sync,
+			context->bw.dce.dispclk_khz,
+			context->bw.dce.sclk_khz,
+			context->bw.dce.sclk_deep_sleep_khz,
+			context->bw.dce.yclk_khz,
+			context->bw.dce.blackout_recovery_time_us);
 		dm_logger_close(&log_entry);
 	}
 	return result;
