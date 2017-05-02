@@ -496,8 +496,6 @@ static int kvm_arm_pmu_v3_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-#define irq_is_ppi(irq) ((irq) >= VGIC_NR_SGIS && (irq) < VGIC_NR_PRIVATE_IRQS)
-
 /*
  * For one VM the interrupt type must be same for each vcpu.
  * As a PPI, the interrupt number is the same for all vcpus,
