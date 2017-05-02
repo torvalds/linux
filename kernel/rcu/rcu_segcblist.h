@@ -22,12 +22,6 @@
 
 #include <linux/rcu_segcblist.h>
 
-/* Is simple callback list empty? */
-static inline bool rcu_cblist_empty(struct rcu_cblist *rclp)
-{
-	return !rclp->head;
-}
-
 /* Return number of callbacks in simple callback list. */
 static inline long rcu_cblist_n_cbs(struct rcu_cblist *rclp)
 {
@@ -66,7 +60,7 @@ static inline struct rcu_head *rcu_cblist_head(struct rcu_cblist *rclp)
  */
 static inline struct rcu_head **rcu_cblist_tail(struct rcu_cblist *rclp)
 {
-	WARN_ON_ONCE(rcu_cblist_empty(rclp));
+	WARN_ON_ONCE(!rclp->head);
 	return rclp->tail;
 }
 

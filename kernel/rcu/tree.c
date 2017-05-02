@@ -2647,9 +2647,9 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 
 	/* First adopt the ready-to-invoke callbacks, then the done ones. */
 	rcu_segcblist_insert_done_cbs(&rdp->cblist, &rsp->orphan_done);
-	WARN_ON_ONCE(!rcu_cblist_empty(&rsp->orphan_done));
+	WARN_ON_ONCE(rsp->orphan_done.head);
 	rcu_segcblist_insert_pend_cbs(&rdp->cblist, &rsp->orphan_pend);
-	WARN_ON_ONCE(!rcu_cblist_empty(&rsp->orphan_pend));
+	WARN_ON_ONCE(rsp->orphan_pend.head);
 	WARN_ON_ONCE(rcu_segcblist_empty(&rdp->cblist) !=
 		     !rcu_segcblist_n_cbs(&rdp->cblist));
 }
@@ -2800,9 +2800,8 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	local_irq_save(flags);
 	count = -rcu_cblist_n_cbs(&rcl);
-	trace_rcu_batch_end(rsp->name, count, !rcu_cblist_empty(&rcl),
-			    need_resched(), is_idle_task(current),
-			    rcu_is_callbacks_kthread());
+	trace_rcu_batch_end(rsp->name, count, !!rcl.head, need_resched(),
+			    is_idle_task(current), rcu_is_callbacks_kthread());
 
 	/* Update counts and requeue any remaining callbacks. */
 	rcu_segcblist_insert_done_cbs(&rdp->cblist, &rcl);
