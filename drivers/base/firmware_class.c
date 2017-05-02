@@ -555,6 +555,44 @@ static int fw_add_devm_name(struct device *dev, const char *name)
 }
 #endif
 
+static int assign_firmware_buf(struct firmware *fw, struct device *device,
+			       unsigned int opt_flags)
+{
+	struct firmware_buf *buf = fw->priv;
+
+	mutex_lock(&fw_lock);
+	if (!buf->size || fw_state_is_aborted(&buf->fw_st)) {
+		mutex_unlock(&fw_lock);
+		return -ENOENT;
+	}
+
+	/*
+	 * add firmware name into devres list so that we can auto cache
+	 * and uncache firmware for device.
+	 *
+	 * device may has been deleted already, but the problem
+	 * should be fixed in devres or driver core.
+	 */
+	/* don't cache firmware handled without uevent */
+	if (device && (opt_flags & FW_OPT_UEVENT) &&
+	    !(opt_flags & FW_OPT_NOCACHE))
+		fw_add_devm_name(device, buf->fw_id);
+
+	/*
+	 * After caching firmware image is started, let it piggyback
+	 * on request firmware.
+	 */
+	if (!(opt_flags & FW_OPT_NOCACHE) &&
+	    buf->fwc->state == FW_LOADER_START_CACHE) {
+		if (fw_cache_piggyback_on_request(buf->fw_id))
+			kref_get(&buf->ref);
+	}
+
+	/* pass the pages buffer to driver at the last minute */
+	fw_set_page_data(buf, fw);
+	mutex_unlock(&fw_lock);
+	return 0;
+}
 
 /*
  * user-mode helper code
@@ -1132,45 +1170,6 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 	if (ret < 0)
 		return ret;
 	return 1; /* need to load */
-}
-
-static int assign_firmware_buf(struct firmware *fw, struct device *device,
-			       unsigned int opt_flags)
-{
-	struct firmware_buf *buf = fw->priv;
-
-	mutex_lock(&fw_lock);
-	if (!buf->size || fw_state_is_aborted(&buf->fw_st)) {
-		mutex_unlock(&fw_lock);
-		return -ENOENT;
-	}
-
-	/*
-	 * add firmware name into devres list so that we can auto cache
-	 * and uncache firmware for device.
-	 *
-	 * device may has been deleted already, but the problem
-	 * should be fixed in devres or driver core.
-	 */
-	/* don't cache firmware handled without uevent */
-	if (device && (opt_flags & FW_OPT_UEVENT) &&
-	    !(opt_flags & FW_OPT_NOCACHE))
-		fw_add_devm_name(device, buf->fw_id);
-
-	/*
-	 * After caching firmware image is started, let it piggyback
-	 * on request firmware.
-	 */
-	if (!(opt_flags & FW_OPT_NOCACHE) &&
-	    buf->fwc->state == FW_LOADER_START_CACHE) {
-		if (fw_cache_piggyback_on_request(buf->fw_id))
-			kref_get(&buf->ref);
-	}
-
-	/* pass the pages buffer to driver at the last minute */
-	fw_set_page_data(buf, fw);
-	mutex_unlock(&fw_lock);
-	return 0;
 }
 
 /* called from request_firmware() and request_firmware_work_func() */
