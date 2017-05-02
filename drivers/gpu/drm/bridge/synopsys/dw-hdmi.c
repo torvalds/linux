@@ -4412,6 +4412,13 @@ EXPORT_SYMBOL_GPL(dw_hdmi_probe);
 
 void dw_hdmi_remove(struct dw_hdmi *hdmi)
 {
+	if (hdmi->irq)
+		disable_irq(hdmi->irq);
+
+	cancel_delayed_work(&hdmi->work);
+	flush_workqueue(hdmi->workqueue);
+	destroy_workqueue(hdmi->workqueue);
+
 	drm_bridge_remove(&hdmi->bridge);
 
 	if (hdmi->audio && !IS_ERR(hdmi->audio))
