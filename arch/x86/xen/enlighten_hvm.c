@@ -18,9 +18,6 @@
 #include "mmu.h"
 #include "smp.h"
 
-__read_mostly int xen_have_vector_callback;
-EXPORT_SYMBOL_GPL(xen_have_vector_callback);
-
 void __ref xen_hvm_init_shared_info(void)
 {
 	int cpu;
