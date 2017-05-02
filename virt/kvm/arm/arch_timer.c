@@ -35,6 +35,16 @@ static struct timecounter *timecounter;
 static unsigned int host_vtimer_irq;
 static u32 host_vtimer_irq_flags;
 
+static const struct kvm_irq_level default_ptimer_irq = {
+	.irq	= 30,
+	.level	= 1,
+};
+
+static const struct kvm_irq_level default_vtimer_irq = {
+	.irq	= 27,
+	.level	= 1,
+};
+
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	vcpu_vtimer(vcpu)->active_cleared_last = false;
@@ -445,21 +455,10 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	kvm_timer_update_state(vcpu);
 }
 
-int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
-			 const struct kvm_irq_level *virt_irq,
-			 const struct kvm_irq_level *phys_irq)
+int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-
-	/*
-	 * The vcpu timer irq number cannot be determined in
-	 * kvm_timer_vcpu_init() because it is called much before
-	 * kvm_vcpu_set_target(). To handle this, we determine
-	 * vcpu timer irq number when the vcpu is reset.
-	 */
-	vtimer->irq.irq = virt_irq->irq;
-	ptimer->irq.irq = phys_irq->irq;
 
 	/*
 	 * The bits in CNTV_CTL are architecturally reset to UNKNOWN for ARMv8
@@ -496,6 +495,8 @@ static void update_vtimer_cntvoff(struct kvm_vcpu *vcpu, u64 cntvoff)
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
 
 	/* Synchronize cntvoff across all vtimers of a VM. */
 	update_vtimer_cntvoff(vcpu, kvm_phys_timer_read());
@@ -504,6 +505,9 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	INIT_WORK(&timer->expired, kvm_timer_inject_irq_work);
 	hrtimer_init(&timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	timer->timer.function = kvm_timer_expire;
+
+	vtimer->irq.irq = default_vtimer_irq.irq;
+	ptimer->irq.irq = default_ptimer_irq.irq;
 }
 
 static void kvm_timer_init_interrupt(void *info)
