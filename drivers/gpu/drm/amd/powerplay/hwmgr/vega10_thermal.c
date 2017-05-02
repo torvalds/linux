@@ -561,6 +561,11 @@ int tf_vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 			advanceFanControlParameters.ulMinFanSCLKAcousticLimit);
 	table->FanTargetTemperature = hwmgr->thermal_controller.
 			advanceFanControlParameters.usTMax;
+
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetFanTemperatureTarget,
+				(uint32_t)table->FanTargetTemperature);
+
 	table->FanPwmMin = hwmgr->thermal_controller.
 			advanceFanControlParameters.usPWMMin * 255 / 100;
 	table->FanTargetGfxclk = (uint16_t)(hwmgr->thermal_controller.
