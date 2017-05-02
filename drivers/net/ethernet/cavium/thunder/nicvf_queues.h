@@ -271,6 +271,10 @@ struct snd_queue {
 	u32		tail;
 	u64		*skbuff;
 	void		*desc;
+	u64		*xdp_page;
+	u16		xdp_desc_cnt;
+	u16		xdp_free_cnt;
+	bool		is_xdp;
 
 #define	TSO_HEADER_SIZE	128
 	/* For TSO segment's header */
@@ -339,6 +343,9 @@ void nicvf_sq_free_used_descs(struct net_device *netdev,
 			      struct snd_queue *sq, int qidx);
 int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 			struct sk_buff *skb, u8 sq_num);
+int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
+			    u64 bufaddr, u64 dma_addr, u16 len);
+void nicvf_xdp_sq_doorbell(struct nicvf *nic, struct snd_queue *sq, int sq_num);
 
 struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic,
 				  struct cqe_rx_t *cqe_rx, bool xdp);

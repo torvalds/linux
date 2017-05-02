@@ -19,6 +19,8 @@
 #include "q_struct.h"
 #include "nicvf_queues.h"
 
+static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
+					       int size, u64 data);
 static void nicvf_get_page(struct nicvf *nic)
 {
 	if (!nic->rb_pageref || !nic->rb_page)
@@ -456,7 +458,7 @@ static void nicvf_free_cmp_queue(struct nicvf *nic, struct cmp_queue *cq)
 
 /* Initialize transmit queue */
 static int nicvf_init_snd_queue(struct nicvf *nic,
-				struct snd_queue *sq, int q_len)
+				struct snd_queue *sq, int q_len, int qidx)
 {
 	int err;
 
@@ -469,17 +471,38 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 	sq->skbuff = kcalloc(q_len, sizeof(u64), GFP_KERNEL);
 	if (!sq->skbuff)
 		return -ENOMEM;
+
 	sq->head = 0;
 	sq->tail = 0;
-	atomic_set(&sq->free_cnt, q_len - 1);
 	sq->thresh = SND_QUEUE_THRESH;
 
-	/* Preallocate memory for TSO segment's header */
-	sq->tso_hdrs = dma_alloc_coherent(&nic->pdev->dev,
-					  q_len * TSO_HEADER_SIZE,
-					  &sq->tso_hdrs_phys, GFP_KERNEL);
-	if (!sq->tso_hdrs)
-		return -ENOMEM;
+	/* Check if this SQ is a XDP TX queue */
+	if (nic->sqs_mode)
+		qidx += ((nic->sqs_id + 1) * MAX_SND_QUEUES_PER_QS);
+	if (qidx < nic->pnicvf->xdp_tx_queues) {
+		/* Alloc memory to save page pointers for XDP_TX */
+		sq->xdp_page = kcalloc(q_len, sizeof(u64), GFP_KERNEL);
+		if (!sq->xdp_page)
+			return -ENOMEM;
+		sq->xdp_desc_cnt = 0;
+		sq->xdp_free_cnt = q_len - 1;
+		sq->is_xdp = true;
+	} else {
+		sq->xdp_page = NULL;
+		sq->xdp_desc_cnt = 0;
+		sq->xdp_free_cnt = 0;
+		sq->is_xdp = false;
+
+		atomic_set(&sq->free_cnt, q_len - 1);
+
+		/* Preallocate memory for TSO segment's header */
+		sq->tso_hdrs = dma_alloc_coherent(&nic->pdev->dev,
+						  q_len * TSO_HEADER_SIZE,
+						  &sq->tso_hdrs_phys,
+						  GFP_KERNEL);
+		if (!sq->tso_hdrs)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -505,6 +528,7 @@ void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
 static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 {
 	struct sk_buff *skb;
+	struct page *page;
 	struct sq_hdr_subdesc *hdr;
 	struct sq_hdr_subdesc *tso_sqe;
 
@@ -522,8 +546,15 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 	smp_rmb();
 	while (sq->head != sq->tail) {
 		skb = (struct sk_buff *)sq->skbuff[sq->head];
-		if (!skb)
+		if (!skb || !sq->xdp_page)
 			goto next;
+
+		page = (struct page *)sq->xdp_page[sq->head];
+		if (!page)
+			goto next;
+		else
+			put_page(page);
+
 		hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, sq->head);
 		/* Check for dummy descriptor used for HW TSO offload on 88xx */
 		if (hdr->dont_send) {
@@ -536,12 +567,14 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 			nicvf_unmap_sndq_buffers(nic, sq, sq->head,
 						 hdr->subdesc_cnt);
 		}
-		dev_kfree_skb_any(skb);
+		if (skb)
+			dev_kfree_skb_any(skb);
 next:
 		sq->head++;
 		sq->head &= (sq->dmem.q_len - 1);
 	}
 	kfree(sq->skbuff);
+	kfree(sq->xdp_page);
 	nicvf_free_q_desc_mem(nic, &sq->dmem);
 }
 
@@ -932,7 +965,7 @@ static int nicvf_alloc_resources(struct nicvf *nic)
 
 	/* Alloc send queue */
 	for (qidx = 0; qidx < qs->sq_cnt; qidx++) {
-		if (nicvf_init_snd_queue(nic, &qs->sq[qidx], qs->sq_len))
+		if (nicvf_init_snd_queue(nic, &qs->sq[qidx], qs->sq_len, qidx))
 			goto alloc_fail;
 	}
 
@@ -1035,7 +1068,10 @@ static inline int nicvf_get_sq_desc(struct snd_queue *sq, int desc_cnt)
 	int qentry;
 
 	qentry = sq->tail;
-	atomic_sub(desc_cnt, &sq->free_cnt);
+	if (!sq->is_xdp)
+		atomic_sub(desc_cnt, &sq->free_cnt);
+	else
+		sq->xdp_free_cnt -= desc_cnt;
 	sq->tail += desc_cnt;
 	sq->tail &= (sq->dmem.q_len - 1);
 
@@ -1053,7 +1089,10 @@ static inline void nicvf_rollback_sq_desc(struct snd_queue *sq,
 /* Free descriptor back to SQ for future use */
 void nicvf_put_sq_desc(struct snd_queue *sq, int desc_cnt)
 {
-	atomic_add(desc_cnt, &sq->free_cnt);
+	if (!sq->is_xdp)
+		atomic_add(desc_cnt, &sq->free_cnt);
+	else
+		sq->xdp_free_cnt += desc_cnt;
 	sq->head += desc_cnt;
 	sq->head &= (sq->dmem.q_len - 1);
 }
@@ -1109,6 +1148,58 @@ void nicvf_sq_free_used_descs(struct net_device *netdev, struct snd_queue *sq,
 			     (atomic64_t *)&netdev->stats.tx_bytes);
 		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
+}
+
+/* XDP Transmit APIs */
+void nicvf_xdp_sq_doorbell(struct nicvf *nic,
+			   struct snd_queue *sq, int sq_num)
+{
+	if (!sq->xdp_desc_cnt)
+		return;
+
+	/* make sure all memory stores are done before ringing doorbell */
+	wmb();
+
+	/* Inform HW to xmit all TSO segments */
+	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
+			      sq_num, sq->xdp_desc_cnt);
+	sq->xdp_desc_cnt = 0;
+}
+
+static inline void
+nicvf_xdp_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
+			     int subdesc_cnt, u64 data, int len)
+{
+	struct sq_hdr_subdesc *hdr;
+
+	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
+	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
+	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
+	hdr->subdesc_cnt = subdesc_cnt;
+	hdr->tot_len = len;
+	hdr->post_cqe = 1;
+	sq->xdp_page[qentry] = (u64)virt_to_page((void *)data);
+}
+
+int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
+			    u64 bufaddr, u64 dma_addr, u16 len)
+{
+	int subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT;
+	int qentry;
+
+	if (subdesc_cnt > sq->xdp_free_cnt)
+		return 0;
+
+	qentry = nicvf_get_sq_desc(sq, subdesc_cnt);
+
+	nicvf_xdp_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, bufaddr, len);
+
+	qentry = nicvf_get_nxt_sqentry(sq, qentry);
+	nicvf_sq_add_gather_subdesc(sq, qentry, len, dma_addr);
+
+	sq->xdp_desc_cnt += subdesc_cnt;
+
+	return 1;
 }
 
 /* Calculate no of SQ subdescriptors needed to transmit all

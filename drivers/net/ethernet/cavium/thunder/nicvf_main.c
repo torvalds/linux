@@ -501,9 +501,8 @@ static int nicvf_init_resources(struct nicvf *nic)
 	return 0;
 }
 
-static inline bool nicvf_xdp_rx(struct nicvf *nic,
-				struct bpf_prog *prog,
-				struct cqe_rx_t *cqe_rx)
+static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
+				struct cqe_rx_t *cqe_rx, struct snd_queue *sq)
 {
 	struct xdp_buff xdp;
 	struct page *page;
@@ -528,9 +527,11 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic,
 
 	switch (action) {
 	case XDP_PASS:
-	case XDP_TX:
-		/* Pass on all packets to network stack */
+		/* Pass on packet to network stack */
 		return false;
+	case XDP_TX:
+		nicvf_xdp_sq_append_pkt(nic, sq, (u64)xdp.data, dma_addr, len);
+		return true;
 	default:
 		bpf_warn_invalid_xdp_action(action);
 	case XDP_ABORTED:
@@ -560,6 +561,7 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 				  unsigned int *tx_pkts, unsigned int *tx_bytes)
 {
 	struct sk_buff *skb = NULL;
+	struct page *page;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct snd_queue *sq;
 	struct sq_hdr_subdesc *hdr;
@@ -574,6 +576,22 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 	/* Check for errors */
 	if (cqe_tx->send_status)
 		nicvf_check_cqe_tx_errs(nic->pnicvf, cqe_tx);
+
+	/* Is this a XDP designated Tx queue */
+	if (sq->is_xdp) {
+		page = (struct page *)sq->xdp_page[cqe_tx->sqe_ptr];
+		/* Check if it's recycled page or else unmap DMA mapping */
+		if (page && (page_ref_count(page) == 1))
+			nicvf_unmap_sndq_buffers(nic, sq, cqe_tx->sqe_ptr,
+						 hdr->subdesc_cnt);
+
+		/* Release page reference for recycling */
+		if (page)
+			put_page(page);
+		sq->xdp_page[cqe_tx->sqe_ptr] = (u64)NULL;
+		*subdesc_cnt += hdr->subdesc_cnt + 1;
+		return;
+	}
 
 	skb = (struct sk_buff *)sq->skbuff[cqe_tx->sqe_ptr];
 	if (skb) {
@@ -634,7 +652,7 @@ static inline void nicvf_set_rxhash(struct net_device *netdev,
 
 static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 				  struct napi_struct *napi,
-				  struct cqe_rx_t *cqe_rx)
+				  struct cqe_rx_t *cqe_rx, struct snd_queue *sq)
 {
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
@@ -659,7 +677,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 
 	/* For XDP, ignore pkts spanning multiple pages */
 	if (nic->xdp_prog && (cqe_rx->rb_cnt == 1))
-		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx))
+		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx, sq))
 			return;
 
 	skb = nicvf_get_rcv_skb(snic, cqe_rx, nic->xdp_prog ? true : false);
@@ -715,8 +733,8 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 	struct cmp_queue *cq = &qs->cq[cq_idx];
 	struct cqe_rx_t *cq_desc;
 	struct netdev_queue *txq;
-	struct snd_queue *sq;
-	unsigned int tx_pkts = 0, tx_bytes = 0;
+	struct snd_queue *sq = &qs->sq[cq_idx];
+	unsigned int tx_pkts = 0, tx_bytes = 0, txq_idx;
 
 	spin_lock_bh(&cq->lock);
 loop:
@@ -746,7 +764,7 @@ loop:
 
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
-			nicvf_rcv_pkt_handler(netdev, napi, cq_desc);
+			nicvf_rcv_pkt_handler(netdev, napi, cq_desc, sq);
 			work_done++;
 		break;
 		case CQE_TYPE_SEND:
@@ -773,17 +791,26 @@ loop:
 		goto loop;
 
 done:
-	sq = &nic->qs->sq[cq_idx];
 	/* Update SQ's descriptor free count */
 	if (subdesc_cnt)
 		nicvf_put_sq_desc(sq, subdesc_cnt);
+
+	txq_idx = nicvf_netdev_qidx(nic, cq_idx);
+	/* Handle XDP TX queues */
+	if (nic->pnicvf->xdp_prog) {
+		if (txq_idx < nic->pnicvf->xdp_tx_queues) {
+			nicvf_xdp_sq_doorbell(nic, sq, cq_idx);
+			goto out;
+		}
+		nic = nic->pnicvf;
+		txq_idx -= nic->pnicvf->xdp_tx_queues;
+	}
 
 	/* Wakeup TXQ if its stopped earlier due to SQ full */
 	if (tx_done ||
 	    (atomic_read(&sq->free_cnt) >= MIN_SQ_DESC_PER_PKT_XMIT)) {
 		netdev = nic->pnicvf->netdev;
-		txq = netdev_get_tx_queue(netdev,
-					  nicvf_netdev_qidx(nic, cq_idx));
+		txq = netdev_get_tx_queue(netdev, txq_idx);
 		if (tx_pkts)
 			netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 
@@ -796,10 +823,11 @@ done:
 			if (netif_msg_tx_err(nic))
 				netdev_warn(netdev,
 					    "%s: Transmit queue wakeup SQ%d\n",
-					    netdev->name, cq_idx);
+					    netdev->name, txq_idx);
 		}
 	}
 
+out:
 	spin_unlock_bh(&cq->lock);
 	return work_done;
 }
@@ -1114,6 +1142,13 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
+
+	/* In XDP case, initial HW tx queues are used for XDP,
+	 * but stack's queue mapping starts at '0', so skip the
+	 * Tx queues attached to Rx queues for XDP.
+	 */
+	if (nic->xdp_prog)
+		qid += nic->xdp_tx_queues;
 
 	snic = nic;
 	/* Get secondary Qset's SQ structure */
