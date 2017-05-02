@@ -30,7 +30,7 @@
 #include <soc/rockchip/rkfb_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
 
-struct dram_timing {
+struct rk3399_dram_timing {
 	unsigned int ddr3_speed_bin;
 	unsigned int pd_idle;
 	unsigned int sr_idle;
@@ -242,11 +242,50 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(rockchip_dmcfreq_pm, rockchip_dmcfreq_suspend,
 			 rockchip_dmcfreq_resume);
 
-static struct dram_timing *of_get_ddr_timings(struct device *dev,
-					      struct device_node *np)
+static int rockchip_dmcfreq_init_freq_table(struct device *dev,
+					    struct devfreq_dev_profile *devp)
 {
-	struct dram_timing	*timing = NULL;
-	struct device_node	*np_tim;
+	int count;
+	int i = 0;
+	unsigned long freq = 0;
+	struct dev_pm_opp *opp;
+
+	rcu_read_lock();
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count < 0) {
+		rcu_read_unlock();
+		return count;
+	}
+	rcu_read_unlock();
+
+	devp->freq_table = kmalloc_array(count, sizeof(devp->freq_table[0]),
+				GFP_KERNEL);
+	if (!devp->freq_table)
+		return -ENOMEM;
+
+	rcu_read_lock();
+	for (i = 0; i < count; i++, freq++) {
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+		if (IS_ERR(opp))
+			break;
+
+		devp->freq_table[i] = freq;
+	}
+	rcu_read_unlock();
+
+	if (count != i)
+		dev_warn(dev, "Unable to enumerate all OPPs (%d!=%d)\n",
+			 count, i);
+
+	devp->max_state = i;
+	return 0;
+}
+
+static struct rk3399_dram_timing *of_get_rk3399_timings(struct device *dev,
+							struct device_node *np)
+{
+	struct rk3399_dram_timing *timing = NULL;
+	struct device_node *np_tim;
 	int ret;
 
 	np_tim = of_parse_phandle(np, "ddr_timing", 0);
@@ -328,54 +367,59 @@ err:
 	return timing;
 }
 
-static int rockchip_dmcfreq_init_freq_table(struct device *dev,
-					    struct devfreq_dev_profile *devp)
+static int rk3399_dmc_init(struct platform_device *pdev)
 {
-	int count;
-	int i = 0;
-	unsigned long freq = 0;
-	struct dev_pm_opp *opp;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
+	struct arm_smccc_res res;
+	struct rk3399_dram_timing *dram_timing;
+	int index, size;
+	u32 *timing;
 
-	rcu_read_lock();
-	count = dev_pm_opp_get_opp_count(dev);
-	if (count < 0) {
-		rcu_read_unlock();
-		return count;
+	/*
+	 * Get dram timing and pass it to arm trust firmware,
+	 * the dram drvier in arm trust firmware will get these
+	 * timing and to do dram initial.
+	 */
+	dram_timing = of_get_rk3399_timings(dev, np);
+	if (dram_timing) {
+		timing = (u32 *)dram_timing;
+		size = sizeof(struct rk3399_dram_timing) / 4;
+		for (index = 0; index < size; index++) {
+			arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, *timing++, index,
+				      ROCKCHIP_SIP_CONFIG_DRAM_SET_PARAM,
+				      0, 0, 0, 0, &res);
+			if (res.a0) {
+				dev_err(dev, "Failed to set dram param: %ld\n",
+					res.a0);
+				return -EINVAL;
+			}
+		}
 	}
-	rcu_read_unlock();
 
-	devp->freq_table = kmalloc_array(count, sizeof(devp->freq_table[0]),
-				GFP_KERNEL);
-	if (!devp->freq_table)
-		return -ENOMEM;
+	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
+		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
+		      0, 0, 0, 0, &res);
 
-	rcu_read_lock();
-	for (i = 0; i < count; i++, freq++) {
-		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
-		if (IS_ERR(opp))
-			break;
-
-		devp->freq_table[i] = freq;
-	}
-	rcu_read_unlock();
-
-	if (count != i)
-		dev_warn(dev, "Unable to enumerate all OPPs (%d!=%d)\n",
-			 count, i);
-
-	devp->max_state = i;
 	return 0;
 }
 
+static const struct of_device_id rockchip_dmcfreq_of_match[] = {
+	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
+
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
-	struct arm_smccc_res res;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct rockchip_dmcfreq *data;
-	int ret, index, size;
-	u32 *timing;
 	struct devfreq_dev_profile *devp = &rockchip_devfreq_dmc_profile;
+	const struct of_device_id *match;
+	int (*init)(struct platform_device *pdev,
+		    struct rockchip_dmcfreq *data);
+	int ret;
 
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dmcfreq), GFP_KERNEL);
 	if (!data)
@@ -405,30 +449,14 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/*
-	 * Get dram timing and pass it to arm trust firmware,
-	 * the dram drvier in arm trust firmware will get these
-	 * timing and to do dram initial.
-	 */
-	data->timing = of_get_ddr_timings(dev, np);
-	if (data->timing) {
-		timing = (uint32_t *)data->timing;
-		size = sizeof(struct dram_timing) / 4;
-		for (index = 0; index < size; index++) {
-			arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, *timing++, index,
-				      ROCKCHIP_SIP_CONFIG_DRAM_SET_PARAM,
-				      0, 0, 0, 0, &res);
-			if (res.a0) {
-				dev_err(dev, "Failed to set dram param: %ld\n",
-					res.a0);
+	match = of_match_node(rockchip_dmcfreq_of_match, pdev->dev.of_node);
+	if (match) {
+		init = match->data;
+		if (init) {
+			if (init(pdev, data))
 				return -EINVAL;
-			}
 		}
 	}
-
-	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
-		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
-		      0, 0, 0, 0, &res);
 
 	/*
 	 * We add a devfreq driver to our parent since it has a device tree node
@@ -470,12 +498,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id rockchip_dmcfreq_of_match[] = {
-	{ .compatible = "rockchip,rk3399-dmc" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
 
 static struct platform_driver rockchip_dmcfreq_driver = {
 	.probe	= rockchip_dmcfreq_probe,
