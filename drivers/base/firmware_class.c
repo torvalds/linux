@@ -575,23 +575,6 @@ static void kill_pending_fw_fallback_reqs(bool only_kill_custom)
 	mutex_unlock(&fw_lock);
 }
 
-/* reboot notifier for avoid deadlock with usermode_lock */
-static int fw_shutdown_notify(struct notifier_block *unused1,
-			      unsigned long unused2, void *unused3)
-{
-	/*
-	 * Kill all pending fallback requests to avoid both stalling shutdown,
-	 * and avoid a deadlock with the usermode_lock.
-	 */
-	kill_pending_fw_fallback_reqs(false);
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block fw_shutdown_nb = {
-	.notifier_call = fw_shutdown_notify,
-};
-
 static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
 			    char *buf)
 {
@@ -1782,11 +1765,27 @@ static void __init fw_cache_init(void)
 #endif
 }
 
+static int fw_shutdown_notify(struct notifier_block *unused1,
+			      unsigned long unused2, void *unused3)
+{
+	/*
+	 * Kill all pending fallback requests to avoid both stalling shutdown,
+	 * and avoid a deadlock with the usermode_lock.
+	 */
+	kill_pending_fw_fallback_reqs(false);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block fw_shutdown_nb = {
+	.notifier_call = fw_shutdown_notify,
+};
+
 static int __init firmware_class_init(void)
 {
 	fw_cache_init();
-#ifdef CONFIG_FW_LOADER_USER_HELPER
 	register_reboot_notifier(&fw_shutdown_nb);
+#ifdef CONFIG_FW_LOADER_USER_HELPER
 	return class_register(&firmware_class);
 #else
 	return 0;
@@ -1799,8 +1798,8 @@ static void __exit firmware_class_exit(void)
 	unregister_syscore_ops(&fw_syscore_ops);
 	unregister_pm_notifier(&fw_cache.pm_notify);
 #endif
-#ifdef CONFIG_FW_LOADER_USER_HELPER
 	unregister_reboot_notifier(&fw_shutdown_nb);
+#ifdef CONFIG_FW_LOADER_USER_HELPER
 	class_unregister(&firmware_class);
 #endif
 }
