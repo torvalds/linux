@@ -82,8 +82,11 @@ int cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
 		if (ns == cred->user_ns)
 			return cap_raised(cred->cap_effective, cap) ? 0 : -EPERM;
 
-		/* Have we tried all of the parent namespaces? */
-		if (ns == &init_user_ns)
+		/*
+		 * If we're already at a lower level than we're looking for,
+		 * we're done searching.
+		 */
+		if (ns->level <= cred->user_ns->level)
 			return -EPERM;
 
 		/* 
