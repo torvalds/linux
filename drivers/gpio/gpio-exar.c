@@ -125,14 +125,10 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	int index, ret;
 
 	/*
-	 * Map the pci device to get the register addresses.
-	 * We will need to read and write those registers to control
-	 * the GPIO pins.
-	 * Using managed functions will save us from unmaping on exit.
-	 * As the device is enabled using managed functions by the
-	 * UART driver we can also use managed functions here.
+	 * The UART driver must have mapped region 0 prior to registering this
+	 * device - use it.
 	 */
-	p = pcim_iomap(pcidev, 0, 0);
+	p = pcim_iomap_table(pcidev)[0];
 	if (!p)
 		return -ENOMEM;
 
