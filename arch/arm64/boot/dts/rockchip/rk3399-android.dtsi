@@ -91,6 +91,10 @@
 			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0 0x0 0x0>;
 		};
+
+		stb_devinfo: stb-devinfo@00000000 {
+			reg = <0x0 0x0 0x0 0x0>;
+		};
 	};
 
 	rk_key: rockchip-key {
