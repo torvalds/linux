@@ -1138,6 +1138,8 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	}
 
 	if (pattrib->privacy) {
+		struct sk_buff *skb = precv_frame->pkt;
+
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("validate_recv_data_frame:pattrib->privacy=%x\n", pattrib->privacy));
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n ^^^^^^^^^^^IS_MCAST(pattrib->ra(0x%02x))=%d^^^^^^^^^^^^^^^6\n", pattrib->ra[0], IS_MCAST(pattrib->ra)));
 
@@ -1146,6 +1148,13 @@ static int validate_recv_data_frame(struct adapter *adapter,
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("\n pattrib->encrypt=%d\n", pattrib->encrypt));
 
 		SET_ICE_IV_LEN(pattrib->iv_len, pattrib->icv_len, pattrib->encrypt);
+
+		if (pattrib->bdecrypted == 1 && pattrib->encrypt > 0) {
+			memmove(skb->data + pattrib->iv_len,
+				skb->data, pattrib->hdrlen);
+			skb_pull(skb, pattrib->iv_len);
+			skb_trim(skb, skb->len - pattrib->icv_len);
+		}
 	} else {
 		pattrib->encrypt = 0;
 		pattrib->iv_len = 0;
@@ -1265,14 +1274,8 @@ static int validate_recv_frame(struct adapter *adapter,
 	 * Hence forward the frame to the monitor anyway to preserve the order
 	 * in which frames were received.
 	 */
-	rtl88eu_mon_recv_hook(adapter->pmondev, precv_frame);
 
-	if (precv_frame->attrib.bdecrypted == 1 && precv_frame->attrib.encrypt > 0 &&
-	    (adapter->securitypriv.busetkipkey == 1 || precv_frame->attrib.encrypt != _TKIP_)) {
-		memmove(precv_frame->pkt->data + precv_frame->attrib.iv_len, precv_frame->pkt->data, precv_frame->attrib.hdrlen);
-		skb_pull(precv_frame->pkt, precv_frame->attrib.iv_len);
-		skb_trim(precv_frame->pkt, precv_frame->pkt->len - precv_frame->attrib.icv_len);
-	}
+	rtl88eu_mon_recv_hook(adapter->pmondev, precv_frame);
 
 exit:
 
