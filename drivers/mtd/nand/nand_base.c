@@ -4842,7 +4842,11 @@ int nand_scan_tail(struct mtd_info *mtd)
 		return 0;
 
 	/* Build bad block table */
-	return chip->scan_bbt(mtd);
+	ret = chip->scan_bbt(mtd);
+	if (ret)
+		goto err_free;
+	return 0;
+
 err_free:
 	if (nbuf) {
 		kfree(nbuf->databuf);
