@@ -167,13 +167,11 @@ cifs_buf_get(void)
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
-	if (ret_buf) {
-		memset(ret_buf, 0, buf_size + 3);
-		atomic_inc(&bufAllocCount);
+	memset(ret_buf, 0, buf_size + 3);
+	atomic_inc(&bufAllocCount);
 #ifdef CONFIG_CIFS_STATS2
-		atomic_inc(&totBufAllocCount);
+	atomic_inc(&totBufAllocCount);
 #endif /* CONFIG_CIFS_STATS2 */
-	}
 
 	return ret_buf;
 }
@@ -201,15 +199,13 @@ cifs_small_buf_get(void)
    albeit slightly larger than necessary and maxbuffersize
    defaults to this and can not be bigger */
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
-	if (ret_buf) {
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
-		atomic_inc(&smBufAllocCount);
+	atomic_inc(&smBufAllocCount);
 #ifdef CONFIG_CIFS_STATS2
-		atomic_inc(&totSmBufAllocCount);
+	atomic_inc(&totSmBufAllocCount);
 #endif /* CONFIG_CIFS_STATS2 */
 
-	}
 	return ret_buf;
 }
 
