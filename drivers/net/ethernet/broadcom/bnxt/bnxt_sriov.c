@@ -15,6 +15,7 @@
 #include <linux/etherdevice.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_ulp.h"
 #include "bnxt_sriov.h"
 #include "bnxt_ethtool.h"
 
@@ -416,6 +417,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	u16 vf_ring_grps;
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
+	int total_vf_tx_rings = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 
@@ -429,6 +431,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
 	vf_ring_grps = (bp->pf.max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
 	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
+	vf_vnics = (pf->max_vnics - bp->nr_vnics) / num_vfs;
+	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
 				  FUNC_CFG_REQ_ENABLES_MRU |
@@ -451,7 +455,6 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	req.num_rx_rings = cpu_to_le16(vf_rx_rings);
 	req.num_hw_ring_grps = cpu_to_le16(vf_ring_grps);
 	req.num_l2_ctxs = cpu_to_le16(4);
-	vf_vnics = 1;
 
 	req.num_vnics = cpu_to_le16(vf_vnics);
 	/* FIXME spec currently uses 1 bit for stats ctx */
@@ -459,6 +462,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < num_vfs; i++) {
+		int vf_tx_rsvd = vf_tx_rings;
+
 		req.fid = cpu_to_le16(pf->first_vf_id + i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
@@ -466,10 +471,15 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 			break;
 		pf->active_vfs = i + 1;
 		pf->vf[i].fw_fid = le16_to_cpu(req.fid);
+		rc = __bnxt_hwrm_get_tx_rings(bp, pf->vf[i].fw_fid,
+					      &vf_tx_rsvd);
+		if (rc)
+			break;
+		total_vf_tx_rings += vf_tx_rsvd;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (!rc) {
-		pf->max_tx_rings -= vf_tx_rings * num_vfs;
+		pf->max_tx_rings -= total_vf_tx_rings;
 		pf->max_rx_rings -= vf_rx_rings * num_vfs;
 		pf->max_hw_ring_grps -= vf_ring_grps * num_vfs;
 		pf->max_cp_rings -= vf_cp_rings * num_vfs;
@@ -506,6 +516,8 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 			    min_rx_rings)
 				rx_ok = 1;
 		}
+		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings)
+			rx_ok = 0;
 
 		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings)
 			tx_ok = 1;
@@ -543,6 +555,8 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	rc = bnxt_hwrm_func_buf_rgtr(bp);
 	if (rc)
 		goto err_out2;
+
+	bnxt_ulp_sriov_cfg(bp, *num_vfs);
 
 	rc = pci_enable_sriov(bp->pdev, *num_vfs);
 	if (rc)
@@ -585,6 +599,8 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	rtnl_lock();
 	bnxt_restore_pf_fw_resources(bp);
 	rtnl_unlock();
+
+	bnxt_ulp_sriov_cfg(bp, 0);
 }
 
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)

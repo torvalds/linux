@@ -120,10 +120,19 @@ static void rvt_deinit_mregion(struct rvt_mregion *mr)
 	mr->mapsz = 0;
 	while (i)
 		kfree(mr->map[--i]);
+	percpu_ref_exit(&mr->refcount);
+}
+
+static void __rvt_mregion_complete(struct percpu_ref *ref)
+{
+	struct rvt_mregion *mr = container_of(ref, struct rvt_mregion,
+					      refcount);
+
+	complete(&mr->comp);
 }
 
 static int rvt_init_mregion(struct rvt_mregion *mr, struct ib_pd *pd,
-			    int count)
+			    int count, unsigned int percpu_flags)
 {
 	int m, i = 0;
 	struct rvt_dev_info *dev = ib_to_rvt(pd->device);
@@ -133,19 +142,23 @@ static int rvt_init_mregion(struct rvt_mregion *mr, struct ib_pd *pd,
 	for (; i < m; i++) {
 		mr->map[i] = kzalloc_node(sizeof(*mr->map[0]), GFP_KERNEL,
 					  dev->dparms.node);
-		if (!mr->map[i]) {
-			rvt_deinit_mregion(mr);
-			return -ENOMEM;
-		}
+		if (!mr->map[i])
+			goto bail;
 		mr->mapsz++;
 	}
 	init_completion(&mr->comp);
 	/* count returning the ptr to user */
-	atomic_set(&mr->refcount, 1);
+	if (percpu_ref_init(&mr->refcount, &__rvt_mregion_complete,
+			    percpu_flags, GFP_KERNEL))
+		goto bail;
+
 	atomic_set(&mr->lkey_invalid, 0);
 	mr->pd = pd;
 	mr->max_segs = count;
 	return 0;
+bail:
+	rvt_deinit_mregion(mr);
+	return -ENOMEM;
 }
 
 /**
@@ -180,8 +193,7 @@ static int rvt_alloc_lkey(struct rvt_mregion *mr, int dma_region)
 		if (!tmr) {
 			rcu_assign_pointer(dev->dma_mr, mr);
 			mr->lkey_published = 1;
-		} else {
-			rvt_put_mr(mr);
+			rvt_get_mr(mr);
 		}
 		goto success;
 	}
@@ -239,11 +251,14 @@ static void rvt_free_lkey(struct rvt_mregion *mr)
 	int freed = 0;
 
 	spin_lock_irqsave(&rkt->lock, flags);
-	if (!mr->lkey_published)
-		goto out;
-	if (lkey == 0) {
-		RCU_INIT_POINTER(dev->dma_mr, NULL);
+	if (!lkey) {
+		if (mr->lkey_published) {
+			RCU_INIT_POINTER(dev->dma_mr, NULL);
+			rvt_put_mr(mr);
+		}
 	} else {
+		if (!mr->lkey_published)
+			goto out;
 		r = lkey >> (32 - dev->dparms.lkey_table_size);
 		RCU_INIT_POINTER(rkt->table[r], NULL);
 	}
@@ -253,7 +268,7 @@ out:
 	spin_unlock_irqrestore(&rkt->lock, flags);
 	if (freed) {
 		synchronize_rcu();
-		rvt_put_mr(mr);
+		percpu_ref_kill(&mr->refcount);
 	}
 }
 
@@ -269,7 +284,7 @@ static struct rvt_mr *__rvt_alloc_mr(int count, struct ib_pd *pd)
 	if (!mr)
 		goto bail;
 
-	rval = rvt_init_mregion(&mr->mr, pd, count);
+	rval = rvt_init_mregion(&mr->mr, pd, count, 0);
 	if (rval)
 		goto bail;
 	/*
@@ -294,8 +309,8 @@ bail:
 
 static void __rvt_free_mr(struct rvt_mr *mr)
 {
-	rvt_deinit_mregion(&mr->mr);
 	rvt_free_lkey(&mr->mr);
+	rvt_deinit_mregion(&mr->mr);
 	kfree(mr);
 }
 
@@ -305,8 +320,8 @@ static void __rvt_free_mr(struct rvt_mr *mr)
  * @acc: access flags
  *
  * Return: the memory region on success, otherwise returns an errno.
- * Note that all DMA addresses should be created via the
- * struct ib_dma_mapping_ops functions (see dma.c).
+ * Note that all DMA addresses should be created via the functions in
+ * struct dma_virt_ops.
  */
 struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 {
@@ -323,7 +338,7 @@ struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 		goto bail;
 	}
 
-	rval = rvt_init_mregion(&mr->mr, pd, 0);
+	rval = rvt_init_mregion(&mr->mr, pd, 0, 0);
 	if (rval) {
 		ret = ERR_PTR(rval);
 		goto bail;
@@ -445,8 +460,8 @@ int rvt_dereg_mr(struct ib_mr *ibmr)
 	timeout = wait_for_completion_timeout(&mr->mr.comp, 5 * HZ);
 	if (!timeout) {
 		rvt_pr_err(rdi,
-			   "rvt_dereg_mr timeout mr %p pd %p refcount %u\n",
-			   mr, mr->mr.pd, atomic_read(&mr->mr.refcount));
+			   "rvt_dereg_mr timeout mr %p pd %p\n",
+			   mr, mr->mr.pd);
 		rvt_get_mr(&mr->mr);
 		ret = -EBUSY;
 		goto out;
@@ -623,7 +638,8 @@ struct ib_fmr *rvt_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 	if (!fmr)
 		goto bail;
 
-	rval = rvt_init_mregion(&fmr->mr, pd, fmr_attr->max_pages);
+	rval = rvt_init_mregion(&fmr->mr, pd, fmr_attr->max_pages,
+				PERCPU_REF_INIT_ATOMIC);
 	if (rval)
 		goto bail;
 
@@ -674,11 +690,12 @@ int rvt_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	struct rvt_fmr *fmr = to_ifmr(ibfmr);
 	struct rvt_lkey_table *rkt;
 	unsigned long flags;
-	int m, n, i;
+	int m, n;
+	unsigned long i;
 	u32 ps;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibfmr->device);
 
-	i = atomic_read(&fmr->mr.refcount);
+	i = atomic_long_read(&fmr->mr.refcount.count);
 	if (i > 2)
 		return -EBUSY;
 
@@ -782,7 +799,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 
 	/*
 	 * We use LKEY == zero for kernel virtual addresses
-	 * (see rvt_get_dma_mr and dma.c).
+	 * (see rvt_get_dma_mr() and dma_virt_ops).
 	 */
 	rcu_read_lock();
 	if (sge->lkey == 0) {
@@ -880,7 +897,7 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 
 	/*
 	 * We use RKEY == zero for kernel virtual addresses
-	 * (see rvt_get_dma_mr and dma.c).
+	 * (see rvt_get_dma_mr() and dma_virt_ops).
 	 */
 	rcu_read_lock();
 	if (rkey == 0) {

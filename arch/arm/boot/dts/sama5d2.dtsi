@@ -395,6 +395,16 @@
 				clock-names = "dma_clk";
 			};
 
+			/* Place dma1 here despite its address */
+			dma1: dma-controller@f0004000 {
+				compatible = "atmel,sama5d4-dma";
+				reg = <0xf0004000 0x1000>;
+				interrupts = <7 IRQ_TYPE_LEVEL_HIGH 0>;
+				#dma-cells = <1>;
+				clocks = <&dma1_clk>;
+				clock-names = "dma_clk";
+			};
+
 			pmc: pmc@f0014000 {
 				compatible = "atmel,sama5d2-pmc", "syscon";
 				reg = <0xf0014000 0x160>;
@@ -931,6 +941,22 @@
 				status = "disabled";
 			};
 
+			ssc0: ssc@f8004000 {
+				compatible = "atmel,at91sam9g45-ssc";
+				reg = <0xf8004000 0x4000>;
+				interrupts = <43 IRQ_TYPE_LEVEL_HIGH 4>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					AT91_XDMAC_DT_PERID(21))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					AT91_XDMAC_DT_PERID(22))>;
+				dma-names = "tx", "rx";
+				clocks = <&ssc0_clk>;
+				clock-names = "pclk";
+				status = "disabled";
+			};
+
 			macb0: ethernet@f8008000 {
 				compatible = "atmel,sama5d2-gem";
 				reg = <0xf8008000 0x1000>;
@@ -1141,10 +1167,10 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc008000 0x100>;
 				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 7>;
-				dmas = <&dma0
+				dmas = <&dma1
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
 					 AT91_XDMAC_DT_PERID(41))>,
-				       <&dma0
+				       <&dma1
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
 					 AT91_XDMAC_DT_PERID(42))>;
 				dma-names = "tx", "rx";

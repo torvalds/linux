@@ -47,7 +47,8 @@ static const char driver_name[] = "vme_user";
 static int bus[VME_USER_BUS_MAX];
 static unsigned int bus_num;
 
-/* Currently Documentation/admin-guide/devices.rst defines the following for VME:
+/* Currently Documentation/admin-guide/devices.rst defines the
+ * following for VME:
  *
  * 221 char	VME bus
  *		  0 = /dev/bus/vme/m0		First master image

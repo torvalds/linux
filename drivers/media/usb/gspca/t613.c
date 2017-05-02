@@ -570,9 +570,9 @@ static void setfreq(struct gspca_dev *gspca_dev, s32 val)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	/* some of this registers are not really neded, because
-	 * they are overriden by setbrigthness, setcontrast, etc,
-	 * but wont hurt anyway, and can help someone with similar webcam
+	/* some of this registers are not really needed, because
+	 * they are overridden by setbrigthness, setcontrast, etc.,
+	 * but won't hurt anyway, and can help someone with similar webcam
 	 * to see the initial parameters.*/
 	struct sd *sd = (struct sd *) gspca_dev;
 	const struct additional_sensor_data *sensor;

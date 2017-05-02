@@ -1638,7 +1638,8 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		if (block_supported) {
 			indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
 			indio_dev->info = &bmc150_accel_info_fifo;
-			indio_dev->buffer->attrs = bmc150_accel_fifo_attributes;
+			iio_buffer_set_attrs(indio_dev->buffer,
+					     bmc150_accel_fifo_attributes);
 		}
 	}
 

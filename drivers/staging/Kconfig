@@ -96,12 +96,12 @@ source "drivers/staging/wilc1000/Kconfig"
 
 source "drivers/staging/most/Kconfig"
 
-source "drivers/staging/i4l/Kconfig"
-
 source "drivers/staging/ks7010/Kconfig"
 
 source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"
+
+source "drivers/staging/bcm2835-audio/Kconfig"
 
 endif # STAGING

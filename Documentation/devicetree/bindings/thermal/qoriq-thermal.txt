@@ -17,6 +17,12 @@ Required properties:
 	calibration data, as specified by the SoC reference manual.
 	The first cell of each pair is the value to be written to TTCFGR,
 	and the second is the value to be written to TSCFGR.
+- #thermal-sensor-cells : Must be 1. The sensor specifier is the monitoring
+	site ID, and represents the "n" in TRITSRn and TRATSRn.
+
+Optional property:
+- little-endian : If present, the TMU registers are little endian. If absent,
+	the default is big endian.
 
 Example:
 
@@ -60,4 +66,5 @@ tmu@f0000 {
 
 			       0x00030000 0x00000012
 			       0x00030001 0x0000001d>;
+	#thermal-sensor-cells = <1>;
 };

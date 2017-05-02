@@ -4,6 +4,8 @@
  * Jan 23 2005  Matt Mackall <mpm@selenic.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/export.h>
 #include <linux/sort.h>
@@ -101,42 +103,3 @@ void sort(void *base, size_t num, size_t size,
 }
 
 EXPORT_SYMBOL(sort);
-
-#if 0
-#include <linux/slab.h>
-/* a simple boot-time regression test */
-
-int cmpint(const void *a, const void *b)
-{
-	return *(int *)a - *(int *)b;
-}
-
-static int sort_test(void)
-{
-	int *a, i, r = 1;
-
-	a = kmalloc(1000 * sizeof(int), GFP_KERNEL);
-	BUG_ON(!a);
-
-	printk("testing sort()\n");
-
-	for (i = 0; i < 1000; i++) {
-		r = (r * 725861) % 6599;
-		a[i] = r;
-	}
-
-	sort(a, 1000, sizeof(int), cmpint, NULL);
-
-	for (i = 0; i < 999; i++)
-		if (a[i] > a[i+1]) {
-			printk("sort() failed!\n");
-			break;
-		}
-
-	kfree(a);
-
-	return 0;
-}
-
-module_init(sort_test);
-#endif

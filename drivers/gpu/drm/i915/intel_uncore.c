@@ -119,6 +119,8 @@ fw_domains_get(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 
 	for_each_fw_domain_masked(d, fw_domains, dev_priv)
 		fw_domain_wait_ack(d);
+
+	dev_priv->uncore.fw_domains_active |= fw_domains;
 }
 
 static void
@@ -130,6 +132,8 @@ fw_domains_put(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 		fw_domain_put(d);
 		fw_domain_posting_read(d);
 	}
+
+	dev_priv->uncore.fw_domains_active &= ~fw_domains;
 }
 
 static void
@@ -240,10 +244,8 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	if (WARN_ON(domain->wake_count == 0))
 		domain->wake_count++;
 
-	if (--domain->wake_count == 0) {
+	if (--domain->wake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, domain->mask);
-		dev_priv->uncore.fw_domains_active &= ~domain->mask;
-	}
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
@@ -421,8 +423,7 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 				   GT_FIFO_CTL_RC6_POLICY_STALL);
 	}
 
-	/* Enable Decoupled MMIO only on BXT C stepping onwards */
-	if (!IS_BXT_REVID(dev_priv, BXT_REVID_C0, REVID_FOREVER))
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST))
 		info->has_decoupled_mmio = false;
 
 	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
@@ -455,10 +456,8 @@ static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 			fw_domains &= ~domain->mask;
 	}
 
-	if (fw_domains) {
+	if (fw_domains)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
-		dev_priv->uncore.fw_domains_active |= fw_domains;
-	}
 }
 
 /**
@@ -626,7 +625,14 @@ find_fw_domain(struct drm_i915_private *dev_priv, u32 offset)
 			dev_priv->uncore.fw_domains_table_entries,
 			fw_range_cmp);
 
-	return entry ? entry->domains : 0;
+	if (!entry)
+		return 0;
+
+	WARN(entry->domains & ~dev_priv->uncore.fw_domains,
+	     "Uninitialized forcewake domain(s) 0x%x accessed at 0x%x\n",
+	     entry->domains & ~dev_priv->uncore.fw_domains, offset);
+
+	return entry->domains;
 }
 
 static void
@@ -962,7 +968,6 @@ static noinline void ___force_wake_auto(struct drm_i915_private *dev_priv,
 		fw_domain_arm_timer(domain);
 
 	dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
-	dev_priv->uncore.fw_domains_active |= fw_domains;
 }
 
 static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
@@ -1813,7 +1818,7 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 		return ironlake_do_reset;
 	else if (IS_G4X(dev_priv))
 		return g4x_do_reset;
-	else if (IS_G33(dev_priv))
+	else if (IS_G33(dev_priv) || IS_PINEVIEW(dev_priv))
 		return g33_do_reset;
 	else if (INTEL_INFO(dev_priv)->gen >= 3)
 		return i915_do_reset;

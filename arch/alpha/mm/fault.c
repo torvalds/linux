@@ -4,7 +4,7 @@
  *  Copyright (C) 1995  Linus Torvalds
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <asm/io.h>

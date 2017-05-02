@@ -135,8 +135,7 @@ static int arcpgu_load(struct drm_device *drm)
 	drm_kms_helper_poll_init(drm);
 
 	arcpgu->fbdev = drm_fbdev_cma_init(drm, 16,
-					      drm->mode_config.num_crtc,
-					      drm->mode_config.num_connector);
+					   drm->mode_config.num_connector);
 	if (IS_ERR(arcpgu->fbdev)) {
 		ret = PTR_ERR(arcpgu->fbdev);
 		arcpgu->fbdev = NULL;

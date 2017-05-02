@@ -374,13 +374,12 @@ int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
 	return -EINVAL;
 }
 
-static struct rtnl_link_stats64 *
+static void
 mlx5e_rep_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
 	memcpy(stats, &priv->stats.vf_vport, sizeof(*stats));
-	return stats;
 }
 
 static const struct switchdev_ops mlx5e_rep_switchdev_ops = {

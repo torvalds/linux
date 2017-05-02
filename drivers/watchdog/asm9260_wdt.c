@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
 #include <linux/reset.h>
 #include <linux/watchdog.h>
 
@@ -59,7 +58,6 @@ struct asm9260_wdt_priv {
 	struct clk		*clk;
 	struct clk		*clk_ahb;
 	struct reset_control	*rst;
-	struct notifier_block	restart_handler;
 
 	void __iomem		*iobase;
 	int			irq;
@@ -172,15 +170,14 @@ static irqreturn_t asm9260_wdt_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int asm9260_restart_handler(struct notifier_block *this,
-				   unsigned long mode, void *cmd)
+static int asm9260_restart(struct watchdog_device *wdd, unsigned long action,
+			   void *data)
 {
-	struct asm9260_wdt_priv *priv =
-		container_of(this, struct asm9260_wdt_priv, restart_handler);
+	struct asm9260_wdt_priv *priv = watchdog_get_drvdata(wdd);
 
 	asm9260_wdt_sys_reset(priv);
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static const struct watchdog_info asm9260_wdt_ident = {
@@ -189,13 +186,14 @@ static const struct watchdog_info asm9260_wdt_ident = {
 	.identity         =	"Alphascale asm9260 Watchdog",
 };
 
-static struct watchdog_ops asm9260_wdt_ops = {
+static const struct watchdog_ops asm9260_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= asm9260_wdt_enable,
 	.stop		= asm9260_wdt_disable,
 	.get_timeleft	= asm9260_wdt_gettimeleft,
 	.ping		= asm9260_wdt_feed,
 	.set_timeout	= asm9260_wdt_settimeout,
+	.restart	= asm9260_restart,
 };
 
 static int asm9260_wdt_get_dt_clks(struct asm9260_wdt_priv *priv)
@@ -335,17 +333,13 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "failed to request IRQ\n");
 	}
 
+	watchdog_set_restart_priority(wdd, 128);
+
 	ret = watchdog_register_device(wdd);
 	if (ret)
 		goto clk_off;
 
 	platform_set_drvdata(pdev, priv);
-
-	priv->restart_handler.notifier_call = asm9260_restart_handler;
-	priv->restart_handler.priority = 128;
-	ret = register_restart_handler(&priv->restart_handler);
-	if (ret)
-		dev_warn(&pdev->dev, "cannot register restart handler\n");
 
 	dev_info(&pdev->dev, "Watchdog enabled (timeout: %d sec, mode: %s)\n",
 		 wdd->timeout, mode_name[priv->mode]);
@@ -369,8 +363,6 @@ static int asm9260_wdt_remove(struct platform_device *pdev)
 	struct asm9260_wdt_priv *priv = platform_get_drvdata(pdev);
 
 	asm9260_wdt_disable(&priv->wdd);
-
-	unregister_restart_handler(&priv->restart_handler);
 
 	watchdog_unregister_device(&priv->wdd);
 

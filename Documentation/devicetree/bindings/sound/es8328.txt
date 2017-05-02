@@ -4,7 +4,7 @@ This device supports both I2C and SPI.
 
 Required properties:
 
-  - compatible : "everest,es8328"
+  - compatible  : Should be "everest,es8328" or "everest,es8388"
   - DVDD-supply : Regulator providing digital core supply voltage 1.8 - 3.6V
   - AVDD-supply : Regulator providing analog supply voltage 3.3V
   - PVDD-supply : Regulator providing digital IO supply voltage 1.8 - 3.6V

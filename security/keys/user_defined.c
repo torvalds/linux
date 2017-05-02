@@ -107,7 +107,7 @@ int user_update(struct key *key, struct key_preparsed_payload *prep)
 	/* attach the new data, displacing the old */
 	key->expiry = prep->expiry;
 	if (!test_bit(KEY_FLAG_NEGATIVE, &key->flags))
-		zap = rcu_dereference_key(key);
+		zap = dereference_key_locked(key);
 	rcu_assign_keypointer(key, prep->payload.data[0]);
 	prep->payload.data[0] = NULL;
 
@@ -123,7 +123,7 @@ EXPORT_SYMBOL_GPL(user_update);
  */
 void user_revoke(struct key *key)
 {
-	struct user_key_payload *upayload = key->payload.data[0];
+	struct user_key_payload *upayload = user_key_payload_locked(key);
 
 	/* clear the quota */
 	key_payload_reserve(key, 0);
@@ -169,7 +169,7 @@ long user_read(const struct key *key, char __user *buffer, size_t buflen)
 	const struct user_key_payload *upayload;
 	long ret;
 
-	upayload = user_key_payload(key);
+	upayload = user_key_payload_locked(key);
 	ret = upayload->datalen;
 
 	/* we can return the data as is */

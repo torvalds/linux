@@ -77,7 +77,6 @@
 };
 
 &cspi1 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi1 &pinctrl_cspi1_cs>;
@@ -95,7 +94,6 @@
 };
 
 &cspi2 {
-	fsl,spi-num-chipselects = <3>;
 	cs-gpios = <&gpio4 21 GPIO_ACTIVE_LOW>,
 		   <&gpio4 27 GPIO_ACTIVE_LOW>,
 		   <&gpio2 17 GPIO_ACTIVE_LOW>;

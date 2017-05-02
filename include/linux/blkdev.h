@@ -2,6 +2,7 @@
 #define _LINUX_BLKDEV_H
 
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -434,7 +435,6 @@ struct request_queue {
 	struct delayed_work	delay_work;
 
 	struct backing_dev_info	*backing_dev_info;
-	struct disk_devt	*disk_devt;
 
 	/*
 	 * The queue owner gets to use this for whatever they like.

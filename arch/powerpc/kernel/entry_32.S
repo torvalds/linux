@@ -205,6 +205,9 @@ transfer_to_handler_cont:
 	mflr	r9
 	lwz	r11,0(r9)		/* virtual address of handler */
 	lwz	r9,4(r9)		/* where to go when done */
+#ifdef CONFIG_PPC_8xx_PERF_EVENT
+	mtspr	SPRN_NRI, r0
+#endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	lis	r12,reenable_mmu@h
 	ori	r12,r12,reenable_mmu@l
@@ -292,7 +295,9 @@ stack_ovf:
 	lis	r9,StackOverflow@ha
 	addi	r9,r9,StackOverflow@l
 	LOAD_MSR_KERNEL(r10,MSR_KERNEL)
-	FIX_SRR1(r10,r12)
+#ifdef CONFIG_PPC_8xx_PERF_EVENT
+	mtspr	SPRN_NRI, r0
+#endif
 	mtspr	SPRN_SRR0,r9
 	mtspr	SPRN_SRR1,r10
 	SYNC
@@ -417,9 +422,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	mtlr	r4
 	mtcr	r5
 	lwz	r7,_NIP(r1)
-	FIX_SRR1(r8, r0)
 	lwz	r2,GPR2(r1)
 	lwz	r1,GPR1(r1)
+#ifdef CONFIG_PPC_8xx_PERF_EVENT
+	mtspr	SPRN_NRI, r0
+#endif
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
 	SYNC
@@ -699,6 +706,9 @@ fast_exception_return:
 	lwz	r10,_LINK(r11)
 	mtlr	r10
 	REST_GPR(10, r11)
+#ifdef CONFIG_PPC_8xx_PERF_EVENT
+	mtspr	SPRN_NRI, r0
+#endif
 	mtspr	SPRN_SRR1,r9
 	mtspr	SPRN_SRR0,r12
 	REST_GPR(9, r11)
@@ -947,7 +957,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	.globl exc_exit_restart
 exc_exit_restart:
 	lwz	r12,_NIP(r1)
-	FIX_SRR1(r9,r10)
+#ifdef CONFIG_PPC_8xx_PERF_EVENT
+	mtspr	SPRN_NRI, r0
+#endif
 	mtspr	SPRN_SRR0,r12
 	mtspr	SPRN_SRR1,r9
 	REST_4GPRS(9, r1)
@@ -1290,7 +1302,6 @@ _GLOBAL(enter_rtas)
 1:	tophys(r9,r1)
 	lwz	r8,INT_FRAME_SIZE+4(r9)	/* get return address */
 	lwz	r9,8(r9)	/* original msr value */
-	FIX_SRR1(r9,r0)
 	addi	r1,r1,INT_FRAME_SIZE
 	li	r0,0
 	mtspr	SPRN_SPRG_RTAS,r0

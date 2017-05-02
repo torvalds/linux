@@ -34,6 +34,10 @@
  * low-power state and comes back to normal.
  */
 
+#define I915_CSR_GLK "i915/glk_dmc_ver1_01.bin"
+MODULE_FIRMWARE(I915_CSR_GLK);
+#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
+
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
 #define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
@@ -286,7 +290,9 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	csr->version = css_header->version;
 
-	if (IS_KABYLAKE(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv)) {
+		required_version = GLK_CSR_VERSION_REQUIRED;
+	} else if (IS_KABYLAKE(dev_priv)) {
 		required_version = KBL_CSR_VERSION_REQUIRED;
 	} else if (IS_SKYLAKE(dev_priv)) {
 		required_version = SKL_CSR_VERSION_REQUIRED;
@@ -389,7 +395,7 @@ static void csr_load_work_fn(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv;
 	struct intel_csr *csr;
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
 	int ret;
 
 	dev_priv = container_of(work, typeof(*dev_priv), csr.work);
@@ -405,7 +411,7 @@ static void csr_load_work_fn(struct work_struct *work)
 
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
-		DRM_INFO("Finished loading %s (v%u.%u)\n",
+		DRM_INFO("Finished loading DMC firmware %s (v%u.%u)\n",
 			 dev_priv->csr.fw_path,
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
@@ -435,7 +441,9 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (IS_KABYLAKE(dev_priv))
+	if (IS_GEMINILAKE(dev_priv))
+		csr->fw_path = I915_CSR_GLK;
+	else if (IS_KABYLAKE(dev_priv))
 		csr->fw_path = I915_CSR_KBL;
 	else if (IS_SKYLAKE(dev_priv))
 		csr->fw_path = I915_CSR_SKL;

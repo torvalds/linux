@@ -330,7 +330,7 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	__ethtool_get_link_ksettings(us_ibdev->netdev, &cmd);
-	memset(props, 0, sizeof(*props));
+	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
 	props->lmc = 1;

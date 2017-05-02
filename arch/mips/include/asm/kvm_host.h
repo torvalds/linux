@@ -43,6 +43,7 @@
 #define KVM_REG_MIPS_CP0_ENTRYHI	MIPS_CP0_64(10, 0)
 #define KVM_REG_MIPS_CP0_COMPARE	MIPS_CP0_32(11, 0)
 #define KVM_REG_MIPS_CP0_STATUS		MIPS_CP0_32(12, 0)
+#define KVM_REG_MIPS_CP0_INTCTL		MIPS_CP0_32(12, 1)
 #define KVM_REG_MIPS_CP0_CAUSE		MIPS_CP0_32(13, 0)
 #define KVM_REG_MIPS_CP0_EPC		MIPS_CP0_64(14, 0)
 #define KVM_REG_MIPS_CP0_PRID		MIPS_CP0_32(15, 0)
@@ -64,7 +65,7 @@
 #define KVM_REG_MIPS_CP0_KSCRATCH6	MIPS_CP0_64(31, 7)
 
 
-#define KVM_MAX_VCPUS		1
+#define KVM_MAX_VCPUS		8
 #define KVM_USER_MEM_SLOTS	8
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS	0
@@ -88,6 +89,7 @@
 
 #define KVM_GUEST_KUSEG			0x00000000UL
 #define KVM_GUEST_KSEG0			0x40000000UL
+#define KVM_GUEST_KSEG1			0x40000000UL
 #define KVM_GUEST_KSEG23		0x60000000UL
 #define KVM_GUEST_KSEGX(a)		((_ACAST32_(a)) & 0xe0000000)
 #define KVM_GUEST_CPHYSADDR(a)		((_ACAST32_(a)) & 0x1fffffff)
@@ -104,7 +106,6 @@
 #define KVM_GUEST_KSEG23ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG23)
 
 #define KVM_INVALID_PAGE		0xdeadbeef
-#define KVM_INVALID_INST		0xdeadbeef
 #define KVM_INVALID_ADDR		0xdeadbeef
 
 /*
@@ -120,8 +121,6 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 {
 	return IS_ERR_VALUE(addr);
 }
-
-extern atomic_t kvm_mips_instance;
 
 struct kvm_vm_stat {
 	ulong remote_tlb_flush;
@@ -156,12 +155,8 @@ struct kvm_arch_memory_slot {
 };
 
 struct kvm_arch {
-	/* Guest GVA->HPA page table */
-	unsigned long *guest_pmap;
-	unsigned long guest_pmap_npages;
-
-	/* Wired host TLB used for the commpage */
-	int commpage_tlb;
+	/* Guest physical mm */
+	struct mm_struct gpa_mm;
 };
 
 #define N_MIPS_COPROC_REGS	32
@@ -233,6 +228,7 @@ enum emulation_result {
 	EMULATE_FAIL,		/* can't emulate this instruction */
 	EMULATE_WAIT,		/* WAIT instruction */
 	EMULATE_PRIV_FAIL,
+	EMULATE_EXCEPT,		/* A guest exception has been generated */
 };
 
 #define mips3_paddr_to_tlbpfn(x) \
@@ -250,6 +246,7 @@ enum emulation_result {
 #define TLB_ASID(x)		((x).tlb_hi & KVM_ENTRYHI_ASID)
 #define TLB_LO_IDX(x, va)	(((va) >> PAGE_SHIFT) & 1)
 #define TLB_IS_VALID(x, va)	((x).tlb_lo[TLB_LO_IDX(x, va)] & ENTRYLO_V)
+#define TLB_IS_DIRTY(x, va)	((x).tlb_lo[TLB_LO_IDX(x, va)] & ENTRYLO_D)
 #define TLB_HI_VPN2_HIT(x, y)	((TLB_VPN2(x) & ~(x).tlb_mask) ==	\
 				 ((y) & VPN2_MASK & ~(x).tlb_mask))
 #define TLB_HI_ASID_HIT(x, y)	(TLB_IS_GLOBAL(x) ||			\
@@ -259,6 +256,17 @@ struct kvm_mips_tlb {
 	long tlb_mask;
 	long tlb_hi;
 	long tlb_lo[2];
+};
+
+#define KVM_NR_MEM_OBJS     4
+
+/*
+ * We don't want allocation failures within the mmu code, so we preallocate
+ * enough memory for a single page fault in a cache.
+ */
+struct kvm_mmu_memory_cache {
+	int nobjs;
+	void *objects[KVM_NR_MEM_OBJS];
 };
 
 #define KVM_MIPS_AUX_FPU	0x1
@@ -275,6 +283,8 @@ struct kvm_vcpu_arch {
 	unsigned long host_cp0_badvaddr;
 	unsigned long host_cp0_epc;
 	u32 host_cp0_cause;
+	u32 host_cp0_badinstr;
+	u32 host_cp0_badinstrp;
 
 	/* GPRS */
 	unsigned long gprs[32];
@@ -318,19 +328,17 @@ struct kvm_vcpu_arch {
 	/* Bitmask of pending exceptions to be cleared */
 	unsigned long pending_exceptions_clr;
 
-	/* Save/Restore the entryhi register when are are preempted/scheduled back in */
-	unsigned long preempt_entryhi;
-
 	/* S/W Based TLB for guest */
 	struct kvm_mips_tlb guest_tlb[KVM_MIPS_GUEST_TLB_SIZE];
 
-	/* Cached guest kernel/user ASIDs */
-	u32 guest_user_asid[NR_CPUS];
-	u32 guest_kernel_asid[NR_CPUS];
+	/* Guest kernel/user [partial] mm */
 	struct mm_struct guest_kernel_mm, guest_user_mm;
 
 	/* Guest ASID of last user mode execution */
 	unsigned int last_user_gasid;
+
+	/* Cache some mmu pages needed inside spinlock regions */
+	struct kvm_mmu_memory_cache mmu_page_cache;
 
 	int last_sched_cpu;
 
@@ -339,14 +347,15 @@ struct kvm_vcpu_arch {
 
 	u8 fpu_enabled;
 	u8 msa_enabled;
-	u8 kscratch_enabled;
 };
 
 
 #define kvm_read_c0_guest_index(cop0)		(cop0->reg[MIPS_CP0_TLB_INDEX][0])
 #define kvm_write_c0_guest_index(cop0, val)	(cop0->reg[MIPS_CP0_TLB_INDEX][0] = val)
 #define kvm_read_c0_guest_entrylo0(cop0)	(cop0->reg[MIPS_CP0_TLB_LO0][0])
+#define kvm_write_c0_guest_entrylo0(cop0, val)	(cop0->reg[MIPS_CP0_TLB_LO0][0] = (val))
 #define kvm_read_c0_guest_entrylo1(cop0)	(cop0->reg[MIPS_CP0_TLB_LO1][0])
+#define kvm_write_c0_guest_entrylo1(cop0, val)	(cop0->reg[MIPS_CP0_TLB_LO1][0] = (val))
 #define kvm_read_c0_guest_context(cop0)		(cop0->reg[MIPS_CP0_TLB_CONTEXT][0])
 #define kvm_write_c0_guest_context(cop0, val)	(cop0->reg[MIPS_CP0_TLB_CONTEXT][0] = (val))
 #define kvm_read_c0_guest_userlocal(cop0)	(cop0->reg[MIPS_CP0_TLB_CONTEXT][2])
@@ -522,9 +531,17 @@ struct kvm_mips_callbacks {
 	int (*handle_msa_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_msa_disabled)(struct kvm_vcpu *vcpu);
-	int (*vm_init)(struct kvm *kvm);
 	int (*vcpu_init)(struct kvm_vcpu *vcpu);
+	void (*vcpu_uninit)(struct kvm_vcpu *vcpu);
 	int (*vcpu_setup)(struct kvm_vcpu *vcpu);
+	void (*flush_shadow_all)(struct kvm *kvm);
+	/*
+	 * Must take care of flushing any cached GPA PTEs (e.g. guest entries in
+	 * VZ root TLB, or T&E GVA page tables and corresponding root TLB
+	 * mappings).
+	 */
+	void (*flush_shadow_memslot)(struct kvm *kvm,
+				     const struct kvm_memory_slot *slot);
 	gpa_t (*gva_to_gpa)(gva_t gva);
 	void (*queue_timer_int)(struct kvm_vcpu *vcpu);
 	void (*dequeue_timer_int)(struct kvm_vcpu *vcpu);
@@ -542,8 +559,10 @@ struct kvm_mips_callbacks {
 			   const struct kvm_one_reg *reg, s64 *v);
 	int (*set_one_reg)(struct kvm_vcpu *vcpu,
 			   const struct kvm_one_reg *reg, s64 v);
-	int (*vcpu_get_regs)(struct kvm_vcpu *vcpu);
-	int (*vcpu_set_regs)(struct kvm_vcpu *vcpu);
+	int (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
+	int (*vcpu_put)(struct kvm_vcpu *vcpu, int cpu);
+	int (*vcpu_run)(struct kvm_run *run, struct kvm_vcpu *vcpu);
+	void (*vcpu_reenter)(struct kvm_run *run, struct kvm_vcpu *vcpu);
 };
 extern struct kvm_mips_callbacks *kvm_mips_callbacks;
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);
@@ -556,6 +575,7 @@ extern int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu);
 /* Building of entry/exception code */
 int kvm_mips_entry_setup(void);
 void *kvm_mips_build_vcpu_run(void *addr);
+void *kvm_mips_build_tlb_refill_exception(void *addr, void *handler);
 void *kvm_mips_build_exception(void *addr, void *handler);
 void *kvm_mips_build_exit(void *addr);
 
@@ -580,53 +600,124 @@ u32 kvm_get_user_asid(struct kvm_vcpu *vcpu);
 u32 kvm_get_commpage_asid (struct kvm_vcpu *vcpu);
 
 extern int kvm_mips_handle_kseg0_tlb_fault(unsigned long badbaddr,
-					   struct kvm_vcpu *vcpu);
+					   struct kvm_vcpu *vcpu,
+					   bool write_fault);
 
 extern int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 					      struct kvm_vcpu *vcpu);
 
 extern int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
-						struct kvm_mips_tlb *tlb);
+						struct kvm_mips_tlb *tlb,
+						unsigned long gva,
+						bool write_fault);
 
 extern enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 						     u32 *opc,
 						     struct kvm_run *run,
-						     struct kvm_vcpu *vcpu);
-
-extern enum emulation_result kvm_mips_handle_tlbmod(u32 cause,
-						    u32 *opc,
-						    struct kvm_run *run,
-						    struct kvm_vcpu *vcpu);
+						     struct kvm_vcpu *vcpu,
+						     bool write_fault);
 
 extern void kvm_mips_dump_host_tlbs(void);
 extern void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu);
-extern int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
-				   unsigned long entrylo0,
-				   unsigned long entrylo1,
-				   int flush_dcache_mask);
-extern void kvm_mips_flush_host_tlb(int skip_kseg0);
-extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi);
+extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi,
+				 bool user, bool kernel);
 
 extern int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu,
 				     unsigned long entryhi);
-extern int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr);
-extern unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
-						   unsigned long gva);
-extern void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
-				    struct kvm_vcpu *vcpu);
-extern void kvm_local_flush_tlb_all(void);
-extern void kvm_mips_alloc_new_mmu_context(struct kvm_vcpu *vcpu);
-extern void kvm_mips_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
-extern void kvm_mips_vcpu_put(struct kvm_vcpu *vcpu);
+
+void kvm_mips_suspend_mm(int cpu);
+void kvm_mips_resume_mm(int cpu);
+
+/* MMU handling */
+
+/**
+ * enum kvm_mips_flush - Types of MMU flushes.
+ * @KMF_USER:	Flush guest user virtual memory mappings.
+ *		Guest USeg only.
+ * @KMF_KERN:	Flush guest kernel virtual memory mappings.
+ *		Guest USeg and KSeg2/3.
+ * @KMF_GPA:	Flush guest physical memory mappings.
+ *		Also includes KSeg0 if KMF_KERN is set.
+ */
+enum kvm_mips_flush {
+	KMF_USER	= 0x0,
+	KMF_KERN	= 0x1,
+	KMF_GPA		= 0x2,
+};
+void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags);
+bool kvm_mips_flush_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn);
+int kvm_mips_mkclean_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn);
+pgd_t *kvm_pgd_alloc(void);
+void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
+void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
+				  bool user);
+void kvm_trap_emul_gva_lockless_begin(struct kvm_vcpu *vcpu);
+void kvm_trap_emul_gva_lockless_end(struct kvm_vcpu *vcpu);
+
+enum kvm_mips_fault_result {
+	KVM_MIPS_MAPPED = 0,
+	KVM_MIPS_GVA,
+	KVM_MIPS_GPA,
+	KVM_MIPS_TLB,
+	KVM_MIPS_TLBINV,
+	KVM_MIPS_TLBMOD,
+};
+enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
+						   unsigned long gva,
+						   bool write);
+
+#define KVM_ARCH_WANT_MMU_NOTIFIER
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
+int kvm_unmap_hva_range(struct kvm *kvm,
+			unsigned long start, unsigned long end);
+void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
+
+static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
+							 unsigned long address)
+{
+}
 
 /* Emulation */
-u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu);
+int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
 enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause);
+int kvm_get_badinstr(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
+int kvm_get_badinstrp(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
+
+/**
+ * kvm_is_ifetch_fault() - Find whether a TLBL exception is due to ifetch fault.
+ * @vcpu:	Virtual CPU.
+ *
+ * Returns:	Whether the TLBL exception was likely due to an instruction
+ *		fetch fault rather than a data load fault.
+ */
+static inline bool kvm_is_ifetch_fault(struct kvm_vcpu_arch *vcpu)
+{
+	unsigned long badvaddr = vcpu->host_cp0_badvaddr;
+	unsigned long epc = msk_isa16_mode(vcpu->pc);
+	u32 cause = vcpu->host_cp0_cause;
+
+	if (epc == badvaddr)
+		return true;
+
+	/*
+	 * Branches may be 32-bit or 16-bit instructions.
+	 * This isn't exact, but we don't really support MIPS16 or microMIPS yet
+	 * in KVM anyway.
+	 */
+	if ((cause & CAUSEF_BD) && badvaddr - epc <= 4)
+		return true;
+
+	return false;
+}
 
 extern enum emulation_result kvm_mips_emulate_inst(u32 cause,
 						   u32 *opc,
 						   struct kvm_run *run,
 						   struct kvm_vcpu *vcpu);
+
+long kvm_mips_guest_exception_base(struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_syscall(u32 cause,
 						      u32 *opc,
@@ -761,10 +852,6 @@ static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_free_memslot(struct kvm *kvm,
 		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
 static inline void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslots *slots) {}
-static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
-static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
-		struct kvm_memory_slot *slot) {}
-static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}

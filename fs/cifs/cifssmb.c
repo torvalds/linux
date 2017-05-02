@@ -4786,117 +4786,6 @@ GetInodeNumOut:
 	return rc;
 }
 
-/* parses DFS refferal V3 structure
- * caller is responsible for freeing target_nodes
- * returns:
- * 	on success - 0
- *	on failure - errno
- */
-static int
-parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
-		unsigned int *num_of_nodes,
-		struct dfs_info3_param **target_nodes,
-		const struct nls_table *nls_codepage, int remap,
-		const char *searchName)
-{
-	int i, rc = 0;
-	char *data_end;
-	bool is_unicode;
-	struct dfs_referral_level_3 *ref;
-
-	if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
-		is_unicode = true;
-	else
-		is_unicode = false;
-	*num_of_nodes = le16_to_cpu(pSMBr->NumberOfReferrals);
-
-	if (*num_of_nodes < 1) {
-		cifs_dbg(VFS, "num_referrals: must be at least > 0, but we get num_referrals = %d\n",
-			 *num_of_nodes);
-		rc = -EINVAL;
-		goto parse_DFS_referrals_exit;
-	}
-
-	ref = (struct dfs_referral_level_3 *) &(pSMBr->referrals);
-	if (ref->VersionNumber != cpu_to_le16(3)) {
-		cifs_dbg(VFS, "Referrals of V%d version are not supported, should be V3\n",
-			 le16_to_cpu(ref->VersionNumber));
-		rc = -EINVAL;
-		goto parse_DFS_referrals_exit;
-	}
-
-	/* get the upper boundary of the resp buffer */
-	data_end = (char *)(&(pSMBr->PathConsumed)) +
-				le16_to_cpu(pSMBr->t2.DataCount);
-
-	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
-		 *num_of_nodes, le32_to_cpu(pSMBr->DFSFlags));
-
-	*target_nodes = kcalloc(*num_of_nodes, sizeof(struct dfs_info3_param),
-				GFP_KERNEL);
-	if (*target_nodes == NULL) {
-		rc = -ENOMEM;
-		goto parse_DFS_referrals_exit;
-	}
-
-	/* collect necessary data from referrals */
-	for (i = 0; i < *num_of_nodes; i++) {
-		char *temp;
-		int max_len;
-		struct dfs_info3_param *node = (*target_nodes)+i;
-
-		node->flags = le32_to_cpu(pSMBr->DFSFlags);
-		if (is_unicode) {
-			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
-						GFP_KERNEL);
-			if (tmp == NULL) {
-				rc = -ENOMEM;
-				goto parse_DFS_referrals_exit;
-			}
-			cifsConvertToUTF16((__le16 *) tmp, searchName,
-					   PATH_MAX, nls_codepage, remap);
-			node->path_consumed = cifs_utf16_bytes(tmp,
-					le16_to_cpu(pSMBr->PathConsumed),
-					nls_codepage);
-			kfree(tmp);
-		} else
-			node->path_consumed = le16_to_cpu(pSMBr->PathConsumed);
-
-		node->server_type = le16_to_cpu(ref->ServerType);
-		node->ref_flag = le16_to_cpu(ref->ReferralEntryFlags);
-
-		/* copy DfsPath */
-		temp = (char *)ref + le16_to_cpu(ref->DfsPathOffset);
-		max_len = data_end - temp;
-		node->path_name = cifs_strndup_from_utf16(temp, max_len,
-						is_unicode, nls_codepage);
-		if (!node->path_name) {
-			rc = -ENOMEM;
-			goto parse_DFS_referrals_exit;
-		}
-
-		/* copy link target UNC */
-		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
-		max_len = data_end - temp;
-		node->node_name = cifs_strndup_from_utf16(temp, max_len,
-						is_unicode, nls_codepage);
-		if (!node->node_name) {
-			rc = -ENOMEM;
-			goto parse_DFS_referrals_exit;
-		}
-
-		ref++;
-	}
-
-parse_DFS_referrals_exit:
-	if (rc) {
-		free_dfs_info_array(*target_nodes, *num_of_nodes);
-		*target_nodes = NULL;
-		*num_of_nodes = 0;
-	}
-	return rc;
-}
-
 int
 CIFSGetDFSRefer(const unsigned int xid, struct cifs_ses *ses,
 		const char *search_name, struct dfs_info3_param **target_nodes,
@@ -4993,9 +4882,11 @@ getDFSRetry:
 		 get_bcc(&pSMBr->hdr), le16_to_cpu(pSMBr->t2.DataOffset));
 
 	/* parse returned result into more usable form */
-	rc = parse_DFS_referrals(pSMBr, num_of_nodes,
-				 target_nodes, nls_codepage, remap,
-				 search_name);
+	rc = parse_dfs_referrals(&pSMBr->dfs_data,
+				 le16_to_cpu(pSMBr->t2.DataCount),
+				 num_of_nodes, target_nodes, nls_codepage,
+				 remap, search_name,
+				 (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) != 0);
 
 GetDFSRefExit:
 	cifs_buf_release(pSMB);

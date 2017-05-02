@@ -127,7 +127,6 @@ struct hfi1_qp_priv {
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	u8 r_adefered;                            /* number of acks defered */
 	struct iowait s_iowait;
-	struct timer_list s_rnr_timer;
 	struct rvt_qp *owner;
 };
 
@@ -260,15 +259,6 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 #define PSN_MODIFY_MASK 0xFFFFFF
 
 /*
- * Compare the lower 24 bits of the msn values.
- * Returns an integer <, ==, or > than zero.
- */
-static inline int cmp_msn(u32 a, u32 b)
-{
-	return (((int)a) - ((int)b)) << 8;
-}
-
-/*
  * Compare two PSNs
  * Returns an integer <, ==, or > than zero.
  */
@@ -299,9 +289,7 @@ void hfi1_put_txreq(struct verbs_txreq *tx);
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
 void hfi1_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		   int release, int copy_last);
-
-void hfi1_skip_sge(struct rvt_sge_state *ss, u32 length, int release);
+		   bool release, bool copy_last);
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet);
 
@@ -319,15 +307,7 @@ u8 ah_to_sc(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
 
-void hfi1_rc_rnr_retry(unsigned long arg);
-void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to);
-void hfi1_rc_timeout(unsigned long arg);
-void hfi1_del_timers_sync(struct rvt_qp *qp);
-void hfi1_stop_rc_timers(struct rvt_qp *qp);
-
 void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
-
-void hfi1_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
 
 void hfi1_ud_rcv(struct hfi1_packet *packet);
 
@@ -342,7 +322,7 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
-
+void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
 int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
 extern const u32 rc_only_opcode;

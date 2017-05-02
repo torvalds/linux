@@ -1085,15 +1085,9 @@ static ssize_t cmb_show_avg_utilization(struct device *dev,
 		      data.function_pending_time +
 		      data.device_disconnect_time;
 
-	/* shift to avoid long long division */
-	while (-1ul < (data.elapsed_time | utilization)) {
-		utilization >>= 8;
-		data.elapsed_time >>= 8;
-	}
-
 	/* calculate value in 0.1 percent units */
-	t = (unsigned long) data.elapsed_time / 1000;
-	u = (unsigned long) utilization / t;
+	t = data.elapsed_time / 1000;
+	u = utilization / t;
 
 	return sprintf(buf, "%02ld.%01ld%%\n", u/ 10, u - (u/ 10) * 10);
 }

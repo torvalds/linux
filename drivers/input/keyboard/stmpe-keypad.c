@@ -354,7 +354,7 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &pdev->dev;
 
-	error = matrix_keypad_parse_of_params(&pdev->dev, &rows, &cols);
+	error = matrix_keypad_parse_properties(&pdev->dev, &rows, &cols);
 	if (error)
 		return error;
 

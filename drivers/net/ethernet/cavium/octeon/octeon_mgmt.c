@@ -501,7 +501,7 @@ static int octeon_mgmt_napi_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* We stopped because no more packets were available. */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		octeon_mgmt_enable_rx_irq(p);
 	}
 	octeon_mgmt_update_rx_stats(netdev);

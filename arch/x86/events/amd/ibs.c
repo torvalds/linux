@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <linux/ptrace.h>
 #include <linux/syscore_ops.h>
+#include <linux/sched/clock.h>
 
 #include <asm/apic.h>
 

@@ -36,6 +36,13 @@ DEFINE_EVENT(timer_class, timer_init,
 	TP_ARGS(timer)
 );
 
+#define decode_timer_flags(flags)			\
+	__print_flags(flags, "|",			\
+		{  TIMER_MIGRATING,	"M" },		\
+		{  TIMER_DEFERRABLE,	"D" },		\
+		{  TIMER_PINNED,	"P" },		\
+		{  TIMER_IRQSAFE,	"I" })
+
 /**
  * timer_start - called when the timer is started
  * @timer:	pointer to struct timer_list
@@ -65,9 +72,12 @@ TRACE_EVENT(timer_start,
 		__entry->flags		= flags;
 	),
 
-	TP_printk("timer=%p function=%pf expires=%lu [timeout=%ld] flags=0x%08x",
+	TP_printk("timer=%p function=%pf expires=%lu [timeout=%ld] cpu=%u idx=%u flags=%s",
 		  __entry->timer, __entry->function, __entry->expires,
-		  (long)__entry->expires - __entry->now, __entry->flags)
+		  (long)__entry->expires - __entry->now,
+		  __entry->flags & TIMER_CPUMASK,
+		  __entry->flags >> TIMER_ARRAYSHIFT,
+		  decode_timer_flags(__entry->flags & TIMER_TRACE_FLAGMASK))
 );
 
 /**

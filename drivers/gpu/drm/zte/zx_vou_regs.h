@@ -22,6 +22,15 @@
 #define AUX_HBSC_OFFSET			0x860
 #define AUX_RSZ_OFFSET			0x800
 
+#define OSD_VL0_OFFSET			0x040
+#define OSD_VL_OFFSET(i)		(OSD_VL0_OFFSET + 0x050 * (i))
+
+#define HBSC_VL0_OFFSET			0x760
+#define HBSC_VL_OFFSET(i)		(HBSC_VL0_OFFSET + 0x040 * (i))
+
+#define RSZ_VL1_U0			0xa00
+#define RSZ_VL_OFFSET(i)		(RSZ_VL1_U0 + 0x200 * (i))
+
 /* OSD (GPC_GLOBAL) registers */
 #define OSD_INT_STA			0x04
 #define OSD_INT_CLRSTA			0x08
@@ -42,6 +51,12 @@
 )
 #define OSD_INT_ENABLE (OSD_INT_ERROR | OSD_INT_AUX_UPT | OSD_INT_MAIN_UPT)
 #define OSD_CTRL0			0x10
+#define OSD_CTRL0_VL0_EN		BIT(13)
+#define OSD_CTRL0_VL0_SEL		BIT(12)
+#define OSD_CTRL0_VL1_EN		BIT(11)
+#define OSD_CTRL0_VL1_SEL		BIT(10)
+#define OSD_CTRL0_VL2_EN		BIT(9)
+#define OSD_CTRL0_VL2_SEL		BIT(8)
 #define OSD_CTRL0_GL0_EN		BIT(7)
 #define OSD_CTRL0_GL0_SEL		BIT(6)
 #define OSD_CTRL0_GL1_EN		BIT(5)
@@ -60,6 +75,8 @@
 #define CHN_SCREEN_H_SHIFT		5
 #define CHN_SCREEN_H_MASK		(0x1fff << CHN_SCREEN_H_SHIFT)
 #define CHN_UPDATE			0x08
+#define CHN_INTERLACE_BUF_CTRL		0x24
+#define CHN_INTERLACE_EN		BIT(2)
 
 /* TIMING_CTRL registers */
 #define TIMING_TC_ENABLE		0x04
@@ -102,6 +119,19 @@
 #define TIMING_MAIN_SHIFT		0x2c
 #define TIMING_AUX_SHIFT		0x30
 #define H_SHIFT_VAL			0x0048
+#define V_SHIFT_VAL			0x0001
+#define SCAN_CTRL			0x34
+#define AUX_PI_EN			BIT(19)
+#define MAIN_PI_EN			BIT(18)
+#define AUX_INTERLACE_SEL		BIT(1)
+#define MAIN_INTERLACE_SEL		BIT(0)
+#define SEC_V_ACTIVE			0x38
+#define SEC_VACT_MAIN_SHIFT		0
+#define SEC_VACT_MAIN_MASK		(0xffff << SEC_VACT_MAIN_SHIFT)
+#define SEC_VACT_AUX_SHIFT		16
+#define SEC_VACT_AUX_MASK		(0xffff << SEC_VACT_AUX_SHIFT)
+#define SEC_MAIN_V_TIMING		0x3c
+#define SEC_AUX_V_TIMING		0x40
 #define TIMING_MAIN_PI_SHIFT		0x68
 #define TIMING_AUX_PI_SHIFT		0x6c
 #define H_PI_SHIFT_VAL			0x000f
@@ -146,10 +176,31 @@
 #define VOU_INF_DATA_SEL		0x08
 #define VOU_SOFT_RST			0x14
 #define VOU_CLK_SEL			0x18
+#define VGA_AUX_DIV_SHIFT		29
+#define VGA_MAIN_DIV_SHIFT		26
+#define PIC_MAIN_DIV_SHIFT		23
+#define PIC_AUX_DIV_SHIFT		20
+#define VOU_CLK_VL2_SEL			BIT(8)
+#define VOU_CLK_VL1_SEL			BIT(7)
+#define VOU_CLK_VL0_SEL			BIT(6)
 #define VOU_CLK_GL1_SEL			BIT(5)
 #define VOU_CLK_GL0_SEL			BIT(4)
+#define VOU_DIV_PARA			0x1c
+#define DIV_PARA_UPDATE			BIT(31)
+#define TVENC_AUX_DIV_SHIFT		28
+#define HDMI_AUX_PNX_DIV_SHIFT		25
+#define HDMI_MAIN_PNX_DIV_SHIFT		22
+#define HDMI_AUX_DIV_SHIFT		19
+#define HDMI_MAIN_DIV_SHIFT		16
+#define TVENC_MAIN_DIV_SHIFT		13
+#define INF_AUX_DIV_SHIFT		9
+#define INF_MAIN_DIV_SHIFT		6
+#define LAYER_AUX_DIV_SHIFT		3
+#define LAYER_MAIN_DIV_SHIFT		0
 #define VOU_CLK_REQEN			0x20
 #define VOU_CLK_EN			0x24
+#define VOU_INF_HDMI_CTRL		0x30
+#define VOU_HDMI_AUD_MASK		0x1f
 
 /* OTFPPU_CTRL registers */
 #define OTFPPU_RSZ_DATA_SOURCE		0x04

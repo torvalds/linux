@@ -304,7 +304,7 @@ struct x86_hw_tss {
 	u16			reserved5;
 	u16			io_bitmap_base;
 
-} __attribute__((packed)) ____cacheline_aligned;
+} __attribute__((packed));
 #endif
 
 /*
@@ -341,6 +341,16 @@ struct tss_struct {
 } ____cacheline_aligned;
 
 DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
+
+/*
+ * sizeof(unsigned long) coming from an extra "long" at the end
+ * of the iobitmap.
+ *
+ * -1? seg base+limit should be pointing to the address of the
+ * last valid byte
+ */
+#define __KERNEL_TSS_LIMIT	\
+	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
 
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);

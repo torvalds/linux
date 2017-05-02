@@ -57,9 +57,9 @@ static struct proc_dir_entry *pde_subdir_find(struct proc_dir_entry *dir,
 	struct rb_node *node = dir->subdir.rb_node;
 
 	while (node) {
-		struct proc_dir_entry *de = container_of(node,
-							 struct proc_dir_entry,
-							 subdir_node);
+		struct proc_dir_entry *de = rb_entry(node,
+						     struct proc_dir_entry,
+						     subdir_node);
 		int result = proc_match(len, name, de);
 
 		if (result < 0)
@@ -80,8 +80,9 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 
 	/* Figure out where to put new node */
 	while (*new) {
-		struct proc_dir_entry *this =
-			container_of(*new, struct proc_dir_entry, subdir_node);
+		struct proc_dir_entry *this = rb_entry(*new,
+						       struct proc_dir_entry,
+						       subdir_node);
 		int result = proc_match(de->namelen, de->name, this);
 
 		parent = *new;
@@ -117,10 +118,10 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	return 0;
 }
 
-static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			struct kstat *stat)
+static int proc_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	if (de && de->nlink)
 		set_nlink(inode, de->nlink);

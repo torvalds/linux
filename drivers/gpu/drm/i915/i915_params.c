@@ -50,7 +50,7 @@ struct i915_params i915 __read_mostly = {
 	.error_capture = true,
 	.invert_brightness = 0,
 	.disable_display = 0,
-	.enable_cmd_parser = 1,
+	.enable_cmd_parser = true,
 	.use_mmio_flip = 0,
 	.mmio_debug = 0,
 	.verbose_state_checks = 1,
@@ -188,9 +188,9 @@ MODULE_PARM_DESC(invert_brightness,
 module_param_named(disable_display, i915.disable_display, bool, 0400);
 MODULE_PARM_DESC(disable_display, "Disable display (default: false)");
 
-module_param_named_unsafe(enable_cmd_parser, i915.enable_cmd_parser, int, 0600);
+module_param_named_unsafe(enable_cmd_parser, i915.enable_cmd_parser, bool, 0400);
 MODULE_PARM_DESC(enable_cmd_parser,
-		 "Enable command parsing (1=enabled [default], 0=disabled)");
+		 "Enable command parsing (true=enabled [default], false=disabled)");
 
 module_param_named_unsafe(use_mmio_flip, i915.use_mmio_flip, int, 0600);
 MODULE_PARM_DESC(use_mmio_flip,

@@ -81,12 +81,17 @@ void lkdtm_OVERFLOW(void)
 	(void) recursive_loop(recur_count);
 }
 
+static noinline void __lkdtm_CORRUPT_STACK(void *stack)
+{
+	memset(stack, 'a', 64);
+}
+
 noinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
 	char data[8];
+	__lkdtm_CORRUPT_STACK(&data);
 
-	memset((void *)data, 'a', 64);
 	pr_info("Corrupted stack with '%16s'...\n", data);
 }
 

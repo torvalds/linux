@@ -444,6 +444,7 @@ int chp_update_desc(struct channel_path *chp)
  */
 int chp_new(struct chp_id chpid)
 {
+	struct channel_subsystem *css = css_by_id(chpid.cssid);
 	struct channel_path *chp;
 	int ret;
 
@@ -456,7 +457,7 @@ int chp_new(struct chp_id chpid)
 	/* fill in status, etc. */
 	chp->chpid = chpid;
 	chp->state = 1;
-	chp->dev.parent = &channel_subsystems[chpid.cssid]->device;
+	chp->dev.parent = &css->device;
 	chp->dev.groups = chp_attr_groups;
 	chp->dev.release = chp_release;
 	mutex_init(&chp->lock);
@@ -479,17 +480,17 @@ int chp_new(struct chp_id chpid)
 		put_device(&chp->dev);
 		goto out;
 	}
-	mutex_lock(&channel_subsystems[chpid.cssid]->mutex);
-	if (channel_subsystems[chpid.cssid]->cm_enabled) {
+	mutex_lock(&css->mutex);
+	if (css->cm_enabled) {
 		ret = chp_add_cmg_attr(chp);
 		if (ret) {
 			device_unregister(&chp->dev);
-			mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
+			mutex_unlock(&css->mutex);
 			goto out;
 		}
 	}
-	channel_subsystems[chpid.cssid]->chps[chpid.id] = chp;
-	mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
+	css->chps[chpid.id] = chp;
+	mutex_unlock(&css->mutex);
 	goto out;
 out_free:
 	kfree(chp);

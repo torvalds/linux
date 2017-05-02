@@ -159,17 +159,13 @@
 				     "", "", "", "", "", "", "", "";
 		};
 
-		usb_per5@a03e0000 {
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&musb_default_mode>;
-			pinctrl-1 = <&musb_sleep_mode>;
-		};
-
 		sound {
 			compatible = "stericsson,snd-soc-mop500";
 
 			stericsson,cpu-dai = <&msp1 &msp3>;
 			stericsson,audio-codec = <&codec>;
+			clocks = <&prcmu_clk PRCMU_SYSCLK>;
+			clock-names = "sysclk";
 		};
 
 		msp0: msp@80123000 {
@@ -216,11 +212,15 @@
 			};
 		};
 
+		/* ST6G3244ME level translator for 1.8/2.9 V */
 		vmmci: regulator-gpio {
 			compatible = "regulator-gpio";
 
+			/* GPIO228 SD_SEL */
 			gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+			/* GPIO217 MMC_EN */
 			enable-gpio = <&gpio6 25 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2900000>;
@@ -228,7 +228,6 @@
 			regulator-type = "voltage";
 
 			startup-delay-us = <100>;
-			enable-active-high;
 
 			states = <1800000 0x1
 				  2900000 0x0>;
@@ -448,6 +447,12 @@
 						     "PM_GPIO42"; /* AB8500 GPIO42 */
 				};
 
+				ab8500_usb {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&musb_default_mode>;
+					pinctrl-1 = <&musb_sleep_mode>;
+				};
+
 				ext_regulators: ab8500-ext-regulators {
 					ab8500_ext1_reg: ab8500_ext1 {
 						regulator-name = "ab8500-ext-supply1";
@@ -546,6 +551,7 @@
 				sdi0_default_mode: sdi0_default {
 					snowball_mux {
 						function = "mc0";
+						/* Add the DAT31 pin even if it is not really used */
 						groups = "mc0dat31dir_a_1";
 					};
 					snowball_cfg1 {

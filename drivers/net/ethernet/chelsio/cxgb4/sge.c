@@ -43,9 +43,7 @@
 #include <linux/export.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
-#ifdef CONFIG_NET_RX_BUSY_POLL
 #include <net/busy_poll.h>
-#endif /* CONFIG_NET_RX_BUSY_POLL */
 #ifdef CONFIG_CHELSIO_T4_FCOE
 #include <scsi/fc/fc_fcoe.h>
 #endif /* CONFIG_CHELSIO_T4_FCOE */
@@ -1774,15 +1772,20 @@ static inline int uld_send(struct adapter *adap, struct sk_buff *skb,
 	struct sge_uld_txq *txq;
 	unsigned int idx = skb_txq(skb);
 
-	txq_info = adap->sge.uld_txq_info[tx_uld_type];
-	txq = &txq_info->uldtxq[idx];
-
 	if (unlikely(is_ctrl_pkt(skb))) {
 		/* Single ctrl queue is a requirement for LE workaround path */
 		if (adap->tids.nsftids)
 			idx = 0;
 		return ctrl_xmit(&adap->sge.ctrlq[idx], skb);
 	}
+
+	txq_info = adap->sge.uld_txq_info[tx_uld_type];
+	if (unlikely(!txq_info)) {
+		WARN_ON(true);
+		return NET_XMIT_DROP;
+	}
+
+	txq = &txq_info->uldtxq[idx];
 	return ofld_xmit(txq, skb);
 }
 
@@ -2038,16 +2041,22 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	struct sge *s = &q->adap->sge;
 	int cpl_trace_pkt = is_t4(q->adap->params.chip) ?
 			    CPL_TRACE_PKT : CPL_TRACE_PKT_T5;
+	u16 err_vec;
 	struct port_info *pi;
 
 	if (unlikely(*(u8 *)rsp == cpl_trace_pkt))
 		return handle_trace_pkt(q->adap, si);
 
 	pkt = (const struct cpl_rx_pkt *)rsp;
-	csum_ok = pkt->csum_calc && !pkt->err_vec &&
+	/* Compressed error vector is enabled for T6 only */
+	if (q->adap->params.tp.rx_pkt_encap)
+		err_vec = T6_COMPR_RXERR_VEC_G(be16_to_cpu(pkt->err_vec));
+	else
+		err_vec = be16_to_cpu(pkt->err_vec);
+
+	csum_ok = pkt->csum_calc && !err_vec &&
 		  (q->netdev->features & NETIF_F_RXCSUM);
 	if ((pkt->l2info & htonl(RXF_TCP_F)) &&
-	    !(cxgb_poll_busy_polling(q)) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
 		do_gro(rxq, si, pkt);
 		return 0;
@@ -2092,7 +2101,12 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		if (!(pkt->l2info & cpu_to_be32(CPL_RX_PKT_FLAGS))) {
 			if ((pkt->l2info & cpu_to_be32(RXF_FCOE_F)) &&
 			    (pi->fcoe.flags & CXGB_FCOE_ENABLED)) {
-				if (!(pkt->err_vec & cpu_to_be16(RXERR_CSUM_F)))
+				if (q->adap->params.tp.rx_pkt_encap)
+					csum_ok = err_vec &
+						  T6_COMPR_RXERR_SUM_F;
+				else
+					csum_ok = err_vec & RXERR_CSUM_F;
+				if (!csum_ok)
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 			}
 		}
@@ -2273,38 +2287,6 @@ static int process_responses(struct sge_rspq *q, int budget)
 	return budget - budget_left;
 }
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-int cxgb_busy_poll(struct napi_struct *napi)
-{
-	struct sge_rspq *q = container_of(napi, struct sge_rspq, napi);
-	unsigned int params, work_done;
-	u32 val;
-
-	if (!cxgb_poll_lock_poll(q))
-		return LL_FLUSH_BUSY;
-
-	work_done = process_responses(q, 4);
-	params = QINTR_TIMER_IDX_V(TIMERREG_COUNTER0_X) | QINTR_CNT_EN_V(1);
-	q->next_intr_params = params;
-	val = CIDXINC_V(work_done) | SEINTARM_V(params);
-
-	/* If we don't have access to the new User GTS (T5+), use the old
-	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
-	 */
-	if (unlikely(!q->bar2_addr))
-		t4_write_reg(q->adap, MYPF_REG(SGE_PF_GTS_A),
-			     val | INGRESSQID_V((u32)q->cntxt_id));
-	else {
-		writel(val | INGRESSQID_V(q->bar2_qid),
-		       q->bar2_addr + SGE_UDB_GTS);
-		wmb();
-	}
-
-	cxgb_poll_unlock_poll(q);
-	return work_done;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 /**
  *	napi_rx_handler - the NAPI handler for Rx processing
  *	@napi: the napi instance
@@ -2322,9 +2304,6 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	struct sge_rspq *q = container_of(napi, struct sge_rspq, napi);
 	int work_done;
 	u32 val;
-
-	if (!cxgb_poll_lock_napi(q))
-		return budget;
 
 	work_done = process_responses(q, budget);
 	if (likely(work_done < budget)) {
@@ -2365,7 +2344,6 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
-	cxgb_poll_unlock_napi(q);
 	return work_done;
 }
 

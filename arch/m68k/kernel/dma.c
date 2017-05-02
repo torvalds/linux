@@ -158,7 +158,7 @@ static int m68k_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 	return nents;
 }
 
-struct dma_map_ops m68k_dma_ops = {
+const struct dma_map_ops m68k_dma_ops = {
 	.alloc			= m68k_dma_alloc,
 	.free			= m68k_dma_free,
 	.map_page		= m68k_dma_map_page,

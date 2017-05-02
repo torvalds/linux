@@ -38,6 +38,9 @@
 #define ARC_REG_CLUSTER_BCR	0xcf
 #define ARC_REG_AUX_ICCM	0x208	/* ICCM Base Addr (ARCv2) */
 
+/* Common for ARCompact and ARCv2 status register */
+#define ARC_REG_STATUS32	0x0A
+
 /* status32 Bits Positions */
 #define STATUS_AE_BIT		5	/* Exception active */
 #define STATUS_DE_BIT		6	/* PC is in delay slot */

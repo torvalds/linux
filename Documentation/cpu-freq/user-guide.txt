@@ -82,7 +82,9 @@ UltraSPARC-III
 -------
 
 Several "PowerBook" and "iBook2" notebooks are supported.
-
+The following POWER processors are supported in powernv mode:
+POWER8
+POWER9
 
 1.5 SuperH
 ----------

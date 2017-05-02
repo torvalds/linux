@@ -2334,7 +2334,7 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		ql_enable_completion_interrupt(qdev, rx_ring->irq);
 	}
 	return work_done;

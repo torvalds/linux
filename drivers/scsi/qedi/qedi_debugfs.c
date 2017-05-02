@@ -14,7 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 
-int do_not_recover;
+int qedi_do_not_recover;
 static struct dentry *qedi_dbg_root;
 
 void
@@ -74,22 +74,22 @@ qedi_dbg_exit(void)
 static ssize_t
 qedi_dbg_do_not_recover_enable(struct qedi_dbg_ctx *qedi_dbg)
 {
-	if (!do_not_recover)
-		do_not_recover = 1;
+	if (!qedi_do_not_recover)
+		qedi_do_not_recover = 1;
 
 	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_not_recover=%d\n",
-		  do_not_recover);
+		  qedi_do_not_recover);
 	return 0;
 }
 
 static ssize_t
 qedi_dbg_do_not_recover_disable(struct qedi_dbg_ctx *qedi_dbg)
 {
-	if (do_not_recover)
-		do_not_recover = 0;
+	if (qedi_do_not_recover)
+		qedi_do_not_recover = 0;
 
 	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_not_recover=%d\n",
-		  do_not_recover);
+		  qedi_do_not_recover);
 	return 0;
 }
 
@@ -141,7 +141,7 @@ qedi_dbg_do_not_recover_cmd_read(struct file *filp, char __user *buffer,
 	if (*ppos)
 		return 0;
 
-	cnt = sprintf(buffer, "do_not_recover=%d\n", do_not_recover);
+	cnt = sprintf(buffer, "do_not_recover=%d\n", qedi_do_not_recover);
 	cnt = min_t(int, count, cnt - *ppos);
 	*ppos += cnt;
 	return cnt;

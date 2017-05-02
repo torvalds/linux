@@ -83,7 +83,7 @@ static int vmw_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		return 1;
 	}
 
-	switch (par->set_fb->depth) {
+	switch (par->set_fb->format->depth) {
 	case 24:
 	case 32:
 		pal[regno] = ((red & 0xff00) << 8) |
@@ -91,8 +91,9 @@ static int vmw_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			     ((blue  & 0xff00) >> 8);
 		break;
 	default:
-		DRM_ERROR("Bad depth %u, bpp %u.\n", par->set_fb->depth,
-			  par->set_fb->bits_per_pixel);
+		DRM_ERROR("Bad depth %u, bpp %u.\n",
+			  par->set_fb->format->depth,
+			  par->set_fb->format->cpp[0] * 8);
 		return 1;
 	}
 
@@ -197,7 +198,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	 * Handle panning when copying from vmalloc to framebuffer.
 	 * Clip dirty area to framebuffer.
 	 */
-	cpp = (cur_fb->bits_per_pixel + 7) / 8;
+	cpp = cur_fb->format->cpp[0];
 	max_x = par->fb_x + cur_fb->width;
 	max_y = par->fb_y + cur_fb->height;
 
@@ -486,7 +487,7 @@ static int vmw_fb_kms_framebuffer(struct fb_info *info)
 	cur_fb = par->set_fb;
 	if (cur_fb && cur_fb->width == mode_cmd.width &&
 	    cur_fb->height == mode_cmd.height &&
-	    cur_fb->pixel_format == mode_cmd.pixel_format &&
+	    cur_fb->format->format == mode_cmd.pixel_format &&
 	    cur_fb->pitches[0] == mode_cmd.pitches[0])
 		return 0;
 

@@ -36,7 +36,8 @@
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/percpu.h>
@@ -49,6 +50,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kthread.h>
 #include <linux/tick.h>
+#include <linux/rcupdate_wait.h>
 
 #define CREATE_TRACE_POINTS
 

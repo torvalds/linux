@@ -280,6 +280,12 @@ To disable the watchdog on reboot, the user must call the following helper:
 
 static inline void watchdog_stop_on_reboot(struct watchdog_device *wdd);
 
+To disable the watchdog when unregistering the watchdog, the user must call
+the following helper. Note that this will only stop the watchdog if the
+nowayout flag is not set.
+
+static inline void watchdog_stop_on_unregister(struct watchdog_device *wdd);
+
 To change the priority of the restart handler the following helper should be
 used:
 

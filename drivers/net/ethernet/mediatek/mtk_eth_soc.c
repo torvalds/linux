@@ -462,8 +462,8 @@ static void mtk_stats_update(struct mtk_eth *eth)
 	}
 }
 
-static struct rtnl_link_stats64 *mtk_get_stats64(struct net_device *dev,
-					struct rtnl_link_stats64 *storage)
+static void mtk_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *storage)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_hw_stats *hw_stats = mac->hw_stats;
@@ -494,8 +494,6 @@ static struct rtnl_link_stats64 *mtk_get_stats64(struct net_device *dev,
 	storage->tx_errors = dev->stats.tx_errors;
 	storage->rx_dropped = dev->stats.rx_dropped;
 	storage->tx_dropped = dev->stats.tx_dropped;
-
-	return storage;
 }
 
 static inline int mtk_max_frag_size(int mtu)

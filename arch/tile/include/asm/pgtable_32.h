@@ -74,6 +74,7 @@ extern unsigned long VMALLOC_RESERVE /* = CONFIG_VMALLOC_RESERVE */;
 #define MAXMEM		(_VMALLOC_START - PAGE_OFFSET)
 
 /* We have no pmd or pud since we are strictly a two-level page table */
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 static inline int pud_huge_page(pud_t pud)	{ return 0; }

@@ -11,12 +11,22 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
+#include <linux/platform_data/ti-aemif.h>
 
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
 #include "cp_intc.h"
 #include <mach/da8xx.h>
+
+static struct of_dev_auxdata da850_aemif_auxdata_lookup[] = {
+	OF_DEV_AUXDATA("ti,davinci-nand", 0x62000000, "davinci-nand.0", NULL),
+	{}
+};
+
+static struct aemif_platform_data aemif_data = {
+	.dev_lookup = da850_aemif_auxdata_lookup,
+};
 
 static struct of_dev_auxdata da850_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("ti,davinci-i2c", 0x01c22000, "i2c_davinci.1", NULL),
@@ -37,11 +47,12 @@ static struct of_dev_auxdata da850_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("ti,davinci-dm6467-emac", 0x01e20000, "davinci_emac.1",
 		       NULL),
 	OF_DEV_AUXDATA("ti,da830-mcasp-audio", 0x01d00000, "davinci-mcasp.0", NULL),
-	OF_DEV_AUXDATA("ti,da850-aemif", 0x68000000, "ti-aemif", NULL),
+	OF_DEV_AUXDATA("ti,da850-aemif", 0x68000000, "ti-aemif", &aemif_data),
 	OF_DEV_AUXDATA("ti,da850-tilcdc", 0x01e13000, "da8xx_lcdc.0", NULL),
 	OF_DEV_AUXDATA("ti,da830-ohci", 0x01e25000, "ohci-da8xx", NULL),
 	OF_DEV_AUXDATA("ti,da830-musb", 0x01e00000, "musb-da8xx", NULL),
 	OF_DEV_AUXDATA("ti,da830-usb-phy", 0x01c1417c, "da8xx-usb-phy", NULL),
+	OF_DEV_AUXDATA("ti,da850-ahci", 0x01e18000, "ahci_da850", NULL),
 	{}
 };
 
@@ -49,6 +60,9 @@ static struct of_dev_auxdata da850_auxdata_lookup[] __initdata = {
 
 static void __init da850_init_machine(void)
 {
+	/* All existing boards use 100MHz SATA refclkpn */
+	static const unsigned long sata_refclkpn = 100 * 1000 * 1000;
+
 	int ret;
 
 	ret = da8xx_register_usb20_phy_clk(false);
@@ -60,8 +74,14 @@ static void __init da850_init_machine(void)
 		pr_warn("%s: registering USB 1.1 PHY clock failed: %d",
 			__func__, ret);
 
+	ret = da850_register_sata_refclk(sata_refclkpn);
+	if (ret)
+		pr_warn("%s: registering SATA REFCLK failed: %d",
+			__func__, ret);
+
 	of_platform_default_populate(NULL, da850_auxdata_lookup, NULL);
 	davinci_pm_init();
+	pdata_quirks_init();
 }
 
 static const char *const da850_boards_compat[] __initconst = {

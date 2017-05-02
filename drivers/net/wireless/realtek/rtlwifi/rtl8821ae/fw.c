@@ -27,6 +27,7 @@
 #include "../pci.h"
 #include "../base.h"
 #include "../core.h"
+#include "../efuse.h"
 #include "reg.h"
 #include "def.h"
 #include "fw.h"
@@ -51,63 +52,6 @@ static void _rtl8821ae_enable_fw_download(struct ieee80211_hw *hw, bool enable)
 	}
 }
 
-static void _rtl8821ae_fw_block_write(struct ieee80211_hw *hw,
-				      const u8 *buffer, u32 size)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 blocksize = sizeof(u32);
-	u8 *bufferptr = (u8 *)buffer;
-	u32 *pu4byteptr = (u32 *)buffer;
-	u32 i, offset, blockcount, remainsize;
-
-	blockcount = size / blocksize;
-	remainsize = size % blocksize;
-
-	for (i = 0; i < blockcount; i++) {
-		offset = i * blocksize;
-		rtl_write_dword(rtlpriv, (FW_8821AE_START_ADDRESS + offset),
-				*(pu4byteptr + i));
-	}
-
-	if (remainsize) {
-		offset = blockcount * blocksize;
-		bufferptr += offset;
-		for (i = 0; i < remainsize; i++) {
-			rtl_write_byte(rtlpriv, (FW_8821AE_START_ADDRESS +
-					offset + i), *(bufferptr + i));
-		}
-	}
-}
-
-static void _rtl8821ae_fw_page_write(struct ieee80211_hw *hw,
-				     u32 page, const u8 *buffer, u32 size)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 value8;
-	u8 u8page = (u8)(page & 0x07);
-
-	value8 = (rtl_read_byte(rtlpriv, REG_MCUFWDL + 2) & 0xF8) | u8page;
-
-	rtl_write_byte(rtlpriv, (REG_MCUFWDL + 2), value8);
-	_rtl8821ae_fw_block_write(hw, buffer, size);
-}
-
-static void _rtl8821ae_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
-{
-	u32 fwlen = *pfwlen;
-	u8 remain = (u8)(fwlen % 4);
-
-	remain = (remain == 0) ? 0 : (4 - remain);
-
-	while (remain > 0) {
-		pfwbuf[fwlen] = 0;
-		fwlen++;
-		remain--;
-	}
-
-	*pfwlen = fwlen;
-}
-
 static void _rtl8821ae_write_fw(struct ieee80211_hw *hw,
 				enum version_8821ae version,
 				u8 *buffer, u32 size)
@@ -119,27 +63,24 @@ static void _rtl8821ae_write_fw(struct ieee80211_hw *hw,
 
 	RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "FW size is %d bytes,\n", size);
 
-	_rtl8821ae_fill_dummy(bufferptr, &size);
+	rtl_fill_dummy(bufferptr, &size);
 
 	pagenums = size / FW_8821AE_PAGE_SIZE;
 	remainsize = size % FW_8821AE_PAGE_SIZE;
 
-	if (pagenums > 8) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Page numbers should not greater then 8\n");
-	}
+	if (pagenums > 8)
+		pr_err("Page numbers should not greater then 8\n");
 
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8821AE_PAGE_SIZE;
-		_rtl8821ae_fw_page_write(hw, page, (bufferptr + offset),
-					 FW_8821AE_PAGE_SIZE);
+		rtl_fw_page_write(hw, page, (bufferptr + offset),
+				  FW_8821AE_PAGE_SIZE);
 	}
 
 	if (remainsize) {
 		offset = pagenums * FW_8821AE_PAGE_SIZE;
 		page = pagenums;
-		_rtl8821ae_fw_page_write(hw, page, (bufferptr + offset),
-					 remainsize);
+		rtl_fw_page_write(hw, page, (bufferptr + offset), remainsize);
 	}
 }
 
@@ -161,10 +102,6 @@ static int _rtl8821ae_fw_free_to_go(struct ieee80211_hw *hw)
 			  value32);
 		goto exit;
 	}
-
-	RT_TRACE(rtlpriv, COMP_FW, DBG_EMERG,
-		 "Checksum report OK ! REG_MCUFWDL:0x%08x .\n", value32);
-
 	value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
@@ -175,20 +112,14 @@ static int _rtl8821ae_fw_free_to_go(struct ieee80211_hw *hw)
 	counter = 0;
 	do {
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY) {
-			RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
-				 "Polling FW ready success!! REG_MCUFWDL:0x%08x .\n",
-				  value32);
-			err = 0;
-			goto exit;
-		}
+		if (value32 & WINTINI_RDY)
+			return 0;
 
 		udelay(FW_8821AE_POLLING_DELAY);
 	} while (counter++ < FW_8821AE_POLLING_TIMEOUT_COUNT);
 
-	RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-		 "Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
-		 value32);
+	pr_err("Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
+	       value32);
 
 exit:
 	return err;
@@ -510,8 +441,8 @@ void rtl8821ae_fill_h2c_cmd(struct ieee80211_hw *hw,
 	u32 tmp_cmdbuf[2];
 
 	if (!rtlhal->fw_ready) {
-		RT_ASSERT(false,
-			  "return H2C cmd because of Fw download fail!!!\n");
+		WARN_ONCE(true,
+			  "rtl8821ae: error H2C cmd because of Fw download fail!!!\n");
 		return;
 	}
 
@@ -1809,9 +1740,9 @@ static void rtl8821ae_c2h_ra_report_handler(struct ieee80211_hw *hw,
 	rtl8821ae_dm_update_init_rate(hw, rate);
 }
 
-static void _rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
-					   u8 c2h_cmd_id, u8 c2h_cmd_len,
-					   u8 *tmp_buf)
+void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
+				   u8 c2h_cmd_id, u8 c2h_cmd_len,
+				   u8 *tmp_buf)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -1853,5 +1784,15 @@ void rtl8821ae_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer,
 
 	RT_PRINT_DATA(rtlpriv, COMP_FW, DBG_LOUD,
 		      "[C2H packet], Content Hex:\n", tmp_buf, c2h_cmd_len);
-	_rtl8821ae_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+
+	switch (c2h_cmd_id) {
+	case C2H_8812_BT_INFO:
+		rtl_c2hcmd_enqueue(hw, c2h_cmd_id, c2h_cmd_len, tmp_buf);
+		break;
+
+	default:
+		rtl8821ae_c2h_content_parsing(hw, c2h_cmd_id, c2h_cmd_len,
+					      tmp_buf);
+		break;
+	}
 }

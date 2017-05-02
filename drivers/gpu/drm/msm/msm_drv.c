@@ -91,6 +91,25 @@ module_param(dumpstate, bool, 0600);
  * Util/helpers:
  */
 
+struct clk *msm_clk_get(struct platform_device *pdev, const char *name)
+{
+	struct clk *clk;
+	char name2[32];
+
+	clk = devm_clk_get(&pdev->dev, name);
+	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
+		return clk;
+
+	snprintf(name2, sizeof(name2), "%s_clk", name);
+
+	clk = devm_clk_get(&pdev->dev, name2);
+	if (!IS_ERR(clk))
+		dev_warn(&pdev->dev, "Using legacy clk name binding.  Use "
+				"\"%s\" instead of \"%s\"\n", name, name2);
+
+	return clk;
+}
+
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname)
 {
@@ -985,6 +1004,7 @@ static int add_display_components(struct device *dev,
  * as components.
  */
 static const struct of_device_id msm_gpu_match[] = {
+	{ .compatible = "qcom,adreno" },
 	{ .compatible = "qcom,adreno-3xx" },
 	{ .compatible = "qcom,kgsl-3d0" },
 	{ },

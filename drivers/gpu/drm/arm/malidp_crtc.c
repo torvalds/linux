@@ -63,8 +63,7 @@ static void malidp_crtc_enable(struct drm_crtc *crtc)
 
 	clk_prepare_enable(hwdev->pxlclk);
 
-	/* mclk needs to be set to the same or higher rate than pxlclk */
-	clk_set_rate(hwdev->mclk, crtc->state->adjusted_mode.crtc_clock * 1000);
+	/* We rely on firmware to set mclk to a sensible level. */
 	clk_set_rate(hwdev->pxlclk, crtc->state->adjusted_mode.crtc_clock * 1000);
 
 	hwdev->modeset(hwdev, &vm);

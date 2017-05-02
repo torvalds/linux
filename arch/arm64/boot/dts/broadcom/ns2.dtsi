@@ -30,6 +30,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/memreserve/ 0x81000000 0x00200000;
+
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/bcm-ns2.h>
 
@@ -115,7 +117,7 @@
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0>;
-		interrupt-map = <0 0 0 0 &gic GIC_SPI 281 IRQ_TYPE_NONE>;
+		interrupt-map = <0 0 0 0 &gic 0 GIC_SPI 281 IRQ_TYPE_NONE>;
 
 		linux,pci-domain = <0>;
 
@@ -136,18 +138,7 @@
 		phys = <&pci_phy0>;
 		phy-names = "pcie-phy";
 
-		msi-parent = <&msi0>;
-		msi0: msi@20020000 {
-			compatible = "brcm,iproc-msi";
-			msi-controller;
-			interrupt-parent = <&gic>;
-			interrupts = <GIC_SPI 277 IRQ_TYPE_NONE>,
-				     <GIC_SPI 278 IRQ_TYPE_NONE>,
-				     <GIC_SPI 279 IRQ_TYPE_NONE>,
-				     <GIC_SPI 280 IRQ_TYPE_NONE>;
-			brcm,num-eq-region = <1>;
-			brcm,num-msi-msg-region = <1>;
-		};
+		msi-parent = <&v2m0>;
 	};
 
 	pcie4: pcie@50020000 {
@@ -156,7 +147,7 @@
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0>;
-		interrupt-map = <0 0 0 0 &gic GIC_SPI 305 IRQ_TYPE_NONE>;
+		interrupt-map = <0 0 0 0 &gic 0 GIC_SPI 305 IRQ_TYPE_NONE>;
 
 		linux,pci-domain = <4>;
 
@@ -177,16 +168,24 @@
 		phys = <&pci_phy1>;
 		phy-names = "pcie-phy";
 
-		msi-parent = <&msi4>;
-		msi4: msi@50020000 {
-			compatible = "brcm,iproc-msi";
-			msi-controller;
-			interrupt-parent = <&gic>;
-			interrupts = <GIC_SPI 301 IRQ_TYPE_NONE>,
-				     <GIC_SPI 302 IRQ_TYPE_NONE>,
-				     <GIC_SPI 303 IRQ_TYPE_NONE>,
-				     <GIC_SPI 304 IRQ_TYPE_NONE>;
-		};
+		msi-parent = <&v2m0>;
+	};
+
+	pcie8: pcie@60c00000 {
+		compatible = "brcm,iproc-pcie-paxc";
+		reg = <0 0x60c00000 0 0x1000>;
+		linux,pci-domain = <8>;
+
+		bus-range = <0x0 0x1>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x83000000 0 0x00000000 0 0x60000000 0 0x00c00000>;
+
+		status = "disabled";
+
+		msi-parent = <&v2m0>;
 	};
 
 	soc: soc {
@@ -331,6 +330,82 @@
 			      <0x65260000 0x1000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_RAW(0xf) |
 				      IRQ_TYPE_LEVEL_HIGH)>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x652e0000 0x80000>;
+
+			v2m0: v2m@00000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x00000 0x1000>;
+				arm,msi-base-spi = <72>;
+				arm,msi-num-spis = <16>;
+			};
+
+			v2m1: v2m@10000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x10000 0x1000>;
+				arm,msi-base-spi = <88>;
+				arm,msi-num-spis = <16>;
+			};
+
+			v2m2: v2m@20000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x20000 0x1000>;
+				arm,msi-base-spi = <104>;
+				arm,msi-num-spis = <16>;
+			};
+
+			v2m3: v2m@30000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x30000 0x1000>;
+				arm,msi-base-spi = <120>;
+				arm,msi-num-spis = <16>;
+			};
+
+			v2m4: v2m@40000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x40000 0x1000>;
+				arm,msi-base-spi = <136>;
+				arm,msi-num-spis = <16>;
+			};
+
+			v2m5: v2m@50000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x50000 0x1000>;
+				arm,msi-base-spi = <152>;
+				arm,msi-num-spis = <16>;
+			};
+
+			v2m6: v2m@60000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x60000 0x1000>;
+				arm,msi-base-spi = <168>;
+				arm,msi-num-spis = <16>;
+			};
+
+			v2m7: v2m@70000 {
+				compatible = "arm,gic-v2m-frame";
+				interrupt-parent = <&gic>;
+				msi-controller;
+				reg = <0x70000 0x1000>;
+				arm,msi-base-spi = <184>;
+				arm,msi-num-spis = <16>;
+			};
 		};
 
 		cci@65590000 {

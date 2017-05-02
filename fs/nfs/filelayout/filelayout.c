@@ -305,7 +305,7 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 	}
 	hdr->pgio_done_cb = filelayout_read_done_cb;
 
-	if (nfs41_setup_sequence(hdr->ds_clp->cl_session,
+	if (nfs4_setup_sequence(hdr->ds_clp,
 			&hdr->args.seq_args,
 			&hdr->res.seq_res,
 			task))
@@ -403,7 +403,7 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 		rpc_exit(task, 0);
 		return;
 	}
-	if (nfs41_setup_sequence(hdr->ds_clp->cl_session,
+	if (nfs4_setup_sequence(hdr->ds_clp,
 			&hdr->args.seq_args,
 			&hdr->res.seq_res,
 			task))
@@ -438,7 +438,7 @@ static void filelayout_commit_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_commit_data *wdata = data;
 
-	nfs41_setup_sequence(wdata->ds_clp->cl_session,
+	nfs4_setup_sequence(wdata->ds_clp,
 			&wdata->args.seq_args,
 			&wdata->res.seq_res,
 			task);
@@ -482,7 +482,7 @@ filelayout_read_pagelist(struct nfs_pgio_header *hdr)
 	u32 j, idx;
 	struct nfs_fh *fh;
 
-	dprintk("--> %s ino %lu pgbase %u req %Zu@%llu\n",
+	dprintk("--> %s ino %lu pgbase %u req %zu@%llu\n",
 		__func__, hdr->inode->i_ino,
 		hdr->args.pgbase, (size_t)hdr->args.count, offset);
 
@@ -540,7 +540,7 @@ filelayout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 	if (IS_ERR(ds_clnt))
 		return PNFS_NOT_ATTEMPTED;
 
-	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s cl_count %d\n",
+	dprintk("%s ino %lu sync %d req %zu@%llu DS: %s cl_count %d\n",
 		__func__, hdr->inode->i_ino, sync, (size_t) hdr->args.count,
 		offset, ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
 

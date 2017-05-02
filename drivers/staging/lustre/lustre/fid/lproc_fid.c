@@ -203,9 +203,13 @@ LPROC_SEQ_FOPS_RO(ldebugfs_fid_server);
 LPROC_SEQ_FOPS_RO(ldebugfs_fid_fid);
 
 struct lprocfs_vars seq_client_debugfs_list[] = {
-	{ "space", &ldebugfs_fid_space_fops },
-	{ "width", &ldebugfs_fid_width_fops },
-	{ "server", &ldebugfs_fid_server_fops },
-	{ "fid", &ldebugfs_fid_fid_fops },
+	{ .name =	"space",
+	  .fops =	&ldebugfs_fid_space_fops },
+	{ .name	=	"width",
+	  .fops =	&ldebugfs_fid_width_fops },
+	{ .name =	"server",
+	  .fops =	&ldebugfs_fid_server_fops },
+	{ .name	=	"fid",
+	  .fops =	&ldebugfs_fid_fid_fops },
 	{ NULL }
 };

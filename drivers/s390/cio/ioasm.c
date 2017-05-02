@@ -165,13 +165,15 @@ int tpi(struct tpi_info *addr)
 int chsc(void *chsc_area)
 {
 	typedef struct { char _[4096]; } addr_type;
-	int cc;
+	int cc = -EIO;
 
 	asm volatile(
 		"	.insn	rre,0xb25f0000,%2,0\n"
-		"	ipm	%0\n"
+		"0:	ipm	%0\n"
 		"	srl	%0,28\n"
-		: "=d" (cc), "=m" (*(addr_type *) chsc_area)
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (cc), "=m" (*(addr_type *) chsc_area)
 		: "d" (chsc_area), "m" (*(addr_type *) chsc_area)
 		: "cc");
 	trace_s390_cio_chsc(chsc_area, cc);

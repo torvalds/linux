@@ -1,0 +1,29 @@
+What:		/sys/bus/iio/devices/triggerX/master_mode_available
+KernelVersion:	4.11
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the list possible master modes which are:
+		- "reset"     :	The UG bit from the TIMx_EGR register is used as trigger output (TRGO).
+		- "enable"    : The Counter Enable signal CNT_EN is used as trigger output.
+		- "update"    : The update event is selected as trigger output.
+				For instance a master timer can then be used as a prescaler for a slave timer.
+		- "compare_pulse" : The trigger output send a positive pulse when the CC1IF flag is to be set.
+		- "OC1REF"    : OC1REF signal is used as trigger output.
+		- "OC2REF"    : OC2REF signal is used as trigger output.
+		- "OC3REF"    : OC3REF signal is used as trigger output.
+		- "OC4REF"    : OC4REF signal is used as trigger output.
+
+What:		/sys/bus/iio/devices/triggerX/master_mode
+KernelVersion:	4.11
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the current master modes.
+		Writing set the master mode
+
+What:		/sys/bus/iio/devices/triggerX/sampling_frequency
+KernelVersion:	4.11
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the current sampling frequency.
+		Writing an value different of 0 set and start sampling.
+		Writing 0 stop sampling.

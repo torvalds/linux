@@ -48,10 +48,14 @@ static int mpls_xmit(struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct rtable *rt = NULL;
 	struct rt6_info *rt6 = NULL;
+	struct mpls_dev *out_mdev;
 	int err = 0;
 	bool bos;
 	int i;
 	unsigned int ttl;
+
+	/* Find the output device */
+	out_dev = dst->dev;
 
 	/* Obtain the ttl */
 	if (dst->ops->family == AF_INET) {
@@ -66,8 +70,6 @@ static int mpls_xmit(struct sk_buff *skb)
 
 	skb_orphan(skb);
 
-	/* Find the output device */
-	out_dev = dst->dev;
 	if (!mpls_output_possible(out_dev) ||
 	    !dst->lwtstate || skb_warn_if_lro(skb))
 		goto drop;
@@ -109,6 +111,8 @@ static int mpls_xmit(struct sk_buff *skb)
 		bos = false;
 	}
 
+	mpls_stats_inc_outucastpkts(out_dev, skb);
+
 	if (rt)
 		err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gateway,
 				 skb);
@@ -122,11 +126,14 @@ static int mpls_xmit(struct sk_buff *skb)
 	return LWTUNNEL_XMIT_DONE;
 
 drop:
+	out_mdev = out_dev ? mpls_dev_get(out_dev) : NULL;
+	if (out_mdev)
+		MPLS_INC_STATS(out_mdev, tx_errors);
 	kfree_skb(skb);
 	return -EINVAL;
 }
 
-static int mpls_build_state(struct net_device *dev, struct nlattr *nla,
+static int mpls_build_state(struct nlattr *nla,
 			    unsigned int family, const void *cfg,
 			    struct lwtunnel_state **ts)
 {

@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/user.h>
 #include <linux/keyctl.h>
 #include <linux/fs.h>
 #include <linux/err.h>

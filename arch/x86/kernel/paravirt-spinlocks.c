@@ -20,7 +20,7 @@ bool pv_is_native_spin_unlock(void)
 		__raw_callee_save___native_queued_spin_unlock;
 }
 
-__visible bool __native_vcpu_is_preempted(int cpu)
+__visible bool __native_vcpu_is_preempted(long cpu)
 {
 	return false;
 }

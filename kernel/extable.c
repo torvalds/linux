@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/kprobes.h>
+#include <linux/filter.h>
 
 #include <asm/sections.h>
 #include <linux/uaccess.h>
@@ -108,6 +109,8 @@ int __kernel_text_address(unsigned long addr)
 		return 1;
 	if (is_kprobe_optinsn_slot(addr) || is_kprobe_insn_slot(addr))
 		return 1;
+	if (is_bpf_text_address(addr))
+		return 1;
 	/*
 	 * There might be init symbols in saved stacktraces.
 	 * Give those symbols a chance to be printed in
@@ -130,6 +133,8 @@ int kernel_text_address(unsigned long addr)
 	if (is_ftrace_trampoline(addr))
 		return 1;
 	if (is_kprobe_optinsn_slot(addr) || is_kprobe_insn_slot(addr))
+		return 1;
+	if (is_bpf_text_address(addr))
 		return 1;
 	return 0;
 }

@@ -358,7 +358,7 @@ The current Livepatch implementation has several limitations:
     Each function has to handle TOC and save LR before it could call
     the ftrace handler. This operation has to be reverted on return.
     Fortunately, the generic ftrace code has the same problem and all
-    this is is handled on the ftrace level.
+    this is handled on the ftrace level.
 
 
   + Kretprobes using the ftrace framework conflict with the patched

@@ -32,6 +32,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/buffer_impl.h>
 
 /* IDA to assign each registered device a unique id */
 static DEFINE_IDA(iio_ida);
@@ -83,6 +84,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_ELECTRICALCONDUCTIVITY] = "electricalconductivity",
 	[IIO_COUNT] = "count",
 	[IIO_INDEX] = "index",
+	[IIO_GRAVITY]  = "gravity",
 };
 
 static const char * const iio_modifier_names[] = {

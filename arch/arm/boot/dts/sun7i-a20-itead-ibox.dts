@@ -131,10 +131,9 @@
 
 &pio {
 	led_pins_itead_core: led_pins@0 {
-		allwinner,pins = "PH20","PH21";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH20","PH21";
+		function = "gpio_out";
+		drive-strength = <20>;
 	};
 };
 

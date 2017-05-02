@@ -23,7 +23,7 @@
 #include <linux/parport.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 
 #include <asm/current.h>
 #include <linux/uaccess.h>

@@ -55,7 +55,7 @@
 #define pr_fmt(fmt)	"<" MLX4_IB_DRV_NAME "> %s: " fmt, __func__
 
 #define mlx4_ib_warn(ibdev, format, arg...) \
-	dev_warn((ibdev)->dma_device, MLX4_IB_DRV_NAME ": " format, ## arg)
+	dev_warn((ibdev)->dev.parent, MLX4_IB_DRV_NAME ": " format, ## arg)
 
 enum {
 	MLX4_IB_SQ_MIN_WQE_SHIFT = 6,

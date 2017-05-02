@@ -73,6 +73,10 @@ OPTIONS
 	Be verbose, for instance, show the raw counts in addition to the
 	diff.
 
+-q::
+--quiet::
+	Do not show any message.  (Suppress -v)
+
 -f::
 --force::
         Don't do ownership validation.

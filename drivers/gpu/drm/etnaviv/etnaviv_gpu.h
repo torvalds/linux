@@ -92,6 +92,7 @@ struct etnaviv_event {
 	struct dma_fence *fence;
 };
 
+struct etnaviv_cmdbuf_suballoc;
 struct etnaviv_cmdbuf;
 
 struct etnaviv_gpu {
@@ -135,6 +136,7 @@ struct etnaviv_gpu {
 	int irq;
 
 	struct etnaviv_iommu *mmu;
+	struct etnaviv_cmdbuf_suballoc *cmdbuf_suballoc;
 
 	/* Power Control: */
 	struct clk *clk_bus;
@@ -148,29 +150,6 @@ struct etnaviv_gpu {
 	u32 hangcheck_fence;
 	u32 hangcheck_dma_addr;
 	struct work_struct recover_work;
-};
-
-struct etnaviv_cmdbuf {
-	/* device this cmdbuf is allocated for */
-	struct etnaviv_gpu *gpu;
-	/* user context key, must be unique between all active users */
-	struct etnaviv_file_private *ctx;
-	/* cmdbuf properties */
-	void *vaddr;
-	dma_addr_t paddr;
-	u32 size;
-	u32 user_size;
-	/* vram node used if the cmdbuf is mapped through the MMUv2 */
-	struct drm_mm_node vram_node;
-	/* fence after which this buffer is to be disposed */
-	struct dma_fence *fence;
-	/* target exec state */
-	u32 exec_state;
-	/* per GPU in-flight list */
-	struct list_head node;
-	/* BOs attached to this command buffer */
-	unsigned int nr_bos;
-	struct etnaviv_vram_mapping *bo_map[0];
 };
 
 static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)
@@ -211,9 +190,6 @@ int etnaviv_gpu_wait_obj_inactive(struct etnaviv_gpu *gpu,
 	struct etnaviv_gem_object *etnaviv_obj, struct timespec *timeout);
 int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	struct etnaviv_gem_submit *submit, struct etnaviv_cmdbuf *cmdbuf);
-struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu,
-					      u32 size, size_t nr_bos);
-void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf);
 int etnaviv_gpu_pm_get_sync(struct etnaviv_gpu *gpu);
 void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_wait_idle(struct etnaviv_gpu *gpu, unsigned int timeout_ms);

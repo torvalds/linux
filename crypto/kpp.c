@@ -19,6 +19,7 @@
 #include <linux/crypto.h>
 #include <crypto/algapi.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <net/netlink.h>
 #include <crypto/kpp.h>
 #include <crypto/internal/kpp.h>
@@ -47,7 +48,7 @@ static int crypto_kpp_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 
 static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
 {

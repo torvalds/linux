@@ -142,7 +142,7 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	usb_clear_halt(port->serial->dev, port->read_urb->pipe);
 
 	res = usb_serial_generic_open(tty, port);
-	if (!res)
+	if (res)
 		return res;
 
 	/* Request CTS line state, sometimes during opening the current
@@ -343,7 +343,6 @@ static int get_serial_info(struct usb_serial_port *port,
 	tmp.line		= port->minor;
 	tmp.port		= 0;
 	tmp.irq			= 0;
-	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
 	tmp.xmit_fifo_size	= 1024;
 	tmp.baud_base		= 9600;
 	tmp.close_delay		= 5*HZ;

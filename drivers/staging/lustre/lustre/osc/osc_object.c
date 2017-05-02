@@ -78,6 +78,9 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 	INIT_LIST_HEAD(&osc->oo_write_item);
 	INIT_LIST_HEAD(&osc->oo_read_item);
 
+	atomic_set(&osc->oo_nr_ios, 0);
+	init_waitqueue_head(&osc->oo_io_waitq);
+
 	osc->oo_root.rb_node = NULL;
 	INIT_LIST_HEAD(&osc->oo_hp_exts);
 	INIT_LIST_HEAD(&osc->oo_urgent_exts);
@@ -112,6 +115,7 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 	LASSERT(atomic_read(&osc->oo_nr_reads) == 0);
 	LASSERT(atomic_read(&osc->oo_nr_writes) == 0);
 	LASSERT(list_empty(&osc->oo_ol_list));
+	LASSERT(!atomic_read(&osc->oo_nr_ios));
 
 	lu_object_fini(obj);
 	kmem_cache_free(osc_object_kmem, osc);
@@ -442,6 +446,21 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 		obj = NULL;
 	}
 	return obj;
+}
+
+int osc_object_invalidate(const struct lu_env *env, struct osc_object *osc)
+{
+	struct l_wait_info lwi = { 0 };
+
+	CDEBUG(D_INODE, "Invalidate osc object: %p, # of active IOs: %d\n",
+	       osc, atomic_read(&osc->oo_nr_ios));
+
+	l_wait_event(osc->oo_io_waitq, !atomic_read(&osc->oo_nr_ios), &lwi);
+
+	/* Discard all pages of this object. */
+	osc_cache_truncate_start(env, osc, 0, NULL);
+
+	return 0;
 }
 
 /** @} osc */

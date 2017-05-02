@@ -328,13 +328,15 @@ static void dm_softirq_done(struct request *rq)
 	int rw;
 
 	if (!clone) {
-		rq_end_stats(tio->md, rq);
+		struct mapped_device *md = tio->md;
+
+		rq_end_stats(md, rq);
 		rw = rq_data_dir(rq);
 		if (!rq->q->mq_ops)
 			blk_end_request_all(rq, tio->error);
 		else
 			blk_mq_end_request(rq, tio->error);
-		rq_completed(tio->md, rw, false);
+		rq_completed(md, rw, false);
 		return;
 	}
 

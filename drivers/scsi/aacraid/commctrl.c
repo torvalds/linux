@@ -580,7 +580,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		goto cleanup;
 	}
 
-	chn = aac_logical_to_phys(user_srbcmd->channel);
+	chn = user_srbcmd->channel;
 	if (chn < AAC_MAX_BUSES && user_srbcmd->id < AAC_MAX_TARGETS &&
 		dev->hba_map[chn][user_srbcmd->id].devtype ==
 		AAC_DEVTYPE_NATIVE_RAW) {

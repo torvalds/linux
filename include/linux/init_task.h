@@ -12,8 +12,10 @@
 #include <linux/securebits.h>
 #include <linux/seqlock.h>
 #include <linux/rbtree.h>
+#include <linux/sched/autogroup.h>
 #include <net/net_namespace.h>
 #include <linux/sched/rt.h>
+#include <linux/mm_types.h>
 
 #include <asm/thread_info.h>
 
@@ -148,8 +150,6 @@ extern struct group_info init_groups;
 #endif
 
 extern struct cred init_cred;
-
-extern struct task_group root_task_group;
 
 #ifdef CONFIG_CGROUP_SCHED
 # define INIT_CGROUP_SCHED(tsk)						\

@@ -200,11 +200,11 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
-int kernfs_iop_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		   struct kstat *stat)
+int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
+		       u32 request_mask, unsigned int query_flags)
 {
-	struct kernfs_node *kn = dentry->d_fsdata;
-	struct inode *inode = d_inode(dentry);
+	struct kernfs_node *kn = path->dentry->d_fsdata;
+	struct inode *inode = d_inode(path->dentry);
 
 	mutex_lock(&kernfs_mutex);
 	kernfs_refresh_inode(kn, inode);

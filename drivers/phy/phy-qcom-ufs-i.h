@@ -77,7 +77,6 @@ struct ufs_qcom_phy_vreg {
 	int min_uV;
 	int max_uV;
 	bool enabled;
-	bool is_always_on;
 };
 
 struct ufs_qcom_phy {

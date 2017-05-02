@@ -28,6 +28,8 @@
 
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
+#include <linux/sched/cputime.h>
+
 #include <asm/apicdef.h>
 #include <trace/events/kvm.h>
 
@@ -305,13 +307,13 @@ static int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
 		return -ENOENT;
 
 	memset(&irq, 0, sizeof(irq));
-	irq.dest_id = kvm_apic_id(vcpu->arch.apic);
+	irq.shorthand = APIC_DEST_SELF;
 	irq.dest_mode = APIC_DEST_PHYSICAL;
 	irq.delivery_mode = APIC_DM_FIXED;
 	irq.vector = vector;
 	irq.level = 1;
 
-	ret = kvm_irq_delivery_to_apic(vcpu->kvm, NULL, &irq, NULL);
+	ret = kvm_irq_delivery_to_apic(vcpu->kvm, vcpu->arch.apic, &irq, NULL);
 	trace_kvm_hv_synic_set_irq(vcpu->vcpu_id, sint, irq.vector, ret);
 	return ret;
 }

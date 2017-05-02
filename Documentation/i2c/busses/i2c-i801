@@ -33,6 +33,7 @@ Supported adapters:
   * Intel DNV (SOC)
   * Intel Broxton (SOC)
   * Intel Lewisburg (PCH)
+  * Intel Gemini Lake (SOC)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller

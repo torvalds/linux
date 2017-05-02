@@ -1,5 +1,5 @@
 /*
- * perf_event_intel_rapl.c: support Intel RAPL energy consumption counters
+ * Support Intel RAPL energy consumption counters
  * Copyright (C) 2013 Google, Inc., Stephane Eranian
  *
  * Intel RAPL interface is specified in the IA-32 Manual Vol3b

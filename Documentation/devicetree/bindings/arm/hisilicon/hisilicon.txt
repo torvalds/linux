@@ -1,5 +1,9 @@
 Hisilicon Platforms Device Tree Bindings
 ----------------------------------------------------
+Hi3660 SoC
+Required root node properties:
+	- compatible = "hisilicon,hi3660";
+
 Hi4511 Board
 Required root node properties:
 	- compatible = "hisilicon,hi3620-hi4511";

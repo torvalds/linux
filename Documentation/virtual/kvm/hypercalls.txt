@@ -81,3 +81,38 @@ the vcpu to sleep until occurrence of an appropriate event. Another vcpu of the
 same guest can wakeup the sleeping vcpu by issuing KVM_HC_KICK_CPU hypercall,
 specifying APIC ID (a1) of the vcpu to be woken up. An additional argument (a0)
 is used in the hypercall for future use.
+
+
+6. KVM_HC_CLOCK_PAIRING
+------------------------
+Architecture: x86
+Status: active
+Purpose: Hypercall used to synchronize host and guest clocks.
+Usage:
+
+a0: guest physical address where host copies
+"struct kvm_clock_offset" structure.
+
+a1: clock_type, ATM only KVM_CLOCK_PAIRING_WALLCLOCK (0)
+is supported (corresponding to the host's CLOCK_REALTIME clock).
+
+		struct kvm_clock_pairing {
+			__s64 sec;
+			__s64 nsec;
+			__u64 tsc;
+			__u32 flags;
+			__u32 pad[9];
+		};
+
+       Where:
+               * sec: seconds from clock_type clock.
+               * nsec: nanoseconds from clock_type clock.
+               * tsc: guest TSC value used to calculate sec/nsec pair
+               * flags: flags, unused (0) at the moment.
+
+The hypercall lets a guest compute a precise timestamp across
+host and guest.  The guest can use the returned TSC value to
+compute the CLOCK_REALTIME for its clock, at the same instant.
+
+Returns KVM_EOPNOTSUPP if the host does not use TSC clocksource,
+or if clock type is different than KVM_CLOCK_PAIRING_WALLCLOCK.

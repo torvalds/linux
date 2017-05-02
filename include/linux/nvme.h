@@ -579,6 +579,12 @@ struct nvme_write_zeroes_cmd {
 	__le16			appmask;
 };
 
+/* Features */
+
+struct nvme_feat_auto_pst {
+	__le64 entries[32];
+};
+
 /* Admin commands */
 
 enum nvme_admin_opcode {
@@ -644,7 +650,9 @@ struct nvme_identify {
 	__le32			nsid;
 	__u64			rsvd2[2];
 	union nvme_data_ptr	dptr;
-	__le32			cns;
+	__u8			cns;
+	__u8			rsvd3;
+	__le16			ctrlid;
 	__u32			rsvd11[5];
 };
 

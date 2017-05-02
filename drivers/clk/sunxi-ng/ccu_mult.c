@@ -40,8 +40,13 @@ static unsigned long ccu_mult_round_rate(struct ccu_mux_internal *mux,
 	struct ccu_mult *cm = data;
 	struct _ccu_mult _cm;
 
-	_cm.min = 1;
-	_cm.max = 1 << cm->mult.width;
+	_cm.min = cm->mult.min;
+
+	if (cm->mult.max)
+		_cm.max = cm->mult.max;
+	else
+		_cm.max = (1 << cm->mult.width) + cm->mult.offset - 1;
+
 	ccu_mult_find_best(parent_rate, rate, &_cm);
 
 	return parent_rate * _cm.mult;
@@ -75,6 +80,9 @@ static unsigned long ccu_mult_recalc_rate(struct clk_hw *hw,
 	unsigned long val;
 	u32 reg;
 
+	if (ccu_frac_helper_is_enabled(&cm->common, &cm->frac))
+		return ccu_frac_helper_read_rate(&cm->common, &cm->frac);
+
 	reg = readl(cm->common.base + cm->common.reg);
 	val = reg >> cm->mult.shift;
 	val &= (1 << cm->mult.width) - 1;
@@ -82,7 +90,7 @@ static unsigned long ccu_mult_recalc_rate(struct clk_hw *hw,
 	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
 						&parent_rate);
 
-	return parent_rate * (val + 1);
+	return parent_rate * (val + cm->mult.offset);
 }
 
 static int ccu_mult_determine_rate(struct clk_hw *hw,
@@ -102,20 +110,30 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags;
 	u32 reg;
 
+	if (ccu_frac_helper_has_rate(&cm->common, &cm->frac, rate))
+		return ccu_frac_helper_set_rate(&cm->common, &cm->frac, rate);
+	else
+		ccu_frac_helper_disable(&cm->common, &cm->frac);
+
 	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
 						&parent_rate);
 
 	_cm.min = cm->mult.min;
-	_cm.max = 1 << cm->mult.width;
+
+	if (cm->mult.max)
+		_cm.max = cm->mult.max;
+	else
+		_cm.max = (1 << cm->mult.width) + cm->mult.offset - 1;
+
 	ccu_mult_find_best(parent_rate, rate, &_cm);
 
 	spin_lock_irqsave(cm->common.lock, flags);
 
 	reg = readl(cm->common.base + cm->common.reg);
 	reg &= ~GENMASK(cm->mult.width + cm->mult.shift - 1, cm->mult.shift);
+	reg |= ((_cm.mult - cm->mult.offset) << cm->mult.shift);
 
-	writel(reg | ((_cm.mult - 1) << cm->mult.shift),
-	       cm->common.base + cm->common.reg);
+	writel(reg, cm->common.base + cm->common.reg);
 
 	spin_unlock_irqrestore(cm->common.lock, flags);
 

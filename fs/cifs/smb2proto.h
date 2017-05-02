@@ -121,7 +121,8 @@ extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     struct smb2_err_rsp **err_buf);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
-		     bool is_fsctl, char *in_data, u32 indatalen,
+		     bool is_fsctl, bool use_ipc,
+		     char *in_data, u32 indatalen,
 		     char **out_data, u32 *plen /* returned data len */);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
@@ -180,4 +181,6 @@ extern int SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 			    __u8 *lease_key, const __le32 lease_state);
 extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
+extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
+					enum securityEnum);
 #endif			/* _SMB2PROTO_H */

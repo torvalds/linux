@@ -151,7 +151,7 @@ static int thermal_interrupt_callback(void *private_data,
 				      unsigned src_id, const uint32_t *iv_entry)
 {
 	/* TO DO hanle PEM_Event_ThermalNotification (struct pp_eventmgr *)private_data*/
-	printk("current thermal is out of range \n");
+	pr_info("current thermal is out of range \n");
 	return 0;
 }
 

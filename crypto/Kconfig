@@ -263,6 +263,7 @@ comment "Authenticated Encryption with Associated Data"
 config CRYPTO_CCM
 	tristate "CCM support"
 	select CRYPTO_CTR
+	select CRYPTO_HASH
 	select CRYPTO_AEAD
 	help
 	  Support for Counter with CBC MAC. Required for IPsec.
@@ -374,6 +375,7 @@ config CRYPTO_XTS
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_GF128MUL
+	select CRYPTO_ECB
 	help
 	  XTS: IEEE1619/D16 narrow block cipher use with aes-xts-plain,
 	  key size 256, 384 or 512 bits. This implementation currently
@@ -894,6 +896,23 @@ config CRYPTO_AES
 	  The AES specifies three key sizes: 128, 192 and 256 bits
 
 	  See <http://csrc.nist.gov/CryptoToolkit/aes/> for more information.
+
+config CRYPTO_AES_TI
+	tristate "Fixed time AES cipher"
+	select CRYPTO_ALGAPI
+	help
+	  This is a generic implementation of AES that attempts to eliminate
+	  data dependent latencies as much as possible without affecting
+	  performance too much. It is intended for use by the generic CCM
+	  and GCM drivers, and other CTR or CMAC/XCBC based modes that rely
+	  solely on encryption (although decryption is supported as well, but
+	  with a more dramatic performance hit)
+
+	  Instead of using 16 lookup tables of 1 KB each, (8 for encryption and
+	  8 for decryption), this implementation only uses just two S-boxes of
+	  256 bytes each, and attempts to eliminate data dependent latencies by
+	  prefetching the entire table into the cache at the start of each
+	  block.
 
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"

@@ -23,14 +23,27 @@
 
 #define HSU_PCI_CHAN_OFFSET	0x100
 
+#define PCI_DEVICE_ID_INTEL_MFLD_HSU_DMA	0x081e
+#define PCI_DEVICE_ID_INTEL_MRFLD_HSU_DMA	0x1192
+
 static irqreturn_t hsu_pci_irq(int irq, void *dev)
 {
 	struct hsu_dma_chip *chip = dev;
+	struct pci_dev *pdev = to_pci_dev(chip->dev);
 	u32 dmaisr;
 	u32 status;
 	unsigned short i;
 	int ret = 0;
 	int err;
+
+	/*
+	 * On Intel Tangier B0 and Anniedale the interrupt line, disregarding
+	 * to have different numbers, is shared between HSU DMA and UART IPs.
+	 * Thus on such SoCs we are expecting that IRQ handler is called in
+	 * UART driver only.
+	 */
+	if (pdev->device == PCI_DEVICE_ID_INTEL_MRFLD_HSU_DMA)
+		return IRQ_HANDLED;
 
 	dmaisr = readl(chip->regs + HSU_PCI_DMAISR);
 	for (i = 0; i < chip->hsu->nr_channels; i++) {
@@ -113,8 +126,8 @@ static void hsu_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id hsu_pci_id_table[] = {
-	{ PCI_VDEVICE(INTEL, 0x081e), 0 },
-	{ PCI_VDEVICE(INTEL, 0x1192), 0 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_MFLD_HSU_DMA), 0 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_MRFLD_HSU_DMA), 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, hsu_pci_id_table);

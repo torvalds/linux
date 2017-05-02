@@ -24,6 +24,8 @@
 #include <linux/kdebug.h>
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/debug-monitors.h>
 #include <asm/insn.h>
 #include <asm/traps.h>

@@ -632,7 +632,7 @@ static irqreturn_t exynos_ts_isr(int irq, void *dev_id)
 		input_report_key(info->input, BTN_TOUCH, 1);
 		input_sync(info->input);
 
-		msleep(1);
+		usleep_range(1000, 1100);
 	};
 
 	writel(0, ADC_V1_CLRINTPNDNUP(info->regs));

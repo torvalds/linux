@@ -83,10 +83,6 @@ int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 	if (ret)
 		goto err_free;
 
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n", driver->name,
-		 driver->major, driver->minor, driver->patchlevel,
-		 driver->date, dev->primary->index);
-
 	return 0;
 
 err_free:

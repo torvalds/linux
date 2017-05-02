@@ -328,11 +328,13 @@ FTRACE_ENTRY(branch, trace_branch,
 		__array(	char,		func,	TRACE_FUNC_SIZE+1	)
 		__array(	char,		file,	TRACE_FILE_SIZE+1	)
 		__field(	char,		correct				)
+		__field(	char,		constant			)
 	),
 
-	F_printk("%u:%s:%s (%u)",
+	F_printk("%u:%s:%s (%u)%s",
 		 __entry->line,
-		 __entry->func, __entry->file, __entry->correct),
+		 __entry->func, __entry->file, __entry->correct,
+		 __entry->constant ? " CONSTANT" : ""),
 
 	FILTER_OTHER
 );

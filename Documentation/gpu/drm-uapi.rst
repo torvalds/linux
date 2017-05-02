@@ -156,8 +156,12 @@ other hand, a driver requires shared state between clients which is
 visible to user-space and accessible beyond open-file boundaries, they
 cannot support render nodes.
 
+
+Testing and validation
+======================
+
 Validating changes with IGT
-===========================
+---------------------------
 
 There's a collection of tests that aims to cover the whole functionality of
 DRM drivers and that can be used to check that changes to DRM drivers or the
@@ -193,6 +197,12 @@ run-tests.sh is a wrapper around piglit that will execute the tests matching
 the -t options. A report in HTML format will be available in
 ./results/html/index.html. Results can be compared with piglit.
 
+Display CRC Support
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
+   :doc: CRC ABI
+
 VBlank event handling
 =====================
 
@@ -209,16 +219,3 @@ DRM_IOCTL_MODESET_CTL
     mode setting, since on many devices the vertical blank counter is
     reset to 0 at some point during modeset. Modern drivers should not
     call this any more since with kernel mode setting it is a no-op.
-
-This second part of the GPU Driver Developer's Guide documents driver
-code, implementation details and also all the driver-specific userspace
-interfaces. Especially since all hardware-acceleration interfaces to
-userspace are driver specific for efficiency and other reasons these
-interfaces can be rather substantial. Hence every driver has its own
-chapter.
-
-Testing and validation
-======================
-
-.. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
-   :doc: CRC ABI

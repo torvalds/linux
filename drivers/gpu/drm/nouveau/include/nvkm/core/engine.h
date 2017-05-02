@@ -20,6 +20,7 @@ struct nvkm_engine_func {
 	int (*fini)(struct nvkm_engine *, bool suspend);
 	void (*intr)(struct nvkm_engine *);
 	void (*tile)(struct nvkm_engine *, int region, struct nvkm_fb_tile *);
+	bool (*chsw_load)(struct nvkm_engine *);
 
 	struct {
 		int (*sclass)(struct nvkm_oclass *, int index,
@@ -44,4 +45,5 @@ int nvkm_engine_new_(const struct nvkm_engine_func *, struct nvkm_device *,
 struct nvkm_engine *nvkm_engine_ref(struct nvkm_engine *);
 void nvkm_engine_unref(struct nvkm_engine **);
 void nvkm_engine_tile(struct nvkm_engine *, int region);
+bool nvkm_engine_chsw_load(struct nvkm_engine *);
 #endif

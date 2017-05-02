@@ -9,6 +9,7 @@
 #include <linux/completion.h>
 #include <linux/ip.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfs_fs.h>
@@ -231,12 +232,12 @@ static struct svc_serv_ops nfs41_cb_sv_ops = {
 	.svo_module		= THIS_MODULE,
 };
 
-struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = &nfs41_cb_sv_ops,
 };
 #else
-struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = NULL,
 };

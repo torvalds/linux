@@ -740,7 +740,7 @@ static int sport_uart_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops bfin_sport_uart_dev_pm_ops = {
+static const struct dev_pm_ops bfin_sport_uart_dev_pm_ops = {
 	.suspend	= sport_uart_suspend,
 	.resume		= sport_uart_resume,
 };

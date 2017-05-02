@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 #ifndef _QED_L2_H
 #define _QED_L2_H
@@ -15,6 +39,20 @@
 #include "qed.h"
 #include "qed_hw.h"
 #include "qed_sp.h"
+struct qed_rss_params {
+	u8 update_rss_config;
+	u8 rss_enable;
+	u8 rss_eng_id;
+	u8 update_rss_capabilities;
+	u8 update_rss_ind_table;
+	u8 update_rss_key;
+	u8 rss_caps;
+	u8 rss_table_size_log;
+
+	/* Indirection table consist of rx queue handles */
+	void *rss_ind_table[QED_RSS_IND_TABLE_SIZE];
+	u32 rss_key[QED_RSS_KEY_SIZE];
+};
 
 struct qed_sge_tpa_params {
 	u8 max_buffers_per_cqe;
@@ -118,6 +156,7 @@ struct qed_sp_vport_start_params {
 	enum qed_tpa_mode tpa_mode;
 	bool remove_inner_vlan;
 	bool tx_switching;
+	bool handle_ptp_pkts;
 	bool only_untagged;
 	bool drop_ttl0;
 	u8 max_buffers_per_cqe;
@@ -132,18 +171,6 @@ struct qed_sp_vport_start_params {
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params);
 
-struct qed_rss_params {
-	u8	update_rss_config;
-	u8	rss_enable;
-	u8	rss_eng_id;
-	u8	update_rss_capabilities;
-	u8	update_rss_ind_table;
-	u8	update_rss_key;
-	u8	rss_caps;
-	u8	rss_table_size_log;
-	u16	rss_ind_table[QED_RSS_IND_TABLE_SIZE];
-	u32	rss_key[QED_RSS_KEY_SIZE];
-};
 
 struct qed_filter_accept_flags {
 	u8	update_rx_mode_config;
@@ -263,6 +290,8 @@ struct qed_queue_cid {
 
 	/* Legacy VFs might have Rx producer located elsewhere */
 	bool b_legacy_vf;
+
+	struct qed_hwfn *p_owner;
 };
 
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,

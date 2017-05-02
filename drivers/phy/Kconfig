@@ -331,6 +331,14 @@ config PHY_EXYNOS5_USBDRD
 	  This driver provides PHY interface for USB 3.0 DRD controller
 	  present on Exynos5 SoC series.
 
+config PHY_EXYNOS_PCIE
+	bool "Exynos PCIe PHY driver"
+	depends on OF && (ARCH_EXYNOS || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Enable PCIe PHY support for Exynos SoC series.
+	  This driver provides PHY interface for Exynos PCIe controller.
+
 config PHY_PISTACHIO_USB
 	tristate "IMG Pistachio USB2.0 PHY driver"
 	depends on MACH_PISTACHIO
@@ -363,6 +371,7 @@ config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	depends on COMMON_CLK
+	depends on EXTCON
 	depends on USB_SUPPORT
 	select GENERIC_PHY
 	select USB_COMMON
@@ -437,6 +446,21 @@ config PHY_QCOM_UFS
 	help
 	  Support for UFS PHY on QCOM chipsets.
 
+config PHY_QCOM_USB_HS
+	tristate "Qualcomm USB HS PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for the USB high-speed ULPI compliant phy on Qualcomm
+	  chipsets.
+
+config PHY_QCOM_USB_HSIC
+	tristate "Qualcomm USB HSIC ULPI PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for the USB HSIC ULPI compliant PHY on QCOM chipsets.
+
 config PHY_TUSB1210
 	tristate "TI TUSB1210 ULPI PHY module"
 	depends on USB_ULPI_BUS
@@ -486,4 +510,12 @@ config PHY_MESON8B_USB2
 	  and GXBB SoCs.
 	  If unsure, say N.
 
+config PHY_NSP_USB3
+	tristate "Broadcom NorthStar plus USB3 PHY driver"
+	depends on OF && (ARCH_BCM_NSP || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_NSP
+	help
+	  Enable this to support the Broadcom Northstar plus USB3 PHY.
+	  If unsure, say N.
 endmenu

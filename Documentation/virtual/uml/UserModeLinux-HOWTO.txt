@@ -2401,9 +2401,9 @@
 
   This takes one argument, which is a single letter.  It calls the
   generic kernel's SysRq driver, which does whatever is called for by
-  that argument.  See the SysRq documentation in Documentation/sysrq.txt
-  in your favorite kernel tree to see what letters are valid and what
-  they do.
+  that argument.  See the SysRq documentation in
+  Documentation/admin-guide/sysrq.rst in your favorite kernel tree to
+  see what letters are valid and what they do.
 
 
 

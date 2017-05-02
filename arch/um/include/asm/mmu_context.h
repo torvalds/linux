@@ -7,6 +7,8 @@
 #define __UM_MMU_CONTEXT_H
 
 #include <linux/sched.h>
+#include <linux/mm_types.h>
+
 #include <asm/mmu.h>
 
 extern void uml_setup_stubs(struct mm_struct *mm);

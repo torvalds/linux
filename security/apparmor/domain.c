@@ -471,7 +471,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		;
 	}
 
-	if (bprm->unsafe & (LSM_UNSAFE_PTRACE | LSM_UNSAFE_PTRACE_CAP)) {
+	if (bprm->unsafe & LSM_UNSAFE_PTRACE) {
 		error = may_change_ptraced_domain(new_profile);
 		if (error)
 			goto audit;

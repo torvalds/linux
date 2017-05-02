@@ -268,7 +268,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 	info->par = qfbdev;
 
-	qxl_framebuffer_init(qdev->ddev, &qfbdev->qfb, &mode_cmd, gobj,
+	qxl_framebuffer_init(&qdev->ddev, &qfbdev->qfb, &mode_cmd, gobj,
 			     &qxlfb_fb_funcs);
 
 	fb = &qfbdev->qfb.base;
@@ -279,7 +279,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	qfbdev->shadow = shadow;
 	strcpy(info->fix.id, "qxldrmfb");
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
 	info->fbops = &qxlfb_ops;
@@ -297,7 +297,7 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 			       sizes->fb_height);
 
 	/* setup aperture base/size for vesafb takeover */
-	info->apertures->ranges[0].base = qdev->ddev->mode_config.fb_base;
+	info->apertures->ranges[0].base = qdev->ddev.mode_config.fb_base;
 	info->apertures->ranges[0].size = qdev->vram_size;
 
 	info->fix.mmio_start = 0;
@@ -316,7 +316,8 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 	qdev->fbdev_info = info;
 	qdev->fbdev_qfb = &qfbdev->qfb;
 	DRM_INFO("fb mappable at 0x%lX, size %lu\n",  info->fix.smem_start, (unsigned long)info->screen_size);
-	DRM_INFO("fb: depth %d, pitch %d, width %d, height %d\n", fb->depth, fb->pitches[0], fb->width, fb->height);
+	DRM_INFO("fb: depth %d, pitch %d, width %d, height %d\n",
+		 fb->format->depth, fb->pitches[0], fb->width, fb->height);
 	return 0;
 
 out_destroy_fbi:
@@ -394,11 +395,10 @@ int qxl_fbdev_init(struct qxl_device *qdev)
 	spin_lock_init(&qfbdev->delayed_ops_lock);
 	INIT_LIST_HEAD(&qfbdev->delayed_ops);
 
-	drm_fb_helper_prepare(qdev->ddev, &qfbdev->helper,
+	drm_fb_helper_prepare(&qdev->ddev, &qfbdev->helper,
 			      &qxl_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(qdev->ddev, &qfbdev->helper,
-				 qxl_num_crtc /* num_crtc - QXL supports just 1 */,
+	ret = drm_fb_helper_init(&qdev->ddev, &qfbdev->helper,
 				 QXLFB_CONN_LIMIT);
 	if (ret)
 		goto free;
@@ -425,7 +425,7 @@ void qxl_fbdev_fini(struct qxl_device *qdev)
 	if (!qdev->mode_info.qfbdev)
 		return;
 
-	qxl_fbdev_destroy(qdev->ddev, qdev->mode_info.qfbdev);
+	qxl_fbdev_destroy(&qdev->ddev, qdev->mode_info.qfbdev);
 	kfree(qdev->mode_info.qfbdev);
 	qdev->mode_info.qfbdev = NULL;
 }

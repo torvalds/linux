@@ -1108,8 +1108,10 @@ error:
 
 static void free_iommu(struct intel_iommu *iommu)
 {
-	iommu_device_sysfs_remove(&iommu->iommu);
-	iommu_device_unregister(&iommu->iommu);
+	if (intel_iommu_enabled) {
+		iommu_device_unregister(&iommu->iommu);
+		iommu_device_sysfs_remove(&iommu->iommu);
+	}
 
 	if (iommu->irq) {
 		if (iommu->pr_irq) {

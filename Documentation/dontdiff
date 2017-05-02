@@ -116,9 +116,11 @@ crc32table.h*
 cscope.*
 defkeymap.c
 devlist.h*
+devicetable-offsets.h
 dnotify_test
 docproc
 dslm
+dtc
 elf2ecoff
 elfconfig.h*
 evergreen_reg_safe.h
@@ -153,8 +155,8 @@ keywords.c
 ksym.c*
 ksym.h*
 kxgettext
-lex.c
-lex.*.c
+*lex.c
+*lex.*.c
 linux
 logo_*.c
 logo_*_clut224.c
@@ -215,6 +217,7 @@ series
 setup
 setup.bin
 setup.elf
+sortextable
 sImage
 sm_tbl*
 split-include

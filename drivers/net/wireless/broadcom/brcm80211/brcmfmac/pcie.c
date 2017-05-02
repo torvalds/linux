@@ -601,7 +601,6 @@ static void brcmf_pcie_attach(struct brcmf_pciedev_info *devinfo)
 {
 	u32 config;
 
-	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
 	/* BAR1 window may not be sized properly */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
 	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGADDR, 0x4e0);
@@ -1572,7 +1571,7 @@ static int brcmf_pcie_attach_bus(struct brcmf_pciedev_info *devinfo)
 	if (ret) {
 		brcmf_err("brcmf_attach failed\n");
 	} else {
-		ret = brcmf_bus_start(&devinfo->pdev->dev);
+		ret = brcmf_bus_started(&devinfo->pdev->dev);
 		if (ret)
 			brcmf_err("dongle is not responding\n");
 	}

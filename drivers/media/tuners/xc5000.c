@@ -1144,7 +1144,7 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 			pr_err("xc5000: Upload failed. rc %d\n", ret);
 			return ret;
 		}
-		dprintk(1, "firmware read %Zu bytes.\n", fw->size);
+		dprintk(1, "firmware read %zu bytes.\n", fw->size);
 
 		if (fw->size != desired_fw->size) {
 			pr_err("xc5000: Firmware file with incorrect size\n");

@@ -257,7 +257,7 @@ and tell you when they come and go.
 
 Creating the User
 
-To user the message handler, you must first create a user using
+To use the message handler, you must first create a user using
 ipmi_create_user.  The interface number specifies which SMI you want
 to connect to, and you must supply callback functions to be called
 when data comes in.  The callback function can run at interrupt level,

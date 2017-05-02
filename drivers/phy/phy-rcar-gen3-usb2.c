@@ -94,11 +94,11 @@ static void rcar_gen3_phy_usb2_work(struct work_struct *work)
 						 work);
 
 	if (ch->extcon_host) {
-		extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, true);
-		extcon_set_cable_state_(ch->extcon, EXTCON_USB, false);
+		extcon_set_state_sync(ch->extcon, EXTCON_USB_HOST, true);
+		extcon_set_state_sync(ch->extcon, EXTCON_USB, false);
 	} else {
-		extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, false);
-		extcon_set_cable_state_(ch->extcon, EXTCON_USB, true);
+		extcon_set_state_sync(ch->extcon, EXTCON_USB_HOST, false);
+		extcon_set_state_sync(ch->extcon, EXTCON_USB, true);
 	}
 }
 
@@ -350,7 +350,7 @@ static int rcar_gen3_phy_usb2_power_off(struct phy *p)
 	return ret;
 }
 
-static struct phy_ops rcar_gen3_phy_usb2_ops = {
+static const struct phy_ops rcar_gen3_phy_usb2_ops = {
 	.init		= rcar_gen3_phy_usb2_init,
 	.exit		= rcar_gen3_phy_usb2_exit,
 	.power_on	= rcar_gen3_phy_usb2_power_on,

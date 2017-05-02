@@ -1192,56 +1192,56 @@ static struct device_attribute dev_attr_beacon = {
 	.store = qlcnic_store_beacon,
 };
 
-static struct bin_attribute bin_attr_crb = {
+static const struct bin_attribute bin_attr_crb = {
 	.attr = {.name = "crb", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_read_crb,
 	.write = qlcnic_sysfs_write_crb,
 };
 
-static struct bin_attribute bin_attr_mem = {
+static const struct bin_attribute bin_attr_mem = {
 	.attr = {.name = "mem", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_read_mem,
 	.write = qlcnic_sysfs_write_mem,
 };
 
-static struct bin_attribute bin_attr_npar_config = {
+static const struct bin_attribute bin_attr_npar_config = {
 	.attr = {.name = "npar_config", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_read_npar_config,
 	.write = qlcnic_sysfs_write_npar_config,
 };
 
-static struct bin_attribute bin_attr_pci_config = {
+static const struct bin_attribute bin_attr_pci_config = {
 	.attr = {.name = "pci_config", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_read_pci_config,
 	.write = NULL,
 };
 
-static struct bin_attribute bin_attr_port_stats = {
+static const struct bin_attribute bin_attr_port_stats = {
 	.attr = {.name = "port_stats", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_get_port_stats,
 	.write = qlcnic_sysfs_clear_port_stats,
 };
 
-static struct bin_attribute bin_attr_esw_stats = {
+static const struct bin_attribute bin_attr_esw_stats = {
 	.attr = {.name = "esw_stats", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_get_esw_stats,
 	.write = qlcnic_sysfs_clear_esw_stats,
 };
 
-static struct bin_attribute bin_attr_esw_config = {
+static const struct bin_attribute bin_attr_esw_config = {
 	.attr = {.name = "esw_config", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_read_esw_config,
 	.write = qlcnic_sysfs_write_esw_config,
 };
 
-static struct bin_attribute bin_attr_pm_config = {
+static const struct bin_attribute bin_attr_pm_config = {
 	.attr = {.name = "pm_config", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_sysfs_read_pm_config,

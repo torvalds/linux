@@ -14,6 +14,10 @@
 		rtc1 = &rtc;
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	vmain: fixedregulator-vmain {
 		compatible = "regulator-fixed";
 		regulator-name = "VMAIN";

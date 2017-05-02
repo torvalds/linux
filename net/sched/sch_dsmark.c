@@ -13,6 +13,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/bitops.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 #include <net/dsfield.h>
 #include <net/inet_ecn.h>
 #include <asm/byteorder.h>

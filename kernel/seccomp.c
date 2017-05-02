@@ -18,6 +18,7 @@
 #include <linux/compat.h>
 #include <linux/coredump.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seccomp.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
@@ -643,11 +644,14 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 	default: {
 		siginfo_t info;
 		audit_seccomp(this_syscall, SIGSYS, action);
-		/* Show the original registers in the dump. */
-		syscall_rollback(current, task_pt_regs(current));
-		/* Trigger a manual coredump since do_exit skips it. */
-		seccomp_init_siginfo(&info, this_syscall, data);
-		do_coredump(&info);
+		/* Dump core only if this is the last remaining thread. */
+		if (get_nr_threads(current) == 1) {
+			/* Show the original registers in the dump. */
+			syscall_rollback(current, task_pt_regs(current));
+			/* Trigger a manual coredump since do_exit skips it. */
+			seccomp_init_siginfo(&info, this_syscall, data);
+			do_coredump(&info);
+		}
 		do_exit(SIGSYS);
 	}
 	}

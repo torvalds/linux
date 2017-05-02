@@ -21,6 +21,7 @@
 #include <linux/kvm_host.h>
 #include <linux/hash.h>
 #include <linux/slab.h>
+#include <linux/rculist.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>

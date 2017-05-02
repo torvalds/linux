@@ -19,6 +19,7 @@
 #include <linux/clockchips.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/sched/clock.h>
 #include <linux/sched_clock.h>
 
 #include <clocksource/pxa.h>

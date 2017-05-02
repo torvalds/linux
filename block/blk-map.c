@@ -2,6 +2,7 @@
  * Functions related to mapping data to requests
  */
 #include <linux/kernel.h>
+#include <linux/sched/task_stack.h>
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>

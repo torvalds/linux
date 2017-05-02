@@ -272,7 +272,7 @@ on the socket thus waking up the application thread. When the application
 sees the error (which may just be a disconnect) it should unattach the
 socket from KCM and then close it. It is assumed that once an error is
 posted on the TCP socket the data stream is unrecoverable (i.e. an error
-may have occurred in in the middle of receiving a messssge).
+may have occurred in the middle of receiving a messssge).
 
 TCP connection monitoring
 -------------------------

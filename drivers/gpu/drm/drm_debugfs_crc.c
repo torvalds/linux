@@ -125,6 +125,12 @@ static const struct file_operations drm_crtc_crc_control_fops = {
 	.write = crc_control_write
 };
 
+static int crtc_crc_data_count(struct drm_crtc_crc *crc)
+{
+	assert_spin_locked(&crc->lock);
+	return CIRC_CNT(crc->head, crc->tail, DRM_CRC_ENTRIES_NR);
+}
+
 static int crtc_crc_open(struct inode *inode, struct file *filep)
 {
 	struct drm_crtc *crtc = inode->i_private;
@@ -160,7 +166,18 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	crc->entries = entries;
 	crc->values_cnt = values_cnt;
 	crc->opened = true;
+
+	/*
+	 * Only return once we got a first frame, so userspace doesn't have to
+	 * guess when this particular piece of HW will be ready to start
+	 * generating CRCs.
+	 */
+	ret = wait_event_interruptible_lock_irq(crc->wq,
+						crtc_crc_data_count(crc),
+						crc->lock);
 	spin_unlock_irq(&crc->lock);
+
+	WARN_ON(ret);
 
 	return 0;
 
@@ -187,12 +204,6 @@ static int crtc_crc_release(struct inode *inode, struct file *filep)
 	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
 
 	return 0;
-}
-
-static int crtc_crc_data_count(struct drm_crtc_crc *crc)
-{
-	assert_spin_locked(&crc->lock);
-	return CIRC_CNT(crc->head, crc->tail, DRM_CRC_ENTRIES_NR);
 }
 
 /*
@@ -325,16 +336,19 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	struct drm_crtc_crc_entry *entry;
 	int head, tail;
 
-	assert_spin_locked(&crc->lock);
+	spin_lock(&crc->lock);
 
 	/* Caller may not have noticed yet that userspace has stopped reading */
-	if (!crc->opened)
+	if (!crc->opened) {
+		spin_unlock(&crc->lock);
 		return -EINVAL;
+	}
 
 	head = crc->head;
 	tail = crc->tail;
 
 	if (CIRC_SPACE(head, tail, DRM_CRC_ENTRIES_NR) < 1) {
+		spin_unlock(&crc->lock);
 		DRM_ERROR("Overflow of CRC buffer, userspace reads too slow.\n");
 		return -ENOBUFS;
 	}
@@ -346,6 +360,10 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 
 	head = (head + 1) & (DRM_CRC_ENTRIES_NR - 1);
 	crc->head = head;
+
+	spin_unlock(&crc->lock);
+
+	wake_up_interruptible(&crc->wq);
 
 	return 0;
 }

@@ -155,9 +155,10 @@ extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 extern int kvmppc_kvm_pv(struct kvm_vcpu *vcpu);
 extern void kvmppc_map_magic(struct kvm_vcpu *vcpu);
 
-extern long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp);
-extern long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp);
-extern void kvmppc_free_hpt(struct kvm *kvm);
+extern int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 order);
+extern void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info);
+extern long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order);
+extern void kvmppc_free_hpt(struct kvm_hpt_info *info);
 extern long kvmppc_prepare_vrma(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem);
 extern void kvmppc_map_vrma(struct kvm_vcpu *vcpu,
@@ -186,8 +187,8 @@ extern long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 		unsigned long tce_value, unsigned long npages);
 extern long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			     unsigned long ioba);
-extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
-extern void kvm_release_hpt(struct page *page, unsigned long nr_pages);
+extern struct page *kvm_alloc_hpt_cma(unsigned long nr_pages);
+extern void kvm_free_hpt_cma(struct page *page, unsigned long nr_pages);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern void kvmppc_core_free_memslot(struct kvm *kvm,
@@ -214,6 +215,10 @@ extern void kvmppc_bookehv_exit(void);
 extern int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu);
 
 extern int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *);
+extern long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
+					    struct kvm_ppc_resize_hpt *rhpt);
+extern long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
+					   struct kvm_ppc_resize_hpt *rhpt);
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
 
@@ -291,6 +296,8 @@ struct kvmppc_ops {
 				       struct irq_bypass_producer *);
 	void (*irq_bypass_del_producer)(struct irq_bypass_consumer *,
 					struct irq_bypass_producer *);
+	int (*configure_mmu)(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg);
+	int (*get_rmmu_info)(struct kvm *kvm, struct kvm_ppc_rmmu_info *info);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;

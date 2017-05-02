@@ -35,6 +35,7 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <linux/hdmi.h>
 #include <linux/component.h>
 #include <linux/mfd/syscon.h>
@@ -133,6 +134,7 @@ struct hdmi_context {
 	struct regulator_bulk_data	regul_bulk[ARRAY_SIZE(supply)];
 	struct regulator		*reg_hdmi_en;
 	struct exynos_drm_clk		phy_clk;
+	struct drm_bridge		*bridge;
 };
 
 static inline struct hdmi_context *encoder_to_hdmi(struct drm_encoder *e)
@@ -509,9 +511,9 @@ static const struct hdmiphy_config hdmiphy_5433_configs[] = {
 	{
 		.pixel_clock = 27000000,
 		.conf = {
-			0x01, 0x51, 0x22, 0x51, 0x08, 0xfc, 0x88, 0x46,
-			0x72, 0x50, 0x24, 0x0c, 0x24, 0x0f, 0x7c, 0xa5,
-			0xd4, 0x2b, 0x87, 0x00, 0x00, 0x04, 0x00, 0x30,
+			0x01, 0x51, 0x2d, 0x75, 0x01, 0x00, 0x88, 0x02,
+			0x72, 0x50, 0x44, 0x8c, 0x27, 0x00, 0x7c, 0xac,
+			0xd6, 0x2b, 0x67, 0x00, 0x00, 0x04, 0x00, 0x30,
 			0x08, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
 		},
 	},
@@ -519,9 +521,9 @@ static const struct hdmiphy_config hdmiphy_5433_configs[] = {
 		.pixel_clock = 27027000,
 		.conf = {
 			0x01, 0x51, 0x2d, 0x72, 0x64, 0x09, 0x88, 0xc3,
-			0x71, 0x50, 0x24, 0x14, 0x24, 0x0f, 0x7c, 0xa5,
-			0xd4, 0x2b, 0x87, 0x00, 0x00, 0x04, 0x00, 0x30,
-			0x28, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
+			0x71, 0x50, 0x44, 0x8c, 0x27, 0x00, 0x7c, 0xac,
+			0xd6, 0x2b, 0x67, 0x00, 0x00, 0x04, 0x00, 0x30,
+			0x08, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
 		},
 	},
 	{
@@ -585,6 +587,15 @@ static const struct hdmiphy_config hdmiphy_5433_configs[] = {
 			0x52, 0x52, 0x24, 0x0c, 0x24, 0x0f, 0x7c, 0xa5,
 			0xd4, 0x2b, 0x87, 0x00, 0x00, 0x04, 0x00, 0x30,
 			0x08, 0x10, 0x01, 0x01, 0x48, 0x4a, 0x00, 0x40,
+		},
+	},
+	{
+		.pixel_clock = 297000000,
+		.conf = {
+			0x01, 0x51, 0x3E, 0x05, 0x40, 0xF0, 0x88, 0xC2,
+			0x52, 0x53, 0x44, 0x8C, 0x27, 0x00, 0x7C, 0xAC,
+			0xD6, 0x2B, 0x67, 0x00, 0x00, 0x04, 0x00, 0x30,
+			0x08, 0x10, 0x01, 0x01, 0x48, 0x40, 0x00, 0x40,
 		},
 	},
 };
@@ -788,7 +799,8 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 				sizeof(buf));
 	if (ret > 0) {
 		hdmi_reg_writeb(hdata, HDMI_VSI_CON, HDMI_VSI_CON_EVERY_VSYNC);
-		hdmi_reg_write_buf(hdata, HDMI_VSI_HEADER0, buf, ret);
+		hdmi_reg_write_buf(hdata, HDMI_VSI_HEADER0, buf, 3);
+		hdmi_reg_write_buf(hdata, HDMI_VSI_DATA(0), buf + 3, ret - 3);
 	}
 
 	ret = hdmi_audio_infoframe_init(&frm.audio);
@@ -912,7 +924,15 @@ static int hdmi_create_connector(struct drm_encoder *encoder)
 	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
-	return 0;
+	if (hdata->bridge) {
+		encoder->bridge = hdata->bridge;
+		hdata->bridge->encoder = encoder;
+		ret = drm_bridge_attach(encoder, hdata->bridge, NULL);
+		if (ret)
+			DRM_ERROR("Failed to attach bridge\n");
+	}
+
+	return ret;
 }
 
 static bool hdmi_mode_fixup(struct drm_encoder *encoder,
@@ -1581,6 +1601,31 @@ static void hdmiphy_clk_enable(struct exynos_drm_clk *clk, bool enable)
 		hdmiphy_disable(hdata);
 }
 
+static int hdmi_bridge_init(struct hdmi_context *hdata)
+{
+	struct device *dev = hdata->dev;
+	struct device_node *ep, *np;
+
+	ep = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
+	if (!ep)
+		return 0;
+
+	np = of_graph_get_remote_port_parent(ep);
+	of_node_put(ep);
+	if (!np) {
+		DRM_ERROR("failed to get remote port parent");
+		return -EINVAL;
+	}
+
+	hdata->bridge = of_drm_find_bridge(np);
+	of_node_put(np);
+
+	if (!hdata->bridge)
+		return -EPROBE_DEFER;
+
+	return 0;
+}
+
 static int hdmi_resources_init(struct hdmi_context *hdata)
 {
 	struct device *dev = hdata->dev;
@@ -1620,17 +1665,18 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	hdata->reg_hdmi_en = devm_regulator_get_optional(dev, "hdmi-en");
 
-	if (PTR_ERR(hdata->reg_hdmi_en) == -ENODEV)
-		return 0;
+	if (PTR_ERR(hdata->reg_hdmi_en) != -ENODEV) {
+		if (IS_ERR(hdata->reg_hdmi_en))
+			return PTR_ERR(hdata->reg_hdmi_en);
 
-	if (IS_ERR(hdata->reg_hdmi_en))
-		return PTR_ERR(hdata->reg_hdmi_en);
+		ret = regulator_enable(hdata->reg_hdmi_en);
+		if (ret) {
+			DRM_ERROR("failed to enable hdmi-en regulator\n");
+			return ret;
+		}
+	}
 
-	ret = regulator_enable(hdata->reg_hdmi_en);
-	if (ret)
-		DRM_ERROR("failed to enable hdmi-en regulator\n");
-
-	return ret;
+	return hdmi_bridge_init(hdata);
 }
 
 static struct of_device_id hdmi_match_types[] = {

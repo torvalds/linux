@@ -16,6 +16,7 @@
 #include <linux/percpu-defs.h>
 #include <linux/slab.h>
 #include <linux/tick.h>
+#include <linux/sched/cpufreq.h>
 
 #include "cpufreq_ondemand.h"
 

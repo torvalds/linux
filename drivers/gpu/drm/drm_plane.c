@@ -37,12 +37,12 @@
  * rotation or Z-position. All these properties are stored in &drm_plane_state.
  *
  * To create a plane, a KMS drivers allocates and zeroes an instances of
- * struct &drm_plane (possibly as part of a larger structure) and registers it
+ * &struct drm_plane (possibly as part of a larger structure) and registers it
  * with a call to drm_universal_plane_init().
  *
  * Cursor and overlay planes are optional. All drivers should provide one
  * primary plane per CRTC to avoid surprising userspace too much. See enum
- * &drm_plane_type for a more in-depth discussion of these special uapi-relevant
+ * drm_plane_type for a more in-depth discussion of these special uapi-relevant
  * plane types. Special planes are associated with their CRTC by calling
  * drm_crtc_init_with_planes().
  *
@@ -254,7 +254,7 @@ EXPORT_SYMBOL(drm_plane_cleanup);
  * @idx: index of registered plane to find for
  *
  * Given a plane index, return the registered plane from DRM device's
- * list of planes with matching index.
+ * list of planes with matching index. This is the inverse of drm_plane_index().
  */
 struct drm_plane *
 drm_plane_from_index(struct drm_device *dev, int idx)
@@ -392,12 +392,16 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	drm_modeset_lock(&plane->mutex, NULL);
-	if (plane->crtc)
+	if (plane->state && plane->state->crtc)
+		plane_resp->crtc_id = plane->state->crtc->base.id;
+	else if (!plane->state && plane->crtc)
 		plane_resp->crtc_id = plane->crtc->base.id;
 	else
 		plane_resp->crtc_id = 0;
 
-	if (plane->fb)
+	if (plane->state && plane->state->fb)
+		plane_resp->fb_id = plane->state->fb->base.id;
+	else if (!plane->state && plane->fb)
 		plane_resp->fb_id = plane->fb->base.id;
 	else
 		plane_resp->fb_id = 0;
@@ -478,11 +482,11 @@ static int __setplane_internal(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
+	ret = drm_plane_check_pixel_format(plane, fb->format->format);
 	if (ret) {
 		struct drm_format_name_buf format_name;
 		DRM_DEBUG_KMS("Invalid pixel format %s\n",
-		              drm_get_format_name(fb->pixel_format,
+		              drm_get_format_name(fb->format->format,
 		                                  &format_name));
 		goto out;
 	}
@@ -854,7 +858,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	if (crtc->primary->fb->pixel_format != fb->pixel_format) {
+	if (crtc->primary->fb->format != fb->format) {
 		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;

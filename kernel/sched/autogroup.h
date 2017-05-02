@@ -2,6 +2,7 @@
 
 #include <linux/kref.h>
 #include <linux/rwsem.h>
+#include <linux/sched/autogroup.h>
 
 struct autogroup {
 	/*

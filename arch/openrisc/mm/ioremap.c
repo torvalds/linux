@@ -80,6 +80,7 @@ __ioremap(phys_addr_t addr, unsigned long size, pgprot_t prot)
 
 	return (void __iomem *)(offset + (char *)v);
 }
+EXPORT_SYMBOL(__ioremap);
 
 void iounmap(void *addr)
 {
@@ -106,6 +107,7 @@ void iounmap(void *addr)
 
 	return vfree((void *)(PAGE_MASK & (unsigned long)addr));
 }
+EXPORT_SYMBOL(iounmap);
 
 /**
  * OK, this one's a bit tricky... ioremap can get called before memory is

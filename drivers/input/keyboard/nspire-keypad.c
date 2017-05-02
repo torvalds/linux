@@ -249,8 +249,6 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, keypad);
-
 	dev_dbg(&pdev->dev,
 		"TI-NSPIRE keypad at %pR (scan_interval=%uus, row_delay=%uus%s)\n",
 		res, keypad->row_delay, keypad->scan_interval,

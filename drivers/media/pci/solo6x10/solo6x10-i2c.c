@@ -27,6 +27,7 @@
  * thread context, ACK the interrupt, and move on. -- BenC */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 
 #include "solo6x10.h"
 

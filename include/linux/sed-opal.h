@@ -27,6 +27,7 @@ typedef int (sec_send_recv)(void *data, u16 spsp, u8 secp, void *buffer,
 		size_t len, bool send);
 
 #ifdef CONFIG_BLK_SED_OPAL
+void free_opal_dev(struct opal_dev *dev);
 bool opal_unlock_from_suspend(struct opal_dev *dev);
 struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv);
 int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *ioctl_ptr);
@@ -51,6 +52,10 @@ static inline bool is_sed_ioctl(unsigned int cmd)
 	return false;
 }
 #else
+static inline void free_opal_dev(struct opal_dev *dev)
+{
+}
+
 static inline bool is_sed_ioctl(unsigned int cmd)
 {
 	return false;

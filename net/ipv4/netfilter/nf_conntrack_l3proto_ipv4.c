@@ -235,7 +235,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	}
 
 	if ((unsigned int) *len < sizeof(struct sockaddr_in)) {
-		pr_debug("SO_ORIGINAL_DST: len %d not %Zu\n",
+		pr_debug("SO_ORIGINAL_DST: len %d not %zu\n",
 			 *len, sizeof(struct sockaddr_in));
 		return -EINVAL;
 	}

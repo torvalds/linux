@@ -182,7 +182,7 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->table = skylake_mocs_table;
 		result = true;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		table->size  = ARRAY_SIZE(broxton_mocs_table);
 		table->table = broxton_mocs_table;
 		result = true;
@@ -380,7 +380,7 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 
 /**
  * intel_mocs_init_l3cc_table() - program the mocs control table
- * @dev:      The the device to be programmed.
+ * @dev_priv:      i915 device private
  *
  * This function simply programs the mocs registers for the given table
  * starting at the given address. This register set is  programmed in pairs.
@@ -392,9 +392,8 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
  *
  * Return: Nothing.
  */
-void intel_mocs_init_l3cc_table(struct drm_device *dev)
+void intel_mocs_init_l3cc_table(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_mocs_table table;
 	unsigned int i;
 

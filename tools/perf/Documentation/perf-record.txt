@@ -157,7 +157,7 @@ OPTIONS
 
 -a::
 --all-cpus::
-        System-wide collection from all CPUs.
+        System-wide collection from all CPUs (default if no target is specified).
 
 -p::
 --pid=::

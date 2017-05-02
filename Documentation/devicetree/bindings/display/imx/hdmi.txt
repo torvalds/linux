@@ -1,29 +1,36 @@
-Device-Tree bindings for HDMI Transmitter
+Freescale i.MX6 DWC HDMI TX Encoder
+===================================
 
-HDMI Transmitter
-================
+The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
+with a companion PHY IP.
 
-The HDMI Transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
-with accompanying PHY IP.
+These DT bindings follow the Synopsys DWC HDMI TX bindings defined in
+Documentation/devicetree/bindings/display/bridge/dw_hdmi.txt with the
+following device-specific properties.
+
 
 Required properties:
- - #address-cells : should be <1>
- - #size-cells : should be <0>
- - compatible : should be "fsl,imx6q-hdmi" or "fsl,imx6dl-hdmi".
- - gpr : should be <&gpr>.
-   The phandle points to the iomuxc-gpr region containing the HDMI
-   multiplexer control register.
- - clocks, clock-names : phandles to the HDMI iahb and isrf clocks, as described
-   in Documentation/devicetree/bindings/clock/clock-bindings.txt and
-   Documentation/devicetree/bindings/clock/imx6q-clock.txt.
- - port@[0-4]: Up to four port nodes with endpoint definitions as defined in
-   Documentation/devicetree/bindings/media/video-interfaces.txt,
-   corresponding to the four inputs to the HDMI multiplexer.
 
-Optional properties:
- - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
+- compatible : Shall be one of "fsl,imx6q-hdmi" or "fsl,imx6dl-hdmi".
+- reg: See dw_hdmi.txt.
+- interrupts: HDMI interrupt number
+- clocks: See dw_hdmi.txt.
+- clock-names: Shall contain "iahb" and "isfr" as defined in dw_hdmi.txt.
+- ports: See dw_hdmi.txt. The DWC HDMI shall have between one and four ports,
+  numbered 0 to 3, corresponding to the four inputs of the HDMI multiplexer.
+  Each port shall have a single endpoint.
+- gpr : Shall contain a phandle to the iomuxc-gpr region containing the HDMI
+  multiplexer control register.
 
-example:
+Optional properties
+
+- ddc-i2c-bus: The HDMI DDC bus can be connected to either a system I2C master
+  or the functionally-reduced I2C master contained in the DWC HDMI. When
+  connected to a system I2C master this property contains a phandle to that
+  I2C master controller.
+
+
+Example:
 
 	gpr: iomuxc-gpr@020e0000 {
 		/* ... */

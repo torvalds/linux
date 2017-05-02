@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
@@ -238,8 +239,8 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 		vma ? ',':'\n');
 
 	if (vma)
-		pr_warn(KERN_CONT " vm_start = 0x%08lx, vm_end = 0x%08lx\n",
-				vma->vm_start, vma->vm_end);
+		pr_cont(" vm_start = 0x%08lx, vm_end = 0x%08lx\n",
+			vma->vm_start, vma->vm_end);
 
 	show_regs(regs);
 }

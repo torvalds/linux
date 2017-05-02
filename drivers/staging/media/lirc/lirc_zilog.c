@@ -42,7 +42,7 @@
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/string.h>

@@ -65,7 +65,7 @@ struct exynos_pm_data {
 	int (*cpu_suspend)(unsigned long);
 };
 
-static const struct exynos_pm_data *pm_data;
+static const struct exynos_pm_data *pm_data __ro_after_init;
 
 static int exynos5420_cpu_state;
 static unsigned int exynos_pmu_spare3;
@@ -228,7 +228,6 @@ EXYNOS_PMU_IRQ(exynos3250_pmu_irq, "samsung,exynos3250-pmu");
 EXYNOS_PMU_IRQ(exynos4210_pmu_irq, "samsung,exynos4210-pmu");
 EXYNOS_PMU_IRQ(exynos4212_pmu_irq, "samsung,exynos4212-pmu");
 EXYNOS_PMU_IRQ(exynos4412_pmu_irq, "samsung,exynos4412-pmu");
-EXYNOS_PMU_IRQ(exynos4415_pmu_irq, "samsung,exynos4415-pmu");
 EXYNOS_PMU_IRQ(exynos5250_pmu_irq, "samsung,exynos5250-pmu");
 EXYNOS_PMU_IRQ(exynos5420_pmu_irq, "samsung,exynos5420-pmu");
 
@@ -302,7 +301,7 @@ static void exynos_pm_prepare(void)
 	exynos_pm_enter_sleep_mode();
 
 	/* ensure at least INFORM0 has the resume address */
-	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
+	pmu_raw_writel(__pa_symbol(exynos_cpu_resume), S5P_INFORM0);
 }
 
 static void exynos3250_pm_prepare(void)
@@ -319,7 +318,7 @@ static void exynos3250_pm_prepare(void)
 	exynos_pm_enter_sleep_mode();
 
 	/* ensure at least INFORM0 has the resume address */
-	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
+	pmu_raw_writel(__pa_symbol(exynos_cpu_resume), S5P_INFORM0);
 }
 
 static void exynos5420_pm_prepare(void)
@@ -344,11 +343,11 @@ static void exynos5420_pm_prepare(void)
 
 	/* ensure at least INFORM0 has the resume address */
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM))
-		pmu_raw_writel(virt_to_phys(mcpm_entry_point), S5P_INFORM0);
+		pmu_raw_writel(__pa_symbol(mcpm_entry_point), S5P_INFORM0);
 
-	tmp = pmu_raw_readl(EXYNOS5_ARM_L2_OPTION);
-	tmp &= ~EXYNOS5_USE_RETENTION;
-	pmu_raw_writel(tmp, EXYNOS5_ARM_L2_OPTION);
+	tmp = pmu_raw_readl(EXYNOS_L2_OPTION(0));
+	tmp &= ~EXYNOS_L2_USE_RETENTION;
+	pmu_raw_writel(tmp, EXYNOS_L2_OPTION(0));
 
 	tmp = pmu_raw_readl(EXYNOS5420_SFR_AXI_CGDIS1);
 	tmp |= EXYNOS5420_UFS;

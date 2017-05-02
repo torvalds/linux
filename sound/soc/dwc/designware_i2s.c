@@ -121,9 +121,14 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 			irq_valid = true;
 		}
 
-		/* Data available. Record mode not supported in PIO mode */
-		if (isr[i] & ISR_RXDA)
+		/*
+		 * Data available. Retrieve samples from FIFO
+		 * NOTE: Only two channels supported
+		 */
+		if ((isr[i] & ISR_RXDA) && (i == 0) && dev->use_pio) {
+			dw_pcm_pop_rx(dev);
 			irq_valid = true;
+		}
 
 		/* Error Handling: TX */
 		if (isr[i] & ISR_TXFO) {

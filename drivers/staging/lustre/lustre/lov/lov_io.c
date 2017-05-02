@@ -1056,9 +1056,12 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 		 * - in setattr, for truncate
 		 */
 		/* the truncate is for size > 0 so triggers a restore */
-		if (cl_io_is_trunc(io))
+		if (cl_io_is_trunc(io)) {
 			io->ci_restore_needed = 1;
-		result = -ENODATA;
+			result = -ENODATA;
+		} else {
+			result = 1;
+		}
 		break;
 	case CIT_READ:
 	case CIT_WRITE:

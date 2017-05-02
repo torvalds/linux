@@ -372,6 +372,7 @@ EXPORT_SYMBOL(osduld_device_same);
 static int __detect_osd(struct osd_uld_device *oud)
 {
 	struct scsi_device *scsi_device = oud->od.scsi_device;
+	struct scsi_sense_hdr sense_hdr;
 	char caps[OSD_CAP_LEN];
 	int error;
 
@@ -380,7 +381,7 @@ static int __detect_osd(struct osd_uld_device *oud)
 	 */
 	OSD_DEBUG("start scsi_test_unit_ready %p %p %p\n",
 			oud, scsi_device, scsi_device->request_queue);
-	error = scsi_test_unit_ready(scsi_device, 10*HZ, 5, NULL);
+	error = scsi_test_unit_ready(scsi_device, 10*HZ, 5, &sense_hdr);
 	if (error)
 		OSD_ERR("warning: scsi_test_unit_ready failed\n");
 

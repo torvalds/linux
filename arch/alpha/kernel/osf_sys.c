@@ -11,7 +11,10 @@
  */
 
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task_stack.h>
+#include <linux/sched/cputime.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>

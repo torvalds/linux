@@ -410,21 +410,21 @@ static int gb_gpio_request_handler(struct gb_operation *op)
 	return 0;
 }
 
-static int gb_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int gb_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 
 	return gb_gpio_activate_operation(ggc, (u8)offset);
 }
 
-static void gb_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void gb_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 
 	gb_gpio_deactivate_operation(ggc, (u8)offset);
 }
 
-static int gb_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+static int gb_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 	u8 which;
@@ -438,22 +438,22 @@ static int gb_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	return ggc->lines[which].direction ? 1 : 0;
 }
 
-static int gb_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int gb_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 
 	return gb_gpio_direction_in_operation(ggc, (u8)offset);
 }
 
-static int gb_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
-					int value)
+static int gb_gpio_direction_output(struct gpio_chip *chip, unsigned int offset,
+				    int value)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 
 	return gb_gpio_direction_out_operation(ggc, (u8)offset, !!value);
 }
 
-static int gb_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int gb_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 	u8 which;
@@ -467,14 +467,14 @@ static int gb_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return ggc->lines[which].value;
 }
 
-static void gb_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static void gb_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 
 	gb_gpio_set_value_operation(ggc, (u8)offset, !!value);
 }
 
-static int gb_gpio_set_config(struct gpio_chip *chip, unsigned offset,
+static int gb_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 			      unsigned long config)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
@@ -560,7 +560,8 @@ static void gb_gpio_irqchip_remove(struct gb_gpio_controller *ggc)
 	/* Remove all IRQ mappings and delete the domain */
 	if (ggc->irqdomain) {
 		for (offset = 0; offset < (ggc->line_max + 1); offset++)
-			irq_dispose_mapping(irq_find_mapping(ggc->irqdomain, offset));
+			irq_dispose_mapping(irq_find_mapping(ggc->irqdomain,
+							     offset));
 		irq_domain_remove(ggc->irqdomain);
 	}
 
@@ -596,7 +597,7 @@ static int gb_gpio_irqchip_add(struct gpio_chip *chip,
 {
 	struct gb_gpio_controller *ggc;
 	unsigned int offset;
-	unsigned irq_base;
+	unsigned int irq_base;
 
 	if (!chip || !irqchip)
 		return -EINVAL;
@@ -628,7 +629,7 @@ static int gb_gpio_irqchip_add(struct gpio_chip *chip,
 	return 0;
 }
 
-static int gb_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+static int gb_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 

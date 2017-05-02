@@ -53,11 +53,9 @@
 /* Command IDs */
 #define DPRC_CMDID_CLOSE                        DPRC_CMD(0x800)
 #define DPRC_CMDID_OPEN                         DPRC_CMD(0x805)
-#define DPRC_CMDID_CREATE                       DPRC_CMD(0x905)
 #define DPRC_CMDID_GET_API_VERSION              DPRC_CMD(0xa05)
 
 #define DPRC_CMDID_GET_ATTR                     DPRC_CMD(0x004)
-#define DPRC_CMDID_RESET_CONT                   DPRC_CMD(0x005)
 
 #define DPRC_CMDID_SET_IRQ                      DPRC_CMD(0x010)
 #define DPRC_CMDID_GET_IRQ                      DPRC_CMD(0x011)
@@ -68,29 +66,13 @@
 #define DPRC_CMDID_GET_IRQ_STATUS               DPRC_CMD(0x016)
 #define DPRC_CMDID_CLEAR_IRQ_STATUS             DPRC_CMD(0x017)
 
-#define DPRC_CMDID_CREATE_CONT                  DPRC_CMD(0x151)
-#define DPRC_CMDID_DESTROY_CONT                 DPRC_CMD(0x152)
 #define DPRC_CMDID_GET_CONT_ID                  DPRC_CMD(0x830)
-#define DPRC_CMDID_SET_RES_QUOTA                DPRC_CMD(0x155)
-#define DPRC_CMDID_GET_RES_QUOTA                DPRC_CMD(0x156)
-#define DPRC_CMDID_ASSIGN                       DPRC_CMD(0x157)
-#define DPRC_CMDID_UNASSIGN                     DPRC_CMD(0x158)
 #define DPRC_CMDID_GET_OBJ_COUNT                DPRC_CMD(0x159)
 #define DPRC_CMDID_GET_OBJ                      DPRC_CMD(0x15A)
 #define DPRC_CMDID_GET_RES_COUNT                DPRC_CMD(0x15B)
-#define DPRC_CMDID_GET_RES_IDS                  DPRC_CMD(0x15C)
 #define DPRC_CMDID_GET_OBJ_REG                  DPRC_CMD(0x15E)
 #define DPRC_CMDID_SET_OBJ_IRQ                  DPRC_CMD(0x15F)
 #define DPRC_CMDID_GET_OBJ_IRQ                  DPRC_CMD(0x160)
-#define DPRC_CMDID_SET_OBJ_LABEL                DPRC_CMD(0x161)
-#define DPRC_CMDID_GET_OBJ_DESC                 DPRC_CMD(0x162)
-
-#define DPRC_CMDID_CONNECT                      DPRC_CMD(0x167)
-#define DPRC_CMDID_DISCONNECT                   DPRC_CMD(0x168)
-#define DPRC_CMDID_GET_POOL                     DPRC_CMD(0x169)
-#define DPRC_CMDID_GET_POOL_COUNT               DPRC_CMD(0x16A)
-
-#define DPRC_CMDID_GET_CONNECTION               DPRC_CMD(0x16C)
 
 struct dprc_cmd_open {
 	__le32 container_id;

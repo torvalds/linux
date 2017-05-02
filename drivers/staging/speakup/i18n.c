@@ -401,7 +401,7 @@ char *spk_msg_get(enum msg_index_t index)
  * Finds the start of the next format specifier in the argument string.
  * Return value: pointer to start of format
  * specifier, or NULL if no specifier exists.
-*/
+ */
 static char *next_specifier(char *input)
 {
 	int found = 0;
@@ -450,7 +450,7 @@ static char *skip_width(char *input)
  * Note that this code only accepts a handful of conversion specifiers:
  * c d s x and ld.  Not accidental; these are exactly the ones used in
  * the default group of formatted messages.
-*/
+ */
 static char *skip_conversion(char *input)
 {
 	if ((input[0] == 'l') && (input[1] == 'd'))
@@ -463,7 +463,7 @@ static char *skip_conversion(char *input)
 /*
  * Function: find_specifier_end
  * Return a pointer to the end of the format specifier.
-*/
+ */
 static char *find_specifier_end(char *input)
 {
 	input++;		/* Advance over %. */
@@ -478,7 +478,7 @@ static char *find_specifier_end(char *input)
  * Compare the format specifiers pointed to by *input1 and *input2.
  * Return 1 if they are the same, 0 otherwise.  Advance *input1 and *input2
  * so that they point to the character following the end of the specifier.
-*/
+ */
 static int compare_specifiers(char **input1, char **input2)
 {
 	int same = 0;
@@ -500,7 +500,7 @@ static int compare_specifiers(char **input1, char **input2)
  * Check that two format strings contain the same number of format specifiers,
  * and that the order of specifiers is the same in both strings.
  * Return 1 if the condition holds, 0 if it doesn't.
-*/
+ */
 static int fmt_validate(char *template, char *user)
 {
 	int valid = 1;
@@ -537,7 +537,7 @@ static int fmt_validate(char *template, char *user)
  * Failure conditions:
  * -EINVAL -  Invalid format specifiers in formatted message or illegal index.
  * -ENOMEM -  Unable to allocate memory.
-*/
+ */
 ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 {
 	int rc = 0;
@@ -573,7 +573,7 @@ ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length)
 /*
  * Find a message group, given its name.  Return a pointer to the structure
  * if found, or NULL otherwise.
-*/
+ */
 struct msg_group_t *spk_find_msg_group(const char *group_name)
 {
 	struct msg_group_t *group = NULL;

@@ -83,7 +83,7 @@ in [2]. The following are properties specific to those nodes:
 		3 - for parallel output,
 		4 - for write-back interface
 
-[1]: Documentation/devicetree/bindings/display/display-timing.txt
+[1]: Documentation/devicetree/bindings/display/panel/display-timing.txt
 [2]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:

@@ -106,7 +106,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/sockios.h>
@@ -1070,7 +1070,8 @@ static struct sk_buff *dn_wait_for_connect(struct sock *sk, long *timeo)
 	return skb == NULL ? ERR_PTR(err) : skb;
 }
 
-static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
+static int dn_accept(struct socket *sock, struct socket *newsock, int flags,
+		     bool kern)
 {
 	struct sock *sk = sock->sk, *newsk;
 	struct sk_buff *skb = NULL;
@@ -1099,7 +1100,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	cb = DN_SKB_CB(skb);
 	sk->sk_ack_backlog--;
-	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation, 0);
+	newsk = dn_alloc_sock(sock_net(sk), newsock, sk->sk_allocation, kern);
 	if (newsk == NULL) {
 		release_sock(sk);
 		kfree_skb(skb);

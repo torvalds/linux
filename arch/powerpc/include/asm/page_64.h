@@ -47,14 +47,14 @@ static inline void clear_page(void *addr)
 	unsigned long iterations;
 	unsigned long onex, twox, fourx, eightx;
 
-	iterations = ppc64_caches.dlines_per_page / 8;
+	iterations = ppc64_caches.l1d.blocks_per_page / 8;
 
 	/*
 	 * Some verisions of gcc use multiply instructions to
 	 * calculate the offsets so lets give it a hand to
 	 * do better.
 	 */
-	onex = ppc64_caches.dline_size;
+	onex = ppc64_caches.l1d.block_size;
 	twox = onex << 1;
 	fourx = onex << 2;
 	eightx = onex << 3;
