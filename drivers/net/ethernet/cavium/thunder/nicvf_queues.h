@@ -213,6 +213,11 @@ struct q_desc_mem {
 	void		*unalign_base;
 };
 
+struct pgcache {
+	struct page	*page;
+	u64		dma_addr;
+};
+
 struct rbdr {
 	bool		enable;
 	u32		dma_size;
@@ -222,6 +227,12 @@ struct rbdr {
 	u32		head;
 	u32		tail;
 	struct q_desc_mem   dmem;
+
+	/* For page recycling */
+	int		pgidx;
+	int		pgcnt;
+	int		pgalloc;
+	struct pgcache	*pgcache;
 } ____cacheline_aligned_in_smp;
 
 struct rcv_queue {

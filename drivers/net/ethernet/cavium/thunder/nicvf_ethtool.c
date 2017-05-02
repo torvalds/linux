@@ -100,11 +100,12 @@ static const struct nicvf_stat nicvf_drv_stats[] = {
 	NICVF_DRV_STAT(tx_csum_overlap),
 	NICVF_DRV_STAT(tx_csum_overflow),
 
-	NICVF_DRV_STAT(rcv_buffer_alloc_failures),
 	NICVF_DRV_STAT(tx_tso),
 	NICVF_DRV_STAT(tx_timeout),
 	NICVF_DRV_STAT(txq_stop),
 	NICVF_DRV_STAT(txq_wake),
+	NICVF_DRV_STAT(rcv_buffer_alloc_failures),
+	NICVF_DRV_STAT(page_alloc),
 };
 
 static const struct nicvf_stat nicvf_queue_stats[] = {

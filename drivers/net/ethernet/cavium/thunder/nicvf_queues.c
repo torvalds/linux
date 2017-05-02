@@ -19,8 +19,6 @@
 #include "q_struct.h"
 #include "nicvf_queues.h"
 
-#define NICVF_PAGE_ORDER ((PAGE_SIZE <= 4096) ?  PAGE_ALLOC_COSTLY_ORDER : 0)
-
 static inline u64 nicvf_iova_to_phys(struct nicvf *nic, dma_addr_t dma_addr)
 {
 	/* Translation is installed only when IOMMU is present */
@@ -90,33 +88,88 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 	dmem->base = NULL;
 }
 
-/* Allocate buffer for packet reception
- * HW returns memory address where packet is DMA'ed but not a pointer
- * into RBDR ring, so save buffer address at the start of fragment and
- * align the start address to a cache aligned address
+/* Allocate a new page or recycle one if possible
+ *
+ * We cannot optimize dma mapping here, since
+ * 1. It's only one RBDR ring for 8 Rx queues.
+ * 2. CQE_RX gives address of the buffer where pkt has been DMA'ed
+ *    and not idx into RBDR ring, so can't refer to saved info.
+ * 3. There are multiple receive buffers per page
  */
-static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
-					 u32 buf_len, u64 **rbuf)
+static struct pgcache *nicvf_alloc_page(struct nicvf *nic,
+					struct rbdr *rbdr, gfp_t gfp)
 {
-	int order = NICVF_PAGE_ORDER;
+	struct page *page = NULL;
+	struct pgcache *pgcache, *next;
+
+	/* Check if page is already allocated */
+	pgcache = &rbdr->pgcache[rbdr->pgidx];
+	page = pgcache->page;
+	/* Check if page can be recycled */
+	if (page && (page_ref_count(page) != 1))
+		page = NULL;
+
+	if (!page) {
+		page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN, 0);
+		if (!page)
+			return NULL;
+
+		this_cpu_inc(nic->pnicvf->drv_stats->page_alloc);
+
+		/* Check for space */
+		if (rbdr->pgalloc >= rbdr->pgcnt) {
+			/* Page can still be used */
+			nic->rb_page = page;
+			return NULL;
+		}
+
+		/* Save the page in page cache */
+		pgcache->page = page;
+		rbdr->pgalloc++;
+	}
+
+	/* Take extra page reference for recycling */
+	page_ref_add(page, 1);
+
+	rbdr->pgidx++;
+	rbdr->pgidx &= (rbdr->pgcnt - 1);
+
+	/* Prefetch refcount of next page in page cache */
+	next = &rbdr->pgcache[rbdr->pgidx];
+	page = next->page;
+	if (page)
+		prefetch(&page->_refcount);
+
+	return pgcache;
+}
+
+/* Allocate buffer for packet reception */
+static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
+					 gfp_t gfp, u32 buf_len, u64 **rbuf)
+{
+	struct pgcache *pgcache = NULL;
 
 	/* Check if request can be accomodated in previous allocated page */
 	if (nic->rb_page &&
-	    ((nic->rb_page_offset + buf_len) < (PAGE_SIZE << order))) {
+	    ((nic->rb_page_offset + buf_len) <= PAGE_SIZE)) {
 		nic->rb_pageref++;
 		goto ret;
 	}
 
 	nicvf_get_page(nic);
+	nic->rb_page = NULL;
 
-	/* Allocate a new page */
-	nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
-				   order);
-	if (!nic->rb_page) {
+	/* Get new page, either recycled or new one */
+	pgcache = nicvf_alloc_page(nic, rbdr, gfp);
+	if (!pgcache && !nic->rb_page) {
 		this_cpu_inc(nic->pnicvf->drv_stats->rcv_buffer_alloc_failures);
 		return -ENOMEM;
 	}
+
 	nic->rb_page_offset = 0;
+	/* Check if it's recycled */
+	if (pgcache)
+		nic->rb_page = pgcache->page;
 ret:
 	/* HW will ensure data coherency, CPU sync not required */
 	*rbuf = (u64 *)((u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
@@ -125,7 +178,7 @@ ret:
 						DMA_ATTR_SKIP_CPU_SYNC));
 	if (dma_mapping_error(&nic->pdev->dev, (dma_addr_t)*rbuf)) {
 		if (!nic->rb_page_offset)
-			__free_pages(nic->rb_page, order);
+			__free_pages(nic->rb_page, 0);
 		nic->rb_page = NULL;
 		return -ENOMEM;
 	}
@@ -177,10 +230,26 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 	rbdr->head = 0;
 	rbdr->tail = 0;
 
+	/* Initialize page recycling stuff.
+	 *
+	 * Can't use single buffer per page especially with 64K pages.
+	 * On embedded platforms i.e 81xx/83xx available memory itself
+	 * is low and minimum ring size of RBDR is 8K, that takes away
+	 * lots of memory.
+	 */
+	rbdr->pgcnt = ring_len / (PAGE_SIZE / buf_size);
+	rbdr->pgcnt = roundup_pow_of_two(rbdr->pgcnt);
+	rbdr->pgcache = kzalloc(sizeof(*rbdr->pgcache) *
+				rbdr->pgcnt, GFP_KERNEL);
+	if (!rbdr->pgcache)
+		return -ENOMEM;
+	rbdr->pgidx = 0;
+	rbdr->pgalloc = 0;
+
 	nic->rb_page = NULL;
 	for (idx = 0; idx < ring_len; idx++) {
-		err = nicvf_alloc_rcv_buffer(nic, GFP_KERNEL, RCV_FRAG_LEN,
-					     &rbuf);
+		err = nicvf_alloc_rcv_buffer(nic, rbdr, GFP_KERNEL,
+					     RCV_FRAG_LEN, &rbuf);
 		if (err) {
 			/* To free already allocated and mapped ones */
 			rbdr->tail = idx - 1;
@@ -201,6 +270,7 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 {
 	int head, tail;
 	u64 buf_addr, phys_addr;
+	struct pgcache *pgcache;
 	struct rbdr_entry_t *desc;
 
 	if (!rbdr)
@@ -233,6 +303,18 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 			     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
 	if (phys_addr)
 		put_page(virt_to_page(phys_to_virt(phys_addr)));
+
+	/* Sync page cache info */
+	smp_rmb();
+
+	/* Release additional page references held for recycling */
+	head = 0;
+	while (head < rbdr->pgcnt) {
+		pgcache = &rbdr->pgcache[head];
+		if (pgcache->page && page_ref_count(pgcache->page) != 0)
+			put_page(pgcache->page);
+		head++;
+	}
 
 	/* Free RBDR ring */
 	nicvf_free_q_desc_mem(nic, &rbdr->dmem);
@@ -269,13 +351,16 @@ refill:
 	else
 		refill_rb_cnt = qs->rbdr_len - qcount - 1;
 
+	/* Sync page cache info */
+	smp_rmb();
+
 	/* Start filling descs from tail */
 	tail = nicvf_queue_reg_read(nic, NIC_QSET_RBDR_0_1_TAIL, rbdr_idx) >> 3;
 	while (refill_rb_cnt) {
 		tail++;
 		tail &= (rbdr->dmem.q_len - 1);
 
-		if (nicvf_alloc_rcv_buffer(nic, gfp, RCV_FRAG_LEN, &rbuf))
+		if (nicvf_alloc_rcv_buffer(nic, rbdr, gfp, RCV_FRAG_LEN, &rbuf))
 			break;
 
 		desc = GET_RBDR_DESC(rbdr, tail);

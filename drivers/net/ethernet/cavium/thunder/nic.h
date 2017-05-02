@@ -252,11 +252,13 @@ struct nicvf_drv_stats {
 	u64 tx_csum_overflow;
 
 	/* driver debug stats */
-	u64 rcv_buffer_alloc_failures;
 	u64 tx_tso;
 	u64 tx_timeout;
 	u64 txq_stop;
 	u64 txq_wake;
+
+	u64 rcv_buffer_alloc_failures;
+	u64 page_alloc;
 
 	struct u64_stats_sync   syncp;
 };
