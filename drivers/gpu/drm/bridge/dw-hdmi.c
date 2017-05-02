@@ -2828,6 +2828,13 @@ void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
 
+	if (hdmi->irq)
+		disable_irq(hdmi->irq);
+
+	cancel_delayed_work(&hdmi->work);
+	flush_workqueue(hdmi->workqueue);
+	destroy_workqueue(hdmi->workqueue);
+
 	if (hdmi->audio && !IS_ERR(hdmi->audio))
 		platform_device_unregister(hdmi->audio);
 
@@ -2847,9 +2854,6 @@ void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 		i2c_del_adapter(&hdmi->i2c->adap);
 	else
 		i2c_put_adapter(hdmi->ddc);
-
-	flush_workqueue(hdmi->workqueue);
-	destroy_workqueue(hdmi->workqueue);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_unbind);
 
