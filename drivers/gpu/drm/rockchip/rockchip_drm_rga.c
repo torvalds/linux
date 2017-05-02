@@ -196,7 +196,7 @@ static int rga_alloc_dma_buf_for_cmdlist(struct rga_runqueue_node *runqueue)
 
 	dma_sync_single_for_device(runqueue->drm_dev->dev,
 				   virt_to_phys(cmdlist_pool_virt),
-				   PAGE_SIZE, DMA_TO_DEVICE);
+				   PAGE_SIZE, DMA_BIDIRECTIONAL);
 
 	runqueue->cmdlist_dma_attrs = cmdlist_dma_attrs;
 	runqueue->cmdlist_pool_virt = cmdlist_pool_virt;
@@ -294,10 +294,10 @@ static struct dma_buf_attachment *rga_gem_buf_to_pages(struct rockchip_rga *rga,
 
 	if (flush)
 		dma_sync_sg_for_device(rga->drm_dev->dev, sgt->sgl, sgt->nents,
-				       DMA_TO_DEVICE);
+				       DMA_BIDIRECTIONAL);
 
 	dma_sync_single_for_device(rga->drm_dev->dev, virt_to_phys(pages),
-				   8 * PAGE_SIZE, DMA_TO_DEVICE);
+				   8 * PAGE_SIZE, DMA_BIDIRECTIONAL);
 
 	*mmu_pages = pages;
 
