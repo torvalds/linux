@@ -257,7 +257,7 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 		}
 
 		desc = GET_RBDR_DESC(rbdr, idx);
-		desc->buf_addr = (u64)rbuf >> NICVF_RCV_BUF_ALIGN;
+		desc->buf_addr = (u64)rbuf & ~(NICVF_RCV_BUF_ALIGN_BYTES - 1);
 	}
 
 	nicvf_get_page(nic);
@@ -286,7 +286,7 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	/* Release page references */
 	while (head != tail) {
 		desc = GET_RBDR_DESC(rbdr, head);
-		buf_addr = ((u64)desc->buf_addr) << NICVF_RCV_BUF_ALIGN;
+		buf_addr = desc->buf_addr;
 		phys_addr = nicvf_iova_to_phys(nic, buf_addr);
 		dma_unmap_page_attrs(&nic->pdev->dev, buf_addr, RCV_FRAG_LEN,
 				     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
@@ -297,7 +297,7 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	}
 	/* Release buffer of tail desc */
 	desc = GET_RBDR_DESC(rbdr, tail);
-	buf_addr = ((u64)desc->buf_addr) << NICVF_RCV_BUF_ALIGN;
+	buf_addr = desc->buf_addr;
 	phys_addr = nicvf_iova_to_phys(nic, buf_addr);
 	dma_unmap_page_attrs(&nic->pdev->dev, buf_addr, RCV_FRAG_LEN,
 			     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
@@ -364,7 +364,7 @@ refill:
 			break;
 
 		desc = GET_RBDR_DESC(rbdr, tail);
-		desc->buf_addr = (u64)rbuf >> NICVF_RCV_BUF_ALIGN;
+		desc->buf_addr = (u64)rbuf & ~(NICVF_RCV_BUF_ALIGN_BYTES - 1);
 		refill_rb_cnt--;
 		new_rb++;
 	}
