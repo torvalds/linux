@@ -409,8 +409,7 @@ static inline
 void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 			  unsigned long sz, const int op, const int full_page)
 {
-	const unsigned int ctl = ARC_REG_DC_CTRL;
-	unsigned int s, e, val;
+	unsigned int s, e;
 
 	/* Only for Non aliasing I-cache in HS38 */
 	if (op == OP_INV_IC) {
@@ -441,18 +440,6 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 			write_aux_reg(ARC_REG_DC_PTAG_HI, (u64)paddr >> 32);
 	}
 
-	/*
-	 * Flush / Invalidate is provided by DC_CTRL.RNG_OP 0 or 1
-	 * Flush-n-invalidate additionally uses setting DC_CTRL.IM = 1
-	 * just as for line ops which is handled in __before_dc_op()
-	 */
-	val = read_aux_reg(ctl) & ~DC_CTRL_RGN_OP_MSK;
-
-	if (op & OP_INV)
-		val |= DC_CTRL_RGN_OP_INV;
-
-	write_aux_reg(ctl, val);
-
 	/* ENDR needs to be set ahead of START */
 	write_aux_reg(e, paddr + sz);	/* ENDR is exclusive */
 	write_aux_reg(s, paddr);
@@ -476,6 +463,11 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
  * Machine specific helpers for Entire D-Cache or Per Line ops
  */
 
+#ifndef USE_RGN_FLSH
+/*
+ * this version avoids extra read/write of DC_CTRL for flush or invalid ops
+ * in the non region flush regime (such as for ARCompact)
+ */
 static inline void __before_dc_op(const int op)
 {
 	if (op == OP_FLUSH_N_INV) {
@@ -488,6 +480,32 @@ static inline void __before_dc_op(const int op)
 		write_aux_reg(ctl, read_aux_reg(ctl) | DC_CTRL_INV_MODE_FLUSH);
 	}
 }
+
+#else
+
+static inline void __before_dc_op(const int op)
+{
+	const unsigned int ctl = ARC_REG_DC_CTRL;
+	unsigned int val = read_aux_reg(ctl);
+
+	if (op == OP_FLUSH_N_INV) {
+		val |= DC_CTRL_INV_MODE_FLUSH;
+	}
+
+	if (op != OP_INV_IC) {
+		/*
+		 * Flush / Invalidate is provided by DC_CTRL.RNG_OP 0 or 1
+		 * combined Flush-n-invalidate uses DC_CTRL.IM = 1 set above
+		 */
+		val &= ~DC_CTRL_RGN_OP_MSK;
+		if (op & OP_INV)
+			val |= DC_CTRL_RGN_OP_INV;
+	}
+	write_aux_reg(ctl, val);
+}
+
+#endif
+
 
 static inline void __after_dc_op(const int op)
 {
