@@ -23,8 +23,7 @@ static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
 	u32 n = 0;
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
 
-	while (pHalData->SdioTxOQTFreeSpace < agg_num)
-	{
+	while (pHalData->SdioTxOQTFreeSpace < agg_num) {
 		if (
 			(padapter->bSurpriseRemoved == true) ||
 			(padapter->bDriverStopped == true)
@@ -299,7 +298,8 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 				) {
 					if (pxmitbuf) {
 						/* pxmitbuf->priv_data will be NULL, and will crash here */
-						if (pxmitbuf->len > 0 && pxmitbuf->priv_data) {
+						if (pxmitbuf->len > 0 &&
+						    pxmitbuf->priv_data) {
 							struct xmit_frame *pframe;
 							pframe = (struct xmit_frame*)pxmitbuf->priv_data;
 							pframe->agg_num = k;
@@ -400,8 +400,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 				pxmitbuf->priv_data = NULL;
 				enqueue_pending_xmitbuf(pxmitpriv, pxmitbuf);
 				yield();
-			}
-			else
+			} else
 				rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 			pxmitbuf = NULL;
 		}
