@@ -1308,7 +1308,8 @@ static void vop_crtc_wait_for_update(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 
 	reinit_completion(&vop->wait_update_complete);
-	WARN_ON(!wait_for_completion_timeout(&vop->wait_update_complete, 100));
+	WARN_ON(!wait_for_completion_timeout(&vop->wait_update_complete,
+					     msecs_to_jiffies(1000)));
 }
 
 static void vop_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
