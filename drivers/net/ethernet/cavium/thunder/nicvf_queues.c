@@ -1640,9 +1640,6 @@ void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx)
 /* Check for errors in the receive cmp.queue entry */
 int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 {
-	if (!cqe_rx->err_level && !cqe_rx->err_opcode)
-		return 0;
-
 	if (netif_msg_rx_err(nic))
 		netdev_err(nic->netdev,
 			   "%s: RX error CQE err_level 0x%x err_opcode 0x%x\n",
@@ -1731,8 +1728,6 @@ int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 int nicvf_check_cqe_tx_errs(struct nicvf *nic, struct cqe_send_t *cqe_tx)
 {
 	switch (cqe_tx->send_status) {
-	case CQ_TX_ERROP_GOOD:
-		return 0;
 	case CQ_TX_ERROP_DESC_FAULT:
 		this_cpu_inc(nic->drv_stats->tx_desc_fault);
 		break;

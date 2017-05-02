@@ -498,7 +498,7 @@ static int nicvf_init_resources(struct nicvf *nic)
 
 static void nicvf_snd_pkt_handler(struct net_device *netdev,
 				  struct cqe_send_t *cqe_tx,
-				  int cqe_type, int budget,
+				  int budget, int *subdesc_cnt,
 				  unsigned int *tx_pkts, unsigned int *tx_bytes)
 {
 	struct sk_buff *skb = NULL;
@@ -513,12 +513,10 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 	if (hdr->subdesc_type != SQ_DESC_TYPE_HEADER)
 		return;
 
-	netdev_dbg(nic->netdev,
-		   "%s Qset #%d SQ #%d SQ ptr #%d subdesc count %d\n",
-		   __func__, cqe_tx->sq_qs, cqe_tx->sq_idx,
-		   cqe_tx->sqe_ptr, hdr->subdesc_cnt);
+	/* Check for errors */
+	if (cqe_tx->send_status)
+		nicvf_check_cqe_tx_errs(nic->pnicvf, cqe_tx);
 
-	nicvf_check_cqe_tx_errs(nic, cqe_tx);
 	skb = (struct sk_buff *)sq->skbuff[cqe_tx->sqe_ptr];
 	if (skb) {
 		/* Check for dummy descriptor used for HW TSO offload on 88xx */
@@ -528,12 +526,12 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 			 (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, hdr->rsvd2);
 			nicvf_unmap_sndq_buffers(nic, sq, hdr->rsvd2,
 						 tso_sqe->subdesc_cnt);
-			nicvf_put_sq_desc(sq, tso_sqe->subdesc_cnt + 1);
+			*subdesc_cnt += tso_sqe->subdesc_cnt + 1;
 		} else {
 			nicvf_unmap_sndq_buffers(nic, sq, cqe_tx->sqe_ptr,
 						 hdr->subdesc_cnt);
 		}
-		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
+		*subdesc_cnt += hdr->subdesc_cnt + 1;
 		prefetch(skb);
 		(*tx_pkts)++;
 		*tx_bytes += skb->len;
@@ -544,7 +542,7 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 		 * a SKB attached, so just free SQEs here.
 		 */
 		if (!nic->hw_tso)
-			nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
+			*subdesc_cnt += hdr->subdesc_cnt + 1;
 	}
 }
 
@@ -595,9 +593,11 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	}
 
 	/* Check for errors */
-	err = nicvf_check_cqe_rx_errs(nic, cqe_rx);
-	if (err && !cqe_rx->rb_cnt)
-		return;
+	if (cqe_rx->err_level || cqe_rx->err_opcode) {
+		err = nicvf_check_cqe_rx_errs(nic, cqe_rx);
+		if (err && !cqe_rx->rb_cnt)
+			return;
+	}
 
 	skb = nicvf_get_rcv_skb(snic, cqe_rx);
 	if (!skb) {
@@ -646,6 +646,7 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 {
 	int processed_cqe, work_done = 0, tx_done = 0;
 	int cqe_count, cqe_head;
+	int subdesc_cnt = 0;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
@@ -667,8 +668,6 @@ loop:
 	cqe_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD, cq_idx) >> 9;
 	cqe_head &= 0xFFFF;
 
-	netdev_dbg(nic->netdev, "%s CQ%d cqe_count %d cqe_head %d\n",
-		   __func__, cq_idx, cqe_count, cqe_head);
 	while (processed_cqe < cqe_count) {
 		/* Get the CQ descriptor */
 		cq_desc = (struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head);
@@ -682,17 +681,15 @@ loop:
 			break;
 		}
 
-		netdev_dbg(nic->netdev, "CQ%d cq_desc->cqe_type %d\n",
-			   cq_idx, cq_desc->cqe_type);
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
 			nicvf_rcv_pkt_handler(netdev, napi, cq_desc);
 			work_done++;
 		break;
 		case CQE_TYPE_SEND:
-			nicvf_snd_pkt_handler(netdev,
-					      (void *)cq_desc, CQE_TYPE_SEND,
-					      budget, &tx_pkts, &tx_bytes);
+			nicvf_snd_pkt_handler(netdev, (void *)cq_desc,
+					      budget, &subdesc_cnt,
+					      &tx_pkts, &tx_bytes);
 			tx_done++;
 		break;
 		case CQE_TYPE_INVALID:
@@ -704,9 +701,6 @@ loop:
 		}
 		processed_cqe++;
 	}
-	netdev_dbg(nic->netdev,
-		   "%s CQ%d processed_cqe %d work_done %d budget %d\n",
-		   __func__, cq_idx, processed_cqe, work_done, budget);
 
 	/* Ring doorbell to inform H/W to reuse processed CQEs */
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_DOOR,
@@ -716,8 +710,12 @@ loop:
 		goto loop;
 
 done:
-	/* Wakeup TXQ if its stopped earlier due to SQ full */
 	sq = &nic->qs->sq[cq_idx];
+	/* Update SQ's descriptor free count */
+	if (subdesc_cnt)
+		nicvf_put_sq_desc(sq, subdesc_cnt);
+
+	/* Wakeup TXQ if its stopped earlier due to SQ full */
 	if (tx_done ||
 	    (atomic_read(&sq->free_cnt) >= MIN_SQ_DESC_PER_PKT_XMIT)) {
 		netdev = nic->pnicvf->netdev;
