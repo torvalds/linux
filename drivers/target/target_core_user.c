@@ -602,6 +602,27 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 	return true;
 }
 
+static inline size_t tcmu_cmd_get_base_cmd_size(size_t iov_cnt)
+{
+	return max(offsetof(struct tcmu_cmd_entry, req.iov[iov_cnt]),
+			sizeof(struct tcmu_cmd_entry));
+}
+
+static inline size_t tcmu_cmd_get_cmd_size(struct tcmu_cmd *tcmu_cmd,
+					   size_t base_command_size)
+{
+	struct se_cmd *se_cmd = tcmu_cmd->se_cmd;
+	size_t command_size;
+
+	command_size = base_command_size +
+		round_up(scsi_command_size(se_cmd->t_task_cdb),
+				TCMU_OP_ALIGN_SIZE);
+
+	WARN_ON(command_size & (TCMU_OP_ALIGN_SIZE-1));
+
+	return command_size;
+}
+
 static sense_reason_t
 tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 {
@@ -624,16 +645,16 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	 * Must be a certain minimum size for response sense info, but
 	 * also may be larger if the iov array is large.
 	 *
-	 * We prepare way too many iovs for potential uses here, because it's
-	 * expensive to tell how many regions are freed in the bitmap
-	*/
-	base_command_size = max(offsetof(struct tcmu_cmd_entry,
-				req.iov[tcmu_cmd_get_block_cnt(tcmu_cmd)]),
-				sizeof(struct tcmu_cmd_entry));
-	command_size = base_command_size
-		+ round_up(scsi_command_size(se_cmd->t_task_cdb), TCMU_OP_ALIGN_SIZE);
-
-	WARN_ON(command_size & (TCMU_OP_ALIGN_SIZE-1));
+	 * We prepare as many iovs as possbile for potential uses here,
+	 * because it's expensive to tell how many regions are freed in
+	 * the bitmap & global data pool, as the size calculated here
+	 * will only be used to do the checks.
+	 *
+	 * The size will be recalculated later as actually needed to save
+	 * cmd area memories.
+	 */
+	base_command_size = tcmu_cmd_get_base_cmd_size(tcmu_cmd->dbi_cnt);
+	command_size = tcmu_cmd_get_cmd_size(tcmu_cmd, base_command_size);
 
 	mutex_lock(&udev->cmdr_lock);
 
@@ -694,7 +715,6 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	entry = (void *) mb + CMDR_OFF + cmd_head;
 	tcmu_flush_dcache_range(entry, sizeof(*entry));
 	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
-	tcmu_hdr_set_len(&entry->hdr.len_op, command_size);
 	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
 	entry->hdr.kflags = 0;
 	entry->hdr.uflags = 0;
@@ -735,6 +755,16 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		}
 		entry->req.iov_bidi_cnt = iov_cnt;
 	}
+
+	/*
+	 * Recalaulate the command's base size and size according
+	 * to the actual needs
+	 */
+	base_command_size = tcmu_cmd_get_base_cmd_size(entry->req.iov_cnt +
+						       entry->req.iov_bidi_cnt);
+	command_size = tcmu_cmd_get_cmd_size(tcmu_cmd, base_command_size);
+
+	tcmu_hdr_set_len(&entry->hdr.len_op, command_size);
 
 	/* All offsets relative to mb_addr, not start of entry! */
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
