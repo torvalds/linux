@@ -111,11 +111,11 @@ xfs_finish_page_writeback(
 
 	bsize = bh->b_size;
 	do {
+		if (off > end)
+			break;
 		next = bh->b_this_page;
 		if (off < bvec->bv_offset)
 			goto next_bh;
-		if (off > end)
-			break;
 		bh->b_end_io(bh, !error);
 next_bh:
 		off += bsize;
