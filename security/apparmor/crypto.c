@@ -29,6 +29,25 @@ unsigned int aa_hash_size(void)
 	return apparmor_hash_size;
 }
 
+void aa_snprint_hashstr(char *out, unsigned char *hash, unsigned int hsize)
+{
+       unsigned int i;
+
+       for (i = 0; i < hsize; i++)
+               sprintf(out + i*2, "%.2x", hash[i]);
+       out[hsize*2] = 0;
+}
+
+char *aa_asprint_hashstr(unsigned char *hash, unsigned int hsize, gfp_t gfp)
+{
+	char *buffer = kmalloc(hsize*2 + 1, gfp);
+	if (!buffer)
+		return NULL;
+	aa_snprint_hashstr(buffer, hash, hsize);
+
+	return buffer;
+}
+
 char *aa_calc_hash(void *data, size_t len)
 {
 	SHASH_DESC_ON_STACK(desc, apparmor_tfm);
