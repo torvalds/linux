@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
+#include <linux/log2.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <asm/mmu_context.h>
@@ -38,6 +39,29 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 	kvm_debug("%s: gva %#lx, gpa: %#llx\n", __func__, gva, gpa);
 
 	return gpa;
+}
+
+static int kvm_trap_emul_no_handler(struct kvm_vcpu *vcpu)
+{
+	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
+	u32 cause = vcpu->arch.host_cp0_cause;
+	u32 exccode = (cause & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE;
+	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
+	u32 inst = 0;
+
+	/*
+	 *  Fetch the instruction.
+	 */
+	if (cause & CAUSEF_BD)
+		opc += 1;
+	kvm_get_badinstr(opc, vcpu, &inst);
+
+	kvm_err("Exception Code: %d not handled @ PC: %p, inst: 0x%08x BadVaddr: %#lx Status: %#x\n",
+		exccode, opc, inst, badvaddr,
+		kvm_read_c0_guest_status(vcpu->arch.cop0));
+	kvm_arch_vcpu_dump_regs(vcpu);
+	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	return RESUME_HOST;
 }
 
 static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
@@ -80,6 +104,10 @@ static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 	case EMULATE_WAIT:
 		run->exit_reason = KVM_EXIT_INTR;
 		ret = RESUME_HOST;
+		break;
+
+	case EMULATE_HYPERCALL:
+		ret = kvm_mips_handle_hypcall(vcpu);
 		break;
 
 	default:
@@ -484,6 +512,31 @@ static int kvm_trap_emul_handle_msa_disabled(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static int kvm_trap_emul_hardware_enable(void)
+{
+	return 0;
+}
+
+static void kvm_trap_emul_hardware_disable(void)
+{
+}
+
+static int kvm_trap_emul_check_extension(struct kvm *kvm, long ext)
+{
+	int r;
+
+	switch (ext) {
+	case KVM_CAP_MIPS_TE:
+		r = 1;
+		break;
+	default:
+		r = 0;
+		break;
+	}
+
+	return r;
+}
+
 static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
@@ -561,6 +614,9 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	u32 config, config1;
 	int vcpu_id = vcpu->vcpu_id;
 
+	/* Start off the timer at 100 MHz */
+	kvm_mips_init_count(vcpu, 100*1000*1000);
+
 	/*
 	 * Arch specific stuff, set up config registers properly so that the
 	 * guest will come up as expected
@@ -588,6 +644,13 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	/* Read the cache characteristics from the host Config1 Register */
 	config1 = (read_c0_config1() & ~0x7f);
+
+	/* DCache line size not correctly reported in Config1 on Octeon CPUs */
+	if (cpu_dcache_line_size()) {
+		config1 &= ~MIPS_CONF1_DL;
+		config1 |= ((ilog2(cpu_dcache_line_size()) - 1) <<
+			    MIPS_CONF1_DL_SHF) & MIPS_CONF1_DL;
+	}
 
 	/* Set up MMU size */
 	config1 &= ~(0x3f << 25);
@@ -892,10 +955,12 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 			if (v & CAUSEF_DC) {
 				/* disable timer first */
 				kvm_mips_count_disable_cause(vcpu);
-				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+				kvm_change_c0_guest_cause(cop0, (u32)~CAUSEF_DC,
+							  v);
 			} else {
 				/* enable timer last */
-				kvm_change_c0_guest_cause(cop0, ~CAUSEF_DC, v);
+				kvm_change_c0_guest_cause(cop0, (u32)~CAUSEF_DC,
+							  v);
 				kvm_mips_count_enable_cause(vcpu);
 			}
 		} else {
@@ -1230,7 +1295,11 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.handle_msa_fpe = kvm_trap_emul_handle_msa_fpe,
 	.handle_fpe = kvm_trap_emul_handle_fpe,
 	.handle_msa_disabled = kvm_trap_emul_handle_msa_disabled,
+	.handle_guest_exit = kvm_trap_emul_no_handler,
 
+	.hardware_enable = kvm_trap_emul_hardware_enable,
+	.hardware_disable = kvm_trap_emul_hardware_disable,
+	.check_extension = kvm_trap_emul_check_extension,
 	.vcpu_init = kvm_trap_emul_vcpu_init,
 	.vcpu_uninit = kvm_trap_emul_vcpu_uninit,
 	.vcpu_setup = kvm_trap_emul_vcpu_setup,

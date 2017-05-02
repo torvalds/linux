@@ -21,9 +21,11 @@
  */
 #define tlb_flush(tlb) flush_tlb_mm((tlb)->mm)
 
-#define UNIQUE_ENTRYHI(idx)						\
-		((CKSEG0 + ((idx) << (PAGE_SHIFT + 1))) |		\
+#define _UNIQUE_ENTRYHI(base, idx)					\
+		(((base) + ((idx) << (PAGE_SHIFT + 1))) |		\
 		 (cpu_has_tlbinv ? MIPS_ENTRYHI_EHINV : 0))
+#define UNIQUE_ENTRYHI(idx)		_UNIQUE_ENTRYHI(CKSEG0, idx)
+#define UNIQUE_GUEST_ENTRYHI(idx)	_UNIQUE_ENTRYHI(CKSEG1, idx)
 
 static inline unsigned int num_wired_entries(void)
 {

@@ -135,6 +135,8 @@ struct thread_struct {
 	struct list_head list;
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
+	struct gs_cb *gs_cb;		/* Current guarded storage cb */
+	struct gs_cb *gs_bc_cb;		/* Broadcast guarded storage cb */
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
 	/*
 	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
@@ -214,6 +216,9 @@ void show_cacheinfo(struct seq_file *m);
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
+
+/* Free guarded storage control block for current */
+void exit_thread_gs(void);
 
 /*
  * Return saved PC of a blocked thread.

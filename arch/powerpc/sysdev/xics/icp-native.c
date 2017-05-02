@@ -168,15 +168,15 @@ void icp_native_cause_ipi_rm(int cpu)
 	 * Need the physical address of the XICS to be
 	 * previously saved in kvm_hstate in the paca.
 	 */
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
 
 	/*
 	 * Just like the cause_ipi functions, it is required to
-	 * include a full barrier (out8 includes a sync) before
-	 * causing the IPI.
+	 * include a full barrier before causing the IPI.
 	 */
 	xics_phys = paca[cpu].kvm_hstate.xics_phys;
-	out_rm8((u8 *)(xics_phys + XICS_MFRR), IPI_PRIORITY);
+	mb();
+	__raw_rm_writeb(IPI_PRIORITY, xics_phys + XICS_MFRR);
 }
 #endif
 

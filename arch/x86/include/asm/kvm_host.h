@@ -43,8 +43,6 @@
 #define KVM_PRIVATE_MEM_SLOTS 3
 #define KVM_MEM_SLOTS_NUM (KVM_USER_MEM_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 
-#define KVM_PIO_PAGE_OFFSET 1
-#define KVM_COALESCED_MMIO_PAGE_OFFSET 2
 #define KVM_HALT_POLL_NS_DEFAULT 400000
 
 #define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
@@ -343,9 +341,10 @@ struct kvm_mmu {
 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			   u64 *spte, const void *pte);
 	hpa_t root_hpa;
-	int root_level;
-	int shadow_root_level;
 	union kvm_mmu_page_role base_role;
+	u8 root_level;
+	u8 shadow_root_level;
+	u8 ept_ad;
 	bool direct_map;
 
 	/*
@@ -727,6 +726,7 @@ struct kvm_hv {
 
 enum kvm_irqchip_mode {
 	KVM_IRQCHIP_NONE,
+	KVM_IRQCHIP_INIT_IN_PROGRESS, /* temporarily set during creation */
 	KVM_IRQCHIP_KERNEL,       /* created with KVM_CREATE_IRQCHIP */
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };

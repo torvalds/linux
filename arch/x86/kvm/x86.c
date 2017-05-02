@@ -27,7 +27,6 @@
 #include "kvm_cache_regs.h"
 #include "x86.h"
 #include "cpuid.h"
-#include "assigned-dev.h"
 #include "pmu.h"
 #include "hyperv.h"
 
@@ -1444,10 +1443,10 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	struct kvm *kvm = vcpu->kvm;
 	u64 offset, ns, elapsed;
 	unsigned long flags;
-	s64 usdiff;
 	bool matched;
 	bool already_matched;
 	u64 data = msr->data;
+	bool synchronizing = false;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_compute_tsc_offset(vcpu, data);
@@ -1455,51 +1454,34 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
 	if (vcpu->arch.virtual_tsc_khz) {
-		int faulted = 0;
-
-		/* n.b - signed multiplication and division required */
-		usdiff = data - kvm->arch.last_tsc_write;
-#ifdef CONFIG_X86_64
-		usdiff = (usdiff * 1000) / vcpu->arch.virtual_tsc_khz;
-#else
-		/* do_div() only does unsigned */
-		asm("1: idivl %[divisor]\n"
-		    "2: xor %%edx, %%edx\n"
-		    "   movl $0, %[faulted]\n"
-		    "3:\n"
-		    ".section .fixup,\"ax\"\n"
-		    "4: movl $1, %[faulted]\n"
-		    "   jmp  3b\n"
-		    ".previous\n"
-
-		_ASM_EXTABLE(1b, 4b)
-
-		: "=A"(usdiff), [faulted] "=r" (faulted)
-		: "A"(usdiff * 1000), [divisor] "rm"(vcpu->arch.virtual_tsc_khz));
-
-#endif
-		do_div(elapsed, 1000);
-		usdiff -= elapsed;
-		if (usdiff < 0)
-			usdiff = -usdiff;
-
-		/* idivl overflow => difference is larger than USEC_PER_SEC */
-		if (faulted)
-			usdiff = USEC_PER_SEC;
-	} else
-		usdiff = USEC_PER_SEC; /* disable TSC match window below */
+		if (data == 0 && msr->host_initiated) {
+			/*
+			 * detection of vcpu initialization -- need to sync
+			 * with other vCPUs. This particularly helps to keep
+			 * kvm_clock stable after CPU hotplug
+			 */
+			synchronizing = true;
+		} else {
+			u64 tsc_exp = kvm->arch.last_tsc_write +
+						nsec_to_cycles(vcpu, elapsed);
+			u64 tsc_hz = vcpu->arch.virtual_tsc_khz * 1000LL;
+			/*
+			 * Special case: TSC write with a small delta (1 second)
+			 * of virtual cycle time against real time is
+			 * interpreted as an attempt to synchronize the CPU.
+			 */
+			synchronizing = data < tsc_exp + tsc_hz &&
+					data + tsc_hz > tsc_exp;
+		}
+	}
 
 	/*
-	 * Special case: TSC write with a small delta (1 second) of virtual
-	 * cycle time against real time is interpreted as an attempt to
-	 * synchronize the CPU.
-         *
 	 * For a reliable TSC, we can match TSC offsets, and for an unstable
 	 * TSC, we add elapsed time in this computation.  We could let the
 	 * compensation code attempt to catch up if we fall behind, but
 	 * it's better to try to match offsets from the beginning.
          */
-	if (usdiff < USEC_PER_SEC &&
+	if (synchronizing &&
 	    vcpu->arch.virtual_tsc_khz == kvm->arch.last_tsc_khz) {
 		if (!check_tsc_unstable()) {
 			offset = kvm->arch.cur_tsc_offset;
@@ -2155,6 +2137,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_VM_HSAVE_PA:
 	case MSR_AMD64_PATCH_LOADER:
 	case MSR_AMD64_BU_CFG2:
+	case MSR_AMD64_DC_CFG:
 		break;
 
 	case MSR_EFER:
@@ -2417,6 +2400,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_FAM10H_MMIO_CONF_BASE:
 	case MSR_AMD64_BU_CFG2:
 	case MSR_IA32_PERF_CTL:
+	case MSR_AMD64_DC_CFG:
 		msr_info->data = 0;
 		break;
 	case MSR_K7_EVNTSEL0 ... MSR_K7_EVNTSEL3:
@@ -2675,10 +2659,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_SET_BOOT_CPU_ID:
  	case KVM_CAP_SPLIT_IRQCHIP:
 	case KVM_CAP_IMMEDIATE_EXIT:
-#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
-	case KVM_CAP_ASSIGN_DEV_IRQ:
-	case KVM_CAP_PCI_2_3:
-#endif
 		r = 1;
 		break;
 	case KVM_CAP_ADJUST_CLOCK:
@@ -2695,9 +2675,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		 */
 		r = kvm_x86_ops->cpu_has_high_real_mode_segbase();
 		break;
-	case KVM_CAP_COALESCED_MMIO:
-		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
-		break;
 	case KVM_CAP_VAPIC:
 		r = !kvm_x86_ops->cpu_has_accelerated_tpr();
 		break;
@@ -2713,11 +2690,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PV_MMU:	/* obsolete */
 		r = 0;
 		break;
-#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
-	case KVM_CAP_IOMMU:
-		r = iommu_present(&pci_bus_type);
-		break;
-#endif
 	case KVM_CAP_MCE:
 		r = KVM_MAX_MCE_BANKS;
 		break;
@@ -3124,7 +3096,14 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	if (events->exception.injected &&
-	    (events->exception.nr > 31 || events->exception.nr == NMI_VECTOR))
+	    (events->exception.nr > 31 || events->exception.nr == NMI_VECTOR ||
+	     is_guest_mode(vcpu)))
+		return -EINVAL;
+
+	/* INITs are latched while in SMM */
+	if (events->flags & KVM_VCPUEVENT_VALID_SMM &&
+	    (events->smi.smm || events->smi.pending) &&
+	    vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED)
 		return -EINVAL;
 
 	process_nmi(vcpu);
@@ -3721,22 +3700,21 @@ static int kvm_vm_ioctl_get_nr_mmu_pages(struct kvm *kvm)
 
 static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 {
+	struct kvm_pic *pic = kvm->arch.vpic;
 	int r;
 
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
-		memcpy(&chip->chip.pic,
-			&pic_irqchip(kvm)->pics[0],
+		memcpy(&chip->chip.pic, &pic->pics[0],
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
-		memcpy(&chip->chip.pic,
-			&pic_irqchip(kvm)->pics[1],
+		memcpy(&chip->chip.pic, &pic->pics[1],
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_IOAPIC:
-		r = kvm_get_ioapic(kvm, &chip->chip.ioapic);
+		kvm_get_ioapic(kvm, &chip->chip.ioapic);
 		break;
 	default:
 		r = -EINVAL;
@@ -3747,32 +3725,31 @@ static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 
 static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 {
+	struct kvm_pic *pic = kvm->arch.vpic;
 	int r;
 
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
-		spin_lock(&pic_irqchip(kvm)->lock);
-		memcpy(&pic_irqchip(kvm)->pics[0],
-			&chip->chip.pic,
+		spin_lock(&pic->lock);
+		memcpy(&pic->pics[0], &chip->chip.pic,
 			sizeof(struct kvm_pic_state));
-		spin_unlock(&pic_irqchip(kvm)->lock);
+		spin_unlock(&pic->lock);
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
-		spin_lock(&pic_irqchip(kvm)->lock);
-		memcpy(&pic_irqchip(kvm)->pics[1],
-			&chip->chip.pic,
+		spin_lock(&pic->lock);
+		memcpy(&pic->pics[1], &chip->chip.pic,
 			sizeof(struct kvm_pic_state));
-		spin_unlock(&pic_irqchip(kvm)->lock);
+		spin_unlock(&pic->lock);
 		break;
 	case KVM_IRQCHIP_IOAPIC:
-		r = kvm_set_ioapic(kvm, &chip->chip.ioapic);
+		kvm_set_ioapic(kvm, &chip->chip.ioapic);
 		break;
 	default:
 		r = -EINVAL;
 		break;
 	}
-	kvm_pic_update_irq(pic_irqchip(kvm));
+	kvm_pic_update_irq(pic);
 	return r;
 }
 
@@ -3934,9 +3911,14 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 			goto split_irqchip_unlock;
 		if (kvm->created_vcpus)
 			goto split_irqchip_unlock;
+		kvm->arch.irqchip_mode = KVM_IRQCHIP_INIT_IN_PROGRESS;
 		r = kvm_setup_empty_irq_routing(kvm);
-		if (r)
+		if (r) {
+			kvm->arch.irqchip_mode = KVM_IRQCHIP_NONE;
+			/* Pairs with smp_rmb() when reading irqchip_mode */
+			smp_wmb();
 			goto split_irqchip_unlock;
+		}
 		/* Pairs with irqchip_in_kernel. */
 		smp_wmb();
 		kvm->arch.irqchip_mode = KVM_IRQCHIP_SPLIT;
@@ -4018,20 +4000,18 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		r = kvm_ioapic_init(kvm);
 		if (r) {
-			mutex_lock(&kvm->slots_lock);
 			kvm_pic_destroy(kvm);
-			mutex_unlock(&kvm->slots_lock);
 			goto create_irqchip_unlock;
 		}
 
+		kvm->arch.irqchip_mode = KVM_IRQCHIP_INIT_IN_PROGRESS;
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
-			mutex_lock(&kvm->slots_lock);
-			mutex_lock(&kvm->irq_lock);
+			kvm->arch.irqchip_mode = KVM_IRQCHIP_NONE;
+			/* Pairs with smp_rmb() when reading irqchip_mode */
+			smp_wmb();
 			kvm_ioapic_destroy(kvm);
 			kvm_pic_destroy(kvm);
-			mutex_unlock(&kvm->irq_lock);
-			mutex_unlock(&kvm->slots_lock);
 			goto create_irqchip_unlock;
 		}
 		/* Write kvm->irq_routing before enabling irqchip_in_kernel. */
@@ -4230,7 +4210,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		break;
 	}
 	default:
-		r = kvm_vm_ioctl_assigned_device(kvm, ioctl, arg);
+		r = -ENOTTY;
 	}
 out:
 	return r;
@@ -7355,6 +7335,12 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	    mp_state->mp_state != KVM_MP_STATE_RUNNABLE)
 		return -EINVAL;
 
+	/* INITs are latched while in SMM */
+	if ((is_smm(vcpu) || vcpu->arch.smi_pending) &&
+	    (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED ||
+	     mp_state->mp_state == KVM_MP_STATE_INIT_RECEIVED))
+		return -EINVAL;
+
 	if (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED) {
 		vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 		set_bit(KVM_APIC_SIPI, &vcpu->arch.apic->pending_events);
@@ -8068,7 +8054,6 @@ void kvm_arch_sync_events(struct kvm *kvm)
 {
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_sync_work);
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_update_work);
-	kvm_free_all_assigned_devices(kvm);
 	kvm_free_pit(kvm);
 }
 
@@ -8152,7 +8137,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	}
 	if (kvm_x86_ops->vm_destroy)
 		kvm_x86_ops->vm_destroy(kvm);
-	kvm_iommu_unmap_guest(kvm);
 	kvm_pic_destroy(kvm);
 	kvm_ioapic_destroy(kvm);
 	kvm_free_vcpus(kvm);

@@ -1019,8 +1019,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 		old_memslots = install_new_memslots(kvm, as_id, slots);
 
-		/* slot was deleted or moved, clear iommu mapping */
-		kvm_iommu_unmap_pages(kvm, &old);
 		/* From this point no new shadow pages pointing to a deleted,
 		 * or moved, memslot will be created.
 		 *
@@ -1055,21 +1053,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	kvm_free_memslot(kvm, &old, &new);
 	kvfree(old_memslots);
-
-	/*
-	 * IOMMU mapping:  New slots need to be mapped.  Old slots need to be
-	 * un-mapped and re-mapped if their base changes.  Since base change
-	 * unmapping is handled above with slot deletion, mapping alone is
-	 * needed here.  Anything else the iommu might care about for existing
-	 * slots (size changes, userspace addr changes and read-only flag
-	 * changes) is disallowed above, so any other attribute changes getting
-	 * here can be skipped.
-	 */
-	if (as_id == 0 && (change == KVM_MR_CREATE || change == KVM_MR_MOVE)) {
-		r = kvm_iommu_map_pages(kvm, &new);
-		return r;
-	}
-
 	return 0;
 
 out_slots:
@@ -2366,7 +2349,7 @@ static int kvm_vcpu_fault(struct vm_fault *vmf)
 	else if (vmf->pgoff == KVM_PIO_PAGE_OFFSET)
 		page = virt_to_page(vcpu->arch.pio_data);
 #endif
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 	else if (vmf->pgoff == KVM_COALESCED_MMIO_PAGE_OFFSET)
 		page = virt_to_page(vcpu->kvm->coalesced_mmio_ring);
 #endif
@@ -2842,10 +2825,6 @@ static struct kvm_device_ops *kvm_device_ops_table[KVM_DEV_TYPE_MAX] = {
 	[KVM_DEV_TYPE_FSL_MPIC_20]	= &kvm_mpic_ops,
 	[KVM_DEV_TYPE_FSL_MPIC_42]	= &kvm_mpic_ops,
 #endif
-
-#ifdef CONFIG_KVM_XICS
-	[KVM_DEV_TYPE_XICS]		= &kvm_xics_ops,
-#endif
 };
 
 int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type)
@@ -2935,6 +2914,10 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_IOEVENTFD_ANY_LENGTH:
 	case KVM_CAP_CHECK_EXTENSION_VM:
 		return 1;
+#ifdef CONFIG_KVM_MMIO
+	case KVM_CAP_COALESCED_MMIO:
+		return KVM_COALESCED_MMIO_PAGE_OFFSET;
+#endif
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 	case KVM_CAP_IRQ_ROUTING:
 		return KVM_MAX_IRQ_ROUTES;
@@ -2984,7 +2967,7 @@ static long kvm_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_get_dirty_log(kvm, &log);
 		break;
 	}
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 	case KVM_REGISTER_COALESCED_MMIO: {
 		struct kvm_coalesced_mmio_zone zone;
 
@@ -3082,8 +3065,11 @@ static long kvm_vm_ioctl(struct file *filp,
 					   routing.nr * sizeof(*entries)))
 				goto out_free_irq_routing;
 		}
+		/* avoid races with KVM_CREATE_IRQCHIP on x86 */
+		mutex_lock(&kvm->lock);
 		r = kvm_set_irq_routing(kvm, entries, routing.nr,
 					routing.flags);
+		mutex_unlock(&kvm->lock);
 out_free_irq_routing:
 		vfree(entries);
 		break;
@@ -3176,7 +3162,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	kvm = kvm_create_vm(type);
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 	r = kvm_coalesced_mmio_init(kvm);
 	if (r < 0) {
 		kvm_put_kvm(kvm);
@@ -3229,7 +3215,7 @@ static long kvm_dev_ioctl(struct file *filp,
 #ifdef CONFIG_X86
 		r += PAGE_SIZE;    /* pio data page */
 #endif
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 		r += PAGE_SIZE;    /* coalesced mmio ring page */
 #endif
 		break;

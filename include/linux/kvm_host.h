@@ -403,7 +403,7 @@ struct kvm {
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
 	refcount_t users_count;
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+#ifdef CONFIG_KVM_MMIO
 	struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
 	spinlock_t ring_lock;
 	struct list_head coalesced_zones;
@@ -502,10 +502,10 @@ int __must_check vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
 #ifdef __KVM_HAVE_IOAPIC
-void kvm_vcpu_request_scan_ioapic(struct kvm *kvm);
+void kvm_arch_post_irq_ack_notifier_list_update(struct kvm *kvm);
 void kvm_arch_post_irq_routing_update(struct kvm *kvm);
 #else
-static inline void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
+static inline void kvm_arch_post_irq_ack_notifier_list_update(struct kvm *kvm)
 {
 }
 static inline void kvm_arch_post_irq_routing_update(struct kvm *kvm)
@@ -877,22 +877,6 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 int kvm_request_irq_source_id(struct kvm *kvm);
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 
-#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
-int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
-void kvm_iommu_unmap_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
-#else
-static inline int kvm_iommu_map_pages(struct kvm *kvm,
-				      struct kvm_memory_slot *slot)
-{
-	return 0;
-}
-
-static inline void kvm_iommu_unmap_pages(struct kvm *kvm,
-					 struct kvm_memory_slot *slot)
-{
-}
-#endif
-
 /*
  * search_memslots() and __gfn_to_memslot() are here because they are
  * used in non-modular code in arch/powerpc/kvm/book3s_hv_rm_mmu.c.
@@ -1165,7 +1149,6 @@ int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type);
 void kvm_unregister_device_ops(u32 type);
 
 extern struct kvm_device_ops kvm_mpic_ops;
-extern struct kvm_device_ops kvm_xics_ops;
 extern struct kvm_device_ops kvm_arm_vgic_v2_ops;
 extern struct kvm_device_ops kvm_arm_vgic_v3_ops;
 
