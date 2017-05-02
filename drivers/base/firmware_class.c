@@ -562,32 +562,29 @@ static void fw_load_abort(struct firmware_priv *fw_priv)
 
 static LIST_HEAD(pending_fw_head);
 
-#ifdef CONFIG_PM_SLEEP
-/* kill pending requests without uevent to avoid blocking suspend */
-static void kill_requests_without_uevent(void)
+static void kill_pending_fw_fallback_reqs(bool only_kill_custom)
 {
 	struct firmware_buf *buf;
 	struct firmware_buf *next;
 
 	mutex_lock(&fw_lock);
 	list_for_each_entry_safe(buf, next, &pending_fw_head, pending_list) {
-		if (!buf->need_uevent)
+		if (!buf->need_uevent || !only_kill_custom)
 			 __fw_load_abort(buf);
 	}
 	mutex_unlock(&fw_lock);
 }
-#endif
 
 /* reboot notifier for avoid deadlock with usermode_lock */
 static int fw_shutdown_notify(struct notifier_block *unused1,
 			      unsigned long unused2, void *unused3)
 {
-	mutex_lock(&fw_lock);
-	while (!list_empty(&pending_fw_head))
-		__fw_load_abort(list_first_entry(&pending_fw_head,
-					       struct firmware_buf,
-					       pending_list));
-	mutex_unlock(&fw_lock);
+	/*
+	 * Kill all pending fallback requests to avoid both stalling shutdown,
+	 * and avoid a deadlock with the usermode_lock.
+	 */
+	kill_pending_fw_fallback_reqs(false);
+
 	return NOTIFY_DONE;
 }
 
@@ -1073,9 +1070,7 @@ fw_load_from_user_helper(struct firmware *firmware, const char *name,
 	return -ENOENT;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static inline void kill_requests_without_uevent(void) { }
-#endif
+static inline void kill_pending_fw_fallback_reqs(bool only_kill_custom) { }
 
 #endif /* CONFIG_FW_LOADER_USER_HELPER */
 
@@ -1724,7 +1719,11 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
 	case PM_RESTORE_PREPARE:
-		kill_requests_without_uevent();
+		/*
+		 * kill pending fallback requests with a custom fallback
+		 * to avoid stalling suspend.
+		 */
+		kill_pending_fw_fallback_reqs(true);
 		device_cache_fw_images();
 		break;
 
