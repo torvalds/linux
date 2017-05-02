@@ -700,6 +700,13 @@ config ARCH_MMAP_RND_COMPAT_BITS
 	  This value can be changed after boot using the
 	  /proc/sys/vm/mmap_rnd_compat_bits tunable
 
+config HAVE_ARCH_COMPAT_MMAP_BASES
+	bool
+	help
+	  This allows 64bit applications to invoke 32-bit mmap() syscall
+	  and vice-versa 32-bit applications to call 64-bit mmap().
+	  Required for applications doing different bitness syscalls.
+
 config HAVE_COPY_THREAD_TLS
 	bool
 	help

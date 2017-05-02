@@ -270,7 +270,6 @@ int __init e820__update_table(struct e820_table *table)
 	if (table->nr_entries < 2)
 		return -1;
 
-	table->nr_entries = table->nr_entries;
 	BUG_ON(table->nr_entries > max_nr_entries);
 
 	/* Bail out if we find any unreasonable addresses in the map: */
