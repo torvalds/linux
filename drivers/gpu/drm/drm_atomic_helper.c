@@ -1520,8 +1520,7 @@ retry:
 	plane_state->src_h = src_h;
 	plane_state->src_w = src_w;
 
-	if (plane == crtc->cursor)
-		state->legacy_cursor_update = true;
+	state->legacy_cursor_update = true;
 
 	ret = drm_atomic_commit(state);
 	if (ret != 0)
@@ -1589,8 +1588,7 @@ retry:
 		goto fail;
 	}
 
-	if (plane_state->crtc && (plane == plane->crtc->cursor))
-		plane_state->state->legacy_cursor_update = true;
+	plane_state->state->legacy_cursor_update = true;
 
 	ret = __drm_atomic_helper_disable_plane(plane, plane_state);
 	if (ret != 0)
