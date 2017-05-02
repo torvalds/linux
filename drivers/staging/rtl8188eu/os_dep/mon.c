@@ -66,6 +66,27 @@ static void mon_recv_decrypted(struct net_device *dev, const u8 *data,
 	netif_rx(skb);
 }
 
+static void mon_recv_decrypted_recv(struct net_device *dev, const u8 *data,
+			       int data_len, int iv_len, int icv_len)
+{
+	struct sk_buff *skb;
+
+	skb = netdev_alloc_skb(dev, data_len);
+	if (!skb)
+		return;
+	memcpy(skb_put(skb, data_len), data, data_len);
+
+	/*
+	 * Frame data is not encrypted. Strip off protection so
+	 * userspace doesn't think that it is.
+	 */
+	unprotect_frame(skb, iv_len, icv_len);
+
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->protocol = eth_type_trans(skb, dev);
+	netif_rx(skb);
+}
+
 static void mon_recv_encrypted(struct net_device *dev, const u8 *data,
 			       int data_len)
 {
@@ -99,7 +120,7 @@ void rtl88eu_mon_recv_hook(struct net_device *dev, struct recv_frame *frame)
 	SET_ICE_IV_LEN(iv_len, icv_len, attr->encrypt);
 
 	if (attr->bdecrypted)
-		mon_recv_decrypted(dev, data, data_len, iv_len, icv_len);
+		mon_recv_decrypted_recv(dev, data, data_len, iv_len, icv_len);
 	else
 		mon_recv_encrypted(dev, data, data_len);
 }
