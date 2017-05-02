@@ -123,7 +123,7 @@ static int rx51_hw_params(struct snd_pcm_substream *substream,
 				      SND_SOC_CLOCK_IN);
 }
 
-static struct snd_soc_ops rx51_ops = {
+static const struct snd_soc_ops rx51_ops = {
 	.startup = rx51_startup,
 	.hw_params = rx51_hw_params,
 };
@@ -433,10 +433,9 @@ static int rx51_soc_probe(struct platform_device *pdev)
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (pdata == NULL) {
-		dev_err(card->dev, "failed to create private data\n");
+	if (pdata == NULL)
 		return -ENOMEM;
-	}
+
 	snd_soc_card_set_drvdata(card, pdata);
 
 	pdata->tvout_selection_gpio = devm_gpiod_get(card->dev,

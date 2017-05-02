@@ -271,10 +271,9 @@ static int tegra20_spdif_platform_probe(struct platform_device *pdev)
 
 	spdif = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_spdif),
 			     GFP_KERNEL);
-	if (!spdif) {
-		dev_err(&pdev->dev, "Can't allocate tegra20_spdif\n");
+	if (!spdif)
 		return -ENOMEM;
-	}
+
 	dev_set_drvdata(&pdev->dev, spdif);
 
 	spdif->clk_spdif_out = devm_clk_get(&pdev->dev, "spdif_out");

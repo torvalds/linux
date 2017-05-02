@@ -159,15 +159,6 @@
 				     "", "", "", "", "", "", "", "";
 		};
 
-		sound {
-			compatible = "stericsson,snd-soc-mop500";
-
-			stericsson,cpu-dai = <&msp1 &msp3>;
-			stericsson,audio-codec = <&codec>;
-			clocks = <&prcmu_clk PRCMU_SYSCLK>;
-			clock-names = "sysclk";
-		};
-
 		msp0: msp@80123000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&msp0_default_mode>;

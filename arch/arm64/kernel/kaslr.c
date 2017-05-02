@@ -131,11 +131,15 @@ u64 __init kaslr_early_init(u64 dt_phys, u64 modulo_offset)
 	/*
 	 * The kernel Image should not extend across a 1GB/32MB/512MB alignment
 	 * boundary (for 4KB/16KB/64KB granule kernels, respectively). If this
-	 * happens, increase the KASLR offset by the size of the kernel image.
+	 * happens, increase the KASLR offset by the size of the kernel image
+	 * rounded up by SWAPPER_BLOCK_SIZE.
 	 */
 	if ((((u64)_text + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT) !=
-	    (((u64)_end + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT))
-		offset = (offset + (u64)(_end - _text)) & mask;
+	    (((u64)_end + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT)) {
+		u64 kimg_sz = _end - _text;
+		offset = (offset + round_up(kimg_sz, SWAPPER_BLOCK_SIZE))
+				& mask;
+	}
 
 	if (IS_ENABLED(CONFIG_KASAN))
 		/*

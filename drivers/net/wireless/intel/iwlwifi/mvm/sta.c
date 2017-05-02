@@ -1806,7 +1806,8 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			iwl_mvm_get_wd_timeout(mvm, vif, false, false);
 		int queue;
 
-		if (vif->type == NL80211_IFTYPE_AP)
+		if (vif->type == NL80211_IFTYPE_AP ||
+		    vif->type == NL80211_IFTYPE_ADHOC)
 			queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
 		else if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 			queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
@@ -1837,7 +1838,8 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * enabled-cab_queue to the mask)
 	 */
 	if (iwl_mvm_is_dqa_supported(mvm) &&
-	    vif->type == NL80211_IFTYPE_AP) {
+	    (vif->type == NL80211_IFTYPE_AP ||
+	     vif->type == NL80211_IFTYPE_ADHOC)) {
 		struct iwl_trans_txq_scd_cfg cfg = {
 			.fifo = IWL_MVM_TX_FIFO_MCAST,
 			.sta_id = mvmvif->bcast_sta.sta_id,
@@ -1862,7 +1864,8 @@ static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_ADHOC)
 		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
 				    IWL_MAX_TID_COUNT, 0);
 
@@ -3135,7 +3138,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 				       struct ieee80211_sta *sta,
 				       enum ieee80211_frame_release_type reason,
 				       u16 cnt, u16 tids, bool more_data,
-				       bool agg)
+				       bool single_sta_queue)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd cmd = {
@@ -3155,14 +3158,14 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 	for_each_set_bit(tid, &_tids, IWL_MAX_TID_COUNT)
 		cmd.awake_acs |= BIT(tid_to_ucode_ac[tid]);
 
-	/* If we're releasing frames from aggregation queues then check if the
-	 * all queues combined that we're releasing frames from have
+	/* If we're releasing frames from aggregation or dqa queues then check
+	 * if all the queues that we're releasing frames from, combined, have:
 	 *  - more frames than the service period, in which case more_data
 	 *    needs to be set
 	 *  - fewer than 'cnt' frames, in which case we need to adjust the
 	 *    firmware command (but do that unconditionally)
 	 */
-	if (agg) {
+	if (single_sta_queue) {
 		int remaining = cnt;
 		int sleep_tx_count;
 
@@ -3172,7 +3175,8 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 			u16 n_queued;
 
 			tid_data = &mvmsta->tid_data[tid];
-			if (WARN(tid_data->state != IWL_AGG_ON &&
+			if (WARN(!iwl_mvm_is_dqa_supported(mvm) &&
+				 tid_data->state != IWL_AGG_ON &&
 				 tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA,
 				 "TID %d state is %d\n",
 				 tid, tid_data->state)) {

@@ -762,7 +762,7 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	struct audit_entry *e;
 	enum audit_state state;
 
-	if (audit_pid && tsk->tgid == audit_pid)
+	if (auditd_test_task(tsk))
 		return AUDIT_DISABLED;
 
 	rcu_read_lock();
@@ -816,7 +816,7 @@ void audit_filter_inodes(struct task_struct *tsk, struct audit_context *ctx)
 {
 	struct audit_names *n;
 
-	if (audit_pid && tsk->tgid == audit_pid)
+	if (auditd_test_task(tsk))
 		return;
 
 	rcu_read_lock();
@@ -2249,25 +2249,26 @@ void __audit_ptrace(struct task_struct *t)
  * If the audit subsystem is being terminated, record the task (pid)
  * and uid that is doing that.
  */
-int __audit_signal_info(int sig, struct task_struct *t)
+int audit_signal_info(int sig, struct task_struct *t)
 {
 	struct audit_aux_data_pids *axp;
 	struct task_struct *tsk = current;
 	struct audit_context *ctx = tsk->audit_context;
 	kuid_t uid = current_uid(), t_uid = task_uid(t);
 
-	if (audit_pid && t->tgid == audit_pid) {
-		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1 || sig == SIGUSR2) {
-			audit_sig_pid = task_tgid_nr(tsk);
-			if (uid_valid(tsk->loginuid))
-				audit_sig_uid = tsk->loginuid;
-			else
-				audit_sig_uid = uid;
-			security_task_getsecid(tsk, &audit_sig_sid);
-		}
-		if (!audit_signals || audit_dummy_context())
-			return 0;
+	if (auditd_test_task(t) &&
+	    (sig == SIGTERM || sig == SIGHUP ||
+	     sig == SIGUSR1 || sig == SIGUSR2)) {
+		audit_sig_pid = task_tgid_nr(tsk);
+		if (uid_valid(tsk->loginuid))
+			audit_sig_uid = tsk->loginuid;
+		else
+			audit_sig_uid = uid;
+		security_task_getsecid(tsk, &audit_sig_sid);
 	}
+
+	if (!audit_signals || audit_dummy_context())
+		return 0;
 
 	/* optimize the common case by putting first signal recipient directly
 	 * in audit_context */

@@ -531,15 +531,6 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
 
-static inline bool br_hash_lock_held(struct net_bridge *br)
-{
-#ifdef CONFIG_LOCKDEP
-	return lockdep_is_held(&br->hash_lock);
-#else
-	return true;
-#endif
-}
-
 /* br_forward.c */
 enum br_pkt_type {
 	BR_PKT_UNICAST,
@@ -629,6 +620,7 @@ void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
 void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
 			const struct sk_buff *skb, u8 type, u8 dir);
 int br_multicast_init_stats(struct net_bridge *br);
+void br_multicast_uninit_stats(struct net_bridge *br);
 void br_multicast_get_stats(const struct net_bridge *br,
 			    const struct net_bridge_port *p,
 			    struct br_mcast_stats *dest);
@@ -767,6 +759,10 @@ static inline void br_multicast_count(struct net_bridge *br,
 static inline int br_multicast_init_stats(struct net_bridge *br)
 {
 	return 0;
+}
+
+static inline void br_multicast_uninit_stats(struct net_bridge *br)
+{
 }
 
 static inline int br_multicast_igmp_type(const struct sk_buff *skb)

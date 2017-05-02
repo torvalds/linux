@@ -242,7 +242,7 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	const char *item;
 
 	if (!param->low_gm_sz || !param->high_gm_sz || !param->fence_sz) {
-		gvt_err("Invalid vGPU creation params\n");
+		gvt_vgpu_err("Invalid vGPU creation params\n");
 		return -EINVAL;
 	}
 
@@ -285,9 +285,9 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	return 0;
 
 no_enough_resource:
-	gvt_err("vgpu%d: fail to allocate resource %s\n", vgpu->id, item);
-	gvt_err("vgpu%d: request %luMB avail %luMB max %luMB taken %luMB\n",
-		vgpu->id, BYTES_TO_MB(request), BYTES_TO_MB(avail),
+	gvt_vgpu_err("fail to allocate resource %s\n", item);
+	gvt_vgpu_err("request %luMB avail %luMB max %luMB taken %luMB\n",
+		BYTES_TO_MB(request), BYTES_TO_MB(avail),
 		BYTES_TO_MB(max), BYTES_TO_MB(taken));
 	return -ENOSPC;
 }

@@ -1015,6 +1015,7 @@ const struct ccp_vdata ccpv5a = {
 
 const struct ccp_vdata ccpv5b = {
 	.version = CCP_VERSION(5, 0),
+	.dma_chan_attr = DMA_PRIVATE,
 	.setup = ccp5other_config,
 	.perform = &ccp5_actions,
 	.bar = 2,

@@ -201,6 +201,9 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
+
 	unflatten_and_copy_device_tree();
 
 	setup_cpuinfo();

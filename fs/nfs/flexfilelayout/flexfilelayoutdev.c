@@ -208,6 +208,10 @@ static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
 		} else
 			goto outerr;
 	}
+
+	if (IS_ERR(mirror->mirror_ds))
+		goto outerr;
+
 	if (mirror->mirror_ds->ds == NULL) {
 		struct nfs4_deviceid_node *devid;
 		devid = &mirror->mirror_ds->id_node;

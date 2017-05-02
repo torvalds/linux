@@ -67,7 +67,7 @@ static int mt8173_max98090_hw_params(struct snd_pcm_substream *substream,
 				      SND_SOC_CLOCK_IN);
 }
 
-static struct snd_soc_ops mt8173_max98090_ops = {
+static const struct snd_soc_ops mt8173_max98090_ops = {
 	.hw_params = mt8173_max98090_hw_params,
 };
 

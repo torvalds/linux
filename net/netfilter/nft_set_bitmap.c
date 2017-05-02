@@ -15,6 +15,11 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 
+struct nft_bitmap_elem {
+	struct list_head	head;
+	struct nft_set_ext	ext;
+};
+
 /* This bitmap uses two bits to represent one element. These two bits determine
  * the element state in the current and the future generation.
  *
@@ -41,13 +46,22 @@
  *      restore its previous state.
  */
 struct nft_bitmap {
-	u16	bitmap_size;
-	u8	bitmap[];
+	struct	list_head	list;
+	u16			bitmap_size;
+	u8			bitmap[];
 };
 
-static inline void nft_bitmap_location(u32 key, u32 *idx, u32 *off)
+static inline void nft_bitmap_location(const struct nft_set *set,
+				       const void *key,
+				       u32 *idx, u32 *off)
 {
-	u32 k = (key << 1);
+	u32 k;
+
+	if (set->klen == 2)
+		k = *(u16 *)key;
+	else
+		k = *(u8 *)key;
+	k <<= 1;
 
 	*idx = k / BITS_PER_BYTE;
 	*off = k % BITS_PER_BYTE;
@@ -69,26 +83,48 @@ static bool nft_bitmap_lookup(const struct net *net, const struct nft_set *set,
 	u8 genmask = nft_genmask_cur(net);
 	u32 idx, off;
 
-	nft_bitmap_location(*key, &idx, &off);
+	nft_bitmap_location(set, key, &idx, &off);
 
 	return nft_bitmap_active(priv->bitmap, idx, off, genmask);
 }
 
+static struct nft_bitmap_elem *
+nft_bitmap_elem_find(const struct nft_set *set, struct nft_bitmap_elem *this,
+		     u8 genmask)
+{
+	const struct nft_bitmap *priv = nft_set_priv(set);
+	struct nft_bitmap_elem *be;
+
+	list_for_each_entry_rcu(be, &priv->list, head) {
+		if (memcmp(nft_set_ext_key(&be->ext),
+			   nft_set_ext_key(&this->ext), set->klen) ||
+		    !nft_set_elem_active(&be->ext, genmask))
+			continue;
+
+		return be;
+	}
+	return NULL;
+}
+
 static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 			     const struct nft_set_elem *elem,
-			     struct nft_set_ext **_ext)
+			     struct nft_set_ext **ext)
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
-	struct nft_set_ext *ext = elem->priv;
+	struct nft_bitmap_elem *new = elem->priv, *be;
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
-	if (nft_bitmap_active(priv->bitmap, idx, off, genmask))
+	be = nft_bitmap_elem_find(set, new, genmask);
+	if (be) {
+		*ext = &be->ext;
 		return -EEXIST;
+	}
 
+	nft_bitmap_location(set, nft_set_ext_key(&new->ext), &idx, &off);
 	/* Enter 01 state. */
 	priv->bitmap[idx] |= (genmask << off);
+	list_add_tail_rcu(&new->head, &priv->list);
 
 	return 0;
 }
@@ -98,13 +134,14 @@ static void nft_bitmap_remove(const struct net *net,
 			      const struct nft_set_elem *elem)
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
-	struct nft_set_ext *ext = elem->priv;
+	struct nft_bitmap_elem *be = elem->priv;
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
+	nft_bitmap_location(set, nft_set_ext_key(&be->ext), &idx, &off);
 	/* Enter 00 state. */
 	priv->bitmap[idx] &= ~(genmask << off);
+	list_del_rcu(&be->head);
 }
 
 static void nft_bitmap_activate(const struct net *net,
@@ -112,46 +149,30 @@ static void nft_bitmap_activate(const struct net *net,
 				const struct nft_set_elem *elem)
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
-	struct nft_set_ext *ext = elem->priv;
+	struct nft_bitmap_elem *be = elem->priv;
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
+	nft_bitmap_location(set, nft_set_ext_key(&be->ext), &idx, &off);
 	/* Enter 11 state. */
 	priv->bitmap[idx] |= (genmask << off);
+	nft_set_elem_change_active(net, set, &be->ext);
 }
 
 static bool nft_bitmap_flush(const struct net *net,
-			     const struct nft_set *set, void *ext)
+			     const struct nft_set *set, void *_be)
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
 	u8 genmask = nft_genmask_next(net);
+	struct nft_bitmap_elem *be = _be;
 	u32 idx, off;
 
-	nft_bitmap_location(nft_set_ext_key(ext)->data[0], &idx, &off);
+	nft_bitmap_location(set, nft_set_ext_key(&be->ext), &idx, &off);
 	/* Enter 10 state, similar to deactivation. */
 	priv->bitmap[idx] &= ~(genmask << off);
+	nft_set_elem_change_active(net, set, &be->ext);
 
 	return true;
-}
-
-static struct nft_set_ext *nft_bitmap_ext_alloc(const struct nft_set *set,
-						const struct nft_set_elem *elem)
-{
-	struct nft_set_ext_tmpl tmpl;
-	struct nft_set_ext *ext;
-
-	nft_set_ext_prepare(&tmpl);
-	nft_set_ext_add_length(&tmpl, NFT_SET_EXT_KEY, set->klen);
-
-	ext = kzalloc(tmpl.len, GFP_KERNEL);
-	if (!ext)
-		return NULL;
-
-	nft_set_ext_init(ext, &tmpl);
-	memcpy(nft_set_ext_key(ext), elem->key.val.data, set->klen);
-
-	return ext;
 }
 
 static void *nft_bitmap_deactivate(const struct net *net,
@@ -159,27 +180,21 @@ static void *nft_bitmap_deactivate(const struct net *net,
 				   const struct nft_set_elem *elem)
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
+	struct nft_bitmap_elem *this = elem->priv, *be;
 	u8 genmask = nft_genmask_next(net);
-	struct nft_set_ext *ext;
-	u32 idx, off, key = 0;
+	u32 idx, off;
 
-	memcpy(&key, elem->key.val.data, set->klen);
-	nft_bitmap_location(key, &idx, &off);
+	nft_bitmap_location(set, elem->key.val.data, &idx, &off);
 
-	if (!nft_bitmap_active(priv->bitmap, idx, off, genmask))
-		return NULL;
-
-	/* We have no real set extension since this is a bitmap, allocate this
-	 * dummy object that is released from the commit/abort path.
-	 */
-	ext = nft_bitmap_ext_alloc(set, elem);
-	if (!ext)
+	be = nft_bitmap_elem_find(set, this, genmask);
+	if (!be)
 		return NULL;
 
 	/* Enter 10 state. */
 	priv->bitmap[idx] &= ~(genmask << off);
+	nft_set_elem_change_active(net, set, &be->ext);
 
-	return ext;
+	return be;
 }
 
 static void nft_bitmap_walk(const struct nft_ctx *ctx,
@@ -187,47 +202,23 @@ static void nft_bitmap_walk(const struct nft_ctx *ctx,
 			    struct nft_set_iter *iter)
 {
 	const struct nft_bitmap *priv = nft_set_priv(set);
-	struct nft_set_ext_tmpl tmpl;
+	struct nft_bitmap_elem *be;
 	struct nft_set_elem elem;
-	struct nft_set_ext *ext;
-	int idx, off;
-	u16 key;
 
-	nft_set_ext_prepare(&tmpl);
-	nft_set_ext_add_length(&tmpl, NFT_SET_EXT_KEY, set->klen);
+	list_for_each_entry_rcu(be, &priv->list, head) {
+		if (iter->count < iter->skip)
+			goto cont;
+		if (!nft_set_elem_active(&be->ext, iter->genmask))
+			goto cont;
 
-	for (idx = 0; idx < priv->bitmap_size; idx++) {
-		for (off = 0; off < BITS_PER_BYTE; off += 2) {
-			if (iter->count < iter->skip)
-				goto cont;
+		elem.priv = be;
 
-			if (!nft_bitmap_active(priv->bitmap, idx, off,
-					       iter->genmask))
-				goto cont;
+		iter->err = iter->fn(ctx, set, iter, &elem);
 
-			ext = kzalloc(tmpl.len, GFP_KERNEL);
-			if (!ext) {
-				iter->err = -ENOMEM;
-				return;
-			}
-			nft_set_ext_init(ext, &tmpl);
-			key = ((idx * BITS_PER_BYTE) + off) >> 1;
-			memcpy(nft_set_ext_key(ext), &key, set->klen);
-
-			elem.priv = ext;
-			iter->err = iter->fn(ctx, set, iter, &elem);
-
-			/* On set flush, this dummy extension object is released
-			 * from the commit/abort path.
-			 */
-			if (!iter->flush)
-				kfree(ext);
-
-			if (iter->err < 0)
-				return;
+		if (iter->err < 0)
+			return;
 cont:
-			iter->count++;
-		}
+		iter->count++;
 	}
 }
 
@@ -258,6 +249,7 @@ static int nft_bitmap_init(const struct nft_set *set,
 {
 	struct nft_bitmap *priv = nft_set_priv(set);
 
+	INIT_LIST_HEAD(&priv->list);
 	priv->bitmap_size = nft_bitmap_size(set->klen);
 
 	return 0;
@@ -283,6 +275,7 @@ static bool nft_bitmap_estimate(const struct nft_set_desc *desc, u32 features,
 
 static struct nft_set_ops nft_bitmap_ops __read_mostly = {
 	.privsize	= nft_bitmap_privsize,
+	.elemsize	= offsetof(struct nft_bitmap_elem, ext),
 	.estimate	= nft_bitmap_estimate,
 	.init		= nft_bitmap_init,
 	.destroy	= nft_bitmap_destroy,

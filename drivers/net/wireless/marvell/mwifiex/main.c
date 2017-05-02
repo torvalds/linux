@@ -57,8 +57,8 @@ MODULE_PARM_DESC(mfg_mode, "manufacturing mode enable:1, disable:0");
  * In case of any errors during inittialization, this function also ensures
  * proper cleanup before exiting.
  */
-static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
-			    void **padapter)
+static int mwifiex_register(void *card, struct device *dev,
+			    struct mwifiex_if_ops *if_ops, void **padapter)
 {
 	struct mwifiex_adapter *adapter;
 	int i;
@@ -68,6 +68,7 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 		return -ENOMEM;
 
 	*padapter = adapter;
+	adapter->dev = dev;
 	adapter->card = card;
 
 	/* Save interface specific operations in adapter */
@@ -1568,12 +1569,11 @@ mwifiex_add_card(void *card, struct completion *fw_done,
 {
 	struct mwifiex_adapter *adapter;
 
-	if (mwifiex_register(card, if_ops, (void **)&adapter)) {
+	if (mwifiex_register(card, dev, if_ops, (void **)&adapter)) {
 		pr_err("%s: software init failed\n", __func__);
 		goto err_init_sw;
 	}
 
-	adapter->dev = dev;
 	mwifiex_probe_of(adapter);
 
 	adapter->iface_type = iface_type;
@@ -1717,6 +1717,9 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
+
+	if (adapter->irq_wakeup >= 0)
+		device_init_wakeup(adapter->dev, false);
 
 	/* Unregister device */
 	mwifiex_dbg(adapter, INFO,

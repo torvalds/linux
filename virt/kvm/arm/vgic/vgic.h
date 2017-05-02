@@ -81,11 +81,18 @@ static inline bool irq_is_pending(struct vgic_irq *irq)
 		return irq->pending_latch || irq->line_level;
 }
 
+/*
+ * This struct provides an intermediate representation of the fields contained
+ * in the GICH_VMCR and ICH_VMCR registers, such that code exporting the GIC
+ * state to userspace can generate either GICv2 or GICv3 CPU interface
+ * registers regardless of the hardware backed GIC used.
+ */
 struct vgic_vmcr {
 	u32	ctlr;
 	u32	abpr;
 	u32	bpr;
-	u32	pmr;
+	u32	pmr;  /* Priority mask field in the GICC_PMR and
+		       * ICC_PMR_EL1 priority field format */
 	/* Below member variable are valid only for GICv3 */
 	u32	grpen0;
 	u32	grpen1;
@@ -129,6 +136,8 @@ int vgic_v2_probe(const struct gic_kvm_info *info);
 int vgic_v2_map_resources(struct kvm *kvm);
 int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 			     enum vgic_type);
+
+void vgic_v2_init_lrs(void);
 
 static inline void vgic_get_irq_kref(struct vgic_irq *irq)
 {

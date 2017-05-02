@@ -456,7 +456,8 @@ static int fpr_set(struct task_struct *target,
 					  &target->thread.fpu,
 					  0, sizeof(elf_fpregset_t));
 
-	for (i = 0; i < NUM_FPU_REGS; i++) {
+	BUILD_BUG_ON(sizeof(fpr_val) != sizeof(elf_fpreg_t));
+	for (i = 0; i < NUM_FPU_REGS && count >= sizeof(elf_fpreg_t); i++) {
 		err = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 &fpr_val, i * sizeof(elf_fpreg_t),
 					 (i + 1) * sizeof(elf_fpreg_t));

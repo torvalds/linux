@@ -3100,8 +3100,8 @@ static int mlx5e_get_vf_stats(struct net_device *dev,
 					    vf_stats);
 }
 
-void mlx5e_add_vxlan_port(struct net_device *netdev,
-			  struct udp_tunnel_info *ti)
+static void mlx5e_add_vxlan_port(struct net_device *netdev,
+				 struct udp_tunnel_info *ti)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
@@ -3114,8 +3114,8 @@ void mlx5e_add_vxlan_port(struct net_device *netdev,
 	mlx5e_vxlan_queue_work(priv, ti->sa_family, be16_to_cpu(ti->port), 1);
 }
 
-void mlx5e_del_vxlan_port(struct net_device *netdev,
-			  struct udp_tunnel_info *ti)
+static void mlx5e_del_vxlan_port(struct net_device *netdev,
+				 struct udp_tunnel_info *ti)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
