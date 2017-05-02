@@ -164,10 +164,21 @@ struct qed_eth_cb_ops {
 #define QED_MAX_PHC_DRIFT_PPB   291666666
 
 enum qed_ptp_filter_type {
-	QED_PTP_FILTER_L2,
-	QED_PTP_FILTER_IPV4,
-	QED_PTP_FILTER_IPV4_IPV6,
-	QED_PTP_FILTER_L2_IPV4_IPV6
+	QED_PTP_FILTER_NONE,
+	QED_PTP_FILTER_ALL,
+	QED_PTP_FILTER_V1_L4_EVENT,
+	QED_PTP_FILTER_V1_L4_GEN,
+	QED_PTP_FILTER_V2_L4_EVENT,
+	QED_PTP_FILTER_V2_L4_GEN,
+	QED_PTP_FILTER_V2_L2_EVENT,
+	QED_PTP_FILTER_V2_L2_GEN,
+	QED_PTP_FILTER_V2_EVENT,
+	QED_PTP_FILTER_V2_GEN
+};
+
+enum qed_ptp_hwtstamp_tx_type {
+	QED_PTP_HWTSTAMP_TX_OFF,
+	QED_PTP_HWTSTAMP_TX_ON,
 };
 
 #ifdef CONFIG_DCB
@@ -230,8 +241,8 @@ struct qed_eth_dcbnl_ops {
 #endif
 
 struct qed_eth_ptp_ops {
-	int (*hwtstamp_tx_on)(struct qed_dev *);
-	int (*cfg_rx_filters)(struct qed_dev *, enum qed_ptp_filter_type);
+	int (*cfg_filters)(struct qed_dev *, enum qed_ptp_filter_type,
+			   enum qed_ptp_hwtstamp_tx_type);
 	int (*read_rx_ts)(struct qed_dev *, u64 *);
 	int (*read_tx_ts)(struct qed_dev *, u64 *);
 	int (*read_cc)(struct qed_dev *, u64 *);
