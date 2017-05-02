@@ -488,7 +488,7 @@ enum iwl_tx_agg_status {
 
 /**
  * struct agg_tx_status - per packet TX aggregation status
- * @status: enum iwl_tx_agg_status
+ * @status: See &enum iwl_tx_agg_status
  * @sequence: Sequence # for this frame's Tx cmd (not SSN!)
  */
 struct agg_tx_status {
