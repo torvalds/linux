@@ -87,9 +87,8 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
 	ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_group_get) {
-		dev_dbg(pctldev->dev, "cannot get configuration for pin "
-			"group, missing group config get function in "
-			"driver\n");
+		dev_dbg(pctldev->dev,
+			"cannot get configuration for pin group, missing group config get function in driver\n");
 		ret = -ENOTSUPP;
 		goto unlock;
 	}
