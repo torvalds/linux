@@ -216,6 +216,7 @@ struct q_desc_mem {
 
 struct pgcache {
 	struct page	*page;
+	int		ref_count;
 	u64		dma_addr;
 };
 
