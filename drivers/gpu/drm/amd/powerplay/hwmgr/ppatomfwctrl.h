@@ -119,6 +119,18 @@ struct pp_atomfwctrl_gpio_parameters {
 	uint8_t   ucFwCtfGpio;
 	uint8_t   ucFwCtfPolarity;
 };
+
+struct pp_atomfwctrl_bios_boot_up_values {
+	uint32_t   ulRevision;
+	uint32_t   ulGfxClk;
+	uint32_t   ulUClk;
+	uint32_t   ulSocClk;
+	uint16_t   usVddc;
+	uint16_t   usVddci;
+	uint16_t   usMvddc;
+	uint16_t   usVddGfx;
+};
+
 int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
 		uint32_t clock_type, uint32_t clock_value,
 		struct pp_atomfwctrl_clock_dividers_soc15 *dividers);
@@ -135,6 +147,9 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 		struct pp_atomfwctrl_avfs_parameters *param);
 int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 		struct pp_atomfwctrl_gpio_parameters *param);
+
+int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values);
 
 #endif
 

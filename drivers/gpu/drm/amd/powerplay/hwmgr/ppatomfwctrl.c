@@ -387,3 +387,31 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
+
+int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values)
+{
+	struct atom_firmware_info_v3_1 *info = NULL;
+	uint16_t ix;
+
+	ix = GetIndexIntoMasterDataTable(firmwareinfo);
+	info = (struct atom_firmware_info_v3_1 *)
+		cgs_atom_get_data_table(hwmgr->device,
+				ix, NULL, NULL, NULL);
+
+	if (!info) {
+		pr_info("Error retrieving BIOS firmwareinfo!");
+		return -EINVAL;
+	}
+
+	boot_values->ulRevision = info->firmware_revision;
+	boot_values->ulGfxClk   = info->bootup_sclk_in10khz;
+	boot_values->ulUClk     = info->bootup_mclk_in10khz;
+	boot_values->ulSocClk   = 0;
+	boot_values->usVddc     = info->bootup_vddc_mv;
+	boot_values->usVddci    = info->bootup_vddci_mv;
+	boot_values->usMvddc    = info->bootup_mvddc_mv;
+	boot_values->usVddGfx   = info->bootup_vddgfx_mv;
+
+	return 0;
+}
