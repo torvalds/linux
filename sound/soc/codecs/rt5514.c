@@ -906,9 +906,23 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	if (rx_mask || tx_mask)
 		val |= RT5514_TDM_MODE;
 
-	if (slots == 4)
+	switch (slots) {
+	case 4:
 		val |= RT5514_TDMSLOT_SEL_RX_4CH | RT5514_TDMSLOT_SEL_TX_4CH;
+		break;
 
+	case 6:
+		val |= RT5514_TDMSLOT_SEL_RX_6CH | RT5514_TDMSLOT_SEL_TX_6CH;
+		break;
+
+	case 8:
+		val |= RT5514_TDMSLOT_SEL_RX_8CH | RT5514_TDMSLOT_SEL_TX_8CH;
+		break;
+
+	case 2:
+	default:
+		break;
+	}
 
 	switch (slot_width) {
 	case 20:
@@ -917,6 +931,10 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	case 24:
 		val |= RT5514_CH_LEN_RX_24 | RT5514_CH_LEN_TX_24;
+		break;
+
+	case 25:
+		val |= RT5514_TDM_MODE2;
 		break;
 
 	case 32:
@@ -930,7 +948,8 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	regmap_update_bits(rt5514->regmap, RT5514_I2S_CTRL1, RT5514_TDM_MODE |
 		RT5514_TDMSLOT_SEL_RX_MASK | RT5514_TDMSLOT_SEL_TX_MASK |
-		RT5514_CH_LEN_RX_MASK | RT5514_CH_LEN_TX_MASK, val);
+		RT5514_CH_LEN_RX_MASK | RT5514_CH_LEN_TX_MASK |
+		RT5514_TDM_MODE2, val);
 
 	return 0;
 }
