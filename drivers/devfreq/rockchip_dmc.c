@@ -220,7 +220,7 @@ static int rockchip_dmcfreq_get_cur_freq(struct device *dev,
 }
 
 static struct devfreq_dev_profile rockchip_devfreq_dmc_profile = {
-	.polling_ms	= 200,
+	.polling_ms	= 50,
 	.target		= rockchip_dmcfreq_target,
 	.get_dev_status	= rockchip_dmcfreq_get_dev_status,
 	.get_cur_freq	= rockchip_dmcfreq_get_cur_freq,
