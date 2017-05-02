@@ -2634,7 +2634,7 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 
 	/* Do the accounting first. */
 	rdp->n_cbs_adopted += rsp->orphan_done.len;
-	if (rcu_cblist_n_lazy_cbs(&rsp->orphan_done) != rsp->orphan_done.len)
+	if (rsp->orphan_done.len_lazy != rsp->orphan_done.len)
 		rcu_idle_count_callbacks_posted();
 	rcu_segcblist_insert_count(&rdp->cblist, &rsp->orphan_done);
 

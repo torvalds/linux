@@ -22,12 +22,6 @@
 
 #include <linux/rcu_segcblist.h>
 
-/* Return number of lazy callbacks in simple callback list. */
-static inline long rcu_cblist_n_lazy_cbs(struct rcu_cblist *rclp)
-{
-	return rclp->len_lazy;
-}
-
 /*
  * Account for the fact that a previously dequeued callback turned out
  * to be marked as lazy.

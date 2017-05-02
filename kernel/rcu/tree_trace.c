@@ -277,7 +277,7 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
 		   rsp->n_force_qs - rsp->n_force_qs_ngp,
 		   READ_ONCE(rsp->n_force_qs_lh),
-		   rcu_cblist_n_lazy_cbs(&rsp->orphan_done),
+		   rsp->orphan_done.len_lazy,
 		   rsp->orphan_done.len);
 	for (rnp = &rsp->node[0]; rnp - &rsp->node[0] < rcu_num_nodes; rnp++) {
 		if (rnp->level != level) {
