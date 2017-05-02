@@ -20,7 +20,7 @@
 static struct dentry *wilc_dir;
 
 /*
- * --------------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------
  */
 #define DEBUG           BIT(0)
 #define INFO            BIT(1)
@@ -32,7 +32,7 @@ static atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);
 EXPORT_SYMBOL_GPL(WILC_DEBUG_LEVEL);
 
 /*
- * --------------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------
  */
 
 static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf, size_t count, loff_t *ppos)
@@ -75,7 +75,7 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
 }
 
 /*
- * --------------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------
  */
 
 #define FOPS(_open, _read, _write, _poll) { \
