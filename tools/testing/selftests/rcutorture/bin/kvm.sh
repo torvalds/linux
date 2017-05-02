@@ -332,6 +332,7 @@ function dump(first, pastlast, batchnum)
 {
 	print "echo ----Start batch " batchnum ": `date`";
 	print "echo ----Start batch " batchnum ": `date` >> " rd "/log";
+	print "needqemurun="
 	jn=1
 	for (j = first; j < pastlast; j++) {
 		builddir=KVM "/b" jn
@@ -367,10 +368,11 @@ function dump(first, pastlast, batchnum)
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "rm -f " builddir ".ready"
-		print "if test -z \"$TORTURE_BUILDONLY\""
+		print "if test -f \"" rd cfr[j] "/builtkernel\""
 		print "then"
-		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date`";
-		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date` >> " rd "/log";
+		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date`";
+		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date` >> " rd "/log";
+		print "\tneedqemurun=1"
 		print "fi"
 	}
 	njitter = 0;
@@ -385,13 +387,22 @@ function dump(first, pastlast, batchnum)
 		njitter = 0;
 		print "echo Build-only run, so suppressing jitter >> " rd "/log"
 	}
-	for (j = 0; j < njitter; j++)
-		print "jitter.sh " j " " dur " " ja[2] " " ja[3] "&"
-	print "wait"
-	print "if test -z \"$TORTURE_BUILDONLY\""
+	if (TORTURE_BUILDONLY) {
+		print "needqemurun="
+	}
+	print "if test -n \"$needqemurun\""
 	print "then"
+	print "\techo ---- Starting kernels. `date`";
+	print "\techo ---- Starting kernels. `date` >> " rd "/log";
+	for (j = 0; j < njitter; j++)
+		print "\tjitter.sh " j " " dur " " ja[2] " " ja[3] "&"
+	print "\twait"
 	print "\techo ---- All kernel runs complete. `date`";
 	print "\techo ---- All kernel runs complete. `date` >> " rd "/log";
+	print "else"
+	print "\twait"
+	print "\techo ---- No kernel runs. `date`";
+	print "\techo ---- No kernel runs. `date` >> " rd "/log";
 	print "fi"
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
