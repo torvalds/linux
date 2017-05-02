@@ -209,6 +209,8 @@ static u64 qede_ptp_read_cc(const struct cyclecounter *cc)
 
 static int qede_ptp_cfg_filters(struct qede_dev *edev)
 {
+	enum qed_ptp_hwtstamp_tx_type tx_type = QED_PTP_HWTSTAMP_TX_ON;
+	enum qed_ptp_filter_type rx_filter = QED_PTP_FILTER_NONE;
 	struct qede_ptp *ptp = edev->ptp;
 
 	if (!ptp)
@@ -222,7 +224,12 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 	switch (ptp->tx_type) {
 	case HWTSTAMP_TX_ON:
 		edev->flags |= QEDE_TX_TIMESTAMPING_EN;
-		ptp->ops->hwtstamp_tx_on(edev->cdev);
+		tx_type = QED_PTP_HWTSTAMP_TX_ON;
+		break;
+
+	case HWTSTAMP_TX_OFF:
+		edev->flags &= ~QEDE_TX_TIMESTAMPING_EN;
+		tx_type = QED_PTP_HWTSTAMP_TX_OFF;
 		break;
 
 	case HWTSTAMP_TX_ONESTEP_SYNC:
@@ -233,41 +240,56 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 	spin_lock_bh(&ptp->lock);
 	switch (ptp->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
+		rx_filter = QED_PTP_FILTER_NONE;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
 		ptp->rx_filter = HWTSTAMP_FILTER_NONE;
+		rx_filter = QED_PTP_FILTER_ALL;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+		rx_filter = QED_PTP_FILTER_V1_L4_EVENT;
+		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		/* Initialize PTP detection for UDP/IPv4 events */
-		ptp->ops->cfg_rx_filters(edev->cdev, QED_PTP_FILTER_IPV4);
+		rx_filter = QED_PTP_FILTER_V1_L4_GEN;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+		rx_filter = QED_PTP_FILTER_V2_L4_EVENT;
+		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
 		/* Initialize PTP detection for UDP/IPv4 or UDP/IPv6 events */
-		ptp->ops->cfg_rx_filters(edev->cdev, QED_PTP_FILTER_IPV4_IPV6);
+		rx_filter = QED_PTP_FILTER_V2_L4_GEN;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		rx_filter = QED_PTP_FILTER_V2_L2_EVENT;
+		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
 		/* Initialize PTP detection L2 events */
-		ptp->ops->cfg_rx_filters(edev->cdev, QED_PTP_FILTER_L2);
+		rx_filter = QED_PTP_FILTER_V2_L2_GEN;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		rx_filter = QED_PTP_FILTER_V2_EVENT;
+		break;
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		ptp->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		/* Initialize PTP detection L2, UDP/IPv4 or UDP/IPv6 events */
-		ptp->ops->cfg_rx_filters(edev->cdev,
-					 QED_PTP_FILTER_L2_IPV4_IPV6);
+		rx_filter = QED_PTP_FILTER_V2_GEN;
 		break;
 	}
+
+	ptp->ops->cfg_filters(edev->cdev, rx_filter, tx_type);
 
 	spin_unlock_bh(&ptp->lock);
 

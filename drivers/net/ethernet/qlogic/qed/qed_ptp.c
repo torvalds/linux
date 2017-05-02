@@ -188,39 +188,73 @@ static int qed_ptp_hw_read_cc(struct qed_dev *cdev, u64 *phc_cycles)
 }
 
 /* Filter PTP protocol packets that need to be timestamped */
-static int qed_ptp_hw_cfg_rx_filters(struct qed_dev *cdev,
-				     enum qed_ptp_filter_type type)
+static int qed_ptp_hw_cfg_filters(struct qed_dev *cdev,
+				  enum qed_ptp_filter_type rx_type,
+				  enum qed_ptp_hwtstamp_tx_type tx_type)
 {
 	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	struct qed_ptt *p_ptt = p_hwfn->p_ptp_ptt;
-	u32 rule_mask, parm_mask;
+	u32 rule_mask, enable_cfg = 0x0;
 
-	switch (type) {
-	case QED_PTP_FILTER_L2_IPV4_IPV6:
-		parm_mask = 0x6AA;
-		rule_mask = 0x3EEE;
+	switch (rx_type) {
+	case QED_PTP_FILTER_NONE:
+		enable_cfg = 0x0;
+		rule_mask = 0x3FFF;
 		break;
-	case QED_PTP_FILTER_L2:
-		parm_mask = 0x6BF;
+	case QED_PTP_FILTER_ALL:
+		enable_cfg = 0x7;
+		rule_mask = 0x3CAA;
+		break;
+	case QED_PTP_FILTER_V1_L4_EVENT:
+		enable_cfg = 0x3;
+		rule_mask = 0x3FFA;
+		break;
+	case QED_PTP_FILTER_V1_L4_GEN:
+		enable_cfg = 0x3;
+		rule_mask = 0x3FFE;
+		break;
+	case QED_PTP_FILTER_V2_L4_EVENT:
+		enable_cfg = 0x5;
+		rule_mask = 0x3FAA;
+		break;
+	case QED_PTP_FILTER_V2_L4_GEN:
+		enable_cfg = 0x5;
+		rule_mask = 0x3FEE;
+		break;
+	case QED_PTP_FILTER_V2_L2_EVENT:
+		enable_cfg = 0x5;
+		rule_mask = 0x3CFF;
+		break;
+	case QED_PTP_FILTER_V2_L2_GEN:
+		enable_cfg = 0x5;
 		rule_mask = 0x3EFF;
 		break;
-	case QED_PTP_FILTER_IPV4_IPV6:
-		parm_mask = 0x7EA;
-		rule_mask = 0x3FFE;
+	case QED_PTP_FILTER_V2_EVENT:
+		enable_cfg = 0x5;
+		rule_mask = 0x3CAA;
 		break;
-	case QED_PTP_FILTER_IPV4:
-		parm_mask = 0x7EE;
-		rule_mask = 0x3FFE;
+	case QED_PTP_FILTER_V2_GEN:
+		enable_cfg = 0x5;
+		rule_mask = 0x3EEE;
 		break;
 	default:
-		DP_INFO(p_hwfn, "Invalid PTP filter type %d\n", type);
+		DP_INFO(p_hwfn, "Invalid PTP filter type %d\n", rx_type);
 		return -EINVAL;
 	}
 
-	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_PARAM_MASK, parm_mask);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_PARAM_MASK, 0);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_RULE_MASK, rule_mask);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_PTP_EN, enable_cfg);
 
-	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_TO_HOST, 0x1);
+	if (tx_type == QED_PTP_HWTSTAMP_TX_OFF) {
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_PTP_EN, 0x0);
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_PARAM_MASK, 0x7FF);
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_RULE_MASK, 0x3FFF);
+	} else {
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_PTP_EN, enable_cfg);
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_PARAM_MASK, 0);
+		qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_RULE_MASK, rule_mask);
+	}
 
 	/* Reset possibly old timestamps */
 	qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_PTP_HOST_BUF_SEQID,
@@ -383,17 +417,6 @@ static int qed_ptp_hw_enable(struct qed_dev *cdev)
 	return 0;
 }
 
-static int qed_ptp_hw_hwtstamp_tx_on(struct qed_dev *cdev)
-{
-	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
-	struct qed_ptt *p_ptt = p_hwfn->p_ptp_ptt;
-
-	qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_PARAM_MASK, 0x6AA);
-	qed_wr(p_hwfn, p_ptt, NIG_REG_TX_LLH_PTP_RULE_MASK, 0x3EEE);
-
-	return 0;
-}
-
 static int qed_ptp_hw_disable(struct qed_dev *cdev)
 {
 	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
@@ -419,8 +442,7 @@ static int qed_ptp_hw_disable(struct qed_dev *cdev)
 }
 
 const struct qed_eth_ptp_ops qed_ptp_ops_pass = {
-	.hwtstamp_tx_on = qed_ptp_hw_hwtstamp_tx_on,
-	.cfg_rx_filters = qed_ptp_hw_cfg_rx_filters,
+	.cfg_filters = qed_ptp_hw_cfg_filters,
 	.read_rx_ts = qed_ptp_hw_read_rx_ts,
 	.read_tx_ts = qed_ptp_hw_read_tx_ts,
 	.read_cc = qed_ptp_hw_read_cc,
