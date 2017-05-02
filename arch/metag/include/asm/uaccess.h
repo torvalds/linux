@@ -194,8 +194,13 @@ do {                                                            \
 extern long __must_check __strncpy_from_user(char *dst, const char __user *src,
 					     long count);
 
-#define strncpy_from_user(dst, src, count) __strncpy_from_user(dst, src, count)
-
+static inline long
+strncpy_from_user(char *dst, const char __user *src, long count)
+{
+	if (!access_ok(VERIFY_READ, src, 1))
+		return -EFAULT;
+	return __strncpy_from_user(dst, src, count);
+}
 /*
  * Return the size of a string (including the ending 0)
  *
