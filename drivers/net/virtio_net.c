@@ -1891,17 +1891,17 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO6) ||
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_ECN) ||
 	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_UFO)) {
-		NL_SET_ERR_MSG(extack, "can't set XDP while host is implementing LRO, disable LRO first");
+		NL_SET_ERR_MSG_MOD(extack, "Can't set XDP while host is implementing LRO, disable LRO first");
 		return -EOPNOTSUPP;
 	}
 
 	if (vi->mergeable_rx_bufs && !vi->any_header_sg) {
-		NL_SET_ERR_MSG(extack, "XDP expects header/data in single page, any_header_sg required");
+		NL_SET_ERR_MSG_MOD(extack, "XDP expects header/data in single page, any_header_sg required");
 		return -EINVAL;
 	}
 
 	if (dev->mtu > max_sz) {
-		NL_SET_ERR_MSG(extack, "MTU too large to enable XDP");
+		NL_SET_ERR_MSG_MOD(extack, "MTU too large to enable XDP");
 		netdev_warn(dev, "XDP requires MTU less than %lu\n", max_sz);
 		return -EINVAL;
 	}
@@ -1912,7 +1912,7 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 
 	/* XDP requires extra queues for XDP_TX */
 	if (curr_qp + xdp_qp > vi->max_queue_pairs) {
-		NL_SET_ERR_MSG(extack, "Too few free TX rings available");
+		NL_SET_ERR_MSG_MOD(extack, "Too few free TX rings available");
 		netdev_warn(dev, "request %i queues but max is %i\n",
 			    curr_qp + xdp_qp, vi->max_queue_pairs);
 		return -ENOMEM;
