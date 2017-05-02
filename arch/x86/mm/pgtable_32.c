@@ -12,7 +12,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>

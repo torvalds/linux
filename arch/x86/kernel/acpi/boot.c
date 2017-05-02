@@ -37,6 +37,7 @@
 #include <linux/pci.h>
 #include <linux/efi-bgrt.h>
 
+#include <asm/e820/api.h>
 #include <asm/irqdomain.h>
 #include <asm/pci_x86.h>
 #include <asm/pgtable.h>
@@ -1723,6 +1724,6 @@ int __acpi_release_global_lock(unsigned int *lock)
 
 void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 {
-	e820_add_region(addr, size, E820_ACPI);
-	update_e820();
+	e820__range_add(addr, size, E820_TYPE_ACPI);
+	e820__update_table_print();
 }

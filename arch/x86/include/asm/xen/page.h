@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
+#include <linux/device.h>
 
 #include <linux/uaccess.h>
 #include <asm/page.h>

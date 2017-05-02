@@ -27,7 +27,7 @@
 #include <linux/range.h>
 
 #include <asm/processor.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 
@@ -860,7 +860,7 @@ real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
 	trim_size <<= PAGE_SHIFT;
 	trim_size -= trim_start;
 
-	return e820_update_range(trim_start, trim_size, E820_RAM, E820_RESERVED);
+	return e820__range_update(trim_start, trim_size, E820_TYPE_RAM, E820_TYPE_RESERVED);
 }
 
 /**
@@ -978,7 +978,7 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 			WARN_ON(1);
 
 		pr_info("update e820 for mtrr\n");
-		update_e820();
+		e820__update_table_print();
 
 		return 1;
 	}
