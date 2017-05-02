@@ -51,115 +51,34 @@ static u32 art_to_tsc_denominator;
 static u64 art_to_tsc_offset;
 struct clocksource *art_related_clocksource;
 
-/*
- * Use a ring-buffer like data structure, where a writer advances the head by
- * writing a new data entry and a reader advances the tail when it observes a
- * new entry.
- *
- * Writers are made to wait on readers until there's space to write a new
- * entry.
- *
- * This means that we can always use an {offset, mul} pair to compute a ns
- * value that is 'roughly' in the right direction, even if we're writing a new
- * {offset, mul} pair during the clock read.
- *
- * The down-side is that we can no longer guarantee strict monotonicity anymore
- * (assuming the TSC was that to begin with), because while we compute the
- * intersection point of the two clock slopes and make sure the time is
- * continuous at the point of switching; we can no longer guarantee a reader is
- * strictly before or after the switch point.
- *
- * It does mean a reader no longer needs to disable IRQs in order to avoid
- * CPU-Freq updates messing with his times, and similarly an NMI reader will
- * no longer run the risk of hitting half-written state.
- */
-
 struct cyc2ns {
-	struct cyc2ns_data data[2];	/*  0 + 2*24 = 48 */
-	struct cyc2ns_data *head;	/* 48 + 8    = 56 */
-	struct cyc2ns_data *tail;	/* 56 + 8    = 64 */
-}; /* exactly fits one cacheline */
+	struct cyc2ns_data data[2];	/*  0 + 2*16 = 32 */
+	seqcount_t	   seq;		/* 32 + 4    = 36 */
+
+}; /* fits one cacheline */
 
 static DEFINE_PER_CPU_ALIGNED(struct cyc2ns, cyc2ns);
 
-struct cyc2ns_data *cyc2ns_read_begin(void)
+void cyc2ns_read_begin(struct cyc2ns_data *data)
 {
-	struct cyc2ns_data *head;
+	int seq, idx;
 
-	preempt_disable();
+	preempt_disable_notrace();
 
-	head = this_cpu_read(cyc2ns.head);
-	/*
-	 * Ensure we observe the entry when we observe the pointer to it.
-	 * matches the wmb from cyc2ns_write_end().
-	 */
-	smp_read_barrier_depends();
-	head->__count++;
-	barrier();
+	do {
+		seq = this_cpu_read(cyc2ns.seq.sequence);
+		idx = seq & 1;
 
-	return head;
+		data->cyc2ns_offset = this_cpu_read(cyc2ns.data[idx].cyc2ns_offset);
+		data->cyc2ns_mul    = this_cpu_read(cyc2ns.data[idx].cyc2ns_mul);
+		data->cyc2ns_shift  = this_cpu_read(cyc2ns.data[idx].cyc2ns_shift);
+
+	} while (unlikely(seq != this_cpu_read(cyc2ns.seq.sequence)));
 }
 
-void cyc2ns_read_end(struct cyc2ns_data *head)
+void cyc2ns_read_end(void)
 {
-	barrier();
-	/*
-	 * If we're the outer most nested read; update the tail pointer
-	 * when we're done. This notifies possible pending writers
-	 * that we've observed the head pointer and that the other
-	 * entry is now free.
-	 */
-	if (!--head->__count) {
-		/*
-		 * x86-TSO does not reorder writes with older reads;
-		 * therefore once this write becomes visible to another
-		 * cpu, we must be finished reading the cyc2ns_data.
-		 *
-		 * matches with cyc2ns_write_begin().
-		 */
-		this_cpu_write(cyc2ns.tail, head);
-	}
-	preempt_enable();
-}
-
-/*
- * Begin writing a new @data entry for @cpu.
- *
- * Assumes some sort of write side lock; currently 'provided' by the assumption
- * that cpufreq will call its notifiers sequentially.
- */
-static struct cyc2ns_data *cyc2ns_write_begin(int cpu)
-{
-	struct cyc2ns *c2n = &per_cpu(cyc2ns, cpu);
-	struct cyc2ns_data *data = c2n->data;
-
-	if (data == c2n->head)
-		data++;
-
-	/* XXX send an IPI to @cpu in order to guarantee a read? */
-
-	/*
-	 * When we observe the tail write from cyc2ns_read_end(),
-	 * the cpu must be done with that entry and its safe
-	 * to start writing to it.
-	 */
-	while (c2n->tail == data)
-		cpu_relax();
-
-	return data;
-}
-
-static void cyc2ns_write_end(int cpu, struct cyc2ns_data *data)
-{
-	struct cyc2ns *c2n = &per_cpu(cyc2ns, cpu);
-
-	/*
-	 * Ensure the @data writes are visible before we publish the
-	 * entry. Matches the data-depencency in cyc2ns_read_begin().
-	 */
-	smp_wmb();
-
-	ACCESS_ONCE(c2n->head) = data;
+	preempt_enable_notrace();
 }
 
 /*
@@ -191,7 +110,6 @@ static void cyc2ns_data_init(struct cyc2ns_data *data)
 	data->cyc2ns_mul = 0;
 	data->cyc2ns_shift = 0;
 	data->cyc2ns_offset = 0;
-	data->__count = 0;
 }
 
 static void cyc2ns_init(int cpu)
@@ -201,43 +119,20 @@ static void cyc2ns_init(int cpu)
 	cyc2ns_data_init(&c2n->data[0]);
 	cyc2ns_data_init(&c2n->data[1]);
 
-	c2n->head = c2n->data;
-	c2n->tail = c2n->data;
+	seqcount_init(&c2n->seq);
 }
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 {
-	struct cyc2ns_data *data, *tail;
+	struct cyc2ns_data data;
 	unsigned long long ns;
 
-	/*
-	 * See cyc2ns_read_*() for details; replicated in order to avoid
-	 * an extra few instructions that came with the abstraction.
-	 * Notable, it allows us to only do the __count and tail update
-	 * dance when its actually needed.
-	 */
+	cyc2ns_read_begin(&data);
 
-	preempt_disable_notrace();
-	data = this_cpu_read(cyc2ns.head);
-	tail = this_cpu_read(cyc2ns.tail);
+	ns = data.cyc2ns_offset;
+	ns += mul_u64_u32_shr(cyc, data.cyc2ns_mul, data.cyc2ns_shift);
 
-	if (likely(data == tail)) {
-		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
-	} else {
-		data->__count++;
-
-		barrier();
-
-		ns = data->cyc2ns_offset;
-		ns += mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
-
-		barrier();
-
-		if (!--data->__count)
-			this_cpu_write(cyc2ns.tail, data);
-	}
-	preempt_enable_notrace();
+	cyc2ns_read_end();
 
 	return ns;
 }
@@ -245,7 +140,8 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 static void set_cyc2ns_scale(unsigned long khz, int cpu)
 {
 	unsigned long long tsc_now, ns_now;
-	struct cyc2ns_data *data;
+	struct cyc2ns_data data;
+	struct cyc2ns *c2n;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -253,8 +149,6 @@ static void set_cyc2ns_scale(unsigned long khz, int cpu)
 
 	if (!khz)
 		goto done;
-
-	data = cyc2ns_write_begin(cpu);
 
 	tsc_now = rdtsc();
 	ns_now = cycles_2_ns(tsc_now);
@@ -264,7 +158,7 @@ static void set_cyc2ns_scale(unsigned long khz, int cpu)
 	 * time function is continuous; see the comment near struct
 	 * cyc2ns_data.
 	 */
-	clocks_calc_mult_shift(&data->cyc2ns_mul, &data->cyc2ns_shift, khz,
+	clocks_calc_mult_shift(&data.cyc2ns_mul, &data.cyc2ns_shift, khz,
 			       NSEC_PER_MSEC, 0);
 
 	/*
@@ -273,15 +167,20 @@ static void set_cyc2ns_scale(unsigned long khz, int cpu)
 	 * conversion algorithm shifting a 32-bit value (now specifies a 64-bit
 	 * value) - refer perf_event_mmap_page documentation in perf_event.h.
 	 */
-	if (data->cyc2ns_shift == 32) {
-		data->cyc2ns_shift = 31;
-		data->cyc2ns_mul >>= 1;
+	if (data.cyc2ns_shift == 32) {
+		data.cyc2ns_shift = 31;
+		data.cyc2ns_mul >>= 1;
 	}
 
-	data->cyc2ns_offset = ns_now -
-		mul_u64_u32_shr(tsc_now, data->cyc2ns_mul, data->cyc2ns_shift);
+	data.cyc2ns_offset = ns_now -
+		mul_u64_u32_shr(tsc_now, data.cyc2ns_mul, data.cyc2ns_shift);
 
-	cyc2ns_write_end(cpu, data);
+	c2n = per_cpu_ptr(&cyc2ns, cpu);
+
+	raw_write_seqcount_latch(&c2n->seq);
+	c2n->data[0] = data;
+	raw_write_seqcount_latch(&c2n->seq);
+	c2n->data[1] = data;
 
 done:
 	sched_clock_idle_wakeup_event(0);

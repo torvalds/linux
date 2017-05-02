@@ -2255,7 +2255,7 @@ static struct pmu pmu = {
 void arch_perf_update_userpage(struct perf_event *event,
 			       struct perf_event_mmap_page *userpg, u64 now)
 {
-	struct cyc2ns_data *data;
+	struct cyc2ns_data data;
 	u64 offset;
 
 	userpg->cap_user_time = 0;
@@ -2267,17 +2267,17 @@ void arch_perf_update_userpage(struct perf_event *event,
 	if (!using_native_sched_clock() || !sched_clock_stable())
 		return;
 
-	data = cyc2ns_read_begin();
+	cyc2ns_read_begin(&data);
 
-	offset = data->cyc2ns_offset + __sched_clock_offset;
+	offset = data.cyc2ns_offset + __sched_clock_offset;
 
 	/*
 	 * Internal timekeeping for enabled/running/stopped times
 	 * is always in the local_clock domain.
 	 */
 	userpg->cap_user_time = 1;
-	userpg->time_mult = data->cyc2ns_mul;
-	userpg->time_shift = data->cyc2ns_shift;
+	userpg->time_mult = data.cyc2ns_mul;
+	userpg->time_shift = data.cyc2ns_shift;
 	userpg->time_offset = offset - now;
 
 	/*
@@ -2289,7 +2289,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 		userpg->time_zero = offset;
 	}
 
-	cyc2ns_read_end(data);
+	cyc2ns_read_end();
 }
 
 void
