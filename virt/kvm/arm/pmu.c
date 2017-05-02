@@ -449,29 +449,50 @@ bool kvm_arm_support_pmu_v3(void)
 	return (perf_num_counters() > 0);
 }
 
+int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->arch.pmu.created)
+		return 0;
+
+	/*
+	 * A valid interrupt configuration for the PMU is either to have a
+	 * properly configured interrupt number and using an in-kernel
+	 * irqchip, or to neither set an IRQ nor create an in-kernel irqchip.
+	 */
+	if (kvm_arm_pmu_irq_initialized(vcpu) != irqchip_in_kernel(vcpu->kvm))
+		return -EINVAL;
+
+	kvm_pmu_vcpu_reset(vcpu);
+	vcpu->arch.pmu.ready = true;
+
+	return 0;
+}
+
 static int kvm_arm_pmu_v3_init(struct kvm_vcpu *vcpu)
 {
 	if (!kvm_arm_support_pmu_v3())
 		return -ENODEV;
 
-	/*
-	 * We currently require an in-kernel VGIC to use the PMU emulation,
-	 * because we do not support forwarding PMU overflow interrupts to
-	 * userspace yet.
-	 */
-	if (!irqchip_in_kernel(vcpu->kvm) || !vgic_initialized(vcpu->kvm))
-		return -ENODEV;
-
-	if (!test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features) ||
-	    !kvm_arm_pmu_irq_initialized(vcpu))
+	if (!test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features))
 		return -ENXIO;
 
-	if (kvm_arm_pmu_v3_ready(vcpu))
+	if (vcpu->arch.pmu.created)
 		return -EBUSY;
 
-	kvm_pmu_vcpu_reset(vcpu);
-	vcpu->arch.pmu.ready = true;
+	if (irqchip_in_kernel(vcpu->kvm)) {
+		/*
+		 * If using the PMU with an in-kernel virtual GIC
+		 * implementation, we require the GIC to be already
+		 * initialized when initializing the PMU.
+		 */
+		if (!vgic_initialized(vcpu->kvm))
+			return -ENODEV;
 
+		if (!kvm_arm_pmu_irq_initialized(vcpu))
+			return -ENXIO;
+	}
+
+	vcpu->arch.pmu.created = true;
 	return 0;
 }
 
@@ -510,6 +531,9 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		int __user *uaddr = (int __user *)(long)attr->addr;
 		int irq;
 
+		if (!irqchip_in_kernel(vcpu->kvm))
+			return -EINVAL;
+
 		if (!test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features))
 			return -ENODEV;
 
@@ -543,6 +567,9 @@ int kvm_arm_pmu_v3_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	case KVM_ARM_VCPU_PMU_V3_IRQ: {
 		int __user *uaddr = (int __user *)(long)attr->addr;
 		int irq;
+
+		if (!irqchip_in_kernel(vcpu->kvm))
+			return -EINVAL;
 
 		if (!test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features))
 			return -ENODEV;

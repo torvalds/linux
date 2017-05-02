@@ -527,6 +527,10 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 	}
 
 	ret = kvm_timer_enable(vcpu);
+	if (ret)
+		return ret;
+
+	ret = kvm_arm_pmu_v3_enable(vcpu);
 
 	return ret;
 }

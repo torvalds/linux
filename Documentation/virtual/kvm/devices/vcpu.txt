@@ -16,7 +16,9 @@ Parameters: in kvm_device_attr.addr the address for PMU overflow interrupt is a
 Returns: -EBUSY: The PMU overflow interrupt is already set
          -ENXIO: The overflow interrupt not set when attempting to get it
          -ENODEV: PMUv3 not supported
-         -EINVAL: Invalid PMU overflow interrupt number supplied
+         -EINVAL: Invalid PMU overflow interrupt number supplied or
+                  trying to set the IRQ number without using an in-kernel
+                  irqchip.
 
 A value describing the PMUv3 (Performance Monitor Unit v3) overflow interrupt
 number for this vcpu. This interrupt could be a PPI or SPI, but the interrupt
@@ -25,11 +27,11 @@ all vcpus, while as an SPI it must be a separate number per vcpu.
 
 1.2 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_INIT
 Parameters: no additional parameter in kvm_device_attr.addr
-Returns: -ENODEV: PMUv3 not supported
-         -ENXIO: PMUv3 not properly configured as required prior to calling this
-                 attribute
+Returns: -ENODEV: PMUv3 not supported or GIC not initialized
+         -ENXIO: PMUv3 not properly configured or in-kernel irqchip not
+                 configured as required prior to calling this attribute
          -EBUSY: PMUv3 already initialized
 
-Request the initialization of the PMUv3.  This must be done after creating the
-in-kernel irqchip.  Creating a PMU with a userspace irqchip is currently not
-supported.
+Request the initialization of the PMUv3.  If using the PMUv3 with an in-kernel
+virtual GIC implementation, this must be done after initializing the in-kernel
+irqchip.
