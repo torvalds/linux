@@ -20,6 +20,7 @@
 #define _SMARTPQI_SIS_H
 
 int sis_wait_for_ctrl_ready(struct pqi_ctrl_info *ctrl_info);
+int sis_wait_for_ctrl_ready_resume(struct pqi_ctrl_info *ctrl_info);
 bool sis_is_firmware_running(struct pqi_ctrl_info *ctrl_info);
 bool sis_is_kernel_up(struct pqi_ctrl_info *ctrl_info);
 int sis_get_ctrl_properties(struct pqi_ctrl_info *ctrl_info);
@@ -27,6 +28,8 @@ int sis_get_pqi_capabilities(struct pqi_ctrl_info *ctrl_info);
 int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info);
 void sis_enable_msix(struct pqi_ctrl_info *ctrl_info);
 void sis_disable_msix(struct pqi_ctrl_info *ctrl_info);
+void sis_enable_intx(struct pqi_ctrl_info *ctrl_info);
+void sis_disable_intx(struct pqi_ctrl_info *ctrl_info);
 void sis_soft_reset(struct pqi_ctrl_info *ctrl_info);
 void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info);
 int sis_reenable_sis_mode(struct pqi_ctrl_info *ctrl_info);

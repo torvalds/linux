@@ -61,7 +61,7 @@ struct pqi_device_registers {
 /*
  * controller registers
  *
- * These are defined by the PMC implementation.
+ * These are defined by the Microsemi implementation.
  *
  * Some registers (those named sis_*) are only used when in
  * legacy SIS mode before we transition the controller into
@@ -100,6 +100,12 @@ struct pqi_ctrl_registers {
 enum pqi_io_path {
 	RAID_PATH = 0,
 	AIO_PATH = 1
+};
+
+enum pqi_irq_mode {
+	IRQ_MODE_NONE,
+	IRQ_MODE_INTX,
+	IRQ_MODE_MSIX
 };
 
 struct pqi_sg_descriptor {
@@ -908,7 +914,7 @@ struct pqi_ctrl_info {
 	dma_addr_t	error_buffer_dma_handle;
 	size_t		sg_chain_buffer_length;
 	unsigned int	num_queue_groups;
-	unsigned int	num_active_queue_groups;
+	u16		max_hw_queue_index;
 	u16		num_elements_per_iq;
 	u16		num_elements_per_oq;
 	u16		max_inbound_iu_length_per_firmware;
@@ -923,6 +929,7 @@ struct pqi_ctrl_info {
 	struct pqi_admin_queues admin_queues;
 	struct pqi_queue_group queue_groups[PQI_MAX_QUEUE_GROUPS];
 	struct pqi_event_queue event_queue;
+	enum pqi_irq_mode irq_mode;
 	int		max_msix_vectors;
 	int		num_msix_vectors_enabled;
 	int		num_msix_vectors_initialized;
@@ -937,6 +944,7 @@ struct pqi_ctrl_info {
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
 	u8		heartbeat_timer_started : 1;
+	u8		update_time_worker_scheduled : 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
