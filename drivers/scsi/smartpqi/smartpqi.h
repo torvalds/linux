@@ -994,7 +994,6 @@ struct pqi_ctrl_info {
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
-	u8		update_time_worker_scheduled : 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
@@ -1016,6 +1015,7 @@ struct pqi_ctrl_info {
 	u32		previous_heartbeat_count;
 	__le32 __iomem	*heartbeat_counter;
 	struct timer_list heartbeat_timer;
+	struct work_struct ctrl_offline_work;
 
 	struct semaphore sync_request_sem;
 	atomic_t	num_busy_threads;
