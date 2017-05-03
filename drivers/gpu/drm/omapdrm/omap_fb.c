@@ -221,7 +221,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		}
 
 		info->paddr         = get_linear_addr(plane, format, 0, x, y);
-		info->rotation_type = OMAP_DSS_ROT_DMA;
+		info->rotation_type = OMAP_DSS_ROT_NONE;
 		info->screen_width  = plane->pitch;
 	}
 

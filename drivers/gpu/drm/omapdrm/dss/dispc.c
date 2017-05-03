@@ -1908,230 +1908,7 @@ static s32 pixinc(int pixels, u8 ps)
 		return 0;
 }
 
-static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
-		u16 screen_width,
-		u16 width, u16 height,
-		enum omap_color_mode color_mode, bool fieldmode,
-		unsigned int field_offset,
-		unsigned *offset0, unsigned *offset1,
-		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim)
-{
-	u8 ps;
-
-	switch (color_mode) {
-	case OMAP_DSS_COLOR_YUV2:
-	case OMAP_DSS_COLOR_UYVY:
-		ps = 4;
-		break;
-	default:
-		ps = color_mode_to_bpp(color_mode) / 8;
-		break;
-	}
-
-	DSSDBG("calc_rot(%d): scrw %d, %dx%d\n", rotation, screen_width,
-			width, height);
-
-	/*
-	 * field 0 = even field = bottom field
-	 * field 1 = odd field = top field
-	 */
-	switch (rotation + mirror * 4) {
-	case OMAP_DSS_ROT_0:
-	case OMAP_DSS_ROT_180:
-		/*
-		 * If the pixel format is YUV or UYVY divide the width
-		 * of the image by 2 for 0 and 180 degree rotation.
-		 */
-		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-			color_mode == OMAP_DSS_COLOR_UYVY)
-			width = width >> 1;
-	case OMAP_DSS_ROT_90:
-	case OMAP_DSS_ROT_270:
-		*offset1 = 0;
-		if (field_offset)
-			*offset0 = field_offset * screen_width * ps;
-		else
-			*offset0 = 0;
-
-		*row_inc = pixinc(1 +
-			(y_predecim * screen_width - x_predecim * width) +
-			(fieldmode ? screen_width : 0), ps);
-		*pix_inc = pixinc(x_predecim, ps);
-		break;
-
-	case OMAP_DSS_ROT_0 + 4:
-	case OMAP_DSS_ROT_180 + 4:
-		/* If the pixel format is YUV or UYVY divide the width
-		 * of the image by 2  for 0 degree and 180 degree
-		 */
-		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-			color_mode == OMAP_DSS_COLOR_UYVY)
-			width = width >> 1;
-	case OMAP_DSS_ROT_90 + 4:
-	case OMAP_DSS_ROT_270 + 4:
-		*offset1 = 0;
-		if (field_offset)
-			*offset0 = field_offset * screen_width * ps;
-		else
-			*offset0 = 0;
-		*row_inc = pixinc(1 -
-			(y_predecim * screen_width + x_predecim * width) -
-			(fieldmode ? screen_width : 0), ps);
-		*pix_inc = pixinc(x_predecim, ps);
-		break;
-
-	default:
-		BUG();
-		return;
-	}
-}
-
-static void calc_dma_rotation_offset(u8 rotation, bool mirror,
-		u16 screen_width,
-		u16 width, u16 height,
-		enum omap_color_mode color_mode, bool fieldmode,
-		unsigned int field_offset,
-		unsigned *offset0, unsigned *offset1,
-		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim)
-{
-	u8 ps;
-	u16 fbw, fbh;
-
-	ps = color_mode_to_bpp(color_mode) / 8;
-
-	DSSDBG("calc_rot(%d): scrw %d, %dx%d\n", rotation, screen_width,
-			width, height);
-
-	/* width & height are overlay sizes, convert to fb sizes */
-
-	if (rotation == OMAP_DSS_ROT_0 || rotation == OMAP_DSS_ROT_180) {
-		fbw = width;
-		fbh = height;
-	} else {
-		fbw = height;
-		fbh = width;
-	}
-
-	/*
-	 * field 0 = even field = bottom field
-	 * field 1 = odd field = top field
-	 */
-	switch (rotation + mirror * 4) {
-	case OMAP_DSS_ROT_0:
-		*offset1 = 0;
-		if (field_offset)
-			*offset0 = *offset1 + field_offset * screen_width * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(1 +
-			(y_predecim * screen_width - fbw * x_predecim) +
-			(fieldmode ? screen_width : 0),	ps);
-		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-			color_mode == OMAP_DSS_COLOR_UYVY)
-			*pix_inc = pixinc(x_predecim, 2 * ps);
-		else
-			*pix_inc = pixinc(x_predecim, ps);
-		break;
-	case OMAP_DSS_ROT_90:
-		*offset1 = screen_width * (fbh - 1) * ps;
-		if (field_offset)
-			*offset0 = *offset1 + field_offset * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(screen_width * (fbh * x_predecim - 1) +
-				y_predecim + (fieldmode ? 1 : 0), ps);
-		*pix_inc = pixinc(-x_predecim * screen_width, ps);
-		break;
-	case OMAP_DSS_ROT_180:
-		*offset1 = (screen_width * (fbh - 1) + fbw - 1) * ps;
-		if (field_offset)
-			*offset0 = *offset1 - field_offset * screen_width * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(-1 -
-			(y_predecim * screen_width - fbw * x_predecim) -
-			(fieldmode ? screen_width : 0),	ps);
-		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-			color_mode == OMAP_DSS_COLOR_UYVY)
-			*pix_inc = pixinc(-x_predecim, 2 * ps);
-		else
-			*pix_inc = pixinc(-x_predecim, ps);
-		break;
-	case OMAP_DSS_ROT_270:
-		*offset1 = (fbw - 1) * ps;
-		if (field_offset)
-			*offset0 = *offset1 - field_offset * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(-screen_width * (fbh * x_predecim - 1) -
-				y_predecim - (fieldmode ? 1 : 0), ps);
-		*pix_inc = pixinc(x_predecim * screen_width, ps);
-		break;
-
-	/* mirroring */
-	case OMAP_DSS_ROT_0 + 4:
-		*offset1 = (fbw - 1) * ps;
-		if (field_offset)
-			*offset0 = *offset1 + field_offset * screen_width * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(y_predecim * screen_width * 2 - 1 +
-				(fieldmode ? screen_width : 0),
-				ps);
-		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-			color_mode == OMAP_DSS_COLOR_UYVY)
-			*pix_inc = pixinc(-x_predecim, 2 * ps);
-		else
-			*pix_inc = pixinc(-x_predecim, ps);
-		break;
-
-	case OMAP_DSS_ROT_90 + 4:
-		*offset1 = 0;
-		if (field_offset)
-			*offset0 = *offset1 + field_offset * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(-screen_width * (fbh * x_predecim - 1) +
-				y_predecim + (fieldmode ? 1 : 0),
-				ps);
-		*pix_inc = pixinc(x_predecim * screen_width, ps);
-		break;
-
-	case OMAP_DSS_ROT_180 + 4:
-		*offset1 = screen_width * (fbh - 1) * ps;
-		if (field_offset)
-			*offset0 = *offset1 - field_offset * screen_width * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(1 - y_predecim * screen_width * 2 -
-				(fieldmode ? screen_width : 0),
-				ps);
-		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
-			color_mode == OMAP_DSS_COLOR_UYVY)
-			*pix_inc = pixinc(x_predecim, 2 * ps);
-		else
-			*pix_inc = pixinc(x_predecim, ps);
-		break;
-
-	case OMAP_DSS_ROT_270 + 4:
-		*offset1 = (screen_width * (fbh - 1) + fbw - 1) * ps;
-		if (field_offset)
-			*offset0 = *offset1 - field_offset * ps;
-		else
-			*offset0 = *offset1;
-		*row_inc = pixinc(screen_width * (fbh * x_predecim - 1) -
-				y_predecim - (fieldmode ? 1 : 0),
-				ps);
-		*pix_inc = pixinc(-x_predecim * screen_width, ps);
-		break;
-
-	default:
-		BUG();
-		return;
-	}
-}
-
-static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
+static void calc_offset(u16 screen_width, u16 width,
 		enum omap_color_mode color_mode, bool fieldmode,
 		unsigned int field_offset, unsigned *offset0, unsigned *offset1,
 		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim)
@@ -2711,23 +2488,10 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 		frame_height = height;
 	}
 
-	if (rotation_type == OMAP_DSS_ROT_TILER)
-		calc_tiler_rotation_offset(screen_width, frame_width,
-				color_mode, fieldmode, field_offset,
-				&offset0, &offset1, &row_inc, &pix_inc,
-				x_predecim, y_predecim);
-	else if (rotation_type == OMAP_DSS_ROT_DMA)
-		calc_dma_rotation_offset(rotation, mirror, screen_width,
-				frame_width, frame_height,
-				color_mode, fieldmode, field_offset,
-				&offset0, &offset1, &row_inc, &pix_inc,
-				x_predecim, y_predecim);
-	else
-		calc_vrfb_rotation_offset(rotation, mirror,
-				screen_width, frame_width, frame_height,
-				color_mode, fieldmode, field_offset,
-				&offset0, &offset1, &row_inc, &pix_inc,
-				x_predecim, y_predecim);
+	calc_offset(screen_width, frame_width,
+			color_mode, fieldmode, field_offset,
+			&offset0, &offset1, &row_inc, &pix_inc,
+			x_predecim, y_predecim);
 
 	DSSDBG("offset0 %u, offset1 %u, row_inc %d, pix_inc %d\n",
 			offset0, offset1, row_inc, pix_inc);
@@ -4168,7 +3932,7 @@ static const struct dispc_errata_i734_data {
 		.width = 1, .height = 1,
 		.color_mode = OMAP_DSS_COLOR_RGB24U,
 		.rotation = OMAP_DSS_ROT_0,
-		.rotation_type = OMAP_DSS_ROT_DMA,
+		.rotation_type = OMAP_DSS_ROT_NONE,
 		.mirror = 0,
 		.pos_x = 0, .pos_y = 0,
 		.out_width = 0, .out_height = 0,

@@ -95,8 +95,6 @@ bool dss_feat_color_mode_supported(enum omap_plane_id plane,
 u32 dss_feat_get_buffer_size_unit(void);	/* in bytes */
 u32 dss_feat_get_burst_size_unit(void);		/* in bytes */
 
-bool dss_feat_rotation_type_supported(enum omap_dss_rotation_type rot_type);
-
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
 void dss_features_init(enum omapdss_version version);
