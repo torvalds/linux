@@ -144,7 +144,7 @@ static char *pqi_raid_level_to_string(u8 raid_level)
 	if (raid_level < ARRAY_SIZE(raid_levels))
 		return raid_levels[raid_level];
 
-	return "";
+	return "RAID UNKNOWN";
 }
 
 #define SA_RAID_0		0
@@ -5754,13 +5754,41 @@ static ssize_t pqi_ssd_smart_path_enabled_show(struct device *dev,
 	return 2;
 }
 
+static ssize_t pqi_raid_level_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	char *raid_level;
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+
+	if (pqi_is_logical_device(device))
+		raid_level = pqi_raid_level_to_string(device->raid_level);
+	else
+		raid_level = "N/A";
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return snprintf(buffer, PAGE_SIZE, "%s\n", raid_level);
+}
+
 static DEVICE_ATTR(sas_address, 0444, pqi_sas_address_show, NULL);
 static DEVICE_ATTR(ssd_smart_path_enabled, 0444,
 	pqi_ssd_smart_path_enabled_show, NULL);
+static DEVICE_ATTR(raid_level, 0444, pqi_raid_level_show, NULL);
 
 static struct device_attribute *pqi_sdev_attrs[] = {
 	&dev_attr_sas_address,
 	&dev_attr_ssd_smart_path_enabled,
+	&dev_attr_raid_level,
 	NULL
 };
 
