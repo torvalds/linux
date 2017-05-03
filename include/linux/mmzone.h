@@ -630,6 +630,8 @@ typedef struct pglist_data {
 	int kswapd_order;
 	enum zone_type kswapd_classzone_idx;
 
+	int kswapd_failures;		/* Number of 'reclaimed == 0' runs */
+
 #ifdef CONFIG_COMPACTION
 	int kcompactd_max_order;
 	enum zone_type kcompactd_classzone_idx;

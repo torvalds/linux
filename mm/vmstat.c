@@ -1425,7 +1425,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n  node_unreclaimable:  %u"
 		   "\n  start_pfn:           %lu"
 		   "\n  node_inactive_ratio: %u",
-		   !pgdat_reclaimable(zone->zone_pgdat),
+		   pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES,
 		   zone->zone_start_pfn,
 		   zone->zone_pgdat->inactive_ratio);
 	seq_putc(m, '\n');

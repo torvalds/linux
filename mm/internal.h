@@ -81,6 +81,12 @@ static inline void set_page_refcounted(struct page *page)
 extern unsigned long highest_memmap_pfn;
 
 /*
+ * Maximum number of reclaim retries without progress before the OOM
+ * killer is consider the only way forward.
+ */
+#define MAX_RECLAIM_RETRIES 16
+
+/*
  * in mm/vmscan.c:
  */
 extern int isolate_lru_page(struct page *page);
