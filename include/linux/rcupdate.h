@@ -237,10 +237,7 @@ static inline void destroy_rcu_head_on_stack(struct rcu_head *head) { }
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU)
 bool rcu_lockdep_current_cpu_online(void);
 #else /* #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
-static inline bool rcu_lockdep_current_cpu_online(void)
-{
-	return true;
-}
+static inline bool rcu_lockdep_current_cpu_online(void) { return true; }
 #endif /* #else #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -872,14 +869,8 @@ static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 bool rcu_sys_is_idle(void);
 void rcu_sysidle_force_exit(void);
 #else /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-
-static inline bool rcu_sys_is_idle(void)
-{
-	return false;
-}
-
+static inline bool rcu_sys_is_idle(void) { return false; }
 static inline void rcu_sysidle_force_exit(void) { }
-
 #endif /* #else #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
 
 
