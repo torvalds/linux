@@ -23,7 +23,7 @@ For memory address profiling, try: perf mem record / perf mem report
 For tracepoint events, try: perf report -s trace_fields
 To record callchains for each sample: perf record -g
 To record every process run by a user: perf record -u <user>
-Skip collecing build-id when recording: perf record -B
+Skip collecting build-id when recording: perf record -B
 To change sampling frequency to 100 Hz: perf record -F 100
 See assembly instructions with percentage: perf annotate <symbol>
 If you prefer Intel style assembly, try: perf annotate -M intel
