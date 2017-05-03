@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/reboot.h>
 #include <linux/cciss_ioctl.h>
 #include <linux/blk-mq-pci.h>
 #include <scsi/scsi_host.h>
@@ -60,6 +61,7 @@ MODULE_LICENSE("GPL");
 static char *hpe_branded_controller = "HPE Smart Array Controller";
 static char *microsemi_branded_controller = "Microsemi Smart Family Controller";
 
+static void pqi_perform_lockup_action(void);
 static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info);
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info);
 static void pqi_scan_start(struct Scsi_Host *shost);
@@ -81,6 +83,32 @@ static struct scsi_transport_template *pqi_sas_transport_template;
 
 static atomic_t pqi_controller_count = ATOMIC_INIT(0);
 
+enum pqi_lockup_action {
+	NONE,
+	REBOOT,
+	PANIC
+};
+
+static enum pqi_lockup_action pqi_lockup_action = NONE;
+
+static struct {
+	enum pqi_lockup_action	action;
+	char			*name;
+} pqi_lockup_actions[] = {
+	{
+		.action = NONE,
+		.name = "none",
+	},
+	{
+		.action = REBOOT,
+		.name = "reboot",
+	},
+	{
+		.action = PANIC,
+		.name = "panic",
+	},
+};
+
 static unsigned int pqi_supported_event_types[] = {
 	PQI_EVENT_TYPE_HOTPLUG,
 	PQI_EVENT_TYPE_HARDWARE,
@@ -95,6 +123,13 @@ module_param_named(disable_device_id_wildcards,
 	pqi_disable_device_id_wildcards, int, 0644);
 MODULE_PARM_DESC(disable_device_id_wildcards,
 	"Disable device ID wildcards.");
+
+static char *pqi_lockup_action_param;
+module_param_named(lockup_action,
+	pqi_lockup_action_param, charp, 0644);
+MODULE_PARM_DESC(lockup_action, "Action to take when controller locked up.\n"
+	"\t\tSupported: none, reboot, panic\n"
+	"\t\tDefault: none");
 
 static char *raid_levels[] = {
 	"RAID-0",
@@ -2729,6 +2764,8 @@ static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->controller_online = false;
 	dev_err(&ctrl_info->pci_dev->dev, "controller offline\n");
 	sis_shutdown_ctrl(ctrl_info);
+	pci_disable_device(ctrl_info->pci_dev);
+	pqi_perform_lockup_action();
 
 	for (i = 0; i < ctrl_info->num_queue_groups; i++) {
 		queue_group = &ctrl_info->queue_groups[i];
@@ -5381,12 +5418,55 @@ static ssize_t pqi_host_rescan_store(struct device *dev,
 	return count;
 }
 
+static ssize_t pqi_lockup_action_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	int count = 0;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
+		if (pqi_lockup_actions[i].action == pqi_lockup_action)
+			count += snprintf(buffer + count, PAGE_SIZE - count,
+				"[%s] ", pqi_lockup_actions[i].name);
+		else
+			count += snprintf(buffer + count, PAGE_SIZE - count,
+				"%s ", pqi_lockup_actions[i].name);
+	}
+
+	count += snprintf(buffer + count, PAGE_SIZE - count, "\n");
+
+	return count;
+}
+
+static ssize_t pqi_lockup_action_store(struct device *dev,
+	struct device_attribute *attr, const char *buffer, size_t count)
+{
+	unsigned int i;
+	char *action_name;
+	char action_name_buffer[32];
+
+	strlcpy(action_name_buffer, buffer, sizeof(action_name_buffer));
+	action_name = strstrip(action_name_buffer);
+
+	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
+		if (strcmp(action_name, pqi_lockup_actions[i].name) == 0) {
+			pqi_lockup_action = pqi_lockup_actions[i].action;
+			return count;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static DEVICE_ATTR(version, 0444, pqi_version_show, NULL);
 static DEVICE_ATTR(rescan, 0200, NULL, pqi_host_rescan_store);
+static DEVICE_ATTR(lockup_action, 0644,
+	pqi_lockup_action_show, pqi_lockup_action_store);
 
 static struct device_attribute *pqi_shost_attrs[] = {
 	&dev_attr_version,
 	&dev_attr_rescan,
+	&dev_attr_lockup_action,
 	NULL
 };
 
@@ -6133,6 +6213,21 @@ static void pqi_remove_ctrl(struct pqi_ctrl_info *ctrl_info)
 	pqi_free_ctrl_resources(ctrl_info);
 }
 
+static void pqi_perform_lockup_action(void)
+{
+	switch (pqi_lockup_action) {
+	case PANIC:
+		panic("FATAL: Smart Family Controller lockup detected");
+		break;
+	case REBOOT:
+		emergency_restart();
+		break;
+	case NONE:
+	default:
+		break;
+	}
+}
+
 static void pqi_print_ctrl_info(struct pci_dev *pci_dev,
 	const struct pci_device_id *id)
 {
@@ -6236,6 +6331,30 @@ static void pqi_shutdown(struct pci_dev *pci_dev)
 error:
 	dev_warn(&pci_dev->dev,
 		"unable to flush controller cache\n");
+}
+
+static void pqi_process_lockup_action_param(void)
+{
+	unsigned int i;
+
+	if (!pqi_lockup_action_param)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
+		if (strcmp(pqi_lockup_action_param,
+			pqi_lockup_actions[i].name) == 0) {
+			pqi_lockup_action = pqi_lockup_actions[i].action;
+			return;
+		}
+	}
+
+	pr_warn("%s: invalid lockup action setting \"%s\" - supported settings: none, reboot, panic\n",
+		DRIVER_NAME_SHORT, pqi_lockup_action_param);
+}
+
+static void pqi_process_module_params(void)
+{
+	pqi_process_lockup_action_param();
 }
 
 #if defined(CONFIG_PM)
@@ -6544,6 +6663,8 @@ static int __init pqi_init(void)
 		sas_attach_transport(&pqi_sas_transport_functions);
 	if (!pqi_sas_transport_template)
 		return -ENODEV;
+
+	pqi_process_module_params();
 
 	rc = pci_register_driver(&pqi_pci_driver);
 	if (rc)
