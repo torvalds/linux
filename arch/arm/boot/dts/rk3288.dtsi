@@ -128,58 +128,58 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp@126000000 {
+		opp-126000000 {
 			opp-hz = /bits/ 64 <126000000>;
 			opp-microvolt = <900000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@216000000 {
+		opp-216000000 {
 			opp-hz = /bits/ 64 <216000000>;
 			opp-microvolt = <900000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@408000000 {
+		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <900000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@600000000 {
+		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <900000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@696000000 {
+		opp-696000000 {
 			opp-hz = /bits/ 64 <696000000>;
 			opp-microvolt = <950000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@816000000 {
+		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <1000000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
-		opp@1008000000 {
+		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <1050000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@1200000000 {
+		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <1100000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@1416000000 {
+		opp-1416000000 {
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <1200000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@1512000000 {
+		opp-1512000000 {
 			opp-hz = /bits/ 64 <1512000000>;
 			opp-microvolt = <1300000>;
 			clock-latency-ns = <40000>;
 		};
-		opp@1608000000 {
+		opp-1608000000 {
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <1350000>;
 			clock-latency-ns = <40000>;
@@ -1496,23 +1496,23 @@
 	gpu_opp_table: opp-table1 {
 		compatible = "operating-points-v2";
 
-		opp@100000000 {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 			opp-microvolt = <950000>;
 		};
-		opp@200000000 {
+		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 			opp-microvolt = <950000>;
 		};
-		opp@300000000 {
+		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <1000000>;
 		};
-		opp@400000000 {
+		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <1100000>;
 		};
-		opp@600000000 {
+		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1250000>;
 		};
