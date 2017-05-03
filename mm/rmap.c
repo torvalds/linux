@@ -1535,7 +1535,7 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
 	else
 		ret = rmap_walk(page, &rwc);
 
-	if (ret != SWAP_MLOCK && !page_mapcount(page))
+	if (!page_mapcount(page))
 		ret = SWAP_SUCCESS;
 	return ret;
 }
