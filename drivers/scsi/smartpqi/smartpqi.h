@@ -785,11 +785,11 @@ struct pqi_scsi_dev {
 	u8	is_physical_device : 1;
 	u8	is_external_raid_device : 1;
 	u8	target_lun_valid : 1;
-	u8	aio_enabled : 1;	/* only valid for physical disks */
 	u8	device_gone : 1;
 	u8	new_device : 1;
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
+	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_reset;
 	bool	device_offline;
 	u8	vendor[8];		/* bytes 8-15 of inquiry data */
@@ -911,7 +911,9 @@ struct pqi_io_request {
 	void (*io_complete_callback)(struct pqi_io_request *io_request,
 		void *context);
 	void		*context;
+	u8		raid_bypass : 1;
 	int		status;
+	struct pqi_queue_group *queue_group;
 	struct scsi_cmnd *scmd;
 	void		*error_info;
 	struct pqi_sg_descriptor *sg_chain_buffer;
@@ -1019,6 +1021,10 @@ struct pqi_ctrl_info {
 	atomic_t	num_busy_threads;
 	atomic_t	num_blocked_threads;
 	wait_queue_head_t block_requests_wait;
+
+	struct list_head raid_bypass_retry_list;
+	spinlock_t	raid_bypass_retry_list_lock;
+	struct work_struct raid_bypass_retry_work;
 };
 
 enum pqi_ctrl_mode {
