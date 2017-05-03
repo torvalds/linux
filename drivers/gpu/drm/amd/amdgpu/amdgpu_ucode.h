@@ -50,6 +50,14 @@ struct smc_firmware_header_v1_0 {
 };
 
 /* version_major=1, version_minor=0 */
+struct psp_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t ucode_feature_version;
+	uint32_t sos_offset_bytes;
+	uint32_t sos_size_bytes;
+};
+
+/* version_major=1, version_minor=0 */
 struct gfx_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -110,6 +118,7 @@ union amdgpu_firmware_header {
 	struct common_firmware_header common;
 	struct mc_firmware_header_v1_0 mc;
 	struct smc_firmware_header_v1_0 smc;
+	struct psp_firmware_header_v1_0 psp;
 	struct gfx_firmware_header_v1_0 gfx;
 	struct rlc_firmware_header_v1_0 rlc;
 	struct rlc_firmware_header_v2_0 rlc_v2_0;
@@ -128,9 +137,14 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_CP_PFP,
 	AMDGPU_UCODE_ID_CP_ME,
 	AMDGPU_UCODE_ID_CP_MEC1,
+	AMDGPU_UCODE_ID_CP_MEC1_JT,
 	AMDGPU_UCODE_ID_CP_MEC2,
+	AMDGPU_UCODE_ID_CP_MEC2_JT,
 	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_STORAGE,
+	AMDGPU_UCODE_ID_SMC,
+	AMDGPU_UCODE_ID_UVD,
+	AMDGPU_UCODE_ID_VCE,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 
@@ -161,6 +175,8 @@ struct amdgpu_firmware_info {
 	uint64_t mc_addr;
 	/* kernel linear address */
 	void *kaddr;
+	/* ucode_size_bytes */
+	uint32_t ucode_size;
 };
 
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr);
@@ -173,5 +189,8 @@ bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 				uint16_t hdr_major, uint16_t hdr_minor);
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev);
 int amdgpu_ucode_fini_bo(struct amdgpu_device *adev);
+
+enum amdgpu_firmware_load_type
+amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type);
 
 #endif

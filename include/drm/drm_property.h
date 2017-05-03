@@ -200,9 +200,8 @@ struct drm_property {
  * Blobs are used to store bigger values than what fits directly into the 64
  * bits available for a &drm_property.
  *
- * Blobs are reference counted using drm_property_reference_blob() and
- * drm_property_unreference_blob(). They are created using
- * drm_property_create_blob().
+ * Blobs are reference counted using drm_property_blob_get() and
+ * drm_property_blob_put(). They are created using drm_property_create_blob().
  */
 struct drm_property_blob {
 	struct drm_mode_object base;
@@ -274,8 +273,34 @@ int drm_property_replace_global_blob(struct drm_device *dev,
 				     const void *data,
 				     struct drm_mode_object *obj_holds_id,
 				     struct drm_property *prop_holds_id);
-struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob);
-void drm_property_unreference_blob(struct drm_property_blob *blob);
+struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob);
+void drm_property_blob_put(struct drm_property_blob *blob);
+
+/**
+ * drm_property_reference_blob - acquire a blob property reference
+ * @blob: DRM blob property
+ *
+ * This is a compatibility alias for drm_property_blob_get() and should not be
+ * used by new code.
+ */
+static inline struct drm_property_blob *
+drm_property_reference_blob(struct drm_property_blob *blob)
+{
+	return drm_property_blob_get(blob);
+}
+
+/**
+ * drm_property_unreference_blob - release a blob property reference
+ * @blob: DRM blob property
+ *
+ * This is a compatibility alias for drm_property_blob_put() and should not be
+ * used by new code.
+ */
+static inline void
+drm_property_unreference_blob(struct drm_property_blob *blob)
+{
+	drm_property_blob_put(blob);
+}
 
 /**
  * drm_connector_find - find property object

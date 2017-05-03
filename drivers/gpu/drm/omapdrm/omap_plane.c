@@ -24,12 +24,6 @@
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"
 
-/* some hackery because omapdss has an 'enum omap_plane' (which would be
- * better named omap_plane_id).. and compiler seems unhappy about having
- * both a 'struct omap_plane' and 'enum omap_plane'
- */
-#define omap_plane _omap_plane
-
 /*
  * plane funcs
  */
@@ -38,7 +32,7 @@
 
 struct omap_plane {
 	struct drm_plane base;
-	int id;  /* TODO rename omap_plane -> omap_plane_id in omapdss so I can use the enum */
+	enum omap_plane_id id;
 	const char *name;
 
 	uint32_t nformats;
@@ -76,6 +70,7 @@ static void omap_plane_cleanup_fb(struct drm_plane *plane,
 static void omap_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
+	struct omap_drm_private *priv = plane->dev->dev_private;
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_plane_state *state = plane->state;
 	struct omap_plane_state *omap_state = to_omap_plane_state(state);
@@ -123,25 +118,26 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	DBG("%d,%d %pad %pad", info.pos_x, info.pos_y,
 			&info.paddr, &info.p_uv_addr);
 
-	dispc_ovl_set_channel_out(omap_plane->id,
+	priv->dispc_ops->ovl_set_channel_out(omap_plane->id,
 				  omap_crtc_channel(state->crtc));
 
 	/* and finally, update omapdss: */
-	ret = dispc_ovl_setup(omap_plane->id, &info, false,
+	ret = priv->dispc_ops->ovl_setup(omap_plane->id, &info,
 			      omap_crtc_timings(state->crtc), false);
 	if (ret) {
 		dev_err(plane->dev->dev, "Failed to setup plane %s\n",
 			omap_plane->name);
-		dispc_ovl_enable(omap_plane->id, false);
+		priv->dispc_ops->ovl_enable(omap_plane->id, false);
 		return;
 	}
 
-	dispc_ovl_enable(omap_plane->id, true);
+	priv->dispc_ops->ovl_enable(omap_plane->id, true);
 }
 
 static void omap_plane_atomic_disable(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct omap_drm_private *priv = plane->dev->dev_private;
 	struct omap_plane_state *omap_state = to_omap_plane_state(plane->state);
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 
@@ -149,7 +145,7 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
-	dispc_ovl_enable(omap_plane->id, false);
+	priv->dispc_ops->ovl_enable(omap_plane->id, false);
 }
 
 static int omap_plane_atomic_check(struct drm_plane *plane,
@@ -328,23 +324,37 @@ static const struct drm_plane_funcs omap_plane_funcs = {
 	.atomic_get_property = omap_plane_atomic_get_property,
 };
 
-static const char *plane_names[] = {
+static const char *plane_id_to_name[] = {
 	[OMAP_DSS_GFX] = "gfx",
 	[OMAP_DSS_VIDEO1] = "vid1",
 	[OMAP_DSS_VIDEO2] = "vid2",
 	[OMAP_DSS_VIDEO3] = "vid3",
 };
 
+static const enum omap_plane_id plane_idx_to_id[] = {
+	OMAP_DSS_GFX,
+	OMAP_DSS_VIDEO1,
+	OMAP_DSS_VIDEO2,
+	OMAP_DSS_VIDEO3,
+};
+
 /* initialize plane */
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		int id, enum drm_plane_type type,
+		int idx, enum drm_plane_type type,
 		u32 possible_crtcs)
 {
+	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
+	enum omap_plane_id id;
 	int ret;
 
-	DBG("%s: type=%d", plane_names[id], type);
+	if (WARN_ON(idx >= ARRAY_SIZE(plane_idx_to_id)))
+		return ERR_PTR(-EINVAL);
+
+	id = plane_idx_to_id[idx];
+
+	DBG("%s: type=%d", plane_id_to_name[id], type);
 
 	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
 	if (!omap_plane)
@@ -352,9 +362,9 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	omap_plane->nformats = omap_framebuffer_get_formats(
 			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
-			dss_feat_get_supported_color_modes(id));
+			priv->dispc_ops->ovl_get_color_modes(id));
 	omap_plane->id = id;
-	omap_plane->name = plane_names[id];
+	omap_plane->name = plane_id_to_name[id];
 
 	plane = &omap_plane->base;
 
@@ -371,6 +381,9 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	return plane;
 
 error:
+	dev_err(dev->dev, "%s(): could not create plane: %s\n",
+		__func__, plane_id_to_name[id]);
+
 	kfree(omap_plane);
 	return NULL;
 }

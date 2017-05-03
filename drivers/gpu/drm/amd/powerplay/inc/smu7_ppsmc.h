@@ -377,6 +377,7 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_DisableAvfs                 ((uint16_t) 0x26B)
 
 #define PPSMC_MSG_PerformBtc                  ((uint16_t) 0x26C)
+#define PPSMC_MSG_LedConfig                   ((uint16_t) 0x274)
 #define PPSMC_MSG_VftTableIsValid             ((uint16_t) 0x275)
 #define PPSMC_MSG_UseNewGPIOScheme            ((uint16_t) 0x277)
 #define PPSMC_MSG_GetEnabledPsm               ((uint16_t) 0x400)

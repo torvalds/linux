@@ -83,4 +83,6 @@ struct dma_fence_array *dma_fence_array_create(int num_fences,
 					       u64 context, unsigned seqno,
 					       bool signal_on_any);
 
+bool dma_fence_match_context(struct dma_fence *fence, u64 context);
+
 #endif /* __LINUX_DMA_FENCE_ARRAY_H */

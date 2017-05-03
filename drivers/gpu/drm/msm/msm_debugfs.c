@@ -28,7 +28,9 @@ static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
 
 	if (gpu) {
 		seq_printf(m, "%s Status:\n", gpu->name);
+		pm_runtime_get_sync(&gpu->pdev->dev);
 		gpu->funcs->show(gpu, m);
+		pm_runtime_put_sync(&gpu->pdev->dev);
 	}
 
 	return 0;
@@ -163,23 +165,6 @@ int msm_debugfs_init(struct drm_minor *minor)
 		ret = priv->kms->funcs->debugfs_init(priv->kms, minor);
 
 	return ret;
-}
-
-void msm_debugfs_cleanup(struct drm_minor *minor)
-{
-	struct drm_device *dev = minor->dev;
-	struct msm_drm_private *priv = dev->dev_private;
-
-	drm_debugfs_remove_files(msm_debugfs_list,
-			ARRAY_SIZE(msm_debugfs_list), minor);
-	if (!priv)
-		return;
-
-	if (priv->kms->funcs->debugfs_cleanup)
-		priv->kms->funcs->debugfs_cleanup(priv->kms, minor);
-
-	msm_rd_debugfs_cleanup(minor);
-	msm_perf_debugfs_cleanup(minor);
 }
 #endif
 

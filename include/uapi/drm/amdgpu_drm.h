@@ -209,6 +209,7 @@ struct drm_amdgpu_gem_userptr {
 	__u32		handle;
 };
 
+/* SI-CI-VI: */
 /* same meaning as the GB_TILE_MODE and GL_MACRO_TILE_MODE fields */
 #define AMDGPU_TILING_ARRAY_MODE_SHIFT			0
 #define AMDGPU_TILING_ARRAY_MODE_MASK			0xf
@@ -227,10 +228,15 @@ struct drm_amdgpu_gem_userptr {
 #define AMDGPU_TILING_NUM_BANKS_SHIFT			21
 #define AMDGPU_TILING_NUM_BANKS_MASK			0x3
 
+/* GFX9 and later: */
+#define AMDGPU_TILING_SWIZZLE_MODE_SHIFT		0
+#define AMDGPU_TILING_SWIZZLE_MODE_MASK			0x1f
+
+/* Set/Get helpers for tiling flags. */
 #define AMDGPU_TILING_SET(field, value) \
-	(((value) & AMDGPU_TILING_##field##_MASK) << AMDGPU_TILING_##field##_SHIFT)
+	(((__u64)(value) & AMDGPU_TILING_##field##_MASK) << AMDGPU_TILING_##field##_SHIFT)
 #define AMDGPU_TILING_GET(value, field) \
-	(((value) >> AMDGPU_TILING_##field##_SHIFT) & AMDGPU_TILING_##field##_MASK)
+	(((__u64)(value) >> AMDGPU_TILING_##field##_SHIFT) & AMDGPU_TILING_##field##_MASK)
 
 #define AMDGPU_GEM_METADATA_OP_SET_METADATA                  1
 #define AMDGPU_GEM_METADATA_OP_GET_METADATA                  2
@@ -350,6 +356,8 @@ struct drm_amdgpu_gem_op {
 
 #define AMDGPU_VA_OP_MAP			1
 #define AMDGPU_VA_OP_UNMAP			2
+#define AMDGPU_VA_OP_CLEAR			3
+#define AMDGPU_VA_OP_REPLACE			4
 
 /* Delay the page table update till the next CS */
 #define AMDGPU_VM_DELAY_UPDATE		(1 << 0)
@@ -361,6 +369,20 @@ struct drm_amdgpu_gem_op {
 #define AMDGPU_VM_PAGE_WRITEABLE	(1 << 2)
 /* executable mapping, new for VI */
 #define AMDGPU_VM_PAGE_EXECUTABLE	(1 << 3)
+/* partially resident texture */
+#define AMDGPU_VM_PAGE_PRT		(1 << 4)
+/* MTYPE flags use bit 5 to 8 */
+#define AMDGPU_VM_MTYPE_MASK		(0xf << 5)
+/* Default MTYPE. Pre-AI must use this.  Recommended for newer ASICs. */
+#define AMDGPU_VM_MTYPE_DEFAULT		(0 << 5)
+/* Use NC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_NC		(1 << 5)
+/* Use WC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_WC		(2 << 5)
+/* Use CC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_CC		(3 << 5)
+/* Use UC MTYPE instead of default MTYPE */
+#define AMDGPU_VM_MTYPE_UC		(4 << 5)
 
 struct drm_amdgpu_gem_va {
 	/** GEM object handle */
@@ -383,7 +405,8 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_HW_IP_DMA          2
 #define AMDGPU_HW_IP_UVD          3
 #define AMDGPU_HW_IP_VCE          4
-#define AMDGPU_HW_IP_NUM          5
+#define AMDGPU_HW_IP_UVD_ENC      5
+#define AMDGPU_HW_IP_NUM          6
 
 #define AMDGPU_HW_IP_INSTANCE_MAX_COUNT 1
 
@@ -422,8 +445,11 @@ union drm_amdgpu_cs {
 /* This IB should be submitted to CE */
 #define AMDGPU_IB_FLAG_CE	(1<<0)
 
-/* CE Preamble */
+/* Preamble flag, which means the IB could be dropped if no context switch */
 #define AMDGPU_IB_FLAG_PREAMBLE (1<<1)
+
+/* Preempt flag, IB should set Pre_enb bit if PREEMPT flag detected */
+#define AMDGPU_IB_FLAG_PREEMPT (1<<2)
 
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;
@@ -500,6 +526,10 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_SMC		0x0a
 	/* Subquery id: Query SDMA firmware version */
 	#define AMDGPU_INFO_FW_SDMA		0x0b
+	/* Subquery id: Query PSP SOS firmware version */
+	#define AMDGPU_INFO_FW_SOS		0x0c
+	/* Subquery id: Query PSP ASD firmware version */
+	#define AMDGPU_INFO_FW_ASD		0x0d
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */
@@ -530,6 +560,22 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_VBIOS_IMAGE		0x2
 /* Query UVD handles */
 #define AMDGPU_INFO_NUM_HANDLES			0x1C
+/* Query sensor related information */
+#define AMDGPU_INFO_SENSOR			0x1D
+	/* Subquery id: Query GPU shader clock */
+	#define AMDGPU_INFO_SENSOR_GFX_SCLK		0x1
+	/* Subquery id: Query GPU memory clock */
+	#define AMDGPU_INFO_SENSOR_GFX_MCLK		0x2
+	/* Subquery id: Query GPU temperature */
+	#define AMDGPU_INFO_SENSOR_GPU_TEMP		0x3
+	/* Subquery id: Query GPU load */
+	#define AMDGPU_INFO_SENSOR_GPU_LOAD		0x4
+	/* Subquery id: Query average GPU power	*/
+	#define AMDGPU_INFO_SENSOR_GPU_AVG_POWER	0x5
+	/* Subquery id: Query northbridge voltage */
+	#define AMDGPU_INFO_SENSOR_VDDNB		0x6
+	/* Subquery id: Query graphics voltage */
+	#define AMDGPU_INFO_SENSOR_VDDGFX		0x7
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -593,6 +639,10 @@ struct drm_amdgpu_info {
 			__u32 type;
 			__u32 offset;
 		} vbios_info;
+
+		struct {
+			__u32 type;
+		} sensor_info;
 	};
 };
 
@@ -704,6 +754,16 @@ struct drm_amdgpu_info_device {
 	__u32 vram_bit_width;
 	/* vce harvesting instance */
 	__u32 vce_harvest_config;
+	/* gfx double offchip LDS buffers */
+	__u32 gc_double_offchip_lds_buf;
+	/* NGG Primitive Buffer */
+	__u64 prim_buf_gpu_addr;
+	/* NGG Position Buffer */
+	__u64 pos_buf_gpu_addr;
+	/* NGG Control Sideband */
+	__u64 cntl_sb_buf_gpu_addr;
+	/* NGG Parameter Cache */
+	__u64 param_buf_gpu_addr;
 };
 
 struct drm_amdgpu_info_hw_ip {
@@ -755,6 +815,7 @@ struct drm_amdgpu_info_vce_clock_table {
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
+#define AMDGPU_FAMILY_AI			141 /* Vega10 */
 
 #if defined(__cplusplus)
 }

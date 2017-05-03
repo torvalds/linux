@@ -16,6 +16,12 @@
 
 /**
  * DOC: VC4 SDTV module
+ *
+ * The VEC encoder generates PAL or NTSC composite video output.
+ *
+ * TV mode selection is done by an atomic property on the encoder,
+ * because a drm_mode_modeinfo is insufficient to distinguish between
+ * PAL and PAL-M or NTSC and NTSC-J.
  */
 
 #include <drm/drm_atomic_helper.h>

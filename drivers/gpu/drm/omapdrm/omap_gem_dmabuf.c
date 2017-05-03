@@ -160,10 +160,10 @@ static struct dma_buf_ops omap_dmabuf_ops = {
 	.release = omap_gem_dmabuf_release,
 	.begin_cpu_access = omap_gem_dmabuf_begin_cpu_access,
 	.end_cpu_access = omap_gem_dmabuf_end_cpu_access,
-	.kmap_atomic = omap_gem_dmabuf_kmap_atomic,
-	.kunmap_atomic = omap_gem_dmabuf_kunmap_atomic,
-	.kmap = omap_gem_dmabuf_kmap,
-	.kunmap = omap_gem_dmabuf_kunmap,
+	.map_atomic = omap_gem_dmabuf_kmap_atomic,
+	.unmap_atomic = omap_gem_dmabuf_kunmap_atomic,
+	.map = omap_gem_dmabuf_kmap,
+	.unmap = omap_gem_dmabuf_kunmap,
 	.mmap = omap_gem_dmabuf_mmap,
 };
 

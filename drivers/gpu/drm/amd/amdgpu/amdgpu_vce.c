@@ -54,6 +54,8 @@
 #define FIRMWARE_POLARIS11         "amdgpu/polaris11_vce.bin"
 #define FIRMWARE_POLARIS12         "amdgpu/polaris12_vce.bin"
 
+#define FIRMWARE_VEGA10		"amdgpu/vega10_vce.bin"
+
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
 MODULE_FIRMWARE(FIRMWARE_KABINI);
@@ -68,6 +70,8 @@ MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
+
+MODULE_FIRMWARE(FIRMWARE_VEGA10);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -122,6 +126,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		break;
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
+		break;
+	case CHIP_VEGA10:
+		fw_name = FIRMWARE_VEGA10;
 		break;
 	case CHIP_POLARIS12:
 		fw_name = FIRMWARE_POLARIS12;
@@ -313,6 +320,9 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 		container_of(work, struct amdgpu_device, vce.idle_work.work);
 	unsigned i, count = 0;
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	for (i = 0; i < adev->vce.num_rings; i++)
 		count += amdgpu_fence_count_emitted(&adev->vce.ring[i]);
 
@@ -342,6 +352,9 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks;
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	mutex_lock(&adev->vce.idle_mutex);
 	set_clocks = !cancel_delayed_work_sync(&adev->vce.idle_work);
@@ -582,13 +595,13 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 	}
 
 	if ((addr + (uint64_t)size) >
-	    ((uint64_t)mapping->it.last + 1) * AMDGPU_GPU_PAGE_SIZE) {
+	    (mapping->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
 		DRM_ERROR("BO to small for addr 0x%010Lx %d %d\n",
 			  addr, lo, hi);
 		return -EINVAL;
 	}
 
-	addr -= ((uint64_t)mapping->it.start) * AMDGPU_GPU_PAGE_SIZE;
+	addr -= mapping->start * AMDGPU_GPU_PAGE_SIZE;
 	addr += amdgpu_bo_gpu_offset(bo);
 	addr -= ((uint64_t)size) * ((uint64_t)index);
 
@@ -944,6 +957,10 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
+	/* TODO: remove it if VCE can work for sriov */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {
 		DRM_ERROR("amdgpu: vce failed to lock ring %d (%d).\n",
@@ -981,6 +998,10 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence = NULL;
 	long r;
+
+	/* TODO: remove it if VCE can work for sriov */
+	if (amdgpu_sriov_vf(ring->adev))
+		return 0;
 
 	/* skip vce ring1/2 ib test for now, since it's not reliable */
 	if (ring != &ring->adev->vce.ring[0])

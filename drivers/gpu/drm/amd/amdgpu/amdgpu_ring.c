@@ -182,16 +182,32 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			return r;
 	}
 
-	r = amdgpu_wb_get(adev, &ring->rptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-		return r;
-	}
+	if (ring->funcs->support_64bit_ptrs) {
+		r = amdgpu_wb_get_64bit(adev, &ring->rptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+			return r;
+		}
 
-	r = amdgpu_wb_get(adev, &ring->wptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-		return r;
+		r = amdgpu_wb_get_64bit(adev, &ring->wptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
+	} else {
+		r = amdgpu_wb_get(adev, &ring->rptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
+		r = amdgpu_wb_get(adev, &ring->wptr_offs);
+		if (r) {
+			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+			return r;
+		}
+
 	}
 
 	r = amdgpu_wb_get(adev, &ring->fence_offs);
@@ -219,6 +235,9 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
 					     amdgpu_sched_hw_submission);
 
+	ring->buf_mask = (ring->ring_size / 4) - 1;
+	ring->ptr_mask = ring->funcs->support_64bit_ptrs ?
+		0xffffffffffffffff : ring->buf_mask;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
@@ -230,9 +249,9 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;
 		}
-		memset((void *)ring->ring, 0, ring->ring_size);
+		amdgpu_ring_clear_ring(ring);
 	}
-	ring->ptr_mask = (ring->ring_size / 4) - 1;
+
 	ring->max_dw = max_dw;
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
@@ -253,10 +272,18 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 	ring->ready = false;
 
-	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
-	amdgpu_wb_free(ring->adev, ring->fence_offs);
-	amdgpu_wb_free(ring->adev, ring->rptr_offs);
-	amdgpu_wb_free(ring->adev, ring->wptr_offs);
+	if (ring->funcs->support_64bit_ptrs) {
+		amdgpu_wb_free_64bit(ring->adev, ring->cond_exe_offs);
+		amdgpu_wb_free_64bit(ring->adev, ring->fence_offs);
+		amdgpu_wb_free_64bit(ring->adev, ring->rptr_offs);
+		amdgpu_wb_free_64bit(ring->adev, ring->wptr_offs);
+	} else {
+		amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
+		amdgpu_wb_free(ring->adev, ring->fence_offs);
+		amdgpu_wb_free(ring->adev, ring->rptr_offs);
+		amdgpu_wb_free(ring->adev, ring->wptr_offs);
+	}
+
 
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,
@@ -293,8 +320,8 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 
 	if (*pos < 12) {
 		early[0] = amdgpu_ring_get_rptr(ring);
-		early[1] = amdgpu_ring_get_wptr(ring);
-		early[2] = ring->wptr;
+		early[1] = amdgpu_ring_get_wptr(ring) & ring->buf_mask;
+		early[2] = ring->wptr & ring->buf_mask;
 		for (i = *pos / 4; i < 3 && size; i++) {
 			r = put_user(early[i], (uint32_t *)buf);
 			if (r)

@@ -106,9 +106,62 @@ static void rcar_du_crtc_put(struct rcar_du_crtc *rcrtc)
  * Hardware Setup
  */
 
+struct dpll_info {
+	unsigned int output;
+	unsigned int fdpll;
+	unsigned int n;
+	unsigned int m;
+};
+
+static void rcar_du_dpll_divider(struct rcar_du_crtc *rcrtc,
+				 struct dpll_info *dpll,
+				 unsigned long input,
+				 unsigned long target)
+{
+	unsigned long best_diff = (unsigned long)-1;
+	unsigned long diff;
+	unsigned int fdpll;
+	unsigned int m;
+	unsigned int n;
+
+	for (n = 39; n < 120; n++) {
+		for (m = 0; m < 4; m++) {
+			for (fdpll = 1; fdpll < 32; fdpll++) {
+				unsigned long output;
+
+				/* 1/2 (FRQSEL=1) for duty rate 50% */
+				output = input * (n + 1) / (m + 1)
+				       / (fdpll + 1) / 2;
+
+				if (output >= 400000000)
+					continue;
+
+				diff = abs((long)output - (long)target);
+				if (best_diff > diff) {
+					best_diff = diff;
+					dpll->n = n;
+					dpll->m = m;
+					dpll->fdpll = fdpll;
+					dpll->output = output;
+				}
+
+				if (diff == 0)
+					goto done;
+			}
+		}
+	}
+
+done:
+	dev_dbg(rcrtc->group->dev->dev,
+		"output:%u, fdpll:%u, n:%u, m:%u, diff:%lu\n",
+		 dpll->output, dpll->fdpll, dpll->n, dpll->m,
+		 best_diff);
+}
+
 static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 {
 	const struct drm_display_mode *mode = &rcrtc->crtc.state->adjusted_mode;
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
 	unsigned long mode_clock = mode->clock * 1000;
 	unsigned long clk;
 	u32 value;
@@ -124,12 +177,18 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	escr = div | ESCR_DCLKSEL_CLKS;
 
 	if (rcrtc->extclock) {
+		struct dpll_info dpll = { 0 };
 		unsigned long extclk;
 		unsigned long extrate;
 		unsigned long rate;
 		u32 extdiv;
 
 		extclk = clk_get_rate(rcrtc->extclock);
+		if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
+			rcar_du_dpll_divider(rcrtc, &dpll, extclk, mode_clock);
+			extclk = dpll.output;
+		}
+
 		extdiv = DIV_ROUND_CLOSEST(extclk, mode_clock);
 		extdiv = clamp(extdiv, 1U, 64U) - 1;
 
@@ -140,7 +199,27 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		    abs((long)rate - (long)mode_clock)) {
 			dev_dbg(rcrtc->group->dev->dev,
 				"crtc%u: using external clock\n", rcrtc->index);
-			escr = extdiv | ESCR_DCLKSEL_DCLKIN;
+
+			if (rcdu->info->dpll_ch & (1 << rcrtc->index)) {
+				u32 dpllcr = DPLLCR_CODE | DPLLCR_CLKE
+					   | DPLLCR_FDPLL(dpll.fdpll)
+					   | DPLLCR_N(dpll.n) | DPLLCR_M(dpll.m)
+					   | DPLLCR_STBY;
+
+				if (rcrtc->index == 1)
+					dpllcr |= DPLLCR_PLCS1
+					       |  DPLLCR_INCS_DOTCLKIN1;
+				else
+					dpllcr |= DPLLCR_PLCS0
+					       |  DPLLCR_INCS_DOTCLKIN0;
+
+				rcar_du_group_write(rcrtc->group, DPLLCR,
+						    dpllcr);
+
+				escr = ESCR_DCLKSEL_DCLKIN | 1;
+			} else {
+				escr = ESCR_DCLKSEL_DCLKIN | extdiv;
+			}
 		}
 	}
 
@@ -488,22 +567,29 @@ static void rcar_du_crtc_disable(struct drm_crtc *crtc)
 	rcar_du_crtc_stop(rcrtc);
 	rcar_du_crtc_put(rcrtc);
 
+	spin_lock_irq(&crtc->dev->event_lock);
+	if (crtc->state->event) {
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+	}
+	spin_unlock_irq(&crtc->dev->event_lock);
+
 	rcrtc->outputs = 0;
 }
 
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 				      struct drm_crtc_state *old_crtc_state)
 {
-	struct drm_pending_vblank_event *event = crtc->state->event;
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct drm_device *dev = rcrtc->crtc.dev;
 	unsigned long flags;
 
-	if (event) {
+	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 		spin_lock_irqsave(&dev->event_lock, flags);
-		rcrtc->event = event;
+		rcrtc->event = crtc->state->event;
+		crtc->state->event = NULL;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
@@ -529,6 +615,23 @@ static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_flush = rcar_du_crtc_atomic_flush,
 };
 
+static int rcar_du_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	rcar_du_crtc_write(rcrtc, DSRCR, DSRCR_VBCL);
+	rcar_du_crtc_set(rcrtc, DIER, DIER_VBE);
+
+	return 0;
+}
+
+static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	rcar_du_crtc_clr(rcrtc, DIER, DIER_VBE);
+}
+
 static const struct drm_crtc_funcs crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.destroy = drm_crtc_cleanup,
@@ -536,6 +639,8 @@ static const struct drm_crtc_funcs crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = rcar_du_crtc_enable_vblank,
+	.disable_vblank = rcar_du_crtc_disable_vblank,
 };
 
 /* -----------------------------------------------------------------------------
@@ -649,14 +754,4 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	}
 
 	return 0;
-}
-
-void rcar_du_crtc_enable_vblank(struct rcar_du_crtc *rcrtc, bool enable)
-{
-	if (enable) {
-		rcar_du_crtc_write(rcrtc, DSRCR, DSRCR_VBCL);
-		rcar_du_crtc_set(rcrtc, DIER, DIER_VBE);
-	} else {
-		rcar_du_crtc_clr(rcrtc, DIER, DIER_VBE);
-	}
 }

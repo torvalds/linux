@@ -60,9 +60,12 @@
  * - 3.8.0 - Add support raster config init in the kernel
  * - 3.9.0 - Add support for memory query info about VRAM and GTT.
  * - 3.10.0 - Add support for new fences ioctl, new gem ioctl flags
+ * - 3.11.0 - Add support for sensor query info (clocks, temp, etc).
+ * - 3.12.0 - Add query for double offchip LDS buffers
+ * - 3.13.0 - Add PRT support
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	10
+#define KMS_DRIVER_MINOR	13
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -77,13 +80,13 @@ int amdgpu_pcie_gen2 = -1;
 int amdgpu_msi = -1;
 int amdgpu_lockup_timeout = 0;
 int amdgpu_dpm = -1;
-int amdgpu_smc_load_fw = 1;
+int amdgpu_fw_load_type = -1;
 int amdgpu_aspm = -1;
 int amdgpu_runtime_pm = -1;
 unsigned amdgpu_ip_block_mask = 0xffffffff;
 int amdgpu_bapm = -1;
 int amdgpu_deep_color = 0;
-int amdgpu_vm_size = 64;
+int amdgpu_vm_size = -1;
 int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
@@ -100,6 +103,11 @@ unsigned amdgpu_pg_mask = 0xffffffff;
 char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
 unsigned amdgpu_pp_feature_mask = 0xffffffff;
+int amdgpu_ngg = 0;
+int amdgpu_prim_buf_per_se = 0;
+int amdgpu_pos_buf_per_se = 0;
+int amdgpu_cntl_sb_buf_per_se = 0;
+int amdgpu_param_buf_per_se = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -137,8 +145,8 @@ module_param_named(lockup_timeout, amdgpu_lockup_timeout, int, 0444);
 MODULE_PARM_DESC(dpm, "DPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(dpm, amdgpu_dpm, int, 0444);
 
-MODULE_PARM_DESC(smc_load_fw, "SMC firmware loading(1 = enable, 0 = disable)");
-module_param_named(smc_load_fw, amdgpu_smc_load_fw, int, 0444);
+MODULE_PARM_DESC(fw_load_type, "firmware loading type (0 = direct, 1 = SMU, 2 = PSP, -1 = auto)");
+module_param_named(fw_load_type, amdgpu_fw_load_type, int, 0444);
 
 MODULE_PARM_DESC(aspm, "ASPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(aspm, amdgpu_aspm, int, 0444);
@@ -206,6 +214,22 @@ module_param_named(disable_cu, amdgpu_disable_cu, charp, 0444);
 MODULE_PARM_DESC(virtual_display,
 		 "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x,x;xxxx:xx:xx.x,x)");
 module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
+
+MODULE_PARM_DESC(ngg, "Next Generation Graphics (1 = enable, 0 = disable(default depending on gfx))");
+module_param_named(ngg, amdgpu_ngg, int, 0444);
+
+MODULE_PARM_DESC(prim_buf_per_se, "the size of Primitive Buffer per Shader Engine (default depending on gfx)");
+module_param_named(prim_buf_per_se, amdgpu_prim_buf_per_se, int, 0444);
+
+MODULE_PARM_DESC(pos_buf_per_se, "the size of Position Buffer per Shader Engine (default depending on gfx)");
+module_param_named(pos_buf_per_se, amdgpu_pos_buf_per_se, int, 0444);
+
+MODULE_PARM_DESC(cntl_sb_buf_per_se, "the size of Control Sideband per Shader Engine (default depending on gfx)");
+module_param_named(cntl_sb_buf_per_se, amdgpu_cntl_sb_buf_per_se, int, 0444);
+
+MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Pramater Cache per Shader Engine (default depending on gfx)");
+module_param_named(param_buf_per_se, amdgpu_param_buf_per_se, int, 0444);
+
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
@@ -409,6 +433,7 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x67C2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67C4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67C7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67D0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67DF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67C8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67C9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
@@ -423,7 +448,14 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x6987, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 	{0x1002, 0x6995, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 	{0x1002, 0x699F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
-
+	/* Vega 10 */
+	{0x1002, 0x6860, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6861, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6862, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6863, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6867, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x686c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x687f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
 	{0, 0, 0}
 };
 
@@ -686,7 +718,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_PRIME | DRIVER_RENDER | DRIVER_MODESET,
 	.load = amdgpu_driver_load_kms,
 	.open = amdgpu_driver_open_kms,
-	.preclose = amdgpu_driver_preclose_kms,
 	.postclose = amdgpu_driver_postclose_kms,
 	.lastclose = amdgpu_driver_lastclose_kms,
 	.set_busid = drm_pci_set_busid,

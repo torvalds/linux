@@ -28,12 +28,14 @@
 
 #include <linux/dma_remapping.h>
 #include <linux/reservation.h>
+#include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
+#include "i915_gem_clflush.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
@@ -1112,13 +1114,18 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
+		if (vma->exec_entry->flags & EXEC_OBJECT_ASYNC)
+			continue;
+
+		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU) {
+			i915_gem_clflush_object(obj, 0);
+			obj->base.write_domain = 0;
+		}
+
 		ret = i915_gem_request_await_object
 			(req, obj, obj->base.pending_write_domain);
 		if (ret)
 			return ret;
-
-		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
-			i915_gem_clflush_object(obj, false);
 	}
 
 	/* Unconditionally flush any chipset caches (for streaming writes). */
@@ -1299,12 +1306,12 @@ static void eb_export_fence(struct drm_i915_gem_object *obj,
 	 * handle an error right now. Worst case should be missed
 	 * synchronisation leading to rendering corruption.
 	 */
-	ww_mutex_lock(&resv->lock, NULL);
+	reservation_object_lock(resv, NULL);
 	if (flags & EXEC_OBJECT_WRITE)
 		reservation_object_add_excl_fence(resv, &req->fence);
 	else if (reservation_object_reserve_shared(resv) == 0)
 		reservation_object_add_shared_fence(resv, &req->fence);
-	ww_mutex_unlock(&resv->lock);
+	reservation_object_unlock(resv);
 }
 
 static void
@@ -1315,8 +1322,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		u32 old_read = obj->base.read_domains;
-		u32 old_write = obj->base.write_domain;
 
 		obj->base.write_domain = obj->base.pending_write_domain;
 		if (obj->base.write_domain)
@@ -1327,32 +1332,31 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 		i915_vma_move_to_active(vma, req, vma->exec_entry->flags);
 		eb_export_fence(obj, req, vma->exec_entry->flags);
-		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
 }
 
 static int
 i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 {
-	struct intel_ring *ring = req->ring;
-	int ret, i;
+	u32 *cs;
+	int i;
 
 	if (!IS_GEN7(req->i915) || req->engine->id != RCS) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
 
-	ret = intel_ring_begin(req, 4 * 3);
-	if (ret)
-		return ret;
+	cs = intel_ring_begin(req, 4 * 3);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
 
 	for (i = 0; i < 4; i++) {
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(ring, GEN7_SO_WRITE_OFFSET(i));
-		intel_ring_emit(ring, 0);
+		*cs++ = MI_LOAD_REGISTER_IMM(1);
+		*cs++ = i915_mmio_reg_offset(GEN7_SO_WRITE_OFFSET(i));
+		*cs++ = 0;
 	}
 
-	intel_ring_advance(ring);
+	intel_ring_advance(req, cs);
 
 	return 0;
 }
@@ -1405,6 +1409,14 @@ out:
 	return vma;
 }
 
+static void
+add_to_client(struct drm_i915_gem_request *req,
+	      struct drm_file *file)
+{
+	req->file_priv = file->driver_priv;
+	list_add_tail(&req->client_link, &req->file_priv->mm.request_list);
+}
+
 static int
 execbuf_submit(struct i915_execbuffer_params *params,
 	       struct drm_i915_gem_execbuffer2 *args,
@@ -1444,8 +1456,6 @@ execbuf_submit(struct i915_execbuffer_params *params,
 					    params->dispatch_flags);
 	if (ret)
 		return ret;
-
-	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 
@@ -1545,6 +1555,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct i915_execbuffer_params *params = &params_master;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 dispatch_flags;
+	struct dma_fence *in_fence = NULL;
+	struct sync_file *out_fence = NULL;
+	int out_fence_fd = -1;
 	int ret;
 	bool need_relocs;
 
@@ -1586,6 +1599,20 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		}
 
 		dispatch_flags |= I915_DISPATCH_RS;
+	}
+
+	if (args->flags & I915_EXEC_FENCE_IN) {
+		in_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
+		if (!in_fence)
+			return -EINVAL;
+	}
+
+	if (args->flags & I915_EXEC_FENCE_OUT) {
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0) {
+			ret = out_fence_fd;
+			goto err_in_fence;
+		}
 	}
 
 	/* Take a local wakeref for preparing to dispatch the execbuf as
@@ -1732,6 +1759,21 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err_batch_unpin;
 	}
 
+	if (in_fence) {
+		ret = i915_gem_request_await_dma_fence(params->request,
+						       in_fence);
+		if (ret < 0)
+			goto err_request;
+	}
+
+	if (out_fence_fd != -1) {
+		out_fence = sync_file_create(&params->request->fence);
+		if (!out_fence) {
+			ret = -ENOMEM;
+			goto err_request;
+		}
+	}
+
 	/* Whilst this request exists, batch_obj will be on the
 	 * active_list, and so will hold the active reference. Only when this
 	 * request is retired will the the batch_obj be moved onto the
@@ -1739,10 +1781,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * to explicitly hold another reference here.
 	 */
 	params->request->batch = params->batch;
-
-	ret = i915_gem_request_add_to_client(params->request, file);
-	if (ret)
-		goto err_request;
 
 	/*
 	 * Save assorted stuff away to pass through to *_submission().
@@ -1756,9 +1794,23 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->dispatch_flags          = dispatch_flags;
 	params->ctx                     = ctx;
 
+	trace_i915_gem_request_queue(params->request, dispatch_flags);
+
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
 	__i915_add_request(params->request, ret == 0);
+	add_to_client(params->request, file);
+
+	if (out_fence) {
+		if (ret == 0) {
+			fd_install(out_fence_fd, out_fence->file);
+			args->rsvd2 &= GENMASK_ULL(0, 31); /* keep in-fence */
+			args->rsvd2 |= (u64)out_fence_fd << 32;
+			out_fence_fd = -1;
+		} else {
+			fput(out_fence->file);
+		}
+	}
 
 err_batch_unpin:
 	/*
@@ -1780,6 +1832,10 @@ pre_mutex_err:
 	/* intel_gpu_busy should also get a ref, so it will free when the device
 	 * is really idle. */
 	intel_runtime_pm_put(dev_priv);
+	if (out_fence_fd != -1)
+		put_unused_fd(out_fence_fd);
+err_in_fence:
+	dma_fence_put(in_fence);
 	return ret;
 }
 
@@ -1884,11 +1940,6 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	if (args->buffer_count < 1 ||
 	    args->buffer_count > UINT_MAX / sizeof(*exec2_list)) {
 		DRM_DEBUG("execbuf2 with %d buffers\n", args->buffer_count);
-		return -EINVAL;
-	}
-
-	if (args->rsvd2 != 0) {
-		DRM_DEBUG("dirty rvsd2 field\n");
 		return -EINVAL;
 	}
 

@@ -318,31 +318,46 @@ void xgpu_vi_init_golden_registers(struct amdgpu_device *adev)
 static void xgpu_vi_mailbox_send_ack(struct amdgpu_device *adev)
 {
 	u32 reg;
+	int timeout = VI_MAILBOX_TIMEDOUT;
+	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, RCV_MSG_VALID);
 
-	reg = RREG32(mmMAILBOX_CONTROL);
+	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	reg = REG_SET_FIELD(reg, MAILBOX_CONTROL, RCV_MSG_ACK, 1);
-	WREG32(mmMAILBOX_CONTROL, reg);
+	WREG32_NO_KIQ(mmMAILBOX_CONTROL, reg);
+
+	/*Wait for RCV_MSG_VALID to be 0*/
+	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	while (reg & mask) {
+		if (timeout <= 0) {
+			pr_err("RCV_MSG_VALID is not cleared\n");
+			break;
+		}
+		mdelay(1);
+		timeout -=1;
+
+		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	}
 }
 
 static void xgpu_vi_mailbox_set_valid(struct amdgpu_device *adev, bool val)
 {
 	u32 reg;
 
-	reg = RREG32(mmMAILBOX_CONTROL);
+	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	reg = REG_SET_FIELD(reg, MAILBOX_CONTROL,
 			    TRN_MSG_VALID, val ? 1 : 0);
-	WREG32(mmMAILBOX_CONTROL, reg);
+	WREG32_NO_KIQ(mmMAILBOX_CONTROL, reg);
 }
 
 static void xgpu_vi_mailbox_trans_msg(struct amdgpu_device *adev,
-				      enum idh_event event)
+				      enum idh_request req)
 {
 	u32 reg;
 
-	reg = RREG32(mmMAILBOX_MSGBUF_TRN_DW0);
+	reg = RREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW0);
 	reg = REG_SET_FIELD(reg, MAILBOX_MSGBUF_TRN_DW0,
-			    MSGBUF_DATA, event);
-	WREG32(mmMAILBOX_MSGBUF_TRN_DW0, reg);
+			    MSGBUF_DATA, req);
+	WREG32_NO_KIQ(mmMAILBOX_MSGBUF_TRN_DW0, reg);
 
 	xgpu_vi_mailbox_set_valid(adev, true);
 }
@@ -351,8 +366,13 @@ static int xgpu_vi_mailbox_rcv_msg(struct amdgpu_device *adev,
 				   enum idh_event event)
 {
 	u32 reg;
+	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, RCV_MSG_VALID);
 
-	reg = RREG32(mmMAILBOX_MSGBUF_RCV_DW0);
+	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
+	if (!(reg & mask))
+		return -ENOENT;
+
+	reg = RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW0);
 	if (reg != event)
 		return -ENOENT;
 
@@ -368,7 +388,7 @@ static int xgpu_vi_poll_ack(struct amdgpu_device *adev)
 	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, TRN_MSG_ACK);
 	u32 reg;
 
-	reg = RREG32(mmMAILBOX_CONTROL);
+	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	while (!(reg & mask)) {
 		if (timeout <= 0) {
 			pr_err("Doesn't get ack from pf.\n");
@@ -378,7 +398,7 @@ static int xgpu_vi_poll_ack(struct amdgpu_device *adev)
 		msleep(1);
 		timeout -= 1;
 
-		reg = RREG32(mmMAILBOX_CONTROL);
+		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	}
 
 	return r;
@@ -419,7 +439,9 @@ static int xgpu_vi_send_access_requests(struct amdgpu_device *adev,
 	xgpu_vi_mailbox_set_valid(adev, false);
 
 	/* start to check msg if request is idh_req_gpu_init_access */
-	if (request == IDH_REQ_GPU_INIT_ACCESS) {
+	if (request == IDH_REQ_GPU_INIT_ACCESS ||
+		request == IDH_REQ_GPU_FINI_ACCESS ||
+		request == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_vi_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
 		if (r)
 			return r;
@@ -436,20 +458,20 @@ static int xgpu_vi_request_reset(struct amdgpu_device *adev)
 static int xgpu_vi_request_full_gpu_access(struct amdgpu_device *adev,
 					   bool init)
 {
-	enum idh_event event;
+	enum idh_request req;
 
-	event = init ? IDH_REQ_GPU_INIT_ACCESS : IDH_REQ_GPU_FINI_ACCESS;
-	return xgpu_vi_send_access_requests(adev, event);
+	req = init ? IDH_REQ_GPU_INIT_ACCESS : IDH_REQ_GPU_FINI_ACCESS;
+	return xgpu_vi_send_access_requests(adev, req);
 }
 
 static int xgpu_vi_release_full_gpu_access(struct amdgpu_device *adev,
 					   bool init)
 {
-	enum idh_event event;
+	enum idh_request req;
 	int r = 0;
 
-	event = init ? IDH_REL_GPU_INIT_ACCESS : IDH_REL_GPU_FINI_ACCESS;
-	r = xgpu_vi_send_access_requests(adev, event);
+	req = init ? IDH_REL_GPU_INIT_ACCESS : IDH_REL_GPU_FINI_ACCESS;
+	r = xgpu_vi_send_access_requests(adev, req);
 
 	return r;
 }
@@ -468,28 +490,28 @@ static int xgpu_vi_set_mailbox_ack_irq(struct amdgpu_device *adev,
 				       unsigned type,
 				       enum amdgpu_interrupt_state state)
 {
-	u32 tmp = RREG32(mmMAILBOX_INT_CNTL);
+	u32 tmp = RREG32_NO_KIQ(mmMAILBOX_INT_CNTL);
 
 	tmp = REG_SET_FIELD(tmp, MAILBOX_INT_CNTL, ACK_INT_EN,
 			    (state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
-	WREG32(mmMAILBOX_INT_CNTL, tmp);
+	WREG32_NO_KIQ(mmMAILBOX_INT_CNTL, tmp);
 
 	return 0;
 }
 
 static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 {
-	struct amdgpu_virt *virt = container_of(work,
-					struct amdgpu_virt, flr_work.work);
-	struct amdgpu_device *adev = container_of(virt,
-					struct amdgpu_device, virt);
-	int r = 0;
+	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, flr_work);
+	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
 
-	r = xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL);
-	if (r)
-		DRM_ERROR("failed to get flr cmpl msg from hypervior.\n");
+	/* wait until RCV_MSG become 3 */
+	if (xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL)) {
+		pr_err("failed to recieve FLR_CMPL\n");
+		return;
+	}
 
-	/* TODO: need to restore gfx states */
+	/* Trigger recovery due to world switch failure */
+	amdgpu_sriov_gpu_reset(adev, false);
 }
 
 static int xgpu_vi_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -497,11 +519,11 @@ static int xgpu_vi_set_mailbox_rcv_irq(struct amdgpu_device *adev,
 				       unsigned type,
 				       enum amdgpu_interrupt_state state)
 {
-	u32 tmp = RREG32(mmMAILBOX_INT_CNTL);
+	u32 tmp = RREG32_NO_KIQ(mmMAILBOX_INT_CNTL);
 
 	tmp = REG_SET_FIELD(tmp, MAILBOX_INT_CNTL, VALID_INT_EN,
 			    (state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
-	WREG32(mmMAILBOX_INT_CNTL, tmp);
+	WREG32_NO_KIQ(mmMAILBOX_INT_CNTL, tmp);
 
 	return 0;
 }
@@ -512,15 +534,12 @@ static int xgpu_vi_mailbox_rcv_irq(struct amdgpu_device *adev,
 {
 	int r;
 
-	adev->virt.caps &= ~AMDGPU_SRIOV_CAPS_RUNTIME;
+	/* see what event we get */
 	r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
-	/* do nothing for other msg */
-	if (r)
-		return 0;
 
-	/* TODO: need to save gfx states */
-	schedule_delayed_work(&adev->virt.flr_work,
-			      msecs_to_jiffies(VI_MAILBOX_RESET_TIME));
+	/* only handle FLR_NOTIFY now */
+	if (!r)
+		schedule_work(&adev->virt.flr_work);
 
 	return 0;
 }
@@ -547,11 +566,11 @@ int xgpu_vi_mailbox_add_irq_id(struct amdgpu_device *adev)
 {
 	int r;
 
-	r = amdgpu_irq_add_id(adev, 135, &adev->virt.rcv_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 135, &adev->virt.rcv_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, 138, &adev->virt.ack_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 138, &adev->virt.ack_irq);
 	if (r) {
 		amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 		return r;
@@ -573,14 +592,13 @@ int xgpu_vi_mailbox_get_irq(struct amdgpu_device *adev)
 		return r;
 	}
 
-	INIT_DELAYED_WORK(&adev->virt.flr_work, xgpu_vi_mailbox_flr_work);
+	INIT_WORK(&adev->virt.flr_work, xgpu_vi_mailbox_flr_work);
 
 	return 0;
 }
 
 void xgpu_vi_mailbox_put_irq(struct amdgpu_device *adev)
 {
-	cancel_delayed_work_sync(&adev->virt.flr_work);
 	amdgpu_irq_put(adev, &adev->virt.ack_irq, 0);
 	amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 }
