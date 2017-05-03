@@ -214,7 +214,14 @@ static int hi655x_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id hi655x_regulator_table[] = {
+	{ .name = "hi655x-regulator" },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, hi655x_regulator_table);
+
 static struct platform_driver hi655x_regulator_driver = {
+	.id_table = hi655x_regulator_table,
 	.driver = {
 		.name	= "hi655x-regulator",
 	},
