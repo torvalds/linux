@@ -596,7 +596,7 @@ int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm)
 	if (!is_valid_ether_addr(mvm->nvm_data->hw_addr)) {
 		IWL_ERR(trans, "no valid mac address was found\n");
 		ret = -EINVAL;
-		goto out;
+		goto err_free;
 	}
 
 	/* Initialize general data */
@@ -628,7 +628,11 @@ int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm)
 			mvm->nvm_data->valid_rx_ant & mvm->fw->valid_rx_ant,
 			rsp->regulatory.lar_enabled && lar_fw_supported);
 
-	ret = 0;
+	iwl_free_resp(&hcmd);
+	return 0;
+
+err_free:
+	kfree(mvm->nvm_data);
 out:
 	iwl_free_resp(&hcmd);
 	return ret;
