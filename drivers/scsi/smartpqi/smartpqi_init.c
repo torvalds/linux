@@ -3425,6 +3425,8 @@ static void pqi_submit_admin_request(struct pqi_ctrl_info *ctrl_info,
 	writel(iq_pi, admin_queues->iq_pi);
 }
 
+#define PQI_ADMIN_REQUEST_TIMEOUT_SECS	60
+
 static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_general_admin_response *response)
 {
@@ -3436,7 +3438,7 @@ static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 	admin_queues = &ctrl_info->admin_queues;
 	oq_ci = admin_queues->oq_ci_copy;
 
-	timeout = (3 * HZ) + jiffies;
+	timeout = (PQI_ADMIN_REQUEST_TIMEOUT_SECS * HZ) + jiffies;
 
 	while (1) {
 		oq_pi = *admin_queues->oq_pi;
@@ -3447,6 +3449,8 @@ static int pqi_poll_for_admin_response(struct pqi_ctrl_info *ctrl_info,
 				"timed out waiting for admin response\n");
 			return -ETIMEDOUT;
 		}
+		if (!sis_is_firmware_running(ctrl_info))
+			return -ENXIO;
 		usleep_range(1000, 2000);
 	}
 
