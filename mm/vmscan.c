@@ -2130,22 +2130,13 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 	int pass;
 
 	/*
-	 * If the zone or memcg is small, nr[l] can be 0.  This
-	 * results in no scanning on this priority and a potential
-	 * priority drop.  Global direct reclaim can go to the next
-	 * zone and tends to have no problems. Global kswapd is for
-	 * zone balancing and it needs to scan a minimum amount. When
+	 * If the zone or memcg is small, nr[l] can be 0. When
 	 * reclaiming for a memcg, a priority drop can cause high
-	 * latencies, so it's better to scan a minimum amount there as
-	 * well.
+	 * latencies, so it's better to scan a minimum amount. When a
+	 * cgroup has already been deleted, scrape out the remaining
+	 * cache forcefully to get rid of the lingering state.
 	 */
-	if (current_is_kswapd()) {
-		if (!pgdat_reclaimable(pgdat))
-			force_scan = true;
-		if (!mem_cgroup_online(memcg))
-			force_scan = true;
-	}
-	if (!global_reclaim(sc))
+	if (!global_reclaim(sc) || !mem_cgroup_online(memcg))
 		force_scan = true;
 
 	/* If we have no swap space, do not bother scanning anon pages. */
