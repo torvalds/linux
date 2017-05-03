@@ -2897,6 +2897,10 @@ static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
 	if (DEBUG_LOCKS_WARN_ON(irqs_disabled_flags(flags)))
 		return;
 
+	/* Disable lockdep if explicitly requested */
+	if (gfp_mask & __GFP_NOLOCKDEP)
+		return;
+
 	mark_held_locks(curr, RECLAIM_FS);
 }
 
