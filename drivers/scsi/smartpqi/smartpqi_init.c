@@ -1448,24 +1448,66 @@ static enum pqi_find_result pqi_scsi_find_entry(struct pqi_ctrl_info *ctrl_info,
 	return DEVICE_NOT_FOUND;
 }
 
+#define PQI_DEV_INFO_BUFFER_LENGTH	128
+
 static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 	char *action, struct pqi_scsi_dev *device)
 {
-	dev_info(&ctrl_info->pci_dev->dev,
-		"%s scsi %d:%d:%d:%d: %s %.8s %.16s %-12s SSDSmartPathCap%c En%c qd=%d\n",
-		action,
-		ctrl_info->scsi_host->host_no,
-		device->bus,
-		device->target,
-		device->lun,
+	ssize_t count;
+	char buffer[PQI_DEV_INFO_BUFFER_LENGTH];
+
+	count = snprintf(buffer, PQI_DEV_INFO_BUFFER_LENGTH,
+		"%d:%d:", ctrl_info->scsi_host->host_no, device->bus);
+
+	if (device->target_lun_valid)
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			"%d:%d",
+			device->target,
+			device->lun);
+	else
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			"-:-");
+
+	if (pqi_is_logical_device(device))
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			" %08x%08x",
+			*((u32 *)&device->scsi3addr),
+			*((u32 *)&device->scsi3addr[4]));
+	else
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			" %016llx", device->sas_address);
+
+	count += snprintf(buffer + count, PQI_DEV_INFO_BUFFER_LENGTH - count,
+		" %s %.8s %.16s ",
 		scsi_device_type(device->devtype),
 		device->vendor,
-		device->model,
-		pqi_is_logical_device(device) ?
-			pqi_raid_level_to_string(device->raid_level) : "",
-		device->offload_configured ? '+' : '-',
-		device->offload_enabled_pending ? '+' : '-',
-		device->queue_depth);
+		device->model);
+
+	if (pqi_is_logical_device(device)) {
+		if (device->devtype == TYPE_DISK)
+			count += snprintf(buffer + count,
+				PQI_DEV_INFO_BUFFER_LENGTH - count,
+				"SSDSmartPathCap%c En%c %-12s",
+				device->offload_configured ? '+' : '-',
+				(device->offload_enabled ||
+				device->offload_enabled_pending) ? '+' : '-',
+				pqi_raid_level_to_string(device->raid_level));
+	} else {
+		count += snprintf(buffer + count,
+			PQI_DEV_INFO_BUFFER_LENGTH - count,
+			"AIO%c", device->aio_enabled ? '+' : '-');
+		if (device->devtype == TYPE_DISK ||
+			device->devtype == TYPE_ZBC)
+			count += snprintf(buffer + count,
+				PQI_DEV_INFO_BUFFER_LENGTH - count,
+				" qd=%-6d", device->queue_depth);
+	}
+
+	dev_info(&ctrl_info->pci_dev->dev, "%s %s\n", action, buffer);
 }
 
 /* Assumes the SCSI device list lock is held. */
@@ -1638,14 +1680,14 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	/* Remove all devices that have gone away. */
 	list_for_each_entry_safe(device, next, &delete_list,
 		delete_list_entry) {
-		if (device->sdev)
-			pqi_remove_device(ctrl_info, device);
 		if (device->volume_offline) {
 			pqi_dev_info(ctrl_info, "offline", device);
 			pqi_show_volume_status(ctrl_info, device);
 		} else {
 			pqi_dev_info(ctrl_info, "removed", device);
 		}
+		if (device->sdev)
+			pqi_remove_device(ctrl_info, device);
 		list_del(&device->delete_list_entry);
 		pqi_free_device(device);
 	}
@@ -1667,6 +1709,7 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	/* Expose any new devices. */
 	list_for_each_entry_safe(device, next, &add_list, add_list_entry) {
 		if (!device->sdev) {
+			pqi_dev_info(ctrl_info, "added", device);
 			rc = pqi_add_device(ctrl_info, device);
 			if (rc) {
 				dev_warn(&ctrl_info->pci_dev->dev,
@@ -1675,10 +1718,8 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 					device->bus, device->target,
 					device->lun);
 				pqi_fixup_botched_add(ctrl_info, device);
-				continue;
 			}
 		}
-		pqi_dev_info(ctrl_info, "added", device);
 	}
 }
 
@@ -1738,7 +1779,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 	bool is_physical_device;
 	u8 *scsi3addr;
 	static char *out_of_memory_msg =
-		"out of memory, device discovery stopped";
+		"failed to allocate memory, device discovery stopped";
 
 	INIT_LIST_HEAD(&new_device_list_head);
 
@@ -1839,9 +1880,16 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			goto out;
 		}
 		if (rc) {
-			dev_warn(&ctrl_info->pci_dev->dev,
-				"obtaining device info failed, skipping device %016llx\n",
-				get_unaligned_be64(device->scsi3addr));
+			if (device->is_physical_device)
+				dev_warn(&ctrl_info->pci_dev->dev,
+					"obtaining device info failed, skipping physical device %016llx\n",
+					get_unaligned_be64(
+						&phys_lun_ext_entry->wwid));
+			else
+				dev_warn(&ctrl_info->pci_dev->dev,
+					"obtaining device info failed, skipping logical device %08x%08x\n",
+					*((u32 *)&device->scsi3addr),
+					*((u32 *)&device->scsi3addr[4]));
 			rc = 0;
 			continue;
 		}
