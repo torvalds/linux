@@ -694,7 +694,8 @@ struct pqi_config_table_heartbeat {
 #define PQI_PHYSICAL_DEVICE_BUS		0
 #define PQI_RAID_VOLUME_BUS		1
 #define PQI_HBA_BUS			2
-#define PQI_MAX_BUS			PQI_HBA_BUS
+#define PQI_EXTERNAL_RAID_VOLUME_BUS	3
+#define PQI_MAX_BUS			PQI_EXTERNAL_RAID_VOLUME_BUS
 
 struct report_lun_header {
 	__be32	list_length;
@@ -781,6 +782,7 @@ struct pqi_scsi_dev {
 	__be64	wwid;
 	u8	volume_id[16];
 	u8	is_physical_device : 1;
+	u8	is_external_raid_device : 1;
 	u8	target_lun_valid : 1;
 	u8	expose_device : 1;
 	u8	no_uld_attach : 1;
@@ -1056,10 +1058,10 @@ enum pqi_ctrl_mode {
 #define SA_CACHE_FLUSH				0x1
 
 #define MASKED_DEVICE(lunid)			((lunid)[3] & 0xc0)
-#define CISS_GET_BUS(lunid)			((lunid)[7] & 0x3f)
+#define CISS_GET_LEVEL_2_BUS(lunid)		((lunid)[7] & 0x3f)
 #define CISS_GET_LEVEL_2_TARGET(lunid)		((lunid)[6])
 #define CISS_GET_DRIVE_NUMBER(lunid)		\
-	(((CISS_GET_BUS((lunid)) - 1) << 8) +	\
+	(((CISS_GET_LEVEL_2_BUS((lunid)) - 1) << 8) + \
 	CISS_GET_LEVEL_2_TARGET((lunid)))
 
 #define NO_TIMEOUT		((unsigned long) -1)
