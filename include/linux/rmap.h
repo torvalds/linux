@@ -298,6 +298,5 @@ static inline int page_mkclean(struct page *page)
 #define SWAP_AGAIN	1
 #define SWAP_FAIL	2
 #define SWAP_MLOCK	3
-#define SWAP_DIRTY	4
 
 #endif	/* _LINUX_RMAP_H */

@@ -1147,9 +1147,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (page_mapped(page)) {
 			switch (ret = try_to_unmap(page,
 				ttu_flags | TTU_BATCH_FLUSH)) {
-			case SWAP_DIRTY:
-				SetPageSwapBacked(page);
-				/* fall through */
 			case SWAP_FAIL:
 				nr_unmap_fail++;
 				goto activate_locked;
