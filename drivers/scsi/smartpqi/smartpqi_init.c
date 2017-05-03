@@ -5437,6 +5437,13 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	return 0;
 }
 
+static inline int pqi_set_pcie_completion_timeout(struct pci_dev *pci_dev,
+	u16 timeout)
+{
+	return pcie_capability_clear_and_set_word(pci_dev, PCI_EXP_DEVCTL2,
+		PCI_EXP_DEVCTL2_COMP_TIMEOUT, timeout);
+}
+
 static int pqi_pci_init(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
@@ -5479,6 +5486,17 @@ static int pqi_pci_init(struct pqi_ctrl_info *ctrl_info)
 
 	ctrl_info->registers = ctrl_info->iomem_base;
 	ctrl_info->pqi_registers = &ctrl_info->registers->pqi_registers;
+
+#define PCI_EXP_COMP_TIMEOUT_65_TO_210_MS		0x6
+
+	/* Increase the PCIe completion timeout. */
+	rc = pqi_set_pcie_completion_timeout(ctrl_info->pci_dev,
+		PCI_EXP_COMP_TIMEOUT_65_TO_210_MS);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"failed to set PCIe completion timeout\n");
+		goto release_regions;
+	}
 
 	/* Enable bus mastering. */
 	pci_set_master(ctrl_info->pci_dev);
