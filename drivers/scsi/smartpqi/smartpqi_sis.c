@@ -102,8 +102,11 @@ static int sis_wait_for_ctrl_ready_with_timeout(struct pqi_ctrl_info *ctrl_info,
 			if (status & SIS_CTRL_KERNEL_UP)
 				break;
 		}
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout)) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"controller not ready\n");
 			return -ETIMEDOUT;
+		}
 		msleep(SIS_CTRL_READY_POLL_INTERVAL_MSECS);
 	}
 

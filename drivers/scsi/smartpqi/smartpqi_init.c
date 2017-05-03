@@ -5796,11 +5796,8 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	 * commands.
 	 */
 	rc = sis_wait_for_ctrl_ready(ctrl_info);
-	if (rc) {
-		dev_err(&ctrl_info->pci_dev->dev,
-			"error initializing SIS interface\n");
+	if (rc)
 		return rc;
-	}
 
 	/*
 	 * Get the controller properties.  This allows us to determine
