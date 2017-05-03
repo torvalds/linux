@@ -1389,7 +1389,7 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 	dm_logger_write(link->ctx->logger, LOG_BACKLIGHT,
 			"New Backlight level: %d (0x%X)\n", level, level);
 
-	if (link->device_tag.dev_id.device_type == DEVICE_TYPE_LCD) {
+	if (dc_is_embedded_signal(dc_link->connector_signal)) {
 		if (stream != NULL) {
 			core_stream = DC_STREAM_TO_CORE(stream);
 			for (i = 0; i < MAX_PIPES; i++) {
