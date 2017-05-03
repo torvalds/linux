@@ -708,33 +708,34 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 	}
 
 	seqno = i915_gem_request_global_seqno(from);
-	if (!seqno) {
-		ret = i915_sw_fence_await_dma_fence(&to->submit,
-						    &from->fence, 0,
-						    GFP_KERNEL);
-		return ret < 0 ? ret : 0;
-	}
+	if (!seqno)
+		goto await_dma_fence;
 
-	if (seqno <= to->timeline->global_sync[from->engine->id])
-		return 0;
-
-	trace_i915_gem_ring_sync_to(to, from);
 	if (!i915.semaphores) {
-		if (!i915_spin_request(from, TASK_INTERRUPTIBLE, 2)) {
-			ret = i915_sw_fence_await_dma_fence(&to->submit,
-							    &from->fence, 0,
-							    GFP_KERNEL);
-			if (ret < 0)
-				return ret;
-		}
+		if (!__i915_gem_request_started(from, seqno))
+			goto await_dma_fence;
+
+		if (!__i915_spin_request(from, seqno, TASK_INTERRUPTIBLE, 2))
+			goto await_dma_fence;
 	} else {
+		if (seqno <= to->timeline->global_sync[from->engine->id])
+			return 0;
+
+		trace_i915_gem_ring_sync_to(to, from);
 		ret = to->engine->semaphore.sync_to(to, from);
 		if (ret)
 			return ret;
+
+		to->timeline->global_sync[from->engine->id] = seqno;
 	}
 
-	to->timeline->global_sync[from->engine->id] = seqno;
 	return 0;
+
+await_dma_fence:
+	ret = i915_sw_fence_await_dma_fence(&to->submit,
+					    &from->fence, 0,
+					    GFP_KERNEL);
+	return ret < 0 ? ret : 0;
 }
 
 int
