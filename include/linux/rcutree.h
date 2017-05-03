@@ -91,10 +91,7 @@ void exit_rcu(void);
 
 void rcu_scheduler_starting(void);
 extern int rcu_scheduler_active __read_mostly;
-
 bool rcu_is_watching(void);
-void rcu_request_urgent_qs_task(struct task_struct *t);
-
 void rcu_all_qs(void);
 
 /* RCUtree hotplug events */

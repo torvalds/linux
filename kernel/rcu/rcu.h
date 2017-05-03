@@ -335,6 +335,12 @@ void rcupdate_announce_bootup_oddness(void);
 #define RCU_SCHEDULER_INIT	1
 #define RCU_SCHEDULER_RUNNING	2
 
+#ifdef CONFIG_TINY_RCU
+static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
+#else /* #ifdef CONFIG_TINY_RCU */
+void rcu_request_urgent_qs_task(struct task_struct *t);
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
 enum rcutorture_type {
 	RCU_FLAVOR,
 	RCU_BH_FLAVOR,

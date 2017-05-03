@@ -157,10 +157,6 @@ static inline bool rcu_is_watching(void)
 	return true;
 }
 
-static inline void rcu_request_urgent_qs_task(struct task_struct *t)
-{
-}
-
 static inline void rcu_all_qs(void)
 {
 	barrier(); /* Avoid RCU read-side critical sections leaking across. */
