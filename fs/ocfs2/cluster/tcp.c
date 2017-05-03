@@ -955,7 +955,7 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 		mutex_lock(&sc->sc_send_lock);
 		ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
 						 virt_to_page(kmalloced_virt),
-						 (long)kmalloced_virt & ~PAGE_MASK,
+						 offset_in_page(kmalloced_virt),
 						 size, MSG_DONTWAIT);
 		mutex_unlock(&sc->sc_send_lock);
 		if (ret == size)
