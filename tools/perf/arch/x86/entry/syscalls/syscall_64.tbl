@@ -338,6 +338,7 @@
 329	common	pkey_mprotect		sys_pkey_mprotect
 330	common	pkey_alloc		sys_pkey_alloc
 331	common	pkey_free		sys_pkey_free
+332	common	statx			sys_statx
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact

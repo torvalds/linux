@@ -5,7 +5,6 @@
 #define SBUILD_ID_SIZE	(BUILD_ID_SIZE * 2 + 1)
 
 #include "tool.h"
-#include "strlist.h"
 #include <linux/types.h>
 
 extern struct perf_tool build_id__mark_dso_hit_ops;
@@ -34,6 +33,9 @@ char *build_id_cache__origname(const char *sbuild_id);
 char *build_id_cache__linkname(const char *sbuild_id, char *bf, size_t size);
 char *build_id_cache__cachedir(const char *sbuild_id, const char *name,
 			       bool is_kallsyms, bool is_vdso);
+
+struct strlist;
+
 struct strlist *build_id_cache__list_all(bool validonly);
 char *build_id_cache__complement(const char *incomplete_sbuild_id);
 int build_id_cache__list_build_ids(const char *pathname,
@@ -42,6 +44,10 @@ bool build_id_cache__cached(const char *sbuild_id);
 int build_id_cache__add_s(const char *sbuild_id,
 			  const char *name, bool is_kallsyms, bool is_vdso);
 int build_id_cache__remove_s(const char *sbuild_id);
+
+extern char buildid_dir[];
+
+void set_buildid_dir(const char *dir);
 void disable_buildid_cache(void);
 
 #endif

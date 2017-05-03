@@ -3,13 +3,13 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 
 #include "perf.h"
 #include "util/debug.h"
 
 struct cpu_map {
-	atomic_t refcnt;
+	refcount_t refcnt;
 	int nr;
 	int map[];
 };
@@ -20,6 +20,7 @@ struct cpu_map *cpu_map__dummy_new(void);
 struct cpu_map *cpu_map__new_data(struct cpu_map_data *data);
 struct cpu_map *cpu_map__read(FILE *file);
 size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size);
+size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size);
 size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp);
 int cpu_map__get_socket_id(int cpu);
 int cpu_map__get_socket(struct cpu_map *map, int idx, void *data);

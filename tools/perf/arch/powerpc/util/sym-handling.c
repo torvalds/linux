@@ -10,6 +10,7 @@
 #include "symbol.h"
 #include "map.h"
 #include "probe-event.h"
+#include "probe-file.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
@@ -51,6 +52,18 @@ int arch__compare_symbol_names(const char *namea, const char *nameb)
 
 	return strcmp(namea, nameb);
 }
+
+int arch__compare_symbol_names_n(const char *namea, const char *nameb,
+				 unsigned int n)
+{
+	/* Skip over initial dot */
+	if (*namea == '.')
+		namea++;
+	if (*nameb == '.')
+		nameb++;
+
+	return strncmp(namea, nameb, n);
+}
 #endif
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2
@@ -79,12 +92,17 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 	 * However, if the user specifies an offset, we fall back to using the
 	 * GEP since all userspace applications (objdump/readelf) show function
 	 * disassembly with offsets from the GEP.
-	 *
-	 * In addition, we shouldn't specify an offset for kretprobes.
 	 */
-	if (pev->point.offset || (!pev->uprobes && pev->point.retprobe) ||
-	    !map || !sym)
+	if (pev->point.offset || !map || !sym)
 		return;
+
+	/* For kretprobes, add an offset only if the kernel supports it */
+	if (!pev->uprobes && pev->point.retprobe) {
+#ifdef HAVE_LIBELF_SUPPORT
+		if (!kretprobe_offset_is_supported())
+#endif
+			return;
+	}
 
 	lep_offset = PPC64_LOCAL_ENTRY_OFFSET(sym->arch_sym);
 

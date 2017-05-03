@@ -3,6 +3,9 @@
 #include "stat.h"
 #include "color.h"
 #include "pmu.h"
+#include "rblist.h"
+#include "evlist.h"
+#include "expr.h"
 
 enum {
 	CTX_BIT_USER	= 1 << 0,
@@ -41,13 +44,73 @@ static struct stats runtime_topdown_slots_issued[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_topdown_slots_retired[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_topdown_fetch_bubbles[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_topdown_recovery_bubbles[NUM_CTX][MAX_NR_CPUS];
+static struct rblist runtime_saved_values;
 static bool have_frontend_stalled;
 
 struct stats walltime_nsecs_stats;
 
+struct saved_value {
+	struct rb_node rb_node;
+	struct perf_evsel *evsel;
+	int cpu;
+	int ctx;
+	struct stats stats;
+};
+
+static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
+{
+	struct saved_value *a = container_of(rb_node,
+					     struct saved_value,
+					     rb_node);
+	const struct saved_value *b = entry;
+
+	if (a->ctx != b->ctx)
+		return a->ctx - b->ctx;
+	if (a->cpu != b->cpu)
+		return a->cpu - b->cpu;
+	return a->evsel - b->evsel;
+}
+
+static struct rb_node *saved_value_new(struct rblist *rblist __maybe_unused,
+				     const void *entry)
+{
+	struct saved_value *nd = malloc(sizeof(struct saved_value));
+
+	if (!nd)
+		return NULL;
+	memcpy(nd, entry, sizeof(struct saved_value));
+	return &nd->rb_node;
+}
+
+static struct saved_value *saved_value_lookup(struct perf_evsel *evsel,
+					      int cpu, int ctx,
+					      bool create)
+{
+	struct rb_node *nd;
+	struct saved_value dm = {
+		.cpu = cpu,
+		.ctx = ctx,
+		.evsel = evsel,
+	};
+	nd = rblist__find(&runtime_saved_values, &dm);
+	if (nd)
+		return container_of(nd, struct saved_value, rb_node);
+	if (create) {
+		rblist__add_node(&runtime_saved_values, &dm);
+		nd = rblist__find(&runtime_saved_values, &dm);
+		if (nd)
+			return container_of(nd, struct saved_value, rb_node);
+	}
+	return NULL;
+}
+
 void perf_stat__init_shadow_stats(void)
 {
 	have_frontend_stalled = pmu_have_event("cpu", "stalled-cycles-frontend");
+	rblist__init(&runtime_saved_values);
+	runtime_saved_values.node_cmp = saved_value_cmp;
+	runtime_saved_values.node_new = saved_value_new;
+	/* No delete for now */
 }
 
 static int evsel_context(struct perf_evsel *evsel)
@@ -70,6 +133,8 @@ static int evsel_context(struct perf_evsel *evsel)
 
 void perf_stat__reset_shadow_stats(void)
 {
+	struct rb_node *pos, *next;
+
 	memset(runtime_nsecs_stats, 0, sizeof(runtime_nsecs_stats));
 	memset(runtime_cycles_stats, 0, sizeof(runtime_cycles_stats));
 	memset(runtime_stalled_cycles_front_stats, 0, sizeof(runtime_stalled_cycles_front_stats));
@@ -92,6 +157,15 @@ void perf_stat__reset_shadow_stats(void)
 	memset(runtime_topdown_slots_issued, 0, sizeof(runtime_topdown_slots_issued));
 	memset(runtime_topdown_fetch_bubbles, 0, sizeof(runtime_topdown_fetch_bubbles));
 	memset(runtime_topdown_recovery_bubbles, 0, sizeof(runtime_topdown_recovery_bubbles));
+
+	next = rb_first(&runtime_saved_values.entries);
+	while (next) {
+		pos = next;
+		next = rb_next(pos);
+		memset(&container_of(pos, struct saved_value, rb_node)->stats,
+		       0,
+		       sizeof(struct stats));
+	}
 }
 
 /*
@@ -143,6 +217,12 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 		update_stats(&runtime_dtlb_cache_stats[ctx][cpu], count[0]);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
 		update_stats(&runtime_itlb_cache_stats[ctx][cpu], count[0]);
+
+	if (counter->collect_stat) {
+		struct saved_value *v = saved_value_lookup(counter, cpu, ctx,
+							   true);
+		update_stats(&v->stats, count[0]);
+	}
 }
 
 /* used for get_ratio_color() */
@@ -170,6 +250,95 @@ static const char *get_ratio_color(enum grc_type type, double ratio)
 		color = PERF_COLOR_YELLOW;
 
 	return color;
+}
+
+static struct perf_evsel *perf_stat__find_event(struct perf_evlist *evsel_list,
+						const char *name)
+{
+	struct perf_evsel *c2;
+
+	evlist__for_each_entry (evsel_list, c2) {
+		if (!strcasecmp(c2->name, name))
+			return c2;
+	}
+	return NULL;
+}
+
+/* Mark MetricExpr target events and link events using them to them. */
+void perf_stat__collect_metric_expr(struct perf_evlist *evsel_list)
+{
+	struct perf_evsel *counter, *leader, **metric_events, *oc;
+	bool found;
+	const char **metric_names;
+	int i;
+	int num_metric_names;
+
+	evlist__for_each_entry(evsel_list, counter) {
+		bool invalid = false;
+
+		leader = counter->leader;
+		if (!counter->metric_expr)
+			continue;
+		metric_events = counter->metric_events;
+		if (!metric_events) {
+			if (expr__find_other(counter->metric_expr, counter->name,
+						&metric_names, &num_metric_names) < 0)
+				continue;
+
+			metric_events = calloc(sizeof(struct perf_evsel *),
+					       num_metric_names + 1);
+			if (!metric_events)
+				return;
+			counter->metric_events = metric_events;
+		}
+
+		for (i = 0; i < num_metric_names; i++) {
+			found = false;
+			if (leader) {
+				/* Search in group */
+				for_each_group_member (oc, leader) {
+					if (!strcasecmp(oc->name, metric_names[i])) {
+						found = true;
+						break;
+					}
+				}
+			}
+			if (!found) {
+				/* Search ignoring groups */
+				oc = perf_stat__find_event(evsel_list, metric_names[i]);
+			}
+			if (!oc) {
+				/* Deduping one is good enough to handle duplicated PMUs. */
+				static char *printed;
+
+				/*
+				 * Adding events automatically would be difficult, because
+				 * it would risk creating groups that are not schedulable.
+				 * perf stat doesn't understand all the scheduling constraints
+				 * of events. So we ask the user instead to add the missing
+				 * events.
+				 */
+				if (!printed || strcasecmp(printed, metric_names[i])) {
+					fprintf(stderr,
+						"Add %s event to groups to get metric expression for %s\n",
+						metric_names[i],
+						counter->name);
+					printed = strdup(metric_names[i]);
+				}
+				invalid = true;
+				continue;
+			}
+			metric_events[i] = oc;
+			oc->collect_stat = true;
+		}
+		metric_events[i] = NULL;
+		free(metric_names);
+		if (invalid) {
+			free(metric_events);
+			counter->metric_events = NULL;
+			counter->metric_expr = NULL;
+		}
+	}
 }
 
 static void print_stalled_cycles_frontend(int cpu,
@@ -614,6 +783,34 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 					be_bound * 100.);
 		else
 			print_metric(ctxp, NULL, NULL, name, 0);
+	} else if (evsel->metric_expr) {
+		struct parse_ctx pctx;
+		int i;
+
+		expr__ctx_init(&pctx);
+		expr__add_id(&pctx, evsel->name, avg);
+		for (i = 0; evsel->metric_events[i]; i++) {
+			struct saved_value *v;
+
+			v = saved_value_lookup(evsel->metric_events[i], cpu, ctx, false);
+			if (!v)
+				break;
+			expr__add_id(&pctx, evsel->metric_events[i]->name,
+					     avg_stats(&v->stats));
+		}
+		if (!evsel->metric_events[i]) {
+			const char *p = evsel->metric_expr;
+
+			if (expr__parse(&ratio, &pctx, &p) == 0)
+				print_metric(ctxp, NULL, "%8.1f",
+					evsel->metric_name ?
+					evsel->metric_name :
+					out->force_header ?  evsel->name : "",
+					ratio);
+			else
+				print_metric(ctxp, NULL, NULL, "", 0);
+		} else
+			print_metric(ctxp, NULL, NULL, "", 0);
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
 		char unit = 'M';
 		char unit_buf[10];

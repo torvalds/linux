@@ -1,6 +1,6 @@
+#include <errno.h>
 #include <stdio.h>
 #include <sys/epoll.h>
-#include <util/util.h>
 #include <util/evlist.h>
 #include <linux/filter.h>
 #include "tests.h"
@@ -43,7 +43,7 @@ static char *get_self_path(void)
 {
 	char *buf = calloc(PATH_MAX, sizeof(char));
 
-	if (buf && readlink("/proc/self/exe", buf, PATH_MAX) < 0) {
+	if (buf && readlink("/proc/self/exe", buf, PATH_MAX - 1) < 0) {
 		pr_debug("Failed to get correct path of perf\n");
 		free(buf);
 		return NULL;

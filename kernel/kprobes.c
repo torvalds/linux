@@ -1391,26 +1391,29 @@ bool within_kprobe_blacklist(unsigned long addr)
  * This returns encoded errors if it fails to look up symbol or invalid
  * combination of parameters.
  */
-static kprobe_opcode_t *kprobe_addr(struct kprobe *p)
+static kprobe_opcode_t *_kprobe_addr(kprobe_opcode_t *addr,
+			const char *symbol_name, unsigned int offset)
 {
-	kprobe_opcode_t *addr = p->addr;
-
-	if ((p->symbol_name && p->addr) ||
-	    (!p->symbol_name && !p->addr))
+	if ((symbol_name && addr) || (!symbol_name && !addr))
 		goto invalid;
 
-	if (p->symbol_name) {
-		kprobe_lookup_name(p->symbol_name, addr);
+	if (symbol_name) {
+		kprobe_lookup_name(symbol_name, addr);
 		if (!addr)
 			return ERR_PTR(-ENOENT);
 	}
 
-	addr = (kprobe_opcode_t *)(((char *)addr) + p->offset);
+	addr = (kprobe_opcode_t *)(((char *)addr) + offset);
 	if (addr)
 		return addr;
 
 invalid:
 	return ERR_PTR(-EINVAL);
+}
+
+static kprobe_opcode_t *kprobe_addr(struct kprobe *p)
+{
+	return _kprobe_addr(p->addr, p->symbol_name, p->offset);
 }
 
 /* Check passed kprobe is valid and return kprobe in kprobe_table. */
@@ -1740,11 +1743,12 @@ void unregister_kprobes(struct kprobe **kps, int num)
 }
 EXPORT_SYMBOL_GPL(unregister_kprobes);
 
-int __weak __kprobes kprobe_exceptions_notify(struct notifier_block *self,
-					      unsigned long val, void *data)
+int __weak kprobe_exceptions_notify(struct notifier_block *self,
+					unsigned long val, void *data)
 {
 	return NOTIFY_DONE;
 }
+NOKPROBE_SYMBOL(kprobe_exceptions_notify);
 
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,
@@ -1875,12 +1879,34 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(pre_handler_kretprobe);
 
+bool __weak arch_function_offset_within_entry(unsigned long offset)
+{
+	return !offset;
+}
+
+bool function_offset_within_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset)
+{
+	kprobe_opcode_t *kp_addr = _kprobe_addr(addr, sym, offset);
+
+	if (IS_ERR(kp_addr))
+		return false;
+
+	if (!kallsyms_lookup_size_offset((unsigned long)kp_addr, NULL, &offset) ||
+						!arch_function_offset_within_entry(offset))
+		return false;
+
+	return true;
+}
+
 int register_kretprobe(struct kretprobe *rp)
 {
 	int ret = 0;
 	struct kretprobe_instance *inst;
 	int i;
 	void *addr;
+
+	if (!function_offset_within_entry(rp->kp.addr, rp->kp.symbol_name, rp->kp.offset))
+		return -EINVAL;
 
 	if (kretprobe_blacklist_size) {
 		addr = kprobe_addr(&rp->kp);
