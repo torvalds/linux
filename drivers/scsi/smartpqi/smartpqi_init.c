@@ -2913,21 +2913,42 @@ static int pqi_request_irqs(struct pqi_ctrl_info *ctrl_info)
 	return 0;
 }
 
+static void pqi_free_irqs(struct pqi_ctrl_info *ctrl_info)
+{
+	int i;
+
+	for (i = 0; i < ctrl_info->num_msix_vectors_initialized; i++)
+		free_irq(pci_irq_vector(ctrl_info->pci_dev, i),
+			&ctrl_info->queue_groups[i]);
+
+	ctrl_info->num_msix_vectors_initialized = 0;
+}
+
 static int pqi_enable_msix_interrupts(struct pqi_ctrl_info *ctrl_info)
 {
-	int ret;
+	int num_vectors_enabled;
 
-	ret = pci_alloc_irq_vectors(ctrl_info->pci_dev,
+	num_vectors_enabled = pci_alloc_irq_vectors(ctrl_info->pci_dev,
 			PQI_MIN_MSIX_VECTORS, ctrl_info->num_queue_groups,
 			PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
-	if (ret < 0) {
+	if (num_vectors_enabled < 0) {
 		dev_err(&ctrl_info->pci_dev->dev,
-			"MSI-X init failed with error %d\n", ret);
-		return ret;
+			"MSI-X init failed with error %d\n",
+			num_vectors_enabled);
+		return num_vectors_enabled;
 	}
 
-	ctrl_info->num_msix_vectors_enabled = ret;
+	ctrl_info->num_msix_vectors_enabled = num_vectors_enabled;
+
 	return 0;
+}
+
+static void pqi_disable_msix_interrupts(struct pqi_ctrl_info *ctrl_info)
+{
+	if (ctrl_info->num_msix_vectors_enabled) {
+		pci_free_irq_vectors(ctrl_info->pci_dev);
+		ctrl_info->num_msix_vectors_enabled = 0;
+	}
 }
 
 static int pqi_alloc_operational_queues(struct pqi_ctrl_info *ctrl_info)
@@ -5519,14 +5540,8 @@ static inline void pqi_free_ctrl_info(struct pqi_ctrl_info *ctrl_info)
 
 static void pqi_free_interrupts(struct pqi_ctrl_info *ctrl_info)
 {
-	int i;
-
-	for (i = 0; i < ctrl_info->num_msix_vectors_initialized; i++) {
-		free_irq(pci_irq_vector(ctrl_info->pci_dev, i),
-				&ctrl_info->queue_groups[i]);
-	}
-
-	pci_free_irq_vectors(ctrl_info->pci_dev);
+	pqi_free_irqs(ctrl_info);
+	pqi_disable_msix_interrupts(ctrl_info);
 }
 
 static void pqi_free_ctrl_resources(struct pqi_ctrl_info *ctrl_info)
