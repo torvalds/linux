@@ -30,8 +30,9 @@
 #include <linux/seqlock.h>
 #include <linux/swait.h>
 #include <linux/stop_machine.h>
-#include <linux/rcu_segcblist.h>
 #include <linux/rcu_node_tree.h>
+
+#include "rcu_segcblist.h"
 
 /*
  * Dynticks per-CPU state.

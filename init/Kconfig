@@ -573,6 +573,9 @@ config RCU_STALL_COMMON
 	  the tiny variants to disable RCU CPU stall warnings, while
 	  making these warnings mandatory for the tree variants.
 
+config RCU_NEED_SEGCBLIST
+	def_bool ( TREE_RCU || PREEMPT_RCU || TINY_SRCU || TREE_SRCU )
+
 config CONTEXT_TRACKING
        bool
 
