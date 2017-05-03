@@ -1296,14 +1296,13 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
 }
 
-static inline struct agg_tx_status*
-iwl_mvm_get_agg_status(struct iwl_mvm *mvm,
-		       struct iwl_mvm_tx_resp *tx_resp)
+static inline struct agg_tx_status *
+iwl_mvm_get_agg_status(struct iwl_mvm *mvm, void *tx_resp)
 {
 	if (iwl_mvm_has_new_tx_api(mvm))
-		return &tx_resp->v6.status;
+		return &((struct iwl_mvm_tx_resp *)tx_resp)->status;
 	else
-		return &tx_resp->v3.status;
+		return ((struct iwl_mvm_tx_resp_v3 *)tx_resp)->status;
 }
 
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)

@@ -1331,6 +1331,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	struct ieee80211_sta *sta;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
+	/* struct iwl_mvm_tx_resp_v3 is almost the same */
 	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
 	int sta_id = IWL_MVM_TX_RES_GET_RA(tx_resp->ra_tid);
 	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
@@ -1348,7 +1349,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	__skb_queue_head_init(&skbs);
 
 	if (iwl_mvm_has_new_tx_api(mvm))
-		txq_id = le16_to_cpu(tx_resp->v6.tx_queue);
+		txq_id = le16_to_cpu(tx_resp->tx_queue);
 
 	seq_ctl = le16_to_cpu(tx_resp->seq_ctl);
 

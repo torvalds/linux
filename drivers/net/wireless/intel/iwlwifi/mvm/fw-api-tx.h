@@ -513,7 +513,7 @@ struct agg_tx_status {
 #define IWL_MVM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
 
 /**
- * struct iwl_mvm_tx_resp - notifies that fw is TXing a packet
+ * struct iwl_mvm_tx_resp_v3 - notifies that fw is TXing a packet
  * ( REPLY_TX = 0x1c )
  * @frame_count: 1 no aggregation, >1 aggregation
  * @bt_kill_count: num of times blocked by bluetooth (unused for agg)
@@ -540,7 +540,63 @@ struct agg_tx_status {
  * @tx_queue: TX queue for this response
  * @status: for non-agg:  frame status TX_STATUS_*
  *	for agg: status of 1st frame, AGG_TX_STATE_*; other frame status fields
- *	follow this one, up to frame_count.
+ *	follow this one, up to frame_count. Length in @frame_count.
+ *
+ * After the array of statuses comes the SSN of the SCD. Look at
+ * %iwl_mvm_get_scd_ssn for more details.
+ */
+struct iwl_mvm_tx_resp_v3 {
+	u8 frame_count;
+	u8 bt_kill_count;
+	u8 failure_rts;
+	u8 failure_frame;
+	__le32 initial_rate;
+	__le16 wireless_media_time;
+
+	u8 pa_status;
+	u8 pa_integ_res_a[3];
+	u8 pa_integ_res_b[3];
+	u8 pa_integ_res_c[3];
+	__le16 measurement_req_id;
+	u8 reduced_tpc;
+	u8 reserved;
+
+	__le32 tfd_info;
+	__le16 seq_ctl;
+	__le16 byte_cnt;
+	u8 tlc_info;
+	u8 ra_tid;
+	__le16 frame_ctrl;
+	struct agg_tx_status status[];
+} __packed; /* TX_RSP_API_S_VER_3 */
+
+/**
+ * struct iwl_mvm_tx_resp - notifies that fw is TXing a packet
+ * ( REPLY_TX = 0x1c )
+ * @frame_count: 1 no aggregation, >1 aggregation
+ * @bt_kill_count: num of times blocked by bluetooth (unused for agg)
+ * @failure_rts: num of failures due to unsuccessful RTS
+ * @failure_frame: num failures due to no ACK (unused for agg)
+ * @initial_rate: for non-agg: rate of the successful Tx. For agg: rate of the
+ *	Tx of all the batch. RATE_MCS_*
+ * @wireless_media_time: for non-agg: RTS + CTS + frame tx attempts time + ACK.
+ *	for agg: RTS + CTS + aggregation tx time + block-ack time.
+ *	in usec.
+ * @pa_status: tx power info
+ * @pa_integ_res_a: tx power info
+ * @pa_integ_res_b: tx power info
+ * @pa_integ_res_c: tx power info
+ * @measurement_req_id: tx power info
+ * @reduced_tpc: transmit power reduction used
+ * @reserved: reserved
+ * @tfd_info: TFD information set by the FH
+ * @seq_ctl: sequence control from the Tx cmd
+ * @byte_cnt: byte count from the Tx cmd
+ * @tlc_info: TLC rate info
+ * @ra_tid: bits [3:0] = ra, bits [7:4] = tid
+ * @frame_ctrl: frame control
+ * @tx_queue: TX queue for this response
+ * @status: for non-agg:  frame status TX_STATUS_*
  *	For version 6 TX response isn't received for aggregation at all.
  *
  * After the array of statuses comes the SSN of the SCD. Look at
@@ -568,16 +624,9 @@ struct iwl_mvm_tx_resp {
 	u8 tlc_info;
 	u8 ra_tid;
 	__le16 frame_ctrl;
-	union {
-		struct {
-			struct agg_tx_status status;
-		} v3;/* TX_RSP_API_S_VER_3 */
-		struct {
-			__le16 tx_queue;
-			__le16 reserved2;
-			struct agg_tx_status status;
-		} v6;
-	};
+	__le16 tx_queue;
+	__le16 reserved2;
+	struct agg_tx_status status;
 } __packed; /* TX_RSP_API_S_VER_6 */
 
 /**
