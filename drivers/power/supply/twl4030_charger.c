@@ -943,7 +943,7 @@ static int twl4030_bci_set_property(struct power_supply *psy,
 	return 0;
 }
 
-int twl4030_bci_property_is_writeable(struct power_supply *psy,
+static int twl4030_bci_property_is_writeable(struct power_supply *psy,
 				      enum power_supply_property psp)
 {
 	switch (psp) {
