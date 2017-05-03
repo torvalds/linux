@@ -194,15 +194,17 @@ static bool page_same_filled(void *ptr, unsigned long *element)
 {
 	unsigned int pos;
 	unsigned long *page;
+	unsigned long val;
 
 	page = (unsigned long *)ptr;
+	val = page[0];
 
-	for (pos = 0; pos < PAGE_SIZE / sizeof(*page) - 1; pos++) {
-		if (page[pos] != page[pos + 1])
+	for (pos = 1; pos < PAGE_SIZE / sizeof(*page); pos++) {
+		if (val != page[pos])
 			return false;
 	}
 
-	*element = page[pos];
+	*element = val;
 
 	return true;
 }
