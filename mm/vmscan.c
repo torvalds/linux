@@ -1150,8 +1150,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			case SWAP_FAIL:
 				nr_unmap_fail++;
 				goto activate_locked;
-			case SWAP_AGAIN:
-				goto keep_locked;
 			case SWAP_SUCCESS:
 				; /* try to free the page below */
 			}

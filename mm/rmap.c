@@ -1504,13 +1504,10 @@ static int page_mapcount_is_zero(struct page *page)
  * Return values are:
  *
  * SWAP_SUCCESS	- we succeeded in removing all mappings
- * SWAP_AGAIN	- we missed a mapping, try again later
  * SWAP_FAIL	- the page is unswappable
  */
 int try_to_unmap(struct page *page, enum ttu_flags flags)
 {
-	int ret;
-
 	struct rmap_walk_control rwc = {
 		.rmap_one = try_to_unmap_one,
 		.arg = (void *)flags,
@@ -1530,13 +1527,11 @@ int try_to_unmap(struct page *page, enum ttu_flags flags)
 		rwc.invalid_vma = invalid_migration_vma;
 
 	if (flags & TTU_RMAP_LOCKED)
-		ret = rmap_walk_locked(page, &rwc);
+		rmap_walk_locked(page, &rwc);
 	else
-		ret = rmap_walk(page, &rwc);
+		rmap_walk(page, &rwc);
 
-	if (!page_mapcount(page))
-		ret = SWAP_SUCCESS;
-	return ret;
+	return !page_mapcount(page) ? SWAP_SUCCESS : SWAP_FAIL;
 }
 
 static int page_not_mapped(struct page *page)
