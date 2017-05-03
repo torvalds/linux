@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Intel Corporation
+ * Copyright © 2017 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,31 +22,12 @@
  *
  */
 
-#ifndef __I915_SELFTESTS_RANDOM_H__
-#define __I915_SELFTESTS_RANDOM_H__
+#ifndef __MOCK_TIMELINE__
+#define __MOCK_TIMELINE__
 
-#include <linux/random.h>
+#include "../i915_gem_timeline.h"
 
-#include "../i915_selftest.h"
+struct intel_timeline *mock_timeline(u64 context);
+void mock_timeline_destroy(struct intel_timeline *tl);
 
-#define I915_RND_STATE_INITIALIZER(x) ({				\
-	struct rnd_state state__;					\
-	prandom_seed_state(&state__, (x));				\
-	state__;							\
-})
-
-#define I915_RND_STATE(name__) \
-	struct rnd_state name__ = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed)
-
-#define I915_RND_SUBSTATE(name__, parent__) \
-	struct rnd_state name__ = I915_RND_STATE_INITIALIZER(prandom_u32_state(&(parent__)))
-
-u64 i915_prandom_u64_state(struct rnd_state *rnd);
-
-unsigned int *i915_random_order(unsigned int count,
-				struct rnd_state *state);
-void i915_random_reorder(unsigned int *order,
-			 unsigned int count,
-			 struct rnd_state *state);
-
-#endif /* !__I915_SELFTESTS_RANDOM_H__ */
+#endif /* !__MOCK_TIMELINE__ */
