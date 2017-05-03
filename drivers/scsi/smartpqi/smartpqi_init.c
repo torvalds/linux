@@ -6982,6 +6982,22 @@ static void __attribute__((unused)) verify_structures(void)
 	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
 		controller_mode) != 292);
 
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		phys_bay_in_box) != 115);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		device_type) != 120);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		redundant_path_present_map) != 1736);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		active_path_number) != 1738);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		alternate_paths_phys_connector) != 1739);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		alternate_paths_phys_box_on_port) != 1755);
+	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+		current_queue_depth_limit) != 1796);
+	BUILD_BUG_ON(sizeof(struct bmic_identify_physical_device) != 2560);
+
 	BUILD_BUG_ON(PQI_ADMIN_IQ_NUM_ELEMENTS > 255);
 	BUILD_BUG_ON(PQI_ADMIN_OQ_NUM_ELEMENTS > 255);
 	BUILD_BUG_ON(PQI_ADMIN_IQ_ELEMENT_LENGTH %

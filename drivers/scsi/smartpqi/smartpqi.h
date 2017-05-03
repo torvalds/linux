@@ -1126,9 +1126,9 @@ struct bmic_identify_physical_device {
 	u8	multi_lun_device_lun_count;
 	u8	minimum_good_fw_revision[8];
 	u8	unique_inquiry_bytes[20];
-	u8	current_temperature_degreesC;
-	u8	temperature_threshold_degreesC;
-	u8	max_temperature_degreesC;
+	u8	current_temperature_degrees;
+	u8	temperature_threshold_degrees;
+	u8	max_temperature_degrees;
 	u8	logical_blocks_per_phys_block_exp;
 	__le16	current_queue_depth_limit;
 	u8	switch_name[10];
@@ -1141,10 +1141,22 @@ struct bmic_identify_physical_device {
 	u8	smart_carrier_authentication;
 	u8	smart_carrier_app_fw_version;
 	u8	smart_carrier_bootloader_fw_version;
+	u8	sanitize_flags;
+	u8	encryption_key_flags;
 	u8	encryption_key_name[64];
 	__le32	misc_drive_flags;
 	__le16	dek_index;
-	u8	padding[112];
+	__le16	hba_drive_encryption_flags;
+	__le16	max_overwrite_time;
+	__le16	max_block_erase_time;
+	__le16	max_crypto_erase_time;
+	u8	connector_info[5];
+	u8	connector_name[8][8];
+	u8	page_83_identifier[16];
+	u8	maximum_link_rate[256];
+	u8	negotiated_physical_link_rate[256];
+	u8	box_connector_name[8];
+	u8	padding_to_multiple_of_512[9];
 };
 
 #pragma pack()
