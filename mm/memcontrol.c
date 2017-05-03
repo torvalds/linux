@@ -552,8 +552,8 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
  * implemented.
  */
 
-static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
-					    enum memcg_event_item event)
+static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
+				      enum memcg_event_item event)
 {
 	unsigned long val = 0;
 	int cpu;
@@ -1180,7 +1180,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 			if (memcg1_stats[i] == MEMCG_SWAP && !do_swap_account)
 				continue;
 			pr_cont(" %s:%luKB", memcg1_stat_names[i],
-				K(mem_cgroup_read_stat(iter, memcg1_stats[i])));
+				K(memcg_page_state(iter, memcg1_stats[i])));
 		}
 
 		for (i = 0; i < NR_LRU_LISTS; i++)
@@ -2713,7 +2713,7 @@ static void tree_stat(struct mem_cgroup *memcg, unsigned long *stat)
 
 	for_each_mem_cgroup_tree(iter, memcg) {
 		for (i = 0; i < MEMCG_NR_STAT; i++)
-			stat[i] += mem_cgroup_read_stat(iter, i);
+			stat[i] += memcg_page_state(iter, i);
 	}
 }
 
@@ -2726,7 +2726,7 @@ static void tree_events(struct mem_cgroup *memcg, unsigned long *events)
 
 	for_each_mem_cgroup_tree(iter, memcg) {
 		for (i = 0; i < MEMCG_NR_EVENTS; i++)
-			events[i] += mem_cgroup_read_events(iter, i);
+			events[i] += memcg_sum_events(iter, i);
 	}
 }
 
@@ -2738,10 +2738,10 @@ static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 		struct mem_cgroup *iter;
 
 		for_each_mem_cgroup_tree(iter, memcg) {
-			val += mem_cgroup_read_stat(iter, MEMCG_CACHE);
-			val += mem_cgroup_read_stat(iter, MEMCG_RSS);
+			val += memcg_page_state(iter, MEMCG_CACHE);
+			val += memcg_page_state(iter, MEMCG_RSS);
 			if (swap)
-				val += mem_cgroup_read_stat(iter, MEMCG_SWAP);
+				val += memcg_page_state(iter, MEMCG_SWAP);
 		}
 	} else {
 		if (!swap)
@@ -3145,13 +3145,13 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
 			continue;
 		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
-			   mem_cgroup_read_stat(memcg, memcg1_stats[i]) *
+			   memcg_page_state(memcg, memcg1_stats[i]) *
 			   PAGE_SIZE);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
 		seq_printf(m, "%s %lu\n", memcg1_event_names[i],
-			   mem_cgroup_read_events(memcg, memcg1_events[i]));
+			   memcg_sum_events(memcg, memcg1_events[i]));
 
 	for (i = 0; i < NR_LRU_LISTS; i++)
 		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
@@ -3175,7 +3175,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
 			continue;
 		for_each_mem_cgroup_tree(mi, memcg)
-			val += mem_cgroup_read_stat(mi, memcg1_stats[i]) *
+			val += memcg_page_state(mi, memcg1_stats[i]) *
 			PAGE_SIZE;
 		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i], val);
 	}
@@ -3184,7 +3184,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 		unsigned long long val = 0;
 
 		for_each_mem_cgroup_tree(mi, memcg)
-			val += mem_cgroup_read_events(mi, memcg1_events[i]);
+			val += memcg_sum_events(mi, memcg1_events[i]);
 		seq_printf(m, "total_%s %llu\n", memcg1_event_names[i], val);
 	}
 
@@ -3650,10 +3650,10 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
 	struct mem_cgroup *memcg = mem_cgroup_from_css(wb->memcg_css);
 	struct mem_cgroup *parent;
 
-	*pdirty = mem_cgroup_read_stat(memcg, NR_FILE_DIRTY);
+	*pdirty = memcg_page_state(memcg, NR_FILE_DIRTY);
 
 	/* this should eventually include NR_UNSTABLE_NFS */
-	*pwriteback = mem_cgroup_read_stat(memcg, NR_WRITEBACK);
+	*pwriteback = memcg_page_state(memcg, NR_WRITEBACK);
 	*pfilepages = mem_cgroup_nr_lru_pages(memcg, (1 << LRU_INACTIVE_FILE) |
 						     (1 << LRU_ACTIVE_FILE));
 	*pheadroom = PAGE_COUNTER_MAX;
@@ -4515,7 +4515,7 @@ static int mem_cgroup_move_account(struct page *page,
 
 	/*
 	 * move_lock grabbed above and caller set from->moving_account, so
-	 * mem_cgroup_update_page_stat() will serialize updates to PageDirty.
+	 * mod_memcg_page_state will serialize updates to PageDirty.
 	 * So mapping should be stable for dirty pages.
 	 */
 	if (!anon && PageDirty(page)) {
@@ -5161,10 +5161,10 @@ static int memory_events_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 
-	seq_printf(m, "low %lu\n", mem_cgroup_read_events(memcg, MEMCG_LOW));
-	seq_printf(m, "high %lu\n", mem_cgroup_read_events(memcg, MEMCG_HIGH));
-	seq_printf(m, "max %lu\n", mem_cgroup_read_events(memcg, MEMCG_MAX));
-	seq_printf(m, "oom %lu\n", mem_cgroup_read_events(memcg, MEMCG_OOM));
+	seq_printf(m, "low %lu\n", memcg_sum_events(memcg, MEMCG_LOW));
+	seq_printf(m, "high %lu\n", memcg_sum_events(memcg, MEMCG_HIGH));
+	seq_printf(m, "max %lu\n", memcg_sum_events(memcg, MEMCG_MAX));
+	seq_printf(m, "oom %lu\n", memcg_sum_events(memcg, MEMCG_OOM));
 
 	return 0;
 }

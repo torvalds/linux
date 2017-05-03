@@ -472,8 +472,8 @@ extern int do_swap_account;
 void lock_page_memcg(struct page *page);
 void unlock_page_memcg(struct page *page);
 
-static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
-						 enum memcg_stat_item idx)
+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+					     enum memcg_stat_item idx)
 {
 	long val = 0;
 	int cpu;
@@ -487,27 +487,27 @@ static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
 	return val;
 }
 
-static inline void mem_cgroup_update_stat(struct mem_cgroup *memcg,
-					  enum memcg_stat_item idx, int val)
+static inline void mod_memcg_state(struct mem_cgroup *memcg,
+				   enum memcg_stat_item idx, int val)
 {
 	if (!mem_cgroup_disabled())
 		this_cpu_add(memcg->stat->count[idx], val);
 }
 
-static inline void mem_cgroup_inc_stat(struct mem_cgroup *memcg,
-				       enum memcg_stat_item idx)
+static inline void inc_memcg_state(struct mem_cgroup *memcg,
+				   enum memcg_stat_item idx)
 {
-	mem_cgroup_update_stat(memcg, idx, 1);
+	mod_memcg_state(memcg, idx, 1);
 }
 
-static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
-				       enum memcg_stat_item idx)
+static inline void dec_memcg_state(struct mem_cgroup *memcg,
+				   enum memcg_stat_item idx)
 {
-	mem_cgroup_update_stat(memcg, idx, -1);
+	mod_memcg_state(memcg, idx, -1);
 }
 
 /**
- * mem_cgroup_update_page_stat - update page state statistics
+ * mod_memcg_page_state - update page state statistics
  * @page: the page
  * @idx: page state item to account
  * @val: number of pages (positive or negative)
@@ -518,28 +518,28 @@ static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
  *
  *   lock_page(page) or lock_page_memcg(page)
  *   if (TestClearPageState(page))
- *     mem_cgroup_update_page_stat(page, state, -1);
+ *     mod_memcg_page_state(page, state, -1);
  *   unlock_page(page) or unlock_page_memcg(page)
  *
  * Kernel pages are an exception to this, since they'll never move.
  */
-static inline void mem_cgroup_update_page_stat(struct page *page,
-				 enum memcg_stat_item idx, int val)
+static inline void mod_memcg_page_state(struct page *page,
+					enum memcg_stat_item idx, int val)
 {
 	if (page->mem_cgroup)
-		mem_cgroup_update_stat(page->mem_cgroup, idx, val);
+		mod_memcg_state(page->mem_cgroup, idx, val);
 }
 
-static inline void mem_cgroup_inc_page_stat(struct page *page,
-					    enum memcg_stat_item idx)
+static inline void inc_memcg_page_state(struct page *page,
+					enum memcg_stat_item idx)
 {
-	mem_cgroup_update_page_stat(page, idx, 1);
+	mod_memcg_page_state(page, idx, 1);
 }
 
-static inline void mem_cgroup_dec_page_stat(struct page *page,
-					    enum memcg_stat_item idx)
+static inline void dec_memcg_page_state(struct page *page,
+					enum memcg_stat_item idx)
 {
-	mem_cgroup_update_page_stat(page, idx, -1);
+	mod_memcg_page_state(page, idx, -1);
 }
 
 unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
@@ -739,40 +739,41 @@ static inline bool mem_cgroup_oom_synchronize(bool wait)
 	return false;
 }
 
-static inline unsigned long mem_cgroup_read_stat(struct mem_cgroup *memcg,
-						 enum mem_cgroup_stat_index idx)
+static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+					     enum memcg_stat_item idx)
 {
 	return 0;
 }
 
-static inline void mem_cgroup_update_stat(struct mem_cgroup *memcg,
-					  enum memcg_stat_item idx, int val)
+static inline void mod_memcg_state(struct mem_cgroup *memcg,
+				   enum memcg_stat_item idx,
+				   int nr)
 {
 }
 
-static inline void mem_cgroup_inc_stat(struct mem_cgroup *memcg,
-				       enum memcg_stat_item idx)
+static inline void inc_memcg_state(struct mem_cgroup *memcg,
+				   enum memcg_stat_item idx)
 {
 }
 
-static inline void mem_cgroup_dec_stat(struct mem_cgroup *memcg,
-				       enum memcg_stat_item idx)
+static inline void dec_memcg_state(struct mem_cgroup *memcg,
+				   enum memcg_stat_item idx)
 {
 }
 
-static inline void mem_cgroup_update_page_stat(struct page *page,
-					       enum memcg_stat_item idx,
-					       int nr)
+static inline void mod_memcg_page_state(struct page *page,
+					enum memcg_stat_item idx,
+					int nr)
 {
 }
 
-static inline void mem_cgroup_inc_page_stat(struct page *page,
-					    enum memcg_stat_item idx)
+static inline void inc_memcg_page_state(struct page *page,
+					enum memcg_stat_item idx)
 {
 }
 
-static inline void mem_cgroup_dec_page_stat(struct page *page,
-					    enum memcg_stat_item idx)
+static inline void dec_memcg_page_state(struct page *page,
+					enum memcg_stat_item idx)
 {
 }
 
