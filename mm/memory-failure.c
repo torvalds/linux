@@ -322,7 +322,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
  * wrong earlier.
  */
 static void kill_procs(struct list_head *to_kill, int forcekill, int trapno,
-			  int fail, struct page *page, unsigned long pfn,
+			  bool fail, struct page *page, unsigned long pfn,
 			  int flags)
 {
 	struct to_kill *tk, *next;
@@ -904,13 +904,13 @@ EXPORT_SYMBOL_GPL(get_hwpoison_page);
  * Do all that is necessary to remove user space mappings. Unmap
  * the pages and send SIGBUS to the processes if the data was dirty.
  */
-static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 				  int trapno, int flags, struct page **hpagep)
 {
 	enum ttu_flags ttu = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
 	struct address_space *mapping;
 	LIST_HEAD(tokill);
-	int ret;
+	bool unmap_success;
 	int kill = 1, forcekill;
 	struct page *hpage = *hpagep;
 
@@ -919,20 +919,20 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * other types of pages.
 	 */
 	if (PageReserved(p) || PageSlab(p))
-		return SWAP_SUCCESS;
+		return true;
 	if (!(PageLRU(hpage) || PageHuge(p)))
-		return SWAP_SUCCESS;
+		return true;
 
 	/*
 	 * This check implies we don't kill processes if their pages
 	 * are in the swap cache early. Those are always late kills.
 	 */
 	if (!page_mapped(hpage))
-		return SWAP_SUCCESS;
+		return true;
 
 	if (PageKsm(p)) {
 		pr_err("Memory failure: %#lx: can't handle KSM pages.\n", pfn);
-		return SWAP_FAIL;
+		return false;
 	}
 
 	if (PageSwapCache(p)) {
@@ -971,8 +971,8 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	if (kill)
 		collect_procs(hpage, &tokill, flags & MF_ACTION_REQUIRED);
 
-	ret = try_to_unmap(hpage, ttu);
-	if (ret != SWAP_SUCCESS)
+	unmap_success = try_to_unmap(hpage, ttu);
+	if (!unmap_success)
 		pr_err("Memory failure: %#lx: failed to unmap page (mapcount=%d)\n",
 		       pfn, page_mapcount(hpage));
 
@@ -987,10 +987,9 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * any accesses to the poisoned memory.
 	 */
 	forcekill = PageDirty(hpage) || (flags & MF_MUST_KILL);
-	kill_procs(&tokill, forcekill, trapno,
-		      ret != SWAP_SUCCESS, p, pfn, flags);
+	kill_procs(&tokill, forcekill, trapno, !unmap_success, p, pfn, flags);
 
-	return ret;
+	return unmap_success;
 }
 
 static void set_page_hwpoison_huge_page(struct page *hpage)
@@ -1230,8 +1229,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	 * When the raw error page is thp tail page, hpage points to the raw
 	 * page after thp split.
 	 */
-	if (hwpoison_user_mappings(p, pfn, trapno, flags, &hpage)
-	    != SWAP_SUCCESS) {
+	if (!hwpoison_user_mappings(p, pfn, trapno, flags, &hpage)) {
 		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);
 		res = -EBUSY;
 		goto out;

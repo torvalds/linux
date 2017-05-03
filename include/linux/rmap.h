@@ -191,7 +191,7 @@ static inline void page_dup_rmap(struct page *page, bool compound)
 int page_referenced(struct page *, int is_locked,
 			struct mem_cgroup *memcg, unsigned long *vm_flags);
 
-int try_to_unmap(struct page *, enum ttu_flags flags);
+bool try_to_unmap(struct page *, enum ttu_flags flags);
 
 /* Avoid racy checks */
 #define PVMW_SYNC		(1 << 0)
@@ -281,7 +281,7 @@ static inline int page_referenced(struct page *page, int is_locked,
 	return 0;
 }
 
-#define try_to_unmap(page, refs) SWAP_FAIL
+#define try_to_unmap(page, refs) false
 
 static inline int page_mkclean(struct page *page)
 {
