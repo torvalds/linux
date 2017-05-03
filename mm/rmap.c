@@ -1607,13 +1607,12 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
  * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
  * LOCKED.
  */
-static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
+static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		bool locked)
 {
 	struct anon_vma *anon_vma;
 	pgoff_t pgoff_start, pgoff_end;
 	struct anon_vma_chain *avc;
-	int ret = SWAP_AGAIN;
 
 	if (locked) {
 		anon_vma = page_anon_vma(page);
@@ -1623,7 +1622,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		anon_vma = rmap_walk_anon_lock(page, rwc);
 	}
 	if (!anon_vma)
-		return ret;
+		return;
 
 	pgoff_start = page_to_pgoff(page);
 	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
@@ -1637,8 +1636,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
 			continue;
 
-		ret = rwc->rmap_one(page, vma, address, rwc->arg);
-		if (ret != SWAP_AGAIN)
+		if (SWAP_AGAIN != rwc->rmap_one(page, vma, address, rwc->arg))
 			break;
 		if (rwc->done && rwc->done(page))
 			break;
@@ -1646,7 +1644,6 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 
 	if (!locked)
 		anon_vma_unlock_read(anon_vma);
-	return ret;
 }
 
 /*
@@ -1662,13 +1659,12 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
  * vm_flags for that VMA.  That should be OK, because that vma shouldn't be
  * LOCKED.
  */
-static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
+static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 		bool locked)
 {
 	struct address_space *mapping = page_mapping(page);
 	pgoff_t pgoff_start, pgoff_end;
 	struct vm_area_struct *vma;
-	int ret = SWAP_AGAIN;
 
 	/*
 	 * The page lock not only makes sure that page->mapping cannot
@@ -1679,7 +1675,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 
 	if (!mapping)
-		return ret;
+		return;
 
 	pgoff_start = page_to_pgoff(page);
 	pgoff_end = pgoff_start + hpage_nr_pages(page) - 1;
@@ -1694,8 +1690,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 		if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
 			continue;
 
-		ret = rwc->rmap_one(page, vma, address, rwc->arg);
-		if (ret != SWAP_AGAIN)
+		if (SWAP_AGAIN != rwc->rmap_one(page, vma, address, rwc->arg))
 			goto done;
 		if (rwc->done && rwc->done(page))
 			goto done;
@@ -1704,28 +1699,27 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 done:
 	if (!locked)
 		i_mmap_unlock_read(mapping);
-	return ret;
 }
 
-int rmap_walk(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk(struct page *page, struct rmap_walk_control *rwc)
 {
 	if (unlikely(PageKsm(page)))
-		return rmap_walk_ksm(page, rwc);
+		rmap_walk_ksm(page, rwc);
 	else if (PageAnon(page))
-		return rmap_walk_anon(page, rwc, false);
+		rmap_walk_anon(page, rwc, false);
 	else
-		return rmap_walk_file(page, rwc, false);
+		rmap_walk_file(page, rwc, false);
 }
 
 /* Like rmap_walk, but caller holds relevant rmap lock */
-int rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
 {
 	/* no ksm support for now */
 	VM_BUG_ON_PAGE(PageKsm(page), page);
 	if (PageAnon(page))
-		return rmap_walk_anon(page, rwc, true);
+		rmap_walk_anon(page, rwc, true);
 	else
-		return rmap_walk_file(page, rwc, true);
+		rmap_walk_file(page, rwc, true);
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
