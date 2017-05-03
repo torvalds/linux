@@ -2414,53 +2414,13 @@ static void add_cmd_entry(struct intel_gvt *gvt, struct cmd_entry *e)
 	hash_add(gvt->cmd_table, &e->hlist, e->info->opcode);
 }
 
-#define GVT_MAX_CMD_LENGTH     20  /* In Dword */
-
-static void trace_cs_command(struct parser_exec_state *s,
-		cycles_t cost_pre_cmd_handler, cycles_t cost_cmd_handler)
-{
-	/* This buffer is used by ftrace to store all commands copied from
-	 * guest gma space. Sometimes commands can cross pages, this should
-	 * not be handled in ftrace logic. So this is just used as a
-	 * 'bounce buffer'
-	 */
-	u32 cmd_trace_buf[GVT_MAX_CMD_LENGTH];
-	int i;
-	u32 cmd_len = cmd_length(s);
-	/* The chosen value of GVT_MAX_CMD_LENGTH are just based on
-	 * following two considerations:
-	 * 1) From observation, most common ring commands is not that long.
-	 *    But there are execeptions. So it indeed makes sence to observe
-	 *    longer commands.
-	 * 2) From the performance and debugging point of view, dumping all
-	 *    contents of very commands is not necessary.
-	 * We mgith shrink GVT_MAX_CMD_LENGTH or remove this trace event in
-	 * future for performance considerations.
-	 */
-	if (unlikely(cmd_len > GVT_MAX_CMD_LENGTH)) {
-		gvt_dbg_cmd("cmd length exceed tracing limitation!\n");
-		cmd_len = GVT_MAX_CMD_LENGTH;
-	}
-
-	for (i = 0; i < cmd_len; i++)
-		cmd_trace_buf[i] = cmd_val(s, i);
-
-	trace_gvt_command(s->vgpu->id, s->ring_id, s->ip_gma, cmd_trace_buf,
-			cmd_len, s->buf_type == RING_BUFFER_INSTRUCTION,
-			cost_pre_cmd_handler, cost_cmd_handler);
-}
-
 /* call the cmd handler, and advance ip */
 static int cmd_parser_exec(struct parser_exec_state *s)
 {
+	struct intel_vgpu *vgpu = s->vgpu;
 	struct cmd_info *info;
 	u32 cmd;
 	int ret = 0;
-	cycles_t t0, t1, t2;
-	struct parser_exec_state s_before_advance_custom;
-	struct intel_vgpu *vgpu = s->vgpu;
-
-	t0 = get_cycles();
 
 	cmd = cmd_val(s, 0);
 
@@ -2475,9 +2435,8 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	s->info = info;
 
-	t1 = get_cycles();
-
-	s_before_advance_custom = *s;
+	trace_gvt_command(vgpu->id, s->ring_id, s->ip_gma, s->ip_va,
+			  cmd_length(s), s->buf_type);
 
 	if (info->handler) {
 		ret = info->handler(s);
@@ -2486,9 +2445,6 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 			return ret;
 		}
 	}
-	t2 = get_cycles();
-
-	trace_cs_command(&s_before_advance_custom, t1 - t0, t2 - t1);
 
 	if (!(info->flag & F_IP_ADVANCE_CUSTOM)) {
 		ret = cmd_advance_default(s);
