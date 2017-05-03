@@ -30,7 +30,7 @@ static DEFINE_MUTEX(key_user_keyring_mutex);
 
 /* The root user's tracking struct */
 struct key_user root_key_user = {
-	.usage		= ATOMIC_INIT(3),
+	.usage		= REFCOUNT_INIT(3),
 	.cons_lock	= __MUTEX_INITIALIZER(root_key_user.cons_lock),
 	.lock		= __SPIN_LOCK_UNLOCKED(root_key_user.lock),
 	.nkeys		= ATOMIC_INIT(2),

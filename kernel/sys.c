@@ -1432,25 +1432,26 @@ out:
 }
 
 /* rcu lock must be held */
-static int check_prlimit_permission(struct task_struct *task)
+static int check_prlimit_permission(struct task_struct *task,
+				    unsigned int flags)
 {
 	const struct cred *cred = current_cred(), *tcred;
+	bool id_match;
 
 	if (current == task)
 		return 0;
 
 	tcred = __task_cred(task);
-	if (uid_eq(cred->uid, tcred->euid) &&
-	    uid_eq(cred->uid, tcred->suid) &&
-	    uid_eq(cred->uid, tcred->uid)  &&
-	    gid_eq(cred->gid, tcred->egid) &&
-	    gid_eq(cred->gid, tcred->sgid) &&
-	    gid_eq(cred->gid, tcred->gid))
-		return 0;
-	if (ns_capable(tcred->user_ns, CAP_SYS_RESOURCE))
-		return 0;
+	id_match = (uid_eq(cred->uid, tcred->euid) &&
+		    uid_eq(cred->uid, tcred->suid) &&
+		    uid_eq(cred->uid, tcred->uid)  &&
+		    gid_eq(cred->gid, tcred->egid) &&
+		    gid_eq(cred->gid, tcred->sgid) &&
+		    gid_eq(cred->gid, tcred->gid));
+	if (!id_match && !ns_capable(tcred->user_ns, CAP_SYS_RESOURCE))
+		return -EPERM;
 
-	return -EPERM;
+	return security_task_prlimit(cred, tcred, flags);
 }
 
 SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
@@ -1460,12 +1461,17 @@ SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
 	struct rlimit64 old64, new64;
 	struct rlimit old, new;
 	struct task_struct *tsk;
+	unsigned int checkflags = 0;
 	int ret;
+
+	if (old_rlim)
+		checkflags |= LSM_PRLIMIT_READ;
 
 	if (new_rlim) {
 		if (copy_from_user(&new64, new_rlim, sizeof(new64)))
 			return -EFAULT;
 		rlim64_to_rlim(&new64, &new);
+		checkflags |= LSM_PRLIMIT_WRITE;
 	}
 
 	rcu_read_lock();
@@ -1474,7 +1480,7 @@ SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
 		rcu_read_unlock();
 		return -ESRCH;
 	}
-	ret = check_prlimit_permission(tsk);
+	ret = check_prlimit_permission(tsk, checkflags);
 	if (ret) {
 		rcu_read_unlock();
 		return ret;

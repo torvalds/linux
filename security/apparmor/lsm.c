@@ -39,7 +39,7 @@
 #include "include/procattr.h"
 
 /* Flag indicating whether initialization completed */
-int apparmor_initialized __initdata;
+int apparmor_initialized;
 
 DEFINE_PER_CPU(struct aa_buffers, aa_buffers);
 
@@ -587,7 +587,7 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 	return error;
 }
 
-static struct security_hook_list apparmor_hooks[] = {
+static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, apparmor_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, apparmor_ptrace_traceme),
 	LSM_HOOK_INIT(capget, apparmor_capget),
@@ -681,7 +681,7 @@ module_param_named(hash_policy, aa_g_hash_policy, aabool, S_IRUSR | S_IWUSR);
 #endif
 
 /* Debug mode */
-bool aa_g_debug = IS_ENABLED(CONFIG_SECURITY_DEBUG_MESSAGES);
+bool aa_g_debug = IS_ENABLED(CONFIG_SECURITY_APPARMOR_DEBUG_MESSAGES);
 module_param_named(debug, aa_g_debug, aabool, S_IRUSR | S_IWUSR);
 
 /* Audit mode */
@@ -710,7 +710,7 @@ module_param_named(logsyscall, aa_g_logsyscall, aabool, S_IRUSR | S_IWUSR);
 
 /* Maximum pathname length before accesses will start getting rejected */
 unsigned int aa_g_path_max = 2 * PATH_MAX;
-module_param_named(path_max, aa_g_path_max, aauint, S_IRUSR | S_IWUSR);
+module_param_named(path_max, aa_g_path_max, aauint, S_IRUSR);
 
 /* Determines how paranoid loading of policy is and how much verification
  * on the loaded policy is done.
@@ -738,78 +738,77 @@ __setup("apparmor=", apparmor_enabled_setup);
 /* set global flag turning off the ability to load policy */
 static int param_set_aalockpolicy(const char *val, const struct kernel_param *kp)
 {
-	if (!policy_admin_capable(NULL))
+	if (!apparmor_enabled)
+		return -EINVAL;
+	if (apparmor_initialized && !policy_admin_capable(NULL))
 		return -EPERM;
 	return param_set_bool(val, kp);
 }
 
 static int param_get_aalockpolicy(char *buffer, const struct kernel_param *kp)
 {
-	if (!policy_view_capable(NULL))
-		return -EPERM;
 	if (!apparmor_enabled)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_view_capable(NULL))
+		return -EPERM;
 	return param_get_bool(buffer, kp);
 }
 
 static int param_set_aabool(const char *val, const struct kernel_param *kp)
 {
-	if (!policy_admin_capable(NULL))
-		return -EPERM;
 	if (!apparmor_enabled)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_admin_capable(NULL))
+		return -EPERM;
 	return param_set_bool(val, kp);
 }
 
 static int param_get_aabool(char *buffer, const struct kernel_param *kp)
 {
-	if (!policy_view_capable(NULL))
-		return -EPERM;
 	if (!apparmor_enabled)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_view_capable(NULL))
+		return -EPERM;
 	return param_get_bool(buffer, kp);
 }
 
 static int param_set_aauint(const char *val, const struct kernel_param *kp)
 {
-	if (!policy_admin_capable(NULL))
-		return -EPERM;
 	if (!apparmor_enabled)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_admin_capable(NULL))
+		return -EPERM;
 	return param_set_uint(val, kp);
 }
 
 static int param_get_aauint(char *buffer, const struct kernel_param *kp)
 {
-	if (!policy_view_capable(NULL))
-		return -EPERM;
 	if (!apparmor_enabled)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_view_capable(NULL))
+		return -EPERM;
 	return param_get_uint(buffer, kp);
 }
 
 static int param_get_audit(char *buffer, struct kernel_param *kp)
 {
-	if (!policy_view_capable(NULL))
-		return -EPERM;
-
 	if (!apparmor_enabled)
 		return -EINVAL;
-
+	if (apparmor_initialized && !policy_view_capable(NULL))
+		return -EPERM;
 	return sprintf(buffer, "%s", audit_mode_names[aa_g_audit]);
 }
 
 static int param_set_audit(const char *val, struct kernel_param *kp)
 {
 	int i;
-	if (!policy_admin_capable(NULL))
-		return -EPERM;
 
 	if (!apparmor_enabled)
 		return -EINVAL;
-
 	if (!val)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_admin_capable(NULL))
+		return -EPERM;
 
 	for (i = 0; i < AUDIT_MAX_INDEX; i++) {
 		if (strcmp(val, audit_mode_names[i]) == 0) {
@@ -823,11 +822,10 @@ static int param_set_audit(const char *val, struct kernel_param *kp)
 
 static int param_get_mode(char *buffer, struct kernel_param *kp)
 {
-	if (!policy_view_capable(NULL))
-		return -EPERM;
-
 	if (!apparmor_enabled)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_view_capable(NULL))
+		return -EPERM;
 
 	return sprintf(buffer, "%s", aa_profile_mode_names[aa_g_profile_mode]);
 }
@@ -835,14 +833,13 @@ static int param_get_mode(char *buffer, struct kernel_param *kp)
 static int param_set_mode(const char *val, struct kernel_param *kp)
 {
 	int i;
-	if (!policy_admin_capable(NULL))
-		return -EPERM;
 
 	if (!apparmor_enabled)
 		return -EINVAL;
-
 	if (!val)
 		return -EINVAL;
+	if (apparmor_initialized && !policy_admin_capable(NULL))
+		return -EPERM;
 
 	for (i = 0; i < APPARMOR_MODE_NAMES_MAX_INDEX; i++) {
 		if (strcmp(val, aa_profile_mode_names[i]) == 0) {

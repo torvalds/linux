@@ -190,6 +190,18 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			 x509->subject,
 			 x509->raw_serial_size, x509->raw_serial);
 		x509->seen = true;
+
+		if (x509->blacklisted) {
+			/* If this cert is blacklisted, then mark everything
+			 * that depends on this as blacklisted too.
+			 */
+			sinfo->blacklisted = true;
+			for (p = sinfo->signer; p != x509; p = p->signer)
+				p->blacklisted = true;
+			pr_debug("- blacklisted\n");
+			return 0;
+		}
+
 		if (x509->unsupported_key)
 			goto unsupported_crypto_in_x509;
 
@@ -357,17 +369,19 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
  *
  *  (*) -EBADMSG if some part of the message was invalid, or:
  *
- *  (*) -ENOPKG if none of the signature chains are verifiable because suitable
- *	crypto modules couldn't be found, or:
+ *  (*) 0 if no signature chains were found to be blacklisted or to contain
+ *	unsupported crypto, or:
  *
- *  (*) 0 if all the signature chains that don't incur -ENOPKG can be verified
- *	(note that a signature chain may be of zero length), or:
+ *  (*) -EKEYREJECTED if a blacklisted key was encountered, or:
+ *
+ *  (*) -ENOPKG if none of the signature chains are verifiable because suitable
+ *	crypto modules couldn't be found.
  */
 int pkcs7_verify(struct pkcs7_message *pkcs7,
 		 enum key_being_used_for usage)
 {
 	struct pkcs7_signed_info *sinfo;
-	int enopkg = -ENOPKG;
+	int actual_ret = -ENOPKG;
 	int ret;
 
 	kenter("");
@@ -412,6 +426,8 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 
 	for (sinfo = pkcs7->signed_infos; sinfo; sinfo = sinfo->next) {
 		ret = pkcs7_verify_one(pkcs7, sinfo);
+		if (sinfo->blacklisted && actual_ret == -ENOPKG)
+			actual_ret = -EKEYREJECTED;
 		if (ret < 0) {
 			if (ret == -ENOPKG) {
 				sinfo->unsupported_crypto = true;
@@ -420,11 +436,11 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 			kleave(" = %d", ret);
 			return ret;
 		}
-		enopkg = 0;
+		actual_ret = 0;
 	}
 
-	kleave(" = %d", enopkg);
-	return enopkg;
+	kleave(" = %d", actual_ret);
+	return actual_ret;
 }
 EXPORT_SYMBOL_GPL(pkcs7_verify);
 

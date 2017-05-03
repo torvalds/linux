@@ -180,13 +180,13 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
 	} else
 		policy->hname = kstrdup(name, gfp);
 	if (!policy->hname)
-		return 0;
+		return false;
 	/* base.name is a substring of fqname */
 	policy->name = basename(policy->hname);
 	INIT_LIST_HEAD(&policy->list);
 	INIT_LIST_HEAD(&policy->profiles);
 
-	return 1;
+	return true;
 }
 
 /**
