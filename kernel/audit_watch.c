@@ -28,6 +28,7 @@
 #include <linux/fsnotify_backend.h>
 #include <linux/namei.h>
 #include <linux/netlink.h>
+#include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/security.h>
@@ -46,7 +47,7 @@
  */
 
 struct audit_watch {
-	atomic_t		count;	/* reference count */
+	refcount_t		count;	/* reference count */
 	dev_t			dev;	/* associated superblock device */
 	char			*path;	/* insertion path */
 	unsigned long		ino;	/* associated inode number */
@@ -111,12 +112,12 @@ static inline struct audit_parent *audit_find_parent(struct inode *inode)
 
 void audit_get_watch(struct audit_watch *watch)
 {
-	atomic_inc(&watch->count);
+	refcount_inc(&watch->count);
 }
 
 void audit_put_watch(struct audit_watch *watch)
 {
-	if (atomic_dec_and_test(&watch->count)) {
+	if (refcount_dec_and_test(&watch->count)) {
 		WARN_ON(watch->parent);
 		WARN_ON(!list_empty(&watch->rules));
 		kfree(watch->path);
@@ -178,7 +179,7 @@ static struct audit_watch *audit_init_watch(char *path)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&watch->rules);
-	atomic_set(&watch->count, 1);
+	refcount_set(&watch->count, 1);
 	watch->path = path;
 	watch->dev = AUDIT_DEV_UNSET;
 	watch->ino = AUDIT_INO_UNSET;
@@ -492,7 +493,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 		BUG();
 		inode = NULL;
 		break;
-	};
+	}
 
 	if (mask & (FS_CREATE|FS_MOVED_TO) && inode)
 		audit_update_watch(parent, dname, inode->i_sb->s_dev, inode->i_ino, 0);

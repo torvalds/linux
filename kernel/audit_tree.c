@@ -3,13 +3,14 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/kthread.h>
+#include <linux/refcount.h>
 #include <linux/slab.h>
 
 struct audit_tree;
 struct audit_chunk;
 
 struct audit_tree {
-	atomic_t count;
+	refcount_t count;
 	int goner;
 	struct audit_chunk *root;
 	struct list_head chunks;
@@ -77,7 +78,7 @@ static struct audit_tree *alloc_tree(const char *s)
 
 	tree = kmalloc(sizeof(struct audit_tree) + strlen(s) + 1, GFP_KERNEL);
 	if (tree) {
-		atomic_set(&tree->count, 1);
+		refcount_set(&tree->count, 1);
 		tree->goner = 0;
 		INIT_LIST_HEAD(&tree->chunks);
 		INIT_LIST_HEAD(&tree->rules);
@@ -91,12 +92,12 @@ static struct audit_tree *alloc_tree(const char *s)
 
 static inline void get_tree(struct audit_tree *tree)
 {
-	atomic_inc(&tree->count);
+	refcount_inc(&tree->count);
 }
 
 static inline void put_tree(struct audit_tree *tree)
 {
-	if (atomic_dec_and_test(&tree->count))
+	if (refcount_dec_and_test(&tree->count))
 		kfree_rcu(tree, head);
 }
 
