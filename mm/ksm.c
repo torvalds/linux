@@ -1977,7 +1977,7 @@ again:
 			if (rwc->invalid_vma && rwc->invalid_vma(vma, rwc->arg))
 				continue;
 
-			if (SWAP_AGAIN != rwc->rmap_one(page, vma,
+			if (!rwc->rmap_one(page, vma,
 					rmap_item->address, rwc->arg)) {
 				anon_vma_unlock_read(anon_vma);
 				return;

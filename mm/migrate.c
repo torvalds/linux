@@ -194,7 +194,7 @@ void putback_movable_pages(struct list_head *l)
 /*
  * Restore a potential migration pte to a working pte entry
  */
-static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 				 unsigned long addr, void *old)
 {
 	struct page_vma_mapped_walk pvmw = {
@@ -253,7 +253,7 @@ static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 		update_mmu_cache(vma, pvmw.address, pvmw.pte);
 	}
 
-	return SWAP_AGAIN;
+	return true;
 }
 
 /*
