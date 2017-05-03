@@ -48,6 +48,8 @@
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
 
+#include "rcu.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 
