@@ -5025,7 +5025,7 @@ static int pqi_wait_for_lun_reset_completion(struct pqi_ctrl_info *ctrl_info,
 
 		pqi_check_ctrl_health(ctrl_info);
 		if (pqi_ctrl_offline(ctrl_info)) {
-			rc = -ETIMEDOUT;
+			rc = -ENXIO;
 			break;
 		}
 	}
