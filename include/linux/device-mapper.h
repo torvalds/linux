@@ -593,6 +593,7 @@ extern struct ratelimit_state dm_ratelimit_state;
 /*
  * Definitions of return values from target end_io function.
  */
+#define DM_ENDIO_DONE		0
 #define DM_ENDIO_INCOMPLETE	1
 #define DM_ENDIO_REQUEUE	2
 
@@ -603,6 +604,7 @@ extern struct ratelimit_state dm_ratelimit_state;
 #define DM_MAPIO_REMAPPED	1
 #define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
 #define DM_MAPIO_DELAY_REQUEUE	3
+#define DM_MAPIO_KILL		4
 
 #define dm_sector_div64(x, y)( \
 { \

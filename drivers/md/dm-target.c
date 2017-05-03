@@ -135,7 +135,7 @@ static int io_err_clone_and_map_rq(struct dm_target *ti, struct request *rq,
 				   union map_info *map_context,
 				   struct request **clone)
 {
-	return -EIO;
+	return DM_MAPIO_KILL;
 }
 
 static void io_err_release_clone_rq(struct request *clone)

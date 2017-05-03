@@ -1464,12 +1464,13 @@ static int noretry_error(int error)
 	return 0;
 }
 
-/*
- * end_io handling
- */
-static int do_end_io(struct multipath *m, struct request *clone,
-		     int error, struct dm_mpath_io *mpio)
+static int multipath_end_io(struct dm_target *ti, struct request *clone,
+			    int error, union map_info *map_context)
 {
+	struct dm_mpath_io *mpio = get_mpio(map_context);
+	struct pgpath *pgpath = mpio->pgpath;
+	int r = DM_ENDIO_DONE;
+
 	/*
 	 * We don't queue any clone request inside the multipath target
 	 * during end I/O handling, since those clone requests don't have
@@ -1481,39 +1482,26 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	 * request into dm core, which will remake a clone request and
 	 * clone bios for it and resubmit it later.
 	 */
-	int r = DM_ENDIO_REQUEUE;
+	if (error && !noretry_error(error)) {
+		struct multipath *m = ti->private;
 
-	if (!error)
-		return 0;	/* I/O complete */
+		r = DM_ENDIO_REQUEUE;
 
-	if (noretry_error(error))
-		return error;
+		if (pgpath)
+			fail_path(pgpath);
 
-	if (mpio->pgpath)
-		fail_path(mpio->pgpath);
+		if (atomic_read(&m->nr_valid_paths) == 0 &&
+		    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
+			if (error == -EIO)
+				error = dm_report_EIO(m);
+			/* complete with the original error */
+			r = DM_ENDIO_DONE;
+		}
+	}
 
-	if (atomic_read(&m->nr_valid_paths) == 0 &&
-	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
-		r = dm_report_EIO(m);
-
-	return r;
-}
-
-static int multipath_end_io(struct dm_target *ti, struct request *clone,
-			    int error, union map_info *map_context)
-{
-	struct multipath *m = ti->private;
-	struct dm_mpath_io *mpio = get_mpio(map_context);
-	struct pgpath *pgpath;
-	struct path_selector *ps;
-	int r;
-
-	BUG_ON(!mpio);
-
-	r = do_end_io(m, clone, error, mpio);
-	pgpath = mpio->pgpath;
 	if (pgpath) {
-		ps = &pgpath->pg->ps;
+		struct path_selector *ps = &pgpath->pg->ps;
+
 		if (ps->type->end_io)
 			ps->type->end_io(ps, &pgpath->path, mpio->nr_bytes);
 	}

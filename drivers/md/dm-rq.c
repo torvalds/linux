@@ -287,7 +287,7 @@ static void dm_requeue_original_request(struct dm_rq_target_io *tio, bool delay_
 
 static void dm_done(struct request *clone, int error, bool mapped)
 {
-	int r = error;
+	int r = DM_ENDIO_DONE;
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	dm_request_endio_fn rq_end_io = NULL;
 
@@ -298,7 +298,7 @@ static void dm_done(struct request *clone, int error, bool mapped)
 			r = rq_end_io(tio->ti, clone, error, &tio->info);
 	}
 
-	if (unlikely(r == -EREMOTEIO)) {
+	if (unlikely(error == -EREMOTEIO)) {
 		if (req_op(clone) == REQ_OP_WRITE_SAME &&
 		    !clone->q->limits.max_write_same_sectors)
 			disable_write_same(tio->md);
@@ -307,16 +307,19 @@ static void dm_done(struct request *clone, int error, bool mapped)
 			disable_write_zeroes(tio->md);
 	}
 
-	if (r <= 0)
+	switch (r) {
+	case DM_ENDIO_DONE:
 		/* The target wants to complete the I/O */
-		dm_end_request(clone, r);
-	else if (r == DM_ENDIO_INCOMPLETE)
+		dm_end_request(clone, error);
+		break;
+	case DM_ENDIO_INCOMPLETE:
 		/* The target will handle the I/O */
 		return;
-	else if (r == DM_ENDIO_REQUEUE)
+	case DM_ENDIO_REQUEUE:
 		/* The target wants to requeue the I/O */
 		dm_requeue_original_request(tio, false);
-	else {
+		break;
+	default:
 		DMWARN("unimplemented target endio return value: %d", r);
 		BUG();
 	}
@@ -501,14 +504,12 @@ static int map_request(struct dm_rq_target_io *tio)
 		/* The target wants to requeue the I/O after a delay */
 		dm_requeue_original_request(tio, true);
 		break;
-	default:
-		if (r > 0) {
-			DMWARN("unimplemented target map return value: %d", r);
-			BUG();
-		}
-
+	case DM_MAPIO_KILL:
 		/* The target wants to complete the I/O */
-		dm_kill_unmapped_request(rq, r);
+		dm_kill_unmapped_request(rq, -EIO);
+	default:
+		DMWARN("unimplemented target map return value: %d", r);
+		BUG();
 	}
 
 	return r;
