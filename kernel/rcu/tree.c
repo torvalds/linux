@@ -1139,22 +1139,11 @@ void rcu_nmi_exit(void)
 }
 
 /**
- * __rcu_is_watching - are RCU read-side critical sections safe?
- *
- * Return true if RCU is watching the running CPU, which means that
- * this CPU can safely enter RCU read-side critical sections.  Unlike
- * rcu_is_watching(), the caller of __rcu_is_watching() must have at
- * least disabled preemption.
- */
-bool notrace __rcu_is_watching(void)
-{
-	return !rcu_dynticks_curr_cpu_in_eqs();
-}
-
-/**
  * rcu_is_watching - see if RCU thinks that the current CPU is idle
  *
- * If the current CPU is in its idle loop and is neither in an interrupt
+ * Return true if RCU is watching the running CPU, which means that this
+ * CPU can safely enter RCU read-side critical sections.  In other words,
+ * if the current CPU is in its idle loop and is neither in an interrupt
  * or NMI handler, return true.
  */
 bool notrace rcu_is_watching(void)
@@ -1162,7 +1151,7 @@ bool notrace rcu_is_watching(void)
 	bool ret;
 
 	preempt_disable_notrace();
-	ret = __rcu_is_watching();
+	ret = !rcu_dynticks_curr_cpu_in_eqs();
 	preempt_enable_notrace();
 	return ret;
 }

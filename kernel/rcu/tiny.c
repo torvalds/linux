@@ -59,19 +59,6 @@ void rcu_barrier_sched(void)
 }
 EXPORT_SYMBOL(rcu_barrier_sched);
 
-#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
-
-/*
- * Test whether RCU thinks that the current CPU is idle.
- */
-bool notrace __rcu_is_watching(void)
-{
-	return true;
-}
-EXPORT_SYMBOL(__rcu_is_watching);
-
-#endif /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
-
 /*
  * Helper function for rcu_sched_qs() and rcu_bh_qs().
  * Also irqs are disabled to avoid confusion due to interrupt handlers

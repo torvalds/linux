@@ -232,21 +232,10 @@ static inline void rcu_scheduler_starting(void)
 }
 #endif /* #else #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_SRCU) */
 
-#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
-
-static inline bool rcu_is_watching(void)
-{
-	return __rcu_is_watching();
-}
-
-#else /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
-
 static inline bool rcu_is_watching(void)
 {
 	return true;
 }
-
-#endif /* #else defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
 
 static inline void rcu_request_urgent_qs_task(struct task_struct *t)
 {
