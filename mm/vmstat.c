@@ -954,7 +954,6 @@ const char * const vmstat_text[] = {
 	"nr_unevictable",
 	"nr_isolated_anon",
 	"nr_isolated_file",
-	"nr_pages_scanned",
 	"workingset_refault",
 	"workingset_activate",
 	"workingset_nodereclaim",
@@ -1378,7 +1377,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        min      %lu"
 		   "\n        low      %lu"
 		   "\n        high     %lu"
-		   "\n   node_scanned  %lu"
 		   "\n        spanned  %lu"
 		   "\n        present  %lu"
 		   "\n        managed  %lu",
@@ -1386,7 +1384,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   min_wmark_pages(zone),
 		   low_wmark_pages(zone),
 		   high_wmark_pages(zone),
-		   node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED),
 		   zone->spanned_pages,
 		   zone->present_pages,
 		   zone->managed_pages);
@@ -1586,22 +1583,9 @@ int vmstat_refresh(struct ctl_table *table, int write,
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++) {
 		val = atomic_long_read(&vm_zone_stat[i]);
 		if (val < 0) {
-			switch (i) {
-			case NR_PAGES_SCANNED:
-				/*
-				 * This is often seen to go negative in
-				 * recent kernels, but not to go permanently
-				 * negative.  Whilst it would be nicer not to
-				 * have exceptions, rooting them out would be
-				 * another task, of rather low priority.
-				 */
-				break;
-			default:
-				pr_warn("%s: %s %ld\n",
-					__func__, vmstat_text[i], val);
-				err = -EINVAL;
-				break;
-			}
+			pr_warn("%s: %s %ld\n",
+				__func__, vmstat_text[i], val);
+			err = -EINVAL;
 		}
 	}
 	if (err)
