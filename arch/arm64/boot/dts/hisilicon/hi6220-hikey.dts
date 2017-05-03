@@ -81,7 +81,26 @@
 		};
 	};
 
-	reg_5v_hub: regulator@0 {
+	reg_sys_5v: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "SYS_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_vdd_3v3: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&reg_sys_5v>;
+	};
+
+	reg_5v_hub: regulator@2 {
 		compatible = "regulator-fixed";
 		regulator-name = "5V_HUB";
 		regulator-min-microvolt = <5000000>;
@@ -89,6 +108,7 @@
 		regulator-boot-on;
 		gpio = <&gpio0 7 0>;
 		regulator-always-on;
+		vin-supply = <&reg_sys_5v>;
 	};
 
 	soc {
