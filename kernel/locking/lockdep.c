@@ -2877,7 +2877,7 @@ static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
 	if (unlikely(!debug_locks))
 		return;
 
-	gfp_mask = memalloc_noio_flags(gfp_mask);
+	gfp_mask = current_gfp_context(gfp_mask);
 
 	/* no reclaim without waiting on it */
 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
@@ -2888,7 +2888,7 @@ static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
 		return;
 
 	/* We're only interested __GFP_FS allocations for now */
-	if (!(gfp_mask & __GFP_FS))
+	if (!(gfp_mask & __GFP_FS) || (curr->flags & PF_MEMALLOC_NOFS))
 		return;
 
 	/*
@@ -3954,7 +3954,7 @@ EXPORT_SYMBOL_GPL(lock_unpin_lock);
 
 void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
 {
-	current->lockdep_reclaim_gfp = memalloc_noio_flags(gfp_mask);
+	current->lockdep_reclaim_gfp = current_gfp_context(gfp_mask);
 }
 
 void lockdep_clear_current_reclaim_state(void)
