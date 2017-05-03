@@ -913,6 +913,15 @@ struct ibmvnic_error_buff {
 	__be32 error_id;
 };
 
+enum vnic_state {VNIC_PROBING = 1,
+		 VNIC_PROBED,
+		 VNIC_OPENING,
+		 VNIC_OPEN,
+		 VNIC_CLOSING,
+		 VNIC_CLOSED,
+		 VNIC_REMOVING,
+		 VNIC_REMOVED};
+
 struct ibmvnic_adapter {
 	struct vio_dev *vdev;
 	struct net_device *netdev;
@@ -962,7 +971,6 @@ struct ibmvnic_adapter {
 	u64 promisc;
 
 	struct ibmvnic_tx_pool *tx_pool;
-	bool closing;
 	struct completion init_done;
 	int init_done_rc;
 
@@ -1011,5 +1019,5 @@ struct ibmvnic_adapter {
 	struct work_struct ibmvnic_xport;
 	struct tasklet_struct tasklet;
 	bool failover;
-	bool is_closed;
+	enum vnic_state state;
 };

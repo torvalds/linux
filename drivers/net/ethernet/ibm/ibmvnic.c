@@ -669,7 +669,9 @@ static int ibmvnic_open(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int i, rc;
 
-	if (adapter->is_closed) {
+	adapter->state = VNIC_OPENING;
+
+	if (adapter->state == VNIC_CLOSED) {
 		rc = ibmvnic_init(adapter);
 		if (rc)
 			return rc;
@@ -704,7 +706,7 @@ static int ibmvnic_open(struct net_device *netdev)
 		release_resources(adapter);
 	} else {
 		netif_tx_start_all_queues(netdev);
-		adapter->is_closed = false;
+		adapter->state = VNIC_OPEN;
 	}
 
 	return rc;
@@ -733,7 +735,7 @@ static int ibmvnic_close(struct net_device *netdev)
 	int rc = 0;
 	int i;
 
-	adapter->closing = true;
+	adapter->state = VNIC_CLOSING;
 	disable_sub_crqs(adapter);
 
 	if (adapter->napi) {
@@ -748,8 +750,7 @@ static int ibmvnic_close(struct net_device *netdev)
 
 	release_resources(adapter);
 
-	adapter->is_closed = true;
-	adapter->closing = false;
+	adapter->state = VNIC_CLOSED;
 	return rc;
 }
 
@@ -1860,7 +1861,8 @@ static int pending_scrq(struct ibmvnic_adapter *adapter,
 {
 	union sub_crq *entry = &scrq->msgs[scrq->cur];
 
-	if (entry->generic.first & IBMVNIC_CRQ_CMD_RSP || adapter->closing)
+	if (entry->generic.first & IBMVNIC_CRQ_CMD_RSP ||
+	    adapter->state == VNIC_CLOSING)
 		return 1;
 	else
 		return 0;
@@ -3353,6 +3355,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		return -ENOMEM;
 
 	adapter = netdev_priv(netdev);
+	adapter->state = VNIC_PROBING;
 	dev_set_drvdata(&dev->dev, netdev);
 	adapter->vdev = dev;
 	adapter->netdev = netdev;
@@ -3380,7 +3383,6 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
-	adapter->is_closed = false;
 
 	rc = register_netdev(netdev);
 	if (rc) {
@@ -3390,6 +3392,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 	dev_info(&dev->dev, "ibmvnic registered\n");
 
+	adapter->state = VNIC_PROBED;
 	return 0;
 }
 
@@ -3398,11 +3401,14 @@ static int ibmvnic_remove(struct vio_dev *dev)
 	struct net_device *netdev = dev_get_drvdata(&dev->dev);
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 
+	adapter->state = VNIC_REMOVING;
 	unregister_netdev(netdev);
 
 	release_resources(adapter);
 	release_sub_crqs(adapter);
 	release_crq_queue(adapter);
+
+	adapter->state = VNIC_REMOVED;
 
 	free_netdev(netdev);
 	dev_set_drvdata(&dev->dev, NULL);
