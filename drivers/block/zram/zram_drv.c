@@ -57,6 +57,16 @@ static inline struct zram *dev_to_zram(struct device *dev)
 	return (struct zram *)dev_to_disk(dev)->private_data;
 }
 
+static unsigned long zram_get_handle(struct zram *zram, u32 index)
+{
+	return zram->table[index].handle;
+}
+
+static void zram_set_handle(struct zram *zram, u32 index, unsigned long handle)
+{
+	zram->table[index].handle = handle;
+}
+
 /* flag operations require table entry bit_spin_lock() being held */
 static int zram_test_flag(struct zram *zram, u32 index,
 			enum zram_pageflags flag)
@@ -82,9 +92,9 @@ static inline void zram_set_element(struct zram *zram, u32 index,
 	zram->table[index].element = element;
 }
 
-static inline void zram_clear_element(struct zram *zram, u32 index)
+static unsigned long zram_get_element(struct zram *zram, u32 index)
 {
-	zram->table[index].element = 0;
+	return zram->table[index].element;
 }
 
 static size_t zram_get_obj_size(struct zram *zram, u32 index)
@@ -425,13 +435,14 @@ static bool zram_same_page_read(struct zram *zram, u32 index,
 				unsigned int offset, unsigned int len)
 {
 	zram_slot_lock(zram, index);
-	if (unlikely(!zram->table[index].handle) ||
-			zram_test_flag(zram, index, ZRAM_SAME)) {
+	if (unlikely(!zram_get_handle(zram, index) ||
+			zram_test_flag(zram, index, ZRAM_SAME))) {
 		void *mem;
 
 		zram_slot_unlock(zram, index);
 		mem = kmap_atomic(page);
-		zram_fill_page(mem + offset, len, zram->table[index].element);
+		zram_fill_page(mem + offset, len,
+					zram_get_element(zram, index));
 		kunmap_atomic(mem);
 		return true;
 	}
@@ -470,7 +481,7 @@ static void zram_meta_free(struct zram *zram, u64 disksize)
 
 	/* Free all pages that are still in this zram device */
 	for (index = 0; index < num_pages; index++) {
-		unsigned long handle = zram->table[index].handle;
+		unsigned long handle = zram_get_handle(zram, index);
 		/*
 		 * No memory is allocated for same element filled pages.
 		 * Simply clear same page flag.
@@ -510,7 +521,7 @@ static bool zram_meta_alloc(struct zram *zram, u64 disksize)
  */
 static void zram_free_page(struct zram *zram, size_t index)
 {
-	unsigned long handle = zram->table[index].handle;
+	unsigned long handle = zram_get_handle(zram, index);
 
 	/*
 	 * No memory is allocated for same element filled pages.
@@ -518,7 +529,7 @@ static void zram_free_page(struct zram *zram, size_t index)
 	 */
 	if (zram_test_flag(zram, index, ZRAM_SAME)) {
 		zram_clear_flag(zram, index, ZRAM_SAME);
-		zram_clear_element(zram, index);
+		zram_set_element(zram, index, 0);
 		atomic64_dec(&zram->stats.same_pages);
 		return;
 	}
@@ -532,7 +543,7 @@ static void zram_free_page(struct zram *zram, size_t index)
 			&zram->stats.compr_data_size);
 	atomic64_dec(&zram->stats.pages_stored);
 
-	zram->table[index].handle = 0;
+	zram_set_handle(zram, index, 0);
 	zram_set_obj_size(zram, index, 0);
 }
 
@@ -547,7 +558,7 @@ static int zram_decompress_page(struct zram *zram, struct page *page, u32 index)
 		return 0;
 
 	zram_slot_lock(zram, index);
-	handle = zram->table[index].handle;
+	handle = zram_get_handle(zram, index);
 	size = zram_get_obj_size(zram, index);
 
 	src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
@@ -713,7 +724,7 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index)
 	 */
 	zram_slot_lock(zram, index);
 	zram_free_page(zram, index);
-	zram->table[index].handle = handle;
+	zram_set_handle(zram, index, handle);
 	zram_set_obj_size(zram, index, comp_len);
 	zram_slot_unlock(zram, index);
 
