@@ -46,58 +46,6 @@
 #include <linux/ktime.h>
 #include <linux/irqflags.h>
 
-enum rcutorture_type {
-	RCU_FLAVOR,
-	RCU_BH_FLAVOR,
-	RCU_SCHED_FLAVOR,
-	RCU_TASKS_FLAVOR,
-	SRCU_FLAVOR,
-	INVALID_RCU_FLAVOR
-};
-
-#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
-void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
-			    unsigned long *gpnum, unsigned long *completed);
-void rcutorture_record_test_transition(void);
-void rcutorture_record_progress(unsigned long vernum);
-void do_trace_rcu_torture_read(const char *rcutorturename,
-			       struct rcu_head *rhp,
-			       unsigned long secs,
-			       unsigned long c_old,
-			       unsigned long c);
-bool rcu_irq_enter_disabled(void);
-#else
-static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
-					  int *flags,
-					  unsigned long *gpnum,
-					  unsigned long *completed)
-{
-	*flags = 0;
-	*gpnum = 0;
-	*completed = 0;
-}
-static inline void rcutorture_record_test_transition(void)
-{
-}
-static inline void rcutorture_record_progress(unsigned long vernum)
-{
-}
-static inline bool rcu_irq_enter_disabled(void)
-{
-	return false;
-}
-#ifdef CONFIG_RCU_TRACE
-void do_trace_rcu_torture_read(const char *rcutorturename,
-			       struct rcu_head *rhp,
-			       unsigned long secs,
-			       unsigned long c_old,
-			       unsigned long c);
-#else
-#define do_trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
-	do { } while (0)
-#endif
-#endif
-
 #define UINT_CMP_GE(a, b)	(UINT_MAX / 2 >= (a) - (b))
 #define UINT_CMP_LT(a, b)	(UINT_MAX / 2 < (a) - (b))
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))

@@ -98,18 +98,4 @@ void synchronize_srcu_expedited(struct srcu_struct *sp);
 void srcu_barrier(struct srcu_struct *sp);
 unsigned long srcu_batches_completed(struct srcu_struct *sp);
 
-static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
-					   struct srcu_struct *sp, int *flags,
-					   unsigned long *gpnum,
-					   unsigned long *completed)
-{
-	if (test_type != SRCU_FLAVOR)
-		return;
-	*flags = 0;
-	*completed = sp->completed;
-	*gpnum = *completed;
-	if (sp->batch_queue.head || sp->batch_check0.head || sp->batch_check0.head)
-		(*gpnum)++;
-}
-
 #endif

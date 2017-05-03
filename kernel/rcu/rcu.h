@@ -319,4 +319,89 @@ void rcu_unexpedite_gp(void);
 void rcupdate_announce_bootup_oddness(void);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
+enum rcutorture_type {
+	RCU_FLAVOR,
+	RCU_BH_FLAVOR,
+	RCU_SCHED_FLAVOR,
+	RCU_TASKS_FLAVOR,
+	SRCU_FLAVOR,
+	INVALID_RCU_FLAVOR
+};
+
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
+void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
+			    unsigned long *gpnum, unsigned long *completed);
+void rcutorture_record_test_transition(void);
+void rcutorture_record_progress(unsigned long vernum);
+void do_trace_rcu_torture_read(const char *rcutorturename,
+			       struct rcu_head *rhp,
+			       unsigned long secs,
+			       unsigned long c_old,
+			       unsigned long c);
+#else
+static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
+					  int *flags,
+					  unsigned long *gpnum,
+					  unsigned long *completed)
+{
+	*flags = 0;
+	*gpnum = 0;
+	*completed = 0;
+}
+static inline void rcutorture_record_test_transition(void)
+{
+}
+static inline void rcutorture_record_progress(unsigned long vernum)
+{
+}
+#ifdef CONFIG_RCU_TRACE
+void do_trace_rcu_torture_read(const char *rcutorturename,
+			       struct rcu_head *rhp,
+			       unsigned long secs,
+			       unsigned long c_old,
+			       unsigned long c);
+#else
+#define do_trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
+	do { } while (0)
+#endif
+#endif
+
+#ifdef CONFIG_TINY_SRCU
+
+static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
+					   struct srcu_struct *sp, int *flags,
+					   unsigned long *gpnum,
+					   unsigned long *completed)
+{
+	if (test_type != SRCU_FLAVOR)
+		return;
+	*flags = 0;
+	*completed = sp->srcu_gp_seq;
+	*gpnum = *completed;
+}
+
+#elif defined(CONFIG_TREE_SRCU)
+
+void srcutorture_get_gp_data(enum rcutorture_type test_type,
+			     struct srcu_struct *sp, int *flags,
+			     unsigned long *gpnum, unsigned long *completed);
+
+#elif defined(CONFIG_CLASSIC_SRCU)
+
+static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
+					   struct srcu_struct *sp, int *flags,
+					   unsigned long *gpnum,
+					   unsigned long *completed)
+{
+	if (test_type != SRCU_FLAVOR)
+		return;
+	*flags = 0;
+	*completed = sp->completed;
+	*gpnum = *completed;
+	if (sp->batch_queue.head || sp->batch_check0.head || sp->batch_check0.head)
+		(*gpnum)++;
+}
+
+#endif
+
 #endif /* __LINUX_RCU_H */
