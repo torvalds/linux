@@ -18,6 +18,8 @@
 #define DRV_VER_MIN	7
 #define DRV_VER_UPD	0
 
+#include <linux/interrupt.h>
+
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
 	#define TX_BD_TYPE					(0x3f << 0)
@@ -423,8 +425,6 @@ struct rx_tpa_end_cmp_ext {
 	 XDP_PACKET_HEADROOM)
 
 #define BNXT_MIN_PKT_SIZE	52
-
-#define BNXT_NUM_TESTS(bp)	0
 
 #define BNXT_DEFAULT_RX_RING_SIZE	511
 #define BNXT_DEFAULT_TX_RING_SIZE	511
@@ -851,6 +851,7 @@ struct bnxt_link_info {
 #define BNXT_LINK_SPEED_25GB	PORT_PHY_QCFG_RESP_LINK_SPEED_25GB
 #define BNXT_LINK_SPEED_40GB	PORT_PHY_QCFG_RESP_LINK_SPEED_40GB
 #define BNXT_LINK_SPEED_50GB	PORT_PHY_QCFG_RESP_LINK_SPEED_50GB
+#define BNXT_LINK_SPEED_100GB	PORT_PHY_QCFG_RESP_LINK_SPEED_100GB
 	u16			support_speeds;
 	u16			auto_link_speeds;	/* fw adv setting */
 #define BNXT_LINK_SPEED_MSK_100MB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_100MB
@@ -862,6 +863,7 @@ struct bnxt_link_info {
 #define BNXT_LINK_SPEED_MSK_25GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_25GB
 #define BNXT_LINK_SPEED_MSK_40GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_40GB
 #define BNXT_LINK_SPEED_MSK_50GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_50GB
+#define BNXT_LINK_SPEED_MSK_100GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_100GB
 	u16			support_auto_speeds;
 	u16			lp_auto_link_speeds;
 	u16			force_link_speed;
@@ -907,6 +909,14 @@ struct bnxt_led_info {
 	cpu_to_le16(PORT_LED_QCAPS_RESP_LED0_STATE_CAPS_BLINK_ALT_SUPPORTED))
 
 	__le16	led_color_caps;
+};
+
+#define BNXT_MAX_TEST	8
+
+struct bnxt_test_info {
+	u8 offline_mask;
+	u16 timeout;
+	char string[BNXT_MAX_TEST][ETH_GSTRING_LEN];
 };
 
 #define BNXT_GRCPF_REG_WINDOW_BASE_OUT	0x400
@@ -987,6 +997,7 @@ struct bnxt {
 	#define BNXT_FLAG_UDP_RSS_CAP	0x800
 	#define BNXT_FLAG_EEE_CAP	0x1000
 	#define BNXT_FLAG_NEW_RSS_CAP	0x2000
+	#define BNXT_FLAG_WOL_CAP	0x4000
 	#define BNXT_FLAG_ROCEV1_CAP	0x8000
 	#define BNXT_FLAG_ROCEV2_CAP	0x10000
 	#define BNXT_FLAG_ROCE_CAP	(BNXT_FLAG_ROCEV1_CAP |	\
@@ -994,6 +1005,7 @@ struct bnxt {
 	#define BNXT_FLAG_NO_AGG_RINGS	0x20000
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
 	#define BNXT_FLAG_FW_LLDP_AGENT	0x80000
+	#define BNXT_FLAG_MULTI_HOST	0x100000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -1003,7 +1015,8 @@ struct bnxt {
 #define BNXT_PF(bp)		(!((bp)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
 #define BNXT_NPAR(bp)		((bp)->port_partition_type)
-#define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp))
+#define BNXT_MH(bp)		((bp)->flags & BNXT_FLAG_MULTI_HOST)
+#define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
 
@@ -1178,6 +1191,12 @@ struct bnxt {
 	u32			lpi_tmr_lo;
 	u32			lpi_tmr_hi;
 
+	u8			num_tests;
+	struct bnxt_test_info	*test_info;
+
+	u8			wol_filter_id;
+	u8			wol;
+
 	u8			num_leds;
 	struct bnxt_led_info	leds[BNXT_MAX_LED];
 
@@ -1236,8 +1255,12 @@ void bnxt_tx_disable(struct bnxt *bp);
 void bnxt_tx_enable(struct bnxt *bp);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
+int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp);
+int bnxt_hwrm_free_wol_fltr(struct bnxt *bp);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_open_nic(struct bnxt *, bool, bool);
+int bnxt_half_open_nic(struct bnxt *bp);
+void bnxt_half_close_nic(struct bnxt *bp);
 int bnxt_close_nic(struct bnxt *, bool, bool);
 int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs, int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);

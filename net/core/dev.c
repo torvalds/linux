@@ -95,6 +95,7 @@
 #include <linux/notifier.h>
 #include <linux/skbuff.h>
 #include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/busy_poll.h>
@@ -2975,6 +2976,9 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 		    __skb_linearize(skb))
 			goto out_kfree_skb;
 
+		if (validate_xmit_xfrm(skb, features))
+			goto out_kfree_skb;
+
 		/* If packet is not checksummed and device does not
 		 * support checksumming for this protocol, complete
 		 * checksumming here.
@@ -3444,6 +3448,7 @@ EXPORT_SYMBOL(netdev_max_backlog);
 
 int netdev_tstamp_prequeue __read_mostly = 1;
 int netdev_budget __read_mostly = 300;
+unsigned int __read_mostly netdev_budget_usecs = 2000;
 int weight_p __read_mostly = 64;           /* old backlog weight */
 int dev_weight_rx_bias __read_mostly = 1;  /* bias for backlog weight */
 int dev_weight_tx_bias __read_mostly = 1;  /* bias for output_queue quota */
@@ -4250,6 +4255,125 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	return ret;
 }
 
+static struct static_key generic_xdp_needed __read_mostly;
+
+static int generic_xdp_install(struct net_device *dev, struct netdev_xdp *xdp)
+{
+	struct bpf_prog *new = xdp->prog;
+	int ret = 0;
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG: {
+		struct bpf_prog *old = rtnl_dereference(dev->xdp_prog);
+
+		rcu_assign_pointer(dev->xdp_prog, new);
+		if (old)
+			bpf_prog_put(old);
+
+		if (old && !new) {
+			static_key_slow_dec(&generic_xdp_needed);
+		} else if (new && !old) {
+			static_key_slow_inc(&generic_xdp_needed);
+			dev_disable_lro(dev);
+		}
+		break;
+	}
+
+	case XDP_QUERY_PROG:
+		xdp->prog_attached = !!rcu_access_pointer(dev->xdp_prog);
+		break;
+
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+				     struct bpf_prog *xdp_prog)
+{
+	struct xdp_buff xdp;
+	u32 act = XDP_DROP;
+	void *orig_data;
+	int hlen, off;
+	u32 mac_len;
+
+	/* Reinjected packets coming from act_mirred or similar should
+	 * not get XDP generic processing.
+	 */
+	if (skb_cloned(skb))
+		return XDP_PASS;
+
+	if (skb_linearize(skb))
+		goto do_drop;
+
+	/* The XDP program wants to see the packet starting at the MAC
+	 * header.
+	 */
+	mac_len = skb->data - skb_mac_header(skb);
+	hlen = skb_headlen(skb) + mac_len;
+	xdp.data = skb->data - mac_len;
+	xdp.data_end = xdp.data + hlen;
+	xdp.data_hard_start = skb->data - skb_headroom(skb);
+	orig_data = xdp.data;
+
+	act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+	off = xdp.data - orig_data;
+	if (off > 0)
+		__skb_pull(skb, off);
+	else if (off < 0)
+		__skb_push(skb, -off);
+
+	switch (act) {
+	case XDP_TX:
+		__skb_push(skb, mac_len);
+		/* fall through */
+	case XDP_PASS:
+		break;
+
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		/* fall through */
+	case XDP_ABORTED:
+		trace_xdp_exception(skb->dev, xdp_prog, act);
+		/* fall through */
+	case XDP_DROP:
+	do_drop:
+		kfree_skb(skb);
+		break;
+	}
+
+	return act;
+}
+
+/* When doing generic XDP we have to bypass the qdisc layer and the
+ * network taps in order to match in-driver-XDP behavior.
+ */
+static void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog)
+{
+	struct net_device *dev = skb->dev;
+	struct netdev_queue *txq;
+	bool free_skb = true;
+	int cpu, rc;
+
+	txq = netdev_pick_tx(dev, skb, NULL);
+	cpu = smp_processor_id();
+	HARD_TX_LOCK(dev, txq, cpu);
+	if (!netif_xmit_stopped(txq)) {
+		rc = netdev_start_xmit(skb, dev, txq, 0);
+		if (dev_xmit_complete(rc))
+			free_skb = false;
+	}
+	HARD_TX_UNLOCK(dev, txq);
+	if (free_skb) {
+		trace_xdp_exception(dev, xdp_prog, XDP_TX);
+		kfree_skb(skb);
+	}
+}
+
 static int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	int ret;
@@ -4260,6 +4384,21 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 		return NET_RX_SUCCESS;
 
 	rcu_read_lock();
+
+	if (static_key_false(&generic_xdp_needed)) {
+		struct bpf_prog *xdp_prog = rcu_dereference(skb->dev->xdp_prog);
+
+		if (xdp_prog) {
+			u32 act = netif_receive_generic_xdp(skb, xdp_prog);
+
+			if (act != XDP_PASS) {
+				rcu_read_unlock();
+				if (act == XDP_TX)
+					generic_xdp_tx(skb, xdp_prog);
+				return NET_RX_DROP;
+			}
+		}
+	}
 
 #ifdef CONFIG_RPS
 	if (static_key_false(&rps_needed)) {
@@ -4493,7 +4632,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	enum gro_result ret;
 	int grow;
 
-	if (!(skb->dev->features & NETIF_F_GRO))
+	if (netif_elide_gro(skb->dev))
 		goto normal;
 
 	if (skb->csum_bad)
@@ -5063,27 +5202,28 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 		do_softirq();
 }
 
-bool sk_busy_loop(struct sock *sk, int nonblock)
+void napi_busy_loop(unsigned int napi_id,
+		    bool (*loop_end)(void *, unsigned long),
+		    void *loop_end_arg)
 {
-	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
+	unsigned long start_time = loop_end ? busy_loop_current_time() : 0;
 	int (*napi_poll)(struct napi_struct *napi, int budget);
 	void *have_poll_lock = NULL;
 	struct napi_struct *napi;
-	int rc;
 
 restart:
-	rc = false;
 	napi_poll = NULL;
 
 	rcu_read_lock();
 
-	napi = napi_by_id(sk->sk_napi_id);
+	napi = napi_by_id(napi_id);
 	if (!napi)
 		goto out;
 
 	preempt_disable();
 	for (;;) {
-		rc = 0;
+		int work = 0;
+
 		local_bh_disable();
 		if (!napi_poll) {
 			unsigned long val = READ_ONCE(napi->state);
@@ -5101,16 +5241,15 @@ restart:
 			have_poll_lock = netpoll_poll_lock(napi);
 			napi_poll = napi->poll;
 		}
-		rc = napi_poll(napi, BUSY_POLL_BUDGET);
-		trace_napi_poll(napi, rc, BUSY_POLL_BUDGET);
+		work = napi_poll(napi, BUSY_POLL_BUDGET);
+		trace_napi_poll(napi, work, BUSY_POLL_BUDGET);
 count:
-		if (rc > 0)
-			__NET_ADD_STATS(sock_net(sk),
-					LINUX_MIB_BUSYPOLLRXPACKETS, rc);
+		if (work > 0)
+			__NET_ADD_STATS(dev_net(napi->dev),
+					LINUX_MIB_BUSYPOLLRXPACKETS, work);
 		local_bh_enable();
 
-		if (nonblock || !skb_queue_empty(&sk->sk_receive_queue) ||
-		    busy_loop_timeout(end_time))
+		if (!loop_end || loop_end(loop_end_arg, start_time))
 			break;
 
 		if (unlikely(need_resched())) {
@@ -5119,9 +5258,8 @@ count:
 			preempt_enable();
 			rcu_read_unlock();
 			cond_resched();
-			rc = !skb_queue_empty(&sk->sk_receive_queue);
-			if (rc || busy_loop_timeout(end_time))
-				return rc;
+			if (loop_end(loop_end_arg, start_time))
+				return;
 			goto restart;
 		}
 		cpu_relax();
@@ -5129,12 +5267,10 @@ count:
 	if (napi_poll)
 		busy_poll_stop(napi, have_poll_lock);
 	preempt_enable();
-	rc = !skb_queue_empty(&sk->sk_receive_queue);
 out:
 	rcu_read_unlock();
-	return rc;
 }
-EXPORT_SYMBOL(sk_busy_loop);
+EXPORT_SYMBOL(napi_busy_loop);
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
@@ -5146,10 +5282,10 @@ static void napi_hash_add(struct napi_struct *napi)
 
 	spin_lock(&napi_hash_lock);
 
-	/* 0..NR_CPUS+1 range is reserved for sender_cpu use */
+	/* 0..NR_CPUS range is reserved for sender_cpu use */
 	do {
-		if (unlikely(++napi_gen_id < NR_CPUS + 1))
-			napi_gen_id = NR_CPUS + 1;
+		if (unlikely(++napi_gen_id < MIN_NAPI_ID))
+			napi_gen_id = MIN_NAPI_ID;
 	} while (napi_by_id(napi_gen_id));
 	napi->napi_id = napi_gen_id;
 
@@ -5313,7 +5449,8 @@ out_unlock:
 static __latent_entropy void net_rx_action(struct softirq_action *h)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
-	unsigned long time_limit = jiffies + 2;
+	unsigned long time_limit = jiffies +
+		usecs_to_jiffies(netdev_budget_usecs);
 	int budget = netdev_budget;
 	LIST_HEAD(list);
 	LIST_HEAD(repoll);
@@ -6717,13 +6854,16 @@ EXPORT_SYMBOL(dev_change_proto_down);
 /**
  *	dev_change_xdp_fd - set or clear a bpf program for a device rx path
  *	@dev: device
+ *	@extack: netlink extended ack
  *	@fd: new program fd or negative value to clear
  *	@flags: xdp-related flags
  *
  *	Set or clear a bpf program for a device
  */
-int dev_change_xdp_fd(struct net_device *dev, int fd, u32 flags)
+int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
+		      int fd, u32 flags)
 {
+	int (*xdp_op)(struct net_device *dev, struct netdev_xdp *xdp);
 	const struct net_device_ops *ops = dev->netdev_ops;
 	struct bpf_prog *prog = NULL;
 	struct netdev_xdp xdp;
@@ -6731,14 +6871,16 @@ int dev_change_xdp_fd(struct net_device *dev, int fd, u32 flags)
 
 	ASSERT_RTNL();
 
-	if (!ops->ndo_xdp)
-		return -EOPNOTSUPP;
+	xdp_op = ops->ndo_xdp;
+	if (!xdp_op || (flags & XDP_FLAGS_SKB_MODE))
+		xdp_op = generic_xdp_install;
+
 	if (fd >= 0) {
 		if (flags & XDP_FLAGS_UPDATE_IF_NOEXIST) {
 			memset(&xdp, 0, sizeof(xdp));
 			xdp.command = XDP_QUERY_PROG;
 
-			err = ops->ndo_xdp(dev, &xdp);
+			err = xdp_op(dev, &xdp);
 			if (err < 0)
 				return err;
 			if (xdp.prog_attached)
@@ -6752,9 +6894,10 @@ int dev_change_xdp_fd(struct net_device *dev, int fd, u32 flags)
 
 	memset(&xdp, 0, sizeof(xdp));
 	xdp.command = XDP_SETUP_PROG;
+	xdp.extack = extack;
 	xdp.prog = prog;
 
-	err = ops->ndo_xdp(dev, &xdp);
+	err = xdp_op(dev, &xdp);
 	if (err < 0 && prog)
 		bpf_prog_put(prog);
 
@@ -7105,13 +7248,10 @@ void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 	else
 		netif_dormant_off(dev);
 
-	if (netif_carrier_ok(rootdev)) {
-		if (!netif_carrier_ok(dev))
-			netif_carrier_on(dev);
-	} else {
-		if (netif_carrier_ok(dev))
-			netif_carrier_off(dev);
-	}
+	if (netif_carrier_ok(rootdev))
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
 }
 EXPORT_SYMBOL(netif_stacked_transfer_operstate);
 
@@ -7794,6 +7934,7 @@ EXPORT_SYMBOL(alloc_netdev_mqs);
 void free_netdev(struct net_device *dev)
 {
 	struct napi_struct *p, *n;
+	struct bpf_prog *prog;
 
 	might_sleep();
 	netif_free_tx_queues(dev);
@@ -7811,6 +7952,12 @@ void free_netdev(struct net_device *dev)
 
 	free_percpu(dev->pcpu_refcnt);
 	dev->pcpu_refcnt = NULL;
+
+	prog = rcu_dereference_protected(dev->xdp_prog, 1);
+	if (prog) {
+		bpf_prog_put(prog);
+		static_key_slow_dec(&generic_xdp_needed);
+	}
 
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {

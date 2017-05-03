@@ -186,7 +186,7 @@ extern long io_schedule_timeout(long timeout);
 extern void io_schedule(void);
 
 /**
- * struct prev_cputime - snaphsot of system and user cputime
+ * struct prev_cputime - snapshot of system and user cputime
  * @utime: time spent in user mode
  * @stime: time spent in system mode
  * @lock: protects the above two fields
@@ -1043,6 +1043,9 @@ struct task_struct {
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/* A live task holds one reference: */
 	atomic_t			stack_refcount;
+#endif
+#ifdef CONFIG_LIVEPATCH
+	int patch_state;
 #endif
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;

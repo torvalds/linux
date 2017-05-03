@@ -525,7 +525,7 @@ pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin);
 
 /**
- * pinctrl_remove_gpio_range() - remove a range of GPIOs fro a pin controller
+ * pinctrl_remove_gpio_range() - remove a range of GPIOs from a pin controller
  * @pctldev: pin controller device to remove the range from
  * @range: the GPIO range to remove
  */
@@ -1062,7 +1062,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	mutex_unlock(&pinctrl_maps_mutex);
 
 	if (ret < 0) {
-		/* If some other error than deferral occured, return here */
+		/* If some other error than deferral occurred, return here */
 		pinctrl_free(p, false);
 		return ERR_PTR(ret);
 	}
@@ -1939,9 +1939,9 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
  * @dev: parent device for this pin controller
  * @driver_data: private pin controller data for this pin controller
  */
-struct pinctrl_dev *pinctrl_init_controller(struct pinctrl_desc *pctldesc,
-					    struct device *dev,
-					    void *driver_data)
+static struct pinctrl_dev *
+pinctrl_init_controller(struct pinctrl_desc *pctldesc, struct device *dev,
+			void *driver_data)
 {
 	struct pinctrl_dev *pctldev;
 	int ret;

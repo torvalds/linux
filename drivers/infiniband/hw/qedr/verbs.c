@@ -43,7 +43,8 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
 
-#include "qedr_hsi.h"
+#include <linux/qed/common_hsi.h>
+#include "qedr_hsi_rdma.h"
 #include <linux/qed/qed_if.h>
 #include "qedr.h"
 #include "verbs.h"

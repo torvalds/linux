@@ -482,6 +482,7 @@ void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
  * @if_outgoing: The (optional) if_outgoing to be grabbed
  * @queue_left: The (optional) queue counter to decrease
  * @bat_priv: The bat_priv for the mesh of this forw_packet
+ * @skb: The raw packet this forwarding packet shall contain
  *
  * Allocates a forwarding packet and tries to get a reference to the
  * (optional) if_incoming, if_outgoing and queue_left. If queue_left
@@ -493,7 +494,8 @@ struct batadv_forw_packet *
 batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 			 struct batadv_hard_iface *if_outgoing,
 			 atomic_t *queue_left,
-			 struct batadv_priv *bat_priv)
+			 struct batadv_priv *bat_priv,
+			 struct sk_buff *skb)
 {
 	struct batadv_forw_packet *forw_packet;
 	const char *qname;
@@ -525,7 +527,7 @@ batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 
 	INIT_HLIST_NODE(&forw_packet->list);
 	INIT_HLIST_NODE(&forw_packet->cleanup_list);
-	forw_packet->skb = NULL;
+	forw_packet->skb = skb;
 	forw_packet->queue_left = queue_left;
 	forw_packet->if_incoming = if_incoming;
 	forw_packet->if_outgoing = if_outgoing;
@@ -756,22 +758,23 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	if (!primary_if)
 		goto err;
 
+	newskb = skb_copy(skb, GFP_ATOMIC);
+	if (!newskb) {
+		batadv_hardif_put(primary_if);
+		goto err;
+	}
+
 	forw_packet = batadv_forw_packet_alloc(primary_if, NULL,
 					       &bat_priv->bcast_queue_left,
-					       bat_priv);
+					       bat_priv, newskb);
 	batadv_hardif_put(primary_if);
 	if (!forw_packet)
-		goto err;
-
-	newskb = skb_copy(skb, GFP_ATOMIC);
-	if (!newskb)
 		goto err_packet_free;
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
 	bcast_packet->ttl--;
 
-	forw_packet->skb = newskb;
 	forw_packet->own = own_packet;
 
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
@@ -781,9 +784,58 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	return NETDEV_TX_OK;
 
 err_packet_free:
-	batadv_forw_packet_free(forw_packet, true);
+	kfree_skb(newskb);
 err:
 	return NETDEV_TX_BUSY;
+}
+
+/**
+ * batadv_forw_packet_bcasts_left - check if a retransmission is necessary
+ * @forw_packet: the forwarding packet to check
+ * @hard_iface: the interface to check on
+ *
+ * Checks whether a given packet has any (re)transmissions left on the provided
+ * interface.
+ *
+ * hard_iface may be NULL: In that case the number of transmissions this skb had
+ * so far is compared with the maximum amount of retransmissions independent of
+ * any interface instead.
+ *
+ * Return: True if (re)transmissions are left, false otherwise.
+ */
+static bool
+batadv_forw_packet_bcasts_left(struct batadv_forw_packet *forw_packet,
+			       struct batadv_hard_iface *hard_iface)
+{
+	unsigned int max;
+
+	if (hard_iface)
+		max = hard_iface->num_bcasts;
+	else
+		max = BATADV_NUM_BCASTS_MAX;
+
+	return BATADV_SKB_CB(forw_packet->skb)->num_bcasts < max;
+}
+
+/**
+ * batadv_forw_packet_bcasts_inc - increment retransmission counter of a packet
+ * @forw_packet: the packet to increase the counter for
+ */
+static void
+batadv_forw_packet_bcasts_inc(struct batadv_forw_packet *forw_packet)
+{
+	BATADV_SKB_CB(forw_packet->skb)->num_bcasts++;
+}
+
+/**
+ * batadv_forw_packet_is_rebroadcast - check packet for previous transmissions
+ * @forw_packet: the packet to check
+ *
+ * Return: True if this packet was transmitted before, false otherwise.
+ */
+bool batadv_forw_packet_is_rebroadcast(struct batadv_forw_packet *forw_packet)
+{
+	return BATADV_SKB_CB(forw_packet->skb)->num_bcasts > 0;
 }
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
@@ -826,7 +878,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		if (forw_packet->num_packets >= hard_iface->num_bcasts)
+		if (!batadv_forw_packet_bcasts_left(forw_packet, hard_iface))
 			continue;
 
 		if (forw_packet->own) {
@@ -884,10 +936,10 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	}
 	rcu_read_unlock();
 
-	forw_packet->num_packets++;
+	batadv_forw_packet_bcasts_inc(forw_packet);
 
 	/* if we still have some more bcasts to send */
-	if (forw_packet->num_packets < BATADV_NUM_BCASTS_MAX) {
+	if (batadv_forw_packet_bcasts_left(forw_packet, NULL)) {
 		batadv_forw_packet_bcast_queue(bat_priv, forw_packet,
 					       send_time);
 		return;

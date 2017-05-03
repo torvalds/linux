@@ -1052,8 +1052,9 @@ dasd_3990_erp_com_rej(struct dasd_ccw_req * erp, char *sense)
 	} else {
 		/* fatal error -  set status to FAILED
 		   internal error 09 - Command Reject */
-		dev_err(&device->cdev->dev, "An error occurred in the DASD "
-			"device driver, reason=%s\n", "09");
+		if (!test_bit(DASD_CQR_SUPPRESS_CR, &erp->flags))
+			dev_err(&device->cdev->dev,
+				"An error occurred in the DASD device driver, reason=09\n");
 
 		erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 	}

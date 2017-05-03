@@ -84,12 +84,12 @@ static void nfp_netvf_get_mac_addr(struct nfp_net *nn)
 	put_unaligned_be16(nn_readw(nn, NFP_NET_CFG_MACADDR + 6), &mac_addr[4]);
 
 	if (!is_valid_ether_addr(mac_addr)) {
-		eth_hw_addr_random(nn->netdev);
+		eth_hw_addr_random(nn->dp.netdev);
 		return;
 	}
 
-	ether_addr_copy(nn->netdev->dev_addr, mac_addr);
-	ether_addr_copy(nn->netdev->perm_addr, mac_addr);
+	ether_addr_copy(nn->dp.netdev->dev_addr, mac_addr);
+	ether_addr_copy(nn->dp.netdev->perm_addr, mac_addr);
 }
 
 static int nfp_netvf_pci_probe(struct pci_dev *pdev,
@@ -210,8 +210,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	vf->nn = nn;
 
 	nn->fw_ver = fw_ver;
-	nn->ctrl_bar = ctrl_bar;
-	nn->is_vf = 1;
+	nn->dp.ctrl_bar = ctrl_bar;
+	nn->dp.is_vf = 1;
 	nn->stride_tx = stride;
 	nn->stride_rx = stride;
 
@@ -268,7 +268,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 	num_irqs = nfp_net_irqs_alloc(pdev, vf->irq_entries,
 				      NFP_NET_MIN_PORT_IRQS,
-				      NFP_NET_NON_Q_VECTORS + nn->num_r_vecs);
+				      NFP_NET_NON_Q_VECTORS +
+				      nn->dp.num_r_vecs);
 	if (!num_irqs) {
 		nn_warn(nn, "Unable to allocate MSI-X Vectors. Exiting\n");
 		err = -EIO;
@@ -282,7 +283,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	 */
 	nn->me_freq_mhz = 1200;
 
-	err = nfp_net_netdev_init(nn->netdev);
+	err = nfp_net_netdev_init(nn->dp.netdev);
 	if (err)
 		goto err_irqs_disable;
 
@@ -327,7 +328,7 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_debugfs_dir_clean(&vf->ddir);
 
-	nfp_net_netdev_clean(nn->netdev);
+	nfp_net_netdev_clean(nn->dp.netdev);
 
 	nfp_net_irqs_disable(pdev);
 
@@ -337,7 +338,7 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	} else {
 		iounmap(vf->q_bar);
 	}
-	iounmap(nn->ctrl_bar);
+	iounmap(nn->dp.ctrl_bar);
 
 	nfp_net_netdev_free(nn);
 

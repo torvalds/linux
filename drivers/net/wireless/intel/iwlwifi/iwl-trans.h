@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -396,7 +396,10 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
  * currently supports
  */
 #define IWL_MAX_HW_QUEUES		32
+#define IWL_MAX_TVQM_QUEUES		512
+
 #define IWL_MAX_TID_COUNT	8
+#define IWL_MGMT_TID		15
 #define IWL_FRAME_LIMIT	64
 #define IWL_MAX_RX_HW_QUEUES	16
 
@@ -530,6 +533,44 @@ struct iwl_trans_txq_scd_cfg {
 	int frame_limit;
 };
 
+/* Available options for &struct iwl_tx_queue_cfg_cmd */
+enum iwl_tx_queue_cfg_actions {
+	TX_QUEUE_CFG_ENABLE_QUEUE		= BIT(0),
+	TX_QUEUE_CFG_TFD_SHORT_FORMAT		= BIT(1),
+};
+
+/**
+ * struct iwl_tx_queue_cfg_cmd - txq hw scheduler config command
+ * @sta_id: station id
+ * @tid: tid of the queue
+ * @flags: Bit 0 - on enable, off - disable, Bit 1 - short TFD format
+ * @cb_size: size of TFD cyclic buffer. Value is exponent - 3.
+ *	Minimum value 0 (8 TFDs), maximum value 5 (256 TFDs)
+ * @byte_cnt_addr: address of byte count table
+ * @tfdq_addr: address of TFD circular buffer
+ */
+struct iwl_tx_queue_cfg_cmd {
+	u8 sta_id;
+	u8 tid;
+	__le16 flags;
+	__le32 cb_size;
+	__le64 byte_cnt_addr;
+	__le64 tfdq_addr;
+} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_tx_queue_cfg_rsp - response to txq hw scheduler config
+ * @queue_number: queue number assigned to this RA -TID
+ * @flags: set on failure
+ * @write_pointer: initial value for write pointer
+ */
+struct iwl_tx_queue_cfg_rsp {
+	__le16 queue_number;
+	__le16 flags;
+	__le16 write_pointer;
+	__le16 reserved;
+} __packed; /* TX_QUEUE_CFG_RSP_API_S_VER_2 */
+
 /**
  * struct iwl_trans_ops - transport specific operations
  *
@@ -640,13 +681,17 @@ struct iwl_trans_ops {
 			   unsigned int queue_wdg_timeout);
 	void (*txq_disable)(struct iwl_trans *trans, int queue,
 			    bool configure_scd);
+	/* a000 functions */
+	int (*txq_alloc)(struct iwl_trans *trans,
+			 struct iwl_tx_queue_cfg_cmd *cmd,
+			 int cmd_id,
+			 unsigned int queue_wdg_timeout);
+	void (*txq_free)(struct iwl_trans *trans, int queue);
 
 	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
 				    bool shared);
 
-	dma_addr_t (*get_txq_byte_table)(struct iwl_trans *trans, int txq_id);
-
-	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
+	int (*wait_tx_queues_empty)(struct iwl_trans *trans, u32 txq_bm);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
 				 bool freeze);
 	void (*block_txq_ptrs)(struct iwl_trans *trans, bool block);
@@ -774,9 +819,6 @@ enum iwl_plat_pm_mode {
  *	the transport must set this before calling iwl_drv_start()
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
- * @dev_cmd_headroom: room needed for the transport's private use before the
- *	device_cmd for Tx - for internal use only
- *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
  *	starting the firmware, used for tracing
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
@@ -827,7 +869,6 @@ struct iwl_trans {
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
-	size_t dev_cmd_headroom;
 	char dev_cmd_pool_name[50];
 
 	struct dentry *dbgfs_dir;
@@ -1000,13 +1041,13 @@ iwl_trans_dump_data(struct iwl_trans *trans,
 static inline struct iwl_device_cmd *
 iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 {
-	u8 *dev_cmd_ptr = kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
+	struct iwl_device_cmd *dev_cmd_ptr =
+		kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
 
 	if (unlikely(dev_cmd_ptr == NULL))
 		return NULL;
 
-	return (struct iwl_device_cmd *)
-			(dev_cmd_ptr + trans->dev_cmd_headroom);
+	return dev_cmd_ptr;
 }
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
@@ -1014,9 +1055,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
 					 struct iwl_device_cmd *dev_cmd)
 {
-	u8 *dev_cmd_ptr = (u8 *)dev_cmd - trans->dev_cmd_headroom;
-
-	kmem_cache_free(trans->dev_cmd_pool, dev_cmd_ptr);
+	kmem_cache_free(trans->dev_cmd_pool, dev_cmd);
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
@@ -1065,20 +1104,39 @@ iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
 	trans->ops->txq_enable(trans, queue, ssn, cfg, queue_wdg_timeout);
 }
 
+static inline void
+iwl_trans_txq_free(struct iwl_trans *trans, int queue)
+{
+	if (WARN_ON_ONCE(!trans->ops->txq_free))
+		return;
+
+	trans->ops->txq_free(trans, queue);
+}
+
+static inline int
+iwl_trans_txq_alloc(struct iwl_trans *trans,
+		    struct iwl_tx_queue_cfg_cmd *cmd,
+		    int cmd_id,
+		    unsigned int queue_wdg_timeout)
+{
+	might_sleep();
+
+	if (WARN_ON_ONCE(!trans->ops->txq_alloc))
+		return -ENOTSUPP;
+
+	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+		return -EIO;
+	}
+
+	return trans->ops->txq_alloc(trans, cmd, cmd_id, queue_wdg_timeout);
+}
+
 static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
 						 int queue, bool shared_mode)
 {
 	if (trans->ops->txq_set_shared_mode)
 		trans->ops->txq_set_shared_mode(trans, queue, shared_mode);
-}
-
-static inline dma_addr_t iwl_trans_get_txq_byte_table(struct iwl_trans *trans,
-						      int queue)
-{
-	/* we should never be called if the trans doesn't support it */
-	BUG_ON(!trans->ops->get_txq_byte_table);
-
-	return trans->ops->get_txq_byte_table(trans, queue);
 }
 
 static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
@@ -1137,15 +1195,15 @@ static inline void iwl_trans_block_txq_ptrs(struct iwl_trans *trans,
 		trans->ops->block_txq_ptrs(trans, block);
 }
 
-static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans,
-						u32 txqs)
+static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,
+						 u32 txqs)
 {
 	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
 		return -EIO;
 	}
 
-	return trans->ops->wait_tx_queue_empty(trans, txqs);
+	return trans->ops->wait_tx_queues_empty(trans, txqs);
 }
 
 static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
@@ -1248,8 +1306,7 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans)
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
 				  const struct iwl_cfg *cfg,
-				  const struct iwl_trans_ops *ops,
-				  size_t dev_cmd_headroom);
+				  const struct iwl_trans_ops *ops);
 void iwl_trans_free(struct iwl_trans *trans);
 
 /*****************************************************

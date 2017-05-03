@@ -328,7 +328,7 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct serpent_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[SERPENT_PARALLEL_BLOCKS];
+	le128 buf[SERPENT_PARALLEL_BLOCKS];
 	struct crypt_priv crypt_ctx = {
 		.ctx = &ctx->crypt_ctx,
 		.fpu_enabled = false,
@@ -355,7 +355,7 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct serpent_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[SERPENT_PARALLEL_BLOCKS];
+	le128 buf[SERPENT_PARALLEL_BLOCKS];
 	struct crypt_priv crypt_ctx = {
 		.ctx = &ctx->crypt_ctx,
 		.fpu_enabled = false,

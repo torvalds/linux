@@ -420,8 +420,8 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	/* Extended save area */
-	rc = read_guest_lc(vcpu, __LC_VX_SAVE_AREA_ADDR, &ext_sa_addr,
-			    sizeof(unsigned long));
+	rc = read_guest_lc(vcpu, __LC_MCESAD, &ext_sa_addr,
+			   sizeof(unsigned long));
 	/* Only bits 0-53 are used for address formation */
 	ext_sa_addr &= ~0x3ffUL;
 	if (!rc && mci.vr && ext_sa_addr && test_kvm_facility(vcpu->kvm, 129)) {

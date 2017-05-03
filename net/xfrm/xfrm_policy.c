@@ -116,11 +116,10 @@ static const struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short fa
 	return afinfo;
 }
 
-static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
-						  int tos, int oif,
-						  const xfrm_address_t *saddr,
-						  const xfrm_address_t *daddr,
-						  int family)
+struct dst_entry *__xfrm_dst_lookup(struct net *net, int tos, int oif,
+				    const xfrm_address_t *saddr,
+				    const xfrm_address_t *daddr,
+				    int family)
 {
 	const struct xfrm_policy_afinfo *afinfo;
 	struct dst_entry *dst;
@@ -135,6 +134,7 @@ static inline struct dst_entry *__xfrm_dst_lookup(struct net *net,
 
 	return dst;
 }
+EXPORT_SYMBOL(__xfrm_dst_lookup);
 
 static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x,
 						int tos, int oif,
@@ -2933,21 +2933,6 @@ void xfrm_policy_unregister_afinfo(const struct xfrm_policy_afinfo *afinfo)
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
 
-static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
-{
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-
-	switch (event) {
-	case NETDEV_DOWN:
-		xfrm_garbage_collect(dev_net(dev));
-	}
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block xfrm_dev_notifier = {
-	.notifier_call	= xfrm_dev_event,
-};
-
 #ifdef CONFIG_XFRM_STATISTICS
 static int __net_init xfrm_statistics_init(struct net *net)
 {
@@ -3024,7 +3009,7 @@ static int __net_init xfrm_policy_init(struct net *net)
 	INIT_WORK(&net->xfrm.policy_hash_work, xfrm_hash_resize);
 	INIT_WORK(&net->xfrm.policy_hthresh.work, xfrm_hash_rebuild);
 	if (net_eq(net, &init_net))
-		register_netdevice_notifier(&xfrm_dev_notifier);
+		xfrm_dev_init();
 	return 0;
 
 out_bydst:

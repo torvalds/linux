@@ -556,7 +556,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = -ESHUTDOWN;
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
 		ret = 0;
-		if (rxrpc_abort_call("CMD", call, 0, abort_code, ECONNABORTED))
+		if (rxrpc_abort_call("CMD", call, 0, abort_code, -ECONNABORTED))
 			ret = rxrpc_send_abort_packet(call);
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
@@ -623,7 +623,8 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 		read_unlock_bh(&call->state_lock);
 		break;
 	default:
-		 /* Request phase complete for this client call */
+		/* Request phase complete for this client call */
+		trace_rxrpc_rx_eproto(call, 0, tracepoint_string("late_send"));
 		ret = -EPROTO;
 		break;
 	}
@@ -642,20 +643,24 @@ EXPORT_SYMBOL(rxrpc_kernel_send_data);
  * @error: Local error value
  * @why: 3-char string indicating why.
  *
- * Allow a kernel service to abort a call, if it's still in an abortable state.
+ * Allow a kernel service to abort a call, if it's still in an abortable state
+ * and return true if the call was aborted, false if it was already complete.
  */
-void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
+bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 			     u32 abort_code, int error, const char *why)
 {
+	bool aborted;
+
 	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
 
 	mutex_lock(&call->user_mutex);
 
-	if (rxrpc_abort_call(why, call, 0, abort_code, error))
+	aborted = rxrpc_abort_call(why, call, 0, abort_code, error);
+	if (aborted)
 		rxrpc_send_abort_packet(call);
 
 	mutex_unlock(&call->user_mutex);
-	_leave("");
+	return aborted;
 }
 
 EXPORT_SYMBOL(rxrpc_kernel_abort_call);

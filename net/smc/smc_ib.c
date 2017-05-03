@@ -179,8 +179,6 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	u8 port_idx;
 
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
-	if (!smc_pnet_find_ib(smcibdev->ibdev->name))
-		return;
 
 	switch (ibevent->event) {
 	case IB_EVENT_PORT_ERR:
@@ -259,7 +257,6 @@ int smc_ib_create_queue_pair(struct smc_link *lnk)
 			.max_recv_wr = SMC_WR_BUF_CNT * 3,
 			.max_send_sge = SMC_IB_MAX_SEND_SGE,
 			.max_recv_sge = 1,
-			.max_inline_data = SMC_WR_TX_SIZE,
 		},
 		.sq_sig_type = IB_SIGNAL_REQ_WR,
 		.qp_type = IB_QPT_RC,

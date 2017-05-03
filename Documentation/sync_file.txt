@@ -37,7 +37,7 @@ dma_fence_signal(), when it has finished using (or processing) that buffer.
 Out-fences are fences that the driver creates.
 
 On the other hand if the driver receives fence(s) through a sync_file from
-userspace we call these fence(s) 'in-fences'. Receiveing in-fences means that
+userspace we call these fence(s) 'in-fences'. Receiving in-fences means that
 we need to wait for the fence(s) to signal before using any buffer related to
 the in-fences.
 

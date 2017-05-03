@@ -1078,6 +1078,26 @@ SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags,
 	return do_sys_open(dfd, filename, flags, mode);
 }
 
+#ifdef CONFIG_COMPAT
+/*
+ * Exactly like sys_open(), except that it doesn't set the
+ * O_LARGEFILE flag.
+ */
+COMPAT_SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
+{
+	return do_sys_open(AT_FDCWD, filename, flags, mode);
+}
+
+/*
+ * Exactly like sys_openat(), except that it doesn't set the
+ * O_LARGEFILE flag.
+ */
+COMPAT_SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags, umode_t, mode)
+{
+	return do_sys_open(dfd, filename, flags, mode);
+}
+#endif
+
 #ifndef __alpha__
 
 /*

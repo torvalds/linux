@@ -62,6 +62,10 @@ struct octnic_ctrl_pkt {
 
 	/** Callback function called when the command has been fetched */
 	octnic_ctrl_pkt_cb_fn_t cb_fn;
+
+	u32 status;
+	u16 *response_code;
+	struct completion *completion;
 };
 
 #define MAX_UDD_SIZE(nctrl) (sizeof((nctrl)->udd))

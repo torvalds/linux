@@ -97,7 +97,7 @@ stop:
 		      "activeconns %d refcnt %d weight %d\n",
 		      IP_VS_DBG_ADDR(dest->af, &dest->addr), ntohs(dest->port),
 		      atomic_read(&dest->activeconns),
-		      atomic_read(&dest->refcnt), atomic_read(&dest->weight));
+		      refcount_read(&dest->refcnt), atomic_read(&dest->weight));
 
 	return dest;
 }

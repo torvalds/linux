@@ -321,11 +321,14 @@ TRACE_EVENT(bpf_map_next_key,
 		__dynamic_array(u8, key, map->key_size)
 		__dynamic_array(u8, nxt, map->key_size)
 		__field(bool, key_trunc)
+		__field(bool, key_null)
 		__field(int, ufd)
 	),
 
 	TP_fast_assign(
-		memcpy(__get_dynamic_array(key), key, map->key_size);
+		if (key)
+			memcpy(__get_dynamic_array(key), key, map->key_size);
+		__entry->key_null = !key;
 		memcpy(__get_dynamic_array(nxt), key_next, map->key_size);
 		__entry->type      = map->map_type;
 		__entry->key_len   = min(map->key_size, 16U);
@@ -336,8 +339,9 @@ TRACE_EVENT(bpf_map_next_key,
 	TP_printk("map type=%s ufd=%d key=[%s%s] next=[%s%s]",
 		  __print_symbolic(__entry->type, __MAP_TYPE_SYM_TAB),
 		  __entry->ufd,
-		  __print_hex(__get_dynamic_array(key), __entry->key_len),
-		  __entry->key_trunc ? " ..." : "",
+		  __entry->key_null ? "NULL" : __print_hex(__get_dynamic_array(key),
+							   __entry->key_len),
+		  __entry->key_trunc && !__entry->key_null ? " ..." : "",
 		  __print_hex(__get_dynamic_array(nxt), __entry->key_len),
 		  __entry->key_trunc ? " ..." : "")
 );

@@ -22,6 +22,18 @@
 #endif
 
 #include <linux/bitops.h>
+
+/*
+ * For per-arch arch_within_stack_frames() implementations, defined in
+ * asm/thread_info.h.
+ */
+enum {
+	BAD_STACK = -1,
+	NOT_STACK = 0,
+	GOOD_FRAME,
+	GOOD_STACK,
+};
+
 #include <asm/thread_info.h>
 
 #ifdef __KERNEL__

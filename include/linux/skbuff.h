@@ -413,14 +413,15 @@ struct ubuf_info {
  * the end of the header data, ie. at skb->end.
  */
 struct skb_shared_info {
+	unsigned short	_unused;
 	unsigned char	nr_frags;
 	__u8		tx_flags;
 	unsigned short	gso_size;
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs;
-	unsigned short  gso_type;
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;
+	unsigned int	gso_type;
 	u32		tskey;
 	__be32          ip6_frag_id;
 
@@ -491,6 +492,8 @@ enum {
 	SKB_GSO_TUNNEL_REMCSUM = 1 << 14,
 
 	SKB_GSO_SCTP = 1 << 15,
+
+	SKB_GSO_ESP = 1 << 16,
 };
 
 #if BITS_PER_LONG > 32
@@ -3113,7 +3116,7 @@ struct sk_buff *pskb_extract(struct sk_buff *skb, int off, int to_copy,
 
 static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 {
-	return copy_from_iter(data, len, &msg->msg_iter) == len ? 0 : -EFAULT;
+	return copy_from_iter_full(data, len, &msg->msg_iter) ? 0 : -EFAULT;
 }
 
 static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)

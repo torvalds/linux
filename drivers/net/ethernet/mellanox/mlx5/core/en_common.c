@@ -107,10 +107,18 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 		goto err_dealloc_transport_domain;
 	}
 
+	err = mlx5_alloc_bfreg(mdev, &res->bfreg, false, false);
+	if (err) {
+		mlx5_core_err(mdev, "alloc bfreg failed, %d\n", err);
+		goto err_destroy_mkey;
+	}
+
 	INIT_LIST_HEAD(&mdev->mlx5e_res.td.tirs_list);
 
 	return 0;
 
+err_destroy_mkey:
+	mlx5_core_destroy_mkey(mdev, &res->mkey);
 err_dealloc_transport_domain:
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 err_dealloc_pd:
@@ -122,23 +130,26 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 {
 	struct mlx5e_resources *res = &mdev->mlx5e_res;
 
+	mlx5_free_bfreg(mdev, &res->bfreg);
 	mlx5_core_destroy_mkey(mdev, &res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
 }
 
-int mlx5e_refresh_tirs_self_loopback(struct mlx5_core_dev *mdev,
-				     bool enable_uc_lb)
+int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_tir *tir;
-	void *in;
+	int err  = -ENOMEM;
+	u32 tirn = 0;
 	int inlen;
-	int err = 0;
+	void *in;
+
 
 	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
 	in = mlx5_vzalloc(inlen);
 	if (!in)
-		return -ENOMEM;
+		goto out;
 
 	if (enable_uc_lb)
 		MLX5_SET(modify_tir_in, in, ctx.self_lb_block,
@@ -147,13 +158,16 @@ int mlx5e_refresh_tirs_self_loopback(struct mlx5_core_dev *mdev,
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 
 	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
-		err = mlx5_core_modify_tir(mdev, tir->tirn, in, inlen);
+		tirn = tir->tirn;
+		err = mlx5_core_modify_tir(mdev, tirn, in, inlen);
 		if (err)
 			goto out;
 	}
 
 out:
 	kvfree(in);
+	if (err)
+		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
 
 	return err;
 }

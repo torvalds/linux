@@ -315,7 +315,7 @@ static void enh_desc_release_tx_desc(struct dma_desc *p, int mode)
 
 static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				     bool csum_flag, int mode, bool tx_own,
-				     bool ls)
+				     bool ls, unsigned int tot_pkt_len)
 {
 	unsigned int tdes0 = le32_to_cpu(p->des0);
 

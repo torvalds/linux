@@ -39,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
+#include <net/tc_act/tc_vlan.h>
 
 #include "reg.h"
 #include "core.h"
@@ -49,10 +50,17 @@
 #include "spectrum_acl_flex_keys.h"
 
 struct mlxsw_sp_acl {
+	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_afk *afk;
 	struct mlxsw_afa *afa;
 	const struct mlxsw_sp_acl_ops *ops;
 	struct rhashtable ruleset_ht;
+	struct list_head rules;
+	struct {
+		struct delayed_work dw;
+		unsigned long interval;	/* ms */
+#define MLXSW_SP_ACL_RULE_ACTIVITY_UPDATE_PERIOD_MS 1000
+	} rule_activity_update;
 	unsigned long priv[0];
 	/* priv has to be always the last item */
 };
@@ -79,9 +87,13 @@ struct mlxsw_sp_acl_ruleset {
 
 struct mlxsw_sp_acl_rule {
 	struct rhash_head ht_node; /* Member of rule HT */
+	struct list_head list;
 	unsigned long cookie; /* HT key */
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule_info *rulei;
+	u64 last_used;
+	u64 last_packets;
+	u64 last_bytes;
 	unsigned long priv[0];
 	/* priv has to be always the last item */
 };
@@ -237,6 +249,27 @@ void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_ruleset_ref_dec(mlxsw_sp, ruleset);
 }
 
+static int
+mlxsw_sp_acl_rulei_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_rule_info *rulei)
+{
+	int err;
+
+	err = mlxsw_sp_flow_counter_alloc(mlxsw_sp, &rulei->counter_index);
+	if (err)
+		return err;
+	rulei->counter_valid = true;
+	return 0;
+}
+
+static void
+mlxsw_sp_acl_rulei_counter_free(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule_info *rulei)
+{
+	rulei->counter_valid = false;
+	mlxsw_sp_flow_counter_free(mlxsw_sp, rulei->counter_index);
+}
+
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl)
 {
@@ -335,6 +368,48 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 					  local_port, in_port);
 }
 
+int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule_info *rulei,
+				u32 action, u16 vid, u16 proto, u8 prio)
+{
+	u8 ethertype;
+
+	if (action == TCA_VLAN_ACT_MODIFY) {
+		switch (proto) {
+		case ETH_P_8021Q:
+			ethertype = 0;
+			break;
+		case ETH_P_8021AD:
+			ethertype = 1;
+			break;
+		default:
+			dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN protocol %#04x\n",
+				proto);
+			return -EINVAL;
+		}
+
+		return mlxsw_afa_block_append_vlan_modify(rulei->act_block,
+							  vid, prio, ethertype);
+	} else {
+		dev_err(mlxsw_sp->bus_info->dev, "Unsupported VLAN action\n");
+		return -EINVAL;
+	}
+}
+
+int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_rule_info *rulei)
+{
+	return mlxsw_afa_block_append_counter(rulei->act_block,
+					      rulei->counter_index);
+}
+
+int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_rule_info *rulei,
+				   u16 fid)
+{
+	return mlxsw_afa_block_append_fid_set(rulei->act_block, fid);
+}
+
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
@@ -358,8 +433,14 @@ mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 		err = PTR_ERR(rule->rulei);
 		goto err_rulei_create;
 	}
+
+	err = mlxsw_sp_acl_rulei_counter_alloc(mlxsw_sp, rule->rulei);
+	if (err)
+		goto err_counter_alloc;
 	return rule;
 
+err_counter_alloc:
+	mlxsw_sp_acl_rulei_destroy(rule->rulei);
 err_rulei_create:
 	kfree(rule);
 err_alloc:
@@ -372,6 +453,7 @@ void mlxsw_sp_acl_rule_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
 
+	mlxsw_sp_acl_rulei_counter_free(mlxsw_sp, rule->rulei);
 	mlxsw_sp_acl_rulei_destroy(rule->rulei);
 	kfree(rule);
 	mlxsw_sp_acl_ruleset_ref_dec(mlxsw_sp, ruleset);
@@ -393,6 +475,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rhashtable_insert;
 
+	list_add_tail(&rule->list, &mlxsw_sp->acl->rules);
 	return 0;
 
 err_rhashtable_insert:
@@ -406,6 +489,7 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 
+	list_del(&rule->list);
 	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
 			       mlxsw_sp_acl_rule_ht_params);
 	ops->rule_del(mlxsw_sp, rule->priv);
@@ -426,6 +510,90 @@ mlxsw_sp_acl_rule_rulei(struct mlxsw_sp_acl_rule *rule)
 	return rule->rulei;
 }
 
+static int mlxsw_sp_acl_rule_activity_update(struct mlxsw_sp *mlxsw_sp,
+					     struct mlxsw_sp_acl_rule *rule)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
+	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
+	bool active;
+	int err;
+
+	err = ops->rule_activity_get(mlxsw_sp, rule->priv, &active);
+	if (err)
+		return err;
+	if (active)
+		rule->last_used = jiffies;
+	return 0;
+}
+
+static int mlxsw_sp_acl_rules_activity_update(struct mlxsw_sp_acl *acl)
+{
+	struct mlxsw_sp_acl_rule *rule;
+	int err;
+
+	/* Protect internal structures from changes */
+	rtnl_lock();
+	list_for_each_entry(rule, &acl->rules, list) {
+		err = mlxsw_sp_acl_rule_activity_update(acl->mlxsw_sp,
+							rule);
+		if (err)
+			goto err_rule_update;
+	}
+	rtnl_unlock();
+	return 0;
+
+err_rule_update:
+	rtnl_unlock();
+	return err;
+}
+
+static void mlxsw_sp_acl_rule_activity_work_schedule(struct mlxsw_sp_acl *acl)
+{
+	unsigned long interval = acl->rule_activity_update.interval;
+
+	mlxsw_core_schedule_dw(&acl->rule_activity_update.dw,
+			       msecs_to_jiffies(interval));
+}
+
+static void mlxsw_sp_acl_rul_activity_update_work(struct work_struct *work)
+{
+	struct mlxsw_sp_acl *acl = container_of(work, struct mlxsw_sp_acl,
+						rule_activity_update.dw.work);
+	int err;
+
+	err = mlxsw_sp_acl_rules_activity_update(acl);
+	if (err)
+		dev_err(acl->mlxsw_sp->bus_info->dev, "Could not update acl activity");
+
+	mlxsw_sp_acl_rule_activity_work_schedule(acl);
+}
+
+int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule *rule,
+				u64 *packets, u64 *bytes, u64 *last_use)
+
+{
+	struct mlxsw_sp_acl_rule_info *rulei;
+	u64 current_packets;
+	u64 current_bytes;
+	int err;
+
+	rulei = mlxsw_sp_acl_rule_rulei(rule);
+	err = mlxsw_sp_flow_counter_get(mlxsw_sp, rulei->counter_index,
+					&current_packets, &current_bytes);
+	if (err)
+		return err;
+
+	*packets = current_packets - rule->last_packets;
+	*bytes = current_bytes - rule->last_bytes;
+	*last_use = rule->last_used;
+
+	rule->last_bytes = current_bytes;
+	rule->last_packets = current_packets;
+
+	return 0;
+}
+
 #define MLXSW_SP_KDVL_ACT_EXT_SIZE 1
 
 static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
@@ -434,7 +602,6 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	struct mlxsw_sp *mlxsw_sp = priv;
 	char pefa_pl[MLXSW_REG_PEFA_LEN];
 	u32 kvdl_index;
-	int ret;
 	int err;
 
 	/* The first action set of a TCAM entry is stored directly in TCAM,
@@ -443,10 +610,10 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	if (is_first)
 		return 0;
 
-	ret = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KDVL_ACT_EXT_SIZE);
-	if (ret < 0)
-		return ret;
-	kvdl_index = ret;
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KDVL_ACT_EXT_SIZE,
+				  &kvdl_index);
+	if (err)
+		return err;
 	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, enc_actions);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
 	if (err)
@@ -475,13 +642,11 @@ static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 	struct mlxsw_sp *mlxsw_sp = priv;
 	char ppbs_pl[MLXSW_REG_PPBS_LEN];
 	u32 kvdl_index;
-	int ret;
 	int err;
 
-	ret = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1);
-	if (ret < 0)
-		return ret;
-	kvdl_index = ret;
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &kvdl_index);
+	if (err)
+		return err;
 	mlxsw_reg_ppbs_pack(ppbs_pl, kvdl_index, local_port);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbs), ppbs_pl);
 	if (err)
@@ -518,7 +683,7 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	if (!acl)
 		return -ENOMEM;
 	mlxsw_sp->acl = acl;
-
+	acl->mlxsw_sp = mlxsw_sp;
 	acl->afk = mlxsw_afk_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						       ACL_FLEX_KEYS),
 				    mlxsw_sp_afk_blocks,
@@ -541,11 +706,18 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_rhashtable_init;
 
+	INIT_LIST_HEAD(&acl->rules);
 	err = acl_ops->init(mlxsw_sp, acl->priv);
 	if (err)
 		goto err_acl_ops_init;
 
 	acl->ops = acl_ops;
+
+	/* Create the delayed work for the rule activity_update */
+	INIT_DELAYED_WORK(&acl->rule_activity_update.dw,
+			  mlxsw_sp_acl_rul_activity_update_work);
+	acl->rule_activity_update.interval = MLXSW_SP_ACL_RULE_ACTIVITY_UPDATE_PERIOD_MS;
+	mlxsw_core_schedule_dw(&acl->rule_activity_update.dw, 0);
 	return 0;
 
 err_acl_ops_init:
@@ -564,7 +736,9 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 	const struct mlxsw_sp_acl_ops *acl_ops = acl->ops;
 
+	cancel_delayed_work_sync(&mlxsw_sp->acl->rule_activity_update.dw);
 	acl_ops->fini(mlxsw_sp, acl->priv);
+	WARN_ON(!list_empty(&acl->rules));
 	rhashtable_destroy(&acl->ruleset_ht);
 	mlxsw_afa_destroy(acl->afa);
 	mlxsw_afk_destroy(acl->afk);

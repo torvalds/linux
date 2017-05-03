@@ -428,24 +428,49 @@ static struct tc_action_ops *tc_lookup_action(struct nlattr *kind)
 	return res;
 }
 
+/*TCA_ACT_MAX_PRIO is 32, there count upto 32 */
+#define TCA_ACT_MAX_PRIO_MASK 0x1FF
 int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
 		    int nr_actions, struct tcf_result *res)
 {
 	int ret = -1, i;
+	u32 jmp_prgcnt = 0;
+	u32 jmp_ttl = TCA_ACT_MAX_PRIO; /*matches actions per filter */
 
 	if (skb_skip_tc_classify(skb))
 		return TC_ACT_OK;
 
+restart_act_graph:
 	for (i = 0; i < nr_actions; i++) {
 		const struct tc_action *a = actions[i];
 
+		if (jmp_prgcnt > 0) {
+			jmp_prgcnt -= 1;
+			continue;
+		}
 repeat:
 		ret = a->ops->act(skb, a, res);
 		if (ret == TC_ACT_REPEAT)
 			goto repeat;	/* we need a ttl - JHS */
+
+		if (TC_ACT_EXT_CMP(ret, TC_ACT_JUMP)) {
+			jmp_prgcnt = ret & TCA_ACT_MAX_PRIO_MASK;
+			if (!jmp_prgcnt || (jmp_prgcnt > nr_actions)) {
+				/* faulty opcode, stop pipeline */
+				return TC_ACT_OK;
+			} else {
+				jmp_ttl -= 1;
+				if (jmp_ttl > 0)
+					goto restart_act_graph;
+				else /* faulty graph, stop pipeline */
+					return TC_ACT_OK;
+			}
+		}
+
 		if (ret != TC_ACT_PIPE)
 			break;
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL(tcf_action_exec);
@@ -558,7 +583,7 @@ struct tc_action *tcf_action_init_1(struct net *net, struct nlattr *nla,
 	int err;
 
 	if (name == NULL) {
-		err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL);
+		err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL, NULL);
 		if (err < 0)
 			goto err_out;
 		err = -EINVAL;
@@ -663,7 +688,7 @@ int tcf_action_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	int err;
 	int i;
 
-	err = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL);
+	err = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, NULL);
 	if (err < 0)
 		return err;
 
@@ -795,7 +820,7 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 	int index;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL, NULL);
 	if (err < 0)
 		goto err_out;
 
@@ -844,7 +869,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 
 	b = skb_tail_pointer(skb);
 
-	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL, NULL);
 	if (err < 0)
 		goto err_out;
 
@@ -930,7 +955,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	struct tc_action *act;
 	LIST_HEAD(actions);
 
-	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL);
+	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -1002,7 +1027,8 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 	return tcf_add_notify(net, n, &actions, portid);
 }
 
-static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n)
+static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n,
+			 struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tca[TCA_ACT_MAX + 1];
@@ -1013,7 +1039,8 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n)
 	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	ret = nlmsg_parse(n, sizeof(struct tcamsg), tca, TCA_ACT_MAX, NULL);
+	ret = nlmsg_parse(n, sizeof(struct tcamsg), tca, TCA_ACT_MAX, NULL,
+			  extack);
 	if (ret < 0)
 		return ret;
 
@@ -1060,19 +1087,20 @@ static struct nlattr *find_dump_kind(const struct nlmsghdr *n)
 	struct nlattr *nla[TCAA_MAX + 1];
 	struct nlattr *kind;
 
-	if (nlmsg_parse(n, sizeof(struct tcamsg), nla, TCAA_MAX, NULL) < 0)
+	if (nlmsg_parse(n, sizeof(struct tcamsg), nla, TCAA_MAX,
+			NULL, NULL) < 0)
 		return NULL;
 	tb1 = nla[TCA_ACT_TAB];
 	if (tb1 == NULL)
 		return NULL;
 
 	if (nla_parse(tb, TCA_ACT_MAX_PRIO, nla_data(tb1),
-		      NLMSG_ALIGN(nla_len(tb1)), NULL) < 0)
+		      NLMSG_ALIGN(nla_len(tb1)), NULL, NULL) < 0)
 		return NULL;
 
 	if (tb[1] == NULL)
 		return NULL;
-	if (nla_parse_nested(tb2, TCA_ACT_MAX, tb[1], NULL) < 0)
+	if (nla_parse_nested(tb2, TCA_ACT_MAX, tb[1], NULL, NULL) < 0)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND];
 

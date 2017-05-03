@@ -81,7 +81,7 @@ of:
 	BUS_HIL
 	BUS_BLUETOOTH
 	BUS_VIRTUAL
-which are defined in linux/input.h.
+which are defined in uapi/linux/input.h.
 
 HIDIOCGRAWNAME(len): Get Raw Name
 This ioctl returns a string containing the vendor and product strings of

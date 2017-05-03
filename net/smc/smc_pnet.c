@@ -219,7 +219,7 @@ static bool smc_pnetid_valid(const char *pnet_name, char *pnetid)
 }
 
 /* Find an infiniband device by a given name. The device might not exist. */
-struct smc_ib_device *smc_pnet_find_ib(char *ib_name)
+static struct smc_ib_device *smc_pnet_find_ib(char *ib_name)
 {
 	struct smc_ib_device *ibdev;
 
@@ -523,8 +523,11 @@ void smc_pnet_find_roce_resource(struct sock *sk,
 	read_lock(&smc_pnettable.lock);
 	list_for_each_entry(pnetelem, &smc_pnettable.pnetlist, list) {
 		if (dst->dev == pnetelem->ndev) {
-			*smcibdev = pnetelem->smcibdev;
-			*ibport = pnetelem->ib_port;
+			if (smc_ib_port_active(pnetelem->smcibdev,
+					       pnetelem->ib_port)) {
+				*smcibdev = pnetelem->smcibdev;
+				*ibport = pnetelem->ib_port;
+			}
 			break;
 		}
 	}

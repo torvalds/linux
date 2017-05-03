@@ -954,7 +954,7 @@ static void init_tel_txopt(struct ipv6_tel_txoption *opt, __u8 encap_limit)
 	opt->dst_opt[5] = IPV6_TLV_PADN;
 	opt->dst_opt[6] = 1;
 
-	opt->ops.dst0opt = (struct ipv6_opt_hdr *) opt->dst_opt;
+	opt->ops.dst1opt = (struct ipv6_opt_hdr *) opt->dst_opt;
 	opt->ops.opt_nflen = 8;
 }
 
@@ -1178,7 +1178,7 @@ route_lookup:
 
 	if (encap_limit >= 0) {
 		init_tel_txopt(&opt, encap_limit);
-		ipv6_push_nfrag_opts(skb, &opt.ops, &proto, NULL, NULL);
+		ipv6_push_frag_opts(skb, &opt.ops, &proto);
 	}
 
 	/* Calculate max headroom for all the headers and adjust
@@ -1258,6 +1258,8 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 					 & IPV6_TCLASS_MASK;
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 			fl6.flowi6_mark = skb->mark;
+		else
+			fl6.flowi6_mark = t->parms.fwmark;
 	}
 
 	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
@@ -1340,6 +1342,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 			fl6.flowlabel |= ip6_flowlabel(ipv6h);
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 			fl6.flowi6_mark = skb->mark;
+		else
+			fl6.flowi6_mark = t->parms.fwmark;
 	}
 
 	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
@@ -1469,6 +1473,7 @@ ip6_tnl_change(struct ip6_tnl *t, const struct __ip6_tnl_parm *p)
 	t->parms.flowinfo = p->flowinfo;
 	t->parms.link = p->link;
 	t->parms.proto = p->proto;
+	t->parms.fwmark = p->fwmark;
 	dst_cache_reset(&t->dst_cache);
 	ip6_tnl_link_config(t);
 	return 0;
@@ -1920,6 +1925,9 @@ static void ip6_tnl_netlink_parms(struct nlattr *data[],
 
 	if (data[IFLA_IPTUN_COLLECT_METADATA])
 		parms->collect_md = true;
+
+	if (data[IFLA_IPTUN_FWMARK])
+		parms->fwmark = nla_get_u32(data[IFLA_IPTUN_FWMARK]);
 }
 
 static bool ip6_tnl_netlink_encap_parms(struct nlattr *data[],
@@ -2056,6 +2064,8 @@ static size_t ip6_tnl_get_size(const struct net_device *dev)
 		nla_total_size(2) +
 		/* IFLA_IPTUN_COLLECT_METADATA */
 		nla_total_size(0) +
+		/* IFLA_IPTUN_FWMARK */
+		nla_total_size(4) +
 		0;
 }
 
@@ -2071,7 +2081,8 @@ static int ip6_tnl_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_IPTUN_ENCAP_LIMIT, parm->encap_limit) ||
 	    nla_put_be32(skb, IFLA_IPTUN_FLOWINFO, parm->flowinfo) ||
 	    nla_put_u32(skb, IFLA_IPTUN_FLAGS, parm->flags) ||
-	    nla_put_u8(skb, IFLA_IPTUN_PROTO, parm->proto))
+	    nla_put_u8(skb, IFLA_IPTUN_PROTO, parm->proto) ||
+	    nla_put_u32(skb, IFLA_IPTUN_FWMARK, parm->fwmark))
 		goto nla_put_failure;
 
 	if (nla_put_u16(skb, IFLA_IPTUN_ENCAP_TYPE, tunnel->encap.type) ||
@@ -2083,6 +2094,7 @@ static int ip6_tnl_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (parm->collect_md)
 		if (nla_put_flag(skb, IFLA_IPTUN_COLLECT_METADATA))
 			goto nla_put_failure;
+
 	return 0;
 
 nla_put_failure:
@@ -2111,6 +2123,7 @@ static const struct nla_policy ip6_tnl_policy[IFLA_IPTUN_MAX + 1] = {
 	[IFLA_IPTUN_ENCAP_SPORT]	= { .type = NLA_U16 },
 	[IFLA_IPTUN_ENCAP_DPORT]	= { .type = NLA_U16 },
 	[IFLA_IPTUN_COLLECT_METADATA]	= { .type = NLA_FLAG },
+	[IFLA_IPTUN_FWMARK]		= { .type = NLA_U32 },
 };
 
 static struct rtnl_link_ops ip6_link_ops __read_mostly = {

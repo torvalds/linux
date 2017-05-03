@@ -318,9 +318,10 @@ PDF outputs, it is recommended to use version 1.4.6.
 .. note::
 
   Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
-  version 3.14159265. Depending on the distribution, you may also need
-  to install a series of ``texlive`` packages that provide the minimal
-  set of functionalities required for ``XeLaTex`` to work.
+  version 3.14159265. Depending on the distribution, you may also need to
+  install a series of ``texlive`` packages that provide the minimal set of
+  functionalities required for ``XeLaTex`` to work. For PDF output you'll also
+  need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
 
 Other tools
 -----------
@@ -348,7 +349,7 @@ Make
 Binutils
 --------
 
-- <ftp://ftp.kernel.org/pub/linux/devel/binutils/>
+- <https://www.kernel.org/pub/linux/devel/binutils/>
 
 OpenSSL
 -------
@@ -361,17 +362,17 @@ System utilities
 Util-linux
 ----------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/util-linux/>
+- <https://www.kernel.org/pub/linux/utils/util-linux/>
 
 Ksymoops
 --------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/kernel/ksymoops/v2.4/>
+- <https://www.kernel.org/pub/linux/utils/kernel/ksymoops/v2.4/>
 
 Module-Init-Tools
 -----------------
 
-- <ftp://ftp.kernel.org/pub/linux/kernel/people/rusty/modules/>
+- <https://www.kernel.org/pub/linux/utils/kernel/module-init-tools/>
 
 Mkinitrd
 --------
@@ -401,7 +402,7 @@ Xfsprogs
 Pcmciautils
 -----------
 
-- <ftp://ftp.kernel.org/pub/linux/utils/kernel/pcmcia/>
+- <https://www.kernel.org/pub/linux/utils/kernel/pcmcia/>
 
 Quota-tools
 -----------

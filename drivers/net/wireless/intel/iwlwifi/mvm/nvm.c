@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -816,6 +816,11 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	struct ieee80211_regdomain *regd;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (iwl_mvm_is_vif_assoc(mvm) && notif->source_id == MCC_SOURCE_WIFI) {
+		IWL_DEBUG_LAR(mvm, "Ignore mcc update while associated\n");
+		return;
+	}
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
 		return;

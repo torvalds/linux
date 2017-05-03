@@ -42,7 +42,9 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/msi.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/workqueue.h>
 
 struct dentry;
 struct pci_dev;
@@ -64,8 +66,11 @@ struct nfp_eth_table;
  * @fw_loaded:		Is the firmware loaded?
  * @eth_tbl:		NSP ETH table
  * @ddir:		Per-device debugfs directory
- * @num_ports:		Number of adapter ports
+ * @num_ports:		Number of adapter ports app firmware supports
+ * @num_netdevs:	Number of netdevs spawned
  * @ports:		Linked list of port structures (struct nfp_net)
+ * @port_lock:		Protects @ports, @num_ports, @num_netdevs
+ * @port_refresh_work:	Work entry for taking netdevs out
  */
 struct nfp_pf {
 	struct pci_dev *pdev;
@@ -88,7 +93,11 @@ struct nfp_pf {
 	struct dentry *ddir;
 
 	unsigned int num_ports;
+	unsigned int num_netdevs;
+
 	struct list_head ports;
+	struct work_struct port_refresh_work;
+	struct mutex port_lock;
 };
 
 extern struct pci_driver nfp_netvf_pci_driver;

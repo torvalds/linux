@@ -1399,7 +1399,7 @@ static void audit_receive_skb(struct sk_buff *skb)
 		err = audit_receive_msg(skb, nlh);
 		/* if err or if this message says it wants a response */
 		if (err || (nlh->nlmsg_flags & NLM_F_ACK))
-			netlink_ack(skb, nlh, err);
+			netlink_ack(skb, nlh, err, NULL);
 
 		nlh = nlmsg_next(nlh, &len);
 	}

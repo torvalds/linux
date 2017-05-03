@@ -73,7 +73,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, gact_policy);
+	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, gact_policy, NULL);
 	if (err < 0)
 		return err;
 

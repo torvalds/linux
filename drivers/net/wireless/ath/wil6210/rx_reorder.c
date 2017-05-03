@@ -343,8 +343,16 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		wil_err(wil, "BACK requested unsupported ba_policy == 1\n");
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 	}
-	if (status == WLAN_STATUS_SUCCESS)
-		agg_wsize = wil_agg_size(wil, req_agg_wsize);
+	if (status == WLAN_STATUS_SUCCESS) {
+		if (req_agg_wsize == 0) {
+			wil_dbg_misc(wil, "Suggest BACK wsize %d\n",
+				     WIL_MAX_AGG_WSIZE);
+			agg_wsize = WIL_MAX_AGG_WSIZE;
+		} else {
+			agg_wsize = min_t(u16,
+					  WIL_MAX_AGG_WSIZE, req_agg_wsize);
+		}
+	}
 
 	rc = wmi_addba_rx_resp(wil, cid, tid, dialog_token, status,
 			       agg_amsdu, agg_wsize, agg_timeout);

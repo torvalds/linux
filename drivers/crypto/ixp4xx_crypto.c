@@ -806,7 +806,7 @@ static struct buffer_desc *chainup_buffers(struct device *dev,
 		void *ptr;
 
 		nbytes -= len;
-		ptr = page_address(sg_page(sg)) + sg->offset;
+		ptr = sg_virt(sg);
 		next_buf = dma_pool_alloc(buffer_pool, flags, &next_buf_phys);
 		if (!next_buf) {
 			buf = NULL;

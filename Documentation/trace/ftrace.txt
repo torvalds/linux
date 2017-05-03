@@ -1546,7 +1546,7 @@ Note, that the trace data shows the internal priority (99 - rtprio).
 
   <idle>-0       3d..3    5us :      0:120:R ==> [003]  2389: 94:R sleep
 
-The 0:120:R means idle was running with a nice priority of 0 (120 - 20)
+The 0:120:R means idle was running with a nice priority of 0 (120 - 120)
 and in the running state 'R'. The sleep task was scheduled in with
 2389: 94:R. That is the priority is the kernel rtprio (99 - 5 = 94)
 and it too is in the running state.

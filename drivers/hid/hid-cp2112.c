@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/hid.h>
+#include <linux/hidraw.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/nls.h>
@@ -1297,7 +1298,8 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->adap.algo_data	= dev;
 	dev->adap.dev.parent	= &hdev->dev;
 	snprintf(dev->adap.name, sizeof(dev->adap.name),
-		 "CP2112 SMBus Bridge on hiddev%d", hdev->minor);
+		 "CP2112 SMBus Bridge on hidraw%d",
+		 ((struct hidraw *)hdev->hidraw)->minor);
 	dev->hwversion = buf[2];
 	init_waitqueue_head(&dev->wait);
 

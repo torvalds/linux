@@ -212,12 +212,12 @@ void tcp_select_initial_window(int __space, __u32 mss,
 
 	/* If no clamp set the clamp to the max possible scaled window */
 	if (*window_clamp == 0)
-		(*window_clamp) = (65535 << 14);
+		(*window_clamp) = (U16_MAX << TCP_MAX_WSCALE);
 	space = min(*window_clamp, space);
 
 	/* Quantize space offering to a multiple of mss if possible. */
 	if (space > mss)
-		space = (space / mss) * mss;
+		space = rounddown(space, mss);
 
 	/* NOTE: offering an initial window larger than 32767
 	 * will break some buggy TCP stacks. If the admin tells us
@@ -234,13 +234,11 @@ void tcp_select_initial_window(int __space, __u32 mss,
 
 	(*rcv_wscale) = 0;
 	if (wscale_ok) {
-		/* Set window scaling on max possible window
-		 * See RFC1323 for an explanation of the limit to 14
-		 */
+		/* Set window scaling on max possible window */
 		space = max_t(u32, space, sysctl_tcp_rmem[2]);
 		space = max_t(u32, space, sysctl_rmem_max);
 		space = min_t(u32, space, *window_clamp);
-		while (space > 65535 && (*rcv_wscale) < 14) {
+		while (space > U16_MAX && (*rcv_wscale) < TCP_MAX_WSCALE) {
 			space >>= 1;
 			(*rcv_wscale)++;
 		}
@@ -253,7 +251,7 @@ void tcp_select_initial_window(int __space, __u32 mss,
 	}
 
 	/* Set the clamp no higher than max representable value */
-	(*window_clamp) = min(65535U << (*rcv_wscale), *window_clamp);
+	(*window_clamp) = min_t(__u32, U16_MAX << (*rcv_wscale), *window_clamp);
 }
 EXPORT_SYMBOL(tcp_select_initial_window);
 
@@ -2566,7 +2564,6 @@ u32 __tcp_select_window(struct sock *sk)
 	/* Don't do rounding if we are using window scaling, since the
 	 * scaled window will not line up with the MSS boundary anyway.
 	 */
-	window = tp->rcv_wnd;
 	if (tp->rx_opt.rcv_wscale) {
 		window = free_space;
 
@@ -2574,10 +2571,9 @@ u32 __tcp_select_window(struct sock *sk)
 		 * Import case: prevent zero window announcement if
 		 * 1<<rcv_wscale > mss.
 		 */
-		if (((window >> tp->rx_opt.rcv_wscale) << tp->rx_opt.rcv_wscale) != window)
-			window = (((window >> tp->rx_opt.rcv_wscale) + 1)
-				  << tp->rx_opt.rcv_wscale);
+		window = ALIGN(window, (1 << tp->rx_opt.rcv_wscale));
 	} else {
+		window = tp->rcv_wnd;
 		/* Get the largest window that is a nice multiple of mss.
 		 * Window clamp already applied above.
 		 * If our current window offering is within 1 mss of the
@@ -2587,7 +2583,7 @@ u32 __tcp_select_window(struct sock *sk)
 		 * is too small.
 		 */
 		if (window <= free_space - mss || window > free_space)
-			window = (free_space / mss) * mss;
+			window = rounddown(free_space, mss);
 		else if (mss == full_space &&
 			 free_space > window + (full_space >> 1))
 			window = free_space;

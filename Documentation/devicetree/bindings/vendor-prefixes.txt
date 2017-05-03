@@ -51,6 +51,7 @@ brcm	Broadcom Corporation
 buffalo	Buffalo, Inc.
 calxeda	Calxeda
 capella	Capella Microsystems, Inc
+cascoda	Cascoda, Ltd.
 cavium	Cavium, Inc.
 cdns	Cadence Design Systems Inc.
 ceva	Ceva, Inc.

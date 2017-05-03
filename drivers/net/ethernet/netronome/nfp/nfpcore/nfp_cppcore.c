@@ -65,39 +65,49 @@ struct nfp_cpp_resource {
 	u64 end;
 };
 
-struct nfp_cpp_mutex {
-	struct list_head list;
-	struct nfp_cpp *cpp;
-	int target;
-	u16 usage;
-	u16 depth;
-	unsigned long long address;
-	u32 key;
-};
-
+/**
+ * struct nfp_cpp - main nfpcore device structure
+ * Following fields are read-only after probe() exits or netdevs are spawned.
+ * @dev:		embedded device structure
+ * @op:			low-level implementation ops
+ * @priv:		private data of the low-level implementation
+ * @model:		chip model
+ * @interface:		chip interface id we are using to reach it
+ * @serial:		chip serial number
+ * @imb_cat_table:	CPP Mapping Table
+ *
+ * Following fields can be used only in probe() or with rtnl held:
+ * @hwinfo:		HWInfo database fetched from the device
+ * @rtsym:		firmware run time symbols
+ *
+ * Following fields use explicit locking:
+ * @resource_list:	NFP CPP resource list
+ * @resource_lock:	protects @resource_list
+ *
+ * @area_cache_list:	cached areas for cpp/xpb read/write speed up
+ * @area_cache_mutex:	protects @area_cache_list
+ *
+ * @waitq:		area wait queue
+ */
 struct nfp_cpp {
 	struct device dev;
 
-	void *priv; /* Private data of the low-level implementation */
+	void *priv;
 
 	u32 model;
 	u16 interface;
 	u8 serial[NFP_SERIAL_LEN];
 
 	const struct nfp_cpp_operations *op;
-	struct list_head resource_list;	/* NFP CPP resource list */
-	struct list_head mutex_cache;	/* Mutex cache */
+	struct list_head resource_list;
 	rwlock_t resource_lock;
 	wait_queue_head_t waitq;
 
-	/* NFP6000 CPP Mapping Table */
 	u32 imb_cat_table[16];
 
-	/* Cached areas for cpp/xpb readl/writel speedups */
-	struct mutex area_cache_mutex;  /* Lock for the area cache */
+	struct mutex area_cache_mutex;
 	struct list_head area_cache_list;
 
-	/* Cached information */
 	void *hwinfo;
 	void *rtsym;
 };
@@ -187,24 +197,6 @@ void nfp_cpp_free(struct nfp_cpp *cpp)
 {
 	struct nfp_cpp_area_cache *cache, *ctmp;
 	struct nfp_cpp_resource *res, *rtmp;
-	struct nfp_cpp_mutex *mutex, *mtmp;
-
-	/* There should be no mutexes in the cache at this point. */
-	WARN_ON(!list_empty(&cpp->mutex_cache));
-	/* .. but if there are, unlock them and complain. */
-	list_for_each_entry_safe(mutex, mtmp, &cpp->mutex_cache, list) {
-		dev_err(cpp->dev.parent, "Dangling mutex: @%d::0x%llx, %d locks held by %d owners\n",
-			mutex->target, (unsigned long long)mutex->address,
-			mutex->depth, mutex->usage);
-
-		/* Forcing an unlock */
-		mutex->depth = 1;
-		nfp_cpp_mutex_unlock(mutex);
-
-		/* Forcing a free */
-		mutex->usage = 1;
-		nfp_cpp_mutex_free(mutex);
-	}
 
 	/* Remove all caches */
 	list_for_each_entry_safe(cache, ctmp, &cpp->area_cache_list, entry) {
@@ -419,7 +411,41 @@ nfp_cpp_area_alloc(struct nfp_cpp *cpp, u32 dest,
  */
 void nfp_cpp_area_free(struct nfp_cpp_area *area)
 {
+	if (atomic_read(&area->refcount))
+		nfp_warn(area->cpp, "Warning: freeing busy area\n");
 	nfp_cpp_area_put(area);
+}
+
+static bool nfp_cpp_area_acquire_try(struct nfp_cpp_area *area, int *status)
+{
+	*status = area->cpp->op->area_acquire(area);
+
+	return *status != -EAGAIN;
+}
+
+static int __nfp_cpp_area_acquire(struct nfp_cpp_area *area)
+{
+	int err, status;
+
+	if (atomic_inc_return(&area->refcount) > 1)
+		return 0;
+
+	if (!area->cpp->op->area_acquire)
+		return 0;
+
+	err = wait_event_interruptible(area->cpp->waitq,
+				       nfp_cpp_area_acquire_try(area, &status));
+	if (!err)
+		err = status;
+	if (err) {
+		nfp_warn(area->cpp, "Warning: area wait failed: %d\n", err);
+		atomic_dec(&area->refcount);
+		return err;
+	}
+
+	nfp_cpp_area_get(area);
+
+	return 0;
 }
 
 /**
@@ -433,27 +459,13 @@ void nfp_cpp_area_free(struct nfp_cpp_area *area)
  */
 int nfp_cpp_area_acquire(struct nfp_cpp_area *area)
 {
+	int ret;
+
 	mutex_lock(&area->mutex);
-	if (atomic_inc_return(&area->refcount) == 1) {
-		int (*a_a)(struct nfp_cpp_area *);
-
-		a_a = area->cpp->op->area_acquire;
-		if (a_a) {
-			int err;
-
-			wait_event_interruptible(area->cpp->waitq,
-						 (err = a_a(area)) != -EAGAIN);
-			if (err < 0) {
-				atomic_dec(&area->refcount);
-				mutex_unlock(&area->mutex);
-				return err;
-			}
-		}
-	}
+	ret = __nfp_cpp_area_acquire(area);
 	mutex_unlock(&area->mutex);
 
-	nfp_cpp_area_get(area);
-	return 0;
+	return ret;
 }
 
 /**
@@ -829,10 +841,7 @@ area_cache_get(struct nfp_cpp *cpp, u32 id,
 	 * the need for special case code below when
 	 * checking against available cache size.
 	 */
-	if (length == 0)
-		return NULL;
-
-	if (list_empty(&cpp->area_cache_list) || id == 0)
+	if (length == 0 || id == 0)
 		return NULL;
 
 	/* Remap from cpp_island to cpp_target */
@@ -840,9 +849,14 @@ area_cache_get(struct nfp_cpp *cpp, u32 id,
 	if (err < 0)
 		return NULL;
 
-	addr += *offset;
-
 	mutex_lock(&cpp->area_cache_mutex);
+
+	if (list_empty(&cpp->area_cache_list)) {
+		mutex_unlock(&cpp->area_cache_mutex);
+		return NULL;
+	}
+
+	addr += *offset;
 
 	/* See if we have a match */
 	list_for_each_entry(cache, &cpp->area_cache_list, entry) {
@@ -937,12 +951,14 @@ int nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
 			return -ENOMEM;
 
 		err = nfp_cpp_area_acquire(area);
-		if (err)
-			goto out;
+		if (err) {
+			nfp_cpp_area_free(area);
+			return err;
+		}
 	}
 
 	err = nfp_cpp_area_read(area, offset, kernel_vaddr, length);
-out:
+
 	if (cache)
 		area_cache_put(cpp, cache);
 	else
@@ -979,13 +995,14 @@ int nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
 			return -ENOMEM;
 
 		err = nfp_cpp_area_acquire(area);
-		if (err)
-			goto out;
+		if (err) {
+			nfp_cpp_area_free(area);
+			return err;
+		}
 	}
 
 	err = nfp_cpp_area_write(area, offset, kernel_vaddr, length);
 
-out:
 	if (cache)
 		area_cache_put(cpp, cache);
 	else
@@ -1127,7 +1144,6 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 	rwlock_init(&cpp->resource_lock);
 	init_waitqueue_head(&cpp->waitq);
 	lockdep_set_class(&cpp->resource_lock, &nfp_cpp_resource_lock_key);
-	INIT_LIST_HEAD(&cpp->mutex_cache);
 	INIT_LIST_HEAD(&cpp->resource_list);
 	INIT_LIST_HEAD(&cpp->area_cache_list);
 	mutex_init(&cpp->area_cache_mutex);
@@ -1424,323 +1440,4 @@ struct nfp_cpp *nfp_cpp_explicit_cpp(struct nfp_cpp_explicit *cpp_explicit)
 void *nfp_cpp_explicit_priv(struct nfp_cpp_explicit *cpp_explicit)
 {
 	return &cpp_explicit[1];
-}
-
-/* THIS FUNCTION IS NOT EXPORTED */
-static u32 nfp_mutex_locked(u16 interface)
-{
-	return (u32)interface << 16 | 0x000f;
-}
-
-static u32 nfp_mutex_unlocked(u16 interface)
-{
-	return (u32)interface << 16 | 0x0000;
-}
-
-static bool nfp_mutex_is_locked(u32 val)
-{
-	return (val & 0xffff) == 0x000f;
-}
-
-static bool nfp_mutex_is_unlocked(u32 val)
-{
-	return (val & 0xffff) == 0000;
-}
-
-/* If you need more than 65536 recursive locks, please rethink your code. */
-#define MUTEX_DEPTH_MAX         0xffff
-
-static int
-nfp_cpp_mutex_validate(u16 interface, int *target, unsigned long long address)
-{
-	/* Not permitted on invalid interfaces */
-	if (NFP_CPP_INTERFACE_TYPE_of(interface) ==
-	    NFP_CPP_INTERFACE_TYPE_INVALID)
-		return -EINVAL;
-
-	/* Address must be 64-bit aligned */
-	if (address & 7)
-		return -EINVAL;
-
-	if (*target != NFP_CPP_TARGET_MU)
-		return -EINVAL;
-
-	return 0;
-}
-
-/**
- * nfp_cpp_mutex_init() - Initialize a mutex location
- * @cpp:	NFP CPP handle
- * @target:	NFP CPP target ID (ie NFP_CPP_TARGET_CLS or NFP_CPP_TARGET_MU)
- * @address:	Offset into the address space of the NFP CPP target ID
- * @key:	Unique 32-bit value for this mutex
- *
- * The CPP target:address must point to a 64-bit aligned location, and
- * will initialize 64 bits of data at the location.
- *
- * This creates the initial mutex state, as locked by this
- * nfp_cpp_interface().
- *
- * This function should only be called when setting up
- * the initial lock state upon boot-up of the system.
- *
- * Return: 0 on success, or -errno on failure
- */
-int nfp_cpp_mutex_init(struct nfp_cpp *cpp,
-		       int target, unsigned long long address, u32 key)
-{
-	const u32 muw = NFP_CPP_ID(target, 4, 0);    /* atomic_write */
-	u16 interface = nfp_cpp_interface(cpp);
-	int err;
-
-	err = nfp_cpp_mutex_validate(interface, &target, address);
-	if (err)
-		return err;
-
-	err = nfp_cpp_writel(cpp, muw, address + 4, key);
-	if (err)
-		return err;
-
-	err = nfp_cpp_writel(cpp, muw, address, nfp_mutex_locked(interface));
-	if (err)
-		return err;
-
-	return 0;
-}
-
-/**
- * nfp_cpp_mutex_alloc() - Create a mutex handle
- * @cpp:	NFP CPP handle
- * @target:	NFP CPP target ID (ie NFP_CPP_TARGET_CLS or NFP_CPP_TARGET_MU)
- * @address:	Offset into the address space of the NFP CPP target ID
- * @key:	32-bit unique key (must match the key at this location)
- *
- * The CPP target:address must point to a 64-bit aligned location, and
- * reserve 64 bits of data at the location for use by the handle.
- *
- * Only target/address pairs that point to entities that support the
- * MU Atomic Engine's CmpAndSwap32 command are supported.
- *
- * Return:	A non-NULL struct nfp_cpp_mutex * on success, NULL on failure.
- */
-struct nfp_cpp_mutex *nfp_cpp_mutex_alloc(struct nfp_cpp *cpp, int target,
-					  unsigned long long address, u32 key)
-{
-	const u32 mur = NFP_CPP_ID(target, 3, 0);    /* atomic_read */
-	u16 interface = nfp_cpp_interface(cpp);
-	struct nfp_cpp_mutex *mutex;
-	int err;
-	u32 tmp;
-
-	err = nfp_cpp_mutex_validate(interface, &target, address);
-	if (err)
-		return NULL;
-
-	/* Look for mutex on cache list */
-	list_for_each_entry(mutex, &cpp->mutex_cache, list) {
-		if (mutex->target == target && mutex->address == address) {
-			mutex->usage++;
-			return mutex;
-		}
-	}
-
-	err = nfp_cpp_readl(cpp, mur, address + 4, &tmp);
-	if (err < 0)
-		return NULL;
-
-	if (tmp != key)
-		return NULL;
-
-	mutex = kzalloc(sizeof(*mutex), GFP_KERNEL);
-	if (!mutex)
-		return NULL;
-
-	mutex->cpp = cpp;
-	mutex->target = target;
-	mutex->address = address;
-	mutex->key = key;
-	mutex->depth = 0;
-	mutex->usage = 1;
-
-	/* Add mutex to cache list */
-	list_add(&mutex->list, &cpp->mutex_cache);
-
-	return mutex;
-}
-
-/**
- * nfp_cpp_mutex_free() - Free a mutex handle - does not alter the lock state
- * @mutex:	NFP CPP Mutex handle
- */
-void nfp_cpp_mutex_free(struct nfp_cpp_mutex *mutex)
-{
-	if (--mutex->usage)
-		return;
-
-	/* Remove mutex from cache */
-	list_del(&mutex->list);
-	kfree(mutex);
-}
-
-/**
- * nfp_cpp_mutex_lock() - Lock a mutex handle, using the NFP MU Atomic Engine
- * @mutex:	NFP CPP Mutex handle
- *
- * Return: 0 on success, or -errno on failure
- */
-int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
-{
-	unsigned long warn_at = jiffies + 15 * HZ;
-	unsigned int timeout_ms = 1;
-	int err;
-
-	/* We can't use a waitqueue here, because the unlocker
-	 * might be on a separate CPU.
-	 *
-	 * So just wait for now.
-	 */
-	for (;;) {
-		err = nfp_cpp_mutex_trylock(mutex);
-		if (err != -EBUSY)
-			break;
-
-		err = msleep_interruptible(timeout_ms);
-		if (err != 0)
-			return -ERESTARTSYS;
-
-		if (time_is_before_eq_jiffies(warn_at)) {
-			warn_at = jiffies + 60 * HZ;
-			dev_warn(mutex->cpp->dev.parent,
-				 "Warning: waiting for NFP mutex [usage:%hd depth:%hd target:%d addr:%llx key:%08x]\n",
-				 mutex->usage, mutex->depth,
-				 mutex->target, mutex->address, mutex->key);
-		}
-	}
-
-	return err;
-}
-
-/**
- * nfp_cpp_mutex_unlock() - Unlock a mutex handle, using the MU Atomic Engine
- * @mutex:	NFP CPP Mutex handle
- *
- * Return: 0 on success, or -errno on failure
- */
-int nfp_cpp_mutex_unlock(struct nfp_cpp_mutex *mutex)
-{
-	const u32 muw = NFP_CPP_ID(mutex->target, 4, 0);    /* atomic_write */
-	const u32 mur = NFP_CPP_ID(mutex->target, 3, 0);    /* atomic_read */
-	struct nfp_cpp *cpp = mutex->cpp;
-	u32 key, value;
-	u16 interface;
-	int err;
-
-	interface = nfp_cpp_interface(cpp);
-
-	if (mutex->depth > 1) {
-		mutex->depth--;
-		return 0;
-	}
-
-	err = nfp_cpp_readl(mutex->cpp, mur, mutex->address + 4, &key);
-	if (err < 0)
-		return err;
-
-	if (key != mutex->key)
-		return -EPERM;
-
-	err = nfp_cpp_readl(mutex->cpp, mur, mutex->address, &value);
-	if (err < 0)
-		return err;
-
-	if (value != nfp_mutex_locked(interface))
-		return -EACCES;
-
-	err = nfp_cpp_writel(cpp, muw, mutex->address,
-			     nfp_mutex_unlocked(interface));
-	if (err < 0)
-		return err;
-
-	mutex->depth = 0;
-	return 0;
-}
-
-/**
- * nfp_cpp_mutex_trylock() - Attempt to lock a mutex handle
- * @mutex:	NFP CPP Mutex handle
- *
- * Return:      0 if the lock succeeded, -errno on failure
- */
-int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
-{
-	const u32 muw = NFP_CPP_ID(mutex->target, 4, 0);    /* atomic_write */
-	const u32 mus = NFP_CPP_ID(mutex->target, 5, 3);    /* test_set_imm */
-	const u32 mur = NFP_CPP_ID(mutex->target, 3, 0);    /* atomic_read */
-	struct nfp_cpp *cpp = mutex->cpp;
-	u32 key, value, tmp;
-	int err;
-
-	if (mutex->depth > 0) {
-		if (mutex->depth == MUTEX_DEPTH_MAX)
-			return -E2BIG;
-		mutex->depth++;
-		return 0;
-	}
-
-	/* Verify that the lock marker is not damaged */
-	err = nfp_cpp_readl(cpp, mur, mutex->address + 4, &key);
-	if (err < 0)
-		return err;
-
-	if (key != mutex->key)
-		return -EPERM;
-
-	/* Compare against the unlocked state, and if true,
-	 * write the interface id into the top 16 bits, and
-	 * mark as locked.
-	 */
-	value = nfp_mutex_locked(nfp_cpp_interface(cpp));
-
-	/* We use test_set_imm here, as it implies a read
-	 * of the current state, and sets the bits in the
-	 * bytemask of the command to 1s. Since the mutex
-	 * is guaranteed to be 64-bit aligned, the bytemask
-	 * of this 32-bit command is ensured to be 8'b00001111,
-	 * which implies that the lower 4 bits will be set to
-	 * ones regardless of the initial state.
-	 *
-	 * Since this is a 'Readback' operation, with no Pull
-	 * data, we can treat this as a normal Push (read)
-	 * atomic, which returns the original value.
-	 */
-	err = nfp_cpp_readl(cpp, mus, mutex->address, &tmp);
-	if (err < 0)
-		return err;
-
-	/* Was it unlocked? */
-	if (nfp_mutex_is_unlocked(tmp)) {
-		/* The read value can only be 0x....0000 in the unlocked state.
-		 * If there was another contending for this lock, then
-		 * the lock state would be 0x....000f
-		 */
-
-		/* Write our owner ID into the lock
-		 * While not strictly necessary, this helps with
-		 * debug and bookkeeping.
-		 */
-		err = nfp_cpp_writel(cpp, muw, mutex->address, value);
-		if (err < 0)
-			return err;
-
-		mutex->depth = 1;
-		return 0;
-	}
-
-	/* Already locked by us? Success! */
-	if (tmp == value) {
-		mutex->depth = 1;
-		return 0;
-	}
-
-	return nfp_mutex_is_locked(tmp) ? -EBUSY : -EINVAL;
 }

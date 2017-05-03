@@ -8,7 +8,7 @@ RAS concepts
 ************
 
 Reliability, Availability and Serviceability (RAS) is a concept used on
-servers meant to measure their robusteness.
+servers meant to measure their robustness.
 
 Reliability
   is the probability that a system will produce correct outputs.
@@ -42,13 +42,13 @@ Among the monitoring measures, the most usual ones include:
 
 * CPU – detect errors at instruction execution and at L1/L2/L3 caches;
 * Memory – add error correction logic (ECC) to detect and correct errors;
-* I/O – add CRC checksums for tranfered data;
+* I/O – add CRC checksums for transferred data;
 * Storage – RAID, journal file systems, checksums,
   Self-Monitoring, Analysis and Reporting Technology (SMART).
 
 By monitoring the number of occurrences of error detections, it is possible
 to identify if the probability of hardware errors is increasing, and, on such
-case, do a preventive maintainance to replace a degrated component while
+case, do a preventive maintenance to replace a degraded component while
 those errors are correctable.
 
 Types of errors
@@ -121,7 +121,7 @@ using the ``dmidecode`` tool. For example, on a desktop machine, it shows::
 On the above example, a DDR4 SO-DIMM memory module is located at the
 system's memory labeled as "BANK 0", as given by the *bank locator* field.
 Please notice that, on such system, the *total width* is equal to the
-*data witdh*. It means that such memory module doesn't have error
+*data width*. It means that such memory module doesn't have error
 detection/correction mechanisms.
 
 Unfortunately, not all systems use the same field to specify the memory
@@ -145,7 +145,7 @@ bank. On this example, from an older server, ``dmidecode`` shows::
 
 There, the DDR3 RDIMM memory module is located at the system's memory labeled
 as "DIMM_A1", as given by the *locator* field. Please notice that this
-memory module has 64 bits of *data witdh* and 72 bits of *total width*. So,
+memory module has 64 bits of *data width* and 72 bits of *total width*. So,
 it has 8 extra bits to be used by error detection and correction mechanisms.
 Such kind of memory is called Error-correcting code memory (ECC memory).
 
@@ -186,7 +186,7 @@ Architecture (MCA)\ [#f3]_.
 .. [#f1] Please notice that several memory controllers allow operation on a
   mode called "Lock-Step", where it groups two memory modules together,
   doing 128-bit reads/writes. That gives 16 bits for error correction, with
-  significatively improves the error correction mechanism, at the expense
+  significantly improves the error correction mechanism, at the expense
   that, when an error happens, there's no way to know what memory module is
   to blame. So, it has to blame both memory modules.
 

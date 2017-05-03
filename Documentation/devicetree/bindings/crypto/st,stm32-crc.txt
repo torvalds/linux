@@ -1,0 +1,16 @@
+* STMicroelectronics STM32 CRC
+
+Required properties:
+- compatible: Should be "st,stm32f7-crc".
+- reg: The address and length of the peripheral registers space
+- clocks: The input clock of the CRC instance
+
+Optional properties: none
+
+Example:
+
+crc: crc@40023000 {
+	compatible = "st,stm32f7-crc";
+	reg = <0x40023000 0x400>;
+	clocks = <&rcc 0 12>;
+};

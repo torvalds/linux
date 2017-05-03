@@ -540,6 +540,7 @@ struct mlx5_fc_stats {
 	struct workqueue_struct *wq;
 	struct delayed_work work;
 	unsigned long next_query;
+	unsigned long sampling_interval; /* jiffies */
 };
 
 struct mlx5_eswitch;
@@ -728,6 +729,7 @@ struct mlx5e_resources {
 	u32                        pdn;
 	struct mlx5_td             td;
 	struct mlx5_core_mkey      mkey;
+	struct mlx5_sq_bfreg       bfreg;
 };
 
 struct mlx5_core_dev {

@@ -76,7 +76,7 @@ config QCOM_ADSP_PIL
 	depends on OF && ARCH_QCOM
 	depends on REMOTEPROC
 	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
 	select QCOM_RPROC_COMMON
@@ -93,7 +93,7 @@ config QCOM_Q6V5_PIL
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
 	depends on REMOTEPROC
-	depends on RPMSG_QCOM_SMD || QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	select MFD_SYSCON
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
@@ -104,7 +104,7 @@ config QCOM_Q6V5_PIL
 config QCOM_WCNSS_PIL
 	tristate "Qualcomm WCNSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
-	depends on RPMSG_QCOM_SMD || QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	depends on QCOM_SMEM
 	depends on REMOTEPROC
 	select QCOM_MDT_LOADER

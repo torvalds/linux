@@ -31,7 +31,7 @@ static void pci_note_irq_problem(struct pci_dev *pdev, const char *reason)
  * driver).
  *
  * Returns:
- *  a suggestion for fixing it (although the driver is not required to
+ * a suggestion for fixing it (although the driver is not required to
  * act on this).
  */
 enum pci_lost_interrupt_reason pci_lost_interrupt(struct pci_dev *pdev)

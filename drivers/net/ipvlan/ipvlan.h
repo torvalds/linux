@@ -26,6 +26,7 @@
 #include <linux/netfilter.h>
 #include <net/ip.h>
 #include <net/ip6_route.h>
+#include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/addrconf.h>
@@ -91,6 +92,7 @@ struct ipvl_addr {
 
 struct ipvl_port {
 	struct net_device	*dev;
+	possible_net_t		pnet;
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
 	struct list_head	ipvlans;
 	u16			mode;

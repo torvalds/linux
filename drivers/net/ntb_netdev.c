@@ -372,18 +372,19 @@ static void ntb_get_drvinfo(struct net_device *ndev,
 	strlcpy(info->bus_info, pci_name(dev->pdev), sizeof(info->bus_info));
 }
 
-static int ntb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ntb_get_link_ksettings(struct net_device *dev,
+				  struct ethtool_link_ksettings *cmd)
 {
-	cmd->supported = SUPPORTED_Backplane;
-	cmd->advertising = ADVERTISED_Backplane;
-	ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
-	cmd->duplex = DUPLEX_FULL;
-	cmd->port = PORT_OTHER;
-	cmd->phy_address = 0;
-	cmd->transceiver = XCVR_DUMMY1;
-	cmd->autoneg = AUTONEG_ENABLE;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, Backplane);
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, Backplane);
+
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.port = PORT_OTHER;
+	cmd->base.phy_address = 0;
+	cmd->base.autoneg = AUTONEG_ENABLE;
 
 	return 0;
 }
@@ -391,7 +392,7 @@ static int ntb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static const struct ethtool_ops ntb_ethtool_ops = {
 	.get_drvinfo = ntb_get_drvinfo,
 	.get_link = ethtool_op_get_link,
-	.get_settings = ntb_get_settings,
+	.get_link_ksettings = ntb_get_link_ksettings,
 };
 
 static const struct ntb_queue_handlers ntb_netdev_handlers = {

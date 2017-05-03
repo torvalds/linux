@@ -333,7 +333,7 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_12:
-		if (hw->mac.type >= ixgbe_mac_X550_vf)
+		if (hw->mac.type < ixgbe_mac_X550_vf)
 			break;
 	default:
 		return -EOPNOTSUPP;
@@ -399,7 +399,7 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	switch (hw->api_version) {
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_12:
-		if (hw->mac.type >= ixgbe_mac_X550_vf)
+		if (hw->mac.type < ixgbe_mac_X550_vf)
 			break;
 	default:
 		return -EOPNOTSUPP;
@@ -419,7 +419,7 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 	/* If the operation has been refused by a PF return -EPERM */
-	if (msgbuf[0] == (IXGBE_VF_GET_RETA | IXGBE_VT_MSGTYPE_NACK))
+	if (msgbuf[0] == (IXGBE_VF_GET_RSS_KEY | IXGBE_VT_MSGTYPE_NACK))
 		return -EPERM;
 
 	/* If we didn't get an ACK there must have been

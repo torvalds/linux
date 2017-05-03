@@ -44,30 +44,42 @@ void update_cr_regs(struct task_struct *task)
 	struct pt_regs *regs = task_pt_regs(task);
 	struct thread_struct *thread = &task->thread;
 	struct per_regs old, new;
+	unsigned long cr0_old, cr0_new;
+	unsigned long cr2_old, cr2_new;
+	int cr0_changed, cr2_changed;
 
+	__ctl_store(cr0_old, 0, 0);
+	__ctl_store(cr2_old, 2, 2);
+	cr0_new = cr0_old;
+	cr2_new = cr2_old;
 	/* Take care of the enable/disable of transactional execution. */
 	if (MACHINE_HAS_TE) {
-		unsigned long cr, cr_new;
-
-		__ctl_store(cr, 0, 0);
 		/* Set or clear transaction execution TXC bit 8. */
-		cr_new = cr | (1UL << 55);
+		cr0_new |= (1UL << 55);
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
-			cr_new &= ~(1UL << 55);
-		if (cr_new != cr)
-			__ctl_load(cr_new, 0, 0);
+			cr0_new &= ~(1UL << 55);
 		/* Set or clear transaction execution TDC bits 62 and 63. */
-		__ctl_store(cr, 2, 2);
-		cr_new = cr & ~3UL;
+		cr2_new &= ~3UL;
 		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
 			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND_TEND)
-				cr_new |= 1UL;
+				cr2_new |= 1UL;
 			else
-				cr_new |= 2UL;
+				cr2_new |= 2UL;
 		}
-		if (cr_new != cr)
-			__ctl_load(cr_new, 2, 2);
 	}
+	/* Take care of enable/disable of guarded storage. */
+	if (MACHINE_HAS_GS) {
+		cr2_new &= ~(1UL << 4);
+		if (task->thread.gs_cb)
+			cr2_new |= (1UL << 4);
+	}
+	/* Load control register 0/2 iff changed */
+	cr0_changed = cr0_new != cr0_old;
+	cr2_changed = cr2_new != cr2_old;
+	if (cr0_changed)
+		__ctl_load(cr0_new, 0, 0);
+	if (cr2_changed)
+		__ctl_load(cr2_new, 2, 2);
 	/* Copy user specified PER registers */
 	new.control = thread->per_user.control;
 	new.start = thread->per_user.start;
@@ -1137,6 +1149,74 @@ static int s390_system_call_set(struct task_struct *target,
 				  data, 0, sizeof(unsigned int));
 }
 
+static int s390_gs_cb_get(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  void *kbuf, void __user *ubuf)
+{
+	struct gs_cb *data = target->thread.gs_cb;
+
+	if (!MACHINE_HAS_GS)
+		return -ENODEV;
+	if (!data)
+		return -ENODATA;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   data, 0, sizeof(struct gs_cb));
+}
+
+static int s390_gs_cb_set(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  const void *kbuf, const void __user *ubuf)
+{
+	struct gs_cb *data = target->thread.gs_cb;
+
+	if (!MACHINE_HAS_GS)
+		return -ENODEV;
+	if (!data) {
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+		target->thread.gs_cb = data;
+	}
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  data, 0, sizeof(struct gs_cb));
+}
+
+static int s390_gs_bc_get(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  void *kbuf, void __user *ubuf)
+{
+	struct gs_cb *data = target->thread.gs_bc_cb;
+
+	if (!MACHINE_HAS_GS)
+		return -ENODEV;
+	if (!data)
+		return -ENODATA;
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   data, 0, sizeof(struct gs_cb));
+}
+
+static int s390_gs_bc_set(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  const void *kbuf, const void __user *ubuf)
+{
+	struct gs_cb *data = target->thread.gs_bc_cb;
+
+	if (!MACHINE_HAS_GS)
+		return -ENODEV;
+	if (!data) {
+		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+		target->thread.gs_bc_cb = data;
+	}
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  data, 0, sizeof(struct gs_cb));
+}
+
 static const struct user_regset s390_regsets[] = {
 	{
 		.core_note_type = NT_PRSTATUS,
@@ -1193,6 +1273,22 @@ static const struct user_regset s390_regsets[] = {
 		.align = sizeof(__vector128),
 		.get = s390_vxrs_high_get,
 		.set = s390_vxrs_high_set,
+	},
+	{
+		.core_note_type = NT_S390_GS_CB,
+		.n = sizeof(struct gs_cb) / sizeof(__u64),
+		.size = sizeof(__u64),
+		.align = sizeof(__u64),
+		.get = s390_gs_cb_get,
+		.set = s390_gs_cb_set,
+	},
+	{
+		.core_note_type = NT_S390_GS_BC,
+		.n = sizeof(struct gs_cb) / sizeof(__u64),
+		.size = sizeof(__u64),
+		.align = sizeof(__u64),
+		.get = s390_gs_bc_get,
+		.set = s390_gs_bc_set,
 	},
 };
 
@@ -1421,6 +1517,14 @@ static const struct user_regset s390_compat_regsets[] = {
 		.align = sizeof(compat_long_t),
 		.get = s390_compat_regs_high_get,
 		.set = s390_compat_regs_high_set,
+	},
+	{
+		.core_note_type = NT_S390_GS_CB,
+		.n = sizeof(struct gs_cb) / sizeof(__u64),
+		.size = sizeof(__u64),
+		.align = sizeof(__u64),
+		.get = s390_gs_cb_get,
+		.set = s390_gs_cb_set,
 	},
 };
 

@@ -76,6 +76,12 @@ config BT_HCIUART
 	  Say Y here to compile support for Bluetooth UART devices into the
 	  kernel or say M to compile it as module (hci_uart).
 
+config BT_HCIUART_SERDEV
+	bool
+	depends on SERIAL_DEV_BUS && BT_HCIUART
+	depends on SERIAL_DEV_BUS=y || SERIAL_DEV_BUS=BT_HCIUART
+	default y
+
 config BT_HCIUART_H4
 	bool "UART (H4) protocol support"
 	depends on BT_HCIUART
@@ -85,6 +91,18 @@ config BT_HCIUART_H4
 	  with UART interface, including PCMCIA and CF cards.
 
 	  Say Y here to compile support for HCI UART (H4) protocol.
+
+config BT_HCIUART_NOKIA
+	tristate "UART Nokia H4+ protocol support"
+	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
+	depends on PM
+	help
+	  Nokia H4+ is serial protocol for communication between Bluetooth
+	  device and host. This protocol is required for Bluetooth devices
+	  with UART interface in Nokia devices.
+
+	  Say Y here to compile support for Nokia's H4+ protocol.
 
 config BT_HCIUART_BCSP
 	bool "BCSP protocol support"
@@ -344,7 +362,7 @@ config BT_WILINK
 
 config BT_QCOMSMD
 	tristate "Qualcomm SMD based HCI support"
-	depends on QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n)
+	depends on RPMSG || (COMPILE_TEST && RPMSG=n)
 	depends on QCOM_WCNSS_CTRL || (COMPILE_TEST && QCOM_WCNSS_CTRL=n)
 	select BT_QCA
 	help

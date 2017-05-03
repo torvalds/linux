@@ -233,12 +233,14 @@ struct tcp_sock {
 	u8	syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
 		syn_fastopen_exp:1,/* SYN includes Fast Open exp. option */
+		syn_fastopen_ch:1, /* Active TFO re-enabling probe */
 		syn_data_acked:1,/* data in SYN is acked by SYN-ACK */
 		save_syn:1,	/* Save headers of SYN packet */
 		is_cwnd_limited:1;/* forward progress limited by snd_cwnd? */
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
 /* RTT measurement */
+	struct skb_mstamp tcp_mstamp; /* most recent packet received/sent */
 	u32	srtt_us;	/* smoothed round trip time << 3 in usecs */
 	u32	mdev_us;	/* medium deviation			*/
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
@@ -331,16 +333,16 @@ struct tcp_sock {
 
 /* Receiver side RTT estimation */
 	struct {
-		u32	rtt;
-		u32	seq;
-		u32	time;
+		u32		rtt_us;
+		u32		seq;
+		struct skb_mstamp time;
 	} rcv_rtt_est;
 
 /* Receiver queue space */
 	struct {
-		int	space;
-		u32	seq;
-		u32	time;
+		int		space;
+		u32		seq;
+		struct skb_mstamp time;
 	} rcvq_space;
 
 /* TCP-specific MTU probe information. */

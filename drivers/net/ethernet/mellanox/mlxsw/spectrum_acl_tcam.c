@@ -561,6 +561,24 @@ mlxsw_sp_acl_tcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
 }
 
+static int
+mlxsw_sp_acl_tcam_region_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
+					    struct mlxsw_sp_acl_tcam_region *region,
+					    unsigned int offset,
+					    bool *activity)
+{
+	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
+	int err;
+
+	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_QUERY_CLEAR_ON_READ,
+			     region->tcam_region_info, offset);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
+	if (err)
+		return err;
+	*activity = mlxsw_reg_ptce2_a_get(ptce2_pl);
+	return 0;
+}
+
 #define MLXSW_SP_ACL_TCAM_CATCHALL_PRIO (~0U)
 
 static int
@@ -940,6 +958,19 @@ static void mlxsw_sp_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_tcam_chunk_put(mlxsw_sp, chunk);
 }
 
+static int
+mlxsw_sp_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_tcam_entry *entry,
+				     bool *activity)
+{
+	struct mlxsw_sp_acl_tcam_chunk *chunk = entry->chunk;
+	struct mlxsw_sp_acl_tcam_region *region = chunk->region;
+
+	return mlxsw_sp_acl_tcam_region_entry_activity_get(mlxsw_sp, region,
+							   entry->parman_item.index,
+							   activity);
+}
+
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
 	MLXSW_AFK_ELEMENT_SRC_SYS_PORT,
 	MLXSW_AFK_ELEMENT_DMAC,
@@ -950,6 +981,8 @@ static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
 	MLXSW_AFK_ELEMENT_DST_IP4,
 	MLXSW_AFK_ELEMENT_DST_L4_PORT,
 	MLXSW_AFK_ELEMENT_SRC_L4_PORT,
+	MLXSW_AFK_ELEMENT_VID,
+	MLXSW_AFK_ELEMENT_PCP,
 };
 
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv6[] = {
@@ -1046,6 +1079,16 @@ mlxsw_sp_acl_tcam_flower_rule_del(struct mlxsw_sp *mlxsw_sp, void *rule_priv)
 	mlxsw_sp_acl_tcam_entry_del(mlxsw_sp, &rule->entry);
 }
 
+static int
+mlxsw_sp_acl_tcam_flower_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
+					   void *rule_priv, bool *activity)
+{
+	struct mlxsw_sp_acl_tcam_flower_rule *rule = rule_priv;
+
+	return mlxsw_sp_acl_tcam_entry_activity_get(mlxsw_sp, &rule->entry,
+						    activity);
+}
+
 static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.ruleset_priv_size	= sizeof(struct mlxsw_sp_acl_tcam_flower_ruleset),
 	.ruleset_add		= mlxsw_sp_acl_tcam_flower_ruleset_add,
@@ -1055,6 +1098,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.rule_priv_size		= sizeof(struct mlxsw_sp_acl_tcam_flower_rule),
 	.rule_add		= mlxsw_sp_acl_tcam_flower_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,
+	.rule_activity_get	= mlxsw_sp_acl_tcam_flower_rule_activity_get,
 };
 
 static const struct mlxsw_sp_acl_profile_ops *

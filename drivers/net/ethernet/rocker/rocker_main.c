@@ -33,6 +33,7 @@
 #include <net/rtnetlink.h>
 #include <net/netevent.h>
 #include <net/arp.h>
+#include <net/fib_rules.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <generated/utsrelease.h>
 
@@ -1115,7 +1116,7 @@ rocker_cmd_get_port_settings_ethtool_proc(const struct rocker_port *rocker_port,
 					  const struct rocker_desc_info *desc_info,
 					  void *priv)
 {
-	struct ethtool_cmd *ecmd = priv;
+	struct ethtool_link_ksettings *ecmd = priv;
 	const struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
 	const struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
 	u32 speed;
@@ -1137,13 +1138,14 @@ rocker_cmd_get_port_settings_ethtool_proc(const struct rocker_port *rocker_port,
 	duplex = rocker_tlv_get_u8(info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_DUPLEX]);
 	autoneg = rocker_tlv_get_u8(info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_AUTONEG]);
 
-	ecmd->transceiver = XCVR_INTERNAL;
-	ecmd->supported = SUPPORTED_TP;
-	ecmd->phy_address = 0xff;
-	ecmd->port = PORT_TP;
-	ethtool_cmd_speed_set(ecmd, speed);
-	ecmd->duplex = duplex ? DUPLEX_FULL : DUPLEX_HALF;
-	ecmd->autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+	ethtool_link_ksettings_zero_link_mode(ecmd, supported);
+	ethtool_link_ksettings_add_link_mode(ecmd, supported, TP);
+
+	ecmd->base.phy_address = 0xff;
+	ecmd->base.port = PORT_TP;
+	ecmd->base.speed = speed;
+	ecmd->base.duplex = duplex ? DUPLEX_FULL : DUPLEX_HALF;
+	ecmd->base.autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 
 	return 0;
 }
@@ -1250,7 +1252,7 @@ rocker_cmd_set_port_settings_ethtool_prep(const struct rocker_port *rocker_port,
 					  struct rocker_desc_info *desc_info,
 					  void *priv)
 {
-	struct ethtool_cmd *ecmd = priv;
+	struct ethtool_link_ksettings *ecmd = priv;
 	struct rocker_tlv *cmd_info;
 
 	if (rocker_tlv_put_u16(desc_info, ROCKER_TLV_CMD_TYPE,
@@ -1263,13 +1265,13 @@ rocker_cmd_set_port_settings_ethtool_prep(const struct rocker_port *rocker_port,
 			       rocker_port->pport))
 		return -EMSGSIZE;
 	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_CMD_PORT_SETTINGS_SPEED,
-			       ethtool_cmd_speed(ecmd)))
+			       ecmd->base.speed))
 		return -EMSGSIZE;
 	if (rocker_tlv_put_u8(desc_info, ROCKER_TLV_CMD_PORT_SETTINGS_DUPLEX,
-			      ecmd->duplex))
+			      ecmd->base.duplex))
 		return -EMSGSIZE;
 	if (rocker_tlv_put_u8(desc_info, ROCKER_TLV_CMD_PORT_SETTINGS_AUTONEG,
-			      ecmd->autoneg))
+			      ecmd->base.autoneg))
 		return -EMSGSIZE;
 	rocker_tlv_nest_end(desc_info, cmd_info);
 	return 0;
@@ -1347,8 +1349,9 @@ rocker_cmd_set_port_learning_prep(const struct rocker_port *rocker_port,
 	return 0;
 }
 
-static int rocker_cmd_get_port_settings_ethtool(struct rocker_port *rocker_port,
-						struct ethtool_cmd *ecmd)
+static int
+rocker_cmd_get_port_settings_ethtool(struct rocker_port *rocker_port,
+				     struct ethtool_link_ksettings *ecmd)
 {
 	return rocker_cmd_exec(rocker_port, false,
 			       rocker_cmd_get_port_settings_prep, NULL,
@@ -1373,12 +1376,17 @@ static int rocker_cmd_get_port_settings_mode(struct rocker_port *rocker_port,
 			       rocker_cmd_get_port_settings_mode_proc, p_mode);
 }
 
-static int rocker_cmd_set_port_settings_ethtool(struct rocker_port *rocker_port,
-						struct ethtool_cmd *ecmd)
+static int
+rocker_cmd_set_port_settings_ethtool(struct rocker_port *rocker_port,
+				     const struct ethtool_link_ksettings *ecmd)
 {
+	struct ethtool_link_ksettings copy_ecmd;
+
+	memcpy(&copy_ecmd, ecmd, sizeof(copy_ecmd));
+
 	return rocker_cmd_exec(rocker_port, false,
 			       rocker_cmd_set_port_settings_ethtool_prep,
-			       ecmd, NULL, NULL);
+			       &copy_ecmd, NULL, NULL);
 }
 
 static int rocker_cmd_set_port_settings_macaddr(struct rocker_port *rocker_port,
@@ -2168,7 +2176,10 @@ static const struct switchdev_ops rocker_port_switchdev_ops = {
 
 struct rocker_fib_event_work {
 	struct work_struct work;
-	struct fib_entry_notifier_info fen_info;
+	union {
+		struct fib_entry_notifier_info fen_info;
+		struct fib_rule_notifier_info fr_info;
+	};
 	struct rocker *rocker;
 	unsigned long event;
 };
@@ -2178,6 +2189,7 @@ static void rocker_router_fib_event_work(struct work_struct *work)
 	struct rocker_fib_event_work *fib_work =
 		container_of(work, struct rocker_fib_event_work, work);
 	struct rocker *rocker = fib_work->rocker;
+	struct fib_rule *rule;
 	int err;
 
 	/* Protect internal structures from changes */
@@ -2195,7 +2207,10 @@ static void rocker_router_fib_event_work(struct work_struct *work)
 		break;
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
-		rocker_world_fib4_abort(rocker);
+		rule = fib_work->fr_info.rule;
+		if (!fib4_rule_default(rule))
+			rocker_world_fib4_abort(rocker);
+		fib_rule_put(rule);
 		break;
 	}
 	rtnl_unlock();
@@ -2226,6 +2241,11 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 		 */
 		fib_info_hold(fib_work->fen_info.fi);
 		break;
+	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_DEL:
+		memcpy(&fib_work->fr_info, ptr, sizeof(fib_work->fr_info));
+		fib_rule_get(fib_work->fr_info.rule);
+		break;
 	}
 
 	queue_work(rocker->rocker_owq, &fib_work->work);
@@ -2237,16 +2257,18 @@ static int rocker_router_fib_event(struct notifier_block *nb,
  * ethtool interface
  ********************/
 
-static int rocker_port_get_settings(struct net_device *dev,
-				    struct ethtool_cmd *ecmd)
+static int
+rocker_port_get_link_ksettings(struct net_device *dev,
+			       struct ethtool_link_ksettings *ecmd)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 
 	return rocker_cmd_get_port_settings_ethtool(rocker_port, ecmd);
 }
 
-static int rocker_port_set_settings(struct net_device *dev,
-				    struct ethtool_cmd *ecmd)
+static int
+rocker_port_set_link_ksettings(struct net_device *dev,
+			       const struct ethtool_link_ksettings *ecmd)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 
@@ -2388,13 +2410,13 @@ static int rocker_port_get_sset_count(struct net_device *netdev, int sset)
 }
 
 static const struct ethtool_ops rocker_port_ethtool_ops = {
-	.get_settings		= rocker_port_get_settings,
-	.set_settings		= rocker_port_set_settings,
 	.get_drvinfo		= rocker_port_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_strings		= rocker_port_get_strings,
 	.get_ethtool_stats	= rocker_port_get_stats,
 	.get_sset_count		= rocker_port_get_sset_count,
+	.get_link_ksettings	= rocker_port_get_link_ksettings,
+	.set_link_ksettings	= rocker_port_set_link_ksettings,
 };
 
 /*****************

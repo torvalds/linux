@@ -597,7 +597,7 @@ static u8 qed_ll2_convert_rx_parse_to_tx_flags(u16 parse_flags)
 	u8 bd_flags = 0;
 
 	if (GET_FIELD(parse_flags, PARSING_AND_ERR_FLAGS_TAG8021QEXIST))
-		SET_FIELD(bd_flags, CORE_TX_BD_FLAGS_VLAN_INSERTION, 1);
+		SET_FIELD(bd_flags, CORE_TX_BD_DATA_VLAN_INSERTION, 1);
 
 	return bd_flags;
 }
@@ -758,8 +758,8 @@ qed_ooo_submit_tx_buffers(struct qed_hwfn *p_hwfn,
 			     p_buffer->placement_offset;
 		parse_flags = p_buffer->parse_flags;
 		bd_flags = qed_ll2_convert_rx_parse_to_tx_flags(parse_flags);
-		SET_FIELD(bd_flags, CORE_TX_BD_FLAGS_FORCE_VLAN_MODE, 1);
-		SET_FIELD(bd_flags, CORE_TX_BD_FLAGS_L4_PROTOCOL, 1);
+		SET_FIELD(bd_flags, CORE_TX_BD_DATA_FORCE_VLAN_MODE, 1);
+		SET_FIELD(bd_flags, CORE_TX_BD_DATA_L4_PROTOCOL, 1);
 
 		rc = qed_ll2_prepare_tx_packet(p_hwfn, p_ll2_conn->my_id, 1,
 					       p_buffer->vlan, bd_flags,
@@ -1090,7 +1090,6 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	struct core_tx_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	union qed_qm_pq_params pq_params;
 	u16 pq_id = 0, pbl_size;
 	int rc = -EINVAL;
 
@@ -1127,9 +1126,18 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	pbl_size = qed_chain_get_page_cnt(&p_tx->txq_chain);
 	p_ramrod->pbl_size = cpu_to_le16(pbl_size);
 
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq_params.core.tc = p_ll2_conn->conn.tx_tc;
-	pq_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_CORE, &pq_params);
+	switch (p_ll2_conn->conn.tx_tc) {
+	case LB_TC:
+		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_LB);
+		break;
+	case OOO_LB_TC:
+		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OOO);
+		break;
+	default:
+		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
+		break;
+	}
+
 	p_ramrod->qm_pq_id = cpu_to_le16(pq_id);
 
 	switch (conn_type) {
@@ -1400,13 +1408,21 @@ int qed_ll2_establish_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	struct qed_ll2_info *p_ll2_conn;
 	struct qed_ll2_rx_queue *p_rx;
 	struct qed_ll2_tx_queue *p_tx;
+	struct qed_ptt *p_ptt;
 	int rc = -EINVAL;
 	u32 i, capacity;
 	u8 qid;
 
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
+
 	p_ll2_conn = qed_ll2_handle_sanity_lock(p_hwfn, connection_handle);
-	if (!p_ll2_conn)
-		return -EINVAL;
+	if (!p_ll2_conn) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	p_rx = &p_ll2_conn->rx_queue;
 	p_tx = &p_ll2_conn->tx_queue;
 
@@ -1439,7 +1455,9 @@ int qed_ll2_establish_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	p_tx->cur_completing_frag_num = 0;
 	*p_tx->p_fw_cons = 0;
 
-	qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_CORE, &p_ll2_conn->cid);
+	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_CORE, &p_ll2_conn->cid);
+	if (rc)
+		goto out;
 
 	qid = p_hwfn->hw_info.resc_start[QED_LL2_QUEUE] + connection_handle;
 	p_ll2_conn->queue_id = qid;
@@ -1453,26 +1471,28 @@ int qed_ll2_establish_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 
 	rc = qed_ll2_establish_connection_rx(p_hwfn, p_ll2_conn);
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = qed_sp_ll2_tx_queue_start(p_hwfn, p_ll2_conn);
 	if (rc)
-		return rc;
+		goto out;
 
 	if (p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
-		qed_wr(p_hwfn, p_hwfn->p_main_ptt, PRS_REG_USE_LIGHT_L2, 1);
+		qed_wr(p_hwfn, p_ptt, PRS_REG_USE_LIGHT_L2, 1);
 
 	qed_ll2_establish_connection_ooo(p_hwfn, p_ll2_conn);
 
 	if (p_ll2_conn->conn.conn_type == QED_LL2_TYPE_FCOE) {
-		qed_llh_add_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
 					    0x8906, 0,
 					    QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_add_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
 					    0x8914, 0,
 					    QED_LLH_FILTER_ETHERTYPE);
 	}
 
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
 	return rc;
 }
 
@@ -1591,33 +1611,34 @@ static void qed_ll2_prepare_tx_packet_set(struct qed_hwfn *p_hwfn,
 	p_tx->cur_send_frag_num++;
 }
 
-static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
-					     struct qed_ll2_info *p_ll2,
-					     struct qed_ll2_tx_packet *p_curp,
-					     u8 num_of_bds,
-					     enum core_tx_dest tx_dest,
-					     u16 vlan,
-					     u8 bd_flags,
-					     u16 l4_hdr_offset_w,
-					     enum core_roce_flavor_type type,
-					     dma_addr_t first_frag,
-					     u16 first_frag_len)
+static void
+qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
+				 struct qed_ll2_info *p_ll2,
+				 struct qed_ll2_tx_packet *p_curp,
+				 u8 num_of_bds,
+				 enum core_tx_dest tx_dest,
+				 u16 vlan,
+				 u8 bd_flags,
+				 u16 l4_hdr_offset_w,
+				 enum core_roce_flavor_type roce_flavor,
+				 dma_addr_t first_frag,
+				 u16 first_frag_len)
 {
 	struct qed_chain *p_tx_chain = &p_ll2->tx_queue.txq_chain;
 	u16 prod_idx = qed_chain_get_prod_idx(p_tx_chain);
 	struct core_tx_bd *start_bd = NULL;
-	u16 frag_idx;
+	u16 bd_data = 0, frag_idx;
 
 	start_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
 	start_bd->nw_vlan_or_lb_echo = cpu_to_le16(vlan);
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W,
 		  cpu_to_le16(l4_hdr_offset_w));
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_TX_DST, tx_dest);
-	start_bd->bd_flags.as_bitfield = bd_flags;
-	start_bd->bd_flags.as_bitfield |= CORE_TX_BD_FLAGS_START_BD_MASK <<
-	    CORE_TX_BD_FLAGS_START_BD_SHIFT;
-	SET_FIELD(start_bd->bitfield0, CORE_TX_BD_NBDS, num_of_bds);
-	SET_FIELD(start_bd->bitfield0, CORE_TX_BD_ROCE_FLAV, type);
+	bd_data |= bd_flags;
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_START_BD, 0x1);
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_NBDS, num_of_bds);
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_ROCE_FLAV, roce_flavor);
+	start_bd->bd_data.as_bitfield = cpu_to_le16(bd_data);
 	DMA_REGPAIR_LE(start_bd->addr, first_frag);
 	start_bd->nbytes = cpu_to_le16(first_frag_len);
 
@@ -1642,9 +1663,8 @@ static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 		struct core_tx_bd **p_bd = &p_curp->bds_set[frag_idx].txq_bd;
 
 		*p_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
-		(*p_bd)->bd_flags.as_bitfield = 0;
+		(*p_bd)->bd_data.as_bitfield = 0;
 		(*p_bd)->bitfield1 = 0;
-		(*p_bd)->bitfield0 = 0;
 		p_curp->bds_set[frag_idx].tx_frag = 0;
 		p_curp->bds_set[frag_idx].frag_len = 0;
 	}
@@ -1823,23 +1843,30 @@ int qed_ll2_terminate_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 {
 	struct qed_ll2_info *p_ll2_conn = NULL;
 	int rc = -EINVAL;
+	struct qed_ptt *p_ptt;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
 
 	p_ll2_conn = qed_ll2_handle_sanity_lock(p_hwfn, connection_handle);
-	if (!p_ll2_conn)
-		return -EINVAL;
+	if (!p_ll2_conn) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	/* Stop Tx & Rx of connection, if needed */
 	if (QED_LL2_TX_REGISTERED(p_ll2_conn)) {
 		rc = qed_sp_ll2_tx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
-			return rc;
+			goto out;
 		qed_ll2_txq_flush(p_hwfn, connection_handle);
 	}
 
 	if (QED_LL2_RX_REGISTERED(p_ll2_conn)) {
 		rc = qed_sp_ll2_rx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
-			return rc;
+			goto out;
 		qed_ll2_rxq_flush(p_hwfn, connection_handle);
 	}
 
@@ -1847,14 +1874,16 @@ int qed_ll2_terminate_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 		qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
 
 	if (p_ll2_conn->conn.conn_type == QED_LL2_TYPE_FCOE) {
-		qed_llh_remove_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
 					       0x8906, 0,
 					       QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_remove_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
 					       0x8914, 0,
 					       QED_LLH_FILTER_ETHERTYPE);
 	}
 
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
 	return rc;
 }
 
@@ -2241,11 +2270,11 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 	/* Request HW to calculate IP csum */
 	if (!((vlan_get_protocol(skb) == htons(ETH_P_IPV6)) &&
 	      ipv6_hdr(skb)->nexthdr == NEXTHDR_IPV6))
-		flags |= BIT(CORE_TX_BD_FLAGS_IP_CSUM_SHIFT);
+		flags |= BIT(CORE_TX_BD_DATA_IP_CSUM_SHIFT);
 
 	if (skb_vlan_tag_present(skb)) {
 		vlan = skb_vlan_tag_get(skb);
-		flags |= BIT(CORE_TX_BD_FLAGS_VLAN_INSERTION_SHIFT);
+		flags |= BIT(CORE_TX_BD_DATA_VLAN_INSERTION_SHIFT);
 	}
 
 	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev),

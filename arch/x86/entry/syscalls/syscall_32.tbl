@@ -226,7 +226,7 @@
 217	i386	pivot_root		sys_pivot_root
 218	i386	mincore			sys_mincore
 219	i386	madvise			sys_madvise
-220	i386	getdents64		sys_getdents64			compat_sys_getdents64
+220	i386	getdents64		sys_getdents64
 221	i386	fcntl64			sys_fcntl64			compat_sys_fcntl64
 # 222 is unused
 # 223 is unused

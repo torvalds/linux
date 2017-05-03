@@ -2283,7 +2283,7 @@ int orinoco_if_add(struct orinoco_private *priv,
 	priv->ndev = dev;
 
 	/* Report what we've done */
-	dev_dbg(priv->dev, "Registerred interface %s.\n", dev->name);
+	dev_dbg(priv->dev, "Registered interface %s.\n", dev->name);
 
 	return 0;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2014 Nicira, Inc.
+ * Copyright (c) 2007-2017 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -44,13 +44,10 @@
 #include "conntrack.h"
 #include "vport.h"
 
-static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
-			      struct sw_flow_key *key,
-			      const struct nlattr *attr, int len);
-
 struct deferred_action {
 	struct sk_buff *skb;
 	const struct nlattr *actions;
+	int actions_len;
 
 	/* Store pkt_key clone when creating deferred action. */
 	struct sw_flow_key pkt_key;
@@ -82,13 +79,30 @@ struct action_fifo {
 	struct deferred_action fifo[DEFERRED_ACTION_FIFO_SIZE];
 };
 
-struct recirc_keys {
+struct action_flow_keys {
 	struct sw_flow_key key[OVS_DEFERRED_ACTION_THRESHOLD];
 };
 
 static struct action_fifo __percpu *action_fifos;
-static struct recirc_keys __percpu *recirc_keys;
+static struct action_flow_keys __percpu *flow_keys;
 static DEFINE_PER_CPU(int, exec_actions_level);
+
+/* Make a clone of the 'key', using the pre-allocated percpu 'flow_keys'
+ * space. Return NULL if out of key spaces.
+ */
+static struct sw_flow_key *clone_key(const struct sw_flow_key *key_)
+{
+	struct action_flow_keys *keys = this_cpu_ptr(flow_keys);
+	int level = this_cpu_read(exec_actions_level);
+	struct sw_flow_key *key = NULL;
+
+	if (level <= OVS_DEFERRED_ACTION_THRESHOLD) {
+		key = &keys->key[level - 1];
+		*key = *key_;
+	}
+
+	return key;
+}
 
 static void action_fifo_init(struct action_fifo *fifo)
 {
@@ -119,8 +133,9 @@ static struct deferred_action *action_fifo_put(struct action_fifo *fifo)
 
 /* Return true if fifo is not full */
 static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
-						    const struct sw_flow_key *key,
-						    const struct nlattr *attr)
+				    const struct sw_flow_key *key,
+				    const struct nlattr *actions,
+				    const int actions_len)
 {
 	struct action_fifo *fifo;
 	struct deferred_action *da;
@@ -129,7 +144,8 @@ static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 	da = action_fifo_put(fifo);
 	if (da) {
 		da->skb = skb;
-		da->actions = attr;
+		da->actions = actions;
+		da->actions_len = actions_len;
 		da->pkt_key = *key;
 	}
 
@@ -145,6 +161,12 @@ static bool is_flow_key_valid(const struct sw_flow_key *key)
 {
 	return !(key->mac_proto & SW_FLOW_KEY_INVALID);
 }
+
+static int clone_execute(struct datapath *dp, struct sk_buff *skb,
+			 struct sw_flow_key *key,
+			 u32 recirc_id,
+			 const struct nlattr *actions, int len,
+			 bool last, bool clone_flow_key);
 
 static void update_ethertype(struct sk_buff *skb, struct ethhdr *hdr,
 			     __be16 ethertype)
@@ -908,72 +930,35 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	return ovs_dp_upcall(dp, skb, key, &upcall, cutlen);
 }
 
+/* When 'last' is true, sample() should always consume the 'skb'.
+ * Otherwise, sample() should keep 'skb' intact regardless what
+ * actions are executed within sample().
+ */
 static int sample(struct datapath *dp, struct sk_buff *skb,
 		  struct sw_flow_key *key, const struct nlattr *attr,
-		  const struct nlattr *actions, int actions_len)
+		  bool last)
 {
-	const struct nlattr *acts_list = NULL;
-	const struct nlattr *a;
-	int rem;
-	u32 cutlen = 0;
+	struct nlattr *actions;
+	struct nlattr *sample_arg;
+	int rem = nla_len(attr);
+	const struct sample_arg *arg;
+	bool clone_flow_key;
 
-	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
-		 a = nla_next(a, &rem)) {
-		u32 probability;
+	/* The first action is always 'OVS_SAMPLE_ATTR_ARG'. */
+	sample_arg = nla_data(attr);
+	arg = nla_data(sample_arg);
+	actions = nla_next(sample_arg, &rem);
 
-		switch (nla_type(a)) {
-		case OVS_SAMPLE_ATTR_PROBABILITY:
-			probability = nla_get_u32(a);
-			if (!probability || prandom_u32() > probability)
-				return 0;
-			break;
-
-		case OVS_SAMPLE_ATTR_ACTIONS:
-			acts_list = a;
-			break;
-		}
-	}
-
-	rem = nla_len(acts_list);
-	a = nla_data(acts_list);
-
-	/* Actions list is empty, do nothing */
-	if (unlikely(!rem))
+	if ((arg->probability != U32_MAX) &&
+	    (!arg->probability || prandom_u32() > arg->probability)) {
+		if (last)
+			consume_skb(skb);
 		return 0;
-
-	/* The only known usage of sample action is having a single user-space
-	 * action, or having a truncate action followed by a single user-space
-	 * action. Treat this usage as a special case.
-	 * The output_userspace() should clone the skb to be sent to the
-	 * user space. This skb will be consumed by its caller.
-	 */
-	if (unlikely(nla_type(a) == OVS_ACTION_ATTR_TRUNC)) {
-		struct ovs_action_trunc *trunc = nla_data(a);
-
-		if (skb->len > trunc->max_len)
-			cutlen = skb->len - trunc->max_len;
-
-		a = nla_next(a, &rem);
 	}
 
-	if (likely(nla_type(a) == OVS_ACTION_ATTR_USERSPACE &&
-		   nla_is_last(a, rem)))
-		return output_userspace(dp, skb, key, a, actions,
-					actions_len, cutlen);
-
-	skb = skb_clone(skb, GFP_ATOMIC);
-	if (!skb)
-		/* Skip the sample action when out of memory. */
-		return 0;
-
-	if (!add_deferred_actions(skb, key, a)) {
-		if (net_ratelimit())
-			pr_warn("%s: deferred actions limit reached, dropping sample action\n",
-				ovs_dp_name(dp));
-
-		kfree_skb(skb);
-	}
-	return 0;
+	clone_flow_key = !arg->exec;
+	return clone_execute(dp, skb, key, 0, actions, rem, last,
+			     clone_flow_key);
 }
 
 static void execute_hash(struct sk_buff *skb, struct sw_flow_key *key,
@@ -1084,10 +1069,9 @@ static int execute_masked_set_action(struct sk_buff *skb,
 
 static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 			  struct sw_flow_key *key,
-			  const struct nlattr *a, int rem)
+			  const struct nlattr *a, bool last)
 {
-	struct deferred_action *da;
-	int level;
+	u32 recirc_id;
 
 	if (!is_flow_key_valid(key)) {
 		int err;
@@ -1098,43 +1082,8 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 	}
 	BUG_ON(!is_flow_key_valid(key));
 
-	if (!nla_is_last(a, rem)) {
-		/* Recirc action is the not the last action
-		 * of the action list, need to clone the skb.
-		 */
-		skb = skb_clone(skb, GFP_ATOMIC);
-
-		/* Skip the recirc action when out of memory, but
-		 * continue on with the rest of the action list.
-		 */
-		if (!skb)
-			return 0;
-	}
-
-	level = this_cpu_read(exec_actions_level);
-	if (level <= OVS_DEFERRED_ACTION_THRESHOLD) {
-		struct recirc_keys *rks = this_cpu_ptr(recirc_keys);
-		struct sw_flow_key *recirc_key = &rks->key[level - 1];
-
-		*recirc_key = *key;
-		recirc_key->recirc_id = nla_get_u32(a);
-		ovs_dp_process_packet(skb, recirc_key);
-
-		return 0;
-	}
-
-	da = add_deferred_actions(skb, key, NULL);
-	if (da) {
-		da->pkt_key.recirc_id = nla_get_u32(a);
-	} else {
-		kfree_skb(skb);
-
-		if (net_ratelimit())
-			pr_warn("%s: deferred action limit reached, drop recirc action\n",
-				ovs_dp_name(dp));
-	}
-
-	return 0;
+	recirc_id = nla_get_u32(a);
+	return clone_execute(dp, skb, key, recirc_id, NULL, 0, last, true);
 }
 
 /* Execute a list of actions against 'skb'. */
@@ -1206,9 +1155,11 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			err = pop_vlan(skb, key);
 			break;
 
-		case OVS_ACTION_ATTR_RECIRC:
-			err = execute_recirc(dp, skb, key, a, rem);
-			if (nla_is_last(a, rem)) {
+		case OVS_ACTION_ATTR_RECIRC: {
+			bool last = nla_is_last(a, rem);
+
+			err = execute_recirc(dp, skb, key, a, last);
+			if (last) {
 				/* If this is the last action, the skb has
 				 * been consumed or freed.
 				 * Return immediately.
@@ -1216,6 +1167,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 				return err;
 			}
 			break;
+		}
 
 		case OVS_ACTION_ATTR_SET:
 			err = execute_set_action(skb, key, nla_data(a));
@@ -1226,9 +1178,15 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			err = execute_masked_set_action(skb, key, nla_data(a));
 			break;
 
-		case OVS_ACTION_ATTR_SAMPLE:
-			err = sample(dp, skb, key, a, attr, len);
+		case OVS_ACTION_ATTR_SAMPLE: {
+			bool last = nla_is_last(a, rem);
+
+			err = sample(dp, skb, key, a, last);
+			if (last)
+				return err;
+
 			break;
+		}
 
 		case OVS_ACTION_ATTR_CT:
 			if (!is_flow_key_valid(key)) {
@@ -1264,6 +1222,79 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 	return 0;
 }
 
+/* Execute the actions on the clone of the packet. The effect of the
+ * execution does not affect the original 'skb' nor the original 'key'.
+ *
+ * The execution may be deferred in case the actions can not be executed
+ * immediately.
+ */
+static int clone_execute(struct datapath *dp, struct sk_buff *skb,
+			 struct sw_flow_key *key, u32 recirc_id,
+			 const struct nlattr *actions, int len,
+			 bool last, bool clone_flow_key)
+{
+	struct deferred_action *da;
+	struct sw_flow_key *clone;
+
+	skb = last ? skb : skb_clone(skb, GFP_ATOMIC);
+	if (!skb) {
+		/* Out of memory, skip this action.
+		 */
+		return 0;
+	}
+
+	/* When clone_flow_key is false, the 'key' will not be change
+	 * by the actions, then the 'key' can be used directly.
+	 * Otherwise, try to clone key from the next recursion level of
+	 * 'flow_keys'. If clone is successful, execute the actions
+	 * without deferring.
+	 */
+	clone = clone_flow_key ? clone_key(key) : key;
+	if (clone) {
+		int err = 0;
+
+		if (actions) { /* Sample action */
+			if (clone_flow_key)
+				__this_cpu_inc(exec_actions_level);
+
+			err = do_execute_actions(dp, skb, clone,
+						 actions, len);
+
+			if (clone_flow_key)
+				__this_cpu_dec(exec_actions_level);
+		} else { /* Recirc action */
+			clone->recirc_id = recirc_id;
+			ovs_dp_process_packet(skb, clone);
+		}
+		return err;
+	}
+
+	/* Out of 'flow_keys' space. Defer actions */
+	da = add_deferred_actions(skb, key, actions, len);
+	if (da) {
+		if (!actions) { /* Recirc action */
+			key = &da->pkt_key;
+			key->recirc_id = recirc_id;
+		}
+	} else {
+		/* Out of per CPU action FIFO space. Drop the 'skb' and
+		 * log an error.
+		 */
+		kfree_skb(skb);
+
+		if (net_ratelimit()) {
+			if (actions) { /* Sample action */
+				pr_warn("%s: deferred action limit reached, drop sample action\n",
+					ovs_dp_name(dp));
+			} else {  /* Recirc action */
+				pr_warn("%s: deferred action limit reached, drop recirc action\n",
+					ovs_dp_name(dp));
+			}
+		}
+	}
+	return 0;
+}
+
 static void process_deferred_actions(struct datapath *dp)
 {
 	struct action_fifo *fifo = this_cpu_ptr(action_fifos);
@@ -1278,10 +1309,10 @@ static void process_deferred_actions(struct datapath *dp)
 		struct sk_buff *skb = da->skb;
 		struct sw_flow_key *key = &da->pkt_key;
 		const struct nlattr *actions = da->actions;
+		int actions_len = da->actions_len;
 
 		if (actions)
-			do_execute_actions(dp, skb, key, actions,
-					   nla_len(actions));
+			do_execute_actions(dp, skb, key, actions, actions_len);
 		else
 			ovs_dp_process_packet(skb, key);
 	} while (!action_fifo_is_empty(fifo));
@@ -1323,8 +1354,8 @@ int action_fifos_init(void)
 	if (!action_fifos)
 		return -ENOMEM;
 
-	recirc_keys = alloc_percpu(struct recirc_keys);
-	if (!recirc_keys) {
+	flow_keys = alloc_percpu(struct action_flow_keys);
+	if (!flow_keys) {
 		free_percpu(action_fifos);
 		return -ENOMEM;
 	}
@@ -1335,5 +1366,5 @@ int action_fifos_init(void)
 void action_fifos_exit(void)
 {
 	free_percpu(action_fifos);
-	free_percpu(recirc_keys);
+	free_percpu(flow_keys);
 }

@@ -14,6 +14,7 @@
 #include <linux/perf_event.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/types.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
@@ -21,6 +22,7 @@
 #include <sys/mman.h>
 #include <poll.h>
 #include <ctype.h>
+#include <assert.h>
 #include "libbpf.h"
 #include "bpf_load.h"
 #include "perf-sys.h"
@@ -36,14 +38,6 @@ int prog_fd[MAX_PROGS];
 int event_fd[MAX_PROGS];
 int prog_cnt;
 int prog_array_fd = -1;
-
-struct bpf_map_def {
-	unsigned int type;
-	unsigned int key_size;
-	unsigned int value_size;
-	unsigned int max_entries;
-	unsigned int map_flags;
-};
 
 static int populate_prog_array(const char *event, int prog_fd)
 {
@@ -192,17 +186,35 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	return 0;
 }
 
-static int load_maps(struct bpf_map_def *maps, int len)
+static int load_maps(struct bpf_map_def *maps, int nr_maps,
+		     const char **map_names, fixup_map_cb fixup_map)
 {
 	int i;
+	/*
+	 * Warning: Using "maps" pointing to ELF data_maps->d_buf as
+	 * an array of struct bpf_map_def is a wrong assumption about
+	 * the ELF maps section format.
+	 */
+	for (i = 0; i < nr_maps; i++) {
+		if (fixup_map)
+			fixup_map(&maps[i], map_names[i], i);
 
-	for (i = 0; i < len / sizeof(struct bpf_map_def); i++) {
+		if (maps[i].type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
+		    maps[i].type == BPF_MAP_TYPE_HASH_OF_MAPS) {
+			int inner_map_fd = map_fd[maps[i].inner_map_idx];
 
-		map_fd[i] = bpf_create_map(maps[i].type,
-					   maps[i].key_size,
-					   maps[i].value_size,
-					   maps[i].max_entries,
-					   maps[i].map_flags);
+			map_fd[i] = bpf_create_map_in_map(maps[i].type,
+							  maps[i].key_size,
+							  inner_map_fd,
+							  maps[i].max_entries,
+							  maps[i].map_flags);
+		} else {
+			map_fd[i] = bpf_create_map(maps[i].type,
+						   maps[i].key_size,
+						   maps[i].value_size,
+						   maps[i].max_entries,
+						   maps[i].map_flags);
+		}
 		if (map_fd[i] < 0) {
 			printf("failed to create a map: %d %s\n",
 			       errno, strerror(errno));
@@ -262,20 +274,74 @@ static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
 			return 1;
 		}
 		insn[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
+		/*
+		 * Warning: Using sizeof(struct bpf_map_def) here is a
+		 * wrong assumption about ELF maps section format
+		 */
 		insn[insn_idx].imm = map_fd[sym.st_value / sizeof(struct bpf_map_def)];
 	}
 
 	return 0;
 }
 
-int load_bpf_file(char *path)
+static int cmp_symbols(const void *l, const void *r)
 {
-	int fd, i;
+	const GElf_Sym *lsym = (const GElf_Sym *)l;
+	const GElf_Sym *rsym = (const GElf_Sym *)r;
+
+	if (lsym->st_value < rsym->st_value)
+		return -1;
+	else if (lsym->st_value > rsym->st_value)
+		return 1;
+	else
+		return 0;
+}
+
+static int get_sorted_map_names(Elf *elf, Elf_Data *symbols, int maps_shndx,
+				int strtabidx, char **map_names)
+{
+	GElf_Sym map_symbols[MAX_MAPS];
+	int i, nr_maps = 0;
+
+	for (i = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
+		assert(nr_maps < MAX_MAPS);
+		if (!gelf_getsym(symbols, i, &map_symbols[nr_maps]))
+			continue;
+		if (map_symbols[nr_maps].st_shndx != maps_shndx)
+			continue;
+		nr_maps++;
+	}
+
+	qsort(map_symbols, nr_maps, sizeof(GElf_Sym), cmp_symbols);
+
+	for (i = 0; i < nr_maps; i++) {
+		char *map_name;
+
+		map_name = elf_strptr(elf, strtabidx, map_symbols[i].st_name);
+		if (!map_name) {
+			printf("cannot get map symbol\n");
+			return -1;
+		}
+
+		map_names[i] = strdup(map_name);
+		if (!map_names[i]) {
+			printf("strdup(%s): %s(%d)\n", map_name,
+			       strerror(errno), errno);
+			return -1;
+		}
+	}
+
+	return nr_maps;
+}
+
+static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
+{
+	int fd, i, ret, maps_shndx = -1, strtabidx = -1;
 	Elf *elf;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr, shdr_prog;
-	Elf_Data *data, *data_prog, *symbols = NULL;
-	char *shname, *shname_prog;
+	Elf_Data *data, *data_prog, *data_maps = NULL, *symbols = NULL;
+	char *shname, *shname_prog, *map_names[MAX_MAPS] = { NULL };
 
 	/* reset global variables */
 	kern_version = 0;
@@ -323,12 +389,45 @@ int load_bpf_file(char *path)
 			}
 			memcpy(&kern_version, data->d_buf, sizeof(int));
 		} else if (strcmp(shname, "maps") == 0) {
-			processed_sec[i] = true;
-			if (load_maps(data->d_buf, data->d_size))
-				return 1;
+			maps_shndx = i;
+			data_maps = data;
 		} else if (shdr.sh_type == SHT_SYMTAB) {
+			strtabidx = shdr.sh_link;
 			symbols = data;
 		}
+	}
+
+	ret = 1;
+
+	if (!symbols) {
+		printf("missing SHT_SYMTAB section\n");
+		goto done;
+	}
+
+	if (data_maps) {
+		int nr_maps;
+		int prog_elf_map_sz;
+
+		nr_maps = get_sorted_map_names(elf, symbols, maps_shndx,
+					       strtabidx, map_names);
+		if (nr_maps < 0)
+			goto done;
+
+		/* Deduce map struct size stored in ELF maps section */
+		prog_elf_map_sz = data_maps->d_size / nr_maps;
+		if (prog_elf_map_sz != sizeof(struct bpf_map_def)) {
+			printf("Error: ELF maps sec wrong size (%d/%lu),"
+			       " old kern.o file?\n",
+			       prog_elf_map_sz, sizeof(struct bpf_map_def));
+			ret = 1;
+			goto done;
+		}
+
+		if (load_maps(data_maps->d_buf, nr_maps,
+			      (const char **)map_names, fixup_map))
+			goto done;
+
+		processed_sec[maps_shndx] = true;
 	}
 
 	/* load programs that need map fixup (relocations) */
@@ -387,8 +486,22 @@ int load_bpf_file(char *path)
 			load_and_attach(shname, data->d_buf, data->d_size);
 	}
 
+	ret = 0;
+done:
+	for (i = 0; i < MAX_MAPS; i++)
+		free(map_names[i]);
 	close(fd);
-	return 0;
+	return ret;
+}
+
+int load_bpf_file(char *path)
+{
+	return do_load_bpf_file(path, NULL);
+}
+
+int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map)
+{
+	return do_load_bpf_file(path, fixup_map);
 }
 
 void read_trace_pipe(void)
@@ -473,7 +586,7 @@ struct ksym *ksym_search(long key)
 	return &syms[0];
 }
 
-int set_link_xdp_fd(int ifindex, int fd)
+int set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 {
 	struct sockaddr_nl sa;
 	int sock, seq = 0, len, ret = -1;
@@ -509,15 +622,28 @@ int set_link_xdp_fd(int ifindex, int fd)
 	req.nh.nlmsg_seq = ++seq;
 	req.ifinfo.ifi_family = AF_UNSPEC;
 	req.ifinfo.ifi_index = ifindex;
+
+	/* started nested attribute for XDP */
 	nla = (struct nlattr *)(((char *)&req)
 				+ NLMSG_ALIGN(req.nh.nlmsg_len));
 	nla->nla_type = NLA_F_NESTED | 43/*IFLA_XDP*/;
+	nla->nla_len = NLA_HDRLEN;
 
-	nla_xdp = (struct nlattr *)((char *)nla + NLA_HDRLEN);
+	/* add XDP fd */
+	nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
 	nla_xdp->nla_type = 1/*IFLA_XDP_FD*/;
 	nla_xdp->nla_len = NLA_HDRLEN + sizeof(int);
 	memcpy((char *)nla_xdp + NLA_HDRLEN, &fd, sizeof(fd));
-	nla->nla_len = NLA_HDRLEN + nla_xdp->nla_len;
+	nla->nla_len += nla_xdp->nla_len;
+
+	/* if user passed in any flags, add those too */
+	if (flags) {
+		nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
+		nla_xdp->nla_type = 3/*IFLA_XDP_FLAGS*/;
+		nla_xdp->nla_len = NLA_HDRLEN + sizeof(flags);
+		memcpy((char *)nla_xdp + NLA_HDRLEN, &flags, sizeof(flags));
+		nla->nla_len += nla_xdp->nla_len;
+	}
 
 	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 

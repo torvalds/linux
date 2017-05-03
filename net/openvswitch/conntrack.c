@@ -66,7 +66,9 @@ struct ovs_conntrack_info {
 	u8 commit : 1;
 	u8 nat : 3;                 /* enum ovs_ct_nat */
 	u8 force : 1;
+	u8 have_eventmask : 1;
 	u16 family;
+	u32 eventmask;              /* Mask of 1 << IPCT_*. */
 	struct md_mark mark;
 	struct md_labels labels;
 #ifdef CONFIG_NF_NAT_NEEDED
@@ -373,7 +375,7 @@ static int ovs_ct_init_labels(struct nf_conn *ct, struct sw_flow_key *key,
 	}
 
 	/* Labels are included in the IPCTNL_MSG_CT_NEW event only if the
-	 * IPCT_LABEL bit it set in the event cache.
+	 * IPCT_LABEL bit is set in the event cache.
 	 */
 	nf_conntrack_event_cache(IPCT_LABEL, ct);
 
@@ -795,11 +797,6 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 	enum nf_nat_manip_type maniptype;
 	int err;
 
-	if (nf_ct_is_untracked(ct)) {
-		/* A NAT action may only be performed on tracked packets. */
-		return NF_ACCEPT;
-	}
-
 	/* Add NAT extension if not confirmed yet. */
 	if (!nf_ct_is_confirmed(ct) && !nf_ct_nat_ext_add(ct))
 		return NF_ACCEPT;   /* Can't NAT. */
@@ -1006,6 +1003,20 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
 		return 0;
+
+	/* Set the conntrack event mask if given.  NEW and DELETE events have
+	 * their own groups, but the NFNLGRP_CONNTRACK_UPDATE group listener
+	 * typically would receive many kinds of updates.  Setting the event
+	 * mask allows those events to be filtered.  The set event mask will
+	 * remain in effect for the lifetime of the connection unless changed
+	 * by a further CT action with both the commit flag and the eventmask
+	 * option. */
+	if (info->have_eventmask) {
+		struct nf_conntrack_ecache *cache = nf_ct_ecache_find(ct);
+
+		if (cache)
+			cache->ctmask = info->eventmask;
+	}
 
 	/* Apply changes before confirming the connection so that the initial
 	 * conntrack NEW netlink event carries the values given in the CT
@@ -1238,6 +1249,8 @@ static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
 	/* NAT length is checked when parsing the nested attributes. */
 	[OVS_CT_ATTR_NAT]	= { .minlen = 0, .maxlen = INT_MAX },
 #endif
+	[OVS_CT_ATTR_EVENTMASK]	= { .minlen = sizeof(u32),
+				    .maxlen = sizeof(u32) },
 };
 
 static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
@@ -1316,6 +1329,11 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 			break;
 		}
 #endif
+		case OVS_CT_ATTR_EVENTMASK:
+			info->have_eventmask = true;
+			info->eventmask = nla_get_u32(a);
+			break;
+
 		default:
 			OVS_NLERR(log, "Unknown conntrack attr (%d)",
 				  type);
@@ -1515,6 +1533,10 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 				   ct_info->helper->name))
 			return -EMSGSIZE;
 	}
+	if (ct_info->have_eventmask &&
+	    nla_put_u32(skb, OVS_CT_ATTR_EVENTMASK, ct_info->eventmask))
+		return -EMSGSIZE;
+
 #ifdef CONFIG_NF_NAT_NEEDED
 	if (ct_info->nat && !ovs_ct_nat_to_attr(ct_info, skb))
 		return -EMSGSIZE;

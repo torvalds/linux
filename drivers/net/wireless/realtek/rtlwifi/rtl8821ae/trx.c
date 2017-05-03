@@ -520,18 +520,18 @@ bool rtl8821ae_rx_query_desc(struct ieee80211_hw *hw,
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
 	if (status->rx_packet_bw == HT_CHANNEL_WIDTH_20_40)
-		rx_status->flag |= RX_FLAG_40MHZ;
+		rx_status->bw = RATE_INFO_BW_40;
 	else if (status->rx_packet_bw == HT_CHANNEL_WIDTH_80)
-		rx_status->vht_flag |= RX_VHT_FLAG_80MHZ;
+		rx_status->bw = RATE_INFO_BW_80;
 	if (status->is_ht)
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 	if (status->is_vht)
-		rx_status->flag |= RX_FLAG_VHT;
+		rx_status->encoding = RX_ENC_VHT;
 
 	if (status->is_short_gi)
-		rx_status->flag |= RX_FLAG_SHORT_GI;
+		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
-	rx_status->vht_nss = status->vht_nss;
+	rx_status->nss = status->vht_nss;
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 
 	/* hw will set status->decrypted true, if it finds the

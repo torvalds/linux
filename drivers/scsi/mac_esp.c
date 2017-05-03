@@ -631,7 +631,7 @@ static void __exit mac_esp_exit(void)
 }
 
 MODULE_DESCRIPTION("Mac ESP SCSI driver");
-MODULE_AUTHOR("Finn Thain <fthain@telegraphics.com.au>");
+MODULE_AUTHOR("Finn Thain");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:" DRV_MODULE_NAME);

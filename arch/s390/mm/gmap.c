@@ -431,7 +431,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 	if ((from | to | len) & (PMD_SIZE - 1))
 		return -EINVAL;
 	if (len == 0 || from + len < from || to + len < to ||
-	    from + len - 1 > TASK_MAX_SIZE || to + len - 1 > gmap->asce_end)
+	    from + len - 1 > TASK_SIZE_MAX || to + len - 1 > gmap->asce_end)
 		return -EINVAL;
 
 	flush = 0;
@@ -2004,20 +2004,12 @@ EXPORT_SYMBOL_GPL(gmap_shadow_page);
  * Called with sg->parent->shadow_lock.
  */
 static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
-			       unsigned long offset, pte_t *pte)
+			       unsigned long gaddr, pte_t *pte)
 {
 	struct gmap_rmap *rmap, *rnext, *head;
-	unsigned long gaddr, start, end, bits, raddr;
-	unsigned long *table;
+	unsigned long start, end, bits, raddr;
 
 	BUG_ON(!gmap_is_shadow(sg));
-	spin_lock(&sg->parent->guest_table_lock);
-	table = radix_tree_lookup(&sg->parent->host_to_guest,
-				  vmaddr >> PMD_SHIFT);
-	gaddr = table ? __gmap_segment_gaddr(table) + offset : 0;
-	spin_unlock(&sg->parent->guest_table_lock);
-	if (!table)
-		return;
 
 	spin_lock(&sg->guest_table_lock);
 	if (sg->removed) {
@@ -2076,7 +2068,7 @@ static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
 void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
 		 pte_t *pte, unsigned long bits)
 {
-	unsigned long offset, gaddr;
+	unsigned long offset, gaddr = 0;
 	unsigned long *table;
 	struct gmap *gmap, *sg, *next;
 
@@ -2084,22 +2076,23 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
 	offset = offset * (4096 / sizeof(pte_t));
 	rcu_read_lock();
 	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
-		if (!list_empty(&gmap->children) && (bits & PGSTE_VSIE_BIT)) {
-			spin_lock(&gmap->shadow_lock);
-			list_for_each_entry_safe(sg, next,
-						 &gmap->children, list)
-				gmap_shadow_notify(sg, vmaddr, offset, pte);
-			spin_unlock(&gmap->shadow_lock);
-		}
-		if (!(bits & PGSTE_IN_BIT))
-			continue;
 		spin_lock(&gmap->guest_table_lock);
 		table = radix_tree_lookup(&gmap->host_to_guest,
 					  vmaddr >> PMD_SHIFT);
 		if (table)
 			gaddr = __gmap_segment_gaddr(table) + offset;
 		spin_unlock(&gmap->guest_table_lock);
-		if (table)
+		if (!table)
+			continue;
+
+		if (!list_empty(&gmap->children) && (bits & PGSTE_VSIE_BIT)) {
+			spin_lock(&gmap->shadow_lock);
+			list_for_each_entry_safe(sg, next,
+						 &gmap->children, list)
+				gmap_shadow_notify(sg, vmaddr, gaddr, pte);
+			spin_unlock(&gmap->shadow_lock);
+		}
+		if (bits & PGSTE_IN_BIT)
 			gmap_call_notifier(gmap, gaddr, gaddr + PAGE_SIZE - 1);
 	}
 	rcu_read_unlock();

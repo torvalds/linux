@@ -57,6 +57,7 @@
 #include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/arp.h>
+#include <net/dsa.h>
 #include <net/ip.h>
 #include <net/ipconfig.h>
 #include <net/route.h>

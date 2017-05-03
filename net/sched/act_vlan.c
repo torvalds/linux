@@ -121,7 +121,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!nla)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_VLAN_MAX, nla, vlan_policy);
+	err = nla_parse_nested(tb, TCA_VLAN_MAX, nla, vlan_policy, NULL);
 	if (err < 0)
 		return err;
 

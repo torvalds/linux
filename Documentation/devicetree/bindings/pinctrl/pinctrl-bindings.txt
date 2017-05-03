@@ -162,8 +162,8 @@ state_2_node_a {
 	pins = "mfio29", "mfio30";
 };
 
-Optionally an altenative binding can be used if more suitable depending on the
-pin controller hardware. For hardaware where there is a large number of identical
+Optionally an alternative binding can be used if more suitable depending on the
+pin controller hardware. For hardware where there is a large number of identical
 pin controller instances, naming each pin and function can easily become
 unmaintainable. This is especially the case if the same controller is used for
 different pins and functions depending on the SoC revision and packaging.
@@ -198,6 +198,28 @@ registers, and must not be a virtual index of pin instances. The reason for
 this is to avoid mapping of the index in the dts files and the pin controller
 driver as it can change.
 
+For hardware where pin multiplexing configurations have to be specified for
+each single pin the number of required sub-nodes containing "pin" and
+"function" properties can quickly escalate and become hard to write and
+maintain.
+
+For cases like this, the pin controller driver may use the pinmux helper
+property, where the pin identifier is packed with mux configuration settings
+in a single integer.
+
+The pinmux property accepts an array of integers, each of them describing
+a single pin multiplexing configuration.
+
+pincontroller {
+	state_0_node_a {
+		pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ...;
+	};
+};
+
+Each individual pin controller driver bindings documentation shall specify
+how those values (pin IDs and pin multiplexing configuration) are defined and
+assembled together.
+
 == Generic pin configuration node content ==
 
 Many data items that are represented in a pin configuration node are common
@@ -210,18 +232,22 @@ structure of the DT nodes that contain these properties.
 Supported generic properties are:
 
 pins			- the list of pins that properties in the node
-			  apply to (either this or "group" has to be
+			  apply to (either this, "group" or "pinmux" has to be
 			  specified)
 group			- the group to apply the properties to, if the driver
 			  supports configuration of whole groups rather than
-			  individual pins (either this or "pins" has to be
-			  specified)
+			  individual pins (either this, "pins" or "pinmux" has
+			  to be specified)
+pinmux			- the list of numeric pin ids and their mux settings
+			  that properties in the node apply to (either this,
+			  "pins" or "groups" have to be specified)
 bias-disable		- disable any pin bias
 bias-high-impedance	- high impedance mode ("third-state", "floating")
 bias-bus-hold		- latch weakly
 bias-pull-up		- pull up the pin
 bias-pull-down		- pull down the pin
 bias-pull-pin-default	- use pin-default pull state
+bi-directional		- pin supports simultaneous input/output operations
 drive-push-pull		- drive actively high and low
 drive-open-drain	- drive with open drain
 drive-open-source	- drive with open source
@@ -234,6 +260,7 @@ input-debounce		- debounce mode with debound time X
 power-source		- select between different power supplies
 low-power-enable	- enable low power mode
 low-power-disable	- disable low power mode
+output-enable		- enable output on pin regardless of output value
 output-low		- set the pin to output mode with low level
 output-high		- set the pin to output mode with high level
 slew-rate		- set the slew rate
@@ -258,6 +285,12 @@ state_2_node_a {
 		bias-pull-up;
 	};
 };
+state_3_node_a {
+	mux {
+		pinmux = <GPIOx_PINm_MUXn>, <GPIOx_PINj_MUXk)>;
+		input-enable;
+	};
+};
 
 Some of the generic properties take arguments. For those that do, the
 arguments are described below.
@@ -265,6 +298,11 @@ arguments are described below.
 - pins takes a list of pin names or IDs as a required argument. The specific
   binding for the hardware defines:
   - Whether the entries are integers or strings, and their meaning.
+
+- pinmux takes a list of pin IDs and mux settings as required argument. The
+  specific bindings for the hardware defines:
+  - How pin IDs and mux settings are defined and assembled together in a single
+    integer.
 
 - bias-pull-up, -down and -pin-default take as optional argument on hardware
   supporting it the pull strength in Ohm. bias-disable will disable the pull.

@@ -84,6 +84,7 @@ union ramrod_data {
 	struct tx_queue_stop_ramrod_data tx_queue_stop;
 	struct vport_start_ramrod_data vport_start;
 	struct vport_stop_ramrod_data vport_stop;
+	struct rx_update_gft_filter_data rx_update_gft;
 	struct vport_update_ramrod_data vport_update;
 	struct core_rx_start_ramrod_data core_rx_queue_start;
 	struct core_rx_stop_ramrod_data core_rx_queue_stop;
@@ -408,7 +409,7 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
-		    struct qed_tunn_start_params *p_tunn,
+		    struct qed_tunnel_info *p_tunn,
 		    enum qed_mf_mode mode, bool allow_npar_tx_switch);
 
 /**
@@ -441,7 +442,7 @@ int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
 int qed_sp_pf_stop(struct qed_hwfn *p_hwfn);
 
 int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
-			      struct qed_tunn_update_params *p_tunn,
+			      struct qed_tunnel_info *p_tunn,
 			      enum spq_mode comp_mode,
 			      struct qed_spq_comp_cb *p_comp_data);
 /**

@@ -1157,8 +1157,30 @@ free_newinfo:
 	return ret;
 }
 
+static void __ebt_unregister_table(struct net *net, struct ebt_table *table)
+{
+	int i;
+
+	mutex_lock(&ebt_mutex);
+	list_del(&table->list);
+	mutex_unlock(&ebt_mutex);
+	EBT_ENTRY_ITERATE(table->private->entries, table->private->entries_size,
+			  ebt_cleanup_entry, net, NULL);
+	if (table->private->nentries)
+		module_put(table->me);
+	vfree(table->private->entries);
+	if (table->private->chainstack) {
+		for_each_possible_cpu(i)
+			vfree(table->private->chainstack[i]);
+		vfree(table->private->chainstack);
+	}
+	vfree(table->private);
+	kfree(table);
+}
+
 struct ebt_table *
-ebt_register_table(struct net *net, const struct ebt_table *input_table)
+ebt_register_table(struct net *net, const struct ebt_table *input_table,
+		   const struct nf_hook_ops *ops)
 {
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t, *table;
@@ -1238,6 +1260,16 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table)
 	}
 	list_add(&table->list, &net->xt.tables[NFPROTO_BRIDGE]);
 	mutex_unlock(&ebt_mutex);
+
+	if (!ops)
+		return table;
+
+	ret = nf_register_net_hooks(net, ops, hweight32(table->valid_hooks));
+	if (ret) {
+		__ebt_unregister_table(net, table);
+		return ERR_PTR(ret);
+	}
+
 	return table;
 free_unlock:
 	mutex_unlock(&ebt_mutex);
@@ -1256,29 +1288,12 @@ out:
 	return ERR_PTR(ret);
 }
 
-void ebt_unregister_table(struct net *net, struct ebt_table *table)
+void ebt_unregister_table(struct net *net, struct ebt_table *table,
+			  const struct nf_hook_ops *ops)
 {
-	int i;
-
-	if (!table) {
-		BUGPRINT("Request to unregister NULL table!!!\n");
-		return;
-	}
-	mutex_lock(&ebt_mutex);
-	list_del(&table->list);
-	mutex_unlock(&ebt_mutex);
-	EBT_ENTRY_ITERATE(table->private->entries, table->private->entries_size,
-			  ebt_cleanup_entry, net, NULL);
-	if (table->private->nentries)
-		module_put(table->me);
-	vfree(table->private->entries);
-	if (table->private->chainstack) {
-		for_each_possible_cpu(i)
-			vfree(table->private->chainstack[i]);
-		vfree(table->private->chainstack);
-	}
-	vfree(table->private);
-	kfree(table);
+	if (ops)
+		nf_unregister_net_hooks(net, ops, hweight32(table->valid_hooks));
+	__ebt_unregister_table(net, table);
 }
 
 /* userspace just supplied us with counters */
@@ -1713,7 +1728,7 @@ static int compat_copy_entry_to_user(struct ebt_entry *e, void __user **dstptr,
 	if (*size < sizeof(*ce))
 		return -EINVAL;
 
-	ce = (struct ebt_entry __user *)*dstptr;
+	ce = *dstptr;
 	if (copy_to_user(ce, e, sizeof(*ce)))
 		return -EFAULT;
 

@@ -43,6 +43,8 @@ struct octeon_cn23xx_pf {
 	struct octeon_config *conf;
 };
 
+#define CN23XX_SLI_DEF_BP			0x40
+
 int setup_cn23xx_octeon_pf_device(struct octeon_device *oct);
 
 int validate_cn23xx_pf_config_info(struct octeon_device *oct,

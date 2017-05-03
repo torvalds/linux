@@ -83,47 +83,47 @@ struct tcrypt_result {
 
 struct aead_test_suite {
 	struct {
-		struct aead_testvec *vecs;
+		const struct aead_testvec *vecs;
 		unsigned int count;
 	} enc, dec;
 };
 
 struct cipher_test_suite {
 	struct {
-		struct cipher_testvec *vecs;
+		const struct cipher_testvec *vecs;
 		unsigned int count;
 	} enc, dec;
 };
 
 struct comp_test_suite {
 	struct {
-		struct comp_testvec *vecs;
+		const struct comp_testvec *vecs;
 		unsigned int count;
 	} comp, decomp;
 };
 
 struct hash_test_suite {
-	struct hash_testvec *vecs;
+	const struct hash_testvec *vecs;
 	unsigned int count;
 };
 
 struct cprng_test_suite {
-	struct cprng_testvec *vecs;
+	const struct cprng_testvec *vecs;
 	unsigned int count;
 };
 
 struct drbg_test_suite {
-	struct drbg_testvec *vecs;
+	const struct drbg_testvec *vecs;
 	unsigned int count;
 };
 
 struct akcipher_test_suite {
-	struct akcipher_testvec *vecs;
+	const struct akcipher_testvec *vecs;
 	unsigned int count;
 };
 
 struct kpp_test_suite {
-	struct kpp_testvec *vecs;
+	const struct kpp_testvec *vecs;
 	unsigned int count;
 };
 
@@ -145,7 +145,8 @@ struct alg_test_desc {
 	} suite;
 };
 
-static unsigned int IDX[8] = { IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
+static const unsigned int IDX[8] = {
+	IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
 {
@@ -203,7 +204,7 @@ static int wait_async_op(struct tcrypt_result *tr, int ret)
 }
 
 static int ahash_partial_update(struct ahash_request **preq,
-	struct crypto_ahash *tfm, struct hash_testvec *template,
+	struct crypto_ahash *tfm, const struct hash_testvec *template,
 	void *hash_buff, int k, int temp, struct scatterlist *sg,
 	const char *algo, char *result, struct tcrypt_result *tresult)
 {
@@ -260,9 +261,9 @@ out_nostate:
 	return ret;
 }
 
-static int __test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
-		       unsigned int tcount, bool use_digest,
-		       const int align_offset)
+static int __test_hash(struct crypto_ahash *tfm,
+		       const struct hash_testvec *template, unsigned int tcount,
+		       bool use_digest, const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 	size_t digest_size = crypto_ahash_digestsize(tfm);
@@ -538,7 +539,8 @@ out_nobuf:
 	return ret;
 }
 
-static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
+static int test_hash(struct crypto_ahash *tfm,
+		     const struct hash_testvec *template,
 		     unsigned int tcount, bool use_digest)
 {
 	unsigned int alignmask;
@@ -566,7 +568,7 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 }
 
 static int __test_aead(struct crypto_aead *tfm, int enc,
-		       struct aead_testvec *template, unsigned int tcount,
+		       const struct aead_testvec *template, unsigned int tcount,
 		       const bool diff_dst, const int align_offset)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
@@ -957,7 +959,7 @@ out_noxbuf:
 }
 
 static int test_aead(struct crypto_aead *tfm, int enc,
-		     struct aead_testvec *template, unsigned int tcount)
+		     const struct aead_testvec *template, unsigned int tcount)
 {
 	unsigned int alignmask;
 	int ret;
@@ -990,7 +992,8 @@ static int test_aead(struct crypto_aead *tfm, int enc,
 }
 
 static int test_cipher(struct crypto_cipher *tfm, int enc,
-		       struct cipher_testvec *template, unsigned int tcount)
+		       const struct cipher_testvec *template,
+		       unsigned int tcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_cipher_tfm(tfm));
 	unsigned int i, j, k;
@@ -1068,7 +1071,8 @@ out_nobuf:
 }
 
 static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
-			   struct cipher_testvec *template, unsigned int tcount,
+			   const struct cipher_testvec *template,
+			   unsigned int tcount,
 			   const bool diff_dst, const int align_offset)
 {
 	const char *algo =
@@ -1332,7 +1336,8 @@ out_nobuf:
 }
 
 static int test_skcipher(struct crypto_skcipher *tfm, int enc,
-			 struct cipher_testvec *template, unsigned int tcount)
+			 const struct cipher_testvec *template,
+			 unsigned int tcount)
 {
 	unsigned int alignmask;
 	int ret;
@@ -1364,8 +1369,10 @@ static int test_skcipher(struct crypto_skcipher *tfm, int enc,
 	return 0;
 }
 
-static int test_comp(struct crypto_comp *tfm, struct comp_testvec *ctemplate,
-		     struct comp_testvec *dtemplate, int ctcount, int dtcount)
+static int test_comp(struct crypto_comp *tfm,
+		     const struct comp_testvec *ctemplate,
+		     const struct comp_testvec *dtemplate,
+		     int ctcount, int dtcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_comp_tfm(tfm));
 	unsigned int i;
@@ -1444,12 +1451,14 @@ out:
 	return ret;
 }
 
-static int test_acomp(struct crypto_acomp *tfm, struct comp_testvec *ctemplate,
-		      struct comp_testvec *dtemplate, int ctcount, int dtcount)
+static int test_acomp(struct crypto_acomp *tfm,
+		      const struct comp_testvec *ctemplate,
+		      const struct comp_testvec *dtemplate,
+		      int ctcount, int dtcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_acomp_tfm(tfm));
 	unsigned int i;
-	char *output;
+	char *output, *decomp_out;
 	int ret;
 	struct scatterlist src, dst;
 	struct acomp_req *req;
@@ -1458,6 +1467,12 @@ static int test_acomp(struct crypto_acomp *tfm, struct comp_testvec *ctemplate,
 	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
 	if (!output)
 		return -ENOMEM;
+
+	decomp_out = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
+	if (!decomp_out) {
+		kfree(output);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < ctcount; i++) {
 		unsigned int dlen = COMP_BUF_SIZE;
@@ -1497,7 +1512,23 @@ static int test_acomp(struct crypto_acomp *tfm, struct comp_testvec *ctemplate,
 			goto out;
 		}
 
-		if (req->dlen != ctemplate[i].outlen) {
+		ilen = req->dlen;
+		dlen = COMP_BUF_SIZE;
+		sg_init_one(&src, output, ilen);
+		sg_init_one(&dst, decomp_out, dlen);
+		init_completion(&result.completion);
+		acomp_request_set_params(req, &src, &dst, ilen, dlen);
+
+		ret = wait_async_op(&result, crypto_acomp_decompress(req));
+		if (ret) {
+			pr_err("alg: acomp: compression failed on test %d for %s: ret=%d\n",
+			       i + 1, algo, -ret);
+			kfree(input_vec);
+			acomp_request_free(req);
+			goto out;
+		}
+
+		if (req->dlen != ctemplate[i].inlen) {
 			pr_err("alg: acomp: Compression test %d failed for %s: output len = %d\n",
 			       i + 1, algo, req->dlen);
 			ret = -EINVAL;
@@ -1506,7 +1537,7 @@ static int test_acomp(struct crypto_acomp *tfm, struct comp_testvec *ctemplate,
 			goto out;
 		}
 
-		if (memcmp(output, ctemplate[i].output, req->dlen)) {
+		if (memcmp(input_vec, decomp_out, req->dlen)) {
 			pr_err("alg: acomp: Compression test %d failed for %s\n",
 			       i + 1, algo);
 			hexdump(output, req->dlen);
@@ -1584,11 +1615,13 @@ static int test_acomp(struct crypto_acomp *tfm, struct comp_testvec *ctemplate,
 	ret = 0;
 
 out:
+	kfree(decomp_out);
 	kfree(output);
 	return ret;
 }
 
-static int test_cprng(struct crypto_rng *tfm, struct cprng_testvec *template,
+static int test_cprng(struct crypto_rng *tfm,
+		      const struct cprng_testvec *template,
 		      unsigned int tcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_rng_tfm(tfm));
@@ -1865,7 +1898,7 @@ static int alg_test_cprng(const struct alg_test_desc *desc, const char *driver,
 }
 
 
-static int drbg_cavs_test(struct drbg_testvec *test, int pr,
+static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 			  const char *driver, u32 type, u32 mask)
 {
 	int ret = -EAGAIN;
@@ -1939,7 +1972,7 @@ static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
 	int err = 0;
 	int pr = 0;
 	int i = 0;
-	struct drbg_testvec *template = desc->suite.drbg.vecs;
+	const struct drbg_testvec *template = desc->suite.drbg.vecs;
 	unsigned int tcount = desc->suite.drbg.count;
 
 	if (0 == memcmp(driver, "drbg_pr_", 8))
@@ -1958,7 +1991,7 @@ static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
 
 }
 
-static int do_test_kpp(struct crypto_kpp *tfm, struct kpp_testvec *vec,
+static int do_test_kpp(struct crypto_kpp *tfm, const struct kpp_testvec *vec,
 		       const char *alg)
 {
 	struct kpp_request *req;
@@ -2050,7 +2083,7 @@ free_req:
 }
 
 static int test_kpp(struct crypto_kpp *tfm, const char *alg,
-		    struct kpp_testvec *vecs, unsigned int tcount)
+		    const struct kpp_testvec *vecs, unsigned int tcount)
 {
 	int ret, i;
 
@@ -2086,7 +2119,7 @@ static int alg_test_kpp(const struct alg_test_desc *desc, const char *driver,
 }
 
 static int test_akcipher_one(struct crypto_akcipher *tfm,
-			     struct akcipher_testvec *vecs)
+			     const struct akcipher_testvec *vecs)
 {
 	char *xbuf[XBUFSIZE];
 	struct akcipher_request *req;
@@ -2206,7 +2239,8 @@ free_xbuf:
 }
 
 static int test_akcipher(struct crypto_akcipher *tfm, const char *alg,
-			 struct akcipher_testvec *vecs, unsigned int tcount)
+			 const struct akcipher_testvec *vecs,
+			 unsigned int tcount)
 {
 	const char *algo =
 		crypto_tfm_alg_driver_name(crypto_akcipher_tfm(tfm));
@@ -2634,6 +2668,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "ctr(des3_ede)",
 		.test = alg_test_skcipher,
+		.fips_allowed = 1,
 		.suite = {
 			.cipher = {
 				.enc = __VECS(des3_ede_ctr_enc_tv_template),
@@ -2875,6 +2910,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "ecb(cipher_null)",
 		.test = alg_test_null,
+		.fips_allowed = 1,
 	}, {
 		.alg = "ecb(des)",
 		.test = alg_test_skcipher,
@@ -3475,6 +3511,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = {
 				.enc = __VECS(tf_xts_enc_tv_template),
 				.dec = __VECS(tf_xts_dec_tv_template)
+			}
+		}
+	}, {
+		.alg = "zlib-deflate",
+		.test = alg_test_comp,
+		.fips_allowed = 1,
+		.suite = {
+			.comp = {
+				.comp = __VECS(zlib_deflate_comp_tv_template),
+				.decomp = __VECS(zlib_deflate_decomp_tv_template)
 			}
 		}
 	}
