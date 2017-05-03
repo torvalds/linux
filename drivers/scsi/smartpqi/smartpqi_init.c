@@ -122,6 +122,18 @@ module_param_named(disable_device_id_wildcards,
 MODULE_PARM_DESC(disable_device_id_wildcards,
 	"Disable device ID wildcards.");
 
+static int pqi_disable_heartbeat;
+module_param_named(disable_heartbeat,
+	pqi_disable_heartbeat, int, 0644);
+MODULE_PARM_DESC(disable_heartbeat,
+	"Disable heartbeat.");
+
+static int pqi_disable_ctrl_shutdown;
+module_param_named(disable_ctrl_shutdown,
+	pqi_disable_ctrl_shutdown, int, 0644);
+MODULE_PARM_DESC(disable_ctrl_shutdown,
+	"Disable controller shutdown when controller locked up.");
+
 static char *pqi_lockup_action_param;
 module_param_named(lockup_action,
 	pqi_lockup_action_param, charp, 0644);
@@ -5962,10 +5974,16 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 
 		switch (get_unaligned_le16(&section->section_id)) {
 		case PQI_CONFIG_TABLE_SECTION_HEARTBEAT:
-			ctrl_info->heartbeat_counter = table_iomem_addr +
-				section_offset +
-				offsetof(struct pqi_config_table_heartbeat,
-					heartbeat_counter);
+			if (pqi_disable_heartbeat)
+				dev_warn(&ctrl_info->pci_dev->dev,
+				"heartbeat disabled by module parameter\n");
+			else
+				ctrl_info->heartbeat_counter =
+					table_iomem_addr +
+					section_offset +
+					offsetof(
+					struct pqi_config_table_heartbeat,
+						heartbeat_counter);
 			break;
 		}
 
@@ -6550,7 +6568,8 @@ static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->controller_online = false;
 	ctrl_info->pqi_mode_enabled = false;
 	pqi_ctrl_block_requests(ctrl_info);
-	sis_shutdown_ctrl(ctrl_info);
+	if (!pqi_disable_ctrl_shutdown)
+		sis_shutdown_ctrl(ctrl_info);
 	pci_disable_device(ctrl_info->pci_dev);
 	dev_err(&ctrl_info->pci_dev->dev, "controller offline\n");
 	schedule_work(&ctrl_info->ctrl_offline_work);
