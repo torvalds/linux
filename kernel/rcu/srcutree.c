@@ -45,6 +45,10 @@
 static ulong exp_holdoff = DEFAULT_SRCU_EXP_HOLDOFF;
 module_param(exp_holdoff, ulong, 0444);
 
+/* Overflow-check frequency.  N bits roughly says every 2**N grace periods. */
+static ulong counter_wrap_check = (ULONG_MAX >> 2);
+module_param(counter_wrap_check, ulong, 0444);
+
 static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
 
@@ -496,10 +500,13 @@ static void srcu_gp_end(struct srcu_struct *sp)
 {
 	unsigned long cbdelay;
 	bool cbs;
+	int cpu;
+	unsigned long flags;
 	unsigned long gpseq;
 	int idx;
 	int idxnext;
 	unsigned long mask;
+	struct srcu_data *sdp;
 	struct srcu_node *snp;
 
 	/* Prevent more than one additional grace period. */
@@ -538,6 +545,17 @@ static void srcu_gp_end(struct srcu_struct *sp)
 			smp_mb(); /* GP end before CB invocation. */
 			srcu_schedule_cbs_snp(sp, snp, mask, cbdelay);
 		}
+
+		/* Occasionally prevent srcu_data counter wrap. */
+		if (!(gpseq & counter_wrap_check))
+			for (cpu = snp->grplo; cpu <= snp->grphi; cpu++) {
+				sdp = per_cpu_ptr(sp->sda, cpu);
+				spin_lock_irqsave(&sdp->lock, flags);
+				if (ULONG_CMP_GE(gpseq,
+						 sdp->srcu_gp_seq_needed + 100))
+					sdp->srcu_gp_seq_needed = gpseq;
+				spin_unlock_irqrestore(&sdp->lock, flags);
+			}
 	}
 
 	/* Callback initiation done, allow grace periods after next. */

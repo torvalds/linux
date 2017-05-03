@@ -3810,6 +3810,15 @@
 	spia_pedr=
 	spia_peddr=
 
+	srcutree.counter_wrap_check [KNL]
+			Specifies how frequently to check for
+			grace-period sequence counter wrap for the
+			srcu_data structure's ->srcu_gp_seq_needed field.
+			The greater the number of bits set in this kernel
+			parameter, the less frequently counter wrap will
+			be checked for.  Note that the bottom two bits
+			are ignored.
+
 	srcutree.exp_holdoff [KNL]
 			Specifies how many nanoseconds must elapse
 			since the end of the last SRCU grace period for
