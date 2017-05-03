@@ -58,9 +58,6 @@ MODULE_SUPPORTED_DEVICE("Microsemi Smart Family Controllers");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-static char *hpe_branded_controller = "HPE Smart Array Controller";
-static char *microsemi_branded_controller = "Microsemi Smart Family Controller";
-
 static void pqi_take_ctrl_offline(struct pqi_ctrl_info *ctrl_info);
 static void pqi_ctrl_offline_worker(struct work_struct *work);
 static void pqi_retry_raid_bypass_requests(struct pqi_ctrl_info *ctrl_info);
@@ -6467,19 +6464,10 @@ static void pqi_print_ctrl_info(struct pci_dev *pci_dev,
 {
 	char *ctrl_description;
 
-	if (id->driver_data) {
+	if (id->driver_data)
 		ctrl_description = (char *)id->driver_data;
-	} else {
-		switch (id->subvendor) {
-		case PCI_VENDOR_ID_HP:
-			ctrl_description = hpe_branded_controller;
-			break;
-		case PCI_VENDOR_ID_ADAPTEC2:
-		default:
-			ctrl_description = microsemi_branded_controller;
-			break;
-		}
-	}
+	else
+		ctrl_description = "Microsemi Smart Family Controller";
 
 	dev_info(&pci_dev->dev, "%s found\n", ctrl_description);
 }
