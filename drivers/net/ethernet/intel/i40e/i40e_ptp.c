@@ -338,6 +338,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 {
 	struct skb_shared_hwtstamps shhwtstamps;
+	struct sk_buff *skb = pf->ptp_tx_skb;
 	struct i40e_hw *hw = &pf->hw;
 	u32 hi, lo;
 	u64 ns;
@@ -353,12 +354,19 @@ void i40e_ptp_tx_hwtstamp(struct i40e_pf *pf)
 	hi = rd32(hw, I40E_PRTTSYN_TXTIME_H);
 
 	ns = (((u64)hi) << 32) | lo;
-
 	i40e_ptp_convert_to_hwtstamp(&shhwtstamps, ns);
-	skb_tstamp_tx(pf->ptp_tx_skb, &shhwtstamps);
-	dev_kfree_skb_any(pf->ptp_tx_skb);
+
+	/* Clear the bit lock as soon as possible after reading the register,
+	 * and prior to notifying the stack via skb_tstamp_tx(). Otherwise
+	 * applications might wake up and attempt to request another transmit
+	 * timestamp prior to the bit lock being cleared.
+	 */
 	pf->ptp_tx_skb = NULL;
 	clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+
+	/* Notify the stack and free the skb after we've unlocked */
+	skb_tstamp_tx(skb, &shhwtstamps);
+	dev_kfree_skb_any(skb);
 }
 
 /**
