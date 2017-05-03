@@ -913,6 +913,25 @@ struct ibmvnic_error_buff {
 	__be32 error_id;
 };
 
+enum vnic_state {VNIC_PROBING = 1,
+		 VNIC_PROBED,
+		 VNIC_OPENING,
+		 VNIC_OPEN,
+		 VNIC_CLOSING,
+		 VNIC_CLOSED,
+		 VNIC_REMOVING,
+		 VNIC_REMOVED};
+
+enum ibmvnic_reset_reason {VNIC_RESET_FAILOVER = 1,
+			   VNIC_RESET_MOBILITY,
+			   VNIC_RESET_FATAL,
+			   VNIC_RESET_TIMEOUT};
+
+struct ibmvnic_rwi {
+	enum ibmvnic_reset_reason reset_reason;
+	struct list_head list;
+};
+
 struct ibmvnic_adapter {
 	struct vio_dev *vdev;
 	struct net_device *netdev;
@@ -922,7 +941,6 @@ struct ibmvnic_adapter {
 	dma_addr_t ip_offload_tok;
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
-	bool migrated;
 	u32 msg_enable;
 
 	/* Statistics */
@@ -962,7 +980,6 @@ struct ibmvnic_adapter {
 	u64 promisc;
 
 	struct ibmvnic_tx_pool *tx_pool;
-	bool closing;
 	struct completion init_done;
 	int init_done_rc;
 
@@ -1007,9 +1024,11 @@ struct ibmvnic_adapter {
 	__be64 tx_rx_desc_req;
 	u8 map_id;
 
-	struct work_struct vnic_crq_init;
-	struct work_struct ibmvnic_xport;
 	struct tasklet_struct tasklet;
-	bool failover;
-	bool is_closed;
+	enum vnic_state state;
+	enum ibmvnic_reset_reason reset_reason;
+	struct mutex reset_lock, rwi_lock;
+	struct list_head rwi_list;
+	struct work_struct ibmvnic_reset;
+	bool resetting;
 };
