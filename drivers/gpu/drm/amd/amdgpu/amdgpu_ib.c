@@ -188,8 +188,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			status |= AMDGPU_HAVE_CTX_SWITCH;
 		status |= job->preamble_status;
 
-		if (vm)
-			status |= AMDGPU_VM_DOMAIN;
 		amdgpu_ring_emit_cntxcntl(ring, status);
 	}
 
