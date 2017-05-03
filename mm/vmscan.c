@@ -3056,15 +3056,15 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
 	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
 		return false;
 
-	/*
-	 * If any eligible zone is balanced then the node is not considered
-	 * to be congested or dirty
-	 */
-	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
-	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
-	clear_bit(PGDAT_WRITEBACK, &zone->zone_pgdat->flags);
-
 	return true;
+}
+
+/* Clear pgdat state for congested, dirty or under writeback. */
+static void clear_pgdat_congested(pg_data_t *pgdat)
+{
+	clear_bit(PGDAT_CONGESTED, &pgdat->flags);
+	clear_bit(PGDAT_DIRTY, &pgdat->flags);
+	clear_bit(PGDAT_WRITEBACK, &pgdat->flags);
 }
 
 /*
@@ -3103,8 +3103,10 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 		if (!managed_zone(zone))
 			continue;
 
-		if (zone_balanced(zone, order, classzone_idx))
+		if (zone_balanced(zone, order, classzone_idx)) {
+			clear_pgdat_congested(pgdat);
 			return true;
+		}
 	}
 
 	return false;
