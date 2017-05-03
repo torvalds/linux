@@ -22,11 +22,13 @@ struct bio_vec;
 /*
  * Type of table, mapped_device's mempool and request_queue
  */
-#define DM_TYPE_NONE			0
-#define DM_TYPE_BIO_BASED		1
-#define DM_TYPE_REQUEST_BASED		2
-#define DM_TYPE_MQ_REQUEST_BASED	3
-#define DM_TYPE_DAX_BIO_BASED		4
+enum dm_queue_mode {
+	DM_TYPE_NONE		 = 0,
+	DM_TYPE_BIO_BASED	 = 1,
+	DM_TYPE_REQUEST_BASED	 = 2,
+	DM_TYPE_MQ_REQUEST_BASED = 3,
+	DM_TYPE_DAX_BIO_BASED	 = 4,
+};
 
 typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 
@@ -220,6 +222,18 @@ struct target_type {
  * target requires.
  */
 typedef unsigned (*dm_num_write_bios_fn) (struct dm_target *ti, struct bio *bio);
+
+/*
+ * A target implements own bio data integrity.
+ */
+#define DM_TARGET_INTEGRITY		0x00000010
+#define dm_target_has_integrity(type)	((type)->features & DM_TARGET_INTEGRITY)
+
+/*
+ * A target passes integrity data to the lower device.
+ */
+#define DM_TARGET_PASSES_INTEGRITY	0x00000020
+#define dm_target_passes_integrity(type) ((type)->features & DM_TARGET_PASSES_INTEGRITY)
 
 struct dm_target {
 	struct dm_table *table;
@@ -465,7 +479,7 @@ void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callback
  * Useful for "hybrid" target (supports both bio-based
  * and request-based).
  */
-void dm_table_set_type(struct dm_table *t, unsigned type);
+void dm_table_set_type(struct dm_table *t, enum dm_queue_mode type);
 
 /*
  * Finally call this to make the table ready for use.

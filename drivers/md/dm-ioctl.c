@@ -37,14 +37,6 @@ struct hash_cell {
 	struct dm_table *new_map;
 };
 
-/*
- * A dummy definition to make RCU happy.
- * struct dm_table should never be dereferenced in this file.
- */
-struct dm_table {
-	int undefined__;
-};
-
 struct vers_iter {
     size_t param_size;
     struct dm_target_versions *vers, *old_vers;
@@ -1268,7 +1260,7 @@ static int populate_table(struct dm_table *table,
 	return dm_table_complete(table);
 }
 
-static bool is_valid_type(unsigned cur, unsigned new)
+static bool is_valid_type(enum dm_queue_mode cur, enum dm_queue_mode new)
 {
 	if (cur == new ||
 	    (cur == DM_TYPE_BIO_BASED && new == DM_TYPE_DAX_BIO_BASED))
@@ -1778,12 +1770,12 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 	    cmd == DM_LIST_VERSIONS_CMD)
 		return 0;
 
-	if ((cmd == DM_DEV_CREATE_CMD)) {
+	if (cmd == DM_DEV_CREATE_CMD) {
 		if (!*param->name) {
 			DMWARN("name not supplied when creating device");
 			return -EINVAL;
 		}
-	} else if ((*param->uuid && *param->name)) {
+	} else if (*param->uuid && *param->name) {
 		DMWARN("only supply one of name or uuid, cmd(%u)", cmd);
 		return -EINVAL;
 	}
@@ -1848,7 +1840,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	if (r)
 		goto out;
 
-	param->data_size = sizeof(*param);
+	param->data_size = offsetof(struct dm_ioctl, data);
 	r = fn(param, input_param_size);
 
 	if (unlikely(param->flags & DM_BUFFER_FULL_FLAG) &&

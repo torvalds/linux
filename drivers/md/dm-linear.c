@@ -163,6 +163,7 @@ static long linear_direct_access(struct dm_target *ti, sector_t sector,
 static struct target_type linear_target = {
 	.name   = "linear",
 	.version = {1, 3, 0},
+	.features = DM_TARGET_PASSES_INTEGRITY,
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,
