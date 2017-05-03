@@ -734,6 +734,8 @@ struct pqi_scsi_dev {
 	u8	new_device : 1;
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
+	bool	in_reset;
+	bool	device_offline;
 	u8	vendor[8];		/* bytes 8-15 of inquiry data */
 	u8	model[16];		/* bytes 16-31 of inquiry data */
 	u64	sas_address;
@@ -761,6 +763,8 @@ struct pqi_scsi_dev {
 	struct list_head new_device_list_entry;
 	struct list_head add_list_entry;
 	struct list_head delete_list_entry;
+
+	atomic_t scsi_cmds_outstanding;
 };
 
 /* VPD inquiry pages */
@@ -926,7 +930,9 @@ struct pqi_ctrl_info {
 	struct Scsi_Host *scsi_host;
 
 	struct mutex	scan_mutex;
-	bool		controller_online : 1;
+	struct mutex	lun_reset_mutex;
+	bool		controller_online;
+	bool		block_requests;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
@@ -953,7 +959,9 @@ struct pqi_ctrl_info {
 	struct timer_list heartbeat_timer;
 
 	struct semaphore sync_request_sem;
-	struct semaphore lun_reset_sem;
+	atomic_t	num_busy_threads;
+	atomic_t	num_blocked_threads;
+	wait_queue_head_t block_requests_wait;
 };
 
 enum pqi_ctrl_mode {
@@ -1092,6 +1100,7 @@ int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
 void pqi_remove_sas_device(struct pqi_scsi_dev *device);
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(
 	struct pqi_ctrl_info *ctrl_info, struct sas_rphy *rphy);
+void pqi_prep_for_scsi_done(struct scsi_cmnd *scmd);
 
 extern struct sas_function_template pqi_sas_transport_functions;
 
