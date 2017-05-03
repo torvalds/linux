@@ -3578,6 +3578,37 @@ static void pqi_start_io(struct pqi_ctrl_info *ctrl_info,
 	spin_unlock_irqrestore(&queue_group->submit_lock[path], flags);
 }
 
+#define PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS		10
+
+static int pqi_wait_for_completion_io(struct pqi_ctrl_info *ctrl_info,
+	struct completion *wait)
+{
+	int rc;
+	unsigned int wait_secs = 0;
+
+	while (1) {
+		if (wait_for_completion_io_timeout(wait,
+			PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS * HZ)) {
+			rc = 0;
+			break;
+		}
+
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info)) {
+			rc = -ENXIO;
+			break;
+		}
+
+		wait_secs += PQI_WAIT_FOR_COMPLETION_IO_TIMEOUT_SECS;
+
+		dev_err(&ctrl_info->pci_dev->dev,
+			"waiting %u seconds for completion\n",
+			wait_secs);
+	}
+
+	return rc;
+}
+
 static void pqi_raid_synchronous_complete(struct pqi_io_request *io_request,
 	void *context)
 {
@@ -3601,7 +3632,7 @@ static int pqi_submit_raid_request_synchronous_with_io_request(
 		io_request);
 
 	if (timeout_msecs == NO_TIMEOUT) {
-		wait_for_completion_io(&wait);
+		pqi_wait_for_completion_io(ctrl_info, &wait);
 	} else {
 		if (!wait_for_completion_io_timeout(&wait,
 			msecs_to_jiffies(timeout_msecs))) {
