@@ -833,23 +833,34 @@ fail:
  * [*] in other words, the first group of each domain is its child domain.
  */
 
-static int get_group(int cpu, struct sd_data *sdd, struct sched_group **sg)
+static struct sched_group *get_group(int cpu, struct sd_data *sdd)
 {
 	struct sched_domain *sd = *per_cpu_ptr(sdd->sd, cpu);
 	struct sched_domain *child = sd->child;
+	struct sched_group *sg;
 
 	if (child)
 		cpu = cpumask_first(sched_domain_span(child));
 
-	if (sg) {
-		*sg = *per_cpu_ptr(sdd->sg, cpu);
-		(*sg)->sgc = *per_cpu_ptr(sdd->sgc, cpu);
+	sg = *per_cpu_ptr(sdd->sg, cpu);
+	sg->sgc = *per_cpu_ptr(sdd->sgc, cpu);
 
-		/* For claim_allocations: */
-		atomic_set(&(*sg)->sgc->ref, 1);
+	/* For claim_allocations: */
+	atomic_inc(&sg->ref);
+	atomic_inc(&sg->sgc->ref);
+
+	if (child) {
+		cpumask_copy(sched_group_cpus(sg), sched_domain_span(child));
+		cpumask_copy(sched_group_mask(sg), sched_group_cpus(sg));
+	} else {
+		cpumask_set_cpu(cpu, sched_group_cpus(sg));
+		cpumask_set_cpu(cpu, sched_group_mask(sg));
 	}
 
-	return cpu;
+	sg->sgc->capacity = SCHED_CAPACITY_SCALE * cpumask_weight(sched_group_cpus(sg));
+	sg->sgc->min_capacity = SCHED_CAPACITY_SCALE;
+
+	return sg;
 }
 
 /*
@@ -868,34 +879,20 @@ build_sched_groups(struct sched_domain *sd, int cpu)
 	struct cpumask *covered;
 	int i;
 
-	get_group(cpu, sdd, &sd->groups);
-	atomic_inc(&sd->groups->ref);
-
-	if (cpu != cpumask_first(span))
-		return 0;
-
 	lockdep_assert_held(&sched_domains_mutex);
 	covered = sched_domains_tmpmask;
 
 	cpumask_clear(covered);
 
-	for_each_cpu(i, span) {
+	for_each_cpu_wrap(i, span, cpu) {
 		struct sched_group *sg;
-		int group, j;
 
 		if (cpumask_test_cpu(i, covered))
 			continue;
 
-		group = get_group(i, sdd, &sg);
-		cpumask_setall(sched_group_mask(sg));
+		sg = get_group(i, sdd);
 
-		for_each_cpu(j, span) {
-			if (get_group(j, sdd, NULL) != group)
-				continue;
-
-			cpumask_set_cpu(j, covered);
-			cpumask_set_cpu(j, sched_group_cpus(sg));
-		}
+		cpumask_or(covered, covered, sched_group_cpus(sg));
 
 		if (!first)
 			first = sg;
@@ -904,6 +901,7 @@ build_sched_groups(struct sched_domain *sd, int cpu)
 		last = sg;
 	}
 	last->next = first;
+	sd->groups = first;
 
 	return 0;
 }
