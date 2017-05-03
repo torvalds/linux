@@ -2210,14 +2210,14 @@ static __init void of_unittest_overlay_high_level(void)
 				unittest(0,
 					 "duplicate property '%s' in overlay_base node __symbols__",
 					 prop->name);
-				return;
+				goto err_unlock;
 			}
 			ret = __of_add_property_sysfs(of_symbols, prop);
 			if (ret) {
 				unittest(0,
 					 "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
 					 prop->name);
-				return;
+				goto err_unlock;
 			}
 		}
 	}
@@ -2232,6 +2232,10 @@ static __init void of_unittest_overlay_high_level(void)
 
 	unittest(overlay_data_add(2),
 		 "Adding overlay 'overlay_bad_phandle' failed\n");
+	return;
+
+err_unlock:
+	mutex_unlock(&of_mutex);
 }
 
 #else
