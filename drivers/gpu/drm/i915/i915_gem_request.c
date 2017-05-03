@@ -743,22 +743,9 @@ int
 i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 				 struct dma_fence *fence)
 {
-	struct dma_fence_array *array;
+	struct dma_fence **child = &fence;
+	unsigned int nchild = 1;
 	int ret;
-	int i;
-
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return 0;
-
-	if (dma_fence_is_i915(fence))
-		return i915_gem_request_await_request(req, to_request(fence));
-
-	if (!dma_fence_is_array(fence)) {
-		ret = i915_sw_fence_await_dma_fence(&req->submit,
-						    fence, I915_FENCE_TIMEOUT,
-						    GFP_KERNEL);
-		return ret < 0 ? ret : 0;
-	}
 
 	/* Note that if the fence-array was created in signal-on-any mode,
 	 * we should *not* decompose it into its individual fences. However,
@@ -767,21 +754,29 @@ i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 	 * amdgpu and we should not see any incoming fence-array from
 	 * sync-file being in signal-on-any mode.
 	 */
+	if (dma_fence_is_array(fence)) {
+		struct dma_fence_array *array = to_dma_fence_array(fence);
 
-	array = to_dma_fence_array(fence);
-	for (i = 0; i < array->num_fences; i++) {
-		struct dma_fence *child = array->fences[i];
+		child = array->fences;
+		nchild = array->num_fences;
+		GEM_BUG_ON(!nchild);
+	}
 
-		if (dma_fence_is_i915(child))
+	do {
+		fence = *child++;
+		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+			continue;
+
+		if (dma_fence_is_i915(fence))
 			ret = i915_gem_request_await_request(req,
-							     to_request(child));
+							     to_request(fence));
 		else
-			ret = i915_sw_fence_await_dma_fence(&req->submit,
-							    child, I915_FENCE_TIMEOUT,
+			ret = i915_sw_fence_await_dma_fence(&req->submit, fence,
+							    I915_FENCE_TIMEOUT,
 							    GFP_KERNEL);
 		if (ret < 0)
 			return ret;
-	}
+	} while (--nchild);
 
 	return 0;
 }
