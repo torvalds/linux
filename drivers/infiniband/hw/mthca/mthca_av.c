@@ -152,7 +152,7 @@ u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port)
 
 int mthca_create_ah(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
-		    struct ib_ah_attr *ah_attr,
+		    struct rdma_ah_attr *ah_attr,
 		    struct mthca_ah *ah)
 {
 	u32 index = -1;
@@ -196,21 +196,26 @@ on_hca_fail:
 
 	ah->key = pd->ntmr.ibmr.lkey;
 
-	av->port_pd = cpu_to_be32(pd->pd_num | (ah_attr->port_num << 24));
-	av->g_slid  = ah_attr->src_path_bits;
-	av->dlid    = cpu_to_be16(ah_attr->dlid);
+	av->port_pd = cpu_to_be32(pd->pd_num |
+				  (rdma_ah_get_port_num(ah_attr) << 24));
+	av->g_slid  = rdma_ah_get_path_bits(ah_attr);
+	av->dlid    = cpu_to_be16(rdma_ah_get_dlid(ah_attr));
 	av->msg_sr  = (3 << 4) | /* 2K message */
-		mthca_get_rate(dev, ah_attr->static_rate, ah_attr->port_num);
-	av->sl_tclass_flowlabel = cpu_to_be32(ah_attr->sl << 28);
-	if (ah_attr->ah_flags & IB_AH_GRH) {
+		mthca_get_rate(dev, rdma_ah_get_static_rate(ah_attr),
+			       rdma_ah_get_port_num(ah_attr));
+	av->sl_tclass_flowlabel = cpu_to_be32(rdma_ah_get_sl(ah_attr) << 28);
+	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
+		const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
+
 		av->g_slid |= 0x80;
-		av->gid_index = (ah_attr->port_num - 1) * dev->limits.gid_table_len +
-			ah_attr->grh.sgid_index;
-		av->hop_limit = ah_attr->grh.hop_limit;
+		av->gid_index = (rdma_ah_get_port_num(ah_attr) - 1) *
+				  dev->limits.gid_table_len +
+				  grh->sgid_index;
+		av->hop_limit = grh->hop_limit;
 		av->sl_tclass_flowlabel |=
-			cpu_to_be32((ah_attr->grh.traffic_class << 20) |
-				    ah_attr->grh.flow_label);
-		memcpy(av->dgid, ah_attr->grh.dgid.raw, 16);
+			cpu_to_be32((grh->traffic_class << 20) |
+				    grh->flow_label);
+		memcpy(av->dgid, grh->dgid.raw, 16);
 	} else {
 		/* Arbel workaround -- low byte of GID must be 2 */
 		av->dgid[3] = cpu_to_be32(2);
@@ -287,33 +292,35 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 	return 0;
 }
 
-int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr)
+int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct mthca_ah *ah   = to_mah(ibah);
 	struct mthca_dev *dev = to_mdev(ibah->device);
+	u8 port_num = be32_to_cpu(ah->av->port_pd) >> 24;
 
 	/* Only implement for MAD and memfree ah for now. */
 	if (ah->type == MTHCA_AH_ON_HCA)
 		return -ENOSYS;
 
 	memset(attr, 0, sizeof *attr);
-	attr->dlid          = be16_to_cpu(ah->av->dlid);
-	attr->sl            = be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 28;
-	attr->port_num      = be32_to_cpu(ah->av->port_pd) >> 24;
-	attr->static_rate   = mthca_rate_to_ib(dev, ah->av->msg_sr & 0x7,
-					       attr->port_num);
-	attr->src_path_bits = ah->av->g_slid & 0x7F;
-	attr->ah_flags      = mthca_ah_grh_present(ah) ? IB_AH_GRH : 0;
+	attr->type = ibah->type;
+	rdma_ah_set_dlid(attr, be16_to_cpu(ah->av->dlid));
+	rdma_ah_set_sl(attr, be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 28);
+	rdma_ah_set_port_num(attr, port_num);
+	rdma_ah_set_static_rate(attr,
+				mthca_rate_to_ib(dev, ah->av->msg_sr & 0x7,
+						 port_num));
+	rdma_ah_set_path_bits(attr, ah->av->g_slid & 0x7F);
+	if (mthca_ah_grh_present(ah)) {
+		u32 tc_fl = be32_to_cpu(ah->av->sl_tclass_flowlabel);
 
-	if (attr->ah_flags) {
-		attr->grh.traffic_class =
-			be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 20;
-		attr->grh.flow_label =
-			be32_to_cpu(ah->av->sl_tclass_flowlabel) & 0xfffff;
-		attr->grh.hop_limit  = ah->av->hop_limit;
-		attr->grh.sgid_index = ah->av->gid_index &
-				       (dev->limits.gid_table_len - 1);
-		memcpy(attr->grh.dgid.raw, ah->av->dgid, 16);
+		rdma_ah_set_grh(attr, NULL,
+				tc_fl & 0xfffff,
+				ah->av->gid_index &
+				(dev->limits.gid_table_len - 1),
+				ah->av->hop_limit,
+				(tc_fl >> 20) & 0xff);
+		rdma_ah_set_dgid_raw(attr, ah->av->dgid);
 	}
 
 	return 0;

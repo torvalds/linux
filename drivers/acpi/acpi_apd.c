@@ -169,6 +169,7 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 #ifdef CONFIG_ARM64
 	{ "APMC0D0F", APD_ADDR(xgene_i2c_desc) },
 	{ "BRCM900D", APD_ADDR(vulcan_spi_desc) },
+	{ "CAV900D",  APD_ADDR(vulcan_spi_desc) },
 #endif
 	{ }
 };

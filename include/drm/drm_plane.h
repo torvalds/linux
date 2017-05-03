@@ -29,6 +29,7 @@
 
 struct drm_crtc;
 struct drm_printer;
+struct drm_modeset_acquire_ctx;
 
 /**
  * struct drm_plane_state - mutable plane state
@@ -184,7 +185,8 @@ struct drm_plane_funcs {
 			    int crtc_x, int crtc_y,
 			    unsigned int crtc_w, unsigned int crtc_h,
 			    uint32_t src_x, uint32_t src_y,
-			    uint32_t src_w, uint32_t src_h);
+			    uint32_t src_w, uint32_t src_h,
+			    struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @disable_plane:
@@ -201,7 +203,8 @@ struct drm_plane_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*disable_plane)(struct drm_plane *plane);
+	int (*disable_plane)(struct drm_plane *plane,
+			     struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @destroy:
@@ -456,7 +459,6 @@ enum drm_plane_type {
  * @funcs: helper functions
  * @properties: property tracking for this plane
  * @type: type of plane (overlay, primary, cursor)
- * @state: current atomic state for this plane
  * @zpos_property: zpos property for this plane
  * @rotation_property: rotation property for this plane
  * @helper_private: mid-layer private data
@@ -473,6 +475,8 @@ struct drm_plane {
 	 * Protects modeset plane state, together with the &drm_crtc.mutex of
 	 * CRTC this plane is linked to (when active, getting activated or
 	 * getting disabled).
+	 *
+	 * For atomic drivers specifically this protects @state.
 	 */
 	struct drm_modeset_lock mutex;
 
@@ -502,6 +506,19 @@ struct drm_plane {
 
 	const struct drm_plane_helper_funcs *helper_private;
 
+	/**
+	 * @state:
+	 *
+	 * Current atomic state for this plane.
+	 *
+	 * This is protected by @mutex. Note that nonblocking atomic commits
+	 * access the current plane state without taking locks. Either by going
+	 * through the &struct drm_atomic_state pointers, see
+	 * for_each_plane_in_state(), for_each_oldnew_plane_in_state(),
+	 * for_each_old_plane_in_state() and for_each_new_plane_in_state(). Or
+	 * through careful ordering of atomic commit operations as implemented
+	 * in the atomic helpers, see &struct drm_crtc_commit.
+	 */
 	struct drm_plane_state *state;
 
 	struct drm_property *zpos_property;
@@ -510,7 +527,7 @@ struct drm_plane {
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
 
-extern __printf(8, 9)
+__printf(8, 9)
 int drm_universal_plane_init(struct drm_device *dev,
 			     struct drm_plane *plane,
 			     uint32_t possible_crtcs,
@@ -519,13 +536,13 @@ int drm_universal_plane_init(struct drm_device *dev,
 			     unsigned int format_count,
 			     enum drm_plane_type type,
 			     const char *name, ...);
-extern int drm_plane_init(struct drm_device *dev,
-			  struct drm_plane *plane,
-			  uint32_t possible_crtcs,
-			  const struct drm_plane_funcs *funcs,
-			  const uint32_t *formats, unsigned int format_count,
-			  bool is_primary);
-extern void drm_plane_cleanup(struct drm_plane *plane);
+int drm_plane_init(struct drm_device *dev,
+		   struct drm_plane *plane,
+		   uint32_t possible_crtcs,
+		   const struct drm_plane_funcs *funcs,
+		   const uint32_t *formats, unsigned int format_count,
+		   bool is_primary);
+void drm_plane_cleanup(struct drm_plane *plane);
 
 /**
  * drm_plane_index - find the index of a registered plane
@@ -538,8 +555,8 @@ static inline unsigned int drm_plane_index(struct drm_plane *plane)
 {
 	return plane->index;
 }
-extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
-extern void drm_plane_force_disable(struct drm_plane *plane);
+struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
+void drm_plane_force_disable(struct drm_plane *plane);
 
 int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				       struct drm_property *property,

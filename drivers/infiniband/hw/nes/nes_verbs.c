@@ -761,7 +761,8 @@ static int nes_dealloc_pd(struct ib_pd *ibpd)
 /**
  * nes_create_ah
  */
-static struct ib_ah *nes_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+static struct ib_ah *nes_create_ah(struct ib_pd *pd,
+				   struct rdma_ah_attr *ah_attr,
 				   struct ib_udata *udata)
 {
 	return ERR_PTR(-ENOSYS);
@@ -1308,9 +1309,8 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	init_completion(&nesqp->rq_drained);
 
 	nesqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR);
-	init_timer(&nesqp->terminate_timer);
-	nesqp->terminate_timer.function = nes_terminate_timeout;
-	nesqp->terminate_timer.data = (unsigned long)nesqp;
+	setup_timer(&nesqp->terminate_timer, nes_terminate_timeout,
+		    (unsigned long)nesqp);
 
 	/* update the QP table */
 	nesdev->nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = nesqp;
@@ -2165,9 +2165,9 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	nes_debug(NES_DBG_MR, "User base = 0x%lX, Virt base = 0x%lX, length = %u,"
-			" offset = %u, page size = %u.\n",
+			" offset = %u, page size = %lu.\n",
 			(unsigned long int)start, (unsigned long int)virt, (u32)length,
-			ib_umem_offset(region), region->page_size);
+			ib_umem_offset(region), BIT(region->page_shift));
 
 	skip_pages = ((u32)ib_umem_offset(region)) >> 12;
 

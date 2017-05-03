@@ -1047,6 +1047,10 @@ struct task_struct {
 #ifdef CONFIG_LIVEPATCH
 	int patch_state;
 #endif
+#ifdef CONFIG_SECURITY
+	/* Used by LSM modules for access restriction: */
+	void				*security;
+#endif
 	/* CPU-specific state of this task: */
 	struct thread_struct		thread;
 

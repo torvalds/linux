@@ -376,7 +376,6 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 {
 	struct hfi1_filedata *fd;
 	int ret = 0;
-	unsigned memsize;
 	char buf[64];
 	struct hfi1_devdata *dd;
 	struct hfi1_user_sdma_comp_q *cq;
@@ -401,13 +400,15 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	if (!pq)
 		goto pq_nomem;
 
-	memsize = sizeof(*pq->reqs) * hfi1_sdma_comp_ring_size;
-	pq->reqs = kzalloc(memsize, GFP_KERNEL);
+	pq->reqs = kcalloc(hfi1_sdma_comp_ring_size,
+			   sizeof(*pq->reqs),
+			   GFP_KERNEL);
 	if (!pq->reqs)
 		goto pq_reqs_nomem;
 
-	memsize = BITS_TO_LONGS(hfi1_sdma_comp_ring_size) * sizeof(long);
-	pq->req_in_use = kzalloc(memsize, GFP_KERNEL);
+	pq->req_in_use = kcalloc(BITS_TO_LONGS(hfi1_sdma_comp_ring_size),
+				 sizeof(*pq->req_in_use),
+				 GFP_KERNEL);
 	if (!pq->req_in_use)
 		goto pq_reqs_no_in_use;
 
@@ -442,8 +443,8 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	if (!cq)
 		goto cq_nomem;
 
-	memsize = PAGE_ALIGN(sizeof(*cq->comps) * hfi1_sdma_comp_ring_size);
-	cq->comps = vmalloc_user(memsize);
+	cq->comps = vmalloc_user(PAGE_ALIGN(sizeof(*cq->comps)
+				 * hfi1_sdma_comp_ring_size));
 	if (!cq->comps)
 		goto cq_comps_nomem;
 
@@ -704,7 +705,9 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	/* Save all the IO vector structures */
 	for (i = 0; i < req->data_iovs; i++) {
 		INIT_LIST_HEAD(&req->iovs[i].list);
-		memcpy(&req->iovs[i].iov, iovec + idx++, sizeof(struct iovec));
+		memcpy(&req->iovs[i].iov,
+		       iovec + idx++,
+		       sizeof(req->iovs[i].iov));
 		ret = pin_vector_pages(req, &req->iovs[i]);
 		if (ret) {
 			req->status = ret;
@@ -1615,9 +1618,10 @@ static inline void set_comp_state(struct hfi1_user_sdma_pkt_q *pq,
 {
 	hfi1_cdbg(SDMA, "[%u:%u:%u:%u] Setting completion status %u %d",
 		  pq->dd->unit, pq->ctxt, pq->subctxt, idx, state, ret);
-	cq->comps[idx].status = state;
 	if (state == ERROR)
 		cq->comps[idx].errcode = -ret;
+	smp_wmb(); /* make sure errcode is visible first */
+	cq->comps[idx].status = state;
 	trace_hfi1_sdma_user_completion(pq->dd, pq->ctxt, pq->subctxt,
 					idx, state, ret);
 }

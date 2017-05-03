@@ -41,6 +41,7 @@
 #include <engine/nvdec.h>
 #include <engine/pm.h>
 #include <engine/sec.h>
+#include <engine/sec2.h>
 #include <engine/sw.h>
 #include <engine/vic.h>
 #include <engine/vp.h>

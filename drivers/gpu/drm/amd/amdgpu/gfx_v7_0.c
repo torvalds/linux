@@ -972,9 +972,7 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
-		       "gfx7: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("gfx7: Failed to load firmware \"%s\"\n", fw_name);
 		release_firmware(adev->gfx.pfp_fw);
 		adev->gfx.pfp_fw = NULL;
 		release_firmware(adev->gfx.me_fw);
@@ -1876,6 +1874,11 @@ static void gmc_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 }
 
+static void gfx_v7_0_config_init(struct amdgpu_device *adev)
+{
+	adev->gfx.config.double_offchip_lds_buf = 1;
+}
+
 /**
  * gfx_v7_0_gpu_init - setup the 3D engine
  *
@@ -1886,7 +1889,8 @@ static void gmc_v7_0_init_compute_vmid(struct amdgpu_device *adev)
  */
 static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 {
-	u32 tmp, sh_mem_cfg;
+	u32 sh_mem_cfg, sh_static_mem_cfg, sh_mem_base;
+	u32 tmp;
 	int i;
 
 	WREG32(mmGRBM_CNTL, (0xff << GRBM_CNTL__READ_TIMEOUT__SHIFT));
@@ -1899,6 +1903,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	gfx_v7_0_setup_rb(adev);
 	gfx_v7_0_get_cu_info(adev);
+	gfx_v7_0_config_init(adev);
 
 	/* set HW defaults for 3D engine */
 	WREG32(mmCP_MEQ_THRESHOLDS,
@@ -1916,15 +1921,32 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
 				   SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+	sh_mem_cfg = REG_SET_FIELD(sh_mem_cfg, SH_MEM_CONFIG, DEFAULT_MTYPE,
+				   MTYPE_NC);
+	sh_mem_cfg = REG_SET_FIELD(sh_mem_cfg, SH_MEM_CONFIG, APE1_MTYPE,
+				   MTYPE_UC);
+	sh_mem_cfg = REG_SET_FIELD(sh_mem_cfg, SH_MEM_CONFIG, PRIVATE_ATC, 0);
+
+	sh_static_mem_cfg = REG_SET_FIELD(0, SH_STATIC_MEM_CONFIG,
+				   SWIZZLE_ENABLE, 1);
+	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
+				   ELEMENT_SIZE, 1);
+	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
+				   INDEX_STRIDE, 3);
 
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < adev->vm_manager.num_ids; i++) {
+		if (i == 0)
+			sh_mem_base = 0;
+		else
+			sh_mem_base = adev->mc.shared_aperture_start >> 48;
 		cik_srbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
 		WREG32(mmSH_MEM_CONFIG, sh_mem_cfg);
 		WREG32(mmSH_MEM_APE1_BASE, 1);
 		WREG32(mmSH_MEM_APE1_LIMIT, 0);
-		WREG32(mmSH_MEM_BASES, 0);
+		WREG32(mmSH_MEM_BASES, sh_mem_base);
+		WREG32(mmSH_STATIC_MEM_CONFIG, sh_static_mem_cfg);
 	}
 	cik_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
@@ -2607,7 +2629,7 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(mmCP_RB0_CNTL, tmp | CP_RB0_CNTL__RB_RPTR_WR_ENA_MASK);
 	ring->wptr = 0;
-	WREG32(mmCP_RB0_WPTR, ring->wptr);
+	WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
 
 	/* set the wb address wether it's enabled or not */
 	rptr_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
@@ -2636,12 +2658,12 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static u32 gfx_v7_0_ring_get_rptr(struct amdgpu_ring *ring)
+static u64 gfx_v7_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
-static u32 gfx_v7_0_ring_get_wptr_gfx(struct amdgpu_ring *ring)
+static u64 gfx_v7_0_ring_get_wptr_gfx(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -2652,11 +2674,11 @@ static void gfx_v7_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	WREG32(mmCP_RB0_WPTR, ring->wptr);
+	WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
 	(void)RREG32(mmCP_RB0_WPTR);
 }
 
-static u32 gfx_v7_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
+static u64 gfx_v7_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
 {
 	/* XXX check if swapping is necessary on BE */
 	return ring->adev->wb.wb[ring->wptr_offs];
@@ -2667,8 +2689,8 @@ static void gfx_v7_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	/* XXX check if swapping is necessary on BE */
-	adev->wb.wb[ring->wptr_offs] = ring->wptr;
-	WDOORBELL32(ring->doorbell_index, ring->wptr);
+	adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+	WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 }
 
 /**
@@ -3138,7 +3160,7 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 
 		/* read and write pointers, similar to CP_RB0_WPTR/_RPTR */
 		ring->wptr = 0;
-		mqd->queue_state.cp_hqd_pq_wptr = ring->wptr;
+		mqd->queue_state.cp_hqd_pq_wptr = lower_32_bits(ring->wptr);
 		WREG32(mmCP_HQD_PQ_WPTR, mqd->queue_state.cp_hqd_pq_wptr);
 		mqd->queue_state.cp_hqd_pq_rptr = RREG32(mmCP_HQD_PQ_RPTR);
 
@@ -4647,17 +4669,19 @@ static int gfx_v7_0_sw_init(void *handle)
 	int i, r;
 
 	/* EOP Event */
-	r = amdgpu_irq_add_id(adev, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
 	/* Privileged reg */
-	r = amdgpu_irq_add_id(adev, 184, &adev->gfx.priv_reg_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 184,
+			      &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
 	/* Privileged inst */
-	r = amdgpu_irq_add_id(adev, 185, &adev->gfx.priv_inst_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 185,
+			      &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;
 
@@ -5184,6 +5208,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.type = AMDGPU_RING_TYPE_GFX,
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v7_0_ring_set_wptr_gfx,
@@ -5214,6 +5239,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.type = AMDGPU_RING_TYPE_COMPUTE,
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v7_0_ring_set_wptr_compute,

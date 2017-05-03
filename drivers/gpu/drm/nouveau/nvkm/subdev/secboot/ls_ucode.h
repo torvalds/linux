@@ -27,6 +27,7 @@
 #include <core/subdev.h>
 #include <subdev/secboot.h>
 
+struct nvkm_acr;
 
 /**
  * struct ls_ucode_img_desc - descriptor of firmware image
@@ -83,6 +84,7 @@ struct ls_ucode_img_desc {
  * @ucode_desc:		loaded or generated map of ucode_data
  * @ucode_data:		firmware payload (code and data)
  * @ucode_size:		size in bytes of data in ucode_data
+ * @ucode_off:		offset of the ucode in ucode_data
  * @sig:		signature for this firmware
  * @sig:size:		size of the signature in bytes
  *
@@ -97,6 +99,7 @@ struct ls_ucode_img {
 	struct ls_ucode_img_desc ucode_desc;
 	u8 *ucode_data;
 	u32 ucode_size;
+	u32 ucode_off;
 
 	u8 *sig;
 	u32 sig_size;
@@ -144,8 +147,11 @@ struct fw_bl_desc {
 	u32 data_size;
 };
 
-int acr_ls_ucode_load_fecs(const struct nvkm_subdev *, struct ls_ucode_img *);
-int acr_ls_ucode_load_gpccs(const struct nvkm_subdev *, struct ls_ucode_img *);
-
+int acr_ls_ucode_load_fecs(const struct nvkm_secboot *, struct ls_ucode_img *);
+int acr_ls_ucode_load_gpccs(const struct nvkm_secboot *, struct ls_ucode_img *);
+int acr_ls_ucode_load_pmu(const struct nvkm_secboot *, struct ls_ucode_img *);
+int acr_ls_pmu_post_run(const struct nvkm_acr *, const struct nvkm_secboot *);
+int acr_ls_ucode_load_sec2(const struct nvkm_secboot *, struct ls_ucode_img *);
+int acr_ls_sec2_post_run(const struct nvkm_acr *, const struct nvkm_secboot *);
 
 #endif

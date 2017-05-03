@@ -182,6 +182,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_Thermal2GPIO17,                        /* indicates thermal2GPIO17 table support */
 	PHM_PlatformCaps_ThermalOutGPIO,                        /* indicates ThermalOutGPIO support, pin number is assigned by VBIOS */
 	PHM_PlatformCaps_DisableMclkSwitchingForFrameLock,      /* Disable memory clock switch during Framelock */
+	PHM_PlatformCaps_ForceMclkHigh,                         /* Disable memory clock switching by forcing memory clock high */
 	PHM_PlatformCaps_VRHotGPIOConfigurable,                 /* indicates VR_HOT GPIO configurable */
 	PHM_PlatformCaps_TempInversion,                         /* enable Temp Inversion feature */
 	PHM_PlatformCaps_IOIC3,
@@ -212,6 +213,20 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_TablelessHardwareInterface,
 	PHM_PlatformCaps_EnableDriverEVV,
 	PHM_PlatformCaps_SPLLShutdownSupport,
+	PHM_PlatformCaps_VirtualBatteryState,
+	PHM_PlatformCaps_IgnoreForceHighClockRequestsInAPUs,
+	PHM_PlatformCaps_DisableMclkSwitchForVR,
+	PHM_PlatformCaps_SMU8,
+	PHM_PlatformCaps_VRHotPolarityHigh,
+	PHM_PlatformCaps_IPS_UlpsExclusive,
+	PHM_PlatformCaps_SMCtoPPLIBAcdcGpioScheme,
+	PHM_PlatformCaps_GeminiAsymmetricPower,
+	PHM_PlatformCaps_OCLPowerOptimization,
+	PHM_PlatformCaps_MaxPCIEBandWidth,
+	PHM_PlatformCaps_PerfPerWattOptimizationSupport,
+	PHM_PlatformCaps_UVDClientMCTuning,
+	PHM_PlatformCaps_ODNinACSupport,
+	PHM_PlatformCaps_ODNinDCSupport,
 	PHM_PlatformCaps_Max
 };
 
@@ -290,6 +305,8 @@ struct PP_Clocks {
 	uint32_t memoryClock;
 	uint32_t BusBandwidth;
 	uint32_t engineClockInSR;
+	uint32_t dcefClock;
+	uint32_t dcefClockInSR;
 };
 
 struct pp_clock_info {
@@ -332,6 +349,21 @@ struct phm_platform_descriptor {
 struct phm_clocks {
 	uint32_t num_of_entries;
 	uint32_t clock[MAX_NUM_CLOCKS];
+};
+
+struct phm_odn_performance_level {
+	uint32_t clock;
+	uint32_t vddc;
+	bool enabled;
+};
+
+struct phm_odn_clock_levels {
+	uint32_t size;
+	uint32_t options;
+	uint32_t flags;
+	uint32_t number_of_performance_levels;
+	/* variable-sized array, specify by ulNumberOfPerformanceLevels. */
+	struct phm_odn_performance_level performance_level_entries[8];
 };
 
 extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
@@ -386,6 +418,17 @@ extern int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_s
 extern int phm_get_current_shallow_sleep_clocks(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state, struct pp_clock_info *clock_info);
 
 extern int phm_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
+
+extern int phm_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks);
+extern int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks);
+extern int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+extern int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
+		struct pp_display_clock_request *clock);
 
 extern int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 

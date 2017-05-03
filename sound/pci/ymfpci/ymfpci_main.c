@@ -1316,7 +1316,7 @@ static int snd_ymfpci_spdif_default_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_spdif_default =
+static const struct snd_kcontrol_new snd_ymfpci_spdif_default =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -1344,7 +1344,7 @@ static int snd_ymfpci_spdif_mask_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_spdif_mask =
+static const struct snd_kcontrol_new snd_ymfpci_spdif_mask =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1391,7 +1391,7 @@ static int snd_ymfpci_spdif_stream_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_spdif_stream =
+static const struct snd_kcontrol_new snd_ymfpci_spdif_stream =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1439,7 +1439,7 @@ static int snd_ymfpci_drec_source_put(struct snd_kcontrol *kcontrol, struct snd_
 	return reg != old_reg;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_drec_source = {
+static const struct snd_kcontrol_new snd_ymfpci_drec_source = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Direct Recording Source",
@@ -1609,7 +1609,7 @@ static int snd_ymfpci_put_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_dup4ch = {
+static const struct snd_kcontrol_new snd_ymfpci_dup4ch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "4ch Duplication",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -1712,7 +1712,7 @@ static int snd_ymfpci_gpio_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_rear_shared = {
+static const struct snd_kcontrol_new snd_ymfpci_rear_shared = {
 	.name = "Shared Rear/Line-In Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_ymfpci_gpio_sw_info,
@@ -1776,7 +1776,7 @@ static int snd_ymfpci_pcm_vol_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ymfpci_pcm_volume = {
+static const struct snd_kcontrol_new snd_ymfpci_pcm_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "PCM Playback Volume",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |

@@ -218,7 +218,7 @@ static void drm_gem_object_exported_dma_buf_free(struct drm_gem_object *obj)
 }
 
 static void
-drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
+drm_gem_object_handle_put_unlocked(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	bool final = false;
@@ -241,7 +241,7 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	mutex_unlock(&dev->object_name_lock);
 
 	if (final)
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 }
 
 /*
@@ -262,7 +262,7 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
 
-	drm_gem_object_handle_unreference_unlocked(obj);
+	drm_gem_object_handle_put_unlocked(obj);
 
 	return 0;
 }
@@ -352,7 +352,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 
 	WARN_ON(!mutex_is_locked(&dev->object_name_lock));
 	if (obj->handle_count++ == 0)
-		drm_gem_object_reference(obj);
+		drm_gem_object_get(obj);
 
 	/*
 	 * Get the user-visible handle using idr.  Preload and perform
@@ -392,7 +392,7 @@ err_remove:
 	idr_remove(&file_priv->object_idr, handle);
 	spin_unlock(&file_priv->table_lock);
 err_unref:
-	drm_gem_object_handle_unreference_unlocked(obj);
+	drm_gem_object_handle_put_unlocked(obj);
 	return ret;
 }
 
@@ -606,7 +606,7 @@ drm_gem_object_lookup(struct drm_file *filp, u32 handle)
 	/* Check if we currently have a reference on the object */
 	obj = idr_find(&filp->object_idr, handle);
 	if (obj)
-		drm_gem_object_reference(obj);
+		drm_gem_object_get(obj);
 
 	spin_unlock(&filp->table_lock);
 
@@ -683,7 +683,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 
 err:
 	mutex_unlock(&dev->object_name_lock);
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
 
@@ -713,7 +713,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->object_name_lock);
 	obj = idr_find(&dev->object_name_idr, (int) args->name);
 	if (obj) {
-		drm_gem_object_reference(obj);
+		drm_gem_object_get(obj);
 	} else {
 		mutex_unlock(&dev->object_name_lock);
 		return -ENOENT;
@@ -721,7 +721,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 
 	/* drm_gem_handle_create_tail unlocks dev->object_name_lock. */
 	ret = drm_gem_handle_create_tail(file_priv, obj, &handle);
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	if (ret)
 		return ret;
 
@@ -809,16 +809,16 @@ drm_gem_object_free(struct kref *kref)
 EXPORT_SYMBOL(drm_gem_object_free);
 
 /**
- * drm_gem_object_unreference_unlocked - release a GEM BO reference
+ * drm_gem_object_put_unlocked - drop a GEM buffer object reference
  * @obj: GEM buffer object
  *
  * This releases a reference to @obj. Callers must not hold the
  * &drm_device.struct_mutex lock when calling this function.
  *
- * See also __drm_gem_object_unreference().
+ * See also __drm_gem_object_put().
  */
 void
-drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
+drm_gem_object_put_unlocked(struct drm_gem_object *obj)
 {
 	struct drm_device *dev;
 
@@ -834,10 +834,10 @@ drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 				&dev->struct_mutex))
 		mutex_unlock(&dev->struct_mutex);
 }
-EXPORT_SYMBOL(drm_gem_object_unreference_unlocked);
+EXPORT_SYMBOL(drm_gem_object_put_unlocked);
 
 /**
- * drm_gem_object_unreference - release a GEM BO reference
+ * drm_gem_object_put - release a GEM buffer object reference
  * @obj: GEM buffer object
  *
  * This releases a reference to @obj. Callers must hold the
@@ -845,10 +845,10 @@ EXPORT_SYMBOL(drm_gem_object_unreference_unlocked);
  * driver doesn't use &drm_device.struct_mutex for anything.
  *
  * For drivers not encumbered with legacy locking use
- * drm_gem_object_unreference_unlocked() instead.
+ * drm_gem_object_put_unlocked() instead.
  */
 void
-drm_gem_object_unreference(struct drm_gem_object *obj)
+drm_gem_object_put(struct drm_gem_object *obj)
 {
 	if (obj) {
 		WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
@@ -856,7 +856,7 @@ drm_gem_object_unreference(struct drm_gem_object *obj)
 		kref_put(&obj->refcount, drm_gem_object_free);
 	}
 }
-EXPORT_SYMBOL(drm_gem_object_unreference);
+EXPORT_SYMBOL(drm_gem_object_put);
 
 /**
  * drm_gem_vm_open - vma->ops->open implementation for GEM
@@ -869,7 +869,7 @@ void drm_gem_vm_open(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
 
-	drm_gem_object_reference(obj);
+	drm_gem_object_get(obj);
 }
 EXPORT_SYMBOL(drm_gem_vm_open);
 
@@ -884,7 +884,7 @@ void drm_gem_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
 
@@ -935,7 +935,7 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 	 * (which should happen whether the vma was created by this call, or
 	 * by a vm_open due to mremap or partial unmap or whatever).
 	 */
-	drm_gem_object_reference(obj);
+	drm_gem_object_get(obj);
 
 	return 0;
 }
@@ -992,14 +992,14 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	if (!drm_vma_node_is_allowed(node, priv)) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return -EACCES;
 	}
 
 	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node) << PAGE_SHIFT,
 			       vma);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return ret;
 }

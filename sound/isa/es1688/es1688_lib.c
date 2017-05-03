@@ -742,7 +742,7 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device)
 
 	pcm->private_data = chip;
 	pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
-	sprintf(pcm->name, snd_es1688_chip_id(chip));
+	strcpy(pcm->name, snd_es1688_chip_id(chip));
 	chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,

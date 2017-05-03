@@ -92,8 +92,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 	       (1 << 2) | (1 << 3));
 	/* add idle wait as per freedesktop.org bug 24041 */
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
 	/* get max number of pipes */
 	gb_pipe_select = RREG32(R400_GB_PIPE_SELECT);
@@ -128,8 +127,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 	tmp |= R300_TILE_SIZE_16 | R300_ENABLE_TILING;
 	WREG32(R300_GB_TILE_CONFIG, tmp);
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
 
 	tmp = RREG32(R300_DST_PIPE_CONFIG);
@@ -141,8 +139,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 	       R300_DC_DC_DISABLE_IGNORE_PE);
 
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
 
 	if (rdev->family == CHIP_RV530) {

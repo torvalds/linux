@@ -2,7 +2,7 @@
  * Copyright (C) 2013-2014 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -17,6 +17,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/pm_opp.h>
 #include "adreno_gpu.h"
 
 #define ANY_ID 0xff
@@ -155,21 +156,14 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 
 	if (gpu) {
 		int ret;
-		mutex_lock(&dev->struct_mutex);
-		gpu->funcs->pm_resume(gpu);
-		mutex_unlock(&dev->struct_mutex);
 
-		disable_irq(gpu->irq);
-
-		ret = gpu->funcs->hw_init(gpu);
+		pm_runtime_get_sync(&pdev->dev);
+		ret = msm_gpu_hw_init(gpu);
+		pm_runtime_put_sync(&pdev->dev);
 		if (ret) {
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 			gpu->funcs->destroy(gpu);
 			gpu = NULL;
-		} else {
-			enable_irq(gpu->irq);
-			/* give inactive pm a chance to kick in: */
-			msm_gpu_retire(gpu);
 		}
 	}
 
@@ -220,10 +214,71 @@ static int find_chipid(struct device *dev, u32 *chipid)
 	return 0;
 }
 
+/* Get legacy powerlevels from qcom,gpu-pwrlevels and populate the opp table */
+static int adreno_get_legacy_pwrlevels(struct device *dev)
+{
+	struct device_node *child, *node;
+	int ret;
+
+	node = of_find_compatible_node(dev->of_node, NULL,
+		"qcom,gpu-pwrlevels");
+	if (!node) {
+		dev_err(dev, "Could not find the GPU powerlevels\n");
+		return -ENXIO;
+	}
+
+	for_each_child_of_node(node, child) {
+		unsigned int val;
+
+		ret = of_property_read_u32(child, "qcom,gpu-freq", &val);
+		if (ret)
+			continue;
+
+		/*
+		 * Skip the intentionally bogus clock value found at the bottom
+		 * of most legacy frequency tables
+		 */
+		if (val != 27000000)
+			dev_pm_opp_add(dev, val, 0);
+	}
+
+	return 0;
+}
+
+static int adreno_get_pwrlevels(struct device *dev,
+		struct adreno_platform_config *config)
+{
+	unsigned long freq = ULONG_MAX;
+	struct dev_pm_opp *opp;
+	int ret;
+
+	/* You down with OPP? */
+	if (!of_find_property(dev->of_node, "operating-points-v2", NULL))
+		ret = adreno_get_legacy_pwrlevels(dev);
+	else
+		ret = dev_pm_opp_of_add_table(dev);
+
+	if (ret)
+		return ret;
+
+	/* Find the fastest defined rate */
+	opp = dev_pm_opp_find_freq_floor(dev, &freq);
+	if (!IS_ERR(opp))
+		config->fast_rate = dev_pm_opp_get_freq(opp);
+
+	if (!config->fast_rate) {
+		DRM_DEV_INFO(dev,
+			"Could not find clock rate. Using default\n");
+		/* Pick a suitably safe clock speed for any target */
+		config->fast_rate = 200000000;
+	}
+
+	return 0;
+}
+
 static int adreno_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct adreno_platform_config config = {};
-	struct device_node *child, *node = dev->of_node;
 	u32 val;
 	int ret;
 
@@ -238,28 +293,10 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 
 	/* find clock rates: */
 	config.fast_rate = 0;
-	config.slow_rate = ~0;
-	for_each_child_of_node(node, child) {
-		if (of_device_is_compatible(child, "qcom,gpu-pwrlevels")) {
-			struct device_node *pwrlvl;
-			for_each_child_of_node(child, pwrlvl) {
-				ret = of_property_read_u32(pwrlvl, "qcom,gpu-freq", &val);
-				if (ret) {
-					dev_err(dev, "could not find gpu-freq: %d\n", ret);
-					return ret;
-				}
-				config.fast_rate = max(config.fast_rate, val);
-				config.slow_rate = min(config.slow_rate, val);
-			}
-		}
-	}
 
-	if (!config.fast_rate) {
-		dev_warn(dev, "could not find clk rates\n");
-		/* This is a safe low speed for all devices: */
-		config.fast_rate = 200000000;
-		config.slow_rate = 27000000;
-	}
+	ret = adreno_get_pwrlevels(dev, &config);
+	if (ret)
+		return ret;
 
 	dev->platform_data = &config;
 	set_gpu_pdev(dev_get_drvdata(master), to_platform_device(dev));
@@ -296,12 +333,35 @@ static const struct of_device_id dt_match[] = {
 	{}
 };
 
+#ifdef CONFIG_PM
+static int adreno_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+
+	return gpu->funcs->pm_resume(gpu);
+}
+
+static int adreno_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_gpu *gpu = platform_get_drvdata(pdev);
+
+	return gpu->funcs->pm_suspend(gpu);
+}
+#endif
+
+static const struct dev_pm_ops adreno_pm_ops = {
+	SET_RUNTIME_PM_OPS(adreno_suspend, adreno_resume, NULL)
+};
+
 static struct platform_driver adreno_driver = {
 	.probe = adreno_probe,
 	.remove = adreno_remove,
 	.driver = {
 		.name = "adreno",
 		.of_match_table = dt_match,
+		.pm = &adreno_pm_ops,
 	},
 };
 

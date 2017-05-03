@@ -236,7 +236,7 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         outer_dmac[0x1];
 	u8         outer_smac[0x1];
 	u8         outer_ether_type[0x1];
-	u8         reserved_at_3[0x1];
+	u8         outer_ip_version[0x1];
 	u8         outer_first_prio[0x1];
 	u8         outer_first_cfi[0x1];
 	u8         outer_first_vid[0x1];
@@ -265,7 +265,7 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         inner_dmac[0x1];
 	u8         inner_smac[0x1];
 	u8         inner_ether_type[0x1];
-	u8         reserved_at_23[0x1];
+	u8         inner_ip_version[0x1];
 	u8         inner_first_prio[0x1];
 	u8         inner_first_cfi[0x1];
 	u8         inner_first_vid[0x1];
@@ -371,7 +371,7 @@ struct mlx5_ifc_fte_match_set_lyr_2_4_bits {
 	u8         cvlan_tag[0x1];
 	u8         svlan_tag[0x1];
 	u8         frag[0x1];
-	u8         reserved_at_93[0x4];
+	u8         ip_version[0x4];
 	u8         tcp_flags[0x9];
 
 	u8         tcp_sport[0x10];
@@ -1456,7 +1456,9 @@ struct mlx5_ifc_ib_port_cntrs_grp_data_layout_bits {
 
 	u8         vl_15_dropped[0x10];
 
-	u8	   reserved_at_a0[0xa0];
+	u8	   reserved_at_a0[0x80];
+
+	u8         port_xmit_wait[0x20];
 };
 
 struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits {
@@ -4735,17 +4737,17 @@ struct mlx5_ifc_query_cong_statistics_out_bits {
 
 	u8         reserved_at_40[0x40];
 
-	u8         cur_flows[0x20];
+	u8         rp_cur_flows[0x20];
 
 	u8         sum_flows[0x20];
 
-	u8         cnp_ignored_high[0x20];
+	u8         rp_cnp_ignored_high[0x20];
 
-	u8         cnp_ignored_low[0x20];
+	u8         rp_cnp_ignored_low[0x20];
 
-	u8         cnp_handled_high[0x20];
+	u8         rp_cnp_handled_high[0x20];
 
-	u8         cnp_handled_low[0x20];
+	u8         rp_cnp_handled_low[0x20];
 
 	u8         reserved_at_140[0x100];
 
@@ -4755,13 +4757,13 @@ struct mlx5_ifc_query_cong_statistics_out_bits {
 
 	u8         accumulators_period[0x20];
 
-	u8         ecn_marked_roce_packets_high[0x20];
+	u8         np_ecn_marked_roce_packets_high[0x20];
 
-	u8         ecn_marked_roce_packets_low[0x20];
+	u8         np_ecn_marked_roce_packets_low[0x20];
 
-	u8         cnps_sent_high[0x20];
+	u8         np_cnp_sent_high[0x20];
 
-	u8         cnps_sent_low[0x20];
+	u8         np_cnp_sent_low[0x20];
 
 	u8         reserved_at_320[0x560];
 };

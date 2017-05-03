@@ -1107,9 +1107,8 @@ static inline bool is_waiting(struct omap_gem_sync_waiter *waiter)
 
 /* macro for sync debug.. */
 #define SYNCDBG 0
-#define SYNC(fmt, ...) do { if (SYNCDBG) \
-		printk(KERN_ERR "%s:%d: "fmt"\n", \
-				__func__, __LINE__, ##__VA_ARGS__); \
+#define SYNC(fmt, ...) do { if (SYNCDBG)				\
+		pr_err("%s:%d: " fmt "\n", __func__, __LINE__, ##__VA_ARGS__); \
 	} while (0)
 
 

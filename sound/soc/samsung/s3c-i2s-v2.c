@@ -72,7 +72,6 @@ static inline void dbg_showcon(const char *fn, u32 con)
 }
 #endif
 
-
 /* Turn on or off the transmission path. */
 static void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 {

@@ -187,6 +187,8 @@ static void pma_cnt_assign(struct ib_pma_portcounters *pma_cnt,
 			     port_xmit_discards);
 	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_xmit_constraint_errors,
 			     port_xmit_constraint_errors);
+	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_xmit_wait,
+			     port_xmit_wait);
 	MLX5_ASSIGN_PMA_CNTR(pma_cnt->port_rcv_constraint_errors,
 			     port_rcv_constraint_errors);
 	MLX5_ASSIGN_PMA_CNTR(pma_cnt->link_overrun_errors,

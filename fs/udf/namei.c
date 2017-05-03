@@ -906,7 +906,7 @@ out:
 static int udf_symlink(struct inode *dir, struct dentry *dentry,
 		       const char *symname)
 {
-	struct inode *inode = udf_new_inode(dir, S_IFLNK | S_IRWXUGO);
+	struct inode *inode = udf_new_inode(dir, S_IFLNK | 0777);
 	struct pathComponent *pc;
 	const char *compstart;
 	struct extent_position epos = {};

@@ -2486,7 +2486,7 @@ void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		tmp = RREG32(VM_CONTEXT0_REQUEST_RESPONSE);
 		tmp = (tmp & RESPONSE_TYPE_MASK) >> RESPONSE_TYPE_SHIFT;
 		if (tmp == 2) {
-			printk(KERN_WARNING "[drm] r600 flush TLB failed\n");
+			pr_warn("[drm] r600 flush TLB failed\n");
 			return;
 		}
 		if (tmp) {

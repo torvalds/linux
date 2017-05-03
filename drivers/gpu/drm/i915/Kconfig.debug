@@ -24,7 +24,9 @@ config DRM_I915_DEBUG
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
+	select DRM_DEBUG_MM_SELFTEST
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
+	select DRM_I915_SELFTEST
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -56,5 +58,32 @@ config DRM_I915_SW_FENCE_DEBUG_OBJECTS
           performance but will catch some internal issues.
 
           Recommended for driver developers only.
+
+          If in doubt, say "N".
+
+config DRM_I915_SELFTEST
+	bool "Enable selftests upon driver load"
+	depends on DRM_I915
+	default n
+	select FAULT_INJECTION
+	select PRIME_NUMBERS
+	help
+	  Choose this option to allow the driver to perform selftests upon
+	  loading; also requires the i915.selftest=1 module parameter. To
+	  exit the module after running the selftests (i.e. to prevent normal
+	  module initialisation afterwards) use i915.selftest=-1.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_I915_LOW_LEVEL_TRACEPOINTS
+        bool "Enable low level request tracing events"
+        depends on DRM_I915
+        default n
+        help
+          Choose this option to turn on low level request tracing events.
+          This provides the ability to precisely monitor engine utilisation
+          and also analyze the request dependency resolving timeline.
 
           If in doubt, say "N".

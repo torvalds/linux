@@ -124,6 +124,8 @@ struct gf100_gr_func {
 	void (*init_gpc_mmu)(struct gf100_gr *);
 	void (*init_rop_active_fbps)(struct gf100_gr *);
 	void (*init_ppc_exceptions)(struct gf100_gr *);
+	void (*init_swdx_pes_mask)(struct gf100_gr *);
+	void (*init_num_active_ltcs)(struct gf100_gr *);
 	void (*set_hww_esr_report_mask)(struct gf100_gr *);
 	const struct gf100_gr_pack *mmio;
 	struct {
@@ -149,6 +151,9 @@ int gk20a_gr_init(struct gf100_gr *);
 
 int gm200_gr_init(struct gf100_gr *);
 int gm200_gr_rops(struct gf100_gr *);
+
+int gp100_gr_init(struct gf100_gr *);
+void gp100_gr_init_rop_active_fbps(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 
@@ -297,4 +302,8 @@ extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr *);
 
 void gm200_gr_init_gpc_mmu(struct gf100_gr *);
+
+void gp100_gr_init_num_active_ltcs(struct gf100_gr *gr);
+
+void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 #endif

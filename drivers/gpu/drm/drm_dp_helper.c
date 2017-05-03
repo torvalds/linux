@@ -981,6 +981,78 @@ static const struct i2c_lock_operations drm_dp_i2c_lock_ops = {
 	.unlock_bus = unlock_bus,
 };
 
+static int drm_dp_aux_get_crc(struct drm_dp_aux *aux, u8 *crc)
+{
+	u8 buf, count;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK, &buf);
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(!(buf & DP_TEST_SINK_START));
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK_MISC, &buf);
+	if (ret < 0)
+		return ret;
+
+	count = buf & DP_TEST_COUNT_MASK;
+	if (count == aux->crc_count)
+		return -EAGAIN; /* No CRC yet */
+
+	aux->crc_count = count;
+
+	/*
+	 * At DP_TEST_CRC_R_CR, there's 6 bytes containing CRC data, 2 bytes
+	 * per component (RGB or CrYCb).
+	 */
+	ret = drm_dp_dpcd_read(aux, DP_TEST_CRC_R_CR, crc, 6);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static void drm_dp_aux_crc_work(struct work_struct *work)
+{
+	struct drm_dp_aux *aux = container_of(work, struct drm_dp_aux,
+					      crc_work);
+	struct drm_crtc *crtc;
+	u8 crc_bytes[6];
+	uint32_t crcs[3];
+	int ret;
+
+	if (WARN_ON(!aux->crtc))
+		return;
+
+	crtc = aux->crtc;
+	while (crtc->crc.opened) {
+		drm_crtc_wait_one_vblank(crtc);
+		if (!crtc->crc.opened)
+			break;
+
+		ret = drm_dp_aux_get_crc(aux, crc_bytes);
+		if (ret == -EAGAIN) {
+			usleep_range(1000, 2000);
+			ret = drm_dp_aux_get_crc(aux, crc_bytes);
+		}
+
+		if (ret == -EAGAIN) {
+			DRM_DEBUG_KMS("Get CRC failed after retrying: %d\n",
+				      ret);
+			continue;
+		} else if (ret) {
+			DRM_DEBUG_KMS("Failed to get a CRC: %d\n", ret);
+			continue;
+		}
+
+		crcs[0] = crc_bytes[0] | crc_bytes[1] << 8;
+		crcs[1] = crc_bytes[2] | crc_bytes[3] << 8;
+		crcs[2] = crc_bytes[4] | crc_bytes[5] << 8;
+		drm_crtc_add_crc_entry(crtc, false, 0, crcs);
+	}
+}
+
 /**
  * drm_dp_aux_init() - minimally initialise an aux channel
  * @aux: DisplayPort AUX channel
@@ -993,6 +1065,7 @@ static const struct i2c_lock_operations drm_dp_i2c_lock_ops = {
 void drm_dp_aux_init(struct drm_dp_aux *aux)
 {
 	mutex_init(&aux->hw_mutex);
+	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
 
 	aux->ddc.algo = &drm_dp_i2c_algo;
 	aux->ddc.algo_data = aux;
@@ -1081,3 +1154,57 @@ int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE])
 EXPORT_SYMBOL(drm_dp_psr_setup_time);
 
 #undef PSR_SETUP_TIME
+
+/**
+ * drm_dp_start_crc() - start capture of frame CRCs
+ * @aux: DisplayPort AUX channel
+ * @crtc: CRTC displaying the frames whose CRCs are to be captured
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_start_crc(struct drm_dp_aux *aux, struct drm_crtc *crtc)
+{
+	u8 buf;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK, &buf);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_TEST_SINK, buf | DP_TEST_SINK_START);
+	if (ret < 0)
+		return ret;
+
+	aux->crc_count = 0;
+	aux->crtc = crtc;
+	schedule_work(&aux->crc_work);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_start_crc);
+
+/**
+ * drm_dp_stop_crc() - stop capture of frame CRCs
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_stop_crc(struct drm_dp_aux *aux)
+{
+	u8 buf;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK, &buf);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_TEST_SINK, buf & ~DP_TEST_SINK_START);
+	if (ret < 0)
+		return ret;
+
+	flush_work(&aux->crc_work);
+	aux->crtc = NULL;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_stop_crc);

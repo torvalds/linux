@@ -10,6 +10,7 @@ enum nvkm_falcon_dmaidx {
 	FALCON_DMAIDX_PHYS_VID		= 2,
 	FALCON_DMAIDX_PHYS_SYS_COH	= 3,
 	FALCON_DMAIDX_PHYS_SYS_NCOH	= 4,
+	FALCON_SEC2_DMAIDX_UCODE	= 6,
 };
 
 struct nvkm_falcon {
@@ -19,11 +20,13 @@ struct nvkm_falcon {
 	u32 addr;
 
 	struct mutex mutex;
+	struct mutex dmem_mutex;
 	const struct nvkm_subdev *user;
 
 	u8 version;
 	u8 secret;
 	bool debug;
+	bool has_emem;
 
 	struct nvkm_memory *core;
 	bool external;
@@ -45,8 +48,14 @@ struct nvkm_falcon {
 	struct nvkm_engine engine;
 };
 
+/* This constructor must be called from the owner's oneinit() hook and
+ * *not* its constructor.  This is to ensure that DEVINIT has been
+ * completed, and that the device is correctly enabled before we touch
+ * falcon registers.
+ */
 int nvkm_falcon_v1_new(struct nvkm_subdev *owner, const char *name, u32 addr,
 		       struct nvkm_falcon **);
+
 void nvkm_falcon_del(struct nvkm_falcon **);
 int nvkm_falcon_get(struct nvkm_falcon *, const struct nvkm_subdev *);
 void nvkm_falcon_put(struct nvkm_falcon *, const struct nvkm_subdev *);

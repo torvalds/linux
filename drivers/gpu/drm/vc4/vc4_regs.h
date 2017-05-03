@@ -446,10 +446,61 @@
 #define VC4_HDMI_HOTPLUG			0x00c
 # define VC4_HDMI_HOTPLUG_CONNECTED		BIT(0)
 
+/* 3 bits per field, where each field maps from that corresponding MAI
+ * bus channel to the given HDMI channel.
+ */
+#define VC4_HDMI_MAI_CHANNEL_MAP		0x090
+
+#define VC4_HDMI_MAI_CONFIG			0x094
+# define VC4_HDMI_MAI_CONFIG_FORMAT_REVERSE		BIT(27)
+# define VC4_HDMI_MAI_CONFIG_BIT_REVERSE		BIT(26)
+# define VC4_HDMI_MAI_CHANNEL_MASK_MASK			VC4_MASK(15, 0)
+# define VC4_HDMI_MAI_CHANNEL_MASK_SHIFT		0
+
+/* Last received format word on the MAI bus. */
+#define VC4_HDMI_MAI_FORMAT			0x098
+
+#define VC4_HDMI_AUDIO_PACKET_CONFIG		0x09c
+# define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_SAMPLE_FLAT		BIT(29)
+# define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_INACTIVE_CHANNELS	BIT(24)
+# define VC4_HDMI_AUDIO_PACKET_FORCE_SAMPLE_PRESENT		BIT(19)
+# define VC4_HDMI_AUDIO_PACKET_FORCE_B_FRAME			BIT(18)
+# define VC4_HDMI_AUDIO_PACKET_B_FRAME_IDENTIFIER_MASK		VC4_MASK(13, 10)
+# define VC4_HDMI_AUDIO_PACKET_B_FRAME_IDENTIFIER_SHIFT		10
+/* If set, then multichannel, otherwise 2 channel. */
+# define VC4_HDMI_AUDIO_PACKET_AUDIO_LAYOUT			BIT(9)
+/* If set, then AUDIO_LAYOUT overrides audio_cea_mask */
+# define VC4_HDMI_AUDIO_PACKET_FORCE_AUDIO_LAYOUT		BIT(8)
+# define VC4_HDMI_AUDIO_PACKET_CEA_MASK_MASK			VC4_MASK(7, 0)
+# define VC4_HDMI_AUDIO_PACKET_CEA_MASK_SHIFT			0
+
 #define VC4_HDMI_RAM_PACKET_CONFIG		0x0a0
 # define VC4_HDMI_RAM_PACKET_ENABLE		BIT(16)
 
 #define VC4_HDMI_RAM_PACKET_STATUS		0x0a4
+
+#define VC4_HDMI_CRP_CFG			0x0a8
+/* When set, the CTS_PERIOD counts based on MAI bus sync pulse instead
+ * of pixel clock.
+ */
+# define VC4_HDMI_CRP_USE_MAI_BUS_SYNC_FOR_CTS	BIT(26)
+/* When set, no CRP packets will be sent. */
+# define VC4_HDMI_CRP_CFG_DISABLE		BIT(25)
+/* If set, generates CTS values based on N, audio clock, and video
+ * clock.  N must be divisible by 128.
+ */
+# define VC4_HDMI_CRP_CFG_EXTERNAL_CTS_EN	BIT(24)
+# define VC4_HDMI_CRP_CFG_N_MASK		VC4_MASK(19, 0)
+# define VC4_HDMI_CRP_CFG_N_SHIFT		0
+
+/* 20-bit fields containing CTS values to be transmitted if !EXTERNAL_CTS_EN */
+#define VC4_HDMI_CTS_0				0x0ac
+#define VC4_HDMI_CTS_1				0x0b0
+/* 20-bit fields containing number of clocks to send CTS0/1 before
+ * switching to the other one.
+ */
+#define VC4_HDMI_CTS_PERIOD_0			0x0b4
+#define VC4_HDMI_CTS_PERIOD_1			0x0b8
 
 #define VC4_HDMI_HORZA				0x0c4
 # define VC4_HDMI_HORZA_VPOS			BIT(14)
@@ -512,7 +563,11 @@
 
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
-#define VC4_HDMI_GCP_0				0x400
+#define VC4_HDMI_TX_PHY_CTL0			0x2c4
+# define VC4_HDMI_TX_PHY_RNG_PWRDN		BIT(25)
+
+#define VC4_HDMI_GCP(x)				(0x400 + ((x) * 0x4))
+#define VC4_HDMI_RAM_PACKET(x)			(0x400 + ((x) * 0x24))
 #define VC4_HDMI_PACKET_STRIDE			0x24
 
 #define VC4_HD_M_CTL				0x00c
@@ -522,6 +577,56 @@
 # define VC4_HD_M_ENABLE			BIT(0)
 
 #define VC4_HD_MAI_CTL				0x014
+/* Set when audio stream is received at a slower rate than the
+ * sampling period, so MAI fifo goes empty.  Write 1 to clear.
+ */
+# define VC4_HD_MAI_CTL_DLATE			BIT(15)
+# define VC4_HD_MAI_CTL_BUSY			BIT(14)
+# define VC4_HD_MAI_CTL_CHALIGN			BIT(13)
+# define VC4_HD_MAI_CTL_WHOLSMP			BIT(12)
+# define VC4_HD_MAI_CTL_FULL			BIT(11)
+# define VC4_HD_MAI_CTL_EMPTY			BIT(10)
+# define VC4_HD_MAI_CTL_FLUSH			BIT(9)
+/* If set, MAI bus generates SPDIF (bit 31) parity instead of passing
+ * through.
+ */
+# define VC4_HD_MAI_CTL_PAREN			BIT(8)
+# define VC4_HD_MAI_CTL_CHNUM_MASK		VC4_MASK(7, 4)
+# define VC4_HD_MAI_CTL_CHNUM_SHIFT		4
+# define VC4_HD_MAI_CTL_ENABLE			BIT(3)
+/* Underflow error status bit, write 1 to clear. */
+# define VC4_HD_MAI_CTL_ERRORE			BIT(2)
+/* Overflow error status bit, write 1 to clear. */
+# define VC4_HD_MAI_CTL_ERRORF			BIT(1)
+/* Single-shot reset bit.  Read value is undefined. */
+# define VC4_HD_MAI_CTL_RESET			BIT(0)
+
+#define VC4_HD_MAI_THR				0x018
+# define VC4_HD_MAI_THR_PANICHIGH_MASK		VC4_MASK(29, 24)
+# define VC4_HD_MAI_THR_PANICHIGH_SHIFT		24
+# define VC4_HD_MAI_THR_PANICLOW_MASK		VC4_MASK(21, 16)
+# define VC4_HD_MAI_THR_PANICLOW_SHIFT		16
+# define VC4_HD_MAI_THR_DREQHIGH_MASK		VC4_MASK(13, 8)
+# define VC4_HD_MAI_THR_DREQHIGH_SHIFT		8
+# define VC4_HD_MAI_THR_DREQLOW_MASK		VC4_MASK(5, 0)
+# define VC4_HD_MAI_THR_DREQLOW_SHIFT		0
+
+/* Format header to be placed on the MAI data. Unused. */
+#define VC4_HD_MAI_FMT				0x01c
+
+/* Register for DMAing in audio data to be transported over the MAI
+ * bus to the Falcon core.
+ */
+#define VC4_HD_MAI_DATA				0x020
+
+/* Divider from HDMI HSM clock to MAI serial clock.  Sampling period
+ * converges to N / (M + 1) cycles.
+ */
+#define VC4_HD_MAI_SMP				0x02c
+# define VC4_HD_MAI_SMP_N_MASK			VC4_MASK(31, 8)
+# define VC4_HD_MAI_SMP_N_SHIFT			8
+# define VC4_HD_MAI_SMP_M_MASK			VC4_MASK(7, 0)
+# define VC4_HD_MAI_SMP_M_SHIFT			0
 
 #define VC4_HD_VID_CTL				0x038
 # define VC4_HD_VID_CTL_ENABLE			BIT(31)

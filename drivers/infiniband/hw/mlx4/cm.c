@@ -279,14 +279,14 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 }
 
 static struct id_map_entry *
-id_map_get(struct ib_device *ibdev, int *pv_cm_id, int sl_cm_id, int slave_id)
+id_map_get(struct ib_device *ibdev, int *pv_cm_id, int slave_id, int sl_cm_id)
 {
 	struct id_map_entry *ent;
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
 	spin_lock(&sriov->id_map_lock);
 	if (*pv_cm_id == -1) {
-		ent = id_map_find_by_sl_id(ibdev, sl_cm_id, slave_id);
+		ent = id_map_find_by_sl_id(ibdev, slave_id, sl_cm_id);
 		if (ent)
 			*pv_cm_id = (int) ent->pv_cm_id;
 	} else
@@ -414,7 +414,7 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	struct rb_root *sl_id_map = &sriov->sl_id_map;
 	struct list_head lh;
 	struct rb_node *nd;
-	int need_flush = 1;
+	int need_flush = 0;
 	struct id_map_entry *map, *tmp_map;
 	/* cancel all delayed work queue entries */
 	INIT_LIST_HEAD(&lh);
@@ -422,13 +422,13 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	list_for_each_entry_safe(map, tmp_map, &dev->sriov.cm_list, list) {
 		if (slave < 0 || slave == map->slave_id) {
 			if (map->scheduled_delete)
-				need_flush &= !!cancel_delayed_work(&map->timeout);
+				need_flush |= !cancel_delayed_work(&map->timeout);
 		}
 	}
 
 	spin_unlock(&sriov->id_map_lock);
 
-	if (!need_flush)
+	if (need_flush)
 		flush_scheduled_work(); /* make sure all timers were flushed */
 
 	/* now, remove all leftover entries from databases*/

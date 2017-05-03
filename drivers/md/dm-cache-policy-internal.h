@@ -12,70 +12,65 @@
 
 /*----------------------------------------------------------------*/
 
-/*
- * Little inline functions that simplify calling the policy methods.
- */
-static inline int policy_map(struct dm_cache_policy *p, dm_oblock_t oblock,
-			     bool can_block, bool can_migrate, bool discarded_oblock,
-			     struct bio *bio, struct policy_locker *locker,
-			     struct policy_result *result)
+static inline int policy_lookup(struct dm_cache_policy *p, dm_oblock_t oblock, dm_cblock_t *cblock,
+				int data_dir, bool fast_copy, bool *background_queued)
 {
-	return p->map(p, oblock, can_block, can_migrate, discarded_oblock, bio, locker, result);
+	return p->lookup(p, oblock, cblock, data_dir, fast_copy, background_queued);
 }
 
-static inline int policy_lookup(struct dm_cache_policy *p, dm_oblock_t oblock, dm_cblock_t *cblock)
+static inline int policy_lookup_with_work(struct dm_cache_policy *p,
+					  dm_oblock_t oblock, dm_cblock_t *cblock,
+					  int data_dir, bool fast_copy,
+					  struct policy_work **work)
 {
-	BUG_ON(!p->lookup);
-	return p->lookup(p, oblock, cblock);
+	if (!p->lookup_with_work) {
+		*work = NULL;
+		return p->lookup(p, oblock, cblock, data_dir, fast_copy, NULL);
+	}
+
+	return p->lookup_with_work(p, oblock, cblock, data_dir, fast_copy, work);
 }
 
-static inline void policy_set_dirty(struct dm_cache_policy *p, dm_oblock_t oblock)
+static inline int policy_get_background_work(struct dm_cache_policy *p,
+					     bool idle, struct policy_work **result)
 {
-	if (p->set_dirty)
-		p->set_dirty(p, oblock);
+	return p->get_background_work(p, idle, result);
 }
 
-static inline void policy_clear_dirty(struct dm_cache_policy *p, dm_oblock_t oblock)
+static inline void policy_complete_background_work(struct dm_cache_policy *p,
+						   struct policy_work *work,
+						   bool success)
 {
-	if (p->clear_dirty)
-		p->clear_dirty(p, oblock);
+	return p->complete_background_work(p, work, success);
+}
+
+static inline void policy_set_dirty(struct dm_cache_policy *p, dm_cblock_t cblock)
+{
+	p->set_dirty(p, cblock);
+}
+
+static inline void policy_clear_dirty(struct dm_cache_policy *p, dm_cblock_t cblock)
+{
+	p->clear_dirty(p, cblock);
 }
 
 static inline int policy_load_mapping(struct dm_cache_policy *p,
 				      dm_oblock_t oblock, dm_cblock_t cblock,
-				      uint32_t hint, bool hint_valid)
+				      bool dirty, uint32_t hint, bool hint_valid)
 {
-	return p->load_mapping(p, oblock, cblock, hint, hint_valid);
+	return p->load_mapping(p, oblock, cblock, dirty, hint, hint_valid);
+}
+
+static inline int policy_invalidate_mapping(struct dm_cache_policy *p,
+					    dm_cblock_t cblock)
+{
+	return p->invalidate_mapping(p, cblock);
 }
 
 static inline uint32_t policy_get_hint(struct dm_cache_policy *p,
 				       dm_cblock_t cblock)
 {
 	return p->get_hint ? p->get_hint(p, cblock) : 0;
-}
-
-static inline int policy_writeback_work(struct dm_cache_policy *p,
-					dm_oblock_t *oblock,
-					dm_cblock_t *cblock,
-					bool critical_only)
-{
-	return p->writeback_work ? p->writeback_work(p, oblock, cblock, critical_only) : -ENOENT;
-}
-
-static inline void policy_remove_mapping(struct dm_cache_policy *p, dm_oblock_t oblock)
-{
-	p->remove_mapping(p, oblock);
-}
-
-static inline int policy_remove_cblock(struct dm_cache_policy *p, dm_cblock_t cblock)
-{
-	return p->remove_cblock(p, cblock);
-}
-
-static inline void policy_force_mapping(struct dm_cache_policy *p,
-					dm_oblock_t current_oblock, dm_oblock_t new_oblock)
-{
-	return p->force_mapping(p, current_oblock, new_oblock);
 }
 
 static inline dm_cblock_t policy_residency(struct dm_cache_policy *p)
@@ -105,6 +100,11 @@ static inline int policy_set_config_value(struct dm_cache_policy *p,
 					  const char *key, const char *value)
 {
 	return p->set_config_value ? p->set_config_value(p, key, value) : -EINVAL;
+}
+
+static inline void policy_allow_migrations(struct dm_cache_policy *p, bool allow)
+{
+	return p->allow_migrations(p, allow);
 }
 
 /*----------------------------------------------------------------*/

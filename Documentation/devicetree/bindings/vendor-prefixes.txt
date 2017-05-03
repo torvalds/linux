@@ -179,6 +179,7 @@ maxim	Maxim Integrated Products
 mcube	mCube
 meas	Measurement Specialties
 mediatek	MediaTek Inc.
+megachips	MegaChips
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
 memsic	MEMSIC Inc.
@@ -337,6 +338,7 @@ wd	Western Digital Corp.
 wetek	WeTek Electronics, limited.
 wexler	Wexler
 winbond Winbond Electronics corp.
+winstar	Winstar Display Corp.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
 x-powers	X-Powers

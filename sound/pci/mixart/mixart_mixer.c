@@ -448,7 +448,7 @@ static int mixart_audio_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	return changed;
 }
 
-static struct snd_kcontrol_new mixart_control_output_switch = {
+static const struct snd_kcontrol_new mixart_control_output_switch = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =         "Master Playback Switch",
 	.info =         mixart_sw_info,		/* shared */
@@ -1024,7 +1024,7 @@ static int mixart_monitor_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return changed;
 }
 
-static struct snd_kcontrol_new mixart_control_monitor_vol = {
+static const struct snd_kcontrol_new mixart_control_monitor_vol = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
@@ -1091,7 +1091,7 @@ static int mixart_monitor_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return (changed != 0);
 }
 
-static struct snd_kcontrol_new mixart_control_monitor_sw = {
+static const struct snd_kcontrol_new mixart_control_monitor_sw = {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =         "Monitoring Switch",
 	.info =         mixart_sw_info,		/* shared */

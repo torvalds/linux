@@ -93,18 +93,18 @@ static int enable_clk(struct msm_gpu *gpu)
 {
 	int i;
 
-	if (gpu->grp_clks[0] && gpu->fast_rate)
-		clk_set_rate(gpu->grp_clks[0], gpu->fast_rate);
+	if (gpu->core_clk && gpu->fast_rate)
+		clk_set_rate(gpu->core_clk, gpu->fast_rate);
 
 	/* Set the RBBM timer rate to 19.2Mhz */
-	if (gpu->grp_clks[2])
-		clk_set_rate(gpu->grp_clks[2], 19200000);
+	if (gpu->rbbmtimer_clk)
+		clk_set_rate(gpu->rbbmtimer_clk, 19200000);
 
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
+	for (i = gpu->nr_clocks - 1; i >= 0; i--)
 		if (gpu->grp_clks[i])
 			clk_prepare(gpu->grp_clks[i]);
 
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
+	for (i = gpu->nr_clocks - 1; i >= 0; i--)
 		if (gpu->grp_clks[i])
 			clk_enable(gpu->grp_clks[i]);
 
@@ -115,19 +115,24 @@ static int disable_clk(struct msm_gpu *gpu)
 {
 	int i;
 
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
+	for (i = gpu->nr_clocks - 1; i >= 0; i--)
 		if (gpu->grp_clks[i])
 			clk_disable(gpu->grp_clks[i]);
 
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
+	for (i = gpu->nr_clocks - 1; i >= 0; i--)
 		if (gpu->grp_clks[i])
 			clk_unprepare(gpu->grp_clks[i]);
 
-	if (gpu->grp_clks[0] && gpu->slow_rate)
-		clk_set_rate(gpu->grp_clks[0], gpu->slow_rate);
+	/*
+	 * Set the clock to a deliberately low rate. On older targets the clock
+	 * speed had to be non zero to avoid problems. On newer targets this
+	 * will be rounded down to zero anyway so it all works out.
+	 */
+	if (gpu->core_clk)
+		clk_set_rate(gpu->core_clk, 27000000);
 
-	if (gpu->grp_clks[2])
-		clk_set_rate(gpu->grp_clks[2], 0);
+	if (gpu->rbbmtimer_clk)
+		clk_set_rate(gpu->rbbmtimer_clk, 0);
 
 	return 0;
 }
@@ -152,18 +157,9 @@ static int disable_axi(struct msm_gpu *gpu)
 
 int msm_gpu_pm_resume(struct msm_gpu *gpu)
 {
-	struct drm_device *dev = gpu->dev;
 	int ret;
 
-	DBG("%s: active_cnt=%d", gpu->name, gpu->active_cnt);
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
-	if (gpu->active_cnt++ > 0)
-		return 0;
-
-	if (WARN_ON(gpu->active_cnt <= 0))
-		return -EINVAL;
+	DBG("%s", gpu->name);
 
 	ret = enable_pwrrail(gpu);
 	if (ret)
@@ -177,23 +173,16 @@ int msm_gpu_pm_resume(struct msm_gpu *gpu)
 	if (ret)
 		return ret;
 
+	gpu->needs_hw_init = true;
+
 	return 0;
 }
 
 int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 {
-	struct drm_device *dev = gpu->dev;
 	int ret;
 
-	DBG("%s: active_cnt=%d", gpu->name, gpu->active_cnt);
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
-	if (--gpu->active_cnt > 0)
-		return 0;
-
-	if (WARN_ON(gpu->active_cnt < 0))
-		return -EINVAL;
+	DBG("%s", gpu->name);
 
 	ret = disable_axi(gpu);
 	if (ret)
@@ -210,53 +199,20 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 	return 0;
 }
 
-/*
- * Inactivity detection (for suspend):
- */
-
-static void inactive_worker(struct work_struct *work)
+int msm_gpu_hw_init(struct msm_gpu *gpu)
 {
-	struct msm_gpu *gpu = container_of(work, struct msm_gpu, inactive_work);
-	struct drm_device *dev = gpu->dev;
+	int ret;
 
-	if (gpu->inactive)
-		return;
+	if (!gpu->needs_hw_init)
+		return 0;
 
-	DBG("%s: inactive!\n", gpu->name);
-	mutex_lock(&dev->struct_mutex);
-	if (!(msm_gpu_active(gpu) || gpu->inactive)) {
-		disable_axi(gpu);
-		disable_clk(gpu);
-		gpu->inactive = true;
-	}
-	mutex_unlock(&dev->struct_mutex);
-}
+	disable_irq(gpu->irq);
+	ret = gpu->funcs->hw_init(gpu);
+	if (!ret)
+		gpu->needs_hw_init = false;
+	enable_irq(gpu->irq);
 
-static void inactive_handler(unsigned long data)
-{
-	struct msm_gpu *gpu = (struct msm_gpu *)data;
-	struct msm_drm_private *priv = gpu->dev->dev_private;
-
-	queue_work(priv->wq, &gpu->inactive_work);
-}
-
-/* cancel inactive timer and make sure we are awake: */
-static void inactive_cancel(struct msm_gpu *gpu)
-{
-	DBG("%s", gpu->name);
-	del_timer(&gpu->inactive_timer);
-	if (gpu->inactive) {
-		enable_clk(gpu);
-		enable_axi(gpu);
-		gpu->inactive = false;
-	}
-}
-
-static void inactive_start(struct msm_gpu *gpu)
-{
-	DBG("%s", gpu->name);
-	mod_timer(&gpu->inactive_timer,
-			round_jiffies_up(jiffies + DRM_MSM_INACTIVE_JIFFIES));
+	return ret;
 }
 
 /*
@@ -296,8 +252,9 @@ static void recover_worker(struct work_struct *work)
 		/* retire completed submits, plus the one that hung: */
 		retire_submits(gpu);
 
-		inactive_cancel(gpu);
+		pm_runtime_get_sync(&gpu->pdev->dev);
 		gpu->funcs->recover(gpu);
+		pm_runtime_put_sync(&gpu->pdev->dev);
 
 		/* replay the remaining submits after the one that hung: */
 		list_for_each_entry(submit, &gpu->submit_list, node) {
@@ -400,6 +357,8 @@ void msm_gpu_perfcntr_start(struct msm_gpu *gpu)
 {
 	unsigned long flags;
 
+	pm_runtime_get_sync(&gpu->pdev->dev);
+
 	spin_lock_irqsave(&gpu->perf_lock, flags);
 	/* we could dynamically enable/disable perfcntr registers too.. */
 	gpu->last_sample.active = msm_gpu_active(gpu);
@@ -413,6 +372,7 @@ void msm_gpu_perfcntr_start(struct msm_gpu *gpu)
 void msm_gpu_perfcntr_stop(struct msm_gpu *gpu)
 {
 	gpu->perfcntr_active = false;
+	pm_runtime_put_sync(&gpu->pdev->dev);
 }
 
 /* returns -errno or # of cntrs sampled */
@@ -458,6 +418,8 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		drm_gem_object_unreference(&msm_obj->base);
 	}
 
+	pm_runtime_mark_last_busy(&gpu->pdev->dev);
+	pm_runtime_put_autosuspend(&gpu->pdev->dev);
 	msm_gem_submit_free(submit);
 }
 
@@ -492,9 +454,6 @@ static void retire_worker(struct work_struct *work)
 	mutex_lock(&dev->struct_mutex);
 	retire_submits(gpu);
 	mutex_unlock(&dev->struct_mutex);
-
-	if (!msm_gpu_active(gpu))
-		inactive_start(gpu);
 }
 
 /* call from irq handler to schedule work to retire bo's */
@@ -515,7 +474,9 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	inactive_cancel(gpu);
+	pm_runtime_get_sync(&gpu->pdev->dev);
+
+	msm_gpu_hw_init(gpu);
 
 	list_add_tail(&submit->node, &gpu->submit_list);
 
@@ -559,16 +520,52 @@ static irqreturn_t irq_handler(int irq, void *data)
 	return gpu->funcs->irq(gpu);
 }
 
-static const char *clk_names[] = {
-	"core", "iface", "rbbmtimer", "mem", "mem_iface", "alt_mem_iface",
-};
+static struct clk *get_clock(struct device *dev, const char *name)
+{
+	struct clk *clk = devm_clk_get(dev, name);
+
+	return IS_ERR(clk) ? NULL : clk;
+}
+
+static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
+{
+	struct device *dev = &pdev->dev;
+	struct property *prop;
+	const char *name;
+	int i = 0;
+
+	gpu->nr_clocks = of_property_count_strings(dev->of_node, "clock-names");
+	if (gpu->nr_clocks < 1) {
+		gpu->nr_clocks = 0;
+		return 0;
+	}
+
+	gpu->grp_clks = devm_kcalloc(dev, sizeof(struct clk *), gpu->nr_clocks,
+		GFP_KERNEL);
+	if (!gpu->grp_clks)
+		return -ENOMEM;
+
+	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
+		gpu->grp_clks[i] = get_clock(dev, name);
+
+		/* Remember the key clocks that we need to control later */
+		if (!strcmp(name, "core"))
+			gpu->core_clk = gpu->grp_clks[i];
+		else if (!strcmp(name, "rbbmtimer"))
+			gpu->rbbmtimer_clk = gpu->grp_clks[i];
+
+		++i;
+	}
+
+	return 0;
+}
 
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct msm_gpu *gpu, const struct msm_gpu_funcs *funcs,
 		const char *name, const char *ioname, const char *irqname, int ringsz)
 {
 	struct iommu_domain *iommu;
-	int i, ret;
+	int ret;
 
 	if (WARN_ON(gpu->num_perfcntrs > ARRAY_SIZE(gpu->last_cntrs)))
 		gpu->num_perfcntrs = ARRAY_SIZE(gpu->last_cntrs);
@@ -576,7 +573,6 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->dev = drm;
 	gpu->funcs = funcs;
 	gpu->name = name;
-	gpu->inactive = true;
 	gpu->fctx = msm_fence_context_alloc(drm, name);
 	if (IS_ERR(gpu->fctx)) {
 		ret = PTR_ERR(gpu->fctx);
@@ -586,19 +582,15 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	INIT_LIST_HEAD(&gpu->active_list);
 	INIT_WORK(&gpu->retire_work, retire_worker);
-	INIT_WORK(&gpu->inactive_work, inactive_worker);
 	INIT_WORK(&gpu->recover_work, recover_worker);
 
 	INIT_LIST_HEAD(&gpu->submit_list);
 
-	setup_timer(&gpu->inactive_timer, inactive_handler,
-			(unsigned long)gpu);
 	setup_timer(&gpu->hangcheck_timer, hangcheck_handler,
 			(unsigned long)gpu);
 
 	spin_lock_init(&gpu->perf_lock);
 
-	BUG_ON(ARRAY_SIZE(clk_names) != ARRAY_SIZE(gpu->grp_clks));
 
 	/* Map registers: */
 	gpu->mmio = msm_ioremap(pdev, ioname, name);
@@ -622,13 +614,9 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		goto fail;
 	}
 
-	/* Acquire clocks: */
-	for (i = 0; i < ARRAY_SIZE(clk_names); i++) {
-		gpu->grp_clks[i] = msm_clk_get(pdev, clk_names[i]);
-		DBG("grp_clks[%s]: %p", clk_names[i], gpu->grp_clks[i]);
-		if (IS_ERR(gpu->grp_clks[i]))
-			gpu->grp_clks[i] = NULL;
-	}
+	ret = get_clocks(pdev, gpu);
+	if (ret)
+		goto fail;
 
 	gpu->ebi1_clk = msm_clk_get(pdev, "bus");
 	DBG("ebi1_clk: %p", gpu->ebi1_clk);
@@ -683,6 +671,9 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		dev_err(drm->dev, "could not create ringbuffer: %d\n", ret);
 		goto fail;
 	}
+
+	gpu->pdev = pdev;
+	platform_set_drvdata(pdev, gpu);
 
 	bs_init(gpu);
 

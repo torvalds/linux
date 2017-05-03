@@ -295,6 +295,13 @@ struct compat_old_sigaction {
 };
 #endif
 
+struct compat_keyctl_kdf_params {
+	compat_uptr_t hashname;
+	compat_uptr_t otherinfo;
+	__u32 otherinfolen;
+	__u32 __spare[8];
+};
+
 struct compat_statfs;
 struct compat_statfs64;
 struct compat_old_linux_dirent;

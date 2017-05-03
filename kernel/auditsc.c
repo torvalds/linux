@@ -73,6 +73,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
+#include <linux/fsnotify_backend.h>
 #include <uapi/linux/limits.h>
 
 #include "audit.h"
@@ -1532,7 +1533,7 @@ void __audit_syscall_entry(int major, unsigned long a1, unsigned long a2,
 		return;
 
 	context->serial     = 0;
-	context->ctime      = CURRENT_TIME;
+	ktime_get_real_ts64(&context->ctime);
 	context->in_syscall = 1;
 	context->current_state  = state;
 	context->ppid       = 0;
@@ -1596,7 +1597,7 @@ static inline void handle_one(const struct inode *inode)
 	struct audit_tree_refs *p;
 	struct audit_chunk *chunk;
 	int count;
-	if (likely(hlist_empty(&inode->i_fsnotify_marks)))
+	if (likely(!inode->i_fsnotify_marks))
 		return;
 	context = current->audit_context;
 	p = context->trees;
@@ -1639,7 +1640,7 @@ retry:
 	seq = read_seqbegin(&rename_lock);
 	for(;;) {
 		struct inode *inode = d_backing_inode(d);
-		if (inode && unlikely(!hlist_empty(&inode->i_fsnotify_marks))) {
+		if (inode && unlikely(inode->i_fsnotify_marks)) {
 			struct audit_chunk *chunk;
 			chunk = audit_tree_lookup(inode);
 			if (chunk) {
@@ -1941,13 +1942,13 @@ EXPORT_SYMBOL_GPL(__audit_inode_child);
 /**
  * auditsc_get_stamp - get local copies of audit_context values
  * @ctx: audit_context for the task
- * @t: timespec to store time recorded in the audit_context
+ * @t: timespec64 to store time recorded in the audit_context
  * @serial: serial value that is recorded in the audit_context
  *
  * Also sets the context as auditable.
  */
 int auditsc_get_stamp(struct audit_context *ctx,
-		       struct timespec *t, unsigned int *serial)
+		       struct timespec64 *t, unsigned int *serial)
 {
 	if (!ctx->in_syscall)
 		return 0;

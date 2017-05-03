@@ -30,7 +30,7 @@
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static void
+void
 gp100_gr_init_rop_active_fbps(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -40,7 +40,16 @@ gp100_gr_init_rop_active_fbps(struct gf100_gr *gr)
 	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
-static int
+void
+gp100_gr_init_num_active_ltcs(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
+	nvkm_wr32(device, GPC_BCAST(0x033c), nvkm_rd32(device, 0x100804));
+}
+
+int
 gp100_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -81,10 +90,11 @@ gp100_gr_init(struct gf100_gr *gr)
 	}
 
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
-	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
-	nvkm_wr32(device, GPC_BCAST(0x033c), nvkm_rd32(device, 0x100804));
+	gr->func->init_num_active_ltcs(gr);
 
 	gr->func->init_rop_active_fbps(gr);
+	if (gr->func->init_swdx_pes_mask)
+		gr->func->init_swdx_pes_mask(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 	nvkm_wr32(device, 0x400100, 0xffffffff);
@@ -152,6 +162,7 @@ gp100_gr = {
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
+	.init_num_active_ltcs = gp100_gr_init_num_active_ltcs,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gp100_grctx,

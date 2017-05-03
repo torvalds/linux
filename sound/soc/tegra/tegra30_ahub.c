@@ -41,6 +41,7 @@ static inline void tegra30_apbif_write(u32 reg, u32 val)
 static inline u32 tegra30_apbif_read(u32 reg)
 {
 	u32 val;
+
 	regmap_read(ahub->regmap_apbif, reg, &val);
 	return val;
 }
@@ -560,10 +561,8 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 
 	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
 			    GFP_KERNEL);
-	if (!ahub) {
-		dev_err(&pdev->dev, "Can't allocate tegra30_ahub\n");
+	if (!ahub)
 		return -ENOMEM;
-	}
 	dev_set_drvdata(&pdev->dev, ahub);
 
 	ahub->soc_data = soc_data;

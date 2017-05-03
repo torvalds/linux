@@ -1315,8 +1315,10 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
  * Currently this always returns CONNECTOR_STATUS_UNKNOWN, as we need to be sure
  * we have a pipe programmed in order to probe the TV.
  */
-static enum drm_connector_status
-intel_tv_detect(struct drm_connector *connector, bool force)
+static int
+intel_tv_detect(struct drm_connector *connector,
+		struct drm_modeset_acquire_ctx *ctx,
+		bool force)
 {
 	struct drm_display_mode mode;
 	struct intel_tv *intel_tv = intel_attached_tv(connector);
@@ -1331,21 +1333,20 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 
 	if (force) {
 		struct intel_load_detect_pipe tmp;
-		struct drm_modeset_acquire_ctx ctx;
+		int ret;
 
-		drm_modeset_acquire_init(&ctx, 0);
+		ret = intel_get_load_detect_pipe(connector, &mode, &tmp, ctx);
+		if (ret < 0)
+			return ret;
 
-		if (intel_get_load_detect_pipe(connector, &mode, &tmp, &ctx)) {
+		if (ret > 0) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(connector, &tmp, &ctx);
+			intel_release_load_detect_pipe(connector, &tmp, ctx);
 			status = type < 0 ?
 				connector_status_disconnected :
 				connector_status_connected;
 		} else
 			status = connector_status_unknown;
-
-		drm_modeset_drop_locks(&ctx);
-		drm_modeset_acquire_fini(&ctx);
 	} else
 		return connector->status;
 
@@ -1516,7 +1517,6 @@ out:
 
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
-	.detect = intel_tv_detect,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_tv_destroy,
@@ -1528,6 +1528,7 @@ static const struct drm_connector_funcs intel_tv_connector_funcs = {
 };
 
 static const struct drm_connector_helper_funcs intel_tv_connector_helper_funcs = {
+	.detect_ctx = intel_tv_detect,
 	.mode_valid = intel_tv_mode_valid,
 	.get_modes = intel_tv_get_modes,
 };
@@ -1621,6 +1622,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
+	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = PORT_NONE;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	intel_encoder->cloneable = 0;

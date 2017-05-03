@@ -167,16 +167,7 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.funcs = &sti_mode_config_funcs;
 }
 
-static const struct file_operations sti_driver_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.mmap = drm_gem_cma_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.unlocked_ioctl = drm_ioctl,
-	.compat_ioctl = drm_compat_ioctl,
-	.release = drm_release,
-};
+DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
 
 static struct drm_driver sti_driver = {
 	.driver_features = DRIVER_MODESET |
@@ -188,7 +179,6 @@ static struct drm_driver sti_driver = {
 	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &sti_driver_fops,
 
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = sti_crtc_enable_vblank,
 	.disable_vblank = sti_crtc_disable_vblank,
 
@@ -264,8 +254,6 @@ static int sti_bind(struct device *dev)
 	if (IS_ERR(ddev))
 		return PTR_ERR(ddev);
 
-	ddev->platformdev = to_platform_device(dev);
-
 	ret = sti_init(ddev);
 	if (ret)
 		goto err_drm_dev_unref;
@@ -325,7 +313,7 @@ static int sti_platform_probe(struct platform_device *pdev)
 
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 
-	of_platform_populate(node, NULL, NULL, dev);
+	devm_of_platform_populate(dev);
 
 	child_np = of_get_next_available_child(node, NULL);
 
@@ -341,7 +329,6 @@ static int sti_platform_probe(struct platform_device *pdev)
 static int sti_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &sti_ops);
-	of_platform_depopulate(&pdev->dev);
 
 	return 0;
 }

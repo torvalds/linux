@@ -1212,6 +1212,11 @@ static int cik_asic_reset(struct amdgpu_device *adev)
 	return r;
 }
 
+static u32 cik_get_config_memsize(struct amdgpu_device *adev)
+{
+	return RREG32(mmCONFIG_MEMSIZE);
+}
+
 static int cik_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
 			      u32 cntl_reg, u32 status_reg)
 {
@@ -1641,6 +1646,7 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.get_xclk = &cik_get_xclk,
 	.set_uvd_clocks = &cik_set_uvd_clocks,
 	.set_vce_clocks = &cik_set_vce_clocks,
+	.get_config_memsize = &cik_get_config_memsize,
 };
 
 static int cik_common_early_init(void *handle)
@@ -1778,6 +1784,8 @@ static int cik_common_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
 
 	amdgpu_get_pcie_info(adev);
 

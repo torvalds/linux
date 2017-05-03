@@ -23,6 +23,7 @@
 #define ALPS_PROTO_V6		0x600
 #define ALPS_PROTO_V7		0x700	/* t3btl t4s */
 #define ALPS_PROTO_V8		0x800	/* SS4btl SS4s */
+#define ALPS_PROTO_V9		0x900	/* ss3btl */
 
 #define MAX_TOUCHES	4
 
@@ -172,10 +173,6 @@ struct alps_protocol_info {
 /**
  * struct alps_model_info - touchpad ID table
  * @signature: E7 response string to match.
- * @command_mode_resp: For V3/V4 touchpads, the final byte of the EC response
- *   (aka command mode response) identifies the firmware minor version.  This
- *   can be used to distinguish different hardware models which are not
- *   uniquely identifiable through their E7 responses.
  * @protocol_info: information about protocol used by the device.
  *
  * Many (but not all) ALPS touchpads can be identified by looking at the
@@ -184,7 +181,6 @@ struct alps_protocol_info {
  */
 struct alps_model_info {
 	u8 signature[3];
-	u8 command_mode_resp;
 	struct alps_protocol_info protocol_info;
 };
 

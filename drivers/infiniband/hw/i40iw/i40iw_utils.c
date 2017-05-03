@@ -844,10 +844,9 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
 	i40iw_add_ref(&iwqp->ibqp);
-	init_timer(&iwqp->terminate_timer);
-	iwqp->terminate_timer.function = i40iw_terminate_timeout;
+	setup_timer(&iwqp->terminate_timer, i40iw_terminate_timeout,
+		    (unsigned long)iwqp);
 	iwqp->terminate_timer.expires = jiffies + HZ;
-	iwqp->terminate_timer.data = (unsigned long)iwqp;
 	add_timer(&iwqp->terminate_timer);
 }
 
@@ -1436,9 +1435,8 @@ void i40iw_hw_stats_start_timer(struct i40iw_sc_vsi *vsi)
 {
 	struct i40iw_vsi_pestat *devstat = vsi->pestat;
 
-	init_timer(&devstat->stats_timer);
-	devstat->stats_timer.function = i40iw_hw_stats_timeout;
-	devstat->stats_timer.data = (unsigned long)vsi;
+	setup_timer(&devstat->stats_timer, i40iw_hw_stats_timeout,
+		    (unsigned long)vsi);
 	mod_timer(&devstat->stats_timer,
 		  jiffies + msecs_to_jiffies(STATS_TIMER_DELAY));
 }

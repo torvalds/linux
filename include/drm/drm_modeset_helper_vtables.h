@@ -747,11 +747,43 @@ struct drm_connector_helper_funcs {
 	 * This callback is used by the probe helpers in e.g.
 	 * drm_helper_probe_single_connector_modes().
 	 *
+	 * To avoid races with concurrent connector state updates, the helper
+	 * libraries always call this with the &drm_mode_config.connection_mutex
+	 * held. Because of this it's safe to inspect &drm_connector->state.
+	 *
 	 * RETURNS:
 	 *
 	 * The number of modes added by calling drm_mode_probed_add().
 	 */
 	int (*get_modes)(struct drm_connector *connector);
+
+	/**
+	 * @detect_ctx:
+	 *
+	 * Check to see if anything is attached to the connector. The parameter
+	 * force is set to false whilst polling, true when checking the
+	 * connector due to a user request. force can be used by the driver to
+	 * avoid expensive, destructive operations during automated probing.
+	 *
+	 * This callback is optional, if not implemented the connector will be
+	 * considered as always being attached.
+	 *
+	 * This is the atomic version of &drm_connector_funcs.detect.
+	 *
+	 * To avoid races against concurrent connector state updates, the
+	 * helper libraries always call this with ctx set to a valid context,
+	 * and &drm_mode_config.connection_mutex will always be locked with
+	 * the ctx parameter set to this ctx. This allows taking additional
+	 * locks as required.
+	 *
+	 * RETURNS:
+	 *
+	 * &drm_connector_status indicating the connector's status,
+	 * or the error code returned by drm_modeset_lock(), -EDEADLK.
+	 */
+	int (*detect_ctx)(struct drm_connector *connector,
+			  struct drm_modeset_acquire_ctx *ctx,
+			  bool force);
 
 	/**
 	 * @mode_valid:
@@ -771,6 +803,10 @@ struct drm_connector_helper_funcs {
 	 * CRTC helpers will not call this function. Drivers therefore must
 	 * still fully validate any mode passed in in a modeset request.
 	 *
+	 * To avoid races with concurrent connector state updates, the helper
+	 * libraries always call this with the &drm_mode_config.connection_mutex
+	 * held. Because of this it's safe to inspect &drm_connector->state.
+         *
 	 * RETURNS:
 	 *
 	 * Either &drm_mode_status.MODE_OK or one of the failure reasons in &enum
@@ -836,6 +872,40 @@ struct drm_connector_helper_funcs {
 	 */
 	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
 						   struct drm_connector_state *connector_state);
+
+	/**
+	 * @atomic_check:
+	 *
+	 * This hook is used to validate connector state. This function is
+	 * called from &drm_atomic_helper_check_modeset, and is called when
+	 * a connector property is set, or a modeset on the crtc is forced.
+	 *
+	 * Because &drm_atomic_helper_check_modeset may be called multiple times,
+	 * this function should handle being called multiple times as well.
+	 *
+	 * This function is also allowed to inspect any other object's state and
+	 * can add more state objects to the atomic commit if needed. Care must
+	 * be taken though to ensure that state check and compute functions for
+	 * these added states are all called, and derived state in other objects
+	 * all updated. Again the recommendation is to just call check helpers
+	 * until a maximal configuration is reached.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the check phase of an atomic update. The
+	 * driver is not allowed to change anything outside of the free-standing
+	 * state objects passed-in or assembled in the overall &drm_atomic_state
+	 * update tracking structure.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the state or the transition can't be
+	 * supported, -ENOMEM on memory allocation failure and -EDEADLK if an
+	 * attempt to obtain another state object ran into a &drm_modeset_lock
+	 * deadlock.
+	 */
+	int (*atomic_check)(struct drm_connector *connector,
+			    struct drm_connector_state *state);
 };
 
 /**

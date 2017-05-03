@@ -30,15 +30,17 @@
 
 struct phm_ppt_v1_clock_voltage_dependency_record {
 	uint32_t clk;
-	uint8_t vddInd;
+	uint8_t  vddInd;
+	uint8_t  vddciInd;
+	uint8_t  mvddInd;
 	uint16_t vdd_offset;
 	uint16_t vddc;
 	uint16_t vddgfx;
 	uint16_t vddci;
 	uint16_t mvdd;
-	uint8_t phases;
-	uint8_t cks_enable;
-	uint8_t cks_voffset;
+	uint8_t  phases;
+	uint8_t  cks_enable;
+	uint8_t  cks_voffset;
 	uint32_t sclk_offset;
 };
 
@@ -94,6 +96,7 @@ struct phm_ppt_v1_pcie_record {
 	uint8_t gen_speed;
 	uint8_t lane_width;
 	uint16_t usreserved;
+	uint16_t reserved;
 	uint32_t pcie_sclk;
 };
 typedef struct phm_ppt_v1_pcie_record phm_ppt_v1_pcie_record;
@@ -103,6 +106,11 @@ struct phm_ppt_v1_pcie_table {
 	phm_ppt_v1_pcie_record entries[1];                         /* Dynamically allocate count entries. */
 };
 typedef struct phm_ppt_v1_pcie_table phm_ppt_v1_pcie_table;
+
+struct phm_ppt_v1_gpio_table {
+	uint8_t vrhot_triggered_sclk_dpm_index;           /* SCLK DPM level index to switch to when VRHot is triggered */
+};
+typedef struct phm_ppt_v1_gpio_table phm_ppt_v1_gpio_table;
 
 #endif
 

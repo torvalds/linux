@@ -126,14 +126,14 @@ static int max1586_v6_set_voltage_sel(struct regulator_dev *rdev,
  * The Maxim 1586 controls V3 and V6 voltages, but offers no way of reading back
  * the set up value.
  */
-static struct regulator_ops max1586_v3_ops = {
+static const struct regulator_ops max1586_v3_ops = {
 	.get_voltage_sel = max1586_v3_get_voltage_sel,
 	.set_voltage_sel = max1586_v3_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 };
 
-static struct regulator_ops max1586_v6_ops = {
+static const struct regulator_ops max1586_v6_ops = {
 	.get_voltage_sel = max1586_v6_get_voltage_sel,
 	.set_voltage_sel = max1586_v6_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,

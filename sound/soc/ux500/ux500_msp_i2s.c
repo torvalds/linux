@@ -604,7 +604,6 @@ int ux500_msp_i2s_trigger(struct ux500_msp *msp, int cmd, int direction)
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return 0;
