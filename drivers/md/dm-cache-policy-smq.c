@@ -1214,7 +1214,11 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 		return;
 
 	if (allocator_empty(&mq->cache_alloc)) {
-		if (!free_target_met(mq, false))
+		/*
+		 * We always claim to be 'idle' to ensure some demotions happen
+		 * with continuous loads.
+		 */
+		if (!free_target_met(mq, true))
 			queue_demotion(mq);
 		return;
 	}
