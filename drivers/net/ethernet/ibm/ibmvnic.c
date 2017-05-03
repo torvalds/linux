@@ -552,11 +552,20 @@ static int ibmvnic_login(struct net_device *netdev)
 
 static void release_resources(struct ibmvnic_adapter *adapter)
 {
+	int i;
+
 	release_tx_pools(adapter);
 	release_rx_pools(adapter);
 
 	release_stats_token(adapter);
 	release_error_buffers(adapter);
+
+	if (adapter->napi) {
+		for (i = 0; i < adapter->req_rx_queues; i++) {
+			if (&adapter->napi[i])
+				netif_napi_del(&adapter->napi[i]);
+		}
+	}
 }
 
 static int set_link_state(struct ibmvnic_adapter *adapter, u8 link_state)
