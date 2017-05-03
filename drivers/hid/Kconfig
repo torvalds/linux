@@ -98,6 +98,18 @@ config HID_A4TECH
 	---help---
 	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
 
+config HID_ACCUTOUCH
+	tristate "Accutouch touch device"
+	depends on USB_HID
+	---help---
+	  This selects a driver for the Accutouch 2216 touch controller.
+
+	  The driver works around a problem in the reported device capabilities
+	  which causes userspace to detect the device as a mouse rather than
+          a touchscreen.
+
+	  Say Y here if you have a Accutouch 2216 touch controller.
+
 config HID_ACRUX
 	tristate "ACRUX game controller support"
 	depends on HID
@@ -136,13 +148,16 @@ config HID_APPLEIR
 
 config HID_ASUS
 	tristate "Asus"
-	depends on I2C_HID
+	depends on LEDS_CLASS
 	---help---
-	Support for Asus notebook built-in keyboard and touchpad via i2c.
+	Support for Asus notebook built-in keyboard and touchpad via i2c, and
+	the Asus Republic of Gamers laptop keyboard special keys.
 
 	Supported devices:
 	- EeeBook X205TA
 	- VivoBook E200HA
+	- GL553V series
+	- GL753V series
 
 config HID_AUREAL
 	tristate "Aureal"
@@ -215,7 +230,8 @@ config HID_CMEDIA
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C && GPIOLIB && GPIOLIB_IRQCHIP
+	depends on USB_HID && I2C && GPIOLIB
+	select GPIOLIB_IRQCHIP
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
 	This is a HID device driver which registers as an i2c adapter
@@ -441,6 +457,7 @@ config HID_LOGITECH_DJ
 config HID_LOGITECH_HIDPP
 	tristate "Logitech HID++ devices support"
 	depends on HID_LOGITECH
+	select POWER_SUPPLY
 	---help---
 	Support for Logitech devices relyingon the HID++ Logitech specification
 
@@ -580,6 +597,12 @@ config HID_MULTITOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-multitouch.
+
+config HID_NTI
+	tristate "NTI keyboard adapters"
+	---help---
+	Support for the "extra" Sun keyboard keys on keyboards attached
+	through Network Technologies USB-SUN keyboard adapters.
 
 config HID_NTRIG
 	tristate "N-Trig touch screen"
