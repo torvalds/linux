@@ -411,9 +411,6 @@ struct backing_dev_info;
 extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
 extern void exit_swap_address_space(unsigned int type);
 
-extern int get_swap_slots(int n, swp_entry_t *slots);
-extern void swapcache_free_batch(swp_entry_t *entries, int n);
-
 #else /* CONFIG_SWAP */
 
 #define swap_address_space(entry)		(NULL)
